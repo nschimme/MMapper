@@ -903,7 +903,7 @@ float MapCanvas::SCROLLFACTOR()
 
   void MapCanvas::initializeGL()
   {
-    qglClearColor(QColor(110,110,110));
+    qglClearColor(QColor(0,0,0));
     glShadeModel(GL_FLAT);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_NORMALIZE);

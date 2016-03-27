@@ -65,6 +65,8 @@ set(mmapper_SRCS
     preferences/pathmachinepage.cpp
     proxy/connectionlistener.cpp
     proxy/proxy.cpp
+    proxy/websocketproxy.cpp
+    proxy/tcpsocketproxy.cpp
     proxy/telnetfilter.cpp
 )
 
@@ -116,6 +118,8 @@ set(mmapper_MOC_HDRS
     preferences/pathmachinepage.h
     proxy/connectionlistener.h
     proxy/proxy.h
+    proxy/websocketproxy.h
+    proxy/tcpsocketproxy.h
     proxy/telnetfilter.h
 )
 
@@ -148,6 +152,7 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/proxy
     ${OPENGL_INCLUDE_DIR}
     ${QTIOCOMPRESSOR_INCLUDE_DIRS}
+    ${ZLIB_INCLUDE_DIR}
 )
 
 QT5_WRAP_UI(mmapper_UIS_H ${mmapper_UIS})
@@ -173,6 +178,8 @@ target_link_libraries(mmapper
     Qt5::Xml
     Qt5::Network
     Qt5::OpenGL
+    Qt5::WebEngineWidgets
+    Qt5::WebSockets
     ${OPENGL_gl_LIBRARY}
     ${ZLIB_LIBRARIES}
     ${QTIOCOMPRESSOR_LIBRARIES}

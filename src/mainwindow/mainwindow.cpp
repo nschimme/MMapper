@@ -106,6 +106,10 @@ MainWindow::MainWindow(QWidget *parent, Qt::WindowFlags flags)
   m_groupManager = new CGroup(Config().m_groupManagerCharName, m_mapData, this);
   m_groupManager->setObjectName("GroupManager");
 
+  m_webClient = new QWebEngineView(this);
+  m_webClient->load(QUrl("qrc:/decafmud/index.html"));
+  m_webClient->show();
+
   m_stackedWidget = new StackedWidget();
   m_stackedWidget->setObjectName("StackedWidget");
   m_stackedWidget->addWidget(new MapWindow(m_mapData, m_prespammedPath, m_groupManager));
@@ -136,6 +140,13 @@ MainWindow::MainWindow(QWidget *parent, Qt::WindowFlags flags)
   addDockWidget(Qt::TopDockWidgetArea, m_dockDialogGroup);
   m_dockDialogGroup->setWidget(m_groupManager);
 
+  m_dockWebClient = new DockWidget(tr("Web Client View"), this);
+  m_dockWebClient->setObjectName("DockWidgetWebClient");
+  m_dockWebClient->setAllowedAreas(Qt::AllDockWidgetAreas);
+  m_dockWebClient->setFeatures(QDockWidget::AllDockWidgetFeatures);
+  addDockWidget(Qt::LeftDockWidgetArea, m_dockWebClient);
+  m_dockWebClient->setWidget(m_webClient);
+
   m_groupCommunicator = m_groupManager->getCommunicator();
   m_groupCommunicator->setObjectName("CCommunicator");
   m_findRoomsDlg = new FindRoomsDlg(m_mapData, this);
@@ -153,12 +164,9 @@ MainWindow::MainWindow(QWidget *parent, Qt::WindowFlags flags)
 
 
   ConnectionListener* server = new ConnectionListener(m_mapData, m_pathMachine, m_commandEvaluator, m_prespammedPath, m_groupManager, this);
-  server->setMaxPendingConnections (1);
   server->setRemoteHost(Config().m_remoteServerName);
   server->setRemotePort(Config().m_remotePort);
-
-
-  if (!server->listen(QHostAddress::Any, Config().m_localPort))
+  if (!server->start())
   {
     QMessageBox::critical(this, tr("MMapper2"),
                           tr("Unable to start the server (switching to offline mode): %1.")
@@ -166,7 +174,7 @@ MainWindow::MainWindow(QWidget *parent, Qt::WindowFlags flags)
   }
   else
   {
-    log("ConnectionListener", tr("Server bound on localhost to port: %2.").arg(Config().m_localPort));
+    emit log("Listener", tr("Server bound on localhost to port: %2.").arg(Config().m_localPort));
   }
 
 
@@ -199,9 +207,9 @@ MainWindow::~MainWindow()
 
 void MainWindow::readSettings()
 {
-  resize(Config().windowSize);
-  move(Config().windowPosition);
-  restoreState(Config().windowState);
+  //resize(Config().windowSize);
+  //move(Config().windowPosition);
+  //restoreState(Config().windowState);
   alwaysOnTopAct->setChecked(Config().alwaysOnTop);
   if (Config().alwaysOnTop) {
     alwaysOnTop();

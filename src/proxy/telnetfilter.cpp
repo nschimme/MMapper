@@ -27,6 +27,7 @@
 #include "telnetfilter.h"
 #include "patterns.h"
 #include "configuration.h"
+#include <QDebug>
 
 #define TC_SE  240  //End of subnegotiation parameters.  
 #define TC_NOP  241  //No operation  
@@ -80,10 +81,8 @@ TelnetFilter::~TelnetFilter()
 #endif
 }
 
-void TelnetFilter::analyzeMudStream(const char * input, int length) 
+void TelnetFilter::analyzeMudStream(const QByteArray&ba)
 {
-  //QByteArray ba(input, length);
-  QByteArray ba = QByteArray::fromRawData(input, length);
   dispatchTelnetStream(ba, m_mudIncomingData, m_mudIncomingQue);
 
 /*		
@@ -180,10 +179,8 @@ void TelnetFilter::analyzeMudStream(const char * input, int length)
   return;
 }
 
-void TelnetFilter::analyzeUserStream(const char * input, int length) 
+void TelnetFilter::analyzeUserStream(const QByteArray&ba)
 {
-  //QByteArray ba(input, length);
-  QByteArray ba = QByteArray::fromRawData(input, length);
   dispatchTelnetStream(ba, m_userIncomingData, m_userIncomingQue);
   
   //parse incoming lines in que
@@ -201,7 +198,7 @@ void TelnetFilter::analyzeUserStream(const char * input, int length)
   return;
 }
 
-void TelnetFilter::dispatchTelnetStream(QByteArray& stream, IncomingData &m_incomingData, TelnetIncomingDataQueue &que)
+void TelnetFilter::dispatchTelnetStream(const QByteArray& stream, IncomingData &m_incomingData, TelnetIncomingDataQueue &que)
 {
 	quint8 val1 = 0; 
 	quint8 val2 = 0;
@@ -217,7 +214,7 @@ void TelnetFilter::dispatchTelnetStream(QByteArray& stream, IncomingData &m_inco
 #endif
 
 	//QByteArray ba = str.toAscii();
-	//quint8* dline = (quint8*) stream.data(); 
+    //quint8* dline = (quint8*) stream.data();
    
    	while (index < stream.size()) 
    	{

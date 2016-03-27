@@ -29,22 +29,22 @@
 
 //#define PROXY_STREAM_DEBUG_INPUT_TO_FILE
 
-#include <QThread>
 #include <QPointer>
 #include <QTcpSocket>
+#include <QThread>
 
 class QFile;
 class QDataStream;
 class TelnetFilter;
 class Parser;
 class MumeXmlParser;
-class Proxy;
 
 class MapData;
 class Mmapper2PathMachine;
 class CommandEvaluator;
 class PrespammedPath;
 class CGroup;
+class Proxy;
 
 class ProxyThreader: public QThread
 {
@@ -59,7 +59,6 @@ class ProxyThreader: public QThread
         Proxy *m_proxy;
 };
 
-
 class Proxy : public QObject
 {
 
@@ -67,19 +66,19 @@ class Proxy : public QObject
     Q_OBJECT
 
   public:
-    Proxy(MapData*, Mmapper2PathMachine*, CommandEvaluator*, PrespammedPath*, CGroup*, qintptr & socketDescriptor, QString & host, int & port, bool threaded, QObject *parent);
+    Proxy(MapData*, Mmapper2PathMachine*, CommandEvaluator*, PrespammedPath*, CGroup*, QString & host, int & port, bool threaded, QObject *parent);
     ~Proxy();
 
     void start();
 
   public slots:
-    void processMudStream();
-    void processUserStream();
+    virtual void sendToUser(const QByteArray&) = 0;
+
     void userTerminatedConnection();
+    void processMudStream();
     void mudTerminatedConnection();
 
     void sendToMud(const QByteArray&);
-    void sendToUser(const QByteArray&);
 
   signals:
     void error(QTcpSocket::SocketError socketError);
@@ -87,25 +86,27 @@ class Proxy : public QObject
     void doNotAcceptNewConnections();
     void doAcceptNewConnections();
 
-    void analyzeUserStream( const char *, int );
-    void analyzeMudStream( const char *, int );
+    void analyzeUserStream( const QByteArray& );
+    void analyzeMudStream( const QByteArray& );
     void terminate();
 
-  private:
+protected:
     bool init();
+
+  private:
 
 #ifdef PROXY_STREAM_DEBUG_INPUT_TO_FILE
     QDataStream *debugStream;
     QFile* file;
 #endif
 
-    int m_socketDescriptor;
     QString m_remoteHost;
     int m_remotePort;
-    QPointer<QTcpSocket> m_mudSocket, m_userSocket;
-    char m_buffer[ 8192 ];
+    QPointer<QTcpSocket> m_mudSocket;
 
     bool m_serverConnected;
+    bool m_threaded;
+    ProxyThreader* m_thread;
 
     TelnetFilter *m_filter;
     Parser *m_parser;
@@ -116,10 +117,6 @@ class Proxy : public QObject
     CommandEvaluator* m_commandEvaluator;
     PrespammedPath* m_prespammedPath;
     CGroup* m_groupManager;
-
-    ProxyThreader *m_thread;
-    bool m_threaded;
-    QObject *m_parent;
 };
 
 #endif

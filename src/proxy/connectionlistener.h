@@ -28,7 +28,9 @@
 #define CONNECTIONLISTENER
 
 #include <QTcpServer>
+#include <QWebSocketServer>
 #include <QTcpSocket>
+#include <QPointer>
 
 class MapData;
 class Mmapper2PathMachine;
@@ -39,27 +41,32 @@ class CGroup;
 class ConnectionListener : public QTcpServer {
   public:
     ConnectionListener(MapData*, Mmapper2PathMachine*, CommandEvaluator*, PrespammedPath*, CGroup*, QObject *parent);
-
+    ~ConnectionListener();
+    bool start();
     QString getRemoteHost() const {return m_remoteHost;}
     void setRemoteHost(QString i) {m_remoteHost = i;}
     int getRemotePort() const {return m_remotePort;}
     void setRemotePort(int i) {m_remotePort = i;}
+    QString errorString() const {return m_errorString;}
+
 
   public slots:
     void doNotAcceptNewConnections();
     void doAcceptNewConnections();
+    void incomingConnection(qintptr socketDescriptor);
+    void addPendingConnection(QTcpSocket*);
+    void incomingWebSocketConnection();
 
   signals:
     void log(const QString&, const QString&);
 
-  protected:
-    void incomingConnection(qintptr socketDescriptor);
-
   private:
     Q_OBJECT
+    QPointer<QWebSocketServer> m_webSocketServer;
 
-        QString m_remoteHost;
+    QString m_remoteHost;
     int m_remotePort;
+    QString m_errorString;
 
     MapData* m_mapData;
     Mmapper2PathMachine* m_pathMachine;

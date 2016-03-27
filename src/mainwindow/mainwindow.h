@@ -35,6 +35,7 @@
 #include <QFileDialog>
 #include <QPointer>
 #include <QActionGroup>
+#include <QWebEngineView>
 
 class QMenu;
 class MapWindow;
@@ -156,6 +157,7 @@ private:
   QTextBrowser   *logWindow;
   DockWidget *m_dockDialogLog;
   DockWidget *m_dockDialogGroup;
+  DockWidget *m_dockWebClient;
 
   Mmapper2PathMachine *m_pathMachine;
   MapData *m_mapData;
@@ -167,6 +169,8 @@ private:
   FindRoomsDlg *m_findRoomsDlg;
   CGroup *m_groupManager;
   CGroupCommunicator *m_groupCommunicator;
+
+  QWebEngineView *m_webClient;
 
   const RoomSelection* m_roomSelection;
   ConnectionSelection* m_connectionSelection;

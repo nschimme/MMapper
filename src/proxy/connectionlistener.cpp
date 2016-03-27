@@ -26,6 +26,11 @@
 
 #include "connectionlistener.h"
 #include "proxy.h"
+#include "configuration.h"
+#include "websocketproxy.h"
+#include "tcpsocketproxy.h"
+#include <QWebSocket>
+#include <QTcpSocket>
 
 ConnectionListener::ConnectionListener(MapData* md, Mmapper2PathMachine* pm, CommandEvaluator* ce, PrespammedPath* pp, CGroup* gm, QObject *parent)
   : QTcpServer(parent)
@@ -41,36 +46,90 @@ ConnectionListener::ConnectionListener(MapData* md, Mmapper2PathMachine* pm, Com
   connect(this, SIGNAL(log(const QString&, const QString&)), parent, SLOT(log(const QString&, const QString&)));
 }
 
+ConnectionListener::~ConnectionListener() {
+    disconnect();
+    deleteLater();
+    m_webSocketServer->disconnect();
+    m_webSocketServer->deleteLater();
+}
 
-void ConnectionListener::incomingConnection(qintptr socketDescriptor)
+bool ConnectionListener::start() {
+    setMaxPendingConnections (1);
+    if (!listen(QHostAddress::Any, Config().m_localPort)) {
+        return false;
+    }
+
+    m_webSocketServer = new QWebSocketServer("MMapper WebSocket", QWebSocketServer::NonSecureMode, this);
+    m_webSocketServer->setMaxPendingConnections(1);
+    if (!m_webSocketServer->listen(QHostAddress::LocalHost, 4243)) {
+        return false;
+    }
+
+    connect(m_webSocketServer, SIGNAL(newConnection()), this, SLOT(incomingWebSocketConnection()));
+    return true;
+}
+
+void ConnectionListener::incomingConnection(qintptr socketDescriptor) {
+    QTcpSocket* tcpSocket = new QTcpSocket(this);
+    tcpSocket->setSocketOption(QAbstractSocket::KeepAliveOption, true);
+    if (!tcpSocket->setSocketDescriptor(socketDescriptor))
+    {
+       emit log ("Listener", "New connection: error." + tcpSocket->errorString());
+       delete tcpSocket;
+    }
+    addPendingConnection(tcpSocket);
+}
+
+void ConnectionListener::addPendingConnection(QTcpSocket *tcpSocket)
 {
   if (m_accept)
   {
     emit log ("Listener", "New connection: accepted.");
     doNotAcceptNewConnections();
-    Proxy *proxy = new Proxy(m_mapData, m_pathMachine, m_commandEvaluator, m_prespammedPath, m_groupManager, socketDescriptor, m_remoteHost, m_remotePort, true, this);
+    TcpSocketProxy *proxy = new TcpSocketProxy(m_mapData, m_pathMachine, m_commandEvaluator, m_prespammedPath, m_groupManager, tcpSocket, m_remoteHost, m_remotePort, true, this);
+    connect (proxy, SIGNAL(log(const QString&, const QString&)), parent(), SLOT(log(const QString&, const QString&)));
     proxy->start();
   }
   else
   {
     emit log ("Listener", "New connection: rejected.");
-    QTcpSocket tcpSocket;
-    if (tcpSocket.setSocketDescriptor(socketDescriptor)) {
-      tcpSocket.write("You can't connect more than once!!!\r\n",37);
-      tcpSocket.flush();
-      tcpSocket.disconnectFromHost();
-      tcpSocket.waitForDisconnected();
-    }
+    tcpSocket->write("You can't connect more than once!!!\r\n",37);
+    tcpSocket->flush();
+    tcpSocket->disconnectFromHost();
+    tcpSocket->deleteLater();
   }
+}
+
+void ConnectionListener::incomingWebSocketConnection()
+{
+    QWebSocket* webSocket = m_webSocketServer->nextPendingConnection();
+    if (m_accept)
+    {
+      emit log ("Listener", "New web socket connection: accepted.");
+      doNotAcceptNewConnections();
+      WebSocketProxy *proxy = new WebSocketProxy(m_mapData, m_pathMachine, m_commandEvaluator, m_prespammedPath, m_groupManager, webSocket, m_remoteHost, m_remotePort, true, this);
+      connect (proxy, SIGNAL(log(const QString&, const QString&)), parent(), SLOT(log(const QString&, const QString&)));
+      proxy->start();
+    }
+    else
+    {
+        emit log ("Listener", "New web socket connection: rejected.");
+        webSocket->sendTextMessage("You can't connect more than once!!!\r\n");
+        webSocket->flush();
+        webSocket->close(QWebSocketProtocol::CloseCodeNormal, "You can't connect more than once!!!");
+        webSocket->deleteLater();
+    }
 }
 
 void ConnectionListener::doNotAcceptNewConnections()
 {
+    emit log ("Listener", "Stopping to accept new connections");
   m_accept = false;
 }
 
 void ConnectionListener::doAcceptNewConnections()
 {
+    emit log ("Listener", "Will accept new connections");
   m_accept = true;
 }
 

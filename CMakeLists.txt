@@ -17,6 +17,8 @@ find_package(Qt5Network REQUIRED)
 find_package(Qt5Xml REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(Qt5OpenGL REQUIRED)
+find_package(Qt5WebEngineWidgets REQUIRED)
+find_package(Qt5WebSockets REQUIRED)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)

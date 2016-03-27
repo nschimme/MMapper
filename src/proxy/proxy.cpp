@@ -34,8 +34,7 @@
 #include "prespammedpath.h"
 #include "CGroup.h"
 #include "configuration.h"
-
-#include <qvariant.h>
+#include <QDebug>
 
 ProxyThreader::ProxyThreader(Proxy* proxy):
     m_proxy(proxy)
@@ -45,11 +44,13 @@ ProxyThreader::ProxyThreader(Proxy* proxy):
 ProxyThreader::~ProxyThreader()
 {
   if (m_proxy) delete m_proxy;
+  qDebug() << "Killing Proxy";
 }
 
 void ProxyThreader::run() {
   try {
     exec();
+    qDebug() << "Starting Proxy";
   } catch (char const * error) {
 //          cerr << error << endl;
     throw;
@@ -57,29 +58,23 @@ void ProxyThreader::run() {
 }
 
 
-
-Proxy::Proxy(MapData* md, Mmapper2PathMachine* pm, CommandEvaluator* ce, PrespammedPath* pp, CGroup* gm, qintptr & socketDescriptor, QString & host, int & port, bool threaded, QObject *parent)
-  : QObject(NULL),
-            m_socketDescriptor(socketDescriptor),
+Proxy::Proxy(MapData* md, Mmapper2PathMachine* pm, CommandEvaluator* ce, PrespammedPath* pp, CGroup* gm, QString & host, int & port, bool threaded, QObject *parent)
+  : QObject(parent),
                                m_remoteHost(host),
                                             m_remotePort(port),
-                                                m_mudSocket(NULL),
-                                                    m_userSocket(NULL),
                                                         m_serverConnected(false),
                                                         m_filter(NULL), m_parser(NULL), m_parserXml(NULL),
                                                             m_mapData(md),
                                                                 m_pathMachine(pm),
                                                                     m_commandEvaluator(ce),
                                                                         m_prespammedPath(pp),
-                                                                            m_groupManager(gm),
-                                                                                m_threaded(threaded),
-                                                                                m_parent(parent)
+                                                                        m_threaded(threaded),
+                                                                            m_groupManager(gm)
 {
-  if (threaded)
-    m_thread = new ProxyThreader(this);
-  else
-    m_thread = NULL;
-
+    if (threaded)
+      m_thread = new ProxyThreader(this);
+    else
+      m_thread = NULL;
 #ifdef PROXY_STREAM_DEBUG_INPUT_TO_FILE
   QString fileName = "proxy_debug.dat";
 
@@ -97,55 +92,27 @@ Proxy::~Proxy()
 #ifdef PROXY_STREAM_DEBUG_INPUT_TO_FILE
   file->close();
 #endif
-  if (m_userSocket) {
-    m_userSocket->disconnectFromHost();
-    m_userSocket->waitForDisconnected();
-    m_userSocket->deleteLater();
-  }
   if (m_mudSocket) {
     m_mudSocket->disconnectFromHost();
     m_mudSocket->waitForDisconnected();
     m_mudSocket->deleteLater();
   }
-  delete m_filter;
-  delete m_parser;
-  delete m_parserXml;
-  connect (this, SIGNAL(doAcceptNewConnections()), m_parent, SLOT(doAcceptNewConnections()));
-  emit doAcceptNewConnections();
+  if (m_filter) delete m_filter;
+  if (m_parser) delete m_parser;
+  if (m_parserXml) delete m_parserXml;
 }
 
 void Proxy::start() {
-  if (m_thread) {
-    m_thread->start();
-    if (init())
-      moveToThread(m_thread);
-  }
+    init();
 }
-
 
 bool Proxy::init()
 {
-  connect(m_thread, SIGNAL(finished()), this, SLOT(deleteLater()));
-  connect (m_thread, SIGNAL(finished()), m_parent, SLOT(doAcceptNewConnections()));
-
-  connect (this, SIGNAL(log(const QString&, const QString&)), m_parent->parent(), SLOT(log(const QString&, const QString&)));
-
-  m_userSocket = new QTcpSocket(this);
-  m_userSocket->setSocketOption(QAbstractSocket::KeepAliveOption, true);
-  if (!m_userSocket->setSocketDescriptor(m_socketDescriptor))
-  {
-    emit error(m_userSocket->error());
-    delete m_userSocket;
-    m_userSocket = NULL;
-    return false;
-  }
-
-  connect(m_userSocket, SIGNAL(disconnected()), this, SLOT(userTerminatedConnection()) );
-  connect(m_userSocket, SIGNAL(readyRead()), this, SLOT(processUserStream()) );
+  connect (this, SIGNAL(doAcceptNewConnections()), parent(), SLOT(doAcceptNewConnections()));
 
   m_filter = new TelnetFilter(this);
-  connect(this, SIGNAL(analyzeUserStream( const char*, int )), m_filter, SLOT(analyzeUserStream( const char*, int )));
-  connect(this, SIGNAL(analyzeMudStream( const char*, int )), m_filter, SLOT(analyzeMudStream( const char*, int )));
+  connect(this, SIGNAL(analyzeUserStream(const QByteArray&)), m_filter, SLOT(analyzeUserStream(const QByteArray&)));
+  connect(this, SIGNAL(analyzeMudStream(const QByteArray&)), m_filter, SLOT(analyzeMudStream(const QByteArray&)));
   connect(m_filter, SIGNAL(sendToMud(const QByteArray&)), this, SLOT(sendToMud(const QByteArray&)));
   connect(m_filter, SIGNAL(sendToUser(const QByteArray&)), this, SLOT(sendToUser(const QByteArray&)));
 
@@ -185,8 +152,7 @@ bool Proxy::init()
   emit log("Proxy", "Connection to client established ...");
 
   QByteArray ba("\033[1;37;41mWelcome to MMapper!\033[0;37;41m   Type \033[1m_help\033[0m\033[37;41m for help or \033[1m_vote\033[0m\033[37;41m to vote!\033[0m\r\n");
-  m_userSocket->write(ba);
-  m_userSocket->flush();
+  sendToUser(ba);
 
   m_mudSocket = new QTcpSocket(this);
   m_mudSocket->setSocketOption(QAbstractSocket::KeepAliveOption, true);
@@ -241,11 +207,11 @@ bool Proxy::init()
 }
 
 
-
 void Proxy::userTerminatedConnection()
 {
   emit log("Proxy", "User terminated connection ...");
   m_thread->exit();
+  emit doAcceptNewConnections();
 }
 
 void Proxy::mudTerminatedConnection()
@@ -256,43 +222,14 @@ void Proxy::mudTerminatedConnection()
   //m_thread->exit();
 }
 
-void Proxy::processUserStream() {
-//  emit log("Proxy", "Procesing user input ...");
-  int read;
-  while(m_userSocket->bytesAvailable()) {
-    read = m_userSocket->read(m_buffer, 8191);
-    if (read != -1)
-    {
-      m_buffer[read] = 0;
-      //if (m_mudSocket)
-      //{
-      //    m_mudSocket->write(m_buffer, read);
-      //    m_mudSocket->flush();
-      //}
-      emit analyzeUserStream(m_buffer, read);
-    }
-  }
-}
-
 void Proxy::processMudStream() {
-  int read;
-  while(m_mudSocket->bytesAvailable()) {
-    read = m_mudSocket->read(m_buffer, 8191);
-    if (read != -1) {
-      m_buffer[read] = 0;
-      //if (m_userSocket)
-      //{
-      //    m_userSocket->write(m_buffer, read);
-      //    m_userSocket->flush();
-      //}
-      emit analyzeMudStream(m_buffer, read);
-    }
-  }
+  emit analyzeMudStream(m_mudSocket->readAll());
 }
 
 
 void Proxy::sendToMud(const QByteArray& ba)
 {
+  //emit log("Proxy", "Sending to MUD " + ba);
   if (m_mudSocket && m_serverConnected)
   {
     m_mudSocket->write(ba.data(), ba.size());
@@ -301,12 +238,3 @@ void Proxy::sendToMud(const QByteArray& ba)
   }
 }
 
-void Proxy::sendToUser(const QByteArray& ba)
-{
-  if (m_userSocket)
-  {
-    m_userSocket->write(ba.data(), ba.size());
-    m_userSocket->flush();
-
-  }
-}

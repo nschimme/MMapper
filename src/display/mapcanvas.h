@@ -30,6 +30,7 @@
 #include "mmapper2exit.h"
 #include "coordinate.h"
 
+#include <QtOpenGL>
 #include <QOpenGLWidget>
 #include <QOpenGLFunctions>
 #include <QOpenGLTexture>

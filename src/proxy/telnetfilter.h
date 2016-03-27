@@ -54,8 +54,8 @@ class TelnetFilter : public QObject {
            ~TelnetFilter();
 
 	public slots:
-		void analyzeMudStream( const char * input, int length );
-		void analyzeUserStream( const char * input, int length );
+        void analyzeMudStream(const QByteArray& );
+        void analyzeUserStream(const QByteArray& );
 		
 		void setNormalMode();
 		void setXmlMode();
@@ -78,7 +78,7 @@ class TelnetFilter : public QObject {
 #endif
 
 		Q_OBJECT
-		void dispatchTelnetStream(QByteArray& stream, IncomingData &m_incomingData, TelnetIncomingDataQueue &que);
+        void dispatchTelnetStream(const QByteArray& stream, IncomingData &m_incomingData, TelnetIncomingDataQueue &que);
 
 		static const QChar escChar;
 

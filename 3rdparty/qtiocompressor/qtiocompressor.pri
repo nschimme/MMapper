@@ -1,11 +1,6 @@
 INCLUDEPATH += $$PWD
 DEPENDPATH += $$PWD
 
-# We need to find zlib.h. If it's not in the system includes, this will
-# find the one includes with Qt, assuming a developer-style "in-place" install.
-# Otherwise, edit this to point at the directory where zlib.h resides.
-INCLUDEPATH += $$PWD/../zlib
-
 qtiocompressor-uselib:!qtiocompressor-buildlib {
     LIBS += -L$$QTIOCOMPRESSOR_LIBDIR -l$$QTIOCOMPRESSOR_LIBNAME
 } else {

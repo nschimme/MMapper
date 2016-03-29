@@ -170,6 +170,7 @@ add_executable(mmapper ${EXECUTABLE_FLAGS}
     ${mmapper_RCC_SRCS}
     ${mmapper_WINRC}
     ${qtiocompressor_SRCS}
+    ${zlib_SRCS}
 )
 
 target_link_libraries(mmapper
@@ -180,6 +181,7 @@ target_link_libraries(mmapper
     Qt5::OpenGL
     Qt5::WebEngineWidgets
     Qt5::WebSockets
+    Qt5::OpenGL
     ${OPENGL_gl_LIBRARY}
     ${ZLIB_LIBRARIES}
     ${QTIOCOMPRESSOR_LIBRARIES}

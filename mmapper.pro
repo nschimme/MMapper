@@ -41,6 +41,8 @@ HEADERS += \
     src/proxy/telnetfilter.h \
     src/proxy/proxy.h \
     src/proxy/connectionlistener.h \
+    src/proxy/tcpsocketproxy.h \
+    src/proxy/websocketproxy.h \
     src/parser/patterns.h \
     src/parser/parser.h \
     src/parser/mumexmlparser.h \
@@ -135,6 +137,8 @@ SOURCES += \
     src/proxy/connectionlistener.cpp \
     src/proxy/telnetfilter.cpp \
     src/proxy/proxy.cpp \
+    src/proxy/tcpsocketproxy.cpp \
+    src/proxy/websocketproxy.cpp \
     src/parser/parser.cpp \
     src/parser/mumexmlparser.cpp \
     src/parser/abstractparser.cpp \
@@ -208,8 +212,8 @@ RC_ICONS = src/resources/win32/m.ico
 ICON = src/resources/macosx/m.icns
 TEMPLATE = app
 
-QT += opengl network xml gui
-CONFIG += release opengl network xml gui
+QT += opengl network xml gui websockets webenginewidgets
+CONFIG += release opengl network xml gui websockets
 CONFIG -= debug
 
 RCC_DIR = build/resources

@@ -666,6 +666,7 @@ void MainWindow::setupMenuBar()
   viewMenu = menuBar()->addMenu(tr("&View"));
   viewMenu->addAction(m_dockDialogLog->toggleViewAction());
   viewMenu->addAction(m_dockDialogGroup->toggleViewAction());
+  viewMenu->addAction(m_dockWebClient->toggleViewAction());
   viewMenu->addAction(alwaysOnTopAct);
   viewMenu->addSeparator();
   viewMenu->addAction(zoomInAct);

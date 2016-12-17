@@ -172,6 +172,7 @@ target_link_libraries(mmapper
     Qt5::Widgets
     Qt5::Xml
     Qt5::Network
+    Qt5::OpenGL
     ${OPENGL_gl_LIBRARY}
     ${ZLIB_LIBRARIES}
     ${QTIOCOMPRESSOR_LIBRARIES}
@@ -252,10 +253,12 @@ if (WIN32)
     else (CMAKE_BUILD_TYPE STREQUAL "Release")
             set(BINARY_ARGUMENT "-debug")
     endif (CMAKE_BUILD_TYPE STREQUAL "Release")
+    find_program(WINDEPLOYQT_APP windeployqt)
+    message(" - windeployqt path: ${WINDEPLOYQT_APP}")
     add_custom_command(
             TARGET mmapper
     POST_BUILD
-            COMMAND windeployqt ${BINARY_ARGUMENT} ${CMAKE_CURRENT_BINARY_DIR} -libdir ${CMAKE_CURRENT_BINARY_DIR}/bin --compiler-runtime
+            COMMAND ${WINDEPLOYQT_APP} ${BINARY_ARGUMENT} ${CMAKE_CURRENT_BINARY_DIR} -libdir ${CMAKE_CURRENT_BINARY_DIR}/bin --compiler-runtime
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     COMMENT "Finding the Qt framework dependencies"
     )
@@ -307,10 +310,12 @@ endif (WIN32)
 # Apple Install Settings
 if (APPLE)
     # Bundle the libraries with the binary (requires Qt 5)
+    find_program(MACDEPLOYQT_APP macdeployqt)
+    message(" - macdeployqt path: ${MACDEPLOYQT_APP}")
     add_custom_command(
         TARGET mmapper
 	POST_BUILD
-        COMMAND macdeployqt ${CMAKE_CURRENT_BINARY_DIR}/mmapper.app
+        COMMAND ${MACDEPLOYQT_APP} ${CMAKE_CURRENT_BINARY_DIR}/mmapper.app
 	WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 	COMMENT "Deploying the Qt Framework onto the bundle"
     )
@@ -347,9 +352,9 @@ if (APPLE)
 
     # Bundle Properties
     SET(MACOSX_BUNDLE_BUNDLE_NAME MMapper)
-    SET(MACOSX_BUNDLE_BUNDLE_VERSION ${VERSION})
-    SET(MACOSX_BUNDLE_SHORT_VERSION_STRING ${VERSION})
-    SET(MACOSX_BUNDLE_LONG_VERSION_STRING "Version ${VERSION}")
+    SET(MACOSX_BUNDLE_BUNDLE_VERSION ${MMAPPER_VERSION})
+    SET(MACOSX_BUNDLE_SHORT_VERSION_STRING ${MMAPPER_VERSION})
+    SET(MACOSX_BUNDLE_LONG_VERSION_STRING "Version ${MMAPPER_VERSION}")
 endif (APPLE)
 
 # More General CPack Settings
@@ -359,11 +364,6 @@ set(CPACK_PACKAGE_NAME "${PROJECT_NAME}")
 set(CPACK_PACKAGE_VENDOR "Nils Schimmelmann")
 set(CPACK_PACKAGE_CONTACT "nschimme@gmail.com")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A mud mapper especially written for the mud MUME")
-if (GIT_BUILD)
-    set(CPACK_PACKAGE_VERSION "${VERSION}-${GIT_BRANCH}-${GIT_COMMIT_HASH}")
-else (GIT_BUILD)
-    set(CPACK_PACKAGE_VERSION ${VERSION})
-endif (GIT_BUILD)
 set(CPACK_PACKAGE_INSTALL_DIRECTORY "MMapper")
 
 # Components:
@@ -397,10 +397,20 @@ set(CPACK_SOURCE_IGNORE_FILES
     "/build/"
     "/winbuild/"
 )
+
+string(REGEX REPLACE "Darwin" "Mac" CPACK_SYSTEM_NAME ${CMAKE_SYSTEM_NAME})
+set(CPACK_PACKAGE_VERSION ${MMAPPER_VERSION})
+string(REGEX REPLACE "[.-]" " " VERSION_NUMBERS ${MMAPPER_VERSION})
+separate_arguments(VERSION_NUMBERS)
+list(GET VERSION_NUMBERS 0 CPACK_PACKAGE_VERSION_MAJOR)
+list(REMOVE_AT VERSION_NUMBERS 0)
+list(GET VERSION_NUMBERS 0 CPACK_PACKAGE_VERSION_MINOR)
+list(REMOVE_AT VERSION_NUMBERS 0)
+list(GET VERSION_NUMBERS 0 CPACK_PACKAGE_VERSION_PATCH)
 set(CPACK_SOURCE_PACKAGE_FILE_NAME
     "${PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-source"
 )
 set(CPACK_PACKAGE_FILE_NAME
-    "${PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}"
+    "${PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}"
 )
 include(CPack)

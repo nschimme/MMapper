@@ -1,11 +1,22 @@
 cmake_minimum_required(VERSION 3.0.0)
-project(mmapper)
+
+# Version
+file (STRINGS "MMAPPER_VERSION" MMAPPER_VERSION)
+add_definitions(-DMMAPPER_VERSION="${MMAPPER_VERSION}" -DWITH_SPLASH)
+message(STATUS "MMapper version ${MMAPPER_VERSION} (${CMAKE_BUILD_TYPE} distribution)")
+project(mmapper VERSION ${MMAPPER_VERSION})
+
+# Apple users are most likely using brew so we default to using that path
+if (APPLE)
+   set(CMAKE_PREFIX_PATH /usr/local/opt/qt5/)
+endif()
 
 find_package(Qt5Core REQUIRED)
 find_package(Qt5Widgets REQUIRED)
 find_package(Qt5Network REQUIRED)
 find_package(Qt5Xml REQUIRED)
 find_package(OpenGL REQUIRED)
+find_package(Qt5OpenGL REQUIRED)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
@@ -19,20 +30,23 @@ if (QTIOCOMPRESSOR_INCLUDE_DIRS AND QTIOCOMPRESSOR_LIBRARIES)
     set(qtiocompressor_MOC_HDRS "")
 else()
     message(STATUS "QtIOCompressor not found; using bundled copy.")
-    find_package(ZLIB REQUIRED)
     set(QTIOCOMPRESSOR_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/3rdparty/qtiocompressor)
     set(QTIOCOMPRESSOR_LIBRARIES "")
     set(qtiocompressor_SRCS     ${PROJECT_SOURCE_DIR}/3rdparty/qtiocompressor/qtiocompressor.cpp)
     set(qtiocompressor_MOC_HDRS ${PROJECT_SOURCE_DIR}/3rdparty/qtiocompressor/qtiocompressor.h)
 endif()
 
-# Version
-set(CPACK_PACKAGE_VERSION_MAJOR "2")
-set(CPACK_PACKAGE_VERSION_MINOR "3")
-set(CPACK_PACKAGE_VERSION_PATCH "7")
-set(VERSION "${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}")
-add_definitions(-DMMAPPER_VERSION="${VERSION}" -DWITH_SPLASH)
-message(STATUS "MMapper version ${VERSION} (${CMAKE_BUILD_TYPE} distribution)")
+# try to find system copy of zlib
+find_package(ZLIB REQUIRED)
+if (ZLIB_INCLUDE_DIRS AND ZLIB_LIBRARIES)
+    message(STATUS "Found ZLIB: ${ZLIB_LIBRARIES} ${ZLIB_INCLUDE_DIRS}")
+else()
+    message(STATUS "ZLIB not found; using bundled copy.")
+    set(ZLIB_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/3rdparty/zlib)
+    set(ZLIB_LIBRARIES "")
+    FILE (GLOB zlib_SRCS ${PROJECT_SOURCE_DIR}/3rdparty/zlib/*.c)
+    FILE (GLOB zlib_MOC_HDRS ${PROJECT_SOURCE_DIR}/3rdparty/zlib/*.h)
+endif()
 
 # Extract git branch and revision
 if(EXISTS "${PROJECT_SOURCE_DIR}/.git")

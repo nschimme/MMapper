@@ -26,6 +26,7 @@
 
 #include "mapwindow.h"
 #include "mapcanvas.h"
+#include "websocketcanvas.h"
 
 #include <QGridLayout>
 #include <QScrollBar>
@@ -71,6 +72,9 @@ MapWindow::MapWindow(MapData *mapData, PrespammedPath* pp, CGroup* gm,  QWidget 
   connect ( m_canvas, SIGNAL(continuousScroll(qint8, qint8)),  this, SLOT(continuousScroll(qint8, qint8)) );
   connect ( m_canvas, SIGNAL(mapMove(int, int)),  this, SLOT(mapMove(int, int)) );
   connect( this, SIGNAL(setScroll(int, int)), m_canvas, SLOT(setScroll(int, int)));
+
+  WebSocketCanvas *canvasServer = new WebSocketCanvas(this);
+  connect(m_canvas, SIGNAL(frameBuffer(const QImage&)), canvasServer, SLOT(update(const QImage&)));
 }
 
 MapWindow::~MapWindow()

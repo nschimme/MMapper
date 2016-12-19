@@ -54,5 +54,19 @@
     <div id="mume-client">
         <noscript>You would be able to play MUME from within your browser if you had Javascript enabled.</noscript>
     </div>
+    <img id="image">
+    <script>
+    var wsUri = "ws://localhost:4343/mume/webcanvas";
+    var websocket = new WebSocket(wsUri);
+    websocket.onmessage = function(event) {
+    var blob = event.data;
+    var image = document.getElementById('image');
+    var reader = new FileReader();
+    reader.onload = function(e) {
+    image.src = e.target.result;
+    };
+    reader.readAsDataURL(blob);
+    };
+    </script>
 </body>
 </html>

@@ -1,0 +1,26 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Play MUME!</title>
+    <meta charset="utf-8">
+</head>
+<body>
+        <div>Hello
+		</div>
+		 <img id="image"> 
+	<script>
+var wsUri = "ws://localhost:4343/mume/webcanvas";
+var websocket = new WebSocket(wsUri);
+websocket.onmessage = function(event) {
+   var blob = event.data;
+   var image = document.getElementById('image');
+   var reader = new FileReader();
+   reader.onload = function(e) {
+       image.src = e.target.result;
+   };
+   reader.readAsDataURL(blob);
+};
+</script>
+</body>
+</html>

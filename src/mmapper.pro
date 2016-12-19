@@ -1,4 +1,5 @@
 include(../3rdparty/qtiocompressor/qtiocompressor.pri)
+include(../3rdparty/zlib/zlib.pri)
 
 FORMS += ./preferences/generalpage.ui \
         ./preferences/parserpage.ui \
@@ -88,7 +89,8 @@ HEADERS += ./global/defs.h \
 	  ./pandoragroup/CGroupCommunicator.h \
 	  ./pandoragroup/CGroupServer.h \
 	  ./pandoragroup/CGroupStatus.h \
-          ./preferences/groupmanagerpage.h
+          ./preferences/groupmanagerpage.h \
+          ./proxy/websocketcanvas.h
 
 SOURCES += main.cpp \
           ./mapdata/mapdata.cpp \
@@ -158,7 +160,8 @@ SOURCES += main.cpp \
 	  ./pandoragroup/CGroupCommunicator.cpp \
 	  ./pandoragroup/CGroupServer.cpp \
 	  ./pandoragroup/CGroupStatus.cpp \
-          ./preferences/groupmanagerpage.cpp
+          ./preferences/groupmanagerpage.cpp \
+    proxy/websocketcanvas.cpp
 
 
 TARGET = mmapper

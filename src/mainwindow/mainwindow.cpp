@@ -177,7 +177,6 @@ MainWindow::MainWindow(QWidget *parent, Qt::WindowFlags flags)
     emit log("Listener", tr("Server bound on localhost to port: %2.").arg(Config().m_localPort));
   }
 
-
   //update connections
   currentMapWindowChanged();
   readSettings();

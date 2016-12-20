@@ -43,6 +43,7 @@ HEADERS += \
     src/proxy/connectionlistener.h \
     src/proxy/tcpsocketproxy.h \
     src/proxy/websocketproxy.h \
+    src/proxy/websocketcanvas.h \
     src/parser/patterns.h \
     src/parser/parser.h \
     src/parser/mumexmlparser.h \
@@ -139,6 +140,7 @@ SOURCES += \
     src/proxy/proxy.cpp \
     src/proxy/tcpsocketproxy.cpp \
     src/proxy/websocketproxy.cpp \
+    src/proxy/websocketcanvas.cpp \
     src/parser/parser.cpp \
     src/parser/mumexmlparser.cpp \
     src/parser/abstractparser.cpp \

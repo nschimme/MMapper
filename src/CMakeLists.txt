@@ -66,6 +66,7 @@ set(mmapper_SRCS
     proxy/connectionlistener.cpp
     proxy/proxy.cpp
     proxy/websocketproxy.cpp
+    proxy/websocketcanvas.cpp
     proxy/tcpsocketproxy.cpp
     proxy/telnetfilter.cpp
 )
@@ -119,6 +120,7 @@ set(mmapper_MOC_HDRS
     proxy/connectionlistener.h
     proxy/proxy.h
     proxy/websocketproxy.h
+    proxy/websocketcanvas.h
     proxy/tcpsocketproxy.h
     proxy/telnetfilter.h
 )
@@ -178,6 +180,8 @@ target_link_libraries(mmapper
     Qt5::Widgets
     Qt5::Xml
     Qt5::Network
+    Qt5::WebEngineWidgets
+    Qt5::WebSockets
     Qt5::OpenGL
     Qt5::WebEngineWidgets
     Qt5::WebSockets

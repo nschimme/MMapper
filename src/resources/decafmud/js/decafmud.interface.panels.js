@@ -81,8 +81,10 @@ var SimpleInterface = function(decaf) {
         this.sidebar.appendChild(this.progresstable);
         this.progressbars = new Array();
         this.mapdiv = document.createElement('div');
-        this.mapdiv.style.display = 'none';
+        this.mapdiv.style.display = 'inline';
+        this.mapdiv.innerHTML = "<i>Map:</i><center><img id='image' style='max-width: 100px'></center>";
         this.sidebar.appendChild(this.mapdiv);
+        this.sidebar.style.display = 'inline';
         
 	// Handle keypresses and clicks in scrollback.
 	this.el_display.onmouseup = this.maybeFocusInput.bind(this);

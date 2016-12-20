@@ -29,6 +29,7 @@
 #include "configuration.h"
 #include "websocketproxy.h"
 #include "tcpsocketproxy.h"
+#include "prespammedpath.h"
 #include <QWebSocket>
 #include <QTcpSocket>
 
@@ -114,7 +115,7 @@ void ConnectionListener::incomingWebSocketConnection()
     else
     {
         emit log ("Listener", "New web socket connection: rejected.");
-        webSocket->sendTextMessage("You can't connect more than once!!!\r\n");
+        webSocket->sendBinaryMessage("You can't connect more than once!!!\r\n");
         webSocket->flush();
         webSocket->close(QWebSocketProtocol::CloseCodeNormal, "You can't connect more than once!!!");
         webSocket->deleteLater();

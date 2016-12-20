@@ -43,38 +43,38 @@ ProxyThreader::ProxyThreader(Proxy* proxy):
 
 ProxyThreader::~ProxyThreader()
 {
-    if (m_proxy) delete m_proxy;
-    qDebug() << "Killing Proxy";
+  if (m_proxy) delete m_proxy;
+  qDebug() << "Killing Proxy";
 }
 
 void ProxyThreader::run() {
-    try {
-        exec();
-        qDebug() << "Starting Proxy";
-    } catch (char const * error) {
-        //          cerr << error << endl;
-        throw;
-    }
+  try {
+    exec();
+    qDebug() << "Starting Proxy";
+  } catch (char const * error) {
+//          cerr << error << endl;
+    throw;
+  }
 }
 
 
 Proxy::Proxy(MapData* md, Mmapper2PathMachine* pm, CommandEvaluator* ce, PrespammedPath* pp, CGroup* gm, QString & host, int & port, bool threaded, QObject *parent)
-    : QObject(parent),
-      m_remoteHost(host),
-      m_remotePort(port),
-      m_serverConnected(false),
-      m_filter(NULL), m_parser(NULL), m_parserXml(NULL),
-      m_mapData(md),
-      m_pathMachine(pm),
-      m_commandEvaluator(ce),
-      m_prespammedPath(pp),
-      m_threaded(threaded),
-      m_groupManager(gm)
+  : QObject(parent),
+                               m_remoteHost(host),
+                                            m_remotePort(port),
+                                                        m_serverConnected(false),
+                                                        m_filter(NULL), m_parser(NULL), m_parserXml(NULL),
+                                                            m_mapData(md),
+                                                                m_pathMachine(pm),
+                                                                    m_commandEvaluator(ce),
+                                                                        m_prespammedPath(pp),
+                                                                        m_threaded(threaded),
+                                                                            m_groupManager(gm)
 {
     if (threaded)
-        m_thread = new ProxyThreader(this);
+      m_thread = new ProxyThreader(this);
     else
-        m_thread = NULL;
+      m_thread = NULL;
 #ifdef PROXY_STREAM_DEBUG_INPUT_TO_FILE
     QString fileName = "proxy_debug.dat";
 
@@ -92,14 +92,14 @@ Proxy::~Proxy()
 #ifdef PROXY_STREAM_DEBUG_INPUT_TO_FILE
     file->close();
 #endif
-    if (m_mudSocket) {
-        m_mudSocket->disconnectFromHost();
-        m_mudSocket->waitForDisconnected();
-        m_mudSocket->deleteLater();
-    }
-    if (m_filter) delete m_filter;
-    if (m_parser) delete m_parser;
-    if (m_parserXml) delete m_parserXml;
+  if (m_mudSocket) {
+    m_mudSocket->disconnectFromHost();
+    m_mudSocket->waitForDisconnected();
+    m_mudSocket->deleteLater();
+  }
+  if (m_filter) delete m_filter;
+  if (m_parser) delete m_parser;
+  if (m_parserXml) delete m_parserXml;
 }
 
 void Proxy::start() {
@@ -108,60 +108,60 @@ void Proxy::start() {
 
 bool Proxy::init()
 {
-    connect (this, SIGNAL(doAcceptNewConnections()), parent(), SLOT(doAcceptNewConnections()));
+  connect (this, SIGNAL(doAcceptNewConnections()), parent(), SLOT(doAcceptNewConnections()));
 
-    m_filter = new TelnetFilter(this);
-    connect(this, SIGNAL(analyzeUserStream(const QByteArray&)), m_filter, SLOT(analyzeUserStream(const QByteArray&)));
-    connect(this, SIGNAL(analyzeMudStream(const QByteArray&)), m_filter, SLOT(analyzeMudStream(const QByteArray&)));
-    connect(m_filter, SIGNAL(sendToMud(const QByteArray&)), this, SLOT(sendToMud(const QByteArray&)));
-    connect(m_filter, SIGNAL(sendToUser(const QByteArray&)), this, SLOT(sendToUser(const QByteArray&)));
+  m_filter = new TelnetFilter(this);
+  connect(this, SIGNAL(analyzeUserStream(const QByteArray&)), m_filter, SLOT(analyzeUserStream(const QByteArray&)));
+  connect(this, SIGNAL(analyzeMudStream(const QByteArray&)), m_filter, SLOT(analyzeMudStream(const QByteArray&)));
+  connect(m_filter, SIGNAL(sendToMud(const QByteArray&)), this, SLOT(sendToMud(const QByteArray&)));
+  connect(m_filter, SIGNAL(sendToUser(const QByteArray&)), this, SLOT(sendToUser(const QByteArray&)));
 
-    m_parser = new Parser(m_mapData, this);
-    connect(m_filter, SIGNAL(parseNewMudInput(IncomingData&)), m_parser, SLOT(parseNewMudInput(IncomingData&)));
-    connect(m_filter, SIGNAL(parseNewUserInput(IncomingData&)), m_parser, SLOT(parseNewUserInput(IncomingData&)));
-    connect(m_parser, SIGNAL(sendToMud(const QByteArray&)), this, SLOT(sendToMud(const QByteArray&)));
-    connect(m_parser, SIGNAL(sendToUser(const QByteArray&)), this, SLOT(sendToUser(const QByteArray&)));
-    connect(m_parser, SIGNAL(setXmlMode()), m_filter, SLOT(setXmlMode()));
+  m_parser = new Parser(m_mapData, this);
+  connect(m_filter, SIGNAL(parseNewMudInput(IncomingData&)), m_parser, SLOT(parseNewMudInput(IncomingData&)));
+  connect(m_filter, SIGNAL(parseNewUserInput(IncomingData&)), m_parser, SLOT(parseNewUserInput(IncomingData&)));
+  connect(m_parser, SIGNAL(sendToMud(const QByteArray&)), this, SLOT(sendToMud(const QByteArray&)));
+  connect(m_parser, SIGNAL(sendToUser(const QByteArray&)), this, SLOT(sendToUser(const QByteArray&)));
+  connect(m_parser, SIGNAL(setXmlMode()), m_filter, SLOT(setXmlMode()));
 
-    //connect(m_parser, SIGNAL(event(ParseEvent* )), (QObject*)(Mmapper2PathMachine*)((MainWindow*)(m_parent->parent()))->getPathMachine(), SLOT(event(ParseEvent* )), Qt::QueuedConnection);
-    connect(m_parser, SIGNAL(event(ParseEvent* )), m_pathMachine, SLOT(event(ParseEvent* )), Qt::QueuedConnection);
-    connect(m_parser, SIGNAL(releaseAllPaths()), m_pathMachine, SLOT(releaseAllPaths()), Qt::QueuedConnection);
-    connect(m_parser, SIGNAL(showPath(CommandQueue, bool)), m_prespammedPath, SLOT(setPath(CommandQueue, bool)), Qt::QueuedConnection);
+        //connect(m_parser, SIGNAL(event(ParseEvent* )), (QObject*)(Mmapper2PathMachine*)((MainWindow*)(m_parent->parent()))->getPathMachine(), SLOT(event(ParseEvent* )), Qt::QueuedConnection);
+  connect(m_parser, SIGNAL(event(ParseEvent* )), m_pathMachine, SLOT(event(ParseEvent* )), Qt::QueuedConnection);
+  connect(m_parser, SIGNAL(releaseAllPaths()), m_pathMachine, SLOT(releaseAllPaths()), Qt::QueuedConnection);
+  connect(m_parser, SIGNAL(showPath(CommandQueue, bool)), m_prespammedPath, SLOT(setPath(CommandQueue, bool)), Qt::QueuedConnection);
 
-    m_parserXml = new MumeXmlParser(m_mapData, this);
-    connect(m_filter, SIGNAL(parseNewMudInputXml(IncomingData&)), m_parserXml, SLOT(parseNewMudInput(IncomingData&)));
-    connect(m_filter, SIGNAL(parseNewUserInputXml(IncomingData&)), m_parserXml, SLOT(parseNewUserInput(IncomingData&)));
-    connect(m_parserXml, SIGNAL(sendToMud(const QByteArray&)), this, SLOT(sendToMud(const QByteArray&)));
-    connect(m_parserXml, SIGNAL(sendToUser(const QByteArray&)), this, SLOT(sendToUser(const QByteArray&)));
-    connect(m_parserXml, SIGNAL(setNormalMode()), m_filter, SLOT(setNormalMode()));
+  m_parserXml = new MumeXmlParser(m_mapData, this);
+  connect(m_filter, SIGNAL(parseNewMudInputXml(IncomingData&)), m_parserXml, SLOT(parseNewMudInput(IncomingData&)));
+  connect(m_filter, SIGNAL(parseNewUserInputXml(IncomingData&)), m_parserXml, SLOT(parseNewUserInput(IncomingData&)));
+  connect(m_parserXml, SIGNAL(sendToMud(const QByteArray&)), this, SLOT(sendToMud(const QByteArray&)));
+  connect(m_parserXml, SIGNAL(sendToUser(const QByteArray&)), this, SLOT(sendToUser(const QByteArray&)));
+  connect(m_parserXml, SIGNAL(setNormalMode()), m_filter, SLOT(setNormalMode()));
 
-    //connect(m_parserXml, SIGNAL(event(ParseEvent* )), (QObject*)(Mmapper2PathMachine*)((MainWindow*)(m_parent->parent()))->getPathMachine(), SLOT(event(ParseEvent* )), Qt::QueuedConnection);
-    connect(m_parserXml, SIGNAL(event(ParseEvent* )), m_pathMachine, SLOT(event(ParseEvent* )), Qt::QueuedConnection);
-    connect(m_parserXml, SIGNAL(releaseAllPaths()), m_pathMachine, SLOT(releaseAllPaths()), Qt::QueuedConnection);
-    connect(m_parserXml, SIGNAL(showPath(CommandQueue, bool)), m_prespammedPath, SLOT(setPath(CommandQueue, bool)), Qt::QueuedConnection);
+        //connect(m_parserXml, SIGNAL(event(ParseEvent* )), (QObject*)(Mmapper2PathMachine*)((MainWindow*)(m_parent->parent()))->getPathMachine(), SLOT(event(ParseEvent* )), Qt::QueuedConnection);
+  connect(m_parserXml, SIGNAL(event(ParseEvent* )), m_pathMachine, SLOT(event(ParseEvent* )), Qt::QueuedConnection);
+  connect(m_parserXml, SIGNAL(releaseAllPaths()), m_pathMachine, SLOT(releaseAllPaths()), Qt::QueuedConnection);
+  connect(m_parserXml, SIGNAL(showPath(CommandQueue, bool)), m_prespammedPath, SLOT(setPath(CommandQueue, bool)), Qt::QueuedConnection);
 
-    //Group Manager Support
-    //TODO: Add normal parser support
-    connect(m_parserXml, SIGNAL(sendScoreLineEvent(QByteArray)), m_groupManager, SLOT(parseScoreInformation(QByteArray)), Qt::QueuedConnection);
-    connect(m_parserXml, SIGNAL(sendPromptLineEvent(QByteArray)), m_groupManager, SLOT(parsePromptInformation(QByteArray)), Qt::QueuedConnection);
-    connect(m_parserXml, SIGNAL(sendGroupTellEvent(QByteArray)), m_groupManager, SLOT(sendGTell(QByteArray)), Qt::QueuedConnection);
-    // Group Tell
-    connect(m_groupManager, SIGNAL(displayGroupTellEvent(const QByteArray&)), m_parserXml, SLOT(sendGTellToUser(const QByteArray&)), Qt::QueuedConnection);
+  //Group Manager Support
+  //TODO: Add normal parser support
+  connect(m_parserXml, SIGNAL(sendScoreLineEvent(QByteArray)), m_groupManager, SLOT(parseScoreInformation(QByteArray)), Qt::QueuedConnection);
+  connect(m_parserXml, SIGNAL(sendPromptLineEvent(QByteArray)), m_groupManager, SLOT(parsePromptInformation(QByteArray)), Qt::QueuedConnection);
+  connect(m_parserXml, SIGNAL(sendGroupTellEvent(QByteArray)), m_groupManager, SLOT(sendGTell(QByteArray)), Qt::QueuedConnection);
+  // Group Tell
+  connect(m_groupManager, SIGNAL(displayGroupTellEvent(const QByteArray&)), m_parserXml, SLOT(sendGTellToUser(const QByteArray&)), Qt::QueuedConnection);
 
-    //m_userSocket->write("Connection to client established ...\r\n", 38);
-    emit log("Proxy", "Connection to client established ...");
+  //m_userSocket->write("Connection to client established ...\r\n", 38);
+  emit log("Proxy", "Connection to client established ...");
 
-    QByteArray ba("\033[1;37;41mWelcome to MMapper!\033[0;37;41m   Type \033[1m_help\033[0m\033[37;41m for help or \033[1m_vote\033[0m\033[37;41m to vote!\033[0m\r\n");
-    sendToUser(ba);
+  QByteArray ba("\033[1;37;41mWelcome to MMapper!\033[0;37;41m   Type \033[1m_help\033[0m\033[37;41m for help or \033[1m_vote\033[0m\033[37;41m to vote!\033[0m\r\n");
+  sendToUser(ba);
 
-    m_mudSocket = new QTcpSocket(this);
-    m_mudSocket->setSocketOption(QAbstractSocket::KeepAliveOption, true);
-    connect(m_mudSocket, SIGNAL(disconnected()), this, SLOT(mudTerminatedConnection()) );
-    connect(m_mudSocket, SIGNAL(readyRead()), this, SLOT(processMudStream()) );
+  m_mudSocket = new QTcpSocket(this);
+  m_mudSocket->setSocketOption(QAbstractSocket::KeepAliveOption, true);
+  connect(m_mudSocket, SIGNAL(disconnected()), this, SLOT(mudTerminatedConnection()) );
+  connect(m_mudSocket, SIGNAL(readyRead()), this, SLOT(processMudStream()) );
 
-    m_mudSocket->connectToHost(m_remoteHost, m_remotePort, QIODevice::ReadWrite);
-    if (!m_mudSocket->waitForConnected(5000))
-    {
+  m_mudSocket->connectToHost(m_remoteHost, m_remotePort, QIODevice::ReadWrite);
+  if (!m_mudSocket->waitForConnected(5000))
+  {
         //m_userSocket->write("Server not responding!!!\r\n", 26);
         emit log("Proxy", "Server not responding!!!");
 
@@ -206,35 +206,33 @@ bool Proxy::init()
     return false;
 }
 
-
 void Proxy::userTerminatedConnection()
 {
-    emit log("Proxy", "User terminated connection ...");
-    m_thread->exit();
-    emit doAcceptNewConnections();
+  emit log("Proxy", "User terminated connection ...");
+  m_thread->exit();
+  emit doAcceptNewConnections();
 }
 
 void Proxy::mudTerminatedConnection()
 {
-    emit log("Proxy", "Mud terminated connection ...");
-    sendToUser("\r\nServer closed the connection\r\n\r\nYou can explore world map offline or try to reconnect again...\r\n");
-    sendToUser("\r\n>");
-    //m_thread->exit();
+  emit log("Proxy", "Mud terminated connection ...");
+  sendToUser("\r\nServer closed the connection\r\n\r\nYou can explore world map offline or try to reconnect again...\r\n");
+  sendToUser("\r\n>");
+  //m_thread->exit();
 }
 
 void Proxy::processMudStream() {
-    emit analyzeMudStream(m_mudSocket->readAll());
+  emit analyzeMudStream(m_mudSocket->readAll());
 }
 
 
 void Proxy::sendToMud(const QByteArray& ba)
 {
-    //emit log("Proxy", "Sending to MUD " + ba);
-    if (m_mudSocket && m_serverConnected)
-    {
-        m_mudSocket->write(ba.data(), ba.size());
-        m_mudSocket->flush();
-
-    }
+  //emit log("Proxy", "Sending to MUD " + ba);
+  if (m_mudSocket && m_serverConnected)
+  {
+    m_mudSocket->write(ba.data(), ba.size());
+    m_mudSocket->flush();
+  }
 }
 

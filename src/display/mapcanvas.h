@@ -114,6 +114,7 @@ class MapCanvas : public QOpenGLWidget, protected QOpenGLFunctions
 
     void setCurrentRoom(uint id);
     void roomPositionChanged();
+    void frameBuffer(const QImage&);
 
         //for main move/search algorithm
     void charMovedEvent(ParseEvent* );

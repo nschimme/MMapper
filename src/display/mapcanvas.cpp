@@ -1313,6 +1313,10 @@ void MapCanvas::paintGL()
         }
         if (anypath) drawPathEnd(dx, dy, dz);
     }
+
+    // Save frameBuffer
+    QImage img = grabFramebuffer();
+    emit frameBuffer(img);
 }
 
 

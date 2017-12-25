@@ -44,6 +44,7 @@
 #include <assert.h>
 #include <math.h>
 
+#include <QDebug>
 #include <QWheelEvent>
 #include <QPainter>
 #include <QOpenGLTexture>
@@ -1305,6 +1306,60 @@ void MapCanvas::paintGL()
         }
         if (anypath) drawPathEnd(dx, dy, dz);
     }
+
+    // 2D hud must be drawn last
+    drawHud();
+}
+
+void MapCanvas::drawHud()
+{
+    // Enable 2D rendering
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    glOrtho(0.0, width(), height(), 0.0, -1.0, 10.0);
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    glDisable(GL_CULL_FACE);
+    glClear(GL_DEPTH_BUFFER_BIT);
+
+    double hudMaxY = 0.025 * height();
+    double timeBoxDiameter = hudMaxY;
+    if (hudMaxY * 24 > width())
+        timeBoxDiameter = width() / 24;
+    if (timeBoxDiameter < BASESIZEX / 24)
+        timeBoxDiameter = BASESIZEX / 25;
+
+    // Draw background of HUD
+    glPushMatrix();
+    glTranslated(0, 0, -1.0f);
+    glBegin(GL_QUADS);
+    qglColor(Qt::black);
+    glVertex2f(0.0, 0.0);
+    glVertex2f(width(), 0.0);
+    glVertex2f(width(), timeBoxDiameter);
+    glVertex2f(0.0, timeBoxDiameter);
+    glEnd();
+    glPopMatrix();
+
+    // Draw here
+    for (int i = 0; i < 24; i++) {
+        glPushMatrix();
+        glTranslated(i * width() / 24, 0, 0);
+        glBegin(GL_QUADS);
+        glColor3f(1.0f, 1.0f, 1.0f);
+        glVertex2f(5.0, 5.0);
+        glVertex2f(timeBoxDiameter, 5.0);
+        glVertex2f(timeBoxDiameter, timeBoxDiameter);
+        glVertex2f(5.0, timeBoxDiameter);
+        glEnd();
+        glPopMatrix();
+    }
+
+    // Making sure we can render 3d again
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    glMatrixMode(GL_MODELVIEW);
 }
 
 

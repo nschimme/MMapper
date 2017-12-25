@@ -147,6 +147,7 @@ protected:
     bool drawPath(const Coordinate &sc, const Coordinate &dc, double &dx, double &dy, double &dz);
     void drawPathEnd(double dx, double dy, double dz);
     void drawFlow( const Room *room, const std::vector<Room *> &rooms, ExitDirection exitDirection);
+    void drawHud();
 
     // QGLWidget backwards comptability
     void inline qglColor(QColor c)

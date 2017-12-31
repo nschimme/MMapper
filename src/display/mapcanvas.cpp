@@ -47,6 +47,8 @@
 #include <QWheelEvent>
 #include <QPainter>
 #include <QOpenGLTexture>
+#include <QDateTime>
+#include <QDebug>
 
 #define ROOM_Z_DISTANCE (7.0f)
 #define ROOM_WALL_ALIGN (0.008f)
@@ -1050,8 +1052,21 @@ void MapCanvas::drawCharacter(const Coordinate &c, QColor color)
     glPopMatrix();
 }
 
+
+static int nbFrames = 0;
+static double lastTime = QDateTime::QDateTime::currentDateTimeUtc().toTime_t();
+
 void MapCanvas::paintGL()
 {
+    double currentTime = QDateTime::QDateTime::currentDateTimeUtc().toTime_t();
+    nbFrames++;
+    if ( currentTime - lastTime >= 1.0 ) { // If last prinf() was more than 1 sec ago
+        // printf and reset timer
+        qInfo() << QString().sprintf("%f ms/frame (target 16.6ms)", 1000.0 / double(nbFrames));
+        nbFrames = 0;
+        lastTime += 1.0;
+    }
+
     // Background Color
     qglClearColor(Config().m_backgroundColor);
 
@@ -1305,6 +1320,8 @@ void MapCanvas::paintGL()
         }
         if (anypath) drawPathEnd(dx, dy, dz);
     }
+
+    update();
 }
 
 

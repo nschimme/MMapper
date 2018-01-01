@@ -41,6 +41,7 @@
 #include "CGroup.h"
 #include "CGroupChar.h"
 #include "customaction.h"
+#include "maproom.h"
 
 #include <assert.h>
 #include <math.h>
@@ -50,6 +51,9 @@
 #include <QOpenGLTexture>
 #include <QOpenGLDebugLogger>
 #include <QDebug>
+#include <QOpenGLShaderProgram>
+#include <QOpenGLShader>
+#include <QOpenGLBuffer>
 
 #define ROOM_Z_DISTANCE (7.0f)
 #define ROOM_WALL_ALIGN (0.008f)
@@ -97,6 +101,27 @@ GLubyte quadtone[] = {
     0x88, 0x88, 0x88, 0x88, 0x22, 0x22, 0x22, 0x22
 };
 
+static QString texturedVertexShader =
+    "#version 120\n"
+    "attribute highp vec3 position;\n"
+    "attribute mediump vec2 texCoord2d;\n"
+    "varying mediump vec2 v_texCoord2d;\n"
+    "uniform highp mat4 modelViewMatrix;\n"
+    "uniform highp mat4 projectionMatrix;\n"
+    "void main() {\n"
+    "    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1);\n"
+    "    v_texCoord2d = texCoord2d;\n"
+    "}\n";
+
+static QString texturedFragmentShader =
+    "#version 120\n"
+    "uniform sampler2D texture;\n"
+    "uniform vec4 color = vec4(1, 1, 1, 1);\n"
+    "varying mediump vec2 v_texCoord2d;\n"
+    "void main() {\n"
+    "    gl_FragColor = color * texture2D(texture, v_texCoord2d);\n"
+    "}\n";
+
 QColor MapCanvas::m_noFleeColor = QColor(123, 63, 0);
 
 MapCanvas::MapCanvas( MapData *mapData, PrespammedPath *prespammedPath, Mmapper2Group *groupManager,
@@ -139,6 +164,7 @@ MapCanvas::MapCanvas( MapData *mapData, PrespammedPath *prespammedPath, Mmapper2
     memset(m_mobTextures, 0, sizeof(m_mobTextures));
     memset(m_trailTextures, 0, sizeof(m_trailTextures));
     m_updateTexture = 0;
+    m_whiteTexture = 0;
 
     int samples = Config().m_antialiasingSamples;
     if (samples <= 0) samples = 2; // Default to 2 samples to prevent restart
@@ -175,12 +201,34 @@ MapCanvas::~MapCanvas()
         }
     }
     delete m_updateTexture;
+    delete m_whiteTexture;
 
     if (m_roomSelection) m_data->unselect(m_roomSelection);
     if (m_connectionSelection) delete m_connectionSelection;
     if ( m_glFont ) delete m_glFont;
     if ( m_glFontMetrics ) delete m_glFontMetrics;
     doneCurrent();
+}
+
+void MapCanvas::createShaderProgram()
+{
+    if ( !m_program.addShaderFromSourceCode(QOpenGLShader::Vertex, texturedVertexShader)) {
+        qDebug() << "Error in vertex shader:" << m_program.log();
+        exit(1);
+    }
+    if ( !m_program.addShaderFromSourceCode(QOpenGLShader::Fragment, texturedFragmentShader)) {
+        qDebug() << "Error in fragment shader:" << m_program.log();
+        exit(1);
+    }
+    if ( !m_program.link() ) {
+        qDebug() << "Error linking shader program:" << m_program.log();
+        exit(1);
+    }
+}
+
+void MapCanvas::createGeometry()
+{
+    m_mapRoom = new MapRoom();
 }
 
 inline static void loadMatrix(const QMatrix4x4 &m)
@@ -191,6 +239,17 @@ inline static void loadMatrix(const QMatrix4x4 &m)
     for (int index = 0; index < 16; ++index)
         mat[index] = data[index];
     glLoadMatrixf(mat);
+}
+
+inline static QMatrix4x4 loadModelMatrix()
+{
+    QMatrix4x4 mat;
+    float *data = mat.data();
+    GLfloat model[16];
+    glGetFloatv(GL_MODELVIEW_MATRIX, model);
+    for (int index = 0; index < 16; ++index)
+        data[index] = model[index];
+    return mat;
 }
 
 float MapCanvas::SCROLLFACTOR()
@@ -954,17 +1013,19 @@ void MapCanvas::initializeGL()
     // Load textures
     for (int i = 0; i < 18; i++) {
         if (i < 16) {
-            m_terrainTextures[i] = new QOpenGLTexture(QImage(QString(":/pixmaps/terrain%1.png").arg(
-                                                                 i)).mirrored());
-            m_roadTextures[i] = new QOpenGLTexture(QImage(QString(":/pixmaps/road%1.png").arg(i)).mirrored());
-            m_trailTextures[i] = new QOpenGLTexture(QImage(QString(":/pixmaps/trail%1.png").arg(i)).mirrored());
+            m_terrainTextures[i] = new QOpenGLTexture(QImage(QString(":/pixmaps/terrain%1.png").arg(i)));
+            m_roadTextures[i] = new QOpenGLTexture(QImage(QString(":/pixmaps/road%1.png").arg(i)));
+            m_trailTextures[i] = new QOpenGLTexture(QImage(QString(":/pixmaps/trail%1.png").arg(i)));
         }
-        m_loadTextures[i] = new QOpenGLTexture(QImage(QString(":/pixmaps/load%1.png").arg(i)).mirrored());
+        m_loadTextures[i] = new QOpenGLTexture(QImage(QString(":/pixmaps/load%1.png").arg(i)));
         if (i < 15) {
-            m_mobTextures[i] = new QOpenGLTexture(QImage(QString(":/pixmaps/mob%1.png").arg(i)).mirrored());
+            m_mobTextures[i] = new QOpenGLTexture(QImage(QString(":/pixmaps/mob%1.png").arg(i)));
         }
     }
-    m_updateTexture = new QOpenGLTexture(QImage(QString(":/pixmaps/update0.png")).mirrored());
+    m_updateTexture = new QOpenGLTexture(QImage(QString(":/pixmaps/update0.png")));
+    QImage white = QImage(QSize(48, 48), QImage::Format::Format_RGB32);
+    white.fill(Qt::white);
+    m_whiteTexture = new QOpenGLTexture(white);
 
     if (Config().m_trilinearFiltering) {
         for (int i = 0; i < 18; i++) {
@@ -979,6 +1040,7 @@ void MapCanvas::initializeGL()
             }
         }
         m_updateTexture->setMinMagFilters(QOpenGLTexture::LinearMipMapLinear, QOpenGLTexture::Linear);
+        m_whiteTexture->setMinMagFilters(QOpenGLTexture::LinearMipMapLinear, QOpenGLTexture::Linear);
     }
     m_view.setToIdentity();
 
@@ -989,6 +1051,8 @@ void MapCanvas::initializeGL()
     //glPolygonStipple(quadtone);
 
     // >= OpenGL 3.0
+    createShaderProgram();
+    createGeometry();
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_NORMALIZE);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -1143,6 +1207,8 @@ void MapCanvas::drawCharacter(const Coordinate &c, QColor color)
 
 void MapCanvas::paintGL()
 {
+    m_view.setToIdentity();
+
     // Background Color
     qglClearColor(Config().m_backgroundColor);
 
@@ -1319,12 +1385,13 @@ void MapCanvas::paintGL()
             //glTranslated(x-0.5, y-0.5, ROOM_Z_DISTANCE*z);
             glTranslated(x - 0.5, y - 0.5, ROOM_Z_DISTANCE * layer);
 
-            glColor4d(0.0f, 0.0f, 0.0f, 0.4f);
+            QVector4D color({0.0f, 0.0f, 0.0f, 0.4f});
 
             glEnable(GL_BLEND);
             glDisable(GL_DEPTH_TEST);
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            glCallList(m_room_gllist);
+            QMatrix4x4 model = loadModelMatrix();
+            drawRoomWithShader(model, m_whiteTexture, color);
 
             qglColor(Qt::red);
             glBegin(GL_LINE_STRIP);
@@ -1350,12 +1417,12 @@ void MapCanvas::paintGL()
 
             if (m_roomSelectionMove) {
                 if (m_roomSelectionMoveWrongPlace)
-                    glColor4d(1.0f, 0.0f, 0.0f, 0.4f);
+                    color = {1.0f, 0.0f, 0.0f, 0.4f};
                 else
-                    glColor4d(1.0f, 1.0f, 1.0f, 0.4f);
+                    color = {1.0f, 1.0f, 1.0f, 0.4f};
 
                 glTranslated(m_roomSelectionMoveX, m_roomSelectionMoveY, ROOM_Z_DISTANCE * layer);
-                glCallList(m_room_gllist);
+                drawRoomWithShader(model, m_whiteTexture, color);
             }
 
             glDisable(GL_BLEND);
@@ -1593,10 +1660,16 @@ void MapCanvas::drawInfoMark(InfoMark *marker)
     glPopMatrix();
 }
 
-void MapCanvas::alphaOverlayTexture(QOpenGLTexture *texture)
+void MapCanvas::drawRoomWithShader(QMatrix4x4 &model, QOpenGLTexture *texture, QVector4D color)
 {
+    m_program.bind();
+    m_program.setUniformValue("modelViewMatrix", model);
+    m_program.setUniformValue("projectionMatrix", m_projection);
+    m_program.setUniformValue("color", color);
     if (texture) texture->bind();
-    glCallList(m_room_gllist);
+    m_mapRoom->draw(&m_program);
+    m_program.release();
+    glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 
@@ -1803,13 +1876,14 @@ void MapCanvas::drawRoom(const Room *room, const std::vector<Room *> &rooms,
     qint32 layer = z - m_currentLayer;
 
     glPushMatrix();
-    glTranslated(x - 0.5, y - 0.5, ROOM_Z_DISTANCE * layer);
+    QMatrix4x4 model(m_view);
+    model.translate(x - 0.5, y - 0.5, ROOM_Z_DISTANCE * layer);
 
     // TODO: https://stackoverflow.com/questions/6017176/gllinestipple-deprecated-in-opengl-3-1
     glLineStipple(2, 43690);
 
     //terrain texture
-    glColor4d(1.0f, 1.0f, 1.0f, 1.0f);
+    QVector4D roomColor(1.0f, 1.0f, 1.0f, 1.0f);
 
     // Enable blending for the textures
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -1819,11 +1893,11 @@ void MapCanvas::drawRoom(const Room *room, const std::vector<Room *> &rooms,
             glEnable(GL_POLYGON_STIPPLE);
         } else {
             glDisable(GL_POLYGON_STIPPLE);
-            glColor4d(0.3f, 0.3f, 0.3f, 0.6f - 0.2f * layer);
+            roomColor = {0.3f, 0.3f, 0.3f, 0.6f - 0.2f * layer};
             glEnable(GL_BLEND);
         }
     } else if (layer == 0) {
-        glColor4d(1.0f, 1.0f, 1.0f, 0.9f);
+        roomColor = {1.0f, 1.0f, 1.0f, 0.9f};
         glEnable(GL_BLEND);
     }
 
@@ -1840,7 +1914,7 @@ void MapCanvas::drawRoom(const Room *room, const std::vector<Room *> &rooms,
     if ( ISSET(ef_east,  EF_ROAD)) SET(roadindex, bit3);
     if ( ISSET(ef_west,  EF_ROAD)) SET(roadindex, bit4);
 
-    QOpenGLTexture *texture;
+    QOpenGLTexture *texture = m_whiteTexture;
     if (layer <= 0 || Config().m_drawUpperLayersTextured) {
         if ( (Mmapper2Room::getTerrainType(room)) == RTT_ROAD)
             texture = m_roadTextures[roadindex];
@@ -1853,25 +1927,18 @@ void MapCanvas::drawRoom(const Room *room, const std::vector<Room *> &rooms,
         RoomLoadFlags lf = Mmapper2Room::getLoadFlags(room);
 
         glEnable(GL_TEXTURE_2D);
-        texture->bind();
-        glCallList(m_room_gllist);
+        drawRoomWithShader(model, texture, roomColor);
 
         // Make dark and troll safe rooms look dark
         if (Mmapper2Room::getSundeathType(room) == RST_NOSUNDEATH
                 || Mmapper2Room::getLightType(room) == RLT_DARK) {
-            GLdouble oldcolour[4];
-            glGetDoublev(GL_CURRENT_COLOR, oldcolour);
+            model.translate(0, 0, 0.005);
 
-            glTranslated(0, 0, 0.005);
-
+            QVector4D darknessColor = {0.1f, 0.0f, 0.0f, 0.2f};
             if (Mmapper2Room::getLightType(room) == RLT_DARK)
-                glColor4d(0.1f, 0.0f, 0.0f, 0.4f);
-            else
-                glColor4d(0.1f, 0.0f, 0.0f, 0.2f);
+                darknessColor = {0.1f, 0.0f, 0.0f, 0.4f};
 
-            glCallList(m_room_gllist);
-
-            glColor4d(oldcolour[0], oldcolour[1], oldcolour[2], oldcolour[3]);
+            drawRoomWithShader(model, texture, darknessColor);
         }
 
         // Only display at a certain scale
@@ -1879,9 +1946,8 @@ void MapCanvas::drawRoom(const Room *room, const std::vector<Room *> &rooms,
 
             // Draw a little dark red cross on noride rooms
             if (Mmapper2Room::getRidableType(room) == RRT_NOTRIDABLE) {
-                GLdouble oldcolour[4];
-                glGetDoublev(GL_CURRENT_COLOR, oldcolour);
-                glDisable(GL_TEXTURE_2D);
+                glPushMatrix();
+                loadMatrix(model);
 
                 glColor4d(0.5f, 0.0f, 0.0f, 0.9f);
                 glLineWidth(devicePixelRatio() * 3.0);
@@ -1891,106 +1957,107 @@ void MapCanvas::drawRoom(const Room *room, const std::vector<Room *> &rooms,
                 glVertex3d(0.8, 0.2, 0.005);
                 glVertex3d(0.6, 0.4, 0.005);
                 glEnd();
-
-                glColor4d(oldcolour[0], oldcolour[1], oldcolour[2], oldcolour[3]);
-                glEnable(GL_TEXTURE_2D);
+                glPopMatrix();
             }
 
             // Trail Support
-            glTranslated(0, 0, 0.005);
+            model.translate(0, 0, 0.005);
             if (roadindex > 0 && (Mmapper2Room::getTerrainType(room)) != RTT_ROAD) {
-                alphaOverlayTexture(m_trailTextures[roadindex]);
-                glTranslated(0, 0, 0.005);
+                drawRoomWithShader(model, m_trailTextures[roadindex]);
+                model.translate(0, 0, 0.005);
             }
             //RMF_RENT, RMF_SHOP, RMF_WEAPONSHOP, RMF_ARMOURSHOP, RMF_FOODSHOP, RMF_PETSHOP,
             //RMF_GUILD, RMF_SCOUTGUILD, RMF_MAGEGUILD, RMF_CLERICGUILD, RMF_WARRIORGUILD,
             //RMF_RANGERGUILD, RMF_SMOB, RMF_QUEST, RMF_ANY
             if (ISSET(mf, RMF_RENT))
-                alphaOverlayTexture(m_mobTextures[0]);
+                drawRoomWithShader(model, m_mobTextures[0], roomColor);
             if (ISSET(mf, RMF_SHOP))
-                alphaOverlayTexture(m_mobTextures[1]);
+                drawRoomWithShader(model, m_mobTextures[1], roomColor);
             if (ISSET(mf, RMF_WEAPONSHOP))
-                alphaOverlayTexture(m_mobTextures[2]);
+                drawRoomWithShader(model, m_mobTextures[2], roomColor);
             if (ISSET(mf, RMF_ARMOURSHOP))
-                alphaOverlayTexture(m_mobTextures[3]);
+                drawRoomWithShader(model, m_mobTextures[3], roomColor);
             if (ISSET(mf, RMF_FOODSHOP))
-                alphaOverlayTexture(m_mobTextures[4]);
+                drawRoomWithShader(model, m_mobTextures[4], roomColor);
             if (ISSET(mf, RMF_PETSHOP))
-                alphaOverlayTexture(m_mobTextures[5]);
+                drawRoomWithShader(model, m_mobTextures[5], roomColor);
             if (ISSET(mf, RMF_GUILD))
-                alphaOverlayTexture(m_mobTextures[6]);
+                drawRoomWithShader(model, m_mobTextures[6], roomColor);
             if (ISSET(mf, RMF_SCOUTGUILD))
-                alphaOverlayTexture(m_mobTextures[7]);
+                drawRoomWithShader(model, m_mobTextures[7], roomColor);
             if (ISSET(mf, RMF_MAGEGUILD))
-                alphaOverlayTexture(m_mobTextures[8]);
+                drawRoomWithShader(model, m_mobTextures[8], roomColor);
             if (ISSET(mf, RMF_CLERICGUILD))
-                alphaOverlayTexture(m_mobTextures[9]);
+                drawRoomWithShader(model, m_mobTextures[9], roomColor);
             if (ISSET(mf, RMF_WARRIORGUILD))
-                alphaOverlayTexture(m_mobTextures[10]);
+                drawRoomWithShader(model, m_mobTextures[10], roomColor);
             if (ISSET(mf, RMF_RANGERGUILD))
-                alphaOverlayTexture(m_mobTextures[11]);
+                drawRoomWithShader(model, m_mobTextures[11], roomColor);
             if (ISSET(mf, RMF_SMOB))
-                alphaOverlayTexture(m_mobTextures[12]);
+                drawRoomWithShader(model, m_mobTextures[12], roomColor);
             if (ISSET(mf, RMF_QUEST))
-                alphaOverlayTexture(m_mobTextures[13]);
+                drawRoomWithShader(model, m_mobTextures[13], roomColor);
             if (ISSET(mf, RMF_ANY))
-                alphaOverlayTexture(m_mobTextures[14]);
+                drawRoomWithShader(model, m_mobTextures[14], roomColor);
 
             //RLF_TREASURE, RLF_ARMOUR, RLF_WEAPON, RLF_WATER, RLF_FOOD, RLF_HERB
             //RLF_KEY, RLF_MULE, RLF_HORSE, RLF_PACKHORSE, RLF_TRAINEDHORSE
             //RLF_ROHIRRIM, RLF_WARG, RLF_BOAT
-            glTranslated(0, 0, 0.005);
+            model.translate(0, 0, 0.005);
             if (ISSET(lf, RLF_TREASURE))
-                alphaOverlayTexture(m_loadTextures[0]);
+                drawRoomWithShader(model, m_loadTextures[0], roomColor);
             if (ISSET(lf, RLF_ARMOUR))
-                alphaOverlayTexture(m_loadTextures[1]);
+                drawRoomWithShader(model, m_loadTextures[1], roomColor);
             if (ISSET(lf, RLF_WEAPON))
-                alphaOverlayTexture(m_loadTextures[2]);
+                drawRoomWithShader(model, m_loadTextures[2], roomColor);
             if (ISSET(lf, RLF_WATER))
-                alphaOverlayTexture(m_loadTextures[3]);
+                drawRoomWithShader(model, m_loadTextures[3], roomColor);
             if (ISSET(lf, RLF_FOOD))
-                alphaOverlayTexture(m_loadTextures[4]);
+                drawRoomWithShader(model, m_loadTextures[4], roomColor);
             if (ISSET(lf, RLF_HERB))
-                alphaOverlayTexture(m_loadTextures[5]);
+                drawRoomWithShader(model, m_loadTextures[5], roomColor);
             if (ISSET(lf, RLF_KEY))
-                alphaOverlayTexture(m_loadTextures[6]);
+                drawRoomWithShader(model, m_loadTextures[6], roomColor);
             if (ISSET(lf, RLF_MULE))
-                alphaOverlayTexture(m_loadTextures[7]);
+                drawRoomWithShader(model, m_loadTextures[7], roomColor);
             if (ISSET(lf, RLF_HORSE))
-                alphaOverlayTexture(m_loadTextures[8]);
+                drawRoomWithShader(model, m_loadTextures[8], roomColor);
             if (ISSET(lf, RLF_PACKHORSE))
-                alphaOverlayTexture(m_loadTextures[9]);
+                drawRoomWithShader(model, m_loadTextures[9], roomColor);
             if (ISSET(lf, RLF_TRAINEDHORSE))
-                alphaOverlayTexture(m_loadTextures[10]);
+                drawRoomWithShader(model, m_loadTextures[10], roomColor);
             if (ISSET(lf, RLF_ROHIRRIM))
-                alphaOverlayTexture(m_loadTextures[11]);
+                drawRoomWithShader(model, m_loadTextures[11], roomColor);
             if (ISSET(lf, RLF_WARG))
-                alphaOverlayTexture(m_loadTextures[12]);
+                drawRoomWithShader(model, m_loadTextures[12], roomColor);
             if (ISSET(lf, RLF_BOAT))
-                alphaOverlayTexture(m_loadTextures[13]);
+                drawRoomWithShader(model, m_loadTextures[13], roomColor);
             if (ISSET(lf, RLF_CLOCK))
-                alphaOverlayTexture(m_loadTextures[16]);
+                drawRoomWithShader(model, m_loadTextures[16], roomColor);
             if (ISSET(lf, RLF_MAIL))
-                alphaOverlayTexture(m_loadTextures[17]);
+                drawRoomWithShader(model, m_loadTextures[17], roomColor);
 
-            glTranslated(0, 0, 0.005);
+            model.translate(0, 0, 0.005);
             if (ISSET(lf, RLF_ATTENTION))
-                alphaOverlayTexture(m_loadTextures[14]);
+                drawRoomWithShader(model, m_loadTextures[14], roomColor);
             if (ISSET(lf, RLF_TOWER))
-                alphaOverlayTexture(m_loadTextures[15]);
+                drawRoomWithShader(model, m_loadTextures[15], roomColor);
 
             //UPDATED?
-            glTranslated(0, 0, 0.005);
+            model.translate(0, 0, 0.005);
             if (Config().m_showUpdated && !room->isUpToDate())
-                alphaOverlayTexture(m_updateTexture);
+                drawRoomWithShader(model, m_updateTexture, roomColor);
             glDisable(GL_BLEND);
-            glDisable(GL_TEXTURE_2D);
         }
     } else {
         glEnable(GL_BLEND);
-        glCallList(m_room_gllist);
+        drawRoomWithShader(model, m_whiteTexture, roomColor);
         glDisable(GL_BLEND);
     }
+    glPopMatrix();
+
+    glPushMatrix();
+    loadMatrix(model);
 
     //walls
     glTranslated(0, 0, 0.005);
@@ -2442,12 +2509,13 @@ void MapCanvas::drawRoom(const Room *room, const std::vector<Room *> &rooms,
     }
 
     glTranslated(0, 0, 0.0100);
+    model = loadModelMatrix();
     if (layer < 0) {
         glEnable(GL_BLEND);
         glDisable(GL_DEPTH_TEST);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glColor4d(0.0f, 0.0f, 0.0f, 0.5f - 0.03f * layer);
-        glCallList(m_room_gllist);
+        roomColor = QVector4D(0.0f, 0.0f, 0.0f, 0.5f - 0.03f * layer);
+        drawRoomWithShader(model, m_whiteTexture, roomColor);
         glEnable(GL_DEPTH_TEST);
         glDisable(GL_BLEND);
     } else if (layer > 0) {
@@ -2456,8 +2524,8 @@ void MapCanvas::drawRoom(const Room *room, const std::vector<Room *> &rooms,
         glEnable(GL_BLEND);
         glDisable(GL_DEPTH_TEST);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glColor4d(1.0f, 1.0f, 1.0f, 0.1f);
-        glCallList(m_room_gllist);
+        roomColor = QVector4D(1.0f, 1.0f, 1.0f, 0.1f);
+        drawRoomWithShader(model, m_whiteTexture, roomColor);
         glEnable(GL_DEPTH_TEST);
         glDisable(GL_BLEND);
     }
@@ -2466,8 +2534,8 @@ void MapCanvas::drawRoom(const Room *room, const std::vector<Room *> &rooms,
         glEnable(GL_BLEND);
         glDisable(GL_DEPTH_TEST);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glColor4d(0.6f, 0.0f, 0.0f, 0.2f);
-        glCallList(m_room_gllist);
+        roomColor = QVector4D(0.6f, 0.0f, 0.0f, 0.2f);
+        drawRoomWithShader(model, m_whiteTexture, roomColor);
         glEnable(GL_DEPTH_TEST);
         glDisable(GL_BLEND);
     }
@@ -3067,20 +3135,6 @@ void MapCanvas::makeGlLists()
     glVertex3d(0.43, 0.69, 0.0);
     glEnd();
     glLineWidth (devicePixelRatio() * 2.0);
-    glEndList();
-
-    m_room_gllist = glGenLists(1);
-    glNewList(m_room_gllist, GL_COMPILE);
-    glBegin(GL_TRIANGLE_STRIP);
-    glTexCoord2d(0, 0);
-    glVertex3d(0.0, 1.0, 0.0);
-    glTexCoord2d(0, 1);
-    glVertex3d(0.0, 0.0, 0.0);
-    glTexCoord2d(1, 0);
-    glVertex3d(1.0, 1.0, 0.0);
-    glTexCoord2d(1, 1);
-    glVertex3d(1.0, 0.0, 0.0);
-    glEnd();
     glEndList();
 
     m_room_selection_gllist = glGenLists(1);

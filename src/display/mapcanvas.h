@@ -33,6 +33,7 @@
 #include <QMatrix4x4>
 #include <QOpenGLWidget>
 #include <QOpenGLFunctions>
+#include <QOpenGLShaderProgram>
 #include <vector>
 #include <set>
 #include <QOpenGLDebugMessage>
@@ -51,6 +52,7 @@ class RoomRecipient;
 class PrespammedPath;
 class Coordinate;
 class QOpenGLDebugLogger;
+class MapRoom;
 
 class MapCanvas : public QOpenGLWidget, protected QOpenGLFunctions
 {
@@ -127,6 +129,10 @@ protected:
     void initializeGL();
     void paintGL();
 
+    void createShaderProgram();
+    void createGeometry();
+
+    void drawRoomWithShader(QMatrix4x4 &model, QOpenGLTexture *texture, QVector4D color = QVector4D({1, 1, 1, 1}));
     void drawGroupCharacters();
     void drawCharacter(const Coordinate &c, QColor color);
     void drawRoomDoorName(const Room *sourceRoom, uint sourceDir, const Room *targetRoom,
@@ -136,8 +142,6 @@ protected:
     void mouseReleaseEvent(QMouseEvent *event);
     void mouseMoveEvent(QMouseEvent *event);
     void wheelEvent ( QWheelEvent *event );
-
-    void alphaOverlayTexture(QOpenGLTexture *texture);
 
     void drawConnection( const Room *leftRoom, const Room *rightRoom,
                          ExitDirection connectionStartDirection, ExitDirection connectionEndDirection, bool oneway,
@@ -164,6 +168,8 @@ protected:
 private:
     QMatrix4x4 m_model, m_view, m_projection;
     QOpenGLDebugLogger *m_logger;
+    QOpenGLShaderProgram m_program;
+    MapRoom *m_mapRoom;
 
     static QColor m_noFleeColor;
 
@@ -171,7 +177,7 @@ private:
     QOpenGLTexture *m_roadTextures[16];
     QOpenGLTexture *m_loadTextures[18];
     QOpenGLTexture *m_mobTextures[15];
-    QOpenGLTexture *m_updateTexture;
+    QOpenGLTexture *m_updateTexture, *m_whiteTexture;
     QOpenGLTexture *m_trailTextures[16];
 
     void moveSelection(const RoomSelection *sel, int dx, int dy);
@@ -232,7 +238,6 @@ private:
     GLuint m_door_up_gllist;
     GLuint m_door_down_gllist;
 
-    GLuint m_room_gllist;
     GLuint m_room_selection_gllist;
     GLuint m_room_selection_inner_gllist;
     GLuint m_character_hint_gllist;

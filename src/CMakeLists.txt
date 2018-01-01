@@ -12,6 +12,7 @@ SET(mmapper_SRCS
     display/connectionselection.cpp
     display/mapcanvas.cpp
     display/mapwindow.cpp
+    display/maproom.cpp
     display/prespammedpath.cpp
     expandoracommon/component.cpp
     expandoracommon/coordinate.cpp

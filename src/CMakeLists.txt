@@ -70,7 +70,7 @@ SET(mmapper_SRCS
     preferences/configdialog.cpp
     preferences/generalpage.cpp
     preferences/groupmanagerpage.cpp
-    preferences/thememanagerpage.cpp
+    preferences/graphicspage.cpp
     preferences/parserpage.cpp
     preferences/pathmachinepage.cpp
     proxy/connectionlistener.cpp
@@ -96,7 +96,7 @@ SET(mmapper_UIS
     clock/mumeclockwidget.ui
     preferences/generalpage.ui
     preferences/groupmanagerpage.ui
-    preferences/thememanagerpage.ui
+    preferences/graphicspage.ui
     preferences/parserpage.ui
     preferences/pathmachinepage.ui
 )

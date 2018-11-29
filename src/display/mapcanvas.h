@@ -137,6 +137,8 @@ public slots:
 
     void slot_onMessageLoggedDirect(const QOpenGLDebugMessage &message);
 
+    void updateDevicePixelRatio();
+
 signals:
     void onEnsureVisible(qint32 x, qint32 y);
     void onCenter(qint32 x, qint32 y);

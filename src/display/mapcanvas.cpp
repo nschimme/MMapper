@@ -31,6 +31,11 @@
 #include <cstddef>
 #include <stdexcept>
 #include <utility>
+#if QT_VERSION >= 0x050600
+#include <QGuiApplication>
+#else
+#include <QDesktopWidget>
+#endif
 #include <QMatrix4x4>
 #include <QMessageLogContext>
 #include <QOpenGLDebugMessage>
@@ -1147,6 +1152,10 @@ void MapCanvas::initializeGL()
     }
 
     initTextures();
+    updateDevicePixelRatio();
+#if QT_VERSION >= 0x050600
+    connect(qApp, &QGuiApplication::primaryScreenChanged, this, &MapCanvas::updateDevicePixelRatio);
+#endif
 
     // <= OpenGL 3.0
     makeGlLists(); // TODO(nschimme): Convert these GlLists into shaders
@@ -1767,6 +1776,23 @@ void MapCanvas::initTextures()
 #undef LOAD_PIXMAP_ARRAY
 }
 
+void MapCanvas::updateDevicePixelRatio()
+{
+    const auto getDevicePixelRatio = []() {
+#if QT_VERSION >= 0x050600
+        return QApplication::primaryScreen()->devicePixelRatio();
+#else
+        return QApplication::screens()
+            .at(QApplication::desktop()->primaryScreen())
+            ->devicePixelRatio();
+#endif
+    };
+    const auto dpi = getDevicePixelRatio();
+    qInfo() << "Scale Factor: " << dpi;
+    emit log("MapCanvas", QString::asprintf("Scale Factor: %0.1fx", dpi));
+    m_opengl.setDevicePixelRatio(static_cast<float>(dpi));
+}
+
 // I suspect most of these are just rotated versions of one another.
 // If that's the case, then we should be able to remove 3/4 of the
 // NESW cases and just write a loop that rotates 90 degrees.
@@ -1776,15 +1802,6 @@ void MapCanvas::initTextures()
 // and we'll want to use instanced rendering.
 void MapCanvas::makeGlLists()
 {
-    const auto getDevicePixelRatio = [this]() {
-#if QT_VERSION >= 0x050600
-        return static_cast<float>(devicePixelRatioF());
-#else
-        return static_cast<float>(devicePixelRatio());
-#endif
-    };
-    m_opengl.setDevicePixelRatio(getDevicePixelRatio());
-
     m_gllist.wall[ExitDirection::NORTH] = m_opengl.compile(
         XDraw{DrawType::LINES,
               std::vector<Vec3d>{Vec3d{0.0, 0.0 + ROOM_WALL_ALIGN, 0.0},

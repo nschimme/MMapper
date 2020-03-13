@@ -8,19 +8,17 @@ AutoLogger::AutoLogger()
 {
     m_maxLines = getConfig().autoLog.autoLogMaxLines;
     createFile();
-
 }
 
 AutoLogger::~AutoLogger(){
     m_logFile.flush();
     m_logFile.close();
-
 }
 
 bool AutoLogger::createFile()
 {
     m_title = getTitle();
-   QString fileName = QString(m_title+"_"+QString::number(m_curFile)+".txt");
+    QString fileName = QString(m_title+"_"+QString::number(m_curFile)+".txt");
 
     m_logFile.open(fileName.toStdString(), std::fstream::out | std::fstream::app);
     if (!m_logFile.is_open())
@@ -53,14 +51,12 @@ void AutoLogger::writeLine(const QByteArray &line){
         m_logFile.close();
         if (!createFile())
             return;
-
     }
 
     m_logFile << str.toStdString();
     m_logFile.flush();
 
     m_curLines++;
-
 }
 
 void AutoLogger::onUserInput(const QByteArray &ba)
@@ -69,5 +65,4 @@ void AutoLogger::onUserInput(const QByteArray &ba)
         m_shouldLog = true;
 
     writeLine(ba);
-
 }

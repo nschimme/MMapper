@@ -407,28 +407,28 @@ static uint16_t sanitizeUint16(const int input, const uint16_t defaultValue)
 
 #define GROUP_CALLBACK(callback, name, ref) \
     do { \
-        conf.beginGroup(name); \
-        ref.callback(conf); \
-        conf.endGroup(); \
+    conf.beginGroup(name); \
+    ref.callback(conf); \
+    conf.endGroup(); \
     } while (false)
 
 #define FOREACH_CONFIG_GROUP(callback) \
     do { \
-        GROUP_CALLBACK(callback, GRP_GENERAL, general); \
-        GROUP_CALLBACK(callback, GRP_CONNECTION, connection); \
-        GROUP_CALLBACK(callback, GRP_CANVAS, canvas); \
-        GROUP_CALLBACK(callback, GRP_AUTO_LOAD_WORLD, autoLoad); \
-        GROUP_CALLBACK(callback, GRP_AUTO_LOG, autoLog); \
-        GROUP_CALLBACK(callback, GRP_PARSER, parser); \
-        GROUP_CALLBACK(callback, GRP_MUME_CLIENT_PROTOCOL, mumeClientProtocol); \
-        GROUP_CALLBACK(callback, GRP_MUME_NATIVE, mumeNative); \
-        GROUP_CALLBACK(callback, GRP_PATH_MACHINE, pathMachine); \
-        GROUP_CALLBACK(callback, GRP_GROUP_MANAGER, groupManager); \
-        GROUP_CALLBACK(callback, GRP_MUME_CLOCK, mumeClock); \
-        GROUP_CALLBACK(callback, GRP_INTEGRATED_MUD_CLIENT, integratedClient); \
-        GROUP_CALLBACK(callback, GRP_INFOMARKS_DIALOG, infoMarksDialog); \
-        GROUP_CALLBACK(callback, GRP_ROOMEDIT_DIALOG, roomEditDialog); \
-        GROUP_CALLBACK(callback, GRP_FINDROOMS_DIALOG, findRoomsDialog); \
+    GROUP_CALLBACK(callback, GRP_GENERAL, general); \
+    GROUP_CALLBACK(callback, GRP_CONNECTION, connection); \
+    GROUP_CALLBACK(callback, GRP_CANVAS, canvas); \
+    GROUP_CALLBACK(callback, GRP_AUTO_LOAD_WORLD, autoLoad); \
+    GROUP_CALLBACK(callback, GRP_AUTO_LOG, autoLog); \
+    GROUP_CALLBACK(callback, GRP_PARSER, parser); \
+    GROUP_CALLBACK(callback, GRP_MUME_CLIENT_PROTOCOL, mumeClientProtocol); \
+    GROUP_CALLBACK(callback, GRP_MUME_NATIVE, mumeNative); \
+    GROUP_CALLBACK(callback, GRP_PATH_MACHINE, pathMachine); \
+    GROUP_CALLBACK(callback, GRP_GROUP_MANAGER, groupManager); \
+    GROUP_CALLBACK(callback, GRP_MUME_CLOCK, mumeClock); \
+    GROUP_CALLBACK(callback, GRP_INTEGRATED_MUD_CLIENT, integratedClient); \
+    GROUP_CALLBACK(callback, GRP_INFOMARKS_DIALOG, infoMarksDialog); \
+    GROUP_CALLBACK(callback, GRP_ROOMEDIT_DIALOG, roomEditDialog); \
+    GROUP_CALLBACK(callback, GRP_FINDROOMS_DIALOG, findRoomsDialog); \
     } while (false)
 
 void Configuration::read()
@@ -500,13 +500,13 @@ void Configuration::GeneralSettings::read(QSettings &conf)
     windowState = conf.value(KEY_WINDOW_STATE).toByteArray();
     alwaysOnTop = conf.value(KEY_ALWAYS_ON_TOP, false).toBool();
     mapMode = sanitizeMapMode(
-        conf.value(KEY_MAP_MODE, static_cast<uint32_t>(MapModeEnum::PLAY)).toUInt());
+                conf.value(KEY_MAP_MODE, static_cast<uint32_t>(MapModeEnum::PLAY)).toUInt());
     noSplash = conf.value(KEY_NO_SPLASH, false).toBool();
     noClientPanel = conf.value(KEY_NO_LAUNCH_PANEL, false).toBool();
     checkForUpdate = conf.value(KEY_CHECK_FOR_UPDATE, true).toBool();
     characterEncoding = sanitizeCharacterEncoding(
-        conf.value(KEY_CHARACTER_ENCODING, static_cast<uint32_t>(CharacterEncodingEnum::LATIN1))
-            .toUInt());
+                conf.value(KEY_CHARACTER_ENCODING, static_cast<uint32_t>(CharacterEncodingEnum::LATIN1))
+                .toUInt());
 }
 
 void Configuration::ConnectionSettings::read(QSettings &conf)
@@ -600,7 +600,7 @@ void Configuration::MumeClientProtocolSettings::read(QSettings &conf)
     remoteEditing = conf.value(KEY_REMOTE_EDITING_AND_VIEWING, true).toBool();
     internalRemoteEditor = conf.value(KEY_USE_INTERNAL_EDITOR, true).toBool();
     externalRemoteEditorCommand = conf.value(KEY_EXTERNAL_EDITOR_COMMAND, getPlatformEditor())
-                                      .toString();
+            .toString();
 }
 
 void Configuration::MumeNativeSettings::read(QSettings &conf)
@@ -627,7 +627,7 @@ void Configuration::GroupManagerSettings::read(QSettings &conf)
     static constexpr const char *const ANSI_GREEN = "[32m";
 
     state = sanitizeGroupManagerState(
-        conf.value(KEY_STATE, static_cast<int>(GroupManagerStateEnum::Off)).toInt());
+                conf.value(KEY_STATE, static_cast<int>(GroupManagerStateEnum::Off)).toInt());
     localPort = sanitizeUint16(conf.value(KEY_GROUP_LOCAL_PORT, DEFAULT_PORT).toInt(), DEFAULT_PORT);
     remotePort = sanitizeUint16(conf.value(KEY_GROUP_REMOTE_PORT, DEFAULT_PORT).toInt(),
                                 DEFAULT_PORT);
@@ -914,7 +914,7 @@ Configuration::CanvasSettings::Advanced::Advanced()
 }
 
 ConnectionSet Configuration::CanvasSettings::Advanced::registerChangeCallback(
-    ChangeMonitor::Function callback)
+        ChangeMonitor::Function callback)
 {
     ConnectionSet result;
     result += use3D.registerChangeCallback(callback);

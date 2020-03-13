@@ -29,7 +29,7 @@ private:
     bool createFile();
     QString getTitle(){
         return getConfig().autoLog.autoLogDirectory + "/Log_" +
-                    (QDate::currentDate().toString("ddMMyy"));
+                (QDate::currentDate().toString("ddMMyy"));
     }
 
     bool m_shouldLog = false;

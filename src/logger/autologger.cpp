@@ -4,7 +4,8 @@
 
 #include "autologger.h"
 
-AutoLogger::AutoLogger()
+AutoLogger::AutoLogger(QObject *const parent)
+    : QObject(parent)
 {
     m_maxLines = getConfig().autoLog.autoLogMaxLines;
     createFile();

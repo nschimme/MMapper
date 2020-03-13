@@ -16,7 +16,7 @@ class AutoLogger : public QObject
 {
     Q_OBJECT
 public:
-    explicit AutoLogger();
+    explicit AutoLogger(QObject *parent);
     ~AutoLogger() override;
 
     void writeLine(const QByteArray &ba);

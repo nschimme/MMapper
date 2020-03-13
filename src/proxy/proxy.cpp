@@ -94,7 +94,7 @@ void Proxy::start()
     }
 
     // Create new log object.
-    m_logger = new AutoLogger();
+    m_logger = new AutoLogger(this);
 
     m_userSocket = [this]() -> QPointer<QTcpSocket> {
         auto userSock = makeQPointer<QTcpSocket>(this);

@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2019 The MMapper Authors
+// Author: Mattias Viklund <devmew@exedump.com> (Mew_)
+
 #include "autologger.h"
 
 AutoLogger::AutoLogger()

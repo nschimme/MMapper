@@ -4,6 +4,7 @@
 // Author: Ulf Hermann <ulfonk_mennhar@gmx.de> (Alve)
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
+// Author: Mattias Viklund <devmew@exedump.com> (Mew_)
 
 #include <string_view>
 #include <QByteArray>
@@ -87,6 +88,22 @@ public:
     void read();
     void write() const;
     void reset();
+
+    const static QString getDefaultDirectory(QString additionalPath="", bool file=false){
+        QDir logDirectory = QDir(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).filePath("MMapper/");
+
+        if (!file)
+            logDirectory = logDirectory.filePath(additionalPath);
+
+        if (!logDirectory.exists())
+            logDirectory.mkdir(logDirectory.absolutePath());
+
+        const QString defaultLogDirectory(logDirectory.absolutePath());
+        if (file)
+            return defaultLogDirectory + "/" + additionalPath;
+
+        return defaultLogDirectory;
+    }
 
 public:
     struct GeneralSettings final
@@ -254,6 +271,16 @@ public:
     private:
         SUBGROUP();
     } autoLoad;
+
+    struct AutoLogSettings final
+    {
+        bool autoLog = false;
+        uint autoLogMaxLines;
+        QString autoLogDirectory;
+
+    private:
+        SUBGROUP();
+    } autoLog;
 
     struct PathMachineSettings final
     {

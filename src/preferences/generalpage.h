@@ -38,6 +38,8 @@ public slots:
     void autoLoadCheckStateChanged(int);
 
     void selectWorldFileButtonClicked();
+    void selectLogLocationButtonClicked();
+    void maxLogLinesChanged(int);
 
     void displayMumeClockStateChanged(int);
 

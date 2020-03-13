@@ -181,6 +181,8 @@ set(mmapper_SRCS
     mapstorage/progresscounter.h
     mapstorage/roomsaver.cpp
     mapstorage/roomsaver.h
+    logger/autologger.cpp
+    logger/autologger.h
     mpi/mpifilter.cpp
     mpi/mpifilter.h
     mpi/remoteedit.cpp

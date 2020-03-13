@@ -83,6 +83,16 @@ GeneralPage::GeneralPage(QWidget *parent)
             this,
             &GeneralPage::selectWorldFileButtonClicked);
 
+    connect(ui->selectAutoLogLocationButton,
+            &QAbstractButton::clicked,
+            this,
+            &GeneralPage::selectLogLocationButtonClicked);
+
+    connect(ui->autoLogMaxLines,
+            QOverload<int>::of(&QSpinBox::valueChanged),
+            this,
+            &GeneralPage::maxLogLinesChanged);
+
     connect(ui->displayMumeClockCheckBox,
             &QCheckBox::stateChanged,
             this,
@@ -119,6 +129,7 @@ void GeneralPage::loadConfig()
     const auto &connection = config.connection;
     const auto &mumeNative = config.mumeNative;
     const auto &autoLoad = config.autoLoad;
+    const auto &autoLog = config.autoLog;
     const auto &general = config.general;
 
     ui->remoteName->setText(connection.remoteServerName);
@@ -146,6 +157,10 @@ void GeneralPage::loadConfig()
     ui->autoLoadFileName->setEnabled(autoLoad.autoLoadMap);
     ui->selectWorldFileButton->setEnabled(autoLoad.autoLoadMap);
 
+    ui->autoLogCheckBox->setChecked(autoLog.autoLog);
+    ui->autoLogLocation->setText(autoLog.autoLogDirectory);
+    ui->autoLogMaxLines->setValue(autoLog.autoLogMaxLines);
+
     ui->displayMumeClockCheckBox->setChecked(config.mumeClock.display);
 
     ui->proxyThreadedCheckBox->setChecked(connection.proxyThreaded);
@@ -167,6 +182,27 @@ void GeneralPage::selectWorldFileButtonClicked()
     }
 }
 
+void GeneralPage::selectLogLocationButtonClicked()
+{
+    QString logDirectory = QFileDialog::getExistingDirectory(0,
+                                                    "Choose log location ...",
+                                                    QDir::currentPath());
+
+    if (!logDirectory.isEmpty()) {
+        ui->autoLogLocation->setText(logDirectory);
+        ui->autoLogCheckBox->setChecked(true);
+        auto &savedAutoLog = setConfig().autoLog;
+        savedAutoLog.autoLogDirectory = logDirectory;
+        savedAutoLog.autoLog = true;
+
+    }
+}
+
+void GeneralPage::localPortValueChanged(int /*unused*/)
+{
+    setConfig().connection.localPort = static_cast<quint16>(ui->localPort->value());
+}
+
 void GeneralPage::remoteNameTextChanged(const QString & /*unused*/)
 {
     setConfig().connection.remoteServerName = ui->remoteName->text();
@@ -177,9 +213,9 @@ void GeneralPage::remotePortValueChanged(int /*unused*/)
     setConfig().connection.remotePort = static_cast<quint16>(ui->remotePort->value());
 }
 
-void GeneralPage::localPortValueChanged(int /*unused*/)
+void GeneralPage::maxLogLinesChanged(int /*unused*/)
 {
-    setConfig().connection.localPort = static_cast<quint16>(ui->localPort->value());
+    setConfig().autoLog.autoLogMaxLines = static_cast<quint32>(ui->autoLogMaxLines->value());
 }
 
 void GeneralPage::tlsEncryptionCheckBoxStateChanged(int /*unused*/)

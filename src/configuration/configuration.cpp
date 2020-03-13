@@ -3,6 +3,7 @@
 // Author: Ulf Hermann <ulfonk_mennhar@gmx.de> (Alve)
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
+// Author: Mattias Viklund <devmew@exedump.com> (Mew_)
 
 #include "configuration.h"
 
@@ -175,6 +176,7 @@ void Settings::initSettings()
     QSettings &conf = static_cast<QSettings &>(settings);
 
 ConstString GRP_AUTO_LOAD_WORLD = "Auto load world";
+ConstString GRP_AUTO_LOG = "Auto log";
 ConstString GRP_CANVAS = "Canvas";
 ConstString GRP_CONNECTION = "Connection";
 ConstString GRP_FINDROOMS_DIALOG = "FindRooms Dialog";
@@ -213,6 +215,9 @@ ConstString KEY_DRAW_UPPER_LAYERS_TEXTURED = "Draw upper layers textured";
 ConstString KEY_EMULATED_EXITS = "Emulated Exits";
 ConstString KEY_EXTERNAL_EDITOR_COMMAND = "External editor command";
 ConstString KEY_FILE_NAME = "File name";
+ConstString KEY_AUTO_LOG = "Auto log";
+ConstString KEY_AUTO_LOG_DIRECTORY = "Auto log directory";
+ConstString KEY_AUTO_LOG_MAX_LINES = "Auto log max lines";
 ConstString KEY_FONT = "Font";
 ConstString KEY_FOREGROUND_COLOR = "Foreground color";
 ConstString KEY_3D_CANVAS = "canvas.advanced.use3D";
@@ -413,6 +418,7 @@ static uint16_t sanitizeUint16(const int input, const uint16_t defaultValue)
         GROUP_CALLBACK(callback, GRP_CONNECTION, connection); \
         GROUP_CALLBACK(callback, GRP_CANVAS, canvas); \
         GROUP_CALLBACK(callback, GRP_AUTO_LOAD_WORLD, autoLoad); \
+        GROUP_CALLBACK(callback, GRP_AUTO_LOG, autoLog); \
         GROUP_CALLBACK(callback, GRP_PARSER, parser); \
         GROUP_CALLBACK(callback, GRP_MUME_CLIENT_PROTOCOL, mumeClientProtocol); \
         GROUP_CALLBACK(callback, GRP_MUME_NATIVE, mumeNative); \
@@ -558,8 +564,15 @@ void Configuration::CanvasSettings::read(QSettings &conf)
 void Configuration::AutoLoadSettings::read(QSettings &conf)
 {
     autoLoadMap = conf.value(KEY_AUTO_LOAD, true).toBool();
-    fileName = conf.value(KEY_FILE_NAME, "").toString();
-    lastMapDirectory = conf.value(KEY_LAST_MAP_LOAD_DIRECTORY, QDir::homePath()).toString();
+    fileName = conf.value(KEY_FILE_NAME, getDefaultDirectory("arda.mm2", true)).toString();
+    lastMapDirectory = conf.value(KEY_LAST_MAP_LOAD_DIRECTORY, "").toString();
+}
+
+void Configuration::AutoLogSettings::read(QSettings &conf)
+{
+    autoLog = conf.value(KEY_AUTO_LOG, false).toBool();
+    autoLogDirectory = conf.value(KEY_AUTO_LOG_DIRECTORY, getDefaultDirectory("Logs/")).toString();
+    autoLogMaxLines = conf.value(KEY_AUTO_LOG_MAX_LINES, "10000").toInt();
 }
 
 void Configuration::ParserSettings::read(QSettings &conf)
@@ -726,6 +739,13 @@ void Configuration::AutoLoadSettings::write(QSettings &conf) const
     conf.setValue(KEY_AUTO_LOAD, autoLoadMap);
     conf.setValue(KEY_FILE_NAME, fileName);
     conf.setValue(KEY_LAST_MAP_LOAD_DIRECTORY, lastMapDirectory);
+}
+
+void Configuration::AutoLogSettings::write(QSettings &conf) const
+{
+    conf.setValue(KEY_AUTO_LOG, autoLog);
+    conf.setValue(KEY_AUTO_LOG_DIRECTORY, autoLogDirectory);
+    conf.setValue(KEY_AUTO_LOG_MAX_LINES, autoLogMaxLines);
 }
 
 void Configuration::ParserSettings::write(QSettings &conf) const

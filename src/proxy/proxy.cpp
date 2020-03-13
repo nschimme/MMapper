@@ -93,6 +93,9 @@ void Proxy::start()
         return;
     }
 
+    // Create new log object.
+    m_logger = new AutoLogger();
+
     m_userSocket = [this]() -> QPointer<QTcpSocket> {
         auto userSock = makeQPointer<QTcpSocket>(this);
         if (!userSock->setSocketDescriptor(m_socketDescriptor)) {
@@ -174,6 +177,10 @@ void Proxy::start()
 
     connect(parserXml, &MumeXmlParser::sendToMud, mudTelnet, &MudTelnet::onSendToMud);
     connect(parserXml, &MumeXmlParser::sig_sendToUser, userTelnet, &UserTelnet::onSendToUser);
+
+    // Link to log
+    connect(parserXml, &MumeXmlParser::sig_sendToUser, m_logger, &AutoLogger::writeLine);
+    connect(parserXml, &MumeXmlParser::sendToMud, m_logger, &AutoLogger::onUserInput);
 
     connect(parserXml,
             QOverload<const SigParseEvent &>::of(&MumeXmlParser::event),

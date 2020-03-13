@@ -21,6 +21,7 @@
 #include "../display/CanvasMouseModeEnum.h"
 #include "../mapdata/roomselection.h"
 #include "../pandoragroup/mmapper2group.h"
+#include "../logger/autologger.h"
 
 class AbstractAction;
 class ClientWidget;

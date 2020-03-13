@@ -1,25 +1,37 @@
 #pragma once
 
 #include <QtCore>
-#include "../global/utils.h"
-#include <fstream>
-class AutoLogger{
-public:
-    AutoLogger(int maxlines);
-    ~AutoLogger();
-    static bool logOpen(){
-        return AutoLogger::logFile.is_open();
-    }
 
-    static void writeLine(QByteArray &line);
+#include "../configuration/configuration.h"
+#include "../parser/parserutils.h"
+#include "../global/utils.h"
+
+#include <fstream>
+
+class AutoLogger : public QObject {
+    Q_OBJECT
+public:
+    explicit AutoLogger();
+    ~AutoLogger() override;
+
+    void writeLine(const QByteArray &ba);
+    void close();
+
+public slots:
+    void onUserInput(const QByteArray &ba);
 
 private:
-    static bool createFile();
+    bool startedToPlay(const QByteArray &data);
+    bool createFile();
+    QString getTitle(){
+        return getConfig().autoLog.autoLogDirectory + "/Log_" +
+                    (QDate::currentDate().toString("ddMMyy"));
+    }
 
-    static std::ofstream logFile;
-    static int curLines;
-
-    static QString title;
-    static int maxLines;
-    static int curFile;
+    bool m_shouldLog = false;
+    std::fstream m_logFile;
+    int m_curFile = 0;
+    QString m_title;
+    int m_maxLines;
+    int m_curLines;
 };

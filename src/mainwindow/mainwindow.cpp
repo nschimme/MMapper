@@ -1434,6 +1434,9 @@ void MainWindow::open()
     QFileInfo file(fileName);
     savedLastMapDir = file.dir().absolutePath();
     loadFile(file.absoluteFilePath());
+
+
+
 }
 
 void MainWindow::reload()

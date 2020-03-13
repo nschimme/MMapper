@@ -572,7 +572,7 @@ void Configuration::AutoLogSettings::read(QSettings &conf)
 {
     autoLog = conf.value(KEY_AUTO_LOG, false).toBool();
     autoLogDirectory = conf.value(KEY_AUTO_LOG_DIRECTORY, getDefaultDirectory("Logs/")).toString();
-    autoLogMaxLines = conf.value(KEY_AUTO_LOG_MAX_LINES, "10000").toInt();
+    autoLogMaxLines = conf.value(KEY_AUTO_LOG_MAX_LINES, 10000).toInt();
 }
 
 void Configuration::ParserSettings::read(QSettings &conf)

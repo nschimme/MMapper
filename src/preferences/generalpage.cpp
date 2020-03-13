@@ -214,7 +214,7 @@ void GeneralPage::remotePortValueChanged(int /*unused*/)
 
 void GeneralPage::maxLogLinesChanged(int /*unused*/)
 {
-    setConfig().autoLog.autoLogMaxLines = static_cast<quint32>(ui->autoLogMaxLines->value());
+    setConfig().autoLog.autoLogMaxLines = ui->autoLogMaxLines->value();
 }
 
 void GeneralPage::tlsEncryptionCheckBoxStateChanged(int /*unused*/)

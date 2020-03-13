@@ -277,7 +277,7 @@ public:
     struct AutoLogSettings final
     {
         bool autoLog = false;
-        uint autoLogMaxLines;
+        int autoLogMaxLines;
         QString autoLogDirectory;
 
     private:

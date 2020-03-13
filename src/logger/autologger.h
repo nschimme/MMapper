@@ -7,12 +7,13 @@
 #include <QtCore>
 
 #include "../configuration/configuration.h"
-#include "../parser/parserutils.h"
 #include "../global/utils.h"
+#include "../parser/parserutils.h"
 
 #include <fstream>
 
-class AutoLogger : public QObject {
+class AutoLogger : public QObject
+{
     Q_OBJECT
 public:
     explicit AutoLogger();
@@ -27,9 +28,10 @@ public slots:
 private:
     bool startedToPlay(const QByteArray &data);
     bool createFile();
-    QString getTitle(){
-        return getConfig().autoLog.autoLogDirectory + "/Log_" +
-                (QDate::currentDate().toString("ddMMyy"));
+    QString getTitle()
+    {
+        return getConfig().autoLog.autoLogDirectory + "/Log_"
+               + (QDate::currentDate().toString("ddMMyy"));
     }
 
     bool m_shouldLog = false;

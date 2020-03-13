@@ -89,8 +89,10 @@ public:
     void write() const;
     void reset();
 
-    const static QString getDefaultDirectory(QString additionalPath="", bool file=false){
-        QDir logDirectory = QDir(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).filePath("MMapper/");
+    const static QString getDefaultDirectory(QString additionalPath = "", bool file = false)
+    {
+        QDir logDirectory = QDir(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation))
+                                .filePath("MMapper/");
 
         if (!file)
             logDirectory = logDirectory.filePath(additionalPath);

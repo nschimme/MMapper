@@ -10,7 +10,8 @@ AutoLogger::AutoLogger()
     createFile();
 }
 
-AutoLogger::~AutoLogger(){
+AutoLogger::~AutoLogger()
+{
     m_logFile.flush();
     m_logFile.close();
 }
@@ -18,11 +19,10 @@ AutoLogger::~AutoLogger(){
 bool AutoLogger::createFile()
 {
     m_title = getTitle();
-    QString fileName = QString(m_title+"_"+QString::number(m_curFile)+".txt");
+    QString fileName = QString(m_title + "_" + QString::number(m_curFile) + ".txt");
 
     m_logFile.open(fileName.toStdString(), std::fstream::out | std::fstream::app);
-    if (!m_logFile.is_open())
-    {
+    if (!m_logFile.is_open()) {
         qDebug() << "Could not create file.";
         return false;
     }
@@ -32,22 +32,22 @@ bool AutoLogger::createFile()
     return true;
 }
 
-void AutoLogger::writeLine(const QByteArray &line){
+void AutoLogger::writeLine(const QByteArray &line)
+{
     if (!m_shouldLog)
         return;
 
-    if (!m_logFile.is_open())
-    {
+    if (!m_logFile.is_open()) {
         qDebug("Tried to write to a closed log.");
         return;
     }
 
-    QString str = QString::fromLatin1(line);;
+    QString str = QString::fromLatin1(line);
+    ;
     if (str.contains('\x1b'))
         ParserUtils::removeAnsiMarksInPlace(str);
 
-    if (m_curLines > m_maxLines)
-    {
+    if (m_curLines > m_maxLines) {
         m_logFile.close();
         if (!createFile())
             return;

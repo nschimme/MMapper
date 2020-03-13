@@ -185,8 +185,8 @@ void GeneralPage::selectWorldFileButtonClicked()
 void GeneralPage::selectLogLocationButtonClicked()
 {
     QString logDirectory = QFileDialog::getExistingDirectory(0,
-                                                    "Choose log location ...",
-                                                    QDir::currentPath());
+                                                             "Choose log location ...",
+                                                             QDir::currentPath());
 
     if (!logDirectory.isEmpty()) {
         ui->autoLogLocation->setText(logDirectory);
@@ -194,7 +194,6 @@ void GeneralPage::selectLogLocationButtonClicked()
         auto &savedAutoLog = setConfig().autoLog;
         savedAutoLog.autoLogDirectory = logDirectory;
         savedAutoLog.autoLog = true;
-
     }
 }
 

@@ -16,9 +16,9 @@
 
 #include "../global/WeakHandle.h"
 #include "../global/io.h"
+#include "../logger/autologger.h"
 #include "../pandoragroup/GroupManagerApi.h"
 #include "ProxyParserApi.h"
-#include "../logger/autologger.h"
 
 class ConnectionListener;
 class MapCanvas;
@@ -85,7 +85,7 @@ private:
     void sendToMud(const QByteArray &ba) { emit sig_sendToMud(ba); }
 
 private:
-    AutoLogger* m_logger;
+    AutoLogger *m_logger;
 
     io::buffer<(1 << 13)> m_buffer;
     WeakHandleLifetime<Proxy> m_weakHandleLifetime{*this};

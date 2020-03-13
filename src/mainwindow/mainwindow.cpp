@@ -237,7 +237,7 @@ MainWindow::MainWindow(QWidget *parent, Qt::WindowFlags flags)
 
     m_mumeClock = new MumeClock(getConfig().mumeClock.startEpoch, this);
     if constexpr (!NO_UPDATER)
-            m_updateDialog = new UpdateDialog(this);
+        m_updateDialog = new UpdateDialog(this);
 
     createActions();
     setupToolBars();
@@ -309,8 +309,8 @@ void MainWindow::startServices()
             tr("Server bound on localhost to port: %1.").arg(getConfig().connection.localPort));
     } catch (const std::exception &e) {
         const QString errorMsg = QString(
-                    "Unable to start the server (switching to offline mode): %1.")
-                .arg(QString::fromLatin1(e.what()));
+                                     "Unable to start the server (switching to offline mode): %1.")
+                                     .arg(QString::fromLatin1(e.what()));
         QMessageBox::critical(this, tr("mmapper"), errorMsg);
     }
 
@@ -588,11 +588,11 @@ void MainWindow::createActions()
                              tr("Layer Up"),
                              this);
     layerUpAct->setShortcut(tr([]() -> const char * {
-                                   // Technically tr() could convert Ctrl to Meta, right?
-                                   if constexpr (CURRENT_PLATFORM == PlatformEnum::Mac)
-                                   return "Meta+Tab";
-                                   return "Ctrl+Tab";
-                               }()));
+        // Technically tr() could convert Ctrl to Meta, right?
+        if constexpr (CURRENT_PLATFORM == PlatformEnum::Mac)
+            return "Meta+Tab";
+        return "Ctrl+Tab";
+    }()));
     layerUpAct->setStatusTip(tr("Layer Up"));
     connect(layerUpAct, &QAction::triggered, this, &MainWindow::onLayerUp);
     layerDownAct = new QAction(QIcon::fromTheme("go-down", QIcon(":/icons/layerdown.png")),
@@ -600,11 +600,11 @@ void MainWindow::createActions()
                                this);
 
     layerDownAct->setShortcut(tr([]() -> const char * {
-                                     // Technically tr() could convert Ctrl to Meta, right?
-                                     if constexpr (CURRENT_PLATFORM == PlatformEnum::Mac)
-                                     return "Meta+Shift+Tab";
-                                     return "Ctrl+Shift+Tab";
-                                 }()));
+        // Technically tr() could convert Ctrl to Meta, right?
+        if constexpr (CURRENT_PLATFORM == PlatformEnum::Mac)
+            return "Meta+Shift+Tab";
+        return "Ctrl+Shift+Tab";
+    }()));
     layerDownAct->setStatusTip(tr("Layer Down"));
     connect(layerDownAct, &QAction::triggered, this, &MainWindow::onLayerDown);
 
@@ -845,7 +845,7 @@ void MainWindow::createActions()
                                         tr("Switch to mapping mode"),
                                         this);
     mapperMode.mapModeAct->setStatusTip(
-                tr("Switch to mapping mode - new rooms are created when moving"));
+        tr("Switch to mapping mode - new rooms are created when moving"));
     mapperMode.mapModeAct->setCheckable(true);
     connect(mapperMode.mapModeAct, &QAction::triggered, this, &MainWindow::onMapMode);
 
@@ -853,7 +853,7 @@ void MainWindow::createActions()
                                             tr("Switch to offline emulation mode"),
                                             this);
     mapperMode.offlineModeAct->setStatusTip(
-                tr("Switch to offline emulation mode - you can learn areas offline"));
+        tr("Switch to offline emulation mode - you can learn areas offline"));
     mapperMode.offlineModeAct->setCheckable(true);
     connect(mapperMode.offlineModeAct, &QAction::triggered, this, &MainWindow::onOfflineMode);
 
@@ -884,7 +884,7 @@ void MainWindow::createActions()
                                            this);
     groupMode.groupServerAct->setCheckable(true);
     groupMode.groupServerAct->setStatusTip(
-                tr("Switch to host mode - allow friends to connect to your map"));
+        tr("Switch to host mode - allow friends to connect to your map"));
     connect(groupMode.groupServerAct, &QAction::triggered, this, &MainWindow::onModeGroupServer);
 
     groupMode.groupModeGroup = new QActionGroup(this);
@@ -1108,7 +1108,7 @@ void MainWindow::setupMenuBar()
     helpMenu->addAction(voteAct);
     helpMenu->addSeparator();
     if constexpr (!NO_UPDATER)
-            helpMenu->addAction(mmapperCheckForUpdateAct);
+        helpMenu->addAction(mmapperCheckForUpdateAct);
     mumeMenu = helpMenu->addMenu(QIcon::fromTheme("help-contents"), tr("M&UME"));
     mumeMenu->addAction(mumeWebsiteAct);
     mumeMenu->addAction(mumeForumAct);
@@ -1423,10 +1423,10 @@ void MainWindow::open()
 
     auto &savedLastMapDir = setConfig().autoLoad.lastMapDirectory;
     const QString fileName
-            = QFileDialog::getOpenFileName(this,
-                                           "Choose map file ...",
-                                           savedLastMapDir,
-                                           "MMapper Maps (*.mm2);;Pandora Maps (*.xml)");
+        = QFileDialog::getOpenFileName(this,
+                                       "Choose map file ...",
+                                       savedLastMapDir,
+                                       "MMapper Maps (*.mm2);;Pandora Maps (*.xml)");
     if (fileName.isEmpty()) {
         statusBar()->showMessage(tr("No filename provided"), 2000);
         return;
@@ -1481,8 +1481,8 @@ bool MainWindow::saveAs()
         QFileInfo currentFile(m_mapData->getFileName());
         if (currentFile.exists()) {
             QString suggestedFileName = currentFile.fileName()
-                    .replace(QRegularExpression(R"(\.mm2$)"), "-copy.mm2")
-                    .replace(QRegularExpression(R"(\.xml$)"), "-import.mm2");
+                                            .replace(QRegularExpression(R"(\.mm2$)"), "-copy.mm2")
+                                            .replace(QRegularExpression(R"(\.xml$)"), "-import.mm2");
             saveDialog->selectFile(suggestedFileName);
         }
         return saveDialog;
@@ -1521,7 +1521,7 @@ bool MainWindow::exportBaseMap()
         QFileInfo currentFile(m_mapData->getFileName());
         if (currentFile.exists()) {
             saveDialog->selectFile(
-                        currentFile.fileName().replace(QRegularExpression(R"(\.mm2$)"), "-base.mm2"));
+                currentFile.fileName().replace(QRegularExpression(R"(\.mm2$)"), "-base.mm2"));
         }
         return saveDialog;
     };
@@ -1569,8 +1569,8 @@ bool MainWindow::exportMmpMap()
         save->setDefaultSuffix("xml");
         save->setAcceptMode(QFileDialog::AcceptSave);
         save->selectFile(QFileInfo(m_mapData->getFileName())
-                         .fileName()
-                         .replace(QRegularExpression(R"(\.mm2$)"), "-mmp.xml"));
+                             .fileName()
+                             .replace(QRegularExpression(R"(\.mm2$)"), "-mmp.xml"));
 
         return save;
     };
@@ -1654,7 +1654,7 @@ void MainWindow::loadFile(const QString &fileName)
 
     const bool isPandoraMap = fileName.toLower().endsWith(".xml");
     const auto storage =
-            [this, &fileName, &file, isPandoraMap]() -> std::unique_ptr<AbstractMapStorage> {
+        [this, &fileName, &file, isPandoraMap]() -> std::unique_ptr<AbstractMapStorage> {
         if (isPandoraMap) {
             return std::make_unique<PandoraMapStorage>(*m_mapData, fileName, &file, this);
         } else {
@@ -1839,8 +1839,8 @@ void MainWindow::setCurrentFile(const QString &fileName)
     QFileInfo file(fileName);
     const auto shownName = fileName.isEmpty() ? "Untitled" : file.fileName();
     const auto fileSuffix = ((m_mapData && m_mapData->isFileReadOnly()) || !file.isWritable())
-            ? " [read-only]"
-            : "";
+                                ? " [read-only]"
+                                : "";
     const auto appSuffix = isMMapperBeta() ? " Beta" : "";
 
     // [*] is Qt black magic for only showing the '*' if the document has been modified.
@@ -2052,7 +2052,7 @@ void MainWindow::onCheckForUpdate()
 void MainWindow::voteForMUMEOnTMC()
 {
     QDesktopServices::openUrl(QUrl(
-                                  "http://www.mudconnect.com/cgi-bin/vote_rank.cgi?mud=MUME+-+Multi+Users+In+Middle+Earth"));
+        "http://www.mudconnect.com/cgi-bin/vote_rank.cgi?mud=MUME+-+Multi+Users+In+Middle+Earth"));
 }
 
 void MainWindow::openMumeWebsite()

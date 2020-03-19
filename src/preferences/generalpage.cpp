@@ -77,22 +77,26 @@ GeneralPage::GeneralPage(QWidget *parent)
             &QCheckBox::stateChanged,
             this,
             &GeneralPage::autoLoadCheckStateChanged);
-
+    connect(ui->autoLogCheckBox,
+            &QCheckBox::stateChanged,
+            this,
+            &GeneralPage::autoLogCheckboxChanged);
     connect(ui->selectWorldFileButton,
             &QAbstractButton::clicked,
             this,
             &GeneralPage::selectWorldFileButtonClicked);
-
     connect(ui->selectAutoLogLocationButton,
             &QAbstractButton::clicked,
             this,
             &GeneralPage::selectLogLocationButtonClicked);
-
     connect(ui->autoLogMaxLines,
             QOverload<int>::of(&QSpinBox::valueChanged),
             this,
             &GeneralPage::maxLogLinesChanged);
-
+    connect(ui->autoLogMaxFiles,
+            QOverload<int>::of(&QSpinBox::valueChanged),
+            this,
+            &GeneralPage::maxLogFilesChanged);
     connect(ui->displayMumeClockCheckBox,
             &QCheckBox::stateChanged,
             this,
@@ -160,6 +164,7 @@ void GeneralPage::loadConfig()
     ui->autoLogCheckBox->setChecked(autoLog.autoLog);
     ui->autoLogLocation->setText(autoLog.autoLogDirectory);
     ui->autoLogMaxLines->setValue(autoLog.autoLogMaxLines);
+    ui->autoLogMaxFiles->setValue(autoLog.autoLogMaxFiles);
 
     ui->displayMumeClockCheckBox->setChecked(config.mumeClock.display);
 
@@ -167,7 +172,7 @@ void GeneralPage::loadConfig()
     ui->proxyConnectionStatusCheckBox->setChecked(connection.proxyConnectionStatus);
 }
 
-void GeneralPage::selectWorldFileButtonClicked()
+void GeneralPage::selectWorldFileButtonClicked(int /*unused*/)
 {
     QString fileName = QFileDialog::getOpenFileName(this,
                                                     "Choose map file ...",
@@ -182,7 +187,7 @@ void GeneralPage::selectWorldFileButtonClicked()
     }
 }
 
-void GeneralPage::selectLogLocationButtonClicked()
+void GeneralPage::selectLogLocationButtonClicked(int /*unused*/)
 {
     QString logDirectory = QFileDialog::getExistingDirectory(0,
                                                              "Choose log location ...",
@@ -212,9 +217,19 @@ void GeneralPage::remotePortValueChanged(int /*unused*/)
     setConfig().connection.remotePort = static_cast<quint16>(ui->remotePort->value());
 }
 
+void GeneralPage::autoLogCheckboxChanged(int /*unused*/)
+{
+    setConfig().autoLog.autoLog = ui->autoLogCheckBox->isChecked();
+}
+
 void GeneralPage::maxLogLinesChanged(int /*unused*/)
 {
     setConfig().autoLog.autoLogMaxLines = ui->autoLogMaxLines->value();
+}
+
+void GeneralPage::maxLogFilesChanged(int /*unused*/)
+{
+    setConfig().autoLog.autoLogMaxFiles = ui->autoLogMaxFiles->value();
 }
 
 void GeneralPage::tlsEncryptionCheckBoxStateChanged(int /*unused*/)

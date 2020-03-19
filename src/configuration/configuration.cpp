@@ -218,6 +218,7 @@ ConstString KEY_FILE_NAME = "File name";
 ConstString KEY_AUTO_LOG = "Auto log";
 ConstString KEY_AUTO_LOG_DIRECTORY = "Auto log directory";
 ConstString KEY_AUTO_LOG_MAX_LINES = "Auto log max lines";
+ConstString KEY_AUTO_LOG_MAX_FILES = "Auto log max files";
 ConstString KEY_FONT = "Font";
 ConstString KEY_FOREGROUND_COLOR = "Foreground color";
 ConstString KEY_3D_CANVAS = "canvas.advanced.use3D";
@@ -573,6 +574,7 @@ void Configuration::AutoLogSettings::read(QSettings &conf)
     autoLog = conf.value(KEY_AUTO_LOG, false).toBool();
     autoLogDirectory = conf.value(KEY_AUTO_LOG_DIRECTORY, getDefaultDirectory("Logs/")).toString();
     autoLogMaxLines = conf.value(KEY_AUTO_LOG_MAX_LINES, 10000).toInt();
+    autoLogMaxFiles = conf.value(KEY_AUTO_LOG_MAX_FILES, 5).toInt();
 }
 
 void Configuration::ParserSettings::read(QSettings &conf)
@@ -746,6 +748,7 @@ void Configuration::AutoLogSettings::write(QSettings &conf) const
     conf.setValue(KEY_AUTO_LOG, autoLog);
     conf.setValue(KEY_AUTO_LOG_DIRECTORY, autoLogDirectory);
     conf.setValue(KEY_AUTO_LOG_MAX_LINES, autoLogMaxLines);
+    conf.setValue(KEY_AUTO_LOG_MAX_FILES, autoLogMaxFiles);
 }
 
 void Configuration::ParserSettings::write(QSettings &conf) const

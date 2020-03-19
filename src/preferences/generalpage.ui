@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>459</width>
-    <height>813</height>
+    <height>838</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -26,37 +26,23 @@
       <string>Connection</string>
      </property>
      <layout class="QGridLayout" name="gridLayout_5">
-      <item row="2" column="0">
-       <widget class="QLabel" name="textLabel4_2">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="text">
-         <string>Local port number:</string>
-        </property>
-        <property name="buddy">
-         <cstring>localPort</cstring>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QSpinBox" name="remotePort">
-        <property name="maximum">
-         <number>10000</number>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="1" colspan="3">
-       <widget class="QLineEdit" name="remoteName">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
+      <item row="3" column="1">
+       <widget class="QComboBox" name="charsetComboBox">
+        <item>
+         <property name="text">
+          <string extracomment="Default encoding">Latin-1</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string extracomment="Modern clients only">UTF-8</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string extracomment="No special characters">US-ASCII</string>
+         </property>
+        </item>
        </widget>
       </item>
       <item row="1" column="0">
@@ -75,10 +61,13 @@
         </property>
        </widget>
       </item>
-      <item row="2" column="1">
-       <widget class="QSpinBox" name="localPort">
-        <property name="maximum">
-         <number>10000</number>
+      <item row="3" column="0">
+       <widget class="QLabel" name="label">
+        <property name="text">
+         <string>Character encoding:</string>
+        </property>
+        <property name="buddy">
+         <cstring>charsetComboBox</cstring>
         </property>
        </widget>
       </item>
@@ -91,6 +80,35 @@
          <string>TLS encryption</string>
         </property>
        </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="textLabel4_2">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>Local port number:</string>
+        </property>
+        <property name="buddy">
+         <cstring>localPort</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="3">
+       <spacer name="horizontalSpacer">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
       </item>
       <item row="0" column="0">
        <widget class="QLabel" name="textLabel2_2">
@@ -108,46 +126,28 @@
         </property>
        </widget>
       </item>
-      <item row="1" column="3">
-       <spacer name="horizontalSpacer">
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>40</width>
-          <height>20</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-      <item row="3" column="0">
-       <widget class="QLabel" name="label">
-        <property name="text">
-         <string>Character encoding:</string>
-        </property>
-        <property name="buddy">
-         <cstring>charsetComboBox</cstring>
+      <item row="0" column="1" colspan="3">
+       <widget class="QLineEdit" name="remoteName">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
         </property>
        </widget>
       </item>
-      <item row="3" column="1">
-       <widget class="QComboBox" name="charsetComboBox">
-        <item>
-         <property name="text">
-          <string extracomment="Default encoding">Latin-1</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string extracomment="Modern clients only">UTF-8</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string extracomment="No special characters">US-ASCII</string>
-         </property>
-        </item>
+      <item row="1" column="1">
+       <widget class="QSpinBox" name="remotePort">
+        <property name="maximum">
+         <number>10000</number>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QSpinBox" name="localPort">
+        <property name="maximum">
+         <number>10000</number>
+        </property>
        </widget>
       </item>
      </layout>
@@ -281,14 +281,14 @@
     <widget class="QGroupBox" name="groupBox_autolog">
      <property name="minimumSize">
       <size>
-       <width>441</width>
-       <height>137</height>
+       <width>435</width>
+       <height>162</height>
       </size>
      </property>
      <property name="title">
       <string>Auto Logging</string>
      </property>
-     <layout class="QGridLayout" name="gridLayout_7">
+     <layout class="QGridLayout" name="gridLayout_7" columnstretch="0,0,0,0">
       <item row="0" column="0">
        <widget class="QCheckBox" name="autoLogCheckBox">
         <property name="text">
@@ -296,7 +296,7 @@
         </property>
        </widget>
       </item>
-      <item row="4" column="0" colspan="2">
+      <item row="4" column="0" colspan="3">
        <widget class="QFrame" name="autoLogFrame">
         <property name="frameShape">
          <enum>QFrame::NoFrame</enum>
@@ -323,6 +323,16 @@
          <property name="spacing">
           <number>0</number>
          </property>
+         <item row="0" column="1">
+          <widget class="QLineEdit" name="autoLogLocation">
+           <property name="text">
+            <string/>
+           </property>
+           <property name="placeholderText">
+            <string/>
+           </property>
+          </widget>
+         </item>
          <item row="0" column="0">
           <widget class="QLabel" name="autoLogLocationLabel">
            <property name="sizePolicy">
@@ -339,110 +349,108 @@
            </property>
           </widget>
          </item>
-         <item row="0" column="1">
-          <widget class="QLineEdit" name="autoLogLocation">
-           <property name="text">
-            <string/>
-           </property>
-           <property name="placeholderText">
-            <string>./Logs/</string>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="2">
-          <widget class="QPushButton" name="selectAutoLogLocationButton">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="text">
-            <string>&amp;Select</string>
-           </property>
-          </widget>
-         </item>
         </layout>
        </widget>
       </item>
-      <item row="1" column="0" rowspan="2" colspan="2">
-       <widget class="QFrame" name="frame">
+      <item row="3" column="0">
+       <widget class="QLabel" name="autoLogMaxFilesLabel">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>Max Log Files: </string>
+        </property>
+        <property name="buddy">
+         <cstring>autoLogMaxFiles</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="autoLogMaxLinesLabel">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>Max Log Lines: </string>
+        </property>
+        <property name="margin">
+         <number>0</number>
+        </property>
+        <property name="buddy">
+         <cstring>autoLogMaxLines</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="3">
+       <widget class="QPushButton" name="selectAutoLogLocationButton">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>&amp;Select</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QSpinBox" name="autoLogMaxFiles">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
         <property name="minimumSize">
          <size>
           <width>0</width>
-          <height>33</height>
+          <height>0</height>
          </size>
         </property>
-        <property name="frameShape">
-         <enum>QFrame::NoFrame</enum>
+        <property name="minimum">
+         <number>1</number>
         </property>
-        <property name="frameShadow">
-         <enum>QFrame::Plain</enum>
+        <property name="maximum">
+         <number>1000</number>
         </property>
-        <property name="lineWidth">
-         <number>0</number>
+        <property name="value">
+         <number>1</number>
         </property>
-        <layout class="QGridLayout" name="gridLayout_9">
-         <property name="leftMargin">
-          <number>0</number>
-         </property>
-         <property name="topMargin">
-          <number>0</number>
-         </property>
-         <property name="rightMargin">
-          <number>0</number>
-         </property>
-         <property name="bottomMargin">
-          <number>0</number>
-         </property>
-         <property name="spacing">
-          <number>0</number>
-         </property>
-         <item row="0" column="2">
-          <widget class="QSpinBox" name="autoLogMaxLines">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="minimumSize">
-            <size>
-             <width>0</width>
-             <height>23</height>
-            </size>
-           </property>
-           <property name="minimum">
-            <number>1</number>
-           </property>
-           <property name="maximum">
-            <number>100000</number>
-           </property>
-           <property name="singleStep">
-            <number>50</number>
-           </property>
-           <property name="value">
-            <number>10000</number>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="0" colspan="2">
-          <widget class="QLabel" name="autoLogMaxLinesLabel">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="text">
-            <string>Max Log Lines: </string>
-           </property>
-           <property name="margin">
-            <number>1</number>
-           </property>
-          </widget>
-         </item>
-        </layout>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QSpinBox" name="autoLogMaxLines">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="minimum">
+         <number>1</number>
+        </property>
+        <property name="maximum">
+         <number>100000</number>
+        </property>
+        <property name="singleStep">
+         <number>50</number>
+        </property>
+        <property name="value">
+         <number>100</number>
+        </property>
        </widget>
       </item>
      </layout>
@@ -460,17 +468,17 @@
       <string>Emulated Exits</string>
      </property>
      <layout class="QGridLayout" name="gridLayout_6">
-      <item row="1" column="0">
-       <widget class="QCheckBox" name="emulatedExitsCheckBox">
-        <property name="text">
-         <string>Show emulated exits</string>
-        </property>
-       </widget>
-      </item>
       <item row="1" column="1">
        <widget class="QCheckBox" name="showHiddenExitFlagsCheckBox">
         <property name="text">
          <string>Show hidden exit flags</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QCheckBox" name="emulatedExitsCheckBox">
+        <property name="text">
+         <string>Show emulated exits</string>
         </property>
        </widget>
       </item>
@@ -565,7 +573,6 @@
   <tabstop>remoteName</tabstop>
   <tabstop>remotePort</tabstop>
   <tabstop>tlsEncryptionCheckBox</tabstop>
-  <tabstop>localPort</tabstop>
   <tabstop>charsetComboBox</tabstop>
   <tabstop>showClientPanelCheckBox</tabstop>
   <tabstop>checkForUpdateCheckBox</tabstop>

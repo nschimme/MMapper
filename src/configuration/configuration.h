@@ -278,6 +278,7 @@ public:
     {
         bool autoLog = false;
         int autoLogMaxLines;
+        int autoLogMaxFiles;
         QString autoLogDirectory;
 
     private:

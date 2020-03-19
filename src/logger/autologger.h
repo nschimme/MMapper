@@ -5,6 +5,7 @@
 #pragma once
 
 #include <QtCore>
+#include "../mpi/remoteeditprocess.h"
 
 #include "../configuration/configuration.h"
 #include "../global/utils.h"
@@ -19,25 +20,31 @@ public:
     explicit AutoLogger(QObject *parent);
     ~AutoLogger() override;
 
-    void writeLine(const QByteArray &ba);
     void close();
 
 public slots:
-    void onUserInput(const QByteArray &ba);
+    void writeToLog(const QByteArray &ba);
+    void shouldLog(bool echo);
+    void onConnected();
 
 private:
+    bool writeLine(const QByteArray &ba);
+
     bool startedToPlay(const QByteArray &data);
     bool createFile();
-    QString getTitle()
-    {
-        return getConfig().autoLog.autoLogDirectory + "/Log_"
-               + (QDate::currentDate().toString("ddMMyy"));
-    }
+    QString generateSessionString(int length);
+    QString generateTitle();
 
-    bool m_shouldLog = false;
-    std::fstream m_logFile;
-    int m_curFile = 0;
-    QString m_title;
+private:
+    const int sessionStrLength = 5; // Random session string length.
     int m_maxLines;
     int m_curLines;
+    int m_curFile;
+
+    bool m_shouldLog;
+
+    std::fstream m_logFile;
+
+    QString m_sessionString;
+    QString m_title;
 };

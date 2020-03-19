@@ -179,8 +179,10 @@ void Proxy::start()
     connect(parserXml, &MumeXmlParser::sig_sendToUser, userTelnet, &UserTelnet::onSendToUser);
 
     // Link to log
-    connect(parserXml, &MumeXmlParser::sig_sendToUser, m_logger, &AutoLogger::writeLine);
-    connect(parserXml, &MumeXmlParser::sendToMud, m_logger, &AutoLogger::onUserInput);
+    connect(parserXml, &MumeXmlParser::sig_sendToUser, m_logger, &AutoLogger::writeToLog);
+    connect(parserXml, &MumeXmlParser::sendToMud, m_logger, &AutoLogger::writeToLog);
+    connect(mudTelnet, &MudTelnet::relayEchoMode, m_logger, &AutoLogger::shouldLog);
+    connect(mudSocket, &MumeSocket::connected, m_logger, &AutoLogger::onConnected);
 
     connect(parserXml,
             QOverload<const SigParseEvent &>::of(&MumeXmlParser::event),

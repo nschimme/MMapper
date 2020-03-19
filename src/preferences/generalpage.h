@@ -37,9 +37,11 @@ public slots:
     void autoLoadFileNameTextChanged(const QString &);
     void autoLoadCheckStateChanged(int);
 
-    void selectWorldFileButtonClicked();
-    void selectLogLocationButtonClicked();
+    void selectLogLocationButtonClicked(int);
+    void selectWorldFileButtonClicked(int);
+    void autoLogCheckboxChanged(int);
     void maxLogLinesChanged(int);
+    void maxLogFilesChanged(int);
 
     void displayMumeClockStateChanged(int);
 

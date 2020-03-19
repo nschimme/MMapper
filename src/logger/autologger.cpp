@@ -3,12 +3,18 @@
 // Author: Mattias Viklund <devmew@exedump.com> (Mew_)
 
 #include "autologger.h"
+#include "../mainwindow/mainwindow.h"
 
 AutoLogger::AutoLogger(QObject *const parent)
     : QObject(parent)
 {
+    m_sessionString = generateSessionString(sessionStrLength);
+
     m_maxLines = getConfig().autoLog.autoLogMaxLines;
-    createFile();
+    m_title = generateTitle();
+    m_shouldLog = true;
+    m_curLines = 0;
+    m_curFile = -1; // Await MumeSocket connection.
 }
 
 AutoLogger::~AutoLogger()
@@ -19,51 +25,99 @@ AutoLogger::~AutoLogger()
 
 bool AutoLogger::createFile()
 {
-    m_title = getTitle();
-    QString fileName = QString(m_title + "_" + QString::number(m_curFile) + ".txt");
+    if (m_logFile.is_open())
+        m_logFile.close();
 
-    m_logFile.open(fileName.toStdString(), std::fstream::out | std::fstream::app);
-    if (!m_logFile.is_open()) {
-        qDebug() << "Could not create file.";
-        return false;
+    auto fileMode = std::fstream::out | std::fstream::app;
+
+    if (m_curFile >= getConfig().autoLog.autoLogMaxFiles)
+    {
+        // Wrap around and start overwriting logs.
+        m_curFile = 0;
+        fileMode = std::fstream::out;
     }
 
-    m_curFile++;
+    QString fileName = QString(m_title + "_" + QString::number(m_curFile) + ".txt");
+    m_logFile.open(fileName.toStdString(), fileMode);
+    if (!m_logFile.is_open()) // Could not create file.
+        return false;
+
     m_curLines = 0;
+    m_curFile++;
+
     return true;
 }
 
-void AutoLogger::writeLine(const QByteArray &line)
+bool AutoLogger::writeLine(const QByteArray &ba)
 {
-    if (!m_shouldLog)
-        return;
+    if (!m_shouldLog) // Check later,
+        return false; // Not sure if this should return true or false.
 
-    if (!m_logFile.is_open()) {
-        qDebug("Tried to write to a closed log.");
-        return;
+    if (!m_logFile.is_open())
+    {
+        if (!getConfig().autoLog.autoLog)
+            return false; // Check if user changed autolog settings.
+
+        if (!createFile())
+            return false; // Could not create the log file.
     }
 
-    QString str = QString::fromLatin1(line);
-    ;
+    QString str = QString::fromLatin1(ba);
     if (str.contains('\x1b'))
         ParserUtils::removeAnsiMarksInPlace(str);
 
     if (m_curLines > m_maxLines) {
         m_logFile.close();
         if (!createFile())
-            return;
+            return false;
     }
 
     m_logFile << str.toStdString();
     m_logFile.flush();
-
     m_curLines++;
+
+    return true;
 }
 
-void AutoLogger::onUserInput(const QByteArray &ba)
+QString AutoLogger::generateSessionString(int stringLength)
 {
-    if (ba.contains("play ")) // We don't want to log user login information.
-        m_shouldLog = true;
+    const QString possibleCharacters("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789");
+    QString randomString;
 
+    for(int i=0; i<stringLength; ++i)
+    {
+        int index = std::rand() % possibleCharacters.length();
+        QChar nextChar = possibleCharacters.at(index);
+        randomString.append(nextChar);
+    }
+
+    return randomString;
+}
+
+QString AutoLogger::generateTitle()
+{
+    return getConfig().autoLog.autoLogDirectory +
+            "/Session_" +
+            AutoLogger::generateSessionString(sessionStrLength) +
+            "_" +
+            QDate::currentDate().toString("ddMMyy");
+}
+
+void AutoLogger::writeToLog(const QByteArray &ba)
+{
     writeLine(ba);
+}
+
+void AutoLogger::shouldLog(bool echo)
+{
+    m_shouldLog = echo;
+}
+
+void AutoLogger::onConnected()
+{
+    m_curFile++; // If we recieve a new connection, create a new log file.
+    if (getConfig().autoLog.autoLog)
+    {
+        createFile();
+    }
 }

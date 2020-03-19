@@ -12,6 +12,7 @@ AutoLogger::AutoLogger(QObject *const parent)
 
     m_maxLines = getConfig().autoLog.autoLogMaxLines;
     m_title = generateTitle();
+    m_overwriteOld = false;
     m_shouldLog = true;
     m_curLines = 0;
     m_curFile = -1; // Await MumeSocket connection.
@@ -28,14 +29,17 @@ bool AutoLogger::createFile()
     if (m_logFile.is_open())
         m_logFile.close();
 
-    auto fileMode = std::fstream::out | std::fstream::app;
-
-    if (m_curFile >= getConfig().autoLog.autoLogMaxFiles)
+    if (m_curFile >= getConfig().autoLog.autoLogMaxFiles )
     {
         // Wrap around and start overwriting logs.
+        m_overwriteOld = true;
         m_curFile = 0;
-        fileMode = std::fstream::out;
     }
+
+    auto fileMode = std::fstream::out | std::fstream::app;
+
+    if (m_overwriteOld)
+        fileMode = std::fstream::out;
 
     QString fileName = QString(m_title + "_" + QString::number(m_curFile) + ".txt");
     m_logFile.open(fileName.toStdString(), fileMode);
@@ -50,14 +54,11 @@ bool AutoLogger::createFile()
 
 bool AutoLogger::writeLine(const QByteArray &ba)
 {
-    if (!m_shouldLog) // Check later,
-        return false; // Not sure if this should return true or false.
+    if (!m_shouldLog || !getConfig().autoLog.autoLog)
+        return false;
 
     if (!m_logFile.is_open())
     {
-        if (!getConfig().autoLog.autoLog)
-            return false; // Check if user changed autolog settings.
-
         if (!createFile())
             return false; // Could not create the log file.
     }

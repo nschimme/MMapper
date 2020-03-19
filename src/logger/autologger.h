@@ -41,6 +41,7 @@ private:
     int m_curLines;
     int m_curFile;
 
+    bool m_overwriteOld;
     bool m_shouldLog;
 
     std::fstream m_logFile;

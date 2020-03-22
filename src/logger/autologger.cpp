@@ -4,7 +4,8 @@
 
 #include "autologger.h"
 
-#include "../mainwindow/mainwindow.h"
+#include "../configuration/configuration.h"
+#include "../parser/parserutils.h"
 
 AutoLogger::AutoLogger(QObject *const parent)
     : QObject(parent)

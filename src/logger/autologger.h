@@ -3,13 +3,8 @@
 // Copyright (C) 2019 The MMapper Authors
 // Author: Mattias Viklund <devmew@exedump.com> (Mew_)
 
-#include "../configuration/configuration.h"
-#include "../global/utils.h"
-#include "../mpi/remoteeditprocess.h"
-#include "../parser/parserutils.h"
-
 #include <fstream>
-#include <QtCore>
+#include <QObject>
 
 class AutoLogger : public QObject
 {

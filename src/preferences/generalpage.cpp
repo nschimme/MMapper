@@ -189,7 +189,7 @@ void GeneralPage::selectWorldFileButtonClicked(int /*unused*/)
 
 void GeneralPage::selectLogLocationButtonClicked(int /*unused*/)
 {
-    QString logDirectory = QFileDialog::getExistingDirectory(0,
+    QString logDirectory = QFileDialog::getExistingDirectory(this,
                                                              "Choose log location ...",
                                                              QDir::currentPath());
 

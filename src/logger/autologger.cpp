@@ -55,8 +55,7 @@ bool AutoLogger::writeLine(const QByteArray &ba)
     }
 
     QString str = QString::fromLatin1(ba);
-    if (str.contains('\x1b'))
-        ParserUtils::removeAnsiMarksInPlace(str);
+    ParserUtils::removeAnsiMarksInPlace(str);
 
     if (m_curLines > getConfig().autoLog.autoLogMaxLines) {
         m_logFile.close();

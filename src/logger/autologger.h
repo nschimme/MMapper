@@ -22,12 +22,10 @@ private:
     bool writeLine(const QByteArray &ba);
 
     bool createFile();
-    QString generateSessionString(int length);
-    QString generateTitle();
+    QString generateLogPrefix();
 
 private:
-    QString m_sessionString;
-    QString m_title;
+    QString m_logPrefix;
     std::fstream m_logFile;
     int m_curLines = 0;
     int m_curFile = 0;

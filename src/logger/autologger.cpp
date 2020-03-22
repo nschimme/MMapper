@@ -7,12 +7,9 @@
 #include "../configuration/configuration.h"
 #include "../parser/parserutils.h"
 
-static constexpr const int SESSION_STR_LENGTH = 5;
-
 AutoLogger::AutoLogger(QObject *const parent)
     : QObject(parent)
-    , m_sessionString{generateSessionString(SESSION_STR_LENGTH)}
-    , m_title{generateTitle()}
+    , m_logPrefix{generateLogPrefix()}
 {}
 
 AutoLogger::~AutoLogger()
@@ -39,7 +36,7 @@ bool AutoLogger::createFile()
     if (!dir.exists())
         dir.mkdir(".");
 
-    QString fileName = QString("%2_%3.txt").arg(m_title).arg(QString::number(m_curFile));
+    QString fileName = QString("%2_%3.txt").arg(m_logPrefix).arg(QString::number(m_curFile));
     m_logFile.open(dir.absoluteFilePath(fileName).toStdString(), fileMode);
     if (!m_logFile.is_open()) // Could not create file.
         return false;
@@ -75,24 +72,11 @@ bool AutoLogger::writeLine(const QByteArray &ba)
     return true;
 }
 
-QString AutoLogger::generateSessionString(int stringLength)
+QString AutoLogger::generateLogPrefix()
 {
-    const QString possibleCharacters(
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789");
-    QString randomString;
-
-    for (int i = 0; i < stringLength; ++i) {
-        int index = std::rand() % possibleCharacters.length();
-        QChar nextChar = possibleCharacters.at(index);
-        randomString.append(nextChar);
-    }
-
-    return randomString;
-}
-
-QString AutoLogger::generateTitle()
-{
-    return QString("Session_%1_%2").arg(QDate::currentDate().toString("yyMMdd"));
+    return QString("MMapper_Log_%1_%2")
+        .arg(QDate::currentDate().toString("yyyy_MM_dd"))
+        .arg(QString::number(QDateTime::currentDateTimeUtc().toTime_t()));
 }
 
 void AutoLogger::writeToLog(const QByteArray &ba)

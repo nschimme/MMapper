@@ -6,8 +6,6 @@
 #include <fstream>
 #include <QObject>
 
-static constexpr const int AWAIT_MUMESOCKET_CONNECTION = -1;
-
 class AutoLogger : public QObject
 {
     Q_OBJECT
@@ -31,7 +29,7 @@ private:
     QString m_sessionString;
     QString m_title;
     std::fstream m_logFile;
-    int m_curLines = AWAIT_MUMESOCKET_CONNECTION;
+    int m_curLines = 0;
     int m_curFile = 0;
     bool m_shouldLog = true;
 };

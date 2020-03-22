@@ -52,16 +52,15 @@ bool AutoLogger::writeLine(const QByteArray &ba)
     if (!m_logFile.is_open()) {
         if (!createFile())
             return false; // Could not create the log file.
-    }
 
-    QString str = QString::fromLatin1(ba);
-    ParserUtils::removeAnsiMarksInPlace(str);
-
-    if (m_curLines > getConfig().autoLog.autoLogMaxLines) {
+    } else if (m_curLines > getConfig().autoLog.autoLogMaxLines) {
         m_logFile.close();
         if (!createFile())
             return false;
     }
+
+    QString str = QString::fromLatin1(ba);
+    ParserUtils::removeAnsiMarksInPlace(str);
 
     m_logFile << str.toStdString();
     m_logFile.flush();
@@ -104,8 +103,6 @@ void AutoLogger::shouldLog(bool echo)
 
 void AutoLogger::onConnected()
 {
-    m_curFile++; // If we recieve a new connection, create a new log file.
-    if (getConfig().autoLog.autoLog) {
+    if (getConfig().autoLog.autoLog)
         createFile();
-    }
 }

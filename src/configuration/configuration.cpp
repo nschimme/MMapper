@@ -562,17 +562,26 @@ void Configuration::CanvasSettings::read(QSettings &conf)
     advanced.layerHeight.set(conf.value(KEY_3D_LAYER_HEIGHT, 15).toInt());
 }
 
+static QString getDefaultDirectory()
+{
+    return QDir(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).absolutePath();
+}
+
 void Configuration::AutoLoadSettings::read(QSettings &conf)
 {
     autoLoadMap = conf.value(KEY_AUTO_LOAD, true).toBool();
-    fileName = conf.value(KEY_FILE_NAME, getDefaultDirectory("arda.mm2", true)).toString();
-    lastMapDirectory = conf.value(KEY_LAST_MAP_LOAD_DIRECTORY, "").toString();
+    fileName = conf.value(KEY_FILE_NAME, "").toString();
+    lastMapDirectory = conf.value(KEY_LAST_MAP_LOAD_DIRECTORY,
+                                  getDefaultDirectory().append("/MMapper/"))
+                           .toString();
 }
 
 void Configuration::AutoLogSettings::read(QSettings &conf)
 {
     autoLog = conf.value(KEY_AUTO_LOG, false).toBool();
-    autoLogDirectory = conf.value(KEY_AUTO_LOG_DIRECTORY, getDefaultDirectory("Logs/")).toString();
+    autoLogDirectory = conf.value(KEY_AUTO_LOG_DIRECTORY,
+                                  getDefaultDirectory().append("/MMapper/Logs"))
+                           .toString();
     autoLogMaxLines = conf.value(KEY_AUTO_LOG_MAX_LINES, 10000).toInt();
     autoLogMaxFiles = conf.value(KEY_AUTO_LOG_MAX_FILES, 5).toInt();
 }

@@ -26,15 +26,21 @@ bool AutoLogger::createFile()
     if (m_logFile.is_open())
         m_logFile.close();
 
+    const auto &settings = getConfig().autoLog;
+
     auto fileMode = std::fstream::out | std::fstream::app;
-    if (m_curFile >= getConfig().autoLog.autoLogMaxFiles) {
+    if (m_curFile >= settings.autoLogMaxFiles) {
         // Wrap around and start overwriting logs.
         fileMode = std::fstream::out;
         m_curFile = 0;
     }
 
-    QString fileName = QString(m_title + "_" + QString::number(m_curFile) + ".txt");
-    m_logFile.open(fileName.toStdString(), fileMode);
+    auto dir = QDir(settings.autoLogDirectory);
+    if (!dir.exists())
+        dir.mkdir(".");
+
+    QString fileName = QString("%2_%3.txt").arg(m_title).arg(QString::number(m_curFile));
+    m_logFile.open(dir.absoluteFilePath(fileName).toStdString(), fileMode);
     if (!m_logFile.is_open()) // Could not create file.
         return false;
 
@@ -86,9 +92,7 @@ QString AutoLogger::generateSessionString(int stringLength)
 
 QString AutoLogger::generateTitle()
 {
-    return getConfig().autoLog.autoLogDirectory + "/Session_"
-           + AutoLogger::generateSessionString(SESSION_STR_LENGTH) + "_"
-           + QDate::currentDate().toString("ddMMyy");
+    return QString("Session_%1_%2").arg(QDate::currentDate().toString("yyMMdd"));
 }
 
 void AutoLogger::writeToLog(const QByteArray &ba)

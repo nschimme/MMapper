@@ -89,24 +89,6 @@ public:
     void write() const;
     void reset();
 
-    const static QString getDefaultDirectory(QString additionalPath = "", bool file = false)
-    {
-        QDir logDirectory = QDir(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation))
-                                .filePath("MMapper/");
-
-        if (!file)
-            logDirectory = logDirectory.filePath(additionalPath);
-
-        if (!logDirectory.exists())
-            logDirectory.mkdir(logDirectory.absolutePath());
-
-        const QString defaultLogDirectory(logDirectory.absolutePath());
-        if (file)
-            return defaultLogDirectory + "/" + additionalPath;
-
-        return defaultLogDirectory;
-    }
-
 public:
     struct GeneralSettings final
     {
@@ -277,8 +259,8 @@ public:
     struct AutoLogSettings final
     {
         bool autoLog = false;
-        int autoLogMaxLines;
-        int autoLogMaxFiles;
+        int autoLogMaxLines = 0;
+        int autoLogMaxFiles = 0;
         QString autoLogDirectory;
 
     private:

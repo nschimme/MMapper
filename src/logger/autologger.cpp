@@ -7,18 +7,13 @@
 #include "../configuration/configuration.h"
 #include "../parser/parserutils.h"
 
+static constexpr const int SESSION_STR_LENGTH = 5;
+
 AutoLogger::AutoLogger(QObject *const parent)
     : QObject(parent)
-{
-    m_sessionString = generateSessionString(sessionStrLength);
-
-    m_maxLines = getConfig().autoLog.autoLogMaxLines;
-    m_title = generateTitle();
-    m_overwriteOld = false;
-    m_shouldLog = true;
-    m_curLines = 0;
-    m_curFile = -1; // Await MumeSocket connection.
-}
+    , m_sessionString{generateSessionString(SESSION_STR_LENGTH)}
+    , m_title{generateTitle()}
+{}
 
 AutoLogger::~AutoLogger()
 {
@@ -31,16 +26,12 @@ bool AutoLogger::createFile()
     if (m_logFile.is_open())
         m_logFile.close();
 
+    auto fileMode = std::fstream::out | std::fstream::app;
     if (m_curFile >= getConfig().autoLog.autoLogMaxFiles) {
         // Wrap around and start overwriting logs.
-        m_overwriteOld = true;
+        fileMode = std::fstream::out;
         m_curFile = 0;
     }
-
-    auto fileMode = std::fstream::out | std::fstream::app;
-
-    if (m_overwriteOld)
-        fileMode = std::fstream::out;
 
     QString fileName = QString(m_title + "_" + QString::number(m_curFile) + ".txt");
     m_logFile.open(fileName.toStdString(), fileMode);
@@ -67,7 +58,7 @@ bool AutoLogger::writeLine(const QByteArray &ba)
     if (str.contains('\x1b'))
         ParserUtils::removeAnsiMarksInPlace(str);
 
-    if (m_curLines > m_maxLines) {
+    if (m_curLines > getConfig().autoLog.autoLogMaxLines) {
         m_logFile.close();
         if (!createFile())
             return false;
@@ -98,7 +89,7 @@ QString AutoLogger::generateSessionString(int stringLength)
 QString AutoLogger::generateTitle()
 {
     return getConfig().autoLog.autoLogDirectory + "/Session_"
-           + AutoLogger::generateSessionString(sessionStrLength) + "_"
+           + AutoLogger::generateSessionString(SESSION_STR_LENGTH) + "_"
            + QDate::currentDate().toString("ddMMyy");
 }
 

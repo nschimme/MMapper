@@ -6,14 +6,14 @@
 #include <fstream>
 #include <QObject>
 
+static constexpr const int AWAIT_MUMESOCKET_CONNECTION = -1;
+
 class AutoLogger : public QObject
 {
     Q_OBJECT
 public:
     explicit AutoLogger(QObject *parent);
     ~AutoLogger() override;
-
-    void close();
 
 public slots:
     void writeToLog(const QByteArray &ba);
@@ -23,22 +23,15 @@ public slots:
 private:
     bool writeLine(const QByteArray &ba);
 
-    bool startedToPlay(const QByteArray &data);
     bool createFile();
     QString generateSessionString(int length);
     QString generateTitle();
 
 private:
-    const int sessionStrLength = 5; // Random session string length.
-    int m_maxLines;
-    int m_curLines;
-    int m_curFile;
-
-    bool m_overwriteOld;
-    bool m_shouldLog;
-
-    std::fstream m_logFile;
-
     QString m_sessionString;
     QString m_title;
+    std::fstream m_logFile;
+    int m_curLines = AWAIT_MUMESOCKET_CONNECTION;
+    int m_curFile = 0;
+    bool m_shouldLog = true;
 };

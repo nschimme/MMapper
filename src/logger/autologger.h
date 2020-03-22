@@ -1,17 +1,15 @@
+#pragma once
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
 // Author: Mattias Viklund <devmew@exedump.com> (Mew_)
 
-#pragma once
-
-#include <QtCore>
-#include "../mpi/remoteeditprocess.h"
-
 #include "../configuration/configuration.h"
 #include "../global/utils.h"
+#include "../mpi/remoteeditprocess.h"
 #include "../parser/parserutils.h"
 
 #include <fstream>
+#include <QtCore>
 
 class AutoLogger : public QObject
 {

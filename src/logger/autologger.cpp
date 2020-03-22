@@ -3,6 +3,7 @@
 // Author: Mattias Viklund <devmew@exedump.com> (Mew_)
 
 #include "autologger.h"
+
 #include "../mainwindow/mainwindow.h"
 
 AutoLogger::AutoLogger(QObject *const parent)
@@ -29,8 +30,7 @@ bool AutoLogger::createFile()
     if (m_logFile.is_open())
         m_logFile.close();
 
-    if (m_curFile >= getConfig().autoLog.autoLogMaxFiles )
-    {
+    if (m_curFile >= getConfig().autoLog.autoLogMaxFiles) {
         // Wrap around and start overwriting logs.
         m_overwriteOld = true;
         m_curFile = 0;
@@ -57,8 +57,7 @@ bool AutoLogger::writeLine(const QByteArray &ba)
     if (!m_shouldLog || !getConfig().autoLog.autoLog)
         return false;
 
-    if (!m_logFile.is_open())
-    {
+    if (!m_logFile.is_open()) {
         if (!createFile())
             return false; // Could not create the log file.
     }
@@ -82,11 +81,11 @@ bool AutoLogger::writeLine(const QByteArray &ba)
 
 QString AutoLogger::generateSessionString(int stringLength)
 {
-    const QString possibleCharacters("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789");
+    const QString possibleCharacters(
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789");
     QString randomString;
 
-    for(int i=0; i<stringLength; ++i)
-    {
+    for (int i = 0; i < stringLength; ++i) {
         int index = std::rand() % possibleCharacters.length();
         QChar nextChar = possibleCharacters.at(index);
         randomString.append(nextChar);
@@ -97,11 +96,9 @@ QString AutoLogger::generateSessionString(int stringLength)
 
 QString AutoLogger::generateTitle()
 {
-    return getConfig().autoLog.autoLogDirectory +
-            "/Session_" +
-            AutoLogger::generateSessionString(sessionStrLength) +
-            "_" +
-            QDate::currentDate().toString("ddMMyy");
+    return getConfig().autoLog.autoLogDirectory + "/Session_"
+           + AutoLogger::generateSessionString(sessionStrLength) + "_"
+           + QDate::currentDate().toString("ddMMyy");
 }
 
 void AutoLogger::writeToLog(const QByteArray &ba)
@@ -117,8 +114,7 @@ void AutoLogger::shouldLog(bool echo)
 void AutoLogger::onConnected()
 {
     m_curFile++; // If we recieve a new connection, create a new log file.
-    if (getConfig().autoLog.autoLog)
-    {
+    if (getConfig().autoLog.autoLog) {
         createFile();
     }
 }

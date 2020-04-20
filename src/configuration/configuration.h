@@ -261,7 +261,7 @@ public:
     struct AutoLogSettings final
     {
         bool autoLog = false;
-        bool deleteOldLogs = false;
+        bool deleteOldLogs = true;
         bool warnWhenDeleting = true;
         int autoLogMaxLines = 0;
         int warnWhenMoreThan = 20;

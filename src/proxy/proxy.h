@@ -16,6 +16,7 @@
 
 #include "../global/WeakHandle.h"
 #include "../global/io.h"
+#include "../logger/autologger.h"
 #include "../pandoragroup/GroupManagerApi.h"
 #include "GmcpMessage.h"
 #include "ProxyParserApi.h"
@@ -91,6 +92,8 @@ private:
     bool isGmcpModuleEnabled(const GmcpModuleTypeEnum &module) const;
 
 private:
+    AutoLogger *m_logger;
+
     io::buffer<(1 << 13)> m_buffer;
     WeakHandleLifetime<Proxy> m_weakHandleLifetime{*this};
     ProxyParserApi m_proxyParserApi{m_weakHandleLifetime.getWeakHandle()};

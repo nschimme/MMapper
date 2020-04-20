@@ -4,6 +4,7 @@
 // Author: Ulf Hermann <ulfonk_mennhar@gmx.de> (Alve)
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
+// Author: Mattias Viklund <devmew@exedump.com> (Mew_)
 
 #include <QDialog>
 #include <QString>
@@ -44,6 +45,5 @@ private:
     void createIcons();
 
     QStackedWidget *pagesWidget = nullptr;
-
     Mmapper2Group *m_groupManager = nullptr;
 };

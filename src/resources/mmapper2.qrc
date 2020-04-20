@@ -1,5 +1,5 @@
-<!DOCTYPE RCC><RCC version="1.0">
-    <qresource>
+<RCC>
+    <qresource prefix="/">
         <file>LICENSE.GLM</file>
         <file>LICENSE.GPL2</file>
         <file>LICENSE.LGPL</file>
@@ -220,5 +220,6 @@
         <file>shaders/legacy/tex/acolor/vert.glsl</file>
         <file>shaders/legacy/tex/ucolor/frag.glsl</file>
         <file>shaders/legacy/tex/ucolor/vert.glsl</file>
+        <file>icons/autologgercfg.png</file>
     </qresource>
 </RCC>

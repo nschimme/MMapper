@@ -258,6 +258,20 @@ public:
         SUBGROUP();
     } autoLoad;
 
+    struct AutoLogSettings final
+    {
+        bool autoLog = false;
+        bool deleteOldLogs = false;
+        bool warnWhenDeleting = true;
+        int autoLogMaxLines = 0;
+        int warnWhenMoreThan = 20;
+        int deleteLogsOlderThan = 0;
+        QString autoLogDirectory;
+
+    private:
+        SUBGROUP();
+    } autoLog;
+
     struct PathMachineSettings final
     {
         double acceptBestRelative = 0.0;

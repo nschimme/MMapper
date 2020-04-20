@@ -214,6 +214,13 @@ ConstString KEY_DRAW_UPPER_LAYERS_TEXTURED = "Draw upper layers textured";
 ConstString KEY_EMULATED_EXITS = "Emulated Exits";
 ConstString KEY_EXTERNAL_EDITOR_COMMAND = "External editor command";
 ConstString KEY_FILE_NAME = "File name";
+ConstString KEY_AUTO_LOG = "Auto log";
+ConstString KEY_AUTO_LOG_DIRECTORY = "Auto log directory";
+ConstString KEY_AUTO_LOG_MAX_LINES = "Auto log max lines";
+ConstString KEY_DELETE_LOGS_OLDER_THAN = "Delete logs older than";
+ConstString KEY_DELETE_OLD_LOGS = "Delete old logs";
+ConstString KEY_WARN_WHEN_DELETING = "Warn when deleting";
+ConstString KEY_WARN_WHEN_MORE_THAN = "Warn when more than";
 ConstString KEY_FONT = "Font";
 ConstString KEY_FOREGROUND_COLOR = "Foreground color";
 ConstString KEY_3D_CANVAS = "canvas.advanced.use3D";
@@ -564,6 +571,19 @@ void Configuration::AutoLoadSettings::read(QSettings &conf)
     lastMapDirectory = conf.value(KEY_LAST_MAP_LOAD_DIRECTORY, QDir::homePath()).toString();
 }
 
+void Configuration::AutoLogSettings::read(QSettings &conf)
+{
+    autoLog = conf.value(KEY_AUTO_LOG, false).toBool();
+    autoLogDirectory = conf.value(KEY_AUTO_LOG_DIRECTORY,
+                                  getDefaultDirectory().append("/MMapper/Logs"))
+                           .toString();
+    autoLogMaxLines = conf.value(KEY_AUTO_LOG_MAX_LINES, 10000).toInt();
+    deleteOldLogs = conf.value(KEY_DELETE_OLD_LOGS, true).toBool();
+    deleteLogsOlderThan = conf.value(KEY_DELETE_LOGS_OLDER_THAN, 60).toInt();
+    warnWhenDeleting = conf.value(KEY_WARN_WHEN_DELETING, true).toBool();
+    warnWhenMoreThan = conf.value(KEY_WARN_WHEN_MORE_THAN, 20).toInt();
+}
+
 void Configuration::ParserSettings::read(QSettings &conf)
 {
     static constexpr const char *const ANSI_GREEN = "[32m";
@@ -729,6 +749,17 @@ void Configuration::AutoLoadSettings::write(QSettings &conf) const
     conf.setValue(KEY_AUTO_LOAD, autoLoadMap);
     conf.setValue(KEY_FILE_NAME, fileName);
     conf.setValue(KEY_LAST_MAP_LOAD_DIRECTORY, lastMapDirectory);
+}
+
+void Configuration::AutoLogSettings::write(QSettings &conf) const
+{
+    conf.setValue(KEY_AUTO_LOG, autoLog);
+    conf.setValue(KEY_AUTO_LOG_DIRECTORY, autoLogDirectory);
+    conf.setValue(KEY_AUTO_LOG_MAX_LINES, autoLogMaxLines);
+    conf.setValue(KEY_DELETE_LOGS_OLDER_THAN, deleteLogsOlderThan);
+    conf.setValue(KEY_DELETE_OLD_LOGS, deleteOldLogs);
+    conf.setValue(KEY_WARN_WHEN_DELETING, warnWhenDeleting);
+    conf.setValue(KEY_WARN_WHEN_MORE_THAN, warnWhenMoreThan);
 }
 
 void Configuration::ParserSettings::write(QSettings &conf) const

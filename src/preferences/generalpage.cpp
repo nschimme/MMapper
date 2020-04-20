@@ -77,7 +77,6 @@ GeneralPage::GeneralPage(QWidget *parent)
             &QCheckBox::stateChanged,
             this,
             &GeneralPage::autoLoadCheckStateChanged);
-
     connect(ui->selectWorldFileButton,
             &QAbstractButton::clicked,
             this,
@@ -217,4 +216,34 @@ void GeneralPage::autoLoadCheckStateChanged(int /*unused*/)
 void GeneralPage::displayMumeClockStateChanged(int /*unused*/)
 {
     setConfig().mumeClock.display = ui->displayMumeClockCheckBox->isChecked();
+}
+
+void GeneralPage::selectWorldFileButtonClicked(int /*unused*/)
+{
+    QString fileName = QFileDialog::getOpenFileName(this,
+                                                    "Choose map file ...",
+                                                    "",
+                                                    "MMapper2 (*.mm2);;MMapper (*.map)");
+    if (!fileName.isEmpty()) {
+        ui->autoLoadFileName->setText(fileName);
+        ui->autoLoadCheck->setChecked(true);
+        auto &savedAutoLoad = setConfig().autoLoad;
+        savedAutoLoad.fileName = fileName;
+        savedAutoLoad.autoLoadMap = true;
+    }
+}
+
+void GeneralPage::localPortValueChanged(int /*unused*/)
+{
+    setConfig().connection.localPort = static_cast<quint16>(ui->localPort->value());
+}
+
+void GeneralPage::remoteNameTextChanged(const QString & /*unused*/)
+{
+    setConfig().connection.remoteServerName = ui->remoteName->text();
+}
+
+void GeneralPage::remotePortValueChanged(int /*unused*/)
+{
+    setConfig().connection.remotePort = static_cast<quint16>(ui->remotePort->value());
 }

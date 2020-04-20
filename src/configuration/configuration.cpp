@@ -564,6 +564,11 @@ void Configuration::CanvasSettings::read(QSettings &conf)
     advanced.layerHeight.set(conf.value(KEY_3D_LAYER_HEIGHT, 15).toInt());
 }
 
+static QString getDefaultDirectory()
+{
+    return QDir(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).absolutePath();
+}
+
 void Configuration::AutoLoadSettings::read(QSettings &conf)
 {
     autoLoadMap = conf.value(KEY_AUTO_LOAD, true).toBool();

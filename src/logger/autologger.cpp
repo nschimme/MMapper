@@ -31,7 +31,8 @@ bool AutoLogger::createFile()
         dir.mkdir(".");
 
     QString fileName = QString("%2_%3.txt").arg(m_logPrefix).arg(QString::number(m_curFile));
-    m_logFile.open(dir.absoluteFilePath(fileName).toStdString(), std::fstream::out | std::fstream::app);
+    m_logFile.open(dir.absoluteFilePath(fileName).toStdString(),
+                   std::fstream::out | std::fstream::app);
     if (!m_logFile.is_open()) // Could not create file.
         return false;
 
@@ -73,16 +74,18 @@ void AutoLogger::deleteOldLogs()
     const QDate today = QDate::currentDate();
     QList<QFileInfo> files;
 
-    Q_FOREACH (auto fileInfo, QDir(settings.autoLog.autoLogDirectory).entryInfoList(QStringList("MMapper_Log_*.txt"), QDir::Files)) {
+    Q_FOREACH (auto fileInfo,
+               QDir(settings.autoLog.autoLogDirectory)
+                   .entryInfoList(QStringList("MMapper_Log_*.txt"), QDir::Files)) {
         if (fileInfo.created().date().daysTo(today) >= settings.autoLog.deleteLogsOlderThan) {
             files.append(fileInfo);
         }
     }
 
-    if (settings.autoLog.warnWhenDeleting && files.length() > settings.autoLog.warnWhenMoreThan)
-    {
+    if (settings.autoLog.warnWhenDeleting && files.length() > settings.autoLog.warnWhenMoreThan) {
         QMessageBox msgBox;
-        msgBox.setText("There are more than " + QString::number(settings.autoLog.warnWhenMoreThan) + " logs to be deleted.");
+        msgBox.setText("There are more than " + QString::number(settings.autoLog.warnWhenMoreThan)
+                       + " logs to be deleted.");
         msgBox.setInformativeText("Continue?");
         msgBox.setWindowTitle("MMapper Warning");
         msgBox.setStandardButtons(QMessageBox::No | QMessageBox::Yes);
@@ -98,7 +101,7 @@ void AutoLogger::deleteOldLogs()
 
 void AutoLogger::deleteLogs(const QFileInfoList &files)
 {
-    Q_FOREACH (auto fileInfo, files){
+    Q_FOREACH (auto fileInfo, files) {
         QString filepath = fileInfo.absoluteFilePath();
         QDir deletefile;
         deletefile.setPath(filepath);
@@ -110,9 +113,9 @@ void AutoLogger::deleteLogs(const QFileInfoList &files)
 QString AutoLogger::generateLogPrefix()
 {
     return QString("MMapper_Log_%1_%2")
-            /*.arg(getConfig().autoLog.autoLogDirectory)*/
-            .arg(QDate::currentDate().toString("yyyy_MM_dd"))
-            .arg(QString::number(QDateTime::currentDateTimeUtc().toTime_t()));
+        /*.arg(getConfig().autoLog.autoLogDirectory)*/
+        .arg(QDate::currentDate().toString("yyyy_MM_dd"))
+        .arg(QString::number(QDateTime::currentDateTimeUtc().toTime_t()));
 }
 
 void AutoLogger::writeToLog(const QByteArray &ba)

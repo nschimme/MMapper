@@ -49,7 +49,6 @@ AutoLogPage::AutoLogPage(QWidget *parent)
             QOverload<int>::of(&QSpinBox::valueChanged),
             this,
             &AutoLogPage::warnWhenMoreThanChanged);
-
 }
 
 AutoLogPage::~AutoLogPage()

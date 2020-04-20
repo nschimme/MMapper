@@ -4,9 +4,9 @@
 // Author: Mattias Viklund <devmew@exedump.com> (Mew_)
 
 #include <fstream>
-#include <QObject>
 #include <QFileInfo>
 #include <QMessageBox>
+#include <QObject>
 
 class AutoLogger : public QObject
 {

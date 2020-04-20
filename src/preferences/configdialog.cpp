@@ -11,11 +11,11 @@
 #include <QListWidget>
 #include <QtWidgets>
 
+#include "autologpage.h"
 #include "clientpage.h"
 #include "generalpage.h"
 #include "graphicspage.h"
 #include "groupmanagerpage.h"
-#include "autologpage.h"
 #include "mumeprotocolpage.h"
 #include "parserpage.h"
 #include "pathmachinepage.h"

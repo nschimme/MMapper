@@ -68,22 +68,21 @@ bool AutoLogger::writeLine(const QByteArray &ba)
 
 void AutoLogger::deleteOldLogs()
 {
-    auto &settings = getConfig();
+    auto &conf = getConfig().autoLog;
 
     const QDate today = QDate::currentDate();
     QList<QFileInfo> files;
-
-    Q_FOREACH (auto fileInfo,
-               QDir(settings.autoLog.autoLogDirectory)
-                   .entryInfoList(QStringList("MMapper_Log_*.txt"), QDir::Files)) {
-        if (fileInfo.created().date().daysTo(today) >= settings.autoLog.deleteLogsOlderThan) {
+    const auto &fileInfoList = QDir(conf.autoLogDirectory)
+                                   .entryInfoList(QStringList("MMapper_Log_*.txt"), QDir::Files);
+    for (const auto &fileInfo : fileInfoList) {
+        if (fileInfo.created().date().daysTo(today) >= conf.deleteLogsOlderThan) {
             files.append(fileInfo);
         }
     }
 
-    if (settings.autoLog.warnWhenDeleting && files.length() > settings.autoLog.warnWhenMoreThan) {
+    if (conf.warnWhenDeleting && files.length() > conf.warnWhenMoreThan) {
         QMessageBox msgBox;
-        msgBox.setText("There are more than " + QString::number(settings.autoLog.warnWhenMoreThan)
+        msgBox.setText("There are more than " + QString::number(conf.warnWhenMoreThan)
                        + " logs to be deleted.");
         msgBox.setInformativeText("Continue?");
         msgBox.setWindowTitle("MMapper Warning");
@@ -100,7 +99,7 @@ void AutoLogger::deleteOldLogs()
 
 void AutoLogger::deleteLogs(const QFileInfoList &files)
 {
-    Q_FOREACH (auto fileInfo, files) {
+    for (auto fileInfo : files) {
         QString filepath = fileInfo.absoluteFilePath();
         QDir deletefile;
         deletefile.setPath(filepath);

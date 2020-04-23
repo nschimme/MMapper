@@ -2,25 +2,8 @@
 <ui version="4.0">
  <class>AutoLogPage</class>
  <widget class="QWidget" name="AutoLogPage">
-  <property name="geometry">
-   <rect>
-    <x>0</x>
-    <y>0</y>
-    <width>575</width>
-    <height>317</height>
-   </rect>
-  </property>
-  <property name="sizePolicy">
-   <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-    <horstretch>0</horstretch>
-    <verstretch>0</verstretch>
-   </sizepolicy>
-  </property>
-  <property name="windowTitle">
-   <string>Form</string>
-  </property>
-  <layout class="QFormLayout" name="formLayout">
-   <item row="0" column="0" colspan="2">
+  <layout class="QVBoxLayout">
+   <item>
     <widget class="QGroupBox" name="groupBox_autolog">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
@@ -28,16 +11,10 @@
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
-     <property name="minimumSize">
-      <size>
-       <width>435</width>
-       <height>162</height>
-      </size>
-     </property>
      <property name="title">
       <string>Automatic Logging</string>
      </property>
-     <layout class="QGridLayout" name="gridLayout_7" columnstretch="0,0,0,0,0">
+     <layout class="QGridLayout" name="_2">
       <item row="1" column="0">
        <widget class="QLabel" name="autoLogMaxLinesLabel">
         <property name="sizePolicy">
@@ -57,20 +34,7 @@
         </property>
        </widget>
       </item>
-      <item row="1" column="3">
-       <spacer name="horizontalSpacer">
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>40</width>
-          <height>20</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-      <item row="1" column="2">
+      <item row="1" column="1">
        <widget class="QSpinBox" name="autoLogMaxLines">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
@@ -98,14 +62,7 @@
         </property>
        </widget>
       </item>
-      <item row="0" column="0" colspan="4">
-       <widget class="QCheckBox" name="autoLogCheckBox">
-        <property name="text">
-         <string>Automatically log play sessions to disk</string>
-        </property>
-       </widget>
-      </item>
-      <item row="7" column="0" colspan="4">
+      <item row="7" column="0" colspan="5">
        <widget class="QFrame" name="autoLogFrame">
         <property name="frameShape">
          <enum>QFrame::NoFrame</enum>
@@ -116,7 +73,7 @@
         <property name="lineWidth">
          <number>0</number>
         </property>
-        <layout class="QGridLayout" name="gridLayout_8">
+        <layout class="QGridLayout" name="_4">
          <property name="leftMargin">
           <number>0</number>
          </property>
@@ -132,17 +89,7 @@
          <property name="spacing">
           <number>0</number>
          </property>
-         <item row="0" column="1">
-          <widget class="QLineEdit" name="autoLogLocation">
-           <property name="text">
-            <string/>
-           </property>
-           <property name="placeholderText">
-            <string/>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="0">
+         <item row="1" column="0">
           <widget class="QLabel" name="autoLogLocationLabel">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
@@ -156,13 +103,49 @@
            <property name="margin">
             <number>1</number>
            </property>
+           <property name="buddy">
+            <cstring>autoLogLocation</cstring>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QLineEdit" name="autoLogLocation">
+           <property name="text">
+            <string/>
+           </property>
+           <property name="frame">
+            <bool>true</bool>
+           </property>
+           <property name="placeholderText">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="2">
+          <widget class="QPushButton" name="selectAutoLogLocationButton">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="text">
+            <string>Select</string>
+           </property>
           </widget>
          </item>
         </layout>
        </widget>
       </item>
-      <item row="1" column="4">
-       <spacer name="horizontalSpacer_2">
+      <item row="0" column="0" colspan="3">
+       <widget class="QCheckBox" name="autoLogCheckBox">
+        <property name="text">
+         <string>Automatically log play sessions to disk</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="2">
+       <spacer name="horizontalSpacer">
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
         </property>
@@ -174,28 +157,15 @@
         </property>
        </spacer>
       </item>
-      <item row="7" column="4">
-       <widget class="QPushButton" name="selectAutoLogLocationButton">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="text">
-         <string>Select</string>
-        </property>
-       </widget>
-      </item>
      </layout>
     </widget>
    </item>
-   <item row="1" column="0" colspan="2">
+   <item>
     <widget class="QGroupBox" name="groupBox_oldlogs">
      <property name="title">
       <string>Delete Old Logs</string>
      </property>
-     <layout class="QGridLayout" name="gridLayout">
+     <layout class="QGridLayout" name="_3">
       <item row="0" column="1">
        <widget class="QCheckBox" name="deleteOldLogsCheckbox">
         <property name="text">
@@ -232,6 +202,9 @@
        <widget class="QLabel" name="label">
         <property name="text">
          <string>Delete logs older than </string>
+        </property>
+        <property name="buddy">
+         <cstring>deleteLogsOlderThan</cstring>
         </property>
        </widget>
       </item>
@@ -285,8 +258,31 @@
      </layout>
     </widget>
    </item>
+   <item>
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
   </layout>
  </widget>
+ <tabstops>
+  <tabstop>autoLogCheckBox</tabstop>
+  <tabstop>autoLogMaxLines</tabstop>
+  <tabstop>autoLogLocation</tabstop>
+  <tabstop>selectAutoLogLocationButton</tabstop>
+  <tabstop>deleteOldLogsCheckbox</tabstop>
+  <tabstop>deleteLogsOlderThan</tabstop>
+  <tabstop>warnWhenDeletingCheckBox</tabstop>
+  <tabstop>warnWhenMoreThan</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>

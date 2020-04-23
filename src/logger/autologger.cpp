@@ -1,4 +1,3 @@
-#pragma once
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
 // Author: Mattias Viklund <devmew@exedump.com> (Mew_)
@@ -113,7 +112,6 @@ void AutoLogger::deleteLogs(const QFileInfoList &files)
 QString AutoLogger::generateLogPrefix()
 {
     return QString("MMapper_Log_%1_%2")
-        /*.arg(getConfig().autoLog.autoLogDirectory)*/
         .arg(QDate::currentDate().toString("yyyy_MM_dd"))
         .arg(QString::number(QDateTime::currentDateTimeUtc().toTime_t()));
 }

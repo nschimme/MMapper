@@ -575,7 +575,9 @@ void Configuration::AutoLoadSettings::read(QSettings &conf)
 {
     autoLoadMap = conf.value(KEY_AUTO_LOAD, true).toBool();
     fileName = conf.value(KEY_FILE_NAME, "").toString();
-    lastMapDirectory = conf.value(KEY_LAST_MAP_LOAD_DIRECTORY, QDir::homePath()).toString();
+    lastMapDirectory = conf.value(KEY_LAST_MAP_LOAD_DIRECTORY,
+                                  getDefaultDirectory().append("/MMapper/"))
+                           .toString();
 }
 
 void Configuration::AutoLogSettings::read(QSettings &conf)

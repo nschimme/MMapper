@@ -1455,9 +1455,12 @@ bool MainWindow::save()
 
 std::unique_ptr<QFileDialog> MainWindow::createDefaultSaveDialog()
 {
+    auto dir = QDir(getConfig().autoLoad.lastMapDirectory);
+    if (!dir.exists())
+        dir.mkdir(".");
     auto save = std::make_unique<QFileDialog>(this, "Choose map file name ...");
     save->setFileMode(QFileDialog::AnyFile);
-    save->setDirectory(QDir(getConfig().autoLoad.lastMapDirectory));
+    save->setDirectory(dir);
     save->setNameFilter("MMapper Maps (*.mm2)");
     save->setDefaultSuffix("mm2");
     save->setAcceptMode(QFileDialog::AcceptSave);

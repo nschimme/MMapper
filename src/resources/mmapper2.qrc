@@ -1,5 +1,5 @@
-<RCC>
-    <qresource prefix="/">
+<!DOCTYPE RCC><RCC version="1.0">
+    <qresource>
         <file>LICENSE.GLM</file>
         <file>LICENSE.GPL2</file>
         <file>LICENSE.LGPL</file>
@@ -23,6 +23,7 @@
         <file>icons/affect-slept.png</file>
         <file>icons/affect-snared.png</file>
         <file>icons/affect-thirsty.png</file>
+        <file>icons/autologgercfg.png</file>
         <file>icons/cancel.png</file>
         <file>icons/connectioncreate.png</file>
         <file>icons/connectiondelete.png</file>
@@ -220,6 +221,5 @@
         <file>shaders/legacy/tex/acolor/vert.glsl</file>
         <file>shaders/legacy/tex/ucolor/frag.glsl</file>
         <file>shaders/legacy/tex/ucolor/vert.glsl</file>
-        <file>icons/autologgercfg.png</file>
     </qresource>
 </RCC>

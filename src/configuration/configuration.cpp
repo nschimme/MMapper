@@ -566,6 +566,9 @@ void Configuration::CanvasSettings::read(QSettings &conf)
     advanced.layerHeight.set(conf.value(KEY_3D_LAYER_HEIGHT, 15).toInt());
 }
 
+ConstString DEFAULT_MMAPPER_SUBDIR = "/MMapper/";
+ConstString DEFAULT_LOGS_SUBDIR = "/Logs/";
+
 static QString getDefaultDirectory()
 {
     return QDir(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).absolutePath();
@@ -576,17 +579,19 @@ void Configuration::AutoLoadSettings::read(QSettings &conf)
     autoLoadMap = conf.value(KEY_AUTO_LOAD, true).toBool();
     fileName = conf.value(KEY_FILE_NAME, "").toString();
     lastMapDirectory = conf.value(KEY_LAST_MAP_LOAD_DIRECTORY,
-                                  getDefaultDirectory().append("/MMapper/"))
+                                  getDefaultDirectory().append(DEFAULT_MMAPPER_SUBDIR))
                            .toString();
 }
 
 void Configuration::AutoLogSettings::read(QSettings &conf)
 {
-    autoLog = conf.value(KEY_AUTO_LOG, false).toBool();
     autoLogDirectory = conf.value(KEY_AUTO_LOG_DIRECTORY,
-                                  getDefaultDirectory().append("/MMapper/Logs"))
+                                  getDefaultDirectory()
+                                      .append(DEFAULT_MMAPPER_SUBDIR)
+                                      .append(DEFAULT_LOGS_SUBDIR))
                            .toString();
-    autoLogMaxLines = conf.value(KEY_AUTO_LOG_MAX_LINES, 10000).toInt();
+    autoLog = conf.value(KEY_AUTO_LOG, false).toBool();
+    autoLogMaxLines = conf.value(KEY_AUTO_LOG_MAX_LINES, 10000000).toInt();
     deleteOldLogs = conf.value(KEY_DELETE_OLD_LOGS, true).toBool();
     deleteLogsOlderThan = conf.value(KEY_DELETE_LOGS_OLDER_THAN, 60).toInt();
     warnWhenDeleting = conf.value(KEY_WARN_WHEN_DELETING, true).toBool();

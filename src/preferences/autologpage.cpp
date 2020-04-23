@@ -4,9 +4,6 @@
 
 #include "autologpage.h"
 
-#include <QFont>
-#include <QFontInfo>
-#include <QPalette>
 #include <QSpinBox>
 #include <QString>
 #include <QtGui>
@@ -15,7 +12,7 @@
 #include "../configuration/configuration.h"
 #include "ui_autologpage.h"
 
-AutoLogPage::AutoLogPage(QWidget *parent)
+AutoLogPage::AutoLogPage(QWidget *const parent)
     : QWidget(parent)
     , ui(new Ui::AutoLogPage)
 {
@@ -58,31 +55,26 @@ AutoLogPage::~AutoLogPage()
 
 void AutoLogPage::loadConfig()
 {
-    const auto &config = getConfig();
-    const auto &autoLog = config.autoLog;
-
-    ui->autoLogCheckBox->setChecked(autoLog.autoLog);
-    ui->autoLogLocation->setText(autoLog.autoLogDirectory);
-    ui->autoLogMaxLines->setValue(autoLog.autoLogMaxLines);
-    ui->deleteOldLogsCheckbox->setChecked(autoLog.deleteOldLogs);
-    ui->deleteLogsOlderThan->setValue(autoLog.deleteLogsOlderThan);
-    ui->warnWhenDeletingCheckBox->setChecked(autoLog.warnWhenDeleting);
-    ui->warnWhenMoreThan->setValue(autoLog.warnWhenMoreThan);
+    const auto &config = getConfig().autoLog;
+    ui->autoLogCheckBox->setChecked(config.autoLog);
+    ui->autoLogLocation->setText(config.autoLogDirectory);
+    ui->autoLogMaxLines->setValue(config.autoLogMaxLines);
+    ui->deleteOldLogsCheckbox->setChecked(config.deleteOldLogs);
+    ui->deleteLogsOlderThan->setValue(config.deleteLogsOlderThan);
+    ui->warnWhenDeletingCheckBox->setChecked(config.warnWhenDeleting);
+    ui->warnWhenMoreThan->setValue(config.warnWhenMoreThan);
 }
 
 void AutoLogPage::selectLogLocationButtonClicked(int /*unused*/)
 {
+    auto &config = setConfig().autoLog;
     QString logDirectory = QFileDialog::getExistingDirectory(this,
                                                              "Choose log location ...",
-                                                             QDir::currentPath());
+                                                             config.autoLogDirectory);
 
     if (!logDirectory.isEmpty()) {
         ui->autoLogLocation->setText(logDirectory);
-        auto &savedAutoLog = setConfig().autoLog;
-        savedAutoLog.autoLogDirectory = logDirectory;
-        savedAutoLog.autoLog = true;
-
-        ui->autoLogCheckBox->setChecked(true);
+        config.autoLogDirectory = logDirectory;
     }
 }
 

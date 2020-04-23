@@ -3,11 +3,8 @@
 // Copyright (C) 2019 The MMapper Authors
 // Author: Mattias Viklund <devmew@exedump.com> (Mew_)
 
-#include <QString>
 #include <QWidget>
 #include <QtCore>
-
-class QObject;
 
 namespace Ui {
 class AutoLogPage;

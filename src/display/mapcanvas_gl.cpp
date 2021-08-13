@@ -263,6 +263,10 @@ void MapCanvas::initializeGL()
     setConfig().canvas.showUnmappedExits.registerChangeCallback(m_lifetime, [this]() {
         this->forceUpdateMeshes();
     });
+
+    QOpenGLExtraFunctions *f = QOpenGLContext::currentContext()->extraFunctions();
+    f->glGenVertexArrays(1, &m_defaultVao);
+    f->glBindVertexArray(m_defaultVao);
 }
 
 /* Direct means it is always called from the emitter's thread */

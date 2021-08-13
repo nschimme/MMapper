@@ -105,12 +105,13 @@ static void setSurfaceFormat()
     }
 
     QSurfaceFormat fmt;
-    fmt.setRenderableType(QSurfaceFormat::OpenGL);
-    QSurfaceFormat::FormatOptions options = QSurfaceFormat::DebugContext
-                                            | QSurfaceFormat::DeprecatedFunctions;
-    fmt.setOptions(options);
-    fmt.setSamples(config.antialiasingSamples);
+    fmt.setOptions(QSurfaceFormat::DebugContext);
+    fmt.setSamples(getConfig().canvas.antialiasingSamples);
     fmt.setDepthBufferSize(24);
+    // TODO: Bump minimum GL to 4.1 which is the ceiling for Ivy Bridge and Macs
+    fmt.setVersion(3, 3);
+    // Macs do not support compatability profiles after GL 2.1
+    fmt.setProfile(QSurfaceFormat::CoreProfile);
     QSurfaceFormat::setDefaultFormat(fmt);
 }
 

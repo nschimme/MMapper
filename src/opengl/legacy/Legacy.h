@@ -84,6 +84,7 @@ private:
     using Base = QOpenGLFunctions;
     glm::mat4 m_viewProj = glm::mat4(1);
     Viewport m_viewport;
+    GLuint m_defaultVao = 0;
     float m_devicePixelRatio = 1.f;
     std::unique_ptr<ShaderPrograms> m_shaderPrograms;
     std::unique_ptr<StaticVbos> m_staticVbos;
@@ -110,6 +111,9 @@ public:
         }
         m_devicePixelRatio = devicePixelRatio;
     }
+
+public:
+    NODISCARD GLuint getDefaultVao() const { return m_defaultVao; }
 
 public:
     using Base::initializeOpenGLFunctions;
@@ -158,7 +162,10 @@ public:
 
 public:
     // OpenGL man page says "Only width 1 is guaranteed to be supported."
-    void glLineWidth(const GLfloat lineWidth) { Base::glLineWidth(scalef(lineWidth)); }
+    void glLineWidth(const GLfloat lineWidth)
+    {
+        //Base::glLineWidth(scalef(lineWidth));
+    }
 
 public:
     void glViewport(const GLint x, const GLint y, const GLsizei width, const GLsizei height)

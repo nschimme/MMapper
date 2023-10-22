@@ -1443,41 +1443,9 @@ void AbstractParser::performDoorCommand(const ExitDirEnum direction, const DoorA
 {
     Coordinate c = getTailPosition();
 
-    auto cn = getCommandName(action) + " ";
-    auto dn = m_mapData.getDoorName(c, direction).toQByteArray();
+    auto cn = getCommandName(action) + " exit";
 
-    bool needdir = false;
-
-    if (direction == ExitDirEnum::UNKNOWN) {
-        // If there is only one secret assume that is what needs opening
-        auto secretCount = 0;
-        for (const ExitDirEnum i : ALL_EXITS_NESWUD) {
-            if (m_mapData.getExitFlag(c, i, ExitFieldVariant{DoorFlags{DoorFlagEnum::HIDDEN}})) {
-                dn = m_mapData.getDoorName(c, i).toQByteArray();
-                secretCount++;
-            }
-        }
-        if (secretCount == 1 && !dn.isEmpty()) {
-            needdir = false;
-        } else {
-            // Otherwise open any exit
-            needdir = true;
-            dn = "exit";
-        }
-    } else if (dn.isEmpty()) {
-        needdir = true;
-        dn = "exit";
-    } else {
-        // Check if we need to add a direction to the door name
-        for (const ExitDirEnum i : ALL_EXITS_NESWUD) {
-            if ((i != direction) && (m_mapData.getDoorName(c, i).toQByteArray() == dn)) {
-                needdir = true;
-            }
-        }
-    }
-
-    cn += dn;
-    if (needdir && isNESWUD(direction)) {
+    if (isNESWUD(direction)) {
         cn += " ";
         cn += Mmapper2Exit::charForDir(direction);
     }

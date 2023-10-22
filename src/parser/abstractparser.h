@@ -195,7 +195,6 @@ public:
 
 private:
     void setMode(MapModeEnum mode);
-    NODISCARD bool tryParseGenericDoorCommand(const QString &str);
     void parseSpecialCommand(StringView);
     NODISCARD bool parseSimpleCommand(const QString &str);
 
@@ -203,7 +202,6 @@ private:
     void showMumeTime();
     void showHelp();
     void showMiscHelp();
-    void showDoorVariableHelp();
     void showCommandPrefix();
     void showNote();
     void showSyntax(const char *rest);

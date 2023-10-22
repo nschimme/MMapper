@@ -408,9 +408,6 @@ bool AbstractParser::parseUserCommands(const QString &input)
         return false;
     }
 
-    if (tryParseGenericDoorCommand(input))
-        return false;
-
     return parseSimpleCommand(input);
 }
 

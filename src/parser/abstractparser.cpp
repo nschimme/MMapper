@@ -1027,26 +1027,10 @@ void AbstractParser::showDoorCommandHelp()
                        .arg(QString{getCommandName(dat)}));
     }
 
-    showDoorVariableHelp();
-
     showHeader("Destructive commands");
     sendToUser(QString("  %1%2   - removes all secret door names from the current map\n")
                    .arg(prefixChar)
                    .arg(cmdRemoveDoorNames.getCommand()));
-}
-
-void AbstractParser::showDoorVariableHelp()
-{
-    showHeader("Door variables");
-    for (const ExitDirEnum dir : ALL_EXITS_NESWUD) {
-        auto lower = lowercaseDirection(dir);
-        if (lower == nullptr)
-            continue;
-        auto upper = static_cast<char>(toupper(lower[0]));
-        sendToUser(
-            QString("  $$DOOR_%1$$   - secret name of door leading %2\n").arg(upper).arg(lower));
-    }
-    sendToUser("  $$DOOR$$     - the same as 'exit'\n");
 }
 
 void AbstractParser::doMove(const CommandEnum cmd)
@@ -1057,24 +1041,6 @@ void AbstractParser::doMove(const CommandEnum cmd)
     pathChanged();
     if (isOffline())
         offlineCharacterMove(cmd);
-}
-
-bool AbstractParser::tryParseGenericDoorCommand(const QString &str)
-{
-    if (!str.contains("$$DOOR"))
-        return false;
-
-    const char pattern[] = "$$DOOR_X$$";
-    for (const ExitDirEnum dir : ALL_EXITS_NESWUD) {
-        const auto c = static_cast<char>(std::toupper(Mmapper2Exit::charForDir(dir)));
-        auto buf = makeCharBuffer(pattern);
-        buf.replaceAll('X', c);
-        if (str.contains(buf.getBuffer())) {
-            genericDoorCommand(str, dir);
-            return true;
-        }
-    }
-    return false;
 }
 
 NODISCARD static ExitDirEnum convert_to_ExitDirection(const CommandEnum dir)
@@ -1485,10 +1451,8 @@ void AbstractParser::genericDoorCommand(QString command, const ExitDirEnum direc
             cn += " ";
             cn += dirChar.toLatin1();
         }
-        command = command.replace(QString("$$DOOR_%1$$").arg(dirChar.toUpper()), cn);
     } else if (direction == ExitDirEnum::UNKNOWN) {
         cn += dn;
-        command = command.replace("$$DOOR$$", cn);
     }
 
     sendToUser("[" + command + "]\n");

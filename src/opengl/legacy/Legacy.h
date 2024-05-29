@@ -187,6 +187,10 @@ public:
     using Base::glDeleteVertexArrays;
     using Base::glGenVertexArrays;
 
+    using Base::glActiveTexture;
+    using Base::glBindTexture;
+    using Base::glTexSubImage3D;
+
 public:
     void glLineWidth(const GLfloat lineWidth)
     {

@@ -731,21 +731,22 @@ void MapCanvas::paintDifferences()
     const auto &highlight = deref(diff.highlight);
     auto &gl = getOpenGL();
 
-    auto tryRenderWithTexture = [&gl](const TexVertVector &points, const MMTextureId texid) {
-        if (points.empty()) {
-            return;
-        }
-        gl.renderTexturedQuads(points,
+    if (getConfig().canvas.showMissingMapId.get()) {
+        gl.renderTexturedQuads(highlight.needsUpdate,
                                GLRenderState()
                                    .withColor(Colors::white)
                                    .withBlend(BlendModeEnum::TRANSPARENCY)
-                                   .withTexture0(texid));
-    };
-
-    if (getConfig().canvas.showMissingMapId.get()) {
-        tryRenderWithTexture(highlight.needsUpdate, m_textures.room_needs_update->getId());
+                                   .withTexture0(
+                                       m_textures.room_needs_update->getArrayPosition().array));
     }
-    tryRenderWithTexture(highlight.diff, m_textures.room_modified->getId());
+    if (!highlight.diff.empty()) {
+        gl.renderTexturedQuads(highlight.diff,
+                               GLRenderState()
+                                   .withColor(Colors::white)
+                                   .withBlend(BlendModeEnum::TRANSPARENCY)
+                                   .withTexture0(
+                                       m_textures.room_modified->getArrayPosition().array));
+    }
 }
 
 void MapCanvas::paintMap()

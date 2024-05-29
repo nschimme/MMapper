@@ -93,8 +93,6 @@ static void tryAutoLoadMap(MainWindow &mw)
 
 static void setSurfaceFormat()
 {
-    const auto &config = getConfig().canvas;
-
     // Windows Intel drivers cause black screens if we don't specify OpenGL
     QApplication::setAttribute(Qt::AA_UseDesktopOpenGL);
 

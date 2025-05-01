@@ -42,7 +42,7 @@
 ### New features:
  - Added the Adventure Panel that helps players track, organize, and
    understand their adventures such as hints, XP, and achievements (Taryn)
- - Added the _timers command for players to track things (Azazello)
+ - Added the `_timers` command for players to track things (Azazello)
 
 ### Bug fixes:
  - Fixed crash when editing multiple rooms
@@ -69,7 +69,7 @@
  - Scroll bars and the status bar can now be hidden under the View menu. (Taryn)
 
 ### Bug fixes:
- - Fixed crash in _dirs command (Elval)
+ - Fixed crash in `_dirs` command (Elval)
  - Prompt is now drawn correctly by supporting nested XML tags
 
 ### Changes:
@@ -85,7 +85,7 @@
 ### Bug fixes:
  - Improved stability of remote editor
  - Base map filter supports Mandos
- - Removed Top Mud Sites from the _vote command and menu
+ - Removed Top Mud Sites from the `_vote` command and menu
  - Fixed shader error on AMD video cards using driver 22.11.1
 
 ## MMapper 22.05.0 (May 7, 2022)
@@ -176,12 +176,12 @@
 
 ### New features:
  - Added a new milkable mob flag and updated the default map to support it
- - Room textures can now be modded by players: https://github.com/MUME/MMapper/wiki/Modding
- - Added the _mark command to add, update, or remove text marks without using a mouse
+ - Room textures can now be modded by players: [https://github.com/MUME/MMapper/wiki/Modding](https://github.com/MUME/MMapper/wiki/Modding)
+ - Added the `_mark` command to add, update, or remove text marks without using a mouse
  - Distant selected rooms are now scaled based upon distance
 
 ### Changes:
- - Renamed _markcurrent to _room select
+ - Renamed `_markcurrent` to `_room select`
  - Anonymously exposed OpenGL version in the terminal type
 
 ### Bug fixes:
@@ -202,14 +202,14 @@
  - Supported macOS 10.11 networking better
  - Increased telnet socket timeout to 30 seconds
  - Fixed an ANSI color encoding typo on the welcome message
- - Renamed _removedoornames to _remove-secret-door-names
+ - Renamed `_removedoornames` to `_remove-secret-door-names`
  - Fixed RoomEditDialog multiselection rendering error
  - Squished various minor bugs
 
 ## MMapper 21.01.0 (January 17, 2021)
 
 ### New features:
- - Play, emulation, and mapping modes can be changed with: _config ??
+ - Play, emulation, and mapping modes can be changed with: `_config ??`
  - An insecure connection warning will now be displayed if TLS encryption is disabled
  - Selecting rooms and marks now displays the total count
 
@@ -241,7 +241,7 @@
  - Selecting the "Undefined" radio buttons when editing multiple rooms now works
  - Connection dots when selecting outgoing exits are now correctly displayed
  - Fixed directory creation when exporting a web map for 'Play MUME'
- - Added Top Mud Sites link to '_vote' command
+ - Added Top Mud Sites link to `_vote` command
  - Suppress Go Ahead (SGA) telnet protocol now actually works
  - Updated links to use HTTPS
 
@@ -273,7 +273,7 @@
  - Group poison affect now triggers on any poison message in status
  - Prompt and exits detection has been improved
  - External links use HTTPS over HTTP
- - Mud Connector voting works again
+ - [Mud Connector](https://www.mudconnector.com/) voting works again
  - Disabled unnecessary scrollbars on MMapper logo in About dialog
  - Linux snap now runs successfully on the Raspberry Pi
 
@@ -309,7 +309,7 @@
  - Mouse clicks on a room during 'mouse mode' now display an information tooltip
  - 'Find Rooms' dialog will now remember its last window position and dimensions
  - Room mapping commands now use the syntax model. For more info type: _room ??
- - Group manager commands now use the syntax model. For more info type: _group ??
+ - Group manager commands now use the syntax model. For more info type: `_group ??`
  - Integrated mud client is now a panel and not a non-modal window
  - Integrated mud client now uses a centered tooltip for dimension hints
  - Trilinear filtering is now enabled by default
@@ -346,7 +346,7 @@
  - Improved map indicators for the character and group members
  - Added visible map mode bounds to decrease draw latency
  - Rendering now supports OpenGL ES (e.g. Raspberry Pi 4)
- - Added new _connect and _disconnect commands
+ - Added new `_connect` and `_disconnect` commands
  - Removed old room commands in favor of new room commands
  - Saving maps is now disabled unless the map was changed
  - Clicking on a group character causes map to center on them
@@ -374,7 +374,7 @@
  - Fixed regression during mapping that left rooms locked
  - It is now impossible to kick yourself in the Group Manager
  - Group Manager clients assume the first received character is the host
- - Special commands are now allowed to have mixed case (i.e. _HeLp)
+ - Special commands are now allowed to have mixed case (i.e. `_HeLp`)
  - Factory reset will now refresh the preference dialog settings
  - Fixed MUME vote link to The Mud Connector
  - Fixed regression that made the parser less tolerant of secret exits

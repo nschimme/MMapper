@@ -401,7 +401,7 @@
  - Updated map to include the Tower Hills
  - Improvements to the builtin editor (justification, whitespace, ansi, tabbing, and more!)
  - Group manager now shows player prespam
- - Add _knock action to parser
+ - Add `_knock` action to parser
  - Colors for dark/sunsafe rooms are now configurable under the Graphics preferences
  - Introduce coach and ferry load flags
  - Group manager rows and columns are smaller and autohide if necessary
@@ -425,15 +425,15 @@
 
 ### New features:
  - Remote edit justify now understands ANSI and various lengths
- - _search and _mark commands now select and show distant rooms
- - Map immediately reflects changes from internal commands (i.e. _noride)
+ - `_search` and `_mark` commands now select and show distant rooms
+ - Map immediately reflects changes from internal commands (i.e. `_noride`)
  - MMapper now checks for upgrades on Github
 
 ### Bug fixes:
  - Fix syncing when player is blinded
- - _dirs command is now aware of damage/fall exits and tries to avoid them
+ - `_dirs` command is now aware of damage/fall exits and tries to avoid them
  - Prespammed directions are more resilient to non-movement commands
- - Internal commands now trigger on the tail position of prespam (i.e. _open)
+ - Internal commands now trigger on the tail position of prespam (i.e. `_open`)
  - Blacklist certain OpenGL drivers and fallback to software rendering on Windows
  - Fix "Always on top" action
  - Package missing msvcr120.dll on Windows
@@ -458,7 +458,7 @@
 ### New features:
  - Allow TLS connections to be compressed
  - Crash reporting added for Windows
- - Added _glock command to toggle the group lock
+ - Added `_glock` command to toggle the group lock
 
 ### Bug fixes:
  - Improved group manager stability after the host disconnected
@@ -470,7 +470,7 @@
 ### New features:
  - Disabled NAGLE for tcp connections which should hopefully increase performance during lossy conditions
  - ANSI color selection has been moved into a dialog that supports high colors
- - Internal command prefix character can be changed with "_set prefix <char>"
+ - Internal command prefix character can be changed with "`_set prefix <char>`"
  - Group manager clients will attempt to reconnect 3 times to a host before failing
  - Group hosts can lock the group to the current clients
  - Group tells are now colored
@@ -511,7 +511,7 @@
  - Quest and passive mob flags have been modernized
  - Word of recall and equipment load flags have been added
  - 'Find Rooms' dialog can now select and edit rooms
- - Hosts can kick group members with the _gkick command or by clicking on them
+ - Hosts can kick group members with the `_gkick` command or by clicking on them
  - Offline mode now supports scouting and random exits
  - Integrated editor shows the line/column of the cursor within the status bar
  - Rooms can be forced updated or outdated
@@ -539,7 +539,7 @@
 ### Changes:
  - Fixed bug when the negotiated window size was larger than 127 characters
  - Prompts are more consistently stored and displayed with internal commands
- - _note command now clears notes when provided with an empty payload
+ - `_note` command now clears notes when provided with an empty payload
  - Added shortcut to reset the zoom level back to the default level
  - Darkened default background color
 
@@ -709,7 +709,7 @@
   - Emulated prompts now show the current terrain and lighting (nschimme)
   - Web maps can now be exported (waba)
   - MMapper only support XML mode now and uses gratuitous flags (nschimme)
-  - Added new _search and _dirs commands to find rooms and their paths (ethorondil)
+  - Added new `_search` and `_dirs` commands to find rooms and their paths (ethorondil)
   - Notes can now be printed from the command line (ethorondil)
   - GNOME and KDE integration improved (kalev)
   - Menus standardized and first time use improved (nschimme)
@@ -738,8 +738,8 @@
   - [GroupManager] Player's hp, mana, and moves are now correctly updated (nschimme)
   - [GroupManager] Player's room name has been moved into the far right column (nschimme)
   - [GroupManager] Linux and Mac hosts can now accept incoming connections (nschimme)
-  - Prompts should not be displayed after an internal command like _help is run (nschimme)
-  - Added new _vote command and menu action to vote for MUME on TMC (nschimme)
+  - Prompts should not be displayed after an internal command like `_help` is run (nschimme)
+  - Added new `_vote` command and menu action to vote for MUME on TMC (nschimme)
 
 ## MMapper 2.3.2 (January 17, 2015)
 
@@ -768,7 +768,7 @@
 ### Changes:
  - Build fixes
  - Fix issues with XML mode in the account menu
- - Make _name and _noride commands work (thanks Waba!)
+ - Make `_name` and `_noride` commands work (thanks Waba!)
 
 ## MMapper 2.2.0 (July 13, 2013)
 

@@ -5,6 +5,10 @@
         <file>LICENSE.LGPL</file>
         <file>LICENSE.OPENSSL</file>
         <file>LICENSE.QTKEYCHAIN</file>
+        <file>areas/bree.png</file>
+        <file>areas/goblin-town.png</file>
+        <file>areas/the shire.png</file>
+        <file>areas/valinor.png</file>
         <file>emojis/short-codes.json</file>
         <file>fonts/Cantarell18.fnt</file>
         <file>fonts/Cantarell18_0.png</file>

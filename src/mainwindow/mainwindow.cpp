@@ -29,6 +29,7 @@
 #include "../roompanel/RoomManager.h"
 #include "../roompanel/RoomWidget.h"
 #include "../viewers/TopLevelWindows.h"
+#include "DescriptionWidget.h"
 #include "MapZoomSlider.h"
 #include "UpdateDialog.h"
 #include "aboutdialog.h"
@@ -217,6 +218,21 @@ MainWindow::MainWindow()
     m_adventureWidget = new AdventureWidget(deref(m_adventureTracker), this);
     m_dockDialogAdventure->setWidget(m_adventureWidget);
     m_dockDialogAdventure->hide();
+
+    // View -> Side Panels -> Description / Area Panel
+    m_descriptionWidget = new DescriptionWidget(this);
+    m_dockDialogDescription = new QDockWidget(tr("Description Panel"), this);
+    m_dockDialogDescription->setObjectName("DockWidgetDescription");
+    m_dockDialogDescription->setAllowedAreas(Qt::AllDockWidgetAreas);
+    m_dockDialogDescription->setFeatures(QDockWidget::DockWidgetMovable
+                                         | QDockWidget::DockWidgetFloatable
+                                         | QDockWidget::DockWidgetClosable);
+    addDockWidget(Qt::RightDockWidgetArea, m_dockDialogDescription);
+    m_dockDialogDescription->setWidget(m_descriptionWidget);
+    m_dockDialogDescription->hide();
+    deref(m_gameObserver).sig2_sentToUserGmcp.connect(m_lifetime, [this](const GmcpMessage &gmcp) {
+        deref(m_descriptionWidget).slot_parseGmcpInput(gmcp);
+    });
 
     m_mumeClock = new MumeClock(getConfig().mumeClock.startEpoch, deref(m_gameObserver), this);
     if constexpr (!NO_UPDATER) {
@@ -1144,6 +1160,8 @@ void MainWindow::setupMenuBar()
     sidepanels->addAction(m_dockDialogGroup->toggleViewAction());
     sidepanels->addAction(m_dockDialogRoom->toggleViewAction());
     sidepanels->addAction(m_dockDialogAdventure->toggleViewAction());
+    sidepanels->addAction(
+        m_dockDialogDescription->toggleViewAction()); // Add Description Panel to menu
     viewMenu->addSeparator();
     viewMenu->addAction(zoomInAct);
     viewMenu->addAction(zoomOutAct);

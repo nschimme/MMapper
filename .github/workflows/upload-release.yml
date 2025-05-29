@@ -1,0 +1,160 @@
+name: upload-release
+
+on:
+  workflow_run:
+    workflows: ["build-release", "build-appimage", "build-flatpak"]
+    types:
+      - completed
+
+jobs:
+  upload-release:
+    runs-on: ubuntu-latest
+    if: ${{ startsWith(github.event.workflow_run.ref, 'refs/tags/v') && github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check if all required builds are complete and get run IDs
+        uses: actions/github-script@v6
+        id: check_builds
+        with:
+          script: |
+            const requiredWorkflows = ['build-release', 'build-appimage', 'build-flatpak'];
+            const commitSha = context.payload.workflow_run.head_sha;
+            console.log(`Checking build status for commit: ${commitSha}`);
+
+            let allSuccessful = true;
+            const missingOrFailed = [];
+            const successfulRunIds = {};
+
+            for (const workflowName of requiredWorkflows) {
+              console.log(`Checking workflow: ${workflowName}`);
+              const { data: workflowRuns } = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: `${workflowName}.yml`,
+                branch: 'master',
+                event: 'push',
+                status: 'success'
+              });
+
+              if (!workflowRuns.workflow_runs || workflowRuns.workflow_runs.length === 0) {
+                allSuccessful = false;
+                missingOrFailed.push(`${workflowName} (not found)`);
+                console.log(`Workflow ${workflowName} not found.`);
+              } else {
+                const run = workflowRuns.workflow_runs[0];
+                successfulRunIds[workflowName] = run.id;
+                console.log(`Workflow ${workflowName} found with run ID: ${run.id}`);
+              }
+            }
+
+            if (allSuccessful) {
+              console.log('All required build workflows completed successfully.');
+              core.setOutput('all_builds_successful', 'true');
+              core.setOutput('successful_run_ids', JSON.stringify(successfulRunIds)); // Output run IDs
+            } else {
+              console.log(`Not all required build workflows completed successfully. Missing or failed: ${missingOrFailed.join(', ')}`);
+              core.setOutput('all_builds_successful', 'false');
+            }
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine Release Version
+        if: ${{ steps.check_builds.outputs.all_builds_successful == 'true' }}
+        id: determine_version
+        run: |
+          VERSION_NUMBER="${{ github.event.workflow_run.ref }}"
+          VERSION_NUMBER="${VERSION_NUMBER#refs/tags/v}" # Removes 'refs/tags/v' prefix
+          echo "Extracted version: $VERSION_NUMBER"
+          echo "VERSION_NUMBER=$VERSION_NUMBER" >> "$GITHUB_OUTPUT"
+
+      - name: Install adm-zip
+        if: ${{ steps.check_builds.outputs.all_builds_successful == 'true' }}
+        run: npm install adm-zip
+
+      - name: Download all build artifacts
+        if: ${{ steps.check_builds.outputs.all_builds_successful == 'true' }}
+        uses: actions/github-script@v6
+        id: download_artifacts
+        with:
+          script: |
+            const successfulRunIds = JSON.parse(process.env.SUCCESSFUL_RUN_IDS);
+            const artifactsPath = `${process.env.GITHUB_WORKSPACE}/release_artifacts`;
+            const fs = require('fs');
+            const AdmZip = require('adm-zip');
+            const downloadedArtifactPaths = [];
+
+            // Ensure the base directory for artifacts exists
+            fs.mkdirSync(artifactsPath, { recursive: true });
+
+            for (const workflowName in successfulRunIds) {
+              const runId = successfulRunIds[workflowName];
+              console.log(`Downloading artifacts for workflow '${workflowName}' (run_id: ${runId})`);
+
+              try {
+                const { data: artifactsList } = await github.rest.actions.listWorkflowRunArtifacts({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  run_id: runId,
+                });
+
+                if (artifactsList.artifacts.length === 0) {
+                  console.log(`No artifacts found for run_id ${runId}`);
+                  continue;
+                }
+
+                for (const artifact of artifactsList.artifacts) {
+                  console.log(`  Downloading artifact: ${artifact.name} (id: ${artifact.id})`);
+                  const download = await github.rest.actions.downloadArtifact({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    artifact_id: artifact.id,
+                    archive_format: 'zip',
+                  });
+
+                  // Organize extracted artifacts into subdirectories by workflow name and artifact name
+                  const outputDir = `${artifactsPath}/${workflowName}/${artifact.name}`;
+                  fs.mkdirSync(outputDir, { recursive: true });
+
+                  const zip = new AdmZip(Buffer.from(download.data));
+                  zip.extractAllTo(outputDir, true);
+                  downloadedArtifactPaths.push(outputDir); // Collect the directories where artifacts were extracted
+                  console.log(`  Extracted artifact to: ${outputDir}`);
+                }
+              } catch (error) {
+                console.error(`Error downloading artifacts for run_id ${runId}:`, error);
+                core.setFailed(`Failed to download artifacts for run_id ${runId}.`);
+                return; // Stop the script if an error occurs
+              }
+            }
+
+            // Flatten the list of directories into actual file paths for softprops/action-gh-release
+            let filesToUpload = [];
+            downloadedArtifactPaths.forEach(dirPath => {
+                const files = fs.readdirSync(dirPath).map(file => `${dirPath}/${file}`);
+                filesToUpload = filesToUpload.concat(files);
+            });
+            core.setOutput('release_files', filesToUpload.join(','));
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          SUCCESSFUL_RUN_IDS: ${{ steps.check_builds.outputs.successful_run_ids }}
+
+      - name: List downloaded artifacts for verification
+        if: ${{ steps.check_builds.outputs.all_builds_successful == 'true' }}
+        run: |
+          echo "Artifacts downloaded to ${{ github.workspace }}/release_artifacts:"
+          ls -R ${{ github.workspace }}/release_artifacts
+          echo "--- End of artifact listing ---"
+
+      - name: Create Tagged Release
+        if: ${{ steps.check_builds.outputs.all_builds_successful == 'true' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.workflow_run.ref }}
+          name: MMapper ${{ steps.determine_version.outputs.VERSION_NUMBER }}
+          prerelease: false
+          draft: false
+          make_latest: true
+          generate_release_notes: true
+          files: ${{ steps.download_artifacts.outputs.release_files }}
+          token: ${{ secrets.GITHUB_TOKEN }}

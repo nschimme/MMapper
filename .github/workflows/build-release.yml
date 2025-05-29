@@ -2,15 +2,13 @@ name: build-release
 
 on:
   push:
-    tags:
-      - 'v*'
     branches:
     - master
   pull_request:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-release:
     runs-on: ${{ matrix.os }}
     continue-on-error: false
     strategy:

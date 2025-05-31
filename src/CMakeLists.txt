@@ -914,7 +914,14 @@ if(WIN32)
     if(MSVC)
         get_filename_component(vcredist_name "${MSVC_REDIST}" NAME)
         install(FILES ${MSVC_REDIST} DESTINATION bin COMPONENT libraries)
-        set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "ExecWait '\\\"$INSTDIR\\\\bin\\\\${vcredist_name}\\\"'")
+        set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "
+MessageBox MB_YESNO|MB_ICONQUESTION \\
+  \"MMapper appears to be running. To continue the installation, it must be closed. Would you like the installer to close MMapper for you?\" \
+  IDYES +2 IDNO +3
+ExecWait 'taskkill /F /IM mmapper.exe'
+Abort
+ExecWait '$INSTDIR\\bin\\${vcredist_name}'
+")
     endif()
 
     # ZIP requires 7-zip

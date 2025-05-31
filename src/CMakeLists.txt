@@ -911,44 +911,11 @@ if(WIN32)
         DESTINATION .
         COMPONENT libraries
     )
+    set(MSVC_INSTALL_COMMAND "")
     if(MSVC)
         get_filename_component(vcredist_name "${MSVC_REDIST}" NAME)
         install(FILES ${MSVC_REDIST} DESTINATION bin COMPONENT libraries)
-        set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "
-nsExec::ExecToStack 'tasklist /FI \"IMAGENAME eq mmapper.exe\"'
-Pop \$0 ; stdout
-Pop \$1 ; return code
-IntCmp \$1 0 +1 tasklist_error
-
-StrStr \$2 \$0 'mmapper.exe'
-StrCmp \$2 '' continue ; Not running
-
-IfSilent 0 +2
-Goto kill
-
-MessageBox MB_YESNO|MB_ICONQUESTION \\
-  \"MMapper appears to be running. Close it to continue installation?\" IDYES kill IDNO abort
-Goto continue
-
-kill:
-nsExec::ExecToStack 'taskkill /F /IM mmapper.exe'
-Pop \$0
-Pop \$1
-IntCmp \$1 0 +1
-  IfSilent 0 MessageBox MB_ICONSTOP \"Failed to close MMapper. Please close it manually.\"
-Abort
-
-abort:
-MessageBox MB_ICONSTOP \"Installation aborted.\"
-Abort
-
-tasklist_error:
-IfSilent 0 MessageBox MB_ICONEXCLAMATION \"Could not detect if MMapper is running. Proceeding anyway.\"
-
-continue:
-; --------------------------------------------------
-ExecWait '\$INSTDIR\\bin\\${vcredist_name}'
-")
+        set(MSVC_INSTALL_COMMAND "ExecWait '\\$INSTDIR\\\\bin\\\\${vcredist_name}'")
     endif()
 
     # ZIP requires 7-zip
@@ -956,6 +923,23 @@ ExecWait '\$INSTDIR\\bin\\${vcredist_name}'
     set(CPACK_SOURCE_GENERATOR "ZIP")
 
     # Windows (NSIS) Settings
+    set(DRMINGW_INSTALL_COMMAND "")
+    if(WITH_DRMINGW)
+        # Include shortcut to crash logs
+        set(DRMINGW_INSTALL_COMMAND "CreateShortCut \\\"$SMPROGRAMS\\\\${CPACK_NSIS_DISPLAY_NAME}\\\\Crash Log.lnk\\\" \\\"$PROFILE\\\\AppData\\\\Local\\\\mmappercrash.log\\\"")
+        # Delete shortcut and crash log
+        set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "
+            Delete \\\"$SMPROGRAMS\\\\${CPACK_NSIS_DISPLAY_NAME}\\\\Crash Log.lnk\\\"
+            Delete \\\"$PROFILE\\\\AppData\\\\Local\\\\mmappercrash.log\\\"
+            ")
+    endif()
+    configure_file(
+        ${CMAKE_SOURCE_DIR}/WindowsNSIS.nsh.in
+        ${CMAKE_BINARY_DIR}/WindowsNSIS.nsh
+        @ONLY
+    )
+    file(READ "${CMAKE_BINARY_DIR}/WindowsNSIS.nsh" NSIS_EXTRA_COMMANDS)
+    set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "${NSIS_EXTRA_COMMANDS}")
     set(CPACK_NSIS_EXECUTABLES_DIRECTORY "bin")
     set(CPACK_NSIS_MENU_LINKS "bin/mmapper.exe;MMapper")
     set(CPACK_NSIS_INSTALLED_ICON_NAME "mmapper.exe")
@@ -968,23 +952,7 @@ ExecWait '\$INSTDIR\\bin\\${vcredist_name}'
     set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL "ON")
     set(CPACK_NSIS_MUI_FINISHPAGE_RUN "mmapper.exe")
     set(CPACK_NSIS_MANIFEST_DPI_AWARE "ON")
-    if("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
-        set(CPACK_NSIS_DISPLAY_NAME "MUME Mapper (x64)")
-    else()
-        set(CPACK_PACKAGE_INSTALL_REGISTRY_KEY "Caligor soft")
-        set(CPACK_NSIS_DISPLAY_NAME "MUME Mapper (x86)")
-    endif()
-    if(WITH_DRMINGW)
-        # Include shortcut to crash logs
-        set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "
-            CreateShortCut \\\"$SMPROGRAMS\\\\${CPACK_NSIS_DISPLAY_NAME}\\\\Crash Log.lnk\\\" \\\"$PROFILE\\\\AppData\\\\Local\\\\mmappercrash.log\\\"
-            ")
-        # Delete shortcut and crash log
-        set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "
-            Delete \\\"$SMPROGRAMS\\\\${CPACK_NSIS_DISPLAY_NAME}\\\\Crash Log.lnk\\\"
-            Delete \\\"$PROFILE\\\\AppData\\\\Local\\\\mmappercrash.log\\\"
-            ")
-    endif()
+    set(CPACK_NSIS_DISPLAY_NAME "MUME Mapper (x64)")
     # NSIS always displays a license page
     set(CPACK_RESOURCE_FILE_LICENSE "${PROJECT_SOURCE_DIR}/src/resources/LICENSE.GPL2")
 endif(WIN32)

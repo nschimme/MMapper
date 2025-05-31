@@ -1,0 +1,36 @@
+; WindowsNSIS.nsh
+
+nsExec::ExecToStack 'tasklist /FI "IMAGENAME eq mmapper.exe"'
+Pop $0
+Pop $1
+IntCmp $1 0 +1 tasklist_error
+
+StrStr $2 $0 "mmapper.exe"
+StrCmp $2 "" continue ; Not running
+
+IfSilent 0 +2
+Goto kill
+
+MessageBox MB_YESNO|MB_ICONQUESTION "MMapper is running. Close it to continue installation?" IDYES kill IDNO abort
+Goto continue
+
+kill:
+nsExec::ExecToStack 'taskkill /F /IM mmapper.exe'
+Pop $0
+Pop $1
+IntCmp $1 0 +1
+IfSilent 0 MessageBox MB_ICONSTOP "Failed to close MMapper. Please close it manually."
+Abort
+
+abort:
+MessageBox MB_ICONSTOP "Installation aborted."
+Abort
+
+tasklist_error:
+IfSilent 0 MessageBox MB_ICONEXCLAMATION "Could not detect if MMapper is running. Proceeding anyway."
+
+continue:
+; --------------------------------------------------
+@MSVC_INSTALL_COMMAND@
+@DRMINGW_INSTALL_COMMAND@
+

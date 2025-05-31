@@ -915,12 +915,39 @@ if(WIN32)
         get_filename_component(vcredist_name "${MSVC_REDIST}" NAME)
         install(FILES ${MSVC_REDIST} DESTINATION bin COMPONENT libraries)
         set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "
+nsExec::ExecToStack 'tasklist /FI \"IMAGENAME eq mmapper.exe\"'
+Pop \$0 ; stdout
+Pop \$1 ; return code
+IntCmp \$1 0 +1 tasklist_error
+
+StrStr \$2 \$0 'mmapper.exe'
+StrCmp \$2 '' continue ; Not running
+
+IfSilent 0 +2
+Goto kill
+
 MessageBox MB_YESNO|MB_ICONQUESTION \\
-  \"MMapper appears to be running. To continue the installation, it must be closed. Would you like the installer to close MMapper for you?\" \
-  IDYES +2 IDNO +3
-ExecWait 'taskkill /F /IM mmapper.exe'
+  \"MMapper appears to be running. Close it to continue installation?\" IDYES kill IDNO abort
+Goto continue
+
+kill:
+nsExec::ExecToStack 'taskkill /F /IM mmapper.exe'
+Pop \$0
+Pop \$1
+IntCmp \$1 0 +1
+  IfSilent 0 MessageBox MB_ICONSTOP \"Failed to close MMapper. Please close it manually.\"
 Abort
-ExecWait '$INSTDIR\\bin\\${vcredist_name}'
+
+abort:
+MessageBox MB_ICONSTOP \"Installation aborted.\"
+Abort
+
+tasklist_error:
+IfSilent 0 MessageBox MB_ICONEXCLAMATION \"Could not detect if MMapper is running. Proceeding anyway.\"
+
+continue:
+; --------------------------------------------------
+ExecWait '\$INSTDIR\\bin\\${vcredist_name}'
 ")
     endif()
 

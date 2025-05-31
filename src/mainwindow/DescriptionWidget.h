@@ -4,14 +4,14 @@
 
 #include "../map/RoomHandle.h"
 
+#include <map>
+
 #include <QCache>
 #include <QFileSystemWatcher>
 #include <QLabel>
 #include <QPixmap>
 #include <QTextEdit>
 #include <QWidget>
-
-#include <map>
 
 class NODISCARD_QOBJECT DescriptionWidget final : public QWidget
 {

@@ -9,8 +9,9 @@
 #include <QLabel>
 #include <QPixmap>
 #include <QTextEdit>
-#include <QVBoxLayout>
 #include <QWidget>
+
+#include <map>
 
 class NODISCARD_QOBJECT DescriptionWidget final : public QWidget
 {
@@ -36,7 +37,7 @@ private:
 
 private:
     QCache<QString, QPixmap> m_pixmapCache;
-    std::set<QString> m_availableFiles;
+    std::map<QString, QString> m_availableFiles;
     QFileSystemWatcher m_watcher;
 
 private:

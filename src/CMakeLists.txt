@@ -934,11 +934,11 @@ if(WIN32)
             ")
     endif()
     configure_file(
-        ${CMAKE_SOURCE_DIR}/WindowsNSIS.nsh.in
-        ${CMAKE_BINARY_DIR}/WindowsNSIS.nsh
+        ${CMAKE_CURRENT_SOURCE_DIR}/WindowsNSIS.nsh.in
+        ${CMAKE_CURRENT_BINARY_DIR}/WindowsNSIS.nsh
         @ONLY
     )
-    file(READ "${CMAKE_BINARY_DIR}/WindowsNSIS.nsh" NSIS_EXTRA_COMMANDS)
+    file(READ "${CMAKE_CURRENT_BINARY_DIR}/WindowsNSIS.nsh" NSIS_EXTRA_COMMANDS)
     set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "${NSIS_EXTRA_COMMANDS}")
     set(CPACK_NSIS_EXECUTABLES_DIRECTORY "bin")
     set(CPACK_NSIS_MENU_LINKS "bin/mmapper.exe;MMapper")

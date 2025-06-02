@@ -284,10 +284,21 @@ NODISCARD static MapApplyResult update(
             }
 
             for (const RoomArea& area : candidate_areas_to_check) {
-                if (Map::hasMeshDifferencesForArea(area, base_world, modified)) {
-                    current_dirty_areas.insert(area);
-                    info_os << "[update] Area '" << area.getStdStringViewUtf8() << "' marked as visually dirty.\n";
-                }
+                // The call to Map::hasMeshDifferencesForArea was here.
+                // It's been removed from Map class. The equivalent logic is now in 
+                // World::getComparisonStats which calls its own internal helper,
+                // or WorldComparisonStats directly holds the dirty areas.
+                // The current_dirty_areas set is now populated directly by World::getComparisonStats.
+                // So this loop is no longer needed here if we use result.visuallyDirtyAreas from global_stats.
+                // Let's adjust to use global_stats.visuallyDirtyAreas directly.
+                // This loop will be removed.
+            }
+            current_dirty_areas = global_stats.visuallyDirtyAreas; // Use the pre-calculated set.
+            if (!current_dirty_areas.empty()) {
+                 info_os << "[update] Visually dirty areas identified by World::getComparisonStats:\n";
+                 for (const RoomArea& area : current_dirty_areas) {
+                     info_os << "[update]   - " << area.getStdStringViewUtf8() << "\n";
+                 }
             }
 
         } catch (const std::exception &ex) {
@@ -1206,87 +1217,7 @@ void Map::printChanges(mm::AbstractDebugOStream &os,
     os.writeUtf8(oss.str());
 }
 
-bool Map::hasMeshDifferencesForArea(
-    const RoomArea& area_name,
-    const World& world_before,
-    const World& world_after)
-{
-    const RoomIdSet* area_rooms_before_ptr = world_before.findAreaRoomSet(area_name);
-    const RoomIdSet* area_rooms_after_ptr = world_after.findAreaRoomSet(area_name);
-
-    // Handle cases where the area itself is new or removed
-    if (!area_rooms_before_ptr && area_rooms_after_ptr) {
-        // Area is newly created and has rooms, this is a difference if it's not empty.
-        return !area_rooms_after_ptr->empty();
-    }
-    if (area_rooms_before_ptr && !area_rooms_after_ptr) {
-        // Area was removed, this is a difference if it was not empty.
-        return !area_rooms_before_ptr->empty();
-    }
-    if (!area_rooms_before_ptr && !area_rooms_after_ptr) {
-        // Area didn't exist before and doesn't exist now. No difference for this area.
-        return false;
-    }
-
-    const RoomIdSet& area_rooms_before = *area_rooms_before_ptr;
-    const RoomIdSet& area_rooms_after = *area_rooms_after_ptr;
-
-    // 1. Check for rooms added to or removed from the area_name.
-    // Rooms that were in the area before but are not now.
-    for (RoomId room_id : area_rooms_before) {
-        if (!area_rooms_after.contains(room_id)) {
-            // Room was in area_name before, but not anymore.
-            // This implies the room was removed from the world OR its area changed.
-            return true;
-        }
-    }
-    // Rooms that are in the area now but were not before.
-    for (RoomId room_id : area_rooms_after) {
-        if (!area_rooms_before.contains(room_id)) {
-            // Room is in area_name now, but was not before.
-            // This implies the room is new to the world OR its area changed to area_name.
-            return true;
-        }
-    }
-
-    // 2. Iterate rooms present in the area in world_after.
-    for (RoomId room_id : area_rooms_after) {
-        const RawRoom* room_after_ptr = world_after.getRoom(room_id);
-        const RawRoom* room_before_ptr = world_before.getRoom(room_id);
-
-        if (!room_after_ptr) { // Should not happen if area_rooms_after is consistent
-            assert(false && "Room in area set but not in world_after");
-            return true; // Treat as a difference
-        }
-        const RawRoom& room_after = *room_after_ptr;
-
-        if (!room_before_ptr) {
-            // Room is new to the world (and by previous checks, new to the area).
-            return true;
-        }
-        const RawRoom& room_before = *room_before_ptr;
-
-        // Check if the room's area itself changed to area_name
-        // This is already covered by the loops above that check for rooms added/removed from area_rooms_after vs area_rooms_before.
-        // if (room_before.getArea() != area_name && room_after.getArea() == area_name) {
-        //     return true;
-        // }
-
-        // Compare RawRoom state using the helper.
-        if (map_compare_detail::hasMeshDifference(room_before, room_after)) {
-            return true;
-        }
-    }
-
-    // 3. Iterate rooms that were in the area in world_before but are no longer in world_after (i.e. removed from world).
-    // This is also covered by the first loop that checks rooms in area_rooms_before against area_rooms_after.
-    // If a room was in area_rooms_before and not in area_rooms_after, it means it was either
-    // - removed from the world entirely (world_after.getRoom(room_id) would be nullptr)
-    // - or its area changed (world_after.getRoom(room_id)->getArea() != area_name)
-    // Both these cases are caught by the first set of loops.
-
-    return false;
-}
+// bool Map::hasMeshDifferencesForArea(...) // Implementation removed
 
 bool Map::roomNeedsMeshUpdate(
     RoomId room_id,

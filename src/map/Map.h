@@ -167,13 +167,6 @@ public:
                       std::string_view sep) const;
 
 public:
-    // Checks for mesh-affecting differences in a specific area between two world states.
-    static bool hasMeshDifferencesForArea(
-        const RoomArea& area_name,
-        const World& world_before,
-        const World& world_after
-    );
-
     // Checks if a specific room needs a mesh update between two world states.
     static bool roomNeedsMeshUpdate(
         RoomId room_id,

@@ -11,10 +11,11 @@
 #include "../opengl/Font.h"
 #include "../opengl/FontFormatFlags.h"
 #include "../opengl/OpenGL.h"
-#include "Infomarks.h"
+#include "Infomarks.h" // For Batches struct member infomarksMeshes
 #include "MapCanvasData.h"
-#include "MapCanvasRoomDrawer.h"
+#include "MapCanvasRoomDrawer.h" // For Batches struct definition
 #include "Textures.h"
+#include "../display/AsyncMapAreaManager.h" // New manager
 
 #include <array>
 #include <cstddef>
@@ -101,8 +102,9 @@ private:
     MapScreen m_mapScreen;
     OpenGL m_opengl;
     GLFont m_glFont;
-    Batches m_batches;
+    Batches m_batches; // Retained for infomarksMeshes etc. Area-specific parts were removed from Batches struct.
     MapCanvasTextures m_textures;
+    display_async::AsyncMapAreaManager m_asyncMapAreaManager; // New manager
     MapData &m_data;
     Mmapper2Group &m_groupManager;
     OptionStatus m_graphicsOptionsStatus;
@@ -193,15 +195,15 @@ private:
                       int currentLayer,
                       const glm::vec2 &offset = {},
                       const std::optional<Color> &overrideColor = std::nullopt);
-    void updateBatches();
-    void finishPendingMapBatches();
-    void updateMapBatches();
-    void updateInfomarkBatches();
-    void processRemeshCompletionAndCatchUp();
+    void updateBatches(); // This might need review: if it was only for map data, its role changes.
+    void finishPendingMapBatches(); // This was likely part of old async system, review/remove.
+    // void updateMapBatches(); // Likely superseded by m_asyncMapAreaManager.processCompletions
+    void updateInfomarkBatches(); // This should remain if m_batches.infomarksMeshes is used.
+    // void processRemeshCompletionAndCatchUp(); // REMOVE - Replaced by m_asyncMapAreaManager.processCompletions
 
     void actuallyPaintGL();
-    void paintMap();
-    void renderMapBatches();
+    void paintMap(); // This will call the modified renderMapBatches
+    void renderMapBatches(); // Implementation will change to use AsyncMapAreaManager
     void paintBatchedInfomarks();
     void paintSelections();
     void paintSelectionArea();

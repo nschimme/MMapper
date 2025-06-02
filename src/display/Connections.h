@@ -47,7 +47,17 @@ public:
     NODISCARD UniqueMesh getMesh(GLFont &font) const;
 };
 
-using BatchedRoomNames = std::unordered_map<int, UniqueMesh>;
+// New structure to hold an individual FontMesh3d along with its specific world position.
+struct FontMesh3dInstance {
+    FontMesh3d mesh;            // The actual mesh from font.getMesh()
+    glm::vec3 worldPosition;    // The world position for this specific text instance
+    // LColor color;            // Color is typically baked into FontMesh3d by font.getMesh(text, flags, color, scale)
+    // float scale;             // Scale is also typically handled by font.getMesh()
+};
+
+// BatchedRoomNames will now store a list of these instances per layer.
+// Using std::map for ordered layers, consistent with BatchedMeshes.
+using BatchedRoomNames = std::map<int, std::vector<FontMesh3dInstance>>;
 
 struct NODISCARD ConnectionDrawerColorBuffer final
 {

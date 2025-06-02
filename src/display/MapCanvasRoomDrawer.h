@@ -4,18 +4,18 @@
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
 #include "../global/Array.h"
-#include "../global/Timer.h"
-#include "../map/ExitDirection.h"
-#include "../map/coordinate.h"
-#include "../map/infomark.h"
-#include "../map/room.h"
-#include "../map/roomid.h"
-#include "../opengl/Font.h"
-#include "Connections.h"
-#include "IMapBatchesFinisher.h"
-#include "Infomarks.h"
-#include "MapBatches.h"
-#include "MapCanvasData.h"
+#include "../global/Timer.h" // Still used by Batches::FlashState (indirectly via getTime())
+#include "../map/ExitDirection.h" // Potentially used by other non-removed parts, keep for now
+#include "../map/coordinate.h" // Potentially used
+#include "../map/infomark.h" // For BatchedInfomarksMeshes
+#include "../map/room.h" // Potentially used
+#include "../map/roomid.h" // Potentially used
+#include "../opengl/Font.h" // Potentially used by other non-removed parts
+#include "Connections.h" // For BatchedConnectionMeshes (used in MapBatches)
+// #include "IMapBatchesFinisher.h" // REMOVE - Part of old system
+#include "Infomarks.h" // For BatchedInfomarksMeshes
+#include "MapBatches.h" // Definition of MapBatches, which is still used by Batches struct (for m_areaMapBatches removal, but MapBatches itself is a return type)
+#include "MapCanvasData.h" // For various canvas related data, keep for now
 #include "RoadIndex.h"
 
 #include <map>
@@ -34,102 +34,21 @@ class OpenGL;
 class QOpenGLTexture;
 struct MapCanvasTextures;
 
+// RoomVector and LayerToRooms are likely specific to the old drawing logic or general utilities.
+// Keep them for now unless they are confirmed to be exclusively for the removed parts.
 using RoomVector = std::vector<RoomHandle>;
 using LayerToRooms = std::map<int, RoomVector>;
 
-struct NODISCARD RemeshCookie final
-{
-private:
-    std::optional<FutureSharedMapBatchFinisher> m_opt_future;
-    bool m_ignored = false;
+// RemeshCookie is removed as AsyncMapAreaManager handles its own task management.
 
-private:
-    // NOTE: If you think you want to make this public, then you're really looking for setIgnored().
-    void reset() { *this = RemeshCookie{}; }
-
-public:
-    // This means you've decided to load a completely new map, so you're not interested
-    // in the results. It SHOULD NOT be used just because you got another mesh request.
-    void setIgnored()
-    {
-        //
-        m_ignored = true;
-    }
-
-public:
-    NODISCARD bool isPending() const { return m_opt_future.has_value(); }
-
-    // Don't call this unless isPending() is true.
-    // returns true if get() will return without blocking
-    NODISCARD bool isReady() const
-    {
-        const FutureSharedMapBatchFinisher &future = m_opt_future.value();
-        return future.valid()
-               && future.wait_for(std::chrono::nanoseconds(0)) != std::future_status::timeout;
-    }
-
-private:
-    static void reportException()
-    {
-        try {
-            std::rethrow_exception(std::current_exception());
-        } catch (const std::exception &ex) {
-            qWarning() << "Exception: " << ex.what();
-        } catch (...) {
-            qWarning() << "Unknown exception";
-        }
-    }
-
-public:
-    // Don't call this unless isPending() is true.
-    // NOTE: This can throw an exception thrown by the async function!
-    NODISCARD SharedMapBatchFinisher get()
-    {
-        DECL_TIMER(t, __FUNCTION__);
-        FutureSharedMapBatchFinisher &future = m_opt_future.value();
-
-        SharedMapBatchFinisher pFinisher;
-        try {
-            pFinisher = future.get();
-        } catch (...) {
-            reportException();
-            pFinisher.reset();
-        }
-
-        if (m_ignored) {
-            pFinisher.reset();
-        }
-
-        reset();
-        return pFinisher;
-    }
-
-public:
-    // Don't call this if isPending() is true, unless you called set_ignored().
-    void set(FutureSharedMapBatchFinisher future)
-    {
-        if (m_opt_future && !m_ignored) {
-            // If this happens, you should wait until the old one is finished first,
-            // or we're going to end up with tons of in-flight future meshes.
-            throw std::runtime_error("replaced existing future");
-        }
-
-        m_opt_future.emplace(std::move(future));
-        m_ignored = false;
-    }
-};
-
-#include <string> // For std::string key in maps
-
+// Batches struct will be simplified. It will no longer hold area-specific map batches or cookies.
+// It will retain infomarksMeshes and pendingUpdateFlashState.
 struct NODISCARD Batches final
 {
-    // For per-area remeshing
-    std::map<std::string, RemeshCookie> m_areaRemeshCookies;
-    std::map<std::string, MapBatches> m_areaMapBatches;
-
-    // For global map remeshing -> Will be handled by iterating all areas
-    // RemeshCookie m_globalRemeshCookie; // Removed
-    // std::optional<MapBatches> m_globalMapBatches; // Removed
+    // Area-specific members REMOVED:
+    // std::map<std::string, RemeshCookie> m_areaRemeshCookies;
+    // std::map<std::string, MapBatches> m_areaMapBatches;
+    // std::set<std::string> m_areasMarkedForCatchUp;
 
     // Infomarks are considered global for now
     std::optional<BatchedInfomarksMeshes> infomarksMeshes;
@@ -140,7 +59,10 @@ struct NODISCARD Batches final
         std::chrono::steady_clock::time_point lastChange = getTime();
         bool on = false;
 
-        static std::chrono::steady_clock::time_point getTime()
+        // getTime needs to be static or moved if FlashState is to be self-contained
+        // For now, assume getTime() is accessible, perhaps a global helper or static in outer scope.
+        // If not, this needs adjustment. Let's assume it's findable for now.
+        static std::chrono::steady_clock::time_point getTime() 
         {
             return std::chrono::steady_clock::now();
         }
@@ -158,7 +80,6 @@ struct NODISCARD Batches final
         }
     };
     FlashState pendingUpdateFlashState;
-    std::set<std::string> m_areasMarkedForCatchUp;
 
     Batches() = default;
     ~Batches() = default;
@@ -166,34 +87,24 @@ struct NODISCARD Batches final
 
     void resetExistingMeshesButKeepPendingRemesh()
     {
-        m_areaMapBatches.clear();
-        // m_globalMapBatches.reset(); // Removed
+        // m_areaMapBatches.clear(); // Removed
         infomarksMeshes.reset();
-        // Pending remesh cookies (m_areaRemeshCookies, m_globalRemeshCookie) are NOT reset here.
+        // Area-specific cookies and catch-up list are gone.
     }
 
     void ignorePendingRemesh()
     {
-        for (auto& pair : m_areaRemeshCookies) {
-            pair.second.setIgnored();
-        }
-        // m_globalRemeshCookie.setIgnored(); // Removed
+        // No area-specific cookies to ignore.
+        // If there were global cookies for other things, they'd be handled here.
     }
 
     void resetExistingMeshesAndIgnorePendingRemesh()
     {
         resetExistingMeshesButKeepPendingRemesh();
         ignorePendingRemesh();
-        m_areasMarkedForCatchUp.clear();
+        // m_areasMarkedForCatchUp.clear(); // Removed
     }
 };
 
-NODISCARD FutureSharedMapBatchFinisher
-generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
-                        const Map &map,
-                        std::optional<std::string> areaName = std::nullopt);
-
-extern void finish(const IMapBatchesFinisher &finisher,
-                   std::optional<MapBatches> &batches,
-                   OpenGL &gl,
-                   GLFont &font);
+// generateMapDataFinisher is REMOVED - Its functionality is replaced by AsyncMapAreaManager.
+// extern void finish(...) is REMOVED - Its functionality is replaced by AsyncMapAreaManager.

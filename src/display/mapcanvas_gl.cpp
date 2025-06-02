@@ -509,148 +509,40 @@ void MapCanvas::renderLoop()
 
 void MapCanvas::updateBatches()
 {
+    // This function is the main update tick for map visuals before drawing.
     if (!m_opengl.isRendererInitialized()) {
         return;
     }
-
-    bool any_task_ready_to_process = false;
-    // Check if any area remesh task is ready to be processed.
-    // This avoids calling processRemeshCompletionAndCatchUp unnecessarily if nothing is ready.
-    for (auto const& pair : m_batches.m_areaRemeshCookies) {
-        // Accessing pair.second (RemeshCookie)
-        const RemeshCookie& cookie = pair.second;
-        if (cookie.isPending() && cookie.isReady()) {
-            any_task_ready_to_process = true;
-            break;
-        }
-    }
-
-    if (any_task_ready_to_process) {
-        processRemeshCompletionAndCatchUp();
-        // processRemeshCompletionAndCatchUp() is now responsible for calling update()
-        // if meshes are changed or new catch-up tasks are started.
-    }
-    
-    // updateInfomarkBatches() and m_diff.maybeAsyncUpdate() are called unconditionally after attempting
-    // to process map batches, as per the original structure and subtask instructions.
-    updateInfomarkBatches(); 
-    m_diff.maybeAsyncUpdate(m_data.getSavedMap(), m_data.getCurrentMap());
-}
-
-void MapCanvas::updateMapBatches()
-{
-    // This function is for initiating a full/global refresh.
-    if (!m_opengl.isRendererInitialized()) { // Check from original initializeGL related logic
+    if (!m_data.mapLoaded()) { // Good check to keep
         return;
     }
 
-    if (m_batches.m_globalRemeshCookie.isPending()) {
-        qInfo() << "MapCanvas: Global remesh already pending in updateMapBatches. Ignoring new request.";
-        return; 
-    }
-    qInfo() << "MapCanvas: Scheduling a global map remesh via updateMapBatches.";
-    m_batches.m_globalRemeshCookie.set(
-        ::generateMapDataFinisher(mctp::getProxy(m_textures), m_data.getCurrentMap(), std::nullopt)
-    );
-    
-    // When a new global remesh is scheduled, existing area-specific *batches* should be cleared.
-    // Pending area *cookies* should also be ignored as the global remesh will provide the full picture.
-    if (!m_batches.m_areaMapBatches.empty()) {
-        qInfo() << "MapCanvas: Clearing existing area map batches due to new global remesh schedule via updateMapBatches.";
-        m_batches.m_areaMapBatches.clear();
-    }
-    for (auto& pair : m_batches.m_areaRemeshCookies) {
-        if (pair.second.isPending()) {
-            qInfo() << "MapCanvas: Ignoring pending area remesh cookie for" << QString::fromStdString(pair.first) << "due to new global remesh schedule via updateMapBatches.";
-            pair.second.setIgnored();
-        }
-    }
-    m_diff.cancelUpdates(m_data.getSavedMap()); // Keep this from original logic
-    update(); 
+    // Process completions from AsyncMapAreaManager
+    // This will handle async data preparation and GPU uploads.
+    // m_asyncMapAreaManager.processCompletions(m_opengl, m_glFont); 
+    // Moved to actuallyPaintGL to ensure it's called once per frame right before drawing.
+
+    // Update other non-area specific batches like infomarks and diffs
+    updateInfomarkBatches(); 
+    m_diff.maybeAsyncUpdate(m_data.getSavedMap(), m_data.getCurrentMap());
+
+    // The decision to call update() (repaint) is now implicitly handled by:
+    // 1. slot_handleAreaRemesh calling update() after new requests.
+    // 2. processCompletions (called in paintGL) will lead to changed state that paintGL will render.
+    //    If processCompletions itself detects a change that requires a *new* frame (e.g. catch-up request),
+    //    it could call this->update(), or rely on the renderLoop's continuous updates if animating.
 }
 
-void MapCanvas::finishPendingMapBatches()
-{
-    bool needsUiUpdate = false;
-
-    // Process Global Remesh Cookie
-    if (m_batches.m_globalRemeshCookie.isPending() && m_batches.m_globalRemeshCookie.isReady()) {
-        SharedMapBatchFinisher globalFinisher = m_batches.m_globalRemeshCookie.get(); 
-        if (globalFinisher) {
-            qInfo() << "MapCanvas: Finishing global map batch.";
-            m_batches.m_areaMapBatches.clear(); 
-            m_batches.m_globalMapBatches.reset(); 
-            ::finish(*globalFinisher, m_batches.m_globalMapBatches, getOpenGL(), getGLFont());
-            needsUiUpdate = true;
-            setAnimating(false); // Stop animation if global is done.
-            
-            for (auto& pair : m_batches.m_areaRemeshCookies) {
-                 if(pair.second.isPending()){
-                    qInfo() << "MapCanvas: Global remesh finished. Explicitly ignoring pending area cookie for:" << QString::fromStdString(pair.first);
-                    pair.second.setIgnored(); 
-                 }
-            }
-        } else {
-            qWarning() << "MapCanvas: Global remesh finisher was invalid after get().";
-            if(!m_batches.m_globalRemeshCookie.isPending()) setAnimating(false); // Also stop if it became invalid
-        }
-    }
-
-    // Process Area Remesh Cookies
-    bool anyAreaCookieWasPending = false;
-    for (auto it = m_batches.m_areaRemeshCookies.begin(); it != m_batches.m_areaRemeshCookies.end(); /* manual increment below */) {
-        const std::string& areaName = it->first;
-        RemeshCookie& cookie = it->second; 
-        if(cookie.isPending()) anyAreaCookieWasPending = true;
-
-
-        if (cookie.isPending() && cookie.isReady()) {
-            SharedMapBatchFinisher areaFinisher = cookie.get(); 
-            if (areaFinisher) {
-                qInfo() << "MapCanvas: Finishing map batch for area:" << QString::fromStdString(areaName);
-                
-                if(m_batches.m_globalMapBatches.has_value()){
-                    qInfo() << "MapCanvas: Area batch (" << QString::fromStdString(areaName) << ") finished. Resetting global map batch.";
-                    m_batches.m_globalMapBatches.reset();
-                }
-                
-                std::optional<MapBatches> tempTargetBatch; 
-                ::finish(*areaFinisher, tempTargetBatch, getOpenGL(), getGLFont());
-
-                if (tempTargetBatch.has_value()) {
-                    m_batches.m_areaMapBatches[areaName] = std::move(*tempTargetBatch);
-                } else {
-                    m_batches.m_areaMapBatches.erase(areaName);
-                    qWarning() << "MapCanvas: Area remesh finisher for area" << QString::fromStdString(areaName) << "resulted in no batches.";
-                }
-                needsUiUpdate = true;
-            } else {
-                 qWarning() << "MapCanvas: Area remesh finisher for area" << QString::fromStdString(areaName) << "was invalid after get().";
-            }
-            it = m_batches.m_areaRemeshCookies.erase(it); 
-        } else if (!cookie.isPending() && !cookie.isReady()) { // Cleanup stale ignored cookies
-             it = m_batches.m_areaRemeshCookies.erase(it);
-        }
-        else {
-            ++it; 
-        }
-    }
-    
-    if (anyAreaCookieWasPending && m_batches.m_areaRemeshCookies.empty() && !m_batches.m_globalRemeshCookie.isPending()){
-        // All area cookies that were pending are now processed (or erased)
-        setAnimating(false);
-    }
-
-
-    if (needsUiUpdate) {
-        update();
-    }
-}
+// updateMapBatches() - old global remeshing logic - is removed.
+// finishPendingMapBatches() is removed.
 
 void MapCanvas::actuallyPaintGL()
 {
     // DECL_TIMER(t, __FUNCTION__);
     setViewportAndMvp(width(), height());
+    
+    // Process completions for async map area manager at the start of the frame
+    m_asyncMapAreaManager.processCompletions(m_opengl, m_glFont);
 
     auto &gl = getOpenGL();
     gl.clear(Color{getConfig().canvas.backgroundColor});
@@ -660,7 +552,7 @@ void MapCanvas::actuallyPaintGL()
         return;
     }
 
-    paintMap();
+    paintMap(); // This will call the modified renderMapBatches
     paintBatchedInfomarks();
     paintSelections();
     paintCharacters();
@@ -811,30 +703,34 @@ void MapCanvas::paintDifferences()
 
 void MapCanvas::paintMap()
 {
-    const bool pending = m_batches.remeshCookie.isPending();
-    if (pending) {
-        setAnimating(true);
-    }
+    // The logic for "Please wait..." and managing setAnimating(true/false)
+    // needs to be adapted based on states from m_asyncMapAreaManager.
+    // For now, directly call renderMapBatches.
+    // A more sophisticated loading indicator could check if any requested areas
+    // are still pending in m_asyncMapAreaManager.
 
-    if (!m_batches.mapBatches.has_value()) {
-        const QString msg = pending ? "Please wait... the map isn't ready yet." : "Batch error";
-        getGLFont().renderTextCentered(msg);
-        if (!pending) {
-            // REVISIT: does this need a better fix?
-            // pending already scheduled an update, but now we realize we need an update.
-            update();
+    renderMapBatches(); // renderMapBatches will now use the AsyncMapAreaManager
+
+    // Example of how pending state might be checked (conceptual):
+    bool still_pending_something = false;
+    if (m_data.mapLoaded() && m_data.getCurrentMap()) {
+        for (const auto& area_pair : m_data.getCurrentMap()->getAreas()) {
+            if (m_asyncMapAreaManager.getTaskState(area_pair.first) == display_async::ManagedMapAreaTask::State::PENDING_ASYNC ||
+                m_asyncMapAreaManager.getTaskState(area_pair.first) == display_async::ManagedMapAreaTask::State::PENDING_FINISH) {
+                still_pending_something = true;
+                break;
+            }
         }
-        return;
     }
 
-    // TODO: add a GUI indicator for pending update?
-    renderMapBatches();
-
-    if (pending) {
-        if (m_batches.pendingUpdateFlashState.tick()) {
-            const QString msg = "CAUTION: Async map update pending!";
+    if (still_pending_something) {
+        setAnimating(true); // Keep animating if tasks are ongoing
+        if (m_batches.pendingUpdateFlashState.tick()) { // Use existing flash state for some visual indication
+            const QString msg = "CAUTION: Async map update pending!"; // TODO: Refine this message/indicator
             getGLFont().renderTextCentered(msg);
         }
+    } else {
+        setAnimating(false);
     }
 }
 
@@ -1065,95 +961,102 @@ void MapCanvas::renderMapBatches()
         auto &gl = getOpenGL();
         
         // The const_cast is unfortunate, but BatchedMeshes isn't mutated by find.
-        // And render() on LayerMeshes, ConnectionMeshes, RoomNameBatch are const.
-        BatchedMeshes &batchedMeshes = const_cast<BatchedMeshes&>(currentMapBatches.batchedMeshes);
-        BatchedConnectionMeshes &connectionMeshes = const_cast<BatchedConnectionMeshes&>(currentMapBatches.connectionMeshes);
-        BatchedRoomNames &roomNameBatches = const_cast<BatchedRoomNames&>(currentMapBatches.roomNameBatches);
+    // The const_cast was for the old structure. With getCompletedBatch returning const*,
+    // we operate on const MapBatches*.
+    // BatchedMeshes &batchedMeshes = const_cast<BatchedMeshes&>(currentMapBatches.batchedMeshes);
+    // BatchedConnectionMeshes &connectionMeshes = const_cast<BatchedConnectionMeshes&>(currentMapBatches.connectionMeshes);
+    // BatchedRoomNames &roomNameBatches = const_cast<BatchedRoomNames&>(currentMapBatches.roomNameBatches);
 
-        const auto drawLayer =
-            [&](const int thisLayer, const int currentLayerParam) { // Renamed to avoid conflict
-                const auto it_mesh = batchedMeshes.find(thisLayer);
-                if (it_mesh != batchedMeshes.end()) {
-                    LayerMeshes &meshes = it_mesh->second;
+    const auto drawLayer = // Lambda captures currentMapBatches by reference
+        [&](const display_async::MapBatches& currentMapBatches, const int thisLayer, const int currentLayerParam) { 
+            const auto it_mesh = currentMapBatches.batchedMeshes.find(thisLayer);
+            if (it_mesh != currentMapBatches.batchedMeshes.end()) {
+                const LayerMeshes &meshes = it_mesh->second; // meshes is const&
+                meshes.render(thisLayer, currentLayerParam);
+            }
+
+            if (wantExtraDetail) {
+                const auto it_conn = currentMapBatches.connectionMeshes.find(thisLayer);
+                if (it_conn != currentMapBatches.connectionMeshes.end()) {
+                    const ConnectionMeshes &meshes = it_conn->second; // meshes is const&
                     meshes.render(thisLayer, currentLayerParam);
                 }
-
-                if (wantExtraDetail) {
-                    const auto it_conn = connectionMeshes.find(thisLayer);
-                    if (it_conn != connectionMeshes.end()) {
-                        ConnectionMeshes &meshes = it_conn->second;
-                        meshes.render(thisLayer, currentLayerParam);
-                    }
-                    if (wantDoorNames && thisLayer == currentLayerParam) {
-                        const auto it_name = roomNameBatches.find(thisLayer);
-                        if (it_name != roomNameBatches.end()) {
-                            auto &roomNameBatch = it_name->second;
-                            roomNameBatch.render(GLRenderState());
+                if (wantDoorNames && thisLayer == currentLayerParam) {
+                    const auto it_name_instances = currentMapBatches.roomNameBatches.find(thisLayer);
+                    if (it_name_instances != currentMapBatches.roomNameBatches.end()) {
+                        const std::vector<display_async::FontMesh3dInstance>& instances = it_name_instances->second;
+                        for (const auto& instance : instances) {
+                            if (instance.mesh.getVao() != 0) {
+                                gl.pushMatrix();
+                                gl.translate(instance.worldPosition);
+                                getOpenGL().drawMesh(instance.mesh); // Use member m_opengl or getOpenGL()
+                                gl.popMatrix();
+                            }
                         }
                     }
                 }
-            };
-
-        const auto fadeBackground = [&gl, &settings]() {
-            auto bgColor = Color{settings.backgroundColor.getColor(), 0.5f};
-            const auto blendedWithBackground
-                = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withColor(bgColor);
-            gl.renderPlainFullScreenQuad(blendedWithBackground);
+            }
         };
 
-        // Determine unique layers from the current MapBatches object
-        std::set<int> layers_to_render;
-        for(const auto& pair : batchedMeshes) layers_to_render.insert(pair.first);
-        for(const auto& pair : connectionMeshes) layers_to_render.insert(pair.first);
-        if (wantExtraDetail && wantDoorNames) {
-            for(const auto& pair : roomNameBatches) layers_to_render.insert(pair.first);
-        }
-
-        for (const int thisLayer : layers_to_render) {
-            if (thisLayer == m_currentLayer) { // Assuming m_currentLayer is the focused one
-                gl.clearDepth();
-                fadeBackground();
-            }
-            drawLayer(thisLayer, m_currentLayer);
-        }
-        renderedSomething = true;
+    const auto fadeBackground = [&gl, &settings]() {
+        auto bgColor = Color{settings.backgroundColor.getColor(), 0.5f};
+        const auto blendedWithBackground
+            = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withColor(bgColor);
+        gl.renderPlainFullScreenQuad(blendedWithBackground);
     };
+    
+    ConstMapHandle currentMap = m_data.getCurrentMap();
+    if (!currentMap) return;
 
-    if (m_batches.m_globalMapBatches.has_value()) {
-        renderSingleMapBatch(m_batches.m_globalMapBatches.value());
-    } else {
-        if (!m_batches.m_areaMapBatches.empty()) {
-            for (const auto& pair : m_batches.m_areaMapBatches) {
-                renderSingleMapBatch(pair.second);
-                // Note: If areas overlap, they will draw over each other here.
-                // Proper blending or Z-ordering might be needed if overlap is common and problematic.
+    for (const auto& area_pair : currentMap->getAreas()) {
+        const std::string& areaName = area_pair.first;
+        const display_async::MapBatches* currentAreaMapBatches = m_asyncMapAreaManager.getCompletedBatch(areaName);
+
+        if (currentAreaMapBatches) {
+            renderedSomething = true;
+            // Determine unique layers from the current MapBatches object
+            std::set<int> layers_to_render;
+            for(const auto& pair : currentAreaMapBatches->batchedMeshes) layers_to_render.insert(pair.first);
+            for(const auto& pair : currentAreaMapBatches->connectionMeshes) layers_to_render.insert(pair.first);
+            if (wantExtraDetail && wantDoorNames) {
+                for(const auto& pair : currentAreaMapBatches->roomNameBatches) layers_to_render.insert(pair.first);
+            }
+
+            for (const int thisLayer : layers_to_render) {
+                if (thisLayer == m_currentLayer) { 
+                    gl.clearDepth();
+                    fadeBackground();
+                }
+                drawLayer(*currentAreaMapBatches, thisLayer, m_currentLayer);
             }
         }
     }
     
-    // Loading indicator logic
-    bool globalIsActuallyPending = m_batches.m_globalRemeshCookie.isPending();
-    bool areaIsActuallyPending = false;
-    for(const auto& pair : m_batches.m_areaRemeshCookies){
-        if(pair.second.isPending()){
-            areaIsActuallyPending = true;
-            break;
+    // Updated Loading indicator logic
+    bool anyTaskPending = false;
+    if (currentMap) {
+        for (const auto& area_pair : currentMap->getAreas()) {
+            auto task_state = m_asyncMapAreaManager.getTaskState(area_pair.first);
+            if (task_state == display_async::ManagedMapAreaTask::State::PENDING_ASYNC ||
+                task_state == display_async::ManagedMapAreaTask::State::PENDING_FINISH) {
+                anyTaskPending = true;
+                break;
+            }
         }
     }
 
-    if (!renderedSomething && (globalIsActuallyPending || areaIsActuallyPending)) {
+    if (!renderedSomething && anyTaskPending) {
         const bool flashOn = m_batches.pendingUpdateFlashState.tick();
         if (flashOn) {
-            renderPendingUpdate();
+            renderPendingUpdate(); // This function might need to be defined or adapted
         }
-        setAnimating(true); // Ensure renderLoop continues if pending
+        setAnimating(true); 
         update(); 
-    } else if (!globalIsActuallyPending && !areaIsActuallyPending) {
-        setAnimating(false); // Nothing pending, stop animation
-    } else if (renderedSomething && (globalIsActuallyPending || areaIsActuallyPending)) {
-        setAnimating(true); // Rendered something, but still pending work
-        update();
-    } else {
-        setAnimating(false); // Rendered and nothing pending
+    } else if (anyTaskPending) {
+        setAnimating(true); 
+        // update(); // Potentially call update if continuous repaint is desired while pending and already rendered something
+    }
+    else {
+        setAnimating(false); 
     }
 }

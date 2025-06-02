@@ -55,57 +55,6 @@
 
 using namespace char_consts;
 
-NODISCARD static char getTerrainSymbol(const RoomTerrainEnum type)
-{
-    switch (type) {
-    case RoomTerrainEnum::UNDEFINED:
-        return C_SPACE;
-    case RoomTerrainEnum::INDOORS:
-        return C_OPEN_BRACKET; // [  // indoors
-    case RoomTerrainEnum::CITY:
-        return C_POUND_SIGN; // #  // city
-    case RoomTerrainEnum::FIELD:
-        return C_PERIOD; // .  // field
-    case RoomTerrainEnum::FOREST:
-        return 'f'; // f  // forest
-    case RoomTerrainEnum::HILLS:
-        return C_OPEN_PARENS; // (  // hills
-    case RoomTerrainEnum::MOUNTAINS:
-        return C_LESS_THAN; // <  // mountains
-    case RoomTerrainEnum::SHALLOW:
-        return C_PERCENT_SIGN; // %  // shallow
-    case RoomTerrainEnum::WATER:
-        return C_TILDE; // ~  // water
-    case RoomTerrainEnum::RAPIDS:
-        return 'W'; // W  // rapids
-    case RoomTerrainEnum::UNDERWATER:
-        return 'U'; // U  // underwater
-    case RoomTerrainEnum::ROAD:
-        return C_PLUS_SIGN; // +  // road
-    case RoomTerrainEnum::TUNNEL:
-        return C_EQUALS; // =  // tunnel
-    case RoomTerrainEnum::CAVERN:
-        return 'O'; // O  // cavern
-    case RoomTerrainEnum::BRUSH:
-        return C_COLON; // :  // brush
-    }
-
-    return C_SPACE;
-}
-
-NODISCARD static char getLightSymbol(const RoomLightEnum lightType)
-{
-    switch (lightType) {
-    case RoomLightEnum::DARK:
-        return 'o';
-    case RoomLightEnum::LIT:
-    case RoomLightEnum::UNDEFINED:
-        return C_ASTERISK;
-    }
-
-    return C_QUESTION_MARK;
-}
-
 struct NODISCARD Help final
 {
     const Abbrev &cmd;
@@ -319,66 +268,6 @@ void AbstractParser::slot_parseNewUserInput(const TelnetData &data)
     }
 }
 
-NODISCARD static QString compressDirections(const QString &original)
-{
-    QString ans;
-    int curnum = 0;
-    QChar curval = char_consts::C_NUL;
-    Coordinate delta;
-    const auto addDirs = [&ans, &curnum, &curval, &delta]() {
-        assert(curnum >= 1);
-        assert(curval != char_consts::C_NUL);
-        if (curnum > 1) {
-            ans.append(QString::number(curnum));
-        }
-        ans.append(curval);
-
-        const auto dir = Mmapper2Exit::dirForChar(curval.toLatin1());
-        delta += ::exitDir(dir) * curnum;
-    };
-
-    for (const QChar c : original) {
-        if (curnum != 0 && curval == c) {
-            ++curnum;
-        } else {
-            if (curnum != 0) {
-                addDirs();
-            }
-            curnum = 1;
-            curval = c;
-        }
-    }
-    if (curnum != 0) {
-        addDirs();
-    }
-
-    bool wantDelta = true;
-    if (wantDelta) {
-        auto addNumber =
-            [&curnum, &curval, &addDirs, &ans](const int n, const char pos, const char neg) {
-                if (n == 0) {
-                    return;
-                }
-                curnum = std::abs(n);
-                curval = (n < 0) ? neg : pos;
-                ans += char_consts::C_SPACE;
-                addDirs();
-            };
-
-        if (delta.isNull()) {
-            ans += " (here)";
-        } else {
-            ans += " (total:";
-            addNumber(delta.x, 'e', 'w');
-            addNumber(delta.y, 'n', 's');
-            addNumber(delta.z, 'u', 'd');
-            ans += ")";
-        }
-    }
-
-    return ans;
-}
-
 class NODISCARD ShortestPathEmitter final : public ShortestPathRecipient
 {
 private:
@@ -413,7 +302,7 @@ private:
         }
         std::reverse(dirs.begin(), dirs.end());
         parser.sendToUser(SendToUserSourceEnum::FromMMapper,
-                          "dirs: " + compressDirections(dirs) + "\n");
+                          "dirs: " + ParserUtils::compressDirections(dirs) + "\n");
     }
 };
 
@@ -1007,8 +896,8 @@ void ParserCommon::sendPromptToUser(const RoomLightEnum lightType, const RoomTer
     const char light = m_mumeClock.getMumeMoment().moonVisibility()
                                == MumeMoonVisibilityEnum::BRIGHT
                            ? C_CLOSE_PARENS // Moon is out
-                           : getLightSymbol(lightType);
-    const char terrain = getTerrainSymbol(terrainType);
+                           : ParserUtils::getLightSymbol(lightType);
+    const char terrain = ParserUtils::getTerrainSymbol(terrainType);
     sendPromptToUser(light, terrain);
 }
 

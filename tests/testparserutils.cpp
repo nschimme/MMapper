@@ -33,88 +33,12 @@
 namespace {
 
 // --- Sanitizer helpers (originally from testparser.cpp) ---
-template<typename T>
-T sanitize(const T &input) = delete;
-template<>
-RoomName sanitize<>(const RoomName &nameStr)
-{
-    return RoomName{sanitizer::sanitizeOneLine(nameStr.toStdStringUtf8())};
-}
-template<>
-RoomDesc sanitize<>(const RoomDesc &descStr)
-{
-    return RoomDesc{sanitizer::sanitizeMultiline(descStr.toStdStringUtf8())};
-}
-template<>
-RoomContents sanitize<>(const RoomContents &descStr)
-{
-    return RoomContents{sanitizer::sanitizeMultiline(descStr.toStdStringUtf8())};
-}
+// These are no longer needed as calls are replaced with direct sanitizer calls.
 
 // --- Utility functions copied from src/parser/abstractparser.cpp ---
-NODISCARD static char getTerrainSymbol(const RoomTerrainEnum type)
-{
-    switch (type) {
-    case RoomTerrainEnum::UNDEFINED:    return char_consts::C_SPACE;
-    case RoomTerrainEnum::INDOORS:      return char_consts::C_OPEN_BRACKET;
-    case RoomTerrainEnum::CITY:         return char_consts::C_POUND_SIGN;
-    case RoomTerrainEnum::FIELD:        return char_consts::C_PERIOD;
-    case RoomTerrainEnum::FOREST:       return 'f';
-    case RoomTerrainEnum::HILLS:        return char_consts::C_OPEN_PARENS;
-    case RoomTerrainEnum::MOUNTAINS:    return char_consts::C_LESS_THAN;
-    case RoomTerrainEnum::SHALLOW:      return char_consts::C_PERCENT_SIGN;
-    case RoomTerrainEnum::WATER:        return char_consts::C_TILDE;
-    case RoomTerrainEnum::RAPIDS:       return 'W';
-    case RoomTerrainEnum::UNDERWATER:   return 'U';
-    case RoomTerrainEnum::ROAD:         return char_consts::C_PLUS_SIGN;
-    case RoomTerrainEnum::TUNNEL:       return char_consts::C_EQUALS;
-    case RoomTerrainEnum::CAVERN:       return 'O';
-    case RoomTerrainEnum::BRUSH:        return char_consts::C_COLON;
-    }
-    return char_consts::C_SPACE;
-}
-
-NODISCARD static char getLightSymbol(const RoomLightEnum lightType)
-{
-    switch (lightType) {
-    case RoomLightEnum::DARK: return 'o';
-    case RoomLightEnum::LIT:
-    case RoomLightEnum::UNDEFINED: return char_consts::C_ASTERISK;
-    }
-    return char_consts::C_QUESTION_MARK;
-}
-
-NODISCARD static QString compressDirections(const QString &original)
-{
-    QString ans; int curnum = 0; QChar curval = char_consts::C_NUL; Coordinate delta;
-    const auto addDirs = [&ans, &curnum, &curval, &delta]() {
-        Q_ASSERT(curnum >= 1); Q_ASSERT(curval != char_consts::C_NUL);
-        if (curnum > 1) ans.append(QString::number(curnum));
-        ans.append(curval);
-        const auto dir = Mmapper2Exit::dirForChar(curval.toLatin1());
-        delta += ::exitDir(dir) * curnum; 
-    };
-    for (const QChar c : original) {
-        if (curnum != 0 && curval == c) { ++curnum; } 
-        else { if (curnum != 0) { addDirs(); } curnum = 1; curval = c; }
-    }
-    if (curnum != 0) { addDirs(); }
-    bool wantDelta = true;
-    if (wantDelta) {
-        auto addNumber = [&curnum, &curval, &addDirs, &ans](const int n, const char pos, const char neg) {
-            if (n == 0) { return; }
-            curnum = std::abs(n); curval = (n < 0) ? neg : pos;
-            ans += char_consts::C_SPACE; addDirs(); 
-        }; 
-        if (delta.isNull()) { ans += " (here)"; } 
-        else {
-            ans += " (total:";
-            addNumber(delta.x, 'e', 'w'); addNumber(delta.y, 'n', 's'); addNumber(delta.z, 'u', 'd'); 
-            ans += ")";
-        }
-    }
-    return ans;
-}
+// getTerrainSymbol was moved to ParserUtils, this local static version is no longer needed.
+// getLightSymbol was moved to ParserUtils, this local static version is no longer needed.
+// compressDirections was moved to ParserUtils, this local static version is no longer needed.
 
 // --- QDebug operators (originally from testparser.cpp) ---
 // These need to be available for QCOMPARE on custom types in createParseEventTest
@@ -171,47 +95,47 @@ private Q_SLOTS:
 };
 
 void TestParserUtils::testCompressDirections() { /* ... as before ... */ 
-    QCOMPARE(compressDirections(""), QString(" (here)"));
-    QCOMPARE(compressDirections("n"), QString("n (total: 1n)"));
-    QCOMPARE(compressDirections("nnn"), QString("3n (total: 3n)"));
-    QCOMPARE(compressDirections("nnsse"), QString("2n2se (total: 1s 1e)")); 
-    QCOMPARE(compressDirections("ns"), QString("ns (total: )"));
-    QCOMPARE(compressDirections("ew"), QString("ew (total: )"));
-    QCOMPARE(compressDirections("ud"), QString("ud (total: )"));
-    QCOMPARE(compressDirections("2n1s"), QString("2n1s (total: 1n)"));
-    QCOMPARE(compressDirections("3e1w1n"), QString("3e1w1n (total: 1n 2e)"));
-    QCOMPARE(compressDirections("wwwsssuud"), QString("3w3s2ud (total: 1s 3w 1u)"));
-    QCOMPARE(compressDirections("neswud"), QString("neswud (total: )"));
-    QCOMPARE(compressDirections("2n2e2s2w"), QString("2n2e2s2w (total: )"));
-    QCOMPARE(compressDirections("3n1s1e2w1u2d"), QString("3n1s1e2w1u2d (total: 2n 1w 1d)"));
+    QCOMPARE(ParserUtils::compressDirections(""), QString(" (here)"));
+    QCOMPARE(ParserUtils::compressDirections("n"), QString("n (total: 1n)"));
+    QCOMPARE(ParserUtils::compressDirections("nnn"), QString("3n (total: 3n)"));
+    QCOMPARE(ParserUtils::compressDirections("nnsse"), QString("2n2se (total: 1s 1e)")); 
+    QCOMPARE(ParserUtils::compressDirections("ns"), QString("ns (total: )"));
+    QCOMPARE(ParserUtils::compressDirections("ew"), QString("ew (total: )"));
+    QCOMPARE(ParserUtils::compressDirections("ud"), QString("ud (total: )"));
+    QCOMPARE(ParserUtils::compressDirections("2n1s"), QString("2n1s (total: 1n)"));
+    QCOMPARE(ParserUtils::compressDirections("3e1w1n"), QString("3e1w1n (total: 1n 2e)"));
+    QCOMPARE(ParserUtils::compressDirections("wwwsssuud"), QString("3w3s2ud (total: 1s 3w 1u)"));
+    QCOMPARE(ParserUtils::compressDirections("neswud"), QString("neswud (total: )"));
+    QCOMPARE(ParserUtils::compressDirections("2n2e2s2w"), QString("2n2e2s2w (total: )"));
+    QCOMPARE(ParserUtils::compressDirections("3n1s1e2w1u2d"), QString("3n1s1e2w1u2d (total: 2n 1w 1d)"));
 }
 
 void TestParserUtils::testGetTerrainSymbol() { /* ... as before ... */ 
     using namespace char_consts;
-    QCOMPARE(getTerrainSymbol(RoomTerrainEnum::UNDEFINED), C_SPACE);
-    QCOMPARE(getTerrainSymbol(RoomTerrainEnum::INDOORS), C_OPEN_BRACKET);
-    QCOMPARE(getTerrainSymbol(RoomTerrainEnum::CITY), C_POUND_SIGN);
-    QCOMPARE(getTerrainSymbol(RoomTerrainEnum::FIELD), C_PERIOD);
-    QCOMPARE(getTerrainSymbol(RoomTerrainEnum::FOREST), 'f');
-    QCOMPARE(getTerrainSymbol(RoomTerrainEnum::HILLS), C_OPEN_PARENS);
-    QCOMPARE(getTerrainSymbol(RoomTerrainEnum::MOUNTAINS), C_LESS_THAN);
-    QCOMPARE(getTerrainSymbol(RoomTerrainEnum::SHALLOW), C_PERCENT_SIGN);
-    QCOMPARE(getTerrainSymbol(RoomTerrainEnum::WATER), C_TILDE);
-    QCOMPARE(getTerrainSymbol(RoomTerrainEnum::RAPIDS), 'W');
-    QCOMPARE(getTerrainSymbol(RoomTerrainEnum::UNDERWATER), 'U');
-    QCOMPARE(getTerrainSymbol(RoomTerrainEnum::ROAD), C_PLUS_SIGN);
-    QCOMPARE(getTerrainSymbol(RoomTerrainEnum::TUNNEL), C_EQUALS);
-    QCOMPARE(getTerrainSymbol(RoomTerrainEnum::CAVERN), 'O');
-    QCOMPARE(getTerrainSymbol(RoomTerrainEnum::BRUSH), C_COLON);
-    QCOMPARE(getTerrainSymbol(static_cast<RoomTerrainEnum>(99)), C_SPACE); 
+    QCOMPARE(ParserUtils::getTerrainSymbol(RoomTerrainEnum::UNDEFINED), C_SPACE);
+    QCOMPARE(ParserUtils::getTerrainSymbol(RoomTerrainEnum::INDOORS), C_OPEN_BRACKET);
+    QCOMPARE(ParserUtils::getTerrainSymbol(RoomTerrainEnum::CITY), C_POUND_SIGN);
+    QCOMPARE(ParserUtils::getTerrainSymbol(RoomTerrainEnum::FIELD), C_PERIOD);
+    QCOMPARE(ParserUtils::getTerrainSymbol(RoomTerrainEnum::FOREST), 'f');
+    QCOMPARE(ParserUtils::getTerrainSymbol(RoomTerrainEnum::HILLS), C_OPEN_PARENS);
+    QCOMPARE(ParserUtils::getTerrainSymbol(RoomTerrainEnum::MOUNTAINS), C_LESS_THAN);
+    QCOMPARE(ParserUtils::getTerrainSymbol(RoomTerrainEnum::SHALLOW), C_PERCENT_SIGN);
+    QCOMPARE(ParserUtils::getTerrainSymbol(RoomTerrainEnum::WATER), C_TILDE);
+    QCOMPARE(ParserUtils::getTerrainSymbol(RoomTerrainEnum::RAPIDS), 'W');
+    QCOMPARE(ParserUtils::getTerrainSymbol(RoomTerrainEnum::UNDERWATER), 'U');
+    QCOMPARE(ParserUtils::getTerrainSymbol(RoomTerrainEnum::ROAD), C_PLUS_SIGN);
+    QCOMPARE(ParserUtils::getTerrainSymbol(RoomTerrainEnum::TUNNEL), C_EQUALS);
+    QCOMPARE(ParserUtils::getTerrainSymbol(RoomTerrainEnum::CAVERN), 'O');
+    QCOMPARE(ParserUtils::getTerrainSymbol(RoomTerrainEnum::BRUSH), C_COLON);
+    QCOMPARE(ParserUtils::getTerrainSymbol(static_cast<RoomTerrainEnum>(99)), C_SPACE); 
 }
 
 void TestParserUtils::testGetLightSymbol() { /* ... as before ... */ 
     using namespace char_consts;
-    QCOMPARE(getLightSymbol(RoomLightEnum::DARK), 'o');
-    QCOMPARE(getLightSymbol(RoomLightEnum::LIT), C_ASTERISK);
-    QCOMPARE(getLightSymbol(RoomLightEnum::UNDEFINED), C_ASTERISK);
-    QCOMPARE(getLightSymbol(static_cast<RoomLightEnum>(99)), C_QUESTION_MARK);
+    QCOMPARE(ParserUtils::getLightSymbol(RoomLightEnum::DARK), 'o');
+    QCOMPARE(ParserUtils::getLightSymbol(RoomLightEnum::LIT), C_ASTERISK);
+    QCOMPARE(ParserUtils::getLightSymbol(RoomLightEnum::UNDEFINED), C_ASTERISK);
+    QCOMPARE(ParserUtils::getLightSymbol(static_cast<RoomLightEnum>(99)), C_QUESTION_MARK);
 }
 
 void TestParserUtils::removeAnsiMarksTest() { /* ... as before ... */ 
@@ -264,9 +188,9 @@ void TestParserUtils::createParseEventTest() // Copied from TestParser
         if ((false)) { // Disabled qInfo from original
             qDebug() << e;
         }
-        QCOMPARE(e.getRoomName(), sanitize(roomName));
-        QCOMPARE(e.getRoomDesc(), sanitize(parsedRoomDescription));
-        QCOMPARE(e.getRoomContents(), sanitize(roomContents));
+        QCOMPARE(e.getRoomName(), RoomName{sanitizer::sanitizeOneLine(roomName.toStdStringUtf8())});
+        QCOMPARE(e.getRoomDesc(), RoomDesc{sanitizer::sanitizeMultiline(parsedRoomDescription.toStdStringUtf8())});
+        QCOMPARE(e.getRoomContents(), RoomContents{sanitizer::sanitizeMultiline(roomContents.toStdStringUtf8())});
         if (e.getExitsFlags() != ExitsFlagsType{}) { // ExitsFlagsType from ExitsFlags.h (via parseevent.h)
             qInfo() << e.getExitsFlags() << " vs " << ExitsFlagsType{};
         }

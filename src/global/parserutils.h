@@ -6,6 +6,7 @@
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
 #include "macros.h"
+#include "../map/enums.h"
 
 #include <string>
 #include <string_view>
@@ -17,5 +18,9 @@ QString &removeAnsiMarksInPlace(QString &str);
 
 NODISCARD bool isWhitespaceNormalized(std::string_view sv);
 NODISCARD std::string normalizeWhitespace(std::string str);
+
+NODISCARD char getTerrainSymbol(const RoomTerrainEnum type);
+NODISCARD char getLightSymbol(const RoomLightEnum lightType);
+NODISCARD QString compressDirections(const QString &original);
 
 } // namespace ParserUtils

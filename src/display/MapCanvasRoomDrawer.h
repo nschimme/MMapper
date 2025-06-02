@@ -20,6 +20,7 @@
 
 #include <map>
 #include <optional>
+#include <set> // Added for std::set
 #include <unordered_map>
 #include <vector>
 
@@ -126,9 +127,9 @@ struct NODISCARD Batches final
     std::map<std::string, RemeshCookie> m_areaRemeshCookies;
     std::map<std::string, MapBatches> m_areaMapBatches;
 
-    // For global map remeshing
-    RemeshCookie m_globalRemeshCookie;
-    std::optional<MapBatches> m_globalMapBatches;
+    // For global map remeshing -> Will be handled by iterating all areas
+    // RemeshCookie m_globalRemeshCookie; // Removed
+    // std::optional<MapBatches> m_globalMapBatches; // Removed
 
     // Infomarks are considered global for now
     std::optional<BatchedInfomarksMeshes> infomarksMeshes;
@@ -157,6 +158,7 @@ struct NODISCARD Batches final
         }
     };
     FlashState pendingUpdateFlashState;
+    std::set<std::string> m_areasMarkedForCatchUp;
 
     Batches() = default;
     ~Batches() = default;
@@ -165,7 +167,7 @@ struct NODISCARD Batches final
     void resetExistingMeshesButKeepPendingRemesh()
     {
         m_areaMapBatches.clear();
-        m_globalMapBatches.reset();
+        // m_globalMapBatches.reset(); // Removed
         infomarksMeshes.reset();
         // Pending remesh cookies (m_areaRemeshCookies, m_globalRemeshCookie) are NOT reset here.
     }
@@ -175,13 +177,14 @@ struct NODISCARD Batches final
         for (auto& pair : m_areaRemeshCookies) {
             pair.second.setIgnored();
         }
-        m_globalRemeshCookie.setIgnored();
+        // m_globalRemeshCookie.setIgnored(); // Removed
     }
 
     void resetExistingMeshesAndIgnorePendingRemesh()
     {
         resetExistingMeshesButKeepPendingRemesh();
         ignorePendingRemesh();
+        m_areasMarkedForCatchUp.clear();
     }
 };
 

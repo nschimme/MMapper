@@ -197,6 +197,7 @@ private:
     void finishPendingMapBatches();
     void updateMapBatches();
     void updateInfomarkBatches();
+    void processRemeshCompletionAndCatchUp();
 
     void actuallyPaintGL();
     void paintMap();

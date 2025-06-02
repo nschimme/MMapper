@@ -359,64 +359,129 @@ void MapCanvas::slot_createRoom()
     }
 }
 
-void MapCanvas::slot_handleAreaRemesh(const std::set<RoomArea>& areas) {
+void MapCanvas::processRemeshCompletionAndCatchUp() {
+    bool needs_repaint = false;
+
+    // 1. Process finished area remeshes
+    // Iterate over a copy of keys if worried about modification, or use careful iterator logic.
+    // The current loop structure is okay because RemeshCookie::get() resets the cookie's future,
+    // but doesn't remove the cookie itself from m_areaRemeshCookies.
+    for (auto it = m_batches.m_areaRemeshCookies.begin(); it != m_batches.m_areaRemeshCookies.end(); ++it) {
+        const std::string& areaName = it->first;
+        RemeshCookie& cookie = it->second;
+
+        if (cookie.isPending() && cookie.isReady()) { // Check if pending and ready
+            qInfo() << "MapCanvas: Remesh data ready for area:" << QString::fromStdString(areaName);
+            try {
+                SharedMapBatchFinisher finisher = cookie.get(); // Consumes the future's result and resets cookie
+                if (finisher) { // Check if finisher is valid (handles "not ignored" case from cookie.get())
+                    qInfo() << "MapCanvas: Finishing remesh for area:" << QString::fromStdString(areaName);
+                    MapBatches area_specific_map_batches; // Temporary to hold finished data
+                    finisher->finish(area_specific_map_batches, m_opengl, m_glFont);
+                    m_batches.m_areaMapBatches[areaName] = std::move(area_specific_map_batches);
+                    needs_repaint = true;
+                } else {
+                    qWarning() << "MapCanvas: Finished remesh for area" << QString::fromStdString(areaName) << "yielded null finisher (likely ignored or error in task).";
+                    // Remove potentially stale batch data for this area if finisher is null
+                    m_batches.m_areaMapBatches.erase(areaName);
+                    needs_repaint = true; // Ensure repaint to clear old visuals if any
+                }
+            } catch (const std::exception& e) {
+                qCritical() << "MapCanvas: Exception while finishing remesh for area" << QString::fromStdString(areaName) << ":" << e.what();
+                // Remove potentially stale batch data on error
+                m_batches.m_areaMapBatches.erase(areaName);
+                needs_repaint = true; // Ensure repaint to clear old visuals
+            }
+            // Note: cookie.get() already calls cookie.reset(), so the cookie is now in a non-pending state.
+        }
+    }
+
+    // 2. Initiate catch-up tasks for marked areas that are now idle
+    // Make a copy of areas marked for catch-up to iterate over, as m_areasMarkedForCatchUp might be modified.
+    std::set<std::string> areas_to_attempt_catch_up = m_batches.m_areasMarkedForCatchUp;
+    bool new_catchup_task_started = false;
+
+    for (const std::string& areaName : areas_to_attempt_catch_up) {
+        // Double check the area cookie status before launching a catch-up.
+        // It should be non-pending if we just processed it, or if it was never pending.
+        auto cookie_it = m_batches.m_areaRemeshCookies.find(areaName);
+        
+        // Condition: if cookie doesn't exist (e.g. area was new to catch-up list) OR if cookie exists and is NOT pending.
+        if (cookie_it == m_batches.m_areaRemeshCookies.end() || !cookie_it->second.isPending()) {
+            qInfo() << "MapCanvas: Launching catch-up remesh for area:" << QString::fromStdString(areaName);
+            
+            Map currentMap = m_data.getCurrentMap(); // Get fresh map data
+            FutureSharedMapBatchFinisher futureFinisher = ::generateMapDataFinisher(
+                m_textures, 
+                currentMap, 
+                std::optional<std::string>{areaName}
+            );
+            
+            // Get or create cookie (operator[] creates if not exists for map)
+            m_batches.m_areaRemeshCookies[areaName].set(std::move(futureFinisher));
+            m_batches.m_areasMarkedForCatchUp.erase(areaName); // Cleared because we just launched it
+            new_catchup_task_started = true;
+        } else {
+             qInfo() << "MapCanvas: Catch-up for area" << QString::fromStdString(areaName) << "skipped, existing task still pending.";
+        }
+    }
+
+    if (needs_repaint || new_catchup_task_started) {
+        update(); // Schedule a repaint if meshes were updated or new tasks (which will eventually need repaint) were started
+    }
+}
+
+void MapCanvas::slot_handleAreaRemesh(const std::set<RoomArea>& areas_input) {
     if (!m_opengl.isRendererInitialized()) {
         qWarning() << "MapCanvas::slot_handleAreaRemesh: OpenGL renderer not initialized. Skipping remesh.";
         return;
     }
 
-    if (areas.empty()) {
-        // Global remesh requested
-        qInfo() << "MapCanvas::slot_handleAreaRemesh: Global remesh requested. Scheduling global mesh generation.";
-        FutureSharedMapBatchFinisher futureFinisher = ::generateMapDataFinisher(
-            m_textures,
-            m_data.getCurrentMap(),
-            std::nullopt // No areaName for global
-        );
+    std::set<std::string> effective_areas_strings;
 
-        if (m_batches.m_globalRemeshCookie.isPending()) {
-            qWarning() << "MapCanvas: Replacing pending global remesh task.";
-            m_batches.m_globalRemeshCookie.setIgnored();
+    if (areas_input.empty()) {
+        qInfo() << "MapCanvas::slot_handleAreaRemesh: Global remesh trigger received. Processing all known areas.";
+        // Collect all known area names from existing cookies and batches
+        for (const auto& pair : m_batches.m_areaRemeshCookies) {
+            effective_areas_strings.insert(pair.first);
         }
-        m_batches.m_globalRemeshCookie.set(std::move(futureFinisher));
-
-        for (auto& pair : m_batches.m_areaRemeshCookies) {
-            if (pair.second.isPending()){
-                 qInfo() << "MapCanvas: Ignoring pending area remesh for" << QString::fromStdString(pair.first) << "due to new global remesh request.";
-                 pair.second.setIgnored();
-            }
+        for (const auto& pair : m_batches.m_areaMapBatches) {
+            effective_areas_strings.insert(pair.first);
         }
-        if (!m_batches.m_areaMapBatches.empty()) {
-            qInfo() << "MapCanvas: Clearing existing area map batches due to new global remesh request.";
-            m_batches.m_areaMapBatches.clear();
+        // Consider if there's a more direct way to get all area names from MapData if the above is insufficient.
+        // For now, this covers areas we are already tracking or have processed.
+        if (effective_areas_strings.empty()) {
+            qInfo() << "MapCanvas::slot_handleAreaRemesh: Global remesh requested, but no known areas to process.";
+            // update(); // Call update even if no areas, to clear any visual state if necessary
+            return; // Potentially return early if no areas found, or proceed to ensure update() is called
         }
-
     } else {
-        // Per-area remesh
-        qInfo() << "MapCanvas::slot_handleAreaRemesh: Per-area remesh requested for" << areas.size() << "area(s).";
-        for (const RoomArea& area : areas) {
-            std::string areaNameStr = std::string(area.getStdStringViewUtf8());
-            qInfo() << "MapCanvas: Initiating remesh for area:" << QString::fromStdString(areaNameStr);
-
-            FutureSharedMapBatchFinisher futureFinisher = ::generateMapDataFinisher(
-                m_textures,
-                m_data.getCurrentMap(),
-                std::optional<std::string>{areaNameStr}
-            );
-            
-            RemeshCookie& areaCookie = m_batches.m_areaRemeshCookies[areaNameStr]; 
-            if (areaCookie.isPending()) {
-                 qWarning() << "MapCanvas: Replacing pending remesh task for area:" << QString::fromStdString(areaNameStr);
-                 areaCookie.setIgnored();
-            }
-            areaCookie.set(std::move(futureFinisher));
-            
-            if (m_batches.m_globalMapBatches.has_value()) {
-                qInfo() << "MapCanvas: Area remesh requested for" << QString::fromStdString(areaNameStr) << ". Resetting current global map batch.";
-                m_batches.m_globalMapBatches.reset();
-            }
+        qInfo() << "MapCanvas::slot_handleAreaRemesh: Per-area remesh requested for" << areas_input.size() << "area(s).";
+        for (const RoomArea& area_obj : areas_input) {
+            effective_areas_strings.insert(std::string(area_obj.getStdStringViewUtf8()));
         }
     }
+
+    Map currentMap = m_data.getCurrentMap(); // Get current map state once
+
+    for (const std::string& areaName : effective_areas_strings) {
+        RemeshCookie& areaCookie = m_batches.m_areaRemeshCookies[areaName]; // Ensures cookie exists or is created
+
+        if (areaCookie.isPending()) {
+            qInfo() << "MapCanvas: Remesh for area" << QString::fromStdString(areaName) << "is already pending. Marking for catch-up.";
+            m_batches.m_areasMarkedForCatchUp.insert(areaName);
+        } else {
+            qInfo() << "MapCanvas: Initiating new remesh for area:" << QString::fromStdString(areaName);
+            FutureSharedMapBatchFinisher futureFinisher = ::generateMapDataFinisher(
+                m_textures,
+                currentMap, // Use the map state fetched once
+                std::optional<std::string>{areaName}
+            );
+            areaCookie.set(std::move(futureFinisher));
+            m_batches.m_areasMarkedForCatchUp.erase(areaName); // Clear catch-up flag as we've started a new one
+        }
+    }
+
     update(); 
 }
 

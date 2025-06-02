@@ -509,8 +509,32 @@ void MapCanvas::renderLoop()
 
 void MapCanvas::updateBatches()
 {
-    updateMapBatches();
-    updateInfomarkBatches();
+    if (!m_opengl.isRendererInitialized()) {
+        return;
+    }
+
+    bool any_task_ready_to_process = false;
+    // Check if any area remesh task is ready to be processed.
+    // This avoids calling processRemeshCompletionAndCatchUp unnecessarily if nothing is ready.
+    for (auto const& pair : m_batches.m_areaRemeshCookies) {
+        // Accessing pair.second (RemeshCookie)
+        const RemeshCookie& cookie = pair.second;
+        if (cookie.isPending() && cookie.isReady()) {
+            any_task_ready_to_process = true;
+            break;
+        }
+    }
+
+    if (any_task_ready_to_process) {
+        processRemeshCompletionAndCatchUp();
+        // processRemeshCompletionAndCatchUp() is now responsible for calling update()
+        // if meshes are changed or new catch-up tasks are started.
+    }
+    
+    // updateInfomarkBatches() and m_diff.maybeAsyncUpdate() are called unconditionally after attempting
+    // to process map batches, as per the original structure and subtask instructions.
+    updateInfomarkBatches(); 
+    m_diff.maybeAsyncUpdate(m_data.getSavedMap(), m_data.getCurrentMap());
 }
 
 void MapCanvas::updateMapBatches()

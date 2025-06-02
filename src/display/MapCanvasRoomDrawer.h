@@ -118,11 +118,21 @@ public:
     }
 };
 
+#include <string> // For std::string key in maps
+
 struct NODISCARD Batches final
 {
-    RemeshCookie remeshCookie;
-    std::optional<MapBatches> mapBatches;
+    // For per-area remeshing
+    std::map<std::string, RemeshCookie> m_areaRemeshCookies;
+    std::map<std::string, MapBatches> m_areaMapBatches;
+
+    // For global map remeshing
+    RemeshCookie m_globalRemeshCookie;
+    std::optional<MapBatches> m_globalMapBatches;
+
+    // Infomarks are considered global for now
     std::optional<BatchedInfomarksMeshes> infomarksMeshes;
+
     struct NODISCARD FlashState final
     {
     private:
@@ -154,14 +164,18 @@ struct NODISCARD Batches final
 
     void resetExistingMeshesButKeepPendingRemesh()
     {
-        mapBatches.reset();
+        m_areaMapBatches.clear();
+        m_globalMapBatches.reset();
         infomarksMeshes.reset();
+        // Pending remesh cookies (m_areaRemeshCookies, m_globalRemeshCookie) are NOT reset here.
     }
 
     void ignorePendingRemesh()
     {
-        //
-        remeshCookie.setIgnored();
+        for (auto& pair : m_areaRemeshCookies) {
+            pair.second.setIgnored();
+        }
+        m_globalRemeshCookie.setIgnored();
     }
 
     void resetExistingMeshesAndIgnorePendingRemesh()
@@ -172,7 +186,9 @@ struct NODISCARD Batches final
 };
 
 NODISCARD FutureSharedMapBatchFinisher
-generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures, const Map &map);
+generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
+                        const Map &map,
+                        std::optional<std::string> areaName = std::nullopt);
 
 extern void finish(const IMapBatchesFinisher &finisher,
                    std::optional<MapBatches> &batches,

@@ -36,9 +36,11 @@
 #include <QMessageLogContext>
 #include <QOpenGLDebugMessage>
 #include <QSize>
-#include <QString>
+#include <QString> // For logging
 #include <QToolTip>
 #include <QtGui>
+#include <string> // For std::string conversion
+#include <optional> // For std::optional
 #include <QtWidgets>
 
 #if defined(_MSC_VER) || defined(__MINGW32__)
@@ -74,6 +76,9 @@ MapCanvas::MapCanvas(MapData &mapData,
     setCursor(Qt::OpenHandCursor);
     grabGesture(Qt::PinchGesture);
     setContextMenuPolicy(Qt::CustomContextMenu);
+
+    // Connect to MapData's signal for area-specific remeshing
+    m_lifetime.observe(m_data.needsAreaRemesh, this, &MapCanvas::slot_handleAreaRemesh);
 }
 
 MapCanvas::~MapCanvas()
@@ -352,6 +357,67 @@ void MapCanvas::slot_createRoom()
     } else {
         // failed!
     }
+}
+
+void MapCanvas::slot_handleAreaRemesh(const std::set<RoomArea>& areas) {
+    if (!m_opengl.isRendererInitialized()) {
+        qWarning() << "MapCanvas::slot_handleAreaRemesh: OpenGL renderer not initialized. Skipping remesh.";
+        return;
+    }
+
+    if (areas.empty()) {
+        // Global remesh requested
+        qInfo() << "MapCanvas::slot_handleAreaRemesh: Global remesh requested. Scheduling global mesh generation.";
+        FutureSharedMapBatchFinisher futureFinisher = ::generateMapDataFinisher(
+            m_textures,
+            m_data.getCurrentMap(),
+            std::nullopt // No areaName for global
+        );
+
+        if (m_batches.m_globalRemeshCookie.isPending()) {
+            qWarning() << "MapCanvas: Replacing pending global remesh task.";
+            m_batches.m_globalRemeshCookie.setIgnored();
+        }
+        m_batches.m_globalRemeshCookie.set(std::move(futureFinisher));
+
+        for (auto& pair : m_batches.m_areaRemeshCookies) {
+            if (pair.second.isPending()){
+                 qInfo() << "MapCanvas: Ignoring pending area remesh for" << QString::fromStdString(pair.first) << "due to new global remesh request.";
+                 pair.second.setIgnored();
+            }
+        }
+        if (!m_batches.m_areaMapBatches.empty()) {
+            qInfo() << "MapCanvas: Clearing existing area map batches due to new global remesh request.";
+            m_batches.m_areaMapBatches.clear();
+        }
+
+    } else {
+        // Per-area remesh
+        qInfo() << "MapCanvas::slot_handleAreaRemesh: Per-area remesh requested for" << areas.size() << "area(s).";
+        for (const RoomArea& area : areas) {
+            std::string areaNameStr = std::string(area.getStdStringViewUtf8());
+            qInfo() << "MapCanvas: Initiating remesh for area:" << QString::fromStdString(areaNameStr);
+
+            FutureSharedMapBatchFinisher futureFinisher = ::generateMapDataFinisher(
+                m_textures,
+                m_data.getCurrentMap(),
+                std::optional<std::string>{areaNameStr}
+            );
+            
+            RemeshCookie& areaCookie = m_batches.m_areaRemeshCookies[areaNameStr]; 
+            if (areaCookie.isPending()) {
+                 qWarning() << "MapCanvas: Replacing pending remesh task for area:" << QString::fromStdString(areaNameStr);
+                 areaCookie.setIgnored();
+            }
+            areaCookie.set(std::move(futureFinisher));
+            
+            if (m_batches.m_globalMapBatches.has_value()) {
+                qInfo() << "MapCanvas: Area remesh requested for" << QString::fromStdString(areaNameStr) << ". Resetting current global map batch.";
+                m_batches.m_globalMapBatches.reset();
+            }
+        }
+    }
+    update(); 
 }
 
 // REVISIT: This function doesn't need to return a shared ptr. Consider refactoring InfoMarkSelection?
@@ -1028,9 +1094,9 @@ void MapCanvas::slot_mapChanged()
 {
     // REVISIT: Ideally we'd want to only update the layers/chunks
     // that actually changed.
-    if ((false)) {
-        m_batches.mapBatches.reset();
-    }
+    // The m_batches.mapBatches member is removed.
+    // If a full update is needed, updateMapBatches() will schedule it.
+    // If specific areas changed, slot_handleAreaRemesh would be called.
     update();
 }
 

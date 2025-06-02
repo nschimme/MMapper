@@ -14,6 +14,7 @@
 #include "../map/Map.h"
 #include "../map/coordinate.h"
 #include "../map/mmapper2room.h"
+#include "../map/room.h" // For RoomArea
 #include "../map/roomid.h"
 #include "../mapfrontend/mapfrontend.h"
 #include "../parser/CommandQueue.h"
@@ -26,6 +27,8 @@
 #include <memory>
 #include <optional>
 #include <ostream>
+#include <set>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -218,6 +221,7 @@ signals:
     void sig_onForcedPositionChange();
     void sig_checkMapConsistency();
     void sig_generateBaseMap();
+    void needsAreaRemesh(const std::set<RoomArea> &areas);
 
 public slots:
     void slot_scheduleAction(const SigMapChangeList &);

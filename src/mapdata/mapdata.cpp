@@ -25,6 +25,11 @@
 #include "../map/mmapper2room.h"
 #include "../map/room.h"
 #include "../map/roomid.h"
+#include "../map/RawRoom.h" // For change.data in RemoveRoom
+#include "../map/exit.h"   // For RawExit in RemoveRoom
+#include "../map/AbstractChangeVisitor.h"
+#include "../map/ChangeTypes.h"
+#include "../map/world_change_types.h" // For XFOREACH_WORLD_CHANGE
 #include "../mapfrontend/mapfrontend.h"
 #include "../mapstorage/RawMapData.h"
 #include "GenericFind.h"
@@ -48,6 +53,17 @@
 #include <QApplication>
 #include <QList>
 #include <QString>
+#include <string_view> // For std::less<RoomArea>
+
+// Custom std::less specialization for RoomArea
+namespace std {
+    template <>
+    struct less<RoomArea> {
+        bool operator()(const RoomArea& lhs, const RoomArea& rhs) const {
+            return lhs.getStdStringViewUtf8() < rhs.getStdStringViewUtf8();
+        }
+    };
+} // namespace std
 
 MapData::MapData(QObject *const parent)
     : MapFrontend(parent)
@@ -248,6 +264,165 @@ bool MapData::updateMarkers(const std::vector<InformarkChange> &updates)
 void MapData::slot_scheduleAction(const SigMapChangeList &change)
 {
     this->applyChanges(change.deref());
+}
+
+namespace { // Anonymous namespace for helper classes
+
+struct AreaCollectorVisitor : public AbstractChangeVisitor {
+    std::set<RoomArea>& impactedAreas;
+    const Map& currentMap; // Should be the map *after* changes have been applied for most cases
+    bool& requiresGlobalRemesh;
+
+    AreaCollectorVisitor(std::set<RoomArea>& areas, const Map& map, bool& globalRemeshFlag)
+        : impactedAreas(areas), currentMap(map), requiresGlobalRemesh(globalRemeshFlag) {}
+
+    // --- Visit methods for specific change types ---
+
+    void visit(const change_types::RoomPropertySet& change) override {
+        if (auto roomHandle = currentMap.findRoomHandle(change.room)) {
+            impactedAreas.insert(roomHandle.getArea());
+            addConnectedAreas(roomHandle);
+        }
+        // Note: If RoomArea itself is changed, this gets the *new* area.
+        // Remeshing the *old* area is a potential improvement if change.old_value (e.g. change.data.old_area)
+        // was available and could be added to impactedAreas.
+    }
+
+    void visit(const change_types::ExitPropertySet& change) override {
+        if (auto roomHandle = currentMap.findRoomHandle(change.room)) {
+            impactedAreas.insert(roomHandle.getArea());
+            addConnectedAreas(roomHandle);
+        }
+    }
+    
+    void visit(const change_types::AddRoom& change) override {
+        // currentMap already has the new room because MapFrontend::applyChanges was called before visitor
+        if (auto roomHandle = currentMap.findRoomHandle(change.id)) {
+            impactedAreas.insert(roomHandle.getArea());
+            // For AddRoom, connected areas will be handled if AddExit changes follow.
+            // If AddRoom implies default exits to existing rooms, those rooms might need updates
+            // but that logic would be complex to add here without more context on AddRoom's side effects.
+        }
+    }
+
+    void visit(const change_types::RemoveRoom& change) override {
+        // change.data is the RawRoom object *before* deletion.
+        if (change.data) { // Ensure data is present
+            impactedAreas.insert(change.data->getArea()); 
+            // Add areas of rooms that were connected to the deleted room.
+            // These connections are taken from change.data (pre-deletion state).
+            for (const ExitDirEnum dir : ALL_EXITS_NESWUD) {
+                const auto& exitData = change.data->getExit(dir); // RawExit from pre-delete state
+                for (const RoomId& connectedId : exitData.getOutgoingSet()) {
+                    if (auto connectedRoom = currentMap.findRoomHandle(connectedId)) { // Check if neighbor still exists
+                        impactedAreas.insert(connectedRoom.getArea());
+                    }
+                }
+                for (const RoomId& connectedId : exitData.getIncomingSet()) {
+                     if (auto connectedRoom = currentMap.findRoomHandle(connectedId)) { // Check if neighbor still exists
+                        impactedAreas.insert(connectedRoom.getArea());
+                    }
+                }
+            }
+        }
+    }
+
+    void visit(const change_types::AddExit& change) override {
+        if (auto fromRoom = currentMap.findRoomHandle(change.from)) {
+            impactedAreas.insert(fromRoom.getArea());
+        }
+        if (auto toRoom = currentMap.findRoomHandle(change.to)) {
+            impactedAreas.insert(toRoom.getArea());
+        }
+    }
+
+    void visit(const change_types::RemoveExit& change) override {
+        // For RemoveExit, change.from and change.to are RoomIds.
+        // The exit is already removed from currentMap when the visitor runs.
+        // We add the areas of the rooms that were connected by this exit.
+        if (auto fromRoom = currentMap.findRoomHandle(change.from)) {
+            impactedAreas.insert(fromRoom.getArea());
+        }
+        if (auto toRoom = currentMap.findRoomHandle(change.to)) {
+            impactedAreas.insert(toRoom.getArea());
+        }
+        // If change.data (containing old RawExit) were available, we could also find
+        // other rooms connected *through* this exit if it was part of a multi-room connection,
+        // but that's a more complex scenario.
+    }
+
+    // Handle WorldChange types to flag for global remesh
+    #define X(Namespace, Type) void visit(const Namespace::Type& /*change*/) override { requiresGlobalRemesh = true; }
+    XFOREACH_WORLD_CHANGE(X)
+    #undef X
+    
+    // Default for unhandled changes: assume global remesh to be safe, or log.
+    // For now, let's be conservative. Most non-world changes are covered above.
+    // If a new AbstractChange is added and not handled, it might slip through.
+    void defaultCase(const AbstractChange& /*change*/) override {
+        // Consider logging an unhandled change type here.
+        // For safety, triggering a global remesh for unknown changes might be an option,
+        // but it could also hide issues. For now, specific changes trigger area remesh.
+        // If a change doesn't fall into a specific category and isn't a WorldChange,
+        // it won't trigger area-specific or global remesh via this visitor.
+        // This relies on the existing full remesh being triggered by `setDataChanged()`.
+    }
+
+private:
+    void addConnectedAreas(const RoomHandle& roomHandle) {
+        for (const ExitDirEnum dir : ALL_EXITS_NESWUD) {
+            // Use getExit to get the current state of exits in the room.
+            const auto& exit = roomHandle.getExit(dir); 
+            for (const RoomId& connectedRoomId : exit.getOutgoingSet()) {
+                if (auto connectedRoomHandle = currentMap.findRoomHandle(connectedRoomId)) {
+                    impactedAreas.insert(connectedRoomHandle.getArea());
+                }
+            }
+            // Also consider incoming for completeness, though often changes to an exit
+            // on one side imply the other side is also being handled if it's a two-way exit.
+            for (const RoomId& connectedRoomId : exit.getIncomingSet()) {
+                if (auto connectedRoomHandle = currentMap.findRoomHandle(connectedRoomId)) {
+                    impactedAreas.insert(connectedRoomHandle.getArea());
+                }
+            }
+        }
+    }
+};
+
+} // namespace
+
+void MapData::applyChanges(const ChangeList &changes)
+{
+    if (changes.empty()) {
+        return;
+    }
+
+    // Apply changes to the map and notify observers (includes setting m_changedAfterSave)
+    // This call handles getCurrentMap().applyChanges(internal_changes)
+    MapFrontend::applyChanges(changes);
+
+    std::set<RoomArea> impactedAreas;
+    bool requiresGlobalRemesh = false;
+    
+    // getCurrentMap() now reflects the state *after* the changes.
+    AreaCollectorVisitor visitor(impactedAreas, getCurrentMap(), requiresGlobalRemesh);
+
+    for (const auto& changeWrapper : changes) { // Assuming ChangeList holds Ptr<Change> or similar
+        if (changeWrapper.change) { // Ensure pointer is valid
+            changeWrapper.change->accept(visitor);
+            if (requiresGlobalRemesh) { // If a global change is found, stop collecting.
+                break;
+            }
+        }
+    }
+
+    if (requiresGlobalRemesh) {
+        emit needsAreaRemesh({}); // Emit with empty set for global remesh
+    } else if (!impactedAreas.empty()) {
+        emit needsAreaRemesh(impactedAreas);
+    }
+    // If neither global nor specific areas, the regular full remesh triggered by
+    // MapFrontend::applyChanges (via setDataChanged -> sig_onDataChanged) will handle it.
 }
 
 bool MapData::isEmpty() const

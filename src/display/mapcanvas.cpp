@@ -356,8 +356,9 @@ void MapCanvas::slot_createRoom()
     }
 }
 
-void MapCanvas::processCompletedRemeshes()
+bool MapCanvas::processCompletedRemeshes()
 {
+    qInfo() << "MapCanvas::processCompletedRemeshes: Checking for completed remeshes...";
     bool needs_repaint = false;
 
     // 1. Process finished area remeshes
@@ -369,16 +370,19 @@ void MapCanvas::processCompletedRemeshes()
         RemeshCookie &cookie = it->second;
 
         if (cookie.isPending() && cookie.isReady()) {
-            qInfo() << "MapCanvas: Remesh data ready for area:" << areaKey.toQString();
+            qInfo() << "MapCanvas::processCompletedRemeshes: Area" << areaKey.toQString() << "is ready.";
+            qInfo() << "MapCanvas: Remesh data ready for area:" << areaKey.toQString(); // Existing log, kept for context
             try {
                 SharedMapBatchFinisher finisher
                     = cookie.get(); // Consumes the future's result and resets cookie
                 if (finisher) { // Check if finisher is valid (handles "not ignored" case from cookie.get())
-                    qInfo() << "MapCanvas: Finishing remesh for area:" << areaKey.toQString();
+                    qInfo() << "MapCanvas::processCompletedRemeshes: Calling finisher->finish() for area" << areaKey.toQString();
+                    qInfo() << "MapCanvas: Finishing remesh for area:" << areaKey.toQString(); // Existing log, kept for context
                     MapBatches area_specific_map_batches;
                     finisher->finish(area_specific_map_batches, m_opengl, m_glFont);
                     m_batches.m_areaMapBatches[areaKey] = std::move(
                         area_specific_map_batches); // Use areaKey
+                    qInfo() << "MapCanvas::processCompletedRemeshes: Updated m_areaMapBatches for area" << areaKey.toQString();
                     needs_repaint = true;
                 } else {
                     qWarning() << "MapCanvas: Finished remesh for area" << areaKey.toQString()
@@ -398,9 +402,8 @@ void MapCanvas::processCompletedRemeshes()
         }
     }
 
-    if (needs_repaint) {
-        update();
-    }
+    qInfo() << "MapCanvas::processCompletedRemeshes: Finished checks. Work_done:" << needs_repaint;
+    return needs_repaint;
 }
 
 void MapCanvas::slot_handleAreaRemesh(const std::set<RoomArea> &areas_input)
@@ -425,10 +428,31 @@ void MapCanvas::slot_handleAreaRemesh(const std::set<RoomArea> &areas_input)
         // Consider if there's a more direct way to get all area names from MapData if the above is insufficient.
         // For now, this covers areas we are already tracking or have processed.
         if (effective_areas.empty()) {
-            qInfo() << "MapCanvas::slot_handleAreaRemesh: Global remesh requested, but no known areas to process.";
-            // No areas known, so nothing to remesh. update() will be called at the end.
-            return;
+            qInfo() << "MapCanvas::slot_handleAreaRemesh: Global remesh with no known areas. Fetching all areas from current map.";
+            const Map& currentMap = m_data.getCurrentMap(); // Already available lower, can be moved up or re-fetched
+            const RoomIdSet& room_ids = currentMap.getRooms();
+            if (room_ids.empty()) {
+                qInfo() << "MapCanvas::slot_handleAreaRemesh: Current map has no rooms. Nothing to remesh.";
+                update(); // Call update() to ensure a repaint even if nothing to remesh.
+                return;   // Still return if map itself is empty.
+            }
+            for (RoomId id : room_ids) {
+                RoomHandle rh = currentMap.findRoomHandle(id);
+                if (rh.exists()) {
+                    effective_areas.insert(rh.getArea());
+                }
+            }
+            if (effective_areas.empty()) {
+                 qInfo() << "MapCanvas::slot_handleAreaRemesh: Global remesh requested, map has rooms, but no areas found (e.g. all rooms have empty area names).";
+                 // update() will be called at the end of the function.
+                 // No need to return early here, as the loop over effective_areas will simply do nothing.
+            } else {
+                 qInfo() << "MapCanvas::slot_handleAreaRemesh: Populated effective_areas with" << effective_areas.size() << "areas from the current map.";
+            }
         }
+        // The original early return if effective_areas was still empty (even after trying to populate from map) is removed.
+        // If after attempting to populate from the map, effective_areas is *still* empty (e.g. map has rooms but none have areas),
+        // then it's fine to proceed, and the loop over effective_areas will do nothing.
     } else {
         qInfo() << "MapCanvas::slot_handleAreaRemesh: Per-area remesh requested for"
                 << areas_input.size() << "area(s).";
@@ -1170,6 +1194,152 @@ void MapCanvas::screenChanged()
     }
 }
 
+void MapCanvas::paintGL()
+{
+    // TODO: Make sure this is called only when the context is current.
+    // (It will be called by the Qt render loop, so it should be fine.)
+    MakeCurrentRaii makeCurrentRaii{*this};
+    screenChanged(); // check for DPI changes
+
+    if (!m_opengl.isRendererInitialized()) {
+        return;
+    }
+
+    bool work_processed_in_current_frame = processCompletedRemeshes();
+
+    actuallyPaintGL();
+
+    if (m_batches.isPending()) {
+        setAnimating(true);
+    } else {
+        setAnimating(false);
+    }
+
+    // If work was processed in this frame (meshes finished) AND 
+    // we are not currently in a renderLoop (i.e., setAnimating(false) was just called or was already false),
+    // then we need to ensure one more update() to draw the results of the processed work.
+    // If we are animating, the renderLoop will handle calling update().
+    if (work_processed_in_current_frame && !m_frameRateController.animating) {
+        update();
+    }
+}
+
+void MapCanvas::resizeGL(const int w, const int h)
+{
+    setViewportAndMvp(w, h);
+}
+
+void MapCanvas::setViewportAndMvp(const int w, const int h)
+{
+    m_screen_width = w;
+    m_screen_height = h;
+
+    // update viewport
+    m_mapScreen.setViewport(w, h);
+    m_mapScreen.setCenter(m_scroll);
+    m_mapScreen.setZoom(m_scaleFactor.get());
+    m_mapScreen.setRotation(m_rotation);
+
+    // update mvp matrix
+    const auto mvp = m_mapScreen.getTransform();
+    m_opengl.setMvpMatrix(mvp);
+}
+
+void MapCanvas::actuallyPaintGL()
+{
+    m_frameRateController.frameStart();
+
+    // Clear the screen
+    m_opengl.clearScreen(LOOKUP_COLOR(CANVAS_BACKGROUND).getColor());
+
+    // Draw all layers
+    const int focusedLayer = m_currentLayer; // TODO: get from MapData or config
+    const auto &batchedMeshes = m_batches.getAreaMapBatches();
+
+    for (const auto &area_pair : batchedMeshes) {
+        // const RoomArea& areaKey = area_pair.first; // Currently unused, but good for debugging
+        const MapBatches &area_batches = area_pair.second;
+        for (const auto &layer_pair : area_batches.batchedMeshes) {
+            const int layerZ = layer_pair.first;
+            const auto &meshes = layer_pair.second;
+            meshes.render(layerZ, focusedLayer);
+        }
+    }
+
+
+    // Draw connections
+    for (const auto &area_pair : batchedMeshes) {
+        const MapBatches &area_batches = area_pair.second;
+        for (const auto &layer_pair : area_batches.connectionMeshes) {
+            const auto &meshes = layer_pair.second;
+            meshes.render();
+        }
+    }
+
+    // Draw room names
+    if (getConfig().canvas.drawRoomNames) {
+        for (const auto &area_pair : batchedMeshes) {
+            const MapBatches &area_batches = area_pair.second;
+            for (const auto &layer_pair : area_batches.roomNameBatches) {
+                const auto &batch = layer_pair.second;
+                m_glFont.renderBatch(batch);
+            }
+        }
+    }
+
+
+    // Draw diffs (if any)
+    m_diff.renderDiffs(m_opengl, m_glFont, focusedLayer, getConfig().canvas.drawRoomNames);
+
+    // Draw infomarks
+    if (auto &imBatch = m_batches.infomarksMeshes) {
+        m_glFont.renderBatch(deref(imBatch));
+    } else {
+        auto tmp = ::generateInfomarkData(m_data, m_currentLayer);
+        if (tmp.isValid()) {
+            m_batches.infomarksMeshes = tmp.getMesh(m_glFont);
+            if (auto &imBatch2 = m_batches.infomarksMeshes) {
+                m_glFont.renderBatch(deref(imBatch2));
+            }
+        }
+    }
+
+    if (m_selectedArea && hasSel1() && hasSel2()) {
+        drawSelectionRectangle();
+    }
+
+    // Draw room selection
+    if (m_roomSelection != nullptr && !m_roomSelection->empty()) {
+        if (hasRoomSelectionMove()) {
+            const auto &move = getRoomSelectionMove();
+            const auto wrongPlace = move.wrongPlace;
+            const auto offset = move.pos;
+            m_roomSelection->draw(m_opengl,
+                                  m_currentLayer,
+                                  true, // isBeingMoved
+                                  wrongPlace,
+                                  offset);
+        } else {
+            m_roomSelection->draw(m_opengl, m_currentLayer);
+        }
+    }
+
+    // Draw connection selection
+    if (m_connectionSelection != nullptr) {
+        m_connectionSelection->draw(m_opengl, m_currentLayer);
+    }
+
+    // Draw infomark selection
+    if (m_infoMarkSelection != nullptr && !m_infoMarkSelection->empty()) {
+        const bool isBeingMoved = hasInfoMarkSelectionMove();
+        const auto offset = isBeingMoved ? getInfoMarkSelectionMove().pos : Coordinate2f{0, 0};
+        m_infoMarkSelection->draw(m_opengl, m_currentLayer, isBeingMoved, offset);
+    }
+
+    m_frameRateController.frameEnd();
+    emit sig_fpsCountChanged(m_frameRateController.getFps());
+}
+
 void MapCanvas::selectionChanged()
 {
     update();
@@ -1212,4 +1382,48 @@ void MapCanvas::userPressedEscape(bool /*pressed*/)
         slot_clearInfoMarkSelection(); // calls selectionChanged();
         break;
     }
+}
+
+void MapCanvas::cleanupOpenGL()
+{
+    MakeCurrentRaii makeCurrentRaii{*this};
+    m_batches.cleanup();
+    m_diff.cleanup();
+    m_glFont.cleanup();
+    m_opengl.cleanup();
+}
+
+void MapCanvas::initializeGL()
+{
+    MakeCurrentRaii makeCurrentRaii{*this};
+    m_opengl.init();
+    m_glFont.init();
+
+    connect(context(), &QOpenGLContext::aboutToBeDestroyed, this, &MapCanvas::cleanupOpenGL);
+
+    // REVISIT: This should be done after the first map is loaded,
+    // or after the map is changed.
+    // forceUpdateMeshes();
+}
+
+void MapCanvas::drawSelectionRectangle() const
+{
+    assert(hasSel1() && hasSel2());
+    const auto &s1 = getSel1();
+    const auto &s2 = getSel2();
+
+    const auto x1 = s1.pos.x;
+    const auto y1 = s1.pos.y;
+    const auto x2 = s2.pos.x;
+    const auto y2 = s2.pos.y;
+
+    const std::array<glm::vec3, VERTS_PER_QUAD> verts{
+        glm::vec3{x1, y1, 0}, //
+        glm::vec3{x2, y1, 0}, //
+        glm::vec3{x2, y2, 0}, //
+        glm::vec3{x1, y2, 0}  //
+    };
+
+    const auto color = LOOKUP_COLOR(SELECTION_RECTANGLE).getColor();
+    m_opengl.renderPolygon(verts, color);
 }

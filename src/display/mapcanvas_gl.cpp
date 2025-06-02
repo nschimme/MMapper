@@ -1030,6 +1030,7 @@ void MapCanvas::updateMultisampling()
 
 void MapCanvas::renderMapBatches()
 {
+    qInfo() << "MapCanvas::renderMapBatches: Starting to render map batches.";
     bool renderedSomething = false;
     const Configuration::CanvasSettings &settings = getConfig().canvas; // Used by drawLayer lambda
     const float totalScaleFactor = getTotalScaleFactor();               // Used by drawLayer lambda
@@ -1107,6 +1108,7 @@ void MapCanvas::renderMapBatches()
     // Global map batches are removed. Iterate directly over area map batches.
     if (!m_batches.m_areaMapBatches.empty()) {
         for (const auto &pair : m_batches.m_areaMapBatches) {
+            qInfo() << "MapCanvas::renderMapBatches: Rendering batch for area" << pair.first.toQString();
             renderSingleMapBatch(pair.second, pair.first); // Pass area key for context
             // Note: If areas overlap, they will draw over each other here.
             // Proper blending or Z-ordering might be needed if overlap is common and problematic.
@@ -1143,4 +1145,5 @@ void MapCanvas::renderMapBatches()
     } else { // Rendered and no area pending
         setAnimating(false);
     }
+    qInfo() << "MapCanvas::renderMapBatches: Finished rendering map batches.";
 }

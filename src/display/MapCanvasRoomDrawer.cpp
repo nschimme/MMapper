@@ -556,6 +556,7 @@ NODISCARD static UniqueMeshVector createSortedTexturedMeshes(const std::string_v
                                                          const size_t end) -> void {
         const RoomTex &rtex = textures[beg];
         const size_t count = end - beg;
+        qInfo() << "[ASYNC createSortedTexturedMeshes] Texture ID" << rtex.textureId() << ": processing" << count << "items.";
 
         std::vector<TexVert> verts;
         verts.reserve(count * VERTS_PER_QUAD); /* quads */
@@ -573,7 +574,7 @@ NODISCARD static UniqueMeshVector createSortedTexturedMeshes(const std::string_v
             EMIT(0, 1);
 #undef EMIT
         }
-
+        qInfo() << "[ASYNC createSortedTexturedMeshes] Texture ID" << rtex.textureId() << ": generated" << verts.size() << "vertices.";
         result_meshes.emplace_back(gl.createTexturedQuadBatch(verts, rtex.tex));
     };
 
@@ -603,6 +604,7 @@ NODISCARD static UniqueMeshVector createSortedColoredTexturedMeshes(
                                                          const size_t end) -> void {
         const RoomTex &rtex = textures[beg];
         const size_t count = end - beg;
+        qInfo() << "[ASYNC createSortedColoredTexturedMeshes] Texture ID" << rtex.textureId() << ": processing" << count << "items.";
 
         std::vector<ColoredTexVert> verts;
         verts.reserve(count * VERTS_PER_QUAD); /* quads */
@@ -623,7 +625,7 @@ NODISCARD static UniqueMeshVector createSortedColoredTexturedMeshes(
             EMIT(0, 1);
 #undef EMIT
         }
-
+        qInfo() << "[ASYNC createSortedColoredTexturedMeshes] Texture ID" << rtex.textureId() << ": generated" << verts.size() << "vertices.";
         result_meshes.emplace_back(gl.createColoredTexturedQuadBatch(verts, rtex.tex));
     };
 
@@ -677,22 +679,34 @@ struct NODISCARD LayerBatchData final
 
     NODISCARD LayerMeshes getMeshes(OpenGL &gl) const
     {
+        qInfo() << "[ASYNC LayerBatchData::getMeshes] Started.";
         DECL_TIMER(t, "getMeshes");
 
         LayerMeshes meshes;
+        qInfo() << "[ASYNC LayerBatchData::getMeshes] Terrain: processing" << roomTerrains.size() << "RoomTex entries.";
         meshes.terrain = ::createSortedTexturedMeshes("terrain", gl, roomTerrains);
+        qInfo() << "[ASYNC LayerBatchData::getMeshes] Trails: processing" << roomTrails.size() << "RoomTex entries.";
         meshes.trails = ::createSortedTexturedMeshes("trails", gl, roomTrails);
         // REVISIT: Can tints be combined now?
         for (const RoomTintEnum tint : ALL_ROOM_TINTS) {
+            qInfo() << "[ASYNC LayerBatchData::getMeshes] Tint" << static_cast<int>(tint) << ":" << roomTints[tint].size() << "quads.";
             meshes.tints[tint] = gl.createPlainQuadBatch(roomTints[tint]);
         }
+        qInfo() << "[ASYNC LayerBatchData::getMeshes] Overlays: processing" << roomOverlays.size() << "RoomTex entries.";
         meshes.overlays = ::createSortedTexturedMeshes("overlays", gl, roomOverlays);
+        qInfo() << "[ASYNC LayerBatchData::getMeshes] Doors: processing" << doors.size() << "ColoredRoomTex entries.";
         meshes.doors = ::createSortedColoredTexturedMeshes("doors", gl, doors);
+        qInfo() << "[ASYNC LayerBatchData::getMeshes] Solid Walls: processing" << solidWallLines.size() << "ColoredRoomTex entries.";
         meshes.walls = ::createSortedColoredTexturedMeshes("solidWalls", gl, solidWallLines);
+        qInfo() << "[ASYNC LayerBatchData::getMeshes] Dotted Walls: processing" << dottedWallLines.size() << "ColoredRoomTex entries.";
         meshes.dottedWalls = ::createSortedColoredTexturedMeshes("dottedWalls", gl, dottedWallLines);
+        qInfo() << "[ASYNC LayerBatchData::getMeshes] Up/Down Exits: processing" << roomUpDownExits.size() << "ColoredRoomTex entries.";
         meshes.upDownExits = ::createSortedColoredTexturedMeshes("upDownExits", gl, roomUpDownExits);
+        qInfo() << "[ASYNC LayerBatchData::getMeshes] Stream Ins: processing" << streamIns.size() << "ColoredRoomTex entries.";
         meshes.streamIns = ::createSortedColoredTexturedMeshes("streamIns", gl, streamIns);
+        qInfo() << "[ASYNC LayerBatchData::getMeshes] Stream Outs: processing" << streamOuts.size() << "ColoredRoomTex entries.";
         meshes.streamOuts = ::createSortedColoredTexturedMeshes("streamOuts", gl, streamOuts);
+        qInfo() << "[ASYNC LayerBatchData::getMeshes] Layer Boost: processing" << roomLayerBoostQuads.size() << "quads.";
         meshes.layerBoost = gl.createPlainQuadBatch(roomLayerBoostQuads);
         meshes.isValid = true;
         return meshes;
@@ -1006,7 +1020,9 @@ void LayerMeshes::render(const int thisLayer, const int focusedLayer)
 
 void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const
 {
+    qInfo() << "[ASYNC InternalData::virt_finish] Started.";
     for (const auto &kv : batchedMeshes) {
+        qInfo() << "[ASYNC InternalData::virt_finish] Processing layer" << kv.first;
         const LayerBatchData &data = kv.second;
         output.batchedMeshes[kv.first] = data.getMeshes(gl);
     }
@@ -1031,6 +1047,7 @@ FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTextur
 
     return std::async(std::launch::async,
                       [textures, map, visitRoomOptions, areaKey]() -> SharedMapBatchFinisher {
+                          qInfo() << "[ASYNC generateMapDataFinisher] Task started. AreaKey:" << (areaKey.has_value() ? areaKey.value().toQString() : "Global");
                           ThreadLocalNamedColorRaii tlRaii{visitRoomOptions.canvasColors,
                                                            visitRoomOptions.colorSettings};
                           DECL_TIMER(t, "[ASYNC] generateAllLayerMeshes");
@@ -1057,10 +1074,12 @@ FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTextur
                                   layer.emplace_back(r);
                               }
                           }
+                          qInfo() << "[ASYNC generateMapDataFinisher] Collected" << layerToRooms.size() << "layers for processing.";
 
                           auto result = std::make_shared<InternalData>();
                           auto &data = deref(result);
                           generateAllLayerMeshes(data, layerToRooms, textures, visitRoomOptions);
+                          qInfo() << "[ASYNC generateMapDataFinisher] Task completed. AreaKey:" << (areaKey.has_value() ? areaKey.value().toQString() : "Global");
                           return SharedMapBatchFinisher{result};
                       });
 }

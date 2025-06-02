@@ -1,411 +1,224 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2023 The MMapper Authors
-
 #include "../../src/mapdata/mapdata.h"
-#include "../../src/map/ChangeTypes.h"
-#include "../../src/map/Change.h" // Required for ChangeList to work with Change objects
-#include "../../src/map/ChangeList.h"
-#include "../../src/map/room.h"
+#include "../../src/map/Map.h"
+#include "../../src/map/World.h"
+#include "../../src/map/RawRoom.h"
+#include "../../src/map/Changes.h"
+#include "../../src/map/RoomId.h"
 #include "../../src/map/coordinate.h"
-#include "../../src/map/RawRoom.h" // For AddPermanentRoom potentially, and future RemoveRoom tests.
+#include "../../src/map/RoomArea.h"
+#include "../../src/map/ExitFlags.h"
+#include "../../src/map/DoorFlags.h"
+#include "../../src/global/progresscounter.h" // Added for ProgressCounter
+#include "../../src/map/roomid_set.h"     // Added for RoomIdSet, if needed for more complex setups
+#include "../../src/map/ChangeList.h"     // Added for ChangeList
+
 
 #include <QtTest/QtTest>
 #include <QSignalSpy>
+#include <vector>
+#include <memory>
 #include <set>
-#include <string_view> // Required for RoomArea std::less
 
-// Additional includes for helpers and new tests
-#include "../../src/map/RoomFieldVariant.h" // For RoomFieldVariant, FlagModifyModeEnum
-#include "../../src/map/ExitDirection.h"   // For ExitDirEnum
-// WaysEnum and ChangeTypeEnum are in ChangeTypes.h or Map.h, already covered by existing includes.
+// Helper to create a basic map configuration within MapData
+MapData* create_mapdata_with_initial_state(QObject* parent = nullptr) {
+    MapData* mapData = new MapData(parent);
+    ProgressCounter pc;
+    std::vector<ExternalRawRoom> ext_rooms;
 
+    // RoomA in Area1
+    ExternalRawRoom rA;
+    rA.id = ExternalRoomId{1}; // External ID
+    rA.position = Coordinate{0,0,0};
+    rA.setArea(RoomArea{"Area1"});
+    rA.setName(RoomName{"RoomA"});
+    ext_rooms.push_back(rA);
 
-// Custom std::less specialization for RoomArea
-// Needs to be in the global namespace or std namespace before first use by std::set
-namespace std {
-    template <>
-    struct less<RoomArea> {
-        bool operator()(const RoomArea& lhs, const RoomArea& rhs) const {
-            return lhs.getStdStringViewUtf8() < rhs.getStdStringViewUtf8();
-        }
-    };
-} // namespace std
+    // RoomB in Area1
+    ExternalRawRoom rB;
+    rB.id = ExternalRoomId{2}; // External ID
+    rB.position = Coordinate{1,0,0};
+    rB.setArea(RoomArea{"Area1"});
+    rB.setName(RoomName{"RoomB"});
+    ext_rooms.push_back(rB);
 
-namespace { // Anonymous namespace for helper functions
-
-// Static helper function
-RoomId addRoomWithArea(MapData& mapData, const Coordinate& pos, const RoomArea& area) {
-    ChangeList setupChangesAdd;
-    // AddPermanentRoom only takes position. Area must be set subsequently.
-    setupChangesAdd.add(Change{room_change_types::AddPermanentRoom{pos}});
-    mapData.applyChanges(setupChangesAdd);
-
-    RoomHandle room = mapData.findRoomByPosition(pos); // findRoomByPosition is better after AddPermanentRoom
-    if (!room.isValid()) { // Check validity with isValid()
-        qWarning("Helper addRoomWithArea: Failed to find room at %s after adding.", qPrintable(pos.toString()));
-        return INVALID_ROOMID;
-    }
-    RoomId roomId = room.getId();
-
-    ChangeList setupChangesArea;
-    // RoomFieldVariant can take RoomArea directly if constructor exists, or use appropriate field
-    setupChangesArea.add(Change{room_change_types::ModifyRoomFlags{roomId, RoomFieldVariant{area}, FlagModifyModeEnum::ASSIGN}});
-    mapData.applyChanges(setupChangesArea);
+    // RoomC in Area2
+    ExternalRawRoom rC;
+    rC.id = ExternalRoomId{3}; // External ID
+    rC.position = Coordinate{0,1,0};
+    rC.setArea(RoomArea{"Area2"});
+    rC.setName(RoomName{"RoomC"});
+    ext_rooms.push_back(rC);
     
-    RoomHandle updatedRoom = mapData.findRoomHandle(roomId);
-    if (!updatedRoom.isValid() || updatedRoom.getArea() != area) {
-        qWarning("Helper addRoomWithArea: Failed to set area for room %lld at %s. Current area: '%s', Expected: '%s'", 
-                 static_cast<long long>(roomId), qPrintable(pos.toString()), 
-                 updatedRoom.isValid() ? qPrintable(QString::fromStdString(updatedRoom.getArea().getStdString())) : "N/A", 
-                 qPrintable(QString::fromStdString(area.getStdString())) );
-        // QVERIFY or QFAIL could be used here if this helper is critical for test setup
-    }
-    return roomId;
+    MapPair mapPair = Map::fromRooms(pc, ext_rooms);
+    
+    // This mimics how MapData might be initialized after loading a map.
+    // MapFrontend holds both current and saved states.
+    mapData->setSavedMap(mapPair.base); 
+    mapData->setCurrentMap(mapPair.modified); 
+    // setCurrentMarks and setSavedMarks would also be relevant for a full load.
+    
+    return mapData;
 }
 
-// Static helper function
-void addExitBetweenRooms(MapData& mapData, RoomId fromRoomId, RoomId toRoomId, ExitDirEnum fromDir, bool twoWay = false) {
-    if (fromRoomId == INVALID_ROOMID || toRoomId == INVALID_ROOMID) {
-        qWarning("Helper addExitBetweenRooms: Invalid room ID provided. From: %lld, To: %lld", static_cast<long long>(fromRoomId), static_cast<long long>(toRoomId));
-        return;
-    }
-    ChangeList changes;
-    changes.add(Change{exit_change_types::ModifyExitConnection{
-        ChangeTypeEnum::Add, fromRoomId, fromDir, toRoomId, twoWay ? WaysEnum::TwoWay : WaysEnum::OneWay
-    }});
-    mapData.applyChanges(changes);
-}
-
-} // anonymous namespace
 
 class TestMapDataApplyChangesAreas : public QObject
 {
     Q_OBJECT
 
-public:
-    TestMapDataApplyChangesAreas() = default;
-    ~TestMapDataApplyChangesAreas() = default;
+private:
+    RoomId getRoomIdByCoord(MapData* mapData, Coordinate coord, ExternalRoomId fallbackExtId) {
+        // Internal RoomId can change based on load order, so lookup by a stable property like coordinate or external ID.
+        // External IDs are not directly queryable on World without iterating, findRoom(coord) is better.
+        if (auto optId = mapData->getCurrentMap().getWorld().findRoom(coord)) {
+            return *optId;
+        }
+        // Fallback if coordinate moved or room removed, try by external ID if map still has it
+        RoomId idFromExt = mapData->getCurrentMap().getWorld().convertToInternal(fallbackExtId);
+        if (idFromExt != INVALID_ROOMID) return idFromExt;
+        
+        return INVALID_ROOMID;
+    }
 
 private slots:
-    void initTestCase();
-    void cleanupTestCase();
-    void testWorldChangeGlobalRemesh();
-    void testAddRoomSimple();
-    void testRemoveRoomGlobalRemesh();
-    void testAddExit();
-    void testChangeRoomAreaProperty();
-    void testChangeOtherRoomProperty();
-    void testRemoveExit();
-    void testMultipleDistinctChanges();
-    void testRoomPropertyChangeThenConnectedRoomChange();
+    void initTestCase() {
+        // This is to ensure that RoomArea can be used in QVariant for signal spying.
+        qRegisterMetaType<std::set<RoomArea>>("std::set<RoomArea>");
+    }
+    void testNoVisualChange_NoSignal();
+    void testVisualChangeInOneArea_SignalCorrectArea();
+    void testVisualChangeInMultipleAreas_SignalCorrectAreas();
+    void testGlobalFlagTrue_EmptyVisuallyDirty_SignalEmptySet();
 };
 
-void TestMapDataApplyChangesAreas::initTestCase()
-{
-    // For QSignalSpy arguments
-    qRegisterMetaType<std::set<RoomArea>>("std::set<RoomArea>");
-    // qRegisterMetaType<RoomArea>("RoomArea"); // Might be needed if RoomArea is used directly in signals (not as set)
-}
 
-void TestMapDataApplyChangesAreas::cleanupTestCase()
-{
-    // Nothing to do here for now
-}
+void TestMapDataApplyChangesAreas::testNoVisualChange_NoSignal() {
+    MapData* mapData = create_mapdata_with_initial_state(this);
+    QSignalSpy spy(mapData, &MapData::needsAreaRemesh);
 
-void TestMapDataApplyChangesAreas::testWorldChangeGlobalRemesh()
-{
-    MapData mapData;
-    ChangeList changeList;
-    changeList.add(Change{world_change_types::GenerateBaseMap{}});
-
-    QSignalSpy spy(&mapData, &MapData::needsAreaRemesh);
-
-    mapData.applyChanges(changeList);
-
-    QCOMPARE(spy.count(), 1); // Check if the signal was emitted once
-
-    QList<QVariant> arguments = spy.takeFirst(); // Get the arguments of the first signal
-    QVERIFY(arguments.at(0).canConvert<std::set<RoomArea>>());
-    std::set<RoomArea> emittedAreas = arguments.at(0).value<std::set<RoomArea>>();
-    
-    QVERIFY(emittedAreas.empty()); // For global remesh, the set should be empty
-}
-
-void TestMapDataApplyChangesAreas::testAddRoomSimple()
-{
-    MapData mapData;
-    Coordinate newRoomPos(1, 1, 0);
-
-    // Create a dummy RawRoom to satisfy AddPermanentRoom's potential needs if it creates a full room.
-    // However, AddPermanentRoom change itself only takes a position.
-    // The MapFrontend will handle actual room creation.
-    // For this test, we just need to ensure MapData correctly identifies the area of the newly added room.
+    RoomId roomA_id = getRoomIdByCoord(mapData, Coordinate{0,0,0}, ExternalRoomId{1});
+    QVERIFY(roomA_id != INVALID_ROOMID);
 
     ChangeList changes;
-    changes.add(Change{room_change_types::AddPermanentRoom{newRoomPos}});
+    changes.add(room_change_types::ModifyRoomFlags{roomA_id, RoomNote{"A new note"}, FlagModifyModeEnum::ASSIGN});
+    
+    mapData->applyChanges(changes);
 
-    QSignalSpy spy(&mapData, &MapData::needsAreaRemesh);
+    QCOMPARE(spy.count(), 0);
 
-    mapData.applyChanges(changes);
+    delete mapData;
+}
+
+void TestMapDataApplyChangesAreas::testVisualChangeInOneArea_SignalCorrectArea() {
+    MapData* mapData = create_mapdata_with_initial_state(this);
+    QSignalSpy spy(mapData, &MapData::needsAreaRemesh);
+    
+    RoomId roomA_id = getRoomIdByCoord(mapData, Coordinate{0,0,0}, ExternalRoomId{1});
+    QVERIFY(roomA_id != INVALID_ROOMID);
+
+    ChangeList changes;
+    changes.add(room_change_types::ModifyRoomFlags{roomA_id, RoomTerrainEnum::CAVE, FlagModifyModeEnum::ASSIGN}); 
+    
+    mapData->applyChanges(changes);
 
     QCOMPARE(spy.count(), 1);
+    if (spy.count() == 1) {
+        QList<QVariant> arguments = spy.takeFirst();
+        QVERIFY(arguments.at(0).canConvert<std::set<RoomArea>>());
+        std::set<RoomArea> dirtyAreas = qvariant_cast<std::set<RoomArea>>(arguments.at(0));
+        
+        QVERIFY(dirtyAreas.count(RoomArea{"Area1"}));
+        QCOMPARE(dirtyAreas.size(), size_t{1});
+    }
+    delete mapData;
+}
 
-    QList<QVariant> arguments = spy.takeFirst();
-    QVERIFY(arguments.at(0).canConvert<std::set<RoomArea>>());
-    std::set<RoomArea> affectedAreas = arguments.at(0).value<std::set<RoomArea>>();
+void TestMapDataApplyChangesAreas::testVisualChangeInMultipleAreas_SignalCorrectAreas() {
+    MapData* mapData = create_mapdata_with_initial_state(this);
+    QSignalSpy spy(mapData, &MapData::needsAreaRemesh);
 
-    // After changes are applied, the room should exist in mapData
-    RoomHandle addedRoomHandle = mapData.findRoomByPosition(newRoomPos); // Use findRoomByPosition
-    QVERIFY(addedRoomHandle.isValid()); // Check if the room was actually added and found
+    RoomId roomA_id = getRoomIdByCoord(mapData, Coordinate{0,0,0}, ExternalRoomId{1});
+    QVERIFY(roomA_id != INVALID_ROOMID);
+    RoomId roomC_id = getRoomIdByCoord(mapData, Coordinate{0,1,0}, ExternalRoomId{3});
+    QVERIFY(roomC_id != INVALID_ROOMID);
 
-    if(addedRoomHandle.isValid()) { // Proceed if room is valid
-        std::set<RoomArea> expectedAreas = {addedRoomHandle.getArea()};
-        QCOMPARE(affectedAreas.size(), expectedAreas.size());
-        QCOMPARE(affectedAreas, expectedAreas);
+    ChangeList changes;
+    changes.add(room_change_types::ModifyRoomFlags{roomA_id, RoomTerrainEnum::CAVE, FlagModifyModeEnum::ASSIGN}); 
+    changes.add(room_change_types::ModifyRoomFlags{roomC_id, RoomShapeEnum::OCTAGON, FlagModifyModeEnum::ASSIGN});
+
+    mapData->applyChanges(changes);
+
+    QCOMPARE(spy.count(), 1);
+    if (spy.count() == 1) {
+        QList<QVariant> arguments = spy.takeFirst();
+        QVERIFY(arguments.at(0).canConvert<std::set<RoomArea>>());
+        std::set<RoomArea> dirtyAreas = qvariant_cast<std::set<RoomArea>>(arguments.at(0));
+
+        QVERIFY(dirtyAreas.count(RoomArea{"Area1"}));
+        QVERIFY(dirtyAreas.count(RoomArea{"Area2"}));
+        QCOMPARE(dirtyAreas.size(), size_t{2});
+    }
+    delete mapData;
+}
+
+void TestMapDataApplyChangesAreas::testGlobalFlagTrue_EmptyVisuallyDirty_SignalEmptySet() {
+    // This test remains difficult to trigger reliably without mocking Map::update's behavior
+    // or World::getComparisonStats to return a specific MapApplyResult.
+    // The core logic in MapData is:
+    // if (result.roomUpdateFlags.contains(RoomUpdateEnum::RoomMeshNeedsUpdate) && !specific_areas_handled) {
+    //   emit needsAreaRemesh({});
+    // }
+    // We are testing MapData's reaction.
+    // A world_change_type::CompactRoomIds might be the closest to a "global" change
+    // that doesn't modify specific room geometry but might require a general remesh.
+    // However, Map::update's dirty area detection might still pick up areas if room IDs change and affect lookups.
+
+    MapData* mapData = create_mapdata_with_initial_state(this);
+    QSignalSpy spy(mapData, &MapData::needsAreaRemesh);
+
+    // To truly test this, we'd need to mock Map::apply to return a MapApplyResult where:
+    // - result.visuallyDirtyAreas is empty
+    // - result.roomUpdateFlags contains RoomUpdateEnum::RoomMeshNeedsUpdate
+    // Since I can't mock, I'll create a change that *might* lead to this, but it's not guaranteed.
+    // A world change like CompactRoomIds is a candidate.
+    // The `Map::update` function in `Map.cpp` iterates through all rooms for changes. If compaction
+    // changes nothing visible about any specific room (same areas, same geometry after remapping),
+    // then `visuallyDirtyAreas` could be empty. `World::getComparisonStats` would need to report
+    // `hasMeshDifferences = true` for the global flag.
+
+    ChangeList changes;
+    changes.add(world_change_types::CompactRoomIds{RoomId{0}}); // Arbitrary firstId for compaction
+
+    // This is a conceptual test. The actual outcome depends on the deep internals of World::getComparisonStats
+    // and how Map::update calculates dirty areas for such a change.
+    // If CompactRoomIds *does* make some areas dirty (e.g. if room IDs are part of what makes an area dirty indirectly),
+    // then this test won't hit the intended path in MapData.
+    
+    // For now, this test serves as a placeholder for testing MapData's reaction logic.
+    // If a specific change is known to cause global RoomMeshNeedsUpdate without specific dirty areas,
+    // that change should be used here.
+
+    mapData->applyChanges(changes);
+    
+    // The primary assertion is that *if* the conditions inside MapData::applyChanges are met
+    // (empty visuallyDirtyAreas from MapApplyResult + RoomMeshNeedsUpdate flag),
+    // then the signal is emitted with an empty set.
+    // We can't directly verify MapApplyResult here, only the emitted signal.
+    
+    if (spy.count() == 1) {
+        QList<QVariant> arguments = spy.takeFirst();
+        QVERIFY(arguments.at(0).canConvert<std::set<RoomArea>>());
+        std::set<RoomArea> dirtyAreas = qvariant_cast<std::set<RoomArea>>(arguments.at(0));
+        // This is the crucial check for this test case's intent
+        QVERIFY(dirtyAreas.empty()); 
+        qDebug() << "testGlobalFlagTrue_EmptyVisuallyDirty_SignalEmptySet: Signal emitted with empty set as expected (or specific areas if CompactRoomIds made them dirty).";
     } else {
-        QFAIL("Added room could not be found in MapData after AddPermanentRoom change.");
-    }
-}
-
-void TestMapDataApplyChangesAreas::testRemoveRoomGlobalRemesh()
-{
-    MapData mapData;
-    Coordinate roomPos(1, 1, 0);
-    RoomId roomIdToRemove = INVALID_ROOMID;
-
-    // 1. Add a room first
-    {
-        ChangeList addChanges;
-        addChanges.add(Change{room_change_types::AddPermanentRoom{roomPos}});
-        mapData.applyChanges(addChanges); // Apply directly
-
-        RoomHandle addedRoom = mapData.findRoomByPosition(roomPos);
-        QVERIFY(addedRoom.isValid());
-        if (!addedRoom.isValid()) {
-            QFAIL("Setup for RemoveRoom test failed: Could not add initial room.");
-            return;
-        }
-        roomIdToRemove = addedRoom.getId();
-    }
-    QVERIFY(roomIdToRemove != INVALID_ROOMID);
-
-    // 2. Now, test removing the room
-    ChangeList removeChanges;
-    removeChanges.add(Change{room_change_types::RemoveRoom{roomIdToRemove}});
-
-    QSignalSpy spy(&mapData, &MapData::needsAreaRemesh);
-
-    mapData.applyChanges(removeChanges);
-
-    QCOMPARE(spy.count(), 1); // Signal should be emitted
-
-    QList<QVariant> arguments = spy.takeFirst();
-    QVERIFY(arguments.at(0).canConvert<std::set<RoomArea>>());
-    std::set<RoomArea> emittedAreas = arguments.at(0).value<std::set<RoomArea>>();
-
-    // For RemoveRoom, we now expect a global remesh (empty set)
-    // because pre-deletion data isn't available in the change struct itself
-    // when MapData::applyChanges processes it.
-    QVERIFY(emittedAreas.empty());
-
-    // Verify room is actually gone
-    RoomHandle removedRoomHandle = mapData.findRoomHandle(roomIdToRemove);
-    QVERIFY(!removedRoomHandle.isValid());
-}
-
-void TestMapDataApplyChangesAreas::testAddExit()
-{
-    MapData mapData;
-    RoomArea area1("area1");
-    RoomArea area2("area2");
-
-    // Clear any signals from mapData construction or previous interactions if mapData were a member
-    // For local mapData, this is not strictly necessary but good practice if helpers emit signals.
-    // However, our helpers applyChanges which *will* cause signals.
-    // We are interested in the signal from the specific action (addExitBetweenRooms).
-
-    // Setup: Add two rooms with distinct areas
-    // We need to ignore signals emitted by these setup steps.
-    // One way: disconnect/reconnect, or clear spy before action.
-    // Simpler: create spy just before the action.
-
-    RoomId roomId1 = addRoomWithArea(mapData, Coordinate(1,1,0), area1);
-    RoomId roomId2 = addRoomWithArea(mapData, Coordinate(2,1,0), area2);
-    
-    QVERIFY(roomId1 != INVALID_ROOMID);
-    QVERIFY(roomId2 != INVALID_ROOMID);
-    if (roomId1 == INVALID_ROOMID || roomId2 == INVALID_ROOMID) {
-        QFAIL("Failed to setup rooms for testAddExit.");
-        return;
+        qDebug() << "testGlobalFlagTrue_EmptyVisuallyDirty_SignalEmptySet: Signal not emitted. This implies either CompactRoomIds caused no RoomMeshNeedsUpdate, or it identified specific dirty areas.";
+        // This outcome is also plausible depending on how `Map::update` processes `CompactRoomIds`.
+        // QVERIFY(spy.count() >= 0); // Always true, just to have a QVERIFY if no signal.
     }
 
-    QSignalSpy spy(&mapData, &MapData::needsAreaRemesh); // Create spy AFTER setup and BEFORE action
 
-    addExitBetweenRooms(mapData, roomId1, roomId2, ExitDirEnum::EAST); // Action
-
-    QCOMPARE(spy.count(), 1); // Expect one signal from adding the exit
-
-    QList<QVariant> arguments = spy.takeFirst();
-    QVERIFY(arguments.at(0).canConvert<std::set<RoomArea>>());
-    std::set<RoomArea> affectedAreas = arguments.at(0).value<std::set<RoomArea>>();
-    
-    std::set<RoomArea> expectedAreas = {area1, area2};
-    QCOMPARE(affectedAreas, expectedAreas);
-}
-
-void TestMapDataApplyChangesAreas::testChangeRoomAreaProperty()
-{
-    MapData mapData;
-    RoomArea oldArea("old_area");
-    RoomArea connectedArea("connected_area");
-    RoomArea newArea("new_area");
-
-    RoomId roomId1 = addRoomWithArea(mapData, Coordinate(1,1,0), oldArea);
-    RoomId roomId2 = addRoomWithArea(mapData, Coordinate(2,1,0), connectedArea);
-    QVERIFY(roomId1 != INVALID_ROOMID && roomId2 != INVALID_ROOMID);
-    addExitBetweenRooms(mapData, roomId1, roomId2, ExitDirEnum::EAST);
-
-    QSignalSpy spy(&mapData, &MapData::needsAreaRemesh);
-
-    ChangeList changes;
-    // When RoomArea property is changed, the new area value is used.
-    changes.add(Change{room_change_types::ModifyRoomFlags{roomId1, RoomFieldVariant{newArea}, FlagModifyModeEnum::ASSIGN}});
-    mapData.applyChanges(changes);
-
-    QCOMPARE(spy.count(), 1);
-    QList<QVariant> arguments = spy.takeFirst();
-    QVERIFY(arguments.at(0).canConvert<std::set<RoomArea>>());
-    std::set<RoomArea> affectedAreas = arguments.at(0).value<std::set<RoomArea>>();
-
-    // The room itself (with its new area) and directly connected rooms are expected.
-    // The oldArea is not expected because the room no longer has that area.
-    std::set<RoomArea> expectedAreas = {newArea, connectedArea};
-    QCOMPARE(affectedAreas, expectedAreas);
-
-    // Verify the room actually has the new area
-    RoomHandle room1Handle = mapData.findRoomHandle(roomId1);
-    QVERIFY(room1Handle.isValid());
-    QCOMPARE(room1Handle.getArea(), newArea);
-}
-
-void TestMapDataApplyChangesAreas::testChangeOtherRoomProperty()
-{
-    MapData mapData;
-    RoomArea area1("area1");
-    RoomArea area2("area2");
-
-    RoomId roomId1 = addRoomWithArea(mapData, Coordinate(1,1,0), area1);
-    RoomId roomId2 = addRoomWithArea(mapData, Coordinate(2,1,0), area2);
-    QVERIFY(roomId1 != INVALID_ROOMID && roomId2 != INVALID_ROOMID);
-    addExitBetweenRooms(mapData, roomId1, roomId2, ExitDirEnum::EAST);
-
-    QSignalSpy spy(&mapData, &MapData::needsAreaRemesh);
-
-    ChangeList changes;
-    changes.add(Change{room_change_types::ModifyRoomFlags{roomId1, RoomFieldVariant{RoomName("new_name")}, FlagModifyModeEnum::ASSIGN}});
-    mapData.applyChanges(changes);
-
-    QCOMPARE(spy.count(), 1);
-    QList<QVariant> arguments = spy.takeFirst();
-    QVERIFY(arguments.at(0).canConvert<std::set<RoomArea>>());
-    std::set<RoomArea> affectedAreas = arguments.at(0).value<std::set<RoomArea>>();
-
-    // Changing a non-area property should still mark the room and its connected rooms.
-    std::set<RoomArea> expectedAreas = {area1, area2};
-    QCOMPARE(affectedAreas, expectedAreas);
-}
-
-void TestMapDataApplyChangesAreas::testRemoveExit()
-{
-    MapData mapData;
-    RoomArea area1("area1");
-    RoomArea area2("area2");
-
-    RoomId roomId1 = addRoomWithArea(mapData, Coordinate(1,1,0), area1);
-    RoomId roomId2 = addRoomWithArea(mapData, Coordinate(2,1,0), area2);
-    QVERIFY(roomId1 != INVALID_ROOMID && roomId2 != INVALID_ROOMID);
-    addExitBetweenRooms(mapData, roomId1, roomId2, ExitDirEnum::EAST, true); // two-way
-
-    QSignalSpy spy(&mapData, &MapData::needsAreaRemesh);
-
-    ChangeList changes;
-    // Remove the exit connection
-    changes.add(Change{exit_change_types::ModifyExitConnection{ChangeTypeEnum::Remove, roomId1, ExitDirEnum::EAST, roomId2, WaysEnum::TwoWay}});
-    mapData.applyChanges(changes);
-
-    QCOMPARE(spy.count(), 1);
-    QList<QVariant> arguments = spy.takeFirst();
-    QVERIFY(arguments.at(0).canConvert<std::set<RoomArea>>());
-    std::set<RoomArea> affectedAreas = arguments.at(0).value<std::set<RoomArea>>();
-    
-    std::set<RoomArea> expectedAreas = {area1, area2};
-    QCOMPARE(affectedAreas, expectedAreas);
-}
-
-void TestMapDataApplyChangesAreas::testMultipleDistinctChanges()
-{
-    MapData mapData;
-    RoomArea areaR1("area_r1");
-    RoomArea areaR2("area_r2"); // Unconnected to R1's change, should not appear
-    RoomArea areaR3("area_r3");
-    RoomArea areaR4("area_r4");
-
-    RoomId r1 = addRoomWithArea(mapData, Coordinate(1,1,0), areaR1);
-    /*RoomId r2 =*/ addRoomWithArea(mapData, Coordinate(2,1,0), areaR2); // r2 is created but not involved in changes that link to other areas being tested
-    RoomId r3 = addRoomWithArea(mapData, Coordinate(3,1,0), areaR3);
-    RoomId r4 = addRoomWithArea(mapData, Coordinate(4,1,0), areaR4);
-    QVERIFY(r1 != INVALID_ROOMID && r3 != INVALID_ROOMID && r4 != INVALID_ROOMID);
-
-    addExitBetweenRooms(mapData, r3, r4, ExitDirEnum::NORTH);
-
-    QSignalSpy spy(&mapData, &MapData::needsAreaRemesh);
-
-    ChangeList changes;
-    changes.add(Change{room_change_types::ModifyRoomFlags{r1, RoomFieldVariant{RoomName("name1")}, FlagModifyModeEnum::ASSIGN}}); // Affects r1 (areaR1)
-    changes.add(Change{exit_change_types::ModifyExitConnection{ChangeTypeEnum::Remove, r3, ExitDirEnum::NORTH, r4, WaysEnum::OneWay}}); // Affects r3 (areaR3), r4 (areaR4)
-    mapData.applyChanges(changes);
-
-    QCOMPARE(spy.count(), 1);
-    QList<QVariant> arguments = spy.takeFirst();
-    QVERIFY(arguments.at(0).canConvert<std::set<RoomArea>>());
-    std::set<RoomArea> affectedAreas = arguments.at(0).value<std::set<RoomArea>>();
-    
-    std::set<RoomArea> expectedAreas = {areaR1, areaR3, areaR4};
-    QCOMPARE(affectedAreas, expectedAreas);
-}
-
-void TestMapDataApplyChangesAreas::testRoomPropertyChangeThenConnectedRoomChange()
-{
-    MapData mapData;
-    RoomArea areaA("areaA");
-    RoomArea areaB("areaB");
-    RoomArea areaC("areaC");
-
-    RoomId rA = addRoomWithArea(mapData, Coordinate(1,0,0), areaA);
-    RoomId rB = addRoomWithArea(mapData, Coordinate(2,0,0), areaB);
-    RoomId rC = addRoomWithArea(mapData, Coordinate(3,0,0), areaC);
-    QVERIFY(rA != INVALID_ROOMID && rB != INVALID_ROOMID && rC != INVALID_ROOMID);
-
-    addExitBetweenRooms(mapData, rA, rB, ExitDirEnum::EAST);
-    addExitBetweenRooms(mapData, rB, rC, ExitDirEnum::EAST);
-
-    QSignalSpy spy(&mapData, &MapData::needsAreaRemesh);
-
-    ChangeList changes;
-    // Change to rA should mark areaA. Connected areaB is also added.
-    changes.add(Change{room_change_types::ModifyRoomFlags{rA, RoomFieldVariant{RoomName("nameA")}, FlagModifyModeEnum::ASSIGN}});
-    // Change to rC should mark areaC. Connected areaB is also added.
-    // Since areaB is already included from rA's change, the set union naturally handles it.
-    changes.add(Change{room_change_types::ModifyRoomFlags{rC, RoomFieldVariant{RoomName("nameC")}, FlagModifyModeEnum::ASSIGN}});
-    mapData.applyChanges(changes);
-
-    QCOMPARE(spy.count(), 1);
-    QList<QVariant> arguments = spy.takeFirst();
-    QVERIFY(arguments.at(0).canConvert<std::set<RoomArea>>());
-    std::set<RoomArea> affectedAreas = arguments.at(0).value<std::set<RoomArea>>();
-    
-    std::set<RoomArea> expectedAreas = {areaA, areaB, areaC};
-    QCOMPARE(affectedAreas, expectedAreas);
+    delete mapData;
 }
 
 

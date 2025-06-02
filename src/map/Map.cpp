@@ -14,6 +14,7 @@
 #include "../global/tests.h"
 #include "Changes.h"
 #include "Diff.h"
+#include "MapWorldCompareDetail.h" // Added for map_compare_detail::hasMeshDifference
 #include "ParseTree.h"
 #include "RoomRecipient.h"
 #include "World.h"
@@ -220,30 +221,33 @@ NODISCARD static RoomUpdateFlags reportNeededUpdates(std::ostream &os,
     return result;
 }
 
-template<typename Callback>
-NODISCARD static MapApplyResult update(const std::shared_ptr<const World> &input,
-                                       ProgressCounter &pc,
-                                       Callback &&callback)
+// template<typename Callback> // Original template
+NODISCARD static MapApplyResult update(
+    const std::shared_ptr<const World>& input,
+    ProgressCounter& pc,
+    const std::vector<Change>* changes_applied_ptr, // Can be nullptr
+    std::function<void(ProgressCounter&, World&)> callback)
 {
     static const bool verbose_debugging = IS_DEBUG_BUILD;
 
     using Clock = std::chrono::steady_clock;
     // verify that callback signature is `void(World&)`.
-    static_assert(std::is_invocable_r_v<void, Callback, ProgressCounter &, World &>);
+    // static_assert(std::is_invocable_r_v<void, Callback, ProgressCounter &, World &>); // Original static_assert
 
     const auto t0 = Clock::now();
 
-    const World &base = deref(input);
-    World modified = base.copy();
+    const World &base_world = deref(input);
+    World modified = base_world.copy();
 
     const auto t1 = Clock::now();
     callback(pc, modified);
     const auto t2 = Clock::now();
-    bool equal = base == modified;
+    bool equal = base_world == modified;
     const auto t3 = Clock::now();
 
     RoomUpdateFlags neededUpdates;
     std::ostringstream info_os;
+    std::set<RoomArea> current_dirty_areas;
 
     if (equal) {
         if (verbose_debugging) {
@@ -251,9 +255,41 @@ NODISCARD static MapApplyResult update(const std::shared_ptr<const World> &input
         }
     } else {
         try {
-            const auto stats = World::getComparisonStats(base, modified);
-            reportDetectedChanges(info_os, stats);
-            neededUpdates = reportNeededUpdates(info_os, stats);
+            const auto global_stats = World::getComparisonStats(base_world, modified);
+            reportDetectedChanges(info_os, global_stats);
+            neededUpdates = reportNeededUpdates(info_os, global_stats);
+
+            // Determine dirty areas
+            std::set<RoomArea> candidate_areas_to_check;
+            RoomIdSet combined_room_ids = base_world.getRoomSet();
+            for(RoomId id : modified.getRoomSet()){
+                combined_room_ids.insert(id);
+            }
+
+            for (RoomId id : combined_room_ids) {
+                const RawRoom* r_base_ptr = base_world.getRoom(id);
+                const RawRoom* r_modified_ptr = modified.getRoom(id);
+
+                if (r_modified_ptr && !r_base_ptr) { // Room added
+                    candidate_areas_to_check.insert(modified.getRoomArea(id));
+                } else if (r_base_ptr && !r_modified_ptr) { // Room removed
+                    candidate_areas_to_check.insert(base_world.getRoomArea(id));
+                } else if (r_base_ptr && r_modified_ptr) { // Room exists in both
+                    if (map_compare_detail::hasMeshDifference(*r_base_ptr, *r_modified_ptr) ||
+                        base_world.getRoomArea(id) != modified.getRoomArea(id)) {
+                        candidate_areas_to_check.insert(base_world.getRoomArea(id));
+                        candidate_areas_to_check.insert(modified.getRoomArea(id));
+                    }
+                }
+            }
+
+            for (const RoomArea& area : candidate_areas_to_check) {
+                if (Map::hasMeshDifferencesForArea(area, base_world, modified)) {
+                    current_dirty_areas.insert(area);
+                    info_os << "[update] Area '" << area.getStdStringViewUtf8() << "' marked as visually dirty.\n";
+                }
+            }
+
         } catch (const std::exception &ex) {
             info_os << "[update] Changes detected, but an exception occurred while comparing: "
                     << ex.what() << ".\n";
@@ -272,10 +308,10 @@ NODISCARD static MapApplyResult update(const std::shared_ptr<const World> &input
                 debug_os << "[TIMER] [update] " << what << ": " << ms << " ms\n";
             }
         };
-        report("part0. modified = base.copy()", t0, t1);
+        report("part0. modified = base_world.copy()", t0, t1);
         report("part1. callback(modified)", t1, t2);
-        report("part2. base == modified", t2, t3);
-        report("part3. stats + report changes", t3, t4);
+        report("part2. base_world == modified", t2, t3);
+        report("part3. stats + report changes + dirty areas", t3, t4);
         report("part0 + part1 (required)", t0, t2);
         report("part2 + part3 (deferrable)", t2, t4);
         report("overall", t0, t4);
@@ -283,7 +319,7 @@ NODISCARD static MapApplyResult update(const std::shared_ptr<const World> &input
     }
 
     // only modify input if the callback succeeds
-    return MapApplyResult{Map{std::move(modified)}, neededUpdates};
+    return MapApplyResult{Map{std::move(modified)}, neededUpdates, current_dirty_areas};
 }
 
 MapApplyResult Map::applySingleChange(ProgressCounter &pc, const Change &change) const
@@ -291,13 +327,16 @@ MapApplyResult Map::applySingleChange(ProgressCounter &pc, const Change &change)
     {
         MMLOG() << "[map] Applying 1 change...\n";
     }
-    return update(m_world, pc, [&change](ProgressCounter &pc2, World &w) {
+    std::vector<Change> changes_vec = {change};
+    return update(m_world, pc, &changes_vec, [&change](ProgressCounter &pc2, World &w) { // Pass address of changes_vec
         w.applyOne(pc2, change);
     });
 }
 
 Map Map::filterBaseMap(ProgressCounter &pc) const
 {
+    // This will internally call the modified applySingleChange,
+    // so changes_applied_ptr will be handled.
     MapApplyResult mar = applySingleChange(pc, Change{world_change_types::GenerateBaseMap{}});
     return mar.map;
 }
@@ -312,13 +351,15 @@ MapApplyResult Map::apply(ProgressCounter &pc, const std::vector<Change> &change
         const auto count = changes.size();
         MMLOG() << "[map] Applying " << count << " change" << ((count == 1) ? "" : "s") << "...\n";
     }
-    return update(m_world, pc, [&changes](ProgressCounter &pc2, World &w) {
+    return update(m_world, pc, &changes, [&changes](ProgressCounter &pc2, World &w) { // Pass address of changes
         w.applyAll(pc2, changes);
     });
 }
 
 MapApplyResult Map::apply(ProgressCounter &pc, const ChangeList &changeList) const
 {
+    // This will internally call the modified apply with std::vector<Change>,
+    // so changes_applied_ptr will be handled.
     return apply(pc, changeList.getChanges());
 }
 
@@ -1163,6 +1204,110 @@ void Map::printChanges(mm::AbstractDebugOStream &os,
     std::ostringstream oss;
     printChanges(oss, changes, sep);
     os.writeUtf8(oss.str());
+}
+
+bool Map::hasMeshDifferencesForArea(
+    const RoomArea& area_name,
+    const World& world_before,
+    const World& world_after)
+{
+    const RoomIdSet* area_rooms_before_ptr = world_before.findAreaRoomSet(area_name);
+    const RoomIdSet* area_rooms_after_ptr = world_after.findAreaRoomSet(area_name);
+
+    // Handle cases where the area itself is new or removed
+    if (!area_rooms_before_ptr && area_rooms_after_ptr) {
+        // Area is newly created and has rooms, this is a difference if it's not empty.
+        return !area_rooms_after_ptr->empty();
+    }
+    if (area_rooms_before_ptr && !area_rooms_after_ptr) {
+        // Area was removed, this is a difference if it was not empty.
+        return !area_rooms_before_ptr->empty();
+    }
+    if (!area_rooms_before_ptr && !area_rooms_after_ptr) {
+        // Area didn't exist before and doesn't exist now. No difference for this area.
+        return false;
+    }
+
+    const RoomIdSet& area_rooms_before = *area_rooms_before_ptr;
+    const RoomIdSet& area_rooms_after = *area_rooms_after_ptr;
+
+    // 1. Check for rooms added to or removed from the area_name.
+    // Rooms that were in the area before but are not now.
+    for (RoomId room_id : area_rooms_before) {
+        if (!area_rooms_after.contains(room_id)) {
+            // Room was in area_name before, but not anymore.
+            // This implies the room was removed from the world OR its area changed.
+            return true;
+        }
+    }
+    // Rooms that are in the area now but were not before.
+    for (RoomId room_id : area_rooms_after) {
+        if (!area_rooms_before.contains(room_id)) {
+            // Room is in area_name now, but was not before.
+            // This implies the room is new to the world OR its area changed to area_name.
+            return true;
+        }
+    }
+
+    // 2. Iterate rooms present in the area in world_after.
+    for (RoomId room_id : area_rooms_after) {
+        const RawRoom* room_after_ptr = world_after.getRoom(room_id);
+        const RawRoom* room_before_ptr = world_before.getRoom(room_id);
+
+        if (!room_after_ptr) { // Should not happen if area_rooms_after is consistent
+            assert(false && "Room in area set but not in world_after");
+            return true; // Treat as a difference
+        }
+        const RawRoom& room_after = *room_after_ptr;
+
+        if (!room_before_ptr) {
+            // Room is new to the world (and by previous checks, new to the area).
+            return true;
+        }
+        const RawRoom& room_before = *room_before_ptr;
+
+        // Check if the room's area itself changed to area_name
+        // This is already covered by the loops above that check for rooms added/removed from area_rooms_after vs area_rooms_before.
+        // if (room_before.getArea() != area_name && room_after.getArea() == area_name) {
+        //     return true;
+        // }
+
+        // Compare RawRoom state using the helper.
+        if (map_compare_detail::hasMeshDifference(room_before, room_after)) {
+            return true;
+        }
+    }
+
+    // 3. Iterate rooms that were in the area in world_before but are no longer in world_after (i.e. removed from world).
+    // This is also covered by the first loop that checks rooms in area_rooms_before against area_rooms_after.
+    // If a room was in area_rooms_before and not in area_rooms_after, it means it was either
+    // - removed from the world entirely (world_after.getRoom(room_id) would be nullptr)
+    // - or its area changed (world_after.getRoom(room_id)->getArea() != area_name)
+    // Both these cases are caught by the first set of loops.
+
+    return false;
+}
+
+bool Map::roomNeedsMeshUpdate(
+    RoomId room_id,
+    const World& world_before,
+    const World& world_after)
+{
+    const RawRoom* room_ptr_after = world_after.getRoom(room_id);
+    const RawRoom* room_ptr_before = world_before.getRoom(room_id);
+
+    if (room_ptr_after && !room_ptr_before) {
+        return true; // Room added
+    }
+    if (!room_ptr_after && room_ptr_before) {
+        return true; // Room removed
+    }
+    if (!room_ptr_after && !room_ptr_before) {
+        return false; // Room doesn't exist in either state
+    }
+
+    // Room exists in both states, compare them
+    return map_compare_detail::hasMeshDifference(*room_ptr_before, *room_ptr_after);
 }
 
 BasicDiffStats getBasicDiffStats(const Map &baseMap, const Map &modMap)

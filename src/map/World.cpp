@@ -9,6 +9,7 @@
 #include "../global/progresscounter.h"
 #include "Diff.h"
 #include "MapConsistencyError.h"
+#include "MapWorldCompareDetail.h"
 #include "enums.h"
 #include "parseevent.h"
 #include "sanitizer.h"
@@ -2320,62 +2321,6 @@ bool World::containsRoomsNotIn(const World &other) const
     return getGlobalArea().roomSet.containsElementNotIn(other.getGlobalArea().roomSet);
 }
 
-namespace { // anonymous
-
-NODISCARD bool hasMeshDifference(const RawExit &a, const RawExit &b)
-{
-    // door name change is not a mesh difference
-    return a.fields.exitFlags != b.fields.exitFlags     //
-           || a.fields.doorFlags != b.fields.doorFlags; //
-}
-
-NODISCARD bool hasMeshDifference(const RawRoom::Exits &a, const RawRoom::Exits &b)
-{
-    for (auto dir : ALL_EXITS7) {
-        if (hasMeshDifference(a[dir], b[dir])) {
-            return true;
-        }
-    }
-    return false;
-}
-
-NODISCARD bool hasMeshDifference(const RoomFields &a, const RoomFields &b)
-{
-#define X_CASE(_Type, _Name, _Init) \
-    if ((a._Name) != (b._Name)) { \
-        return true; \
-    }
-    // NOTE: Purposely *NOT* doing "XFOREACH_ROOM_STRING_PROPERTY(X_CASE)"
-    XFOREACH_ROOM_FLAG_PROPERTY(X_CASE)
-    XFOREACH_ROOM_ENUM_PROPERTY(X_CASE)
-    return false;
-#undef X_CASE
-}
-
-NODISCARD bool hasMeshDifference(const RawRoom &a, const RawRoom &b)
-{
-    return a.position != b.position                 //
-           || hasMeshDifference(a.fields, b.fields) //
-           || hasMeshDifference(a.exits, b.exits);  //
-}
-
-// Only valid if one is immediately derived from the other.
-NODISCARD bool hasMeshDifference(const World &a, const World &b)
-{
-    for (const RoomId id : a.getRoomSet()) {
-        if (!b.hasRoom(id)) {
-            // technically we could return true here, but the function assumes that it won't be
-            // called if the worlds added or removed any rooms, so we only care about common rooms.
-            continue;
-        }
-        if (hasMeshDifference(deref(a.getRoom(id)), deref(b.getRoom(id)))) {
-            return true;
-        }
-    }
-    return false;
-}
-} // namespace
-
 // Only valid if one is immediately derived from the other.
 WorldComparisonStats World::getComparisonStats(const World &base, const World &modified)
 {
@@ -2390,10 +2335,30 @@ WorldComparisonStats World::getComparisonStats(const World &base, const World &m
     result.spatialDbChanged = anyRoomsMoved;
     result.serverIdsChanged = base.m_serverIds != modified.m_serverIds;
     result.parseTreeChanged = base.m_parseTree != modified.m_parseTree;
-    result.hasMeshDifferences = anyRoomsAdded                         //
-                                || anyRoomsRemoved                    //
-                                || anyRoomsMoved                      //
-                                || hasMeshDifference(base, modified); //
+    result.hasMeshDifferences = anyRoomsAdded                                             //
+                                || anyRoomsRemoved                                        //
+                                || anyRoomsMoved                                          //
+                                || map_compare_detail::hasMeshDifference(base, modified); //
 
     return result;
 }
+
+namespace { // anonymous
+// Only valid if one is immediately derived from the other.
+// TODO: This is not entirely correct, this function should be removed and callers should use the Map::hasMeshDifferencesForArea
+// or similar functions from MapWorldCompareDetail.h
+NODISCARD bool hasMeshDifference(const World &a, const World &b)
+{
+    for (const RoomId id : a.getRoomSet()) {
+        if (!b.hasRoom(id)) {
+            // technically we could return true here, but the function assumes that it won't be
+            // called if the worlds added or removed any rooms, so we only care about common rooms.
+            continue;
+        }
+        if (map_compare_detail::hasMeshDifference(deref(a.getRoom(id)), deref(b.getRoom(id)))) {
+            return true;
+        }
+    }
+    return false;
+}
+} // namespace

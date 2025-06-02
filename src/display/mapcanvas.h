@@ -22,9 +22,9 @@
 #include <map>
 #include <memory>
 #include <optional>
-#include <set> // Already here, good.
+#include <set>
 #include <vector>
-#include "../map/room.h" // For RoomArea
+#include "../map/room.h"
 
 #include <glm/glm.hpp>
 

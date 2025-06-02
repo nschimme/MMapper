@@ -20,7 +20,7 @@
 
 #include <map>
 #include <optional>
-#include <set> // Added for std::set
+#include <set>
 #include <unordered_map>
 #include <vector>
 
@@ -52,7 +52,6 @@ public:
     // in the results. It SHOULD NOT be used just because you got another mesh request.
     void setIgnored()
     {
-        //
         m_ignored = true;
     }
 
@@ -119,13 +118,13 @@ public:
     }
 };
 
-#include <string> // For std::string key in maps
+// #include <string> // No longer needed for map keys here, RoomArea is used. std::string might be used elsewhere.
 
 struct NODISCARD Batches final
 {
     // For per-area remeshing
-    std::map<std::string, RemeshCookie> m_areaRemeshCookies;
-    std::map<std::string, MapBatches> m_areaMapBatches;
+    std::map<RoomArea, RemeshCookie> m_areaRemeshCookies;
+    std::map<RoomArea, MapBatches> m_areaMapBatches;
 
     // Infomarks are considered global for now
     std::optional<BatchedInfomarksMeshes> infomarksMeshes;
@@ -193,7 +192,7 @@ struct NODISCARD Batches final
 NODISCARD FutureSharedMapBatchFinisher
 generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
                         const Map &map,
-                        std::optional<std::string> areaName = std::nullopt);
+                        std::optional<RoomArea> areaKey = std::nullopt);
 
 extern void finish(const IMapBatchesFinisher &finisher,
                    std::optional<MapBatches> &batches,

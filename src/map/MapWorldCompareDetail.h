@@ -1,7 +1,7 @@
 #ifndef MAP_WORLD_COMPARE_DETAIL_H
 #define MAP_WORLD_COMPARE_DETAIL_H
 
-#include "src/map/RoomDb.h" // For RawExit, RawRoom, RoomFields
+#include "src/map/RoomDb.h"
 
 namespace map_compare_detail {
 
@@ -20,7 +20,7 @@ inline bool hasMeshDifference(const RawExit &a, const RawExit &b) {
     // We check a.fields.exitFlags.isFlow() because if b gained/lost the isFlow property,
     // the exitFlags check would already have caught it.
     if (a.fields.exitFlags.isFlow()) {
-        if (a.outgoing != b.outgoing) { // TinyRoomIdSet comparison
+        if (a.outgoing != b.outgoing) {
             return true;
         }
     }

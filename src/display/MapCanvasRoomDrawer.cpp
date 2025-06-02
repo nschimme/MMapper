@@ -1026,24 +1026,24 @@ void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) con
 FutureSharedMapBatchFinisher
 generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
                         const Map &map,
-                        std::optional<std::string> areaName)
+                        std::optional<RoomArea> areaKey = std::nullopt)
 {
     const auto visitRoomOptions = getVisitRoomOptions();
 
     return std::async(
         std::launch::async,
-        [textures, map, visitRoomOptions, areaName]() -> SharedMapBatchFinisher {
+        [textures, map, visitRoomOptions, areaKey]() -> SharedMapBatchFinisher {
             ThreadLocalNamedColorRaii tlRaii{visitRoomOptions.canvasColors,
                                              visitRoomOptions.colorSettings};
             DECL_TIMER(t, "[ASYNC] generateAllLayerMeshes");
 
             LayerToRooms layerToRooms;
-            if (areaName.has_value()) {
+            if (areaKey.has_value()) {
                 DECL_TIMER(t2, "[ASYNC] generateBatches.areaLayerToRooms");
                 LayerToRooms areaLayerToRooms;
                 for (const RoomId id : map.getRooms()) {
                     const auto &r = map.getRoomHandle(id);
-                    if (r.getArea().getStdStringViewUtf8() == areaName.value()) {
+                    if (r.getArea() == areaKey.value()) { // Direct RoomArea comparison
                         const auto z = r.getPosition().z;
                         auto &layer = areaLayerToRooms[z];
                         layer.emplace_back(r);

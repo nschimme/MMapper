@@ -14,7 +14,7 @@
 #include "../global/tests.h"
 #include "Changes.h"
 #include "Diff.h"
-#include "MapWorldCompareDetail.h" // Added for map_compare_detail::hasMeshDifference
+#include "MapWorldCompareDetail.h"
 #include "ParseTree.h"
 #include "RoomRecipient.h"
 #include "World.h"
@@ -221,7 +221,6 @@ NODISCARD static RoomUpdateFlags reportNeededUpdates(std::ostream &os,
     return result;
 }
 
-// template<typename Callback> // Original template
 NODISCARD static MapApplyResult update(
     const std::shared_ptr<const World>& input,
     ProgressCounter& pc,
@@ -231,8 +230,6 @@ NODISCARD static MapApplyResult update(
     static const bool verbose_debugging = IS_DEBUG_BUILD;
 
     using Clock = std::chrono::steady_clock;
-    // verify that callback signature is `void(World&)`.
-    // static_assert(std::is_invocable_r_v<void, Callback, ProgressCounter &, World &>); // Original static_assert
 
     const auto t0 = Clock::now();
 
@@ -259,40 +256,9 @@ NODISCARD static MapApplyResult update(
             reportDetectedChanges(info_os, global_stats);
             neededUpdates = reportNeededUpdates(info_os, global_stats);
 
-            // Determine dirty areas
-            std::set<RoomArea> candidate_areas_to_check;
-            RoomIdSet combined_room_ids = base_world.getRoomSet();
-            for(RoomId id : modified.getRoomSet()){
-                combined_room_ids.insert(id);
-            }
-
-            for (RoomId id : combined_room_ids) {
-                const RawRoom* r_base_ptr = base_world.getRoom(id);
-                const RawRoom* r_modified_ptr = modified.getRoom(id);
-
-                if (r_modified_ptr && !r_base_ptr) { // Room added
-                    candidate_areas_to_check.insert(modified.getRoomArea(id));
-                } else if (r_base_ptr && !r_modified_ptr) { // Room removed
-                    candidate_areas_to_check.insert(base_world.getRoomArea(id));
-                } else if (r_base_ptr && r_modified_ptr) { // Room exists in both
-                    if (map_compare_detail::hasMeshDifference(*r_base_ptr, *r_modified_ptr) ||
-                        base_world.getRoomArea(id) != modified.getRoomArea(id)) {
-                        candidate_areas_to_check.insert(base_world.getRoomArea(id));
-                        candidate_areas_to_check.insert(modified.getRoomArea(id));
-                    }
-                }
-            }
-
-            for (const RoomArea& area : candidate_areas_to_check) {
-                // The call to Map::hasMeshDifferencesForArea was here.
-                // It's been removed from Map class. The equivalent logic is now in 
-                // World::getComparisonStats which calls its own internal helper,
-                // or WorldComparisonStats directly holds the dirty areas.
-                // The current_dirty_areas set is now populated directly by World::getComparisonStats.
-                // So this loop is no longer needed here if we use result.visuallyDirtyAreas from global_stats.
-                // Let's adjust to use global_stats.visuallyDirtyAreas directly.
-                // This loop will be removed.
-            }
+            // The logic to determine candidate_areas_to_check locally has been removed.
+            // World::getComparisonStats (called above) now computes result.visuallyDirtyAreas,
+            // which is directly used below. This avoids redundant computation.
             current_dirty_areas = global_stats.visuallyDirtyAreas; // Use the pre-calculated set.
             if (!current_dirty_areas.empty()) {
                  info_os << "[update] Visually dirty areas identified by World::getComparisonStats:\n";
@@ -1249,8 +1215,6 @@ void displayRoom(AnsiOstream &os, const RoomHandle &r, const RoomFieldFlags fiel
         os << "Error: Room does not exist.\n";
         return;
     }
-
-    // const Map &map = r.getMap();
 
     // TODO: convert to RawAnsi at config load time.
     static auto toRawAnsi = [](const QString &str) -> RawAnsi {

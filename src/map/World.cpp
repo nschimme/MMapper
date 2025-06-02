@@ -609,7 +609,6 @@ void World::checkConsistency(ProgressCounter &counter) const
     auto checkServerId = [this](const RoomId id) {
         const ServerRoomId serverId = getServerId(id);
         if (serverId != INVALID_SERVER_ROOMID && !m_serverIds.contains(serverId)) {
-            // throw MapConsistencyError("...")
             qWarning() << "Room" << id.asUint32() << "server id" << serverId.asUint32()
                        << "does not map to a room.";
         }
@@ -1141,10 +1140,8 @@ void World::initRoom(const RawRoom &input)
     assert(id != INVALID_ROOMID);
     m_rooms.requireUninitialized(id);
 
-    /* copy the room data */
     setRoom_lowlevel(id, input);
 
-    /* now perform bookkeeping */
     {
         // REVISIT: should "upToDate" be automatic?
         const auto &areaName = input.getArea();
@@ -1269,10 +1266,9 @@ World World::init(ProgressCounter &counter, const std::vector<ExternalRawRoom> &
         counter.step();
     }
 
-    // if constexpr ((IS_DEBUG_BUILD))
     {
         DECL_TIMER(t5, "check-consistency");
-        counter.setNewTask(ProgressMsg{"checking map consistency" /*" [debug]"*/}, 1);
+        counter.setNewTask(ProgressMsg{"checking map consistency"}, 1);
         w.checkConsistency(counter);
         counter.step();
     }
@@ -1635,13 +1631,11 @@ void World::apply(ProgressCounter & /*pc*/, const room_change_types::Update &cha
 
 void World::apply(ProgressCounter & /*pc*/, const room_change_types::SetServerId &change)
 {
-    //
     setServerId(change.room, change.server_id);
 }
 
 void World::apply(ProgressCounter & /*pc*/, const room_change_types::MoveRelative &change)
 {
-    //
     moveRelative(change.room, change.offset);
 }
 
@@ -1653,7 +1647,6 @@ void World::apply(ProgressCounter & /*pc*/, const room_change_types::MoveRelativ
 
 void World::apply(ProgressCounter & /*pc*/, const room_change_types::MergeRelative &change)
 {
-    //
     mergeRelative(change.room, change.offset);
 }
 
@@ -1969,7 +1962,6 @@ void World::applyOne(ProgressCounter &pc, const Change &change)
         MMLOG_INFO() << oss.str();
     }
     change.acceptVisitor([this, &pc](const auto &specialized_change) {
-        //
         this->apply(pc, specialized_change);
     });
     post_change_updates(pc);
@@ -2336,8 +2328,8 @@ WorldComparisonStats World::getComparisonStats(const World &base, const World &m
     result.parseTreeChanged = base.m_parseTree != modified.m_parseTree;
 
     std::set<RoomArea> candidate_areas_to_check;
-    RoomIdSet combined_room_ids = base.getRoomSet(); // Start with base rooms
-    for(RoomId id : modified.getRoomSet()){ // Add all rooms from modified
+    RoomIdSet combined_room_ids = base.getRoomSet();
+    for(RoomId id : modified.getRoomSet()){
         combined_room_ids.insert(id);
     }
 
@@ -2345,15 +2337,15 @@ WorldComparisonStats World::getComparisonStats(const World &base, const World &m
         const RawRoom* r_base_ptr = base.getRoom(id);
         const RawRoom* r_modified_ptr = modified.getRoom(id);
 
-        if (r_modified_ptr && !r_base_ptr) { // Room added to world
+        if (r_modified_ptr && !r_base_ptr) {
             candidate_areas_to_check.insert(modified.getRoomArea(id));
-        } else if (r_base_ptr && !r_modified_ptr) { // Room removed from world
+        } else if (r_base_ptr && !r_modified_ptr) {
             candidate_areas_to_check.insert(base.getRoomArea(id));
-        } else if (r_base_ptr && r_modified_ptr) { // Room exists in both worlds
+        } else if (r_base_ptr && r_modified_ptr) {
             if (map_compare_detail::hasMeshDifference(*r_base_ptr, *r_modified_ptr)) {
                 candidate_areas_to_check.insert(base.getRoomArea(id));
                 candidate_areas_to_check.insert(modified.getRoomArea(id)); // Area might have changed too
-            } else if (base.getRoomArea(id) != modified.getRoomArea(id)) { // Room changed area
+            } else if (base.getRoomArea(id) != modified.getRoomArea(id)) {
                 candidate_areas_to_check.insert(base.getRoomArea(id));
                 candidate_areas_to_check.insert(modified.getRoomArea(id));
             }

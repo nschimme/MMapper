@@ -24,7 +24,11 @@
 #include <utility>
 #include <vector>
 
+#if QT_VERSION_MAJOR >= 6
+#include <QtGui/QAction>
+#else
 #include <QAction>
+#endif
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>

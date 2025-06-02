@@ -8,7 +8,11 @@
 
 #include <memory>
 
+#if QT_VERSION_MAJOR >= 6
+#include <QtGui/QAction>
+#else
 #include <QAction>
+#endif
 #include <QMainWindow>
 #include <QPlainTextEdit>
 #include <QScopedPointer>

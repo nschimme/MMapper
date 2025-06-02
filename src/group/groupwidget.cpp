@@ -236,7 +236,11 @@ QVariant GroupModel::dataForCharacter(const SharedGroupChar &pCharacter,
 
     // Map column to data
     switch (role) {
+#if QT_VERSION_MAJOR >= 6
+    case Qt::ItemDataRole::DisplayRole:
+#else
     case Qt::DisplayRole:
+#endif
         switch (column) {
         case ColumnTypeEnum::NAME:
             if (character.getLabel().isEmpty()
@@ -275,20 +279,36 @@ QVariant GroupModel::dataForCharacter(const SharedGroupChar &pCharacter,
         }
         break;
 
+#if QT_VERSION_MAJOR >= 6
+    case Qt::ItemDataRole::BackgroundRole:
+#else
     case Qt::BackgroundRole:
+#endif
         return character.getColor();
 
+#if QT_VERSION_MAJOR >= 6
+    case Qt::ItemDataRole::ForegroundRole:
+#else
     case Qt::ForegroundRole:
+#endif
         return mmqt::textColor(character.getColor());
 
+#if QT_VERSION_MAJOR >= 6
+    case Qt::ItemDataRole::TextAlignmentRole:
+#else
     case Qt::TextAlignmentRole:
+#endif
         if (column != ColumnTypeEnum::NAME && column != ColumnTypeEnum::ROOM_NAME) {
             // NOTE: There's no QVariant(AlignmentFlag) constructor.
             return static_cast<int>(Qt::AlignCenter);
         }
         break;
 
+#if QT_VERSION_MAJOR >= 6
+    case Qt::ItemDataRole::ToolTipRole:
+#else
     case Qt::ToolTipRole:
+#endif
         switch (column) {
         case ColumnTypeEnum::HP_PERCENT:
             if (character.getType() == CharacterTypeEnum::NPC)
@@ -354,7 +374,11 @@ QVariant GroupModel::data(const QModelIndex &index, int role) const
 QVariant GroupModel::headerData(int section, Qt::Orientation orientation, int role) const
 {
     switch (role) {
+#if QT_VERSION_MAJOR >= 6
+    case Qt::ItemDataRole::DisplayRole:
+#else
     case Qt::DisplayRole:
+#endif
         if (orientation == Qt::Orientation::Horizontal) {
             switch (static_cast<ColumnTypeEnum>(section)) {
             case ColumnTypeEnum::NAME:

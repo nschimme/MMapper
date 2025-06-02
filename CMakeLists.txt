@@ -31,6 +31,7 @@ option(USE_CODE_COVERAGE "Run code coverage reporting" OFF)
 if (NOT (WIN32 AND APPLE))
    option(USE_MOLD "Use the Mold linker" OFF)
 endif()
+# USE_QT6 option removed
 if(WIN32 AND MINGW)
    option(WITH_DRMINGW "Include Dr. Mingw crash dumping (Windows only)" ON)
 endif()
@@ -39,7 +40,32 @@ set(MMAPPER_QT_COMPONENTS Core Widgets Network OpenGL Test)
 if(WITH_WEBSOCKET)
     list(APPEND MMAPPER_QT_COMPONENTS WebSockets)
 endif()
-find_package(Qt5 COMPONENTS ${MMAPPER_QT_COMPONENTS} REQUIRED)
+
+# Attempt to find Qt6 first
+find_package(Qt6 COMPONENTS ${MMAPPER_QT_COMPONENTS} QUIET)
+
+if(Qt6_FOUND AND Qt6Core_VERSION VERSION_GREATER_EQUAL "6.2.0")
+    message(STATUS "Found Qt6 ${Qt6Core_VERSION_STRING}. Using Qt6 for the build.")
+    # set(MMAPPER_ACTUAL_QT_VERSION 6) # Removed
+    # add_compile_definitions(MMAPPER_USING_QT6) # Optional: QT_VERSION_MAJOR is preferred in C++
+
+    if(WITH_WEBSOCKET AND NOT Qt6WebSockets_FOUND)
+        message(FATAL_ERROR "Qt6 WebSockets module specified but not found. Please install it or set WITH_WEBSOCKET=OFF.")
+    endif()
+else()
+    message(STATUS "Qt6 not found or version ${Qt6Core_VERSION_STRING} insufficient. Attempting to use Qt5.")
+    find_package(Qt5 COMPONENTS ${MMAPPER_QT_COMPONENTS} REQUIRED)
+    if(NOT (Qt5Core_VERSION VERSION_GREATER_EQUAL "5.15.0"))
+        message(FATAL_ERROR "Minimum supported Qt5 version is 5.15.0. Found ${Qt5Core_VERSION_STRING}")
+    endif()
+    message(STATUS "Found Qt5 ${Qt5Core_VERSION_STRING}. Using Qt5 for the build.")
+    # set(MMAPPER_ACTUAL_QT_VERSION 5) # Removed
+    # add_compile_definitions(MMAPPER_USING_QT5) # Optional: QT_VERSION_MAJOR is preferred in C++
+
+    if(WITH_WEBSOCKET AND NOT Qt5WebSockets_FOUND)
+        message(FATAL_ERROR "Qt5 WebSockets module specified but not found. Please install it or set WITH_WEBSOCKET=OFF.")
+    endif()
+endif()
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
@@ -49,17 +75,9 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
-if(Qt5Core_FOUND)
-    if(Qt5Core_VERSION VERSION_LESS 5.15.0)
-        message(FATAL_ERROR "Minimum supported Qt version is 5.15")
-    endif()
-endif()
-
-if(WITH_WEBSOCKET)
-    if(NOT Qt5WebSockets_FOUND)
-        message(FATAL_ERROR "Qt5 WebSockets module not found: use `-DWITH_WEBSOCKET=OFF` to build without WebSocket support")
-    endif()
-else()
+# WebSocket check is now part of the Qt6/Qt5 conditional blocks.
+# If WITH_WEBSOCKET is OFF, MMAPPER_QT_COMPONENTS won't include WebSockets.
+if(NOT WITH_WEBSOCKET)
     message(STATUS "Building without WebSocket support")
     add_definitions(/DMMAPPER_NO_WEBSOCKET)
 endif()

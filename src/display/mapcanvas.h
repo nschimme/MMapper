@@ -31,7 +31,11 @@
 #include <QMatrix4x4>
 #include <QOpenGLDebugMessage>
 #include <QOpenGLFunctions_1_0>
+#if QT_VERSION_MAJOR >= 6
+#include <QtOpenGLWidgets/QOpenGLWidget>
+#else
 #include <QOpenGLWidget>
+#endif
 #include <QtCore>
 
 class CharacterBatch;

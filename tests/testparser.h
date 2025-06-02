@@ -15,8 +15,19 @@ public:
     ~TestParser() final;
 
 private Q_SLOTS:
+    void parseUserCommandsTest();
+    void testParseSpecialCommand_SetPrefix();
+    void testParseSpecialCommand_Config();
+    void testParseSpecialCommand_Map();
+
+    // void testCompressDirections(); // Moved to TestParserUtils
+    // void testGetTerrainSymbol();   // Moved to TestParserUtils
+    // void testGetLightSymbol();     // Moved to TestParserUtils
+
+    void testDoMove_Offline_QueueInteraction();
+
     // ParserUtils
-    static void createParseEventTest();
-    static void removeAnsiMarksTest();
-    static void toAsciiTest();
+    // static void createParseEventTest(); // Moved to TestParserUtils
+    // static void removeAnsiMarksTest(); // Moved to TestParserUtils
+    // static void toAsciiTest();         // Moved to TestParserUtils
 };

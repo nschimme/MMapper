@@ -158,11 +158,20 @@ struct NODISCARD Batches final
         }
     };
     FlashState pendingUpdateFlashState;
-    std::set<std::string> m_areasMarkedForCatchUp;
 
     Batches() = default;
     ~Batches() = default;
     DEFAULT_MOVES_DELETE_COPIES(Batches);
+
+    NODISCARD bool isPending() const
+    {
+        for (const auto& pair : m_areaRemeshCookies) {
+            if (pair.second.isPending()) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     void resetExistingMeshesButKeepPendingRemesh()
     {
@@ -184,7 +193,6 @@ struct NODISCARD Batches final
     {
         resetExistingMeshesButKeepPendingRemesh();
         ignorePendingRemesh();
-        m_areasMarkedForCatchUp.clear();
     }
 };
 

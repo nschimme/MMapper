@@ -14,6 +14,7 @@
 #include "../map/Map.h"
 #include "../map/coordinate.h"
 #include "../map/mmapper2room.h"
+#include "../map/room.h" // For RoomArea
 #include "../map/roomid.h"
 #include "../mapfrontend/mapfrontend.h"
 #include "../parser/CommandQueue.h"
@@ -26,6 +27,8 @@
 #include <memory>
 #include <optional>
 #include <ostream>
+#include <set>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -74,6 +77,10 @@ public:
     // REVISIT: convert to template, or functionref after it compiles everywhere?
     void applyChangesToList(const RoomSelection &sel,
                             const std::function<Change(const RawRoom &)> &callback);
+    
+    // This method is specific to MapData or hides the MapFrontend's non-virtual one.
+    // Ensure it returns bool as expected by callers that were previously using MapFrontend's version.
+    bool applyChanges(const ChangeList &changes); 
 
     NODISCARD std::optional<RoomId> getCurrentRoomId() const { return m_selectedRoom; }
 
@@ -218,6 +225,7 @@ signals:
     void sig_onForcedPositionChange();
     void sig_checkMapConsistency();
     void sig_generateBaseMap();
+    void needsAreaRemesh(const std::set<RoomArea> &areas);
 
 public slots:
     void slot_scheduleAction(const SigMapChangeList &);

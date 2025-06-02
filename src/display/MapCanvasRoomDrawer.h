@@ -20,6 +20,7 @@
 
 #include <map>
 #include <optional>
+#include <set> // Added for std::set
 #include <unordered_map>
 #include <vector>
 
@@ -118,11 +119,21 @@ public:
     }
 };
 
+#include <string> // For std::string key in maps
+
 struct NODISCARD Batches final
 {
-    RemeshCookie remeshCookie;
-    std::optional<MapBatches> mapBatches;
+    // For per-area remeshing
+    std::map<std::string, RemeshCookie> m_areaRemeshCookies;
+    std::map<std::string, MapBatches> m_areaMapBatches;
+
+    // For global map remeshing -> Will be handled by iterating all areas
+    // RemeshCookie m_globalRemeshCookie; // Removed
+    // std::optional<MapBatches> m_globalMapBatches; // Removed
+
+    // Infomarks are considered global for now
     std::optional<BatchedInfomarksMeshes> infomarksMeshes;
+
     struct NODISCARD FlashState final
     {
     private:
@@ -152,16 +163,30 @@ struct NODISCARD Batches final
     ~Batches() = default;
     DEFAULT_MOVES_DELETE_COPIES(Batches);
 
+    NODISCARD bool isPending() const
+    {
+        for (const auto& pair : m_areaRemeshCookies) {
+            if (pair.second.isPending()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     void resetExistingMeshesButKeepPendingRemesh()
     {
-        mapBatches.reset();
+        m_areaMapBatches.clear();
+        // m_globalMapBatches.reset(); // Removed
         infomarksMeshes.reset();
+        // Pending remesh cookies (m_areaRemeshCookies, m_globalRemeshCookie) are NOT reset here.
     }
 
     void ignorePendingRemesh()
     {
-        //
-        remeshCookie.setIgnored();
+        for (auto& pair : m_areaRemeshCookies) {
+            pair.second.setIgnored();
+        }
+        // m_globalRemeshCookie.setIgnored(); // Removed
     }
 
     void resetExistingMeshesAndIgnorePendingRemesh()
@@ -172,7 +197,9 @@ struct NODISCARD Batches final
 };
 
 NODISCARD FutureSharedMapBatchFinisher
-generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures, const Map &map);
+generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
+                        const Map &map,
+                        std::optional<std::string> areaName = std::nullopt);
 
 extern void finish(const IMapBatchesFinisher &finisher,
                    std::optional<MapBatches> &batches,

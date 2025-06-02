@@ -14,6 +14,7 @@
 #include "../global/tests.h"
 #include "Changes.h"
 #include "Diff.h"
+#include "MapWorldCompareDetail.h" // Added for map_compare_detail::hasMeshDifference
 #include "ParseTree.h"
 #include "RoomRecipient.h"
 #include "World.h"
@@ -220,30 +221,33 @@ NODISCARD static RoomUpdateFlags reportNeededUpdates(std::ostream &os,
     return result;
 }
 
-template<typename Callback>
-NODISCARD static MapApplyResult update(const std::shared_ptr<const World> &input,
-                                       ProgressCounter &pc,
-                                       Callback &&callback)
+// template<typename Callback> // Original template
+NODISCARD static MapApplyResult update(
+    const std::shared_ptr<const World>& input,
+    ProgressCounter& pc,
+    const std::vector<Change>* changes_applied_ptr, // Can be nullptr
+    std::function<void(ProgressCounter&, World&)> callback)
 {
     static const bool verbose_debugging = IS_DEBUG_BUILD;
 
     using Clock = std::chrono::steady_clock;
     // verify that callback signature is `void(World&)`.
-    static_assert(std::is_invocable_r_v<void, Callback, ProgressCounter &, World &>);
+    // static_assert(std::is_invocable_r_v<void, Callback, ProgressCounter &, World &>); // Original static_assert
 
     const auto t0 = Clock::now();
 
-    const World &base = deref(input);
-    World modified = base.copy();
+    const World &base_world = deref(input);
+    World modified = base_world.copy();
 
     const auto t1 = Clock::now();
     callback(pc, modified);
     const auto t2 = Clock::now();
-    bool equal = base == modified;
+    bool equal = base_world == modified;
     const auto t3 = Clock::now();
 
     RoomUpdateFlags neededUpdates;
     std::ostringstream info_os;
+    std::set<RoomArea> current_dirty_areas;
 
     if (equal) {
         if (verbose_debugging) {
@@ -251,9 +255,52 @@ NODISCARD static MapApplyResult update(const std::shared_ptr<const World> &input
         }
     } else {
         try {
-            const auto stats = World::getComparisonStats(base, modified);
-            reportDetectedChanges(info_os, stats);
-            neededUpdates = reportNeededUpdates(info_os, stats);
+            const auto global_stats = World::getComparisonStats(base_world, modified);
+            reportDetectedChanges(info_os, global_stats);
+            neededUpdates = reportNeededUpdates(info_os, global_stats);
+
+            // Determine dirty areas
+            std::set<RoomArea> candidate_areas_to_check;
+            RoomIdSet combined_room_ids = base_world.getRoomSet();
+            for(RoomId id : modified.getRoomSet()){
+                combined_room_ids.insert(id);
+            }
+
+            for (RoomId id : combined_room_ids) {
+                const RawRoom* r_base_ptr = base_world.getRoom(id);
+                const RawRoom* r_modified_ptr = modified.getRoom(id);
+
+                if (r_modified_ptr && !r_base_ptr) { // Room added
+                    candidate_areas_to_check.insert(modified.getRoomArea(id));
+                } else if (r_base_ptr && !r_modified_ptr) { // Room removed
+                    candidate_areas_to_check.insert(base_world.getRoomArea(id));
+                } else if (r_base_ptr && r_modified_ptr) { // Room exists in both
+                    if (map_compare_detail::hasMeshDifference(*r_base_ptr, *r_modified_ptr) ||
+                        base_world.getRoomArea(id) != modified.getRoomArea(id)) {
+                        candidate_areas_to_check.insert(base_world.getRoomArea(id));
+                        candidate_areas_to_check.insert(modified.getRoomArea(id));
+                    }
+                }
+            }
+
+            for (const RoomArea& area : candidate_areas_to_check) {
+                // The call to Map::hasMeshDifferencesForArea was here.
+                // It's been removed from Map class. The equivalent logic is now in 
+                // World::getComparisonStats which calls its own internal helper,
+                // or WorldComparisonStats directly holds the dirty areas.
+                // The current_dirty_areas set is now populated directly by World::getComparisonStats.
+                // So this loop is no longer needed here if we use result.visuallyDirtyAreas from global_stats.
+                // Let's adjust to use global_stats.visuallyDirtyAreas directly.
+                // This loop will be removed.
+            }
+            current_dirty_areas = global_stats.visuallyDirtyAreas; // Use the pre-calculated set.
+            if (!current_dirty_areas.empty()) {
+                 info_os << "[update] Visually dirty areas identified by World::getComparisonStats:\n";
+                 for (const RoomArea& area : current_dirty_areas) {
+                     info_os << "[update]   - " << area.getStdStringViewUtf8() << "\n";
+                 }
+            }
+
         } catch (const std::exception &ex) {
             info_os << "[update] Changes detected, but an exception occurred while comparing: "
                     << ex.what() << ".\n";
@@ -272,10 +319,10 @@ NODISCARD static MapApplyResult update(const std::shared_ptr<const World> &input
                 debug_os << "[TIMER] [update] " << what << ": " << ms << " ms\n";
             }
         };
-        report("part0. modified = base.copy()", t0, t1);
+        report("part0. modified = base_world.copy()", t0, t1);
         report("part1. callback(modified)", t1, t2);
-        report("part2. base == modified", t2, t3);
-        report("part3. stats + report changes", t3, t4);
+        report("part2. base_world == modified", t2, t3);
+        report("part3. stats + report changes + dirty areas", t3, t4);
         report("part0 + part1 (required)", t0, t2);
         report("part2 + part3 (deferrable)", t2, t4);
         report("overall", t0, t4);
@@ -283,7 +330,7 @@ NODISCARD static MapApplyResult update(const std::shared_ptr<const World> &input
     }
 
     // only modify input if the callback succeeds
-    return MapApplyResult{Map{std::move(modified)}, neededUpdates};
+    return MapApplyResult{Map{std::move(modified)}, neededUpdates, current_dirty_areas};
 }
 
 MapApplyResult Map::applySingleChange(ProgressCounter &pc, const Change &change) const
@@ -291,13 +338,16 @@ MapApplyResult Map::applySingleChange(ProgressCounter &pc, const Change &change)
     {
         MMLOG() << "[map] Applying 1 change...\n";
     }
-    return update(m_world, pc, [&change](ProgressCounter &pc2, World &w) {
+    std::vector<Change> changes_vec = {change};
+    return update(m_world, pc, &changes_vec, [&change](ProgressCounter &pc2, World &w) { // Pass address of changes_vec
         w.applyOne(pc2, change);
     });
 }
 
 Map Map::filterBaseMap(ProgressCounter &pc) const
 {
+    // This will internally call the modified applySingleChange,
+    // so changes_applied_ptr will be handled.
     MapApplyResult mar = applySingleChange(pc, Change{world_change_types::GenerateBaseMap{}});
     return mar.map;
 }
@@ -312,13 +362,15 @@ MapApplyResult Map::apply(ProgressCounter &pc, const std::vector<Change> &change
         const auto count = changes.size();
         MMLOG() << "[map] Applying " << count << " change" << ((count == 1) ? "" : "s") << "...\n";
     }
-    return update(m_world, pc, [&changes](ProgressCounter &pc2, World &w) {
+    return update(m_world, pc, &changes, [&changes](ProgressCounter &pc2, World &w) { // Pass address of changes
         w.applyAll(pc2, changes);
     });
 }
 
 MapApplyResult Map::apply(ProgressCounter &pc, const ChangeList &changeList) const
 {
+    // This will internally call the modified apply with std::vector<Change>,
+    // so changes_applied_ptr will be handled.
     return apply(pc, changeList.getChanges());
 }
 
@@ -1163,6 +1215,30 @@ void Map::printChanges(mm::AbstractDebugOStream &os,
     std::ostringstream oss;
     printChanges(oss, changes, sep);
     os.writeUtf8(oss.str());
+}
+
+// bool Map::hasMeshDifferencesForArea(...) // Implementation removed
+
+bool Map::roomNeedsMeshUpdate(
+    RoomId room_id,
+    const World& world_before,
+    const World& world_after)
+{
+    const RawRoom* room_ptr_after = world_after.getRoom(room_id);
+    const RawRoom* room_ptr_before = world_before.getRoom(room_id);
+
+    if (room_ptr_after && !room_ptr_before) {
+        return true; // Room added
+    }
+    if (!room_ptr_after && room_ptr_before) {
+        return true; // Room removed
+    }
+    if (!room_ptr_after && !room_ptr_before) {
+        return false; // Room doesn't exist in either state
+    }
+
+    // Room exists in both states, compare them
+    return map_compare_detail::hasMeshDifference(*room_ptr_before, *room_ptr_after);
 }
 
 BasicDiffStats getBasicDiffStats(const Map &baseMap, const Map &modMap)

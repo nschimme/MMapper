@@ -13,14 +13,17 @@
 #include "ServerIdMap.h"
 #include "SpatialDb.h"
 #include "WorldAreaMap.h"
+#include "RoomArea.h" // Required for RoomArea
 
 #include <memory>
 #include <optional>
 #include <ostream>
+#include <set> // Required for std::set
 #include <thread>
 #include <vector>
 
 class RawRooms;
+class RoomArea; // Forward declaration still okay if full def in RoomArea.h
 
 struct NODISCARD WorldComparisonStats final
 {
@@ -33,6 +36,7 @@ struct NODISCARD WorldComparisonStats final
     bool serverIdsChanged = false;
 
     bool hasMeshDifferences = false;
+    std::set<RoomArea> visuallyDirtyAreas; // Added member
 };
 
 class NODISCARD World final

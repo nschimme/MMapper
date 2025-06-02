@@ -25,6 +25,11 @@
 #include "../map/mmapper2room.h"
 #include "../map/room.h"
 #include "../map/roomid.h"
+#include "../map/RawRoom.h" // For change.data in RemoveRoom
+#include "../map/exit.h"   // For RawExit in RemoveRoom
+#include "../map/AbstractChangeVisitor.h"
+#include "../map/ChangeTypes.h" // For XFOREACH_WORLD_CHANGE (and XFOREACH_WORLD_CHANGE_TYPES)
+// #include "../map/world_change_types.h" // Removed, functionality assumed in ChangeTypes.h
 #include "../mapfrontend/mapfrontend.h"
 #include "../mapstorage/RawMapData.h"
 #include "GenericFind.h"
@@ -43,11 +48,23 @@
 #include <set>
 #include <sstream>
 #include <tuple>
+#include <variant> // Added for std::visit and std::variant
 #include <vector>
 
 #include <QApplication>
 #include <QList>
 #include <QString>
+#include <string_view> // For std::less<RoomArea>
+
+// Custom std::less specialization for RoomArea - Commented out due to redefinition error
+// namespace std {
+//     template <>
+//     struct less<RoomArea> {
+//         bool operator()(const RoomArea& lhs, const RoomArea& rhs) const {
+//             return lhs.getStdStringViewUtf8() < rhs.getStdStringViewUtf8();
+//         }
+//     };
+// } // namespace std
 
 MapData::MapData(QObject *const parent)
     : MapFrontend(parent)
@@ -176,6 +193,60 @@ NODISCARD RoomIdSet MapData::genericFind(const RoomFilter &f) const
 
 MapData::~MapData() = default;
 
+// This is the new applyChanges that uses MapApplyResult correctly
+bool MapData::applyChanges(const ChangeList &changes)
+{
+    if (changes.empty()) {
+        // MMLOG_DEBUG() << "MapData::applyChanges called with empty ChangeList.";
+        return true; // No changes, operation is trivially successful.
+    }
+
+    ProgressCounter pc; // Assuming a default ProgressCounter is okay here.
+    MapApplyResult result = MapFrontend::getCurrentMap().apply(pc, changes);
+    
+    // Update the internal map state
+    MapFrontend::setCurrentMap(result.map); // Assuming MapFrontend has a method to set the map
+
+    // Handle visually dirty areas
+    const auto& dirty_areas = result.visuallyDirtyAreas;
+    bool specific_areas_handled = false;
+    if (!dirty_areas.empty()) {
+        // MMLOG_DEBUG() << "MapData::applyChanges emitting needsAreaRemesh for specific areas.";
+        emit needsAreaRemesh(dirty_areas); // Emit with the set of dirty RoomArea objects
+        specific_areas_handled = true;
+    }
+
+    // Handle global RoomMeshNeedsUpdate if no specific areas were handled
+    // and the global flag is set.
+    if (result.roomUpdateFlags.contains(RoomUpdateEnum::RoomMeshNeedsUpdate) && !specific_areas_handled) {
+        MMLOG_INFO() << "MapData::applyChanges: Global RoomMeshNeedsUpdate flag set, but no specific dirty areas were identified. This might indicate a need for a global remesh or further investigation.";
+        // To trigger a "global" remesh via the existing signal, we can emit it with an empty set,
+        // and the receiver can interpret an empty set as "remesh everything".
+        // Or, if there's a dedicated global remesh signal, emit that.
+        // For now, using the existing signal with an empty set as a convention.
+        emit needsAreaRemesh({}); // Empty set indicates global remesh
+    }
+
+    // Handle other update flags like BoundsChanged
+    if (result.roomUpdateFlags.contains(RoomUpdateEnum::BoundsChanged)) {
+        // MMLOG_DEBUG() << "MapData::applyChanges: BoundsChanged flag set.";
+        // Emit a signal or call a handler for bounds change if necessary.
+        // For example: emit mapBoundsChanged();
+    }
+
+    // Notify that the map content has changed generally
+    // This might be implicit in MapFrontend's handling or might need explicit emission.
+    // MapFrontend::onNotifyModified should be called by setCurrentMap or apply if it modifies the map.
+    // If direct emission is needed:
+    // emit sig_onDataChanged(); // Assuming this is the general "map modified" signal
+
+    // The success of applying changes is implicitly handled by not throwing exceptions.
+    // The MapApplyResult itself doesn't carry a success/failure bool for the operation itself,
+    // rather it carries the new map state and flags about what changed.
+    return true; 
+}
+
+
 bool MapData::removeMarker(const InfomarkId id)
 {
     try {
@@ -250,9 +321,190 @@ void MapData::slot_scheduleAction(const SigMapChangeList &change)
     this->applyChanges(change.deref());
 }
 
+// bool MapData::applyChanges(const ChangeList &changes) // Changed return type to bool // OLD IMPLEMENTATION
+// {
+//     if (changes.empty()) {
+//         return true; // Or false, depending on desired semantics for empty change list; true seems reasonable.
+//     }
+
+//     // Apply changes to the map and notify observers (includes setting m_changedAfterSave)
+//     // This call handles getCurrentMap().applyChanges(internal_changes)
+//     bool success = MapFrontend::applyChanges(changes); // Call base class method
+
+//     // Ensure necessary headers are included, e.g. <variant>, <set>
+//     // <set> is already included. <variant> might be through Change.h, but explicit is good.
+
+//     std::set<RoomArea, std::less<RoomArea>> affectedAreas;
+//     bool globalRemeshNeeded = false;
+//     const Map& currentMap = getCurrentMap();
+
+//     auto addConnectedAreas = [&](const RoomHandle& roomHandle) {
+//         if (!roomHandle.exists()) return;
+//         for (const ExitDirEnum dir : ALL_EXITS_NESWUD) {
+//             const auto& exit = roomHandle.getExit(dir);
+//             for (const RoomId& connectedRoomId : exit.getOutgoingSet()) {
+//                 if (auto connectedRoomHandle = currentMap.findRoomHandle(connectedRoomId)) {
+//                     affectedAreas.insert(connectedRoomHandle.getArea());
+//                 }
+//             }
+//             for (const RoomId& connectedRoomId : exit.getIncomingSet()) {
+//                 if (auto connectedRoomHandle = currentMap.findRoomHandle(connectedRoomId)) {
+//                     affectedAreas.insert(connectedRoomHandle.getArea());
+//                 }
+//             }
+//         }
+//     };
+
+//     auto visitorLambda = [&](const auto& specificChange) {
+//         using T = std::decay_t<decltype(specificChange)>;
+
+//         // World Changes
+//         // Use XFOREACH_WORLD_CHANGE as identified from existing visitor
+//         if constexpr (false
+//             #define X_NOP_LOCAL_MAPDATA() // Renamed X_NOP to avoid conflict if globally defined elsewhere
+//             #define CHECK_WORLD_CHANGE(FullType) || std::is_same_v<T, FullType>
+//             XFOREACH_WORLD_CHANGE_TYPES(CHECK_WORLD_CHANGE, X_NOP_LOCAL_MAPDATA)
+//             #undef CHECK_WORLD_CHANGE
+//             #undef X_NOP_LOCAL_MAPDATA
+//         ) {
+//             globalRemeshNeeded = true;
+//         }
+//         // Room Changes
+//         else if constexpr (std::is_same_v<T, room_change_types::AddPermanentRoom>) {
+//             if (auto roomHandle = currentMap.findRoomHandle(specificChange.position)) {
+//                 affectedAreas.insert(roomHandle.getArea());
+//                 addConnectedAreas(roomHandle);
+//             } else {
+//                 globalRemeshNeeded = true;
+//             }
+//         } else if constexpr (std::is_same_v<T, room_change_types::AddRoom2>) {
+//             RoomId roomId = INVALID_ROOMID;
+//             // Attempt to get RoomId from event if 'event' member and 'getRoomId' method exist
+//             // This part is speculative based on plan; requires AddRoom2 structure knowledge
+//             // Corrected logic for AddRoom2 to get RoomId via event's ServerRoomId
+//             ServerRoomId server_id_from_event = specificChange.event.getServerId();
+//             if (server_id_from_event != INVALID_SERVER_ROOMID) {
+//                 if (auto roomHandle = currentMap.findRoomHandle(server_id_from_event)) {
+//                     roomId = roomHandle.getId();
+//                 }
+//             }
+
+//             if (roomId == INVALID_ROOMID) { // specificChange.position is a direct member, not optional
+//                  if (auto roomHandle = currentMap.findRoomHandle(specificChange.position)) { // No * needed
+//                     roomId = roomHandle.getId();
+//                 }
+//             }
+
+//             if (roomId != INVALID_ROOMID) {
+//                 if (auto roomHandle = currentMap.findRoomHandle(roomId)) {
+//                     affectedAreas.insert(roomHandle.getArea());
+//                     addConnectedAreas(roomHandle);
+//                 } else { globalRemeshNeeded = true; }
+//             } else {
+//                 globalRemeshNeeded = true;
+//             }
+//         } else if constexpr (std::is_same_v<T, room_change_types::RemoveRoom>) {
+//                 // Based on investigation, room_change_types::RemoveRoom only contains RoomId.
+//                 // The room is already removed from currentMap when this visitor runs.
+//                 // We cannot access its old area or exits without specificChange.data (RawRoom::ConstPtr), which is not present.
+//                 // Therefore, the safest approach is to trigger a global remesh.
+//                 // MMLOG() << "RemoveRoom change processed, triggering global remesh as pre-deletion data is not available in change struct.";
+//                 globalRemeshNeeded = true;
+//         } else if constexpr (std::is_same_v<T, room_change_types::MakePermanent> ||
+//                              std::is_same_v<T, room_change_types::Update> ||
+//                              std::is_same_v<T, room_change_types::SetServerId> ||
+//                              std::is_same_v<T, room_change_types::MoveRelative> ||
+//                              std::is_same_v<T, room_change_types::TryMoveCloseTo>) {
+//             if (auto roomHandle = currentMap.findRoomHandle(specificChange.room)) {
+//                 affectedAreas.insert(roomHandle.getArea());
+//                 addConnectedAreas(roomHandle);
+//             } else { globalRemeshNeeded = true; }
+//         } else if constexpr (std::is_same_v<T, room_change_types::MoveRelative2>) {
+//             for (const RoomId roomId : specificChange.rooms) {
+//                 if (auto roomHandle = currentMap.findRoomHandle(roomId)) {
+//                     affectedAreas.insert(roomHandle.getArea());
+//                     addConnectedAreas(roomHandle);
+//                 } else { globalRemeshNeeded = true; if(globalRemeshNeeded) break; }
+//             }
+//              if (globalRemeshNeeded) { /* already broken or will be caught by outer loop */ }
+//         } else if constexpr (std::is_same_v<T, room_change_types::MergeRelative>) {
+//              if (auto roomHandle = currentMap.findRoomHandle(specificChange.room)) {
+//                 affectedAreas.insert(roomHandle.getArea());
+//                 addConnectedAreas(roomHandle);
+//             } else { globalRemeshNeeded = true; }
+//         } else if constexpr (std::is_same_v<T, room_change_types::ModifyRoomFlags>) {
+//             if (auto roomHandle = currentMap.findRoomHandle(specificChange.room)) {
+//                 affectedAreas.insert(roomHandle.getArea());
+//                 addConnectedAreas(roomHandle);
+//             } else { globalRemeshNeeded = true; }
+//         } else if constexpr (std::is_same_v<T, exit_change_types::ModifyExitConnection>) {
+//             bool fromRoomOk = false;
+//             if (auto fromRoomHandle = currentMap.findRoomHandle(specificChange.room)) {
+//                 affectedAreas.insert(fromRoomHandle.getArea());
+//                 fromRoomOk = true;
+//             } else { globalRemeshNeeded = true; }
+
+//             if (fromRoomOk && specificChange.to != INVALID_ROOMID) {
+//                  if (auto toRoomHandle = currentMap.findRoomHandle(specificChange.to)) {
+//                     affectedAreas.insert(toRoomHandle.getArea());
+//                 } else { globalRemeshNeeded = true; }
+//             }
+//         } else if constexpr (std::is_same_v<T, exit_change_types::ModifyExitFlags> ||
+//                              std::is_same_v<T, exit_change_types::SetExitFlags> ||
+//                              std::is_same_v<T, exit_change_types::SetDoorFlags> ||
+//                              std::is_same_v<T, exit_change_types::SetDoorName>) {
+//             if (auto roomHandle = currentMap.findRoomHandle(specificChange.room)) {
+//                 affectedAreas.insert(roomHandle.getArea());
+//                 const auto& exit = roomHandle.getExit(specificChange.dir);
+//                 for (const RoomId connectedRoomId : exit.getOutgoingSet()) {
+//                     if (auto connectedRoomHandle = currentMap.findRoomHandle(connectedRoomId)) {
+//                         affectedAreas.insert(connectedRoomHandle.getArea());
+//                     }
+//                 }
+//                  for (const RoomId connectedRoomId : exit.getIncomingSet()) {
+//                     if (auto connectedRoomHandle = currentMap.findRoomHandle(connectedRoomId)) {
+//                         affectedAreas.insert(connectedRoomHandle.getArea());
+//                     }
+//                 }
+//             } else { globalRemeshNeeded = true; }
+//         } else if constexpr (std::is_same_v<T, exit_change_types::NukeExit>) {
+//              if (auto roomHandle = currentMap.findRoomHandle(specificChange.room)) {
+//                 affectedAreas.insert(roomHandle.getArea());
+//             } else { globalRemeshNeeded = true; }
+//         } else if constexpr (std::is_same_v<T, room_change_types::UndeleteRoom>) {
+//             affectedAreas.insert(specificChange.raw.getArea());
+//             if(auto roomHandle = currentMap.findRoomHandle(specificChange.raw.getId())) { // Room is already undeleted
+//                 addConnectedAreas(roomHandle);
+//             } else { globalRemeshNeeded = true; }
+//         }
+//         else {
+//             // Default catch-all for any unhandled type from XFOREACH_CHANGE_TYPE
+//             globalRemeshNeeded = true;
+//         }
+//     }; // End of visitorLambda
+
+//     // Iterate over changes. Assuming 'changes' is ChangeList from MapFrontend,
+//     // Corrected iteration based on ChangeList.h providing getChanges() -> std::vector<Change>
+//     for (const Change& actual_change : changes.getChanges()) {
+//         actual_change.acceptVisitor(visitorLambda);
+
+//         if (globalRemeshNeeded) {
+//             break; 
+//         }
+//     }
+
+//     if (globalRemeshNeeded) {
+//         emit needsAreaRemesh({}); // Emit with empty set for global remesh
+//     } else if (!affectedAreas.empty()) {
+//         emit needsAreaRemesh(affectedAreas);
+//     }
+//     // No explicit 'else' here, as MapFrontend::applyChanges already signals a generic data change.
+//     // This new signal is for more targeted remeshing.
+//     return success; // Return status from base class
+// }
+
 bool MapData::isEmpty() const
 {
-    // return (greatestUsedId == INVALID_ROOMID) && m_markers.empty();
     return getCurrentMap().empty() && getInfomarkDb().empty();
 }
 

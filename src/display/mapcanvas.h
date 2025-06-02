@@ -22,8 +22,9 @@
 #include <map>
 #include <memory>
 #include <optional>
-#include <set>
+#include <set> // Already here, good.
 #include <vector>
+#include "../map/room.h" // For RoomArea
 
 #include <glm/glm.hpp>
 
@@ -196,6 +197,7 @@ private:
     void finishPendingMapBatches();
     void updateMapBatches();
     void updateInfomarkBatches();
+    void processCompletedRemeshes();
 
     void actuallyPaintGL();
     void paintMap();
@@ -220,6 +222,9 @@ public:
     void slot_mapChanged();
     void slot_requestUpdate();
     void screenChanged();
+private slots: // Adding private slots section if not existing, or adding to it
+    void slot_handleAreaRemesh(const std::set<RoomArea>& areas);
+public slots: // ensure this is public if other slots are, or adjust as needed based on existing structure.
     void selectionChanged();
     void graphicsSettingsChanged();
     void zoomChanged() { emit sig_zoomChanged(getRawZoom()); }

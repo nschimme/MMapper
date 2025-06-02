@@ -9,6 +9,7 @@
 #include "../global/progresscounter.h"
 #include "Diff.h"
 #include "MapConsistencyError.h"
+#include "MapWorldCompareDetail.h"
 #include "enums.h"
 #include "parseevent.h"
 #include "sanitizer.h"
@@ -145,6 +146,61 @@ void applyExitFlags(ExitFlags &exitFlags, const FlagModifyModeEnum mode, const E
 }
 
 } // namespace
+
+
+namespace { // anonymous
+// Helper function for World::getComparisonStats
+// Mirrors the logic of Map::hasMeshDifferencesForArea but operates on World and RoomIdSets directly.
+// Assumes area_name itself hasn't changed its string value if it's the same AreaInfo object.
+// The sets area_rooms_before and area_rooms_after must correspond to the 'area_name'.
+static bool hasMeshDifferencesForArea_WorldInternal(
+    const RoomArea& area_name, // area_name is mostly for context/debugging here if sets are pre-filtered
+    const World& world_before,
+    const World& world_after,
+    const RoomIdSet& area_rooms_before,
+    const RoomIdSet& area_rooms_after)
+{
+    // 1. Check for rooms added to or removed from the area_name by comparing the provided sets.
+    for (RoomId room_id : area_rooms_before) {
+        if (!area_rooms_after.contains(room_id)) {
+            return true; // Room was in this area before, but not anymore (either removed from world or area changed)
+        }
+    }
+    for (RoomId room_id : area_rooms_after) {
+        if (!area_rooms_before.contains(room_id)) {
+            return true; // Room is in this area now, but was not before (either new to world or area changed to this one)
+        }
+    }
+
+    // 2. Iterate rooms present in the area in world_after (and thus also in world_before if not caught above).
+    for (RoomId room_id : area_rooms_after) {
+        // If we reached here, room_id is in both area_rooms_after and area_rooms_before.
+        // This means the room is part of the area in both states.
+        // We still need to get the actual room objects to compare their mesh properties.
+        const RawRoom* room_after_ptr = world_after.getRoom(room_id);
+        const RawRoom* room_before_ptr = world_before.getRoom(room_id);
+
+        // These pointers should be valid if the room is in area_rooms_after/before
+        // and those sets are consistent with their respective worlds.
+        if (!room_after_ptr || !room_before_ptr) {
+            // This case implies an inconsistency if area_rooms sets were accurate,
+            // or the room was actually removed/added from the world, which should be caught by
+            // result.anyRoomsAdded/Removed and reflected in candidate_areas_to_check logic.
+            // If it's genuinely in one world's area set but not the world itself, that's a major issue.
+            // For safety, consider it a difference.
+            assert(false && "Room in area set but not in its world, or inconsistent sets passed to internal helper.");
+            return true; 
+        }
+        
+        // Compare RawRoom state using the global helper from MapWorldCompareDetail.h
+        if (map_compare_detail::hasMeshDifference(*room_before_ptr, *room_after_ptr)) {
+            return true;
+        }
+    }
+    return false;
+}
+} // anonymous namespace
+
 
 World World::copy() const
 {
@@ -2320,80 +2376,68 @@ bool World::containsRoomsNotIn(const World &other) const
     return getGlobalArea().roomSet.containsElementNotIn(other.getGlobalArea().roomSet);
 }
 
-namespace { // anonymous
-
-NODISCARD bool hasMeshDifference(const RawExit &a, const RawExit &b)
-{
-    // door name change is not a mesh difference
-    return a.fields.exitFlags != b.fields.exitFlags     //
-           || a.fields.doorFlags != b.fields.doorFlags; //
-}
-
-NODISCARD bool hasMeshDifference(const RawRoom::Exits &a, const RawRoom::Exits &b)
-{
-    for (auto dir : ALL_EXITS7) {
-        if (hasMeshDifference(a[dir], b[dir])) {
-            return true;
-        }
-    }
-    return false;
-}
-
-NODISCARD bool hasMeshDifference(const RoomFields &a, const RoomFields &b)
-{
-#define X_CASE(_Type, _Name, _Init) \
-    if ((a._Name) != (b._Name)) { \
-        return true; \
-    }
-    // NOTE: Purposely *NOT* doing "XFOREACH_ROOM_STRING_PROPERTY(X_CASE)"
-    XFOREACH_ROOM_FLAG_PROPERTY(X_CASE)
-    XFOREACH_ROOM_ENUM_PROPERTY(X_CASE)
-    return false;
-#undef X_CASE
-}
-
-NODISCARD bool hasMeshDifference(const RawRoom &a, const RawRoom &b)
-{
-    return a.position != b.position                 //
-           || hasMeshDifference(a.fields, b.fields) //
-           || hasMeshDifference(a.exits, b.exits);  //
-}
-
-// Only valid if one is immediately derived from the other.
-NODISCARD bool hasMeshDifference(const World &a, const World &b)
-{
-    for (const RoomId id : a.getRoomSet()) {
-        if (!b.hasRoom(id)) {
-            // technically we could return true here, but the function assumes that it won't be
-            // called if the worlds added or removed any rooms, so we only care about common rooms.
-            continue;
-        }
-        if (hasMeshDifference(deref(a.getRoom(id)), deref(b.getRoom(id)))) {
-            return true;
-        }
-    }
-    return false;
-}
-} // namespace
-
 // Only valid if one is immediately derived from the other.
 WorldComparisonStats World::getComparisonStats(const World &base, const World &modified)
 {
-    const auto anyRoomsAdded = modified.containsRoomsNotIn(base);
-    const auto anyRoomsRemoved = base.containsRoomsNotIn(modified);
-    const auto anyRoomsMoved = base.m_spatialDb != modified.m_spatialDb;
-
     WorldComparisonStats result;
+
+    result.anyRoomsAdded = modified.containsRoomsNotIn(base);
+    result.anyRoomsRemoved = base.containsRoomsNotIn(modified);
+    result.spatialDbChanged = base.m_spatialDb != modified.m_spatialDb; // Checks for moved rooms primarily
+
     result.boundsChanged = base.getBounds() != modified.getBounds();
-    result.anyRoomsRemoved = anyRoomsRemoved;
-    result.anyRoomsAdded = anyRoomsAdded;
-    result.spatialDbChanged = anyRoomsMoved;
     result.serverIdsChanged = base.m_serverIds != modified.m_serverIds;
     result.parseTreeChanged = base.m_parseTree != modified.m_parseTree;
-    result.hasMeshDifferences = anyRoomsAdded                         //
-                                || anyRoomsRemoved                    //
-                                || anyRoomsMoved                      //
-                                || hasMeshDifference(base, modified); //
+
+    std::set<RoomArea> candidate_areas_to_check;
+    RoomIdSet combined_room_ids = base.getRoomSet(); // Start with base rooms
+    for(RoomId id : modified.getRoomSet()){ // Add all rooms from modified
+        combined_room_ids.insert(id);
+    }
+
+    for (RoomId id : combined_room_ids) {
+        const RawRoom* r_base_ptr = base.getRoom(id);
+        const RawRoom* r_modified_ptr = modified.getRoom(id);
+
+        if (r_modified_ptr && !r_base_ptr) { // Room added to world
+            candidate_areas_to_check.insert(modified.getRoomArea(id));
+        } else if (r_base_ptr && !r_modified_ptr) { // Room removed from world
+            candidate_areas_to_check.insert(base.getRoomArea(id));
+        } else if (r_base_ptr && r_modified_ptr) { // Room exists in both worlds
+            if (map_compare_detail::hasMeshDifference(*r_base_ptr, *r_modified_ptr)) {
+                candidate_areas_to_check.insert(base.getRoomArea(id));
+                candidate_areas_to_check.insert(modified.getRoomArea(id)); // Area might have changed too
+            } else if (base.getRoomArea(id) != modified.getRoomArea(id)) { // Room changed area
+                candidate_areas_to_check.insert(base.getRoomArea(id));
+                candidate_areas_to_check.insert(modified.getRoomArea(id));
+            }
+        }
+    }
+
+    for (const RoomArea& area : candidate_areas_to_check) {
+        const RoomIdSet* rooms_in_area_before_ptr = base.findAreaRoomSet(area);
+        const RoomIdSet* rooms_in_area_after_ptr  = modified.findAreaRoomSet(area);
+
+        // Use empty set if area didn't exist, for hasMeshDifferencesForArea_WorldInternal
+        const RoomIdSet empty_set_for_logic; 
+        const RoomIdSet& rooms_before = rooms_in_area_before_ptr ? *rooms_in_area_before_ptr : empty_set_for_logic;
+        const RoomIdSet& rooms_after = rooms_in_area_after_ptr ? *rooms_in_area_after_ptr : empty_set_for_logic;
+
+        if (hasMeshDifferencesForArea_WorldInternal(area, base, modified, rooms_before, rooms_after)) {
+            result.visuallyDirtyAreas.insert(area);
+        }
+    }
+    
+    // The old global map_compare_detail::hasMeshDifference(base, modified) is now effectively
+    // replaced by the loop above that checks individual rooms and the area-based analysis.
+    // result.hasMeshDifferences should reflect if any visual change occurred.
+    result.hasMeshDifferences = result.anyRoomsAdded ||
+                                result.anyRoomsRemoved ||
+                                result.spatialDbChanged || // Moving a room is a mesh difference
+                                !result.visuallyDirtyAreas.empty();
 
     return result;
 }
+
+// The old anonymous namespace hasMeshDifference(const World&, const World&) is no longer needed
+// as its logic is incorporated into the new getComparisonStats.

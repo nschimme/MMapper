@@ -28,7 +28,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <stdexcept>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -74,6 +76,9 @@ MapCanvas::MapCanvas(MapData &mapData,
     setCursor(Qt::OpenHandCursor);
     grabGesture(Qt::PinchGesture);
     setContextMenuPolicy(Qt::CustomContextMenu);
+
+    // Connect to MapData's signal for area-specific remeshing
+    QObject::connect(&m_data, &MapData::needsAreaRemesh, this, &MapCanvas::slot_handleAreaRemesh);
 }
 
 MapCanvas::~MapCanvas()
@@ -271,7 +276,6 @@ void MapCanvas::wheelEvent(QWheelEvent *const event)
                 return true;
             };
 
-            // Change the zoom level
             const int numSteps = event->angleDelta().y() / 120;
             if (numSteps != 0) {
                 zoomAndMaybeRecenter(numSteps);
@@ -348,10 +352,113 @@ void MapCanvas::slot_createRoom()
     }
 
     if (m_data.createEmptyRoom(Coordinate{c.x, c.y, m_currentLayer})) {
-        // success
     } else {
-        // failed!
     }
+}
+
+void MapCanvas::processCompletedRemeshes()
+{
+    bool needs_repaint = false;
+
+    // 1. Process finished area remeshes
+    // The current loop structure is okay because RemeshCookie::get() resets the cookie's future,
+    // but doesn't remove the cookie itself from m_areaRemeshCookies, so direct iteration is safe.
+    for (auto it = m_batches.m_areaRemeshCookies.begin(); it != m_batches.m_areaRemeshCookies.end();
+         ++it) {
+        const RoomArea &areaKey = it->first; // Changed from std::string to RoomArea
+        RemeshCookie &cookie = it->second;
+
+        if (cookie.isPending() && cookie.isReady()) {
+            qInfo() << "MapCanvas: Remesh data ready for area:" << areaKey.toQString();
+            try {
+                SharedMapBatchFinisher finisher
+                    = cookie.get(); // Consumes the future's result and resets cookie
+                if (finisher) { // Check if finisher is valid (handles "not ignored" case from cookie.get())
+                    qInfo() << "MapCanvas: Finishing remesh for area:" << areaKey.toQString();
+                    MapBatches area_specific_map_batches;
+                    finisher->finish(area_specific_map_batches, m_opengl, m_glFont);
+                    m_batches.m_areaMapBatches[areaKey] = std::move(
+                        area_specific_map_batches); // Use areaKey
+                    needs_repaint = true;
+                } else {
+                    qWarning() << "MapCanvas: Finished remesh for area" << areaKey.toQString()
+                               << "yielded null finisher (likely ignored or error in task).";
+                    // Remove potentially stale batch data for this area if finisher is null
+                    m_batches.m_areaMapBatches.erase(areaKey); // Use areaKey
+                    needs_repaint = true; // Ensure repaint to clear old visuals if any
+                }
+            } catch (const std::exception &e) {
+                qCritical() << "MapCanvas: Exception while finishing remesh for area"
+                            << areaKey.toQString() << ":" << e.what();
+                // Remove potentially stale batch data on error
+                m_batches.m_areaMapBatches.erase(areaKey); // Use areaKey
+                needs_repaint = true;                      // Ensure repaint to clear old visuals
+            }
+            // Note: cookie.get() already calls cookie.reset(), so the cookie is now in a non-pending state.
+        }
+    }
+
+    if (needs_repaint) {
+        update();
+    }
+}
+
+void MapCanvas::slot_handleAreaRemesh(const std::set<RoomArea> &areas_input)
+{
+    if (!m_opengl.isRendererInitialized()) {
+        qWarning()
+            << "MapCanvas::slot_handleAreaRemesh: OpenGL renderer not initialized. Skipping remesh.";
+        return;
+    }
+
+    std::set<RoomArea> effective_areas;
+
+    if (areas_input.empty()) {
+        qInfo() << "MapCanvas::slot_handleAreaRemesh: Global remesh trigger received. Processing all known areas.";
+        // Collect all known area keys from existing cookies and batches
+        for (const auto &pair : m_batches.m_areaRemeshCookies) {
+            effective_areas.insert(pair.first); // pair.first is now RoomArea
+        }
+        for (const auto &pair : m_batches.m_areaMapBatches) {
+            effective_areas.insert(pair.first); // pair.first is now RoomArea
+        }
+        // Consider if there's a more direct way to get all area names from MapData if the above is insufficient.
+        // For now, this covers areas we are already tracking or have processed.
+        if (effective_areas.empty()) {
+            qInfo() << "MapCanvas::slot_handleAreaRemesh: Global remesh requested, but no known areas to process.";
+            // No areas known, so nothing to remesh. update() will be called at the end.
+            return;
+        }
+    } else {
+        qInfo() << "MapCanvas::slot_handleAreaRemesh: Per-area remesh requested for"
+                << areas_input.size() << "area(s).";
+        for (const RoomArea &area_obj : areas_input) {
+            effective_areas.insert(area_obj);
+        }
+    }
+
+    Map currentMap = m_data.getCurrentMap();
+
+    for (const RoomArea &areaKey : effective_areas) {
+        RemeshCookie &areaCookie
+            = m_batches.m_areaRemeshCookies[areaKey]; // Ensures cookie exists or is created
+
+        if (areaCookie.isPending()) {
+            qInfo() << "MapCanvas: Remesh for area" << areaKey.toQString()
+                    << "is already pending. Current changes will be processed in a subsequent remesh if necessary.";
+        } else {
+            qInfo() << "MapCanvas: Initiating new remesh for area:" << areaKey.toQString();
+            FutureSharedMapBatchFinisher futureFinisher
+                = ::generateMapDataFinisher(mctp::getProxy(m_textures),
+                                            currentMap,
+                                            std::optional<RoomArea>{areaKey}
+                                            // Pass RoomArea directly
+                );
+            areaCookie.set(std::move(futureFinisher));
+        }
+    }
+
+    update();
 }
 
 // REVISIT: This function doesn't need to return a shared ptr. Consider refactoring InfoMarkSelection?
@@ -427,12 +534,10 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
         return event->accept();
     } else if (!m_mouseLeftPressed && m_mouseRightPressed) {
         if (m_canvasMouseMode == CanvasMouseModeEnum::MOVE && hasSel1()) {
-            // Select the room under the cursor
             m_roomSelection = RoomSelection::createSelection(
                 m_data.findAllRooms(getSel1().getCoordinate()));
             slot_setRoomSelection(SigRoomSelection{m_roomSelection});
 
-            // Select infomarks under the cursor.
             slot_setInfoMarkSelection(getInfoMarkSelection(getSel1()));
 
             selectionChanged();
@@ -1026,11 +1131,10 @@ void MapCanvas::forceUpdateMeshes()
 
 void MapCanvas::slot_mapChanged()
 {
-    // REVISIT: Ideally we'd want to only update the layers/chunks
+    // REVISIT: Ideally we'd want to only update the specific areas/layers
     // that actually changed.
-    if ((false)) {
-        m_batches.mapBatches.reset();
-    }
+    // Currently, slot_handleAreaRemesh is used for specific area changes,
+    // and updateMapBatches() can trigger a global remesh if necessary.
     update();
 }
 

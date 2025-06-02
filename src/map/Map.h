@@ -17,6 +17,7 @@
 #include <memory>
 #include <optional>
 #include <ostream>
+#include <set>
 #include <vector>
 
 namespace mm {
@@ -162,6 +163,12 @@ public:
     void printChanges(mm::AbstractDebugOStream &os,
                       const std::vector<Change> &changes,
                       std::string_view sep) const;
+
+public:
+    // Checks if a specific room needs a mesh update between two world states.
+    static bool roomNeedsMeshUpdate(RoomId room_id,
+                                    const World &world_before,
+                                    const World &world_after);
 };
 
 struct NODISCARD MapApplyResult final
@@ -169,6 +176,7 @@ struct NODISCARD MapApplyResult final
     static inline constexpr auto ALL_ROOM_UPDATE_FLAGS = ~RoomUpdateFlags{};
     Map map;
     RoomUpdateFlags roomUpdateFlags = ALL_ROOM_UPDATE_FLAGS;
+    std::set<RoomArea> visuallyDirtyAreas;
 };
 
 struct NODISCARD MapPair final

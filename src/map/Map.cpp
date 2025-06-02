@@ -14,6 +14,7 @@
 #include "../global/tests.h"
 #include "Changes.h"
 #include "Diff.h"
+#include "MapWorldCompareDetail.h"
 #include "ParseTree.h"
 #include "RoomRecipient.h"
 #include "World.h"
@@ -220,30 +221,30 @@ NODISCARD static RoomUpdateFlags reportNeededUpdates(std::ostream &os,
     return result;
 }
 
-template<typename Callback>
-NODISCARD static MapApplyResult update(const std::shared_ptr<const World> &input,
-                                       ProgressCounter &pc,
-                                       Callback &&callback)
+NODISCARD static MapApplyResult update(
+    const std::shared_ptr<const World> &input,
+    ProgressCounter &pc,
+    const std::vector<Change> *changes_applied_ptr, // Can be nullptr
+    std::function<void(ProgressCounter &, World &)> callback)
 {
     static const bool verbose_debugging = IS_DEBUG_BUILD;
 
     using Clock = std::chrono::steady_clock;
-    // verify that callback signature is `void(World&)`.
-    static_assert(std::is_invocable_r_v<void, Callback, ProgressCounter &, World &>);
 
     const auto t0 = Clock::now();
 
-    const World &base = deref(input);
-    World modified = base.copy();
+    const World &base_world = deref(input);
+    World modified = base_world.copy();
 
     const auto t1 = Clock::now();
     callback(pc, modified);
     const auto t2 = Clock::now();
-    bool equal = base == modified;
+    bool equal = base_world == modified;
     const auto t3 = Clock::now();
 
     RoomUpdateFlags neededUpdates;
     std::ostringstream info_os;
+    std::set<RoomArea> current_dirty_areas;
 
     if (equal) {
         if (verbose_debugging) {
@@ -251,9 +252,21 @@ NODISCARD static MapApplyResult update(const std::shared_ptr<const World> &input
         }
     } else {
         try {
-            const auto stats = World::getComparisonStats(base, modified);
-            reportDetectedChanges(info_os, stats);
-            neededUpdates = reportNeededUpdates(info_os, stats);
+            const auto global_stats = World::getComparisonStats(base_world, modified);
+            reportDetectedChanges(info_os, global_stats);
+            neededUpdates = reportNeededUpdates(info_os, global_stats);
+
+            // The logic to determine candidate_areas_to_check locally has been removed.
+            // World::getComparisonStats (called above) now computes result.visuallyDirtyAreas,
+            // which is directly used below. This avoids redundant computation.
+            current_dirty_areas = global_stats.visuallyDirtyAreas; // Use the pre-calculated set.
+            if (!current_dirty_areas.empty()) {
+                info_os << "[update] Visually dirty areas identified by World::getComparisonStats:\n";
+                for (const RoomArea &area : current_dirty_areas) {
+                    info_os << "[update]   - " << area.getStdStringViewUtf8() << "\n";
+                }
+            }
+
         } catch (const std::exception &ex) {
             info_os << "[update] Changes detected, but an exception occurred while comparing: "
                     << ex.what() << ".\n";
@@ -272,10 +285,10 @@ NODISCARD static MapApplyResult update(const std::shared_ptr<const World> &input
                 debug_os << "[TIMER] [update] " << what << ": " << ms << " ms\n";
             }
         };
-        report("part0. modified = base.copy()", t0, t1);
+        report("part0. modified = base_world.copy()", t0, t1);
         report("part1. callback(modified)", t1, t2);
-        report("part2. base == modified", t2, t3);
-        report("part3. stats + report changes", t3, t4);
+        report("part2. base_world == modified", t2, t3);
+        report("part3. stats + report changes + dirty areas", t3, t4);
         report("part0 + part1 (required)", t0, t2);
         report("part2 + part3 (deferrable)", t2, t4);
         report("overall", t0, t4);
@@ -283,7 +296,7 @@ NODISCARD static MapApplyResult update(const std::shared_ptr<const World> &input
     }
 
     // only modify input if the callback succeeds
-    return MapApplyResult{Map{std::move(modified)}, neededUpdates};
+    return MapApplyResult{Map{std::move(modified)}, neededUpdates, current_dirty_areas};
 }
 
 MapApplyResult Map::applySingleChange(ProgressCounter &pc, const Change &change) const
@@ -291,13 +304,19 @@ MapApplyResult Map::applySingleChange(ProgressCounter &pc, const Change &change)
     {
         MMLOG() << "[map] Applying 1 change...\n";
     }
-    return update(m_world, pc, [&change](ProgressCounter &pc2, World &w) {
-        w.applyOne(pc2, change);
-    });
+    std::vector<Change> changes_vec = {change};
+    return update(m_world,
+                  pc,
+                  &changes_vec,
+                  [&change](ProgressCounter &pc2, World &w) { // Pass address of changes_vec
+                      w.applyOne(pc2, change);
+                  });
 }
 
 Map Map::filterBaseMap(ProgressCounter &pc) const
 {
+    // This will internally call the modified applySingleChange,
+    // so changes_applied_ptr will be handled.
     MapApplyResult mar = applySingleChange(pc, Change{world_change_types::GenerateBaseMap{}});
     return mar.map;
 }
@@ -312,13 +331,18 @@ MapApplyResult Map::apply(ProgressCounter &pc, const std::vector<Change> &change
         const auto count = changes.size();
         MMLOG() << "[map] Applying " << count << " change" << ((count == 1) ? "" : "s") << "...\n";
     }
-    return update(m_world, pc, [&changes](ProgressCounter &pc2, World &w) {
-        w.applyAll(pc2, changes);
-    });
+    return update(m_world,
+                  pc,
+                  &changes,
+                  [&changes](ProgressCounter &pc2, World &w) { // Pass address of changes
+                      w.applyAll(pc2, changes);
+                  });
 }
 
 MapApplyResult Map::apply(ProgressCounter &pc, const ChangeList &changeList) const
 {
+    // This will internally call the modified apply with std::vector<Change>,
+    // so changes_applied_ptr will be handled.
     return apply(pc, changeList.getChanges());
 }
 
@@ -1197,8 +1221,6 @@ void displayRoom(AnsiOstream &os, const RoomHandle &r, const RoomFieldFlags fiel
         os << "Error: Room does not exist.\n";
         return;
     }
-
-    // const Map &map = r.getMap();
 
     // TODO: convert to RawAnsi at config load time.
     static auto toRawAnsi = [](const QString &str) -> RawAnsi {

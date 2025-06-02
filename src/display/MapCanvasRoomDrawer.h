@@ -20,6 +20,7 @@
 
 #include <map>
 #include <optional>
+#include <set>
 #include <unordered_map>
 #include <vector>
 
@@ -49,11 +50,7 @@ private:
 public:
     // This means you've decided to load a completely new map, so you're not interested
     // in the results. It SHOULD NOT be used just because you got another mesh request.
-    void setIgnored()
-    {
-        //
-        m_ignored = true;
-    }
+    void setIgnored() { m_ignored = true; }
 
 public:
     NODISCARD bool isPending() const { return m_opt_future.has_value(); }
@@ -118,11 +115,17 @@ public:
     }
 };
 
+// #include <string> // No longer needed for map keys here, RoomArea is used. std::string might be used elsewhere.
+
 struct NODISCARD Batches final
 {
-    RemeshCookie remeshCookie;
-    std::optional<MapBatches> mapBatches;
+    // For per-area remeshing
+    std::map<RoomArea, RemeshCookie> m_areaRemeshCookies;
+    std::map<RoomArea, MapBatches> m_areaMapBatches;
+
+    // Infomarks are considered global for now
     std::optional<BatchedInfomarksMeshes> infomarksMeshes;
+
     struct NODISCARD FlashState final
     {
     private:
@@ -152,16 +155,28 @@ struct NODISCARD Batches final
     ~Batches() = default;
     DEFAULT_MOVES_DELETE_COPIES(Batches);
 
+    NODISCARD bool isPending() const
+    {
+        for (const auto &pair : m_areaRemeshCookies) {
+            if (pair.second.isPending()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     void resetExistingMeshesButKeepPendingRemesh()
     {
-        mapBatches.reset();
+        m_areaMapBatches.clear();
         infomarksMeshes.reset();
+        // Pending area remesh cookies (m_areaRemeshCookies) are NOT reset here.
     }
 
     void ignorePendingRemesh()
     {
-        //
-        remeshCookie.setIgnored();
+        for (auto &pair : m_areaRemeshCookies) {
+            pair.second.setIgnored();
+        }
     }
 
     void resetExistingMeshesAndIgnorePendingRemesh()
@@ -172,7 +187,9 @@ struct NODISCARD Batches final
 };
 
 NODISCARD FutureSharedMapBatchFinisher
-generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures, const Map &map);
+generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
+                        const Map &map,
+                        std::optional<RoomArea> areaKey = std::nullopt);
 
 extern void finish(const IMapBatchesFinisher &finisher,
                    std::optional<MapBatches> &batches,

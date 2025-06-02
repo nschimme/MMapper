@@ -169,7 +169,13 @@ void MapFrontend::lookingForRooms(RoomRecipient &recipient, const SigParseEvent 
         slot_createRoom(sigParseEvent, c);
     }
 
-    getCurrentMap().getRooms(recipient, event);
+    // getCurrentMap().getRooms(recipient, event); // Deprecated
+    RoomIdSet found_rooms = getCurrentMap().findAllRooms(event);
+    for (RoomId room_id : found_rooms) {
+        if (auto room_handle = getCurrentMap().findRoomHandle(room_id)) {
+            recipient.receiveRoom(room_handle);
+        }
+    }
 }
 
 void MapFrontend::lookingForRooms(RoomRecipient &recipient, const RoomId id)

@@ -17,6 +17,7 @@
 #include <memory>
 #include <optional>
 #include <ostream>
+#include <set>
 #include <thread>
 #include <vector>
 
@@ -33,6 +34,7 @@ struct NODISCARD WorldComparisonStats final
     bool serverIdsChanged = false;
 
     bool hasMeshDifferences = false;
+    std::set<RoomArea> visuallyDirtyAreas; // Added member
 };
 
 class NODISCARD World final

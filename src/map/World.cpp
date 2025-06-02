@@ -9,6 +9,7 @@
 #include "../global/progresscounter.h"
 #include "Diff.h"
 #include "MapConsistencyError.h"
+#include "MapWorldCompareDetail.h"
 #include "enums.h"
 #include "parseevent.h"
 #include "sanitizer.h"
@@ -144,7 +145,7 @@ void applyExitFlags(ExitFlags &exitFlags, const FlagModifyModeEnum mode, const E
     applyFlagChange(exitFlags, x, mode);
 }
 
-} // namespace
+} // anonymous namespace
 
 World World::copy() const
 {
@@ -607,7 +608,6 @@ void World::checkConsistency(ProgressCounter &counter) const
     auto checkServerId = [this](const RoomId id) {
         const ServerRoomId serverId = getServerId(id);
         if (serverId != INVALID_SERVER_ROOMID && !m_serverIds.contains(serverId)) {
-            // throw MapConsistencyError("...")
             qWarning() << "Room" << id.asUint32() << "server id" << serverId.asUint32()
                        << "does not map to a room.";
         }
@@ -1139,10 +1139,8 @@ void World::initRoom(const RawRoom &input)
     assert(id != INVALID_ROOMID);
     m_rooms.requireUninitialized(id);
 
-    /* copy the room data */
     setRoom_lowlevel(id, input);
 
-    /* now perform bookkeeping */
     {
         // REVISIT: should "upToDate" be automatic?
         const auto &areaName = input.getArea();
@@ -1267,10 +1265,9 @@ World World::init(ProgressCounter &counter, const std::vector<ExternalRawRoom> &
         counter.step();
     }
 
-    // if constexpr ((IS_DEBUG_BUILD))
     {
         DECL_TIMER(t5, "check-consistency");
-        counter.setNewTask(ProgressMsg{"checking map consistency" /*" [debug]"*/}, 1);
+        counter.setNewTask(ProgressMsg{"checking map consistency"}, 1);
         w.checkConsistency(counter);
         counter.step();
     }
@@ -1633,13 +1630,11 @@ void World::apply(ProgressCounter & /*pc*/, const room_change_types::Update &cha
 
 void World::apply(ProgressCounter & /*pc*/, const room_change_types::SetServerId &change)
 {
-    //
     setServerId(change.room, change.server_id);
 }
 
 void World::apply(ProgressCounter & /*pc*/, const room_change_types::MoveRelative &change)
 {
-    //
     moveRelative(change.room, change.offset);
 }
 
@@ -1651,7 +1646,6 @@ void World::apply(ProgressCounter & /*pc*/, const room_change_types::MoveRelativ
 
 void World::apply(ProgressCounter & /*pc*/, const room_change_types::MergeRelative &change)
 {
-    //
     mergeRelative(change.room, change.offset);
 }
 
@@ -1966,10 +1960,8 @@ void World::applyOne(ProgressCounter &pc, const Change &change)
         }
         MMLOG_INFO() << oss.str();
     }
-    change.acceptVisitor([this, &pc](const auto &specialized_change) {
-        //
-        this->apply(pc, specialized_change);
-    });
+    change.acceptVisitor(
+        [this, &pc](const auto &specialized_change) { this->apply(pc, specialized_change); });
     post_change_updates(pc);
 }
 
@@ -2320,80 +2312,56 @@ bool World::containsRoomsNotIn(const World &other) const
     return getGlobalArea().roomSet.containsElementNotIn(other.getGlobalArea().roomSet);
 }
 
-namespace { // anonymous
-
-NODISCARD bool hasMeshDifference(const RawExit &a, const RawExit &b)
-{
-    // door name change is not a mesh difference
-    return a.fields.exitFlags != b.fields.exitFlags     //
-           || a.fields.doorFlags != b.fields.doorFlags; //
-}
-
-NODISCARD bool hasMeshDifference(const RawRoom::Exits &a, const RawRoom::Exits &b)
-{
-    for (auto dir : ALL_EXITS7) {
-        if (hasMeshDifference(a[dir], b[dir])) {
-            return true;
-        }
-    }
-    return false;
-}
-
-NODISCARD bool hasMeshDifference(const RoomFields &a, const RoomFields &b)
-{
-#define X_CASE(_Type, _Name, _Init) \
-    if ((a._Name) != (b._Name)) { \
-        return true; \
-    }
-    // NOTE: Purposely *NOT* doing "XFOREACH_ROOM_STRING_PROPERTY(X_CASE)"
-    XFOREACH_ROOM_FLAG_PROPERTY(X_CASE)
-    XFOREACH_ROOM_ENUM_PROPERTY(X_CASE)
-    return false;
-#undef X_CASE
-}
-
-NODISCARD bool hasMeshDifference(const RawRoom &a, const RawRoom &b)
-{
-    return a.position != b.position                 //
-           || hasMeshDifference(a.fields, b.fields) //
-           || hasMeshDifference(a.exits, b.exits);  //
-}
-
-// Only valid if one is immediately derived from the other.
-NODISCARD bool hasMeshDifference(const World &a, const World &b)
-{
-    for (const RoomId id : a.getRoomSet()) {
-        if (!b.hasRoom(id)) {
-            // technically we could return true here, but the function assumes that it won't be
-            // called if the worlds added or removed any rooms, so we only care about common rooms.
-            continue;
-        }
-        if (hasMeshDifference(deref(a.getRoom(id)), deref(b.getRoom(id)))) {
-            return true;
-        }
-    }
-    return false;
-}
-} // namespace
-
 // Only valid if one is immediately derived from the other.
 WorldComparisonStats World::getComparisonStats(const World &base, const World &modified)
 {
-    const auto anyRoomsAdded = modified.containsRoomsNotIn(base);
-    const auto anyRoomsRemoved = base.containsRoomsNotIn(modified);
-    const auto anyRoomsMoved = base.m_spatialDb != modified.m_spatialDb;
-
     WorldComparisonStats result;
+
+    result.anyRoomsAdded = modified.containsRoomsNotIn(base);
+    result.anyRoomsRemoved = base.containsRoomsNotIn(modified);
+    result.spatialDbChanged = base.m_spatialDb
+                              != modified.m_spatialDb; // Checks for moved rooms primarily
+
     result.boundsChanged = base.getBounds() != modified.getBounds();
-    result.anyRoomsRemoved = anyRoomsRemoved;
-    result.anyRoomsAdded = anyRoomsAdded;
-    result.spatialDbChanged = anyRoomsMoved;
     result.serverIdsChanged = base.m_serverIds != modified.m_serverIds;
     result.parseTreeChanged = base.m_parseTree != modified.m_parseTree;
-    result.hasMeshDifferences = anyRoomsAdded                         //
-                                || anyRoomsRemoved                    //
-                                || anyRoomsMoved                      //
-                                || hasMeshDifference(base, modified); //
+
+    std::set<RoomArea> candidate_areas_to_check;
+    RoomIdSet combined_room_ids = base.getRoomSet();
+    for (RoomId id : modified.getRoomSet()) {
+        combined_room_ids.insert(id);
+    }
+
+    for (RoomId id : combined_room_ids) {
+        const RawRoom *r_base_ptr = base.getRoom(id);
+        const RawRoom *r_modified_ptr = modified.getRoom(id);
+
+        if (r_modified_ptr && !r_base_ptr) {
+            candidate_areas_to_check.insert(modified.getRoomArea(id));
+        } else if (r_base_ptr && !r_modified_ptr) {
+            candidate_areas_to_check.insert(base.getRoomArea(id));
+        } else if (r_base_ptr && r_modified_ptr) {
+            if (map_compare_detail::hasMeshDifference(*r_base_ptr, *r_modified_ptr)) {
+                candidate_areas_to_check.insert(base.getRoomArea(id));
+                candidate_areas_to_check.insert(
+                    modified.getRoomArea(id)); // Area might have changed too
+            } else if (base.getRoomArea(id) != modified.getRoomArea(id)) {
+                candidate_areas_to_check.insert(base.getRoomArea(id));
+                candidate_areas_to_check.insert(modified.getRoomArea(id));
+            }
+        }
+    }
+
+    // If an area is in candidate_areas_to_check, it means it's visually dirty.
+    // The conditions for adding to candidate_areas_to_check (room added/removed in area,
+    // room changed area, or room within area has mesh difference) inherently make the
+    // area visually dirty. The previous call to hasMeshDifferencesForArea_WorldInternal
+    // was redundant.
+    result.visuallyDirtyAreas = candidate_areas_to_check;
+
+    result.hasMeshDifferences = result.anyRoomsAdded || result.anyRoomsRemoved
+                                || result.spatialDbChanged || // Moving a room is a mesh difference
+                                !result.visuallyDirtyAreas.empty();
 
     return result;
 }

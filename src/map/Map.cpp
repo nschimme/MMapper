@@ -1217,30 +1217,6 @@ void Map::printChanges(mm::AbstractDebugOStream &os,
     os.writeUtf8(oss.str());
 }
 
-// bool Map::hasMeshDifferencesForArea(...) // Implementation removed
-
-bool Map::roomNeedsMeshUpdate(
-    RoomId room_id,
-    const World& world_before,
-    const World& world_after)
-{
-    const RawRoom* room_ptr_after = world_after.getRoom(room_id);
-    const RawRoom* room_ptr_before = world_before.getRoom(room_id);
-
-    if (room_ptr_after && !room_ptr_before) {
-        return true; // Room added
-    }
-    if (!room_ptr_after && room_ptr_before) {
-        return true; // Room removed
-    }
-    if (!room_ptr_after && !room_ptr_before) {
-        return false; // Room doesn't exist in either state
-    }
-
-    // Room exists in both states, compare them
-    return map_compare_detail::hasMeshDifference(*room_ptr_before, *room_ptr_after);
-}
-
 BasicDiffStats getBasicDiffStats(const Map &baseMap, const Map &modMap)
 {
     const auto &base = baseMap.getWorld();

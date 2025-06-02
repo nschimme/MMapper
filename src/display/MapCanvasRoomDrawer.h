@@ -127,10 +127,6 @@ struct NODISCARD Batches final
     std::map<std::string, RemeshCookie> m_areaRemeshCookies;
     std::map<std::string, MapBatches> m_areaMapBatches;
 
-    // For global map remeshing -> Will be handled by iterating all areas
-    // RemeshCookie m_globalRemeshCookie; // Removed
-    // std::optional<MapBatches> m_globalMapBatches; // Removed
-
     // Infomarks are considered global for now
     std::optional<BatchedInfomarksMeshes> infomarksMeshes;
 
@@ -176,9 +172,8 @@ struct NODISCARD Batches final
     void resetExistingMeshesButKeepPendingRemesh()
     {
         m_areaMapBatches.clear();
-        // m_globalMapBatches.reset(); // Removed
         infomarksMeshes.reset();
-        // Pending remesh cookies (m_areaRemeshCookies, m_globalRemeshCookie) are NOT reset here.
+        // Pending area remesh cookies (m_areaRemeshCookies) are NOT reset here.
     }
 
     void ignorePendingRemesh()
@@ -186,7 +181,6 @@ struct NODISCARD Batches final
         for (auto& pair : m_areaRemeshCookies) {
             pair.second.setIgnored();
         }
-        // m_globalRemeshCookie.setIgnored(); // Removed
     }
 
     void resetExistingMeshesAndIgnorePendingRemesh()

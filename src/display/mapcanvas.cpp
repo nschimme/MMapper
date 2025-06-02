@@ -363,9 +363,8 @@ void MapCanvas::processCompletedRemeshes() {
     bool needs_repaint = false;
 
     // 1. Process finished area remeshes
-    // Iterate over a copy of keys if worried about modification, or use careful iterator logic.
     // The current loop structure is okay because RemeshCookie::get() resets the cookie's future,
-    // but doesn't remove the cookie itself from m_areaRemeshCookies.
+    // but doesn't remove the cookie itself from m_areaRemeshCookies, so direct iteration is safe.
     for (auto it = m_batches.m_areaRemeshCookies.begin(); it != m_batches.m_areaRemeshCookies.end(); ++it) {
         const std::string& areaName = it->first;
         RemeshCookie& cookie = it->second;
@@ -423,8 +422,8 @@ void MapCanvas::slot_handleAreaRemesh(const std::set<RoomArea>& areas_input) {
         // For now, this covers areas we are already tracking or have processed.
         if (effective_areas_strings.empty()) {
             qInfo() << "MapCanvas::slot_handleAreaRemesh: Global remesh requested, but no known areas to process.";
-            // update(); // Call update even if no areas, to clear any visual state if necessary
-            return; // Potentially return early if no areas found, or proceed to ensure update() is called
+            // No areas known, so nothing to remesh. update() will be called at the end.
+            return;
         }
     } else {
         qInfo() << "MapCanvas::slot_handleAreaRemesh: Per-area remesh requested for" << areas_input.size() << "area(s).";
@@ -1126,11 +1125,10 @@ void MapCanvas::forceUpdateMeshes()
 
 void MapCanvas::slot_mapChanged()
 {
-    // REVISIT: Ideally we'd want to only update the layers/chunks
+    // REVISIT: Ideally we'd want to only update the specific areas/layers
     // that actually changed.
-    // The m_batches.mapBatches member is removed.
-    // If a full update is needed, updateMapBatches() will schedule it.
-    // If specific areas changed, slot_handleAreaRemesh would be called.
+    // Currently, slot_handleAreaRemesh is used for specific area changes,
+    // and updateMapBatches() can trigger a global remesh if necessary.
     update();
 }
 

@@ -1025,7 +1025,7 @@ void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) con
 // NOTE: All of the lamda captures are copied, including the texture data!
 FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
                                                      const Map &map,
-                                                     std::optional<RoomArea> areaKey = std::nullopt)
+                                                     std::optional<RoomArea> areaKey)
 {
     const auto visitRoomOptions = getVisitRoomOptions();
 

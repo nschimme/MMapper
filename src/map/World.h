@@ -10,7 +10,6 @@
 #include "ParseTree.h"
 #include "RawRooms.h"
 #include "Remapping.h"
-#include "RoomArea.h" // Required for RoomArea
 #include "ServerIdMap.h"
 #include "SpatialDb.h"
 #include "WorldAreaMap.h"
@@ -18,12 +17,11 @@
 #include <memory>
 #include <optional>
 #include <ostream>
-#include <set> // Required for std::set
+#include <set>
 #include <thread>
 #include <vector>
 
 class RawRooms;
-class RoomArea; // Forward declaration still okay if full def in RoomArea.h
 
 struct NODISCARD WorldComparisonStats final
 {

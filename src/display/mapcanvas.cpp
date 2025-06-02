@@ -369,22 +369,19 @@ void MapCanvas::processCompletedRemeshes()
         RemeshCookie &cookie = it->second;
 
         if (cookie.isPending() && cookie.isReady()) {
-            qInfo() << "MapCanvas: Remesh data ready for area:"
-                    << QString::fromUtf8(areaKey.getStdStringViewUtf8());
+            qInfo() << "MapCanvas: Remesh data ready for area:" << areaKey.toQString();
             try {
                 SharedMapBatchFinisher finisher
                     = cookie.get(); // Consumes the future's result and resets cookie
                 if (finisher) { // Check if finisher is valid (handles "not ignored" case from cookie.get())
-                    qInfo() << "MapCanvas: Finishing remesh for area:"
-                            << QString::fromUtf8(areaKey.getStdStringViewUtf8());
+                    qInfo() << "MapCanvas: Finishing remesh for area:" << areaKey.toQString();
                     MapBatches area_specific_map_batches;
                     finisher->finish(area_specific_map_batches, m_opengl, m_glFont);
                     m_batches.m_areaMapBatches[areaKey] = std::move(
                         area_specific_map_batches); // Use areaKey
                     needs_repaint = true;
                 } else {
-                    qWarning() << "MapCanvas: Finished remesh for area"
-                               << QString::fromUtf8(areaKey.getStdStringViewUtf8())
+                    qWarning() << "MapCanvas: Finished remesh for area" << areaKey.toQString()
                                << "yielded null finisher (likely ignored or error in task).";
                     // Remove potentially stale batch data for this area if finisher is null
                     m_batches.m_areaMapBatches.erase(areaKey); // Use areaKey
@@ -392,7 +389,7 @@ void MapCanvas::processCompletedRemeshes()
                 }
             } catch (const std::exception &e) {
                 qCritical() << "MapCanvas: Exception while finishing remesh for area"
-                            << QString::fromUtf8(areaKey.getStdStringViewUtf8()) << ":" << e.what();
+                            << areaKey.toQString() << ":" << e.what();
                 // Remove potentially stale batch data on error
                 m_batches.m_areaMapBatches.erase(areaKey); // Use areaKey
                 needs_repaint = true;                      // Ensure repaint to clear old visuals
@@ -447,12 +444,10 @@ void MapCanvas::slot_handleAreaRemesh(const std::set<RoomArea> &areas_input)
             = m_batches.m_areaRemeshCookies[areaKey]; // Ensures cookie exists or is created
 
         if (areaCookie.isPending()) {
-            qInfo()
-                << "MapCanvas: Remesh for area" << QString::fromUtf8(areaKey.getStdStringViewUtf8())
-                << "is already pending. Current changes will be processed in a subsequent remesh if necessary.";
+            qInfo() << "MapCanvas: Remesh for area" << areaKey.toQString()
+                    << "is already pending. Current changes will be processed in a subsequent remesh if necessary.";
         } else {
-            qInfo() << "MapCanvas: Initiating new remesh for area:"
-                    << QString::fromUtf8(areaKey.getStdStringViewUtf8());
+            qInfo() << "MapCanvas: Initiating new remesh for area:" << areaKey.toQString();
             FutureSharedMapBatchFinisher futureFinisher
                 = ::generateMapDataFinisher(mctp::getProxy(m_textures),
                                             currentMap,

@@ -6,7 +6,6 @@
 #include "DoorFlags.h"
 #include "ExitDirection.h"
 #include "RawRoom.h"
-#include "RoomArea.h" // Added for RoomArea
 #include "RoomFieldVariant.h"
 #include "RoomIdSet.h"
 #include "coordinate.h"
@@ -18,7 +17,7 @@
 #include <memory>
 #include <optional>
 #include <ostream>
-#include <set> // Added for std::set
+#include <set>
 #include <vector>
 
 namespace mm {
@@ -28,7 +27,6 @@ class AnsiOstream;
 class Change;
 class ChangeList;
 class ProgressCounter;
-class RoomArea; // Forward declaration
 class RoomHandle;
 class RoomRecipient;
 class World;

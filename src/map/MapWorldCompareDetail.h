@@ -1,7 +1,9 @@
 #ifndef MAP_WORLD_COMPARE_DETAIL_H
 #define MAP_WORLD_COMPARE_DETAIL_H
 
-#include "src/map/RoomDb.h"
+#include "RawExit.h"
+#include "RawRoom.h"
+#include "RoomFields.h"
 
 namespace map_compare_detail {
 
@@ -38,8 +40,8 @@ inline bool hasMeshDifference(const RawRoom::Exits &a, const RawRoom::Exits &b)
     if (a.size() != b.size()) {
         return true;
     }
-    for (size_t i = 0; i < a.size(); ++i) {
-        if (hasMeshDifference(a[i], b[i])) {
+    for (const auto dir : ALL_EXITS7) {
+        if (hasMeshDifference(a[dir], b[dir])) {
             return true;
         }
     }
@@ -49,19 +51,16 @@ inline bool hasMeshDifference(const RawRoom::Exits &a, const RawRoom::Exits &b)
 inline bool hasMeshDifference(const RoomFields &a, const RoomFields &b)
 {
     // Compare relevant members of RoomFields that affect mesh generation
-    return a.m_terrain_style != b.m_terrain_style || a.m_floor_style != b.m_floor_style
-           || a.m_ceiling_style != b.m_ceiling_style || a.m_wall_style != b.m_wall_style
-           || a.m_room_shape != b.m_room_shape || a.m_room_flags != b.m_room_flags
-           || // Some flags might affect mesh
-           a.m_room_visual_flags != b.m_room_visual_flags;
+    return a.TerrainType != b.TerrainType || a.LoadFlags != b.LoadFlags;
 }
 
 inline bool hasMeshDifference(const RawRoom &a, const RawRoom &b)
 {
-    if (hasMeshDifference(static_cast<const RoomFields &>(a), static_cast<const RoomFields &>(b))) {
+    if (hasMeshDifference(static_cast<const RoomFields &>(a.fields),
+                          static_cast<const RoomFields &>(b.fields))) {
         return true;
     }
-    if (hasMeshDifference(a.m_exits, b.m_exits)) {
+    if (hasMeshDifference(a.exits, b.exits)) {
         return true;
     }
     // Compare other RawRoom specific members if they affect mesh

@@ -568,7 +568,7 @@ void MapCanvas::finishPendingMapBatches()
     bool anyAreaCookieWasPending = false;
     for (auto it = m_batches.m_areaRemeshCookies.begin(); it != m_batches.m_areaRemeshCookies.end();
          /* manual increment below */) {
-        const std::string &areaName = it->first;
+        const RoomArea &areaKey = it->first;
         RemeshCookie &cookie = it->second;
         if (cookie.isPending())
             anyAreaCookieWasPending = true;
@@ -576,8 +576,7 @@ void MapCanvas::finishPendingMapBatches()
         if (cookie.isPending() && cookie.isReady()) {
             SharedMapBatchFinisher areaFinisher = cookie.get();
             if (areaFinisher) {
-                qInfo() << "MapCanvas: Finishing map batch for area:"
-                        << QString::fromStdString(areaName);
+                qInfo() << "MapCanvas: Finishing map batch for area:" << areaKey.toQString();
 
                 // Global map batches are removed, so no need to check/reset them.
 
@@ -585,16 +584,16 @@ void MapCanvas::finishPendingMapBatches()
                 ::finish(*areaFinisher, tempTargetBatch, getOpenGL(), getGLFont());
 
                 if (tempTargetBatch.has_value()) {
-                    m_batches.m_areaMapBatches[areaName] = std::move(*tempTargetBatch);
+                    m_batches.m_areaMapBatches[areaKey] = std::move(*tempTargetBatch);
                 } else {
-                    m_batches.m_areaMapBatches.erase(areaName);
-                    qWarning() << "MapCanvas: Area remesh finisher for area"
-                               << QString::fromStdString(areaName) << "resulted in no batches.";
+                    m_batches.m_areaMapBatches.erase(areaKey);
+                    qWarning() << "MapCanvas: Area remesh finisher for area" << areaKey.toQString()
+                               << "resulted in no batches.";
                 }
                 needsUiUpdate = true;
             } else {
-                qWarning() << "MapCanvas: Area remesh finisher for area"
-                           << QString::fromStdString(areaName) << "was invalid after get().";
+                qWarning() << "MapCanvas: Area remesh finisher for area" << areaKey.toQString()
+                           << "was invalid after get().";
             }
             // Cookie is reset by .get(), if it's erasable, it will be done by iterating or other logic.
             // For now, let's assume if it's processed, it can be removed.
@@ -1038,7 +1037,7 @@ void MapCanvas::renderMapBatches()
     // Lambda to render a single MapBatches object (either global or an area)
     auto renderSingleMapBatch =
         [&](const MapBatches &currentMapBatches,
-            const std::string &areaNameHint = "") { // Added areaNameHint for logging
+            const RoomArea &areaKeyHint) { // Changed parameter type to RoomArea
             const auto wantExtraDetail = totalScaleFactor >= settings.extraDetailScaleCutoff;
             const auto wantDoorNames = settings.drawDoorNames
                                        && (totalScaleFactor >= settings.doorNameScaleCutoff);
@@ -1108,7 +1107,7 @@ void MapCanvas::renderMapBatches()
     // Global map batches are removed. Iterate directly over area map batches.
     if (!m_batches.m_areaMapBatches.empty()) {
         for (const auto &pair : m_batches.m_areaMapBatches) {
-            renderSingleMapBatch(pair.second, pair.first); // Pass area name for context if needed
+            renderSingleMapBatch(pair.second, pair.first); // Pass area key for context
             // Note: If areas overlap, they will draw over each other here.
             // Proper blending or Z-ordering might be needed if overlap is common and problematic.
         }

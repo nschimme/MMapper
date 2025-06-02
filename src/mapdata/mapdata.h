@@ -77,10 +77,10 @@ public:
     // REVISIT: convert to template, or functionref after it compiles everywhere?
     void applyChangesToList(const RoomSelection &sel,
                             const std::function<Change(const RawRoom &)> &callback);
-    
+
     // This method is specific to MapData or hides the MapFrontend's non-virtual one.
     // Ensure it returns bool as expected by callers that were previously using MapFrontend's version.
-    bool applyChanges(const ChangeList &changes); 
+    bool applyChanges(const ChangeList &changes);
 
     NODISCARD std::optional<RoomId> getCurrentRoomId() const { return m_selectedRoom; }
 

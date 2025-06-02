@@ -13,8 +13,6 @@
 #include <QTextEdit>
 #include <QWidget>
 
-#include <map>
-
 class NODISCARD_QOBJECT DescriptionWidget final : public QWidget
 {
     Q_OBJECT

@@ -222,10 +222,10 @@ NODISCARD static RoomUpdateFlags reportNeededUpdates(std::ostream &os,
 }
 
 NODISCARD static MapApplyResult update(
-    const std::shared_ptr<const World>& input,
-    ProgressCounter& pc,
-    const std::vector<Change>* changes_applied_ptr, // Can be nullptr
-    std::function<void(ProgressCounter&, World&)> callback)
+    const std::shared_ptr<const World> &input,
+    ProgressCounter &pc,
+    const std::vector<Change> *changes_applied_ptr, // Can be nullptr
+    std::function<void(ProgressCounter &, World &)> callback)
 {
     static const bool verbose_debugging = IS_DEBUG_BUILD;
 
@@ -261,10 +261,10 @@ NODISCARD static MapApplyResult update(
             // which is directly used below. This avoids redundant computation.
             current_dirty_areas = global_stats.visuallyDirtyAreas; // Use the pre-calculated set.
             if (!current_dirty_areas.empty()) {
-                 info_os << "[update] Visually dirty areas identified by World::getComparisonStats:\n";
-                 for (const RoomArea& area : current_dirty_areas) {
-                     info_os << "[update]   - " << area.getStdStringViewUtf8() << "\n";
-                 }
+                info_os << "[update] Visually dirty areas identified by World::getComparisonStats:\n";
+                for (const RoomArea &area : current_dirty_areas) {
+                    info_os << "[update]   - " << area.getStdStringViewUtf8() << "\n";
+                }
             }
 
         } catch (const std::exception &ex) {
@@ -305,9 +305,12 @@ MapApplyResult Map::applySingleChange(ProgressCounter &pc, const Change &change)
         MMLOG() << "[map] Applying 1 change...\n";
     }
     std::vector<Change> changes_vec = {change};
-    return update(m_world, pc, &changes_vec, [&change](ProgressCounter &pc2, World &w) { // Pass address of changes_vec
-        w.applyOne(pc2, change);
-    });
+    return update(m_world,
+                  pc,
+                  &changes_vec,
+                  [&change](ProgressCounter &pc2, World &w) { // Pass address of changes_vec
+                      w.applyOne(pc2, change);
+                  });
 }
 
 Map Map::filterBaseMap(ProgressCounter &pc) const
@@ -328,9 +331,12 @@ MapApplyResult Map::apply(ProgressCounter &pc, const std::vector<Change> &change
         const auto count = changes.size();
         MMLOG() << "[map] Applying " << count << " change" << ((count == 1) ? "" : "s") << "...\n";
     }
-    return update(m_world, pc, &changes, [&changes](ProgressCounter &pc2, World &w) { // Pass address of changes
-        w.applyAll(pc2, changes);
-    });
+    return update(m_world,
+                  pc,
+                  &changes,
+                  [&changes](ProgressCounter &pc2, World &w) { // Pass address of changes
+                      w.applyAll(pc2, changes);
+                  });
 }
 
 MapApplyResult Map::apply(ProgressCounter &pc, const ChangeList &changeList) const

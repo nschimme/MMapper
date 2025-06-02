@@ -5,7 +5,8 @@
 
 namespace map_compare_detail {
 
-inline bool hasMeshDifference(const RawExit &a, const RawExit &b) {
+inline bool hasMeshDifference(const RawExit &a, const RawExit &b)
+{
     // Compare relevant members of RawExit that affect mesh generation
     if (a.fields.exitFlags != b.fields.exitFlags) {
         return true;
@@ -32,7 +33,8 @@ inline bool hasMeshDifference(const RawExit &a, const RawExit &b) {
     return false;
 }
 
-inline bool hasMeshDifference(const RawRoom::Exits &a, const RawRoom::Exits &b) {
+inline bool hasMeshDifference(const RawRoom::Exits &a, const RawRoom::Exits &b)
+{
     if (a.size() != b.size()) {
         return true;
     }
@@ -44,18 +46,18 @@ inline bool hasMeshDifference(const RawRoom::Exits &a, const RawRoom::Exits &b) 
     return false;
 }
 
-inline bool hasMeshDifference(const RoomFields &a, const RoomFields &b) {
+inline bool hasMeshDifference(const RoomFields &a, const RoomFields &b)
+{
     // Compare relevant members of RoomFields that affect mesh generation
-    return a.m_terrain_style != b.m_terrain_style ||
-           a.m_floor_style != b.m_floor_style ||
-           a.m_ceiling_style != b.m_ceiling_style ||
-           a.m_wall_style != b.m_wall_style ||
-           a.m_room_shape != b.m_room_shape ||
-           a.m_room_flags != b.m_room_flags || // Some flags might affect mesh
+    return a.m_terrain_style != b.m_terrain_style || a.m_floor_style != b.m_floor_style
+           || a.m_ceiling_style != b.m_ceiling_style || a.m_wall_style != b.m_wall_style
+           || a.m_room_shape != b.m_room_shape || a.m_room_flags != b.m_room_flags
+           || // Some flags might affect mesh
            a.m_room_visual_flags != b.m_room_visual_flags;
 }
 
-inline bool hasMeshDifference(const RawRoom &a, const RawRoom &b) {
+inline bool hasMeshDifference(const RawRoom &a, const RawRoom &b)
+{
     if (hasMeshDifference(static_cast<const RoomFields &>(a), static_cast<const RoomFields &>(b))) {
         return true;
     }

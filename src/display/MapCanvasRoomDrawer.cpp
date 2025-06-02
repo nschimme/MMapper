@@ -1023,48 +1023,46 @@ void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) con
 }
 
 // NOTE: All of the lamda captures are copied, including the texture data!
-FutureSharedMapBatchFinisher
-generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
-                        const Map &map,
-                        std::optional<RoomArea> areaKey = std::nullopt)
+FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
+                                                     const Map &map,
+                                                     std::optional<RoomArea> areaKey = std::nullopt)
 {
     const auto visitRoomOptions = getVisitRoomOptions();
 
-    return std::async(
-        std::launch::async,
-        [textures, map, visitRoomOptions, areaKey]() -> SharedMapBatchFinisher {
-            ThreadLocalNamedColorRaii tlRaii{visitRoomOptions.canvasColors,
-                                             visitRoomOptions.colorSettings};
-            DECL_TIMER(t, "[ASYNC] generateAllLayerMeshes");
+    return std::async(std::launch::async,
+                      [textures, map, visitRoomOptions, areaKey]() -> SharedMapBatchFinisher {
+                          ThreadLocalNamedColorRaii tlRaii{visitRoomOptions.canvasColors,
+                                                           visitRoomOptions.colorSettings};
+                          DECL_TIMER(t, "[ASYNC] generateAllLayerMeshes");
 
-            LayerToRooms layerToRooms;
-            if (areaKey.has_value()) {
-                DECL_TIMER(t2, "[ASYNC] generateBatches.areaLayerToRooms");
-                LayerToRooms areaLayerToRooms;
-                for (const RoomId id : map.getRooms()) {
-                    const auto &r = map.getRoomHandle(id);
-                    if (r.getArea() == areaKey.value()) { // Direct RoomArea comparison
-                        const auto z = r.getPosition().z;
-                        auto &layer = areaLayerToRooms[z];
-                        layer.emplace_back(r);
-                    }
-                }
-                layerToRooms = std::move(areaLayerToRooms);
-            } else {
-                DECL_TIMER(t2, "[ASYNC] generateBatches.layerToRooms");
-                for (const RoomId id : map.getRooms()) {
-                    const auto &r = map.getRoomHandle(id);
-                    const auto z = r.getPosition().z;
-                    auto &layer = layerToRooms[z];
-                    layer.emplace_back(r);
-                }
-            }
+                          LayerToRooms layerToRooms;
+                          if (areaKey.has_value()) {
+                              DECL_TIMER(t2, "[ASYNC] generateBatches.areaLayerToRooms");
+                              LayerToRooms areaLayerToRooms;
+                              for (const RoomId id : map.getRooms()) {
+                                  const auto &r = map.getRoomHandle(id);
+                                  if (r.getArea() == areaKey.value()) { // Direct RoomArea comparison
+                                      const auto z = r.getPosition().z;
+                                      auto &layer = areaLayerToRooms[z];
+                                      layer.emplace_back(r);
+                                  }
+                              }
+                              layerToRooms = std::move(areaLayerToRooms);
+                          } else {
+                              DECL_TIMER(t2, "[ASYNC] generateBatches.layerToRooms");
+                              for (const RoomId id : map.getRooms()) {
+                                  const auto &r = map.getRoomHandle(id);
+                                  const auto z = r.getPosition().z;
+                                  auto &layer = layerToRooms[z];
+                                  layer.emplace_back(r);
+                              }
+                          }
 
-            auto result = std::make_shared<InternalData>();
-            auto &data = deref(result);
-            generateAllLayerMeshes(data, layerToRooms, textures, visitRoomOptions);
-            return SharedMapBatchFinisher{result};
-        });
+                          auto result = std::make_shared<InternalData>();
+                          auto &data = deref(result);
+                          generateAllLayerMeshes(data, layerToRooms, textures, visitRoomOptions);
+                          return SharedMapBatchFinisher{result};
+                      });
 }
 
 void finish(const IMapBatchesFinisher &finisher,

@@ -13,22 +13,22 @@
 #include "../global/logging.h"
 #include "../global/progresscounter.h"
 #include "../global/utils.h"
+#include "../map/AbstractChangeVisitor.h"
+#include "../map/ChangeTypes.h" // For XFOREACH_WORLD_CHANGE (and XFOREACH_WORLD_CHANGE_TYPES)
 #include "../map/CommandId.h"
 #include "../map/ExitDirection.h"
 #include "../map/ExitFieldVariant.h"
 #include "../map/RawRoom.h"
+#include "../map/RawRoom.h" // For change.data in RemoveRoom
 #include "../map/RoomRecipient.h"
 #include "../map/World.h"
 #include "../map/coordinate.h"
 #include "../map/exit.h"
+#include "../map/exit.h" // For RawExit in RemoveRoom
 #include "../map/infomark.h"
 #include "../map/mmapper2room.h"
 #include "../map/room.h"
 #include "../map/roomid.h"
-#include "../map/RawRoom.h" // For change.data in RemoveRoom
-#include "../map/exit.h"   // For RawExit in RemoveRoom
-#include "../map/AbstractChangeVisitor.h"
-#include "../map/ChangeTypes.h" // For XFOREACH_WORLD_CHANGE (and XFOREACH_WORLD_CHANGE_TYPES)
 // #include "../map/world_change_types.h" // Removed, functionality assumed in ChangeTypes.h
 #include "../mapfrontend/mapfrontend.h"
 #include "../mapstorage/RawMapData.h"
@@ -47,6 +47,7 @@
 #include <ostream>
 #include <set>
 #include <sstream>
+#include <string_view> // For std::less<RoomArea>
 #include <tuple>
 #include <variant> // Added for std::visit and std::variant
 #include <vector>
@@ -54,7 +55,6 @@
 #include <QApplication>
 #include <QList>
 #include <QString>
-#include <string_view> // For std::less<RoomArea>
 
 // Custom std::less specialization for RoomArea - Commented out due to redefinition error
 // namespace std {
@@ -203,12 +203,12 @@ bool MapData::applyChanges(const ChangeList &changes)
 
     ProgressCounter pc; // Assuming a default ProgressCounter is okay here.
     MapApplyResult result = MapFrontend::getCurrentMap().apply(pc, changes);
-    
+
     // Update the internal map state
     MapFrontend::setCurrentMap(result.map); // Assuming MapFrontend has a method to set the map
 
     // Handle visually dirty areas
-    const auto& dirty_areas = result.visuallyDirtyAreas;
+    const auto &dirty_areas = result.visuallyDirtyAreas;
     bool specific_areas_handled = false;
     if (!dirty_areas.empty()) {
         // MMLOG_DEBUG() << "MapData::applyChanges emitting needsAreaRemesh for specific areas.";
@@ -218,8 +218,10 @@ bool MapData::applyChanges(const ChangeList &changes)
 
     // Handle global RoomMeshNeedsUpdate if no specific areas were handled
     // and the global flag is set.
-    if (result.roomUpdateFlags.contains(RoomUpdateEnum::RoomMeshNeedsUpdate) && !specific_areas_handled) {
-        MMLOG_INFO() << "MapData::applyChanges: Global RoomMeshNeedsUpdate flag set, but no specific dirty areas were identified. This might indicate a need for a global remesh or further investigation.";
+    if (result.roomUpdateFlags.contains(RoomUpdateEnum::RoomMeshNeedsUpdate)
+        && !specific_areas_handled) {
+        MMLOG_INFO()
+            << "MapData::applyChanges: Global RoomMeshNeedsUpdate flag set, but no specific dirty areas were identified. This might indicate a need for a global remesh or further investigation.";
         // To trigger a "global" remesh via the existing signal, we can emit it with an empty set,
         // and the receiver can interpret an empty set as "remesh everything".
         // Or, if there's a dedicated global remesh signal, emit that.
@@ -243,9 +245,8 @@ bool MapData::applyChanges(const ChangeList &changes)
     // The success of applying changes is implicitly handled by not throwing exceptions.
     // The MapApplyResult itself doesn't carry a success/failure bool for the operation itself,
     // rather it carries the new map state and flags about what changed.
-    return true; 
+    return true;
 }
-
 
 bool MapData::removeMarker(const InfomarkId id)
 {
@@ -489,7 +490,7 @@ void MapData::slot_scheduleAction(const SigMapChangeList &change)
 //         actual_change.acceptVisitor(visitorLambda);
 
 //         if (globalRemeshNeeded) {
-//             break; 
+//             break;
 //         }
 //     }
 

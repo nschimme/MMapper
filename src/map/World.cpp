@@ -147,7 +147,6 @@ void applyExitFlags(ExitFlags &exitFlags, const FlagModifyModeEnum mode, const E
 
 } // anonymous namespace
 
-
 World World::copy() const
 {
     DECL_TIMER(t, "World::copy");
@@ -1961,9 +1960,8 @@ void World::applyOne(ProgressCounter &pc, const Change &change)
         }
         MMLOG_INFO() << oss.str();
     }
-    change.acceptVisitor([this, &pc](const auto &specialized_change) {
-        this->apply(pc, specialized_change);
-    });
+    change.acceptVisitor(
+        [this, &pc](const auto &specialized_change) { this->apply(pc, specialized_change); });
     post_change_updates(pc);
 }
 
@@ -2321,7 +2319,8 @@ WorldComparisonStats World::getComparisonStats(const World &base, const World &m
 
     result.anyRoomsAdded = modified.containsRoomsNotIn(base);
     result.anyRoomsRemoved = base.containsRoomsNotIn(modified);
-    result.spatialDbChanged = base.m_spatialDb != modified.m_spatialDb; // Checks for moved rooms primarily
+    result.spatialDbChanged = base.m_spatialDb
+                              != modified.m_spatialDb; // Checks for moved rooms primarily
 
     result.boundsChanged = base.getBounds() != modified.getBounds();
     result.serverIdsChanged = base.m_serverIds != modified.m_serverIds;
@@ -2329,13 +2328,13 @@ WorldComparisonStats World::getComparisonStats(const World &base, const World &m
 
     std::set<RoomArea> candidate_areas_to_check;
     RoomIdSet combined_room_ids = base.getRoomSet();
-    for(RoomId id : modified.getRoomSet()){
+    for (RoomId id : modified.getRoomSet()) {
         combined_room_ids.insert(id);
     }
 
     for (RoomId id : combined_room_ids) {
-        const RawRoom* r_base_ptr = base.getRoom(id);
-        const RawRoom* r_modified_ptr = modified.getRoom(id);
+        const RawRoom *r_base_ptr = base.getRoom(id);
+        const RawRoom *r_modified_ptr = modified.getRoom(id);
 
         if (r_modified_ptr && !r_base_ptr) {
             candidate_areas_to_check.insert(modified.getRoomArea(id));
@@ -2344,7 +2343,8 @@ WorldComparisonStats World::getComparisonStats(const World &base, const World &m
         } else if (r_base_ptr && r_modified_ptr) {
             if (map_compare_detail::hasMeshDifference(*r_base_ptr, *r_modified_ptr)) {
                 candidate_areas_to_check.insert(base.getRoomArea(id));
-                candidate_areas_to_check.insert(modified.getRoomArea(id)); // Area might have changed too
+                candidate_areas_to_check.insert(
+                    modified.getRoomArea(id)); // Area might have changed too
             } else if (base.getRoomArea(id) != modified.getRoomArea(id)) {
                 candidate_areas_to_check.insert(base.getRoomArea(id));
                 candidate_areas_to_check.insert(modified.getRoomArea(id));
@@ -2358,10 +2358,9 @@ WorldComparisonStats World::getComparisonStats(const World &base, const World &m
     // area visually dirty. The previous call to hasMeshDifferencesForArea_WorldInternal
     // was redundant.
     result.visuallyDirtyAreas = candidate_areas_to_check;
-    
-    result.hasMeshDifferences = result.anyRoomsAdded ||
-                                result.anyRoomsRemoved ||
-                                result.spatialDbChanged || // Moving a room is a mesh difference
+
+    result.hasMeshDifferences = result.anyRoomsAdded || result.anyRoomsRemoved
+                                || result.spatialDbChanged || // Moving a room is a mesh difference
                                 !result.visuallyDirtyAreas.empty();
 
     return result;

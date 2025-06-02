@@ -50,10 +50,7 @@ private:
 public:
     // This means you've decided to load a completely new map, so you're not interested
     // in the results. It SHOULD NOT be used just because you got another mesh request.
-    void setIgnored()
-    {
-        m_ignored = true;
-    }
+    void setIgnored() { m_ignored = true; }
 
 public:
     NODISCARD bool isPending() const { return m_opt_future.has_value(); }
@@ -160,7 +157,7 @@ struct NODISCARD Batches final
 
     NODISCARD bool isPending() const
     {
-        for (const auto& pair : m_areaRemeshCookies) {
+        for (const auto &pair : m_areaRemeshCookies) {
             if (pair.second.isPending()) {
                 return true;
             }
@@ -177,7 +174,7 @@ struct NODISCARD Batches final
 
     void ignorePendingRemesh()
     {
-        for (auto& pair : m_areaRemeshCookies) {
+        for (auto &pair : m_areaRemeshCookies) {
             pair.second.setIgnored();
         }
     }

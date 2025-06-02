@@ -6,6 +6,7 @@
 #include "DoorFlags.h"
 #include "ExitDirection.h"
 #include "RawRoom.h"
+#include "RoomArea.h" // Added for RoomArea
 #include "RoomFieldVariant.h"
 #include "RoomIdSet.h"
 #include "coordinate.h"
@@ -13,7 +14,6 @@
 #include "parseevent.h"
 #include "room.h"
 #include "roomid.h"
-#include "RoomArea.h" // Added for RoomArea
 
 #include <memory>
 #include <optional>
@@ -168,11 +168,9 @@ public:
 
 public:
     // Checks if a specific room needs a mesh update between two world states.
-    static bool roomNeedsMeshUpdate(
-        RoomId room_id,
-        const World& world_before,
-        const World& world_after
-    );
+    static bool roomNeedsMeshUpdate(RoomId room_id,
+                                    const World &world_before,
+                                    const World &world_after);
 };
 
 struct NODISCARD MapApplyResult final

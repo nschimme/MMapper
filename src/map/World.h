@@ -10,10 +10,10 @@
 #include "ParseTree.h"
 #include "RawRooms.h"
 #include "Remapping.h"
+#include "RoomArea.h" // Required for RoomArea
 #include "ServerIdMap.h"
 #include "SpatialDb.h"
 #include "WorldAreaMap.h"
-#include "RoomArea.h" // Required for RoomArea
 
 #include <memory>
 #include <optional>

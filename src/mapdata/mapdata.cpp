@@ -28,8 +28,8 @@
 #include "../map/RawRoom.h" // For change.data in RemoveRoom
 #include "../map/exit.h"   // For RawExit in RemoveRoom
 #include "../map/AbstractChangeVisitor.h"
-#include "../map/ChangeTypes.h"
-#include "../map/world_change_types.h" // For XFOREACH_WORLD_CHANGE
+#include "../map/ChangeTypes.h" // For XFOREACH_WORLD_CHANGE (and XFOREACH_WORLD_CHANGE_TYPES)
+// #include "../map/world_change_types.h" // Removed, functionality assumed in ChangeTypes.h
 #include "../mapfrontend/mapfrontend.h"
 #include "../mapstorage/RawMapData.h"
 #include "GenericFind.h"
@@ -56,15 +56,15 @@
 #include <QString>
 #include <string_view> // For std::less<RoomArea>
 
-// Custom std::less specialization for RoomArea
-namespace std {
-    template <>
-    struct less<RoomArea> {
-        bool operator()(const RoomArea& lhs, const RoomArea& rhs) const {
-            return lhs.getStdStringViewUtf8() < rhs.getStdStringViewUtf8();
-        }
-    };
-} // namespace std
+// Custom std::less specialization for RoomArea - Commented out due to redefinition error
+// namespace std {
+//     template <>
+//     struct less<RoomArea> {
+//         bool operator()(const RoomArea& lhs, const RoomArea& rhs) const {
+//             return lhs.getStdStringViewUtf8() < rhs.getStdStringViewUtf8();
+//         }
+//     };
+// } // namespace std
 
 MapData::MapData(QObject *const parent)
     : MapFrontend(parent)
@@ -267,26 +267,25 @@ void MapData::slot_scheduleAction(const SigMapChangeList &change)
     this->applyChanges(change.deref());
 }
 
-void MapData::applyChanges(const ChangeList &changes)
+bool MapData::applyChanges(const ChangeList &changes) // Changed return type to bool
 {
     if (changes.empty()) {
-        return;
+        return true; // Or false, depending on desired semantics for empty change list; true seems reasonable.
     }
 
     // Apply changes to the map and notify observers (includes setting m_changedAfterSave)
     // This call handles getCurrentMap().applyChanges(internal_changes)
-    MapFrontend::applyChanges(changes);
+    bool success = MapFrontend::applyChanges(changes); // Call base class method
 
     // Ensure necessary headers are included, e.g. <variant>, <set>
     // <set> is already included. <variant> might be through Change.h, but explicit is good.
-    // #include <variant> // Add this at the top of the file if not already present via other headers.
 
     std::set<RoomArea, std::less<RoomArea>> affectedAreas;
     bool globalRemeshNeeded = false;
     const Map& currentMap = getCurrentMap();
 
     auto addConnectedAreas = [&](const RoomHandle& roomHandle) {
-        if (!roomHandle.isValid()) return;
+        if (!roomHandle.exists()) return;
         for (const ExitDirEnum dir : ALL_EXITS_NESWUD) {
             const auto& exit = roomHandle.getExit(dir);
             for (const RoomId& connectedRoomId : exit.getOutgoingSet()) {
@@ -308,15 +307,17 @@ void MapData::applyChanges(const ChangeList &changes)
         // World Changes
         // Use XFOREACH_WORLD_CHANGE as identified from existing visitor
         if constexpr (false
-            #define CHECK_WORLD_CHANGE(Namespace, Type) || std::is_same_v<T, Namespace::Type>
-            XFOREACH_WORLD_CHANGE(CHECK_WORLD_CHANGE)
+            #define X_NOP_LOCAL_MAPDATA() // Renamed X_NOP to avoid conflict if globally defined elsewhere
+            #define CHECK_WORLD_CHANGE(FullType) || std::is_same_v<T, FullType>
+            XFOREACH_WORLD_CHANGE_TYPES(CHECK_WORLD_CHANGE, X_NOP_LOCAL_MAPDATA)
             #undef CHECK_WORLD_CHANGE
+            #undef X_NOP_LOCAL_MAPDATA
         ) {
             globalRemeshNeeded = true;
         }
         // Room Changes
         else if constexpr (std::is_same_v<T, room_change_types::AddPermanentRoom>) {
-            if (auto roomHandle = currentMap.findRoomByPosition(specificChange.position)) {
+            if (auto roomHandle = currentMap.findRoomHandle(specificChange.position)) {
                 affectedAreas.insert(roomHandle.getArea());
                 addConnectedAreas(roomHandle);
             } else {
@@ -326,17 +327,16 @@ void MapData::applyChanges(const ChangeList &changes)
             RoomId roomId = INVALID_ROOMID;
             // Attempt to get RoomId from event if 'event' member and 'getRoomId' method exist
             // This part is speculative based on plan; requires AddRoom2 structure knowledge
-            // For example: if (specificChange.event.has_value()) roomId = specificChange.event->getRoomId();
-            // For now, let's assume specificChange.id or specificChange.event.getRoomId() as per plan.
-            // If AddRoom2 provides 'id' directly like 'AddRoom' did in old visitor:
-            // roomId = specificChange.id; // This was an assumption for AddRoom.
-            // Given the plan mentioned change.event.getRoomId() for AddRoom2:
-            if constexpr (requires { specificChange.event.getRoomId(); }) { // Check if expression is valid
-                 roomId = specificChange.event.getRoomId();
+            // Corrected logic for AddRoom2 to get RoomId via event's ServerRoomId
+            ServerRoomId server_id_from_event = specificChange.event.getServerId();
+            if (server_id_from_event != INVALID_SERVER_ROOMID) {
+                if (auto roomHandle = currentMap.findRoomHandle(server_id_from_event)) {
+                    roomId = roomHandle.getId();
+                }
             }
 
-            if (roomId == INVALID_ROOMID && specificChange.position) {
-                 if (auto roomHandle = currentMap.findRoomByPosition(*specificChange.position)) {
+            if (roomId == INVALID_ROOMID) { // specificChange.position is a direct member, not optional
+                 if (auto roomHandle = currentMap.findRoomHandle(specificChange.position)) { // No * needed
                     roomId = roomHandle.getId();
                 }
             }
@@ -430,43 +430,9 @@ void MapData::applyChanges(const ChangeList &changes)
     }; // End of visitorLambda
 
     // Iterate over changes. Assuming 'changes' is ChangeList from MapFrontend,
-    // and it's iterable, yielding 'ChangeWrapper' which has a 'change' member (e.g. Change*)
-    for (const auto& changeWrapper : changes) { // Iterate directly over ChangeList if it's a list of ChangeWrappers
-        // The original code was:
-        // for (const auto& changeWrapper : changes) {
-        //    if (changeWrapper.change) { // Ensure pointer is valid
-        //        changeWrapper.change->accept(visitor);
-        // So, changeWrapper.change is likely a pointer to an object that has an 'accept' method.
-        // Given Change.h, this object is 'Change*' (or a compatible base if Change wasn't final).
-        // Let's assume changeWrapper.change is Change*
-        
-        // If changeWrapper itself is the Change object (e.g. ChangeList is std::vector<Change>)
-        // then it would be: changeWrapper.acceptVisitor(visitorLambda);
-        // If ChangeList provides .getChanges() returning std::vector<ChangeVariantOwner*> where ChangeVariantOwner has acceptVisitor:
-        // For now, using the structure from the previous attempt that seemed to match original iteration style:
-        // for (const auto& changeWrapper : changes.getChanges()) { ... }
-        // This implies changes.getChanges() returns the iterable collection.
-        // And changeWrapper.change points to the visitable object.
-        
-        // Based on `Change.h` and typical usage of `std::variant` with visitors:
-        // If `changeWrapper` is `const Change&` (i.e., `changes.getChanges()` returns `const std::vector<Change>&` or similar)
-        // then `changeWrapper.acceptVisitor(visitorLambda);` is the correct call.
-        // If `changeWrapper.change` is `Change*`:
-        // then `changeWrapper.change->acceptVisitor(visitorLambda);`
-
-        // The original code iterates `changes` directly: `for (const auto& changeWrapper : changes)`
-        // And uses `changeWrapper.change->accept(visitor)`.
-        // This structure suggests `changeWrapper` is an object that has a `change` member,
-        // and this `change` member is a pointer to something that can accept a visitor.
-        // Let's assume `changeWrapper.change` is a `Change*` (from Change.h).
-        if (changeWrapper.change) { // Assuming changeWrapper has a 'change' member that is Change*
-            changeWrapper.change->acceptVisitor(visitorLambda);
-        } else {
-            // This case might occur if changeWrapper.change can be null.
-            // Depending on requirements, this might also warrant a global remesh or logging.
-            // For now, assume valid changes or covered by existing null checks.
-            // If it's a critical unhandled case, set globalRemeshNeeded = true;
-        }
+    // Corrected iteration based on ChangeList.h providing getChanges() -> std::vector<Change>
+    for (const Change& actual_change : changes.getChanges()) {
+        actual_change.acceptVisitor(visitorLambda);
 
         if (globalRemeshNeeded) {
             break; 
@@ -480,11 +446,11 @@ void MapData::applyChanges(const ChangeList &changes)
     }
     // No explicit 'else' here, as MapFrontend::applyChanges already signals a generic data change.
     // This new signal is for more targeted remeshing.
+    return success; // Return status from base class
 }
 
 bool MapData::isEmpty() const
 {
-    // return (greatestUsedId == INVALID_ROOMID) && m_markers.empty();
     return getCurrentMap().empty() && getInfomarkDb().empty();
 }
 

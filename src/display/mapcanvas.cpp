@@ -78,7 +78,7 @@ MapCanvas::MapCanvas(MapData &mapData,
     setContextMenuPolicy(Qt::CustomContextMenu);
 
     // Connect to MapData's signal for area-specific remeshing
-    m_lifetime.observe(m_data.needsAreaRemesh, this, &MapCanvas::slot_handleAreaRemesh);
+    QObject::connect(&m_data, &MapData::needsAreaRemesh, this, &MapCanvas::slot_handleAreaRemesh);
 }
 
 MapCanvas::~MapCanvas()
@@ -359,7 +359,7 @@ void MapCanvas::slot_createRoom()
     }
 }
 
-void MapCanvas::processRemeshCompletionAndCatchUp() {
+void MapCanvas::processCompletedRemeshes() {
     bool needs_repaint = false;
 
     // 1. Process finished area remeshes
@@ -396,38 +396,9 @@ void MapCanvas::processRemeshCompletionAndCatchUp() {
         }
     }
 
-    // 2. Initiate catch-up tasks for marked areas that are now idle
-    // Make a copy of areas marked for catch-up to iterate over, as m_areasMarkedForCatchUp might be modified.
-    std::set<std::string> areas_to_attempt_catch_up = m_batches.m_areasMarkedForCatchUp;
-    bool new_catchup_task_started = false;
-
-    for (const std::string& areaName : areas_to_attempt_catch_up) {
-        // Double check the area cookie status before launching a catch-up.
-        // It should be non-pending if we just processed it, or if it was never pending.
-        auto cookie_it = m_batches.m_areaRemeshCookies.find(areaName);
-        
-        // Condition: if cookie doesn't exist (e.g. area was new to catch-up list) OR if cookie exists and is NOT pending.
-        if (cookie_it == m_batches.m_areaRemeshCookies.end() || !cookie_it->second.isPending()) {
-            qInfo() << "MapCanvas: Launching catch-up remesh for area:" << QString::fromStdString(areaName);
-            
-            Map currentMap = m_data.getCurrentMap(); // Get fresh map data
-            FutureSharedMapBatchFinisher futureFinisher = ::generateMapDataFinisher(
-                m_textures, 
-                currentMap, 
-                std::optional<std::string>{areaName}
-            );
-            
-            // Get or create cookie (operator[] creates if not exists for map)
-            m_batches.m_areaRemeshCookies[areaName].set(std::move(futureFinisher));
-            m_batches.m_areasMarkedForCatchUp.erase(areaName); // Cleared because we just launched it
-            new_catchup_task_started = true;
-        } else {
-             qInfo() << "MapCanvas: Catch-up for area" << QString::fromStdString(areaName) << "skipped, existing task still pending.";
-        }
-    }
-
-    if (needs_repaint || new_catchup_task_started) {
-        update(); // Schedule a repaint if meshes were updated or new tasks (which will eventually need repaint) were started
+    // If any mesh was finished and processed, a repaint is needed.
+    if (needs_repaint) {
+        update(); // Schedule a repaint
     }
 }
 
@@ -468,17 +439,15 @@ void MapCanvas::slot_handleAreaRemesh(const std::set<RoomArea>& areas_input) {
         RemeshCookie& areaCookie = m_batches.m_areaRemeshCookies[areaName]; // Ensures cookie exists or is created
 
         if (areaCookie.isPending()) {
-            qInfo() << "MapCanvas: Remesh for area" << QString::fromStdString(areaName) << "is already pending. Marking for catch-up.";
-            m_batches.m_areasMarkedForCatchUp.insert(areaName);
+            qInfo() << "MapCanvas: Remesh for area" << QString::fromStdString(areaName) << "is already pending. Current changes will be processed in a subsequent remesh if necessary.";
         } else {
             qInfo() << "MapCanvas: Initiating new remesh for area:" << QString::fromStdString(areaName);
             FutureSharedMapBatchFinisher futureFinisher = ::generateMapDataFinisher(
-                m_textures,
+                mctp::getProxy(m_textures), // Use proxy
                 currentMap, // Use the map state fetched once
                 std::optional<std::string>{areaName}
             );
             areaCookie.set(std::move(futureFinisher));
-            m_batches.m_areasMarkedForCatchUp.erase(areaName); // Clear catch-up flag as we've started a new one
         }
     }
 

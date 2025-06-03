@@ -39,7 +39,7 @@ jobs:
       run: |
         echo "GIT_TAG=$(git describe --tags --always --long)" >> $GITHUB_ENV
     - uses: lukka/get-cmake@latest
-    - if: matrix.compiler == 'msvc'
+    - if: runner.os == 'Windows' && (matrix.compiler == 'msvc' || matrix.compiler == 'clang')
       uses: ilammy/msvc-dev-cmd@v1
 
       #

@@ -99,7 +99,9 @@ void UpdateDialog::open()
     m_manager.get(request);
 }
 
-void UpdateDialog::setUpdateStatus(const QString &message, bool enableUpgradeButton, bool showAndUpdateDialog)
+void UpdateDialog::setUpdateStatus(const QString &message,
+                                   bool enableUpgradeButton,
+                                   bool showAndUpdateDialog)
 {
     m_text->setText(message);
     m_buttonBox->button(QDialogButtonBox::Ok)->setEnabled(enableUpgradeButton);
@@ -110,7 +112,7 @@ void UpdateDialog::setUpdateStatus(const QString &message, bool enableUpgradeBut
     }
 }
 
-QString UpdateDialog::findDownloadUrlForRelease(const QJsonObject& releaseObject) const
+QString UpdateDialog::findDownloadUrlForRelease(const QJsonObject &releaseObject) const
 {
     // Compile platform-specific regex
     static const auto platformRegex = QRegularExpression(
@@ -213,7 +215,8 @@ void UpdateDialog::managerFinished(QNetworkReply *reply)
             m_downloadUrl = findDownloadUrlForRelease(obj);
             setUpdateStatus(tr("A new beta version of MMapper is available!\n\n"
                                "Press 'Upgrade' to download the latest beta."),
-                            true, true);
+                            true,
+                            true);
         } else {
             setUpdateStatus(tr("You are on the latest beta version."), false, false);
         }
@@ -258,7 +261,8 @@ void UpdateDialog::managerFinished(QNetworkReply *reply)
                                     "\n"
                                     "Press 'Upgrade' to download MMapper %1!")
                                 .arg(latestTag),
-                            true, true);
+                            true,
+                            true);
         }
     }
     reply->deleteLater();

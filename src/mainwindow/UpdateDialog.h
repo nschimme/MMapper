@@ -57,5 +57,5 @@ private slots:
 
 private:
     void setUpdateStatus(const QString &message, bool enableUpgradeButton, bool showAndUpdateDialog);
-    QString findDownloadUrlForRelease(const QJsonObject& releaseObject) const;
+    QString findDownloadUrlForRelease(const QJsonObject &releaseObject) const;
 };

@@ -598,8 +598,7 @@ void MapCanvas::finishPendingMapBatches()
             // Cookie is reset by .get(), if it's erasable, it will be done by iterating or other logic.
             // For now, let's assume if it's processed, it can be removed.
             it = m_batches.m_areaRemeshCookies.erase(it);
-        } else if (!cookie.isPending()
-                   && !cookie.isReady()) { // Cleanup stale ignored cookies (e.g. setIgnored then processed)
+        } else if (!cookie.isPending() || !cookie.isReady()) {
             it = m_batches.m_areaRemeshCookies.erase(it);
         } else {
             ++it;
@@ -607,7 +606,8 @@ void MapCanvas::finishPendingMapBatches()
     }
 
     // If any area cookie was pending and now all area cookies are processed (map is empty)
-    if (anyAreaCookieWasPending && m_batches.m_areaRemeshCookies.empty()) {
+    qDebug() << anyAreaCookieWasPending << m_batches.m_areaRemeshCookies.size() << m_batches.m_areaMapBatches.size();
+    if (anyAreaCookieWasPending || m_batches.m_areaRemeshCookies.empty()) {
         setAnimating(false);
     }
 

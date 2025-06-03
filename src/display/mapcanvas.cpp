@@ -16,6 +16,7 @@
 #include "../map/infomark.h"
 #include "../map/room.h"
 #include "../map/roomid.h"
+#include "../map/World.h"
 #include "../mapdata/mapdata.h"
 #include "../mapdata/roomselection.h"
 #include "InfoMarkSelection.h"
@@ -416,11 +417,9 @@ void MapCanvas::slot_handleAreaRemesh(const std::set<RoomArea> &areas_input)
     if (areas_input.empty()) {
         qInfo() << "MapCanvas::slot_handleAreaRemesh: Global remesh trigger received. Processing all known areas.";
         // Collect all known area keys from existing cookies and batches
-        for (const auto &pair : m_batches.m_areaRemeshCookies) {
-            effective_areas.insert(pair.first); // pair.first is now RoomArea
-        }
-        for (const auto &pair : m_batches.m_areaMapBatches) {
-            effective_areas.insert(pair.first); // pair.first is now RoomArea
+        auto &areas = m_data.getCurrentMap().getWorld().getAreaInfoMap();
+        for (const auto &area : areas) {
+            effective_areas.insert(area.first);
         }
         // Consider if there's a more direct way to get all area names from MapData if the above is insufficient.
         // For now, this covers areas we are already tracking or have processed.
@@ -1126,6 +1125,7 @@ void MapCanvas::forceUpdateMeshes()
 {
     m_batches.resetExistingMeshesAndIgnorePendingRemesh();
     m_diff.resetExistingMeshesAndIgnorePendingRemesh();
+    slot_handleAreaRemesh({});
     update();
 }
 

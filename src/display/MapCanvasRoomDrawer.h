@@ -59,6 +59,7 @@ public:
     // returns true if get() will return without blocking
     NODISCARD bool isReady() const
     {
+        assert(isPending());
         const FutureSharedMapBatchFinisher &future = m_opt_future.value();
         return future.valid()
                && future.wait_for(std::chrono::nanoseconds(0)) != std::future_status::timeout;
@@ -167,6 +168,7 @@ struct NODISCARD Batches final
 
     void resetExistingMeshesButKeepPendingRemesh()
     {
+        qInfo() << "Clear";
         m_areaMapBatches.clear();
         infomarksMeshes.reset();
         // Pending area remesh cookies (m_areaRemeshCookies) are NOT reset here.

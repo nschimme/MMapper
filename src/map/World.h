@@ -73,6 +73,9 @@ private:
     NODISCARD const AreaInfo &getGlobalArea() const { return getArea(std::nullopt); }
 
 public:
+    NODISCARD const AreaInfoMap &getAreaInfoMap() const { return m_areaInfos; }
+
+public:
     NODISCARD const ParseTree &getParseTree() const { return m_parseTree; }
 
 public:

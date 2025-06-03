@@ -127,6 +127,13 @@
               </property>
              </widget>
             </item>
+            <item>
+             <widget class="QCheckBox" name="asciiTranslitCheckBox">
+              <property name="text">
+               <string>&amp;Use ASCII transliteration (e.g., 'ö' -&gt; 'o')</string>
+              </property>
+             </widget>
+            </item>
            </layout>
           </widget>
          </item>

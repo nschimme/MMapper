@@ -22,7 +22,7 @@
 #include <regex>
 #include <vector>
 
-NODISCARD static std::regex createRegex(const std::string &input,
+NODISCARD static std::regex createRegex(const std::string &input, // input is already UTF-8
                                         const Qt::CaseSensitivity cs,
                                         const bool regex)
 {
@@ -59,7 +59,7 @@ RoomFilter::RoomFilter(const std::string_view sv,
                        const Qt::CaseSensitivity cs,
                        const bool regex,
                        const PatternKindsEnum kind)
-    : m_regex(createRegex(charset::conversion::utf8ToAscii(sv), cs, regex))
+    : m_regex(createRegex(std::string(sv), cs, regex))
     , m_kind(kind)
 {}
 

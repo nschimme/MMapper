@@ -92,6 +92,8 @@ FindRoomsDlg::FindRoomsDlg(MapData &md, QWidget *const parent)
         emit sig_editSelection();
     });
 
+    asciiTranslitCheckBox->setChecked(false);
+
     setFocus();
     label->setFocusProxy(lineEdit);
     lineEdit->setFocus();
@@ -123,8 +125,13 @@ void FindRoomsDlg::slot_findClicked()
     // REVISIT: Why is this converted to ASCII?
     // Is it because we expect RoomName, RoomDesc, etc to contain ASCII codepoints?
     // Note: This conversion transliterates non-ascii codepoints.
-    const std::string text = charset::conversion::utf8ToAscii(
-        mmqt::toStdStringUtf8(lineEdit->text()));
+    std::string text;
+    if (asciiTranslitCheckBox->isChecked()) {
+        text = charset::conversion::utf8ToAscii(
+            mmqt::toStdStringUtf8(lineEdit->text()));
+    } else {
+        text = mmqt::toStdStringUtf8(lineEdit->text());
+    }
 
     resultTable->clear();
     roomsFoundLabel->clear();

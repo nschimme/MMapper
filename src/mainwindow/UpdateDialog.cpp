@@ -5,6 +5,7 @@
 #include "UpdateDialog.h"
 
 #include "../configuration/configuration.h"
+#include "../global/RAII.h"
 #include "../global/TextUtils.h"
 #include "../global/Version.h"
 
@@ -87,14 +88,14 @@ void UpdateDialog::open()
     m_text->setText(tr("Checking for new version..."));
     m_buttonBox->button(QDialogButtonBox::Ok)->setEnabled(false);
 
-    QString apiUrlString;
+    QString apiUrlString = "https://api.github.com/repos/mume/mmapper/releases/";
     if (isMMapperBeta()) {
-        apiUrlString = "https://api.github.com/repos/mume/mmapper/releases/tags/beta";
+        apiUrlString += "tags/beta";
     } else {
-        apiUrlString = "https://api.github.com/repos/mume/mmapper/releases/latest";
+        apiUrlString += "latest";
     }
 
-    QNetworkRequest request(QUrl(apiUrlString));
+    QNetworkRequest request(apiUrlString);
     request.setHeader(QNetworkRequest::ServerHeader, "application/json");
     m_manager.get(request);
 }
@@ -181,6 +182,7 @@ QString UpdateDialog::findDownloadUrlForRelease(const QJsonObject &releaseObject
 
 void UpdateDialog::managerFinished(QNetworkReply *reply)
 {
+    const RAIICallback deleteLaterRAII{[&reply]() { reply->deleteLater(); }};
     // REVISIT: Timeouts, errors, etc
     if (reply->error()) {
         qWarning() << reply->errorString();
@@ -195,7 +197,6 @@ void UpdateDialog::managerFinished(QNetworkReply *reply)
     }
     if (!doc.isObject()) {
         qWarning() << answer;
-        reply->deleteLater(); // Ensure reply is deleted
         return;
     }
 
@@ -207,7 +208,6 @@ void UpdateDialog::managerFinished(QNetworkReply *reply)
         if (remoteCommitHash.isEmpty()) {
             qWarning() << "Beta release 'target_commitish' is empty.";
             setUpdateStatus(tr("Could not determine beta version details."), false, false);
-            reply->deleteLater();
             return;
         }
 
@@ -227,7 +227,6 @@ void UpdateDialog::managerFinished(QNetworkReply *reply)
         bool isPreRelease = obj.value("prerelease").toBool();
         if (isPreRelease) {
             setUpdateStatus(tr("You are up to date! (Latest is a pre-release)"), false, false);
-            reply->deleteLater();
             return;
         }
 
@@ -237,7 +236,6 @@ void UpdateDialog::managerFinished(QNetworkReply *reply)
         if (!obj.contains("tag_name") || !obj["tag_name"].isString()) {
             qWarning() << "Release 'tag_name' is missing or not a string.";
             setUpdateStatus(tr("Could not determine release version details."), false, false);
-            reply->deleteLater();
             return;
         }
         const QString latestTag = obj["tag_name"].toString();
@@ -265,5 +263,4 @@ void UpdateDialog::managerFinished(QNetworkReply *reply)
                             true);
         }
     }
-    reply->deleteLater();
 }

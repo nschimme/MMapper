@@ -16,8 +16,13 @@
 #include "MapCanvasData.h"
 #include "MapCanvasRoomDrawer.h"
 #include "Textures.h"
+#include "../map/roomid.h" // For RoomArea
+#include "MapBatches.h"   // For BatchedMeshes, BatchedConnectionMeshes, BatchedRoomNames
+#include "IMapBatchesFinisher.h" // For SharedMapBatchFinisher
 
 #include <array>
+#include <chrono> // For std::chrono
+#include <future> // For std::future
 #include <cstddef>
 #include <cstdint>
 #include <map>
@@ -48,6 +53,12 @@ class QOpenGLDebugMessage;
 class QWheelEvent;
 class QWidget;
 class RoomSelFakeGL;
+
+// Forward declare RoomArea if its full definition isn't needed here or include its header
+// class RoomArea; // Example forward declaration. Assuming roomid.h or room.h provides it.
+
+// RemeshCookie and Batches structs are now defined in MapCanvasRoomDrawer.h
+// and included via that header.
 
 class NODISCARD_QOBJECT MapCanvas final : public QOpenGLWidget,
                                           private MapCanvasViewport,

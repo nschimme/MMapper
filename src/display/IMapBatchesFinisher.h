@@ -26,6 +26,5 @@ public:
     }
 };
 
-struct NODISCARD SharedMapBatchFinisher final : public std::shared_ptr<const IMapBatchesFinisher>
-{};
+using SharedMapBatchFinisher = std::shared_ptr<const IMapBatchesFinisher>;
 using FutureSharedMapBatchFinisher = std::future<SharedMapBatchFinisher>;

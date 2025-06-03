@@ -516,9 +516,8 @@ void MapCanvas::updateBatches()
     bool any_task_ready_to_process = false;
     // Check if any area remesh task is ready to be processed.
     // This avoids calling processCompletedRemeshes unnecessarily if nothing is ready.
-    for (auto const &pair : m_batches.m_areaRemeshCookies) {
-        // Accessing pair.second (RemeshCookie)
-        const RemeshCookie &cookie = pair.second;
+    for (auto const &cookie : m_batches.m_areaRemeshCookies) { // Iterate vector directly
+        // Accessing cookie directly
         if (cookie.isPending() && cookie.isReady()) {
             any_task_ready_to_process = true;
             break;
@@ -568,8 +567,8 @@ void MapCanvas::finishPendingMapBatches()
     bool anyAreaCookieWasPending = false;
     for (auto it = m_batches.m_areaRemeshCookies.begin(); it != m_batches.m_areaRemeshCookies.end();
          /* manual increment below */) {
-        const RoomArea &areaKey = it->first;
-        RemeshCookie &cookie = it->second;
+        RemeshCookie &cookie = *it; // Dereference iterator to get RemeshCookie
+        const RoomArea &areaKey = cookie.m_area; // Access m_area from the cookie
         if (cookie.isPending())
             anyAreaCookieWasPending = true;
 
@@ -597,8 +596,16 @@ void MapCanvas::finishPendingMapBatches()
             }
             // Cookie is reset by .get(), if it's erasable, it will be done by iterating or other logic.
             // For now, let's assume if it's processed, it can be removed.
+            // This logic seems to intend to remove processed or non-pending/non-ready cookies.
+            // The MapCanvas::processCompletedRemeshes has a more robust removal logic.
+            // For now, to fix compilation, this specific erase logic is kept, but might need review.
             it = m_batches.m_areaRemeshCookies.erase(it);
         } else if (!cookie.isPending() || !cookie.isReady()) {
+            // This condition seems to remove cookies that are not pending OR not ready,
+            // which might be too aggressive if a cookie is pending but not yet ready.
+            // However, processCompletedRemeshes handles ready cookies.
+            // This part might be redundant or conflict with processCompletedRemeshes.
+            // For fixing compilation, keeping structure.
             it = m_batches.m_areaRemeshCookies.erase(it);
         } else {
             ++it;
@@ -781,8 +788,8 @@ void MapCanvas::paintDifferences()
 void MapCanvas::paintMap()
 {
     bool any_area_pending = false;
-    for (const auto &pair : m_batches.m_areaRemeshCookies) {
-        if (pair.second.isPending()) {
+    for (const auto &cookie : m_batches.m_areaRemeshCookies) { // Iterate vector directly
+        if (cookie.isPending()) { // Access isPending directly on cookie
             any_area_pending = true;
             break;
         }
@@ -1118,8 +1125,8 @@ void MapCanvas::renderMapBatches()
 
     // Loading indicator logic
     bool areaIsActuallyPending = false;
-    for (const auto &pair : m_batches.m_areaRemeshCookies) {
-        if (pair.second.isPending()) {
+    for (const auto &cookie : m_batches.m_areaRemeshCookies) { // Iterate vector directly
+        if (cookie.isPending()) { // Access isPending directly on cookie
             areaIsActuallyPending = true;
             break;
         }

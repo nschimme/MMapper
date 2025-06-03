@@ -88,14 +88,10 @@ void UpdateDialog::open()
     m_text->setText(tr("Checking for new version..."));
     m_buttonBox->button(QDialogButtonBox::Ok)->setEnabled(false);
 
-    QString apiUrlString = "https://api.github.com/repos/mume/mmapper/releases/";
-    if (isMMapperBeta()) {
-        apiUrlString += "tags/beta";
-    } else {
-        apiUrlString += "latest";
-    }
-
-    QNetworkRequest request(apiUrlString);
+    auto url = isMMapperBeta()
+                   ? QStringLiteral("https://api.github.com/repos/mume/mmapper/git/ref/tags/beta")
+                   : QStringLiteral("https://api.github.com/repos/mume/mmapper/releases/latest");
+    QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ServerHeader, "application/json");
     m_manager.get(request);
 }
@@ -199,68 +195,59 @@ void UpdateDialog::managerFinished(QNetworkReply *reply)
         qWarning() << answer;
         return;
     }
+    const QJsonObject obj = doc.object();
 
-    if (isMMapperBeta()) {
-        const QJsonObject obj = doc.object(); // Assuming doc is the release object for "beta" tag
-        const QString remoteCommitHash = obj.value("target_commitish").toString();
-        const QString localVersion = QString::fromUtf8(getMMapperVersion());
-
-        if (remoteCommitHash.isEmpty()) {
-            qWarning() << "Beta release 'target_commitish' is empty.";
-            setUpdateStatus(tr("Could not determine beta version details."), false, false);
+    if (isMMapperBeta() && reply->request().url().toString().contains("/ref/tags/")) {
+        const QJsonObject objNode = obj.value("object").toObject();
+        const QString remoteCommitHash = objNode.value("sha").toString();
+        const QString localCommitHash = []() -> QString {
+            static const QRegularExpression hashRegex(R"(-g([0-9a-fA-F]+)$)");
+            QRegularExpressionMatch match = hashRegex.match(QString::fromUtf8(getMMapperVersion()));
+            if (match.hasMatch()) {
+                return match.captured(1);
+            }
+            return "";
+        }();
+        qInfo() << "Updater comparing: CURRENT=" << localCommitHash
+                << "LATEST=" << remoteCommitHash.left(10);
+        if (!localCommitHash.isEmpty() && remoteCommitHash.startsWith(localCommitHash)) {
+            setUpdateStatus(tr("You are on the latest beta!"), false, false);
             return;
         }
 
-        if (localVersion != remoteCommitHash) {
-            m_downloadUrl = findDownloadUrlForRelease(obj);
-            setUpdateStatus(tr("A new beta version of MMapper is available!\n\n"
-                               "Press 'Upgrade' to download the latest beta."),
-                            true,
-                            true);
-        } else {
-            setUpdateStatus(tr("You are on the latest beta version."), false, false);
-        }
-    } else {
-        // Release Build Logic
-        const QJsonObject obj = doc.object();
+        QNetworkRequest request(
+            QStringLiteral("https://api.github.com/repos/mume/mmapper/releases/tags/beta"));
+        request.setHeader(QNetworkRequest::ServerHeader, "application/json");
+        m_manager.get(request);
+        return;
+    }
 
-        bool isPreRelease = obj.value("prerelease").toBool();
-        if (isPreRelease) {
-            setUpdateStatus(tr("You are up to date! (Latest is a pre-release)"), false, false);
-            return;
-        }
-
-        // Note: m_downloadUrl is set inside the 'else' block for version comparison if an update is available.
-        // No need to set it here if it's not a pre-release and not immediately known if an update is needed.
-
+    QString latestTag;
+    if (!isMMapperBeta()) {
         if (!obj.contains("tag_name") || !obj["tag_name"].isString()) {
             qWarning() << "Release 'tag_name' is missing or not a string.";
             setUpdateStatus(tr("Could not determine release version details."), false, false);
             return;
         }
-        const QString latestTag = obj["tag_name"].toString();
+        latestTag = obj["tag_name"].toString();
         const QString currentVersion = QString::fromUtf8(getMMapperVersion());
         const CompareVersion latest(latestTag);
         static CompareVersion current(currentVersion);
-        // m_downloadUrl will be determined only if current < latest
+        qInfo() << "Updater comparing: CURRENT=" << current << "LATEST=" << latest;
         if (current == latest) {
             setUpdateStatus(tr("You are up to date!"), false, false);
-            // m_downloadUrl is not needed here
+            return;
         } else if (current > latest) {
             setUpdateStatus(tr("No newer update available."), false, false);
-            // m_downloadUrl is not needed here
-        } else {
-            // current < latest, so an update is available
-            m_downloadUrl = findDownloadUrlForRelease(obj);
-            qInfo() << "Updater comparing: CURRENT=" << current << "LATEST=" << latest
-                    << "URL=" << m_downloadUrl;
-            setUpdateStatus(QString("A new version of MMapper is available!"
-                                    "\n"
-                                    "\n"
-                                    "Press 'Upgrade' to download MMapper %1!")
-                                .arg(latestTag),
-                            true,
-                            true);
+            return;
         }
     }
+    m_downloadUrl = findDownloadUrlForRelease(obj);
+    setUpdateStatus(QString("A new %1version of MMapper is available!"
+                            "\n"
+                            "\n"
+                            "Press 'Upgrade' to download %2!")
+                        .arg(isMMapperBeta() ? "beta " : "", isMMapperBeta() ? "it" : latestTag),
+                    true,
+                    true);
 }

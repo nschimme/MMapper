@@ -1,8 +1,8 @@
 document.addEventListener('DOMContentLoaded', function() {
     let detectedArch = null;
+    let isChromeOS = false;
     const downloadLinks = document.querySelectorAll('.download-link');
 
-    // --- Architecture Detection (Best Effort) ---
     if (navigator.userAgentData && navigator.userAgentData.architecture) {
         detectedArch = navigator.userAgentData.architecture.toLowerCase();
     } else {
@@ -14,11 +14,22 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // --- Highlight Download Link ---
+    if (navigator.userAgentData && navigator.userAgentData.platform) {
+        const platform = navigator.userAgentData.platform.toLowerCase();
+        if (platform.includes('chromeos') || platform.includes('cros')) {
+            isChromeOS = true;
+        }
+    }
+
     downloadLinks.forEach(link => {
         const href = link.href.toLowerCase();
-        let linkArch = null;
 
+        // If on ChromeOS and the link is for AppImage or Flatpak, skip this link.
+        if (isChromeOS && (href.includes('appimage') || href.includes('flatpak'))) {
+            return; // Using return as it's a forEach callback, effectively a continue
+        }
+
+        let linkArch = null;
         if (href.includes('x86_64') || href.includes('amd64') || href.includes('x64')) {
             linkArch = 'x86_64';
         } else if (href.includes('arm64') || href.includes('aarch64')) {

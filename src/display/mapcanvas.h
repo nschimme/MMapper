@@ -24,6 +24,9 @@
 #include <optional>
 #include <set>
 #include <vector>
+#include <deque>
+#include <functional>
+#include <atomic>
 
 #include <glm/glm.hpp>
 
@@ -110,6 +113,16 @@ private:
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
     Signal2Lifetime m_lifetime;
 
+    // Staged remeshing
+    using StagedRemeshCallback = std::function<void()>;
+    std::deque<StagedRemeshCallback> m_stagedRemeshCallbacks;
+    std::atomic<bool> m_isRemeshing;
+
+    // Radii for staged remeshing
+    static constexpr int PLAYER_VICINITY_RADIUS = 10;
+    static constexpr int MEDIUM_DISTANCE_RADIUS = 20;
+    RoomIdSet m_remeshedRoomsInCurrentCycle;
+
 public:
     explicit MapCanvas(MapData &mapData,
                        PrespammedPath &prespammedPath,
@@ -144,6 +157,16 @@ public:
 
 private:
     void onMovement();
+
+private:
+    // Staged remeshing
+    void triggerNextRemeshCallback();
+    void scheduleRemesh();
+    void remeshStageNearPlayer();
+    void remeshStageMediumDistance();
+    void remeshStageFarDistance();
+    void remeshFinish();
+    void finishCurrentStageBatch(const RoomIdSet& roomsJustUpdated);
 
 private:
     void reportGLVersion();

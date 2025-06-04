@@ -70,6 +70,8 @@ public:
 
     NODISCARD FutureSharedMapBatchFinisher
     generateBatches(const mctp::MapCanvasTexturesProxy &textures);
+    NODISCARD FutureSharedMapBatchFinisher
+    generateBatchesForRooms(const RoomIdSet& roomIds, const mctp::MapCanvasTexturesProxy& textures);
 
     // REVISIT: convert to template, or functionref after it compiles everywhere?
     void applyChangesToList(const RoomSelection &sel,

@@ -142,6 +142,15 @@ FutureSharedMapBatchFinisher MapData::generateBatches(const mctp::MapCanvasTextu
     return generateMapDataFinisher(textures, getCurrentMap());
 }
 
+FutureSharedMapBatchFinisher MapData::generateBatchesForRooms(const RoomIdSet& roomIds, const mctp::MapCanvasTexturesProxy& textures)
+{
+    // This will call a new version of generateMapDataFinisher or pass roomIds to the existing one.
+    // For now, assume generateMapDataFinisher is modified or a new overload is created.
+    // The key is that the returned future's finisher will contain InternalData
+    // with LayerBatchData populated *only* for the rooms in roomIds.
+    return generateMapDataFinisher(textures, getCurrentMap(), roomIds);
+}
+
 void MapData::applyChangesToList(const RoomSelection &sel,
                                  const std::function<Change(const RawRoom &)> &callback)
 {

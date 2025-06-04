@@ -452,6 +452,20 @@ struct NODISCARD ColoredRoomTex : public RoomTex
 // that sorting is at significant fraction of the total runtime.
 struct NODISCARD RoomTexVector final : public std::vector<RoomTex>
 {
+    void removeRooms(const RoomIdSet& idsToRemove) {
+        this->erase(std::remove_if(this->begin(), this->end(),
+                                   [&](const RoomTex& item) {
+                                       return idsToRemove.count(item.room.getId());
+                                   }),
+                    this->end());
+    }
+
+    void append(const RoomTexVector& other) {
+        this->insert(this->end(), other.begin(), other.end());
+        // For moving elements if appropriate (and if `other` can be moved from):
+        // this->insert(this->end(), std::make_move_iterator(other.begin()), std::make_move_iterator(other.end()));
+    }
+
     // sorting stl iterators is slower than christmas with GLIBCXX_DEBUG,
     // so we'll use pointers instead. std::stable_sort isn't
     // necessary because everything's opaque, so we'll use
@@ -483,6 +497,21 @@ struct NODISCARD RoomTexVector final : public std::vector<RoomTex>
 
 struct NODISCARD ColoredRoomTexVector final : public std::vector<ColoredRoomTex>
 {
+    void removeRooms(const RoomIdSet& idsToRemove) {
+        this->erase(std::remove_if(this->begin(), this->end(),
+                                   [&](const ColoredRoomTex& item) {
+                                       // RoomTex is the base class of ColoredRoomTex and has the 'room' member
+                                       return idsToRemove.count(item.room.getId());
+                                   }),
+                    this->end());
+    }
+
+    void append(const ColoredRoomTexVector& other) {
+        this->insert(this->end(), other.begin(), other.end());
+        // For moving elements if appropriate:
+        // this->insert(this->end(), std::make_move_iterator(other.begin()), std::make_move_iterator(other.end()));
+    }
+
     // sorting stl iterators is slower than christmas with GLIBCXX_DEBUG,
     // so we'll use pointers instead. std::stable_sort isn't
     // necessary because everything's opaque, so we'll use
@@ -650,29 +679,118 @@ struct NODISCARD LayerBatchData final
     RoomTintArray<PlainQuadBatch> roomTints;
     PlainQuadBatch roomLayerBoostQuads;
 
-    explicit LayerBatchData() = default;
-    ~LayerBatchData() = default;
-    DEFAULT_MOVES(LayerBatchData);
-    DELETE_COPIES(LayerBatchData);
+    // Methods for partial updates
+    void removeRooms(const RoomIdSet& idsToRemove) {
+        roomTerrains.removeRooms(idsToRemove);
+        roomTrails.removeRooms(idsToRemove);
+        roomOverlays.removeRooms(idsToRemove);
+        doors.removeRooms(idsToRemove);
+        solidWallLines.removeRooms(idsToRemove);
+        dottedWallLines.removeRooms(idsToRemove);
+        roomUpDownExits.removeRooms(idsToRemove);
+        streamIns.removeRooms(idsToRemove);
+        streamOuts.removeRooms(idsToRemove);
 
-    void sort()
-    {
-        DECL_TIMER(t, "sort");
+        // Clear PlainQuadBatch members as per instruction for removeRooms.
+        // These will be rebuilt/re-appended based on the rooms remaining or added.
+        for (auto& quad_batch : roomTints) { // roomTints is EnumIndexedArray
+            quad_batch.clear();
+        }
+        roomLayerBoostQuads.clear();
+    }
+
+    void append(const LayerBatchData& other) {
+        roomTerrains.append(other.roomTerrains);
+        roomTrails.append(other.roomTrails);
+        roomOverlays.append(other.roomOverlays);
+        doors.append(other.doors);
+        solidWallLines.append(other.solidWallLines);
+        dottedWallLines.append(other.dottedWallLines);
+        roomUpDownExits.append(other.roomUpDownExits);
+        streamIns.append(other.streamIns);
+        streamOuts.append(other.streamOuts);
+
+        // Appending PlainQuadBatch for tints and layer boost
+        for (const auto tint_idx : ALL_ROOM_TINTS) {
+            roomTints[tint_idx].insert(roomTints[tint_idx].end(),
+                                       other.roomTints[tint_idx].begin(),
+                                       other.roomTints[tint_idx].end());
+        }
+        roomLayerBoostQuads.insert(roomLayerBoostQuads.end(),
+                                   other.roomLayerBoostQuads.begin(),
+                                   other.roomLayerBoostQuads.end());
+    }
+
+    void sortAllComponents() { // Renamed from sort() to be more specific, or could just be sort()
+        DECL_TIMER(t, "sortAllComponents");
 
         /* TODO: Only sort on 2.1 path, since 3.0 can use GL_TEXTURE_2D_ARRAY. */
         roomTerrains.sortByTexture();
         roomTrails.sortByTexture();
         roomOverlays.sortByTexture();
-
-        // REVISIT: We could just make two separate lists and avoid the sort.
-        // However, it may be convenient to have separate dotted vs solid texture,
-        // so we'd still need to sort in that case.
-        roomUpDownExits.sortByTexture();
         doors.sortByTexture();
         solidWallLines.sortByTexture();
         dottedWallLines.sortByTexture();
+        roomUpDownExits.sortByTexture();
         streamIns.sortByTexture();
         streamOuts.sortByTexture();
+        // No sort needed for PlainQuadBatch members (roomTints, roomLayerBoostQuads)
+    }
+
+
+    explicit LayerBatchData() = default;
+    ~LayerBatchData() = default;
+    DEFAULT_MOVES(LayerBatchData);
+    DELETE_COPIES(LayerBatchData);
+
+    // Original sort method, now effectively sortAllComponents
+    void sort() // Keep original sort name if preferred, or use sortAllComponents internally/externally
+    {
+        sortAllComponents();
+    }
+
+    // Note: visitRoomOptions is needed here to correctly determine tint colors based on current settings.
+    void regenerateTintsAndBoost(const Map& map /*, const VisitRoomOptions& visitRoomOptions */) {
+        // Clear existing tints and boost quads
+        for (auto& quad_batch : roomTints) {
+            quad_batch.clear();
+        }
+        roomLayerBoostQuads.clear();
+
+        // This logic is derived from LayerBatchBuilder::virt_visitTerrainTexture and ::virt_visitNamedColorTint
+        // We iterate over one of the primary RoomTexVector members to get the rooms in this batch.
+        // roomTerrains is a good candidate as all rooms should have terrain.
+        for (const RoomTex& rtex : roomTerrains) {
+            const RoomHandle& room = rtex.room; // RoomHandle from RoomTex
+            // const RawRoom& rawRoom = map.getRoomById(room.getId()); // If direct RawRoom access is needed and not on RoomHandle
+
+            // Add to roomLayerBoostQuads for every room
+            const auto v0_boost = room.getPosition().to_vec3();
+            #define EMIT_BOOST(x, y) roomLayerBoostQuads.emplace_back(v0_boost + glm::vec3((x), (y), 0))
+            EMIT_BOOST(0, 0); EMIT_BOOST(1, 0); EMIT_BOOST(1, 1); EMIT_BOOST(0, 1);
+            #undef EMIT_BOOST
+
+            // Determine and add tints
+            // This logic mirrors what's in visitRoom -> LayerBatchBuilder callbacks
+            // This logic is from LayerBatchBuilder::virt_visitNamedColorTint
+            // We need to ensure that RoomHandle provides these methods or we use the map.
+            // For this example, assume RoomHandle has getLightType and getSundeathType.
+            const bool isDark = room.getLightType() == RoomLightEnum::DARK;
+            const bool hasNoSundeath = room.getSundeathType() == RoomSundeathEnum::NO_SUNDEATH;
+
+            if (isDark) {
+                const auto v0_tint = room.getPosition().to_vec3();
+                #define EMIT_DARK_TINT(x, y) roomTints[RoomTintEnum::DARK].emplace_back(v0_tint + glm::vec3((x), (y), 0))
+                EMIT_DARK_TINT(0, 0); EMIT_DARK_TINT(1, 0); EMIT_DARK_TINT(1, 1); EMIT_DARK_TINT(0, 1);
+                #undef EMIT_DARK_TINT
+            } else if (hasNoSundeath) {
+                const auto v0_tint = room.getPosition().to_vec3();
+                #define EMIT_NOSUN_TINT(x, y) roomTints[RoomTintEnum::NO_SUNDEATH].emplace_back(v0_tint + glm::vec3((x), (y), 0))
+                EMIT_NOSUN_TINT(0, 0); EMIT_NOSUN_TINT(1, 0); EMIT_NOSUN_TINT(1, 1); EMIT_NOSUN_TINT(0, 1);
+                #undef EMIT_NOSUN_TINT
+            }
+            // If neither, no specific tint quad is added for this room, matching original logic.
+        }
     }
 
     NODISCARD LayerMeshes getMeshes(OpenGL &gl) const
@@ -850,21 +968,57 @@ NODISCARD static LayerBatchData generateLayerMeshes(const RoomVector &rooms,
     return data;
 }
 
-struct NODISCARD InternalData final : public IMapBatchesFinisher
+struct InternalData final : public IMapBatchesFinisher // Ensure this name is consistent with MapCanvasRoomDrawer.h if defined there too
 {
 public:
-    std::unordered_map<int, LayerBatchData> batchedMeshes;
-    BatchedConnections connectionDrawerBuffers;
-    std::unordered_map<int, RoomNameBatch> roomNameBatches;
+    std::unordered_map<int, LayerBatchData> batchedMeshes; // Holds data for the current (potentially partial) update
+    BatchedConnections connectionDrawerBuffers; // Holds data for the current (potentially partial) update
+    std::unordered_map<int, RoomNameBatch> roomNameBatches; // Holds data for the current (potentially partial) update
 
-private:
-    void virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const final;
+    // New member for master data, intended for future merge logic.
+    std::unordered_map<int, LayerBatchData> m_masterLayerBatchData;
+
+    // Constructor to initialize with data from the async task
+    InternalData(std::unordered_map<int, LayerBatchData> currentBatches,
+                 BatchedConnections currentConnectionBuffers, // Ensure this type matches definition if BatchedConnections is not std::map
+                 std::unordered_map<int, RoomNameBatch> currentRoomNameBatches)
+        : batchedMeshes(std::move(currentBatches)),
+          connectionDrawerBuffers(std::move(currentConnectionBuffers)),
+          roomNameBatches(std::move(currentRoomNameBatches))
+    {}
+    // Default constructor might be useful if it's constructed then populated
+    InternalData() = default;
+InternalData::~InternalData() = default; // Add default destructor implementation
+
+
+    void virt_finish(
+        MapBatches &output_target_on_canvas,
+        OpenGL &gl,
+        GLFont &font,
+        const std::optional<RoomIdSet>& roomsJustUpdated) const override; // Added override and new signature
 };
 
-static void generateAllLayerMeshes(InternalData &internalData,
-                                   const LayerToRooms &layerToRooms,
-                                   const mctp::MapCanvasTexturesProxy &textures,
-                                   const VisitRoomOptions &visitRoomOptions)
+// Forward declare the modified generateAllLayerMeshes_impl which will be defined later
+static void generateAllLayerMeshes_impl(
+    std::unordered_map<int, LayerBatchData>& outLayerBatches,
+    BatchedConnections& outConnectionBuffers,
+    std::unordered_map<int, RoomNameBatch>& outRoomNameBatches,
+    const LayerToRooms &layerToRooms,
+    const mctp::MapCanvasTexturesProxy &textures,
+    const VisitRoomOptions &visitRoomOptions,
+    const std::optional<RoomIdSet>& roomIdsToProcess);
+
+
+// This is the new implementation that filters based on roomIdsToProcess
+// and populates the provided output parameters.
+static void generateAllLayerMeshes_impl(
+    std::unordered_map<int, LayerBatchData>& outLayerBatches,
+    BatchedConnections& outConnectionBuffers, // Assuming BatchedConnections is std::map<int, ConnectionDrawerBuffers> or similar
+    std::unordered_map<int, RoomNameBatch>& outRoomNameBatches,
+    const LayerToRooms &layerToRooms,
+    const mctp::MapCanvasTexturesProxy &textures,
+    const VisitRoomOptions &visitRoomOptions,
+    const std::optional<RoomIdSet>& roomIdsToProcess)
 
 {
     // This feature has been removed, but it's passed to a lot of functions,
@@ -873,39 +1027,60 @@ static void generateAllLayerMeshes(InternalData &internalData,
     const OptBounds bounds{};
 
     DECL_TIMER(t, "generateAllLayerMeshes");
-    auto &batchedMeshes = internalData.batchedMeshes;
-    auto &connectionDrawerBuffers = internalData.connectionDrawerBuffers;
-    auto &roomNameBatches = internalData.roomNameBatches;
+    // auto& batchedMeshes = internalData.batchedMeshes; // Now using outLayerBatches
+    // auto& connectionDrawerBuffers = internalData.connectionDrawerBuffers; // Now using outConnectionBuffers
+    // auto& roomNameBatches = internalData.roomNameBatches; // Now using outRoomNameBatches
 
     for (const auto &layer : layerToRooms) {
-        DECL_TIMER(t2, "generateAllLayerMeshes.loop");
+        DECL_TIMER(t2, "generateAllLayerMeshes_impl.loop");
         const int thisLayer = layer.first;
-        auto &layerMeshes = batchedMeshes[thisLayer];
-        ConnectionDrawerBuffers &cdb = connectionDrawerBuffers[thisLayer];
-        RoomNameBatch &rnb = roomNameBatches[thisLayer];
-        const auto &rooms = layer.second;
 
-        {
-            DECL_TIMER(t3, "generateAllLayerMeshes.loop.part2");
-            layerMeshes = ::generateLayerMeshes(rooms, textures, bounds, visitRoomOptions);
-        }
+        const RoomVector& roomsInLayer = layer.second;
+        RoomVector filteredRooms;
 
-        {
-            DECL_TIMER(t4, "generateAllLayerMeshes.loop.part3");
-
-            // TODO: move everything in the same layer to the same internal struct?
-            cdb.clear();
-            rnb.clear();
-
-            ConnectionDrawer cd{cdb, rnb, thisLayer, bounds};
-            {
-                DECL_TIMER(t7, "generateAllLayerMeshes.loop.part3b");
-                // pass 2: add to buffers
-                for (const auto &room : rooms) {
-                    cd.drawRoomConnectionsAndDoors(room);
+        if (roomIdsToProcess) {
+            for (const auto& roomHandle : roomsInLayer) {
+                if (roomIdsToProcess->count(roomHandle.getId())) {
+                    filteredRooms.push_back(roomHandle);
                 }
             }
+            // If roomIdsToProcess is set and no rooms for this layer are in the set,
+            // filteredRooms will be empty. generateLayerMeshes will produce an empty LayerBatchData.
+            // If this layer is not mentioned in roomIdsToProcess at all (e.g. partial update for other layers)
+            // we might not even want to generate empty data, unless it's to clear previous state.
+            // The current logic processes layers present in layerToRooms; if a layer has no rooms matching
+            // roomIdsToProcess, it gets empty data.
+            if (filteredRooms.empty() && !roomIdsToProcess->empty()) {
+                // If we are specifically processing rooms and none are in this layer,
+                // but we are doing a partial update (roomIdsToProcess is not empty),
+                // we might still want to generate an empty batch to signify this layer was processed (and is now empty for these rooms).
+                // Or, if this layer wasn't touched by roomIdsToProcess, we could skip it entirely.
+                // For now, if filteredRooms is empty, it will generate empty LayerBatchData.
+            }
+        } else {
+            filteredRooms = roomsInLayer; // Process all rooms in the layer
         }
+
+        // Ensures that even if filteredRooms is empty (e.g. for a partial update not touching this layer,
+        // or this layer having no rooms matching the filter), the layer is still represented in the output maps,
+        // potentially with empty data. This is important if virt_finish expects all layers.
+        // However, if roomIdsToProcess is specified and this layer has no relevant rooms,
+        // perhaps it shouldn't be in the output of *this specific partial update*.
+        // The current logic will put empty LayerBatchData if filteredRooms is empty.
+
+        LayerBatchData currentLayerBatchData = ::generateLayerMeshes(filteredRooms, textures, bounds, visitRoomOptions);
+
+        ConnectionDrawerBuffers currentConnectionDrawerBuffers_for_layer;
+        RoomNameBatch currentRoomNameBatch_for_layer;
+        ConnectionDrawer cd{currentConnectionDrawerBuffers_for_layer, currentRoomNameBatch_for_layer, thisLayer, bounds};
+        for (const auto &room : filteredRooms) { // Iterate over filtered rooms
+            cd.drawRoomConnectionsAndDoors(room);
+        }
+
+        // Store the generated (possibly empty) data for this layer into the output maps
+        outLayerBatches[thisLayer] = std::move(currentLayerBatchData);
+        outConnectionBuffers[thisLayer] = std::move(currentConnectionDrawerBuffers_for_layer);
+        outRoomNameBatches[thisLayer] = std::move(currentRoomNameBatch_for_layer);
     }
 }
 
@@ -1004,41 +1179,94 @@ void LayerMeshes::render(const int thisLayer, const int focusedLayer)
     }
 }
 
-void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const
+// This is the implementation of virt_finish for the InternalData struct
+void InternalData::virt_finish(
+    MapBatches &output_target_on_canvas,
+    OpenGL &gl,
+    GLFont &font,
+    const std::optional<RoomIdSet>& roomsJustUpdated) // Is non-const
 {
-    for (const auto &kv : batchedMeshes) {
-        const LayerBatchData &data = kv.second;
-        output.batchedMeshes[kv.first] = data.getMeshes(gl);
-    }
+    // Assuming this is called on the main thread where getVisitRoomOptions() is safe.
+    const auto visitRoomOptions = getVisitRoomOptions();
 
-    for (const auto &kv : connectionDrawerBuffers) {
-        const ConnectionDrawerBuffers &data = kv.second;
-        output.connectionMeshes[kv.first] = data.getMeshes(gl);
-    }
+    if (roomsJustUpdated) { // Partial update
+        MMLOG_DEBUG() << "InternalData::virt_finish: Partial update for " << roomsJustUpdated->size() << " rooms.";
 
-    for (const auto &kv : roomNameBatches) {
-        const RoomNameBatch &rnb = kv.second;
-        output.roomNameBatches[kv.first] = rnb.getMesh(font);
+        for (const auto& layer_kvp : this->batchedMeshes) { // `this->batchedMeshes` contains the incoming partial data
+            int layerZ = layer_kvp.first;
+            const LayerBatchData& incomingPartialRoomMeshData = layer_kvp.second;
+            LayerBatchData& masterLayerRoomMeshData = m_masterLayerBatchData[layerZ];
+
+            masterLayerRoomMeshData.removeRooms(*roomsJustUpdated);
+            masterLayerRoomMeshData.append(incomingPartialRoomMeshData);
+            masterLayerRoomMeshData.sortAllComponents();
+            // Regenerate tints and boosts based on the now updated room list in masterLayerRoomMeshData
+            masterLayerRoomMeshData.regenerateTintsAndBoost(m_map /*, visitRoomOptions */); // Pass map, visitRoomOptions if needed by regenerate
+
+            output_target_on_canvas.batchedMeshes[layerZ] = masterLayerRoomMeshData.getMeshes(gl);
+        }
+
+        // For connections and room names:
+        // For this subtask, continue using direct application of incoming partial data.
+        // A full solution would merge into m_masterConnectionDrawerBuffers / m_masterRoomNameBatches
+        // and then rebuild the relevant parts of output_target_on_canvas from those master copies.
+        for (const auto& kv : this->connectionDrawerBuffers) {
+            output_target_on_canvas.connectionMeshes[kv.first] = kv.second.getMeshes(gl);
+        }
+        for (const auto& kv : this->roomNameBatches) {
+            output_target_on_canvas.roomNameBatches[kv.first] = kv.second.getMesh(font);
+        }
+    } else { // Full update
+        MMLOG_DEBUG() << "InternalData::virt_finish: Full update.";
+        m_masterLayerBatchData.clear();
+        // For full update, `this->batchedMeshes` contains all data. Copy it to master.
+        for (const auto& layer_kvp : this->batchedMeshes) {
+            m_masterLayerBatchData[layer_kvp.first] = layer_kvp.second; // Assumes LayerBatchData is copy-assignable
+        }
+
+        // For connections and room names, also treat 'this->' as the full source data for master copy
+        // (Future: these might also have their own master copies if complex merging is needed)
+        // m_masterConnectionDrawerBuffers = this->connectionDrawerBuffers;
+        // m_masterRoomNameBatches = this->roomNameBatches;
+
+        output_target_on_canvas.batchedMeshes.clear();
+        for (const auto& master_layer_kvp : m_masterLayerBatchData) {
+            output_target_on_canvas.batchedMeshes[master_layer_kvp.first] = master_layer_kvp.second.getMeshes(gl);
+        }
+
+        output_target_on_canvas.connectionMeshes.clear();
+        for (const auto &kv : this->connectionDrawerBuffers) { // Still using 'this->' as master for these
+            output_target_on_canvas.connectionMeshes[kv.first] = kv.second.getMeshes(gl);
+        }
+        output_target_on_canvas.roomNameBatches.clear();
+        for (const auto &kv : this->roomNameBatches) { // Still using 'this->' as master
+            output_target_on_canvas.roomNameBatches[kv.first] = kv.second.getMesh(font);
+        }
     }
+    // The final loops that unconditionally drew from this->batchedMeshes are removed,
+    // as the correct data (either merged master or full new master) is now in output_target_on_canvas.
+    MMLOG_DEBUG() << "InternalData::virt_finish completed. roomsJustUpdated: " << (roomsJustUpdated.has_value() ? "Yes" : "No");
 }
 
 // NOTE: All of the lamda captures are copied, including the texture data!
 FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
-                                                     const Map &map)
+                                                     const Map &map,
+                                                     const std::optional<RoomIdSet>& roomIdsToProcess) // Added roomIdsToProcess
 {
     const auto visitRoomOptions = getVisitRoomOptions();
 
     return std::async(std::launch::async,
-                      [textures, map, visitRoomOptions]() -> SharedMapBatchFinisher {
+                      // Capture roomIdsToProcess
+                      [textures, map, visitRoomOptions, roomIdsToProcess]() -> SharedMapBatchFinisher {
                           ThreadLocalNamedColorRaii tlRaii{visitRoomOptions.canvasColors,
                                                            visitRoomOptions.colorSettings};
-                          DECL_TIMER(t, "[ASYNC] generateAllLayerMeshes");
+                          DECL_TIMER(t, "[ASYNC] generateMapDataFinisher");
 
-                          const LayerToRooms layerToRooms = [map]() -> LayerToRooms {
+                          const LayerToRooms layerToRooms = [&map]() -> LayerToRooms { // map by ref
                               DECL_TIMER(t2, "[ASYNC] generateBatches.layerToRooms");
                               LayerToRooms ltr;
-                              for (const RoomId id : map.getRooms()) {
-                                  const auto &r = map.getRoomHandle(id);
+                              for (const RoomId id : map.getRooms()) { // Use map directly
+                                  const auto &r = map.getRoomHandle(id); // Use map directly
                                   const auto z = r.getPosition().z;
                                   auto &layer = ltr[z];
                                   layer.emplace_back(r);
@@ -1046,23 +1274,41 @@ FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTextur
                               return ltr;
                           }();
 
-                          auto result = std::make_shared<InternalData>();
-                          auto &data = deref(result);
-                          generateAllLayerMeshes(data, layerToRooms, textures, visitRoomOptions);
-                          return SharedMapBatchFinisher{result};
+                          std::unordered_map<int, LayerBatchData> layerBatches;
+                          BatchedConnections connectionBuffers;
+                          std::unordered_map<int, RoomNameBatch> roomNameBatchesMap;
+
+                          generateAllLayerMeshes_impl(layerBatches, connectionBuffers, roomNameBatchesMap,
+                                                   layerToRooms, textures, visitRoomOptions, roomIdsToProcess);
+
+                          auto result = std::make_shared<InternalData>(
+                              std::move(layerBatches),
+                              std::move(connectionBuffers),
+                              std::move(roomNameBatchesMap)
+                          );
+                          // SharedMapBatchFinisher is now std::shared_ptr<IMapBatchesFinisher> (non-const)
+                          return result;
                       });
 }
 
-void finish(const IMapBatchesFinisher &finisher,
+// The free function `finish` must take a non-const IMapBatchesFinisher&
+// if its `finish` method (and thus `virt_finish`) is non-const.
+void finish(IMapBatchesFinisher &finisher, // Changed to non-const IMapBatchesFinisher&
             std::optional<MapBatches> &opt_batches,
             OpenGL &gl,
-            GLFont &font)
+            GLFont &font,
+            const std::optional<RoomIdSet>& roomsJustUpdated)
 {
-    opt_batches.reset();
-    MapBatches &batches = opt_batches.emplace();
+    // If it's a partial update and there are no existing batches, create them.
+    // For a full update (roomsJustUpdated is nullopt), we clear existing batches.
+    if (!roomsJustUpdated) {
+       opt_batches.reset();
+    }
+    // Ensure MapBatches object exists, especially for the first update (full or partial).
+    if (!opt_batches) {
+        opt_batches.emplace();
+    }
+    MapBatches &batches = deref(opt_batches);
 
-    // Note: This will call InternalData::finish;
-    // if necessary for claritiy, we could replace this with Pimpl to make it a direct call,
-    // but that won't change the cost of the virtual call.
-    finisher.finish(batches, gl, font);
+    finisher.finish(batches, gl, font, roomsJustUpdated); // Call the non-const finish method
 }

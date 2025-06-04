@@ -516,28 +516,52 @@ void MapCanvas::updateBatches()
 void MapCanvas::updateMapBatches()
 {
     RemeshCookie &remeshCookie = m_batches.remeshCookie;
-    if (remeshCookie.isPending()) {
+    if (remeshCookie.isPending()) { // If a global remesh is already pending, wait.
         return;
     }
 
-    if (m_batches.mapBatches.has_value() && !m_data.getNeedsMapUpdate()) {
+    // If no specific areas are pending, and existing batches are valid, and no global update flag is set, do nothing.
+    if (m_areasPendingRemesh.empty() && (m_batches.mapBatches.has_value() && !m_data.getNeedsMapUpdate())) {
         return;
     }
+
+    std::set<RoomArea> areasToProcessThisRun;
 
     if (m_data.getNeedsMapUpdate()) {
-        m_data.clearNeedsMapUpdate();
-        assert(!m_data.getNeedsMapUpdate());
-        MMLOG() << "[updateMapBatches] cleared 'needsUpdate' flag";
+        // If a global map update is flagged, it implies all areas might need re-evaluation.
+        // forceUpdateMeshes() is expected to populate m_areasPendingRemesh with all areas in such cases.
+        // slot_mapChanged() triggers a diff, which populates m_areasPendingRemesh for specific changes.
+        // We primarily rely on m_areasPendingRemesh being correctly populated by callers or diff processing.
+        m_data.clearNeedsMapUpdate(); // Clear the global flag as we are addressing it now.
+        MMLOG() << "[updateMapBatches] m_data.getNeedsMapUpdate() was true. Will process areas from m_areasPendingRemesh.";
+        // If m_areasPendingRemesh is empty here despite getNeedsMapUpdate, it implies a state management issue elsewhere,
+        // or that generateBatches should handle an empty set as "all areas".
+        // For now, we assume m_areasPendingRemesh is the source of truth for what to remesh.
     }
 
-    auto getFuture = [this]() {
-        MMLOG() << "[updateMapBatches] calling generateBatches";
-        return m_data.generateBatches(mctp::getProxy(m_textures));
+    if (m_areasPendingRemesh.empty()) {
+        // No specific areas identified for remesh, and m_data.getNeedsMapUpdate() (if true) didn't result in areas being added.
+        // This might happen if getNeedsMapUpdate was true but no rooms/areas actually exist or were identified.
+        MMLOG() << "[updateMapBatches] No areas in m_areasPendingRemesh and m_data.getNeedsMapUpdate() (if true) did not populate it. Nothing to do.";
+        return;
+    }
+
+    areasToProcessThisRun = m_areasPendingRemesh; // Copy areas to process in this run
+    m_areasPendingRemesh.clear(); // Clear the shared set; these areas are being handled.
+
+    MMLOG() << "[updateMapBatches] Initiating remesh for " << areasToProcessThisRun.size() << " areas.";
+
+    // This assumes m_data.generateBatches has been updated to accept a std::set<RoomArea>.
+    // This is a key change for Step 4, to be implemented in MapData.
+    auto getFuture = [this, areasToProcess = std::move(areasToProcessThisRun)]() {
+        MMLOG() << "[updateMapBatches] calling m_data.generateBatches for " << areasToProcess.size() << " specific areas.";
+        return m_data.generateBatches(mctp::getProxy(m_textures), areasToProcess);
     };
 
     remeshCookie.set(getFuture());
     assert(remeshCookie.isPending());
 
+    // Cancel any ongoing async diff computation, as the map state is about to be updated with new meshes.
     m_diff.cancelUpdates(m_data.getSavedMap());
 }
 
@@ -706,7 +730,41 @@ void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current)
                 return needsUpdate;
             };
 
-            return Diff::HighlightDiff{saved, current, getNeedsUpdate(), getChanged()};
+            TexVertVector needsUpdateVec = getNeedsUpdate();
+            TexVertVector changedVec = getChanged();
+            std::set<RoomArea> collectedChangedAreas;
+
+            ProgressCounter areaPc; // ProgressCounter for area collection
+            std::function<void(RoomId, Room::ChangeEnum, RoomHandle, RoomHandle)> roomDiffCallback =
+                [&](RoomId id, Room::ChangeEnum changeType, RoomHandle oldRoom, RoomHandle newRoom) {
+                switch (changeType) {
+                case Room::ChangeEnum::Added:
+                    if (newRoom.isValid()) { // Should be true for Added
+                        collectedChangedAreas.insert(current.getWorld().getRoomArea(id));
+                    }
+                    break;
+                case Room::ChangeEnum::Removed:
+                    if (oldRoom.isValid()) { // Should be true for Removed
+                        collectedChangedAreas.insert(saved.getWorld().getRoomArea(id));
+                    }
+                    break;
+                case Room::ChangeEnum::Changed:
+                    // For changed rooms, associate with their (new) area.
+                    // If a room could move between areas and both old/new areas should be marked,
+                    // this logic might need adjustment. For now, new area is fine.
+                    if (newRoom.isValid()) {
+                        collectedChangedAreas.insert(current.getWorld().getRoomArea(id));
+                    } else if (oldRoom.isValid()) { // Fallback if newRoom is somehow invalid
+                        collectedChangedAreas.insert(saved.getWorld().getRoomArea(id));
+                    }
+                    break;
+                default:
+                    break; // Should not happen
+                }
+            };
+            Map::foreachChangedRoom(areaPc, saved, current, roomDiffCallback);
+
+            return Diff::HighlightDiff{saved, current, needsUpdateVec, changedVec, collectedChangedAreas};
         });
 }
 
@@ -716,12 +774,28 @@ void MapCanvas::paintDifferences()
     const auto &saved = m_data.getSavedMap();
     const auto &current = m_data.getCurrentMap();
 
-    diff.maybeAsyncUpdate(saved, current);
-    if (!diff.hasRelatedDiff(saved)) {
+    diff.maybeAsyncUpdate(saved, current); // This resolves the future and assigns to diff.highlight if ready
+
+    // Check if highlight is ready and has data related to the current saved map
+    if (!diff.hasRelatedDiff(saved)) { // This checks if highlight is valid and related to 'saved'
         return;
     }
 
-    const auto &highlight = deref(diff.highlight);
+    // At this point, diff.highlight is populated because hasRelatedDiff(saved) implies diff.highlight.has_value().
+    // Add the changedAreas to m_areasPendingRemesh
+    // No need for an extra has_value() check due to hasRelatedDiff already checking it.
+    const auto& newlyChangedAreas = diff.highlight->changedAreas;
+    if (!newlyChangedAreas.empty()) {
+        m_areasPendingRemesh.insert(newlyChangedAreas.begin(), newlyChangedAreas.end());
+        // MMLOG() << "Added " << newlyChangedAreas.size() << " areas to m_areasPendingRemesh. Total pending: " << m_areasPendingRemesh.size();
+        // Request an update to process these new pending areas if no remesh is active.
+        // This helps ensure updateBatches is called if it's not already going to be.
+        if (!m_batches.remeshCookie.isPending()) {
+             update();
+        }
+    }
+
+    const auto &highlight = deref(diff.highlight); // This will be used for rendering
     auto &gl = getOpenGL();
 
     auto tryRenderWithTexture = [&gl](const TexVertVector &points, const MMTextureId texid) {
@@ -984,13 +1058,13 @@ void MapCanvas::updateMultisampling()
 
 void MapCanvas::renderMapBatches()
 {
-    std::optional<MapBatches> &mapBatches = m_batches.mapBatches;
-    if (!mapBatches.has_value()) {
+    std::optional<MapBatches> &mapBatchesOpt = m_batches.mapBatches;
+    if (!mapBatchesOpt.has_value()) {
         // Hint: Use CREATE_ONLY first.
         throw std::runtime_error("called in the wrong order");
     }
 
-    MapBatches &batches = mapBatches.value();
+    MapBatches &batches = mapBatchesOpt.value();
     const Configuration::CanvasSettings &settings = getConfig().canvas;
 
     const float totalScaleFactor = getTotalScaleFactor();
@@ -999,15 +1073,17 @@ void MapCanvas::renderMapBatches()
                                && (totalScaleFactor >= settings.doorNameScaleCutoff);
 
     auto &gl = getOpenGL();
-    BatchedMeshes &batchedMeshes = batches.batchedMeshes;
-    const auto drawLayer =
-        [&batches, &batchedMeshes, wantExtraDetail, wantDoorNames](const int thisLayer,
-                                                                   const int currentLayer) {
-            const auto it_mesh = batchedMeshes.find(thisLayer);
-            if (it_mesh != batchedMeshes.end()) {
-                LayerMeshes &meshes = it_mesh->second;
-                meshes.render(thisLayer, currentLayer);
-            }
+    // BatchedMeshes is now std::map<RoomArea, PerAreaLayerMeshes>
+    // PerAreaLayerMeshes is std::map<int, LayerMeshes>
+    BatchedMeshes &areaBatchedMeshes = batches.batchedMeshes;
+
+    // drawSpecificLayerMeshes operates on a specific LayerMeshes for terrain/etc.,
+    // but accesses connectionMeshes and roomNameBatches from the main 'batches' object using thisLayer.
+    const auto drawSpecificLayerMeshes =
+        [&batches, wantExtraDetail, wantDoorNames](LayerMeshes &specificLayerMeshes,
+                                                   const int thisLayer,
+                                                   const int currentLayer) {
+            specificLayerMeshes.render(thisLayer, currentLayer);
 
             if (wantExtraDetail) {
                 {
@@ -1042,12 +1118,23 @@ void MapCanvas::renderMapBatches()
         gl.renderPlainFullScreenQuad(blendedWithBackground);
     };
 
-    for (const auto &layer : batchedMeshes) {
-        const int thisLayer = layer.first;
-        if (thisLayer == m_currentLayer) {
-            gl.clearDepth();
-            fadeBackground();
+    // Iterate through areas, then layers within each area.
+    for (auto &area_pair : areaBatchedMeshes) { // area_pair is std::pair<const RoomArea, PerAreaLayerMeshes&>
+        // const RoomArea& roomArea = area_pair.first; // Potentially unused for now in this rendering logic
+        PerAreaLayerMeshes &perAreaMeshes = area_pair.second;
+
+        for (auto &layer_pair : perAreaMeshes) { // layer_pair is std::pair<const int, LayerMeshes&>
+            const int thisLayer = layer_pair.first;
+            LayerMeshes &currentLayerMeshes = layer_pair.second; // The specific LayerMeshes for this area and layer
+
+            if (thisLayer == m_currentLayer) {
+                // This might be called multiple times if m_currentLayer exists in multiple areas.
+                // This replicates the original behavior where clearDepth/fadeBackground
+                // happens whenever the current layer is encountered in the loop.
+                gl.clearDepth();
+                fadeBackground();
+            }
+            drawSpecificLayerMeshes(currentLayerMeshes, thisLayer, m_currentLayer);
         }
-        drawLayer(thisLayer, m_currentLayer);
     }
 }

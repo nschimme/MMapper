@@ -4,6 +4,7 @@
 
 #include "Connections.h"
 #include "MapCanvasData.h"
+#include "../map/mmapper2room.h"
 
 #include <map>
 
@@ -34,7 +35,8 @@ struct NODISCARD LayerMeshes final
 };
 
 // This must be ordered so we can iterate over the layers from lowest to highest.
-using BatchedMeshes = std::map<int, LayerMeshes>;
+using PerAreaLayerMeshes = std::map<int, LayerMeshes>; // Renamed for clarity for the inner map
+using BatchedMeshes = std::map<RoomArea, PerAreaLayerMeshes>;
 
 struct NODISCARD MapBatches final
 {

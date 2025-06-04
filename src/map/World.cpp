@@ -161,6 +161,20 @@ World World::copy() const
     return result;
 }
 
+std::vector<RoomArea> World::getAllNamedAreas() const
+{
+    std::vector<RoomArea> namedAreas;
+    // m_areaInfos is of type AreaInfoMap.
+    // AreaInfoMap::numAreas() returns m_map.size().
+    // AreaInfoMap::begin()/end() iterate over m_map.
+    namedAreas.reserve(m_areaInfos.numAreas());
+    for (const auto& pair : m_areaInfos) // pair is const std::pair<const RoomArea, AreaInfo>&
+    {
+        namedAreas.push_back(pair.first);
+    }
+    return namedAreas;
+}
+
 bool World::operator==(const World &rhs) const
 {
     return m_remapping == rhs.m_remapping     //

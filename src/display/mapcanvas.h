@@ -79,6 +79,7 @@ private:
             Map current;
             TexVertVector needsUpdate;
             TexVertVector diff;
+            std::set<RoomArea> changedAreas;
         };
 
         std::optional<std::future<HighlightDiff>> futureHighlight;
@@ -109,6 +110,7 @@ private:
     FrameRateController m_frameRateController;
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
     Signal2Lifetime m_lifetime;
+    std::set<RoomArea> m_areasPendingRemesh;
 
 public:
     explicit MapCanvas(MapData &mapData,

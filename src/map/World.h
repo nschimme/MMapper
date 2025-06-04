@@ -173,6 +173,9 @@ public:
     NODISCARD static WorldComparisonStats getComparisonStats(const World &base,
                                                              const World &modified);
 
+public:
+    NODISCARD std::vector<RoomArea> getAllNamedAreas() const;
+
 private:
     void insertParse(RoomId id, ParseKeyFlags parseKeys);
 

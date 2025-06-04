@@ -1020,18 +1020,39 @@ void MapCanvas::layerChanged()
 void MapCanvas::forceUpdateMeshes()
 {
     m_batches.resetExistingMeshesAndIgnorePendingRemesh();
-    m_diff.resetExistingMeshesAndIgnorePendingRemesh();
-    update();
+    m_diff.resetExistingMeshesAndIgnorePendingRemesh(); // Also reset diff calculations
+
+    m_areasPendingRemesh.clear(); // Clear before populating
+
+    const auto& currentMap = m_data.getCurrentMap();
+    const auto& world = currentMap.getWorld(); // Get const World&
+
+    // Populate m_areasPendingRemesh with all areas that have rooms.
+    const auto& roomSet = world.getRoomSet(); // This is const RoomIdSet&
+    for (RoomId id : roomSet) {
+        const RawRoom* room = world.getRoom(id);
+        if (room) {
+            m_areasPendingRemesh.insert(room->getArea()); // RawRoom::getArea() provides the RoomArea
+        }
+    }
+    // Ensure default area is included if it might be used even if no rooms explicitly define it,
+    // or if it should always be refreshed in a full update. Iterating rooms covers areas in use.
+    // If there are no rooms, m_areasPendingRemesh remains empty, which is fine.
+    // If rooms exist in RoomArea{} (default area), room->getArea() will return it.
+
+    MMLOG() << "[forceUpdateMeshes] Populated m_areasPendingRemesh with " << m_areasPendingRemesh.size() << " areas for full remesh.";
+    update(); // Schedule a repaint to process these areas
 }
 
 void MapCanvas::slot_mapChanged()
 {
-    // REVISIT: Ideally we'd want to only update the layers/chunks
-    // that actually changed.
-    if ((false)) {
-        m_batches.mapBatches.reset();
-    }
-    update();
+    // Trigger an asynchronous diff calculation.
+    // The paintGL cycle will:
+    // 1. Complete the diff calculation (in paintDifferences via maybeAsyncUpdate).
+    // 2. Populate m_areasPendingRemesh from the diff results (in paintDifferences).
+    // 3. Call updateBatches, which will then process m_areasPendingRemesh.
+    m_diff.maybeAsyncUpdate(m_data.getSavedMap(), m_data.getCurrentMap());
+    update(); // Schedule a repaint
 }
 
 void MapCanvas::slot_requestUpdate()

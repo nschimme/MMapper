@@ -295,12 +295,6 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     message(STATUS "Building with Clang (${CMAKE_CXX_COMPILER})")
     add_compile_options(-fno-standalone-debug)
 
-    if(WIN32)
-        # Clang on MSYS2 need an additional option to work
-        add_compile_options(-femulated-tls)
-        add_link_options(-femulated-tls)
-    endif()
-
     if(MMAPPER_IS_DEBUG)
         if(NOT WIN32)
             # segfaults in ASAN initializer on 32-bit Ubuntu 18.04.1 with clang 6.0
@@ -310,17 +304,10 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
             add_compile_options(-fsanitize=address)
             add_link_options(-fsanitize=address)
         endif()
-
         if(TRUE)
             message(STATUS "Building with Clang undefined behavior sanitizer")
             add_compile_options(-fsanitize=undefined)
             add_link_options(-fsanitize=undefined)
-        endif()
-
-        if(WIN32)
-            # Clang on MSYS2 needs an additional option for UBSAN to work
-            add_compile_options(-fsanitize-undefined-trap-on-error)
-            add_link_options(-fsanitize-undefined-trap-on-error)
         endif()
 
         add_compile_options(-Weverything)
@@ -339,6 +326,9 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         if(APPLE)
             add_compile_options(-Wno-poison-system-directories)
         endif()
+	if(WIN32)
+            add_compile_options(-Wno-float-equal)
+	endif()
 
         add_compile_options(-Wno-extra-semi-stmt) # enabled only for src/ directory
 

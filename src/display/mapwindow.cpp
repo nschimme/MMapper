@@ -47,6 +47,7 @@ MapWindow::MapWindow(MapData &mapData, PrespammedPath &pp, Mmapper2Group &gm, QW
     MapCanvas *const canvas = m_canvas.get();
 
     m_gridLayout->addWidget(canvas, 0, 0, 1, 1);
+    setMinimumSize(canvas->minimumSizeHint());
 
     // Splash setup
     auto createSplashPixmap = [](const QSize &targetLogicalSize, qreal dpr) -> QPixmap {

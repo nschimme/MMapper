@@ -20,6 +20,7 @@
 #include <QActionGroup>
 #include <QDockWidget>
 #include <QFileDialog>
+#include <QLabel>
 #include <QMainWindow>
 #include <QProgressDialog>
 #include <QSize>
@@ -88,6 +89,7 @@ private:
 
     std::unique_ptr<GameObserver> m_gameObserver;
     AutoLogger *m_logger = nullptr;
+    QLabel *m_startupWidget = nullptr;
     ConnectionListener *m_listener = nullptr;
     Mmapper2PathMachine *m_pathMachine = nullptr;
     MapData *m_mapData = nullptr;

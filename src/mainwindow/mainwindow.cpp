@@ -44,6 +44,7 @@
 #include <optional>
 #include <thread>
 
+#include <QLabel>
 #include <QActionGroup>
 #include <QCloseEvent>
 #include <QDesktopServices>
@@ -142,7 +143,7 @@ MainWindow::MainWindow()
     m_groupManager->setObjectName("GroupManager");
 
     m_mapWindow = new MapWindow(mapData, deref(m_prespammedPath), deref(m_groupManager), this);
-    setCentralWidget(m_mapWindow);
+    setCentralWidget(m_startupWidget);
 
     m_pathMachine = new Mmapper2PathMachine(mapData, this);
     m_pathMachine->setObjectName("Mmapper2PathMachine");
@@ -1485,6 +1486,15 @@ void MainWindow::showEvent(QShowEvent *const event)
             canvas.screenChanged();
         });
     });
+
+    if (centralWidget() == m_startupWidget) { // Check if the startup widget is still the central widget
+        setCentralWidget(m_mapWindow);
+        m_mapWindow->show(); // Ensure the map window is visible
+        m_startupWidget->hide(); // Hide the startup widget
+        m_startupWidget->deleteLater(); // Schedule the startup widget for deletion
+        m_startupWidget = nullptr; // Set pointer to null to avoid dangling pointer issues
+    }
+
     event->accept();
 }
 

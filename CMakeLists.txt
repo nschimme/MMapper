@@ -326,6 +326,9 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         if(APPLE)
             add_compile_options(-Wno-poison-system-directories)
         endif()
+	if(WIN32)
+            add_compile_options(-Wno-float-equal)
+	endif()
 
         add_compile_options(-Wno-extra-semi-stmt) # enabled only for src/ directory
 

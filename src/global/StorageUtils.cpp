@@ -4,9 +4,9 @@
 #include "StorageUtils.h"
 
 #include "../global/Timer.h"
-#include "ConfigConsts.h"
+#include "ConfigConsts-Computed.h" // Use the CMake-generated header
 
-#ifndef MMAPPER_NO_ZLIB
+#ifdef WITH_ZLIB // Use the define from ConfigConsts-Computed.h
 #include "zpipe.h"
 #endif
 
@@ -16,19 +16,22 @@
 
 #include <QByteArray>
 
-#ifndef MMAPPER_NO_ZLIB
-#include <zlib.h>
-#endif
+// zlib.h is already included in zpipe.h when WITH_ZLIB is defined
 
 namespace StorageUtils::mmqt {
-#ifdef MMAPPER_NO_ZLIB
-QByteArray inflate(ProgressCounter &pc, QByteArray &data)
+#ifndef WITH_ZLIB // Use the define from ConfigConsts-Computed.h
+QByteArray zlib_inflate(ProgressCounter &pc, const QByteArray &data) // Renamed from inflate
 {
+    Q_UNUSED(pc);
+    Q_UNUSED(data);
     throw std::runtime_error("unable to inflate (built without zlib)");
 }
 
-QByteArray deflate(ProgressCounter &pc, const QByteArray &data)
+QByteArray zlib_deflate(ProgressCounter &pc, const QByteArray &data, const int level) // Renamed from deflate
 {
+    Q_UNUSED(pc);
+    Q_UNUSED(data);
+    Q_UNUSED(level);
     throw std::runtime_error("unable to deflate (built without zlib)");
 }
 #else
@@ -58,10 +61,10 @@ QByteArray zlib_deflate(ProgressCounter &pc, const QByteArray &data, const int l
 
 QByteArray uncompress(ProgressCounter &pc, const QByteArray &input)
 {
-    if constexpr (NO_ZLIB) {
-        return ::qUncompress(input);
-    } else {
-        using U = uint32_t;
+#ifndef WITH_ZLIB // Use the define from ConfigConsts-Computed.h
+    return ::qUncompress(input);
+#else
+    using U = uint32_t;
         using I = int32_t;
 
         std::array<char, 4> buf; // NOLINT (uninitialized; will be overwritten by memcpy)
@@ -78,15 +81,15 @@ QByteArray uncompress(ProgressCounter &pc, const QByteArray &input)
             throw std::runtime_error("failed to uncompress");
         }
         return result;
-    }
+#endif
 }
 
 QByteArray compress(ProgressCounter &pc, const QByteArray &input)
 {
-    if constexpr (NO_ZLIB) {
-        return ::qCompress(input);
-    } else {
-        using U = uint32_t;
+#ifndef WITH_ZLIB // Use the define from ConfigConsts-Computed.h
+    return ::qCompress(input);
+#else
+    using U = uint32_t;
         U size = static_cast<U>(input.size());
         if (size > static_cast<U>(std::numeric_limits<int>::max())) {
             throw std::runtime_error("data is too large to compress");
@@ -98,7 +101,7 @@ QByteArray compress(ProgressCounter &pc, const QByteArray &input)
         result.append(mmqt::zlib_deflate(pc, input));
 
         return result;
-    }
+#endif
 }
 
 } // namespace StorageUtils::mmqt

@@ -6,18 +6,23 @@
 
 #include "mapwindow.h"
 
+#include "../display/Filenames.h" // Added for getPixmapFilenameRaw
 #include "../global/SignalBlocker.h"
+#include "../global/Version.h" // Added for getMMapperVersion
 #include "mapcanvas.h"
 
 #include <memory>
 
 #include <QGridLayout>
+#include <QLabel> // Added for QLabel
+#include <QPixmap> // Added for QPixmap
 #include <QScrollBar>
 
 class QResizeEvent;
 
 MapWindow::MapWindow(MapData &mapData, PrespammedPath &pp, Mmapper2Group &gm, QWidget *const parent)
     : QWidget(parent)
+    , m_splashPixmap(getPixmapFilenameRaw("splash.png"))
 {
     m_gridLayout = std::make_unique<QGridLayout>(this);
     m_gridLayout->setSpacing(0);
@@ -43,6 +48,33 @@ MapWindow::MapWindow(MapData &mapData, PrespammedPath &pp, Mmapper2Group &gm, QW
     MapCanvas *const canvas = m_canvas.get();
 
     m_gridLayout->addWidget(canvas, 0, 0, 1, 1);
+
+    // Splash screen setup
+    m_splashLabel = new QLabel(this); // Make MapWindow the parent
+    m_splashLabel->setPixmap(m_splashPixmap);
+    m_splashLabel->setAlignment(Qt::AlignCenter); // Center the pixmap
+
+    // Version message
+    const auto versionMessage = QString("%1").arg(QString::fromUtf8(getMMapperVersion()), -9);
+    QLabel *versionTextLabel = new QLabel(versionMessage, m_splashLabel); // Parent to splashLabel
+    versionTextLabel->setStyleSheet("QLabel { color : yellow; background-color: transparent; }");
+    versionTextLabel->setAlignment(Qt::AlignBottom | Qt::AlignRight);
+    // Adjust position within m_splashLabel; you might need to fine-tune these values
+    versionTextLabel->move(m_splashLabel->width() - versionTextLabel->width() - 5,
+                           m_splashLabel->height() - versionTextLabel->height() - 5);
+    // Ensure the version label is visible if m_splashLabel is already visible
+    // or will be shown. If m_splashLabel's size is not yet determined, this might need adjustment after show.
+
+    // Add splash label to the grid, potentially on top of the canvas.
+    // Row 0, Col 0, spanning 1 row, 1 col. Adjust as needed.
+    // Ensure it's sized to the pixmap if the pixmap is larger than the canvas viewport at start.
+    // Or ensure m_splashLabel resizes with the window and centers the pixmap.
+    m_splashLabel->setFixedSize(m_splashPixmap.size()); // Fix size to pixmap size
+    m_gridLayout->addWidget(m_splashLabel, 0, 0, 1, 1, Qt::AlignCenter); // Add to grid, centered
+
+    m_splashLabel->show();
+    versionTextLabel->show(); // Show after parent is shown and sized, or adjust post-show.
+
 
     // from map window to canvas
     {
@@ -72,6 +104,19 @@ MapWindow::MapWindow(MapData &mapData, PrespammedPath &pp, Mmapper2Group &gm, QW
         connect(canvas, &MapCanvas::sig_continuousScroll, this, &MapWindow::slot_continuousScroll);
         connect(canvas, &MapCanvas::sig_mapMove, this, &MapWindow::slot_mapMove);
         connect(canvas, &MapCanvas::sig_zoomChanged, this, &MapWindow::slot_zoomChanged);
+        connect(canvas, &MapCanvas::sig_canvasReady, this, &MapWindow::hideSplashImage); // Connect new signal
+    }
+}
+
+void MapWindow::hideSplashImage()
+{
+    if (m_splashLabel) {
+        m_splashLabel->hide();
+        // Optionally, we could also delete m_splashLabel and versionTextLabel here
+        // if they are not needed anymore to free up resources.
+        // e.g., delete m_splashLabel->findChild<QLabel*>(); // For versionTextLabel if it's unnamed
+        // delete m_splashLabel;
+        // m_splashLabel = nullptr;
     }
 }
 
@@ -174,6 +219,18 @@ void MapWindow::centerOnScrollPos(const glm::ivec2 &scrollPos)
 
     const auto worldPos = m_knownMapSize.scrollToWorld(scrollPos);
     emit sig_setScroll(worldPos);
+}
+
+QSize MapWindow::sizeHint() const
+{
+    if (m_splashLabel && m_splashLabel->isVisible() && !m_splashPixmap.isNull()) {
+        return m_splashPixmap.size();
+    }
+    // Fallback to canvas size hint or default QWidget size hint
+    // if (m_canvas) {
+    //     return m_canvas->sizeHint(); // Or some other appropriate default
+    // }
+    return QWidget::sizeHint();
 }
 
 void MapWindow::resizeEvent(QResizeEvent * /*event*/)

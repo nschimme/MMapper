@@ -245,6 +245,7 @@ signals:
 
     void sig_setCurrentRoom(RoomId id, bool update);
     void sig_zoomChanged(float);
+    void sig_canvasReady(); // New signal
 
 public slots:
     void slot_onForcedPositionChange();

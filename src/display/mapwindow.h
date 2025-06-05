@@ -15,6 +15,8 @@
 #include <QWidget>
 #include <QtCore>
 #include <QtGlobal>
+#include <QPixmap>
+#include <QLabel>
 
 class MapCanvas;
 class MapData;
@@ -41,6 +43,8 @@ protected:
     std::unique_ptr<QScrollBar> m_horizontalScrollBar;
     std::unique_ptr<QScrollBar> m_verticalScrollBar;
     std::unique_ptr<MapCanvas> m_canvas;
+    QPixmap m_splashPixmap;
+    QLabel *m_splashLabel = nullptr;
 
 private:
     struct NODISCARD KnownMapSize final
@@ -55,6 +59,8 @@ private:
 
     } m_knownMapSize;
 
+#include <QSize> // Added for QSize
+
 public:
     explicit MapWindow(MapData &mapData, PrespammedPath &pp, Mmapper2Group &gm, QWidget *parent);
     ~MapWindow() final;
@@ -63,6 +69,7 @@ public:
     void keyPressEvent(QKeyEvent *event) override;
     void keyReleaseEvent(QKeyEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
+    QSize sizeHint() const override; // Override sizeHint
 
     NODISCARD MapCanvas *getCanvas() const;
 
@@ -79,6 +86,7 @@ signals:
     void sig_zoomChanged(float zoom);
 
 public slots:
+    void hideSplashImage();
     void slot_setScrollBars(const Coordinate &, const Coordinate &);
     void slot_centerOnWorldPos(const glm::vec2 &worldPos);
     void slot_mapMove(int dx, int dy);

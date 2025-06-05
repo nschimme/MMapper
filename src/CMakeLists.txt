@@ -709,11 +709,11 @@ if(WIN32)
 endif()
 
 if(WITH_MAP)
-    add_dependencies(mm_map map)
+    add_dependencies(mmapper map_qrc)
 endif()
 
 if(WITH_IMAGES)
-    add_dependencies(mm_map images)
+    add_dependencies(mmapper images_qrc)
 endif()
 
 if(WITH_ZLIB)

@@ -542,8 +542,11 @@ endif()
 list(APPEND mmapper_RCS "resources/macosx/m-${MMAPPER_BRAND_SUFFIX}.icns")
 
 if(WITH_MAP)
-    configure_file(resources/arda.qrc.in ${CMAKE_BINARY_DIR}/map/arda.qrc)
-    list(APPEND mmapper_RCS "${CMAKE_BINARY_DIR}/map/arda.qrc")
+    list(APPEND mmapper_RCS "${CMAKE_BINARY_DIR}/map/map.qrc")
+endif()
+
+if(WITH_IMAGES)
+    list(APPEND mmapper_RCS "${CMAKE_BINARY_DIR}/images/images.qrc")
 endif()
 
 set(mmapper_UIS
@@ -706,7 +709,11 @@ if(WIN32)
 endif()
 
 if(WITH_MAP)
-  add_dependencies(mmapper map)
+    add_dependencies(mm_map map)
+endif()
+
+if(WITH_IMAGES)
+    add_dependencies(mm_map images)
 endif()
 
 if(WITH_ZLIB)

@@ -541,11 +541,11 @@ endif()
 list(APPEND mmapper_RCS "resources/macosx/m-${MMAPPER_BRAND_SUFFIX}.icns")
 
 if(WITH_MAP)
-    qt_add_big_resources(mmapper_QRC "${CMAKE_BINARY_DIR}/map/map.qrc")
+    qt_add_resources(mmapper_QRC "${CMAKE_BINARY_DIR}/map/map.qrc")
 endif()
 
 if(WITH_IMAGES)
-    qt_add_big_resources(mmapper_QRC "${CMAKE_BINARY_DIR}/images/images.qrc")
+    qt_add_resources(mmapper_QRC "${CMAKE_BINARY_DIR}/images/images.qrc")
 endif()
 
 set(mmapper_UIS

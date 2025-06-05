@@ -16,13 +16,41 @@ jobs:
       matrix:
         os: [windows-2022, macos-latest, ubuntu-24.04]
         compiler: ['clang', 'gcc', 'msvc']
+        qt_version: ['qt5'] # Default to qt5 for existing linux jobs
+        include:
+          - os: ubuntu-24.04
+            compiler: 'gcc'
+            qt_version: 'qt6' # New Linux Qt6 job
+          - os: windows-2022
+            compiler: 'msvc'
+            qt_version: 'qt6' # Windows will use Qt6
+          - os: windows-2022
+            compiler: 'gcc' # MinGW
+            qt_version: 'qt6' # Windows will use Qt6
+          - os: macos-latest
+            compiler: 'clang'
+            qt_version: 'qt6' # MacOS will use Qt6
         exclude:
         - os: ubuntu-24.04
           compiler: 'msvc'
+        - os: ubuntu-24.04 # Exclude Qt5 clang on Linux for now to reduce build matrix size, can be added back if needed
+          compiler: 'clang'
+          qt_version: 'qt5'
         - os: macos-latest
           compiler: 'gcc'
         - os: macos-latest
           compiler: 'msvc'
+        # Remove default windows and macos qt5 runs, as they are replaced by qt6 specific includes
+        - os: windows-2022
+          compiler: 'msvc'
+          qt_version: 'qt5'
+        - os: windows-2022
+          compiler: 'gcc'
+          qt_version: 'qt5'
+        - os: macos-latest
+          compiler: 'clang'
+          qt_version: 'qt5'
+        # Exclude non-sensical combinations
         - os: windows-2022
           compiler: 'clang'
     steps:
@@ -47,64 +75,82 @@ jobs:
       #
       # Install Packages (Ubuntu)
       #
-    - if: runner.os == 'Linux'
-      name: Install Packages for Ubuntu
+    - if: runner.os == 'Linux' && matrix.qt_version == 'qt5'
+      name: Install Packages for Ubuntu (Qt5)
       run: |
         sudo apt update -qq
         sudo apt install -y build-essential git qt5-qmake libqt5opengl5-dev libqt5websockets5-dev zlib1g-dev libssl-dev qt5keychain-dev mold
-    - if: runner.os == 'Linux' && matrix.compiler == 'gcc'
-      name: Install GCC for Ubuntu
+    - if: runner.os == 'Linux' && matrix.qt_version == 'qt6'
+      name: Install Packages for Ubuntu (Qt6)
+      run: |
+        sudo apt update -qq
+        # Attempt to install qt6keychain-dev, may need adjustment if not available
+        sudo apt install -y build-essential git qt6-base-dev libqt6opengl6-dev libqt6websockets6-dev zlib1g-dev libssl-dev qt6keychain-dev qt6-tools-private-dev qt6-tools-dev mold
+    - if: runner.os == 'Linux' && matrix.compiler == 'gcc' && matrix.qt_version == 'qt5'
+      name: Install GCC for Ubuntu (Qt5)
       run: |
         sudo apt install -y gcc-13 g++-13 lcov
         echo "QMAKESPEC=linux-g++" >> $GITHUB_ENV
         echo "CC=gcc-13" >> $GITHUB_ENV
         echo "CXX=g++-13" >> $GITHUB_ENV
-        echo "MMAPPER_CMAKE_EXTRA=-DUSE_CODE_COVERAGE=true -DUSE_MOLD=true" >> $GITHUB_ENV
+        echo "MMAPPER_CMAKE_EXTRA=-DUSE_CODE_COVERAGE=true -DUSE_MOLD=true" >> $GITHUB_ENV # Removed -DUSE_QT6=OFF
         echo "COVERAGE=true" >> $GITHUB_ENV
-    - if: runner.os == 'Linux' && matrix.compiler == 'clang'
-      name: Install Clang for Ubuntu
+    - if: runner.os == 'Linux' && matrix.compiler == 'gcc' && matrix.qt_version == 'qt6'
+      name: Install GCC for Ubuntu (Qt6)
+      run: |
+        sudo apt install -y gcc-13 g++-13 lcov
+        echo "QMAKESPEC=linux-g++" >> $GITHUB_ENV # Qt6 might not need -qt6 suffix
+        echo "CC=gcc-13" >> $GITHUB_ENV
+        echo "CXX=g++-13" >> $GITHUB_ENV
+        echo "MMAPPER_CMAKE_EXTRA=-DUSE_CODE_COVERAGE=true -DUSE_MOLD=true" >> $GITHUB_ENV # Removed -DUSE_QT6=ON
+        echo "COVERAGE=true" >> $GITHUB_ENV
+    - if: runner.os == 'Linux' && matrix.compiler == 'clang' # This will be Qt5 by default due to matrix setup
+      name: Install Clang for Ubuntu (Qt5)
       run: |
         sudo apt install -y clang-18 binutils
         echo "QMAKESPEC=linux-clang" >> $GITHUB_ENV
         echo "CC=clang-18" >> $GITHUB_ENV
         echo "CXX=clang++-18" >> $GITHUB_ENV
         echo "STYLE=true" >> $GITHUB_ENV
-        echo "MMAPPER_CMAKE_EXTRA=-DUSE_MOLD=true" >> $GITHUB_ENV
-
+        echo "MMAPPER_CMAKE_EXTRA=-DUSE_MOLD=true" >> $GITHUB_ENV # Removed -DUSE_QT6=OFF
+    # Add a Clang Qt6 Linux build if desired in the future by duplicating gcc qt6 block and changing compiler
 
       #
       # Install Packages (Mac)
       #
-    - if: runner.os == 'macOS'
-      name: Install Packages for Mac
+    - if: runner.os == 'macOS' # This will be Qt6 due to matrix include
+      name: Install Packages for Mac (Qt6)
       run: |
-        brew install qt@5 lcov
-        brew link qt@5 --force
-        echo "$(brew --prefix qt@5)/bin" >> $GITHUB_PATH
-        echo "MMAPPER_CMAKE_EXTRA=-DUSE_CODE_COVERAGE=true" >> $GITHUB_ENV
+        brew install qt lcov # qt should install latest Qt6 by default
+        echo "$(brew --prefix qt)/bin" >> $GITHUB_PATH
+        echo "MMAPPER_CMAKE_EXTRA=-DUSE_CODE_COVERAGE=true" >> $GITHUB_ENV # Removed -DUSE_QT6=ON
         echo "COVERAGE=false" >> $GITHUB_ENV
+
+
 
 
       #
       # Install Packages (Windows)
       #
-    - if: runner.os == 'Windows' && matrix.compiler == 'msvc'
-      name: Install Qt for Windows (MSVC)
+    - if: runner.os == 'Windows' && matrix.compiler == 'msvc' && matrix.qt_version == 'qt6'
+      name: Install Qt6 for Windows (MSVC)
+      id: install-qt-msvc # Give a step id to access outputs.version
       uses: jurplel/install-qt-action@v4
       with:
-        version: 5.15.2
-        dir: 'C:\'
-        arch: win64_msvc2019_64
+        version: '6.5.3' # Example Qt6 version
+        dir: 'C:\Qt' # Install into C:\Qt\<version>\<arch>
+        arch: win64_msvc2019_64 # Check jurplel action for Qt6 compatible archs, msvc2019 should be fine
         cache: true
-    - if: runner.os == 'Windows' && matrix.compiler == 'gcc'
-      name: Install Qt for Windows (MinGW)
+    - if: runner.os == 'Windows' && matrix.compiler == 'gcc' && matrix.qt_version == 'qt6'
+      name: Install Qt6 for Windows (MinGW)
+      id: install-qt-mingw # Give a step id
       uses: jurplel/install-qt-action@v4
       with:
-        version: 5.15.2
-        dir: 'C:\'
-        arch: win64_mingw81
+        version: '6.5.3' # Example Qt6 version
+        dir: 'C:\Qt' # Install into C:\Qt\<version>\<arch>
+        arch: win64_mingw # For MinGW, need to check what arch string Qt6 uses, e.g. win64_mingw_seh
         cache: true
-        tools: 'tools_mingw1310'
+        tools: 'tools_mingw90' # Adjust MinGW tools if needed for Qt6, e.g. mingw90 for Qt 6.2+
     - if: runner.os == 'Windows'
       name: Install Packages for Windows
       uses: crazy-max/ghaction-chocolatey@v3
@@ -115,8 +161,8 @@ jobs:
       #
       # Build
       #
-    - if: runner.os == 'Windows'
-      name: Build MMapper for Windows
+    - if: runner.os == 'Windows' # This will be Qt6 due to matrix include
+      name: Build MMapper for Windows (Qt6)
       shell: pwsh
       run: |
         xcopy "C:\Program Files\OpenSSL" "C:\OpenSSL" /E /I /H /K /Y
@@ -124,23 +170,32 @@ jobs:
         mkdir build
         cd build
         cmake --version
-        # Compiler-specific logic
+        $qtDirFromAction = ""
+        # $cmakeQtFlag = "-DUSE_QT6=ON" # Removed, CMake will auto-detect
+        # Compiler-specific logic for Qt6
         if ('${{ matrix.compiler }}' -eq 'msvc') {
-          $qtPath = "C:\Qt\5.12.2\msvc2019_64"
+          $qtVersion = "${{ steps.install-qt-msvc.outputs.version }}"
+          $qtArch = "msvc2019_64" # This should match the 'arch' used in install-qt-action
+          $qtDirFromAction = "C:\Qt\$qtVersion\$qtArch"
         } elseif ('${{ matrix.compiler }}' -eq 'gcc') {
-          $qtPath = "C:\Qt\5.12.2\mingw81_64"
-          echo "C:/Qt/Tools/mingw1310_64/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          $env:PATH = "C:\Qt\Tools\mingw1310_64\bin;$env:PATH"
+          $qtVersion = "${{ steps.install-qt-mingw.outputs.version }}"
+          $qtArch = "mingw" # This should match the 'arch' used in install-qt-action (e.g., win64_mingw)
+          $qtDirFromAction = "C:\Qt\$qtVersion\$qtArch" # Adjust if MinGW path is different
+          # Add MinGW tools to path if specified by install-qt-action
+          # Example: echo "C:/Qt/Tools/mingw90_64/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          # $env:PATH = "C:\Qt\Tools\mingw90_64\bin;$env:PATH"
         }
         $packageDir = ($env:GITHUB_WORKSPACE -replace '\\', '/') + "/artifact"
-        cmake -DCMAKE_BUILD_TYPE=Debug -G 'Ninja' -DWITH_MAP=OFF -DCPACK_PACKAGE_DIRECTORY="$packageDir" -DCMAKE_PREFIX_PATH=$qtPath -DOPENSSL_ROOT_DIR=C:/OpenSSL/ -DWITH_WEBSOCKET=ON -DWITH_QTKEYCHAIN=ON -S .. || exit -1
+        Write-Host "Qt Path: $qtDirFromAction"
+        cmake -DCMAKE_BUILD_TYPE=Debug -G 'Ninja' -DWITH_MAP=OFF -DCPACK_PACKAGE_DIRECTORY="$packageDir" -DCMAKE_PREFIX_PATH=$qtDirFromAction -DOPENSSL_ROOT_DIR=C:/OpenSSL/ -DWITH_WEBSOCKET=ON -DWITH_QTKEYCHAIN=ON -S .. || exit -1 # Removed $cmakeQtFlag
         cmake --build . --parallel
-    - if: runner.os == 'Linux' || runner.os == 'macOS'
+    - if: runner.os == 'Linux' || runner.os == 'macOS' # macOS uses Qt6, Linux uses Qt based on matrix.qt_version
       name: Build MMapper for Linux and Mac
       run: |
         mkdir -p build ${{ github.workspace }}/artifact
         cd build
         cmake --version
+        # MMAPPER_CMAKE_EXTRA no longer contains -DUSE_QT6 flags
         cmake -DCMAKE_BUILD_TYPE=Debug -G 'Ninja' -DWITH_MAP=OFF -DCPACK_PACKAGE_DIRECTORY=${{ github.workspace }}/artifact $MMAPPER_CMAKE_EXTRA -DWITH_WEBSOCKET=ON -DWITH_QTKEYCHAIN=ON -S .. || exit -1
         cmake --build . --parallel
 

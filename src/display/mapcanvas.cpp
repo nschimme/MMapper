@@ -593,7 +593,11 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
         const int vScroll = [this, event]() -> int {
             const int h = height();
             const int MARGIN = std::min(100, h / 4);
+#if QT_VERSION_MAJOR >= 6
+            const int y = event->position().toPoint().y();
+#else
             const int y = event->pos().y();
+#endif
             if (y < MARGIN) {
                 return SCROLL_SCALE;
             } else if (y > h - MARGIN) {
@@ -605,7 +609,11 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
         const int hScroll = [this, event]() -> int {
             const int w = width();
             const int MARGIN = std::min(100, w / 4);
+#if QT_VERSION_MAJOR >= 6
+            const int x = event->position().toPoint().x();
+#else
             const int x = event->pos().x();
+#endif
             if (x < MARGIN) {
                 return -SCROLL_SCALE;
             } else if (x > w - MARGIN) {
@@ -788,8 +796,11 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
                 auto message = mmqt::previewRoom(room,
                                                  mmqt::StripAnsiEnum::Yes,
                                                  mmqt::PreviewStyleEnum::ForDisplay);
-
+#if QT_VERSION_MAJOR >= 6
+                QToolTip::showText(mapToGlobal(event->position().toPoint()), message, this, rect(), 5000);
+#else
                 QToolTip::showText(mapToGlobal(event->pos()), message, this, rect(), 5000);
+#endif
             }
         }
         break;

@@ -163,9 +163,6 @@ public:
     using Base::glUniformMatrix4fv;
     using Base::glUseProgram;
     using Base::glVertexAttribPointer;
-    using Base::glGenVertexArrays;
-    using Base::glBindVertexArray;
-    using Base::glDeleteVertexArrays;
 
 public:
     // OpenGL man page says "Only width 1 is guaranteed to be supported."

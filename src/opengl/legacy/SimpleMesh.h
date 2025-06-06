@@ -13,6 +13,9 @@
 #include <optional>
 #include <vector>
 
+#include <QOpenGLContext>      // For VAO functions
+#include <QOpenGLExtraFunctions> // For VAO functions
+
 namespace Legacy {
 
 template<typename VertexType_, typename ProgramType_>
@@ -40,7 +43,7 @@ public:
         , m_shared_program{std::move(sharedProgram)}
         , m_program{deref(m_shared_program)}
     {
-        m_functions.glGenVertexArrays(1, &m_vao);
+        QOpenGLContext::currentContext()->extraFunctions()->glGenVertexArrays(1, &m_vao);
     }
 
     explicit SimpleMesh(const SharedFunctions &sharedFunctions,
@@ -144,7 +147,7 @@ private:
     void virt_reset() final
     {
         if (m_vao != 0) {
-            m_functions.glDeleteVertexArrays(1, &m_vao);
+            QOpenGLContext::currentContext()->extraFunctions()->glDeleteVertexArrays(1, &m_vao);
             m_vao = 0;
         }
         m_drawMode = DrawModeEnum::INVALID;
@@ -177,14 +180,14 @@ private:
         m_functions.checkError();
 
         if (const std::optional<GLenum> &optMode = Functions::toGLenum(m_drawMode)) {
-            m_functions.glBindVertexArray(m_vao); // Bind VAO before drawing
+            QOpenGLContext::currentContext()->extraFunctions()->glBindVertexArray(m_vao); // Bind VAO before drawing
             m_functions.glDrawArrays(optMode.value(), 0, m_numVerts);
         } else {
             assert(false);
         }
 
         m_functions.checkError();
-        m_functions.glBindVertexArray(0); // Unbind VAO after drawing
+        QOpenGLContext::currentContext()->extraFunctions()->glBindVertexArray(0); // Unbind VAO after drawing
     }
 };
 } // namespace Legacy

@@ -21,6 +21,7 @@
 #include <memory>
 #include <optional>
 #include <stdexcept>
+#include <type_traits> // Added for std::is_convertible_v
 #include <utility>
 #include <vector>
 
@@ -32,6 +33,8 @@
 #include <QFile>
 #include <QMessageLogContext>
 #include <QOpenGLTexture>
+#include <QOpenGLContext>      // Added for currentContext()
+#include <QOpenGLExtraFunctions> // Added for extraFunctions()
 
 namespace Legacy {
 template<template<typename> typename Mesh_, typename VertType_, typename ProgType_>
@@ -132,7 +135,8 @@ static void renderImmediate(const SharedFunctions &sharedFunctions,
     }
 
     using Mesh = Mesh_<VertexType_>;
-    static_assert(std::is_same_v<typename Mesh::ProgramType, ShaderType_>);
+    static_assert(std::is_convertible_v<std::shared_ptr<ShaderType_>, std::shared_ptr<typename Mesh::ProgramType>> || std::is_same_v<typename Mesh::ProgramType, ShaderType_>,
+                  "ShaderType must be convertible to Mesh's ProgramType");
 
     const auto before = vbo.get();
     {
@@ -293,13 +297,13 @@ bool Functions::createMsaaFBO(GLsizei width, GLsizei height, GLsizei samples) {
     Base::glGenRenderbuffers(1, &m_msaaColorBuffer);
     Base::glBindRenderbuffer(GL_RENDERBUFFER, m_msaaColorBuffer);
     // TODO: Consider GL_SRGB8_ALPHA8 if sRGB is used elsewhere. For now, RGBA8.
-    Base::glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_RGBA8, width, height);
+    QOpenGLContext::currentContext()->extraFunctions()->glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_RGBA8, width, height);
     Base::glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, m_msaaColorBuffer);
 
     // Depth/Stencil buffer
     Base::glGenRenderbuffers(1, &m_msaaDepthStencilBuffer);
     Base::glBindRenderbuffer(GL_RENDERBUFFER, m_msaaDepthStencilBuffer);
-    Base::glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_DEPTH24_STENCIL8, width, height);
+    QOpenGLContext::currentContext()->extraFunctions()->glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_DEPTH24_STENCIL8, width, height);
     Base::glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, m_msaaDepthStencilBuffer);
 
     GLenum status = Base::glCheckFramebufferStatus(GL_FRAMEBUFFER);
@@ -334,7 +338,7 @@ void Functions::resolveMsaaFBO(GLuint targetFramebuffer) {
         // For now, assume m_msaaWidth/Height are physical pixel dimensions.
         Viewport physicalVP = getPhysicalViewport(); // This gets logical viewport, need to scale?
                                                  // Assuming m_msaaWidth/Height are already physical.
-        Base::glBlitFramebuffer(0, 0, m_msaaWidth, m_msaaHeight,
+        QOpenGLContext::currentContext()->extraFunctions()->glBlitFramebuffer(0, 0, m_msaaWidth, m_msaaHeight,
                               0, 0, m_msaaWidth, m_msaaHeight, // Blit to same size region on target FB for now
                               GL_COLOR_BUFFER_BIT, GL_NEAREST);
         Base::glBindFramebuffer(GL_FRAMEBUFFER, 0); // Unbind any FBO

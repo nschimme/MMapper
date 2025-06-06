@@ -50,6 +50,9 @@ public:
 
 public:
     NODISCARD bool tryEnableMultisampling(int samples);
+    void handleResizeForMsaaFBO(GLsizei newWidth, GLsizei newHeight);
+    void bindMsaaFBO();
+    void resolveMsaaFBO(GLuint targetFramebuffer = 0);
 
 public:
     NODISCARD UniqueMesh createPointBatch(const std::vector<ColorVert> &verts);

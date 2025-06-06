@@ -23,28 +23,28 @@ private:
     }
 };
 
-struct NODISCARD AColorThickLineShader final : public AbstractShaderProgram
+struct NODISCARD AColorThickLineShader final : public AColorPlainShader
 {
 public:
-    using AbstractShaderProgram::AbstractShaderProgram;
+    AColorThickLineShader(std::string dirName, SharedFunctions functions, Program program)
+        : AColorPlainShader(std::move(dirName), std::move(functions), std::move(program)) {}
     ~AColorThickLineShader() final;
 private:
     void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final {
-        setColor("uColor", uniforms.color); // Modulating uniform
-        setMatrix("uMVP", mvp);
+        AColorPlainShader::virt_setUniforms(mvp, uniforms); // Call base
         setFloat("uLineWidth", uniforms.lineWidth);
     }
 };
 
-struct NODISCARD UColorThickLineShader final : public AbstractShaderProgram
+struct NODISCARD UColorThickLineShader final : public UColorPlainShader
 {
 public:
-    using AbstractShaderProgram::AbstractShaderProgram;
+    UColorThickLineShader(std::string dirName, SharedFunctions functions, Program program)
+        : UColorPlainShader(std::move(dirName), std::move(functions), std::move(program)) {}
     ~UColorThickLineShader() final;
 private:
     void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final {
-        setColor("uColor", uniforms.color); // Primary uniform color
-        setMatrix("uMVP", mvp);
+        UColorPlainShader::virt_setUniforms(mvp, uniforms); // Call base
         setFloat("uLineWidth", uniforms.lineWidth);
     }
 };

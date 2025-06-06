@@ -55,6 +55,21 @@ bool OpenGL::tryEnableMultisampling(const int requestedSamples)
     return getFunctions().tryEnableMultisampling(requestedSamples);
 }
 
+void OpenGL::handleResizeForMsaaFBO(GLsizei newWidth, GLsizei newHeight)
+{
+    getFunctions().handleResizeForMsaaFBO(newWidth, newHeight);
+}
+
+void OpenGL::bindMsaaFBO()
+{
+    getFunctions().bindMsaaFBO();
+}
+
+void OpenGL::resolveMsaaFBO(GLuint targetFramebuffer)
+{
+    getFunctions().resolveMsaaFBO(targetFramebuffer);
+}
+
 UniqueMesh OpenGL::createPointBatch(const std::vector<ColorVert> &batch)
 {
     return getFunctions().createPointBatch(batch);

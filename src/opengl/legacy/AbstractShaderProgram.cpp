@@ -167,4 +167,15 @@ void AbstractShaderProgram::setViewport(const char *const name, const Viewport &
     setUniform4iv(location, 1, glm::value_ptr(viewport));
 }
 
+void AbstractShaderProgram::setFloat(const char *const name, const float value)
+{
+    const auto location = getUniformLocation(name);
+    // It's good practice to check if the uniform location is valid before using it,
+    // though existing methods like setColor don't always do this.
+    // For consistency with setColor, we can omit the check, but be aware.
+    if (location != INVALID_UNIFORM_LOCATION) { // Optional: check if uniform exists
+        setUniform1fv(location, 1, &value);
+    }
+}
+
 } // namespace Legacy

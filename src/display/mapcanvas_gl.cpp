@@ -459,9 +459,7 @@ void MapCanvas::setViewportAndMvp(int width, int height)
 
     gl.glViewport(0, 0, width, height);
     // Ensure FBO is resized for MSAA whenever viewport changes.
-    if (auto glFuncs = m_opengl.getSharedFunctions()) {
-        glFuncs->handleResizeForMsaaFBO(width, height);
-    }
+    gl.handleResizeForMsaaFBO(width, height); // Use new public method on OpenGL class
     const auto size = getViewport().size;
     assert(size.x == width);
     assert(size.y == height);
@@ -795,9 +793,7 @@ void MapCanvas::paintSelections()
 
 void MapCanvas::paintGL()
 {
-    if (auto glFuncs = m_opengl.getSharedFunctions()) {
-        glFuncs->bindMsaaFBO();
-    }
+    m_opengl.bindMsaaFBO(); // Use new public method on OpenGL class
 
     static thread_local double longestBatchMs = 0.0;
 
@@ -931,9 +927,7 @@ void MapCanvas::paintGL()
 
     font.render2dTextImmediate(text);
 
-    if (auto glFuncs = m_opengl.getSharedFunctions()) {
-        glFuncs->resolveMsaaFBO(0); // 0 for default framebuffer
-    }
+    m_opengl.resolveMsaaFBO(0); // Use new public method on OpenGL class
 }
 
 void MapCanvas::paintSelectionArea()

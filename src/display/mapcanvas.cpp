@@ -6,7 +6,7 @@
 
 #include "mapcanvas.h"
 
-#include "../configuration/configuration.h"
+#include "../configuration/configuration.h" // Added for g_config
 #include "../global/parserutils.h"
 #include "../global/progresscounter.h"
 #include "../global/utils.h"
@@ -1074,7 +1074,39 @@ void MapCanvas::selectionChanged()
 
 void MapCanvas::graphicsSettingsChanged()
 {
+    updateMultisampling();
     update();
+}
+
+void MapCanvas::updateMultisampling()
+{
+    const int requestedSamples = getConfig().canvas.antialiasingSamples;
+
+    bool needsUpdate = false;
+    if (!m_graphicsOptionsStatus.multisampling.has_value() || m_graphicsOptionsStatus.multisampling.value() != requestedSamples) {
+        needsUpdate = true;
+    }
+
+    m_graphicsOptionsStatus.multisampling = requestedSamples;
+
+    if (m_opengl.isRendererInitialized()) { // Only attempt if GL is ready
+        if (m_opengl.tryEnableMultisampling(requestedSamples)) {
+            // If tryEnableMultisampling itself causes an update or handles FBO correctly,
+            // explicit update() might only be needed if the status changed.
+            if (needsUpdate) {
+                qInfo() << "Multisampling setting changed to" << requestedSamples << "samples. Requesting update.";
+                update();
+            }
+        } else {
+            qWarning() << "Failed to apply multisampling with" << requestedSamples << "samples.";
+            // Potentially revert m_graphicsOptionsStatus.multisampling or set to actual supported value
+            // For now, we assume tryEnableMultisampling handles internal state correctly even on failure.
+        }
+    } else {
+        // If renderer is not initialized, store the value.
+        // initializeGL will call this function again.
+        qInfo() << "Renderer not yet initialized. Multisampling value" << requestedSamples << "stored.";
+    }
 }
 
 void MapCanvas::userPressedEscape(bool /*pressed*/)

@@ -240,12 +240,6 @@ void MapCanvas::initializeGL()
     gl.initializeRenderer(static_cast<float>(QPaintDevice::devicePixelRatioF()));
     // updateMultisampling(); // Original call moved/replaced by tryEnable below
 
-    if (auto glFuncs = m_opengl.getSharedFunctions()) {
-        // QOpenGLWidget typically calls initializeGL, then resizeGL, then paintGL.
-        // resizeGL will call handleResizeForMsaaFBO which creates the FBO.
-        // tryEnableMultisampling here stores the intent.
-        glFuncs->tryEnableMultisampling(getConfig().canvas.antialiasingSamples);
-    }
     // Call updateMultisampling here if it does more than just FBO (e.g. global GL state)
     // For now, assuming tryEnableMultisampling handles the core MSAA setup request.
     // If updateMultisampling() was for old GL_MULTISAMPLE, it might be redundant or conflict.
@@ -254,6 +248,7 @@ void MapCanvas::initializeGL()
     // Let's comment it out for now to prioritize FBO path. If needed, it can be restored.
     // updateMultisampling();
 
+    updateMultisampling(); // Added to apply MSAA settings from configuration.
 
     // REVISIT: should the font texture have the lowest ID?
     initTextures();
@@ -463,6 +458,10 @@ void MapCanvas::setViewportAndMvp(int width, int height)
     auto &gl = getOpenGL();
 
     gl.glViewport(0, 0, width, height);
+    // Ensure FBO is resized for MSAA whenever viewport changes.
+    if (auto glFuncs = m_opengl.getSharedFunctions()) {
+        glFuncs->handleResizeForMsaaFBO(width, height);
+    }
     const auto size = getViewport().size;
     assert(size.x == width);
     assert(size.y == height);
@@ -481,11 +480,6 @@ void MapCanvas::resizeGL(int width, int height)
     }
 
     setViewportAndMvp(width, height);
-
-    if (auto glFuncs = m_opengl.getSharedFunctions()) {
-        // handleResizeForMsaaFBO takes logical width & height, and scales them internally
-        glFuncs->handleResizeForMsaaFBO(width, height);
-    }
 
     // Render
     update();
@@ -601,10 +595,11 @@ void MapCanvas::finishPendingMapBatches()
 
 void MapCanvas::actuallyPaintGL()
 {
+    auto &gl = getOpenGL(); // Access m_opengl
+
     // DECL_TIMER(t, __FUNCTION__);
     setViewportAndMvp(width(), height());
 
-    auto &gl = getOpenGL();
     gl.clear(Color{getConfig().canvas.backgroundColor});
 
     if (m_data.isEmpty()) {

@@ -13,7 +13,7 @@ struct NODISCARD AColorPlainShader : public AbstractShaderProgram
 public:
     using AbstractShaderProgram::AbstractShaderProgram;
 
-    virtual ~AColorPlainShader();
+    virtual ~AColorPlainShader() override;
 
 protected:
     void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) override
@@ -43,7 +43,7 @@ struct NODISCARD UColorPlainShader : public AbstractShaderProgram
 public:
     using AbstractShaderProgram::AbstractShaderProgram;
 
-    virtual ~UColorPlainShader();
+    virtual ~UColorPlainShader() override;
 
 protected:
     void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) override

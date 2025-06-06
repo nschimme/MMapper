@@ -1,15 +1,16 @@
+#version 330 core
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
 
 uniform mat4 uMVP;
 
-attribute vec4 aColor;
-attribute vec3 aVert;
+in vec4 aColor;
+in vec3 aVert;
 
-varying vec4 vColor;
+out vec4 vs_color_out; // Renamed for clarity when passing to Geometry Shader
 
 void main()
 {
-    vColor = aColor;
+    vs_color_out = aColor;
     gl_Position = uMVP * vec4(aVert, 1.0);
 }

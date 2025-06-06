@@ -83,6 +83,7 @@ NODISCARD static const char *shaderTypeName(const GLenum type)
     } while (0)
     switch (type) {
         CASE(VERTEX);
+        CASE(GEOMETRY);
         CASE(FRAGMENT);
     default:
         break;
@@ -213,9 +214,13 @@ NODISCARD static GLuint compileShader(Functions &gl, const GLenum type, const So
     return shaderId;
 }
 
-Program loadShaders(Functions &gl, const Source &vert, const Source &frag)
+Program loadShaders(Functions &gl,
+                    const Source &vert,
+                    const Source &geom,
+                    const Source &frag)
 {
     std::vector<GLuint> shaders{compileShader(gl, GL_VERTEX_SHADER, vert),
+                                compileShader(gl, GL_GEOMETRY_SHADER, geom),
                                 compileShader(gl, GL_FRAGMENT_SHADER, frag)};
 
     const auto is_valid = [](GLuint s) -> bool { return s != 0; };

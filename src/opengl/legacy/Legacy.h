@@ -89,6 +89,14 @@ private:
     std::unique_ptr<StaticVbos> m_staticVbos;
     std::unique_ptr<TexLookup> m_texLookup;
 
+    // FBO for multisampling
+    GLuint m_msaaFbo = 0;
+    GLuint m_msaaColorBuffer = 0;
+    GLuint m_msaaDepthStencilBuffer = 0;
+    GLsizei m_msaaWidth = 0;
+    GLsizei m_msaaHeight = 0;
+    GLsizei m_msaaSamples = 0;
+
 public:
     NODISCARD static std::shared_ptr<Functions> alloc();
 
@@ -214,6 +222,15 @@ private:
     friend OpenGL;
     /// platform-specific (ES vs GL)
     NODISCARD bool tryEnableMultisampling(int requestedSamples);
+
+private:
+    bool createMsaaFBO(GLsizei width, GLsizei height, GLsizei samples);
+    void destroyMsaaFBO();
+
+public:
+    void bindMsaaFBO();    // Bind the MSAA FBO for rendering
+    void resolveMsaaFBO(GLuint targetFramebuffer = 0); // Resolve MSAA FBO to target (default is screen)
+    void handleResizeForMsaaFBO(GLsizei newWidth, GLsizei newHeight); // Recreate FBO on resize
 
 public:
     /// platform-specific (ES vs GL)

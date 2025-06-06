@@ -27,6 +27,9 @@ struct NODISCARD Source final
     explicit operator bool() const { return !filename.empty() || !source.empty(); }
 };
 
-NODISCARD Program loadShaders(Functions &gl, const Source &vert, const Source &frag);
+NODISCARD Program loadShaders(Functions &gl,
+                              const Source &vert,
+                              const Source &geom,
+                              const Source &frag);
 
 } // namespace ShaderUtils

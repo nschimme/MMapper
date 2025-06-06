@@ -23,6 +23,32 @@ private:
     }
 };
 
+struct NODISCARD AColorThickLineShader final : public AbstractShaderProgram
+{
+public:
+    using AbstractShaderProgram::AbstractShaderProgram;
+    ~AColorThickLineShader() final;
+private:
+    void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final {
+        setColor("uColor", uniforms.color); // Modulating uniform
+        setMatrix("uMVP", mvp);
+        setFloat("uLineWidth", uniforms.lineWidth);
+    }
+};
+
+struct NODISCARD UColorThickLineShader final : public AbstractShaderProgram
+{
+public:
+    using AbstractShaderProgram::AbstractShaderProgram;
+    ~UColorThickLineShader() final;
+private:
+    void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final {
+        setColor("uColor", uniforms.color); // Primary uniform color
+        setMatrix("uMVP", mvp);
+        setFloat("uLineWidth", uniforms.lineWidth);
+    }
+};
+
 struct NODISCARD UColorPlainShader final : public AbstractShaderProgram
 {
 public:
@@ -122,6 +148,8 @@ private:
     std::shared_ptr<UColorTexturedShader> uTexturedShader;
     std::shared_ptr<FontShader> font;
     std::shared_ptr<PointShader> point;
+    std::shared_ptr<AColorThickLineShader> aColorThickLineShader;
+    std::shared_ptr<UColorThickLineShader> uColorThickLineShader;
 
 public:
     explicit ShaderPrograms(Functions &functions)
@@ -142,6 +170,8 @@ public:
         uTexturedShader.reset();
         font.reset();
         point.reset();
+        aColorThickLineShader.reset();
+        uColorThickLineShader.reset();
     }
 
 public:
@@ -155,6 +185,8 @@ public:
     NODISCARD const std::shared_ptr<UColorTexturedShader> &getTexturedUColorShader();
     NODISCARD const std::shared_ptr<FontShader> &getFontShader();
     NODISCARD const std::shared_ptr<PointShader> &getPointShader();
+    NODISCARD const std::shared_ptr<AColorThickLineShader> &getPlainAColorThickLineShader();
+    NODISCARD const std::shared_ptr<UColorThickLineShader> &getPlainUColorThickLineShader();
 };
 
 } // namespace Legacy

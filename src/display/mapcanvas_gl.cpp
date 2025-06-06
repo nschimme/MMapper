@@ -238,7 +238,22 @@ void MapCanvas::initializeGL()
     initLogger();
 
     gl.initializeRenderer(static_cast<float>(QPaintDevice::devicePixelRatioF()));
-    updateMultisampling();
+    // updateMultisampling(); // Original call moved/replaced by tryEnable below
+
+    if (auto glFuncs = m_opengl.getSharedFunctions()) {
+        // QOpenGLWidget typically calls initializeGL, then resizeGL, then paintGL.
+        // resizeGL will call handleResizeForMsaaFBO which creates the FBO.
+        // tryEnableMultisampling here stores the intent.
+        glFuncs->tryEnableMultisampling(getConfig().canvas.antialiasingSamples);
+    }
+    // Call updateMultisampling here if it does more than just FBO (e.g. global GL state)
+    // For now, assuming tryEnableMultisampling handles the core MSAA setup request.
+    // If updateMultisampling() was for old GL_MULTISAMPLE, it might be redundant or conflict.
+    // Based on its content (not shown here but assumed from name), it might be okay to keep
+    // if it handles other non-FBO MSAA states, or remove if FBO is the sole method now.
+    // Let's comment it out for now to prioritize FBO path. If needed, it can be restored.
+    // updateMultisampling();
+
 
     // REVISIT: should the font texture have the lowest ID?
     initTextures();
@@ -466,6 +481,11 @@ void MapCanvas::resizeGL(int width, int height)
     }
 
     setViewportAndMvp(width, height);
+
+    if (auto glFuncs = m_opengl.getSharedFunctions()) {
+        // handleResizeForMsaaFBO takes logical width & height, and scales them internally
+        glFuncs->handleResizeForMsaaFBO(width, height);
+    }
 
     // Render
     update();
@@ -780,6 +800,10 @@ void MapCanvas::paintSelections()
 
 void MapCanvas::paintGL()
 {
+    if (auto glFuncs = m_opengl.getSharedFunctions()) {
+        glFuncs->bindMsaaFBO();
+    }
+
     static thread_local double longestBatchMs = 0.0;
 
     const bool showPerfStats = MapCanvasConfig::getShowPerfStats();
@@ -911,6 +935,10 @@ void MapCanvas::paintGL()
                             static_cast<double>(ctr.z)));
 
     font.render2dTextImmediate(text);
+
+    if (auto glFuncs = m_opengl.getSharedFunctions()) {
+        glFuncs->resolveMsaaFBO(0); // 0 for default framebuffer
+    }
 }
 
 void MapCanvas::paintSelectionArea()

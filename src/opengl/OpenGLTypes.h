@@ -188,6 +188,7 @@ struct NODISCARD GLRenderState final
         // glEnable(TEXTURE_2D), or glEnable(TEXTURE_3D)
         Textures textures;
         std::optional<float> pointSize;
+        float lineWidth = 1.0f; // Added for thick lines
     };
 
     Uniforms uniforms;

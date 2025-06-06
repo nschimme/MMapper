@@ -159,9 +159,17 @@ void Functions::renderPlain(const DrawModeEnum mode,
                             const GLRenderState &state)
 {
     assert(static_cast<size_t>(mode) >= VERTS_PER_LINE);
-    const auto &shared = shared_from_this();
-    const auto &prog = getShaderPrograms().getPlainUColorShader();
-    renderImmediate<glm::vec3, Legacy::PlainMesh>(shared, mode, verts, prog, state);
+    const auto &shared = shared_from_this(); // Keep this
+
+    if (mode == DrawModeEnum::LINES && state.uniforms.lineWidth > 1.0f) {
+        const auto &prog = getShaderPrograms().getPlainUColorThickLineShader();
+        // Assuming PlainMesh is compatible as its vertex attributes (aVert)
+        // are expected by UColorThickLineShader's vertex stage.
+        renderImmediate<glm::vec3, Legacy::PlainMesh>(shared, mode, verts, prog, state);
+    } else {
+        const auto &prog = getShaderPrograms().getPlainUColorShader();
+        renderImmediate<glm::vec3, Legacy::PlainMesh>(shared, mode, verts, prog, state);
+    }
 }
 
 void Functions::renderColored(const DrawModeEnum mode,
@@ -169,8 +177,17 @@ void Functions::renderColored(const DrawModeEnum mode,
                               const GLRenderState &state)
 {
     assert(static_cast<size_t>(mode) >= VERTS_PER_LINE);
-    const auto &prog = getShaderPrograms().getPlainAColorShader();
-    renderImmediate<ColorVert, Legacy::ColoredMesh>(shared_from_this(), mode, verts, prog, state);
+    const auto &shared = shared_from_this(); // Keep this
+
+    if (mode == DrawModeEnum::LINES && state.uniforms.lineWidth > 1.0f) {
+        const auto &prog = getShaderPrograms().getPlainAColorThickLineShader();
+        // Assuming ColoredMesh is compatible as its vertex attributes (aVert, aColor)
+        // are expected by AColorThickLineShader's vertex stage.
+        renderImmediate<ColorVert, Legacy::ColoredMesh>(shared, mode, verts, prog, state);
+    } else {
+        const auto &prog = getShaderPrograms().getPlainAColorShader();
+        renderImmediate<ColorVert, Legacy::ColoredMesh>(shared, mode, verts, prog, state);
+    }
 }
 
 void Functions::renderPoints(const std::vector<ColorVert> &verts, const GLRenderState &state)
@@ -240,7 +257,100 @@ Functions::Functions(Badge<Functions>)
 
 Functions::~Functions()
 {
+    destroyMsaaFBO(); // Destroy MSAA FBO before other cleanup
     cleanup();
+}
+
+void Functions::destroyMsaaFBO() {
+    if (m_msaaFbo != 0) {
+        Base::glDeleteFramebuffers(1, &m_msaaFbo);
+        m_msaaFbo = 0;
+    }
+    if (m_msaaColorBuffer != 0) {
+        Base::glDeleteRenderbuffers(1, &m_msaaColorBuffer);
+        m_msaaColorBuffer = 0;
+    }
+    if (m_msaaDepthStencilBuffer != 0) {
+        Base::glDeleteRenderbuffers(1, &m_msaaDepthStencilBuffer);
+        m_msaaDepthStencilBuffer = 0;
+    }
+    m_msaaWidth = 0;
+    m_msaaHeight = 0;
+    m_msaaSamples = 0;
+}
+
+bool Functions::createMsaaFBO(GLsizei width, GLsizei height, GLsizei samples) {
+    destroyMsaaFBO(); // Clean up existing FBO first
+
+    if (width == 0 || height == 0 || samples == 0) {
+        return false; // Invalid parameters
+    }
+
+    Base::glGenFramebuffers(1, &m_msaaFbo);
+    Base::glBindFramebuffer(GL_FRAMEBUFFER, m_msaaFbo);
+
+    // Color buffer
+    Base::glGenRenderbuffers(1, &m_msaaColorBuffer);
+    Base::glBindRenderbuffer(GL_RENDERBUFFER, m_msaaColorBuffer);
+    // TODO: Consider GL_SRGB8_ALPHA8 if sRGB is used elsewhere. For now, RGBA8.
+    Base::glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_RGBA8, width, height);
+    Base::glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, m_msaaColorBuffer);
+
+    // Depth/Stencil buffer
+    Base::glGenRenderbuffers(1, &m_msaaDepthStencilBuffer);
+    Base::glBindRenderbuffer(GL_RENDERBUFFER, m_msaaDepthStencilBuffer);
+    Base::glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_DEPTH24_STENCIL8, width, height);
+    Base::glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, m_msaaDepthStencilBuffer);
+
+    GLenum status = Base::glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (status != GL_FRAMEBUFFER_COMPLETE) {
+        qWarning() << "MSAA Framebuffer is not complete! Status:" << status;
+        destroyMsaaFBO();
+        Base::glBindFramebuffer(GL_FRAMEBUFFER, 0); // Unbind FBO
+        return false;
+    }
+
+    m_msaaWidth = width;
+    m_msaaHeight = height;
+    m_msaaSamples = samples;
+
+    Base::glBindFramebuffer(GL_FRAMEBUFFER, 0); // Unbind FBO
+    qInfo() << "MSAA FBO created successfully:" << width << "x" << height << "@" << samples << "samples";
+    return true;
+}
+
+void Functions::bindMsaaFBO() {
+    if (m_msaaFbo != 0 && m_msaaSamples > 0) {
+        Base::glBindFramebuffer(GL_FRAMEBUFFER, m_msaaFbo);
+    }
+}
+
+void Functions::resolveMsaaFBO(GLuint targetFramebuffer) {
+    if (m_msaaFbo != 0 && m_msaaWidth > 0 && m_msaaHeight > 0 && m_msaaSamples > 0) {
+        Base::glBindFramebuffer(GL_READ_FRAMEBUFFER, m_msaaFbo);
+        Base::glBindFramebuffer(GL_DRAW_FRAMEBUFFER, targetFramebuffer); // 0 for default screen FB
+        // Scaled physical viewport dimensions are needed here for blit source/dest.
+        // Get these from getPhysicalViewport() or ensure they match m_msaaWidth/Height if DPI scaling is handled.
+        // For now, assume m_msaaWidth/Height are physical pixel dimensions.
+        Viewport physicalVP = getPhysicalViewport(); // This gets logical viewport, need to scale?
+                                                 // Assuming m_msaaWidth/Height are already physical.
+        Base::glBlitFramebuffer(0, 0, m_msaaWidth, m_msaaHeight,
+                              0, 0, m_msaaWidth, m_msaaHeight, // Blit to same size region on target FB for now
+                              GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        Base::glBindFramebuffer(GL_FRAMEBUFFER, 0); // Unbind any FBO
+    }
+}
+
+void Functions::handleResizeForMsaaFBO(GLsizei newWidth, GLsizei newHeight) {
+    if (m_msaaSamples > 0) { // Only recreate if MSAA was active
+        // Use physical dimensions for FBO, which should come from a scaled newWidth/newHeight
+        GLsizei physicalNewWidth = scalei(newWidth);
+        GLsizei physicalNewHeight = scalei(newHeight);
+        if (m_msaaWidth != physicalNewWidth || m_msaaHeight != physicalNewHeight) {
+            qInfo() << "Resizing MSAA FBO to physical" << physicalNewWidth << "x" << physicalNewHeight;
+            createMsaaFBO(physicalNewWidth, physicalNewHeight, m_msaaSamples);
+        }
+    }
 }
 
 /// <ul>

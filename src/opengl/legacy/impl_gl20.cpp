@@ -41,48 +41,43 @@ void Functions::enableProgramPointSize(const bool enable)
     }
 }
 
-bool Functions::tryEnableMultisampling(const int requestedSamples)
-{
-    const auto getSampleBuffers = [this]() -> GLint {
-        GLint buffers;
-        Base::glGetIntegerv(GL_SAMPLE_BUFFERS, &buffers);
-        return buffers;
-    };
+bool Functions::tryEnableMultisampling(const int requestedSamples) {
+    if (requestedSamples > 0) {
+        // It's crucial that m_viewport is up-to-date here.
+        // QOpenGLWidget calls initializeGL, then resizeGL, then paintGL.
+        // If tryEnableMultisampling is called in initializeGL, viewport might be default.
+        // If called after a resize, m_viewport is good.
+        // Let's assume this will be called when viewport is sensible or after first resize.
 
-    const auto getSamples = [this]() -> GLint {
-        GLint samples;
-        Base::glGetIntegerv(GL_SAMPLES, &samples);
-        return samples;
-    };
+        // Ensure m_devicePixelRatio is valid, default to 1.0f if not set, though it should be.
+        float currentDevicePixelRatio = (m_devicePixelRatio > 0.0f) ? m_devicePixelRatio : 1.0f;
 
-    const bool hasMultisampling = getSampleBuffers() > 1 || getSamples() > 1;
+        GLsizei physicalWidth = static_cast<GLsizei>(std::lround(static_cast<float>(m_viewport.size.x) * currentDevicePixelRatio));
+        GLsizei physicalHeight = static_cast<GLsizei>(std::lround(static_cast<float>(m_viewport.size.y) * currentDevicePixelRatio));
 
-    if (hasMultisampling && requestedSamples > 0) {
-        Base::glEnable(GL_MULTISAMPLE);
-
-        Base::glEnable(GL_POINT_SMOOTH);
-        Base::glEnable(GL_LINE_SMOOTH);
-        Base::glDisable(GL_POLYGON_SMOOTH);
-        Base::glHint(GL_POINT_SMOOTH_HINT, GL_NICEST);
-        Base::glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
-
-        return true;
-    } else {
-        // NOTE: Currently we can use OpenGL 2.1 to fake multisampling with point/line/polygon smoothing.
-        // TODO: We can use OpenGL 3.x FBOs to do multisampling even if the default framebuffer doesn't support it.
-        if (requestedSamples > 0) {
-            Base::glEnable(GL_POINT_SMOOTH);
-            Base::glEnable(GL_LINE_SMOOTH);
-            Base::glDisable(GL_POLYGON_SMOOTH);
-            Base::glHint(GL_POINT_SMOOTH_HINT, GL_NICEST);
-            Base::glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+        if (physicalWidth == 0 || physicalHeight == 0) {
+            qWarning() << "[MSAA] Attempted to enable MSAA with zero viewport dimensions (logical: "
+                       << m_viewport.size.x << "x" << m_viewport.size.y
+                       << ", physical: " << physicalWidth << "x" << physicalHeight
+                       << ", DPR: " << currentDevicePixelRatio << "). "
+                       << "Storing " << requestedSamples << " samples and deferring FBO creation until resize.";
+            destroyMsaaFBO(); // Clear any previous FBO
+            m_msaaSamples = requestedSamples; // Store intent
+            // Return true, meaning the "request to enable" is acknowledged.
+            // The FBO will be created by handleResizeForMsaaFBO when a valid size is available.
             return true;
-        } else {
-            Base::glDisable(GL_POINT_SMOOTH);
-            Base::glDisable(GL_LINE_SMOOTH);
-            Base::glDisable(GL_POLYGON_SMOOTH);
-            return false;
         }
+
+        // If dimensions are valid, proceed to create or update FBO
+        // Check if FBO is already configured with the same parameters
+        if (m_msaaFbo != 0 && m_msaaSamples == requestedSamples && m_msaaWidth == physicalWidth && m_msaaHeight == physicalHeight) {
+            return true; // Already configured correctly
+        }
+        // Otherwise, (re)create the FBO
+        return createMsaaFBO(physicalWidth, physicalHeight, requestedSamples);
+    } else { // requestedSamples == 0 or less
+        destroyMsaaFBO(); // This will also set m_msaaSamples = 0
+        return true; // Successfully disabled MSAA (or request to disable acknowledged)
     }
 }
 

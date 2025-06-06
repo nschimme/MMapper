@@ -39,6 +39,15 @@
 #include "roomeditattrdlg.h"
 #include "utils.h"
 
+#include "../map/RoomSorter.h" // For RoomSorter class
+#include "../mapdata/MapData.h" // For m_mapData
+#include "../display/MapCanvas.h" // For getCanvas()
+#include "../map/Map.h" // For Map class, if getCanvas()->getMap() returns Map*
+#include <vector> // For std::vector
+#include "../map/Change.h"
+#include "../map/ChangeTypes.h"
+#include "../map/ChangeList.h" // For ChangeList
+
 #include <memory>
 #include <mutex>
 
@@ -800,6 +809,12 @@ void MainWindow::createActions()
     editRoomSelectionAct->setShortcut(tr("Ctrl+E"));
     connect(editRoomSelectionAct, &QAction::triggered, this, &MainWindow::slot_onEditRoomSelection);
 
+    arrangeRoomsAct = new QAction(tr("&Arrange Rooms"), this);
+    arrangeRoomsAct->setShortcut(Qt::CTRL | Qt::SHIFT | Qt::Key_A); // Example shortcut
+    arrangeRoomsAct->setStatusTip(tr("Arrange selected rooms to improve layout"));
+    connect(arrangeRoomsAct, &QAction::triggered, this, &MainWindow::slot_onArrangeRooms);
+    arrangeRoomsAct->setEnabled(false);
+
     deleteRoomSelectionAct = new QAction(QIcon(":/icons/roomdelete.png"),
                                          tr("Delete Selected Rooms"),
                                          this);
@@ -1105,6 +1120,7 @@ void MainWindow::setupMenuBar()
     roomMenu->addSeparator();
     roomMenu->addAction(mouseMode.modeCreateRoomAct);
     roomMenu->addAction(editRoomSelectionAct);
+    roomMenu->addAction(arrangeRoomsAct);
     roomMenu->addAction(deleteRoomSelectionAct);
     roomMenu->addAction(moveUpRoomSelectionAct);
     roomMenu->addAction(moveDownRoomSelectionAct);
@@ -1401,6 +1417,7 @@ void MainWindow::slot_newRoomSelection(const SigRoomSelection &rs)
 
     m_roomSelection = !isValidSelection ? nullptr : rs.getShared();
     selectedRoomActGroup->setEnabled(isValidSelection);
+    arrangeRoomsAct->setEnabled(selSize > 1);
     gotoRoomAct->setEnabled(selSize == 1);
     forceRoomAct->setEnabled(selSize == 1 && m_pathMachine->hasLastEvent());
 
@@ -1998,6 +2015,86 @@ void MainWindow::setCanvasMouseMode(const CanvasMouseModeEnum mode)
 void MainWindow::applyGroupAction(const std::function<Change(const RawRoom &)> &getChange)
 {
     m_mapData->applyChangesToList(deref(m_roomSelection), getChange);
+}
+
+void MainWindow::slot_onArrangeRooms() {
+    if (!m_mapData || !m_roomSelection || m_roomSelection->empty()) {
+        showStatusShort(tr("No rooms selected or map data unavailable."));
+        return;
+    }
+
+    if (m_roomSelection->count() <= 1) {
+        showStatusShort(tr("Select at least two rooms to arrange."));
+        return;
+    }
+
+    // 1. Get selected RawRoom objects
+    std::vector<RawRoom> selectedRawRooms;
+    const Map* currentMap = m_mapData->getMap();
+    if (!currentMap) {
+        showStatusShort(tr("Map data is not loaded."));
+        return;
+    }
+
+    for (RoomId roomId : m_roomSelection->getRoomIds()) {
+        const RawRoom* roomPtr = currentMap->getRoomById(roomId);
+        if (roomPtr) {
+            selectedRawRooms.push_back(*roomPtr);
+        }
+    }
+
+    if (selectedRawRooms.size() <= 1) {
+        showStatusShort(tr("Could not retrieve enough selected room data."));
+        return;
+    }
+
+    // 2. Get all RawRoom objects from the map
+    std::vector<RawRoom> allMapRawRooms = currentMap->getAllRooms();
+
+    // 3. Create RoomSorter and call arrangeRooms
+    RoomSorter sorter;
+    std::vector<RawRoom> arrangedRooms = sorter.arrangeRooms(selectedRawRooms, allMapRawRooms);
+
+    if (arrangedRooms.empty() || arrangedRooms.size() != selectedRawRooms.size()) {
+        showStatusShort(tr("Room arrangement failed or returned unexpected result."));
+        return;
+    }
+
+    // 4. Update map data with new room positions
+    ChangeList changeList;
+    for (const auto& arrangedRoom : arrangedRooms) {
+        const RawRoom* originalRoomPtr = nullptr;
+        for(const auto& sr : selectedRawRooms) { // 'selectedRawRooms' was populated from m_roomSelection at start of function
+            if(sr.getId() == arrangedRoom.getId()){
+                originalRoomPtr = &sr;
+                break;
+            }
+        }
+
+        if (originalRoomPtr && originalRoomPtr->getPosition() != arrangedRoom.getPosition()) {
+            changeList.emplace_back(room_change_types::TryMoveCloseTo{arrangedRoom.getId(), arrangedRoom.getPosition()});
+        }
+    }
+
+    if (!changeList.empty()) {
+        // The type SigMapChangeList is used in MapData::slot_scheduleAction.
+        // Assuming SigMapChangeList is either a typedef for ChangeList
+        // or a simple struct that can be constructed with a ChangeList.
+        // For this subtask, we will directly pass 'changeList'.
+        // If this causes a compile error, it means SigMapChangeList is more complex and
+        // its definition needs to be found to correctly construct it.
+        m_mapData->slot_scheduleAction(changeList);
+
+        // Refresh map display
+        if (m_mapWindow && getCanvas()) {
+            getCanvas()->rebuildMeshes();
+            getCanvas()->updateGL();
+        }
+        setMapModified(true);
+        showStatusShort(tr("Rooms arranged."));
+    } else {
+        showStatusShort(tr("No changes in room positions after arrangement."));
+    }
 }
 
 void MainWindow::showStatusInternal(const QString &text, int duration)

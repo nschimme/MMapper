@@ -333,12 +333,25 @@ public:
     explicit UniqueMesh(std::unique_ptr<IRenderable> mesh)
         : m_mesh{std::move(mesh)}
     {
-        std::ignore = deref(m_mesh);
+        // Assuming deref might require a valid pointer.
+        // If m_mesh is null here, deref could lead to issues.
+        // A common pattern is to assert(m_mesh) if a non-null mesh is expected.
+        if (m_mesh) {
+            std::ignore = deref(m_mesh);
+        }
     }
     ~UniqueMesh() = default;
     DEFAULT_MOVES_DELETE_COPIES(UniqueMesh);
 
-    void render(const GLRenderState &rs) const { deref(m_mesh).render(rs); }
+    void render(const GLRenderState &rs) const {
+        // Only render if the mesh pointer is valid
+        if (m_mesh) {
+            deref(m_mesh).render(rs);
+        }
+    }
+
+    // New method
+    NODISCARD bool isValid() const { return m_mesh != nullptr; }
 };
 
 struct NODISCARD UniqueMeshVector final

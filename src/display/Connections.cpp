@@ -634,20 +634,18 @@ void ConnectionMeshes::render(const int thisLayer, const int focusedLayer) const
                                   .withColor(color);
 
     // normalLines.render(common_style); // Removed, normalTris now handles all normal triangles
-    if (normalTris) { // Check unique_ptr for nullity
-        normalTris->render(common_style); // Use -> for unique_ptr
-    }
+    // The isValid() check is redundant as UniqueMesh::render() now has an internal null check.
+    normalTris.render(common_style);
 
     // redLines.render(common_style);   // Removed, redTris now handles all red triangles
-    if (redTris) { // Check unique_ptr for nullity
-        // Assuming vertex colors in red.triVerts are already set to red.
-        // The common_style.withColor(color) will provide the base color (e.g. white or faded gray),
-        // which is then multiplied by the red vertex color by the shader.
-        // If red connections should not fade, this might need adjustment:
-        // redTris->render(GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withColor(Colors::red));
-        // However, sticking to minimal changes and assuming vertex colors manage the "redness":
-        redTris->render(common_style); // Use -> for unique_ptr
-    }
+    // The isValid() check is redundant as UniqueMesh::render() now has an internal null check.
+    // Assuming vertex colors in red.triVerts are already set to red.
+    // The common_style.withColor(color) will provide the base color (e.g. white or faded gray),
+    // which is then multiplied by the red vertex color by the shader.
+    // If red connections should not fade, this might need adjustment:
+    // redTris.render(GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withColor(Colors::red));
+    // However, sticking to minimal changes and assuming vertex colors manage the "redness":
+    redTris.render(common_style);
 }
 
 void MapCanvas::paintNearbyConnectionPoints()

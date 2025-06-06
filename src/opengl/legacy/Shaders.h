@@ -8,15 +8,15 @@
 
 namespace Legacy {
 
-struct NODISCARD AColorPlainShader final : public AbstractShaderProgram
+struct NODISCARD AColorPlainShader : public AbstractShaderProgram
 {
 public:
     using AbstractShaderProgram::AbstractShaderProgram;
 
-    ~AColorPlainShader() final;
+    virtual ~AColorPlainShader();
 
-private:
-    void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final
+protected:
+    void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) override
     {
         setColor("uColor", uniforms.color);
         setMatrix("uMVP", mvp);
@@ -28,11 +28,28 @@ struct NODISCARD AColorThickLineShader final : public AColorPlainShader
 public:
     AColorThickLineShader(std::string dirName, SharedFunctions functions, Program program)
         : AColorPlainShader(std::move(dirName), std::move(functions), std::move(program)) {}
-    ~AColorThickLineShader() final;
-private:
-    void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final {
+public: // Destructor should be public
+    ~AColorThickLineShader() override final;
+protected: // virt_setUniforms changed to protected
+    void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) override final {
         AColorPlainShader::virt_setUniforms(mvp, uniforms); // Call base
         setFloat("uLineWidth", uniforms.lineWidth);
+    }
+};
+
+// Moved UColorPlainShader before UColorThickLineShader
+struct NODISCARD UColorPlainShader : public AbstractShaderProgram
+{
+public:
+    using AbstractShaderProgram::AbstractShaderProgram;
+
+    virtual ~UColorPlainShader();
+
+protected:
+    void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) override
+    {
+        setColor("uColor", uniforms.color);
+        setMatrix("uMVP", mvp);
     }
 };
 
@@ -41,26 +58,12 @@ struct NODISCARD UColorThickLineShader final : public UColorPlainShader
 public:
     UColorThickLineShader(std::string dirName, SharedFunctions functions, Program program)
         : UColorPlainShader(std::move(dirName), std::move(functions), std::move(program)) {}
-    ~UColorThickLineShader() final;
-private:
-    void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final {
+public: // Destructor should be public
+    ~UColorThickLineShader() override final;
+protected: // virt_setUniforms changed to protected
+    void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) override final {
         UColorPlainShader::virt_setUniforms(mvp, uniforms); // Call base
         setFloat("uLineWidth", uniforms.lineWidth);
-    }
-};
-
-struct NODISCARD UColorPlainShader final : public AbstractShaderProgram
-{
-public:
-    using AbstractShaderProgram::AbstractShaderProgram;
-
-    ~UColorPlainShader() final;
-
-private:
-    void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final
-    {
-        setColor("uColor", uniforms.color);
-        setMatrix("uMVP", mvp);
     }
 };
 

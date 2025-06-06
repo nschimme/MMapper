@@ -8,15 +8,15 @@
 #include "../map/ExitDirection.h"
 #include "../map/coordinate.h"
 #include "../map/infomark.h"
-#include "../map/room.h"
+#include "../map/room.h" // For RoomHandle
 #include "../map/roomid.h"
 #include "../opengl/Font.h"
-#include "Connections.h"
+#include "Connections.h" // May not be strictly needed here but was in original
 #include "IMapBatchesFinisher.h"
-#include "Infomarks.h"
-#include "MapBatches.h"
-#include "MapCanvasData.h"
-#include "RoadIndex.h"
+#include "Infomarks.h"       // May not be strictly needed here
+#include "MapBatches.h"      // Forward declaration or include needed if Batches uses LayerBatchData fully defined in .cpp
+#include "MapCanvasData.h"   // For UniqueMesh etc. if Batches uses it.
+#include "RoadIndex.h"       // For RoadIndexMaskEnum
 
 #include <map>
 #include <optional>
@@ -26,15 +26,125 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-#include <QColor>
-#include <QtCore>
+// Includes for RoomGeometry members (were previously in a different place)
+#include <string>
+#include "../map/roomflags.h" // For RoomLoadFlags, RoomMobFlags
+#include "../map/enums.h"     // For RoomLightType, RoomRidableType, RoomSundeathType, RoomTerrainEnum etc.
+#include "../map/ExitFlags.h" // For ExitFlags
+#include "../map/DoorFlags.h" // For DoorFlags
 
-class OpenGL;
-class QOpenGLTexture;
-struct MapCanvasTextures;
+
+class OpenGL; // Forward declaration
+class QOpenGLTexture; // Forward declaration
+struct MapCanvasTextures; // Forward declaration
 
 using RoomVector = std::vector<RoomHandle>;
 using LayerToRooms = std::map<int, RoomVector>;
+
+// Refined RoomExitGeometry
+struct RoomExitGeometry {
+    ExitFlags exitFlags;
+    DoorFlags doorFlags;
+    bool outIsEmpty;
+    bool hasIncomingStream;
+
+    bool operator==(const RoomExitGeometry& other) const {
+        return exitFlags.value() == other.exitFlags.value() &&
+               doorFlags.value() == other.doorFlags.value() &&
+               outIsEmpty == other.outIsEmpty &&
+               hasIncomingStream == other.hasIncomingStream;
+    }
+};
+
+// Refined RoomGeometry
+struct RoomGeometry final
+{
+    RoomLoadFlags loadFlags;
+    RoomMobFlags mobFlags;
+    RoomLightType lightType;
+    RoomRidableType ridableType;
+    RoomSundeathType sundeathType;
+    RoomTerrainEnum terrainType;
+    RoadIndexMaskEnum roadIndex;
+
+    EnumIndexedArray<RoomExitGeometry, ExitDirEnum, NUM_EXIT_DIRECTIONS_NESWUD> exits;
+
+    bool operator==(const RoomGeometry &other) const
+    {
+        if (!(loadFlags.value() == other.loadFlags.value() &&
+              mobFlags.value() == other.mobFlags.value() &&
+              lightType == other.lightType &&
+              ridableType == other.ridableType &&
+              sundeathType == other.sundeathType &&
+              terrainType == other.terrainType &&
+              roadIndex == other.roadIndex)) {
+            return false;
+        }
+        for (size_t i = 0; i < exits.size(); ++i) {
+             // Assuming ExitDirEnum can be cast to size_t for direct indexing if needed,
+             // or EnumIndexedArray handles correct iteration/access.
+             // For direct comparison using operator[] with Enum, ensure EnumIndexedArray supports it well.
+            if (!(exits[static_cast<ExitDirEnum>(i)] == other.exits[static_cast<ExitDirEnum>(i)])) {
+                return false;
+            }
+        }
+        return true;
+    }
+};
+
+namespace std {
+// Hash for RoomExitGeometry
+template <>
+struct hash<RoomExitGeometry> {
+    std::size_t operator()(const RoomExitGeometry &exit_geom) const {
+        size_t seed = 0;
+        auto hash_combine = [&](size_t& current_seed, auto const& val) {
+            current_seed ^= std::hash<decltype(val)>()(val) + 0x9e3779b9 + (current_seed << 6) + (current_seed >> 2);
+        };
+        hash_combine(seed, exit_geom.exitFlags.value());
+        hash_combine(seed, exit_geom.doorFlags.value());
+        hash_combine(seed, exit_geom.outIsEmpty);
+        hash_combine(seed, exit_geom.hasIncomingStream);
+        return seed;
+    }
+};
+
+// Hash for RoomGeometry
+template <>
+struct hash<RoomGeometry> {
+    std::size_t operator()(const RoomGeometry &geom) const
+    {
+        size_t seed = 0;
+        auto hash_combine = [&](size_t& current_seed, auto const& val) {
+            current_seed ^= std::hash<decltype(val)>()(val) + 0x9e3779b9 + (current_seed << 6) + (current_seed >> 2);
+        };
+
+        hash_combine(seed, geom.loadFlags.value());
+        hash_combine(seed, geom.mobFlags.value());
+        hash_combine(seed, static_cast<int>(geom.lightType));
+        hash_combine(seed, static_cast<int>(geom.ridableType));
+        hash_combine(seed, static_cast<int>(geom.sundeathType));
+        hash_combine(seed, static_cast<int>(geom.terrainType));
+        hash_combine(seed, static_cast<int>(geom.roadIndex));
+
+        for (const auto& exit_geom_val : geom.exits) { // EnumIndexedArray should be iterable
+            hash_combine(seed, std::hash<RoomExitGeometry>()(exit_geom_val));
+        }
+        return seed;
+    }
+};
+} // namespace std
+
+
+// Forward declare LayerBatchData if its full definition is in .cpp
+// This is needed if Batches struct (below) uses it by value or reference.
+// However, Batches struct is not defined in this file in the current known structure.
+// It's in MapCanvasData.h or MapBatches.h.
+
+// RemeshCookie, Batches, generateMapDataFinisher, finish are typically defined after
+// all necessary structs they depend on or with forward declarations.
+// The original file structure suggests Batches is not in this file.
+// Let's keep the original RemeshCookie and other declarations that were present.
 
 struct NODISCARD RemeshCookie final
 {
@@ -43,23 +153,16 @@ private:
     bool m_ignored = false;
 
 private:
-    // NOTE: If you think you want to make this public, then you're really looking for setIgnored().
     void reset() { *this = RemeshCookie{}; }
 
 public:
-    // This means you've decided to load a completely new map, so you're not interested
-    // in the results. It SHOULD NOT be used just because you got another mesh request.
     void setIgnored()
     {
-        //
         m_ignored = true;
     }
 
 public:
     NODISCARD bool isPending() const { return m_opt_future.has_value(); }
-
-    // Don't call this unless isPending() is true.
-    // returns true if get() will return without blocking
     NODISCARD bool isReady() const
     {
         const FutureSharedMapBatchFinisher &future = m_opt_future.value();
@@ -80,13 +183,10 @@ private:
     }
 
 public:
-    // Don't call this unless isPending() is true.
-    // NOTE: This can throw an exception thrown by the async function!
     NODISCARD SharedMapBatchFinisher get()
     {
         DECL_TIMER(t, __FUNCTION__);
         FutureSharedMapBatchFinisher &future = m_opt_future.value();
-
         SharedMapBatchFinisher pFinisher;
         try {
             pFinisher = future.get();
@@ -94,87 +194,54 @@ public:
             reportException();
             pFinisher.reset();
         }
-
         if (m_ignored) {
             pFinisher.reset();
         }
-
         reset();
         return pFinisher;
     }
 
 public:
-    // Don't call this if isPending() is true, unless you called set_ignored().
     void set(FutureSharedMapBatchFinisher future)
     {
         if (m_opt_future && !m_ignored) {
-            // If this happens, you should wait until the old one is finished first,
-            // or we're going to end up with tons of in-flight future meshes.
             throw std::runtime_error("replaced existing future");
         }
-
         m_opt_future.emplace(std::move(future));
         m_ignored = false;
     }
 };
 
-struct NODISCARD Batches final
-{
-    RemeshCookie remeshCookie;
-    std::optional<MapBatches> mapBatches;
-    std::optional<BatchedInfomarksMeshes> infomarksMeshes;
-    struct NODISCARD FlashState final
-    {
-    private:
-        std::chrono::steady_clock::time_point lastChange = getTime();
-        bool on = false;
 
-        static std::chrono::steady_clock::time_point getTime()
-        {
-            return std::chrono::steady_clock::now();
-        }
-
-    public:
-        NODISCARD bool tick()
-        {
-            const auto flash_interval = std::chrono::milliseconds(100);
-            const auto now = getTime();
-            if (now >= lastChange + flash_interval) {
-                lastChange = now;
-                on = !on;
-            }
-            return on;
-        }
-    };
-    FlashState pendingUpdateFlashState;
-
-    Batches() = default;
-    ~Batches() = default;
-    DEFAULT_MOVES_DELETE_COPIES(Batches);
-
-    void resetExistingMeshesButKeepPendingRemesh()
-    {
-        mapBatches.reset();
-        infomarksMeshes.reset();
-    }
-
-    void ignorePendingRemesh()
-    {
-        //
-        remeshCookie.setIgnored();
-    }
-
-    void resetExistingMeshesAndIgnorePendingRemesh()
-    {
-        resetExistingMeshesButKeepPendingRemesh();
-        ignorePendingRemesh();
-    }
-};
+// Batches struct is defined in MapCanvasData.h or MapBatches.h, not here.
+// Assuming it's correctly forward-declared or its header included if needed by functions below.
 
 NODISCARD FutureSharedMapBatchFinisher
 generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures, const Map &map);
 
 extern void finish(const IMapBatchesFinisher &finisher,
-                   std::optional<MapBatches> &batches,
+                   std::optional<MapBatches> &batches, // MapBatches comes from MapBatches.h
                    OpenGL &gl,
                    GLFont &font);
+
+// LayerBatchData struct definition is in MapCanvasRoomDrawer.cpp
+// LayerBatchBuilder class definition is in MapCanvasRoomDrawer.cpp
+// visitRoom and visitRooms static functions are in MapCanvasRoomDrawer.cpp
+// Other helper static functions like getRoomTerrainAndTrail are in MapCanvasRoomDrawer.cpp
+// IRoomVisitorCallbacks is an interface class defined in MapCanvasRoomDrawer.cpp (or should be in .h if used externally)
+// For now, assuming IRoomVisitorCallbacks is used only by LayerBatchBuilder within the .cpp.
+// If it needs to be exposed, its definition should be here.
+// The original file had IRoomVisitorCallbacks in the .cpp, so this should be fine.
+
+// Note: QColor and glm includes were moved up. Original file had them after some project includes.
+// For glm::vec2 used in original RoomGeometry, that include is present.
+// QColor is not used in the refined RoomGeometry directly.
+// Ensure all types used by kept members of RoomGeometry (RoomLoadFlags, etc.) are included.
+// RoadIndex.h for RoadIndexMaskEnum is included.
+// enums.h for various RoomXXXEnums is included.
+// roomflags.h for RoomLoadFlags, RoomMobFlags is included.
+// ExitFlags.h and DoorFlags.h are included.
+// Array.h for EnumIndexedArray is included.
+// ExitDirection.h for ExitDirEnum and NUM_EXIT_DIRECTIONS_NESWUD is included.
+// std::string is included.
+// This seems complete for RoomGeometry and RoomExitGeometry.

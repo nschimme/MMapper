@@ -140,6 +140,31 @@ void MapCanvas::cleanupOpenGL()
     m_logger.reset();
 }
 
+void MapCanvas::updateMultisampling()
+{
+    const int requestedSamples = getConfig().canvas.antialiasingSamples;
+
+    bool needsUpdate = false;
+    if (!m_graphicsOptionsStatus.multisampling.has_value() || m_graphicsOptionsStatus.multisampling.value() != requestedSamples) {
+        needsUpdate = true;
+    }
+
+    m_graphicsOptionsStatus.multisampling = requestedSamples;
+
+    if (m_opengl.isRendererInitialized()) {
+        if (m_opengl.tryEnableMultisampling(requestedSamples)) {
+            if (needsUpdate) {
+                qInfo() << "Multisampling setting changed to" << requestedSamples << "samples. Requesting update.";
+                update();
+            }
+        } else {
+            qWarning() << "Failed to apply multisampling with" << requestedSamples << "samples.";
+        }
+    } else {
+        qInfo() << "Renderer not yet initialized. Multisampling value" << requestedSamples << "stored.";
+    }
+}
+
 void MapCanvas::reportGLVersion()
 {
     auto &gl = getOpenGL();

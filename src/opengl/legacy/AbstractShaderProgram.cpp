@@ -131,12 +131,12 @@ float AbstractShaderProgram::getDevicePixelRatio() const
     return deref(functions).getDevicePixelRatio();
 }
 
-void AbstractShaderProgram::setPointSize(const float in_pointSize)
+void AbstractShaderProgram::setPointSize(const GLfloat in_pointSize)
 {
     const auto location = getUniformLocation("uPointSize");
     if (location != INVALID_UNIFORM_LOCATION) {
-        const float pointSize = in_pointSize * getDevicePixelRatio();
-        setUniform1fv(location, 1, &pointSize);
+        const GLfloat pointSizeValue = in_pointSize * static_cast<GLfloat>(getDevicePixelRatio());
+        setUniform1fv(location, 1, &pointSizeValue);
     }
 }
 
@@ -167,7 +167,7 @@ void AbstractShaderProgram::setViewport(const char *const name, const Viewport &
     setUniform4iv(location, 1, glm::value_ptr(viewport));
 }
 
-void AbstractShaderProgram::setFloat(const char *const name, const float value)
+void AbstractShaderProgram::setFloat(const char *const name, const GLfloat value)
 {
     const auto location = getUniformLocation(name);
     // It's good practice to check if the uniform location is valid before using it,

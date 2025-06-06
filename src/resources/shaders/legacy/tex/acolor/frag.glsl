@@ -11,5 +11,5 @@ layout(location = 0) out vec4 out_FragColor; // Added modern output
 
 void main()
 {
-    out_FragColor = vColor * uColor * texture2D(uTexture, vTexCoord); // Changed to out_FragColor
+    out_FragColor = vColor * uColor * texture(uTexture, vTexCoord); // Changed to out_FragColor
 }

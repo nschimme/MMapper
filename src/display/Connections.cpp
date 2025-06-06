@@ -30,7 +30,7 @@
 #include <QMessageLogContext>
 #include <QtCore>
 
-static constexpr const float CONNECTION_LINE_WIDTH = 2.f;
+static constexpr const float CONNECTION_LINE_WIDTH = 0.135f;
 static constexpr const float VALID_CONNECTION_POINT_SIZE = 6.f;
 static constexpr const float NEW_CONNECTION_POINT_SIZE = 8.f;
 
@@ -799,13 +799,28 @@ void ConnectionDrawer::ConnectionFakeGL::drawLineStrip(const std::vector<glm::ve
     // Helper lambda to generate a quad between two points with a specific color
     auto generateQuad =
         [&](const glm::vec3& p1, const glm::vec3& p2, const Color& quad_color) {
-        if (p1 == p2) { // Handle zero-length segment for the quad
-            return;
+        auto &verts = deref(m_currentBuffer).triVerts;
+
+        if (p1 == p2) { // Zero-length segment, draw a small square
+            float half_size = CONNECTION_LINE_WIDTH / 2.0f;
+            glm::vec3 v_1 = p1 + glm::vec3(-half_size, -half_size, 0.0f);
+            glm::vec3 v_2 = p1 + glm::vec3( half_size, -half_size, 0.0f);
+            glm::vec3 v_3 = p1 + glm::vec3( half_size,  half_size, 0.0f);
+            glm::vec3 v_4 = p1 + glm::vec3(-half_size,  half_size, 0.0f);
+
+            verts.emplace_back(quad_color, v_1);
+            verts.emplace_back(quad_color, v_2);
+            verts.emplace_back(quad_color, v_3);
+
+            verts.emplace_back(quad_color, v_1);
+            verts.emplace_back(quad_color, v_3);
+            verts.emplace_back(quad_color, v_4);
+            return; // Done with this zero-length segment
         }
 
         glm::vec3 dir = glm::normalize(p2 - p1);
         glm::vec3 perp_normal = glm::vec3(-dir.y, dir.x, 0.0f); // Assuming XY plane focus
-        float half_width = CONNECTION_LINE_WIDTH / 2.0f;
+        float half_width = CONNECTION_LINE_WIDTH / 2.0f; // Use constant
 
         glm::vec3 v1 = p1 + perp_normal * half_width;
         glm::vec3 v2 = p1 - perp_normal * half_width;
@@ -813,14 +828,14 @@ void ConnectionDrawer::ConnectionFakeGL::drawLineStrip(const std::vector<glm::ve
         glm::vec3 v4 = p2 - perp_normal * half_width;
 
         // Triangle 1: v2, v1, v3
-        triVerts.emplace_back(quad_color, v2);
-        triVerts.emplace_back(quad_color, v1);
-        triVerts.emplace_back(quad_color, v3);
+        verts.emplace_back(quad_color, v2);
+        verts.emplace_back(quad_color, v1);
+        verts.emplace_back(quad_color, v3);
 
         // Triangle 2: v2, v3, v4
-        triVerts.emplace_back(quad_color, v2);
-        triVerts.emplace_back(quad_color, v3);
-        triVerts.emplace_back(quad_color, v4);
+        verts.emplace_back(quad_color, v2);
+        verts.emplace_back(quad_color, v3);
+        verts.emplace_back(quad_color, v4);
     };
 
     const auto size = points.size();

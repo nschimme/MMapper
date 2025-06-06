@@ -31,7 +31,7 @@
 #include <QMessageLogContext>
 #include <QtCore>
 
-static constexpr const float INFOMARK_ARROW_LINE_WIDTH = 2.f;
+static constexpr const float INFOMARK_ARROW_LINE_WIDTH = 0.135f;
 static constexpr float INFOMARK_GUIDE_LINE_WIDTH = 3.f;
 static constexpr float INFOMARK_POINT_SIZE = 6.f;
 
@@ -148,8 +148,20 @@ void InfomarksBatch::drawLine(const glm::vec3 &a, const glm::vec3 &b)
 
     // Handle potential zero-length segments
     if (start_v == end_v) {
-        // Optionally: draw a small quad or point, or skip. For now, skip.
-        return;
+        float half_size = INFOMARK_ARROW_LINE_WIDTH / 2.0f;
+        glm::vec3 v1 = start_v + glm::vec3(-half_size, -half_size, 0.0f);
+        glm::vec3 v2 = start_v + glm::vec3( half_size, -half_size, 0.0f);
+        glm::vec3 v3 = start_v + glm::vec3( half_size,  half_size, 0.0f);
+        glm::vec3 v4 = start_v + glm::vec3(-half_size,  half_size, 0.0f);
+
+        m_tris.emplace_back(m_color, v1);
+        m_tris.emplace_back(m_color, v2);
+        m_tris.emplace_back(m_color, v3);
+
+        m_tris.emplace_back(m_color, v1);
+        m_tris.emplace_back(m_color, v3);
+        m_tris.emplace_back(m_color, v4);
+        return; // Done with this zero-length segment
     }
 
     glm::vec3 dir = glm::normalize(end_v - start_v);

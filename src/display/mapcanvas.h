@@ -110,6 +110,7 @@ private:
     FrameRateController m_frameRateController;
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
     Signal2Lifetime m_lifetime;
+    // float m_calibratedWorldHalfLineWidth = 0.02f; // Removed: For dynamic line width
 
 public:
     explicit MapCanvas(MapData &mapData,
@@ -286,4 +287,10 @@ public slots:
 
     void slot_onMessageLoggedDirect(const QOpenGLDebugMessage &message);
     void slot_infomarksChanged() { infomarksChanged(); }
+
+private:
+    // void updateCalibratedWorldLineWidth(); // Removed: For dynamic line width
+
+public:
+    // NODISCARD float getCalibratedWorldHalfLineWidth() const { return m_calibratedWorldHalfLineWidth; } // Removed: For dynamic line width
 };

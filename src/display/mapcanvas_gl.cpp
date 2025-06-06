@@ -267,7 +267,71 @@ void MapCanvas::initializeGL()
     QOpenGLExtraFunctions *f = QOpenGLContext::currentContext()->extraFunctions();
     f->glGenVertexArrays(1, &m_defaultVao);
     f->glBindVertexArray(m_defaultVao);
+
+    // Calculate initial calibrated line width // Removed
+    // this->updateCalibratedWorldLineWidth(); // Removed
+
+    // Register callback for FoV changes // Removed
+    // getConfig().canvas.advanced.fov.registerChangeCallback(m_lifetime, [this]() {
+    //     this->updateCalibratedWorldLineWidth();
+    //     this->update(); // Or this->forceUpdateMeshes(); if more direct update is needed
+    // });
 }
+
+// Removed MapCanvas::updateCalibratedWorldLineWidth() method definition
+/*
+void MapCanvas::updateCalibratedWorldLineWidth() {
+    constexpr float TARGET_LOGICAL_WIDTH = 2.0f;
+    // BASESIZE is defined in mapcanvas.h as 1024
+    constexpr float BASESIZE_LOGICAL_PIXELS = static_cast<float>(MapCanvas::BASESIZE);
+    constexpr float Z_REF = 60.0f; // From FIXED_VIEW_DISTANCE in old getViewProj
+
+    float dpr = getOpenGL().getDevicePixelRatio();
+    if (dpr <= 0.0f) dpr = 1.0f; // Safety
+
+    float targetPhysicalPixelWidth = TARGET_LOGICAL_WIDTH * dpr;
+    float basesizePhysicalPixelH = BASESIZE_LOGICAL_PIXELS * dpr;
+    if (basesizePhysicalPixelH == 0.0f) basesizePhysicalPixelH = 1.0f; // Avoid division by zero
+
+    float fovYRad = glm::radians(getConfig().canvas.advanced.fov.getFloat());
+    if (fovYRad < 0.01f) fovYRad = 0.01f; // Prevent too small FoV
+    if (fovYRad > glm::pi<float>() - 0.01f) fovYRad = glm::pi<float>() - 0.01f; // Prevent too large FoV
+
+    float tanFovDiv2 = tan(fovYRad / 2.0f);
+    if (std::abs(tanFovDiv2) < 1e-6) { // if tan is very close to zero (FoV near 0)
+         m_calibratedWorldHalfLineWidth = 0.01f; // a small default world width
+         // Optionally log a warning: qWarning() << "FoV is near zero, using default line width";
+         return;
+    }
+    if (std::isinf(tanFovDiv2) || std::isnan(tanFovDiv2)) { // if FoV is pi or problematic
+         m_calibratedWorldHalfLineWidth = 0.01f; // a small default world width
+         // Optionally log a warning: qWarning() << "FoV is problematic (e.g., PI), using default line width";
+         return;
+    }
+
+    // worldUnitsPerPhysicalPixelYAtRef calculation:
+    // Half height of view frustum at Z_REF = Z_REF * tan(fovYRad / 2.0f)
+    // Total height = 2.0f * Z_REF * tan(fovYRad / 2.0f)
+    // This total height corresponds to basesizePhysicalPixelH pixels on screen.
+    // So, worldUnitsPerPhysicalPixelYAtRef = (Total height in world units) / (Total height in physical pixels)
+    float worldUnitsPerPhysicalPixelYAtRef = (2.0f * Z_REF * tanFovDiv2) / basesizePhysicalPixelH;
+
+    // Check for division by zero if basesizePhysicalPixelH was zero (already handled) or tanFovDiv2 is zero.
+    if (basesizePhysicalPixelH == 0.0f) { // tanFovDiv2 already checked
+         m_calibratedWorldHalfLineWidth = 0.01f; // fallback
+         return;
+    }
+
+    m_calibratedWorldHalfLineWidth = (targetPhysicalPixelWidth / 2.0f) * worldUnitsPerPhysicalPixelYAtRef;
+
+    // Sanity clamps
+    if (m_calibratedWorldHalfLineWidth < 0.001f) m_calibratedWorldHalfLineWidth = 0.001f;
+    if (m_calibratedWorldHalfLineWidth > 0.5f) {
+        // qWarning() << "Calibrated world half line width is very large:" << m_calibratedWorldHalfLineWidth;
+        m_calibratedWorldHalfLineWidth = 0.5f;
+    }
+}
+*/
 
 /* Direct means it is always called from the emitter's thread */
 void MapCanvas::slot_onMessageLoggedDirect(const QOpenGLDebugMessage &message)

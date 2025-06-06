@@ -69,7 +69,7 @@ public:
     ~MapData() final;
 
     NODISCARD FutureSharedMapBatchFinisher
-    generateBatches(const mctp::MapCanvasTexturesProxy &textures);
+    generateBatches(const mctp::MapCanvasTexturesProxy &textures, float calibratedWorldHalfLineWidth);
 
     // REVISIT: convert to template, or functionref after it compiles everywhere?
     void applyChangesToList(const RoomSelection &sel,

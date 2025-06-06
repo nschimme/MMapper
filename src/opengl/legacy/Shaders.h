@@ -3,6 +3,7 @@
 // Copyright (C) 2019 The MMapper Authors
 
 #include "AbstractShaderProgram.h"
+#include "LineShader.h" // Added include for LineShader
 
 #include <memory>
 
@@ -122,6 +123,7 @@ private:
     std::shared_ptr<UColorTexturedShader> uTexturedShader;
     std::shared_ptr<FontShader> font;
     std::shared_ptr<PointShader> point;
+    std::shared_ptr<LineShader> m_lineShader; // Added member for LineShader
 
 public:
     explicit ShaderPrograms(Functions &functions)
@@ -142,6 +144,7 @@ public:
         uTexturedShader.reset();
         font.reset();
         point.reset();
+        m_lineShader.reset(); // Added reset for m_lineShader
     }
 
 public:
@@ -155,6 +158,7 @@ public:
     NODISCARD const std::shared_ptr<UColorTexturedShader> &getTexturedUColorShader();
     NODISCARD const std::shared_ptr<FontShader> &getFontShader();
     NODISCARD const std::shared_ptr<PointShader> &getPointShader();
+    NODISCARD const std::shared_ptr<LineShader> &getLineShader(); // Added getter declaration
 };
 
 } // namespace Legacy

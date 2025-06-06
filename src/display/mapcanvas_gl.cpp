@@ -138,6 +138,7 @@ void MapCanvas::cleanupOpenGL()
     getGLFont().cleanup();
     getOpenGL().cleanup();
     m_logger.reset();
+    m_immediateLineRenderer.reset(); // Clean up immediate line renderer
 }
 
 void MapCanvas::reportGLVersion()
@@ -217,6 +218,8 @@ void MapCanvas::initializeGL()
 {
     auto &gl = getOpenGL();
     gl.initializeOpenGLFunctions();
+    // Initialize QOpenGLExtraFunctions after main functions and context are known
+    gl.initializeExtraFunctions(QOpenGLContext::currentContext());
 
     reportGLVersion();
 
@@ -267,6 +270,31 @@ void MapCanvas::initializeGL()
     QOpenGLExtraFunctions *f = QOpenGLContext::currentContext()->extraFunctions();
     f->glGenVertexArrays(1, &m_defaultVao);
     f->glBindVertexArray(m_defaultVao);
+
+    // Initialize the immediate mode LineRenderer
+    // OpenGL& gl is already available and is a Legacy::Functions instance.
+    // Legacy::SharedFunctions sharedFunctions = gl.shared_from_this(); // This is how to get SharedFunctions
+    // auto lineShader = sharedFunctions->getShaderPrograms().getLineShader();
+    // The above assumes gl is Legacy::Functions. getOpenGL() returns OpenGL&, which inherits Legacy::Functions.
+    // So, gl.shared_from_this() should work if OpenGL correctly inherits/exposes enable_shared_from_this.
+    // OpenGL class definition: class OpenGL final : public Legacy::Functions
+    // Legacy::Functions definition: class NODISCARD Functions final : private QOpenGLFunctions, public std::enable_shared_from_this<Functions>
+    // This structure is correct.
+
+    Legacy::SharedFunctions sharedFunctions = gl.shared_from_this();
+    auto lineShader = sharedFunctions->getShaderPrograms().getLineShader();
+
+    if (lineShader) {
+        try {
+            m_immediateLineRenderer = std::make_unique<Legacy::LineRenderer>(sharedFunctions, lineShader);
+            m_immediateLineRenderer->setup();
+        } catch (const std::exception& e) {
+            qWarning() << "MapCanvas::initializeGL: Failed to create m_immediateLineRenderer: " << e.what();
+            m_immediateLineRenderer.reset(); // Ensure it's null if setup fails
+        }
+    } else {
+        qWarning() << "MapCanvas::initializeGL: LineShader not available, m_immediateLineRenderer not created.";
+    }
 }
 
 /* Direct means it is always called from the emitter's thread */
@@ -577,7 +605,13 @@ void MapCanvas::finishPendingMapBatches()
     const IMapBatchesFinisher &future = *pFuture;
     std::optional<MapBatches> &opt_mapBatches = m_batches.mapBatches;
     opt_mapBatches.reset();
-    finish(future, opt_mapBatches, getOpenGL(), getGLFont());
+
+    // QOpenGLExtraFunctions* extraFuncs = QOpenGLContext::currentContext()->extraFunctions(); // Removed
+    // if (!extraFuncs) { // Removed
+    //     qWarning() << "QOpenGLExtraFunctions not available in finishPendingMapBatches, thick lines may not render correctly.";
+    // }
+
+    finish(future, opt_mapBatches, getOpenGL(), getGLFont()); // extraFuncs argument removed
     assert(opt_mapBatches.has_value());
 
 #undef LOG

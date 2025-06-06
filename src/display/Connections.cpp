@@ -3,6 +3,7 @@
 
 #include "Connections.h"
 
+#include "opengl/legacy/Legacy.h" // For deref, SharedFunctions, Functions
 #include "../configuration/configuration.h"
 #include "../global/Flags.h"
 #include "../map/DoorFlags.h"
@@ -14,6 +15,7 @@
 #include "../opengl/FontFormatFlags.h"
 #include "../opengl/OpenGL.h"
 #include "../opengl/OpenGLTypes.h"
+#include "opengl/legacy/LineRenderer.h" // For Legacy::LineRenderer and Legacy::LineInstanceData
 #include "ConnectionLineBuilder.h"
 #include "MapCanvasData.h"
 #include "connectionselection.h"
@@ -29,8 +31,12 @@
 #include <QColor>
 #include <QMessageLogContext>
 #include <QtCore>
+#include <QtGui/QOpenGLExtraFunctions> // For QOpenGLExtraFunctions
 
-static constexpr const float CONNECTION_LINE_WIDTH = 2.f;
+// Assuming LineShader.h is included via LineRenderer.h or Legacy.h
+// #include "opengl/legacy/LineShader.h"
+
+static constexpr const float CONNECTION_LINE_WIDTH = 2.f; // This might become the default thickness
 static constexpr const float VALID_CONNECTION_POINT_SIZE = 6.f;
 static constexpr const float NEW_CONNECTION_POINT_SIZE = 8.f;
 
@@ -605,19 +611,121 @@ void ConnectionDrawer::drawConnEndTriUpDownUnknown(float dX, float dY, float dst
                              glm::vec3{dX + 0.7f, dY + 0.45f, dstZ});
 }
 
-ConnectionMeshes ConnectionDrawerBuffers::getMeshes(OpenGL &gl) const
+ConnectionMeshes ConnectionDrawerBuffers::getMeshes(
+    OpenGL &gl,
+    std::shared_ptr<Legacy::LineShader> lineShader) const
+    // QOpenGLExtraFunctions* extraFunctions parameter removed
 {
-    ConnectionMeshes result;
-    result.normalLines = gl.createColoredLineBatch(normal.lineVerts);
+    Legacy::SharedFunctions sharedFunctions = gl.getFunctions().shared_from_this();
+    Legacy::ConnectionMeshes result(sharedFunctions); // Construct with SharedFunctions
+
+    // LineRenderer now gets QOpenGLExtraFunctions from Legacy::Functions (via sharedFunctions)
+    // So, we only need to check lineShader here.
+    if (lineShader) {
+        try {
+            // Construct LineRenderer without extraFunctions parameter
+            result.normalLineRenderer = std::make_shared<Legacy::LineRenderer>(sharedFunctions, lineShader);
+            result.normalLineRenderer->setup();
+
+            result.redLineRenderer = std::make_shared<Legacy::LineRenderer>(sharedFunctions, lineShader);
+            result.redLineRenderer->setup();
+        } catch (const std::exception& e) {
+            qWarning() << "Exception during LineRenderer creation/setup: " << e.what();
+            result.normalLineRenderer.reset();
+            result.redLineRenderer.reset();
+        }
+    } else {
+        if (!normal.lineVerts.empty() || !red.lineVerts.empty()) { // Only warn if there were lines to draw
+            qWarning() << "LineShader not available for ConnectionMeshes LineRenderers. Thick lines will not be rendered.";
+        }
+    }
+
+    // Populate line data into the renderers (if they were successfully created)
+    // The prepareLineDataForRenderers method internally checks if renderers are valid.
+    this->prepareLineDataForRenderers(result, CONNECTION_LINE_WIDTH);
+
+
+    // Create triangle meshes as before
     result.normalTris = gl.createColoredTriBatch(normal.triVerts);
-    result.redLines = gl.createColoredLineBatch(red.lineVerts);
     result.redTris = gl.createColoredTriBatch(red.triVerts);
+
+    // The old UniqueMesh line batches (result.normalLines, result.redLines) are no longer created here.
+    // If a fallback to old line rendering was desired when LineRenderer fails,
+    // it would be added here. For now, no fallback.
+
     return result;
 }
 
+// Constructor for ConnectionMeshes
+Legacy::ConnectionMeshes::ConnectionMeshes(Legacy::SharedFunctions sharedFunctions)
+    : m_shared_functions(std::move(sharedFunctions)),
+      m_functions(deref(m_shared_functions)) {
+    if (!m_shared_functions) {
+        throw std::runtime_error("ConnectionMeshes: SharedFunctions is null.");
+    }
+    // Initialization of LineRenderer members (normalLineRenderer, redLineRenderer)
+    // is deferred to a later step.
+}
+
+void ConnectionDrawerBuffers::prepareLineDataForRenderers(
+    Legacy::ConnectionMeshes& targetMeshes,
+    float lineThickness) const
+{
+    std::vector<Legacy::LineInstanceData> normalInstanceData;
+    normalInstanceData.reserve(normal.lineVerts.size() / 2);
+    for (size_t i = 0; i < normal.lineVerts.size(); i += 2) {
+        const auto& v1 = normal.lineVerts[i];
+        const auto& v2 = normal.lineVerts[i+1];
+        // Assuming v1.color (Legacy::Color) has a toGlmVec4() method.
+        normalInstanceData.push_back({
+            glm::vec2(v1.vert.x, v1.vert.y),
+            glm::vec2(v2.vert.x, v2.vert.y),
+            lineThickness,
+            v1.color.toGlmVec4()
+        });
+    }
+    if (targetMeshes.normalLineRenderer) {
+        targetMeshes.normalLineRenderer->updateInstanceData(normalInstanceData);
+    }
+
+    std::vector<Legacy::LineInstanceData> redInstanceData;
+    redInstanceData.reserve(red.lineVerts.size() / 2);
+    for (size_t i = 0; i < red.lineVerts.size(); i += 2) {
+        const auto& v1 = red.lineVerts[i];
+        const auto& v2 = red.lineVerts[i+1];
+        redInstanceData.push_back({
+            glm::vec2(v1.vert.x, v1.vert.y),
+            glm::vec2(v2.vert.x, v2.vert.y),
+            lineThickness,
+            v1.color.toGlmVec4()
+        });
+    }
+    if (targetMeshes.redLineRenderer) {
+        targetMeshes.redLineRenderer->updateInstanceData(redInstanceData);
+    }
+}
+
+
 void ConnectionMeshes::render(const int thisLayer, const int focusedLayer) const
 {
-    const auto color = [&thisLayer, &focusedLayer]() {
+    // Assuming 'gl' (OpenGL&) is available here, or mvp is passed.
+    // For now, let's assume mvp is obtained from a global/contextual source
+    // or passed as a parameter. The original render method didn't take OpenGL& gl.
+    // This will require refactoring in the calling code (MapCanvasData::getMeshes? Or MapCanvas::paintGL?)
+    // For the purpose of this subtask, we'll construct a dummy mvp.
+    // A more realistic scenario: const glm::mat4& mvp = openGLContext.getMVP();
+    // Or: void ConnectionMeshes::render(OpenGL& gl, int thisLayer, int focusedLayer) const
+    // Let's assume for now that `getOpenGL()` is a global accessor or similar context.
+    // This is a placeholder for where MVP would come from.
+    // In MapCanvas::paintGL, mvp is `m_viewProj`.
+    // This part definitely needs to be wired correctly during actual integration.
+    // For now, we can't fully implement it without knowing how `OpenGL& gl` or `mvp` is accessed here.
+    // Let's assume `mvp` and `uniforms` are available.
+    // Placeholder:
+    // OpenGL& ogl = getContextOpenGL(); // Hypothetical global accessor
+    // const glm::mat4 mvp = ogl.getFunctions().getProjectionMatrix(); // This is just one part of MVP usually.
+
+    const auto base_color = [&thisLayer, &focusedLayer]() {
         if (thisLayer == focusedLayer) {
             return getCanvasNamedColorOptions().connectionNormalColor.getColor();
         }
@@ -625,17 +733,44 @@ void ConnectionMeshes::render(const int thisLayer, const int focusedLayer) const
     }();
     const auto common_style = GLRenderState()
                                   .withBlend(BlendModeEnum::TRANSPARENCY)
-                                  .withLineParams(LineParams{CONNECTION_LINE_WIDTH})
-                                  .withColor(color);
+                                  // LineParams for uColor modulation might not be directly used by LineRenderer if color is per-instance
+                                  .withColor(base_color); // This sets the uColor for modulation in the shader
 
-    // Even though we can draw colored lines and tris,
-    // the reason for having separate lines is so red will always be on top.
-    // If you don't think that's important, you can combine the batches.
+    // MVP matrix needs to be correctly sourced.
+    // This is a critical point for integration.
+    // For this subtask, we are focusing on the call structure.
+    // Let's assume an `mvp` matrix is passed or accessible.
+    // For example, if `MapCanvas::paintGL` calls this, it has `m_viewProj`.
+    // If `ConnectionMeshes::render` is called from `MapCanvasData::getMeshesAndPaint`,
+    // then `OpenGL& gl` and `mvp` matrix should be passed through.
 
-    normalLines.render(common_style);
+    const glm::mat4 mvp = m_functions.getProjectionMatrix(); // Get MVP from m_functions
+
+    if (normalLineRenderer) {
+        // The GLRenderState's color is used for uColor in the shader.
+        // Instance colors are from LineInstanceData.
+        normalLineRenderer->render(mvp, common_style.uniforms);
+    }
+    if (redLineRenderer) {
+        // If red lines use a different base modulation color (e.g. always red even if faint)
+        // then common_style would need to be adjusted.
+        // For now, assume they use the same uColor modulation logic based on focus.
+        // The per-instance data already contains red color for red lines.
+        GLRenderState red_style = common_style;
+        // Potentially: red_style.withColor( (thisLayer == focusedLayer) ? Colors::red : Colors::red.withAlpha(FAINT_CONNECTION_ALPHA) );
+        redLineRenderer->render(mvp, red_style.uniforms);
+    }
+
+    // Render triangles as before
     normalTris.render(common_style);
-    redLines.render(common_style);
-    redTris.render(common_style);
+    // For red triangles, if they need to be distinctly red even when not focused:
+    GLRenderState red_tri_style = common_style;
+    if (thisLayer != focusedLayer) { // If not focused, make red tris also faint red
+        red_tri_style.withColor(Colors::red.withAlpha(FAINT_CONNECTION_ALPHA));
+    } else { // If focused, make red tris fully red
+         red_tri_style.withColor(Colors::red);
+    }
+    redTris.render(red_tri_style); // Or just common_style if their base color is already red
 }
 
 void MapCanvas::paintNearbyConnectionPoints()

@@ -26,9 +26,11 @@
 #include "../opengl/FontFormatFlags.h"
 #include "../opengl/OpenGL.h"
 #include "../opengl/OpenGLTypes.h"
+#include "../opengl/legacy/Legacy.h" // For SharedFunctions, LineShader etc.
 #include "ConnectionLineBuilder.h"
 #include "MapCanvasData.h"
 #include "RoadIndex.h"
+#include <QtGui/QOpenGLExtraFunctions> // For QOpenGLExtraFunctions
 #include "mapcanvas.h" // hack, since we're now definining some of its symbols
 
 #include <cassert>
@@ -858,6 +860,7 @@ public:
     std::unordered_map<int, RoomNameBatch> roomNameBatches;
 
 private:
+    // Reverted signature
     void virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const final;
 };
 
@@ -1005,7 +1008,16 @@ void LayerMeshes::render(const int thisLayer, const int focusedLayer)
 }
 
 void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const
+    // QOpenGLExtraFunctions* extraFunctions parameter removed
 {
+    // Get LineShader once
+    Legacy::SharedFunctions sharedFunctions = gl.getFunctions().shared_from_this();
+    auto lineShader = sharedFunctions->getShaderPrograms().getLineShader();
+    if (!lineShader && !connectionDrawerBuffers.empty()) { // Only warn if there are connections
+        qWarning() << "LineShader not available, cannot create thick connection lines.";
+        // If lineShader is null, getMeshes will handle it (e.g., by not creating LineRenderers)
+    }
+
     for (const auto &kv : batchedMeshes) {
         const LayerBatchData &data = kv.second;
         output.batchedMeshes[kv.first] = data.getMeshes(gl);
@@ -1013,7 +1025,8 @@ void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) con
 
     for (const auto &kv : connectionDrawerBuffers) {
         const ConnectionDrawerBuffers &data = kv.second;
-        output.connectionMeshes[kv.first] = data.getMeshes(gl);
+        // Call to getMeshes updated to remove extraFunctions
+        output.connectionMeshes[kv.first] = data.getMeshes(gl, lineShader);
     }
 
     for (const auto &kv : roomNameBatches) {
@@ -1057,6 +1070,7 @@ void finish(const IMapBatchesFinisher &finisher,
             std::optional<MapBatches> &opt_batches,
             OpenGL &gl,
             GLFont &font)
+            // QOpenGLExtraFunctions* extraFunctions parameter removed
 {
     opt_batches.reset();
     MapBatches &batches = opt_batches.emplace();
@@ -1064,5 +1078,5 @@ void finish(const IMapBatchesFinisher &finisher,
     // Note: This will call InternalData::finish;
     // if necessary for claritiy, we could replace this with Pimpl to make it a direct call,
     // but that won't change the cost of the virtual call.
-    finisher.finish(batches, gl, font);
+    finisher.finish(batches, gl, font); // Call to finisher.finish updated
 }

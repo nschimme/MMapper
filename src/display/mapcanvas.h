@@ -34,6 +34,12 @@
 #include <QOpenGLWidget>
 #include <QtCore>
 
+// Forward declarations for LineRenderer integration
+namespace Legacy {
+    class LineRenderer;
+    class LineShader;
+}
+
 class CharacterBatch;
 class ConnectionSelection;
 class Coordinate;
@@ -109,6 +115,7 @@ private:
     Diff m_diff;
     FrameRateController m_frameRateController;
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
+    std::unique_ptr<Legacy::LineRenderer> m_immediateLineRenderer; // Added member
     Signal2Lifetime m_lifetime;
 
 public:

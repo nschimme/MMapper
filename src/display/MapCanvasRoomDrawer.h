@@ -174,7 +174,9 @@ struct NODISCARD Batches final
 NODISCARD FutureSharedMapBatchFinisher
 generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures, const Map &map);
 
+// class QOpenGLExtraFunctions; // Removed forward declaration
+
 extern void finish(const IMapBatchesFinisher &finisher,
                    std::optional<MapBatches> &batches,
                    OpenGL &gl,
-                   GLFont &font);
+                   GLFont &font); // QOpenGLExtraFunctions* extraFunctions removed

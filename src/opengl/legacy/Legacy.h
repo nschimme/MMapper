@@ -18,8 +18,10 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <QOpenGLFunctions>
+#include <QOpenGLExtraFunctions> // Added include
 
 class OpenGL;
+class QOpenGLContext; // Forward declaration for QOpenGLContext
 
 namespace Legacy {
 
@@ -89,6 +91,7 @@ private:
     std::unique_ptr<ShaderPrograms> m_shaderPrograms;
     std::unique_ptr<StaticVbos> m_staticVbos;
     std::unique_ptr<TexLookup> m_texLookup;
+    QOpenGLExtraFunctions* m_extraFunctions = nullptr; // Added member
 
 public:
     NODISCARD static std::shared_ptr<Functions> alloc();
@@ -211,6 +214,10 @@ public:
     NODISCARD StaticVbos &getStaticVbos();
 
     NODISCARD TexLookup &getTexLookup();
+
+public: // Methods for extra functions
+    void initializeExtraFunctions(QOpenGLContext* context);
+    QOpenGLExtraFunctions* getExtraFunctions() const { return m_extraFunctions; }
 
 private:
     friend PointSizeBinder;

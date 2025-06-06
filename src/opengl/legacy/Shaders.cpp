@@ -2,12 +2,15 @@
 // Copyright (C) 2019 The MMapper Authors
 
 #include "Shaders.h"
+#include "LineShader.h" // Added include for LineShader
 
 #include "ShaderUtils.h"
 
 #include <memory>
 
 #include <QFile>
+#include <QTextStream> // Added for explicit include
+#include <QDebug>      // Added for qCritical
 
 NODISCARD static std::string readWholeResourceFile(const std::string &fullPath)
 {
@@ -33,6 +36,8 @@ AColorTexturedShader::~AColorTexturedShader() = default;
 UColorTexturedShader::~UColorTexturedShader() = default;
 FontShader::~FontShader() = default;
 PointShader::~PointShader() = default;
+// LineShader destructor would be defaulted in its own .cpp or header if no specific cleanup needed.
+// If LineShader.h has `~LineShader() final;` and LineShader.cpp has `LineShader::~LineShader() = default;` that's fine.
 
 // essentially a private member of ShaderPrograms
 template<typename T>
@@ -91,6 +96,11 @@ const std::shared_ptr<FontShader> &ShaderPrograms::getFontShader()
 const std::shared_ptr<PointShader> &ShaderPrograms::getPointShader()
 {
     return getInitialized<PointShader>(point, getFunctions(), "point");
+}
+
+NODISCARD const std::shared_ptr<LineShader> &ShaderPrograms::getLineShader() {
+    // Replaced with call to getInitialized for consistency
+    return getInitialized<LineShader>(m_lineShader, getFunctions(), "line");
 }
 
 } // namespace Legacy

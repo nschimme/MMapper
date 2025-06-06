@@ -31,6 +31,7 @@
 #include <QDebug>
 #include <QFile>
 #include <QMessageLogContext>
+#include <QOpenGLContext> // Added include
 #include <QOpenGLTexture>
 
 namespace Legacy {
@@ -267,6 +268,21 @@ void Functions::cleanup()
     getShaderPrograms().resetAll();
     getStaticVbos().resetAll();
     getTexLookup().clear();
+    m_extraFunctions = nullptr; // Also clear the extra functions pointer
+}
+
+void Functions::initializeExtraFunctions(QOpenGLContext* context) {
+    if (context) {
+        m_extraFunctions = context->extraFunctions();
+        if (!m_extraFunctions) {
+            // This might happen if the context doesn't support extra functions,
+            // or some other issue.
+            qWarning("Legacy::Functions: QOpenGLExtraFunctions pointer is null after context->extraFunctions().");
+        }
+    } else {
+        qWarning("Legacy::Functions: initializeExtraFunctions called with null context.");
+        m_extraFunctions = nullptr; // Ensure it's null if context is null
+    }
 }
 
 ShaderPrograms &Functions::getShaderPrograms()

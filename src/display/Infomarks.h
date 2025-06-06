@@ -9,6 +9,7 @@
 #include "../opengl/OpenGLTypes.h"
 
 #include <cstddef>
+#include <memory> // For std::shared_ptr
 #include <optional>
 #include <unordered_map>
 #include <vector>
@@ -19,13 +20,32 @@
 
 class OpenGL;
 
+// Forward declarations
+namespace Legacy {
+    class LineRenderer;
+    class LineShader;
+    class Functions;
+    class SharedFunctions; // Assuming this is a typedef or using for std::shared_ptr<Functions>
+}
+
 struct NODISCARD InfomarksMeshes final
 {
+public: // Made public for now as per subtask, can be refined
+    Legacy::SharedFunctions m_shared_functions; // Added
+    Legacy::Functions& m_functions; // Corrected: Only reference member, m_functions_ptr removed
+
+public:
     UniqueMesh points;
-    UniqueMesh lines;
+    // UniqueMesh lines; // Replaced
+    std::shared_ptr<Legacy::LineRenderer> lineRenderer; // Added
     UniqueMesh tris;
     UniqueMesh textMesh;
-    bool isValid = false;
+    bool isValid = false; // Existing member
+
+    // Constructors
+    explicit InfomarksMeshes(Legacy::SharedFunctions sharedFunctions);
+    InfomarksMeshes(); // Default constructor
+
     void render();
 };
 
@@ -67,6 +87,6 @@ public:
                     FontFormatFlags fontFormatFlag,
                     int rotationAngle);
 
-    NODISCARD InfomarksMeshes getMeshes();
+    NODISCARD InfomarksMeshes getMeshes(std::shared_ptr<Legacy::LineShader> lineShader); // Signature updated
     void renderImmediate(const GLRenderState &state);
 };

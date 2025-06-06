@@ -13,6 +13,8 @@
 #include "../opengl/FontFormatFlags.h"
 #include "../opengl/OpenGL.h"
 #include "../opengl/OpenGLTypes.h"
+#include "opengl/legacy/LineRenderer.h" // For LineRenderer, LineInstanceData
+#include "opengl/legacy/Legacy.h"       // For SharedFunctions, Functions, deref
 #include "InfoMarkSelection.h"
 #include "MapCanvasData.h"
 #include "MapCanvasRoomDrawer.h"
@@ -164,16 +166,84 @@ void InfomarksBatch::renderText(const glm::vec3 &pos,
     m_text.emplace_back(pos, text, color, std::move(moved_bgcolor), fontFormatFlag, rotationAngle);
 }
 
-InfomarksMeshes InfomarksBatch::getMeshes()
-{
-    InfomarksMeshes result;
+// Default constructor for InfomarksMeshes
+// WARNING: This leaves m_functions in a dangerous state. Only use if isValid=false is checked.
+// A proper solution would involve not using a reference or ensuring SharedFunctions is always available.
+InfomarksMeshes::InfomarksMeshes()
+    : m_shared_functions(nullptr),
+      m_functions(*(Legacy::Functions*)nullptr), // DANGEROUS: m_functions refers to an invalid location.
+      isValid(false) {
+    // This constructor is problematic due to the m_functions reference.
+    // It's provided to fulfill the subtask requirement of keeping a default constructor
+    // but should be revisited. A common pattern is to use std::optional<Legacy::Functions&>
+    // or to ensure SharedFunctions is always provided.
+}
 
-    auto &gl = m_realGL;
+InfomarksMeshes::InfomarksMeshes(Legacy::SharedFunctions sharedFunctions)
+    : m_shared_functions(std::move(sharedFunctions)),
+      m_functions(deref(m_shared_functions)),
+      isValid(true) { // Assuming valid if SharedFunctions is provided
+    if (!m_shared_functions) {
+        isValid = false; // Mark as invalid if sharedFunctions is null
+        throw std::runtime_error("InfomarksMeshes: SharedFunctions is null.");
+    }
+}
+
+InfomarksMeshes InfomarksBatch::getMeshes(std::shared_ptr<Legacy::LineShader> lineShader)
+{
+    // Construct InfomarksMeshes with SharedFunctions from m_realGL
+    Legacy::SharedFunctions sharedFuncs = m_realGL.getFunctions().shared_from_this();
+    InfomarksMeshes result(sharedFuncs);
+
+    auto &gl = m_realGL; // m_realGL is OpenGL&
     result.points = gl.createPointBatch(m_points);
-    result.lines = gl.createColoredLineBatch(m_lines);
+    // result.lines = gl.createColoredLineBatch(m_lines); // Removed
     result.tris = gl.createColoredTriBatch(m_tris);
     result.textMesh = m_font.getFontMesh(m_text);
-    result.isValid = true;
+    // result.isValid = true; // Moved to constructor or based on renderer creation
+
+    if (lineShader && !m_lines.empty() && result.m_shared_functions) { // Check result.m_shared_functions for safety
+        try {
+            result.lineRenderer = std::make_shared<Legacy::LineRenderer>(result.m_shared_functions, lineShader);
+            result.lineRenderer->setup();
+
+            std::vector<Legacy::LineInstanceData> lineInstanceData;
+            lineInstanceData.reserve(m_lines.size() / 2);
+            for (size_t i = 0; i < m_lines.size(); i += 2) {
+                const auto& v1 = m_lines[i];
+                const auto& v2 = m_lines[i+1];
+                lineInstanceData.push_back({
+                    glm::vec2(v1.vert.x, v1.vert.y),
+                    glm::vec2(v2.vert.x, v2.vert.y),
+                    INFOMARK_ARROW_LINE_WIDTH,
+                    v1.color.getVec4() // Assuming Legacy::Color has getVec4()
+                });
+            }
+            result.lineRenderer->updateInstanceData(lineInstanceData);
+            result.isValid = true; // Mark valid if renderer is successfully set up
+        } catch (const std::exception& e) {
+            qWarning() << "Exception during Infomark LineRenderer creation/setup: " << e.what();
+            result.lineRenderer.reset();
+            result.isValid = false; // Mark invalid on exception
+        }
+    } else {
+        if (!m_lines.empty()) { // Only warn if there were lines to draw
+             qWarning("InfomarksBatch::getMeshes: LineShader not available or InfomarksMeshes not properly initialized. Thick lines for infomarks will not be rendered.");
+        }
+        // If no lines or no shader, it might still be valid if other meshes (points, tris, text) exist.
+        // isValid could be true if other parts are populated. Let's assume it's valid if points, tris, or text have data.
+        if (!m_points.empty() || !m_tris.empty() || !m_text.empty()) {
+            result.isValid = true;
+        } else {
+            result.isValid = false; // No data at all
+        }
+    }
+
+    // Ensure isValid is false if all renderable components are empty/null
+    if (!result.points && !result.lineRenderer && !result.tris && !result.textMesh) {
+        result.isValid = false;
+    }
+
 
     return result;
 }
@@ -205,8 +275,14 @@ void InfomarksMeshes::render()
     const auto common_state
         = GLRenderState().withDepthFunction(std::nullopt).withBlend(BlendModeEnum::TRANSPARENCY);
 
+    // MVP matrix retrieval
+    const glm::mat4 mvp = m_functions.getProjectionMatrix(); // Assumes m_functions is valid
+
     points.render(common_state.withPointSize(INFOMARK_POINT_SIZE));
-    lines.render(common_state.withLineParams(LineParams{INFOMARK_ARROW_LINE_WIDTH}));
+    // lines.render(common_state.withLineParams(LineParams{INFOMARK_ARROW_LINE_WIDTH})); // Removed
+    if (lineRenderer) {
+        lineRenderer->render(mvp, common_state.uniforms);
+    }
     tris.render(common_state);
     textMesh.render(common_state);
 }

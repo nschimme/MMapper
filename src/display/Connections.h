@@ -11,9 +11,11 @@
 #include "../map/roomid.h"
 #include "../opengl/Font.h"
 #include "../opengl/OpenGLTypes.h"
+#include "opengl/legacy/Legacy.h" // For SharedFunctions and Functions
 
 #include <algorithm>
 #include <cassert>
+#include <memory> // For std::shared_ptr
 #include <cstddef>
 #include <unordered_map>
 #include <vector>
@@ -23,6 +25,15 @@
 #include <QString>
 
 class OpenGL;
+
+// Forward declarations
+namespace Legacy {
+    class LineRenderer;
+    class LineShader;
+    class Functions; // For SharedFunctions, though SharedFunctions itself might be better if directly used.
+                     // Assuming it's for context for LineRenderer creation.
+}
+class QOpenGLExtraFunctions;
 
 struct NODISCARD RoomNameBatch final
 {
@@ -68,12 +79,20 @@ struct NODISCARD ConnectionDrawerColorBuffer final
 
 struct NODISCARD ConnectionMeshes final
 {
-    UniqueMesh normalLines;
+    // UniqueMesh normalLines; // Replaced
+    // UniqueMesh redLines;   // Replaced
+    std::shared_ptr<Legacy::LineRenderer> normalLineRenderer;
+    std::shared_ptr<Legacy::LineRenderer> redLineRenderer;
     UniqueMesh normalTris;
-    UniqueMesh redLines;
     UniqueMesh redTris;
 
-    ConnectionMeshes() = default;
+public: // Made public for now as per subtask, can be refined to private/protected
+    Legacy::SharedFunctions m_shared_functions;
+    Legacy::Functions& m_functions;
+
+public:
+    explicit ConnectionMeshes(Legacy::SharedFunctions sharedFunctions);
+    // ConnectionMeshes() = default; // Removed default constructor
     DEFAULT_MOVES_DELETE_COPIES(ConnectionMeshes);
     ~ConnectionMeshes() = default;
 
@@ -96,7 +115,14 @@ struct NODISCARD ConnectionDrawerBuffers final
     }
 
     NODISCARD bool empty() const { return red.empty() && normal.empty(); }
-    NODISCARD ConnectionMeshes getMeshes(OpenGL &gl) const;
+    // Signature changed to remove QOpenGLExtraFunctions* parameter
+    NODISCARD ConnectionMeshes getMeshes(OpenGL &gl,
+                                       std::shared_ptr<Legacy::LineShader> lineShader) const;
+
+    // New method to populate line data into existing renderers
+    void prepareLineDataForRenderers(
+        Legacy::ConnectionMeshes& targetMeshes, // To access LineRenderer members
+        float lineThickness) const;
 };
 
 struct NODISCARD ConnectionDrawer final

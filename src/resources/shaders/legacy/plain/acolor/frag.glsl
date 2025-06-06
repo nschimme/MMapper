@@ -3,11 +3,11 @@
 
 uniform vec4 uColor;
 
-in vec4 gs_color; // Received from Geometry Shader. Changed from 'varying' to 'in'
+in vec4 vs_color_out; // Renamed from gs_color, Received from Geometry/Vertex Shader.
 
 layout(location = 0) out vec4 out_FragColor; // Added explicit modern output
 
 void main()
 {
-    out_FragColor = gs_color * uColor; // Changed from 'gl_FragColor' to 'out_FragColor'
+    out_FragColor = vs_color_out * uColor; // Changed from gs_color to vs_color_out
 }

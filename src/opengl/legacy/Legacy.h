@@ -166,7 +166,26 @@ public:
 
 public:
     // OpenGL man page says "Only width 1 is guaranteed to be supported."
-    void glLineWidth(const GLfloat lineWidth) { Base::glLineWidth(scalef(lineWidth)); }
+    void glLineWidth(const GLfloat lineWidth)
+    {
+        // For OpenGL Core Profile, only a line width of 1.0 is guaranteed to be supported.
+        // Actual thick lines are expected to be rendered using other techniques
+        // (e.g., geometry shaders outputting triangle strips).
+        // The input 'lineWidth' parameter might still be used by the geometry shader
+        // via uniforms, but the GL state for glLineWidth should be 1.0.
+
+        // Suppress unused parameter warning if lineWidth is truly not used anywhere else now.
+        // (void)lineWidth; // Example if you want to be explicit about not using it.
+        // However, scalef(lineWidth) might have been logged or used for other checks,
+        // so let's keep it minimal for now and just force 1.0 to the Base call.
+
+        // GLfloat desiredScaledWidth = scalef(lineWidth);
+        // if (desiredScaledWidth != 1.0f && desiredScaledWidth > 0.0f) {
+            // Potentially log: qWarning("glLineWidth: requested %f, using 1.0 for Core Profile", desiredScaledWidth);
+        // }
+
+        Base::glLineWidth(1.0f);
+    }
 
 public:
     void glViewport(const GLint x, const GLint y, const GLsizei width, const GLsizei height)

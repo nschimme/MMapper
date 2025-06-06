@@ -306,7 +306,7 @@ set(testmapcanvasroomdrawer_LIB_SRCS
     ../src/display/MapCanvasData.cpp
     ../src/display/RoadIndex.cpp
     ../src/display/Connections.cpp
-    ../src/global/GlobalAppState.cpp
+    # ../src/global/GlobalAppState.cpp # Removed as it should be part of mm_global
     # Note: Other dependencies like opengl, configuration, mapdata, map should
     # come from mm_global/mm_map linked libraries.
     # If specific .cpp files are needed and not in those, add them here.

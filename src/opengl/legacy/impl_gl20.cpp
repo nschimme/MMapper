@@ -6,7 +6,7 @@ namespace Legacy {
 
 bool Functions::canRenderQuads()
 {
-    return true;
+    return false; // GL_QUADS is deprecated in Core Profile
 }
 
 std::optional<GLenum> Functions::toGLenum(const DrawModeEnum mode)
@@ -18,12 +18,17 @@ std::optional<GLenum> Functions::toGLenum(const DrawModeEnum mode)
         return GL_LINES;
     case DrawModeEnum::TRIANGLES:
         return GL_TRIANGLES;
-    case DrawModeEnum::QUADS:
-        return GL_QUADS;
+    // No case for QUADS that returns GL_QUADS
+    // If mode is DrawModeEnum::QUADS, it will fall through to the default
+    // or the explicit case below if added.
+    case DrawModeEnum::QUADS: // Explicitly make QUADS an invalid mode for direct drawing
     case DrawModeEnum::INVALID:
-        break;
+        // This will cause an assertion in SimpleMesh::virt_render if m_drawMode
+        // was not correctly converted to TRIANGLES by setVbo.
+        return std::nullopt;
     }
-
+    // Should ideally not be reached if all DrawModeEnum values are handled.
+    // Adding a default to be safe, though the enum is small.
     return std::nullopt;
 }
 

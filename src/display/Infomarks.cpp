@@ -236,13 +236,21 @@ void InfomarksMeshes::render()
     const auto common_state
         = GLRenderState().withDepthFunction(std::nullopt).withBlend(BlendModeEnum::TRANSPARENCY);
 
-    points.render(common_state.withPointSize(INFOMARK_POINT_SIZE));
+    if (points) {
+        points->render(common_state.withPointSize(INFOMARK_POINT_SIZE));
+    }
     // INFOMARK_ARROW_LINE_WIDTH was for arrows that are now drawn as quads in m_tris.
     // If m_lines is still used for other genuinely thin lines, they should use a default line width
     // or a different specific width if necessary. For now, remove the specific width.
-    lines.render(common_state);
-    tris.render(common_state); // This now renders the thick lines (quads)
-    textMesh.render(common_state);
+    if (lines) {
+        lines->render(common_state);
+    }
+    if (tris) {
+        tris->render(common_state); // This now renders the thick lines (quads)
+    }
+    if (textMesh) {
+        textMesh->render(common_state);
+    }
 }
 
 void MapCanvas::drawInfoMark(InfomarksBatch &batch,

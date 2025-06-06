@@ -634,19 +634,19 @@ void ConnectionMeshes::render(const int thisLayer, const int focusedLayer) const
                                   .withColor(color);
 
     // normalLines.render(common_style); // Removed, normalTris now handles all normal triangles
-    if (normalTris.isValid()) {
-        normalTris.render(common_style);
+    if (normalTris) { // Check unique_ptr for nullity
+        normalTris->render(common_style); // Use -> for unique_ptr
     }
 
     // redLines.render(common_style);   // Removed, redTris now handles all red triangles
-    if (redTris.isValid()) {
+    if (redTris) { // Check unique_ptr for nullity
         // Assuming vertex colors in red.triVerts are already set to red.
         // The common_style.withColor(color) will provide the base color (e.g. white or faded gray),
         // which is then multiplied by the red vertex color by the shader.
         // If red connections should not fade, this might need adjustment:
-        // redTris.render(GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withColor(Colors::red));
+        // redTris->render(GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withColor(Colors::red));
         // However, sticking to minimal changes and assuming vertex colors manage the "redness":
-        redTris.render(common_style);
+        redTris->render(common_style); // Use -> for unique_ptr
     }
 }
 
@@ -795,9 +795,6 @@ void ConnectionDrawer::ConnectionFakeGL::drawTriangle(const glm::vec3 &a,
 
 void ConnectionDrawer::ConnectionFakeGL::drawLineStrip(const std::vector<glm::vec3> &points)
 {
-    const auto &connectionNormalColor
-        = isNormal() ? getCanvasNamedColorOptions().connectionNormalColor.getColor() : Colors::red;
-
     const auto transform = [this](const glm::vec3 &vert) { return vert + m_offset; };
     auto &triVerts = deref(m_currentBuffer).triVerts;
 

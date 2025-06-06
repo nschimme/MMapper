@@ -296,3 +296,47 @@ set_target_properties(
         COMPILE_FLAGS "${WARNING_FLAGS}"
 )
 add_test(NAME TestRoomManager COMMAND TestRoomManager)
+
+# TestMapCanvasRoomDrawer
+# Define any specific source files from the main library that TestMapCanvasRoomDrawer.cpp
+# needs direct access to, beyond what's in mm_global or mm_map.
+set(testmapcanvasroomdrawer_LIB_SRCS
+    ../src/display/MapCanvasRoomDrawer.cpp
+    ../src/display/MapBatches.cpp # Assuming this might have implementations not in headers
+    ../src/display/MapCanvasData.cpp
+    ../src/display/RoadIndex.cpp
+    ../src/display/Connections.cpp
+    ../src/global/GlobalAppState.cpp
+    # Note: Other dependencies like opengl, configuration, mapdata, map should
+    # come from mm_global/mm_map linked libraries.
+    # If specific .cpp files are needed and not in those, add them here.
+    # e.g. if MapBatches.cpp or MapCanvasData.cpp definitions are needed and not part of a lib.
+)
+set(TestMapCanvasRoomDrawer_SRCS TestMapCanvasRoomDrawer.cpp)
+add_executable(TestMapCanvasRoomDrawer ${TestMapCanvasRoomDrawer_SRCS} ${testmapcanvasroomdrawer_LIB_SRCS})
+
+# Specify dependencies on other pre-built project libraries
+add_dependencies(TestMapCanvasRoomDrawer mm_global mm_map)
+
+# Link against project libraries and Qt modules
+target_link_libraries(TestMapCanvasRoomDrawer
+        mm_map
+        mm_global
+        Qt5::Core
+        Qt5::Gui
+        Qt5::OpenGL
+        Qt5::Test
+        Qt5::Widgets
+        coverage_config)
+
+# Set C++ standard properties
+set_target_properties(
+  TestMapCanvasRoomDrawer PROPERTIES
+  CXX_STANDARD 17
+  CXX_STANDARD_REQUIRED ON
+  CXX_EXTENSIONS OFF
+  COMPILE_FLAGS "${WARNING_FLAGS}"
+)
+
+# Add to CTest
+add_test(NAME TestMapCanvasRoomDrawer COMMAND TestMapCanvasRoomDrawer)

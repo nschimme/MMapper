@@ -28,7 +28,7 @@
 
 // Includes for RoomGeometry members (were previously in a different place)
 #include <string>
-#include "../map/roomflags.h" // For RoomLoadFlags, RoomMobFlags
+// "../map/roomflags.h" is not needed; RoomLoadFlags and RoomMobFlags are available via "../map/room.h"
 #include "../map/enums.h"     // For RoomLightType, RoomRidableType, RoomSundeathType, RoomTerrainEnum etc.
 #include "../map/ExitFlags.h" // For ExitFlags
 #include "../map/DoorFlags.h" // For DoorFlags

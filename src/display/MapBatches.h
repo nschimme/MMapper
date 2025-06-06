@@ -13,6 +13,7 @@
 
 // Forward declaration from opengl/OpenGL.h - needed for LayerMeshes::render signature
 class OpenGL;
+struct RoomGeometry; // Forward declaration
 
 template<typename T>
 using RoomTintArray = EnumIndexedArray<T, RoomTintEnum, NUM_ROOM_TINTS>;

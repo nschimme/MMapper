@@ -30,6 +30,8 @@ protected:
     VBO m_vbo;
     DrawModeEnum m_drawMode = DrawModeEnum::INVALID;
     GLsizei m_numVerts = 0;
+private:
+    GLuint m_vao = 0;
 
 public:
     explicit SimpleMesh(SharedFunctions sharedFunctions, std::shared_ptr<ProgramType_> sharedProgram)
@@ -37,7 +39,9 @@ public:
         , m_functions{deref(m_shared_functions)}
         , m_shared_program{std::move(sharedProgram)}
         , m_program{deref(m_shared_program)}
-    {}
+    {
+        m_functions.glGenVertexArrays(1, &m_vao);
+    }
 
     explicit SimpleMesh(const SharedFunctions &sharedFunctions,
                         const std::shared_ptr<ProgramType_> &sharedProgram,
@@ -139,6 +143,10 @@ private:
     // Clears the mesh and destroys the GL resources.
     void virt_reset() final
     {
+        if (m_vao != 0) {
+            m_functions.glDeleteVertexArrays(1, &m_vao);
+            m_vao = 0;
+        }
         m_drawMode = DrawModeEnum::INVALID;
         m_numVerts = 0;
         m_vbo.reset();
@@ -169,12 +177,14 @@ private:
         m_functions.checkError();
 
         if (const std::optional<GLenum> &optMode = Functions::toGLenum(m_drawMode)) {
+            m_functions.glBindVertexArray(m_vao); // Bind VAO before drawing
             m_functions.glDrawArrays(optMode.value(), 0, m_numVerts);
         } else {
             assert(false);
         }
 
         m_functions.checkError();
+        m_functions.glBindVertexArray(0); // Unbind VAO after drawing
     }
 };
 } // namespace Legacy

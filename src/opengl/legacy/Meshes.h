@@ -39,6 +39,8 @@ private:
 
     void virt_bind() override
     {
+        Base::m_functions.glBindVertexArray(Base::m_vao); // Bind VAO
+
         static_assert(sizeof(std::declval<VertexType_>()) == 3 * sizeof(GLfloat));
 
         Functions &gl = Base::m_functions;
@@ -59,6 +61,7 @@ private:
         Functions &gl = Base::m_functions;
         gl.glDisableVertexAttribArray(attribs.vertPos);
         gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
+        Base::m_functions.glBindVertexArray(0); // Unbind VAO
         boundAttribs.reset();
     }
 };
@@ -91,6 +94,8 @@ private:
 
     void virt_bind() override
     {
+        Base::m_functions.glBindVertexArray(Base::m_vao); // Bind VAO
+
         const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
         static_assert(sizeof(std::declval<VertexType_>().color) == 4 * sizeof(uint8_t));
         static_assert(sizeof(std::declval<VertexType_>().vert) == 3 * sizeof(GLfloat));
@@ -115,9 +120,10 @@ private:
         gl.glDisableVertexAttribArray(attribs.colorPos);
         gl.glDisableVertexAttribArray(attribs.vertPos);
         gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
+        Base::m_functions.glBindVertexArray(0); // Unbind VAO
         boundAttribs.reset();
     }
-}; // namespace Legacy
+};
 
 // Textured mesh with color modulated by uniform
 template<typename VertexType_>
@@ -146,6 +152,8 @@ private:
 
     void virt_bind() override
     {
+        Base::m_functions.glBindVertexArray(Base::m_vao); // Bind VAO
+
         const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
         static_assert(sizeof(std::declval<VertexType_>().tex) == 2 * sizeof(GLfloat));
         static_assert(sizeof(std::declval<VertexType_>().vert) == 3 * sizeof(GLfloat));
@@ -171,6 +179,7 @@ private:
         gl.glDisableVertexAttribArray(attribs.texPos);
         gl.glDisableVertexAttribArray(attribs.vertPos);
         gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
+        Base::m_functions.glBindVertexArray(0); // Unbind VAO
         boundAttribs.reset();
     }
 };
@@ -204,6 +213,8 @@ private:
 
     void virt_bind() override
     {
+        Base::m_functions.glBindVertexArray(Base::m_vao); // Bind VAO
+
         const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
         static_assert(sizeof(std::declval<VertexType_>().color) == 4 * sizeof(uint8_t));
         static_assert(sizeof(std::declval<VertexType_>().tex) == 2 * sizeof(GLfloat));
@@ -232,6 +243,7 @@ private:
         gl.glDisableVertexAttribArray(attribs.texPos);
         gl.glDisableVertexAttribArray(attribs.vertPos);
         gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
+        Base::m_functions.glBindVertexArray(0); // Unbind VAO
         boundAttribs.reset();
     }
 };
@@ -264,6 +276,8 @@ private:
 
     void virt_bind() override
     {
+        Base::m_functions.glBindVertexArray(Base::m_vao); // Bind VAO
+
         const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
         static_assert(sizeof(std::declval<VertexType_>().color) == 4 * sizeof(uint8_t));
         static_assert(sizeof(std::declval<VertexType_>().vert) == 3 * sizeof(GLfloat));
@@ -288,6 +302,7 @@ private:
         gl.glDisableVertexAttribArray(attribs.colorPos);
         gl.glDisableVertexAttribArray(attribs.vertPos);
         gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
+        Base::m_functions.glBindVertexArray(0); // Unbind VAO
         boundAttribs.reset();
     }
 };

@@ -4,10 +4,12 @@
 uniform sampler2D uTexture;
 uniform vec4 uColor;
 
-varying vec4 vColor;
-varying vec2 vTexCoord;
+in vec4 vColor; // Changed from varying
+in vec2 vTexCoord; // Changed from varying
+
+layout(location = 0) out vec4 out_FragColor; // Added modern output
 
 void main()
 {
-    gl_FragColor = vColor * uColor * texture2D(uTexture, vTexCoord);
+    out_FragColor = vColor * uColor * texture2D(uTexture, vTexCoord); // Changed to out_FragColor
 }

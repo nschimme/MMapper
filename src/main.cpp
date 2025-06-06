@@ -106,9 +106,16 @@ static void setSurfaceFormat()
 
     QSurfaceFormat fmt;
     fmt.setRenderableType(QSurfaceFormat::OpenGL);
-    QSurfaceFormat::FormatOptions options = QSurfaceFormat::DebugContext
-                                            | QSurfaceFormat::DeprecatedFunctions;
-    fmt.setOptions(options);
+    // QSurfaceFormat::FormatOptions options = QSurfaceFormat::DebugContext
+    //                                         | QSurfaceFormat::DeprecatedFunctions; // Original options
+    // fmt.setOptions(options); // Original setOptions
+    fmt.setOptions(QSurfaceFormat::DebugContext); // Set options to DebugContext only
+
+    // Request OpenGL 3.3 Core Profile
+    fmt.setProfile(QSurfaceFormat::OpenGLContextProfile::CoreProfile);
+    fmt.setMajorVersion(3);
+    fmt.setMinorVersion(3);
+
     fmt.setSamples(config.antialiasingSamples);
     fmt.setDepthBufferSize(24);
     QSurfaceFormat::setDefaultFormat(fmt);

@@ -4,10 +4,10 @@
 uniform mat4 uMVP;
 uniform float uPointSize;
 
-attribute vec4 aColor;
-attribute vec3 aVert;
+in vec4 aColor; // Changed from attribute
+in vec3 aVert;  // Changed from attribute
 
-varying vec4 vColor;
+out vec4 vColor; // Changed from varying
 
 void main()
 {

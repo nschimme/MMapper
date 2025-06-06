@@ -3,10 +3,10 @@
 
 uniform mat4 uMVP;
 
-in vec4 aColor;
-in vec3 aVert;
+in vec4 aColor; // Changed from attribute
+in vec3 aVert;  // Changed from attribute
 
-out vec4 vs_color_out; // Renamed for clarity when passing to Geometry Shader
+out vec4 vs_color_out; // Changed from varying. Renamed for clarity when passing to Geometry Shader
 
 void main()
 {

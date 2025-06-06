@@ -3,9 +3,11 @@
 
 uniform vec4 uColor;
 
-varying vec4 vColor;
+in vec4 vColor; // Changed from varying
+
+layout(location = 0) out vec4 out_FragColor; // Added modern output
 
 void main()
 {
-    gl_FragColor = vColor * uColor;
+    out_FragColor = vColor * uColor; // Changed to out_FragColor
 }

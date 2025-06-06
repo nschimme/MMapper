@@ -4,13 +4,13 @@
 uniform mat4 uMVP3D;
 uniform ivec4 uPhysViewport;
 
-attribute vec3 aBase; // address in world space
-attribute vec4 aColor;
-attribute vec2 aTexCoord;
-attribute vec2 aVert; // offset in raw pixels
+in vec3 aBase; // address in world space - Changed from attribute
+in vec4 aColor; // Changed from attribute
+in vec2 aTexCoord; // Changed from attribute
+in vec2 aVert; // offset in raw pixels - Changed from attribute
 
-varying vec4 vColor;
-varying vec2 vTexCoord;
+out vec4 vColor; // Changed from varying
+out vec2 vTexCoord; // Changed from varying
 
 // [0, 1]^2 to pixels
 vec2 convertScreen01toPhysPixels(vec2 pos)

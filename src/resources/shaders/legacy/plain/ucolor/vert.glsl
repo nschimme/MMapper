@@ -3,7 +3,7 @@
 
 uniform mat4 uMVP;
 
-attribute vec3 aVert;
+in vec3 aVert; // Changed from attribute
 
 void main()
 {

@@ -3,10 +3,10 @@
 
 uniform mat4 uMVP;
 
-attribute vec2 aTexCoord;
-attribute vec3 aVert;
+in vec2 aTexCoord; // Changed from attribute
+in vec3 aVert;   // Changed from attribute
 
-varying vec2 vTexCoord;
+out vec2 vTexCoord; // Changed from varying
 
 void main()
 {

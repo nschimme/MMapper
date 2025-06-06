@@ -3,12 +3,12 @@
 
 uniform mat4 uMVP;
 
-attribute vec4 aColor;
-attribute vec2 aTexCoord;
-attribute vec3 aVert;
+in vec4 aColor; // Changed from attribute
+in vec2 aTexCoord; // Changed from attribute
+in vec3 aVert; // Changed from attribute
 
-varying vec4 vColor;
-varying vec2 vTexCoord;
+out vec4 vColor; // Changed from varying
+out vec2 vTexCoord; // Changed from varying
 
 void main()
 {

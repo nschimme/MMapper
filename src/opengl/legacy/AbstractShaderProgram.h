@@ -2,8 +2,18 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
 
-#include "LegacyTypes.h" // Added
-#include "VBO.h"         // For Program
+// Standard C++ includes
+#include <string> // For std::string
+
+// External library includes
+#include <qopengl.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp> // For glm::value_ptr, often used with glm types
+
+// Project-level type includes
+#include "../OpenGLTypes.h"   // Defines GLRenderState, Color, Viewport
+#include "LegacyTypes.h"      // Defines SharedFunctions, WeakFunctions (already present)
+#include "VBO.h"              // Defines Program (already present)
 
 namespace Legacy {
 

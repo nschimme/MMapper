@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
 
+#include <qopengl.h> // Added for GLuint etc.
+
 #include "../../global/utils.h"
 #include "LegacyTypes.h" // Added
 

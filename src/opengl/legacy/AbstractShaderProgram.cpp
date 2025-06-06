@@ -2,6 +2,7 @@
 // Copyright (C) 2019 The MMapper Authors
 
 #include "AbstractShaderProgram.h"
+#include "Legacy.h" // Added for full Functions definition
 #include <QDebug> // For qCritical
 
 namespace Legacy {

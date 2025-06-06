@@ -7,6 +7,7 @@
 #include "../../global/utils.h"
 #include "../OpenGLTypes.h"
 #include "AbstractShaderProgram.h" // Added for INVALID_ATTRIB_LOCATION
+#include "LegacyTypes.h"           // Added for SharedFunctions, WeakFunctions
 
 #include <cmath>
 #include <memory>
@@ -71,9 +72,9 @@ NODISCARD static inline std::vector<VertexType_> convertQuadsToTris(
     return triangles;
 }
 
-class Functions;
-using SharedFunctions = std::shared_ptr<Functions>;
-using WeakFunctions = std::weak_ptr<Functions>;
+// class Functions; // Moved to LegacyTypes.h
+// using SharedFunctions = std::shared_ptr<Functions>; // Moved to LegacyTypes.h
+// using WeakFunctions = std::weak_ptr<Functions>; // Moved to LegacyTypes.h
 
 /// \c Legacy::Functions implements both GL 2.0 and ES 2.0 (based on a subset of
 /// GL 2.0); this is accomplished by using separate implementation files for the

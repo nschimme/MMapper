@@ -2,6 +2,8 @@
 // Copyright (C) 2019 The MMapper Authors
 
 #include "VBO.h"
+#include "Legacy.h" // Added for full Functions definition
+#include <QDebug>   // Added for qInfo
 
 namespace Legacy {
 bool LOG_VBO_ALLOCATIONS = false;

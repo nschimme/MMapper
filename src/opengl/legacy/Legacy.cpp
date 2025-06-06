@@ -336,7 +336,6 @@ void Functions::resolveMsaaFBO(GLuint targetFramebuffer) {
         // Scaled physical viewport dimensions are needed here for blit source/dest.
         // Get these from getPhysicalViewport() or ensure they match m_msaaWidth/Height if DPI scaling is handled.
         // For now, assume m_msaaWidth/Height are physical pixel dimensions.
-        Viewport physicalVP = getPhysicalViewport(); // This gets logical viewport, need to scale?
                                                  // Assuming m_msaaWidth/Height are already physical.
         QOpenGLContext::currentContext()->extraFunctions()->glBlitFramebuffer(0, 0, m_msaaWidth, m_msaaHeight,
                               0, 0, m_msaaWidth, m_msaaHeight, // Blit to same size region on target FB for now

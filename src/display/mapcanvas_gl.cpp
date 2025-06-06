@@ -986,19 +986,6 @@ void MapCanvas::paintSelectionArea()
     paintNewInfomarkSelection();
 }
 
-void MapCanvas::updateMultisampling()
-{
-    const int wantMultisampling = getConfig().canvas.antialiasingSamples;
-    std::optional<int> &activeStatus = m_graphicsOptionsStatus.multisampling;
-    if (activeStatus == wantMultisampling) {
-        return;
-    }
-
-    // REVISIT: check return value?
-    MAYBE_UNUSED const bool enabled = getOpenGL().tryEnableMultisampling(wantMultisampling);
-    activeStatus = wantMultisampling;
-}
-
 void MapCanvas::renderMapBatches()
 {
     std::optional<MapBatches> &mapBatches = m_batches.mapBatches;

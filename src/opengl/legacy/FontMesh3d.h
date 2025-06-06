@@ -57,6 +57,8 @@ private:
 
     void virt_bind() override
     {
+        // VAO binding is now handled by SimpleMesh::bindAttribs
+
         const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
         static_assert(sizeof(std::declval<VertexType_>().base) == 3 * sizeof(GLfloat));
         static_assert(sizeof(std::declval<VertexType_>().color) == 4 * sizeof(uint8_t));
@@ -87,6 +89,7 @@ private:
         gl.glDisableVertexAttribArray(attribs.texPos);
         gl.glDisableVertexAttribArray(attribs.vertPos);
         gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
+        // VAO unbinding is now handled by SimpleMesh::unbindAttribs
         boundAttribs.reset();
     }
 };

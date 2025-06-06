@@ -13,6 +13,7 @@
 #include <optional>
 #include <vector>
 
+#include <QDebug>              // For qCritical
 #include <QOpenGLContext>      // For VAO functions
 #include <QOpenGLExtraFunctions> // For VAO functions
 
@@ -43,6 +44,10 @@ public:
         , m_program{deref(m_shared_program)}
     {
         QOpenGLContext::currentContext()->extraFunctions()->glGenVertexArrays(1, &m_vao);
+        if (m_vao == 0) {
+            qCritical("SimpleMesh: Failed to generate VAO!");
+            // Optionally, throw std::runtime_error("SimpleMesh: Failed to generate VAO!");
+        }
     }
 
     explicit SimpleMesh(const SharedFunctions &sharedFunctions,
@@ -80,13 +85,18 @@ protected:
 
     AttribUnbinder bindAttribs()
     {
+        QOpenGLContext::currentContext()->extraFunctions()->glBindVertexArray(m_vao); // ADDED
         virt_bind();
         return AttribUnbinder{*this};
     }
 
 private:
     friend AttribUnbinder;
-    void unbindAttribs() { virt_unbind(); }
+    void unbindAttribs()
+    {
+        virt_unbind();
+        QOpenGLContext::currentContext()->extraFunctions()->glBindVertexArray(0); // ADDED
+    }
     virtual void virt_bind() = 0;
     virtual void virt_unbind() = 0;
 

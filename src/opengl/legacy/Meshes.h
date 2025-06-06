@@ -39,7 +39,7 @@ private:
 
     void virt_bind() override
     {
-        QOpenGLContext::currentContext()->extraFunctions()->glBindVertexArray(Base::m_vao); // Bind VAO
+        // VAO binding is now handled by SimpleMesh::bindAttribs
 
         static_assert(sizeof(std::declval<VertexType_>()) == 3 * sizeof(GLfloat));
 
@@ -61,7 +61,7 @@ private:
         Functions &gl = Base::m_functions;
         gl.glDisableVertexAttribArray(attribs.vertPos);
         gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
-        QOpenGLContext::currentContext()->extraFunctions()->glBindVertexArray(0); // Unbind VAO
+        // VAO unbinding is now handled by SimpleMesh::unbindAttribs
         boundAttribs.reset();
     }
 };
@@ -94,7 +94,7 @@ private:
 
     void virt_bind() override
     {
-        QOpenGLContext::currentContext()->extraFunctions()->glBindVertexArray(Base::m_vao); // Bind VAO
+        // VAO binding is now handled by SimpleMesh::bindAttribs
 
         const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
         static_assert(sizeof(std::declval<VertexType_>().color) == 4 * sizeof(uint8_t));
@@ -120,7 +120,7 @@ private:
         gl.glDisableVertexAttribArray(attribs.colorPos);
         gl.glDisableVertexAttribArray(attribs.vertPos);
         gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
-        QOpenGLContext::currentContext()->extraFunctions()->glBindVertexArray(0); // Unbind VAO
+        // VAO unbinding is now handled by SimpleMesh::unbindAttribs
         boundAttribs.reset();
     }
 };
@@ -152,7 +152,7 @@ private:
 
     void virt_bind() override
     {
-        QOpenGLContext::currentContext()->extraFunctions()->glBindVertexArray(Base::m_vao); // Bind VAO
+        // VAO binding is now handled by SimpleMesh::bindAttribs
 
         const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
         static_assert(sizeof(std::declval<VertexType_>().tex) == 2 * sizeof(GLfloat));
@@ -179,7 +179,7 @@ private:
         gl.glDisableVertexAttribArray(attribs.texPos);
         gl.glDisableVertexAttribArray(attribs.vertPos);
         gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
-        QOpenGLContext::currentContext()->extraFunctions()->glBindVertexArray(0); // Unbind VAO
+        // VAO unbinding is now handled by SimpleMesh::unbindAttribs
         boundAttribs.reset();
     }
 };
@@ -213,7 +213,7 @@ private:
 
     void virt_bind() override
     {
-        QOpenGLContext::currentContext()->extraFunctions()->glBindVertexArray(Base::m_vao); // Bind VAO
+        // VAO binding is now handled by SimpleMesh::bindAttribs
 
         const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
         static_assert(sizeof(std::declval<VertexType_>().color) == 4 * sizeof(uint8_t));
@@ -243,7 +243,7 @@ private:
         gl.glDisableVertexAttribArray(attribs.texPos);
         gl.glDisableVertexAttribArray(attribs.vertPos);
         gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
-        QOpenGLContext::currentContext()->extraFunctions()->glBindVertexArray(0); // Unbind VAO
+        // VAO unbinding is now handled by SimpleMesh::unbindAttribs
         boundAttribs.reset();
     }
 };
@@ -276,7 +276,7 @@ private:
 
     void virt_bind() override
     {
-        QOpenGLContext::currentContext()->extraFunctions()->glBindVertexArray(Base::m_vao); // Bind VAO
+        // VAO binding is now handled by SimpleMesh::bindAttribs
 
         const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
         static_assert(sizeof(std::declval<VertexType_>().color) == 4 * sizeof(uint8_t));
@@ -302,7 +302,7 @@ private:
         gl.glDisableVertexAttribArray(attribs.colorPos);
         gl.glDisableVertexAttribArray(attribs.vertPos);
         gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
-        QOpenGLContext::currentContext()->extraFunctions()->glBindVertexArray(0); // Unbind VAO
+        // VAO unbinding is now handled by SimpleMesh::unbindAttribs
         boundAttribs.reset();
     }
 };

@@ -608,9 +608,14 @@ void ConnectionDrawer::drawConnEndTriUpDownUnknown(float dX, float dY, float dst
 ConnectionMeshes ConnectionDrawerBuffers::getMeshes(OpenGL &gl) const
 {
     ConnectionMeshes result;
-    result.normalLines = gl.createColoredLineBatch(normal.lineVerts);
+    // normal.triVerts now contains all normal-colored triangle data (line quads + other shapes).
+    // result.normalLines is no longer needed as result.normalTris will hold all normal triangles.
+    // result.normalLines = gl.createColoredTriBatch(normal.triVerts); // Removed
     result.normalTris = gl.createColoredTriBatch(normal.triVerts);
-    result.redLines = gl.createColoredLineBatch(red.lineVerts);
+
+    // red.triVerts now contains all red-colored triangle data.
+    // result.redLines is no longer needed as result.redTris will hold all red triangles.
+    // result.redLines = gl.createColoredTriBatch(red.triVerts); // Removed
     result.redTris = gl.createColoredTriBatch(red.triVerts);
     return result;
 }
@@ -625,17 +630,24 @@ void ConnectionMeshes::render(const int thisLayer, const int focusedLayer) const
     }();
     const auto common_style = GLRenderState()
                                   .withBlend(BlendModeEnum::TRANSPARENCY)
-                                  .withLineParams(LineParams{CONNECTION_LINE_WIDTH})
+                                  // .withLineParams(LineParams{CONNECTION_LINE_WIDTH}) // No longer relevant for triangle rendering
                                   .withColor(color);
 
-    // Even though we can draw colored lines and tris,
-    // the reason for having separate lines is so red will always be on top.
-    // If you don't think that's important, you can combine the batches.
+    // normalLines.render(common_style); // Removed, normalTris now handles all normal triangles
+    if (normalTris.isValid()) {
+        normalTris.render(common_style);
+    }
 
-    normalLines.render(common_style);
-    normalTris.render(common_style);
-    redLines.render(common_style);
-    redTris.render(common_style);
+    // redLines.render(common_style);   // Removed, redTris now handles all red triangles
+    if (redTris.isValid()) {
+        // Assuming vertex colors in red.triVerts are already set to red.
+        // The common_style.withColor(color) will provide the base color (e.g. white or faded gray),
+        // which is then multiplied by the red vertex color by the shader.
+        // If red connections should not fade, this might need adjustment:
+        // redTris.render(GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withColor(Colors::red));
+        // However, sticking to minimal changes and assuming vertex colors manage the "redness":
+        redTris.render(common_style);
+    }
 }
 
 void MapCanvas::paintNearbyConnectionPoints()
@@ -787,31 +799,70 @@ void ConnectionDrawer::ConnectionFakeGL::drawLineStrip(const std::vector<glm::ve
         = isNormal() ? getCanvasNamedColorOptions().connectionNormalColor.getColor() : Colors::red;
 
     const auto transform = [this](const glm::vec3 &vert) { return vert + m_offset; };
-    auto &verts = deref(m_currentBuffer).lineVerts;
-    auto drawLine = [&verts](const Color &color, const glm::vec3 &a, const glm::vec3 &b) {
-        verts.emplace_back(color, a);
-        verts.emplace_back(color, b);
+    auto &triVerts = deref(m_currentBuffer).triVerts;
+
+    // Helper lambda to generate a quad between two points with a specific color
+    auto generateQuad =
+        [&](const glm::vec3& p1, const glm::vec3& p2, const Color& quad_color) {
+        if (p1 == p2) { // Handle zero-length segment for the quad
+            return;
+        }
+
+        glm::vec3 dir = glm::normalize(p2 - p1);
+        glm::vec3 perp_normal = glm::vec3(-dir.y, dir.x, 0.0f); // Assuming XY plane focus
+        float half_width = CONNECTION_LINE_WIDTH / 2.0f;
+
+        glm::vec3 v1 = p1 + perp_normal * half_width;
+        glm::vec3 v2 = p1 - perp_normal * half_width;
+        glm::vec3 v3 = p2 + perp_normal * half_width;
+        glm::vec3 v4 = p2 - perp_normal * half_width;
+
+        // Triangle 1: v2, v1, v3
+        triVerts.emplace_back(quad_color, v2);
+        triVerts.emplace_back(quad_color, v1);
+        triVerts.emplace_back(quad_color, v3);
+
+        // Triangle 2: v2, v3, v4
+        triVerts.emplace_back(quad_color, v2);
+        triVerts.emplace_back(quad_color, v3);
+        triVerts.emplace_back(quad_color, v4);
     };
 
     const auto size = points.size();
     assert(size >= 2);
-    for (size_t i = 1; i < size; ++i) {
-        const auto start = transform(points[i - 1u]);
-        const auto end = transform(points[i]);
 
-        if (!isLongLine(start, end)) {
-            drawLine(connectionNormalColor, start, end);
+    for (size_t i = 1; i < size; ++i) {
+        const glm::vec3 start_orig = points[i - 1u];
+        const glm::vec3 end_orig = points[i];
+
+        const glm::vec3 start_v = transform(start_orig);
+        const glm::vec3 end_v = transform(end_orig);
+
+        if (start_v == end_v) { // Skip overall zero-length segments
             continue;
         }
 
-        const auto len = glm::length(start - end);
-        const auto faintCutoff = LONG_LINE_HALFLEN / len;
-        const auto mid1 = glm::mix(start, end, faintCutoff);
-        const auto mid2 = glm::mix(start, end, 1.f - faintCutoff);
-        const auto faint = connectionNormalColor.withAlpha(FAINT_CONNECTION_ALPHA);
+        const Color current_segment_color = isNormal() ?
+            getCanvasNamedColorOptions().connectionNormalColor.getColor() : Colors::red;
 
-        drawLine(connectionNormalColor, start, mid1);
-        drawLine(faint, mid1, mid2);
-        drawLine(connectionNormalColor, mid2, end);
+        if (!isLongLine(start_v, end_v)) {
+            generateQuad(start_v, end_v, current_segment_color);
+            continue;
+        }
+
+        // It is a long line, apply fading
+        const float len = glm::length(start_v - end_v);
+        // isLongLine implies len >= LONG_LINE_LEN (3.0f), so len should not be zero.
+        // However, a check for len > 0.0f before division is safest if that assumption could be violated.
+        // For now, assume isLongLine guarantees len is sufficiently large.
+        const float faintCutoff = LONG_LINE_HALFLEN / len;
+
+        const glm::vec3 mid1 = glm::mix(start_v, end_v, faintCutoff);
+        const glm::vec3 mid2 = glm::mix(start_v, end_v, 1.f - faintCutoff);
+        const Color faint_color = current_segment_color.withAlpha(FAINT_CONNECTION_ALPHA);
+
+        generateQuad(start_v, mid1, current_segment_color);
+        generateQuad(mid1, mid2, faint_color);
+        generateQuad(mid2, end_v, current_segment_color);
     }
 }

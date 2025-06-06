@@ -143,8 +143,39 @@ void InfomarksBatch::drawPoint(const glm::vec3 &a)
 
 void InfomarksBatch::drawLine(const glm::vec3 &a, const glm::vec3 &b)
 {
-    m_lines.emplace_back(m_color, a + m_offset);
-    m_lines.emplace_back(m_color, b + m_offset);
+    const glm::vec3 start_v = a + m_offset;
+    const glm::vec3 end_v = b + m_offset;
+
+    // Handle potential zero-length segments
+    if (start_v == end_v) {
+        // Optionally: draw a small quad or point, or skip. For now, skip.
+        return;
+    }
+
+    glm::vec3 dir = glm::normalize(end_v - start_v);
+    // Assuming lines are primarily on the XY plane, Z component of normal is 0
+    glm::vec3 perp_normal = glm::vec3(-dir.y, dir.x, 0.0f);
+    float half_width = INFOMARK_ARROW_LINE_WIDTH / 2.0f;
+
+    glm::vec3 v1 = start_v + perp_normal * half_width;
+    glm::vec3 v2 = start_v - perp_normal * half_width;
+    glm::vec3 v3 = end_v + perp_normal * half_width;
+    glm::vec3 v4 = end_v - perp_normal * half_width;
+
+    // Add quad as two triangles to m_tris
+    // Triangle 1: v2, v1, v3
+    m_tris.emplace_back(m_color, v2);
+    m_tris.emplace_back(m_color, v1);
+    m_tris.emplace_back(m_color, v3);
+
+    // Triangle 2: v2, v3, v4
+    m_tris.emplace_back(m_color, v2);
+    m_tris.emplace_back(m_color, v3);
+    m_tris.emplace_back(m_color, v4);
+
+    // Original lines are no longer added to m_lines:
+    // // m_lines.emplace_back(m_color, a + m_offset);
+    // // m_lines.emplace_back(m_color, b + m_offset);
 }
 
 void InfomarksBatch::drawTriangle(const glm::vec3 &a, const glm::vec3 &b, const glm::vec3 &c)
@@ -206,8 +237,11 @@ void InfomarksMeshes::render()
         = GLRenderState().withDepthFunction(std::nullopt).withBlend(BlendModeEnum::TRANSPARENCY);
 
     points.render(common_state.withPointSize(INFOMARK_POINT_SIZE));
-    lines.render(common_state.withLineParams(LineParams{INFOMARK_ARROW_LINE_WIDTH}));
-    tris.render(common_state);
+    // INFOMARK_ARROW_LINE_WIDTH was for arrows that are now drawn as quads in m_tris.
+    // If m_lines is still used for other genuinely thin lines, they should use a default line width
+    // or a different specific width if necessary. For now, remove the specific width.
+    lines.render(common_state);
+    tris.render(common_state); // This now renders the thick lines (quads)
     textMesh.render(common_state);
 }
 

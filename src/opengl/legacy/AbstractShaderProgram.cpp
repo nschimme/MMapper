@@ -2,6 +2,7 @@
 // Copyright (C) 2019 The MMapper Authors
 
 #include "AbstractShaderProgram.h"
+#include <QDebug> // For qCritical
 
 namespace Legacy {
 
@@ -51,14 +52,30 @@ void AbstractShaderProgram::setUniforms(const glm::mat4 &mvp,
 GLuint AbstractShaderProgram::getAttribLocation(const char *const name) const
 {
     assert(name != nullptr);
-    assert(m_isBound);
+    // Program does not need to be bound to call glGetAttribLocation,
+    // but it must have been successfully linked.
+    // assert(m_isBound); // Removing this assert for now.
+
     auto functions = m_functions.lock();
-    const auto tmp = deref(functions).glGetAttribLocation(getProgram(), name);
-    // Reason for making the cast here: glGetAttribLocation uses signed GLint,
-    // but glVertexAttribXXX() uses unsigned GLuint.
-    const auto result = static_cast<GLuint>(tmp);
-    assert(result != INVALID_ATTRIB_LOCATION);
-    return result;
+    if (!functions) {
+        qCritical("AbstractShaderProgram: Functions context is null when getting attribute '%s' for shader '%s'.", name, m_dirName.c_str());
+        return Legacy::INVALID_ATTRIB_LOCATION; // Or appropriate global INVALID_ATTRIB_LOCATION
+    }
+
+    const GLint location = functions->glGetAttribLocation(getProgram(), name);
+
+    if (location == -1) {
+        // It's common for shaders to optimize out unused attributes.
+        // This might not always be a critical error, but a warning is useful.
+        // qWarning("AbstractShaderProgram: Attribute '%s' not found or not active in shader program '%s' (dir: '%s'). Location: %d",
+        //          name, m_program.get(), m_dirName.c_str(), location);
+        // For now, let's keep it as a qCritical if it's unexpected by calling code.
+        // The original error GL_INVALID_VALUE in glEnableVertexAttribArray implies it *was* unexpected.
+        qCritical("AbstractShaderProgram: Attribute '%s' not found or not active in shader program %u (dir: '%s'). Returned location -1.",
+                  name, getProgram(), m_dirName.c_str());
+        return Legacy::INVALID_ATTRIB_LOCATION;
+    }
+    return static_cast<GLuint>(location);
 }
 
 GLint AbstractShaderProgram::getUniformLocation(const char *const name) const

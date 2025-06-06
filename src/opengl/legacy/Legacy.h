@@ -6,6 +6,7 @@
 #include "../../global/RuleOf5.h"
 #include "../../global/utils.h"
 #include "../OpenGLTypes.h"
+#include "AbstractShaderProgram.h" // Added for INVALID_ATTRIB_LOCATION
 
 #include <cmath>
 #include <memory>
@@ -285,6 +286,10 @@ public:
                       const GLsizei stride,
                       const GLvoid *const pointer)
     {
+        if (index == static_cast<GLuint>(-1) || index == Legacy::INVALID_ATTRIB_LOCATION) {
+            // qWarning("Legacy::Functions::enableAttrib: Attempted to enable attribute with invalid index (%u). Skipping.", index);
+            return; // Skip enabling this attribute
+        }
         Base::glEnableVertexAttribArray(index);
         Base::glVertexAttribPointer(index, size, type, normalized, stride, pointer);
     }

@@ -33,8 +33,7 @@ protected:
     VBO m_vbo;
     DrawModeEnum m_drawMode = DrawModeEnum::INVALID;
     GLsizei m_numVerts = 0;
-private:
-    GLuint m_vao = 0;
+    GLuint m_vao = 0; // Moved to protected
 
 public:
     explicit SimpleMesh(SharedFunctions sharedFunctions, std::shared_ptr<ProgramType_> sharedProgram)

@@ -1087,8 +1087,8 @@ void MapCanvas::requestMissingChunks() {
 }
 
 std::optional<glm::vec3> MapCanvas::getUnprojectedScreenPos(const glm::vec2& screenPos) const {
-    // unproject is a member of MapCanvasViewport, which MapCanvas inherits from.
-    return this->unproject(screenPos.x, screenPos.y);
+    // unproject_clamped is a member of MapCanvasViewport, which MapCanvas inherits from.
+    return this->unproject_clamped(screenPos);
 }
 
 void MapCanvas::updateVisibleChunks() {
@@ -1126,7 +1126,7 @@ void MapCanvas::updateVisibleChunks() {
     minChunkY -= 1;
     maxChunkY += 1;
 
-    const int maxOffset = getConfig().canvas.maxVisibleLayerOffset.get();
+    const int maxOffset = getConfig().canvas.mapRadius[2];
     const int minRenderLayer = m_currentLayer - maxOffset;
     const int maxRenderLayer = m_currentLayer + maxOffset;
 

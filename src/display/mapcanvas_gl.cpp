@@ -1100,7 +1100,7 @@ void MapCanvas::renderMapBatches()
         const int layerId = layerMeshesPair.first;
         const ChunkedLayerMeshes& terrainChunksInLayer = layerMeshesPair.second; // Map of ChunkId -> LayerMeshes
 
-        if (std::abs(layerId - m_currentLayer) > getConfig().canvas.maxVisibleLayerOffset.get()) {
+        if (std::abs(layerId - m_currentLayer) > getConfig().canvas.mapRadius[2]) {
             continue;
         }
 
@@ -1120,8 +1120,9 @@ void MapCanvas::renderMapBatches()
 
         bool fontShaderWasBound = false;
         GLRenderState nameRenderState; // Define once per layer
-        nameRenderState.withBlend(BlendModeEnum::TRANSPARENCY);
-        nameRenderState.withDepthFunction(DepthFunctionEnum::LEQUAL);
+        nameRenderState = GLRenderState()
+                              .withBlend(BlendModeEnum::TRANSPARENCY)
+                              .withDepthFunction(DepthFunctionEnum::LEQUAL);
 
         // Check if any room names need rendering for this layer to bind shader once
         auto itLayerRoomNames = batches.roomNameBatches.find(layerId);
@@ -1130,10 +1131,11 @@ void MapCanvas::renderMapBatches()
             for (const ChunkId chunkId : visibleChunkIdsForLayer) {
                 if (chunkedRoomNamesForLayer.count(chunkId)) {
                     const UniqueMesh& nameMesh = chunkedRoomNamesForLayer.at(chunkId);
-                    if (nameMesh) {
-                        m_glFont.getFontShader().bind();
-                        fontShaderWasBound = true;
-                        break;
+                    if (nameMesh.isValid()) { // Check UniqueMesh validity
+                        // Font shader is managed internally by GLFont render methods
+                        // m_glFont.getFontShader().bind(); // Removed
+                        fontShaderWasBound = true; // Keep track if any font mesh exists in this layer
+                        // No break here, need to check all chunks for this layer
                     }
                 }
             }
@@ -1170,7 +1172,7 @@ void MapCanvas::renderMapBatches()
                 auto itChunkRoomNames = chunkedRoomNamesForLayer.find(chunkId);
                 if (itChunkRoomNames != chunkedRoomNamesForLayer.end()) {
                     const UniqueMesh& nameMesh = itChunkRoomNames->second;
-                    if (nameMesh) {
+                    if (nameMesh.isValid()) { // Check UniqueMesh validity
                         nameMesh.render(nameRenderState);
                     }
                 }
@@ -1178,12 +1180,13 @@ void MapCanvas::renderMapBatches()
         } // End of chunk loop
 
         if (fontShaderWasBound) {
-            m_glFont.getFontShader().release();
+            // Font shader is managed internally by GLFont render methods
+            // m_glFont.getFontShader().release(); // Removed
         }
     } // End of layer loop
 
     // If the current layer had no terrain meshes at all, ensure depth is cleared and background faded.
-    if (!currentLayerHasBeenSetup && std::abs(m_currentLayer - m_currentLayer) <= getConfig().canvas.maxVisibleLayerOffset.get()) {
+    if (!currentLayerHasBeenSetup && std::abs(m_currentLayer - m_currentLayer) <= getConfig().canvas.mapRadius[2]) {
         // Check if current layer should have been processed (e.g. it's in m_visibleChunks)
         // This ensures that even if a visible layer has no terrain, its connections/names might still show over a clean bg.
         auto itVisibleCurrentLayer = m_visibleChunks.find(m_currentLayer);

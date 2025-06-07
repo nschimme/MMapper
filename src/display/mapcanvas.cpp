@@ -1150,9 +1150,45 @@ void MapCanvas::updateVisibleChunks() {
 
 void MapCanvas::forceUpdateMeshes()
 {
-    m_batches.resetExistingMeshesAndIgnorePendingRemesh();
+    // If a specific chunk generation is already in progress, let it complete.
+    // Starting another one (even a "full visible" one) could lead to conflicts
+    // or overwrite the existing remesh cookie too soon.
+    if (m_batches.remeshCookie.isPending()) {
+        // Optionally, we could queue this forced update or simply rely
+        // on the current pending operation to refresh relevant data.
+        // For now, just returning seems safest to avoid complex queueing.
+        // The user might see a slight delay if they trigger this while another load is happening.
+        update(); // Still call update to ensure a repaint is scheduled after the current op.
+        return;
+    }
+
+    updateVisibleChunks(); // Determine what's currently visible
+
+    std::vector<std::pair<int, ChunkId>> allVisibleChunks;
+    for (const auto& layerChunksPair : m_visibleChunks) {
+        for (const ChunkId chunkId : layerChunksPair.second) {
+            allVisibleChunks.push_back({layerChunksPair.first, chunkId});
+        }
+    }
+
+    if (!allVisibleChunks.empty()) {
+        // It's important to mark these as pending *before* starting the async operation,
+        // to prevent requestMissingChunks from trying to add them again if it runs
+        // between forceUpdateMeshes starting and the cookie becoming pending.
+        for(const auto& chunkKey : allVisibleChunks) {
+            m_pendingChunkGenerations.insert(chunkKey);
+        }
+        m_batches.remeshCookie.set(
+            m_data.generateSpecificChunkBatches(mctp::getProxy(m_textures), allVisibleChunks)
+        );
+    }
+
+    // Resetting diffs might still be appropriate if a "forced" update implies
+    // that underlying map data (not just view) might have changed in a way
+    // that requires re-evaluating differences.
     m_diff.resetExistingMeshesAndIgnorePendingRemesh();
-    update();
+
+    update(); // Schedule a repaint
 }
 
 void MapCanvas::slot_mapChanged()

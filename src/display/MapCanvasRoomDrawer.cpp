@@ -796,26 +796,29 @@ static void generateAllLayerMeshes(InternalData &internalData, // Type already I
             ChunkId currentChunkId = chunk_entry.first;
             const RoomVector& rooms_for_this_chunk = chunk_entry.second;
 
-            if (rooms_for_this_chunk.empty()) {
-                continue;
-            }
+            // if (rooms_for_this_chunk.empty()) { // Removed conditional skip
+            //     continue;
+            // }
 
             DECL_TIMER(t3, "generateAllLayerMeshes.loop.generateChunkMeshes");
+            // Process even if rooms_for_this_chunk is empty
             batchedMeshes[thisLayer][currentChunkId] =
                 ::generateLayerMeshes(rooms_for_this_chunk, currentChunkId, textures, bounds, visitRoomOptions);
 
-            // ConnectionDrawer and RoomNameBatch logic now per-chunk
+            // Ensure connection and room name batches are at least cleared/default-constructed.
             ConnectionDrawerBuffers& cdb_chunk = internalData.connectionDrawerBuffers[thisLayer][currentChunkId];
             RoomNameBatch& rnb_chunk = internalData.roomNameBatches[thisLayer][currentChunkId];
-
             cdb_chunk.clear();
             rnb_chunk.clear();
 
-            // The 'bounds' here is still the overall OptBounds passed into generateAllLayerMeshes.
-            // ConnectionDrawer will only process rooms_for_this_chunk.
-            ConnectionDrawer cd{cdb_chunk, rnb_chunk, thisLayer, bounds};
-            for (const auto &room : rooms_for_this_chunk) {
-                cd.drawRoomConnectionsAndDoors(room);
+            // Only attempt to draw connections/names if there were actual rooms.
+            if (!rooms_for_this_chunk.empty()) {
+                // The 'bounds' here is still the overall OptBounds passed into generateAllLayerMeshes.
+                // ConnectionDrawer will only process rooms_for_this_chunk.
+                ConnectionDrawer cd{cdb_chunk, rnb_chunk, thisLayer, bounds};
+                for (const auto &room : rooms_for_this_chunk) {
+                    cd.drawRoomConnectionsAndDoors(room);
+                }
             }
         }
         // Old layer-wide connection/name generation is removed as it's now per-chunk.
@@ -848,25 +851,28 @@ void generateSpecificLayerMeshes(InternalData &internalData,
             }
         }
 
-        if (rooms_for_this_chunk_layer.empty()) {
-            continue;
-        }
+        // if (rooms_for_this_chunk_layer.empty()) { // Removed conditional skip
+        //     continue;
+        // }
 
         DECL_TIMER(t_chunk, "generateSpecificLayerMeshes.loop.generateSingleChunkMeshes");
-        // Generate meshes for rooms in this specific chunk and layer
+        // Generate meshes for rooms in this specific chunk and layer, even if rooms_for_this_chunk_layer is empty.
+        // ::generateLayerMeshes is expected to handle an empty RoomVector and return an empty LayerBatchData.
         internalData.batchedMeshes[layerId][chunkId] =
             ::generateLayerMeshes(rooms_for_this_chunk_layer, chunkId, textures, bounds, visitRoomOptions);
 
-        // Generate connection and room name data for this specific chunk and layer
+        // Ensure connection and room name batches are at least cleared/default-constructed.
         ConnectionDrawerBuffers& cdb_chunk = internalData.connectionDrawerBuffers[layerId][chunkId];
         RoomNameBatch& rnb_chunk = internalData.roomNameBatches[layerId][chunkId];
-
         cdb_chunk.clear();
         rnb_chunk.clear();
 
-        ConnectionDrawer cd{cdb_chunk, rnb_chunk, layerId, bounds};
-        for (const auto &room : rooms_for_this_chunk_layer) {
-            cd.drawRoomConnectionsAndDoors(room);
+        // Only attempt to draw connections/names if there were actual rooms.
+        if (!rooms_for_this_chunk_layer.empty()) {
+            ConnectionDrawer cd{cdb_chunk, rnb_chunk, layerId, bounds};
+            for (const auto &room : rooms_for_this_chunk_layer) {
+                cd.drawRoomConnectionsAndDoors(room);
+            }
         }
     }
 }

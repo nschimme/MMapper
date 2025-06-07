@@ -247,17 +247,19 @@ void MapCanvas::initializeGL()
     font.init();
 
     setConfig().canvas.showUnsavedChanges.registerChangeCallback(m_lifetime, [this]() {
-        if (setConfig().canvas.showUnsavedChanges.get() && m_diff.highlight.has_value()
-            && m_diff.highlight->needsUpdate.empty()) {
-            this->forceUpdateMeshes();
-        }
+        // if (setConfig().canvas.showUnsavedChanges.get() && m_diff.highlight.has_value()
+        //     && m_diff.highlight->needsUpdate.empty()) {
+        //     this->forceUpdateMeshes();
+        // }
+        this->update();
     });
 
     setConfig().canvas.showMissingMapId.registerChangeCallback(m_lifetime, [this]() {
-        if (setConfig().canvas.showMissingMapId.get() && m_diff.highlight.has_value()
-            && m_diff.highlight->needsUpdate.empty()) {
-            this->forceUpdateMeshes();
-        }
+        // if (setConfig().canvas.showMissingMapId.get() && m_diff.highlight.has_value()
+        //     && m_diff.highlight->needsUpdate.empty()) {
+        //     this->forceUpdateMeshes();
+        // }
+        this->update();
     });
 
     setConfig().canvas.showUnmappedExits.registerChangeCallback(m_lifetime, [this]() {

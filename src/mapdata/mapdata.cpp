@@ -145,7 +145,7 @@ FutureSharedMapBatchFinisher MapData::generateBatches(const mctp::MapCanvasTextu
     return generateMapDataFinisher(textures, getCurrentMap());
 }
 
-// generateSpecificChunkBatches implementation was here and is now deleted.
+// generateSpecificChunkBatches implementation was fully deleted here.
 
 void MapData::applyChangesToList(const RoomSelection &sel,
                                  const std::function<Change(const RawRoom &)> &callback)
@@ -391,7 +391,7 @@ std::optional<RoomArea> MapData::getRoomArea(RoomId id) const
     return std::nullopt;
 }
 
-bool MapData::isRoomAreaLoaded(const RoomArea& /*area*/) const
+bool MapData::isRoomAreaLoaded(const RoomArea& area) const
 {
     // TODO: Implement this method. It requires MapData to have access to the
     // actual batch data (e.g., MapCanvas::m_batches) to check if meshes

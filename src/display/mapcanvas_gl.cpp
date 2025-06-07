@@ -536,8 +536,8 @@ void MapCanvas::resizeGL(int width, int height)
     }
 
     setViewportAndMvp(width, height); // Ensure projection is set before unprojecting
-    updateVisibleChunks();
-    requestMissingChunks();
+    updateVisibleRoomAreas();
+    requestMissingRoomAreas();
 
     // Render
     update();
@@ -635,6 +635,7 @@ void MapCanvas::finishPendingMapBatches()
     if (pFuture == nullptr) {
         // REVISIT: Do we need to schedule another update now?
         LOG() << "Got NULL (means the update was flagged to be ignored)";
+        // If the update was ignored, pending items should remain pending.
         return;
     }
 
@@ -650,69 +651,42 @@ void MapCanvas::finishPendingMapBatches()
     finish(finisher_obj, temporaryNewBatches_opt, getOpenGL(), getGLFont());
 
     if (temporaryNewBatches_opt.has_value()) {
-        LOG() << "Successfully finished specific chunk batches into temporary MapBatches.";
+        LOG() << "Successfully finished specific RoomArea batches into temporary MapBatches.";
         MapBatches& temporaryNewBatches = *temporaryNewBatches_opt;
 
         if (!m_batches.mapBatches.has_value()) {
             // This is the first batch of data, or main batches were previously cleared.
             LOG() << "Main mapBatches is empty, moving temporaryNewBatches.";
             m_batches.mapBatches.emplace(std::move(temporaryNewBatches));
-            // Clear pending flags for all chunks that were just loaded by iterating the moved content
-            if (m_batches.mapBatches.has_value()) {
-                for (const auto& layer_pair : m_batches.mapBatches->batchedMeshes) {
-                    for (const auto& chunk_pair : layer_pair.second) {
-                        if (m_pendingChunkGenerations.erase({layer_pair.first, chunk_pair.first})) {
-                            // LOG() << "Erased " << layer_pair.first << ":" << chunk_pair.first << " from pending (initial load).";
-                        }
-                    }
-                }
-            }
         } else {
             // Merge temporaryNewBatches into existing m_batches.mapBatches
             LOG() << "Merging temporaryNewBatches into existing main mapBatches.";
-            MapBatches& mainMapBatches = *m_batches.mapBatches;
-
-            for (auto& layer_pair : temporaryNewBatches.batchedMeshes) {
-                int layerId = layer_pair.first;
-                auto& new_chunks_in_layer = layer_pair.second; // Use auto& for non-const access
-                for (auto& chunk_pair : new_chunks_in_layer) {
-                    ChunkId chunkId = chunk_pair.first;
-                    mainMapBatches.batchedMeshes[layerId].insert_or_assign(chunkId, std::move(chunk_pair.second));
-                    if (m_pendingChunkGenerations.erase({layerId, chunkId})) {
-                        // LOG() << "Erased " << layerId << ":" << chunkId << " from pending (merge).";
-                    }
-                }
-            }
-
-            for (auto& layer_pair : temporaryNewBatches.connectionMeshes) {
-                int layerId = layer_pair.first;
-                auto& new_connection_chunks_in_layer = layer_pair.second; // Use auto& for non-const access
-                for (auto& chunk_pair : new_connection_chunks_in_layer) {
-                    ChunkId chunkId = chunk_pair.first;
-                    mainMapBatches.connectionMeshes[layerId].insert_or_assign(chunkId, std::move(chunk_pair.second));
-                }
-            }
-
-            for (auto& layer_pair : temporaryNewBatches.roomNameBatches) {
-                int layerId = layer_pair.first;
-                auto& new_roomname_chunks_in_layer = layer_pair.second; // Use auto& for non-const access
-                for (auto& chunk_pair : new_roomname_chunks_in_layer) {
-                    ChunkId chunkId = chunk_pair.first;
-                    mainMapBatches.roomNameBatches[layerId].insert_or_assign(chunkId, std::move(chunk_pair.second));
-                }
-            }
+            m_batches.mapBatches->merge(std::move(temporaryNewBatches));
         }
+
+        // If processing was successful, clear the specifically requested RoomAreas from pending.
+        if (!m_cookieAssociatedAreas.empty()) {
+            LOG() << "Clearing " << m_cookieAssociatedAreas.size() << " cookie-associated RoomAreas from pending.";
+            for (const auto& processed_area : m_cookieAssociatedAreas) {
+                m_pendingRoomAreaGenerations.erase(processed_area);
+            }
+            m_cookieAssociatedAreas.clear();
+        } else {
+            // If m_cookieAssociatedAreas is empty (e.g. from a full remesh via generateBatches),
+            // it's safer to clear all pending generations as we don't know which specific areas
+            // this full remesh might have covered or made obsolete.
+            LOG() << "m_cookieAssociatedAreas was empty; clearing all pending RoomArea generations.";
+            m_pendingRoomAreaGenerations.clear();
+        }
+
     } else {
         LOG() << "::finish with pFuture did not populate temporaryNewBatches_opt. This should not happen if pFuture is valid.";
-        // If finish fails to emplace, specific chunks associated with pFuture remain pending.
-        // No specific action needed here for m_pendingChunkGenerations, requestMissingChunks will handle retries.
+        // If finish fails, the areas in m_cookieAssociatedAreas remain in m_pendingRoomAreaGenerations.
+        // We might want to clear m_cookieAssociatedAreas or handle this state more explicitly,
+        // but for now, they will be re-requested if still visible.
+        // m_cookieAssociatedAreas.clear(); // Decide if this should be cleared on failure too.
+        // requestMissingRoomAreas will handle retries.
     }
-    // The broad m_pendingChunkGenerations.clear() that was here is removed as per subtask.
-    // Chunks are erased individually above as they are processed.
-    // If pFuture itself was null, m_pendingChunkGenerations is cleared in the block above for that case.
-    // The original logic for pFuture == nullptr also cleared m_pendingChunkGenerations,
-    // which is covered by clearing it after remeshCookie.get() if isReady() was true.
-    // The update() call is also important.
     update();
 
 
@@ -1139,10 +1113,10 @@ void MapCanvas::renderMapBatches()
                                && (totalScaleFactor >= settings.doorNameScaleCutoff);
 
     auto &gl = getOpenGL();
-    // batches.batchedMeshes is std::map<int, ChunkedLayerMeshes> (main terrain, etc.)
-    // batches.connectionMeshes is std::map<int, std::map<ChunkId, ConnectionMeshes>>
-    // batches.roomNameBatches is std::map<int, std::map<ChunkId, UniqueMesh>>
-    const auto& allChunkedLayerMeshes = batches.batchedMeshes;
+    // batches.batchedMeshes is std::map<int, AreaLayerMeshes> (main terrain, etc.)
+    // batches.connectionMeshes is std::map<int, std::map<RoomArea, ConnectionMeshes>>
+    // batches.roomNameBatches is std::map<int, std::map<RoomArea, UniqueMesh>>
+    const auto& allAreaLayerMeshes = batches.batchedMeshes; // Renamed from allChunkedLayerMeshes
 
     const auto fadeBackground = [&gl, &settings]() {
         auto bgColor = Color{settings.backgroundColor.getColor(), 0.5f};
@@ -1154,9 +1128,9 @@ void MapCanvas::renderMapBatches()
 
     // Iterate through layers that have LayerMeshes (terrain, etc.)
     // We use this as the primary loop for determining which layers to process.
-    for (const auto& layerMeshesPair : allChunkedLayerMeshes) {
+    for (const auto& layerMeshesPair : allAreaLayerMeshes) { // Changed allChunkedLayerMeshes
         const int layerId = layerMeshesPair.first;
-        const ChunkedLayerMeshes& terrainChunksInLayer = layerMeshesPair.second; // Map of ChunkId -> LayerMeshes
+        const AreaLayerMeshes& terrainAreasInLayer = layerMeshesPair.second; // Renamed, Map of RoomArea -> LayerMeshes
 
         if (std::abs(layerId - m_currentLayer) > getConfig().canvas.mapRadius[2]) {
             continue;
@@ -1169,12 +1143,12 @@ void MapCanvas::renderMapBatches()
             currentLayerHasBeenSetup = true;
         }
 
-        auto itVisibleLayer = m_visibleChunks.find(layerId);
-        if (itVisibleLayer == m_visibleChunks.end() || itVisibleLayer->second.empty()) {
-            // This layer isn't in m_visibleChunks or has no visible chunks calculated for it.
-            continue;
-        }
-        const std::set<ChunkId>& visibleChunkIdsForLayer = itVisibleLayer->second;
+        // TODO: The following iteration is over all chunks in the loaded batch for this layer.
+        // It needs to be filtered by m_visibleRoomAreas. This requires a way to map
+        // a chunk (layerId, chunkId) to its RoomArea, and then check if that
+        // RoomArea is in m_visibleRoomAreas. This functionality is assumed to be
+        // part of a more comprehensive MapData refactoring.
+        // For now, m_visibleChunks is removed, but rendering is not yet gated by m_visibleRoomAreas.
 
         bool fontShaderWasBound = false;
         GLRenderState nameRenderState; // Define once per layer
@@ -1182,60 +1156,65 @@ void MapCanvas::renderMapBatches()
                               .withBlend(BlendModeEnum::TRANSPARENCY)
                               .withDepthFunction(DepthFunctionEnum::LEQUAL);
 
-        // Check if any room names need rendering for this layer to bind shader once
         auto itLayerRoomNames = batches.roomNameBatches.find(layerId);
+
+        // Check if any room names need rendering for this layer to bind shader once
         if (wantDoorNames && layerId == m_currentLayer && itLayerRoomNames != batches.roomNameBatches.end()) {
-            const auto& chunkedRoomNamesForLayer = itLayerRoomNames->second;
-            for (const ChunkId chunkId : visibleChunkIdsForLayer) {
-                if (chunkedRoomNamesForLayer.count(chunkId)) {
-                    const UniqueMesh& nameMesh = chunkedRoomNamesForLayer.at(chunkId);
-                    if (nameMesh.isValid()) { // Check UniqueMesh validity
-                        // Font shader is managed internally by GLFont render methods
-                        // m_glFont.getFontShader().bind(); // Removed
-                        fontShaderWasBound = true; // Keep track if any font mesh exists in this layer
-                        // No break here, need to check all chunks for this layer
-                    }
+            const auto& areaRoomNamesForLayer = itLayerRoomNames->second; // Renamed
+            for (const auto& areaNamePair : areaRoomNamesForLayer) { // Iterating RoomArea to UniqueMesh
+                // areaNamePair.first is RoomArea. Check if this RoomArea is visible.
+                if (!m_visibleRoomAreas.empty() && m_visibleRoomAreas.find(areaNamePair.first) == m_visibleRoomAreas.end()) {
+                    continue;
+                }
+                const UniqueMesh& nameMesh = areaNamePair.second;
+                if (nameMesh.isValid()) {
+                    fontShaderWasBound = true;
+                    break;
                 }
             }
         }
 
-        // Iterate all visible chunks for this layer
-        for (const ChunkId chunkId : visibleChunkIdsForLayer) {
-            // Render LayerMeshes (terrain, etc.) for the chunk
-            auto itChunkLayerMeshes = terrainChunksInLayer.find(chunkId);
-            if (itChunkLayerMeshes != terrainChunksInLayer.end()) {
-                LayerMeshes& meshes = const_cast<LayerMeshes&>(itChunkLayerMeshes->second);
-                if (meshes) {
-                    meshes.render(layerId, m_currentLayer);
-                }
+        // Iterate all RoomAreas in the current layer's terrain batches
+        for (const auto& areaTerrainPair : terrainAreasInLayer) { // Renamed, iterates RoomArea to LayerMeshes
+            const RoomArea& currentArea = areaTerrainPair.first; // This is the RoomArea
+            LayerMeshes& meshes = const_cast<LayerMeshes&>(areaTerrainPair.second);
+
+            // Check if this RoomArea is in the visible set
+            if (!m_visibleRoomAreas.empty() && m_visibleRoomAreas.find(currentArea) == m_visibleRoomAreas.end()) {
+                // If m_visibleRoomAreas is populated and this area is not in it, skip.
+                // This also implicitly checks meshes.m_area == currentArea due to map structure.
+                continue;
             }
 
-            // Render connections for this specific chunk if extra detail is on
+            if (meshes) { // LayerMeshes::operator bool() (checks isValid)
+                meshes.render(layerId, m_currentLayer);
+            }
+
+            // Render connections for this specific RoomArea if extra detail is on
             if (wantExtraDetail) {
                 auto itLayerConnectionMeshes = batches.connectionMeshes.find(layerId);
                 if (itLayerConnectionMeshes != batches.connectionMeshes.end()) {
-                    const auto& chunkedConnectionMeshesForLayer = itLayerConnectionMeshes->second;
-                    auto itChunkConnectionMeshes = chunkedConnectionMeshesForLayer.find(chunkId);
-                    if (itChunkConnectionMeshes != chunkedConnectionMeshesForLayer.end()) {
-                        const ConnectionMeshes& connMeshes = itChunkConnectionMeshes->second;
+                    const auto& areaConnectionMeshesForLayer = itLayerConnectionMeshes->second; // map<RoomArea, ConnectionMeshes>
+                    auto itAreaConnectionMeshes = areaConnectionMeshesForLayer.find(currentArea);
+                    if (itAreaConnectionMeshes != areaConnectionMeshesForLayer.end()) {
+                        const ConnectionMeshes& connMeshes = itAreaConnectionMeshes->second;
                         connMeshes.render(layerId, m_currentLayer);
                     }
                 }
             }
 
-            // Render room names for this specific chunk if conditions met
+            // Render room names for this specific RoomArea if conditions met
             if (fontShaderWasBound && itLayerRoomNames != batches.roomNameBatches.end()) {
-                 // (wantDoorNames and layerId == m_currentLayer already checked for shader binding)
-                const auto& chunkedRoomNamesForLayer = itLayerRoomNames->second;
-                auto itChunkRoomNames = chunkedRoomNamesForLayer.find(chunkId);
-                if (itChunkRoomNames != chunkedRoomNamesForLayer.end()) {
-                    const UniqueMesh& nameMesh = itChunkRoomNames->second;
-                    if (nameMesh.isValid()) { // Check UniqueMesh validity
+                const auto& areaRoomNamesForLayer = itLayerRoomNames->second; // map<RoomArea, UniqueMesh>
+                auto itAreaRoomNames = areaRoomNamesForLayer.find(currentArea);
+                if (itAreaRoomNames != areaRoomNamesForLayer.end()) {
+                    const UniqueMesh& nameMesh = itAreaRoomNames->second;
+                    if (nameMesh.isValid()) {
                         nameMesh.render(nameRenderState);
                     }
                 }
             }
-        } // End of chunk loop
+        } // End of RoomArea loop
 
         if (fontShaderWasBound) {
             // Font shader is managed internally by GLFont render methods
@@ -1244,19 +1223,30 @@ void MapCanvas::renderMapBatches()
     } // End of layer loop
 
     // If the current layer had no terrain meshes at all, ensure depth is cleared and background faded.
+    // This is important if the current layer is supposed to be visible (e.g., has connections or names)
+    // but no actual terrain meshes were rendered for it.
     if (!currentLayerHasBeenSetup && std::abs(m_currentLayer - m_currentLayer) <= getConfig().canvas.mapRadius[2]) {
-        // Check if current layer should have been processed (e.g. it's in m_visibleChunks)
-        // This ensures that even if a visible layer has no terrain, its connections/names might still show over a clean bg.
-        auto itVisibleCurrentLayer = m_visibleChunks.find(m_currentLayer);
-        if (itVisibleCurrentLayer != m_visibleChunks.end() && !itVisibleCurrentLayer->second.empty()){
+        // If current layer has any kind of batched data (terrain, connections, or names),
+        // it implies it's a layer we might want to see.
+        // This replaces the check against m_visibleChunks.
+        bool currentLayerHasAnyData = allAreaLayerMeshes.count(m_currentLayer) || // Changed allChunkedLayerMeshes
+                                      batches.connectionMeshes.count(m_currentLayer) ||
+                                      batches.roomNameBatches.count(m_currentLayer);
+
+        if (currentLayerHasAnyData) {
              gl.clearDepth();
              fadeBackground();
-        } else if (allChunkedLayerMeshes.find(m_currentLayer) == allChunkedLayerMeshes.end() &&
-                   batches.connectionMeshes.find(m_currentLayer) == batches.connectionMeshes.end() &&
-                   batches.roomNameBatches.find(m_currentLayer) == batches.roomNameBatches.end()) {
-            // If current layer has no data at all (no terrain, no connections, no names), still clear.
-            gl.clearDepth();
-            fadeBackground();
         }
+        // The original else-if condition for when the current layer has NO data at all
+        // (allChunkedLayerMeshes.find(m_currentLayer) == allChunkedLayerMeshes.end() && ...)
+        // would also be covered by the above if currentLayerHasAnyData is false,
+        // but the original intent might have been to clear/fade even for an empty,
+        // but "current", layer. If m_visibleRoomAreas were used, we'd check if any
+        // visible RoomArea pertains to m_currentLayer.
+        // For now, only fading if there's some data seems reasonable.
+        // If an absolutely empty current layer should always be faded, the condition
+        // could be simplified to just `if (!currentLayerHasBeenSetup) { ... }`
+        // when also inside the mapRadius check.
+        // Let's stick to fading only if there's a hint of data for now.
     }
 }

@@ -112,9 +112,10 @@ private:
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
     Signal2Lifetime m_lifetime;
 
-    // Visible chunk tracking
-    std::map<int, std::set<ChunkId>> m_visibleChunks;
-    std::set<std::pair<int, ChunkId>> m_pendingChunkGenerations;
+    // Visible RoomArea tracking
+    std::set<RoomArea> m_visibleRoomAreas;
+    std::set<RoomArea> m_pendingRoomAreaGenerations;
+    std::vector<RoomArea> m_cookieAssociatedAreas; // For tracking areas in current remesh op
 
 public:
     explicit MapCanvas(MapData &mapData,
@@ -293,7 +294,7 @@ public slots:
     void slot_infomarksChanged() { infomarksChanged(); }
 
 private:
-    void updateVisibleChunks();
+    void updateVisibleRoomAreas();
     std::optional<glm::vec3> getUnprojectedScreenPos(const glm::vec2& screenPos) const;
-    void requestMissingChunks();
+    void requestMissingRoomAreas();
 };

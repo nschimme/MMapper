@@ -5,7 +5,7 @@
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
-#include "../display/MapBatches.h" // For ChunkId
+#include "../display/MapBatches.h" // For MapBatches and related types
 #include "../display/IMapBatchesFinisher.h"
 #include "../map/Changes.h"
 #include "../map/DoorFlags.h"
@@ -43,6 +43,7 @@ class RoomFilter;
 class ShortestPathRecipient;
 
 struct MapCanvasTextures;
+struct MapBatches; // Forward declaration
 struct RawMapData;
 struct MapLoadData;
 struct RawMapLoadData;
@@ -64,16 +65,17 @@ private:
     bool m_fileReadOnly = false;
     QString m_fileName;
     std::optional<RoomId> m_selectedRoom;
+    const MapBatches* m_mapCanvasBatches = nullptr; // Pointer to MapCanvas's batches
 
 public:
     explicit MapData(QObject *parent);
+    void setMapCanvasBatches(const MapBatches* batches) { m_mapCanvasBatches = batches; } // Setter
     ~MapData() final;
 
     NODISCARD FutureSharedMapBatchFinisher
     generateBatches(const mctp::MapCanvasTexturesProxy &textures);
 
-    NODISCARD FutureSharedMapBatchFinisher
-    generateSpecificChunkBatches(const mctp::MapCanvasTexturesProxy &textures, const std::vector<std::pair<int, ChunkId>>& chunksToGenerate);
+    // generateSpecificChunkBatches declaration is now fully deleted.
 
     // REVISIT: convert to template, or functionref after it compiles everywhere?
     void applyChangesToList(const RoomSelection &sel,
@@ -149,6 +151,20 @@ public:
 
 public:
     NODISCARD ExitDirFlags getExitDirections(const Coordinate &pos);
+
+    // Method to get room IDs within a given bounding box and layer
+    NODISCARD RoomIdSet getRoomIdsInBoundingBox(const Bounds& bounds, int layer) const;
+
+    // Method to get a room's area
+    NODISCARD std::optional<RoomArea> getRoomArea(RoomId id) const;
+
+    // Method to check if a RoomArea's batches are loaded
+    NODISCARD bool isRoomAreaLoaded(const RoomArea& area) const;
+
+    // Method to generate batches for specific RoomAreas
+    NODISCARD FutureSharedMapBatchFinisher generateRoomAreaBatches(
+        const mctp::MapCanvasTexturesProxy& textures,
+        const std::vector<RoomArea>& areasToGenerate);
 
 private:
     void virt_onNotifyModified(const RoomUpdateFlags /*updateFlags*/) final { setDataChanged(); }

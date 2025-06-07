@@ -4,6 +4,7 @@
 
 #include "../global/OrderedMap.h"
 #include "../global/macros.h"
+#include "RoomIdSet.h" // Added for RoomIdSet
 #include "coordinate.h"
 #include "roomid.h"
 
@@ -51,6 +52,29 @@ public:
         }
     }
     NODISCARD auto size() const { return m_unique.size(); }
+
+    NODISCARD RoomIdSet getRoomIdsInBounds(const Bounds& bounds, int zLevel) const {
+        RoomIdSet result;
+        if (!m_bounds.has_value()) { // If overall DB bounds don't exist, no rooms exist
+            return result;
+        }
+        // Optimization: check if requested bounds intersects with DB's overall bounds
+        // This requires Bounds to have an intersects() method, or implement logic here.
+        // For now, iterate all if the zLevel is within the DB's overall Z range.
+        if (zLevel < m_bounds->min.z || zLevel > m_bounds->max.z) {
+            return result;
+        }
+
+        for (const auto &kv : m_unique) {
+            const Coordinate& coord = kv.first;
+            if (coord.z == zLevel &&
+                coord.x >= bounds.min.x && coord.x <= bounds.max.x &&
+                coord.y >= bounds.min.y && coord.y <= bounds.max.y) {
+                result.insert(kv.second);
+            }
+        }
+        return result;
+    }
 
 public:
     NODISCARD bool operator==(const SpatialDb &rhs) const { return m_unique == rhs.m_unique; }

@@ -89,6 +89,7 @@ public:
 public:
     NODISCARD const RoomIdSet &getRoomSet() const;
     NODISCARD const RoomIdSet *findAreaRoomSet(const RoomArea &areaName) const;
+    // NODISCARD std::optional<Bounds> getAreaBounds(const RoomArea& areaName) const; // REMOVED
 
 public:
     NODISCARD bool hasRoom(RoomId id) const;

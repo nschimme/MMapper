@@ -5,17 +5,23 @@
 #include "../global/macros.h"
 #include "RoomIdSet.h"
 #include "mmapper2room.h"
+// #include "coordinate.h" // Bounds no longer needed here directly
+// #include <optional> // std::optional no longer needed here directly
 
 #include <map>
+// #include <functional> // std::function no longer needed for remove signature
 
 class ProgressCounter;
 
 struct NODISCARD AreaInfo final
 {
     RoomIdSet roomSet;
+    // std::optional<Bounds> m_bounds; // REMOVED bounds member
 
     NODISCARD bool operator==(const AreaInfo &other) const;
     void remove(RoomId id);
+
+    // NODISCARD std::optional<Bounds> getBounds() const { return m_bounds; } // REMOVED getter for bounds
 };
 
 // Note: RoomArea{} is not the same as the global area.
@@ -47,6 +53,8 @@ public:
     NODISCARD auto end() const { return m_map.end(); }
 
 public:
+    // Reverted signature
     void insert(const RoomArea &areaName, RoomId id);
+    // Reverted signature
     void remove(const RoomArea &areaName, RoomId id);
 };

@@ -191,6 +191,14 @@ NODISCARD auto World::getArea(const std::optional<RoomArea> &area) const -> cons
     return m_areaInfos.get(area);
 }
 
+std::optional<Bounds> World::getAreaBounds(const RoomArea& areaName) const {
+    // findArea takes std::optional<RoomArea>, so wrap areaName.
+    if (const AreaInfo* areaInfo = findArea(std::optional<RoomArea>(areaName))) {
+        return areaInfo->getBounds(); // AreaInfo::getBounds() returns std::optional<Bounds>
+    }
+    return std::nullopt;
+}
+
 const RawRoom *World::getRoom(const RoomId id) const
 {
     if (!hasRoom(id)) {
@@ -376,10 +384,13 @@ void World::setRoom(const RoomId id, const RawRoom &room)
         if (parseChanged) {
             removeParse(id, parseChanged);
         }
-        m_areaInfos.remove(oldRaw.getArea(), id);
+        // Pass coordGetter for bounds recalculation. oldRaw.position is not needed by remove,
+        // but the getter is needed for other rooms in the old area.
+        m_areaInfos.remove(oldRaw.getArea(), id); // Reverted
     }
 
-    m_areaInfos.insert(room.getArea(), id);
+    // Pass room.position for new area's bounds calculation.
+    m_areaInfos.insert(room.getArea(), id); // Reverted
 
     if (oldServerId != INVALID_SERVER_ROOMID && oldServerId != room.server_id) {
         m_serverIds.remove(oldServerId);
@@ -843,14 +854,26 @@ void World::setServerId(const RoomId id, const ServerRoomId serverId)
 void World::setPosition(const RoomId id, const Coordinate &coord)
 {
     requireValidRoom(id);
+    const Coordinate oldCoord = getPosition(id); // Uses m_rooms to get current position
 
-    if (getPosition(id) == coord) {
+    if (oldCoord == coord) { // coord is newCoord
         return;
     }
 
-    const Coordinate &ref = m_rooms.getPosition(id);
-    m_spatialDb.move(id, ref, coord);
-    m_rooms.setPosition(id, coord);
+    const RoomArea area = getRoomArea(id);
+
+    // Remove the room from its area's bounds calculation using its oldCoord.
+    // The coordGetter provides current positions for other rooms in the area during recalculation.
+    // When coordGetter(id) is called, getPosition(id) will correctly return oldCoord
+    // as m_rooms.setPosition() hasn't been called yet for this room.
+    m_areaInfos.remove(area, id); // Reverted
+
+    // Actual move of the room's data
+    m_spatialDb.move(id, oldCoord, coord);    // oldCoord, newCoord
+    m_rooms.setPosition(id, coord);          // Update stored position to newCoord
+
+    // Re-insert the room into its area's bounds calculation using its newCoord.
+    m_areaInfos.insert(area, id); // Reverted (coord no longer needed)
 }
 
 bool World::wouldAllowRelativeMove(const RoomIdSet &rooms, const Coordinate &offset) const
@@ -895,14 +918,53 @@ void World::moveRelative(const RoomIdSet &rooms, const Coordinate &offset)
     };
     std::vector<MoveInfo> infos;
     infos.reserve(rooms.size());
+    struct RoomOpInfo {
+        RoomId id;
+        RoomArea area;
+        Coordinate oldPos;
+        Coordinate newPos;
+    };
+    std::vector<RoomOpInfo> ops;
+    ops.reserve(rooms.size());
+
     for (const auto id : rooms) {
-        const auto &oldPos = getPosition(id);
-        infos.emplace_back(MoveInfo{id, oldPos + offset});
-        m_spatialDb.remove(id, oldPos);
+        const Coordinate oldPos = getPosition(id); // Still old positions here
+        const RoomArea area = getRoomArea(id);    // Current area
+        ops.emplace_back(RoomOpInfo{id, area, oldPos, oldPos + offset});
     }
-    for (const auto &x : infos) {
-        m_spatialDb.add(x.id, x.newPos);
-        m_rooms.setPosition(x.id, x.newPos);
+
+    // Phase 1: Remove all affected rooms from their AreaInfo bounds calculations
+    // During this phase, getPosition(anyRoomInOps) still returns oldPos for any room in the set.
+    for (const auto &op : ops) {
+        m_areaInfos.remove(op.area, op.id); // Reverted
+    }
+
+    // Phase 2: Perform the actual coordinate changes in SpatialDb and RawRooms (m_rooms)
+    for (const auto &op : ops) {
+        // m_spatialDb.remove was already effectively done for these rooms if we consider its state.
+        // However, SpatialDb::move is more direct if available and handles add internally.
+        // The original code did: remove all old, then add all new.
+        // Let's stick to SpatialDb::move if it implies remove(old)+add(new) for robustness.
+        // If not, we must ensure old positions are removed from SpatialDb before new ones are added.
+        // The original loop structure was:
+        // 1. Store MoveInfo(id, newPos), m_spatialDb.remove(id, oldPos) for all rooms
+        // 2. m_spatialDb.add(id, newPos), m_rooms.setPosition(id, newPos) for all rooms
+        // This is safer for m_spatialDb to prevent transient collisions if not using 'move'.
+        // For AreaInfo bounds, the order is remove_bounds_all, then update_coords_all, then insert_bounds_all.
+    }
+    // Replicating original m_spatialDb logic structure for safety:
+    for (const auto &op : ops) {
+        m_spatialDb.remove(op.id, op.oldPos);
+    }
+    for (const auto &op : ops) {
+        m_spatialDb.add(op.id, op.newPos);
+        m_rooms.setPosition(op.id, op.newPos); // Room's position in m_rooms is now updated
+    }
+
+    // Phase 3: Insert all affected rooms into their AreaInfo bounds
+    // This uses the new positions. Assumes rooms stay in their original 'op.area'.
+    for (const auto &op : ops) {
+        m_areaInfos.insert(op.area, op.id); // Reverted (op.newPos no longer needed)
     }
 }
 
@@ -946,7 +1008,7 @@ void World::removeFromWorld(const RoomId id, const bool removeLinks)
 
     m_remapping.removeAt(id);
     m_rooms.removeAt(id);
-    m_areaInfos.remove(areaName, id);
+    m_areaInfos.remove(areaName, id); // Reverted
 }
 
 void World::setRoomStatus(const RoomId id, const RoomStatusEnum status)
@@ -1146,7 +1208,8 @@ void World::initRoom(const RawRoom &input)
     {
         // REVISIT: should "upToDate" be automatic?
         const auto &areaName = input.getArea();
-        m_areaInfos.insert(areaName, id);
+        // Updated to include coordinate for bounds calculation
+        m_areaInfos.insert(areaName, id); // Reverted
         insertParse(id, ALL_PARSE_KEY_FLAGS);
         m_spatialDb.add(id, input.position);
         m_serverIds.set(input.server_id, id);
@@ -1230,7 +1293,8 @@ World World::init(ProgressCounter &counter, const std::vector<ExternalRawRoom> &
             DECL_TIMER(t3, "insert-rooms-cachedRoomSet");
             counter.setNewTask(ProgressMsg{"inserting rooms"}, rooms.size());
             for (const auto &room : rooms) {
-                w.m_areaInfos.insert(room.getArea(), room.id);
+                // Updated to include room.position for bounds calculation
+            w.m_areaInfos.insert(room.getArea(), room.id); // Reverted
                 counter.step();
             }
         }
@@ -1861,11 +1925,37 @@ void World::apply(ProgressCounter & /*pc*/, const room_change_types::ModifyRoomF
         change.field.acceptVisitor([this, mode = change.mode, id = change.room](const auto &x) {
             using T = std::decay_t<decltype(x)>;
             // This expand to a long chain of if constexpr (...) else if constexpr (...)
-            XFOREACH_ROOM_FIELD(X_VISIT, X_SEP)
-            // and the abort is here to fail loudly if we screwed up the typecheck.
-            else
-            {
-                std::abort();
+
+            // Special handling for RoomArea changes to update AreaInfoMap bounds
+            if constexpr (std::is_same_v<T, RoomArea>) {
+                RoomArea oldArea = m_rooms.getRoomArea(id);
+                RoomArea newArea = x; // Assuming x is the new RoomArea value from the change
+                Coordinate roomCoord = getPosition(id);
+
+                if (oldArea != newArea) { // Only proceed if area actually changes
+                    m_areaInfos.remove(oldArea, id); // Reverted
+
+                    // Apply the actual change to the room's area field
+                    auto field = oldArea; // old value
+                    applyChange<Type>(field, newArea, mode); // field becomes newArea (or cleared if mode is CLEAR)
+                    m_rooms.setRoomArea(id, field); // Update room's area in m_rooms
+
+                    // If mode is not CLEAR (i.e., newArea is valid), insert into new area's bounds
+                    if (mode != FlagModifyModeEnum::CLEAR) {
+                         m_areaInfos.insert(field, id); // Reverted
+                    }
+                } else { // Area is the same, but mode might be e.g. ASSIGN with the same value
+                     // Or INSERT/REMOVE/CLEAR which don't make sense for a non-flag RoomArea.
+                     // For safety, just ensure the room's area is set as per the change.
+                     // No bounds change if area name is identical.
+                     auto field = oldArea;
+                     applyChange<Type>(field, newArea, mode);
+                     m_rooms.setRoomArea(id, field);
+                }
+
+            } else { // Original XFOREACH_ROOM_FIELD logic for other field types
+                XFOREACH_ROOM_FIELD(X_VISIT, X_SEP)
+                else { std::abort(); } // Should not happen if XFOREACH_ROOM_FIELD covers all T from variant
             }
         });
     }

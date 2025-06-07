@@ -46,13 +46,6 @@
 #undef far  // Bad dog, Microsoft; bad dog!!!
 #endif
 
-// Chunking constants (must match MapCanvasRoomDrawer.cpp)
-namespace {
-    constexpr int CHUNK_SIZE_X = 32;
-    constexpr int CHUNK_SIZE_Y = 32;
-    constexpr int NUM_CHUNKS_X_DIMENSION = 2000;
-}
-
 using NonOwningPointer = MapCanvas *;
 NODISCARD static NonOwningPointer &primaryMapCanvas()
 {
@@ -81,6 +74,9 @@ MapCanvas::MapCanvas(MapData &mapData,
     setCursor(Qt::OpenHandCursor);
     grabGesture(Qt::PinchGesture);
     setContextMenuPolicy(Qt::CustomContextMenu);
+
+    // Provide MapData with a pointer to MapCanvas's batches
+    m_data.setMapCanvasBatches(&m_batches);
 }
 
 MapCanvas::~MapCanvas()
@@ -1021,71 +1017,51 @@ void MapCanvas::infomarksChanged()
 
 void MapCanvas::layerChanged()
 {
-    updateVisibleChunks();
-    requestMissingChunks();
+    updateVisibleRoomAreas();
+    requestMissingRoomAreas();
     update();
 }
 
-void MapCanvas::requestMissingChunks() {
+void MapCanvas::requestMissingRoomAreas() {
     if (m_batches.remeshCookie.isPending()) {
         // A remesh operation is already in progress, which will generate all visible chunks.
         // Or, if it was a specific chunk request, we wait for it to complete.
         return;
     }
 
-    std::vector<std::pair<int, ChunkId>> chunksToRequestNow;
+    std::vector<RoomArea> roomAreasToRequestNow; // Changed from chunks
 
-    for (const auto& layerChunksPair : m_visibleChunks) {
-        const int layerId = layerChunksPair.first;
-        const std::set<ChunkId>& visibleChunkIds = layerChunksPair.second;
+    for (const RoomArea& roomArea : m_visibleRoomAreas) { // Changed from m_visibleChunks
+        // TODO: Adapt logic for RoomArea. For now, let's assume RoomArea might have a layer or similar concept,
+        // or that filtering by layer happens differently. This part needs more info on RoomArea structure.
+        // const int layerId = roomArea.getLayer(); // Example, replace with actual RoomArea property
 
-        // Check existing batches
-        const MapBatches* currentMapBatchesPtr = nullptr;
-        if (m_batches.mapBatches.has_value()) {
-            currentMapBatchesPtr = &(*m_batches.mapBatches);
-        }
+        // Assuming m_data has a method isRoomAreaLoaded(RoomArea)
+        // This is a placeholder for the actual method.
+        bool isLoaded = m_data.isRoomAreaLoaded(roomArea); // Hypothetical method
 
-        // Use a const iterator type that's compatible whether currentMapBatchesPtr is null or not.
-        // Or, handle the null case more explicitly before trying to use mapBatchesLayerIt.
-        auto mapBatchesLayerIt = currentMapBatchesPtr ?
-                                 currentMapBatchesPtr->batchedMeshes.find(layerId) :
-                                 (currentMapBatchesPtr ? currentMapBatchesPtr->batchedMeshes.end() : decltype(currentMapBatchesPtr->batchedMeshes.end()){});
-
-
-        for (const ChunkId chunkId : visibleChunkIds) {
-            bool isMissingOrInvalid = true; // Assume missing unless found and valid
-            if (currentMapBatchesPtr && mapBatchesLayerIt != currentMapBatchesPtr->batchedMeshes.end()) {
-                const ChunkedLayerMeshes& chunkedLayerMeshes = mapBatchesLayerIt->second;
-                auto chunkIt = chunkedLayerMeshes.find(chunkId);
-                if (chunkIt != chunkedLayerMeshes.end()) {
-                    // Chunk exists, check if its LayerMeshes is valid
-                    if (chunkIt->second) { // LayerMeshes::operator bool()
-                        isMissingOrInvalid = false;
-                    }
-                }
-            }
-
-            if (isMissingOrInvalid) {
-                std::pair<int, ChunkId> chunkKey = {layerId, chunkId};
-                // Only add to request if not already pending
-                if (m_pendingChunkGenerations.find(chunkKey) == m_pendingChunkGenerations.end()) {
-                    chunksToRequestNow.push_back(chunkKey);
-                }
+        if (!isLoaded) {
+            // Only add to request if not already pending
+            if (m_pendingRoomAreaGenerations.find(roomArea) == m_pendingRoomAreaGenerations.end()) {
+                roomAreasToRequestNow.push_back(roomArea);
             }
         }
     }
 
-    if (!chunksToRequestNow.empty()) {
-        for(const auto& chunkKey : chunksToRequestNow) {
-            m_pendingChunkGenerations.insert(chunkKey);
+    if (!roomAreasToRequestNow.empty()) {
+        for(const RoomArea& roomArea : roomAreasToRequestNow) {
+            m_pendingRoomAreaGenerations.insert(roomArea);
         }
-        // Instead of forceUpdateMeshes(), call generateSpecificChunkBatches
-        // m_data is a MapData&
-        // m_textures is a MapCanvasTextures
-        // mctp::getProxy should be available from Textures.h (included via mapcanvas.h)
+
+        // Assuming m_data has a method like generateRoomAreaBatches
+        // This is a placeholder for the actual method signature and functionality.
+        // It should take a collection of RoomAreas and trigger their loading/batch generation.
+        // The remeshCookie might still be relevant if loading is asynchronous.
+        // If RoomArea loading doesn't use the same batching/cookie mechanism, this will need adjustment.
         m_batches.remeshCookie.set(
-            m_data.generateSpecificChunkBatches(mctp::getProxy(m_textures), chunksToRequestNow)
+             m_data.generateRoomAreaBatches(mctp::getProxy(m_textures), roomAreasToRequestNow)
         );
+        m_cookieAssociatedAreas = roomAreasToRequestNow; // Store requested areas
         // No need to call update() here explicitly, as the renderLoop will check the cookie.
     }
 }
@@ -1095,55 +1071,48 @@ std::optional<glm::vec3> MapCanvas::getUnprojectedScreenPos(const glm::vec2& scr
     return this->unproject_clamped(screenPos);
 }
 
-void MapCanvas::updateVisibleChunks() {
-    m_visibleChunks.clear(); // Clear all layers
+void MapCanvas::updateVisibleRoomAreas() { // Renamed from updateVisibleChunks
+    m_visibleRoomAreas.clear();
 
     const auto tl_opt = getUnprojectedScreenPos(glm::vec2(0.0f, 0.0f));
     const auto br_opt = getUnprojectedScreenPos(glm::vec2(static_cast<float>(width()), static_cast<float>(height())));
 
     if (!tl_opt || !br_opt) {
-        // This can happen if the projection isn't set up yet (e.g. window too small, or before first resizeGL)
         return;
     }
 
-    // Use floor to ensure we get the integer coordinate containing the point or to its left/bottom
     const glm::vec2 worldTopLeft(std::floor(tl_opt->x), std::floor(tl_opt->y));
     const glm::vec2 worldBottomRight(std::floor(br_opt->x), std::floor(br_opt->y));
 
-    int minChunkX = static_cast<int>(worldTopLeft.x) / CHUNK_SIZE_X;
-    int maxChunkX = static_cast<int>(worldBottomRight.x) / CHUNK_SIZE_X;
-    int minChunkY = static_cast<int>(worldTopLeft.y) / CHUNK_SIZE_Y;
-    int maxChunkY = static_cast<int>(worldBottomRight.y) / CHUNK_SIZE_Y;
+    const float minX = worldTopLeft.x;
+    const float maxX = worldBottomRight.x;
+    const float minY = worldTopLeft.y;
+    const float maxY = worldBottomRight.y;
 
-    // Adjust for negative coordinates based on the logic in getChunkIdForRoom
-    if (static_cast<int>(worldTopLeft.x) < 0 && (static_cast<int>(worldTopLeft.x) % CHUNK_SIZE_X != 0)) minChunkX--;
-    if (static_cast<int>(worldBottomRight.x) < 0 && (static_cast<int>(worldBottomRight.x) % CHUNK_SIZE_X != 0)) maxChunkX--;
-    if (static_cast<int>(worldTopLeft.y) < 0 && (static_cast<int>(worldTopLeft.y) % CHUNK_SIZE_Y != 0)) minChunkY--;
-    if (static_cast<int>(worldBottomRight.y) < 0 && (static_cast<int>(worldBottomRight.y) % CHUNK_SIZE_Y != 0)) maxChunkY--;
+    const int minZ = m_currentLayer - getConfig().canvas.mapRadius[2];
+    const int maxZ = m_currentLayer + getConfig().canvas.mapRadius[2];
 
-    if (minChunkX > maxChunkX) std::swap(minChunkX, maxChunkX);
-    if (minChunkY > maxChunkY) std::swap(minChunkY, maxChunkY);
+    for (int z = minZ; z <= maxZ; ++z) {
+        // Assuming m_data has a method getRoomsInRectangle which takes (minX, minY, minZ, maxX, maxY, maxZ)
+        // and returns a collection of RoomHandles or RoomIds.
+        // This is a placeholder for the actual method signature and return type.
+        // For now, let's assume it returns std::vector<RoomId>.
+        // We also need to handle the case where worldTopLeft and worldBottomRight might be swapped.
+        Coordinate areaMinCoord(static_cast<int>(std::min(minX, maxX)), static_cast<int>(std::min(minY, maxY)), z);
+        Coordinate areaMaxCoord(static_cast<int>(std::max(minX, maxX)), static_cast<int>(std::max(minY, maxY)), z);
 
-    // Add a margin of 1 chunk around the visible area
-    minChunkX -= 1;
-    maxChunkX += 1;
-    minChunkY -= 1;
-    maxChunkY += 1;
+        // Hypothetical method in MapData to get room IDs in a bounding box
+        std::vector<RoomId> roomIdsInRect = m_data.getRoomIdsInBoundingBox(areaMinCoord, areaMaxCoord);
 
-    const int maxOffset = getConfig().canvas.mapRadius[2];
-    const int minRenderLayer = m_currentLayer - maxOffset;
-    const int maxRenderLayer = m_currentLayer + maxOffset;
-
-    for (int layerToUpdate = minRenderLayer; layerToUpdate <= maxRenderLayer; ++layerToUpdate) {
-        std::set<ChunkId> visibleInLayer;
-        for (int cy = minChunkY; cy <= maxChunkY; ++cy) {
-            for (int cx = minChunkX; cx <= maxChunkX; ++cx) {
-                // This calculation must match getChunkIdForRoom in MapCanvasRoomDrawer.cpp
-                visibleInLayer.insert(cx + cy * NUM_CHUNKS_X_DIMENSION);
+        for (RoomId roomId : roomIdsInRect) {
+            // Assuming RoomHandle has a method getArea() or MapData has getRoomArea(RoomId)
+            // Let's assume m_data.findRoomHandle(roomId) returns a RoomHandle like object
+            // which has a .getArea() method.
+            if (auto roomHandle = m_data.findRoomHandle(roomId)) {
+                 // Ensure roomHandle is valid and getArea() returns a RoomArea.
+                 // If getArea() might return an empty/invalid RoomArea, that's fine, std::set will handle uniqueness.
+                m_visibleRoomAreas.insert(roomHandle.getArea());
             }
-        }
-        if (!visibleInLayer.empty()) {
-            m_visibleChunks[layerToUpdate] = visibleInLayer;
         }
     }
 }
@@ -1154,40 +1123,255 @@ void MapCanvas::forceUpdateMeshes()
     // Starting another one (even a "full visible" one) could lead to conflicts
     // or overwrite the existing remesh cookie too soon.
     if (m_batches.remeshCookie.isPending()) {
-        // Optionally, we could queue this forced update or simply rely
-        // on the current pending operation to refresh relevant data.
-        // For now, just returning seems safest to avoid complex queueing.
-        // The user might see a slight delay if they trigger this while another load is happening.
-        update(); // Still call update to ensure a repaint is scheduled after the current op.
+        update();
         return;
     }
 
-    updateVisibleChunks(); // Determine what's currently visible
+    updateVisibleRoomAreas(); // Determine what's currently visible
 
-    std::vector<std::pair<int, ChunkId>> allVisibleChunks;
-    for (const auto& layerChunksPair : m_visibleChunks) {
-        for (const ChunkId chunkId : layerChunksPair.second) {
-            allVisibleChunks.push_back({layerChunksPair.first, chunkId});
-        }
-    }
+    // This part needs to be adapted for RoomAreas.
+    // The concept of "allVisibleChunks" needs to be replaced with "allVisibleRoomAreas".
+    // The method `generateSpecificChunkBatches` will also need to be replaced or adapted.
 
-    if (!allVisibleChunks.empty()) {
-        // It's important to mark these as pending *before* starting the async operation,
-        // to prevent requestMissingChunks from trying to add them again if it runs
-        // between forceUpdateMeshes starting and the cookie becoming pending.
-        for(const auto& chunkKey : allVisibleChunks) {
-            m_pendingChunkGenerations.insert(chunkKey);
+    std::vector<RoomArea> allVisibleRoomAreas = std::vector<RoomArea>(m_visibleRoomAreas.begin(), m_visibleRoomAreas.end());
+
+    if (!allVisibleRoomAreas.empty()) {
+        for(const auto& roomArea : allVisibleRoomAreas) {
+            m_pendingRoomAreaGenerations.insert(roomArea);
         }
+        // This needs to be replaced with a RoomArea equivalent in MapData
         m_batches.remeshCookie.set(
-            m_data.generateSpecificChunkBatches(mctp::getProxy(m_textures), allVisibleChunks)
+            m_data.generateRoomAreaBatches(mctp::getProxy(m_textures), allVisibleRoomAreas) // Hypothetical
         );
     }
 
-    // Resetting diffs might still be appropriate if a "forced" update implies
-    // that underlying map data (not just view) might have changed in a way
-    // that requires re-evaluating differences.
     m_diff.resetExistingMeshesAndIgnorePendingRemesh();
+    update(); // Schedule a repaint
+}
 
+void MapCanvas::slot_mapChanged()
+{
+    // REVISIT: Ideally we'd want to only update the layers/chunks
+    // that actually changed.
+    if ((false)) {
+        m_batches.mapBatches.reset();
+    }
+    update();
+}
+
+void MapCanvas::slot_requestUpdate()
+{
+    update();
+}
+
+void MapCanvas::screenChanged()
+{
+    auto &gl = getOpenGL();
+    if (!gl.isRendererInitialized()) {
+        return;
+    }
+
+    const auto newDpi = static_cast<float>(QPaintDevice::devicePixelRatioF());
+    const auto oldDpi = gl.getDevicePixelRatio();
+
+    if (!utils::equals(newDpi, oldDpi)) {
+        log(QString("Display: %1 DPI").arg(static_cast<double>(newDpi)));
+
+        // NOTE: The new in-flight mesh will get UI updates when it "finishes".
+        // This means we could save the existing raw mesh data and re-finish it
+        // without having to compute it again, right?
+        m_batches.resetExistingMeshesButKeepPendingRemesh();
+
+        gl.setDevicePixelRatio(newDpi);
+        auto &font = getGLFont();
+        font.cleanup();
+        font.init();
+
+        forceUpdateMeshes(); // Changed from update() to forceUpdateMeshes()
+    }
+}
+
+void MapCanvas::selectionChanged()
+{
+    update();
+    emit sig_selectionChanged();
+}
+
+void MapCanvas::graphicsSettingsChanged()
+{
+    update();
+}
+
+void MapCanvas::userPressedEscape(bool /*pressed*/)
+{
+    // TODO: encapsulate the states so we can easily cancel anything that's in use.
+
+    switch (m_canvasMouseMode) {
+    case CanvasMouseModeEnum::NONE:
+    case CanvasMouseModeEnum::CREATE_ROOMS:
+        break;
+
+    case CanvasMouseModeEnum::CREATE_CONNECTIONS:
+    case CanvasMouseModeEnum::SELECT_CONNECTIONS:
+    case CanvasMouseModeEnum::CREATE_ONEWAY_CONNECTIONS:
+        slot_clearConnectionSelection(); // calls selectionChanged();
+        break;
+
+    case CanvasMouseModeEnum::RAYPICK_ROOMS:
+    case CanvasMouseModeEnum::SELECT_ROOMS:
+        m_selectedArea = false;
+        m_roomSelectionMove.reset();
+        slot_clearRoomSelection(); // calls selectionChanged();
+        break;
+
+    case CanvasMouseModeEnum::MOVE:
+        // special case for move: right click selects infomarks
+        FALLTHROUGH;
+    case CanvasMouseModeEnum::SELECT_INFOMARKS:
+    case CanvasMouseModeEnum::CREATE_INFOMARKS:
+        m_infoMarkSelectionMove.reset();
+        slot_clearInfoMarkSelection(); // calls selectionChanged();
+        break;
+    }
+}
+        // Check existing batches - This part needs significant rework based on how RoomAreas are batched
+        // For now, we'll simplify and assume we need to check if the RoomArea data is loaded.
+        // This might involve checking something like: if (!m_data.isRoomAreaLoaded(roomArea))
+        // The existing chunk-based batch checking is not directly applicable.
+
+        // Placeholder for checking if roomArea data is loaded and not pending
+        // This is a simplified check. The actual implementation will depend on how RoomArea data loading is managed.
+        bool isMissingOrInvalid = !m_data.isRoomAreaLoaded(roomArea); // Assuming such a method exists or can be added
+
+        if (isMissingOrInvalid) {
+            // Only add to request if not already pending
+            if (m_pendingRoomAreaGenerations.find(roomArea) == m_pendingRoomAreaGenerations.end()) {
+                roomAreasToRequestNow.push_back(roomArea);
+            }
+        }
+    }
+
+    if (!roomAreasToRequestNow.empty()) {
+        for(const auto& roomArea : roomAreasToRequestNow) {
+            m_pendingRoomAreaGenerations.insert(roomArea);
+        }
+        // This part needs to be adapted for RoomAreas.
+        // It's unlikely that `generateSpecificChunkBatches` will work directly.
+        // We'll need a new or adapted method in MapData for RoomAreas.
+        // m_batches.remeshCookie.set(
+        //     m_data.generateSpecificRoomAreaBatches(mctp::getProxy(m_textures), roomAreasToRequestNow) // Method name is hypothetical
+        // );
+        // For now, let's comment out the batch generation until the MapData interface for RoomAreas is clear.
+        // Consider this a placeholder for future implementation.
+    }
+}
+
+std::optional<glm::vec3> MapCanvas::getUnprojectedScreenPos(const glm::vec2& screenPos) const {
+    // unproject_clamped is a member of MapCanvasViewport, which MapCanvas inherits from.
+    return this->unproject_clamped(screenPos);
+}
+
+void MapCanvas::updateVisibleRoomAreas() { // Renamed from updateVisibleChunks
+    m_visibleRoomAreas.clear();
+
+    const auto tl_opt = getUnprojectedScreenPos(glm::vec2(0.0f, 0.0f));
+    const auto br_opt = getUnprojectedScreenPos(glm::vec2(static_cast<float>(width()), static_cast<float>(height())));
+
+    if (!tl_opt || !br_opt) {
+        return;
+    }
+
+    const glm::vec2 worldTopLeft(std::floor(tl_opt->x), std::floor(tl_opt->y));
+    const glm::vec2 worldBottomRight(std::floor(br_opt->x), std::floor(br_opt->y));
+
+    // This part needs to be completely reworked for RoomAreas.
+    // The concept of CHUNK_SIZE_X, CHUNK_SIZE_Y, NUM_CHUNKS_X_DIMENSION is not relevant.
+    // We need to iterate through rooms in the visible coordinate range and collect their RoomAreas.
+
+    // Example logic (conceptual, needs actual implementation details):
+    // 1. Define the visible rectangle in world coordinates.
+    //    minX = worldTopLeft.x, maxX = worldBottomRight.x
+    //    minY = worldTopLeft.y, maxY = worldBottomRight.y
+    //    minZ = m_currentLayer - getConfig().canvas.mapRadius[2]
+    //    maxZ = m_currentLayer + getConfig().canvas.mapRadius[2]
+    //
+    // 2. Iterate through all rooms or rooms within a spatial data structure.
+    //    For each room, check if it's within the visible rectangle (minX, maxX, minY, maxY, minZ, maxZ).
+    //
+    // 3. If a room is visible, get its RoomArea.
+    //    RoomArea roomArea = m_data.getRoomAreaForRoom(room.getId()); // Assuming such a method
+    //
+    // 4. Add the RoomArea to m_visibleRoomAreas.
+    //    m_visibleRoomAreas.insert(roomArea);
+
+    // Placeholder for the new logic:
+    const int currentLayer = m_currentLayer;
+    const int layerRange = getConfig().canvas.mapRadius[2]; // Or some other setting for Z-visibility
+
+    for (int z = currentLayer - layerRange; z <= currentLayer + layerRange; ++z) {
+        // Assuming MapData has a way to get rooms in a 2D slice that could be visible
+        // This is highly dependent on MapData's interface.
+        // For now, let's imagine a function that gives us relevant RoomAreas for a given Z layer and XY bounds.
+        // This is a simplification. A more robust solution would iterate rooms and get their areas.
+        // For example:
+        // auto roomsInView = m_data.getRoomsInRectangle(worldTopLeft.x, worldTopLeft.y, z, worldBottomRight.x, worldBottomRight.y, z);
+        // for (const auto& room : roomsInView) {
+        //     m_visibleRoomAreas.insert(m_data.getRoomArea(room.getId())); // getRoomArea is hypothetical
+        // }
+    }
+    // The above is very conceptual. The actual implementation will depend on how RoomAreas are defined
+    // and how they relate to rooms and coordinates.
+    // A key part is how to efficiently find rooms in the current view and get their RoomArea.
+    // If RoomArea is a direct property of a Room, or derivable from its coordinates, that would be simpler.
+    // If RoomAreas are larger regions containing multiple rooms, the logic would be different.
+
+    // For now, this function is effectively a no-op until the RoomArea logic is defined.
+    // A proper implementation would look something like:
+    //
+    // const Coordinate topLeftCoord(static_cast<int>(worldTopLeft.x), static_cast<int>(worldTopLeft.y), minRenderLayer);
+    // const Coordinate bottomRightCoord(static_cast<int>(worldBottomRight.x), static_cast<int>(worldBottomRight.y), maxRenderLayer);
+    //
+    // std::vector<RoomId> visibleRoomIds = m_data.getRoomsInBoundingBox(topLeftCoord, bottomRightCoord);
+    // for (RoomId roomId : visibleRoomIds) {
+    //     Room room = m_data.getRoom(roomId); // Assuming getRoom exists
+    //     if (room.isValid()) { // Assuming Room has an isValid method or similar check
+    //          RoomArea area = m_data.getRoomArea(room); // Assuming this method exists
+    //          m_visibleRoomAreas.insert(area);
+    //     }
+    // }
+    // This requires MapData to have methods like getRoomsInBoundingBox and getRoomArea.
+}
+
+void MapCanvas::forceUpdateMeshes()
+{
+    // If a specific chunk generation is already in progress, let it complete.
+    // Starting another one (even a "full visible" one) could lead to conflicts
+    // or overwrite the existing remesh cookie too soon.
+    if (m_batches.remeshCookie.isPending()) {
+        update();
+        return;
+    }
+
+    updateVisibleRoomAreas(); // Determine what's currently visible
+
+    // This part needs to be adapted for RoomAreas.
+    // The concept of "allVisibleChunks" needs to be replaced with "allVisibleRoomAreas".
+    // The method `generateSpecificChunkBatches` will also need to be replaced or adapted.
+
+    std::vector<RoomArea> allVisibleRoomAreas = std::vector<RoomArea>(m_visibleRoomAreas.begin(), m_visibleRoomAreas.end());
+
+    if (!allVisibleRoomAreas.empty()) {
+        for(const auto& roomArea : allVisibleRoomAreas) {
+            m_pendingRoomAreaGenerations.insert(roomArea);
+        }
+        // This needs to be replaced with a RoomArea equivalent in MapData
+        m_batches.remeshCookie.set(
+            m_data.generateRoomAreaBatches(mctp::getProxy(m_textures), allVisibleRoomAreas)
+        );
+        m_cookieAssociatedAreas = allVisibleRoomAreas; // Store requested areas
+    }
+
+    m_diff.resetExistingMeshesAndIgnorePendingRemesh();
     update(); // Schedule a repaint
 }
 

@@ -70,13 +70,17 @@ void AreaInfoMap::insert(const RoomArea &areaName, const RoomId id)
     if (!contains(areaName)) {
         m_map[areaName] = {};
     }
+    // AreaInfo& areaSpecificInfo = get(areaName); // Not needed if only roomSet is modified
+    // areaSpecificInfo.roomSet.insert(id); // Done by get(areaName).roomSet.insert(id) below
     get(areaName).roomSet.insert(id);
 }
 
 void AreaInfoMap::remove(const RoomArea &areaName, const RoomId id)
 {
+    // The AreaInfo::remove method already handles removing from its own roomSet.
+    // m_global is an AreaInfo object.
     m_global.remove(id);
-    if (AreaInfo *const pArea = find(areaName)) {
-        pArea->remove(id);
+    if (AreaInfo *const pAreaInfo = find(areaName)) {
+        pAreaInfo->remove(id);
     }
 }

@@ -2,12 +2,16 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2021 The MMapper Authors
 
+// Moved ChunkId definition to the top to ensure it's available early.
+// This helps resolve potential include order issues.
+using ChunkId = int;
+// #include <cstdint> // If ChunkId were, e.g., int32_t, this might be needed here. For `int`, it's fundamental.
+
+#include "../map/mmapper2room.h" // For RoomTintEnum, NUM_ROOM_TINTS, ALL_ROOM_TINTS
 #include "Connections.h"
 #include "MapCanvasData.h"
 
 #include <map>
-
-using ChunkId = int;
 
 template<typename T>
 using RoomTintArray = EnumIndexedArray<T, RoomTintEnum, NUM_ROOM_TINTS>;

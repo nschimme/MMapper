@@ -7,6 +7,7 @@
 #include "../global/Flags.h"
 #include "../global/TaggedString.h"
 
+#include <array> // For std::array
 #include <stdexcept>
 
 #include <QtGlobal>
@@ -128,6 +129,19 @@ CHECK3(PORTABLE, Portable)
 CHECK3(RIDABLE, Ridable)
 CHECK3(SUNDEATH, Sundeath)
 #undef CHECK3
+
+enum class NODISCARD RoomTintEnum : uint8_t {
+    DARK,
+    NO_SUNDEATH
+    // Add other tint types if any in the future
+};
+static constexpr const int NUM_ROOM_TINTS = 2;
+DEFINE_ENUM_COUNT(RoomTintEnum, NUM_ROOM_TINTS)
+
+static constexpr std::array<RoomTintEnum, NUM_ROOM_TINTS> ALL_ROOM_TINTS = {
+    RoomTintEnum::DARK,
+    RoomTintEnum::NO_SUNDEATH
+};
 
 #define XFOREACH_ROOM_MOB_FLAG(X) \
     X(RENT) \

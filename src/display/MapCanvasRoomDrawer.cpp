@@ -87,6 +87,107 @@ NODISCARD static ChunkId getChunkIdForRoom(const Coordinate& roomCoord) {
     return chunkX + chunkY * NUM_CHUNKS_X_DIMENSION;
 }
 
+// All struct definitions RoomTex, ColoredRoomTex, RoomTexVector, ColoredRoomTexVector, LayerBatchData
+// including their method implementations (like sortByTexture, getMeshes)
+// are being removed from here as their definitions (declarations for methods) are moved to .h
+// The method *implementations* remain here, but outside of any struct explicitly defined here.
+
+// RoomTex constructor (implementation)
+RoomTex::RoomTex(RoomHandle moved_room, const MMTextureId input_texid)
+    : room{std::move(moved_room)}
+    , tex{input_texid}
+{
+    if (input_texid == INVALID_MM_TEXTURE_ID) {
+        throw std::invalid_argument("input_texid");
+    }
+}
+
+// ColoredRoomTex constructor (implementation)
+ColoredRoomTex::ColoredRoomTex(RoomHandle moved_room,
+                        const MMTextureId input_texid,
+                        const Color &input_color)
+    : RoomTex{std::move(moved_room), input_texid}
+    , color{input_color}
+{}
+
+// RoomTexVector methods (implementations)
+void RoomTexVector::sortByTexture()
+{
+    if (size() < 2) {
+        return;
+    }
+    RoomTex *const beg = data();
+    RoomTex *const end = beg + size();
+    std::sort(beg, end);
+}
+
+NODISCARD bool RoomTexVector::isSorted() const
+{
+    if (size() < 2) {
+        return true;
+    }
+    const RoomTex *const beg = data();
+    const RoomTex *const end = beg + size();
+    return std::is_sorted(beg, end);
+}
+
+// ColoredRoomTexVector methods (implementations)
+void ColoredRoomTexVector::sortByTexture()
+{
+    if (size() < 2) {
+        return;
+    }
+    ColoredRoomTex *const beg = data();
+    ColoredRoomTex *const end = beg + size();
+    std::sort(beg, end);
+}
+
+NODISCARD bool ColoredRoomTexVector::isSorted() const
+{
+    if (size() < 2) {
+        return true;
+    }
+    const ColoredRoomTex *const beg = data();
+    const ColoredRoomTex *const end = beg + size();
+    return std::is_sorted(beg, end);
+}
+
+// LayerBatchData methods (implementations)
+void LayerBatchData::sort()
+{
+    DECL_TIMER(t, "sort");
+    roomTerrains.sortByTexture();
+    roomTrails.sortByTexture();
+    roomOverlays.sortByTexture();
+    roomUpDownExits.sortByTexture();
+    doors.sortByTexture();
+    solidWallLines.sortByTexture();
+    dottedWallLines.sortByTexture();
+    streamIns.sortByTexture();
+    streamOuts.sortByTexture();
+}
+
+NODISCARD LayerMeshes LayerBatchData::getMeshes(OpenGL &gl) const
+{
+    DECL_TIMER(t, "getMeshes");
+    LayerMeshes meshes;
+    meshes.terrain = ::createSortedTexturedMeshes("terrain", gl, roomTerrains);
+    meshes.trails = ::createSortedTexturedMeshes("trails", gl, roomTrails);
+    for (const RoomTintEnum tint : ALL_ROOM_TINTS) {
+        meshes.tints[tint] = gl.createPlainQuadBatch(roomTints[tint]);
+    }
+    meshes.overlays = ::createSortedTexturedMeshes("overlays", gl, roomOverlays);
+    meshes.doors = ::createSortedColoredTexturedMeshes("doors", gl, doors);
+    meshes.walls = ::createSortedColoredTexturedMeshes("solidWalls", gl, solidWallLines);
+    meshes.dottedWalls = ::createSortedColoredTexturedMeshes("dottedWalls", gl, dottedWallLines);
+    meshes.upDownExits = ::createSortedColoredTexturedMeshes("upDownExits", gl, roomUpDownExits);
+    meshes.streamIns = ::createSortedColoredTexturedMeshes("streamIns", gl, streamIns);
+    meshes.streamOuts = ::createSortedColoredTexturedMeshes("streamOuts", gl, streamOuts);
+    meshes.layerBoost = gl.createPlainQuadBatch(roomLayerBoostQuads);
+    meshes.isValid = true;
+    return meshes;
+}
+
 // struct NODISCARD VisitRoomOptions final // Moved to .h
 // {
 //     SharedCanvasNamedColorOptions canvasColors;
@@ -440,116 +541,10 @@ static void visitRooms(const RoomVector &rooms,
     for (const auto &room : rooms) {
         visitRoom(room, textures, callbacks, visitRoomOptions);
     }
-}
-
-struct NODISCARD RoomTex
-{
-    RoomHandle room;
-    MMTextureId tex = INVALID_MM_TEXTURE_ID;
-
-    explicit RoomTex(RoomHandle moved_room, const MMTextureId input_texid)
-        : room{std::move(moved_room)}
-        , tex{input_texid}
-    {
-        if (input_texid == INVALID_MM_TEXTURE_ID) {
-            throw std::invalid_argument("input_texid");
-        }
-    }
-
-    NODISCARD MMTextureId priority() const { return tex; }
-    NODISCARD MMTextureId textureId() const { return tex; }
-
-    NODISCARD friend bool operator<(const RoomTex &lhs, const RoomTex &rhs)
-    {
-        // true if lhs comes strictly before rhs
-        return lhs.priority() < rhs.priority();
-    }
-};
-
-struct NODISCARD ColoredRoomTex : public RoomTex
-{
-    Color color;
-    ColoredRoomTex(const RoomHandle &room, const MMTextureId tex) = delete;
-
-    explicit ColoredRoomTex(RoomHandle moved_room,
-                            const MMTextureId input_texid,
-                            const Color &input_color)
-        : RoomTex{std::move(moved_room), input_texid}
-        , color{input_color}
-    {}
-};
-
-// Caution: Although O(n) partitioning into an array indexed by constant number of texture IDs
-// is theoretically faster than O(n log n) sorting, one naive attempt to prematurely optimize
-// this code resulted in a 50x slow-down.
-//
-// Note: sortByTexture() probably won't ever be a performance bottleneck for the default map,
-// since at the time of this comment, the full O(n log n) vector sort only takes up about 2%
-// of the total runtime of the mesh generation.
-//
-// Conclusion: Look elsewhere for optimization opportunities -- at least until profiling says
-// that sorting is at significant fraction of the total runtime.
-struct NODISCARD RoomTexVector final : public std::vector<RoomTex>
-{
-    // sorting stl iterators is slower than christmas with GLIBCXX_DEBUG,
-    // so we'll use pointers instead. std::stable_sort isn't
-    // necessary because everything's opaque, so we'll use
-    // vanilla std::sort, which is N log N instead of N^2 log N.
-    void sortByTexture()
-    {
-        if (size() < 2) {
-            return;
-        }
-
-        RoomTex *const beg = data();
-        RoomTex *const end = beg + size();
-        // NOTE: comparison will be std::less<RoomTex>, which uses
-        // operator<() if it exists.
-        std::sort(beg, end);
-    }
-
-    NODISCARD bool isSorted() const
-    {
-        if (size() < 2) {
-            return true;
-        }
-
-        const RoomTex *const beg = data();
-        const RoomTex *const end = beg + size();
-        return std::is_sorted(beg, end);
-    }
-};
-
-struct NODISCARD ColoredRoomTexVector final : public std::vector<ColoredRoomTex>
-{
-    // sorting stl iterators is slower than christmas with GLIBCXX_DEBUG,
-    // so we'll use pointers instead. std::stable_sort isn't
-    // necessary because everything's opaque, so we'll use
-    // vanilla std::sort, which is N log N instead of N^2 log N.
-    void sortByTexture()
-    {
-        if (size() < 2) {
-            return;
-        }
-
-        ColoredRoomTex *const beg = data();
-        ColoredRoomTex *const end = beg + size();
-        // NOTE: comparison will be std::less<RoomTex>, which uses
-        // operator<() if it exists.
-        std::sort(beg, end);
-    }
-
-    NODISCARD bool isSorted() const
-    {
-        if (size() < 2) {
-            return true;
-        }
-
-        const ColoredRoomTex *const beg = data();
-        const ColoredRoomTex *const end = beg + size();
-        return std::is_sorted(beg, end);
-    }
-};
+// Removed struct RoomTex - Moved to .h
+// Removed struct ColoredRoomTex - Moved to .h
+// Removed struct RoomTexVector - Moved to .h
+// Removed struct ColoredRoomTexVector - Moved to .h
 
 template<typename T, typename Callback>
 static void foreach_texture(const T &textures, Callback &&callback)
@@ -671,72 +666,8 @@ NODISCARD static UniqueMeshVector createSortedColoredTexturedMeshes(
     return UniqueMeshVector{std::move(result_meshes)};
 }
 
-using PlainQuadBatch = std::vector<glm::vec3>;
-
-struct NODISCARD LayerBatchData final
-{
-    RoomTexVector roomTerrains;
-    RoomTexVector roomTrails;
-    RoomTexVector roomOverlays;
-    // REVISIT: Consider storing up/down door lines in a separate batch,
-    // so they can be rendered thicker.
-    ColoredRoomTexVector doors;
-    ColoredRoomTexVector solidWallLines;
-    ColoredRoomTexVector dottedWallLines;
-    ColoredRoomTexVector roomUpDownExits;
-    ColoredRoomTexVector streamIns;
-    ColoredRoomTexVector streamOuts;
-    RoomTintArray<PlainQuadBatch> roomTints;
-    PlainQuadBatch roomLayerBoostQuads;
-
-    explicit LayerBatchData() = default;
-    ~LayerBatchData() = default;
-    DEFAULT_MOVES(LayerBatchData);
-    DELETE_COPIES(LayerBatchData);
-
-    void sort()
-    {
-        DECL_TIMER(t, "sort");
-
-        /* TODO: Only sort on 2.1 path, since 3.0 can use GL_TEXTURE_2D_ARRAY. */
-        roomTerrains.sortByTexture();
-        roomTrails.sortByTexture();
-        roomOverlays.sortByTexture();
-
-        // REVISIT: We could just make two separate lists and avoid the sort.
-        // However, it may be convenient to have separate dotted vs solid texture,
-        // so we'd still need to sort in that case.
-        roomUpDownExits.sortByTexture();
-        doors.sortByTexture();
-        solidWallLines.sortByTexture();
-        dottedWallLines.sortByTexture();
-        streamIns.sortByTexture();
-        streamOuts.sortByTexture();
-    }
-
-    NODISCARD LayerMeshes getMeshes(OpenGL &gl) const
-    {
-        DECL_TIMER(t, "getMeshes");
-
-        LayerMeshes meshes;
-        meshes.terrain = ::createSortedTexturedMeshes("terrain", gl, roomTerrains);
-        meshes.trails = ::createSortedTexturedMeshes("trails", gl, roomTrails);
-        // REVISIT: Can tints be combined now?
-        for (const RoomTintEnum tint : ALL_ROOM_TINTS) {
-            meshes.tints[tint] = gl.createPlainQuadBatch(roomTints[tint]);
-        }
-        meshes.overlays = ::createSortedTexturedMeshes("overlays", gl, roomOverlays);
-        meshes.doors = ::createSortedColoredTexturedMeshes("doors", gl, doors);
-        meshes.walls = ::createSortedColoredTexturedMeshes("solidWalls", gl, solidWallLines);
-        meshes.dottedWalls = ::createSortedColoredTexturedMeshes("dottedWalls", gl, dottedWallLines);
-        meshes.upDownExits = ::createSortedColoredTexturedMeshes("upDownExits", gl, roomUpDownExits);
-        meshes.streamIns = ::createSortedColoredTexturedMeshes("streamIns", gl, streamIns);
-        meshes.streamOuts = ::createSortedColoredTexturedMeshes("streamOuts", gl, streamOuts);
-        meshes.layerBoost = gl.createPlainQuadBatch(roomLayerBoostQuads);
-        meshes.isValid = true;
-        return meshes;
-    }
-};
+// Removed using PlainQuadBatch - Definition is implicit via std::vector<glm::vec3> and includes
+// Removed struct LayerBatchData - Moved to .h
 
 class NODISCARD LayerBatchBuilder final : public IRoomVisitorCallbacks
 {

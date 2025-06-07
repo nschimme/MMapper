@@ -28,6 +28,7 @@
 
 #include <QColor>
 #include <QtCore>
+#include <algorithm> // For std::sort, std::is_sorted
 
 // Forward declarations
 class OpenGL;
@@ -43,6 +44,76 @@ struct NODISCARD VisitRoomOptions final
     SharedNamedColorOptions colorSettings;
     bool drawNotMappedExits = false;
 };
+
+// --- Structs moved from MapCanvasRoomDrawer.cpp ---
+
+struct NODISCARD RoomTex
+{
+    RoomHandle room;
+    MMTextureId tex = INVALID_MM_TEXTURE_ID;
+
+    explicit RoomTex(RoomHandle moved_room, const MMTextureId input_texid);
+    // Implementation in .cpp
+
+    NODISCARD MMTextureId priority() const { return tex; }
+    NODISCARD MMTextureId textureId() const { return tex; }
+
+    NODISCARD friend bool operator<(const RoomTex &lhs, const RoomTex &rhs)
+    {
+        return lhs.priority() < rhs.priority();
+    }
+};
+
+struct NODISCARD ColoredRoomTex : public RoomTex
+{
+    Color color;
+    ColoredRoomTex(const RoomHandle &room, const MMTextureId tex) = delete; // Prevent accidental slicing
+
+    explicit ColoredRoomTex(RoomHandle moved_room,
+                            const MMTextureId input_texid,
+                            const Color &input_color);
+    // Implementation in .cpp
+};
+
+struct NODISCARD RoomTexVector final : public std::vector<RoomTex>
+{
+    void sortByTexture(); // Implementation in .cpp
+    NODISCARD bool isSorted() const; // Implementation in .cpp
+};
+
+struct NODISCARD ColoredRoomTexVector final : public std::vector<ColoredRoomTex>
+{
+    void sortByTexture(); // Implementation in .cpp
+    NODISCARD bool isSorted() const; // Implementation in .cpp
+};
+
+using PlainQuadBatch = std::vector<glm::vec3>;
+
+struct NODISCARD LayerBatchData final
+{
+    RoomTexVector roomTerrains;
+    RoomTexVector roomTrails;
+    RoomTexVector roomOverlays;
+    ColoredRoomTexVector doors;
+    ColoredRoomTexVector solidWallLines;
+    ColoredRoomTexVector dottedWallLines;
+    ColoredRoomTexVector roomUpDownExits;
+    ColoredRoomTexVector streamIns;
+    ColoredRoomTexVector streamOuts;
+    RoomTintArray<PlainQuadBatch> roomTints; // Provided by MapBatches.h -> mmapper2room.h and EnumIndexedArray.h
+    PlainQuadBatch roomLayerBoostQuads;
+
+    explicit LayerBatchData() = default;
+    ~LayerBatchData() = default;
+    DEFAULT_MOVES(LayerBatchData); // Assumes RuleOf5.h provides this, or define manually
+    DELETE_COPIES(LayerBatchData); // Assumes RuleOf5.h provides this, or define manually
+
+    void sort(); // Implementation in .cpp
+    NODISCARD LayerMeshes getMeshes(OpenGL &gl) const; // Implementation in .cpp
+};
+
+// --- End of structs moved from MapCanvasRoomDrawer.cpp ---
+
 
 // Moved from MapCanvasRoomDrawer.cpp
 // Depends on IMapBatchesFinisher (IMapBatchesFinisher.h)

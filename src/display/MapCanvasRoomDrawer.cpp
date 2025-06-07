@@ -34,6 +34,7 @@
 
 #include <cassert>
 #include <cstdlib>
+#include <functional> // Added for std::hash
 #include <memory>
 #include <optional>
 #include <set>
@@ -50,41 +51,23 @@
 #include <QtGui>
 
 // Chunking constants
-constexpr int CHUNK_SIZE_X = 32; // Example size
-constexpr int CHUNK_SIZE_Y = 32; // Example size
+// constexpr int CHUNK_SIZE_X = 32; // Example size // Removed
+// constexpr int CHUNK_SIZE_Y = 32; // Example size // Removed
 // This needs to be large enough to map all possible positive and negative chunkX coordinates into a positive ChunkId.
 // A simple way is to make it cover the expected span of the world, e.g., if world is -16000 to +16000,
 // then NUM_CHUNKS_X_DIMENSION would be (32000 / CHUNK_SIZE_X).
 // For now, using a large fixed number. This might need adjustment based on actual map coordinate ranges.
-constexpr int NUM_CHUNKS_X_DIMENSION = 2000; // Max number of chunks in X dimension (e.g. for a map 64000 units wide)
+// constexpr int NUM_CHUNKS_X_DIMENSION = 2000; // Max number of chunks in X dimension (e.g. for a map 64000 units wide) // Removed
 
-NODISCARD static ChunkId getChunkIdForRoom(const Coordinate& roomCoord) {
-    int chunkX = roomCoord.x / CHUNK_SIZE_X;
-    int chunkY = roomCoord.y / CHUNK_SIZE_Y;
-
-    // Adjust for negative coordinates to ensure they fall into a distinct chunk index.
-    // E.g., if CHUNK_SIZE_X is 32:
-    // coord.x = 0 -> chunkX = 0
-    // coord.x = 31 -> chunkX = 0
-    // coord.x = -1 -> chunkX = -1 (integer division truncates towards zero)
-    // coord.x = -32 -> chunkX = -1
-    // coord.x = -33 -> chunkX = -2
-    // This behavior is generally what we want for partitioning.
-    // The 2D to 1D mapping needs to handle these potentially negative chunkX/chunkY.
-    // A common approach is to offset them to be positive before creating a 1D ID.
-    // Example: chunkX + (NUM_CHUNKS_X_DIMENSION / 2)
-    // However, the original plan was simpler: chunkX + chunkY * NUM_CHUNKS_X_DIMENSION;
-    // This works if NUM_CHUNKS_X_DIMENSION is large enough to prevent negative chunkY * NUM_CHUNKS_X_DIMENSION
-    // from making the ID negative or overlapping with positive chunkY rows.
-    // Let's stick to the simple formula and assume it's sufficient for now.
-    // More robust would be std::pair<int, int> for ChunkId or a proper offset system.
-    if (roomCoord.x < 0 && roomCoord.x % CHUNK_SIZE_X != 0) {
-        chunkX -=1;
+NODISCARD static ChunkId getChunkIdForRoom(const RoomHandle& room) {
+    const RoomArea& area = room.getArea();
+    if (area.empty()) {
+        // Handle cases where RoomArea might be empty, if necessary.
+        // For now, returning a default ChunkId or a hash of an empty string.
+        return 0;
     }
-    if (roomCoord.y < 0 && roomCoord.y % CHUNK_SIZE_Y != 0) {
-        chunkY -=1;
-    }
-    return chunkX + chunkY * NUM_CHUNKS_X_DIMENSION;
+    std::hash<std::string> hasher;
+    return static_cast<ChunkId>(hasher(area.toStdStringUtf8()));
 }
 
 // All struct definitions RoomTex, ColoredRoomTex, RoomTexVector, ColoredRoomTexVector, LayerBatchData
@@ -787,7 +770,7 @@ static void generateAllLayerMeshes(InternalData &internalData, // Type already I
         // Group rooms by ChunkId for this layer
         std::map<ChunkId, RoomVector> chunkedRoomsOnLayer;
         for (const auto& room : rooms_in_layer) {
-            ChunkId chunkId = getChunkIdForRoom(room.getPosition());
+            ChunkId chunkId = getChunkIdForRoom(room);
             chunkedRoomsOnLayer[chunkId].push_back(room);
         }
 
@@ -845,7 +828,7 @@ void generateSpecificLayerMeshes(InternalData &internalData,
         for (const RoomId roomId : map.getRooms()) {
             const auto &room = map.getRoomHandle(roomId);
             if (room.getPosition().z == layerId) {
-                if (getChunkIdForRoom(room.getPosition()) == chunkId) {
+                if (getChunkIdForRoom(room) == chunkId) {
                     rooms_for_this_chunk_layer.push_back(room);
                 }
             }

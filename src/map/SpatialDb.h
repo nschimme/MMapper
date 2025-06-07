@@ -6,6 +6,9 @@
 #include "../global/macros.h"
 #include "coordinate.h"
 #include "roomid.h"
+#include "Quadtree.h" // Added include
+#include <map>        // Added include
+#include <vector>     // Added for std::vector in getRoomsInViewport
 
 #include <optional>
 #include <ostream>
@@ -18,12 +21,14 @@ struct NODISCARD SpatialDb final
 private:
     /// Value is the last room assigned to the coordinate.
     OrderedMap<Coordinate, RoomId> m_unique;
+    std::map<int, Quadtree> m_layerQuadtrees; // Made non-mutable
 
 private:
     std::optional<Bounds> m_bounds;
     bool m_needsBoundsUpdate = true;
 
 public:
+    std::vector<RoomId> getRoomsInViewport(int layer, float viewportMinX, float viewportMinY, float viewportMaxX, float viewportMaxY) const; // Added public method
     NODISCARD bool needsBoundsUpdate() const
     {
         return m_needsBoundsUpdate || !m_bounds.has_value();
@@ -39,8 +44,21 @@ public:
     void move(RoomId id, const Coordinate &from, const Coordinate &to);
     void updateBounds(ProgressCounter &pc);
     void printStats(ProgressCounter &pc, AnsiOstream &os) const;
+    void buildAllQuadtrees(ProgressCounter& pc); // Made non-const, added ProgressCounter
+    void clearAllQuadtrees();
+
+private:
+   void ensureQuadtreeForLayer(int layerId); // Made non-const
+   void addToQuadtree(RoomId roomId, const Coordinate& coord);
+   void removeFromQuadtree(RoomId roomId, const Coordinate& coord);
 
 public:
+    SpatialDb() = default; // Added default constructor
+    SpatialDb(const SpatialDb&) = delete; // Deleted copy constructor
+    SpatialDb& operator=(const SpatialDb&) = delete; // Deleted copy assignment
+    SpatialDb(SpatialDb&&) = default; // Added default move constructor
+    SpatialDb& operator=(SpatialDb&&) = default; // Added default move assignment
+
     // Callback = void(const Coordinate&, RoomId);
     template<typename Callback>
     void for_each(Callback &&callback) const

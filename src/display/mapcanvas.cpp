@@ -16,6 +16,8 @@
 #include "../map/infomark.h"
 #include "../map/room.h"
 #include "../map/roomid.h"
+#include "../map/World.h"       // Added for World
+#include "../map/SpatialDb.h"    // Added for SpatialDb
 #include "../mapdata/mapdata.h"
 #include "../mapdata/roomselection.h"
 #include "InfoMarkSelection.h"
@@ -23,7 +25,9 @@
 #include "MapCanvasRoomDrawer.h"
 #include "connectionselection.h"
 
+#include <algorithm> // Added for std::min/max
 #include <array>
+#include <chrono> // Added for performance logging
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -1096,32 +1100,63 @@ std::optional<glm::vec3> MapCanvas::getUnprojectedScreenPos(const glm::vec2& scr
 }
 
 void MapCanvas::updateVisibleChunks() {
-    m_visibleChunks.clear(); // Clear all layers
+    auto start_time = std::chrono::high_resolution_clock::now();
+    m_visibleChunks.clear();
 
-    // Inside updateVisibleChunks, after m_visibleChunks.clear();
-    const auto& currentMap = m_data.getCurrentMap(); // Assuming m_data has getCurrentMap()
-    if (currentMap.empty()) { // Or however you check if the map is loaded
-        return;
+    // 1. Get current Map and World
+    const Map& currentMap = m_data.getCurrentMap();
+    if (currentMap.empty()) {
+       auto end_time_early = std::chrono::high_resolution_clock::now();
+       auto duration_early = std::chrono::duration_cast<std::chrono::microseconds>(end_time_early - start_time);
+       qDebug() << "updateVisibleChunks execution time (empty map):" << duration_early.count() << "microseconds";
+       return;
     }
+    const World& world = currentMap.getWorld();
+    const SpatialDb& spatialDb = world.getSpatialDb();
 
-    const float marginPixels = 20.0f; // Example margin, adjust as needed
+    // 2. Determine viewport world coordinates
+    float viewPortWidth = static_cast<float>(width());
+    float viewPortHeight = static_cast<float>(height());
 
-    for (const RoomId roomId : currentMap.getRooms()) {
+    // m_mapScreen is a MapScreen object, which inherits from MapCanvasViewport
+    // MapCanvasViewport has unproject_clamped
+    glm::vec3 worldTopLeftRaw = this->unproject_clamped(glm::vec2(0.0f, viewPortHeight));
+    glm::vec3 worldTopRightRaw = this->unproject_clamped(glm::vec2(viewPortWidth, viewPortHeight));
+    glm::vec3 worldBottomLeftRaw = this->unproject_clamped(glm::vec2(0.0f, 0.0f));
+    glm::vec3 worldBottomRightRaw = this->unproject_clamped(glm::vec2(viewPortWidth, 0.0f));
+
+    float worldMinX = std::min({worldTopLeftRaw.x, worldTopRightRaw.x, worldBottomLeftRaw.x, worldBottomRightRaw.x});
+    float worldMaxX = std::max({worldTopLeftRaw.x, worldTopRightRaw.x, worldBottomLeftRaw.x, worldBottomRightRaw.x});
+    float worldMinY = std::min({worldTopLeftRaw.y, worldTopRightRaw.y, worldBottomLeftRaw.y, worldBottomRightRaw.y});
+    float worldMaxY = std::max({worldTopLeftRaw.y, worldTopRightRaw.y, worldBottomLeftRaw.y, worldBottomRightRaw.y});
+
+    // 3. Query SpatialDb
+    std::vector<RoomId> potentiallyVisibleRoomIds = spatialDb.getRoomsInViewport(
+        m_currentLayer, worldMinX, worldMinY, worldMaxX, worldMaxY
+    );
+
+    // 4. Process potentially visible rooms
+    const float marginPixels = 20.0f; // Or some other configured/appropriate margin
+
+    for (RoomId roomId : potentiallyVisibleRoomIds) {
         RoomHandle room = currentMap.getRoomHandle(roomId);
-        if (!room.exists()) continue;
-
-        const Coordinate& roomCoord = room.getPosition();
-
-        // Check if the room's layer is within the configured radius
-        if (std::abs(roomCoord.z - m_currentLayer) > getConfig().canvas.mapRadius[2]) {
+        if (!room.exists()) {
             continue;
         }
+        // The query to spatialDb was already for m_currentLayer, so no need to check room.getPosition().z again.
+        // However, if getRoomsInViewport returned rooms from other layers, a check would be needed:
+        // if (room.getPosition().z != m_currentLayer) continue;
 
-        if (m_mapScreen.isRoomVisible(roomCoord, marginPixels)) {
-            RoomAreaHash areaHash = getRoomAreaHash(room); // Assuming getRoomAreaHash is accessible
-            m_visibleChunks[roomCoord.z].insert(areaHash);
+
+        if (m_mapScreen.isRoomVisible(room.getPosition(), marginPixels)) {
+            RoomAreaHash areaHash = getRoomAreaHash(room);
+            m_visibleChunks[m_currentLayer].insert(areaHash); // m_currentLayer is correct here
         }
     }
+
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+    qDebug() << "updateVisibleChunks execution time:" << duration.count() << "microseconds";
 }
 
 void MapCanvas::forceUpdateMeshes()

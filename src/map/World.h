@@ -72,6 +72,7 @@ private:
 
 public:
     NODISCARD const ParseTree &getParseTree() const { return m_parseTree; }
+    NODISCARD const SpatialDb& getSpatialDb() const { return m_spatialDb; }
 
 public:
     NODISCARD const RawRoom *getRoom(RoomId id) const;

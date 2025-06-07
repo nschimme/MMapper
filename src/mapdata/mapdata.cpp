@@ -393,38 +393,26 @@ std::optional<RoomArea> MapData::getRoomArea(RoomId id) const
 
 bool MapData::isRoomAreaLoaded(const RoomArea& area) const
 {
-    // TODO: Implement this method. It requires MapData to have access to the
+    // TODO: Implement this method. It needs 'MapData' to have access to the
     // actual batch data (e.g., MapCanvas::m_batches) to check if meshes
     // for this RoomArea (identified by LayerMeshes::m_area) are loaded and valid.
+    // For now, returning 'false' as a placeholder.
     if (!m_mapCanvasBatches) {
-        // If we don't have a reference to the batches, assume not loaded.
-        // This might happen if MapData is used without a MapCanvas, or before linkage.
-        // Consider logging a warning if this state is unexpected during active gameplay.
+        // If we don't have a reference to the batches (it's a MapBatches* now), assume not loaded.
         return false;
     }
 
-    // Iterate through all layers in m_mapCanvasBatches->batchedMeshes
-    // m_mapCanvasBatches points to MapCanvas::Batches, which has an optional<MapBatches> mapBatches member
-    if (!m_mapCanvasBatches->mapBatches.has_value()) {
-        return false; // No batches loaded at all
-    }
-
-    const auto& currentMapBatches = m_mapCanvasBatches->mapBatches.value();
-
-    for (const auto& layerPair : currentMapBatches.batchedMeshes) {
-        // layerPair.first is layerId (int)
-        // layerPair.second is AreaLayerMeshes (std::map<RoomArea, LayerMeshes>)
+    // m_mapCanvasBatches is MapBatches*, so directly access its batchedMeshes member
+    for (const auto& layerPair : m_mapCanvasBatches->batchedMeshes) {
         const AreaLayerMeshes& meshesForLayer = layerPair.second;
-        auto it = meshesForLayer.find(area);
+        auto it = meshesForLayer.find(area); // Use the 'area' parameter
         if (it != meshesForLayer.end()) {
-            // Found the RoomArea in this layer
-            // it->second is LayerMeshes
-            if (it->second.isValid) { // Check the isValid flag of LayerMeshes
-                return true; // Found valid meshes for this area in at least one layer
+            if (it->second.isValid) {
+                return true;
             }
         }
     }
-    return false; // No valid meshes found for this area in any layer
+    return false;
 }
 
 FutureSharedMapBatchFinisher MapData::generateRoomAreaBatches(
@@ -437,7 +425,8 @@ FutureSharedMapBatchFinisher MapData::generateRoomAreaBatches(
     std::map<RoomArea, RoomIdSet> areaData;
     const World& world = getCurrentMap().getWorld();
     for (const RoomArea& area : areasToGenerate) {
-        const AreaInfo* currentAreaInfo = world.getAreaInfoMap().find(area);
+        // Use the const version of find from AreaInfoMap, wrapping area in std::optional
+        const AreaInfo* currentAreaInfo = world.getAreaInfoMap().find(std::optional<RoomArea>(area));
         if (currentAreaInfo) {
             areaData[area] = currentAreaInfo->roomSet;
         } else {

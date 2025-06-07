@@ -173,12 +173,16 @@ NODISCARD LayerMeshes LayerBatchData::getMeshes(OpenGL &gl) const
     LayerMeshes meshes;
     meshes.terrain = ::createSortedTexturedMeshes("terrain", gl, roomTerrains);
     meshes.trails = ::createSortedTexturedMeshes("trails", gl, roomTrails);
-    // Removed loop for RoomTintEnum
-    // for (const RoomTintEnum tint : ALL_ROOM_TINTS) {
-    //     meshes.tints[tint] = gl.createPlainQuadBatch(roomTints[tint]);
-    // }
-    meshes.darkTintMesh = gl.createPlainQuadBatch(darkQuads);             // Added
-    meshes.noSundeathTintMesh = gl.createPlainQuadBatch(noSundeathQuads); // Added
+    // meshes.darkTintMesh = gl.createPlainQuadBatch(darkQuads);             // Removed
+    // meshes.noSundeathTintMesh = gl.createPlainQuadBatch(noSundeathQuads); // Removed
+    for (size_t i = 0; i < NUM_ROOM_TINTS; ++i) {
+        if (!roomTints[i].empty()) { // Only create mesh if there are quads
+            meshes.tints[i] = gl.createPlainQuadBatch(roomTints[i]);
+        } else {
+            // Ensure meshes.tints[i] is in a valid, empty state if no quads
+            meshes.tints[i] = UniqueMesh{};
+        }
+    }
     meshes.overlays = ::createSortedTexturedMeshes("overlays", gl, roomOverlays);
     meshes.doors = ::createSortedColoredTexturedMeshes("doors", gl, doors);
     meshes.walls = ::createSortedColoredTexturedMeshes("solidWalls", gl, solidWallLines);
@@ -558,6 +562,8 @@ static void visitRooms(const RoomVector &rooms,
     for (const auto &room : rooms) {
         visitRoom(room, textures, callbacks, visitRoomOptions);
     }
+} // <<<< Added missing closing brace for static void visitRooms
+
 // Removed struct RoomTex - Moved to .h
 // Removed struct ColoredRoomTex - Moved to .h
 // Removed struct RoomTexVector - Moved to .h
@@ -641,19 +647,23 @@ private:
     void virt_addDarkQuad(const RoomHandle &room) final // Added
     {
         const auto v0 = room.getPosition().to_vec3();
-        m_data.darkQuads.emplace_back(v0 + glm::vec3(0, 0, 0));
-        m_data.darkQuads.emplace_back(v0 + glm::vec3(1, 0, 0));
-        m_data.darkQuads.emplace_back(v0 + glm::vec3(1, 1, 0));
-        m_data.darkQuads.emplace_back(v0 + glm::vec3(0, 1, 0));
+        // Add to the correct index in roomTints
+        PlainQuadBatch& quad_batch = m_data.roomTints[TintIndices::DARK];
+        quad_batch.emplace_back(v0 + glm::vec3(0, 0, 0));
+        quad_batch.emplace_back(v0 + glm::vec3(1, 0, 0));
+        quad_batch.emplace_back(v0 + glm::vec3(1, 1, 0));
+        quad_batch.emplace_back(v0 + glm::vec3(0, 1, 0));
     }
 
     void virt_addNoSundeathQuad(const RoomHandle &room) final // Added
     {
         const auto v0 = room.getPosition().to_vec3();
-        m_data.noSundeathQuads.emplace_back(v0 + glm::vec3(0, 0, 0));
-        m_data.noSundeathQuads.emplace_back(v0 + glm::vec3(1, 0, 0));
-        m_data.noSundeathQuads.emplace_back(v0 + glm::vec3(1, 1, 0));
-        m_data.noSundeathQuads.emplace_back(v0 + glm::vec3(0, 1, 0));
+        // Add to the correct index in roomTints
+        PlainQuadBatch& quad_batch = m_data.roomTints[TintIndices::NO_SUNDEATH];
+        quad_batch.emplace_back(v0 + glm::vec3(0, 0, 0));
+        quad_batch.emplace_back(v0 + glm::vec3(1, 0, 0));
+        quad_batch.emplace_back(v0 + glm::vec3(1, 1, 0));
+        quad_batch.emplace_back(v0 + glm::vec3(0, 1, 0));
     }
 
     void virt_visitWall(const RoomHandle &room,
@@ -902,18 +912,28 @@ void LayerMeshes::render(const int thisLayer, const int focusedLayer)
         }
     }
 
-    // Render specific tint meshes
-    const auto darkNamedColor = LOOKUP_COLOR(ROOM_DARK);
-    if (const auto optDarkColor = getColor(darkNamedColor)) {
-        if (darkTintMesh.isValid()) {
-            darkTintMesh.render(equal_multiplied.withColor(optDarkColor.value()));
-        }
-    }
+    // Render specific tint meshes (now looped)
+    for (size_t i = 0; i < NUM_ROOM_TINTS; ++i) {
+        if (tints[i].isValid()) {
+            XNamedColor namedColor;
+            if (i == TintIndices::DARK) {
+                namedColor = LOOKUP_COLOR(ROOM_DARK);
+            } else if (i == TintIndices::NO_SUNDEATH) {
+                namedColor = LOOKUP_COLOR(ROOM_NO_SUNDEATH);
+            } else {
+                // This case should ideally not be reached if NUM_ROOM_TINTS and TintIndices are consistent.
+                // However, to be safe, one might log an error or simply continue.
+                // For now, this will mean no color is found, and thus no rendering for this index.
+                // Alternatively, assert(false) or throw an exception if this state is considered invalid.
+                continue;
+            }
 
-    const auto noSundeathNamedColor = LOOKUP_COLOR(ROOM_NO_SUNDEATH);
-    if (const auto optNoSundeathColor = getColor(noSundeathNamedColor)) {
-         if (noSundeathTintMesh.isValid()) {
-            noSundeathTintMesh.render(equal_multiplied.withColor(optNoSundeathColor.value()));
+            if (const auto optColor = getColor(namedColor)) {
+                tints[i].render(equal_multiplied.withColor(optColor.value()));
+            }
+            // else {
+            //     assert(false); // If a tint mesh is valid, its color should ideally be resolvable.
+            // }
         }
     }
 

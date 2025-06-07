@@ -7,23 +7,24 @@
 using ChunkId = int;
 // #include <cstdint> // If ChunkId were, e.g., int32_t, this might be needed here. For `int`, it's fundamental.
 
-#include "../map/mmapper2room.h" // For RoomTintEnum, NUM_ROOM_TINTS, ALL_ROOM_TINTS
+#include <array> // For std::array
+#include "../map/mmapper2room.h" // For NUM_ROOM_TINTS and TintIndices
 #include "Connections.h"
 #include "MapCanvasData.h"
 
 #include <map>
 
-// Removed RoomTintArray template alias as RoomTintEnum is being removed.
-// template<typename T>
-// using RoomTintArray = EnumIndexedArray<T, RoomTintEnum, NUM_ROOM_TINTS>;
+// Restoring RoomTintArray using std::array and NUM_ROOM_TINTS
+template<typename T>
+using RoomTintArray = std::array<T, NUM_ROOM_TINTS>;
 
 struct NODISCARD LayerMeshes final
 {
     UniqueMeshVector terrain;
     UniqueMeshVector trails;
-    // RoomTintArray<UniqueMesh> tints; // Removed
-    UniqueMesh darkTintMesh;        // Added
-    UniqueMesh noSundeathTintMesh;  // Added
+    RoomTintArray<UniqueMesh> tints; // Restored
+    // UniqueMesh darkTintMesh;        // Removed
+    // UniqueMesh noSundeathTintMesh;  // Removed
     UniqueMeshVector overlays;
     UniqueMeshVector doors;
     UniqueMeshVector walls;

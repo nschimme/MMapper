@@ -130,8 +130,13 @@ CHECK3(RIDABLE, Ridable)
 CHECK3(SUNDEATH, Sundeath)
 #undef CHECK3
 
-// Removed RoomTintEnum, NUM_ROOM_TINTS, DEFINE_ENUM_COUNT(RoomTintEnum, ...), and ALL_ROOM_TINTS array.
-// These are being refactored out.
+static constexpr size_t NUM_ROOM_TINTS = 2;
+
+namespace TintIndices {
+    static constexpr size_t DARK = 0;
+    static constexpr size_t NO_SUNDEATH = 1;
+    // Add other tint indices if NUM_ROOM_TINTS increases
+} // namespace TintIndices
 
 #define XFOREACH_ROOM_MOB_FLAG(X) \
     X(RENT) \

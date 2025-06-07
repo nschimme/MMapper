@@ -228,9 +228,9 @@ struct NODISCARD LayerBatchData final
     ColoredRoomTexVector roomUpDownExits;
     ColoredRoomTexVector streamIns;
     ColoredRoomTexVector streamOuts;
-    // RoomTintArray<PlainQuadBatch> roomTints; // Removed
-    PlainQuadBatch darkQuads;             // Added
-    PlainQuadBatch noSundeathQuads;       // Added
+    RoomTintArray<PlainQuadBatch> roomTints; // Restored
+    // PlainQuadBatch darkQuads;             // Removed
+    // PlainQuadBatch noSundeathQuads;       // Removed
     PlainQuadBatch roomLayerBoostQuads;
 
     explicit LayerBatchData() = default;

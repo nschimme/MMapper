@@ -31,10 +31,9 @@ class MapData;
 class PrespammedPath;
 class InfoMarkSelection;
 
-enum class NODISCARD RoomTintEnum { DARK, NO_SUNDEATH };
-static const size_t NUM_ROOM_TINTS = 2;
-NODISCARD extern const MMapper::Array<RoomTintEnum, NUM_ROOM_TINTS> &getAllRoomTints();
-#define ALL_ROOM_TINTS getAllRoomTints()
+// Removed RoomTintEnum, NUM_ROOM_TINTS, getAllRoomTints(), and ALL_ROOM_TINTS macro.
+// These are now authoritatively defined in ../map/mmapper2room.h
+// (which is already included in this file).
 
 struct NODISCARD ScaleFactor final
 {

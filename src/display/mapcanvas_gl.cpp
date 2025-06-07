@@ -674,10 +674,10 @@ void MapCanvas::finishPendingMapBatches()
 
             for (auto& layer_pair : temporaryNewBatches.batchedMeshes) {
                 int layerId = layer_pair.first;
-                ChunkedLayerMeshes& new_chunks_in_layer = layer_pair.second;
+                auto& new_chunks_in_layer = layer_pair.second; // Use auto& for non-const access
                 for (auto& chunk_pair : new_chunks_in_layer) {
                     ChunkId chunkId = chunk_pair.first;
-                    mainMapBatches.batchedMeshes[layerId][chunkId] = std::move(chunk_pair.second);
+                    mainMapBatches.batchedMeshes[layerId].insert_or_assign(chunkId, std::move(chunk_pair.second));
                     if (m_pendingChunkGenerations.erase({layerId, chunkId})) {
                         // LOG() << "Erased " << layerId << ":" << chunkId << " from pending (merge).";
                     }
@@ -686,32 +686,19 @@ void MapCanvas::finishPendingMapBatches()
 
             for (auto& layer_pair : temporaryNewBatches.connectionMeshes) {
                 int layerId = layer_pair.first;
-                // Corrected type using const auto& as requested
-                const auto& new_connection_chunks_in_layer = layer_pair.second;
+                auto& new_connection_chunks_in_layer = layer_pair.second; // Use auto& for non-const access
                 for (auto& chunk_pair : new_connection_chunks_in_layer) {
                     ChunkId chunkId = chunk_pair.first;
-                    // Note: std::move from chunk_pair.second might require const_cast if new_connection_chunks_in_layer is const
-                    // and if ConnectionMeshes does not have a const&& move assignment.
-                    // However, if new_connection_chunks_in_layer is std::map<_, ConnectionMeshes>& (non-const),
-                    // then chunk_pair.second is ConnectionMeshes&, and std::move is fine.
-                    // Since layer_pair is auto& from a non-const temporaryNewBatches, layer_pair.second is non-const.
-                    // So, const auto& new_... makes new_... a const ref to a non-const map.
-                    // Iterating new_... (a const ref to map) with auto& chunk_pair gives const Value& for chunk_pair.second.
-                    // Thus, std::move(chunk_pair.second) would indeed be std::move(const ConnectionMeshes&).
-                    // This will likely call a copy assignment unless ConnectionMeshes has `operator=(const ConnectionMeshes&&)`.
-                    // For now, applying the requested type change.
-                    mainMapBatches.connectionMeshes[layerId][chunkId] = std::move(const_cast<ConnectionMeshes&>(chunk_pair.second));
+                    mainMapBatches.connectionMeshes[layerId].insert_or_assign(chunkId, std::move(chunk_pair.second));
                 }
             }
 
             for (auto& layer_pair : temporaryNewBatches.roomNameBatches) {
                 int layerId = layer_pair.first;
-                // Corrected type using const auto& as requested
-                const auto& new_roomname_chunks_in_layer = layer_pair.second;
+                auto& new_roomname_chunks_in_layer = layer_pair.second; // Use auto& for non-const access
                 for (auto& chunk_pair : new_roomname_chunks_in_layer) {
                     ChunkId chunkId = chunk_pair.first;
-                    // Similar reasoning for std::move and const_cast as above for UniqueMesh
-                    mainMapBatches.roomNameBatches[layerId][chunkId] = std::move(const_cast<UniqueMesh&>(chunk_pair.second));
+                    mainMapBatches.roomNameBatches[layerId].insert_or_assign(chunkId, std::move(chunk_pair.second));
                 }
             }
         }

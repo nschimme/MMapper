@@ -977,31 +977,34 @@ void LayerMeshes::render(const int thisLayer, const int focusedLayer)
 void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const
 {
     for (const auto &layer_kv : batchedMeshes) {
-        auto& output_chunked_layer_meshes = output.batchedMeshes[layer_kv.first];
+        // auto& output_chunked_layer_meshes = output.batchedMeshes[layer_kv.first]; // Old way
         for (const auto &chunk_kv : layer_kv.second) {
-            output_chunked_layer_meshes[chunk_kv.first] = chunk_kv.second.getMeshes(gl);
+            // output_chunked_layer_meshes[chunk_kv.first] = chunk_kv.second.getMeshes(gl); // Old way
+            output.batchedMeshes[layer_kv.first].insert_or_assign(chunk_kv.first, chunk_kv.second.getMeshes(gl));
         }
     }
 
     for (const auto &layer_chunk_buffers_pair : connectionDrawerBuffers) {
         const int layerId = layer_chunk_buffers_pair.first;
         const auto& chunk_buffers_map = layer_chunk_buffers_pair.second;
-        auto& output_connection_meshes_for_layer = output.connectionMeshes[layerId];
+        // auto& output_connection_meshes_for_layer = output.connectionMeshes[layerId]; // Old way
         for (const auto& chunk_buffer_pair : chunk_buffers_map) {
             const ChunkId chunkId = chunk_buffer_pair.first;
             const ConnectionDrawerBuffers& cdb_data = chunk_buffer_pair.second;
-            output_connection_meshes_for_layer[chunkId] = cdb_data.getMeshes(gl);
+            // output_connection_meshes_for_layer[chunkId] = cdb_data.getMeshes(gl); // Old way
+            output.connectionMeshes[layerId].insert_or_assign(chunkId, cdb_data.getMeshes(gl));
         }
     }
 
     for (const auto &layer_chunk_rnb_pair : roomNameBatches) {
         const int layerId = layer_chunk_rnb_pair.first;
         const auto& chunk_rnb_map = layer_chunk_rnb_pair.second;
-        auto& output_room_names_for_layer = output.roomNameBatches[layerId];
+        // auto& output_room_names_for_layer = output.roomNameBatches[layerId]; // Old way
         for (const auto& chunk_rnb_pair : chunk_rnb_map) {
             const ChunkId chunkId = chunk_rnb_pair.first;
             const RoomNameBatch& rnb_data = chunk_rnb_pair.second;
-            output_room_names_for_layer[chunkId] = rnb_data.getMesh(font);
+            // output_room_names_for_layer[chunkId] = rnb_data.getMesh(font); // Old way
+            output.roomNameBatches[layerId].insert_or_assign(chunkId, rnb_data.getMesh(font));
         }
     }
 }

@@ -173,9 +173,12 @@ NODISCARD LayerMeshes LayerBatchData::getMeshes(OpenGL &gl) const
     LayerMeshes meshes;
     meshes.terrain = ::createSortedTexturedMeshes("terrain", gl, roomTerrains);
     meshes.trails = ::createSortedTexturedMeshes("trails", gl, roomTrails);
-    for (const RoomTintEnum tint : ALL_ROOM_TINTS) {
-        meshes.tints[tint] = gl.createPlainQuadBatch(roomTints[tint]);
-    }
+    // Removed loop for RoomTintEnum
+    // for (const RoomTintEnum tint : ALL_ROOM_TINTS) {
+    //     meshes.tints[tint] = gl.createPlainQuadBatch(roomTints[tint]);
+    // }
+    meshes.darkTintMesh = gl.createPlainQuadBatch(darkQuads);             // Added
+    meshes.noSundeathTintMesh = gl.createPlainQuadBatch(noSundeathQuads); // Added
     meshes.overlays = ::createSortedTexturedMeshes("overlays", gl, roomOverlays);
     meshes.doors = ::createSortedColoredTexturedMeshes("doors", gl, doors);
     meshes.walls = ::createSortedColoredTexturedMeshes("solidWalls", gl, solidWallLines);
@@ -314,7 +317,9 @@ private:
     virtual void virt_visitTerrainTexture(const RoomHandle &, MMTextureId) = 0;
     virtual void virt_visitTrailTexture(const RoomHandle &, MMTextureId) = 0;
     virtual void virt_visitOverlayTexture(const RoomHandle &, MMTextureId) = 0;
-    virtual void virt_visitNamedColorTint(const RoomHandle &, RoomTintEnum) = 0;
+    // virtual void virt_visitNamedColorTint(const RoomHandle &, RoomTintEnum) = 0; // Removed
+    virtual void virt_addDarkQuad(const RoomHandle &) = 0; // Added
+    virtual void virt_addNoSundeathQuad(const RoomHandle &) = 0; // Added
 
     // Walls
     virtual void virt_visitWall(
@@ -340,9 +345,17 @@ public:
     {
         virt_visitOverlayTexture(room, tex);
     }
-    void visitNamedColorTint(const RoomHandle &room, const RoomTintEnum tint)
+    // void visitNamedColorTint(const RoomHandle &room, const RoomTintEnum tint) // Removed
+    // {
+    //     virt_visitNamedColorTint(room, tint);
+    // }
+    void addDarkQuad(const RoomHandle &room) // Added
     {
-        virt_visitNamedColorTint(room, tint);
+        virt_addDarkQuad(room);
+    }
+    void addNoSundeathQuad(const RoomHandle &room) // Added
+    {
+        virt_addNoSundeathQuad(room);
     }
 
     // Walls
@@ -388,9 +401,11 @@ static void visitRoom(const RoomHandle &room,
     }
 
     if (isDark) {
-        callbacks.visitNamedColorTint(room, RoomTintEnum::DARK);
+        // callbacks.visitNamedColorTint(room, RoomTintEnum::DARK); // Old call
+        callbacks.addDarkQuad(room); // New call
     } else if (hasNoSundeath) {
-        callbacks.visitNamedColorTint(room, RoomTintEnum::NO_SUNDEATH);
+        // callbacks.visitNamedColorTint(room, RoomTintEnum::NO_SUNDEATH); // Old call
+        callbacks.addNoSundeathQuad(room); // New call
     }
 
     mf.for_each([&room, &textures, &callbacks](const RoomMobFlagEnum flag) -> void {
@@ -530,7 +545,9 @@ static void visitRoom(const RoomHandle &room,
             drawInFlow(exit, dir);
         }
     }
-}
+} // <<<< This closes static void visitRoom
+
+// Removed the extra brace here
 
 static void visitRooms(const RoomVector &rooms,
                        const mctp::MapCanvasTexturesProxy &textures,
@@ -610,15 +627,33 @@ private:
         }
     }
 
-    void virt_visitNamedColorTint(const RoomHandle &room, const RoomTintEnum tint) final
+    // void virt_visitNamedColorTint(const RoomHandle &room, const RoomTintEnum tint) final // Removed
+    // {
+    //     const auto v0 = room.getPosition().to_vec3();
+    // #define EMIT(x, y) m_data.roomTints[tint].emplace_back(v0 + glm::vec3((x), (y), 0))
+    //     EMIT(0, 0);
+    //     EMIT(1, 0);
+    //     EMIT(1, 1);
+    //     EMIT(0, 1);
+    // #undef EMIT
+    // }
+
+    void virt_addDarkQuad(const RoomHandle &room) final // Added
     {
         const auto v0 = room.getPosition().to_vec3();
-#define EMIT(x, y) m_data.roomTints[tint].emplace_back(v0 + glm::vec3((x), (y), 0))
-        EMIT(0, 0);
-        EMIT(1, 0);
-        EMIT(1, 1);
-        EMIT(0, 1);
-#undef EMIT
+        m_data.darkQuads.emplace_back(v0 + glm::vec3(0, 0, 0));
+        m_data.darkQuads.emplace_back(v0 + glm::vec3(1, 0, 0));
+        m_data.darkQuads.emplace_back(v0 + glm::vec3(1, 1, 0));
+        m_data.darkQuads.emplace_back(v0 + glm::vec3(0, 1, 0));
+    }
+
+    void virt_addNoSundeathQuad(const RoomHandle &room) final // Added
+    {
+        const auto v0 = room.getPosition().to_vec3();
+        m_data.noSundeathQuads.emplace_back(v0 + glm::vec3(0, 0, 0));
+        m_data.noSundeathQuads.emplace_back(v0 + glm::vec3(1, 0, 0));
+        m_data.noSundeathQuads.emplace_back(v0 + glm::vec3(1, 1, 0));
+        m_data.noSundeathQuads.emplace_back(v0 + glm::vec3(0, 1, 0));
     }
 
     void virt_visitWall(const RoomHandle &room,
@@ -867,23 +902,18 @@ void LayerMeshes::render(const int thisLayer, const int focusedLayer)
         }
     }
 
-    // REVISIT: move trails to their own batch also colored by the tint?
-    for (const RoomTintEnum tint : ALL_ROOM_TINTS) {
-        static_assert(NUM_ROOM_TINTS == 2);
-        const auto namedColor = [tint]() -> XNamedColor {
-            switch (tint) {
-            case RoomTintEnum::DARK:
-                return LOOKUP_COLOR(ROOM_DARK);
-            case RoomTintEnum::NO_SUNDEATH:
-                return LOOKUP_COLOR(ROOM_NO_SUNDEATH);
-            }
-            std::abort();
-        }();
+    // Render specific tint meshes
+    const auto darkNamedColor = LOOKUP_COLOR(ROOM_DARK);
+    if (const auto optDarkColor = getColor(darkNamedColor)) {
+        if (darkTintMesh.isValid()) {
+            darkTintMesh.render(equal_multiplied.withColor(optDarkColor.value()));
+        }
+    }
 
-        if (const auto optColor = getColor(namedColor)) {
-            tints[tint].render(equal_multiplied.withColor(optColor.value()));
-        } else {
-            assert(false);
+    const auto noSundeathNamedColor = LOOKUP_COLOR(ROOM_NO_SUNDEATH);
+    if (const auto optNoSundeathColor = getColor(noSundeathNamedColor)) {
+         if (noSundeathTintMesh.isValid()) {
+            noSundeathTintMesh.render(equal_multiplied.withColor(optNoSundeathColor.value()));
         }
     }
 

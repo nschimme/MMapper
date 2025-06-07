@@ -13,14 +13,17 @@ using ChunkId = int;
 
 #include <map>
 
-template<typename T>
-using RoomTintArray = EnumIndexedArray<T, RoomTintEnum, NUM_ROOM_TINTS>;
+// Removed RoomTintArray template alias as RoomTintEnum is being removed.
+// template<typename T>
+// using RoomTintArray = EnumIndexedArray<T, RoomTintEnum, NUM_ROOM_TINTS>;
 
 struct NODISCARD LayerMeshes final
 {
     UniqueMeshVector terrain;
     UniqueMeshVector trails;
-    RoomTintArray<UniqueMesh> tints;
+    // RoomTintArray<UniqueMesh> tints; // Removed
+    UniqueMesh darkTintMesh;        // Added
+    UniqueMesh noSundeathTintMesh;  // Added
     UniqueMeshVector overlays;
     UniqueMeshVector doors;
     UniqueMeshVector walls;

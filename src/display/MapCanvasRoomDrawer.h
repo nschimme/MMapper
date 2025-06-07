@@ -228,7 +228,9 @@ struct NODISCARD LayerBatchData final
     ColoredRoomTexVector roomUpDownExits;
     ColoredRoomTexVector streamIns;
     ColoredRoomTexVector streamOuts;
-    RoomTintArray<PlainQuadBatch> roomTints; // Provided by MapBatches.h -> mmapper2room.h and EnumIndexedArray.h
+    // RoomTintArray<PlainQuadBatch> roomTints; // Removed
+    PlainQuadBatch darkQuads;             // Added
+    PlainQuadBatch noSundeathQuads;       // Added
     PlainQuadBatch roomLayerBoostQuads;
 
     explicit LayerBatchData() = default;

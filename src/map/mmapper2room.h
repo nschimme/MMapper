@@ -130,18 +130,8 @@ CHECK3(RIDABLE, Ridable)
 CHECK3(SUNDEATH, Sundeath)
 #undef CHECK3
 
-enum class NODISCARD RoomTintEnum : uint8_t {
-    DARK,
-    NO_SUNDEATH
-    // Add other tint types if any in the future
-};
-static constexpr const int NUM_ROOM_TINTS = 2;
-DEFINE_ENUM_COUNT(RoomTintEnum, NUM_ROOM_TINTS)
-
-static constexpr std::array<RoomTintEnum, NUM_ROOM_TINTS> ALL_ROOM_TINTS = {
-    RoomTintEnum::DARK,
-    RoomTintEnum::NO_SUNDEATH
-};
+// Removed RoomTintEnum, NUM_ROOM_TINTS, DEFINE_ENUM_COUNT(RoomTintEnum, ...), and ALL_ROOM_TINTS array.
+// These are being refactored out.
 
 #define XFOREACH_ROOM_MOB_FLAG(X) \
     X(RENT) \

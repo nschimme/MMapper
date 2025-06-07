@@ -967,6 +967,54 @@ static void generateAllLayerMeshes(InternalData &internalData,
     }
 }
 
+void generateSpecificLayerMeshes(IMapBatchesFinisher::InternalData &internalData,
+                                 const Map &map,
+                                 const std::vector<std::pair<int, ChunkId>>& chunksToGenerate,
+                                 const mctp::MapCanvasTexturesProxy &textures,
+                                 const VisitRoomOptions &visitRoomOptions)
+{
+    const OptBounds bounds{}; // Use default OptBounds, similar to generateAllLayerMeshes
+
+    DECL_TIMER(t, "generateSpecificLayerMeshes");
+
+    for (const auto& chunk_info : chunksToGenerate) {
+        const int layerId = chunk_info.first;
+        const ChunkId chunkId = chunk_info.second;
+
+        RoomVector rooms_for_this_chunk_layer;
+        // Collect rooms for the specific layerId and chunkId
+        for (const RoomId roomId : map.getRooms()) {
+            const auto &room = map.getRoomHandle(roomId);
+            if (room.getPosition().z == layerId) {
+                if (getChunkIdForRoom(room.getPosition()) == chunkId) {
+                    rooms_for_this_chunk_layer.push_back(room);
+                }
+            }
+        }
+
+        if (rooms_for_this_chunk_layer.empty()) {
+            continue;
+        }
+
+        DECL_TIMER(t_chunk, "generateSpecificLayerMeshes.loop.generateSingleChunkMeshes");
+        // Generate meshes for rooms in this specific chunk and layer
+        internalData.batchedMeshes[layerId][chunkId] =
+            ::generateLayerMeshes(rooms_for_this_chunk_layer, chunkId, textures, bounds, visitRoomOptions);
+
+        // Generate connection and room name data for this specific chunk and layer
+        ConnectionDrawerBuffers& cdb_chunk = internalData.connectionDrawerBuffers[layerId][chunkId];
+        RoomNameBatch& rnb_chunk = internalData.roomNameBatches[layerId][chunkId];
+
+        cdb_chunk.clear();
+        rnb_chunk.clear();
+
+        ConnectionDrawer cd{cdb_chunk, rnb_chunk, layerId, bounds};
+        for (const auto &room : rooms_for_this_chunk_layer) {
+            cd.drawRoomConnectionsAndDoors(room);
+        }
+    }
+}
+
 void LayerMeshes::render(const int thisLayer, const int focusedLayer)
 {
     bool disableTextures = false;
@@ -1121,6 +1169,25 @@ FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTextur
                           auto result = std::make_shared<InternalData>();
                           auto &data = deref(result);
                           generateAllLayerMeshes(data, layerToRooms, textures, visitRoomOptions);
+                          return SharedMapBatchFinisher{result};
+                      });
+}
+
+FutureSharedMapBatchFinisher
+generateSpecificMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures, const Map &map, const std::vector<std::pair<int, ChunkId>>& chunksToGenerate)
+{
+    const auto visitRoomOptions = getVisitRoomOptions();
+
+    // Ensure chunksToGenerate is copied into the lambda
+    return std::async(std::launch::async,
+                      [textures, map, visitRoomOptions, chunksToGenerate]() -> SharedMapBatchFinisher {
+                          ThreadLocalNamedColorRaii tlRaii{visitRoomOptions.canvasColors,
+                                                           visitRoomOptions.colorSettings};
+                          DECL_TIMER(t, "[ASYNC] generateSpecificLayerMeshes");
+
+                          auto result = std::make_shared<InternalData>();
+                          auto &data = deref(result);
+                          generateSpecificLayerMeshes(data, map, chunksToGenerate, textures, visitRoomOptions);
                           return SharedMapBatchFinisher{result};
                       });
 }

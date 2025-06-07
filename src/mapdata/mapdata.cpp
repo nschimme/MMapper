@@ -149,6 +149,14 @@ FutureSharedMapBatchFinisher MapData::generateBatches(const mctp::MapCanvasTextu
     return generateMapDataFinisher(textures, getCurrentMap());
 }
 
+FutureSharedMapBatchFinisher MapData::generateSpecificChunkBatches(
+    const mctp::MapCanvasTexturesProxy &textures,
+    const std::vector<std::pair<int, ChunkId>>& chunksToGenerate)
+{
+    // Call the global ::generateSpecificMapDataFinisher from MapCanvasRoomDrawer.h
+    return ::generateSpecificMapDataFinisher(textures, getCurrentMap(), chunksToGenerate);
+}
+
 void MapData::applyChangesToList(const RoomSelection &sel,
                                  const std::function<Change(const RawRoom &)> &callback)
 {

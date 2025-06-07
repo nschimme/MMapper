@@ -174,6 +174,15 @@ struct NODISCARD Batches final
 NODISCARD FutureSharedMapBatchFinisher
 generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures, const Map &map);
 
+NODISCARD FutureSharedMapBatchFinisher
+generateSpecificMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures, const Map &map, const std::vector<std::pair<int, ChunkId>>& chunksToGenerate);
+
+void generateSpecificLayerMeshes(IMapBatchesFinisher::InternalData &internalData,
+                                 const Map &map,
+                                 const std::vector<std::pair<int, ChunkId>>& chunksToGenerate,
+                                 const mctp::MapCanvasTexturesProxy &textures,
+                                 const VisitRoomOptions &visitRoomOptions);
+
 extern void finish(const IMapBatchesFinisher &finisher,
                    std::optional<MapBatches> &batches,
                    OpenGL &gl,

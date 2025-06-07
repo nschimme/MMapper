@@ -640,18 +640,74 @@ void MapCanvas::finishPendingMapBatches()
     LOG() << "Clearing the map batches and call the finisher to create new ones";
 
     DECL_TIMER(t, __FUNCTION__);
-    const IMapBatchesFinisher &future = *pFuture;
-    std::optional<MapBatches> &opt_mapBatches = m_batches.mapBatches;
-    opt_mapBatches.reset();
-    finish(future, opt_mapBatches, getOpenGL(), getGLFont());
-    assert(opt_mapBatches.has_value());
+    const IMapBatchesFinisher &finisher_obj = *pFuture; // Renamed 'future' to 'finisher_obj' to avoid conflict
 
-    // If mesh generation was successful and new batches are available,
-    // or even if it was ignored (pFuture was null but remeshCookie.get() was called),
-    // clear pending requests as they were part of this generation cycle.
-    if (!m_pendingChunkGenerations.empty()) {
-        m_pendingChunkGenerations.clear();
+    std::optional<MapBatches> temporaryNewBatches_opt;
+    // The global 'finish' function (from MapCanvasRoomDrawer.h) will emplace into temporaryNewBatches_opt
+    // It calls finisher_obj.virt_finish(MapBatches &output, OpenGL &gl, GLFont &font)
+    finish(finisher_obj, temporaryNewBatches_opt, getOpenGL(), getGLFont());
+
+    if (temporaryNewBatches_opt.has_value()) {
+        LOG() << "Successfully finished specific chunk batches into temporary MapBatches.";
+        MapBatches& temporaryNewBatches = *temporaryNewBatches_opt;
+
+        if (!m_batches.mapBatches.has_value()) {
+            // This is the first batch of data, or main batches were previously cleared.
+            LOG() << "Main mapBatches is empty, moving temporaryNewBatches.";
+            m_batches.mapBatches.emplace(std::move(temporaryNewBatches));
+            // Clear pending flags for all chunks that were just loaded by iterating the moved content
+            if (m_batches.mapBatches.has_value()) {
+                for (const auto& layer_pair : m_batches.mapBatches->batchedMeshes) {
+                    for (const auto& chunk_pair : layer_pair.second) {
+                        if (m_pendingChunkGenerations.erase({layer_pair.first, chunk_pair.first})) {
+                            // LOG() << "Erased " << layer_pair.first << ":" << chunk_pair.first << " from pending (initial load).";
+                        }
+                    }
+                }
+            }
+        } else {
+            // Merge temporaryNewBatches into existing m_batches.mapBatches
+            LOG() << "Merging temporaryNewBatches into existing main mapBatches.";
+            MapBatches& mainMapBatches = *m_batches.mapBatches;
+
+            for (auto& layer_pair : temporaryNewBatches.batchedMeshes) {
+                int layerId = layer_pair.first;
+                ChunkedLayerMeshes& new_chunks_in_layer = layer_pair.second;
+                for (auto& chunk_pair : new_chunks_in_layer) {
+                    ChunkId chunkId = chunk_pair.first;
+                    mainMapBatches.batchedMeshes[layerId][chunkId] = std::move(chunk_pair.second);
+                    if (m_pendingChunkGenerations.erase({layerId, chunkId})) {
+                        // LOG() << "Erased " << layerId << ":" << chunkId << " from pending (merge).";
+                    }
+                }
+            }
+
+            for (auto& layer_pair : temporaryNewBatches.connectionMeshes) {
+                int layerId = layer_pair.first;
+                ChunkedConnectionMeshes& new_connection_chunks_in_layer = layer_pair.second;
+                for (auto& chunk_pair : new_connection_chunks_in_layer) {
+                    ChunkId chunkId = chunk_pair.first;
+                    mainMapBatches.connectionMeshes[layerId][chunkId] = std::move(chunk_pair.second);
+                }
+            }
+
+            for (auto& layer_pair : temporaryNewBatches.roomNameBatches) {
+                int layerId = layer_pair.first;
+                ChunkedRoomNameBatches& new_roomname_chunks_in_layer = layer_pair.second;
+                for (auto& chunk_pair : new_roomname_chunks_in_layer) {
+                    ChunkId chunkId = chunk_pair.first;
+                    mainMapBatches.roomNameBatches[layerId][chunkId] = std::move(chunk_pair.second);
+                }
+            }
+        }
+    } else {
+        LOG() << "::finish with pFuture did not populate temporaryNewBatches_opt. This should not happen if pFuture is valid.";
+        // If finish fails to emplace, specific chunks associated with pFuture remain pending.
+        // No specific action needed here for m_pendingChunkGenerations, requestMissingChunks will handle retries.
     }
+    // The broad m_pendingChunkGenerations.clear() that was here is removed as per subtask.
+    // Chunks are erased individually above as they are processed.
+    // If pFuture itself was null, m_pendingChunkGenerations is cleared in the block above for that case.
     // The original logic for pFuture == nullptr also cleared m_pendingChunkGenerations,
     // which is covered by clearing it after remeshCookie.get() if isReady() was true.
     // The update() call is also important.

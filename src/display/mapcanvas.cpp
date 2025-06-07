@@ -1079,10 +1079,14 @@ void MapCanvas::requestMissingChunks() {
         for(const auto& chunkKey : chunksToRequestNow) {
             m_pendingChunkGenerations.insert(chunkKey);
         }
-        // Currently, forceUpdateMeshes triggers a full regeneration based on MapData.
-        // A more granular approach would be needed to request specific chunks.
-        // For now, this ensures that if missing chunks are detected, a regeneration is queued.
-        forceUpdateMeshes();
+        // Instead of forceUpdateMeshes(), call generateSpecificChunkBatches
+        // m_data is a MapData&
+        // m_textures is a MapCanvasTextures
+        // mctp::getProxy should be available from Textures.h (included via mapcanvas.h)
+        m_batches.remeshCookie.set(
+            m_data.generateSpecificChunkBatches(mctp::getProxy(m_textures), chunksToRequestNow)
+        );
+        // No need to call update() here explicitly, as the renderLoop will check the cookie.
     }
 }
 

@@ -1229,7 +1229,7 @@ void MapCanvas::screenChanged()
         font.cleanup();
         font.init();
 
-        update();
+        forceUpdateMeshes(); // Changed from update() to forceUpdateMeshes()
     }
 }
 

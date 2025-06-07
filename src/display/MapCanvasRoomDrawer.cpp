@@ -50,24 +50,15 @@
 #include <QtGui/qopengl.h>
 #include <QtGui>
 
-// Chunking constants
-// constexpr int CHUNK_SIZE_X = 32; // Example size // Removed
-// constexpr int CHUNK_SIZE_Y = 32; // Example size // Removed
-// This needs to be large enough to map all possible positive and negative chunkX coordinates into a positive ChunkId.
-// A simple way is to make it cover the expected span of the world, e.g., if world is -16000 to +16000,
-// then NUM_CHUNKS_X_DIMENSION would be (32000 / CHUNK_SIZE_X).
-// For now, using a large fixed number. This might need adjustment based on actual map coordinate ranges.
-// constexpr int NUM_CHUNKS_X_DIMENSION = 2000; // Max number of chunks in X dimension (e.g. for a map 64000 units wide) // Removed
-
-NODISCARD static ChunkId getChunkIdForRoom(const RoomHandle& room) {
+NODISCARD RoomAreaHash getRoomAreaHash(const RoomHandle& room) {
     const RoomArea& area = room.getArea();
     if (area.empty()) {
         // Handle cases where RoomArea might be empty, if necessary.
-        // For now, returning a default ChunkId or a hash of an empty string.
+        // For now, returning a default RoomAreaHash or a hash of an empty string.
         return 0;
     }
     std::hash<std::string> hasher;
-    return static_cast<ChunkId>(hasher(area.toStdStringUtf8()));
+    return static_cast<RoomAreaHash>(hasher(area.toStdStringUtf8()));
 }
 
 // All struct definitions RoomTex, ColoredRoomTex, RoomTexVector, ColoredRoomTexVector, LayerBatchData
@@ -718,7 +709,7 @@ private:
 LayerBatchBuilder::~LayerBatchBuilder() = default;
 
 NODISCARD static LayerBatchData generateLayerMeshes(const RoomVector &rooms, // Should be pre-filtered for the chunk
-                                                    [[maybe_unused]] ChunkId chunkId,
+                                                    [[maybe_unused]] RoomAreaHash chunkId,
                                                     const mctp::MapCanvasTexturesProxy &textures,
                                                     const OptBounds &bounds, // This is the overall bounds, not chunk specific.
                                                     const VisitRoomOptions &visitRoomOptions)
@@ -767,16 +758,16 @@ static void generateAllLayerMeshes(InternalData &internalData, // Type already I
         const int thisLayer = layer_entry.first;
         const RoomVector& rooms_in_layer = layer_entry.second;
 
-        // Group rooms by ChunkId for this layer
-        std::map<ChunkId, RoomVector> chunkedRoomsOnLayer;
+        // Group rooms by RoomAreaHash for this layer
+        std::map<RoomAreaHash, RoomVector> chunkedRoomsOnLayer;
         for (const auto& room : rooms_in_layer) {
-            ChunkId chunkId = getChunkIdForRoom(room);
-            chunkedRoomsOnLayer[chunkId].push_back(room);
+            RoomAreaHash roomAreaHash = getRoomAreaHash(room);
+            chunkedRoomsOnLayer[roomAreaHash].push_back(room);
         }
 
         // Process each chunk
         for (const auto& chunk_entry : chunkedRoomsOnLayer) {
-            ChunkId currentChunkId = chunk_entry.first;
+            RoomAreaHash currentRoomAreaHash = chunk_entry.first;
             const RoomVector& rooms_for_this_chunk = chunk_entry.second;
 
             // if (rooms_for_this_chunk.empty()) { // Removed conditional skip
@@ -785,12 +776,12 @@ static void generateAllLayerMeshes(InternalData &internalData, // Type already I
 
             DECL_TIMER(t3, "generateAllLayerMeshes.loop.generateChunkMeshes");
             // Process even if rooms_for_this_chunk is empty
-            batchedMeshes[thisLayer][currentChunkId] =
-                ::generateLayerMeshes(rooms_for_this_chunk, currentChunkId, textures, bounds, visitRoomOptions);
+            batchedMeshes[thisLayer][currentRoomAreaHash] =
+                ::generateLayerMeshes(rooms_for_this_chunk, currentRoomAreaHash, textures, bounds, visitRoomOptions);
 
             // Ensure connection and room name batches are at least cleared/default-constructed.
-            ConnectionDrawerBuffers& cdb_chunk = internalData.connectionDrawerBuffers[thisLayer][currentChunkId];
-            RoomNameBatch& rnb_chunk = internalData.roomNameBatches[thisLayer][currentChunkId];
+            ConnectionDrawerBuffers& cdb_chunk = internalData.connectionDrawerBuffers[thisLayer][currentRoomAreaHash];
+            RoomNameBatch& rnb_chunk = internalData.roomNameBatches[thisLayer][currentRoomAreaHash];
             cdb_chunk.clear();
             rnb_chunk.clear();
 
@@ -811,7 +802,7 @@ static void generateAllLayerMeshes(InternalData &internalData, // Type already I
 // Changed first parameter type from IMapBatchesFinisher::InternalData& to InternalData&
 void generateSpecificLayerMeshes(InternalData &internalData,
                                  const Map &map,
-                                 const std::vector<std::pair<int, ChunkId>>& chunksToGenerate,
+                                 const std::vector<std::pair<int, RoomAreaHash>>& chunksToGenerate,
                                  const mctp::MapCanvasTexturesProxy &textures,
                                  const VisitRoomOptions &visitRoomOptions)
 {
@@ -821,14 +812,14 @@ void generateSpecificLayerMeshes(InternalData &internalData,
 
     for (const auto& chunk_info : chunksToGenerate) {
         const int layerId = chunk_info.first;
-        const ChunkId chunkId = chunk_info.second;
+        const RoomAreaHash roomAreaHash = chunk_info.second;
 
         RoomVector rooms_for_this_chunk_layer;
-        // Collect rooms for the specific layerId and chunkId
+        // Collect rooms for the specific layerId and roomAreaHash
         for (const RoomId roomId : map.getRooms()) {
             const auto &room = map.getRoomHandle(roomId);
             if (room.getPosition().z == layerId) {
-                if (getChunkIdForRoom(room) == chunkId) {
+                if (getRoomAreaHash(room) == roomAreaHash) {
                     rooms_for_this_chunk_layer.push_back(room);
                 }
             }
@@ -841,12 +832,12 @@ void generateSpecificLayerMeshes(InternalData &internalData,
         DECL_TIMER(t_chunk, "generateSpecificLayerMeshes.loop.generateSingleChunkMeshes");
         // Generate meshes for rooms in this specific chunk and layer, even if rooms_for_this_chunk_layer is empty.
         // ::generateLayerMeshes is expected to handle an empty RoomVector and return an empty LayerBatchData.
-        internalData.batchedMeshes[layerId][chunkId] =
-            ::generateLayerMeshes(rooms_for_this_chunk_layer, chunkId, textures, bounds, visitRoomOptions);
+        internalData.batchedMeshes[layerId][roomAreaHash] =
+            ::generateLayerMeshes(rooms_for_this_chunk_layer, roomAreaHash, textures, bounds, visitRoomOptions);
 
         // Ensure connection and room name batches are at least cleared/default-constructed.
-        ConnectionDrawerBuffers& cdb_chunk = internalData.connectionDrawerBuffers[layerId][chunkId];
-        RoomNameBatch& rnb_chunk = internalData.roomNameBatches[layerId][chunkId];
+        ConnectionDrawerBuffers& cdb_chunk = internalData.connectionDrawerBuffers[layerId][roomAreaHash];
+        RoomNameBatch& rnb_chunk = internalData.roomNameBatches[layerId][roomAreaHash];
         cdb_chunk.clear();
         rnb_chunk.clear();
 
@@ -972,10 +963,10 @@ void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) con
         const auto& chunk_buffers_map = layer_chunk_buffers_pair.second;
         // auto& output_connection_meshes_for_layer = output.connectionMeshes[layerId]; // Old way
         for (const auto& chunk_buffer_pair : chunk_buffers_map) {
-            const ChunkId chunkId = chunk_buffer_pair.first;
+                const RoomAreaHash roomAreaHash = chunk_buffer_pair.first;
             const ConnectionDrawerBuffers& cdb_data = chunk_buffer_pair.second;
-            // output_connection_meshes_for_layer[chunkId] = cdb_data.getMeshes(gl); // Old way
-            output.connectionMeshes[layerId].insert_or_assign(chunkId, cdb_data.getMeshes(gl));
+                // output_connection_meshes_for_layer[roomAreaHash] = cdb_data.getMeshes(gl); // Old way
+                output.connectionMeshes[layerId].insert_or_assign(roomAreaHash, cdb_data.getMeshes(gl));
         }
     }
 
@@ -984,10 +975,10 @@ void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) con
         const auto& chunk_rnb_map = layer_chunk_rnb_pair.second;
         // auto& output_room_names_for_layer = output.roomNameBatches[layerId]; // Old way
         for (const auto& chunk_rnb_pair : chunk_rnb_map) {
-            const ChunkId chunkId = chunk_rnb_pair.first;
+                const RoomAreaHash roomAreaHash = chunk_rnb_pair.first;
             const RoomNameBatch& rnb_data = chunk_rnb_pair.second;
-            // output_room_names_for_layer[chunkId] = rnb_data.getMesh(font); // Old way
-            output.roomNameBatches[layerId].insert_or_assign(chunkId, rnb_data.getMesh(font));
+                // output_room_names_for_layer[roomAreaHash] = rnb_data.getMesh(font); // Old way
+                output.roomNameBatches[layerId].insert_or_assign(roomAreaHash, rnb_data.getMesh(font));
         }
     }
 }
@@ -1024,7 +1015,7 @@ FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTextur
 }
 
 FutureSharedMapBatchFinisher
-generateSpecificMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures, const Map &map, const std::vector<std::pair<int, ChunkId>>& chunksToGenerate)
+generateSpecificMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures, const Map &map, const std::vector<std::pair<int, RoomAreaHash>>& chunksToGenerate)
 {
     const auto visitRoomOptions = getVisitRoomOptions();
 

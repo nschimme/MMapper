@@ -151,7 +151,7 @@ FutureSharedMapBatchFinisher MapData::generateBatches(const mctp::MapCanvasTextu
 
 FutureSharedMapBatchFinisher MapData::generateSpecificChunkBatches(
     const mctp::MapCanvasTexturesProxy &textures,
-    const std::vector<std::pair<int, ChunkId>>& chunksToGenerate)
+    const std::vector<std::pair<int, RoomAreaHash>>& chunksToGenerate)
 {
     // Call the global ::generateSpecificMapDataFinisher from MapCanvasRoomDrawer.h
     return ::generateSpecificMapDataFinisher(textures, getCurrentMap(), chunksToGenerate);

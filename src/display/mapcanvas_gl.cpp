@@ -676,10 +676,10 @@ void MapCanvas::finishPendingMapBatches()
                 int layerId = layer_pair.first;
                 auto& new_chunks_in_layer = layer_pair.second; // Use auto& for non-const access
                 for (auto& chunk_pair : new_chunks_in_layer) {
-                    ChunkId chunkId = chunk_pair.first;
-                    mainMapBatches.batchedMeshes[layerId].insert_or_assign(chunkId, std::move(chunk_pair.second));
-                    if (m_pendingChunkGenerations.erase({layerId, chunkId})) {
-                        // LOG() << "Erased " << layerId << ":" << chunkId << " from pending (merge).";
+                        RoomAreaHash roomAreaHash = chunk_pair.first;
+                        mainMapBatches.batchedMeshes[layerId].insert_or_assign(roomAreaHash, std::move(chunk_pair.second));
+                        if (m_pendingChunkGenerations.erase({layerId, roomAreaHash})) {
+                            // LOG() << "Erased " << layerId << ":" << roomAreaHash << " from pending (merge).";
                     }
                 }
             }
@@ -688,8 +688,8 @@ void MapCanvas::finishPendingMapBatches()
                 int layerId = layer_pair.first;
                 auto& new_connection_chunks_in_layer = layer_pair.second; // Use auto& for non-const access
                 for (auto& chunk_pair : new_connection_chunks_in_layer) {
-                    ChunkId chunkId = chunk_pair.first;
-                    mainMapBatches.connectionMeshes[layerId].insert_or_assign(chunkId, std::move(chunk_pair.second));
+                        RoomAreaHash roomAreaHash = chunk_pair.first;
+                        mainMapBatches.connectionMeshes[layerId].insert_or_assign(roomAreaHash, std::move(chunk_pair.second));
                 }
             }
 
@@ -697,8 +697,8 @@ void MapCanvas::finishPendingMapBatches()
                 int layerId = layer_pair.first;
                 auto& new_roomname_chunks_in_layer = layer_pair.second; // Use auto& for non-const access
                 for (auto& chunk_pair : new_roomname_chunks_in_layer) {
-                    ChunkId chunkId = chunk_pair.first;
-                    mainMapBatches.roomNameBatches[layerId].insert_or_assign(chunkId, std::move(chunk_pair.second));
+                        RoomAreaHash roomAreaHash = chunk_pair.first;
+                        mainMapBatches.roomNameBatches[layerId].insert_or_assign(roomAreaHash, std::move(chunk_pair.second));
                 }
             }
         }
@@ -1140,8 +1140,8 @@ void MapCanvas::renderMapBatches()
 
     auto &gl = getOpenGL();
     // batches.batchedMeshes is std::map<int, ChunkedLayerMeshes> (main terrain, etc.)
-    // batches.connectionMeshes is std::map<int, std::map<ChunkId, ConnectionMeshes>>
-    // batches.roomNameBatches is std::map<int, std::map<ChunkId, UniqueMesh>>
+    // batches.connectionMeshes is std::map<int, std::map<RoomAreaHash, ConnectionMeshes>>
+    // batches.roomNameBatches is std::map<int, std::map<RoomAreaHash, UniqueMesh>>
     const auto& allChunkedLayerMeshes = batches.batchedMeshes;
 
     const auto fadeBackground = [&gl, &settings]() {
@@ -1156,7 +1156,7 @@ void MapCanvas::renderMapBatches()
     // We use this as the primary loop for determining which layers to process.
     for (const auto& layerMeshesPair : allChunkedLayerMeshes) {
         const int layerId = layerMeshesPair.first;
-        const ChunkedLayerMeshes& terrainChunksInLayer = layerMeshesPair.second; // Map of ChunkId -> LayerMeshes
+        const ChunkedLayerMeshes& terrainChunksInLayer = layerMeshesPair.second; // Map of RoomAreaHash -> LayerMeshes
 
         if (std::abs(layerId - m_currentLayer) > getConfig().canvas.mapRadius[2]) {
             continue;
@@ -1174,7 +1174,7 @@ void MapCanvas::renderMapBatches()
             // This layer isn't in m_visibleChunks or has no visible chunks calculated for it.
             continue;
         }
-        const std::set<ChunkId>& visibleChunkIdsForLayer = itVisibleLayer->second;
+        const std::set<RoomAreaHash>& visibleChunkIdsForLayer = itVisibleLayer->second;
 
         bool fontShaderWasBound = false;
         GLRenderState nameRenderState; // Define once per layer
@@ -1186,9 +1186,9 @@ void MapCanvas::renderMapBatches()
         auto itLayerRoomNames = batches.roomNameBatches.find(layerId);
         if (wantDoorNames && layerId == m_currentLayer && itLayerRoomNames != batches.roomNameBatches.end()) {
             const auto& chunkedRoomNamesForLayer = itLayerRoomNames->second;
-            for (const ChunkId chunkId : visibleChunkIdsForLayer) {
-                if (chunkedRoomNamesForLayer.count(chunkId)) {
-                    const UniqueMesh& nameMesh = chunkedRoomNamesForLayer.at(chunkId);
+            for (const RoomAreaHash roomAreaHash : visibleChunkIdsForLayer) {
+                if (chunkedRoomNamesForLayer.count(roomAreaHash)) {
+                    const UniqueMesh& nameMesh = chunkedRoomNamesForLayer.at(roomAreaHash);
                     if (nameMesh.isValid()) { // Check UniqueMesh validity
                         // Font shader is managed internally by GLFont render methods
                         // m_glFont.getFontShader().bind(); // Removed
@@ -1200,9 +1200,9 @@ void MapCanvas::renderMapBatches()
         }
 
         // Iterate all visible chunks for this layer
-        for (const ChunkId chunkId : visibleChunkIdsForLayer) {
+        for (const RoomAreaHash roomAreaHash : visibleChunkIdsForLayer) {
             // Render LayerMeshes (terrain, etc.) for the chunk
-            auto itChunkLayerMeshes = terrainChunksInLayer.find(chunkId);
+            auto itChunkLayerMeshes = terrainChunksInLayer.find(roomAreaHash);
             if (itChunkLayerMeshes != terrainChunksInLayer.end()) {
                 LayerMeshes& meshes = const_cast<LayerMeshes&>(itChunkLayerMeshes->second);
                 if (meshes) {
@@ -1215,7 +1215,7 @@ void MapCanvas::renderMapBatches()
                 auto itLayerConnectionMeshes = batches.connectionMeshes.find(layerId);
                 if (itLayerConnectionMeshes != batches.connectionMeshes.end()) {
                     const auto& chunkedConnectionMeshesForLayer = itLayerConnectionMeshes->second;
-                    auto itChunkConnectionMeshes = chunkedConnectionMeshesForLayer.find(chunkId);
+                    auto itChunkConnectionMeshes = chunkedConnectionMeshesForLayer.find(roomAreaHash);
                     if (itChunkConnectionMeshes != chunkedConnectionMeshesForLayer.end()) {
                         const ConnectionMeshes& connMeshes = itChunkConnectionMeshes->second;
                         connMeshes.render(layerId, m_currentLayer);
@@ -1227,7 +1227,7 @@ void MapCanvas::renderMapBatches()
             if (fontShaderWasBound && itLayerRoomNames != batches.roomNameBatches.end()) {
                  // (wantDoorNames and layerId == m_currentLayer already checked for shader binding)
                 const auto& chunkedRoomNamesForLayer = itLayerRoomNames->second;
-                auto itChunkRoomNames = chunkedRoomNamesForLayer.find(chunkId);
+                auto itChunkRoomNames = chunkedRoomNamesForLayer.find(roomAreaHash);
                 if (itChunkRoomNames != chunkedRoomNamesForLayer.end()) {
                     const UniqueMesh& nameMesh = itChunkRoomNames->second;
                     if (nameMesh.isValid()) { // Check UniqueMesh validity

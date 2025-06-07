@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2021 The MMapper Authors
 
+#include <cstddef> // For size_t
+
 // Moved ChunkId definition to the top to ensure it's available early.
 // This helps resolve potential include order issues.
-using ChunkId = int;
+using RoomAreaHash = size_t;
 // #include <cstdint> // If ChunkId were, e.g., int32_t, this might be needed here. For `int`, it's fundamental.
 
 #include <array> // For std::array
@@ -44,13 +46,13 @@ struct NODISCARD LayerMeshes final
 };
 
 // This must be ordered so we can iterate over the layers from lowest to highest.
-using ChunkedLayerMeshes = std::map<ChunkId, LayerMeshes>;
+using ChunkedLayerMeshes = std::map<RoomAreaHash, LayerMeshes>;
 
 struct NODISCARD MapBatches final
 {
     std::map<int, ChunkedLayerMeshes> batchedMeshes;
-    std::map<int, std::map<ChunkId, ConnectionMeshes>> connectionMeshes; // Updated
-    std::map<int, std::map<ChunkId, UniqueMesh>> roomNameBatches; // Updated
+    std::map<int, std::map<RoomAreaHash, ConnectionMeshes>> connectionMeshes; // Updated
+    std::map<int, std::map<RoomAreaHash, UniqueMesh>> roomNameBatches; // Updated
 
     MapBatches() = default;
     ~MapBatches() = default;

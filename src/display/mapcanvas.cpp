@@ -47,11 +47,11 @@
 #endif
 
 // Chunking constants (must match MapCanvasRoomDrawer.cpp)
-namespace {
-    constexpr int CHUNK_SIZE_X = 32;
-    constexpr int CHUNK_SIZE_Y = 32;
-    constexpr int NUM_CHUNKS_X_DIMENSION = 2000;
-}
+// namespace { // Removed
+    // constexpr int CHUNK_SIZE_X = 32; // Removed
+    // constexpr int CHUNK_SIZE_Y = 32; // Removed
+    // constexpr int NUM_CHUNKS_X_DIMENSION = 2000; // Removed
+// } // Removed
 
 using NonOwningPointer = MapCanvas *;
 NODISCARD static NonOwningPointer &primaryMapCanvas()
@@ -1033,11 +1033,11 @@ void MapCanvas::requestMissingChunks() {
         return;
     }
 
-    std::vector<std::pair<int, ChunkId>> chunksToRequestNow;
+    std::vector<std::pair<int, RoomAreaHash>> chunksToRequestNow;
 
     for (const auto& layerChunksPair : m_visibleChunks) {
         const int layerId = layerChunksPair.first;
-        const std::set<ChunkId>& visibleChunkIds = layerChunksPair.second;
+        const std::set<RoomAreaHash>& visibleChunkIds = layerChunksPair.second;
 
         // Check existing batches
         const MapBatches* currentMapBatchesPtr = nullptr;
@@ -1052,11 +1052,11 @@ void MapCanvas::requestMissingChunks() {
                                  (currentMapBatchesPtr ? currentMapBatchesPtr->batchedMeshes.end() : decltype(currentMapBatchesPtr->batchedMeshes.end()){});
 
 
-        for (const ChunkId chunkId : visibleChunkIds) {
+        for (const RoomAreaHash roomAreaHash : visibleChunkIds) {
             bool isMissingOrInvalid = true; // Assume missing unless found and valid
             if (currentMapBatchesPtr && mapBatchesLayerIt != currentMapBatchesPtr->batchedMeshes.end()) {
                 const ChunkedLayerMeshes& chunkedLayerMeshes = mapBatchesLayerIt->second;
-                auto chunkIt = chunkedLayerMeshes.find(chunkId);
+                auto chunkIt = chunkedLayerMeshes.find(roomAreaHash);
                 if (chunkIt != chunkedLayerMeshes.end()) {
                     // Chunk exists, check if its LayerMeshes is valid
                     if (chunkIt->second) { // LayerMeshes::operator bool()
@@ -1066,7 +1066,7 @@ void MapCanvas::requestMissingChunks() {
             }
 
             if (isMissingOrInvalid) {
-                std::pair<int, ChunkId> chunkKey = {layerId, chunkId};
+                std::pair<int, RoomAreaHash> chunkKey = {layerId, roomAreaHash};
                 // Only add to request if not already pending
                 if (m_pendingChunkGenerations.find(chunkKey) == m_pendingChunkGenerations.end()) {
                     chunksToRequestNow.push_back(chunkKey);
@@ -1098,52 +1098,28 @@ std::optional<glm::vec3> MapCanvas::getUnprojectedScreenPos(const glm::vec2& scr
 void MapCanvas::updateVisibleChunks() {
     m_visibleChunks.clear(); // Clear all layers
 
-    const auto tl_opt = getUnprojectedScreenPos(glm::vec2(0.0f, 0.0f));
-    const auto br_opt = getUnprojectedScreenPos(glm::vec2(static_cast<float>(width()), static_cast<float>(height())));
-
-    if (!tl_opt || !br_opt) {
-        // This can happen if the projection isn't set up yet (e.g. window too small, or before first resizeGL)
+    // Inside updateVisibleChunks, after m_visibleChunks.clear();
+    const auto& currentMap = m_data.getCurrentMap(); // Assuming m_data has getCurrentMap()
+    if (currentMap.empty()) { // Or however you check if the map is loaded
         return;
     }
 
-    // Use floor to ensure we get the integer coordinate containing the point or to its left/bottom
-    const glm::vec2 worldTopLeft(std::floor(tl_opt->x), std::floor(tl_opt->y));
-    const glm::vec2 worldBottomRight(std::floor(br_opt->x), std::floor(br_opt->y));
+    const float marginPixels = 20.0f; // Example margin, adjust as needed
 
-    int minChunkX = static_cast<int>(worldTopLeft.x) / CHUNK_SIZE_X;
-    int maxChunkX = static_cast<int>(worldBottomRight.x) / CHUNK_SIZE_X;
-    int minChunkY = static_cast<int>(worldTopLeft.y) / CHUNK_SIZE_Y;
-    int maxChunkY = static_cast<int>(worldBottomRight.y) / CHUNK_SIZE_Y;
+    for (const RoomId roomId : currentMap.getRooms()) {
+        RoomHandle room = currentMap.getRoomHandle(roomId);
+        if (!room.exists()) continue;
 
-    // Adjust for negative coordinates based on the logic in getChunkIdForRoom
-    if (static_cast<int>(worldTopLeft.x) < 0 && (static_cast<int>(worldTopLeft.x) % CHUNK_SIZE_X != 0)) minChunkX--;
-    if (static_cast<int>(worldBottomRight.x) < 0 && (static_cast<int>(worldBottomRight.x) % CHUNK_SIZE_X != 0)) maxChunkX--;
-    if (static_cast<int>(worldTopLeft.y) < 0 && (static_cast<int>(worldTopLeft.y) % CHUNK_SIZE_Y != 0)) minChunkY--;
-    if (static_cast<int>(worldBottomRight.y) < 0 && (static_cast<int>(worldBottomRight.y) % CHUNK_SIZE_Y != 0)) maxChunkY--;
+        const Coordinate& roomCoord = room.getPosition();
 
-    if (minChunkX > maxChunkX) std::swap(minChunkX, maxChunkX);
-    if (minChunkY > maxChunkY) std::swap(minChunkY, maxChunkY);
-
-    // Add a margin of 1 chunk around the visible area
-    minChunkX -= 1;
-    maxChunkX += 1;
-    minChunkY -= 1;
-    maxChunkY += 1;
-
-    const int maxOffset = getConfig().canvas.mapRadius[2];
-    const int minRenderLayer = m_currentLayer - maxOffset;
-    const int maxRenderLayer = m_currentLayer + maxOffset;
-
-    for (int layerToUpdate = minRenderLayer; layerToUpdate <= maxRenderLayer; ++layerToUpdate) {
-        std::set<ChunkId> visibleInLayer;
-        for (int cy = minChunkY; cy <= maxChunkY; ++cy) {
-            for (int cx = minChunkX; cx <= maxChunkX; ++cx) {
-                // This calculation must match getChunkIdForRoom in MapCanvasRoomDrawer.cpp
-                visibleInLayer.insert(cx + cy * NUM_CHUNKS_X_DIMENSION);
-            }
+        // Check if the room's layer is within the configured radius
+        if (std::abs(roomCoord.z - m_currentLayer) > getConfig().canvas.mapRadius[2]) {
+            continue;
         }
-        if (!visibleInLayer.empty()) {
-            m_visibleChunks[layerToUpdate] = visibleInLayer;
+
+        if (m_mapScreen.isRoomVisible(roomCoord, marginPixels)) {
+            RoomAreaHash areaHash = getRoomAreaHash(room); // Assuming getRoomAreaHash is accessible
+            m_visibleChunks[roomCoord.z].insert(areaHash);
         }
     }
 }
@@ -1164,10 +1140,10 @@ void MapCanvas::forceUpdateMeshes()
 
     updateVisibleChunks(); // Determine what's currently visible
 
-    std::vector<std::pair<int, ChunkId>> allVisibleChunks;
+    std::vector<std::pair<int, RoomAreaHash>> allVisibleChunks;
     for (const auto& layerChunksPair : m_visibleChunks) {
-        for (const ChunkId chunkId : layerChunksPair.second) {
-            allVisibleChunks.push_back({layerChunksPair.first, chunkId});
+        for (const RoomAreaHash roomAreaHash : layerChunksPair.second) {
+            allVisibleChunks.push_back({layerChunksPair.first, roomAreaHash});
         }
     }
 

@@ -73,7 +73,7 @@ public:
     generateBatches(const mctp::MapCanvasTexturesProxy &textures);
 
     NODISCARD FutureSharedMapBatchFinisher
-    generateSpecificChunkBatches(const mctp::MapCanvasTexturesProxy &textures, const std::vector<std::pair<int, ChunkId>>& chunksToGenerate);
+    generateSpecificChunkBatches(const mctp::MapCanvasTexturesProxy &textures, const std::vector<std::pair<int, RoomAreaHash>>& chunksToGenerate);
 
     // REVISIT: convert to template, or functionref after it compiles everywhere?
     void applyChangesToList(const RoomSelection &sel,

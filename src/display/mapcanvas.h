@@ -113,8 +113,8 @@ private:
     Signal2Lifetime m_lifetime;
 
     // Visible chunk tracking
-    std::map<int, std::set<ChunkId>> m_visibleChunks;
-    std::set<std::pair<int, ChunkId>> m_pendingChunkGenerations;
+    std::map<int, std::set<RoomAreaHash>> m_visibleChunks;
+    std::set<std::pair<int, RoomAreaHash>> m_pendingChunkGenerations;
 
 public:
     explicit MapCanvas(MapData &mapData,

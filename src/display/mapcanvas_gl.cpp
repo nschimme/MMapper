@@ -533,7 +533,9 @@ void MapCanvas::resizeGL(int width, int height)
         return;
     }
 
-    setViewportAndMvp(width, height);
+    setViewportAndMvp(width, height); // Ensure projection is set before unprojecting
+    updateVisibleChunks();
+    requestMissingChunks();
 
     // Render
     update();
@@ -643,6 +645,18 @@ void MapCanvas::finishPendingMapBatches()
     opt_mapBatches.reset();
     finish(future, opt_mapBatches, getOpenGL(), getGLFont());
     assert(opt_mapBatches.has_value());
+
+    // If mesh generation was successful and new batches are available,
+    // or even if it was ignored (pFuture was null but remeshCookie.get() was called),
+    // clear pending requests as they were part of this generation cycle.
+    if (!m_pendingChunkGenerations.empty()) {
+        m_pendingChunkGenerations.clear();
+    }
+    // The original logic for pFuture == nullptr also cleared m_pendingChunkGenerations,
+    // which is covered by clearing it after remeshCookie.get() if isReady() was true.
+    // The update() call is also important.
+    update();
+
 
 #undef LOG
 }
@@ -1067,55 +1081,121 @@ void MapCanvas::renderMapBatches()
                                && (totalScaleFactor >= settings.doorNameScaleCutoff);
 
     auto &gl = getOpenGL();
-    BatchedMeshes &batchedMeshes = batches.batchedMeshes;
-    const auto drawLayer =
-        [&batches, &batchedMeshes, wantExtraDetail, wantDoorNames](const int thisLayer,
-                                                                   const int currentLayer) {
-            const auto it_mesh = batchedMeshes.find(thisLayer);
-            if (it_mesh != batchedMeshes.end()) {
-                LayerMeshes &meshes = it_mesh->second;
-                meshes.render(thisLayer, currentLayer);
-            }
-
-            if (wantExtraDetail) {
-                {
-                    BatchedConnectionMeshes &connectionMeshes = batches.connectionMeshes;
-                    const auto it_conn = connectionMeshes.find(thisLayer);
-                    if (it_conn != connectionMeshes.end()) {
-                        ConnectionMeshes &meshes = it_conn->second;
-                        meshes.render(thisLayer, currentLayer);
-                    }
-                }
-
-                // NOTE: This can display room names in lower layers, but the text
-                // isn't currently drawn with an appropriate Z-offset, so it doesn't
-                // stay aligned to its actual layer when you switch view layers.
-                if (wantDoorNames && thisLayer == currentLayer) {
-                    BatchedRoomNames &roomNameBatches = batches.roomNameBatches;
-                    const auto it_name = roomNameBatches.find(thisLayer);
-                    if (it_name != roomNameBatches.end()) {
-                        auto &roomNameBatch = it_name->second;
-                        roomNameBatch.render(GLRenderState());
-                    }
-                }
-            }
-        };
+    // batches.batchedMeshes is std::map<int, ChunkedLayerMeshes> (main terrain, etc.)
+    // batches.connectionMeshes is std::map<int, std::map<ChunkId, ConnectionMeshes>>
+    // batches.roomNameBatches is std::map<int, std::map<ChunkId, UniqueMesh>>
+    const auto& allChunkedLayerMeshes = batches.batchedMeshes;
 
     const auto fadeBackground = [&gl, &settings]() {
         auto bgColor = Color{settings.backgroundColor.getColor(), 0.5f};
-
-        const auto blendedWithBackground
-            = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withColor(bgColor);
-
+        const auto blendedWithBackground = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withColor(bgColor);
         gl.renderPlainFullScreenQuad(blendedWithBackground);
     };
 
-    for (const auto &layer : batchedMeshes) {
-        const int thisLayer = layer.first;
-        if (thisLayer == m_currentLayer) {
+    bool currentLayerHasBeenSetup = false;
+
+    // Iterate through layers that have LayerMeshes (terrain, etc.)
+    // We use this as the primary loop for determining which layers to process.
+    for (const auto& layerMeshesPair : allChunkedLayerMeshes) {
+        const int layerId = layerMeshesPair.first;
+        const ChunkedLayerMeshes& terrainChunksInLayer = layerMeshesPair.second; // Map of ChunkId -> LayerMeshes
+
+        if (std::abs(layerId - m_currentLayer) > getConfig().canvas.maxVisibleLayerOffset.get()) {
+            continue;
+        }
+
+        // Setup for current layer (clear depth, fade background)
+        if (layerId == m_currentLayer && !currentLayerHasBeenSetup) {
+            gl.clearDepth();
+            fadeBackground();
+            currentLayerHasBeenSetup = true;
+        }
+
+        auto itVisibleLayer = m_visibleChunks.find(layerId);
+        if (itVisibleLayer == m_visibleChunks.end() || itVisibleLayer->second.empty()) {
+            // This layer isn't in m_visibleChunks or has no visible chunks calculated for it.
+            continue;
+        }
+        const std::set<ChunkId>& visibleChunkIdsForLayer = itVisibleLayer->second;
+
+        bool fontShaderWasBound = false;
+        GLRenderState nameRenderState; // Define once per layer
+        nameRenderState.withBlend(BlendModeEnum::TRANSPARENCY);
+        nameRenderState.withDepthFunction(DepthFunctionEnum::LEQUAL);
+
+        // Check if any room names need rendering for this layer to bind shader once
+        auto itLayerRoomNames = batches.roomNameBatches.find(layerId);
+        if (wantDoorNames && layerId == m_currentLayer && itLayerRoomNames != batches.roomNameBatches.end()) {
+            const auto& chunkedRoomNamesForLayer = itLayerRoomNames->second;
+            for (const ChunkId chunkId : visibleChunkIdsForLayer) {
+                if (chunkedRoomNamesForLayer.count(chunkId)) {
+                    const UniqueMesh& nameMesh = chunkedRoomNamesForLayer.at(chunkId);
+                    if (nameMesh) {
+                        m_glFont.getFontShader().bind();
+                        fontShaderWasBound = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Iterate all visible chunks for this layer
+        for (const ChunkId chunkId : visibleChunkIdsForLayer) {
+            // Render LayerMeshes (terrain, etc.) for the chunk
+            auto itChunkLayerMeshes = terrainChunksInLayer.find(chunkId);
+            if (itChunkLayerMeshes != terrainChunksInLayer.end()) {
+                LayerMeshes& meshes = const_cast<LayerMeshes&>(itChunkLayerMeshes->second);
+                if (meshes) {
+                    meshes.render(layerId, m_currentLayer);
+                }
+            }
+
+            // Render connections for this specific chunk if extra detail is on
+            if (wantExtraDetail) {
+                auto itLayerConnectionMeshes = batches.connectionMeshes.find(layerId);
+                if (itLayerConnectionMeshes != batches.connectionMeshes.end()) {
+                    const auto& chunkedConnectionMeshesForLayer = itLayerConnectionMeshes->second;
+                    auto itChunkConnectionMeshes = chunkedConnectionMeshesForLayer.find(chunkId);
+                    if (itChunkConnectionMeshes != chunkedConnectionMeshesForLayer.end()) {
+                        const ConnectionMeshes& connMeshes = itChunkConnectionMeshes->second;
+                        connMeshes.render(layerId, m_currentLayer);
+                    }
+                }
+            }
+
+            // Render room names for this specific chunk if conditions met
+            if (fontShaderWasBound && itLayerRoomNames != batches.roomNameBatches.end()) {
+                 // (wantDoorNames and layerId == m_currentLayer already checked for shader binding)
+                const auto& chunkedRoomNamesForLayer = itLayerRoomNames->second;
+                auto itChunkRoomNames = chunkedRoomNamesForLayer.find(chunkId);
+                if (itChunkRoomNames != chunkedRoomNamesForLayer.end()) {
+                    const UniqueMesh& nameMesh = itChunkRoomNames->second;
+                    if (nameMesh) {
+                        nameMesh.render(nameRenderState);
+                    }
+                }
+            }
+        } // End of chunk loop
+
+        if (fontShaderWasBound) {
+            m_glFont.getFontShader().release();
+        }
+    } // End of layer loop
+
+    // If the current layer had no terrain meshes at all, ensure depth is cleared and background faded.
+    if (!currentLayerHasBeenSetup && std::abs(m_currentLayer - m_currentLayer) <= getConfig().canvas.maxVisibleLayerOffset.get()) {
+        // Check if current layer should have been processed (e.g. it's in m_visibleChunks)
+        // This ensures that even if a visible layer has no terrain, its connections/names might still show over a clean bg.
+        auto itVisibleCurrentLayer = m_visibleChunks.find(m_currentLayer);
+        if (itVisibleCurrentLayer != m_visibleChunks.end() && !itVisibleCurrentLayer->second.empty()){
+             gl.clearDepth();
+             fadeBackground();
+        } else if (allChunkedLayerMeshes.find(m_currentLayer) == allChunkedLayerMeshes.end() &&
+                   batches.connectionMeshes.find(m_currentLayer) == batches.connectionMeshes.end() &&
+                   batches.roomNameBatches.find(m_currentLayer) == batches.roomNameBatches.end()) {
+            // If current layer has no data at all (no terrain, no connections, no names), still clear.
             gl.clearDepth();
             fadeBackground();
         }
-        drawLayer(thisLayer, m_currentLayer);
     }
 }

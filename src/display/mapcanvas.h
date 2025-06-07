@@ -23,6 +23,7 @@
 #include <memory>
 #include <optional>
 #include <set>
+#include <utility> // For std::pair
 #include <vector>
 
 #include <glm/glm.hpp>
@@ -110,7 +111,10 @@ private:
     FrameRateController m_frameRateController;
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
     Signal2Lifetime m_lifetime;
-    // float m_calibratedWorldHalfLineWidth = 0.02f; // Removed: For dynamic line width
+
+    // Visible chunk tracking
+    std::map<int, std::set<ChunkId>> m_visibleChunks;
+    std::set<std::pair<int, ChunkId>> m_pendingChunkGenerations;
 
 public:
     explicit MapCanvas(MapData &mapData,
@@ -289,8 +293,7 @@ public slots:
     void slot_infomarksChanged() { infomarksChanged(); }
 
 private:
-    // void updateCalibratedWorldLineWidth(); // Removed: For dynamic line width
-
-public:
-    // NODISCARD float getCalibratedWorldHalfLineWidth() const { return m_calibratedWorldHalfLineWidth; } // Removed: For dynamic line width
+    void updateVisibleChunks();
+    std::optional<glm::vec3> getUnprojectedScreenPos(const glm::vec2& screenPos) const;
+    void requestMissingChunks();
 };

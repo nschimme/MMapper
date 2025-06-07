@@ -27,6 +27,7 @@
 #include "../opengl/OpenGL.h"
 #include "../opengl/OpenGLTypes.h"
 #include "ConnectionLineBuilder.h"
+#include "MapBatches.h" // For ChunkId
 #include "MapCanvasData.h"
 #include "RoadIndex.h"
 #include "mapcanvas.h" // hack, since we're now definining some of its symbols
@@ -47,6 +48,44 @@
 #include <QMessageLogContext>
 #include <QtGui/qopengl.h>
 #include <QtGui>
+
+// Chunking constants
+constexpr int CHUNK_SIZE_X = 32; // Example size
+constexpr int CHUNK_SIZE_Y = 32; // Example size
+// This needs to be large enough to map all possible positive and negative chunkX coordinates into a positive ChunkId.
+// A simple way is to make it cover the expected span of the world, e.g., if world is -16000 to +16000,
+// then NUM_CHUNKS_X_DIMENSION would be (32000 / CHUNK_SIZE_X).
+// For now, using a large fixed number. This might need adjustment based on actual map coordinate ranges.
+constexpr int NUM_CHUNKS_X_DIMENSION = 2000; // Max number of chunks in X dimension (e.g. for a map 64000 units wide)
+
+NODISCARD static ChunkId getChunkIdForRoom(const Coordinate& roomCoord) {
+    int chunkX = roomCoord.x / CHUNK_SIZE_X;
+    int chunkY = roomCoord.y / CHUNK_SIZE_Y;
+
+    // Adjust for negative coordinates to ensure they fall into a distinct chunk index.
+    // E.g., if CHUNK_SIZE_X is 32:
+    // coord.x = 0 -> chunkX = 0
+    // coord.x = 31 -> chunkX = 0
+    // coord.x = -1 -> chunkX = -1 (integer division truncates towards zero)
+    // coord.x = -32 -> chunkX = -1
+    // coord.x = -33 -> chunkX = -2
+    // This behavior is generally what we want for partitioning.
+    // The 2D to 1D mapping needs to handle these potentially negative chunkX/chunkY.
+    // A common approach is to offset them to be positive before creating a 1D ID.
+    // Example: chunkX + (NUM_CHUNKS_X_DIMENSION / 2)
+    // However, the original plan was simpler: chunkX + chunkY * NUM_CHUNKS_X_DIMENSION;
+    // This works if NUM_CHUNKS_X_DIMENSION is large enough to prevent negative chunkY * NUM_CHUNKS_X_DIMENSION
+    // from making the ID negative or overlapping with positive chunkY rows.
+    // Let's stick to the simple formula and assume it's sufficient for now.
+    // More robust would be std::pair<int, int> for ChunkId or a proper offset system.
+    if (roomCoord.x < 0 && roomCoord.x % CHUNK_SIZE_X != 0) {
+        chunkX -=1;
+    }
+    if (roomCoord.y < 0 && roomCoord.y % CHUNK_SIZE_Y != 0) {
+        chunkY -=1;
+    }
+    return chunkX + chunkY * NUM_CHUNKS_X_DIMENSION;
+}
 
 struct NODISCARD VisitRoomOptions final
 {
@@ -835,13 +874,16 @@ private:
 
 LayerBatchBuilder::~LayerBatchBuilder() = default;
 
-NODISCARD static LayerBatchData generateLayerMeshes(const RoomVector &rooms,
+NODISCARD static LayerBatchData generateLayerMeshes(const RoomVector &rooms, // Should be pre-filtered for the chunk
+                                                    [[maybe_unused]] ChunkId chunkId,
                                                     const mctp::MapCanvasTexturesProxy &textures,
-                                                    const OptBounds &bounds,
+                                                    const OptBounds &bounds, // This is the overall bounds, not chunk specific.
                                                     const VisitRoomOptions &visitRoomOptions)
 {
     DECL_TIMER(t, "generateLayerMeshes");
 
+    // Rooms are now assumed to be pre-filtered for the specific chunkId.
+    // No explicit filtering loop is needed here anymore.
     LayerBatchData data;
     LayerBatchBuilder builder{data, textures, bounds};
     visitRooms(rooms, textures, builder, visitRoomOptions);
@@ -853,9 +895,13 @@ NODISCARD static LayerBatchData generateLayerMeshes(const RoomVector &rooms,
 struct NODISCARD InternalData final : public IMapBatchesFinisher
 {
 public:
-    std::unordered_map<int, LayerBatchData> batchedMeshes;
-    BatchedConnections connectionDrawerBuffers;
-    std::unordered_map<int, RoomNameBatch> roomNameBatches;
+    std::unordered_map<int, std::map<ChunkId, LayerBatchData>> batchedMeshes;
+    // BatchedConnections was std::unordered_map<int, ConnectionDrawerBuffers>
+    // New type: std::map<layerId, std::map<ChunkId, ConnectionDrawerBuffers>>
+    std::map<int, std::map<ChunkId, ConnectionDrawerBuffers>> connectionDrawerBuffers;
+    // Old roomNameBatches was std::unordered_map<int, RoomNameBatch>
+    // New type: std::map<layerId, std::map<ChunkId, RoomNameBatch>>
+    std::map<int, std::map<ChunkId, RoomNameBatch>> roomNameBatches;
 
 private:
     void virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const final;
@@ -874,38 +920,50 @@ static void generateAllLayerMeshes(InternalData &internalData,
 
     DECL_TIMER(t, "generateAllLayerMeshes");
     auto &batchedMeshes = internalData.batchedMeshes;
-    auto &connectionDrawerBuffers = internalData.connectionDrawerBuffers;
-    auto &roomNameBatches = internalData.roomNameBatches;
+    // connectionDrawerBuffers and roomNameBatches are now chunked, so direct layer access is removed here.
+    // auto &connectionDrawerBuffers_layer = internalData.connectionDrawerBuffers; // Old way
+    // auto &roomNameBatches_layer = internalData.roomNameBatches; // Old way
 
-    for (const auto &layer : layerToRooms) {
+    for (const auto &layer_entry : layerToRooms) { // Renamed 'layer' to 'layer_entry' for clarity
         DECL_TIMER(t2, "generateAllLayerMeshes.loop");
-        const int thisLayer = layer.first;
-        auto &layerMeshes = batchedMeshes[thisLayer];
-        ConnectionDrawerBuffers &cdb = connectionDrawerBuffers[thisLayer];
-        RoomNameBatch &rnb = roomNameBatches[thisLayer];
-        const auto &rooms = layer.second;
+        const int thisLayer = layer_entry.first;
+        const RoomVector& rooms_in_layer = layer_entry.second;
 
-        {
-            DECL_TIMER(t3, "generateAllLayerMeshes.loop.part2");
-            layerMeshes = ::generateLayerMeshes(rooms, textures, bounds, visitRoomOptions);
+        // Group rooms by ChunkId for this layer
+        std::map<ChunkId, RoomVector> chunkedRoomsOnLayer;
+        for (const auto& room : rooms_in_layer) {
+            ChunkId chunkId = getChunkIdForRoom(room.getPosition());
+            chunkedRoomsOnLayer[chunkId].push_back(room);
         }
 
-        {
-            DECL_TIMER(t4, "generateAllLayerMeshes.loop.part3");
+        // Process each chunk
+        for (const auto& chunk_entry : chunkedRoomsOnLayer) {
+            ChunkId currentChunkId = chunk_entry.first;
+            const RoomVector& rooms_for_this_chunk = chunk_entry.second;
 
-            // TODO: move everything in the same layer to the same internal struct?
-            cdb.clear();
-            rnb.clear();
+            if (rooms_for_this_chunk.empty()) {
+                continue;
+            }
 
-            ConnectionDrawer cd{cdb, rnb, thisLayer, bounds};
-            {
-                DECL_TIMER(t7, "generateAllLayerMeshes.loop.part3b");
-                // pass 2: add to buffers
-                for (const auto &room : rooms) {
-                    cd.drawRoomConnectionsAndDoors(room);
-                }
+            DECL_TIMER(t3, "generateAllLayerMeshes.loop.generateChunkMeshes");
+            batchedMeshes[thisLayer][currentChunkId] =
+                ::generateLayerMeshes(rooms_for_this_chunk, currentChunkId, textures, bounds, visitRoomOptions);
+
+            // ConnectionDrawer and RoomNameBatch logic now per-chunk
+            ConnectionDrawerBuffers& cdb_chunk = internalData.connectionDrawerBuffers[thisLayer][currentChunkId];
+            RoomNameBatch& rnb_chunk = internalData.roomNameBatches[thisLayer][currentChunkId];
+
+            cdb_chunk.clear();
+            rnb_chunk.clear();
+
+            // The 'bounds' here is still the overall OptBounds passed into generateAllLayerMeshes.
+            // ConnectionDrawer will only process rooms_for_this_chunk.
+            ConnectionDrawer cd{cdb_chunk, rnb_chunk, thisLayer, bounds};
+            for (const auto &room : rooms_for_this_chunk) {
+                cd.drawRoomConnectionsAndDoors(room);
             }
         }
+        // Old layer-wide connection/name generation is removed as it's now per-chunk.
     }
 }
 
@@ -1006,19 +1064,33 @@ void LayerMeshes::render(const int thisLayer, const int focusedLayer)
 
 void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const
 {
-    for (const auto &kv : batchedMeshes) {
-        const LayerBatchData &data = kv.second;
-        output.batchedMeshes[kv.first] = data.getMeshes(gl);
+    for (const auto &layer_kv : batchedMeshes) {
+        auto& output_chunked_layer_meshes = output.batchedMeshes[layer_kv.first];
+        for (const auto &chunk_kv : layer_kv.second) {
+            output_chunked_layer_meshes[chunk_kv.first] = chunk_kv.second.getMeshes(gl);
+        }
     }
 
-    for (const auto &kv : connectionDrawerBuffers) {
-        const ConnectionDrawerBuffers &data = kv.second;
-        output.connectionMeshes[kv.first] = data.getMeshes(gl);
+    for (const auto &layer_chunk_buffers_pair : connectionDrawerBuffers) {
+        const int layerId = layer_chunk_buffers_pair.first;
+        const auto& chunk_buffers_map = layer_chunk_buffers_pair.second;
+        auto& output_connection_meshes_for_layer = output.connectionMeshes[layerId];
+        for (const auto& chunk_buffer_pair : chunk_buffers_map) {
+            const ChunkId chunkId = chunk_buffer_pair.first;
+            const ConnectionDrawerBuffers& cdb_data = chunk_buffer_pair.second;
+            output_connection_meshes_for_layer[chunkId] = cdb_data.getMeshes(gl);
+        }
     }
 
-    for (const auto &kv : roomNameBatches) {
-        const RoomNameBatch &rnb = kv.second;
-        output.roomNameBatches[kv.first] = rnb.getMesh(font);
+    for (const auto &layer_chunk_rnb_pair : roomNameBatches) {
+        const int layerId = layer_chunk_rnb_pair.first;
+        const auto& chunk_rnb_map = layer_chunk_rnb_pair.second;
+        auto& output_room_names_for_layer = output.roomNameBatches[layerId];
+        for (const auto& chunk_rnb_pair : chunk_rnb_map) {
+            const ChunkId chunkId = chunk_rnb_pair.first;
+            const RoomNameBatch& rnb_data = chunk_rnb_pair.second;
+            output_room_names_for_layer[chunkId] = rnb_data.getMesh(font);
+        }
     }
 }
 

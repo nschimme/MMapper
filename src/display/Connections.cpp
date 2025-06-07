@@ -795,6 +795,7 @@ void ConnectionDrawer::ConnectionFakeGL::drawLineStrip(const std::vector<glm::ve
 {
     const auto transform = [this](const glm::vec3 &vert) { return vert + m_offset; };
     auto &triVerts = deref(m_currentBuffer).triVerts;
+    const float extension = CONNECTION_LINE_WIDTH * 0.5f;
 
     // Helper lambda to generate a quad between two points with a specific color
     auto generateQuad =
@@ -802,7 +803,7 @@ void ConnectionDrawer::ConnectionFakeGL::drawLineStrip(const std::vector<glm::ve
         auto &verts = deref(m_currentBuffer).triVerts;
 
         if (p1 == p2) { // Zero-length segment, draw a small square
-            float half_size = CONNECTION_LINE_WIDTH / 2.0f;
+            float half_size = CONNECTION_LINE_WIDTH / 2.0f; // Using the constant directly for the square size
             glm::vec3 v_1 = p1 + glm::vec3(-half_size, -half_size, 0.0f);
             glm::vec3 v_2 = p1 + glm::vec3( half_size, -half_size, 0.0f);
             glm::vec3 v_3 = p1 + glm::vec3( half_size,  half_size, 0.0f);
@@ -848,31 +849,41 @@ void ConnectionDrawer::ConnectionFakeGL::drawLineStrip(const std::vector<glm::ve
         const glm::vec3 start_v = transform(start_orig);
         const glm::vec3 end_v = transform(end_orig);
 
-        if (start_v == end_v) { // Skip overall zero-length segments
-            continue;
-        }
-
         const Color current_segment_color = isNormal() ?
             getCanvasNamedColorOptions().connectionNormalColor.getColor() : Colors::red;
 
-        if (!isLongLine(start_v, end_v)) {
-            generateQuad(start_v, end_v, current_segment_color);
+        // Handle original zero-length segments first
+        if (glm::length(end_v - start_v) < 1e-6f) {
+            generateQuad(start_v, end_v, current_segment_color); // generateQuad handles p1==p2
+            continue;
+        }
+
+        glm::vec3 quad_start_v = start_v;
+        glm::vec3 quad_end_v = end_v;
+        glm::vec3 segment_dir = glm::normalize(end_v - start_v); // Safe now due to check above
+
+        if (i == 1) { // First segment of the polyline
+            quad_start_v = start_v - segment_dir * extension;
+        }
+        if (i == size - 1) { // Last segment of the polyline
+            quad_end_v = end_v + segment_dir * extension;
+        }
+
+        if (!isLongLine(quad_start_v, quad_end_v)) {
+            generateQuad(quad_start_v, quad_end_v, current_segment_color);
             continue;
         }
 
         // It is a long line, apply fading
-        const float len = glm::length(start_v - end_v);
-        // isLongLine implies len >= LONG_LINE_LEN (3.0f), so len should not be zero.
-        // However, a check for len > 0.0f before division is safest if that assumption could be violated.
-        // For now, assume isLongLine guarantees len is sufficiently large.
-        const float faintCutoff = LONG_LINE_HALFLEN / len;
+        const float len = glm::length(quad_end_v - quad_start_v);
+        const float faintCutoff = (len > 1e-6f) ? (LONG_LINE_HALFLEN / len) : 0.5f;
 
-        const glm::vec3 mid1 = glm::mix(start_v, end_v, faintCutoff);
-        const glm::vec3 mid2 = glm::mix(start_v, end_v, 1.f - faintCutoff);
+        const glm::vec3 mid1 = glm::mix(quad_start_v, quad_end_v, faintCutoff);
+        const glm::vec3 mid2 = glm::mix(quad_start_v, quad_end_v, 1.f - faintCutoff);
         const Color faint_color = current_segment_color.withAlpha(FAINT_CONNECTION_ALPHA);
 
-        generateQuad(start_v, mid1, current_segment_color);
+        generateQuad(quad_start_v, mid1, current_segment_color);
         generateQuad(mid1, mid2, faint_color);
-        generateQuad(mid2, end_v, current_segment_color);
+        generateQuad(mid2, quad_end_v, current_segment_color);
     }
 }

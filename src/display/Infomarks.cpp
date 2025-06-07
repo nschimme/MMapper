@@ -319,7 +319,11 @@ void MapCanvas::drawInfoMark(InfomarksBatch &batch,
         break;
 
     case InfoMarkTypeEnum::ARROW:
-        batch.drawLineStrip(glm::vec3{0.f}, glm::vec3{dx - 0.3f, dy, 0.f}, glm::vec3{dx, dy, 0.f});
+        // Draw the shaft line quad from origin to the base of the arrowhead.
+        // The arrowhead's base is at x = dx - 0.2f.
+        batch.drawLine(glm::vec3{0.f}, glm::vec3{dx - 0.2f, dy, 0.f});
+
+        // Draw the arrowhead triangle (this part remains unchanged).
         batch.drawTriangle(glm::vec3{dx - 0.2f, dy + 0.07f, 0.f},
                            glm::vec3{dx - 0.2f, dy - 0.07f, 0.f},
                            glm::vec3{dx, dy, 0.f});

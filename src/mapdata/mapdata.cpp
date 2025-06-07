@@ -137,52 +137,16 @@ std::optional<RoomId> MapData::getLast(const RoomId start, const CommandQueue &d
     return ret;
 }
 
-// Forward declaration for the concrete finisher if it's not already defined above
-class MapDataFinisher; // Assuming a class like this exists or will be created/adapted
+// The static generateMapDataFinisher and ConcreteFinisher struct previously added here
+// were incorrect as the actual generateMapDataFinisher is in MapCanvasRoomDrawer.cpp.
+// Removing them. The MapData::generateBatches method below will be updated
+// to call the correct external generateMapDataFinisher without the float parameter.
 
-// Assuming generateMapDataFinisher is a free function or static method.
-// Its definition needs to be found and modified. If it's complex lambda, that needs care.
-// For now, let's assume there's a helper like this that sets up the async task.
-static FutureSharedMapBatchFinisher
-generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures, const Map &map, float calibratedWorldHalfLineWidth)
+FutureSharedMapBatchFinisher MapData::generateBatches(const mctp::MapCanvasTexturesProxy &textures)
 {
-    // This is a simplified representation. The actual async launching might be more complex.
-    // The key is that 'calibratedWorldHalfLineWidth' is captured by the lambda
-    // and passed to the constructor of the concrete finisher.
-    return std::async(std::launch::async, [&textures, map, calibratedWorldHalfLineWidth]() {
-        // This lambda body would create the actual IMapBatchesFinisher implementation.
-        // Let's assume it creates an object of a class (e.g., MapDataFinisher)
-        // that stores the map copy and the calibrated width.
-        struct ConcreteFinisher final : public IMapBatchesFinisher {
-            Map m_mapCopy;
-            mctp::MapCanvasTexturesProxy m_texturesProxy;
-            float m_calibratedWorldHalfLineWidth_internal; // New member
-
-            ConcreteFinisher(const Map& m, const mctp::MapCanvasTexturesProxy& texProxy, float width)
-                : m_mapCopy(m), m_texturesProxy(texProxy), m_calibratedWorldHalfLineWidth_internal(width) {}
-
-            void virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const override {
-                // This is where the actual generation happens, now with width available
-                output.batchedMeshes = MapCanvasRoomDrawer::generateRoomBuffers(m_mapCopy, m_texturesProxy, gl);
-                output.connectionMeshes = generateConnectionBuffers(m_mapCopy, gl, m_calibratedWorldHalfLineWidth_internal); // Pass width
-                output.roomNameBatches = generateRoomNameBuffers(m_mapCopy, font);
-            }
-
-            // Hypothetical generateConnectionBuffers (if it's part of this class or accessible)
-            // Its actual location might be a static method or free function.
-            // For this diff, we'll assume it's a static method or a free function that now takes width.
-            // We will need to find its actual definition to change its signature.
-            // This is just showing how ConcreteFinisher::virt_finish would call it.
-        };
-        return std::make_shared<const ConcreteFinisher>(map, textures, calibratedWorldHalfLineWidth);
-    });
-}
-
-
-FutureSharedMapBatchFinisher MapData::generateBatches(const mctp::MapCanvasTexturesProxy &textures, float calibratedWorldHalfLineWidth)
-{
-    // Pass the new parameter to the (assumed) helper or directly to async setup
-    return generateMapDataFinisher(textures, getCurrentMap(), calibratedWorldHalfLineWidth);
+    // Call the external generateMapDataFinisher (defined in MapCanvasRoomDrawer.cpp)
+    // without the calibratedWorldHalfLineWidth parameter.
+    return generateMapDataFinisher(textures, getCurrentMap());
 }
 
 void MapData::applyChangesToList(const RoomSelection &sel,

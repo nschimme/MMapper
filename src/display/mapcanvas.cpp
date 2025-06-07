@@ -46,6 +46,13 @@
 #undef far  // Bad dog, Microsoft; bad dog!!!
 #endif
 
+// Chunking constants (must match MapCanvasRoomDrawer.cpp)
+namespace {
+    constexpr int CHUNK_SIZE_X = 32;
+    constexpr int CHUNK_SIZE_Y = 32;
+    constexpr int NUM_CHUNKS_X_DIMENSION = 2000;
+}
+
 using NonOwningPointer = MapCanvas *;
 NODISCARD static NonOwningPointer &primaryMapCanvas()
 {
@@ -1014,7 +1021,127 @@ void MapCanvas::infomarksChanged()
 
 void MapCanvas::layerChanged()
 {
+    updateVisibleChunks();
+    requestMissingChunks();
     update();
+}
+
+void MapCanvas::requestMissingChunks() {
+    if (m_batches.remeshCookie.isPending()) {
+        // A remesh operation is already in progress, which will generate all visible chunks.
+        // Or, if it was a specific chunk request, we wait for it to complete.
+        return;
+    }
+
+    std::vector<std::pair<int, ChunkId>> chunksToRequestNow;
+
+    for (const auto& layerChunksPair : m_visibleChunks) {
+        const int layerId = layerChunksPair.first;
+        const std::set<ChunkId>& visibleChunkIds = layerChunksPair.second;
+
+        // Check existing batches
+        const MapBatches* currentMapBatchesPtr = nullptr;
+        if (m_batches.mapBatches.has_value()) {
+            currentMapBatchesPtr = &(*m_batches.mapBatches);
+        }
+
+        // Use a const iterator type that's compatible whether currentMapBatchesPtr is null or not.
+        // Or, handle the null case more explicitly before trying to use mapBatchesLayerIt.
+        auto mapBatchesLayerIt = currentMapBatchesPtr ?
+                                 currentMapBatchesPtr->batchedMeshes.find(layerId) :
+                                 (currentMapBatchesPtr ? currentMapBatchesPtr->batchedMeshes.end() : decltype(currentMapBatchesPtr->batchedMeshes.end()){});
+
+
+        for (const ChunkId chunkId : visibleChunkIds) {
+            bool isMissingOrInvalid = true; // Assume missing unless found and valid
+            if (currentMapBatchesPtr && mapBatchesLayerIt != currentMapBatchesPtr->batchedMeshes.end()) {
+                const ChunkedLayerMeshes& chunkedLayerMeshes = mapBatchesLayerIt->second;
+                auto chunkIt = chunkedLayerMeshes.find(chunkId);
+                if (chunkIt != chunkedLayerMeshes.end()) {
+                    // Chunk exists, check if its LayerMeshes is valid
+                    if (chunkIt->second) { // LayerMeshes::operator bool()
+                        isMissingOrInvalid = false;
+                    }
+                }
+            }
+
+            if (isMissingOrInvalid) {
+                std::pair<int, ChunkId> chunkKey = {layerId, chunkId};
+                // Only add to request if not already pending
+                if (m_pendingChunkGenerations.find(chunkKey) == m_pendingChunkGenerations.end()) {
+                    chunksToRequestNow.push_back(chunkKey);
+                }
+            }
+        }
+    }
+
+    if (!chunksToRequestNow.empty()) {
+        for(const auto& chunkKey : chunksToRequestNow) {
+            m_pendingChunkGenerations.insert(chunkKey);
+        }
+        // Currently, forceUpdateMeshes triggers a full regeneration based on MapData.
+        // A more granular approach would be needed to request specific chunks.
+        // For now, this ensures that if missing chunks are detected, a regeneration is queued.
+        forceUpdateMeshes();
+    }
+}
+
+std::optional<glm::vec3> MapCanvas::getUnprojectedScreenPos(const glm::vec2& screenPos) const {
+    // unproject is a member of MapCanvasViewport, which MapCanvas inherits from.
+    return this->unproject(screenPos.x, screenPos.y);
+}
+
+void MapCanvas::updateVisibleChunks() {
+    m_visibleChunks.clear(); // Clear all layers
+
+    const auto tl_opt = getUnprojectedScreenPos(glm::vec2(0.0f, 0.0f));
+    const auto br_opt = getUnprojectedScreenPos(glm::vec2(static_cast<float>(width()), static_cast<float>(height())));
+
+    if (!tl_opt || !br_opt) {
+        // This can happen if the projection isn't set up yet (e.g. window too small, or before first resizeGL)
+        return;
+    }
+
+    // Use floor to ensure we get the integer coordinate containing the point or to its left/bottom
+    const glm::vec2 worldTopLeft(std::floor(tl_opt->x), std::floor(tl_opt->y));
+    const glm::vec2 worldBottomRight(std::floor(br_opt->x), std::floor(br_opt->y));
+
+    int minChunkX = static_cast<int>(worldTopLeft.x) / CHUNK_SIZE_X;
+    int maxChunkX = static_cast<int>(worldBottomRight.x) / CHUNK_SIZE_X;
+    int minChunkY = static_cast<int>(worldTopLeft.y) / CHUNK_SIZE_Y;
+    int maxChunkY = static_cast<int>(worldBottomRight.y) / CHUNK_SIZE_Y;
+
+    // Adjust for negative coordinates based on the logic in getChunkIdForRoom
+    if (static_cast<int>(worldTopLeft.x) < 0 && (static_cast<int>(worldTopLeft.x) % CHUNK_SIZE_X != 0)) minChunkX--;
+    if (static_cast<int>(worldBottomRight.x) < 0 && (static_cast<int>(worldBottomRight.x) % CHUNK_SIZE_X != 0)) maxChunkX--;
+    if (static_cast<int>(worldTopLeft.y) < 0 && (static_cast<int>(worldTopLeft.y) % CHUNK_SIZE_Y != 0)) minChunkY--;
+    if (static_cast<int>(worldBottomRight.y) < 0 && (static_cast<int>(worldBottomRight.y) % CHUNK_SIZE_Y != 0)) maxChunkY--;
+
+    if (minChunkX > maxChunkX) std::swap(minChunkX, maxChunkX);
+    if (minChunkY > maxChunkY) std::swap(minChunkY, maxChunkY);
+
+    // Add a margin of 1 chunk around the visible area
+    minChunkX -= 1;
+    maxChunkX += 1;
+    minChunkY -= 1;
+    maxChunkY += 1;
+
+    const int maxOffset = getConfig().canvas.maxVisibleLayerOffset.get();
+    const int minRenderLayer = m_currentLayer - maxOffset;
+    const int maxRenderLayer = m_currentLayer + maxOffset;
+
+    for (int layerToUpdate = minRenderLayer; layerToUpdate <= maxRenderLayer; ++layerToUpdate) {
+        std::set<ChunkId> visibleInLayer;
+        for (int cy = minChunkY; cy <= maxChunkY; ++cy) {
+            for (int cx = minChunkX; cx <= maxChunkX; ++cx) {
+                // This calculation must match getChunkIdForRoom in MapCanvasRoomDrawer.cpp
+                visibleInLayer.insert(cx + cy * NUM_CHUNKS_X_DIMENSION);
+            }
+        }
+        if (!visibleInLayer.empty()) {
+            m_visibleChunks[layerToUpdate] = visibleInLayer;
+        }
+    }
 }
 
 void MapCanvas::forceUpdateMeshes()

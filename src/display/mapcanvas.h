@@ -23,6 +23,7 @@
 #include <memory>
 #include <optional>
 #include <set>
+#include <utility> // For std::pair
 #include <vector>
 
 #include <glm/glm.hpp>
@@ -109,6 +110,10 @@ private:
     FrameRateController m_frameRateController;
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
     Signal2Lifetime m_lifetime;
+
+    // Visible chunk tracking
+    std::map<int, std::set<ChunkId>> m_visibleChunks;
+    std::set<std::pair<int, ChunkId>> m_pendingChunkGenerations;
 
 public:
     explicit MapCanvas(MapData &mapData,
@@ -285,4 +290,9 @@ public slots:
 
     void slot_onMessageLoggedDirect(const QOpenGLDebugMessage &message);
     void slot_infomarksChanged() { infomarksChanged(); }
+
+private:
+    void updateVisibleChunks();
+    std::optional<glm::vec3> getUnprojectedScreenPos(const glm::vec2& screenPos) const;
+    void requestMissingChunks();
 };

@@ -7,6 +7,8 @@
 
 #include <map>
 
+using ChunkId = int;
+
 template<typename T>
 using RoomTintArray = EnumIndexedArray<T, RoomTintEnum, NUM_ROOM_TINTS>;
 
@@ -34,13 +36,13 @@ struct NODISCARD LayerMeshes final
 };
 
 // This must be ordered so we can iterate over the layers from lowest to highest.
-using BatchedMeshes = std::map<int, LayerMeshes>;
+using ChunkedLayerMeshes = std::map<ChunkId, LayerMeshes>;
 
 struct NODISCARD MapBatches final
 {
-    BatchedMeshes batchedMeshes;
-    BatchedConnectionMeshes connectionMeshes;
-    BatchedRoomNames roomNameBatches;
+    std::map<int, ChunkedLayerMeshes> batchedMeshes;
+    std::map<int, std::map<ChunkId, ConnectionMeshes>> connectionMeshes; // Updated
+    std::map<int, std::map<ChunkId, UniqueMesh>> roomNameBatches; // Updated
 
     MapBatches() = default;
     ~MapBatches() = default;

@@ -87,12 +87,12 @@ NODISCARD static ChunkId getChunkIdForRoom(const Coordinate& roomCoord) {
     return chunkX + chunkY * NUM_CHUNKS_X_DIMENSION;
 }
 
-struct NODISCARD VisitRoomOptions final
-{
-    SharedCanvasNamedColorOptions canvasColors;
-    SharedNamedColorOptions colorSettings;
-    bool drawNotMappedExits = false;
-};
+// struct NODISCARD VisitRoomOptions final // Moved to .h
+// {
+//     SharedCanvasNamedColorOptions canvasColors;
+//     SharedNamedColorOptions colorSettings;
+//     bool drawNotMappedExits = false;
+// };
 
 enum class NODISCARD StreamTypeEnum { OutFlow, InFlow };
 enum class NODISCARD WallTypeEnum { SOLID, DOTTED, DOOR };
@@ -892,22 +892,17 @@ NODISCARD static LayerBatchData generateLayerMeshes(const RoomVector &rooms, // 
     return data;
 }
 
-struct NODISCARD InternalData final : public IMapBatchesFinisher
-{
-public:
-    std::unordered_map<int, std::map<ChunkId, LayerBatchData>> batchedMeshes;
-    // BatchedConnections was std::unordered_map<int, ConnectionDrawerBuffers>
-    // New type: std::map<layerId, std::map<ChunkId, ConnectionDrawerBuffers>>
-    std::map<int, std::map<ChunkId, ConnectionDrawerBuffers>> connectionDrawerBuffers;
-    // Old roomNameBatches was std::unordered_map<int, RoomNameBatch>
-    // New type: std::map<layerId, std::map<ChunkId, RoomNameBatch>>
-    std::map<int, std::map<ChunkId, RoomNameBatch>> roomNameBatches;
+// struct NODISCARD InternalData final : public IMapBatchesFinisher // Moved to .h
+// {
+// public:
+//     std::unordered_map<int, std::map<ChunkId, LayerBatchData>> batchedMeshes;
+//     std::map<int, std::map<ChunkId, ConnectionDrawerBuffers>> connectionDrawerBuffers;
+//     std::map<int, std::map<ChunkId, RoomNameBatch>> roomNameBatches;
+// private:
+//     void virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const final;
+// };
 
-private:
-    void virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const final;
-};
-
-static void generateAllLayerMeshes(InternalData &internalData,
+static void generateAllLayerMeshes(InternalData &internalData, // Type already InternalData due to previous changes
                                    const LayerToRooms &layerToRooms,
                                    const mctp::MapCanvasTexturesProxy &textures,
                                    const VisitRoomOptions &visitRoomOptions)
@@ -967,7 +962,8 @@ static void generateAllLayerMeshes(InternalData &internalData,
     }
 }
 
-void generateSpecificLayerMeshes(IMapBatchesFinisher::InternalData &internalData,
+// Changed first parameter type from IMapBatchesFinisher::InternalData& to InternalData&
+void generateSpecificLayerMeshes(InternalData &internalData,
                                  const Map &map,
                                  const std::vector<std::pair<int, ChunkId>>& chunksToGenerate,
                                  const mctp::MapCanvasTexturesProxy &textures,

@@ -29,9 +29,43 @@
 #include <QColor>
 #include <QtCore>
 
+// Forward declarations
 class OpenGL;
 class QOpenGLTexture;
-struct MapCanvasTextures;
+struct MapCanvasTextures; // Defined in Textures.h, but forward declaration is fine if only pointers/references used.
+                          // However, mctp::MapCanvasTexturesProxy uses it, which is included by MapCanvasData.h->Textures.h
+
+// Moved from MapCanvasRoomDrawer.cpp
+// Depends on SharedCanvasNamedColorOptions and SharedNamedColorOptions from MapCanvasData.h -> configuration.h
+struct NODISCARD VisitRoomOptions final
+{
+    SharedCanvasNamedColorOptions canvasColors;
+    SharedNamedColorOptions colorSettings;
+    bool drawNotMappedExits = false;
+};
+
+// Moved from MapCanvasRoomDrawer.cpp
+// Depends on IMapBatchesFinisher (IMapBatchesFinisher.h)
+// Depends on ChunkId, LayerBatchData, RoomNameBatch (MapBatches.h)
+// Depends on ConnectionDrawerBuffers (Connections.h)
+// Depends on OpenGL, GLFont for virt_finish signature (OpenGL.h, Font.h)
+struct NODISCARD InternalData final : public IMapBatchesFinisher
+{
+public:
+    // Key: layerId, Value: map of ChunkId to its LayerBatchData
+    std::unordered_map<int, std::map<ChunkId, LayerBatchData>> batchedMeshes;
+
+    // Key: layerId, Value: map of ChunkId to its ConnectionDrawerBuffers
+    std::map<int, std::map<ChunkId, ConnectionDrawerBuffers>> connectionDrawerBuffers;
+
+    // Key: layerId, Value: map of ChunkId to its RoomNameBatch
+    std::map<int, std::map<ChunkId, RoomNameBatch>> roomNameBatches;
+
+private:
+    // Implementation remains in MapCanvasRoomDrawer.cpp
+    void virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const final;
+};
+
 
 using RoomVector = std::vector<RoomHandle>;
 using LayerToRooms = std::map<int, RoomVector>;
@@ -177,7 +211,8 @@ generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures, const Map 
 NODISCARD FutureSharedMapBatchFinisher
 generateSpecificMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures, const Map &map, const std::vector<std::pair<int, ChunkId>>& chunksToGenerate);
 
-void generateSpecificLayerMeshes(IMapBatchesFinisher::InternalData &internalData,
+// Changed first parameter type from IMapBatchesFinisher::InternalData& to InternalData&
+void generateSpecificLayerMeshes(InternalData &internalData,
                                  const Map &map,
                                  const std::vector<std::pair<int, ChunkId>>& chunksToGenerate,
                                  const mctp::MapCanvasTexturesProxy &textures,

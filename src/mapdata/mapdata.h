@@ -5,6 +5,7 @@
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
+#include "../display/MapBatches.h" // For ChunkId
 #include "../display/IMapBatchesFinisher.h"
 #include "../map/Changes.h"
 #include "../map/DoorFlags.h"

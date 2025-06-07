@@ -1913,7 +1913,7 @@ void World::apply(ProgressCounter & /*pc*/, const room_change_types::ModifyRoomF
             if constexpr (std::is_same_v<T, RoomArea>) {
                 RoomArea oldArea = m_rooms.getRoomArea(id);
                 RoomArea newArea = x; // Assuming x is the new RoomArea value from the change
-                Coordinate roomCoord = getPosition(id);
+                // Coordinate roomCoord = getPosition(id); // Unused variable removed
 
                 if (oldArea != newArea) { // Only proceed if area actually changes
                     m_areaInfos.remove(oldArea, id); // Reverted

@@ -915,25 +915,22 @@ void LayerMeshes::render(const int thisLayer, const int focusedLayer)
     // Render specific tint meshes (now looped)
     for (size_t i = 0; i < NUM_ROOM_TINTS; ++i) {
         if (tints[i].isValid()) {
-            XNamedColor namedColor;
+            std::optional<Color> optColor;
             if (i == TintIndices::DARK) {
-                namedColor = LOOKUP_COLOR(ROOM_DARK);
+                optColor = getColor(LOOKUP_COLOR(ROOM_DARK));
             } else if (i == TintIndices::NO_SUNDEATH) {
-                namedColor = LOOKUP_COLOR(ROOM_NO_SUNDEATH);
+                optColor = getColor(LOOKUP_COLOR(ROOM_NO_SUNDEATH));
             } else {
-                // This case should ideally not be reached if NUM_ROOM_TINTS and TintIndices are consistent.
-                // However, to be safe, one might log an error or simply continue.
-                // For now, this will mean no color is found, and thus no rendering for this index.
-                // Alternatively, assert(false) or throw an exception if this state is considered invalid.
+                // This case implies NUM_ROOM_TINTS might be > 2 or TintIndices are not just 0, 1.
+                // For safety with current NUM_ROOM_TINTS = 2, this path might not be hit.
+                // If it can be hit due to future changes, ensure optColor remains std::nullopt or handle appropriately.
                 continue;
             }
 
-            if (const auto optColor = getColor(namedColor)) {
+            if (optColor) { // Check if getColor returned a valid color (it wasn't transparent)
+                // 'equal_multiplied' should be an existing GLRenderState variable in this function
                 tints[i].render(equal_multiplied.withColor(optColor.value()));
             }
-            // else {
-            //     assert(false); // If a tint mesh is valid, its color should ideally be resolvable.
-            // }
         }
     }
 

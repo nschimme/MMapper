@@ -191,13 +191,7 @@ NODISCARD auto World::getArea(const std::optional<RoomArea> &area) const -> cons
     return m_areaInfos.get(area);
 }
 
-std::optional<Bounds> World::getAreaBounds(const RoomArea& areaName) const {
-    // findArea takes std::optional<RoomArea>, so wrap areaName.
-    if (const AreaInfo* areaInfo = findArea(std::optional<RoomArea>(areaName))) {
-        return areaInfo->getBounds(); // AreaInfo::getBounds() returns std::optional<Bounds>
-    }
-    return std::nullopt;
-}
+// Implementation of World::getAreaBounds removed as per subtask
 
 const RawRoom *World::getRoom(const RoomId id) const
 {
@@ -940,18 +934,7 @@ void World::moveRelative(const RoomIdSet &rooms, const Coordinate &offset)
     }
 
     // Phase 2: Perform the actual coordinate changes in SpatialDb and RawRooms (m_rooms)
-    for (const auto &op : ops) {
-        // m_spatialDb.remove was already effectively done for these rooms if we consider its state.
-        // However, SpatialDb::move is more direct if available and handles add internally.
-        // The original code did: remove all old, then add all new.
-        // Let's stick to SpatialDb::move if it implies remove(old)+add(new) for robustness.
-        // If not, we must ensure old positions are removed from SpatialDb before new ones are added.
-        // The original loop structure was:
-        // 1. Store MoveInfo(id, newPos), m_spatialDb.remove(id, oldPos) for all rooms
-        // 2. m_spatialDb.add(id, newPos), m_rooms.setPosition(id, newPos) for all rooms
-        // This is safer for m_spatialDb to prevent transient collisions if not using 'move'.
-        // For AreaInfo bounds, the order is remove_bounds_all, then update_coords_all, then insert_bounds_all.
-    }
+    // The empty loop that was here has been removed.
     // Replicating original m_spatialDb logic structure for safety:
     for (const auto &op : ops) {
         m_spatialDb.remove(op.id, op.oldPos);
@@ -1937,7 +1920,7 @@ void World::apply(ProgressCounter & /*pc*/, const room_change_types::ModifyRoomF
 
                     // Apply the actual change to the room's area field
                     auto field = oldArea; // old value
-                    applyChange<Type>(field, newArea, mode); // field becomes newArea (or cleared if mode is CLEAR)
+                    applyChange<T>(field, newArea, mode); // field becomes newArea (or cleared if mode is CLEAR)
                     m_rooms.setRoomArea(id, field); // Update room's area in m_rooms
 
                     // If mode is not CLEAR (i.e., newArea is valid), insert into new area's bounds
@@ -1949,7 +1932,7 @@ void World::apply(ProgressCounter & /*pc*/, const room_change_types::ModifyRoomF
                      // For safety, just ensure the room's area is set as per the change.
                      // No bounds change if area name is identical.
                      auto field = oldArea;
-                     applyChange<Type>(field, newArea, mode);
+                     applyChange<T>(field, newArea, mode); // <<<< AND HERE Type should be T
                      m_rooms.setRoomArea(id, field);
                 }
 

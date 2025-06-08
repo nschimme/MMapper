@@ -132,7 +132,9 @@ private:
             if (m_vao != 0 && m_numVerts > 0) {
                 // virt_bind() (called by bindAttribs()) will set up the VAO.
                 // The AttribUnbinder will call virt_unbind() when it goes out of scope.
-                AttribUnbinder unbinder = bindAttribs();
+                auto programBinder = m_program.bind(); // Bind the program
+                AttribUnbinder unbinder = bindAttribs();   // Call virt_bind to set up attributes
+                // programBinder's destructor will automatically unbind the program
             }
         } else {
             m_drawMode = DrawModeEnum::INVALID;

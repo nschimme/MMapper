@@ -365,6 +365,10 @@ public:
         : m_meshes{std::move(meshes)}
     {}
 
+    // ***** ADD THIS METHOD START *****
+    NODISCARD bool isEmpty() const { return m_meshes.empty(); }
+    // ***** ADD THIS METHOD END *****
+
     void render(const GLRenderState &rs)
     {
         for (auto &mesh : m_meshes) {

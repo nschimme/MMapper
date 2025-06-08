@@ -1107,7 +1107,7 @@ void MapCanvas::renderMapBatches()
                     qDebug() << "[R_RMB_CHK] Attempting to render chunk: Layer -1, Hash 0.";
                     qDebug() << "[R_RMB_CHK]   Mesh object found. meshes.isValid():" << static_cast<bool>(meshes);
                     // Optionally, add more checks here if LayerMeshes has simple public 'empty' or 'vertex_count' accessors for its components
-                    qDebug() << "[R_RMB_CHK]   meshes.terrain.size() == 0:" << (meshes.terrain.size() == 0);
+                    qDebug() << "[R_RMB_CHK]   meshes.terrain.isEmpty():" << meshes.terrain.isEmpty();
                 }
                 // ***** ADD THIS BLOCK END *****
 

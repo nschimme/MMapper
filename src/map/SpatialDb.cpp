@@ -210,3 +210,13 @@ void SpatialDb::removeFromQuadtree(RoomId roomId, const Coordinate& coord) {
         it->second.remove(roomId, RoomBounds(coord.x, coord.y, 1.0f, 1.0f));
     }
 }
+
+std::optional<RoomBounds> SpatialDb::getLayerQuadtreeBounds(int layerId) const {
+    auto it = m_layerQuadtrees.find(layerId);
+    if (it != m_layerQuadtrees.end()) {
+        // The Quadtree object itself stores its initial overall bounds.
+        // Quadtree::getBounds() should return this.
+        return it->second.getBounds();
+    }
+    return std::nullopt;
+}

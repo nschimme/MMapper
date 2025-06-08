@@ -46,6 +46,7 @@ public:
     void printStats(ProgressCounter &pc, AnsiOstream &os) const;
     void buildAllQuadtrees(ProgressCounter& pc); // Made non-const, added ProgressCounter
     void clearAllQuadtrees();
+    NODISCARD std::optional<RoomBounds> getLayerQuadtreeBounds(int layerId) const;
 
 private:
    void ensureQuadtreeForLayer(int layerId); // Made non-const

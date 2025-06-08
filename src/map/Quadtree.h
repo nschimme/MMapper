@@ -70,6 +70,15 @@ public:
     bool remove(RoomId id, const RoomBounds& bounds);
     void clear();
 
+    NODISCARD RoomBounds getBounds() const {
+        if (m_root) return m_root->getBounds();
+        // This case should ideally not be reached if the Quadtree is always initialized with a root.
+        // Returning a default (0,0,0,0) or specific "invalid" bounds might be one way,
+        // or an assertion/exception if a Quadtree should never exist without a valid root.
+        // Given the constructor takes bounds, m_root should always be valid.
+        return RoomBounds{};
+    }
+
     // Make these accessible to QuadtreeNode
     int getMaxItemsPerNode() const { return m_maxItemsPerNode; }
     int getMaxLevels() const { return m_maxLevels; }

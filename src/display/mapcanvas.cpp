@@ -1099,6 +1099,8 @@ void MapCanvas::requestMissingChunks() {
     // }
 }
 
+// TODO: Implement for frontier-based expansion
+/*
 void MapCanvas::findNeighboringChunks(
     const std::pair<int, RoomAreaHash>& currentChunkId,
     const Map& currentMap,
@@ -1123,7 +1125,10 @@ void MapCanvas::findNeighboringChunks(
     (void)completedChunks; // Suppress unused parameter warning
     (void)frontierChunks;  // Suppress unused parameter warning
 }
+*/
 
+// TODO: Implement for frontier-based expansion
+/*
 std::map<std::pair<int, RoomAreaHash>, float> MapCanvas::sortFrontierChunksByDistance(
     const std::set<std::pair<int, RoomAreaHash>>& frontierChunks,
     const Coordinate& viewportCenter,
@@ -1147,6 +1152,7 @@ std::map<std::pair<int, RoomAreaHash>, float> MapCanvas::sortFrontierChunksByDis
     }
     return sorted_frontier;
 }
+*/
 
 std::vector<std::pair<int, RoomAreaHash>> MapCanvas::calculateNextPassChunks(
     int passNumber,
@@ -1324,28 +1330,38 @@ void MapCanvas::updateVisibleChunks() {
 
 void MapCanvas::forceUpdateMeshes()
 {
+    qDebug() << "[R_FM] forceUpdateMeshes called.";
+    if (m_data.getCurrentMap().empty()) {
+        qDebug() << "[R_FM] Map is currently empty!";
+    } else {
+        qDebug() << "[R_FM] Map is NOT empty. Room count:" << m_data.getCurrentMap().getRoomsCount();
+    }
+    Coordinate current_viewport_center_coord = Coordinate(static_cast<int>(round(m_mapScreen.getCenter().x)), static_cast<int>(round(m_mapScreen.getCenter().y)), m_currentLayer);
+    qDebug() << "[R_FM] Initial viewport center for remesh (world coords, z=currentLayer):"
+             << current_viewport_center_coord.x << current_viewport_center_coord.y << current_viewport_center_coord.z;
+    qDebug() << "[R_FM] m_currentLayer:" << m_currentLayer;
+
     if (m_batches.remeshCookie.isPending()) {
         m_batches.remeshCookie.setIgnored();
     }
 
     // Convert glm::vec3 from m_mapScreen.getCenter() to Coordinate
-    glm::vec3 center_glm = m_mapScreen.getCenter();
-    Coordinate viewportCenter(static_cast<int>(round(center_glm.x)),
-                              static_cast<int>(round(center_glm.y)),
-                              static_cast<int>(round(center_glm.z)));
-
-    // If the Z coordinate from mapScreen is not the current layer, prioritize m_currentLayer.
-    // This can happen if getCenter() returns a Z that's averaged or not layer-specific.
-    if (viewportCenter.z != m_currentLayer) {
-        qDebug() << "Viewport center Z (" << viewportCenter.z << ") != current layer (" << m_currentLayer << "). Adjusting.";
-        viewportCenter.z = m_currentLayer;
-    }
+    // Use the already created current_viewport_center_coord for consistency in this initial setup.
+    // The RemeshCookie will store its own viewportCenter based on what's passed to initIterativeRemesh.
+    Coordinate viewportCenter = current_viewport_center_coord; // Using the logged one.
+    // The check for viewportCenter.z vs m_currentLayer was already done for current_viewport_center_coord.
 
     m_batches.remeshCookie.initIterativeRemesh(viewportCenter);
     m_batches.mapBatches.reset(); // Clear existing fully rendered batches
     m_pendingChunkGenerations.clear();
 
     updateVisibleChunks(); // This populates this->m_visibleChunks based on current view and m_currentLayer
+
+    qDebug() << "[R_FM] After updateVisibleChunks():";
+    qDebug() << "[R_FM] m_visibleChunks size (number of layers with visible chunks):" << m_visibleChunks.size();
+    for (const auto& layerPair : m_visibleChunks) {
+        qDebug() << "[R_FM]   Layer" << layerPair.first << "has" << layerPair.second.size() << "visible chunk hashes.";
+    }
 
     std::vector<std::pair<int, RoomAreaHash>> initialPassChunks;
     // Prioritize current layer's visible chunks
@@ -1366,6 +1382,16 @@ void MapCanvas::forceUpdateMeshes()
 
     // Sort initialPassChunks to group by layer, then by hash (optional, but can be good for determinism)
     std::sort(initialPassChunks.begin(), initialPassChunks.end());
+
+    qDebug() << "[R_FM] initialPassChunks size:" << initialPassChunks.size();
+    if (initialPassChunks.empty()) {
+        qDebug() << "[R_FM] initialPassChunks is EMPTY.";
+    } else {
+        qDebug() << "[R_FM] First few initialPassChunks (max 5):";
+        for (int i = 0; i < std::min((int)initialPassChunks.size(), 5); ++i) {
+            qDebug() << "[R_FM]   Layer:" << initialPassChunks[i].first << "Hash:" << initialPassChunks[i].second;
+        }
+    }
 
     if (!initialPassChunks.empty()) {
         for(const auto& chunkKey : initialPassChunks) {

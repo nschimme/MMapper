@@ -303,14 +303,16 @@ private:
         const std::set<std::pair<int, RoomAreaHash>>& completedChunks,
         const Map& currentMap);
 
-    void findNeighboringChunks(
-        const std::pair<int, RoomAreaHash>& chunk,
-        const Map& currentMap,
-        const std::set<std::pair<int, RoomAreaHash>>& completedChunks,
-        std::set<std::pair<int, RoomAreaHash>>& frontierChunks);
+    // TODO: Implement for frontier-based expansion
+    // void findNeighboringChunks(
+    //     const std::pair<int, RoomAreaHash>& chunk,
+    //     const Map& currentMap,
+    //     const std::set<std::pair<int, RoomAreaHash>>& completedChunks,
+    //     std::set<std::pair<int, RoomAreaHash>>& frontierChunks);
 
-    std::map<std::pair<int, RoomAreaHash>, float> sortFrontierChunksByDistance(
-        const std::set<std::pair<int, RoomAreaHash>>& frontierChunks,
-        const Coordinate& viewportCenter,
-        const Map& currentMap);
+    // TODO: Implement for frontier-based expansion
+    // std::map<std::pair<int, RoomAreaHash>, float> sortFrontierChunksByDistance(
+    //     const std::set<std::pair<int, RoomAreaHash>>& frontierChunks,
+    //     const Coordinate& viewportCenter,
+    //     const Map& currentMap);
 };

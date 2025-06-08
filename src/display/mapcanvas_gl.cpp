@@ -526,6 +526,7 @@ void MapCanvas::setViewportAndMvp(int width, int height)
     const auto viewProj = (!want3D) ? getViewProj_old(m_scroll, size, zoomScale, m_currentLayer)
                                     : getViewProj(m_scroll, size, zoomScale, m_currentLayer);
     setMvp(viewProj);
+    updateFrustumPlanes(); // This calls the protected method from MapCanvasViewport
 }
 
 void MapCanvas::resizeGL(int width, int height)

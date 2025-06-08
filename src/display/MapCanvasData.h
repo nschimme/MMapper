@@ -9,6 +9,7 @@
 #include "../mapdata/mapdata.h"
 #include "../mapdata/roomselection.h"
 #include "../opengl/OpenGL.h"
+#include <array> // Required for std::array
 #include "CanvasMouseModeEnum.h"
 #include "RoadIndex.h"
 #include "connectionselection.h"
@@ -100,6 +101,7 @@ struct NODISCARD MapCanvasViewport
 {
 private:
     QWidget &m_sizeWidget;
+    std::array<glm::vec4, 6> m_frustumPlanes;
 
 public:
     glm::mat4 m_viewProj{1.f};
@@ -129,6 +131,11 @@ public:
     NODISCARD std::optional<glm::vec3> unproject(const QInputEvent *event) const;
     NODISCARD std::optional<MouseSel> getUnprojectedMouseSel(const QInputEvent *event) const;
     NODISCARD glm::vec2 getMouseCoords(const QInputEvent *event) const;
+
+    const std::array<glm::vec4, 6>& getFrustumPlanes() const { return m_frustumPlanes; }
+
+protected:
+    void updateFrustumPlanes();
 };
 
 class NODISCARD MapScreen final

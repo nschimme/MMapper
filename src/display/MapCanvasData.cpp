@@ -8,6 +8,7 @@
 #include <optional>
 
 #include <QPointF>
+#include <glm/geometric.hpp> // Required for glm::length
 
 // Removed getAllRoomTints() function as RoomTintEnum and related constants have been removed/refactored.
 // const MMapper::Array<RoomTintEnum, NUM_ROOM_TINTS> &getAllRoomTints()
@@ -22,6 +23,33 @@ MapCanvasInputState::MapCanvasInputState(PrespammedPath &prespammedPath)
 {}
 
 MapCanvasInputState::~MapCanvasInputState() = default;
+
+void MapCanvasViewport::updateFrustumPlanes() {
+    const glm::mat4& M = m_viewProj;
+
+    // Manual extraction of rows for clarity with column-major glm::mat4
+    // M[column][row]
+    glm::vec4 row0 = glm::vec4(M[0][0], M[1][0], M[2][0], M[3][0]);
+    glm::vec4 row1 = glm::vec4(M[0][1], M[1][1], M[2][1], M[3][1]);
+    glm::vec4 row2 = glm::vec4(M[0][2], M[1][2], M[2][2], M[3][2]);
+    glm::vec4 row3 = glm::vec4(M[0][3], M[1][3], M[2][3], M[3][3]);
+
+    m_frustumPlanes[0] = row3 + row0; // Left
+    m_frustumPlanes[1] = row3 - row0; // Right
+    m_frustumPlanes[2] = row3 + row1; // Bottom
+    m_frustumPlanes[3] = row3 - row1; // Top
+    m_frustumPlanes[4] = row3 + row2; // Near
+    m_frustumPlanes[5] = row3 - row2; // Far
+
+    // Normalize each plane
+    for (int i = 0; i < 6; ++i) {
+        // For plane (A,B,C,D), normal is (A,B,C)
+        float normal_length = glm::length(glm::vec3(m_frustumPlanes[i].x, m_frustumPlanes[i].y, m_frustumPlanes[i].z));
+        if (normal_length > 1e-6f) { // Avoid division by zero or near-zero
+            m_frustumPlanes[i] /= normal_length;
+        }
+    }
+}
 
 // world space to screen space (logical pixels)
 std::optional<glm::vec3> MapCanvasViewport::project(const glm::vec3 &v) const
@@ -149,48 +177,39 @@ glm::vec3 MapScreen::getCenter() const
     return m_viewport.unproject_clamped(glm::vec2{vp.offset} + glm::vec2{vp.size} * 0.5f);
 }
 
-bool MapScreen::isRoomVisible(const Coordinate &c, const float marginPixels) const
+bool MapScreen::isRoomVisible(const Coordinate &c, const float /*marginPixels*/) const
 {
-    glm::vec3 world_p0 = c.to_vec3();
-    glm::vec3 world_px = world_p0 + glm::vec3(1.0f, 0.0f, 0.0f);
-    glm::vec3 world_py = world_p0 + glm::vec3(0.0f, 1.0f, 0.0f);
+    const std::array<glm::vec4, 6>& frustumPlanes = m_viewport.getFrustumPlanes();
 
-    std::optional<glm::vec3> opt_screen_p0 = m_viewport.project(world_p0);
-    std::optional<glm::vec3> opt_screen_px = m_viewport.project(world_px);
-    std::optional<glm::vec3> opt_screen_py = m_viewport.project(world_py);
+    glm::vec3 roomMin = c.to_vec3();
+    // Rooms are 1x1 in XY, and Z extent is 0 for this check (flat AABB)
+    glm::vec3 roomMax = roomMin + glm::vec3(1.0f, 1.0f, 0.0f);
 
-    if (!opt_screen_p0 || !opt_screen_px || !opt_screen_py) {
-        return false; // Room is not visible or its screen extent cannot be determined
+    for (int i = 0; i < 6; ++i) {
+        const glm::vec4& plane = frustumPlanes[i]; // plane is (Nx, Ny, Nz, D)
+
+        // Determine the p-vertex (vertex of AABB "most positive" along the plane's normal direction)
+        glm::vec3 pVertex = roomMin;
+        if (plane.x > 0.0f) {
+            pVertex.x = roomMax.x;
+        }
+        if (plane.y > 0.0f) {
+            pVertex.y = roomMax.y;
+        }
+        if (plane.z > 0.0f) {
+            // If roomMax.z can be different from roomMin.z, use it here.
+            // For a flat AABB (height 0), roomMax.z == roomMin.z, so this line is okay as is.
+            pVertex.z = roomMax.z;
+        }
+
+        // Check if this p-vertex is on the "outside" side of the plane.
+        // Plane normals point inwards, so dot(normal, point) + D < 0 is outside.
+        if (glm::dot(glm::vec3(plane.x, plane.y, plane.z), pVertex) + plane.w < 0.0f) {
+            return false; // The entire AABB is outside this plane, so it's culled.
+        }
     }
 
-    glm::vec2 s_p0 = glm::vec2(opt_screen_p0.value());
-    glm::vec2 s_px = glm::vec2(opt_screen_px.value());
-    glm::vec2 s_py = glm::vec2(opt_screen_py.value());
-
-    glm::vec2 v_x = s_px - s_p0;
-    glm::vec2 v_y = s_py - s_p0;
-
-    glm::vec2 s_p00 = s_p0;
-    glm::vec2 s_p10 = s_p0 + v_x; // This is s_px effectively
-    glm::vec2 s_p01 = s_p0 + v_y; // This is s_py effectively
-    glm::vec2 s_p11 = s_p0 + v_x + v_y;
-
-    float room_screen_min_x = std::min({s_p00.x, s_p10.x, s_p01.x, s_p11.x});
-    float room_screen_max_x = std::max({s_p00.x, s_p10.x, s_p01.x, s_p11.x});
-    float room_screen_min_y = std::min({s_p00.y, s_p10.y, s_p01.y, s_p11.y});
-    float room_screen_max_y = std::max({s_p00.y, s_p10.y, s_p01.y, s_p11.y});
-
-    const Viewport& vp_rect = m_viewport.getViewport();
-    float vp_min_x = static_cast<float>(vp_rect.offset.x) - marginPixels;
-    float vp_max_x = static_cast<float>(vp_rect.offset.x) + static_cast<float>(vp_rect.size.x) + marginPixels;
-    float vp_min_y = static_cast<float>(vp_rect.offset.y) - marginPixels;
-    float vp_max_y = static_cast<float>(vp_rect.offset.y) + static_cast<float>(vp_rect.size.y) + marginPixels;
-
-    bool overlap = (room_screen_max_x > vp_min_x &&
-                  room_screen_min_x < vp_max_x &&
-                  room_screen_max_y > vp_min_y &&
-                  room_screen_min_y < vp_max_y);
-    return overlap;
+    return true; // Room's AABB intersects or is inside the frustum
 }
 
 // Purposely ignores the possibility of glClipPlane() and glDepthRange().

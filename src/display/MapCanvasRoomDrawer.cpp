@@ -182,7 +182,7 @@ NODISCARD LayerMeshes LayerBatchData::getMeshes(OpenGL &gl) const
     qDebug() << "[LBD_GM_R2]   Returned meshes.overlays.isEmpty():" << meshes.overlays.isEmpty();
     qDebug() << "[LBD_GM_R2]   Returned meshes.doors.isEmpty():" << meshes.doors.isEmpty();
     qDebug() << "[LBD_GM_R2]   Returned meshes.walls.isEmpty():" << meshes.walls.isEmpty();
-    qDebug() << "[LBD_GM_R2]   Returned meshes.dottedWallLines.isEmpty():" << meshes.dottedWalls.isEmpty();
+    qDebug() << "[LBD_GM_R2]   Returned meshes.dottedWallLines.isEmpty():" << meshes.dottedWallLines.isEmpty();
     qDebug() << "[LBD_GM_R2]   Returned meshes.upDownExits.isEmpty():" << meshes.upDownExits.isEmpty();
     // Note: meshes.tints is an array, meshes.layerBoost is a single UniqueMesh. isEmpty() might not apply directly.
     // For UniqueMesh, it's meshes.tints[i].isValid() or meshes.layerBoost.isValid()
@@ -827,6 +827,7 @@ void generateSpecificLayerMeshes(InternalData &internalData,
                                  const mctp::MapCanvasTexturesProxy &textures,
                                  const VisitRoomOptions &visitRoomOptions)
 {
+    qDebug() << "[GSLM] generateSpecificLayerMeshes called. Number of chunksToGenerate:" << chunksToGenerate.size();
     const OptBounds bounds{}; // Use default OptBounds, similar to generateAllLayerMeshes
 
     DECL_TIMER(t, "generateSpecificLayerMeshes");
@@ -834,6 +835,7 @@ void generateSpecificLayerMeshes(InternalData &internalData,
     for (const auto& chunk_info : chunksToGenerate) {
         const int layerId = chunk_info.first;
         const RoomAreaHash roomAreaHash = chunk_info.second;
+        qDebug() << "[GSLM] Processing chunk: Layer" << layerId << "Hash" << roomAreaHash;
 
         RoomVector rooms_for_this_chunk_layer;
         // Collect rooms for the specific layerId and roomAreaHash
@@ -845,16 +847,31 @@ void generateSpecificLayerMeshes(InternalData &internalData,
                 }
             }
         }
+        qDebug() << "[GSLM]   Collected" << rooms_for_this_chunk_layer.size() << "rooms for this chunk.";
 
         // if (rooms_for_this_chunk_layer.empty()) { // Removed conditional skip
         //     continue;
         // }
 
         DECL_TIMER(t_chunk, "generateSpecificLayerMeshes.loop.generateSingleChunkMeshes");
+
+        qDebug() << "[GSLM]   About to call ::generateLayerMeshes and assign to internalData.batchedMeshes for Layer" << layerId << "Hash" << roomAreaHash;
         // Generate meshes for rooms in this specific chunk and layer, even if rooms_for_this_chunk_layer is empty.
         // ::generateLayerMeshes is expected to handle an empty RoomVector and return an empty LayerBatchData.
         internalData.batchedMeshes[layerId][roomAreaHash] =
             ::generateLayerMeshes(rooms_for_this_chunk_layer, roomAreaHash, textures, bounds, visitRoomOptions);
+
+        qDebug() << "[GSLM]   Assigned LayerBatchData. internalData.batchedMeshes size (num layers):" << internalData.batchedMeshes.size();
+        if (internalData.batchedMeshes.count(layerId)) {
+            qDebug() << "[GSLM]     internalData.batchedMeshes[" << layerId << "] size (num chunks in this layer):" << internalData.batchedMeshes.at(layerId).size();
+            if (internalData.batchedMeshes.at(layerId).count(roomAreaHash)) {
+                 qDebug() << "[GSLM]     Chunk" << layerId << "," << roomAreaHash << "is now present in internalData.batchedMeshes.";
+            } else {
+                 qDebug() << "[GSLM]     ERROR: Chunk" << layerId << "," << roomAreaHash << "NOT found after assignment attempt!";
+            }
+        } else {
+            qDebug() << "[GSLM]     ERROR: Layer" << layerId << "NOT found in internalData.batchedMeshes after assignment attempt!";
+        }
 
         // Ensure connection and room name batches are at least cleared/default-constructed.
         ConnectionDrawerBuffers& cdb_chunk = internalData.connectionDrawerBuffers[layerId][roomAreaHash];
@@ -868,6 +885,16 @@ void generateSpecificLayerMeshes(InternalData &internalData,
             for (const auto &room : rooms_for_this_chunk_layer) {
                 cd.drawRoomConnectionsAndDoors(room);
             }
+        }
+
+        qDebug() << "[GSLM]   After populating locals for connections and names for Layer" << layerId << "Hash" << roomAreaHash;
+        qDebug() << "[GSLM]   internalData.connectionDrawerBuffers size (num layers):" << internalData.connectionDrawerBuffers.size();
+        if (internalData.connectionDrawerBuffers.count(layerId)) {
+             qDebug() << "[GSLM]     internalData.connectionDrawerBuffers[" << layerId << "] size (num chunks):" << internalData.connectionDrawerBuffers.at(layerId).size();
+        }
+        qDebug() << "[GSLM]   internalData.roomNameBatches size (num layers):" << internalData.roomNameBatches.size();
+        if (internalData.roomNameBatches.count(layerId)) {
+             qDebug() << "[GSLM]     internalData.roomNameBatches[" << layerId << "] size (num chunks):" << internalData.roomNameBatches.at(layerId).size();
         }
     }
 }
@@ -971,7 +998,6 @@ void LayerMeshes::render(const int thisLayer, const int focusedLayer)
 
 void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const
 {
-    qDebug() << "grabbing layers";
     for (const auto &layer_kv : batchedMeshes) {
         // auto& output_chunked_layer_meshes = output.batchedMeshes[layer_kv.first]; // Old way
         for (const auto &chunk_kv : layer_kv.second) {
@@ -979,11 +1005,11 @@ void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) con
             RoomAreaHash current_processing_hash = chunk_kv.first;
 
             if (current_processing_layer == -1 && current_processing_hash == 0) {
-                qDebug() << "[ID_VF] InternalData::virt_finish: Processing chunk Layer -1, Hash 0.";
+                qDebug() << "[ID_VF_R2] InternalData::virt_finish: Processing chunk Layer -1, Hash 0."; // Changed prefix
                 const LayerBatchData& lbd_for_chunk = chunk_kv.second;
-                qDebug() << "[ID_VF]   LayerBatchData for this chunk - roomTerrains size:" << lbd_for_chunk.roomTerrains.size();
-                qDebug() << "[ID_VF]   LayerBatchData for this chunk - doors size:" << lbd_for_chunk.doors.size();
-                qDebug() << "[ID_VF]   LayerBatchData for this chunk - solidWallLines size:" << lbd_for_chunk.solidWallLines.size();
+                qDebug() << "[ID_VF_R2]   LayerBatchData for this chunk - roomTerrains size:" << lbd_for_chunk.roomTerrains.size();
+                qDebug() << "[ID_VF_R2]   LayerBatchData for this chunk - doors size:" << lbd_for_chunk.doors.size();
+                qDebug() << "[ID_VF_R2]   LayerBatchData for this chunk - solidWallLines size:" << lbd_for_chunk.solidWallLines.size();
             }
 
             // output_chunked_layer_meshes[chunk_kv.first] = chunk_kv.second.getMeshes(gl); // Old way
@@ -996,8 +1022,8 @@ void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) con
                     auto chunk_it = layer_it->second.find(current_processing_hash);
                     if (chunk_it != layer_it->second.end()) {
                         const LayerMeshes& inserted_meshes = chunk_it->second;
-                        qDebug() << "[ID_VF]   Post getMeshes & assign for (-1,0): inserted_meshes.isValid:" << inserted_meshes.isValid;
-                        qDebug() << "[ID_VF]   Post getMeshes & assign for (-1,0): inserted_meshes.terrain.isEmpty():" << inserted_meshes.terrain.isEmpty();
+                        qDebug() << "[ID_VF_R2]   Post getMeshes & assign for (-1,0): inserted_meshes.isValid:" << inserted_meshes.isValid; // Changed prefix
+                        qDebug() << "[ID_VF_R2]   Post getMeshes & assign for (-1,0): inserted_meshes.terrain.isEmpty():" << inserted_meshes.terrain.isEmpty();
                     }
                 }
             }

@@ -304,9 +304,37 @@ void Functions::initializeOpenGLFunctions()
     QOpenGLExtraFunctions *extraFuncs = QOpenGLContext::currentContext()->extraFunctions();
 
     if (extraFuncs) {
-        glGenVertexArrays = [extraFuncs](GLsizei n, GLuint* arrays){ extraFuncs->glGenVertexArrays(n, arrays); };
-        glDeleteVertexArrays = [extraFuncs](GLsizei n, const GLuint* arrays){ extraFuncs->glDeleteVertexArrays(n, arrays); };
-        glBindVertexArray = [extraFuncs](GLuint array){ extraFuncs->glBindVertexArray(array); };
+        this->glGenVertexArrays = [extraFuncs](GLsizei n, GLuint* arrays) {
+            qDebug() << "LAMBDA: glGenVertexArrays - captured extraFuncs ptr: " << static_cast<void*>(extraFuncs);
+            if (extraFuncs) {
+                extraFuncs->glGenVertexArrays(n, arrays);
+                qDebug() << "LAMBDA: glGenVertexArrays - called extraFuncs->glGenVertexArrays. Generated ID(s) (first if any): " << (arrays && n > 0 ? QString::number(*arrays) : QString("N/A or none"));
+            } else {
+                qDebug() << "LAMBDA: glGenVertexArrays - extraFuncs IS NULL AT CALL TIME. Not calling glGenVertexArrays.";
+                // To maintain previous behavior of m_vao possibly staying 0 if gen fails:
+                if (n > 0 && arrays) {
+                    for (GLsizei i = 0; i < n; ++i) arrays[i] = 0; // Explicitly set to 0 if not generated
+                }
+            }
+        };
+        this->glDeleteVertexArrays = [extraFuncs](GLsizei n, const GLuint* arrays) {
+            qDebug() << "LAMBDA: glDeleteVertexArrays - captured extraFuncs ptr: " << static_cast<void*>(extraFuncs);
+            if (extraFuncs) {
+                extraFuncs->glDeleteVertexArrays(n, arrays);
+                qDebug() << "LAMBDA: glDeleteVertexArrays - called extraFuncs->glDeleteVertexArrays for " << n << " arrays.";
+            } else {
+                qDebug() << "LAMBDA: glDeleteVertexArrays - extraFuncs IS NULL AT CALL TIME. Not calling glDeleteVertexArrays.";
+            }
+        };
+        this->glBindVertexArray = [extraFuncs](GLuint array) {
+            qDebug() << "LAMBDA: glBindVertexArray(" << array << ") - captured extraFuncs ptr: " << static_cast<void*>(extraFuncs);
+            if (extraFuncs) {
+                extraFuncs->glBindVertexArray(array);
+                qDebug() << "LAMBDA: glBindVertexArray - called extraFuncs->glBindVertexArray(" << array << ").";
+            } else {
+                qDebug() << "LAMBDA: glBindVertexArray - extraFuncs IS NULL AT CALL TIME. Not calling glBindVertexArray.";
+            }
+        };
     } else {
         // The constructor already set these to critical logging placeholders.
         qCritical("QOpenGLExtraFunctions not available during Functions::initializeOpenGLFunctions. VAO support will be broken.");

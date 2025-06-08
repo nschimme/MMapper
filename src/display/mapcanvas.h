@@ -14,7 +14,7 @@
 #include "Infomarks.h"
 #include "MapCanvasData.h"
 #include "MapCanvasRoomDrawer.h" // For RoomAreaHash (via MapBatches.h), getRoomAreaHash
-#include "src/mapdata/remesh_types.h" // For IterativeRemeshMetadata
+// #include "src/mapdata/remesh_types.h" // For IterativeRemeshMetadata -> This line removed
 #include "Textures.h"
 
 #include <array>

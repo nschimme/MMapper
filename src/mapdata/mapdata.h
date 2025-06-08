@@ -7,10 +7,8 @@
 
 #include "../display/MapBatches.h" // For ChunkId, RoomAreaHash
 #include "../display/IMapBatchesFinisher.h"
+#include "../display/mapcanvas.h"    // For global IterativeRemeshMetadata
 #include "../map/Changes.h"
-// #include "src/mapdata/remesh_types.h" // Will be removed later
-#include "../display/mapcanvas.h"    // For OpenDiablo2::Display::IterativeRemeshMetadata
-#include <optional>                   // For std::optional
 #include "../map/DoorFlags.h"
 #include "../map/ExitDirection.h"
 #include "../map/ExitFieldVariant.h"
@@ -76,7 +74,7 @@ public:
     generateBatches(const mctp::MapCanvasTexturesProxy &textures);
 
     NODISCARD FutureSharedMapBatchFinisher
-    generateSpecificChunkBatches(const mctp::MapCanvasTexturesProxy &textures, const std::vector<std::pair<int, RoomAreaHash>>& chunksToGenerateThisPass, std::optional<OpenDiablo2::Display::IterativeRemeshMetadata> currentIterativeState = std::nullopt);
+    generateSpecificChunkBatches(const mctp::MapCanvasTexturesProxy &textures, const std::vector<std::pair<int, RoomAreaHash>>& chunksToGenerateThisPass, std::optional<IterativeRemeshMetadata> currentIterativeState = std::nullopt);
 
     // REVISIT: convert to template, or functionref after it compiles everywhere?
     void applyChangesToList(const RoomSelection &sel,

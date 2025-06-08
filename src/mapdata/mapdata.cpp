@@ -151,17 +151,12 @@ FutureSharedMapBatchFinisher MapData::generateBatches(const mctp::MapCanvasTextu
 
 FutureSharedMapBatchFinisher MapData::generateSpecificChunkBatches(
     const mctp::MapCanvasTexturesProxy &textures,
-    const std::vector<std::pair<int, RoomAreaHash>>& chunksToGenerateThisPass,
-    std::optional<OpenDiablo2::Display::IterativeRemeshMetadata> currentIterativeState)
+    const std::vector<std::pair<int, RoomAreaHash>>& chunksToGenerateThisPass, // Renamed parameter
+    std::optional<IterativeRemeshMetadata> currentIterativeState) // Added parameter, no namespace
 {
     // Call the global ::generateSpecificMapDataFinisher from MapCanvasRoomDrawer.h
-    // The currentIterativeState will be passed through.
-    // The global function ::generateSpecificMapDataFinisher will need to be updated
-    // in a separate step to accept and use this new parameter.
-    // For now, we assume its signature will be updated accordingly.
-    // If ::generateSpecificMapDataFinisher is not yet updated, this will cause a compile error,
-    // which is expected and will be fixed when ::generateSpecificMapDataFinisher is updated.
-    return ::generateSpecificMapDataFinisher(textures, getCurrentMap(), chunksToGenerateThisPass, std::move(currentIterativeState));
+    // Pass through the new parameters.
+    return ::generateSpecificMapDataFinisher(textures, getCurrentMap(), chunksToGenerateThisPass, currentIterativeState);
 }
 
 void MapData::applyChangesToList(const RoomSelection &sel,

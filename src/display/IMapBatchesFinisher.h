@@ -6,32 +6,27 @@
 
 #include <future>
 #include <memory>
-#include <vector>     // For std::vector
-#include <utility>    // For std::pair
-#include <optional>   // For std::optional
+#include <vector>
+#include <utility> // For std::pair
+#include <optional>
+#include <memory> // Added for std::unique_ptr
 
-// #include "src/mapdata/remesh_types.h" // Old include, will be removed
-#include "mapcanvas.h"    // For OpenDiablo2::Display::IterativeRemeshMetadata
-// Forward declare RoomAreaHash if it's not included via MapBatches.h or mapcanvas.h's includes.
-// For now, assuming MapBatches.h (included next) or mapcanvas.h provides it.
-// If not, #include "src/display/MapBatches.h" for RoomAreaHash might be needed here
-// or ensure remesh_types.h correctly brings it into scope.
+// #include "mapcanvas.h" // Removed
+// Include for MapBatches definition (ensure it's there if not pulled by others)
+#include "MapBatches.h"
+
+struct IterativeRemeshMetadata; // Forward declaration
 
 class GLFont;
 class OpenGL;
-struct MapBatches; // Forward declaration is fine here if full definition is in a .cpp or only used by pointer/reference in header.
-                  // However, FinishedRemeshPayload uses it by value, so MapBatches.h needs to be included.
-#include "src/display/MapBatches.h" // For MapBatches definition and RoomAreaHash
+// MapBatches is now included above if necessary, or forward declared if sufficient
 
-namespace OpenDiablo2 { // Assuming these structs should be within a namespace
-namespace Display {
-
-// Payload for finished remesh operation, potentially part of an iterative process.
+// Placed in global namespace as per plan
 struct FinishedRemeshPayload {
-    MapBatches generatedMeshes; // Requires full definition of MapBatches
-    std::vector<std::pair<int, RoomAreaHash>> chunksCompletedThisPass; // RoomAreaHash from MapBatches.h
+    MapBatches generatedMeshes;
+    std::vector<std::pair<int, RoomAreaHash>> chunksCompletedThisPass;
     bool morePassesNeeded;
-    std::optional<OpenDiablo2::Display::IterativeRemeshMetadata> nextIterativeState; // Updated namespace
+    std::optional<std::unique_ptr<IterativeRemeshMetadata>> nextIterativeState; // Changed to unique_ptr
 };
 
 struct NODISCARD IMapBatchesFinisher
@@ -40,18 +35,18 @@ public:
     virtual ~IMapBatchesFinisher();
 
 private:
+    // Return type changed to global FinishedRemeshPayload
     virtual FinishedRemeshPayload virt_finish(OpenGL &gl, GLFont &font) const = 0;
 
 public:
+    // Return type changed to global FinishedRemeshPayload
     FinishedRemeshPayload finish(OpenGL &gl, GLFont &font) const
     {
         return virt_finish(gl, font);
     }
 };
 
-} // namespace Display
-} // namespace OpenDiablo2
-
-struct NODISCARD SharedMapBatchFinisher final : public std::shared_ptr<const OpenDiablo2::Display::IMapBatchesFinisher>
+// SharedMapBatchFinisher refers to IMapBatchesFinisher, no change needed in its definition itself due to this.
+struct NODISCARD SharedMapBatchFinisher final : public std::shared_ptr<const IMapBatchesFinisher>
 {};
 using FutureSharedMapBatchFinisher = std::future<SharedMapBatchFinisher>;

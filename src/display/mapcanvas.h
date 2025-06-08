@@ -13,11 +13,11 @@
 #include "../opengl/OpenGL.h"
 #include "Infomarks.h"
 #include "MapCanvasData.h"
-#include "MapCanvasRoomDrawer.h" // For RoomAreaHash (via MapBatches.h), getRoomAreaHash
-// #include "src/mapdata/remesh_types.h" // For IterativeRemeshMetadata -> This line removed
-#include "Textures.h"
+#include "Textures.h" // MapCanvasRoomDrawer.h removed
+// #include "MapCanvasRoomDrawer.h" // Removed to break cycle
 
 #include <array>
+#include <memory> // Added for std::unique_ptr
 #include <cstddef>
 #include <cstdint>
 #include <map>
@@ -36,38 +36,17 @@
 #include <QOpenGLWidget>
 #include <QtCore>
 
-// Forward declarations from other headers that might be needed if not already included
-// For IterativeRemeshMetadata members:
-// #include <vector> // Included by QOpenGLWidget or QtCore or other existing includes
-// #include <set>    // Included by QOpenGLWidget or QtCore or other existing includes
-// #include <utility>  // For std::pair, likely included by vector/set or other existing includes
-// RoomAreaHash comes from MapBatches.h -> MapCanvasData.h
-
-namespace OpenDiablo2 {
-namespace Display { // Assuming it should be in this namespace, or a more global one if preferred
-
-// Metadata for iterative remeshing process.
-// This struct is now defined directly in mapcanvas.h
-// It was moved from src/mapdata/remesh_types.h and modified (strategy removed).
+// Definition for IterativeRemeshMetadata, moved to global scope
+// RoomAreaHash is included via MapCanvasData.h -> MapBatches.h
+// std::vector, std::set, std::pair are included by existing includes in this file.
 struct IterativeRemeshMetadata {
-    // All chunks that need to be remeshed in the current iterative process.
     std::vector<std::pair<int, RoomAreaHash>> allTargetChunks;
-
-    // Chunks that have been successfully remeshed in previous passes.
     std::set<std::pair<int, RoomAreaHash>> completedChunks;
-
-    // Current pass number in the iterative remeshing process.
     int currentPassNumber;
-
-    // Chunks currently in the viewport, prioritized in IterativeViewportPriority strategy.
-    // (Strategy itself was removed from this version of the struct)
     std::vector<std::pair<int, RoomAreaHash>> viewportChunks;
 };
 
-} // namespace Display
-} // namespace OpenDiablo2
-
-
+struct Batches; // Forward declaration
 class CharacterBatch;
 class ConnectionSelection;
 class Coordinate;
@@ -91,7 +70,6 @@ class NODISCARD_QOBJECT MapCanvas final : public QOpenGLWidget,
 public:
     static constexpr const int BASESIZE = 1024;
     static constexpr const int SCROLL_SCALE = 64;
-    static constexpr int MAX_CHUNKS_PER_ITERATIVE_PASS = 5;
 
 private:
     struct NODISCARD FrameRateController final
@@ -135,7 +113,7 @@ private:
     MapScreen m_mapScreen;
     OpenGL m_opengl;
     GLFont m_glFont;
-    Batches m_batches;
+    std::unique_ptr<Batches> m_batches; // Changed to unique_ptr
     MapCanvasTextures m_textures;
     MapData &m_data;
     GLuint m_defaultVao;

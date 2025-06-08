@@ -160,6 +160,11 @@ public:
     using Base::glUseProgram;
     using Base::glVertexAttribPointer;
 
+    // VAO functions
+    std::function<void(GLsizei, GLuint*)> glGenVertexArrays;
+    std::function<void(GLsizei, const GLuint*)> glDeleteVertexArrays;
+    std::function<void(GLuint)> glBindVertexArray;
+
 public:
     // OpenGL man page says "Only width 1 is guaranteed to be supported."
     void glLineWidth(const GLfloat lineWidth)

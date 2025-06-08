@@ -32,6 +32,7 @@
 #include <QFile>
 #include <QMessageLogContext>
 #include <QOpenGLTexture>
+#include <QOpenGLExtraFunctions> // For VAO functions
 
 namespace Legacy {
 template<template<typename> typename Mesh_, typename VertType_, typename ProgType_>
@@ -236,7 +237,12 @@ Functions::Functions(Badge<Functions>)
     : m_shaderPrograms{std::make_unique<ShaderPrograms>(*this)}
     , m_staticVbos{std::make_unique<StaticVbos>()}
     , m_texLookup{std::make_unique<TexLookup>()}
-{}
+{
+    // Initialize VAO functions to placeholders
+    glGenVertexArrays = [](GLsizei, GLuint*){ qCritical("glGenVertexArrays called before proper initialization via initializeOpenGLFunctions"); };
+    glDeleteVertexArrays = [](GLsizei, const GLuint*){ qCritical("glDeleteVertexArrays called before proper initialization via initializeOpenGLFunctions"); };
+    glBindVertexArray = [](GLuint){ qCritical("glBindVertexArray called before proper initialization via initializeOpenGLFunctions"); };
+}
 
 Functions::~Functions()
 {
@@ -286,6 +292,30 @@ TexLookup &Functions::getTexLookup()
 std::shared_ptr<Functions> Functions::alloc()
 {
     return std::make_shared<Functions>(Badge<Functions>{});
+}
+
+void Functions::initializeOpenGLFunctions()
+{
+    // This is the QOpenGLFunctions::initializeOpenGLFunctions()
+    // which initializes the QOpenGLFunctions base class members
+    Base::initializeOpenGLFunctions();
+
+    // Initialize VAO functions using QOpenGLExtraFunctions
+    QOpenGLExtraFunctions *extraFuncs = QOpenGLContext::currentContext()->extraFunctions();
+
+    if (extraFuncs) {
+        glGenVertexArrays = [extraFuncs](GLsizei n, GLuint* arrays){ extraFuncs->glGenVertexArrays(n, arrays); };
+        glDeleteVertexArrays = [extraFuncs](GLsizei n, const GLuint* arrays){ extraFuncs->glDeleteVertexArrays(n, arrays); };
+        glBindVertexArray = [extraFuncs](GLuint array){ extraFuncs->glBindVertexArray(array); };
+    } else {
+        // The constructor already set these to critical logging placeholders.
+        qCritical("QOpenGLExtraFunctions not available during Functions::initializeOpenGLFunctions. VAO support will be broken.");
+    }
+
+    // Example of how other functions might be wrapped (if they were not part of QOpenGLFunctions)
+    // QOpenGLFunctions *funcs = QOpenGLContext::currentContext()->functions();
+    // this->glGetString = [funcs](GLenum name) { return funcs->glGetString(name); };
+    // initializeOpenGLShadeModel(); // etc.
 }
 
 /// This only exists so we can detect errors in contexts that don't support \c glDebugMessageCallback().

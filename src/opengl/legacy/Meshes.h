@@ -42,6 +42,7 @@ private:
         static_assert(sizeof(std::declval<VertexType_>()) == 3 * sizeof(GLfloat));
 
         Functions &gl = Base::m_functions;
+        gl.glBindVertexArray(Base::m_vao); // <- ADD THIS LINE
         const auto attribs = Attribs::getLocations(Base::m_program);
         gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
         gl.enableAttrib(attribs.vertPos, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
@@ -96,6 +97,7 @@ private:
         static_assert(sizeof(std::declval<VertexType_>().vert) == 3 * sizeof(GLfloat));
 
         Functions &gl = Base::m_functions;
+        gl.glBindVertexArray(Base::m_vao); // <- ADD THIS LINE
         const auto attribs = Attribs::getLocations(Base::m_program);
         gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
         gl.enableAttrib(attribs.colorPos, 4, GL_UNSIGNED_BYTE, GL_TRUE, vertSize, VPO(color));
@@ -151,6 +153,7 @@ private:
         static_assert(sizeof(std::declval<VertexType_>().vert) == 3 * sizeof(GLfloat));
 
         Functions &gl = Base::m_functions;
+        gl.glBindVertexArray(Base::m_vao); // <- ADD THIS LINE
         const auto attribs = Attribs::getLocations(Base::m_program);
         gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
         /* NOTE: OpenGL 2.x can't use GL_TEXTURE_2D_ARRAY. */
@@ -210,6 +213,7 @@ private:
         static_assert(sizeof(std::declval<VertexType_>().vert) == 3 * sizeof(GLfloat));
 
         Functions &gl = Base::m_functions;
+        gl.glBindVertexArray(Base::m_vao); // <- ADD THIS LINE
         const auto attribs = Attribs::getLocations(Base::m_program);
         gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
         gl.enableAttrib(attribs.colorPos, 4, GL_UNSIGNED_BYTE, GL_TRUE, vertSize, VPO(color));
@@ -269,6 +273,7 @@ private:
         static_assert(sizeof(std::declval<VertexType_>().vert) == 3 * sizeof(GLfloat));
 
         Functions &gl = Base::m_functions;
+        gl.glBindVertexArray(Base::m_vao); // <- ADD THIS LINE
         const auto attribs = Attribs::getLocations(Base::m_program);
         gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
         gl.enableAttrib(attribs.colorPos, 4, GL_UNSIGNED_BYTE, GL_TRUE, vertSize, VPO(color));

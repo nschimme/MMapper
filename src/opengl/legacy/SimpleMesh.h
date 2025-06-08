@@ -30,6 +30,8 @@ protected:
     VBO m_vbo;
     DrawModeEnum m_drawMode = DrawModeEnum::INVALID;
     GLsizei m_numVerts = 0;
+    GLuint m_vao = 0;
+    bool m_vao_configured = false;
 
 public:
     explicit SimpleMesh(SharedFunctions sharedFunctions, std::shared_ptr<ProgramType_> sharedProgram)
@@ -37,7 +39,9 @@ public:
         , m_functions{deref(m_shared_functions)}
         , m_shared_program{std::move(sharedProgram)}
         , m_program{deref(m_shared_program)}
-    {}
+    {
+        initVao();
+    }
 
     explicit SimpleMesh(const SharedFunctions &sharedFunctions,
                         const std::shared_ptr<ProgramType_> &sharedProgram,
@@ -45,10 +49,15 @@ public:
                         const std::vector<VertexType_> &verts)
         : SimpleMesh{sharedFunctions, sharedProgram}
     {
+        // initVao() is called by the other constructor
         setStatic(mode, verts);
     }
 
-    ~SimpleMesh() override { reset(); }
+    ~SimpleMesh() override
+    {
+        cleanupVao();
+        reset();
+    }
 
 protected:
     class NODISCARD AttribUnbinder final
@@ -105,8 +114,11 @@ private:
         const auto numVerts = verts.size();
         assert(mode == DrawModeEnum::INVALID || numVerts % static_cast<size_t>(mode) == 0);
 
+        m_vao_configured = false; // Reset configuration state
+
         if (!m_vbo && numVerts != 0) {
             m_vbo.emplace(m_shared_functions);
+            // VAO is already created by SimpleMesh constructor, no need to initVao here
         }
 
         if (LOG_VBO_STATIC_UPLOADS && usage == BufferUsageEnum::STATIC_DRAW && m_vbo) {
@@ -119,10 +131,20 @@ private:
             auto tmp = m_functions.setVbo(mode, m_vbo.get(), verts, usage);
             m_drawMode = tmp.first;
             m_numVerts = tmp.second;
+
+            if (m_numVerts > 0 && !m_vao_configured) { // Check if there's data
+                // virt_bind() (called by bindAttribs()) will now set up the VAO.
+                // The AttribUnbinder will call virt_unbind() when it goes out of scope.
+                AttribUnbinder unbinder = bindAttribs();
+                m_vao_configured = true;
+            } else if (m_numVerts == 0) {
+                // If the mesh is cleared, it's no longer configured.
+                m_vao_configured = false;
+            }
         } else {
-            // REVISIT: Should this be reported as an error?
             m_drawMode = DrawModeEnum::INVALID;
             m_numVerts = 0;
+            m_vao_configured = false; // No VBO, so not configured
         }
     }
 
@@ -133,6 +155,7 @@ private:
         if (m_drawMode != DrawModeEnum::INVALID) {
             setStatic(m_drawMode, {});
         }
+        m_vao_configured = false;
         assert(isEmpty());
     }
 
@@ -141,8 +164,30 @@ private:
     {
         m_drawMode = DrawModeEnum::INVALID;
         m_numVerts = 0;
+        if (m_vao != 0) {
+            m_functions.glDeleteVertexArrays(1, &m_vao);
+            m_vao = 0;
+        }
         m_vbo.reset();
-        assert(isEmpty() && !m_vbo);
+        m_vao_configured = false;
+        assert(isEmpty() && !m_vbo && m_vao == 0);
+    }
+
+private:
+    void initVao()
+    {
+        if (m_vao == 0) {
+            m_functions.glGenVertexArrays(1, &m_vao);
+            assert(m_vao != 0);
+        }
+    }
+
+    void cleanupVao()
+    {
+        if (m_vao != 0) {
+            m_functions.glDeleteVertexArrays(1, &m_vao);
+            m_vao = 0;
+        }
     }
 
 private:
@@ -157,14 +202,24 @@ private:
         if (isEmpty()) {
             return;
         }
+        // If it's not empty, it should have been configured during setCommon
+        assert(m_vao_configured || m_numVerts == 0);
+        if (!m_vao_configured && m_numVerts > 0) {
+             // This case should ideally not happen if logic is correct.
+             // Attempt to reconfigure if needed.
+             AttribUnbinder temp_unbinder = bindAttribs();
+             if(m_numVerts > 0) m_vao_configured = true;
+        }
+
 
         m_functions.checkError();
+        m_functions.glBindVertexArray(m_vao); // Bind the VAO for this mesh
 
         const glm::mat4 mvp = m_functions.getProjectionMatrix();
         auto programUnbinder = m_program.bind();
         m_program.setUniforms(mvp, renderState.uniforms);
         RenderStateBinder renderStateBinder(m_functions, m_functions.getTexLookup(), renderState);
-        auto attribUnbinder = bindAttribs(); // mesh sets its own attributes
+        // AttribUnbinder is no longer created here
 
         m_functions.checkError();
 
@@ -173,6 +228,10 @@ private:
         } else {
             assert(false);
         }
+
+        // Unbind the VAO after drawing
+        m_functions.glBindVertexArray(0);
+        // programUnbinder and renderStateBinder will unbind program and reset states on destruction
 
         m_functions.checkError();
     }

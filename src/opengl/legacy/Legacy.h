@@ -116,7 +116,10 @@ public:
     NODISCARD GLuint getDefaultVao() const { return m_defaultVao; }
 
 public:
+    // This using declaration makes QOpenGLFunctions::initializeOpenGLFunctions available.
+    // We also provide our own overload with the same name.
     using Base::initializeOpenGLFunctions;
+    void initializeOpenGLFunctions(); // Declaration for our own version
 
 public:
     using Base::glAttachShader;
@@ -210,6 +213,7 @@ public:
 
 public:
     void cleanup();
+    // void initializeOpenGLFunctions(); // Declaration for our own version - moved up
 
     NODISCARD ShaderPrograms &getShaderPrograms();
 

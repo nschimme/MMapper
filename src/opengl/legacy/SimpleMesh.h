@@ -31,7 +31,6 @@ protected:
     DrawModeEnum m_drawMode = DrawModeEnum::INVALID;
     GLsizei m_numVerts = 0;
     GLuint m_vao = 0;
-    bool m_vao_configured = false;
 
 public:
     explicit SimpleMesh(SharedFunctions sharedFunctions, std::shared_ptr<ProgramType_> sharedProgram)
@@ -114,11 +113,9 @@ private:
         const auto numVerts = verts.size();
         assert(mode == DrawModeEnum::INVALID || numVerts % static_cast<size_t>(mode) == 0);
 
-        m_vao_configured = false; // Reset configuration state
-
         if (!m_vbo && numVerts != 0) {
             m_vbo.emplace(m_shared_functions);
-            // VAO is already created by SimpleMesh constructor, no need to initVao here
+            // VAO is already created by SimpleMesh constructor
         }
 
         if (LOG_VBO_STATIC_UPLOADS && usage == BufferUsageEnum::STATIC_DRAW && m_vbo) {
@@ -132,19 +129,14 @@ private:
             m_drawMode = tmp.first;
             m_numVerts = tmp.second;
 
-            if (m_numVerts > 0 && !m_vao_configured) { // Check if there's data
-                // virt_bind() (called by bindAttribs()) will now set up the VAO.
+            if (m_vao != 0 && m_numVerts > 0) {
+                // virt_bind() (called by bindAttribs()) will set up the VAO.
                 // The AttribUnbinder will call virt_unbind() when it goes out of scope.
                 AttribUnbinder unbinder = bindAttribs();
-                m_vao_configured = true;
-            } else if (m_numVerts == 0) {
-                // If the mesh is cleared, it's no longer configured.
-                m_vao_configured = false;
             }
         } else {
             m_drawMode = DrawModeEnum::INVALID;
             m_numVerts = 0;
-            m_vao_configured = false; // No VBO, so not configured
         }
     }
 
@@ -155,7 +147,6 @@ private:
         if (m_drawMode != DrawModeEnum::INVALID) {
             setStatic(m_drawMode, {});
         }
-        m_vao_configured = false;
         assert(isEmpty());
     }
 
@@ -169,7 +160,6 @@ private:
             m_vao = 0;
         }
         m_vbo.reset();
-        m_vao_configured = false;
         assert(isEmpty() && !m_vbo && m_vao == 0);
     }
 
@@ -199,18 +189,9 @@ private:
 private:
     void virt_render(const GLRenderState &renderState) final
     {
-        if (isEmpty()) {
+        if (isEmpty() || m_vao == 0) { // If m_vao is 0, it's not usable
             return;
         }
-        // If it's not empty, it should have been configured during setCommon
-        assert(m_vao_configured || m_numVerts == 0);
-        if (!m_vao_configured && m_numVerts > 0) {
-             // This case should ideally not happen if logic is correct.
-             // Attempt to reconfigure if needed.
-             AttribUnbinder temp_unbinder = bindAttribs();
-             if(m_numVerts > 0) m_vao_configured = true;
-        }
-
 
         m_functions.checkError();
         m_functions.glBindVertexArray(m_vao); // Bind the VAO for this mesh

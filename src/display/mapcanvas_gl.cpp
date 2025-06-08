@@ -589,7 +589,25 @@ void MapCanvas::updateBatches()
 void MapCanvas::updateMapBatches()
 {
     RemeshCookie &remeshCookie = m_batches.remeshCookie;
-    if (remeshCookie.isPending()) {
+
+    // If an iterative remesh is in progress (cookie tracks this),
+    // and it's currently pending a pass, let finishPendingMapBatches handle it.
+    if (remeshCookie.isIterativeRemeshInProgress() && remeshCookie.isPending()) {
+        return;
+    }
+
+    // If an iterative remesh is in progress but NOT pending a pass,
+    // it means it's either completed or waiting for MapCanvas to calculate and kick off the next pass.
+    // In this state, updateMapBatches should not interfere by starting a new full remesh.
+    // finishPendingMapBatches will handle the next step if a pass was just completed.
+    // If the entire iterative process is done, forceUpdateMeshes will be the way to start a new one.
+    if (remeshCookie.isIterativeRemeshInProgress() && !remeshCookie.isPending()) {
+        return;
+    }
+
+    // Original logic for non-iterative or initial full load:
+    // If a non-iterative remesh is pending, return. (This is covered by the first check if isPending also means non-iterative pending)
+    if (remeshCookie.isPending()) { // This will now only catch non-iterative pending if above checks are passed.
         return;
     }
 
@@ -597,21 +615,38 @@ void MapCanvas::updateMapBatches()
         return;
     }
 
+    // If we reach here, it means:
+    // 1. No iterative remesh is in progress OR
+    // 2. An iterative remesh was in progress but is now fully complete (isIterativeRemeshInProgress is false)
+    // AND
+    // 3. No non-iterative remesh is pending.
+    // AND
+    // 4. mapBatches is missing OR map data needs update.
+    // This is the condition to trigger a new full (iterative) remesh.
+
     if (m_data.getNeedsMapUpdate()) {
         m_data.clearNeedsMapUpdate();
         assert(!m_data.getNeedsMapUpdate());
         MMLOG() << "[updateMapBatches] cleared 'needsUpdate' flag";
     }
 
+    // Instead of the old getFuture() and remeshCookie.set(), we now call forceUpdateMeshes().
+    // forceUpdateMeshes will internally handle initializing the iterative remesh.
+    MMLOG() << "[updateMapBatches] Conditions met to start a new full mesh generation via forceUpdateMeshes.";
+    forceUpdateMeshes(); // This will initiate the iterative remeshing
+    // forceUpdateMeshes calls update() itself, and potentially setAnimating(true)
+    return; // Return as forceUpdateMeshes handles the remesh initiation.
+
+    // The following old code is replaced by the call to forceUpdateMeshes()
+    /*
     auto getFuture = [this]() {
         MMLOG() << "[updateMapBatches] calling generateBatches";
         return m_data.generateBatches(mctp::getProxy(m_textures));
     };
-
     remeshCookie.set(getFuture());
     assert(remeshCookie.isPending());
-
     m_diff.cancelUpdates(m_data.getSavedMap());
+    */
 }
 
 void MapCanvas::finishPendingMapBatches()
@@ -620,103 +655,122 @@ void MapCanvas::finishPendingMapBatches()
 
 #define LOG() MMLOG() << prefix
 
-    RemeshCookie &remeshCookie = m_batches.remeshCookie;
-    if (!remeshCookie.isPending()) {
-        return;
-    } else if (!remeshCookie.isReady()) {
+    RemeshCookie &cookie = m_batches.remeshCookie; // Renamed for clarity from remeshCookie to cookie
+    if (!cookie.isPending() || !cookie.isReady()) {
         return;
     }
 
-    LOG() << "Waiting for the cookie. This shouldn't take long.";
-    SharedMapBatchFinisher pFuture = remeshCookie.get();
-    assert(!remeshCookie.isPending());
+    // Keep track if we were animating for this specific pass completion
+    bool wasAnimatingForThisPass = m_frameRateController.animating;
 
-    setAnimating(false);
 
-    if (pFuture == nullptr) {
-        // REVISIT: Do we need to schedule another update now?
-        LOG() << "Got NULL (means the update was flagged to be ignored)";
-        return;
-    }
+    if (cookie.isIterativeRemeshInProgress()) {
+        LOG() << "Iterative remesh pass ready.";
+        SharedMapBatchFinisher passFinisher = cookie.getPassData(); // Merges internally into cookie's accumulated data
+        std::vector<std::pair<int, RoomAreaHash>> processedChunksThisPass = cookie.getCurrentPassChunks();
 
-    // REVISIT: should we pass a "fake" one and only swap to the correct one on success?
-    LOG() << "Clearing the map batches and call the finisher to create new ones";
+        if (passFinisher) {
+            LOG() << "Finishing " << processedChunksThisPass.size() << " chunks from pass " << cookie.getCurrentPassNumber();
 
-    DECL_TIMER(t, __FUNCTION__);
-    const IMapBatchesFinisher &finisher_obj = *pFuture; // Renamed 'future' to 'finisher_obj' to avoid conflict
+            std::optional<MapBatches> temporaryPassBatches_opt;
+            ::finish(*passFinisher, temporaryPassBatches_opt, getOpenGL(), getGLFont());
 
-    std::optional<MapBatches> temporaryNewBatches_opt;
-    // The global 'finish' function (from MapCanvasRoomDrawer.h) will emplace into temporaryNewBatches_opt
-    // It calls finisher_obj.virt_finish(MapBatches &output, OpenGL &gl, GLFont &font)
-    finish(finisher_obj, temporaryNewBatches_opt, getOpenGL(), getGLFont());
-
-    if (temporaryNewBatches_opt.has_value()) {
-        LOG() << "Successfully finished specific chunk batches into temporary MapBatches.";
-        MapBatches& temporaryNewBatches = *temporaryNewBatches_opt;
-
-        if (!m_batches.mapBatches.has_value()) {
-            // This is the first batch of data, or main batches were previously cleared.
-            LOG() << "Main mapBatches is empty, moving temporaryNewBatches.";
-            m_batches.mapBatches.emplace(std::move(temporaryNewBatches));
-            // Clear pending flags for all chunks that were just loaded by iterating the moved content
-            if (m_batches.mapBatches.has_value()) {
-                for (const auto& layer_pair : m_batches.mapBatches->batchedMeshes) {
-                    for (const auto& chunk_pair : layer_pair.second) {
-                        if (m_pendingChunkGenerations.erase({layer_pair.first, chunk_pair.first})) {
-                            // LOG() << "Erased " << layer_pair.first << ":" << chunk_pair.first << " from pending (initial load).";
+            if (temporaryPassBatches_opt.has_value()) {
+                MapBatches& passOutputBatches = *temporaryPassBatches_opt;
+                if (!m_batches.mapBatches.has_value()) {
+                    // This is the first set of batches from the iterative process
+                    m_batches.mapBatches.emplace(std::move(passOutputBatches));
+                } else {
+                    // Merge passOutputBatches into existing m_batches.mapBatches
+                    MapBatches& mainMapBatches = *m_batches.mapBatches;
+                    for (auto& layer_pair : passOutputBatches.batchedMeshes) {
+                        for (auto& chunk_pair : layer_pair.second) {
+                            mainMapBatches.batchedMeshes[layer_pair.first].insert_or_assign(chunk_pair.first, std::move(chunk_pair.second));
+                        }
+                    }
+                    for (auto& layer_pair : passOutputBatches.connectionMeshes) {
+                       for (auto& chunk_pair : layer_pair.second) {
+                            mainMapBatches.connectionMeshes[layer_pair.first].insert_or_assign(chunk_pair.first, std::move(chunk_pair.second));
+                        }
+                    }
+                    for (auto& layer_pair : passOutputBatches.roomNameBatches) {
+                        for (auto& chunk_pair : layer_pair.second) {
+                            mainMapBatches.roomNameBatches[layer_pair.first].insert_or_assign(chunk_pair.first, std::move(chunk_pair.second));
                         }
                     }
                 }
+            } else {
+                 LOG() << "Pass finisher did not produce batches.";
+            }
+
+            cookie.recordChunksAsCompleted(processedChunksThisPass);
+            for(const auto& chunkKey : processedChunksThisPass) {
+                m_pendingChunkGenerations.erase(chunkKey);
+            }
+
+            Coordinate vc = cookie.getViewportCenter().value_or(Coordinate(0,0,m_currentLayer));
+            std::vector<std::pair<int, RoomAreaHash>> nextPassChunks =
+                calculateNextPassChunks(cookie.getCurrentPassNumber() + 1,
+                                        vc,
+                                        cookie.getCompletedChunks(),
+                                        m_data.getCurrentMap());
+
+            if (!nextPassChunks.empty()) {
+                LOG() << "Requesting next pass with " << nextPassChunks.size() << " chunks.";
+                for(const auto& chunkKey : nextPassChunks) { m_pendingChunkGenerations.insert(chunkKey); }
+                auto nextFuture = m_data.generateSpecificChunkBatches(mctp::getProxy(m_textures), nextPassChunks);
+                cookie.continueIterativePass(std::move(nextFuture), cookie.getCurrentPassNumber() + 1, nextPassChunks);
+                setAnimating(true); // Ensure renderLoop continues for next pass
+            } else {
+                LOG() << "Iterative remesh complete.";
+                cookie.finalizeIterativeRemesh(); // Resets iterative state
+                m_pendingChunkGenerations.clear(); // Clear all pending after finalization
+                setAnimating(false); // Stop animation if complete
             }
         } else {
-            // Merge temporaryNewBatches into existing m_batches.mapBatches
-            LOG() << "Merging temporaryNewBatches into existing main mapBatches.";
-            MapBatches& mainMapBatches = *m_batches.mapBatches;
+            LOG() << "Iterative pass future was null or ignored.";
+            cookie.finalizeIterativeRemesh(); // Reset on failure/ignore
+            m_pendingChunkGenerations.clear(); // Clear all pending
+            setAnimating(false);
+        }
+    } else { // Old non-iterative path (to be phased out or kept for specific full loads)
+        LOG() << "Non-iterative: Waiting for the cookie.";
+        SharedMapBatchFinisher pFuture = cookie.get(); // Original get()
+        assert(!cookie.isPending()); // get() should have reset this
+        setAnimating(false); // Stop animation after a full (non-iterative) load
 
-            for (auto& layer_pair : temporaryNewBatches.batchedMeshes) {
-                int layerId = layer_pair.first;
-                auto& new_chunks_in_layer = layer_pair.second; // Use auto& for non-const access
-                for (auto& chunk_pair : new_chunks_in_layer) {
-                        RoomAreaHash roomAreaHash = chunk_pair.first;
-                        mainMapBatches.batchedMeshes[layerId].insert_or_assign(roomAreaHash, std::move(chunk_pair.second));
-                        if (m_pendingChunkGenerations.erase({layerId, roomAreaHash})) {
-                            // LOG() << "Erased " << layerId << ":" << roomAreaHash << " from pending (merge).";
+        if (pFuture == nullptr) {
+            LOG() << "Got NULL (means the update was flagged to be ignored)";
+            m_pendingChunkGenerations.clear(); // Clear if ignored
+        } else {
+            LOG() << "Clearing the map batches and call the finisher to create new ones";
+            DECL_TIMER(t, __FUNCTION__);
+            const IMapBatchesFinisher &finisher_obj = *pFuture;
+
+            // This path should fully replace m_batches.mapBatches
+            m_batches.mapBatches.reset();
+            ::finish(finisher_obj, m_batches.mapBatches, getOpenGL(), getGLFont());
+
+            // Clear pending for all chunks that were just loaded
+            // This assumes the non-iterative load was for *all* currently relevant chunks.
+            // If it was for specific chunks (like old requestMissingChunks), this might be too broad.
+            // However, since forceUpdateMeshes is now the main entry, this path might be less used.
+            if (m_batches.mapBatches.has_value()) {
+                for (const auto& layer_pair : m_batches.mapBatches->batchedMeshes) {
+                    for (const auto& chunk_pair : layer_pair.second) {
+                        m_pendingChunkGenerations.erase({layer_pair.first, chunk_pair.first});
                     }
                 }
             }
-
-            for (auto& layer_pair : temporaryNewBatches.connectionMeshes) {
-                int layerId = layer_pair.first;
-                auto& new_connection_chunks_in_layer = layer_pair.second; // Use auto& for non-const access
-                for (auto& chunk_pair : new_connection_chunks_in_layer) {
-                        RoomAreaHash roomAreaHash = chunk_pair.first;
-                        mainMapBatches.connectionMeshes[layerId].insert_or_assign(roomAreaHash, std::move(chunk_pair.second));
-                }
-            }
-
-            for (auto& layer_pair : temporaryNewBatches.roomNameBatches) {
-                int layerId = layer_pair.first;
-                auto& new_roomname_chunks_in_layer = layer_pair.second; // Use auto& for non-const access
-                for (auto& chunk_pair : new_roomname_chunks_in_layer) {
-                        RoomAreaHash roomAreaHash = chunk_pair.first;
-                        mainMapBatches.roomNameBatches[layerId].insert_or_assign(roomAreaHash, std::move(chunk_pair.second));
-                }
-            }
         }
-    } else {
-        LOG() << "::finish with pFuture did not populate temporaryNewBatches_opt. This should not happen if pFuture is valid.";
-        // If finish fails to emplace, specific chunks associated with pFuture remain pending.
-        // No specific action needed here for m_pendingChunkGenerations, requestMissingChunks will handle retries.
     }
-    // The broad m_pendingChunkGenerations.clear() that was here is removed as per subtask.
-    // Chunks are erased individually above as they are processed.
-    // If pFuture itself was null, m_pendingChunkGenerations is cleared in the block above for that case.
-    // The original logic for pFuture == nullptr also cleared m_pendingChunkGenerations,
-    // which is covered by clearing it after remeshCookie.get() if isReady() was true.
-    // The update() call is also important.
+    // If we were animating specifically for this pass, and the next pass isn't immediately pending,
+    // but the overall iterative process might not be done (e.g. waiting for user input or delay),
+    // it might be good to stop explicit animation here. However, setAnimating(true) inside loop handles continuation.
+    if (wasAnimatingForThisPass && !cookie.isPending() && !cookie.isIterativeRemeshInProgress()){
+         setAnimating(false);
+    }
     update();
-
-
 #undef LOG
 }
 

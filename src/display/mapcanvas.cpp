@@ -108,18 +108,21 @@ void MapCanvas::slot_layerUp()
 {
     ++m_currentLayer;
     layerChanged();
+    forceUpdateMeshes();
 }
 
 void MapCanvas::slot_layerDown()
 {
     --m_currentLayer;
     layerChanged();
+    forceUpdateMeshes();
 }
 
 void MapCanvas::slot_layerReset()
 {
     m_currentLayer = 0;
     layerChanged();
+    forceUpdateMeshes();
 }
 
 void MapCanvas::slot_setCanvasMouseMode(const CanvasMouseModeEnum mode)
@@ -1028,72 +1031,230 @@ void MapCanvas::infomarksChanged()
 void MapCanvas::layerChanged()
 {
     updateVisibleChunks();
-    requestMissingChunks();
+    // requestMissingChunks(); // Disabled for iterative remeshing
     update();
 }
 
 void MapCanvas::requestMissingChunks() {
-    if (m_batches.remeshCookie.isPending()) {
-        // A remesh operation is already in progress, which will generate all visible chunks.
-        // Or, if it was a specific chunk request, we wait for it to complete.
-        return;
+    // if (m_batches.remeshCookie.isPending()) {
+    //     // A remesh operation is already in progress, which will generate all visible chunks.
+    //     // Or, if it was a specific chunk request, we wait for it to complete.
+    //     return;
+    // }
+
+    // std::vector<std::pair<int, RoomAreaHash>> chunksToRequestNow;
+
+    // for (const auto& layerChunksPair : m_visibleChunks) {
+    //     const int layerId = layerChunksPair.first;
+    //     const std::set<RoomAreaHash>& visibleChunkIds = layerChunksPair.second;
+
+    //     // Check existing batches
+    //     const MapBatches* currentMapBatchesPtr = nullptr;
+    //     if (m_batches.mapBatches.has_value()) {
+    //         currentMapBatchesPtr = &(*m_batches.mapBatches);
+    //     }
+
+    //     // Use a const iterator type that's compatible whether currentMapBatchesPtr is null or not.
+    //     // Or, handle the null case more explicitly before trying to use mapBatchesLayerIt.
+    //     auto mapBatchesLayerIt = currentMapBatchesPtr ?
+    //                              currentMapBatchesPtr->batchedMeshes.find(layerId) :
+    //                              (currentMapBatchesPtr ? currentMapBatchesPtr->batchedMeshes.end() : decltype(currentMapBatchesPtr->batchedMeshes.end()){});
+
+
+    //     for (const RoomAreaHash roomAreaHash : visibleChunkIds) {
+    //         bool isMissingOrInvalid = true; // Assume missing unless found and valid
+    //         if (currentMapBatchesPtr && mapBatchesLayerIt != currentMapBatchesPtr->batchedMeshes.end()) {
+    //             const ChunkedLayerMeshes& chunkedLayerMeshes = mapBatchesLayerIt->second;
+    //             auto chunkIt = chunkedLayerMeshes.find(roomAreaHash);
+    //             if (chunkIt != chunkedLayerMeshes.end()) {
+    //                 // Chunk exists, check if its LayerMeshes is valid
+    //                 if (chunkIt->second) { // LayerMeshes::operator bool()
+    //                     isMissingOrInvalid = false;
+    //                 }
+    //             }
+    //         }
+
+    //         if (isMissingOrInvalid) {
+    //             std::pair<int, RoomAreaHash> chunkKey = {layerId, roomAreaHash};
+    //             // Only add to request if not already pending
+    //             if (m_pendingChunkGenerations.find(chunkKey) == m_pendingChunkGenerations.end()) {
+    //                 chunksToRequestNow.push_back(chunkKey);
+    //             }
+    //         }
+    //     }
+    // }
+
+    // if (!chunksToRequestNow.empty()) {
+    //     for(const auto& chunkKey : chunksToRequestNow) {
+    //         m_pendingChunkGenerations.insert(chunkKey);
+    //     }
+    //     // Instead of forceUpdateMeshes(), call generateSpecificChunkBatches
+    //     // m_data is a MapData&
+    //     // m_textures is a MapCanvasTextures
+    //     // mctp::getProxy should be available from Textures.h (included via mapcanvas.h)
+    //     m_batches.remeshCookie.set(
+    //         m_data.generateSpecificChunkBatches(mctp::getProxy(m_textures), chunksToRequestNow)
+    //     );
+    //     // No need to call update() here explicitly, as the renderLoop will check the cookie.
+    // }
+}
+
+void MapCanvas::findNeighboringChunks(
+    const std::pair<int, RoomAreaHash>& currentChunkId,
+    const Map& currentMap,
+    const std::set<std::pair<int, RoomAreaHash>>& completedChunks,
+    std::set<std::pair<int, RoomAreaHash>>& frontierChunks)
+{
+    // This is a simplified approach. A more robust way would be to get rooms
+    // in currentChunkId, find their exits to other rooms, and get those rooms' chunks.
+    // For now, let's assume chunks have logical coordinates or a way to find spatial neighbors.
+    // This placeholder will assume simple grid neighbors (N,S,E,W on same layer).
+    // A real implementation needs access to chunk spatial data or room connectivity.
+
+    // Placeholder: This needs a proper way to determine chunk adjacency.
+    // For now, this function will be a no-op or a very simple heuristic
+    // if we don't have chunk coordinate systems easily available here.
+    // Let's assume for this subtask, we will rely more on radius based expansion
+    // from viewport center and layer progression in calculateNextPassChunks,
+    // and this helper will be left with a TODO.
+    // (Actual robust neighbor finding is complex without chunk grid info)
+    (void)currentChunkId; // Suppress unused parameter warning
+    (void)currentMap;     // Suppress unused parameter warning
+    (void)completedChunks; // Suppress unused parameter warning
+    (void)frontierChunks;  // Suppress unused parameter warning
+}
+
+std::map<std::pair<int, RoomAreaHash>, float> MapCanvas::sortFrontierChunksByDistance(
+    const std::set<std::pair<int, RoomAreaHash>>& frontierChunks,
+    const Coordinate& viewportCenter,
+    const Map& currentMap)
+{
+    std::map<std::pair<int, RoomAreaHash>, float> sorted_frontier;
+    // Placeholder: Calculate distance from chunk center to viewportCenter.
+    // This requires getting a representative coordinate for each chunk (RoomAreaHash).
+    // For now, just assign a dummy distance, prioritizing current layer.
+    float dist = 0.0f;
+    (void)currentMap; // Suppress unused parameter warning for now
+    for (const auto& chunk : frontierChunks) {
+        float priority_dist = dist;
+        if (chunk.first != viewportCenter.z) { // viewportCenter.z should be m_currentLayer ideally
+            priority_dist += 1000.0f; // Penalize other layers
+        }
+        // Add more refined distance calculation if possible
+        // e.g. find a central room for 'chunk' and calculate distance to viewportCenter
+        sorted_frontier[chunk] = priority_dist;
+        dist += 1.0f;
     }
+    return sorted_frontier;
+}
 
-    std::vector<std::pair<int, RoomAreaHash>> chunksToRequestNow;
+std::vector<std::pair<int, RoomAreaHash>> MapCanvas::calculateNextPassChunks(
+    int passNumber,
+    const Coordinate& viewportCenter_cookie, // Renamed to avoid conflict with m_currentLayer
+    const std::set<std::pair<int, RoomAreaHash>>& completedChunks,
+    const Map& currentMap)
+{
+    std::vector<std::pair<int, RoomAreaHash>> nextChunks;
+    qDebug() << "calculateNextPassChunks: Pass" << passNumber
+             << "ViewportCenter (cookie):" << viewportCenter_cookie.x << viewportCenter_cookie.y << viewportCenter_cookie.z
+             << "CurrentLayer (MapCanvas):" << m_currentLayer
+             << "Completed:" << completedChunks.size();
 
-    for (const auto& layerChunksPair : m_visibleChunks) {
-        const int layerId = layerChunksPair.first;
-        const std::set<RoomAreaHash>& visibleChunkIds = layerChunksPair.second;
+    if (currentMap.empty()) return nextChunks;
 
-        // Check existing batches
-        const MapBatches* currentMapBatchesPtr = nullptr;
-        if (m_batches.mapBatches.has_value()) {
-            currentMapBatchesPtr = &(*m_batches.mapBatches);
-        }
+    const World& world = currentMap.getWorld();
+    const SpatialDb& spatialDb = world.getSpatialDb();
 
-        // Use a const iterator type that's compatible whether currentMapBatchesPtr is null or not.
-        // Or, handle the null case more explicitly before trying to use mapBatchesLayerIt.
-        auto mapBatchesLayerIt = currentMapBatchesPtr ?
-                                 currentMapBatchesPtr->batchedMeshes.find(layerId) :
-                                 (currentMapBatchesPtr ? currentMapBatchesPtr->batchedMeshes.end() : decltype(currentMapBatchesPtr->batchedMeshes.end()){});
+    // Strategy:
+    // 1. Expand on the layer stored in viewportCenter_cookie.z (initial layer of remesh)
+    // 2. Then expand on m_currentLayer (if different and not fully covered)
+    // 3. Then expand on layers +/- 1 from viewportCenter_cookie.z, then +/- 2, etc.
+    // Within each layer, expand outwards from viewportCenter_cookie's XY.
 
+    // Max search radius for rooms, arbitrary for now
+    float baseSearchRadius = 20.0f + passNumber * 15.0f;
+    int layers_to_check_offset = passNumber / 2; // Simple way to gradually check more layers
 
-        for (const RoomAreaHash roomAreaHash : visibleChunkIds) {
-            bool isMissingOrInvalid = true; // Assume missing unless found and valid
-            if (currentMapBatchesPtr && mapBatchesLayerIt != currentMapBatchesPtr->batchedMeshes.end()) {
-                const ChunkedLayerMeshes& chunkedLayerMeshes = mapBatchesLayerIt->second;
-                auto chunkIt = chunkedLayerMeshes.find(roomAreaHash);
-                if (chunkIt != chunkedLayerMeshes.end()) {
-                    // Chunk exists, check if its LayerMeshes is valid
-                    if (chunkIt->second) { // LayerMeshes::operator bool()
-                        isMissingOrInvalid = false;
-                    }
-                }
-            }
-
-            if (isMissingOrInvalid) {
-                std::pair<int, RoomAreaHash> chunkKey = {layerId, roomAreaHash};
-                // Only add to request if not already pending
-                if (m_pendingChunkGenerations.find(chunkKey) == m_pendingChunkGenerations.end()) {
-                    chunksToRequestNow.push_back(chunkKey);
-                }
-            }
-        }
+    std::vector<int> layers_priority;
+    layers_priority.push_back(viewportCenter_cookie.z); // Layer active when remesh started
+    if (m_currentLayer != viewportCenter_cookie.z) {
+        layers_priority.push_back(m_currentLayer); // Current active layer
     }
+    for (int i = 1; i <= layers_to_check_offset; ++i) {
+        layers_priority.push_back(viewportCenter_cookie.z + i);
+        layers_priority.push_back(viewportCenter_cookie.z - i);
+    }
+    // Remove duplicates and non-existent layers (very basic check)
+    layers_priority.erase(std::unique(layers_priority.begin(), layers_priority.end()), layers_priority.end());
 
-    if (!chunksToRequestNow.empty()) {
-        for(const auto& chunkKey : chunksToRequestNow) {
-            m_pendingChunkGenerations.insert(chunkKey);
+    for (int layer_z : layers_priority) {
+        if (nextChunks.size() >= MAX_CHUNKS_PER_ITERATIVE_PASS) break;
+
+        // Adjust search radius if it's not the primary remesh layer or current active layer
+        float currentLayerSearchRadius = baseSearchRadius;
+        if (layer_z != viewportCenter_cookie.z && layer_z != m_currentLayer) {
+            currentLayerSearchRadius /= (std::abs(layer_z - viewportCenter_cookie.z) + 1); // Smaller radius for distant layers
         }
-        // Instead of forceUpdateMeshes(), call generateSpecificChunkBatches
-        // m_data is a MapData&
-        // m_textures is a MapCanvasTextures
-        // mctp::getProxy should be available from Textures.h (included via mapcanvas.h)
-        m_batches.remeshCookie.set(
-            m_data.generateSpecificChunkBatches(mctp::getProxy(m_textures), chunksToRequestNow)
+
+        // Simulating getRoomsInLayerAroundPoint using getRoomsInViewport
+        std::vector<RoomId> roomsInRadius = spatialDb.getRoomsInViewport(
+            layer_z,
+            viewportCenter_cookie.x_float() - currentLayerSearchRadius,
+            viewportCenter_cookie.y_float() - currentLayerSearchRadius,
+            viewportCenter_cookie.x_float() + currentLayerSearchRadius,
+            viewportCenter_cookie.y_float() + currentLayerSearchRadius
         );
-        // No need to call update() here explicitly, as the renderLoop will check the cookie.
+
+        if (roomsInRadius.empty() && layer_z == viewportCenter_cookie.z && passNumber > 0 && completedChunks.empty()){
+            // If initial layer has no rooms at all near viewport center, maybe map is empty or far away
+            // This case should ideally be handled by initialPassChunks being empty.
+        }
+
+        for (RoomId roomId : roomsInRadius) {
+            if (nextChunks.size() >= MAX_CHUNKS_PER_ITERATIVE_PASS) break;
+            RoomHandle room = currentMap.getRoomHandle(roomId);
+            if (!room.exists()) continue;
+
+            // Already filtered by getRoomsInViewport if SpatialDb respects the layer parameter
+            // if (room.getPosition().z != layer_z) continue;
+
+            RoomAreaHash areaHash = getRoomAreaHash(room);
+            std::pair<int, RoomAreaHash> chunkId = {layer_z, areaHash};
+
+            if (completedChunks.find(chunkId) == completedChunks.end()) {
+                // Check if not already added in *this current* collection for nextChunks
+                bool already_in_next_chunks = false;
+                for(const auto& nc : nextChunks) { if (nc == chunkId) { already_in_next_chunks = true; break; } }
+
+                if (!already_in_next_chunks) {
+                   nextChunks.push_back(chunkId);
+                }
+            }
+        }
     }
+
+    // Fallback / Exhaustive search if targeted search yields too few chunks after a few passes
+    // This is a very basic "ensure completion" strategy if map is small.
+    if (nextChunks.empty() && passNumber > 3 && passNumber < 10 && !currentMap.empty()) { // Arbitrary pass numbers, check map not empty
+         qDebug() << "Pass" << passNumber << ": Targeted search empty, trying broader scan for uncompleted chunks.";
+         for (const RoomId r_id : currentMap.getRooms()) { // Iterate over all rooms in the map
+             if (nextChunks.size() >= MAX_CHUNKS_PER_ITERATIVE_PASS) break;
+             RoomHandle room = currentMap.getRoomHandle(r_id);
+             if (!room.exists()) continue;
+
+             std::pair<int, RoomAreaHash> chunkId = {room.getPosition().z, getRoomAreaHash(room)};
+             if (completedChunks.find(chunkId) == completedChunks.end()) {
+                 bool already_in_next_chunks = false;
+                 for(const auto& nc : nextChunks) { if (nc == chunkId) { already_in_next_chunks = true; break; } }
+                 if (!already_in_next_chunks) {
+                    nextChunks.push_back(chunkId);
+                 }
+             }
+         }
+    }
+
+    qDebug() << "calculateNextPassChunks: Returning" << nextChunks.size() << "chunks for pass" << passNumber;
+    return nextChunks;
 }
 
 std::optional<glm::vec3> MapCanvas::getUnprojectedScreenPos(const glm::vec2& screenPos) const {
@@ -1163,55 +1324,79 @@ void MapCanvas::updateVisibleChunks() {
 
 void MapCanvas::forceUpdateMeshes()
 {
-    // If a specific chunk generation is already in progress, let it complete.
-    // Starting another one (even a "full visible" one) could lead to conflicts
-    // or overwrite the existing remesh cookie too soon.
     if (m_batches.remeshCookie.isPending()) {
-        // Optionally, we could queue this forced update or simply rely
-        // on the current pending operation to refresh relevant data.
-        // For now, just returning seems safest to avoid complex queueing.
-        // The user might see a slight delay if they trigger this while another load is happening.
-        update(); // Still call update to ensure a repaint is scheduled after the current op.
-        return;
+        m_batches.remeshCookie.setIgnored();
     }
 
-    updateVisibleChunks(); // Determine what's currently visible
+    // Convert glm::vec3 from m_mapScreen.getCenter() to Coordinate
+    glm::vec3 center_glm = m_mapScreen.getCenter();
+    Coordinate viewportCenter(static_cast<int>(round(center_glm.x)),
+                              static_cast<int>(round(center_glm.y)),
+                              static_cast<int>(round(center_glm.z)));
 
-    std::vector<std::pair<int, RoomAreaHash>> allVisibleChunks;
-    for (const auto& layerChunksPair : m_visibleChunks) {
-        for (const RoomAreaHash roomAreaHash : layerChunksPair.second) {
-            allVisibleChunks.push_back({layerChunksPair.first, roomAreaHash});
+    // If the Z coordinate from mapScreen is not the current layer, prioritize m_currentLayer.
+    // This can happen if getCenter() returns a Z that's averaged or not layer-specific.
+    if (viewportCenter.z != m_currentLayer) {
+        qDebug() << "Viewport center Z (" << viewportCenter.z << ") != current layer (" << m_currentLayer << "). Adjusting.";
+        viewportCenter.z = m_currentLayer;
+    }
+
+    m_batches.remeshCookie.initIterativeRemesh(viewportCenter);
+    m_batches.mapBatches.reset(); // Clear existing fully rendered batches
+    m_pendingChunkGenerations.clear();
+
+    updateVisibleChunks(); // This populates this->m_visibleChunks based on current view and m_currentLayer
+
+    std::vector<std::pair<int, RoomAreaHash>> initialPassChunks;
+    // Prioritize current layer's visible chunks
+    if (m_visibleChunks.count(m_currentLayer)) {
+        for (RoomAreaHash hash : m_visibleChunks.at(m_currentLayer)) {
+            initialPassChunks.push_back({m_currentLayer, hash});
         }
     }
 
-    if (!allVisibleChunks.empty()) {
-        // It's important to mark these as pending *before* starting the async operation,
-        // to prevent requestMissingChunks from trying to add them again if it runs
-        // between forceUpdateMeshes starting and the cookie becoming pending.
-        for(const auto& chunkKey : allVisibleChunks) {
+    // Add other visible chunks on different layers for pass 0 as well.
+    // A more advanced strategy could defer these to later passes in calculateNextPassChunks.
+    for (const auto& layerPair : m_visibleChunks) {
+        if (layerPair.first == m_currentLayer) continue; // Already added
+        for (RoomAreaHash hash : layerPair.second) {
+            initialPassChunks.push_back({layerPair.first, hash});
+        }
+    }
+
+    // Sort initialPassChunks to group by layer, then by hash (optional, but can be good for determinism)
+    std::sort(initialPassChunks.begin(), initialPassChunks.end());
+
+    if (!initialPassChunks.empty()) {
+        for(const auto& chunkKey : initialPassChunks) {
             m_pendingChunkGenerations.insert(chunkKey);
         }
-        m_batches.remeshCookie.set(
-            m_data.generateSpecificChunkBatches(mctp::getProxy(m_textures), allVisibleChunks)
-        );
+        // Ensure m_data.generateSpecificChunkBatches is the correct method name
+        // and mctp::getProxy(m_textures) is valid.
+        auto future = m_data.generateSpecificChunkBatches(mctp::getProxy(m_textures), initialPassChunks);
+        m_batches.remeshCookie.startIterativePass(std::move(future), viewportCenter, 0, initialPassChunks);
+        setAnimating(true); // Start animation to drive iterative loading
+    } else {
+        // No visible chunks to start with, finalize immediately.
+        m_batches.remeshCookie.finalizeIterativeRemesh();
+        // m_pendingChunkGenerations is already clear.
+        setAnimating(false); // Nothing to animate
     }
 
-    // Resetting diffs might still be appropriate if a "forced" update implies
-    // that underlying map data (not just view) might have changed in a way
-    // that requires re-evaluating differences.
-    m_diff.resetExistingMeshesAndIgnorePendingRemesh();
-
+    m_diff.resetExistingMeshesAndIgnorePendingRemesh(); // Reset any highlight diffs
     update(); // Schedule a repaint
 }
 
 void MapCanvas::slot_mapChanged()
 {
-    // REVISIT: Ideally we'd want to only update the layers/chunks
-    // that actually changed.
-    if ((false)) {
-        m_batches.mapBatches.reset();
+    if (m_batches.remeshCookie.isPending()) {
+        m_batches.remeshCookie.setIgnored();
     }
-    update();
+    forceUpdateMeshes();
+    // The existing update() call at the end of the original slot_mapChanged (if any)
+    // or the one in forceUpdateMeshes will handle repaint scheduling.
+    // For clarity, ensure only one update() call is strictly necessary if forceUpdateMeshes also calls it.
+    // Since forceUpdateMeshes calls update(), this is fine.
 }
 
 void MapCanvas::slot_requestUpdate()

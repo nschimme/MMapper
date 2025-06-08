@@ -283,9 +283,24 @@ private:
     std::optional<FutureSharedMapBatchFinisher> m_opt_future;
     bool m_ignored = false;
 
+    // Iterative remesh state
+    std::optional<Coordinate> m_viewportCenter_world;
+    int m_currentPass = 0;
+    std::set<std::pair<int, RoomAreaHash>> m_completedChunks;
+    bool m_iterativeRemeshInProgress = false;
+    std::shared_ptr<InternalData> m_accumulatedInternalData;
+    std::vector<std::pair<int, RoomAreaHash>> m_chunks_for_current_pass;
+
+    void resetIterativeState();
+
 private:
     // NOTE: If you think you want to make this public, then you're really looking for setIgnored().
-    void reset() { *this = RemeshCookie{}; }
+    void reset()
+    {
+        *this = RemeshCookie{};
+        resetIterativeState(); // Should be called by the constructor as well, implicitly done by RemeshCookie{}
+    }
+
 
 public:
     // This means you've decided to load a completely new map, so you're not interested
@@ -294,10 +309,25 @@ public:
     {
         //
         m_ignored = true;
+        resetIterativeState();
     }
 
 public:
     NODISCARD bool isPending() const { return m_opt_future.has_value(); }
+
+    // --- Iterative Remesh Methods ---
+    void initIterativeRemesh(const Coordinate& viewportCenter);
+    void startIterativePass(FutureSharedMapBatchFinisher pass_future, const Coordinate& viewportCenter, int passNumber, const std::vector<std::pair<int, RoomAreaHash>>& chunks_for_pass);
+    void continueIterativePass(FutureSharedMapBatchFinisher pass_future, int passNumber, const std::vector<std::pair<int, RoomAreaHash>>& chunks_for_pass);
+    NODISCARD SharedMapBatchFinisher getAccumulatedData(); // For when iterative remesh is complete
+    NODISCARD bool isIterativeRemeshInProgress() const { return m_iterativeRemeshInProgress; }
+    NODISCARD const std::vector<std::pair<int, RoomAreaHash>>& getCurrentPassChunks() const;
+    void recordChunksAsCompleted(const std::vector<std::pair<int, RoomAreaHash>>& chunks);
+    NODISCARD const std::set<std::pair<int, RoomAreaHash>>& getCompletedChunks() const { return m_completedChunks; }
+    NODISCARD std::optional<Coordinate> getViewportCenter() const { return m_viewportCenter_world; }
+    NODISCARD int getCurrentPassNumber() const { return m_currentPass; }
+    NODISCARD SharedMapBatchFinisher getPassData(); // Gets data for the current pass and accumulates
+    NODISCARD SharedMapBatchFinisher finalizeIterativeRemesh(); // Gets final accumulated data
 
     // Don't call this unless isPending() is true.
     // returns true if get() will return without blocking

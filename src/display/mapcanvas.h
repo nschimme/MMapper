@@ -58,6 +58,7 @@ class NODISCARD_QOBJECT MapCanvas final : public QOpenGLWidget,
 public:
     static constexpr const int BASESIZE = 1024;
     static constexpr const int SCROLL_SCALE = 64;
+    static constexpr int MAX_CHUNKS_PER_ITERATIVE_PASS = 8;
 
 private:
     struct NODISCARD FrameRateController final
@@ -296,4 +297,20 @@ private:
     void updateVisibleChunks();
     std::optional<glm::vec3> getUnprojectedScreenPos(const glm::vec2& screenPos) const;
     void requestMissingChunks();
+    std::vector<std::pair<int, RoomAreaHash>> calculateNextPassChunks(
+        int passNumber,
+        const Coordinate& viewportCenter,
+        const std::set<std::pair<int, RoomAreaHash>>& completedChunks,
+        const Map& currentMap);
+
+    void findNeighboringChunks(
+        const std::pair<int, RoomAreaHash>& chunk,
+        const Map& currentMap,
+        const std::set<std::pair<int, RoomAreaHash>>& completedChunks,
+        std::set<std::pair<int, RoomAreaHash>>& frontierChunks);
+
+    std::map<std::pair<int, RoomAreaHash>, float> sortFrontierChunksByDistance(
+        const std::set<std::pair<int, RoomAreaHash>>& frontierChunks,
+        const Coordinate& viewportCenter,
+        const Map& currentMap);
 };

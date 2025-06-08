@@ -5,6 +5,8 @@
 #include "MapCanvasRoomDrawer.h"
 
 #include "../configuration/NamedConfig.h"
+#include "../opengl/legacy/SimpleMesh.h" // Added
+#include "../opengl/legacy/Shaders.h"   // Added
 #include "../configuration/configuration.h"
 #include "../global/Array.h"
 #include "../global/ConfigConsts.h"
@@ -802,39 +804,41 @@ struct NODISCARD LayerBatchData final
         for (const RoomTintEnum tint : ALL_ROOM_TINTS) {
             const auto& newTintVerts = this->roomTints[tint];
             if (!newTintVerts.empty()) {
-                if (targetMeshes.tints[tint]) { // Use new operator bool()
+                if (targetMeshes.tints[tint]) {
                     IRenderable* renderable = targetMeshes.tints[tint].get_renderable();
-                    // The vertex type for tints is glm::vec3 (from PlainQuadBatch). Shader is UColorPlainShader.
                     auto* simpleMesh = dynamic_cast<Legacy::SimpleMesh<glm::vec3, Legacy::UColorPlainShader>*>(renderable);
                     if (simpleMesh) {
                         simpleMesh->updateData(DrawModeEnum::QUADS, newTintVerts, BufferUsageEnum::STATIC_DRAW);
-                    } else { // Not the expected type, recreate
+                    } else {
                         targetMeshes.tints[tint] = gl.createPlainQuadBatch(newTintVerts);
                     }
-                } else { // Mesh doesn't exist, create it
+                } else {
                     targetMeshes.tints[tint] = gl.createPlainQuadBatch(newTintVerts);
                 }
-            } else { // No new data, reset existing mesh
-                targetMeshes.tints[tint].reset_renderable();
+            } else {
+                if (targetMeshes.tints[tint]) {
+                    targetMeshes.tints[tint].reset_renderable();
+                }
             }
         }
 
         // LayerBoost (UniqueMesh)
         if (!this->roomLayerBoostQuads.empty()) {
-            if (targetMeshes.layerBoost) { // Use new operator bool()
+            if (targetMeshes.layerBoost) {
                 IRenderable* renderable = targetMeshes.layerBoost.get_renderable();
-                // LayerBoost also uses PlainQuadBatch (glm::vec3) and UColorPlainShader
                 auto* simpleMesh = dynamic_cast<Legacy::SimpleMesh<glm::vec3, Legacy::UColorPlainShader>*>(renderable);
                 if (simpleMesh) {
                     simpleMesh->updateData(DrawModeEnum::QUADS, this->roomLayerBoostQuads, BufferUsageEnum::STATIC_DRAW);
-                } else { // Not the expected type, recreate
+                } else {
                      targetMeshes.layerBoost = gl.createPlainQuadBatch(this->roomLayerBoostQuads);
                 }
-            } else { // Mesh doesn't exist, create it
+            } else {
                 targetMeshes.layerBoost = gl.createPlainQuadBatch(this->roomLayerBoostQuads);
             }
-        } else { // No new data, reset existing mesh
-            targetMeshes.layerBoost.reset_renderable();
+        } else {
+            if (targetMeshes.layerBoost) {
+                targetMeshes.layerBoost.reset_renderable();
+            }
         }
 
         targetMeshes.isValid = true; // Or set based on whether any data was actually processed.

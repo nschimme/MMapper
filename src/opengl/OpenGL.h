@@ -148,4 +148,14 @@ public:
 public:
     void cleanup();
     void setTextureLookup(MMTextureId, SharedMMTexture);
+
+public:
+    // State management wrappers
+    void applyBlendMode(BlendModeEnum mode);
+    void applyDepthState(const GLRenderState::OptDepth& depthFuncOpt);
+    void applyShaderProgram(GLuint programId);
+    void applyTexture(GLuint textureUnit, MMTextureId textureId, GLenum target);
+    void applyLineParams(const LineParams& params);
+    void applyPointSize(const std::optional<float>& pointSize);
+    void applyCulling(CullingEnum cullMode);
 };

@@ -217,3 +217,32 @@ void OpenGL::setTextureLookup(const MMTextureId id, SharedMMTexture tex)
 {
     getFunctions().getTexLookup().set(id, std::move(tex));
 }
+
+// State management wrappers
+void OpenGL::applyBlendMode(BlendModeEnum mode) {
+    getFunctions().applyBlendMode(mode);
+}
+
+void OpenGL::applyDepthState(const GLRenderState::OptDepth& depthFuncOpt) {
+    getFunctions().applyDepthState(depthFuncOpt);
+}
+
+void OpenGL::applyShaderProgram(GLuint programId) {
+    getFunctions().applyShaderProgram(programId);
+}
+
+void OpenGL::applyTexture(GLuint textureUnit, MMTextureId textureId, GLenum target) {
+    getFunctions().applyTexture(textureUnit, textureId, target);
+}
+
+void OpenGL::applyLineParams(const LineParams& params) {
+    getFunctions().applyLineParams(params);
+}
+
+void OpenGL::applyPointSize(const std::optional<float>& pointSize) {
+    getFunctions().applyPointSize(pointSize);
+}
+
+void OpenGL::applyCulling(CullingEnum cullMode) {
+    getFunctions().applyCulling(cullMode);
+}

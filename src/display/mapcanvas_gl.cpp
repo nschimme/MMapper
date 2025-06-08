@@ -231,7 +231,7 @@ void MapCanvas::initializeGL()
     gl.applyCulling(CullingEnum::BACK);    // Cull face BACK
     // Disable culling by default, applyCulling will set m_cullingEnabled to false if CullingEnum::NONE is passed.
     // However, the internal state m_currentCullingMode is BACK. So, to truly disable and match default:
-    gl.applyCulling(CullingEnum::NONE);    // Culling disabled
+    gl.applyCulling(CullingEnum::DISABLED);    // Culling disabled
 
     reportGLVersion();
 

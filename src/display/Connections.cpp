@@ -4,6 +4,8 @@
 #include "Connections.h"
 
 #include "../configuration/configuration.h"
+#include "../opengl/legacy/SimpleMesh.h" // Added
+#include "../opengl/legacy/Shaders.h"   // Added
 #include "../global/Flags.h"
 #include "../map/DoorFlags.h"
 #include "../map/ExitFieldVariant.h"
@@ -635,19 +637,22 @@ void ConnectionDrawerBuffers::updateMeshes(ConnectionMeshes& targetMeshes, OpenG
 {
     // Normal Lines
     if (!this->normal.lineVerts.empty()) {
-        if (targetMeshes.normalLines) { // Use new operator bool()
+        if (targetMeshes.normalLines) {
             IRenderable* renderable = targetMeshes.normalLines.get_renderable();
             auto* simpleMesh = dynamic_cast<Legacy::SimpleMesh<ColorVert, Legacy::AColorPlainShader>*>(renderable);
             if (simpleMesh) {
                 simpleMesh->updateData(DrawModeEnum::LINES, this->normal.lineVerts, BufferUsageEnum::STATIC_DRAW);
-            } else { // Was not the expected type, recreate
+            } else {
+                // Mesh exists but is not the correct type, recreate
                 targetMeshes.normalLines = gl.createColoredLineBatch(this->normal.lineVerts);
             }
         } else { // Mesh doesn't exist, create it
             targetMeshes.normalLines = gl.createColoredLineBatch(this->normal.lineVerts);
         }
-    } else { // No new data, reset existing mesh
-        targetMeshes.normalLines.reset_renderable();
+    } else { // No new data, reset existing mesh if it exists
+        if (targetMeshes.normalLines) {
+            targetMeshes.normalLines.reset_renderable();
+        }
     }
 
     // Normal Tris
@@ -664,7 +669,9 @@ void ConnectionDrawerBuffers::updateMeshes(ConnectionMeshes& targetMeshes, OpenG
             targetMeshes.normalTris = gl.createColoredTriBatch(this->normal.triVerts);
         }
     } else {
-        targetMeshes.normalTris.reset_renderable();
+        if (targetMeshes.normalTris) {
+            targetMeshes.normalTris.reset_renderable();
+        }
     }
 
     // Red Lines
@@ -681,7 +688,9 @@ void ConnectionDrawerBuffers::updateMeshes(ConnectionMeshes& targetMeshes, OpenG
             targetMeshes.redLines = gl.createColoredLineBatch(this->red.lineVerts);
         }
     } else {
-        targetMeshes.redLines.reset_renderable();
+        if (targetMeshes.redLines) {
+            targetMeshes.redLines.reset_renderable();
+        }
     }
 
     // Red Tris
@@ -698,7 +707,9 @@ void ConnectionDrawerBuffers::updateMeshes(ConnectionMeshes& targetMeshes, OpenG
             targetMeshes.redTris = gl.createColoredTriBatch(this->red.triVerts);
         }
     } else {
-        targetMeshes.redTris.reset_renderable();
+        if (targetMeshes.redTris) {
+            targetMeshes.redTris.reset_renderable();
+        }
     }
 }
 

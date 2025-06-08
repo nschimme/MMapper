@@ -4,6 +4,8 @@
 // FIXME: including display/ from opengl/ is a modularity violation.
 
 #include "Font.h"
+#include "./legacy/SimpleMesh.h" // Added
+#include "./legacy/Shaders.h"   // Added
 
 #include "../configuration/configuration.h"
 #include "../display/Filenames.h"
@@ -862,27 +864,26 @@ UniqueMesh GLFont::getFontMesh(const std::vector<GLText> &text)
 
 void GLFont::updateFontMesh(UniqueMesh& existingMesh, const std::vector<GLText>& names)
 {
-    const auto rawVerts = getFontBatchRawData(names.data(), names.size());
-    IRenderable* renderable = existingMesh.get_renderable();
-    if (renderable) {
-        auto* fontSimpleMesh = dynamic_cast<Legacy::SimpleMesh<FontVert3d, Legacy::FontShader>*>(renderable);
-        if (fontSimpleMesh) {
-            fontSimpleMesh->updateData(DrawModeEnum::QUADS, rawVerts, BufferUsageEnum::STATIC_DRAW);
+    if (!names.empty()) {
+        const auto rawVerts = getFontBatchRawData(names.data(), names.size());
+        IRenderable* renderable = existingMesh.get_renderable();
+        if (renderable) {
+            auto* fontSimpleMesh = dynamic_cast<Legacy::SimpleMesh<FontVert3d, Legacy::FontShader>*>(renderable);
+            if (fontSimpleMesh) {
+                fontSimpleMesh->updateData(DrawModeEnum::QUADS, rawVerts, BufferUsageEnum::STATIC_DRAW);
+            } else {
+                qWarning("GLFont::updateFontMesh: existingMesh is not of the expected SimpleMesh<FontVert3d, Legacy::FontShader> type.");
+                // Fallback: Recreate the mesh. This changes the UniqueMesh object in the caller's context.
+                existingMesh = getFontMesh(names);
+            }
         } else {
-            // Handle error: existingMesh is not of the expected SimpleMesh specialization
-            // This might involve recreating the mesh or logging an error.
-            // For now, if it's not the right type, we might have to recreate it outside,
-            // or GLFont could recreate it if it had the means (e.g., access to OpenGL&).
-            // As per instruction, "assume updateFontMesh is only called if existingMesh is expected to be valid and of the correct type."
-            // If it's not, this is an issue. For robustness, one might add:
-            // existingMesh = getFontMesh(names); // Recreate if wrong type, but this changes 'existingMesh'
-            qWarning() << "GLFont::updateFontMesh called with incompatible mesh type.";
+             // Mesh doesn't exist, create it. This changes the UniqueMesh object in the caller's context.
+            existingMesh = getFontMesh(names);
         }
-    } else {
-        // Handle error: existingMesh was empty.
-        // This implies it should have been created first.
-        // existingMesh = getFontMesh(names); // Recreate if empty
-        qWarning() << "GLFont::updateFontMesh called with an empty UniqueMesh.";
+    } else { // names is empty
+        if (existingMesh) { // If there are no names, but mesh exists, reset it
+            existingMesh.reset_renderable();
+        }
     }
 }
 

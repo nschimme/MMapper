@@ -125,6 +125,11 @@ public:
 
 public:
     NODISCARD static MapCanvas *getPrimary();
+    static RoomIdSet getVisibleRoomIds(const Map& currentMap,
+                                       int currentLayer,
+                                       const glm::mat4& viewProjMatrix,
+                                       int viewportWidth,
+                                       int viewportHeight);
 
 private:
     NODISCARD inline auto &getOpenGL() { return m_opengl; }
@@ -234,11 +239,6 @@ public:
     void userPressedEscape(bool);
 
 private:
-    static RoomIdSet getVisibleRoomIds(const Map& currentMap,
-                                       int currentLayer,
-                                       const glm::mat4& viewProjMatrix,
-                                       int viewportWidth,
-                                       int viewportHeight);
     void log(const QString &msg) { emit sig_log("MapCanvas", msg); }
 
 signals:

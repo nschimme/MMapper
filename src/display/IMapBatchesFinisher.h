@@ -7,7 +7,8 @@
 #include <future>
 #include <memory>
 #include <optional> // For std::optional
-#include "../map/roomid.h" // For RoomIdSet
+#include "../map/roomid.h" // For RoomIdSet (often provides RoomId, maybe RoomIdSet too)
+#include "../map/RoomIdSet.h" // Explicitly include for RoomIdSet definition
 
 class GLFont;
 class OpenGL;

@@ -16,6 +16,7 @@
 #include "../map/ExitFieldVariant.h"
 #include "../map/ExitFlags.h"
 #include "../map/Map.h"
+#include "../map/World.h" // Added for map.getWorld()
 #include "../map/coordinate.h"
 #include "../map/enums.h"
 #include "../map/exit.h"

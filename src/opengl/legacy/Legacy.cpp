@@ -236,7 +236,32 @@ Functions::Functions(Badge<Functions>)
     : m_shaderPrograms{std::make_unique<ShaderPrograms>(*this)}
     , m_staticVbos{std::make_unique<StaticVbos>()}
     , m_texLookup{std::make_unique<TexLookup>()}
-{}
+    // Initialize tracked states to OpenGL defaults
+    , m_currentBlendMode{BlendModeEnum::NONE}
+    , m_blendEnabled{false}
+    , m_currentDepthFunction{DepthFunctionEnum::LESS} // Default OpenGL depth func is GL_LESS
+    , m_depthTestEnabled{false} // Depth test is disabled by default
+    , m_currentShaderProgramId{0} // No program bound by default
+    , m_currentLineParams{1.0f} // Default line width
+    , m_currentPointSize{std::nullopt} // Point size state is more complex, default to not set
+    , m_currentCullingMode{CullingEnum::BACK} // Default cull face is GL_BACK
+    , m_cullingEnabled{false} // Culling is disabled by default
+{
+    // Initialize texture units state
+    for (size_t i = 0; i < m_currentTextureIds.size(); ++i) {
+        m_currentTextureIds[i] = MMTextureId{0}; // No texture bound (ID 0)
+        m_currentTextureTargets[i] = GL_TEXTURE_2D; // Default target, though irrelevant if ID is 0
+    }
+    // It's good practice to ensure the active texture unit is reset to 0 if changed during init,
+    // though QOpenGLFunctions usually manages this well.
+    // For explicit safety for texture unit 1, if m_currentTextureIds.size() > 1:
+    if (m_currentTextureIds.size() > 1) {
+         Base::glActiveTexture(GL_TEXTURE1); // Ensure we are talking about texture unit 1
+         Base::glBindTexture(GL_TEXTURE_2D, 0); // Bind texture 0 to unit 1
+         // Bind other targets to 0 as well if necessary, e.g. GL_TEXTURE_CUBE_MAP
+         Base::glActiveTexture(GL_TEXTURE0); // Reset active texture unit to 0
+    }
+}
 
 Functions::~Functions()
 {
@@ -321,6 +346,173 @@ void Functions::checkError()
     }
 
 #undef CASE
+}
+
+void Functions::applyBlendMode(BlendModeEnum mode)
+{
+    bool shouldBeEnabled = (mode != BlendModeEnum::NONE);
+    if (shouldBeEnabled != m_blendEnabled) {
+        if (shouldBeEnabled) {
+            Base::glEnable(GL_BLEND);
+        } else {
+            Base::glDisable(GL_BLEND);
+        }
+        m_blendEnabled = shouldBeEnabled;
+    }
+
+    if (m_blendEnabled && mode != m_currentBlendMode) {
+        switch (mode) {
+        case BlendModeEnum::TRANSPARENCY:
+            Base::glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+            break;
+        case BlendModeEnum::ADDITIVE:
+            Base::glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE);
+            break;
+        case BlendModeEnum::MODULATE:
+             Base::glBlendFuncSeparate(GL_DST_COLOR, GL_ZERO, GL_DST_ALPHA, GL_ZERO);
+            break;
+        case BlendModeEnum::NONE:
+             // This case should ideally not be reached if m_blendEnabled is true,
+             // as m_blendEnabled would have been set to false and blending disabled.
+             // If it is reached, it implies an attempt to set blend function while blending is conceptually off.
+             // For safety, one might disable blending again or assert.
+             assert(!m_blendEnabled && "BlendModeEnum::NONE with m_blendEnabled == true");
+            break;
+        default:
+            assert(false && "Unknown BlendModeEnum");
+            break;
+        }
+        m_currentBlendMode = mode;
+    } else if (!m_blendEnabled) {
+        // If blending is disabled, ensure our tracked blend mode reflects that.
+        m_currentBlendMode = BlendModeEnum::NONE;
+    }
+}
+
+void Functions::applyDepthState(const GLRenderState::OptDepth& depthFuncOpt)
+{
+    bool shouldBeEnabled = depthFuncOpt.has_value();
+    if (shouldBeEnabled != m_depthTestEnabled) {
+        if (shouldBeEnabled) {
+            Base::glEnable(GL_DEPTH_TEST);
+        } else {
+            Base::glDisable(GL_DEPTH_TEST);
+        }
+        m_depthTestEnabled = shouldBeEnabled;
+    }
+
+    if (m_depthTestEnabled && depthFuncOpt != m_currentDepthFunction) {
+        // A value must be present if m_depthTestEnabled is true from the block above
+        assert(depthFuncOpt.has_value());
+        switch (depthFuncOpt.value()) {
+        case DepthFunctionEnum::NEVER: Base::glDepthFunc(GL_NEVER); break;
+        case DepthFunctionEnum::LESS: Base::glDepthFunc(GL_LESS); break;
+        case DepthFunctionEnum::EQUAL: Base::glDepthFunc(GL_EQUAL); break;
+        case DepthFunctionEnum::LEQUAL: Base::glDepthFunc(GL_LEQUAL); break;
+        case DepthFunctionEnum::GREATER: Base::glDepthFunc(GL_GREATER); break;
+        case DepthFunctionEnum::NOTEQUAL: Base::glDepthFunc(GL_NOTEQUAL); break;
+        case DepthFunctionEnum::GEQUAL: Base::glDepthFunc(GL_GEQUAL); break;
+        case DepthFunctionEnum::ALWAYS: Base::glDepthFunc(GL_ALWAYS); break;
+        default: assert(false && "Unknown DepthFunctionEnum"); break;
+        }
+        m_currentDepthFunction = depthFuncOpt;
+    } else if (!m_depthTestEnabled) {
+        // If depth test is disabled, ensure our tracked depth function reflects that.
+        m_currentDepthFunction = std::nullopt;
+    }
+}
+
+void Functions::applyShaderProgram(GLuint programId)
+{
+    if (programId != m_currentShaderProgramId) {
+        Base::glUseProgram(programId);
+        m_currentShaderProgramId = programId;
+    }
+}
+
+void Functions::applyTexture(GLuint textureUnit, MMTextureId textureId, GLenum target)
+{
+    // Assuming m_currentTextureIds and m_currentTextureTargets are Array<..., 2>
+    assert(textureUnit < 2 && "Texture unit out of bounds for current implementation");
+    if (textureId != m_currentTextureIds[textureUnit] || target != m_currentTextureTargets[textureUnit]) {
+        Base::glActiveTexture(GL_TEXTURE0 + textureUnit);
+        Base::glBindTexture(target, textureId.asGLuint());
+        m_currentTextureIds[textureUnit] = textureId;
+        m_currentTextureTargets[textureUnit] = target;
+    }
+}
+
+void Functions::applyLineParams(const LineParams& params)
+{
+    // For glLineWidth, only call if the value actually changes.
+    // Use a small epsilon for floating-point comparison.
+    if (std::abs(params.lineWidth - m_currentLineParams.lineWidth) > 0.001f) {
+        Base::glLineWidth(params.lineWidth); // Directly use the base QOpenGLFunctions call
+        m_currentLineParams.lineWidth = params.lineWidth;
+    }
+    // Note: The glLineWidth method in this class was commented out or had a scaling factor.
+    // Calling Base::glLineWidth directly is more straightforward for state management.
+    // If stippling or other line parameters were supported, they would be handled here.
+}
+
+void Functions::applyPointSize(const std::optional<float>& pointSize)
+{
+    bool newHasValue = pointSize.has_value();
+    bool currentHasValue = m_currentPointSize.has_value();
+
+    if (newHasValue != currentHasValue) {
+        enableProgramPointSize(newHasValue); // Manages GL_PROGRAM_POINT_SIZE or similar
+    }
+
+    // If fixed-function point size is used (i.e., enableProgramPointSize(false) was called),
+    // and the point size value changes, then call glPointSize.
+    // This part depends on how enableProgramPointSize behaves.
+    // If enableProgramPointSize(true) means gl_PointSize is used in shader, then CPU-side glPointSize is irrelevant.
+    // For now, just track the conceptual state. The actual setting of size might be shader-side.
+    m_currentPointSize = pointSize;
+    // If direct glPointSize control was intended when enableProgramPointSize(false):
+    // if (newHasValue && !enableProgramPointSizeTrueImpliesShaderControl) { // Fictional flag
+    //     if (!currentHasValue || std::abs(pointSize.value() - m_currentPointSize.value()) > 0.001f) {
+    //         Base::glPointSize(pointSize.value());
+    //     }
+    // }
+}
+
+void Functions::applyCulling(CullingEnum cullMode)
+{
+    bool shouldBeEnabled = (cullMode != CullingEnum::NONE);
+    if (shouldBeEnabled != m_cullingEnabled) {
+        if (shouldBeEnabled) {
+            Base::glEnable(GL_CULL_FACE);
+        } else {
+            Base::glDisable(GL_CULL_FACE);
+        }
+        m_cullingEnabled = shouldBeEnabled;
+    }
+
+    if (m_cullingEnabled && cullMode != m_currentCullingMode) {
+        switch (cullMode) {
+        // Case CullingEnum::NONE is implicitly handled if m_cullingEnabled is true
+        // but cullMode is NONE, which is a contradiction handled by the assert.
+        case CullingEnum::FRONT:
+            Base::glCullFace(GL_FRONT);
+            break;
+        case CullingEnum::BACK:
+            Base::glCullFace(GL_BACK);
+            break;
+        case CullingEnum::FRONT_AND_BACK:
+            Base::glCullFace(GL_FRONT_AND_BACK);
+            break;
+        default:
+             assert(cullMode != CullingEnum::NONE && "CullingEnum::NONE passed while m_cullingEnabled is true");
+             assert(false && "Unknown CullingEnum or invalid state");
+            break;
+        }
+        m_currentCullingMode = cullMode;
+    } else if (!m_cullingEnabled) {
+        // If culling is disabled, ensure our tracked cull mode reflects that.
+        m_currentCullingMode = CullingEnum::NONE;
+    }
 }
 
 } // namespace Legacy

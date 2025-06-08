@@ -103,7 +103,7 @@ private:
     Batches m_batches;
     MapCanvasTextures m_textures;
     MapData &m_data;
-    GLuint m_defaultVao;
+    // GLuint m_defaultVao; // Removed
     Mmapper2Group &m_groupManager;
     OptionStatus m_graphicsOptionsStatus;
     Diff m_diff;

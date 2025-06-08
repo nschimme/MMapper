@@ -30,6 +30,7 @@ protected:
     VBO m_vbo;
     DrawModeEnum m_drawMode = DrawModeEnum::INVALID;
     GLsizei m_numVerts = 0;
+    GLuint m_vao_id = 0;
 
 public:
     explicit SimpleMesh(SharedFunctions sharedFunctions, std::shared_ptr<ProgramType_> sharedProgram)
@@ -97,6 +98,24 @@ public:
         setCommon(mode, verts, BufferUsageEnum::STATIC_DRAW);
     }
 
+public:
+    void updateData(const DrawModeEnum mode, const std::vector<VertexType_>& verts, BufferUsageEnum usage)
+    {
+        assert(m_vbo);
+        const auto numVerts = verts.size();
+        assert(mode == DrawModeEnum::INVALID || numVerts % static_cast<size_t>(mode) == 0);
+
+        if (LOG_VBO_STATIC_UPLOADS && usage == BufferUsageEnum::STATIC_DRAW) {
+            qInfo() << "Updating static buffer with" << numVerts << "verts of size"
+                    << sizeof(VertexType_) << "(total" << (numVerts * sizeof(VertexType_))
+                    << "bytes) to existing VBO" << m_vbo.get() << __FUNCTION__;
+        }
+
+        auto tmp = m_functions.setVbo(mode, m_vbo.get(), verts, usage);
+        m_drawMode = tmp.first;
+        m_numVerts = tmp.second;
+    }
+
 private:
     void setCommon(const DrawModeEnum mode,
                    const std::vector<VertexType_> &verts,
@@ -119,11 +138,35 @@ private:
             auto tmp = m_functions.setVbo(mode, m_vbo.get(), verts, usage);
             m_drawMode = tmp.first;
             m_numVerts = tmp.second;
+
+            // Initialize VAO after VBO is populated
+            if (m_vbo && m_numVerts > 0) { // Only create VAO if there's data
+                initializeVAO();
+            } else if (m_vao_id != 0) { // No data, or VBO not created, ensure VAO is cleaned up
+                m_functions.glDeleteVertexArrays(1, &m_vao_id);
+                m_vao_id = 0;
+            }
         } else {
             // REVISIT: Should this be reported as an error?
             m_drawMode = DrawModeEnum::INVALID;
             m_numVerts = 0;
+            if (m_vao_id != 0) { // VBO not created, ensure VAO is cleaned up
+                m_functions.glDeleteVertexArrays(1, &m_vao_id);
+                m_vao_id = 0;
+            }
         }
+    }
+
+    void initializeVAO()
+    {
+        if (m_vao_id == 0) {
+            m_functions.glGenVertexArrays(1, &m_vao_id);
+        }
+        m_functions.glBindVertexArray(m_vao_id);
+        m_functions.glBindBuffer(GL_ARRAY_BUFFER, m_vbo.get());
+        virt_bind(); // Configure vertex attributes
+        m_functions.glBindBuffer(GL_ARRAY_BUFFER, 0);
+        m_functions.glBindVertexArray(0);
     }
 
 private:
@@ -141,8 +184,12 @@ private:
     {
         m_drawMode = DrawModeEnum::INVALID;
         m_numVerts = 0;
+        if (m_vao_id != 0) {
+            m_functions.glDeleteVertexArrays(1, &m_vao_id);
+            m_vao_id = 0;
+        }
         m_vbo.reset();
-        assert(isEmpty() && !m_vbo);
+        assert(isEmpty() && !m_vbo && m_vao_id == 0);
     }
 
 private:
@@ -161,10 +208,13 @@ private:
         m_functions.checkError();
 
         const glm::mat4 mvp = m_functions.getProjectionMatrix();
-        auto programUnbinder = m_program.bind();
+
+        m_functions.glBindVertexArray(m_vao_id); // Bind VAO
+
+        auto programUnbinder = m_program.bind(); // Binds program via applyShaderProgram
         m_program.setUniforms(mvp, renderState.uniforms);
         RenderStateBinder renderStateBinder(m_functions, m_functions.getTexLookup(), renderState);
-        auto attribUnbinder = bindAttribs(); // mesh sets its own attributes
+        // auto attribUnbinder = bindAttribs(); // Removed: VAO handles attributes
 
         m_functions.checkError();
 
@@ -174,6 +224,7 @@ private:
             assert(false);
         }
 
+        m_functions.glBindVertexArray(0); // Unbind VAO
         m_functions.checkError();
     }
 };

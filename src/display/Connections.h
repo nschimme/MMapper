@@ -44,7 +44,9 @@ public:
     NODISCARD bool empty() const { return m_names.empty(); }
 
 public:
-    NODISCARD UniqueMesh getMesh(GLFont &font) const;
+    NODISCARD UniqueMesh getMesh(GLFont &font) const; // Old method, will be replaced by createNewMesh
+    void updateMesh(UniqueMesh& targetMesh, GLFont& font) const;
+    NODISCARD UniqueMesh createNewMesh(GLFont& font) const;
 };
 
 using BatchedRoomNames = std::unordered_map<int, UniqueMesh>;
@@ -97,6 +99,7 @@ struct NODISCARD ConnectionDrawerBuffers final
 
     NODISCARD bool empty() const { return red.empty() && normal.empty(); }
     NODISCARD ConnectionMeshes getMeshes(OpenGL &gl) const;
+    void updateMeshes(ConnectionMeshes& targetMeshes, OpenGL& gl) const;
 };
 
 struct NODISCARD ConnectionDrawer final

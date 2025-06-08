@@ -90,6 +90,19 @@ private:
     std::unique_ptr<StaticVbos> m_staticVbos;
     std::unique_ptr<TexLookup> m_texLookup;
 
+    // State tracking variables
+    BlendModeEnum m_currentBlendMode;
+    bool m_blendEnabled;
+    std::optional<DepthFunctionEnum> m_currentDepthFunction;
+    bool m_depthTestEnabled;
+    GLuint m_currentShaderProgramId;
+    MMapper::Array<MMTextureId, 2> m_currentTextureIds;
+    MMapper::Array<GLenum, 2> m_currentTextureTargets;
+    LineParams m_currentLineParams;
+    std::optional<float> m_currentPointSize;
+    CullingEnum m_currentCullingMode;
+    bool m_cullingEnabled;
+
 public:
     NODISCARD static std::shared_ptr<Functions> alloc();
 
@@ -319,5 +332,15 @@ public:
 
 public:
     void checkError();
+
+public:
+    // New state application methods
+    void applyBlendMode(BlendModeEnum mode);
+    void applyDepthState(const GLRenderState::OptDepth& depthFuncOpt);
+    void applyShaderProgram(GLuint programId);
+    void applyTexture(GLuint textureUnit, MMTextureId textureId, GLenum target);
+    void applyLineParams(const LineParams& params);
+    void applyPointSize(const std::optional<float>& pointSize);
+    void applyCulling(CullingEnum cullMode);
 };
 } // namespace Legacy

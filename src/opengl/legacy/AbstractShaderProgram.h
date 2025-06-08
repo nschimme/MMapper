@@ -16,7 +16,7 @@ protected:
     std::string m_dirName;
     WeakFunctions m_functions;
     Program m_program;
-    bool m_isBound = false;
+    // bool m_isBound = false; // No longer needed
 
 public:
     AbstractShaderProgram() = delete;
@@ -43,20 +43,14 @@ public:
         explicit ProgramUnbinder(AbstractShaderProgram &self)
             : m_self{&self}
         {}
-        ~ProgramUnbinder()
-        {
-            if (m_self) {
-                m_self->unbind();
-            }
-        }
+        ~ProgramUnbinder() = default; // Destructor becomes empty
     };
 
     NODISCARD ProgramUnbinder bind();
 
 private:
     friend ProgramUnbinder;
-    // REVISIT: store the currently bound program on the functions object?
-    void unbind();
+    void unbind() {} // Becomes empty
 
 public:
     // set program uniforms...

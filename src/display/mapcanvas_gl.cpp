@@ -218,6 +218,21 @@ void MapCanvas::initializeGL()
     auto &gl = getOpenGL();
     gl.initializeOpenGLFunctions();
 
+    // Initialize Legacy::Functions state tracking to match OpenGL defaults
+    gl.applyBlendMode(BlendModeEnum::NONE); // Blend disabled
+    gl.applyDepthState(std::nullopt);      // Depth test disabled
+    gl.applyShaderProgram(0);              // No program bound
+    // Textures: Apply texture 0 to both units (or ensure they are in a known unbound state)
+    // Assuming GL_TEXTURE_2D as the default target for unbinding.
+    gl.applyTexture(0, MMTextureId{0}, GL_TEXTURE_2D);
+    gl.applyTexture(1, MMTextureId{0}, GL_TEXTURE_2D);
+    gl.applyLineParams({1.0f});            // LineWidth 1.0
+    gl.applyPointSize(std::nullopt);       // Point size (often shader controlled or default 1.0)
+    gl.applyCulling(CullingEnum::BACK);    // Cull face BACK
+    // Disable culling by default, applyCulling will set m_cullingEnabled to false if CullingEnum::NONE is passed.
+    // However, the internal state m_currentCullingMode is BACK. So, to truly disable and match default:
+    gl.applyCulling(CullingEnum::NONE);    // Culling disabled
+
     reportGLVersion();
 
     // TODO: Perform the blacklist test as a call from main() to minimize player headache.
@@ -264,9 +279,9 @@ void MapCanvas::initializeGL()
         this->forceUpdateMeshes();
     });
 
-    QOpenGLExtraFunctions *f = QOpenGLContext::currentContext()->extraFunctions();
-    f->glGenVertexArrays(1, &m_defaultVao);
-    f->glBindVertexArray(m_defaultVao);
+    // QOpenGLExtraFunctions *f = QOpenGLContext::currentContext()->extraFunctions(); // Removed
+    // f->glGenVertexArrays(1, &m_defaultVao); // Removed
+    // f->glBindVertexArray(m_defaultVao); // Removed
 }
 
 /* Direct means it is always called from the emitter's thread */
@@ -571,14 +586,19 @@ void MapCanvas::finishPendingMapBatches()
     }
 
     // REVISIT: should we pass a "fake" one and only swap to the correct one on success?
-    LOG() << "Clearing the map batches and call the finisher to create new ones";
+    LOG() << "Calling the finisher to update or create map batches";
 
     DECL_TIMER(t, __FUNCTION__);
     const IMapBatchesFinisher &future = *pFuture;
-    std::optional<MapBatches> &opt_mapBatches = m_batches.mapBatches;
-    opt_mapBatches.reset();
-    finish(future, opt_mapBatches, getOpenGL(), getGLFont());
-    assert(opt_mapBatches.has_value());
+    // If m_batches.mapBatches already has a value, it will be updated in place.
+    // Otherwise, the finish function will create it.
+    if (!m_batches.mapBatches.has_value()) {
+        LOG() << "No existing map batches, finisher will create new ones.";
+    } else {
+        LOG() << "Existing map batches found, finisher will update them.";
+    }
+    finish(future, m_batches.mapBatches, getOpenGL(), getGLFont());
+    assert(m_batches.mapBatches.has_value());
 
 #undef LOG
 }

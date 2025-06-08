@@ -87,6 +87,7 @@ public:
 
 public:
     NODISCARD UniqueMesh getFontMesh(const std::vector<GLText> &text);
+    void updateFontMesh(UniqueMesh& existingMesh, const std::vector<GLText>& names);
 
 private:
     NODISCARD std::vector<FontVert3d> getFontBatchRawData(const GLText *text, size_t count);

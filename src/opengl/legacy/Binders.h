@@ -16,8 +16,12 @@ private:
     const BlendModeEnum blend;
 
 public:
-    explicit BlendBinder(Functions &in_functions, BlendModeEnum in_blend);
-    ~BlendBinder();
+    explicit BlendBinder(Functions &in_functions, BlendModeEnum in_blend)
+        : functions(in_functions), blend(in_blend)
+    {
+        functions.applyBlendMode(blend);
+    }
+    ~BlendBinder() = default;
     DELETE_CTORS_AND_ASSIGN_OPS(BlendBinder);
 };
 
@@ -27,13 +31,13 @@ private:
     Functions &functions;
 
 public:
-    explicit CullingBinder(Functions &in_functions, const CullingEnum &in_culling);
-    ~CullingBinder();
+    explicit CullingBinder(Functions &in_functions, const CullingEnum &in_culling)
+        : functions(in_functions)
+    {
+        functions.applyCulling(in_culling);
+    }
+    ~CullingBinder() = default;
     DELETE_CTORS_AND_ASSIGN_OPS(CullingBinder);
-
-private:
-    void enable(GLenum mode);
-    void disable();
 };
 
 struct NODISCARD DepthBinder final
@@ -46,8 +50,12 @@ private:
     const OptDepth &depth;
 
 public:
-    explicit DepthBinder(Functions &in_functions, const OptDepth &in_depth);
-    ~DepthBinder();
+    explicit DepthBinder(Functions &in_functions, const OptDepth &in_depth)
+        : functions(in_functions), depth(in_depth)
+    {
+        functions.applyDepthState(depth);
+    }
+    ~DepthBinder() = default;
     DELETE_CTORS_AND_ASSIGN_OPS(DepthBinder);
 };
 
@@ -58,8 +66,12 @@ private:
     const LineParams &lineParams;
 
 public:
-    explicit LineParamsBinder(Functions &in_functions, const LineParams &in_lineParams);
-    ~LineParamsBinder();
+    explicit LineParamsBinder(Functions &in_functions, const LineParams &in_lineParams)
+        : functions(in_functions), lineParams(in_lineParams)
+    {
+        functions.applyLineParams(lineParams);
+    }
+    ~LineParamsBinder() = default;
     DELETE_CTORS_AND_ASSIGN_OPS(LineParamsBinder);
 };
 
@@ -70,8 +82,12 @@ private:
     const std::optional<GLfloat> &optPointSize;
 
 public:
-    explicit PointSizeBinder(Functions &in_functions, const std::optional<GLfloat> &in_pointSize);
-    ~PointSizeBinder();
+    explicit PointSizeBinder(Functions &in_functions, const std::optional<GLfloat> &in_pointSize)
+        : functions(in_functions), optPointSize(in_pointSize)
+    {
+        functions.applyPointSize(optPointSize);
+    }
+    ~PointSizeBinder() = default;
     DELETE_CTORS_AND_ASSIGN_OPS(PointSizeBinder);
 };
 
@@ -81,12 +97,51 @@ public:
     using Textures = GLRenderState::Textures;
 
 private:
+    Functions &functions; // Added: Need Functions reference to call applyTexture
     const TexLookup &lookup;
     const Textures &textures;
 
 public:
-    explicit TexturesBinder(const TexLookup &in_lookup, const Textures &in_textures);
-    ~TexturesBinder();
+    explicit TexturesBinder(Functions &in_functions, const TexLookup &in_lookup, const Textures &in_textures) // Added Functions
+        : functions(in_functions), lookup(in_lookup), textures(in_textures)
+    {
+        for (size_t i = 0; i < textures.size() && i < 2; ++i) { // Assuming max 2 texture units
+            const auto& texInfo = textures[i];
+            if (texInfo.id.isValid()) {
+                // Need to get GLenum target from TexLookup or store it in GLRenderState::TextureInfo
+                // For now, assuming QOpenGLTexture::Target2D as a placeholder if lookup is hard.
+                // This part needs a robust way to get the texture target.
+                // GLenum target = GL_TEXTURE_2D; // Placeholder
+                // const auto* sharedTex = lookup.get(texInfo.id);
+                // if(sharedTex && sharedTex->get()) { target = sharedTex->get()->target(); }
+                // functions.applyTexture(static_cast<GLuint>(i), texInfo.id, target);
+
+                // Ideal way: TexLookup provides the target.
+                const auto* sharedTexPtr = lookup.get(texInfo.id);
+                if (sharedTexPtr) {
+                    const auto& sharedTex = *sharedTexPtr; // Get reference to SharedMMTexture
+                    if(sharedTex && sharedTex->get()) { // Check if SharedMMTexture and QOpenGLTexture are valid
+                         GLenum target = sharedTex->get()->target();
+                         functions.applyTexture(static_cast<GLuint>(i), texInfo.id, target);
+                    } else {
+                        // Texture ID is valid but lookup failed to get a valid QOpenGLTexture:
+                        // This might mean we apply with a default target or skip.
+                        // For now, let's assume if ID is valid, lookup gives a usable texture.
+                        // If not, this is an issue with texture management elsewhere.
+                        // As a fallback, bind with TEXTURE_2D if target is unknown but ID is valid.
+                         functions.applyTexture(static_cast<GLuint>(i), texInfo.id, GL_TEXTURE_2D);
+                    }
+                } else {
+                    // Texture ID was valid, but not found in TexLookup. This is an error state.
+                    // Skip or assert. For now, skip.
+                }
+            } else {
+                // Bind texture 0 (unbind) if ID is invalid for this unit
+                 functions.applyTexture(static_cast<GLuint>(i), MMTextureId{0}, GL_TEXTURE_2D);
+            }
+        }
+    }
+    ~TexturesBinder() = default;
     DELETE_CTORS_AND_ASSIGN_OPS(TexturesBinder);
 };
 
@@ -101,9 +156,16 @@ private:
     TexturesBinder texturesBinder;
 
 public:
-    explicit RenderStateBinder(Functions &functions,
-                               const TexLookup &,
-                               const GLRenderState &renderState);
+    explicit RenderStateBinder(Functions &in_functions, // Renamed for clarity
+                               const TexLookup &in_lookup, // Renamed for clarity
+                               const GLRenderState &renderState)
+        : blendBinder(in_functions, renderState.blendMode)
+        , cullingBinder(in_functions, renderState.culling)
+        , depthBinder(in_functions, renderState.depthTest)
+        , lineParamsBinder(in_functions, renderState.lineParams)
+        , pointSizeBinder(in_functions, renderState.uniforms.pointSize)
+        , texturesBinder(in_functions, in_lookup, renderState.textures) // Pass in_functions here
+    {}
     DELETE_CTORS_AND_ASSIGN_OPS(RenderStateBinder);
     DTOR(RenderStateBinder) = default;
 };

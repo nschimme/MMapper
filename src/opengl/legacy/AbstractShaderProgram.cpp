@@ -15,32 +15,30 @@ AbstractShaderProgram::AbstractShaderProgram(std::string dirName,
 
 AbstractShaderProgram::~AbstractShaderProgram()
 {
-    assert(!m_isBound);
+    // assert(!m_isBound); // No longer needed
 }
 
 AbstractShaderProgram::ProgramUnbinder AbstractShaderProgram::bind()
 {
-    assert(!m_isBound);
+    // assert(!m_isBound); // No longer needed
     if (auto f = m_functions.lock()) {
-        f->glUseProgram(getProgram());
+        f->applyShaderProgram(getProgram()); // Call new method
     }
-    m_isBound = true;
+    // m_isBound = true; // No longer needed
     return ProgramUnbinder{*this};
 }
 
 void AbstractShaderProgram::unbind()
 {
-    assert(m_isBound);
-    if (auto f = m_functions.lock()) {
-        f->glUseProgram(0);
-    }
-    m_isBound = false;
+    // assert(m_isBound); // No longer needed
+    // Body is now empty as per .h change.
+    // m_isBound = false; // No longer needed
 }
 
 void AbstractShaderProgram::setUniforms(const glm::mat4 &mvp,
                                         const GLRenderState::Uniforms &uniforms)
 {
-    assert(m_isBound);
+    // assert(m_isBound); // No longer needed, program should be bound by state manager
     virt_setUniforms(mvp, uniforms);
 
     if (uniforms.pointSize) {
@@ -51,7 +49,7 @@ void AbstractShaderProgram::setUniforms(const glm::mat4 &mvp,
 GLuint AbstractShaderProgram::getAttribLocation(const char *const name) const
 {
     assert(name != nullptr);
-    assert(m_isBound);
+    // assert(m_isBound); // No longer needed
     auto functions = m_functions.lock();
     const auto tmp = deref(functions).glGetAttribLocation(getProgram(), name);
     // Reason for making the cast here: glGetAttribLocation uses signed GLint,
@@ -64,7 +62,7 @@ GLuint AbstractShaderProgram::getAttribLocation(const char *const name) const
 GLint AbstractShaderProgram::getUniformLocation(const char *const name) const
 {
     assert(name != nullptr);
-    assert(m_isBound);
+    // assert(m_isBound); // No longer needed
     auto functions = m_functions.lock();
     const auto result = deref(functions).glGetUniformLocation(getProgram(), name);
     assert(result != INVALID_UNIFORM_LOCATION);
@@ -83,7 +81,7 @@ void AbstractShaderProgram::setUniform1iv(const GLint location,
                                           const GLsizei count,
                                           const GLint *const value)
 {
-    assert(m_isBound);
+    // assert(m_isBound); // No longer needed
     auto functions = m_functions.lock();
     deref(functions).glUniform1iv(location, count, value);
 }
@@ -92,7 +90,7 @@ void AbstractShaderProgram::setUniform1fv(const GLint location,
                                           const GLsizei count,
                                           const GLfloat *const value)
 {
-    assert(m_isBound);
+    // assert(m_isBound); // No longer needed
     auto functions = m_functions.lock();
     deref(functions).glUniform1fv(location, count, value);
 }
@@ -101,7 +99,7 @@ void AbstractShaderProgram::setUniform4fv(const GLint location,
                                           const GLsizei count,
                                           const GLfloat *const value)
 {
-    assert(m_isBound);
+    // assert(m_isBound); // No longer needed
     auto functions = m_functions.lock();
     deref(functions).glUniform4fv(location, count, value);
 }
@@ -110,7 +108,7 @@ void AbstractShaderProgram::setUniform4iv(const GLint location,
                                           const GLsizei count,
                                           const GLint *const value)
 {
-    assert(m_isBound);
+    // assert(m_isBound); // No longer needed
     auto functions = m_functions.lock();
     deref(functions).glUniform4iv(location, count, value);
 }
@@ -120,7 +118,7 @@ void AbstractShaderProgram::setUniformMatrix4fv(const GLint location,
                                                 const GLboolean transpose,
                                                 const GLfloat *const value)
 {
-    assert(m_isBound);
+    // assert(m_isBound); // No longer needed
     auto functions = m_functions.lock();
     deref(functions).glUniformMatrix4fv(location, count, transpose, value);
 }

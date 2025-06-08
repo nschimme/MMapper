@@ -121,6 +121,22 @@ NODISCARD static QString getPostfixedDoorName(const RoomHandle &room, const Exit
 
 UniqueMesh RoomNameBatch::getMesh(GLFont &font) const
 {
+    // This is effectively createNewMesh now
+    return font.getFontMesh(m_names);
+}
+
+void RoomNameBatch::updateMesh(UniqueMesh& targetMesh, GLFont& font) const
+{
+    if (!m_names.empty()) {
+        // This assumes GLFont::updateFontMesh exists and UniqueMesh can handle it.
+        font.updateFontMesh(targetMesh, m_names);
+    } else {
+        targetMesh.reset();
+    }
+}
+
+UniqueMesh RoomNameBatch::createNewMesh(GLFont& font) const
+{
     return font.getFontMesh(m_names);
 }
 
@@ -613,6 +629,53 @@ ConnectionMeshes ConnectionDrawerBuffers::getMeshes(OpenGL &gl) const
     result.redLines = gl.createColoredLineBatch(red.lineVerts);
     result.redTris = gl.createColoredTriBatch(red.triVerts);
     return result;
+}
+
+void ConnectionDrawerBuffers::updateMeshes(ConnectionMeshes& targetMeshes, OpenGL& gl) const
+{
+    // Normal Lines
+    if (!this->normal.lineVerts.empty()) {
+        if (targetMeshes.normalLines) {
+            targetMeshes.normalLines.updateData(DrawModeEnum::LINES, this->normal.lineVerts, BufferUsageEnum::STATIC_DRAW);
+        } else {
+            targetMeshes.normalLines = gl.createColoredLineBatch(this->normal.lineVerts);
+        }
+    } else {
+        targetMeshes.normalLines.reset();
+    }
+
+    // Normal Tris
+    if (!this->normal.triVerts.empty()) {
+        if (targetMeshes.normalTris) {
+            targetMeshes.normalTris.updateData(DrawModeEnum::TRIANGLES, this->normal.triVerts, BufferUsageEnum::STATIC_DRAW);
+        } else {
+            targetMeshes.normalTris = gl.createColoredTriBatch(this->normal.triVerts);
+        }
+    } else {
+        targetMeshes.normalTris.reset();
+    }
+
+    // Red Lines
+    if (!this->red.lineVerts.empty()) {
+        if (targetMeshes.redLines) {
+            targetMeshes.redLines.updateData(DrawModeEnum::LINES, this->red.lineVerts, BufferUsageEnum::STATIC_DRAW);
+        } else {
+            targetMeshes.redLines = gl.createColoredLineBatch(this->red.lineVerts);
+        }
+    } else {
+        targetMeshes.redLines.reset();
+    }
+
+    // Red Tris
+    if (!this->red.triVerts.empty()) {
+        if (targetMeshes.redTris) {
+            targetMeshes.redTris.updateData(DrawModeEnum::TRIANGLES, this->red.triVerts, BufferUsageEnum::STATIC_DRAW);
+        } else {
+            targetMeshes.redTris = gl.createColoredTriBatch(this->red.triVerts);
+        }
+    } else {
+        targetMeshes.redTris.reset();
+    }
 }
 
 void ConnectionMeshes::render(const int thisLayer, const int focusedLayer) const

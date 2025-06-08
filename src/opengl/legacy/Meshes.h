@@ -35,7 +35,7 @@ private:
         }
     };
 
-    std::optional<Attribs> boundAttribs;
+    // std::optional<Attribs> boundAttribs; // Removed
 
     void virt_bind() override
     {
@@ -43,24 +43,14 @@ private:
 
         Functions &gl = Base::m_functions;
         const auto attribs = Attribs::getLocations(Base::m_program);
-        gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
+        // gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get()); // Removed: Done by SimpleMesh::initializeVAO
         gl.enableAttrib(attribs.vertPos, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
-        boundAttribs = attribs;
+        // boundAttribs = attribs; // Removed
     }
 
-    void virt_unbind() override
-    {
-        if (!boundAttribs) {
-            assert(false);
-            return;
-        }
-
-        auto &attribs = boundAttribs.value();
-        Functions &gl = Base::m_functions;
-        gl.glDisableVertexAttribArray(attribs.vertPos);
-        gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
-        boundAttribs.reset();
-    }
+    // void virt_unbind() override // Removed
+    // {
+    // }
 };
 
 // Per-vertex color
@@ -87,7 +77,7 @@ private:
         }
     };
 
-    std::optional<Attribs> boundAttribs;
+    // std::optional<Attribs> boundAttribs; // Removed
 
     void virt_bind() override
     {
@@ -97,27 +87,16 @@ private:
 
         Functions &gl = Base::m_functions;
         const auto attribs = Attribs::getLocations(Base::m_program);
-        gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
+        // gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get()); // Removed: Done by SimpleMesh::initializeVAO
         gl.enableAttrib(attribs.colorPos, 4, GL_UNSIGNED_BYTE, GL_TRUE, vertSize, VPO(color));
         gl.enableAttrib(attribs.vertPos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(vert));
-        boundAttribs = attribs;
+        // boundAttribs = attribs; // Removed
     }
 
-    void virt_unbind() override
-    {
-        if (!boundAttribs) {
-            assert(false);
-            return;
-        }
-
-        auto &attribs = boundAttribs.value();
-        Functions &gl = Base::m_functions;
-        gl.glDisableVertexAttribArray(attribs.colorPos);
-        gl.glDisableVertexAttribArray(attribs.vertPos);
-        gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
-        boundAttribs.reset();
-    }
-}; // namespace Legacy
+    // void virt_unbind() override // Removed
+    // {
+    // }
+};
 
 // Textured mesh with color modulated by uniform
 template<typename VertexType_>
@@ -142,7 +121,7 @@ private:
         }
     };
 
-    std::optional<Attribs> boundAttribs;
+    // std::optional<Attribs> boundAttribs; // Removed
 
     void virt_bind() override
     {
@@ -152,27 +131,16 @@ private:
 
         Functions &gl = Base::m_functions;
         const auto attribs = Attribs::getLocations(Base::m_program);
-        gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
+        // gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get()); // Removed: Done by SimpleMesh::initializeVAO
         /* NOTE: OpenGL 2.x can't use GL_TEXTURE_2D_ARRAY. */
         gl.enableAttrib(attribs.texPos, 2, GL_FLOAT, GL_FALSE, vertSize, VPO(tex));
         gl.enableAttrib(attribs.vertPos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(vert));
-        boundAttribs = attribs;
+        // boundAttribs = attribs; // Removed
     }
 
-    void virt_unbind() override
-    {
-        if (!boundAttribs) {
-            assert(false);
-            return;
-        }
-
-        auto &attribs = boundAttribs.value();
-        Functions &gl = Base::m_functions;
-        gl.glDisableVertexAttribArray(attribs.texPos);
-        gl.glDisableVertexAttribArray(attribs.vertPos);
-        gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
-        boundAttribs.reset();
-    }
+    // void virt_unbind() override // Removed
+    // {
+    // }
 };
 
 // Textured mesh with color modulated by color attribute.
@@ -200,7 +168,7 @@ private:
         }
     };
 
-    std::optional<Attribs> boundAttribs;
+    // std::optional<Attribs> boundAttribs; // Removed
 
     void virt_bind() override
     {
@@ -211,29 +179,17 @@ private:
 
         Functions &gl = Base::m_functions;
         const auto attribs = Attribs::getLocations(Base::m_program);
-        gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
+        // gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get()); // Removed: Done by SimpleMesh::initializeVAO
         gl.enableAttrib(attribs.colorPos, 4, GL_UNSIGNED_BYTE, GL_TRUE, vertSize, VPO(color));
         /* NOTE: OpenGL 2.x can't use GL_TEXTURE_2D_ARRAY. */
         gl.enableAttrib(attribs.texPos, 2, GL_FLOAT, GL_FALSE, vertSize, VPO(tex));
         gl.enableAttrib(attribs.vertPos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(vert));
-        boundAttribs = attribs;
+        // boundAttribs = attribs; // Removed
     }
 
-    void virt_unbind() override
-    {
-        if (!boundAttribs) {
-            assert(false);
-            return;
-        }
-
-        auto &attribs = boundAttribs.value();
-        Functions &gl = Base::m_functions;
-        gl.glDisableVertexAttribArray(attribs.colorPos);
-        gl.glDisableVertexAttribArray(attribs.texPos);
-        gl.glDisableVertexAttribArray(attribs.vertPos);
-        gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
-        boundAttribs.reset();
-    }
+    // void virt_unbind() override // Removed
+    // {
+    // }
 };
 
 // Per-vertex color
@@ -260,7 +216,7 @@ private:
         }
     };
 
-    std::optional<Attribs> boundAttribs;
+    // std::optional<Attribs> boundAttribs; // Removed
 
     void virt_bind() override
     {
@@ -270,26 +226,15 @@ private:
 
         Functions &gl = Base::m_functions;
         const auto attribs = Attribs::getLocations(Base::m_program);
-        gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
+        // gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get()); // Removed: Done by SimpleMesh::initializeVAO
         gl.enableAttrib(attribs.colorPos, 4, GL_UNSIGNED_BYTE, GL_TRUE, vertSize, VPO(color));
         gl.enableAttrib(attribs.vertPos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(vert));
-        boundAttribs = attribs;
+        // boundAttribs = attribs; // Removed
     }
 
-    void virt_unbind() override
-    {
-        if (!boundAttribs) {
-            assert(false);
-            return;
-        }
-
-        auto &attribs = boundAttribs.value();
-        Functions &gl = Base::m_functions;
-        gl.glDisableVertexAttribArray(attribs.colorPos);
-        gl.glDisableVertexAttribArray(attribs.vertPos);
-        gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
-        boundAttribs.reset();
-    }
+    // void virt_unbind() override // Removed
+    // {
+    // }
 };
 
 } // namespace Legacy

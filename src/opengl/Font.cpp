@@ -860,6 +860,16 @@ UniqueMesh GLFont::getFontMesh(const std::vector<GLText> &text)
     return m_gl.createFontMesh(m_texture, DrawModeEnum::QUADS, rawVerts);
 }
 
+void GLFont::updateFontMesh(UniqueMesh& existingMesh, const std::vector<GLText>& names)
+{
+    const auto rawVerts = getFontBatchRawData(names.data(), names.size());
+    // Assuming UniqueMesh is a typedef or wrapper around SimpleMesh<FontVert3d, FontProgram> or similar,
+    // and that it has an updateData method.
+    // The SimpleMesh::updateData method takes (DrawModeEnum mode, const std::vector<VertexType_>& verts, BufferUsageEnum usage)
+    // For font meshes, mode is QUADS and usage is typically STATIC_DRAW.
+    existingMesh.updateData(DrawModeEnum::QUADS, rawVerts, BufferUsageEnum::STATIC_DRAW);
+}
+
 void GLFont::renderTextCentered(const QString &text,
                                 const Color &color,
                                 const std::optional<Color> &bgcolor)

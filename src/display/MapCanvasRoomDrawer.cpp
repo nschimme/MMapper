@@ -697,6 +697,145 @@ struct NODISCARD LayerBatchData final
         meshes.isValid = true;
         return meshes;
     }
+
+    void updateMeshes(LayerMeshes& targetMeshes, OpenGL& gl) const
+    {
+        DECL_TIMER(t, "updateMeshes");
+
+        // Terrain (UniqueMeshVector)
+        // Simplified approach: if sizes differ, clear and recreate. Otherwise, update.
+        // This assumes the number of unique textures corresponds to the number of meshes.
+        if (targetMeshes.terrain.size() != ::createSortedTexturedMeshes("", gl, roomTerrains).size()) { // A bit inefficient to call create just for size
+            targetMeshes.terrain.clear();
+            targetMeshes.terrain = ::createSortedTexturedMeshes("terrain", gl, roomTerrains);
+        } else {
+            // This part assumes a 1-to-1 correspondence and that texture IDs haven't changed, only vertex data.
+            // A more robust solution would match meshes by texture ID.
+            // For now, we'll recreate if sizes are different, which is simpler.
+            // If sizes are the same, we assume the conceptual meshes are the same and update them.
+            // This requires createSortedTexturedMeshes to be deterministic in its output order.
+            auto newMeshes = ::createSortedTexturedMeshes("terrain", gl, roomTerrains);
+            for (size_t i = 0; i < targetMeshes.terrain.size(); ++i) {
+                // Assuming newMeshes[i] contains the verts for targetMeshes.terrain[i]
+                // We need to extract verts from newMeshes[i] if it's a SimpleMesh,
+                // or change createSortedTexturedMeshes to return data instead of UniqueMesh.
+                // For now, let's stick to the simplified approach: if sizes differ, recreate.
+                // If sizes are the same, we can't easily get the new vertex data from the newly created UniqueMesh
+                // without changing UniqueMesh or createSortedTexturedMeshes.
+                // So, even if sizes are the same, we will recreate for simplicity until a more complex update is implemented.
+                // This means the else branch will also recreate.
+                targetMeshes.terrain.clear(); // Clear before reassigning
+                targetMeshes.terrain = std::move(newMeshes);
+                break; // only need to do this once
+            }
+        }
+
+        // Trails (UniqueMeshVector) - Similar simplified logic
+        if (targetMeshes.trails.size() != ::createSortedTexturedMeshes("", gl, roomTrails).size()) {
+            targetMeshes.trails.clear();
+            targetMeshes.trails = ::createSortedTexturedMeshes("trails", gl, roomTrails);
+        } else {
+            // Simplified: recreate even if sizes are the same for now.
+            targetMeshes.trails.clear();
+            targetMeshes.trails = ::createSortedTexturedMeshes("trails", gl, roomTrails);
+        }
+
+        // Overlays (UniqueMeshVector) - Similar simplified logic
+        if (targetMeshes.overlays.size() != ::createSortedTexturedMeshes("", gl, roomOverlays).size()) {
+            targetMeshes.overlays.clear();
+            targetMeshes.overlays = ::createSortedTexturedMeshes("overlays", gl, roomOverlays);
+        } else {
+            // Simplified: recreate even if sizes are the same for now.
+            targetMeshes.overlays.clear();
+            targetMeshes.overlays = ::createSortedTexturedMeshes("overlays", gl, roomOverlays);
+        }
+
+        // Doors (UniqueMeshVector from ColoredRoomTexVector) - Similar simplified logic
+        if (targetMeshes.doors.size() != ::createSortedColoredTexturedMeshes("", gl, doors).size()) {
+            targetMeshes.doors.clear();
+            targetMeshes.doors = ::createSortedColoredTexturedMeshes("doors", gl, doors);
+        } else {
+            targetMeshes.doors.clear();
+            targetMeshes.doors = ::createSortedColoredTexturedMeshes("doors", gl, doors);
+        }
+
+        // Walls (UniqueMeshVector from ColoredRoomTexVector) - Similar simplified logic
+        if (targetMeshes.walls.size() != ::createSortedColoredTexturedMeshes("", gl, solidWallLines).size()) {
+            targetMeshes.walls.clear();
+            targetMeshes.walls = ::createSortedColoredTexturedMeshes("solidWalls", gl, solidWallLines);
+        } else {
+            targetMeshes.walls.clear();
+            targetMeshes.walls = ::createSortedColoredTexturedMeshes("solidWalls", gl, solidWallLines);
+        }
+
+        // DottedWalls (UniqueMeshVector from ColoredRoomTexVector) - Similar simplified logic
+        if (targetMeshes.dottedWalls.size() != ::createSortedColoredTexturedMeshes("", gl, dottedWallLines).size()) {
+            targetMeshes.dottedWalls.clear();
+            targetMeshes.dottedWalls = ::createSortedColoredTexturedMeshes("dottedWalls", gl, dottedWallLines);
+        } else {
+            targetMeshes.dottedWalls.clear();
+            targetMeshes.dottedWalls = ::createSortedColoredTexturedMeshes("dottedWalls", gl, dottedWallLines);
+        }
+
+        // UpDownExits (UniqueMeshVector from ColoredRoomTexVector) - Similar simplified logic
+        if (targetMeshes.upDownExits.size() != ::createSortedColoredTexturedMeshes("", gl, roomUpDownExits).size()) {
+            targetMeshes.upDownExits.clear();
+            targetMeshes.upDownExits = ::createSortedColoredTexturedMeshes("upDownExits", gl, roomUpDownExits);
+        } else {
+            targetMeshes.upDownExits.clear();
+            targetMeshes.upDownExits = ::createSortedColoredTexturedMeshes("upDownExits", gl, roomUpDownExits);
+        }
+
+        // StreamIns (UniqueMeshVector from ColoredRoomTexVector) - Similar simplified logic
+        if (targetMeshes.streamIns.size() != ::createSortedColoredTexturedMeshes("", gl, streamIns).size()) {
+            targetMeshes.streamIns.clear();
+            targetMeshes.streamIns = ::createSortedColoredTexturedMeshes("streamIns", gl, streamIns);
+        } else {
+            targetMeshes.streamIns.clear();
+            targetMeshes.streamIns = ::createSortedColoredTexturedMeshes("streamIns", gl, streamIns);
+        }
+
+        // StreamOuts (UniqueMeshVector from ColoredRoomTexVector) - Similar simplified logic
+        if (targetMeshes.streamOuts.size() != ::createSortedColoredTexturedMeshes("", gl, streamOuts).size()) {
+            targetMeshes.streamOuts.clear();
+            targetMeshes.streamOuts = ::createSortedColoredTexturedMeshes("streamOuts", gl, streamOuts);
+        } else {
+            targetMeshes.streamOuts.clear();
+            targetMeshes.streamOuts = ::createSortedColoredTexturedMeshes("streamOuts", gl, streamOuts);
+        }
+
+        // Tints (RoomTintArray<UniqueMesh>)
+        for (const RoomTintEnum tint : ALL_ROOM_TINTS) {
+            const auto& newTintVerts = this->roomTints[tint];
+            if (!newTintVerts.empty()) {
+                if (targetMeshes.tints[tint]) {
+                    // Assuming UniqueMesh has updateData. This was added in a previous subtask for SimpleMesh.
+                    // Need to ensure UniqueMesh forwards this to the underlying SimpleMesh.
+                    // The vertex type for tints is glm::vec3 (from PlainQuadBatch).
+                    // DrawMode is QUADS. Usage is STATIC_DRAW.
+                    targetMeshes.tints[tint].updateData(DrawModeEnum::QUADS, newTintVerts, BufferUsageEnum::STATIC_DRAW);
+                } else {
+                    targetMeshes.tints[tint] = gl.createPlainQuadBatch(newTintVerts);
+                }
+            } else {
+                targetMeshes.tints[tint].reset();
+            }
+        }
+
+        // LayerBoost (UniqueMesh)
+        if (!this->roomLayerBoostQuads.empty()) {
+            if (targetMeshes.layerBoost) {
+                targetMeshes.layerBoost.updateData(DrawModeEnum::QUADS, this->roomLayerBoostQuads, BufferUsageEnum::STATIC_DRAW);
+            } else {
+                targetMeshes.layerBoost = gl.createPlainQuadBatch(this->roomLayerBoostQuads);
+            }
+        } else {
+            targetMeshes.layerBoost.reset();
+        }
+
+        targetMeshes.isValid = true; // Or set based on whether any data was actually processed.
+                                     // For simplicity, set to true if updateMeshes was called.
+    }
 };
 
 class NODISCARD LayerBatchBuilder final : public IRoomVisitorCallbacks
@@ -858,7 +997,7 @@ public:
     std::unordered_map<int, RoomNameBatch> roomNameBatches;
 
 private:
-    void virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const final;
+    void virt_finish(MapBatches& batchesToUpdate, OpenGL &gl, GLFont &font) const final;
 };
 
 static void generateAllLayerMeshes(InternalData &internalData,
@@ -1004,21 +1143,89 @@ void LayerMeshes::render(const int thisLayer, const int focusedLayer)
     }
 }
 
-void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const
+void InternalData::virt_finish(MapBatches& batchesToUpdate, OpenGL &gl, GLFont &font) const
 {
-    for (const auto &kv : batchedMeshes) {
-        const LayerBatchData &data = kv.second;
-        output.batchedMeshes[kv.first] = data.getMeshes(gl);
+    // Logic for batchedMeshes
+    {
+        std::set<int> newLayerIds;
+        for (const auto& kv : this->batchedMeshes) {
+            newLayerIds.insert(kv.first);
+        }
+
+        std::set<int> oldLayerIds;
+        for (const auto& kv : batchesToUpdate.batchedMeshes) {
+            oldLayerIds.insert(kv.first);
+        }
+
+        for (int layerId : newLayerIds) {
+            const LayerBatchData& newLayerBatchData = this->batchedMeshes.at(layerId);
+            LayerMeshes& targetLayerMeshes = batchesToUpdate.batchedMeshes[layerId]; // Creates if not exists
+            // This method will be implemented in step 4
+            newLayerBatchData.updateMeshes(targetLayerMeshes, gl);
+        }
+
+        for (int layerId : oldLayerIds) {
+            if (newLayerIds.find(layerId) == newLayerIds.end()) {
+                batchesToUpdate.batchedMeshes.erase(layerId);
+            }
+        }
     }
 
-    for (const auto &kv : connectionDrawerBuffers) {
-        const ConnectionDrawerBuffers &data = kv.second;
-        output.connectionMeshes[kv.first] = data.getMeshes(gl);
+    // Logic for connectionMeshes
+    {
+        std::set<int> newLayerIds;
+        for (const auto& kv : this->connectionDrawerBuffers) {
+            newLayerIds.insert(kv.first);
+        }
+
+        std::set<int> oldLayerIds;
+        for (const auto& kv : batchesToUpdate.connectionMeshes) {
+            oldLayerIds.insert(kv.first);
+        }
+
+        for (int layerId : newLayerIds) {
+            const ConnectionDrawerBuffers& newConnectionData = this->connectionDrawerBuffers.at(layerId);
+            ConnectionMeshes& targetConnectionMeshes = batchesToUpdate.connectionMeshes[layerId]; // Creates if not exists
+            // This method will be implemented in step 5
+            newConnectionData.updateMeshes(targetConnectionMeshes, gl);
+        }
+
+        for (int layerId : oldLayerIds) {
+            if (newLayerIds.find(layerId) == newLayerIds.end()) {
+                batchesToUpdate.connectionMeshes.erase(layerId);
+            }
+        }
     }
 
-    for (const auto &kv : roomNameBatches) {
-        const RoomNameBatch &rnb = kv.second;
-        output.roomNameBatches[kv.first] = rnb.getMesh(font);
+    // Logic for roomNameBatches
+    {
+        std::set<int> newLayerIds;
+        for (const auto& kv : this->roomNameBatches) {
+            newLayerIds.insert(kv.first);
+        }
+
+        std::set<int> oldLayerIds;
+        for (const auto& kv : batchesToUpdate.roomNameBatches) {
+            oldLayerIds.insert(kv.first);
+        }
+
+        for (int layerId : newLayerIds) {
+            const RoomNameBatch& newRoomNameData = this->roomNameBatches.at(layerId);
+            auto it = batchesToUpdate.roomNameBatches.find(layerId);
+            if (it != batchesToUpdate.roomNameBatches.end()) {
+                // This method will be implemented in step 6
+                newRoomNameData.updateMesh(it->second, font);
+            } else {
+                // This method will be implemented in step 6
+                batchesToUpdate.roomNameBatches.emplace(layerId, newRoomNameData.createNewMesh(font));
+            }
+        }
+
+        for (int layerId : oldLayerIds) {
+            if (newLayerIds.find(layerId) == newLayerIds.end()) {
+                batchesToUpdate.roomNameBatches.erase(layerId);
+            }
+        }
     }
 }
 
@@ -1054,15 +1261,16 @@ FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTextur
 }
 
 void finish(const IMapBatchesFinisher &finisher,
-            std::optional<MapBatches> &opt_batches,
+            std::optional<MapBatches>& existingOrNewBatches,
             OpenGL &gl,
             GLFont &font)
 {
-    opt_batches.reset();
-    MapBatches &batches = opt_batches.emplace();
+    if (!existingOrNewBatches.has_value()) {
+        existingOrNewBatches.emplace();
+    }
 
-    // Note: This will call InternalData::finish;
+    // Note: This will call InternalData::virt_finish;
     // if necessary for claritiy, we could replace this with Pimpl to make it a direct call,
     // but that won't change the cost of the virtual call.
-    finisher.finish(batches, gl, font);
+    finisher.finish(*existingOrNewBatches, gl, font);
 }

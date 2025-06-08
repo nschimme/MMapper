@@ -132,17 +132,39 @@ void SpatialDb::buildAllQuadtrees(ProgressCounter& pc) {
     }
 
     // Fallback for width/height if only one point exists
-    float overallWidth = (overallMaxX - overallMinX) + 1.0f;
-    float overallHeight = (overallMaxY - overallMinY) + 1.0f;
-    if (overallWidth <= 0) overallWidth = 1.0f; // Default small width
-    if (overallHeight <= 0) overallHeight = 1.0f; // Default small height
+    // float overallWidth = (overallMaxX - overallMinX) + 1.0f; // Not needed here anymore
+    // float overallHeight = (overallMaxY - overallMinY) + 1.0f; // Not needed here anymore
+    // if (overallWidth <= 0) overallWidth = 1.0f; // Default small width // Not needed here anymore
+    // if (overallHeight <= 0) overallHeight = 1.0f; // Default small height // Not needed here anymore
 
 
     pc.setNewTask(ProgressMsg{"Building Quadtrees per layer"}, layerItems.size());
     for(auto const& [layerId, items] : layerItems) {
-        // Use overall bounds for each layer's quadtree for simplicity,
-        // or calculate per-layer bounds if preferred (more complex here).
-        RoomBounds layerBounds(overallMinX, overallMinY, overallWidth, overallHeight);
+        if (items.empty()) {
+            // Should not happen if layerItems is populated from m_unique, but defensive check
+            continue;
+        }
+
+        // Calculate min/max X and Y for the current layer
+        float minX = items[0].bounds.minX;
+        float minY = items[0].bounds.minY;
+        float maxX = items[0].bounds.minX; // Initialize with first item's X
+        float maxY = items[0].bounds.minY; // Initialize with first item's Y
+
+        for(const auto& item : items) {
+            if (item.bounds.minX < minX) minX = item.bounds.minX;
+            if (item.bounds.minY < minY) minY = item.bounds.minY;
+            if (item.bounds.minX > maxX) maxX = item.bounds.minX; // Assuming item width is 1, so minX is the x-coord
+            if (item.bounds.minY > maxY) maxY = item.bounds.minY; // Assuming item height is 1, so minY is the y-coord
+        }
+
+        float layerWidth = (maxX - minX) + 1.0f;
+        float layerHeight = (maxY - minY) + 1.0f;
+
+        if (layerWidth <= 0) layerWidth = 1.0f; // Default small width
+        if (layerHeight <= 0) layerHeight = 1.0f; // Default small height
+
+        RoomBounds layerBounds(minX, minY, layerWidth, layerHeight);
 
         // Max items per node and max levels could be constants or configurable
         m_layerQuadtrees.emplace(std::piecewise_construct,

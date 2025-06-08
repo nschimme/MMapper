@@ -6,6 +6,46 @@
 
 #include "mapcanvas.h"
 
+// Includes for VisibilityHelpers and async task
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
+#include <glm/geometric.hpp> // For glm::dot
+#include <array>             // For std::array - needed by VisibilityHelpers
+// #include <vector> // Already included
+// #include <set> // Already included
+// #include <algorithm> // Already included
+#include "MapCanvasRoomDrawer.h" // For ::getRoomAreaHash
+#include <stdexcept>             // For std::runtime_error
+#include <QDebug>                // For qWarning, qDebug
+
+namespace VisibilityHelpers {
+    bool isRoomAABBVisible(const glm::vec3& roomMin, const glm::vec3& roomMax, const std::array<glm::vec4, 6>& frustumPlanes) {
+        for (size_t i = 0; i < 6; ++i) {
+            const glm::vec4& plane = frustumPlanes[i];
+            glm::vec3 pVertex = roomMin;
+            if (plane.x > 0.0f) pVertex.x = roomMax.x;
+            if (plane.y > 0.0f) pVertex.y = roomMax.y;
+            if (plane.z > 0.0f) pVertex.z = roomMax.z;
+            if (glm::dot(glm::vec3(plane.x, plane.y, plane.z), pVertex) + plane.w < 0.0f) {
+                return false;
+            }
+        }
+        return true;
+    }
+} // namespace VisibilityHelpers
+
+// Includes for VisibilityHelpers and async task
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
+#include <glm/geometric.hpp> // For glm::dot
+// #include <array> // Already included via mapcanvas.h or other cpp includes
+// #include <vector> // Already included
+// #include <set> // Already included
+// #include <algorithm> // Already included
+#include "MapCanvasRoomDrawer.h" // For ::getRoomAreaHash
+#include <stdexcept>             // For std::runtime_error
+#include <QDebug>                // For qWarning, qDebug
+
 #include "../configuration/configuration.h"
 #include "../global/parserutils.h"
 #include "../global/progresscounter.h"
@@ -58,6 +98,22 @@
     // constexpr int CHUNK_SIZE_Y = 32; // Removed
     // constexpr int NUM_CHUNKS_X_DIMENSION = 2000; // Removed
 // } // Removed
+
+namespace VisibilityHelpers {
+    bool isRoomAABBVisible(const glm::vec3& roomMin, const glm::vec3& roomMax, const std::array<glm::vec4, 6>& frustumPlanes) {
+        for (size_t i = 0; i < 6; ++i) {
+            const glm::vec4& plane = frustumPlanes[i];
+            glm::vec3 pVertex = roomMin;
+            if (plane.x > 0.0f) pVertex.x = roomMax.x;
+            if (plane.y > 0.0f) pVertex.y = roomMax.y;
+            if (plane.z > 0.0f) pVertex.z = roomMax.z;
+            if (glm::dot(glm::vec3(plane.x, plane.y, plane.z), pVertex) + plane.w < 0.0f) {
+                return false;
+            }
+        }
+        return true;
+    }
+} // namespace VisibilityHelpers
 
 using NonOwningPointer = MapCanvas *;
 NODISCARD static NonOwningPointer &primaryMapCanvas()
@@ -1019,20 +1075,352 @@ void MapCanvas::slot_moveMarker(const RoomId id)
     onMovement();
 }
 
+void MapCanvas::launchVisibilityUpdateTask(bool isHighPriority /*= false*/) {
+    std::lock_guard<std::mutex> lock(m_visibilityMutex);
+
+    if (m_visibilityTaskFuture.valid() &&
+        m_visibilityTaskFuture.wait_for(std::chrono::seconds(0)) == std::future_status::timeout) {
+        m_newVisibilityRequestPending = true;
+        // TODO: If isHighPriority, consider if we need to signal an existing low-priority task to cancel.
+        // For now, just setting the pending flag is fine, the running task will complete.
+        return;
+    }
+
+    m_newVisibilityRequestPending = false;
+
+    // Parameter population and std::async call
+    const MapData* mapDataPtr = &m_data;
+    const World* worldPtr = nullptr;
+    if (m_data.isMapLoaded()) {
+        worldPtr = &m_data.getCurrentMap().getWorld();
+    }
+
+    if (!worldPtr || !mapDataPtr->isMapLoaded()) {
+        qWarning() << "MapCanvas::launchVisibilityUpdateTask: Cannot launch, map not loaded or world not available.";
+        return;
+    }
+
+    VisibilityTaskParams params;
+    params.currentLayer = m_currentLayer;
+    params.viewPortWidth = static_cast<float>(width());
+    params.viewPortHeight = static_cast<float>(height());
+    params.viewProjMatrix = m_viewProj;
+    params.frustumPlanes = getFrustumPlanes();
+    params.isHighPriorityRequest = isHighPriority;
+
+    glm::vec3 worldTopLeftRaw = this->unproject_clamped(glm::vec2(0.0f, params.viewPortHeight));
+    glm::vec3 worldTopRightRaw = this->unproject_clamped(glm::vec2(params.viewPortWidth, params.viewPortHeight));
+    glm::vec3 worldBottomLeftRaw = this->unproject_clamped(glm::vec2(0.0f, 0.0f));
+    glm::vec3 worldBottomRightRaw = this->unproject_clamped(glm::vec2(params.viewPortWidth, 0.0f));
+
+    params.vpWorldMinX = std::min({worldTopLeftRaw.x, worldTopRightRaw.x, worldBottomLeftRaw.x, worldBottomRightRaw.x});
+    params.vpWorldMaxX = std::max({worldTopLeftRaw.x, worldTopRightRaw.x, worldBottomLeftRaw.x, worldBottomRightRaw.x});
+    params.vpWorldMinY = std::min({worldTopLeftRaw.y, worldTopRightRaw.y, worldBottomLeftRaw.y, worldBottomRightRaw.y});
+    params.vpWorldMaxY = std::max({worldTopLeftRaw.y, worldTopRightRaw.y, worldBottomLeftRaw.y, worldBottomRightRaw.y});
+
+    params.mapDataPtr = mapDataPtr;
+    params.worldPtr = worldPtr;
+
+    if (m_batches.mapBatches.has_value()) {
+        const auto& currentBatchedMeshes = m_batches.mapBatches->batchedMeshes;
+        for (const auto& layerPair : currentBatchedMeshes) {
+            int layerId = layerPair.first;
+            for (const auto& chunkPair : layerPair.second) {
+                if (chunkPair.second) { // LayerMeshes::operator bool()
+                    params.existingValidMeshChunks.insert({layerId, chunkPair.first});
+                }
+            }
+        }
+    }
+
+    qDebug() << "MapCanvas::launchVisibilityUpdateTask: Launching actual async task.";
+    m_visibilityTaskFuture = std::async(std::launch::async,
+        [params] () -> VisibilityTaskResult {
+            VisibilityTaskResult result;
+            result.originatedFromHighPriorityRequest = params.isHighPriorityRequest;
+            result.success = false; // Default to false, set true on successful completion
+
+            try {
+                if (!params.mapDataPtr || !params.worldPtr) {
+                    throw std::runtime_error("MapData or World pointer is null in async task.");
+                }
+
+                const Map& currentMap = params.mapDataPtr->getCurrentMap();
+                if (currentMap.empty()) {
+                    result.success = true; // Technically success, but no data
+                    return result;
+                }
+                const SpatialDb& spatialDb = params.worldPtr->getSpatialDb();
+
+                std::vector<RoomId> potentiallyVisibleRoomIds = spatialDb.getRoomsInViewport(
+                    params.currentLayer, params.vpWorldMinX, params.vpWorldMinY, params.vpWorldMaxX, params.vpWorldMaxY
+                );
+
+                for (RoomId roomId : potentiallyVisibleRoomIds) {
+                    RoomHandle room = currentMap.getRoomHandle(roomId);
+                    if (!room.exists()) continue;
+
+                    glm::vec3 roomMin = room.getPosition().to_vec3();
+                    glm::vec3 roomMax = roomMin + glm::vec3(1.0f, 1.0f, 0.0f);
+
+                    if (VisibilityHelpers::isRoomAABBVisible(roomMin, roomMax, params.frustumPlanes)) {
+                        RoomAreaHash areaHash = ::getRoomAreaHash(room);
+                        result.visibleChunksCalculated[params.currentLayer].insert(areaHash);
+                    }
+                }
+
+                for (const auto& layerChunksPair : result.visibleChunksCalculated) {
+                    const int layerId = layerChunksPair.first;
+                    const std::set<RoomAreaHash>& visibleChunkIdsOnLayer = layerChunksPair.second;
+
+                    for (const RoomAreaHash roomAreaHash : visibleChunkIdsOnLayer) {
+                        std::pair<int, RoomAreaHash> chunkKey = {layerId, roomAreaHash};
+                        if (params.existingValidMeshChunks.find(chunkKey) == params.existingValidMeshChunks.end()) {
+                            result.chunksToRequestGenerated.push_back(chunkKey);
+                        }
+                    }
+                }
+                result.success = true; // Mark as successful if all steps complete
+            } catch (const std::exception& e) {
+                qWarning() << "Exception in async visibility task: " << e.what();
+                // result.success remains false
+            } catch (...) {
+                qWarning() << "Unknown exception in async visibility task.";
+                // result.success remains false
+            }
+            return result;
+        }
+    );
+}
+
+void MapCanvas::checkAndProcessVisibilityResult() {
+    if (!m_visibilityTaskFuture.valid()) {
+        return;
+    }
+
+    std::future_status status;
+    // Check without blocking initially, using a lock only when we are about to modify shared state (the future itself)
+    status = m_visibilityTaskFuture.wait_for(std::chrono::seconds(0));
+
+    if (status == std::future_status::ready) {
+        VisibilityTaskResult result;
+        bool processResult = false;
+        { // Scope for lock_guard
+            std::lock_guard<std::mutex> lock(m_visibilityMutex);
+            // Re-check status under lock to handle race conditions.
+            if (m_visibilityTaskFuture.valid() &&
+                m_visibilityTaskFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+                try {
+                    result = m_visibilityTaskFuture.get(); // Can throw if task threw exception
+                } catch (const std::exception& e) {
+                    qWarning() << "Exception caught from visibility task: " << e.what();
+                    result.success = false; // Ensure result indicates failure
+                }
+                m_visibilityTaskFuture = {}; // Invalidate the future
+                processResult = true;
+            }
+        } // Lock released here
+
+        if (processResult) {
+            if (result.success) {
+                m_visibleChunks = result.visibleChunksCalculated;
+
+                if (result.originatedFromHighPriorityRequest) {
+                    // This was a forced update (e.g., from forceUpdateMeshes)
+                    // We need to request remeshing for ALL currently visible chunks.
+                    std::vector<std::pair<int, RoomAreaHash>> allCurrentlyVisibleChunks;
+                    for (const auto& layerPair : result.visibleChunksCalculated) {
+                        for (const RoomAreaHash& areaHash : layerPair.second) {
+                            allCurrentlyVisibleChunks.push_back({layerPair.first, areaHash});
+                        }
+                    }
+
+                    if (!allCurrentlyVisibleChunks.empty()) {
+                        m_pendingChunkGenerations.clear();
+                        for(const auto& chunkKey : allCurrentlyVisibleChunks) {
+                            m_pendingChunkGenerations.insert(chunkKey);
+                        }
+
+                        qDebug() << "Force update: Requesting remesh for all" << allCurrentlyVisibleChunks.size() << "visible chunks.";
+                        m_batches.remeshCookie.set(
+                            m_data.generateSpecificChunkBatches(mctp::getProxy(m_textures), allCurrentlyVisibleChunks)
+                        );
+                    } else {
+                         if (m_batches.remeshCookie.isPending()) {
+                            m_batches.ignorePendingRemesh();
+                            m_batches.remeshCookie = {};
+                         }
+                    }
+                } else {
+                    // This was a regular, non-forced update. Only request newly missing chunks.
+                    if (!result.chunksToRequestGenerated.empty()) {
+                        bool canSetNewCookie = true;
+                        if (m_batches.remeshCookie.isPending()) {
+                            qDebug() << "Async visibility result: Chunks to request, but remesh cookie already pending for other task.";
+                            canSetNewCookie = false;
+                        }
+
+                        if (canSetNewCookie) {
+                            std::vector<std::pair<int, RoomAreaHash>> finalChunksToRequest;
+                            for(const auto& chunkKey : result.chunksToRequestGenerated) {
+                                 if (m_pendingChunkGenerations.find(chunkKey) == m_pendingChunkGenerations.end()) {
+                                    m_pendingChunkGenerations.insert(chunkKey);
+                                    finalChunksToRequest.push_back(chunkKey);
+                                 } else {
+                                    qDebug() << "Chunk" << chunkKey.first << chunkKey.second << "was already in m_pendingChunkGenerations.";
+                                 }
+                            }
+                            if (!finalChunksToRequest.empty()){
+                                 m_batches.remeshCookie.set(
+                                    m_data.generateSpecificChunkBatches(mctp::getProxy(m_textures), finalChunksToRequest)
+                                 );
+                            }
+                        }
+                    }
+                }
+                update();
+            } else {
+                qWarning() << "Async visibility update task failed.";
+            }
+            // If m_newVisibilityRequestPending was true, the next call to paintGL or another trigger
+            // will call launchVisibilityUpdateTask again.
+            if(m_newVisibilityRequestPending) { // Check if a new request came in while processing
+                launchVisibilityUpdateTask(); // Launch it now that the previous one is processed
+            }
+        }
+    }
+}
+
 void MapCanvas::infomarksChanged()
 {
     m_batches.infomarksMeshes.reset();
     update();
 }
 
+void MapCanvas::launchVisibilityUpdateTask(bool isHighPriority /*= false*/) {
+    std::lock_guard<std::mutex> lock(m_visibilityMutex);
+
+    if (m_visibilityTaskFuture.valid() &&
+        m_visibilityTaskFuture.wait_for(std::chrono::seconds(0)) == std::future_status::timeout) {
+        m_newVisibilityRequestPending = true;
+        // TODO: If isHighPriority, consider if we need to signal an existing low-priority task to cancel.
+        // For now, just setting the pending flag is fine, the running task will complete.
+        return;
+    }
+
+    m_newVisibilityRequestPending = false;
+
+    qDebug() << "MapCanvas::launchVisibilityUpdateTask: Placeholder for actual async task launch.";
+    // Actual std::async call to run updateVisibleChunks and parts of requestMissingChunks
+    // will be implemented in the next phase of this feature.
+    // For now, this structure sets up the control flow.
+}
+
+void MapCanvas::checkAndProcessVisibilityResult() {
+    if (!m_visibilityTaskFuture.valid()) {
+        return;
+    }
+
+    std::future_status status;
+    // Check without blocking initially, using a lock only when we are about to modify shared state (the future itself)
+    status = m_visibilityTaskFuture.wait_for(std::chrono::seconds(0));
+
+    if (status == std::future_status::ready) {
+        VisibilityTaskResult result;
+        bool processResult = false;
+        { // Scope for lock_guard
+            std::lock_guard<std::mutex> lock(m_visibilityMutex);
+            // Re-check status under lock to handle race conditions.
+            if (m_visibilityTaskFuture.valid() &&
+                m_visibilityTaskFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+                result = m_visibilityTaskFuture.get(); // Can throw if task threw exception
+                m_visibilityTaskFuture = {}; // Invalidate the future
+                processResult = true;
+            }
+        } // Lock released here
+
+        if (processResult) {
+            if (result.success) {
+                m_visibleChunks = result.visibleChunksCalculated;
+
+                if (result.originatedFromHighPriorityRequest) {
+                    // This was a forced update (e.g., from forceUpdateMeshes)
+                    // We need to request remeshing for ALL currently visible chunks.
+                    std::vector<std::pair<int, RoomAreaHash>> allCurrentlyVisibleChunks;
+                    for (const auto& layerPair : result.visibleChunksCalculated) {
+                        for (const RoomAreaHash& areaHash : layerPair.second) {
+                            allCurrentlyVisibleChunks.push_back({layerPair.first, areaHash});
+                        }
+                    }
+
+                    if (!allCurrentlyVisibleChunks.empty()) {
+                        m_pendingChunkGenerations.clear();
+                        for(const auto& chunkKey : allCurrentlyVisibleChunks) {
+                            m_pendingChunkGenerations.insert(chunkKey);
+                        }
+
+                        qDebug() << "Force update: Requesting remesh for all" << allCurrentlyVisibleChunks.size() << "visible chunks.";
+                        m_batches.remeshCookie.set(
+                            m_data.generateSpecificChunkBatches(mctp::getProxy(m_textures), allCurrentlyVisibleChunks)
+                        );
+                    } else {
+                         if (m_batches.remeshCookie.isPending()) {
+                            m_batches.ignorePendingRemesh();
+                            m_batches.remeshCookie = {};
+                         }
+                    }
+                } else {
+                    // This was a regular, non-forced update. Only request newly missing chunks.
+                    if (!result.chunksToRequestGenerated.empty()) {
+                        bool canSetNewCookie = true;
+                        if (m_batches.remeshCookie.isPending()) {
+                            qDebug() << "Async visibility result: Chunks to request, but remesh cookie already pending for other task.";
+                            canSetNewCookie = false;
+                        }
+
+                        if (canSetNewCookie) {
+                            std::vector<std::pair<int, RoomAreaHash>> finalChunksToRequest;
+                            for(const auto& chunkKey : result.chunksToRequestGenerated) {
+                                 if (m_pendingChunkGenerations.find(chunkKey) == m_pendingChunkGenerations.end()) {
+                                    m_pendingChunkGenerations.insert(chunkKey);
+                                    finalChunksToRequest.push_back(chunkKey);
+                                 } else {
+                                    qDebug() << "Chunk" << chunkKey.first << chunkKey.second << "was already in m_pendingChunkGenerations.";
+                                 }
+                            }
+                            if (!finalChunksToRequest.empty()){
+                                 m_batches.remeshCookie.set(
+                                    m_data.generateSpecificChunkBatches(mctp::getProxy(m_textures), finalChunksToRequest)
+                                 );
+                            }
+                        }
+                    }
+                }
+                update();
+            } else {
+                qWarning() << "Async visibility update task failed.";
+            }
+            // If m_newVisibilityRequestPending was true, the next call to paintGL or another trigger
+            // will call launchVisibilityUpdateTask again.
+        }
+    }
+}
+
 void MapCanvas::layerChanged()
 {
-    updateVisibleChunks();
-    requestMissingChunks();
+    // updateVisibleChunks(); // Replaced by async task
+    // requestMissingChunks(); // Replaced by async task
+    launchVisibilityUpdateTask();
     update();
 }
 
 void MapCanvas::requestMissingChunks() {
+    // This method's core logic (decision making and action) has been moved
+    // to the asynchronous task and its result handler (checkAndProcessVisibilityResult).
+    qDebug() << "Legacy MapCanvas::requestMissingChunks() was called. All primary triggers should now use the new async visibility flow.";
+}
+
+#if 0 // Old requestMissingChunks logic, kept for reference during refactor, can be deleted later
     if (m_batches.remeshCookie.isPending()) {
         // A remesh operation is already in progress, which will generate all visible chunks.
         // Or, if it was a specific chunk request, we wait for it to complete.
@@ -1102,6 +1490,14 @@ std::optional<glm::vec3> MapCanvas::getUnprojectedScreenPos(const glm::vec2& scr
 }
 
 void MapCanvas::updateVisibleChunks() {
+    // This method's core logic has been moved to an asynchronous task
+    // triggered by launchVisibilityUpdateTask().
+    // Calling launchVisibilityUpdateTask() here could be an option if this method
+    // is still hit by an unexpected call path, but ideally all call sites were updated.
+    qDebug() << "Legacy MapCanvas::updateVisibleChunks() was called. All primary triggers should now use launchVisibilityUpdateTask().";
+}
+
+#if 0 // Old updateVisibleChunks logic, kept for reference during refactor, can be deleted later
     auto start_time = std::chrono::high_resolution_clock::now();
     m_visibleChunks.clear();
 
@@ -1159,6 +1555,7 @@ void MapCanvas::updateVisibleChunks() {
     auto end_time = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
     qDebug() << "updateVisibleChunks execution time:" << duration.count() << "microseconds";
+#endif
 }
 
 void MapCanvas::forceUpdateMeshes()
@@ -1175,10 +1572,11 @@ void MapCanvas::forceUpdateMeshes()
         return;
     }
 
-    updateVisibleChunks(); // Determine what's currently visible
+    // updateVisibleChunks(); // Determine what's currently visible // Replaced by async task
+    launchVisibilityUpdateTask(true); // High priority as it's a forced update
 
     std::vector<std::pair<int, RoomAreaHash>> allVisibleChunks;
-    for (const auto& layerChunksPair : m_visibleChunks) {
+    for (const auto& layerChunksPair : m_visibleChunks) { // This will use potentially stale m_visibleChunks until async result is processed
         for (const RoomAreaHash roomAreaHash : layerChunksPair.second) {
             allVisibleChunks.push_back({layerChunksPair.first, roomAreaHash});
         }

@@ -527,6 +527,7 @@ void MapCanvas::setViewportAndMvp(int width, int height)
                                     : getViewProj(m_scroll, size, zoomScale, m_currentLayer);
     setMvp(viewProj);
     updateFrustumPlanes(); // This calls the protected method from MapCanvasViewport
+    launchVisibilityUpdateTask();
 }
 
 void MapCanvas::resizeGL(int width, int height)
@@ -921,6 +922,7 @@ void MapCanvas::paintSelections()
 
 void MapCanvas::paintGL()
 {
+    checkAndProcessVisibilityResult();
     static thread_local double longestBatchMs = 0.0;
 
     const bool showPerfStats = MapCanvasConfig::getShowPerfStats();

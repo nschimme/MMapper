@@ -25,6 +25,8 @@
 #include <set>
 #include <utility> // For std::pair
 #include <vector>
+#include <future>   // For std::future
+#include <mutex>    // For std::mutex
 
 #include <glm/glm.hpp>
 
@@ -115,6 +117,14 @@ private:
     // Visible chunk tracking
     std::map<int, std::set<RoomAreaHash>> m_visibleChunks;
     std::set<std::pair<int, RoomAreaHash>> m_pendingChunkGenerations;
+
+    // Asynchronous visibility updates
+    std::future<VisibilityTaskResult> m_visibilityTaskFuture;
+    std::mutex m_visibilityMutex;
+    bool m_newVisibilityRequestPending = false;
+
+    void launchVisibilityUpdateTask(bool isHighPriority = false);
+    void checkAndProcessVisibilityResult();
 
 public:
     explicit MapCanvas(MapData &mapData,
@@ -296,4 +306,28 @@ private:
     void updateVisibleChunks();
     std::optional<glm::vec3> getUnprojectedScreenPos(const glm::vec2& screenPos) const;
     void requestMissingChunks();
+};
+
+// Minimal definition for VisibilityTaskResult for this subtask
+struct VisibilityTaskResult {
+    std::map<int, std::set<RoomAreaHash>> visibleChunksCalculated;
+    std::vector<std::pair<int, RoomAreaHash>> chunksToRequestGenerated;
+    bool success = true;
+    bool originatedFromHighPriorityRequest = false;
+};
+
+struct VisibilityTaskParams {
+    int currentLayer = 0;
+    float viewPortWidth = 0.0f;
+    float viewPortHeight = 0.0f;
+    glm::mat4 viewProjMatrix{1.f}; // Initialize to identity
+    std::array<glm::vec4, 6> frustumPlanes;
+    float vpWorldMinX = 0.0f;
+    float vpWorldMaxX = 0.0f;
+    float vpWorldMinY = 0.0f;
+    float vpWorldMaxY = 0.0f;
+    const MapData* mapDataPtr = nullptr; // Non-owning pointer to const MapData
+    const World* worldPtr = nullptr;     // Non-owning pointer to const World
+    std::set<std::pair<int, RoomAreaHash>> existingValidMeshChunks;
+    bool isHighPriorityRequest = false;
 };

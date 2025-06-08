@@ -143,6 +143,15 @@ void LayerBatchData::sort()
 
 NODISCARD LayerMeshes LayerBatchData::getMeshes(OpenGL &gl) const
 {
+    qDebug() << "[LBD_GM] LayerBatchData::getMeshes called.";
+    qDebug() << "[LBD_GM]   Input roomTerrains size:" << this->roomTerrains.size();
+    qDebug() << "[LBD_GM]   Input roomTrails size:" << this->roomTrails.size();
+    qDebug() << "[LBD_GM]   Input roomOverlays size:" << this->roomOverlays.size();
+    qDebug() << "[LBD_GM]   Input doors size:" << this->doors.size();
+    qDebug() << "[LBD_GM]   Input solidWallLines size:" << this->solidWallLines.size();
+    qDebug() << "[LBD_GM]   Input dottedWallLines size:" << this->dottedWallLines.size();
+    qDebug() << "[LBD_GM]   Input roomUpDownExits size:" << this->roomUpDownExits.size();
+
     DECL_TIMER(t, "getMeshes");
     LayerMeshes meshes;
     meshes.terrain = ::createSortedTexturedMeshes("terrain", gl, roomTerrains);
@@ -166,6 +175,18 @@ NODISCARD LayerMeshes LayerBatchData::getMeshes(OpenGL &gl) const
     meshes.streamOuts = ::createSortedColoredTexturedMeshes("streamOuts", gl, streamOuts);
     meshes.layerBoost = gl.createPlainQuadBatch(roomLayerBoostQuads);
     meshes.isValid = true;
+
+    qDebug() << "[LBD_GM] Returning LayerMeshes.isValid:" << meshes.isValid;
+    qDebug() << "[LBD_GM]   Returned meshes.terrain.isEmpty():" << meshes.terrain.isEmpty();
+    qDebug() << "[LBD_GM]   Returned meshes.trails.isEmpty():" << meshes.trails.isEmpty();
+    qDebug() << "[LBD_GM]   Returned meshes.overlays.isEmpty():" << meshes.overlays.isEmpty();
+    qDebug() << "[LBD_GM]   Returned meshes.doors.isEmpty():" << meshes.doors.isEmpty();
+    qDebug() << "[LBD_GM]   Returned meshes.walls.isEmpty():" << meshes.walls.isEmpty();
+    qDebug() << "[LBD_GM]   Returned meshes.dottedWalls.isEmpty():" << meshes.dottedWalls.isEmpty();
+    qDebug() << "[LBD_GM]   Returned meshes.upDownExits.isEmpty():" << meshes.upDownExits.isEmpty();
+    // Note: meshes.tints is an array, meshes.layerBoost is a single UniqueMesh. isEmpty() might not apply directly.
+    // For UniqueMesh, it's meshes.tints[i].isValid() or meshes.layerBoost.isValid()
+
     return meshes;
 }
 
@@ -953,8 +974,32 @@ void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) con
     for (const auto &layer_kv : batchedMeshes) {
         // auto& output_chunked_layer_meshes = output.batchedMeshes[layer_kv.first]; // Old way
         for (const auto &chunk_kv : layer_kv.second) {
+            int current_processing_layer = layer_kv.first;
+            RoomAreaHash current_processing_hash = chunk_kv.first;
+
+            if (current_processing_layer == -1 && current_processing_hash == 0) {
+                qDebug() << "[ID_VF] InternalData::virt_finish: Processing chunk Layer -1, Hash 0.";
+                const LayerBatchData& lbd_for_chunk = chunk_kv.second;
+                qDebug() << "[ID_VF]   LayerBatchData for this chunk - roomTerrains size:" << lbd_for_chunk.roomTerrains.size();
+                qDebug() << "[ID_VF]   LayerBatchData for this chunk - doors size:" << lbd_for_chunk.doors.size();
+                qDebug() << "[ID_VF]   LayerBatchData for this chunk - solidWallLines size:" << lbd_for_chunk.solidWallLines.size();
+            }
+
             // output_chunked_layer_meshes[chunk_kv.first] = chunk_kv.second.getMeshes(gl); // Old way
             output.batchedMeshes[layer_kv.first].insert_or_assign(chunk_kv.first, chunk_kv.second.getMeshes(gl));
+
+            if (current_processing_layer == -1 && current_processing_hash == 0) {
+                // Check the just-inserted LayerMeshes in the output 'MapBatches'
+                auto layer_it = output.batchedMeshes.find(current_processing_layer);
+                if (layer_it != output.batchedMeshes.end()) {
+                    auto chunk_it = layer_it->second.find(current_processing_hash);
+                    if (chunk_it != layer_it->second.end()) {
+                        const LayerMeshes& inserted_meshes = chunk_it->second;
+                        qDebug() << "[ID_VF]   Post getMeshes & assign for (-1,0): inserted_meshes.isValid:" << inserted_meshes.isValid;
+                        qDebug() << "[ID_VF]   Post getMeshes & assign for (-1,0): inserted_meshes.terrain.isEmpty():" << inserted_meshes.terrain.isEmpty();
+                    }
+                }
+            }
         }
     }
 

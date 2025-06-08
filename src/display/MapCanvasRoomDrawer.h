@@ -18,7 +18,7 @@
 #include "MapCanvasData.h"
 #include "RoadIndex.h"
 // #include "src/mapdata/remesh_types.h" // Old include
-#include "src/display/mapcanvas.h"    // For OpenDiablo2::Display::IterativeRemeshMetadata
+#include "mapcanvas.h"    // For OpenDiablo2::Display::IterativeRemeshMetadata
 
 #include <map>
 #include <optional>

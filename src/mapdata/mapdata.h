@@ -9,7 +9,7 @@
 #include "../display/IMapBatchesFinisher.h"
 #include "../map/Changes.h"
 // #include "src/mapdata/remesh_types.h" // Will be removed later
-#include "src/display/mapcanvas.h"    // For OpenDiablo2::Display::IterativeRemeshMetadata
+#include "../display/mapcanvas.h"    // For OpenDiablo2::Display::IterativeRemeshMetadata
 #include <optional>                   // For std::optional
 #include "../map/DoorFlags.h"
 #include "../map/ExitDirection.h"

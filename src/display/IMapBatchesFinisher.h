@@ -11,7 +11,7 @@
 #include <optional>   // For std::optional
 
 // #include "src/mapdata/remesh_types.h" // Old include, will be removed
-#include "src/display/mapcanvas.h"    // For OpenDiablo2::Display::IterativeRemeshMetadata
+#include "mapcanvas.h"    // For OpenDiablo2::Display::IterativeRemeshMetadata
 // Forward declare RoomAreaHash if it's not included via MapBatches.h or mapcanvas.h's includes.
 // For now, assuming MapBatches.h (included next) or mapcanvas.h provides it.
 // If not, #include "src/display/MapBatches.h" for RoomAreaHash might be needed here

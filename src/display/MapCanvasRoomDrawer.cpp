@@ -1038,7 +1038,9 @@ void RemeshCookie::continueIterativePass(FutureSharedMapBatchFinisher pass_futur
     m_chunks_for_current_pass = chunks_for_pass;
 }
 
-// getCurrentPassChunks is already defined in the header as a const method returning m_chunks_for_current_pass by const ref.
+const std::vector<std::pair<int, RoomAreaHash>>& RemeshCookie::getCurrentPassChunks() const {
+    return m_chunks_for_current_pass;
+}
 
 SharedMapBatchFinisher RemeshCookie::getPassData() {
     if (!isIterativeRemeshInProgress()) {

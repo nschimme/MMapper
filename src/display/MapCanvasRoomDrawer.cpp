@@ -182,7 +182,7 @@ NODISCARD LayerMeshes LayerBatchData::getMeshes(OpenGL &gl) const
     qDebug() << "[LBD_GM_R2]   Returned meshes.overlays.isEmpty():" << meshes.overlays.isEmpty();
     qDebug() << "[LBD_GM_R2]   Returned meshes.doors.isEmpty():" << meshes.doors.isEmpty();
     qDebug() << "[LBD_GM_R2]   Returned meshes.walls.isEmpty():" << meshes.walls.isEmpty();
-    qDebug() << "[LBD_GM_R2]   Returned meshes.dottedWallLines.isEmpty():" << meshes.dottedWallLines.isEmpty();
+    qDebug() << "[LBD_GM_R2]   Returned meshes.dottedWallLines.isEmpty():" << meshes.dottedWalls.isEmpty();
     qDebug() << "[LBD_GM_R2]   Returned meshes.upDownExits.isEmpty():" << meshes.upDownExits.isEmpty();
     // Note: meshes.tints is an array, meshes.layerBoost is a single UniqueMesh. isEmpty() might not apply directly.
     // For UniqueMesh, it's meshes.tints[i].isValid() or meshes.layerBoost.isValid()
@@ -971,6 +971,7 @@ void LayerMeshes::render(const int thisLayer, const int focusedLayer)
 
 void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const
 {
+    qDebug() << "grabbing layers";
     for (const auto &layer_kv : batchedMeshes) {
         // auto& output_chunked_layer_meshes = output.batchedMeshes[layer_kv.first]; // Old way
         for (const auto &chunk_kv : layer_kv.second) {

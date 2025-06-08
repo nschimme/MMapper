@@ -9,6 +9,10 @@
 #include <optional>
 #include <vector>
 
+#include <QOpenGLContext> // For VAO binding verification
+#include <QOpenGLFunctions> // For VAO binding verification
+#include <QDebug> // For qDebug output
+
 #define VOIDPTR_OFFSETOF(x, y) reinterpret_cast<void *>(offsetof(x, y))
 #define VPO(x) VOIDPTR_OFFSETOF(VertexType_, x)
 
@@ -71,6 +75,20 @@ private:
         const auto attribs = Attribs::getLocations(Base::m_program);
 
         gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get()); // This should come AFTER VAO bind, but is fine.
+
+        GLint current_vao_check = 0;
+        if (QOpenGLContext::currentContext()) {
+            QOpenGLFunctions *glFuncs = QOpenGLContext::currentContext()->functions();
+            if (glFuncs) {
+                glFuncs->glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &current_vao_check);
+                qDebug() << "DEBUG_FONT_MESH_BIND: VAO actually bound before enableAttrib (Target ID: " << Base::m_vao << "): " << current_vao_check;
+            } else {
+                qDebug() << "DEBUG_FONT_MESH_BIND: QOpenGLFunctions not available to check current VAO.";
+            }
+        } else {
+            qDebug() << "DEBUG_FONT_MESH_BIND: No current QOpenGLContext to check current VAO.";
+        }
+
         gl.enableAttrib(attribs.basePos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(base));
         gl.enableAttrib(attribs.colorPos, 4, GL_UNSIGNED_BYTE, GL_TRUE, vertSize, VPO(color));
         gl.enableAttrib(attribs.texPos, 2, GL_FLOAT, GL_FALSE, vertSize, VPO(tex));

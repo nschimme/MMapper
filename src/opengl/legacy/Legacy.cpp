@@ -336,6 +336,10 @@ void Functions::initializeOpenGLFunctions()
                 qDebug() << "LAMBDA_BIND_CALLING: Calling extraFuncs->glBindVertexArray(" << array_param << ").";
                 extraFuncs->glBindVertexArray(array_param);
                 qDebug() << "LAMBDA_BIND_CALLED: Finished extraFuncs->glBindVertexArray(" << array_param << ").";
+                GLenum error_after_bind = extraFuncs->glGetError();
+                if (error_after_bind != GL_NO_ERROR) {
+                    qCritical() << "LAMBDA_BIND_OPENGL_ERROR: Error immediately after extraFuncs->glBindVertexArray(" << array_param << "): " << error_after_bind;
+                }
             } else {
                 qDebug() << "LAMBDA_BIND_ERROR: extraFuncs IS NULL AT CALL TIME.";
             }

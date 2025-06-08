@@ -319,7 +319,7 @@ public:
     void initIterativeRemesh(const Coordinate& viewportCenter);
     void startIterativePass(FutureSharedMapBatchFinisher pass_future, const Coordinate& viewportCenter, int passNumber, const std::vector<std::pair<int, RoomAreaHash>>& chunks_for_pass);
     void continueIterativePass(FutureSharedMapBatchFinisher pass_future, int passNumber, const std::vector<std::pair<int, RoomAreaHash>>& chunks_for_pass);
-    NODISCARD SharedMapBatchFinisher getAccumulatedData(); // For when iterative remesh is complete
+    NODISCARD SharedMapBatchFinisher getAccumulatedData() const; // For when iterative remesh is complete
     NODISCARD bool isIterativeRemeshInProgress() const { return m_iterativeRemeshInProgress; }
     NODISCARD const std::vector<std::pair<int, RoomAreaHash>>& getCurrentPassChunks() const;
     void recordChunksAsCompleted(const std::vector<std::pair<int, RoomAreaHash>>& chunks);

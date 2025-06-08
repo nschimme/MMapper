@@ -10,9 +10,10 @@
 #include <utility>    // For std::pair
 #include <optional>   // For std::optional
 
-#include "src/mapdata/remesh_types.h" // For IterativeRemeshMetadata
-// Forward declare RoomAreaHash if it's not included via MapBatches.h or remesh_types.h
-// For now, assuming MapBatches.h (included next) or remesh_types.h provides it.
+// #include "src/mapdata/remesh_types.h" // Old include, will be removed
+#include "src/display/mapcanvas.h"    // For OpenDiablo2::Display::IterativeRemeshMetadata
+// Forward declare RoomAreaHash if it's not included via MapBatches.h or mapcanvas.h's includes.
+// For now, assuming MapBatches.h (included next) or mapcanvas.h provides it.
 // If not, #include "src/display/MapBatches.h" for RoomAreaHash might be needed here
 // or ensure remesh_types.h correctly brings it into scope.
 
@@ -30,7 +31,7 @@ struct FinishedRemeshPayload {
     MapBatches generatedMeshes; // Requires full definition of MapBatches
     std::vector<std::pair<int, RoomAreaHash>> chunksCompletedThisPass; // RoomAreaHash from MapBatches.h
     bool morePassesNeeded;
-    std::optional<MapData::IterativeRemeshMetadata> nextIterativeState; // IterativeRemeshMetadata from remesh_types.h
+    std::optional<OpenDiablo2::Display::IterativeRemeshMetadata> nextIterativeState; // Updated namespace
 };
 
 struct NODISCARD IMapBatchesFinisher

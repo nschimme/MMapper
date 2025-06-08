@@ -152,7 +152,7 @@ FutureSharedMapBatchFinisher MapData::generateBatches(const mctp::MapCanvasTextu
 FutureSharedMapBatchFinisher MapData::generateSpecificChunkBatches(
     const mctp::MapCanvasTexturesProxy &textures,
     const std::vector<std::pair<int, RoomAreaHash>>& chunksToGenerateThisPass,
-    std::optional<OpenDiablo2::MapData::IterativeRemeshMetadata> currentIterativeState)
+    std::optional<OpenDiablo2::Display::IterativeRemeshMetadata> currentIterativeState)
 {
     // Call the global ::generateSpecificMapDataFinisher from MapCanvasRoomDrawer.h
     // The currentIterativeState will be passed through.

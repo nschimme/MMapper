@@ -101,7 +101,7 @@ MapCanvas *MapCanvas::getPrimary()
 
 namespace { // Anonymous namespace for helper functions
 static std::vector<std::pair<int, RoomAreaHash>> getNextPassChunks(
-    const OpenDiablo2::MapData::IterativeRemeshMetadata& state,
+    const OpenDiablo2::Display::IterativeRemeshMetadata& state, // Changed namespace
     int maxChunksPerPass)
 {
     std::vector<std::pair<int, RoomAreaHash>> nextPass;
@@ -850,7 +850,7 @@ void MapCanvas::finishPendingMapBatches()
     }
 
     if (payload.morePassesNeeded && payload.nextIterativeState.has_value()) {
-        OpenDiablo2::MapData::IterativeRemeshMetadata nextState = payload.nextIterativeState.value();
+        OpenDiablo2::Display::IterativeRemeshMetadata nextState = payload.nextIterativeState.value(); // Changed namespace
         std::vector<std::pair<int, RoomAreaHash>> chunksForNext = getNextPassChunks(nextState, MAX_CHUNKS_PER_ITERATIVE_PASS);
 
         qDebug() << "Iterative remesh: Pass" << (nextState.currentPassNumber -1) << "completed."
@@ -1020,12 +1020,12 @@ void MapCanvas::forceUpdateMeshes()
     }
 
 
-    OpenDiablo2::MapData::IterativeRemeshMetadata initialMetadata;
+    OpenDiablo2::Display::IterativeRemeshMetadata initialMetadata; // Changed namespace
     initialMetadata.allTargetChunks = allTargetChunksForOperation;
-    initialMetadata.viewportChunks = viewportChunksForFirstPass; // Store the initial set for potential future prioritization
+    initialMetadata.viewportChunks = viewportChunksForFirstPass;
     initialMetadata.completedChunks.clear();
     initialMetadata.currentPassNumber = 0;
-    initialMetadata.strategy = OpenDiablo2::MapData::IterativeRemeshMetadata::Strategy::IterativeViewportPriority;
+    // initialMetadata.strategy = OpenDiablo2::MapData::IterativeRemeshMetadata::Strategy::IterativeViewportPriority; // Strategy removed
 
     qDebug() << "forceUpdateMeshes: Starting iterative remesh. First pass chunks:" << viewportChunksForFirstPass.size()
              << ". Total target chunks:" << allTargetChunksForOperation.size();

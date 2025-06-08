@@ -17,7 +17,8 @@
 #include "MapBatches.h"
 #include "MapCanvasData.h"
 #include "RoadIndex.h"
-#include "src/mapdata/remesh_types.h" // For IterativeRemeshMetadata
+// #include "src/mapdata/remesh_types.h" // Old include
+#include "src/display/mapcanvas.h"    // For OpenDiablo2::Display::IterativeRemeshMetadata
 
 #include <map>
 #include <optional>
@@ -270,7 +271,7 @@ public:
     std::map<int, std::map<RoomAreaHash, RoomNameBatch>> roomNameBatches;
 
     // Iterative remeshing state
-    std::optional<OpenDiablo2::MapData::IterativeRemeshMetadata> iterativeState;
+    std::optional<OpenDiablo2::Display::IterativeRemeshMetadata> iterativeState; // Updated namespace
     std::vector<std::pair<int, RoomAreaHash>> processedChunksThisCall;
 private:
     // Implementation remains in MapCanvasRoomDrawer.cpp
@@ -424,7 +425,7 @@ generateSpecificMapDataFinisher(
     const mctp::MapCanvasTexturesProxy &textures,
     const Map &map,
     const std::vector<std::pair<int, RoomAreaHash>>& chunksToGenerateThisPass,
-    std::optional<OpenDiablo2::MapData::IterativeRemeshMetadata> currentIterativeState = std::nullopt);
+    std::optional<OpenDiablo2::Display::IterativeRemeshMetadata> currentIterativeState = std::nullopt); // Updated namespace
 
 // Changed first parameter type from IMapBatchesFinisher::InternalData& to InternalData&
 void generateSpecificLayerMeshes(InternalData &internalData,

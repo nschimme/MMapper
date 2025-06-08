@@ -1001,20 +1001,22 @@ OpenDiablo2::Display::FinishedRemeshPayload InternalData::virt_finish(OpenGL &gl
 
     payload.chunksCompletedThisPass = this->processedChunksThisCall;
 
-    if (this->iterativeState.has_value() && this->iterativeState.value().strategy == OpenDiablo2::MapData::IterativeRemeshMetadata::Strategy::IterativeViewportPriority) {
-        OpenDiablo2::MapData::IterativeRemeshMetadata nextState = this->iterativeState.value();
+    // Strategy has been removed from IterativeRemeshMetadata, so the check is only for its presence.
+    // The logic within correctly handles iterative passes if iterativeState is present.
+    if (this->iterativeState.has_value()) {
+        // Assuming this->iterativeState is already OpenDiablo2::Display::IterativeRemeshMetadata
+        // If not, this line and its usage would need type adjustment.
+        // For now, proceeding with the assumption it's the new type or will be updated by other steps.
+        OpenDiablo2::Display::IterativeRemeshMetadata nextState = this->iterativeState.value();
         for (const auto& chunkProfile : payload.chunksCompletedThisPass) {
             nextState.completedChunks.insert(chunkProfile);
         }
         nextState.currentPassNumber++;
 
         bool allDone = true;
-        if (nextState.allTargetChunks.empty() && nextState.strategy == OpenDiablo2::MapData::IterativeRemeshMetadata::Strategy::AllAtOnce) {
-            // If AllAtOnce strategy was used and allTargetChunks was initially empty, it's done.
-            // This case might be moot if AllAtOnce bypasses this iterative block.
-            allDone = true;
-        } else if (nextState.allTargetChunks.empty() && nextState.strategy == OpenDiablo2::MapData::IterativeRemeshMetadata::Strategy::IterativeViewportPriority) {
-            // If by some chance allTargetChunks is empty for iterative, consider it done.
+        // Strategy check removed from here as well.
+        if (nextState.allTargetChunks.empty()) {
+            // If allTargetChunks is empty, consider it done.
              allDone = true;
         } else {
             for (const auto& targetChunkPair : nextState.allTargetChunks) {

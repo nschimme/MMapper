@@ -36,6 +36,38 @@
 #include <QOpenGLWidget>
 #include <QtCore>
 
+// Forward declarations from other headers that might be needed if not already included
+// For IterativeRemeshMetadata members:
+// #include <vector> // Included by QOpenGLWidget or QtCore or other existing includes
+// #include <set>    // Included by QOpenGLWidget or QtCore or other existing includes
+// #include <utility>  // For std::pair, likely included by vector/set or other existing includes
+// RoomAreaHash comes from MapBatches.h -> MapCanvasData.h
+
+namespace OpenDiablo2 {
+namespace Display { // Assuming it should be in this namespace, or a more global one if preferred
+
+// Metadata for iterative remeshing process.
+// This struct is now defined directly in mapcanvas.h
+// It was moved from src/mapdata/remesh_types.h and modified (strategy removed).
+struct IterativeRemeshMetadata {
+    // All chunks that need to be remeshed in the current iterative process.
+    std::vector<std::pair<int, RoomAreaHash>> allTargetChunks;
+
+    // Chunks that have been successfully remeshed in previous passes.
+    std::set<std::pair<int, RoomAreaHash>> completedChunks;
+
+    // Current pass number in the iterative remeshing process.
+    int currentPassNumber;
+
+    // Chunks currently in the viewport, prioritized in IterativeViewportPriority strategy.
+    // (Strategy itself was removed from this version of the struct)
+    std::vector<std::pair<int, RoomAreaHash>> viewportChunks;
+};
+
+} // namespace Display
+} // namespace OpenDiablo2
+
+
 class CharacterBatch;
 class ConnectionSelection;
 class Coordinate;

@@ -143,14 +143,14 @@ void LayerBatchData::sort()
 
 NODISCARD LayerMeshes LayerBatchData::getMeshes(OpenGL &gl) const
 {
-    qDebug() << "[LBD_GM] LayerBatchData::getMeshes called.";
-    qDebug() << "[LBD_GM]   Input roomTerrains size:" << this->roomTerrains.size();
-    qDebug() << "[LBD_GM]   Input roomTrails size:" << this->roomTrails.size();
-    qDebug() << "[LBD_GM]   Input roomOverlays size:" << this->roomOverlays.size();
-    qDebug() << "[LBD_GM]   Input doors size:" << this->doors.size();
-    qDebug() << "[LBD_GM]   Input solidWallLines size:" << this->solidWallLines.size();
-    qDebug() << "[LBD_GM]   Input dottedWallLines size:" << this->dottedWallLines.size();
-    qDebug() << "[LBD_GM]   Input roomUpDownExits size:" << this->roomUpDownExits.size();
+    qDebug() << "[LBD_GM_R2] LayerBatchData::getMeshes called.";
+    qDebug() << "[LBD_GM_R2]   Input roomTerrains size:" << this->roomTerrains.size();
+    qDebug() << "[LBD_GM_R2]   Input roomTrails size:" << this->roomTrails.size();
+    qDebug() << "[LBD_GM_R2]   Input roomOverlays size:" << this->roomOverlays.size();
+    qDebug() << "[LBD_GM_R2]   Input doors size:" << this->doors.size();
+    qDebug() << "[LBD_GM_R2]   Input solidWallLines size:" << this->solidWallLines.size();
+    qDebug() << "[LBD_GM_R2]   Input dottedWallLines size:" << this->dottedWallLines.size();
+    qDebug() << "[LBD_GM_R2]   Input roomUpDownExits size:" << this->roomUpDownExits.size();
 
     DECL_TIMER(t, "getMeshes");
     LayerMeshes meshes;
@@ -176,14 +176,14 @@ NODISCARD LayerMeshes LayerBatchData::getMeshes(OpenGL &gl) const
     meshes.layerBoost = gl.createPlainQuadBatch(roomLayerBoostQuads);
     meshes.isValid = true;
 
-    qDebug() << "[LBD_GM] Returning LayerMeshes.isValid:" << meshes.isValid;
-    qDebug() << "[LBD_GM]   Returned meshes.terrain.isEmpty():" << meshes.terrain.isEmpty();
-    qDebug() << "[LBD_GM]   Returned meshes.trails.isEmpty():" << meshes.trails.isEmpty();
-    qDebug() << "[LBD_GM]   Returned meshes.overlays.isEmpty():" << meshes.overlays.isEmpty();
-    qDebug() << "[LBD_GM]   Returned meshes.doors.isEmpty():" << meshes.doors.isEmpty();
-    qDebug() << "[LBD_GM]   Returned meshes.walls.isEmpty():" << meshes.walls.isEmpty();
-    qDebug() << "[LBD_GM]   Returned meshes.dottedWalls.isEmpty():" << meshes.dottedWalls.isEmpty();
-    qDebug() << "[LBD_GM]   Returned meshes.upDownExits.isEmpty():" << meshes.upDownExits.isEmpty();
+    qDebug() << "[LBD_GM_R2] Returning LayerMeshes.isValid:" << meshes.isValid;
+    qDebug() << "[LBD_GM_R2]   Returned meshes.terrain.isEmpty():" << meshes.terrain.isEmpty();
+    qDebug() << "[LBD_GM_R2]   Returned meshes.trails.isEmpty():" << meshes.trails.isEmpty();
+    qDebug() << "[LBD_GM_R2]   Returned meshes.overlays.isEmpty():" << meshes.overlays.isEmpty();
+    qDebug() << "[LBD_GM_R2]   Returned meshes.doors.isEmpty():" << meshes.doors.isEmpty();
+    qDebug() << "[LBD_GM_R2]   Returned meshes.walls.isEmpty():" << meshes.walls.isEmpty();
+    qDebug() << "[LBD_GM_R2]   Returned meshes.dottedWallLines.isEmpty():" << meshes.dottedWallLines.isEmpty();
+    qDebug() << "[LBD_GM_R2]   Returned meshes.upDownExits.isEmpty():" << meshes.upDownExits.isEmpty();
     // Note: meshes.tints is an array, meshes.layerBoost is a single UniqueMesh. isEmpty() might not apply directly.
     // For UniqueMesh, it's meshes.tints[i].isValid() or meshes.layerBoost.isValid()
 

@@ -1388,7 +1388,7 @@ void MapCanvas::forceUpdateMeshes()
         qDebug() << "[R_FM] initialPassChunks is EMPTY.";
     } else {
         qDebug() << "[R_FM] First few initialPassChunks (max 5):";
-        for (int i = 0; i < std::min((int)initialPassChunks.size(), 5); ++i) {
+        for (size_t i = 0; i < std::min<size_t>(initialPassChunks.size(), 5u); ++i) { // MODIFIED LINE
             qDebug() << "[R_FM]   Layer:" << initialPassChunks[i].first << "Hash:" << initialPassChunks[i].second;
         }
     }
@@ -1500,3 +1500,5 @@ void MapCanvas::userPressedEscape(bool /*pressed*/)
         break;
     }
 }
+
+[end of src/display/mapcanvas.cpp]

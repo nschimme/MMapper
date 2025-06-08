@@ -601,7 +601,7 @@ void MapCanvas::finishPendingMapBatches()
             qDebug() << "[R_FPB] Iterative: Calculated nextPassChunks. Count:" << nextPassChunks.size();
             if (!nextPassChunks.empty()) {
                 qDebug() << "[R_FPB] Iterative: First few nextPassChunks (max 3):";
-                for (int i = 0; i < std::min((int)nextPassChunks.size(), 3); ++i) {
+                for (size_t i = 0; i < std::min<size_t>(nextPassChunks.size(), 3u); ++i) { // MODIFIED LINE
                     qDebug() << "[R_FPB] Iterative:   Layer:" << nextPassChunks[i].first << "Hash:" << nextPassChunks[i].second;
                 }
             }
@@ -1148,3 +1148,5 @@ void MapCanvas::renderMapBatches()
         }
     }
 }
+
+[end of src/display/mapcanvas_gl.cpp]

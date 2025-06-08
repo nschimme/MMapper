@@ -102,9 +102,9 @@ MapCanvas::MapCanvas(MapData &mapData,
         pmc = this;
     }
 
-    setCursor(Qt::OpenHandCursor);
-    grabGesture(Qt::PinchGesture);
-    setContextMenuPolicy(Qt::CustomContextMenu);
+    this->QWidget::setCursor(Qt::OpenHandCursor);
+    this->QWidget::grabGesture(Qt::PinchGesture);
+    this->QWidget::setContextMenuPolicy(Qt::CustomContextMenu);
 }
 
 MapCanvas::~MapCanvas()
@@ -154,7 +154,7 @@ void MapCanvas::slot_setCanvasMouseMode(const CanvasMouseModeEnum mode)
 
     switch (mode) {
     case CanvasMouseModeEnum::MOVE:
-        setCursor(Qt::OpenHandCursor);
+        this->QWidget::setCursor(Qt::OpenHandCursor);
         break;
 
     default:
@@ -162,7 +162,7 @@ void MapCanvas::slot_setCanvasMouseMode(const CanvasMouseModeEnum mode)
     case CanvasMouseModeEnum::RAYPICK_ROOMS:
     case CanvasMouseModeEnum::SELECT_CONNECTIONS:
     case CanvasMouseModeEnum::CREATE_INFOMARKS:
-        setCursor(Qt::CrossCursor);
+        this->QWidget::setCursor(Qt::CrossCursor);
         break;
 
     case CanvasMouseModeEnum::SELECT_ROOMS:
@@ -170,7 +170,7 @@ void MapCanvas::slot_setCanvasMouseMode(const CanvasMouseModeEnum mode)
     case CanvasMouseModeEnum::CREATE_CONNECTIONS:
     case CanvasMouseModeEnum::CREATE_ONEWAY_CONNECTIONS:
     case CanvasMouseModeEnum::SELECT_INFOMARKS:
-        setCursor(Qt::ArrowCursor);
+        this->QWidget::setCursor(Qt::ArrowCursor);
         break;
     }
 
@@ -283,7 +283,7 @@ void MapCanvas::wheelEvent(QWheelEvent *const event)
                 m_scaleFactor.logStep(numSteps);
 
                 // 3. adjust viewport for new projection
-                setViewportAndMvp(width(), height());
+                setViewportAndMvp(this->QOpenGLWidget::width(), this->QOpenGLWidget::height());
 
                 // 4. subtract the offset to same mouse coordinate;
                 // This probably shouldn't ever fail, but let's make it conditional
@@ -494,7 +494,7 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
         break;
     case CanvasMouseModeEnum::MOVE:
         if (hasLeftButton && hasSel1()) {
-            setCursor(Qt::ClosedHandCursor);
+            this->QWidget::setCursor(Qt::ClosedHandCursor);
             startMoving(m_sel1.value());
         }
         break;
@@ -622,7 +622,7 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
     if (m_canvasMouseMode != CanvasMouseModeEnum::MOVE) {
         // NOTE: Y is opposite of what you might expect here.
         const int vScroll = [this, event]() -> int {
-            const int h = height();
+            const int h = this->QOpenGLWidget::height();
             const int MARGIN = std::min(100, h / 4);
             const int y = event->pos().y();
             if (y < MARGIN) {
@@ -634,7 +634,7 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
             }
         }();
         const int hScroll = [this, event]() -> int {
-            const int w = width();
+            const int w = this->QOpenGLWidget::width();
             const int MARGIN = std::min(100, w / 4);
             const int x = event->pos().x();
             if (x < MARGIN) {
@@ -656,7 +656,7 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
         if (hasLeftButton && hasSel1() && hasSel2()) {
             if (hasInfoMarkSelectionMove()) {
                 m_infoMarkSelectionMove->pos = getSel2().pos - getSel1().pos;
-                setCursor(Qt::ClosedHandCursor);
+                this->QWidget::setCursor(Qt::ClosedHandCursor);
 
             } else {
                 m_selectedArea = true;
@@ -699,7 +699,7 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
                 m_roomSelectionMove->pos = diff;
                 m_roomSelectionMove->wrongPlace = wrongPlace;
 
-                setCursor(wrongPlace ? Qt::ForbiddenCursor : Qt::ClosedHandCursor);
+                this->QWidget::setCursor(wrongPlace ? Qt::ForbiddenCursor : Qt::ClosedHandCursor);
             } else {
                 m_selectedArea = true;
             }
@@ -756,7 +756,7 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
 
     switch (m_canvasMouseMode) {
     case CanvasMouseModeEnum::SELECT_INFOMARKS:
-        setCursor(Qt::ArrowCursor);
+        this->QWidget::setCursor(Qt::ArrowCursor);
         if (m_mouseLeftPressed) {
             m_mouseLeftPressed = false;
             if (hasInfoMarkSelectionMove()) {
@@ -808,7 +808,7 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
 
     case CanvasMouseModeEnum::MOVE:
         stopMoving();
-        setCursor(Qt::OpenHandCursor);
+        this->QWidget::setCursor(Qt::OpenHandCursor);
         if (m_mouseLeftPressed) {
             m_mouseLeftPressed = false;
         }
@@ -820,7 +820,7 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
                                                  mmqt::StripAnsiEnum::Yes,
                                                  mmqt::PreviewStyleEnum::ForDisplay);
 
-                QToolTip::showText(mapToGlobal(event->pos()), message, this, rect(), 5000);
+                QToolTip::showText(this->QWidget::mapToGlobal(event->pos()), message, this, this->QWidget::rect(), 5000);
             }
         }
         break;
@@ -829,7 +829,7 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
         break;
 
     case CanvasMouseModeEnum::SELECT_ROOMS:
-        setCursor(Qt::ArrowCursor);
+        this->QWidget::setCursor(Qt::ArrowCursor);
 
         // This seems very unusual.
         if (m_ctrlPressed && m_altPressed) {
@@ -1019,7 +1019,7 @@ void MapCanvas::onMovement()
     const Coordinate &pos = m_data.tryGetPosition().value_or(Coordinate{});
     m_currentLayer = pos.z;
     emit sig_onCenter(pos.to_vec2() + glm::vec2{0.5f, 0.5f});
-    update();
+    this->QWidget::update();
 }
 
 void MapCanvas::slot_dataLoaded()
@@ -1057,15 +1057,15 @@ void MapCanvas::launchVisibilityUpdateTask(bool isHighPriority /*= false*/) {
         worldPtr = &m_data.getCurrentMap().getWorld();
     }
 
-    if (!worldPtr || (mapDataPtr && mapDataPtr->isEmpty())) { // Corrected condition
+    if (!worldPtr || (mapDataPtr == nullptr || mapDataPtr->isEmpty())) {
         qWarning() << "MapCanvas::launchVisibilityUpdateTask: Cannot launch, map is empty or world not available.";
         return;
     }
 
     VisibilityTaskParams params;
     params.currentLayer = m_currentLayer;
-    params.viewPortWidth = static_cast<float>(width());
-    params.viewPortHeight = static_cast<float>(height());
+    params.viewPortWidth = static_cast<float>(this->QOpenGLWidget::width());
+    params.viewPortHeight = static_cast<float>(this->QOpenGLWidget::height());
     params.viewProjMatrix = m_viewProj;
     params.frustumPlanes = getFrustumPlanes();
     params.isHighPriorityRequest = isHighPriority;
@@ -1096,7 +1096,7 @@ void MapCanvas::launchVisibilityUpdateTask(bool isHighPriority /*= false*/) {
     }
 
     qDebug() << "MapCanvas::launchVisibilityUpdateTask: Launching actual async task.";
-    m_visibilityTaskFuture = std::async(std::launch::async,
+    m_visibilityTaskFuture = std::async<VisibilityTaskResult>(std::launch::async,
         [params] () -> VisibilityTaskResult {
             VisibilityTaskResult result;
             result.originatedFromHighPriorityRequest = params.isHighPriorityRequest;
@@ -1240,7 +1240,7 @@ void MapCanvas::checkAndProcessVisibilityResult() {
                         }
                     }
                 }
-                update();
+                this->QWidget::update();
             } else {
                 qWarning() << "Async visibility update task failed.";
             }
@@ -1256,116 +1256,7 @@ void MapCanvas::checkAndProcessVisibilityResult() {
 void MapCanvas::infomarksChanged()
 {
     m_batches.infomarksMeshes.reset();
-    update();
-}
-
-void MapCanvas::launchVisibilityUpdateTask(bool isHighPriority /*= false*/) {
-    std::lock_guard<std::mutex> lock(m_visibilityMutex);
-
-    if (m_visibilityTaskFuture.valid() &&
-        m_visibilityTaskFuture.wait_for(std::chrono::seconds(0)) == std::future_status::timeout) {
-        m_newVisibilityRequestPending = true;
-        // TODO: If isHighPriority, consider if we need to signal an existing low-priority task to cancel.
-        // For now, just setting the pending flag is fine, the running task will complete.
-        return;
-    }
-
-    m_newVisibilityRequestPending = false;
-
-    qDebug() << "MapCanvas::launchVisibilityUpdateTask: Placeholder for actual async task launch.";
-    // Actual std::async call to run updateVisibleChunks and parts of requestMissingChunks
-    // will be implemented in the next phase of this feature.
-    // For now, this structure sets up the control flow.
-}
-
-void MapCanvas::checkAndProcessVisibilityResult() {
-    if (!m_visibilityTaskFuture.valid()) {
-        return;
-    }
-
-    std::future_status status;
-    // Check without blocking initially, using a lock only when we are about to modify shared state (the future itself)
-    status = m_visibilityTaskFuture.wait_for(std::chrono::seconds(0));
-
-    if (status == std::future_status::ready) {
-        VisibilityTaskResult result;
-        bool processResult = false;
-        { // Scope for lock_guard
-            std::lock_guard<std::mutex> lock(m_visibilityMutex);
-            // Re-check status under lock to handle race conditions.
-            if (m_visibilityTaskFuture.valid() &&
-                m_visibilityTaskFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
-                result = m_visibilityTaskFuture.get(); // Can throw if task threw exception
-                m_visibilityTaskFuture = {}; // Invalidate the future
-                processResult = true;
-            }
-        } // Lock released here
-
-        if (processResult) {
-            if (result.success) {
-                m_visibleChunks = result.visibleChunksCalculated;
-
-                if (result.originatedFromHighPriorityRequest) {
-                    // This was a forced update (e.g., from forceUpdateMeshes)
-                    // We need to request remeshing for ALL currently visible chunks.
-                    std::vector<std::pair<int, RoomAreaHash>> allCurrentlyVisibleChunks;
-                    for (const auto& layerPair : result.visibleChunksCalculated) {
-                        for (const RoomAreaHash& areaHash : layerPair.second) {
-                            allCurrentlyVisibleChunks.push_back({layerPair.first, areaHash});
-                        }
-                    }
-
-                    if (!allCurrentlyVisibleChunks.empty()) {
-                        m_pendingChunkGenerations.clear();
-                        for(const auto& chunkKey : allCurrentlyVisibleChunks) {
-                            m_pendingChunkGenerations.insert(chunkKey);
-                        }
-
-                        qDebug() << "Force update: Requesting remesh for all" << allCurrentlyVisibleChunks.size() << "visible chunks.";
-                        m_batches.remeshCookie.set(
-                            m_data.generateSpecificChunkBatches(mctp::getProxy(m_textures), allCurrentlyVisibleChunks)
-                        );
-                    } else {
-                         if (m_batches.remeshCookie.isPending()) {
-                            m_batches.ignorePendingRemesh();
-                            m_batches.remeshCookie = {};
-                         }
-                    }
-                } else {
-                    // This was a regular, non-forced update. Only request newly missing chunks.
-                    if (!result.chunksToRequestGenerated.empty()) {
-                        bool canSetNewCookie = true;
-                        if (m_batches.remeshCookie.isPending()) {
-                            qDebug() << "Async visibility result: Chunks to request, but remesh cookie already pending for other task.";
-                            canSetNewCookie = false;
-                        }
-
-                        if (canSetNewCookie) {
-                            std::vector<std::pair<int, RoomAreaHash>> finalChunksToRequest;
-                            for(const auto& chunkKey : result.chunksToRequestGenerated) {
-                                 if (m_pendingChunkGenerations.find(chunkKey) == m_pendingChunkGenerations.end()) {
-                                    m_pendingChunkGenerations.insert(chunkKey);
-                                    finalChunksToRequest.push_back(chunkKey);
-                                 } else {
-                                    qDebug() << "Chunk" << chunkKey.first << chunkKey.second << "was already in m_pendingChunkGenerations.";
-                                 }
-                            }
-                            if (!finalChunksToRequest.empty()){
-                                 m_batches.remeshCookie.set(
-                                    m_data.generateSpecificChunkBatches(mctp::getProxy(m_textures), finalChunksToRequest)
-                                 );
-                            }
-                        }
-                    }
-                }
-                update();
-            } else {
-                qWarning() << "Async visibility update task failed.";
-            }
-            // If m_newVisibilityRequestPending was true, the next call to paintGL or another trigger
-            // will call launchVisibilityUpdateTask again.
-        }
-    }
+    this->QWidget::update();
 }
 
 void MapCanvas::layerChanged()
@@ -1373,7 +1264,7 @@ void MapCanvas::layerChanged()
     // updateVisibleChunks(); // Replaced by async task
     // requestMissingChunks(); // Replaced by async task
     launchVisibilityUpdateTask();
-    update();
+    this->QWidget::update();
 }
 
 void MapCanvas::requestMissingChunks() {
@@ -1563,7 +1454,7 @@ void MapCanvas::forceUpdateMeshes()
     // that requires re-evaluating differences.
     m_diff.resetExistingMeshesAndIgnorePendingRemesh();
 
-    update(); // Schedule a repaint
+    this->QWidget::update(); // Schedule a repaint
 }
 
 void MapCanvas::slot_mapChanged()
@@ -1573,12 +1464,12 @@ void MapCanvas::slot_mapChanged()
     if ((false)) {
         m_batches.mapBatches.reset();
     }
-    update();
+    this->QWidget::update();
 }
 
 void MapCanvas::slot_requestUpdate()
 {
-    update();
+    this->QWidget::update();
 }
 
 void MapCanvas::screenChanged()
@@ -1610,13 +1501,13 @@ void MapCanvas::screenChanged()
 
 void MapCanvas::selectionChanged()
 {
-    update();
+    this->QWidget::update();
     emit sig_selectionChanged();
 }
 
 void MapCanvas::graphicsSettingsChanged()
 {
-    update();
+    this->QWidget::update();
 }
 
 void MapCanvas::userPressedEscape(bool /*pressed*/)

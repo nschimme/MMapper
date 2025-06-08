@@ -163,6 +163,7 @@ void MapCanvas::reportGLVersion()
     logString("OpenGL GLSL:", GL_SHADING_LANGUAGE_VERSION);
 
     const auto version = [this]() -> std::string {
+        // context() is a method of QOpenGLWidget
         const QSurfaceFormat &format = this->QOpenGLWidget::context()->format();
         std::ostringstream oss;
         switch (format.renderableType()) {
@@ -190,6 +191,7 @@ void MapCanvas::reportGLVersion()
            QString("%1 (%2)")
                .arg(version.c_str())
                // FIXME: This is a bit late to report an invalid context.
+                // context() is a method of QOpenGLWidget
                .arg(this->QOpenGLWidget::context()->isValid() ? "valid" : "invalid")
                .toUtf8());
     logMsg("Display:", QString("%1 DPI").arg(QPaintDevice::devicePixelRatioF()).toUtf8());
@@ -224,9 +226,9 @@ void MapCanvas::initializeGL()
     if (isBlacklistedDriver()) {
         setConfig().canvas.softwareOpenGL = true;
         setConfig().write();
-        this->QWidget::hide();
-        this->QOpenGLWidget::doneCurrent();
-        QMessageBox::critical(this,
+        this->QWidget::hide(); // QWidget method
+        this->QOpenGLWidget::doneCurrent(); // QOpenGLWidget method
+        QMessageBox::critical(static_cast<QWidget*>(this), // Explicit cast for QMessageBox parent
                               "OpenGL Driver Blacklisted",
                               "Please restart MMapper to enable software rendering");
         return;
@@ -251,7 +253,7 @@ void MapCanvas::initializeGL()
         //     && m_diff.highlight->needsUpdate.empty()) {
         //     this->forceUpdateMeshes();
         // }
-        this->QWidget::update();
+        this->QWidget::update(); // QWidget::update
     });
 
     setConfig().canvas.showMissingMapId.registerChangeCallback(m_lifetime, [this]() {
@@ -259,13 +261,14 @@ void MapCanvas::initializeGL()
         //     && m_diff.highlight->needsUpdate.empty()) {
         //     this->forceUpdateMeshes();
         // }
-        this->QWidget::update();
+        this->QWidget::update(); // QWidget::update
     });
 
     setConfig().canvas.showUnmappedExits.registerChangeCallback(m_lifetime, [this]() {
         this->forceUpdateMeshes();
     });
 
+    // context() is QOpenGLWidget method
     QOpenGLExtraFunctions *f = this->QOpenGLWidget::context()->extraFunctions();
     f->glGenVertexArrays(1, &m_defaultVao);
     f->glBindVertexArray(m_defaultVao);
@@ -543,7 +546,7 @@ void MapCanvas::resizeGL(int width, int height)
     launchVisibilityUpdateTask(); // Explicitly trigger for resize too
 
     // Render
-    this->QWidget::update();
+    this->QWidget::update(); // QWidget method
 }
 
 void MapCanvas::setAnimating(bool value)
@@ -569,7 +572,7 @@ void MapCanvas::renderLoop()
     auto targetFrameTime = std::chrono::milliseconds(1000 / TARGET_FRAMES_PER_SECOND);
 
     auto now = std::chrono::steady_clock::now();
-    this->QWidget::update();
+    this->QWidget::update(); // QWidget method
     auto afterPaint = std::chrono::steady_clock::now();
 
     // Render the next frame at the appropriate time or now if we're behind
@@ -716,7 +719,7 @@ void MapCanvas::finishPendingMapBatches()
     // The original logic for pFuture == nullptr also cleared m_pendingChunkGenerations,
     // which is covered by clearing it after remeshCookie.get() if isReady() was true.
     // The update() call is also important.
-    update();
+    this->QWidget::update();
 
 
 #undef LOG
@@ -725,7 +728,8 @@ void MapCanvas::finishPendingMapBatches()
 void MapCanvas::actuallyPaintGL()
 {
     // DECL_TIMER(t, __FUNCTION__);
-    setViewportAndMvp(width(), height());
+    // width() and height() are QWidget methods, wrapped in mapcanvas.h to QOpenGLWidget::width/height
+    setViewportAndMvp(this->QOpenGLWidget::width(), this->QOpenGLWidget::height());
 
     auto &gl = getOpenGL();
     gl.clear(Color{getConfig().canvas.backgroundColor});
@@ -897,7 +901,7 @@ void MapCanvas::paintMap()
         if (!pending) {
             // REVISIT: does this need a better fix?
             // pending already scheduled an update, but now we realize we need an update.
-            update();
+            this->QWidget::update();
         }
         return;
     }
@@ -968,7 +972,8 @@ void MapCanvas::paintGL()
     const auto &afterBatches = optAfterBatches.value();
     const auto afterPaint = Clock::now();
     const bool calledFinish = [this]() -> bool {
-        if (auto *const ctxt = QOpenGLWidget::context()) {
+        // context() is a QOpenGLWidget method
+        if (auto *const ctxt = this->QOpenGLWidget::context()) {
             if (auto *const func = ctxt->functions()) {
                 func->glFinish();
                 return true;
@@ -983,8 +988,8 @@ void MapCanvas::paintGL()
         return double(std::chrono::duration_cast<std::chrono::nanoseconds>(delta).count()) * 1e-6;
     };
 
-    const auto w = width();
-    const auto h = height();
+    const auto w = this->QOpenGLWidget::width();
+    const auto h = this->QOpenGLWidget::height();
     const auto dpr = getOpenGL().getDevicePixelRatio();
 
     auto &font = getGLFont();

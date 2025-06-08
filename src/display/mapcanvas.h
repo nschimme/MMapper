@@ -3,6 +3,8 @@
 // Copyright (C) 2019 The MMapper Authors
 
 // Content from visibility_async_types.h starts here
+#include "../map/roomid.h" // For RoomAreaHash (it's uint32_t)
+
 #include <vector>
 #include <map>
 #include <set>
@@ -14,8 +16,6 @@
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp> // Explicit include for glm::mat4
-
-#include "../map/roomid.h" // For RoomAreaHash (it's uint32_t)
 
 // Forward declarations
 class MapData;
@@ -198,9 +198,6 @@ public:
     NODISCARD float getRawZoom() const { return m_scaleFactor.getRaw(); }
 
 public:
-    NODISCARD auto width() const { return this->QOpenGLWidget::width(); }
-    NODISCARD auto height() const { return this->QOpenGLWidget::height(); }
-    NODISCARD auto rect() const { return this->QOpenGLWidget::rect(); }
 
 private:
     void onMovement();
@@ -229,7 +226,7 @@ private:
 private:
     void initLogger();
 
-    void resizeGL() { resizeGL(width(), height()); }
+    void resizeGL() { resizeGL(this->QOpenGLWidget::width(), this->QOpenGLWidget::height()); }
     void initTextures();
     void updateTextures();
     void updateMultisampling();

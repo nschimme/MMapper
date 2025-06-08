@@ -182,7 +182,7 @@ NODISCARD LayerMeshes LayerBatchData::getMeshes(OpenGL &gl) const
     qDebug() << "[LBD_GM_R2]   Returned meshes.overlays.isEmpty():" << meshes.overlays.isEmpty();
     qDebug() << "[LBD_GM_R2]   Returned meshes.doors.isEmpty():" << meshes.doors.isEmpty();
     qDebug() << "[LBD_GM_R2]   Returned meshes.walls.isEmpty():" << meshes.walls.isEmpty();
-    qDebug() << "[LBD_GM_R2]   Returned meshes.dottedWallLines.isEmpty():" << meshes.dottedWallLines.isEmpty();
+    qDebug() << "[LBD_GM_R2]   Returned meshes.dottedWallLines.isEmpty():" << meshes.dottedWalls.isEmpty();
     qDebug() << "[LBD_GM_R2]   Returned meshes.upDownExits.isEmpty():" << meshes.upDownExits.isEmpty();
     // Note: meshes.tints is an array, meshes.layerBoost is a single UniqueMesh. isEmpty() might not apply directly.
     // For UniqueMesh, it's meshes.tints[i].isValid() or meshes.layerBoost.isValid()

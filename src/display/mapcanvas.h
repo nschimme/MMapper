@@ -2,7 +2,49 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
 
-#include "visibility_async_types.h" // Added include for new header
+// Content from visibility_async_types.h starts here
+#include <vector>
+#include <map>
+#include <set>
+#include <utility> // For std::pair
+#include <array>   // For std::array
+
+// Required for glm types used in the structs
+#include <glm/glm.hpp>
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
+#include <glm/mat4x4.hpp> // Explicit include for glm::mat4
+
+#include "../map/roomid.h" // For RoomAreaHash (it's uint32_t)
+
+// Forward declarations
+class MapData;
+class World;
+
+struct VisibilityTaskParams {
+    int currentLayer = 0;
+    float viewPortWidth = 0.0f;
+    float viewPortHeight = 0.0f;
+    glm::mat4 viewProjMatrix{1.f}; // Initialize to identity
+    std::array<glm::vec4, 6> frustumPlanes;
+    float vpWorldMinX = 0.0f;
+    float vpWorldMaxX = 0.0f;
+    float vpWorldMinY = 0.0f;
+    float vpWorldMaxY = 0.0f;
+    const MapData* mapDataPtr = nullptr;
+    const World* worldPtr = nullptr;
+    std::set<std::pair<int, RoomAreaHash>> existingValidMeshChunks;
+    bool isHighPriorityRequest = false;
+};
+
+struct VisibilityTaskResult {
+    std::map<int, std::set<RoomAreaHash>> visibleChunksCalculated;
+    std::vector<std::pair<int, RoomAreaHash>> chunksToRequestGenerated;
+    bool success = true;
+    bool originatedFromHighPriorityRequest = false;
+};
+// Content from visibility_async_types.h ends here
+
 // Author: Ulf Hermann <ulfonk_mennhar@gmx.de> (Alve)
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
@@ -18,19 +60,19 @@
 #include "MapCanvasRoomDrawer.h"
 #include "Textures.h"
 
-#include <array>
+// #include <array> // Already included above
 #include <cstddef>
 #include <cstdint>
-#include <map>
+// #include <map> // Already included above
 #include <memory>
 #include <optional>
-#include <set>
-#include <utility> // For std::pair
-#include <vector>
+// #include <set> // Already included above
+// #include <utility> // For std::pair // Already included above
+// #include <vector> // Already included above
 #include <future>   // For std::future
 #include <mutex>    // For std::mutex
 
-#include <glm/glm.hpp>
+// #include <glm/glm.hpp> // Already included above
 
 #include <QColor>
 #include <QMatrix4x4>
@@ -43,7 +85,7 @@ class CharacterBatch;
 class ConnectionSelection;
 class Coordinate;
 class InfoMarkSelection;
-class MapData;
+// class MapData; // Forward declared above
 class Mmapper2Group;
 class PrespammedPath;
 class QMouseEvent;
@@ -107,7 +149,7 @@ private:
     GLFont m_glFont;
     Batches m_batches;
     MapCanvasTextures m_textures;
-    MapData &m_data;
+    MapData &m_data; // Note: MapData is forward declared above now
     GLuint m_defaultVao;
     Mmapper2Group &m_groupManager;
     OptionStatus m_graphicsOptionsStatus;
@@ -121,7 +163,7 @@ private:
     std::set<std::pair<int, RoomAreaHash>> m_pendingChunkGenerations;
 
     // Asynchronous visibility updates
-    std::future<VisibilityTaskResult> m_visibilityTaskFuture;
+    std::future<VisibilityTaskResult> m_visibilityTaskFuture; // Uses VisibilityTaskResult from inlined content
     std::mutex m_visibilityMutex;
     bool m_newVisibilityRequestPending = false;
 

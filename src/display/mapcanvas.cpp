@@ -6,20 +6,14 @@
 
 #include "mapcanvas.h"
 
-// Includes for VisibilityHelpers and async task
-// #include <glm/vec3.hpp> // Duplicated below
-// #include <glm/vec4.hpp> // Duplicated below
-// #include <glm/geometric.hpp> // For glm::dot // Duplicated below
-// #include <array>             // For std::array - needed by VisibilityHelpers // Duplicated or via mapcanvas.h
-// #include <vector> // Already included
-// #include <set> // Already included
-// #include <algorithm> // Already included
-// #include "MapCanvasRoomDrawer.h" // For ::getRoomAreaHash // Duplicated below
-// #include <stdexcept>             // For std::runtime_error // Duplicated below
-// #include <QDebug>                // For qWarning, qDebug // Duplicated below
-
-// Note: VisibilityHelpers namespace and its function are defined further down.
-// This first duplicated block of includes and the namespace is being removed.
+// Single block of necessary includes
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
+#include <glm/geometric.hpp> // For glm::dot
+#include <array>             // For std::array
+#include "MapCanvasRoomDrawer.h" // For ::getRoomAreaHash
+#include <stdexcept>             // For std::runtime_error
+#include <QDebug>                // For qWarning, qDebug
 
 #include "../configuration/configuration.h"
 #include "../global/parserutils.h"
@@ -37,22 +31,22 @@
 #include "../mapdata/roomselection.h"
 #include "InfoMarkSelection.h"
 #include "MapCanvasData.h"
-#include "MapCanvasRoomDrawer.h"
+// MapCanvasRoomDrawer.h is already included above
 #include "connectionselection.h"
 
-#include <algorithm> // Added for std::min/max, std::max, std::min
-#include <array>
-#include <chrono> // Added for performance logging
-#include <cmath>      // For std::floor, std::ceil
-#include <cmath>
+// Standard library includes that were duplicated before are fine if included once
+#include <algorithm> // For std::min/max
+#include <chrono>    // For performance logging, std::chrono::seconds
+#include <cmath>     // For std::floor, std::ceil
 #include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <set>        // For std::set
-#include <stdexcept>
-#include <utility>
+#include <set>       // For std::set
+// <stdexcept> is already included above
+#include <utility>   // For std::pair
 #include <vector>
 
+// Qt includes
 #include <QGestureEvent>
 #include <QMessageLogContext>
 #include <QOpenGLDebugMessage>
@@ -67,15 +61,8 @@
 #undef far  // Bad dog, Microsoft; bad dog!!!
 #endif
 
-// Chunking constants (must match MapCanvasRoomDrawer.cpp)
-// namespace { // Removed
-    // constexpr int CHUNK_SIZE_X = 32; // Removed
-    // constexpr int CHUNK_SIZE_Y = 32; // Removed
-    // constexpr int NUM_CHUNKS_X_DIMENSION = 2000; // Removed
-// } // Removed
-
 namespace VisibilityHelpers {
-    bool isRoomAABBVisible(const glm::vec3& roomMin, const glm::vec3& roomMax, const std::array<glm::vec4, 6>& frustumPlanes) {
+    static bool isRoomAABBVisible(const glm::vec3& roomMin, const glm::vec3& roomMax, const std::array<glm::vec4, 6>& frustumPlanes) {
         for (size_t i = 0; i < 6; ++i) {
             const glm::vec4& plane = frustumPlanes[i];
             glm::vec3 pVertex = roomMin;
@@ -1066,12 +1053,12 @@ void MapCanvas::launchVisibilityUpdateTask(bool isHighPriority /*= false*/) {
     // Parameter population and std::async call
     const MapData* mapDataPtr = &m_data;
     const World* worldPtr = nullptr;
-    if (m_data.isMapLoaded()) {
+    if (!m_data.isEmpty()) { // Corrected condition
         worldPtr = &m_data.getCurrentMap().getWorld();
     }
 
-    if (!worldPtr || !mapDataPtr->isMapLoaded()) {
-        qWarning() << "MapCanvas::launchVisibilityUpdateTask: Cannot launch, map not loaded or world not available.";
+    if (!worldPtr || (mapDataPtr && mapDataPtr->isEmpty())) { // Corrected condition
+        qWarning() << "MapCanvas::launchVisibilityUpdateTask: Cannot launch, map is empty or world not available.";
         return;
     }
 
@@ -1394,8 +1381,9 @@ void MapCanvas::requestMissingChunks() {
     // to the asynchronous task and its result handler (checkAndProcessVisibilityResult).
     qDebug() << "Legacy MapCanvas::requestMissingChunks() was called. All primary triggers should now use the new async visibility flow.";
 }
+#endif // Old requestMissingChunks logic
 
-#if 0 // Old requestMissingChunks logic, kept for reference during refactor, can be deleted later
+#if 0 // Old requestMissingChunks logic, kept for reference during refactor, can be deleted later - THIS LINE IS REDUNDANT AND WILL BE REMOVED BY NOT INCLUDING IT IN REPLACE
     if (m_batches.remeshCookie.isPending()) {
         // A remesh operation is already in progress, which will generate all visible chunks.
         // Or, if it was a specific chunk request, we wait for it to complete.
@@ -1532,6 +1520,7 @@ void MapCanvas::updateVisibleChunks() {
     qDebug() << "updateVisibleChunks execution time:" << duration.count() << "microseconds";
 #endif
 }
+// The redundant #endif that was here (and its misleading comment) is removed.
 
 void MapCanvas::forceUpdateMeshes()
 {
@@ -1662,3 +1651,5 @@ void MapCanvas::userPressedEscape(bool /*pressed*/)
         break;
     }
 }
+
+[end of src/display/mapcanvas.cpp]

@@ -863,11 +863,27 @@ UniqueMesh GLFont::getFontMesh(const std::vector<GLText> &text)
 void GLFont::updateFontMesh(UniqueMesh& existingMesh, const std::vector<GLText>& names)
 {
     const auto rawVerts = getFontBatchRawData(names.data(), names.size());
-    // Assuming UniqueMesh is a typedef or wrapper around SimpleMesh<FontVert3d, FontProgram> or similar,
-    // and that it has an updateData method.
-    // The SimpleMesh::updateData method takes (DrawModeEnum mode, const std::vector<VertexType_>& verts, BufferUsageEnum usage)
-    // For font meshes, mode is QUADS and usage is typically STATIC_DRAW.
-    existingMesh.updateData(DrawModeEnum::QUADS, rawVerts, BufferUsageEnum::STATIC_DRAW);
+    IRenderable* renderable = existingMesh.get_renderable();
+    if (renderable) {
+        auto* fontSimpleMesh = dynamic_cast<Legacy::SimpleMesh<FontVert3d, Legacy::FontShader>*>(renderable);
+        if (fontSimpleMesh) {
+            fontSimpleMesh->updateData(DrawModeEnum::QUADS, rawVerts, BufferUsageEnum::STATIC_DRAW);
+        } else {
+            // Handle error: existingMesh is not of the expected SimpleMesh specialization
+            // This might involve recreating the mesh or logging an error.
+            // For now, if it's not the right type, we might have to recreate it outside,
+            // or GLFont could recreate it if it had the means (e.g., access to OpenGL&).
+            // As per instruction, "assume updateFontMesh is only called if existingMesh is expected to be valid and of the correct type."
+            // If it's not, this is an issue. For robustness, one might add:
+            // existingMesh = getFontMesh(names); // Recreate if wrong type, but this changes 'existingMesh'
+            qWarning() << "GLFont::updateFontMesh called with incompatible mesh type.";
+        }
+    } else {
+        // Handle error: existingMesh was empty.
+        // This implies it should have been created first.
+        // existingMesh = getFontMesh(names); // Recreate if empty
+        qWarning() << "GLFont::updateFontMesh called with an empty UniqueMesh.";
+    }
 }
 
 void GLFont::renderTextCentered(const QString &text,

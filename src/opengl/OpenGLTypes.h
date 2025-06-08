@@ -338,7 +338,14 @@ public:
     ~UniqueMesh() = default;
     DEFAULT_MOVES_DELETE_COPIES(UniqueMesh);
 
-    void render(const GLRenderState &rs) const { deref(m_mesh).render(rs); }
+    void render(const GLRenderState &rs) const { if (m_mesh) m_mesh->render(rs); } // Added check for null
+
+    void reset_renderable() { if (m_mesh) { m_mesh->reset(); } m_mesh.reset(); }
+
+    IRenderable* get_renderable() { return m_mesh.get(); }
+    const IRenderable* get_renderable() const { return m_mesh.get(); }
+
+    explicit operator bool() const { return static_cast<bool>(m_mesh); }
 };
 
 struct NODISCARD UniqueMeshVector final
@@ -352,11 +359,30 @@ public:
         : m_meshes{std::move(meshes)}
     {}
 
-    void render(const GLRenderState &rs)
+    void render(const GLRenderState &rs) const // Made const
     {
-        for (auto &mesh : m_meshes) {
+        for (const auto &mesh : m_meshes) { // Iterate by const ref
             mesh.render(rs);
         }
+    }
+
+    // Added public methods for vector-like interface
+    NODISCARD size_t size() const { return m_meshes.size(); }
+    void clear() { m_meshes.clear(); }
+    NODISCARD bool empty() const { return m_meshes.empty(); }
+    UniqueMesh& operator[](size_t idx) { return m_meshes[idx]; }
+    const UniqueMesh& operator[](size_t idx) const { return m_meshes[idx]; }
+    void reserve(size_t n) { m_meshes.reserve(n); }
+    template<typename... Args> void emplace_back(Args&&... args) { m_meshes.emplace_back(std::forward<Args>(args)...); }
+
+    // Added for direct vector operations if needed, e.g. std::move for assignment
+    std::vector<UniqueMesh>& get_meshes_mut() { return m_meshes; }
+    const std::vector<UniqueMesh>& get_meshes_const() const { return m_meshes; }
+
+    // Assignment operator for moving a std::vector<UniqueMesh> into UniqueMeshVector
+    UniqueMeshVector& operator=(std::vector<UniqueMesh>&& new_meshes) {
+        m_meshes = std::move(new_meshes);
+        return *this;
     }
 };
 

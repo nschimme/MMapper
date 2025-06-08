@@ -131,7 +131,7 @@ void RoomNameBatch::updateMesh(UniqueMesh& targetMesh, GLFont& font) const
         // This assumes GLFont::updateFontMesh exists and UniqueMesh can handle it.
         font.updateFontMesh(targetMesh, m_names);
     } else {
-        targetMesh.reset();
+        targetMesh.reset_renderable(); // Changed from .reset()
     }
 }
 
@@ -635,46 +635,70 @@ void ConnectionDrawerBuffers::updateMeshes(ConnectionMeshes& targetMeshes, OpenG
 {
     // Normal Lines
     if (!this->normal.lineVerts.empty()) {
-        if (targetMeshes.normalLines) {
-            targetMeshes.normalLines.updateData(DrawModeEnum::LINES, this->normal.lineVerts, BufferUsageEnum::STATIC_DRAW);
-        } else {
+        if (targetMeshes.normalLines) { // Use new operator bool()
+            IRenderable* renderable = targetMeshes.normalLines.get_renderable();
+            auto* simpleMesh = dynamic_cast<Legacy::SimpleMesh<ColorVert, Legacy::AColorPlainShader>*>(renderable);
+            if (simpleMesh) {
+                simpleMesh->updateData(DrawModeEnum::LINES, this->normal.lineVerts, BufferUsageEnum::STATIC_DRAW);
+            } else { // Was not the expected type, recreate
+                targetMeshes.normalLines = gl.createColoredLineBatch(this->normal.lineVerts);
+            }
+        } else { // Mesh doesn't exist, create it
             targetMeshes.normalLines = gl.createColoredLineBatch(this->normal.lineVerts);
         }
-    } else {
-        targetMeshes.normalLines.reset();
+    } else { // No new data, reset existing mesh
+        targetMeshes.normalLines.reset_renderable();
     }
 
     // Normal Tris
     if (!this->normal.triVerts.empty()) {
         if (targetMeshes.normalTris) {
-            targetMeshes.normalTris.updateData(DrawModeEnum::TRIANGLES, this->normal.triVerts, BufferUsageEnum::STATIC_DRAW);
+            IRenderable* renderable = targetMeshes.normalTris.get_renderable();
+            auto* simpleMesh = dynamic_cast<Legacy::SimpleMesh<ColorVert, Legacy::AColorPlainShader>*>(renderable);
+            if (simpleMesh) {
+                simpleMesh->updateData(DrawModeEnum::TRIANGLES, this->normal.triVerts, BufferUsageEnum::STATIC_DRAW);
+            } else {
+                targetMeshes.normalTris = gl.createColoredTriBatch(this->normal.triVerts);
+            }
         } else {
             targetMeshes.normalTris = gl.createColoredTriBatch(this->normal.triVerts);
         }
     } else {
-        targetMeshes.normalTris.reset();
+        targetMeshes.normalTris.reset_renderable();
     }
 
     // Red Lines
     if (!this->red.lineVerts.empty()) {
         if (targetMeshes.redLines) {
-            targetMeshes.redLines.updateData(DrawModeEnum::LINES, this->red.lineVerts, BufferUsageEnum::STATIC_DRAW);
+            IRenderable* renderable = targetMeshes.redLines.get_renderable();
+            auto* simpleMesh = dynamic_cast<Legacy::SimpleMesh<ColorVert, Legacy::AColorPlainShader>*>(renderable);
+            if (simpleMesh) {
+                simpleMesh->updateData(DrawModeEnum::LINES, this->red.lineVerts, BufferUsageEnum::STATIC_DRAW);
+            } else {
+                targetMeshes.redLines = gl.createColoredLineBatch(this->red.lineVerts);
+            }
         } else {
             targetMeshes.redLines = gl.createColoredLineBatch(this->red.lineVerts);
         }
     } else {
-        targetMeshes.redLines.reset();
+        targetMeshes.redLines.reset_renderable();
     }
 
     // Red Tris
     if (!this->red.triVerts.empty()) {
         if (targetMeshes.redTris) {
-            targetMeshes.redTris.updateData(DrawModeEnum::TRIANGLES, this->red.triVerts, BufferUsageEnum::STATIC_DRAW);
+            IRenderable* renderable = targetMeshes.redTris.get_renderable();
+            auto* simpleMesh = dynamic_cast<Legacy::SimpleMesh<ColorVert, Legacy::AColorPlainShader>*>(renderable);
+            if (simpleMesh) {
+                simpleMesh->updateData(DrawModeEnum::TRIANGLES, this->red.triVerts, BufferUsageEnum::STATIC_DRAW);
+            } else {
+                targetMeshes.redTris = gl.createColoredTriBatch(this->red.triVerts);
+            }
         } else {
             targetMeshes.redTris = gl.createColoredTriBatch(this->red.triVerts);
         }
     } else {
-        targetMeshes.redTris.reset();
+        targetMeshes.redTris.reset_renderable();
     }
 }
 

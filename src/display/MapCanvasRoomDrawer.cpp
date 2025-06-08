@@ -705,132 +705,136 @@ struct NODISCARD LayerBatchData final
         // Terrain (UniqueMeshVector)
         // Simplified approach: if sizes differ, clear and recreate. Otherwise, update.
         // This assumes the number of unique textures corresponds to the number of meshes.
-        if (targetMeshes.terrain.size() != ::createSortedTexturedMeshes("", gl, roomTerrains).size()) { // A bit inefficient to call create just for size
+        // Create new meshes to get the potential new size and content.
+        UniqueMeshVector newTerrainMeshes = ::createSortedTexturedMeshes("terrain", gl, roomTerrains);
+        if (targetMeshes.terrain.size() != newTerrainMeshes.size()) {
             targetMeshes.terrain.clear();
-            targetMeshes.terrain = ::createSortedTexturedMeshes("terrain", gl, roomTerrains);
+            targetMeshes.terrain = std::move(newTerrainMeshes.get_meshes_mut()); // Use new assignment op
         } else {
-            // This part assumes a 1-to-1 correspondence and that texture IDs haven't changed, only vertex data.
-            // A more robust solution would match meshes by texture ID.
-            // For now, we'll recreate if sizes are different, which is simpler.
-            // If sizes are the same, we assume the conceptual meshes are the same and update them.
-            // This requires createSortedTexturedMeshes to be deterministic in its output order.
-            auto newMeshes = ::createSortedTexturedMeshes("terrain", gl, roomTerrains);
-            for (size_t i = 0; i < targetMeshes.terrain.size(); ++i) {
-                // Assuming newMeshes[i] contains the verts for targetMeshes.terrain[i]
-                // We need to extract verts from newMeshes[i] if it's a SimpleMesh,
-                // or change createSortedTexturedMeshes to return data instead of UniqueMesh.
-                // For now, let's stick to the simplified approach: if sizes differ, recreate.
-                // If sizes are the same, we can't easily get the new vertex data from the newly created UniqueMesh
-                // without changing UniqueMesh or createSortedTexturedMeshes.
-                // So, even if sizes are the same, we will recreate for simplicity until a more complex update is implemented.
-                // This means the else branch will also recreate.
-                targetMeshes.terrain.clear(); // Clear before reassigning
-                targetMeshes.terrain = std::move(newMeshes);
-                break; // only need to do this once
-            }
+            // Simplified: recreate even if sizes are the same for now, as per previous logic.
+            // A more complex update would iterate and call updateData on each UniqueMesh.
+            // For now, std::move the already created new meshes.
+            targetMeshes.terrain.clear();
+            targetMeshes.terrain = std::move(newTerrainMeshes.get_meshes_mut());
         }
 
         // Trails (UniqueMeshVector) - Similar simplified logic
-        if (targetMeshes.trails.size() != ::createSortedTexturedMeshes("", gl, roomTrails).size()) {
+        UniqueMeshVector newTrailMeshes = ::createSortedTexturedMeshes("trails", gl, roomTrails);
+        if (targetMeshes.trails.size() != newTrailMeshes.size()) {
             targetMeshes.trails.clear();
-            targetMeshes.trails = ::createSortedTexturedMeshes("trails", gl, roomTrails);
+            targetMeshes.trails = std::move(newTrailMeshes.get_meshes_mut());
         } else {
-            // Simplified: recreate even if sizes are the same for now.
             targetMeshes.trails.clear();
-            targetMeshes.trails = ::createSortedTexturedMeshes("trails", gl, roomTrails);
+            targetMeshes.trails = std::move(newTrailMeshes.get_meshes_mut());
         }
 
         // Overlays (UniqueMeshVector) - Similar simplified logic
-        if (targetMeshes.overlays.size() != ::createSortedTexturedMeshes("", gl, roomOverlays).size()) {
+        UniqueMeshVector newOverlayMeshes = ::createSortedTexturedMeshes("overlays", gl, roomOverlays);
+        if (targetMeshes.overlays.size() != newOverlayMeshes.size()) {
             targetMeshes.overlays.clear();
-            targetMeshes.overlays = ::createSortedTexturedMeshes("overlays", gl, roomOverlays);
+            targetMeshes.overlays = std::move(newOverlayMeshes.get_meshes_mut());
         } else {
-            // Simplified: recreate even if sizes are the same for now.
             targetMeshes.overlays.clear();
-            targetMeshes.overlays = ::createSortedTexturedMeshes("overlays", gl, roomOverlays);
+            targetMeshes.overlays = std::move(newOverlayMeshes.get_meshes_mut());
         }
 
         // Doors (UniqueMeshVector from ColoredRoomTexVector) - Similar simplified logic
-        if (targetMeshes.doors.size() != ::createSortedColoredTexturedMeshes("", gl, doors).size()) {
+        UniqueMeshVector newDoorMeshes = ::createSortedColoredTexturedMeshes("doors", gl, doors);
+        if (targetMeshes.doors.size() != newDoorMeshes.size()) {
             targetMeshes.doors.clear();
-            targetMeshes.doors = ::createSortedColoredTexturedMeshes("doors", gl, doors);
+            targetMeshes.doors = std::move(newDoorMeshes.get_meshes_mut());
         } else {
             targetMeshes.doors.clear();
-            targetMeshes.doors = ::createSortedColoredTexturedMeshes("doors", gl, doors);
+            targetMeshes.doors = std::move(newDoorMeshes.get_meshes_mut());
         }
 
         // Walls (UniqueMeshVector from ColoredRoomTexVector) - Similar simplified logic
-        if (targetMeshes.walls.size() != ::createSortedColoredTexturedMeshes("", gl, solidWallLines).size()) {
+        UniqueMeshVector newWallMeshes = ::createSortedColoredTexturedMeshes("solidWalls", gl, solidWallLines);
+        if (targetMeshes.walls.size() != newWallMeshes.size()) {
             targetMeshes.walls.clear();
-            targetMeshes.walls = ::createSortedColoredTexturedMeshes("solidWalls", gl, solidWallLines);
+            targetMeshes.walls = std::move(newWallMeshes.get_meshes_mut());
         } else {
             targetMeshes.walls.clear();
-            targetMeshes.walls = ::createSortedColoredTexturedMeshes("solidWalls", gl, solidWallLines);
+            targetMeshes.walls = std::move(newWallMeshes.get_meshes_mut());
         }
 
         // DottedWalls (UniqueMeshVector from ColoredRoomTexVector) - Similar simplified logic
-        if (targetMeshes.dottedWalls.size() != ::createSortedColoredTexturedMeshes("", gl, dottedWallLines).size()) {
+        UniqueMeshVector newDottedWallMeshes = ::createSortedColoredTexturedMeshes("dottedWalls", gl, dottedWallLines);
+        if (targetMeshes.dottedWalls.size() != newDottedWallMeshes.size()) {
             targetMeshes.dottedWalls.clear();
-            targetMeshes.dottedWalls = ::createSortedColoredTexturedMeshes("dottedWalls", gl, dottedWallLines);
+            targetMeshes.dottedWalls = std::move(newDottedWallMeshes.get_meshes_mut());
         } else {
             targetMeshes.dottedWalls.clear();
-            targetMeshes.dottedWalls = ::createSortedColoredTexturedMeshes("dottedWalls", gl, dottedWallLines);
+            targetMeshes.dottedWalls = std::move(newDottedWallMeshes.get_meshes_mut());
         }
 
         // UpDownExits (UniqueMeshVector from ColoredRoomTexVector) - Similar simplified logic
-        if (targetMeshes.upDownExits.size() != ::createSortedColoredTexturedMeshes("", gl, roomUpDownExits).size()) {
+        UniqueMeshVector newUpDownExitMeshes = ::createSortedColoredTexturedMeshes("upDownExits", gl, roomUpDownExits);
+        if (targetMeshes.upDownExits.size() != newUpDownExitMeshes.size()) {
             targetMeshes.upDownExits.clear();
-            targetMeshes.upDownExits = ::createSortedColoredTexturedMeshes("upDownExits", gl, roomUpDownExits);
+            targetMeshes.upDownExits = std::move(newUpDownExitMeshes.get_meshes_mut());
         } else {
             targetMeshes.upDownExits.clear();
-            targetMeshes.upDownExits = ::createSortedColoredTexturedMeshes("upDownExits", gl, roomUpDownExits);
+            targetMeshes.upDownExits = std::move(newUpDownExitMeshes.get_meshes_mut());
         }
 
         // StreamIns (UniqueMeshVector from ColoredRoomTexVector) - Similar simplified logic
-        if (targetMeshes.streamIns.size() != ::createSortedColoredTexturedMeshes("", gl, streamIns).size()) {
+        UniqueMeshVector newStreamInMeshes = ::createSortedColoredTexturedMeshes("streamIns", gl, streamIns);
+        if (targetMeshes.streamIns.size() != newStreamInMeshes.size()) {
             targetMeshes.streamIns.clear();
-            targetMeshes.streamIns = ::createSortedColoredTexturedMeshes("streamIns", gl, streamIns);
+            targetMeshes.streamIns = std::move(newStreamInMeshes.get_meshes_mut());
         } else {
             targetMeshes.streamIns.clear();
-            targetMeshes.streamIns = ::createSortedColoredTexturedMeshes("streamIns", gl, streamIns);
+            targetMeshes.streamIns = std::move(newStreamInMeshes.get_meshes_mut());
         }
 
         // StreamOuts (UniqueMeshVector from ColoredRoomTexVector) - Similar simplified logic
-        if (targetMeshes.streamOuts.size() != ::createSortedColoredTexturedMeshes("", gl, streamOuts).size()) {
+        UniqueMeshVector newStreamOutMeshes = ::createSortedColoredTexturedMeshes("streamOuts", gl, streamOuts);
+        if (targetMeshes.streamOuts.size() != newStreamOutMeshes.size()) {
             targetMeshes.streamOuts.clear();
-            targetMeshes.streamOuts = ::createSortedColoredTexturedMeshes("streamOuts", gl, streamOuts);
+            targetMeshes.streamOuts = std::move(newStreamOutMeshes.get_meshes_mut());
         } else {
             targetMeshes.streamOuts.clear();
-            targetMeshes.streamOuts = ::createSortedColoredTexturedMeshes("streamOuts", gl, streamOuts);
+            targetMeshes.streamOuts = std::move(newStreamOutMeshes.get_meshes_mut());
         }
 
         // Tints (RoomTintArray<UniqueMesh>)
         for (const RoomTintEnum tint : ALL_ROOM_TINTS) {
             const auto& newTintVerts = this->roomTints[tint];
             if (!newTintVerts.empty()) {
-                if (targetMeshes.tints[tint]) {
-                    // Assuming UniqueMesh has updateData. This was added in a previous subtask for SimpleMesh.
-                    // Need to ensure UniqueMesh forwards this to the underlying SimpleMesh.
-                    // The vertex type for tints is glm::vec3 (from PlainQuadBatch).
-                    // DrawMode is QUADS. Usage is STATIC_DRAW.
-                    targetMeshes.tints[tint].updateData(DrawModeEnum::QUADS, newTintVerts, BufferUsageEnum::STATIC_DRAW);
-                } else {
+                if (targetMeshes.tints[tint]) { // Use new operator bool()
+                    IRenderable* renderable = targetMeshes.tints[tint].get_renderable();
+                    // The vertex type for tints is glm::vec3 (from PlainQuadBatch). Shader is UColorPlainShader.
+                    auto* simpleMesh = dynamic_cast<Legacy::SimpleMesh<glm::vec3, Legacy::UColorPlainShader>*>(renderable);
+                    if (simpleMesh) {
+                        simpleMesh->updateData(DrawModeEnum::QUADS, newTintVerts, BufferUsageEnum::STATIC_DRAW);
+                    } else { // Not the expected type, recreate
+                        targetMeshes.tints[tint] = gl.createPlainQuadBatch(newTintVerts);
+                    }
+                } else { // Mesh doesn't exist, create it
                     targetMeshes.tints[tint] = gl.createPlainQuadBatch(newTintVerts);
                 }
-            } else {
-                targetMeshes.tints[tint].reset();
+            } else { // No new data, reset existing mesh
+                targetMeshes.tints[tint].reset_renderable();
             }
         }
 
         // LayerBoost (UniqueMesh)
         if (!this->roomLayerBoostQuads.empty()) {
-            if (targetMeshes.layerBoost) {
-                targetMeshes.layerBoost.updateData(DrawModeEnum::QUADS, this->roomLayerBoostQuads, BufferUsageEnum::STATIC_DRAW);
-            } else {
+            if (targetMeshes.layerBoost) { // Use new operator bool()
+                IRenderable* renderable = targetMeshes.layerBoost.get_renderable();
+                // LayerBoost also uses PlainQuadBatch (glm::vec3) and UColorPlainShader
+                auto* simpleMesh = dynamic_cast<Legacy::SimpleMesh<glm::vec3, Legacy::UColorPlainShader>*>(renderable);
+                if (simpleMesh) {
+                    simpleMesh->updateData(DrawModeEnum::QUADS, this->roomLayerBoostQuads, BufferUsageEnum::STATIC_DRAW);
+                } else { // Not the expected type, recreate
+                     targetMeshes.layerBoost = gl.createPlainQuadBatch(this->roomLayerBoostQuads);
+                }
+            } else { // Mesh doesn't exist, create it
                 targetMeshes.layerBoost = gl.createPlainQuadBatch(this->roomLayerBoostQuads);
             }
-        } else {
-            targetMeshes.layerBoost.reset();
+        } else { // No new data, reset existing mesh
+            targetMeshes.layerBoost.reset_renderable();
         }
 
         targetMeshes.isValid = true; // Or set based on whether any data was actually processed.

@@ -599,21 +599,28 @@ void MapCanvas::updateMapBatches()
         return;
     }
 
+    // If we reach here, either mapBatches don't exist OR m_data needs an update.
     if (m_data.getNeedsMapUpdate()) {
+        MMLOG() << "[updateMapBatches] m_data.getNeedsMapUpdate() is true. Clearing flag and calling forceUpdateMeshes().";
         m_data.clearNeedsMapUpdate();
-        assert(!m_data.getNeedsMapUpdate());
-        MMLOG() << "[updateMapBatches] cleared 'needsUpdate' flag";
+        assert(!m_data.getNeedsMapUpdate()); // Ensure flag is cleared
+        forceUpdateMeshes(); // Trigger the main two-phase remesh logic
+        // The old logic for m_data.generateBatches() and remeshCookie.set() is removed.
+        // m_diff.cancelUpdates() is also removed as forceUpdateMeshes handles diffs.
+        return; // Exit after triggering forceUpdateMeshes
     }
 
-    auto getFuture = [this]() {
-        MMLOG() << "[updateMapBatches] calling generateBatches";
-        return m_data.generateBatches(mctp::getProxy(m_textures));
-    };
-
-    remeshCookie.set(getFuture());
-    assert(remeshCookie.isPending());
-
-    m_diff.cancelUpdates(m_data.getSavedMap());
+    // If mapBatches don't exist but getNeedsMapUpdate was false,
+    // it implies an initial state or that meshes were cleared.
+    // `forceUpdateMeshes` (called elsewhere, e.g., slot_dataLoaded)
+    // should be responsible for the initial population.
+    // This function (updateMapBatches) should not trigger a general remesh
+    // if m_data.getNeedsMapUpdate() is false.
+    if (!m_batches.mapBatches.has_value()) {
+        MMLOG() << "[updateMapBatches] mapBatches is empty, but getNeedsMapUpdate is false. Relying on other triggers for forceUpdateMeshes.";
+        // No explicit call to forceUpdateMeshes() here as per subtask instructions,
+        // relying on slot_dataLoaded or other explicit user actions.
+    }
 }
 
 void MapCanvas::finishPendingMapBatches()

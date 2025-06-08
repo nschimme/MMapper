@@ -64,9 +64,13 @@ private:
         static_assert(sizeof(std::declval<VertexType_>().vert) == 2 * sizeof(GLfloat));
 
         Functions &gl = Base::m_functions;
+        gl.glBindVertexArray(Base::m_vao); // <<< THIS LINE IS ADDED/ENSURED
 
-        gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
+        // The program (Base::m_program) must be bound by the caller (e.g., setCommon)
+        // before this virt_bind is called, so getAttribLocation is safe.
         const auto attribs = Attribs::getLocations(Base::m_program);
+
+        gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get()); // This should come AFTER VAO bind, but is fine.
         gl.enableAttrib(attribs.basePos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(base));
         gl.enableAttrib(attribs.colorPos, 4, GL_UNSIGNED_BYTE, GL_TRUE, vertSize, VPO(color));
         gl.enableAttrib(attribs.texPos, 2, GL_FLOAT, GL_FALSE, vertSize, VPO(tex));

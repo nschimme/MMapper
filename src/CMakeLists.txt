@@ -312,6 +312,8 @@ set(mmapper_SRCS
     map/WorldAreaMap.h
     map/WorldBuilder.cpp
     map/WorldBuilder.h
+    map/Quadtree.cpp
+    map/Quadtree.h
     map/coordinate.cpp
     map/coordinate.h
     map/enums.cpp

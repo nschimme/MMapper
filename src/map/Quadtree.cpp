@@ -177,9 +177,9 @@ void Quadtree::clear() {
 }
 
 void Quadtree::insert(RoomId id, const RoomBounds& bounds) {
-    if (m_root && m_root->m_bounds.contains(bounds)) { // Ensure item is within root bounds
+    if (m_root && m_root->getBounds().contains(bounds)) { // Ensure item is within root bounds
          m_root->insert(RoomEntry{id, bounds});
-    } else if (m_root && m_root->m_bounds.intersects(bounds)) {
+    } else if (m_root && m_root->getBounds().intersects(bounds)) {
         // Item is partially in bounds, also insert. Or handle as an error/special case.
         // For simplicity, we'll insert if it intersects. More robust handling might be needed.
         m_root->insert(RoomEntry{id, bounds});

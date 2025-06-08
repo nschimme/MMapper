@@ -118,7 +118,7 @@ void SpatialDb::buildAllQuadtrees(ProgressCounter& pc) {
 
     // Consolidate bounds calculation and item gathering
     float overallMinX = m_unique.begin()->first.x, overallMinY = m_unique.begin()->first.y;
-    float overallMaxX = overallMinX, overallMaxY = overallMaxY;
+    float overallMaxX = overallMinX, overallMaxY = overallMinY;
 
     pc.setNewTask(ProgressMsg{"Gathering items for Quadtrees"}, m_unique.size());
     for(const auto& pair : m_unique) {

@@ -46,6 +46,8 @@ public:
     void queryRange(const RoomBounds& range, std::vector<RoomId>& foundItems) const;
     bool remove(RoomId id, const RoomBounds& itemBounds);
 
+    const RoomBounds& getBounds() const { return m_bounds; }
+
 private:
     int getIndex(const RoomBounds& pRect) const;
     void redistribute(); // Helper to move items to children after split

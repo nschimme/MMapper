@@ -984,6 +984,8 @@ void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) con
 }
 
 // RemeshCookie method implementations
+// (Ensuring the existing implementations match the reviewed logic)
+
 void RemeshCookie::resetIterativeState() {
     m_viewportCenter_world.reset();
     m_currentPass = 0;
@@ -994,171 +996,156 @@ void RemeshCookie::resetIterativeState() {
 }
 
 void RemeshCookie::initIterativeRemesh(const Coordinate& viewportCenter) {
-    resetIterativeState(); // Clear any previous iterative state
+    // Called at the very beginning of an iterative remesh process.
+    resetIterativeState();
     m_viewportCenter_world = viewportCenter;
     m_iterativeRemeshInProgress = true;
-    // m_accumulatedInternalData is explicitly not initialized here,
-    // but in startIterativePass for pass 0.
+    // m_accumulatedInternalData is intentionally NOT created here.
+    // It's created in startIterativePass for pass 0.
 }
 
 void RemeshCookie::startIterativePass(FutureSharedMapBatchFinisher pass_future, const Coordinate& viewportCenter, int passNumber, const std::vector<std::pair<int, RoomAreaHash>>& chunks_for_pass) {
     if (passNumber == 0) {
-        initIterativeRemesh(viewportCenter); // Sets up viewportCenter and iterative flag
-        m_accumulatedInternalData = std::make_shared<InternalData>(); // Initialize for the first pass
+        // This is the first pass. Initialize everything.
+        initIterativeRemesh(viewportCenter);
+        m_accumulatedInternalData = std::make_shared<InternalData>();
     } else {
-        // For subsequent passes, ensure iterative state is already set up
+        // This is a subsequent pass (passNumber > 0).
+        // Iterative remesh must already be in progress and data accumulator must exist.
         if (!m_iterativeRemeshInProgress || !m_accumulatedInternalData) {
-            // This case should ideally not happen if MapCanvas logic is correct
-            throw std::runtime_error("startIterativePass called for pass > 0 without prior initialization.");
+            // This indicates a logic error by the caller.
+            // For robustness, one might throw or log heavily.
+            // The original code threw an error, which is a good strict approach.
+            throw std::runtime_error("startIterativePass called for pass > 0 without prior proper initialization (iterative remesh not in progress or accumulated data is null).");
         }
     }
-    set(std::move(pass_future)); // Store the future for this pass
-    m_currentPass = passNumber;
-    m_chunks_for_current_pass = chunks_for_pass;
-    // m_iterativeRemeshInProgress is already true from initIterativeRemesh or previous pass
-}
 
-void RemeshCookie::continueIterativePass(FutureSharedMapBatchFinisher pass_future, int passNumber, const std::vector<std::pair<int, RoomAreaHash>>& chunks_for_pass) {
-    if (!m_iterativeRemeshInProgress || !m_accumulatedInternalData) {
-        throw std::runtime_error("continueIterativePass called without active iterative remesh or accumulated data.");
-    }
-    if (passNumber <= m_currentPass) {
-        throw std::runtime_error("continueIterativePass called with non-increasing pass number.");
-    }
     set(std::move(pass_future));
     m_currentPass = passNumber;
     m_chunks_for_current_pass = chunks_for_pass;
 }
 
-const std::vector<std::pair<int, RoomAreaHash>>& RemeshCookie::getCurrentPassChunks() const {
-    return m_chunks_for_current_pass;
+void RemeshCookie::continueIterativePass(FutureSharedMapBatchFinisher pass_future, int passNumber, const std::vector<std::pair<int, RoomAreaHash>>& chunks_for_pass) {
+    if (!m_iterativeRemeshInProgress || !m_accumulatedInternalData) {
+        throw std::runtime_error("continueIterativePass called without an active iterative remesh or without accumulated data. Call startIterativePass with pass 0 first.");
+    }
+    if (passNumber <= m_currentPass) {
+        throw std::runtime_error("continueIterativePass called with a pass number that is not greater than the current pass number.");
+    }
+
+    set(std::move(pass_future));
+    m_currentPass = passNumber;
+    m_chunks_for_current_pass = chunks_for_pass;
 }
 
+// getCurrentPassChunks is already defined in the header as a const method returning m_chunks_for_current_pass by const ref.
+
 SharedMapBatchFinisher RemeshCookie::getPassData() {
-    if (!isPending()) {
-        // This might happen if called incorrectly, return empty or throw
-        return SharedMapBatchFinisher{};
+    if (!isIterativeRemeshInProgress()) {
+        qWarning() << "RemeshCookie::getPassData called when iterative remesh is not in progress.";
+        m_opt_future.reset(); // Ensure any stray future is cleared
+        return {};
+    }
+    if (!isPending()) { // Check if m_opt_future has a value
+        qWarning() << "RemeshCookie::getPassData called when no future is pending for the current pass.";
+        return {};
+    }
+    // m_accumulatedInternalData should have been created in startIterativePass (for pass 0)
+    if (!m_accumulatedInternalData) {
+        qWarning() << "RemeshCookie::getPassData called but m_accumulatedInternalData is null. This indicates a severe logic error.";
+        m_opt_future.reset();
+        resetIterativeState(); // Critical error, reset to a clean state.
+        return {};
     }
 
     FutureSharedMapBatchFinisher &future = m_opt_future.value();
     SharedMapBatchFinisher pass_finisher;
+
     try {
-        pass_finisher = future.get(); // This consumes the future
+        pass_finisher = future.get();
     } catch (...) {
-        reportException(); // reportException is a static private method in RemeshCookie
-        // Reset relevant parts of the cookie state if an error occurs during a pass
-        m_opt_future.reset(); // Future is consumed or invalid
-        // Consider if iterative state needs full reset or if it can be salvaged for a retry
-        // For now, keep accumulated data, but clear current future
-        return SharedMapBatchFinisher{};
+        reportException();
+        m_opt_future.reset();
+        // Do not reset m_accumulatedInternalData here, allow MapCanvas to decide to finalize or retry.
+        return {};
     }
 
-    if (m_ignored) { // If ignored during the pass future's processing
+    m_opt_future.reset(); // Future has been consumed.
+
+    if (m_ignored) {
         pass_finisher.reset();
-        resetIterativeState(); // Full reset if ignored
-    } else if (pass_finisher && m_accumulatedInternalData) {
-        // Merge current pass data into accumulated data
-        // This requires InternalData to have a merge/accumulate function.
-        // For now, assuming InternalData::virt_finish is what we use, and we need to combine underlying data structures.
-        // This is a simplification. A real merge is complex.
-        // Let's assume for now that `MapCanvas` will handle the accumulation by calling `getPassData`
-        // and then `getAccumulatedData` when all passes are done.
-        // So, getPassData will retrieve the pass data, and it's the caller's (MapCanvas) responsibility
-        // to merge it into a separate accumulator if needed, or simply use the pass data.
-        // However, the requirement was to merge *into* m_accumulatedInternalData.
-        // This implies InternalData needs a `mergeWith(const InternalData& other)` method.
-        // For now, let's assume such a method exists or we just store it.
-        // Given the current structure, `getPassData` returns the current pass,
-        // and `finalizeIterativeRemesh` will return the `m_accumulatedInternalData`.
-        // The merging must happen here if `m_accumulatedInternalData` is to be the sole source of truth.
+        resetIterativeState();
+        return {}; // Return empty finisher as the operation was ignored.
+    }
 
-        // Cast to non-const to allow moving from its members.
-        // This is safe if pass_finisher is the unique owner of this InternalData
-        // and pass_finisher itself is a local variable that will be destroyed or reset.
-        // Since pass_finisher.get() returns a pointer to the managed object of a shared_ptr,
-        // we must be careful. If pass_finisher is not the sole owner, moving is bad.
-        // However, future.get() for std::future typically returns by value (rvalue),
-        // implying unique ownership transfer *if* SharedMapBatchFinisher holds a unique_ptr
-        // or a shared_ptr that becomes unique here.
-        // Given SharedMapBatchFinisher is likely a shared_ptr, we cannot directly move from its content
-        // unless we are sure it's the last shared_ptr.
-        // A safer approach if pass_internal_data is from a shared_ptr is to copy,
-        // or ensure that pass_finisher is indeed unique before attempting to move.
-        // For this task, we assume the design allows moving from the maps within pass_internal_data.
-        // If pass_internal_data is const, we'd need to const_cast or preferably ensure future.get()
-        // gives us something we can move from (e.g. by returning a unique_ptr in the future).
-        // For now, let's assume pass_internal_data allows its members to be moved.
-        // If pass_internal_data is from a shared_ptr, the shared_ptr itself is an rvalue from future.get()
-        // so pass_finisher (if it's that shared_ptr) can be moved.
-        // But we are modifying the *contents* of what pass_finisher points to.
-        // Let's assume InternalData's maps (batchedMeshes etc.) are modifiable (not const maps of const values)
-        // and that the InternalData object itself obtained from pass_finisher.get() is modifiable.
+    if (pass_finisher) {
+        InternalData* pass_internal_data_ptr = const_cast<InternalData*>(dynamic_cast<const InternalData*>(pass_finisher.get()));
 
-        InternalData* pass_data = const_cast<InternalData*>(dynamic_cast<const InternalData*>(pass_finisher.get()));
-
-        if (m_accumulatedInternalData && pass_data) { // Ensure both are valid
-            for (auto& layer_pair : pass_data->batchedMeshes) {
-                int layer_id = layer_pair.first;
+        if (pass_internal_data_ptr) {
+            // Merge data from pass_internal_data_ptr into m_accumulatedInternalData.
+            for (auto& layer_pair : pass_internal_data_ptr->batchedMeshes) {
                 for (auto& chunk_pair : layer_pair.second) {
-                    RoomAreaHash chunk_hash = chunk_pair.first;
-                    m_accumulatedInternalData->batchedMeshes[layer_id].insert_or_assign(chunk_hash, std::move(chunk_pair.second));
+                    m_accumulatedInternalData->batchedMeshes[layer_pair.first].insert_or_assign(chunk_pair.first, std::move(chunk_pair.second));
                 }
             }
+            pass_internal_data_ptr->batchedMeshes.clear();
 
-            for (auto& layer_pair : pass_data->connectionDrawerBuffers) {
-                int layer_id = layer_pair.first;
+            for (auto& layer_pair : pass_internal_data_ptr->connectionDrawerBuffers) {
                 for (auto& chunk_pair : layer_pair.second) {
-                    RoomAreaHash chunk_hash = chunk_pair.first;
-                    m_accumulatedInternalData->connectionDrawerBuffers[layer_id].insert_or_assign(chunk_hash, std::move(chunk_pair.second));
+                    m_accumulatedInternalData->connectionDrawerBuffers[layer_pair.first].insert_or_assign(chunk_pair.first, std::move(chunk_pair.second));
                 }
             }
+            pass_internal_data_ptr->connectionDrawerBuffers.clear();
 
-            for (auto& layer_pair : pass_data->roomNameBatches) {
-                int layer_id = layer_pair.first;
+            for (auto& layer_pair : pass_internal_data_ptr->roomNameBatches) {
                 for (auto& chunk_pair : layer_pair.second) {
-                    RoomAreaHash chunk_hash = chunk_pair.first;
-                    m_accumulatedInternalData->roomNameBatches[layer_id].insert_or_assign(chunk_hash, std::move(chunk_pair.second));
+                    m_accumulatedInternalData->roomNameBatches[layer_pair.first].insert_or_assign(chunk_pair.first, std::move(chunk_pair.second));
                 }
             }
+            pass_internal_data_ptr->roomNameBatches.clear();
+        } else {
+            qWarning() << "RemeshCookie::getPassData: pass_finisher (for current pass) did not contain InternalData. Cannot merge.";
+            // Depending on requirements, this could be fatal or the pass_finisher is returned as-is.
+            // If merging is essential, this is an error.
         }
     }
 
-    m_opt_future.reset(); // Mark future as consumed for this pass
-    return pass_finisher; // Return the data for the current pass
+    return pass_finisher;
 }
 
 SharedMapBatchFinisher RemeshCookie::finalizeIterativeRemesh() {
     if (!m_iterativeRemeshInProgress) {
-        // Or return an empty finisher
-        throw std::runtime_error("finalizeIterativeRemesh called when no iterative remesh was in progress.");
+        // This is not necessarily an error. Could be that no iterative remesh was started or it was already finalized.
+        // qWarning() << "RemeshCookie::finalizeIterativeRemesh called when no iterative remesh was in progress.";
+        return {}; // Return an empty finisher.
     }
-    if (isPending()) {
-        // Cannot finalize if a pass is still pending
-        throw std::runtime_error("finalizeIterativeRemesh called while a pass is still pending.");
+    if (isPending()) { // isPending() checks m_opt_future
+        // This means a pass's future is still stored (e.g., getPassData was not called for the last pass).
+        // This is a logic error by the caller.
+        qWarning() << "RemeshCookie::finalizeIterativeRemesh called while a pass future is still pending. The future will be discarded.";
+        m_opt_future.reset(); // Discard any pending future as we are finalizing now.
     }
 
-    auto result = SharedMapBatchFinisher{m_accumulatedInternalData};
-    resetIterativeState(); // Clean up after finalization
-    return result;
+    SharedMapBatchFinisher result_finisher = SharedMapBatchFinisher{m_accumulatedInternalData};
+
+    resetIterativeState();
+
+    return result_finisher;
 }
 
-// getAccumulatedData was specified, but finalizeIterativeRemesh seems more appropriate
-// for getting the final result and resetting. If getAccumulatedData is still needed
-// for inspection during iteration, it would just return m_accumulatedInternalData without reset.
-SharedMapBatchFinisher RemeshCookie::getAccumulatedData() {
+SharedMapBatchFinisher RemeshCookie::getAccumulatedData() const { // Added const qualifier
     if (!m_iterativeRemeshInProgress || !m_accumulatedInternalData) {
-         // This should ideally not be called if no iterative remesh is in progress or no data accumulated.
-        return SharedMapBatchFinisher{}; // Return an empty finisher.
+        return {};
     }
-    // This method is for obtaining the currently accumulated data, possibly for intermediate use.
-    // It does NOT finalize or reset the iterative process.
     return SharedMapBatchFinisher{m_accumulatedInternalData};
 }
 
 
 void RemeshCookie::recordChunksAsCompleted(const std::vector<std::pair<int, RoomAreaHash>>& chunks) {
     if (!m_iterativeRemeshInProgress) {
-        // Or log a warning, as this might not be a critical error depending on usage.
+        // If not in progress, recording completed chunks might be a logic error or benign.
+        // qWarning() << "RemeshCookie::recordChunksAsCompleted called when no iterative remesh is in progress.";
+        // The original code threw an error. Let's stick to stricter checking for now.
         throw std::runtime_error("recordChunksAsCompleted called when no iterative remesh is in progress.");
     }
     m_completedChunks.insert(chunks.begin(), chunks.end());

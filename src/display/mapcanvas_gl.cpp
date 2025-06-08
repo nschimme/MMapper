@@ -1101,6 +1101,16 @@ void MapCanvas::renderMapBatches()
             auto itChunkLayerMeshes = terrainChunksInLayer.find(roomAreaHash);
             if (itChunkLayerMeshes != terrainChunksInLayer.end()) {
                 LayerMeshes& meshes = const_cast<LayerMeshes&>(itChunkLayerMeshes->second);
+
+                // ***** ADD THIS BLOCK START *****
+                if (layerId == -1 && roomAreaHash == 0) {
+                    qDebug() << "[R_RMB_CHK] Attempting to render chunk: Layer -1, Hash 0.";
+                    qDebug() << "[R_RMB_CHK]   Mesh object found. meshes.isValid():" << static_cast<bool>(meshes);
+                    // Optionally, add more checks here if LayerMeshes has simple public 'empty' or 'vertex_count' accessors for its components
+                    qDebug() << "[R_RMB_CHK]   meshes.terrain.empty():" << meshes.terrain.empty();
+                }
+                // ***** ADD THIS BLOCK END *****
+
                 if (meshes) {
                     meshes.render(layerId, m_currentLayer);
                 }
@@ -1148,5 +1158,4 @@ void MapCanvas::renderMapBatches()
         }
     }
 }
-
-[end of src/display/mapcanvas_gl.cpp]
+// [end of src/display/mapcanvas_gl.cpp] intentional trailing marker

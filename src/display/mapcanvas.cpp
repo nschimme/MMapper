@@ -52,11 +52,6 @@
 #undef far  // Bad dog, Microsoft; bad dog!!!
 #endif
 
-// Constants for coarse grid culling
-constexpr int COARSE_CELL_SIZE_X = 64;
-constexpr int COARSE_CELL_SIZE_Y = 64;
-constexpr float COARSE_CELL_Z_THICKNESS = 1.0f;
-
 // Chunking constants (must match MapCanvasRoomDrawer.cpp)
 // namespace { // Removed
     // constexpr int CHUNK_SIZE_X = 32; // Removed
@@ -1137,73 +1132,10 @@ void MapCanvas::updateVisibleChunks() {
     float worldMinY = std::min({worldTopLeftRaw.y, worldTopRightRaw.y, worldBottomLeftRaw.y, worldBottomRightRaw.y});
     float worldMaxY = std::max({worldTopLeftRaw.y, worldTopRightRaw.y, worldBottomLeftRaw.y, worldBottomRightRaw.y});
 
-    // 3. Query SpatialDb using coarse culling
-    std::vector<RoomId> potentiallyVisibleRoomIds;
-
-    std::optional<RoomBounds> layer_specific_bounds = spatialDb.getLayerQuadtreeBounds(m_currentLayer);
-    const std::array<glm::vec4, 6>& frustumPlanes = getFrustumPlanes(); // Method from MapCanvasViewport
-
-    if (layer_specific_bounds.has_value()) {
-        std::set<RoomId> collectedRoomIds;
-        float currentLayerCenterZ = static_cast<float>(m_currentLayer); // Used for cell Z, but could also come from layer_specific_bounds if it had Z info
-        float cellZMin = currentLayerCenterZ - COARSE_CELL_Z_THICKNESS / 2.0f;
-        float cellZMax = currentLayerCenterZ + COARSE_CELL_Z_THICKNESS / 2.0f;
-
-        const RoomBounds& layerBounds = layer_specific_bounds.value();
-
-        // Ensure division is floating point for floor/ceil arguments
-        int minCellI = static_cast<int>(std::floor(layerBounds.x / static_cast<float>(COARSE_CELL_SIZE_X)));
-        int maxCellI = static_cast<int>(std::ceil((layerBounds.x + layerBounds.width) / static_cast<float>(COARSE_CELL_SIZE_X)));
-        int minCellJ = static_cast<int>(std::floor(layerBounds.y / static_cast<float>(COARSE_CELL_SIZE_Y)));
-        int maxCellJ = static_cast<int>(std::ceil((layerBounds.y + layerBounds.height) / static_cast<float>(COARSE_CELL_SIZE_Y)));
-
-        for (int i = minCellI; i < maxCellI; ++i) {
-            for (int j = minCellJ; j < maxCellJ; ++j) {
-                glm::vec3 cell3DMin(static_cast<float>(i * COARSE_CELL_SIZE_X),
-                                    static_cast<float>(j * COARSE_CELL_SIZE_Y),
-                                    cellZMin);
-                glm::vec3 cell3DMax(static_cast<float>((i + 1) * COARSE_CELL_SIZE_X),
-                                    static_cast<float>((j + 1) * COARSE_CELL_SIZE_Y),
-                                    cellZMax);
-
-                bool cellIsVisible = true;
-                for (size_t planeIdx = 0; planeIdx < 6; ++planeIdx) { // Use size_t for array indexing
-                    const glm::vec4& plane = frustumPlanes[planeIdx];
-                    glm::vec3 pVertex = cell3DMin;
-                    if (plane.x > 0.0f) pVertex.x = cell3DMax.x;
-                    if (plane.y > 0.0f) pVertex.y = cell3DMax.y;
-                    if (plane.z > 0.0f) pVertex.z = cell3DMax.z;
-
-                    if (glm::dot(glm::vec3(plane.x, plane.y, plane.z), pVertex) + plane.w < 0.0f) {
-                        cellIsVisible = false;
-                        break;
-                    }
-                }
-
-                if (cellIsVisible) {
-                    // Intersect this visible coarse cell with the viewport's world AABB
-                    float queryMinX = std::max(cell3DMin.x, worldMinX);
-                    float queryMinY = std::max(cell3DMin.y, worldMinY);
-                    float queryMaxX = std::min(cell3DMax.x, worldMaxX);
-                    float queryMaxY = std::min(cell3DMax.y, worldMaxY);
-
-                    if (queryMinX < queryMaxX && queryMinY < queryMaxY) { // Check for valid intersection
-                        std::vector<RoomId> roomsInCell = spatialDb.getRoomsInViewport(
-                            m_currentLayer, queryMinX, queryMinY, queryMaxX, queryMaxY
-                        );
-                        collectedRoomIds.insert(roomsInCell.begin(), roomsInCell.end());
-                    }
-                }
-            }
-        }
-        potentiallyVisibleRoomIds.assign(collectedRoomIds.begin(), collectedRoomIds.end());
-    } else if (!currentMap.empty()) {
-        // Fallback if map has no bounds but is not marked as empty by currentMap.empty()
-        potentiallyVisibleRoomIds = spatialDb.getRoomsInViewport(
-            m_currentLayer, worldMinX, worldMinY, worldMaxX, worldMaxY
-        );
-    }
-    // If currentMap is empty, potentiallyVisibleRoomIds remains empty.
+    // 3. Query SpatialDb
+    std::vector<RoomId> potentiallyVisibleRoomIds = spatialDb.getRoomsInViewport(
+        m_currentLayer, worldMinX, worldMinY, worldMaxX, worldMaxY
+    );
 
     // 4. Process potentially visible rooms
     const float marginPixels = 20.0f; // Or some other configured/appropriate margin

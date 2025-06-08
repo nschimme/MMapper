@@ -5,9 +5,11 @@
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
-#include "../display/MapBatches.h" // For ChunkId
+#include "../display/MapBatches.h" // For ChunkId, RoomAreaHash
 #include "../display/IMapBatchesFinisher.h"
 #include "../map/Changes.h"
+#include "src/mapdata/remesh_types.h" // For IterativeRemeshMetadata
+#include <optional>                   // For std::optional
 #include "../map/DoorFlags.h"
 #include "../map/ExitDirection.h"
 #include "../map/ExitFieldVariant.h"
@@ -73,7 +75,7 @@ public:
     generateBatches(const mctp::MapCanvasTexturesProxy &textures);
 
     NODISCARD FutureSharedMapBatchFinisher
-    generateSpecificChunkBatches(const mctp::MapCanvasTexturesProxy &textures, const std::vector<std::pair<int, RoomAreaHash>>& chunksToGenerate);
+    generateSpecificChunkBatches(const mctp::MapCanvasTexturesProxy &textures, const std::vector<std::pair<int, RoomAreaHash>>& chunksToGenerateThisPass, std::optional<OpenDiablo2::MapData::IterativeRemeshMetadata> currentIterativeState = std::nullopt);
 
     // REVISIT: convert to template, or functionref after it compiles everywhere?
     void applyChangesToList(const RoomSelection &sel,

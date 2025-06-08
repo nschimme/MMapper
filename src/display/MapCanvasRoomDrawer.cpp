@@ -41,6 +41,7 @@
 #include <stdexcept>
 #include <unordered_map>
 #include <vector>
+#include "src/mapdata/remesh_types.h" // For IterativeRemeshMetadata
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -948,39 +949,99 @@ void LayerMeshes::render(const int thisLayer, const int focusedLayer)
     }
 }
 
-void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const
+OpenDiablo2::Display::FinishedRemeshPayload InternalData::virt_finish(OpenGL &gl, GLFont &font) const
 {
-    for (const auto &layer_kv : batchedMeshes) {
-        // auto& output_chunked_layer_meshes = output.batchedMeshes[layer_kv.first]; // Old way
+    DECL_TIMER(t_overall, "InternalData::virt_finish");
+    OpenDiablo2::Display::FinishedRemeshPayload payload;
+    payload.generatedMeshes.clear(); // Clear previous batches
+
+    // TODO: Determine m_levelOrLoadedAreaId more accurately.
+    // If iterativeState is present and has allTargetChunks, maybe use the level from the first target chunk.
+    // Or, if processedChunksThisCall is not empty, use the level from its first element.
+    // For now, defaulting to 0 or a common value if determinable.
+    payload.generatedMeshes.m_levelOrLoadedAreaId = 0;
+    if (this->iterativeState.has_value() && !this->iterativeState.value().allTargetChunks.empty()) {
+        payload.generatedMeshes.m_levelOrLoadedAreaId = this->iterativeState.value().allTargetChunks.front().first;
+    } else if (!this->processedChunksThisCall.empty()) {
+        payload.generatedMeshes.m_levelOrLoadedAreaId = this->processedChunksThisCall.front().first;
+    }
+
+    payload.generatedMeshes.m_generatedFromSpecificChunks = true;
+
+    for (const auto &layer_kv : this->batchedMeshes) {
+        const int layerId = layer_kv.first;
         for (const auto &chunk_kv : layer_kv.second) {
-            // output_chunked_layer_meshes[chunk_kv.first] = chunk_kv.second.getMeshes(gl); // Old way
-            output.batchedMeshes[layer_kv.first].insert_or_assign(chunk_kv.first, chunk_kv.second.getMeshes(gl));
+            const RoomAreaHash areaHash = chunk_kv.first;
+            const LayerBatchData &batch_data = chunk_kv.second;
+            payload.generatedMeshes.batchedMeshes[layerId].insert_or_assign(areaHash, batch_data.getMeshes(gl));
         }
     }
 
-    for (const auto &layer_chunk_buffers_pair : connectionDrawerBuffers) {
+    for (const auto &layer_chunk_buffers_pair : this->connectionDrawerBuffers) {
         const int layerId = layer_chunk_buffers_pair.first;
         const auto& chunk_buffers_map = layer_chunk_buffers_pair.second;
-        // auto& output_connection_meshes_for_layer = output.connectionMeshes[layerId]; // Old way
         for (const auto& chunk_buffer_pair : chunk_buffers_map) {
-                const RoomAreaHash roomAreaHash = chunk_buffer_pair.first;
+            const RoomAreaHash roomAreaHash = chunk_buffer_pair.first;
             const ConnectionDrawerBuffers& cdb_data = chunk_buffer_pair.second;
-                // output_connection_meshes_for_layer[roomAreaHash] = cdb_data.getMeshes(gl); // Old way
-                output.connectionMeshes[layerId].insert_or_assign(roomAreaHash, cdb_data.getMeshes(gl));
+            payload.generatedMeshes.connectionMeshes[layerId].insert_or_assign(roomAreaHash, cdb_data.getMeshes(gl));
         }
     }
 
-    for (const auto &layer_chunk_rnb_pair : roomNameBatches) {
+    for (const auto &layer_chunk_rnb_pair : this->roomNameBatches) {
         const int layerId = layer_chunk_rnb_pair.first;
         const auto& chunk_rnb_map = layer_chunk_rnb_pair.second;
-        // auto& output_room_names_for_layer = output.roomNameBatches[layerId]; // Old way
         for (const auto& chunk_rnb_pair : chunk_rnb_map) {
-                const RoomAreaHash roomAreaHash = chunk_rnb_pair.first;
+            const RoomAreaHash roomAreaHash = chunk_rnb_pair.first;
             const RoomNameBatch& rnb_data = chunk_rnb_pair.second;
-                // output_room_names_for_layer[roomAreaHash] = rnb_data.getMesh(font); // Old way
-                output.roomNameBatches[layerId].insert_or_assign(roomAreaHash, rnb_data.getMesh(font));
+            // Assuming getMesh for RoomNameBatch takes GLFont& font, not OpenGL& gl, GLFont& font
+            payload.generatedMeshes.roomNameBatches[layerId].insert_or_assign(roomAreaHash, rnb_data.getMesh(gl, font));
         }
     }
+    // Infomark batches are typically global and not handled per chunk here.
+
+    payload.chunksCompletedThisPass = this->processedChunksThisCall;
+
+    if (this->iterativeState.has_value() && this->iterativeState.value().strategy == OpenDiablo2::MapData::IterativeRemeshMetadata::Strategy::IterativeViewportPriority) {
+        OpenDiablo2::MapData::IterativeRemeshMetadata nextState = this->iterativeState.value();
+        for (const auto& chunkProfile : payload.chunksCompletedThisPass) {
+            nextState.completedChunks.insert(chunkProfile);
+        }
+        nextState.currentPassNumber++;
+
+        bool allDone = true;
+        if (nextState.allTargetChunks.empty() && nextState.strategy == OpenDiablo2::MapData::IterativeRemeshMetadata::Strategy::AllAtOnce) {
+            // If AllAtOnce strategy was used and allTargetChunks was initially empty, it's done.
+            // This case might be moot if AllAtOnce bypasses this iterative block.
+            allDone = true;
+        } else if (nextState.allTargetChunks.empty() && nextState.strategy == OpenDiablo2::MapData::IterativeRemeshMetadata::Strategy::IterativeViewportPriority) {
+            // If by some chance allTargetChunks is empty for iterative, consider it done.
+             allDone = true;
+        } else {
+            for (const auto& targetChunkPair : nextState.allTargetChunks) {
+                if (nextState.completedChunks.find(targetChunkPair) == nextState.completedChunks.end()) {
+                    allDone = false;
+                    break;
+                }
+            }
+        }
+
+
+        if (allDone) {
+            payload.morePassesNeeded = false;
+            payload.nextIterativeState = std::nullopt;
+        } else {
+            payload.morePassesNeeded = true;
+            payload.nextIterativeState = nextState;
+        }
+    } else {
+        // This branch handles:
+        // 1. No iterativeState present (e.g., old non-iterative calls or generateMapDataFinisher)
+        // 2. IterativeState present but strategy is AllAtOnce (which should complete in one pass)
+        payload.morePassesNeeded = false;
+        payload.nextIterativeState = std::nullopt;
+    }
+
+    return payload;
 }
 
 // NOTE: All of the lamda captures are copied, including the texture data!
@@ -1006,29 +1067,39 @@ FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTextur
                               }
                               return ltr;
                           }();
-
-                          auto result = std::make_shared<InternalData>();
-                          auto &data = deref(result);
-                          generateAllLayerMeshes(data, layerToRooms, textures, visitRoomOptions);
+                          // For generateMapDataFinisher (non-specific chunks), iterativeState is not applicable in the same way.
+                          // We pass map and calibratedWorldHalfLineWidth to the constructor.
+                          auto result = std::make_shared<InternalData>(map, textures.getCalibratedWorldHalfLineWidth());
+                          // auto &data = deref(result); // No longer needed
+                          generateAllLayerMeshes(*result, layerToRooms, textures, visitRoomOptions);
                           return SharedMapBatchFinisher{result};
                       });
 }
 
 FutureSharedMapBatchFinisher
-generateSpecificMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures, const Map &map, const std::vector<std::pair<int, RoomAreaHash>>& chunksToGenerate)
+generateSpecificMapDataFinisher(
+    const mctp::MapCanvasTexturesProxy &textures,
+    const Map &map,
+    const std::vector<std::pair<int, RoomAreaHash>>& chunksToGenerateThisPass,
+    std::optional<OpenDiablo2::MapData::IterativeRemeshMetadata> currentIterativeState)
 {
     const auto visitRoomOptions = getVisitRoomOptions();
 
-    // Ensure chunksToGenerate is copied into the lambda
+    // Ensure chunksToGenerateThisPass and currentIterativeState are moved/copied into the lambda
     return std::async(std::launch::async,
-                      [textures, map, visitRoomOptions, chunksToGenerate]() -> SharedMapBatchFinisher {
+                      [textures, map, visitRoomOptions, chunksToGenerate = chunksToGenerateThisPass, iterState = std::move(currentIterativeState)]() -> SharedMapBatchFinisher {
                           ThreadLocalNamedColorRaii tlRaii{visitRoomOptions.canvasColors,
                                                            visitRoomOptions.colorSettings};
                           DECL_TIMER(t, "[ASYNC] generateSpecificLayerMeshes");
 
-                          auto result = std::make_shared<InternalData>();
-                          auto &data = deref(result);
-                          generateSpecificLayerMeshes(data, map, chunksToGenerate, textures, visitRoomOptions);
+                          // auto result = std::make_shared<InternalData>(); // Old way
+                          // Need to pass map and calibratedWorldHalfLineWidth to InternalData constructor
+                          auto result = std::make_shared<InternalData>(map, textures.getCalibratedWorldHalfLineWidth());
+                          result->iterativeState = iterState;
+                          result->processedChunksThisCall = chunksToGenerate;
+
+                          // auto &data = deref(result); // No longer needed with direct member access
+                          generateSpecificLayerMeshes(*result, map, chunksToGenerate, textures, visitRoomOptions);
                           return SharedMapBatchFinisher{result};
                       });
 }

@@ -13,7 +13,8 @@
 #include "../opengl/OpenGL.h"
 #include "Infomarks.h"
 #include "MapCanvasData.h"
-#include "MapCanvasRoomDrawer.h"
+#include "MapCanvasRoomDrawer.h" // For RoomAreaHash (via MapBatches.h), getRoomAreaHash
+#include "src/mapdata/remesh_types.h" // For IterativeRemeshMetadata
 #include "Textures.h"
 
 #include <array>
@@ -58,6 +59,7 @@ class NODISCARD_QOBJECT MapCanvas final : public QOpenGLWidget,
 public:
     static constexpr const int BASESIZE = 1024;
     static constexpr const int SCROLL_SCALE = 64;
+    static constexpr int MAX_CHUNKS_PER_ITERATIVE_PASS = 5;
 
 private:
     struct NODISCARD FrameRateController final

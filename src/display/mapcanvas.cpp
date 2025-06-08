@@ -354,6 +354,86 @@ void MapCanvas::slot_createRoom()
     }
 }
 
+RoomIdSet MapCanvas::getVisibleRoomIds() const
+{
+    const Map& currentMap = m_data.getCurrentMap();
+    const RoomIdSet& allMapRoomIds = currentMap.getRooms();
+    std::set<RoomArea> visibleAreas;
+
+    for (const RoomId roomId : allMapRoomIds) {
+        const RoomHandle roomHandle = currentMap.findRoomHandle(roomId);
+        if (!roomHandle.exists()) {
+            continue;
+        }
+
+        if (roomHandle.getPosition().z != m_currentLayer) {
+            continue;
+        }
+
+        const glm::vec3 roomCenter = roomHandle.getPosition().to_vec3() + glm::vec3(0.5f, 0.5f, 0.0f);
+        const std::optional<glm::vec2> screenPos = project(roomCenter);
+
+        if (!screenPos.has_value()) {
+            continue;
+        }
+
+        const float x = screenPos.value().x;
+        const float y = screenPos.value().y;
+
+        if (x >= 0 && x < width() && y >= 0 && y < height()) {
+            const RoomArea area = roomHandle.getArea();
+            if (!area.empty()) {
+                visibleAreas.insert(area);
+            }
+        }
+    }
+
+    RoomIdSet finalRoomIdsToProcess;
+    for (const RoomArea& areaName : visibleAreas) {
+        const RoomIdSet* areaRoomIds = currentMap.getWorld().findAreaRoomSet(areaName);
+        if (areaRoomIds != nullptr) {
+            finalRoomIdsToProcess.insert(areaRoomIds->begin(), areaRoomIds->end());
+        }
+    }
+
+    // If no areas are visible (e.g. outdoor map, or map without areas defined),
+    // then fall back to processing all rooms on the current layer that are within the viewport.
+    // This ensures that something is still rendered.
+    if (finalRoomIdsToProcess.empty()) {
+        for (const RoomId roomId : allMapRoomIds) {
+            const RoomHandle roomHandle = currentMap.findRoomHandle(roomId);
+            if (!roomHandle.exists()) {
+                continue;
+            }
+
+            // This time, we don't filter by m_currentLayer before projection,
+            // because the primary purpose of this fallback is for maps that might
+            // not have Z-levels properly defined or are entirely on one layer.
+            // The projection check itself will handle visibility.
+
+            const glm::vec3 roomCenter = roomHandle.getPosition().to_vec3() + glm::vec3(0.5f, 0.5f, 0.0f);
+            const std::optional<glm::vec2> screenPos = project(roomCenter);
+
+            if (!screenPos.has_value()) {
+                continue;
+            }
+
+            const float x = screenPos.value().x;
+            const float y = screenPos.value().y;
+
+            if (x >= 0 && x < width() && y >= 0 && y < height()) {
+                 // Only add if it's on the current layer OR if we are on layer 0 (which might be a "show all" case)
+                if (roomHandle.getPosition().z == m_currentLayer || m_currentLayer == 0) {
+                    finalRoomIdsToProcess.insert(roomId);
+                }
+            }
+        }
+    }
+
+
+    return finalRoomIdsToProcess;
+}
+
 // REVISIT: This function doesn't need to return a shared ptr. Consider refactoring InfoMarkSelection?
 std::shared_ptr<InfoMarkSelection> MapCanvas::getInfoMarkSelection(const MouseSel &sel)
 {

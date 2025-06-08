@@ -1024,24 +1024,36 @@ void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) con
 
 // NOTE: All of the lamda captures are copied, including the texture data!
 FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
-                                                     const Map &map)
+                                                     const Map &map,
+                                                     const std::optional<RoomIdSet>& allowedRoomIds)
 {
     const auto visitRoomOptions = getVisitRoomOptions();
 
     return std::async(std::launch::async,
-                      [textures, map, visitRoomOptions]() -> SharedMapBatchFinisher {
+                      [textures, map, visitRoomOptions, allowedRoomIds]() -> SharedMapBatchFinisher {
                           ThreadLocalNamedColorRaii tlRaii{visitRoomOptions.canvasColors,
                                                            visitRoomOptions.colorSettings};
                           DECL_TIMER(t, "[ASYNC] generateAllLayerMeshes");
 
-                          const LayerToRooms layerToRooms = [map]() -> LayerToRooms {
+                          const LayerToRooms layerToRooms = [map, &allowedRoomIds]() -> LayerToRooms {
                               DECL_TIMER(t2, "[ASYNC] generateBatches.layerToRooms");
                               LayerToRooms ltr;
-                              for (const RoomId id : map.getRooms()) {
-                                  const auto &r = map.getRoomHandle(id);
-                                  const auto z = r.getPosition().z;
-                                  auto &layer = ltr[z];
-                                  layer.emplace_back(r);
+                              if (allowedRoomIds.has_value()) {
+                                  for (const RoomId id : allowedRoomIds.value()) {
+                                      if (map.hasRoom(id)) {
+                                          const auto &r = map.getRoomHandle(id);
+                                          const auto z = r.getPosition().z;
+                                          auto &layer = ltr[z];
+                                          layer.emplace_back(r);
+                                      }
+                                  }
+                              } else {
+                                  for (const RoomId id : map.getRooms()) {
+                                      const auto &r = map.getRoomHandle(id);
+                                      const auto z = r.getPosition().z;
+                                      auto &layer = ltr[z];
+                                      layer.emplace_back(r);
+                                  }
                               }
                               return ltr;
                           }();

@@ -111,6 +111,10 @@ private:
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
     Signal2Lifetime m_lifetime;
 
+    bool m_isPhase1Remeshing = false;
+    bool m_needsGlobalRemeshFallback = false;
+    RoomIdSet m_phase1ProcessedRoomIds;
+
 public:
     explicit MapCanvas(MapData &mapData,
                        PrespammedPath &prespammedPath,
@@ -229,6 +233,7 @@ public:
     void userPressedEscape(bool);
 
 private:
+    RoomIdSet getVisibleRoomIds() const;
     void log(const QString &msg) { emit sig_log("MapCanvas", msg); }
 
 signals:

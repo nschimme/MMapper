@@ -42,7 +42,7 @@ void MapCanvasViewport::updateFrustumPlanes() {
     m_frustumPlanes[5] = row3 - row2; // Far
 
     // Normalize each plane
-    for (int i = 0; i < 6; ++i) {
+    for (size_t i = 0; i < 6; ++i) {
         // For plane (A,B,C,D), normal is (A,B,C)
         float normal_length = glm::length(glm::vec3(m_frustumPlanes[i].x, m_frustumPlanes[i].y, m_frustumPlanes[i].z));
         if (normal_length > 1e-6f) { // Avoid division by zero or near-zero
@@ -185,7 +185,7 @@ bool MapScreen::isRoomVisible(const Coordinate &c, const float /*marginPixels*/)
     // Rooms are 1x1 in XY, and Z extent is 0 for this check (flat AABB)
     glm::vec3 roomMax = roomMin + glm::vec3(1.0f, 1.0f, 0.0f);
 
-    for (int i = 0; i < 6; ++i) {
+    for (size_t i = 0; i < 6; ++i) {
         const glm::vec4& plane = frustumPlanes[i]; // plane is (Nx, Ny, Nz, D)
 
         // Determine the p-vertex (vertex of AABB "most positive" along the plane's normal direction)

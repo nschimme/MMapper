@@ -20,6 +20,7 @@
 
 #include <map>
 #include <optional>
+#include <stdexcept> // Added for std::runtime_error
 #include <unordered_map>
 #include <vector>
 
@@ -277,24 +278,31 @@ private:
 using RoomVector = std::vector<RoomHandle>;
 using LayerToRooms = std::map<int, RoomVector>;
 
+enum class RemeshPhase {
+    IDLE,
+    VISIBLE_AREA,
+    GLOBAL_ASYNC
+};
+
 struct NODISCARD RemeshCookie final
 {
 private:
     std::optional<FutureSharedMapBatchFinisher> m_opt_future;
     bool m_ignored = false;
+    RemeshPhase m_currentPhase = RemeshPhase::IDLE;
 
 private:
-    // NOTE: If you think you want to make this public, then you're really looking for setIgnored().
-    void reset() { *this = RemeshCookie{}; }
+    void reset() {
+        m_opt_future.reset();
+        m_currentPhase = RemeshPhase::IDLE;
+        m_ignored = false;
+    }
 
 public:
-    // This means you've decided to load a completely new map, so you're not interested
-    // in the results. It SHOULD NOT be used just because you got another mesh request.
-    void setIgnored()
-    {
-        //
-        m_ignored = true;
-    }
+    void setCurrentPhase(RemeshPhase phase) { m_currentPhase = phase; }
+    RemeshPhase getCurrentPhase() const { return m_currentPhase; }
+    void setIgnored(bool val) { m_ignored = val; }
+    bool isIgnored() const { return m_ignored; }
 
 public:
     NODISCARD bool isPending() const { return m_opt_future.has_value(); }
@@ -303,9 +311,12 @@ public:
     // returns true if get() will return without blocking
     NODISCARD bool isReady() const
     {
+        if (m_ignored || !m_opt_future.has_value()) {
+            return false;
+        }
         const FutureSharedMapBatchFinisher &future = m_opt_future.value();
-        return future.valid()
-               && future.wait_for(std::chrono::nanoseconds(0)) != std::future_status::timeout;
+        // Ensure future is valid before calling wait_for, which is good practice.
+        return future.valid() && future.wait_for(std::chrono::nanoseconds(0)) != std::future_status::timeout;
     }
 
 private:
@@ -325,18 +336,26 @@ public:
     // NOTE: This can throw an exception thrown by the async function!
     NODISCARD SharedMapBatchFinisher get()
     {
-        DECL_TIMER(t, __FUNCTION__);
-        FutureSharedMapBatchFinisher &future = m_opt_future.value();
+        if (m_ignored) {
+            SharedMapBatchFinisher emptyFinisher;
+            // Consider logging that an ignored future's result is being discarded.
+            reset();
+            return emptyFinisher;
+        }
 
+        if (!m_opt_future.has_value()) {
+            // Consider logging a warning if get() is called inappropriately.
+            SharedMapBatchFinisher emptyFinisher;
+            reset();
+            return emptyFinisher;
+        }
+
+        FutureSharedMapBatchFinisher &future = m_opt_future.value();
         SharedMapBatchFinisher pFinisher;
         try {
             pFinisher = future.get();
         } catch (...) {
             reportException();
-            pFinisher.reset();
-        }
-
-        if (m_ignored) {
             pFinisher.reset();
         }
 
@@ -348,14 +367,13 @@ public:
     // Don't call this if isPending() is true, unless you called set_ignored().
     void set(FutureSharedMapBatchFinisher future)
     {
-        if (m_opt_future && !m_ignored) {
-            // If this happens, you should wait until the old one is finished first,
-            // or we're going to end up with tons of in-flight future meshes.
-            throw std::runtime_error("replaced existing future");
+        if (m_opt_future.has_value() && !m_ignored) {
+            throw std::runtime_error("RemeshCookie::set replaced existing active future");
         }
-
+        // If m_opt_future has a value and m_ignored is true, the old future is implicitly discarded by emplace.
         m_opt_future.emplace(std::move(future));
         m_ignored = false;
+        // Note: m_currentPhase is expected to be set by the caller immediately after calling set().
     }
 };
 
@@ -402,7 +420,7 @@ struct NODISCARD Batches final
     void ignorePendingRemesh()
     {
         //
-        remeshCookie.setIgnored();
+        remeshCookie.setIgnored(true); // Adjusted to new signature
     }
 
     void resetExistingMeshesAndIgnorePendingRemesh()

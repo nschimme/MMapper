@@ -537,8 +537,10 @@ void MapCanvas::resizeGL(int width, int height)
     }
 
     setViewportAndMvp(width, height); // Ensure projection is set before unprojecting
-    updateVisibleChunks();
-    requestMissingChunks();
+    // updateVisibleChunks(); // Removed: Do not update m_visibleChunks here.
+    // Viewport/projection changes will be used by paintGL, which might then
+    // trigger updateBatches -> finishPendingMapBatches -> forceUpdateMeshes if needed.
+    // requestMissingChunks(); // Already removed.
 
     // Render
     update();
@@ -617,106 +619,131 @@ void MapCanvas::updateMapBatches()
 void MapCanvas::finishPendingMapBatches()
 {
     std::string_view prefix = "[finishPendingMapBatches] ";
-
 #define LOG() MMLOG() << prefix
 
     RemeshCookie &remeshCookie = m_batches.remeshCookie;
     if (!remeshCookie.isPending()) {
         return;
-    } else if (!remeshCookie.isReady()) {
+    }
+    if (!remeshCookie.isReady()) {
+        // Pending but not ready, ensure animation continues if it was started.
+        // paintGL typically calls setAnimating(true) if pending.
         return;
     }
 
-    LOG() << "Waiting for the cookie. This shouldn't take long.";
-    SharedMapBatchFinisher pFuture = remeshCookie.get();
-    assert(!remeshCookie.isPending());
+    RemeshPhase completedPhase = remeshCookie.getCurrentPhase();
+    LOG() << "Processing completed phase: " << static_cast<int>(completedPhase);
+    SharedMapBatchFinisher pFinisher = remeshCookie.get(); // Resets cookie state (phase to IDLE, ignored to false)
 
-    setAnimating(false);
-
-    if (pFuture == nullptr) {
-        // REVISIT: Do we need to schedule another update now?
-        LOG() << "Got NULL (means the update was flagged to be ignored)";
+    if (pFinisher == nullptr) {
+        LOG() << "Discarding null/ignored/failed future for phase: " << static_cast<int>(completedPhase);
+        remeshCookie.setCurrentPhase(RemeshPhase::IDLE); // Explicitly set, though get() does it.
+        setAnimating(false); // No further processing or new phase from this.
+        update();
         return;
     }
 
-    // REVISIT: should we pass a "fake" one and only swap to the correct one on success?
-    LOG() << "Clearing the map batches and call the finisher to create new ones";
-
-    DECL_TIMER(t, __FUNCTION__);
-    const IMapBatchesFinisher &finisher_obj = *pFuture; // Renamed 'future' to 'finisher_obj' to avoid conflict
-
+    // Successfully got a finisher, process it.
+    const IMapBatchesFinisher &finisher_obj = *pFinisher;
     std::optional<MapBatches> temporaryNewBatches_opt;
-    // The global 'finish' function (from MapCanvasRoomDrawer.h) will emplace into temporaryNewBatches_opt
-    // It calls finisher_obj.virt_finish(MapBatches &output, OpenGL &gl, GLFont &font)
-    finish(finisher_obj, temporaryNewBatches_opt, getOpenGL(), getGLFont());
+    ::finish(finisher_obj, temporaryNewBatches_opt, getOpenGL(), getGLFont()); // Use global scope for finish
 
+    std::set<std::pair<int, RoomAreaHash>> processedChunksThisPhase;
     if (temporaryNewBatches_opt.has_value()) {
-        LOG() << "Successfully finished specific chunk batches into temporary MapBatches.";
+        LOG() << "Successfully finished batches into temporaryNewBatches_opt.";
         MapBatches& temporaryNewBatches = *temporaryNewBatches_opt;
 
+        // Collect processed chunks and clear from pending
+        for (const auto& layer_pair : temporaryNewBatches.batchedMeshes) {
+            for (const auto& chunk_pair : layer_pair.second) {
+                std::pair<int, RoomAreaHash> chunkKey = {layer_pair.first, chunk_pair.first};
+                processedChunksThisPhase.insert(chunkKey);
+                if (m_pendingChunkGenerations.erase(chunkKey)) {
+                    // LOG() << "Erased " << chunkKey.first << ":" << chunkKey.second << " from pending.";
+                }
+            }
+        }
+
+        // Merge temporaryNewBatches into m_batches.mapBatches
         if (!m_batches.mapBatches.has_value()) {
-            // This is the first batch of data, or main batches were previously cleared.
             LOG() << "Main mapBatches is empty, moving temporaryNewBatches.";
             m_batches.mapBatches.emplace(std::move(temporaryNewBatches));
-            // Clear pending flags for all chunks that were just loaded by iterating the moved content
-            if (m_batches.mapBatches.has_value()) {
-                for (const auto& layer_pair : m_batches.mapBatches->batchedMeshes) {
-                    for (const auto& chunk_pair : layer_pair.second) {
-                        if (m_pendingChunkGenerations.erase({layer_pair.first, chunk_pair.first})) {
-                            // LOG() << "Erased " << layer_pair.first << ":" << chunk_pair.first << " from pending (initial load).";
-                        }
-                    }
-                }
-            }
         } else {
-            // Merge temporaryNewBatches into existing m_batches.mapBatches
             LOG() << "Merging temporaryNewBatches into existing main mapBatches.";
             MapBatches& mainMapBatches = *m_batches.mapBatches;
-
             for (auto& layer_pair : temporaryNewBatches.batchedMeshes) {
                 int layerId = layer_pair.first;
-                auto& new_chunks_in_layer = layer_pair.second; // Use auto& for non-const access
-                for (auto& chunk_pair : new_chunks_in_layer) {
-                        RoomAreaHash roomAreaHash = chunk_pair.first;
-                        mainMapBatches.batchedMeshes[layerId].insert_or_assign(roomAreaHash, std::move(chunk_pair.second));
-                        if (m_pendingChunkGenerations.erase({layerId, roomAreaHash})) {
-                            // LOG() << "Erased " << layerId << ":" << roomAreaHash << " from pending (merge).";
-                    }
+                for (auto& chunk_pair : layer_pair.second) {
+                    mainMapBatches.batchedMeshes[layerId].insert_or_assign(chunk_pair.first, std::move(chunk_pair.second));
                 }
             }
-
             for (auto& layer_pair : temporaryNewBatches.connectionMeshes) {
                 int layerId = layer_pair.first;
-                auto& new_connection_chunks_in_layer = layer_pair.second; // Use auto& for non-const access
-                for (auto& chunk_pair : new_connection_chunks_in_layer) {
-                        RoomAreaHash roomAreaHash = chunk_pair.first;
-                        mainMapBatches.connectionMeshes[layerId].insert_or_assign(roomAreaHash, std::move(chunk_pair.second));
+                for (auto& chunk_pair : layer_pair.second) {
+                    mainMapBatches.connectionMeshes[layerId].insert_or_assign(chunk_pair.first, std::move(chunk_pair.second));
                 }
             }
-
             for (auto& layer_pair : temporaryNewBatches.roomNameBatches) {
                 int layerId = layer_pair.first;
-                auto& new_roomname_chunks_in_layer = layer_pair.second; // Use auto& for non-const access
-                for (auto& chunk_pair : new_roomname_chunks_in_layer) {
-                        RoomAreaHash roomAreaHash = chunk_pair.first;
-                        mainMapBatches.roomNameBatches[layerId].insert_or_assign(roomAreaHash, std::move(chunk_pair.second));
+                for (auto& chunk_pair : layer_pair.second) {
+                    mainMapBatches.roomNameBatches[layerId].insert_or_assign(chunk_pair.first, std::move(chunk_pair.second));
                 }
             }
         }
     } else {
-        LOG() << "::finish with pFuture did not populate temporaryNewBatches_opt. This should not happen if pFuture is valid.";
-        // If finish fails to emplace, specific chunks associated with pFuture remain pending.
-        // No specific action needed here for m_pendingChunkGenerations, requestMissingChunks will handle retries.
+        LOG() << "::finish with pFinisher did not populate temporaryNewBatches_opt. Phase was " << static_cast<int>(completedPhase);
+        // If finish fails, associated chunks remain pending. No specific action needed here for m_pendingChunkGenerations.
     }
-    // The broad m_pendingChunkGenerations.clear() that was here is removed as per subtask.
-    // Chunks are erased individually above as they are processed.
-    // If pFuture itself was null, m_pendingChunkGenerations is cleared in the block above for that case.
-    // The original logic for pFuture == nullptr also cleared m_pendingChunkGenerations,
-    // which is covered by clearing it after remeshCookie.get() if isReady() was true.
-    // The update() call is also important.
+
+    // Phase transition logic
+    if (completedPhase == RemeshPhase::VISIBLE_AREA) {
+        LOG() << "VISIBLE_AREA phase completed. Initiating GLOBAL_ASYNC phase.";
+        std::vector<std::pair<int, RoomAreaHash>> globalChunksToProcess;
+        const auto& allRooms = m_data.getCurrentMap().getRooms(); // RoomIdSet
+        if (!allRooms.empty()) {
+            for (const RoomId roomId : allRooms) {
+                RoomHandle room = m_data.getCurrentMap().getRoomHandle(roomId);
+                if (room.exists()) {
+                    int layerId = room.getPosition().z;
+                    RoomAreaHash hash = getRoomAreaHash(room); // Ensure getRoomAreaHash is accessible
+                    std::pair<int, RoomAreaHash> chunkKey = {layerId, hash};
+                    if (processedChunksThisPhase.find(chunkKey) == processedChunksThisPhase.end()) {
+                        globalChunksToProcess.push_back(chunkKey);
+                    }
+                }
+            }
+        }
+
+        if (!globalChunksToProcess.empty()) {
+            LOG() << "Found " << globalChunksToProcess.size() << " chunks for GLOBAL_ASYNC phase.";
+            for(const auto& chunkKey : globalChunksToProcess) {
+                m_pendingChunkGenerations.insert(chunkKey);
+            }
+            FutureSharedMapBatchFinisher globalFuture = m_data.generateSpecificChunkBatches(mctp::getProxy(m_textures), globalChunksToProcess);
+            remeshCookie.set(std::move(globalFuture));
+            remeshCookie.setCurrentPhase(RemeshPhase::GLOBAL_ASYNC);
+            setAnimating(true); // New phase started
+        } else {
+            LOG() << "No further chunks to process for GLOBAL_ASYNC phase.";
+            remeshCookie.setCurrentPhase(RemeshPhase::IDLE); // Should be already IDLE from get()
+            setAnimating(false); // All phases complete
+        }
+    } else if (completedPhase == RemeshPhase::GLOBAL_ASYNC) {
+        LOG() << "GLOBAL_ASYNC phase completed.";
+        remeshCookie.setCurrentPhase(RemeshPhase::IDLE); // Should be already IDLE from get()
+        setAnimating(false); // All phases complete
+    } else if (completedPhase == RemeshPhase::IDLE && pFinisher) {
+        // This case implies a future was processed that was set with IDLE phase,
+        // or RemeshCookie::get() reset the phase before this check and it was some other phase.
+        // The latter is expected. If it was truly IDLE before get(), it's unusual.
+        LOG() << "Processed a future that was associated with IDLE phase or already reset by get().";
+        setAnimating(false); // No further specific phase logic.
+    } else {
+         LOG() << "Unhandled completedPhase: " << static_cast<int>(completedPhase) << " with pFinisher " << (pFinisher ? "valid" : "null");
+         setAnimating(false);
+    }
+
     update();
-
-
 #undef LOG
 }
 

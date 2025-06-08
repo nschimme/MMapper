@@ -1027,8 +1027,11 @@ void MapCanvas::infomarksChanged()
 
 void MapCanvas::layerChanged()
 {
-    updateVisibleChunks();
-    requestMissingChunks();
+    // updateVisibleChunks(); // Removed: Do not update m_visibleChunks here.
+    // m_currentLayer is updated by the caller (slot_layerUp/Down/Reset).
+    // The repaint will use the existing m_visibleChunks which might be stale
+    // for the new layer until an explicit refresh or viewport change occurs.
+    // requestMissingChunks(); // Already removed.
     update();
 }
 
@@ -1036,64 +1039,16 @@ void MapCanvas::requestMissingChunks() {
     if (m_batches.remeshCookie.isPending()) {
         // A remesh operation is already in progress, which will generate all visible chunks.
         // Or, if it was a specific chunk request, we wait for it to complete.
+        // A remesh operation is already in progress. This operation (whether VISIBLE_AREA or GLOBAL_ASYNC)
+        // is expected to cover any necessary chunks. If it's a specific chunk request from an older logic path
+        // (which should be phased out), we let it complete.
         return;
     }
 
-    std::vector<std::pair<int, RoomAreaHash>> chunksToRequestNow;
-
-    for (const auto& layerChunksPair : m_visibleChunks) {
-        const int layerId = layerChunksPair.first;
-        const std::set<RoomAreaHash>& visibleChunkIds = layerChunksPair.second;
-
-        // Check existing batches
-        const MapBatches* currentMapBatchesPtr = nullptr;
-        if (m_batches.mapBatches.has_value()) {
-            currentMapBatchesPtr = &(*m_batches.mapBatches);
-        }
-
-        // Use a const iterator type that's compatible whether currentMapBatchesPtr is null or not.
-        // Or, handle the null case more explicitly before trying to use mapBatchesLayerIt.
-        auto mapBatchesLayerIt = currentMapBatchesPtr ?
-                                 currentMapBatchesPtr->batchedMeshes.find(layerId) :
-                                 (currentMapBatchesPtr ? currentMapBatchesPtr->batchedMeshes.end() : decltype(currentMapBatchesPtr->batchedMeshes.end()){});
-
-
-        for (const RoomAreaHash roomAreaHash : visibleChunkIds) {
-            bool isMissingOrInvalid = true; // Assume missing unless found and valid
-            if (currentMapBatchesPtr && mapBatchesLayerIt != currentMapBatchesPtr->batchedMeshes.end()) {
-                const ChunkedLayerMeshes& chunkedLayerMeshes = mapBatchesLayerIt->second;
-                auto chunkIt = chunkedLayerMeshes.find(roomAreaHash);
-                if (chunkIt != chunkedLayerMeshes.end()) {
-                    // Chunk exists, check if its LayerMeshes is valid
-                    if (chunkIt->second) { // LayerMeshes::operator bool()
-                        isMissingOrInvalid = false;
-                    }
-                }
-            }
-
-            if (isMissingOrInvalid) {
-                std::pair<int, RoomAreaHash> chunkKey = {layerId, roomAreaHash};
-                // Only add to request if not already pending
-                if (m_pendingChunkGenerations.find(chunkKey) == m_pendingChunkGenerations.end()) {
-                    chunksToRequestNow.push_back(chunkKey);
-                }
-            }
-        }
-    }
-
-    if (!chunksToRequestNow.empty()) {
-        for(const auto& chunkKey : chunksToRequestNow) {
-            m_pendingChunkGenerations.insert(chunkKey);
-        }
-        // Instead of forceUpdateMeshes(), call generateSpecificChunkBatches
-        // m_data is a MapData&
-        // m_textures is a MapCanvasTextures
-        // mctp::getProxy should be available from Textures.h (included via mapcanvas.h)
-        m_batches.remeshCookie.set(
-            m_data.generateSpecificChunkBatches(mctp::getProxy(m_textures), chunksToRequestNow)
-        );
-        // No need to call update() here explicitly, as the renderLoop will check the cookie.
-    }
+    // If no remesh is pending, the system is considered idle or has completed all phases.
+    // Calling forceUpdateMeshes() will initiate a new Phase 1 (Visible Area) remesh.
+    // This will naturally include any visible chunks that might have been considered "missing".
+    forceUpdateMeshes();
 }
 
 std::optional<glm::vec3> MapCanvas::getUnprojectedScreenPos(const glm::vec2& screenPos) const {
@@ -1163,16 +1118,11 @@ void MapCanvas::updateVisibleChunks() {
 
 void MapCanvas::forceUpdateMeshes()
 {
-    // If a specific chunk generation is already in progress, let it complete.
-    // Starting another one (even a "full visible" one) could lead to conflicts
-    // or overwrite the existing remesh cookie too soon.
+    // If a remesh operation is already in progress, mark its result to be ignored.
+    // The new remesh operation (visible area) will replace it.
     if (m_batches.remeshCookie.isPending()) {
-        // Optionally, we could queue this forced update or simply rely
-        // on the current pending operation to refresh relevant data.
-        // For now, just returning seems safest to avoid complex queueing.
-        // The user might see a slight delay if they trigger this while another load is happening.
-        update(); // Still call update to ensure a repaint is scheduled after the current op.
-        return;
+        m_batches.remeshCookie.setIgnored(true);
+        // Proceed to launch the new remesh for the visible area.
     }
 
     updateVisibleChunks(); // Determine what's currently visible
@@ -1194,6 +1144,11 @@ void MapCanvas::forceUpdateMeshes()
         m_batches.remeshCookie.set(
             m_data.generateSpecificChunkBatches(mctp::getProxy(m_textures), allVisibleChunks)
         );
+        m_batches.remeshCookie.setCurrentPhase(RemeshPhase::VISIBLE_AREA);
+    } else {
+        // No visible chunks, so no specific visible area remesh to perform.
+        // Set phase to IDLE. finishPendingMapBatches might trigger a global remesh.
+        m_batches.remeshCookie.setCurrentPhase(RemeshPhase::IDLE);
     }
 
     // Resetting diffs might still be appropriate if a "forced" update implies
@@ -1206,12 +1161,10 @@ void MapCanvas::forceUpdateMeshes()
 
 void MapCanvas::slot_mapChanged()
 {
-    // REVISIT: Ideally we'd want to only update the layers/chunks
-    // that actually changed.
-    if ((false)) {
-        m_batches.mapBatches.reset();
-    }
-    update();
+    // When the map data changes, trigger a full remesh sequence.
+    // forceUpdateMeshes() will handle ignoring any ongoing remesh
+    // and starting a new two-phase (Visible Area then Global Async) remesh.
+    forceUpdateMeshes();
 }
 
 void MapCanvas::slot_requestUpdate()

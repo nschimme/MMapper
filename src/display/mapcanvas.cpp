@@ -1500,5 +1500,3 @@ void MapCanvas::userPressedEscape(bool /*pressed*/)
         break;
     }
 }
-
-[end of src/display/mapcanvas.cpp]

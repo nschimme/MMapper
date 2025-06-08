@@ -1158,4 +1158,3 @@ void MapCanvas::renderMapBatches()
         }
     }
 }
-// [end of src/display/mapcanvas_gl.cpp] intentional trailing marker

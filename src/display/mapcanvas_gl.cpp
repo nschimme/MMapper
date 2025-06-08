@@ -540,21 +540,27 @@ void MapCanvas::updateMapBatches()
     FutureSharedMapBatchFinisher future; // Declare once
 
     if (triggerNewRemesh) {
-        RoomIdSet visibleRoomIds = getVisibleRoomIds();
-        if (!visibleRoomIds.empty()) {
-            MMLOG() << "[updateMapBatches] Initiating Phase 1: Visible areas remesh for" << visibleRoomIds.size() << "rooms.";
-            m_isPhase1Remeshing = true;
-            m_needsGlobalRemeshFallback = true; // Potentially need global if this doesn't cover all
-            future = m_data.generateVisibleBatches(visibleRoomIds, mctp::getProxy(m_textures));
-            m_phase1ProcessedRoomIds = visibleRoomIds;
-        } else {
-            MMLOG() << "[updateMapBatches] Initiating Global Remesh (Phase 1 skipped or no visible rooms).";
-            m_isPhase1Remeshing = false;
-            m_needsGlobalRemeshFallback = false; // No fallback needed if going global directly
-            future = m_data.generateBatches(mctp::getProxy(m_textures));
-        }
-        MMLOG() << "[updateMapBatches] Setting new remesh cookie (Phase 1 or initial Global).";
-        remeshCookie.set(future);
+        // Collect viewport parameters
+        const int currentLayer = m_currentLayer; // from MapCanvas member
+        const glm::mat4 viewProjMatrix = m_viewProj; // from MapCanvas member (MapCanvasViewport)
+        const int vpWidth = width(); // from QOpenGLWidget
+        const int vpHeight = height(); // from QOpenGLWidget
+
+        MMLOG() << "[updateMapBatches] Initiating Phase 1 attempt (async visibility calc & remesh).";
+        m_isPhase1Remeshing = true;
+        m_needsGlobalRemeshFallback = true;
+        m_phase1ProcessedRoomIds.clear(); // Clear, as it will be determined by the async task.
+
+        future = m_data.generateVisibleBatches(
+            mctp::getProxy(m_textures),
+            currentLayer,
+            viewProjMatrix,
+            vpWidth,
+            vpHeight
+        );
+
+        MMLOG() << "[updateMapBatches] Setting new remesh cookie (Phase 1 attempt).";
+        remeshCookie.set(std::move(future));
         m_diff.cancelUpdates(m_data.getSavedMap());
     } else if (m_needsGlobalRemeshFallback) {
         MMLOG() << "[updateMapBatches] Initiating Phase 2: Global remesh fallback.";
@@ -562,7 +568,7 @@ void MapCanvas::updateMapBatches()
         m_needsGlobalRemeshFallback = false;
         future = m_data.generateBatches(mctp::getProxy(m_textures));
         MMLOG() << "[updateMapBatches] Setting new remesh cookie (Phase 2 Global Fallback).";
-        remeshCookie.set(future);
+        remeshCookie.set(std::move(future));
         m_diff.cancelUpdates(m_data.getSavedMap());
     } else if (!m_batches.mapBatches.has_value()) { // Initial mesh generation if no batches exist
         MMLOG() << "[updateMapBatches] No map batches. Initiating initial global mesh.";
@@ -570,7 +576,7 @@ void MapCanvas::updateMapBatches()
         m_needsGlobalRemeshFallback = false;
         future = m_data.generateBatches(mctp::getProxy(m_textures));
         MMLOG() << "[updateMapBatches] Setting new remesh cookie (Initial Global Mesh).";
-        remeshCookie.set(future);
+        remeshCookie.set(std::move(future));
         m_diff.cancelUpdates(m_data.getSavedMap());
     } else {
         // Batches exist, no update needed, no fallback pending, cookie not pending
@@ -614,31 +620,39 @@ void MapCanvas::finishPendingMapBatches()
     LOG() << "Clearing the map batches and call the finisher to create new ones";
 
     DECL_TIMER(t, __FUNCTION__);
-    const IMapBatchesFinisher &future = *pFuture;
+    const IMapBatchesFinisher &finisher_obj = *pFuture; // Renamed to avoid conflict with global 'finish'
     std::optional<MapBatches> &opt_mapBatches = m_batches.mapBatches;
     opt_mapBatches.reset();
-    finish(future, opt_mapBatches, getOpenGL(), getGLFont());
+    ::finish(finisher_obj, opt_mapBatches, getOpenGL(), getGLFont()); // Call global 'finish'
     assert(opt_mapBatches.has_value());
 
+    std::optional<RoomIdSet> phase1ActuallyProcessedIds = pFuture->getProcessedRoomIds();
+
     if (m_isPhase1Remeshing) {
-        MMLOG() << "[finishPendingMapBatches] Phase 1 (visible areas) remesh finished and uploaded to GPU.";
-        m_isPhase1Remeshing = false;
-        // m_needsGlobalRemeshFallback should have been set to true when Phase 1 was initiated.
-        // Request an update to trigger updateMapBatches. updateMapBatches will see
-        // m_needsGlobalRemeshFallback == true and start Phase 2.
-        if (m_needsGlobalRemeshFallback) { // Safety check, should be true
-             MMLOG() << "[finishPendingMapBatches] Requesting update to trigger Phase 2 (Global Remesh).";
-             update();
+        MMLOG() << "[finishPendingMapBatches] Phase 1 attempt finished processing.";
+        m_isPhase1Remeshing = false; // Current operation (Phase 1 type) is done.
+
+        if (phase1ActuallyProcessedIds.has_value()) {
+            // Phase 1 processed a specific subset of rooms
+            m_phase1ProcessedRoomIds = phase1ActuallyProcessedIds.value();
+            MMLOG() << "[finishPendingMapBatches] Phase 1 processed " << m_phase1ProcessedRoomIds.size() << " specific rooms.";
+            // m_needsGlobalRemeshFallback should still be true to trigger actual Phase 2
         } else {
-             MMLOG() << "[finishPendingMapBatches] Warning: Phase 1 finished, but m_needsGlobalRemeshFallback is false. Global remesh might not occur.";
-             // Potentially clear m_phase1ProcessedRoomIds here if global isn't happening
-             // m_phase1ProcessedRoomIds.clear();
+            // Phase 1 attempt fell back to a global mesh
+            MMLOG() << "[finishPendingMapBatches] Phase 1 attempt was a global fallback. No separate Phase 2 needed immediately.";
+            m_needsGlobalRemeshFallback = false; // Prevent redundant global remesh
+            m_phase1ProcessedRoomIds.clear(); // No specific subset for future optimization
+        }
+
+        if (m_needsGlobalRemeshFallback) {
+            MMLOG() << "[finishPendingMapBatches] Requesting update to trigger Phase 2 (Global Remesh).";
+            update();
+        } else {
+            MMLOG() << "[finishPendingMapBatches] Global fallback not needed or already done by Phase 1 attempt.";
         }
     } else {
-        // This block executes if a global remesh has finished (either initial, direct global, or Phase 2).
+        // This block executes if a global remesh has finished (initial, direct global, or actual Phase 2).
         MMLOG() << "[finishPendingMapBatches] Global remesh finished and uploaded to GPU.";
-        // Ensure flags are correctly reset after any global remesh.
-        m_isPhase1Remeshing = false; // Should already be false
         m_needsGlobalRemeshFallback = false;
         m_phase1ProcessedRoomIds.clear();
     }

@@ -856,9 +856,13 @@ public:
     std::unordered_map<int, LayerBatchData> batchedMeshes;
     BatchedConnections connectionDrawerBuffers;
     std::unordered_map<int, RoomNameBatch> roomNameBatches;
+    std::optional<RoomIdSet> processedRoomIds; // Added member
 
 private:
     void virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const final;
+    NODISCARD std::optional<RoomIdSet> virt_getProcessedRoomIds() const override { // Implemented method
+        return processedRoomIds;
+    }
 };
 
 static void generateAllLayerMeshes(InternalData &internalData,
@@ -1025,22 +1029,42 @@ void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) con
 // NOTE: All of the lamda captures are copied, including the texture data!
 FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
                                                      const Map &map,
-                                                     const std::optional<RoomIdSet>& allowedRoomIds)
+                                                     const std::optional<ViewParameters>& viewParams)
 {
     const auto visitRoomOptions = getVisitRoomOptions();
 
     return std::async(std::launch::async,
-                      [textures, map, visitRoomOptions, allowedRoomIds]() -> SharedMapBatchFinisher {
+                      [textures, map, visitRoomOptions, viewParams]() -> SharedMapBatchFinisher {
                           ThreadLocalNamedColorRaii tlRaii{visitRoomOptions.canvasColors,
                                                            visitRoomOptions.colorSettings};
                           DECL_TIMER(t, "[ASYNC] generateAllLayerMeshes");
 
-                          const LayerToRooms layerToRooms = [map, &allowedRoomIds]() -> LayerToRooms {
+                          std::optional<RoomIdSet> allowedRoomIdsForProcessing = std::nullopt;
+                          if (viewParams.has_value()) {
+                              MMLOG() << "[Async] Calculating visible rooms based on ViewParameters.";
+                              allowedRoomIdsForProcessing = MapCanvas::getVisibleRoomIds(
+                                  map,
+                                  viewParams->currentLayer,
+                                  viewParams->viewProjMatrix,
+                                  viewParams->viewportWidth,
+                                  viewParams->viewportHeight);
+                              if (allowedRoomIdsForProcessing.value().empty()) {
+                                   MMLOG() << "[Async] No rooms found in visible areas. Falling back to global mesh for this 'visible' request.";
+                                   allowedRoomIdsForProcessing = std::nullopt; // Indicate global processing
+                              }
+                          }
+
+                          const LayerToRooms layerToRooms = [map, &allowedRoomIdsForProcessing]() -> LayerToRooms {
                               DECL_TIMER(t2, "[ASYNC] generateBatches.layerToRooms");
                               LayerToRooms ltr;
-                              if (allowedRoomIds.has_value()) {
-                                  for (const RoomId id : allowedRoomIds.value()) {
-                                      if (map.hasRoom(id)) {
+                              if (allowedRoomIdsForProcessing.has_value()) {
+                                  MMLOG() << "[Async] Processing " << allowedRoomIdsForProcessing.value().size() << " rooms for specific (visible) mesh.";
+                                  for (const RoomId id : allowedRoomIdsForProcessing.value()) {
+                                      // Ensure room still exists - getRoomHandle might be unsafe if ID became invalid
+                                      // However, getVisibleRoomIds should only return valid+existing rooms.
+                                      // And if it's a full scan, getRooms() also gives valid ones.
+                                      // The check map.getWorld().hasRoom(id) is an extra safety for the allowedRoomIds case.
+                                      if (map.getWorld().hasRoom(id)) {
                                           const auto &r = map.getRoomHandle(id);
                                           const auto z = r.getPosition().z;
                                           auto &layer = ltr[z];
@@ -1048,6 +1072,7 @@ FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTextur
                                       }
                                   }
                               } else {
+                                  MMLOG() << "[Async] Processing all rooms for global mesh.";
                                   for (const RoomId id : map.getRooms()) {
                                       const auto &r = map.getRoomHandle(id);
                                       const auto z = r.getPosition().z;
@@ -1059,6 +1084,7 @@ FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTextur
                           }();
 
                           auto result = std::make_shared<InternalData>();
+                          result->processedRoomIds = allowedRoomIdsForProcessing; // Set the processed IDs
                           auto &data = deref(result);
                           generateAllLayerMeshes(data, layerToRooms, textures, visitRoomOptions);
                           return SharedMapBatchFinisher{result};

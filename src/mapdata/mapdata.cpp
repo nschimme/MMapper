@@ -139,12 +139,25 @@ std::optional<RoomId> MapData::getLast(const RoomId start, const CommandQueue &d
 
 FutureSharedMapBatchFinisher MapData::generateBatches(const mctp::MapCanvasTexturesProxy &textures)
 {
-    return generateMapDataFinisher(textures, getCurrentMap(), std::nullopt);
+    // Pass nullopt for viewParams to indicate a global mesh request
+    return ::generateMapDataFinisher(textures, getCurrentMap(), std::nullopt);
 }
 
-NODISCARD FutureSharedMapBatchFinisher MapData::generateVisibleBatches(const RoomIdSet& visibleRoomIds, const mctp::MapCanvasTexturesProxy &textures)
+NODISCARD FutureSharedMapBatchFinisher MapData::generateVisibleBatches(
+    const mctp::MapCanvasTexturesProxy &textures,
+    int currentLayer,
+    const glm::mat4& viewProjMatrix,
+    int viewportWidth,
+    int viewportHeight
+)
 {
-    return ::generateMapDataFinisher(textures, getCurrentMap(), std::optional<RoomIdSet>{visibleRoomIds});
+    ViewParameters params;
+    params.currentLayer = currentLayer;
+    params.viewProjMatrix = viewProjMatrix;
+    params.viewportWidth = viewportWidth;
+    params.viewportHeight = viewportHeight;
+
+    return ::generateMapDataFinisher(textures, getCurrentMap(), std::make_optional(params));
 }
 
 void MapData::applyChangesToList(const RoomSelection &sel,

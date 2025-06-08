@@ -15,6 +15,7 @@
 #include "MapCanvasData.h"
 #include "MapCanvasRoomDrawer.h"
 #include "Textures.h"
+#include "MapCanvasUtils.h" // Added for projectWorldToScreen
 
 #include <array>
 #include <cstddef>
@@ -233,7 +234,11 @@ public:
     void userPressedEscape(bool);
 
 private:
-    RoomIdSet getVisibleRoomIds() const;
+    static RoomIdSet getVisibleRoomIds(const Map& currentMap,
+                                       int currentLayer,
+                                       const glm::mat4& viewProjMatrix,
+                                       int viewportWidth,
+                                       int viewportHeight);
     void log(const QString &msg) { emit sig_log("MapCanvas", msg); }
 
 signals:

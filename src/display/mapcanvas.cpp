@@ -16,6 +16,7 @@
 #include "../map/infomark.h"
 #include "../map/room.h"
 #include "../map/roomid.h"
+#include "../map/World.h"
 #include "../mapdata/mapdata.h"
 #include "../mapdata/roomselection.h"
 #include "InfoMarkSelection.h"
@@ -354,9 +355,12 @@ void MapCanvas::slot_createRoom()
     }
 }
 
-RoomIdSet MapCanvas::getVisibleRoomIds() const
+RoomIdSet MapCanvas::getVisibleRoomIds(const Map& currentMap,
+                                       int currentLayer,
+                                       const glm::mat4& viewProjMatrix,
+                                       int viewportWidth,
+                                       int viewportHeight)
 {
-    const Map& currentMap = m_data.getCurrentMap();
     const RoomIdSet& allMapRoomIds = currentMap.getRooms();
     std::set<RoomArea> visibleAreas;
 
@@ -366,12 +370,14 @@ RoomIdSet MapCanvas::getVisibleRoomIds() const
             continue;
         }
 
-        if (roomHandle.getPosition().z != m_currentLayer) {
+        if (roomHandle.getPosition().z != currentLayer) {
             continue;
         }
 
         const glm::vec3 roomCenter = roomHandle.getPosition().to_vec3() + glm::vec3(0.5f, 0.5f, 0.0f);
-        const std::optional<glm::vec2> screenPos = project(roomCenter);
+        // Use the static utility function for projection
+        const std::optional<glm::vec2> screenPos = MapCanvasUtils::projectWorldToScreen(
+            roomCenter, viewProjMatrix, glm::ivec2(viewportWidth, viewportHeight));
 
         if (!screenPos.has_value()) {
             continue;
@@ -380,7 +386,8 @@ RoomIdSet MapCanvas::getVisibleRoomIds() const
         const float x = screenPos.value().x;
         const float y = screenPos.value().y;
 
-        if (x >= 0 && x < width() && y >= 0 && y < height()) {
+        // Use passed-in viewport dimensions
+        if (x >= 0 && x < viewportWidth && y >= 0 && y < viewportHeight) {
             const RoomArea area = roomHandle.getArea();
             if (!area.empty()) {
                 visibleAreas.insert(area);
@@ -392,7 +399,9 @@ RoomIdSet MapCanvas::getVisibleRoomIds() const
     for (const RoomArea& areaName : visibleAreas) {
         const RoomIdSet* areaRoomIds = currentMap.getWorld().findAreaRoomSet(areaName);
         if (areaRoomIds != nullptr) {
-            finalRoomIdsToProcess.insert(areaRoomIds->begin(), areaRoomIds->end());
+            for (RoomId roomIdFromArea : *areaRoomIds) {
+                finalRoomIdsToProcess.insert(roomIdFromArea);
+            }
         }
     }
 
@@ -406,13 +415,10 @@ RoomIdSet MapCanvas::getVisibleRoomIds() const
                 continue;
             }
 
-            // This time, we don't filter by m_currentLayer before projection,
-            // because the primary purpose of this fallback is for maps that might
-            // not have Z-levels properly defined or are entirely on one layer.
-            // The projection check itself will handle visibility.
-
             const glm::vec3 roomCenter = roomHandle.getPosition().to_vec3() + glm::vec3(0.5f, 0.5f, 0.0f);
-            const std::optional<glm::vec2> screenPos = project(roomCenter);
+            // Use the static utility function for projection
+            const std::optional<glm::vec2> screenPos = MapCanvasUtils::projectWorldToScreen(
+                roomCenter, viewProjMatrix, glm::ivec2(viewportWidth, viewportHeight));
 
             if (!screenPos.has_value()) {
                 continue;
@@ -421,15 +427,15 @@ RoomIdSet MapCanvas::getVisibleRoomIds() const
             const float x = screenPos.value().x;
             const float y = screenPos.value().y;
 
-            if (x >= 0 && x < width() && y >= 0 && y < height()) {
+            // Use passed-in viewport dimensions
+            if (x >= 0 && x < viewportWidth && y >= 0 && y < viewportHeight) {
                  // Only add if it's on the current layer OR if we are on layer 0 (which might be a "show all" case)
-                if (roomHandle.getPosition().z == m_currentLayer || m_currentLayer == 0) {
+                if (roomHandle.getPosition().z == currentLayer || currentLayer == 0) {
                     finalRoomIdsToProcess.insert(roomId);
                 }
             }
         }
     }
-
 
     return finalRoomIdsToProcess;
 }

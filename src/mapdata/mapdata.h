@@ -71,7 +71,13 @@ public:
     NODISCARD FutureSharedMapBatchFinisher
     generateBatches(const mctp::MapCanvasTexturesProxy &textures);
     NODISCARD FutureSharedMapBatchFinisher
-    generateVisibleBatches(const RoomIdSet& visibleRoomIds, const mctp::MapCanvasTexturesProxy &textures);
+    generateVisibleBatches(
+        const mctp::MapCanvasTexturesProxy &textures,
+        int currentLayer,
+        const glm::mat4& viewProjMatrix,
+        int viewportWidth,
+        int viewportHeight
+    );
 
     // REVISIT: convert to template, or functionref after it compiles everywhere?
     void applyChangesToList(const RoomSelection &sel,

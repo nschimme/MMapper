@@ -24,7 +24,8 @@
 #include <vector>
 
 #include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/matrix_transform.hpp> // For glm::mat4
+#include <optional> // For std::optional
 
 #include <QColor>
 #include <QtCore>
@@ -171,8 +172,19 @@ struct NODISCARD Batches final
     }
 };
 
+struct ViewParameters {
+    int currentLayer;
+    glm::mat4 viewProjMatrix;
+    int viewportWidth;
+    int viewportHeight;
+};
+
 NODISCARD FutureSharedMapBatchFinisher
-generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures, const Map &map, const std::optional<RoomIdSet>& allowedRoomIds = std::nullopt);
+generateMapDataFinisher(
+    const mctp::MapCanvasTexturesProxy &textures,
+    const Map &map,
+    const std::optional<ViewParameters>& viewParams = std::nullopt
+);
 
 extern void finish(const IMapBatchesFinisher &finisher,
                    std::optional<MapBatches> &batches,

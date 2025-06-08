@@ -4,6 +4,7 @@
 
 #include "MapCanvasData.h"
 
+#include <algorithm> // Required for std::min/std::max with initializer list
 #include <optional>
 
 #include <QPointF>
@@ -150,22 +151,46 @@ glm::vec3 MapScreen::getCenter() const
 
 bool MapScreen::isRoomVisible(const Coordinate &c, const float marginPixels) const
 {
-    const auto pos = c.to_vec3();
-    for (int i = 0; i < 4; ++i) {
-        const glm::vec3 offset{static_cast<float>(i & 1), static_cast<float>((i >> 1) & 1), 0.f};
-        const auto corner = pos + offset;
-        switch (testVisibility(corner, marginPixels)) {
-        case VisiblityResultEnum::INSIDE_MARGIN:
-        case VisiblityResultEnum::ON_MARGIN:
-            break;
+    glm::vec3 world_p0 = c.to_vec3();
+    glm::vec3 world_px = world_p0 + glm::vec3(1.0f, 0.0f, 0.0f);
+    glm::vec3 world_py = world_p0 + glm::vec3(0.0f, 1.0f, 0.0f);
 
-        case VisiblityResultEnum::OUTSIDE_MARGIN:
-        case VisiblityResultEnum::OFF_SCREEN:
-            return false;
-        }
+    std::optional<glm::vec3> opt_screen_p0 = m_viewport.project(world_p0);
+    std::optional<glm::vec3> opt_screen_px = m_viewport.project(world_px);
+    std::optional<glm::vec3> opt_screen_py = m_viewport.project(world_py);
+
+    if (!opt_screen_p0 || !opt_screen_px || !opt_screen_py) {
+        return false; // Room is not visible or its screen extent cannot be determined
     }
 
-    return true;
+    glm::vec2 s_p0 = glm::vec2(opt_screen_p0.value());
+    glm::vec2 s_px = glm::vec2(opt_screen_px.value());
+    glm::vec2 s_py = glm::vec2(opt_screen_py.value());
+
+    glm::vec2 v_x = s_px - s_p0;
+    glm::vec2 v_y = s_py - s_p0;
+
+    glm::vec2 s_p00 = s_p0;
+    glm::vec2 s_p10 = s_p0 + v_x; // This is s_px effectively
+    glm::vec2 s_p01 = s_p0 + v_y; // This is s_py effectively
+    glm::vec2 s_p11 = s_p0 + v_x + v_y;
+
+    float room_screen_min_x = std::min({s_p00.x, s_p10.x, s_p01.x, s_p11.x});
+    float room_screen_max_x = std::max({s_p00.x, s_p10.x, s_p01.x, s_p11.x});
+    float room_screen_min_y = std::min({s_p00.y, s_p10.y, s_p01.y, s_p11.y});
+    float room_screen_max_y = std::max({s_p00.y, s_p10.y, s_p01.y, s_p11.y});
+
+    const Viewport& vp_rect = m_viewport.getViewport();
+    float vp_min_x = static_cast<float>(vp_rect.offset.x) - marginPixels;
+    float vp_max_x = static_cast<float>(vp_rect.offset.x) + static_cast<float>(vp_rect.size.x) + marginPixels;
+    float vp_min_y = static_cast<float>(vp_rect.offset.y) - marginPixels;
+    float vp_max_y = static_cast<float>(vp_rect.offset.y) + static_cast<float>(vp_rect.size.y) + marginPixels;
+
+    bool overlap = (room_screen_max_x > vp_min_x &&
+                  room_screen_min_x < vp_max_x &&
+                  room_screen_max_y > vp_min_y &&
+                  room_screen_min_y < vp_max_y);
+    return overlap;
 }
 
 // Purposely ignores the possibility of glClipPlane() and glDepthRange().

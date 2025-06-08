@@ -146,25 +146,26 @@ void SpatialDb::buildAllQuadtrees(ProgressCounter& pc) {
         }
 
         // Calculate min/max X and Y for the current layer
-        float minX = items[0].bounds.minX;
-        float minY = items[0].bounds.minY;
-        float maxX = items[0].bounds.minX; // Initialize with first item's X
-        float maxY = items[0].bounds.minY; // Initialize with first item's Y
+        float minX_layer = items[0].bounds.x;
+        float minY_layer = items[0].bounds.y;
+        float maxX_layer = items[0].bounds.x + items[0].bounds.width;
+        float maxY_layer = items[0].bounds.y + items[0].bounds.height;
 
-        for(const auto& item : items) {
-            if (item.bounds.minX < minX) minX = item.bounds.minX;
-            if (item.bounds.minY < minY) minY = item.bounds.minY;
-            if (item.bounds.minX > maxX) maxX = item.bounds.minX; // Assuming item width is 1, so minX is the x-coord
-            if (item.bounds.minY > maxY) maxY = item.bounds.minY; // Assuming item height is 1, so minY is the y-coord
+        for(size_t i = 1; i < items.size(); ++i) { // Start from the second item
+            const auto& item = items[i];
+            minX_layer = std::min(minX_layer, item.bounds.x);
+            minY_layer = std::min(minY_layer, item.bounds.y);
+            maxX_layer = std::max(maxX_layer, item.bounds.x + item.bounds.width);
+            maxY_layer = std::max(maxY_layer, item.bounds.y + item.bounds.height);
         }
 
-        float layerWidth = (maxX - minX) + 1.0f;
-        float layerHeight = (maxY - minY) + 1.0f;
+        float layerWidth = maxX_layer - minX_layer;
+        float layerHeight = maxY_layer - minY_layer;
 
         if (layerWidth <= 0) layerWidth = 1.0f; // Default small width
         if (layerHeight <= 0) layerHeight = 1.0f; // Default small height
 
-        RoomBounds layerBounds(minX, minY, layerWidth, layerHeight);
+        RoomBounds layerBounds(minX_layer, minY_layer, layerWidth, layerHeight);
 
         // Max items per node and max levels could be constants or configurable
         m_layerQuadtrees.emplace(std::piecewise_construct,

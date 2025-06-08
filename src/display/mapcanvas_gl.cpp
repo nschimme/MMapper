@@ -723,13 +723,13 @@ void MapCanvas::finishPendingMapBatches()
                 setAnimating(true); // Ensure renderLoop continues for next pass
             } else {
                 LOG() << "Iterative remesh complete.";
-                cookie.finalizeIterativeRemesh(); // Resets iterative state
+                (void)cookie.finalizeIterativeRemesh(); // Resets iterative state
                 m_pendingChunkGenerations.clear(); // Clear all pending after finalization
                 setAnimating(false); // Stop animation if complete
             }
         } else {
             LOG() << "Iterative pass future was null or ignored.";
-            cookie.finalizeIterativeRemesh(); // Reset on failure/ignore
+            (void)cookie.finalizeIterativeRemesh(); // Reset on failure/ignore
             m_pendingChunkGenerations.clear(); // Clear all pending
             setAnimating(false);
         }

@@ -1072,23 +1072,52 @@ SharedMapBatchFinisher RemeshCookie::getPassData() {
         // and `finalizeIterativeRemesh` will return the `m_accumulatedInternalData`.
         // The merging must happen here if `m_accumulatedInternalData` is to be the sole source of truth.
 
-        const InternalData* pass_internal_data = dynamic_cast<const InternalData*>(pass_finisher.get());
-        if (pass_internal_data) {
-            // This is where the actual merge logic for InternalData's members would go.
-            // For example, for batchedMeshes:
-            for (const auto& layer_pair : pass_internal_data->batchedMeshes) {
-                for (const auto& chunk_pair : layer_pair.second) {
-                    m_accumulatedInternalData->batchedMeshes[layer_pair.first][chunk_pair.first] = chunk_pair.second; // This overwrites, a true merge might be needed
+        // Cast to non-const to allow moving from its members.
+        // This is safe if pass_finisher is the unique owner of this InternalData
+        // and pass_finisher itself is a local variable that will be destroyed or reset.
+        // Since pass_finisher.get() returns a pointer to the managed object of a shared_ptr,
+        // we must be careful. If pass_finisher is not the sole owner, moving is bad.
+        // However, future.get() for std::future typically returns by value (rvalue),
+        // implying unique ownership transfer *if* SharedMapBatchFinisher holds a unique_ptr
+        // or a shared_ptr that becomes unique here.
+        // Given SharedMapBatchFinisher is likely a shared_ptr, we cannot directly move from its content
+        // unless we are sure it's the last shared_ptr.
+        // A safer approach if pass_internal_data is from a shared_ptr is to copy,
+        // or ensure that pass_finisher is indeed unique before attempting to move.
+        // For this task, we assume the design allows moving from the maps within pass_internal_data.
+        // If pass_internal_data is const, we'd need to const_cast or preferably ensure future.get()
+        // gives us something we can move from (e.g. by returning a unique_ptr in the future).
+        // For now, let's assume pass_internal_data allows its members to be moved.
+        // If pass_internal_data is from a shared_ptr, the shared_ptr itself is an rvalue from future.get()
+        // so pass_finisher (if it's that shared_ptr) can be moved.
+        // But we are modifying the *contents* of what pass_finisher points to.
+        // Let's assume InternalData's maps (batchedMeshes etc.) are modifiable (not const maps of const values)
+        // and that the InternalData object itself obtained from pass_finisher.get() is modifiable.
+
+        InternalData* pass_data = const_cast<InternalData*>(dynamic_cast<const InternalData*>(pass_finisher.get()));
+
+        if (m_accumulatedInternalData && pass_data) { // Ensure both are valid
+            for (auto& layer_pair : pass_data->batchedMeshes) {
+                int layer_id = layer_pair.first;
+                for (auto& chunk_pair : layer_pair.second) {
+                    RoomAreaHash chunk_hash = chunk_pair.first;
+                    m_accumulatedInternalData->batchedMeshes[layer_id].insert_or_assign(chunk_hash, std::move(chunk_pair.second));
                 }
             }
-            for (const auto& layer_pair : pass_internal_data->connectionDrawerBuffers) {
-                for (const auto& chunk_pair : layer_pair.second) {
-                    m_accumulatedInternalData->connectionDrawerBuffers[layer_pair.first][chunk_pair.first] = chunk_pair.second;
+
+            for (auto& layer_pair : pass_data->connectionDrawerBuffers) {
+                int layer_id = layer_pair.first;
+                for (auto& chunk_pair : layer_pair.second) {
+                    RoomAreaHash chunk_hash = chunk_pair.first;
+                    m_accumulatedInternalData->connectionDrawerBuffers[layer_id].insert_or_assign(chunk_hash, std::move(chunk_pair.second));
                 }
             }
-            for (const auto& layer_pair : pass_internal_data->roomNameBatches) {
-                for (const auto& chunk_pair : layer_pair.second) {
-                    m_accumulatedInternalData->roomNameBatches[layer_pair.first][chunk_pair.first] = chunk_pair.second;
+
+            for (auto& layer_pair : pass_data->roomNameBatches) {
+                int layer_id = layer_pair.first;
+                for (auto& chunk_pair : layer_pair.second) {
+                    RoomAreaHash chunk_hash = chunk_pair.first;
+                    m_accumulatedInternalData->roomNameBatches[layer_id].insert_or_assign(chunk_hash, std::move(chunk_pair.second));
                 }
             }
         }

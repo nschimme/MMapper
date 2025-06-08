@@ -1199,10 +1199,10 @@ std::vector<std::pair<int, RoomAreaHash>> MapCanvas::calculateNextPassChunks(
         // Simulating getRoomsInLayerAroundPoint using getRoomsInViewport
         std::vector<RoomId> roomsInRadius = spatialDb.getRoomsInViewport(
             layer_z,
-            viewportCenter_cookie.x_float() - currentLayerSearchRadius,
-            viewportCenter_cookie.y_float() - currentLayerSearchRadius,
-            viewportCenter_cookie.x_float() + currentLayerSearchRadius,
-            viewportCenter_cookie.y_float() + currentLayerSearchRadius
+            static_cast<float>(viewportCenter_cookie.x) - currentLayerSearchRadius,
+            static_cast<float>(viewportCenter_cookie.y) - currentLayerSearchRadius,
+            static_cast<float>(viewportCenter_cookie.x) + currentLayerSearchRadius,
+            static_cast<float>(viewportCenter_cookie.y) + currentLayerSearchRadius
         );
 
         if (roomsInRadius.empty() && layer_z == viewportCenter_cookie.z && passNumber > 0 && completedChunks.empty()){
@@ -1378,7 +1378,7 @@ void MapCanvas::forceUpdateMeshes()
         setAnimating(true); // Start animation to drive iterative loading
     } else {
         // No visible chunks to start with, finalize immediately.
-        m_batches.remeshCookie.finalizeIterativeRemesh();
+        (void)m_batches.remeshCookie.finalizeIterativeRemesh();
         // m_pendingChunkGenerations is already clear.
         setAnimating(false); // Nothing to animate
     }

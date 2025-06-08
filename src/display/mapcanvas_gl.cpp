@@ -129,7 +129,7 @@ void MapCanvas::cleanupOpenGL()
 {
     // Make sure the context is current and then explicitly
     // destroy all underlying OpenGL resources.
-    MakeCurrentRaii makeCurrentRaii{*this};
+    MakeCurrentRaii makeCurrentRaii{*this}; // Assuming MakeCurrentRaii correctly handles QOpenGLWidget context
 
     // note: m_batchedMeshes co-owns textures created by MapCanvasData,
     // and it also owns the lifetime of some OpenGL objects (e.g. VBOs).
@@ -163,7 +163,7 @@ void MapCanvas::reportGLVersion()
     logString("OpenGL GLSL:", GL_SHADING_LANGUAGE_VERSION);
 
     const auto version = [this]() -> std::string {
-        const QSurfaceFormat &format = context()->format();
+        const QSurfaceFormat &format = this->QOpenGLWidget::context()->format();
         std::ostringstream oss;
         switch (format.renderableType()) {
         case QSurfaceFormat::OpenGL:
@@ -190,7 +190,7 @@ void MapCanvas::reportGLVersion()
            QString("%1 (%2)")
                .arg(version.c_str())
                // FIXME: This is a bit late to report an invalid context.
-               .arg(context()->isValid() ? "valid" : "invalid")
+               .arg(this->QOpenGLWidget::context()->isValid() ? "valid" : "invalid")
                .toUtf8());
     logMsg("Display:", QString("%1 DPI").arg(QPaintDevice::devicePixelRatioF()).toUtf8());
 }
@@ -224,8 +224,8 @@ void MapCanvas::initializeGL()
     if (isBlacklistedDriver()) {
         setConfig().canvas.softwareOpenGL = true;
         setConfig().write();
-        hide();
-        doneCurrent();
+        this->QWidget::hide();
+        this->QOpenGLWidget::doneCurrent();
         QMessageBox::critical(this,
                               "OpenGL Driver Blacklisted",
                               "Please restart MMapper to enable software rendering");
@@ -251,7 +251,7 @@ void MapCanvas::initializeGL()
         //     && m_diff.highlight->needsUpdate.empty()) {
         //     this->forceUpdateMeshes();
         // }
-        this->update();
+        this->QWidget::update();
     });
 
     setConfig().canvas.showMissingMapId.registerChangeCallback(m_lifetime, [this]() {
@@ -259,14 +259,14 @@ void MapCanvas::initializeGL()
         //     && m_diff.highlight->needsUpdate.empty()) {
         //     this->forceUpdateMeshes();
         // }
-        this->update();
+        this->QWidget::update();
     });
 
     setConfig().canvas.showUnmappedExits.registerChangeCallback(m_lifetime, [this]() {
         this->forceUpdateMeshes();
     });
 
-    QOpenGLExtraFunctions *f = QOpenGLContext::currentContext()->extraFunctions();
+    QOpenGLExtraFunctions *f = this->QOpenGLWidget::context()->extraFunctions();
     f->glGenVertexArrays(1, &m_defaultVao);
     f->glBindVertexArray(m_defaultVao);
 
@@ -518,15 +518,15 @@ void MapCanvas::setViewportAndMvp(int width, int height)
     auto &gl = getOpenGL();
 
     gl.glViewport(0, 0, width, height);
-    const auto size = getViewport().size;
+    const auto size = this->MapCanvasViewport::getViewport().size;
     assert(size.x == width);
     assert(size.y == height);
 
-    const float zoomScale = getTotalScaleFactor();
+    const float zoomScale = this->MapCanvasViewport::getTotalScaleFactor();
     const auto viewProj = (!want3D) ? getViewProj_old(m_scroll, size, zoomScale, m_currentLayer)
                                     : getViewProj(m_scroll, size, zoomScale, m_currentLayer);
     setMvp(viewProj);
-    updateFrustumPlanes(); // This calls the protected method from MapCanvasViewport
+    this->MapCanvasViewport::updateFrustumPlanes();
     launchVisibilityUpdateTask();
 }
 
@@ -538,11 +538,12 @@ void MapCanvas::resizeGL(int width, int height)
     }
 
     setViewportAndMvp(width, height); // Ensure projection is set before unprojecting
-    updateVisibleChunks();
-    requestMissingChunks();
+    // updateVisibleChunks(); // Calls launchVisibilityUpdateTask
+    // requestMissingChunks(); // Handled by async flow
+    launchVisibilityUpdateTask(); // Explicitly trigger for resize too
 
     // Render
-    update();
+    this->QWidget::update();
 }
 
 void MapCanvas::setAnimating(bool value)
@@ -568,7 +569,7 @@ void MapCanvas::renderLoop()
     auto targetFrameTime = std::chrono::milliseconds(1000 / TARGET_FRAMES_PER_SECOND);
 
     auto now = std::chrono::steady_clock::now();
-    update();
+    this->QWidget::update();
     auto afterPaint = std::chrono::steady_clock::now();
 
     // Render the next frame at the appropriate time or now if we're behind

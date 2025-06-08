@@ -1,6 +1,8 @@
 #pragma once
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
+
+#include "visibility_async_types.h" // Added include for new header
 // Author: Ulf Hermann <ulfonk_mennhar@gmx.de> (Alve)
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
@@ -154,9 +156,9 @@ public:
     NODISCARD float getRawZoom() const { return m_scaleFactor.getRaw(); }
 
 public:
-    NODISCARD auto width() const { return QOpenGLWidget::width(); }
-    NODISCARD auto height() const { return QOpenGLWidget::height(); }
-    NODISCARD auto rect() const { return QOpenGLWidget::rect(); }
+    NODISCARD auto width() const { return this->QOpenGLWidget::width(); }
+    NODISCARD auto height() const { return this->QOpenGLWidget::height(); }
+    NODISCARD auto rect() const { return this->QOpenGLWidget::rect(); }
 
 private:
     void onMovement();
@@ -306,28 +308,4 @@ private:
     void updateVisibleChunks();
     std::optional<glm::vec3> getUnprojectedScreenPos(const glm::vec2& screenPos) const;
     void requestMissingChunks();
-};
-
-// Minimal definition for VisibilityTaskResult for this subtask
-struct VisibilityTaskResult {
-    std::map<int, std::set<RoomAreaHash>> visibleChunksCalculated;
-    std::vector<std::pair<int, RoomAreaHash>> chunksToRequestGenerated;
-    bool success = true;
-    bool originatedFromHighPriorityRequest = false;
-};
-
-struct VisibilityTaskParams {
-    int currentLayer = 0;
-    float viewPortWidth = 0.0f;
-    float viewPortHeight = 0.0f;
-    glm::mat4 viewProjMatrix{1.f}; // Initialize to identity
-    std::array<glm::vec4, 6> frustumPlanes;
-    float vpWorldMinX = 0.0f;
-    float vpWorldMaxX = 0.0f;
-    float vpWorldMinY = 0.0f;
-    float vpWorldMaxY = 0.0f;
-    const MapData* mapDataPtr = nullptr; // Non-owning pointer to const MapData
-    const World* worldPtr = nullptr;     // Non-owning pointer to const World
-    std::set<std::pair<int, RoomAreaHash>> existingValidMeshChunks;
-    bool isHighPriorityRequest = false;
 };

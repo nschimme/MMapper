@@ -7,44 +7,19 @@
 #include "mapcanvas.h"
 
 // Includes for VisibilityHelpers and async task
-#include <glm/vec3.hpp>
-#include <glm/vec4.hpp>
-#include <glm/geometric.hpp> // For glm::dot
-#include <array>             // For std::array - needed by VisibilityHelpers
+// #include <glm/vec3.hpp> // Duplicated below
+// #include <glm/vec4.hpp> // Duplicated below
+// #include <glm/geometric.hpp> // For glm::dot // Duplicated below
+// #include <array>             // For std::array - needed by VisibilityHelpers // Duplicated or via mapcanvas.h
 // #include <vector> // Already included
 // #include <set> // Already included
 // #include <algorithm> // Already included
-#include "MapCanvasRoomDrawer.h" // For ::getRoomAreaHash
-#include <stdexcept>             // For std::runtime_error
-#include <QDebug>                // For qWarning, qDebug
+// #include "MapCanvasRoomDrawer.h" // For ::getRoomAreaHash // Duplicated below
+// #include <stdexcept>             // For std::runtime_error // Duplicated below
+// #include <QDebug>                // For qWarning, qDebug // Duplicated below
 
-namespace VisibilityHelpers {
-    bool isRoomAABBVisible(const glm::vec3& roomMin, const glm::vec3& roomMax, const std::array<glm::vec4, 6>& frustumPlanes) {
-        for (size_t i = 0; i < 6; ++i) {
-            const glm::vec4& plane = frustumPlanes[i];
-            glm::vec3 pVertex = roomMin;
-            if (plane.x > 0.0f) pVertex.x = roomMax.x;
-            if (plane.y > 0.0f) pVertex.y = roomMax.y;
-            if (plane.z > 0.0f) pVertex.z = roomMax.z;
-            if (glm::dot(glm::vec3(plane.x, plane.y, plane.z), pVertex) + plane.w < 0.0f) {
-                return false;
-            }
-        }
-        return true;
-    }
-} // namespace VisibilityHelpers
-
-// Includes for VisibilityHelpers and async task
-#include <glm/vec3.hpp>
-#include <glm/vec4.hpp>
-#include <glm/geometric.hpp> // For glm::dot
-// #include <array> // Already included via mapcanvas.h or other cpp includes
-// #include <vector> // Already included
-// #include <set> // Already included
-// #include <algorithm> // Already included
-#include "MapCanvasRoomDrawer.h" // For ::getRoomAreaHash
-#include <stdexcept>             // For std::runtime_error
-#include <QDebug>                // For qWarning, qDebug
+// Note: VisibilityHelpers namespace and its function are defined further down.
+// This first duplicated block of includes and the namespace is being removed.
 
 #include "../configuration/configuration.h"
 #include "../global/parserutils.h"

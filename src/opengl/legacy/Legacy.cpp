@@ -107,6 +107,13 @@ UniqueMesh Functions::createColoredTexturedBatch(const DrawModeEnum mode,
     return createTexturedMesh<ColoredTexturedMesh>(shared_from_this(), mode, batch, prog, texture);
 }
 
+// Replaces previous createTextureArrayBatch
+std::shared_ptr<InstancedIconArrayMesh> Functions::createInstancedIconArrayRenderer(MMTextureId tex_array_id) {
+    auto prog = getShaderPrograms().getInstancedArrayIconProgram(); // Ensure this is the correct shader program
+    return std::make_shared<InstancedIconArrayMesh>(shared_from_this(), prog, tex_array_id);
+}
+
+
 template<typename VertexType_, template<typename> typename Mesh_, typename ShaderType_>
 static void renderImmediate(const SharedFunctions &sharedFunctions,
                             const DrawModeEnum mode,

@@ -23,6 +23,8 @@ struct NODISCARD LayerMeshes final
     UniqueMeshVector streamIns;
     UniqueMeshVector streamOuts;
     UniqueMesh layerBoost;
+    // UniqueMesh overlayIcons; // For texture array icons (Removed, replaced by instanced version)
+    std::shared_ptr<Legacy::InstancedIconArrayMesh> instancedOverlayIcons; // For instanced icons
     bool isValid = false;
 
     LayerMeshes() = default;

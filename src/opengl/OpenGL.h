@@ -74,6 +74,9 @@ public:
                                                  MMTextureId texture);
     NODISCARD UniqueMesh createColoredTexturedQuadBatch(const std::vector<ColoredTexVert> &verts,
                                                         MMTextureId texture);
+    // NODISCARD UniqueMesh createTextureArrayQuadBatch(const TexArrayVertVector &batch, MMTextureId texture_array_id); // Replaced
+    NODISCARD std::shared_ptr<Legacy::InstancedIconArrayMesh> createInstancedIconArrayRenderer(MMTextureId tex_array_id);
+
 
     NODISCARD UniqueMesh createFontMesh(const SharedMMTexture &texture,
                                         DrawModeEnum mode,

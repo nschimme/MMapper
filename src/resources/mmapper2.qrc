@@ -223,5 +223,9 @@
         <file>shaders/legacy/tex/acolor/vert.glsl</file>
         <file>shaders/legacy/tex/ucolor/frag.glsl</file>
         <file>shaders/legacy/tex/ucolor/vert.glsl</file>
+        <file alias="shaders/legacy/tex_array/ucolor/vert.glsl">shaders/legacy/tex_array/ucolor/vert.glsl</file>
+        <file alias="shaders/legacy/tex_array/ucolor/frag.glsl">shaders/legacy/tex_array/ucolor/frag.glsl</file>
+        <file alias="shaders/legacy/instanced_icons/vert.glsl">shaders/legacy/instanced_icons/vert.glsl</file>
+        <file alias="shaders/legacy/instanced_icons/frag.glsl">shaders/legacy/instanced_icons/frag.glsl</file>
     </qresource>
 </RCC>

@@ -137,9 +137,11 @@ std::optional<RoomId> MapData::getLast(const RoomId start, const CommandQueue &d
     return ret;
 }
 
-FutureSharedMapBatchFinisher MapData::generateBatches(const mctp::MapCanvasTexturesProxy &textures)
+FutureSharedMapBatchFinisher MapData::generateBatches(const mctp::MapCanvasTexturesProxy &textures_proxy,
+                                                     const std::map<MMTextureId, int>& individual_texture_to_array_layer,
+                                                     MMTextureId icon_array_texture_id)
 {
-    return generateMapDataFinisher(textures, getCurrentMap());
+    return generateMapDataFinisher(textures_proxy, getCurrentMap(), individual_texture_to_array_layer, icon_array_texture_id);
 }
 
 void MapData::applyChangesToList(const RoomSelection &sel,

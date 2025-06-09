@@ -266,6 +266,126 @@ void MapCanvas::initTextures()
     }
 
     updateTextures();
+
+    // Initialize icon texture array
+    // These are overlays, so ClamptoEdge is likely better. Min/MagLinear is fine.
+    // No mipmaps for icons for now.
+    constexpr int ICON_WIDTH = 32;
+    constexpr int ICON_HEIGHT = 32;
+
+    struct IconData {
+        QImage image;
+        std::optional<RoomMobFlagEnum> mob_flag;
+        std::optional<RoomLoadFlagEnum> load_flag;
+        bool is_no_ride = false;
+        // Add other variants if necessary for other icon types
+    };
+    std::vector<IconData> icon_images;
+    int current_layer_index = 0;
+
+    // Helper to load and prepare icon image
+    auto load_and_prepare_icon = [&](const QString& filename, bool mirror_image = true) -> QImage {
+        QImage img(filename);
+        if (img.isNull()) {
+            qWarning() << "Failed to load icon image:" << filename;
+            // Return a dummy image
+            img = QImage(ICON_WIDTH, ICON_HEIGHT, QImage::Format_RGBA8888);
+            img.fill(Qt::magenta); // Magenta = error
+            return img;
+        }
+        if (mirror_image) {
+            img = img.mirrored();
+        }
+        if (img.size() != QSize(ICON_WIDTH, ICON_HEIGHT)) {
+            img = img.scaled(ICON_WIDTH, ICON_HEIGHT, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+        }
+        return img.convertToFormat(QImage::Format_RGBA8888);
+    };
+
+    // Collect Mob Icons
+    for (size_t i = 0u; i < textures.mob.size(); ++i) {
+        const auto flag = static_cast<RoomMobFlagEnum>(i);
+        // We still load the individual textures as before for now
+        // textures.mob[flag] = loadTexture(getPixmapFilename(flag));
+        // If textures.mob[flag] is already loaded, we could potentially get the QImage from it,
+        // but QOpenGLTexture doesn't provide a direct way back to QImage.
+        // So, we load the QImage again.
+        QImage mob_image = load_and_prepare_icon(getPixmapFilename(flag));
+        icon_images.push_back({mob_image, flag, std::nullopt, false});
+        textures.mob_icon_layers[flag] = current_layer_index++;
+    }
+
+    // Collect Load Icons
+    for (size_t i = 0u; i < textures.load.size(); ++i) {
+        const auto flag = static_cast<RoomLoadFlagEnum>(i);
+        // textures.load[flag] = loadTexture(getPixmapFilename(flag)); // Still loaded above
+        QImage load_image = load_and_prepare_icon(getPixmapFilename(flag));
+        icon_images.push_back({load_image, std::nullopt, flag, false});
+        textures.load_icon_layers[flag] = current_layer_index++;
+    }
+
+    // Collect NoRide Icon
+    // textures.no_ride = loadTexture(getPixmapFilenameRaw("no-ride.png")); // Still loaded above
+    QImage no_ride_image = load_and_prepare_icon(getPixmapFilenameRaw("no-ride.png"));
+    icon_images.push_back({no_ride_image, std::nullopt, std::nullopt, true});
+    textures.no_ride_icon_layer = current_layer_index++;
+
+    // TODO: Collect other overlay icons like room_sel_distant, room_needs_update, room_modified
+    // For example:
+    // QImage room_needs_update_image = load_and_prepare_icon(getPixmapFilenameRaw("room-needs-update.png"));
+    // icon_images.push_back({room_needs_update_image, ...});
+    // textures.room_needs_update_icon_layer = current_layer_index++; // (Need to add this member to MapCanvasTextures)
+
+
+    const int total_icons = static_cast<int>(icon_images.size());
+
+    if (total_icons > 0) {
+        textures.icon_texture_array = MMTexture::alloc(
+            QOpenGLTexture::Target2DArray,
+            [&](QOpenGLTexture &tex_array) {
+                // tex_array is already created by MMTexture::alloc's internal new QOpenGLTexture(target)
+                // but we need to configure it for 2D Array
+                tex_array.create(); // Ensure it's created if MMTexture didn't do it (it should)
+
+                tex_array.setSize(ICON_WIDTH, ICON_HEIGHT, total_icons); // Width, Height, Depth (layers)
+                tex_array.setFormat(QOpenGLTexture::RGBA8_UNorm);
+                tex_array.setWrapMode(QOpenGLTexture::ClampToEdge);
+                tex_array.setMinMagFilters(QOpenGLTexture::Linear, QOpenGLTexture::Linear);
+                tex_array.setMipLevels(1); // No mipmaps for these icons for now
+                tex_array.allocateStorage();
+
+                for (const auto& icon_data : icon_images) {
+                    int layer_idx = -1;
+                    if (icon_data.is_no_ride) {
+                        layer_idx = textures.no_ride_icon_layer.value();
+                    } else if (icon_data.mob_flag.has_value()) {
+                        layer_idx = textures.mob_icon_layers[icon_data.mob_flag.value()];
+                    } else if (icon_data.load_flag.has_value()) {
+                        layer_idx = textures.load_icon_layers[icon_data.load_flag.value()];
+                    }
+                    // Add conditions for other icon types if they are added
+
+                    if (layer_idx != -1) {
+                        if (!icon_data.image.isNull()) {
+                             // setData(level, layer, QImage)
+                            tex_array.setData(0, layer_idx, icon_data.image);
+                        } else {
+                            qWarning() << "Null image for layer" << layer_idx;
+                        }
+                    } else {
+                        qWarning() << "Layer index not found for an icon image.";
+                    }
+                }
+            },
+            true // forbidUpdates = true, as we populate it once here.
+        );
+        // The icon_texture_array will be assigned an ID in the for_each loop below
+    }
+
+    // After all textures have their IDs assigned by the loop below,
+    // populate the individual_texture_to_array_layer map.
+    // This needs to be done after the main for_each loop.
+    // We'll add a section later for this.
 }
 
 namespace mctp {
@@ -336,4 +456,37 @@ void MapCanvas::updateTextures()
 
     // called to trigger an early error
     std::ignore = mctp::getProxy(m_textures);
+
+    // Populate the individual_texture_to_array_layer map
+    if (textures.icon_texture_array) { // Only if the array was created
+        for (size_t i = 0u; i < textures.mob.size(); ++i) {
+            const auto flag = static_cast<RoomMobFlagEnum>(i);
+            if (textures.mob[flag] && textures.mob[flag]->getId() != INVALID_MM_TEXTURE_ID) {
+                auto it = textures.mob_icon_layers.find(flag);
+                if (it != textures.mob_icon_layers.end()) {
+                    textures.individual_texture_to_array_layer[textures.mob[flag]->getId()] = it->second;
+                }
+            }
+        }
+
+        for (size_t i = 0u; i < textures.load.size(); ++i) {
+            const auto flag = static_cast<RoomLoadFlagEnum>(i);
+            if (textures.load[flag] && textures.load[flag]->getId() != INVALID_MM_TEXTURE_ID) {
+                auto it = textures.load_icon_layers.find(flag);
+                if (it != textures.load_icon_layers.end()) {
+                    textures.individual_texture_to_array_layer[textures.load[flag]->getId()] = it->second;
+                }
+            }
+        }
+
+        if (textures.no_ride && textures.no_ride->getId() != INVALID_MM_TEXTURE_ID && textures.no_ride_icon_layer.has_value()) {
+            textures.individual_texture_to_array_layer[textures.no_ride->getId()] = textures.no_ride_icon_layer.value();
+        }
+
+        // TODO: Add other icons here if they are part of the array
+        // Example:
+        // if (textures.room_needs_update && textures.room_needs_update->getId() != INVALID_MM_TEXTURE_ID && textures.room_needs_update_icon_layer.has_value()) {
+        //     textures.individual_texture_to_array_layer[textures.room_needs_update->getId()] = textures.room_needs_update_icon_layer.value();
+        // }
+    }
 }

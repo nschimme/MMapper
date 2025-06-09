@@ -213,7 +213,7 @@ NODISCARD static GLuint compileShader(Functions &gl, const GLenum type, const So
     return shaderId;
 }
 
-Program loadShaders(Functions &gl, const Source &vert, const Source &frag)
+Program loadShaders(Functions &gl, const Source &vert, const Source &frag, std::function<void(GLuint)> preLinkCallback)
 {
     std::vector<GLuint> shaders{compileShader(gl, GL_VERTEX_SHADER, vert),
                                 compileShader(gl, GL_FRAGMENT_SHADER, frag)};
@@ -238,6 +238,10 @@ Program loadShaders(Functions &gl, const Source &vert, const Source &frag)
         if (is_valid(s)) {
             gl.glAttachShader(prog, s);
         }
+    }
+
+    if (preLinkCallback) {
+        preLinkCallback(prog);
     }
 
     gl.glLinkProgram(prog);

@@ -102,6 +102,11 @@ UniqueMesh OpenGL::createColoredTexturedQuadBatch(const std::vector<ColoredTexVe
     return getFunctions().createColoredTexturedBatch(DrawModeEnum::QUADS, batch, texture);
 }
 
+// Replaces previous createTextureArrayQuadBatch
+std::shared_ptr<Legacy::InstancedIconArrayMesh> OpenGL::createInstancedIconArrayRenderer(MMTextureId tex_array_id) {
+    return getFunctions().createInstancedIconArrayRenderer(tex_array_id);
+}
+
 UniqueMesh OpenGL::createFontMesh(const SharedMMTexture &texture,
                                   const DrawModeEnum mode,
                                   const std::vector<FontVert3d> &batch)

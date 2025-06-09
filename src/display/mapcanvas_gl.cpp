@@ -536,7 +536,8 @@ void MapCanvas::updateMapBatches()
 
     auto getFuture = [this]() {
         MMLOG() << "[updateMapBatches] calling generateBatches";
-        return m_data.generateBatches(mctp::getProxy(m_textures));
+        MMTextureId icon_array_id = m_textures.icon_texture_array ? m_textures.icon_texture_array->getId() : INVALID_MM_TEXTURE_ID;
+        return m_data.generateBatches(mctp::getProxy(m_textures), m_textures.individual_texture_to_array_layer, icon_array_id);
     };
 
     remeshCookie.set(getFuture());

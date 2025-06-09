@@ -649,6 +649,8 @@ struct NODISCARD LayerBatchData final
     ColoredRoomTexVector streamOuts;
     RoomTintArray<PlainQuadBatch> roomTints;
     PlainQuadBatch roomLayerBoostQuads;
+    // TexArrayVertVector roomOverlayIconArrayItems; // Removed
+    std::vector<IconInstanceData> iconInstances; // Added for instanced icons
 
     explicit LayerBatchData() = default;
     ~LayerBatchData() = default;
@@ -694,25 +696,43 @@ struct NODISCARD LayerBatchData final
         meshes.streamIns = ::createSortedColoredTexturedMeshes("streamIns", gl, streamIns);
         meshes.streamOuts = ::createSortedColoredTexturedMeshes("streamOuts", gl, streamOuts);
         meshes.layerBoost = gl.createPlainQuadBatch(roomLayerBoostQuads);
+
+        // For instanced icons
+        if (icon_array_texture_id != INVALID_MM_TEXTURE_ID) {
+            // The renderer is created here, but instance data will be supplied in virt_finish
+            meshes.instancedOverlayIcons = gl.createInstancedIconArrayRenderer(icon_array_texture_id);
+        } else {
+            meshes.instancedOverlayIcons = nullptr;
+        }
+
         meshes.isValid = true;
         return meshes;
     }
 };
 
+// Declaration for createTextureArrayMesh is removed as it's no longer used.
+
 class NODISCARD LayerBatchBuilder final : public IRoomVisitorCallbacks
 {
 private:
     LayerBatchData &m_data;
-    const mctp::MapCanvasTexturesProxy &m_textures;
+    const mctp::MapCanvasTexturesProxy &m_textures_proxy; // Renamed for clarity
     const OptBounds &m_bounds;
+    // Added members for texture array lookup:
+    const std::map<MMTextureId, int>& m_individual_texture_to_array_layer;
+    MMTextureId m_icon_array_texture_id;
 
 public:
     explicit LayerBatchBuilder(LayerBatchData &data,
-                               const mctp::MapCanvasTexturesProxy &textures,
-                               const OptBounds &bounds)
+                               const mctp::MapCanvasTexturesProxy &textures_proxy,
+                               const OptBounds &bounds,
+                               const std::map<MMTextureId, int>& individual_texture_map,
+                               MMTextureId icon_array_texture_id)
         : m_data{data}
-        , m_textures{textures}
+        , m_textures_proxy{textures_proxy}
         , m_bounds{bounds}
+        , m_individual_texture_to_array_layer(individual_texture_map)
+        , m_icon_array_texture_id(icon_array_texture_id)
     {}
 
     ~LayerBatchBuilder() final;
@@ -749,10 +769,23 @@ private:
         }
     }
 
-    void virt_visitOverlayTexture(const RoomHandle &room, const MMTextureId overlay) final
+    void virt_visitOverlayTexture(const RoomHandle &room, const MMTextureId overlay_texture_id) final
     {
-        if (overlay != INVALID_MM_TEXTURE_ID) {
-            m_data.roomOverlays.emplace_back(room, overlay);
+        if (overlay_texture_id == INVALID_MM_TEXTURE_ID) {
+            return;
+        }
+
+        auto it = m_individual_texture_to_array_layer.find(overlay_texture_id);
+
+        if (it != m_individual_texture_to_array_layer.end()) {
+            // This icon is part of the texture array, collect instance data
+            const float layer_idx = static_cast<float>(it->second);
+            // Calculate world_position_center for the icon (center of the room quad)
+            const glm::vec3 world_position_center = room.getPosition().to_vec3() + glm::vec3(0.5f, 0.5f, 0.0f);
+            m_data.iconInstances.emplace_back(IconInstanceData{world_position_center, layer_idx});
+        } else {
+            // This icon is not in the array, add to old m_data.roomOverlays (fallback)
+            m_data.roomOverlays.emplace_back(room, overlay_texture_id);
         }
     }
 
@@ -836,15 +869,18 @@ private:
 LayerBatchBuilder::~LayerBatchBuilder() = default;
 
 NODISCARD static LayerBatchData generateLayerMeshes(const RoomVector &rooms,
-                                                    const mctp::MapCanvasTexturesProxy &textures,
+                                                    const mctp::MapCanvasTexturesProxy &textures_proxy,
                                                     const OptBounds &bounds,
-                                                    const VisitRoomOptions &visitRoomOptions)
+                                                    const VisitRoomOptions &visitRoomOptions,
+                                                    // Added parameters:
+                                                    const std::map<MMTextureId, int>& individual_texture_to_array_layer,
+                                                    MMTextureId icon_array_texture_id)
 {
     DECL_TIMER(t, "generateLayerMeshes");
 
     LayerBatchData data;
-    LayerBatchBuilder builder{data, textures, bounds};
-    visitRooms(rooms, textures, builder, visitRoomOptions);
+    LayerBatchBuilder builder{data, textures_proxy, bounds, individual_texture_to_array_layer, icon_array_texture_id};
+    visitRooms(rooms, textures_proxy, builder, visitRoomOptions);
 
     data.sort();
     return data;
@@ -856,6 +892,7 @@ public:
     std::unordered_map<int, LayerBatchData> batchedMeshes;
     BatchedConnections connectionDrawerBuffers;
     std::unordered_map<int, RoomNameBatch> roomNameBatches;
+    MMTextureId m_icon_array_texture_id = INVALID_MM_TEXTURE_ID; // Added
 
 private:
     void virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const final;
@@ -863,8 +900,11 @@ private:
 
 static void generateAllLayerMeshes(InternalData &internalData,
                                    const LayerToRooms &layerToRooms,
-                                   const mctp::MapCanvasTexturesProxy &textures,
-                                   const VisitRoomOptions &visitRoomOptions)
+                                   const mctp::MapCanvasTexturesProxy &textures_proxy, // Renamed for clarity
+                                   const VisitRoomOptions &visitRoomOptions,
+                                   // Added parameters:
+                                   const std::map<MMTextureId, int>& individual_texture_to_array_layer,
+                                   MMTextureId icon_array_texture_id)
 
 {
     // This feature has been removed, but it's passed to a lot of functions,
@@ -887,7 +927,7 @@ static void generateAllLayerMeshes(InternalData &internalData,
 
         {
             DECL_TIMER(t3, "generateAllLayerMeshes.loop.part2");
-            layerMeshes = ::generateLayerMeshes(rooms, textures, bounds, visitRoomOptions);
+            layerMeshes = ::generateLayerMeshes(rooms, textures_proxy, bounds, visitRoomOptions, individual_texture_to_array_layer, icon_array_texture_id);
         }
 
         {
@@ -976,7 +1016,15 @@ void LayerMeshes::render(const int thisLayer, const int focusedLayer)
         streamOuts.render(lequal_blended.withColor(color));
 
         trails.render(equal_blended.withColor(color));
-        overlays.render(equal_blended.withColor(color));
+        overlays.render(equal_blended.withColor(color)); // Fallback for non-array icons
+
+        // Render instanced icons
+        if (instancedOverlayIcons) {
+            // The GLRenderState here mainly sets up blend/depth.
+            // Texture and shader are handled by InstancedIconArrayMesh::virt_render.
+            // u_icon_base_size is also handled internally by the mesh's render method.
+            instancedOverlayIcons->render(equal_blended.withColor(color)); // Color here is mostly for consistency if program uses it, instanced shader likely doesn't
+        }
     }
 
     // always
@@ -1007,8 +1055,13 @@ void LayerMeshes::render(const int thisLayer, const int focusedLayer)
 void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const
 {
     for (const auto &kv : batchedMeshes) {
-        const LayerBatchData &data = kv.second;
-        output.batchedMeshes[kv.first] = data.getMeshes(gl);
+        const LayerBatchData &data = kv.second; // data is LayerBatchData for this layer
+        output.batchedMeshes[kv.first] = data.getMeshes(gl, m_icon_array_texture_id);
+
+        // After meshes are created, if instancedOverlayIcons mesh exists, update its instance data
+        if (output.batchedMeshes[kv.first].instancedOverlayIcons) {
+            output.batchedMeshes[kv.first].instancedOverlayIcons->updateInstances(data.iconInstances);
+        }
     }
 
     for (const auto &kv : connectionDrawerBuffers) {
@@ -1023,13 +1076,16 @@ void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) con
 }
 
 // NOTE: All of the lamda captures are copied, including the texture data!
-FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
-                                                     const Map &map)
+FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures_proxy,
+                                                     const Map &map,
+                                                     // Added parameters:
+                                                     const std::map<MMTextureId, int>& individual_texture_to_array_layer,
+                                                     MMTextureId icon_array_texture_id)
 {
     const auto visitRoomOptions = getVisitRoomOptions();
 
     return std::async(std::launch::async,
-                      [textures, map, visitRoomOptions]() -> SharedMapBatchFinisher {
+                      [textures_proxy, map, visitRoomOptions, individual_texture_to_array_layer, icon_array_texture_id]() -> SharedMapBatchFinisher {
                           ThreadLocalNamedColorRaii tlRaii{visitRoomOptions.canvasColors,
                                                            visitRoomOptions.colorSettings};
                           DECL_TIMER(t, "[ASYNC] generateAllLayerMeshes");
@@ -1047,8 +1103,10 @@ FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTextur
                           }();
 
                           auto result = std::make_shared<InternalData>();
+                          // Store the icon_array_texture_id in InternalData
+                          result->m_icon_array_texture_id = icon_array_texture_id;
                           auto &data = deref(result);
-                          generateAllLayerMeshes(data, layerToRooms, textures, visitRoomOptions);
+                          generateAllLayerMeshes(data, layerToRooms, textures_proxy, visitRoomOptions, individual_texture_to_array_layer, icon_array_texture_id);
                           return SharedMapBatchFinisher{result};
                       });
 }

@@ -35,6 +35,33 @@ struct NODISCARD TexVert final
 
 using TexVertVector = std::vector<TexVert>;
 
+struct NODISCARD TexArrayVert {
+    glm::vec2 tex_coord; // Standard UV for the quad (0,0 to 1,1)
+    glm::vec3 position;  // World position of the vertex
+    float tex_layer;     // Layer index in the texture array
+
+    // Optional: Add color if overlays can be tinted, though usually not for icons.
+    // Color color;
+
+    TexArrayVert(const glm::vec2& tc, const glm::vec3& pos, float layer)
+        : tex_coord(tc), position(pos), tex_layer(layer) {}
+};
+using TexArrayVertVector = std::vector<TexArrayVert>;
+
+// Example for colored version, if needed later:
+/*
+struct NODISCARD ColoredTexArrayVert {
+    Color color;
+    glm::vec2 tex_coord;
+    glm::vec3 position;
+    float tex_layer;
+
+    ColoredTexArrayVert(const Color& c, const glm::vec2& tc, const glm::vec3& pos, float layer)
+        : color(c), tex_coord(tc), position(pos), tex_layer(layer) {}
+};
+using ColoredTexArrayVertVector = std::vector<ColoredTexArrayVert>;
+*/
+
 struct NODISCARD ColoredTexVert final
 {
     Color color;
@@ -369,3 +396,38 @@ struct NODISCARD Viewport
 static constexpr const size_t VERTS_PER_LINE = 2;
 static constexpr const size_t VERTS_PER_TRI = 3;
 static constexpr const size_t VERTS_PER_QUAD = 4;
+
+// Standard attribute locations
+enum AttributesEnum : GLuint {
+    // General purpose attributes
+    ATTR_POSITION = 0,      // For generic vertex position
+    ATTR_COLOR = 1,         // For generic per-vertex color
+    ATTR_TEX_COORD = 2,     // For generic texture coordinates
+
+    // Attributes for the previous texture array approach (non-instanced)
+    ATTR_TEX_LAYER_NON_INSTANCED = 5, // Was TEX_LAYER for non-instanced array shader
+
+    // Attributes for instanced icon rendering
+    ATTR_BASE_QUAD_POSITION = 3,         // vec2 a_quad_pos (base quad vertex)
+    ATTR_BASE_QUAD_UV = 4,               // vec2 a_quad_uv (base quad UV)
+    ATTR_INSTANCE_WORLD_POS_CENTER = 5,  // vec3 a_instance_world_pos_center (per-instance)
+    ATTR_INSTANCE_TEX_LAYER_INDEX = 6    // float a_instance_tex_layer (per-instance)
+};
+
+// Vertex structure for a base quad (used in instanced rendering)
+struct NODISCARD BaseQuadVert {
+    glm::vec2 position; // Vertex position for the quad (e.g., 0,0 to 1,1)
+    glm::vec2 uv;       // Texture coordinate for the quad (e.g., 0,0 to 1,1)
+
+    BaseQuadVert(const glm::vec2& pos, const glm::vec2& tex_uv)
+        : position(pos), uv(tex_uv) {}
+};
+
+// Data structure for per-instance information for icons
+struct NODISCARD IconInstanceData {
+    glm::vec3 world_position_center; // Center of the icon in world space
+    float tex_layer_index;           // Layer index in the texture array for this icon
+
+    IconInstanceData(const glm::vec3& world_pos_center, float layer_idx)
+        : world_position_center(world_pos_center), tex_layer_index(layer_idx) {}
+};

@@ -137,6 +137,15 @@ struct NODISCARD MapCanvasTextures final
     XFOREACH_MAPCANVAS_TEXTURES(X_DECL)
 #undef X_DECL
 
+    SharedMMTexture icon_texture_array; // For GL_TEXTURE_2D_ARRAY
+    std::map<RoomMobFlagEnum, int> mob_icon_layers;
+    std::map<RoomLoadFlagEnum, int> load_icon_layers;
+    std::optional<int> no_ride_icon_layer;
+    // TODO: Add other icon layers as needed e.g. room_sel_distant, room_needs_update, room_modified etc.
+
+    // Map from original individual icon texture ID to its layer in icon_texture_array
+    std::map<MMTextureId, int> individual_texture_to_array_layer;
+
 private:
     template<typename Callback>
     static void apply_callback(SharedMMTexture &tex, Callback &&callback)
@@ -157,6 +166,9 @@ public:
 #define X_EACH(_Type, _Name) apply_callback(_Name, callback);
         XFOREACH_MAPCANVAS_TEXTURES(X_EACH)
 #undef X_EACH
+        // Manually handle the new members if they need to be part of for_each
+        if (icon_texture_array) callback(icon_texture_array);
+        // The maps (mob_icon_layers, etc.) don't store SharedMMTexture, so they are not part of this loop.
     }
 
     void destroyAll();

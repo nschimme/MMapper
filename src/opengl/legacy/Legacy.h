@@ -298,6 +298,8 @@ public:
     NODISCARD UniqueMesh createColoredTexturedBatch(DrawModeEnum mode,
                                                     const std::vector<ColoredTexVert> &batch,
                                                     MMTextureId texture);
+    // NODISCARD UniqueMesh createTextureArrayBatch(DrawModeEnum mode, const TexArrayVertVector &batch, MMTextureId texture_array_id); // Replaced by instanced version
+    NODISCARD std::shared_ptr<InstancedIconArrayMesh> createInstancedIconArrayRenderer(MMTextureId tex_array_id);
 
 public:
     NODISCARD UniqueMesh createFontMesh(const SharedMMTexture &texture,

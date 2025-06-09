@@ -12,6 +12,7 @@
 #include <memory>
 #include <optional>
 #include <vector>
+#include <QDebug> // For qDebug output
 
 namespace Legacy {
 
@@ -194,29 +195,51 @@ private:
         if (isEmpty() || m_vao == 0) { // If m_vao is 0, it's not usable
             return;
         }
+        // m_functions.checkError(); // Check at start
 
-        m_functions.checkError();
-        m_functions.glBindVertexArray(m_vao); // Bind the VAO for this mesh
+        qDebug() << "DEBUG_RENDER: virt_render for mesh with m_vao:" << m_vao << "numVerts:" << m_numVerts;
+        qDebug() << "DEBUG_RENDER: renderState uniforms - color:" << renderState.uniforms.color.toString()
+                 << "tex0:" << renderState.uniforms.texture0_id.value_or(INVALID_MM_TEXTURE_ID)
+                 << "pointSize:" << renderState.uniforms.pointSize.value_or(0.0f);
 
-        const glm::mat4 mvp = m_functions.getProjectionMatrix();
+        m_functions.glBindVertexArray(m_vao); // VAO is bound
+        // m_functions.checkError(); // After VAO bind
+
+        const glm::mat4 mvp = m_functions.getProjectionMatrix(); // Assuming this is combined ModelViewProjection
+        // For debugging, log parts of the MVP matrix if it's suspect, e.g., mvp[3][0], mvp[3][1], mvp[3][2] (translation)
+        // qDebug() << "DEBUG_RENDER: MVP matrix (sample translation):" << mvp[3][0] << mvp[3][1] << mvp[3][2];
+        // qDebug() << "DEBUG_RENDER: MVP matrix (sample scale):" << mvp[0][0] << mvp[1][1] << mvp[2][2];
+
+
         auto programUnbinder = m_program.bind();
-        m_program.setUniforms(mvp, renderState.uniforms);
-        RenderStateBinder renderStateBinder(m_functions, m_functions.getTexLookup(), renderState);
-        // AttribUnbinder is no longer created here
+        qDebug() << "DEBUG_RENDER: Program bound:" << m_program.get();
+        // m_functions.checkError(); // After program bind
 
-        m_functions.checkError();
+        m_program.setUniforms(mvp, renderState.uniforms);
+        qDebug() << "DEBUG_RENDER: Uniforms set.";
+        // m_functions.checkError(); // After setUniforms
+
+        // Log what RenderStateBinder will do (conceptual, actual logging might need RenderStateBinder modification)
+        qDebug() << "DEBUG_RENDER: Applying GLRenderState - BlendMode:" << static_cast<int>(renderState.blendMode)
+                 << "DepthTest:" << (renderState.depthFunction.has_value() ? "Enabled" : "Disabled")
+                 << "CullFace:" << (renderState.cullFace.has_value() ? "Enabled" : "Disabled");
+
+        RenderStateBinder renderStateBinder(m_functions, m_functions.getTexLookup(), renderState);
+        qDebug() << "DEBUG_RENDER: RenderStateBinder constructed.";
+        // m_functions.checkError(); // After RenderStateBinder
 
         if (const std::optional<GLenum> &optMode = Functions::toGLenum(m_drawMode)) {
+            qDebug() << "DEBUG_RENDER: Calling glDrawArrays with mode" << optMode.value() << "and count" << m_numVerts;
             m_functions.glDrawArrays(optMode.value(), 0, m_numVerts);
+            // m_functions.checkError(); // After glDrawArrays
         } else {
-            assert(false);
+            qWarning() << "DEBUG_RENDER: Invalid draw mode in virt_render";
         }
 
-        // Unbind the VAO after drawing
         m_functions.glBindVertexArray(0);
-        // programUnbinder and renderStateBinder will unbind program and reset states on destruction
-
-        m_functions.checkError();
+        // programUnbinder and renderStateBinder will unbind/reset state on destruction
+        qDebug() << "DEBUG_RENDER: VAO unbound, render finished.";
+        // m_functions.checkError(); // At end
     }
 };
 } // namespace Legacy

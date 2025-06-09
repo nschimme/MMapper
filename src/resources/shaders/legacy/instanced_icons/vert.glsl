@@ -1,4 +1,3 @@
-#version 150 core
 // Per-vertex attributes for the base quad
 in vec2 a_quad_pos;    // Corresponds to AttributesEnum::ATTR_BASE_QUAD_POSITION
 in vec2 a_quad_uv;     // Corresponds to AttributesEnum::ATTR_BASE_QUAD_UV

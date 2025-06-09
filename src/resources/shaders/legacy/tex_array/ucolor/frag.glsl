@@ -1,4 +1,3 @@
-#version 150 core
 
 in vec2 vTexCoord;
 in float vTexLayer; // Received from vertex shader

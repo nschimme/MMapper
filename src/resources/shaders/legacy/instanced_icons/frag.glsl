@@ -1,4 +1,3 @@
-#version 150 core
 
 in vec2 v_tex_coord;
 in float v_tex_layer;

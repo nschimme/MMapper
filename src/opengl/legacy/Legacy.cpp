@@ -346,4 +346,14 @@ void Functions::glDeleteVertexArrays(GLsizei n, const GLuint *arrays)
     QOpenGLContext::currentContext()->extraFunctions()->glDeleteVertexArrays(n, arrays);
 }
 
+void Functions::glVertexAttribDivisor(GLuint index, GLuint divisor)
+{
+    QOpenGLContext::currentContext()->extraFunctions()->glVertexAttribDivisor(index, divisor);
+}
+
+void Functions::glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const void *indices, GLsizei instancecount)
+{
+    QOpenGLContext::currentContext()->extraFunctions()->glDrawElementsInstanced(mode, count, type, indices, instancecount);
+}
+
 } // namespace Legacy

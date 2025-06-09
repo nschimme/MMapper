@@ -1,4 +1,5 @@
 #pragma once
+#include "../opengl/OpenGLTypes.h" // Added for MMTextureId potentially used via mapdata.h
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)

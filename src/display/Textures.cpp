@@ -367,8 +367,9 @@ void MapCanvas::initTextures()
 
                     if (layer_idx != -1) {
                         if (!icon_data.image.isNull()) {
-                             // setData(level, layer, QImage)
-                            tex_array.setData(0, layer_idx, icon_data.image);
+                            // Explicitly provide format and type for setData with raw data
+                            // Ensure icon_data.image is in a compatible format (e.g., RGBA8888, as prepared by load_and_prepare_icon)
+                            tex_array.setData(0, layer_idx, QOpenGLTexture::RGBA, QOpenGLTexture::UInt8, static_cast<const void*>(icon_data.image.constBits()), nullptr);
                         } else {
                             qWarning() << "Null image for layer" << layer_idx;
                         }
@@ -458,35 +459,36 @@ void MapCanvas::updateTextures()
     std::ignore = mctp::getProxy(m_textures);
 
     // Populate the individual_texture_to_array_layer map
-    if (textures.icon_texture_array) { // Only if the array was created
-        for (size_t i = 0u; i < textures.mob.size(); ++i) {
+    // This code block is at the end of MapCanvas::initTextures, not updateTextures
+    if (m_textures.icon_texture_array) { // Only if the array was created. Use m_textures.
+        for (size_t i = 0u; i < m_textures.mob.size(); ++i) {
             const auto flag = static_cast<RoomMobFlagEnum>(i);
-            if (textures.mob[flag] && textures.mob[flag]->getId() != INVALID_MM_TEXTURE_ID) {
-                auto it = textures.mob_icon_layers.find(flag);
-                if (it != textures.mob_icon_layers.end()) {
-                    textures.individual_texture_to_array_layer[textures.mob[flag]->getId()] = it->second;
+            if (m_textures.mob[flag] && m_textures.mob[flag]->getId() != INVALID_MM_TEXTURE_ID) {
+                auto it = m_textures.mob_icon_layers.find(flag);
+                if (it != m_textures.mob_icon_layers.end()) {
+                    m_textures.individual_texture_to_array_layer[m_textures.mob[flag]->getId()] = it->second;
                 }
             }
         }
 
-        for (size_t i = 0u; i < textures.load.size(); ++i) {
+        for (size_t i = 0u; i < m_textures.load.size(); ++i) {
             const auto flag = static_cast<RoomLoadFlagEnum>(i);
-            if (textures.load[flag] && textures.load[flag]->getId() != INVALID_MM_TEXTURE_ID) {
-                auto it = textures.load_icon_layers.find(flag);
-                if (it != textures.load_icon_layers.end()) {
-                    textures.individual_texture_to_array_layer[textures.load[flag]->getId()] = it->second;
+            if (m_textures.load[flag] && m_textures.load[flag]->getId() != INVALID_MM_TEXTURE_ID) {
+                auto it = m_textures.load_icon_layers.find(flag);
+                if (it != m_textures.load_icon_layers.end()) {
+                    m_textures.individual_texture_to_array_layer[m_textures.load[flag]->getId()] = it->second;
                 }
             }
         }
 
-        if (textures.no_ride && textures.no_ride->getId() != INVALID_MM_TEXTURE_ID && textures.no_ride_icon_layer.has_value()) {
-            textures.individual_texture_to_array_layer[textures.no_ride->getId()] = textures.no_ride_icon_layer.value();
+        if (m_textures.no_ride && m_textures.no_ride->getId() != INVALID_MM_TEXTURE_ID && m_textures.no_ride_icon_layer.has_value()) {
+            m_textures.individual_texture_to_array_layer[m_textures.no_ride->getId()] = m_textures.no_ride_icon_layer.value();
         }
 
         // TODO: Add other icons here if they are part of the array
         // Example:
-        // if (textures.room_needs_update && textures.room_needs_update->getId() != INVALID_MM_TEXTURE_ID && textures.room_needs_update_icon_layer.has_value()) {
-        //     textures.individual_texture_to_array_layer[textures.room_needs_update->getId()] = textures.room_needs_update_icon_layer.value();
+        // if (m_textures.room_needs_update && m_textures.room_needs_update->getId() != INVALID_MM_TEXTURE_ID && m_textures.room_needs_update_icon_layer.has_value()) {
+        //     m_textures.individual_texture_to_array_layer[m_textures.room_needs_update->getId()] = m_textures.room_needs_update_icon_layer.value();
         // }
     }
 }

@@ -1,4 +1,3 @@
-#version 150 core
 
 in vec3 aPosition;
 in vec2 aTexCoord;

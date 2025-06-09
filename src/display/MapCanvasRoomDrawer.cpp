@@ -677,7 +677,8 @@ struct NODISCARD LayerBatchData final
         streamOuts.sortByTexture();
     }
 
-    NODISCARD LayerMeshes getMeshes(OpenGL &gl) const
+    // Corrected signature for getMeshes
+    NODISCARD LayerMeshes getMeshes(OpenGL &gl, MMTextureId icon_array_texture_id_param) const
     {
         DECL_TIMER(t, "getMeshes");
 
@@ -688,7 +689,7 @@ struct NODISCARD LayerBatchData final
         for (const RoomTintEnum tint : ALL_ROOM_TINTS) {
             meshes.tints[tint] = gl.createPlainQuadBatch(roomTints[tint]);
         }
-        meshes.overlays = ::createSortedTexturedMeshes("overlays", gl, roomOverlays);
+        meshes.overlays = ::createSortedTexturedMeshes("overlays", gl, roomOverlays); // Fallback non-array overlays
         meshes.doors = ::createSortedColoredTexturedMeshes("doors", gl, doors);
         meshes.walls = ::createSortedColoredTexturedMeshes("solidWalls", gl, solidWallLines);
         meshes.dottedWalls = ::createSortedColoredTexturedMeshes("dottedWalls", gl, dottedWallLines);
@@ -698,9 +699,9 @@ struct NODISCARD LayerBatchData final
         meshes.layerBoost = gl.createPlainQuadBatch(roomLayerBoostQuads);
 
         // For instanced icons
-        if (icon_array_texture_id != INVALID_MM_TEXTURE_ID) {
+        if (icon_array_texture_id_param != INVALID_MM_TEXTURE_ID) {
             // The renderer is created here, but instance data will be supplied in virt_finish
-            meshes.instancedOverlayIcons = gl.createInstancedIconArrayRenderer(icon_array_texture_id);
+            meshes.instancedOverlayIcons = gl.createInstancedIconArrayRenderer(icon_array_texture_id_param);
         } else {
             meshes.instancedOverlayIcons = nullptr;
         }
@@ -716,23 +717,23 @@ class NODISCARD LayerBatchBuilder final : public IRoomVisitorCallbacks
 {
 private:
     LayerBatchData &m_data;
-    const mctp::MapCanvasTexturesProxy &m_textures_proxy; // Renamed for clarity
+    const mctp::MapCanvasTexturesProxy &m_textures_proxy; // Correctly using m_textures_proxy
     const OptBounds &m_bounds;
     // Added members for texture array lookup:
     const std::map<MMTextureId, int>& m_individual_texture_to_array_layer;
-    MMTextureId m_icon_array_texture_id;
+    MMTextureId m_icon_array_texture_id; // This member seems unused in LayerBatchBuilder itself now
 
 public:
     explicit LayerBatchBuilder(LayerBatchData &data,
-                               const mctp::MapCanvasTexturesProxy &textures_proxy,
+                               const mctp::MapCanvasTexturesProxy &textures_proxy, // Correct name
                                const OptBounds &bounds,
                                const std::map<MMTextureId, int>& individual_texture_map,
-                               MMTextureId icon_array_texture_id)
+                               MMTextureId icon_array_texture_id_param) // Param name changed for clarity
         : m_data{data}
-        , m_textures_proxy{textures_proxy}
+        , m_textures_proxy{textures_proxy} // Correct init
         , m_bounds{bounds}
         , m_individual_texture_to_array_layer(individual_texture_map)
-        , m_icon_array_texture_id(icon_array_texture_id)
+        , m_icon_array_texture_id(icon_array_texture_id_param) // Correct init
     {}
 
     ~LayerBatchBuilder() final;
@@ -819,17 +820,15 @@ private:
         const auto glcolor = optColor.value();
 
         if (wallType == WallTypeEnum::DOOR) {
-            // Note: We could use two door textures (NESW and UD), and then just rotate the
-            // texture coordinates, but doing that would require a different code path.
-            const MMTextureId tex = m_textures.door[dir];
+            const MMTextureId tex = m_textures_proxy.door[dir]; // Use m_textures_proxy
             m_data.doors.emplace_back(room, tex, glcolor);
         } else {
             if (isNESW(dir)) {
                 if (wallType == WallTypeEnum::SOLID) {
-                    const MMTextureId tex = m_textures.wall[dir];
+                    const MMTextureId tex = m_textures_proxy.wall[dir]; // Use m_textures_proxy
                     m_data.solidWallLines.emplace_back(room, tex, glcolor);
                 } else {
-                    const MMTextureId tex = m_textures.dotted_wall[dir];
+                    const MMTextureId tex = m_textures_proxy.dotted_wall[dir]; // Use m_textures_proxy
                     m_data.dottedWallLines.emplace_back(room, tex, glcolor);
                 }
             } else {
@@ -837,9 +836,10 @@ private:
                 assert(isUp || dir == ExitDirEnum::DOWN);
 
                 const MMTextureId tex = isClimb
-                                            ? (isUp ? m_textures.exit_climb_up
-                                                    : m_textures.exit_climb_down)
-                                            : (isUp ? m_textures.exit_up : m_textures.exit_down);
+                                            ? (isUp ? m_textures_proxy.exit_climb_up // Use m_textures_proxy
+                                                    : m_textures_proxy.exit_climb_down) // Use m_textures_proxy
+                                            : (isUp ? m_textures_proxy.exit_up // Use m_textures_proxy
+                                                    : m_textures_proxy.exit_down); // Use m_textures_proxy
 
                 m_data.roomUpDownExits.emplace_back(room, tex, glcolor);
             }
@@ -853,10 +853,10 @@ private:
         const Color color = LOOKUP_COLOR(STREAM).getColor();
         switch (type) {
         case StreamTypeEnum::OutFlow:
-            m_data.streamOuts.emplace_back(room, m_textures.stream_out[dir], color);
+            m_data.streamOuts.emplace_back(room, m_textures_proxy.stream_out[dir], color); // Use m_textures_proxy
             return;
         case StreamTypeEnum::InFlow:
-            m_data.streamIns.emplace_back(room, m_textures.stream_in[dir], color);
+            m_data.streamIns.emplace_back(room, m_textures_proxy.stream_in[dir], color); // Use m_textures_proxy
             return;
         default:
             break;
@@ -900,7 +900,7 @@ private:
 
 static void generateAllLayerMeshes(InternalData &internalData,
                                    const LayerToRooms &layerToRooms,
-                                   const mctp::MapCanvasTexturesProxy &textures_proxy, // Renamed for clarity
+                                   const mctp::MapCanvasTexturesProxy &textures_proxy,
                                    const VisitRoomOptions &visitRoomOptions,
                                    // Added parameters:
                                    const std::map<MMTextureId, int>& individual_texture_to_array_layer,

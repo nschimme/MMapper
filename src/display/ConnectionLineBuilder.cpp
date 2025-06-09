@@ -3,6 +3,7 @@
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
 #include "ConnectionLineBuilder.h"
+#include "../opengl/OpenGLTypes.h" // Added due to include chain (ConnectionLineBuilder.h -> OpenGL.h -> Meshes.h -> OpenGLTypes.h)
 
 #include "../map/ExitDirection.h"
 

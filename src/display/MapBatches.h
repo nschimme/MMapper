@@ -4,6 +4,7 @@
 
 #include "Connections.h"
 #include "MapCanvasData.h"
+#include "../opengl/legacy/Meshes.h" // Added for InstancedIconArrayMesh
 
 #include <map>
 

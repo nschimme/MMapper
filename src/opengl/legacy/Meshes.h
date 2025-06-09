@@ -2,12 +2,27 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
 
-#include "../../global/utils.h"
-#include "Legacy.h"
-#include "Shaders.h"
-#include "SimpleMesh.h"
+// Enforced include order for Meshes.h
+#include "../OpenGLTypes.h"    // 1. Basic GL types, enums, IRenderable, forward declarations (MMTexture), BaseQuadVert etc.
+#include "../../display/Textures.h" // 2. Full MMTexture definition
+#include "./Binders.h"          // 3. BlendBinder, DepthBinder
+#include "./Shaders.h"          // 4. Shader program classes (InstancedArrayIconProgram, AbstractShaderProgram)
+// Note: Legacy.h is included by Shaders.h or other files using Legacy::Functions.
+// SimpleMesh.h is included after this block for other mesh definitions in this file.
 
+// Standard library
+#include <vector>
+#include <memory>
 #include <optional>
+#include <string> // May be needed by some mesh logic, good to have.
+#include <stdexcept> // For runtime_error
+
+// Global utilities
+#include "../../global/RAII.h"    // For RAIICallback
+#include "../../global/utils.h"   // For deref, etc.
+
+// Must come after primary types are defined, especially IRenderable from OpenGLTypes.h
+#include "./SimpleMesh.h"       // For base classes of other mesh types defined in this file (PlainMesh, etc.)
 
 #define VOIDPTR_OFFSETOF(x, y) reinterpret_cast<void *>(offsetof(x, y))
 #define VPO(x) VOIDPTR_OFFSETOF(VertexType_, x)
@@ -292,104 +307,11 @@ private:
     }
 };
 
-// Textured array mesh (uniform color from shader, or white if not set)
-template<typename VertexType_ = TexArrayVert, typename ProgType_ = TexturedArrayProgram>
-class NODISCARD TexturedArrayMesh final : public SimpleMesh<VertexType_, ProgType_>
-{
-public:
-    using Base = SimpleMesh<VertexType_, ProgType_>;
-    using Base::Base;
-
-private:
-    struct NODISCARD Attribs final
-    {
-        GLuint texCoordPos = INVALID_ATTRIB_LOCATION;
-        GLuint vertPos = INVALID_ATTRIB_LOCATION;
-        GLuint texLayerPos = INVALID_ATTRIB_LOCATION; // New
-
-        NODISCARD static Attribs getLocations(AbstractShaderProgram &shader)
-        {
-            Attribs result;
-            result.texCoordPos = shader.getAttribLocation("aTexCoord");
-            result.vertPos = shader.getAttribLocation("aPosition"); // Matches textured_array_acolor.vert
-            result.texLayerPos = shader.getAttribLocation("aTexLayer"); // Matches textured_array_acolor.vert
-            return result;
-        }
-    };
-
-    std::optional<Attribs> boundAttribs;
-
-    void virt_bind() override
-    {
-        const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
-        static_assert(sizeof(std::declval<VertexType_>().tex_coord) == 2 * sizeof(GLfloat));
-        static_assert(sizeof(std::declval<VertexType_>().position) == 3 * sizeof(GLfloat));
-        static_assert(sizeof(std::declval<VertexType_>().tex_layer) == 1 * sizeof(GLfloat));
-
-        Functions &gl = Base::m_functions;
-        const auto attribs = Attribs::getLocations(Base::m_program);
-        gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
-
-        gl.enableAttrib(attribs.texCoordPos, 2, GL_FLOAT, GL_FALSE, vertSize, VPO(tex_coord));
-        gl.enableAttrib(attribs.vertPos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(position));
-        gl.enableAttrib(attribs.texLayerPos, 1, GL_FLOAT, GL_FALSE, vertSize, VPO(tex_layer)); // New
-        boundAttribs = attribs;
-    }
-
-    void virt_unbind() override
-    {
-        if (!boundAttribs) {
-            assert(false);
-            return;
-        }
-
-        auto &attribs = boundAttribs.value();
-        Functions &gl = Base::m_functions;
-        gl.glDisableVertexAttribArray(attribs.texCoordPos);
-        gl.glDisableVertexAttribArray(attribs.vertPos);
-        gl.glDisableVertexAttribArray(attribs.texLayerPos); // New
-        gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
-        boundAttribs.reset();
-    }
-};
-
-class NODISCARD InstancedIconArrayMesh final : public IRenderable {
-public:
-    InstancedIconArrayMesh(SharedFunctions funcs, std::shared_ptr<InstancedArrayIconProgram> prog, MMTextureId array_tex_id);
-    ~InstancedIconArrayMesh() override;
-
-    void updateInstances(const std::vector<IconInstanceData>& instance_data);
-    MMTextureId getTextureId() const { return m_array_texture_id; }
-
-protected:
-    // IRenderable overrides
-    void virt_clear() override; // Clears instance data
-    void virt_reset() override; // Deletes GL resources
-    bool virt_isEmpty() const override;
-    void virt_render(const GLRenderState& state) override;
-
-private:
-    SharedFunctions m_shared_functions;
-    Functions &m_functions;
-    std::shared_ptr<InstancedArrayIconProgram> m_program;
-    MMTextureId m_array_texture_id;
-
-    GLuint m_vao = 0;
-    GLuint m_base_quad_vbo = 0;       // For BaseQuadVert
-    GLuint m_base_quad_ibo = 0;       // For indices of the base quad
-    GLuint m_instance_data_vbo = 0;   // For IconInstanceData
-
-    GLsizei m_instance_count = 0;
-    GLsizei m_base_quad_index_count = 0;
-
-    // Static data for the base quad (centered at 0,0, size 1x1)
-    // Actual positioning and scaling happens in the vertex shader based on instance data.
-    static const std::vector<BaseQuadVert> s_base_quad_verts;
-    static const std::vector<unsigned int> s_base_quad_indices;
-
-    void initMesh(); // Helper called by constructor
-    void cleanupMesh(); // Helper called by destructor/reset
-};
+// This replacement will remove the first definition of InstancedIconArrayMesh
+// (which was less complete and caused the redefinition error).
+// The second, more complete definition (already added in a previous step) will remain.
+// The key is that the SEARCH block must exactly match the first definition.
+// The first definition (the one to remove) is the one that does NOT have the inline implementations.
 
 class NODISCARD InstancedIconArrayMesh final : public IRenderable {
 public:
@@ -442,45 +364,42 @@ protected:
 
         // Placeholder for icon size: using pointSize from GLRenderState or default 1.0f
         // TODO: Add a dedicated iconSize to GLRenderState::Uniforms
-        float icon_size = state.uniforms.pointSize.value_or(1.0f);
+        float icon_size = state.uniforms.pointSize.value_or(1.0f); // TODO: Use state.uniforms.iconSize
         m_program->setIconBaseSize(icon_size);
 
+        auto& texLookup = m_functions.getTexLookup();
+
         if (m_array_texture_id != INVALID_MM_TEXTURE_ID) {
-            // Assuming getTexLookup() provides a way to get the QOpenGLTexture or similar
-            // and then bind it. The previous TexturedRenderable used state.withTexture0.
-            // For direct binding:
-            auto& texLookup = m_functions.getTexLookup();
-            if (auto sharedTex = texLookup.get(m_array_texture_id)) { // get() returns SharedMMTexture
-                 if (auto qGlTex = sharedTex->get()) { // get() on MMTexture returns QOpenGLTexture*
-                    qGlTex->bind(0); // Bind to texture unit 0
-                 }
+            // Ensure index is valid before attempting to access texLookup
+            if (m_array_texture_id.value() >= 0 && static_cast<size_t>(m_array_texture_id.value()) < texLookup.size()) {
+                const SharedMMTexture& sharedTex = texLookup.at(m_array_texture_id);
+                if (sharedTex && sharedTex->get()) {
+                    sharedTex->get()->bind(0);
+                } else {
+                    // Handle case where texture ID is valid but texture object is not (e.g. load failed)
+                    // This might involve binding a default "error" texture or simply not binding anything.
+                    // For now, if sharedTex or sharedTex->get() is null, nothing is bound for this specific ID.
+                }
             }
             m_program->setTextureSampler(0);
         }
 
-        // Note: GLRenderStateBinder is not used here as uniforms are set directly via m_program
-        // However, other states from GLRenderState (like blend, depth) might be needed.
-        // For icons, typical state: enable blend, enable depth test, disable culling.
-        RAIIEnable blendEnabler(m_functions, GL_BLEND, state.blend != BlendModeEnum::NONE);
-        if (state.blend == BlendModeEnum::TRANSPARENCY) {
-             m_functions.glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        } // Add other blend modes if necessary
-
-        RAIIEnable depthEnabler(m_functions, GL_DEPTH_TEST, state.depth.has_value());
-        if (state.depth.has_value()) {
-            m_functions.glDepthFunc(static_cast<GLenum>(state.depth.value()));
-        }
-
+        BlendBinder blendBinder(m_functions, state.blend);
+        DepthBinder depthBinder(m_functions, state.depth);
 
         m_functions.glBindVertexArray(m_vao);
+        // Capture texLookup by reference if it's guaranteed to be valid for the lambda's lifetime,
+        // or capture necessary members of m_functions by value/reference.
+        // Re-accessing m_functions.getTexLookup() is safer if texLookup's lifetime isn't guaranteed through captures.
         RAIICallback vaoUnbinder([&]() {
             m_functions.glBindVertexArray(0);
             if (m_array_texture_id != INVALID_MM_TEXTURE_ID) {
-                 auto& texLookup = m_functions.getTexLookup();
-                 if (auto sharedTex = texLookup.get(m_array_texture_id)) {
-                     if (auto qGlTex = sharedTex->get()) {
-                        qGlTex->release(0); // Release from texture unit 0
-                     }
+                 auto& currentTexLookup = m_functions.getTexLookup(); // Re-access for safety in lambda
+                 if (m_array_texture_id.value() >= 0 && static_cast<size_t>(m_array_texture_id.value()) < currentTexLookup.size()) {
+                    const SharedMMTexture& sharedTex = currentTexLookup.at(m_array_texture_id);
+                    if (sharedTex && sharedTex->get()) {
+                        sharedTex->get()->release(0);
+                    }
                  }
             }
             m_functions.checkError();

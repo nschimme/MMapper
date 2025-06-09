@@ -26,6 +26,7 @@ namespace Legacy {
 class StaticVbos;
 struct ShaderPrograms;
 struct PointSizeBinder;
+class InstancedIconArrayMesh; // Forward declaration
 
 NODISCARD static inline GLenum toGLenum(const BufferUsageEnum usage)
 {
@@ -164,6 +165,9 @@ public:
     void glGenVertexArrays(GLsizei n, GLuint *arrays);
     void glBindVertexArray(GLuint array);
     void glDeleteVertexArrays(GLsizei n, const GLuint *arrays);
+    // Re-confirming these declarations
+    void glVertexAttribDivisor(GLuint index, GLuint divisor);
+    void glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const void *indices, GLsizei instancecount);
 
 public:
     // OpenGL man page says "Only width 1 is guaranteed to be supported."

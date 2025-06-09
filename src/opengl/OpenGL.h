@@ -5,6 +5,7 @@
 
 #include "../global/utils.h"
 #include "OpenGLTypes.h"
+#include "legacy/Meshes.h" // Added for InstancedIconArrayMesh
 
 #include <memory>
 #include <vector>

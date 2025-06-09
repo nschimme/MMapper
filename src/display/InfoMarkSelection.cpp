@@ -3,6 +3,7 @@
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
 #include "InfoMarkSelection.h"
+#include "../opengl/OpenGLTypes.h" // Added for MMTextureId potentially used via mapdata.h -> InfoMarkSelection.h
 
 #include "../map/coordinate.h"
 #include "../map/infomark.h"

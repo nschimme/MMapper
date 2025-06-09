@@ -17,6 +17,7 @@
 #include "../map/roomid.h"
 #include "../mapfrontend/mapfrontend.h"
 #include "../parser/CommandQueue.h"
+#include "../opengl/OpenGLTypes.h" // Added for MMTextureId
 #include "MarkerList.h"
 #include "roomfilter.h"
 #include "roomselection.h"
@@ -69,7 +70,9 @@ public:
     ~MapData() final;
 
     NODISCARD FutureSharedMapBatchFinisher
-    generateBatches(const mctp::MapCanvasTexturesProxy &textures);
+    generateBatches(const mctp::MapCanvasTexturesProxy &textures_proxy,
+                    const std::map<MMTextureId, int>& individual_texture_to_array_layer,
+                    MMTextureId icon_array_texture_id);
 
     // REVISIT: convert to template, or functionref after it compiles everywhere?
     void applyChangesToList(const RoomSelection &sel,

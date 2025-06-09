@@ -3,6 +3,7 @@
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
 #include "MapCanvasData.h"
+#include "../opengl/OpenGLTypes.h" // Added for MMTextureId potentially used via mapdata.h -> MapCanvasData.h
 
 #include <optional>
 

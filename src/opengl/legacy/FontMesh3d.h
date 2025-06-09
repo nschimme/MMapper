@@ -35,8 +35,10 @@ public:
                               const std::shared_ptr<FontShader> &sharedProgram,
                               const DrawModeEnum mode,
                               const std::vector<VertexType_> &verts)
-        : Base(sharedFunctions, sharedProgram, mode, verts)
-    {}
+        : Base(sharedFunctions, sharedProgram) // Calls SimpleMesh ctor that *only* initializes members
+    {
+        Base::setStatic(mode, verts); // Call setStatic here
+    }
 
 private:
     struct NODISCARD Attribs final

@@ -49,7 +49,7 @@ public:
         : SimpleMesh{sharedFunctions, sharedProgram}
     {
         // initVao() is called by the other constructor
-        setStatic(mode, verts);
+        // setStatic(mode, verts); // Deferred to derived class constructor body
     }
 
     ~SimpleMesh() override

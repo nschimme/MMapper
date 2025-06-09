@@ -20,7 +20,19 @@ class NODISCARD PlainMesh final : public SimpleMesh<VertexType_, UColorPlainShad
 {
 public:
     using Base = SimpleMesh<VertexType_, UColorPlainShader>;
-    using Base::Base;
+    // Inherit the constructor that only takes SharedFunctions and ProgramType
+    explicit PlainMesh(SharedFunctions sharedFunctions, std::shared_ptr<UColorPlainShader> sharedProgram)
+        : Base(std::move(sharedFunctions), std::move(sharedProgram))
+    {}
+    // Add explicit constructor for initial data
+    explicit PlainMesh(const SharedFunctions &sharedFunctions,
+                       std::shared_ptr<UColorPlainShader> sharedProgram,
+                       const DrawModeEnum mode,
+                       const std::vector<VertexType_> &verts)
+        : Base(sharedFunctions, std::move(sharedProgram)) // Call SimpleMesh ctor that *only* initializes members
+    {
+        Base::setStatic(mode, verts); // Call setStatic here in derived constructor body
+    }
 
 private:
     struct NODISCARD Attribs final
@@ -71,7 +83,19 @@ class NODISCARD ColoredMesh final : public SimpleMesh<VertexType_, AColorPlainSh
 {
 public:
     using Base = SimpleMesh<VertexType_, AColorPlainShader>;
-    using Base::Base;
+    // Inherit the constructor that only takes SharedFunctions and ProgramType
+    explicit ColoredMesh(SharedFunctions sharedFunctions, std::shared_ptr<AColorPlainShader> sharedProgram)
+        : Base(std::move(sharedFunctions), std::move(sharedProgram))
+    {}
+    // Add explicit constructor for initial data
+    explicit ColoredMesh(const SharedFunctions &sharedFunctions,
+                         std::shared_ptr<AColorPlainShader> sharedProgram,
+                         const DrawModeEnum mode,
+                         const std::vector<VertexType_> &verts)
+        : Base(sharedFunctions, std::move(sharedProgram)) // Call SimpleMesh ctor that *only* initializes members
+    {
+        Base::setStatic(mode, verts); // Call setStatic here in derived constructor body
+    }
 
 private:
     struct NODISCARD Attribs final
@@ -127,7 +151,19 @@ class NODISCARD TexturedMesh final : public SimpleMesh<VertexType_, UColorTextur
 {
 public:
     using Base = SimpleMesh<VertexType_, UColorTexturedShader>;
-    using Base::Base;
+    // Inherit the constructor that only takes SharedFunctions and ProgramType
+    explicit TexturedMesh(SharedFunctions sharedFunctions, std::shared_ptr<UColorTexturedShader> sharedProgram)
+        : Base(std::move(sharedFunctions), std::move(sharedProgram))
+    {}
+    // Add explicit constructor for initial data
+    explicit TexturedMesh(const SharedFunctions &sharedFunctions,
+                          std::shared_ptr<UColorTexturedShader> sharedProgram,
+                          const DrawModeEnum mode,
+                          const std::vector<VertexType_> &verts)
+        : Base(sharedFunctions, std::move(sharedProgram)) // Call SimpleMesh ctor that *only* initializes members
+    {
+        Base::setStatic(mode, verts); // Call setStatic here in derived constructor body
+    }
 
 private:
     struct NODISCARD Attribs final
@@ -184,7 +220,19 @@ class NODISCARD ColoredTexturedMesh final : public SimpleMesh<VertexType_, AColo
 {
 public:
     using Base = SimpleMesh<VertexType_, AColorTexturedShader>;
-    using Base::Base;
+    // Inherit the constructor that only takes SharedFunctions and ProgramType
+    explicit ColoredTexturedMesh(SharedFunctions sharedFunctions, std::shared_ptr<AColorTexturedShader> sharedProgram)
+        : Base(std::move(sharedFunctions), std::move(sharedProgram))
+    {}
+    // Add explicit constructor for initial data
+    explicit ColoredTexturedMesh(const SharedFunctions &sharedFunctions,
+                                 std::shared_ptr<AColorTexturedShader> sharedProgram,
+                                 const DrawModeEnum mode,
+                                 const std::vector<VertexType_> &verts)
+        : Base(sharedFunctions, std::move(sharedProgram)) // Call SimpleMesh ctor that *only* initializes members
+    {
+        Base::setStatic(mode, verts); // Call setStatic here in derived constructor body
+    }
 
 private:
     struct NODISCARD Attribs final
@@ -247,7 +295,19 @@ class NODISCARD PointMesh final : public SimpleMesh<VertexType_, PointShader>
 {
 public:
     using Base = SimpleMesh<VertexType_, PointShader>;
-    using Base::Base;
+    // Inherit the constructor that only takes SharedFunctions and ProgramType
+    explicit PointMesh(SharedFunctions sharedFunctions, std::shared_ptr<PointShader> sharedProgram)
+        : Base(std::move(sharedFunctions), std::move(sharedProgram))
+    {}
+    // Add explicit constructor for initial data
+    explicit PointMesh(const SharedFunctions &sharedFunctions,
+                       std::shared_ptr<PointShader> sharedProgram,
+                       const DrawModeEnum mode,
+                       const std::vector<VertexType_> &verts)
+        : Base(sharedFunctions, std::move(sharedProgram)) // Call SimpleMesh ctor that *only* initializes members
+    {
+        Base::setStatic(mode, verts); // Call setStatic here in derived constructor body
+    }
 
 private:
     struct NODISCARD Attribs final

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
 
+#include "../../global/RAII.h"
 #include "../OpenGLTypes.h"
 #include "AbstractShaderProgram.h"
 #include "Binders.h"
@@ -40,6 +41,7 @@ public:
         , m_program{deref(m_shared_program)}
     {
         m_functions.glGenVertexArrays(1, &m_vao);
+        m_functions.checkError();
     }
 
     explicit SimpleMesh(const SharedFunctions &sharedFunctions,
@@ -173,18 +175,18 @@ private:
         RenderStateBinder renderStateBinder(m_functions, m_functions.getTexLookup(), renderState);
 
         m_functions.glBindVertexArray(m_vao);
-        auto attribUnbinder = bindAttribs(); // mesh sets its own attributes
+        RAIICallback vaoUnbinder([&]() {
+            m_functions.glBindVertexArray(0);
+            m_functions.checkError();
+        });
 
-        m_functions.checkError();
+        auto attribUnbinder = bindAttribs();
 
         if (const std::optional<GLenum> &optMode = Functions::toGLenum(m_drawMode)) {
             m_functions.glDrawArrays(optMode.value(), 0, m_numVerts);
         } else {
             assert(false);
         }
-
-        m_functions.checkError();
-        m_functions.glBindVertexArray(0);
     }
 };
 } // namespace Legacy

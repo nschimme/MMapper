@@ -104,7 +104,6 @@ static void setSurfaceFormat()
         QApplication::setAttribute(Qt::AA_UseDesktopOpenGL);
     }
 
-
     QSurfaceFormat fmt;
     fmt.setOptions(QSurfaceFormat::DebugContext);
     fmt.setSamples(getConfig().canvas.antialiasingSamples);

@@ -198,8 +198,8 @@ private:
         // m_functions.checkError(); // Check at start
 
         qDebug() << "DEBUG_RENDER: virt_render for mesh with m_vao:" << m_vao << "numVerts:" << m_numVerts;
-        qDebug() << "DEBUG_RENDER: renderState uniforms - color:" << renderState.uniforms.color.toString()
-                 << "tex0:" << renderState.uniforms.texture0_id.value_or(INVALID_MM_TEXTURE_ID)
+        qDebug() << "DEBUG_RENDER: renderState uniforms - color:" << renderState.uniforms.color.toHex().c_str()
+                 << "tex0:" << renderState.uniforms.textures[0].value()
                  << "pointSize:" << renderState.uniforms.pointSize.value_or(0.0f);
 
         m_functions.glBindVertexArray(m_vao); // VAO is bound
@@ -212,7 +212,7 @@ private:
 
 
         auto programUnbinder = m_program.bind();
-        qDebug() << "DEBUG_RENDER: Program bound:" << m_program.get();
+        qDebug() << "DEBUG_RENDER: Program bound:" << m_program.getProgram();
         // m_functions.checkError(); // After program bind
 
         m_program.setUniforms(mvp, renderState.uniforms);
@@ -220,9 +220,9 @@ private:
         // m_functions.checkError(); // After setUniforms
 
         // Log what RenderStateBinder will do (conceptual, actual logging might need RenderStateBinder modification)
-        qDebug() << "DEBUG_RENDER: Applying GLRenderState - BlendMode:" << static_cast<int>(renderState.blendMode)
-                 << "DepthTest:" << (renderState.depthFunction.has_value() ? "Enabled" : "Disabled")
-                 << "CullFace:" << (renderState.cullFace.has_value() ? "Enabled" : "Disabled");
+        qDebug() << "DEBUG_RENDER: Applying GLRenderState - BlendMode:" << static_cast<int>(renderState.blend)
+                 << "DepthTest:" << (renderState.depth.has_value() ? "Enabled" : "Disabled")
+                 << "CullFace:" << static_cast<int>(renderState.culling);
 
         RenderStateBinder renderStateBinder(m_functions, m_functions.getTexLookup(), renderState);
         qDebug() << "DEBUG_RENDER: RenderStateBinder constructed.";

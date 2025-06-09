@@ -264,9 +264,9 @@ void MapCanvas::initializeGL()
         this->forceUpdateMeshes();
     });
 
-    QOpenGLExtraFunctions *f = QOpenGLContext::currentContext()->extraFunctions();
-    f->glGenVertexArrays(1, &m_defaultVao);
-    f->glBindVertexArray(m_defaultVao);
+    // QOpenGLExtraFunctions *f = QOpenGLContext::currentContext()->extraFunctions();
+    // f->glGenVertexArrays(1, &m_defaultVao);
+    // f->glBindVertexArray(m_defaultVao);
 }
 
 /* Direct means it is always called from the emitter's thread */

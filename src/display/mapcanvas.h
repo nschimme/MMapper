@@ -108,6 +108,7 @@ private:
     Diff m_diff;
     FrameRateController m_frameRateController;
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
+    std::unique_ptr<QOpenGLTexture> m_icon_texture_array_gl; // Target2DArray for overlay icons
     Signal2Lifetime m_lifetime;
 
 public:

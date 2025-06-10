@@ -329,7 +329,7 @@ public:
 
     void updateInstances(const std::vector<IconInstanceData>& instance_data) {
         m_functions.glBindBuffer(GL_ARRAY_BUFFER, m_instance_data_vbo);
-        m_functions.glBufferData(GL_ARRAY_BUFFER, instance_data.size() * sizeof(IconInstanceData), instance_data.data(), GL_STREAM_DRAW);
+        m_functions.glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(instance_data.size()) * sizeof(IconInstanceData), instance_data.data(), GL_STREAM_DRAW);
         m_functions.glBindBuffer(GL_ARRAY_BUFFER, 0);
         m_instance_count = static_cast<GLsizei>(instance_data.size());
     }
@@ -433,11 +433,11 @@ private:
 
         m_functions.glGenBuffers(1, &m_base_quad_vbo);
         m_functions.glBindBuffer(GL_ARRAY_BUFFER, m_base_quad_vbo);
-        m_functions.glBufferData(GL_ARRAY_BUFFER, s_base_quad_verts.size() * sizeof(BaseQuadVert), s_base_quad_verts.data(), GL_STATIC_DRAW);
+        m_functions.glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(s_base_quad_verts.size()) * sizeof(BaseQuadVert), s_base_quad_verts.data(), GL_STATIC_DRAW);
 
         m_functions.glGenBuffers(1, &m_base_quad_ibo);
         m_functions.glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_base_quad_ibo);
-        m_functions.glBufferData(GL_ELEMENT_ARRAY_BUFFER, s_base_quad_indices.size() * sizeof(unsigned int), s_base_quad_indices.data(), GL_STATIC_DRAW);
+        m_functions.glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(s_base_quad_indices.size()) * sizeof(unsigned int), s_base_quad_indices.data(), GL_STATIC_DRAW);
         m_base_quad_index_count = static_cast<GLsizei>(s_base_quad_indices.size());
 
         m_functions.glEnableVertexAttribArray(AttributesEnum::ATTR_BASE_QUAD_POSITION);

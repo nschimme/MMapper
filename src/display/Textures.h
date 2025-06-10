@@ -15,6 +15,9 @@
 #include <QString>
 #include <QtGui/qopengl.h>
 
+constexpr int ICON_WIDTH = 32;
+constexpr int ICON_HEIGHT = 32;
+
 // currently forward declared in OpenGLTypes.h
 // so it can define SharedMMTexture
 class NODISCARD MMTexture final : public std::enable_shared_from_this<MMTexture>
@@ -23,6 +26,11 @@ private:
     QOpenGLTexture m_qt_texture;
     MMTextureId m_id = INVALID_MM_TEXTURE_ID;
     bool m_forbidUpdates = false;
+
+    // For adopted textures
+    bool m_is_adopted = false;
+    GLuint m_adopted_texture_id = 0;
+    QOpenGLTexture::Target m_adopted_target = QOpenGLTexture::Target2D; // Default to a valid target
 
 public:
     NODISCARD static std::shared_ptr<MMTexture> alloc(const QString &name)
@@ -37,6 +45,11 @@ public:
         return std::make_shared<MMTexture>(Badge<MMTexture>{}, target, init, forbidUpdates);
     }
 
+    NODISCARD static std::shared_ptr<MMTexture> allocAdopted(GLuint adopted_gl_id, QOpenGLTexture::Target adopted_target, bool forbidUpdates = true)
+    {
+        return std::make_shared<MMTexture>(Badge<MMTexture>{}, adopted_gl_id, adopted_target, forbidUpdates);
+    }
+
 public:
     MMTexture() = delete;
     MMTexture(Badge<MMTexture>, const QString &name);
@@ -46,22 +59,39 @@ public:
               const bool forbidUpdates)
         : m_qt_texture{target}
         , m_forbidUpdates{forbidUpdates}
+        , m_is_adopted{false} // Ensure this is false for normally constructed textures
     {
         init(m_qt_texture);
+    }
+    // Constructor for adopted textures
+    MMTexture(Badge<MMTexture>, GLuint adopted_gl_id, QOpenGLTexture::Target adopted_target_enum, bool forbidUpdates_flag)
+        : m_qt_texture(QOpenGLTexture::Target2D) // Initialize internal QOpenGLTexture with a valid, minimal target
+        , m_forbidUpdates{forbidUpdates_flag}
+        , m_is_adopted{true}
+        , m_adopted_texture_id{adopted_gl_id}
+        , m_adopted_target{adopted_target_enum} // Store the actual adopted target
+    {
+        // Do not call create() or allocateStorage() on m_qt_texture for adopted textures.
+        // It's just a shell or placeholder if m_is_adopted is true.
     }
     DELETE_CTORS_AND_ASSIGN_OPS(MMTexture);
 
 public:
-    NODISCARD QOpenGLTexture *get() { return &m_qt_texture; }
-    NODISCARD const QOpenGLTexture *get() const { return &m_qt_texture; }
+    NODISCARD QOpenGLTexture *get() { return m_is_adopted ? nullptr : &m_qt_texture; } // Or handle differently if direct access to QOpenGLTexture is needed for adopted
+    NODISCARD const QOpenGLTexture *get() const { return m_is_adopted ? nullptr : &m_qt_texture; }
+    // operator-> might be problematic if get() can return nullptr. Consider implications or disallow for adopted.
     QOpenGLTexture *operator->() { return get(); }
 
-    void bind() { get()->bind(); }
-    void bind(GLuint x) { get()->bind(x); }
-    void release(GLuint x) { get()->release(x); }
-    NODISCARD GLuint textureId() const { return get()->textureId(); }
-    NODISCARD QOpenGLTexture::Target target() const { return get()->target(); }
-    NODISCARD bool canBeUpdated() const { return !m_forbidUpdates; }
+
+    // bind() will likely need adjustment if used with adopted textures, or rendering path must handle adopted textures specially.
+    void bind() { if (!m_is_adopted) get()->bind(); else { /* TODO: How to bind adopted texture? Or ensure this is not called. */ } }
+    void bind(GLuint x) { if (!m_is_adopted) get()->bind(x); else { /* TODO: How to bind adopted texture? Or ensure this is not called. */ } }
+    void release(GLuint x) { if (!m_is_adopted) get()->release(x); else { /* TODO: How to release adopted texture? Or ensure this is not called. */ } }
+
+    NODISCARD GLuint textureId() const { return m_is_adopted ? m_adopted_texture_id : m_qt_texture.textureId(); }
+    NODISCARD QOpenGLTexture::Target target() const { return m_is_adopted ? m_adopted_target : m_qt_texture.target(); }
+    NODISCARD bool canBeUpdated() const { return m_is_adopted ? !m_forbidUpdates : !m_forbidUpdates && m_qt_texture.isCreated(); } // Adopted might be updatable if not forbidUpdates
+    NODISCARD bool isAdopted() const { return m_is_adopted; }
 
     NODISCARD SharedMMTexture getShared() { return shared_from_this(); }
     NODISCARD MMTexture *getRaw() { return this; }

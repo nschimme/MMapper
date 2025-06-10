@@ -171,9 +171,10 @@ public:
 
 public:
     // OpenGL man page says "Only width 1 is guaranteed to be supported."
-    void glLineWidth(const GLfloat lineWidth)
+    void glLineWidth(const GLfloat /*lineWidth*/)
     {
         //Base::glLineWidth(scalef(lineWidth));
+        // (void)lineWidth; // Alternative to silence warning if parameter might be used later
     }
 
 public:

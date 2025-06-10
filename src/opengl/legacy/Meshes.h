@@ -315,98 +315,25 @@ private:
 
 class NODISCARD InstancedIconArrayMesh final : public IRenderable {
 public:
-    InstancedIconArrayMesh(SharedFunctions funcs, std::shared_ptr<InstancedArrayIconProgram> prog, MMTextureId array_tex_id)
-        : m_shared_functions(std::move(funcs)),
-          m_functions(deref(m_shared_functions)),
-          m_program(std::move(prog)),
-          m_array_texture_id(array_tex_id) {
-        initMesh();
-    }
+    InstancedIconArrayMesh(SharedFunctions funcs, std::shared_ptr<InstancedArrayIconProgram> prog, MMTextureId array_tex_id); // Declare only (or keep inline if simple)
 
-    ~InstancedIconArrayMesh() override {
-        cleanupMesh();
-    }
+    ~InstancedIconArrayMesh() override; // Declare only
 
-    void updateInstances(const std::vector<IconInstanceData>& instance_data) {
+    void updateInstances(const std::vector<IconInstanceData>& instance_data) { // Can remain inline
         m_functions.glBindBuffer(GL_ARRAY_BUFFER, m_instance_data_vbo);
-        m_functions.glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(instance_data.size()) * sizeof(IconInstanceData), instance_data.data(), GL_STREAM_DRAW);
+        m_functions.glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(instance_data.size() * sizeof(IconInstanceData)), instance_data.data(), GL_STREAM_DRAW);
         m_functions.glBindBuffer(GL_ARRAY_BUFFER, 0);
         m_instance_count = static_cast<GLsizei>(instance_data.size());
     }
 
-    MMTextureId getTextureId() const { return m_array_texture_id; }
+    MMTextureId getTextureId() const { return m_array_texture_id; } // Can remain inline
 
 protected:
     // IRenderable overrides
-    void virt_clear() override { // Clears instance data
-        updateInstances({});
-    }
-
-    void virt_reset() override { // Deletes GL resources
-        cleanupMesh();
-        m_instance_count = 0;
-        m_base_quad_index_count = 0;
-    }
-
-    bool virt_isEmpty() const override {
-        return m_instance_count == 0;
-    }
-
-    void virt_render(const GLRenderState& state) override {
-        if (virt_isEmpty()) {
-            return;
-        }
-
-        m_functions.checkError();
-        auto programUnbinder = m_program->bind();
-
-        m_program->setProjectionViewMatrix(m_functions.getProjectionMatrix());
-
-        // Placeholder for icon size: using pointSize from GLRenderState or default 1.0f
-        // TODO: Add a dedicated iconSize to GLRenderState::Uniforms
-        float icon_size = state.uniforms.pointSize.value_or(1.0f); // TODO: Use state.uniforms.iconSize
-        m_program->setIconBaseSize(icon_size);
-
-        auto& texLookup = m_functions.getTexLookup();
-
-        if (m_array_texture_id != INVALID_MM_TEXTURE_ID) {
-            // Ensure index is valid before attempting to access texLookup
-            if (m_array_texture_id.value() >= 0 && static_cast<size_t>(m_array_texture_id.value()) < texLookup.size()) {
-                const SharedMMTexture& sharedTex = texLookup.at(m_array_texture_id);
-                if (sharedTex && sharedTex->get()) {
-                    sharedTex->get()->bind(0);
-                } else {
-                    // Handle case where texture ID is valid but texture object is not (e.g. load failed)
-                    // This might involve binding a default "error" texture or simply not binding anything.
-                    // For now, if sharedTex or sharedTex->get() is null, nothing is bound for this specific ID.
-                }
-            }
-            m_program->setTextureSampler(0);
-        }
-
-        BlendBinder blendBinder(m_functions, state.blend);
-        DepthBinder depthBinder(m_functions, state.depth);
-
-        m_functions.glBindVertexArray(m_vao);
-        // Capture texLookup by reference if it's guaranteed to be valid for the lambda's lifetime,
-        // or capture necessary members of m_functions by value/reference.
-        // Re-accessing m_functions.getTexLookup() is safer if texLookup's lifetime isn't guaranteed through captures.
-        RAIICallback vaoUnbinder([&]() {
-            m_functions.glBindVertexArray(0);
-            if (m_array_texture_id != INVALID_MM_TEXTURE_ID) {
-                 auto& currentTexLookup = m_functions.getTexLookup(); // Re-access for safety in lambda
-                 if (m_array_texture_id.value() >= 0 && static_cast<size_t>(m_array_texture_id.value()) < currentTexLookup.size()) {
-                    const SharedMMTexture& sharedTex = currentTexLookup.at(m_array_texture_id);
-                    if (sharedTex && sharedTex->get()) {
-                        sharedTex->get()->release(0);
-                    }
-                 }
-            }
-            m_functions.checkError();
-        });
-
-        m_functions.glDrawElementsInstanced(GL_TRIANGLES, m_base_quad_index_count, GL_UNSIGNED_INT, nullptr, m_instance_count);
-    }
+    void virt_clear() override; // Declare only
+    void virt_reset() override; // Declare only
+    bool virt_isEmpty() const override; // Declare only
+    void virt_render(const GLRenderState& state) override; // Declare only
 
 private:
     SharedFunctions m_shared_functions;
@@ -423,21 +350,20 @@ private:
     GLsizei m_base_quad_index_count = 0;
 
     // Static data for the base quad
-    // These are defined in Meshes.cpp (or will be)
-    static const std::vector<BaseQuadVert> s_base_quad_verts;
-    static const std::vector<unsigned int> s_base_quad_indices;
+    static const std::vector<BaseQuadVert> s_base_quad_verts; // Declaration
+    static const std::vector<unsigned int> s_base_quad_indices; // Declaration
 
-    void initMesh() {
+    void initMesh() { // Private helper, can remain inline
         m_functions.glGenVertexArrays(1, &m_vao);
         m_functions.glBindVertexArray(m_vao);
 
         m_functions.glGenBuffers(1, &m_base_quad_vbo);
         m_functions.glBindBuffer(GL_ARRAY_BUFFER, m_base_quad_vbo);
-        m_functions.glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(s_base_quad_verts.size()) * sizeof(BaseQuadVert), s_base_quad_verts.data(), GL_STATIC_DRAW);
+        m_functions.glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(s_base_quad_verts.size() * sizeof(BaseQuadVert)), s_base_quad_verts.data(), GL_STATIC_DRAW);
 
         m_functions.glGenBuffers(1, &m_base_quad_ibo);
         m_functions.glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_base_quad_ibo);
-        m_functions.glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(s_base_quad_indices.size()) * sizeof(unsigned int), s_base_quad_indices.data(), GL_STATIC_DRAW);
+        m_functions.glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(s_base_quad_indices.size() * sizeof(unsigned int)), s_base_quad_indices.data(), GL_STATIC_DRAW);
         m_base_quad_index_count = static_cast<GLsizei>(s_base_quad_indices.size());
 
         m_functions.glEnableVertexAttribArray(AttributesEnum::ATTR_BASE_QUAD_POSITION);

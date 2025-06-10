@@ -71,7 +71,7 @@ void InstancedIconArrayMesh::virt_render(const GLRenderState& state) {
     }
 
     m_functions.checkError();
-    RAIICallback programUnbinder = m_program->bind(); // m_program is std::shared_ptr<InstancedArrayIconProgram>
+    Legacy::AbstractShaderProgram::ProgramUnbinder programUnbinder(m_program->bind()); // m_program is std::shared_ptr<InstancedArrayIconProgram>
 
     m_program->setProjectionViewMatrix(m_functions.getProjectionMatrix());
 

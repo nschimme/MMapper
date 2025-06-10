@@ -161,6 +161,8 @@ public:
     using Base::glUseProgram;
     using Base::glVertexAttribPointer;
 
+    void bindAttribLocation(GLuint program, GLuint index, const char* name) { Base::glBindAttribLocation(program, index, name); }
+
     // VAO functions
     void glGenVertexArrays(GLsizei n, GLuint *arrays);
     void glBindVertexArray(GLuint array);

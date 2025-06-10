@@ -182,16 +182,7 @@ private:
     NODISCARD Functions &getFunctions() { return m_functions; }
 
 public:
-    void resetAll()
-    {
-        aColorShader.reset();
-        uColorShader.reset();
-        aTexturedShader.reset();
-        uTexturedShader.reset();
-        font.reset();
-        point.reset();
-        m_texturedArrayProgram.reset(); // New program
-    }
+    void resetAll();
 
 public:
     // attribute color (aka "Colored")

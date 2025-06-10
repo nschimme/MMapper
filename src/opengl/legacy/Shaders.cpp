@@ -121,10 +121,10 @@ std::shared_ptr<InstancedArrayIconProgram> InstancedArrayIconProgram::create(
 {
     // This callback will be executed by loadShaders before glLinkProgram
     auto preLinkCallback = [&](GLuint programId) {
-        functions.glBindAttribLocation(programId, AttributesEnum::ATTR_BASE_QUAD_POSITION, "a_quad_pos");
-        functions.glBindAttribLocation(programId, AttributesEnum::ATTR_BASE_QUAD_UV, "a_quad_uv");
-        functions.glBindAttribLocation(programId, AttributesEnum::ATTR_INSTANCE_WORLD_POS_CENTER, "a_instance_world_pos_center");
-        functions.glBindAttribLocation(programId, AttributesEnum::ATTR_INSTANCE_TEX_LAYER_INDEX, "a_instance_tex_layer");
+        functions.bindAttribLocation(programId, AttributesEnum::ATTR_BASE_QUAD_POSITION, "a_quad_pos");
+        functions.bindAttribLocation(programId, AttributesEnum::ATTR_BASE_QUAD_UV, "a_quad_uv");
+        functions.bindAttribLocation(programId, AttributesEnum::ATTR_INSTANCE_WORLD_POS_CENTER, "a_instance_world_pos_center");
+        functions.bindAttribLocation(programId, AttributesEnum::ATTR_INSTANCE_TEX_LAYER_INDEX, "a_instance_tex_layer");
     };
 
     // Note: ShaderUtils::loadShaders expects resource paths that QFile can read.
@@ -164,21 +164,19 @@ void InstancedArrayIconProgram::virt_setUniforms(const glm::mat4 &mvp, const GLR
     setUniform1fv(m_u_icon_base_size_loc, 1, &iconSize);
 
     assert(uniforms.textures[0] != INVALID_MM_TEXTURE_ID); // This is the texture array ID
-    setUniform1iv(m_u_tex_array_sampler_loc, 1, &uniforms.textures[0].value()); // Texture unit 0
+    int textureUnit = uniforms.textures[0].value();
+    setUniform1iv(m_u_tex_array_sampler_loc, 1, &textureUnit); // Texture unit 0
 }
 
 void InstancedArrayIconProgram::setProjectionViewMatrix(const glm::mat4& matrix) {
-    ProgramUnbinder unbinder = bind();
     setUniformMatrix4fv(m_u_projection_view_matrix_loc, 1, GL_FALSE, glm::value_ptr(matrix));
 }
 
 void InstancedArrayIconProgram::setIconBaseSize(float size) {
-    ProgramUnbinder unbinder = bind();
     setUniform1fv(m_u_icon_base_size_loc, 1, &size);
 }
 
 void InstancedArrayIconProgram::setTextureSampler(int texture_unit) {
-    ProgramUnbinder unbinder = bind();
     setUniform1iv(m_u_tex_array_sampler_loc, 1, &texture_unit);
 }
 

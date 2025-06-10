@@ -17,6 +17,7 @@ message(STATUS "MMapper version ${MMAPPER_VERSION} (${CMAKE_BUILD_TYPE} distribu
 
 # Options
 option(WITH_ZLIB "zlib compressed old save backwards compatability" ON)
+add_definitions(-DGL_SILENCE_DEPRECATION) # Add this line
 option(WITH_UPDATER "Check GitHub for new releases" ON)
 if(NOT APPLE)
     option(WITH_OPENSSL "Use OpenSSL for TLS encryption" ON)

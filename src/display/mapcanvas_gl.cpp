@@ -1033,22 +1033,23 @@ void MapCanvas::renderMapBatches()
                                && (totalScaleFactor >= settings.doorNameScaleCutoff);
 
     auto &gl = getOpenGL();
-    BatchedMeshes &batchedMeshes = batches.batchedMeshes;
+    BatchedMeshes &allLayerMeshes = batches.batchedMeshes; // Renamed to avoid shadowing
     const auto drawLayer =
-        [this, &batches, &batchedMeshes, wantExtraDetail, wantDoorNames](const int thisLayer,
+        [this, &batches, &allLayerMeshes, wantExtraDetail, wantDoorNames](const int thisLayer,
                                                                    const int currentLayer) {
-            const auto it_mesh = batchedMeshes.find(thisLayer);
-            if (it_mesh != batchedMeshes.end()) {
-                LayerMeshes &meshes = it_mesh->second;
+            const auto it_mesh = allLayerMeshes.find(thisLayer);
+            if (it_mesh != allLayerMeshes.end()) {
+                LayerMeshes &currentLayerMeshes = it_mesh->second; // Renamed to avoid shadowing
                 // Bind instance buffer before rendering layer meshes
                 if (m_instanceBuffer != 0) {
                     glBindBuffer(GL_ARRAY_BUFFER, m_instanceBuffer);
                     // Setup vertex attribute pointers for instance matrix (mat4)
                     // Assuming locations 3, 4, 5, 6 for the mat4
-                    for (int i = 0; i < 4; ++i) {
-                        glEnableVertexAttribArray(3 + i);
-                        glVertexAttribPointer(3 + i, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(sizeof(glm::vec4) * i));
-                        glVertexAttribDivisor(3 + i, 1);
+                    for (unsigned int i = 0; i < 4; ++i) { // Use unsigned int for loop variable
+                        GLuint attribLocation = 3 + i; // Explicit GLuint
+                        glEnableVertexAttribArray(attribLocation);
+                        glVertexAttribPointer(attribLocation, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), reinterpret_cast<void*>(sizeof(glm::vec4) * i)); // Use reinterpret_cast
+                        glVertexAttribDivisor(attribLocation, 1);
                     }
                 }
 
@@ -1060,11 +1061,11 @@ void MapCanvas::renderMapBatches()
                     instanceCount = static_cast<GLsizei>(m_data.getCurrentMap().getRooms().size());
                 }
 
-                meshes.render(thisLayer, currentLayer, instanceCount); // Pass instanceCount
+                currentLayerMeshes.render(thisLayer, currentLayer, instanceCount); // Pass instanceCount
 
                 if (m_instanceBuffer != 0) {
-                    for (int i = 0; i < 4; ++i) {
-                        glDisableVertexAttribArray(3 + i);
+                    for (unsigned int i = 0; i < 4; ++i) { // Use unsigned int for loop variable
+                        glDisableVertexAttribArray(static_cast<GLuint>(3 + i)); // Explicit cast
                     }
                     glBindBuffer(GL_ARRAY_BUFFER, 0);
                 }
@@ -1074,8 +1075,8 @@ void MapCanvas::renderMapBatches()
                     BatchedConnectionMeshes &connectionMeshes = batches.connectionMeshes;
                     const auto it_conn = connectionMeshes.find(thisLayer);
                     if (it_conn != connectionMeshes.end()) {
-                        ConnectionMeshes &meshes = it_conn->second;
-                        meshes.render(thisLayer, currentLayer); // Not passing instanceCount here
+                        ConnectionMeshes &connMeshes = it_conn->second; // Renamed to avoid shadowing
+                        connMeshes.render(thisLayer, currentLayer); // Not passing instanceCount here
                     }
                 }
 

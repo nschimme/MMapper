@@ -291,6 +291,22 @@ public:
         const GLRenderState modifiedState = virt_modifyRenderState(renderState);
         virt_render(modifiedState);
     }
+
+    // Default implementation for instanced rendering, can be overridden
+    virtual void renderInstanced(const GLRenderState &renderState, GLsizei instanceCount)
+    {
+        if (instanceCount > 0) {
+            // Fallback for types not implementing specific instanced rendering:
+            // Call non-instanced render multiple times.
+            // This is inefficient and should be overridden by mesh types
+            // that actually support GPU instancing.
+            for (GLsizei i = 0; i < instanceCount; ++i) {
+                render(renderState);
+            }
+        } else {
+            render(renderState);
+        }
+    }
 };
 
 struct NODISCARD TexturedRenderable final : public IRenderable
@@ -339,6 +355,10 @@ public:
     DEFAULT_MOVES_DELETE_COPIES(UniqueMesh);
 
     void render(const GLRenderState &rs) const { deref(m_mesh).render(rs); }
+    void renderInstanced(const GLRenderState &rs, GLsizei instanceCount) const
+    {
+        deref(m_mesh).renderInstanced(rs, instanceCount);
+    }
 };
 
 struct NODISCARD UniqueMeshVector final
@@ -356,6 +376,12 @@ public:
     {
         for (auto &mesh : m_meshes) {
             mesh.render(rs);
+        }
+    }
+    void renderInstanced(const GLRenderState &rs, GLsizei instanceCount)
+    {
+        for (auto &mesh : m_meshes) {
+            mesh.renderInstanced(rs, instanceCount);
         }
     }
 };

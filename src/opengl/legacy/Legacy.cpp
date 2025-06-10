@@ -112,7 +112,8 @@ static void renderImmediate(const SharedFunctions &sharedFunctions,
                             const DrawModeEnum mode,
                             const std::vector<VertexType_> &verts,
                             const std::shared_ptr<ShaderType_> &sharedShader,
-                            const GLRenderState &renderState)
+                            const GLRenderState &renderState,
+                            GLsizei instanceCount = 0) // Added instanceCount
 {
     if (verts.empty()) {
         return;
@@ -144,7 +145,24 @@ static void renderImmediate(const SharedFunctions &sharedFunctions,
             assert(!vbo);
             {
                 mesh.setDynamic(mode, verts);
-                mesh.render(renderState);
+                // Instanced rendering logic
+                if (instanceCount > 0 && sharedFunctions->glDrawArraysInstanced != nullptr && sharedFunctions->glVertexAttribDivisor != nullptr) {
+                    // Instance matrix attribute locations are 3, 4, 5, 6
+                    for (unsigned int i = 0; i < 4; ++i) {
+                        sharedFunctions->glEnableVertexAttribArray(3 + i);
+                        // Assuming the instance data is bound to a separate VBO
+                        // The glVertexAttribPointer will be set up when binding the instance VBO
+                        // For now, this is a placeholder, actual setup needs the instance VBO to be bound
+                        sharedFunctions->glVertexAttribPointer(3 + i, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(sizeof(glm::vec4) * i));
+                        sharedFunctions->glVertexAttribDivisor(3 + i, 1);
+                    }
+                    mesh.renderInstanced(renderState, instanceCount); // Assuming Mesh has renderInstanced
+                    for (unsigned int i = 0; i < 4; ++i) {
+                        sharedFunctions->glDisableVertexAttribArray(3 + i);
+                    }
+                } else {
+                    mesh.render(renderState);
+                }
             }
             mesh.unsafe_swapVboId(vbo);
             assert(vbo);
@@ -157,21 +175,23 @@ static void renderImmediate(const SharedFunctions &sharedFunctions,
 
 void Functions::renderPlain(const DrawModeEnum mode,
                             const std::vector<glm::vec3> &verts,
-                            const GLRenderState &state)
+                            const GLRenderState &state,
+                            GLsizei instanceCount)
 {
     assert(static_cast<size_t>(mode) >= VERTS_PER_LINE);
     const auto &shared = shared_from_this();
     const auto &prog = getShaderPrograms().getPlainUColorShader();
-    renderImmediate<glm::vec3, Legacy::PlainMesh>(shared, mode, verts, prog, state);
+    renderImmediate<glm::vec3, Legacy::PlainMesh>(shared, mode, verts, prog, state, instanceCount);
 }
 
 void Functions::renderColored(const DrawModeEnum mode,
                               const std::vector<ColorVert> &verts,
-                              const GLRenderState &state)
+                              const GLRenderState &state,
+                              GLsizei instanceCount)
 {
     assert(static_cast<size_t>(mode) >= VERTS_PER_LINE);
     const auto &prog = getShaderPrograms().getPlainAColorShader();
-    renderImmediate<ColorVert, Legacy::ColoredMesh>(shared_from_this(), mode, verts, prog, state);
+    renderImmediate<ColorVert, Legacy::ColoredMesh>(shared_from_this(), mode, verts, prog, state, instanceCount);
 }
 
 void Functions::renderPoints(const std::vector<ColorVert> &verts, const GLRenderState &state)
@@ -182,21 +202,24 @@ void Functions::renderPoints(const std::vector<ColorVert> &verts, const GLRender
                                                   DrawModeEnum::POINTS,
                                                   verts,
                                                   prog,
-                                                  state);
+                                                  state,
+                                                  0); // Points are not typically instanced this way
 }
 
 void Functions::renderTextured(const DrawModeEnum mode,
                                const std::vector<TexVert> &verts,
-                               const GLRenderState &state)
+                               const GLRenderState &state,
+                               GLsizei instanceCount)
 {
     assert(static_cast<size_t>(mode) >= VERTS_PER_TRI);
     const auto &prog = getShaderPrograms().getTexturedUColorShader();
-    renderImmediate<TexVert, Legacy::TexturedMesh>(shared_from_this(), mode, verts, prog, state);
+    renderImmediate<TexVert, Legacy::TexturedMesh>(shared_from_this(), mode, verts, prog, state, instanceCount);
 }
 
 void Functions::renderColoredTextured(const DrawModeEnum mode,
                                       const std::vector<ColoredTexVert> &verts,
-                                      const GLRenderState &state)
+                                      const GLRenderState &state,
+                                      GLsizei instanceCount)
 {
     assert(static_cast<size_t>(mode) >= VERTS_PER_TRI);
     const auto &prog = getShaderPrograms().getTexturedAColorShader();
@@ -204,7 +227,8 @@ void Functions::renderColoredTextured(const DrawModeEnum mode,
                                                                  mode,
                                                                  verts,
                                                                  prog,
-                                                                 state);
+                                                                 state,
+                                                                 instanceCount);
 }
 
 void Functions::renderFont3d(const SharedMMTexture &texture, const std::vector<FontVert3d> &verts)

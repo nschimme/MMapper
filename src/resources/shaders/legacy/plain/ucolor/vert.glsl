@@ -4,8 +4,9 @@
 uniform mat4 uMVP;
 
 layout(location = 0) in vec3 aVert;
+in mat4 instanceMatrix;
 
 void main()
 {
-    gl_Position = uMVP * vec4(aVert, 1.0);
+    gl_Position = uMVP * instanceMatrix * vec4(aVert, 1.0);
 }

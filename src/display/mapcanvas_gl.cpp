@@ -136,7 +136,14 @@ void MapCanvas::cleanupOpenGL()
     m_batches.resetExistingMeshesAndIgnorePendingRemesh();
     m_textures.destroyAll();
     getGLFont().cleanup();
-    getOpenGL().cleanup();
+
+    auto &gl = getOpenGL();
+    if (m_instanceBuffer != 0) {
+        glDeleteBuffers(1, &m_instanceBuffer);
+        m_instanceBuffer = 0;
+    }
+
+    gl.cleanup();
     m_logger.reset();
 }
 
@@ -267,6 +274,10 @@ void MapCanvas::initializeGL()
     // QOpenGLExtraFunctions *f = QOpenGLContext::currentContext()->extraFunctions();
     // f->glGenVertexArrays(1, &m_defaultVao);
     // f->glBindVertexArray(m_defaultVao);
+
+    // Create instance buffer
+    std::vector<glm::mat4> initialInstanceData; // Empty for now, will be updated later
+    m_instanceBuffer = gl.createInstanceBuffer(initialInstanceData);
 }
 
 /* Direct means it is always called from the emitter's thread */
@@ -532,6 +543,23 @@ void MapCanvas::updateMapBatches()
         m_data.clearNeedsMapUpdate();
         assert(!m_data.getNeedsMapUpdate());
         MMLOG() << "[updateMapBatches] cleared 'needsUpdate' flag";
+    }
+
+    // Update instance buffer with room transformation matrices
+    if (m_instanceBuffer != 0) {
+        std::vector<glm::mat4> instanceMatrices;
+        const auto& currentMap = m_data.getCurrentMap();
+        for (RoomId roomId : currentMap.getRooms()) {
+            if (auto roomHandle = currentMap.getRoomHandle(roomId)) {
+                // Create transformation matrix for the room
+                glm::mat4 transform = glm::translate(glm::mat4(1.0f), roomHandle.getPosition().to_vec3());
+                // You might need to add rotation and scaling here if necessary
+                instanceMatrices.push_back(transform);
+            }
+        }
+        if (!instanceMatrices.empty()) {
+            getOpenGL().updateInstanceBuffer(m_instanceBuffer, instanceMatrices);
+        }
     }
 
     auto getFuture = [this]() {
@@ -826,7 +854,7 @@ void MapCanvas::paintGL()
     const auto &start = optStart.value();
     const auto &afterTextures = optAfterTextures.value();
     const auto &afterBatches = optAfterBatches.value();
-    const auto afterPaint = Clock::now();
+    const auto afterActuallyPaint = Clock::now(); // Renamed from afterPaint
     const bool calledFinish = [this]() -> bool {
         if (auto *const ctxt = QOpenGLWidget::context()) {
             if (auto *const func = ctxt->functions()) {
@@ -870,14 +898,16 @@ void MapCanvas::paintGL()
     const auto batchTime = ms(afterBatches - afterTextures);
 
     const auto total = ms(end - start);
+    const auto actuallyPaintGLTime = ms(afterActuallyPaint - afterBatches);
     print(QString::asprintf(
-        "%.1f (updateTextures) + %.1f (updateBatches) + %.1f (paintGL) + %.1f (glFinish%s) = %.1f ms",
+        "%.1f (updateTextures) + %.1f (updateBatches) + %.1f (actuallyPaintGL) + %.1f (glFinish%s) = %.1f ms",
         texturesTime,
         batchTime,
-        ms(afterPaint - afterBatches),
-        ms(end - afterPaint),
+        actuallyPaintGLTime,
+        ms(end - afterActuallyPaint), // Adjusted to use afterActuallyPaint
         calledFinish ? "" : "*",
         total));
+    print(QString::asprintf("Frame time (actuallyPaintGL): %.1f ms", actuallyPaintGLTime));
 
     if (!calledFinish) {
         print("* = unable to call glFinish()");
@@ -1005,21 +1035,47 @@ void MapCanvas::renderMapBatches()
     auto &gl = getOpenGL();
     BatchedMeshes &batchedMeshes = batches.batchedMeshes;
     const auto drawLayer =
-        [&batches, &batchedMeshes, wantExtraDetail, wantDoorNames](const int thisLayer,
+        [this, &batches, &batchedMeshes, wantExtraDetail, wantDoorNames](const int thisLayer,
                                                                    const int currentLayer) {
             const auto it_mesh = batchedMeshes.find(thisLayer);
             if (it_mesh != batchedMeshes.end()) {
                 LayerMeshes &meshes = it_mesh->second;
-                meshes.render(thisLayer, currentLayer);
-            }
+                // Bind instance buffer before rendering layer meshes
+                if (m_instanceBuffer != 0) {
+                    glBindBuffer(GL_ARRAY_BUFFER, m_instanceBuffer);
+                    // Setup vertex attribute pointers for instance matrix (mat4)
+                    // Assuming locations 3, 4, 5, 6 for the mat4
+                    for (int i = 0; i < 4; ++i) {
+                        glEnableVertexAttribArray(3 + i);
+                        glVertexAttribPointer(3 + i, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(sizeof(glm::vec4) * i));
+                        glVertexAttribDivisor(3 + i, 1);
+                    }
+                }
 
-            if (wantExtraDetail) {
+                GLsizei instanceCount = 0;
+                if (m_batches.mapBatches.has_value()) {
+                    // A simplified way to get instance count; might need adjustment
+                    // This assumes all rooms in the current map are part of this layer's display,
+                    // which might not be accurate if layers are handled differently for instancing.
+                    instanceCount = static_cast<GLsizei>(m_data.getCurrentMap().getRooms().size());
+                }
+
+                meshes.render(thisLayer, currentLayer, instanceCount); // Pass instanceCount
+
+                if (m_instanceBuffer != 0) {
+                    for (int i = 0; i < 4; ++i) {
+                        glDisableVertexAttribArray(3 + i);
+                    }
+                    glBindBuffer(GL_ARRAY_BUFFER, 0);
+                }
+                // Connections and room names are not typically instanced in the same way as main room geometry.
+                // If they need instancing, it would require a separate instance buffer and setup.
                 {
                     BatchedConnectionMeshes &connectionMeshes = batches.connectionMeshes;
                     const auto it_conn = connectionMeshes.find(thisLayer);
                     if (it_conn != connectionMeshes.end()) {
                         ConnectionMeshes &meshes = it_conn->second;
-                        meshes.render(thisLayer, currentLayer);
+                        meshes.render(thisLayer, currentLayer); // Not passing instanceCount here
                     }
                 }
 
@@ -1031,7 +1087,7 @@ void MapCanvas::renderMapBatches()
                     const auto it_name = roomNameBatches.find(thisLayer);
                     if (it_name != roomNameBatches.end()) {
                         auto &roomNameBatch = it_name->second;
-                        roomNameBatch.render(GLRenderState());
+                        roomNameBatch.render(GLRenderState()); // Not passing instanceCount here
                     }
                 }
             }

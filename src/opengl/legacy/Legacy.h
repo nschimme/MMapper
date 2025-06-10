@@ -310,19 +310,27 @@ public:
 public:
     void renderPlain(DrawModeEnum mode,
                      const std::vector<glm::vec3> &verts,
-                     const GLRenderState &state);
+                     const GLRenderState &state,
+                     GLsizei instanceCount = 0);
     void renderColored(DrawModeEnum mode,
                        const std::vector<ColorVert> &verts,
-                       const GLRenderState &state);
+                       const GLRenderState &state,
+                       GLsizei instanceCount = 0);
     void renderTextured(DrawModeEnum mode,
                         const std::vector<TexVert> &verts,
-                        const GLRenderState &state);
+                        const GLRenderState &state,
+                        GLsizei instanceCount = 0);
     void renderColoredTextured(DrawModeEnum mode,
                                const std::vector<ColoredTexVert> &verts,
-                               const GLRenderState &state);
+                               const GLRenderState &state,
+                               GLsizei instanceCount = 0);
     void renderFont3d(const SharedMMTexture &texture, const std::vector<FontVert3d> &verts);
 
 public:
     void checkError();
+
+public:
+    NODISCARD GLuint createInstanceBuffer(const std::vector<glm::mat4>& data);
+    void updateInstanceBuffer(GLuint bufferId, const std::vector<glm::mat4>& data);
 };
 } // namespace Legacy

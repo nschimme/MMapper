@@ -29,7 +29,7 @@ struct NODISCARD LayerMeshes final
     DEFAULT_MOVES_DELETE_COPIES(LayerMeshes);
     ~LayerMeshes() = default;
 
-    void render(int thisLayer, int focusedLayer);
+    void render(int thisLayer, int focusedLayer, GLsizei instanceCount = 0);
     explicit operator bool() const { return isValid; }
 };
 

@@ -11,6 +11,7 @@
 #include <cassert>
 #include <optional>
 #include <vector>
+#include <iostream> // Added for std::cout and std::endl
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -189,6 +190,19 @@ void OpenGL::renderFont3d(const SharedMMTexture &texture, const std::vector<Font
 void OpenGL::initializeOpenGLFunctions()
 {
     getFunctions().initializeOpenGLFunctions();
+
+    // Check for instancing functions
+    if (getFunctions().glDrawArraysInstanced == nullptr) {
+        std::cout << "glDrawArraysInstanced is not available." << std::endl;
+    } else {
+        std::cout << "glDrawArraysInstanced is available." << std::endl;
+    }
+
+    if (getFunctions().glVertexAttribDivisor == nullptr) {
+        std::cout << "glVertexAttribDivisor is not available." << std::endl;
+    } else {
+        std::cout << "glVertexAttribDivisor is available." << std::endl;
+    }
 }
 
 const char *OpenGL::glGetString(GLenum name)

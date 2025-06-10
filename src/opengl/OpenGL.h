@@ -79,62 +79,71 @@ public:
                                         DrawModeEnum mode,
                                         const std::vector<FontVert3d> &batch);
 
+public:
+    NODISCARD GLuint createInstanceBuffer(const std::vector<glm::mat4>& data);
+    void updateInstanceBuffer(GLuint bufferId, const std::vector<glm::mat4>& data);
+
 protected:
     void renderPlain(DrawModeEnum type,
                      const std::vector<glm::vec3> &verts,
-                     const GLRenderState &state);
+                     const GLRenderState &state,
+                     GLsizei instanceCount = 0);
     void renderColored(DrawModeEnum type,
                        const std::vector<ColorVert> &verts,
-                       const GLRenderState &state);
+                       const GLRenderState &state,
+                       GLsizei instanceCount = 0);
     void renderTextured(DrawModeEnum type,
                         const std::vector<TexVert> &verts,
-                        const GLRenderState &state);
+                        const GLRenderState &state,
+                        GLsizei instanceCount = 0);
     void renderColoredTextured(DrawModeEnum type,
                                const std::vector<ColoredTexVert> &verts,
-                               const GLRenderState &state);
+                               const GLRenderState &state,
+                               GLsizei instanceCount = 0);
 
 public:
     void renderPoints(const std::vector<ColorVert> &verts, const GLRenderState &state);
 
 public:
-    void renderPlainLines(const std::vector<glm::vec3> &verts, const GLRenderState &state)
+    void renderPlainLines(const std::vector<glm::vec3> &verts, const GLRenderState &state, GLsizei instanceCount = 0)
     {
-        renderPlain(DrawModeEnum::LINES, verts, state);
+        renderPlain(DrawModeEnum::LINES, verts, state, instanceCount);
     }
-    void renderPlainTris(const std::vector<glm::vec3> &verts, const GLRenderState &state)
+    void renderPlainTris(const std::vector<glm::vec3> &verts, const GLRenderState &state, GLsizei instanceCount = 0)
     {
-        renderPlain(DrawModeEnum::TRIANGLES, verts, state);
+        renderPlain(DrawModeEnum::TRIANGLES, verts, state, instanceCount);
     }
-    void renderPlainQuads(const std::vector<glm::vec3> &verts, const GLRenderState &state)
+    void renderPlainQuads(const std::vector<glm::vec3> &verts, const GLRenderState &state, GLsizei instanceCount = 0)
     {
-        renderPlain(DrawModeEnum::QUADS, verts, state);
-    }
-
-public:
-    void renderColoredLines(const std::vector<ColorVert> &verts, const GLRenderState &state)
-    {
-        renderColored(DrawModeEnum::LINES, verts, state);
-    }
-    void renderColoredTris(const std::vector<ColorVert> &verts, const GLRenderState &state)
-    {
-        renderColored(DrawModeEnum::TRIANGLES, verts, state);
-    }
-    void renderColoredQuads(const std::vector<ColorVert> &verts, const GLRenderState &state)
-    {
-        renderColored(DrawModeEnum::QUADS, verts, state);
+        renderPlain(DrawModeEnum::QUADS, verts, state, instanceCount);
     }
 
 public:
-    void renderTexturedQuads(const std::vector<TexVert> &verts, const GLRenderState &state)
+    void renderColoredLines(const std::vector<ColorVert> &verts, const GLRenderState &state, GLsizei instanceCount = 0)
     {
-        renderTextured(DrawModeEnum::QUADS, verts, state);
+        renderColored(DrawModeEnum::LINES, verts, state, instanceCount);
+    }
+    void renderColoredTris(const std::vector<ColorVert> &verts, const GLRenderState &state, GLsizei instanceCount = 0)
+    {
+        renderColored(DrawModeEnum::TRIANGLES, verts, state, instanceCount);
+    }
+    void renderColoredQuads(const std::vector<ColorVert> &verts, const GLRenderState &state, GLsizei instanceCount = 0)
+    {
+        renderColored(DrawModeEnum::QUADS, verts, state, instanceCount);
+    }
+
+public:
+    void renderTexturedQuads(const std::vector<TexVert> &verts, const GLRenderState &state, GLsizei instanceCount = 0)
+    {
+        renderTextured(DrawModeEnum::QUADS, verts, state, instanceCount);
     }
 
 public:
     void renderColoredTexturedQuads(const std::vector<ColoredTexVert> &verts,
-                                    const GLRenderState &state)
+                                    const GLRenderState &state,
+                                    GLsizei instanceCount = 0)
     {
-        renderColoredTextured(DrawModeEnum::QUADS, verts, state);
+        renderColoredTextured(DrawModeEnum::QUADS, verts, state, instanceCount);
     }
 
 public:

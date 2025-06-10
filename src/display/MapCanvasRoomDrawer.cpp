@@ -909,7 +909,7 @@ static void generateAllLayerMeshes(InternalData &internalData,
     }
 }
 
-void LayerMeshes::render(const int thisLayer, const int focusedLayer)
+void LayerMeshes::render(const int thisLayer, const int focusedLayer, GLsizei instanceCount)
 {
     bool disableTextures = false;
     if (thisLayer > focusedLayer) {
@@ -937,6 +937,27 @@ void LayerMeshes::render(const int thisLayer, const int focusedLayer)
         return Colors::gray70.withAlpha(0.20f);
     }();
 
+    auto render_meshes = [&](const UniqueMeshVector& meshes_to_render, const GLRenderState& render_state) {
+        if (instanceCount > 0) {
+            // Assuming UniqueMeshVector has a renderInstanced or similar method,
+            // or IRenderable (which UniqueMesh wraps) has renderInstanced.
+            // This requires IRenderable and UniqueMesh to support renderInstanced.
+            meshes_to_render.renderInstanced(render_state, instanceCount);
+        } else {
+            meshes_to_render.render(render_state);
+        }
+    };
+
+    auto render_single_mesh = [&](const UniqueMesh& mesh_to_render, const GLRenderState& render_state) {
+        if (instanceCount > 0) {
+            // Assuming UniqueMesh (or its underlying IRenderable) has renderInstanced.
+            mesh_to_render.renderInstanced(render_state, instanceCount);
+        } else {
+             mesh_to_render.render(render_state);
+        }
+    };
+
+
     {
         /* REVISIT: For the modern case, we could render each layer separately,
          * and then only blend the layers that actually overlap. Doing that would
@@ -944,9 +965,9 @@ void LayerMeshes::render(const int thisLayer, const int focusedLayer)
          */
         if (disableTextures) {
             const auto layerWhite = Colors::white.withAlpha(0.20f);
-            layerBoost.render(less_blended.withColor(layerWhite));
+            render_single_mesh(layerBoost, less_blended.withColor(layerWhite));
         } else {
-            terrain.render(less_blended.withColor(color));
+            render_meshes(terrain, less_blended.withColor(color));
         }
     }
 
@@ -964,7 +985,7 @@ void LayerMeshes::render(const int thisLayer, const int focusedLayer)
         }();
 
         if (const auto optColor = getColor(namedColor)) {
-            tints[tint].render(equal_multiplied.withColor(optColor.value()));
+            render_single_mesh(tints[tint], equal_multiplied.withColor(optColor.value()));
         } else {
             assert(false);
         }
@@ -972,23 +993,23 @@ void LayerMeshes::render(const int thisLayer, const int focusedLayer)
 
     if (!disableTextures) {
         // streams go under everything else, including trails
-        streamIns.render(lequal_blended.withColor(color));
-        streamOuts.render(lequal_blended.withColor(color));
+        render_meshes(streamIns, lequal_blended.withColor(color));
+        render_meshes(streamOuts, lequal_blended.withColor(color));
 
-        trails.render(equal_blended.withColor(color));
-        overlays.render(equal_blended.withColor(color));
+        render_meshes(trails, equal_blended.withColor(color));
+        render_meshes(overlays, equal_blended.withColor(color));
     }
 
     // always
     {
         // doors and walls are considered lines, even though they're drawn with textures.
-        upDownExits.render(equal_blended.withColor(color));
+        render_meshes(upDownExits, equal_blended.withColor(color));
 
         // Doors are drawn on top of the up-down exits
-        doors.render(lequal_blended.withColor(color));
+        render_meshes(doors, lequal_blended.withColor(color));
         // and walls are drawn on top of doors.
-        walls.render(lequal_blended.withColor(color));
-        dottedWalls.render(lequal_blended.withColor(color));
+        render_meshes(walls, lequal_blended.withColor(color));
+        render_meshes(dottedWalls, lequal_blended.withColor(color));
     }
 
     if (thisLayer != focusedLayer) {
@@ -1000,7 +1021,7 @@ void LayerMeshes::render(const int thisLayer, const int focusedLayer)
                          1.f);
         const Color &baseColor = (thisLayer < focusedLayer || disableTextures) ? Colors::black
                                                                                : Colors::white;
-        layerBoost.render(equal_blended.withColor(baseColor.withAlpha(alpha)));
+        render_single_mesh(layerBoost, equal_blended.withColor(baseColor.withAlpha(alpha)));
     }
 }
 

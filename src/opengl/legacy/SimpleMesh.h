@@ -188,5 +188,46 @@ private:
             assert(false);
         }
     }
+
+public:
+    // New method for instanced rendering
+    void renderInstanced(const GLRenderState &renderState, GLsizei instanceCount)
+    {
+        if (isEmpty() || instanceCount == 0) {
+            return;
+        }
+
+        m_functions.checkError();
+
+        const glm::mat4 mvp = m_functions.getProjectionMatrix();
+        auto programUnbinder = m_program.bind();
+        m_program.setUniforms(mvp, renderState.uniforms);
+        RenderStateBinder renderStateBinder(m_functions, m_functions.getTexLookup(), renderState);
+
+        m_functions.glBindVertexArray(m_vao);
+        RAIICallback vaoUnbinder([&]() {
+            m_functions.glBindVertexArray(0);
+            m_functions.checkError();
+        });
+
+        auto attribUnbinder = bindAttribs(); // This binds vertex attributes
+
+        // Note: Instance attributes (like instanceMatrix) should be bound by the caller
+        // or a specialized instanced mesh class that overrides virt_bind.
+
+        if (const std::optional<GLenum> &optMode = Functions::toGLenum(m_drawMode)) {
+            if (m_functions.glDrawArraysInstanced != nullptr) {
+                m_functions.glDrawArraysInstanced(optMode.value(), 0, m_numVerts, instanceCount);
+            } else {
+                // Fallback or error if instancing is not supported
+                // For now, just don't draw instanced if the function is not available
+                // Alternatively, one could loop instanceCount times and call glDrawArrays
+                // but that would be inefficient and miss the point of instancing.
+                qWarning("glDrawArraysInstanced not available, instanced call skipped.");
+            }
+        } else {
+            assert(false);
+        }
+    }
 };
 } // namespace Legacy

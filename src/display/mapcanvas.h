@@ -109,6 +109,7 @@ private:
     FrameRateController m_frameRateController;
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
     Signal2Lifetime m_lifetime;
+    GLuint m_instanceBuffer = 0;
 
 public:
     explicit MapCanvas(MapData &mapData,

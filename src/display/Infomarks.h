@@ -22,7 +22,6 @@ class OpenGL;
 struct NODISCARD InfomarksMeshes final
 {
     UniqueMesh points;
-    UniqueMesh lines;
     UniqueMesh tris;
     UniqueMesh textMesh;
     bool isValid = false;
@@ -40,7 +39,6 @@ private:
     Color m_color;
 
     std::vector<ColorVert> m_points;
-    std::vector<ColorVert> m_lines;
     std::vector<ColorVert> m_tris;
     std::vector<GLText> m_text;
 

@@ -459,6 +459,8 @@ set(mmapper_SRCS
     preferences/generalpage.h
     preferences/graphicspage.cpp
     preferences/graphicspage.h
+    preferences/grouppage.cpp
+    preferences/grouppage.h
     preferences/mumeprotocolpage.cpp
     preferences/mumeprotocolpage.h
     preferences/parserpage.cpp

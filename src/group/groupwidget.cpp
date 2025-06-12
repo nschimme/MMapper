@@ -20,6 +20,9 @@
 #include <vector> // For GroupVector / std::vector
 #include <set>    // For std::set
 #include <algorithm> // For std::find_if or other algorithms if needed by iterators
+#include <iterator> // For std::distance
+#include <QDebug> // For qDebug
+#include <QStringList> // For QStringList
 
 #include <QAction>
 #include <QHeaderView>
@@ -224,64 +227,98 @@ GroupModel::GroupModel(QObject *parent)
 }
 
 void GroupModel::setCharacters(const GroupVector& newGameChars) {
+    qDebug() << "[GroupModel::setCharacters] Called.";
+
+    QStringList oldCharNames;
+    for (const auto& ch : m_characters) {
+        if (ch) oldCharNames << ch->getName().toQString(); else oldCharNames << "NULL";
+    }
+    qDebug() << "  Old m_characters (" << m_characters.size() << "):" << oldCharNames.join(", ");
+
+    QStringList newGameCharNames;
+    for (const auto& ch : newGameChars) {
+        if (ch) newGameCharNames << ch->getName().toQString(); else newGameCharNames << "NULL";
+    }
+    qDebug() << "  Input newGameChars (" << newGameChars.size() << "):" << newGameCharNames.join(", ");
+
     GroupVector resultingCharacterList;
     std::vector<SharedGroupChar> trulyNewPlayers;
     std::vector<SharedGroupChar> trulyNewNpcs;
-    std::vector<SharedGroupChar> allTrulyNewCharsInOriginalOrder; // For the 'else' case
+    std::vector<SharedGroupChar> allTrulyNewCharsInOriginalOrder;
 
     std::set<SharedGroupChar> newGameCharsSet(newGameChars.begin(), newGameChars.end());
 
     // 1. Preserve existing characters
     for (const auto& existingChar : m_characters) {
         if (newGameCharsSet.count(existingChar)) {
-            resultingCharacterList.push_back(existingChar);
+            if (existingChar) { // Ensure not null before adding
+                resultingCharacterList.push_back(existingChar);
+            }
         }
     }
+    QStringList preservedCharNames;
+    for (const auto& ch : resultingCharacterList) {
+        if (ch) preservedCharNames << ch->getName().toQString(); else preservedCharNames << "NULL";
+    }
+    qDebug() << "  1. Preserved characters in resultingCharacterList (" << resultingCharacterList.size() << "):" << preservedCharNames.join(", ");
+
 
     // 2. Identify truly new characters and categorize them
     std::set<SharedGroupChar> preservedCharsSet(resultingCharacterList.begin(), resultingCharacterList.end());
     for (const auto& gameChar : newGameChars) {
-        if (!preservedCharsSet.count(gameChar)) { // If not already preserved
-            allTrulyNewCharsInOriginalOrder.push_back(gameChar); // Store all new ones in order
-            if (gameChar && gameChar->isNPC()) {
-                trulyNewNpcs.push_back(gameChar);
-            } else if (gameChar) {
-                trulyNewPlayers.push_back(gameChar);
+        if (!preservedCharsSet.count(gameChar)) {
+            if (gameChar) { // Ensure not null before processing
+                allTrulyNewCharsInOriginalOrder.push_back(gameChar);
+                if (gameChar->isNPC()) {
+                    trulyNewNpcs.push_back(gameChar);
+                } else {
+                    trulyNewPlayers.push_back(gameChar);
+                }
             }
         }
     }
+    QStringList newPlayerNames, newNpcNames;
+    for (const auto& ch : trulyNewPlayers) { if (ch) newPlayerNames << ch->getName().toQString(); }
+    for (const auto& ch : trulyNewNpcs) { if (ch) newNpcNames << ch->getName().toQString(); }
+    qDebug() << "  2. Identified Truly New Players (" << trulyNewPlayers.size() << "): " << newPlayerNames.join(", ");
+    qDebug() << "     Identified Truly New NPCs (" << trulyNewNpcs.size() << "): " << newNpcNames.join(", ");
+
 
     const auto& groupManagerSettings = getConfig().groupManager;
+    qDebug() << "  sortNpcsToBottom setting is:" << groupManagerSettings.sortNpcsToBottom;
 
     if (groupManagerSettings.sortNpcsToBottom) {
-        // 3. (Conditional) Insert new players before the first NPC
         auto itPlayerInsertPos = resultingCharacterList.begin();
         while (itPlayerInsertPos != resultingCharacterList.end()) {
-            // Ensure dereferencing *itPlayerInsertPos is safe before calling isNPC()
             if (*itPlayerInsertPos && (*itPlayerInsertPos)->isNPC()){
                 break;
             }
             ++itPlayerInsertPos;
         }
+        qDebug() << "  3. (Sort ON) Player insert position found at index:" << std::distance(resultingCharacterList.begin(), itPlayerInsertPos);
         if (!trulyNewPlayers.empty()) {
             resultingCharacterList.insert(itPlayerInsertPos, trulyNewPlayers.begin(), trulyNewPlayers.end());
         }
-
-        // 4. (Conditional) Append new NPCs to the very end
         if (!trulyNewNpcs.empty()) {
             resultingCharacterList.insert(resultingCharacterList.end(), trulyNewNpcs.begin(), trulyNewNpcs.end());
         }
     } else {
-        // 5. (Alternative) If sortNpcsToBottom is false, append all truly new characters
-        //    (players and NPCs mixed) to the end, preserving their relative order from newGameChars.
+        qDebug() << "  3. (Sort OFF) Appending all truly new characters in original order.";
         if (!allTrulyNewCharsInOriginalOrder.empty()) {
             resultingCharacterList.insert(resultingCharacterList.end(), allTrulyNewCharsInOriginalOrder.begin(), allTrulyNewCharsInOriginalOrder.end());
         }
     }
 
+    QStringList finalCharNames;
+    for (const auto& ch : resultingCharacterList) {
+        if (ch) finalCharNames << ch->getName().toQString(); else finalCharNames << "NULL";
+    }
+    qDebug() << "  FINAL resultingCharacterList before model reset (" << resultingCharacterList.size() << "):" << finalCharNames.join(", ");
+
     beginResetModel();
     m_characters = resultingCharacterList;
     endResetModel();
+    qDebug() << "[GroupModel::setCharacters] Finished.";
 }
 
 SharedGroupChar GroupModel::getCharacter(int row) const {

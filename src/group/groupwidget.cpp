@@ -14,6 +14,7 @@
 #include "CGroupChar.h"
 #include "enums.h"
 #include "mmapper2group.h"
+#include "groupproxymodel.h" // Added include
 
 #include <map>
 
@@ -156,47 +157,19 @@ QSize GroupDelegate::sizeHint(const QStyleOptionViewItem &option, const QModelIn
 GroupModel::GroupModel(MapData *const md, Mmapper2Group *const group, QObject *const parent)
     : QAbstractTableModel(parent)
     , m_map(md)
+    , m_map(md)
     , m_group(group)
 {}
 
-// Helper method to get characters after sorting and filtering
-GroupVector GroupModel::getProcessedCharacters() const {
+SharedGroupChar GroupModel::getCharacter(int row) const {
     if (!m_group) {
-        return {};
+        return nullptr;
     }
-    GroupVector currentChars = m_group->selectAll();
-    GroupVector processedChars;
-
-    // 1. Apply sorting if needed
-    if (getConfig().groupManager.sortNpcsToBottom) {
-        GroupVector playerChars;
-        GroupVector npcChars;
-        for (const auto& ch : currentChars) {
-            if (ch->isNPC()) { // Use isNPC()
-                npcChars.push_back(ch);
-            } else {
-                playerChars.push_back(ch);
-            }
-        }
-        processedChars.reserve(playerChars.size() + npcChars.size());
-        processedChars.insert(processedChars.end(), playerChars.begin(), playerChars.end());
-        processedChars.insert(processedChars.end(), npcChars.begin(), npcChars.end());
-    } else {
-        processedChars = currentChars;
+    const auto& characters = m_group->selectAll();
+    if (row >= 0 && row < static_cast<int>(characters.size())) {
+        return characters.at(static_cast<size_t>(row));
     }
-
-    // 2. Apply filtering if needed
-    if (getConfig().groupManager.filterNPCs) {
-        GroupVector filteredChars;
-        for (const auto& ch : processedChars) {
-            if (!ch->isNPC()) { // Use isNPC()
-                filteredChars.push_back(ch);
-            }
-        }
-        return filteredChars;
-    }
-
-    return processedChars;
+    return nullptr;
 }
 
 void GroupModel::resetModel()
@@ -205,9 +178,13 @@ void GroupModel::resetModel()
     endResetModel();
 }
 
-int GroupModel::rowCount(const QModelIndex & /* parent */) const
+int GroupModel::rowCount(const QModelIndex & parent) const
 {
-    return static_cast<int>(getProcessedCharacters().size());
+    Q_UNUSED(parent);
+    if (m_group) {
+        return static_cast<int>(m_group->selectAll().size());
+    }
+    return 0;
 }
 
 int GroupModel::columnCount(const QModelIndex & /* parent */) const
@@ -368,17 +345,18 @@ QVariant GroupModel::dataForCharacter(const SharedGroupChar &pCharacter,
 
 QVariant GroupModel::data(const QModelIndex &index, int role) const
 {
-    if (!index.isValid()) {
+    if (!index.isValid() || !m_group) {
         return QVariant();
     }
 
-    GroupVector characters = getProcessedCharacters(); // Get sorted/filtered list
+    const GroupVector& characters = m_group->selectAll(); // Get the raw list
 
-    if (index.row() < static_cast<int>(characters.size())) {
+    if (index.row() >= 0 && index.row() < static_cast<int>(characters.size())) {
         const SharedGroupChar& character = characters.at(static_cast<size_t>(index.row()));
-        const auto column = static_cast<ColumnTypeEnum>(index.column());
-        return dataForCharacter(character, column, role);
+        // dataForCharacter is an existing helper that takes a character and returns QVariant for column/role
+        return dataForCharacter(character, static_cast<ColumnTypeEnum>(index.column()), role);
     }
+
     return QVariant();
 }
 
@@ -435,7 +413,11 @@ GroupWidget::GroupWidget(Mmapper2Group *const group, MapData *const md, QWidget 
     m_table->setSelectionMode(QAbstractItemView::NoSelection);
     m_table->horizontalHeader()->setStretchLastSection(true);
     m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
-    m_table->setModel(&m_model);
+
+    m_proxyModel = new GroupProxyModel(this);
+    m_proxyModel->setSourceModel(&m_model);
+    m_table->setModel(m_proxyModel);
+
     m_table->setItemDelegate(new GroupDelegate(this));
     layout->addWidget(m_table);
 
@@ -475,58 +457,31 @@ GroupWidget::GroupWidget(Mmapper2Group *const group, MapData *const md, QWidget 
         }
     });
 
-    connect(m_table, &QAbstractItemView::clicked, this, [this](const QModelIndex &index) {
-        if (!index.isValid()) {
+    connect(m_table, &QAbstractItemView::clicked, this, [this](const QModelIndex &proxyIndex) { // Renamed index to proxyIndex
+        if (!proxyIndex.isValid()) {
             return;
         }
 
-        // Identify target
-        if (auto *const g = m_group) { // m_group is Mmapper2Group*
-            // Replicate the logic from GroupModel::getProcessedCharacters
-            GroupVector currentChars = g->selectAll();
-            GroupVector processedChars;
+        // Map the proxy index to the source model index
+        QModelIndex sourceIndex = m_proxyModel->mapToSource(proxyIndex);
 
-            if (getConfig().groupManager.sortNpcsToBottom) {
-                GroupVector playerChars;
-                GroupVector npcChars;
-                for (const auto& ch : currentChars) {
-                    if (ch->isNPC()) { // Use isNPC()
-                        npcChars.push_back(ch);
-                    } else {
-                        playerChars.push_back(ch);
-                    }
-                }
-                processedChars.reserve(playerChars.size() + npcChars.size()); // Optimization
-                processedChars.insert(processedChars.end(), playerChars.begin(), playerChars.end());
-                processedChars.insert(processedChars.end(), npcChars.begin(), npcChars.end());
-            } else {
-                processedChars = currentChars;
-            }
+        if (!sourceIndex.isValid()) { // Check if mapping was successful
+            return;
+        }
 
-            GroupVector finalCharsToClick;
-            if (getConfig().groupManager.filterNPCs) {
-                for (const auto& ch : processedChars) {
-                    if (!ch->isNPC()) { // Use isNPC()
-                        finalCharsToClick.push_back(ch);
-                    }
-                }
-            } else {
-                finalCharsToClick = processedChars;
-            }
-            // End of replicated logic
+        // Get the character from the source model (GroupModel) using the source index's row
+        // m_model is the GroupModel instance in GroupWidget
+        selectedCharacter = m_model.getCharacter(sourceIndex.row());
 
-            if (index.row() < static_cast<int>(finalCharsToClick.size())) {
-                selectedCharacter = finalCharsToClick.at(static_cast<size_t>(index.row()));
+        if (selectedCharacter) { // Ensure character was found
+            m_center->setText(QString("&Center on %1").arg(selectedCharacter->getName().toQString()));
+            m_recolor->setText(QString("&Recolor %1").arg(selectedCharacter->getName().toQString()));
+            m_center->setDisabled(!selectedCharacter->isYou() && selectedCharacter->getServerId() == INVALID_SERVER_ROOMID);
 
-                m_center->setText(QString("&Center on %1").arg(selectedCharacter->getName().toQString()));
-                m_recolor->setText(QString("&Recolor %1").arg(selectedCharacter->getName().toQString()));
-                m_center->setDisabled(!selectedCharacter->isYou() && selectedCharacter->getServerId() == INVALID_SERVER_ROOMID);
-
-                QMenu contextMenu(tr("Context menu"), this);
-                contextMenu.addAction(m_center);
-                contextMenu.addAction(m_recolor);
-                contextMenu.exec(QCursor::pos());
-            }
+            QMenu contextMenu(tr("Context menu"), this);
+            contextMenu.addAction(m_center);
+            contextMenu.addAction(m_recolor);
+            contextMenu.exec(QCursor::pos());
         }
     });
 
@@ -550,7 +505,11 @@ QSize GroupWidget::sizeHint() const
 
 void GroupWidget::slot_updateLabels()
 {
-    m_model.resetModel();
+    m_model.resetModel(); // Source model signals reset
+
+    if (m_proxyModel) {
+        m_proxyModel->refresh(); // Tell proxy to re-evaluate filtering/sorting
+    }
 
     // Hide unnecessary columns like mana if everyone is a zorc/troll
     const auto one_character_had_mana = [this]() -> bool {

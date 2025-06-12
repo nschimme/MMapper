@@ -18,6 +18,7 @@ class CGroupChar;
 class Mmapper2Group;
 class QObject;
 class QTableView;
+class GroupProxyModel; // Forward declaration
 
 class NODISCARD GroupStateData final
 {
@@ -84,6 +85,8 @@ public:
     NODISCARD QVariant dataForCharacter(const SharedGroupChar &character,
                                         ColumnTypeEnum column,
                                         int role) const;
+    Mmapper2Group* getGroup() const { return m_group; } // Added getter
+    SharedGroupChar getCharacter(int row) const; // New method to get character by source row
 
     NODISCARD int rowCount(const QModelIndex &parent) const override;
     NODISCARD int columnCount(const QModelIndex &parent) const override;
@@ -104,6 +107,7 @@ private:
     Mmapper2Group *m_group = nullptr;
     MapData *m_map = nullptr;
     GroupModel m_model;
+    GroupProxyModel *m_proxyModel = nullptr;
 
 private:
     QAction *m_center = nullptr;

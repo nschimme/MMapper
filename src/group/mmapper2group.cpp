@@ -279,9 +279,27 @@ bool Mmapper2Group::updateChar(SharedGroupChar sharedCh, const JsonObj &obj)
             });
         }
     }
-    if (!ch.getColor().isValid()) {
-        ch.setColor(m_colorGenerator.getNextColor());
-        qDebug() << "adding" << id.asUint32() << ch.getName().toQString();
+
+    const auto& groupManagerSettings = getConfig().groupManager;
+    if (ch.isNPC() && groupManagerSettings.overrideNpcColor) {
+        const QColor npcOverrideColor = groupManagerSettings.npcOverrideColor;
+        if (ch.getColor().isValid() && ch.getColor() != npcOverrideColor) {
+            // Release previously assigned color if it's different from the override color.
+            // This primarily targets colors from m_colorGenerator.
+            m_colorGenerator.releaseColor(ch.getColor());
+        }
+        if (ch.getColor() != npcOverrideColor) { // Avoid redundant setColor if already correct
+            ch.setColor(npcOverrideColor);
+            change = true; // Color change should trigger UI update
+        }
+    } else {
+        // Original logic for non-NPCs or when NPC override is disabled
+        if (!ch.getColor().isValid()) {
+            ch.setColor(m_colorGenerator.getNextColor());
+            qDebug() << "adding" << id.asUint32() << ch.getName().toQString() << "with generated color";
+            // If ch.updateFromGmcp(obj) was false, but we set a new color, 'change' should be true.
+            if (!change) change = true;
+        }
     }
 
     // Update canvas only if the character moved

@@ -286,6 +286,9 @@ public:
     {
         QColor color;
         bool filterNPCs = false;
+        bool overrideNpcColor = false;
+        QColor npcOverrideColor = QColor(Qt::lightGray);
+        bool sortNpcsToBottom = false;
 
     private:
         SUBGROUP();

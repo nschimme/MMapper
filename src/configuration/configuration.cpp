@@ -20,6 +20,7 @@
 #include <QSslSocket>
 #include <QString>
 #include <QStringList>
+#include <QColor>
 
 #undef TRANSPARENT // Bad dog, Microsoft; bad dog!!!
 
@@ -686,6 +687,9 @@ void Configuration::GroupManagerSettings::read(const QSettings &conf)
 {
     color = QColor(conf.value(KEY_COLOR, "#FFFF00").toString());
     filterNPCs = conf.value("filterNPCs", false).toBool();
+    overrideNpcColor = conf.value(QStringLiteral("overrideNpcColor"), false).toBool();
+    npcOverrideColor = conf.value(QStringLiteral("npcOverrideColor"), QColor(Qt::lightGray)).value<QColor>();
+    sortNpcsToBottom = conf.value(QStringLiteral("sortNpcsToBottom"), false).toBool();
 }
 
 void Configuration::MumeClockSettings::read(const QSettings &conf)
@@ -851,6 +855,9 @@ void Configuration::GroupManagerSettings::write(QSettings &conf) const
 {
     conf.setValue(KEY_COLOR, color.name());
     conf.setValue("filterNPCs", filterNPCs);
+    conf.setValue(QStringLiteral("overrideNpcColor"), overrideNpcColor);
+    conf.setValue(QStringLiteral("npcOverrideColor"), npcOverrideColor);
+    conf.setValue(QStringLiteral("sortNpcsToBottom"), sortNpcsToBottom);
 }
 
 void Configuration::MumeClockSettings::write(QSettings &conf) const

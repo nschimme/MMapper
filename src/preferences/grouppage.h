@@ -39,5 +39,14 @@ private:
     QPushButton *m_colorButton = nullptr;
     QLabel *m_colorPreviewLabel = nullptr; // To show the selected color
 
+    QCheckBox *m_overrideNpcColorCheckBox = nullptr;
+    QPushButton *m_npcOverrideColorButton = nullptr;
+    QLabel *m_npcOverrideColorPreviewLabel = nullptr;
+    QCheckBox *m_sortNpcsToBottomCheckBox = nullptr;
+
     QColor m_selectedColor;
+    QColor m_selectedNpcOverrideColor;
+
+private slots:
+    void slot_chooseNpcOverrideColor();
 };

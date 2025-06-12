@@ -159,6 +159,46 @@ GroupModel::GroupModel(MapData *const md, Mmapper2Group *const group, QObject *c
     , m_group(group)
 {}
 
+// Helper method to get characters after sorting and filtering
+GroupVector GroupModel::getProcessedCharacters() const {
+    if (!m_group) {
+        return {};
+    }
+    GroupVector currentChars = m_group->selectAll();
+    GroupVector processedChars;
+
+    // 1. Apply sorting if needed
+    if (getConfig().groupManager.sortNpcsToBottom) {
+        GroupVector playerChars;
+        GroupVector npcChars;
+        for (const auto& ch : currentChars) {
+            if (ch->isNPC()) { // Use isNPC()
+                npcChars.push_back(ch);
+            } else {
+                playerChars.push_back(ch);
+            }
+        }
+        processedChars.reserve(playerChars.size() + npcChars.size());
+        processedChars.insert(processedChars.end(), playerChars.begin(), playerChars.end());
+        processedChars.insert(processedChars.end(), npcChars.begin(), npcChars.end());
+    } else {
+        processedChars = currentChars;
+    }
+
+    // 2. Apply filtering if needed
+    if (getConfig().groupManager.filterNPCs) {
+        GroupVector filteredChars;
+        for (const auto& ch : processedChars) {
+            if (!ch->isNPC()) { // Use isNPC()
+                filteredChars.push_back(ch);
+            }
+        }
+        return filteredChars;
+    }
+
+    return processedChars;
+}
+
 void GroupModel::resetModel()
 {
     beginResetModel();
@@ -167,21 +207,7 @@ void GroupModel::resetModel()
 
 int GroupModel::rowCount(const QModelIndex & /* parent */) const
 {
-    if (auto group = m_group) {
-        auto selection = group->selectAll();
-        if (getConfig().groupManager.filterNPCs) {
-            int count = 0;
-            for (const auto &character : selection) {
-                if (character->getType() != CharacterTypeEnum::NPC) {
-                    count++;
-                }
-            }
-            return count;
-        } else {
-            return static_cast<int>(selection.size());
-        }
-    }
-    return 0;
+    return static_cast<int>(getProcessedCharacters().size());
 }
 
 int GroupModel::columnCount(const QModelIndex & /* parent */) const
@@ -342,38 +368,18 @@ QVariant GroupModel::dataForCharacter(const SharedGroupChar &pCharacter,
 
 QVariant GroupModel::data(const QModelIndex &index, int role) const
 {
-    QVariant dataVariant = QVariant(); // Renamed to avoid conflict
     if (!index.isValid()) {
-        return dataVariant;
+        return QVariant();
     }
 
-    if (auto group = m_group) {
-        auto selection = group->selectAll();
-        SharedGroupChar character = nullptr; // Initialize to nullptr
+    GroupVector characters = getProcessedCharacters(); // Get sorted/filtered list
 
-        if (getConfig().groupManager.filterNPCs) {
-            int filtered_idx = -1;
-            for (const auto &ch : selection) {
-                if (ch->getType() != CharacterTypeEnum::NPC) {
-                    filtered_idx++;
-                    if (filtered_idx == index.row()) {
-                        character = ch;
-                        break;
-                    }
-                }
-            }
-        } else {
-            if (index.row() < static_cast<int>(selection.size())) {
-                character = selection.at(static_cast<size_t>(index.row()));
-            }
-        }
-
-        if (character) { // Check if a character was actually found
-            const auto column = static_cast<ColumnTypeEnum>(index.column());
-            dataVariant = dataForCharacter(character, column, role);
-        }
+    if (index.row() < static_cast<int>(characters.size())) {
+        const SharedGroupChar& character = characters.at(static_cast<size_t>(index.row()));
+        const auto column = static_cast<ColumnTypeEnum>(index.column());
+        return dataForCharacter(character, column, role);
     }
-    return dataVariant;
+    return QVariant();
 }
 
 QVariant GroupModel::headerData(int section, Qt::Orientation orientation, int role) const
@@ -475,20 +481,46 @@ GroupWidget::GroupWidget(Mmapper2Group *const group, MapData *const md, QWidget 
         }
 
         // Identify target
-        if (auto *const g = m_group) {
-            auto selection = g->selectAll();
-            // Map row to character
-            if (index.row() < static_cast<int>(selection.size())) {
-                selectedCharacter = selection.at(static_cast<size_t>(index.row()));
+        if (auto *const g = m_group) { // m_group is Mmapper2Group*
+            // Replicate the logic from GroupModel::getProcessedCharacters
+            GroupVector currentChars = g->selectAll();
+            GroupVector processedChars;
 
-                // Build Context menu
-                m_center->setText(
-                    QString("&Center on %1").arg(selectedCharacter->getName().toQString()));
-                m_recolor->setText(
-                    QString("&Recolor %1").arg(selectedCharacter->getName().toQString()));
+            if (getConfig().groupManager.sortNpcsToBottom) {
+                GroupVector playerChars;
+                GroupVector npcChars;
+                for (const auto& ch : currentChars) {
+                    if (ch->isNPC()) { // Use isNPC()
+                        npcChars.push_back(ch);
+                    } else {
+                        playerChars.push_back(ch);
+                    }
+                }
+                processedChars.reserve(playerChars.size() + npcChars.size()); // Optimization
+                processedChars.insert(processedChars.end(), playerChars.begin(), playerChars.end());
+                processedChars.insert(processedChars.end(), npcChars.begin(), npcChars.end());
+            } else {
+                processedChars = currentChars;
+            }
 
-                m_center->setDisabled(!selectedCharacter->isYou()
-                                      && selectedCharacter->getServerId() == INVALID_SERVER_ROOMID);
+            GroupVector finalCharsToClick;
+            if (getConfig().groupManager.filterNPCs) {
+                for (const auto& ch : processedChars) {
+                    if (!ch->isNPC()) { // Use isNPC()
+                        finalCharsToClick.push_back(ch);
+                    }
+                }
+            } else {
+                finalCharsToClick = processedChars;
+            }
+            // End of replicated logic
+
+            if (index.row() < static_cast<int>(finalCharsToClick.size())) {
+                selectedCharacter = finalCharsToClick.at(static_cast<size_t>(index.row()));
+
+                m_center->setText(QString("&Center on %1").arg(selectedCharacter->getName().toQString()));
+                m_recolor->setText(QString("&Recolor %1").arg(selectedCharacter->getName().toQString()));
+                m_center->setDisabled(!selectedCharacter->isYou() && selectedCharacter->getServerId() == INVALID_SERVER_ROOMID);
 
                 QMenu contextMenu(tr("Context menu"), this);
                 contextMenu.addAction(m_center);

@@ -11,7 +11,6 @@
 #include "../global/JsonArray.h"
 #include "../global/JsonObj.h"
 #include "../global/thread_utils.h"
-#include "../map/sanitizer.h"
 #include "../proxy/GmcpMessage.h"
 #include "CGroupChar.h"
 #include "mmapper2character.h"
@@ -303,8 +302,8 @@ bool Mmapper2Group::updateChar(SharedGroupChar sharedCh, const JsonObj &obj)
         }
     }
 
-    const auto& groupManagerSettings = getConfig().groupManager;
-    if (ch.isNPC() && groupManagerSettings.overrideNpcColor) {
+    const auto &groupManagerSettings = getConfig().groupManager;
+    if (ch.isNpc() && groupManagerSettings.overrideNpcColor) {
         const QColor npcOverrideColor = groupManagerSettings.npcOverrideColor;
         if (ch.getColor().isValid() && ch.getColor() != npcOverrideColor) {
             // Release previously assigned color if it's different from the override color.
@@ -319,9 +318,11 @@ bool Mmapper2Group::updateChar(SharedGroupChar sharedCh, const JsonObj &obj)
         // Original logic for non-NPCs or when NPC override is disabled
         if (!ch.getColor().isValid()) {
             ch.setColor(m_colorGenerator.getNextColor());
-            qDebug() << "adding" << id.asUint32() << ch.getName().toQString() << "with generated color";
+            qDebug() << "adding" << id.asUint32() << ch.getName().toQString()
+                     << "with generated color";
             // If ch.updateFromGmcp(obj) was false, but we set a new color, 'change' should be true.
-            if (!change) change = true;
+            if (!change)
+                change = true;
         }
     }
 
@@ -337,7 +338,7 @@ void Mmapper2Group::slot_updateSelfColorFromConfig()
         if (m_self->getColor() != newColor) {
             m_self->setColor(newColor);
             m_colorGenerator.init(newColor); // Re-initialize color generator if base color changes
-            characterChanged(true); // This emits sig_updateWidget and sig_updateMapCanvas
+            characterChanged(true);          // This emits sig_updateWidget and sig_updateMapCanvas
             log("Updated your character color from preferences.");
         }
     }

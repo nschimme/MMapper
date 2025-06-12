@@ -6,28 +6,25 @@
 
 #include "../configuration/configuration.h"
 #include "../display/Filenames.h"
-#include "../global/AnsiTextUtils.h"
-#include "../map/room.h"
 #include "../map/roomid.h"
 #include "../mapdata/mapdata.h"
 #include "../mapdata/roomselection.h"
 #include "CGroupChar.h"
 #include "enums.h"
 #include "mmapper2group.h"
-// #include "groupproxymodel.h" // Removed include, definition is in groupwidget.h
 
-#include <map>
-#include <vector> // For GroupVector / std::vector
-#include <set>    // For std::set
 #include <algorithm> // For std::find_if or other algorithms if needed by iterators
-#include <iterator> // For std::distance
-#include <QDebug> // For qDebug
-#include <QStringList> // For QStringList
+#include <iterator>  // For std::distance
+#include <map>
+#include <set>    // For std::set
+#include <vector> // For GroupVector / std::vector
 
 #include <QAction>
+#include <QDebug> // For qDebug
 #include <QHeaderView>
 #include <QMessageLogContext>
 #include <QString>
+#include <QStringList> // For QStringList
 #include <QStyledItemDelegate>
 #include <QtWidgets>
 
@@ -81,8 +78,7 @@ NODISCARD static auto &getImage(const QString &filename, const bool invert)
 // GroupProxyModel Implementation
 GroupProxyModel::GroupProxyModel(QObject *parent)
     : QSortFilterProxyModel(parent)
-{
-}
+{}
 
 GroupProxyModel::~GroupProxyModel() = default;
 
@@ -93,7 +89,7 @@ void GroupProxyModel::refresh()
 
 SharedGroupChar GroupProxyModel::getCharacterFromSource(const QModelIndex &source_index) const
 {
-    const GroupModel *srcModel = qobject_cast<const GroupModel*>(sourceModel());
+    const GroupModel *srcModel = qobject_cast<const GroupModel *>(sourceModel());
     if (!srcModel || !source_index.isValid()) {
         return nullptr;
     }
@@ -111,7 +107,7 @@ bool GroupProxyModel::filterAcceptsRow(int source_row, const QModelIndex &source
 {
     Q_UNUSED(source_parent);
 
-    const auto& groupManagerSettings = getConfig().groupManager;
+    const auto &groupManagerSettings = getConfig().groupManager;
     if (!groupManagerSettings.filterNPCs) {
         return true;
     }
@@ -119,7 +115,7 @@ bool GroupProxyModel::filterAcceptsRow(int source_row, const QModelIndex &source
     QModelIndex sourceIndex = sourceModel()->index(source_row, 0, source_parent);
     SharedGroupChar character = getCharacterFromSource(sourceIndex);
 
-    if (character && character->isNPC()) {
+    if (character && character->isNpc()) {
         return false;
     }
 
@@ -221,25 +217,32 @@ QSize GroupDelegate::sizeHint(const QStyleOptionViewItem &option, const QModelIn
 
 GroupModel::GroupModel(QObject *parent)
     : QAbstractTableModel(parent)
-    // m_characters is default-initialized (empty std::vector)
-    // m_mapLoaded is also default-initialized or can be set here if needed
-{
-}
+// m_characters is default-initialized (empty std::vector)
+// m_mapLoaded is also default-initialized or can be set here if needed
+{}
 
-void GroupModel::setCharacters(const GroupVector& newGameChars) {
+void GroupModel::setCharacters(const GroupVector &newGameChars)
+{
     qDebug() << "[GroupModel::setCharacters] Called.";
 
     QStringList oldCharNames;
-    for (const auto& ch : m_characters) {
-        if (ch) oldCharNames << ch->getName().toQString(); else oldCharNames << "NULL";
+    for (const auto &ch : m_characters) {
+        if (ch)
+            oldCharNames << ch->getName().toQString();
+        else
+            oldCharNames << "NULL";
     }
     qDebug() << "  Old m_characters (" << m_characters.size() << "):" << oldCharNames.join(", ");
 
     QStringList newGameCharNames;
-    for (const auto& ch : newGameChars) {
-        if (ch) newGameCharNames << ch->getName().toQString(); else newGameCharNames << "NULL";
+    for (const auto &ch : newGameChars) {
+        if (ch)
+            newGameCharNames << ch->getName().toQString();
+        else
+            newGameCharNames << "NULL";
     }
-    qDebug() << "  Input newGameChars (" << newGameChars.size() << "):" << newGameCharNames.join(", ");
+    qDebug() << "  Input newGameChars (" << newGameChars.size()
+             << "):" << newGameCharNames.join(", ");
 
     GroupVector resultingCharacterList;
     std::vector<SharedGroupChar> trulyNewPlayers;
@@ -249,7 +252,7 @@ void GroupModel::setCharacters(const GroupVector& newGameChars) {
     std::set<SharedGroupChar> newGameCharsSet(newGameChars.begin(), newGameChars.end());
 
     // 1. Preserve existing characters
-    for (const auto& existingChar : m_characters) {
+    for (const auto &existingChar : m_characters) {
         if (newGameCharsSet.count(existingChar)) {
             if (existingChar) { // Ensure not null before adding
                 resultingCharacterList.push_back(existingChar);
@@ -257,19 +260,23 @@ void GroupModel::setCharacters(const GroupVector& newGameChars) {
         }
     }
     QStringList preservedCharNames;
-    for (const auto& ch : resultingCharacterList) {
-        if (ch) preservedCharNames << ch->getName().toQString(); else preservedCharNames << "NULL";
+    for (const auto &ch : resultingCharacterList) {
+        if (ch)
+            preservedCharNames << ch->getName().toQString();
+        else
+            preservedCharNames << "NULL";
     }
-    qDebug() << "  1. Preserved characters in resultingCharacterList (" << resultingCharacterList.size() << "):" << preservedCharNames.join(", ");
-
+    qDebug() << "  1. Preserved characters in resultingCharacterList ("
+             << resultingCharacterList.size() << "):" << preservedCharNames.join(", ");
 
     // 2. Identify truly new characters and categorize them
-    std::set<SharedGroupChar> preservedCharsSet(resultingCharacterList.begin(), resultingCharacterList.end());
-    for (const auto& gameChar : newGameChars) {
+    std::set<SharedGroupChar> preservedCharsSet(resultingCharacterList.begin(),
+                                                resultingCharacterList.end());
+    for (const auto &gameChar : newGameChars) {
         if (!preservedCharsSet.count(gameChar)) {
             if (gameChar) { // Ensure not null before processing
                 allTrulyNewCharsInOriginalOrder.push_back(gameChar);
-                if (gameChar->isNPC()) {
+                if (gameChar->isNpc()) {
                     trulyNewNpcs.push_back(gameChar);
                 } else {
                     trulyNewPlayers.push_back(gameChar);
@@ -278,42 +285,60 @@ void GroupModel::setCharacters(const GroupVector& newGameChars) {
         }
     }
     QStringList newPlayerNames, newNpcNames;
-    for (const auto& ch : trulyNewPlayers) { if (ch) newPlayerNames << ch->getName().toQString(); }
-    for (const auto& ch : trulyNewNpcs) { if (ch) newNpcNames << ch->getName().toQString(); }
-    qDebug() << "  2. Identified Truly New Players (" << trulyNewPlayers.size() << "): " << newPlayerNames.join(", ");
-    qDebug() << "     Identified Truly New NPCs (" << trulyNewNpcs.size() << "): " << newNpcNames.join(", ");
+    for (const auto &ch : trulyNewPlayers) {
+        if (ch)
+            newPlayerNames << ch->getName().toQString();
+    }
+    for (const auto &ch : trulyNewNpcs) {
+        if (ch)
+            newNpcNames << ch->getName().toQString();
+    }
+    qDebug() << "  2. Identified Truly New Players (" << trulyNewPlayers.size()
+             << "): " << newPlayerNames.join(", ");
+    qDebug() << "     Identified Truly New NPCs (" << trulyNewNpcs.size()
+             << "): " << newNpcNames.join(", ");
 
-
-    const auto& groupManagerSettings = getConfig().groupManager;
+    const auto &groupManagerSettings = getConfig().groupManager;
     qDebug() << "  sortNpcsToBottom setting is:" << groupManagerSettings.sortNpcsToBottom;
 
     if (groupManagerSettings.sortNpcsToBottom) {
         auto itPlayerInsertPos = resultingCharacterList.begin();
         while (itPlayerInsertPos != resultingCharacterList.end()) {
-            if (*itPlayerInsertPos && (*itPlayerInsertPos)->isNPC()){
+            if (*itPlayerInsertPos && (*itPlayerInsertPos)->isNpc()) {
                 break;
             }
             ++itPlayerInsertPos;
         }
-        qDebug() << "  3. (Sort ON) Player insert position found at index:" << std::distance(resultingCharacterList.begin(), itPlayerInsertPos);
+        qDebug() << "  3. (Sort ON) Player insert position found at index:"
+                 << std::distance(resultingCharacterList.begin(), itPlayerInsertPos);
         if (!trulyNewPlayers.empty()) {
-            resultingCharacterList.insert(itPlayerInsertPos, trulyNewPlayers.begin(), trulyNewPlayers.end());
+            resultingCharacterList.insert(itPlayerInsertPos,
+                                          trulyNewPlayers.begin(),
+                                          trulyNewPlayers.end());
         }
         if (!trulyNewNpcs.empty()) {
-            resultingCharacterList.insert(resultingCharacterList.end(), trulyNewNpcs.begin(), trulyNewNpcs.end());
+            resultingCharacterList.insert(resultingCharacterList.end(),
+                                          trulyNewNpcs.begin(),
+                                          trulyNewNpcs.end());
         }
     } else {
         qDebug() << "  3. (Sort OFF) Appending all truly new characters in original order.";
         if (!allTrulyNewCharsInOriginalOrder.empty()) {
-            resultingCharacterList.insert(resultingCharacterList.end(), allTrulyNewCharsInOriginalOrder.begin(), allTrulyNewCharsInOriginalOrder.end());
+            resultingCharacterList.insert(resultingCharacterList.end(),
+                                          allTrulyNewCharsInOriginalOrder.begin(),
+                                          allTrulyNewCharsInOriginalOrder.end());
         }
     }
 
     QStringList finalCharNames;
-    for (const auto& ch : resultingCharacterList) {
-        if (ch) finalCharNames << ch->getName().toQString(); else finalCharNames << "NULL";
+    for (const auto &ch : resultingCharacterList) {
+        if (ch)
+            finalCharNames << ch->getName().toQString();
+        else
+            finalCharNames << "NULL";
     }
-    qDebug() << "  FINAL resultingCharacterList before model reset (" << resultingCharacterList.size() << "):" << finalCharNames.join(", ");
+    qDebug() << "  FINAL resultingCharacterList before model reset ("
+             << resultingCharacterList.size() << "):" << finalCharNames.join(", ");
 
     beginResetModel();
     m_characters = resultingCharacterList;
@@ -321,7 +346,8 @@ void GroupModel::setCharacters(const GroupVector& newGameChars) {
     qDebug() << "[GroupModel::setCharacters] Finished.";
 }
 
-SharedGroupChar GroupModel::getCharacter(int row) const {
+SharedGroupChar GroupModel::getCharacter(int row) const
+{
     if (row >= 0 && row < static_cast<int>(m_characters.size())) {
         return m_characters.at(static_cast<size_t>(row));
     }
@@ -334,7 +360,7 @@ void GroupModel::resetModel()
     endResetModel();
 }
 
-int GroupModel::rowCount(const QModelIndex & parent) const
+int GroupModel::rowCount(const QModelIndex &parent) const
 {
     Q_UNUSED(parent);
     return static_cast<int>(m_characters.size());
@@ -503,7 +529,7 @@ QVariant GroupModel::data(const QModelIndex &index, int role) const
     }
 
     if (index.row() >= 0 && index.row() < static_cast<int>(m_characters.size())) {
-        const SharedGroupChar& character = m_characters.at(static_cast<size_t>(index.row()));
+        const SharedGroupChar &character = m_characters.at(static_cast<size_t>(index.row()));
         // dataForCharacter is an existing helper that takes a character and returns QVariant for column/role
         return dataForCharacter(character, static_cast<ColumnTypeEnum>(index.column()), role);
     }
@@ -577,14 +603,18 @@ QMimeData *GroupModel::mimeData(const QModelIndexList &indexes) const
     return mimeDataObj;
 }
 
-bool GroupModel::dropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column, const QModelIndex &parent)
+bool GroupModel::dropMimeData(
+    const QMimeData *data, Qt::DropAction action, int row, int column, const QModelIndex &parent)
 {
-    if (action == Qt::IgnoreAction) return true;
-    if (!data->hasFormat("application/vnd.mm_groupchar.row") || column > 0) return false;
+    if (action == Qt::IgnoreAction)
+        return true;
+    if (!data->hasFormat("application/vnd.mm_groupchar.row") || column > 0)
+        return false;
 
     QByteArray encodedData = data->data("application/vnd.mm_groupchar.row");
     QDataStream stream(&encodedData, QIODevice::ReadOnly);
-    if (stream.atEnd()) return false;
+    if (stream.atEnd())
+        return false;
     int sourceRow;
     stream >> sourceRow;
 
@@ -594,22 +624,24 @@ bool GroupModel::dropMimeData(const QMimeData *data, Qt::DropAction action, int 
     } else if (row != -1) {
         targetInsertionIndex = row;
     } else {
-        targetInsertionIndex = m_characters.size();
+        targetInsertionIndex = static_cast<int>(m_characters.size());
     }
 
-    if (sourceRow == targetInsertionIndex || (sourceRow == targetInsertionIndex - 1 && targetInsertionIndex > sourceRow) ) {
+    if (sourceRow == targetInsertionIndex
+        || (sourceRow == targetInsertionIndex - 1 && targetInsertionIndex > sourceRow)) {
         return false;
     }
 
-    if (targetInsertionIndex < 0) targetInsertionIndex = 0;
-    if (targetInsertionIndex > static_cast<int>(m_characters.size())) targetInsertionIndex = m_characters.size();
-
+    if (targetInsertionIndex < 0)
+        targetInsertionIndex = 0;
+    if (targetInsertionIndex > static_cast<int>(m_characters.size()))
+        targetInsertionIndex = static_cast<int>(m_characters.size());
 
     if (!beginMoveRows(QModelIndex(), sourceRow, sourceRow, QModelIndex(), targetInsertionIndex)) {
-       return false;
+        return false;
     }
 
-    SharedGroupChar movedChar = m_characters[sourceRow];
+    SharedGroupChar movedChar = m_characters[static_cast<size_t>(sourceRow)];
     m_characters.erase(m_characters.begin() + sourceRow);
 
     int actualInsertionIdx = targetInsertionIndex;
@@ -617,15 +649,16 @@ bool GroupModel::dropMimeData(const QMimeData *data, Qt::DropAction action, int 
         actualInsertionIdx--;
     }
 
-    if (actualInsertionIdx < 0) actualInsertionIdx = 0;
-    if (actualInsertionIdx > static_cast<int>(m_characters.size())) actualInsertionIdx = m_characters.size();
+    if (actualInsertionIdx < 0)
+        actualInsertionIdx = 0;
+    if (actualInsertionIdx > static_cast<int>(m_characters.size()))
+        actualInsertionIdx = static_cast<int>(m_characters.size());
 
     m_characters.insert(m_characters.begin() + actualInsertionIdx, movedChar);
 
     endMoveRows();
     return true;
 }
-
 
 GroupWidget::GroupWidget(Mmapper2Group *const group, MapData *const md, QWidget *const parent)
     : QWidget(parent)
@@ -700,33 +733,40 @@ GroupWidget::GroupWidget(Mmapper2Group *const group, MapData *const md, QWidget 
         }
     });
 
-    connect(m_table, &QAbstractItemView::clicked, this, [this](const QModelIndex &proxyIndex) { // Renamed index to proxyIndex
-        if (!proxyIndex.isValid()) {
-            return;
-        }
+    connect(m_table,
+            &QAbstractItemView::clicked,
+            this,
+            [this](const QModelIndex &proxyIndex) { // Renamed index to proxyIndex
+                if (!proxyIndex.isValid()) {
+                    return;
+                }
 
-        // Map the proxy index to the source model index
-        QModelIndex sourceIndex = m_proxyModel->mapToSource(proxyIndex);
+                // Map the proxy index to the source model index
+                QModelIndex sourceIndex = m_proxyModel->mapToSource(proxyIndex);
 
-        if (!sourceIndex.isValid()) { // Check if mapping was successful
-            return;
-        }
+                if (!sourceIndex.isValid()) { // Check if mapping was successful
+                    return;
+                }
 
-        // Get the character from the source model (GroupModel) using the source index's row
-        // m_model is the GroupModel instance in GroupWidget
-        selectedCharacter = m_model.getCharacter(sourceIndex.row());
+                // Get the character from the source model (GroupModel) using the source index's row
+                // m_model is the GroupModel instance in GroupWidget
+                selectedCharacter = m_model.getCharacter(sourceIndex.row());
 
-        if (selectedCharacter) { // Ensure character was found
-            m_center->setText(QString("&Center on %1").arg(selectedCharacter->getName().toQString()));
-            m_recolor->setText(QString("&Recolor %1").arg(selectedCharacter->getName().toQString()));
-            m_center->setDisabled(!selectedCharacter->isYou() && selectedCharacter->getServerId() == INVALID_SERVER_ROOMID);
+                if (selectedCharacter) { // Ensure character was found
+                    m_center->setText(
+                        QString("&Center on %1").arg(selectedCharacter->getName().toQString()));
+                    m_recolor->setText(
+                        QString("&Recolor %1").arg(selectedCharacter->getName().toQString()));
+                    m_center->setDisabled(!selectedCharacter->isYou()
+                                          && selectedCharacter->getServerId()
+                                                 == INVALID_SERVER_ROOMID);
 
-            QMenu contextMenu(tr("Context menu"), this);
-            contextMenu.addAction(m_center);
-            contextMenu.addAction(m_recolor);
-            contextMenu.exec(QCursor::pos());
-        }
-    });
+                    QMenu contextMenu(tr("Context menu"), this);
+                    contextMenu.addAction(m_center);
+                    contextMenu.addAction(m_recolor);
+                    contextMenu.exec(QCursor::pos());
+                }
+            });
 
     connect(m_group, &Mmapper2Group::sig_updateWidget, this, &GroupWidget::slot_updateLabels);
 }
@@ -762,9 +802,10 @@ void GroupWidget::slot_updateLabels()
     // Hide unnecessary columns like mana if everyone is a zorc/troll
     // This logic now needs to access characters from m_model or m_group
     const auto one_character_had_mana = [this]() -> bool {
-        if (!m_group) return false; // Or iterate m_model.m_characters
-        auto selection = m_group->selectAll(); // Or iterate m_model.m_characters
-        for (const auto &character : selection) { // Or iterate m_model.m_characters
+        if (!m_group)
+            return false;                                // Or iterate m_model.m_characters
+        auto selection = m_group->selectAll();           // Or iterate m_model.m_characters
+        for (const auto &character : selection) {        // Or iterate m_model.m_characters
             if (character && character->getMana() > 0) { // Add null check for character
                 return true;
             }

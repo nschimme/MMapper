@@ -16,7 +16,7 @@ public:
     ~TestGroup() final;
 
 private Q_SLOTS:
-    void initTestCase(); // Common setup for all tests in this class
+    void initTestCase();    // Common setup for all tests in this class
     void cleanupTestCase(); // Common cleanup
 
     void testGroupModelNpcFiltering_data(); // Data for the filtering test

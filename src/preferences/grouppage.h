@@ -4,8 +4,8 @@
 
 #include "../global/macros.h"
 
-#include <QWidget>
 #include <QColor>
+#include <QWidget>
 
 class QCheckBox;
 class QPushButton;
@@ -26,7 +26,7 @@ signals:
 public slots:
     void slot_loadConfig();
     void slot_saveConfig(); // Could be connected to a general "apply" button in ConfigDialog
-                         // or called when the dialog is accepted.
+                            // or called when the dialog is accepted.
 
 private slots:
     void slot_filterNpcsChanged(int state);

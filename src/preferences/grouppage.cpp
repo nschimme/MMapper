@@ -2,22 +2,24 @@
 // Copyright (C) 2023 The MMapper Authors
 
 #include "grouppage.h"
+
 #include "../configuration/configuration.h" // Required for getConfig/setConfig
 
 #include <QCheckBox>
-#include <QPushButton>
-#include <QLabel>
 #include <QColorDialog>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
+#include <QDebug>      // For logging
 #include <QFormLayout> // Added for better layout of color chooser
 #include <QGroupBox>
-#include <QDebug> // For logging
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QPushButton>
+#include <QVBoxLayout>
 
 GroupPage::GroupPage(QWidget *parent)
     : QWidget(parent)
     , m_selectedColor(getConfig().groupManager.color) // Initialize with current config
-    , m_selectedNpcOverrideColor(getConfig().groupManager.npcOverrideColor) // Initialize NPC override color
+    , m_selectedNpcOverrideColor(
+          getConfig().groupManager.npcOverrideColor) // Initialize NPC override color
 {
     setupUi();
     slot_loadConfig(); // Load initial values
@@ -25,7 +27,8 @@ GroupPage::GroupPage(QWidget *parent)
 
 GroupPage::~GroupPage() = default;
 
-void GroupPage::setupUi() {
+void GroupPage::setupUi()
+{
     auto *mainLayout = new QVBoxLayout(this);
     mainLayout->setAlignment(Qt::AlignTop);
 
@@ -34,7 +37,10 @@ void GroupPage::setupUi() {
     auto *filterLayout = new QVBoxLayout(filterGroupBox);
 
     m_filterNpcsCheckBox = new QCheckBox(tr("Filter out NPC characters from group display"), this);
-    connect(m_filterNpcsCheckBox, &QCheckBox::stateChanged, this, &GroupPage::slot_filterNpcsChanged);
+    connect(m_filterNpcsCheckBox,
+            &QCheckBox::stateChanged,
+            this,
+            &GroupPage::slot_filterNpcsChanged);
     filterLayout->addWidget(m_filterNpcsCheckBox);
     filterGroupBox->setLayout(filterLayout);
     mainLayout->addWidget(filterGroupBox);
@@ -58,12 +64,18 @@ void GroupPage::setupUi() {
 
     // NPC Color Override
     m_overrideNpcColorCheckBox = new QCheckBox(tr("Override NPC Colors"), this);
-    connect(m_overrideNpcColorCheckBox, &QCheckBox::stateChanged, this, &GroupPage::sig_settingsChanged);
+    connect(m_overrideNpcColorCheckBox,
+            &QCheckBox::stateChanged,
+            this,
+            &GroupPage::sig_settingsChanged);
     appearanceLayout->addWidget(m_overrideNpcColorCheckBox);
 
     auto *npcColorLayout = new QHBoxLayout();
     m_npcOverrideColorButton = new QPushButton(tr("Choose NPC Override Color"), this);
-    connect(m_npcOverrideColorButton, &QPushButton::clicked, this, &GroupPage::slot_chooseNpcOverrideColor);
+    connect(m_npcOverrideColorButton,
+            &QPushButton::clicked,
+            this,
+            &GroupPage::slot_chooseNpcOverrideColor);
     npcColorLayout->addWidget(m_npcOverrideColorButton);
 
     m_npcOverrideColorPreviewLabel = new QLabel(this);
@@ -74,13 +86,21 @@ void GroupPage::setupUi() {
     appearanceLayout->addLayout(npcColorLayout);
 
     // Initial state of NPC color button based on checkbox
-    connect(m_overrideNpcColorCheckBox, &QCheckBox::toggled, m_npcOverrideColorButton, &QPushButton::setEnabled);
-    connect(m_overrideNpcColorCheckBox, &QCheckBox::toggled, m_npcOverrideColorPreviewLabel, &QLabel::setVisible);
-
+    connect(m_overrideNpcColorCheckBox,
+            &QCheckBox::toggled,
+            m_npcOverrideColorButton,
+            &QPushButton::setEnabled);
+    connect(m_overrideNpcColorCheckBox,
+            &QCheckBox::toggled,
+            m_npcOverrideColorPreviewLabel,
+            &QLabel::setVisible);
 
     // Sort NPCs to Bottom
     m_sortNpcsToBottomCheckBox = new QCheckBox(tr("Show NPCs at the bottom of the list"), this);
-    connect(m_sortNpcsToBottomCheckBox, &QCheckBox::stateChanged, this, &GroupPage::sig_settingsChanged);
+    connect(m_sortNpcsToBottomCheckBox,
+            &QCheckBox::stateChanged,
+            this,
+            &GroupPage::sig_settingsChanged);
     appearanceLayout->addWidget(m_sortNpcsToBottomCheckBox);
 
     colorGroupBox->setLayout(appearanceLayout);
@@ -89,8 +109,9 @@ void GroupPage::setupUi() {
     setLayout(mainLayout);
 }
 
-void GroupPage::slot_loadConfig() {
-    const auto& groupManagerSettings = getConfig().groupManager;
+void GroupPage::slot_loadConfig()
+{
+    const auto &groupManagerSettings = getConfig().groupManager;
     m_filterNpcsCheckBox->setChecked(groupManagerSettings.filterNPCs);
     m_selectedColor = groupManagerSettings.color;
 
@@ -120,8 +141,9 @@ void GroupPage::slot_loadConfig() {
 
 // This slot can be called by a general "Apply" or "OK" button in the ConfigDialog
 // Or, individual changes could call it directly if auto-apply is desired.
-void GroupPage::slot_saveConfig() {
-    auto& groupManagerSettings = setConfig().groupManager;
+void GroupPage::slot_saveConfig()
+{
+    auto &groupManagerSettings = setConfig().groupManager;
     groupManagerSettings.filterNPCs = m_filterNpcsCheckBox->isChecked();
     groupManagerSettings.color = m_selectedColor;
 
@@ -144,14 +166,16 @@ void GroupPage::slot_saveConfig() {
     emit sig_settingsChanged(); // Notify that settings have changed
 }
 
-void GroupPage::slot_filterNpcsChanged(int state) {
+void GroupPage::slot_filterNpcsChanged(int state)
+{
     Q_UNUSED(state);
     // If settings are applied immediately:
     slot_saveConfig();
     // Otherwise, this just updates the internal state, and slot_saveConfig() is called by Apply/OK.
 }
 
-void GroupPage::slot_chooseColor() {
+void GroupPage::slot_chooseColor()
+{
     const QColorDialog::ColorDialogOptions options = QFlag(QColorDialog::ShowAlphaChannel);
     const QColor color = QColorDialog::getColor(m_selectedColor, this, tr("Select Color"), options);
 
@@ -163,13 +187,17 @@ void GroupPage::slot_chooseColor() {
         // If settings are applied immediately:
         // slot_saveConfig(); // Changed to emit signal
         emit sig_settingsChanged();
-         // Otherwise, this just updates the internal state, and slot_saveConfig() is called by Apply/OK.
+        // Otherwise, this just updates the internal state, and slot_saveConfig() is called by Apply/OK.
     }
 }
 
-void GroupPage::slot_chooseNpcOverrideColor() {
+void GroupPage::slot_chooseNpcOverrideColor()
+{
     const QColorDialog::ColorDialogOptions options = QFlag(QColorDialog::ShowAlphaChannel);
-    const QColor color = QColorDialog::getColor(m_selectedNpcOverrideColor, this, tr("Select NPC Override Color"), options);
+    const QColor color = QColorDialog::getColor(m_selectedNpcOverrideColor,
+                                                this,
+                                                tr("Select NPC Override Color"),
+                                                options);
 
     if (color.isValid()) {
         m_selectedNpcOverrideColor = color;

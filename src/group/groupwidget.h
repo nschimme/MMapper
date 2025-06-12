@@ -7,11 +7,11 @@
 #include "mmapper2character.h"
 
 #include <QAbstractTableModel>
+#include <QSortFilterProxyModel> // Added include
 #include <QString>
 #include <QStyledItemDelegate>
 #include <QWidget>
 #include <QtCore>
-#include <QSortFilterProxyModel> // Added include
 
 class QAction;
 class MapData;
@@ -100,7 +100,7 @@ public:
 
     explicit GroupModel(QObject *parent = nullptr); // Changed constructor signature
 
-    void setCharacters(const GroupVector& newChars); // Added new method
+    void setCharacters(const GroupVector &newChars); // Added new method
     void resetModel(); // Kept resetModel, may not be needed if setCharacters is always used
     NODISCARD QVariant dataForCharacter(const SharedGroupChar &character,
                                         ColumnTypeEnum column,
@@ -119,7 +119,11 @@ public:
     Qt::DropActions supportedDropActions() const override;
     QStringList mimeTypes() const override;
     QMimeData *mimeData(const QModelIndexList &indexes) const override;
-    bool dropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column, const QModelIndex &parent) override;
+    bool dropMimeData(const QMimeData *data,
+                      Qt::DropAction action,
+                      int row,
+                      int column,
+                      const QModelIndex &parent) override;
 
     void setMapLoaded(const bool val) { m_mapLoaded = val; }
 };

@@ -3,6 +3,7 @@
 
 #include "TestGlobal.h"
 
+#include "../src/configuration/configuration.h" // Added for configuration tests
 #include "../src/global/AnsiOstream.h"
 #include "../src/global/AnsiTextUtils.h"
 #include "../src/global/CaseUtils.h"
@@ -24,7 +25,6 @@
 #include "../src/global/int_cast.h"
 #include "../src/global/string_view_utils.h"
 #include "../src/global/unquote.h"
-#include "../src/configuration/configuration.h" // Added for configuration tests
 
 #include <tuple>
 

@@ -2,14 +2,15 @@
 // Copyright (C) 2023 The MMapper Authors
 
 #include "TestGroup.h"
+
 #include "../src/configuration/configuration.h"
-#include "../src/group/mmapper2group.h"
-#include "../src/group/groupwidget.h" // For GroupModel
+#include "../src/global/JsonArray.h" // For JsonArray
+#include "../src/global/JsonValue.h" // For JsonObj
 #include "../src/group/CGroupChar.h"
+#include "../src/group/groupwidget.h" // For GroupModel
+#include "../src/group/mmapper2group.h"
 #include "../src/mapdata/mapdata.h"
 #include "../src/proxy/GmcpMessage.h" // For crafting GMCP messages
-#include "../src/global/JsonValue.h"   // For JsonObj
-#include "../src/global/JsonArray.h"  // For JsonArray
 
 // Constructor
 TestGroup::TestGroup() = default;
@@ -17,15 +18,19 @@ TestGroup::TestGroup() = default;
 // Destructor
 TestGroup::~TestGroup() = default;
 
-void TestGroup::initTestCase() {
+void TestGroup::initTestCase()
+{
     setConfig().read();
 }
 
-void TestGroup::cleanupTestCase() {
-}
+void TestGroup::cleanupTestCase() {}
 
 // Helper to create a basic GMCP message for adding/updating a group member
-GmcpMessage createGroupMemberMessage(GroupId id, const QString& name, CharacterTypeEnum type, const QString& roomName = "Some Room") {
+GmcpMessage createGroupMemberMessage(GroupId id,
+                                     const QString &name,
+                                     CharacterTypeEnum type,
+                                     const QString &roomName = "Some Room")
+{
     JsonObj jsonObj;
     jsonObj.insert("id", static_cast<double>(id.asUint32())); // GMCP uses double for numbers
     jsonObj.insert("name", name.toStdString());
@@ -46,7 +51,6 @@ GmcpMessage createGroupMemberMessage(GroupId id, const QString& name, CharacterT
     jsonObj.insert("moves", 100.0);
     jsonObj.insert("maxmoves", 100.0);
 
-
     // Char.Group.Add and Char.Group.Update have slightly different structures
     // For simplicity, we'll use a structure that can populate a character.
     // This might need to be Char.Group.Set for a full list.
@@ -55,7 +59,8 @@ GmcpMessage createGroupMemberMessage(GroupId id, const QString& name, CharacterT
 }
 
 // Data for NPC Filtering Test
-void TestGroup::testGroupModelNpcFiltering_data() {
+void TestGroup::testGroupModelNpcFiltering_data()
+{
     QTest::addColumn<bool>("filterEnabled");
     QTest::addColumn<int>("expectedRowCount");
     QTest::addColumn<QStringList>("expectedNamesInOrder");
@@ -68,7 +73,8 @@ void TestGroup::testGroupModelNpcFiltering_data() {
 }
 
 // NPC Filtering Test
-void TestGroup::testGroupModelNpcFiltering() {
+void TestGroup::testGroupModelNpcFiltering()
+{
     QFETCH(bool, filterEnabled);
     QFETCH(int, expectedRowCount);
     QFETCH(QStringList, expectedNamesInOrder);
@@ -109,16 +115,17 @@ void TestGroup::testGroupModelNpcFiltering() {
         QVariant nameData = model.data(nameIndex, Qt::DisplayRole);
         QVERIFY2(nameData.isValid(),
                  qPrintable(QString("Name data for model row %1 should be valid. Expected: %2")
-                 .arg(i).arg(expectedNamesInOrder.at(i))));
+                                .arg(i)
+                                .arg(expectedNamesInOrder.at(i))));
         QCOMPARE(nameData.toString(), expectedNamesInOrder.at(i));
     }
 
     config.groupManager.filterNPCs = originalFilterNPCs; // Restore
 }
 
-
 // Player Color Preference Test
-void TestGroup::testPlayerColorPreference() {
+void TestGroup::testPlayerColorPreference()
+{
     Mmapper2Group group(nullptr);
 
     // Initialize m_self by sending Char.Name

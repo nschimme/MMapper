@@ -10,10 +10,10 @@
 #include "clientpage.h"
 #include "generalpage.h"
 #include "graphicspage.h"
+#include "grouppage.h" // Added for GroupPage
 #include "mumeprotocolpage.h"
 #include "parserpage.h"
 #include "pathmachinepage.h"
-#include "grouppage.h" // Added for GroupPage
 #include "ui_configdialog.h"
 
 #include <QIcon>
@@ -75,13 +75,19 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
             mumeProtocolPage,
             &MumeProtocolPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, pathmachinePage, &PathmachinePage::slot_loadConfig);
-    connect(this, &ConfigDialog::sig_loadConfig, groupPage, &GroupPage::slot_loadConfig); // Connect loadConfig for GroupPage
+    connect(this,
+            &ConfigDialog::sig_loadConfig,
+            groupPage,
+            &GroupPage::slot_loadConfig); // Connect loadConfig for GroupPage
 
     connect(graphicsPage,
             &GraphicsPage::sig_graphicsSettingsChanged,
             this,
             &ConfigDialog::sig_graphicsSettingsChanged);
-    connect(groupPage, &GroupPage::sig_settingsChanged, this, &ConfigDialog::sig_graphicsSettingsChanged); // Connect settingsChanged for GroupPage
+    connect(groupPage,
+            &GroupPage::sig_settingsChanged,
+            this,
+            &ConfigDialog::sig_graphicsSettingsChanged); // Connect settingsChanged for GroupPage
 }
 
 ConfigDialog::~ConfigDialog()

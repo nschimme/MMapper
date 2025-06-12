@@ -15,12 +15,12 @@
 
 #include <QByteArray>
 #include <QChar>
+#include <QColor>
 #include <QDir>
 #include <QHostInfo>
 #include <QSslSocket>
 #include <QString>
 #include <QStringList>
-#include <QColor>
 
 #undef TRANSPARENT // Bad dog, Microsoft; bad dog!!!
 
@@ -688,7 +688,8 @@ void Configuration::GroupManagerSettings::read(const QSettings &conf)
     color = QColor(conf.value(KEY_COLOR, "#FFFF00").toString());
     filterNPCs = conf.value("filterNPCs", false).toBool();
     overrideNpcColor = conf.value(QStringLiteral("overrideNpcColor"), false).toBool();
-    npcOverrideColor = conf.value(QStringLiteral("npcOverrideColor"), QColor(Qt::lightGray)).value<QColor>();
+    npcOverrideColor = conf.value(QStringLiteral("npcOverrideColor"), QColor(Qt::lightGray))
+                           .value<QColor>();
     sortNpcsToBottom = conf.value(QStringLiteral("sortNpcsToBottom"), false).toBool();
 }
 

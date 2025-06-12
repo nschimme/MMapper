@@ -11,14 +11,34 @@
 #include <QStyledItemDelegate>
 #include <QWidget>
 #include <QtCore>
+#include <QSortFilterProxyModel> // Added include
 
 class QAction;
 class MapData;
-class CGroupChar;
+// CGroupChar.h is already included at the top
 class Mmapper2Group;
 class QObject;
 class QTableView;
-class GroupProxyModel; // Forward declaration
+// GroupProxyModel will be defined here directly
+
+// Declaration of GroupProxyModel
+class NODISCARD_QOBJECT GroupProxyModel final : public QSortFilterProxyModel
+{
+    Q_OBJECT
+
+public:
+    explicit GroupProxyModel(QObject *parent = nullptr);
+    ~GroupProxyModel() final;
+
+    void refresh();
+
+protected:
+    bool filterAcceptsRow(int source_row, const QModelIndex &source_parent) const override;
+    bool lessThan(const QModelIndex &source_left, const QModelIndex &source_right) const override;
+
+private:
+    SharedGroupChar getCharacterFromSource(const QModelIndex &source_index) const;
+};
 
 class NODISCARD GroupStateData final
 {
@@ -62,9 +82,8 @@ class NODISCARD_QOBJECT GroupModel final : public QAbstractTableModel
     Q_OBJECT
 
 private:
-    MapData *m_map = nullptr;
-    Mmapper2Group *m_group = nullptr;
-    bool m_mapLoaded = false;
+    GroupVector m_characters; // Replaced m_group and m_map
+    bool m_mapLoaded = false; // Kept m_mapLoaded for now, though its utility might change
 
 public:
     enum class NODISCARD ColumnTypeEnum {
@@ -79,21 +98,28 @@ public:
         ROOM_NAME
     };
 
-    explicit GroupModel(MapData *md, Mmapper2Group *group, QObject *parent);
+    explicit GroupModel(QObject *parent = nullptr); // Changed constructor signature
 
-    void resetModel();
+    void setCharacters(const GroupVector& newChars); // Added new method
+    void resetModel(); // Kept resetModel, may not be needed if setCharacters is always used
     NODISCARD QVariant dataForCharacter(const SharedGroupChar &character,
                                         ColumnTypeEnum column,
                                         int role) const;
-    Mmapper2Group* getGroup() const { return m_group; } // Added getter
-    SharedGroupChar getCharacter(int row) const; // New method to get character by source row
+    // Mmapper2Group* getGroup() const { return m_group; } // Removed getter
+    SharedGroupChar getCharacter(int row) const;
 
     NODISCARD int rowCount(const QModelIndex &parent) const override;
     NODISCARD int columnCount(const QModelIndex &parent) const override;
 
     NODISCARD QVariant data(const QModelIndex &index, int role) const override;
     NODISCARD QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
-    NODISCARD Qt::ItemFlags flags(const QModelIndex &parent) const override;
+
+    // Drag and drop overrides
+    Qt::ItemFlags flags(const QModelIndex &index) const override;
+    Qt::DropActions supportedDropActions() const override;
+    QStringList mimeTypes() const override;
+    QMimeData *mimeData(const QModelIndexList &indexes) const override;
+    bool dropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column, const QModelIndex &parent) override;
 
     void setMapLoaded(const bool val) { m_mapLoaded = val; }
 };

@@ -17,6 +17,7 @@
 #include "mmapper2character.h"
 
 #include <memory>
+#include <algorithm> // For std::find_if
 
 #include <QColor>
 #include <QDateTime>
@@ -211,18 +212,40 @@ SharedGroupChar Mmapper2Group::addChar(const GroupId id)
 void Mmapper2Group::removeChar(const GroupId id)
 {
     ABORT_IF_NOT_ON_MAIN_THREAD();
-    utils::erase_if(m_charIndex, [this, &id](const SharedGroupChar &pChar) -> bool {
-        auto &character = deref(pChar);
-        if (character.getId() != id) {
-            return false;
+
+    auto it = std::find_if(m_charIndex.begin(), m_charIndex.end(),
+                           [&id](const SharedGroupChar& pChar) {
+                               // It's good practice to check if pChar is not null before dereferencing,
+                               // though m_charIndex should ideally not store nullptrs.
+                               return pChar && pChar->getId() == id;
+                           });
+
+    bool characterWasRemoved = false;
+    if (it != m_charIndex.end()) {
+        // Character found.
+        SharedGroupChar charToRemove = *it;
+
+        if (charToRemove) { // Check if the shared_ptr itself is not null
+            qDebug() << "Found character to remove in Mmapper2Group::removeChar: ID" << charToRemove->getId().asUint32()
+                     << "Name:" << charToRemove->getName().toQString();
+            if (!charToRemove->isYou()) {
+                m_colorGenerator.releaseColor(charToRemove->getColor());
+            }
+        } else {
+            qDebug() << "Warning: Found a null SharedGroupChar in m_charIndex for ID" << id.asUint32();
         }
-        if (!character.isYou()) {
-            m_colorGenerator.releaseColor(character.getColor());
-        }
-        qDebug() << "removing" << id.asUint32() << character.getName().toQString();
+
+        m_charIndex.erase(it); // Actually modify m_charIndex
+        characterWasRemoved = true;
+        qDebug() << "Character with ID" << id.asUint32() << "erased from m_charIndex.";
+    }
+
+    if (characterWasRemoved) {
+        // Signal that the group composition (and potentially canvas due to character beacons) has changed.
+        // This is called AFTER m_charIndex is modified.
         characterChanged(true);
-        return true;
-    });
+        qDebug() << "Signaled characterChanged(true) after removal for ID" << id.asUint32();
+    }
 }
 
 SharedGroupChar Mmapper2Group::getCharById(const GroupId id) const

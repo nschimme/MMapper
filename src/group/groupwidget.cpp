@@ -169,7 +169,17 @@ int GroupModel::rowCount(const QModelIndex & /* parent */) const
 {
     if (auto group = m_group) {
         auto selection = group->selectAll();
-        return static_cast<int>(selection.size());
+        if (getConfig().groupManager.filterNPCs) {
+            int count = 0;
+            for (const auto &character : selection) {
+                if (character->getType() != CharacterTypeEnum::NPC) {
+                    count++;
+                }
+            }
+            return count;
+        } else {
+            return static_cast<int>(selection.size());
+        }
     }
     return 0;
 }
@@ -332,22 +342,38 @@ QVariant GroupModel::dataForCharacter(const SharedGroupChar &pCharacter,
 
 QVariant GroupModel::data(const QModelIndex &index, int role) const
 {
-    QVariant data = QVariant();
+    QVariant dataVariant = QVariant(); // Renamed to avoid conflict
     if (!index.isValid()) {
-        return data;
+        return dataVariant;
     }
 
     if (auto group = m_group) {
         auto selection = group->selectAll();
+        SharedGroupChar character = nullptr; // Initialize to nullptr
 
-        // Map row to character
-        if (index.row() < static_cast<int>(selection.size())) {
-            const SharedGroupChar &character = selection.at(static_cast<size_t>(index.row()));
+        if (getConfig().groupManager.filterNPCs) {
+            int filtered_idx = -1;
+            for (const auto &ch : selection) {
+                if (ch->getType() != CharacterTypeEnum::NPC) {
+                    filtered_idx++;
+                    if (filtered_idx == index.row()) {
+                        character = ch;
+                        break;
+                    }
+                }
+            }
+        } else {
+            if (index.row() < static_cast<int>(selection.size())) {
+                character = selection.at(static_cast<size_t>(index.row()));
+            }
+        }
+
+        if (character) { // Check if a character was actually found
             const auto column = static_cast<ColumnTypeEnum>(index.column());
-            data = dataForCharacter(character, column, role);
+            dataVariant = dataForCharacter(character, column, role);
         }
     }
-    return data;
+    return dataVariant;
 }
 
 QVariant GroupModel::headerData(int section, Qt::Orientation orientation, int role) const

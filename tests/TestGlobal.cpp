@@ -24,6 +24,7 @@
 #include "../src/global/int_cast.h"
 #include "../src/global/string_view_utils.h"
 #include "../src/global/unquote.h"
+#include "../src/configuration/configuration.h" // Added for configuration tests
 
 #include <tuple>
 
@@ -595,6 +596,57 @@ void TestGlobal::unquoteTest()
 void TestGlobal::weakHandleTest()
 {
     test::testWeakHandle();
+}
+
+void TestGlobal::testGroupManagerConfiguration()
+{
+    // Note: getConfig() and setConfig() in MMapper2 operate on a static Configuration instance.
+    // We need to ensure that changes are written to disk and then re-read to simulate
+    // a new application session or at least a full reload of settings.
+
+    // To ensure test isolation and correct behavior with the static instance:
+    // 1. Store original settings if necessary (though for these specific settings, defaults are known).
+    // 2. Perform tests.
+    // 3. Reset to original/default settings to avoid side effects on other tests.
+
+    Configuration &config = setConfig(); // Get the reference to the static config instance
+
+    // --- Store original values (optional, but good practice if defaults aren't trivial) ---
+    const bool originalFilterNPCs = config.groupManager.filterNPCs;
+    const QColor originalColor = config.groupManager.color;
+
+    // === Test NPC Filter ===
+    config.groupManager.filterNPCs = true;
+    config.write(); // Writes the whole configuration to QSettings
+
+    // Re-read the configuration from QSettings into the static instance
+    config.read();
+    QCOMPARE(config.groupManager.filterNPCs, true);
+
+    config.groupManager.filterNPCs = false;
+    config.write();
+    config.read();
+    QCOMPARE(config.groupManager.filterNPCs, false);
+
+    // === Test Color Preference ===
+    QColor redColor(Qt::red);
+    config.groupManager.color = redColor;
+    config.write();
+    config.read();
+    QCOMPARE(config.groupManager.color, redColor);
+
+    QColor blueColor(Qt::blue);
+    config.groupManager.color = blueColor;
+    config.write();
+    config.read();
+    QCOMPARE(config.groupManager.color, blueColor);
+
+    // --- Restore original values (or reset to application defaults) ---
+    // This is important if other tests rely on default config state.
+    config.groupManager.filterNPCs = originalFilterNPCs;
+    config.groupManager.color = originalColor;
+    config.write();
+    // No need to read again here unless subsequent code in this test function depends on it.
 }
 
 QTEST_MAIN(TestGlobal)

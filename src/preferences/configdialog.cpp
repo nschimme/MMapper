@@ -13,6 +13,7 @@
 #include "mumeprotocolpage.h"
 #include "parserpage.h"
 #include "pathmachinepage.h"
+#include "grouppage.h" // Added for GroupPage
 #include "ui_configdialog.h"
 
 #include <QIcon>
@@ -36,6 +37,7 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     auto autoLogPage = new AutoLogPage(this);
     auto mumeProtocolPage = new MumeProtocolPage(this);
     auto pathmachinePage = new PathmachinePage(this);
+    auto groupPage = new GroupPage(this); // Instantiate GroupPage
 
     m_pagesWidget = new QStackedWidget(this);
 
@@ -47,6 +49,7 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     pagesWidget->addWidget(autoLogPage);
     pagesWidget->addWidget(mumeProtocolPage);
     pagesWidget->addWidget(pathmachinePage);
+    pagesWidget->addWidget(groupPage); // Add GroupPage to QStackedWidget
     pagesWidget->setCurrentIndex(0);
 
     ui->pagesScrollArea->setWidget(pagesWidget);
@@ -72,11 +75,13 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
             mumeProtocolPage,
             &MumeProtocolPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, pathmachinePage, &PathmachinePage::slot_loadConfig);
+    connect(this, &ConfigDialog::sig_loadConfig, groupPage, &GroupPage::slot_loadConfig); // Connect loadConfig for GroupPage
 
     connect(graphicsPage,
             &GraphicsPage::sig_graphicsSettingsChanged,
             this,
             &ConfigDialog::sig_graphicsSettingsChanged);
+    connect(groupPage, &GroupPage::sig_settingsChanged, this, &ConfigDialog::sig_graphicsSettingsChanged); // Connect settingsChanged for GroupPage
 }
 
 ConfigDialog::~ConfigDialog()
@@ -140,6 +145,14 @@ void ConfigDialog::createIcons()
     pathButton->setText(tr("Path\nMachine"));
     pathButton->setTextAlignment(Qt::AlignHCenter);
     pathButton->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+
+    auto *groupButton = new QListWidgetItem(ui->contentsWidget);
+    // You might need to add a specific icon for group settings.
+    // For now, using a placeholder or a generic one:
+    groupButton->setIcon(QIcon(":/icons/group-recolor.png")); // Placeholder icon
+    groupButton->setText(tr("Group\nManager"));
+    groupButton->setTextAlignment(Qt::AlignHCenter);
+    groupButton->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
 }
 
 void ConfigDialog::slot_changePage(QListWidgetItem *current, QListWidgetItem *const previous)

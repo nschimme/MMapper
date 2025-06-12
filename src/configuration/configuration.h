@@ -285,6 +285,7 @@ public:
     struct NODISCARD GroupManagerSettings final
     {
         QColor color;
+        bool filterNPCs = false;
 
     private:
         SUBGROUP();

@@ -685,6 +685,7 @@ void Configuration::PathMachineSettings::read(const QSettings &conf)
 void Configuration::GroupManagerSettings::read(const QSettings &conf)
 {
     color = QColor(conf.value(KEY_COLOR, "#FFFF00").toString());
+    filterNPCs = conf.value("filterNPCs", false).toBool();
 }
 
 void Configuration::MumeClockSettings::read(const QSettings &conf)
@@ -849,6 +850,7 @@ void Configuration::PathMachineSettings::write(QSettings &conf) const
 void Configuration::GroupManagerSettings::write(QSettings &conf) const
 {
     conf.setValue(KEY_COLOR, color.name());
+    conf.setValue("filterNPCs", filterNPCs);
 }
 
 void Configuration::MumeClockSettings::write(QSettings &conf) const

@@ -166,6 +166,47 @@ set_target_properties(
 )
 add_test(NAME TestGlobal COMMAND TestGlobal)
 
+# Group
+set(group_test_SRCS
+    ../src/group/mmapper2group.cpp
+    ../src/group/mmapper2group.h
+    ../src/group/CGroupChar.cpp
+    ../src/group/CGroupChar.h
+    ../src/group/GroupManagerApi.cpp
+    ../src/group/GroupManagerApi.h
+    ../src/group/ColorGenerator.cpp
+    ../src/group/ColorGenerator.h
+    ../src/group/groupwidget.cpp # For GroupModel, GroupDelegate, GroupStateData
+    ../src/group/groupwidget.h
+    ../src/group/enums.h
+    ../src/group/mmapper2character.h # For CharacterName etc.
+    ../src/configuration/configuration.cpp # For getConfig()/setConfig()
+    ../src/configuration/configuration.h
+    ../src/proxy/GmcpMessage.cpp # For crafting test messages
+    ../src/proxy/GmcpMessage.h
+    # Note: MapData is included by groupwidget.h but its .cpp might not be needed if not deeply used by model
+    # ../src/mapdata/mapdata.cpp
+    # ../src/mapdata/mapdata.h
+)
+set(TestGroup_SRCS TestGroup.cpp TestGroup.h)
+add_executable(TestGroup ${TestGroup_SRCS} ${group_test_SRCS})
+add_dependencies(TestGroup mm_global) # mm_map might be needed if MapData is used more
+target_link_libraries(TestGroup
+        mm_global
+        # mm_map
+        Qt5::Gui
+        Qt5::Test
+        Qt5::Widgets
+        coverage_config)
+set_target_properties(
+  TestGroup PROPERTIES
+  CXX_STANDARD 17
+  CXX_STANDARD_REQUIRED ON
+  CXX_EXTENSIONS OFF
+  COMPILE_FLAGS "${WARNING_FLAGS}"
+)
+add_test(NAME TestGroup COMMAND TestGroup)
+
 # Global
 set(TestMap_SRCS
         ../src/configuration/configuration.cpp

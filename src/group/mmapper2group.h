@@ -89,4 +89,5 @@ signals:
 
 public slots:
     void slot_parseGmcpInput(const GmcpMessage &msg);
+    void slot_updateSelfColorFromConfig();           // New slot
 };

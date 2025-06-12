@@ -287,3 +287,17 @@ bool Mmapper2Group::updateChar(SharedGroupChar sharedCh, const JsonObj &obj)
     // Update canvas only if the character moved
     return change && ch.getServerId() != INVALID_SERVER_ROOMID && ch.getServerId() != oldServerId;
 }
+
+void Mmapper2Group::slot_updateSelfColorFromConfig()
+{
+    ABORT_IF_NOT_ON_MAIN_THREAD(); // If appropriate for your threading model
+    if (m_self) {
+        const QColor newColor = getConfig().groupManager.color;
+        if (m_self->getColor() != newColor) {
+            m_self->setColor(newColor);
+            m_colorGenerator.init(newColor); // Re-initialize color generator if base color changes
+            characterChanged(true); // This emits sig_updateWidget and sig_updateMapCanvas
+            log("Updated your character color from preferences.");
+        }
+    }
+}

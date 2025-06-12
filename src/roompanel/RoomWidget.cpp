@@ -9,7 +9,11 @@
 #include "../mapdata/mapdata.h"
 #include "RoomManager.h"
 
+#if QT_VERSION_MAJOR >= 6
+#include <QtGui/QAction>
+#else
 #include <QAction>
+#endif
 #include <QColor>
 #include <QHeaderView>
 #include <QString>
@@ -42,7 +46,11 @@ int RoomModel::columnCount(const QModelIndex & /* parent */) const
 
 QVariant RoomModel::headerData(int column, Qt::Orientation orientation, int role) const
 {
+#if QT_VERSION_MAJOR >= 6
+    if (orientation == Qt::Orientation::Horizontal && role == Qt::ItemDataRole::DisplayRole) {
+#else
     if (orientation == Qt::Orientation::Horizontal && role == Qt::DisplayRole) {
+#endif
         switch (static_cast<ColumnTypeEnum>(column)) {
         case ColumnTypeEnum::NAME:
             return "Name";
@@ -81,20 +89,32 @@ QVariant RoomModel::data(const QModelIndex &index, int role) const
         const int column = index.column();
 
         switch (role) {
+#if QT_VERSION_MAJOR >= 6
+        case Qt::ItemDataRole::DisplayRole:
+#else
         case Qt::DisplayRole:
+#endif
             if (isFightingYOU(row, column)) {
                 // replace you -> YOU for better visibility
                 return QStringLiteral("YOU");
             }
             return getMobField(row, column);
+#if QT_VERSION_MAJOR >= 6
+        case Qt::ItemDataRole::BackgroundRole:
+#else
         case Qt::BackgroundRole:
+#endif
             if (isEnemy(row, column)) {
                 // highlight enemy players
                 // REVISIT: Ideally, this could be configurable.
                 return QColor(Qt::yellow);
             }
             break;
+#if QT_VERSION_MAJOR >= 6
+        case Qt::ItemDataRole::ForegroundRole:
+#else
         case Qt::ForegroundRole:
+#endif
             if (isFightingYOU(row, column)) {
                 // highlight "YOU" in fighting column
                 return QColor(Qt::red);

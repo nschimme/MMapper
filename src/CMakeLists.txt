@@ -637,10 +637,10 @@ add_executable(mmapper WIN32 MACOSX_BUNDLE
 set(mm_libs mm_map mm_global)
 
 target_link_libraries(mmapper PUBLIC
-    Qt5::Core
-    Qt5::Widgets
-    Qt5::Network
-    Qt5::OpenGL
+    Qt6::Core
+    Qt6::Widgets
+    Qt6::Network
+    Qt6::OpenGL
     # note: link order matters on some platforms. include ${mm_libs} twice if you have a link failure.
     ${mm_libs}
     ${CMAKE_THREAD_LIBS_INIT}
@@ -675,25 +675,21 @@ set_target_properties(
 target_include_directories(mmapper SYSTEM PUBLIC ${GLM_INCLUDE_DIR})
 target_include_directories(mm_global SYSTEM PUBLIC
         ${GLM_INCLUDE_DIR}
-        ${Qt5Core_INCLUDE_DIRS}
-        ${Qt5Widgets_INCLUDE_DIRS}
-        #${Qt5_Network_INCLUDE_DIRS}
-        #${Qt5_OpenGL_INCLUDE_DIRS}
+        # Qt6::Core include dirs should be automatically handled by target_link_libraries
+        # Qt6::Widgets include dirs should be automatically handled by target_link_libraries
 )
 target_include_directories(mm_map SYSTEM PUBLIC
         ${GLM_INCLUDE_DIR}
-        ${Qt5Core_INCLUDE_DIRS}
-        ${Qt5Widgets_INCLUDE_DIRS}
-        #${Qt5_Network_INCLUDE_DIRS}
-        #${Qt5_OpenGL_INCLUDE_DIRS}
+        # Qt6::Core include dirs should be automatically handled by target_link_libraries
+        # Qt6::Widgets include dirs should be automatically handled by target_link_libraries
 )
 target_link_libraries(mm_global PUBLIC
-    Qt5::Core
-    Qt5::Widgets
+    Qt6::Core
+    Qt6::Widgets
 )
 target_link_libraries(mm_map PUBLIC
-    Qt5::Core
-    Qt5::Widgets
+    Qt6::Core
+    Qt6::Widgets
 )
 add_dependencies(mmapper mm_global mm_map)
 add_dependencies(mm_map mm_global)
@@ -736,7 +732,7 @@ if(WITH_OPENSSL)
 endif()
 
 if(WITH_WEBSOCKET)
-    target_link_libraries(mmapper PUBLIC Qt5::WebSockets)
+    target_link_libraries(mmapper PUBLIC Qt6::WebSockets)
 endif()
 
 if(WITH_QTKEYCHAIN)

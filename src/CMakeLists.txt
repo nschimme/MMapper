@@ -892,6 +892,10 @@ endif(UNIX AND NOT APPLE)
 # Windows Install Settings
 if(WIN32)
     include(InstallRequiredSystemLibraries)
+    if(MSVC AND NOT MSVC_REDIST)
+        message(FATAL_ERROR "MSVC_REDIST is not set after InstallRequiredSystemLibraries. This means the Visual C++ Redistributable was not found. The installer will be incomplete.")
+    endif()
+    message("MSVC_REDIST (after InstallRequiredSystemLibraries): ${MSVC_REDIST}")
     set(CMAKE_WIN32_EXECUTABLE ON)
 
     # Install Executables
@@ -920,11 +924,13 @@ if(WIN32)
     )
     if(MSVC AND MSVC_REDIST)
         get_filename_component(vcredist_name "${MSVC_REDIST}" NAME)
+        message("VCREDIST: Packaging vcredist installer")
         install(FILES ${MSVC_REDIST} DESTINATION bin COMPONENT libraries)
         set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "${CPACK_NSIS_EXTRA_INSTALL_COMMANDS}
             ExecWait '\\$INSTDIR\\\\bin\\\\${vcredist_name}'
             ")
     endif()
+    message("CPACK_NSIS_EXTRA_INSTALL_COMMANDS: ${CPACK_NSIS_EXTRA_INSTALL_COMMANDS}")
 
     # ZIP requires 7-zip
     set(CPACK_GENERATOR "NSIS")

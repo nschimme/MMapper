@@ -24,16 +24,16 @@
 #include <utility>
 #include <vector>
 
-#include <QAction>
-#include <QMenu>
-#include <QMenuBar>
-#include <QMessageBox>
+#include <QtGui/QAction>
+#include <QtWidgets/QMenu>
+#include <QtWidgets/QMenuBar>
+#include <QtWidgets/QMessageBox>
 #include <QMessageLogContext>
 #include <QPlainTextEdit>
 #include <QRegularExpression>
 #include <QScopedPointer>
 #include <QSize>
-#include <QStatusBar>
+#include <QtWidgets/QStatusBar>
 #include <QString>
 #include <QTextDocument>
 #include <QtGui>

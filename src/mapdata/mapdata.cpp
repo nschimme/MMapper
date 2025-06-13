@@ -45,7 +45,7 @@
 #include <tuple>
 #include <vector>
 
-#include <QApplication>
+#include <QtWidgets/QApplication>
 #include <QList>
 #include <QString>
 

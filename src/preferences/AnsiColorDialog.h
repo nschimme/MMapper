@@ -9,7 +9,7 @@
 
 #include <memory>
 
-#include <QDialog>
+#include <QtWidgets/QDialog>
 
 namespace Ui {
 class AnsiColorDialog;

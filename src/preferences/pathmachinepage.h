@@ -8,7 +8,7 @@
 #include "ui_pathmachinepage.h"
 
 #include <QString>
-#include <QWidget>
+#include <QtWidgets/QWidget>
 #include <QtCore>
 
 class QObject;

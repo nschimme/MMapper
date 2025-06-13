@@ -9,7 +9,7 @@
 #include "PasswordDialog.h"
 #include "inputwidget.h"
 
-#include <QLineEdit>
+#include <QtWidgets/QLineEdit>
 #include <QString>
 
 class QWidget;

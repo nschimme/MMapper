@@ -13,7 +13,7 @@
 #include <utility>
 
 #include <QClipboard>
-#include <QFileDialog>
+#include <QtWidgets/QFileDialog>
 #include <QGuiApplication>
 #include <QMessageLogContext>
 #include <QString>

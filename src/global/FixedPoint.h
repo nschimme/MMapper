@@ -11,7 +11,7 @@
 #include <memory>
 #include <vector>
 
-#include <QSlider>
+#include <QtWidgets/QSlider>
 
 template<int Digits_>
 class NODISCARD FixedPoint final

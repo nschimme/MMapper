@@ -10,12 +10,12 @@
 
 #include <memory>
 
-#include <QLabel>
+#include <QtWidgets/QLabel>
 #include <QPixmap>
 #include <QPoint>
 #include <QSize>
 #include <QString>
-#include <QWidget>
+#include <QtWidgets/QWidget>
 #include <QtCore>
 #include <QtGlobal>
 

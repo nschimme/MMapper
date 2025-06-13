@@ -13,7 +13,7 @@
 #include <limits>
 #include <tuple>
 
-#include <QApplication>
+#include <QtWidgets/QApplication>
 #include <QByteArray>
 #include <QHostAddress>
 #include <QMessageLogContext>

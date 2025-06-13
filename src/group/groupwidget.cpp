@@ -17,7 +17,7 @@
 
 #include <map>
 
-#include <QAction>
+#include <QtGui/QAction>
 #include <QHeaderView>
 #include <QMessageLogContext>
 #include <QString>

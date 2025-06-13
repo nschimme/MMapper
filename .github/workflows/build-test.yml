@@ -51,7 +51,7 @@ jobs:
       name: Install Packages for Ubuntu
       run: |
         sudo apt update -qq
-        sudo apt install -y build-essential git qt5-qmake libqt5opengl5-dev libqt5websockets5-dev zlib1g-dev libssl-dev qt5keychain-dev mold
+        sudo apt install -y build-essential git qt6-base-dev qt6-opengl-dev qt6-websockets-dev qtkeychain-qt6-dev zlib1g-dev libssl-dev mold
     - if: runner.os == 'Linux' && matrix.compiler == 'gcc'
       name: Install GCC for Ubuntu
       run: |
@@ -78,9 +78,9 @@ jobs:
     - if: runner.os == 'macOS'
       name: Install Packages for Mac
       run: |
-        brew install qt@5 lcov
-        brew link qt@5 --force
-        echo "$(brew --prefix qt@5)/bin" >> $GITHUB_PATH
+        brew install qt6 lcov
+        brew link qt6 --force
+        echo "$(brew --prefix qt6)/bin" >> $GITHUB_PATH
         echo "MMAPPER_CMAKE_EXTRA=-DUSE_CODE_COVERAGE=true" >> $GITHUB_ENV
         echo "COVERAGE=false" >> $GITHUB_ENV
 
@@ -92,7 +92,7 @@ jobs:
       name: Install Qt for Windows (MSVC)
       uses: jurplel/install-qt-action@v4
       with:
-        version: 5.15.2
+        version: 6.6.0
         dir: 'C:\'
         arch: win64_msvc2019_64
         cache: true
@@ -100,11 +100,11 @@ jobs:
       name: Install Qt for Windows (MinGW)
       uses: jurplel/install-qt-action@v4
       with:
-        version: 5.15.2
+        version: 6.6.0
         dir: 'C:\'
-        arch: win64_mingw81
+        arch: mingw # Let the action attempt to choose the correct MinGW version
         cache: true
-        tools: 'tools_mingw1310'
+        # tools: 'tools_mingw1310' # Removed to let the action pick a compatible MinGW
     - if: runner.os == 'Windows'
       name: Install Packages for Windows
       uses: crazy-max/ghaction-chocolatey@v3
@@ -126,11 +126,18 @@ jobs:
         cmake --version
         # Compiler-specific logic
         if ('${{ matrix.compiler }}' -eq 'msvc') {
-          $qtPath = "C:\Qt\5.12.2\msvc2019_64"
+          $qtPath = "C:\Qt\6.6.0\msvc2019_64"
         } elseif ('${{ matrix.compiler }}' -eq 'gcc') {
-          $qtPath = "C:\Qt\5.12.2\mingw81_64"
-          echo "C:/Qt/Tools/mingw1310_64/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          $env:PATH = "C:\Qt\Tools\mingw1310_64\bin;$env:PATH"
+          # Assuming install-qt-action installs MinGW in a subdirectory of the Qt version path or a standard MinGW path
+          # The exact path might need adjustment after observing the action's output or documentation for Qt6
+          $qtPath = "C:\Qt\6.6.0\mingw_64" # Placeholder, actual path might vary
+          # The specific MinGW toolchain path added to GITHUB_PATH might also need adjustment.
+          # For now, assuming the action sets up the PATH correctly or we rely on a standard location.
+          # If specific MinGW version is installed by the action, its path would be like C:\Qt\Tools\mingwXXX_64\bin
+          # For example, if MinGW 11.2.0 is installed by default for Qt 6.6.0:
+          # echo "C:/Qt/Tools/mingw1120_64/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          # $env:PATH = "C:\Qt\Tools\mingw1120_64\bin;$env:PATH"
+          # For now, let's assume the action handles the PATH for MinGW or it's found in a subfolder of $qtPath
         }
         $packageDir = ($env:GITHUB_WORKSPACE -replace '\\', '/') + "/artifact"
         cmake -DCMAKE_BUILD_TYPE=Debug -G 'Ninja' -DWITH_MAP=OFF -DCPACK_PACKAGE_DIRECTORY="$packageDir" -DCMAKE_PREFIX_PATH=$qtPath -DOPENSSL_ROOT_DIR=C:/OpenSSL/ -DWITH_WEBSOCKET=ON -DWITH_QTKEYCHAIN=ON -S .. || exit -1

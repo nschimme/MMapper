@@ -6,7 +6,7 @@
 #include "utils.h"
 
 #include <QString>
-#include <QWidget>
+#include <QtWidgets/QWidget>
 
 // NOLINTNEXTLINE (yes, recursion is the entire point)
 void mmqt::rdisconnect(QObject *const obj)

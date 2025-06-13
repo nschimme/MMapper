@@ -12,8 +12,8 @@
 #include <memory>
 
 #include <QDateTime>
-#include <QLabel>
-#include <QMouseEvent>
+#include <QtWidgets/QLabel>
+#include <QtGui/QMouseEvent>
 #include <QString>
 
 MumeClockWidget::MumeClockWidget(MumeClock *const clock, QWidget *const parent)

@@ -9,7 +9,7 @@
 #include <QFont>
 #include <QFontMetrics>
 #include <QScrollBar>
-#include <QTextEdit>
+#include <QtWidgets/QTextEdit>
 
 PreviewWidget::PreviewWidget(QWidget *parent)
     : QTextEdit(parent)

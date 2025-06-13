@@ -13,7 +13,7 @@
 
 #include <memory>
 
-#include <QFileDialog>
+#include <QtWidgets/QFileDialog>
 #include <QScrollBar>
 #include <QString>
 #include <QTimer>

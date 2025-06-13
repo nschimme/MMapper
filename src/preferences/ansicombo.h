@@ -10,7 +10,7 @@
 #include <vector>
 
 #include <QColor>
-#include <QComboBox>
+#include <QtWidgets/QComboBox>
 #include <QIcon>
 #include <QString>
 #include <QVector>

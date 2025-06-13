@@ -9,9 +9,9 @@
 #include <QCache>
 #include <QFileSystemWatcher>
 #include <QImage>
-#include <QLabel>
-#include <QTextEdit>
-#include <QWidget>
+#include <QtWidgets/QLabel>
+#include <QtWidgets/QTextEdit>
+#include <QtWidgets/QWidget>
 
 class NODISCARD_QOBJECT DescriptionWidget final : public QWidget
 {

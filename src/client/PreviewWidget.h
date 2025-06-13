@@ -5,7 +5,7 @@
 #include "displaywidget.h"
 
 #include <QString>
-#include <QTextEdit>
+#include <QtWidgets/QTextEdit>
 
 class NODISCARD_QOBJECT PreviewWidget final : public QTextEdit
 {

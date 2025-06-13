@@ -10,7 +10,7 @@
 
 #include <QPointer>
 #include <QString>
-#include <QWidget>
+#include <QtWidgets/QWidget>
 #include <QtCore>
 
 class ClientTelnet;

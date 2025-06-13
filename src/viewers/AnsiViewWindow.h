@@ -7,7 +7,7 @@
 #include <memory>
 #include <string_view>
 
-#include <QMainWindow>
+#include <QtWidgets/QMainWindow>
 #include <QString>
 
 class QTextBrowser;

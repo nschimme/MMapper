@@ -10,12 +10,12 @@
 #include "../global/Version.h"
 
 #include <QDesktopServices>
-#include <QGridLayout>
+#include <QtWidgets/QGridLayout>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkReply>
-#include <QPushButton>
+#include <QtWidgets/QPushButton>
 #include <QRegularExpression>
 
 static constexpr const char *APPIMAGE_KEY = "APPIMAGE";

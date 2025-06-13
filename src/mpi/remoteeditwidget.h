@@ -8,8 +8,8 @@
 
 #include <memory>
 
-#include <QAction>
-#include <QMainWindow>
+#include <QtGui/QAction>
+#include <QtWidgets/QMainWindow>
 #include <QPlainTextEdit>
 #include <QScopedPointer>
 #include <QSize>

@@ -10,7 +10,7 @@
 #include <vector>
 
 #include <QString>
-#include <QWidget>
+#include <QtWidgets/QWidget>
 #include <QtCore>
 
 class AdvancedGraphicsGroupBox;

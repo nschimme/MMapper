@@ -6,7 +6,7 @@
 #include "inputwidget.h"
 
 #include <QDialogButtonBox>
-#include <QVBoxLayout>
+#include <QtWidgets/QVBoxLayout>
 
 PasswordDialog::PasswordDialog(InputWidgetOutputs &outputs, QWidget *const parent)
     : QDialog(parent)

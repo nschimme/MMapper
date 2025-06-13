@@ -8,7 +8,7 @@
 #include <memory>
 #include <vector>
 
-#include <QGroupBox>
+#include <QtWidgets/QGroupBox>
 
 class SliderSpinboxButton;
 class NODISCARD_QOBJECT AdvancedGraphicsGroupBox final : public QObject

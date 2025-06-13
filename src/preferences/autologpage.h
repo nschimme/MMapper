@@ -5,7 +5,7 @@
 
 #include "../global/macros.h"
 
-#include <QWidget>
+#include <QtWidgets/QWidget>
 #include <QtCore>
 
 namespace Ui {

@@ -11,7 +11,7 @@
 #include <memory>
 #include <vector>
 
-#include <QDialog>
+#include <QtWidgets/QDialog>
 #include <QString>
 #include <QtCore>
 

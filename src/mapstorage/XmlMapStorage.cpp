@@ -31,7 +31,7 @@
 #include <vector>
 
 #include <QHash>
-#include <QMessageBox>
+#include <QtWidgets/QMessageBox>
 #include <QString>
 #include <QStringView>
 #include <QXmlStreamReader>

@@ -13,8 +13,8 @@
 
 #include <memory>
 
-#include <QGridLayout>
-#include <QLabel>
+#include <QtWidgets/QGridLayout>
+#include <QtWidgets/QLabel>
 #include <QPixmap>
 #include <QScrollBar>
 

@@ -7,7 +7,7 @@
 
 #include <cassert>
 
-#include <QWidget>
+#include <QtWidgets/QWidget>
 
 SignalBlocker::SignalBlocker(QObject &in)
     : obj{in}

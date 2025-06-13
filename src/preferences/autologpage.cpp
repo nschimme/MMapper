@@ -7,7 +7,7 @@
 #include "../configuration/configuration.h"
 #include "ui_autologpage.h"
 
-#include <QSpinBox>
+#include <QtWidgets/QSpinBox>
 #include <QString>
 #include <QtGui>
 #include <QtWidgets>

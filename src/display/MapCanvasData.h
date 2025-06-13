@@ -20,7 +20,7 @@
 #include <unordered_map>
 
 #include <QOpenGLTexture>
-#include <QWidget>
+#include <QtWidgets/QWidget>
 #include <QtGui/QMatrix4x4>
 #include <QtGui/QMouseEvent>
 #include <QtGui/qopengl.h>

@@ -15,7 +15,7 @@
 #include <QPlainTextEdit>
 #include <QSize>
 #include <QString>
-#include <QWidget>
+#include <QtWidgets/QWidget>
 #include <QtCore>
 
 class QKeyEvent;

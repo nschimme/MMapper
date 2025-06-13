@@ -9,7 +9,7 @@
 #include "../mapdata/mapdata.h"
 #include "RoomManager.h"
 
-#include <QAction>
+#include <QtGui/QAction>
 #include <QColor>
 #include <QHeaderView>
 #include <QString>

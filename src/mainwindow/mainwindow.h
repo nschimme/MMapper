@@ -19,8 +19,8 @@
 
 #include <QActionGroup>
 #include <QDockWidget>
-#include <QFileDialog>
-#include <QMainWindow>
+#include <QtWidgets/QFileDialog>
+#include <QtWidgets/QMainWindow>
 #include <QProgressDialog>
 #include <QSize>
 #include <QString>

@@ -7,7 +7,7 @@
 
 #include "../global/macros.h"
 
-#include <QDialog>
+#include <QtWidgets/QDialog>
 #include <QString>
 #include <QtCore>
 

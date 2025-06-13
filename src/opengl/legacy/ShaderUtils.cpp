@@ -18,7 +18,7 @@
 #include <vector>
 
 #include <QDebug>
-#include <QMessageBox>
+#include <QtWidgets/QMessageBox>
 
 namespace ShaderUtils {
 

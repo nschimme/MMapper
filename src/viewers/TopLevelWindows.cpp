@@ -12,7 +12,7 @@
 #include <memory>
 
 #include <QDebug>
-#include <QMainWindow>
+#include <QtWidgets/QMainWindow>
 #include <QPointer>
 #include <QTimer>
 

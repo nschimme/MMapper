@@ -12,7 +12,7 @@
 #include "ansicombo.h"
 
 #include <QColor>
-#include <QComboBox>
+#include <QtWidgets/QComboBox>
 #include <QString>
 #include <QValidator>
 #include <QtWidgets>

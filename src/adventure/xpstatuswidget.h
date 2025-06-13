@@ -9,9 +9,9 @@
 
 #include <memory>
 
-#include <QLabel>
-#include <QPushButton>
-#include <QStatusBar>
+#include <QtWidgets/QLabel>
+#include <QtWidgets/QPushButton>
+#include <QtWidgets/QStatusBar>
 
 class NODISCARD_QOBJECT XPStatusWidget : public QPushButton
 {

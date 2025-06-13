@@ -6,9 +6,9 @@
 #include "../global/Array.h"
 
 #include <QDebug>
-#include <QDialog>
+#include <QtWidgets/QDialog>
 #include <QDialogButtonBox>
-#include <QLabel>
+#include <QtWidgets/QLabel>
 #include <QNetworkAccessManager>
 #include <QString>
 

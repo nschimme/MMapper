@@ -10,7 +10,7 @@
 #include <QFont>
 #include <QFontInfo>
 #include <QPalette>
-#include <QSpinBox>
+#include <QtWidgets/QSpinBox>
 #include <QString>
 #include <QtGui>
 #include <QtWidgets>

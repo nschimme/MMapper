@@ -13,15 +13,15 @@
 #include <cassert>
 #include <memory>
 
-#include <QCheckBox>
-#include <QHBoxLayout>
-#include <QLabel>
-#include <QPushButton>
-#include <QSlider>
-#include <QSpinBox>
-#include <QVBoxLayout>
+#include <QtWidgets/QCheckBox>
+#include <QtWidgets/QHBoxLayout>
+#include <QtWidgets/QLabel>
+#include <QtWidgets/QPushButton>
+#include <QtWidgets/QSlider>
+#include <QtWidgets/QSpinBox>
+#include <QtWidgets/QVBoxLayout>
 #include <QVector>
-#include <QWidget>
+#include <QtWidgets/QWidget>
 
 class NODISCARD FpSlider final : public QSlider
 {

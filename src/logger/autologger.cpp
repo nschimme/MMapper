@@ -14,7 +14,7 @@
 
 #include <QDebug>
 #include <QFileInfo>
-#include <QMessageBox>
+#include <QtWidgets/QMessageBox>
 #include <QStringList>
 
 NODISCARD static std::string generateRunId()

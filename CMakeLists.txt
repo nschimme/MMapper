@@ -40,7 +40,7 @@ set(MMAPPER_QT_COMPONENTS Core Widgets Network OpenGL Test)
 if(WITH_WEBSOCKET)
     list(APPEND MMAPPER_QT_COMPONENTS WebSockets)
 endif()
-find_package(Qt5 COMPONENTS ${MMAPPER_QT_COMPONENTS} REQUIRED)
+find_package(Qt6 COMPONENTS ${MMAPPER_QT_COMPONENTS} REQUIRED)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
@@ -50,15 +50,15 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
-if(Qt5Core_FOUND)
-    if(Qt5Core_VERSION VERSION_LESS 5.15.0)
-        message(FATAL_ERROR "Minimum supported Qt version is 5.15")
+if(Qt6Core_FOUND)
+    if(Qt6Core_VERSION VERSION_LESS 6.2.0)
+        message(FATAL_ERROR "Minimum supported Qt version is 6.2.0")
     endif()
 endif()
 
 if(WITH_WEBSOCKET)
-    if(NOT Qt5WebSockets_FOUND)
-        message(FATAL_ERROR "Qt5 WebSockets module not found: use `-DWITH_WEBSOCKET=OFF` to build without WebSocket support")
+    if(NOT Qt6WebSockets_FOUND)
+        message(FATAL_ERROR "Qt6 WebSockets module not found: use `-DWITH_WEBSOCKET=OFF` to build without WebSocket support")
     endif()
 else()
     message(STATUS "Building without WebSocket support")
@@ -208,8 +208,8 @@ endif()
 if(MMAPPER_IS_DEBUG)
     set(CMAKE_VERBOSE_MAKEFILE true)
 
-    # disable all the deprecated APIs in Qt <= 5.15
-    add_compile_options(-DQT_DISABLE_DEPRECATED_BEFORE=0x050F00)
+# disable all the deprecated APIs in Qt <= 6.2
+ # QBug: QT_DISABLE_DEPRECATED_BEFORE macro was removed in Qt 6.0.
 
     if(NOT MSVC)
         # common options for gcc and clang

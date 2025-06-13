@@ -13,7 +13,7 @@
 #include <QAbstractTableModel>
 #include <QString>
 #include <QStyledItemDelegate>
-#include <QWidget>
+#include <QtWidgets/QWidget>
 #include <QtCore>
 
 class RoomMobs;

@@ -45,7 +45,7 @@
 #include <QActionGroup>
 #include <QCloseEvent>
 #include <QDesktopServices>
-#include <QFileDialog>
+#include <QtWidgets/QFileDialog>
 #include <QFontDatabase>
 #include <QIcon>
 #include <QProgressDialog>

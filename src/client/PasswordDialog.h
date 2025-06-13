@@ -3,8 +3,8 @@
 // Copyright (C) 2019 The MMapper Authors
 #include "../global/macros.h"
 
-#include <QDialog>
-#include <QLineEdit>
+#include <QtWidgets/QDialog>
+#include <QtWidgets/QLineEdit>
 
 struct InputWidgetOutputs;
 

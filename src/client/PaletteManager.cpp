@@ -5,7 +5,7 @@
 
 #include "../global/Color.h"
 
-#include <QWidget>
+#include <QtWidgets/QWidget>
 
 namespace { // anonymous
 NODISCARD auto initPaletteBackground(QWidget &w,

@@ -6,7 +6,7 @@
 #include "../global/RuleOf5.h"
 #include "../global/macros.h"
 
-#include <QSlider>
+#include <QtWidgets/QSlider>
 
 class MapWindow;
 

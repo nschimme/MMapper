@@ -6,7 +6,7 @@
 #include "../global/macros.h"
 #include "ui_aboutdialog.h"
 
-#include <QDialog>
+#include <QtWidgets/QDialog>
 #include <QString>
 #include <QtCore>
 

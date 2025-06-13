@@ -6,7 +6,7 @@
 #include "../global/macros.h"
 
 #include <QString>
-#include <QWidget>
+#include <QtWidgets/QWidget>
 #include <QtCore>
 
 class QObject;

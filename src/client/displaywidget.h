@@ -14,7 +14,7 @@
 #include <QString>
 #include <QTextBrowser>
 #include <QTextCursor>
-#include <QTextEdit>
+#include <QtWidgets/QTextEdit>
 #include <QTextFormat>
 #include <QtCore>
 #include <QtGui>

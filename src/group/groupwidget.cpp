@@ -198,7 +198,12 @@ void GroupDelegate::paint(QPainter *const painter,
         stateData.paint(painter, option.rect);
 
     } else {
-        QStyledItemDelegate::paint(painter, option, index);
+        // Remove focus highlight and selection background
+        QStyleOptionViewItem opt = option;
+        opt.state &= ~QStyle::State_HasFocus;
+        opt.state &= ~QStyle::State_Selected;
+
+        QStyledItemDelegate::paint(painter, opt, index);
     }
 }
 

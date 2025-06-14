@@ -49,7 +49,7 @@
 
 #include <QtWidgets/QMessageBox>
 #include <QMessageLogContext>
-#include <QOpenGLWidget>
+#include <QtOpenGLWidgets/QOpenGLWidget>
 #include <QtCore>
 #include <QtGui/qopengl.h>
 #include <QtGui>

@@ -363,7 +363,7 @@ QString FontMetrics::init(const QString &fontFilename)
     while (!xml.atEnd() && !xml.hasError()) {
         if (xml.readNextStartElement()) {
             const auto &attr = xml.attributes();
-            if (xml.name() == "common") {
+            if (xml.name() == QStringLiteral("common")) {
                 if (hasCommon) {
                     assert(false);
                     continue;
@@ -382,7 +382,7 @@ QString FontMetrics::init(const QString &fontFilename)
                 }
                 common = Common{lineHeight, base, scaleW, scaleH, marginX, marginY};
 
-            } else if (xml.name() == "char") {
+            } else if (xml.name() == QStringLiteral("char")) {
                 if (!hasCommon) {
                     assert(false);
                     continue;
@@ -415,7 +415,7 @@ QString FontMetrics::init(const QString &fontFilename)
 
                 raw_glyphs.emplace_back(id, x, y2, width, height, xoffset, yoffset2, xadvance);
 
-            } else if (xml.name() == "kerning") {
+            } else if (xml.name() == QStringLiteral("kerning")) {
                 if (!hasCommon) {
                     assert(false);
                     continue;
@@ -429,7 +429,7 @@ QString FontMetrics::init(const QString &fontFilename)
                     qDebug() << "Kerning" << PrintedChar{first} << PrintedChar{second} << amount;
                 }
                 raw_kernings.emplace_back(first, second, amount);
-            } else if (xml.name() == "page") {
+            } else if (xml.name() == QStringLiteral("page")) {
                 const int id = attr.value("id").toInt();
                 if (id != 0) {
                     continue;

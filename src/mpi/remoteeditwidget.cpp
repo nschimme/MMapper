@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 
-#include <QtGui/QAction>
+#include <QAction>
 #include <QtWidgets/QMenu>
 #include <QtWidgets/QMenuBar>
 #include <QtWidgets/QMessageBox>
@@ -120,7 +120,7 @@ public:
 
     void highlightTabs(const QString &line)
     {
-        if (line.indexOf(C_TAB) < 0) {
+        if (line.indexOf(QChar(C_TAB)) < 0) {
             return;
         }
 
@@ -264,7 +264,7 @@ public:
                 default: {
                     const auto uc = static_cast<uint8_t>(c);
                     if (hasLast
-                        && (isClamped<int>(uc, 0x80, 0xBF) && (last == 0xC2 || last == 0xC3))) {
+                        && (isClamped<int>(uc, 0x80, 0xBF) && (last == QChar(0xC2) || last == QChar(0xC3)))) {
                         // Sometimes these are UTF-8 encoded Latin1 values,
                         // but they could also be intended, so they're not errors.
                         // TODO: add a feature to fix these on a case-by-case basis?
@@ -369,7 +369,7 @@ NODISCARD static bool lineHasTabs(const QTextCursor &line)
     if (!block.isValid()) {
         return false;
     }
-    return block.text().indexOf(C_TAB) >= 0;
+    return block.text().indexOf(QChar(C_TAB)) >= 0;
 }
 
 static void expandTabs(QTextCursor line)
@@ -399,9 +399,9 @@ static void tryRemoveLeadingSpaces(QTextCursor line, const int max_spaces)
     }
 
     const int to_remove = [&text, max_spaces]() -> int {
-        const int len = std::min(max_spaces, text.length());
+        const int len = std::min(max_spaces, static_cast<int>(text.length()));
         int n = 0;
-        while (n < len && text.at(n) == C_SPACE) {
+        while (n < len && text.at(n) == QChar(C_SPACE)) {
             ++n;
         }
         return n;
@@ -725,7 +725,7 @@ auto RemoteEditWidget::createTextEdit() -> Editor *
                                     y + contentsMargins().top() + contentsMargins().bottom()));
     pTextEdit->setLineWrapMode(Editor::LineWrapMode::NoWrap);
     pTextEdit->setSizeIncrement(fm.averageCharWidth(), fm.lineSpacing());
-    pTextEdit->setTabStopDistance(fm.horizontalAdvance(" ") * 8); // A tab is 8 spaces wide
+    pTextEdit->setTabStopDistance(fm.horizontalAdvance(QLatin1Char(' ')) * 8); // A tab is 8 spaces wide
     pTextEdit->showWhitespace(false);
 
     auto *const doc = pTextEdit->document();
@@ -1092,8 +1092,8 @@ void RemoteEditWidget::slot_updateStatusBar()
 
         const QString selection = cur.selection().toPlainText();
         const int selectionLength = selection.length();
-        const int selectionLines = selection.count(C_NEWLINE)
-                                   + (selection.endsWith(C_NEWLINE) ? 0 : 1);
+        const int selectionLines = selection.count(QChar(C_NEWLINE))
+                                   + (selection.endsWith(QChar(C_NEWLINE)) ? 0 : 1);
 
         status.append(QString(", Selection: %1 char%2 on %3 line%4")
                           .arg(selectionLength)
@@ -1225,8 +1225,8 @@ void RemoteEditWidget::slot_normalizeAnsi()
 void RemoteEditWidget::slot_previewAnsi()
 {
     QString s = m_textEdit->toPlainText();
-    if (!s.endsWith(C_NEWLINE)) {
-        s += C_NEWLINE;
+    if (!s.endsWith(QChar(C_NEWLINE))) {
+        s += QChar(C_NEWLINE);
     }
 
     m_preview = makeAnsiViewWindow("MMapper Editor Preview", m_title, mmqt::toStdStringUtf8(s));

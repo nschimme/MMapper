@@ -224,7 +224,7 @@ void MapCanvas::initializeGL()
         if (isBlacklistedDriver()) {
             throw std::runtime_error("unsupported driver");
         }
-    } catch (std::exception e) {
+    } catch (const std::exception &) {
         hide();
         doneCurrent();
         QMessageBox::critical(this,

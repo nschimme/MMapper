@@ -238,54 +238,6 @@ void MapCanvas::initializeGL()
         return;
     }
 
-    auto &sharedFuncs = gl.getSharedFunctions(Badge<MapCanvas>{});
-    Legacy::Functions &funcs = deref(sharedFuncs);
-
-    {
-        static auto isShared = [](QOpenGLContext *const ctxt) -> bool {
-            auto *const glob = QOpenGLContext::globalShareContext();
-            return glob != nullptr && ctxt != nullptr && QOpenGLContext::areSharing(ctxt, glob);
-        };
-
-        struct Offscreen : public QOpenGLWidget
-        {
-            // void initializeGL() override { assert(isShared(context())); }
-        };
-
-        const auto fmt = format();
-        auto *const ctxt = context();
-        assert(isShared(ctxt));
-
-        std::thread t{[&funcs, fmt]() {
-            QScopedPointer<Offscreen> pOffscreen{new Offscreen()};
-            Offscreen &offscreen = *pOffscreen;
-            offscreen.setFormat(fmt);
-            offscreen.show();
-            offscreen.hide();
-            offscreen.repaint();
-            offscreen.makeCurrent();
-            auto *const off_ctxt = offscreen.context();
-            if (!isShared(off_ctxt)) {
-                QMessageBox::critical(nullptr,
-                                      "Unable to initialize OpenGL",
-                                      "Failed to create a shared context");
-                std::abort();
-            }
-
-            Legacy::ShaderPrograms &programs = funcs.getShaderPrograms();
-            std::ignore = programs.getPlainAColorShader();
-            std::ignore = programs.getPlainUColorShader();
-            std::ignore = programs.getTexturedAColorShader();
-            std::ignore = programs.getTexturedUColorShader();
-            std::ignore = programs.getFontShader();
-            std::ignore = programs.getPointShader();
-
-            offscreen.doneCurrent();
-        }};
-        t.join();
-    }
-    makeCurrent();
-
     reportGLVersion();
 
     // NOTE: If you're adding code that relies on generating OpenGL errors (e.g. ANGLE),
@@ -301,6 +253,19 @@ void MapCanvas::initializeGL()
     auto &font = getGLFont();
     font.setTextureId(allocateTextureId());
     font.init();
+
+    // compile all shaders
+    {
+        auto &sharedFuncs = gl.getSharedFunctions(Badge<MapCanvas>{});
+        Legacy::Functions &funcs = deref(sharedFuncs);
+        Legacy::ShaderPrograms &programs = funcs.getShaderPrograms();
+        std::ignore = programs.getPlainAColorShader();
+        std::ignore = programs.getPlainUColorShader();
+        std::ignore = programs.getTexturedAColorShader();
+        std::ignore = programs.getTexturedUColorShader();
+        std::ignore = programs.getFontShader();
+        std::ignore = programs.getPointShader();
+    }
 
     setConfig().canvas.showUnsavedChanges.registerChangeCallback(m_lifetime, [this]() {
         if (setConfig().canvas.showUnsavedChanges.get() && m_diff.highlight.has_value()

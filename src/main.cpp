@@ -111,7 +111,6 @@ static void setSurfaceFormat()
 
 int main(int argc, char **argv)
 {
-    QApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
     useHighDpi();
     setHighDpiScaleFactorRoundingPolicy();
     setEnteredMain();

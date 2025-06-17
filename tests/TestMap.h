@@ -20,11 +20,12 @@ private Q_SLOTS:
     static void sanitizerTest();
     static void tinyRoomIdSetTest();
     static void spatialDbCowTest();
-    // Slots from TestCow
-    static void testReadOnlySharing();
-    static void testLazyCopyOnWrite();
-    static void testMutationIsolation();
-    static void testFinalize();
+    // Slots from TestCow, now moved to TestGlobal:
+    // static void testReadOnlySharing();
+    // static void testLazyCopyOnWrite();
+    // static void testMutationIsolation();
+    // static void testFinalize();
+    // These remain as they are World specific:
     static void testWorldCopyCOW();
     static void testWorldApplyChangeCOW();
 };

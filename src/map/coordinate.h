@@ -10,6 +10,7 @@
 #include <cassert>
 #include <optional>
 
+#include <QDebug> // Added for QDebug streaming
 #include <glm/glm.hpp>
 
 struct NODISCARD Coordinate2i final
@@ -145,6 +146,8 @@ public:
     bool operator<=(const Coordinate &rhs) const;
     bool operator>=(const Coordinate &rhs) const;
 };
+
+QDebug operator<<(QDebug debug, const Coordinate &coord); // Added for QDebug streaming
 
 template<>
 struct std::hash<Coordinate>

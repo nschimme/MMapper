@@ -172,8 +172,8 @@ void TestMap::spatialDbCowTest()
         db1.updateBounds(pc);
         auto initial_bounds_db1 = db1.getBounds();
         QVERIFY(initial_bounds_db1.has_value());
-        QCOMPARE(initial_bounds_db1->min, Coordinate{30,30,30});
-        QCOMPARE(initial_bounds_db1->max, Coordinate{30,30,30});
+        QCOMPARE(initial_bounds_db1->min, (Coordinate{30,30,30}));
+        QCOMPARE(initial_bounds_db1->max, (Coordinate{30,30,30}));
 
         SpatialDb db2 = db1; // Copy, m_unique shares, m_bounds copied, m_needsBoundsUpdate copied
         QVERIFY(db1 == db2);
@@ -192,23 +192,23 @@ void TestMap::spatialDbCowTest()
         QVERIFY(bounds_db2_after_add.has_value());
         // Depending on SpatialDb::add's behavior, bounds might be immediately updated or require updateBounds().
         // Current SpatialDb::add updates bounds directly.
-        QCOMPARE(bounds_db2_after_add->min, Coordinate{0,0,0});
-        QCOMPARE(bounds_db2_after_add->max, Coordinate{30,30,30});
+        QCOMPARE(bounds_db2_after_add->min, (Coordinate{0,0,0}));
+        QCOMPARE(bounds_db2_after_add->max, (Coordinate{30,30,30}));
 
 
         db2.updateBounds(pc); // Explicitly call updateBounds
         auto final_bounds_db2 = db2.getBounds();
         QVERIFY(final_bounds_db2.has_value());
-        QCOMPARE(final_bounds_db2->min, Coordinate{0,0,0});
-        QCOMPARE(final_bounds_db2->max, Coordinate{30,30,30});
+        QCOMPARE(final_bounds_db2->min, (Coordinate{0,0,0}));
+        QCOMPARE(final_bounds_db2->max, (Coordinate{30,30,30}));
 
         QVERIFY(db1 != db2); // Because m_unique differs
 
         // Verify db1.getBounds() is based on RoomId{30} only and is unchanged
         auto final_bounds_db1 = db1.getBounds();
         QVERIFY(final_bounds_db1.has_value());
-        QCOMPARE(final_bounds_db1->min, Coordinate{30,30,30});
-        QCOMPARE(final_bounds_db1->max, Coordinate{30,30,30});
+        QCOMPARE(final_bounds_db1->min, (Coordinate{30,30,30}));
+        QCOMPARE(final_bounds_db1->max, (Coordinate{30,30,30}));
         QCOMPARE(db1.getBounds(), initial_bounds_db1); // Ensure db1's bounds didn't change
     }
 
@@ -235,84 +235,7 @@ void TestMap::spatialDbCowTest()
     }
 }
 
-// --- Methods from TestCow ---
-void TestMap::testReadOnlySharing()
-{
-    auto raw_room_data = std::make_shared<RawRoom>(createTestRawRoom(RoomId{1}));
-    mm::CopyOnWrite<RawRoom> c1(raw_room_data);
-    mm::CopyOnWrite<RawRoom> c2 = c1; // Copy constructor (default, copies variant which copies shared_ptr)
-
-    QCOMPARE(static_cast<const void *>(c1.get().get()), static_cast<const void *>(c2.get().get()));
-    QVERIFY(c1.get().use_count()
-            > 1); // Both c1 and c2 should share it, plus raw_room_data if still in scope
-    QCOMPARE(c1.get()->fields.Name.toStdStringUtf8(), "TestRoom");
-}
-
-void TestMap::testLazyCopyOnWrite()
-{
-    auto initial_raw_room = std::make_shared<const RawRoom>(createTestRawRoom(RoomId{1}, "Initial"));
-    mm::CopyOnWrite<RawRoom> c1(initial_raw_room);
-
-    const RawRoom *initial_addr = initial_raw_room.get();
-
-    // First get should be the shared one
-    QCOMPARE(static_cast<const void *>(c1.get().get()), static_cast<const void *>(initial_addr));
-
-    // This should trigger a copy
-    std::shared_ptr<RawRoom> writable_room_ptr = c1.getMutable();
-    QVERIFY(static_cast<const void *>(writable_room_ptr.get())
-            != static_cast<const void *>(initial_addr));
-    QCOMPARE(writable_room_ptr->fields.Name.toStdStringUtf8(),
-             "Initial"); // Content should be copied
-
-    // Modify the copy
-    writable_room_ptr->fields.Name = makeRoomName("Modified");
-    QCOMPARE(c1.get()->fields.Name.toStdStringUtf8(),
-             "Modified"); // c1.get() should now point to the modified copy
-    QCOMPARE(initial_raw_room->fields.Name.toStdStringUtf8(),
-             "Initial"); // Original const shared_ptr data unchanged
-}
-
-void TestMap::testMutationIsolation()
-{
-    auto r1_const_ptr = std::make_shared<const RawRoom>(createTestRawRoom(RoomId{1}, "OriginalR1"));
-    mm::CopyOnWrite<RawRoom> c1(r1_const_ptr);
-    mm::CopyOnWrite<RawRoom> c2 = c1; // c1 and c2 share data
-
-    QVERIFY(static_cast<const void *>(c1.get().get()) == static_cast<const void *>(c2.get().get()));
-
-    // Mutate c1
-    std::shared_ptr<RawRoom> c1_writable = c1.getMutable();
-    c1_writable->fields.Name = makeRoomName("C1 Modified");
-
-    QVERIFY(static_cast<const void *>(c1.get().get())
-            != static_cast<const void *>(c2.get().get())); // c1 should have a new copy
-    QCOMPARE(c1.get()->fields.Name.toStdStringUtf8(), "C1 Modified");
-    QCOMPARE(c2.get()->fields.Name.toStdStringUtf8(), "OriginalR1"); // c2 should be unaffected
-}
-
-void TestMap::testFinalize()
-{
-    mm::CopyOnWrite<RawRoom> c1(std::make_shared<RawRoom>(createTestRawRoom(RoomId{1})));
-
-    std::shared_ptr<RawRoom> r_writable = c1.getMutable();
-    const void *writable_addr1 = r_writable.get();
-    r_writable->fields.Name = makeRoomName("TempWrite");
-
-    c1.finalize();
-    QVERIFY(!c1.isWritable()); // Assuming isWritable() checks if variant holds shared_ptr<RawRoom>
-
-    // Getting const should still work and point to the data that was finalized
-    QCOMPARE(c1.get()->fields.Name.toStdStringUtf8(), "TempWrite");
-    const void *const_addr_after_finalize = c1.get().get();
-    QCOMPARE(const_addr_after_finalize,
-             writable_addr1); // Should be same address, just const_cast by finalize
-
-    // Getting mutable again should create a new copy
-    std::shared_ptr<RawRoom> r_writable2 = c1.getMutable();
-    QVERIFY(static_cast<const void *>(r_writable2.get()) != writable_addr1);
-    QCOMPARE(r_writable2->fields.Name.toStdStringUtf8(), "TempWrite"); // Content is copied
-}
+// --- Methods from TestCow (generic tests removed, World-specific tests remain) ---
 
 void TestMap::testWorldCopyCOW()
 {

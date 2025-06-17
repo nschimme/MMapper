@@ -5,6 +5,7 @@
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
 #include "coordinate.h"
+#include <QDebug> // Added for QDebug streaming
 
 #include <cmath>
 #include <cstdlib>
@@ -147,4 +148,10 @@ void Bounds::insert(const Coordinate &c)
     THREE(max);
 #undef THREE
 #undef ONE
+}
+
+QDebug operator<<(QDebug debug, const Coordinate &coord)
+{
+    debug.nospace() << "Coordinate(" << coord.x << ", " << coord.y << ", " << coord.z << ")";
+    return debug;
 }

@@ -4,7 +4,7 @@
 
 #include "../global/IndexedVector.h"
 #include "../global/macros.h"
-#include "CowRoom.h" // Added
+#include "../global/CopyOnWrite.h" // Corrected path
 #include "InvalidMapOperation.h"
 #include "RawExit.h"
 #include "RawRoom.h"
@@ -14,14 +14,14 @@
 class NODISCARD RawRooms final
 {
 private:
-    IndexedVector<CowRoom, RoomId> m_rooms; // Changed RawRoom to CowRoom
+    IndexedVector<mm::CopyOnWrite<RawRoom>, RoomId> m_rooms; // Changed to mm::CopyOnWrite<RawRoom>
 
 public:
-    NODISCARD CowRoom &getRawRoomRef(RoomId pos) { return m_rooms.at(pos); } // Return CowRoom&
-    NODISCARD const CowRoom &getRawRoomRef(RoomId pos) const
+    NODISCARD mm::CopyOnWrite<RawRoom> &getRawRoomRef(RoomId pos) { return m_rooms.at(pos); } // Return mm::CopyOnWrite<RawRoom>&
+    NODISCARD const mm::CopyOnWrite<RawRoom> &getRawRoomRef(RoomId pos) const
     {
         return m_rooms.at(pos);
-    } // Return const CowRoom&
+    } // Return const mm::CopyOnWrite<RawRoom>&
 
 public:
     NODISCARD size_t size() const { return m_rooms.size(); }
@@ -29,12 +29,12 @@ public:
 
     void removeAt(const RoomId id)
     {
-        getRawRoomRef(id) = CowRoom(std::make_shared<RawRoom>());
-    } // Updated removeAt
+        getRawRoomRef(id) = mm::CopyOnWrite<RawRoom>(std::make_shared<RawRoom>());
+    } // Updated to mm::CopyOnWrite
 
     void requireUninitialized(const RoomId id) const
     {
-        if (*getRawRoomRef(id).get() != RawRoom{}) { // Updated requireUninitialized
+        if (*getRawRoomRef(id).get() != RawRoom{}) { // No change needed here as .get() is the same
             throw InvalidMapOperation();
         }
     }
@@ -176,24 +176,14 @@ public:
 public:
     NODISCARD bool operator==(const RawRooms &rhs) const
     {
-        if (m_rooms.size() != rhs.m_rooms.size()) {
-            return false;
-        }
-        for (RoomId i = RoomId{0}; i < RoomId{static_cast<RoomId::WrappedType>(m_rooms.size())};
-             ++i) {
-            // Assuming RoomId can be cast to size_t or int for loop
-            // Also assuming m_rooms.isValid(i) or similar check might be needed if vector can be sparse
-            // For now, direct iteration up to size.
-            const auto &r1 = getRawRoomRef(i);
-            const auto &r2 = rhs.getRawRoomRef(i);
-            if (!r1.get() || !r2.get()) { // one of them is uninitialized via CowRoom
-                if (r1.get() != r2.get())
-                    return false; // only true if both are null
-            } else if (*r1.get() != *r2.get()) {
-                return false;
-            }
-        }
-        return true;
+        // Rely on IndexedVector::operator== which uses areEquivalent.
+        // areEquivalent correctly handles different sizes by checking
+        // if extra elements in the longer vector are default-constructed T{}.
+        // This requires mm::CopyOnWrite<RawRoom>::operator== to be defined, which it now is.
+        // A default-constructed mm::CopyOnWrite<RawRoom> holds a default-constructed RawRoom.
+        // RawRooms::removeAt() sets the element to mm::CopyOnWrite<RawRoom>(std::make_shared<RawRoom>()),
+        // which is also what a default mm::CopyOnWrite<RawRoom> results in.
+        return m_rooms == rhs.m_rooms;
     }
     NODISCARD bool operator!=(const RawRooms &rhs) const
     {

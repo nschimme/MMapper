@@ -4,8 +4,8 @@
 #include "TestCow.h"
 
 #include "global/progresscounter.h" // For ProgressCounter
+#include "global/CopyOnWrite.h"     // Path should be correct
 #include "map/Changes.h"            // For change types
-#include "map/CowRoom.h"
 #include "map/Map.h" // For applying changes to world via Map
 #include "map/RawRoom.h"
 #include "map/RoomFields.h" // For RoomName, etc.
@@ -29,8 +29,8 @@ RawRoom createTestRawRoom(RoomId id, const std::string &name_str = "TestRoom")
 void TestCow::testReadOnlySharing()
 {
     auto raw_room_data = std::make_shared<RawRoom>(createTestRawRoom(RoomId{1}));
-    CowRoom c1(raw_room_data);
-    CowRoom c2 = c1; // Copy constructor of CowRoom (default, copies variant which copies shared_ptr)
+    mm::CopyOnWrite<RawRoom> c1(raw_room_data);
+    mm::CopyOnWrite<RawRoom> c2 = c1; // Copy constructor (default, copies variant which copies shared_ptr)
 
     QCOMPARE(static_cast<const void *>(c1.get().get()), static_cast<const void *>(c2.get().get()));
     QVERIFY(c1.get().use_count()
@@ -41,7 +41,7 @@ void TestCow::testReadOnlySharing()
 void TestCow::testLazyCopyOnWrite()
 {
     auto initial_raw_room = std::make_shared<const RawRoom>(createTestRawRoom(RoomId{1}, "Initial"));
-    CowRoom c1(initial_raw_room);
+    mm::CopyOnWrite<RawRoom> c1(initial_raw_room);
 
     const RawRoom *initial_addr = initial_raw_room.get();
 
@@ -66,8 +66,8 @@ void TestCow::testLazyCopyOnWrite()
 void TestCow::testMutationIsolation()
 {
     auto r1_const_ptr = std::make_shared<const RawRoom>(createTestRawRoom(RoomId{1}, "OriginalR1"));
-    CowRoom c1(r1_const_ptr);
-    CowRoom c2 = c1; // c1 and c2 share data
+    mm::CopyOnWrite<RawRoom> c1(r1_const_ptr);
+    mm::CopyOnWrite<RawRoom> c2 = c1; // c1 and c2 share data
 
     QVERIFY(static_cast<const void *>(c1.get().get()) == static_cast<const void *>(c2.get().get()));
 
@@ -83,7 +83,7 @@ void TestCow::testMutationIsolation()
 
 void TestCow::testFinalize()
 {
-    CowRoom c1(std::make_shared<RawRoom>(createTestRawRoom(RoomId{1})));
+    mm::CopyOnWrite<RawRoom> c1(std::make_shared<RawRoom>(createTestRawRoom(RoomId{1})));
 
     std::shared_ptr<RawRoom> r_writable = c1.getMutable();
     const void *writable_addr1 = r_writable.get();
@@ -185,7 +185,7 @@ void TestCow::testWorldApplyChangeCOW()
 
     // Check if a copy was made (address should be different)
     // This assumes that the getRoom(id) after modification doesn't return the exact same shared_ptr
-    // if the underlying object was copy-on-written. The CowRoom's internal shared_ptr would change.
+    // if the underlying object was copy-on-written. The CopyOnWrite's internal shared_ptr would change.
     QVERIFY(addr_before != addr_after);
 }
 

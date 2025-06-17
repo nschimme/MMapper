@@ -2,6 +2,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2023 The MMapper Authors
 
+/**
+ * @deprecated CowRoom is deprecated. Please use mm::CopyOnWrite<RawRoom> instead.
+ * The original content of this file has been commented out.
+ * The mm::CopyOnWrite<T> template provides the same functionality and is located
+ * in src/global/CopyOnWrite.h.
+ */
+
+/*
 #include "RawRoom.h" // Assuming RawRoom.h is in the same directory
 
 #include <memory>
@@ -91,3 +99,4 @@ public:
         return std::holds_alternative<std::shared_ptr<RawRoom>>(m_room_variant);
     }
 };
+*/

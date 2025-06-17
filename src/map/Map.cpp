@@ -89,8 +89,12 @@ void Map::getRooms(RoomRecipient &recipient, const ParseEvent &parseEvent) const
             return recipient.receiveRoom(rh);
         }
     }
-    const auto &tree = map.getWorld().getParseTree();
-    ::getRooms(map, tree, recipient, parseEvent);
+    const auto tree_ptr = map.getWorld().getParseTree();
+    if (tree_ptr) { // Check if the shared_ptr is valid
+        ::getRooms(map, *tree_ptr, recipient, parseEvent); // Dereference the shared_ptr
+    }
+    // Else: what to do if parseTree is null? The original code would have failed too if tree was null.
+    // For now, assume tree_ptr is expected to be valid.
 }
 
 NODISCARD std::shared_ptr<const RawRoom> Map::find_room_ptr(
@@ -929,9 +933,11 @@ std::optional<size_t> Map::countRoomsWithArea(const RoomArea &areaName) const
 size_t Map::countRoomsWithName(const RoomName &name) const
 {
     const auto &world = getWorld();
-    const auto &parseTree = world.getParseTree();
-    if (const auto *const pSet = parseTree.name_only.find(name)) {
-        return pSet->size();
+    const auto parseTree_ptr = world.getParseTree();
+    if (parseTree_ptr) {
+        if (const auto *const pSet = parseTree_ptr->name_only.find(name)) {
+            return pSet->size();
+        }
     }
     return 0;
 }
@@ -939,9 +945,11 @@ size_t Map::countRoomsWithName(const RoomName &name) const
 size_t Map::countRoomsWithDesc(const RoomDesc &desc) const
 {
     const auto &world = getWorld();
-    const auto &parseTree = world.getParseTree();
-    if (const auto *const pSet = parseTree.desc_only.find(desc)) {
-        return pSet->size();
+    const auto parseTree_ptr = world.getParseTree();
+    if (parseTree_ptr) {
+        if (const auto *const pSet = parseTree_ptr->desc_only.find(desc)) {
+            return pSet->size();
+        }
     }
     return 0;
 }
@@ -949,10 +957,12 @@ size_t Map::countRoomsWithDesc(const RoomDesc &desc) const
 size_t Map::countRoomsWithNameDesc(const RoomName &name, const RoomDesc &desc) const
 {
     const auto &world = getWorld();
-    const auto &parseTree = world.getParseTree();
-    const NameDesc nameDesc{name, desc};
-    if (const auto *const pSet = parseTree.name_desc.find(nameDesc)) {
-        return pSet->size();
+    const auto parseTree_ptr = world.getParseTree();
+    if (parseTree_ptr) {
+        const NameDesc nameDesc{name, desc};
+        if (const auto *const pSet = parseTree_ptr->name_desc.find(nameDesc)) {
+            return pSet->size();
+        }
     }
     return 0;
 }
@@ -960,10 +970,12 @@ size_t Map::countRoomsWithNameDesc(const RoomName &name, const RoomDesc &desc) c
 std::optional<RoomId> Map::findUniqueName(const RoomName &name) const
 {
     const auto &world = getWorld();
-    const auto &parseTree = world.getParseTree();
-    if (const RoomIdSet *const pSet = parseTree.name_only.find(name)) {
-        if (pSet->size() == 1) {
-            return pSet->first();
+    const auto parseTree_ptr = world.getParseTree();
+    if (parseTree_ptr) {
+        if (const RoomIdSet *const pSet = parseTree_ptr->name_only.find(name)) {
+            if (pSet->size() == 1) {
+                return pSet->first();
+            }
         }
     }
     return std::nullopt;
@@ -972,10 +984,12 @@ std::optional<RoomId> Map::findUniqueName(const RoomName &name) const
 std::optional<RoomId> Map::findUniqueDesc(const RoomDesc &desc) const
 {
     const auto &world = getWorld();
-    const auto &parseTree = world.getParseTree();
-    if (const RoomIdSet *const pSet = parseTree.desc_only.find(desc)) {
-        if (pSet->size() == 1) {
-            return pSet->first();
+    const auto parseTree_ptr = world.getParseTree();
+    if (parseTree_ptr) {
+        if (const RoomIdSet *const pSet = parseTree_ptr->desc_only.find(desc)) {
+            if (pSet->size() == 1) {
+                return pSet->first();
+            }
         }
     }
     return std::nullopt;
@@ -984,11 +998,13 @@ std::optional<RoomId> Map::findUniqueDesc(const RoomDesc &desc) const
 std::optional<RoomId> Map::findUniqueNameDesc(const RoomName &name, const RoomDesc &desc) const
 {
     const auto &world = getWorld();
-    const auto &parseTree = world.getParseTree();
-    const NameDesc nameDesc{name, desc};
-    if (const RoomIdSet *const pSet = parseTree.name_desc.find(nameDesc)) {
-        if (pSet->size() == 1) {
-            return pSet->first();
+    const auto parseTree_ptr = world.getParseTree();
+    if (parseTree_ptr) {
+        const NameDesc nameDesc{name, desc};
+        if (const RoomIdSet *const pSet = parseTree_ptr->name_desc.find(nameDesc)) {
+            if (pSet->size() == 1) {
+                return pSet->first();
+            }
         }
     }
     return std::nullopt;

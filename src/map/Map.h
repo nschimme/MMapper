@@ -61,7 +61,7 @@ public:
     NODISCARD RoomIdSet findAllRooms(const ParseEvent &) const;
 
 private:
-    NODISCARD const RawRoom *find_room_ptr(RoomId id) const;
+    NODISCARD std::shared_ptr<const RawRoom> find_room_ptr(RoomId id) const; // Changed return type
 
 public:
     // Semantics: "findRoomHandle()" functions can return an invalid handle;

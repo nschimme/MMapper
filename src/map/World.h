@@ -4,6 +4,7 @@
 
 #include "../global/Timer.h"
 #include "../global/macros.h"
+#include "../global/CopyOnWrite.h" // Corrected path
 #include "Changes.h"
 #include "ExitFields.h"
 #include "InvalidMapOperation.h"
@@ -38,15 +39,17 @@ struct NODISCARD WorldComparisonStats final
 class NODISCARD World final
 {
 private:
-    Remapping m_remapping;
-    RawRooms m_rooms;
+    mm::CopyOnWrite<Remapping> m_remapping;
+    RawRooms m_rooms; // Stays as RawRooms, handles its own COW internally
     /// This must be updated any time a room's position changes.
-    SpatialDb m_spatialDb;
-    ServerIdMap m_serverIds;
-    ParseTree m_parseTree;
-    AreaInfoMap m_areaInfos;
+    mm::CopyOnWrite<SpatialDb> m_spatialDb;
+    mm::CopyOnWrite<ServerIdMap> m_serverIds;
+    mm::CopyOnWrite<ParseTree> m_parseTree;
+    mm::CopyOnWrite<AreaInfoMap> m_areaInfos;
 
 public:
+    // Default constructor will use default constructors of CopyOnWrite<T>,
+    // which in turn will std::make_shared<T>() for each wrapped object.
     explicit World() = default;
     ~World() = default;
     World(World &&) = default;
@@ -62,24 +65,26 @@ public:
     NODISCARD bool operator!=(const World &rhs) const { return !(rhs == *this); }
 
 private:
+    // Access to AreaInfoMap will now need .get() or .getMutable()
     NODISCARD AreaInfo *findArea(const std::optional<RoomArea> &area);
     NODISCARD const AreaInfo *findArea(const std::optional<RoomArea> &area) const;
     NODISCARD AreaInfo &getArea(const std::optional<RoomArea> &area);
     NODISCARD const AreaInfo &getArea(const std::optional<RoomArea> &area) const;
 
-    NODISCARD AreaInfo &getGlobalArea() { return getArea(std::nullopt); }
-    NODISCARD const AreaInfo &getGlobalArea() const { return getArea(std::nullopt); }
+    NODISCARD AreaInfo &getGlobalArea() { return getArea(std::nullopt); } // Implementation will change
+    NODISCARD const AreaInfo &getGlobalArea() const { return getArea(std::nullopt); } // Implementation will change
 
 public:
-    NODISCARD const ParseTree &getParseTree() const { return m_parseTree; }
+    NODISCARD std::shared_ptr<const ParseTree> getParseTree() const { return m_parseTree.get(); }
 
 public:
-    NODISCARD const RawRoom *getRoom(RoomId id) const;
+    // NODISCARD const RawRoom *getRoom(RoomId id) const; // Old version
+    NODISCARD std::shared_ptr<const RawRoom> getRoom(RoomId id) const; // New: returns shared_ptr
 
 public:
-    NODISCARD std::optional<Bounds> getBounds() const { return m_spatialDb.getBounds(); }
-    NODISCARD bool needsBoundsUpdate() const { return m_spatialDb.needsBoundsUpdate(); }
-    void updateBounds(ProgressCounter &pc) { m_spatialDb.updateBounds(pc); }
+    NODISCARD std::optional<Bounds> getBounds() const { return m_spatialDb.get()->getBounds(); }
+    NODISCARD bool needsBoundsUpdate() const { return m_spatialDb.get()->needsBoundsUpdate(); }
+    void updateBounds(ProgressCounter &pc) { m_spatialDb.getMutable()->updateBounds(pc); }
 
 public:
     NODISCARD RoomId getNextId() const;
@@ -142,7 +147,8 @@ public:
 
 public:
     NODISCARD RawExit getRawExit(RoomId id, ExitDirEnum dir) const;
-    NODISCARD RawRoom getRawCopy(RoomId id) const;
+    NODISCARD RawRoom
+    getRawCopy(RoomId id) const; // Signature stays the same, implementation will change
 
 public:
     NODISCARD static World init(ProgressCounter &counter, const std::vector<ExternalRawRoom> &map);

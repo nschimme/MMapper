@@ -74,7 +74,8 @@ public:
     NODISCARD const ParseTree &getParseTree() const { return m_parseTree; }
 
 public:
-    NODISCARD const RawRoom *getRoom(RoomId id) const;
+    // NODISCARD const RawRoom *getRoom(RoomId id) const; // Old version
+    NODISCARD std::shared_ptr<const RawRoom> getRoom(RoomId id) const; // New: returns shared_ptr
 
 public:
     NODISCARD std::optional<Bounds> getBounds() const { return m_spatialDb.getBounds(); }
@@ -142,7 +143,7 @@ public:
 
 public:
     NODISCARD RawExit getRawExit(RoomId id, ExitDirEnum dir) const;
-    NODISCARD RawRoom getRawCopy(RoomId id) const;
+    NODISCARD RawRoom getRawCopy(RoomId id) const; // Signature stays the same, implementation will change
 
 public:
     NODISCARD static World init(ProgressCounter &counter, const std::vector<ExternalRawRoom> &map);

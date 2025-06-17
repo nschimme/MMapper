@@ -296,3 +296,23 @@ set_target_properties(
         COMPILE_FLAGS "${WARNING_FLAGS}"
 )
 add_test(NAME TestRoomManager COMMAND TestRoomManager)
+
+# Cow Test
+set(TestCow_SRCS TestCow.cpp)
+add_executable(TestCow ${TestCow_SRCS})
+# mm_map includes mm_global, CowRoom.h is in src/map which is part of mm_map
+add_dependencies(TestCow mm_global mm_map) # Added mm_global as a dependency
+target_link_libraries(TestCow
+        mm_map
+        mm_global # Explicitly link mm_global
+        Qt5::Test
+        Qt5::Core # For QObject, etc.
+        coverage_config)
+set_target_properties(
+  TestCow PROPERTIES
+  CXX_STANDARD 17
+  CXX_STANDARD_REQUIRED ON
+  CXX_EXTENSIONS OFF
+  COMPILE_FLAGS "${WARNING_FLAGS}"
+)
+add_test(NAME TestCow COMMAND TestCow)

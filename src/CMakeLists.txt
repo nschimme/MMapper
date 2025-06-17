@@ -253,6 +253,7 @@ set(mmapper_SRCS
     map/CommandId.h
     map/Compare.h
     map/ConnectedRoomFlags.h
+    map/CowRoom.h    # <--- ADDED THIS LINE
     map/Crtp.h
     map/Diff-Test.cpp
     map/Diff.cpp
@@ -615,14 +616,21 @@ set(mmapper_DATA
     global/Version.cpp.in)
 
 set(mmapper_map_SRCS ${mmapper_SRCS})
+set(mmapper_config_SRCS ${mmapper_SRCS}) # For configuration files
 set(mmapper_global_SRCS ${mmapper_SRCS})
+
 list(FILTER mmapper_map_SRCS INCLUDE REGEX "map/")
+list(FILTER mmapper_config_SRCS INCLUDE REGEX "configuration/") # Filter for configuration files
 list(FILTER mmapper_global_SRCS INCLUDE REGEX "global/")
+
+list(APPEND mmapper_global_SRCS ${mmapper_config_SRCS}) # Add configuration sources to global sources
+
 list(FILTER mmapper_SRCS EXCLUDE REGEX "map/")
 list(FILTER mmapper_SRCS EXCLUDE REGEX "global/")
+list(FILTER mmapper_SRCS EXCLUDE REGEX "configuration/") # Exclude config from main executable if it's now in mm_global
 
 message("mmapper_SRCS=[${mmapper_SRCS}]")
-message("mmapper_global_SRCS=[${mmapper_global_SRCS}]")
+message("mmapper_global_SRCS=[${mmapper_global_SRCS}]") # Will now include configuration/
 message("mmapper_map_SRCS=[${mmapper_map_SRCS}]")
 
 add_library(mm_global STATIC ${mmapper_global_SRCS})
@@ -680,19 +688,20 @@ target_include_directories(mm_global SYSTEM PUBLIC
         ${GLM_INCLUDE_DIR}
         ${Qt5Core_INCLUDE_DIRS}
         ${Qt5Widgets_INCLUDE_DIRS}
-        #${Qt5_Network_INCLUDE_DIRS}
+        ${Qt5Network_INCLUDE_DIRS} # Added for QHostInfo etc.
         #${Qt5_OpenGL_INCLUDE_DIRS}
 )
 target_include_directories(mm_map SYSTEM PUBLIC
         ${GLM_INCLUDE_DIR}
         ${Qt5Core_INCLUDE_DIRS}
         ${Qt5Widgets_INCLUDE_DIRS}
-        #${Qt5_Network_INCLUDE_DIRS}
+        #${Qt5_Network_INCLUDE_DIRS} # mm_map might not need it directly
         #${Qt5_OpenGL_INCLUDE_DIRS}
 )
 target_link_libraries(mm_global PUBLIC
     Qt5::Core
     Qt5::Widgets
+    Qt5::Network # Added for QHostInfo etc.
 )
 target_link_libraries(mm_map PUBLIC
     Qt5::Core

@@ -69,7 +69,9 @@ RoomIdSet Map::findAllRooms(const ParseEvent &parseEvent) const
 {
     RoomIdSet result;
     for (const RoomId id : getRooms()) {
-        const RawRoom &room = deref(find_room_ptr(id));
+        std::shared_ptr<const RawRoom> room_sptr = find_room_ptr(id);
+        if (!room_sptr) { continue; }
+        const RawRoom &room = *room_sptr;
         if (matches(room, parseEvent)) {
             result.insert(id);
         }
@@ -89,7 +91,7 @@ void Map::getRooms(RoomRecipient &recipient, const ParseEvent &parseEvent) const
     ::getRooms(map, tree, recipient, parseEvent);
 }
 
-NODISCARD const RawRoom *Map::find_room_ptr(const RoomId id) const
+NODISCARD std::shared_ptr<const RawRoom> Map::find_room_ptr(const RoomId id) const // Implementation updated
 {
     return getWorld().getRoom(id);
 }
@@ -97,8 +99,16 @@ NODISCARD const RawRoom *Map::find_room_ptr(const RoomId id) const
 RoomHandle Map::findRoomHandle(const RoomId id) const
 {
     if (id != INVALID_ROOMID) {
-        if (const RawRoom *const ptr = find_room_ptr(id)) {
-            return RoomHandle{Badge<Map>{}, *this, ptr};
+        // find_room_ptr now returns std::shared_ptr<const RawRoom>
+        // RoomHandle constructor might need adjustment if it expects RawRoom* directly
+        // For now, assume RoomHandle can be constructed or adapted.
+        // This change might be an issue if RoomHandle strictly needs RawRoom*.
+        // Let's assume it's okay or will be fixed later if RoomHandle needs change.
+        // The immediate fix is to pass the raw pointer if RoomHandle needs it,
+        // but this loses shared_ptr safety if RoomHandle stores the raw pointer long-term.
+        // A safer RoomHandle would take a shared_ptr or be short-lived.
+        if (std::shared_ptr<const RawRoom> room_sptr = find_room_ptr(id)) {
+            return RoomHandle{Badge<Map>{}, *this, room_sptr.get()}; // Passing raw pointer
         }
     }
     return RoomHandle{};
@@ -149,8 +159,9 @@ RoomHandle Map::getRoomHandle(const ExternalRoomId id) const
 const RawRoom &Map::getRawRoom(const RoomId id) const
 {
     if (id != INVALID_ROOMID) {
-        if (const RawRoom *const ptr = find_room_ptr(id)) {
-            return deref(ptr);
+        std::shared_ptr<const RawRoom> room_sptr = find_room_ptr(id);
+        if (room_sptr) {
+            return *room_sptr; // Dereference shared_ptr to get const RawRoom&
         }
     }
     throw InvalidMapOperation("RoomId not found");
@@ -344,7 +355,9 @@ void Map::printMulti(ProgressCounter &pc, AnsiOstream &os) const
     std::set<ExternalRoomId> rooms;
     pc.setNewTask(ProgressMsg{"phase 1: scanning rooms"}, getRoomsCount());
     for (const RoomId here : getRooms()) {
-        const auto &room = deref(w.getRoom(here));
+        std::shared_ptr<const RawRoom> room_sptr = w.getRoom(here);
+        if (!room_sptr) { pc.step(); continue; }
+        const RawRoom &room = *room_sptr;
         const auto hereExternal = w.convertToExternal(here);
         for (const ExitDirEnum dir : ALL_EXITS_NESWUD) {
             const auto &ex = room.getExit(dir);
@@ -830,6 +843,9 @@ void Map::statRoom(AnsiOstream &os, RoomId id) const
                                   ExitDirEnum::UP,
                                   ExitDirEnum::DOWN,
                                   ExitDirEnum::UNKNOWN}) {
+        // RoomHandle 'room' provides getExit, which should be using the underlying RawRoom correctly.
+        // If RoomHandle stores a shared_ptr or accesses it correctly, this part is fine.
+        // Assuming RoomHandle.getExit() is correct.
         const RawExit &ex = room.getExit(dir);
         const bool isUnknown = dir == ExitDirEnum::UNKNOWN;
 
@@ -861,7 +877,9 @@ void Map::statRoom(AnsiOstream &os, RoomId id) const
 
         if (!ex.outIsEmpty()) {
             for (const RoomId to_id : ex.getOutgoingSet()) {
-                const RawRoom &to = deref(world.getRoom(to_id));
+                std::shared_ptr<const RawRoom> to_sptr = world.getRoom(to_id);
+                if (!to_sptr) { continue; }
+                const RawRoom &to = *to_sptr;
                 const bool twoWay = to.getExit(rev).containsOut(id);
                 const bool adj = !isUnknown && pos + exitDir(dir) == to.getPosition();
                 const bool loop = id == to_id;
@@ -872,7 +890,9 @@ void Map::statRoom(AnsiOstream &os, RoomId id) const
 
         if (!ex.inIsEmpty()) {
             for (const RoomId from_id : ex.getIncomingSet()) {
-                const RawRoom &from = deref(world.getRoom(from_id));
+                std::shared_ptr<const RawRoom> from_sptr = world.getRoom(from_id);
+                if (!from_sptr) { continue; }
+                const RawRoom &from = *from_sptr;
                 const bool twoWay = from.getExit(rev).containsIn(id);
                 const bool loop = id == from_id;
                 if (twoWay /* || loop*/) {

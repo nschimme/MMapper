@@ -19,7 +19,7 @@ void AreaInfo::remove(const RoomId id)
 
 AreaInfoMap::AreaInfoMap()
 {
-    m_map[RoomArea{}] = AreaInfo{};
+    m_map.emplace(RoomArea{}, AreaInfo{});
     assert(contains(RoomArea{}));
 }
 
@@ -68,7 +68,7 @@ void AreaInfoMap::insert(const RoomArea &areaName, const RoomId id)
 {
     m_global.roomSet.getMutable().insert(id);
     if (!contains(areaName)) {
-        m_map[areaName] = {}; // Creates AreaInfo with default CowRoomIdSet
+        m_map.emplace(areaName, AreaInfo{}); // Creates AreaInfo with default CowRoomIdSet
     }
     get(areaName).roomSet.getMutable().insert(id);
 }

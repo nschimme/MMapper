@@ -15,6 +15,7 @@ struct NODISCARD AreaInfo final
 {
     CowRoomIdSet roomSet;
 
+    AreaInfo() = default; // Ensure default constructibility
     NODISCARD bool operator==(const AreaInfo &other) const;
     void remove(RoomId id);
 };

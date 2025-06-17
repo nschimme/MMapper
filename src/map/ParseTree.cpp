@@ -62,10 +62,10 @@ void getRooms(const Map &map, const ParseTree &tree, RoomRecipient &visitor, con
 
             if (const auto *const set = world.findAreaRoomSet(areaName); set == nullptr) {
                 MMLOG() << "[getRooms] Area does not exist.";
-            } else if (set->getReadOnly().empty()) {
+            } else if (set->empty()) {
                 MMLOG() << "[getRooms] Area was empty.";
             } else {
-                return &set->getReadOnly();
+                return set;
             }
         }
 
@@ -75,11 +75,11 @@ void getRooms(const Map &map, const ParseTree &tree, RoomRecipient &visitor, con
                 // this should be a hard error, since the fallback area is required to exist.
                 assert(false);
                 MMLOG() << "[getRooms] Fallback area does not exist.";
-            } else if (set->getReadOnly().empty()) {
+            } else if (set->empty()) {
                 // this should just return nullptr.
                 MMLOG() << "[getRooms] Fallback area was empty.";
             } else {
-                return &set->getReadOnly();
+                return set;
             }
         }
 
@@ -87,7 +87,7 @@ void getRooms(const Map &map, const ParseTree &tree, RoomRecipient &visitor, con
             MMLOG() << "[getRooms] Falling back to the whole map...";
             // this is probably unnecessary, and it's probably also the source of some bugs,
             // since it could find a room known to be in a different area.
-            return &world.getRoomSet().getReadOnly();
+            return &world.getRoomSet();
         }
 
         MMLOG() << "[getRooms] Failed to find a match; giving up.";

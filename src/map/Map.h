@@ -18,6 +18,7 @@
 #include <optional>
 #include <ostream>
 #include <vector>
+#include <set> // For std::set<RoomId>
 
 namespace mm {
 struct AbstractDebugOStream;
@@ -55,7 +56,7 @@ public:
     NODISCARD std::optional<Bounds> getBounds() const;
 
 public:
-    NODISCARD const RoomIdSet &getRooms() const;
+    NODISCARD const std::set<RoomId> &getRooms() const; // MODIFIED
     DEPRECATED_MSG("use findAllRooms()")
     void getRooms(RoomRecipient &recipient, const ParseEvent &) const;
     NODISCARD RoomIdSet findAllRooms(const ParseEvent &) const;

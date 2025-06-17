@@ -15,7 +15,11 @@ struct NODISCARD AreaInfo final
 {
     CowRoomIdSet roomSet;
 
-    AreaInfo() = default; // Ensure default constructibility
+    // Explicitly define the default constructor to initialize roomSet
+    // by calling CowRoomIdSet's constructor that takes a const T&
+    // (in this case, an empty std::set<RoomId>), which is not explicit.
+    AreaInfo() : roomSet(std::set<RoomId>{}) {}
+
     NODISCARD bool operator==(const AreaInfo &other) const;
     void remove(RoomId id);
 };

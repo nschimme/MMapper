@@ -10,9 +10,6 @@
 template<typename CRTP>
 struct NODISCARD ExitFieldsGetters
 {
-protected:
-    ExitFieldsGetters() = default;
-
 private:
     NODISCARD const auto &crtp_get_fields() const
     {
@@ -95,9 +92,6 @@ public:
 template<typename CRTP>
 struct NODISCARD ExitFieldsSetters
 {
-protected:
-    ExitFieldsSetters() = default;
-
 private:
     NODISCARD auto &crtp_get_fields() { return static_cast<CRTP &>(*this).getExitFields(); }
 
@@ -147,9 +141,6 @@ public:
 template<typename CRTP>
 struct NODISCARD RoomFieldsGetters
 {
-protected:
-    RoomFieldsGetters() = default;
-
 private:
     NODISCARD const auto &crtp_get_fields() const
     {
@@ -169,9 +160,6 @@ public:
 template<typename CRTP>
 struct NODISCARD RoomFieldsSetters
 {
-protected:
-    RoomFieldsSetters() = default;
-
 private:
     NODISCARD auto &crtp_get_fields() { return static_cast<CRTP &>(*this).getRoomFields(); }
 
@@ -214,9 +202,6 @@ public:
 template<typename CRTP>
 struct NODISCARD RoomExitFieldsGetters
 {
-protected:
-    RoomExitFieldsGetters() = default;
-
 private:
     // Expect a const reference or a copy (necessary for fat-pointer proxy objects).
     NODISCARD decltype(auto) crtp_get_exit(const ExitDirEnum dir) const
@@ -242,9 +227,6 @@ public:
 template<typename CRTP>
 struct NODISCARD RoomExitFieldsSetters
 {
-protected:
-    RoomExitFieldsSetters() = default;
-
 private:
     NODISCARD auto &crtp_get_exit(const ExitDirEnum dir)
     {

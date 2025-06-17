@@ -171,24 +171,6 @@ public:
     class NODISCARD HexPrefixTree final
     {
     private:
-#if defined(__cpp_lib_generic_unordered_lookup) && __cpp_lib_generic_unordered_lookup
-        static_assert(false, "Not tested; this may need to be fixed.");
-        using HashBase = std::hash<std::u32string_view>;
-        struct NODISCARD Hash final : public HashBase
-        {
-            auto operator()(const std::u32string &s) const { return HashBase::operator()(s); }
-        };
-        struct NODISCARD Pred final
-        {
-            using T1 = const std::u32string &;
-            using T2 = const std::u32string_view;
-            bool operator()(T1 a, T1 b) const { return a == b; }
-            bool operator()(T1 a, T2 b) const { return a == b; }
-            bool operator()(T2 a, T1 b) const { return a == b; }
-            // bool operator()(T2 a, T2 b) const { return a == b; }
-        };
-        using Map = std::unordered_map<std::u32string, std::optional<std::u32string>, Hash, Pred>;
-#else
         struct NODISCARD Comp final
         {
             using is_transparent = void;
@@ -200,7 +182,6 @@ public:
             // bool operator()(T2 a, T2 b) const { return a < b; }
         };
         using Map = std::map<std::u32string, std::optional<std::u32string>, Comp>;
-#endif
 
         Map m_map;
 
@@ -341,10 +322,7 @@ public:
     HexPrefixTree hexPrefixTree;
 
 public:
-    void reset()
-    {
-        *this = {};
-    }
+    void reset() { *this = {}; }
 };
 
 NODISCARD Emojis &getEmojis()

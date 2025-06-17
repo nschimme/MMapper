@@ -299,6 +299,9 @@ const TinyRoomIdSet &World::getIncoming(const RoomId id, const ExitDirEnum dir) 
 
 void World::insertParse(const RoomId id, const ParseKeyFlags parseKeys)
 {
+    if (!(parseKeys.contains(ParseKeyEnum::Name) || parseKeys.contains(ParseKeyEnum::Desc))) {
+        return;
+    }
     requireValidRoom(id);
 
     const RoomName &name = getRoomName(id);
@@ -320,6 +323,9 @@ void World::insertParse(const RoomId id, const ParseKeyFlags parseKeys)
 
 void World::removeParse(const RoomId id, const ParseKeyFlags parseKeys)
 {
+    if (!(parseKeys.contains(ParseKeyEnum::Name) || parseKeys.contains(ParseKeyEnum::Desc))) {
+        return;
+    }
     requireValidRoom(id);
 
     const RoomName &name = getRoomName(id);
@@ -866,27 +872,40 @@ void World::setServerId(const RoomId id, const ServerRoomId serverId)
 {
     requireValidRoom(id);
 
-    const auto oldServerId = getServerId(id);
+    const auto oldServerId = getServerId(id); // Uses m_rooms.getServerId() -> COW RawRoom.get()
     if (oldServerId == serverId) {
         return;
     }
 
-    m_serverIds.getMutable()->remove(oldServerId);
-    m_rooms.setServerId(id, serverId); // This will use m_rooms.getMutable() internally for CopyOnWrite<RawRoom>
-    m_serverIds.getMutable()->set(serverId, id);
+    // oldServerId is from m_rooms, which is separate from m_serverIds COW object.
+    // We must get oldServerId before calling getMutable on m_serverIds if getServerId also used m_serverIds.get().
+    // However, getServerId(id) actually calls m_rooms.getServerId(id), which accesses the RawRoom's server_id.
+    // The m_serverIds map is a secondary lookup structure.
+
+    auto writable_serverIds = m_serverIds.getMutable();
+    if (oldServerId != INVALID_SERVER_ROOMID) { // Only remove if oldServerId was valid
+        writable_serverIds->remove(oldServerId);
+    }
+    m_rooms.setServerId(id, serverId); // This modifies RawRoom within m_rooms
+    if (serverId != INVALID_SERVER_ROOMID) { // Only set if new serverId is valid
+        writable_serverIds->set(serverId, id);
+    }
 }
 
 void World::setPosition(const RoomId id, const Coordinate &coord)
 {
     requireValidRoom(id);
 
-    if (getPosition(id) == coord) {
+    // Get current position before potential m_spatialDb modification if getPosition used m_spatialDb.
+    // Here, getPosition(id) calls m_rooms.getPosition(id), which is fine.
+    const Coordinate currentPosition = getPosition(id);
+    if (currentPosition == coord) {
         return;
     }
 
-    const Coordinate &ref = m_rooms.getPosition(id); // This is a read from RawRooms, which might be COW internally
-    m_spatialDb.getMutable()->move(id, ref, coord);
-    m_rooms.setPosition(id, coord); // This will use m_rooms.getMutable() internally for CopyOnWrite<RawRoom>
+    // currentPosition is the old position.
+    m_spatialDb.getMutable()->move(id, currentPosition, coord);
+    m_rooms.setPosition(id, coord); // This modifies RawRoom within m_rooms
 }
 
 bool World::wouldAllowRelativeMove(const RoomIdSet &rooms, const Coordinate &offset) const
@@ -931,13 +950,15 @@ void World::moveRelative(const RoomIdSet &rooms, const Coordinate &offset)
     };
     std::vector<MoveInfo> infos;
     infos.reserve(rooms.size());
+
+    auto writable_spatialDb = m_spatialDb.getMutable(); // Call getMutable() once before the loops
     for (const auto id : rooms) {
         const auto &oldPos = getPosition(id);
         infos.emplace_back(MoveInfo{id, oldPos + offset});
-        m_spatialDb.getMutable()->remove(id, oldPos);
+        writable_spatialDb->remove(id, oldPos);
     }
     for (const auto &x : infos) {
-        m_spatialDb.getMutable()->add(x.id, x.newPos);
+        writable_spatialDb->add(x.id, x.newPos);
         m_rooms.setPosition(x.id, x.newPos); // This will use m_rooms.getMutable() internally
     }
 }

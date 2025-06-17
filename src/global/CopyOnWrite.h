@@ -169,7 +169,6 @@ public:
     CopyOnWrite(CopyOnWrite &&other) noexcept = default;
     CopyOnWrite &operator=(CopyOnWrite &&other) noexcept = default;
 
-    // Placeholder for other members to be added in subsequent steps
 };
 
 // Deduction Guides

@@ -101,6 +101,7 @@ set(mmapper_SRCS
     global/Consts.cpp
     global/Consts.h
     global/ConversionResult.h
+    global/CopyOnWrite.h
     global/Diff.cpp
     global/Diff.h
     global/EnumIndexedArray.h

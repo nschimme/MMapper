@@ -7,6 +7,8 @@
 #include "../src/global/AnsiTextUtils.h"
 #include "../src/global/CaseUtils.h"
 #include "../src/global/CharUtils.h"
+#include "../src/global/Color.h"
+#include "../src/global/CopyOnWrite.h"
 #include "../src/global/Diff.h"
 #include "../src/global/Flags.h"
 #include "../src/global/HideQDebug.h"
@@ -25,10 +27,78 @@
 #include "../src/global/string_view_utils.h"
 #include "../src/global/unquote.h"
 
+#include <cassert>
+#include <iostream>
+#include <memory>
+#include <string>
 #include <tuple>
 
 #include <QDebug>
 #include <QtTest/QtTest>
+
+struct CowTestType
+{
+    std::string data;
+    int id;
+    static int instance_count;
+
+    CowTestType(std::string d = "", int i = 0)
+        : data(std::move(d))
+        , id(i)
+    {
+        instance_count++;
+    }
+
+    CowTestType(const CowTestType &other)
+        : data(other.data)
+        , id(other.id)
+    {
+        instance_count++;
+    }
+
+    CowTestType &operator=(const CowTestType &other)
+    {
+        if (this != &other) {
+            data = other.data;
+            id = other.id;
+        }
+        return *this;
+    }
+
+    DELETE_MOVE_CTOR(CowTestType);
+    DELETE_MOVE_ASSIGN_OP(CowTestType);
+
+    ~CowTestType() { instance_count--; }
+
+    NODISCARD bool operator==(const CowTestType &other) const
+    {
+        return data == other.data && id == other.id;
+    }
+
+    NODISCARD friend QDebug operator<<(QDebug dbg, const CowTestType &tt)
+    {
+        QDebugStateSaver saver(dbg);
+        dbg.nospace() << "CowTestType(data: " << tt.data.c_str() << ", id: " << tt.id << ")";
+        return dbg;
+    }
+};
+int CowTestType::instance_count = 0;
+
+struct CowNonDefault
+{
+    int val;
+    explicit CowNonDefault(int v)
+        : val(v)
+    {}
+    DEFAULT_RULE_OF_5(CowNonDefault);
+    NODISCARD bool operator==(const CowNonDefault &other) const { return val == other.val; }
+    NODISCARD friend QDebug operator<<(QDebug dbg, const CowNonDefault &nd)
+    {
+        QDebugStateSaver saver(dbg);
+        dbg.nospace() << "CowNonDefault(val: " << nd.val << ")";
+        return dbg;
+    }
+};
 
 TestGlobal::TestGlobal() = default;
 
@@ -595,6 +665,204 @@ void TestGlobal::unquoteTest()
 void TestGlobal::weakHandleTest()
 {
     test::testWeakHandle();
+}
+
+void TestGlobal::cowTestReadOnlySharing()
+{
+    CopyOnWrite<Color> c1(Colors::red);
+    c1.makeReadOnly();
+
+    CopyOnWrite<Color> c2 = c1;
+
+    QCOMPARE(c1.getReadOnly(), Colors::red);
+    QCOMPARE(c2.getReadOnly(), Colors::red);
+    QVERIFY(c1.isReadOnly());
+    QVERIFY(c2.isReadOnly());
+}
+
+void TestGlobal::cowTestLazyCopyOnWrite()
+{
+    std::shared_ptr<const Color> initial = std::make_shared<const Color>(Colors::red);
+    CopyOnWrite<Color> c1(initial);
+    QVERIFY(c1.isReadOnly());
+
+    Color &writable = c1.getMutable();
+    QVERIFY(c1.isMutable());
+    QCOMPARE(writable, Colors::red);
+
+    writable = Colors::blue;
+    QCOMPARE(c1.getReadOnly(), Colors::blue);
+    QCOMPARE(*initial, Colors::red);
+}
+
+void TestGlobal::cowTestMutationIsolation()
+{
+    CopyOnWrite<Color> c1(Colors::red);
+    c1.makeReadOnly();
+
+    CopyOnWrite<Color> c2 = c1;
+    QVERIFY(c1.isReadOnly());
+    QVERIFY(c2.isReadOnly());
+    QCOMPARE(c1.getReadOnly(), c2.getReadOnly());
+
+    c1.getMutable() = Colors::blue;
+    QVERIFY(c1.isMutable());
+    QVERIFY(c2.isReadOnly());
+
+    QCOMPARE(c1.getReadOnly(), Colors::blue);
+    QCOMPARE(c2.getReadOnly(), Colors::red);
+}
+
+void TestGlobal::cowTestFinalize()
+{
+    CopyOnWrite<Color> c1(Colors::red);
+    QVERIFY(c1.isMutable());
+
+    Color &c2 = c1.getMutable();
+    c2 = Colors::green;
+
+    c1.makeReadOnly();
+    QVERIFY(c1.isReadOnly());
+    QCOMPARE(c1.getReadOnly(), Colors::green);
+
+    Color &c3 = c1.getMutable();
+    QVERIFY(c1.isMutable());
+    QCOMPARE(c3, Colors::green);
+
+    c3 = Colors::red;
+    QCOMPARE(c1.getReadOnly(), Colors::red);
+}
+
+void TestGlobal::cowBasicStringTest()
+{
+    CopyOnWrite<std::string> c1;
+    QVERIFY(c1.isMutable());
+    QCOMPARE(c1.getReadOnly(), std::string());
+
+    c1.getMutable() = "Hello, World!";
+    QVERIFY(c1.isMutable());
+
+    QCOMPARE(c1.getReadOnly(), std::string("Hello, World!"));
+    QVERIFY(c1.isReadOnly());
+
+    QCOMPARE(c1.getReadOnly(), std::string("Hello, World!"));
+    QVERIFY(c1.isReadOnly());
+
+    (void) c1.getMutable();
+    QVERIFY(c1.isMutable());
+    c1.getMutable() = "Hello, Cow!";
+    QVERIFY(c1.isMutable());
+
+    CopyOnWrite<std::string> c2 = c1;
+    QVERIFY(c1.isReadOnly());
+    QVERIFY(c2.isReadOnly());
+    QCOMPARE(c1.getReadOnly(), std::string("Hello, Cow!"));
+    QCOMPARE(c2.getReadOnly(), std::string("Hello, Cow!"));
+    QCOMPARE(c1.getReadOnly(), c2.getReadOnly());
+
+    c1.getMutable() = "Goodbye, World!";
+    QVERIFY(c1.isMutable());
+    QVERIFY(c2.isReadOnly());
+    const auto &c3 = c1.getReadOnly();
+    QCOMPARE(c3, std::string("Goodbye, World!"));
+
+    const auto &c4 = c2.getReadOnly();
+    QCOMPARE(c4, std::string("Hello, Cow!"));
+
+    CopyOnWrite<std::string> c5("Initial Data");
+    QVERIFY(c5.isMutable());
+    QCOMPARE(c5.getReadOnly(), std::string("Initial Data"));
+    QVERIFY(c5.isReadOnly());
+}
+
+void TestGlobal::cowCustomTypeTest()
+{
+    CowTestType::instance_count = 0;
+    {
+        CopyOnWrite<CowTestType> ct1;
+        QVERIFY(ct1.isMutable());
+        QCOMPARE(CowTestType::instance_count, 1);
+
+        ct1.getMutable().data = "Custom Hello";
+        ct1.getMutable().id = 10;
+        QCOMPARE(ct1.getReadOnly(), CowTestType("Custom Hello", 10));
+        QVERIFY(ct1.isReadOnly());
+
+        CopyOnWrite<CowTestType> ct2 = ct1;
+        QVERIFY(ct1.isReadOnly());
+        QVERIFY(ct2.isReadOnly());
+        QCOMPARE(CowTestType::instance_count, 1);
+        QCOMPARE(ct1.getReadOnly(), CowTestType("Custom Hello", 10));
+        QCOMPARE(ct2.getReadOnly(), CowTestType("Custom Hello", 10));
+        QVERIFY(ct1 == ct2);
+
+        ct1.getMutable().data = "Custom Goodbye";
+        ct1.getMutable().id = 20;
+        QVERIFY(ct1.isMutable());
+        QVERIFY(ct2.isReadOnly());
+        QCOMPARE(CowTestType::instance_count, 2);
+
+        QCOMPARE(ct1.getReadOnly(), CowTestType("Custom Goodbye", 20));
+        QCOMPARE(ct2.getReadOnly(), CowTestType("Custom Hello", 10));
+        QVERIFY(!(ct1 == ct2));
+
+        CowTestType initial_tt("Initial TestType", 123);
+        QCOMPARE(CowTestType::instance_count, 3);
+        CopyOnWrite<CowTestType> ct3(initial_tt);
+        QVERIFY(ct3.isMutable());
+        QCOMPARE(CowTestType::instance_count, 4);
+        QCOMPARE(ct3.getReadOnly(), initial_tt);
+        QVERIFY(ct3.isReadOnly());
+
+        CopyOnWrite<CowTestType> ct4(initial_tt);
+        QCOMPARE(CowTestType::instance_count, 5);
+        QVERIFY(ct3 == ct4);
+
+        ct4.getMutable().id = 456;
+        QVERIFY(ct4.isMutable());
+        QCOMPARE(CowTestType::instance_count, 5);
+        QVERIFY(!(ct3 == ct4));
+    }
+    QCOMPARE(CowTestType::instance_count, 0);
+}
+
+void TestGlobal::cowSharedPtrConstructorTest()
+{
+    std::shared_ptr<const std::string> data = std::make_shared<const std::string>(
+        "Shared RO String");
+    CopyOnWrite<std::string> s1(data);
+    QVERIFY(s1.isReadOnly());
+    QCOMPARE(s1.getReadOnly(), std::string("Shared RO String"));
+
+    CopyOnWrite<std::string> s2 = s1;
+    QVERIFY(s1.isReadOnly());
+    QVERIFY(s2.isReadOnly());
+    QCOMPARE(s2.getReadOnly(), std::string("Shared RO String"));
+
+    s2.getMutable() = "Modified Copy of Shared RO";
+    QVERIFY(s2.isMutable());
+    QVERIFY(s1.isReadOnly());
+    QCOMPARE(s1.getReadOnly(), std::string("Shared RO String"));
+    QCOMPARE(s2.getReadOnly(), std::string("Modified Copy of Shared RO"));
+}
+
+void TestGlobal::cowNonDefaultConstructibleTest()
+{
+    CopyOnWrite<CowNonDefault> d1{CowNonDefault{42}};
+    QVERIFY(d1.isMutable());
+    QCOMPARE(d1.getReadOnly(), CowNonDefault{42});
+    QVERIFY(d1.isReadOnly());
+
+    CopyOnWrite<CowNonDefault> d2 = d1;
+    QVERIFY(d1.isReadOnly());
+    QVERIFY(d2.isReadOnly());
+    QCOMPARE(d2.getReadOnly(), CowNonDefault{42});
+
+    d2.getMutable().val = 99;
+    QVERIFY(d2.isMutable());
+    QVERIFY(d1.isReadOnly());
+    QCOMPARE(d2.getReadOnly(), CowNonDefault{99});
+    QCOMPARE(d1.getReadOnly(), CowNonDefault{42});
 }
 
 QTEST_MAIN(TestGlobal)

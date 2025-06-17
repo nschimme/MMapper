@@ -15,6 +15,12 @@ public:
     ~TestGlobal() final;
 
 private Q_SLOTS:
+    // New tests for CopyOnWrite
+    void cowBasicStringTest();
+    void cowCustomTypeTest();
+    void cowSharedPtrConstructorTest();
+    void cowNonDefaultConstructibleTest();
+
     static void ansi256ColorTest();
     static void ansiOstreamTest();
     static void ansiTextUtilsTest();
@@ -39,4 +45,10 @@ private Q_SLOTS:
     static void toNumberTest();
     static void unquoteTest();
     static void weakHandleTest();
+
+    // COW tests
+    static void cowTestReadOnlySharing();
+    static void cowTestLazyCopyOnWrite();
+    static void cowTestMutationIsolation();
+    static void cowTestFinalize();
 };

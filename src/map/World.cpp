@@ -14,6 +14,8 @@
 #include "sanitizer.h"
 #include "utils.h"
 
+#include <algorithm>
+#include <future>
 #include <optional>
 #include <ostream>
 #include <sstream>
@@ -692,16 +694,64 @@ void World::checkConsistency(ProgressCounter &counter) const
         sanityCheckEnum(m_rooms.getRoomTerrainType(id));
     };
 
-    counter.setNewTask(ProgressMsg{"checking room consistency"}, getRoomSet().size());
-    for (const RoomId id : getRoomSet()) {
-        checkAllExitsConsistent(id);
-        checkEnums(id);
-        checkFlags(id);
-        checkParseTree(id);
-        checkPosition(id);
-        checkRemapping(id);
-        checkServerId(id);
-        counter.step();
+    {
+        const auto numThreads = std::max<size_t>(1, std::thread::hardware_concurrency());
+        const auto &roomSet = getRoomSet();
+        const auto checkRoom = [=](RoomId id) {
+            checkAllExitsConsistent(id);
+            checkEnums(id);
+            checkFlags(id);
+            checkParseTree(id);
+            checkPosition(id);
+            checkRemapping(id);
+            checkServerId(id);
+        };
+
+        if (numThreads == 1) {
+            counter.setNewTask(ProgressMsg{"checking room consistency"}, roomSet.size());
+
+            for (const RoomId id : roomSet) {
+                checkRoom(id);
+                counter.step();
+            }
+
+        } else {
+            counter.setNewTask(ProgressMsg{"checking room consistency"}, numThreads);
+
+            std::vector<std::future<void>> futures;
+            std::vector<std::exception_ptr> exceptions;
+
+            auto it = roomSet.begin();
+            const size_t chunkSize = (roomSet.size() + numThreads - 1) / numThreads;
+            for (size_t i = 0; i < numThreads && it != roomSet.end(); ++i) {
+                auto chunkBegin = it;
+                size_t remaining = static_cast<size_t>(std::distance(it, roomSet.end()));
+                size_t actualChunkSize = std::min(chunkSize, remaining);
+                std::advance(it, actualChunkSize);
+                auto chunkEnd = it;
+
+                futures.push_back(
+                    std::async(std::launch::async, [&checkRoom, chunkBegin, chunkEnd]() {
+                        DECL_TIMER(t2, "checkConsistency-checkRoom");
+                        for (auto iter = chunkBegin; iter != chunkEnd; ++iter) {
+                            const RoomId id = *iter;
+                            checkRoom(id);
+                        }
+                    }));
+            }
+
+            for (auto &fut : futures) {
+                try {
+                    fut.get();
+                    counter.step();
+                } catch (...) {
+                    exceptions.push_back(std::current_exception());
+                }
+            }
+            if (!exceptions.empty()) {
+                std::rethrow_exception(exceptions.front());
+            }
+        }
     }
 
     {

@@ -7,15 +7,20 @@
 #include "InvalidMapOperation.h"
 #include "RawExit.h"
 #include "RawRoom.h"
+#include "CopyOnWriteTypes.h" // For CowRawRoom
 
 class NODISCARD RawRooms final
 {
 private:
-    IndexedVector<RawRoom, RoomId> m_rooms;
+    IndexedVector<CowRawRoom, RoomId> m_rooms;
 
 public:
-    NODISCARD RawRoom &getRawRoomRef(RoomId pos) { return m_rooms.at(pos); }
-    NODISCARD const RawRoom &getRawRoomRef(RoomId pos) const { return m_rooms.at(pos); }
+    NODISCARD CowRawRoom &getCowRawRoomRef(RoomId pos) { return m_rooms.at(pos); }
+    NODISCARD const CowRawRoom &getCowRawRoomRef(RoomId pos) const { return m_rooms.at(pos); }
+
+    // Primary API returning RawRoom& (const or mutable)
+    NODISCARD const RawRoom& getRawRoomRef(RoomId id) const { return getCowRawRoomRef(id).getReadOnly(); }
+    NODISCARD RawRoom& getRawRoomRef(RoomId id) { return getCowRawRoomRef(id).getMutable(); }
 
 public:
     NODISCARD size_t size() const { return m_rooms.size(); }
@@ -38,8 +43,9 @@ public:
     } \
     void setRoom##_Name(const RoomId id, _Type x) \
     { \
-        if (getRoom##_Name(id) != x) { \
-            getRawRoomRef(id).fields._Name = std::move(x); \
+        RawRoom& room = getRawRoomRef(id); \
+        if (room.fields._Name != x) { \
+            room.fields._Name = std::move(x); \
         } \
     }
 
@@ -52,8 +58,9 @@ public:
 #define X_DEFINE_ACCESSOR(_Type, _Name, _Init) \
     void setExit##_Type(const RoomId id, const ExitDirEnum dir, _Type x) \
     { \
-        if (getExit##_Type(id, dir) != x) { \
-            getRawRoomRef(id).getExit(dir).fields._Name = std::move(x); \
+        RawRoom& room = getRawRoomRef(id); \
+        if (room.getExit(dir).fields._Name != x) { \
+            room.getExit(dir).fields._Name = std::move(x); \
         } \
     } \
     NODISCARD const _Type &getExit##_Type(const RoomId id, const ExitDirEnum dir) const \
@@ -98,7 +105,7 @@ public:
 public:
     NODISCARD ExitFlags getExitFlags(const RoomId id, const ExitDirEnum dir) const
     {
-        return getExitExitFlags(id, dir);
+        return getExitExitFlags(id, dir); // This will use the updated X_DEFINE_ACCESSOR
     }
     void setExitInOut(const RoomId id,
                       const ExitDirEnum dir,

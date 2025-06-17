@@ -901,7 +901,7 @@ size_t Map::countRoomsWithName(const RoomName &name) const
     const auto &world = getWorld();
     const auto &parseTree = world.getParseTree();
     if (const auto *const pSet = parseTree.name_only.find(name)) {
-        return pSet->size();
+        return pSet->getReadOnly().size();
     }
     return 0;
 }
@@ -911,7 +911,7 @@ size_t Map::countRoomsWithDesc(const RoomDesc &desc) const
     const auto &world = getWorld();
     const auto &parseTree = world.getParseTree();
     if (const auto *const pSet = parseTree.desc_only.find(desc)) {
-        return pSet->size();
+        return pSet->getReadOnly().size();
     }
     return 0;
 }
@@ -922,7 +922,7 @@ size_t Map::countRoomsWithNameDesc(const RoomName &name, const RoomDesc &desc) c
     const auto &parseTree = world.getParseTree();
     const NameDesc nameDesc{name, desc};
     if (const auto *const pSet = parseTree.name_desc.find(nameDesc)) {
-        return pSet->size();
+        return pSet->getReadOnly().size();
     }
     return 0;
 }
@@ -931,9 +931,9 @@ std::optional<RoomId> Map::findUniqueName(const RoomName &name) const
 {
     const auto &world = getWorld();
     const auto &parseTree = world.getParseTree();
-    if (const RoomIdSet *const pSet = parseTree.name_only.find(name)) {
-        if (pSet->size() == 1) {
-            return pSet->first();
+    if (const CowRoomIdSet *const pSet = parseTree.name_only.find(name)) {
+        if (pSet->getReadOnly().size() == 1) {
+            return *pSet->getReadOnly().begin();
         }
     }
     return std::nullopt;
@@ -943,9 +943,9 @@ std::optional<RoomId> Map::findUniqueDesc(const RoomDesc &desc) const
 {
     const auto &world = getWorld();
     const auto &parseTree = world.getParseTree();
-    if (const RoomIdSet *const pSet = parseTree.desc_only.find(desc)) {
-        if (pSet->size() == 1) {
-            return pSet->first();
+    if (const CowRoomIdSet *const pSet = parseTree.desc_only.find(desc)) {
+        if (pSet->getReadOnly().size() == 1) {
+            return *pSet->getReadOnly().begin();
         }
     }
     return std::nullopt;
@@ -956,9 +956,9 @@ std::optional<RoomId> Map::findUniqueNameDesc(const RoomName &name, const RoomDe
     const auto &world = getWorld();
     const auto &parseTree = world.getParseTree();
     const NameDesc nameDesc{name, desc};
-    if (const RoomIdSet *const pSet = parseTree.name_desc.find(nameDesc)) {
-        if (pSet->size() == 1) {
-            return pSet->first();
+    if (const CowRoomIdSet *const pSet = parseTree.name_desc.find(nameDesc)) {
+        if (pSet->getReadOnly().size() == 1) {
+            return *pSet->getReadOnly().begin();
         }
     }
     return std::nullopt;

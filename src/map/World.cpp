@@ -206,11 +206,7 @@ const RawRoom *World::getRoom(const RoomId id) const
     if (!hasRoom(id)) {
         return nullptr;
     }
-
-    const RawRoom &ref = m_rooms.getRawRoomRef(id);
-    assert(ref.getId() == id);
-
-    return std::addressof(ref);
+    return &m_rooms.getRawRoomRef(id);
 }
 
 bool World::hasRoom(const RoomId id) const
@@ -638,7 +634,10 @@ void World::checkConsistency(ProgressCounter &counter) const
             }
         }
 
-        if (!satisfiesInvariants(m_rooms.getRawRoomRef(id).getExit(dir))) {
+        // m_rooms.getRawRoomRef(id) is const RawRoom&.
+        // Then, .getExit(dir) gives const RawExit&.
+        // Then, satisfiesInvariants is called on that const RawExit&.
+        if (!m_rooms.getRawRoomRef(id).getExit(dir).satisfiesInvariants()) {
             throw MapConsistencyError("room exit flags do not satisfy invariants");
         }
     };
@@ -652,13 +651,13 @@ void World::checkConsistency(ProgressCounter &counter) const
     };
 
     auto checkRemapping = [this](const RoomId id) {
-        if (getGlobalArea().roomSet.getReadOnly().count(id) == 0) {
+        if (!getGlobalArea().roomSet.getReadOnly().contains(id)) {
             throw MapConsistencyError("room set does not contain the room id");
         }
 
         const auto &areaName = getRoomArea(id);
         auto &area = getArea(areaName); // AreaInfo&
-        if (area.roomSet.getReadOnly().count(id) == 0) {
+        if (!area.roomSet.getReadOnly().contains(id)) {
             throw MapConsistencyError("room set does not contain the room id");
         }
 
@@ -676,18 +675,18 @@ void World::checkConsistency(ProgressCounter &counter) const
         const RoomName &name = getRoomName(id);
         const RoomDesc &desc = m_rooms.getRoomDescription(id);
 
-        if (auto cowSet = m_parseTree.getReadOnly().name_only.find(name); cowSet == nullptr || cowSet->getReadOnly().count(id) == 0) {
+        if (auto cowSet = m_parseTree.getReadOnly().name_only.find(name); cowSet == nullptr || !cowSet->getReadOnly().contains(id)) {
             throw MapConsistencyError("unable to find room name only");
         }
 
-        if (auto cowSet = m_parseTree.getReadOnly().desc_only.find(desc); cowSet == nullptr || cowSet->getReadOnly().count(id) == 0) {
+        if (auto cowSet = m_parseTree.getReadOnly().desc_only.find(desc); cowSet == nullptr || !cowSet->getReadOnly().contains(id)) {
             throw MapConsistencyError("unable to find room desc only");
         }
 
         {
             const NameDesc nameDesc{name, desc};
             if (auto cowSet = m_parseTree.getReadOnly().name_desc.find(nameDesc);
-                cowSet == nullptr || cowSet->getReadOnly().count(id) == 0) {
+                cowSet == nullptr || !cowSet->getReadOnly().contains(id)) {
                 throw MapConsistencyError("unable to find room name_desc only");
             }
         }
@@ -1187,7 +1186,7 @@ void World::setRoom_lowlevel(const RoomId id, const RawRoom &input)
 {
     assert(id == input.id);
     m_rooms.getRawRoomRef(id) = input;
-    m_rooms.enforceInvariants(id);
+    m_rooms.enforceInvariants(id); // This calls RawRooms::enforceInvariants
 }
 
 // for addRoom()
@@ -1267,8 +1266,7 @@ World World::init(ProgressCounter &counter, const std::vector<ExternalRawRoom> &
                 DECL_TIMER(t3, "copy rooms");
                 for (const auto &r : rooms) {
                     const RoomId id = r.getId();
-                    auto &roomRef = w.m_rooms.getRawRoomRef(id);
-                    roomRef = r; // copy
+                    w.m_rooms.getRawRoomRef(id) = r; // copy
                 }
             }
         }

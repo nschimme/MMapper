@@ -4,7 +4,11 @@
 
 #include "../global/CopyOnWrite.h"
 #include "RoomIdSet.h" // For std::set<RoomId>
-#include <set> // Ensure std::set is available
+#include "RawRoom.h"   // For RawRoom definition
+#include <set>        // Ensure std::set is available for CowRoomIdSet
 
 // Define CowRoomIdSet
 using CowRoomIdSet = CopyOnWrite<std::set<RoomId>>;
+
+// Define CowRawRoom
+using CowRawRoom = CopyOnWrite<RawRoom>;

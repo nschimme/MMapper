@@ -5,16 +5,16 @@
 
 NODISCARD bool AreaInfo::operator==(const AreaInfo &other) const
 {
-    return roomSet == other.roomSet;
+    return roomSet.getReadOnly() == other.roomSet.getReadOnly();
 }
 
 void AreaInfo::remove(const RoomId id)
 {
-    if (!roomSet.contains(id)) {
+    if (roomSet.getReadOnly().count(id) == 0) {
         return;
     }
 
-    roomSet.erase(id);
+    roomSet.getMutable().erase(id);
 }
 
 AreaInfoMap::AreaInfoMap()
@@ -66,11 +66,11 @@ bool AreaInfoMap::operator==(const AreaInfoMap &other) const
 
 void AreaInfoMap::insert(const RoomArea &areaName, const RoomId id)
 {
-    m_global.roomSet.insert(id);
+    m_global.roomSet.getMutable().insert(id);
     if (!contains(areaName)) {
-        m_map[areaName] = {};
+        m_map[areaName] = {}; // Creates AreaInfo with default CowRoomIdSet
     }
-    get(areaName).roomSet.insert(id);
+    get(areaName).roomSet.getMutable().insert(id);
 }
 
 void AreaInfoMap::remove(const RoomArea &areaName, const RoomId id)

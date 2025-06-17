@@ -3,8 +3,9 @@
 // Copyright (c) 2025 The MMapper Authors
 
 #include "../global/macros.h"
-#include "RoomIdSet.h"
+// #include "RoomIdSet.h" // Included via CopyOnWriteTypes.h
 #include "mmapper2room.h"
+#include "CopyOnWriteTypes.h" // For CowRoomIdSet
 
 #include <map>
 
@@ -12,7 +13,7 @@ class ProgressCounter;
 
 struct NODISCARD AreaInfo final
 {
-    RoomIdSet roomSet;
+    CowRoomIdSet roomSet;
 
     NODISCARD bool operator==(const AreaInfo &other) const;
     void remove(RoomId id);

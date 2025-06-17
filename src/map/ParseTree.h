@@ -5,8 +5,9 @@
 #include "../global/OrderedMap.h"
 #include "../global/macros.h"
 #include "PromptFlags.h"
-#include "RoomIdSet.h"
+// #include "RoomIdSet.h" // Included via CopyOnWriteTypes.h
 #include "mmapper2room.h"
+#include "CopyOnWriteTypes.h" // For CowRoomIdSet
 
 #include <ostream>
 
@@ -61,9 +62,9 @@ static_assert(ALL_PARSE_KEY_FLAGS == (ParseKeyFlags{ParseKeyEnum::Name} | ParseK
 
 struct NODISCARD ParseTree final
 {
-    OrderedMap<RoomName, RoomIdSet> name_only;
-    OrderedMap<RoomDesc, RoomIdSet> desc_only;
-    OrderedMap<NameDesc, RoomIdSet> name_desc;
+    OrderedMap<RoomName, CowRoomIdSet> name_only;
+    OrderedMap<RoomDesc, CowRoomIdSet> desc_only;
+    OrderedMap<NameDesc, CowRoomIdSet> name_desc;
 
     NODISCARD bool operator==(const ParseTree &rhs) const
     {

@@ -48,32 +48,40 @@ void sanityCheckFlags(const Flags flags)
 }
 
 template<typename Key>
-void insertId(OrderedMap<Key, RoomIdSet> &map, const Key &key, const RoomId id)
+// void insertId(OrderedMap<Key, RoomIdSet> &map, const Key &key, const RoomId id)
+void insertId(OrderedMap<Key, CowRoomIdSet> &map, const Key &key, const RoomId id)
 {
-    const RoomIdSet *const old = map.find(key);
-    if (old == nullptr) {
-        map.set(key, RoomIdSet{id});
-    } else if (!old->contains(id)) {
-        auto copy = *old;
-        copy.insert(id);
-        map.set(key, copy);
+    // const RoomIdSet *const old = map.find(key);
+    const CowRoomIdSet *const oldCow = map.find(key);
+    if (oldCow == nullptr) {
+        // map.set(key, RoomIdSet{id});
+        map.set(key, CowRoomIdSet{std::set<RoomId>{id}});
+    } else if (!oldCow->getReadOnly().contains(id)) {
+        // auto copy = *old;
+        auto copy = oldCow->getReadOnly(); // Get a std::set<RoomId>
+        copy.insert(id); // Modify the set
+        map.set(key, CowRoomIdSet{copy}); // Create a new CowRoomIdSet from the modified set
     }
 }
 
 template<typename Key>
-void removeId(OrderedMap<Key, RoomIdSet> &map, const Key &key, const RoomId id)
+// void removeId(OrderedMap<Key, RoomIdSet> &map, const Key &key, const RoomId id)
+void removeId(OrderedMap<Key, CowRoomIdSet> &map, const Key &key, const RoomId id)
 {
-    const RoomIdSet *const old = map.find(key);
-    if (old == nullptr || !old->contains(id)) {
+    // const RoomIdSet *const old = map.find(key);
+    const CowRoomIdSet *const oldCow = map.find(key);
+    if (oldCow == nullptr || !oldCow->getReadOnly().contains(id)) {
         return;
     }
 
-    auto copy = *old;
-    copy.erase(id);
+    // auto copy = *old;
+    auto copy = oldCow->getReadOnly(); // Get a std::set<RoomId>
+    copy.erase(id); // Modify the set
     if (copy.empty()) {
         map.erase(key);
     } else {
-        map.set(key, copy);
+        // map.set(key, copy);
+        map.set(key, CowRoomIdSet{copy}); // Create a new CowRoomIdSet from the modified set
     }
 }
 
@@ -310,14 +318,14 @@ void World::insertParse(const RoomId id, const ParseKeyFlags parseKeys)
     assert(sanitizer::isSanitizedMultiline(desc.getStdStringViewUtf8()));
 
     if (parseKeys.contains(ParseKeyEnum::Name)) {
-        insertId(m_parseTree.name_only, name, id);
+        insertId(m_parseTree.getMutable().name_only, name, id);
     }
     if (parseKeys.contains(ParseKeyEnum::Desc)) {
-        insertId(m_parseTree.desc_only, desc, id);
+        insertId(m_parseTree.getMutable().desc_only, desc, id);
     }
     if (parseKeys.contains(ParseKeyEnum::Name) || parseKeys.contains(ParseKeyEnum::Desc)) {
         const NameDesc nameDesc{name, desc};
-        insertId(m_parseTree.name_desc, nameDesc, id);
+        insertId(m_parseTree.getMutable().name_desc, nameDesc, id);
     }
 }
 
@@ -330,14 +338,14 @@ void World::removeParse(const RoomId id, const ParseKeyFlags parseKeys)
     assert(sanitizer::isSanitizedMultiline(desc.getStdStringViewUtf8()));
 
     if (parseKeys.contains(ParseKeyEnum::Name)) {
-        removeId(m_parseTree.name_only, name, id);
+        removeId(m_parseTree.getMutable().name_only, name, id);
     }
     if (parseKeys.contains(ParseKeyEnum::Desc)) {
-        removeId(m_parseTree.desc_only, desc, id);
+        removeId(m_parseTree.getMutable().desc_only, desc, id);
     }
     if (parseKeys.contains(ParseKeyEnum::Name) || parseKeys.contains(ParseKeyEnum::Desc)) {
         const NameDesc nameDesc{name, desc};
-        removeId(m_parseTree.name_desc, nameDesc, id);
+        removeId(m_parseTree.getMutable().name_desc, nameDesc, id);
     }
 }
 
@@ -378,10 +386,10 @@ void World::setRoom(const RoomId id, const RawRoom &room)
         if (parseChanged) {
             removeParse(id, parseChanged);
         }
-        m_areaInfos.remove(oldRaw.getArea(), id);
+        m_areaInfos.getMutable().remove(oldRaw.getArea(), id);
     }
 
-    m_areaInfos.insert(room.getArea(), id);
+    m_areaInfos.getMutable().insert(room.getArea(), id);
 
     if (oldServerId != INVALID_SERVER_ROOMID && oldServerId != room.server_id) {
         m_serverIds.remove(oldServerId);
@@ -644,13 +652,13 @@ void World::checkConsistency(ProgressCounter &counter) const
     };
 
     auto checkRemapping = [this](const RoomId id) {
-        if (!getGlobalArea().roomSet.contains(id)) {
+        if (getGlobalArea().roomSet.getReadOnly().count(id) == 0) {
             throw MapConsistencyError("room set does not contain the room id");
         }
 
         const auto &areaName = getRoomArea(id);
-        auto &area = getArea(areaName);
-        if (!area.roomSet.contains(id)) {
+        auto &area = getArea(areaName); // AreaInfo&
+        if (area.roomSet.getReadOnly().count(id) == 0) {
             throw MapConsistencyError("room set does not contain the room id");
         }
 
@@ -668,18 +676,18 @@ void World::checkConsistency(ProgressCounter &counter) const
         const RoomName &name = getRoomName(id);
         const RoomDesc &desc = m_rooms.getRoomDescription(id);
 
-        if (auto set = m_parseTree.name_only.find(name); set == nullptr || !set->contains(id)) {
+        if (auto cowSet = m_parseTree.getReadOnly().name_only.find(name); cowSet == nullptr || cowSet->getReadOnly().count(id) == 0) {
             throw MapConsistencyError("unable to find room name only");
         }
 
-        if (auto set = m_parseTree.desc_only.find(desc); set == nullptr || !set->contains(id)) {
+        if (auto cowSet = m_parseTree.getReadOnly().desc_only.find(desc); cowSet == nullptr || cowSet->getReadOnly().count(id) == 0) {
             throw MapConsistencyError("unable to find room desc only");
         }
 
         {
             const NameDesc nameDesc{name, desc};
-            if (auto set = m_parseTree.name_desc.find(nameDesc);
-                set == nullptr || !set->contains(id)) {
+            if (auto cowSet = m_parseTree.getReadOnly().name_desc.find(nameDesc);
+                cowSet == nullptr || cowSet->getReadOnly().count(id) == 0) {
                 throw MapConsistencyError("unable to find room name_desc only");
             }
         }
@@ -996,7 +1004,7 @@ void World::removeFromWorld(const RoomId id, const bool removeLinks)
 
     m_remapping.removeAt(id);
     m_rooms.removeAt(id);
-    m_areaInfos.remove(areaName, id);
+    m_areaInfos.getMutable().remove(areaName, id);
 }
 
 void World::setRoomStatus(const RoomId id, const RoomStatusEnum status)
@@ -1196,7 +1204,7 @@ void World::initRoom(const RawRoom &input)
     {
         // REVISIT: should "upToDate" be automatic?
         const auto &areaName = input.getArea();
-        m_areaInfos.insert(areaName, id);
+        m_areaInfos.getMutable().insert(areaName, id);
         insertParse(id, ALL_PARSE_KEY_FLAGS);
         m_spatialDb.add(id, input.position);
         m_serverIds.set(input.server_id, id);
@@ -1280,7 +1288,7 @@ World World::init(ProgressCounter &counter, const std::vector<ExternalRawRoom> &
             DECL_TIMER(t3, "insert-rooms-cachedRoomSet");
             counter.setNewTask(ProgressMsg{"inserting rooms"}, rooms.size());
             for (const auto &room : rooms) {
-                w.m_areaInfos.insert(room.getArea(), room.id);
+                w.m_areaInfos.getMutable().insert(room.getArea(), room.id);
                 counter.step();
             }
         }
@@ -1289,6 +1297,7 @@ World World::init(ProgressCounter &counter, const std::vector<ExternalRawRoom> &
             DECL_TIMER(t3, "insert-rooms-parsekey");
             counter.setNewTask(ProgressMsg{"inserting room name/desc lookups"}, rooms.size());
             for (const auto &room : rooms) {
+                // insertParse already calls m_parseTree.getMutable()
                 w.insertParse(room.id, ALL_PARSE_KEY_FLAGS);
                 counter.step();
             }
@@ -1349,15 +1358,15 @@ ExternalRoomId World::getNextExternalId() const
     return m_remapping.getNextExternal();
 }
 
-const RoomIdSet &World::getRoomSet() const
+const std::set<RoomId> &World::getRoomSet() const
 {
-    return getGlobalArea().roomSet;
+    return getGlobalArea().roomSet.getReadOnly();
 }
 
-const RoomIdSet *World::findAreaRoomSet(const RoomArea &areaName) const
+const std::set<RoomId> *World::findAreaRoomSet(const RoomArea &areaName) const
 {
     if (const AreaInfo *const area = this->findArea(areaName)) {
-        return &area->roomSet;
+        return &area->roomSet.getReadOnly();
     }
     return nullptr;
 }
@@ -2274,9 +2283,9 @@ void World::printStats(ProgressCounter &pc, AnsiOstream &os) const
         };
 
         os << "\n";
-        os << "Total areas: " << C(m_areaInfos.numAreas()) << ".\n";
+        os << "Total areas: " << C(m_areaInfos.getReadOnly().numAreas()) << ".\n";
         os << "\n";
-        os << "Total rooms: " << C(getGlobalArea().roomSet.size()) << ".\n";
+        os << "Total rooms: " << C(getGlobalArea().roomSet.getReadOnly().size()) << ".\n";
         os << "\n";
         os << "  missing server id: " << C(numMissingServerId) << ".\n";
         os << "  missing area: " << C(numMissingArea) << ".\n";
@@ -2330,13 +2339,13 @@ void World::printStats(ProgressCounter &pc, AnsiOstream &os) const
            << line
            << "\n"
               "Within the global area (# rooms = "
-           << ColoredValue{green, getRoomSet().size()} << "):\n";
-        m_parseTree.printStats(pc, os);
+           << ColoredValue{green, getRoomSet().getReadOnly().size()} << "):\n"; // getRoomSet() already uses .getReadOnly()
+        m_parseTree.getReadOnly().printStats(pc, os);
     }
 
-    for (const auto &kv : m_areaInfos) {
+    for (const auto &kv : m_areaInfos.getReadOnly()) { // Iterate over CoW AreaInfoMap
         const auto &areaName = kv.first;
-        const auto numAreaRooms = kv.second.roomSet.size();
+        const auto numAreaRooms = kv.second.roomSet.getReadOnly().size(); // Access CowRoomIdSet in AreaInfo
 
         // REVISIT: include the relative size of the area?
         os << "\n"
@@ -2369,7 +2378,7 @@ XFOREACH_ROOM_PROPERTY(X_DEFINE_GETTER)
 
 bool World::containsRoomsNotIn(const World &other) const
 {
-    return getGlobalArea().roomSet.containsElementNotIn(other.getGlobalArea().roomSet);
+    return getGlobalArea().roomSet.getReadOnly().containsElementNotIn(other.getGlobalArea().roomSet.getReadOnly());
 }
 
 namespace { // anonymous
@@ -2441,7 +2450,7 @@ WorldComparisonStats World::getComparisonStats(const World &base, const World &m
     result.anyRoomsAdded = anyRoomsAdded;
     result.spatialDbChanged = anyRoomsMoved;
     result.serverIdsChanged = base.m_serverIds != modified.m_serverIds;
-    result.parseTreeChanged = base.m_parseTree != modified.m_parseTree;
+    result.parseTreeChanged = base.m_parseTree.getReadOnly() != modified.m_parseTree.getReadOnly();
     result.hasMeshDifferences = anyRoomsAdded                         //
                                 || anyRoomsRemoved                    //
                                 || anyRoomsMoved                      //

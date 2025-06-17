@@ -26,7 +26,7 @@ void getRooms(const Map &map, const ParseTree &tree, RoomRecipient &visitor, con
     static volatile bool fallbackToRemainder = true;
     static volatile bool fallbackToWholeMap = true;
 
-    const RoomIdSet *const pSet = [&map, &event, &tree]() -> const RoomIdSet * {
+    const std::set<RoomId> *const pSet = [&map, &event, &tree]() -> const std::set<RoomId> * {
         const World &world = map.getWorld();
         const RoomArea &areaName = event.getRoomArea();
 
@@ -37,22 +37,22 @@ void getRooms(const Map &map, const ParseTree &tree, RoomRecipient &visitor, con
         const bool hasDesc = !desc.empty();
 
         if (hasName && hasDesc) {
-            if (auto set = tree.name_desc.find(NameDesc{name, desc})) {
-                return set;
+            if (auto cowSet = tree.name_desc.find(NameDesc{name, desc})) {
+                return &cowSet->getReadOnly();
             }
 
             MMLOG() << "[getRooms] Failed to find a match with name+desc. Falling back to name or desc...";
         }
 
         if (hasName) {
-            if (auto ptr = tree.name_only.find(name)) {
-                return ptr;
+            if (auto cowSet = tree.name_only.find(name)) {
+                return &cowSet->getReadOnly();
             }
         }
 
         if (hasDesc) {
-            if (auto ptr = tree.desc_only.find(desc)) {
-                return ptr;
+            if (auto cowSet = tree.desc_only.find(desc)) {
+                return &cowSet->getReadOnly();
             }
         }
 
@@ -60,26 +60,26 @@ void getRooms(const Map &map, const ParseTree &tree, RoomRecipient &visitor, con
             MMLOG() << "[getRooms] Falling back to the current area!";
             MMLOG() << "[getRooms] event: " << mmqt::toStdStringUtf8(event.toQString());
 
-            if (const RoomIdSet *const set = world.findAreaRoomSet(areaName); set == nullptr) {
+            if (const auto *const set = world.findAreaRoomSet(areaName); set == nullptr) {
                 MMLOG() << "[getRooms] Area does not exist.";
-            } else if (set->empty()) {
+            } else if (set->getReadOnly().empty()) {
                 MMLOG() << "[getRooms] Area was empty.";
             } else {
-                return set;
+                return &set->getReadOnly();
             }
         }
 
         if (fallbackToRemainder && !areaName.empty()) {
             MMLOG() << "[getRooms] Falling back to the remainder area...";
-            if (const RoomIdSet *const set = world.findAreaRoomSet(RoomArea{}); set == nullptr) {
+            if (const auto *const set = world.findAreaRoomSet(RoomArea{}); set == nullptr) {
                 // this should be a hard error, since the fallback area is required to exist.
                 assert(false);
                 MMLOG() << "[getRooms] Fallback area does not exist.";
-            } else if (set->empty()) {
+            } else if (set->getReadOnly().empty()) {
                 // this should just return nullptr.
                 MMLOG() << "[getRooms] Fallback area was empty.";
             } else {
-                return set;
+                return &set->getReadOnly();
             }
         }
 
@@ -87,7 +87,7 @@ void getRooms(const Map &map, const ParseTree &tree, RoomRecipient &visitor, con
             MMLOG() << "[getRooms] Falling back to the whole map...";
             // this is probably unnecessary, and it's probably also the source of some bugs,
             // since it could find a room known to be in a different area.
-            return &world.getRoomSet();
+            return &world.getRoomSet().getReadOnly();
         }
 
         MMLOG() << "[getRooms] Failed to find a match; giving up.";
@@ -164,7 +164,7 @@ void ParseTree::printStats(ProgressCounter & /*pc*/, AnsiOstream &os) const
 
         const auto countUnique = [](const auto &map) -> size_t {
             return static_cast<size_t>(std::count_if(std::begin(map), std::end(map), [](auto &kv) {
-                return kv.second.size() == 1;
+                return kv.second.getReadOnly().size() == 1;
             }));
         };
 
@@ -187,7 +187,7 @@ void ParseTree::printStats(ProgressCounter & /*pc*/, AnsiOstream &os) const
         auto count_nonunique = [](const auto &map) -> size_t {
             size_t nonunique = 0;
             for (const auto &kv : map) {
-                const auto n = kv.second.size();
+                const auto n = kv.second.getReadOnly().size();
                 if (n == 1) {
                     continue;
                 }
@@ -245,7 +245,7 @@ void ParseTree::printStats(ProgressCounter & /*pc*/, AnsiOstream &os) const
                 continue;
             }
 
-            const auto count = kv.second.size();
+            const auto count = kv.second.getReadOnly().size();
             if (!mostCommon || count > mostCommonCount) {
                 mostCommon = kv.first;
                 mostCommonCount = count;

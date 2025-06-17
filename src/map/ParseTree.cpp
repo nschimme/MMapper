@@ -37,22 +37,27 @@ void getRooms(const Map &map, const ParseTree &tree, RoomRecipient &visitor, con
         const bool hasDesc = !desc.empty();
 
         if (hasName && hasDesc) {
-            if (auto set = tree.name_desc.find(NameDesc{name, desc})) {
-                return set;
+            if (const auto* pCowSet = tree.name_desc.find(NameDesc{name, desc})) {
+                return pCowSet->get().get(); // get COW's shared_ptr, then get raw pointer
             }
 
             MMLOG() << "[getRooms] Failed to find a match with name+desc. Falling back to name or desc...";
         }
 
         if (hasName) {
-            if (auto ptr = tree.name_only.find(name)) {
-                return ptr;
+            if (const auto* pCowSet = tree.name_only.find(name)) {
+                // Original code had logic for event.name_matches_exactly, need to replicate
+                const auto& idSetSp = pCowSet->get();
+                if (event.name_matches_exactly && idSetSp && idSetSp->size() != 1) {
+                    return nullptr;
+                }
+                return idSetSp.get();
             }
         }
 
         if (hasDesc) {
-            if (auto ptr = tree.desc_only.find(desc)) {
-                return ptr;
+            if (const auto* pCowSet = tree.desc_only.find(desc)) {
+                return pCowSet->get().get();
             }
         }
 
@@ -153,9 +158,9 @@ void ParseTree::printStats(ProgressCounter & /*pc*/, AnsiOstream &os) const
     };
 
     {
-        const size_t total_name = name_only.size();
-        const size_t total_desc = desc_only.size();
-        const size_t total_name_desc = name_desc.size();
+        const size_t total_name = name_only.size(); // OrderedMap::size() is fine
+        const size_t total_desc = desc_only.size(); // OrderedMap::size() is fine
+        const size_t total_name_desc = name_desc.size(); // OrderedMap::size() is fine
 
         os << "\n";
         os << "Total name combinations:              " << C(total_name) << ".\n";
@@ -164,7 +169,7 @@ void ParseTree::printStats(ProgressCounter & /*pc*/, AnsiOstream &os) const
 
         const auto countUnique = [](const auto &map) -> size_t {
             return static_cast<size_t>(std::count_if(std::begin(map), std::end(map), [](auto &kv) {
-                return kv.second.size() == 1;
+                return kv.second.get()->size() == 1; // Access size via COW's get()
             }));
         };
 
@@ -187,7 +192,7 @@ void ParseTree::printStats(ProgressCounter & /*pc*/, AnsiOstream &os) const
         auto count_nonunique = [](const auto &map) -> size_t {
             size_t nonunique = 0;
             for (const auto &kv : map) {
-                const auto n = kv.second.size();
+                const auto n = kv.second.get()->size(); // Access size via COW's get()
                 if (n == 1) {
                     continue;
                 }
@@ -245,7 +250,7 @@ void ParseTree::printStats(ProgressCounter & /*pc*/, AnsiOstream &os) const
                 continue;
             }
 
-            const auto count = kv.second.size();
+            const auto count = kv.second.get()->size(); // Access size via COW's get()
             if (!mostCommon || count > mostCommonCount) {
                 mostCommon = kv.first;
                 mostCommonCount = count;

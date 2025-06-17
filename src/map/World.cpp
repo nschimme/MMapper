@@ -46,32 +46,50 @@ void sanityCheckFlags(const Flags flags)
 }
 
 template<typename Key>
-void insertId(OrderedMap<Key, RoomIdSet> &map, const Key &key, const RoomId id)
+void insertId(OrderedMap<Key, mm::CopyOnWrite<RoomIdSet>> &map, const Key &key, const RoomId id)
 {
-    const RoomIdSet *const old = map.find(key);
-    if (old == nullptr) {
-        map.set(key, RoomIdSet{id});
-    } else if (!old->contains(id)) {
-        auto copy = *old;
-        copy.insert(id);
-        map.set(key, copy);
+    const mm::CopyOnWrite<RoomIdSet> *old_cow_set_wrapper_ptr = map.find(key);
+    if (old_cow_set_wrapper_ptr == nullptr) {
+        // Key does not exist, create new RoomIdSet and COW wrapper
+        RoomIdSet new_set;
+        new_set.insert(id);
+        map.set(key, mm::CopyOnWrite<RoomIdSet>(std::make_shared<RoomIdSet>(new_set)));
+    } else {
+        // Key exists, check if id is already in the set
+        if (!old_cow_set_wrapper_ptr->get()->contains(id)) {
+            // ID not in set, need to modify. Copy the COW wrapper, then get mutable.
+            // The map stores mm::CopyOnWrite<RoomIdSet> by value, so map.find() returns a pointer
+            // to an object within the map's internal storage. Dereferencing this gives the object.
+            mm::CopyOnWrite<RoomIdSet> modified_cow_set_wrapper = *old_cow_set_wrapper_ptr;
+            // getMutable() on this copy will ensure the underlying RoomIdSet is unique if it was shared.
+            modified_cow_set_wrapper.getMutable()->insert(id);
+            map.set(key, modified_cow_set_wrapper); // Store the potentially modified COW wrapper back
+        }
+        // If id is already present, do nothing.
     }
 }
 
 template<typename Key>
-void removeId(OrderedMap<Key, RoomIdSet> &map, const Key &key, const RoomId id)
+void removeId(OrderedMap<Key, mm::CopyOnWrite<RoomIdSet>> &map, const Key &key, const RoomId id)
 {
-    const RoomIdSet *const old = map.find(key);
-    if (old == nullptr || !old->contains(id)) {
+    const mm::CopyOnWrite<RoomIdSet> *cow_set_wrapper_ptr = map.find(key);
+    if (cow_set_wrapper_ptr == nullptr || !cow_set_wrapper_ptr->get()->contains(id)) {
+        // Key not found or id not in set, nothing to remove.
         return;
     }
 
-    auto copy = *old;
-    copy.erase(id);
-    if (copy.empty()) {
+    // Key found and id is in the set. Copy the COW wrapper.
+    mm::CopyOnWrite<RoomIdSet> modified_cow_set_wrapper = *cow_set_wrapper_ptr;
+    // getMutable() on this copy will ensure the underlying RoomIdSet is unique if it was shared.
+    std::shared_ptr<RoomIdSet> mutable_set = modified_cow_set_wrapper.getMutable();
+
+    mutable_set->erase(id);
+
+    if (mutable_set->empty()) {
         map.erase(key);
     } else {
-        map.set(key, copy);
+        // Store the modified COW wrapper back.
+        map.set(key, modified_cow_set_wrapper);
     }
 }
 

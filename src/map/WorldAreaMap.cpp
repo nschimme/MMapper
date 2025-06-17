@@ -82,10 +82,12 @@ NODISCARD bool AreaInfoMap::operator==(const AreaInfoMap &other) const {
 
 void AreaInfoMap::insert(const RoomArea &areaName, RoomId id) {
     m_global.roomSet.getMutable()->insert(id);
-    if (!areaName.empty()) {
-        AreaInfo& specific_area_info = m_map[areaName];
-        specific_area_info.roomSet.getMutable()->insert(id);
-    }
+    // Get or create the AreaInfo for areaName.
+    // std::map::operator[] correctly handles areaName being RoomArea{} (empty string),
+    // and will use the AreaInfo object initialized by AreaInfoMap's constructor
+    // or create a new default AreaInfo if areaName is a new non-empty key.
+    AreaInfo& specific_area_info = m_map[areaName];
+    specific_area_info.roomSet.getMutable()->insert(id);
 }
 
 void AreaInfoMap::remove(const RoomArea &areaName, RoomId id) {

@@ -7,6 +7,8 @@
 #include "../src/global/AnsiTextUtils.h"
 #include "../src/global/CaseUtils.h"
 #include "../src/global/CharUtils.h"
+#include "../src/global/Color.h"       // Added for COW tests (Color and Colors::XXX)
+#include "../src/global/CopyOnWrite.h" // Added for COW tests
 #include "../src/global/Diff.h"
 #include "../src/global/Flags.h"
 #include "../src/global/HideQDebug.h"
@@ -25,6 +27,7 @@
 #include "../src/global/string_view_utils.h"
 #include "../src/global/unquote.h"
 
+#include <memory> // Added for COW tests (std::make_shared)
 #include <tuple>
 
 #include <QDebug>
@@ -595,6 +598,73 @@ void TestGlobal::unquoteTest()
 void TestGlobal::weakHandleTest()
 {
     test::testWeakHandle();
+}
+
+// --- COW tests adapted for Color ---
+
+void TestGlobal::cowTestReadOnlySharing()
+{
+    auto color_data = std::make_shared<Color>(Colors::red);
+    mm::CopyOnWrite<Color> c1(color_data);
+    mm::CopyOnWrite<Color> c2 = c1;
+
+    QCOMPARE(static_cast<const void *>(c1.get().get()), static_cast<const void *>(c2.get().get()));
+    QVERIFY(c1.get().use_count() > 1);
+    QCOMPARE(*(c1.get()), Colors::red);
+}
+
+void TestGlobal::cowTestLazyCopyOnWrite()
+{
+    auto initial_color = std::make_shared<const Color>(Colors::red);
+    mm::CopyOnWrite<Color> c1(initial_color);
+    const Color *initial_addr = initial_color.get();
+
+    QCOMPARE(static_cast<const void *>(c1.get().get()), static_cast<const void *>(initial_addr));
+
+    std::shared_ptr<Color> writable_color_ptr = c1.getMutable();
+    QVERIFY(static_cast<const void *>(writable_color_ptr.get())
+            != static_cast<const void *>(initial_addr));
+    QCOMPARE(*writable_color_ptr, Colors::red); // Content should be copied
+
+    *writable_color_ptr = Colors::blue;    // Modify the copy
+    QCOMPARE(*(c1.get()), Colors::blue);   // c1.get() should now point to the modified copy
+    QCOMPARE(*initial_color, Colors::red); // Original const shared_ptr data unchanged
+}
+
+void TestGlobal::cowTestMutationIsolation()
+{
+    auto c1_const_ptr = std::make_shared<const Color>(Colors::red);
+    mm::CopyOnWrite<Color> c1(c1_const_ptr);
+    mm::CopyOnWrite<Color> c2 = c1; // c1 and c2 share data
+
+    QVERIFY(static_cast<const void *>(c1.get().get()) == static_cast<const void *>(c2.get().get()));
+
+    std::shared_ptr<Color> c1_writable = c1.getMutable();
+    *c1_writable = Colors::blue; // Mutate c1
+
+    QVERIFY(static_cast<const void *>(c1.get().get()) != static_cast<const void *>(c2.get().get()));
+    QCOMPARE(*(c1.get()), Colors::blue);
+    QCOMPARE(*(c2.get()), Colors::red); // c2 should be unaffected
+}
+
+void TestGlobal::cowTestFinalize()
+{
+    mm::CopyOnWrite<Color> c1(std::make_shared<Color>(Colors::red));
+
+    std::shared_ptr<Color> c_writable = c1.getMutable();
+    const void *writable_addr1 = c_writable.get();
+    *c_writable = Colors::green;
+
+    c1.finalize();
+    QVERIFY(!c1.isWritable());
+
+    QCOMPARE(*(c1.get()), Colors::green);
+    const void *const_addr_after_finalize = c1.get().get();
+    QCOMPARE(const_addr_after_finalize, writable_addr1);
+
+    std::shared_ptr<Color> c_writable2 = c1.getMutable();
+    QVERIFY(static_cast<const void *>(c_writable2.get()) != writable_addr1);
+    QCOMPARE(*c_writable2, Colors::green); // Content is copied
 }
 
 QTEST_MAIN(TestGlobal)

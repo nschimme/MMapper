@@ -90,7 +90,7 @@ void Map::getRooms(RoomRecipient &recipient, const ParseEvent &parseEvent) const
         }
     }
     const auto tree_ptr = map.getWorld().getParseTree();
-    if (tree_ptr) { // Check if the shared_ptr is valid
+    if (tree_ptr) {                                        // Check if the shared_ptr is valid
         ::getRooms(map, *tree_ptr, recipient, parseEvent); // Dereference the shared_ptr
     }
     // Else: what to do if parseTree is null? The original code would have failed too if tree was null.
@@ -257,8 +257,18 @@ NODISCARD static MapApplyResult update(const std::shared_ptr<const World> &input
     const auto t1 = Clock::now();
     callback(pc, modified);
     const auto t2 = Clock::now();
+
+    // --- New timing for checkConsistency ---
+    const auto t_consistency_start = Clock::now();
+    // We run checkConsistency if the callback might have made changes.
+    // The 'equal' check later will confirm, but consistency should be checked on potentially modified state.
+    // We get the world from 'modified' Map object.
+    modified.checkConsistency(pc); // Assuming World has checkConsistency
+    const auto t_consistency_end = Clock::now();
+    // --- End new timing for checkConsistency ---
+
     bool equal = base == modified;
-    const auto t3 = Clock::now();
+    const auto t_equality_check_end = Clock::now(); // New: formerly t3
 
     RoomUpdateFlags neededUpdates;
     std::ostringstream info_os;
@@ -277,7 +287,7 @@ NODISCARD static MapApplyResult update(const std::shared_ptr<const World> &input
                     << ex.what() << ".\n";
         }
     }
-    const auto t4 = Clock::now();
+    const auto t_stats_reporting_end = Clock::now(); // New: formerly t4
 
     MMLOG() << info_os.str(); // not included in the timing
 
@@ -292,11 +302,14 @@ NODISCARD static MapApplyResult update(const std::shared_ptr<const World> &input
         };
         report("part0. modified = base.copy()", t0, t1);
         report("part1. callback(modified)", t1, t2);
-        report("part2. base == modified", t2, t3);
-        report("part3. stats + report changes", t3, t4);
-        report("part0 + part1 (required)", t0, t2);
-        report("part2 + part3 (deferrable)", t2, t4);
-        report("overall", t0, t4);
+        report("part2. checkConsistency", t_consistency_start, t_consistency_end);  // New
+        report("part3. base == modified", t_consistency_end, t_equality_check_end); // Changed
+        report("part4. stats + report changes",
+               t_equality_check_end,
+               t_stats_reporting_end);                                                  // Changed
+        report("part0 + part1 + part2 (required)", t0, t_consistency_end);              // Corrected
+        report("part3 + part4 (deferrable)", t_consistency_end, t_stats_reporting_end); // Corrected
+        report("overall", t0, t_stats_reporting_end); // Stays same
         MMLOG_DEBUG() << std::move(debug_os).str();
     }
 
@@ -935,8 +948,9 @@ size_t Map::countRoomsWithName(const RoomName &name) const
     const auto &world = getWorld();
     const auto parseTree_ptr = world.getParseTree();
     if (parseTree_ptr) {
-        if (const auto *const pSet = parseTree_ptr->name_only.find(name)) {
-            return pSet->size();
+        if (const auto *const pCowSet = parseTree_ptr->name_only.find(
+                name)) { // pCowSet is const mm::CopyOnWrite<RoomIdSet>*
+            return pCowSet->get()->size();
         }
     }
     return 0;
@@ -947,8 +961,8 @@ size_t Map::countRoomsWithDesc(const RoomDesc &desc) const
     const auto &world = getWorld();
     const auto parseTree_ptr = world.getParseTree();
     if (parseTree_ptr) {
-        if (const auto *const pSet = parseTree_ptr->desc_only.find(desc)) {
-            return pSet->size();
+        if (const auto *const pCowSet = parseTree_ptr->desc_only.find(desc)) {
+            return pCowSet->get()->size();
         }
     }
     return 0;
@@ -960,8 +974,8 @@ size_t Map::countRoomsWithNameDesc(const RoomName &name, const RoomDesc &desc) c
     const auto parseTree_ptr = world.getParseTree();
     if (parseTree_ptr) {
         const NameDesc nameDesc{name, desc};
-        if (const auto *const pSet = parseTree_ptr->name_desc.find(nameDesc)) {
-            return pSet->size();
+        if (const auto *const pCowSet = parseTree_ptr->name_desc.find(nameDesc)) {
+            return pCowSet->get()->size();
         }
     }
     return 0;
@@ -972,9 +986,10 @@ std::optional<RoomId> Map::findUniqueName(const RoomName &name) const
     const auto &world = getWorld();
     const auto parseTree_ptr = world.getParseTree();
     if (parseTree_ptr) {
-        if (const RoomIdSet *const pSet = parseTree_ptr->name_only.find(name)) {
-            if (pSet->size() == 1) {
-                return pSet->first();
+        if (const auto *const pCowSet = parseTree_ptr->name_only.find(name)) {
+            const auto &actualSet = pCowSet->get(); // std::shared_ptr<const RoomIdSet>
+            if (actualSet->size() == 1) {
+                return actualSet->first();
             }
         }
     }
@@ -986,9 +1001,10 @@ std::optional<RoomId> Map::findUniqueDesc(const RoomDesc &desc) const
     const auto &world = getWorld();
     const auto parseTree_ptr = world.getParseTree();
     if (parseTree_ptr) {
-        if (const RoomIdSet *const pSet = parseTree_ptr->desc_only.find(desc)) {
-            if (pSet->size() == 1) {
-                return pSet->first();
+        if (const auto *const pCowSet = parseTree_ptr->desc_only.find(desc)) {
+            const auto &actualSet = pCowSet->get();
+            if (actualSet->size() == 1) {
+                return actualSet->first();
             }
         }
     }
@@ -1001,9 +1017,10 @@ std::optional<RoomId> Map::findUniqueNameDesc(const RoomName &name, const RoomDe
     const auto parseTree_ptr = world.getParseTree();
     if (parseTree_ptr) {
         const NameDesc nameDesc{name, desc};
-        if (const RoomIdSet *const pSet = parseTree_ptr->name_desc.find(nameDesc)) {
-            if (pSet->size() == 1) {
-                return pSet->first();
+        if (const auto *const pCowSet = parseTree_ptr->name_desc.find(nameDesc)) {
+            const auto &actualSet = pCowSet->get();
+            if (actualSet->size() == 1) {
+                return actualSet->first();
             }
         }
     }

@@ -39,4 +39,10 @@ private Q_SLOTS:
     static void toNumberTest();
     static void unquoteTest();
     static void weakHandleTest();
+
+    // COW tests
+    static void cowTestReadOnlySharing();
+    static void cowTestLazyCopyOnWrite();
+    static void cowTestMutationIsolation();
+    static void cowTestFinalize();
 };

@@ -10,6 +10,8 @@
 #include <cstdlib>
 #include <stdexcept>
 
+#include <QDebug> // Added for QDebug streaming
+
 Coordinate2i Coordinate2f::truncate() const
 {
     return Coordinate2i{utils::round_ftoi(std::floor(x)), utils::round_ftoi(std::floor(y))};
@@ -147,4 +149,10 @@ void Bounds::insert(const Coordinate &c)
     THREE(max);
 #undef THREE
 #undef ONE
+}
+
+QDebug operator<<(QDebug debug, const Coordinate &coord)
+{
+    debug.nospace() << "Coordinate(" << coord.x << ", " << coord.y << ", " << coord.z << ")";
+    return debug;
 }

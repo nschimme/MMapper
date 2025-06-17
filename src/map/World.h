@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2021 The MMapper Authors
 
+#include "../global/CopyOnWrite.h" // Corrected path
 #include "../global/Timer.h"
 #include "../global/macros.h"
-#include "../global/CopyOnWrite.h" // Corrected path
 #include "Changes.h"
 #include "ExitFields.h"
 #include "InvalidMapOperation.h"
@@ -71,8 +71,14 @@ private:
     NODISCARD AreaInfo &getArea(const std::optional<RoomArea> &area);
     NODISCARD const AreaInfo &getArea(const std::optional<RoomArea> &area) const;
 
-    NODISCARD AreaInfo &getGlobalArea() { return getArea(std::nullopt); } // Implementation will change
-    NODISCARD const AreaInfo &getGlobalArea() const { return getArea(std::nullopt); } // Implementation will change
+    NODISCARD AreaInfo &getGlobalArea()
+    {
+        return getArea(std::nullopt);
+    } // Implementation will change
+    NODISCARD const AreaInfo &getGlobalArea() const
+    {
+        return getArea(std::nullopt);
+    } // Implementation will change
 
 public:
     NODISCARD std::shared_ptr<const ParseTree> getParseTree() const { return m_parseTree.get(); }
@@ -289,7 +295,7 @@ private:
 #undef X_NOP
 
 private:
-    void post_change_updates(ProgressCounter &pc);
+    void post_change_updates(ProgressCounter &pc, bool run_consistency_check);
     void applyAll_internal(ProgressCounter &pc, const std::vector<Change> &changes);
 
 private:

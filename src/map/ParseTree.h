@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2021 The MMapper Authors
 
+#include "../global/CopyOnWrite.h" // Added
 #include "../global/OrderedMap.h"
 #include "../global/macros.h"
 #include "PromptFlags.h"
@@ -61,12 +62,14 @@ static_assert(ALL_PARSE_KEY_FLAGS == (ParseKeyFlags{ParseKeyEnum::Name} | ParseK
 
 struct NODISCARD ParseTree final
 {
-    OrderedMap<RoomName, RoomIdSet> name_only;
-    OrderedMap<RoomDesc, RoomIdSet> desc_only;
-    OrderedMap<NameDesc, RoomIdSet> name_desc;
+    OrderedMap<RoomName, mm::CopyOnWrite<RoomIdSet>> name_only;
+    OrderedMap<RoomDesc, mm::CopyOnWrite<RoomIdSet>> desc_only;
+    OrderedMap<NameDesc, mm::CopyOnWrite<RoomIdSet>> name_desc;
 
     NODISCARD bool operator==(const ParseTree &rhs) const
     {
+        // This will delegate to OrderedMap::operator==,
+        // which will delegate to mm::CopyOnWrite<RoomIdSet>::operator==
         return name_only == rhs.name_only && desc_only == rhs.desc_only
                && name_desc == rhs.name_desc;
     }

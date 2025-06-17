@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2024 The MMapper Authors
 
+#include "../global/CopyOnWrite.h" // Corrected path
 #include "../global/IndexedVector.h"
 #include "../global/macros.h"
-#include "../global/CopyOnWrite.h" // Corrected path
 #include "InvalidMapOperation.h"
 #include "RawExit.h"
 #include "RawRoom.h"
@@ -17,7 +17,10 @@ private:
     IndexedVector<mm::CopyOnWrite<RawRoom>, RoomId> m_rooms; // Changed to mm::CopyOnWrite<RawRoom>
 
 public:
-    NODISCARD mm::CopyOnWrite<RawRoom> &getRawRoomRef(RoomId pos) { return m_rooms.at(pos); } // Return mm::CopyOnWrite<RawRoom>&
+    NODISCARD mm::CopyOnWrite<RawRoom> &getRawRoomRef(RoomId pos)
+    {
+        return m_rooms.at(pos);
+    } // Return mm::CopyOnWrite<RawRoom>&
     NODISCARD const mm::CopyOnWrite<RawRoom> &getRawRoomRef(RoomId pos) const
     {
         return m_rooms.at(pos);

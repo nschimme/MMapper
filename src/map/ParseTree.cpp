@@ -37,22 +37,43 @@ void getRooms(const Map &map, const ParseTree &tree, RoomRecipient &visitor, con
         const bool hasDesc = !desc.empty();
 
         if (hasName && hasDesc) {
-            if (auto set = tree.name_desc.find(NameDesc{name, desc})) {
-                return set;
+            if (const auto *pCowSet = tree.name_desc.find(NameDesc{name, desc})) {
+                return pCowSet->get().get(); // get COW's shared_ptr, then get raw pointer
             }
 
             MMLOG() << "[getRooms] Failed to find a match with name+desc. Falling back to name or desc...";
         }
 
         if (hasName) {
-            if (auto ptr = tree.name_only.find(name)) {
-                return ptr;
+            if (const auto *pCowSet = tree.name_only.find(name)) {
+                const auto &idSetSp = pCowSet->get();
+                // Check if the shared_ptr itself is valid and if the set size is not 1.
+                // The event.name_matches_exactly check is removed as per instruction.
+                if (idSetSp && idSetSp->size() != 1) {
+                    // If name_matches_exactly was true, original logic would return nullptr here.
+                    // Now, without it, if the set is not size 1, we might proceed differently
+                    // or this condition might need further review based on desired behavior.
+                    // For now, just removing event.name_matches_exactly from this specific condition.
+                    // If the goal is to return nullptr if not size 1 (like unique check),
+                    // then this is fine. If the goal was to *only* return nullptr if name_matches_exactly
+                    // AND size != 1, then this logic changes.
+                    // Assuming the intent is to return nullptr if we are looking for an exact match (implicitly)
+                    // AND the found set is not unique.
+                    // However, the instruction is just to remove `event.name_matches_exactly` from the condition.
+                    // So, if idSetSp is valid and its size is not 1, this path is taken.
+                    // This seems to imply we want to return nullptr if it's not a unique match.
+                    // This could be a problem if `name_matches_exactly` was the sole guard for this path.
+                    // For now, strictly following "Change it to: `if (idSetSp && idSetSp->size() != 1) {`"
+                    // This means if a non-unique set is found, it returns nullptr.
+                    return nullptr;
+                }
+                return idSetSp.get();
             }
         }
 
         if (hasDesc) {
-            if (auto ptr = tree.desc_only.find(desc)) {
-                return ptr;
+            if (const auto *pCowSet = tree.desc_only.find(desc)) {
+                return pCowSet->get().get();
             }
         }
 
@@ -153,9 +174,9 @@ void ParseTree::printStats(ProgressCounter & /*pc*/, AnsiOstream &os) const
     };
 
     {
-        const size_t total_name = name_only.size();
-        const size_t total_desc = desc_only.size();
-        const size_t total_name_desc = name_desc.size();
+        const size_t total_name = name_only.size();      // OrderedMap::size() is fine
+        const size_t total_desc = desc_only.size();      // OrderedMap::size() is fine
+        const size_t total_name_desc = name_desc.size(); // OrderedMap::size() is fine
 
         os << "\n";
         os << "Total name combinations:              " << C(total_name) << ".\n";
@@ -164,7 +185,7 @@ void ParseTree::printStats(ProgressCounter & /*pc*/, AnsiOstream &os) const
 
         const auto countUnique = [](const auto &map) -> size_t {
             return static_cast<size_t>(std::count_if(std::begin(map), std::end(map), [](auto &kv) {
-                return kv.second.size() == 1;
+                return kv.second.get()->size() == 1; // Access size via COW's get()
             }));
         };
 
@@ -187,7 +208,7 @@ void ParseTree::printStats(ProgressCounter & /*pc*/, AnsiOstream &os) const
         auto count_nonunique = [](const auto &map) -> size_t {
             size_t nonunique = 0;
             for (const auto &kv : map) {
-                const auto n = kv.second.size();
+                const auto n = kv.second.get()->size(); // Access size via COW's get()
                 if (n == 1) {
                     continue;
                 }
@@ -245,7 +266,7 @@ void ParseTree::printStats(ProgressCounter & /*pc*/, AnsiOstream &os) const
                 continue;
             }
 
-            const auto count = kv.second.size();
+            const auto count = kv.second.get()->size(); // Access size via COW's get()
             if (!mostCommon || count > mostCommonCount) {
                 mostCommon = kv.first;
                 mostCommonCount = count;

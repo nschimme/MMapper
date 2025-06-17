@@ -48,32 +48,51 @@ void sanityCheckFlags(const Flags flags)
 }
 
 template<typename Key>
-void insertId(OrderedMap<Key, RoomIdSet> &map, const Key &key, const RoomId id)
+void insertId(OrderedMap<Key, mm::CopyOnWrite<RoomIdSet>> &map, const Key &key, const RoomId id)
 {
-    const RoomIdSet *const old = map.find(key);
-    if (old == nullptr) {
-        map.set(key, RoomIdSet{id});
-    } else if (!old->contains(id)) {
-        auto copy = *old;
-        copy.insert(id);
-        map.set(key, copy);
+    const mm::CopyOnWrite<RoomIdSet> *old_cow_set_wrapper_ptr = map.find(key);
+    if (old_cow_set_wrapper_ptr == nullptr) {
+        // Key does not exist, create new RoomIdSet and COW wrapper
+        RoomIdSet new_set;
+        new_set.insert(id);
+        map.set(key, mm::CopyOnWrite<RoomIdSet>(std::make_shared<RoomIdSet>(new_set)));
+    } else {
+        // Key exists, check if id is already in the set
+        if (!old_cow_set_wrapper_ptr->get()->contains(id)) {
+            // ID not in set, need to modify. Copy the COW wrapper, then get mutable.
+            // The map stores mm::CopyOnWrite<RoomIdSet> by value, so map.find() returns a pointer
+            // to an object within the map's internal storage. Dereferencing this gives the object.
+            mm::CopyOnWrite<RoomIdSet> modified_cow_set_wrapper = *old_cow_set_wrapper_ptr;
+            // getMutable() on this copy will ensure the underlying RoomIdSet is unique if it was shared.
+            modified_cow_set_wrapper.getMutable()->insert(id);
+            map.set(key,
+                    modified_cow_set_wrapper); // Store the potentially modified COW wrapper back
+        }
+        // If id is already present, do nothing.
     }
 }
 
 template<typename Key>
-void removeId(OrderedMap<Key, RoomIdSet> &map, const Key &key, const RoomId id)
+void removeId(OrderedMap<Key, mm::CopyOnWrite<RoomIdSet>> &map, const Key &key, const RoomId id)
 {
-    const RoomIdSet *const old = map.find(key);
-    if (old == nullptr || !old->contains(id)) {
+    const mm::CopyOnWrite<RoomIdSet> *cow_set_wrapper_ptr = map.find(key);
+    if (cow_set_wrapper_ptr == nullptr || !cow_set_wrapper_ptr->get()->contains(id)) {
+        // Key not found or id not in set, nothing to remove.
         return;
     }
 
-    auto copy = *old;
-    copy.erase(id);
-    if (copy.empty()) {
+    // Key found and id is in the set. Copy the COW wrapper.
+    mm::CopyOnWrite<RoomIdSet> modified_cow_set_wrapper = *cow_set_wrapper_ptr;
+    // getMutable() on this copy will ensure the underlying RoomIdSet is unique if it was shared.
+    std::shared_ptr<RoomIdSet> mutable_set = modified_cow_set_wrapper.getMutable();
+
+    mutable_set->erase(id);
+
+    if (mutable_set->empty()) {
         map.erase(key);
     } else {
-        map.set(key, copy);
+        // Store the modified COW wrapper back.
+        map.set(key, modified_cow_set_wrapper);
     }
 }
 
@@ -673,13 +692,13 @@ void World::checkConsistency(ProgressCounter &counter) const
     };
 
     auto checkRemapping = [this](const RoomId id) {
-        if (!getGlobalArea().roomSet.contains(id)) {
+        if (!getGlobalArea().roomSet.get()->contains(id)) {
             throw MapConsistencyError("room set does not contain the room id");
         }
 
         const auto &areaName = getRoomArea(id);
         auto &area = getArea(areaName);
-        if (!area.roomSet.contains(id)) {
+        if (!area.roomSet.get()->contains(id)) {
             throw MapConsistencyError("room set does not contain the room id");
         }
 
@@ -697,18 +716,20 @@ void World::checkConsistency(ProgressCounter &counter) const
         const RoomName &name = getRoomName(id);
         const RoomDesc &desc = m_rooms.getRoomDescription(id);
 
-        if (auto set = m_parseTree.get()->name_only.find(name); set == nullptr || !set->contains(id)) {
+        if (auto set = m_parseTree.get()->name_only.find(name);
+            set == nullptr || !set->get()->contains(id)) {
             throw MapConsistencyError("unable to find room name only");
         }
 
-        if (auto set = m_parseTree.get()->desc_only.find(desc); set == nullptr || !set->contains(id)) {
+        if (auto set = m_parseTree.get()->desc_only.find(desc);
+            set == nullptr || !set->get()->contains(id)) {
             throw MapConsistencyError("unable to find room desc only");
         }
 
         {
             const NameDesc nameDesc{name, desc};
             if (auto set = m_parseTree.get()->name_desc.find(nameDesc);
-                set == nullptr || !set->contains(id)) {
+                set == nullptr || !set->get()->contains(id)) {
                 throw MapConsistencyError("unable to find room name_desc only");
             }
         }
@@ -812,7 +833,8 @@ void World::checkConsistency(ProgressCounter &counter) const
         // but above we've verified that all of the coordinates are in the db,
         {
             auto spatialDb_data_copy = *m_spatialDb.get(); // Make a copy of the SpatialDb data
-            auto spatialDb_cow_copy = mm::CopyOnWrite<SpatialDb>(std::make_shared<SpatialDb>(spatialDb_data_copy));
+            auto spatialDb_cow_copy = mm::CopyOnWrite<SpatialDb>(
+                std::make_shared<SpatialDb>(spatialDb_data_copy));
             counter.setNewTask(ProgressMsg{"recomputing bounds"}, 1);
             spatialDb_cow_copy.getMutable()->updateBounds(counter); // Operate on the copy
             counter.step();
@@ -936,7 +958,7 @@ void World::setServerId(const RoomId id, const ServerRoomId serverId)
     if (oldServerId != INVALID_SERVER_ROOMID) { // Only remove if oldServerId was valid
         writable_serverIds->remove(oldServerId);
     }
-    m_rooms.setServerId(id, serverId); // This modifies RawRoom within m_rooms
+    m_rooms.setServerId(id, serverId);       // This modifies RawRoom within m_rooms
     if (serverId != INVALID_SERVER_ROOMID) { // Only set if new serverId is valid
         writable_serverIds->set(serverId, id);
     }
@@ -1319,7 +1341,8 @@ World World::init(ProgressCounter &counter, const std::vector<ExternalRawRoom> &
                 for (const auto &r : rooms) {
                     const RoomId id = r.getId();
                     // Assign a new mm::CopyOnWrite<RawRoom>, initialized with a shared_ptr to a copy of r
-                    w.m_rooms.getRawRoomRef(id) = mm::CopyOnWrite<RawRoom>(std::make_shared<RawRoom>(r));
+                    w.m_rooms.getRawRoomRef(id) = mm::CopyOnWrite<RawRoom>(
+                        std::make_shared<RawRoom>(r));
                 }
             }
         }
@@ -1338,7 +1361,7 @@ World World::init(ProgressCounter &counter, const std::vector<ExternalRawRoom> &
         {
             DECL_TIMER(t3, "insert-rooms-cachedRoomSet");
             counter.setNewTask(ProgressMsg{"inserting rooms"}, rooms.size());
-            auto* area_infos_ptr = w.m_areaInfos.getMutable().get(); // Get raw pointer once
+            auto *area_infos_ptr = w.m_areaInfos.getMutable().get(); // Get raw pointer once
             for (const auto &room : rooms) {
                 area_infos_ptr->insert(room.getArea(), room.id);
                 counter.step();
@@ -1357,7 +1380,7 @@ World World::init(ProgressCounter &counter, const std::vector<ExternalRawRoom> &
         {
             DECL_TIMER(t3, "insert-rooms-spatialDb");
             counter.setNewTask(ProgressMsg{"setting room positions"}, rooms.size());
-            auto* spatial_db_ptr = w.m_spatialDb.getMutable().get(); // Get raw pointer once
+            auto *spatial_db_ptr = w.m_spatialDb.getMutable().get(); // Get raw pointer once
             for (const auto &room : rooms) {
                 spatial_db_ptr->add(room.id, room.position);
                 counter.step();
@@ -1366,7 +1389,7 @@ World World::init(ProgressCounter &counter, const std::vector<ExternalRawRoom> &
         {
             DECL_TIMER(t3, "insert-rooms-serverIds");
             counter.setNewTask(ProgressMsg{"setting room server ids"}, rooms.size());
-            auto* server_ids_ptr = w.m_serverIds.getMutable().get(); // Get raw pointer once
+            auto *server_ids_ptr = w.m_serverIds.getMutable().get(); // Get raw pointer once
             for (const auto &room : rooms) {
                 server_ids_ptr->set(room.server_id, room.id);
                 counter.step();
@@ -1382,7 +1405,7 @@ World World::init(ProgressCounter &counter, const std::vector<ExternalRawRoom> &
 
     // if constexpr ((IS_DEBUG_BUILD))
     {
-        DECL_TIMER(t5, "check-consistency");
+        DECL_TIMER(t5, "part3. checkConsistency");
         counter.setNewTask(ProgressMsg{"checking map consistency" /*" [debug]"*/}, 1);
         w.checkConsistency(counter);
         counter.step();
@@ -1414,13 +1437,13 @@ ExternalRoomId World::getNextExternalId() const
 
 const RoomIdSet &World::getRoomSet() const
 {
-    return getGlobalArea().roomSet;
+    return *getGlobalArea().roomSet.get();
 }
 
 const RoomIdSet *World::findAreaRoomSet(const RoomArea &areaName) const
 {
     if (const AreaInfo *const area = this->findArea(areaName)) {
-        return &area->roomSet;
+        return area->roomSet.get().get();
     }
     return nullptr;
 }
@@ -2009,12 +2032,14 @@ void World::apply(ProgressCounter & /*pc*/, const room_change_types::TryMoveClos
     setPosition(id, assigned);
 }
 
-void World::post_change_updates(ProgressCounter &pc)
+void World::post_change_updates(ProgressCounter &pc, bool run_consistency_check)
 {
     if (needsBoundsUpdate()) {
         updateBounds(pc);
     }
-    checkConsistency(pc);
+    if (run_consistency_check) {
+        checkConsistency(pc);
+    }
 }
 
 namespace {
@@ -2085,13 +2110,13 @@ void World::applyOne(ProgressCounter &pc, const Change &change)
         //
         this->apply(pc, specialized_change);
     });
-    post_change_updates(pc);
+    post_change_updates(pc, false);
 }
 
 void World::applyAll(ProgressCounter &pc, const std::vector<Change> &changes)
 {
     applyAll_internal(pc, changes);
-    post_change_updates(pc);
+    post_change_updates(pc, false);
 }
 
 void World::zapRooms_unsafe(ProgressCounter &pc, const RoomIdSet &rooms)
@@ -2339,7 +2364,7 @@ void World::printStats(ProgressCounter &pc, AnsiOstream &os) const
         os << "\n";
         os << "Total areas: " << C(m_areaInfos.get()->numAreas()) << ".\n";
         os << "\n";
-        os << "Total rooms: " << C(getGlobalArea().roomSet.size()) << ".\n";
+        os << "Total rooms: " << C(getGlobalArea().roomSet.get()->size()) << ".\n";
         os << "\n";
         os << "  missing server id: " << C(numMissingServerId) << ".\n";
         os << "  missing area: " << C(numMissingArea) << ".\n";
@@ -2399,7 +2424,7 @@ void World::printStats(ProgressCounter &pc, AnsiOstream &os) const
 
     for (const auto &kv : *m_areaInfos.get()) { // Read access for iteration
         const auto &areaName = kv.first;
-        const auto numAreaRooms = kv.second.roomSet.size();
+        const auto numAreaRooms = kv.second.roomSet.get()->size();
 
         // REVISIT: include the relative size of the area?
         os << "\n"
@@ -2432,7 +2457,7 @@ XFOREACH_ROOM_PROPERTY(X_DEFINE_GETTER)
 
 bool World::containsRoomsNotIn(const World &other) const
 {
-    return getGlobalArea().roomSet.containsElementNotIn(other.getGlobalArea().roomSet);
+    return getGlobalArea().roomSet.get()->containsElementNotIn(*other.getGlobalArea().roomSet.get());
 }
 
 namespace { // anonymous
@@ -2507,9 +2532,9 @@ WorldComparisonStats World::getComparisonStats(const World &base, const World &m
     const auto anyRoomsAdded = modified.containsRoomsNotIn(base);
     const auto anyRoomsRemoved = base.containsRoomsNotIn(modified);
     // Compare underlying SpatialDb objects
-    const auto anyRoomsMoved = (base.m_spatialDb.get() != modified.m_spatialDb.get() &&
-                                (base.m_spatialDb.get() && modified.m_spatialDb.get() && *base.m_spatialDb.get() != *modified.m_spatialDb.get()));
-
+    const auto anyRoomsMoved = (base.m_spatialDb.get() != modified.m_spatialDb.get()
+                                && (base.m_spatialDb.get() && modified.m_spatialDb.get()
+                                    && *base.m_spatialDb.get() != *modified.m_spatialDb.get()));
 
     WorldComparisonStats result;
     result.boundsChanged = base.getBounds() != modified.getBounds();
@@ -2517,11 +2542,13 @@ WorldComparisonStats World::getComparisonStats(const World &base, const World &m
     result.anyRoomsAdded = anyRoomsAdded;
     result.spatialDbChanged = anyRoomsMoved;
     // Compare underlying ServerIdMap objects
-    result.serverIdsChanged = (base.m_serverIds.get() != modified.m_serverIds.get() &&
-                               (base.m_serverIds.get() && modified.m_serverIds.get() && *base.m_serverIds.get() != *modified.m_serverIds.get()));
+    result.serverIdsChanged = (base.m_serverIds.get() != modified.m_serverIds.get()
+                               && (base.m_serverIds.get() && modified.m_serverIds.get()
+                                   && *base.m_serverIds.get() != *modified.m_serverIds.get()));
     // Compare underlying ParseTree objects
-    result.parseTreeChanged = (base.m_parseTree.get() != modified.m_parseTree.get() &&
-                               (base.m_parseTree.get() && modified.m_parseTree.get() && *base.m_parseTree.get() != *modified.m_parseTree.get()));
+    result.parseTreeChanged = (base.m_parseTree.get() != modified.m_parseTree.get()
+                               && (base.m_parseTree.get() && modified.m_parseTree.get()
+                                   && *base.m_parseTree.get() != *modified.m_parseTree.get()));
     result.hasMeshDifferences = anyRoomsAdded                         //
                                 || anyRoomsRemoved                    //
                                 || anyRoomsMoved                      //

@@ -2,17 +2,19 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (c) 2025 The MMapper Authors
 
+#include "../global/CopyOnWrite.h" // Added
 #include "../global/macros.h"
 #include "RoomIdSet.h"
 #include "mmapper2room.h"
 
 #include <map>
+#include <stdexcept> // For std::out_of_range
 
 class ProgressCounter;
 
 struct NODISCARD AreaInfo final
 {
-    RoomIdSet roomSet;
+    mm::CopyOnWrite<RoomIdSet> roomSet;
 
     NODISCARD bool operator==(const AreaInfo &other) const;
     void remove(RoomId id);
@@ -25,8 +27,8 @@ struct NODISCARD AreaInfoMap final
 {
 private:
     using Map = std::map<RoomArea, AreaInfo>;
-    Map m_map;
-    AreaInfo m_global;
+    Map m_map;         // Stores AreaInfo, which now has COW RoomIdSet
+    AreaInfo m_global; // Also has COW RoomIdSet
 
 public:
     NODISCARD explicit AreaInfoMap();

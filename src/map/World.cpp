@@ -1350,7 +1350,7 @@ World World::init(ProgressCounter &counter, const std::vector<ExternalRawRoom> &
 
     // if constexpr ((IS_DEBUG_BUILD))
     {
-        DECL_TIMER(t5, "check-consistency");
+        DECL_TIMER(t5, "part3. checkConsistency");
         counter.setNewTask(ProgressMsg{"checking map consistency" /*" [debug]"*/}, 1);
         w.checkConsistency(counter);
         counter.step();
@@ -1977,12 +1977,14 @@ void World::apply(ProgressCounter & /*pc*/, const room_change_types::TryMoveClos
     setPosition(id, assigned);
 }
 
-void World::post_change_updates(ProgressCounter &pc)
+void World::post_change_updates(ProgressCounter &pc, bool run_consistency_check)
 {
     if (needsBoundsUpdate()) {
         updateBounds(pc);
     }
-    checkConsistency(pc);
+    if (run_consistency_check) {
+        checkConsistency(pc);
+    }
 }
 
 namespace {
@@ -2053,13 +2055,13 @@ void World::applyOne(ProgressCounter &pc, const Change &change)
         //
         this->apply(pc, specialized_change);
     });
-    post_change_updates(pc);
+    post_change_updates(pc, false);
 }
 
 void World::applyAll(ProgressCounter &pc, const std::vector<Change> &changes)
 {
     applyAll_internal(pc, changes);
-    post_change_updates(pc);
+    post_change_updates(pc, false);
 }
 
 void World::zapRooms_unsafe(ProgressCounter &pc, const RoomIdSet &rooms)

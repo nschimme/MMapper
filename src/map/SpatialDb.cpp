@@ -16,12 +16,12 @@ NODISCARD static bool mightBeOnBoundary(const Coordinate &coord, const Bounds &b
 
 const RoomId *SpatialDb::findUnique(const Coordinate &key) const
 {
-    return m_unique.find(key);
+    return m_unique.get()->find(key);
 }
 
 void SpatialDb::remove(const RoomId /*id*/, const Coordinate &coord)
 {
-    m_unique.erase(coord);
+    m_unique.getMutable()->erase(coord);
 
     if (!m_bounds || mightBeOnBoundary(coord, *m_bounds)) {
         m_needsBoundsUpdate = true;
@@ -35,7 +35,7 @@ void SpatialDb::add(const RoomId id, const Coordinate &coord)
     } else {
         m_bounds->insert(coord);
     }
-    m_unique.set(coord, id);
+    m_unique.getMutable()->set(coord, id);
 }
 
 void SpatialDb::move(const RoomId id, const Coordinate &from, const Coordinate &to)
@@ -52,14 +52,14 @@ void SpatialDb::updateBounds(ProgressCounter &pc)
 {
     m_bounds.reset();
     m_needsBoundsUpdate = false;
-    if (m_unique.empty()) {
+    if (m_unique.get()->empty()) {
         return;
     }
 
-    const auto &c = m_unique.begin()->first;
+    const auto &c = m_unique.get()->begin()->first;
     m_bounds.emplace(c, c);
-    pc.increaseTotalStepsBy(m_unique.size());
-    for (const auto &kv : m_unique) {
+    pc.increaseTotalStepsBy(m_unique.get()->size());
+    for (const auto &kv : *m_unique.get()) {
         m_bounds->insert(kv.first);
         pc.step();
     }

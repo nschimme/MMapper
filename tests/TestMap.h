@@ -19,4 +19,12 @@ private Q_SLOTS:
     static void mapTest();
     static void sanitizerTest();
     static void tinyRoomIdSetTest();
+    static void spatialDbCowTest();
+    // Slots from TestCow
+    static void testReadOnlySharing();
+    static void testLazyCopyOnWrite();
+    static void testMutationIsolation();
+    static void testFinalize();
+    static void testWorldCopyCOW();
+    static void testWorldApplyChangeCOW();
 };

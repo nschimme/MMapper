@@ -289,7 +289,7 @@ private:
 #undef X_NOP
 
 private:
-    void post_change_updates(ProgressCounter &pc);
+    void post_change_updates(ProgressCounter &pc, bool run_consistency_check);
     void applyAll_internal(ProgressCounter &pc, const std::vector<Change> &changes);
 
 private:

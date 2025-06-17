@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2021 The MMapper Authors
 
+#include "../global/CopyOnWrite.h"
 #include "../global/OrderedMap.h"
 #include "../global/macros.h"
 #include "coordinate.h"
@@ -17,7 +18,7 @@ struct NODISCARD SpatialDb final
 {
 private:
     /// Value is the last room assigned to the coordinate.
-    OrderedMap<Coordinate, RoomId> m_unique;
+    mm::CopyOnWrite<OrderedMap<Coordinate, RoomId>> m_unique;
 
 private:
     std::optional<Bounds> m_bounds;
@@ -46,13 +47,13 @@ public:
     void for_each(Callback &&callback) const
     {
         static_assert(std::is_invocable_r_v<void, Callback, const Coordinate &, RoomId>);
-        for (const auto &kv : m_unique) {
+        for (const auto &kv : *m_unique.get()) {
             callback(kv.first, kv.second);
         }
     }
-    NODISCARD auto size() const { return m_unique.size(); }
+    NODISCARD auto size() const { return m_unique.get()->size(); }
 
 public:
-    NODISCARD bool operator==(const SpatialDb &rhs) const { return m_unique == rhs.m_unique; }
+    NODISCARD bool operator==(const SpatialDb &rhs) const { return *m_unique.get() == *rhs.m_unique.get(); }
     NODISCARD bool operator!=(const SpatialDb &rhs) const { return !(rhs == *this); }
 };

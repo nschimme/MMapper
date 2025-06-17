@@ -689,13 +689,13 @@ void World::checkConsistency(ProgressCounter &counter) const
     };
 
     auto checkRemapping = [this](const RoomId id) {
-        if (!getGlobalArea().roomSet.contains(id)) {
+        if (!getGlobalArea().roomSet.get()->contains(id)) {
             throw MapConsistencyError("room set does not contain the room id");
         }
 
         const auto &areaName = getRoomArea(id);
         auto &area = getArea(areaName);
-        if (!area.roomSet.contains(id)) {
+        if (!area.roomSet.get()->contains(id)) {
             throw MapConsistencyError("room set does not contain the room id");
         }
 
@@ -713,18 +713,18 @@ void World::checkConsistency(ProgressCounter &counter) const
         const RoomName &name = getRoomName(id);
         const RoomDesc &desc = m_rooms.getRoomDescription(id);
 
-        if (auto set = m_parseTree.get()->name_only.find(name); set == nullptr || !set->contains(id)) {
+        if (auto set = m_parseTree.get()->name_only.find(name); set == nullptr || !set->get()->contains(id)) {
             throw MapConsistencyError("unable to find room name only");
         }
 
-        if (auto set = m_parseTree.get()->desc_only.find(desc); set == nullptr || !set->contains(id)) {
+        if (auto set = m_parseTree.get()->desc_only.find(desc); set == nullptr || !set->get()->contains(id)) {
             throw MapConsistencyError("unable to find room desc only");
         }
 
         {
             const NameDesc nameDesc{name, desc};
             if (auto set = m_parseTree.get()->name_desc.find(nameDesc);
-                set == nullptr || !set->contains(id)) {
+                set == nullptr || !set->get()->contains(id)) {
                 throw MapConsistencyError("unable to find room name_desc only");
             }
         }
@@ -1382,13 +1382,13 @@ ExternalRoomId World::getNextExternalId() const
 
 const RoomIdSet &World::getRoomSet() const
 {
-    return getGlobalArea().roomSet;
+    return *getGlobalArea().roomSet.get();
 }
 
 const RoomIdSet *World::findAreaRoomSet(const RoomArea &areaName) const
 {
     if (const AreaInfo *const area = this->findArea(areaName)) {
-        return &area->roomSet;
+        return area->roomSet.get().get();
     }
     return nullptr;
 }
@@ -2309,7 +2309,7 @@ void World::printStats(ProgressCounter &pc, AnsiOstream &os) const
         os << "\n";
         os << "Total areas: " << C(m_areaInfos.get()->numAreas()) << ".\n";
         os << "\n";
-        os << "Total rooms: " << C(getGlobalArea().roomSet.size()) << ".\n";
+        os << "Total rooms: " << C(getGlobalArea().roomSet.get()->size()) << ".\n";
         os << "\n";
         os << "  missing server id: " << C(numMissingServerId) << ".\n";
         os << "  missing area: " << C(numMissingArea) << ".\n";
@@ -2369,7 +2369,7 @@ void World::printStats(ProgressCounter &pc, AnsiOstream &os) const
 
     for (const auto &kv : *m_areaInfos.get()) { // Read access for iteration
         const auto &areaName = kv.first;
-        const auto numAreaRooms = kv.second.roomSet.size();
+        const auto numAreaRooms = kv.second.roomSet.get()->size();
 
         // REVISIT: include the relative size of the area?
         os << "\n"
@@ -2402,7 +2402,7 @@ XFOREACH_ROOM_PROPERTY(X_DEFINE_GETTER)
 
 bool World::containsRoomsNotIn(const World &other) const
 {
-    return getGlobalArea().roomSet.containsElementNotIn(other.getGlobalArea().roomSet);
+    return getGlobalArea().roomSet.get()->containsElementNotIn(*other.getGlobalArea().roomSet.get());
 }
 
 namespace { // anonymous

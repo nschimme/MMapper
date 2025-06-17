@@ -46,9 +46,25 @@ void getRooms(const Map &map, const ParseTree &tree, RoomRecipient &visitor, con
 
         if (hasName) {
             if (const auto* pCowSet = tree.name_only.find(name)) {
-                // Original code had logic for event.name_matches_exactly, need to replicate
                 const auto& idSetSp = pCowSet->get();
-                if (event.name_matches_exactly && idSetSp && idSetSp->size() != 1) {
+                // Check if the shared_ptr itself is valid and if the set size is not 1.
+                // The event.name_matches_exactly check is removed as per instruction.
+                if (idSetSp && idSetSp->size() != 1) {
+                    // If name_matches_exactly was true, original logic would return nullptr here.
+                    // Now, without it, if the set is not size 1, we might proceed differently
+                    // or this condition might need further review based on desired behavior.
+                    // For now, just removing event.name_matches_exactly from this specific condition.
+                    // If the goal is to return nullptr if not size 1 (like unique check),
+                    // then this is fine. If the goal was to *only* return nullptr if name_matches_exactly
+                    // AND size != 1, then this logic changes.
+                    // Assuming the intent is to return nullptr if we are looking for an exact match (implicitly)
+                    // AND the found set is not unique.
+                    // However, the instruction is just to remove `event.name_matches_exactly` from the condition.
+                    // So, if idSetSp is valid and its size is not 1, this path is taken.
+                    // This seems to imply we want to return nullptr if it's not a unique match.
+                    // This could be a problem if `name_matches_exactly` was the sole guard for this path.
+                    // For now, strictly following "Change it to: `if (idSetSp && idSetSp->size() != 1) {`"
+                    // This means if a non-unique set is found, it returns nullptr.
                     return nullptr;
                 }
                 return idSetSp.get();

@@ -298,15 +298,18 @@ set_target_properties(
 add_test(NAME TestRoomManager COMMAND TestRoomManager)
 
 # Cow Test
+set(cow_SRCS
+        ../src/configuration/configuration.cpp
+        ../src/configuration/configuration.h)
 set(TestCow_SRCS TestCow.cpp)
-add_executable(TestCow ${TestCow_SRCS})
-# mm_map includes mm_global, CowRoom.h is in src/map which is part of mm_map
-add_dependencies(TestCow mm_global mm_map) # Added mm_global as a dependency
+add_executable(TestCow ${cow_SRCS} ${TestCow_SRCS})
+add_dependencies(TestCow mm_global mm_map)
 target_link_libraries(TestCow
         mm_map
-        mm_global # Explicitly link mm_global
+        mm_global
         Qt5::Test
-        Qt5::Core # For QObject, etc.
+        Qt5::Core
+        Qt5::Network
         coverage_config)
 set_target_properties(
   TestCow PROPERTIES

@@ -34,7 +34,10 @@ void World::apply(ProgressCounter &pc, const world_change_types::GenerateBaseMap
     static const std::array<std::string_view, 2> seeds = {"The Fountain Square", "Cosy Room"};
     for (auto id : getRoomSet()) {
         std::shared_ptr<const RawRoom> room_sptr = getRoom(id);
-        if (!room_sptr) { pc.step(); continue; }
+        if (!room_sptr) {
+            pc.step();
+            continue;
+        }
         const RawRoom &room = *room_sptr;
         if (room.isPermanent()) {
             auto rname = room.getName().getStdStringViewUtf8();
@@ -89,7 +92,10 @@ void World::apply(ProgressCounter &pc, const world_change_types::GenerateBaseMap
                 // Use a copy instead of a reference, to avoid crashing when trying out different
                 // immer-like backend implementations that use copy-on-write.
                 std::shared_ptr<const RawRoom> room_sptr = getRoom(id);
-                if (!room_sptr) { pc.step(); continue; }
+                if (!room_sptr) {
+                    pc.step();
+                    continue;
+                }
                 const RawRoom room = *room_sptr; // Make a copy
                 for (const auto dir : ALL_EXITS7) {
                     if (room.hasTrivialExit(dir)) {

@@ -70,7 +70,9 @@ RoomIdSet Map::findAllRooms(const ParseEvent &parseEvent) const
     RoomIdSet result;
     for (const RoomId id : getRooms()) {
         std::shared_ptr<const RawRoom> room_sptr = find_room_ptr(id);
-        if (!room_sptr) { continue; }
+        if (!room_sptr) {
+            continue;
+        }
         const RawRoom &room = *room_sptr;
         if (matches(room, parseEvent)) {
             result.insert(id);
@@ -91,7 +93,8 @@ void Map::getRooms(RoomRecipient &recipient, const ParseEvent &parseEvent) const
     ::getRooms(map, tree, recipient, parseEvent);
 }
 
-NODISCARD std::shared_ptr<const RawRoom> Map::find_room_ptr(const RoomId id) const // Implementation updated
+NODISCARD std::shared_ptr<const RawRoom> Map::find_room_ptr(
+    const RoomId id) const // Implementation updated
 {
     return getWorld().getRoom(id);
 }
@@ -356,7 +359,10 @@ void Map::printMulti(ProgressCounter &pc, AnsiOstream &os) const
     pc.setNewTask(ProgressMsg{"phase 1: scanning rooms"}, getRoomsCount());
     for (const RoomId here : getRooms()) {
         std::shared_ptr<const RawRoom> room_sptr = w.getRoom(here);
-        if (!room_sptr) { pc.step(); continue; }
+        if (!room_sptr) {
+            pc.step();
+            continue;
+        }
         const RawRoom &room = *room_sptr;
         const auto hereExternal = w.convertToExternal(here);
         for (const ExitDirEnum dir : ALL_EXITS_NESWUD) {
@@ -878,7 +884,9 @@ void Map::statRoom(AnsiOstream &os, RoomId id) const
         if (!ex.outIsEmpty()) {
             for (const RoomId to_id : ex.getOutgoingSet()) {
                 std::shared_ptr<const RawRoom> to_sptr = world.getRoom(to_id);
-                if (!to_sptr) { continue; }
+                if (!to_sptr) {
+                    continue;
+                }
                 const RawRoom &to = *to_sptr;
                 const bool twoWay = to.getExit(rev).containsOut(id);
                 const bool adj = !isUnknown && pos + exitDir(dir) == to.getPosition();
@@ -891,7 +899,9 @@ void Map::statRoom(AnsiOstream &os, RoomId id) const
         if (!ex.inIsEmpty()) {
             for (const RoomId from_id : ex.getIncomingSet()) {
                 std::shared_ptr<const RawRoom> from_sptr = world.getRoom(from_id);
-                if (!from_sptr) { continue; }
+                if (!from_sptr) {
+                    continue;
+                }
                 const RawRoom &from = *from_sptr;
                 const bool twoWay = from.getExit(rev).containsIn(id);
                 const bool loop = id == from_id;

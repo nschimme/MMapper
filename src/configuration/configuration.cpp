@@ -16,7 +16,6 @@
 #include <QByteArray>
 #include <QChar>
 #include <QDir>
-#include <QHostInfo>
 #include <QSslSocket>
 #include <QString>
 #include <QStringList>

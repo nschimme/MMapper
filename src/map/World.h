@@ -143,7 +143,8 @@ public:
 
 public:
     NODISCARD RawExit getRawExit(RoomId id, ExitDirEnum dir) const;
-    NODISCARD RawRoom getRawCopy(RoomId id) const; // Signature stays the same, implementation will change
+    NODISCARD RawRoom
+    getRawCopy(RoomId id) const; // Signature stays the same, implementation will change
 
 public:
     NODISCARD static World init(ProgressCounter &counter, const std::vector<ExternalRawRoom> &map);

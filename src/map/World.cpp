@@ -402,7 +402,7 @@ void World::setRoom(const RoomId id, const RawRoom &room)
         // This means it removed based on the *new* position if the old one was different.
         // Let's assume the intent was to remove the old and add the new if different.
         if (oldCoord) {
-             m_spatialDb.remove(id, *oldCoord);
+            m_spatialDb.remove(id, *oldCoord);
         }
     }
 
@@ -426,10 +426,11 @@ void World::setRoom(const RoomId id, const RawRoom &room)
         m_spatialDb.add(id, newCoord);
     }
 
-
     if constexpr (IS_DEBUG_BUILD) {
         std::shared_ptr<const RawRoom> here_sptr = getRoom(id);
-        if (!here_sptr) { throw InvalidMapOperation("Room disappeared after setRoom_lowlevel"); }
+        if (!here_sptr) {
+            throw InvalidMapOperation("Room disappeared after setRoom_lowlevel");
+        }
         const auto &here = *here_sptr;
         assert(satisfiesInvariants(here));
 
@@ -814,7 +815,7 @@ void World::clearExit(const RoomId id, const ExitDirEnum dir, const WaysEnum way
         exitRef.outgoing = {};
         // exitRef.incoming was cleared by std::exchange
         exitRef.incoming = std::move(old_inbound); // Restore incoming
-    } else { // TwoWay
+    } else {                                       // TwoWay
         // Clear all fields of exitRef
         exitRef.fields = {};
         exitRef.outgoing = {};
@@ -1182,7 +1183,9 @@ void World::initRoom(const RawRoom &input)
 
     if constexpr (IS_DEBUG_BUILD) {
         std::shared_ptr<const RawRoom> here_sptr = getRoom(id);
-        if (!here_sptr) { throw InvalidMapOperation("Room disappeared after initRoom"); }
+        if (!here_sptr) {
+            throw InvalidMapOperation("Room disappeared after initRoom");
+        }
         const auto &here = *here_sptr;
         assert(satisfiesInvariants(here));
 
@@ -2406,8 +2409,9 @@ NODISCARD bool hasMeshDifference(const World &a, const World &b)
             // This case implies an inconsistency if hasRoom(id) was true for both.
             // Or if one became null during the process, which would be a bug.
             // For robustness, consider it a difference or log an error.
-            if (room_a_sptr != room_b_sptr) return true; // If one is null and other isn't
-            continue; // Or if both null (shouldn't happen if hasRoom is true)
+            if (room_a_sptr != room_b_sptr)
+                return true; // If one is null and other isn't
+            continue;        // Or if both null (shouldn't happen if hasRoom is true)
         }
         if (hasMeshDifference(*room_a_sptr, *room_b_sptr)) {
             return true;

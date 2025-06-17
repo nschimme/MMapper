@@ -8,6 +8,7 @@
 #include "InvalidMapOperation.h"
 #include "RawExit.h"
 #include "RawRoom.h"
+
 #include <memory> // Added
 
 class NODISCARD RawRooms final
@@ -17,13 +18,19 @@ private:
 
 public:
     NODISCARD CowRoom &getRawRoomRef(RoomId pos) { return m_rooms.at(pos); } // Return CowRoom&
-    NODISCARD const CowRoom &getRawRoomRef(RoomId pos) const { return m_rooms.at(pos); } // Return const CowRoom&
+    NODISCARD const CowRoom &getRawRoomRef(RoomId pos) const
+    {
+        return m_rooms.at(pos);
+    } // Return const CowRoom&
 
 public:
     NODISCARD size_t size() const { return m_rooms.size(); }
     void resize(const size_t numRooms) { m_rooms.resize(numRooms); }
 
-    void removeAt(const RoomId id) { getRawRoomRef(id) = CowRoom(std::make_shared<RawRoom>()); } // Updated removeAt
+    void removeAt(const RoomId id)
+    {
+        getRawRoomRef(id) = CowRoom(std::make_shared<RawRoom>());
+    } // Updated removeAt
 
     void requireUninitialized(const RoomId id) const
     {
@@ -172,14 +179,16 @@ public:
         if (m_rooms.size() != rhs.m_rooms.size()) {
             return false;
         }
-        for (RoomId i = RoomId{0}; i < RoomId{static_cast<int>(m_rooms.size())}; ++i) {
+        for (RoomId i = RoomId{0}; i < RoomId{static_cast<RoomId::WrappedType>(m_rooms.size())};
+             ++i) {
             // Assuming RoomId can be cast to size_t or int for loop
             // Also assuming m_rooms.isValid(i) or similar check might be needed if vector can be sparse
             // For now, direct iteration up to size.
-            const auto& r1 = getRawRoomRef(i);
-            const auto& r2 = rhs.getRawRoomRef(i);
+            const auto &r1 = getRawRoomRef(i);
+            const auto &r2 = rhs.getRawRoomRef(i);
             if (!r1.get() || !r2.get()) { // one of them is uninitialized via CowRoom
-                 if (r1.get() != r2.get()) return false; // only true if both are null
+                if (r1.get() != r2.get())
+                    return false; // only true if both are null
             } else if (*r1.get() != *r2.get()) {
                 return false;
             }

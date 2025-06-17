@@ -61,7 +61,7 @@ public:
     ALLOW_DISCARD Crtp_ &operator++()
     {
         *this = next(); // next() returns Crtp_ by value. Assignment updates m_value.
-        return static_cast<Crtp_&>(*this); // Cast *this to the derived type reference.
+        return static_cast<Crtp_ &>(*this); // Cast *this to the derived type reference.
     }
 
     // post-increment: auto y = x++;

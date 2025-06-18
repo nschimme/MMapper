@@ -104,7 +104,10 @@ public:
 public:
     NODISCARD std::optional<RoomId> findRoom(const Coordinate &coord) const
     {
-        return m_spatialDb.getReadOnly().findUnique(coord);
+        if (const RoomId *room_id_ptr = m_spatialDb.getReadOnly().findUnique(coord)) {
+            return *room_id_ptr; // Construct optional from value
+        }
+        return std::nullopt; // Or just return {}; which also constructs an empty optional
     }
     NODISCARD const Coordinate &getPosition(RoomId id) const;
 

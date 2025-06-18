@@ -116,14 +116,10 @@ public:
 public:
     void scheduleAction(const Change &change);
 
-    // looking for rooms leads to a bunch of foundRoom() signals
-    void lookingForRooms(RoomRecipient &, const SigParseEvent &);
-    void lookingForRooms(RoomRecipient &, RoomId); // by id
-    void lookingForRooms(RoomRecipient &, const Coordinate &);
-
-public:
-    void keepRoom(RoomRecipient &, RoomId);
-    void releaseRoom(RoomRecipient &, RoomId);
+    // looking for rooms returns a set of matching room IDs
+    NODISCARD RoomIdSet lookingForRooms(const SigParseEvent &);
+    NODISCARD RoomIdSet lookingForRooms(RoomId); // by id
+    NODISCARD RoomIdSet lookingForRooms(const Coordinate &);
 
 signals:
     // this signal is also sent out if a room is deleted. So any clients still

@@ -25,7 +25,11 @@ Crossover::Crossover(MapFrontend &map,
 void Crossover::virt_receiveRoom(const RoomHandle &room)
 {
     if (deref(shortPaths).empty()) {
-        m_map.releaseRoom(*this, room.getId());
+        if (auto rh = m_map.findRoomHandle(room.getId())) {
+            if (rh.isTemporary()) {
+                m_map.applySingleChange(Change{room_change_types::RemoveRoom{room.getId()}});
+            }
+        }
     }
 
     for (auto &shortPath : *shortPaths) {

@@ -10,18 +10,21 @@
 #include "../global/logging.h"
 #include "Compare.h"
 #include "Map.h"
-#include "RoomRecipient.h"
+// RoomRecipient.h removed as it's no longer directly used in this file
 #include "World.h"
 
 #include <deque>
 #include <optional>
 
-void getRooms(const Map &map, const ParseTree &tree, RoomRecipient &visitor, const ParseEvent &event)
+RoomIdSet getRooms(const Map &map, const ParseTree &tree, const ParseEvent &event)
 {
+    RoomIdSet result_ids; // Changed from visitor to returning a RoomIdSet
+
     // REVISIT: use Timer here instead of manually doing the same thing with Clock::now(),
     // which would have the added benefit of reporting times for lookups that fail.
     using Clock = std::chrono::steady_clock;
     const auto t0 = Clock::now();
+    // These statics are fine, they control fallback logic
     static volatile bool fallbackToCurrentArea = true;
     static volatile bool fallbackToRemainder = true;
     static volatile bool fallbackToWholeMap = true;
@@ -99,17 +102,18 @@ void getRooms(const Map &map, const ParseTree &tree, RoomRecipient &visitor, con
 
     if (pSet == nullptr) {
         MMLOG() << "[getRooms] Unable to find any matches.";
-        return;
+        return result_ids; // Return empty set
     }
 
     auto &set = *pSet;
 
     const int tolerance = getConfig().pathMachine.matchingTolerance;
-    auto tryReport = [&event, &visitor, tolerance](const RoomHandle &room) {
+    // Modified tryReport to capture result_ids by reference and insert into it
+    auto tryReport = [&event, &result_ids, tolerance](const RoomHandle &room) {
         if (::compare(room.getRaw(), event, tolerance) == ComparisonResultEnum::DIFFERENT) {
             return false;
         }
-        visitor.receiveRoom(room);
+        result_ids.insert(room.getId()); // Insert RoomId into the set
         return true;
     };
 
@@ -140,6 +144,8 @@ void getRooms(const Map &map, const ParseTree &tree, RoomRecipient &visitor, con
     report("part1. (nothing)", t1, t2);
     report("part2. for(...) tryReport() ", t2, t3);
     report("overall", t0, t3);
+
+    return result_ids; // Return the populated set
 }
 
 void ParseTree::printStats(ProgressCounter & /*pc*/, AnsiOstream &os) const

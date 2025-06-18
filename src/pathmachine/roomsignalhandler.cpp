@@ -29,11 +29,13 @@ void RoomSignalHandler::release(const RoomId room)
     assert(holdCount[room]);
     if (--holdCount[room] == 0) {
         if (owners.contains(room)) {
-            for (auto i = lockers[room].begin(); i != lockers[room].end(); ++i) {
-                if (RoomRecipient *const recipient = *i) {
-                    m_map.releaseRoom(*recipient, room);
+            // New logic to remove room if it's temporary
+            if (auto rh = m_map.findRoomHandle(room)) {
+                if (rh.isTemporary()) {
+                    m_map.applySingleChange(Change{room_change_types::RemoveRoom{room}});
                 }
             }
+            // Original loop that called m_map.releaseRoom for each recipient is removed.
         } else {
             assert(false);
         }
@@ -51,6 +53,13 @@ void RoomSignalHandler::keep(const RoomId room,
     assert(holdCount[room] != 0);
     assert(owners.contains(room));
 
+    // New logic to make room permanent if it's temporary
+    if (auto rh = m_map.findRoomHandle(room)) {
+        if (rh.isTemporary()) {
+            changes.add(Change{room_change_types::MakePermanent{room}});
+        }
+    }
+
     static_assert(static_cast<uint32_t>(ExitDirEnum::UNKNOWN) + 1 == NUM_EXITS);
     if (isNESWUD(dir) || dir == ExitDirEnum::UNKNOWN) {
         changes.add(exit_change_types::ModifyExitConnection{ChangeTypeEnum::Add,
@@ -60,13 +69,14 @@ void RoomSignalHandler::keep(const RoomId room,
                                                             WaysEnum::OneWay});
     }
 
+    // Original logic for managing lockers, but without calling m_map.keepRoom
     if (!lockers[room].empty()) {
         if (RoomRecipient *const locker = *(lockers[room].begin())) {
-            m_map.keepRoom(*locker, room);
+            // m_map.keepRoom(*locker, room); // Removed
             lockers[room].erase(locker);
         } else {
             assert(false);
         }
     }
-    release(room);
+    release(room); // This will decrement holdCount and might trigger actual release logic
 }

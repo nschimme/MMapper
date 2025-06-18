@@ -13,6 +13,7 @@
 #include "pathparameters.h"
 #include "roomsignalhandler.h"
 
+#include <functional>
 #include <memory>
 #include <optional>
 
@@ -78,9 +79,9 @@ private:
     void syncing(const SigParseEvent &sigParseEvent, ChangeList &changes);
     void approved(const SigParseEvent &sigParseEvent, ChangeList &changes);
     void evaluatePaths(ChangeList &changes);
-    void tryExits(const RoomHandle &, RoomRecipient &, const ParseEvent &, bool out);
-    void tryExit(const RawExit &possible, RoomRecipient &recipient, bool out);
-    void tryCoordinate(const RoomHandle &, RoomRecipient &, const ParseEvent &);
+    void tryExits(const RoomHandle &room, std::function<void(const RoomHandle&)> processRoomHandle, const ParseEvent &event, bool out);
+    void tryExit(const RawExit &possible, std::function<void(const RoomHandle&)> processRoomHandle, bool out);
+    void tryCoordinate(const RoomHandle &room, std::function<void(const RoomHandle&)> processRoomHandle, const ParseEvent &event);
 
 private:
     void updateMostLikelyRoom(const SigParseEvent &sigParseEvent, ChangeList &changes, bool force);

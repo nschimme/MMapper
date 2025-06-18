@@ -121,10 +121,6 @@ public:
     void lookingForRooms(RoomRecipient &, RoomId); // by id
     void lookingForRooms(RoomRecipient &, const Coordinate &);
 
-public:
-    void keepRoom(RoomRecipient &, RoomId);
-    void releaseRoom(RoomRecipient &, RoomId);
-
 signals:
     // this signal is also sent out if a room is deleted. So any clients still
     // working on this room can start some emergency action.

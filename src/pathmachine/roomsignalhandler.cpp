@@ -24,18 +24,14 @@ void RoomSignalHandler::hold(const RoomId room, RoomRecipient *const locker)
     ++holdCount[room];
 }
 
-void RoomSignalHandler::release(const RoomId room)
+void RoomSignalHandler::release(const RoomId room, ChangeList &changes)
 {
     assert(holdCount[room]);
     if (--holdCount[room] == 0) {
         if (owners.contains(room)) {
-            for (auto i = lockers[room].begin(); i != lockers[room].end(); ++i) {
-                if (RoomRecipient *const recipient = *i) {
-                    m_map.releaseRoom(*recipient, room);
-                }
-            }
+            changes.add(Change{room_change_types::RemoveRoom{room}});
         } else {
-            assert(false);
+            assert(false); // Or handle this case as an error/log
         }
 
         lockers.erase(room);
@@ -60,13 +56,6 @@ void RoomSignalHandler::keep(const RoomId room,
                                                             WaysEnum::OneWay});
     }
 
-    if (!lockers[room].empty()) {
-        if (RoomRecipient *const locker = *(lockers[room].begin())) {
-            m_map.keepRoom(*locker, room);
-            lockers[room].erase(locker);
-        } else {
-            assert(false);
-        }
-    }
-    release(room);
+    changes.add(Change{room_change_types::MakePermanent{room}});
+    release(room, changes);
 }

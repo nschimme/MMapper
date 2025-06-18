@@ -67,26 +67,27 @@ const RoomIdSet &Map::getRooms() const
 
 RoomIdSet Map::findAllRooms(const ParseEvent &parseEvent) const
 {
-    RoomIdSet result;
-    for (const RoomId id : getRooms()) {
-        const RawRoom &room = deref(find_room_ptr(id));
-        if (matches(room, parseEvent)) {
-            result.insert(id);
-        }
-    }
-    return result;
-}
-
-void Map::getRooms(RoomRecipient &recipient, const ParseEvent &parseEvent) const
-{
     const Map &map = *this;
     if (parseEvent.getServerId() != INVALID_SERVER_ROOMID) {
         if (const auto rh = map.findRoomHandle(parseEvent.getServerId())) {
-            return recipient.receiveRoom(rh);
+            // REVISIT: This is not an efficient way to return a single item.
+            RoomIdSet result;
+            result.insert(rh.getId());
+            return result;
         }
     }
     const auto &tree = map.getWorld().getParseTree();
-    ::getRooms(map, tree, recipient, parseEvent);
+    // Create a temporary RoomRecipient that collects RoomIds into a RoomIdSet.
+    // This is a temporary measure to bridge the gap until ParseTree::getRooms is refactored.
+    struct TempRoomRecipient : public RoomRecipient {
+        RoomIdSet roomIds;
+        void virt_receiveRoom(const RoomHandle &room) override {
+            roomIds.insert(room.getId());
+        }
+    };
+    TempRoomRecipient tempRecipient;
+    ::getRooms(map, tree, tempRecipient, parseEvent);
+    return tempRecipient.roomIds;
 }
 
 NODISCARD const RawRoom *Map::find_room_ptr(const RoomId id) const

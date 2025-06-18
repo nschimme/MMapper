@@ -102,11 +102,15 @@ void PathMachine::forcePositionChange(const RoomId id, const bool update)
 
 void PathMachine::slot_releaseAllPaths()
 {
+    ChangeList localChanges;
     auto &paths = deref(m_paths);
     for (auto &path : paths) {
-        path->deny();
+        path->deny(localChanges); // Pass localChanges
     }
     paths.clear();
+    if (!localChanges.empty()) {
+        scheduleAction(localChanges);
+    }
 
     m_state = PathStateEnum::SYNCING;
 
@@ -152,10 +156,7 @@ void PathMachine::handleParseEvent(const SigParseEvent &sigParseEvent)
     }
 }
 
-void PathMachine::tryExits(const RoomHandle &room,
-                           RoomRecipient &recipient,
-                           const ParseEvent &event,
-                           const bool out)
+void PathMachine::tryExits(const RoomHandle &room, std::function<void(const RoomHandle&)> processRoomHandle, const ParseEvent &event, const bool out)
 {
     if (!room.exists()) {
         // most likely room doesn't exist
@@ -165,29 +166,35 @@ void PathMachine::tryExits(const RoomHandle &room,
     const CommandEnum move = event.getMoveType();
     if (isDirection7(move)) {
         const auto &possible = room.getExit(getDirection(move));
-        tryExit(possible, recipient, out);
+        tryExit(possible, processRoomHandle, out);
     } else {
-        // Only check the current room for LOOK
-        m_map.lookingForRooms(recipient, room.getId());
+        // This call was originally m_map.lookingForRooms(recipient, room.getId());
+        // Replicating the logic of lookingForRooms(RoomId): find handle and call recipient.
+        // Since 'room' is already the handle we're interested in (current room for LOOK command),
+        // and we've checked room.exists(), we can process it.
+        if (room.exists()) { // Guarding, though outer check should suffice
+             processRoomHandle(room);
+        }
+
         if (move >= CommandEnum::FLEE) {
             // Only try all possible exits for commands FLEE, SCOUT, and NONE
             for (const auto &possible : room.getExits()) {
-                tryExit(possible, recipient, out);
+                tryExit(possible, processRoomHandle, out);
             }
         }
     }
 }
 
-void PathMachine::tryExit(const RawExit &possible, RoomRecipient &recipient, const bool out)
+void PathMachine::tryExit(const RawExit &possible, std::function<void(const RoomHandle&)> processRoomHandle, const bool out)
 {
     for (auto idx : (out ? possible.getOutgoingSet() : possible.getIncomingSet())) {
-        m_map.lookingForRooms(recipient, idx);
+        if (auto rh = m_map.findRoomHandle(idx)) { // m_map is MapFrontend
+            processRoomHandle(rh);
+        }
     }
 }
 
-void PathMachine::tryCoordinate(const RoomHandle &room,
-                                RoomRecipient &recipient,
-                                const ParseEvent &event)
+void PathMachine::tryCoordinate(const RoomHandle &room, std::function<void(const RoomHandle&)> processRoomHandle, const ParseEvent &event)
 {
     if (!room.exists()) {
         // most likely room doesn't exist
@@ -199,17 +206,19 @@ void PathMachine::tryCoordinate(const RoomHandle &room,
         // LOOK, UNKNOWN will have an empty offset
         auto offset = ::exitDir(getDirection(moveCode));
         const Coordinate c = room.getPosition() + offset;
-        m_map.lookingForRooms(recipient, c);
-
+        // m_map.lookingForRooms(recipient, c); becomes:
+        if (auto rh = m_map.findRoomHandle(c)) {
+            processRoomHandle(rh);
+        }
     } else {
         const Coordinate roomPos = room.getPosition();
         // REVISIT: Should this enumerate 6 or 7 values?
-        // NOTE: This previously enumerated 8 values instead of 7,
-        // which meant it was asking for exitDir(ExitDirEnum::NONE),
-        // even though both ExitDirEnum::UNKNOWN and ExitDirEnum::NONE
-        // both have Coordinate(0, 0, 0).
+        // NOTE: This previously enumerated 8 values instead of 7, (already addressed in source)
         for (const ExitDirEnum dir : ALL_EXITS7) {
-            m_map.lookingForRooms(recipient, roomPos + ::exitDir(dir));
+            // m_map.lookingForRooms(recipient, roomPos + ::exitDir(dir)); becomes:
+            if (auto rh = m_map.findRoomHandle(roomPos + ::exitDir(dir))) {
+                processRoomHandle(rh);
+            }
         }
     }
 }

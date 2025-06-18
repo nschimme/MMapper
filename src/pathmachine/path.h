@@ -81,7 +81,7 @@ public:
     void approve(ChangeList &changes);
 
     // deletes this path and all parents up to the next branch
-    void deny();
+    void deny(ChangeList &changes);
     void setProb(double p)
     {
         assert(!m_zombie);

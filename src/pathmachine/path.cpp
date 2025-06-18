@@ -144,7 +144,7 @@ void Path::approve(ChangeList &changes)
 /** removes this path and all parents up to the next branch
  * and removes the respective rooms if experimental
  */
-void Path::deny()
+void Path::deny(ChangeList &changes)
 {
     assert(!m_zombie);
 
@@ -152,11 +152,11 @@ void Path::deny()
         return;
     }
     if (m_dir.has_value()) {
-        deref(m_signaler).release(m_room.getId());
+        deref(m_signaler).release(m_room.getId(), changes);
     }
     if (const auto &parent = getParent()) {
         parent->removeChild(shared_from_this());
-        parent->deny();
+        parent->deny(changes);
     }
 
     // was: `delete this`

@@ -56,9 +56,7 @@ public:
 
 public:
     NODISCARD const RoomIdSet &getRooms() const;
-    DEPRECATED_MSG("use findAllRooms()")
-    void getRooms(RoomRecipient &recipient, const ParseEvent &) const;
-    NODISCARD RoomIdSet findAllRooms(const ParseEvent &) const;
+    RoomIdSet findAllRooms(const ParseEvent &event) const;
 
 private:
     NODISCARD const RawRoom *find_room_ptr(RoomId id) const;

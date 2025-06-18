@@ -43,7 +43,7 @@ public:
     // hold the room, we don't know yet what to do, overrides release, re-caches if room was un-cached
     void hold(RoomId room, RoomRecipient *locker);
     // room isn't needed anymore and can be deleted if no one else is holding it and no one else uncached it
-    void release(RoomId room);
+    void release(RoomId room, ChangeList &changes);
     // keep the room but un-cache it - overrides both hold and release
     // toId is negative if no exit should be added, else it's the id of
     // the room where the exit should lead

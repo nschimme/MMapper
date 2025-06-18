@@ -37,7 +37,7 @@ public:
         : CopyOnWrite{T{}} // delegates to CopyOnWrite(const T&)
     {
         // static_assert in delegated ctor ensures cowable
-        MMLOG_DEBUG() << PRETTY_FUNCTION << " " << this;
+        //MMLOG_DEBUG() << PRETTY_FUNCTION << " " << this;
     }
 
     // Constructor from const T&
@@ -46,7 +46,7 @@ public:
     {
         static_assert(is_cowable_v<T>,
                       "CopyOnWrite<T>: T must be non-reference, non-cv-qualified type.");
-        MMLOG_DEBUG() << PRETTY_FUNCTION << " " << this;
+        //MMLOG_DEBUG() << PRETTY_FUNCTION << " " << this;
     }
 
     // Constructor from ReadOnly (std::shared_ptr<const T>)
@@ -55,7 +55,7 @@ public:
     {
         static_assert(is_cowable_v<T>,
                       "CopyOnWrite<T>: T must be non-reference, non-cv-qualified type.");
-        MMLOG_DEBUG() << PRETTY_FUNCTION << " " << this;
+        //MMLOG_DEBUG() << PRETTY_FUNCTION << " " << this;
         if (!std::get<ReadOnly>(m_data)) {
             throw std::invalid_argument("ReadOnly data pointer must not be null.");
         }
@@ -66,7 +66,7 @@ public:
     {
         static_assert(is_cowable_v<T>,
                       "CopyOnWrite<T>: T must be non-reference, non-cv-qualified type.");
-        MMLOG_DEBUG() << PRETTY_FUNCTION << " " << this << " from " << &other;
+        //MMLOG_DEBUG() << PRETTY_FUNCTION << " " << this << " from " << &other;
         other.makeReadOnly();
         m_data = std::get<ReadOnly>(other.m_data);
     }
@@ -76,7 +76,7 @@ public:
     {
         static_assert(is_cowable_v<T>,
                       "CopyOnWrite<T>: T must be non-reference, non-cv-qualified type.");
-        MMLOG_DEBUG() << PRETTY_FUNCTION << " " << this << " from " << &other;
+        //MMLOG_DEBUG() << PRETTY_FUNCTION << " " << this << " from " << &other;
         if (this != &other) {
             other.makeReadOnly();
             m_data = std::get<ReadOnly>(other.m_data);
@@ -93,21 +93,21 @@ public:
     // Check if current data is mutable
     NODISCARD bool isMutable() const
     {
-        MMLOG_DEBUG() << PRETTY_FUNCTION << " " << this;
+        //MMLOG_DEBUG() << PRETTY_FUNCTION << " " << this;
         return std::holds_alternative<Mutable>(m_data);
     }
 
     // Check if current data is read-only
     NODISCARD bool isReadOnly() const
     {
-        MMLOG_DEBUG() << PRETTY_FUNCTION << " " << this;
+        //MMLOG_DEBUG() << PRETTY_FUNCTION << " " << this;
         return std::holds_alternative<ReadOnly>(m_data);
     }
 
     // Get const ref to underlying T
     NODISCARD const T &getReadOnly() const
     {
-        MMLOG_DEBUG() << PRETTY_FUNCTION << " " << this;
+        //MMLOG_DEBUG() << PRETTY_FUNCTION << " " << this;
         if (isMutable()) {
             makeReadOnly();
         }
@@ -117,7 +117,7 @@ public:
     // Get mutable ref to underlying T (trigger copy if needed)
     NODISCARD T &getMutable()
     {
-        MMLOG_DEBUG() << PRETTY_FUNCTION << " " << this;
+        //MMLOG_DEBUG() << PRETTY_FUNCTION << " " << this;
         if (isReadOnly()) {
             // Copy underlying const data to new mutable shared_ptr
             *this = CopyOnWrite{getReadOnly()};
@@ -128,7 +128,7 @@ public:
     // Make current data read-only (shared)
     void makeReadOnly() const
     {
-        MMLOG_DEBUG() << PRETTY_FUNCTION << " " << this;
+        //MMLOG_DEBUG() << PRETTY_FUNCTION << " " << this;
         if (isMutable()) {
             m_data = std::static_pointer_cast<const T>(std::get<Mutable>(m_data));
         }
@@ -137,7 +137,7 @@ public:
     // Equality operators compare pointed-to values
     NODISCARD bool operator==(const CopyOnWrite<T> &other) const
     {
-        MMLOG_DEBUG() << PRETTY_FUNCTION << " " << this << " vs " << &other;
+        //MMLOG_DEBUG() << PRETTY_FUNCTION << " " << this << " vs " << &other;
 
         const T *p1_ptr = nullptr;
         const T *p2_ptr = nullptr;

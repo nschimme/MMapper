@@ -231,21 +231,7 @@ void World::requireValidRoom(const RoomId id) const
     }
 }
 
-std::optional<RoomId> World::findRoom(const Coordinate &coord) const
-{
-    // Already updated in World.h to use m_spatialDb.getReadOnly().findRoom(coord)
-    // For consistency, if it were defined here, it would be:
-    // if (const RoomId *const id = m_spatialDb.getReadOnly().findUnique(coord)) {
-    //     return *id;
-    // }
-    // return std::nullopt;
-    // However, the definition was moved to World.h as inline.
-    // So, this definition in World.cpp should be removed if it still exists,
-    // or this change is not needed if it's already removed.
-    // Assuming it's removed from .cpp as per previous step for inline in .h
-    // This definition is being removed. The call in World.h was changed to findUnique.
-    // return m_spatialDb.getReadOnly().findUnique(coord);
-}
+// Removed: World::findRoom, now inline in World.h (and uses findUnique)
 
 ServerRoomId World::getServerId(const RoomId id) const
 {

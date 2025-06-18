@@ -97,7 +97,6 @@ private:
     void parseMudCommands(const QString &str);
     NODISCARD QString characters(QString &ch);
     NODISCARD bool element(const QString &);
-    void maybeUpdate(RoomId expectedId, const ParseEvent &ev);
     void setMove(CommandEnum dir);
     void move();
     void parseGmcpStatusVars(const JsonObj &obj);

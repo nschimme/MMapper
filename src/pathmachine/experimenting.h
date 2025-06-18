@@ -9,7 +9,7 @@
 #include "../map/ExitDirection.h"
 #include "../map/ExitFieldVariant.h"
 #include "../map/ExitFlags.h"
-#include "../map/RoomRecipient.h"
+// ../map/RoomRecipient.h removed
 #include "../map/coordinate.h"
 #include "path.h"
 
@@ -21,9 +21,12 @@ class PathMachine;
 struct PathParameters;
 
 // Base class for Crossover and OneByOne
-class NODISCARD Experimenting : public RoomRecipient
+class NODISCARD Experimenting // Removed : public RoomRecipient
 {
 protected:
+    // This method might need to be re-evaluated as its callers (OneByOne, Crossover)
+    // no longer use the RoomRecipient mechanism.
+    // For now, keeping its signature, but its utility might change.
     void augmentPath(const std::shared_ptr<Path> &path, const RoomHandle &room);
     const Coordinate direction;
     const ExitDirEnum dirCode;
@@ -44,8 +47,12 @@ protected:
                            PathParameters &params);
 
 public:
-    ~Experimenting() override;
+    ~Experimenting(); // Removed override
 
 public:
     std::shared_ptr<PathList> evaluate();
+    // It's important that Experimenting subclasses (OneByOne, Crossover)
+    // now provide their own evaluate() and receiveRoom() implementations,
+    // as Experimenting no longer provides the RoomRecipient interface.
+    // This has been handled in previous steps for those subclasses.
 };

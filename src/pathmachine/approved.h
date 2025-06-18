@@ -6,7 +6,7 @@
 
 #include "../global/RuleOf5.h"
 #include "../map/RoomHandle.h"
-#include "../map/RoomRecipient.h"
+#include "../map/RoomIdSet.h" // Added RoomIdSet.h
 #include "../map/parseevent.h"
 #include "../map/room.h"
 #include "../map/roomid.h"
@@ -16,30 +16,34 @@
 class MapFrontend;
 class ParseEvent;
 
-class NODISCARD Approved final : public RoomRecipient
+class NODISCARD Approved // Removed RoomRecipient inheritance
 {
 private:
     SigParseEvent myEvent;
     std::unordered_map<RoomId, ComparisonResultEnum> compareCache;
-    RoomHandle matchedRoom;
+    RoomHandle matchedRoom; // This might be redundant if oneMatch directly uses m_collectedRoomIds
     MapFrontend &m_map;
     const int matchingTolerance;
-    bool moreThanOne = false;
-    bool update = false;
+    bool moreThanOne = false; // This might be deducible from m_collectedRoomIds.size() > 1
+    bool update = false; // Renamed from m_needs_update in prompt, assuming this is it
+    RoomIdSet m_collectedRoomIds; // Added
 
 public:
     explicit Approved(MapFrontend &map, const SigParseEvent &sigParseEvent, int matchingTolerance);
-    ~Approved() final;
+    ~Approved(); // Removed final as it's no longer overriding
 
 public:
     Approved() = delete;
     DELETE_CTORS_AND_ASSIGN_OPS(Approved);
 
-private:
-    void virt_receiveRoom(const RoomHandle &) final;
+    // Added public getter
+    const RoomIdSet& getCollectedRoomIds() const { return m_collectedRoomIds; }
+
+    // receiveRoom methods will be modified in .cpp to not be virtual overrides
+    // virt_receiveRoom removed as it was part of RoomRecipient interface
 
 public:
-    NODISCARD RoomHandle oneMatch() const;
+    NODISCARD RoomHandle oneMatch() const; // Return type is already RoomHandle
     NODISCARD bool needsUpdate() const { return update; }
     void releaseMatch();
 };

@@ -27,12 +27,89 @@
 #include "roomsignalhandler.h"
 #include "syncing.h"
 
+#include "../global/Diff.h"
+#include "../global/TextUtils.h"
+#include "../global/logging.h"
+#include "../map/roomid.h" // For RoomDesc
+
 #include <cassert>
+#include <cmath> // For std::isfinite, std::nextafter, std::lround
 #include <memory>
 #include <optional>
+#include <sstream> // For std::ostringstream (used indirectly by MyDiff, good to have)
+#include <string_view>
 #include <unordered_set>
+#include <vector> // For std::vector
 
 class RoomRecipient;
+
+namespace { // anonymous
+
+// REVISIT: This is likely to be a performance problem.
+NODISCARD static bool isMostlyTheSame(const RoomDesc &a, const RoomDesc &b, const double cutoff)
+{
+    assert(std::isfinite(cutoff)
+           && utils::isClamped(cutoff, std::nextafter(50.0, 51.0), std::nextafter(100.0, 99.0)));
+
+    if (a.empty() || b.empty()) {
+        return false;
+    }
+
+    struct NODISCARD MyDiff final : public diff::Diff<StringView>
+    {
+    public:
+        size_t removedBytes = 0;
+        size_t addedBytes = 0;
+        size_t commonBytes = 0;
+
+    private:
+        void virt_report(diff::SideEnum side, const Range &r) final
+        {
+            switch (side) {
+            case diff::SideEnum::A:
+                for (auto x : r) {
+                    removedBytes += x.size();
+                }
+                break;
+            case diff::SideEnum::B:
+                for (auto x : r) {
+                    addedBytes += x.size();
+                }
+                break;
+            case diff::SideEnum::Common:
+                for (auto x : r) {
+                    commonBytes += x.size();
+                }
+                break;
+            }
+        }
+    };
+
+    const std::vector<StringView> aWords = StringView{a.getStdStringViewUtf8()}.getWords();
+    const std::vector<StringView> bWords = StringView{b.getStdStringViewUtf8()}.getWords();
+
+    MyDiff diff;
+    diff.compare(MyDiff::Range::fromVector(aWords), MyDiff::Range::fromVector(bWords));
+
+    const auto max_change = std::max(diff.removedBytes, diff.addedBytes);
+    const auto min_change = std::min(diff.removedBytes, diff.addedBytes);
+    const auto total = min_change + diff.commonBytes;
+
+    if (total < 20 || max_change >= total) {
+        return false;
+    }
+
+    const auto ratio = static_cast<double>(total - max_change) / static_cast<double>(total);
+    const auto percent = ratio * 100.0;
+    const auto rounded = static_cast<double>(std::lround(percent * 10.0)) * 0.1;
+
+    // REVISIT: MMLOG is specific to mmapper. If this function is truly generic,
+    // consider making logging optional or passed in.
+    MMLOG() << "[PathMachine] Score: " << rounded << "% word match (isMostlyTheSame)";
+    return rounded >= cutoff;
+}
+
+} // namespace
 
 PathMachine::PathMachine(MapFrontend &map, QObject *const parent)
     : QObject(parent)
@@ -514,6 +591,67 @@ void PathMachine::updateMostLikelyRoom(const SigParseEvent &sigParseEvent,
             }
         }
     }
+
+    // --- Start of integrated maybeUpdate logic ---
+    // This logic is now correctly placed inside updateMostLikelyRoom.
+    // 'event' and 'here' are parameters or local variables of updateMostLikelyRoom.
+
+    const auto &evName = event.getRoomName();
+    const auto &evDesc = event.getRoomDesc();
+
+    if (evName.empty() || evDesc.empty()) {
+        return; // Nothing to compare against from the event
+    }
+
+    const auto currentName = here.getName();
+    const auto currentDesc = here.getDescription();
+
+    if (currentName == evName && currentDesc == evDesc) {
+        return; // Already an exact match
+    }
+
+    // If current name or description is empty, it might be a new or uninitialized room.
+    // Avoid auto-updating based on similarity in such cases.
+    // This mirrors the "!expected.isUpToDate() || name.empty() || desc.empty()" check.
+    if (currentName.empty() || currentDesc.empty()) {
+        return;
+    }
+
+    // Helper lambda to add changes for updating room properties
+    auto update_field = [&](const char *fieldNameStr, auto fieldProperty) {
+        changes.add(Change{room_change_types::ModifyRoomFlags{here.getId(),
+                                                              fieldProperty,
+                                                              FlagModifyModeEnum::ASSIGN}});
+        MMLOG() << "[PathMachine] Auto-updated " << fieldNameStr << " for room "
+                << here.getId().asUint32() << " (was "
+                << (std::string_view(fieldNameStr) == "name" ? currentName.getStdStringViewUtf8()
+                                                             : currentDesc.getStdStringViewUtf8())
+                << ", is now "
+                << (std::string_view(fieldNameStr) == "name" ? evName.getStdStringViewUtf8()
+                                                             : evDesc.getStdStringViewUtf8())
+                << ").";
+    };
+
+    if (currentName == evName && isMostlyTheSame(currentDesc, evDesc, 80.0)) {
+        MMLOG() << "[PathMachine] Exact name match, description is ~80% similar.";
+        update_field("description", evDesc);
+    } else if (currentDesc == evDesc && currentName != evName) {
+        // Ensure name is not already an exact match, which is covered by the initial check.
+        // This branch is for when description is exact, but name is different (and not empty).
+        MMLOG() << "[PathMachine] Exact description match, name is different.";
+        update_field("name", evName);
+    } else if (isMostlyTheSame(currentDesc, evDesc, 90.0)) {
+        // This condition is less strict for description if name doesn't match.
+        // We also want to ensure that we are not downgrading an exact name match to a fuzzy desc match.
+        // This means this block should ideally only be hit if currentName != evName.
+        if (currentName != evName) {
+             MMLOG() << "[PathMachine] Description is ~90% similar (name differs).";
+             update_field("description", evDesc);
+        }
+        // If currentName == evName, the first condition (80% desc similarity) would have caught it.
+        // If we reach here and currentName == evName, it means description similarity was < 80%.
+    }
+    // --- End of integrated maybeUpdate logic ---
 }
 
 void PathMachine::syncing(const SigParseEvent &sigParseEvent, ChangeList &changes)

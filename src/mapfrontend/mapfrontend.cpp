@@ -169,7 +169,10 @@ void MapFrontend::lookingForRooms(RoomRecipient &recipient, const SigParseEvent 
         slot_createRoom(sigParseEvent, c);
     }
 
-    getCurrentMap().getRooms(recipient, event);
+    const RoomIdSet roomIds = getCurrentMap().findAllRooms(event);
+    for (const RoomId id : roomIds) {
+        recipient.receiveRoom(getCurrentMap().getRoomHandle(id));
+    }
 }
 
 void MapFrontend::lookingForRooms(RoomRecipient &recipient, const RoomId id)

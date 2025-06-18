@@ -104,7 +104,7 @@ public:
 public:
     NODISCARD std::optional<RoomId> findRoom(const Coordinate &coord) const
     {
-        return m_spatialDb.getReadOnly().findRoom(coord);
+        return m_spatialDb.getReadOnly().findUnique(coord);
     }
     NODISCARD const Coordinate &getPosition(RoomId id) const;
 

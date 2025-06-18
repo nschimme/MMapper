@@ -243,7 +243,8 @@ std::optional<RoomId> World::findRoom(const Coordinate &coord) const
     // So, this definition in World.cpp should be removed if it still exists,
     // or this change is not needed if it's already removed.
     // Assuming it's removed from .cpp as per previous step for inline in .h
-    return m_spatialDb.getReadOnly().findRoom(coord); // Should match .h
+    // This definition is being removed. The call in World.h was changed to findUnique.
+    // return m_spatialDb.getReadOnly().findUnique(coord);
 }
 
 ServerRoomId World::getServerId(const RoomId id) const
@@ -252,10 +253,7 @@ ServerRoomId World::getServerId(const RoomId id) const
     return m_rooms.getServerId(id);
 }
 
-std::optional<RoomId> World::lookup(const ServerRoomId id) const
-{
-    return m_serverIds.lookup(id);
-}
+// Removed: World::lookup, now inline in World.h
 
 const Coordinate &World::getPosition(const RoomId id) const
 {
@@ -798,11 +796,13 @@ void World::checkConsistency(ProgressCounter &counter) const
         // Doing it this way is like asking the fox to guard the hen house,
         // but above we've verified that all of the coordinates are in the db,
         {
-            auto spatialDb_copy = m_spatialDb.getMutable(); // Make a mutable copy for updateBounds
-            counter.setNewTask(ProgressMsg{"recomputing bounds"}, 1);
-            spatialDb_copy.updateBounds(counter);
+            // REVISIT: This check might be too slow or resource-intensive for regular consistency checks.
+            // Create a true local copy for this specific check if modification is intended.
+            SpatialDb temp_spatial_db_for_check = m_spatialDb.getReadOnly();
+            counter.setNewTask(ProgressMsg{"recomputing bounds (local copy)"}, 1);
+            temp_spatial_db_for_check.updateBounds(counter); // This modifies temp_spatial_db_for_check
             counter.step();
-            const auto &computedBounds = deref(spatialDb_copy.getBounds());
+            const auto &computedBounds = deref(temp_spatial_db_for_check.getBounds());
             if (knownBounds != computedBounds) {
                 throw MapConsistencyError("known bounds were not the computed bounds");
             }
@@ -1158,12 +1158,12 @@ void World::mergeRelative(const RoomId id, const Coordinate &offset)
     removeFromWorld(id, true);
 }
 
-void World::setRemapAndAllocateRooms(Remapping new_remap)
+void World::setRemapAndAllocateRooms(Remapping new_remap_data)
 {
-    assert(m_remapping.empty());
-    std::swap(this->m_remapping, new_remap);
+    assert(m_remapping.getReadOnly().empty());
+    m_remapping.getMutable() = std::move(new_remap_data);
 
-    m_rooms.resize(m_remapping.size());
+    m_rooms.resize(m_remapping.getReadOnly().size());
 }
 
 void World::setExit(const RoomId id, const ExitDirEnum dir, const RawExit &input)
@@ -1232,8 +1232,7 @@ World World::init(ProgressCounter &counter, const std::vector<ExternalRawRoom> &
         assert(rooms.size() == ext_rooms.size());
         {
             DECL_TIMER(t2, "setRemapAndAllocateRooms");
-            // setRemapAndAllocateRooms itself will use w.m_remapping.getMutable()
-            w.setRemapAndAllocateRooms(std::move(remapping_data));
+        w.setRemapAndAllocateRooms(std::move(remapping_data)); // Correctly passes Remapping data
         }
         counter.step();
     }
@@ -1348,10 +1347,7 @@ RoomId World::getNextId() const
     return set.last().next();
 }
 
-ExternalRoomId World::getNextExternalId() const
-{
-    return m_remapping.getReadOnly().getNextExternal();
-}
+// Removed: World::getNextExternalId, now inline in World.h
 
 const RoomIdSet &World::getRoomSet() const
 {
@@ -1485,17 +1481,9 @@ ExternalRawRoom World::convertToExternal(const RawRoom &room) const
     return m_remapping.getReadOnly().convertToExternal(room);
 }
 
-RoomId World::convertToInternal(const ExternalRoomId ext) const
-{
-    // Already updated in World.h to use m_remapping.getReadOnly().convertToInternal(ext)
-    return m_remapping.getReadOnly().convertToInternal(ext);
-}
+// Removed: World::convertToInternal, now inline in World.h
 
-ExternalRoomId World::convertToExternal(const RoomId id) const
-{
-    // Already updated in World.h to use m_remapping.getReadOnly().convertToExternal(id)
-    return m_remapping.getReadOnly().convertToExternal(id);
-}
+// Removed: World::convertToExternal, now inline in World.h
 
 void World::apply(ProgressCounter &pc, const world_change_types::CompactRoomIds &change)
 {
@@ -2280,7 +2268,7 @@ void World::printStats(ProgressCounter &pc, AnsiOstream &os) const
         };
 
         os << "\n";
-        os << "Total areas: " << C(m_areaInfos.numAreas()) << ".\n";
+        os << "Total areas: " << C(m_areaInfos.getReadOnly().numAreas()) << ".\n";
         os << "\n";
         os << "Total rooms: " << C(getGlobalArea().roomSet.size()) << ".\n";
         os << "\n";

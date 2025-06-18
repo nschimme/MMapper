@@ -46,8 +46,11 @@
 #include <vector>
 
 #include <QApplication>
+#include <QDebug> // Added for qWarning
 #include <QList>
 #include <QString>
+
+#include "../map/MapConsistencyError.h" // Added for MapConsistencyError
 
 MapData::MapData(QObject *const parent)
     : MapFrontend(parent)
@@ -290,6 +293,8 @@ void MapData::setMapData(const MapLoadData &mapLoadData)
             // NOTE: The map may immediately report changes.
         }
         mf.unblock();
+        MMLOG_DEBUG() << "MapData::setMapData - Taking snapshot after successful data set.";
+        this->takeSnapshot();
     } catch (...) {
         // REVISIT: should this be fatal, or just throw?
         qFatal("An exception occured while setting the map data.");
@@ -354,6 +359,15 @@ std::pair<Map, InfomarkDb> MapData::mergeMapData(ProgressCounter &counter,
     }();
 
     const Map newMap = Map::merge(counter, currentMap, std::move(newMapData.rooms), mapOffset);
+
+    try {
+        MMLOG_DEBUG() << "Performing consistency check on merged map...";
+        newMap.checkConsistency(counter); // 'counter' is the ProgressCounter in this context
+        MMLOG_DEBUG() << "Consistency check passed for merged map.";
+    } catch (const MapConsistencyError& e) {
+        qWarning() << "Consistency check failed for merged map: " << e.what();
+        throw; // Re-throw; will be caught by mwa_detail::extract in AsyncMerge
+    }
 
     const InfomarkDb newMarks = [&newMapData, &currentMarks, &infomarkOffset, &counter]() {
         auto tmp = currentMarks;

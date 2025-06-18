@@ -50,6 +50,7 @@ private:
 
     MapState m_saved;
     MapState m_current;
+    MapState m_snapshot;
 
 public:
     explicit MapFrontend(QObject *parent);
@@ -60,6 +61,8 @@ public:
     NODISCARD InfomarkDb getSavedMarks() const { return m_saved.marks; }
     NODISCARD Map getCurrentMap() const { return m_current.map; }
     NODISCARD Map getSavedMap() const { return m_saved.map; }
+    NODISCARD Map getSnapshotMap() const { return m_snapshot.map; }
+    NODISCARD InfomarkDb getSnapshotMarks() const { return m_snapshot.marks; }
 
 public:
     NODISCARD bool isModified() const { return m_current != m_saved; }
@@ -92,6 +95,8 @@ private:
 
 public:
     void revert();
+    void takeSnapshot();
+    void revertToSnapshot();
     void clear();
     void block();
     void unblock();

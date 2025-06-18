@@ -536,6 +536,8 @@ void MapCanvas::updateMapBatches()
         return m_data.generateBatches(mctp::getProxy(m_textures));
     };
 
+    MMLOG_DEBUG() << "MapCanvas: Took snapshot before map batch generation.";
+    m_data.takeSnapshot();
     remeshCookie.set(getFuture());
     assert(remeshCookie.isPending());
 
@@ -578,6 +580,13 @@ void MapCanvas::finishPendingMapBatches()
         finish(future, opt_mapBatches, getOpenGL(), getGLFont());
         assert(opt_mapBatches.has_value());
 
+    } catch (const MapConsistencyError &ex) {
+        setAnimating(false);
+        MMLOG_ERROR() << "MapConsistencyError in finishPendingMapBatches: " << ex.what();
+        m_data.revertToSnapshot();
+        global::sendToUser(
+            "Map consistency error during display update. Reverted to state before update. The display will now refresh.");
+        forceUpdateMeshes();
     } catch (...) {
         setAnimating(false);
 

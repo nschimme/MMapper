@@ -246,6 +246,23 @@ NODISCARD std::optional<MapLoadData> load_map_data(ProgressCounter &pc, Abstract
     pc.setCurrentTask(ProgressMsg{/*"phase 2: "*/ "construct map from raw rooms"});
     auto mapPair = Map::fromRooms(pc, std::exchange(data.rooms, {}));
 
+    try {
+        MMLOG_DEBUG() << "Performing consistency check on loaded map (modified part)...";
+        mapPair.modified.checkConsistency(pc);
+        // Only check base if it's potentially different and relevant.
+        // If base and modified are typically the same after fromRooms unless specific import logic creates a diff,
+        // checking modified might be sufficient. For safety, if base can differ, check it.
+        // Assuming for now 'modified' is the primary concern for immediate use.
+        // if (mapPair.base != mapPair.modified) { // This check might be complex/costly here
+        //     MMLOG_DEBUG() << "Performing consistency check on loaded map (base part)...";
+        //     mapPair.base.checkConsistency(pc);
+        // }
+        MMLOG_DEBUG() << "Consistency check passed for loaded map.";
+    } catch (const MapConsistencyError& e) {
+        qWarning() << "Consistency check failed for loaded map file '" << storage.getFilename().toStdString().c_str() << "': " << e.what();
+        throw; // Re-throw to be caught by mwa_detail::extract
+    }
+
     pc.setCurrentTask(ProgressMsg{/*"phase 3: "*/ "construct markers database"});
     auto markerData = getInformarkDb(pc, std::exchange(data.markerData, {}));
 

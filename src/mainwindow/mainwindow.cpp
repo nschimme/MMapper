@@ -2045,6 +2045,8 @@ void MainWindow::onSuccessfulMerge(const Map &map, const InfomarkDb &infomarks)
 
     mapData.setCurrentMap(map);
     mapData.setCurrentMarks(infomarks);
+    mapData.takeSnapshot();
+    MMLOG_DEBUG() << "MainWindow::onSuccessfulMerge - Took snapshot after successful merge.";
     mapData.checkSize();
 
     // FIXME: mapData.setMapData() or mapData.checkSize() kicks off an async remesh,
@@ -2068,6 +2070,8 @@ void MainWindow::onSuccessfulSave(const SaveModeEnum mode,
         mapData.setFileName(fileName, !QFileInfo(fileName).isWritable());
         setCurrentFile(fileName);
         mapData.currentHasBeenSaved();
+        mapData.takeSnapshot();
+        MMLOG_DEBUG() << "MainWindow::onSuccessfulSave - Took snapshot after successful save.";
     }
 
     showStatusShort(tr("File saved"));

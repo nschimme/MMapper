@@ -5,10 +5,9 @@
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 
 #include "../global/RuleOf5.h"
-#include "../map/RoomRecipient.h"
 #include "path.h"
+#include "pathprocessor.h"
 
-#include <list>
 #include <memory>
 
 #include <QtGlobal>
@@ -16,7 +15,15 @@
 class RoomSignalHandler;
 struct PathParameters;
 
-class NODISCARD Syncing final : public RoomRecipient
+/*!
+ * @brief PathProcessor strategy for the "Syncing" pathfinding state.
+ *
+ * Used when PathMachine has no confident location (e.g., initial state or after
+ * losing track). It attempts to find any room in the map that matches the
+ * current parse event, creating a new root Path for each potential match.
+ * `evaluate()` is used for cleanup of its internal dummy parent path.
+ */
+class NODISCARD Syncing final : public PathProcessor
 {
 private:
     RoomSignalHandler *signaler = nullptr;

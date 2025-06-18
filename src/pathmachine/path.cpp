@@ -21,7 +21,7 @@
 #include <utility>
 
 std::shared_ptr<Path> Path::alloc(const RoomHandle &room,
-                                  RoomRecipient *const locker,
+                                  PathProcessor *const locker,
                                   RoomSignalHandler *const signaler,
                                   std::optional<ExitDirEnum> moved_direction)
 {
@@ -30,7 +30,7 @@ std::shared_ptr<Path> Path::alloc(const RoomHandle &room,
 
 Path::Path(Badge<Path>,
            RoomHandle moved_room,
-           RoomRecipient *const locker,
+           PathProcessor *const locker,
            RoomSignalHandler *const in_signaler,
            std::optional<ExitDirEnum> moved_direction)
     : m_room(std::move(moved_room))
@@ -50,7 +50,7 @@ Path::Path(Badge<Path>,
 std::shared_ptr<Path> Path::fork(const RoomHandle &in_room,
                                  const Coordinate &expectedCoordinate,
                                  const PathParameters &p,
-                                 RoomRecipient *const locker,
+                                 PathProcessor *const locker,
                                  const ExitDirEnum direction)
 {
     assert(!m_zombie);

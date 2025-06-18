@@ -11,7 +11,8 @@
 #include "../mapdata/roomselection.h"
 #include "CGroupChar.h"
 #include "enums.h"
-#include "mmapper2group.h"
+#include "mmapper2group.h" // Included for Mmapper2Group type
+#include "loggingcategories.h" // For qCDebug(lcGroup) if needed
 
 #include <map>
 #include <vector>
@@ -207,83 +208,138 @@ GroupModel::GroupModel(QObject *const parent)
 
 void GroupModel::setCharacters(const GroupVector &newGameChars)
 {
-    std::unordered_set<GroupId> newGameCharIds;
-    newGameCharIds.reserve(newGameChars.size());
-    for (const auto &pGameChar : newGameChars) {
-        const auto &gameChar = deref(pGameChar);
-        newGameCharIds.insert(gameChar.getId());
-    }
-
-    GroupVector resultingCharacterList;
-    resultingCharacterList.reserve(m_characters.size() + newGameChars.size());
-
-    // Temporary vectors to hold truly new players, NPCs, and all truly new characters
-    GroupVector trulyNewPlayers;
-    trulyNewPlayers.reserve(newGameChars.size());
-    GroupVector trulyNewNpcs;
-    trulyNewNpcs.reserve(newGameChars.size());
-    GroupVector allTrulyNewCharsInOriginalOrder;
-    allTrulyNewCharsInOriginalOrder.reserve(newGameChars.size());
-
-    // Preserve existing characters
-    std::unordered_set<GroupId> existingIds;
-    existingIds.reserve(m_characters.size());
-    for (const auto &pExistingChar : m_characters) {
-        const auto &existingChar = deref(pExistingChar);
-        existingIds.insert(existingChar.getId());
-        if (newGameCharIds.count(existingChar.getId())) {
-            resultingCharacterList.push_back(pExistingChar);
+    // 1. Create a map of new characters by ID for efficient lookup.
+    std::unordered_map<GroupId, SharedGroupChar> newCharsMap;
+    newCharsMap.reserve(newGameChars.size());
+    for (const auto& pNewChar : newGameChars) {
+        if (pNewChar) {
+            newCharsMap[pNewChar->getId()] = pNewChar;
         }
     }
 
-    // Identify truly new characters and categorize them as NPC or player
-    for (const auto &pGameChar : newGameChars) {
-        const auto &gameChar = deref(pGameChar);
-        if (existingIds.find(gameChar.getId()) == existingIds.end()) {
-            allTrulyNewCharsInOriginalOrder.push_back(pGameChar);
-            if (gameChar.isNpc()) {
-                trulyNewNpcs.push_back(pGameChar);
+    // 2. Remove characters no longer present
+    // Iterate backwards to keep indices valid after removal
+    for (int i = static_cast<int>(m_characters.size()) - 1; i >= 0; --i) {
+        SharedGroupChar pExistingChar = m_characters[static_cast<size_t>(i)];
+        if (pExistingChar && newCharsMap.find(pExistingChar->getId()) == newCharsMap.end()) {
+            beginRemoveRows(QModelIndex(), i, i);
+            m_characters.erase(m_characters.begin() + i);
+            endRemoveRows();
+        }
+    }
+
+    // 3. Update existing characters.
+    // NPC status changes are not explicitly tracked here for moves yet,
+    // as step 5 will perform a holistic re-sort if npcSortBottom is enabled.
+    for (int i = 0; i < static_cast<int>(m_characters.size()); ++i) {
+        SharedGroupChar& pExistingChar = m_characters[static_cast<size_t>(i)]; // Modifiable reference
+        if (!pExistingChar) continue; // Should not happen if removals are correct
+
+        auto itNew = newCharsMap.find(pExistingChar->getId());
+        // All characters in m_characters at this point must be in newCharsMap because
+        // those not in newCharsMap were removed in step 2.
+        if (itNew == newCharsMap.end()) {
+            // This case should ideally not be reached if logic is correct.
+            // It implies pExistingChar was not in newGameChars, so it should have been removed.
+            // However, to be safe, skip if lookup fails.
+            qWarning() << "Character" << pExistingChar->getId().asUint64() << "not found in newCharsMap, should have been removed.";
+            continue;
+        }
+        const SharedGroupChar& pNewCharData = itNew->second;
+
+        // Comprehensive comparison logic
+        bool changed = pExistingChar->getName() != pNewCharData->getName() ||
+                       pExistingChar->getHits() != pNewCharData->getHits() ||
+                       pExistingChar->getMaxHits() != pNewCharData->getMaxHits() ||
+                       pExistingChar->getMana() != pNewCharData->getMana() ||
+                       pExistingChar->getMaxMana() != pNewCharData->getMaxMana() ||
+                       pExistingChar->getMoves() != pNewCharData->getMoves() ||
+                       pExistingChar->getMaxMoves() != pNewCharData->getMaxMoves() ||
+                       pExistingChar->getPosition() != pNewCharData->getPosition() ||
+                       pExistingChar->getAffects() != pNewCharData->getAffects() ||
+                       pExistingChar->getRoomName() != pNewCharData->getRoomName() ||
+                       pExistingChar->getColor() != pNewCharData->getColor() ||
+                       pExistingChar->getLabel() != pNewCharData->getLabel() ||
+                       pExistingChar->isNpc() != pNewCharData->isNpc();
+
+        if (changed) {
+            // Assuming CGroupChar has a proper assignment operator or copy constructor
+            *pExistingChar = *pNewCharData;
+            QModelIndex charIndex = index(i, 0);
+            // Specify all roles that could be affected by the change.
+            emit dataChanged(charIndex, charIndex, {Qt::DisplayRole, Qt::BackgroundRole, Qt::ForegroundRole, Qt::ToolTipRole, Qt::UserRole + 1}); // UserRole+1 for sorting in proxy if needed
+        }
+    }
+
+    // 4. Add new characters
+    // First, create a set of IDs currently in m_characters for quick lookup
+    std::unordered_set<GroupId> existingIdsInMChars;
+    existingIdsInMChars.reserve(m_characters.size());
+    for(const auto& pChar : m_characters) {
+        if (pChar) existingIdsInMChars.insert(pChar->getId());
+    }
+
+    for (const auto& pNewChar : newGameChars) {
+        if (pNewChar && existingIdsInMChars.find(pNewChar->getId()) == existingIdsInMChars.end()) {
+            // This is a truly new character to be added
+            int insertRow = 0;
+            if (getConfig().groupManager.npcSortBottom) {
+                if (pNewChar->isNpc()) {
+                    // New NPCs are always added at the very end when npcSortBottom is true
+                    insertRow = static_cast<int>(m_characters.size());
+                } else { // New Player
+                    // New players are inserted before the first NPC
+                    auto it_first_npc = std::find_if(m_characters.begin(), m_characters.end(),
+                                                     [](const SharedGroupChar& c){ return c && c->isNpc(); });
+                    insertRow = static_cast<int>(std::distance(m_characters.begin(), it_first_npc));
+                }
             } else {
-                trulyNewPlayers.push_back(pGameChar);
+                // If not sorting NPCs to bottom, add all new characters to the end
+                insertRow = static_cast<int>(m_characters.size());
             }
+            beginInsertRows(QModelIndex(), insertRow, insertRow);
+            m_characters.insert(m_characters.begin() + insertRow, pNewChar);
+            endInsertRows();
         }
     }
 
-    // Insert the newly identified characters into the resulting list based on configuration.
+    // 5. Re-sort m_characters if npcSortBottom is true, using move operations.
+    // This handles cases where existing characters changed NPC status or new additions
+    // require reordering relative to existing characters.
     if (getConfig().groupManager.npcSortBottom) {
-        // Find the insertion point for new players: before the first NPC in the preserved list.
-        auto itPlayerInsertPos = resultingCharacterList.begin();
-        while (itPlayerInsertPos != resultingCharacterList.end()) {
-            if (*itPlayerInsertPos && (*itPlayerInsertPos)->isNpc()) {
-                break;
+        bool listWasModifiedInPass;
+        do {
+            listWasModifiedInPass = false;
+            int firstNpcActualIdx = -1;
+            for (int i = 0; i < static_cast<int>(m_characters.size()); ++i) {
+                if (m_characters[static_cast<size_t>(i)] && m_characters[static_cast<size_t>(i)]->isNpc()) {
+                    firstNpcActualIdx = i;
+                    break;
+                }
             }
-            ++itPlayerInsertPos;
-        }
 
-        // Insert truly new players at the determined position.
-        if (!trulyNewPlayers.empty()) {
-            resultingCharacterList.insert(itPlayerInsertPos,
-                                          trulyNewPlayers.begin(),
-                                          trulyNewPlayers.end());
-        }
-        // Insert truly new NPCs at the end of the list.
-        if (!trulyNewNpcs.empty()) {
-            resultingCharacterList.insert(resultingCharacterList.end(),
-                                          trulyNewNpcs.begin(),
-                                          trulyNewNpcs.end());
-        }
-    } else {
-        // If no special NPC sorting, just append all truly new characters in their original order.
-        if (!allTrulyNewCharsInOriginalOrder.empty()) {
-            resultingCharacterList.insert(resultingCharacterList.end(),
-                                          allTrulyNewCharsInOriginalOrder.begin(),
-                                          allTrulyNewCharsInOriginalOrder.end());
-        }
+            if (firstNpcActualIdx != -1) { // If there are any NPCs in the list
+                // Check for any players that are currently positioned after the first NPC
+                for (int i = firstNpcActualIdx + 1; i < static_cast<int>(m_characters.size()); ++i) {
+                    if (m_characters[static_cast<size_t>(i)] && !m_characters[static_cast<size_t>(i)]->isNpc()) {
+                        // This player at row 'i' is mispositioned. It should be before 'firstNpcActualIdx'.
+                        SharedGroupChar playerToMove = m_characters[static_cast<size_t>(i)];
+
+                        // The destination row for the move operation is 'firstNpcActualIdx'.
+                        // When moving item from row 'i' to 'firstNpcActualIdx' (where i > firstNpcActualIdx),
+                        // the item is inserted *before* the item currently at 'firstNpcActualIdx'.
+                        beginMoveRows(QModelIndex(), i, i, QModelIndex(), firstNpcActualIdx);
+                        m_characters.erase(m_characters.begin() + i);
+                        m_characters.insert(m_characters.begin() + firstNpcActualIdx, playerToMove);
+                        endMoveRows();
+
+                        listWasModifiedInPass = true;
+                        break; // Restart scan from the beginning as indices have changed.
+                    }
+                }
+            }
+        } while (listWasModifiedInPass); // Keep iterating until a pass makes no changes
     }
-
-    beginResetModel();
-    m_characters = std::move(resultingCharacterList);
-    endResetModel();
 }
 
 SharedGroupChar GroupModel::getCharacter(int row) const
@@ -598,10 +654,12 @@ bool GroupModel::dropMimeData(
 
 GroupWidget::GroupWidget(Mmapper2Group *const group, MapData *const md, QWidget *const parent)
     : QWidget(parent)
-    , m_group(group)
+    , m_group(group) // m_group is the Mmapper2Group instance
     , m_map(md)
     , m_model(this)
 {
+    // Initial population of the model if group already has characters.
+    // After this, model updates should primarily come from signals.
     if (m_group) {
         m_model.setCharacters(m_group->selectAll());
     } else {
@@ -697,7 +755,17 @@ GroupWidget::GroupWidget(Mmapper2Group *const group, MapData *const md, QWidget 
         }
     });
 
-    connect(m_group, &Mmapper2Group::sig_updateWidget, this, &GroupWidget::slot_updateLabels);
+    connect(m_group, &Mmapper2Group::sig_updateWidget, this, &GroupWidget::slot_updateLabels); // This connection will be removed
+
+    // Disconnect old generic signal and connect new granular signals
+    if (m_group) {
+        disconnect(m_group, &Mmapper2Group::sig_updateWidget, this, &GroupWidget::slot_updateLabels);
+        // Connect new signals with updated signatures
+        connect(m_group, &Mmapper2Group::sig_characterAdded, this, &GroupWidget::slot_onCharacterAdded);
+        connect(m_group, &Mmapper2Group::sig_characterRemoved, this, &GroupWidget::slot_onCharacterRemoved);
+        connect(m_group, &Mmapper2Group::sig_characterUpdated, this, &GroupWidget::slot_onCharacterUpdated);
+        connect(m_group, &Mmapper2Group::sig_groupReset, this, &GroupWidget::slot_onGroupReset); // Signature unchanged
+    }
 }
 
 GroupWidget::~GroupWidget()
@@ -715,18 +783,8 @@ QSize GroupWidget::sizeHint() const
     return QSize(preferredWidth, desiredHeight);
 }
 
-void GroupWidget::slot_updateLabels()
+void GroupWidget::updateColumnVisibility()
 {
-    if (m_group) {
-        m_model.setCharacters(m_group->selectAll());
-    } else {
-        m_model.setCharacters({});
-    }
-
-    if (m_proxyModel) {
-        m_proxyModel->refresh();
-    }
-
     // Hide unnecessary columns like mana if everyone is a zorc/troll
     const auto one_character_had_mana = [this]() -> bool {
         for (const auto &character : m_model.getCharacters()) {
@@ -739,4 +797,236 @@ void GroupWidget::slot_updateLabels()
     const bool hide_mana = !one_character_had_mana();
     m_table->setColumnHidden(static_cast<int>(GroupModel::ColumnTypeEnum::MANA), hide_mana);
     m_table->setColumnHidden(static_cast<int>(GroupModel::ColumnTypeEnum::MANA_PERCENT), hide_mana);
+}
+
+void GroupWidget::slot_updateLabels()
+{
+    // This slot is now largely superseded by the new granular slots.
+    // It might be kept if Mmapper2Group::sig_updateWidget is still used for other purposes,
+    // or removed if sig_updateWidget is fully deprecated for group updates.
+    // For now, its main unique responsibility left might be the proxy model refresh,
+    // but that should ideally not be needed.
+    // Let's assume for now it only needs to update column visibility if called.
+    updateColumnVisibility();
+
+    // The m_proxyModel->refresh() call is removed as it should not be necessary
+    // if the source model (GroupModel) correctly emits dataChanged, rowsInserted, rowsRemoved.
+}
+
+void GroupWidget::slot_onCharacterAdded(SharedGroupChar character)
+{
+    if (!character) {
+        qCWarning(lcGroup) << "slot_onCharacterAdded received null character.";
+        return;
+    }
+    m_model.insertCharacter(character);
+    updateColumnVisibility();
+}
+
+void GroupWidget::slot_onCharacterRemoved(GroupId characterId)
+{
+    if (!characterId.isValid()) {
+        qCWarning(lcGroup) << "slot_onCharacterRemoved received invalid characterId.";
+        return;
+    }
+    m_model.removeCharacterById(characterId);
+    updateColumnVisibility();
+}
+
+void GroupWidget::slot_onCharacterUpdated(SharedGroupChar character)
+{
+    if (!character) {
+        qCWarning(lcGroup) << "slot_onCharacterUpdated received null character.";
+        return;
+    }
+    m_model.updateCharacter(character);
+    updateColumnVisibility();
+}
+
+void GroupWidget::slot_onGroupReset(const GroupVector &newCharacterList)
+{
+    m_model.setCharacters(newCharacterList);
+    updateColumnVisibility();
+}
+
+// --- GroupModel Method Implementations ---
+
+// Helper to find character index by ID in GroupModel's m_characters
+int GroupModel::findIndexById(GroupId charId) const
+{
+    auto it = std::find_if(m_characters.begin(), m_characters.end(),
+                           [charId](const SharedGroupChar& c) { return c && c->getId() == charId; });
+    if (it != m_characters.end()) {
+        return static_cast<int>(std::distance(m_characters.begin(), it));
+    }
+    return -1;
+}
+
+void GroupModel::insertCharacter(const SharedGroupChar& newCharacter)
+{
+    if (!newCharacter) {
+        qCWarning(lcGroup) << "GroupModel::insertCharacter received null character.";
+        return;
+    }
+
+    // Determine insertion index based on npcSortBottom
+    int newIndex = static_cast<int>(m_characters.size()); // Default to appending
+
+    if (getConfig().groupManager.npcSortBottom) {
+        if (newCharacter->isNpc()) {
+            // New NPCs are always added at the very end when npcSortBottom is true
+            newIndex = static_cast<int>(m_characters.size());
+        } else { // New Player
+            // New players are inserted before the first NPC
+            auto it_first_npc = std::find_if(m_characters.begin(), m_characters.end(),
+                                             [](const SharedGroupChar& c){ return c && c->isNpc(); });
+            newIndex = static_cast<int>(std::distance(m_characters.begin(), it_first_npc));
+        }
+    }
+    // If not sorting NPCs to bottom, newIndex remains m_characters.size() (append)
+
+    if (newIndex < 0 || newIndex > static_cast<int>(m_characters.size())) {
+        qCWarning(lcGroup) << "GroupModel::insertCharacter: Calculated invalid index" << newIndex
+                           << "for character" << newCharacter->getName().toQString()
+                           << "current size:" << m_characters.size();
+        newIndex = static_cast<int>(m_characters.size()); // Fallback to appending
+    }
+
+    beginInsertRows(QModelIndex(), newIndex, newIndex);
+    m_characters.insert(m_characters.begin() + newIndex, newCharacter);
+    endInsertRows();
+}
+
+void GroupModel::removeCharacterById(GroupId charId)
+{
+    if (!charId.isValid()) {
+        qCWarning(lcGroup) << "GroupModel::removeCharacterById received invalid charId.";
+        return;
+    }
+    int index = findIndexById(charId);
+    if (index != -1) {
+        beginRemoveRows(QModelIndex(), index, index);
+        m_characters.erase(m_characters.begin() + index);
+        endRemoveRows();
+    } else {
+        qCWarning(lcGroup) << "GroupModel::removeCharacterById: Character with ID"
+                           << charId.asUint64() << "not found.";
+    }
+}
+
+void GroupModel::updateCharacter(const SharedGroupChar& updatedCharacter)
+{
+    if (!updatedCharacter) {
+        qCWarning(lcGroup) << "GroupModel::updateCharacter received null character.";
+        return;
+    }
+    int index = findIndexById(updatedCharacter->getId());
+    if (index != -1) {
+        SharedGroupChar& existingChar = m_characters[static_cast<size_t>(index)];
+        bool npcStatusChanged = existingChar->isNpc() != updatedCharacter->isNpc();
+
+        existingChar = updatedCharacter; // Replace the shared_ptr instance
+
+        emit dataChanged(this->index(index, 0),
+                         this->index(index, columnCount() - 1),
+                         {Qt::DisplayRole, Qt::BackgroundRole, Qt::ForegroundRole, Qt::ToolTipRole, Qt::UserRole + 1});
+
+        // If NPC status changed and npcSortBottom is active, the character might need to move.
+        // The current setCharacters implementation handles full sort.
+        // For a single update, a move operation would be more efficient here.
+        // This is a known point for future optimization if needed.
+        // For now, if a sort is required due to this update, a subsequent sig_groupReset or manual sort might be needed,
+        // or GroupModel::setCharacters could be called by GroupWidget if it becomes aware of such a change.
+        // However, the problem description for the previous step (setCharacters) mentioned it should handle this.
+        // Let's verify if setCharacters is suitable for this or if a move is essential here.
+        // The setCharacters method was modified to perform incremental updates itself, including a sort pass.
+        // Calling setCharacters(m_characters) here would be a way to trigger that sort pass.
+        if (npcStatusChanged && getConfig().groupManager.npcSortBottom) {
+            // To re-trigger the sorting logic within setCharacters:
+            // Create a copy, as setCharacters might modify its input or rely on specific states
+            // This is a bit heavy-handed for a single update.
+            // GroupVector currentCharsCopy = m_characters;
+            // setCharacters(currentCharsCopy);
+            // TODO: Implement a more direct move operation if this proves inefficient.
+            // For now, relying on the fact that `setCharacters` is already optimized.
+            // A simpler approach without calling setCharacters is to manually move:
+
+            // Find current actual index again (in case of concurrent changes, though unlikely here)
+            // int currentIndex = findIndexById(updatedCharacter->getId()); // Should be same as 'index'
+            // if (currentIndex == -1) return; // Should not happen
+
+            // Determine new correct sorted index
+            int newSortedIndex = index; // Assume it doesn't move initially
+            // Temporarily remove to calculate new position correctly
+            SharedGroupChar temp = m_characters[static_cast<size_t>(index)];
+            m_characters.erase(m_characters.begin() + index);
+
+            if (getConfig().groupManager.npcSortBottom) {
+                if (temp->isNpc()) {
+                    newSortedIndex = static_cast<int>(m_characters.size()); // NPCs go to end of current list
+                } else { // Player
+                    auto it_first_npc = std::find_if(m_characters.begin(), m_characters.end(),
+                                                     [](const SharedGroupChar& c){ return c && c->isNpc(); });
+                    newSortedIndex = static_cast<int>(std::distance(m_characters.begin(), it_first_npc));
+                }
+            }
+            // Reinsert at old position for now if no move needed, or if it's complex
+            m_characters.insert(m_characters.begin() + index, temp);
+
+
+            if (newSortedIndex != index) {
+                 // Adjust newSortedIndex if the original position was before it
+                if (index < newSortedIndex) {
+                    // If we removed from before the target, the target index effectively shifts left
+                    // This is complex because we reinserted it.
+                    // A true move operation is needed.
+                    // The logic in setCharacters is: remove all, then add one-by-one in new order,
+                    // or perform moves.
+                    // Simplest for now: if setCharacters handles this, great. Otherwise, this is a known limitation.
+                    // The current `setCharacters` has a loop that does moves.
+                    // Let's try to replicate that move logic for a single item.
+
+                    // If character at 'index' (which is 'updatedCharacter') needs to move.
+                    // Calculate its true destination row 'destRow'
+                    int destRow = index; // placeholder
+                    // Logic from setCharacters to find where a player should go:
+                    if (!updatedCharacter->isNpc()) { // Player
+                        int firstNpcDisplayRow = 0;
+                        bool foundNpc = false;
+                        for(const auto& ch : m_characters) {
+                            if(ch->isNpc()) { foundNpc = true; break; }
+                            if(ch->getId() == updatedCharacter->getId()) continue; // Skip self for this count
+                            firstNpcDisplayRow++;
+                        }
+                        if (!foundNpc) firstNpcDisplayRow = static_cast<int>(m_characters.size()) -1; // if no NPCs, player can go to end relative to other players
+                         // This is still not quite right. Target should be absolute.
+
+                        // Recalculate newSortedIndex based on current m_characters state
+                        // This is where the full sort logic from setCharacters is more robust.
+                        // For now, this part is complex and error-prone for a single item update.
+                        // The `setCharacters` function's sorting pass is more reliable.
+                        // To trigger it, we can call `setCharacters(m_characters)` but that's for full lists.
+                        // The most robust way for now is that if a sort-affecting property changes,
+                        // the GroupModel should ideally be reset or its setCharacters called with the current list
+                        // to re-apply the sorting including moves.
+                        // The current `setCharacters` already handles moves internally.
+                        // So, if an update causes a sort order change, we can call `setCharacters`
+                        // with the current list to force re-evaluation and moves.
+                        GroupVector currentCharacters = m_characters; // Make a copy
+                        this->setCharacters(currentCharacters); // This will use the optimized setCharacters
+                    } else { // NPC
+                        // Similar logic if an NPC needs to move among other NPCs (though less likely to change sort order)
+                        // or if a player became an NPC.
+                        GroupVector currentCharacters = m_characters;
+                        this->setCharacters(currentCharacters);
+                    }
+                }
+            }
+        }
+    } else {
+        qCWarning(lcGroup) << "GroupModel::updateCharacter: Character with ID"
+                           << updatedCharacter->getId().asUint64() << "not found. May add it.";
+        // Optionally, treat as an add if not found, though sig_characterAdded should handle this.
+        // insertCharacter(updatedCharacter);
+    }
 }

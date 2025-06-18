@@ -84,7 +84,14 @@ signals:
     // MapCanvas::requestUpdate (via MainWindow)
     void sig_updateMapCanvas(); // redraw the opengl screen
     // GroupWidget::updateLabels (via GroupWidget)
-    void sig_updateWidget(); // update group widget
+    void sig_updateWidget(); // DEPRECATED: Will be removed or repurposed. Use specific signals instead.
+
+    // New granular signals for GroupModel
+    void sig_characterAdded(SharedGroupChar character);
+    void sig_characterRemoved(GroupId characterId);
+    void sig_characterUpdated(SharedGroupChar character);
+    void sig_groupReset(const GroupVector &newCharacterList); // Unchanged
+    // void sig_charactersMoved(int oldStartIndex, int oldEndIndex, int newStartIndex); // Deferred
 
 public slots:
     void slot_parseGmcpInput(const GmcpMessage &msg);

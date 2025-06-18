@@ -96,7 +96,13 @@ public:
     explicit GroupModel(QObject *parent = nullptr);
 
     NODISCARD const GroupVector &getCharacters() const { return m_characters; }
+    // setCharacters is used for full updates, e.g., from Mmapper2Group::sig_groupReset
     void setCharacters(const GroupVector &newChars);
+    // New methods for granular updates from GroupWidget, using char objects or IDs
+    void insertCharacter(const SharedGroupChar& newCharacter);
+    void removeCharacterById(GroupId charId);
+    void updateCharacter(const SharedGroupChar& updatedCharacter);
+
     void resetModel();
     NODISCARD QVariant dataForCharacter(const SharedGroupChar &character,
                                         ColumnTypeEnum column,
@@ -134,6 +140,8 @@ private:
     GroupProxyModel *m_proxyModel = nullptr;
     GroupModel m_model;
 
+    void updateColumnVisibility(); // New private method
+
 private:
     QAction *m_center = nullptr;
     QAction *m_recolor = nullptr;
@@ -151,7 +159,14 @@ signals:
     void sig_center(glm::vec2);
 
 public slots:
-    void slot_updateLabels();
+    void slot_updateLabels(); // Will be deprecated or repurposed
     void slot_mapUnloaded() { m_model.setMapLoaded(false); }
     void slot_mapLoaded() { m_model.setMapLoaded(true); }
+
+private slots:
+    // New slots to handle signals from Mmapper2Group
+    void slot_onCharacterAdded(SharedGroupChar character);
+    void slot_onCharacterRemoved(GroupId characterId);
+    void slot_onCharacterUpdated(SharedGroupChar character);
+    void slot_onGroupReset(const GroupVector &newCharacterList); // Unchanged
 };

@@ -102,7 +102,7 @@ namespace test {
 void testTinyRoomIdSet()
 {
     static_assert(sizeof(RoomIdSet) > sizeof(TinyRoomIdSet));
-    static_assert(sizeof(RoomIdSet) == sizeof(std::set<RoomId>));
+    // static_assert(sizeof(RoomIdSet) == sizeof(std::set<RoomId>)); // No longer true with immer::set
     static_assert(sizeof(TinyRoomIdSet) == sizeof(uintptr_t));
 
     TestHelper<RoomIdSet>::test();

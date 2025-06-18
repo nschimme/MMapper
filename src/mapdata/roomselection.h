@@ -42,10 +42,10 @@ public:
     NODISCARD RoomId getFirstRoomId() const;
 
 public:
-    void insert(const RoomId id) { m_set.insert(id); }
+    void insert(const RoomId id) { m_set.insert(id); } // BasicRoomIdSet::insert modifies its internal m_set
     void insert(const RoomHandle &room);
-    void erase(RoomId targetId) { m_set.erase(targetId); }
-    void clear() { m_set = {}; }
+    void erase(RoomId targetId) { m_set = m_set.erase(targetId); } // BasicRoomIdSet::erase returns a new set
+    void clear() { m_set = {}; } // Assigns a new default-constructed (empty) BasicRoomIdSet
 
 public:
     NODISCARD const RoomIdSet &getRoomIds() const { return m_set; }

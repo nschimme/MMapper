@@ -14,41 +14,10 @@ NODISCARD static bool mightBeOnBoundary(const Coordinate &coord, const Bounds &b
 #undef CHECK
 }
 
-const RoomId *SpatialDb::findUnique(const Coordinate &key) const
-{
-    return m_unique.find(key);
-}
+// findUnique, remove, add, move are now implemented in the header using immer::map's API.
+// Their implementations here are redundant and refer to old APIs.
 
-void SpatialDb::remove(const RoomId /*id*/, const Coordinate &coord)
-{
-    m_unique.erase(coord);
-
-    if (!m_bounds || mightBeOnBoundary(coord, *m_bounds)) {
-        m_needsBoundsUpdate = true;
-    }
-}
-
-void SpatialDb::add(const RoomId id, const Coordinate &coord)
-{
-    if (!m_bounds) {
-        m_bounds.emplace(coord, coord);
-    } else {
-        m_bounds->insert(coord);
-    }
-    m_unique.set(coord, id);
-}
-
-void SpatialDb::move(const RoomId id, const Coordinate &from, const Coordinate &to)
-{
-    if (from == to) {
-        return;
-    }
-
-    remove(id, from);
-    add(id, to);
-}
-
-void SpatialDb::updateBounds(ProgressCounter &pc)
+void SpatialDb::updateBounds(ProgressCounter &pc) const
 {
     m_bounds.reset();
     m_needsBoundsUpdate = false;

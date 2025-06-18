@@ -7,12 +7,17 @@
 #include "Changes.h"
 #include "ExitFields.h"
 #include "InvalidMapOperation.h"
-#include "ParseTree.h"
-#include "RawRooms.h"
-#include "Remapping.h"
-#include "ServerIdMap.h"
-#include "SpatialDb.h"
-#include "WorldAreaMap.h"
+#include "ParseTree.h"    // Uses immer::map, immer::set
+#include "RawRooms.h"     // Uses immer::vector
+#include "Remapping.h"    // Assuming its public API is stable for now
+#include "ServerIdMap.h"  // Uses immer::map
+#include "SpatialDb.h"    // Uses immer::map
+#include "WorldAreaMap.h" // Uses immer::map, AreaInfo uses immer::set
+
+// Required immer headers for the actual member types, if not transitively included
+// For example, if RawRooms is just a class name, but m_rooms is the actual immer type.
+// However, the changes were made *within* RawRooms.h etc., so m_rooms IS a RawRooms object.
+// The headers for ParseTree.h, RawRooms.h etc. should already include necessary immer headers.
 
 #include <memory>
 #include <optional>
@@ -38,6 +43,9 @@ struct NODISCARD WorldComparisonStats final
 class NODISCARD World final
 {
 private:
+    // These members are now instances of classes that internally use immer collections.
+    // The types themselves (RawRooms, SpatialDb, etc.) don't change here,
+    // but their internal implementation and thus their behavior (copy-on-write) has changed.
     Remapping m_remapping;
     RawRooms m_rooms;
     /// This must be updated any time a room's position changes.
@@ -63,12 +71,13 @@ public:
     NODISCARD bool operator!=(const World &rhs) const { return !(rhs == *this); }
 
 private:
-    NODISCARD AreaInfo *findArea(const std::optional<RoomArea> &area);
+    // Non-const versions are removed as AreaInfoMap now returns const AreaInfo*
+    // and direct mutation of AreaInfo through World is discouraged with immer.
+    // Modifications should go through methods on World that update m_areaInfos.
     NODISCARD const AreaInfo *findArea(const std::optional<RoomArea> &area) const;
-    NODISCARD AreaInfo &getArea(const std::optional<RoomArea> &area);
     NODISCARD const AreaInfo &getArea(const std::optional<RoomArea> &area) const;
 
-    NODISCARD AreaInfo &getGlobalArea() { return getArea(std::nullopt); }
+    // getGlobalArea non-const removed.
     NODISCARD const AreaInfo &getGlobalArea() const { return getArea(std::nullopt); }
 
 public:

@@ -627,6 +627,8 @@ message("mmapper_map_SRCS=[${mmapper_map_SRCS}]")
 
 add_library(mm_global STATIC ${mmapper_global_SRCS})
 add_library(mm_map STATIC ${mmapper_map_SRCS})
+add_dependencies(mm_global immer_project)
+add_dependencies(mm_map immer_project)
 
 # Build the executable
 add_executable(mmapper WIN32 MACOSX_BUNDLE
@@ -648,6 +650,7 @@ target_link_libraries(mmapper PUBLIC
     ${mm_libs}
     ${CMAKE_THREAD_LIBS_INIT}
 )
+target_include_directories(mmapper SYSTEM PRIVATE ${IMMER_INCLUDE_DIR})
 
 set_target_properties(
   mmapper PROPERTIES
@@ -694,17 +697,24 @@ target_link_libraries(mm_global PUBLIC
     Qt5::Core
     Qt5::Widgets
 )
+target_include_directories(mm_global SYSTEM PUBLIC ${IMMER_INCLUDE_DIR})
+# immer_project is already a dependency for mm_global and mm_map
+# add_dependencies(mmapper immer_project) # mmapper depends on mm_global/mm_map which depend on immer_project
+
 target_link_libraries(mm_map PUBLIC
     Qt5::Core
     Qt5::Widgets
 )
+target_include_directories(mm_map SYSTEM PUBLIC ${IMMER_INCLUDE_DIR})
 add_dependencies(mmapper mm_global mm_map)
 add_dependencies(mm_map mm_global)
-
+# GLM dependency is handled similarly if needed
 if(NOT GLM_FOUND)
     add_dependencies(mmapper glm)
     add_dependencies(mm_map glm)
     add_dependencies(mm_global glm)
+# No, glm is an INTERFACE library, it doesn't need add_dependencies for its headers to be available after external/glm/CMakeLists.txt
+# However, immer is an ExternalProject that *builds and installs*, so targets consuming its headers *do* need a build dependency.
 endif()
 
 if(WIN32)

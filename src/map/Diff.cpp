@@ -762,7 +762,8 @@ void OstreamDiffReporter::virt_exitFieldDifference(const RoomHandle &a,
 
 void OstreamDiffReporter::printOutgoing(const RoomHandle &room, const ExitDirEnum dir)
 {
-    const World &w = room.getMap().getWorld();
+    const Map map = room.getMap(); // Keep Map object alive
+    const World &w = map.getWorld(); // w is now a reference to World held by 'map'
 
     exitPrefix(room, dir);
     printSep();

@@ -5,20 +5,23 @@
 
 #include "../global/logging.h"
 
-void RawRooms::setExitFlags_safe(const RoomId id, const ExitDirEnum dir, const ExitFlags flags)
-{
-    setExitExitFlags(id, dir, flags);
-    enforceInvariants(id, dir);
-}
-
+// The public enforceInvariants methods should also use the updateRoom pattern
+// if they are intended to modify the state. If they are only for validation (const),
+// their name is misleading. Assuming they intend to modify and "fix" invariants:
 void RawRooms::enforceInvariants(const RoomId id, const ExitDirEnum dir)
 {
-    ::enforceInvariants(getRawRoomRef(id).getExit(dir));
+    updateRoom(id, [dir](RawRoom room) {
+        ::enforceInvariants(room.getExit(dir));
+        return room;
+    });
 }
 
 void RawRooms::enforceInvariants(const RoomId id)
 {
-    ::enforceInvariants(getRawRoomRef(id));
+    updateRoom(id, [](RawRoom room) {
+        ::enforceInvariants(room);
+        return room;
+    });
 }
 
 bool RawRooms::satisfiesInvariants(const RoomId id, const ExitDirEnum dir) const

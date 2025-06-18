@@ -16,6 +16,8 @@
 #include "../opengl/FontFormatFlags.h"
 #include "../opengl/OpenGL.h"
 #include "../opengl/OpenGLTypes.h"
+#include "../opengl/legacy/Legacy.h" // Added for Legacy::Functions definition
+#include "../opengl/legacy/Shaders.h" // Added for Legacy::ShaderPrograms definition
 #include "../src/global/SendToUser.h"
 #include "Connections.h"
 #include "MapCanvasConfig.h"

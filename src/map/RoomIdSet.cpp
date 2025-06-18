@@ -31,7 +31,7 @@ void testRoomIdSet()
     TEST_ASSERT(!a.containsElementNotIn(b));
     TEST_ASSERT(a == b);
 
-    b.erase(RoomId(7));
+    b = b.erase(RoomId(7));
     TEST_ASSERT(a.containsElementNotIn(b));
     TEST_ASSERT(a != b);
 
@@ -39,7 +39,7 @@ void testRoomIdSet()
     TEST_ASSERT(a.containsElementNotIn(b));
     TEST_ASSERT(a != b);
 
-    b.insert(RoomId(7));
+    b = b.erase(RoomId(7));
     TEST_ASSERT(!a.containsElementNotIn(b));
     TEST_ASSERT(a != b);
 }

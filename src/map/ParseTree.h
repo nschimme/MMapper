@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2021 The MMapper Authors
 
-#include "../global/OrderedMap.h"
 #include "../global/macros.h"
 #include "PromptFlags.h"
-#include "RoomIdSet.h"
-#include "mmapper2room.h"
+#include "RoomIdSet.h" // Already uses immer::set<RoomId>
+#include "mmapper2room.h" // For RoomName, RoomDesc
 
+#include <immer/map.hpp>
+#include <immer/set.hpp> // Though RoomIdSet includes it, good for clarity if directly used
 #include <ostream>
 
 class AnsiOstream;
@@ -61,10 +62,12 @@ static_assert(ALL_PARSE_KEY_FLAGS == (ParseKeyFlags{ParseKeyEnum::Name} | ParseK
 
 struct NODISCARD ParseTree final
 {
-    OrderedMap<RoomName, RoomIdSet> name_only;
-    OrderedMap<RoomDesc, RoomIdSet> desc_only;
-    OrderedMap<NameDesc, RoomIdSet> name_desc;
+    // RoomIdSet is already BasicRoomIdSet<RoomId> which wraps immer::set<RoomId>
+    immer::map<RoomName, RoomIdSet> name_only;
+    immer::map<RoomDesc, RoomIdSet> desc_only;
+    immer::map<NameDesc, RoomIdSet> name_desc;
 
+    // immer::map has its own operator==. This will work if RoomIdSet's operator== is correct.
     NODISCARD bool operator==(const ParseTree &rhs) const
     {
         return name_only == rhs.name_only && desc_only == rhs.desc_only

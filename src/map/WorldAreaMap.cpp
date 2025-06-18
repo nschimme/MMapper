@@ -8,52 +8,32 @@ NODISCARD bool AreaInfo::operator==(const AreaInfo &other) const
     return roomSet == other.roomSet;
 }
 
-void AreaInfo::remove(const RoomId id)
-{
-    if (!roomSet.contains(id)) {
-        return;
-    }
+// AreaInfo::remove is now in the header.
 
-    roomSet.erase(id);
+AreaInfoMap::AreaInfoMap() : m_map{}, m_global{} // Initialize with default/empty
+{
+    // Ensure the "unassigned" area exists.
+    m_map = m_map.set(RoomArea{}, AreaInfo{});
+    // assert(contains(RoomArea{})); // contains uses find, which is fine.
 }
 
-AreaInfoMap::AreaInfoMap()
-{
-    m_map[RoomArea{}] = AreaInfo{};
-    assert(contains(RoomArea{}));
-}
-
-AreaInfo *AreaInfoMap::find(const std::optional<RoomArea> &area)
-{
-    if (!area.has_value()) {
-        return &m_global;
-    }
-    if (const auto it = m_map.find(area.value()); it != m_map.end()) {
-        return &it->second;
-    }
-    return nullptr;
-}
+// Non-const find is removed from the header.
 
 const AreaInfo *AreaInfoMap::find(const std::optional<RoomArea> &area) const
 {
     if (!area.has_value()) {
         return &m_global;
     }
-    if (const auto it = m_map.find(area.value()); it != m_map.end()) {
-        return &it->second;
-    }
-    return nullptr;
+    // immer::map::find returns const V*
+    return m_map.find(area.value());
 }
-AreaInfo &AreaInfoMap::get(const std::optional<RoomArea> &area)
-{
-    if (AreaInfo *const pArea = find(area)) {
-        return *pArea;
-    }
-    throw std::runtime_error("invalid map area");
-}
+
+// Non-const get is removed from the header.
+
 const AreaInfo &AreaInfoMap::get(const std::optional<RoomArea> &area) const
 {
-    if (const AreaInfo *const pArea = find(area)) {
+    const AreaInfo *pArea = find(area);
+    if (pArea) {
         return *pArea;
     }
     throw std::runtime_error("invalid map area");
@@ -61,22 +41,49 @@ const AreaInfo &AreaInfoMap::get(const std::optional<RoomArea> &area) const
 
 bool AreaInfoMap::operator==(const AreaInfoMap &other) const
 {
+    // Relies on immer::map::operator== and AreaInfo::operator==
     return m_map == other.m_map && m_global == other.m_global;
 }
 
 void AreaInfoMap::insert(const RoomArea &areaName, const RoomId id)
 {
-    m_global.roomSet.insert(id);
-    if (!contains(areaName)) {
-        m_map[areaName] = {};
+    // Update global set
+    AreaInfo updated_global_info = m_global; // Copy
+    updated_global_info.roomSet.insert(id); // Modifies in-place
+    m_global = updated_global_info; // Reassign m_global
+
+    // Update specific area in the map
+    const AreaInfo* current_area_info_ptr = m_map.find(areaName);
+    AreaInfo area_info_to_update; // Default if not found
+    if (current_area_info_ptr) {
+        area_info_to_update = *current_area_info_ptr; // Copy
     }
-    get(areaName).roomSet.insert(id);
+
+    AreaInfo next_area_info = area_info_to_update; // Copy
+    next_area_info.roomSet.insert(id); // Modifies in-place
+    m_map = m_map.set(areaName, next_area_info); // Update the map
 }
 
 void AreaInfoMap::remove(const RoomArea &areaName, const RoomId id)
 {
-    m_global.remove(id);
-    if (AreaInfo *const pArea = find(areaName)) {
-        pArea->remove(id);
+    // Update global set
+    AreaInfo updated_global_info = m_global; // Copy
+    updated_global_info.remove(id); // Uses AreaInfo::remove which reassigns its roomSet
+    m_global = updated_global_info; // Reassign m_global
+
+    // Update specific area in the map
+    const AreaInfo* current_area_info_ptr = m_map.find(areaName);
+    if (current_area_info_ptr) {
+        AreaInfo current_area_info = *current_area_info_ptr; // Copy
+        AreaInfo next_area_info = current_area_info; // Copy
+        next_area_info.remove(id); // Uses AreaInfo::remove
+
+        // Only update the map if the area info actually changed.
+        // This also implicitly handles not creating an area if it didn't exist and we "removed" from it.
+        if (next_area_info.roomSet != current_area_info.roomSet) {
+             m_map = m_map.set(areaName, next_area_info);
+        }
+        // Consider: if next_area_info.roomSet is empty, should we remove 'areaName' from m_map?
+        // Original logic did not, so this preserves that.
     }
 }

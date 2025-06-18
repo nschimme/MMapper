@@ -22,6 +22,13 @@ private:
     using UniqueBigSet = std::unique_ptr<BigSet>;
 
 private:
+    // Helper to get a static empty BigSet, its iterators can be used for default state
+    NODISCARD static const BigSet& static_empty_big_set() {
+        static const BigSet empty_set{};
+        return empty_set;
+    }
+
+private:
     // This Variant class is basically just a "compiler approved" union of Type and UniqueBig,
     // where the least significant bit decides which type it is.
     //
@@ -263,22 +270,23 @@ public:
     {
     private:
         using SetConstIt = typename BigSet::ConstIterator;
-        SetConstIt m_setIt{};
+        SetConstIt m_setIt; // Rely on default construction for immer::set::iterator
         Type m_val{};
         enum class NODISCARD StateEnum : uint8_t { Empty, One, Big };
         StateEnum m_state = StateEnum::Empty;
 
     private:
         friend TinySet;
-        explicit ConstIterator() = default;
+        // Constructor for Empty state (used by begin()/end() on empty TinySet)
+        ConstIterator() : m_setIt(static_empty_big_set().end()), m_val{}, m_state(StateEnum::Empty) {}
+
+        // Constructor for One state
         explicit ConstIterator(const Type val)
-            : m_val{val}
-            , m_state{StateEnum::One}
-        {}
-        explicit ConstIterator(const SetConstIt setIt)
-            : m_setIt{setIt}
-            , m_state{StateEnum::Big}
-        {}
+            : m_setIt(static_empty_big_set().end()), m_val(val), m_state(StateEnum::One) {}
+
+        // Constructor for Big state
+        explicit ConstIterator(const SetConstIt setItFromBigSet)
+            : m_setIt(setItFromBigSet), m_val{}, m_state(StateEnum::Big) {}
 
     public:
         NODISCARD Type operator*() const
@@ -404,24 +412,20 @@ public:
             return;
         }
 
-        auto &big = getBig();
-        big.erase(id);
-
-        if (big.empty()) {
-            clear();
-            return;
-        }
-
-        if (big.size() > 1) {
-            return;
-        }
-
-        // shrink since we just have one element
-        const auto first = *big.begin();
-
+        // Must be hasBig()
         assert(hasBig());
-        assign(first); // conversion happens here
-        assert(hasOne());
+        BigSet new_big_set = getBig().erase(id); // getBig() provides access, erase() is const and returns new set
+
+        if (new_big_set.empty()) {
+            clear(); // Resets m_var, deleting the old unique_ptr content.
+        } else if (new_big_set.size() == 1) {
+            Type first_val = new_big_set.first();
+            // assign(Type) handles clearing m_var if it was hasBig
+            assign(first_val);
+        } else {
+            // assign(UniqueBigSet) handles replacing/deleting the old unique_ptr content
+            assign(std::make_unique<BigSet>(std::move(new_big_set)));
+        }
     }
 
     void insert(const Type id)

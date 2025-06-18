@@ -152,127 +152,128 @@ void PathMachine::handleParseEvent(const SigParseEvent &sigParseEvent)
     }
 }
 
-RoomIdSet PathMachine::tryExits(const RoomHandle &room, const ParseEvent &event, const bool out) {
-    RoomIdSet found_ids;
+void PathMachine::tryExits(const RoomHandle &room,
+                           RoomRecipient &recipient,
+                           const ParseEvent &event,
+                           const bool out)
+{
     if (!room.exists()) {
-        return found_ids;
+        // most likely room doesn't exist
+        return;
     }
 
     const CommandEnum move = event.getMoveType();
-    if (isDirection7(move)) { // ExitDirEnum::UNKNOWN is also a "direction"
-        const auto& possible_exit = room.getExit(getDirection(move));
-        for (RoomId target_id : (out ? possible_exit.getOutgoingSet() : possible_exit.getIncomingSet())) {
-            if (m_map.findRoomHandle(target_id).exists()) { // Validate room existence via MapFrontend
-                found_ids.insert(target_id);
-            }
-        }
+    if (isDirection7(move)) {
+        const auto &possible = room.getExit(getDirection(move));
+        tryExit(possible, recipient, out);
     } else {
-        // For LOOK, FLEE, SCOUT, NONE
-        if (move == CommandEnum::LOOK) { // Special case for LOOK in original tryExits
-            found_ids.insert(room.getId());
-        } else if (move >= CommandEnum::FLEE) {
-            // In the original code, room.getExits() returns a std::array<RawExit, MAX_EXITS>
-            // Iterating this gives RawExit objects.
-            for (const auto& exit_obj : room.getExits()) {
-                for (RoomId target_id : (out ? exit_obj.getOutgoingSet() : exit_obj.getIncomingSet())) {
-                    if (m_map.findRoomHandle(target_id).exists()) {
-                        found_ids.insert(target_id);
-                    }
-                }
+        // Only check the current room for LOOK
+        m_map.lookingForRooms(recipient, room.getId());
+        if (move >= CommandEnum::FLEE) {
+            // Only try all possible exits for commands FLEE, SCOUT, and NONE
+            for (const auto &possible : room.getExits()) {
+                tryExit(possible, recipient, out);
             }
         }
     }
-    return found_ids;
 }
 
-// Old PathMachine::tryExit removed as it's no longer used by the new tryExits
+void PathMachine::tryExit(const RawExit &possible, RoomRecipient &recipient, const bool out)
+{
+    for (auto idx : (out ? possible.getOutgoingSet() : possible.getIncomingSet())) {
+        m_map.lookingForRooms(recipient, idx);
+    }
+}
 
-RoomIdSet PathMachine::tryCoordinate(const RoomHandle &room, const ParseEvent &event) {
-    RoomIdSet found_ids;
+void PathMachine::tryCoordinate(const RoomHandle &room,
+                                RoomRecipient &recipient,
+                                const ParseEvent &event)
+{
     if (!room.exists()) {
-        return found_ids;
+        // most likely room doesn't exist
+        return;
     }
 
     const CommandEnum moveCode = event.getMoveType();
-    if (moveCode < CommandEnum::FLEE) { // LOOK, UNKNOWN, N, E, S, W, U, D
-        Coordinate offset = ::exitDir(getDirection(moveCode)); // getDirection handles UNKNOWN to ExitDirEnum::UNKNOWN (offset 0,0,0)
-        const Coordinate target_coord = room.getPosition() + offset;
-        if (const auto target_room = m_map.findRoomHandle(target_coord)) {
-            if(target_room.exists()) found_ids.insert(target_room.getId());
-        }
-    } else { // FLEE, SCOUT, NONE
+    if (moveCode < CommandEnum::FLEE) {
+        // LOOK, UNKNOWN will have an empty offset
+        auto offset = ::exitDir(getDirection(moveCode));
+        const Coordinate c = room.getPosition() + offset;
+        m_map.lookingForRooms(recipient, c);
+
+    } else {
         const Coordinate roomPos = room.getPosition();
-        for (const ExitDirEnum dir : ALL_EXITS7) { // ALL_EXITS7 includes UNKNOWN
-            const Coordinate target_coord = roomPos + ::exitDir(dir);
-            if (const auto target_room = m_map.findRoomHandle(target_coord)) {
-                if(target_room.exists()) found_ids.insert(target_room.getId());
-            }
+        // REVISIT: Should this enumerate 6 or 7 values?
+        // NOTE: This previously enumerated 8 values instead of 7,
+        // which meant it was asking for exitDir(ExitDirEnum::NONE),
+        // even though both ExitDirEnum::UNKNOWN and ExitDirEnum::NONE
+        // both have Coordinate(0, 0, 0).
+        for (const ExitDirEnum dir : ALL_EXITS7) {
+            m_map.lookingForRooms(recipient, roomPos + ::exitDir(dir));
         }
     }
-    return found_ids;
 }
 
 void PathMachine::approved(const SigParseEvent &sigParseEvent, ChangeList &changes)
 {
     ParseEvent &event = sigParseEvent.deref();
 
-    RoomHandle perhaps; // Keep this for storing the final match
+    RoomHandle perhaps;
     Approved appr{m_map, sigParseEvent, m_params.matchingTolerance};
 
     if (event.hasServerId()) {
-        if (const auto rh = m_map.findRoomHandle(event.getServerId())) {
-            // Pass RoomHandle directly, Approved::receiveRoom now handles matching criteria
-            appr.receiveRoom(rh);
-        }
-        perhaps = appr.oneMatch(); // Check if server ID alone was sufficient
-    }
-
-    if (!perhaps.exists()) { // If no server ID or server ID did not lead to a unique approved match
-        appr.releaseMatch(); // Clear any rooms collected from server ID check if it wasn't unique
-        RoomIdSet exit_ids_out = tryExits(getMostLikelyRoom(), event, true);
-        for (RoomId id : exit_ids_out) {
-            if (const auto rh = m_map.findRoomHandle(id)) { appr.receiveRoom(rh); }
+        perhaps = m_map.findRoomHandle(event.getServerId());
+        if (perhaps.exists()) {
+            appr.receiveRoom(perhaps);
         }
         perhaps = appr.oneMatch();
+    }
 
-        if (!perhaps.exists()) {
+    // This code path only happens for historic maps and mazes where no server id is present
+    if (!perhaps) {
+        appr.releaseMatch();
+
+        tryExits(getMostLikelyRoom(), appr, event, true);
+        perhaps = appr.oneMatch();
+
+        if (!perhaps) {
+            // try to match by reverse exit
             appr.releaseMatch();
-            RoomIdSet exit_ids_in = tryExits(getMostLikelyRoom(), event, false);
-            for (RoomId id : exit_ids_in) {
-                if (const auto rh = m_map.findRoomHandle(id)) { appr.receiveRoom(rh); }
-            }
+            tryExits(getMostLikelyRoom(), appr, event, false);
             perhaps = appr.oneMatch();
-
-            if (!perhaps.exists()) {
+            if (!perhaps) {
+                // try to match by coordinate
                 appr.releaseMatch();
-                RoomIdSet coord_ids = tryCoordinate(getMostLikelyRoom(), event);
-                for (RoomId id : coord_ids) {
-                    if (const auto rh = m_map.findRoomHandle(id)) { appr.receiveRoom(rh); }
-                }
+                tryCoordinate(getMostLikelyRoom(), appr, event);
                 perhaps = appr.oneMatch();
-
-                if (!perhaps.exists()) {
+                if (!perhaps) {
+                    // try to match by coordinate one step below expected
                     appr.releaseMatch();
-                    const auto cmd = event.getMoveType();
-                    const Coordinate &eDir = ::exitDir(getDirection(cmd));
-                    if (eDir.z == 0) { // Only for NESW and UNKNOWN moves
-                        if (const auto &pos_opt = tryGetMostLikelyRoomPosition()) {
-                            Coordinate c = pos_opt.value() + eDir;
+                    // FIXME: need stronger type checking here.
 
-                            // Try one step below
-                            c.z -= 1;
-                            if (const auto rh_below = m_map.findRoomHandle(c)) {
-                                appr.receiveRoom(rh_below);
-                            }
+                    const auto cmd = event.getMoveType();
+                    // NOTE: This allows ExitDirEnum::UNKNOWN,
+                    // which means the coordinate can be Coordinate(0,0,0).
+                    const Coordinate &eDir = ::exitDir(getDirection(cmd));
+
+                    // CAUTION: This test seems to mean it wants only NESW,
+                    // but it would also accept ExitDirEnum::UNKNOWN,
+                    // which in the context of this function would mean "no move."
+                    if (eDir.z == 0) {
+                        // REVISIT: if we can be sure that this function does not modify the
+                        // mostLikelyRoom, then we should retrieve it above, and directly ask
+                        // for its position here instead of using this fragile interface.
+                        if (const auto &pos = tryGetMostLikelyRoomPosition()) {
+                            Coordinate c = pos.value() + eDir;
+                            --c.z;
+                            m_map.lookingForRooms(appr, c);
                             perhaps = appr.oneMatch();
 
-                            if (!perhaps.exists()) {
-                                appr.releaseMatch(); // Clear results from trying 'c' (below)
-                                // Try one step above
-                                c.z += 2; // From one below to one above original
-                                if (const auto rh_above = m_map.findRoomHandle(c)) {
-                                    appr.receiveRoom(rh_above);
-                                }
+                            if (!perhaps) {
+                                // try to match by coordinate one step above expected
+                                appr.releaseMatch();
+                                c.z += 2;
+                                m_map.lookingForRooms(appr, c);
                                 perhaps = appr.oneMatch();
                             }
                         }
@@ -282,7 +283,7 @@ void PathMachine::approved(const SigParseEvent &sigParseEvent, ChangeList &chang
         }
     }
 
-    if (!perhaps.exists()) { // Check if perhaps is still invalid after all attempts
+    if (!perhaps) {
         // couldn't match, give up
         m_state = PathStateEnum::EXPERIMENTING;
         m_pathRoot = m_mostLikelyRoom;
@@ -522,31 +523,7 @@ void PathMachine::syncing(const SigParseEvent &sigParseEvent, ChangeList &change
     {
         Syncing sync{params, m_paths, &m_signaler};
         if (event.hasServerId() || event.getNumSkipped() <= params.maxSkipped) {
-            // Replace m_map.lookingForRooms(sync, sigParseEvent)
-            // Map::getRooms was refactored to return RoomIdSet and take ParseEvent
-            // It handles server ID preference and calls global ::getRooms.
-            RoomIdSet candidate_ids = m_map.getRooms(event); // event is a ParseEvent&
-            for (RoomId id : candidate_ids) {
-                if (const auto rh = m_map.findRoomHandle(id)) {
-                    sync.receiveRoom(rh); // Syncing class has its own receiveRoom
-                }
-            }
-            // If event has a serverId, Map::getRooms would have prioritized it.
-            // If only serverId is of interest for Syncing when present, and no tree search,
-            // the logic might be more direct:
-            // if (event.hasServerId()) {
-            //    if (const auto rh = m_map.findRoomHandle(event.getServerId())) {
-            //        sync.receiveRoom(rh);
-            //    }
-            // } else if (event.getNumSkipped() <= params.maxSkipped) {
-            //    RoomIdSet candidate_ids = m_map.getRooms(event); // Call without serverId preference
-            //    for (RoomId id : candidate_ids) { ... }
-            // }
-            // However, Map::getRooms(event) should correctly handle the precedence.
-            // The original condition "event.hasServerId() || event.getNumSkipped() <= params.maxSkipped"
-            // was about *whether* to look for rooms. If Map::getRooms handles this, it's fine.
-            // The condition was on calling lookingForRooms, not internal to it.
-            // So, we respect that condition for calling m_map.getRooms.
+            m_map.lookingForRooms(sync, sigParseEvent);
         }
         m_paths = sync.evaluate();
     }
@@ -563,10 +540,7 @@ void PathMachine::experimenting(const SigParseEvent &sigParseEvent, ChangeList &
     if (event.canCreateNewRoom() && isDirectionNESWUD(moveCode) && hasMostLikelyRoom()) {
         const auto dir = getDirection(moveCode);
         const Coordinate &move = ::exitDir(dir);
-        // Crossover constructor was updated to:
-        // Crossover(MapFrontend &map, std::shared_ptr<PathList> paths, ExitDirEnum dirCode,
-        //           PathParameters &params, const SharedParseEvent &event, RoomSignalHandler *room_signal_handler);
-        Crossover exp{m_map, m_paths, dir, params, sigParseEvent, &m_signaler}; // Added sigParseEvent and &m_signaler
+        Crossover exp{m_map, m_paths, dir, params};
         RoomIdSet pathEnds;
         for (const auto &path : deref(m_paths)) {
             const auto &working = path->getRoom();
@@ -579,46 +553,22 @@ void PathMachine::experimenting(const SigParseEvent &sigParseEvent, ChangeList &
                 pathEnds.insert(workingId);
             }
         }
-        // Refactored Crossover branch:
-        RoomIdSet candidate_ids_crossover = m_map.getRooms(event); // event is sigParseEvent.deref()
-        for (RoomId id : candidate_ids_crossover) {
-            if (const auto rh = m_map.findRoomHandle(id)) {
-                exp.receiveRoom(rh); // Crossover class has its own receiveRoom
-            }
-        }
+        // Look for appropriate rooms (including those we just created)
+        m_map.lookingForRooms(exp, sigParseEvent);
         m_paths = exp.evaluate();
     } else {
-        // Refactored OneByOne branch:
         OneByOne oneByOne{sigParseEvent, params, &m_signaler};
-        PathListPtr new_paths_for_onebyone = PathList::alloc();
-
-        for (const auto &path : deref(m_paths)) {
-            const auto &working_room_handle = path->getRoom();
-            if (!working_room_handle.exists()) continue;
-
-            oneByOne.addPath(path); // Sets current parent path and clears its internal m_collectedRoomIds
-
-            RoomIdSet exit_ids_out = tryExits(working_room_handle, event, true); // NEW tryExits
-            for (RoomId id : exit_ids_out) {
-                if (const auto rh = m_map.findRoomHandle(id)) oneByOne.receiveRoom(rh);
-            }
-
-            RoomIdSet exit_ids_in = tryExits(working_room_handle, event, false); // NEW tryExits
-            for (RoomId id : exit_ids_in) {
-                if (const auto rh = m_map.findRoomHandle(id)) oneByOne.receiveRoom(rh);
-            }
-
-            RoomIdSet coord_ids = tryCoordinate(working_room_handle, event); // NEW tryCoordinate
-            for (RoomId id : coord_ids) {
-                if (const auto rh = m_map.findRoomHandle(id)) oneByOne.receiveRoom(rh);
-            }
-
-            PathListPtr children_paths = oneByOne.evaluate();
-            for(const auto& child_path : *children_paths) {
-                new_paths_for_onebyone->push_back(child_path);
+        {
+            auto &tmp = oneByOne;
+            for (const auto &path : deref(m_paths)) {
+                const auto &working = path->getRoom();
+                tmp.addPath(path);
+                tryExits(working, tmp, event, true);
+                tryExits(working, tmp, event, false);
+                tryCoordinate(working, tmp, event);
             }
         }
-        m_paths = new_paths_for_onebyone; // Assign accumulated paths
+        m_paths = oneByOne.evaluate();
     }
 
     evaluatePaths(changes);

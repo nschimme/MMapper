@@ -14,7 +14,7 @@ class AnsiOstream;
 class Map;
 class ParseEvent;
 class ProgressCounter;
-// RoomRecipient forward declaration removed as it's no longer used in this header's public API
+class RoomRecipient;
 
 struct NODISCARD NameDesc final
 {
@@ -75,6 +75,7 @@ struct NODISCARD ParseTree final
     void printStats(ProgressCounter &pc, AnsiOstream &os) const;
 };
 
-NODISCARD RoomIdSet getRooms(const Map &map,
-                             const ParseTree &tree,
-                             const ParseEvent &parseEvent);
+void getRooms(const Map &map,
+              const ParseTree &tree,
+              RoomRecipient &visitor,
+              const ParseEvent &event);

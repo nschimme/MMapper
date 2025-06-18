@@ -9,7 +9,6 @@
 #include "../map/ChangeList.h"
 #include "../map/parseevent.h"
 #include "../map/room.h"
-#include "../map/RoomIdSet.h" // Added RoomIdSet.h
 #include "path.h"
 #include "pathparameters.h"
 #include "roomsignalhandler.h"
@@ -25,7 +24,7 @@ class Coordinate;
 class MapFrontend;
 class QEvent;
 class QObject;
-// RoomRecipient forward declaration removed
+class RoomRecipient;
 struct RoomId;
 
 enum class NODISCARD PathStateEnum : uint8_t { APPROVED = 0, EXPERIMENTING = 1, SYNCING = 2 };
@@ -79,9 +78,9 @@ private:
     void syncing(const SigParseEvent &sigParseEvent, ChangeList &changes);
     void approved(const SigParseEvent &sigParseEvent, ChangeList &changes);
     void evaluatePaths(ChangeList &changes);
-    RoomIdSet tryExits(const RoomHandle &room, const ParseEvent &event, const bool out); // Changed
-    void tryExit(const RawExit &possible, RoomRecipient &recipient, bool out); // Unchanged for now, but uses RoomRecipient
-    RoomIdSet tryCoordinate(const RoomHandle &room, const ParseEvent &event); // Changed
+    void tryExits(const RoomHandle &, RoomRecipient &, const ParseEvent &, bool out);
+    void tryExit(const RawExit &possible, RoomRecipient &recipient, bool out);
+    void tryCoordinate(const RoomHandle &, RoomRecipient &, const ParseEvent &);
 
 private:
     void updateMostLikelyRoom(const SigParseEvent &sigParseEvent, ChangeList &changes, bool force);

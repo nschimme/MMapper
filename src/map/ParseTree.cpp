@@ -10,16 +10,14 @@
 #include "../global/logging.h"
 #include "Compare.h"
 #include "Map.h"
-// RoomRecipient.h removed
-#include "RoomIdSet.h" // Ensure RoomIdSet is included (already in .h, but good practice for .cpp too if directly used)
+#include "RoomRecipient.h"
 #include "World.h"
 
 #include <deque>
 #include <optional>
 
-RoomIdSet getRooms(const Map &map, const ParseTree &tree, const ParseEvent &event)
+void getRooms(const Map &map, const ParseTree &tree, RoomRecipient &visitor, const ParseEvent &event)
 {
-    RoomIdSet found_rooms;
     // REVISIT: use Timer here instead of manually doing the same thing with Clock::now(),
     // which would have the added benefit of reporting times for lookups that fail.
     using Clock = std::chrono::steady_clock;
@@ -101,21 +99,18 @@ RoomIdSet getRooms(const Map &map, const ParseTree &tree, const ParseEvent &even
 
     if (pSet == nullptr) {
         MMLOG() << "[getRooms] Unable to find any matches.";
-        return found_rooms; // Return empty set
+        return;
     }
 
     auto &set = *pSet;
 
     const int tolerance = getConfig().pathMachine.matchingTolerance;
-    // Modified tryReport to add to found_rooms instead of calling visitor
-    auto tryReport = [&event, &found_rooms, tolerance](const RoomHandle &room) {
+    auto tryReport = [&event, &visitor, tolerance](const RoomHandle &room) {
         if (::compare(room.getRaw(), event, tolerance) == ComparisonResultEnum::DIFFERENT) {
             return false;
         }
-        if (room.exists()) {
-            found_rooms.insert(room.getId());
-        }
-        return true; // Keep original return logic for consistency if it drove calling logic
+        visitor.receiveRoom(room);
+        return true;
     };
 
     MMLOG() << "[getRooms] Found " << set.size() << " potential match(es).";
@@ -145,8 +140,6 @@ RoomIdSet getRooms(const Map &map, const ParseTree &tree, const ParseEvent &even
     report("part1. (nothing)", t1, t2);
     report("part2. for(...) tryReport() ", t2, t3);
     report("overall", t0, t3);
-
-    return found_rooms;
 }
 
 void ParseTree::printStats(ProgressCounter & /*pc*/, AnsiOstream &os) const

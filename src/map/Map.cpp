@@ -15,8 +15,7 @@
 #include "Changes.h"
 #include "Diff.h"
 #include "ParseTree.h"
-// RoomRecipient.h removed
-#include "RoomIdSet.h"
+#include "RoomRecipient.h"
 #include "World.h"
 #include "WorldBuilder.h"
 #include "enums.h"
@@ -78,54 +77,16 @@ RoomIdSet Map::findAllRooms(const ParseEvent &parseEvent) const
     return result;
 }
 
-RoomIdSet Map::getRooms(const ParseEvent &parseEvent) const
+void Map::getRooms(RoomRecipient &recipient, const ParseEvent &parseEvent) const
 {
-    // Local helper class to adapt RoomRecipient interface to populate a RoomIdSet
-    struct RoomIdCollector : public RoomRecipient {
-        RoomIdSet& r_set;
-        const Map& r_map; // Needed to convert ServerRoomId to RoomId if RoomRecipient::receiveRoom(ServerRoomId) is called
-
-        RoomIdCollector(RoomIdSet& set, const Map& map_instance) : r_set(set), r_map(map_instance) {}
-
-        void receiveRoom(const RoomHandle& room) override {
-            if (room.exists()) {
-                r_set.insert(room.getId());
-            }
-        }
-
-        void receiveRoom(ServerRoomId serverId) override {
-            if (serverId != INVALID_SERVER_ROOMID) {
-                if (const auto rh = r_map.findRoomHandle(serverId)) {
-                    if (rh.exists()) {
-                        r_set.insert(rh.getId());
-                    }
-                }
-            }
-        }
-    };
-
-    RoomIdSet result_set;
-
+    const Map &map = *this;
     if (parseEvent.getServerId() != INVALID_SERVER_ROOMID) {
-        if (const auto rh = this->findRoomHandle(parseEvent.getServerId())) {
-            if (rh.exists()) { // Ensure room handle is valid
-                result_set.insert(rh.getId());
-                return result_set; // Early exit, as per original logic: if server ID is found, only that room is considered.
-            }
+        if (const auto rh = map.findRoomHandle(parseEvent.getServerId())) {
+            return recipient.receiveRoom(rh);
         }
-        // If serverId is present but not found, the original code would proceed to ::getRooms.
-        // This is implicitly handled as the early 'return result_set' is not hit.
     }
-
-    // If no server ID was provided, or if it was provided but no room was found,
-    // proceed to use the ParseTree-based search.
-    RoomIdCollector collector(result_set, *this);
-    const auto &tree = getWorld().getParseTree();
-    // The global ::getRooms is declared in src/map/ParseTree.h and defined in src/map/ParseTree.cpp
-    // Its signature is: void getRooms(const Map &map, const ParseTree &tree, RoomRecipient &recipient, const ParseEvent &parseEvent);
-    ::getRooms(*this, tree, collector, parseEvent);
-
-    return result_set;
+    const auto &tree = map.getWorld().getParseTree();
+    ::getRooms(map, tree, recipient, parseEvent);
 }
 
 NODISCARD const RawRoom *Map::find_room_ptr(const RoomId id) const

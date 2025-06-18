@@ -27,7 +27,7 @@ class Change;
 class ChangeList;
 class ProgressCounter;
 class RoomHandle;
-// RoomRecipient forward declaration removed
+class RoomRecipient;
 class World;
 struct MapApplyResult;
 struct MapPair;
@@ -57,7 +57,7 @@ public:
 public:
     NODISCARD const RoomIdSet &getRooms() const;
     DEPRECATED_MSG("use findAllRooms()")
-    RoomIdSet getRooms(const ParseEvent &) const;
+    void getRooms(RoomRecipient &recipient, const ParseEvent &) const;
     NODISCARD RoomIdSet findAllRooms(const ParseEvent &) const;
 
 private:

@@ -5,7 +5,7 @@
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 
 #include "../global/RuleOf5.h"
-#include "../map/RoomIdSet.h" // Added RoomIdSet.h
+#include "../map/RoomRecipient.h"
 #include "path.h"
 
 #include <list>
@@ -16,7 +16,7 @@
 class RoomSignalHandler;
 struct PathParameters;
 
-class NODISCARD Syncing // Removed final and RoomRecipient inheritance
+class NODISCARD Syncing final : public RoomRecipient
 {
 private:
     RoomSignalHandler *signaler = nullptr;
@@ -25,7 +25,6 @@ private:
     // This is not our parent; it's the parent we assign to new objects.
     std::shared_ptr<Path> parent;
     uint32_t numPaths = 0u;
-    RoomIdSet m_collectedRoomIds; // Added
 
 public:
     explicit Syncing(PathParameters &p,
@@ -35,10 +34,10 @@ public:
 public:
     Syncing() = delete;
     DELETE_CTORS_AND_ASSIGN_OPS(Syncing);
-    ~Syncing(); // Removed final
+    ~Syncing() final;
 
-    // receiveRoom methods will be modified/added in .cpp to not be virtual overrides
-    // virt_receiveRoom removed as it was part of RoomRecipient interface
+private:
+    void virt_receiveRoom(const RoomHandle &) final;
 
 public:
     std::shared_ptr<PathList> evaluate();

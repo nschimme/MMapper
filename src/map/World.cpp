@@ -1028,20 +1028,7 @@ RawRoom World::getRawCopy(const RoomId id) const
 {
     requireValidRoom(id);
 
-    RawRoom result;
-
-#define X_COPY_FIELD(_Type, _Prop, _OptInit) result.fields._Prop = m_rooms.getRoom##_Prop(id);
-    XFOREACH_ROOM_PROPERTY(X_COPY_FIELD)
-#undef X_COPY_FIELD
-
-    for (const ExitDirEnum dir : ALL_EXITS7) {
-        result.exits[dir] = getRawExit(id, dir);
-    }
-
-    result.position = m_rooms.getPosition(id);
-    result.server_id = m_rooms.getServerId(id);
-    result.id = id;
-    result.status = m_rooms.getStatus(id);
+    RawRoom result = RawRoom(m_rooms.getRawRoomRef(id));
     return result;
 }
 

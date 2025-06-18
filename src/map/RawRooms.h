@@ -4,6 +4,7 @@
 
 #include "../global/IndexedVector.h"
 #include "../global/macros.h"
+#include "../global/CopyOnWrite.h"
 #include "InvalidMapOperation.h"
 #include "RawExit.h"
 #include "RawRoom.h"
@@ -11,11 +12,12 @@
 class NODISCARD RawRooms final
 {
 private:
-    IndexedVector<RawRoom, RoomId> m_rooms;
+    using CowRawRoom = CopyOnWrite<RawRoom>;
+    IndexedVector<CowRawRoom, RoomId> m_rooms;
 
 public:
-    NODISCARD RawRoom &getRawRoomRef(RoomId pos) { return m_rooms.at(pos); }
-    NODISCARD const RawRoom &getRawRoomRef(RoomId pos) const { return m_rooms.at(pos); }
+    NODISCARD RawRoom &getRawRoomRef(RoomId pos) { return m_rooms.at(pos).getMutable(); }
+    NODISCARD const RawRoom &getRawRoomRef(RoomId pos) const { return m_rooms.at(pos).getReadOnly(); }
 
 public:
     NODISCARD size_t size() const { return m_rooms.size(); }

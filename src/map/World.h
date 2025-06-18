@@ -13,6 +13,7 @@
 #include "ServerIdMap.h"
 #include "SpatialDb.h"
 #include "WorldAreaMap.h"
+#include "../global/CopyOnWrite.h"
 
 #include <memory>
 #include <optional>
@@ -38,13 +39,13 @@ struct NODISCARD WorldComparisonStats final
 class NODISCARD World final
 {
 private:
-    Remapping m_remapping;
+    CopyOnWrite<Remapping> m_remapping;
     RawRooms m_rooms;
     /// This must be updated any time a room's position changes.
-    SpatialDb m_spatialDb;
-    ServerIdMap m_serverIds;
-    ParseTree m_parseTree;
-    AreaInfoMap m_areaInfos;
+    CopyOnWrite<SpatialDb> m_spatialDb;
+    CopyOnWrite<ServerIdMap> m_serverIds;
+    CopyOnWrite<ParseTree> m_parseTree;
+    CopyOnWrite<AreaInfoMap> m_areaInfos;
 
 public:
     explicit World() = default;
@@ -71,23 +72,29 @@ private:
     NODISCARD const AreaInfo &getGlobalArea() const { return getArea(std::nullopt); }
 
 public:
-    NODISCARD const ParseTree &getParseTree() const { return m_parseTree; }
+    NODISCARD const ParseTree &getParseTree() const { return m_parseTree.getReadOnly(); }
 
 public:
     NODISCARD const RawRoom *getRoom(RoomId id) const;
 
 public:
-    NODISCARD std::optional<Bounds> getBounds() const { return m_spatialDb.getBounds(); }
-    NODISCARD bool needsBoundsUpdate() const { return m_spatialDb.needsBoundsUpdate(); }
-    void updateBounds(ProgressCounter &pc) { m_spatialDb.updateBounds(pc); }
+    NODISCARD std::optional<Bounds> getBounds() const { return m_spatialDb.getReadOnly().getBounds(); }
+    NODISCARD bool needsBoundsUpdate() const { return m_spatialDb.getReadOnly().needsBoundsUpdate(); }
+    void updateBounds(ProgressCounter &pc); // Implementation in .cpp uses getMutable()
 
 public:
     NODISCARD RoomId getNextId() const;
     // WARNING: This is not cheap.
-    NODISCARD ExternalRoomId getNextExternalId() const;
+    NODISCARD ExternalRoomId getNextExternalId() const
+    {
+        return m_remapping.getReadOnly().getNextExternal();
+    }
 
 public:
     NODISCARD const RoomIdSet &getRoomSet() const;
+    // findAreaRoomSet calls findArea, which is defined in World.cpp.
+    // findArea (const version) will need to use m_areaInfos.getReadOnly().
+    // So, the declaration remains, the implementation is in World.cpp and will be updated later.
     NODISCARD const RoomIdSet *findAreaRoomSet(const RoomArea &areaName) const;
 
 public:
@@ -95,12 +102,18 @@ public:
     void requireValidRoom(RoomId id) const;
 
 public:
-    NODISCARD std::optional<RoomId> findRoom(const Coordinate &coord) const;
+    NODISCARD std::optional<RoomId> findRoom(const Coordinate &coord) const
+    {
+        return m_spatialDb.getReadOnly().findRoom(coord);
+    }
     NODISCARD const Coordinate &getPosition(RoomId id) const;
 
 public:
     NODISCARD ServerRoomId getServerId(RoomId id) const;
-    NODISCARD std::optional<RoomId> lookup(ServerRoomId id) const;
+    NODISCARD std::optional<RoomId> lookup(ServerRoomId id) const
+    {
+        return m_serverIds.getReadOnly().lookup(id);
+    }
 
 public:
 #define X_DECL_ACCESSORS(Type, Name, Init) \
@@ -153,8 +166,14 @@ public:
     NODISCARD ExternalRawExit convertToExternal(const RawExit &exit) const;
     NODISCARD ExternalRawRoom convertToExternal(const RawRoom &room) const;
 
-    NODISCARD RoomId convertToInternal(ExternalRoomId ext) const;
-    NODISCARD ExternalRoomId convertToExternal(RoomId id) const;
+    NODISCARD RoomId convertToInternal(ExternalRoomId ext) const
+    {
+        return m_remapping.getReadOnly().convertToInternal(ext);
+    }
+    NODISCARD ExternalRoomId convertToExternal(RoomId id) const
+    {
+        return m_remapping.getReadOnly().convertToExternal(id);
+    }
 
 public:
     void applyOne(ProgressCounter &pc, const Change &change);

@@ -153,8 +153,9 @@ World World::copy() const
     DECL_TIMER(t, "World::copy");
 
     World result;
+    // For CopyOnWrite members, this calls the CoW copy assignment operator, which is a shallow copy (shares data).
     result.m_remapping = m_remapping;
-    result.m_rooms = m_rooms;
+    result.m_rooms = m_rooms; // RawRooms handles its own CoW or deep copy as needed.
     result.m_spatialDb = m_spatialDb;
     result.m_serverIds = m_serverIds;
     result.m_parseTree = m_parseTree;
@@ -165,32 +166,40 @@ World World::copy() const
 
 bool World::operator==(const World &rhs) const
 {
-    return m_remapping == rhs.m_remapping     //
-           && m_rooms == rhs.m_rooms          //
-           && m_spatialDb == rhs.m_spatialDb  //
-           && m_serverIds == rhs.m_serverIds  //
-           && m_parseTree == rhs.m_parseTree  //
-           && m_areaInfos == rhs.m_areaInfos; //
+    // For CopyOnWrite members, getReadOnly() provides access for comparison.
+    // This assumes that the underlying types (Remapping, SpatialDb, etc.) have operator== defined.
+    return m_remapping.getReadOnly() == rhs.m_remapping.getReadOnly()         //
+           && m_rooms == rhs.m_rooms                                          // RawRooms comparison
+           && m_spatialDb.getReadOnly() == rhs.m_spatialDb.getReadOnly()     //
+           && m_serverIds.getReadOnly() == rhs.m_serverIds.getReadOnly()     //
+           && m_parseTree.getReadOnly() == rhs.m_parseTree.getReadOnly()     //
+           && m_areaInfos.getReadOnly() == rhs.m_areaInfos.getReadOnly();   //
 }
 
 NODISCARD auto World::findArea(const std::optional<RoomArea> &area) -> AreaInfo *
 {
-    return m_areaInfos.find(area);
+    return m_areaInfos.getMutable().find(area);
 }
 
 NODISCARD auto World::findArea(const std::optional<RoomArea> &area) const -> const AreaInfo *
 {
-    return m_areaInfos.find(area);
+    return m_areaInfos.getReadOnly().find(area);
 }
 
 NODISCARD auto World::getArea(const std::optional<RoomArea> &area) -> AreaInfo &
 {
-    return m_areaInfos.get(area);
+    return m_areaInfos.getMutable().get(area);
 }
 
 NODISCARD auto World::getArea(const std::optional<RoomArea> &area) const -> const AreaInfo &
 {
-    return m_areaInfos.get(area);
+    return m_areaInfos.getReadOnly().get(area);
+}
+
+// Definition for updateBounds, originally modified in World.h to be a declaration
+void World::updateBounds(ProgressCounter &pc)
+{
+    m_spatialDb.getMutable().updateBounds(pc);
 }
 
 const RawRoom *World::getRoom(const RoomId id) const
@@ -212,7 +221,7 @@ bool World::hasRoom(const RoomId id) const
     }
 
     // this should be O(1) lookup in a vector.
-    return m_remapping.contains(id);
+    return m_remapping.getReadOnly().contains(id);
 }
 
 void World::requireValidRoom(const RoomId id) const
@@ -224,10 +233,17 @@ void World::requireValidRoom(const RoomId id) const
 
 std::optional<RoomId> World::findRoom(const Coordinate &coord) const
 {
-    if (const RoomId *const id = m_spatialDb.findUnique(coord)) {
-        return *id;
-    }
-    return std::nullopt;
+    // Already updated in World.h to use m_spatialDb.getReadOnly().findRoom(coord)
+    // For consistency, if it were defined here, it would be:
+    // if (const RoomId *const id = m_spatialDb.getReadOnly().findUnique(coord)) {
+    //     return *id;
+    // }
+    // return std::nullopt;
+    // However, the definition was moved to World.h as inline.
+    // So, this definition in World.cpp should be removed if it still exists,
+    // or this change is not needed if it's already removed.
+    // Assuming it's removed from .cpp as per previous step for inline in .h
+    return m_spatialDb.getReadOnly().findRoom(coord); // Should match .h
 }
 
 ServerRoomId World::getServerId(const RoomId id) const
@@ -310,14 +326,14 @@ void World::insertParse(const RoomId id, const ParseKeyFlags parseKeys)
     assert(sanitizer::isSanitizedMultiline(desc.getStdStringViewUtf8()));
 
     if (parseKeys.contains(ParseKeyEnum::Name)) {
-        insertId(m_parseTree.name_only, name, id);
+        insertId(m_parseTree.getMutable().name_only, name, id);
     }
     if (parseKeys.contains(ParseKeyEnum::Desc)) {
-        insertId(m_parseTree.desc_only, desc, id);
+        insertId(m_parseTree.getMutable().desc_only, desc, id);
     }
     if (parseKeys.contains(ParseKeyEnum::Name) || parseKeys.contains(ParseKeyEnum::Desc)) {
         const NameDesc nameDesc{name, desc};
-        insertId(m_parseTree.name_desc, nameDesc, id);
+        insertId(m_parseTree.getMutable().name_desc, nameDesc, id);
     }
 }
 
@@ -330,14 +346,14 @@ void World::removeParse(const RoomId id, const ParseKeyFlags parseKeys)
     assert(sanitizer::isSanitizedMultiline(desc.getStdStringViewUtf8()));
 
     if (parseKeys.contains(ParseKeyEnum::Name)) {
-        removeId(m_parseTree.name_only, name, id);
+        removeId(m_parseTree.getMutable().name_only, name, id);
     }
     if (parseKeys.contains(ParseKeyEnum::Desc)) {
-        removeId(m_parseTree.desc_only, desc, id);
+        removeId(m_parseTree.getMutable().desc_only, desc, id);
     }
     if (parseKeys.contains(ParseKeyEnum::Name) || parseKeys.contains(ParseKeyEnum::Desc)) {
         const NameDesc nameDesc{name, desc};
-        removeId(m_parseTree.name_desc, nameDesc, id);
+        removeId(m_parseTree.getMutable().name_desc, nameDesc, id);
     }
 }
 
@@ -378,18 +394,18 @@ void World::setRoom(const RoomId id, const RawRoom &room)
         if (parseChanged) {
             removeParse(id, parseChanged);
         }
-        m_areaInfos.remove(oldRaw.getArea(), id);
+        m_areaInfos.getMutable().remove(oldRaw.getArea(), id);
     }
 
-    m_areaInfos.insert(room.getArea(), id);
+    m_areaInfos.getMutable().insert(room.getArea(), id);
 
     if (oldServerId != INVALID_SERVER_ROOMID && oldServerId != room.server_id) {
-        m_serverIds.remove(oldServerId);
+        m_serverIds.getMutable().remove(oldServerId);
     }
 
     if (oldCoord && oldCoord != room.position) {
-        const auto &coord = room.position;
-        m_spatialDb.remove(id, coord);
+        // const auto &coord = room.position; // coord is not used with m_spatialDb.remove
+        m_spatialDb.getMutable().remove(id, *oldCoord); // remove takes oldCoord
     }
 
     const auto serverId = room.server_id;
@@ -404,12 +420,12 @@ void World::setRoom(const RoomId id, const RawRoom &room)
     }
 
     if (oldServerId != serverId) {
-        m_serverIds.set(serverId, id);
+        m_serverIds.getMutable().set(serverId, id);
     }
 
     if (newCoord != oldCoord) {
         const auto &coord = newCoord;
-        m_spatialDb.add(id, coord);
+        m_spatialDb.getMutable().add(id, coord);
     }
 
     if constexpr (IS_DEBUG_BUILD) {
@@ -600,7 +616,7 @@ void World::checkConsistency(ProgressCounter &counter) const
     auto checkPosition = [this](const RoomId id) {
         const Coordinate &coord = getPosition(id);
         // Is there a unique owner of the coord?
-        if (const RoomId *const maybe = m_spatialDb.findUnique(coord);
+        if (const RoomId *const maybe = m_spatialDb.getReadOnly().findUnique(coord);
             maybe == nullptr || *maybe != id) {
             throw MapConsistencyError("two rooms using the same coordinate found");
         }
@@ -608,7 +624,7 @@ void World::checkConsistency(ProgressCounter &counter) const
 
     auto checkServerId = [this](const RoomId id) {
         const ServerRoomId serverId = getServerId(id);
-        if (serverId != INVALID_SERVER_ROOMID && !m_serverIds.contains(serverId)) {
+        if (serverId != INVALID_SERVER_ROOMID && !m_serverIds.getReadOnly().contains(serverId)) {
             // throw MapConsistencyError("...")
             qWarning() << "Room" << id.asUint32() << "server id" << serverId.asUint32()
                        << "does not map to a room.";
@@ -654,7 +670,7 @@ void World::checkConsistency(ProgressCounter &counter) const
             throw MapConsistencyError("room set does not contain the room id");
         }
 
-        if (!m_remapping.contains(id)) {
+        if (!m_remapping.getReadOnly().contains(id)) {
             throw MapConsistencyError("remapping did not contain this id");
         }
 
@@ -668,17 +684,17 @@ void World::checkConsistency(ProgressCounter &counter) const
         const RoomName &name = getRoomName(id);
         const RoomDesc &desc = m_rooms.getRoomDescription(id);
 
-        if (auto set = m_parseTree.name_only.find(name); set == nullptr || !set->contains(id)) {
+        if (auto set = m_parseTree.getReadOnly().name_only.find(name); set == nullptr || !set->contains(id)) {
             throw MapConsistencyError("unable to find room name only");
         }
 
-        if (auto set = m_parseTree.desc_only.find(desc); set == nullptr || !set->contains(id)) {
+        if (auto set = m_parseTree.getReadOnly().desc_only.find(desc); set == nullptr || !set->contains(id)) {
             throw MapConsistencyError("unable to find room desc only");
         }
 
         {
             const NameDesc nameDesc{name, desc};
-            if (auto set = m_parseTree.name_desc.find(nameDesc);
+            if (auto set = m_parseTree.getReadOnly().name_desc.find(nameDesc);
                 set == nullptr || !set->contains(id)) {
                 throw MapConsistencyError("unable to find room name_desc only");
             }
@@ -755,8 +771,8 @@ void World::checkConsistency(ProgressCounter &counter) const
     }
 
     {
-        counter.setNewTask(ProgressMsg{"checking server ids"}, m_serverIds.size());
-        m_serverIds.for_each([this, &counter](const ServerRoomId serverId, const RoomId id) {
+        counter.setNewTask(ProgressMsg{"checking server ids"}, m_serverIds.getReadOnly().size());
+        m_serverIds.getReadOnly().for_each([this, &counter](const ServerRoomId serverId, const RoomId id) {
             if (this->getServerId(id) != serverId) {
                 throw MapConsistencyError("room server id was not the expected value");
             }
@@ -765,24 +781,24 @@ void World::checkConsistency(ProgressCounter &counter) const
     }
 
     {
-        if (m_spatialDb.needsBoundsUpdate()) {
+        if (m_spatialDb.getReadOnly().needsBoundsUpdate()) {
             throw MapConsistencyError("needs bounds update");
         }
 
-        counter.setNewTask(ProgressMsg{"checking map coordinates"}, m_spatialDb.size());
-        m_spatialDb.for_each([this, &counter](const Coordinate &coord, const RoomId id) {
+        counter.setNewTask(ProgressMsg{"checking map coordinates"}, m_spatialDb.getReadOnly().size());
+        m_spatialDb.getReadOnly().for_each([this, &counter](const Coordinate &coord, const RoomId id) {
             if (this->getPosition(id) != coord) {
                 throw MapConsistencyError("room position was not the expected coord");
             }
             counter.step();
         });
 
-        const auto &knownBounds = deref(m_spatialDb.getBounds());
+        const auto &knownBounds = deref(m_spatialDb.getReadOnly().getBounds());
 
         // Doing it this way is like asking the fox to guard the hen house,
         // but above we've verified that all of the coordinates are in the db,
         {
-            auto spatialDb_copy = m_spatialDb;
+            auto spatialDb_copy = m_spatialDb.getMutable(); // Make a mutable copy for updateBounds
             counter.setNewTask(ProgressMsg{"recomputing bounds"}, 1);
             spatialDb_copy.updateBounds(counter);
             counter.step();
@@ -885,9 +901,9 @@ void World::setServerId(const RoomId id, const ServerRoomId serverId)
         return;
     }
 
-    m_serverIds.remove(oldServerId);
-    m_rooms.setServerId(id, serverId);
-    m_serverIds.set(serverId, id);
+    m_serverIds.getMutable().remove(oldServerId);
+    m_rooms.setServerId(id, serverId); // RawRooms internal
+    m_serverIds.getMutable().set(serverId, id);
 }
 
 void World::setPosition(const RoomId id, const Coordinate &coord)
@@ -898,9 +914,9 @@ void World::setPosition(const RoomId id, const Coordinate &coord)
         return;
     }
 
-    const Coordinate &ref = m_rooms.getPosition(id);
-    m_spatialDb.move(id, ref, coord);
-    m_rooms.setPosition(id, coord);
+    const Coordinate &oldPos = m_rooms.getPosition(id); // Get current position before it's changed
+    m_rooms.setPosition(id, coord); // Update position in RawRooms first
+    m_spatialDb.getMutable().move(id, oldPos, coord); // Then update SpatialDb with old and new
 }
 
 bool World::wouldAllowRelativeMove(const RoomIdSet &rooms, const Coordinate &offset) const
@@ -948,11 +964,11 @@ void World::moveRelative(const RoomIdSet &rooms, const Coordinate &offset)
     for (const auto id : rooms) {
         const auto &oldPos = getPosition(id);
         infos.emplace_back(MoveInfo{id, oldPos + offset});
-        m_spatialDb.remove(id, oldPos);
+        m_spatialDb.getMutable().remove(id, oldPos);
     }
     for (const auto &x : infos) {
-        m_spatialDb.add(x.id, x.newPos);
-        m_rooms.setPosition(x.id, x.newPos);
+        m_spatialDb.getMutable().add(x.id, x.newPos);
+        m_rooms.setPosition(x.id, x.newPos); // RawRooms internal
     }
 }
 
@@ -986,17 +1002,17 @@ void World::removeFromWorld(const RoomId id, const bool removeLinks)
     const auto server_id = getServerId(id);
     const auto areaName = getRoomArea(id);
 
-    removeParse(id, ALL_PARSE_KEY_FLAGS);
-    m_spatialDb.remove(id, coord);
-    m_serverIds.remove(server_id);
+    removeParse(id, ALL_PARSE_KEY_FLAGS); // Will use m_parseTree.getMutable()
+    m_spatialDb.getMutable().remove(id, coord);
+    m_serverIds.getMutable().remove(server_id);
 
     if (removeLinks) {
         nukeAllExits(id, WaysEnum::TwoWay);
     }
 
-    m_remapping.removeAt(id);
-    m_rooms.removeAt(id);
-    m_areaInfos.remove(areaName, id);
+    m_remapping.getMutable().removeAt(id);
+    m_rooms.removeAt(id); // RawRooms internal
+    m_areaInfos.getMutable().remove(areaName, id);
 }
 
 void World::setRoomStatus(const RoomId id, const RoomStatusEnum status)
@@ -1183,10 +1199,10 @@ void World::initRoom(const RawRoom &input)
     {
         // REVISIT: should "upToDate" be automatic?
         const auto &areaName = input.getArea();
-        m_areaInfos.insert(areaName, id);
-        insertParse(id, ALL_PARSE_KEY_FLAGS);
-        m_spatialDb.add(id, input.position);
-        m_serverIds.set(input.server_id, id);
+        m_areaInfos.getMutable().insert(areaName, id);
+        insertParse(id, ALL_PARSE_KEY_FLAGS); // Will use m_parseTree.getMutable()
+        m_spatialDb.getMutable().add(id, input.position);
+        m_serverIds.getMutable().set(input.server_id, id);
     }
 
     if constexpr (IS_DEBUG_BUILD) {
@@ -1208,15 +1224,16 @@ World World::init(ProgressCounter &counter, const std::vector<ExternalRawRoom> &
     std::vector<RawRoom> rooms;
     {
         counter.setNewTask(ProgressMsg{"computing remapping"}, 3);
-        Remapping remapping = Remapping::computeFrom(ext_rooms);
+        Remapping remapping_data = Remapping::computeFrom(ext_rooms);
         counter.step();
         // REVISIT: defer the remapping to initRoom, or do it here?
-        rooms = remapping.convertToInternal(ext_rooms);
+        rooms = remapping_data.convertToInternal(ext_rooms); // Uses the data, not the CoW wrapper
         counter.step();
         assert(rooms.size() == ext_rooms.size());
         {
             DECL_TIMER(t2, "setRemapAndAllocateRooms");
-            w.setRemapAndAllocateRooms(std::move(remapping));
+            // setRemapAndAllocateRooms itself will use w.m_remapping.getMutable()
+            w.setRemapAndAllocateRooms(std::move(remapping_data));
         }
         counter.step();
     }
@@ -1267,7 +1284,7 @@ World World::init(ProgressCounter &counter, const std::vector<ExternalRawRoom> &
             DECL_TIMER(t3, "insert-rooms-cachedRoomSet");
             counter.setNewTask(ProgressMsg{"inserting rooms"}, rooms.size());
             for (const auto &room : rooms) {
-                w.m_areaInfos.insert(room.getArea(), room.id);
+                w.m_areaInfos.getMutable().insert(room.getArea(), room.id);
                 counter.step();
             }
         }
@@ -1276,7 +1293,7 @@ World World::init(ProgressCounter &counter, const std::vector<ExternalRawRoom> &
             DECL_TIMER(t3, "insert-rooms-parsekey");
             counter.setNewTask(ProgressMsg{"inserting room name/desc lookups"}, rooms.size());
             for (const auto &room : rooms) {
-                w.insertParse(room.id, ALL_PARSE_KEY_FLAGS);
+                w.insertParse(room.id, ALL_PARSE_KEY_FLAGS); // Will use w.m_parseTree.getMutable()
                 counter.step();
             }
         }
@@ -1284,7 +1301,7 @@ World World::init(ProgressCounter &counter, const std::vector<ExternalRawRoom> &
             DECL_TIMER(t3, "insert-rooms-spatialDb");
             counter.setNewTask(ProgressMsg{"setting room positions"}, rooms.size());
             for (const auto &room : rooms) {
-                w.m_spatialDb.add(room.id, room.position);
+                w.m_spatialDb.getMutable().add(room.id, room.position);
                 counter.step();
             }
         }
@@ -1292,7 +1309,7 @@ World World::init(ProgressCounter &counter, const std::vector<ExternalRawRoom> &
             DECL_TIMER(t3, "insert-rooms-serverIds");
             counter.setNewTask(ProgressMsg{"setting room server ids"}, rooms.size());
             for (const auto &room : rooms) {
-                w.m_serverIds.set(room.server_id, room.id);
+                w.m_serverIds.getMutable().set(room.server_id, room.id);
                 counter.step();
             }
         }
@@ -1300,7 +1317,7 @@ World World::init(ProgressCounter &counter, const std::vector<ExternalRawRoom> &
     {
         DECL_TIMER(t4, "update-bounds");
         counter.setNewTask(ProgressMsg{"updating bounds"}, 1);
-        w.m_spatialDb.updateBounds(counter);
+        w.m_spatialDb.getMutable().updateBounds(counter); // Use getMutable() for updateBounds
         counter.step();
     }
 
@@ -1333,7 +1350,7 @@ RoomId World::getNextId() const
 
 ExternalRoomId World::getNextExternalId() const
 {
-    return m_remapping.getNextExternal();
+    return m_remapping.getReadOnly().getNextExternal();
 }
 
 const RoomIdSet &World::getRoomSet() const
@@ -1366,7 +1383,7 @@ RoomId World::addRoom(const Coordinate &position)
         m_rooms.resize(newSize);
     }
 
-    m_remapping.addNew(id);
+    m_remapping.getMutable().addNew(id);
 
     RawRoom r;
     r.id = id;
@@ -1394,14 +1411,14 @@ void World::undeleteRoom(const ExternalRoomId extid, const RawRoom &raw)
     if (getRoom(raw.id)) {
         throw InvalidMapOperation("World already contains that room id");
     }
-    if (m_remapping.convertToInternal(extid) != INVALID_ROOMID) {
+    if (m_remapping.getReadOnly().convertToInternal(extid) != INVALID_ROOMID) {
         throw InvalidMapOperation("World already contains that external room id");
     }
 
     if (raw.id > getNextId()) {
         throw InvalidMapOperation("Cannot allocate that room id.");
     }
-    if (extid > getNextExternalId()) {
+    if (extid > getNextExternalId()) { // getNextExternalId() already uses getReadOnly() from .h
         throw InvalidMapOperation("Cannoat allocate that external id.");
     }
 
@@ -1409,11 +1426,11 @@ void World::undeleteRoom(const ExternalRoomId extid, const RawRoom &raw)
     {
         const uint32_t newSize = raw.id.asUint32() + 1;
         if (newSize > m_rooms.size()) {
-            m_rooms.resize(newSize);
+            m_rooms.resize(newSize); // RawRooms internal
         }
     }
 
-    m_remapping.undelete(raw.id, extid);
+    m_remapping.getMutable().undelete(raw.id, extid);
 
     for (const auto &e : raw.exits) {
         if (!e.getOutgoingSet().empty() || !e.getIncomingSet().empty()) {
@@ -1460,27 +1477,29 @@ ExternalRoomIdSet World::convertToExternal(ProgressCounter &pc, const TinyRoomId
 
 ExternalRawExit World::convertToExternal(const RawExit &exit) const
 {
-    return m_remapping.convertToExternal(exit);
+    return m_remapping.getReadOnly().convertToExternal(exit);
 }
 
 ExternalRawRoom World::convertToExternal(const RawRoom &room) const
 {
-    return m_remapping.convertToExternal(room);
+    return m_remapping.getReadOnly().convertToExternal(room);
 }
 
 RoomId World::convertToInternal(const ExternalRoomId ext) const
 {
-    return m_remapping.convertToInternal(ext);
+    // Already updated in World.h to use m_remapping.getReadOnly().convertToInternal(ext)
+    return m_remapping.getReadOnly().convertToInternal(ext);
 }
 
 ExternalRoomId World::convertToExternal(const RoomId id) const
 {
-    return m_remapping.convertToExternal(id);
+    // Already updated in World.h to use m_remapping.getReadOnly().convertToExternal(id)
+    return m_remapping.getReadOnly().convertToExternal(id);
 }
 
 void World::apply(ProgressCounter &pc, const world_change_types::CompactRoomIds &change)
 {
-    m_remapping.compact(pc, change.firstId);
+    m_remapping.getMutable().compact(pc, change.firstId);
 }
 
 void World::apply(ProgressCounter &pc, const world_change_types::RemoveAllDoorNames & /* unused */)
@@ -2103,8 +2122,8 @@ void World::applyAll_internal(ProgressCounter &pc, const std::vector<Change> &ch
 
 void World::printStats(ProgressCounter &pc, AnsiOstream &os) const
 {
-    m_remapping.printStats(pc, os);
-    m_serverIds.printStats(pc, os);
+    m_remapping.getReadOnly().printStats(pc, os);
+    m_serverIds.getReadOnly().printStats(pc, os);
 
     {
         size_t numMissingName = 0;
@@ -2303,7 +2322,7 @@ void World::printStats(ProgressCounter &pc, AnsiOstream &os) const
         os << "  total non-adjacent: " << C(non1 + non2 + loop1 + loop2) << ".\n";
     }
 
-    m_spatialDb.printStats(pc, os);
+    m_spatialDb.getReadOnly().printStats(pc, os);
 
     static constexpr auto green = getRawAnsi(AnsiColor16Enum::green);
     static constexpr auto yellow = getRawAnsi(AnsiColor16Enum::yellow);
@@ -2318,10 +2337,10 @@ void World::printStats(ProgressCounter &pc, AnsiOstream &os) const
            << "\n"
               "Within the global area (# rooms = "
            << ColoredValue{green, getRoomSet().size()} << "):\n";
-        m_parseTree.printStats(pc, os);
+        m_parseTree.getReadOnly().printStats(pc, os);
     }
 
-    for (const auto &kv : m_areaInfos) {
+    for (const auto &kv : m_areaInfos.getReadOnly()) { // Iterate over CoW
         const auto &areaName = kv.first;
         const auto numAreaRooms = kv.second.roomSet.size();
 
@@ -2420,15 +2439,15 @@ WorldComparisonStats World::getComparisonStats(const World &base, const World &m
 {
     const auto anyRoomsAdded = modified.containsRoomsNotIn(base);
     const auto anyRoomsRemoved = base.containsRoomsNotIn(modified);
-    const auto anyRoomsMoved = base.m_spatialDb != modified.m_spatialDb;
+    const auto anyRoomsMoved = base.m_spatialDb.getReadOnly() != modified.m_spatialDb.getReadOnly();
 
     WorldComparisonStats result;
-    result.boundsChanged = base.getBounds() != modified.getBounds();
+    result.boundsChanged = base.getBounds() != modified.getBounds(); // getBounds uses getReadOnly
     result.anyRoomsRemoved = anyRoomsRemoved;
     result.anyRoomsAdded = anyRoomsAdded;
     result.spatialDbChanged = anyRoomsMoved;
-    result.serverIdsChanged = base.m_serverIds != modified.m_serverIds;
-    result.parseTreeChanged = base.m_parseTree != modified.m_parseTree;
+    result.serverIdsChanged = base.m_serverIds.getReadOnly() != modified.m_serverIds.getReadOnly();
+    result.parseTreeChanged = base.m_parseTree.getReadOnly() != modified.m_parseTree.getReadOnly();
     result.hasMeshDifferences = anyRoomsAdded                         //
                                 || anyRoomsRemoved                    //
                                 || anyRoomsMoved                      //

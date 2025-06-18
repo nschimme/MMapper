@@ -23,7 +23,6 @@
 #include <QtGlobal>
 
 class Coordinate;
-class RoomRecipient;
 class RoomSignalHandler;
 struct PathParameters;
 
@@ -41,14 +40,14 @@ private:
 
 public:
     static std::shared_ptr<Path> alloc(const RoomHandle &room,
-                                       RoomRecipient *locker,
+                                       const void *locker,
                                        RoomSignalHandler *signaler,
                                        std::optional<ExitDirEnum> direction);
 
 public:
     explicit Path(Badge<Path>,
                   RoomHandle moved_room,
-                  RoomRecipient *locker,
+                  const void *locker,
                   RoomSignalHandler *signaler,
                   std::optional<ExitDirEnum> direction);
     DELETE_CTORS_AND_ASSIGN_OPS(Path);
@@ -71,7 +70,7 @@ public:
     NODISCARD std::shared_ptr<Path> fork(const RoomHandle &room,
                                          const Coordinate &expectedCoordinate,
                                          const PathParameters &params,
-                                         RoomRecipient *locker,
+                                         const void *locker,
                                          ExitDirEnum dir);
     NODISCARD double getProb() const
     {

@@ -22,10 +22,15 @@ Crossover::Crossover(MapFrontend &map,
     , m_map{map}
 {}
 
-void Crossover::virt_receiveRoom(const RoomHandle &room)
+void Crossover::receiveRoom(const RoomHandle &room)
 {
     if (deref(shortPaths).empty()) {
-        m_map.releaseRoom(*this, room.getId());
+        // If shortPaths is empty, this room is unexpected or not processable by Crossover.
+        // PathMachine's call to lookingForRooms would have used a lambda with [&exp]
+        // where exp is this Crossover instance. If Crossover decides not to use this room,
+        // it doesn't need to explicitly call releaseRoom, as it was never "kept" by this instance.
+        // m_map.releaseRoom(this, room.getId()); // This line is removed.
+        return; // Added return, as there's nothing to do if shortPaths is empty.
     }
 
     for (auto &shortPath : *shortPaths) {

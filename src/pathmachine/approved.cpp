@@ -20,14 +20,14 @@ Approved::~Approved()
 {
     if (matchedRoom) {
         if (moreThanOne) {
-            m_map.releaseRoom(*this, matchedRoom.getId());
+            m_map.releaseRoom(this, matchedRoom.getId());
         } else {
-            m_map.keepRoom(*this, matchedRoom.getId());
+            m_map.keepRoom(this, matchedRoom.getId());
         }
     }
 }
 
-void Approved::virt_receiveRoom(const RoomHandle &perhaps)
+void Approved::receiveRoom(const RoomHandle &perhaps)
 {
     auto &event = myEvent.deref();
 
@@ -44,7 +44,9 @@ void Approved::virt_receiveRoom(const RoomHandle &perhaps)
     }();
 
     if (cmp == ComparisonResultEnum::DIFFERENT) {
-        m_map.releaseRoom(*this, id);
+        // Since 'this' is the locker, and we are deciding not to keep this room,
+        // we don't need to call releaseRoom on m_map here as it was never "kept" by this instance yet.
+        // m_map.releaseRoom(this, id); // This line is removed.
         return;
     }
 
@@ -53,7 +55,8 @@ void Approved::virt_receiveRoom(const RoomHandle &perhaps)
         if (matchedRoom.getId() != id) {
             moreThanOne = true;
         }
-        m_map.releaseRoom(*this, id);
+        // If another room was already matched, we don't keep this new one.
+        // m_map.releaseRoom(this, id); // This line is removed.
         return;
     }
 
@@ -93,7 +96,11 @@ void Approved::releaseMatch()
 {
     // Release the current candidate in order to receive additional candidates
     if (matchedRoom) {
-        m_map.releaseRoom(*this, matchedRoom.getId());
+        // We are releasing our current match to potentially receive a new one.
+        // The actual release from m_map's perspective (if it was kept)
+        // will happen when this Approved object is destroyed or if a new room is kept.
+        // For now, we just reset our internal state.
+        // m_map.releaseRoom(this, matchedRoom.getId()); // This line is removed.
     }
     update = false;
     matchedRoom.reset();

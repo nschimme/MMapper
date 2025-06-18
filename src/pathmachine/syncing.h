@@ -5,7 +5,6 @@
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 
 #include "../global/RuleOf5.h"
-#include "../map/RoomRecipient.h"
 #include "path.h"
 
 #include <list>
@@ -16,7 +15,7 @@
 class RoomSignalHandler;
 struct PathParameters;
 
-class NODISCARD Syncing final : public RoomRecipient
+class NODISCARD Syncing final
 {
 private:
     RoomSignalHandler *signaler = nullptr;
@@ -34,11 +33,9 @@ public:
 public:
     Syncing() = delete;
     DELETE_CTORS_AND_ASSIGN_OPS(Syncing);
-    ~Syncing() final;
-
-private:
-    void virt_receiveRoom(const RoomHandle &) final;
+    ~Syncing();
 
 public:
+    void receiveRoom(const RoomHandle &);
     std::shared_ptr<PathList> evaluate();
 };

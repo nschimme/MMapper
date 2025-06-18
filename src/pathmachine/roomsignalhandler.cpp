@@ -6,6 +6,7 @@
 #include "roomsignalhandler.h"
 
 #include "../map/AbstractChangeVisitor.h"
+// RoomRecipient.h will be removed if not needed otherwise
 #include "../map/room.h"
 #include "../map/roomid.h"
 #include "../mapdata/mapdata.h"
@@ -13,7 +14,7 @@
 #include <cassert>
 #include <memory>
 
-void RoomSignalHandler::hold(const RoomId room, RoomRecipient *const locker)
+void RoomSignalHandler::hold(const RoomId room, const void *locker)
 {
     // REVISIT: why do we allow locker to be null?
     owners.insert(room);
@@ -29,9 +30,9 @@ void RoomSignalHandler::release(const RoomId room)
     assert(holdCount[room]);
     if (--holdCount[room] == 0) {
         if (owners.contains(room)) {
-            for (auto i = lockers[room].begin(); i != lockers[room].end(); ++i) {
-                if (RoomRecipient *const recipient = *i) {
-                    m_map.releaseRoom(*recipient, room);
+            for (const void *locker_ptr : lockers[room]) {
+                if (locker_ptr) { // Ensure locker_ptr is not null before using
+                    m_map.releaseRoom(locker_ptr, room);
                 }
             }
         } else {
@@ -61,11 +62,12 @@ void RoomSignalHandler::keep(const RoomId room,
     }
 
     if (!lockers[room].empty()) {
-        if (RoomRecipient *const locker = *(lockers[room].begin())) {
-            m_map.keepRoom(*locker, room);
-            lockers[room].erase(locker);
+        const void *first_locker = *(lockers[room].begin());
+        if (first_locker) { // Ensure first_locker is not null
+            m_map.keepRoom(first_locker, room);
+            lockers[room].erase(first_locker);
         } else {
-            assert(false);
+            assert(false); // Or handle null locker appropriately
         }
     }
     release(room);

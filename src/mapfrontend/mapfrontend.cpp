@@ -11,7 +11,6 @@
 #include "../global/logging.h"
 #include "../global/progresscounter.h"
 #include "../map/ChangeTypes.h"
-#include "../map/RoomRecipient.h"
 #include "../map/coordinate.h"
 #include "../map/parseevent.h"
 #include "../map/room.h"
@@ -160,29 +159,41 @@ RoomIdSet MapFrontend::findAllRooms(const Coordinate &input_min, const Coordinat
     return result;
 }
 
-void MapFrontend::lookingForRooms(RoomRecipient &recipient, const SigParseEvent &sigParseEvent)
+void MapFrontend::lookingForRooms(const std::function<void(const RoomHandle&)>& roomCallback, const SigParseEvent &sigParseEvent)
 {
+    if (!sigParseEvent.isValid()) return; // Or handle error appropriately
     const ParseEvent &event = sigParseEvent.deref();
     if (getCurrentMap().empty()) {
-        // Bootstrap an empty map with its first room
-        Coordinate c(0, 0, 0);
-        slot_createRoom(sigParseEvent, c);
+       slot_createRoom(sigParseEvent, Coordinate(0, 0, 0));
+       // After creating, let's try to find it again.
+       // This assumes slot_createRoom is synchronous and the room is findable immediately.
+       RoomIdSet newRoomIds = getCurrentMap().findAllRooms(event);
+       for (RoomId id : newRoomIds) {
+           if (const auto roomHandle = findRoomHandle(id)) {
+               roomCallback(roomHandle);
+           }
+       }
+    } else {
+       RoomIdSet roomIds = getCurrentMap().findAllRooms(event);
+       for (RoomId id : roomIds) {
+           if (const auto roomHandle = findRoomHandle(id)) {
+               roomCallback(roomHandle);
+           }
+       }
     }
-
-    getCurrentMap().getRooms(recipient, event);
 }
 
-void MapFrontend::lookingForRooms(RoomRecipient &recipient, const RoomId id)
+void MapFrontend::lookingForRooms(const std::function<void(const RoomHandle&)>& roomCallback, const RoomId id)
 {
     if (const auto room = findRoomHandle(id)) {
-        recipient.receiveRoom(room);
+        roomCallback(room);
     }
 }
 
-void MapFrontend::lookingForRooms(RoomRecipient &recipient, const Coordinate &pos)
+void MapFrontend::lookingForRooms(const std::function<void(const RoomHandle&)>& roomCallback, const Coordinate &pos)
 {
     if (const auto room = findRoomHandle(pos)) {
-        recipient.receiveRoom(room);
+        roomCallback(room);
     }
 }
 
@@ -276,14 +287,14 @@ bool MapFrontend::applyChanges(const ChangeList &changes)
     return applyChanges(dummyPc, changes);
 }
 
-void MapFrontend::keepRoom(RoomRecipient &, const RoomId id)
+void MapFrontend::keepRoom(const void* locker, const RoomId id)
 {
     if (const auto &room = findRoomHandle(id); room.exists() && room.isTemporary()) {
         applySingleChange(Change{room_change_types::MakePermanent{id}});
     }
 }
 
-void MapFrontend::releaseRoom(RoomRecipient &, const RoomId id)
+void MapFrontend::releaseRoom(const void* locker, const RoomId id)
 {
     if (const auto &room = findRoomHandle(id); room.exists() && room.isTemporary()) {
         applySingleChange(Change{room_change_types::RemoveRoom{id}});

@@ -27,6 +27,6 @@ public:
               ExitDirEnum dirCode,
               PathParameters &params);
 
-private:
-    void virt_receiveRoom(const RoomHandle &) final;
+public:
+    void receiveRoom(const RoomHandle &);
 };

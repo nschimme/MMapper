@@ -21,6 +21,7 @@
 
 #include <QString>
 #include <QtCore>
+#include <functional>
 
 class ParseEvent;
 class QObject;
@@ -117,13 +118,13 @@ public:
     void scheduleAction(const Change &change);
 
     // looking for rooms leads to a bunch of foundRoom() signals
-    void lookingForRooms(RoomRecipient &, const SigParseEvent &);
-    void lookingForRooms(RoomRecipient &, RoomId); // by id
-    void lookingForRooms(RoomRecipient &, const Coordinate &);
+    void lookingForRooms(const std::function<void(const RoomHandle&)>& roomCallback, const SigParseEvent &);
+    void lookingForRooms(const std::function<void(const RoomHandle&)>& roomCallback, RoomId); // by id
+    void lookingForRooms(const std::function<void(const RoomHandle&)>& roomCallback, const Coordinate &);
 
 public:
-    void keepRoom(RoomRecipient &, RoomId);
-    void releaseRoom(RoomRecipient &, RoomId);
+    void keepRoom(const void* locker, RoomId);
+    void releaseRoom(const void* locker, RoomId);
 
 signals:
     // this signal is also sent out if a room is deleted. So any clients still

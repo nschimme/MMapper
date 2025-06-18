@@ -22,9 +22,10 @@
 class Approved;
 class Coordinate;
 class MapFrontend;
+#include <functional> // Added for std::function
+
 class QEvent;
 class QObject;
-class RoomRecipient;
 struct RoomId;
 
 enum class NODISCARD PathStateEnum : uint8_t { APPROVED = 0, EXPERIMENTING = 1, SYNCING = 2 };
@@ -78,9 +79,9 @@ private:
     void syncing(const SigParseEvent &sigParseEvent, ChangeList &changes);
     void approved(const SigParseEvent &sigParseEvent, ChangeList &changes);
     void evaluatePaths(ChangeList &changes);
-    void tryExits(const RoomHandle &, RoomRecipient &, const ParseEvent &, bool out);
-    void tryExit(const RawExit &possible, RoomRecipient &recipient, bool out);
-    void tryCoordinate(const RoomHandle &, RoomRecipient &, const ParseEvent &);
+    void tryExits(const RoomHandle &, const std::function<void(const RoomHandle&)>& roomCallback, const ParseEvent &, bool out);
+    void tryExit(const RawExit &possible, const std::function<void(const RoomHandle&)>& roomCallback, bool out);
+    void tryCoordinate(const RoomHandle &, const std::function<void(const RoomHandle&)>& roomCallback, const ParseEvent &);
 
 private:
     void updateMostLikelyRoom(const SigParseEvent &sigParseEvent, ChangeList &changes, bool force);

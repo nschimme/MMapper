@@ -25,9 +25,7 @@ public:
                       PathParameters &in_params,
                       RoomSignalHandler *handler);
 
-private:
-    void virt_receiveRoom(const RoomHandle &room) final;
-
 public:
+    void receiveRoom(const RoomHandle &room);
     void addPath(std::shared_ptr<Path> path);
 };

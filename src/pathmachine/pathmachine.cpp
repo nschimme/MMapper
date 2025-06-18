@@ -28,11 +28,12 @@
 #include "syncing.h"
 
 #include <cassert>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <unordered_set>
 
-class RoomRecipient;
+// class RoomRecipient; // Removed as it's no longer used
 
 PathMachine::PathMachine(MapFrontend &map, QObject *const parent)
     : QObject(parent)
@@ -153,7 +154,7 @@ void PathMachine::handleParseEvent(const SigParseEvent &sigParseEvent)
 }
 
 void PathMachine::tryExits(const RoomHandle &room,
-                           RoomRecipient &recipient,
+                           const std::function<void(const RoomHandle&)>& roomCallback,
                            const ParseEvent &event,
                            const bool out)
 {
@@ -165,28 +166,31 @@ void PathMachine::tryExits(const RoomHandle &room,
     const CommandEnum move = event.getMoveType();
     if (isDirection7(move)) {
         const auto &possible = room.getExit(getDirection(move));
-        tryExit(possible, recipient, out);
+        tryExit(possible, roomCallback, out);
     } else {
         // Only check the current room for LOOK
-        m_map.lookingForRooms(recipient, room.getId());
+        // m_map.lookingForRooms(recipient, room.getId()); becomes:
+        if (const auto currentRoom = m_map.findRoomHandle(room.getId())) {
+            roomCallback(currentRoom);
+        }
         if (move >= CommandEnum::FLEE) {
             // Only try all possible exits for commands FLEE, SCOUT, and NONE
             for (const auto &possible : room.getExits()) {
-                tryExit(possible, recipient, out);
+                tryExit(possible, roomCallback, out);
             }
         }
     }
 }
 
-void PathMachine::tryExit(const RawExit &possible, RoomRecipient &recipient, const bool out)
+void PathMachine::tryExit(const RawExit &possible, const std::function<void(const RoomHandle&)>& roomCallback, const bool out)
 {
     for (auto idx : (out ? possible.getOutgoingSet() : possible.getIncomingSet())) {
-        m_map.lookingForRooms(recipient, idx);
+        m_map.lookingForRooms(roomCallback, idx);
     }
 }
 
 void PathMachine::tryCoordinate(const RoomHandle &room,
-                                RoomRecipient &recipient,
+                                const std::function<void(const RoomHandle&)>& roomCallback,
                                 const ParseEvent &event)
 {
     if (!room.exists()) {
@@ -199,7 +203,7 @@ void PathMachine::tryCoordinate(const RoomHandle &room,
         // LOOK, UNKNOWN will have an empty offset
         auto offset = ::exitDir(getDirection(moveCode));
         const Coordinate c = room.getPosition() + offset;
-        m_map.lookingForRooms(recipient, c);
+        m_map.lookingForRooms(roomCallback, c);
 
     } else {
         const Coordinate roomPos = room.getPosition();
@@ -209,7 +213,7 @@ void PathMachine::tryCoordinate(const RoomHandle &room,
         // even though both ExitDirEnum::UNKNOWN and ExitDirEnum::NONE
         // both have Coordinate(0, 0, 0).
         for (const ExitDirEnum dir : ALL_EXITS7) {
-            m_map.lookingForRooms(recipient, roomPos + ::exitDir(dir));
+            m_map.lookingForRooms(roomCallback, roomPos + ::exitDir(dir));
         }
     }
 }
@@ -233,18 +237,18 @@ void PathMachine::approved(const SigParseEvent &sigParseEvent, ChangeList &chang
     if (!perhaps) {
         appr.releaseMatch();
 
-        tryExits(getMostLikelyRoom(), appr, event, true);
+        tryExits(getMostLikelyRoom(), [&appr](const RoomHandle& r){ appr.receiveRoom(r); }, event, true);
         perhaps = appr.oneMatch();
 
         if (!perhaps) {
             // try to match by reverse exit
             appr.releaseMatch();
-            tryExits(getMostLikelyRoom(), appr, event, false);
+            tryExits(getMostLikelyRoom(), [&appr](const RoomHandle& r){ appr.receiveRoom(r); }, event, false);
             perhaps = appr.oneMatch();
             if (!perhaps) {
                 // try to match by coordinate
                 appr.releaseMatch();
-                tryCoordinate(getMostLikelyRoom(), appr, event);
+                tryCoordinate(getMostLikelyRoom(), [&appr](const RoomHandle& r){ appr.receiveRoom(r); }, event);
                 perhaps = appr.oneMatch();
                 if (!perhaps) {
                     // try to match by coordinate one step below expected
@@ -266,14 +270,14 @@ void PathMachine::approved(const SigParseEvent &sigParseEvent, ChangeList &chang
                         if (const auto &pos = tryGetMostLikelyRoomPosition()) {
                             Coordinate c = pos.value() + eDir;
                             --c.z;
-                            m_map.lookingForRooms(appr, c);
+                            m_map.lookingForRooms([&appr](const RoomHandle& r){ appr.receiveRoom(r); }, c);
                             perhaps = appr.oneMatch();
 
                             if (!perhaps) {
                                 // try to match by coordinate one step above expected
                                 appr.releaseMatch();
                                 c.z += 2;
-                                m_map.lookingForRooms(appr, c);
+                                m_map.lookingForRooms([&appr](const RoomHandle& r){ appr.receiveRoom(r); }, c);
                                 perhaps = appr.oneMatch();
                             }
                         }
@@ -523,7 +527,7 @@ void PathMachine::syncing(const SigParseEvent &sigParseEvent, ChangeList &change
     {
         Syncing sync{params, m_paths, &m_signaler};
         if (event.hasServerId() || event.getNumSkipped() <= params.maxSkipped) {
-            m_map.lookingForRooms(sync, sigParseEvent);
+            m_map.lookingForRooms([&sync](const RoomHandle& room) { sync.receiveRoom(room); }, sigParseEvent);
         }
         m_paths = sync.evaluate();
     }
@@ -554,7 +558,7 @@ void PathMachine::experimenting(const SigParseEvent &sigParseEvent, ChangeList &
             }
         }
         // Look for appropriate rooms (including those we just created)
-        m_map.lookingForRooms(exp, sigParseEvent);
+        m_map.lookingForRooms([&exp](const RoomHandle& room) { exp.receiveRoom(room); }, sigParseEvent);
         m_paths = exp.evaluate();
     } else {
         OneByOne oneByOne{sigParseEvent, params, &m_signaler};
@@ -563,9 +567,9 @@ void PathMachine::experimenting(const SigParseEvent &sigParseEvent, ChangeList &
             for (const auto &path : deref(m_paths)) {
                 const auto &working = path->getRoom();
                 tmp.addPath(path);
-                tryExits(working, tmp, event, true);
-                tryExits(working, tmp, event, false);
-                tryCoordinate(working, tmp, event);
+                tryExits(working, [&tmp](const RoomHandle& r){ tmp.receiveRoom(r); }, event, true);
+                tryExits(working, [&tmp](const RoomHandle& r){ tmp.receiveRoom(r); }, event, false);
+                tryCoordinate(working, [&tmp](const RoomHandle& r){ tmp.receiveRoom(r); }, event);
             }
         }
         m_paths = oneByOne.evaluate();

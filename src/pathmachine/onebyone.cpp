@@ -27,7 +27,7 @@ OneByOne::OneByOne(const SigParseEvent &sigParseEvent,
     , handler{in_handler}
 {}
 
-void OneByOne::virt_receiveRoom(const RoomHandle &room)
+void OneByOne::receiveRoom(const RoomHandle &room)
 {
     if (::compare(room.getRaw(), deref(event), params.matchingTolerance)
         == ComparisonResultEnum::EQUAL) {

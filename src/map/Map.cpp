@@ -15,7 +15,6 @@
 #include "Changes.h"
 #include "Diff.h"
 #include "ParseTree.h"
-#include "RoomRecipient.h"
 #include "World.h"
 #include "WorldBuilder.h"
 #include "enums.h"
@@ -75,18 +74,6 @@ RoomIdSet Map::findAllRooms(const ParseEvent &parseEvent) const
         }
     }
     return result;
-}
-
-void Map::getRooms(RoomRecipient &recipient, const ParseEvent &parseEvent) const
-{
-    const Map &map = *this;
-    if (parseEvent.getServerId() != INVALID_SERVER_ROOMID) {
-        if (const auto rh = map.findRoomHandle(parseEvent.getServerId())) {
-            return recipient.receiveRoom(rh);
-        }
-    }
-    const auto &tree = map.getWorld().getParseTree();
-    ::getRooms(map, tree, recipient, parseEvent);
 }
 
 NODISCARD const RawRoom *Map::find_room_ptr(const RoomId id) const

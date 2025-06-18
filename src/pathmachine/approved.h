@@ -6,7 +6,6 @@
 
 #include "../global/RuleOf5.h"
 #include "../map/RoomHandle.h"
-#include "../map/RoomRecipient.h"
 #include "../map/parseevent.h"
 #include "../map/room.h"
 #include "../map/roomid.h"
@@ -16,7 +15,7 @@
 class MapFrontend;
 class ParseEvent;
 
-class NODISCARD Approved final : public RoomRecipient
+class NODISCARD Approved final
 {
 private:
     SigParseEvent myEvent;
@@ -35,10 +34,8 @@ public:
     Approved() = delete;
     DELETE_CTORS_AND_ASSIGN_OPS(Approved);
 
-private:
-    void virt_receiveRoom(const RoomHandle &) final;
-
 public:
+    void receiveRoom(const RoomHandle &);
     NODISCARD RoomHandle oneMatch() const;
     NODISCARD bool needsUpdate() const { return update; }
     void releaseMatch();

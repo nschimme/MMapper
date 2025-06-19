@@ -202,6 +202,8 @@ private:
         QAction *editInfoMarkAct = nullptr;
     } infoMarkActions{};
 
+    // QActions for roomToolBar - create/delete/edit rooms
+    QAction* revertRoomSelectionAct = nullptr;
     QAction *createRoomAct = nullptr;
     QAction *editRoomSelectionAct = nullptr;
     QAction *deleteRoomSelectionAct = nullptr;
@@ -416,6 +418,7 @@ public slots:
     void slot_onMergeUpRoomSelection();
     void slot_onMergeDownRoomSelection();
     void slot_onConnectToNeighboursRoomSelection();
+    void slot_onRevertRoomSelection();
     void slot_forceMapperToRoom();
     void slot_onFindRoom();
     void slot_onLaunchClient();

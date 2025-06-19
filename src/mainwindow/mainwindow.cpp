@@ -39,8 +39,17 @@
 #include "roomeditattrdlg.h"
 #include "utils.h"
 
+#include "../map/Change.h"
+#include "../map/ChangeList.h"
+#include "../map/ChangeTypes.h"
+#include "../map/Diff.h"
+#include "../map/Map.h"
+#include "../map/RoomHandle.h"
+#include "../map/RoomRevert.h"
+
 #include <memory>
 #include <mutex>
+#include <sstream>
 
 #include <QActionGroup>
 #include <QCloseEvent>
@@ -793,6 +802,10 @@ void MainWindow::createActions()
     createRoomAct->setStatusTip(tr("Create a new room under the cursor"));
     connect(createRoomAct, &QAction::triggered, this, &MainWindow::slot_onCreateRoom);
 
+    revertRoomSelectionAct = new QAction(QIcon::fromTheme("edit-undo", QIcon(":/icons/undo.png")), tr("Revert Selected Rooms"), this);
+    revertRoomSelectionAct->setStatusTip(tr("Revert changes to Selected Rooms"));
+    connect(revertRoomSelectionAct, &QAction::triggered, this, &MainWindow::slot_onRevertRoomSelection);
+
     editRoomSelectionAct = new QAction(QIcon(":/icons/roomedit.png"),
                                        tr("Edit Selected Rooms"),
                                        this);
@@ -902,6 +915,7 @@ void MainWindow::createActions()
 
     selectedRoomActGroup = new QActionGroup(this);
     selectedRoomActGroup->setExclusive(false);
+    selectedRoomActGroup->addAction(revertRoomSelectionAct);
     selectedRoomActGroup->addAction(editRoomSelectionAct);
     selectedRoomActGroup->addAction(deleteRoomSelectionAct);
     selectedRoomActGroup->addAction(moveUpRoomSelectionAct);
@@ -1106,6 +1120,7 @@ void MainWindow::setupMenuBar()
     roomMenu->addAction(mouseMode.modeCreateRoomAct);
     roomMenu->addAction(editRoomSelectionAct);
     roomMenu->addAction(deleteRoomSelectionAct);
+    roomMenu->addAction(revertRoomSelectionAct);
     roomMenu->addAction(moveUpRoomSelectionAct);
     roomMenu->addAction(moveDownRoomSelectionAct);
     roomMenu->addAction(mergeUpRoomSelectionAct);
@@ -1208,6 +1223,26 @@ void MainWindow::slot_showContextMenu(const QPoint &pos)
                 contextMenu.addAction(mergeUpRoomSelectionAct);
                 contextMenu.addAction(mergeDownRoomSelectionAct);
                 contextMenu.addAction(deleteRoomSelectionAct);
+
+                bool canRevertAnyRoom = false;
+                if (m_roomSelection && !m_roomSelection->empty()) {
+                    const Map& currentMap = m_mapData->getCurrentMap();
+                    const Map& savedMap = m_mapData->getSavedMap();
+                    for (const RoomId roomId : *m_roomSelection) {
+                        const RoomHandle currentRoom = currentMap.getRoomHandle(roomId);
+                        if (!currentRoom) continue;
+                        const RoomHandle savedRoom = savedMap.findRoomHandle(currentRoom.getIdExternal());
+                        if (savedRoom) {
+                            ChangeList roomChanges = Diff::getChanges(currentMap.getRoomHandle(roomId).getRaw(), savedMap.getRoomHandle(savedRoom.getId()).getRaw(), roomId);
+                            if (!roomChanges.getChanges().empty()) {
+                                canRevertAnyRoom = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                revertRoomSelectionAct->setEnabled(canRevertAnyRoom);
+                contextMenu.addAction(revertRoomSelectionAct);
                 contextMenu.addAction(connectToNeighboursRoomSelectionAct);
                 contextMenu.addSeparator();
                 contextMenu.addAction(gotoRoomAct);
@@ -1345,6 +1380,7 @@ void MainWindow::setupToolBars()
     roomToolBar->addAction(findRoomsAct);
     roomToolBar->addAction(editRoomSelectionAct);
     roomToolBar->addAction(deleteRoomSelectionAct);
+    roomToolBar->addAction(revertRoomSelectionAct);
     roomToolBar->addAction(moveUpRoomSelectionAct);
     roomToolBar->addAction(moveDownRoomSelectionAct);
     roomToolBar->addAction(mergeUpRoomSelectionAct);
@@ -1409,8 +1445,28 @@ void MainWindow::slot_newRoomSelection(const SigRoomSelection &rs)
     forceRoomAct->setEnabled(selSize == 1 && m_pathMachine->hasLastEvent());
 
     if (isValidSelection) {
+        bool canRevertAnyRoom = false;
+        if (m_roomSelection && !m_roomSelection->empty()) {
+            const Map& currentMap = m_mapData->getCurrentMap();
+            const Map& savedMap = m_mapData->getSavedMap();
+            for (const RoomId roomId : *m_roomSelection) {
+                const RoomHandle currentRoom = currentMap.getRoomHandle(roomId);
+                if (!currentRoom) continue;
+                const RoomHandle savedRoom = savedMap.findRoomHandle(currentRoom.getIdExternal());
+                if (savedRoom) {
+                    ChangeList roomChanges = Diff::getChanges(currentMap.getRoomHandle(roomId).getRaw(), savedMap.getRoomHandle(savedRoom.getId()).getRaw(), roomId);
+                    if (!roomChanges.getChanges().empty()) {
+                        canRevertAnyRoom = true;
+                        break;
+                    }
+                }
+            }
+        }
+        revertRoomSelectionAct->setEnabled(canRevertAnyRoom);
         const auto msg = QString("Selection: %1 room%2").arg(selSize).arg(basic_plural(selSize));
         showStatusLong(msg);
+    } else {
+        revertRoomSelectionAct->setEnabled(false);
     }
 }
 
@@ -1929,6 +1985,54 @@ void MainWindow::slot_onCheckForUpdate()
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif
+
+void MainWindow::slot_onRevertRoomSelection()
+{
+    if (!m_roomSelection || m_roomSelection->empty()) {
+        return;
+    }
+
+    MapData *const mapData = deref(m_mapData);
+    const Map &currentMap = mapData.getCurrentMap();
+    const Map &savedMap = mapData.getSavedMap();
+
+    ChangeList allChangesToApply;
+    std::ostringstream dummy_log_stream;
+
+    for (const RoomId roomId : *m_roomSelection) {
+        const RoomHandle currentRoomHandle = currentMap.findRoomHandle(roomId);
+        if (!currentRoomHandle.exists()) {
+            // Room might have been deleted by a previous change in a multi-room revert.
+            // room_revert::build_plan might handle this, but good to be safe.
+            qDebug() << "Skipping revert for already deleted room:" << roomId.toString();
+            continue;
+        }
+
+        const RoomHandle savedRoomHandle = savedMap.findRoomHandle(currentRoomHandle.getIdExternal());
+
+        if (!savedRoomHandle.exists()) {
+            // Room was created after last save, skip for now.
+            qDebug() << "Skipping revert for new room:" << currentRoomHandle.getIdExternal().toString();
+            continue;
+        }
+
+        auto pResult = room_revert::build_plan(dummy_log_stream, currentMap, roomId, savedMap);
+
+        if (pResult && !pResult->changes.getChanges().empty()) {
+            for (const Change& ch : pResult->changes.getChanges()) {
+                allChangesToApply.addChange(ch);
+            }
+        }
+    }
+
+    if (!allChangesToApply.getChanges().empty()) {
+        mapData->applyChanges(allChangesToApply);
+    }
+
+    getCanvas()->slot_clearRoomSelection();
+    mapChanged();
+    updateMapModified();
+}
 
 void MainWindow::slot_voteForMUME()
 {

@@ -15,6 +15,7 @@
 #include <QCheckBox>
 #include <QFormLayout>
 #include <QLabel>
+#include <memory> // For std::unique_ptr, already in .h but good practice for .cpp if directly used
 
 // Mock functions needed by Configuration during tests
 // Normally provided by main.cpp or other setup
@@ -68,6 +69,12 @@ void TestConfigDialog::initTestCase()
 
     m_searchLineEdit = m_developerPage->findChild<QLineEdit*>("searchLineEdit");
     QVERIFY(m_searchLineEdit);
+
+    // Create a pristine configuration to compare against for defaults
+    m_pristineDefaultConfig = std::make_unique<Configuration>(getConfig()); // Create a copy from the main config
+    m_pristineDefaultConfig->reset(); // Reset it to its default state.
+                                     // This assumes reset() correctly establishes initial defaults.
+    QVERIFY(m_pristineDefaultConfig);
 }
 
 void TestConfigDialog::cleanupTestCase()
@@ -201,6 +208,149 @@ void TestConfigDialog::testDeveloperPageSettingChange()
     targetCheckBox->setChecked(initialValue);
     QTest::qWait(50);
     QCOMPARE(getConfig().general.alwaysOnTop, initialValue);
+}
+
+void TestConfigDialog::testDeveloperPageGraphicsSignal()
+{
+    QVERIFY(m_developerPage != nullptr);
+
+    // Let's find the QCheckBox for "drawDoorNames" as it's a known graphics bool.
+    // Accessing ui members directly like m_developerPage->ui->... is fine for tests if needed,
+    // but findChild is also robust if object names are set or types are unique.
+    // Here, we navigate through the known structure.
+    QFormLayout *formLayout = qobject_cast<QFormLayout*>(m_developerPage->ui->settingsLayout->itemAt(0)->layout());
+    QVERIFY(formLayout);
+
+    QString targetSettingName = "drawDoorNames"; // From Configuration::CanvasSettings
+    QCheckBox *targetCheckBox = nullptr;
+
+    for (int i = 0; i < formLayout->rowCount(); ++i) {
+        QLabel *label = qobject_cast<QLabel*>(formLayout->itemAt(i, QFormLayout::LabelRole)->widget());
+        if (label && label->text().startsWith(targetSettingName)) {
+            targetCheckBox = qobject_cast<QCheckBox*>(formLayout->itemAt(i, QFormLayout::FieldRole)->widget());
+            break;
+        }
+    }
+    QVERIFY2(targetCheckBox, "Could not find QCheckBox for 'drawDoorNames' to test signal emission. Check property name and type in DeveloperPage::populatePage.");
+
+    QSignalSpy spy(m_developerPage, &DeveloperPage::sig_graphicsSettingsChanged);
+    QVERIFY(spy.isValid()); // Check if spy is correctly connected
+
+    // Change the setting
+    bool initialValue = getConfig().canvas.drawDoorNames; // Assuming 'canvas' is the member name for CanvasSettings in Configuration
+    targetCheckBox->setChecked(!initialValue);
+    QTest::qWait(50); // Allow signal to propagate if needed (usually not for direct connections)
+
+    // Check that the signal was emitted
+    QCOMPARE(spy.count(), 1);
+
+    // Change it back and check signal again
+    targetCheckBox->setChecked(initialValue);
+    QTest::qWait(50);
+    QCOMPARE(spy.count(), 2); // Emitted again for the second change
+}
+
+void TestConfigDialog::testDeveloperPageResetToDefault()
+{
+    QVERIFY(m_developerPage);
+    QVERIFY(m_pristineDefaultConfig); // Ensure our source of defaults is available
+
+    // --- Test Case 1: Boolean property (e.g., "drawDoorNames") ---
+    QString boolPropertyName = "drawDoorNames";
+    QCheckBox* boolEditor = nullptr;
+
+    QFormLayout *formLayout = qobject_cast<QFormLayout*>(m_developerPage->ui->settingsLayout->itemAt(0)->layout());
+    QVERIFY(formLayout);
+
+    for (int i = 0; i < formLayout->rowCount(); ++i) {
+        QLabel *labelWidget = qobject_cast<QLabel*>(formLayout->itemAt(i, QFormLayout::LabelRole)->widget());
+        if (labelWidget && labelWidget->text().startsWith(boolPropertyName)) {
+            boolEditor = qobject_cast<QCheckBox*>(formLayout->itemAt(i, QFormLayout::FieldRole)->widget());
+            break;
+        }
+    }
+    QVERIFY2(boolEditor, "Could not find editor for boolean property 'drawDoorNames' to test reset.");
+
+    const QMetaObject* defaultMetaObj = m_pristineDefaultConfig->staticMetaObject;
+    int propIdx = defaultMetaObj->indexOfProperty(boolPropertyName.toUtf8().constData());
+    QVERIFY(propIdx != -1);
+    QVariant expectedDefaultBool = defaultMetaObj->property(propIdx).read(m_pristineDefaultConfig.get());
+    QVERIFY(expectedDefaultBool.isValid() && expectedDefaultBool.typeId() == QMetaType::Bool);
+
+    // 1. Change the live setting away from default
+    // bool initialLiveValue = getConfig().canvas.drawDoorNames; // Not needed directly
+    bool valueToSet = !expectedDefaultBool.toBool();
+    if (boolEditor->isChecked() == valueToSet) { // If current UI state is already what we want to set
+        boolEditor->setChecked(!valueToSet); // Change it to something else first
+        QTest::qWait(50);
+    }
+    boolEditor->setChecked(valueToSet);
+    QTest::qWait(50);
+    QCOMPARE(getConfig().canvas.drawDoorNames, valueToSet);
+
+    // 2. Trigger reset for this property
+    QMetaObject::invokeMethod(m_developerPage, "setProperty", Qt::DirectConnection,
+                              Q_ARG(QString, "m_contextMenuPropertyName"), Q_ARG(QVariant, QVariant(boolPropertyName)));
+
+    QSignalSpy graphicsSpy(m_developerPage, &DeveloperPage::sig_graphicsSettingsChanged);
+    QVERIFY(graphicsSpy.isValid());
+
+    QMetaObject::invokeMethod(m_developerPage, "onResetToDefaultTriggered", Qt::DirectConnection);
+    QTest::qWait(50);
+
+    // 3. Verify live config is reset to default
+    QCOMPARE(getConfig().canvas.drawDoorNames, expectedDefaultBool.toBool());
+
+    // 4. Verify UI widget is updated
+    QCOMPARE(boolEditor->isChecked(), expectedDefaultBool.toBool());
+
+    // 5. Verify signal was emitted (drawDoorNames is a graphics prop)
+    QCOMPARE(graphicsSpy.count(), 1); // Reset action should emit it once.
+
+    // --- Test Case 2: String property (e.g., "resourcesDirectory") ---
+    QString stringPropertyName = "resourcesDirectory";
+    QLineEdit* stringEditor = nullptr;
+    for (int i = 0; i < formLayout->rowCount(); ++i) {
+        QLabel *labelWidget = qobject_cast<QLabel*>(formLayout->itemAt(i, QFormLayout::LabelRole)->widget());
+        if (labelWidget && labelWidget->text().startsWith(stringPropertyName)) {
+            stringEditor = qobject_cast<QLineEdit*>(formLayout->itemAt(i, QFormLayout::FieldRole)->widget());
+            break;
+        }
+    }
+    QVERIFY2(stringEditor, "Could not find editor for string property 'resourcesDirectory' to test reset.");
+
+    propIdx = defaultMetaObj->indexOfProperty(stringPropertyName.toUtf8().constData());
+    QVERIFY(propIdx != -1);
+    QVariant expectedDefaultString = defaultMetaObj->property(propIdx).read(m_pristineDefaultConfig.get());
+    QVERIFY(expectedDefaultString.isValid() && expectedDefaultString.typeId() == QMetaType::QString);
+
+    // 1. Change live setting
+    QString testStringValue = "test/path/for/reset";
+    if (testStringValue == expectedDefaultString.toString()) testStringValue = "/another/test/path";
+    if (stringEditor->text() == testStringValue) { // If current UI state is already what we want to set
+        stringEditor->setText(testStringValue + "_temp"); // Change it to something else first
+        QTest::qWait(50);
+    }
+
+    stringEditor->setText(testStringValue);
+    QTest::qWait(50);
+    QCOMPARE(getConfig().canvas.resourcesDirectory, testStringValue);
+
+    // 2. Trigger reset
+    QMetaObject::invokeMethod(m_developerPage, "setProperty", Qt::DirectConnection,
+                              Q_ARG(QString, "m_contextMenuPropertyName"), Q_ARG(QVariant, QVariant(stringPropertyName)));
+    graphicsSpy.clear();
+    QMetaObject::invokeMethod(m_developerPage, "onResetToDefaultTriggered", Qt::DirectConnection);
+    QTest::qWait(50);
+
+    // 3. Verify live config reset
+    QCOMPARE(getConfig().canvas.resourcesDirectory, expectedDefaultString.toString());
+
+    // 4. Verify UI update
+    QCOMPARE(stringEditor->text(), expectedDefaultString.toString());
+
+    // 5. Verify signal (resourcesDirectory is a graphics prop)
+    QCOMPARE(graphicsSpy.count(), 1);
 }
 
 QTEST_MAIN(TestConfigDialog)

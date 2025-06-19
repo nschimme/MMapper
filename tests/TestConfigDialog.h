@@ -4,6 +4,11 @@
 
 #include "../src/global/macros.h"
 #include <QObject>
+#include <QSignalSpy> // Added for signal testing
+#include <memory> // For std::unique_ptr
+
+// Forward declare Configuration
+class Configuration;
 
 class ConfigDialog;
 class DeveloperPage;
@@ -25,10 +30,13 @@ private slots:
     void testDeveloperPagePopulation();
     void testDeveloperPageSearch();
     void testDeveloperPageSettingChange();
+        void testDeveloperPageGraphicsSignal();
+        void testDeveloperPageResetToDefault();
 
 private:
     ConfigDialog *m_configDialog = nullptr;
     DeveloperPage *m_developerPage = nullptr;
     QListWidget *m_pageListWidget = nullptr;
     QLineEdit *m_searchLineEdit = nullptr;
+        std::unique_ptr<Configuration> m_pristineDefaultConfig; // To know actual default values
 };

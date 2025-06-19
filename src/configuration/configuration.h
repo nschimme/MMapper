@@ -344,11 +344,58 @@ public:
 
     struct NODISCARD GroupManagerSettings final
     {
-        QColor color;
-        QColor npcColor;
-        bool npcColorOverride = false;
-        bool npcSortBottom = false;
-        bool npcHide = false;
+    private:
+        ChangeMonitor m_groupManagerChangeMonitor;
+        QColor m_color; // Default QColor is invalid, or use Qt::black/white if specific default desired
+        QColor m_npcColor;
+        bool m_npcColorOverride = false;
+        bool m_npcSortBottom = false;
+        bool m_npcHide = false;
+
+    public:
+        void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime, ChangeMonitor::Function callback) {
+            m_groupManagerChangeMonitor.registerChangeCallback(lifetime, std::move(callback));
+        }
+
+        NODISCARD QColor getColor() const { return m_color; }
+        void setColor(const QColor& value) {
+            if (m_color != value) {
+                m_color = value;
+                m_groupManagerChangeMonitor.notifyAll();
+            }
+        }
+
+        NODISCARD QColor getNpcColor() const { return m_npcColor; }
+        void setNpcColor(const QColor& value) {
+            if (m_npcColor != value) {
+                m_npcColor = value;
+                m_groupManagerChangeMonitor.notifyAll();
+            }
+        }
+
+        NODISCARD bool getNpcColorOverride() const { return m_npcColorOverride; }
+        void setNpcColorOverride(bool value) {
+            if (m_npcColorOverride != value) {
+                m_npcColorOverride = value;
+                m_groupManagerChangeMonitor.notifyAll();
+            }
+        }
+
+        NODISCARD bool getNpcSortBottom() const { return m_npcSortBottom; }
+        void setNpcSortBottom(bool value) {
+            if (m_npcSortBottom != value) {
+                m_npcSortBottom = value;
+                m_groupManagerChangeMonitor.notifyAll();
+            }
+        }
+
+        NODISCARD bool getNpcHide() const { return m_npcHide; }
+        void setNpcHide(bool value) {
+            if (m_npcHide != value) {
+                m_npcHide = value;
+                m_groupManagerChangeMonitor.notifyAll();
+            }
+        }
 
     private:
         SUBGROUP();

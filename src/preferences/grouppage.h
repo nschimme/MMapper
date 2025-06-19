@@ -3,6 +3,7 @@
 // Copyright (C) 2025 The MMapper Authors
 
 #include "../global/macros.h"
+#include "../global/Signal2Lifetime.h" // Added
 
 #include <QColor>
 #include <QWidget>
@@ -22,6 +23,7 @@ class NODISCARD_QOBJECT GroupPage final : public QWidget
 
 private:
     Ui::GroupPage *const ui;
+    Signal2Lifetime m_configLifetime; // Added
 
 public:
     explicit GroupPage(QWidget *parent = nullptr);

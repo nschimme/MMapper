@@ -79,6 +79,16 @@ void DeveloperPage::registerChangeMonitors() {
     XNamedColor::registerGlobalChangeCallback(m_configLifetime, [this]() {
         emit sig_graphicsSettingsChanged();
     });
+
+    // Register callback with GroupManagerSettings
+    config.groupManager.registerChangeCallback(m_configLifetime, [this]() {
+        // This callback is for changes in GroupManagerSettings.
+        // DeveloperPage currently does not emit a specific signal itself in response to these.
+        // This connection is for completeness. If DeveloperPage needed to react,
+        // it might emit a general "settingsChanged" or a specific group settings signal.
+        // For now, this can be a no-op or a qDebug for tracing.
+        // qDebug() << "DeveloperPage: Detected a change in GroupManagerSettings.";
+    });
 }
 
 void DeveloperPage::slot_loadConfig()
@@ -110,7 +120,7 @@ QCheckBox* DeveloperPage::createBoolEditor(Configuration &config_ref_for_read, c
     connect(checkBox, &QCheckBox::toggled, this, [this, property](bool checked) {
         QString propertyNameStr = QLatin1String(property.name());
         bool success = false;
-        // Use setters for refactored CanvasSettings properties
+        // Use setters for refactored CanvasSettings or GroupManagerSettings properties
         if (propertyNameStr == "drawDoorNames") {
             setConfig().canvas.setDrawDoorNames(checked); success = true;
         } else if (propertyNameStr == "drawUpperLayersTextured") {
@@ -119,15 +129,21 @@ QCheckBox* DeveloperPage::createBoolEditor(Configuration &config_ref_for_read, c
             setConfig().canvas.setTrilinearFiltering(checked); success = true;
         } else if (propertyNameStr == "softwareOpenGL") {
             setConfig().canvas.setSoftwareOpenGL(checked); success = true;
+        } else if (propertyNameStr == "npcColorOverride") {
+            setConfig().groupManager.setNpcColorOverride(checked); success = true;
+        } else if (propertyNameStr == "npcSortBottom") {
+            setConfig().groupManager.setNpcSortBottom(checked); success = true;
+        } else if (propertyNameStr == "npcHide") {
+            setConfig().groupManager.setNpcHide(checked); success = true;
         } else {
             // For other bool properties (incl. NamedConfig<bool>), use property.write
             success = property.write(&setConfig(), checked);
             if (success && graphicsNamedConfigPropertyNames.contains(propertyNameStr)) {
-                // Emit only for NamedConfigs known to be graphics-related and not covered by CanvasSettings monitor
+                // Emit only for NamedConfigs known to be graphics-related and not covered by CanvasSettings/GroupManager monitor
                 emit sig_graphicsSettingsChanged();
             }
         }
-        // No direct emit for CanvasSettings props here - handled by its ChangeMonitor
+        // No direct emit for CanvasSettings/GroupManager props here - handled by their ChangeMonitors
     });
     return checkBox;
 }
@@ -230,14 +246,26 @@ QPushButton* DeveloperPage::createColorEditor(Configuration &config_ref_for_read
         QColor color = QColorDialog::getColor(currentColor, this, "Select Color");
         if (color.isValid()) {
             bool success;
+            QString propertyNameStr = QLatin1String(property.name());
             // Write to the live config using setConfig()
-            if (isXColor) {
+            if (isXColor) { // XColor properties are typically global colors, not part of GroupManager/Canvas specific structs
                 success = property.write(&setConfig(), QVariant::fromValue(XColor(color)));
+            } else if (typeName == "QColor") {
+                // Handle QColor properties specifically if they belong to refactored structs
+                if (propertyNameStr == "color") { // Belongs to GroupManagerSettings
+                    setConfig().groupManager.setColor(color);
+                    success = true;
+                } else if (propertyNameStr == "npcColor") { // Belongs to GroupManagerSettings
+                    setConfig().groupManager.setNpcColor(color);
+                    success = true;
+                } else {
+                    // For other QColor properties not in refactored structs, use property.write
+                    success = property.write(&setConfig(), color);
+                }
             } else {
-                // This assumes QColor properties are not part of CanvasSettings' direct ChangeMonitor items
-                // If they were, they'd need a direct setter.
-                success = property.write(&setConfig(), color);
+                 success = false; // Should not happen if typeName is QColor or XColor
             }
+
             if (success) {
                 buttonPtr->setText(color.name());
                 buttonPtr->setStyleSheet(QString("QPushButton { background-color: %1; color: %2; border: 1px solid black; padding: 2px; text-align: left; }")
@@ -293,9 +321,11 @@ void DeveloperPage::onResetToDefaultTriggered()
          return;
     }
 
-    // Use setters for refactored CanvasSettings properties, otherwise property.write()
+    // Use setters for refactored CanvasSettings or GroupManagerSettings properties, otherwise property.write()
     QString propNameStr = QLatin1String(property.name());
     bool success = false;
+    const QString typeName = QLatin1String(property.typeName());
+
     if (propNameStr == "drawDoorNames") {
         liveConfig.canvas.setDrawDoorNames(defaultValue.toBool()); success = true;
     } else if (propNameStr == "drawUpperLayersTextured") {
@@ -308,7 +338,18 @@ void DeveloperPage::onResetToDefaultTriggered()
         liveConfig.canvas.setResourcesDirectory(defaultValue.toString()); success = true;
     } else if (propNameStr == "antialiasingSamples") {
         liveConfig.canvas.setAntialiasingSamples(defaultValue.toInt()); success = true;
-    } else {
+    } else if (propNameStr == "npcColorOverride") {
+        liveConfig.groupManager.setNpcColorOverride(defaultValue.toBool()); success = true;
+    } else if (propNameStr == "npcSortBottom") {
+        liveConfig.groupManager.setNpcSortBottom(defaultValue.toBool()); success = true;
+    } else if (propNameStr == "npcHide") {
+        liveConfig.groupManager.setNpcHide(defaultValue.toBool()); success = true;
+    } else if (typeName == "QColor" && propNameStr == "color") { // GroupManager.color
+        liveConfig.groupManager.setColor(defaultValue.value<QColor>()); success = true;
+    } else if (typeName == "QColor" && propNameStr == "npcColor") { // GroupManager.npcColor
+        liveConfig.groupManager.setNpcColor(defaultValue.value<QColor>()); success = true;
+    }
+    else { // Fallback for XColor, NamedConfig, or other types
         success = property.write(&liveConfig, defaultValue);
     }
 

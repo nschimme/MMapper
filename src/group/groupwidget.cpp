@@ -102,7 +102,7 @@ SharedGroupChar GroupProxyModel::getCharacterFromSource(const QModelIndex &sourc
 
 bool GroupProxyModel::filterAcceptsRow(int source_row, const QModelIndex &source_parent) const
 {
-    if (!getConfig().groupManager.npcHide) {
+    if (!getConfig().groupManager.getNpcHide()) { // Use getter
         return true;
     }
 
@@ -250,7 +250,7 @@ void GroupModel::setCharacters(const GroupVector &newGameChars)
     }
 
     // Insert the newly identified characters into the resulting list based on configuration.
-    if (getConfig().groupManager.npcSortBottom) {
+    if (getConfig().groupManager.getNpcSortBottom()) { // Use getter
         // Find the insertion point for new players: before the first NPC in the preserved list.
         auto itPlayerInsertPos = resultingCharacterList.begin();
         while (itPlayerInsertPos != resultingCharacterList.end()) {
@@ -664,7 +664,7 @@ GroupWidget::GroupWidget(Mmapper2Group *const group, MapData *const md, QWidget 
         if (newColor.isValid() && newColor != character.getColor()) {
             character.setColor(newColor);
             if (selectedCharacter->isYou()) {
-                setConfig().groupManager.color = newColor;
+                setConfig().groupManager.setColor(newColor); // Use setter
             }
         }
     });

@@ -680,7 +680,7 @@ void Configuration::MumeNativeSettings::read(const QSettings &conf)
 
 void Configuration::PathMachineSettings::read(const QSettings &conf)
 {
-    acceptBestRelative = conf.value(KEY_RELATIVE_PATH_ACCEPTANCE, 25).toDouble();
+    acceptBestRelative = conf.value(KEY_RELATIVE_PATH_ACCEPTANCE, 25).toDouble(); // Default values for these were numbers
     acceptBestAbsolute = conf.value(KEY_ABSOLUTE_PATH_ACCEPTANCE, 6).toDouble();
     newRoomPenalty = conf.value(KEY_ROOM_CREATION_PENALTY, 5).toDouble();
     correctPositionBonus = conf.value(KEY_CORRECT_POSITION_BONUS, 5).toDouble();
@@ -691,11 +691,12 @@ void Configuration::PathMachineSettings::read(const QSettings &conf)
 
 void Configuration::GroupManagerSettings::read(const QSettings &conf)
 {
-    color = QColor(conf.value(KEY_GROUP_YOUR_COLOR, "#FFFF00").toString());
-    npcColor = QColor(conf.value(KEY_GROUP_NPC_COLOR, QColor(Qt::lightGray)).toString());
-    npcColorOverride = conf.value(KEY_GROUP_NPC_COLOR_OVERRIDE, false).toBool();
-    npcHide = conf.value(KEY_GROUP_NPC_HIDE, false).toBool();
-    npcSortBottom = conf.value(KEY_GROUP_NPC_SORT_BOTTOM, false).toBool();
+    // Provide current member value as default to conf.value()
+    m_color = QColor(conf.value(KEY_GROUP_YOUR_COLOR, m_color.isValid() ? m_color.name() : QStringLiteral("#FFFF00")).toString());
+    m_npcColor = QColor(conf.value(KEY_GROUP_NPC_COLOR, m_npcColor.isValid() ? m_npcColor.name() : QColor(Qt::lightGray).name()).toString());
+    m_npcColorOverride = conf.value(KEY_GROUP_NPC_COLOR_OVERRIDE, m_npcColorOverride).toBool();
+    m_npcHide = conf.value(KEY_GROUP_NPC_HIDE, m_npcHide).toBool();
+    m_npcSortBottom = conf.value(KEY_GROUP_NPC_SORT_BOTTOM, m_npcSortBottom).toBool();
 }
 
 void Configuration::MumeClockSettings::read(const QSettings &conf)
@@ -850,7 +851,7 @@ void Configuration::MumeClientProtocolSettings::write(QSettings &conf) const
 
 void Configuration::PathMachineSettings::write(QSettings &conf) const
 {
-    conf.setValue(KEY_RELATIVE_PATH_ACCEPTANCE, acceptBestRelative);
+    conf.setValue(KEY_RELATIVE_PATH_ACCEPTANCE, acceptBestRelative); // These are fine
     conf.setValue(KEY_ABSOLUTE_PATH_ACCEPTANCE, acceptBestAbsolute);
     conf.setValue(KEY_ROOM_CREATION_PENALTY, newRoomPenalty);
     conf.setValue(KEY_CORRECT_POSITION_BONUS, correctPositionBonus);
@@ -861,11 +862,11 @@ void Configuration::PathMachineSettings::write(QSettings &conf) const
 
 void Configuration::GroupManagerSettings::write(QSettings &conf) const
 {
-    conf.setValue(KEY_GROUP_YOUR_COLOR, color.name());
-    conf.setValue(KEY_GROUP_NPC_COLOR, npcColor);
-    conf.setValue(KEY_GROUP_NPC_COLOR_OVERRIDE, npcColorOverride);
-    conf.setValue(KEY_GROUP_NPC_HIDE, npcHide);
-    conf.setValue(KEY_GROUP_NPC_SORT_BOTTOM, npcSortBottom);
+    conf.setValue(KEY_GROUP_YOUR_COLOR, m_color.name());
+    conf.setValue(KEY_GROUP_NPC_COLOR, m_npcColor.name()); // Use .name() for QColor
+    conf.setValue(KEY_GROUP_NPC_COLOR_OVERRIDE, m_npcColorOverride);
+    conf.setValue(KEY_GROUP_NPC_HIDE, m_npcHide);
+    conf.setValue(KEY_GROUP_NPC_SORT_BOTTOM, m_npcSortBottom);
 }
 
 void Configuration::MumeClockSettings::write(QSettings &conf) const

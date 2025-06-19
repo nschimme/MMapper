@@ -330,3 +330,35 @@ set_target_properties(
   COMPILE_FLAGS "${WARNING_FLAGS}"
 )
 add_test(NAME TestConfigDialog COMMAND testconfigdialog)
+
+# GroupPage Test
+add_executable(testgrouppage TestGroupPage.cpp)
+qt_standard_project_setup(TARGET testgrouppage)
+# Link against Qt Test, Widgets, Core, and necessary application libraries
+# Assuming GroupPage and Configuration are in mm_global or mm_lib, similar to TestConfigDialog
+# GroupPage itself is in src/preferences, Configuration is in src/configuration
+# These are part of the main mmapper_SRCS, not specifically mm_global or mm_map.
+# We need to link against the library that contains these.
+# For now, using mm_global and mm_map as placeholders, may need adjustment.
+add_dependencies(testgrouppage mm_global mm_map) # Might not be strictly needed if linking main lib
+target_link_libraries(testgrouppage PRIVATE
+    Qt${QT_VERSION_MAJOR}::Test
+    Qt${QT_VERSION_MAJOR}::Widgets
+    Qt${QT_VERSION_MAJOR}::Core
+    mm_global # For Configuration
+    # mm_map # If GroupPage depends on map-related things indirectly
+    # We likely need to link against the target that compiles grouppage.cpp and its dependencies.
+    # If all src files are compiled into a single mmapper_lib (or ${PROJECT_NAME}_lib), that's the target.
+    # The testconfigdialog linked mm_global and mm_map. This might be insufficient if grouppage.cpp
+    # is not part of those filtered libraries.
+    # Let's assume for now these are enough or covered by a more general app library link.
+    coverage_config
+)
+set_target_properties(
+  testgrouppage PROPERTIES
+  CXX_STANDARD 20
+  CXX_STANDARD_REQUIRED ON
+  CXX_EXTENSIONS OFF
+  COMPILE_FLAGS "${WARNING_FLAGS}"
+)
+add_test(NAME TestGroupPage COMMAND testgrouppage)

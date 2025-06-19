@@ -47,11 +47,11 @@ FontDefaults::FontDefaults()
     const auto &settings = getConfig().integratedClient;
 
     // Default Colors
-    defaultBg = settings.backgroundColor;
-    defaultFg = settings.foregroundColor;
+    defaultBg = settings.getBackgroundColor(); // Use getter
+    defaultFg = settings.getForegroundColor(); // Use getter
 
     // Default Font
-    serverOutputFont.fromString(settings.font);
+    serverOutputFont.fromString(settings.getFont()); // Use getter
 }
 
 void AnsiTextHelper::init()
@@ -120,9 +120,9 @@ QSize DisplayWidget::sizeHint() const
     QFontMetrics fm{getDefaultFont()};
     const int scrollbarExtent = style()->pixelMetric(QStyle::PM_ScrollBarExtent);
 
-    int x = (settings.columns * fm.averageCharWidth()) + margins.left() + margins.right()
+    int x = (settings.getColumns() * fm.averageCharWidth()) + margins.left() + margins.right() // Use getter
             + scrollbarExtent + frame;
-    int y = (settings.rows * fm.lineSpacing()) + margins.top() + margins.bottom() + scrollbarExtent
+    int y = (settings.getRows() * fm.lineSpacing()) + margins.top() + margins.bottom() + scrollbarExtent // Use getter
             + frame;
 
     return QSize(x, y);
@@ -161,7 +161,7 @@ void DisplayWidget::resizeEvent(QResizeEvent *const event)
     QToolTip::showText(mapToGlobal(rect().center() - messageDiff), message, this, rect(), 1000);
 
     const auto &settings = getConfig().integratedClient;
-    if (settings.autoResizeTerminal) {
+    if (settings.getAutoResizeTerminal()) { // Use getter
         getOutput().windowSizeChanged(x, y);
     }
 
@@ -354,7 +354,7 @@ void AnsiTextHelper::limitScrollback(int lineLimit)
 
 void DisplayWidget::slot_displayText(const QString &str)
 {
-    const int lineLimit = getConfig().integratedClient.linesOfScrollback;
+    const int lineLimit = getConfig().integratedClient.getLinesOfScrollback(); // Use getter
 
     auto &vscroll = deref(verticalScrollBar());
     constexpr int ALMOST_ALL_THE_WAY = 4;

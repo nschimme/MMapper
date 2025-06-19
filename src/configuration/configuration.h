@@ -441,17 +441,112 @@ public:
 
     struct NODISCARD IntegratedMudClientSettings final
     {
-        QString font;
-        QColor foregroundColor;
-        QColor backgroundColor;
-        int columns = 0;
-        int rows = 0;
-        int linesOfScrollback = 0;
-        int linesOfInputHistory = 0;
-        int tabCompletionDictionarySize = 0;
-        bool clearInputOnEnter = false;
-        bool autoResizeTerminal = false;
-        int linesOfPeekPreview = 0;
+    private:
+        ChangeMonitor m_clientSettingsChangeMonitor;
+        QString m_font;
+        QColor m_foregroundColor; // Default QColor is invalid, consider Qt::lightGray
+        QColor m_backgroundColor; // Default QColor is invalid, consider Qt::black
+        int m_columns = 80; // Typical default
+        int m_rows = 24;    // Typical default
+        int m_linesOfScrollback = 10000;
+        int m_linesOfInputHistory = 100;
+        int m_tabCompletionDictionarySize = 100;
+        bool m_clearInputOnEnter = true; // Common default
+        bool m_autoResizeTerminal = true; // Common default
+        int m_linesOfPeekPreview = 7;
+
+    public:
+        void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime, ChangeMonitor::Function callback) {
+            m_clientSettingsChangeMonitor.registerChangeCallback(lifetime, std::move(callback));
+        }
+
+        NODISCARD const QString& getFont() const { return m_font; }
+        void setFont(const QString& value) {
+            if (m_font != value) {
+                m_font = value;
+                m_clientSettingsChangeMonitor.notifyAll();
+            }
+        }
+
+        NODISCARD const QColor& getForegroundColor() const { return m_foregroundColor; }
+        void setForegroundColor(const QColor& value) {
+            if (m_foregroundColor != value) {
+                m_foregroundColor = value;
+                m_clientSettingsChangeMonitor.notifyAll();
+            }
+        }
+
+        NODISCARD const QColor& getBackgroundColor() const { return m_backgroundColor; }
+        void setBackgroundColor(const QColor& value) {
+            if (m_backgroundColor != value) {
+                m_backgroundColor = value;
+                m_clientSettingsChangeMonitor.notifyAll();
+            }
+        }
+
+        NODISCARD int getColumns() const { return m_columns; }
+        void setColumns(int value) {
+            if (m_columns != value) {
+                m_columns = value;
+                m_clientSettingsChangeMonitor.notifyAll();
+            }
+        }
+
+        NODISCARD int getRows() const { return m_rows; }
+        void setRows(int value) {
+            if (m_rows != value) {
+                m_rows = value;
+                m_clientSettingsChangeMonitor.notifyAll();
+            }
+        }
+
+        NODISCARD int getLinesOfScrollback() const { return m_linesOfScrollback; }
+        void setLinesOfScrollback(int value) {
+            if (m_linesOfScrollback != value) {
+                m_linesOfScrollback = value;
+                m_clientSettingsChangeMonitor.notifyAll();
+            }
+        }
+
+        NODISCARD int getLinesOfInputHistory() const { return m_linesOfInputHistory; }
+        void setLinesOfInputHistory(int value) {
+            if (m_linesOfInputHistory != value) {
+                m_linesOfInputHistory = value;
+                m_clientSettingsChangeMonitor.notifyAll();
+            }
+        }
+
+        NODISCARD int getTabCompletionDictionarySize() const { return m_tabCompletionDictionarySize; }
+        void setTabCompletionDictionarySize(int value) {
+            if (m_tabCompletionDictionarySize != value) {
+                m_tabCompletionDictionarySize = value;
+                m_clientSettingsChangeMonitor.notifyAll();
+            }
+        }
+
+        NODISCARD bool getClearInputOnEnter() const { return m_clearInputOnEnter; }
+        void setClearInputOnEnter(bool value) {
+            if (m_clearInputOnEnter != value) {
+                m_clearInputOnEnter = value;
+                m_clientSettingsChangeMonitor.notifyAll();
+            }
+        }
+
+        NODISCARD bool getAutoResizeTerminal() const { return m_autoResizeTerminal; }
+        void setAutoResizeTerminal(bool value) {
+            if (m_autoResizeTerminal != value) {
+                m_autoResizeTerminal = value;
+                m_clientSettingsChangeMonitor.notifyAll();
+            }
+        }
+
+        NODISCARD int getLinesOfPeekPreview() const { return m_linesOfPeekPreview; }
+        void setLinesOfPeekPreview(int value) {
+            if (m_linesOfPeekPreview != value) {
+                m_linesOfPeekPreview = value;
+                m_clientSettingsChangeMonitor.notifyAll();
+            }
+        }
 
     private:
         SUBGROUP();

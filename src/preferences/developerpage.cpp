@@ -89,6 +89,15 @@ void DeveloperPage::registerChangeMonitors() {
         // For now, this can be a no-op or a qDebug for tracing.
         // qDebug() << "DeveloperPage: Detected a change in GroupManagerSettings.";
     });
+
+    // Register callback with IntegratedMudClientSettings
+    config.integratedClient.registerChangeCallback(m_configLifetime, [this]() {
+        // This callback is for changes in IntegratedMudClientSettings.
+        // DeveloperPage currently does not have specific UI reactions to these
+        // beyond what a full slot_loadConfig() would provide if the dialog is re-shown
+        // or settings are reset.
+        // qDebug() << "DeveloperPage: Detected a change in IntegratedMudClientSettings.";
+    });
 }
 
 void DeveloperPage::slot_loadConfig()
@@ -120,7 +129,7 @@ QCheckBox* DeveloperPage::createBoolEditor(Configuration &config_ref_for_read, c
     connect(checkBox, &QCheckBox::toggled, this, [this, property](bool checked) {
         QString propertyNameStr = QLatin1String(property.name());
         bool success = false;
-        // Use setters for refactored CanvasSettings or GroupManagerSettings properties
+        // Use setters for refactored properties in CanvasSettings, GroupManagerSettings, or IntegratedMudClientSettings
         if (propertyNameStr == "drawDoorNames") {
             setConfig().canvas.setDrawDoorNames(checked); success = true;
         } else if (propertyNameStr == "drawUpperLayersTextured") {
@@ -135,6 +144,10 @@ QCheckBox* DeveloperPage::createBoolEditor(Configuration &config_ref_for_read, c
             setConfig().groupManager.setNpcSortBottom(checked); success = true;
         } else if (propertyNameStr == "npcHide") {
             setConfig().groupManager.setNpcHide(checked); success = true;
+        } else if (propertyNameStr == "clearInputOnEnter") {
+            setConfig().integratedClient.setClearInputOnEnter(checked); success = true;
+        } else if (propertyNameStr == "autoResizeTerminal") {
+            setConfig().integratedClient.setAutoResizeTerminal(checked); success = true;
         } else {
             // For other bool properties (incl. NamedConfig<bool>), use property.write
             success = property.write(&setConfig(), checked);
@@ -165,13 +178,15 @@ QLineEdit* DeveloperPage::createStringEditor(Configuration &config_ref_for_read,
         bool success = false;
         if (propertyNameStr == "resourcesDirectory") {
             setConfig().canvas.setResourcesDirectory(text); success = true;
+        } else if (propertyNameStr == "font") { // From IntegratedMudClientSettings
+            setConfig().integratedClient.setFont(text); success = true;
         } else {
             success = property.write(&setConfig(), text);
              if (success && graphicsNamedConfigPropertyNames.contains(propertyNameStr)) { // Assuming some NamedConfig<QString> might exist
                  emit sig_graphicsSettingsChanged();
              }
         }
-        // No direct emit for CanvasSettings props here
+        // No direct emit for refactored props here
     });
     return lineEdit;
 }
@@ -194,13 +209,25 @@ QSpinBox* DeveloperPage::createIntEditor(Configuration &config_ref_for_read, con
         bool success = false;
         if (propertyNameStr == "antialiasingSamples") {
             setConfig().canvas.setAntialiasingSamples(value); success = true;
+        } else if (propertyNameStr == "columns") { // From IntegratedMudClientSettings
+            setConfig().integratedClient.setColumns(value); success = true;
+        } else if (propertyNameStr == "rows") {
+            setConfig().integratedClient.setRows(value); success = true;
+        } else if (propertyNameStr == "linesOfScrollback") {
+            setConfig().integratedClient.setLinesOfScrollback(value); success = true;
+        } else if (propertyNameStr == "linesOfInputHistory") {
+            setConfig().integratedClient.setLinesOfInputHistory(value); success = true;
+        } else if (propertyNameStr == "tabCompletionDictionarySize") {
+            setConfig().integratedClient.setTabCompletionDictionarySize(value); success = true;
+        } else if (propertyNameStr == "linesOfPeekPreview") {
+            setConfig().integratedClient.setLinesOfPeekPreview(value); success = true;
         } else {
             success = property.write(&setConfig(), value);
             if (success && graphicsNamedConfigPropertyNames.contains(propertyNameStr)) { // Assuming some NamedConfig<int> might exist
                  emit sig_graphicsSettingsChanged();
             }
         }
-        // No direct emit for CanvasSettings props here
+        // No direct emit for refactored props here
     });
     return spinBox;
 }
@@ -248,22 +275,22 @@ QPushButton* DeveloperPage::createColorEditor(Configuration &config_ref_for_read
             bool success;
             QString propertyNameStr = QLatin1String(property.name());
             // Write to the live config using setConfig()
-            if (isXColor) { // XColor properties are typically global colors, not part of GroupManager/Canvas specific structs
+            if (isXColor) {
                 success = property.write(&setConfig(), QVariant::fromValue(XColor(color)));
             } else if (typeName == "QColor") {
-                // Handle QColor properties specifically if they belong to refactored structs
-                if (propertyNameStr == "color") { // Belongs to GroupManagerSettings
-                    setConfig().groupManager.setColor(color);
-                    success = true;
-                } else if (propertyNameStr == "npcColor") { // Belongs to GroupManagerSettings
-                    setConfig().groupManager.setNpcColor(color);
-                    success = true;
+                if (propertyNameStr == "color") { // GroupManagerSettings
+                    setConfig().groupManager.setColor(color); success = true;
+                } else if (propertyNameStr == "npcColor") { // GroupManagerSettings
+                    setConfig().groupManager.setNpcColor(color); success = true;
+                } else if (propertyNameStr == "foregroundColor") { // IntegratedMudClientSettings
+                    setConfig().integratedClient.setForegroundColor(color); success = true;
+                } else if (propertyNameStr == "backgroundColor") { // IntegratedMudClientSettings
+                    setConfig().integratedClient.setBackgroundColor(color); success = true;
                 } else {
-                    // For other QColor properties not in refactored structs, use property.write
                     success = property.write(&setConfig(), color);
                 }
             } else {
-                 success = false; // Should not happen if typeName is QColor or XColor
+                 success = false;
             }
 
             if (success) {
@@ -344,12 +371,33 @@ void DeveloperPage::onResetToDefaultTriggered()
         liveConfig.groupManager.setNpcSortBottom(defaultValue.toBool()); success = true;
     } else if (propNameStr == "npcHide") {
         liveConfig.groupManager.setNpcHide(defaultValue.toBool()); success = true;
-    } else if (typeName == "QColor" && propNameStr == "color") { // GroupManager.color
+    } else if (typeName == "QColor" && propNameStr == "color") {
         liveConfig.groupManager.setColor(defaultValue.value<QColor>()); success = true;
-    } else if (typeName == "QColor" && propNameStr == "npcColor") { // GroupManager.npcColor
+    } else if (typeName == "QColor" && propNameStr == "npcColor") {
         liveConfig.groupManager.setNpcColor(defaultValue.value<QColor>()); success = true;
-    }
-    else { // Fallback for XColor, NamedConfig, or other types
+    } else if (propNameStr == "font") {
+        liveConfig.integratedClient.setFont(defaultValue.toString()); success = true;
+    } else if (typeName == "QColor" && propNameStr == "foregroundColor") {
+        liveConfig.integratedClient.setForegroundColor(defaultValue.value<QColor>()); success = true;
+    } else if (typeName == "QColor" && propNameStr == "backgroundColor") {
+        liveConfig.integratedClient.setBackgroundColor(defaultValue.value<QColor>()); success = true;
+    } else if (propNameStr == "columns") {
+        liveConfig.integratedClient.setColumns(defaultValue.toInt()); success = true;
+    } else if (propNameStr == "rows") {
+        liveConfig.integratedClient.setRows(defaultValue.toInt()); success = true;
+    } else if (propNameStr == "linesOfScrollback") {
+        liveConfig.integratedClient.setLinesOfScrollback(defaultValue.toInt()); success = true;
+    } else if (propNameStr == "linesOfInputHistory") {
+        liveConfig.integratedClient.setLinesOfInputHistory(defaultValue.toInt()); success = true;
+    } else if (propNameStr == "tabCompletionDictionarySize") {
+        liveConfig.integratedClient.setTabCompletionDictionarySize(defaultValue.toInt()); success = true;
+    } else if (propNameStr == "clearInputOnEnter") {
+        liveConfig.integratedClient.setClearInputOnEnter(defaultValue.toBool()); success = true;
+    } else if (propNameStr == "autoResizeTerminal") {
+        liveConfig.integratedClient.setAutoResizeTerminal(defaultValue.toBool()); success = true;
+    } else if (propNameStr == "linesOfPeekPreview") {
+        liveConfig.integratedClient.setLinesOfPeekPreview(defaultValue.toInt()); success = true;
+    } else {
         success = property.write(&liveConfig, defaultValue);
     }
 

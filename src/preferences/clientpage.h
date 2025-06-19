@@ -4,12 +4,14 @@
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
 #include "../global/macros.h"
+#include "../global/Signal2Lifetime.h" // Added
 
 #include <QString>
 #include <QWidget>
 #include <QtCore>
 
 class QObject;
+class QFontComboBox; // Forward declared
 
 namespace Ui {
 class ClientPage;
@@ -21,12 +23,16 @@ class NODISCARD_QOBJECT ClientPage final : public QWidget
 
 private:
     Ui::ClientPage *const ui;
+    Signal2Lifetime m_configLifetime; // Added
 
 public:
     explicit ClientPage(QWidget *parent);
     ~ClientPage() final;
 
     void updateFontAndColors();
+
+signals: // Added
+    void sig_clientSettingsChanged();
 
 public slots:
     void slot_loadConfig();

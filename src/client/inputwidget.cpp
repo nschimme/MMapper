@@ -31,7 +31,7 @@ InputWidget::InputWidget(QWidget *const parent, InputWidgetOutputs &outputs)
 
     // Terminal Font
     QFont font;
-    font.fromString(getConfig().integratedClient.font);
+    font.fromString(getConfig().integratedClient.getFont()); // Use getter
     setFont(font);
 
     // Minimum Size
@@ -251,7 +251,7 @@ bool InputWidget::tryHistory(const int key)
 void InputWidget::gotInput()
 {
     QString input = toPlainText();
-    if (getConfig().integratedClient.clearInputOnEnter) {
+    if (getConfig().integratedClient.getClearInputOnEnter()) { // Use getter
         clear();
     } else {
         selectAll();
@@ -269,7 +269,7 @@ void InputHistory::addInputLine(const QString &string)
     }
 
     // Trim line history
-    if (static_cast<int>(size()) > getConfig().integratedClient.linesOfInputHistory) {
+    if (static_cast<int>(size()) > getConfig().integratedClient.getLinesOfInputHistory()) { // Use getter
         pop_back();
     }
 
@@ -287,7 +287,7 @@ void TabHistory::addInputLine(const QString &string)
 
             // Trim dictionary
             if (static_cast<int>(size())
-                > getConfig().integratedClient.tabCompletionDictionarySize) {
+                > getConfig().integratedClient.getTabCompletionDictionarySize()) { // Use getter
                 pop_back();
             }
         }

@@ -362,3 +362,29 @@ set_target_properties(
   COMPILE_FLAGS "${WARNING_FLAGS}"
 )
 add_test(NAME TestGroupPage COMMAND testgrouppage)
+
+# ClientPage Test
+add_executable(testclientpage TestClientPage.cpp)
+qt_standard_project_setup(TARGET testclientpage)
+# ClientPage and IntegratedMudClientSettings are part of the main app sources.
+# Linking similarly to testconfigdialog and testgrouppage.
+# mm_global for Configuration. Other specific libraries if ClientPage has direct dependencies.
+add_dependencies(testclientpage mm_global) # Assuming Configuration is in mm_global
+target_link_libraries(testclientpage PRIVATE
+    Qt${QT_VERSION_MAJOR}::Test
+    Qt${QT_VERSION_MAJOR}::Widgets
+    Qt${QT_VERSION_MAJOR}::Core
+    Qt${QT_VERSION_MAJOR}::Gui # For QColor, QFont, QPixmap etc.
+    mm_global # For Configuration and potentially other global things ClientPage might use
+    # If ClientPage.cpp is not part of mm_global, we need to link the library it *is* part of.
+    # For now, assume mm_global is sufficient or a general app lib is implicitly linked.
+    coverage_config
+)
+set_target_properties(
+  testclientpage PROPERTIES
+  CXX_STANDARD 20
+  CXX_STANDARD_REQUIRED ON
+  CXX_EXTENSIONS OFF
+  COMPILE_FLAGS "${WARNING_FLAGS}"
+)
+add_test(NAME TestClientPage COMMAND testclientpage)

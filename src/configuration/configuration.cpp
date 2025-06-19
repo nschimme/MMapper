@@ -708,22 +708,22 @@ void Configuration::MumeClockSettings::read(const QSettings &conf)
 
 void Configuration::AdventurePanelSettings::read(const QSettings &conf)
 {
-    m_displayXPStatus = conf.value(KEY_DISPLAY_XP_STATUS, true).toBool();
+    m_displayXPStatus = conf.value(KEY_DISPLAY_XP_STATUS, m_displayXPStatus).toBool(); // Use member default
 }
 
 void Configuration::IntegratedMudClientSettings::read(const QSettings &conf)
 {
-    font = conf.value(KEY_FONT, "").toString();
-    backgroundColor = conf.value(KEY_BACKGROUND_COLOR, QColor(Qt::black).name()).toString();
-    foregroundColor = conf.value(KEY_FOREGROUND_COLOR, QColor(Qt::lightGray).name()).toString();
-    columns = conf.value(KEY_COLUMNS, 80).toInt();
-    rows = conf.value(KEY_ROWS, 24).toInt();
-    linesOfScrollback = conf.value(KEY_LINES_OF_SCROLLBACK, 10000).toInt();
-    linesOfInputHistory = conf.value(KEY_LINES_OF_INPUT_HISTORY, 100).toInt();
-    tabCompletionDictionarySize = conf.value(KEY_TAB_COMPLETION_DICTIONARY_SIZE, 100).toInt();
-    clearInputOnEnter = conf.value(KEY_CLEAR_INPUT_ON_ENTER, true).toBool();
-    autoResizeTerminal = conf.value(KEY_AUTO_RESIZE_TERMINAL, true).toBool();
-    linesOfPeekPreview = conf.value(KEY_LINES_OF_PEEK_PREVIEW, 7).toInt();
+    m_font = conf.value(KEY_FONT, m_font).toString();
+    m_backgroundColor = QColor(conf.value(KEY_BACKGROUND_COLOR, m_backgroundColor.isValid() ? m_backgroundColor.name() : QColor(Qt::black).name()).toString());
+    m_foregroundColor = QColor(conf.value(KEY_FOREGROUND_COLOR, m_foregroundColor.isValid() ? m_foregroundColor.name() : QColor(Qt::lightGray).name()).toString());
+    m_columns = conf.value(KEY_COLUMNS, m_columns).toInt();
+    m_rows = conf.value(KEY_ROWS, m_rows).toInt();
+    m_linesOfScrollback = conf.value(KEY_LINES_OF_SCROLLBACK, m_linesOfScrollback).toInt();
+    m_linesOfInputHistory = conf.value(KEY_LINES_OF_INPUT_HISTORY, m_linesOfInputHistory).toInt();
+    m_tabCompletionDictionarySize = conf.value(KEY_TAB_COMPLETION_DICTIONARY_SIZE, m_tabCompletionDictionarySize).toInt();
+    m_clearInputOnEnter = conf.value(KEY_CLEAR_INPUT_ON_ENTER, m_clearInputOnEnter).toBool();
+    m_autoResizeTerminal = conf.value(KEY_AUTO_RESIZE_TERMINAL, m_autoResizeTerminal).toBool();
+    m_linesOfPeekPreview = conf.value(KEY_LINES_OF_PEEK_PREVIEW, m_linesOfPeekPreview).toInt();
 }
 
 void Configuration::RoomPanelSettings::read(const QSettings &conf)
@@ -883,17 +883,17 @@ void Configuration::AdventurePanelSettings::write(QSettings &conf) const
 
 void Configuration::IntegratedMudClientSettings::write(QSettings &conf) const
 {
-    conf.setValue(KEY_FONT, font);
-    conf.setValue(KEY_BACKGROUND_COLOR, backgroundColor.name());
-    conf.setValue(KEY_FOREGROUND_COLOR, foregroundColor.name());
-    conf.setValue(KEY_COLUMNS, columns);
-    conf.setValue(KEY_ROWS, rows);
-    conf.setValue(KEY_LINES_OF_SCROLLBACK, linesOfScrollback);
-    conf.setValue(KEY_LINES_OF_INPUT_HISTORY, linesOfInputHistory);
-    conf.setValue(KEY_TAB_COMPLETION_DICTIONARY_SIZE, tabCompletionDictionarySize);
-    conf.setValue(KEY_CLEAR_INPUT_ON_ENTER, clearInputOnEnter);
-    conf.setValue(KEY_AUTO_RESIZE_TERMINAL, autoResizeTerminal);
-    conf.setValue(KEY_LINES_OF_PEEK_PREVIEW, linesOfPeekPreview);
+    conf.setValue(KEY_FONT, m_font);
+    conf.setValue(KEY_BACKGROUND_COLOR, m_backgroundColor.name());
+    conf.setValue(KEY_FOREGROUND_COLOR, m_foregroundColor.name());
+    conf.setValue(KEY_COLUMNS, m_columns);
+    conf.setValue(KEY_ROWS, m_rows);
+    conf.setValue(KEY_LINES_OF_SCROLLBACK, m_linesOfScrollback);
+    conf.setValue(KEY_LINES_OF_INPUT_HISTORY, m_linesOfInputHistory);
+    conf.setValue(KEY_TAB_COMPLETION_DICTIONARY_SIZE, m_tabCompletionDictionarySize);
+    conf.setValue(KEY_CLEAR_INPUT_ON_ENTER, m_clearInputOnEnter);
+    conf.setValue(KEY_AUTO_RESIZE_TERMINAL, m_autoResizeTerminal);
+    conf.setValue(KEY_LINES_OF_PEEK_PREVIEW, m_linesOfPeekPreview);
 }
 
 void Configuration::RoomPanelSettings::write(QSettings &conf) const

@@ -12,8 +12,8 @@
 #include "../map/roomid.h"
 
 #include <map>
-#include <memory>
-#include <set>
+#include <memory> // For std::weak_ptr, std::shared_ptr, std::owner_less
+#include <set>    // For RoomIdSet (already used by m_owners) and for m_lockers' value type
 
 #include <QObject>
 #include <QString>
@@ -21,7 +21,6 @@
 
 // class RoomRecipient; // Replaced by PathProcessor
 #include "PathProcessor.h" // Include PathProcessor since it's in the same directory
-#include "../global/WeakHandle.h" // Added for WeakHandle
 struct RoomId;
 class MapFrontend;
 
@@ -32,7 +31,7 @@ class NODISCARD_QOBJECT RoomSignalHandler final : public QObject
 private:
     MapFrontend &m_map;
     RoomIdSet m_owners; // Prefixed
-    std::map<RoomId, std::vector<WeakHandle<PathProcessor>>> m_lockers; // Prefixed
+    std::map<RoomId, std::set<std::weak_ptr<PathProcessor>, std::owner_less<std::weak_ptr<PathProcessor>>>> m_lockers; // Changed to std::set with std::owner_less
     std::map<RoomId, int> m_holdCount; // Prefixed
 
 public:
@@ -43,7 +42,7 @@ public:
     {}
     /* receiving from our clients: */
     // hold the room, we don't know yet what to do, overrides release, re-caches if room was un-cached
-    void hold(RoomId room, WeakHandle<PathProcessor> locker_handle); // Changed to WeakHandle
+    void hold(RoomId room, std::weak_ptr<PathProcessor> locker_handle); // Changed to std::weak_ptr
     // room isn't needed anymore and can be deleted if no one else is holding it and no one else uncached it
     void release(RoomId room, ChangeList &changes);
     // keep the room but un-cache it - overrides both hold and release

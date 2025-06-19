@@ -7,17 +7,15 @@
 #include "../global/RuleOf5.h"
 #include "PathProcessor.h" // Changed path
 #include "path.h"
-#include "../global/WeakHandle.h" // Added for EnableGetWeakHandleFromThis
-
 #include <list>
-#include <memory>
+#include <memory> // Already present, needed for std::enable_shared_from_this and std::shared_ptr
 
 #include <QtGlobal>
 
 class RoomSignalHandler;
 struct PathParameters;
 
-class NODISCARD Syncing final : public PathProcessor, public EnableGetWeakHandleFromThis<Syncing>
+class NODISCARD Syncing final : public PathProcessor, public std::enable_shared_from_this<Syncing>
 {
 private:
     RoomSignalHandler &m_signaler; // Prefixed

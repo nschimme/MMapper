@@ -26,7 +26,6 @@
 class Coordinate;
 // class RoomRecipient; // Replaced by PathProcessor
 #include "PathProcessor.h" // PathProcessor is now in the same directory
-#include "../global/WeakHandle.h" // Ensure WeakHandle is included
 class RoomSignalHandler;
 struct PathParameters;
 
@@ -44,14 +43,14 @@ private:
 
 public:
     static std::shared_ptr<Path> alloc(const RoomHandle &room,
-                                       WeakHandle<PathProcessor> locker_handle,
+                                       std::weak_ptr<PathProcessor> locker_handle, // Changed to std::weak_ptr
                                        RoomSignalHandler &signaler, // Changed to reference
                                        std::optional<ExitDirEnum> direction);
 
 public:
     explicit Path(Badge<Path>,
                   RoomHandle moved_room,
-                  WeakHandle<PathProcessor> locker_handle,
+                  std::weak_ptr<PathProcessor> locker_handle, // Changed to std::weak_ptr
                   RoomSignalHandler &signaler, // Changed to reference
                   std::optional<ExitDirEnum> direction);
     DELETE_CTORS_AND_ASSIGN_OPS(Path);
@@ -74,7 +73,7 @@ public:
     NODISCARD std::shared_ptr<Path> fork(const RoomHandle &room,
                                          const Coordinate &expectedCoordinate,
                                          const PathParameters &params,
-                                         WeakHandle<PathProcessor> locker_handle, // Changed to WeakHandle
+                                         std::weak_ptr<PathProcessor> locker_handle, // Changed to std::weak_ptr
                                          ExitDirEnum dir);
     NODISCARD double getProb() const
     {

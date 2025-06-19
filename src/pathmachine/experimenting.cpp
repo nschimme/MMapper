@@ -28,8 +28,8 @@ void Experimenting::augmentPath(const std::shared_ptr<Path> &path, const RoomHan
 {
     auto &p = deref(path);
     const Coordinate c = p.getRoom().getPosition() + m_direction; // Prefixed
-    // Use getWeakHandleFromThis() which should now be available and convertible
-    const auto working = p.fork(room, c, m_params, this->getWeakHandleFromThis(), m_dirCode); // Prefixed params, dirCode
+    // Use shared_from_this() from derived class (Crossover/OneByOne)
+    const auto working = p.fork(room, c, m_params, this->shared_from_this(), m_dirCode); // Prefixed params, dirCode
     if (m_best == nullptr) { // Prefixed
         m_best = working; // Prefixed
     } else if (working->getProb() > m_best->getProb()) { // Prefixed

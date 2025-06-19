@@ -6,17 +6,16 @@
 
 #include "../map/parseevent.h"
 #include "experimenting.h"
-#include "../global/WeakHandle.h" // Added for EnableGetWeakHandleFromThis
 #include "../map/ChangeList.h"   // Added for ChangeList
+#include <memory> // Already present, needed for std::enable_shared_from_this
 
-#include <memory>
 
 class ParseEvent;
 class Path;
 class RoomSignalHandler;
 struct PathParameters;
 
-class NODISCARD OneByOne final : public Experimenting, public EnableGetWeakHandleFromThis<OneByOne>
+class NODISCARD OneByOne final : public Experimenting, public std::enable_shared_from_this<OneByOne>
 {
 private:
     SharedParseEvent m_event; // Prefixed

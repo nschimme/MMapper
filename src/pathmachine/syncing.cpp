@@ -17,8 +17,8 @@ Syncing::Syncing(PathParameters &in_p,
     : m_signaler(in_signaler) // Prefixed
     , m_params(in_p) // Prefixed
     , m_paths(std::move(moved_paths)) // Prefixed
-    // Pass WeakHandle and m_signaler reference to Path::alloc in constructor
-    , m_parent(Path::alloc(RoomHandle{}, this->getWeakHandleFromThis(), this->m_signaler, std::nullopt)) // Prefixed
+    // Pass shared_ptr (convertible to WeakHandle) and m_signaler reference to Path::alloc
+    , m_parent(Path::alloc(RoomHandle{}, this->shared_from_this(), this->m_signaler, std::nullopt)) // Prefixed
 {}
 
 void Syncing::virt_receiveRoom(const RoomHandle &in_room, ChangeList &changes)
@@ -32,8 +32,8 @@ void Syncing::virt_receiveRoom(const RoomHandle &in_room, ChangeList &changes)
             m_parent = nullptr; // Prefixed parent
         }
     } else {
-        // Pass WeakHandle and m_signaler reference to Path::alloc in virt_receiveRoom
-        auto p = Path::alloc(in_room, this->getWeakHandleFromThis(), this->m_signaler, ExitDirEnum::NONE); // Prefixed signaler
+        // Pass shared_ptr (convertible to WeakHandle) and m_signaler reference to Path::alloc
+        auto p = Path::alloc(in_room, this->shared_from_this(), this->m_signaler, ExitDirEnum::NONE); // Prefixed signaler
         p->setParent(m_parent); // Prefixed parent
         m_parent->insertChild(p); // Prefixed parent
         m_paths->push_back(p); // Prefixed paths

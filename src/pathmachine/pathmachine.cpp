@@ -118,6 +118,7 @@ void PathMachine::forcePositionChange(const RoomId id, const bool update)
 
     // Force update room with last event
     ChangeList changes;
+    // Apply mandatory updates to the current room based on the last known game event.
     changes.add(Change{room_change_types::Update{id, m_lastEvent.deref(), UpdateTypeEnum::Force}});
     updateMostLikelyRoom(m_lastEvent, changes, true);
     if (!changes.empty()) {
@@ -156,6 +157,7 @@ void PathMachine::helperUpdateServerId(const ParseEvent &event, const RoomHandle
         const auto oldId = here.getServerId();
         const auto newId = event.getServerId();
         if (oldId == INVALID_SERVER_ROOMID && newId != INVALID_SERVER_ROOMID) {
+            // Current room doesn't have a server ID, but the event provides one. Set it.
             changes.add(Change{room_change_types::SetServerId{here.getId(), newId}});
             addedServerIds.emplace(newId); // Track that this ID was added in this run
             qInfo() << "Set server id" << newId.asUint32();
@@ -172,25 +174,27 @@ void PathMachine::helperProcessExitsFromServerIds(const ParseEvent &event, const
             const auto toServerId = event.getExitIds()[dir];
             const auto &roomExit = here.getExit(dir);
             if (roomExit.exitIsNoMatch()) {
+                // Skip processing for exits marked as NO_MATCH on the map.
                 continue;
             }
             if (toServerId == INVALID_SERVER_ROOMID) {
-                // Room has a hidden exit or does not agree with event
+                // Event data indicates no exit or a hidden exit in this direction.
                 if (roomExit.exitIsExit() && !eventExitsFlags.get(dir).isExit()
                     && !roomExit.doorIsHidden()) {
+                    // Map has a visible exit, but event says there isn't one.
                     if (force) {
-                        // Be destructive only on forcing an update
+                        // Forcing update: Remove the exit from the map.
                         changes.add(
                             Change{exit_change_types::NukeExit{from, dir, WaysEnum::OneWay}});
                     } else if (roomExit.exitIsDoor()) {
-                        // Map is old and needs hidden flag
+                        // Not forcing: If it's a door on map, mark it as hidden.
                         changes.add(Change{
                             exit_change_types::SetDoorFlags{FlagChangeEnum::Add,
                                                             from,
                                                             dir,
                                                             DoorFlags{DoorFlagEnum::HIDDEN}}});
                     } else {
-                        // Use NO_MATCH as a hint to the user which exit isn't matching
+                        // Not forcing: If it's a regular exit, mark as NO_MATCH to indicate discrepancy.
                         changes.add(Change{
                             exit_change_types::SetExitFlags{FlagChangeEnum::Add,
                                                             from,
@@ -200,10 +204,12 @@ void PathMachine::helperProcessExitsFromServerIds(const ParseEvent &event, const
                 }
                 continue;
             }
+            // Event provides a server ID for the room in this direction.
             if (const auto there = m_map.findRoomHandle(toServerId)) {
-                // ServerId already exists
+                // A room with this server ID already exists in the map.
                 const auto to = there.getId();
                 if ((getMapMode() == MapModeEnum::MAP || force) && !roomExit.containsOut(to)) {
+                    // In mapping mode or forcing update: if current room's exit doesn't lead to 'there', add the connection.
                     changes.add(Change{exit_change_types::ModifyExitConnection{ChangeTypeEnum::Add,
                                                                                from,
                                                                                dir,
@@ -211,10 +217,12 @@ void PathMachine::helperProcessExitsFromServerIds(const ParseEvent &event, const
                                                                                WaysEnum::OneWay}});
                 }
             } else if (roomExit.outIsUnique() && addedServerIds.find(toServerId) == addedServerIds.end()) {
-                // Add likely ServerId only if not already added in this run by helperUpdateServerId
+                // Map's exit leads to a unique room that doesn't have a server ID yet,
+                // and this server ID from event hasn't been assigned during this update run.
+                // Assign the server ID from the event to this adjacent room.
                 const auto to = roomExit.outFirst();
                 changes.add(Change{room_change_types::SetServerId{to, toServerId}});
-                addedServerIds.emplace(toServerId); // Also track IDs added here
+                addedServerIds.emplace(toServerId); // Track this assignment for current run.
             }
         }
     }
@@ -242,25 +250,31 @@ void PathMachine::helperUpdateExitAndDoorFlags(const ParseEvent &event, const Ro
                     && connectedRoomFlags.isValid() && connectedRoomFlags.hasDirectSunlight(dir)) {
                     eventExitFlags |= ExitFlagEnum::ROAD;
                 }
+                // Forcing update: Set exit flags directly from event.
                 changes.add(Change{exit_change_types::SetExitFlags{FlagChangeEnum::Set,
                                                                    here.getId(),
                                                                    dir,
                                                                    eventExitFlags}});
+                // Forcing update: Set door flags directly from event.
                 changes.add(Change{exit_change_types::SetDoorFlags{FlagChangeEnum::Set,
                                                                    here.getId(),
                                                                    dir,
                                                                    eventDoorFlags}});
             } else {
+                // Not forcing: Append flags if different.
                 if (roomExit.exitIsNoMatch() || !eventExitsFlags.get(dir).isExit()) {
+                    // Skip if map exit is NO_MATCH or event says no exit (already handled for 'force' case).
                     continue;
                 }
-                if (eventExitFlags ^ roomExitFlags) { // Check if different from the original roomExitFlags
+                if (eventExitFlags ^ roomExitFlags) { // If event flags differ from map flags.
+                    // Add differing exit flags from event to the map's exit.
                     changes.add(Change{exit_change_types::SetExitFlags{FlagChangeEnum::Add,
                                                                        here.getId(),
                                                                        dir,
                                                                        eventExitFlags}});
                 }
-                if (eventDoorFlags ^ roomDoorFlags) {
+                if (eventDoorFlags ^ roomDoorFlags) { // If event door flags differ.
+                    // Add differing door flags from event to the map's exit.
                     changes.add(Change{exit_change_types::SetDoorFlags{FlagChangeEnum::Add,
                                                                        here.getId(),
                                                                        dir,
@@ -271,6 +285,7 @@ void PathMachine::helperUpdateExitAndDoorFlags(const ParseEvent &event, const Ro
             const auto &doorName = eventExits.at(dir).getDoorName();
             if (eventDoorFlags.isHidden() && !doorName.isEmpty()
                 && roomExit.getDoorName() != doorName) {
+                // If event specifies a door name for a hidden door and it's new/different.
                 changes.add(Change{exit_change_types::SetDoorName{here.getId(), dir, doorName}});
             }
         }
@@ -286,12 +301,15 @@ void PathMachine::helperUpdateRoomLight(const ParseEvent &event, const RoomHandl
         const RoomSundeathEnum sunType = here.getSundeathType();
         if (pFlags.isLit() && sunType == RoomSundeathEnum::NO_SUNDEATH
             && here.getLightType() != RoomLightEnum::LIT) {
+            // Event says room is lit, map doesn't, and it's not a sundeath room: update map to lit.
             changes.add(Change{room_change_types::ModifyRoomFlags{here.getId(),
                                                                   RoomLightEnum::LIT,
                                                                   FlagModifyModeEnum::ASSIGN}});
         } else if (pFlags.isDark() && sunType == RoomSundeathEnum::NO_SUNDEATH
                    && here.getLightType() == RoomLightEnum::UNDEFINED
                    && (connectedRoomFlags.isValid() && connectedRoomFlags.hasAnyDirectSunlight())) {
+            // Event says room is dark, map light is undefined, not sundeath, but has sunlight access: update map to dark.
+            // REVISIT: Can be temporarily dark due to night time or magical darkness
             changes.add(Change{room_change_types::ModifyRoomFlags{here.getId(),
                                                                   RoomLightEnum::DARK,
                                                                   FlagModifyModeEnum::ASSIGN}});
@@ -312,12 +330,14 @@ void PathMachine::helperUpdateAdjacentRoomSundeath(const ParseEvent &event, cons
             if (const auto there = m_map.findRoomHandle(to)) {
                 const RoomSundeathEnum sunType = there.getSundeathType();
                 if (crf.hasDirectSunlight(dir) && sunType != RoomSundeathEnum::SUNDEATH) {
+                    // Adjacent room is exposed to direct sunlight from this exit, mark it as sundeath.
                     changes.add(
                         Change{room_change_types::ModifyRoomFlags{to,
                                                                   RoomSundeathEnum::SUNDEATH,
                                                                   FlagModifyModeEnum::ASSIGN}});
                 } else if (crf.isTrollMode() && crf.hasNoDirectSunlight(dir)
                            && sunType != RoomSundeathEnum::NO_SUNDEATH) {
+                    // In troll mode, if adjacent room is not exposed to direct sunlight, mark it as no_sundeath.
                     changes.add(
                         Change{room_change_types::ModifyRoomFlags{to,
                                                                   RoomSundeathEnum::NO_SUNDEATH,
@@ -436,36 +456,36 @@ void PathMachine::approved(const SigParseEvent &sigParseEvent, ChangeList &chang
     ParseEvent &event = sigParseEvent.deref();
 
     RoomHandle perhaps;
-    Approved appr{m_map, sigParseEvent, m_params.matchingTolerance};
+    auto appr = std::make_shared<Approved>(m_map, sigParseEvent, m_params.matchingTolerance); // Use std::make_shared
 
     if (event.hasServerId()) {
         perhaps = m_map.findRoomHandle(event.getServerId());
         if (perhaps.exists()) {
-            appr.receiveRoom(perhaps, changes); // Pass changes
+            appr->receiveRoom(perhaps, changes); // Use ->
         }
-        perhaps = appr.oneMatch();
+        perhaps = appr->oneMatch(); // Use ->
     }
 
     // This code path only happens for historic maps and mazes where no server id is present
     if (!perhaps) {
-        appr.releaseMatch(changes); // Pass changes
+        appr->releaseMatch(changes); // Use ->
 
-        tryExits(getMostLikelyRoom(), appr, event, true, changes); // Pass changes
-        perhaps = appr.oneMatch();
+        tryExits(getMostLikelyRoom(), *appr, event, true, changes); // Pass *appr, use ->
+        perhaps = appr->oneMatch(); // Use ->
 
         if (!perhaps) {
             // try to match by reverse exit
-            appr.releaseMatch(changes); // Pass changes
-            tryExits(getMostLikelyRoom(), appr, event, false, changes); // Pass changes
-            perhaps = appr.oneMatch();
+            appr->releaseMatch(changes); // Use ->
+            tryExits(getMostLikelyRoom(), *appr, event, false, changes); // Pass *appr, use ->
+            perhaps = appr->oneMatch(); // Use ->
             if (!perhaps) {
                 // try to match by coordinate
-                appr.releaseMatch(changes); // Pass changes
-                tryCoordinate(getMostLikelyRoom(), appr, event, changes); // Pass changes
-                perhaps = appr.oneMatch();
+                appr->releaseMatch(changes); // Use ->
+                tryCoordinate(getMostLikelyRoom(), *appr, event, changes); // Pass *appr, use ->
+                perhaps = appr->oneMatch(); // Use ->
                 if (!perhaps) {
                     // try to match by coordinate one step below expected
-                    appr.releaseMatch(changes); // Pass changes
+                    appr->releaseMatch(changes); // Use ->
                     // FIXME: need stronger type checking here.
 
                     const auto cmd = event.getMoveType();
@@ -486,22 +506,22 @@ void PathMachine::approved(const SigParseEvent &sigParseEvent, ChangeList &chang
                             RoomIdSet ids_c1 = m_map.lookingForRooms(c);
                             for (RoomId id : ids_c1) {
                                 if (auto rh = m_map.findRoomHandle(id)) {
-                                    appr.receiveRoom(rh, changes); // Pass changes
+                                    appr->receiveRoom(rh, changes); // Use ->
                                 }
                             }
-                            perhaps = appr.oneMatch();
+                            perhaps = appr->oneMatch(); // Use ->
 
                             if (!perhaps) {
                                 // try to match by coordinate one step above expected
-                                appr.releaseMatch(changes); // Pass changes
+                                appr->releaseMatch(changes); // Use ->
                                 c.z += 2;
                                 RoomIdSet ids_c2 = m_map.lookingForRooms(c);
                                 for (RoomId id : ids_c2) {
                                     if (auto rh = m_map.findRoomHandle(id)) {
-                                        appr.receiveRoom(rh, changes); // Pass changes
+                                        appr->receiveRoom(rh, changes); // Use ->
                                     }
                                 }
-                                perhaps = appr.oneMatch();
+                                perhaps = appr->oneMatch(); // Use ->
                             }
                         }
                     }
@@ -524,8 +544,8 @@ void PathMachine::approved(const SigParseEvent &sigParseEvent, ChangeList &chang
         /* FIXME: null locker ends up being an error in RoomSignalHandler::keep(),
          * so why is this allowed to be null, and how do we prevent this null
          * from actually causing an error? */
-        // Using default-constructed WeakHandle for nullptr PathProcessor
-        deref(m_paths).push_front(Path::alloc(pathRoot, WeakHandle<PathProcessor>(), m_signaler, std::nullopt)); // Pass m_signaler by reference
+        // Using default-constructed std::weak_ptr for nullptr PathProcessor
+        deref(m_paths).push_front(Path::alloc(pathRoot, std::weak_ptr<PathProcessor>(), m_signaler, std::nullopt)); // Pass m_signaler by reference
         experimenting(sigParseEvent, changes);
 
         return;
@@ -541,6 +561,7 @@ void PathMachine::approved(const SigParseEvent &sigParseEvent, ChangeList &chang
             const auto toServerId = event.getExitIds()[opposite(dir)];
             if (toServerId != room.getServerId() && !ex.containsOut(to)) {
                 const auto from = room.getId();
+                // Player moved: establish a one-way exit from the previous room to the new 'perhaps' room.
                 changes.add(Change{exit_change_types::ModifyExitConnection{ChangeTypeEnum::Add,
                                                                            from,
                                                                            dir,
@@ -555,6 +576,7 @@ void PathMachine::approved(const SigParseEvent &sigParseEvent, ChangeList &chang
 
     if (perhaps.exists()) {
         if (perhaps.isTemporary()) {
+            // The matched room was temporary; make it permanent as it's now confirmed.
             changes.add(Change{room_change_types::MakePermanent{perhaps.getId()}});
         }
         // If 'appr.needsUpdate()' was true, that change is added by the Update below
@@ -562,7 +584,8 @@ void PathMachine::approved(const SigParseEvent &sigParseEvent, ChangeList &chang
     // If moreThanOne was true, Approved::virt_receiveRoom should have added temporary rooms
     // to 'changes' for removal already.
 
-    if (appr.needsUpdate()) {
+    if (appr->needsUpdate()) { // Use ->
+        // The 'Approved' strategy determined the room needs an update based on event details.
         changes.add(Change{room_change_types::Update{perhaps.getId(),
                                                      sigParseEvent.deref(),
                                                      UpdateTypeEnum::Update}});
@@ -595,20 +618,21 @@ void PathMachine::updateMostLikelyRoom(const SigParseEvent &sigParseEvent,
 
 void PathMachine::syncing(const SigParseEvent &sigParseEvent, ChangeList &changes)
 {
-    auto &params = m_params;
+    auto &params = m_params; // This is m_params from PathMachine
     ParseEvent &event = sigParseEvent.deref();
     {
-        Syncing sync{params, m_paths, m_signaler}; // Pass m_signaler by reference
-        if (event.hasServerId() || event.getNumSkipped() <= params.maxSkipped) {
+        // Use m_params for constructor, not local 'params' which is the same thing but for clarity.
+        auto sync_strat = std::make_shared<Syncing>(m_params, m_paths, m_signaler); // Use std::make_shared
+        if (event.hasServerId() || event.getNumSkipped() <= m_params.maxSkipped) { // Use m_params
             RoomIdSet ids = m_map.lookingForRooms(sigParseEvent);
             for (RoomId id : ids) {
                 if (auto rh = m_map.findRoomHandle(id)) {
-                    sync.receiveRoom(rh, changes); // Pass changes
+                    sync_strat->receiveRoom(rh, changes); // Use ->
                 }
             }
         }
-        m_paths = sync.evaluate();
-        sync.finalizePaths(changes); // Added call
+        m_paths = sync_strat->evaluate(); // Use ->
+        sync_strat->finalizePaths(changes); // Use ->
     }
     evaluatePaths(changes);
 }
@@ -623,7 +647,7 @@ void PathMachine::experimenting(const SigParseEvent &sigParseEvent, ChangeList &
     if (event.canCreateNewRoom() && isDirectionNESWUD(moveCode) && hasMostLikelyRoom()) {
         const auto dir = getDirection(moveCode);
         const Coordinate &move = ::exitDir(dir);
-        Crossover exp{m_map, m_paths, dir, params};
+        auto exp_strat = std::make_shared<Crossover>(m_map, m_paths, dir, m_params); // Use m_params, make_shared
         RoomIdSet pathEnds;
         for (const auto &path : deref(m_paths)) {
             const auto &working = path->getRoom();
@@ -640,23 +664,24 @@ void PathMachine::experimenting(const SigParseEvent &sigParseEvent, ChangeList &
         RoomIdSet ids = m_map.lookingForRooms(sigParseEvent);
         for (RoomId id : ids) {
             if (auto rh = m_map.findRoomHandle(id)) {
-                exp.receiveRoom(rh, changes); // This was already corrected in a previous step, ensuring it is still correct.
+                exp_strat->receiveRoom(rh, changes); // Use ->
             }
         }
-        m_paths = exp.evaluate(changes); // Pass changes
+        m_paths = exp_strat->evaluate(changes); // Use ->
     } else {
-        OneByOne oneByOne{sigParseEvent, params, m_signaler}; // Pass m_signaler by reference
+        auto oo_strat = std::make_shared<OneByOne>(sigParseEvent, m_params, m_signaler); // Use m_params, make_shared
         {
-            auto &tmp = oneByOne;
+            // auto &tmp = oneByOne; // Old way
+            // PathProcessor& recipient_ref = *oo_strat; // New way if reference needed for tryExits/tryCoordinate
             for (const auto &path : deref(m_paths)) {
                 const auto &working = path->getRoom();
-                tmp.addPath(path);
-                tryExits(working, tmp, event, true, changes);  // Pass changes
-                tryExits(working, tmp, event, false, changes); // Pass changes
-                tryCoordinate(working, tmp, event, changes);   // Pass changes
+                oo_strat->addPath(path); // Use ->
+                tryExits(working, *oo_strat, event, true, changes);  // Pass *oo_strat
+                tryExits(working, *oo_strat, event, false, changes); // Pass *oo_strat
+                tryCoordinate(working, *oo_strat, event, changes);   // Pass *oo_strat
             }
         }
-        m_paths = oneByOne.evaluate(changes); // Pass changes
+        m_paths = oo_strat->evaluate(changes); // Use ->
     }
 
     evaluatePaths(changes);

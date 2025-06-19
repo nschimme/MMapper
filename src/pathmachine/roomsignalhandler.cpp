@@ -14,17 +14,18 @@
 #include <memory>
 #include <algorithm> // Required for std::remove_if
 
-// PathProcessor.h and WeakHandle.h are expected to be included via roomsignalhandler.h
+// PathProcessor.h is included via roomsignalhandler.h
+// std::weak_ptr is from <memory> which is also included via roomsignalhandler.h
 
-void RoomSignalHandler::hold(const RoomId room, WeakHandle<PathProcessor> locker_handle)
+void RoomSignalHandler::hold(const RoomId room, std::weak_ptr<PathProcessor> locker_handle) // Changed to std::weak_ptr
 {
     m_owners.insert(room);
     // Initialize m_holdCount for the room if it's not already tracked.
     if (m_holdCount.find(room) == m_holdCount.end()) {
         m_holdCount[room] = 0;
     }
-    // 'm_lockers' is now std::map<RoomId, std::vector<WeakHandle<PathProcessor>>>
-    m_lockers[room].push_back(locker_handle);
+    // 'm_lockers' is std::map<RoomId, std::set<std::weak_ptr<PathProcessor>, std::owner_less<...>>>
+    m_lockers[room].insert(locker_handle); // Changed to insert for std::set
     ++m_holdCount[room];
 }
 
@@ -36,6 +37,7 @@ void RoomSignalHandler::release(const RoomId room, ChangeList &changes)
             // New logic to remove room if it's temporary
             if (auto rh = m_map.findRoomHandle(room)) {
                 if (rh.isTemporary()) {
+                    // Room is temporary and no longer held by any locker; remove it.
                     changes.add(Change{room_change_types::RemoveRoom{room}});
                 }
             }
@@ -63,12 +65,14 @@ void RoomSignalHandler::keep(const RoomId room,
     // New logic to make room permanent if it's temporary
     if (auto rh = m_map.findRoomHandle(room)) {
         if (rh.isTemporary()) {
+            // This room is being kept and was temporary; make it permanent.
             changes.add(Change{room_change_types::MakePermanent{room}});
         }
     }
 
     static_assert(static_cast<uint32_t>(ExitDirEnum::UNKNOWN) + 1 == NUM_EXITS);
     if (isNESWUD(dir) || dir == ExitDirEnum::UNKNOWN) {
+        // If an exit direction is specified, add a connection from 'fromId' to this 'room'.
         changes.add(exit_change_types::ModifyExitConnection{ChangeTypeEnum::Add,
                                                             fromId,
                                                             dir,
@@ -87,13 +91,13 @@ void RoomSignalHandler::keep(const RoomId room,
     // The line `lockers[room].erase(locker);` from the previous state is removed.
 
     // === Add new logic here ===
-    // If 'm_lockers' contains the room and its vector of handles is not empty,
+    // If 'm_lockers' contains the room and its set of handles is not empty,
     // remove one element to simulate the old behavior of reducing the locker count.
     auto it_room_lockers = m_lockers.find(room);
     if (it_room_lockers != m_lockers.end()) {
-        auto& handles_vector = it_room_lockers->second;
-        if (!handles_vector.empty()) {
-            handles_vector.pop_back(); // Simple way to remove one element
+        auto& handles_set = it_room_lockers->second; // Now a std::set
+        if (!handles_set.empty()) {
+            handles_set.erase(handles_set.begin()); // Remove an arbitrary element from the set
         }
     }
     // === End of new logic ===

@@ -10,14 +10,12 @@
 #include "../map/ExitFlags.h"
 #include "experimenting.h"
 #include "path.h"
-#include "../global/WeakHandle.h" // Added for EnableGetWeakHandleFromThis
-
-#include <memory>
+#include <memory> // Already present, needed for std::enable_shared_from_this
 
 class MapFrontend;
 struct PathParameters;
 
-class NODISCARD Crossover final : public Experimenting, public EnableGetWeakHandleFromThis<Crossover>
+class NODISCARD Crossover final : public Experimenting, public std::enable_shared_from_this<Crossover>
 {
 private:
     MapFrontend &m_map;

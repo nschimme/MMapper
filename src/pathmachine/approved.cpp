@@ -35,6 +35,7 @@ void Approved::virt_receiveRoom(const RoomHandle &perhaps, ChangeList &changes)
     if (cmp == ComparisonResultEnum::DIFFERENT) {
         if (auto rh = m_map.findRoomHandle(id)) {
             if (rh.isTemporary()) {
+                // This 'perhaps' room is different from the event and temporary; remove it.
                 changes.add(Change{room_change_types::RemoveRoom{id}});
             }
         }
@@ -42,12 +43,14 @@ void Approved::virt_receiveRoom(const RoomHandle &perhaps, ChangeList &changes)
     }
 
     if (m_matchedRoom) { // Prefixed
+        // A room has already been matched.
         // m_moreThanOne should only take effect if multiple distinct rooms match
         if (m_matchedRoom.getId() != id) { // Prefixed
             m_moreThanOne = true; // Prefixed
         }
         if (auto rh = m_map.findRoomHandle(id)) {
             if (rh.isTemporary()) {
+                // This 'perhaps' room is a subsequent match and temporary; remove it as we already have a match.
                 changes.add(Change{room_change_types::RemoveRoom{id}});
             }
         }
@@ -92,6 +95,7 @@ void Approved::releaseMatch(ChangeList &changes)
     if (m_matchedRoom) { // Prefixed
         if (auto rh = m_map.findRoomHandle(m_matchedRoom.getId())) { // Prefixed
             if (rh.isTemporary()) {
+                // Current matched room is temporary and is being released; remove it.
                 changes.add(Change{room_change_types::RemoveRoom{m_matchedRoom.getId()}}); // Prefixed
             }
         }

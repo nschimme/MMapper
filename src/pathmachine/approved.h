@@ -11,14 +11,14 @@
 #include "../map/room.h"
 #include "../map/roomid.h"
 #include "../map/ChangeList.h" // Added for ChangeList
-#include "../global/WeakHandle.h" // Added for EnableGetWeakHandleFromThis
+#include <memory> // Added for std::enable_shared_from_this
 
 #include <unordered_map>
 
 class MapFrontend;
 class ParseEvent;
 
-class NODISCARD Approved final : public PathProcessor, public EnableGetWeakHandleFromThis<Approved>
+class NODISCARD Approved final : public PathProcessor, public std::enable_shared_from_this<Approved>
 {
 private:
     SigParseEvent m_myEvent; // Prefixed

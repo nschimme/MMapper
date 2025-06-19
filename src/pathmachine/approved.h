@@ -6,19 +6,22 @@
 
 #include "../global/RuleOf5.h"
 #include "../map/RoomHandle.h"
-#include "../map/RoomRecipient.h"
+// RoomRecipient.h is removed
 #include "../map/parseevent.h"
 #include "../map/room.h"
 #include "../map/roomid.h"
+#include "../map/Change.h" // Added Change.h
 
 #include <unordered_map>
+#include <vector> // Added vector
 
 class MapFrontend;
 class ParseEvent;
 
-class NODISCARD Approved final : public RoomRecipient
+class NODISCARD Approved final // Removed inheritance from RoomRecipient
 {
 private:
+    std::vector<RoomId> m_rooms_to_remove; // Added m_rooms_to_remove
     SigParseEvent myEvent;
     std::unordered_map<RoomId, ComparisonResultEnum> compareCache;
     RoomHandle matchedRoom;
@@ -29,16 +32,17 @@ private:
 
 public:
     explicit Approved(MapFrontend &map, const SigParseEvent &sigParseEvent, int matchingTolerance);
-    ~Approved() final;
+    // ~Approved() final; // Destructor removed
 
 public:
     Approved() = delete;
     DELETE_CTORS_AND_ASSIGN_OPS(Approved);
 
 private:
-    void virt_receiveRoom(const RoomHandle &) final;
+    void processRoom(const RoomHandle &); // Renamed virt_receiveRoom and removed final
 
 public:
+    std::vector<Change> finalizeChanges(); // Added finalizeChanges()
     NODISCARD RoomHandle oneMatch() const;
     NODISCARD bool needsUpdate() const { return update; }
     void releaseMatch();

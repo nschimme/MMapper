@@ -22,13 +22,14 @@ Experimenting::Experimenting(std::shared_ptr<PathList> pat,
     , shortPaths(std::move(pat))
 {}
 
-Experimenting::~Experimenting() = default;
+// Experimenting::~Experimenting() = default; // Destructor removed
 
 void Experimenting::augmentPath(const std::shared_ptr<Path> &path, const RoomHandle &room)
 {
     auto &p = deref(path);
     const Coordinate c = p.getRoom().getPosition() + direction;
-    const auto working = p.fork(room, c, params, this, dirCode);
+    // TODO: Refactor Path::fork to not require RoomRecipient or find alternative way to pass necessary info
+    const auto working = p.fork(room, c, params, static_cast<RoomRecipient*>(nullptr), dirCode);
     if (best == nullptr) {
         best = working;
     } else if (working->getProb() > best->getProb()) {

@@ -11,16 +11,16 @@
 
 #include <memory>
 
-Syncing::Syncing(PathParameters &in_p,
-                 std::shared_ptr<PathList> moved_paths,
-                 RoomSignalHandler *in_signaler)
-    : signaler(in_signaler)
-    , params(in_p)
+Syncing::Syncing(PathParameters &in_p, // Constructor updated
+                 std::shared_ptr<PathList> moved_paths)
+    // RoomSignalHandler *in_signaler) // Removed parameter
+    : params(in_p) // signaler(in_signaler) removed
     , paths(std::move(moved_paths))
-    , parent(Path::alloc(RoomHandle{}, this, signaler, std::nullopt))
+    // TODO: Replace nullptr for RoomRecipient and RoomSignalHandler if Path::alloc is updated or a proper alternative is found.
+    , parent(Path::alloc(RoomHandle{}, static_cast<RoomRecipient*>(nullptr), static_cast<RoomSignalHandler*>(nullptr), std::nullopt))
 {}
 
-void Syncing::virt_receiveRoom(const RoomHandle &in_room)
+void Syncing::processRoom(const RoomHandle &in_room) // Renamed method
 {
     if (++numPaths > params.maxPaths) {
         if (!paths->empty()) {
@@ -31,7 +31,8 @@ void Syncing::virt_receiveRoom(const RoomHandle &in_room)
             parent = nullptr;
         }
     } else {
-        auto p = Path::alloc(in_room, this, signaler, ExitDirEnum::NONE);
+        // TODO: Replace nullptr for RoomRecipient and RoomSignalHandler if Path::alloc is updated or a proper alternative is found.
+        auto p = Path::alloc(in_room, static_cast<RoomRecipient*>(nullptr), static_cast<RoomSignalHandler*>(nullptr), ExitDirEnum::NONE);
         p->setParent(parent);
         parent->insertChild(p);
         paths->push_back(p);

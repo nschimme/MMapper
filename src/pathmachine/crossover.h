@@ -12,6 +12,8 @@
 #include "path.h"
 
 #include <memory>
+#include <optional> // Added optional
+#include "../map/Change.h" // Added Change.h
 
 class MapFrontend;
 struct PathParameters;
@@ -28,5 +30,5 @@ public:
               PathParameters &params);
 
 private:
-    void virt_receiveRoom(const RoomHandle &) final;
+    std::optional<Change> processRoom(const RoomHandle &room); // Changed signature
 };

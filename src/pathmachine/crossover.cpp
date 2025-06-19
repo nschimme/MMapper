@@ -5,6 +5,7 @@
 
 #include "crossover.h"
 
+#include "../map/ChangeTypes.h" // Added ChangeTypes.h
 #include "../map/ExitDirection.h"
 #include "../map/room.h"
 #include "../mapdata/mapdata.h"
@@ -22,12 +23,14 @@ Crossover::Crossover(MapFrontend &map,
     , m_map{map}
 {}
 
-void Crossover::virt_receiveRoom(const RoomHandle &room)
+std::optional<Change> Crossover::processRoom(const RoomHandle &room) // Renamed and signature changed
 {
+    std::optional<Change> change_to_return = std::nullopt;
     if (deref(shortPaths).empty()) {
-        if (auto rh = m_map.findRoomHandle(room.getId())) {
+        // This is the original condition for removing the received room if it's temporary.
+        if (auto rh = m_map.findRoomHandle(room.getId())) { // Ensure room exists
             if (rh.isTemporary()) {
-                m_map.applySingleChange(Change{room_change_types::RemoveRoom{room.getId()}});
+                change_to_return = Change{room_change_types::RemoveRoom{room.getId()}};
             }
         }
     }
@@ -35,4 +38,5 @@ void Crossover::virt_receiveRoom(const RoomHandle &room)
     for (auto &shortPath : *shortPaths) {
         augmentPath(shortPath, room);
     }
+    return change_to_return;
 }

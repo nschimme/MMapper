@@ -5,7 +5,7 @@
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 
 #include "../global/RuleOf5.h"
-#include "../map/RoomRecipient.h"
+// RoomRecipient.h removed as Syncing no longer inherits from it
 #include "path.h"
 
 #include <list>
@@ -16,10 +16,10 @@
 class RoomSignalHandler;
 struct PathParameters;
 
-class NODISCARD Syncing final : public RoomRecipient
+class NODISCARD Syncing final // Removed inheritance from RoomRecipient
 {
 private:
-    RoomSignalHandler *signaler = nullptr;
+    // RoomSignalHandler *signaler = nullptr; // Removed member
     PathParameters &params;
     const std::shared_ptr<PathList> paths;
     // This is not our parent; it's the parent we assign to new objects.
@@ -27,17 +27,17 @@ private:
     uint32_t numPaths = 0u;
 
 public:
-    explicit Syncing(PathParameters &p,
-                     std::shared_ptr<PathList> paths,
-                     RoomSignalHandler *signaler);
+    explicit Syncing(PathParameters &p, // Constructor updated
+                     std::shared_ptr<PathList> paths);
+                     // RoomSignalHandler *signaler); // Removed parameter
 
 public:
     Syncing() = delete;
     DELETE_CTORS_AND_ASSIGN_OPS(Syncing);
-    ~Syncing() final;
+    ~Syncing(); // Removed final
 
 private:
-    void virt_receiveRoom(const RoomHandle &) final;
+    void processRoom(const RoomHandle &room); // Renamed and final removed
 
 public:
     std::shared_ptr<PathList> evaluate();

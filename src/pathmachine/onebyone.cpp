@@ -19,25 +19,21 @@
 
 class Path;
 
-OneByOne::OneByOne(const SigParseEvent &sigParseEvent,
-                   PathParameters &in_params,
-                   RoomSignalHandler *const in_handler)
+OneByOne::OneByOne(const SigParseEvent &sigParseEvent, // Constructor updated
+                   PathParameters &in_params)
+    // RoomSignalHandler *const in_handler) // Removed parameter
     : Experimenting{PathList::alloc(), getDirection(sigParseEvent.deref().getMoveType()), in_params}
     , event{sigParseEvent.getShared()}
-    , handler{in_handler}
+    // , handler{in_handler} // Removed member initialization
 {}
 
-void OneByOne::virt_receiveRoom(const RoomHandle &room)
+void OneByOne::processRoom(const RoomHandle &room) // Renamed method
 {
     if (::compare(room.getRaw(), deref(event), params.matchingTolerance)
         == ComparisonResultEnum::EQUAL) {
         augmentPath(shortPaths->back(), room);
-    } else {
-        // needed because the memory address is not unique and
-        // calling admin->release might destroy a room still held by some path
-        handler->hold(room.getId(), this);
-        handler->release(room.getId());
     }
+    // else block entirely removed
 }
 
 void OneByOne::addPath(std::shared_ptr<Path> path)

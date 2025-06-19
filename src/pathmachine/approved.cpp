@@ -5,6 +5,7 @@
 
 #include "approved.h"
 
+#include "../map/ChangeTypes.h" // Added ChangeTypes.h
 #include "../map/Compare.h"
 #include "../map/room.h"
 #include "../mapdata/mapdata.h"
@@ -16,26 +17,34 @@ Approved::Approved(MapFrontend &map, const SigParseEvent &sigParseEvent, const i
 
 {}
 
-Approved::~Approved()
+// Approved::~Approved() // Destructor removed
+
+std::vector<Change> Approved::finalizeChanges()
 {
+    std::vector<Change> changes;
     if (matchedRoom) {
-        if (moreThanOne) {
-            if (auto rh = m_map.findRoomHandle(matchedRoom.getId())) {
-                if (rh.isTemporary()) {
-                    m_map.applySingleChange(Change{room_change_types::RemoveRoom{matchedRoom.getId()}});
-                }
-            }
-        } else {
-            if (auto rh = m_map.findRoomHandle(matchedRoom.getId())) {
-                if (rh.isTemporary()) {
-                    m_map.applySingleChange(Change{room_change_types::MakePermanent{matchedRoom.getId()}});
+        // Logic from old destructor
+        // Need to find the handle again to check isTemporary, as matchedRoom itself might be stale
+        // or not have the most up-to-date temporary status.
+        if (auto rh = m_map.findRoomHandle(matchedRoom.getId())) {
+            if (rh.isTemporary()) { // Check if the room is currently temporary
+                if (moreThanOne) {
+                    changes.emplace_back(room_change_types::RemoveRoom{matchedRoom.getId()});
+                } else {
+                    changes.emplace_back(room_change_types::MakePermanent{matchedRoom.getId()});
                 }
             }
         }
     }
+
+    for (const RoomId r_id : m_rooms_to_remove) {
+        changes.emplace_back(room_change_types::RemoveRoom{r_id});
+    }
+    m_rooms_to_remove.clear();
+    return changes;
 }
 
-void Approved::virt_receiveRoom(const RoomHandle &perhaps)
+void Approved::processRoom(const RoomHandle &perhaps) // Renamed from virt_receiveRoom
 {
     auto &event = myEvent.deref();
 
@@ -54,7 +63,8 @@ void Approved::virt_receiveRoom(const RoomHandle &perhaps)
     if (cmp == ComparisonResultEnum::DIFFERENT) {
         if (auto rh = m_map.findRoomHandle(id)) {
             if (rh.isTemporary()) {
-                m_map.applySingleChange(Change{room_change_types::RemoveRoom{id}});
+                // m_map.applySingleChange(Change{room_change_types::RemoveRoom{id}});
+                m_rooms_to_remove.push_back(id); // Changed to add to vector
             }
         }
         return;
@@ -67,7 +77,8 @@ void Approved::virt_receiveRoom(const RoomHandle &perhaps)
         }
         if (auto rh = m_map.findRoomHandle(id)) {
             if (rh.isTemporary()) {
-                m_map.applySingleChange(Change{room_change_types::RemoveRoom{id}});
+                // m_map.applySingleChange(Change{room_change_types::RemoveRoom{id}});
+                m_rooms_to_remove.push_back(id); // Changed to add to vector
             }
         }
         return;
@@ -111,7 +122,8 @@ void Approved::releaseMatch()
     if (matchedRoom) {
         if (auto rh = m_map.findRoomHandle(matchedRoom.getId())) {
             if (rh.isTemporary()) {
-                m_map.applySingleChange(Change{room_change_types::RemoveRoom{matchedRoom.getId()}});
+                // m_map.applySingleChange(Change{room_change_types::RemoveRoom{matchedRoom.getId()}});
+                m_rooms_to_remove.push_back(matchedRoom.getId()); // Changed to add to vector
             }
         }
     }

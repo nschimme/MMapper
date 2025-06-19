@@ -18,15 +18,15 @@ class NODISCARD OneByOne final : public Experimenting
 {
 private:
     SharedParseEvent event;
-    RoomSignalHandler *handler = nullptr;
+    // RoomSignalHandler *handler = nullptr; // Removed member
 
 public:
-    explicit OneByOne(const SigParseEvent &sigParseEvent,
-                      PathParameters &in_params,
-                      RoomSignalHandler *handler);
+    explicit OneByOne(const SigParseEvent &sigParseEvent, // Constructor updated
+                      PathParameters &in_params);
+                      // RoomSignalHandler *handler); // Removed parameter
 
 private:
-    void virt_receiveRoom(const RoomHandle &room) final;
+    void processRoom(const RoomHandle &room); // Renamed and 'final' removed
 
 public:
     void addPath(std::shared_ptr<Path> path);

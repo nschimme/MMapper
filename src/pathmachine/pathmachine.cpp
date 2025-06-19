@@ -24,7 +24,7 @@
 #include "onebyone.h"
 #include "path.h"
 #include "pathparameters.h"
-#include "roomsignalhandler.h"
+// #include "roomsignalhandler.h" // Removed include
 #include "syncing.h"
 
 #include <cassert>
@@ -32,12 +32,12 @@
 #include <optional>
 #include <unordered_set>
 
-class RoomRecipient;
+// class RoomRecipient; // Forward declaration removed
 
 PathMachine::PathMachine(MapFrontend &map, QObject *const parent)
     : QObject(parent)
     , m_map{map}
-    , m_signaler{map, this}
+    // , m_signaler{map, this} // Removed m_signaler initialization
     , m_lastEvent{ParseEvent::createDummyEvent()}
     , m_paths{PathList::alloc()}
 {}
@@ -152,87 +152,8 @@ void PathMachine::handleParseEvent(const SigParseEvent &sigParseEvent)
     }
 }
 
-void PathMachine::tryExits(const RoomHandle &room,
-                           RoomRecipient &recipient,
-                           const ParseEvent &event,
-                           const bool out)
-{
-    if (!room.exists()) {
-        // most likely room doesn't exist
-        return;
-    }
-
-    const CommandEnum move = event.getMoveType();
-    if (isDirection7(move)) {
-        const auto &possible = room.getExit(getDirection(move));
-        tryExit(possible, recipient, out);
-    } else {
-        // Only check the current room for LOOK
-        RoomIdSet ids = m_map.lookingForRooms(room.getId());
-        for (RoomId id : ids) {
-            if (auto rh = m_map.findRoomHandle(id)) {
-                recipient.receiveRoom(rh);
-            }
-        }
-        if (move >= CommandEnum::FLEE) {
-            // Only try all possible exits for commands FLEE, SCOUT, and NONE
-            for (const auto &possible : room.getExits()) {
-                tryExit(possible, recipient, out);
-            }
-        }
-    }
-}
-
-void PathMachine::tryExit(const RawExit &possible, RoomRecipient &recipient, const bool out)
-{
-    for (auto idx : (out ? possible.getOutgoingSet() : possible.getIncomingSet())) {
-        RoomIdSet ids = m_map.lookingForRooms(idx);
-        for (RoomId id : ids) {
-            if (auto rh = m_map.findRoomHandle(id)) {
-                recipient.receiveRoom(rh);
-            }
-        }
-    }
-}
-
-void PathMachine::tryCoordinate(const RoomHandle &room,
-                                RoomRecipient &recipient,
-                                const ParseEvent &event)
-{
-    if (!room.exists()) {
-        // most likely room doesn't exist
-        return;
-    }
-
-    const CommandEnum moveCode = event.getMoveType();
-    if (moveCode < CommandEnum::FLEE) {
-        // LOOK, UNKNOWN will have an empty offset
-        auto offset = ::exitDir(getDirection(moveCode));
-        const Coordinate c = room.getPosition() + offset;
-        RoomIdSet ids_c = m_map.lookingForRooms(c);
-        for (RoomId id : ids_c) {
-            if (auto rh = m_map.findRoomHandle(id)) {
-                recipient.receiveRoom(rh);
-            }
-        }
-
-    } else {
-        const Coordinate roomPos = room.getPosition();
-        // REVISIT: Should this enumerate 6 or 7 values?
-        // NOTE: This previously enumerated 8 values instead of 7,
-        // which meant it was asking for exitDir(ExitDirEnum::NONE),
-        // even though both ExitDirEnum::UNKNOWN and ExitDirEnum::NONE
-        // both have Coordinate(0, 0, 0).
-        for (const ExitDirEnum dir : ALL_EXITS7) {
-            RoomIdSet ids_dir = m_map.lookingForRooms(roomPos + ::exitDir(dir));
-            for (RoomId id : ids_dir) {
-                if (auto rh = m_map.findRoomHandle(id)) {
-                    recipient.receiveRoom(rh);
-                }
-            }
-        }
-    }
-}
+// Definitions for tryExits, tryExit, tryCoordinate have been moved to PathMachine.h as templates.
+// The commented out blocks are now removed.
 
 void PathMachine::approved(const SigParseEvent &sigParseEvent, ChangeList &changes)
 {
@@ -327,7 +248,7 @@ void PathMachine::approved(const SigParseEvent &sigParseEvent, ChangeList &chang
         /* FIXME: null locker ends up being an error in RoomSignalHandler::keep(),
          * so why is this allowed to be null, and how do we prevent this null
          * from actually causing an error? */
-        deref(m_paths).push_front(Path::alloc(pathRoot, nullptr, &m_signaler, std::nullopt));
+        deref(m_paths).push_front(Path::alloc(pathRoot, std::nullopt)); // m_signaler removed
         experimenting(sigParseEvent, changes);
 
         return;
@@ -359,6 +280,11 @@ void PathMachine::approved(const SigParseEvent &sigParseEvent, ChangeList &chang
         changes.add(Change{room_change_types::Update{perhaps.getId(),
                                                      sigParseEvent.deref(),
                                                      UpdateTypeEnum::Update}});
+    }
+
+    std::vector<Change> approved_changes = appr.finalizeChanges();
+    for(const auto& ch : approved_changes) {
+        changes.add(ch);
     }
 }
 
@@ -551,12 +477,12 @@ void PathMachine::syncing(const SigParseEvent &sigParseEvent, ChangeList &change
     auto &params = m_params;
     ParseEvent &event = sigParseEvent.deref();
     {
-        Syncing sync{params, m_paths, &m_signaler};
+        Syncing sync{params, m_paths}; // m_signaler removed
         if (event.hasServerId() || event.getNumSkipped() <= params.maxSkipped) {
             RoomIdSet ids = m_map.lookingForRooms(sigParseEvent);
             for (RoomId id : ids) {
                 if (auto rh = m_map.findRoomHandle(id)) {
-                    sync.receiveRoom(rh);
+                    sync.processRoom(rh); // Changed from receiveRoom
                 }
             }
         }
@@ -592,12 +518,13 @@ void PathMachine::experimenting(const SigParseEvent &sigParseEvent, ChangeList &
         RoomIdSet ids = m_map.lookingForRooms(sigParseEvent);
         for (RoomId id : ids) {
             if (auto rh = m_map.findRoomHandle(id)) {
-                exp.receiveRoom(rh);
+                std::optional<Change> crossover_change = exp.processRoom(rh); // Updated call
+                if (crossover_change) { changes.add(*crossover_change); }
             }
         }
         m_paths = exp.evaluate();
     } else {
-        OneByOne oneByOne{sigParseEvent, params, &m_signaler};
+        OneByOne oneByOne{sigParseEvent, params}; // m_signaler removed
         {
             auto &tmp = oneByOne;
             for (const auto &path : deref(m_paths)) {

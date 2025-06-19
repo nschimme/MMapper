@@ -15,6 +15,7 @@
 #include "../global/PrintUtils.h"
 #include "../global/SignalBlocker.h"
 #include "../global/utils.h"
+#include "../map/Changes.h"
 #include "../map/Diff.h"
 #include "../map/ExitFieldVariant.h"
 #include "../map/RoomFieldVariant.h"
@@ -252,6 +253,7 @@ RoomEditAttrDlg::RoomEditAttrDlg(QWidget *parent)
     readSettings();
 
     connect(closeButton, &QAbstractButton::clicked, this, &RoomEditAttrDlg::closeClicked);
+    connect(revertDiffButton, &QPushButton::clicked, this, &RoomEditAttrDlg::onRevertDiffClicked);
 }
 
 RoomEditAttrDlg::~RoomEditAttrDlg()
@@ -630,6 +632,7 @@ void RoomEditAttrDlg::updateDialog(const RoomHandle &r)
 
         roomDiffTextEdit->clear();
         roomDiffTextEdit->setEnabled(false);
+        revertDiffButton->setEnabled(false);
 
         terrainLabel->setPixmap(QPixmap(getPixmapFilename(RoomTerrainEnum::UNDEFINED)));
 
@@ -759,6 +762,13 @@ void RoomEditAttrDlg::updateDialog(const RoomHandle &r)
             }();
 
             setAnsiText(roomDiffTextEdit, s);
+
+            // Enable/disable revertDiffButton based on diff content
+            if (s == "No changes since the last save." || s == "The room was created since the last save." || !pOld) {
+                revertDiffButton->setEnabled(false);
+            } else {
+                revertDiffButton->setEnabled(true);
+            }
         }
 
         const auto get_terrain_pixmap = [](RoomTerrainEnum type) -> QString {
@@ -1258,6 +1268,31 @@ void RoomEditAttrDlg::closeClicked()
         // Should we flash the window or create a popup?
     } else {
         accept();
+    }
+}
+
+void RoomEditAttrDlg::onRevertDiffClicked()
+{
+    RoomHandle r = getSelectedRoom();
+    MapData* md = m_mapData;
+
+    if (!r.exists() || !md) { // r.exists() also checks if r is null
+        return;
+    }
+
+    auto savedMap = md->getSavedMap();
+    RoomHandle savedRoom = savedMap.findRoomHandle(r.getIdExternal());
+
+    if (!savedRoom.exists()) {
+        // Room was created after last save, or some other issue.
+        // For now, just log and return. The button should ideally be disabled.
+        qWarning() << "Attempted to revert a room that doesn't exist in the saved map:" << r.getIdExternal().asUint32();
+        return;
+    }
+
+    if (r.exists() && savedRoom.exists()) { // Double check, though outer check should suffice for r
+        md->applySingleChange(Change{room_change_types::ReplaceRoom{r.getId(), savedRoom.getRaw()}});
+        updateDialog(getSelectedRoom()); // Refresh the dialog
     }
 }
 

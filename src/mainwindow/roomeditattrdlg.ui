@@ -58,6 +58,13 @@
          </property>
         </widget>
        </item>
+       <item>
+        <widget class="QPushButton" name="revertDiffButton">
+         <property name="text">
+          <string>Revert</string>
+         </property>
+        </widget>
+       </item>
        <item row="1" column="0" colspan="2">
         <widget class="QTextEdit" name="roomDescriptionTextEdit">
          <property name="lineWrapMode">
@@ -1480,6 +1487,13 @@
          </property>
          <property name="acceptRichText">
           <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="revertDiffButton">
+         <property name="text">
+          <string>Revert</string>
          </property>
         </widget>
        </item>

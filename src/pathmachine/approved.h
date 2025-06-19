@@ -36,8 +36,8 @@ public:
     Approved() = delete;
     DELETE_CTORS_AND_ASSIGN_OPS(Approved);
 
-public: // Changed to public and new signature
-    void processRoom(const RoomHandle &room, const ParseEvent &event) override;
+public:
+    void processRoom(const RoomHandle &room) override;
 
 public:
     NODISCARD RoomHandle oneMatch() const;

@@ -16,7 +16,7 @@
 
 // class RoomSignalHandler; // Removed forward declaration
 struct PathParameters;
-class ParseEvent; // Forward declaration for ParseEvent
+// class ParseEvent; // Removed forward declaration
 
 class NODISCARD Syncing final : public PathProcessor // Inherit from PathProcessor
 {
@@ -40,11 +40,11 @@ public:
     DELETE_CTORS_AND_ASSIGN_OPS(Syncing);
     ~Syncing() final;
 
-public: // Added processRoom, removed virt_receiveRoom
-    void processRoom(const RoomHandle &room, const ParseEvent &event) override;
+public: // Updated processRoom signature
+    void processRoom(const RoomHandle &room) override;
     // private:
     // void virt_receiveRoom(const RoomHandle &) final; // Removed
 
 public:
-    std::shared_ptr<PathList> evaluate();
+    std::shared_ptr<PathList> evaluate(ChangeList &changes); // Added ChangeList& changes
 };

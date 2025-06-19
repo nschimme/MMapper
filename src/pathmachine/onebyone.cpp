@@ -26,9 +26,9 @@ OneByOne::OneByOne(const SigParseEvent &sigParseEvent,
     // , handler{in_handler} // Removed handler initialization
 {}
 
-void OneByOne::processRoom(const RoomHandle &room, const ParseEvent & /*event_param*/)
+void OneByOne::processRoom(const RoomHandle &room) // Removed ParseEvent event_param
 {
-    // The event_param is unused, class uses its member 'event' (SharedParseEvent)
+    // Class uses its member 'event' (SharedParseEvent) for event context.
     if (::compare(room.getRaw(), deref(event), params.matchingTolerance)
         == ComparisonResultEnum::EQUAL) {
         // 'shortPaths' is a member of the Experimenting base class.

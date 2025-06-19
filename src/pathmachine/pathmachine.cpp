@@ -172,7 +172,7 @@ void PathMachine::tryExits(const RoomHandle &room,
         RoomIdSet ids = m_map.lookingForRooms(room.getId());
         for (RoomId id : ids) {
             if (auto rh = m_map.findRoomHandle(id)) {
-                processor.processRoom(rh, event);
+                processor.processRoom(rh); // Removed event
             }
         }
         if (move >= CommandEnum::FLEE) {
@@ -196,7 +196,7 @@ void PathMachine::tryExit(const RawExit &possible, PathProcessor &processor, con
         RoomIdSet ids = m_map.lookingForRooms(idx);
         for (RoomId id : ids) {
             if (auto rh = m_map.findRoomHandle(id)) {
-                processor.processRoom(rh, eventForProcessing);
+                processor.processRoom(rh); // Removed eventForProcessing
             }
         }
     }
@@ -219,7 +219,7 @@ void PathMachine::tryCoordinate(const RoomHandle &room,
         RoomIdSet ids_c = m_map.lookingForRooms(c);
         for (RoomId id : ids_c) {
             if (auto rh = m_map.findRoomHandle(id)) {
-                processor.processRoom(rh, event);
+                processor.processRoom(rh); // Removed event
             }
         }
 
@@ -234,7 +234,7 @@ void PathMachine::tryCoordinate(const RoomHandle &room,
             RoomIdSet ids_dir = m_map.lookingForRooms(roomPos + ::exitDir(dir));
             for (RoomId id : ids_dir) {
                 if (auto rh = m_map.findRoomHandle(id)) {
-                    processor.processRoom(rh, event);
+                    processor.processRoom(rh); // Removed event
                 }
             }
         }
@@ -251,8 +251,7 @@ void PathMachine::approved(const SigParseEvent &sigParseEvent, ChangeList &chang
     if (event.hasServerId()) {
         perhaps = m_map.findRoomHandle(event.getServerId());
         if (perhaps.exists()) {
-            // appr.receiveRoom(perhaps); // Old call
-            appr.processRoom(perhaps, event); // New call
+            appr.processRoom(perhaps); // New call, removed event
         }
         perhaps = appr.oneMatch();
     }
@@ -297,8 +296,7 @@ void PathMachine::approved(const SigParseEvent &sigParseEvent, ChangeList &chang
                             RoomIdSet ids_c1 = m_map.lookingForRooms(c);
                             for (RoomId id : ids_c1) {
                                 if (auto rh = m_map.findRoomHandle(id)) {
-                                    // appr.receiveRoom(rh); // Old call
-                                    appr.processRoom(rh, event); // New call
+                                    appr.processRoom(rh); // New call, removed event
                                 }
                             }
                             perhaps = appr.oneMatch();
@@ -310,8 +308,7 @@ void PathMachine::approved(const SigParseEvent &sigParseEvent, ChangeList &chang
                                 RoomIdSet ids_c2 = m_map.lookingForRooms(c);
                                 for (RoomId id : ids_c2) {
                                     if (auto rh = m_map.findRoomHandle(id)) {
-                                        // appr.receiveRoom(rh); // Old call
-                                        appr.processRoom(rh, event); // New call
+                                        appr.processRoom(rh); // New call, removed event
                                     }
                                 }
                                 perhaps = appr.oneMatch();
@@ -570,8 +567,7 @@ void PathMachine::syncing(const SigParseEvent &sigParseEvent, ChangeList &change
             RoomIdSet ids = m_map.lookingForRooms(sigParseEvent);
             for (RoomId id : ids) {
                 if (auto rh = m_map.findRoomHandle(id)) {
-                    // sync.receiveRoom(rh); // Old call
-                    sync.processRoom(rh, event); // New call
+                    sync.processRoom(rh); // New call, removed event
                 }
             }
         }
@@ -607,8 +603,7 @@ void PathMachine::experimenting(const SigParseEvent &sigParseEvent, ChangeList &
         RoomIdSet ids = m_map.lookingForRooms(sigParseEvent);
         for (RoomId id : ids) {
             if (auto rh = m_map.findRoomHandle(id)) {
-                // exp.receiveRoom(rh); // Old call
-                exp.processRoom(rh, event); // New call
+                exp.processRoom(rh); // New call, removed event
             }
         }
         m_paths = exp.evaluate();

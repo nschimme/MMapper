@@ -11,7 +11,7 @@
 #include "../map/room.h"
 #include "../mapdata/mapdata.h"
 #include "experimenting.h"
-#include "pathmachine.h" // For ParseEvent, though it's unused
+// #include "pathmachine.h" // No longer needed for ParseEvent here
 
 #include <memory>
 
@@ -25,7 +25,7 @@ Crossover::Crossover(MapFrontend &map,
     , m_map{map}
 {}
 
-void Crossover::processRoom(const RoomHandle &room, const ParseEvent & /* event */)
+void Crossover::processRoom(const RoomHandle &room) // Removed ParseEvent parameter
 {
     // Logic from former Crossover::virt_receiveRoom
     // The 'shortPaths' member is from the Experimenting base class.

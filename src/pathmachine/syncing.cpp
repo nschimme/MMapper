@@ -23,69 +23,65 @@ Syncing::Syncing(PathMachine &pathMachine,
     , parent(Path::alloc(m_pathMachine, RoomHandle{}, std::nullopt))
 {}
 
-void Syncing::processRoom(const RoomHandle &in_room, const ParseEvent & /* event */)
+void Syncing::processRoom(const RoomHandle &in_room) // Removed ParseEvent event
 {
-    // Logic from former virt_receiveRoom
-    if (++numPaths > params.maxPaths) {
-        if (!paths->empty()) {
-            // Deny requires a ChangeList. Create a dummy one for now, as Syncing itself doesn't manage one.
-            // This might need revisiting if these changes should be collected.
-            ChangeList localChanges;
-            for (auto &path : *paths) {
-                path->deny(localChanges);
-            }
-            // Assuming localChanges are discarded here as original code didn't collect them.
-            paths->clear();
-            parent = nullptr; // If parent was complex, its denial might also need changes.
-                           // However, parent is a simple dummy path here, its denial is mostly for releasing its own room if held.
-                           // If parent itself needs to be denied and it's not null:
-            if (parent) {
-                ChangeList parentDenyChanges; // Separate ChangeList for parent's denial
-                parent->deny(parentDenyChanges);
-            }
-        }
-    } else {
-        if (!parent) { // Safety check if parent became null due to maxPaths logic
-             // Re-create a dummy parent if it was cleared. This might indicate a need to rethink
-             // how 'parent' is managed if maxPaths limit is hit.
-             // For now, let's assume parent should always exist if we are adding children.
-             // This situation (parent is null but we are trying to add more paths) implies
-             // the previous clear might have been too aggressive or needs adjustment.
-             // A simple fix might be to only clear paths->clear() but not parent = nullptr,
-             // or ensure parent is reinitialized if we continue adding paths.
-             // However, the original logic sets parent = nullptr and then would fail here.
-             // Let's stick to the direct translation and note this potential issue.
-             // If parent is null, p->setParent(parent) will be problematic.
-             // The original code would likely crash or misbehave if parent was null here.
-             // For now, we'll assume parent is not null if numPaths <= params.maxPaths
-        }
-        // Updated Path::alloc call: removed 'this' (locker) and 'signaler'
-        auto p = Path::alloc(m_pathMachine, in_room, ExitDirEnum::NONE); // Original used ExitDirEnum::NONE
-        p->setProb(1.0); // FIXME: calculate real probability (comment from original) - Added based on prompt example
+    // Simplified: just create and add the path.
+    // Pruning logic moved to evaluate().
+    // The 'parent' path is a dummy root for new paths created in Syncing mode.
+    auto p = Path::alloc(m_pathMachine, in_room, ExitDirEnum::NONE); // Original used ExitDirEnum::NONE
+    p->setProb(1.0); // FIXME: calculate real probability (comment from original)
 
-        // If parent became null above, this section will have issues.
-        // Assuming parent is valid if we are in this 'else' block and numPaths limit not exceeded.
-        if (parent) {
-            p->setParent(parent);
-            parent->insertChild(p);
-        } else {
-            // This case should ideally not be hit if logic is correct around parent re-initialization or preservation.
-            // Handle error or re-initialize parent if necessary.
-            // For now, new path 'p' won't have a parent if 'parent' is null.
-        }
-        paths->push_back(p);
+    if (parent) { // Should generally be true unless Path::alloc for parent failed in constructor
+        p->setParent(parent);
+        parent->insertChild(p);
     }
+    // Even if parent is somehow null, we still add the path to the list.
+    // PathMachine::evaluatePaths will handle paths with null parents if necessary.
+    paths->push_back(p);
+    numPaths++; // Keep track of paths added
 }
 
-std::shared_ptr<PathList> Syncing::evaluate()
+std::shared_ptr<PathList> Syncing::evaluate(ChangeList &changes) // Added ChangeList& changes
 {
+    if (numPaths > params.maxPaths) {
+        // Max paths exceeded, deny all current paths and the dummy parent.
+        if (!paths->empty()) {
+            for (auto &path : *paths) {
+                path->deny(changes); // Use the passed-in ChangeList
+            }
+            paths->clear();
+        }
+        if (parent) {
+            parent->deny(changes); // Use the passed-in ChangeList
+            // We set parent to null here to prevent it from being denied again in the destructor,
+            // if Syncing object itself is destroyed shortly after this evaluate call.
+            // Denying a path multiple times is generally safe but might add redundant changes.
+            parent = nullptr;
+        }
+        numPaths = 0; // Reset count as all paths are cleared
+    }
+    // TODO: The original Syncing::evaluate might have had sorting or other logic.
+    // For now, it just returns the (potentially pruned) list of paths.
+    // If further pruning or selection logic is needed (e.g. keeping best N paths
+    // instead of denying all when over limit), it would go here.
+    // The current logic (denying all if > maxPaths) matches the old processRoom behavior.
     return paths;
 }
 
 Syncing::~Syncing()
 {
-    if (parent != nullptr) {
-        ChangeList localChanges; // Dummy ChangeList for destructor context
-        parent->deny(localChanges);
-    }
+    // The 'parent' path is a dummy path created and managed by Syncing.
+    // If it hasn't been denied and cleared by evaluate() (e.g. if maxPaths wasn't exceeded,
+    // or evaluate wasn't called after the last processRoom), it might still exist.
+    // However, its denial should produce map changes only if it acquired a real room
+    // and was involved in map operations, which a dummy parent usually isn't.
+    // If its denial is necessary for ChangeList integrity, that should happen in evaluate().
+    // If it's just about releasing a hold on a dummy RoomId=0, that doesn't affect ChangeList.
+    // Removing the deny from destructor simplifies ChangeList management here.
+    // If 'parent' held a real room that needs release, it should be handled explicitly
+    // by PathMachine or by ensuring evaluate() is always called.
+    // if (parent != nullptr) {
+    //     ChangeList localChanges; // Problematic in destructor if changes are expected to be processed.
+    //     parent->deny(localChanges);
+    // }
 }

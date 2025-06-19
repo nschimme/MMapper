@@ -28,7 +28,7 @@ public:
               PathParameters &params);
 
 public:
-    void processRoom(const RoomHandle &room, const ParseEvent &event) override;
+    void processRoom(const RoomHandle &room) override;
 
 private:
     // void virt_receiveRoom(const RoomHandle &) final; // Removed

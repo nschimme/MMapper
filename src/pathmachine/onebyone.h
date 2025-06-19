@@ -9,18 +9,18 @@
 
 #include <memory>
 
-class ParseEvent; // Forward declaration for ParseEvent, used in processRoom
+// class ParseEvent; // Removed forward declaration
 class Path;
 // class RoomSignalHandler; // Removed forward declaration
 struct PathParameters;
 
 class NODISCARD OneByOne final : public Experimenting
 {
-public: // Added processRoom
-    void processRoom(const RoomHandle &room, const ParseEvent &event) override;
+public: // Updated processRoom signature
+    void processRoom(const RoomHandle &room) override;
 
 private:
-    SharedParseEvent event;
+    SharedParseEvent event; // This class uses its own 'event' member, initialized from SigParseEvent
     // RoomSignalHandler *handler = nullptr; // Removed member
 
 public:

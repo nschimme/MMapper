@@ -20,13 +20,13 @@
 
 // class PathMachine; // PathMachine full definition included via pathmachine.h
 struct PathParameters;
-class ParseEvent; // Forward declaration, as pathmachine.h might not expose it directly or might be heavy
+// class ParseEvent; // Removed forward declaration
 
 // Base class for Crossover and OneByOne
 class NODISCARD Experimenting : public PathProcessor // Inherit from PathProcessor
 {
-public: // Added processRoom as pure virtual
-    virtual void processRoom(const RoomHandle &room, const ParseEvent &event) override = 0;
+public: // Updated processRoom signature
+    virtual void processRoom(const RoomHandle &room) override = 0;
 
 protected:
     void augmentPath(const std::shared_ptr<Path> &path, const RoomHandle &room);

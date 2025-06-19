@@ -36,14 +36,14 @@ Approved::~Approved()
     }
 }
 
-void Approved::processRoom(const RoomHandle &perhaps, const ParseEvent & /* event */)
+void Approved::processRoom(const RoomHandle &perhaps) // Removed ParseEvent parameter
 {
-    // The 'event' parameter is unused because myEvent (derived from sigParseEvent in constructor)
-    // is used instead. This class seems to operate on a fixed event context.
+    // myEvent (derived from sigParseEvent in constructor) is used for event context.
     auto &cached_event = myEvent.deref();
 
     const auto id = perhaps.getId();
-    const auto cmp = [this, &event, &id, &perhaps]() {
+    // Updated lambda capture to use cached_event instead of the removed 'event' parameter
+    const auto cmp = [this, &cached_event, &id, &perhaps]() {
         // Cache comparisons because we regularly call releaseMatch() and try the same rooms again
         auto it = compareCache.find(id);
         if (it != compareCache.end()) {

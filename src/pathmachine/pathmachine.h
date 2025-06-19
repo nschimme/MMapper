@@ -33,7 +33,7 @@ enum class NODISCARD PathStateEnum : uint8_t { APPROVED = 0, EXPERIMENTING = 1, 
 class PathProcessor {
 public:
     virtual ~PathProcessor() = default;
-    virtual void processRoom(const RoomHandle &room, const ParseEvent &event) = 0;
+    virtual void processRoom(const RoomHandle &room) = 0;
 };
 
 /**

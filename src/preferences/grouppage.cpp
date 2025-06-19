@@ -24,7 +24,7 @@ GroupPage::GroupPage(QWidget *const parent)
     config.groupManager.registerChangeCallback(m_configLifetime, [this]() {
         // When groupManager settings change, this page should reflect those changes
         // and signal that its relevant settings might have updated.
-        // slot_loadConfig(); // Optionally refresh UI from config first
+        this->slot_loadConfig(); // Refresh GroupPage's UI from current config
         emit sig_groupSettingsChanged();
     });
 

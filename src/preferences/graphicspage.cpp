@@ -38,6 +38,7 @@ GraphicsPage::GraphicsPage(QWidget *parent)
 
     // Connect to CanvasSettings general changes
     config.canvas.registerChangeCallback(m_configLifetime, [this]() {
+        this->slot_loadConfig(); // Ensure UI refresh
         this->graphicsSettingsChanged();
     });
 
@@ -49,12 +50,15 @@ GraphicsPage::GraphicsPage(QWidget *parent)
 
     // Connect to specific NamedConfig<T> properties in config.canvas
     config.canvas.showUnsavedChanges.registerChangeCallback(m_configLifetime, [this]() {
+        this->slot_loadConfig(); // Ensure UI refresh
         this->graphicsSettingsChanged();
     });
     config.canvas.showMissingMapId.registerChangeCallback(m_configLifetime, [this]() {
+        this->slot_loadConfig(); // Ensure UI refresh
         this->graphicsSettingsChanged();
     });
     config.canvas.showUnmappedExits.registerChangeCallback(m_configLifetime, [this]() {
+        this->slot_loadConfig(); // Ensure UI refresh
         this->graphicsSettingsChanged();
     });
 

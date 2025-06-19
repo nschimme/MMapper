@@ -41,17 +41,8 @@
 // that DeveloperPage already listens to via a more general ChangeMonitor (like CanvasSettings).
 // Since all listed NamedConfigs are within CanvasSettings or CanvasSettings::Advanced,
 // and DeveloperPage now listens to config.canvas.showMissingMapId etc. directly,
-// this list might become empty or very specific to NamedConfigs outside monitored structs.
-// For now, we'll keep it for any remaining NamedConfigs that might be graphics-related
-// and are handled via generic property.write() if not covered by direct listeners.
-const QStringList graphicsNamedConfigPropertyNames = {
-    // These are now covered by direct listeners below, so they could be removed from here.
-    // "showMissingMapId", "showUnsavedChanges", "showUnmappedExits",
-    // "MMAPPER_3D", "MMAPPER_AUTO_TILT", "MMAPPER_GL_PERFSTATS"
-};
-// After review, this list should indeed be empty as all specified NamedConfigs
-// will have direct listeners. So, an empty list is appropriate.
-// const QStringList graphicsNamedConfigPropertyNames = {};
+// this list is now empty as all relevant NamedConfig<T> instances for graphics have direct listeners.
+const QStringList graphicsNamedConfigPropertyNames = {}; // Now definitively empty
 
 
 DeveloperPage::DeveloperPage(QWidget *parent)

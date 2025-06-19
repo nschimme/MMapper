@@ -5,6 +5,7 @@
 
 #include "../global/macros.h"
 #include "../global/utils.h"
+#include "../global/Signal2Lifetime.h" // Added
 
 #include <memory>
 
@@ -54,6 +55,7 @@ private:
     };
 
     Pipeline m_pipeline;
+    Signal2Lifetime m_configLifetime; // Added
 
 public:
     explicit ClientWidget(QWidget *parent);
@@ -81,6 +83,7 @@ public:
 
 private:
     void relayMessage(const QString &msg) { emit sig_relayMessage(msg); }
+    void handleClientSettingsUpdate(); // Added
 
 protected:
     NODISCARD QSize minimumSizeHint() const override;

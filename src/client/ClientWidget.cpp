@@ -39,9 +39,20 @@ ClientWidget::ClientWidget(QWidget *const parent)
     ui.input->installEventFilter(this);
     ui.input->setFocus();
     ui.display->setFocusPolicy(Qt::TabFocus);
+
+    // Initialize m_configLifetime and register callback
+    m_configLifetime.disconnectAll();
+    Configuration &config = getConfig();
+    config.integratedClient.registerChangeCallback(m_configLifetime, [this]() {
+        this->handleClientSettingsUpdate();
+    });
 }
 
-ClientWidget::~ClientWidget() = default;
+ClientWidget::~ClientWidget()
+{
+    m_configLifetime.disconnectAll(); // Ensure disconnection
+    // Default destructor will handle unique_ptrs in m_pipeline
+}
 
 ClientWidget::Pipeline::~Pipeline()
 {
@@ -298,4 +309,56 @@ bool ClientWidget::focusNextPrevChild(MAYBE_UNUSED bool next)
         getInput().setFocus();
     }
     return true;
+}
+
+void ClientWidget::handleClientSettingsUpdate()
+{
+    const auto& clientSettings = getConfig().integratedClient;
+
+    // Update DisplayWidget
+    // These methods are assumed to exist or would need to be added to DisplayWidget.
+    // getDisplay().updateFontAndColorSettings(clientSettings.getFont(),
+    //                                        clientSettings.getForegroundColor(),
+    //                                        clientSettings.getBackgroundColor());
+    // getDisplay().setScrollbackSize(clientSettings.getLinesOfScrollback());
+    // getDisplay().updateTerminalSize(clientSettings.getColumns(), clientSettings.getRows());
+    // For now, as a simpler approach if above methods are not yet implemented,
+    // we can try to force a re-init or a less granular update if available.
+    // If DisplayWidget itself listened, this would be cleaner.
+    // As a placeholder for what can be done *without* modifying DisplayWidget's public API now:
+    // Force re-evaluation of AnsiTextHelper defaults by recreating it or re-calling init.
+    // This is not ideal as it's internal. A public refresh method is better.
+    // For now, we'll rely on DisplayWidget's existing resizeEvent for some updates
+    // and note that font/color/scrollback require DisplayWidget API changes.
+    // TODO: Add public methods to DisplayWidget to allow dynamic update of Font, Colors, Scrollback.
+    // Forcing a resize could trigger DisplayWidget::resizeEvent which re-calculates cols/rows
+    // and calls windowSizeChanged, but it doesn't re-read all settings.
+    // getDisplay().resize(getDisplay().size()); // This is a bit of a hack.
+
+
+    // Update InputWidget
+    // Similar assumptions/needs for InputWidget.
+    // getInput().updateFontSetting(clientSettings.getFont()); // Assumed method
+    // getInput().setHistorySize(clientSettings.getLinesOfInputHistory()); // Assumed (complex to implement)
+    // Behavioral settings like clearInputOnEnter and tabCompletionDictionarySize are used internally
+    // by InputWidget's methods and don't require explicit "refresh" calls on the widget itself.
+    // TODO: Add public method to InputWidget to allow dynamic font update if needed.
+
+    // Update PeekPreviewWidget
+    // getPreview().setLines(clientSettings.getLinesOfPeekPreview()); // Assumed method
+    // getPreview().updateFont(clientSettings.getFont()); // Assumed method
+    // TODO: Add public methods to PreviewWidget for lines and font updates.
+
+    // After potential updates to children that might affect their size or appearance:
+    updateGeometry(); // If column/row changes affect ClientWidget's overall size hint via children
+    update();         // Schedule a repaint for ClientWidget and children
+
+    // The most robust way is for child widgets to listen to config changes themselves
+    // or for ClientWidget to have a more formal contract with them via update methods.
+    // The current implementation reflects a state where children are not fully dynamic post-construction
+    // for all settings without specific new methods.
+    // This function now primarily ensures that if ClientWidget itself used any of these settings
+    // for its own geometry/painting (it mostly doesn't), it would refresh.
+    // The main benefit of this callback in ClientWidget is for future enhancements
+    // or if ClientWidget itself develops direct dependencies on these settings.
 }

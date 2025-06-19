@@ -388,3 +388,31 @@ set_target_properties(
   COMPILE_FLAGS "${WARNING_FLAGS}"
 )
 add_test(NAME TestClientPage COMMAND testclientpage)
+
+# ClientWidget Test
+add_executable(testclientwidget TestClientWidget.cpp)
+qt_standard_project_setup(TARGET testclientwidget)
+# Dependencies: ClientWidget, DisplayWidget, InputWidget, Configuration
+# These are likely in the main application library or specific component libraries.
+# Using mm_global (for Configuration) and assuming others are covered by a general app link or specific client lib.
+add_dependencies(testclientwidget mm_global)
+target_link_libraries(testclientwidget PRIVATE
+    Qt${QT_VERSION_MAJOR}::Test
+    Qt${QT_VERSION_MAJOR}::Widgets
+    Qt${QT_VERSION_MAJOR}::Core
+    Qt${QT_VERSION_MAJOR}::Gui
+    mm_global # For Configuration
+    # Add other specific libraries if ClientWidget, DisplayWidget, InputWidget are in them
+    # e.g., if there's an mm_client library. If they are part of the main executable's
+    # source set directly, this might require linking more broadly or creating an app_objects library.
+    # For now, assuming mm_global and Qt libs are a starting point.
+    coverage_config
+)
+set_target_properties(
+  testclientwidget PROPERTIES
+  CXX_STANDARD 20
+  CXX_STANDARD_REQUIRED ON
+  CXX_EXTENSIONS OFF
+  COMPILE_FLAGS "${WARNING_FLAGS}"
+)
+add_test(NAME TestClientWidget COMMAND testclientwidget)

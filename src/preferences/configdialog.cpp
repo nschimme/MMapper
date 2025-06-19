@@ -14,6 +14,7 @@
 #include "mumeprotocolpage.h"
 #include "parserpage.h"
 #include "pathmachinepage.h"
+#include "developerpage.h"
 #include "ui_configdialog.h"
 
 #include <QIcon>
@@ -38,6 +39,7 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     auto autoLogPage = new AutoLogPage(this);
     auto mumeProtocolPage = new MumeProtocolPage(this);
     auto pathmachinePage = new PathmachinePage(this);
+    DeveloperPage *developerPage = new DeveloperPage(this);
 
     m_pagesWidget = new QStackedWidget(this);
 
@@ -50,6 +52,7 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     pagesWidget->addWidget(autoLogPage);
     pagesWidget->addWidget(mumeProtocolPage);
     pagesWidget->addWidget(pathmachinePage);
+    pagesWidget->addWidget(developerPage);
     pagesWidget->setCurrentIndex(0);
 
     ui->pagesScrollArea->setWidget(pagesWidget);
@@ -80,6 +83,7 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
             mumeProtocolPage,
             &MumeProtocolPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, pathmachinePage, &PathmachinePage::slot_loadConfig);
+    connect(this, &ConfigDialog::sig_loadConfig, developerPage, &DeveloperPage::slot_loadConfig);
     connect(graphicsPage,
             &GraphicsPage::sig_graphicsSettingsChanged,
             this,
@@ -128,6 +132,7 @@ void ConfigDialog::createIcons()
     addItem(":/icons/autologgercfg.png", tr("Auto\nLogger"));
     addItem(":/icons/mumeprotocolcfg.png", tr("Mume\nProtocol"));
     addItem(":/icons/pathmachinecfg.png", tr("Path\nMachine"));
+    new QListWidgetItem(QIcon(":/icons/preferences/clientcfg.png"), "Developer", ui->contentsWidget);
 }
 
 void ConfigDialog::slot_changePage(QListWidgetItem *current, QListWidgetItem *const previous)

@@ -296,3 +296,37 @@ set_target_properties(
         COMPILE_FLAGS "${WARNING_FLAGS}"
 )
 add_test(NAME TestRoomManager COMMAND TestRoomManager)
+
+# Config Dialog Test
+add_executable(testconfigdialog TestConfigDialog.cpp)
+qt_standard_project_setup(TARGET testconfigdialog) # Handles Qt version specifics and sets up include directories etc.
+# mmapper_lib should be the target name for the library containing ConfigDialog, DeveloperPage, Configuration etc.
+# In src/CMakeLists.txt, the main executable is 'mmapper'. If there isn't a specific library target
+# that these tests should link against, we might need to link against object files or create one.
+# However, other tests link against mm_global and mm_map.
+# ConfigDialog and DeveloperPage are part of the main mmapper sources, not specifically mm_global or mm_map.
+# Let's assume for now that necessary symbols are in mm_global or transitively available.
+# If linking fails, we'll need to identify the correct library target from src/CMakeLists.txt
+# that exports these classes, or adjust src/CMakeLists.txt to create such a library.
+# The ConfigDialog related files are not part of mm_global or mm_map according to src/CMakeLists.txt filters.
+# This will likely require linking against the main executable's object files or a new library.
+# For now, let's try linking mm_global and mm_map as they are common dependencies.
+add_dependencies(testconfigdialog mm_global mm_map)
+target_link_libraries(testconfigdialog PRIVATE
+    Qt${QT_VERSION_MAJOR}::Test
+    Qt${QT_VERSION_MAJOR}::Widgets
+    Qt${QT_VERSION_MAJOR}::Core # Core is usually pulled in by Widgets, but explicit doesn't hurt.
+    mm_global # For Configuration, setConfig, getConfig
+    mm_map # Potentially for other utils, though less likely for ConfigDialog
+    # If ConfigDialog uses classes from the main 'mmapper' target not in mm_global/mm_map,
+    # we might need to link against $<TARGET_OBJECTS:mmapper> if supported, or create an interface library.
+    coverage_config
+)
+set_target_properties(
+  testconfigdialog PROPERTIES
+  CXX_STANDARD 20
+  CXX_STANDARD_REQUIRED ON
+  CXX_EXTENSIONS OFF
+  COMPILE_FLAGS "${WARNING_FLAGS}"
+)
+add_test(NAME TestConfigDialog COMMAND testconfigdialog)

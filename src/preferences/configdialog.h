@@ -19,6 +19,7 @@ class QWidget;
 namespace Ui {
 class ConfigDialog;
 }
+class DeveloperPage;
 
 class NODISCARD_QOBJECT ConfigDialog final : public QDialog
 {

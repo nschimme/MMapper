@@ -467,6 +467,7 @@ set(mmapper_SRCS
     preferences/parserpage.h
     preferences/pathmachinepage.cpp
     preferences/pathmachinepage.h
+    preferences/developerpage.cpp
     proxy/AbstractTelnet.cpp
     proxy/AbstractTelnet.h
     proxy/GmcpMessage.cpp
@@ -585,6 +586,7 @@ if(CHECK_ODR)
     message(STATUS "Will check headers for ODR violations (slow)")
     # ODR Violation Check
     file(GLOB_RECURSE mmapper_HDRS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.h)
+    list(APPEND mmapper_HDRS preferences/developerpage.h) # Add this line
     list(SORT mmapper_HDRS)
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/odr.cpp "// This generated file exists to help detect ODR violations.\n"
         "// It will catch duplicate class names in header files,\n"

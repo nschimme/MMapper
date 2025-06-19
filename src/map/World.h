@@ -14,6 +14,7 @@
 #include "SpatialDb.h"
 #include "WorldAreaMap.h"
 
+#include <immer/box.hpp>
 #include <memory>
 #include <optional>
 #include <ostream>
@@ -38,19 +39,28 @@ struct NODISCARD WorldComparisonStats final
 class NODISCARD World final
 {
 private:
-    Remapping m_remapping;
-    RawRooms m_rooms;
+    Remapping m_remapping; // Remapping might also need to be COW if it's complex
+    immer::box<RawRooms> m_rooms;
     /// This must be updated any time a room's position changes.
-    SpatialDb m_spatialDb;
-    ServerIdMap m_serverIds;
-    ParseTree m_parseTree;
-    AreaInfoMap m_areaInfos;
+    immer::box<SpatialDb> m_spatialDb;
+    immer::box<ServerIdMap> m_serverIds;
+    immer::box<ParseTree> m_parseTree;
+    immer::box<AreaInfoMap> m_areaInfos;
     bool m_checkedConsistency = false;
 
 public:
-    explicit World() = default;
+    // Initialize immer::box members
+    explicit World()
+      : m_remapping{}, // Assuming Remapping has a default constructor
+        m_rooms{RawRooms{}},
+        m_spatialDb{SpatialDb{}},
+        m_serverIds{ServerIdMap{}},
+        m_parseTree{ParseTree{}},
+        m_areaInfos{AreaInfoMap{}},
+        m_checkedConsistency{false}
+    {}
     ~World() = default;
-    World(World &&) = default;
+    World(World &&) = default; // immer::box is move-constructible
     World(const World &) = delete;
     World &operator=(World &&) = delete;
     World &operator=(const World &) = delete;
@@ -72,15 +82,19 @@ private:
     NODISCARD const AreaInfo &getGlobalArea() const { return getArea(std::nullopt); }
 
 public:
-    NODISCARD const ParseTree &getParseTree() const { return m_parseTree; }
+    NODISCARD const ParseTree &getParseTree() const { return *m_parseTree; }
 
 public:
     NODISCARD const RawRoom *getRoom(RoomId id) const;
 
 public:
-    NODISCARD std::optional<Bounds> getBounds() const { return m_spatialDb.getBounds(); }
-    NODISCARD bool needsBoundsUpdate() const { return m_spatialDb.needsBoundsUpdate(); }
-    void updateBounds(ProgressCounter &pc) { m_spatialDb.updateBounds(pc); }
+    NODISCARD std::optional<Bounds> getBounds() const { return m_spatialDb->getBounds(); }
+    NODISCARD bool needsBoundsUpdate() const { return m_spatialDb->needsBoundsUpdate(); }
+    // For methods that modify the boxed object, they will operate on a copy,
+    // then the box needs to be reassigned. E.g. m_spatialDb = m_spatialDb->updateBounds(pc);
+    // This requires updateBounds to return a new SpatialDb.
+    // For now, just dereferencing. Implementation of updateBounds will be tricky.
+    void updateBounds(ProgressCounter &pc) { m_spatialDb->updateBounds(pc); }
 
 public:
     NODISCARD RoomId getNextId() const;

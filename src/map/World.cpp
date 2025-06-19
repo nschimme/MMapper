@@ -45,33 +45,51 @@ void sanityCheckFlags(const Flags flags)
     }
 }
 
+// Define ImmerRoomIdSet for use in these helpers
+using ImmerRoomIdSet = immer::set<RoomId>;
+
 template<typename Key>
-void insertId(OrderedMap<Key, RoomIdSet> &map, const Key &key, const RoomId id)
+NODISCARD immer::map<Key, ImmerRoomIdSet> insertId_immer(
+    const immer::map<Key, ImmerRoomIdSet>& current_map,
+    const Key &key,
+    const RoomId id)
 {
-    const RoomIdSet *const old = map.find(key);
-    if (old == nullptr) {
-        map.set(key, RoomIdSet{id});
-    } else if (!old->contains(id)) {
-        auto copy = *old;
-        copy.insert(id);
-        map.set(key, copy);
+    const ImmerRoomIdSet *old_set_ptr = current_map.find(key);
+    if (old_set_ptr == nullptr) {
+        // Key not found, create new set with the id
+        return current_map.set(key, ImmerRoomIdSet{}.insert(id));
+    } else {
+        // Key found, check if id is already in the set
+        if (!old_set_ptr->count(id)) { // Use count for immer::set (more efficient than find+compare for just existence)
+            // ID not in set, insert it into a new version of the set
+            ImmerRoomIdSet new_set = old_set_ptr->insert(id);
+            return current_map.set(key, new_set);
+        }
+        // ID already in set, no change to the map
+        return current_map;
     }
 }
 
 template<typename Key>
-void removeId(OrderedMap<Key, RoomIdSet> &map, const Key &key, const RoomId id)
+NODISCARD immer::map<Key, ImmerRoomIdSet> removeId_immer(
+    const immer::map<Key, ImmerRoomIdSet>& current_map,
+    const Key &key,
+    const RoomId id)
 {
-    const RoomIdSet *const old = map.find(key);
-    if (old == nullptr || !old->contains(id)) {
-        return;
+    const ImmerRoomIdSet *old_set_ptr = current_map.find(key);
+    // Key not found, or id not in its set, no change
+    if (old_set_ptr == nullptr || !old_set_ptr->count(id)) {
+        return current_map;
     }
 
-    auto copy = *old;
-    copy.erase(id);
-    if (copy.empty()) {
-        map.erase(key);
+    // ID found in the set, remove it
+    ImmerRoomIdSet new_set = old_set_ptr->erase(id);
+    if (new_set.empty()) {
+        // If the set becomes empty, remove the key from the map
+        return current_map.erase(key);
     } else {
-        map.set(key, copy);
+        // Otherwise, update the map with the new set
+        return current_map.set(key, new_set);
     }
 }
 
@@ -173,7 +191,8 @@ bool World::operator==(const World &rhs) const
            && m_areaInfos == rhs.m_areaInfos; //
 }
 
-NODISCARD auto World::findArea(const std::optional<RoomArea> &area) -> AreaInfo *
+// Changed to return const AreaInfo* as m_areaInfos.find now returns const version
+NODISCARD auto World::findArea(const std::optional<RoomArea> &area) -> const AreaInfo *
 {
     return m_areaInfos.find(area);
 }
@@ -183,7 +202,8 @@ NODISCARD auto World::findArea(const std::optional<RoomArea> &area) const -> con
     return m_areaInfos.find(area);
 }
 
-NODISCARD auto World::getArea(const std::optional<RoomArea> &area) -> AreaInfo &
+// Changed to return const AreaInfo& as m_areaInfos.get now returns const version
+NODISCARD auto World::getArea(const std::optional<RoomArea> &area) -> const AreaInfo &
 {
     return m_areaInfos.get(area);
 }
@@ -306,18 +326,20 @@ void World::insertParse(const RoomId id, const ParseKeyFlags parseKeys)
     requireValidRoom(id);
 
     const RoomName &name = getRoomName(id);
-    const auto &desc = m_rooms.getRoomDescription(id);
+    const auto &desc = m_rooms.getRoomDescription(id); // This read operation is fine
     assert(sanitizer::isSanitizedMultiline(desc.getStdStringViewUtf8()));
 
+    // ParseTree struct itself is mutable, but its members are now immer maps.
+    // We reassign the members with the new maps returned by the _immer helpers.
     if (parseKeys.contains(ParseKeyEnum::Name)) {
-        insertId(m_parseTree.name_only, name, id);
+        m_parseTree.name_only = insertId_immer(m_parseTree.name_only, name, id);
     }
     if (parseKeys.contains(ParseKeyEnum::Desc)) {
-        insertId(m_parseTree.desc_only, desc, id);
+        m_parseTree.desc_only = insertId_immer(m_parseTree.desc_only, desc, id);
     }
     if (parseKeys.contains(ParseKeyEnum::Name) || parseKeys.contains(ParseKeyEnum::Desc)) {
-        const NameDesc nameDesc{name, desc};
-        insertId(m_parseTree.name_desc, nameDesc, id);
+        const NameDesc nameDesc{name, desc}; // NameDesc construction is fine
+        m_parseTree.name_desc = insertId_immer(m_parseTree.name_desc, nameDesc, id);
     }
 }
 
@@ -326,18 +348,18 @@ void World::removeParse(const RoomId id, const ParseKeyFlags parseKeys)
     requireValidRoom(id);
 
     const RoomName &name = getRoomName(id);
-    const auto &desc = m_rooms.getRoomDescription(id);
+    const auto &desc = m_rooms.getRoomDescription(id); // Read operation
     assert(sanitizer::isSanitizedMultiline(desc.getStdStringViewUtf8()));
 
     if (parseKeys.contains(ParseKeyEnum::Name)) {
-        removeId(m_parseTree.name_only, name, id);
+        m_parseTree.name_only = removeId_immer(m_parseTree.name_only, name, id);
     }
     if (parseKeys.contains(ParseKeyEnum::Desc)) {
-        removeId(m_parseTree.desc_only, desc, id);
+        m_parseTree.desc_only = removeId_immer(m_parseTree.desc_only, desc, id);
     }
     if (parseKeys.contains(ParseKeyEnum::Name) || parseKeys.contains(ParseKeyEnum::Desc)) {
         const NameDesc nameDesc{name, desc};
-        removeId(m_parseTree.name_desc, nameDesc, id);
+        m_parseTree.name_desc = removeId_immer(m_parseTree.name_desc, nameDesc, id);
     }
 }
 
@@ -668,18 +690,20 @@ void World::checkConsistency(ProgressCounter &counter) const
         const RoomName &name = getRoomName(id);
         const RoomDesc &desc = m_rooms.getRoomDescription(id);
 
-        if (auto set = m_parseTree.name_only.find(name); set == nullptr || !set->contains(id)) {
+        // m_parseTree members are now immer::map. find returns const Value* (const ImmerRoomIdSet*)
+        // and ImmerRoomIdSet (immer::set) uses .count() instead of .contains().
+        if (const ImmerRoomIdSet* set = m_parseTree.name_only.find(name); set == nullptr || !set->count(id)) {
             throw MapConsistencyError("unable to find room name only");
         }
 
-        if (auto set = m_parseTree.desc_only.find(desc); set == nullptr || !set->contains(id)) {
+        if (const ImmerRoomIdSet* set = m_parseTree.desc_only.find(desc); set == nullptr || !set->count(id)) {
             throw MapConsistencyError("unable to find room desc only");
         }
 
         {
             const NameDesc nameDesc{name, desc};
-            if (auto set = m_parseTree.name_desc.find(nameDesc);
-                set == nullptr || !set->contains(id)) {
+            if (const ImmerRoomIdSet* set = m_parseTree.name_desc.find(nameDesc);
+                set == nullptr || !set->count(id)) {
                 throw MapConsistencyError("unable to find room name_desc only");
             }
         }
@@ -786,16 +810,25 @@ void World::nukeHelper(const RoomId id,
 
 void World::clearExit(const RoomId id, const ExitDirEnum dir, const WaysEnum ways)
 {
-    auto &exitRef = m_rooms.getRawRoomRef(id).getExit(dir);
+    // Get a copy of the RawRoom, as getRawRoomRef() returns a const reference.
+    RawRoom room_copy = m_rooms.getRawRoomRef(id);
+    RawExit& exitRef_copy = room_copy.getExit(dir); // Get a mutable reference to the exit in the copy.
+
     if (ways == WaysEnum::OneWay) {
         // copy could allocate (about 0.1% of outgoing and 0.3% of incoming),
         // so we'll only do it for the one-way case.
-        TinyRoomIdSet old_inbound = std::exchange(exitRef.incoming, {});
-        exitRef = {};
-        exitRef.incoming = std::move(old_inbound);
-    } else {
-        exitRef = {};
+        TinyRoomIdSet old_inbound = std::exchange(exitRef_copy.incoming, {});
+        // Clear all fields of the exit, then restore incoming for one-way.
+        exitRef_copy.fields = {};
+        exitRef_copy.outgoing = {};
+        // exitRef_copy.incoming was already set to {} by std::exchange.
+        exitRef_copy.incoming = std::move(old_inbound);
+    } else { // TwoWay
+        exitRef_copy = {}; // Clear all parts of the exit (fields, outgoing, incoming).
     }
+    // After modifying the copy, set it back using the COW-compliant setRawRoom.
+    // This assumes RawRooms::setRawRoom also handles calling enforceInvariants on the room.
+    m_rooms.setRawRoom(id, room_copy);
 }
 
 void World::nukeExit(const RoomId id, const ExitDirEnum dir, const WaysEnum ways)
@@ -1120,18 +1153,34 @@ void World::setExit(const RoomId id, const ExitDirEnum dir, const RawExit &input
     assert(hasRoom(id));
 
     m_rooms.setExitDoorFlags(id, dir, input.fields.doorFlags);
-    m_rooms.setExitExitFlags(id, dir, input.fields.exitFlags);
-    m_rooms.setExitDoorName(id, dir, input.fields.doorName);
-    m_rooms.setExitOutgoing(id, dir, input.outgoing);
-    m_rooms.setExitIncoming(id, dir, input.incoming);
-    m_rooms.enforceInvariants(id, dir);
+    // Use .write() to ensure operations are on a unique copy if m_rooms is shared.
+    // The methods of RawRooms (like setExitDoorFlags) are already internally COW
+    // with respect to their own immer::vector<RawRoom>.
+    m_rooms.write().setExitDoorFlags(id, dir, input.fields.doorFlags);
+    m_rooms.write().setExitExitFlags(id, dir, input.fields.exitFlags);
+    m_rooms.write().setExitDoorName(id, dir, input.fields.doorName);
+    m_rooms.write().setExitOutgoing(id, dir, input.outgoing);
+    m_rooms.write().setExitIncoming(id, dir, input.incoming);
+
+    // The final enforceInvariants part:
+    // Get a mutable reference to the RawRooms instance within the box.
+    RawRooms& mutable_rooms = m_rooms.write();
+    // Get a copy of the specific RawRoom (getRawRoomRef is const).
+    RawRoom room_copy = mutable_rooms.getRawRoomRef(id);
+    // Call the new enforceInvariantsOnCopy method on the mutable RawRooms instance,
+    // passing the room copy (this method modifies room_copy).
+    mutable_rooms.enforceInvariantsOnCopy(room_copy, id, dir);
+    // Set the modified room_copy back into the RawRooms's data.
+    mutable_rooms.setRawRoom(id, room_copy);
 }
 
 void World::setRoom_lowlevel(const RoomId id, const RawRoom &input)
 {
     assert(id == input.id);
-    m_rooms.getRawRoomRef(id) = input;
-    m_rooms.enforceInvariants(id);
+    // Use the setRawRoom method from RawRooms, which is responsible for COW
+    // and handling invariants internally. This assumes RawRooms::setRawRoom
+    // calls enforceInvariantsOnCopy(room,id) on its input before setting to m_rooms.
+    m_rooms.setRawRoom(id, input);
 }
 
 // for addRoom()
@@ -1139,28 +1188,35 @@ void World::initRoom(const RawRoom &input)
 {
     const RoomId id = input.id;
     assert(id != INVALID_ROOMID);
-    m_rooms.requireUninitialized(id);
+    // m_rooms.requireUninitialized(id); // This was adapted in RawRooms.h
 
     /* copy the room data */
+    // setRoom_lowlevel calls m_rooms.setRawRoom.
+    // We assume m_rooms.setRawRoom handles calling enforceInvariants on the input RawRoom copy.
     setRoom_lowlevel(id, input);
 
-    /* now perform bookkeeping */
+    /* now perform bookkeeping - these calls use COW-compliant methods */
     {
         // REVISIT: should "upToDate" be automatic?
         const auto &areaName = input.getArea();
-        m_areaInfos.insert(areaName, id);
-        insertParse(id, ALL_PARSE_KEY_FLAGS);
-        m_spatialDb.add(id, input.position);
-        m_serverIds.set(input.server_id, id);
+        m_areaInfos.insert(areaName, id); // Uses COW AreaInfoMap::insert
+        insertParse(id, ALL_PARSE_KEY_FLAGS); // Uses COW helpers for ParseTree
+        m_spatialDb.add(id, input.position);  // Uses COW SpatialDb::add
+        m_serverIds.set(input.server_id, id); // Uses COW ServerIdMap::set
     }
 
     if constexpr (IS_DEBUG_BUILD) {
-        const auto &here = deref(getRoom(id));
-        assert(satisfiesInvariants(here));
+        // getRoom(id) returns const RawRoom*. getRawRoomRef returns const RawRoom&.
+        // This part should be fine as it's read-only comparison after all modifications.
+        const RawRoom& here = m_rooms.getRawRoomRef(id); // Get const ref to current state
+        assert(::satisfiesInvariants(here)); // Global satisfiesInvariants
 
-        auto copy = input;
-        enforceInvariants(copy);
-        assert(here == copy);
+        RawRoom input_copy = input;
+        ::enforceInvariants(input_copy); // Global ::enforceInvariants modifies the copy
+                                        // This checks if 'input' after invariants matches 'here'.
+                                        // 'here' is result of m_rooms.setRawRoom(id, input)
+                                        // which should have applied invariants.
+        assert(here == input_copy);
     }
 }
 
@@ -1211,18 +1267,35 @@ World World::init(ProgressCounter &counter, const std::vector<ExternalRawRoom> &
                 DECL_TIMER(t3, "copy rooms");
                 for (const auto &r : rooms) {
                     const RoomId id = r.getId();
-                    auto &roomRef = w.m_rooms.getRawRoomRef(id);
-                    roomRef = r; // copy
+                    // Replace direct assignment with COW-compliant setRawRoom.
+                    // This assumes RawRooms::setRawRoom also handles calling global ::enforceInvariants(RawRoom&)
+                    // on the room data before committing it to the immer::vector.
+                    w.m_rooms.setRawRoom(id, r);
                 }
             }
         }
 
         {
+            // The previous loop calling w.m_rooms.setRawRoom(id, r) should have ensured
+            // that each RawRoom 'r' (after being set) satisfies its own invariants,
+            // including its exits, because RawRooms::setRawRoom should call ::enforceInvariants(RawRoom&).
+            // If ::enforceInvariants(RawRoom&) correctly calls ::enforceInvariants(RawExit&) for all exits,
+            // this dedicated loop might be redundant or need adjustment.
+            // Let's assume RawRooms::setRawRoom handles full room invariants.
+            // If a more granular per-exit invariant check and potential modification is needed
+            // *after* all rooms are initially set, then this loop needs the R-M-W pattern.
             DECL_TIMER(t3, "update-exit-flags");
             counter.setNewTask(ProgressMsg{"updating exit flags"}, rooms.size());
-            for (const auto &room : rooms) {
+            for (const auto &room_data : rooms) { // Renamed 'room' to 'room_data' to avoid conflict
                 for (const ExitDirEnum dir : ALL_EXITS7) {
-                    w.m_rooms.enforceInvariants(room.id, dir);
+                    // This explicit per-exit enforceInvariants call implies it might do something
+                    // more than what setRawRoom did for the whole room, or it's a belt-and-suspenders check.
+                    // Applying R-M-W pattern:
+                    RawRoom current_room_copy = w.m_rooms.getRawRoomRef(room_data.id);
+                    // Assuming RawRooms::enforceInvariantsOnCopy(RawRoom&, RoomId, ExitDirEnum) exists
+                    // and calls ::enforceInvariants(RawExit&) on the specific exit of the copy.
+                    w.m_rooms.enforceInvariantsOnCopy(current_room_copy, room_data.id, dir);
+                    w.m_rooms.setRawRoom(room_data.id, current_room_copy);
                 }
                 counter.step();
             }

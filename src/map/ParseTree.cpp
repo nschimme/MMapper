@@ -163,7 +163,8 @@ void ParseTree::printStats(ProgressCounter & /*pc*/, AnsiOstream &os) const
         os << "Total name+desc combinations:         " << C(total_name_desc) << ".\n";
 
         const auto countUnique = [](const auto &map) -> size_t {
-            return static_cast<size_t>(std::count_if(std::begin(map), std::end(map), [](auto &kv) {
+            auto items = map.items(); // Use .items() for immer::map
+            return static_cast<size_t>(std::count_if(items.begin(), items.end(), [](const auto &kv) {
                 return kv.second.size() == 1;
             }));
         };
@@ -186,7 +187,7 @@ void ParseTree::printStats(ProgressCounter & /*pc*/, AnsiOstream &os) const
     {
         auto count_nonunique = [](const auto &map) -> size_t {
             size_t nonunique = 0;
-            for (const auto &kv : map) {
+            for (const auto &kv : map.items()) { // Use .items() for immer::map
                 const auto n = kv.second.size();
                 if (n == 1) {
                     continue;
@@ -240,7 +241,7 @@ void ParseTree::printStats(ProgressCounter & /*pc*/, AnsiOstream &os) const
         std::optional<Key> mostCommon;
         size_t mostCommonCount = 0;
 
-        for (const auto &kv : map) {
+        for (const auto &kv : map.items()) { // Use .items() for immer::map
             if (kv.first == defaultKey) {
                 continue;
             }

@@ -2,11 +2,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2021 The MMapper Authors
 
-#include "../global/OrderedMap.h"
 #include "../global/macros.h"
 #include "PromptFlags.h"
-#include "RoomIdSet.h"
+#include "RoomIdSet.h" // Will be replaced by immer::set below
 #include "mmapper2room.h"
+#include "roomid.h"      // For RoomId
+
+#include <immer/map.hpp>
+#include <immer/set.hpp>
 
 #include <ostream>
 
@@ -61,12 +64,14 @@ static_assert(ALL_PARSE_KEY_FLAGS == (ParseKeyFlags{ParseKeyEnum::Name} | ParseK
 
 struct NODISCARD ParseTree final
 {
-    OrderedMap<RoomName, RoomIdSet> name_only;
-    OrderedMap<RoomDesc, RoomIdSet> desc_only;
-    OrderedMap<NameDesc, RoomIdSet> name_desc;
+    using ImmerRoomIdSet = immer::set<RoomId>;
+    immer::map<RoomName, ImmerRoomIdSet> name_only;
+    immer::map<RoomDesc, ImmerRoomIdSet> desc_only;
+    immer::map<NameDesc, ImmerRoomIdSet> name_desc;
 
     NODISCARD bool operator==(const ParseTree &rhs) const
     {
+        // immer::map and immer::set have operator==
         return name_only == rhs.name_only && desc_only == rhs.desc_only
                && name_desc == rhs.name_desc;
     }

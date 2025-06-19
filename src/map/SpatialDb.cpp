@@ -6,6 +6,7 @@
 #include "../global/progresscounter.h"
 
 #include <ostream>
+#include <vector> // Required for immer::map::items()
 
 NODISCARD static bool mightBeOnBoundary(const Coordinate &coord, const Bounds &bounds)
 {
@@ -14,14 +15,15 @@ NODISCARD static bool mightBeOnBoundary(const Coordinate &coord, const Bounds &b
 #undef CHECK
 }
 
-const RoomId *SpatialDb::findUnique(const Coordinate &key) const
-{
-    return m_unique.find(key);
-}
+// findUnique is defined in the header and correctly uses m_unique.find(key)
+// const RoomId *SpatialDb::findUnique(const Coordinate &key) const
+// {
+//     return m_unique.find(key);
+// }
 
 void SpatialDb::remove(const RoomId /*id*/, const Coordinate &coord)
 {
-    m_unique.erase(coord);
+    m_unique = m_unique.erase(coord); // COW update
 
     if (!m_bounds || mightBeOnBoundary(coord, *m_bounds)) {
         m_needsBoundsUpdate = true;
@@ -35,7 +37,7 @@ void SpatialDb::add(const RoomId id, const Coordinate &coord)
     } else {
         m_bounds->insert(coord);
     }
-    m_unique.set(coord, id);
+    m_unique = m_unique.set(coord, id); // COW update
 }
 
 void SpatialDb::move(const RoomId id, const Coordinate &from, const Coordinate &to)
@@ -56,10 +58,16 @@ void SpatialDb::updateBounds(ProgressCounter &pc)
         return;
     }
 
-    const auto &c = m_unique.begin()->first;
+    // immer::map is unordered. Get all items to initialize bounds and iterate.
+    std::vector<std::pair<Coordinate, RoomId>> items = m_unique.items();
+
+    // Initialize bounds with the first element's coordinate
+    // (Order doesn't matter for calculating overall bounds)
+    const auto &c = items[0].first;
     m_bounds.emplace(c, c);
-    pc.increaseTotalStepsBy(m_unique.size());
-    for (const auto &kv : m_unique) {
+
+    pc.increaseTotalStepsBy(items.size());
+    for (const auto &kv : items) {
         m_bounds->insert(kv.first);
         pc.step();
     }

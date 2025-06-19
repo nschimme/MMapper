@@ -5,39 +5,45 @@
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 
 #include "../global/RuleOf5.h"
-#include "../map/RoomRecipient.h"
+// #include "../map/RoomRecipient.h" // Removed
 #include "path.h"
+#include "pathmachine.h" // Added for PathProcessor, PathMachine, ParseEvent
 
 #include <list>
 #include <memory>
 
 #include <QtGlobal>
 
-class RoomSignalHandler;
+// class RoomSignalHandler; // Removed forward declaration
 struct PathParameters;
+class ParseEvent; // Forward declaration for ParseEvent
 
-class NODISCARD Syncing final : public RoomRecipient
+class NODISCARD Syncing final : public PathProcessor // Inherit from PathProcessor
 {
 private:
-    RoomSignalHandler *signaler = nullptr;
+    PathMachine &m_pathMachine; // Added member
+    // RoomSignalHandler *signaler = nullptr; // Removed member
     PathParameters &params;
     const std::shared_ptr<PathList> paths;
     // This is not our parent; it's the parent we assign to new objects.
-    std::shared_ptr<Path> parent;
+    std::shared_ptr<Path> parent; // This member seems unused in the provided virt_receiveRoom logic, but kept for now.
     uint32_t numPaths = 0u;
 
 public:
-    explicit Syncing(PathParameters &p,
-                     std::shared_ptr<PathList> paths,
-                     RoomSignalHandler *signaler);
+    explicit Syncing(PathMachine &pathMachine, // Added pathMachine
+                     PathParameters &p,
+                     std::shared_ptr<PathList> paths);
+                     // RoomSignalHandler *signaler); // Removed signaler
 
 public:
     Syncing() = delete;
     DELETE_CTORS_AND_ASSIGN_OPS(Syncing);
     ~Syncing() final;
 
-private:
-    void virt_receiveRoom(const RoomHandle &) final;
+public: // Added processRoom, removed virt_receiveRoom
+    void processRoom(const RoomHandle &room, const ParseEvent &event) override;
+    // private:
+    // void virt_receiveRoom(const RoomHandle &) final; // Removed
 
 public:
     std::shared_ptr<PathList> evaluate();

@@ -23,33 +23,35 @@
 #include <QtGlobal>
 
 class Coordinate;
-class RoomRecipient;
-class RoomSignalHandler;
+class PathMachine; // Forward declaration
 struct PathParameters;
 
 class NODISCARD Path final : public std::enable_shared_from_this<Path>
 {
 private:
+    PathMachine &m_pathMachine; // Added
     std::shared_ptr<Path> m_parent;
     std::vector<std::weak_ptr<Path>> m_children;
     double m_probability = 1.0;
     // in fact a path only has one room, one parent and some children (forks).
     const RoomHandle m_room;
-    RoomSignalHandler *const m_signaler;
+    // RoomSignalHandler *const m_signaler; // Removed
     const std::optional<ExitDirEnum> m_dir;
     bool m_zombie = false;
 
 public:
-    static std::shared_ptr<Path> alloc(const RoomHandle &room,
-                                       RoomRecipient *locker,
-                                       RoomSignalHandler *signaler,
+    static std::shared_ptr<Path> alloc(PathMachine &pathMachine, // Added pathMachine
+                                       const RoomHandle &room,
+                                       // RoomRecipient *locker, // Removed locker
+                                       // RoomSignalHandler *signaler, // Removed signaler
                                        std::optional<ExitDirEnum> direction);
 
 public:
     explicit Path(Badge<Path>,
+                  PathMachine &pathMachine, // Added pathMachine
                   RoomHandle moved_room,
-                  RoomRecipient *locker,
-                  RoomSignalHandler *signaler,
+                  // RoomRecipient *locker, // Removed locker
+                  // RoomSignalHandler *signaler, // Removed signaler
                   std::optional<ExitDirEnum> direction);
     DELETE_CTORS_AND_ASSIGN_OPS(Path);
 
@@ -71,17 +73,17 @@ public:
     NODISCARD std::shared_ptr<Path> fork(const RoomHandle &room,
                                          const Coordinate &expectedCoordinate,
                                          const PathParameters &params,
-                                         RoomRecipient *locker,
+                                         // RoomRecipient *locker, // Removed locker
                                          ExitDirEnum dir);
     NODISCARD double getProb() const
     {
         assert(!m_zombie);
         return m_probability;
     }
-    void approve(ChangeList &changes);
+    void approve(ChangeList &changes); // Signature unchanged for now
 
     // deletes this path and all parents up to the next branch
-    void deny();
+    void deny(ChangeList &changes); // Added ChangeList
     void setProb(double p)
     {
         assert(!m_zombie);

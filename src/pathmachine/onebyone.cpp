@@ -12,7 +12,7 @@
 #include "../map/room.h"
 #include "experimenting.h"
 #include "pathparameters.h"
-#include "roomsignalhandler.h"
+// #include "roomsignalhandler.h" // Removed
 
 #include <list>
 #include <memory>
@@ -20,23 +20,34 @@
 class Path;
 
 OneByOne::OneByOne(const SigParseEvent &sigParseEvent,
-                   PathParameters &in_params,
-                   RoomSignalHandler *const in_handler)
+                   PathParameters &in_params)
     : Experimenting{PathList::alloc(), getDirection(sigParseEvent.deref().getMoveType()), in_params}
     , event{sigParseEvent.getShared()}
-    , handler{in_handler}
+    // , handler{in_handler} // Removed handler initialization
 {}
 
-void OneByOne::virt_receiveRoom(const RoomHandle &room)
+void OneByOne::processRoom(const RoomHandle &room, const ParseEvent & /*event_param*/)
 {
+    // The event_param is unused, class uses its member 'event' (SharedParseEvent)
     if (::compare(room.getRaw(), deref(event), params.matchingTolerance)
         == ComparisonResultEnum::EQUAL) {
-        augmentPath(shortPaths->back(), room);
+        // 'shortPaths' is a member of the Experimenting base class.
+        // In OneByOne, paths are added to shortPaths via addPath().
+        // We assume addPath has been called before processRoom, and shortPaths is not empty.
+        // augmentPath takes the *parent* path and the new room.
+        if (!shortPaths->empty()) { // Check if parent path (last added to shortPaths) exists
+            augmentPath(shortPaths->back(), room);
+        }
     } else {
-        // needed because the memory address is not unique and
-        // calling admin->release might destroy a room still held by some path
-        handler->hold(room.getId(), this);
-        handler->release(room.getId());
+        // The old logic:
+        // handler->hold(room.getId(), this);
+        // handler->release(room.getId());
+        // This was likely to ensure temporary rooms that don't match are cleaned up.
+        // With PathMachine managing holds, if a room is temporary and has no more holds
+        // (e.g., because a path to it was denied, triggering releaseRoom in PathMachine),
+        // it will be removed. PathProcessor implementations generally shouldn't directly
+        // manipulate holds like this. If this room was 'held' by a Path that is now
+        // being superseded or found incorrect, that Path's denial will trigger the release.
     }
 }
 

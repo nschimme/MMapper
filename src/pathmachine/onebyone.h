@@ -9,24 +9,26 @@
 
 #include <memory>
 
-class ParseEvent;
+class ParseEvent; // Forward declaration for ParseEvent, used in processRoom
 class Path;
-class RoomSignalHandler;
+// class RoomSignalHandler; // Removed forward declaration
 struct PathParameters;
 
 class NODISCARD OneByOne final : public Experimenting
 {
+public: // Added processRoom
+    void processRoom(const RoomHandle &room, const ParseEvent &event) override;
+
 private:
     SharedParseEvent event;
-    RoomSignalHandler *handler = nullptr;
+    // RoomSignalHandler *handler = nullptr; // Removed member
 
 public:
     explicit OneByOne(const SigParseEvent &sigParseEvent,
-                      PathParameters &in_params,
-                      RoomSignalHandler *handler);
+                      PathParameters &in_params); // Removed handler from constructor
 
 private:
-    void virt_receiveRoom(const RoomHandle &room) final;
+    // void virt_receiveRoom(const RoomHandle &room) final; // Removed
 
 public:
     void addPath(std::shared_ptr<Path> path);

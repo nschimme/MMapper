@@ -8,6 +8,7 @@
 #include "../map/Compare.h"
 #include "../map/room.h"
 #include "../mapdata/mapdata.h"
+#include "pathmachine.h" // Ensure PathProcessor is fully defined
 
 Approved::Approved(MapFrontend &map, const SigParseEvent &sigParseEvent, const int tolerance)
     : myEvent{sigParseEvent.requireValid()}
@@ -35,9 +36,11 @@ Approved::~Approved()
     }
 }
 
-void Approved::virt_receiveRoom(const RoomHandle &perhaps)
+void Approved::processRoom(const RoomHandle &perhaps, const ParseEvent & /* event */)
 {
-    auto &event = myEvent.deref();
+    // The 'event' parameter is unused because myEvent (derived from sigParseEvent in constructor)
+    // is used instead. This class seems to operate on a fixed event context.
+    auto &cached_event = myEvent.deref();
 
     const auto id = perhaps.getId();
     const auto cmp = [this, &event, &id, &perhaps]() {
@@ -46,7 +49,7 @@ void Approved::virt_receiveRoom(const RoomHandle &perhaps)
         if (it != compareCache.end()) {
             return it->second;
         }
-        const auto result = ::compare(perhaps.getRaw(), event, matchingTolerance);
+        const auto result = ::compare(perhaps.getRaw(), cached_event, matchingTolerance);
         compareCache.emplace(id, result);
         return result;
     }();
@@ -75,11 +78,11 @@ void Approved::virt_receiveRoom(const RoomHandle &perhaps)
 
     matchedRoom = perhaps;
     if (cmp == ComparisonResultEnum::TOLERANCE
-        && (event.hasNameDescFlags() || event.hasServerId())) {
+        && (cached_event.hasNameDescFlags() || cached_event.hasServerId())) {
         update = true;
     } else if (cmp == ComparisonResultEnum::EQUAL) {
         for (const ExitDirEnum dir : ALL_EXITS_NESWUD) {
-            const auto toServerId = event.getExitIds()[dir];
+            const auto toServerId = cached_event.getExitIds()[dir];
             if (toServerId == INVALID_SERVER_ROOMID) {
                 continue;
             }

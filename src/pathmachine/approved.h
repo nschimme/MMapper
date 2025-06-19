@@ -6,17 +6,18 @@
 
 #include "../global/RuleOf5.h"
 #include "../map/RoomHandle.h"
-#include "../map/RoomRecipient.h"
+// #include "../map/RoomRecipient.h" // Removed
 #include "../map/parseevent.h"
 #include "../map/room.h"
+#include "pathmachine.h" // Added
 #include "../map/roomid.h"
 
 #include <unordered_map>
 
 class MapFrontend;
-class ParseEvent;
+class ParseEvent; // Forward declaration still needed if pathmachine.h doesn't provide it directly for this context
 
-class NODISCARD Approved final : public RoomRecipient
+class NODISCARD Approved final : public PathProcessor // Inherit from PathProcessor
 {
 private:
     SigParseEvent myEvent;
@@ -35,8 +36,8 @@ public:
     Approved() = delete;
     DELETE_CTORS_AND_ASSIGN_OPS(Approved);
 
-private:
-    void virt_receiveRoom(const RoomHandle &) final;
+public: // Changed to public and new signature
+    void processRoom(const RoomHandle &room, const ParseEvent &event) override;
 
 public:
     NODISCARD RoomHandle oneMatch() const;

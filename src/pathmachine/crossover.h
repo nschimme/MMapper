@@ -27,6 +27,9 @@ public:
               ExitDirEnum dirCode,
               PathParameters &params);
 
+public:
+    void processRoom(const RoomHandle &room, const ParseEvent &event) override;
+
 private:
-    void virt_receiveRoom(const RoomHandle &) final;
+    // void virt_receiveRoom(const RoomHandle &) final; // Removed
 };

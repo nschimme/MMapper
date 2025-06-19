@@ -8,6 +8,7 @@
 #include "../global/utils.h"
 #include "../map/room.h"
 #include "path.h"
+#include "pathmachine.h" // Ensure PathProcessor/PathMachine types are available if used
 #include "pathparameters.h"
 
 #include <memory>
@@ -28,7 +29,8 @@ void Experimenting::augmentPath(const std::shared_ptr<Path> &path, const RoomHan
 {
     auto &p = deref(path);
     const Coordinate c = p.getRoom().getPosition() + direction;
-    const auto working = p.fork(room, c, params, this, dirCode);
+    // Updated call to p.fork, removing 'this' as the locker argument
+    const auto working = p.fork(room, c, params, dirCode);
     if (best == nullptr) {
         best = working;
     } else if (working->getProb() > best->getProb()) {

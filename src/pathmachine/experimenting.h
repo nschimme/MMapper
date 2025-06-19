@@ -9,20 +9,25 @@
 #include "../map/ExitDirection.h"
 #include "../map/ExitFieldVariant.h"
 #include "../map/ExitFlags.h"
-#include "../map/RoomRecipient.h"
+// #include "../map/RoomRecipient.h" // Removed
 #include "../map/coordinate.h"
 #include "path.h"
+#include "pathmachine.h" // Added for PathProcessor and ParseEvent
 
 #include <memory>
 
 #include <QtGlobal>
 
-class PathMachine;
+// class PathMachine; // PathMachine full definition included via pathmachine.h
 struct PathParameters;
+class ParseEvent; // Forward declaration, as pathmachine.h might not expose it directly or might be heavy
 
 // Base class for Crossover and OneByOne
-class NODISCARD Experimenting : public RoomRecipient
+class NODISCARD Experimenting : public PathProcessor // Inherit from PathProcessor
 {
+public: // Added processRoom as pure virtual
+    virtual void processRoom(const RoomHandle &room, const ParseEvent &event) override = 0;
+
 protected:
     void augmentPath(const std::shared_ptr<Path> &path, const RoomHandle &room);
     const Coordinate direction;

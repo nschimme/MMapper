@@ -416,3 +416,57 @@ set_target_properties(
   COMPILE_FLAGS "${WARNING_FLAGS}"
 )
 add_test(NAME TestClientWidget COMMAND testclientwidget)
+
+# Removed old TestGroupWidget entry (if it existed from a previous incorrect step)
+
+# Mmapper2Group Test
+add_executable(testmapper2group TestMmapper2Group.cpp)
+qt_standard_project_setup(TARGET testmapper2group)
+# Dependencies: Mmapper2Group, CGroupChar, Configuration
+# These are likely in mm_global for Configuration, and potentially a group-specific library or the main app library.
+add_dependencies(testmapper2group mm_global)
+target_link_libraries(testmapper2group PRIVATE
+    Qt${QT_VERSION_MAJOR}::Test
+    Qt${QT_VERSION_MAJOR}::Core
+    Qt${QT_VERSION_MAJOR}::Gui # For QColor
+    mm_global # For Configuration
+    # Need to link the library that provides Mmapper2Group, CGroupChar.
+    # This could be mm_group if such a library exists, or the main mmapper library (e.g. MMapper).
+    # For now, assuming these symbols will be found via mm_global or a common app library.
+    # Other tests link mm_map as well, but it's not immediately obvious if Mmapper2Group needs it.
+    coverage_config
+)
+set_target_properties(
+  testmapper2group PROPERTIES
+  CXX_STANDARD 20
+  CXX_STANDARD_REQUIRED ON
+  CXX_EXTENSIONS OFF
+  COMPILE_FLAGS "${WARNING_FLAGS}"
+)
+add_test(NAME TestMmapper2Group COMMAND testmapper2group)
+
+# GroupWidget Test (New Version)
+add_executable(testgroupwidget TestGroupWidget.cpp)
+qt_standard_project_setup(TARGET testgroupwidget)
+# Dependencies: GroupWidget, Mmapper2Group, CGroupChar, Configuration, GroupModel, GroupProxyModel
+add_dependencies(testgroupwidget mm_global) # For Configuration
+target_link_libraries(testgroupwidget PRIVATE
+    Qt${QT_VERSION_MAJOR}::Test
+    Qt${QT_VERSION_MAJOR}::Widgets
+    Qt${QT_VERSION_MAJOR}::Core
+    Qt${QT_VERSION_MAJOR}::Gui
+    mm_global # For Configuration
+    # Need to link the library that provides GroupWidget, Mmapper2Group, GroupModel, CGroupChar etc.
+    # This could be mm_group if such a library exists, or the main mmapper library (e.g. MMapper).
+    # Assuming these are covered by a general app library or mm_global for now.
+    # If linking fails, specific library for 'group' components will be needed.
+    coverage_config
+)
+set_target_properties(
+  testgroupwidget PROPERTIES
+  CXX_STANDARD 20
+  CXX_STANDARD_REQUIRED ON
+  CXX_EXTENSIONS OFF
+  COMPILE_FLAGS "${WARNING_FLAGS}"
+)
+add_test(NAME TestGroupWidget COMMAND testgroupwidget)

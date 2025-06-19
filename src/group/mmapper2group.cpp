@@ -26,9 +26,19 @@
 Mmapper2Group::Mmapper2Group(QObject *const parent)
     : QObject{parent}
     , m_groupManagerApi{std::make_unique<GroupManagerApi>(*this)}
-{}
+{
+    // Initialize m_groupSettingsLifetime and register callback
+    m_groupSettingsLifetime.disconnectAll(); // Ensure clean state for connections
+    Configuration &config = getConfig();
+    config.groupManager.registerChangeCallback(m_groupSettingsLifetime, [this]() {
+        // This will call the existing slot that updates colors and emits sig_updateWidget
+        this->slot_groupSettingsChanged();
+    });
+}
 
-Mmapper2Group::~Mmapper2Group() {}
+Mmapper2Group::~Mmapper2Group() {
+    m_groupSettingsLifetime.disconnectAll(); // Ensure disconnection
+}
 
 SharedGroupChar Mmapper2Group::getSelf()
 {

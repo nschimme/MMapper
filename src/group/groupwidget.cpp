@@ -698,12 +698,15 @@ GroupWidget::GroupWidget(Mmapper2Group *const group, MapData *const md, QWidget 
     });
 
     connect(m_group, &Mmapper2Group::sig_updateWidget, this, &GroupWidget::slot_updateLabels);
+    // Removed ChangeMonitor registration
 }
 
 GroupWidget::~GroupWidget()
 {
+    // Removed m_configLifetime.disconnectAll()
     delete m_table;
     delete m_recolor;
+    // selectedCharacter is a SharedGroupChar, managed by shared_ptr
 }
 
 QSize GroupWidget::sizeHint() const
@@ -740,3 +743,4 @@ void GroupWidget::slot_updateLabels()
     m_table->setColumnHidden(static_cast<int>(GroupModel::ColumnTypeEnum::MANA), hide_mana);
     m_table->setColumnHidden(static_cast<int>(GroupModel::ColumnTypeEnum::MANA_PERCENT), hide_mana);
 }
+// Removed handleGroupSettingsUpdate() method implementation

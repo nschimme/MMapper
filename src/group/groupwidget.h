@@ -5,6 +5,7 @@
 
 #include "CGroupChar.h"
 #include "mmapper2character.h"
+// Removed Signal2Lifetime include
 
 #include <QAbstractTableModel>
 #include <QSortFilterProxyModel>
@@ -133,6 +134,7 @@ private:
     MapData *m_map = nullptr;
     GroupProxyModel *m_proxyModel = nullptr;
     GroupModel m_model;
+    // Removed m_configLifetime
 
 private:
     QAction *m_center = nullptr;
@@ -154,4 +156,5 @@ public slots:
     void slot_updateLabels();
     void slot_mapUnloaded() { m_model.setMapLoaded(false); }
     void slot_mapLoaded() { m_model.setMapLoaded(true); }
+// Removed private slot handleGroupSettingsUpdate
 };

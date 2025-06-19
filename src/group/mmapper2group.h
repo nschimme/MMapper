@@ -9,6 +9,7 @@
 #include "ColorGenerator.h"
 #include "GroupManagerApi.h"
 #include "mmapper2character.h"
+#include "../global/Signal2Lifetime.h" // Added
 
 #include <memory>
 
@@ -27,6 +28,7 @@ private:
     GroupVector m_charIndex;
     // deleted in destructor as member of charIndex
     ColorGenerator m_colorGenerator;
+    Signal2Lifetime m_groupSettingsLifetime; // Added
 
 private:
     void log(const QString &msg) { emit sig_log("Group", msg); }

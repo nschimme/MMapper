@@ -12,6 +12,7 @@
 #include "PathProcessor.h" // Changed path
 #include "../map/coordinate.h"
 #include "path.h"
+#include "../global/WeakHandle.h" // Added for EnableGetWeakHandleFromThis
 
 #include <memory>
 
@@ -21,7 +22,7 @@ class PathMachine;
 struct PathParameters;
 
 // Base class for Crossover and OneByOne
-class NODISCARD Experimenting : public PathProcessor
+class NODISCARD Experimenting : public PathProcessor, public EnableGetWeakHandleFromThis<Experimenting>
 {
 protected:
     void augmentPath(const std::shared_ptr<Path> &path, const RoomHandle &room);

@@ -20,25 +20,26 @@
 #include <optional>
 #include <utility>
 
+// PathProcessor.h and WeakHandle.h are included via path.h
 std::shared_ptr<Path> Path::alloc(const RoomHandle &room,
-                                  PathProcessor *const locker, // Changed to PathProcessor*
+                                  WeakHandle<PathProcessor> locker_handle, // Changed to WeakHandle
                                   RoomSignalHandler *const signaler,
                                   std::optional<ExitDirEnum> moved_direction)
 {
-    return std::make_shared<Path>(Badge<Path>{}, room, locker, signaler, std::move(moved_direction));
+    return std::make_shared<Path>(Badge<Path>{}, room, locker_handle, signaler, std::move(moved_direction));
 }
 
 Path::Path(Badge<Path>,
            RoomHandle moved_room,
-           PathProcessor *const locker, // Changed to PathProcessor*
+           WeakHandle<PathProcessor> locker_handle, // Changed to WeakHandle
            RoomSignalHandler *const in_signaler,
            std::optional<ExitDirEnum> moved_direction)
-    : m_room(std::move(moved_room))
     , m_signaler(in_signaler)
     , m_dir(std::move(moved_direction))
 {
     if (m_dir.has_value()) {
-        deref(m_signaler).hold(m_room.getId(), locker);
+        // Pass the WeakHandle directly to hold
+        deref(m_signaler).hold(m_room.getId(), locker_handle);
     }
 }
 
@@ -110,14 +111,15 @@ double Path::applyPathPenalties(double current_score_factor,
 std::shared_ptr<Path> Path::fork(const RoomHandle &in_room, // param name: room
                                  const Coordinate &expectedCoordinate,
                                  const PathParameters &p,      // param name: params
-                                 PathProcessor *const locker, // Changed to PathProcessor*
+                                 WeakHandle<PathProcessor> locker_handle, // Changed to WeakHandle
                                  const ExitDirEnum direction)   // param name: dir
 {
     assert(!m_zombie);
     const auto udir = static_cast<uint32_t>(direction); // udir is from original, keep if needed for alloc
     assert(isClamped(udir, 0u, NUM_EXITS)); // udir related assert
 
-    auto ret = Path::alloc(in_room, locker, m_signaler, direction);
+    // Pass the WeakHandle to alloc
+    auto ret = Path::alloc(in_room, locker_handle, m_signaler, direction);
     ret->setParent(shared_from_this());
     insertChild(ret);
 

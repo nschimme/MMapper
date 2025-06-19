@@ -15,6 +15,7 @@
 
 #include <memory>
 #include <optional>
+#include <unordered_set> // Added for std::unordered_set
 
 #include <QString>
 #include <QtCore>
@@ -90,6 +91,13 @@ private:
 
 private:
     void updateMostLikelyRoom(const SigParseEvent &sigParseEvent, ChangeList &changes, bool force);
+
+    // Helper methods for updateMostLikelyRoom
+    void helperUpdateServerId(const ParseEvent &event, const RoomHandle &here, ChangeList &changes, std::unordered_set<ServerRoomId> &addedServerIds);
+    void helperProcessExitsFromServerIds(const ParseEvent &event, const RoomHandle &here, ChangeList &changes, bool force, std::unordered_set<ServerRoomId> &addedServerIds);
+    void helperUpdateExitAndDoorFlags(const ParseEvent &event, const RoomHandle &here, ChangeList &changes, bool force);
+    void helperUpdateRoomLight(const ParseEvent &event, const RoomHandle &here, ChangeList &changes);
+    void helperUpdateAdjacentRoomSundeath(const ParseEvent &event, const RoomHandle &here, ChangeList &changes);
 
 private:
     void clearMostLikelyRoom() { m_mostLikelyRoom.reset(); }

@@ -10,13 +10,14 @@
 #include "../map/ExitFlags.h"
 #include "experimenting.h"
 #include "path.h"
+#include "../global/WeakHandle.h" // Added for EnableGetWeakHandleFromThis
 
 #include <memory>
 
 class MapFrontend;
 struct PathParameters;
 
-class NODISCARD Crossover final : public Experimenting
+class NODISCARD Crossover final : public Experimenting, public EnableGetWeakHandleFromThis<Crossover>
 {
 private:
     MapFrontend &m_map;

@@ -28,7 +28,8 @@ void Experimenting::augmentPath(const std::shared_ptr<Path> &path, const RoomHan
 {
     auto &p = deref(path);
     const Coordinate c = p.getRoom().getPosition() + direction;
-    const auto working = p.fork(room, c, params, this, dirCode);
+    // Use getWeakHandleFromThis() which should now be available and convertible
+    const auto working = p.fork(room, c, params, this->getWeakHandleFromThis(), dirCode);
     if (best == nullptr) {
         best = working;
     } else if (working->getProb() > best->getProb()) {

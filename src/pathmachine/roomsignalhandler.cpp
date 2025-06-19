@@ -12,15 +12,19 @@
 
 #include <cassert>
 #include <memory>
+#include <algorithm> // Required for std::remove_if
 
-void RoomSignalHandler::hold(const RoomId room, PathProcessor *const locker) // Changed to PathProcessor*
+// PathProcessor.h and WeakHandle.h are expected to be included via roomsignalhandler.h
+
+void RoomSignalHandler::hold(const RoomId room, WeakHandle<PathProcessor> locker_handle)
 {
-    // REVISIT: why do we allow locker to be null?
     owners.insert(room);
-    if (lockers[room].empty()) {
+    // Initialize holdCount for the room if it's not already tracked.
+    if (holdCount.find(room) == holdCount.end()) {
         holdCount[room] = 0;
     }
-    lockers[room].insert(locker);
+    // 'lockers' is now std::map<RoomId, std::vector<WeakHandle<PathProcessor>>>
+    lockers[room].push_back(locker_handle);
     ++holdCount[room];
 }
 
@@ -37,11 +41,13 @@ void RoomSignalHandler::release(const RoomId room, ChangeList &changes)
             }
             // Original loop that called m_map.releaseRoom for each recipient is removed.
         } else {
+            // This case might indicate a logic error if a room can be released without being an owner
+            // For now, maintaining original assertion if present, or consider logging
             assert(false);
         }
-
-        lockers.erase(room);
+        lockers.erase(room); // Clear the vector for the room
         owners.erase(room);
+        holdCount.erase(room); // Also clean up holdCount
     }
 }
 
@@ -70,13 +76,36 @@ void RoomSignalHandler::keep(const RoomId room,
     }
 
     // Original logic for managing lockers, but without calling m_map.keepRoom
-    if (!lockers[room].empty()) {
-        if (PathProcessor *const locker = *(lockers[room].begin())) { // Changed to PathProcessor*
-            // m_map.keepRoom(*locker, room); // Removed
-            lockers[room].erase(locker);
-        } else {
-            assert(false);
-        }
-    }
+    // The specific locker removal from the list is no longer needed here.
+    // holdCount and release will manage the lifecycle.
+    // The old code was iterating a std::set and erasing one PathProcessor*.
+    // With std::vector<WeakHandle<PathProcessor>>, we don't do that here.
+    // If a specific locker needs to be "released" from this room's perspective,
+    // that would be a more complex operation (finding its WeakHandle and removing it),
+    // but current logic seems to rely on holdCount and the general release.
+    // The line `lockers[room].erase(locker);` from the previous state is removed.
     release(room, changes); // This will decrement holdCount and might trigger actual release logic
+}
+
+int RoomSignalHandler::getNumLockers(RoomId room) {
+    auto it = lockers.find(room);
+    if (it == lockers.end()) {
+        return 0;
+    }
+
+    auto& handles = it->second;
+    // Remove expired handles and count valid ones
+    handles.erase(std::remove_if(handles.begin(), handles.end(),
+        [](const WeakHandle<PathProcessor>& wh) {
+            bool is_expired = true;
+            // Check if the weak_ptr is still valid by trying to lock it or visiting it.
+            // A visitor is safer as it doesn't require promoting to shared_ptr.
+            wh.acceptVisitor([&](const PathProcessor&){ is_expired = false; });
+            return is_expired;
+        }), handles.end());
+
+    // If the vector becomes empty after cleaning, it could be removed from the map,
+    // but this might interact with holdCount logic.
+    // For now, just return the current valid size.
+    return handles.size();
 }

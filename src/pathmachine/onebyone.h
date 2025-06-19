@@ -6,6 +6,7 @@
 
 #include "../map/parseevent.h"
 #include "experimenting.h"
+#include "../global/WeakHandle.h" // Added for EnableGetWeakHandleFromThis
 
 #include <memory>
 
@@ -14,7 +15,7 @@ class Path;
 class RoomSignalHandler;
 struct PathParameters;
 
-class NODISCARD OneByOne final : public Experimenting
+class NODISCARD OneByOne final : public Experimenting, public EnableGetWeakHandleFromThis<OneByOne>
 {
 private:
     SharedParseEvent event;

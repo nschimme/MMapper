@@ -11,13 +11,14 @@
 #include "../map/room.h"
 #include "../map/roomid.h"
 #include "../map/ChangeList.h" // Added for ChangeList
+#include "../global/WeakHandle.h" // Added for EnableGetWeakHandleFromThis
 
 #include <unordered_map>
 
 class MapFrontend;
 class ParseEvent;
 
-class NODISCARD Approved final : public PathProcessor
+class NODISCARD Approved final : public PathProcessor, public EnableGetWeakHandleFromThis<Approved>
 {
 private:
     SigParseEvent myEvent;

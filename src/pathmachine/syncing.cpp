@@ -17,7 +17,8 @@ Syncing::Syncing(PathParameters &in_p,
     : signaler(in_signaler)
     , params(in_p)
     , paths(std::move(moved_paths))
-    , parent(Path::alloc(RoomHandle{}, this, signaler, std::nullopt))
+    // Pass WeakHandle to Path::alloc in constructor
+    , parent(Path::alloc(RoomHandle{}, this->getWeakHandleFromThis(), signaler, std::nullopt))
 {}
 
 void Syncing::virt_receiveRoom(const RoomHandle &in_room, ChangeList &changes)
@@ -31,7 +32,8 @@ void Syncing::virt_receiveRoom(const RoomHandle &in_room, ChangeList &changes)
             parent = nullptr;
         }
     } else {
-        auto p = Path::alloc(in_room, this, signaler, ExitDirEnum::NONE);
+        // Pass WeakHandle to Path::alloc in virt_receiveRoom
+        auto p = Path::alloc(in_room, this->getWeakHandleFromThis(), signaler, ExitDirEnum::NONE);
         p->setParent(parent);
         parent->insertChild(p);
         paths->push_back(p);

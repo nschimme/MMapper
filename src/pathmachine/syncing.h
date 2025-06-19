@@ -7,6 +7,7 @@
 #include "../global/RuleOf5.h"
 #include "PathProcessor.h" // Changed path
 #include "path.h"
+#include "../global/WeakHandle.h" // Added for EnableGetWeakHandleFromThis
 
 #include <list>
 #include <memory>
@@ -16,7 +17,7 @@
 class RoomSignalHandler;
 struct PathParameters;
 
-class NODISCARD Syncing final : public PathProcessor
+class NODISCARD Syncing final : public PathProcessor, public EnableGetWeakHandleFromThis<Syncing>
 {
 private:
     RoomSignalHandler *signaler = nullptr;

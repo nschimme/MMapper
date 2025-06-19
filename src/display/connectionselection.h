@@ -11,7 +11,7 @@
 #include "../map/ExitFieldVariant.h"
 #include "../map/ExitFlags.h"
 #include "../map/RoomHandle.h"
-#include "../map/RoomRecipient.h"
+#include "../map/PathProcessor.h"
 #include "../map/coordinate.h"
 #include "../map/roomid.h"
 

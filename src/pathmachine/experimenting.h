@@ -9,7 +9,7 @@
 #include "../map/ExitDirection.h"
 #include "../map/ExitFieldVariant.h"
 #include "../map/ExitFlags.h"
-#include "../map/RoomRecipient.h"
+#include "../map/PathProcessor.h"
 #include "../map/coordinate.h"
 #include "path.h"
 
@@ -21,7 +21,7 @@ class PathMachine;
 struct PathParameters;
 
 // Base class for Crossover and OneByOne
-class NODISCARD Experimenting : public RoomRecipient
+class NODISCARD Experimenting : public PathProcessor
 {
 protected:
     void augmentPath(const std::shared_ptr<Path> &path, const RoomHandle &room);

@@ -16,26 +16,7 @@ Approved::Approved(MapFrontend &map, const SigParseEvent &sigParseEvent, const i
 
 {}
 
-Approved::~Approved()
-{
-    if (matchedRoom) {
-        if (moreThanOne) {
-            if (auto rh = m_map.findRoomHandle(matchedRoom.getId())) {
-                if (rh.isTemporary()) {
-                    m_map.applySingleChange(Change{room_change_types::RemoveRoom{matchedRoom.getId()}});
-                }
-            }
-        } else {
-            if (auto rh = m_map.findRoomHandle(matchedRoom.getId())) {
-                if (rh.isTemporary()) {
-                    m_map.applySingleChange(Change{room_change_types::MakePermanent{matchedRoom.getId()}});
-                }
-            }
-        }
-    }
-}
-
-void Approved::virt_receiveRoom(const RoomHandle &perhaps)
+void Approved::virt_receiveRoom(const RoomHandle &perhaps, ChangeList &changes)
 {
     auto &event = myEvent.deref();
 
@@ -54,7 +35,7 @@ void Approved::virt_receiveRoom(const RoomHandle &perhaps)
     if (cmp == ComparisonResultEnum::DIFFERENT) {
         if (auto rh = m_map.findRoomHandle(id)) {
             if (rh.isTemporary()) {
-                m_map.applySingleChange(Change{room_change_types::RemoveRoom{id}});
+                changes.add(Change{room_change_types::RemoveRoom{id}});
             }
         }
         return;
@@ -67,7 +48,7 @@ void Approved::virt_receiveRoom(const RoomHandle &perhaps)
         }
         if (auto rh = m_map.findRoomHandle(id)) {
             if (rh.isTemporary()) {
-                m_map.applySingleChange(Change{room_change_types::RemoveRoom{id}});
+                changes.add(Change{room_change_types::RemoveRoom{id}});
             }
         }
         return;
@@ -105,13 +86,13 @@ RoomHandle Approved::oneMatch() const
     return moreThanOne ? RoomHandle{} : matchedRoom;
 }
 
-void Approved::releaseMatch()
+void Approved::releaseMatch(ChangeList &changes)
 {
     // Release the current candidate in order to receive additional candidates
     if (matchedRoom) {
         if (auto rh = m_map.findRoomHandle(matchedRoom.getId())) {
             if (rh.isTemporary()) {
-                m_map.applySingleChange(Change{room_change_types::RemoveRoom{matchedRoom.getId()}});
+                changes.add(Change{room_change_types::RemoveRoom{matchedRoom.getId()}});
             }
         }
     }

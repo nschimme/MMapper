@@ -24,7 +24,8 @@ class Coordinate;
 class MapFrontend;
 class QEvent;
 class QObject;
-class RoomRecipient;
+// class RoomRecipient; // Replaced by PathProcessor
+class PathProcessor;   // Forward declaration
 struct RoomId;
 
 enum class NODISCARD PathStateEnum : uint8_t { APPROVED = 0, EXPERIMENTING = 1, SYNCING = 2 };
@@ -78,9 +79,14 @@ private:
     void syncing(const SigParseEvent &sigParseEvent, ChangeList &changes);
     void approved(const SigParseEvent &sigParseEvent, ChangeList &changes);
     void evaluatePaths(ChangeList &changes);
-    void tryExits(const RoomHandle &, RoomRecipient &, const ParseEvent &, bool out);
-    void tryExit(const RawExit &possible, RoomRecipient &recipient, bool out);
-    void tryCoordinate(const RoomHandle &, RoomRecipient &, const ParseEvent &);
+
+    // New helper functions
+    void findAndReceiveRooms(RoomId targetRoomId, PathProcessor &recipient, ChangeList &changes);
+    void findAndReceiveRooms(const Coordinate &targetCoord, PathProcessor &recipient, ChangeList &changes);
+
+    void tryExits(const RoomHandle &room, PathProcessor &recipient, const ParseEvent &event, bool out, ChangeList &changes);
+    void tryExit(const RawExit &possible, PathProcessor &recipient, bool out, ChangeList &changes);
+    void tryCoordinate(const RoomHandle &room, PathProcessor &recipient, const ParseEvent &event, ChangeList &changes);
 
 private:
     void updateMostLikelyRoom(const SigParseEvent &sigParseEvent, ChangeList &changes, bool force);

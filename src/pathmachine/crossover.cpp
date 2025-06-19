@@ -22,12 +22,12 @@ Crossover::Crossover(MapFrontend &map,
     , m_map{map}
 {}
 
-void Crossover::virt_receiveRoom(const RoomHandle &room)
+void Crossover::virt_receiveRoom(const RoomHandle &room, ChangeList &changes)
 {
     if (deref(shortPaths).empty()) {
         if (auto rh = m_map.findRoomHandle(room.getId())) {
             if (rh.isTemporary()) {
-                m_map.applySingleChange(Change{room_change_types::RemoveRoom{room.getId()}});
+                changes.add(Change{room_change_types::RemoveRoom{room.getId()}});
             }
         }
     }

@@ -20,12 +20,12 @@ Syncing::Syncing(PathParameters &in_p,
     , parent(Path::alloc(RoomHandle{}, this, signaler, std::nullopt))
 {}
 
-void Syncing::virt_receiveRoom(const RoomHandle &in_room)
+void Syncing::virt_receiveRoom(const RoomHandle &in_room, ChangeList &changes)
 {
     if (++numPaths > params.maxPaths) {
         if (!paths->empty()) {
             for (auto &path : *paths) {
-                path->deny();
+                path->deny(changes); // Pass ChangeList
             }
             paths->clear();
             parent = nullptr;
@@ -43,9 +43,11 @@ std::shared_ptr<PathList> Syncing::evaluate()
     return paths;
 }
 
-Syncing::~Syncing()
+void Syncing::finalizePaths(ChangeList &changes)
 {
     if (parent != nullptr) {
-        parent->deny();
+        parent->deny(changes); // Pass ChangeList
+        // Path::deny sets m_zombie=true, which should be sufficient for state.
+        // parent = nullptr; // Optional: explicitly reset if Syncing instance can be reused.
     }
 }

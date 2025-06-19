@@ -27,7 +27,7 @@ OneByOne::OneByOne(const SigParseEvent &sigParseEvent,
     , handler{in_handler}
 {}
 
-void OneByOne::virt_receiveRoom(const RoomHandle &room)
+void OneByOne::virt_receiveRoom(const RoomHandle &room, ChangeList &changes)
 {
     if (::compare(room.getRaw(), deref(event), params.matchingTolerance)
         == ComparisonResultEnum::EQUAL) {
@@ -36,7 +36,7 @@ void OneByOne::virt_receiveRoom(const RoomHandle &room)
         // needed because the memory address is not unique and
         // calling admin->release might destroy a room still held by some path
         handler->hold(room.getId(), this);
-        handler->release(room.getId());
+        handler->release(room.getId(), changes);
     }
 }
 

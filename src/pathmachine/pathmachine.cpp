@@ -32,7 +32,7 @@
 #include <optional>
 #include <unordered_set>
 
-class RoomRecipient;
+class PathProcessor; // Changed from RoomRecipient
 
 PathMachine::PathMachine(MapFrontend &map, QObject *const parent)
     : QObject(parent)
@@ -41,6 +41,31 @@ PathMachine::PathMachine(MapFrontend &map, QObject *const parent)
     , m_lastEvent{ParseEvent::createDummyEvent()}
     , m_paths{PathList::alloc()}
 {}
+
+void PathMachine::findAndReceiveRooms(RoomId targetRoomId, PathProcessor &recipient, ChangeList &changes)
+{
+    // This method doesn't directly use 'changes' parameter itself, but recipient.receiveRoom might.
+    // For now, 'changes' is passed along.
+    RoomIdSet ids = m_map.lookingForRooms(targetRoomId);
+    for (RoomId id : ids) {
+        if (auto rh = m_map.findRoomHandle(id)) {
+            // Assuming PathProcessor::receiveRoom now takes ChangeList
+            recipient.receiveRoom(rh, changes);
+        }
+    }
+}
+
+void PathMachine::findAndReceiveRooms(const Coordinate &targetCoord, PathProcessor &recipient, ChangeList &changes)
+{
+    // Similar to the above, 'changes' is passed for potential use by recipient.
+    RoomIdSet ids = m_map.lookingForRooms(targetCoord);
+    for (RoomId id : ids) {
+        if (auto rh = m_map.findRoomHandle(id)) {
+            // Assuming PathProcessor::receiveRoom now takes ChangeList
+            recipient.receiveRoom(rh, changes);
+        }
+    }
+}
 
 bool PathMachine::hasLastEvent() const
 {
@@ -102,11 +127,17 @@ void PathMachine::forcePositionChange(const RoomId id, const bool update)
 
 void PathMachine::slot_releaseAllPaths()
 {
+    ChangeList localChanges; // Create a local ChangeList
     auto &paths = deref(m_paths);
     for (auto &path : paths) {
-        path->deny();
+        path->deny(localChanges); // Updated call
     }
     paths.clear();
+
+    // If any changes were generated (e.g., rooms removed), schedule them.
+    if (!localChanges.empty()) {
+        scheduleAction(localChanges);
+    }
 
     m_state = PathStateEnum::SYNCING;
 
@@ -153,9 +184,10 @@ void PathMachine::handleParseEvent(const SigParseEvent &sigParseEvent)
 }
 
 void PathMachine::tryExits(const RoomHandle &room,
-                           RoomRecipient &recipient,
+                           PathProcessor &recipient, // Changed from RoomRecipient
                            const ParseEvent &event,
-                           const bool out)
+                           const bool out,
+                           ChangeList &changes) // Added ChangeList
 {
     if (!room.exists()) {
         // most likely room doesn't exist
@@ -165,39 +197,32 @@ void PathMachine::tryExits(const RoomHandle &room,
     const CommandEnum move = event.getMoveType();
     if (isDirection7(move)) {
         const auto &possible = room.getExit(getDirection(move));
-        tryExit(possible, recipient, out);
+        tryExit(possible, recipient, out, changes); // Pass changes
     } else {
         // Only check the current room for LOOK
-        RoomIdSet ids = m_map.lookingForRooms(room.getId());
-        for (RoomId id : ids) {
-            if (auto rh = m_map.findRoomHandle(id)) {
-                recipient.receiveRoom(rh);
-            }
-        }
+        findAndReceiveRooms(room.getId(), recipient, changes); // Use helper
+
         if (move >= CommandEnum::FLEE) {
             // Only try all possible exits for commands FLEE, SCOUT, and NONE
             for (const auto &possible : room.getExits()) {
-                tryExit(possible, recipient, out);
+                tryExit(possible, recipient, out, changes); // Pass changes
             }
         }
     }
 }
 
-void PathMachine::tryExit(const RawExit &possible, RoomRecipient &recipient, const bool out)
+void PathMachine::tryExit(const RawExit &possible, PathProcessor &recipient, bool out, ChangeList &changes)
 {
     for (auto idx : (out ? possible.getOutgoingSet() : possible.getIncomingSet())) {
-        RoomIdSet ids = m_map.lookingForRooms(idx);
-        for (RoomId id : ids) {
-            if (auto rh = m_map.findRoomHandle(id)) {
-                recipient.receiveRoom(rh);
-            }
-        }
+        // Now using the new helper function
+        findAndReceiveRooms(idx, recipient, changes);
     }
 }
 
 void PathMachine::tryCoordinate(const RoomHandle &room,
-                                RoomRecipient &recipient,
-                                const ParseEvent &event)
+                                PathProcessor &recipient, // Changed from RoomRecipient
+                                const ParseEvent &event,
+                                ChangeList &changes) // Added ChangeList
 {
     if (!room.exists()) {
         // most likely room doesn't exist
@@ -209,12 +234,7 @@ void PathMachine::tryCoordinate(const RoomHandle &room,
         // LOOK, UNKNOWN will have an empty offset
         auto offset = ::exitDir(getDirection(moveCode));
         const Coordinate c = room.getPosition() + offset;
-        RoomIdSet ids_c = m_map.lookingForRooms(c);
-        for (RoomId id : ids_c) {
-            if (auto rh = m_map.findRoomHandle(id)) {
-                recipient.receiveRoom(rh);
-            }
-        }
+        findAndReceiveRooms(c, recipient, changes); // Use helper
 
     } else {
         const Coordinate roomPos = room.getPosition();
@@ -224,12 +244,7 @@ void PathMachine::tryCoordinate(const RoomHandle &room,
         // even though both ExitDirEnum::UNKNOWN and ExitDirEnum::NONE
         // both have Coordinate(0, 0, 0).
         for (const ExitDirEnum dir : ALL_EXITS7) {
-            RoomIdSet ids_dir = m_map.lookingForRooms(roomPos + ::exitDir(dir));
-            for (RoomId id : ids_dir) {
-                if (auto rh = m_map.findRoomHandle(id)) {
-                    recipient.receiveRoom(rh);
-                }
-            }
+            findAndReceiveRooms(roomPos + ::exitDir(dir), recipient, changes); // Use helper
         }
     }
 }
@@ -244,31 +259,31 @@ void PathMachine::approved(const SigParseEvent &sigParseEvent, ChangeList &chang
     if (event.hasServerId()) {
         perhaps = m_map.findRoomHandle(event.getServerId());
         if (perhaps.exists()) {
-            appr.receiveRoom(perhaps);
+            appr.receiveRoom(perhaps, changes); // Pass changes
         }
         perhaps = appr.oneMatch();
     }
 
     // This code path only happens for historic maps and mazes where no server id is present
     if (!perhaps) {
-        appr.releaseMatch();
+        appr.releaseMatch(changes); // Pass changes
 
-        tryExits(getMostLikelyRoom(), appr, event, true);
+        tryExits(getMostLikelyRoom(), appr, event, true, changes); // Pass changes
         perhaps = appr.oneMatch();
 
         if (!perhaps) {
             // try to match by reverse exit
-            appr.releaseMatch();
-            tryExits(getMostLikelyRoom(), appr, event, false);
+            appr.releaseMatch(changes); // Pass changes
+            tryExits(getMostLikelyRoom(), appr, event, false, changes); // Pass changes
             perhaps = appr.oneMatch();
             if (!perhaps) {
                 // try to match by coordinate
-                appr.releaseMatch();
-                tryCoordinate(getMostLikelyRoom(), appr, event);
+                appr.releaseMatch(changes); // Pass changes
+                tryCoordinate(getMostLikelyRoom(), appr, event, changes); // Pass changes
                 perhaps = appr.oneMatch();
                 if (!perhaps) {
                     // try to match by coordinate one step below expected
-                    appr.releaseMatch();
+                    appr.releaseMatch(changes); // Pass changes
                     // FIXME: need stronger type checking here.
 
                     const auto cmd = event.getMoveType();
@@ -289,19 +304,19 @@ void PathMachine::approved(const SigParseEvent &sigParseEvent, ChangeList &chang
                             RoomIdSet ids_c1 = m_map.lookingForRooms(c);
                             for (RoomId id : ids_c1) {
                                 if (auto rh = m_map.findRoomHandle(id)) {
-                                    appr.receiveRoom(rh);
+                                    appr.receiveRoom(rh, changes); // Pass changes
                                 }
                             }
                             perhaps = appr.oneMatch();
 
                             if (!perhaps) {
                                 // try to match by coordinate one step above expected
-                                appr.releaseMatch();
+                                appr.releaseMatch(changes); // Pass changes
                                 c.z += 2;
                                 RoomIdSet ids_c2 = m_map.lookingForRooms(c);
                                 for (RoomId id : ids_c2) {
                                     if (auto rh = m_map.findRoomHandle(id)) {
-                                        appr.receiveRoom(rh);
+                                        appr.receiveRoom(rh, changes); // Pass changes
                                     }
                                 }
                                 perhaps = appr.oneMatch();
@@ -354,6 +369,15 @@ void PathMachine::approved(const SigParseEvent &sigParseEvent, ChangeList &chang
 
     // Update most likely room with player's current location
     setMostLikelyRoom(perhaps.getId());
+
+    if (perhaps.exists()) {
+        if (perhaps.isTemporary()) {
+            changes.add(Change{room_change_types::MakePermanent{perhaps.getId()}});
+        }
+        // If 'appr.needsUpdate()' was true, that change is added by the Update below
+    }
+    // If moreThanOne was true, Approved::virt_receiveRoom should have added temporary rooms
+    // to 'changes' for removal already.
 
     if (appr.needsUpdate()) {
         changes.add(Change{room_change_types::Update{perhaps.getId(),
@@ -561,6 +585,7 @@ void PathMachine::syncing(const SigParseEvent &sigParseEvent, ChangeList &change
             }
         }
         m_paths = sync.evaluate();
+        sync.finalizePaths(changes); // Added call
     }
     evaluatePaths(changes);
 }
@@ -603,9 +628,9 @@ void PathMachine::experimenting(const SigParseEvent &sigParseEvent, ChangeList &
             for (const auto &path : deref(m_paths)) {
                 const auto &working = path->getRoom();
                 tmp.addPath(path);
-                tryExits(working, tmp, event, true);
-                tryExits(working, tmp, event, false);
-                tryCoordinate(working, tmp, event);
+                tryExits(working, tmp, event, true, changes);  // Pass changes
+                tryExits(working, tmp, event, false, changes); // Pass changes
+                tryCoordinate(working, tmp, event, changes);   // Pass changes
             }
         }
         m_paths = oneByOne.evaluate();

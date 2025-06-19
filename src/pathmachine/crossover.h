@@ -28,5 +28,5 @@ public:
               PathParameters &params);
 
 private:
-    void virt_receiveRoom(const RoomHandle &) final;
+    void virt_receiveRoom(const RoomHandle &, ChangeList &changes) final;
 };

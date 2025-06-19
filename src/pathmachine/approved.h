@@ -6,17 +6,18 @@
 
 #include "../global/RuleOf5.h"
 #include "../map/RoomHandle.h"
-#include "../map/RoomRecipient.h"
+#include "../map/PathProcessor.h"
 #include "../map/parseevent.h"
 #include "../map/room.h"
 #include "../map/roomid.h"
+#include "../map/ChangeList.h" // Added for ChangeList
 
 #include <unordered_map>
 
 class MapFrontend;
 class ParseEvent;
 
-class NODISCARD Approved final : public RoomRecipient
+class NODISCARD Approved final : public PathProcessor
 {
 private:
     SigParseEvent myEvent;
@@ -29,17 +30,16 @@ private:
 
 public:
     explicit Approved(MapFrontend &map, const SigParseEvent &sigParseEvent, int matchingTolerance);
-    ~Approved() final;
 
 public:
     Approved() = delete;
     DELETE_CTORS_AND_ASSIGN_OPS(Approved);
 
 private:
-    void virt_receiveRoom(const RoomHandle &) final;
+    void virt_receiveRoom(const RoomHandle &, ChangeList &changes) final;
 
 public:
     NODISCARD RoomHandle oneMatch() const;
     NODISCARD bool needsUpdate() const { return update; }
-    void releaseMatch();
+    void releaseMatch(ChangeList &changes);
 };

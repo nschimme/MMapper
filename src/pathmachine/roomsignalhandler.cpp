@@ -24,7 +24,7 @@ void RoomSignalHandler::hold(const RoomId room, RoomRecipient *const locker)
     ++holdCount[room];
 }
 
-void RoomSignalHandler::release(const RoomId room)
+void RoomSignalHandler::release(const RoomId room, ChangeList &changes)
 {
     assert(holdCount[room]);
     if (--holdCount[room] == 0) {
@@ -32,7 +32,7 @@ void RoomSignalHandler::release(const RoomId room)
             // New logic to remove room if it's temporary
             if (auto rh = m_map.findRoomHandle(room)) {
                 if (rh.isTemporary()) {
-                    m_map.applySingleChange(Change{room_change_types::RemoveRoom{room}});
+                    changes.add(Change{room_change_types::RemoveRoom{room}});
                 }
             }
             // Original loop that called m_map.releaseRoom for each recipient is removed.
@@ -78,5 +78,5 @@ void RoomSignalHandler::keep(const RoomId room,
             assert(false);
         }
     }
-    release(room); // This will decrement holdCount and might trigger actual release logic
+    release(room, changes); // This will decrement holdCount and might trigger actual release logic
 }

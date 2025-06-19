@@ -11,7 +11,7 @@
 #include "../global/logging.h"
 #include "../global/progresscounter.h"
 #include "../map/ChangeTypes.h"
-#include "../map/RoomRecipient.h"
+#include "../map/PathProcessor.h"
 #include "../map/coordinate.h"
 #include "../map/parseevent.h"
 #include "../map/room.h"

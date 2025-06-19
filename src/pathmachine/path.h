@@ -11,6 +11,7 @@
 #include "../map/ExitFieldVariant.h"
 #include "../map/ExitFlags.h"
 #include "../map/RoomHandle.h"
+#include "../map/ChangeList.h" // Added for ChangeList
 #include "pathparameters.h"
 
 #include <cassert>
@@ -81,7 +82,7 @@ public:
     void approve(ChangeList &changes);
 
     // deletes this path and all parents up to the next branch
-    void deny();
+    void deny(ChangeList &changes);
     void setProb(double p)
     {
         assert(!m_zombie);
@@ -93,6 +94,17 @@ public:
         assert(!m_zombie);
         return m_parent;
     }
+
+private:
+    double calculateInitialScoreFactor(const RoomHandle &current_room_handle,
+                                       const RoomHandle &next_room_handle,
+                                       const Coordinate &expected_next_coord,
+                                       ExitDirEnum direction_to_next_room,
+                                       const PathParameters &params) const;
+
+    double applyPathPenalties(double current_score_factor,
+                              const RoomHandle &next_room_handle,
+                              const PathParameters &params) const;
 };
 
 struct NODISCARD PathList : public std::list<std::shared_ptr<Path>>,

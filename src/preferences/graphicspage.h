@@ -5,6 +5,7 @@
 
 #include "../global/macros.h"
 #include "ui_graphicspage.h"
+#include "../global/Signal2Lifetime.h" // Added
 
 #include <memory>
 #include <vector>
@@ -34,6 +35,7 @@ private:
     void graphicsSettingsChanged() { emit sig_graphicsSettingsChanged(); }
     Ui::GraphicsPage *const ui;
     std::unique_ptr<AdvancedGraphicsGroupBox> m_advanced;
+    Signal2Lifetime m_configLifetime; // Added
 
 signals:
     void sig_graphicsSettingsChanged();

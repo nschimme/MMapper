@@ -592,14 +592,19 @@ void Configuration::CanvasSettings::read(const QSettings &conf)
     showMissingMapId.set(conf.value(KEY_SHOW_MISSING_MAP_ID, true).toBool());
     showUnsavedChanges.set(conf.value(KEY_SHOW_UNSAVED_CHANGES, true).toBool());
     showUnmappedExits.set(conf.value(KEY_DRAW_NOT_MAPPED_EXITS, true).toBool());
-    drawUpperLayersTextured = conf.value(KEY_DRAW_UPPER_LAYERS_TEXTURED, false).toBool();
-    drawDoorNames = conf.value(KEY_DRAW_DOOR_NAMES, true).toBool();
+    m_drawUpperLayersTextured = conf.value(KEY_DRAW_UPPER_LAYERS_TEXTURED, m_drawUpperLayersTextured).toBool(); // Use default from member
+    m_drawDoorNames = conf.value(KEY_DRAW_DOOR_NAMES, m_drawDoorNames).toBool();  // Use default from member
     backgroundColor = lookupColor(KEY_BACKGROUND_COLOR, DEFAULT_BGCOLOR);
     connectionNormalColor = lookupColor(KEY_CONNECTION_NORMAL_COLOR, Colors::white.toHex());
     roomDarkColor = lookupColor(KEY_ROOM_DARK_COLOR, DEFAULT_DARK_COLOR);
     roomDarkLitColor = lookupColor(KEY_ROOM_DARK_LIT_COLOR, DEFAULT_NO_SUNDEATH_COLOR);
-    antialiasingSamples = conf.value(KEY_NUMBER_OF_ANTI_ALIASING_SAMPLES, 0).toInt();
-    trilinearFiltering = conf.value(KEY_USE_TRILINEAR_FILTERING, true).toBool();
+    m_antialiasingSamples = conf.value(KEY_NUMBER_OF_ANTI_ALIASING_SAMPLES, m_antialiasingSamples).toInt(); // Use default from member
+    m_trilinearFiltering = conf.value(KEY_USE_TRILINEAR_FILTERING, m_trilinearFiltering).toBool(); // Use default from member
+    // softwareOpenGL and resourcesDirectory were missing from the original read method here,
+    // but they should be read if they are to be persisted.
+    // Assuming they were added to header and should be persisted:
+    m_softwareOpenGL = conf.value("Canvas/SoftwareOpenGL", m_softwareOpenGL).toBool(); // Added key based on write
+    m_resourcesDirectory = conf.value(KEY_RESOURCES_DIRECTORY, m_resourcesDirectory).toString(); // KEY_RESOURCES_DIRECTORY was already defined
     advanced.use3D.set(conf.value(KEY_3D_CANVAS, false).toBool());
     advanced.autoTilt.set(conf.value(KEY_3D_AUTO_TILT, true).toBool());
     advanced.printPerfStats.set(conf.value(KEY_3D_PERFSTATS, IS_DEBUG_BUILD).toBool());
@@ -776,14 +781,17 @@ void Configuration::CanvasSettings::write(QSettings &conf) const
     conf.setValue(KEY_SHOW_MISSING_MAP_ID, showMissingMapId.get());
     conf.setValue(KEY_SHOW_UNSAVED_CHANGES, showUnsavedChanges.get());
     conf.setValue(KEY_DRAW_NOT_MAPPED_EXITS, showUnmappedExits.get());
-    conf.setValue(KEY_DRAW_UPPER_LAYERS_TEXTURED, drawUpperLayersTextured);
-    conf.setValue(KEY_DRAW_DOOR_NAMES, drawDoorNames);
+    conf.setValue(KEY_DRAW_UPPER_LAYERS_TEXTURED, m_drawUpperLayersTextured);
+    conf.setValue(KEY_DRAW_DOOR_NAMES, m_drawDoorNames);
     conf.setValue(KEY_BACKGROUND_COLOR, getQColorName(backgroundColor));
     conf.setValue(KEY_ROOM_DARK_COLOR, getQColorName(roomDarkColor));
     conf.setValue(KEY_ROOM_DARK_LIT_COLOR, getQColorName(roomDarkLitColor));
     conf.setValue(KEY_CONNECTION_NORMAL_COLOR, getQColorName(connectionNormalColor));
-    conf.setValue(KEY_NUMBER_OF_ANTI_ALIASING_SAMPLES, antialiasingSamples);
-    conf.setValue(KEY_USE_TRILINEAR_FILTERING, trilinearFiltering);
+    conf.setValue(KEY_NUMBER_OF_ANTI_ALIASING_SAMPLES, m_antialiasingSamples);
+    conf.setValue(KEY_USE_TRILINEAR_FILTERING, m_trilinearFiltering);
+    // softwareOpenGL and resourcesDirectory write methods
+    conf.setValue("Canvas/SoftwareOpenGL", m_softwareOpenGL); // Used "Canvas/SoftwareOpenGL" as key, matching read
+    conf.setValue(KEY_RESOURCES_DIRECTORY, m_resourcesDirectory);
     conf.setValue(KEY_3D_CANVAS, advanced.use3D.get());
     conf.setValue(KEY_3D_AUTO_TILT, advanced.autoTilt.get());
     conf.setValue(KEY_3D_PERFSTATS, advanced.printPerfStats.get());

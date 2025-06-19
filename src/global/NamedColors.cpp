@@ -2,6 +2,7 @@
 // Copyright (C) 2019 The MMapper Authors
 
 #include "NamedColors.h"
+#include "ChangeMonitor.h" // Added
 
 #include <cassert>
 #include <map>
@@ -144,4 +145,29 @@ void XNamedColor::setColor(const Color new_color)
 std::vector<std::string> XNamedColor::getAllNames()
 {
     return getGlobalData().getAllNames();
+}
+
+namespace { // Anonymous namespace for file-static objects
+    ChangeMonitor s_globalColorChangeMonitor;
+} // namespace
+
+void XNamedColor::registerGlobalChangeCallback(const ChangeMonitor::Lifetime &lifetime, ChangeMonitor::Function callback)
+{
+    s_globalColorChangeMonitor.registerChangeCallback(lifetime, std::move(callback));
+}
+
+void XNamedColor::setColor(const Color new_color)
+{
+    if (!isInitialized()) {
+        assert(false);
+        return;
+    }
+
+    Color& currentColorSlot = getGlobalData().getColor(getIndex()); // Get reference
+    if (currentColorSlot == new_color) { // Check if value would actually change
+        return;
+    }
+
+    currentColorSlot = new_color;
+    s_globalColorChangeMonitor.notifyAll(); // Notify after change
 }

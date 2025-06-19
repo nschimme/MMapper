@@ -5,6 +5,7 @@
 #include "Color.h"
 #include "RuleOf5.h"
 #include "utils.h"
+#include "ChangeMonitor.h" // Added
 
 #include <string_view>
 #include <vector>
@@ -42,6 +43,8 @@ public:
     NODISCARD std::string getName() const;
     NODISCARD Color getColor() const;
     void setColor(Color c);
+
+    static void registerGlobalChangeCallback(const ChangeMonitor::Lifetime &lifetime, ChangeMonitor::Function callback);
 
 public:
     NODISCARD explicit operator Color() const { return getColor(); }

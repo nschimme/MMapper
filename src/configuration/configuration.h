@@ -135,17 +135,77 @@ public:
 
     struct NODISCARD CanvasSettings final : public CanvasNamedColorOptions
     {
+    private:
+        ChangeMonitor m_canvasChangeMonitor;
+
+        // Original plain members converted to private
+        bool m_drawUpperLayersTextured = false;
+        bool m_drawDoorNames = false;
+        int m_antialiasingSamples = 0;
+        bool m_trilinearFiltering = false;
+        bool m_softwareOpenGL = false;
+        QString m_resourcesDirectory = "";
+
+    public:
+        void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime, ChangeMonitor::Function callback) {
+            m_canvasChangeMonitor.registerChangeCallback(lifetime, std::move(callback));
+        }
+
+        NODISCARD bool getDrawUpperLayersTextured() const { return m_drawUpperLayersTextured; }
+        void setDrawUpperLayersTextured(bool value) {
+            if (m_drawUpperLayersTextured != value) {
+                m_drawUpperLayersTextured = value;
+                m_canvasChangeMonitor.notifyAll();
+            }
+        }
+
+        NODISCARD bool getDrawDoorNames() const { return m_drawDoorNames; }
+        void setDrawDoorNames(bool value) {
+            if (m_drawDoorNames != value) {
+                m_drawDoorNames = value;
+                m_canvasChangeMonitor.notifyAll();
+            }
+        }
+
+        NODISCARD int getAntialiasingSamples() const { return m_antialiasingSamples; }
+        void setAntialiasingSamples(int value) {
+            if (m_antialiasingSamples != value) {
+                m_antialiasingSamples = value;
+                m_canvasChangeMonitor.notifyAll();
+            }
+        }
+
+        NODISCARD bool getTrilinearFiltering() const { return m_trilinearFiltering; }
+        void setTrilinearFiltering(bool value) {
+            if (m_trilinearFiltering != value) {
+                m_trilinearFiltering = value;
+                m_canvasChangeMonitor.notifyAll();
+            }
+        }
+
+        NODISCARD bool getSoftwareOpenGL() const { return m_softwareOpenGL; }
+        void setSoftwareOpenGL(bool value) {
+            if (m_softwareOpenGL != value) {
+                m_softwareOpenGL = value;
+                m_canvasChangeMonitor.notifyAll();
+            }
+        }
+
+        NODISCARD QString getResourcesDirectory() const { return m_resourcesDirectory; }
+        void setResourcesDirectory(const QString& value) {
+            if (m_resourcesDirectory != value) {
+                m_resourcesDirectory = value;
+                m_canvasChangeMonitor.notifyAll();
+            }
+        }
+
+        // NamedConfig members remain public as they have their own notification system (if any)
+        // or are handled differently by Q_PROPERTY if used.
         NamedConfig<bool> showMissingMapId{"SHOW_MISSING_MAPID", false};
         NamedConfig<bool> showUnsavedChanges{"SHOW_UNSAVED_CHANGES", false};
         NamedConfig<bool> showUnmappedExits{"SHOW_UNMAPPED_EXITS", false};
-        bool drawUpperLayersTextured = false;
-        bool drawDoorNames = false;
-        int antialiasingSamples = 0;
-        bool trilinearFiltering = false;
-        bool softwareOpenGL = false;
-        QString resourcesDirectory;
 
-        // not saved yet:
+        // not saved yet: (these remain as they are, not converted)
         bool drawCharBeacons = true;
         float charBeaconScaleCutoff = 0.4f;
         float doorNameScaleCutoff = 0.4f;

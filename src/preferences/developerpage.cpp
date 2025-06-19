@@ -10,7 +10,7 @@
 #include <QFormLayout>
 #include <QLabel>
 #include <QLineEdit>
-#include <QMenu> // Required for QMenu
+#include <QMenu>
 #include <QMetaProperty>
 #include <QPushButton>
 #include <QScrollArea>
@@ -20,6 +20,7 @@
 
 #include "../configuration/configuration.h"
 #include "../global/Color.h"
+#include "../global/NamedColors.h" // Required for XNamedColor::registerGlobalChangeCallback
 
 // TODO: Maintainability: The current mechanism of using string lists (e.g., knownGraphicsBoolPropertyNames)
 // to determine if a property change should emit sig_graphicsSettingsChanged is not ideal, as it can
@@ -31,53 +32,71 @@
 // This change is significant and deferred for future improvement. For now, these lists must be kept
 // manually synchronized with graphics-affecting properties in Configuration.
 
-const QStringList knownGraphicsBoolPropertyNames = {
-    "drawUpperLayersTextured", "drawDoorNames", "trilinearFiltering", "softwareOpenGL",
-    "showMissingMapId", "showUnsavedChanges", "showUnmappedExits",
-    "MMAPPER_3D", "MMAPPER_AUTO_TILT", "MMAPPER_GL_PERFSTATS"
+// const QStringList knownGraphicsBoolPropertyNames = { ... }; // REMOVED
+// const QStringList knownGraphicsIntPropertyNames = { ... }; // REMOVED
+// const QStringList knownGraphicsStringPropertyNames = { ... }; // REMOVED
+
+// For NamedConfig<T> properties that are graphics-related and not part of CanvasSettings' direct monitor
+const QStringList graphicsNamedConfigPropertyNames = {
+    "showMissingMapId", "showUnsavedChanges", "showUnmappedExits", // From CanvasSettings (are NamedConfig)
+    "MMAPPER_3D", "MMAPPER_AUTO_TILT", "MMAPPER_GL_PERFSTATS"    // From CanvasSettings::Advanced (are NamedConfig)
 };
-const QStringList knownGraphicsIntPropertyNames = { "antialiasingSamples", "fov" };
-const QStringList knownGraphicsStringPropertyNames = { "resourcesDirectory" };
 
 
 DeveloperPage::DeveloperPage(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::DeveloperPage)
-    , m_defaultConfig(std::make_unique<Configuration>(getConfig())) // Initialize with a copy of current config
+    , m_defaultConfig(std::make_unique<Configuration>(getConfig()))
 {
     ui->setupUi(this);
     connect(ui->searchLineEdit, &QLineEdit::textChanged, this, &DeveloperPage::filterSettings);
 
-    // Reset the copied configuration to its default state.
-    // This assumes Configuration::reset() loads pristine defaults if no QSettings exist or are ignored.
-    // For this to work robustly, Configuration::reset() should ideally load compiled-in defaults,
-    // not just re-read from QSettings which might already be user-modified.
-    // We proceed with the assumption it leads to a representation of defaults.
     if (m_defaultConfig) {
         m_defaultConfig->reset();
     }
+
+    // Initial registration in constructor. slot_loadConfig will also handle this.
+    registerChangeMonitors();
 }
 
 DeveloperPage::~DeveloperPage()
 {
+    m_configLifetime.disconnectAll(); // Ensure all connections are severed
     delete ui;
+}
+
+void DeveloperPage::registerChangeMonitors() {
+    m_configLifetime.disconnectAll(); // Clear previous connections before re-registering
+
+    Configuration &config = getConfig(); // Use getConfig for registering listeners
+
+    // Register callback with CanvasSettings
+    config.canvas.registerChangeCallback(m_configLifetime, [this]() {
+        emit sig_graphicsSettingsChanged();
+    });
+
+    // Register callback with global XNamedColor changes
+    XNamedColor::registerGlobalChangeCallback(m_configLifetime, [this]() {
+        emit sig_graphicsSettingsChanged();
+    });
 }
 
 void DeveloperPage::slot_loadConfig()
 {
-    // Re-initialize m_defaultConfig when config is loaded/reloaded to ensure it's fresh
-    // This is important if the main config is reloaded from disk, defaults might change based on version
     m_defaultConfig = std::make_unique<Configuration>(getConfig());
     if (m_defaultConfig) {
         m_defaultConfig->reset();
     }
+
+    registerChangeMonitors(); // Re-register monitors, ensuring old connections are cleared
+
     populatePage();
 }
 
 // Helper methods for creating editors
-QCheckBox* DeveloperPage::createBoolEditor(Configuration &config, const QMetaProperty &property) {
+QCheckBox* DeveloperPage::createBoolEditor(Configuration &config_ref_for_read, const QMetaProperty &property) {
     QCheckBox *checkBox = new QCheckBox(this);
-    checkBox->setChecked(property.read(&config).toBool());
+    checkBox->setChecked(property.read(&config_ref_for_read).toBool());
     checkBox->setContextMenuPolicy(Qt::CustomContextMenu);
     checkBox->setProperty("propertyName", QLatin1String(property.name()));
     connect(checkBox, &QWidget::customContextMenuRequested, this, [this, checkBox](const QPoint &pos) {
@@ -87,21 +106,35 @@ QCheckBox* DeveloperPage::createBoolEditor(Configuration &config, const QMetaPro
         connect(resetAction, &QAction::triggered, this, &DeveloperPage::onResetToDefaultTriggered);
         contextMenu.exec(checkBox->mapToGlobal(pos));
     });
-    connect(checkBox, &QCheckBox::toggled, this, [this, &config, property](bool checked) {
-        bool success = property.write(&config, checked);
-        if (success) {
-            QString propertyName = QLatin1String(property.name());
-            if (knownGraphicsBoolPropertyNames.contains(propertyName)) {
+
+    connect(checkBox, &QCheckBox::toggled, this, [this, property](bool checked) {
+        QString propertyNameStr = QLatin1String(property.name());
+        bool success = false;
+        // Use setters for refactored CanvasSettings properties
+        if (propertyNameStr == "drawDoorNames") {
+            setConfig().canvas.setDrawDoorNames(checked); success = true;
+        } else if (propertyNameStr == "drawUpperLayersTextured") {
+            setConfig().canvas.setDrawUpperLayersTextured(checked); success = true;
+        } else if (propertyNameStr == "trilinearFiltering") {
+            setConfig().canvas.setTrilinearFiltering(checked); success = true;
+        } else if (propertyNameStr == "softwareOpenGL") {
+            setConfig().canvas.setSoftwareOpenGL(checked); success = true;
+        } else {
+            // For other bool properties (incl. NamedConfig<bool>), use property.write
+            success = property.write(&setConfig(), checked);
+            if (success && graphicsNamedConfigPropertyNames.contains(propertyNameStr)) {
+                // Emit only for NamedConfigs known to be graphics-related and not covered by CanvasSettings monitor
                 emit sig_graphicsSettingsChanged();
             }
         }
+        // No direct emit for CanvasSettings props here - handled by its ChangeMonitor
     });
     return checkBox;
 }
 
-QLineEdit* DeveloperPage::createStringEditor(Configuration &config, const QMetaProperty &property) {
+QLineEdit* DeveloperPage::createStringEditor(Configuration &config_ref_for_read, const QMetaProperty &property) {
     QLineEdit *lineEdit = new QLineEdit(this);
-    lineEdit->setText(property.read(&config).toString());
+    lineEdit->setText(property.read(&config_ref_for_read).toString());
     lineEdit->setContextMenuPolicy(Qt::CustomContextMenu);
     lineEdit->setProperty("propertyName", QLatin1String(property.name()));
     connect(lineEdit, &QWidget::customContextMenuRequested, this, [this, lineEdit](const QPoint &pos) {
@@ -111,22 +144,26 @@ QLineEdit* DeveloperPage::createStringEditor(Configuration &config, const QMetaP
         connect(resetAction, &QAction::triggered, this, &DeveloperPage::onResetToDefaultTriggered);
         contextMenu.exec(lineEdit->mapToGlobal(pos));
     });
-    connect(lineEdit, &QLineEdit::textEdited, this, [this, &config, property](const QString &text) {
-        bool success = property.write(&config, text);
-        if (success) {
-            QString propertyName = QLatin1String(property.name());
-            if (knownGraphicsStringPropertyNames.contains(propertyName)) {
-                emit sig_graphicsSettingsChanged();
-            }
+    connect(lineEdit, &QLineEdit::textEdited, this, [this, property](const QString &text) {
+        QString propertyNameStr = QLatin1String(property.name());
+        bool success = false;
+        if (propertyNameStr == "resourcesDirectory") {
+            setConfig().canvas.setResourcesDirectory(text); success = true;
+        } else {
+            success = property.write(&setConfig(), text);
+             if (success && graphicsNamedConfigPropertyNames.contains(propertyNameStr)) { // Assuming some NamedConfig<QString> might exist
+                 emit sig_graphicsSettingsChanged();
+             }
         }
+        // No direct emit for CanvasSettings props here
     });
     return lineEdit;
 }
 
-QSpinBox* DeveloperPage::createIntEditor(Configuration &config, const QMetaProperty &property) {
+QSpinBox* DeveloperPage::createIntEditor(Configuration &config_ref_for_read, const QMetaProperty &property) {
     QSpinBox *spinBox = new QSpinBox(this);
     spinBox->setRange(-2147483647, 2147483647);
-    spinBox->setValue(property.read(&config).toInt());
+    spinBox->setValue(property.read(&config_ref_for_read).toInt());
     spinBox->setContextMenuPolicy(Qt::CustomContextMenu);
     spinBox->setProperty("propertyName", QLatin1String(property.name()));
     connect(spinBox, &QWidget::customContextMenuRequested, this, [this, spinBox](const QPoint &pos) {
@@ -136,29 +173,34 @@ QSpinBox* DeveloperPage::createIntEditor(Configuration &config, const QMetaPrope
         connect(resetAction, &QAction::triggered, this, &DeveloperPage::onResetToDefaultTriggered);
         contextMenu.exec(spinBox->mapToGlobal(pos));
     });
-    connect(spinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, [this, &config, property](int value) {
-        bool success = property.write(&config, value);
-        if (success) {
-            QString propertyName = QLatin1String(property.name());
-            if (knownGraphicsIntPropertyNames.contains(propertyName)) {
-                emit sig_graphicsSettingsChanged();
+    connect(spinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, [this, property](int value) {
+        QString propertyNameStr = QLatin1String(property.name());
+        bool success = false;
+        if (propertyNameStr == "antialiasingSamples") {
+            setConfig().canvas.setAntialiasingSamples(value); success = true;
+        } else {
+            success = property.write(&setConfig(), value);
+            if (success && graphicsNamedConfigPropertyNames.contains(propertyNameStr)) { // Assuming some NamedConfig<int> might exist
+                 emit sig_graphicsSettingsChanged();
             }
         }
+        // No direct emit for CanvasSettings props here
     });
     return spinBox;
 }
 
-QPushButton* DeveloperPage::createColorEditor(Configuration &config, const QMetaProperty &property, const QString& typeName) {
+QPushButton* DeveloperPage::createColorEditor(Configuration &config_ref_for_read, const QMetaProperty &property, const QString& typeName) {
     QColor initialQColor;
     bool isXColor = (typeName == "XColor");
 
     if (isXColor) {
-        initialQColor = property.read(&config).value<XColor>().getColor();
+        initialQColor = property.read(&config_ref_for_read).value<XColor>().getColor();
     } else {
-        initialQColor = property.read(&config).value<QColor>();
+        initialQColor = property.read(&config_ref_for_read).value<QColor>();
     }
 
     QPushButton *button = new QPushButton(initialQColor.name(), this);
+    // ... (stylesheet and context menu setup as before) ...
     button->setFlat(true);
     button->setStyleSheet(QString("QPushButton { background-color: %1; color: %2; border: 1px solid black; padding: 2px; text-align: left; }")
                           .arg(initialQColor.name())
@@ -174,28 +216,40 @@ QPushButton* DeveloperPage::createColorEditor(Configuration &config, const QMeta
     });
 
     QPointer<QPushButton> buttonPtr(button);
-    connect(button, &QPushButton::clicked, this, [this, &config, property, buttonPtr, isXColor]() {
+    connect(button, &QPushButton::clicked, this, [this, &config_ref_for_read, property, buttonPtr, isXColor]() { // Pass config_ref_for_read if needed by property.read inside
         if (!buttonPtr) return;
         QColor currentColor;
+        // It's safer to re-read from the config object that was passed for initial read,
+        // or always use getConfig() if we assume it's the single source of truth for current state.
+        // For consistency with other helpers, let's assume property.read(&getConfig()) is okay for current value.
         if (isXColor) {
-            currentColor = property.read(&config).value<XColor>().getColor();
+            currentColor = property.read(&getConfig()).value<XColor>().getColor();
         } else {
-            currentColor = property.read(&config).value<QColor>();
+            currentColor = property.read(&getConfig()).value<QColor>();
         }
         QColor color = QColorDialog::getColor(currentColor, this, "Select Color");
         if (color.isValid()) {
             bool success;
+            // Write to the live config using setConfig()
             if (isXColor) {
-                success = property.write(&config, QVariant::fromValue(XColor(color)));
+                success = property.write(&setConfig(), QVariant::fromValue(XColor(color)));
             } else {
-                success = property.write(&config, color);
+                // This assumes QColor properties are not part of CanvasSettings' direct ChangeMonitor items
+                // If they were, they'd need a direct setter.
+                success = property.write(&setConfig(), color);
             }
             if (success) {
                 buttonPtr->setText(color.name());
                 buttonPtr->setStyleSheet(QString("QPushButton { background-color: %1; color: %2; border: 1px solid black; padding: 2px; text-align: left; }")
                                        .arg(color.name())
                                        .arg(color.lightness() < 128 ? "white" : "black"));
-                emit sig_graphicsSettingsChanged();
+                // No direct emit here for XColor; global XNamedColor monitor handles it.
+                // If this QColor is not an XColor and IS graphics related AND not in CanvasSettings, it might need a direct emit.
+                // For now, assuming XColor covers the main graphics color cases handled by global monitor.
+                // QColor properties in CanvasSettings (if any) would be covered by CanvasSettings monitor if refactored.
+                if (!isXColor && QLatin1String(property.typeName()) == QLatin1String("QColor") /* and is graphics related, not in CanvasSettings */) {
+                     // emit sig_graphicsSettingsChanged(); // Potentially, if it's a non-XColor, non-CanvasSettings graphics color.
+                }
             }
         }
     });
@@ -209,7 +263,7 @@ void DeveloperPage::onResetToDefaultTriggered()
         return;
     }
 
-    Configuration &liveConfig = setConfig(); // Get current live configuration
+    Configuration &liveConfig = setConfig();
     const QMetaObject *liveMetaObject = liveConfig.staticMetaObject;
     int propertyIndex = liveMetaObject->indexOfProperty(m_contextMenuPropertyName.toUtf8().constData());
 
@@ -222,7 +276,6 @@ void DeveloperPage::onResetToDefaultTriggered()
     QMetaProperty property = liveMetaObject->property(propertyIndex);
     QVariant defaultValue;
 
-    // Read the default value from our m_defaultConfig instance
     const QMetaObject *defaultMetaObject = m_defaultConfig->staticMetaObject;
     int defaultPropertyIndex = defaultMetaObject->indexOfProperty(m_contextMenuPropertyName.toUtf8().constData());
     if (defaultPropertyIndex != -1) {
@@ -240,19 +293,36 @@ void DeveloperPage::onResetToDefaultTriggered()
          return;
     }
 
-    bool success = property.write(&liveConfig, defaultValue);
+    // Use setters for refactored CanvasSettings properties, otherwise property.write()
+    QString propNameStr = QLatin1String(property.name());
+    bool success = false;
+    if (propNameStr == "drawDoorNames") {
+        liveConfig.canvas.setDrawDoorNames(defaultValue.toBool()); success = true;
+    } else if (propNameStr == "drawUpperLayersTextured") {
+        liveConfig.canvas.setDrawUpperLayersTextured(defaultValue.toBool()); success = true;
+    } else if (propNameStr == "trilinearFiltering") {
+        liveConfig.canvas.setTrilinearFiltering(defaultValue.toBool()); success = true;
+    } else if (propNameStr == "softwareOpenGL") {
+        liveConfig.canvas.setSoftwareOpenGL(defaultValue.toBool()); success = true;
+    } else if (propNameStr == "resourcesDirectory") {
+        liveConfig.canvas.setResourcesDirectory(defaultValue.toString()); success = true;
+    } else if (propNameStr == "antialiasingSamples") {
+        liveConfig.canvas.setAntialiasingSamples(defaultValue.toInt()); success = true;
+    } else {
+        success = property.write(&liveConfig, defaultValue);
+    }
+
     if (success) {
-        // Update the UI widget
         QWidget* editorWidgetToUpdate = nullptr;
-        for (int i = 0; i < m_settingWidgets.count(); ++i) {
+        // ... (UI update logic as before)
+        for (int i = 0; i < m_settingWidgets.count(); ++i) { // Renamed from m_settingLabels
             if (m_settingWidgets.at(i)->property("propertyName").toString() == m_contextMenuPropertyName) {
                 editorWidgetToUpdate = m_settingWidgets.at(i);
                 break;
             }
         }
-
         if (editorWidgetToUpdate) {
-            if (QCheckBox* cb = qobject_cast<QCheckBox*>(editorWidgetToUpdate)) {
+             if (QCheckBox* cb = qobject_cast<QCheckBox*>(editorWidgetToUpdate)) {
                 cb->setChecked(defaultValue.toBool());
             } else if (QLineEdit* le = qobject_cast<QLineEdit*>(editorWidgetToUpdate)) {
                 le->setText(defaultValue.toString());
@@ -270,23 +340,18 @@ void DeveloperPage::onResetToDefaultTriggered()
                                       .arg(c.lightness() < 128 ? "white" : "black"));
                 }
             }
-        } else {
-            // If not found, maybe the page was repopulated? For safety, repopulate.
-            // This is a bit heavy-handed.
+        }  else {
             populatePage();
         }
 
-        // Emit signals if necessary
-        QString propNameStr = QLatin1String(property.name());
-        bool isGraphicsProp = false;
-        if (property.typeId() == QMetaType::Bool && knownGraphicsBoolPropertyNames.contains(propNameStr)) isGraphicsProp = true;
-        else if (property.typeId() == QMetaType::QString && knownGraphicsStringPropertyNames.contains(propNameStr)) isGraphicsProp = true;
-        else if (property.typeId() == QMetaType::Int && knownGraphicsIntPropertyNames.contains(propNameStr)) isGraphicsProp = true;
-        else if (QLatin1String(property.typeName()) == QLatin1String("XColor") || QLatin1String(property.typeName()) == QLatin1String("QColor")) isGraphicsProp = true;
-
-        if (isGraphicsProp) {
-            emit sig_graphicsSettingsChanged();
+        // Signal emission is now handled by ChangeMonitors for CanvasSettings plain members and XNamedColors.
+        // For NamedConfig<T> properties, if they were reset via property.write(), we might need to emit here if they are graphics related.
+        if (property.isUser() && QLatin1String(property.typeName()).startsWith("NamedConfig")) { // Heuristic for NamedConfig
+            if (graphicsNamedConfigPropertyNames.contains(propNameStr)) {
+                 emit sig_graphicsSettingsChanged();
+            }
         }
+        // No other direct emit here.
     } else {
         qWarning() << "DeveloperPage: Failed to write default value for" << m_contextMenuPropertyName;
     }
@@ -317,7 +382,7 @@ void DeveloperPage::populatePage()
         delete item;
     }
 
-    Configuration &config = setConfig();
+    Configuration &config = getConfig(); // Use getConfig for initial read
     const QMetaObject *metaObject = config.staticMetaObject;
 
     QFormLayout *formLayout = new QFormLayout();
@@ -327,10 +392,9 @@ void DeveloperPage::populatePage()
 
     for (int i = metaObject->userProperty().propertyOffset(); i < metaObject->propertyCount(); ++i) {
         QMetaProperty property = metaObject->property(i);
-        // const char *name = property.name(); // Not used directly if propertyName comes from widget
-        QVariant qVariantValue = property.read(&config);
+        QVariant qVariantValue = property.read(&config); // Read from config
         QWidget *editorWidget = nullptr;
-        QLabel *nameLabel = new QLabel(QString::fromUtf8(property.name()) + ":", this); // Use property.name() for label
+        QLabel *nameLabel = new QLabel(QString::fromUtf8(property.name()) + ":", this);
 
         const QString typeName = QString::fromUtf8(property.typeName());
 

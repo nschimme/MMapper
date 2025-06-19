@@ -8,9 +8,8 @@
 #include <QWidget>
 #include <QPointer> // For QPointer for safe signal handling with lambdas
 #include <memory> // For std::unique_ptr
-// It's better to include the full header if we are using std::unique_ptr<Configuration>
-// and calling methods on it, rather than just forward declaring.
 #include "../../src/configuration/configuration.h"
+#include "../global/Signal2Lifetime.h" // Added for m_configLifetime
 
 
 class QCheckBox;
@@ -54,4 +53,5 @@ private:
     QList<QWidget*> m_settingWidgets;
     std::unique_ptr<Configuration> m_defaultConfig;
     QString m_contextMenuPropertyName;
+    Signal2Lifetime m_configLifetime; // For managing connections to ChangeMonitors
 };

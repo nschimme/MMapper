@@ -24,7 +24,8 @@
 #include <QtGlobal>
 
 class Coordinate;
-class RoomRecipient;
+// class RoomRecipient; // Replaced by PathProcessor
+#include "PathProcessor.h" // PathProcessor is now in the same directory
 class RoomSignalHandler;
 struct PathParameters;
 
@@ -42,14 +43,14 @@ private:
 
 public:
     static std::shared_ptr<Path> alloc(const RoomHandle &room,
-                                       RoomRecipient *locker,
+                                       PathProcessor *locker, // Changed to PathProcessor*
                                        RoomSignalHandler *signaler,
                                        std::optional<ExitDirEnum> direction);
 
 public:
     explicit Path(Badge<Path>,
                   RoomHandle moved_room,
-                  RoomRecipient *locker,
+                  PathProcessor *locker, // Changed to PathProcessor*
                   RoomSignalHandler *signaler,
                   std::optional<ExitDirEnum> direction);
     DELETE_CTORS_AND_ASSIGN_OPS(Path);
@@ -72,7 +73,7 @@ public:
     NODISCARD std::shared_ptr<Path> fork(const RoomHandle &room,
                                          const Coordinate &expectedCoordinate,
                                          const PathParameters &params,
-                                         RoomRecipient *locker,
+                                         PathProcessor *locker, // Changed to PathProcessor*
                                          ExitDirEnum dir);
     NODISCARD double getProb() const
     {

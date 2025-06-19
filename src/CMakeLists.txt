@@ -295,8 +295,8 @@ set(mmapper_SRCS
     map/RoomHandle.h
     map/RoomIdSet.cpp
     map/RoomIdSet.h
-    map/PathProcessor.cpp
-    map/PathProcessor.h
+    pathmachine/PathProcessor.cpp  # Moved
+    pathmachine/PathProcessor.h  # Moved
     map/RoomRevert.cpp
     map/RoomRevert.h
     map/ServerIdMap.cpp

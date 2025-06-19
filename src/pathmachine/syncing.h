@@ -5,7 +5,7 @@
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 
 #include "../global/RuleOf5.h"
-#include "../map/PathProcessor.h"
+#include "PathProcessor.h" // Changed path
 #include "path.h"
 
 #include <list>

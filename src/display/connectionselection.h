@@ -11,7 +11,7 @@
 #include "../map/ExitFieldVariant.h"
 #include "../map/ExitFlags.h"
 #include "../map/RoomHandle.h"
-#include "../map/PathProcessor.h"
+#include "../pathmachine/PathProcessor.h" // Changed path
 #include "../map/coordinate.h"
 #include "../map/roomid.h"
 

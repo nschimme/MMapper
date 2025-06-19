@@ -9,7 +9,7 @@
 #include "../global/NullPointerException.h"
 #include "../global/RAII.h"
 #include "../global/RuleOf5.h"
-#include "../map/PathProcessor.h"
+#include "../pathmachine/PathProcessor.h" // Changed path
 #include "../map/roomid.h"
 #include "roomfilter.h"
 

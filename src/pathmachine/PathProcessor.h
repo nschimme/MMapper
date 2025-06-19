@@ -7,8 +7,8 @@
 
 #include "../global/RuleOf5.h"
 #include "../global/macros.h"
-#include "ChangeList.h" // Added for ChangeList
-#include "roomid.h"
+#include "../map/ChangeList.h" // Corrected path
+#include "../map/roomid.h"     // Corrected path
 
 class MapData;
 class RoomHandle;

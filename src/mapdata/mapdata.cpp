@@ -17,7 +17,7 @@
 #include "../map/ExitDirection.h"
 #include "../map/ExitFieldVariant.h"
 #include "../map/RawRoom.h"
-#include "../map/PathProcessor.h"
+#include "../pathmachine/PathProcessor.h" // Changed path
 #include "../map/World.h"
 #include "../map/coordinate.h"
 #include "../map/exit.h"

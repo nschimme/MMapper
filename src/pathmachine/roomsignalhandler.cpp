@@ -13,7 +13,7 @@
 #include <cassert>
 #include <memory>
 
-void RoomSignalHandler::hold(const RoomId room, RoomRecipient *const locker)
+void RoomSignalHandler::hold(const RoomId room, PathProcessor *const locker) // Changed to PathProcessor*
 {
     // REVISIT: why do we allow locker to be null?
     owners.insert(room);
@@ -71,7 +71,7 @@ void RoomSignalHandler::keep(const RoomId room,
 
     // Original logic for managing lockers, but without calling m_map.keepRoom
     if (!lockers[room].empty()) {
-        if (RoomRecipient *const locker = *(lockers[room].begin())) {
+        if (PathProcessor *const locker = *(lockers[room].begin())) { // Changed to PathProcessor*
             // m_map.keepRoom(*locker, room); // Removed
             lockers[room].erase(locker);
         } else {

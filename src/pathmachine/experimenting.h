@@ -9,7 +9,7 @@
 #include "../map/ExitDirection.h"
 #include "../map/ExitFieldVariant.h"
 #include "../map/ExitFlags.h"
-#include "../map/PathProcessor.h"
+#include "PathProcessor.h" // Changed path
 #include "../map/coordinate.h"
 #include "path.h"
 

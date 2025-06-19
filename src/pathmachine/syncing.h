@@ -20,17 +20,18 @@ struct PathParameters;
 class NODISCARD Syncing final : public PathProcessor, public EnableGetWeakHandleFromThis<Syncing>
 {
 private:
-    RoomSignalHandler &signaler; // Changed to reference
-    PathParameters &params;
-    const std::shared_ptr<PathList> paths;
+    RoomSignalHandler &m_signaler; // Prefixed
+    PathParameters &m_params; // Prefixed
+    const std::shared_ptr<PathList> m_paths; // Prefixed
     // This is not our parent; it's the parent we assign to new objects.
-    std::shared_ptr<Path> parent;
-    uint32_t numPaths = 0u;
+    std::shared_ptr<Path> m_parent; // Prefixed
+    uint32_t m_numPaths = 0u; // Prefixed
 
 public:
+    // Parameter names 'p', 'paths', 'signaler' in constructor are fine, they are local to the declaration/definition
     explicit Syncing(PathParameters &p,
                      std::shared_ptr<PathList> paths,
-                     RoomSignalHandler &signaler); // Changed to reference
+                     RoomSignalHandler &signaler);
 
 public:
     Syncing() = delete;

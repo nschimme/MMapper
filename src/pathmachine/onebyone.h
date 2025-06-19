@@ -19,13 +19,13 @@ struct PathParameters;
 class NODISCARD OneByOne final : public Experimenting, public EnableGetWeakHandleFromThis<OneByOne>
 {
 private:
-    SharedParseEvent event;
-    RoomSignalHandler &handler; // Changed to reference
+    SharedParseEvent m_event; // Prefixed
+    RoomSignalHandler &m_handler; // Prefixed
 
 public:
     explicit OneByOne(const SigParseEvent &sigParseEvent,
                       PathParameters &in_params,
-                      RoomSignalHandler &handler); // Changed to reference
+                      RoomSignalHandler &handler); // Parameter name unchanged, will be used to init m_handler
 
 private:
     void virt_receiveRoom(const RoomHandle &room, ChangeList &changes) final;

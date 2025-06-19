@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <optional>
+#include <type_traits> // For std::is_convertible_v and std::enable_if_t
 
 /// The object's acceptVisitor() allows safe use the object if it still exists.
 /// However since no access is given to the underlying weak_ptr, clients cannot
@@ -27,6 +28,8 @@ class NODISCARD WeakHandle final
 private:
     std::weak_ptr<T> m_weakPtr;
 
+    template<typename U> friend class WeakHandle; // Friend declaration
+
 public:
     WeakHandle() = default;
     // Removed explicit keyword to allow implicit conversions
@@ -35,6 +38,11 @@ public:
     {
         static_assert(!std::is_reference_v<T> && !std::is_pointer_v<T> && !std::is_array_v<T>);
     }
+
+    // Templated converting constructor
+    template <typename U,
+              typename = std::enable_if_t<std::is_convertible_v<std::shared_ptr<U>, std::shared_ptr<T>>>>
+    WeakHandle(const WeakHandle<U>& other) : m_weakPtr(other.m_weakPtr) {}
 
 public:
     NODISCARD WeakHandle<const T> asConst() const

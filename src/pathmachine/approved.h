@@ -21,13 +21,13 @@ class ParseEvent;
 class NODISCARD Approved final : public PathProcessor, public EnableGetWeakHandleFromThis<Approved>
 {
 private:
-    SigParseEvent myEvent;
-    std::unordered_map<RoomId, ComparisonResultEnum> compareCache;
-    RoomHandle matchedRoom;
-    MapFrontend &m_map;
-    const int matchingTolerance;
-    bool moreThanOne = false;
-    bool update = false;
+    SigParseEvent m_myEvent; // Prefixed
+    std::unordered_map<RoomId, ComparisonResultEnum> m_compareCache; // Prefixed
+    RoomHandle m_matchedRoom; // Prefixed
+    MapFrontend &m_map; // Already prefixed
+    const int m_matchingTolerance; // Prefixed
+    bool m_moreThanOne = false; // Prefixed
+    bool m_update = false; // Prefixed
 
 public:
     explicit Approved(MapFrontend &map, const SigParseEvent &sigParseEvent, int matchingTolerance);
@@ -41,6 +41,6 @@ private:
 
 public:
     NODISCARD RoomHandle oneMatch() const;
-    NODISCARD bool needsUpdate() const { return update; }
+    NODISCARD bool needsUpdate() const { return m_update; } // Prefixed
     void releaseMatch(ChangeList &changes);
 };

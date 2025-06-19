@@ -14,42 +14,42 @@
 Syncing::Syncing(PathParameters &in_p,
                  std::shared_ptr<PathList> moved_paths,
                  RoomSignalHandler &in_signaler) // Changed to reference
-    : signaler(in_signaler) // Initialize reference member
-    , params(in_p)
-    , paths(std::move(moved_paths))
-    // Pass WeakHandle and signaler reference to Path::alloc in constructor
-    , parent(Path::alloc(RoomHandle{}, this->getWeakHandleFromThis(), this->signaler, std::nullopt))
+    : m_signaler(in_signaler) // Prefixed
+    , m_params(in_p) // Prefixed
+    , m_paths(std::move(moved_paths)) // Prefixed
+    // Pass WeakHandle and m_signaler reference to Path::alloc in constructor
+    , m_parent(Path::alloc(RoomHandle{}, this->getWeakHandleFromThis(), this->m_signaler, std::nullopt)) // Prefixed
 {}
 
 void Syncing::virt_receiveRoom(const RoomHandle &in_room, ChangeList &changes)
 {
-    if (++numPaths > params.maxPaths) {
-        if (!paths->empty()) {
-            for (auto &path : *paths) {
+    if (++m_numPaths > m_params.maxPaths) { // Prefixed numPaths, params
+        if (!m_paths->empty()) { // Prefixed paths
+            for (auto &path : *m_paths) { // Prefixed paths
                 path->deny(changes); // Pass ChangeList
             }
-            paths->clear();
-            parent = nullptr;
+            m_paths->clear(); // Prefixed paths
+            m_parent = nullptr; // Prefixed parent
         }
     } else {
-        // Pass WeakHandle and signaler reference to Path::alloc in virt_receiveRoom
-        auto p = Path::alloc(in_room, this->getWeakHandleFromThis(), this->signaler, ExitDirEnum::NONE);
-        p->setParent(parent);
-        parent->insertChild(p);
-        paths->push_back(p);
+        // Pass WeakHandle and m_signaler reference to Path::alloc in virt_receiveRoom
+        auto p = Path::alloc(in_room, this->getWeakHandleFromThis(), this->m_signaler, ExitDirEnum::NONE); // Prefixed signaler
+        p->setParent(m_parent); // Prefixed parent
+        m_parent->insertChild(p); // Prefixed parent
+        m_paths->push_back(p); // Prefixed paths
     }
 }
 
 std::shared_ptr<PathList> Syncing::evaluate()
 {
-    return paths;
+    return m_paths; // Prefixed
 }
 
 void Syncing::finalizePaths(ChangeList &changes)
 {
-    if (parent != nullptr) {
-        parent->deny(changes); // Pass ChangeList
+    if (m_parent != nullptr) { // Prefixed
+        m_parent->deny(changes); // Prefixed // Pass ChangeList
         // Path::deny sets m_zombie=true, which should be sufficient for state.
-        // parent = nullptr; // Optional: explicitly reset if Syncing instance can be reused.
+        // m_parent = nullptr; // Optional: explicitly reset if Syncing instance can be reused.
     }
 }

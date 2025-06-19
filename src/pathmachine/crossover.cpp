@@ -24,7 +24,7 @@ Crossover::Crossover(MapFrontend &map,
 
 void Crossover::virt_receiveRoom(const RoomHandle &room, ChangeList &changes)
 {
-    if (deref(shortPaths).empty()) {
+    if (deref(m_shortPaths).empty()) { // Prefixed
         if (auto rh = m_map.findRoomHandle(room.getId())) {
             if (rh.isTemporary()) {
                 changes.add(Change{room_change_types::RemoveRoom{room.getId()}});
@@ -32,7 +32,7 @@ void Crossover::virt_receiveRoom(const RoomHandle &room, ChangeList &changes)
         }
     }
 
-    for (auto &shortPath : *shortPaths) {
-        augmentPath(shortPath, room);
+    for (auto &shortPath_iterator : *m_shortPaths) { // Prefixed and renamed iterator to avoid conflict
+        augmentPath(shortPath_iterator, room);
     }
 }

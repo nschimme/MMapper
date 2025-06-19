@@ -31,9 +31,9 @@ class NODISCARD_QOBJECT RoomSignalHandler final : public QObject
 
 private:
     MapFrontend &m_map;
-    RoomIdSet owners;
-    std::map<RoomId, std::vector<WeakHandle<PathProcessor>>> lockers; // Changed to vector of WeakHandles
-    std::map<RoomId, int> holdCount;
+    RoomIdSet m_owners; // Prefixed
+    std::map<RoomId, std::vector<WeakHandle<PathProcessor>>> m_lockers; // Prefixed
+    std::map<RoomId, int> m_holdCount; // Prefixed
 
 public:
     RoomSignalHandler() = delete;

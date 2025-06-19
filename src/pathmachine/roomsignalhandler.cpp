@@ -18,21 +18,21 @@
 
 void RoomSignalHandler::hold(const RoomId room, WeakHandle<PathProcessor> locker_handle)
 {
-    owners.insert(room);
-    // Initialize holdCount for the room if it's not already tracked.
-    if (holdCount.find(room) == holdCount.end()) {
-        holdCount[room] = 0;
+    m_owners.insert(room);
+    // Initialize m_holdCount for the room if it's not already tracked.
+    if (m_holdCount.find(room) == m_holdCount.end()) {
+        m_holdCount[room] = 0;
     }
-    // 'lockers' is now std::map<RoomId, std::vector<WeakHandle<PathProcessor>>>
-    lockers[room].push_back(locker_handle);
-    ++holdCount[room];
+    // 'm_lockers' is now std::map<RoomId, std::vector<WeakHandle<PathProcessor>>>
+    m_lockers[room].push_back(locker_handle);
+    ++m_holdCount[room];
 }
 
 void RoomSignalHandler::release(const RoomId room, ChangeList &changes)
 {
-    assert(holdCount[room]);
-    if (--holdCount[room] == 0) {
-        if (owners.contains(room)) {
+    assert(m_holdCount.count(room) && m_holdCount.at(room) > 0); // Use .count or .at for safety, and m_ prefix
+    if (--m_holdCount[room] == 0) {
+        if (m_owners.contains(room)) {
             // New logic to remove room if it's temporary
             if (auto rh = m_map.findRoomHandle(room)) {
                 if (rh.isTemporary()) {
@@ -45,9 +45,9 @@ void RoomSignalHandler::release(const RoomId room, ChangeList &changes)
             // For now, maintaining original assertion if present, or consider logging
             assert(false);
         }
-        lockers.erase(room); // Clear the vector for the room
-        owners.erase(room);
-        holdCount.erase(room); // Also clean up holdCount
+        m_lockers.erase(room); // Clear the vector for the room
+        m_owners.erase(room);
+        m_holdCount.erase(room); // Also clean up m_holdCount
     }
 }
 
@@ -57,8 +57,8 @@ void RoomSignalHandler::keep(const RoomId room,
                              ChangeList &changes)
 {
     // Corrected assertion to avoid inserting into map with operator[] if key doesn't exist
-    assert(holdCount.count(room) && holdCount.at(room) != 0);
-    assert(owners.contains(room));
+    assert(m_holdCount.count(room) && m_holdCount.at(room) != 0);
+    assert(m_owners.contains(room));
 
     // New logic to make room permanent if it's temporary
     if (auto rh = m_map.findRoomHandle(room)) {
@@ -87,10 +87,10 @@ void RoomSignalHandler::keep(const RoomId room,
     // The line `lockers[room].erase(locker);` from the previous state is removed.
 
     // === Add new logic here ===
-    // If 'lockers' contains the room and its vector of handles is not empty,
+    // If 'm_lockers' contains the room and its vector of handles is not empty,
     // remove one element to simulate the old behavior of reducing the locker count.
-    auto it_room_lockers = lockers.find(room);
-    if (it_room_lockers != lockers.end()) {
+    auto it_room_lockers = m_lockers.find(room);
+    if (it_room_lockers != m_lockers.end()) {
         auto& handles_vector = it_room_lockers->second;
         if (!handles_vector.empty()) {
             handles_vector.pop_back(); // Simple way to remove one element
@@ -102,8 +102,8 @@ void RoomSignalHandler::keep(const RoomId room,
 }
 
 int RoomSignalHandler::getNumLockers(RoomId room) {
-    auto it = lockers.find(room);
-    if (it == lockers.end()) {
+    auto it = m_lockers.find(room);
+    if (it == m_lockers.end()) {
         return 0;
     }
     // TODO: This count includes expired WeakHandles and is not an accurate

@@ -7,6 +7,7 @@
 #include "../map/parseevent.h"
 #include "experimenting.h"
 #include "../global/WeakHandle.h" // Added for EnableGetWeakHandleFromThis
+#include "../map/ChangeList.h"   // Added for ChangeList
 
 #include <memory>
 
@@ -19,15 +20,15 @@ class NODISCARD OneByOne final : public Experimenting, public EnableGetWeakHandl
 {
 private:
     SharedParseEvent event;
-    RoomSignalHandler *handler = nullptr;
+    RoomSignalHandler &handler; // Changed to reference
 
 public:
     explicit OneByOne(const SigParseEvent &sigParseEvent,
                       PathParameters &in_params,
-                      RoomSignalHandler *handler);
+                      RoomSignalHandler &handler); // Changed to reference
 
 private:
-    void virt_receiveRoom(const RoomHandle &room) final;
+    void virt_receiveRoom(const RoomHandle &room, ChangeList &changes) final;
 
 public:
     void addPath(std::shared_ptr<Path> path);

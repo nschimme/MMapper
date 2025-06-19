@@ -45,21 +45,21 @@ void Experimenting::augmentPath(const std::shared_ptr<Path> &path, const RoomHan
     ++numPaths;
 }
 
-std::shared_ptr<PathList> Experimenting::evaluate()
+std::shared_ptr<PathList> Experimenting::evaluate(ChangeList &changes) // Added ChangeList
 {
     for (PathList &sp = deref(shortPaths); !sp.empty();) {
         std::shared_ptr<Path> ppath = utils::pop_front(sp);
         Path &path = deref(ppath);
         if (!path.hasChildren()) {
-            path.deny();
+            path.deny(changes); // Pass changes
         }
     }
 
     if (best != nullptr) {
         if (second == nullptr || best->getProb() > second->getProb() * params.acceptBestRelative
             || best->getProb() > second->getProb() + params.acceptBestAbsolute) {
-            for (auto &path : *paths) {
-                path->deny();
+            for (auto &path_ptr : *paths) { // Renamed to avoid conflict with Path& path above
+                path_ptr->deny(changes); // Pass changes
             }
             paths->clear();
             paths->push_front(best);
@@ -75,7 +75,7 @@ std::shared_ptr<PathList> Experimenting::evaluate()
                 if (best->getProb() > working->getProb() * params.maxPaths / numPaths
                     || (best->getProb() <= working->getProb()
                         && best->getRoom() == working->getRoom())) {
-                    working->deny();
+                    working->deny(changes); // Pass changes
                 } else {
                     paths->push_back(working);
                 }

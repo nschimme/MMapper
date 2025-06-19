@@ -22,24 +22,29 @@
 
 // PathProcessor.h and WeakHandle.h are included via path.h
 std::shared_ptr<Path> Path::alloc(const RoomHandle &room,
-                                  WeakHandle<PathProcessor> locker_handle, // Changed to WeakHandle
-                                  RoomSignalHandler *const signaler,
+                                  WeakHandle<PathProcessor> locker_handle,
+                                  RoomSignalHandler &signaler, // Changed to reference
                                   std::optional<ExitDirEnum> moved_direction)
 {
     return std::make_shared<Path>(Badge<Path>{}, room, locker_handle, signaler, std::move(moved_direction));
 }
 
-Path::Path(Badge<Path>,
+Path::Path(Badge<Path> /*badge*/,
            RoomHandle moved_room,
-           WeakHandle<PathProcessor> locker_handle, // Changed to WeakHandle
-           RoomSignalHandler *const in_signaler,
-           std::optional<ExitDirEnum> moved_direction)
-    , m_signaler(in_signaler)
-    , m_dir(std::move(moved_direction))
+           WeakHandle<PathProcessor> locker_handle,
+           RoomSignalHandler &signaler, // Changed to reference
+           std::optional<ExitDirEnum> direction)
+    : m_parent()
+    , m_children()
+    , m_probability(1.0)
+    , m_room(std::move(moved_room))
+    , m_signaler(signaler) // m_signaler is now a reference
+    , m_dir(std::move(direction))
+    , m_zombie(false)
 {
+    // Constructor body
     if (m_dir.has_value()) {
-        // Pass the WeakHandle directly to hold
-        deref(m_signaler).hold(m_room.getId(), locker_handle);
+        m_signaler.hold(m_room.getId(), locker_handle); // Use . instead of deref()
     }
 }
 
@@ -96,7 +101,7 @@ double Path::applyPathPenalties(double current_score_factor,
                               const PathParameters &params) const
 {
     double score = current_score_factor; // Start with the passed-in score factor
-    score /= static_cast<double>(m_signaler->getNumLockers(next_room_handle.getId()));
+    score /= static_cast<double>(m_signaler.getNumLockers(next_room_handle.getId())); // Use .
     if (next_room_handle.isTemporary()) {
         score *= params.newRoomPenalty;
     }
@@ -118,7 +123,7 @@ std::shared_ptr<Path> Path::fork(const RoomHandle &in_room, // param name: room
     const auto udir = static_cast<uint32_t>(direction); // udir is from original, keep if needed for alloc
     assert(isClamped(udir, 0u, NUM_EXITS)); // udir related assert
 
-    // Pass the WeakHandle to alloc
+    // Pass the WeakHandle to alloc, m_signaler is now a reference
     auto ret = Path::alloc(in_room, locker_handle, m_signaler, direction);
     ret->setParent(shared_from_this());
     insertChild(ret);
@@ -165,7 +170,7 @@ void Path::approve(ChangeList &changes)
         assert(m_dir.has_value());
         const RoomHandle proom = parent->getRoom();
         const auto pId = !proom.exists() ? INVALID_ROOMID : proom.getId();
-        deref(m_signaler).keep(m_room.getId(), m_dir.value(), pId, changes);
+        m_signaler.keep(m_room.getId(), m_dir.value(), pId, changes); // Use .
         parent->removeChild(this->shared_from_this());
         parent->approve(changes);
     }
@@ -191,7 +196,7 @@ void Path::deny(ChangeList &changes)
         return;
     }
     if (m_dir.has_value()) {
-        deref(m_signaler).release(m_room.getId(), changes);
+        m_signaler.release(m_room.getId(), changes); // Use .
     }
     if (const auto &parent = getParent()) {
         parent->removeChild(shared_from_this());

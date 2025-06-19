@@ -525,7 +525,7 @@ void PathMachine::approved(const SigParseEvent &sigParseEvent, ChangeList &chang
          * so why is this allowed to be null, and how do we prevent this null
          * from actually causing an error? */
         // Using default-constructed WeakHandle for nullptr PathProcessor
-        deref(m_paths).push_front(Path::alloc(pathRoot, WeakHandle<PathProcessor>(), &m_signaler, std::nullopt));
+        deref(m_paths).push_front(Path::alloc(pathRoot, WeakHandle<PathProcessor>(), m_signaler, std::nullopt)); // Pass m_signaler by reference
         experimenting(sigParseEvent, changes);
 
         return;
@@ -598,12 +598,12 @@ void PathMachine::syncing(const SigParseEvent &sigParseEvent, ChangeList &change
     auto &params = m_params;
     ParseEvent &event = sigParseEvent.deref();
     {
-        Syncing sync{params, m_paths, &m_signaler};
+        Syncing sync{params, m_paths, m_signaler}; // Pass m_signaler by reference
         if (event.hasServerId() || event.getNumSkipped() <= params.maxSkipped) {
             RoomIdSet ids = m_map.lookingForRooms(sigParseEvent);
             for (RoomId id : ids) {
                 if (auto rh = m_map.findRoomHandle(id)) {
-                    sync.receiveRoom(rh);
+                    sync.receiveRoom(rh, changes); // Pass changes
                 }
             }
         }
@@ -640,12 +640,12 @@ void PathMachine::experimenting(const SigParseEvent &sigParseEvent, ChangeList &
         RoomIdSet ids = m_map.lookingForRooms(sigParseEvent);
         for (RoomId id : ids) {
             if (auto rh = m_map.findRoomHandle(id)) {
-                exp.receiveRoom(rh);
+                exp.receiveRoom(rh, changes); // This was already corrected in a previous step, ensuring it is still correct.
             }
         }
-        m_paths = exp.evaluate();
+        m_paths = exp.evaluate(changes); // Pass changes
     } else {
-        OneByOne oneByOne{sigParseEvent, params, &m_signaler};
+        OneByOne oneByOne{sigParseEvent, params, m_signaler}; // Pass m_signaler by reference
         {
             auto &tmp = oneByOne;
             for (const auto &path : deref(m_paths)) {
@@ -656,7 +656,7 @@ void PathMachine::experimenting(const SigParseEvent &sigParseEvent, ChangeList &
                 tryCoordinate(working, tmp, event, changes);   // Pass changes
             }
         }
-        m_paths = oneByOne.evaluate();
+        m_paths = oneByOne.evaluate(changes); // Pass changes
     }
 
     evaluatePaths(changes);

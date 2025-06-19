@@ -21,10 +21,10 @@ class Path;
 
 OneByOne::OneByOne(const SigParseEvent &sigParseEvent,
                    PathParameters &in_params,
-                   RoomSignalHandler *const in_handler)
+                   RoomSignalHandler &in_handler) // Changed to reference
     : Experimenting{PathList::alloc(), getDirection(sigParseEvent.deref().getMoveType()), in_params}
     , event{sigParseEvent.getShared()}
-    , handler{in_handler}
+    , handler{in_handler} // Initialize reference member
 {}
 
 void OneByOne::virt_receiveRoom(const RoomHandle &room, ChangeList &changes)
@@ -35,8 +35,8 @@ void OneByOne::virt_receiveRoom(const RoomHandle &room, ChangeList &changes)
     } else {
         // needed because the memory address is not unique and
         // calling admin->release might destroy a room still held by some path
-        handler->hold(room.getId(), this->getWeakHandleFromThis()); // Use getWeakHandleFromThis
-        handler->release(room.getId(), changes);
+        handler.hold(room.getId(), this->getWeakHandleFromThis()); // Use . instead of ->
+        handler.release(room.getId(), changes); // Use . instead of ->
     }
 }
 

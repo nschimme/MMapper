@@ -20,7 +20,7 @@ struct PathParameters;
 class NODISCARD Syncing final : public PathProcessor, public EnableGetWeakHandleFromThis<Syncing>
 {
 private:
-    RoomSignalHandler *signaler = nullptr;
+    RoomSignalHandler &signaler; // Changed to reference
     PathParameters &params;
     const std::shared_ptr<PathList> paths;
     // This is not our parent; it's the parent we assign to new objects.
@@ -30,7 +30,7 @@ private:
 public:
     explicit Syncing(PathParameters &p,
                      std::shared_ptr<PathList> paths,
-                     RoomSignalHandler *signaler);
+                     RoomSignalHandler &signaler); // Changed to reference
 
 public:
     Syncing() = delete;

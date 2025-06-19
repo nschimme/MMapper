@@ -29,7 +29,8 @@ private:
 
 public:
     WeakHandle() = default;
-    explicit WeakHandle(const std::weak_ptr<T> &weak)
+    // Removed explicit keyword to allow implicit conversions
+    WeakHandle(const std::weak_ptr<T> &weak)
         : m_weakPtr(weak)
     {
         static_assert(!std::is_reference_v<T> && !std::is_pointer_v<T> && !std::is_array_v<T>);

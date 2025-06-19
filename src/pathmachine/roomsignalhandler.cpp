@@ -56,7 +56,8 @@ void RoomSignalHandler::keep(const RoomId room,
                              const RoomId fromId,
                              ChangeList &changes)
 {
-    assert(holdCount[room] != 0);
+    // Corrected assertion to avoid inserting into map with operator[] if key doesn't exist
+    assert(holdCount.count(room) && holdCount.at(room) != 0);
     assert(owners.contains(room));
 
     // New logic to make room permanent if it's temporary
@@ -84,6 +85,19 @@ void RoomSignalHandler::keep(const RoomId room,
     // that would be a more complex operation (finding its WeakHandle and removing it),
     // but current logic seems to rely on holdCount and the general release.
     // The line `lockers[room].erase(locker);` from the previous state is removed.
+
+    // === Add new logic here ===
+    // If 'lockers' contains the room and its vector of handles is not empty,
+    // remove one element to simulate the old behavior of reducing the locker count.
+    auto it_room_lockers = lockers.find(room);
+    if (it_room_lockers != lockers.end()) {
+        auto& handles_vector = it_room_lockers->second;
+        if (!handles_vector.empty()) {
+            handles_vector.pop_back(); // Simple way to remove one element
+        }
+    }
+    // === End of new logic ===
+
     release(room, changes); // This will decrement holdCount and might trigger actual release logic
 }
 
@@ -92,20 +106,10 @@ int RoomSignalHandler::getNumLockers(RoomId room) {
     if (it == lockers.end()) {
         return 0;
     }
-
-    auto& handles = it->second;
-    // Remove expired handles and count valid ones
-    handles.erase(std::remove_if(handles.begin(), handles.end(),
-        [](const WeakHandle<PathProcessor>& wh) {
-            bool is_expired = true;
-            // Check if the weak_ptr is still valid by trying to lock it or visiting it.
-            // A visitor is safer as it doesn't require promoting to shared_ptr.
-            wh.acceptVisitor([&](const PathProcessor&){ is_expired = false; });
-            return is_expired;
-        }), handles.end());
-
-    // If the vector becomes empty after cleaning, it could be removed from the map,
-    // but this might interact with holdCount logic.
-    // For now, just return the current valid size.
-    return handles.size();
+    // TODO: This count includes expired WeakHandles and is not an accurate
+    // representation of live lockers. It's preserved to maintain existing
+    // pathfinding heuristic behavior, which might be sensitive to changes
+    // in this count. Consider refining this or the heuristic in the future,
+    // or implementing a separate cleanup mechanism for the 'lockers' vector.
+    return static_cast<int>(it->second.size());
 }

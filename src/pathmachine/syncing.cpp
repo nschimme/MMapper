@@ -13,12 +13,12 @@
 
 Syncing::Syncing(PathParameters &in_p,
                  std::shared_ptr<PathList> moved_paths,
-                 RoomSignalHandler *in_signaler)
-    : signaler(in_signaler)
+                 RoomSignalHandler &in_signaler) // Changed to reference
+    : signaler(in_signaler) // Initialize reference member
     , params(in_p)
     , paths(std::move(moved_paths))
-    // Pass WeakHandle to Path::alloc in constructor
-    , parent(Path::alloc(RoomHandle{}, this->getWeakHandleFromThis(), signaler, std::nullopt))
+    // Pass WeakHandle and signaler reference to Path::alloc in constructor
+    , parent(Path::alloc(RoomHandle{}, this->getWeakHandleFromThis(), this->signaler, std::nullopt))
 {}
 
 void Syncing::virt_receiveRoom(const RoomHandle &in_room, ChangeList &changes)
@@ -32,8 +32,8 @@ void Syncing::virt_receiveRoom(const RoomHandle &in_room, ChangeList &changes)
             parent = nullptr;
         }
     } else {
-        // Pass WeakHandle to Path::alloc in virt_receiveRoom
-        auto p = Path::alloc(in_room, this->getWeakHandleFromThis(), signaler, ExitDirEnum::NONE);
+        // Pass WeakHandle and signaler reference to Path::alloc in virt_receiveRoom
+        auto p = Path::alloc(in_room, this->getWeakHandleFromThis(), this->signaler, ExitDirEnum::NONE);
         p->setParent(parent);
         parent->insertChild(p);
         paths->push_back(p);

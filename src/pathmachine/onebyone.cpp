@@ -27,7 +27,7 @@ OneByOne::OneByOne(const SigParseEvent &sigParseEvent,
     , handler{in_handler}
 {}
 
-void OneByOne::virt_receiveRoom(const RoomHandle &room)
+void OneByOne::processRoom(const RoomHandle &room) // Method renamed and signature updated
 {
     if (::compare(room.getRaw(), deref(event), params.matchingTolerance)
         == ComparisonResultEnum::EQUAL) {

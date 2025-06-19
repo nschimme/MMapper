@@ -11,10 +11,12 @@
 #include "../global/logging.h"
 #include "../global/progresscounter.h"
 #include "../map/ChangeTypes.h"
-#include "../map/RoomRecipient.h"
+// #include "../map/RoomRecipient.h" // Removed
 #include "../map/coordinate.h"
 #include "../map/parseevent.h"
 #include "../map/room.h"
+// Added for PathMachine::PathProcessor - already included by mapfrontend.h, but good for clarity
+#include "../pathmachine/pathmachine.h"
 #include "../map/roomid.h"
 
 #include <cassert>
@@ -160,7 +162,7 @@ RoomIdSet MapFrontend::findAllRooms(const Coordinate &input_min, const Coordinat
     return result;
 }
 
-void MapFrontend::lookingForRooms(RoomRecipient &recipient, const SigParseEvent &sigParseEvent)
+void MapFrontend::lookingForRooms(PathMachine::PathProcessor &processor, const SigParseEvent &sigParseEvent) // CHANGED
 {
     const ParseEvent &event = sigParseEvent.deref();
     if (getCurrentMap().empty()) {
@@ -171,21 +173,21 @@ void MapFrontend::lookingForRooms(RoomRecipient &recipient, const SigParseEvent 
 
     const RoomIdSet roomIds = getCurrentMap().findAllRooms(event);
     for (const RoomId id : roomIds) {
-        recipient.receiveRoom(getCurrentMap().getRoomHandle(id));
+        processor.processRoom(getCurrentMap().getRoomHandle(id)); // CHANGED
     }
 }
 
-void MapFrontend::lookingForRooms(RoomRecipient &recipient, const RoomId id)
+void MapFrontend::lookingForRooms(PathMachine::PathProcessor &processor, const RoomId id) // CHANGED
 {
     if (const auto room = findRoomHandle(id)) {
-        recipient.receiveRoom(room);
+        processor.processRoom(room); // CHANGED
     }
 }
 
-void MapFrontend::lookingForRooms(RoomRecipient &recipient, const Coordinate &pos)
+void MapFrontend::lookingForRooms(PathMachine::PathProcessor &processor, const Coordinate &pos) // CHANGED
 {
     if (const auto room = findRoomHandle(pos)) {
-        recipient.receiveRoom(room);
+        processor.processRoom(room); // CHANGED
     }
 }
 
@@ -279,14 +281,14 @@ bool MapFrontend::applyChanges(const ChangeList &changes)
     return applyChanges(dummyPc, changes);
 }
 
-void MapFrontend::keepRoom(RoomRecipient &, const RoomId id)
+void MapFrontend::keepRoom(PathMachine::PathProcessor &/*processor*/, const RoomId id) // CHANGED, processor unused
 {
     if (const auto &room = findRoomHandle(id); room.exists() && room.isTemporary()) {
         applySingleChange(Change{room_change_types::MakePermanent{id}});
     }
 }
 
-void MapFrontend::releaseRoom(RoomRecipient &, const RoomId id)
+void MapFrontend::releaseRoom(PathMachine::PathProcessor &/*processor*/, const RoomId id) // CHANGED, processor unused
 {
     if (const auto &room = findRoomHandle(id); room.exists() && room.isTemporary()) {
         applySingleChange(Change{room_change_types::RemoveRoom{id}});

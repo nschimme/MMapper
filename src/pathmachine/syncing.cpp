@@ -20,7 +20,7 @@ Syncing::Syncing(PathParameters &in_p,
     , parent(Path::alloc(RoomHandle{}, this, signaler, std::nullopt))
 {}
 
-void Syncing::virt_receiveRoom(const RoomHandle &in_room)
+void Syncing::processRoom(const RoomHandle &in_room) // Renamed from virt_receiveRoom
 {
     if (++numPaths > params.maxPaths) {
         if (!paths->empty()) {

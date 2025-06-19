@@ -5,8 +5,9 @@
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 
 #include "../global/RuleOf5.h"
-#include "../map/RoomRecipient.h"
+// #include "../map/RoomRecipient.h" // Removed
 #include "path.h"
+#include "pathmachine.h" // Added for PathMachine::PathProcessor
 
 #include <list>
 #include <memory>
@@ -16,7 +17,7 @@
 class RoomSignalHandler;
 struct PathParameters;
 
-class NODISCARD Syncing final : public RoomRecipient
+class NODISCARD Syncing final : public PathMachine::PathProcessor // Changed inheritance
 {
 private:
     RoomSignalHandler *signaler = nullptr;
@@ -36,8 +37,8 @@ public:
     DELETE_CTORS_AND_ASSIGN_OPS(Syncing);
     ~Syncing() final;
 
-private:
-    void virt_receiveRoom(const RoomHandle &) final;
+public: // Was private
+    void processRoom(const RoomHandle& room) override; // Changed from virt_receiveRoom
 
 public:
     std::shared_ptr<PathList> evaluate();

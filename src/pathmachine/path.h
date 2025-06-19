@@ -39,6 +39,12 @@ private:
     const std::optional<ExitDirEnum> m_dir;
     bool m_zombie = false;
 
+private: // Helper method
+    double calculateProbabilityScore(const RoomHandle &forkedRoom,
+                                       const Coordinate &expectedCoordinate,
+                                       ExitDirEnum direction,
+                                       const PathParameters &params) const;
+
 public:
     static std::shared_ptr<Path> alloc(const RoomHandle &room,
                                        RoomRecipient *locker,

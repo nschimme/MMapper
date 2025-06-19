@@ -24,7 +24,10 @@
 
 class ParseEvent;
 class QObject;
-class RoomRecipient;
+// class RoomRecipient; // Removed
+
+// Added for PathMachine::PathProcessor
+#include "../pathmachine/pathmachine.h"
 
 /**
  * The MapFrontend organizes rooms and their relations to each other.
@@ -117,13 +120,13 @@ public:
     void scheduleAction(const Change &change);
 
     // looking for rooms leads to a bunch of foundRoom() signals
-    void lookingForRooms(RoomRecipient &, const SigParseEvent &);
-    void lookingForRooms(RoomRecipient &, RoomId); // by id
-    void lookingForRooms(RoomRecipient &, const Coordinate &);
+    void lookingForRooms(PathMachine::PathProcessor &processor, const SigParseEvent &event); // CHANGED
+    void lookingForRooms(PathMachine::PathProcessor &processor, RoomId id); // CHANGED
+    void lookingForRooms(PathMachine::PathProcessor &processor, const Coordinate &c); // CHANGED
 
 public:
-    void keepRoom(RoomRecipient &, RoomId);
-    void releaseRoom(RoomRecipient &, RoomId);
+    void keepRoom(PathMachine::PathProcessor &processor, RoomId roomId); // CHANGED
+    void releaseRoom(PathMachine::PathProcessor &processor, RoomId roomId); // CHANGED
 
 signals:
     // this signal is also sent out if a room is deleted. So any clients still

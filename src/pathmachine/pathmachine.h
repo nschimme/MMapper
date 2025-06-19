@@ -40,12 +40,19 @@ class NODISCARD_QOBJECT PathMachine : public QObject
 {
     Q_OBJECT
 
+public: // Or protected, depending on usage
+    class PathProcessor {
+    public:
+        virtual ~PathProcessor() = default;
+        virtual void processRoom(const RoomHandle& room) = 0;
+    };
+
 protected:
     PathParameters m_params;
 
 private:
     MapFrontend &m_map;
-    RoomSignalHandler m_signaler;
+    RoomSignalHandler m_signaler; // Now a plain C++ class
     SigParseEvent m_lastEvent;
     std::shared_ptr<PathList> m_paths;
     std::optional<RoomId> m_pathRoot;
@@ -64,6 +71,7 @@ public:
     void onMapLoaded();
 
 protected:
+    // Constructor signature in .h is fine, initializer list needs change in .cpp
     explicit PathMachine(MapFrontend &map, QObject *parent);
 
 protected:
@@ -78,9 +86,9 @@ private:
     void syncing(const SigParseEvent &sigParseEvent, ChangeList &changes);
     void approved(const SigParseEvent &sigParseEvent, ChangeList &changes);
     void evaluatePaths(ChangeList &changes);
-    void tryExits(const RoomHandle &, RoomRecipient &, const ParseEvent &, bool out);
-    void tryExit(const RawExit &possible, RoomRecipient &recipient, bool out);
-    void tryCoordinate(const RoomHandle &, RoomRecipient &, const ParseEvent &);
+    void tryExits(const RoomHandle &, PathMachine::PathProcessor &, const ParseEvent &, bool out); // CHANGED
+    void tryExit(const RawExit &possible, PathMachine::PathProcessor &processor, bool out); // CHANGED
+    void tryCoordinate(const RoomHandle &, PathMachine::PathProcessor &, const ParseEvent &); // CHANGED
 
 private:
     void updateMostLikelyRoom(const SigParseEvent &sigParseEvent, ChangeList &changes, bool force);

@@ -22,7 +22,7 @@ Crossover::Crossover(MapFrontend &map,
     , m_map{map}
 {}
 
-void Crossover::virt_receiveRoom(const RoomHandle &room)
+void Crossover::processRoom(const RoomHandle &room) // Renamed from virt_receiveRoom
 {
     if (deref(shortPaths).empty()) {
         m_map.releaseRoom(*this, room.getId());

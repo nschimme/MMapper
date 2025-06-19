@@ -6,6 +6,7 @@
 
 #include "../map/parseevent.h"
 #include "experimenting.h"
+// No longer directly needed: #include "pathmachine.h"
 
 #include <memory>
 
@@ -14,6 +15,7 @@ class Path;
 class RoomSignalHandler;
 struct PathParameters;
 
+// Experimenting is already a PathMachine::PathProcessor
 class NODISCARD OneByOne final : public Experimenting
 {
 private:
@@ -25,8 +27,8 @@ public:
                       PathParameters &in_params,
                       RoomSignalHandler *handler);
 
-private:
-    void virt_receiveRoom(const RoomHandle &room) final;
+public: // Changed from private
+    void processRoom(const RoomHandle& room) override; // New method
 
 public:
     void addPath(std::shared_ptr<Path> path);

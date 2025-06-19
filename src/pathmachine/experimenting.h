@@ -9,9 +9,10 @@
 #include "../map/ExitDirection.h"
 #include "../map/ExitFieldVariant.h"
 #include "../map/ExitFlags.h"
-#include "../map/RoomRecipient.h"
+// #include "../map/RoomRecipient.h" // Removed
 #include "../map/coordinate.h"
 #include "path.h"
+#include "pathmachine.h" // Added for PathMachine::PathProcessor
 
 #include <memory>
 
@@ -21,8 +22,11 @@ class PathMachine;
 struct PathParameters;
 
 // Base class for Crossover and OneByOne
-class NODISCARD Experimenting : public RoomRecipient
+class NODISCARD Experimenting : public PathMachine::PathProcessor // Changed inheritance
 {
+public: // Interface method
+    virtual void processRoom(const RoomHandle& room) = 0; // Added pure virtual method
+
 protected:
     void augmentPath(const std::shared_ptr<Path> &path, const RoomHandle &room);
     const Coordinate direction;

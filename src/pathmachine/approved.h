@@ -6,9 +6,9 @@
 
 #include "../global/RuleOf5.h"
 #include "../map/RoomHandle.h"
-#include "../map/RoomRecipient.h"
 #include "../map/parseevent.h"
 #include "../map/room.h"
+#include "pathmachine.h" // For PathMachine::PathProcessor
 #include "../map/roomid.h"
 
 #include <unordered_map>
@@ -16,7 +16,7 @@
 class MapFrontend;
 class ParseEvent;
 
-class NODISCARD Approved final : public RoomRecipient
+class NODISCARD Approved final : public PathMachine::PathProcessor // Changed inheritance
 {
 private:
     SigParseEvent myEvent;
@@ -35,8 +35,8 @@ public:
     Approved() = delete;
     DELETE_CTORS_AND_ASSIGN_OPS(Approved);
 
-private:
-    void virt_receiveRoom(const RoomHandle &) final;
+public:
+    void processRoom(const RoomHandle& room) override; // New method
 
 public:
     NODISCARD RoomHandle oneMatch() const;

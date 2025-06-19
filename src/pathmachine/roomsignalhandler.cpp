@@ -13,7 +13,14 @@
 #include <cassert>
 #include <memory>
 
-void RoomSignalHandler::hold(const RoomId room, RoomRecipient *const locker)
+// Added for PathMachine::PathProcessor - already included by roomsignalhandler.h, but good for clarity
+#include "pathmachine.h"
+
+RoomSignalHandler::RoomSignalHandler(MapFrontend &map)
+    : m_map{map}
+{}
+
+void RoomSignalHandler::hold(const RoomId room, PathMachine::PathProcessor *const locker)
 {
     // REVISIT: why do we allow locker to be null?
     owners.insert(room);
@@ -30,8 +37,8 @@ void RoomSignalHandler::release(const RoomId room)
     if (--holdCount[room] == 0) {
         if (owners.contains(room)) {
             for (auto i = lockers[room].begin(); i != lockers[room].end(); ++i) {
-                if (RoomRecipient *const recipient = *i) {
-                    m_map.releaseRoom(*recipient, room);
+                if (PathMachine::PathProcessor *const processor = *i) { // CHANGED
+                    m_map.releaseRoom(*processor, room); // CHANGED
                 }
             }
         } else {
@@ -61,9 +68,9 @@ void RoomSignalHandler::keep(const RoomId room,
     }
 
     if (!lockers[room].empty()) {
-        if (RoomRecipient *const locker = *(lockers[room].begin())) {
-            m_map.keepRoom(*locker, room);
-            lockers[room].erase(locker);
+        if (PathMachine::PathProcessor *const processor = *(lockers[room].begin())) { // CHANGED
+            m_map.keepRoom(*processor, room); // CHANGED
+            lockers[room].erase(processor); // CHANGED (variable name)
         } else {
             assert(false);
         }

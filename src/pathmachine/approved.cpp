@@ -27,7 +27,7 @@ Approved::~Approved()
     }
 }
 
-void Approved::virt_receiveRoom(const RoomHandle &perhaps)
+void Approved::processRoom(const RoomHandle &perhaps) // Method renamed
 {
     auto &event = myEvent.deref();
 

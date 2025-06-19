@@ -27,7 +27,7 @@ class Change;
 class ChangeList;
 class ProgressCounter;
 class RoomHandle;
-class RoomRecipient;
+// class RoomRecipient; // Removed
 class World;
 struct MapApplyResult;
 struct MapPair;

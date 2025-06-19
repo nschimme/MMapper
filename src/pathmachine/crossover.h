@@ -27,6 +27,6 @@ public:
               ExitDirEnum dirCode,
               PathParameters &params);
 
-private:
-    void virt_receiveRoom(const RoomHandle &) final;
+public: // Was private
+    void processRoom(const RoomHandle& room) override; // Changed from virt_receiveRoom
 };

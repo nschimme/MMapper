@@ -36,11 +36,22 @@
 // const QStringList knownGraphicsIntPropertyNames = { ... }; // REMOVED
 // const QStringList knownGraphicsStringPropertyNames = { ... }; // REMOVED
 
-// For NamedConfig<T> properties that are graphics-related and not part of CanvasSettings' direct monitor
+// For NamedConfig<T> properties that are graphics-related.
+// This list is now only used if a NamedConfig<T> is NOT part of a struct
+// that DeveloperPage already listens to via a more general ChangeMonitor (like CanvasSettings).
+// Since all listed NamedConfigs are within CanvasSettings or CanvasSettings::Advanced,
+// and DeveloperPage now listens to config.canvas.showMissingMapId etc. directly,
+// this list might become empty or very specific to NamedConfigs outside monitored structs.
+// For now, we'll keep it for any remaining NamedConfigs that might be graphics-related
+// and are handled via generic property.write() if not covered by direct listeners.
 const QStringList graphicsNamedConfigPropertyNames = {
-    "showMissingMapId", "showUnsavedChanges", "showUnmappedExits", // From CanvasSettings (are NamedConfig)
-    "MMAPPER_3D", "MMAPPER_AUTO_TILT", "MMAPPER_GL_PERFSTATS"    // From CanvasSettings::Advanced (are NamedConfig)
+    // These are now covered by direct listeners below, so they could be removed from here.
+    // "showMissingMapId", "showUnsavedChanges", "showUnmappedExits",
+    // "MMAPPER_3D", "MMAPPER_AUTO_TILT", "MMAPPER_GL_PERFSTATS"
 };
+// After review, this list should indeed be empty as all specified NamedConfigs
+// will have direct listeners. So, an empty list is appropriate.
+// const QStringList graphicsNamedConfigPropertyNames = {};
 
 
 DeveloperPage::DeveloperPage(QWidget *parent)
@@ -72,11 +83,13 @@ void DeveloperPage::registerChangeMonitors() {
 
     // Register callback with CanvasSettings
     config.canvas.registerChangeCallback(m_configLifetime, [this]() {
+        this->slot_loadConfig(); // Refresh DeveloperPage's UI
         emit sig_graphicsSettingsChanged();
     });
 
     // Register callback with global XNamedColor changes
     XNamedColor::registerGlobalChangeCallback(m_configLifetime, [this]() {
+        this->slot_loadConfig(); // Refresh DeveloperPage's UI
         emit sig_graphicsSettingsChanged();
     });
 
@@ -97,6 +110,36 @@ void DeveloperPage::registerChangeMonitors() {
         // beyond what a full slot_loadConfig() would provide if the dialog is re-shown
         // or settings are reset.
         // qDebug() << "DeveloperPage: Detected a change in IntegratedMudClientSettings.";
+    });
+
+    // For NamedConfig<T> members in config.canvas:
+    config.canvas.showMissingMapId.registerChangeCallback(m_configLifetime, [this]() {
+        this->slot_loadConfig(); // Refresh DeveloperPage's UI
+        emit sig_graphicsSettingsChanged();
+    });
+    config.canvas.showUnsavedChanges.registerChangeCallback(m_configLifetime, [this]() {
+        this->slot_loadConfig(); // Refresh DeveloperPage's UI
+        emit sig_graphicsSettingsChanged();
+    });
+    config.canvas.showUnmappedExits.registerChangeCallback(m_configLifetime, [this]() {
+        this->slot_loadConfig(); // Refresh DeveloperPage's UI
+        emit sig_graphicsSettingsChanged();
+    });
+
+    // For NamedConfig<T> members in config.canvas.advanced:
+    config.canvas.advanced.use3D.registerChangeCallback(m_configLifetime, [this]() {
+        this->slot_loadConfig(); // Refresh DeveloperPage's UI
+        emit sig_graphicsSettingsChanged();
+    });
+    config.canvas.advanced.autoTilt.registerChangeCallback(m_configLifetime, [this]() {
+        this->slot_loadConfig(); // Refresh DeveloperPage's UI
+        emit sig_graphicsSettingsChanged();
+    });
+    config.canvas.advanced.printPerfStats.registerChangeCallback(m_configLifetime, [this]() {
+        // This one might not be strictly "graphics settings changed" in a visual sense,
+        // but it's grouped with other canvas/advanced settings.
+        this->slot_loadConfig(); // Refresh DeveloperPage's UI (in case it affects some debug overlay)
+        emit sig_graphicsSettingsChanged();
     });
 }
 
@@ -149,14 +192,19 @@ QCheckBox* DeveloperPage::createBoolEditor(Configuration &config_ref_for_read, c
         } else if (propertyNameStr == "autoResizeTerminal") {
             setConfig().integratedClient.setAutoResizeTerminal(checked); success = true;
         } else {
-            // For other bool properties (incl. NamedConfig<bool>), use property.write
+            // For other bool properties (incl. NamedConfig<bool> not directly listened to), use property.write
             success = property.write(&setConfig(), checked);
-            if (success && graphicsNamedConfigPropertyNames.contains(propertyNameStr)) {
-                // Emit only for NamedConfigs known to be graphics-related and not covered by CanvasSettings/GroupManager monitor
-                emit sig_graphicsSettingsChanged();
-            }
+            // Direct emission for NamedConfigs is removed here.
+            // If a NamedConfig is graphics-related and NOT directly listened to above
+            // (e.g. not part of config.canvas or config.canvas.advanced),
+            // it would need to be added to the direct listeners in registerChangeMonitors,
+            // or this DeveloperPage would need to listen to its parent struct's monitor if that exists.
+            // The graphicsNamedConfigPropertyNames list is now empty, so this direct emit path is disabled.
+            // if (success && graphicsNamedConfigPropertyNames.contains(propertyNameStr)) {
+            //     emit sig_graphicsSettingsChanged();
+            // }
         }
-        // No direct emit for CanvasSettings/GroupManager props here - handled by their ChangeMonitors
+        // No direct emit for properties covered by a ChangeMonitor DeveloperPage listens to.
     });
     return checkBox;
 }
@@ -182,9 +230,10 @@ QLineEdit* DeveloperPage::createStringEditor(Configuration &config_ref_for_read,
             setConfig().integratedClient.setFont(text); success = true;
         } else {
             success = property.write(&setConfig(), text);
-             if (success && graphicsNamedConfigPropertyNames.contains(propertyNameStr)) { // Assuming some NamedConfig<QString> might exist
-                 emit sig_graphicsSettingsChanged();
-             }
+            // Direct emission for NamedConfigs is removed here.
+            // if (success && graphicsNamedConfigPropertyNames.contains(propertyNameStr)) {
+            //     emit sig_graphicsSettingsChanged();
+            // }
         }
         // No direct emit for refactored props here
     });
@@ -223,9 +272,10 @@ QSpinBox* DeveloperPage::createIntEditor(Configuration &config_ref_for_read, con
             setConfig().integratedClient.setLinesOfPeekPreview(value); success = true;
         } else {
             success = property.write(&setConfig(), value);
-            if (success && graphicsNamedConfigPropertyNames.contains(propertyNameStr)) { // Assuming some NamedConfig<int> might exist
-                 emit sig_graphicsSettingsChanged();
-            }
+            // Direct emission for NamedConfigs is removed here.
+            // if (success && graphicsNamedConfigPropertyNames.contains(propertyNameStr)) {
+            //     emit sig_graphicsSettingsChanged();
+            // }
         }
         // No direct emit for refactored props here
     });
@@ -433,14 +483,11 @@ void DeveloperPage::onResetToDefaultTriggered()
             populatePage();
         }
 
-        // Signal emission is now handled by ChangeMonitors for CanvasSettings plain members and XNamedColors.
-        // For NamedConfig<T> properties, if they were reset via property.write(), we might need to emit here if they are graphics related.
-        if (property.isUser() && QLatin1String(property.typeName()).startsWith("NamedConfig")) { // Heuristic for NamedConfig
-            if (graphicsNamedConfigPropertyNames.contains(propNameStr)) {
-                 emit sig_graphicsSettingsChanged();
-            }
-        }
-        // No other direct emit here.
+        // Signal emission is now entirely handled by the ChangeMonitors that DeveloperPage listens to.
+        // When property.write() or a direct setter (for refactored properties) was called above,
+        // it triggered the respective ChangeMonitor. DeveloperPage's registered callback for that
+        // monitor then calls slot_loadConfig() and emits sig_graphicsSettingsChanged().
+        // Therefore, no direct emit is needed in this function anymore.
     } else {
         qWarning() << "DeveloperPage: Failed to write default value for" << m_contextMenuPropertyName;
     }

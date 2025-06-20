@@ -6,12 +6,12 @@
 
 #include "../global/RuleOf5.h"
 #include "../map/RoomHandle.h"
-#include "PathProcessor.h" // Changed path
+#include "PathProcessor.h"
 #include "../map/parseevent.h"
 #include "../map/room.h"
 #include "../map/roomid.h"
-#include "../map/ChangeList.h" // Added for ChangeList
-#include <memory> // Added for std::enable_shared_from_this
+#include "../map/ChangeList.h"
+#include <memory>
 
 #include <unordered_map>
 
@@ -29,13 +29,13 @@ class ParseEvent;
 class NODISCARD Approved final : public PathProcessor, public std::enable_shared_from_this<Approved>
 {
 private:
-    SigParseEvent m_myEvent; // Prefixed
-    std::unordered_map<RoomId, ComparisonResultEnum> m_compareCache; // Prefixed
-    RoomHandle m_matchedRoom; // Prefixed
-    MapFrontend &m_map; // Already prefixed
-    const int m_matchingTolerance; // Prefixed
-    bool m_moreThanOne = false; // Prefixed
-    bool m_update = false; // Prefixed
+    SigParseEvent m_myEvent;
+    std::unordered_map<RoomId, ComparisonResultEnum> m_compareCache;
+    RoomHandle m_matchedRoom;
+    MapFrontend &m_map;
+    const int m_matchingTolerance;
+    bool m_moreThanOne = false;
+    bool m_update = false;
 
 public:
     explicit Approved(MapFrontend &map, const SigParseEvent &sigParseEvent, int matchingTolerance);
@@ -49,7 +49,7 @@ private:
 
 public:
     NODISCARD RoomHandle oneMatch() const;
-    NODISCARD bool needsUpdate() const { return m_update; } // Prefixed
+    NODISCARD bool needsUpdate() const { return m_update; }
     void releaseMatch(ChangeList &changes);
 
     // Overrides for getSharedPtrFromThis

@@ -5,10 +5,10 @@
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 
 #include "../global/RuleOf5.h"
-#include "PathProcessor.h" // Changed path
+#include "PathProcessor.h"
 #include "path.h"
 #include <list>
-#include <memory> // Already present, needed for std::enable_shared_from_this and std::shared_ptr
+#include <memory>
 
 #include <QtGlobal>
 
@@ -26,15 +26,14 @@ struct PathParameters;
 class NODISCARD Syncing final : public PathProcessor, public std::enable_shared_from_this<Syncing>
 {
 private:
-    RoomSignalHandler &m_signaler; // Prefixed
-    PathParameters &m_params; // Prefixed
-    const std::shared_ptr<PathList> m_paths; // Prefixed
+    RoomSignalHandler &m_signaler;
+    PathParameters &m_params;
+    const std::shared_ptr<PathList> m_paths;
     // This is not our parent; it's the parent we assign to new objects.
-    std::shared_ptr<Path> m_parent; // Prefixed
-    uint32_t m_numPaths = 0u; // Prefixed
+    std::shared_ptr<Path> m_parent;
+    uint32_t m_numPaths = 0u;
 
 public:
-    // Parameter names 'p', 'paths', 'signaler' in constructor are fine, they are local to the declaration/definition
     explicit Syncing(PathParameters &p,
                      std::shared_ptr<PathList> paths,
                      RoomSignalHandler &signaler);

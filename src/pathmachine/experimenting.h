@@ -9,10 +9,10 @@
 #include "../map/ExitDirection.h"
 #include "../map/ExitFieldVariant.h"
 #include "../map/ExitFlags.h"
-#include "PathProcessor.h" // Changed path
+#include "PathProcessor.h"
 #include "../map/coordinate.h"
 #include "path.h"
-#include "../map/ChangeList.h"   // Added for ChangeList in evaluate()
+#include "../map/ChangeList.h"
 
 #include <memory>
 
@@ -30,18 +30,18 @@ struct PathParameters;
  * implement `virt_receiveRoom` and use these inherited capabilities.
  */
 // Base class for Crossover and OneByOne
-class NODISCARD Experimenting : public PathProcessor // Removed EnableGetWeakHandleFromThis<Experimenting>
+class NODISCARD Experimenting : public PathProcessor
 {
 protected:
     void augmentPath(const std::shared_ptr<Path> &path, const RoomHandle &room);
-    const Coordinate m_direction; // Prefixed
-    const ExitDirEnum m_dirCode; // Prefixed
-    const std::shared_ptr<PathList> m_paths; // Prefixed
-    PathParameters &m_params; // Prefixed
-    std::shared_ptr<PathList> m_shortPaths; // Prefixed
-    std::shared_ptr<Path> m_best; // Prefixed
-    std::shared_ptr<Path> m_second; // Prefixed
-    double m_numPaths = 0.0; // Prefixed
+    const Coordinate m_direction;
+    const ExitDirEnum m_dirCode;
+    const std::shared_ptr<PathList> m_paths;
+    PathParameters &m_params;
+    std::shared_ptr<PathList> m_shortPaths;
+    std::shared_ptr<Path> m_best;
+    std::shared_ptr<Path> m_second;
+    double m_numPaths = 0.0;
 
 public:
     Experimenting() = delete;
@@ -56,5 +56,5 @@ public:
     ~Experimenting() override;
 
 public:
-    std::shared_ptr<PathList> evaluate(ChangeList &changes); // Added ChangeList
+    std::shared_ptr<PathList> evaluate(ChangeList &changes);
 };

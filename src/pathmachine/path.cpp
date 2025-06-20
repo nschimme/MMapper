@@ -170,7 +170,19 @@ void Path::approve(ChangeList &changes)
         assert(m_dir.has_value());
         const RoomHandle proom = parent->getRoom();
         const auto pId = !proom.exists() ? INVALID_ROOMID : proom.getId();
-        m_signaler.keep(m_room, m_dir.value(), pId, changes); // Pass m_room (RoomHandle)
+
+        // Signal that this path's room is being kept and get decisions.
+        KeepDecision keepDecision = m_signaler.keep(m_room, m_dir.value(), pId);
+
+        if (keepDecision.shouldMakePermanent) {
+            // Path's room was temporary and successfully kept; schedule to make it permanent.
+            changes.add(Change{room_change_types::MakePermanent{keepDecision.roomId}});
+        }
+        if (keepDecision.exitToModify.has_value()) {
+            // Path's room requires an exit modification as part of being kept.
+            changes.add(Change{keepDecision.exitToModify.value()});
+        }
+
         parent->removeChild(this->shared_from_this());
         parent->approve(changes);
     }
@@ -196,7 +208,12 @@ void Path::deny(ChangeList &changes)
         return;
     }
     if (m_dir.has_value()) {
-        m_signaler.release(m_room, changes); // Pass m_room (RoomHandle)
+        // Signal that this path's room is being released and get decision.
+        ReleaseDecision releaseDecision = m_signaler.release(m_room); // Pass m_room (RoomHandle)
+        if (releaseDecision.shouldRemoveRoom) {
+            // Path's room was temporary and conditions met for removal; schedule it.
+            changes.add(Change{room_change_types::RemoveRoom{releaseDecision.roomId}});
+        }
     }
     if (const auto &parent = getParent()) {
         parent->removeChild(shared_from_this());

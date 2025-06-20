@@ -11,6 +11,8 @@
 #include "../map/ExitFlags.h"
 #include "../map/roomid.h"
 #include "../map/RoomHandle.h" // Added for RoomHandle
+#include "../map/ChangeTypes.h" // Added for exit_change_types
+#include <optional>      // Added for std::optional
 
 #include <map>
 #include <set>    // For RoomIdSet (already used by m_owners) and for m_lockers' value type
@@ -21,8 +23,26 @@
 
 // class RoomRecipient; // Replaced by PathProcessor
 #include "PathProcessor.h" // Include PathProcessor since it's in the same directory
-struct RoomId;
 class MapFrontend;
+// struct RoomId is brought in by roomid.h
+
+// New struct definitions
+struct KeepDecision {
+    RoomId roomId{INVALID_ROOMID}; // The ID of the room processed
+    bool shouldMakePermanent{false};
+    std::optional<exit_change_types::ModifyExitConnection> exitToModify;
+
+    // C++17 allows default constructor with member initializers.
+    // KeepDecision() = default;
+};
+
+struct ReleaseDecision {
+    RoomId roomId{INVALID_ROOMID}; // The ID of the room processed
+    bool shouldRemoveRoom{false};
+
+    // C++17 allows default constructor with member initializers.
+    // ReleaseDecision() = default;
+};
 
 /**
  * @brief Manages room lifecycle signals and "holds" during pathfinding.
@@ -33,16 +53,16 @@ class MapFrontend;
  * references (`m_lockers`, storing `std::weak_ptr<PathProcessor>`).
  *
  * Key functionalities:
- * - `hold(RoomId, std::weak_ptr<PathProcessor>)`: Called by a "locker" to indicate
+ * - `hold(RoomId, PathProcessor*)`: Called by a "locker" to indicate
  *   it's currently using or evaluating a room. Increments hold count and stores
- *   a weak reference.
- * - `release(RoomId, ChangeList&)`: Decrements hold count. If zero for a temporary
- *   room, queues its removal. Clears room entries.
- * - `keep(RoomId, ExitDirEnum, RoomId, ChangeList&)`: Converts a "hold" to a
- *   "kept" state. Makes room permanent if temporary, may add an exit, adjusts
- *   locker tracking, then calls `release()`.
+ *   a raw pointer.
+ * - `release(const RoomHandle&)`: Decrements hold count. Returns a `ReleaseDecision`
+ *   indicating if a temporary room should be removed. Clears room entries if hold count is zero.
+ * - `keep(const RoomHandle&, ExitDirEnum, RoomId)`: Converts a "hold" to a
+ *   "kept" state. Returns a `KeepDecision` indicating if room should become permanent
+ *   and if an exit should be modified. Adjusts locker tracking, then calls `release()`.
  * - `getNumLockers(RoomId)`: Provides a count of registered locker entries for a
- *   room. (Note: Current simple version counts all registered weak_ptrs, not
+ *   room. (Note: Current simple version counts all registered raw pointers, not
  *   just non-expired ones, for behavioral consistency with past heuristics).
  *
  * Owned by PathMachine, it queues changes to a ChangeList rather than applying
@@ -69,13 +89,13 @@ public:
     {}
     /* receiving from our clients: */
     // hold the room, we don't know yet what to do, overrides release, re-caches if room was un-cached
-    void hold(RoomId room, PathProcessor* locker); // Changed to PathProcessor*
+    void hold(RoomId room, PathProcessor* locker);
     // room isn't needed anymore and can be deleted if no one else is holding it and no one else uncached it
-    void release(const RoomHandle &roomHandle, ChangeList &changes); // Changed to RoomHandle
+    ReleaseDecision release(const RoomHandle &roomHandle); // Changed signature
     // keep the room but un-cache it - overrides both hold and release
     // toId is negative if no exit should be added, else it's the id of
     // the room where the exit should lead
-    void keep(const RoomHandle &roomHandle, ExitDirEnum dir, RoomId fromId, ChangeList &changes); // Changed to RoomHandle
+    KeepDecision keep(const RoomHandle &roomHandle, ExitDirEnum dir, RoomId fromId); // Changed signature
 
     /* Sending to the rooms' owners:
        keepRoom: keep the room, but we don't need it anymore for now

@@ -358,6 +358,8 @@ void PathMachine::handleParseEvent(const SigParseEvent &sigParseEvent)
 
     m_lastEvent.requireValid();
 
+    m_signaler.clearPendingStatesForCycle(); // Added call
+
     ChangeList changes;
 
     switch (m_state) {

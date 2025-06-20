@@ -58,6 +58,9 @@ private:
     std::map<RoomId, std::set<PathProcessor*>> m_lockers; // Changed to PathProcessor*
     std::map<RoomId, int> m_holdCount; // Prefixed
 
+    std::set<RoomId> m_pendingPermanentThisCycle;
+    std::set<RoomId> m_pendingRemovalThisCycle;
+
 public:
     RoomSignalHandler() = delete;
     explicit RoomSignalHandler(MapFrontend &map, QObject *parent)
@@ -79,6 +82,8 @@ public:
        releaseRoom: delete the room, if you like */
 
     int getNumLockers(RoomId room); // Moved to .cpp
+
+    void clearPendingStatesForCycle();
 
 signals:
     void sig_scheduleAction(const SigMapChangeList &);

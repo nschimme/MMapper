@@ -35,9 +35,10 @@ void RoomSignalHandler::release(const RoomHandle &roomHandle, ChangeList &change
     assert(m_holdCount.count(roomId) && m_holdCount.at(roomId) > 0);
     if (--m_holdCount[roomId] == 0) {
         if (m_owners.contains(roomId)) {
-            // Room is temporary and no longer held by any locker; remove it.
-            if (roomHandle.isTemporary()) { // Use roomHandle directly
+            // Room is temporary, no longer held by any locker, and not pending permanent in this cycle; remove it.
+            if (roomHandle.isTemporary() && m_pendingPermanentThisCycle.find(roomId) == m_pendingPermanentThisCycle.end()) {
                 changes.add(Change{room_change_types::RemoveRoom{roomId}});
+                m_pendingRemovalThisCycle.insert(roomId);
             }
             // Original loop that called m_map.releaseRoom for each recipient is removed.
         } else {
@@ -61,10 +62,10 @@ void RoomSignalHandler::keep(const RoomHandle &roomHandle, // Changed to RoomHan
     assert(m_holdCount.count(roomId) && m_holdCount.at(roomId) != 0);
     assert(m_owners.contains(roomId));
 
-    // New logic to make room permanent if it's temporary
-    // This room is being kept and was temporary; make it permanent.
-    if (roomHandle.isTemporary()) { // Use roomHandle directly
+    // This room is being kept. If it was temporary and not already pending removal this cycle, make it permanent.
+    if (roomHandle.isTemporary() && m_pendingRemovalThisCycle.find(roomId) == m_pendingRemovalThisCycle.end()) {
         changes.add(Change{room_change_types::MakePermanent{roomId}});
+        m_pendingPermanentThisCycle.insert(roomId);
     }
 
     static_assert(static_cast<uint32_t>(ExitDirEnum::UNKNOWN) + 1 == NUM_EXITS);
@@ -113,4 +114,9 @@ int RoomSignalHandler::getNumLockers(RoomId room) {
     // in this count. Consider refining this or the heuristic in the future,
     // or implementing a separate cleanup mechanism for the 'lockers' vector.
     return static_cast<int>(it->second.size());
+}
+
+void RoomSignalHandler::clearPendingStatesForCycle() {
+    m_pendingPermanentThisCycle.clear();
+    m_pendingRemovalThisCycle.clear();
 }

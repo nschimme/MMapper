@@ -13,19 +13,19 @@
 #include <cassert>
 #include <memory>
 #include <algorithm> // Required for std::remove_if
+#include <memory>    // For std::owner_less if it were used with smart pointers, not PathProcessor* directly
 
 // PathProcessor.h is included via roomsignalhandler.h
-// std::weak_ptr is from <memory> which is also included via roomsignalhandler.h
 
-void RoomSignalHandler::hold(const RoomId room, std::weak_ptr<PathProcessor> locker_handle) // Changed to std::weak_ptr
+void RoomSignalHandler::hold(const RoomId room, PathProcessor* locker) // Changed to PathProcessor*
 {
     m_owners.insert(room);
     // Initialize m_holdCount for the room if it's not already tracked.
     if (m_holdCount.find(room) == m_holdCount.end()) {
         m_holdCount[room] = 0;
     }
-    // 'm_lockers' is std::map<RoomId, std::set<std::weak_ptr<PathProcessor>, std::owner_less<...>>>
-    m_lockers[room].insert(locker_handle); // Changed to insert for std::set
+    // 'm_lockers' is std::map<RoomId, std::set<PathProcessor*>>
+    m_lockers[room].insert(locker); // Storing PathProcessor*
     ++m_holdCount[room];
 }
 

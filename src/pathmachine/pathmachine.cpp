@@ -456,36 +456,36 @@ void PathMachine::approved(const SigParseEvent &sigParseEvent, ChangeList &chang
     ParseEvent &event = sigParseEvent.deref();
 
     RoomHandle perhaps;
-    auto appr = std::make_shared<Approved>(m_map, sigParseEvent, m_params.matchingTolerance); // Use std::make_shared
+    Approved appr(m_map, sigParseEvent, m_params.matchingTolerance); // Stack allocation
 
     if (event.hasServerId()) {
         perhaps = m_map.findRoomHandle(event.getServerId());
         if (perhaps.exists()) {
-            appr->receiveRoom(perhaps, changes); // Use ->
+            appr.receiveRoom(perhaps, changes); // Use .
         }
-        perhaps = appr->oneMatch(); // Use ->
+        perhaps = appr.oneMatch(); // Use .
     }
 
     // This code path only happens for historic maps and mazes where no server id is present
     if (!perhaps) {
-        appr->releaseMatch(changes); // Use ->
+        appr.releaseMatch(changes); // Use .
 
-        tryExits(getMostLikelyRoom(), *appr, event, true, changes); // Pass *appr, use ->
-        perhaps = appr->oneMatch(); // Use ->
+        tryExits(getMostLikelyRoom(), appr, event, true, changes); // Pass by reference
+        perhaps = appr.oneMatch(); // Use .
 
         if (!perhaps) {
             // try to match by reverse exit
-            appr->releaseMatch(changes); // Use ->
-            tryExits(getMostLikelyRoom(), *appr, event, false, changes); // Pass *appr, use ->
-            perhaps = appr->oneMatch(); // Use ->
+            appr.releaseMatch(changes); // Use .
+            tryExits(getMostLikelyRoom(), appr, event, false, changes); // Pass by reference
+            perhaps = appr.oneMatch(); // Use .
             if (!perhaps) {
                 // try to match by coordinate
-                appr->releaseMatch(changes); // Use ->
-                tryCoordinate(getMostLikelyRoom(), *appr, event, changes); // Pass *appr, use ->
-                perhaps = appr->oneMatch(); // Use ->
+                appr.releaseMatch(changes); // Use .
+                tryCoordinate(getMostLikelyRoom(), appr, event, changes); // Pass by reference
+                perhaps = appr.oneMatch(); // Use .
                 if (!perhaps) {
                     // try to match by coordinate one step below expected
-                    appr->releaseMatch(changes); // Use ->
+                    appr.releaseMatch(changes); // Use .
                     // FIXME: need stronger type checking here.
 
                     const auto cmd = event.getMoveType();
@@ -506,22 +506,22 @@ void PathMachine::approved(const SigParseEvent &sigParseEvent, ChangeList &chang
                             RoomIdSet ids_c1 = m_map.lookingForRooms(c);
                             for (RoomId id : ids_c1) {
                                 if (auto rh = m_map.findRoomHandle(id)) {
-                                    appr->receiveRoom(rh, changes); // Use ->
+                                    appr.receiveRoom(rh, changes); // Use .
                                 }
                             }
-                            perhaps = appr->oneMatch(); // Use ->
+                            perhaps = appr.oneMatch(); // Use .
 
                             if (!perhaps) {
                                 // try to match by coordinate one step above expected
-                                appr->releaseMatch(changes); // Use ->
+                                appr.releaseMatch(changes); // Use .
                                 c.z += 2;
                                 RoomIdSet ids_c2 = m_map.lookingForRooms(c);
                                 for (RoomId id : ids_c2) {
                                     if (auto rh = m_map.findRoomHandle(id)) {
-                                        appr->receiveRoom(rh, changes); // Use ->
+                                        appr.receiveRoom(rh, changes); // Use .
                                     }
                                 }
-                                perhaps = appr->oneMatch(); // Use ->
+                                perhaps = appr.oneMatch(); // Use .
                             }
                         }
                     }
@@ -544,8 +544,8 @@ void PathMachine::approved(const SigParseEvent &sigParseEvent, ChangeList &chang
         /* FIXME: null locker ends up being an error in RoomSignalHandler::keep(),
          * so why is this allowed to be null, and how do we prevent this null
          * from actually causing an error? */
-        // Using default-constructed std::weak_ptr for nullptr PathProcessor
-        deref(m_paths).push_front(Path::alloc(pathRoot, std::weak_ptr<PathProcessor>(), m_signaler, std::nullopt)); // Pass m_signaler by reference
+        // Using nullptr for PathProcessor* when no specific locker is involved.
+        deref(m_paths).push_front(Path::alloc(pathRoot, nullptr, m_signaler, std::nullopt)); // Pass m_signaler by reference
         experimenting(sigParseEvent, changes);
 
         return;
@@ -584,7 +584,7 @@ void PathMachine::approved(const SigParseEvent &sigParseEvent, ChangeList &chang
     // If moreThanOne was true, Approved::virt_receiveRoom should have added temporary rooms
     // to 'changes' for removal already.
 
-    if (appr->needsUpdate()) { // Use ->
+    if (appr.needsUpdate()) { // Use .
         // The 'Approved' strategy determined the room needs an update based on event details.
         changes.add(Change{room_change_types::Update{perhaps.getId(),
                                                      sigParseEvent.deref(),
@@ -621,18 +621,17 @@ void PathMachine::syncing(const SigParseEvent &sigParseEvent, ChangeList &change
     auto &params = m_params; // This is m_params from PathMachine
     ParseEvent &event = sigParseEvent.deref();
     {
-        // Use m_params for constructor, not local 'params' which is the same thing but for clarity.
-        auto sync_strat = std::make_shared<Syncing>(m_params, m_paths, m_signaler); // Use std::make_shared
-        if (event.hasServerId() || event.getNumSkipped() <= m_params.maxSkipped) { // Use m_params
+        Syncing sync_strat(m_params, m_paths, m_signaler); // Stack allocation
+        if (event.hasServerId() || event.getNumSkipped() <= m_params.maxSkipped) {
             RoomIdSet ids = m_map.lookingForRooms(sigParseEvent);
             for (RoomId id : ids) {
                 if (auto rh = m_map.findRoomHandle(id)) {
-                    sync_strat->receiveRoom(rh, changes); // Use ->
+                    sync_strat.receiveRoom(rh, changes); // Use .
                 }
             }
         }
-        m_paths = sync_strat->evaluate(); // Use ->
-        sync_strat->finalizePaths(changes); // Use ->
+        m_paths = sync_strat.evaluate(); // Use .
+        sync_strat.finalizePaths(changes); // Use .
     }
     evaluatePaths(changes);
 }
@@ -647,7 +646,7 @@ void PathMachine::experimenting(const SigParseEvent &sigParseEvent, ChangeList &
     if (event.canCreateNewRoom() && isDirectionNESWUD(moveCode) && hasMostLikelyRoom()) {
         const auto dir = getDirection(moveCode);
         const Coordinate &move = ::exitDir(dir);
-        auto exp_strat = std::make_shared<Crossover>(m_map, m_paths, dir, m_params); // Use m_params, make_shared
+        Crossover exp_strat(m_map, m_paths, dir, m_params); // Stack allocation
         RoomIdSet pathEnds;
         for (const auto &path : deref(m_paths)) {
             const auto &working = path->getRoom();
@@ -664,24 +663,22 @@ void PathMachine::experimenting(const SigParseEvent &sigParseEvent, ChangeList &
         RoomIdSet ids = m_map.lookingForRooms(sigParseEvent);
         for (RoomId id : ids) {
             if (auto rh = m_map.findRoomHandle(id)) {
-                exp_strat->receiveRoom(rh, changes); // Use ->
+                exp_strat.receiveRoom(rh, changes); // Use .
             }
         }
-        m_paths = exp_strat->evaluate(changes); // Use ->
+        m_paths = exp_strat.evaluate(changes); // Use .
     } else {
-        auto oo_strat = std::make_shared<OneByOne>(sigParseEvent, m_params, m_signaler); // Use m_params, make_shared
+        OneByOne oo_strat(sigParseEvent, m_params, m_signaler); // Stack allocation
         {
-            // auto &tmp = oneByOne; // Old way
-            // PathProcessor& recipient_ref = *oo_strat; // New way if reference needed for tryExits/tryCoordinate
             for (const auto &path : deref(m_paths)) {
                 const auto &working = path->getRoom();
-                oo_strat->addPath(path); // Use ->
-                tryExits(working, *oo_strat, event, true, changes);  // Pass *oo_strat
-                tryExits(working, *oo_strat, event, false, changes); // Pass *oo_strat
-                tryCoordinate(working, *oo_strat, event, changes);   // Pass *oo_strat
+                oo_strat.addPath(path); // Use .
+                tryExits(working, oo_strat, event, true, changes);  // Pass by reference
+                tryExits(working, oo_strat, event, false, changes); // Pass by reference
+                tryCoordinate(working, oo_strat, event, changes);   // Pass by reference
             }
         }
-        m_paths = oo_strat->evaluate(changes); // Use ->
+        m_paths = oo_strat.evaluate(changes); // Use .
     }
 
     evaluatePaths(changes);

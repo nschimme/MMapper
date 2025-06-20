@@ -105,10 +105,4 @@ void Approved::releaseMatch(ChangeList &changes)
     m_moreThanOne = false;
 }
 
-std::shared_ptr<PathProcessor> Approved::getSharedPtrFromThis() {
-    return shared_from_this();
-}
-
-std::shared_ptr<const PathProcessor> Approved::getSharedPtrFromThis() const {
-    return shared_from_this();
-}
+// Removed getSharedPtrFromThis implementations

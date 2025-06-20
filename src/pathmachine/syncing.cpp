@@ -21,7 +21,7 @@ Syncing::Syncing(PathParameters &in_p,
     // Pass an empty weak_ptr as its locker, also avoids calling shared_from_this()
     // (or getSharedPtrFromThis()) during make_shared construction of this Syncing instance,
     // which can be problematic before the object is fully constructed.
-    , m_parent(Path::alloc(RoomHandle{}, std::weak_ptr<PathProcessor>(), this->m_signaler, std::nullopt))
+    , m_parent(Path::alloc(RoomHandle{}, nullptr, this->m_signaler, std::nullopt)) // Changed to nullptr
 {}
 
 void Syncing::virt_receiveRoom(const RoomHandle &in_room, ChangeList &changes)
@@ -35,20 +35,14 @@ void Syncing::virt_receiveRoom(const RoomHandle &in_room, ChangeList &changes)
             m_parent = nullptr;
         }
     } else {
-        auto p = Path::alloc(in_room, this->getSharedPtrFromThis(), this->m_signaler, ExitDirEnum::NONE);
+        auto p = Path::alloc(in_room, this, this->m_signaler, ExitDirEnum::NONE); // Changed to this
         p->setParent(m_parent);
         m_parent->insertChild(p);
         m_paths->push_back(p);
     }
 }
 
-std::shared_ptr<PathProcessor> Syncing::getSharedPtrFromThis() {
-    return shared_from_this();
-}
-
-std::shared_ptr<const PathProcessor> Syncing::getSharedPtrFromThis() const {
-    return shared_from_this();
-}
+// Removed getSharedPtrFromThis implementations
 
 std::shared_ptr<PathList> Syncing::evaluate()
 {

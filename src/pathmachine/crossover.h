@@ -22,7 +22,7 @@ struct PathParameters;
  * (inherited from Experimenting) into newly observed or created rooms that match
  * the current event, using `augmentPath()`.
  */
-class NODISCARD Crossover final : public Experimenting, public std::enable_shared_from_this<Crossover>
+class NODISCARD Crossover final : public Experimenting // Removed , public std::enable_shared_from_this<Crossover>
 {
 private:
     MapFrontend &m_map;
@@ -36,8 +36,4 @@ public:
 private:
     void virt_receiveRoom(const RoomHandle &, ChangeList &changes) final;
 
-public:
-    // Overrides for getSharedPtrFromThis
-    std::shared_ptr<PathProcessor> getSharedPtrFromThis() override;
-    std::shared_ptr<const PathProcessor> getSharedPtrFromThis() const override;
 };

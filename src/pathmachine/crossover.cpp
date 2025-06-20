@@ -38,10 +38,4 @@ void Crossover::virt_receiveRoom(const RoomHandle &room, ChangeList &changes)
     }
 }
 
-std::shared_ptr<PathProcessor> Crossover::getSharedPtrFromThis() {
-    return shared_from_this();
-}
-
-std::shared_ptr<const PathProcessor> Crossover::getSharedPtrFromThis() const {
-    return shared_from_this();
-}
+// Removed getSharedPtrFromThis implementations

@@ -23,7 +23,7 @@ struct PathParameters;
  * If a received room matches the event, `augmentPath()` (from Experimenting)
  * is called to extend the current path being processed.
  */
-class NODISCARD OneByOne final : public Experimenting, public std::enable_shared_from_this<OneByOne>
+class NODISCARD OneByOne final : public Experimenting // Removed , public std::enable_shared_from_this<OneByOne>
 {
 private:
     SharedParseEvent m_event; // Prefixed
@@ -40,7 +40,4 @@ private:
 public:
     void addPath(std::shared_ptr<Path> path);
 
-    // Overrides for getSharedPtrFromThis
-    std::shared_ptr<PathProcessor> getSharedPtrFromThis() override;
-    std::shared_ptr<const PathProcessor> getSharedPtrFromThis() const override;
 };

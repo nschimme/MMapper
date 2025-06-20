@@ -20,9 +20,9 @@
 #include <optional>
 #include <utility>
 
-// PathProcessor.h is included via path.h. std::weak_ptr from <memory> is also via path.h.
+// PathProcessor.h is included via path.h.
 std::shared_ptr<Path> Path::alloc(const RoomHandle &room,
-                                  std::weak_ptr<PathProcessor> locker_handle, // Changed to std::weak_ptr
+                                  PathProcessor* locker_handle, // Changed to PathProcessor*
                                   RoomSignalHandler &signaler, // Changed to reference
                                   std::optional<ExitDirEnum> moved_direction)
 {
@@ -31,7 +31,7 @@ std::shared_ptr<Path> Path::alloc(const RoomHandle &room,
 
 Path::Path(Badge<Path> /*badge*/,
            RoomHandle moved_room,
-           std::weak_ptr<PathProcessor> locker_handle, // Changed to std::weak_ptr
+           PathProcessor* locker_handle, // Changed to PathProcessor*
            RoomSignalHandler &signaler, // Changed to reference
            std::optional<ExitDirEnum> direction)
     : m_parent()
@@ -116,7 +116,7 @@ double Path::applyPathPenalties(double current_score_factor,
 std::shared_ptr<Path> Path::fork(const RoomHandle &in_room, // param name: room
                                  const Coordinate &expectedCoordinate,
                                  const PathParameters &p,      // param name: params
-                                 std::weak_ptr<PathProcessor> locker_handle, // Changed to std::weak_ptr
+                                 PathProcessor* locker_handle, // Changed to PathProcessor*
                                  const ExitDirEnum direction)   // param name: dir
 {
     assert(!m_zombie);

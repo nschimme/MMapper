@@ -11,7 +11,6 @@
 #include "../map/room.h"
 #include "../map/roomid.h"
 #include "../map/ChangeList.h"
-#include <memory>
 
 #include <unordered_map>
 
@@ -26,7 +25,7 @@ class ParseEvent;
  * rooms or by server ID. Manages temporary room cleanup via ChangeList if
  * rooms don't match or if multiple matches occur.
  */
-class NODISCARD Approved final : public PathProcessor, public std::enable_shared_from_this<Approved>
+class NODISCARD Approved final : public PathProcessor // Removed , public std::enable_shared_from_this<Approved>
 {
 private:
     SigParseEvent m_myEvent;
@@ -52,7 +51,4 @@ public:
     NODISCARD bool needsUpdate() const { return m_update; }
     void releaseMatch(ChangeList &changes);
 
-    // Overrides for getSharedPtrFromThis
-    std::shared_ptr<PathProcessor> getSharedPtrFromThis() override;
-    std::shared_ptr<const PathProcessor> getSharedPtrFromThis() const override;
 };

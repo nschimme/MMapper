@@ -9,7 +9,6 @@
 #include "../global/macros.h"
 #include "../map/ChangeList.h" // Corrected path
 #include "../map/roomid.h"     // Corrected path
-#include <memory> // For std::shared_ptr
 
 class MapData;
 class RoomHandle;
@@ -48,10 +47,6 @@ private:
     virtual void virt_receiveRoom(const RoomHandle &, ChangeList &changes) = 0;
 
 public:
-    // Interface for obtaining a shared_ptr to the object
-    virtual std::shared_ptr<PathProcessor> getSharedPtrFromThis() = 0;
-    virtual std::shared_ptr<const PathProcessor> getSharedPtrFromThis() const = 0;
-
     void receiveRoom(const RoomHandle &room, ChangeList &changes) { virt_receiveRoom(room, changes); }
 
 public:

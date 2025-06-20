@@ -23,7 +23,7 @@ struct PathParameters;
  * current parse event, creating a new root Path for each potential match.
  * `finalizePaths()` is used for cleanup of its internal dummy parent path.
  */
-class NODISCARD Syncing final : public PathProcessor, public std::enable_shared_from_this<Syncing>
+class NODISCARD Syncing final : public PathProcessor // Removed , public std::enable_shared_from_this<Syncing>
 {
 private:
     RoomSignalHandler &m_signaler;
@@ -49,7 +49,4 @@ public:
     std::shared_ptr<PathList> evaluate();
     void finalizePaths(ChangeList &changes);
 
-    // Overrides for getSharedPtrFromThis
-    std::shared_ptr<PathProcessor> getSharedPtrFromThis() override;
-    std::shared_ptr<const PathProcessor> getSharedPtrFromThis() const override;
 };

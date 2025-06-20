@@ -68,14 +68,14 @@ private:
 
 public:
     static std::shared_ptr<Path> alloc(const RoomHandle &room,
-                                       std::weak_ptr<PathProcessor> locker_handle, // Changed to std::weak_ptr
+                                       PathProcessor* locker_handle, // Changed to PathProcessor*
                                        RoomSignalHandler &signaler, // Changed to reference
                                        std::optional<ExitDirEnum> direction);
 
 public:
     explicit Path(Badge<Path>,
                   RoomHandle moved_room,
-                  std::weak_ptr<PathProcessor> locker_handle, // Changed to std::weak_ptr
+                  PathProcessor* locker_handle, // Changed to PathProcessor*
                   RoomSignalHandler &signaler, // Changed to reference
                   std::optional<ExitDirEnum> direction);
     DELETE_CTORS_AND_ASSIGN_OPS(Path);
@@ -98,7 +98,7 @@ public:
     NODISCARD std::shared_ptr<Path> fork(const RoomHandle &room,
                                          const Coordinate &expectedCoordinate,
                                          const PathParameters &params,
-                                         std::weak_ptr<PathProcessor> locker_handle, // Changed to std::weak_ptr
+                                         PathProcessor* locker_handle, // Changed to PathProcessor*
                                          ExitDirEnum dir);
     NODISCARD double getProb() const
     {

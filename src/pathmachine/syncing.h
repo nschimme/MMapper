@@ -41,4 +41,8 @@ private:
 public:
     std::shared_ptr<PathList> evaluate();
     void finalizePaths(ChangeList &changes);
+
+    // Overrides for getSharedPtrFromThis
+    std::shared_ptr<PathProcessor> getSharedPtrFromThis() override;
+    std::shared_ptr<const PathProcessor> getSharedPtrFromThis() const override;
 };

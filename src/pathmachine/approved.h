@@ -43,4 +43,8 @@ public:
     NODISCARD RoomHandle oneMatch() const;
     NODISCARD bool needsUpdate() const { return m_update; } // Prefixed
     void releaseMatch(ChangeList &changes);
+
+    // Overrides for getSharedPtrFromThis
+    std::shared_ptr<PathProcessor> getSharedPtrFromThis() override;
+    std::shared_ptr<const PathProcessor> getSharedPtrFromThis() const override;
 };

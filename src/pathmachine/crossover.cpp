@@ -27,6 +27,7 @@ void Crossover::virt_receiveRoom(const RoomHandle &room, ChangeList &changes)
     if (deref(m_shortPaths).empty()) { // Prefixed
         if (auto rh = m_map.findRoomHandle(room.getId())) {
             if (rh.isTemporary()) {
+                // If there are no short paths to evaluate, and this received room is temporary, remove it.
                 changes.add(Change{room_change_types::RemoveRoom{room.getId()}});
             }
         }
@@ -35,4 +36,12 @@ void Crossover::virt_receiveRoom(const RoomHandle &room, ChangeList &changes)
     for (auto &shortPath_iterator : *m_shortPaths) { // Prefixed and renamed iterator to avoid conflict
         augmentPath(shortPath_iterator, room);
     }
+}
+
+std::shared_ptr<PathProcessor> Crossover::getSharedPtrFromThis() {
+    return shared_from_this();
+}
+
+std::shared_ptr<const PathProcessor> Crossover::getSharedPtrFromThis() const {
+    return shared_from_this();
 }

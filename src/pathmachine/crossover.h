@@ -28,4 +28,9 @@ public:
 
 private:
     void virt_receiveRoom(const RoomHandle &, ChangeList &changes) final;
+
+public:
+    // Overrides for getSharedPtrFromThis
+    std::shared_ptr<PathProcessor> getSharedPtrFromThis() override;
+    std::shared_ptr<const PathProcessor> getSharedPtrFromThis() const override;
 };

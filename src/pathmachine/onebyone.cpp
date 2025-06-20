@@ -37,7 +37,7 @@ void OneByOne::virt_receiveRoom(const RoomHandle &room, ChangeList &changes)
     } else {
         // needed because the memory address is not unique and
         // calling admin->release might destroy a room still held by some path
-        m_handler.hold(room.getId(), this->shared_from_this()); // Use shared_from_this()
+        m_handler.hold(room.getId(), this->getSharedPtrFromThis()); // Use getSharedPtrFromThis()
         m_handler.release(room.getId(), changes); // Prefixed handler
     }
 }
@@ -46,4 +46,12 @@ void OneByOne::addPath(std::shared_ptr<Path> path)
 {
     // Accessing m_shortPaths inherited from Experimenting
     this->m_shortPaths->emplace_back(std::move(path)); // Prefixed this->m_shortPaths
+}
+
+std::shared_ptr<PathProcessor> OneByOne::getSharedPtrFromThis() {
+    return shared_from_this();
+}
+
+std::shared_ptr<const PathProcessor> OneByOne::getSharedPtrFromThis() const {
+    return shared_from_this();
 }

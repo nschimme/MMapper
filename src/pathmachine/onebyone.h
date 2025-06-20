@@ -31,4 +31,8 @@ private:
 
 public:
     void addPath(std::shared_ptr<Path> path);
+
+    // Overrides for getSharedPtrFromThis
+    std::shared_ptr<PathProcessor> getSharedPtrFromThis() override;
+    std::shared_ptr<const PathProcessor> getSharedPtrFromThis() const override;
 };

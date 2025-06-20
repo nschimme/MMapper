@@ -21,6 +21,14 @@
 class PathMachine;
 struct PathParameters;
 
+/**
+ * @brief Abstract base for PathProcessor strategies in the "Experimenting" state.
+ *
+ * Provides common functionality for forking new paths (`augmentPath`) and
+ * evaluating path probabilities (`evaluate`) when PathMachine is uncertain and
+ * exploring multiple hypotheses. Concrete strategies (Crossover, OneByOne)
+ * implement `virt_receiveRoom` and use these inherited capabilities.
+ */
 // Base class for Crossover and OneByOne
 class NODISCARD Experimenting : public PathProcessor // Removed EnableGetWeakHandleFromThis<Experimenting>
 {

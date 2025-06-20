@@ -15,6 +15,14 @@
 class RoomSignalHandler;
 struct PathParameters;
 
+/**
+ * @brief PathProcessor strategy for the "Syncing" pathfinding state.
+ *
+ * Used when PathMachine has no confident location (e.g., initial state or after
+ * losing track). It attempts to find any room in the map that matches the
+ * current parse event, creating a new root Path for each potential match.
+ * `finalizePaths()` is used for cleanup of its internal dummy parent path.
+ */
 class NODISCARD Syncing final : public PathProcessor, public std::enable_shared_from_this<Syncing>
 {
 private:

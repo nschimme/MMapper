@@ -15,10 +15,28 @@ class MapData;
 class RoomHandle;
 // class ChangeList; // Forward declaration if full include is not desired, but full include is better for parameters
 
-/*! \brief Interface for processing paths, giving access to room data.
+/**
+ * @brief Defines an interface for various room processing and pathfinding strategies.
  *
- * This class defines an interface for components that process paths
- * or need to react to room information.
+ * PathProcessor is an abstract base class used by PathMachine to delegate
+ * the logic of how incoming room data (from parse events or map lookups)
+ * should be processed in different pathfinding states (e.g., Approved,
+ * Experimenting, Syncing). Concrete subclasses implement specific strategies
+ * for matching rooms, evaluating potential paths, or creating new path segments.
+ *
+ * The primary interface method is virt_receiveRoom(), which is called to pass
+ * a RoomHandle (and a ChangeList for queuing map modifications) to the strategy.
+ *
+ * Concrete PathProcessor strategies are managed via std::shared_ptr (created by
+ * PathMachine) and must inherit from std::enable_shared_from_this<TheirConcreteType>.
+ * PathProcessor provides a pure virtual interface (getSharedPtrFromThis) that these
+ * concrete classes implement (typically by returning their own shared_from_this()).
+ * This allows polymorphic retrieval of a std::shared_ptr<PathProcessor>, which is
+ * then used to create std::weak_ptr "locker" handles for interaction with
+ * RoomSignalHandler (often via Path objects).
+ *
+ * @note PathProcessor does not inherit from QObject.
+ *       This comment block should precede the class definition.
  */
 class NODISCARD PathProcessor
 {

@@ -18,6 +18,14 @@
 class MapFrontend;
 class ParseEvent;
 
+/**
+ * @brief PathProcessor strategy for the "Approved" pathfinding state.
+ *
+ * Used when PathMachine is confident of the current room. It attempts to find
+ * a single, unambiguous match for incoming event data among directly accessible
+ * rooms or by server ID. Manages temporary room cleanup via ChangeList if
+ * rooms don't match or if multiple matches occur.
+ */
 class NODISCARD Approved final : public PathProcessor, public std::enable_shared_from_this<Approved>
 {
 private:

@@ -15,6 +15,14 @@ class Path;
 class RoomSignalHandler;
 struct PathParameters;
 
+/**
+ * @brief PathProcessor strategy for exploring from existing paths to known rooms.
+ *
+ * Used in "Experimenting" state, typically when not creating new rooms.
+ * PathMachine feeds it rooms found via current paths' exits/coordinates.
+ * If a received room matches the event, `augmentPath()` (from Experimenting)
+ * is called to extend the current path being processed.
+ */
 class NODISCARD OneByOne final : public Experimenting, public std::enable_shared_from_this<OneByOne>
 {
 private:

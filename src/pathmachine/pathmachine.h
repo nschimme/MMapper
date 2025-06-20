@@ -32,11 +32,23 @@ struct RoomId;
 enum class NODISCARD PathStateEnum : uint8_t { APPROVED = 0, EXPERIMENTING = 1, SYNCING = 2 };
 
 /**
- * the parser determines the relations between incoming move- and room-events
- * and decides if rooms have to be added (and where) and where the player is
- * the results are published via signals
+ * @brief Orchestrates pathfinding by processing game events and managing map hypotheses.
  *
- * PathMachine is the base class for Mmapper2PathMachine
+ * PathMachine determines the player's current location by interpreting parse events.
+ * It maintains pathfinding state (`m_state`), manages potential paths (`m_paths`),
+ * and uses PathProcessor strategies for state-specific logic.
+ *
+ * Key Responsibilities:
+ * - State Management (`PathStateEnum::APPROVED`, `EXPERIMENTING`, `SYNCING`).
+ * - Event Handling (`handleParseEvent` delegates to `approved()`, `experimenting()`, `syncing()`).
+ * - PathProcessor Strategy Usage: Instantiates strategies (Approved, Syncing, etc.)
+ *   as std::shared_ptr to process rooms.
+ * - Path Lifecycle: Manages `m_paths` (a PathList) using `Path::fork()`, `approve()`, `deny()`.
+ *   `evaluatePaths()` prunes `m_paths`.
+ * - Room Data Updates: `updateMostLikelyRoom()` (with helpers) updates map data.
+ * - ChangeList Management: Queues all map modifications to a `ChangeList`, then
+ *   calls `scheduleAction()` to apply them via MapFrontend.
+ * - RoomSignalHandler Ownership: Owns `m_signaler` to manage room holds.
  */
 class NODISCARD_QOBJECT PathMachine : public QObject
 {

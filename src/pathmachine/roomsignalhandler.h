@@ -24,6 +24,30 @@
 struct RoomId;
 class MapFrontend;
 
+/**
+ * @brief Manages room lifecycle signals and "holds" during pathfinding.
+ *
+ * RoomSignalHandler is responsible for tracking which PathProcessor strategies
+ * or Path objects have an active interest in a particular RoomId. This is done
+ * primarily through a "hold count" (`m_holdCount`) and a collection of unique weak "locker"
+ * references (`m_lockers`, storing `std::weak_ptr<PathProcessor>`).
+ *
+ * Key functionalities:
+ * - `hold(RoomId, std::weak_ptr<PathProcessor>)`: Called by a "locker" to indicate
+ *   it's currently using or evaluating a room. Increments hold count and stores
+ *   a weak reference.
+ * - `release(RoomId, ChangeList&)`: Decrements hold count. If zero for a temporary
+ *   room, queues its removal. Clears room entries.
+ * - `keep(RoomId, ExitDirEnum, RoomId, ChangeList&)`: Converts a "hold" to a
+ *   "kept" state. Makes room permanent if temporary, may add an exit, adjusts
+ *   locker tracking, then calls `release()`.
+ * - `getNumLockers(RoomId)`: Provides a count of registered locker entries for a
+ *   room. (Note: Current simple version counts all registered weak_ptrs, not
+ *   just non-expired ones, for behavioral consistency with past heuristics).
+ *
+ * Owned by PathMachine, it queues changes to a ChangeList rather than applying
+ * them directly.
+ */
 class NODISCARD_QOBJECT RoomSignalHandler final : public QObject
 {
     Q_OBJECT

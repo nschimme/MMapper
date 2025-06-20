@@ -29,6 +29,31 @@ class Coordinate;
 class RoomSignalHandler;
 struct PathParameters;
 
+/**
+ * @brief Represents a potential path segment during the pathfinding process.
+ *
+ * A Path object encapsulates a specific RoomHandle that is part of a potential
+ * route being explored by the PathMachine. Paths form a tree structure, with
+ * each Path (except roots) having a parent and potentially multiple children (forks).
+ *
+ * Key attributes:
+ * - `m_room`: The RoomHandle this path segment points to.
+ * - `m_probability`: Likelihood of this segment being correct.
+ * - `m_signaler`: Reference to RoomSignalHandler for lifecycle ops.
+ * - `m_dir`: Optional direction taken to reach this path's room.
+ *
+ * Core methods:
+ * - `approve(ChangeList&)`: Confirms this path segment, "keeps" its room via
+ *   RoomSignalHandler, and recursively approves its parent.
+ * - `deny(ChangeList&)`: Rejects this path segment, "releases" its room, and
+ *   may recursively deny its parent.
+ * - `fork(...)`: Creates a new child Path. Probability is based on various
+ *   factors including `RoomSignalHandler::getNumLockers()` for the target room.
+ *   The `locker_handle` (a `std::weak_ptr<PathProcessor>`) is passed to the
+ *   new Path for it to `hold` its room.
+ *
+ * Managed by `std::shared_ptr<Path>`, typically in PathMachine's `m_paths` list.
+ */
 class NODISCARD Path final : public std::enable_shared_from_this<Path>
 {
 private:

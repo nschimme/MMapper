@@ -15,6 +15,13 @@
 class MapFrontend;
 struct PathParameters;
 
+/**
+ * @brief PathProcessor strategy for creating paths when new rooms might be formed.
+ *
+ * Used in "Experimenting" state. Extends multiple existing paths from `m_shortPaths`
+ * (inherited from Experimenting) into newly observed or created rooms that match
+ * the current event, using `augmentPath()`.
+ */
 class NODISCARD Crossover final : public Experimenting, public std::enable_shared_from_this<Crossover>
 {
 private:

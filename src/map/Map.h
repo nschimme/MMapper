@@ -130,6 +130,7 @@ public:
     NODISCARD bool hasUniqueNameDesc(RoomId id) const;
 
     NODISCARD ExternalRoomId getExternalRoomId(RoomId id) const;
+    NODISCARD bool isRoomRevertible(RoomId roomId, const Map& savedMap) const;
 
 public:
     NODISCARD static Map merge(ProgressCounter &pc,

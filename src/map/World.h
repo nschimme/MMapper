@@ -169,6 +169,8 @@ public:
     XFOREACH_ROOM_PROPERTY(X_DECL_GETTER)
 #undef X_DECL_GETTER
 
+    NODISCARD bool isRoomRevertible(RoomId roomId, const World& savedWorld) const;
+
 public:
     void printStats(ProgressCounter &pc, AnsiOstream &aos) const;
     NODISCARD static WorldComparisonStats getComparisonStats(const World &base,

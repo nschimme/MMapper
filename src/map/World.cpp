@@ -14,9 +14,11 @@
 #include "sanitizer.h"
 #include "utils.h"
 
+#include "RoomRevert.h" // For room_revert::build_plan
+
 #include <optional>
 #include <ostream>
-#include <sstream>
+#include <sstream>      // For std::ostringstream
 #include <vector>
 
 namespace { // anonymous
@@ -160,6 +162,30 @@ World World::copy() const
     result.m_checkedConsistency = false;
 
     return result;
+}
+
+bool World::isRoomRevertible(RoomId roomId, const World& savedWorld) const
+{
+    if (!hasRoom(roomId)) {
+        // Should not happen if called correctly, but good for safety
+        return false;
+    }
+
+    const ExternalRoomId externalId = convertToExternal(roomId);
+    const RoomHandle savedRoomHandle = savedWorld.findRoomHandle(externalId);
+
+    if (!savedRoomHandle.exists()) {
+        // Room was created after the last save, so not revertible to a prior *saved* state.
+        return false;
+    }
+
+    // Use room_revert::build_plan to check for changes.
+    // We need a dummy ostream for build_plan.
+    std::ostringstream dummy_log_stream;
+    auto pResult = room_revert::build_plan(dummy_log_stream, *this, roomId, savedWorld);
+
+    // If a plan was built and it contains changes, the room is revertible.
+    return pResult && !pResult->changes.getChanges().empty();
 }
 
 bool World::operator==(const World &rhs) const

@@ -1224,24 +1224,18 @@ void MainWindow::slot_showContextMenu(const QPoint &pos)
                 contextMenu.addAction(mergeDownRoomSelectionAct);
                 contextMenu.addAction(deleteRoomSelectionAct);
 
-                bool canRevertAnyRoom = false;
+                bool canRevertAny = false;
                 if (m_roomSelection && !m_roomSelection->empty()) {
                     const Map& currentMap = m_mapData->getCurrentMap();
                     const Map& savedMap = m_mapData->getSavedMap();
                     for (const RoomId roomId : *m_roomSelection) {
-                        const RoomHandle currentRoom = currentMap.getRoomHandle(roomId);
-                        if (!currentRoom) continue;
-                        const RoomHandle savedRoom = savedMap.findRoomHandle(currentRoom.getIdExternal());
-                        if (savedRoom) {
-                            ChangeList roomChanges = Diff::getChanges(currentMap.getRoomHandle(roomId).getRaw(), savedMap.getRoomHandle(savedRoom.getId()).getRaw(), roomId);
-                            if (!roomChanges.getChanges().empty()) {
-                                canRevertAnyRoom = true;
-                                break;
-                            }
+                        if (currentMap.isRoomRevertible(roomId, savedMap)) {
+                            canRevertAny = true;
+                            break;
                         }
                     }
                 }
-                revertRoomSelectionAct->setEnabled(canRevertAnyRoom);
+                revertRoomSelectionAct->setEnabled(canRevertAny);
                 contextMenu.addAction(revertRoomSelectionAct);
                 contextMenu.addAction(connectToNeighboursRoomSelectionAct);
                 contextMenu.addSeparator();
@@ -1445,24 +1439,19 @@ void MainWindow::slot_newRoomSelection(const SigRoomSelection &rs)
     forceRoomAct->setEnabled(selSize == 1 && m_pathMachine->hasLastEvent());
 
     if (isValidSelection) {
-        bool canRevertAnyRoom = false;
+        bool canRevertAny = false;
         if (m_roomSelection && !m_roomSelection->empty()) {
             const Map& currentMap = m_mapData->getCurrentMap();
             const Map& savedMap = m_mapData->getSavedMap();
             for (const RoomId roomId : *m_roomSelection) {
-                const RoomHandle currentRoom = currentMap.getRoomHandle(roomId);
-                if (!currentRoom) continue;
-                const RoomHandle savedRoom = savedMap.findRoomHandle(currentRoom.getIdExternal());
-                if (savedRoom) {
-                    ChangeList roomChanges = Diff::getChanges(currentMap.getRoomHandle(roomId).getRaw(), savedMap.getRoomHandle(savedRoom.getId()).getRaw(), roomId);
-                    if (!roomChanges.getChanges().empty()) {
-                        canRevertAnyRoom = true;
-                        break;
-                    }
+                if (currentMap.isRoomRevertible(roomId, savedMap)) {
+                    canRevertAny = true;
+                    break;
                 }
             }
         }
-        revertRoomSelectionAct->setEnabled(canRevertAnyRoom);
+        revertRoomSelectionAct->setEnabled(canRevertAny);
+
         const auto msg = QString("Selection: %1 room%2").arg(selSize).arg(basic_plural(selSize));
         showStatusLong(msg);
     } else {

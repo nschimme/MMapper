@@ -1126,6 +1126,11 @@ NODISCARD bool Map::wouldAllowRelativeMove(const RoomIdSet &set, const Coordinat
     return getWorld().wouldAllowRelativeMove(set, offset);
 }
 
+bool Map::isRoomRevertible(RoomId roomId, const Map& savedMap) const
+{
+    return getWorld().isRoomRevertible(roomId, savedMap.getWorld());
+}
+
 void Map::printChange(AnsiOstream &aos, const Change &change) const
 {
     getWorld().printChange(aos, change);

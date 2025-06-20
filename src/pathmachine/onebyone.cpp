@@ -37,8 +37,13 @@ void OneByOne::virt_receiveRoom(const RoomHandle &room, ChangeList &changes)
     } else {
         // needed because the memory address is not unique and
         // calling admin->release might destroy a room still held by some path
-        m_handler.hold(room.getId(), this);
-        m_handler.release(room, changes); // Pass the RoomHandle 'room' directly
+        m_handler.hold(room.getId(), this); // This call is correct as RoomSignalHandler::hold takes PathProcessor*
+        ReleaseDecision decision = m_handler.release(room); // Call updated release, get decision
+        if (decision.shouldRemoveRoom) {
+            // This non-matching room is temporary and no longer held by other lockers
+            // after being processed by RoomSignalHandler::release; schedule it for removal.
+            changes.add(Change{room_change_types::RemoveRoom{decision.roomId}});
+        }
     }
 }
 

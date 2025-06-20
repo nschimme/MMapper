@@ -33,11 +33,9 @@ void Approved::virt_receiveRoom(const RoomHandle &perhaps, ChangeList &changes)
     }();
 
     if (cmp == ComparisonResultEnum::DIFFERENT) {
-        if (auto rh = m_map.findRoomHandle(id)) {
-            if (rh.isTemporary()) {
-                // This 'perhaps' room is different from the event and temporary; remove it.
-                changes.add(Change{room_change_types::RemoveRoom{id}});
-            }
+        // This 'perhaps' room is different from the event and temporary; remove it.
+        if (perhaps.exists() && perhaps.isTemporary()) {
+            changes.add(Change{room_change_types::RemoveRoom{perhaps.getId()}});
         }
         return;
     }
@@ -48,11 +46,9 @@ void Approved::virt_receiveRoom(const RoomHandle &perhaps, ChangeList &changes)
         if (m_matchedRoom.getId() != id) {
             m_moreThanOne = true;
         }
-        if (auto rh = m_map.findRoomHandle(id)) {
-            if (rh.isTemporary()) {
-                // This 'perhaps' room is a subsequent match and temporary; remove it as we already have a match.
-                changes.add(Change{room_change_types::RemoveRoom{id}});
-            }
+        // This 'perhaps' room is a subsequent match and temporary; remove it as we already have a match.
+        if (perhaps.exists() && perhaps.isTemporary()) {
+            changes.add(Change{room_change_types::RemoveRoom{perhaps.getId()}});
         }
         return;
     }
@@ -92,13 +88,9 @@ RoomHandle Approved::oneMatch() const
 void Approved::releaseMatch(ChangeList &changes)
 {
     // Release the current candidate in order to receive additional candidates
-    if (m_matchedRoom) {
-        if (auto rh = m_map.findRoomHandle(m_matchedRoom.getId())) {
-            if (rh.isTemporary()) {
-                // Current matched room is temporary and is being released; remove it.
-                changes.add(Change{room_change_types::RemoveRoom{m_matchedRoom.getId()}});
-            }
-        }
+    // Current matched room is temporary and is being released; remove it.
+    if (m_matchedRoom.exists() && m_matchedRoom.isTemporary()) {
+        changes.add(Change{room_change_types::RemoveRoom{m_matchedRoom.getId()}});
     }
     m_update = false;
     m_matchedRoom.reset();

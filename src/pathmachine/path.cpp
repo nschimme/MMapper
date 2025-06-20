@@ -170,7 +170,7 @@ void Path::approve(ChangeList &changes)
         assert(m_dir.has_value());
         const RoomHandle proom = parent->getRoom();
         const auto pId = !proom.exists() ? INVALID_ROOMID : proom.getId();
-        m_signaler.keep(m_room.getId(), m_dir.value(), pId, changes); // Use .
+        m_signaler.keep(m_room, m_dir.value(), pId, changes); // Pass m_room (RoomHandle)
         parent->removeChild(this->shared_from_this());
         parent->approve(changes);
     }
@@ -196,7 +196,7 @@ void Path::deny(ChangeList &changes)
         return;
     }
     if (m_dir.has_value()) {
-        m_signaler.release(m_room.getId(), changes); // Use .
+        m_signaler.release(m_room, changes); // Pass m_room (RoomHandle)
     }
     if (const auto &parent = getParent()) {
         parent->removeChild(shared_from_this());

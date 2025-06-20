@@ -29,17 +29,15 @@ void RoomSignalHandler::hold(const RoomId room, PathProcessor* locker) // Change
     ++m_holdCount[room];
 }
 
-void RoomSignalHandler::release(const RoomId room, ChangeList &changes)
+void RoomSignalHandler::release(const RoomHandle &roomHandle, ChangeList &changes)
 {
-    assert(m_holdCount.count(room) && m_holdCount.at(room) > 0); // Use .count or .at for safety, and m_ prefix
-    if (--m_holdCount[room] == 0) {
-        if (m_owners.contains(room)) {
-            // New logic to remove room if it's temporary
-            if (auto rh = m_map.findRoomHandle(room)) {
-                if (rh.isTemporary()) {
-                    // Room is temporary and no longer held by any locker; remove it.
-                    changes.add(Change{room_change_types::RemoveRoom{room}});
-                }
+    const RoomId roomId = roomHandle.getId();
+    assert(m_holdCount.count(roomId) && m_holdCount.at(roomId) > 0);
+    if (--m_holdCount[roomId] == 0) {
+        if (m_owners.contains(roomId)) {
+            // Room is temporary and no longer held by any locker; remove it.
+            if (roomHandle.isTemporary()) { // Use roomHandle directly
+                changes.add(Change{room_change_types::RemoveRoom{roomId}});
             }
             // Original loop that called m_map.releaseRoom for each recipient is removed.
         } else {
@@ -47,27 +45,26 @@ void RoomSignalHandler::release(const RoomId room, ChangeList &changes)
             // For now, maintaining original assertion if present, or consider logging
             assert(false);
         }
-        m_lockers.erase(room); // Clear the vector for the room
-        m_owners.erase(room);
-        m_holdCount.erase(room); // Also clean up m_holdCount
+        m_lockers.erase(roomId); // Use roomId for map operations
+        m_owners.erase(roomId);  // Use roomId
+        m_holdCount.erase(roomId); // Use roomId
     }
 }
 
-void RoomSignalHandler::keep(const RoomId room,
+void RoomSignalHandler::keep(const RoomHandle &roomHandle, // Changed to RoomHandle
                              const ExitDirEnum dir,
                              const RoomId fromId,
                              ChangeList &changes)
 {
+    const RoomId roomId = roomHandle.getId();
     // Corrected assertion to avoid inserting into map with operator[] if key doesn't exist
-    assert(m_holdCount.count(room) && m_holdCount.at(room) != 0);
-    assert(m_owners.contains(room));
+    assert(m_holdCount.count(roomId) && m_holdCount.at(roomId) != 0);
+    assert(m_owners.contains(roomId));
 
     // New logic to make room permanent if it's temporary
-    if (auto rh = m_map.findRoomHandle(room)) {
-        if (rh.isTemporary()) {
-            // This room is being kept and was temporary; make it permanent.
-            changes.add(Change{room_change_types::MakePermanent{room}});
-        }
+    // This room is being kept and was temporary; make it permanent.
+    if (roomHandle.isTemporary()) { // Use roomHandle directly
+        changes.add(Change{room_change_types::MakePermanent{roomId}});
     }
 
     static_assert(static_cast<uint32_t>(ExitDirEnum::UNKNOWN) + 1 == NUM_EXITS);
@@ -76,7 +73,7 @@ void RoomSignalHandler::keep(const RoomId room,
         changes.add(exit_change_types::ModifyExitConnection{ChangeTypeEnum::Add,
                                                             fromId,
                                                             dir,
-                                                            room,
+                                                            roomId, // Use roomId
                                                             WaysEnum::OneWay});
     }
 
@@ -93,7 +90,7 @@ void RoomSignalHandler::keep(const RoomId room,
     // === Add new logic here ===
     // If 'm_lockers' contains the room and its set of handles is not empty,
     // remove one element to simulate the old behavior of reducing the locker count.
-    auto it_room_lockers = m_lockers.find(room);
+    auto it_room_lockers = m_lockers.find(roomId); // Use roomId
     if (it_room_lockers != m_lockers.end()) {
         auto& handles_set = it_room_lockers->second; // Now a std::set
         if (!handles_set.empty()) {
@@ -102,7 +99,7 @@ void RoomSignalHandler::keep(const RoomId room,
     }
     // === End of new logic ===
 
-    release(room, changes); // This will decrement holdCount and might trigger actual release logic
+    release(roomHandle, changes); // Pass roomHandle
 }
 
 int RoomSignalHandler::getNumLockers(RoomId room) {

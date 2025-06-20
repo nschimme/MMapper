@@ -10,6 +10,7 @@
 #include "../map/ExitFieldVariant.h"
 #include "../map/ExitFlags.h"
 #include "../map/roomid.h"
+#include "../map/RoomHandle.h" // Added for RoomHandle
 
 #include <map>
 #include <set>    // For RoomIdSet (already used by m_owners) and for m_lockers' value type
@@ -67,11 +68,11 @@ public:
     // hold the room, we don't know yet what to do, overrides release, re-caches if room was un-cached
     void hold(RoomId room, PathProcessor* locker); // Changed to PathProcessor*
     // room isn't needed anymore and can be deleted if no one else is holding it and no one else uncached it
-    void release(RoomId room, ChangeList &changes);
+    void release(const RoomHandle &roomHandle, ChangeList &changes); // Changed to RoomHandle
     // keep the room but un-cache it - overrides both hold and release
     // toId is negative if no exit should be added, else it's the id of
     // the room where the exit should lead
-    void keep(RoomId room, ExitDirEnum dir, RoomId fromId, ChangeList &changes);
+    void keep(const RoomHandle &roomHandle, ExitDirEnum dir, RoomId fromId, ChangeList &changes); // Changed to RoomHandle
 
     /* Sending to the rooms' owners:
        keepRoom: keep the room, but we don't need it anymore for now

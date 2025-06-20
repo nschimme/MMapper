@@ -24,12 +24,11 @@ Crossover::Crossover(MapFrontend &map,
 
 void Crossover::virt_receiveRoom(const RoomHandle &room, ChangeList &changes)
 {
-    if (deref(m_shortPaths).empty()) { // Prefixed
-        if (auto rh = m_map.findRoomHandle(room.getId())) {
-            if (rh.isTemporary()) {
-                // If there are no short paths to evaluate, and this received room is temporary, remove it.
-                changes.add(Change{room_change_types::RemoveRoom{room.getId()}});
-            }
+    if (deref(m_shortPaths).empty()) {
+        // If there are no short paths to evaluate, and this received room is temporary, remove it.
+        // Check 'room' (the parameter) directly, no need for 'rh' lookup.
+        if (room.exists() && room.isTemporary()) {
+            changes.add(Change{room_change_types::RemoveRoom{room.getId()}});
         }
     }
 

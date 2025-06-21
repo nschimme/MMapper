@@ -982,15 +982,26 @@ private:
             return;
         }
 
-        const auto &now = map.getRawRoom(roomId);
-        const bool partial = (now != plan.expect);
-        os << "Success: The room has been " << (partial ? "partially" : "fully") << " restored.\n";
+        // const auto &now = map.getRawRoom(roomId); // Not needed without plan.expect
+        // const bool partial = (now != plan.expect); // Removed
 
-        // TODO: implement try-undelete.
-        if (false && partial && plan.hintUndelete) {
-            os << "Hint: Use `" << getPrefixChar()
-               << "map try-undelete <id>` to try to restore a room that that has been removed.\n";
+        if (plan.hintUndelete || plan.warnNoEntrances) {
+            os << "Success: The room revert operation was applied for room "
+               << map.getCurrentMap().getRoomHandle(roomId).getIdExternal().value_or(roomId.value()) // Display external or internal ID
+               << ", potentially with some notices (e.g., related to deleted rooms or entrance handling).\n";
+            if (plan.warnNoEntrances) { // Placed general entrance warning first
+                 os << "Note: Entrances may not have been restored as expected; please review room connections.\n";
+            }
+            if (plan.hintUndelete) {
+                 os << "Hint: Use `" << m_self.getPrefixChar() // Access via m_self
+                    << "map try-undelete <id>` to try to restore a room that has been removed if needed.\n";
+            }
+        } else {
+            os << "Success: The room "
+               << map.getCurrentMap().getRoomHandle(roomId).getIdExternal().value_or(roomId.value()) // Display external or internal ID
+               << " has been restored.\n";
         }
+        // The original TODO for try-undelete is now covered by the hintUndelete condition.
     }
 
 private:

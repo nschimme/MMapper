@@ -241,3 +241,5 @@ inline void print_string_quoted(AnsiOstream &aos, std::string_view sv)
 namespace test {
 extern void testAnsiOstream();
 } // namespace test
+
+AnsiOstream& get_dummy_ansi_ostream();

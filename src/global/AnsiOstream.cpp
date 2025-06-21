@@ -11,6 +11,9 @@
 #include "tests.h"
 
 #include <sstream>
+#include <streambuf> // For std::streambuf (needed for NullStreamBuf)
+#include <ostream>   // For std::ostream (needed for g_null_std_stream)
+
 
 void AnsiOstream::writeQuotedWithColor(const RawAnsi &normalAnsi,
                                        const RawAnsi &escapeAnsi,
@@ -191,6 +194,22 @@ void AnsiOstream::writeWithEmbeddedAnsi(const std::string_view sv)
         [this](std::string_view nonAnsi) { write(nonAnsi); });
 }
 
+namespace { // Anonymous namespace for implementation details
+class NullStreamBuf : public std::streambuf {
+public:
+    int overflow(int c) override { return c; } // Discard character
+};
+
+NullStreamBuf g_null_sbuf; // Static storage
+std::ostream g_null_std_stream(&g_null_sbuf); // Static storage
+AnsiOstream g_dummy_aos_instance(g_null_std_stream); // Static storage for the dummy AnsiOstream
+} // anonymous namespace
+
+AnsiOstream& get_dummy_ansi_ostream() {
+    return g_dummy_aos_instance;
+}
+
+
 namespace { // anonymous
 void test_aos1()
 {
@@ -339,3 +358,5 @@ void test::testAnsiOstream()
     test_aos5c();
     test_aos6();
 }
+
+[end of src/global/AnsiOstream.cpp]

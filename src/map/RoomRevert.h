@@ -12,7 +12,6 @@ namespace room_revert {
 
 struct NODISCARD RevertPlan final
 {
-    RawRoom expect;     // what we expect to see at the end
     ChangeList changes; // changes to apply
     bool hintUndelete = false;
     bool warnNoEntrances = false;

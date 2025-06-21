@@ -5,8 +5,7 @@
 
 #include "../global/AnsiOstream.h"
 
-#include <optional>
-#include <ostream>
+// <optional> and <ostream> are included via RoomRevert.h
 
 namespace room_revert {
 
@@ -166,6 +165,56 @@ std::optional<RevertPlan> build_plan(AnsiOstream &os,
         os << "Error: Exception while building plan.\n";
         return std::nullopt;
     }
+}
+
+bool isRevertible(const Map &currentMap, const RoomId roomId, const Map &baseMap)
+{
+    const auto currentRoomHandle = currentMap.findRoomHandle(roomId);
+    if (!currentRoomHandle) {
+        // Room doesn't even exist in the current map, so it can't be reverted
+        // based on an external ID from currentMap.
+        return false;
+    }
+    const ExternalRoomId currentExtId = currentRoomHandle.getIdExternal();
+    if (currentExtId == INVALID_EXTERNAL_ROOMID) {
+        // Should not happen for a valid room handle, but good to check.
+        return false;
+    }
+    return baseMap.findRoomHandle(currentExtId).isValid();
+}
+
+bool isRevertible(const Map &currentMap, const RoomIdSet &roomIds, const Map &baseMap)
+{
+    if (roomIds.empty()) {
+        return false;
+    }
+    for (const RoomId roomId : roomIds) {
+        if (isRevertible(currentMap, roomId, baseMap)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+std::vector<RevertPlan> build_plan(AnsiOstream &os,
+                                   const Map &currentMap,
+                                   const RoomIdSet &roomIds,
+                                   const Map &baseMap)
+{
+    std::vector<RevertPlan> plans;
+    if (roomIds.empty()) {
+        return plans;
+    }
+
+    for (const RoomId roomId : roomIds) {
+        // Use the existing single-room build_plan function.
+        // This already handles os messages for non-revertible rooms or errors.
+        std::optional<RevertPlan> roomPlan = build_plan(os, currentMap, roomId, baseMap);
+        if (roomPlan) {
+            plans.push_back(std::move(*roomPlan));
+        }
+    }
+    return plans;
 }
 
 } // namespace room_revert

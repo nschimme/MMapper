@@ -31,10 +31,13 @@ void Crossover::virt_receiveRoom(const RoomHandle &room)
     if (shortPaths.empty()) {
         // if (auto rh = m_map.findRoomHandle(room.getId())) { becomes:
         // m_context is inherited from Experimenting
-        if (auto rh = m_context.map.findRoomHandle(room.getId())) {
+        RoomId currentRoomId = room.getId(); // Define currentRoomId
+        if (auto rh = m_context.map.findRoomHandle(currentRoomId)) {
             if (rh.isTemporary()) {
-                // Use addTrackedChange
-                m_context.addTrackedChange(Change{room_change_types::RemoveRoom{room.getId()}});
+                // Refined: check context before calling addTrackedChange for RemoveRoom
+                if (m_context.getPendingOperation(currentRoomId) != mmapper::PendingRoomOperation::PENDING_REMOVE_ROOM) {
+                    m_context.addTrackedChange(Change{room_change_types::RemoveRoom{currentRoomId}});
+                }
             }
         }
     }

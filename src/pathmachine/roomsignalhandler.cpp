@@ -27,10 +27,13 @@ void RoomSignalHandler::release(mmapper::PathEventContext &context, const RoomId
     if (--it_hold_count->second == 0) {
         if (m_owners.contains(room)) {
             // if (auto rh = m_map.findRoomHandle(room)) { becomes:
-            if (auto rh = context.map.findRoomHandle(room)) { // Use context.map
+            RoomId currentRoomId = room; // Use currentRoomId for clarity
+            if (auto rh = context.map.findRoomHandle(currentRoomId)) { // Use context.map
                 if (rh.isTemporary()) {
-                    // Use addTrackedChange
-                    context.addTrackedChange(Change{room_change_types::RemoveRoom{room}});
+                    // Refined: check context before calling addTrackedChange for RemoveRoom
+                    if (context.getPendingOperation(currentRoomId) != mmapper::PendingRoomOperation::PENDING_REMOVE_ROOM) {
+                        context.addTrackedChange(Change{room_change_types::RemoveRoom{currentRoomId}});
+                    }
                 }
             }
         } else {
@@ -65,12 +68,15 @@ void RoomSignalHandler::keep(mmapper::PathEventContext &context, // Changed Chan
 
     // Simplified logic for making room permanent
     // if (auto rh = m_map.findRoomHandle(room)) { becomes:
-    if (auto rh = context.map.findRoomHandle(room)) { // Use context.map
+    RoomId currentRoomId = room; // Use currentRoomId for clarity
+    if (auto rh = context.map.findRoomHandle(currentRoomId)) { // Use context.map
         if (rh.isTemporary()) {
-            // REVISIT: Use changes.add() instead of applySingleChange() and release()?
-            // This comment is from the original code. The action itself is preserved.
-            // Use addTrackedChange for MakePermanent
-            context.addTrackedChange(Change{room_change_types::MakePermanent{room}});
+            // Refined: check context before calling addTrackedChange for MakePermanent
+            if (context.getPendingOperation(currentRoomId) == mmapper::PendingRoomOperation::NONE) {
+                context.addTrackedChange(Change{room_change_types::MakePermanent{currentRoomId}});
+            }
+            // If PENDING_MAKE_PERMANENT, addTrackedChange handles redundancy.
+            // If PENDING_REMOVE_ROOM, addTrackedChange ignores MakePermanent.
         }
     }
     // release(room); becomes:

@@ -94,10 +94,15 @@ void PathMachine::forcePositionChange(const RoomId id, const bool update)
 
     // Use context.changes.add() for non-lifecycle changes.
     context.changes.add(Change{room_change_types::Update{id, context.currentEvent, UpdateTypeEnum::Force}});
-    if (room.isTemporary()) {
-        // Use context.addTrackedChange for MakePermanent
-        context.addTrackedChange(Change{room_change_types::MakePermanent{id}});
+
+    // Context-aware check for MakePermanent
+    mmapper::PendingRoomOperation op = context.getPendingOperation(id);
+    if (op == mmapper::PendingRoomOperation::NONE) {
+        if (room.isTemporary()) { // `room` is RoomHandle from context.map
+            context.addTrackedChange(Change{room_change_types::MakePermanent{id}});
+        }
     }
+    // If op is PENDING_MAKE_PERMANENT or PENDING_REMOVE_ROOM, do nothing.
 
     // updateMostLikelyRoom now takes PathEventContext& and bool force.
     // The 'context' here is local to forcePositionChange.

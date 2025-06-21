@@ -10,6 +10,7 @@
 #include "./global/WinSock.h"
 #include "./global/emojis.h"
 #include "./mainwindow/mainwindow.h"
+#include "src/opengl/OpenGL.h" // For OpenGL::initializeDefaultSurfaceFormat
 
 #include <memory>
 #include <optional>
@@ -104,14 +105,9 @@ static void setSurfaceFormat()
         QApplication::setAttribute(Qt::AA_UseDesktopOpenGL);
     }
 
-    QSurfaceFormat fmt;
-    fmt.setRenderableType(QSurfaceFormat::OpenGL);
-    QSurfaceFormat::FormatOptions options = QSurfaceFormat::DebugContext
-                                            | QSurfaceFormat::DeprecatedFunctions;
-    fmt.setOptions(options);
-    fmt.setSamples(config.antialiasingSamples);
-    fmt.setDepthBufferSize(24);
-    QSurfaceFormat::setDefaultFormat(fmt);
+    // Initialize OpenGL version info and set the default surface format
+    // The antialiasing samples are passed to be applied to the determined format.
+    OpenGL::initializeDefaultSurfaceFormat(config.antialiasingSamples);
 }
 
 int main(int argc, char **argv)

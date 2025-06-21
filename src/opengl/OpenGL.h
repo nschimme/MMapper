@@ -36,6 +36,8 @@ public:
 
 public:
     /* must be called before any other functions */
+    static void initializeDefaultSurfaceFormat(int antialiasingSamples); // New static method
+
     void initializeOpenGLFunctions();
     void initializeRenderer(float devicePixelRatio);
     NODISCARD const char *glGetString(GLenum name);

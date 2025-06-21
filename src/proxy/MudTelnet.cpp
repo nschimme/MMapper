@@ -76,7 +76,7 @@ NODISCARD TelnetTermTypeBytes addTerminalTypeSuffix(const std::string_view prefi
 
     std::ostringstream ss;
     ss << prefix << "/MMapper-" << getMMapperVersion() << "/"
-       << MapCanvasConfig::getCurrentOpenGLVersion() << "/" << getOs() << "/" << arch;
+       << MapCanvasConfig::getHighestReportableOpenGLVersionString() << "/" << getOs() << "/" << arch;
     auto str = std::move(ss).str();
 
     return TelnetTermTypeBytes{mmqt::toQByteArrayUtf8(str)};

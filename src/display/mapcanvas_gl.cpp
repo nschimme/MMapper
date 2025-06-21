@@ -58,18 +58,38 @@
 namespace MapCanvasConfig {
 
 static std::mutex g_version_lock;
-static std::string g_current_gl_version = "UN0.0";
+static std::string g_current_gl_version = "UN0.0"; // Stores the version the context is actually running with
 
+static std::mutex g_highest_version_lock; // Separate lock for the reportable version
+static std::string g_highest_reportable_gl_version_string = "Unknown";
+
+// Setter for the actual running GL version (called by MapCanvas::reportGLVersion)
 static void setCurrentOpenGLVersion(std::string version)
 {
     std::unique_lock<std::mutex> lock{g_version_lock};
     g_current_gl_version = std::move(version);
 }
 
+// Getter for the actual running GL version
 std::string getCurrentOpenGLVersion()
 {
     std::unique_lock<std::mutex> lock{g_version_lock};
     return g_current_gl_version;
+}
+
+// Setter for the highest reportable GL version (called from OpenGL::initializeDefaultSurfaceFormat)
+void setHighestReportableOpenGLVersionString(const std::string& version)
+{
+    std::unique_lock<std::mutex> lock{g_highest_version_lock};
+    g_highest_reportable_gl_version_string = version;
+    qInfo() << "[MapCanvasConfig] Highest reportable GL version set to: " << g_highest_reportable_gl_version_string.c_str();
+}
+
+// Getter for the highest reportable GL version
+std::string getHighestReportableOpenGLVersionString()
+{
+    std::unique_lock<std::mutex> lock{g_highest_version_lock};
+    return g_highest_reportable_gl_version_string;
 }
 
 void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
@@ -193,6 +213,11 @@ void MapCanvas::reportGLVersion()
                // FIXME: This is a bit late to report an invalid context.
                .arg(context()->isValid() ? "valid" : "invalid")
                .toUtf8());
+
+    // Log the highest reportable OpenGL version determined at startup
+    std::string highestReportableVersion = MapCanvasConfig::getHighestReportableOpenGLVersionString();
+    logMsg("Highest Reportable OpenGL (determined at startup):", mmqt::toQByteArrayUtf8(highestReportableVersion));
+
     logMsg("Display:", QString("%1 DPI").arg(QPaintDevice::devicePixelRatioF()).toUtf8());
 }
 

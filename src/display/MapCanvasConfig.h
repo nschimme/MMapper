@@ -10,6 +10,8 @@ void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
                             ChangeMonitor::Function callback);
 
 NODISCARD extern std::string getCurrentOpenGLVersion();
+extern void setHighestReportableOpenGLVersionString(const std::string& version); // New
+NODISCARD extern std::string getHighestReportableOpenGLVersionString(); // New
 
 NODISCARD extern bool isIn3dMode();
 extern void set3dMode(bool);

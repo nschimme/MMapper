@@ -81,7 +81,14 @@ static bool checkContext(QSurfaceFormat format) {
 
 static std::string determineHighestReportableVersionStringInternal() {
     std::string highestReportedGLVersionString = "Unknown";
-    QSurfaceFormat::FormatOptions options = QSurfaceFormat::DebugContext | QSurfaceFormat::DeprecatedFunctions;
+    int highestMajor = 0;
+    int highestMinor = 0;
+    bool highestIsCore = false;
+    bool highestHasDebug = false;
+
+    QSurfaceFormat::FormatOptions optionsWithDebug = QSurfaceFormat::DebugContext | QSurfaceFormat::DeprecatedFunctions;
+    QSurfaceFormat::FormatOptions optionsCompatOnly = QSurfaceFormat::DeprecatedFunctions;
+    QSurfaceFormat::FormatOptions optionsCoreOnly = QSurfaceFormat::FormatOption(0); // No specific options for core beyond version/profile
 
     std::vector<GLVersionPair> coreVersions = {
         {4, 6}, {4, 5}, {4, 4}, {4, 3}, {4, 2}, {4, 1}, {4, 0},
@@ -91,30 +98,45 @@ static std::string determineHighestReportableVersionStringInternal() {
         {3, 2}, {3, 1}, {3, 0}, {2, 1}
     };
 
-    std::string bestCoreVersionStr = "None";
-    int bestCoreMajor = 0, bestCoreMinor = 0;
-
-    std::string bestCompatVersionStr = "None";
-    int bestCompatMajor = 0, bestCompatMinor = 0;
-
     QSurfaceFormat testFormat;
     testFormat.setRenderableType(QSurfaceFormat::OpenGL);
-    testFormat.setOptions(options);
     testFormat.setDepthBufferSize(24);
 
+    auto updateHighest = [&](int major, int minor, bool isCore, bool hasDebug) {
+        if (major > highestMajor || (major == highestMajor && minor > highestMinor)) {
+            highestMajor = major;
+            highestMinor = minor;
+            highestIsCore = isCore;
+            highestHasDebug = hasDebug;
+        } else if (major == highestMajor && minor == highestMinor) {
+            // Prefer Core over Compat if versions are identical
+            if (isCore && !highestIsCore) {
+                highestIsCore = true;
+                highestHasDebug = hasDebug; // Update debug status if profile preference changes
+            }
+            // If profiles are also same, prefer with debug
+            if (isCore == highestIsCore && hasDebug && !highestHasDebug) {
+                highestHasDebug = true;
+            }
+        }
+    };
 
     qInfo() << "[GL Probe Internal] Testing Core profiles for reporting...";
     for (const auto& ver : coreVersions) {
         testFormat.setVersion(ver.major, ver.minor);
         testFormat.setProfile(QSurfaceFormat::CoreProfile);
+
+        testFormat.setOptions(optionsWithDebug);
         if (checkContext(testFormat)) {
-            std::ostringstream oss;
-            oss << "GL " << ver.major << "." << ver.minor << " Core";
-            bestCoreVersionStr = oss.str();
-            bestCoreMajor = ver.major;
-            bestCoreMinor = ver.minor;
-            qInfo() << "[GL Probe Internal] Found usable Core for reporting: " << bestCoreVersionStr.c_str();
-            break;
+            updateHighest(ver.major, ver.minor, true, true);
+            qInfo() << "[GL Probe Internal] Found usable: GL " << ver.major << "." << ver.minor << " Core (Debug)";
+            // Don't break; continue to find the absolute highest that might work without debug
+        } else {
+            testFormat.setOptions(optionsCoreOnly);
+            if (checkContext(testFormat)) {
+                updateHighest(ver.major, ver.minor, true, false);
+                qInfo() << "[GL Probe Internal] Found usable: GL " << ver.major << "." << ver.minor << " Core";
+            }
         }
     }
 
@@ -122,92 +144,101 @@ static std::string determineHighestReportableVersionStringInternal() {
     for (const auto& ver : compatVersions) {
         testFormat.setVersion(ver.major, ver.minor);
         testFormat.setProfile(QSurfaceFormat::CompatibilityProfile);
+
+        testFormat.setOptions(optionsWithDebug);
         if (checkContext(testFormat)) {
-            std::ostringstream oss;
-            oss << "GL " << ver.major << "." << ver.minor << " Compat";
-            bestCompatVersionStr = oss.str();
-            bestCompatMajor = ver.major;
-            bestCompatMinor = ver.minor;
-            qInfo() << "[GL Probe Internal] Found usable Compatibility for reporting: " << bestCompatVersionStr.c_str();
-            break;
+            updateHighest(ver.major, ver.minor, false, true);
+            qInfo() << "[GL Probe Internal] Found usable: GL " << ver.major << "." << ver.minor << " Compat (Debug)";
+        } else {
+            testFormat.setOptions(optionsCompatOnly);
+            if (checkContext(testFormat)) {
+                updateHighest(ver.major, ver.minor, false, false);
+                qInfo() << "[GL Probe Internal] Found usable: GL " << ver.major << "." << ver.minor << " Compat";
+            }
         }
     }
 
-    if (bestCoreMajor > bestCompatMajor || (bestCoreMajor == bestCompatMajor && bestCoreMinor > bestCompatMinor)) {
-        highestReportedGLVersionString = bestCoreVersionStr;
-    } else if (bestCompatMajor > 0) {
-        highestReportedGLVersionString = bestCompatVersionStr;
-    } else if (bestCoreMajor > 0) {
-        highestReportedGLVersionString = bestCoreVersionStr;
+    if (highestMajor > 0) {
+        std::ostringstream oss;
+        oss << "GL " << highestMajor << "." << highestMinor
+            << (highestIsCore ? " Core" : " Compat")
+            << (highestHasDebug ? " (Debug)" : "");
+        highestReportedGLVersionString = oss.str();
     } else {
         highestReportedGLVersionString = "GL detection failed or no suitable GL context found.";
     }
+
     qInfo() << "[GL Probe Internal] Highest reportable GL version determined: " << highestReportedGLVersionString.c_str();
     return highestReportedGLVersionString;
 }
 
 static QSurfaceFormat determineOptimalRunningFormatInternal() {
-    QSurfaceFormat runningFormat;
+    QSurfaceFormat runningFormat; // This will store the chosen format including options
     runningFormat.setRenderableType(QSurfaceFormat::OpenGL);
-    QSurfaceFormat::FormatOptions options = QSurfaceFormat::DebugContext | QSurfaceFormat::DeprecatedFunctions;
-    runningFormat.setOptions(options);
     runningFormat.setDepthBufferSize(24);
 
-#ifdef Q_OS_MACOS
-    qInfo() << "[GL Setup Internal] macOS detected. Requesting GL 2.1 Compatibility profile for running.";
-    runningFormat.setVersion(2, 1);
-    runningFormat.setProfile(QSurfaceFormat::CompatibilityProfile);
-    if (!checkContext(runningFormat)) {
-        qWarning() << "[GL Setup Internal] Critical: macOS GL 2.1 Compatibility profile failed to initialize for running! Falling back to NoProfile.";
-        runningFormat.setVersion(0,0);
-        runningFormat.setProfile(QSurfaceFormat::NoProfile);
-    }
-#else
-    // For other OS, try to find a working compatibility profile first as a stable option.
-    // Fallback to a core profile if no suitable compatibility profile is found.
-    std::vector<GLVersionPair> compatVersionsToTry = {{3, 2}, {3, 1}, {3, 0}, {2, 1}};
-    std::vector<GLVersionPair> coreVersionsToTry = {{3, 3}, {3, 2}}; // More conservative core versions for running
+    QSurfaceFormat::FormatOptions optionsWithDebug = QSurfaceFormat::DebugContext | QSurfaceFormat::DeprecatedFunctions;
+    QSurfaceFormat::FormatOptions optionsCompatOnly = QSurfaceFormat::DeprecatedFunctions;
+    QSurfaceFormat::FormatOptions optionsCoreOnly = QSurfaceFormat::FormatOption(0);
 
-    bool runningFormatSet = false;
+    // Define a general-purpose list of versions to try for the running context.
+    // Prioritize compatibility, then reasonable core versions.
+    // GL 2.1 Compat is essential for macOS and a good general fallback.
+    std::vector<std::tuple<GLVersionPair, QSurfaceFormat::OpenGLContextProfile, QSurfaceFormat::FormatOptions, std::string>> profilesToTry;
+
+    // Compatibility profiles, try with Debug then without
+    std::vector<GLVersionPair> compatVersionsRun = {{3, 2}, {3, 1}, {3, 0}, {2, 1}};
+    for (const auto& ver : compatVersionsRun) {
+        profilesToTry.emplace_back(ver, QSurfaceFormat::CompatibilityProfile, optionsWithDebug, "Compat (Debug)");
+        profilesToTry.emplace_back(ver, QSurfaceFormat::CompatibilityProfile, optionsCompatOnly, "Compat");
+    }
+
+    // Core profiles (more conservative list for running), try with Debug then without
+    std::vector<GLVersionPair> coreVersionsRun = {{3, 3}, {3, 2}};
+    for (const auto& ver : coreVersionsRun) {
+        profilesToTry.emplace_back(ver, QSurfaceFormat::CoreProfile, optionsWithDebug, "Core (Debug)");
+        profilesToTry.emplace_back(ver, QSurfaceFormat::CoreProfile, optionsCoreOnly, "Core");
+    }
+
     QSurfaceFormat testFormat;
     testFormat.setRenderableType(QSurfaceFormat::OpenGL);
-    testFormat.setOptions(options);
     testFormat.setDepthBufferSize(24);
 
-    qInfo() << "[GL Setup Internal] Non-macOS: Testing Compatibility profiles for running...";
-    for (const auto& ver : compatVersionsToTry) {
+    qInfo() << "[GL Setup Internal] Determining optimal running GL format...";
+    for (const auto& trial : profilesToTry) {
+        const GLVersionPair& ver = std::get<0>(trial);
+        QSurfaceFormat::OpenGLContextProfile profile = std::get<1>(trial);
+        QSurfaceFormat::FormatOptions currentOptions = std::get<2>(trial);
+        const std::string& profileDesc = std::get<3>(trial);
+
         testFormat.setVersion(ver.major, ver.minor);
-        testFormat.setProfile(QSurfaceFormat::CompatibilityProfile);
+        testFormat.setProfile(profile);
+        testFormat.setOptions(currentOptions);
+
+        qInfo() << "[GL Setup Internal] Trying: GL " << ver.major << "." << ver.minor << " " << profileDesc.c_str();
         if (checkContext(testFormat)) {
             runningFormat.setVersion(ver.major, ver.minor);
-            runningFormat.setProfile(QSurfaceFormat::CompatibilityProfile);
-            qInfo() << "[GL Setup Internal] Non-macOS: Setting running format to GL " << ver.major << "." << ver.minor << " Compat";
-            runningFormatSet = true;
-            break;
+            runningFormat.setProfile(profile);
+            runningFormat.setOptions(currentOptions); // Store the options that worked
+            qInfo() << "[GL Setup Internal] Successfully set running format to: GL "
+                    << ver.major << "." << ver.minor << " " << profileDesc.c_str();
+            // Log final chosen options
+            qInfo() << "[GL Setup Internal] Final running format to be used: Version "
+                    << runningFormat.majorVersion() << "." << runningFormat.minorVersion()
+                    << " Profile: " << (runningFormat.profile() == QSurfaceFormat::CoreProfile ? "Core" :
+                                        runningFormat.profile() == QSurfaceFormat::CompatibilityProfile ? "Compat" : "NoProfile")
+                    << " Options: Debug(" << (runningFormat.options().testFlag(QSurfaceFormat::DebugContext) ? "Yes" : "No")
+                    << "), Deprecated(" << (runningFormat.options().testFlag(QSurfaceFormat::DeprecatedFunctions) ? "Yes" : "No") << ")";
+            return runningFormat;
         }
     }
 
-    if (!runningFormatSet) {
-        qInfo() << "[GL Setup Internal] Non-macOS: No suitable Compatibility profile found. Testing Core profiles for running...";
-        for (const auto& ver : coreVersionsToTry) {
-            testFormat.setVersion(ver.major, ver.minor);
-            testFormat.setProfile(QSurfaceFormat::CoreProfile);
-            if (checkContext(testFormat)) {
-                runningFormat.setVersion(ver.major, ver.minor);
-                runningFormat.setProfile(QSurfaceFormat::CoreProfile);
-                qInfo() << "[GL Setup Internal] Non-macOS: Setting running format to GL " << ver.major << "." << ver.minor << " Core";
-                runningFormatSet = true;
-                break;
-            }
-        }
-    }
+    // Fallback if nothing specific worked
+    qInfo() << "[GL Setup Internal] No specific GL profile succeeded. Using default NoProfile for running format.";
+    runningFormat.setVersion(0,0);
+    runningFormat.setProfile(QSurfaceFormat::NoProfile);
+    runningFormat.setOptions(QSurfaceFormat::FormatOption(0)); // Clear options too
 
-    if (!runningFormatSet) {
-        qInfo() << "[GL Setup Internal] Non-macOS: No specific GL profile succeeded for running. Using default NoProfile.";
-        runningFormat.setVersion(0,0);
-        runningFormat.setProfile(QSurfaceFormat::NoProfile);
-    }
-#endif
     qInfo() << "[GL Setup Internal] Final running format to be used: Version "
             << runningFormat.majorVersion() << "." << runningFormat.minorVersion()
             << " Profile: " << (runningFormat.profile() == QSurfaceFormat::CoreProfile ? "Core" :

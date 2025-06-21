@@ -66,14 +66,12 @@ private:
 
 public:
     static std::shared_ptr<Path> alloc(const RoomHandle &room,
-                                       PathProcessor *processor,
                                        RoomSignalHandler& signaler,
                                        std::optional<ExitDirEnum> direction);
 
 public:
     explicit Path(Badge<Path>,
                   RoomHandle moved_room,
-                  PathProcessor *processor,
                   RoomSignalHandler& signaler,
                   std::optional<ExitDirEnum> direction);
     DELETE_CTORS_AND_ASSIGN_OPS(Path);
@@ -96,7 +94,6 @@ public:
     NODISCARD std::shared_ptr<Path> fork(const RoomHandle &room,
                                          const Coordinate &expectedCoordinate,
                                          const PathParameters &params,
-                                         PathProcessor& processor,
                                          ExitDirEnum dir);
     NODISCARD double getProb() const
     {

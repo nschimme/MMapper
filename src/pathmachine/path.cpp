@@ -21,16 +21,14 @@
 #include <utility>
 
 std::shared_ptr<Path> Path::alloc(const RoomHandle &room,
-                                  PathProcessor *const processor,
                                   RoomSignalHandler& signaler,
                                   std::optional<ExitDirEnum> moved_direction)
 {
-    return std::make_shared<Path>(Badge<Path>{}, room, processor, signaler, std::move(moved_direction));
+    return std::make_shared<Path>(Badge<Path>{}, room, signaler, std::move(moved_direction));
 }
 
 Path::Path(Badge<Path>,
            RoomHandle moved_room,
-           PathProcessor *const processor,
            RoomSignalHandler& in_signaler,
            std::optional<ExitDirEnum> moved_direction)
     : m_room(std::move(moved_room))
@@ -38,11 +36,6 @@ Path::Path(Badge<Path>,
     , m_dir(std::move(moved_direction))
 {
     if (m_dir.has_value()) {
-        // The PathProcessor* processor parameter is no longer passed to hold().
-        // The assertion might still be relevant for Path's logic if a direction implies a processor,
-        // but hold() itself doesn't need it. For this refactoring, we focus on hold's signature.
-        // If processor is truly required by Path when m_dir has value, that's a separate concern.
-        // assert(processor != nullptr && "PathProcessor must be valid when direction is present.");
         m_signaler.hold(m_room.getId());
     }
 }
@@ -55,14 +48,13 @@ Path::Path(Badge<Path>,
 std::shared_ptr<Path> Path::fork(const RoomHandle &in_room,
                                  const Coordinate &expectedCoordinate,
                                  const PathParameters &p,
-                                 PathProcessor& processor,
                                  const ExitDirEnum direction)
 {
     assert(!m_zombie);
     const auto udir = static_cast<uint32_t>(direction);
     assert(isClamped(udir, 0u, NUM_EXITS));
 
-    auto ret = Path::alloc(in_room, &processor, m_signaler, direction);
+    auto ret = Path::alloc(in_room, m_signaler, direction);
     ret->setParent(shared_from_this());
     insertChild(ret);
 

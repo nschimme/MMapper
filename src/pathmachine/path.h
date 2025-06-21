@@ -46,9 +46,9 @@ struct PathParameters;
  * - `deny(ChangeList&)`: Rejects this path segment, "releases" its room, and
  *   may recursively deny its parent.
  * - `fork(...)`: Creates a new child Path. Probability is based on various
- *   factors including `RoomSignalHandler::getNumLockers()` for the target room.
- *   The `locker_handle` (a `PathProcessor*`) is passed to the new Path for it to
- *   `hold` its room.
+ *   factors including `RoomSignalHandler::getNumHolders()` for the target room.
+ *   When a Path is created via `alloc` (often from `fork`), if it represents a
+ *   specific direction from a parent, its room is `hold()`-called via the `RoomSignalHandler`.
  *
  * Managed by `std::shared_ptr<Path>`, typically in PathMachine's `m_paths` list.
  */
@@ -90,7 +90,8 @@ public:
         return m_room;
     }
 
-    // new Path is created, distance between rooms is calculated and probability is set accordingly
+    // new Path is created, distance between rooms is calculated and probability is set accordingly.
+    // The 'processor' parameter was removed as Path::alloc no longer needs it.
     NODISCARD std::shared_ptr<Path> fork(const RoomHandle &room,
                                          const Coordinate &expectedCoordinate,
                                          const PathParameters &params,

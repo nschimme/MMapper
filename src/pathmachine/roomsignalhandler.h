@@ -25,21 +25,19 @@ class MapFrontend;
  *
  * RoomSignalHandler is responsible for tracking which PathProcessor strategies
  * or Path objects have an active interest in a particular RoomId. This is done
- * primarily through a "hold count" (`m_holdCount`) and a collection of "locker"
- * references (`m_lockers`, storing `PathProcessor*`).
+ * primarily through a "hold count" per room, managed in `m_holdCount`.
  *
  * Key functionalities:
- * - `hold(RoomId, PathProcessor*)`: Called by a "locker" to indicate
- *   it's currently using or evaluating a room. Increments hold count and stores
- *   a raw pointer.
- * - `release(const RoomHandle&, ChangeList&)`: Decrements hold count. If zero for a temporary
- *   room, queues its removal to the ChangeList. Clears room entries.
- * - `keep(const RoomHandle&, ExitDirEnum, RoomId, ChangeList&)`: Converts a "hold" to a
- *   "kept" state. Directly adds changes (MakePermanent, ModifyExitConnection) to the
- *   provided ChangeList. Adjusts locker tracking, then calls `release()`.
- * - `getNumLockers(RoomId)`: Provides a count of registered locker entries for a
- *   room. (Note: Current simple version counts all registered raw pointers, not
- *   just non-expired ones, for behavioral consistency with past heuristics).
+ * - `hold(RoomId)`: Called to indicate a Path or strategy is currently using or
+ *   evaluating a room. Increments the room's hold count.
+ * - `release(RoomId room)`: Decrements a room's hold count. If the count reaches zero
+ *   for a temporary room, it may be queued for removal.
+ * - `keep(RoomId room, ExitDirEnum dir, RoomId fromId, ChangeList &changes)`:
+ *   Converts a "hold" to a "kept" state (e.g., making a temporary room permanent
+ *   and adding an exit). It then calls `release()` to decrement the hold count that
+ *   was covering the initial exploration of the room.
+ * - `getNumHolders(RoomId room)`: Returns the current hold count for a room,
+ *   indicating how many active interests are registered for it.
  *
  * Owned by PathMachine, it queues changes to a ChangeList rather than applying
  * them directly.
@@ -60,9 +58,10 @@ public:
         , m_map{map}
     {}
     /* receiving from our clients: */
-    // hold the room, we don't know yet what to do, overrides release, re-caches if room was un-cached
+    // hold the room, indicating it's in use or being evaluated.
+    // Overrides release if the room was previously un-cached.
     void hold(RoomId room);
-    // room isn't needed anymore and can be deleted if no one else is holding it and no one else uncached it
+    // room isn't needed anymore and can be deleted if its hold count reaches zero and it's temporary.
     void release(RoomId room);
     // keep the room but un-cache it - overrides both hold and release
     // toId is negative if no exit should be added, else it's the id of
@@ -73,6 +72,7 @@ public:
        keepRoom: keep the room, but we don't need it anymore for now
        releaseRoom: delete the room, if you like */
 
+    // Returns the number of active holds on the given room.
     auto getNumHolders(RoomId room) const -> int
     {
         auto it = m_holdCount.find(room);

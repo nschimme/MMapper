@@ -32,9 +32,11 @@ void OneByOne::virt_receiveRoom(const RoomHandle &room)
         == ComparisonResultEnum::EQUAL) {
         augmentPath(m_shortPaths->back(), room);
     } else {
-        // needed because the memory address is not unique and
-        // calling admin->release might destroy a room still held by some path
-        m_handler.hold(room.getId(), *this);
+        // This hold()/release() sequence ensures that if this room was only being kept alive
+        // due to this transient interaction, its lifecycle is correctly managed via RoomSignalHandler's
+        // reference counting (m_holdCount). It prevents premature cleanup if the room should persist
+        // due to other holds, and ensures cleanup if this was the effective last hold.
+        m_handler.hold(room.getId());
         m_handler.release(room.getId());
     }
 }

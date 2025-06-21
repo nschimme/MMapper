@@ -313,9 +313,10 @@ void PathMachine::approved(const SigParseEvent &sigParseEvent, ChangeList &chang
             return;
         }
 
-        /* FIXME: null locker ends up being an error in RoomSignalHandler::keep(),
-         * so why is this allowed to be null, and how do we prevent this null
-         * from actually causing an error? */
+        // The Path::alloc call below previously passed a nullptr as PathProcessor.
+        // This was a concern for RoomSignalHandler::keep if it directly used that processor.
+        // Refactoring has removed PathProcessor from Path::alloc and direct use in RoomSignalHandler::keep,
+        // resolving the original FIXME about a potential null pointer issue.
         deref(m_paths).push_front(Path::alloc(pathRoot, m_signaler, std::nullopt));
         experimenting(sigParseEvent, changes);
 

@@ -35,6 +35,8 @@ public:
     {
         return m_changes.empty();
     }
+
+    void append(const ChangeList& other);
 };
 
 using SigMapChangeList = MmQtHandle<ChangeList>;

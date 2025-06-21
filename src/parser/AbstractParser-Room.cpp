@@ -6,6 +6,7 @@
 #include "../global/Charset.h"
 #include "../map/Diff.h"
 #include "../map/RoomRevert.h"
+#include "../map/RoomIdSet.h" // Added for RoomIdSet
 #include "../map/enums.h"
 #include "../map/mmapper2room.h"
 #include "../mapdata/mapdata.h"
@@ -952,7 +953,11 @@ private:
         auto &mapData = getMap();
         const auto &baseMap = mapData.getSavedMap();
         const auto &currentMap = mapData.getCurrentMap();
-        auto pResult = room_revert::build_plan(os, currentMap, roomId, baseMap);
+
+        RoomIdSet roomIdsToRevert;
+        roomIdsToRevert.insert(roomId);
+
+        auto pResult = room_revert::build_plan(os, currentMap, roomIdsToRevert, baseMap);
         if (!pResult) {
             return;
         }

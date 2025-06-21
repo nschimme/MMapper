@@ -21,7 +21,17 @@ struct NODISCARD RevertPlan final
 // assumes the current map is a modified version of the base map
 NODISCARD std::optional<RevertPlan> build_plan(AnsiOstream &os,
                                                const Map &currentMap,
-                                               RoomId roomId,
+                                               const RoomIdSet &roomIds,
                                                const Map &baseMap);
+
+NODISCARD bool isRevertible(AnsiOstream &os,
+                            const Map &currentMap,
+                            RoomId roomId,
+                            const Map &baseMap);
+
+NODISCARD bool isRevertible(AnsiOstream &os,
+                            const Map &currentMap,
+                            const RoomIdSet &roomIds,
+                            const Map &baseMap);
 
 } // namespace room_revert

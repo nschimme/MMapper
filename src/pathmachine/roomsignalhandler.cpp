@@ -9,15 +9,14 @@
 
 #include <cassert>
 
-void RoomSignalHandler::hold(const RoomId room, PathProcessor *const locker)
+void RoomSignalHandler::hold(const RoomId room, PathProcessor& processor)
 {
-    // REVISIT: why do we allow locker to be null?
     m_owners.insert(room);
     auto [it, inserted] = m_lockers.try_emplace(room);
     if (inserted) {
         m_holdCount[room] = 0;
     }
-    it->second.insert(locker);
+    it->second.insert(&processor);
     ++m_holdCount[room];
 }
 

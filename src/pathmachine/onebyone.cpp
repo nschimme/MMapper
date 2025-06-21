@@ -34,7 +34,7 @@ void OneByOne::virt_receiveRoom(const RoomHandle &room)
     } else {
         // needed because the memory address is not unique and
         // calling admin->release might destroy a room still held by some path
-        m_handler.hold(room.getId(), this);
+        m_handler.hold(room.getId(), *this);
         m_handler.release(room.getId());
     }
 }

@@ -13,7 +13,7 @@
 
 Syncing::Syncing(PathParameters &in_p,
                  std::shared_ptr<PathList> moved_paths,
-                 RoomSignalHandler *in_signaler)
+                 RoomSignalHandler& in_signaler)
     : signaler(in_signaler)
     , params(in_p)
     , paths(std::move(moved_paths))

@@ -316,7 +316,7 @@ void PathMachine::approved(const SigParseEvent &sigParseEvent, ChangeList &chang
         /* FIXME: null locker ends up being an error in RoomSignalHandler::keep(),
          * so why is this allowed to be null, and how do we prevent this null
          * from actually causing an error? */
-        deref(m_paths).push_front(Path::alloc(pathRoot, nullptr, &m_signaler, std::nullopt));
+        deref(m_paths).push_front(Path::alloc(pathRoot, nullptr, m_signaler, std::nullopt));
         experimenting(sigParseEvent, changes);
 
         return;
@@ -540,7 +540,7 @@ void PathMachine::syncing(const SigParseEvent &sigParseEvent, ChangeList &change
     auto &params = m_params;
     ParseEvent &event = sigParseEvent.deref();
     {
-        Syncing sync{params, m_paths, &m_signaler};
+        Syncing sync{params, m_paths, m_signaler};
         if (event.getNumSkipped() <= params.maxSkipped) {
             RoomIdSet ids = m_map.lookingForRooms(sigParseEvent);
             if (event.hasServerId()) {

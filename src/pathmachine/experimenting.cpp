@@ -27,7 +27,7 @@ void Experimenting::augmentPath(const std::shared_ptr<Path> &path, const RoomHan
 {
     auto &p = deref(path);
     const Coordinate c = p.getRoom().getPosition() + m_direction;
-    const auto working = p.fork(room, c, m_params, this, m_dirCode);
+    const auto working = p.fork(room, c, m_params, *this, m_dirCode);
     if (m_best == nullptr) {
         m_best = working;
     } else if (working->getProb() > m_best->getProb()) {

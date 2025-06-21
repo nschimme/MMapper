@@ -62,7 +62,7 @@ public:
     {}
     /* receiving from our clients: */
     // hold the room, we don't know yet what to do, overrides release, re-caches if room was un-cached
-    void hold(RoomId room, PathProcessor *locker);
+    void hold(RoomId room, PathProcessor& processor);
     // room isn't needed anymore and can be deleted if no one else is holding it and no one else uncached it
     void release(RoomId room);
     // keep the room but un-cache it - overrides both hold and release

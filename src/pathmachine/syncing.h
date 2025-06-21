@@ -26,7 +26,7 @@ struct PathParameters;
 class NODISCARD Syncing final : public PathProcessor
 {
 private:
-    RoomSignalHandler *signaler = nullptr;
+    RoomSignalHandler& signaler;
     PathParameters &params;
     const std::shared_ptr<PathList> paths;
     // This is not our parent; it's the parent we assign to new objects.
@@ -36,7 +36,7 @@ private:
 public:
     explicit Syncing(PathParameters &p,
                      std::shared_ptr<PathList> paths,
-                     RoomSignalHandler *signaler);
+                     RoomSignalHandler& signaler);
 
 public:
     Syncing() = delete;

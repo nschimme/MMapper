@@ -60,21 +60,21 @@ private:
     double m_probability = 1.0;
     // in fact a path only has one room, one parent and some children (forks).
     const RoomHandle m_room;
-    RoomSignalHandler *const m_signaler;
+    RoomSignalHandler& m_signaler;
     const std::optional<ExitDirEnum> m_dir;
     bool m_zombie = false;
 
 public:
     static std::shared_ptr<Path> alloc(const RoomHandle &room,
-                                       PathProcessor *locker,
-                                       RoomSignalHandler *signaler,
+                                       PathProcessor *processor,
+                                       RoomSignalHandler& signaler,
                                        std::optional<ExitDirEnum> direction);
 
 public:
     explicit Path(Badge<Path>,
                   RoomHandle moved_room,
-                  PathProcessor *locker,
-                  RoomSignalHandler *signaler,
+                  PathProcessor *processor,
+                  RoomSignalHandler& signaler,
                   std::optional<ExitDirEnum> direction);
     DELETE_CTORS_AND_ASSIGN_OPS(Path);
 
@@ -96,7 +96,7 @@ public:
     NODISCARD std::shared_ptr<Path> fork(const RoomHandle &room,
                                          const Coordinate &expectedCoordinate,
                                          const PathParameters &params,
-                                         PathProcessor *locker,
+                                         PathProcessor& processor,
                                          ExitDirEnum dir);
     NODISCARD double getProb() const
     {

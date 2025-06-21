@@ -16,9 +16,14 @@
 
 #include <QString>
 
+// Forward declarations
+class ChangeList; // For keep method, though it will change to PathEventContext
 class PathProcessor;
 struct RoomId;
 class MapFrontend;
+namespace mmapper { // Forward declare PathEventContext
+struct PathEventContext;
+}
 
 /*!
  * @brief Manages room lifecycle signals and "holds" during pathfinding.
@@ -62,11 +67,13 @@ public:
     // Overrides release if the room was previously un-cached.
     void hold(RoomId room);
     // room isn't needed anymore and can be deleted if its hold count reaches zero and it's temporary.
-    void release(RoomId room);
+    // void release(RoomId room);
+    void release(mmapper::PathEventContext &context, RoomId room); // Added context
     // keep the room but un-cache it - overrides both hold and release
     // toId is negative if no exit should be added, else it's the id of
     // the room where the exit should lead
-    void keep(RoomId room, ExitDirEnum dir, RoomId fromId, ChangeList &changes);
+    // void keep(RoomId room, ExitDirEnum dir, RoomId fromId, ChangeList &changes);
+    void keep(mmapper::PathEventContext &context, RoomId room, ExitDirEnum dir, RoomId fromId); // Changed ChangeList to context
 
     /* Sending to the rooms' owners:
        keepRoom: keep the room, but we don't need it anymore for now

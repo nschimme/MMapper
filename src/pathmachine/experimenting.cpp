@@ -8,13 +8,19 @@
 #include "../global/utils.h"
 #include "path.h"
 #include "pathparameters.h"
+#include "patheventcontext.h" // Include for mmapper::PathEventContext
 
 #include <memory>
 
-Experimenting::Experimenting(std::shared_ptr<PathList> pat,
+// Experimenting::Experimenting(std::shared_ptr<PathList> pat,
+//                              const ExitDirEnum in_dirCode,
+//                              PathParameters &in_params)
+Experimenting::Experimenting(mmapper::PathEventContext &context, // Added context
+                             std::shared_ptr<PathList> pat,
                              const ExitDirEnum in_dirCode,
                              PathParameters &in_params)
-    : m_direction(::exitDir(in_dirCode))
+    : m_context{context} // Initialize m_context
+    , m_direction(::exitDir(in_dirCode))
     , m_dirCode(in_dirCode)
     , m_paths(PathList::alloc())
     , m_params(in_params)
@@ -49,7 +55,8 @@ std::shared_ptr<PathList> Experimenting::evaluate()
         std::shared_ptr<Path> ppath = utils::pop_front(sp);
         Path &path = deref(ppath);
         if (!path.hasChildren()) {
-            path.deny();
+            // path.deny(); becomes:
+            path.deny(m_context);
         }
     }
 
@@ -57,8 +64,9 @@ std::shared_ptr<PathList> Experimenting::evaluate()
         if (m_second == nullptr
             || m_best->getProb() > m_second->getProb() * m_params.acceptBestRelative
             || m_best->getProb() > m_second->getProb() + m_params.acceptBestAbsolute) {
-            for (auto &path : *m_paths) {
-                path->deny();
+            for (auto &path_ptr : *m_paths) { // Changed path to path_ptr to avoid conflict with Path class
+                // path->deny(); becomes:
+                deref(path_ptr).deny(m_context);
             }
             m_paths->clear();
             m_paths->push_front(m_best);

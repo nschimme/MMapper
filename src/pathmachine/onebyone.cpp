@@ -16,20 +16,27 @@
 
 #include <memory>
 
+#include "patheventcontext.h" // For mmapper::PathEventContext
+
 class Path;
 
-OneByOne::OneByOne(const SigParseEvent &sigParseEvent,
+// OneByOne::OneByOne(const SigParseEvent &sigParseEvent, PathParameters &in_params, RoomSignalHandler &in_handler)
+OneByOne::OneByOne(mmapper::PathEventContext &context, // Added context
                    PathParameters &in_params,
                    RoomSignalHandler &in_handler)
-    : Experimenting{PathList::alloc(), getDirection(sigParseEvent.deref().getMoveType()), in_params}
-    , m_event{sigParseEvent.getShared()}
+    // Pass context to Experimenting, and use context.currentEvent for getDirection
+    : Experimenting{context, PathList::alloc(), getDirection(context.currentEvent.getMoveType()), in_params}
+    // , m_event{sigParseEvent.getShared()} // Removed m_event member
     , m_handler{in_handler}
 {}
 
 void OneByOne::virt_receiveRoom(const RoomHandle &room)
 {
-    if (::compare(room.getRaw(), deref(m_event), m_params.matchingTolerance)
+    // if (::compare(room.getRaw(), deref(m_event), m_params.matchingTolerance) becomes:
+    // m_context is inherited from Experimenting
+    if (::compare(room.getRaw(), m_context.currentEvent, m_params.matchingTolerance)
         == ComparisonResultEnum::EQUAL) {
+        // m_shortPaths is from Experimenting
         augmentPath(m_shortPaths->back(), room);
     } else {
         // This hold()/release() sequence ensures that if this room was only being kept alive

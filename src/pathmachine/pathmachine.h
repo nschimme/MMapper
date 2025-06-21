@@ -6,9 +6,10 @@
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
 #include "../configuration/configuration.h"
-#include "../map/ChangeList.h"
-#include "../map/parseevent.h"
-#include "../map/room.h"
+#include "../map/ChangeList.h" // Already present
+#include "../map/parseevent.h" // Already present
+#include "../map/room.h"       // Already present
+#include "patheventcontext.h"  // Add this include
 #include "path.h"
 #include "pathparameters.h"
 #include "roomsignalhandler.h"
@@ -26,6 +27,11 @@ class QEvent;
 class QObject;
 class PathProcessor;
 struct RoomId;
+
+// Forward declare PathEventContext if not fully included yet, or ensure include is present
+namespace mmapper {
+struct PathEventContext;
+} // namespace mmapper
 
 enum class NODISCARD PathStateEnum : uint8_t { APPROVED = 0, EXPERIMENTING = 1, SYNCING = 2 };
 
@@ -79,16 +85,19 @@ private:
     void forcePositionChange(RoomId id, bool update);
 
 private:
-    void experimenting(const SigParseEvent &sigParseEvent, ChangeList &changes);
-    void syncing(const SigParseEvent &sigParseEvent, ChangeList &changes);
-    void approved(const SigParseEvent &sigParseEvent, ChangeList &changes);
-    void evaluatePaths(ChangeList &changes);
+    // Forward declaration for mmapper::PathEventContext is already added
+    void experimenting(mmapper::PathEventContext &context);
+    void syncing(mmapper::PathEventContext &context);
+    void approved(mmapper::PathEventContext &context);
+    void evaluatePaths(mmapper::PathEventContext &context);
     void tryExits(const RoomHandle &, PathProcessor &, const ParseEvent &, bool out);
     void tryExit(const RawExit &possible, PathProcessor &recipient, bool out);
     void tryCoordinate(const RoomHandle &, PathProcessor &, const ParseEvent &);
 
 private:
-    void updateMostLikelyRoom(const SigParseEvent &sigParseEvent, ChangeList &changes, bool force);
+    // void updateMostLikelyRoom(const SigParseEvent &sigParseEvent, ChangeList &changes, bool force);
+    // New signature using PathEventContext:
+    void updateMostLikelyRoom(mmapper::PathEventContext &context, bool force);
 
 private:
     void clearMostLikelyRoom() { m_mostLikelyRoom.reset(); }

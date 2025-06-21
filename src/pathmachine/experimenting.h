@@ -9,13 +9,16 @@
 #include "../map/coordinate.h"
 #include "path.h"
 #include "pathprocessor.h"
+#include "patheventcontext.h" // Include PathEventContext
 
 #include <memory>
 
 #include <QtGlobal>
 
-class PathMachine;
+// class PathMachine; // No longer needed directly if context provides map etc.
 struct PathParameters;
+// Forward declare mmapper::PathEventContext if not fully included via patheventcontext.h
+// namespace mmapper { struct PathEventContext; } // Already handled by include
 
 /*!
  * @brief Abstract base for PathProcessor strategies in the "Experimenting" state.
@@ -30,6 +33,7 @@ struct PathParameters;
 class NODISCARD Experimenting : public PathProcessor
 {
 protected:
+    mmapper::PathEventContext &m_context; // Added
     const Coordinate m_direction;
     const ExitDirEnum m_dirCode;
     const std::shared_ptr<PathList> m_paths;
@@ -47,7 +51,9 @@ public:
     DELETE_CTORS_AND_ASSIGN_OPS(Experimenting);
 
 protected:
-    explicit Experimenting(std::shared_ptr<PathList> paths,
+    // explicit Experimenting(std::shared_ptr<PathList> paths, ExitDirEnum dirCode, PathParameters &params);
+    explicit Experimenting(mmapper::PathEventContext &context, // Added context
+                           std::shared_ptr<PathList> paths,
                            ExitDirEnum dirCode,
                            PathParameters &params);
 

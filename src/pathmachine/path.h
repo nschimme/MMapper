@@ -22,10 +22,16 @@
 
 #include <QtGlobal>
 
+// Forward declarations
+class ChangeList; // For approve method, though it will change to PathEventContext
 class Coordinate;
 class PathProcessor;
 class RoomSignalHandler;
 struct PathParameters;
+
+namespace mmapper { // Forward declare PathEventContext
+struct PathEventContext;
+}
 
 /*!
  * @brief Represents a potential path segment during the pathfinding process.
@@ -101,10 +107,12 @@ public:
         assert(!m_zombie);
         return m_probability;
     }
-    void approve(ChangeList &changes);
+    // void approve(ChangeList &changes);
+    void approve(mmapper::PathEventContext &context); // Changed to PathEventContext
 
     // deletes this path and all parents up to the next branch
-    void deny();
+    // void deny();
+    void deny(mmapper::PathEventContext &context); // Added context
     void setProb(double p)
     {
         assert(!m_zombie);

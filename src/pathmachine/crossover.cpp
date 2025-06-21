@@ -9,26 +9,32 @@
 #include "../map/room.h"
 #include "../mapdata/mapdata.h"
 #include "experimenting.h"
+#include "patheventcontext.h" // For mmapper::PathEventContext
 
 #include <memory>
 
 struct PathParameters;
 
-Crossover::Crossover(MapFrontend &map,
+// Crossover::Crossover(MapFrontend &map, ...)
+Crossover::Crossover(mmapper::PathEventContext &context, // Added context
                      std::shared_ptr<PathList> _paths,
                      const ExitDirEnum _dirCode,
                      PathParameters &_params)
-    : Experimenting(std::move(_paths), _dirCode, _params)
-    , m_map{map}
+    // Pass context to Experimenting constructor
+    : Experimenting(context, std::move(_paths), _dirCode, _params)
+    // , m_map{map} // Removed m_map member
 {}
 
 void Crossover::virt_receiveRoom(const RoomHandle &room)
 {
-    auto &shortPaths = deref(m_shortPaths);
+    auto &shortPaths = deref(m_shortPaths); // m_shortPaths is from Experimenting
     if (shortPaths.empty()) {
-        if (auto rh = m_map.findRoomHandle(room.getId())) {
+        // if (auto rh = m_map.findRoomHandle(room.getId())) { becomes:
+        // m_context is inherited from Experimenting
+        if (auto rh = m_context.map.findRoomHandle(room.getId())) {
             if (rh.isTemporary()) {
-                m_map.applySingleChange(Change{room_change_types::RemoveRoom{room.getId()}});
+                // Use addTrackedChange
+                m_context.addTrackedChange(Change{room_change_types::RemoveRoom{room.getId()}});
             }
         }
     }

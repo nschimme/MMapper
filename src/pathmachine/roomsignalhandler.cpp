@@ -4,6 +4,7 @@
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 
 #include "roomsignalhandler.h"
+#include "patheventcontext.h" // Include for mmapper::PathEventContext
 
 #include "../mapdata/mapdata.h"
 
@@ -17,16 +18,19 @@ void RoomSignalHandler::hold(const RoomId room)
     m_holdCount[room]++;
 }
 
-void RoomSignalHandler::release(const RoomId room)
+// void RoomSignalHandler::release(const RoomId room)
+void RoomSignalHandler::release(mmapper::PathEventContext &context, const RoomId room) // Added context
 {
     auto it_hold_count = m_holdCount.find(room);
     assert(it_hold_count != m_holdCount.end() && it_hold_count->second > 0);
 
     if (--it_hold_count->second == 0) {
         if (m_owners.contains(room)) {
-            if (auto rh = m_map.findRoomHandle(room)) {
+            // if (auto rh = m_map.findRoomHandle(room)) { becomes:
+            if (auto rh = context.map.findRoomHandle(room)) { // Use context.map
                 if (rh.isTemporary()) {
-                    m_map.applySingleChange(Change{room_change_types::RemoveRoom{room}});
+                    // Use addTrackedChange
+                    context.addTrackedChange(Change{room_change_types::RemoveRoom{room}});
                 }
             }
         } else {
@@ -39,10 +43,11 @@ void RoomSignalHandler::release(const RoomId room)
     }
 }
 
-void RoomSignalHandler::keep(const RoomId room,
+// void RoomSignalHandler::keep(const RoomId room, const ExitDirEnum dir, const RoomId fromId, ChangeList &changes)
+void RoomSignalHandler::keep(mmapper::PathEventContext &context, // Changed ChangeList to context
+                             const RoomId room,
                              const ExitDirEnum dir,
-                             const RoomId fromId,
-                             ChangeList &changes)
+                             const RoomId fromId)
 {
     auto it_hold_count = m_holdCount.find(room);
     assert(it_hold_count != m_holdCount.end() && it_hold_count->second != 0);
@@ -50,20 +55,24 @@ void RoomSignalHandler::keep(const RoomId room,
 
     static_assert(static_cast<uint32_t>(ExitDirEnum::UNKNOWN) + 1 == NUM_EXITS);
     if (isNESWUD(dir) || dir == ExitDirEnum::UNKNOWN) {
-        changes.add(exit_change_types::ModifyExitConnection{ChangeTypeEnum::Add,
-                                                            fromId,
-                                                            dir,
-                                                            room,
-                                                            WaysEnum::OneWay});
+        // changes.add becomes context.changes.add
+        context.changes.add(exit_change_types::ModifyExitConnection{ChangeTypeEnum::Add,
+                                                                    fromId,
+                                                                    dir,
+                                                                    room,
+                                                                    WaysEnum::OneWay});
     }
 
     // Simplified logic for making room permanent
-    if (auto rh = m_map.findRoomHandle(room)) {
+    // if (auto rh = m_map.findRoomHandle(room)) { becomes:
+    if (auto rh = context.map.findRoomHandle(room)) { // Use context.map
         if (rh.isTemporary()) {
             // REVISIT: Use changes.add() instead of applySingleChange() and release()?
             // This comment is from the original code. The action itself is preserved.
-            m_map.applySingleChange(Change{room_change_types::MakePermanent{room}});
+            // Use addTrackedChange for MakePermanent
+            context.addTrackedChange(Change{room_change_types::MakePermanent{room}});
         }
     }
-    release(room);
+    // release(room); becomes:
+    release(context, room);
 }

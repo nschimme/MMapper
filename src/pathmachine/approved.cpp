@@ -8,28 +8,34 @@
 #include "../map/Compare.h"
 #include "../map/room.h"
 #include "../mapdata/mapdata.h"
+#include "patheventcontext.h" // Ensure this is included for mmapper::PathEventContext
 
-Approved::Approved(MapFrontend &map, const SigParseEvent &sigParseEvent, const int tolerance)
-    : m_myEvent{sigParseEvent.requireValid()}
-    , m_map{map}
+// Approved::Approved(MapFrontend &map, const SigParseEvent &sigParseEvent, const int tolerance)
+Approved::Approved(mmapper::PathEventContext &context, const int tolerance)
+    // : m_myEvent{sigParseEvent.requireValid()} // Removed
+    // , m_map{map} // Removed
+    : m_context{context} // Added
     , m_matchingTolerance{tolerance}
-
 {}
 
 Approved::~Approved()
 {
     if (m_matchedRoom) {
         if (m_moreThanOne) {
-            if (auto rh = m_map.findRoomHandle(m_matchedRoom.getId())) {
+            // if (auto rh = m_map.findRoomHandle(m_matchedRoom.getId())) { becomes:
+            if (auto rh = m_context.map.findRoomHandle(m_matchedRoom.getId())) {
                 if (rh.isTemporary()) {
-                    m_map.applySingleChange(
+                    // Use addTrackedChange
+                    m_context.addTrackedChange(
                         Change{room_change_types::RemoveRoom{m_matchedRoom.getId()}});
                 }
             }
         } else {
-            if (auto rh = m_map.findRoomHandle(m_matchedRoom.getId())) {
+            // if (auto rh = m_map.findRoomHandle(m_matchedRoom.getId())) { becomes:
+            if (auto rh = m_context.map.findRoomHandle(m_matchedRoom.getId())) {
                 if (rh.isTemporary()) {
-                    m_map.applySingleChange(
+                    // Use addTrackedChange
+                    m_context.addTrackedChange(
                         Change{room_change_types::MakePermanent{m_matchedRoom.getId()}});
                 }
             }
@@ -39,7 +45,8 @@ Approved::~Approved()
 
 void Approved::virt_receiveRoom(const RoomHandle &perhaps)
 {
-    auto &event = m_myEvent.deref();
+    // auto &event = m_myEvent.deref(); becomes:
+    auto &event = m_context.currentEvent;
 
     const auto id = perhaps.getId();
     const auto cmp = [this, &event, &id, &perhaps]() {
@@ -48,15 +55,18 @@ void Approved::virt_receiveRoom(const RoomHandle &perhaps)
         if (it != m_compareCache.end()) {
             return it->second;
         }
+        // Pass m_matchingTolerance which is a member
         const auto result = ::compare(perhaps.getRaw(), event, m_matchingTolerance);
         m_compareCache.emplace(id, result);
         return result;
     }();
 
     if (cmp == ComparisonResultEnum::DIFFERENT) {
-        if (auto rh = m_map.findRoomHandle(id)) {
+        // if (auto rh = m_map.findRoomHandle(id)) { becomes:
+        if (auto rh = m_context.map.findRoomHandle(id)) {
             if (rh.isTemporary()) {
-                m_map.applySingleChange(Change{room_change_types::RemoveRoom{id}});
+                // Use addTrackedChange
+                m_context.addTrackedChange(Change{room_change_types::RemoveRoom{id}});
             }
         }
         return;
@@ -67,9 +77,11 @@ void Approved::virt_receiveRoom(const RoomHandle &perhaps)
         if (m_matchedRoom.getId() != id) {
             m_moreThanOne = true;
         }
-        if (auto rh = m_map.findRoomHandle(id)) {
+        // if (auto rh = m_map.findRoomHandle(id)) { becomes:
+        if (auto rh = m_context.map.findRoomHandle(id)) {
             if (rh.isTemporary()) {
-                m_map.applySingleChange(Change{room_change_types::RemoveRoom{id}});
+                // Use addTrackedChange
+                m_context.addTrackedChange(Change{room_change_types::RemoveRoom{id}});
             }
         }
         return;
@@ -89,7 +101,8 @@ void Approved::virt_receiveRoom(const RoomHandle &perhaps)
             if (e.exitIsNoMatch()) {
                 continue;
             }
-            const auto there = m_map.findRoomHandle(toServerId);
+            // const auto there = m_map.findRoomHandle(toServerId); becomes:
+            const auto there = m_context.map.findRoomHandle(toServerId);
             if (!there && !e.exitIsUnmapped()) {
                 // New server id
                 m_update = true;
@@ -111,9 +124,11 @@ void Approved::releaseMatch()
 {
     // Release the current candidate in order to receive additional candidates
     if (m_matchedRoom) {
-        if (auto rh = m_map.findRoomHandle(m_matchedRoom.getId())) {
+        // if (auto rh = m_map.findRoomHandle(m_matchedRoom.getId())) { becomes:
+        if (auto rh = m_context.map.findRoomHandle(m_matchedRoom.getId())) {
             if (rh.isTemporary()) {
-                m_map.applySingleChange(
+                // Use addTrackedChange
+                m_context.addTrackedChange(
                     Change{room_change_types::RemoveRoom{m_matchedRoom.getId()}});
             }
         }

@@ -22,14 +22,17 @@ struct PathParameters;
  * If a received room matches the event, `augmentPath()` (from Experimenting)
  * is called to extend the current path being processed.
  */
+#include "patheventcontext.h" // Ensure PathEventContext is known
+
 class NODISCARD OneByOne final : public Experimenting
 {
 private:
-    SharedParseEvent m_event;
-    RoomSignalHandler &m_handler;
+    // SharedParseEvent m_event; // Will use m_context.currentEvent from Experimenting base
+    RoomSignalHandler &m_handler; // Keep this for now, will be addressed in RoomSignalHandler refactor
 
 public:
-    explicit OneByOne(const SigParseEvent &sigParseEvent,
+    // explicit OneByOne(const SigParseEvent &sigParseEvent, PathParameters &in_params, RoomSignalHandler &handler);
+    explicit OneByOne(mmapper::PathEventContext &context, // Added context
                       PathParameters &in_params,
                       RoomSignalHandler &handler);
 

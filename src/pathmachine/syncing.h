@@ -12,8 +12,10 @@
 
 #include <QtGlobal>
 
+// Forward declarations
 class RoomSignalHandler;
 struct PathParameters;
+namespace mmapper { struct PathEventContext; } // Forward declare
 
 /*!
  * @brief PathProcessor strategy for the "Syncing" pathfinding state.
@@ -23,9 +25,12 @@ struct PathParameters;
  * current parse event, creating a new root Path for each potential match.
  * `evaluate()` is used for cleanup of its internal dummy parent path.
  */
+#include "patheventcontext.h" // Include PathEventContext
+
 class NODISCARD Syncing final : public PathProcessor
 {
 private:
+    mmapper::PathEventContext &m_context; // Added context
     RoomSignalHandler& signaler;
     PathParameters &params;
     const std::shared_ptr<PathList> paths;
@@ -34,7 +39,9 @@ private:
     uint32_t numPaths = 0u;
 
 public:
-    explicit Syncing(PathParameters &p,
+    // explicit Syncing(PathParameters &p, std::shared_ptr<PathList> paths, RoomSignalHandler& signaler);
+    explicit Syncing(mmapper::PathEventContext &context, // Added context
+                     PathParameters &p,
                      std::shared_ptr<PathList> paths,
                      RoomSignalHandler& signaler);
 

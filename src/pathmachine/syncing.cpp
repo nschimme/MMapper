@@ -8,13 +8,17 @@
 #include "../map/ExitDirection.h"
 #include "path.h"
 #include "pathparameters.h"
+#include "patheventcontext.h" // Include for mmapper::PathEventContext
 
 #include <memory>
 
-Syncing::Syncing(PathParameters &in_p,
+// Syncing::Syncing(PathParameters &in_p, std::shared_ptr<PathList> moved_paths, RoomSignalHandler& in_signaler)
+Syncing::Syncing(mmapper::PathEventContext &context, // Added context
+                 PathParameters &in_p,
                  std::shared_ptr<PathList> moved_paths,
                  RoomSignalHandler& in_signaler)
-    : signaler(in_signaler)
+    : m_context{context} // Initialize m_context
+    , signaler(in_signaler)
     , params(in_p)
     , paths(std::move(moved_paths))
     , parent(Path::alloc(RoomHandle{}, signaler, std::nullopt))
@@ -24,11 +28,12 @@ void Syncing::virt_receiveRoom(const RoomHandle &in_room)
 {
     if (++numPaths > params.maxPaths) {
         if (!paths->empty()) {
-            for (auto &path : *paths) {
-                path->deny();
+            for (auto &path_ptr : *paths) { // Renamed path to path_ptr
+                // path->deny(); becomes:
+                deref(path_ptr).deny(m_context);
             }
             paths->clear();
-            parent = nullptr;
+            parent = nullptr; // If parent is nulled, destructor won't call deny on it.
         }
     } else {
         auto p = Path::alloc(in_room, signaler, ExitDirEnum::NONE);
@@ -46,6 +51,7 @@ std::shared_ptr<PathList> Syncing::evaluate()
 Syncing::~Syncing()
 {
     if (parent != nullptr) {
-        parent->deny();
+        // parent->deny(); becomes:
+        parent->deny(m_context);
     }
 }

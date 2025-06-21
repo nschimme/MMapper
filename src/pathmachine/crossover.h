@@ -10,8 +10,11 @@
 
 #include <memory>
 
-class MapFrontend;
+// class MapFrontend; // Will be accessed via context from Experimenting base
 struct PathParameters;
+namespace mmapper { // Forward declare PathEventContext if Experimenting.h didn't bring it fully
+struct PathEventContext;
+}
 
 /*!
  * @brief PathProcessor strategy for creating paths when new rooms might be formed.
@@ -23,10 +26,11 @@ struct PathParameters;
 class NODISCARD Crossover final : public Experimenting
 {
 private:
-    MapFrontend &m_map;
+    // MapFrontend &m_map; // Removed, access via m_context in Experimenting
 
 public:
-    Crossover(MapFrontend &map,
+    // Crossover(MapFrontend &map, std::shared_ptr<PathList> paths, ExitDirEnum dirCode, PathParameters &params);
+    Crossover(mmapper::PathEventContext &context, // Added context
               std::shared_ptr<PathList> paths,
               ExitDirEnum dirCode,
               PathParameters &params);

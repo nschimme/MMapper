@@ -6,15 +6,16 @@
 
 #include "../global/RuleOf5.h"
 #include "../map/RoomHandle.h"
-#include "../map/parseevent.h"
+// #include "../map/parseevent.h" // Will come from patheventcontext.h or context itself
 #include "../map/room.h"
 #include "../map/roomid.h"
 #include "pathprocessor.h"
+#include "patheventcontext.h" // Include PathEventContext
 
 #include <unordered_map>
 
-class MapFrontend;
-class ParseEvent;
+// class MapFrontend; // Will come from context
+class ParseEvent; // SigParseEvent is wrapped in context
 
 /*!
  * @brief PathProcessor strategy for the "Approved" pathfinding state.

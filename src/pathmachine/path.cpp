@@ -13,6 +13,7 @@
 #include "../map/roomid.h"
 #include "pathparameters.h"
 #include "roomsignalhandler.h"
+#include "patheventcontext.h" // Include for mmapper::PathEventContext
 
 #include <cassert>
 #include <cstdint>
@@ -112,7 +113,8 @@ void Path::setParent(const std::shared_ptr<Path> &p)
     m_parent = p;
 }
 
-void Path::approve(ChangeList &changes)
+// void Path::approve(ChangeList &changes)
+void Path::approve(mmapper::PathEventContext &context) // Changed to PathEventContext
 {
     assert(!m_zombie);
 
@@ -123,9 +125,12 @@ void Path::approve(ChangeList &changes)
         assert(m_dir.has_value());
         const RoomHandle proom = parent->getRoom();
         const auto pId = !proom.exists() ? INVALID_ROOMID : proom.getId();
-        m_signaler.keep(m_room.getId(), m_dir.value(), pId, changes);
+        // m_signaler.keep will be updated in Step 8.
+        // RoomSignalHandler::keep now takes PathEventContext& as its first argument.
+        m_signaler.keep(context, m_room.getId(), m_dir.value(), pId);
         parent->removeChild(this->shared_from_this());
-        parent->approve(changes);
+        // parent->approve(changes); becomes:
+        parent->approve(context);
     }
 
     for (const std::weak_ptr<Path> &weak_child : m_children) {
@@ -141,7 +146,8 @@ void Path::approve(ChangeList &changes)
 /** removes this path and all parents up to the next branch
  * and removes the respective rooms if experimental
  */
-void Path::deny()
+// void Path::deny()
+void Path::deny(mmapper::PathEventContext &context) // Added context
 {
     assert(!m_zombie);
 
@@ -149,11 +155,13 @@ void Path::deny()
         return;
     }
     if (m_dir.has_value()) {
-        m_signaler.release(m_room.getId());
+        // m_signaler.release(m_room.getId()); becomes:
+        m_signaler.release(context, m_room.getId());
     }
     if (const auto &parent = getParent()) {
         parent->removeChild(shared_from_this());
-        parent->deny();
+        // parent->deny(); becomes:
+        parent->deny(context);
     }
 
     // was: `delete this`

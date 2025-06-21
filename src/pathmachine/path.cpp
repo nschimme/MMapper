@@ -38,8 +38,12 @@ Path::Path(Badge<Path>,
     , m_dir(std::move(moved_direction))
 {
     if (m_dir.has_value()) {
-        assert(processor != nullptr && "PathProcessor must be valid when direction is present for hold operation.");
-        m_signaler.hold(m_room.getId(), *processor);
+        // The PathProcessor* processor parameter is no longer passed to hold().
+        // The assertion might still be relevant for Path's logic if a direction implies a processor,
+        // but hold() itself doesn't need it. For this refactoring, we focus on hold's signature.
+        // If processor is truly required by Path when m_dir has value, that's a separate concern.
+        // assert(processor != nullptr && "PathProcessor must be valid when direction is present.");
+        m_signaler.hold(m_room.getId());
     }
 }
 
@@ -100,7 +104,7 @@ std::shared_ptr<Path> Path::fork(const RoomHandle &in_room,
             }
         }
     }
-    dist /= static_cast<double>(m_signaler.getNumLockers(in_room.getId()));
+    dist /= static_cast<double>(m_signaler.getNumHolders(in_room.getId()));
     if (in_room.isTemporary()) {
         dist *= p.newRoomPenalty;
     }

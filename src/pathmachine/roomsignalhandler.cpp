@@ -9,15 +9,12 @@
 
 #include <cassert>
 
-void RoomSignalHandler::hold(const RoomId room, PathProcessor& processor)
+void RoomSignalHandler::hold(const RoomId room)
 {
     m_owners.insert(room);
-    auto [it, inserted] = m_lockers.try_emplace(room);
-    if (inserted) {
-        m_holdCount[room] = 0;
-    }
-    it->second.insert(&processor);
-    ++m_holdCount[room];
+    // operator[] will default-construct int to 0 if 'room' is not found, then increment.
+    // This correctly handles both initialization and increment.
+    m_holdCount[room]++;
 }
 
 void RoomSignalHandler::release(const RoomId room)
@@ -36,9 +33,9 @@ void RoomSignalHandler::release(const RoomId room)
             assert(false);
         }
 
-        m_lockers.erase(room);
+        // m_holders.erase(room); // Removed
         m_owners.erase(room);
-        m_holdCount.erase(room);
+        m_holdCount.erase(room); // or it_hold_count, but room is fine as key
     }
 }
 
@@ -60,19 +57,12 @@ void RoomSignalHandler::keep(const RoomId room,
                                                             WaysEnum::OneWay});
     }
 
-    if (auto it_lockers = m_lockers.find(room);
-        it_lockers != m_lockers.end() && !it_lockers->second.empty()) {
-        PathProcessor *const locker = *(it_lockers->second.begin());
-        if (locker) {
-            if (auto rh = m_map.findRoomHandle(room)) {
-                if (rh.isTemporary()) {
-                    // REVISIT: Use changes.add() instead of applySingleChange() and release()?
-                    m_map.applySingleChange(Change{room_change_types::MakePermanent{room}});
-                }
-            }
-            it_lockers->second.erase(locker);
-        } else {
-            assert(false);
+    // Simplified logic for making room permanent
+    if (auto rh = m_map.findRoomHandle(room)) {
+        if (rh.isTemporary()) {
+            // REVISIT: Use changes.add() instead of applySingleChange() and release()?
+            // This comment is from the original code. The action itself is preserved.
+            m_map.applySingleChange(Change{room_change_types::MakePermanent{room}});
         }
     }
     release(room);

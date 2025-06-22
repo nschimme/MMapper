@@ -941,6 +941,7 @@ if(WIN32)
     if(MSVC)
         set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "${CPACK_NSIS_EXTRA_INSTALL_COMMANDS}
             ExecWait '\\$INSTDIR\\\\bin\\\\vcredist_x64.exe'
+            Delete '\\$INSTDIR\\\\bin\\\\vcredist_x64.exe'
             ")
     endif()
 

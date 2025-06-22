@@ -17,83 +17,83 @@
 #include <map>
 
 // Helper to parse NEW-ENVIRON variables from a QByteArray
-// Copied from MudTelnet.cpp - consider moving to a common utility if used by more classes.
-static std::map<QString, QString> parseNewEnvironVariables(const QByteArray &data, bool debug) {
-    std::map<QString, QString> variables;
-    QString currentVarName;
-    QString currentValue;
-    enum class State { VAR, VAL, ESC_IN_VAL };
-    State state = State::VAR;
-    bool nextIsVar = true; // Expect VAR or USERVAR first
-
-    for (int i = 0; i < data.size(); ++i) {
-        const auto byte = static_cast<uint8_t>(data[i]);
-        if (nextIsVar) {
-            if (byte == TNEV_VAR || byte == TNEV_USERVAR) {
-                if (!currentVarName.isEmpty() && !currentValue.isEmpty()) {
-                    if (debug) {
-                        qDebug() << "Parsed NEW-ENVIRON variable" << currentVarName << "with value" << currentValue;
-                    }
-                    variables[currentVarName] = currentValue;
-                }
-                currentVarName.clear();
-                currentValue.clear();
-                state = State::VAR;
-                nextIsVar = false;
-            } else {
-                // Protocol error or unexpected data
-                if (debug) {
-                    qDebug() << "NEW-ENVIRON parsing error: Expected VAR or USERVAR, got" << byte;
-                }
-                return variables; // Or handle error more gracefully
-            }
-            continue;
-        }
-
-        switch (state) {
-        case State::VAR:
-            if (byte == TNEV_VAL) {
-                state = State::VAL;
-            } else if (byte == TNEV_ESC) {
-                currentVarName.append(QChar(byte));
-            } else {
-                currentVarName.append(QChar(byte));
-            }
-            break;
-        case State::VAL:
-            if (byte == TNEV_ESC) {
-                state = State::ESC_IN_VAL;
-            } else if (byte == TNEV_VAR || byte == TNEV_USERVAR) {
-                // Start of a new variable definition
-                if (!currentVarName.isEmpty()) {
-                     if (debug) {
-                        qDebug() << "Parsed NEW-ENVIRON variable" << currentVarName << "with value" << currentValue;
-                    }
-                    variables[currentVarName] = currentValue;
-                }
-                currentVarName.clear();
-                currentValue.clear();
-                state = State::VAR; // Set up for the new var name
-                i--;
-                nextIsVar = true;
-            } else {
-                currentValue.append(QChar(byte));
-            }
-            break;
-        case State::ESC_IN_VAL:
-            currentValue.append(QChar(byte));
-            state = State::VAL;
-            break;
-        }
-    }
-    if (!currentVarName.isEmpty()) {
-        if (debug) {
-            qDebug() << "Parsed NEW-ENVIRON variable" << currentVarName << "with value" << currentValue;
-        }
-        variables[currentVarName] = currentValue;
-    }
-    return variables;
-}
+// This function is being moved to AbstractTelnet.cpp
+// static std::map<QString, QString> parseNewEnvironVariables(const QByteArray &data, bool debug) {
+//     std::map<QString, QString> variables;
+//     QString currentVarName;
+//     QString currentValue;
+//     enum class State { VAR, VAL, ESC_IN_VAL };
+//     State state = State::VAR;
+//     bool nextIsVar = true; // Expect VAR or USERVAR first
+//
+//     for (int i = 0; i < data.size(); ++i) {
+//         const auto byte = static_cast<uint8_t>(data[i]);
+//         if (nextIsVar) {
+//             if (byte == TNEV_VAR || byte == TNEV_USERVAR) {
+//                 if (!currentVarName.isEmpty() && !currentValue.isEmpty()) {
+//                     if (debug) {
+//                         qDebug() << "Parsed NEW-ENVIRON variable" << currentVarName << "with value" << currentValue;
+//                     }
+//                     variables[currentVarName] = currentValue;
+//                 }
+//                 currentVarName.clear();
+//                 currentValue.clear();
+//                 state = State::VAR;
+//                 nextIsVar = false;
+//             } else {
+//                 // Protocol error or unexpected data
+//                 if (debug) {
+//                     qDebug() << "NEW-ENVIRON parsing error: Expected VAR or USERVAR, got" << byte;
+//                 }
+//                 return variables; // Or handle error more gracefully
+//             }
+//             continue;
+//         }
+//
+//         switch (state) {
+//         case State::VAR:
+//             if (byte == TNEV_VAL) {
+//                 state = State::VAL;
+//             } else if (byte == TNEV_ESC) {
+//                 currentVarName.append(QChar(byte));
+//             } else {
+//                 currentVarName.append(QChar(byte));
+//             }
+//             break;
+//         case State::VAL:
+//             if (byte == TNEV_ESC) {
+//                 state = State::ESC_IN_VAL;
+//             } else if (byte == TNEV_VAR || byte == TNEV_USERVAR) {
+//                 // Start of a new variable definition
+//                 if (!currentVarName.isEmpty()) {
+//                      if (debug) {
+//                         qDebug() << "Parsed NEW-ENVIRON variable" << currentVarName << "with value" << currentValue;
+//                     }
+//                     variables[currentVarName] = currentValue;
+//                 }
+//                 currentVarName.clear();
+//                 currentValue.clear();
+//                 state = State::VAR; // Set up for the new var name
+//                 i--;
+//                 nextIsVar = true;
+//             } else {
+//                 currentValue.append(QChar(byte));
+//             }
+//             break;
+//         case State::ESC_IN_VAL:
+//             currentValue.append(QChar(byte));
+//             state = State::VAL;
+//             break;
+//         }
+//     }
+//     if (!currentVarName.isEmpty()) {
+//         if (debug) {
+//             qDebug() << "Parsed NEW-ENVIRON variable" << currentVarName << "with value" << currentValue;
+//         }
+//         variables[currentVarName] = currentValue;
+//     }
+//     return variables;
+// }
 
 
 // REVISIT: Does this belong somewhere else?
@@ -497,7 +497,7 @@ void UserTelnet::virt_receiveNewEnvironIs(const QByteArray &data) {
     if (getDebug()) {
         qDebug() << "UserTelnet: Received NEW-ENVIRON IS:" << data.toHex();
     }
-    auto client_vars = parseNewEnvironVariables(data, getDebug());
+    auto client_vars = AbstractTelnet::parseNewEnvironVariables(data, getDebug());
     for(auto const& [key, val] : client_vars) {
         if (getDebug()) {
             qDebug() << "Client provided NEW-ENVIRON variable:" << key << "=" << val;
@@ -561,7 +561,7 @@ void UserTelnet::virt_receiveNewEnvironInfo(const QByteArray &data) {
         qDebug() << "UserTelnet: Received NEW-ENVIRON INFO:" << data.toHex();
     }
     // Treat INFO the same as IS for now, as it's an unsolicited update.
-    auto client_vars = parseNewEnvironVariables(data, getDebug());
+    auto client_vars = AbstractTelnet::parseNewEnvironVariables(data, getDebug());
      for(auto const& [key, val] : client_vars) {
         if (getDebug()) {
             qDebug() << "Client provided NEW-ENVIRON INFO variable:" << key << "=" << val;

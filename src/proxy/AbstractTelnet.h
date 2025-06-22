@@ -99,6 +99,11 @@ namespace MttsBits {
     // static constexpr const int MMAPPER_CUSTOM_FEATURE_2 = 1 << 17;
 } // namespace MttsBits
 
+// Forward declaration
+namespace std { template<typename K, typename V> class map; }
+class QString;
+class QByteArray;
+
 struct NODISCARD AppendBuffer : public RawBytes
 {
     explicit AppendBuffer(RawBytes &&rhs)
@@ -305,6 +310,9 @@ protected:
     void setTerminalType(const TelnetTermTypeBytes &terminalType) { m_termType = terminalType; }
 
     NODISCARD CharacterEncodingEnum getEncoding() const { return m_textCodec.getEncoding(); }
+
+protected: // Static helpers
+    static std::map<QString, QString> parseNewEnvironVariables(const QByteArray &data, bool isDebugEnabled);
 
 private:
     void onReadInternal2(AppendBuffer &, uint8_t);

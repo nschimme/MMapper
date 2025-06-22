@@ -23,8 +23,10 @@
 #include <ostream>
 #include <sstream>
 #include <utility>
+#include <map> // Required for std::map
 
 #include <QByteArray>
+#include <QString> // Required for QString
 #include <QMessageLogContext>
 #include <QObject>
 #include <QString>
@@ -164,6 +166,86 @@ NODISCARD static RawBytes toRawBytes(const QString &qs, const CharacterEncodingE
 }
 
 } // namespace mmqt
+
+std::map<QString, QString> AbstractTelnet::parseNewEnvironVariables(const QByteArray &data, bool isDebugEnabled) {
+    std::map<QString, QString> variables;
+    QString currentVarName;
+    QString currentValue;
+    enum class State { VAR, VAL, ESC_IN_VAL };
+    State state = State::VAR;
+    bool nextIsVar = true; // Expect VAR or USERVAR first
+
+    for (int i = 0; i < data.size(); ++i) {
+        const auto byte = static_cast<uint8_t>(data[i]);
+        if (nextIsVar) {
+            if (byte == TNEV_VAR || byte == TNEV_USERVAR) {
+                if (!currentVarName.isEmpty() && !currentValue.isEmpty()) {
+                    if (isDebugEnabled) { // Use the passed-in debug flag
+                        qDebug() << "Parsed NEW-ENVIRON variable" << currentVarName << "with value" << currentValue;
+                    }
+                    variables[currentVarName] = currentValue;
+                }
+                currentVarName.clear();
+                currentValue.clear();
+                state = State::VAR;
+                nextIsVar = false;
+            } else {
+                // Protocol error or unexpected data
+                if (isDebugEnabled) { // Use the passed-in debug flag
+                    qDebug() << "NEW-ENVIRON parsing error: Expected VAR or USERVAR, got" << byte;
+                }
+                return variables; // Or handle error more gracefully
+            }
+            continue;
+        }
+
+        switch (state) {
+        case State::VAR:
+            if (byte == TNEV_VAL) {
+                state = State::VAL;
+            } else if (byte == TNEV_ESC) {
+                // According to RFC 1572, ESC is only for VAL, not VAR.
+                // However, some clients might send it. We'll treat it as part of the name.
+                currentVarName.append(QChar(byte));
+            } else {
+                currentVarName.append(QChar(byte));
+            }
+            break;
+        case State::VAL:
+            if (byte == TNEV_ESC) {
+                state = State::ESC_IN_VAL;
+            } else if (byte == TNEV_VAR || byte == TNEV_USERVAR) {
+                // Start of a new variable definition
+                if (!currentVarName.isEmpty()) {
+                     if (isDebugEnabled) { // Use the passed-in debug flag
+                        qDebug() << "Parsed NEW-ENVIRON variable" << currentVarName << "with value" << currentValue;
+                    }
+                    variables[currentVarName] = currentValue;
+                }
+                currentVarName.clear();
+                currentValue.clear();
+                state = State::VAR; // Set up for the new var name
+                // Reprocess this byte as it's a TNEV_VAR/USERVAR
+                i--;
+                nextIsVar = true;
+            } else {
+                currentValue.append(QChar(byte));
+            }
+            break;
+        case State::ESC_IN_VAL:
+            currentValue.append(QChar(byte));
+            state = State::VAL;
+            break;
+        }
+    }
+    if (!currentVarName.isEmpty()) {
+        if (isDebugEnabled) { // Use the passed-in debug flag
+            qDebug() << "Parsed NEW-ENVIRON variable" << currentVarName << "with value" << currentValue;
+        }
+        variables[currentVarName] = currentValue;
+    }
+    return variables;
+}
 
 // Emits output via AbstractTelnet::sendRawData() as RAII callback in dtor.
 struct NODISCARD TelnetFormatter final

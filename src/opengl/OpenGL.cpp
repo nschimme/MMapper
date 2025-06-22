@@ -109,14 +109,15 @@ static std::string determineHighestReportableVersionStringInternal() {
             highestIsCore = isCore;
             highestHasDebug = hasDebug;
         } else if (major == highestMajor && minor == highestMinor) {
-            // Prefer Core over Compat if versions are identical
-            if (isCore && !highestIsCore) {
-                highestIsCore = true;
-                highestHasDebug = hasDebug; // Update debug status if profile preference changes
-            }
-            // If profiles are also same, prefer with debug
-            if (isCore == highestIsCore && hasDebug && !highestHasDebug) {
-                highestHasDebug = true;
+            // Prefer Compatibility over Core if versions are identical
+            if (!isCore && highestIsCore) { // New is Compat, Old was Core
+                highestIsCore = false; // Switch to Compat
+                highestHasDebug = hasDebug; // Update debug status with the new profile's debug status
+            } else if (isCore == highestIsCore) { // Profiles are the same
+                // Prefer with debug if versions and profiles are identical
+                if (hasDebug && !highestHasDebug) {
+                    highestHasDebug = true;
+                }
             }
         }
     };

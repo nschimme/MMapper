@@ -7,7 +7,7 @@
 #include "./legacy/Legacy.h"
 #include "./legacy/ShaderUtils.h"
 #include "OpenGLTypes.h"
-#include "../display/MapCanvasConfig.h" // For MapCanvasConfig functions
+#include "OpenGLInfo.h"                // For OpenGLInfo functions
 #include "../global/logging.h"         // For MMLOG macros
 
 #include <QOpenGLContext>
@@ -164,8 +164,9 @@ static std::string determineHighestReportableVersionStringInternal() {
             << (highestHasDebug ? " (Debug)" : "");
         highestReportedGLVersionString = oss.str();
     } else {
-        highestReportedGLVersionString = "GL detection failed or no suitable GL context found.";
-        MMLOG_ERROR() << "[GL Probe Internal] " << highestReportedGLVersionString.c_str();
+        // If no context was found at all, default to indicating GL 2.1 Compat as a baseline/fallback expectation.
+        highestReportedGLVersionString = "GL 2.1 Compat (Probing Failed - Default)";
+        MMLOG_ERROR() << "[GL Probe Internal] No suitable GL context found through probing. Reporting fallback: " << highestReportedGLVersionString.c_str();
     }
 
     MMLOG_INFO() << "[GL Probe Internal] Highest reportable GL version determined: " << highestReportedGLVersionString.c_str();
@@ -241,16 +242,43 @@ static QSurfaceFormat determineOptimalRunningFormatInternal() {
         }
     }
 
-    // Fallback if nothing specific worked
-    MMLOG_WARNING() << "[GL Setup Internal] No specific GL profile succeeded. Using default NoProfile for running format.";
-    runningFormat.setVersion(0,0);
-    runningFormat.setProfile(QSurfaceFormat::NoProfile);
-    runningFormat.setOptions(QSurfaceFormat::FormatOption(0)); // Clear options too
+    // Fallback if nothing specific worked from the main list
+    MMLOG_WARNING() << "[GL Setup Internal] No specific GL profile from the main list succeeded. Attempting explicit GL 2.1 Compat fallback.";
+
+    testFormat.setVersion(2, 1);
+    testFormat.setProfile(QSurfaceFormat::CompatibilityProfile);
+
+    // Try GL 2.1 Compat with Debug
+    testFormat.setOptions(optionsWithDebug);
+    MMLOG_DEBUG() << "[GL Setup Internal] Trying fallback: GL 2.1 Compat (Debug)";
+    if (checkContext(testFormat)) {
+        runningFormat.setVersion(2, 1);
+        runningFormat.setProfile(QSurfaceFormat::CompatibilityProfile);
+        runningFormat.setOptions(optionsWithDebug);
+        MMLOG_INFO() << "[GL Setup Internal] Using GL 2.1 Compat (Debug) as fallback running format.";
+    } else {
+        // Try GL 2.1 Compat without Debug
+        MMLOG_DEBUG() << "[GL Setup Internal] Trying fallback: GL 2.1 Compat";
+        testFormat.setOptions(optionsCompatOnly);
+        if (checkContext(testFormat)) {
+            runningFormat.setVersion(2, 1);
+            runningFormat.setProfile(QSurfaceFormat::CompatibilityProfile);
+            runningFormat.setOptions(optionsCompatOnly);
+            MMLOG_INFO() << "[GL Setup Internal] Using GL 2.1 Compat as fallback running format.";
+        } else {
+            MMLOG_ERROR() << "[GL Setup Internal] Fallback to GL 2.1 Compat also failed! Using NoProfile.";
+            runningFormat.setVersion(0,0);
+            runningFormat.setProfile(QSurfaceFormat::NoProfile);
+            runningFormat.setOptions(QSurfaceFormat::FormatOption(0)); // Clear options too
+        }
+    }
 
     MMLOG_INFO() << "[GL Setup Internal] Final running format to be used: Version "
                  << runningFormat.majorVersion() << "." << runningFormat.minorVersion()
                  << " Profile: " << (runningFormat.profile() == QSurfaceFormat::CoreProfile ? "Core" :
-                                     runningFormat.profile() == QSurfaceFormat::CompatibilityProfile ? "Compat" : "NoProfile");
+                                     runningFormat.profile() == QSurfaceFormat::CompatibilityProfile ? "Compat" : "NoProfile")
+                 << " Options: Debug(" << (runningFormat.options().testFlag(QSurfaceFormat::DebugContext) ? "Yes" : "No")
+                 << "), Deprecated(" << (runningFormat.options().testFlag(QSurfaceFormat::DeprecatedFunctions) ? "Yes" : "No") << ")";
     return runningFormat;
 }
 
@@ -263,9 +291,9 @@ void OpenGL::initializeDefaultSurfaceFormat(int antialiasingSamples)
     QSurfaceFormat runningFormat = determineOptimalRunningFormatInternal();
     std::string highestReportableVersion = determineHighestReportableVersionStringInternal();
 
-    // Store the highest reportable version string via MapCanvasConfig
-    MapCanvasConfig::setHighestReportableOpenGLVersionString(highestReportableVersion);
-    MMLOG_INFO() << "[GL Setup] Highest reportable GL version stored via MapCanvasConfig: " << highestReportableVersion.c_str();
+    // Store the highest reportable version string via OpenGLInfo
+    OpenGLInfo::setHighestReportableVersionString(highestReportableVersion);
+    // The MMLOG_INFO for this is now inside OpenGLInfo::setHighestReportableVersionString
 
     // Apply antialiasing samples
     runningFormat.setSamples(antialiasingSamples);

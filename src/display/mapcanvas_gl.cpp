@@ -14,8 +14,11 @@
 #include "../mapdata/mapdata.h"
 #include "../opengl/Font.h"
 #include "../opengl/FontFormatFlags.h"
+#include "../opengl/Font.h"
+#include "../opengl/FontFormatFlags.h"
 #include "../opengl/OpenGL.h"
 #include "../opengl/OpenGLTypes.h"
+#include "../opengl/OpenGLInfo.h" // Added for OpenGLInfo
 #include "../src/global/SendToUser.h"
 #include "Connections.h"
 #include "MapCanvasConfig.h"
@@ -205,9 +208,9 @@ void MapCanvas::reportGLVersion()
         return std::move(oss).str();
     }();
 
-    MapCanvasConfig::setCurrentOpenGLVersion(version);
+    OpenGLInfo::setCurrentRunningVersionString(version); // Use OpenGLInfo
 
-    logMsg("Current OpenGL Context:",
+    logMsg("Current OpenGL Context (Running):",
            QString("%1 (%2)")
                .arg(version.c_str())
                // FIXME: This is a bit late to report an invalid context.
@@ -215,7 +218,7 @@ void MapCanvas::reportGLVersion()
                .toUtf8());
 
     // Log the highest reportable OpenGL version determined at startup
-    std::string highestReportableVersion = MapCanvasConfig::getHighestReportableOpenGLVersionString();
+    std::string highestReportableVersion = OpenGLInfo::getHighestReportableOpenGLVersionString(); // Use OpenGLInfo
     logMsg("Highest Reportable OpenGL (determined at startup):", mmqt::toQByteArrayUtf8(highestReportableVersion));
 
     logMsg("Display:", QString("%1 DPI").arg(QPaintDevice::devicePixelRatioF()).toUtf8());

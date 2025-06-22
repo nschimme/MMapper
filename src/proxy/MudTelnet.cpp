@@ -619,3 +619,104 @@ void MudTelnet::parseMudServerStatus(const TelnetMsspBytes &data)
 
     m_outputs.onSendGameTimeToClock(msspTime);
 }
+
+// MNES and MTTS handling
+void MudTelnet::virt_receiveMnesSubnegotiation(const AppendBuffer &subnegotiation_data)
+{
+    if (getDebug()) {
+        qDebug() << "MudTelnet: Received MNES subnegotiation from MUD:" << subnegotiation_data;
+    }
+    // Relay to UserTelnet via Proxy
+    m_outputs.onRelayMnesSubnegotiationToUser(RawBytes{subnegotiation_data.getQByteArray()});
+}
+
+void MudTelnet::virt_mnesStateChanged(bool mud_is_willing, bool mud_is_requesting)
+{
+    // mud_is_willing: MUD sent WILL MNES (AbstractTelnet's myOptionState[MNES])
+    // mud_is_requesting: MUD sent DO MNES (AbstractTelnet's hisOptionState[MNES])
+    if (getDebug()) {
+        qDebug() << "MudTelnet: MNES state with MUD changed. MUD WILLing:" << mud_is_willing
+                 << "MUD DOing:" << mud_is_requesting;
+    }
+    // Relay this state to UserTelnet via Proxy
+    m_outputs.onRelayMnesStateToUser(mud_is_willing, mud_is_requesting);
+}
+
+void MudTelnet::virt_receiveMttsReport(const TelnetTermTypeBytes &report_data)
+{
+    if (getDebug()) {
+        qDebug() << "MudTelnet: Received MTTS Report from MUD:" << report_data;
+    }
+    // Relay to UserTelnet via Proxy
+    m_outputs.onRelayMttsReportToUser(report_data);
+}
+
+void MudTelnet::virt_receivedTerminalTypeSendRequest()
+{
+    if (getDebug()) {
+        qDebug() << "MudTelnet: MUD sent TTYPE SEND request.";
+    }
+    // The MUD wants our TTYPE sequence. Ask UserTelnet (via Proxy) to provide the next string.
+    m_outputs.onRelayTerminalTypeSendRequestToUser();
+}
+
+// Methods called by Proxy (from UserTelnet events)
+void MudTelnet::onUserRequestsDoMnes()
+{
+    if (getDebug()) {
+        qDebug() << "MudTelnet: User client requests DO MNES to MUD.";
+    }
+    sendDoMnes(); // AbstractTelnet will handle negotiation logic
+}
+
+void MudTelnet::onUserRequestsWontMnes()
+{
+    if (getDebug()) {
+        qDebug() << "MudTelnet: User client indicates WONT MNES; informing MUD.";
+    }
+    sendWontMnes(); // Tell MUD we WONT do MNES
+}
+
+void MudTelnet::onUserRequestsWillMnes()
+{
+     if (getDebug()) {
+        qDebug() << "MudTelnet: User client indicates WILL MNES; informing MUD.";
+    }
+    sendWillMnes(); // Tell MUD we WILL do MNES
+}
+
+void MudTelnet::onUserRequestsDontMnes()
+{
+    if (getDebug()) {
+        qDebug() << "MudTelnet: User client indicates DONT MNES; informing MUD.";
+    }
+    sendDontMnes(); // Tell MUD we DONT want them to do MNES
+}
+
+void MudTelnet::onUserSendsMnesSubnegotiation(const RawBytes &data)
+{
+    if (getDebug()) {
+        qDebug() << "MudTelnet: User client sends MNES subnegotiation to MUD:" << data;
+    }
+    sendMnesSubnegotiation(data);
+}
+
+void MudTelnet::onUserSendsTermTypeIs(const TelnetTermTypeBytes &termtype_data)
+{
+    if (getDebug()) {
+        qDebug() << "MudTelnet: User client sends TTYPE IS to MUD:" << termtype_data;
+    }
+    // This could be a regular terminal type or an MTTS report.
+    // AbstractTelnet::sendTerminalType handles IAC SB TTYPE IS <data> IAC SE
+    sendTerminalType(termtype_data);
+}
+
+void MudTelnet::onUserRequestsTerminalTypeSend()
+{
+    if (getDebug()) {
+        qDebug() << "MudTelnet: User client requests MUD's TTYPE sequence.";
+    }
+    // Ask the MUD to send its TTYPE sequence.
+    // AbstractTelnet::sendTerminalTypeRequest handles IAC SB TTYPE SEND IAC SE
+    sendTerminalTypeRequest();
+}

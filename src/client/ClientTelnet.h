@@ -45,6 +45,7 @@ private:
     io::buffer<(1 << 15)> m_buffer;
     QTcpSocket m_socket;
     QObject m_dummy;
+    int m_ttypeSendCount = 0; // For TTYPE/MTTS sequence
 
 public:
     explicit ClientTelnet(ClientTelnetOutputs &output);
@@ -61,6 +62,12 @@ private:
     void virt_sendToMapper(const RawBytes &, bool goAhead) final;
     void virt_receiveEchoMode(bool) final;
     void virt_sendRawData(const TelnetIacBytes &data) final;
+
+    // MNES and MTTS handling
+    void virt_receiveMnesSubnegotiation(const AppendBuffer &subnegotiation_data) final;
+    void virt_mnesStateChanged(bool us_will_mnes, bool them_will_mnes) final;
+    void virt_receiveMttsReport(const TelnetTermTypeBytes &report_data) final;
+    void virt_receivedTerminalTypeSendRequest() final;
 
 public:
     /** Window size has changed - informs the server about it */

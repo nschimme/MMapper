@@ -75,6 +75,7 @@ NODISCARD static QString telnetOptionName(uint8_t opt)
         CASE(MSSP);
         CASE(LINEMODE);
         CASE(EOR);
+        CASE(MNES);
     }
     return QString::asprintf("%u", opt);
 #undef CASE
@@ -294,11 +295,14 @@ AbstractTelnet::~AbstractTelnet() = default;
 void AbstractTelnet::Options::reset()
 {
     // Could also use "*this = {};" instead of the following:
-    myOptionState.fill(false);
-    hisOptionState.fill(false);
-    announcedState.fill(false);
-    heAnnouncedState.fill(false);
-    triedToEnable.fill(false);
+    // Ensure all are initialized.
+    for (size_t i = 0; i < NUM_OPTS; ++i) {
+        myOptionState[i] = false;
+        hisOptionState[i] = false;
+        announcedState[i] = false;
+        heAnnouncedState[i] = false;
+        triedToEnable[i] = false;
+    }
 }
 
 void AbstractTelnet::reset()
@@ -339,6 +343,67 @@ void AbstractTelnet::trySendGoAhead()
     const auto ba = QByteArray{reinterpret_cast<const char *>(buf), 2};
     sendRawData(TelnetIacBytes{ba});
 }
+
+// MNES specific methods
+void AbstractTelnet::sendWillMnes()
+{
+    sendTelnetOption(TN_WILL, OPT_MNES);
+    m_options.myOptionState[OPT_MNES] = true;
+    m_options.announcedState[OPT_MNES] = true;
+    virt_mnesStateChanged(m_options.myOptionState[OPT_MNES], m_options.hisOptionState[OPT_MNES]);
+}
+
+void AbstractTelnet::sendWontMnes()
+{
+    sendTelnetOption(TN_WONT, OPT_MNES);
+    m_options.myOptionState[OPT_MNES] = false;
+    m_options.announcedState[OPT_MNES] = true;
+    virt_mnesStateChanged(m_options.myOptionState[OPT_MNES], m_options.hisOptionState[OPT_MNES]);
+}
+
+void AbstractTelnet::sendDoMnes()
+{
+    requestTelnetOption(TN_DO, OPT_MNES);
+    // hisOptionState will be updated upon WILL/WONT response
+    // virt_mnesStateChanged will be called from processTelnetCommand
+}
+
+void AbstractTelnet::sendDontMnes()
+{
+    requestTelnetOption(TN_DONT, OPT_MNES);
+    // hisOptionState will be updated upon WILL/WONT response
+    // virt_mnesStateChanged will be called from processTelnetCommand
+}
+
+void AbstractTelnet::sendMnesSubnegotiation(const RawBytes &data)
+{
+    if (!m_options.myOptionState[OPT_MNES] && !m_options.hisOptionState[OPT_MNES]) {
+        qWarning() << "MNES is not enabled, cannot send subnegotiation.";
+        return;
+    }
+    if (m_debug) {
+        qDebug() << "Sending MNES Subnegotiation:" << data;
+    }
+    TelnetFormatter s{*this};
+    s.addSubnegBegin(OPT_MNES);
+    s.addEscapedBytes(data.getQByteArray());
+    s.addSubnegEnd();
+}
+// End MNES specific methods
+
+// MTTS specific method
+void AbstractTelnet::sendTerminalTypeIsMtts(const TelnetTermTypeBytes &mtts_report_string)
+{
+    if (m_debug) {
+        qDebug() << "Sending TTYPE IS MTTS Report:" << mtts_report_string;
+    }
+    TelnetFormatter s{*this};
+    s.addSubnegBegin(OPT_TERMINAL_TYPE);
+    s.addEscaped(TNSB_IS);
+    s.addEscapedBytes(mtts_report_string.getQByteArray());
+    s.addSubnegEnd();
+}
+// End MTTS specific method
 
 void AbstractTelnet::sendWithDoubledIacs(const RawBytes &raw)
 {
@@ -573,7 +638,7 @@ void AbstractTelnet::processTelnetCommand(const AppendBuffer &command)
                     || (option == OPT_TERMINAL_TYPE) || (option == OPT_NAWS) || (option == OPT_ECHO)
                     || (option == OPT_CHARSET) || (option == OPT_COMPRESS2 && !NO_ZLIB)
                     || (option == OPT_GMCP) || (option == OPT_MSSP) || (option == OPT_LINEMODE)
-                    || (option == OPT_EOR)) {
+                    || (option == OPT_EOR) || (option == OPT_MNES)) {
                     sendTelnetOption(TN_DO, option);
                     hisOptionState[option] = true;
 
@@ -587,10 +652,15 @@ void AbstractTelnet::processTelnetCommand(const AppendBuffer &command)
                         sendTerminalTypeRequest();
                     } else if (option == OPT_CHARSET) {
                         sendCharsetRequest();
+                    } else if (option == OPT_MNES) {
+                        virt_mnesStateChanged(myOptionState[OPT_MNES], hisOptionState[OPT_MNES]);
                     }
                 } else {
                     sendTelnetOption(TN_DONT, option);
                     hisOptionState[option] = false;
+                    if (option == OPT_MNES) { // Also update if DONT is sent for MNES
+                        virt_mnesStateChanged(myOptionState[OPT_MNES], hisOptionState[OPT_MNES]);
+                    }
                 }
             }
             heAnnouncedState[option] = true;
@@ -605,6 +675,8 @@ void AbstractTelnet::processTelnetCommand(const AppendBuffer &command)
             hisOptionState[option] = false;
             if (option == OPT_ECHO) {
                 receiveEchoMode(true);
+            } else if (option == OPT_MNES) {
+                virt_mnesStateChanged(myOptionState[OPT_MNES], hisOptionState[OPT_MNES]);
             }
             break;
         case TN_DO:
@@ -626,13 +698,10 @@ void AbstractTelnet::processTelnetCommand(const AppendBuffer &command)
                 if ((option == OPT_SUPPRESS_GA) || (option == OPT_STATUS)
                     || (option == OPT_TERMINAL_TYPE) || (option == OPT_NAWS)
                     || (option == OPT_CHARSET) || (option == OPT_GMCP) || (option == OPT_LINEMODE)
-                    || (option == OPT_EOR)) {
+                    || (option == OPT_EOR) || (option == OPT_MNES)) {
                     sendTelnetOption(TN_WILL, option);
                     myOptionState[option] = true;
                     if (option == OPT_NAWS) {
-                        // NAWS here - window size info must be sent
-                        // REVISIT: Should we attempt to rate-limit this to avoid spamming dozens of NAWS
-                        // messages per second when the user adjusts the window size?
                         sendWindowSizeChanged(m_currentNaws.width, m_currentNaws.height);
                     } else if (option == OPT_GMCP) {
                         onGmcpEnabled();
@@ -642,10 +711,15 @@ void AbstractTelnet::processTelnetCommand(const AppendBuffer &command)
                         // REVISIT: Start deflating after sending IAC SB COMPRESS2 IAC SE
                     } else if (option == OPT_CHARSET && heAnnouncedState[option]) {
                         sendCharsetRequest();
+                    } else if (option == OPT_MNES) {
+                        virt_mnesStateChanged(myOptionState[OPT_MNES], hisOptionState[OPT_MNES]);
                     }
                 } else {
                     sendTelnetOption(TN_WONT, option);
                     myOptionState[option] = false;
+                    if (option == OPT_MNES) { // Also update if WONT is sent for MNES
+                        virt_mnesStateChanged(myOptionState[OPT_MNES], hisOptionState[OPT_MNES]);
+                    }
                 }
                 announcedState[option] = true;
             }
@@ -657,6 +731,9 @@ void AbstractTelnet::processTelnetCommand(const AppendBuffer &command)
                 announcedState[option] = true;
             }
             myOptionState[option] = false;
+            if (option == OPT_MNES) {
+                virt_mnesStateChanged(myOptionState[OPT_MNES], hisOptionState[OPT_MNES]);
+            }
             break;
         }
         break;
@@ -703,15 +780,39 @@ void AbstractTelnet::processTelnetSubnegotiation(const AppendBuffer &payload)
 
     case OPT_TERMINAL_TYPE:
         if (myOptionState[OPT_TERMINAL_TYPE] || hisOptionState[OPT_TERMINAL_TYPE]) {
-            switch (payload[1]) {
+            if (payload.length() < 2) { // Should have at least option code and subnegotiation type
+                 qWarning() << "Corrupted TERMINAL_TYPE subnegotiation received (too short):" << payload;
+                 break;
+            }
+            switch (payload.unsigned_at(1)) {
             case TNSB_SEND:
-                // server wants us to send terminal type
-                sendTerminalType(m_termType);
+                // Server/peer wants us to send terminal type info.
+                // Call the virtual method, derived classes will handle the TTYPE sequence.
+                virt_receivedTerminalTypeSendRequest();
                 break;
             case TNSB_IS:
-                // Extract sender's terminal type
-                // TERMINAL_TYPE IS <...>
-                receiveTerminalType(TelnetTermTypeBytes{payload.getQByteArray().mid(2)});
+                {
+                    // Peer is sending us its terminal type or MTTS report.
+                    // TERMINAL_TYPE IS <string_payload>
+                    TelnetTermTypeBytes termTypePayload{payload.getQByteArray().mid(2)};
+                    QString termTypeString = QString::fromUtf8(termTypePayload.getQByteArray()).trimmed();
+
+                    if (termTypeString.startsWith("MTTS ")) {
+                        if (m_debug) {
+                            qDebug() << "Received MTTS Report:" << termTypeString;
+                        }
+                        virt_receiveMttsReport(termTypePayload);
+                    } else {
+                        if (m_debug) {
+                            qDebug() << "Received Terminal Type:" << termTypeString;
+                        }
+                        // This is a standard terminal type string
+                        receiveTerminalType(termTypePayload); // Calls virt_receiveTerminalType
+                    }
+                }
+                break;
+            default:
+                qWarning() << "Unknown TERMINAL_TYPE subnegotiation command:" << payload.unsigned_at(1);
                 break;
             }
         }
@@ -841,6 +942,15 @@ void AbstractTelnet::processTelnetSubnegotiation(const AppendBuffer &payload)
 
     default:
         // other subnegs should not arrive and if they do, they are merely ignored
+        break;
+
+    case OPT_MNES:
+        if (myOptionState[OPT_MNES] || hisOptionState[OPT_MNES]) {
+            // Pass the entire subnegotiation buffer (excluding the initial option byte)
+            virt_receiveMnesSubnegotiation(AppendBuffer{payload.getQByteArray().mid(1)});
+        } else {
+            qWarning() << "Received MNES subnegotiation but MNES is not enabled.";
+        }
         break;
     }
 }

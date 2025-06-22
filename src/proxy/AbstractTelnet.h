@@ -49,6 +49,7 @@ static constexpr const uint8_t OPT_LINEMODE = 34;
 static constexpr const uint8_t OPT_CHARSET = 42;
 static constexpr const uint8_t OPT_MSSP = 70;
 static constexpr const uint8_t OPT_COMPRESS2 = 86;
+static constexpr const uint8_t OPT_MNES = 39; // Mud New Environment Standard
 static constexpr const uint8_t OPT_GMCP = 201;
 
 // telnet SB suboption types
@@ -118,6 +119,14 @@ protected:
         OptionArray heAnnouncedState;
         /** whether we tried to request */
         OptionArray triedToEnable;
+
+        // MNES specific states, mirroring generic ones for clarity if needed,
+        // though they will use the OptionArray with OPT_MNES index.
+        // bool myMnesState; // This would be myOptionState[OPT_MNES]
+        // bool hisMnesState; // This would be hisOptionState[OPT_MNES]
+        // bool announcedMnesState; // This would be announcedState[OPT_MNES]
+        // bool heAnnouncedMnesState; // This would be heAnnouncedState[OPT_MNES]
+        // bool triedToEnableMnes; // This would be triedToEnable[OPT_MNES]
 
         void reset();
     };
@@ -205,6 +214,13 @@ protected:
     void sendLineModeEdit();
     void requestTelnetOption(unsigned char type, unsigned char subnegBuffer);
 
+    // MNES specific methods
+    void sendWillMnes();
+    void sendWontMnes();
+    void sendDoMnes();
+    void sendDontMnes();
+    void sendMnesSubnegotiation(const RawBytes &data);
+
     /** performs charset conversion and doubles IACs */
     void submitOverTelnet(const QString &s, bool goAhead);
     /** doubles IACs; input must be in the correct charset  */
@@ -225,6 +241,17 @@ private:
     virtual void virt_receiveTerminalType(const TelnetTermTypeBytes &) {}
     virtual void virt_receiveMudServerStatus(const TelnetMsspBytes &) {}
     virtual void virt_receiveWindowSize(int, int) {}
+
+    // MNES virtual methods
+    virtual void virt_receiveMnesSubnegotiation(const AppendBuffer &subnegotiation_data) {}
+    virtual void virt_mnesStateChanged(bool us_will_mnes, bool them_will_mnes) {}
+
+    // MTTS (within TERMINAL-TYPE) virtual methods
+    // Called when IAC SB TERMINAL-TYPE IS "MTTS <report>" IAC SE is received
+    virtual void virt_receiveMttsReport(const TelnetTermTypeBytes &report_data) {}
+    // Called when IAC SB TERMINAL-TYPE SEND IAC SE is received
+    virtual void virt_receivedTerminalTypeSendRequest() { sendTerminalType(m_termType); } // Default impl sends current m_termType
+
     virtual void virt_sendRawData(const TelnetIacBytes &data) = 0;
     virtual void virt_sendToMapper(const RawBytes &, bool goAhead) = 0;
 
@@ -261,6 +288,8 @@ protected:
 protected:
     /** send a telnet option */
     void sendTelnetOption(unsigned char type, unsigned char subnegBuffer);
+    // Method to send an MTTS report specifically as TTYPE IS
+    void sendTerminalTypeIsMtts(const TelnetTermTypeBytes &mtts_report_string);
     void reset();
     void onReadInternal(const TelnetIacBytes &);
     void setTerminalType(const TelnetTermTypeBytes &terminalType) { m_termType = terminalType; }

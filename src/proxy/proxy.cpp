@@ -501,6 +501,38 @@ void Proxy::allocMudTelnet()
             }
         }
 
+    // MNES and MTTS relay implementations for MudTelnetOutputs
+    void virt_onRelayMnesSubnegotiationToUser(const RawBytes &data) final
+    {
+        getUserTelnet().onMudSendsMnesSubnegotiation(data);
+    }
+    void virt_onRelayMnesStateToUser(bool mud_will_mnes, bool mud_do_mnes) final
+    {
+        // If MUD says it WILL MNES, tell UserTelnet MUD WILL MNES
+        if (mud_will_mnes) {
+            getUserTelnet().onMudRequestsWillMnes();
+        } else { // MUD says it WONT MNES
+            getUserTelnet().onMudRequestsWontMnes();
+        }
+        // If MUD says it wants US (proxy/client) to DO MNES, tell UserTelnet MUD wants DO MNES
+        if (mud_do_mnes) {
+            getUserTelnet().onMudRequestsDoMnes();
+        } else { // MUD says it DONT want US to DO MNES
+            getUserTelnet().onMudRequestsDontMnes();
+        }
+    }
+    void virt_onRelayMttsReportToUser(const TelnetTermTypeBytes &report_data) final
+    {
+        // MUD sent its TTYPE IS (which is an MTTS report), relay to client
+        getUserTelnet().onMudSendsTermTypeIs(report_data);
+    }
+    void virt_onRelayTerminalTypeSendRequestToUser() final
+    {
+        // MUD sent TTYPE SEND, wants our (client's) TTYPE sequence
+        getUserTelnet().onMudRequestsTerminalTypeSend();
+    }
+    // End MNES and MTTS
+
         void virt_onMumeClientView(const QString &title, const QString &body) final
         {
             getProxy().getMpiFilterFromMud().receiveMpiView(title, body);

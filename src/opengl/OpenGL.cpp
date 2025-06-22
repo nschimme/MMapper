@@ -88,14 +88,13 @@ static std::string determineHighestReportableVersionStringInternal() {
 
     QSurfaceFormat::FormatOptions optionsWithDebug = QSurfaceFormat::DebugContext | QSurfaceFormat::DeprecatedFunctions;
     QSurfaceFormat::FormatOptions optionsCompatOnly = QSurfaceFormat::DeprecatedFunctions;
-    QSurfaceFormat::FormatOptions optionsCoreOnly = QSurfaceFormat::FormatOption(0); // No specific options for core beyond version/profile
+    QSurfaceFormat::FormatOptions optionsCoreOnly = QSurfaceFormat::FormatOption(0); // No specific options for core
 
-    std::vector<GLVersionPair> coreVersions = {
+    // Single list of versions to test, from highest to lowest.
+    std::vector<GLVersionPair> versionsToTestReport = {
         {4, 6}, {4, 5}, {4, 4}, {4, 3}, {4, 2}, {4, 1}, {4, 0},
-        {3, 3}, {3, 2}
-    };
-    std::vector<GLVersionPair> compatVersions = {
-        {3, 2}, {3, 1}, {3, 0}, {2, 1}
+        {3, 3}, {3, 2}, {3, 1}, {3, 0},
+        {2, 1}
     };
 
     QSurfaceFormat testFormat;
@@ -122,8 +121,9 @@ static std::string determineHighestReportableVersionStringInternal() {
         }
     };
 
-    qInfo() << "[GL Probe Internal] Testing Core profiles for reporting...";
-    for (const auto& ver : coreVersions) {
+    qInfo() << "[GL Probe Internal] Determining highest reportable GL version...";
+    for (const auto& ver : versionsToTestReport) {
+        // Test Core Profile for this version
         testFormat.setVersion(ver.major, ver.minor);
         testFormat.setProfile(QSurfaceFormat::CoreProfile);
 
@@ -131,7 +131,6 @@ static std::string determineHighestReportableVersionStringInternal() {
         if (checkContext(testFormat)) {
             updateHighest(ver.major, ver.minor, true, true);
             qInfo() << "[GL Probe Internal] Found usable: GL " << ver.major << "." << ver.minor << " Core (Debug)";
-            // Don't break; continue to find the absolute highest that might work without debug
         } else {
             testFormat.setOptions(optionsCoreOnly);
             if (checkContext(testFormat)) {
@@ -139,11 +138,9 @@ static std::string determineHighestReportableVersionStringInternal() {
                 qInfo() << "[GL Probe Internal] Found usable: GL " << ver.major << "." << ver.minor << " Core";
             }
         }
-    }
 
-    qInfo() << "[GL Probe Internal] Testing Compatibility profiles for reporting...";
-    for (const auto& ver : compatVersions) {
-        testFormat.setVersion(ver.major, ver.minor);
+        // Test Compatibility Profile for this version
+        testFormat.setVersion(ver.major, ver.minor); // Version remains the same
         testFormat.setProfile(QSurfaceFormat::CompatibilityProfile);
 
         testFormat.setOptions(optionsWithDebug);
@@ -187,15 +184,24 @@ static QSurfaceFormat determineOptimalRunningFormatInternal() {
     // GL 2.1 Compat is essential for macOS and a good general fallback.
     std::vector<std::tuple<GLVersionPair, QSurfaceFormat::OpenGLContextProfile, QSurfaceFormat::FormatOptions, std::string>> profilesToTry;
 
-    // Compatibility profiles, try with Debug then without
-    std::vector<GLVersionPair> compatVersionsRun = {{3, 2}, {3, 1}, {3, 0}, {2, 1}};
+    // Compatibility profiles to try for the RUNNING context.
+    // Prioritize these. Include higher versions.
+    std::vector<GLVersionPair> compatVersionsRun = {
+        {4, 6}, {4, 5}, {4, 4}, {4, 3}, {4, 2}, {4, 1}, {4, 0}, // Try higher compats
+        {3, 3}, {3, 2}, {3, 1}, {3, 0},
+        {2, 1}  // Essential fallback
+    };
     for (const auto& ver : compatVersionsRun) {
         profilesToTry.emplace_back(ver, QSurfaceFormat::CompatibilityProfile, optionsWithDebug, "Compat (Debug)");
         profilesToTry.emplace_back(ver, QSurfaceFormat::CompatibilityProfile, optionsCompatOnly, "Compat");
     }
 
-    // Core profiles (more conservative list for running), try with Debug then without
-    std::vector<GLVersionPair> coreVersionsRun = {{3, 3}, {3, 2}};
+    // Core profiles to try for the RUNNING context (as a fallback if no suitable Compat found).
+    // Keep this list relatively conservative for stability, e.g., 3.2+
+    std::vector<GLVersionPair> coreVersionsRun = {
+        {4, 6}, {4, 5}, {4, 4}, {4, 3}, {4, 2}, {4, 1}, {4, 0},
+        {3, 3}, {3, 2}
+    };
     for (const auto& ver : coreVersionsRun) {
         profilesToTry.emplace_back(ver, QSurfaceFormat::CoreProfile, optionsWithDebug, "Core (Debug)");
         profilesToTry.emplace_back(ver, QSurfaceFormat::CoreProfile, optionsCoreOnly, "Core");

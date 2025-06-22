@@ -624,7 +624,7 @@ void Proxy::allocParser()
 
             // The logic for isMissingNewline may be incomplete; expect more bugs here.
             const bool isMissingNewline = m_wasPrompt ? (!isTwiddler && !startsWithNewline(s))
-                                                      : (isPrompt && m_newlines < 2);
+                                                      : (isPrompt && m_newlines == 0);
             if (isMissingNewline) {
                 // add the missing newline.
                 getUserTelnet().onSendToUser(string_consts::S_NEWLINE, false);

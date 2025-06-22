@@ -39,41 +39,131 @@ namespace { // Anonymous namespace for helper structures and functions
 
 using GLVersionPair = std::pair<int, int>;
 
-// Helper function to try creating a context and check its validity
-static bool checkContext(QSurfaceFormat format) {
+// Helper function to try creating a context and check its validity using glGetIntegerv
+static bool checkContext(QSurfaceFormat formatToRequest, int requestedMajor, int requestedMinor, QSurfaceFormat::OpenGLContextProfile requestedProfile) {
     QOpenGLContext context;
-    context.setFormat(format);
-    if (context.create()) {
-        QOffscreenSurface surface;
-        surface.setFormat(format);
-        surface.create();
-
-        if (!surface.isValid()) {
-            MMLOG_WARNING() << "[GL Check] Offscreen surface not valid for format: "
-                            << format.majorVersion() << "." << format.minorVersion()
-                            << (format.profile() == QSurfaceFormat::CoreProfile ? " Core" : " Compat");
-            return false;
-        }
-
-        if (!context.makeCurrent(&surface)) {
-             MMLOG_WARNING() << "[GL Check] Could not make context current for format: "
-                             << format.majorVersion() << "." << format.minorVersion()
-                             << (format.profile() == QSurfaceFormat::CoreProfile ? " Core" : " Compat");
-            return false;
-        }
-        bool valid = context.isValid();
-        if (valid) {
-            MMLOG_DEBUG() << "[GL Check] Successfully created context for requested "
-                          << format.majorVersion() << "." << format.minorVersion()
-                          << (format.profile() == QSurfaceFormat::CoreProfile ? " Core" : " Compat");
-        }
-        context.doneCurrent();
-        return valid;
+    context.setFormat(formatToRequest);
+    if (!context.create()) {
+        MMLOG_DEBUG() << "[GL Check] context.create() failed for requested "
+                      << requestedMajor << "." << requestedMinor
+                      << (requestedProfile == QSurfaceFormat::CoreProfile ? " Core" : " Compat")
+                      << " with options: Debug(" << formatToRequest.testOption(QSurfaceFormat::DebugContext)
+                      << "), Deprecated(" << formatToRequest.testOption(QSurfaceFormat::DeprecatedFunctions) << ")";
+        return false;
     }
-    MMLOG_WARNING() << "[GL Check] Context creation failed for format: "
-                    << format.majorVersion() << "." << format.minorVersion()
-                    << (format.profile() == QSurfaceFormat::CoreProfile ? " Core" : " Compat");
-    return false;
+
+    QOffscreenSurface surface;
+    surface.setFormat(formatToRequest);
+    surface.create();
+
+    if (!surface.isValid()) {
+        MMLOG_WARNING() << "[GL Check] Offscreen surface not valid for requested "
+                        << requestedMajor << "." << requestedMinor
+                        << (requestedProfile == QSurfaceFormat::CoreProfile ? " Core" : " Compat");
+        return false;
+    }
+
+    if (!context.makeCurrent(&surface)) {
+         MMLOG_WARNING() << "[GL Check] Could not make context current for requested "
+                         << requestedMajor << "." << requestedMinor
+                         << (requestedProfile == QSurfaceFormat::CoreProfile ? " Core" : " Compat");
+        return false;
+    }
+
+    if (!context.isValid()) {
+        MMLOG_WARNING() << "[GL Check] Context became invalid after makeCurrent for requested "
+                         << requestedMajor << "." << requestedMinor
+                         << (requestedProfile == QSurfaceFormat::CoreProfile ? " Core" : " Compat");
+        context.doneCurrent();
+        return false;
+    }
+
+    QOpenGLFunctions *glFuncs = context.functions();
+    if (!glFuncs) {
+        MMLOG_WARNING() << "[GL Check] Failed to retrieve QOpenGLFunctions.";
+        context.doneCurrent();
+        return false;
+    }
+
+    GLint actualMajor = 0, actualMinor = 0, actualProfileMask = 0, actualFlags = 0;
+    glFuncs->glGetIntegerv(GL_MAJOR_VERSION, &actualMajor);
+    glFuncs->glGetIntegerv(GL_MINOR_VERSION, &actualMinor);
+
+    bool isActualCore = false;
+    bool isActualCompat = false;
+
+    if (actualMajor > 3 || (actualMajor == 3 && actualMinor >= 2)) {
+        glFuncs->glGetIntegerv(GL_CONTEXT_PROFILE_MASK, &actualProfileMask);
+        if (actualProfileMask & GL_CONTEXT_CORE_PROFILE_BIT) {
+            isActualCore = true;
+        }
+        if (actualProfileMask & GL_CONTEXT_COMPATIBILITY_PROFILE_BIT) {
+            isActualCompat = true;
+        }
+    } else {
+        isActualCompat = true; // Assume compatibility for older versions
+    }
+
+    bool actualHasDebugFlag = false;
+    // Check GL_CONTEXT_FLAG_DEBUG_BIT if GL version is 4.3+
+    if (actualMajor > 4 || (actualMajor == 4 && actualMinor >= 3)) {
+         glFuncs->glGetIntegerv(GL_CONTEXT_FLAGS, &actualFlags);
+         if (actualFlags & GL_CONTEXT_FLAG_DEBUG_BIT) {
+             actualHasDebugFlag = true;
+         }
+    }
+    // For older versions, if DebugContext was requested via QSurfaceFormat and context creation succeeded,
+    // we assume Qt/driver handled it. This is a best-effort guess if the specific GL_CONTEXT_FLAG_DEBUG_BIT is not available.
+    else if (formatToRequest.testOption(QSurfaceFormat::DebugContext)) {
+        actualHasDebugFlag = true;
+    }
+
+
+    bool versionOk = (actualMajor > requestedMajor) ||
+                     (actualMajor == requestedMajor && actualMinor >= requestedMinor);
+
+    bool profileOk = false;
+    if (requestedProfile == QSurfaceFormat::NoProfile) { // If no specific profile was requested, any is fine
+        profileOk = true;
+    } else if (requestedMajor < 3 || (requestedMajor == 3 && requestedMinor < 2)) { // For GL < 3.2
+        if (requestedProfile == QSurfaceFormat::CoreProfile) {
+            profileOk = false; // Core profile did not exist before GL 3.2
+        } else { // Compatibility or NoProfile requested
+            profileOk = isActualCompat; // Must be compatibility-like
+        }
+    } else { // For GL 3.2+
+        if (requestedProfile == QSurfaceFormat::CoreProfile) {
+            profileOk = isActualCore;
+        } else if (requestedProfile == QSurfaceFormat::CompatibilityProfile) {
+            profileOk = isActualCompat;
+        }
+    }
+
+    // If a debug context was explicitly requested via formatToRequest, then actualHasDebugFlag must be true.
+    bool debugOk = !formatToRequest.testOption(QSurfaceFormat::DebugContext) || actualHasDebugFlag;
+
+    if (versionOk && profileOk && debugOk) {
+        MMLOG_DEBUG() << "[GL Check Direct] Successfully created AND validated context. Requested: "
+                      << requestedMajor << "." << requestedMinor
+                      << (requestedProfile == QSurfaceFormat::CoreProfile ? " Core" : (requestedProfile == QSurfaceFormat::CompatibilityProfile ? " Compat" : " NoProfile"))
+                      << " (ReqDebug: " << formatToRequest.testOption(QSurfaceFormat::DebugContext) << ")"
+                      << ". Got: " << actualMajor << "." << actualMinor
+                      << (isActualCore ? " Core" : (isActualCompat ? " Compat" : " UnknownProfile"))
+                      << " (ActualDebug: " << actualHasDebugFlag << ")";
+        context.doneCurrent();
+        return true;
+    } else {
+        MMLOG_DEBUG() << "[GL Check Direct] Context created, but mismatch or condition not met. Requested: "
+                      << requestedMajor << "." << requestedMinor
+                      << (requestedProfile == QSurfaceFormat::CoreProfile ? " Core" : (requestedProfile == QSurfaceFormat::CompatibilityProfile ? " Compat" : " NoProfile"))
+                      << " (ReqDebug: " << formatToRequest.testOption(QSurfaceFormat::DebugContext) << ")"
+                      << ". Got: " << actualMajor << "." << actualMinor
+                      << (isActualCore ? " Core" : (isActualCompat ? " Compat" : " UnknownProfile"))
+                      << " (ActualDebug: " << actualHasDebugFlag << ")"
+                      << ". VersionOK: " << versionOk << " ProfileOK: " << profileOk << " DebugOK: " << debugOk;
+        context.doneCurrent();
+        return false;
+    }
 }
 
 static std::string determineHighestReportableVersionStringInternal() {
@@ -126,33 +216,30 @@ static std::string determineHighestReportableVersionStringInternal() {
 
         MMLOG_DEBUG() << "[GL Probe Internal] Testing GL " << ver.first << "." << ver.second << " Core (Debug)...";
         testFormat.setOptions(optionsWithDebug);
-        if (checkContext(testFormat)) {
+        if (checkContext(testFormat, ver.first, ver.second, QSurfaceFormat::CoreProfile)) {
             updateHighest(ver.first, ver.second, true, true);
-            MMLOG_DEBUG() << "[GL Probe Internal] Found usable: GL " << ver.first << "." << ver.second << " Core (Debug)";
+            // MMLOG_DEBUG() already in checkContext for success
         } else {
             MMLOG_DEBUG() << "[GL Probe Internal] Testing GL " << ver.first << "." << ver.second << " Core...";
             testFormat.setOptions(optionsCoreOnly);
-            if (checkContext(testFormat)) {
+            if (checkContext(testFormat, ver.first, ver.second, QSurfaceFormat::CoreProfile)) {
                 updateHighest(ver.first, ver.second, true, false);
-                MMLOG_DEBUG() << "[GL Probe Internal] Found usable: GL " << ver.first << "." << ver.second << " Core";
             }
         }
 
         // Test Compatibility Profile for this version
-        testFormat.setVersion(ver.first, ver.second); // Version remains the same
+        // Version remains the same (ver.first, ver.second)
         testFormat.setProfile(QSurfaceFormat::CompatibilityProfile);
 
         MMLOG_DEBUG() << "[GL Probe Internal] Testing GL " << ver.first << "." << ver.second << " Compat (Debug)...";
         testFormat.setOptions(optionsWithDebug);
-        if (checkContext(testFormat)) {
+        if (checkContext(testFormat, ver.first, ver.second, QSurfaceFormat::CompatibilityProfile)) {
             updateHighest(ver.first, ver.second, false, true);
-            MMLOG_DEBUG() << "[GL Probe Internal] Found usable: GL " << ver.first << "." << ver.second << " Compat (Debug)";
         } else {
             MMLOG_DEBUG() << "[GL Probe Internal] Testing GL " << ver.first << "." << ver.second << " Compat...";
             testFormat.setOptions(optionsCompatOnly);
-            if (checkContext(testFormat)) {
+            if (checkContext(testFormat, ver.first, ver.second, QSurfaceFormat::CompatibilityProfile)) {
                 updateHighest(ver.first, ver.second, false, false);
-                MMLOG_DEBUG() << "[GL Probe Internal] Found usable: GL " << ver.first << "." << ver.second << " Compat";
             }
         }
     }
@@ -226,14 +313,53 @@ static QSurfaceFormat determineOptimalRunningFormatInternal() {
         testFormat.setOptions(currentOptions);
 
         MMLOG_DEBUG() << "[GL Setup Internal] Trying: GL " << ver.first << "." << ver.second << " " << profileDesc.c_str();
-        if (checkContext(testFormat)) {
+        if (checkContext(testFormat, ver.first, ver.second, profile)) {
             runningFormat.setVersion(ver.first, ver.second);
             runningFormat.setProfile(profile);
             runningFormat.setOptions(currentOptions); // Store the options that worked
             MMLOG_INFO() << "[GL Setup Internal] Successfully set running format to: GL "
                          << ver.first << "." << ver.second << " " << profileDesc.c_str();
-            MMLOG_INFO() << "[GL Setup Internal] Final running format to be used: Version "
-                         << runningFormat.majorVersion() << "." << runningFormat.minorVersion()
+            // MMLOG_INFO for final running format is now just before return / at the end of function
+            return runningFormat;
+        }
+    }
+
+    // Fallback if nothing specific worked from the main list
+    MMLOG_WARNING() << "[GL Setup Internal] No specific GL profile from the main list succeeded. Attempting explicit GL 2.1 Compat fallback.";
+
+    // testFormat is reused
+    const int fallbackMajor = 2, fallbackMinor = 1;
+    const QSurfaceFormat::OpenGLContextProfile fallbackProfile = QSurfaceFormat::CompatibilityProfile;
+
+    // Try GL 2.1 Compat with Debug
+    testFormat.setVersion(fallbackMajor, fallbackMinor);
+    testFormat.setProfile(fallbackProfile);
+    testFormat.setOptions(optionsWithDebug);
+    MMLOG_DEBUG() << "[GL Setup Internal] Trying fallback: GL " << fallbackMajor << "." << fallbackMinor << " Compat (Debug)";
+    if (checkContext(testFormat, fallbackMajor, fallbackMinor, fallbackProfile)) {
+        runningFormat.setVersion(fallbackMajor, fallbackMinor);
+        runningFormat.setProfile(fallbackProfile);
+        runningFormat.setOptions(optionsWithDebug);
+        MMLOG_INFO() << "[GL Setup Internal] Using GL 2.1 Compat (Debug) as fallback running format.";
+    } else {
+        // Try GL 2.1 Compat without Debug
+        MMLOG_DEBUG() << "[GL Setup Internal] Trying fallback: GL " << fallbackMajor << "." << fallbackMinor << " Compat";
+        testFormat.setOptions(optionsCompatOnly);
+        if (checkContext(testFormat, fallbackMajor, fallbackMinor, fallbackProfile)) {
+            runningFormat.setVersion(fallbackMajor, fallbackMinor);
+            runningFormat.setProfile(fallbackProfile);
+            runningFormat.setOptions(optionsCompatOnly);
+            MMLOG_INFO() << "[GL Setup Internal] Using GL 2.1 Compat as fallback running format.";
+        } else {
+            MMLOG_ERROR() << "[GL Setup Internal] Fallback to GL 2.1 Compat also failed! Using NoProfile.";
+            runningFormat.setVersion(0,0);
+            runningFormat.setProfile(QSurfaceFormat::NoProfile);
+            runningFormat.setOptions(QSurfaceFormat::FormatOption(0)); // Clear options too
+        }
+    }
+
+    MMLOG_INFO() << "[GL Setup Internal] Final running format to be used: Version "
+                 << runningFormat.majorVersion() << "." << runningFormat.minorVersion()
                          << " Profile: " << (runningFormat.profile() == QSurfaceFormat::CoreProfile ? "Core" :
                                              runningFormat.profile() == QSurfaceFormat::CompatibilityProfile ? "Compat" : "NoProfile")
                          << " Options: Debug(" << (runningFormat.options().testFlag(QSurfaceFormat::DebugContext) ? "Yes" : "No")

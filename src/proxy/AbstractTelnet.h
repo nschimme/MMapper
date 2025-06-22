@@ -49,6 +49,7 @@ static constexpr const uint8_t OPT_LINEMODE = 34;
 static constexpr const uint8_t OPT_CHARSET = 42;
 static constexpr const uint8_t OPT_MSSP = 70;
 static constexpr const uint8_t OPT_COMPRESS2 = 86;
+static constexpr const uint8_t OPT_NEW_ENVIRON = 39; // RFC 1572
 static constexpr const uint8_t OPT_GMCP = 201;
 
 // telnet SB suboption types
@@ -65,6 +66,38 @@ static constexpr const uint8_t TNSB_TTABLE_IS = 4;
 static constexpr const uint8_t TNSB_TTABLE_REJECTED = 5;
 static constexpr const uint8_t TNSB_TTABLE_ACK = 6;
 static constexpr const uint8_t TNSB_TTABLE_NAK = 7;
+
+// NEW-ENVIRON subnegotiation commands (RFC 1572)
+static constexpr const uint8_t TNSB_IS = 0; // Re-used by TTYPE, NEW-ENVIRON
+static constexpr const uint8_t TNSB_SEND = 1; // Re-used by TTYPE, NEW-ENVIRON
+static constexpr const uint8_t TNSB_INFO = 2;
+
+// NEW-ENVIRON variable types (RFC 1572)
+static constexpr const uint8_t TNEV_VAR = 0;
+static constexpr const uint8_t TNEV_VAL = 1;
+static constexpr const uint8_t TNEV_ESC = 2;
+static constexpr const uint8_t TNEV_USERVAR = 3;
+
+// MTTS (Mud Terminal Type Standard) Bits (from https://tintin.mudhalla.net/protocols/mtts/)
+namespace MttsBits {
+    static constexpr const int ANSI = 1 << 0;              // Standard ANSI codes
+    static constexpr const int VT100 = 1 << 1;             // VT100 codes
+    static constexpr const int UTF_8 = 1 << 2;             // UTF-8 character encoding
+    static constexpr const int COLORS_256 = 1 << 3;        // 256 colors
+    static constexpr const int MOUSE_TRACKING = 1 << 4;    // Xterm mouse tracking
+    static constexpr const int OSC_COLOR_PALETTE = 1 << 5; // OSC color palette
+    static constexpr const int SCREEN_READER = 1 << 6;     // Using a screen reader
+    static constexpr const int PROXY = 1 << 7;             // Client is a proxy
+    static constexpr const int TRUECOLOR = 1 << 8;         // Truecolor (24-bit)
+    static constexpr const int MNES = 1 << 9;              // MNES support
+    static constexpr const int MSLP = 1 << 10;             // MSLP support
+    static constexpr const int SSL = 1 << 11;              // SSL/TLS support
+
+    // MMapper specific capabilities (start from a higher bit to avoid collision)
+    // Example:
+    // static constexpr const int MMAPPER_CUSTOM_FEATURE_1 = 1 << 16;
+    // static constexpr const int MMAPPER_CUSTOM_FEATURE_2 = 1 << 17;
+} // namespace MttsBits
 
 struct NODISCARD AppendBuffer : public RawBytes
 {
@@ -220,11 +253,17 @@ private:
         return false;
     }
     virtual void virt_onGmcpEnabled() {}
+    virtual void virt_onNewEnvironEnabledByPeer() {} // Called when peer sends WILL to our DO for NEW-ENVIRON
+    virtual void virt_onTerminalTypeEnabledByPeer() {} // Called when peer sends WILL to our DO for TTYPE
+    virtual void virt_handleTerminalTypeSendRequest() { sendTerminalType(m_termType); } // Peer sent SB TTYPE SEND; default is to send our m_termType
     virtual void virt_receiveEchoMode(bool) {}
     virtual void virt_receiveGmcpMessage(const GmcpMessage &) {}
     virtual void virt_receiveTerminalType(const TelnetTermTypeBytes &) {}
     virtual void virt_receiveMudServerStatus(const TelnetMsspBytes &) {}
     virtual void virt_receiveWindowSize(int, int) {}
+    virtual void virt_receiveNewEnvironIs(const QByteArray &) {}
+    virtual void virt_receiveNewEnvironSend(const QByteArray &) {}
+    virtual void virt_receiveNewEnvironInfo(const QByteArray &) {}
     virtual void virt_sendRawData(const TelnetIacBytes &data) = 0;
     virtual void virt_sendToMapper(const RawBytes &, bool goAhead) = 0;
 
@@ -261,7 +300,7 @@ protected:
 protected:
     /** send a telnet option */
     void sendTelnetOption(unsigned char type, unsigned char subnegBuffer);
-    void reset();
+    virtual void reset();
     void onReadInternal(const TelnetIacBytes &);
     void setTerminalType(const TelnetTermTypeBytes &terminalType) { m_termType = terminalType; }
 

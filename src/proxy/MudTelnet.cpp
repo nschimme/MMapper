@@ -25,6 +25,8 @@
 #include <QOperatingSystemVersion>
 #include <QSysInfo>
 
+#include <map>
+
 namespace { // anonymous
 
 constexpr const auto GAME_YEAR = "GAME YEAR";
@@ -363,11 +365,17 @@ void MudTelnet::onRelayNaws(const int width, const int height)
 
 void MudTelnet::onRelayTermType(const TelnetTermTypeBytes &terminalType)
 {
-    // Append the MMapper version suffix to the terminal type
-    setTerminalType(addTerminalTypeSuffix(terminalType.getQByteArray().constData()));
-    if (getOptions().myOptionState[OPT_TERMINAL_TYPE]) {
-        sendTerminalType(getTerminalType());
-    }
+    // This is typically the client's name, relayed from UserTelnet's first TTYPE response.
+    m_relayedClientName = terminalType;
+
+    // The actual terminal type (like "MMAPPER-XTERM") that MudTelnet itself reports
+    // if it were initiating TTYPE or responding to a simple TTYPE request without full MTTS cycle
+    // is set via `setTerminalType`.
+    // For the MTTS cycle, we'll use m_relayedClientName, then m_relayedClientTerminal, then calculated MTTS.
+    // The `addTerminalTypeSuffix` is more for the `NEW-ENVIRON` `TERMINAL_TYPE` variable.
+    // Let's ensure `m_termType` (from AbstractTelnet) is a reasonable default for MMapper itself.
+    // It's initialized in MudTelnet constructor: AbstractTelnet(..., addTerminalTypeSuffix("unknown"))
+    // This is fine. If the MUD asks for TTYPE and we haven't got client info yet, it sends this.
 }
 
 void MudTelnet::onLoginCredentials(const QString &name, const QString &password)
@@ -618,4 +626,375 @@ void MudTelnet::parseMudServerStatus(const TelnetMsspBytes &data)
     warn_if_invalid("hour", msspTime.hour, 0, MUME_MINUTES_PER_HOUR - 1);
 
     m_outputs.onSendGameTimeToClock(msspTime);
+}
+
+// Helper to parse NEW-ENVIRON variables from a QByteArray
+static std::map<QString, QString> parseNewEnvironVariables(const QByteArray &data, bool debug) {
+    std::map<QString, QString> variables;
+    QString currentVarName;
+    QString currentValue;
+    enum class State { VAR, VAL, ESC_IN_VAL };
+    State state = State::VAR;
+    bool nextIsVar = true; // Expect VAR or USERVAR first
+
+    for (int i = 0; i < data.size(); ++i) {
+        const auto byte = static_cast<uint8_t>(data[i]);
+        if (nextIsVar) {
+            if (byte == TNEV_VAR || byte == TNEV_USERVAR) {
+                if (!currentVarName.isEmpty() && !currentValue.isEmpty()) {
+                    if (debug) {
+                        qDebug() << "Parsed NEW-ENVIRON variable" << currentVarName << "with value" << currentValue;
+                    }
+                    variables[currentVarName] = currentValue;
+                }
+                currentVarName.clear();
+                currentValue.clear();
+                state = State::VAR;
+                nextIsVar = false;
+            } else {
+                // Protocol error or unexpected data
+                if (debug) {
+                    qDebug() << "NEW-ENVIRON parsing error: Expected VAR or USERVAR, got" << byte;
+                }
+                return variables; // Or handle error more gracefully
+            }
+            continue;
+        }
+
+        switch (state) {
+        case State::VAR:
+            if (byte == TNEV_VAL) {
+                state = State::VAL;
+            } else if (byte == TNEV_ESC) {
+                // According to RFC 1572, ESC is only for VAL, not VAR.
+                // However, some clients might send it. We'll treat it as part of the name.
+                currentVarName.append(QChar(byte));
+            } else {
+                currentVarName.append(QChar(byte));
+            }
+            break;
+        case State::VAL:
+            if (byte == TNEV_ESC) {
+                state = State::ESC_IN_VAL;
+            } else if (byte == TNEV_VAR || byte == TNEV_USERVAR) {
+                // Start of a new variable definition
+                if (!currentVarName.isEmpty()) {
+                     if (debug) {
+                        qDebug() << "Parsed NEW-ENVIRON variable" << currentVarName << "with value" << currentValue;
+                    }
+                    variables[currentVarName] = currentValue;
+                }
+                currentVarName.clear();
+                currentValue.clear();
+                state = State::VAR; // Set up for the new var name
+                // Reprocess this byte as it's a TNEV_VAR/USERVAR
+                i--;
+                nextIsVar = true;
+            } else {
+                currentValue.append(QChar(byte));
+            }
+            break;
+        case State::ESC_IN_VAL:
+            currentValue.append(QChar(byte));
+            state = State::VAL;
+            break;
+        }
+    }
+    if (!currentVarName.isEmpty()) {
+        if (debug) {
+            qDebug() << "Parsed NEW-ENVIRON variable" << currentVarName << "with value" << currentValue;
+        }
+        variables[currentVarName] = currentValue;
+    }
+    return variables;
+}
+
+void MudTelnet::virt_receiveNewEnvironIs(const QByteArray &data) {
+    if (getDebug()) {
+        qDebug() << "MudTelnet: Received NEW-ENVIRON IS:" << data.toHex();
+    }
+    auto received_vars = parseNewEnvironVariables(data, getDebug());
+    for(auto const& [key, val] : received_vars) {
+        if (getDebug()) {
+            qDebug() << "MUD provided NEW-ENVIRON variable:" << key << "=" << val;
+        }
+        // Potentially store or act on these variables if needed.
+        // For now, just logging.
+    }
+}
+
+void MudTelnet::virt_receiveNewEnvironSend(const QByteArray &data) {
+    if (getDebug()) {
+        qDebug() << "MudTelnet: Received NEW-ENVIRON SEND:" << data.toHex();
+    }
+
+    // Parse requested variables
+    QStringList requestedVars;
+    QString currentVarName;
+    bool expectVarType = true;
+    for (char byte : data) {
+        uint8_t u_byte = static_cast<uint8_t>(byte);
+        if (expectVarType) {
+            if (u_byte == TNEV_VAR || u_byte == TNEV_USERVAR) {
+                // Valid start of a variable
+                expectVarType = false;
+                currentVarName.clear();
+            } else {
+                // Protocol error or "SEND VAR" to request all
+                if (u_byte == TNEV_VAR && data.size() == 1) { // SEND VAR (request all)
+                     requestedVars.append("*ALL*"); // Special marker for all
+                } else if (data.isEmpty()){ // SEND (also request all as per RFC1572)
+                     requestedVars.append("*ALL*");
+                }
+                else if (getDebug()) {
+                    qDebug() << "NEW-ENVIRON SEND: Protocol error or unhandled request format.";
+                }
+                break;
+            }
+        } else {
+            if (u_byte == TNEV_VAR || u_byte == TNEV_USERVAR) {
+                // Start of a new variable in the SEND request
+                if (!currentVarName.isEmpty()) {
+                    requestedVars.append(currentVarName);
+                }
+                currentVarName.clear();
+                // This byte is TNEV_VAR/USERVAR, so we are still expecting the var name bytes next
+            } else {
+                currentVarName.append(QChar(u_byte));
+            }
+        }
+    }
+    if (!currentVarName.isEmpty()) {
+        requestedVars.append(currentVarName);
+    }
+
+    if (data.isEmpty() && !requestedVars.contains("*ALL*")) { // SEND (request all)
+        requestedVars.append("*ALL*");
+    }
+
+
+    TelnetFormatter s{*this};
+    s.addSubnegBegin(OPT_NEW_ENVIRON);
+    s.addRaw(TNSB_IS);
+
+    auto addVarVal = [&](const QString& var, const QString& val) {
+        s.addRaw(TNEV_VAR);
+        s.addEscapedBytes(var.toUtf8());
+        s.addRaw(TNEV_VAL);
+        s.addEscapedBytes(val.toUtf8());
+    };
+
+    bool wantsAll = requestedVars.contains("*ALL*");
+
+    if (wantsAll || requestedVars.contains("CLIENT_NAME")) {
+        addVarVal("CLIENT_NAME", "MMapper");
+    }
+    if (wantsAll || requestedVars.contains("CLIENT_VERSION")) {
+        addVarVal("CLIENT_VERSION", getMMapperVersion());
+    }
+    if (wantsAll || requestedVars.contains("TERMINAL_TYPE")) {
+        // The terminal type sent here should be the one reported by the actual MUD client,
+        // potentially without MMapper's own suffix, or with it if that's what we want the MUD to see via MNES.
+        // For now, send the one AbstractTelnet knows, which might include MMapper's suffix.
+        addVarVal("TERMINAL_TYPE", QString::fromUtf8(getTerminalType().getQByteArray()));
+    }
+    if (wantsAll || requestedVars.contains("MTTS")) {
+        int clientMtts = 0;
+        if (!m_relayedClientMttsValue.isEmpty()) {
+            bool ok;
+            clientMtts = m_relayedClientMttsValue.toInt(&ok);
+            if (!ok) clientMtts = 0;
+        }
+        int mmapperMtts = clientMtts;
+        mmapperMtts |= MttsBits::PROXY;
+        mmapperMtts |= MttsBits::MNES;
+        mmapperMtts |= MttsBits::UTF_8;
+        addVarVal("MTTS", QString::number(mmapperMtts));
+    }
+    // IPADDRESS: This is tricky. MudTelnet doesn't know the user's real IP.
+    // UserTelnet would know it when the user connects to the proxy.
+    // This needs to be relayed from UserTelnet to MudTelnet if we are to support it.
+    // For now, we won't send it.
+    if (wantsAll || requestedVars.contains("IPADDRESS")) {
+        auto it = m_clientProvidedEnvironVariables.find("IPADDRESS");
+        if (it != m_clientProvidedEnvironVariables.end()) {
+            addVarVal("IPADDRESS", it->second);
+        }
+    }
+     if (wantsAll || requestedVars.contains("CHARSET")) {
+        auto it = m_clientProvidedEnvironVariables.find("CHARSET");
+        if (it != m_clientProvidedEnvironVariables.end()) {
+            addVarVal("CHARSET", it->second);
+        }
+    }
+    // Add other MNES variables here if they are stored in m_clientProvidedEnvironVariables
+
+    s.addSubnegEnd();
+}
+
+void MudTelnet::virt_receiveNewEnvironInfo(const QByteArray &data) {
+    if (getDebug()) {
+        qDebug() << "MudTelnet: Received NEW-ENVIRON INFO:" << data.toHex();
+    }
+    auto received_vars = parseNewEnvironVariables(data, getDebug());
+    for(auto const& [key, val] : received_vars) {
+        if (getDebug()) {
+            qDebug() << "MUD provided NEW-ENVIRON INFO variable:" << key << "=" << val;
+        }
+        // Potentially store or act on these variables if needed.
+    }
+}
+
+void MudTelnet::onSetClientEnvironVariable(const QString &key, const QString &value) {
+    if (getDebug()) {
+        qDebug() << "MudTelnet: Setting client provided ENV var:" << key << "=" << value;
+    }
+    m_clientProvidedEnvironVariables[key] = value;
+
+    // If the MUD has already indicated it WILL NEW-ENVIRON and we are DO NEW-ENVIRON,
+    // we might want to send an unsolicited INFO update for certain variables if they change.
+    // For example, if CHARSET changes mid-session.
+    // For now, these are primarily used when the MUD sends a SEND request.
+}
+
+void MudTelnet::onSetMttsValue(const QString &mttsValue) {
+    if (getDebug()) {
+        qDebug() << "MudTelnet: Setting MTTS value from client:" << mttsValue;
+    }
+    m_clientProvidedEnvironVariables["MTTS"] = mttsValue; // For NEW-ENVIRON
+    m_relayedClientMttsValue = mttsValue; // For TTYPE negotiation
+    // Potentially send an IAC SB NEW-ENVIRON INFO VAR MTTS VAL <mttsValue> IAC SE
+    // if NEW-ENVIRON is active with the MUD.
+}
+
+void MudTelnet::onRelayClientTerminalName(const TelnetTermTypeBytes &clientTerminalName) {
+    if (getDebug()) {
+        qDebug() << "MudTelnet: Received client's reported terminal name:" << clientTerminalName.getQByteArray().constData();
+    }
+    m_relayedClientTerminal = clientTerminalName;
+}
+
+void MudTelnet::reset() {
+    AbstractTelnet::reset();
+    m_ttypeToMudState = TtypeToMudState::Idle;
+    m_clientProvidedEnvironVariables.clear();
+    m_relayedClientName.clear();
+    m_relayedClientTerminal.clear();
+    m_relayedClientMttsValue.clear();
+    m_lineBuffer.clear(); // Also reset line buffer
+    // m_gmcp modules are reset by AbstractTelnet::reset() if it calls resetGmcpModules,
+    // or MudTelnet should handle it if it has its own specific GMCP reset logic.
+    // MudTelnet constructor calls resetGmcpModules(). AbstractTelnet::reset() does not.
+    // So, we might need to call resetGmcpModules() here too if full reset is desired.
+    // For now, let's stick to what onDisconnected does.
+    if (getDebug()) {
+        qDebug() << "MudTelnet: State reset.";
+    }
+}
+void MudTelnet::virt_handleTerminalTypeSendRequest() {
+    // This is called when the MUD sends IAC SB TTYPE SEND IAC SE.
+    // We need to respond according to the MTTS sequence.
+
+    if (getDebug()) {
+        qDebug() << "MudTelnet: MUD requests TTYPE. State:" << static_cast<int>(m_ttypeToMudState);
+    }
+
+    QString mttsString; // Will hold "MTTS <val>"
+
+    switch (m_ttypeToMudState) {
+    case TtypeToMudState::Idle:
+        // This implies MUD sent DO TTYPE, we sent WILL TTYPE, and now MUD sends first SEND.
+        // Or, if TTYPE was already active and MUD sends SEND again (some MUDs might do this).
+        // For simplicity, let's assume first SEND after WILL.
+        m_ttypeToMudState = TtypeToMudState::AwaitingFirstSend;
+        // Fall-through or handle as AwaitingFirstSend explicitly
+    case TtypeToMudState::AwaitingFirstSend: {
+        TelnetTermTypeBytes name_to_send = m_relayedClientName.isEmpty() ? TelnetTermTypeBytes{"MMAPPER"} : m_relayedClientName;
+        if (getDebug()) {
+            qDebug() << "MudTelnet: Sending client name to MUD:" << name_to_send.getQByteArray().constData();
+        }
+        sendTerminalType(name_to_send);
+        m_ttypeToMudState = TtypeToMudState::SentClientName;
+        break;
+    }
+    case TtypeToMudState::SentClientName: {
+        TelnetTermTypeBytes term_to_send = m_relayedClientTerminal.isEmpty() ? TelnetTermTypeBytes{"XTERM"} : m_relayedClientTerminal;
+        if (getDebug()) {
+            qDebug() << "MudTelnet: Sending terminal name to MUD:" << term_to_send.getQByteArray().constData();
+        }
+        sendTerminalType(term_to_send);
+        m_ttypeToMudState = TtypeToMudState::SentTerminalName;
+        break;
+    }
+    case TtypeToMudState::SentTerminalName: {
+        int clientMtts = 0;
+        if (!m_relayedClientMttsValue.isEmpty()) {
+            bool ok;
+            clientMtts = m_relayedClientMttsValue.toInt(&ok);
+            if (!ok) clientMtts = 0;
+        }
+
+        int mmapperMtts = clientMtts;
+        mmapperMtts |= MttsBits::PROXY; // MMapper is a proxy
+        mmapperMtts |= MttsBits::MNES;  // MMapper supports MNES
+        mmapperMtts |= MttsBits::UTF_8; // MMapper forces UTF-8 to MUD
+
+        // Potentially add other MMapper specific bits here if defined
+        // mmapperMtts |= MttsBits::MMAPPER_CUSTOM_FEATURE_1;
+
+        mttsString = QString("MTTS %1").arg(mmapperMtts);
+        if (getDebug()) {
+            qDebug() << "MudTelnet: Sending MTTS to MUD:" << mttsString;
+        }
+        sendTerminalType(TelnetTermTypeBytes{mttsString.toUtf8()});
+        m_ttypeToMudState = TtypeToMudState::SentMtts;
+        break;
+    }
+    case TtypeToMudState::SentMtts: {
+        // Re-calculate or retrieve the previously sent MTTS string for confirmation
+        int clientMtts = 0;
+        if (!m_relayedClientMttsValue.isEmpty()) {
+            bool ok;
+            clientMtts = m_relayedClientMttsValue.toInt(&ok);
+            if (!ok) clientMtts = 0;
+        }
+        int mmapperMtts = clientMtts;
+        mmapperMtts |= MttsBits::PROXY;
+        mmapperMtts |= MttsBits::MNES;
+        mmapperMtts |= MttsBits::UTF_8;
+        // mmapperMtts |= MttsBits::MMAPPER_CUSTOM_FEATURE_1;
+
+        mttsString = QString("MTTS %1").arg(mmapperMtts);
+        if (getDebug()) {
+            qDebug() << "MudTelnet: Sending MTTS confirmation to MUD:" << mttsString;
+        }
+        sendTerminalType(TelnetTermTypeBytes{mttsString.toUtf8()});
+        m_ttypeToMudState = TtypeToMudState::SentMttsConfirm; // Or Complete
+        break;
+    }
+    case TtypeToMudState::SentMttsConfirm:
+    case TtypeToMudState::Complete:
+        // MUD requested TTYPE again after completion. Reset and start over or send last known MTTS.
+        // For now, let's just resend the last known MTTS value.
+        // This also handles cases where a MUD might only ask once or twice.
+        // If we don't have an m_relayedClientMttsValue yet, we might send a basic "MTTS 0" or similar.
+        if (getDebug()) {
+            qDebug() << "MudTelnet: MUD requested TTYPE again after completion. Resending last known MTTS.";
+        }
+        int clientMtts = 0;
+        if (!m_relayedClientMttsValue.isEmpty()) {
+            bool ok;
+            clientMtts = m_relayedClientMttsValue.toInt(&ok);
+            if (!ok) clientMtts = 0;
+        }
+        int mmapperMtts = clientMtts;
+        mmapperMtts |= MttsBits::PROXY;
+        mmapperMtts |= MttsBits::MNES;
+        mmapperMtts |= MttsBits::UTF_8;
+
+        mttsString = QString("MTTS %1").arg(mmapperMtts);
+        sendTerminalType(TelnetTermTypeBytes{mttsString.toUtf8()});
+        // Stay in Complete or SentMttsConfirm state.
+        break;
+    }
 }

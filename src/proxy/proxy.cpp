@@ -400,6 +400,18 @@ void Proxy::allocUserTelnet()
             // forwarded (to mud)
             getMudTelnet().onRelayTermType(bytes);
         }
+        void virt_onClientEnvironVariableReceived(const QString &key, const QString &value) final
+        {
+            getMudTelnet().onSetClientEnvironVariable(key, value);
+        }
+        void virt_onClientMttsValueReceived(const QString &mttsValue) final
+        {
+            getMudTelnet().onSetMttsValue(mttsValue);
+        }
+        void virt_onClientTerminalNameReceived(const TelnetTermTypeBytes &terminalName) final
+        {
+            getMudTelnet().onRelayClientTerminalName(terminalName);
+        }
     };
 
     auto &pipe = getPipeline();

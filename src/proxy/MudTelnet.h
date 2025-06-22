@@ -67,6 +67,23 @@ private:
     GmcpModuleSet m_gmcp;
     QString m_lineBuffer;
     bool m_receivedExternalDiscordHello = false;
+    std::map<QString, QString> m_clientProvidedEnvironVariables;
+
+    enum class TtypeToMudState {
+        Idle,
+        AwaitingFirstSend,  // MUD sent DO TTYPE, we sent WILL TTYPE, MUD will send first SEND
+        SentClientName,     // We sent client name, awaiting next SEND from MUD
+        SentTerminalName,   // We sent terminal name, awaiting next SEND from MUD
+        SentMtts,           // We sent MTTS, awaiting next SEND from MUD
+        SentMttsConfirm,    // We sent MTTS again, cycle complete
+        Complete
+    };
+    TtypeToMudState m_ttypeToMudState = TtypeToMudState::Idle;
+    // We need access to the client's reported TTYPE info from UserTelnet.
+    // These will be updated by Proxy via onRelayTermType and onSetClientEnvironVariable("MTTS", val)
+    TelnetTermTypeBytes m_relayedClientName;
+    TelnetTermTypeBytes m_relayedClientTerminal; // UserTelnet doesn't explicitly relay this yet.
+    QString m_relayedClientMttsValue; // String form, e.g., "137"
 
 public:
     explicit MudTelnet(MudTelnetOutputs &outputs);
@@ -77,6 +94,10 @@ private:
     void virt_receiveEchoMode(bool toggle) final;
     void virt_receiveGmcpMessage(const GmcpMessage &) final;
     void virt_receiveMudServerStatus(const TelnetMsspBytes &) final;
+    void virt_receiveNewEnvironIs(const QByteArray &data) final;
+    void virt_receiveNewEnvironSend(const QByteArray &data) final;
+    void virt_receiveNewEnvironInfo(const QByteArray &data) final;
+    void virt_handleTerminalTypeSendRequest() final;
     void virt_onGmcpEnabled() final;
     void virt_sendRawData(const TelnetIacBytes &data) final;
 
@@ -91,6 +112,7 @@ private:
 
 public:
     void onDisconnected();
+    void reset() override;
 
 public:
     void onAnalyzeMudStream(const TelnetIacBytes &);
@@ -100,4 +122,7 @@ public:
     void onRelayTermType(const TelnetTermTypeBytes &);
     void onGmcpToMud(const GmcpMessage &);
     void onLoginCredentials(const QString &, const QString &);
+    void onSetClientEnvironVariable(const QString &key, const QString &value);
+    void onSetMttsValue(const QString &mttsValue);
+    void onRelayClientTerminalName(const TelnetTermTypeBytes &clientTerminalName);
 };

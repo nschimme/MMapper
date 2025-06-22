@@ -14,6 +14,87 @@
 
 #include <ostream>
 #include <sstream>
+#include <map>
+
+// Helper to parse NEW-ENVIRON variables from a QByteArray
+// Copied from MudTelnet.cpp - consider moving to a common utility if used by more classes.
+static std::map<QString, QString> parseNewEnvironVariables(const QByteArray &data, bool debug) {
+    std::map<QString, QString> variables;
+    QString currentVarName;
+    QString currentValue;
+    enum class State { VAR, VAL, ESC_IN_VAL };
+    State state = State::VAR;
+    bool nextIsVar = true; // Expect VAR or USERVAR first
+
+    for (int i = 0; i < data.size(); ++i) {
+        const auto byte = static_cast<uint8_t>(data[i]);
+        if (nextIsVar) {
+            if (byte == TNEV_VAR || byte == TNEV_USERVAR) {
+                if (!currentVarName.isEmpty() && !currentValue.isEmpty()) {
+                    if (debug) {
+                        qDebug() << "Parsed NEW-ENVIRON variable" << currentVarName << "with value" << currentValue;
+                    }
+                    variables[currentVarName] = currentValue;
+                }
+                currentVarName.clear();
+                currentValue.clear();
+                state = State::VAR;
+                nextIsVar = false;
+            } else {
+                // Protocol error or unexpected data
+                if (debug) {
+                    qDebug() << "NEW-ENVIRON parsing error: Expected VAR or USERVAR, got" << byte;
+                }
+                return variables; // Or handle error more gracefully
+            }
+            continue;
+        }
+
+        switch (state) {
+        case State::VAR:
+            if (byte == TNEV_VAL) {
+                state = State::VAL;
+            } else if (byte == TNEV_ESC) {
+                currentVarName.append(QChar(byte));
+            } else {
+                currentVarName.append(QChar(byte));
+            }
+            break;
+        case State::VAL:
+            if (byte == TNEV_ESC) {
+                state = State::ESC_IN_VAL;
+            } else if (byte == TNEV_VAR || byte == TNEV_USERVAR) {
+                // Start of a new variable definition
+                if (!currentVarName.isEmpty()) {
+                     if (debug) {
+                        qDebug() << "Parsed NEW-ENVIRON variable" << currentVarName << "with value" << currentValue;
+                    }
+                    variables[currentVarName] = currentValue;
+                }
+                currentVarName.clear();
+                currentValue.clear();
+                state = State::VAR; // Set up for the new var name
+                i--;
+                nextIsVar = true;
+            } else {
+                currentValue.append(QChar(byte));
+            }
+            break;
+        case State::ESC_IN_VAL:
+            currentValue.append(QChar(byte));
+            state = State::VAL;
+            break;
+        }
+    }
+    if (!currentVarName.isEmpty()) {
+        if (debug) {
+            qDebug() << "Parsed NEW-ENVIRON variable" << currentVarName << "with value" << currentValue;
+        }
+        variables[currentVarName] = currentValue;
+    }
+    return variables;
+}
+
 
 // REVISIT: Does this belong somewhere else?
 // REVISIT: Should this also normalize ANSI?
@@ -101,6 +182,8 @@ void UserTelnet::onConnected()
     requestTelnetOption(TN_WILL, OPT_GMCP);
     // Request permission to replace IAC GA with IAC EOR
     requestTelnetOption(TN_WILL, OPT_EOR);
+    // Initiate NEW-ENVIRON with the client
+    requestTelnetOption(TN_DO, OPT_NEW_ENVIRON);
 }
 
 void UserTelnet::onAnalyzeUserStream(const TelnetIacBytes &data)
@@ -133,6 +216,33 @@ void UserTelnet::onGmcpToUser(const GmcpMessage &msg)
     }
 }
 
+void UserTelnet::virt_onNewEnvironEnabledByPeer() {
+    // This is called when the client (peer) sends WILL NEW-ENVIRON
+    // in response to our (UserTelnet, acting as server) DO NEW-ENVIRON.
+    // Now we should request the standard MNES variables from the client.
+    if (getDebug()) {
+        qDebug() << "UserTelnet: Client enabled NEW-ENVIRON. Requesting standard variables.";
+    }
+
+    TelnetFormatter s{*this};
+    s.addSubnegBegin(OPT_NEW_ENVIRON);
+    s.addRaw(TNSB_SEND);
+    // Request standard MNES variables
+    s.addRaw(TNEV_VAR);
+    s.addEscapedBytes("CLIENT_NAME");
+    s.addRaw(TNEV_VAR);
+    s.addEscapedBytes("CLIENT_VERSION");
+    s.addRaw(TNEV_VAR);
+    s.addEscapedBytes("TERMINAL_TYPE");
+    s.addRaw(TNEV_VAR);
+    s.addEscapedBytes("CHARSET");
+    s.addRaw(TNEV_VAR);
+    s.addEscapedBytes("IPADDRESS");
+    s.addRaw(TNEV_VAR);
+    s.addEscapedBytes("MTTS"); // For MTTS support later
+    // Add any other variables MMapper might be interested in from the client.
+    s.addSubnegEnd();
+}
 void UserTelnet::onSendMSSPToUser(const TelnetMsspBytes &data)
 {
     if (!getOptions().myOptionState[OPT_MSSP]) {
@@ -228,9 +338,97 @@ void UserTelnet::virt_receiveGmcpMessage(const GmcpMessage &msg)
 void UserTelnet::virt_receiveTerminalType(const TelnetTermTypeBytes &data)
 {
     if (getDebug()) {
-        qDebug() << "Received Terminal Type" << data;
+        qDebug() << "UserTelnet: Received TTYPE IS from client:" << data.getQByteArray().constData();
     }
-    m_outputs.onRelayTermTypeFromUserToMud(data);
+
+    switch (m_ttypeState) {
+    case TtypeState::AwaitingClientName:
+        m_clientReportedName = data;
+        if (getDebug()) {
+            qDebug() << "UserTelnet: Client name:" << m_clientReportedName.getQByteArray().constData();
+        }
+        m_outputs.onRelayTermTypeFromUserToMud(m_clientReportedName); // Relay immediately
+        m_ttypeState = TtypeState::AwaitingTerminalName;
+        sendTerminalTypeRequest();
+        break;
+    case TtypeState::AwaitingTerminalName:
+        m_clientReportedTerminal = data;
+        if (getDebug()) {
+            qDebug() << "UserTelnet: Client terminal name:" << m_clientReportedTerminal.getQByteArray().constData();
+        }
+        // We don't relay this raw terminal name directly if we're going to send MTTS.
+        // MudTelnet will construct its TTYPE response based on this and MTTS.
+        // However, it might be useful for MudTelnet to know it.
+        // The existing onRelayTermTypeFromUserToMud is for the *first* response (client name).
+        m_outputs.onClientTerminalNameReceived(m_clientReportedTerminal);
+        m_ttypeState = TtypeState::AwaitingMtts;
+        sendTerminalTypeRequest();
+        break;
+    case TtypeState::AwaitingMtts: {
+        QString response = QString::fromUtf8(data.getQByteArray()).trimmed();
+        if (response.startsWith("MTTS ", Qt::CaseInsensitive)) {
+            QString mttsValStr = response.mid(5);
+            bool ok;
+            int mttsVal = mttsValStr.toInt(&ok);
+            if (ok) {
+                m_clientReportedMtts = mttsVal;
+                if (getDebug()) {
+                    qDebug() << "UserTelnet: Client MTTS value:" << m_clientReportedMtts;
+                }
+                m_outputs.onClientMttsValueReceived(mttsValStr); // Relay to Proxy/MudTelnet
+                m_ttypeState = TtypeState::AwaitingMttsConfirm;
+                sendTerminalTypeRequest();
+            } else {
+                if (getDebug()) {
+                    qDebug() << "UserTelnet: Invalid MTTS value:" << mttsValStr;
+                }
+                // What to do on error? Stop TTYPE? Or assume no MTTS?
+                m_ttypeState = TtypeState::Complete; // Or Idle to restart?
+            }
+        } else {
+            // Client doesn't support MTTS, or sent something unexpected.
+            // Treat TTYPE negotiation as complete for now.
+            if (getDebug()) {
+                qDebug() << "UserTelnet: Client response is not MTTS, TTYPE negotiation ends. Response:" << response;
+            }
+            m_ttypeState = TtypeState::Complete;
+        }
+        break;
+    }
+    case TtypeState::AwaitingMttsConfirm: {
+        QString response = QString::fromUtf8(data.getQByteArray()).trimmed();
+        // Client should send the same MTTS string again.
+        if (response.startsWith("MTTS ", Qt::CaseInsensitive)) {
+            QString mttsValStr = response.mid(5);
+            bool ok;
+            int mttsVal = mttsValStr.toInt(&ok);
+            if (ok && mttsVal == m_clientReportedMtts) {
+                if (getDebug()) {
+                    qDebug() << "UserTelnet: Client confirmed MTTS value:" << m_clientReportedMtts;
+                }
+            } else {
+                if (getDebug()) {
+                    qDebug() << "UserTelnet: Client MTTS confirmation mismatch or invalid. Expected:" << m_clientReportedMtts << "Got:" << response;
+                }
+            }
+        } else {
+             if (getDebug()) {
+                qDebug() << "UserTelnet: Client did not confirm MTTS. Response:" << response;
+            }
+        }
+        m_ttypeState = TtypeState::Complete; // TTYPE cycle ends here
+        // No more SENDs from our side for TTYPE to the client.
+        break;
+    }
+    case TtypeState::Idle:
+    case TtypeState::Complete:
+        if (getDebug()) {
+            qDebug() << "UserTelnet: Received TTYPE IS in unexpected state:" << static_cast<int>(m_ttypeState);
+        }
+        // Client might be sending unsolicited TTYPE IS. We can choose to ignore or process.
+        // For now, ignore if not in an active negotiation sequence initiated by us.
+        break;
+    }
 }
 
 void UserTelnet::virt_receiveWindowSize(const int x, const int y)
@@ -281,4 +479,103 @@ void UserTelnet::resetGmcpModules()
     XFOREACH_GMCP_MODULE_TYPE(X_CASE)
 #undef X_CASE
     m_gmcp.modules.clear();
+}
+
+void UserTelnet::reset() {
+    AbstractTelnet::reset();
+    m_ttypeState = TtypeState::Idle;
+    m_clientReportedName.clear();
+    m_clientReportedTerminal.clear();
+    m_clientReportedMtts = 0;
+    m_clientEnvironVariables.clear();
+    m_clientIpAddress.clear();
+    if (getDebug()) {
+        qDebug() << "UserTelnet: State reset.";
+    }
+}
+void UserTelnet::virt_receiveNewEnvironIs(const QByteArray &data) {
+    if (getDebug()) {
+        qDebug() << "UserTelnet: Received NEW-ENVIRON IS:" << data.toHex();
+    }
+    auto client_vars = parseNewEnvironVariables(data, getDebug());
+    for(auto const& [key, val] : client_vars) {
+        if (getDebug()) {
+            qDebug() << "Client provided NEW-ENVIRON variable:" << key << "=" << val;
+        }
+        m_clientEnvironVariables[key] = val; // Store them
+        if (key == "IPADDRESS") {
+            m_clientIpAddress = val;
+            m_outputs.onClientEnvironVariableReceived(key, val);
+        } else if (key == "CHARSET") {
+            m_outputs.onClientEnvironVariableReceived(key, val);
+        } else if (key == "MTTS") {
+            // This value needs to be communicated to MudTelnet.
+            m_outputs.onClientMttsValueReceived(val);
+        } else if (key == "CLIENT_NAME" || key == "CLIENT_VERSION" || key == "TERMINAL_TYPE") {
+            // Other standard MNES variables reported by client
+            m_outputs.onClientEnvironVariableReceived(key, val);
+        }
+        // Other variables are stored but not specially relayed unless MudTelnet requests them all.
+    }
+}
+
+void UserTelnet::virt_receiveNewEnvironSend(const QByteArray &data) {
+    if (getDebug()) {
+        qDebug() << "UserTelnet: Received NEW-ENVIRON SEND from client:" << data.toHex();
+    }
+    // A client should not typically initiate a SEND unless we (as server) have already done DO/WILL.
+    // If the client is requesting variables, these variables are conceptually for the MUD.
+    // MMapper itself doesn't have many dynamic variables to offer via NEW-ENVIRON to the client,
+    // other than what the MUD provides.
+    // For now, we will log this. If specific proxy-level variables were to be exposed,
+    // we could answer them here.
+    // If the client is asking for MUD variables, this request should be proxied to MudTelnet.
+    // This proxying part is more complex as MudTelnet would need to send a SEND to the MUD
+    // and then relay the MUD's IS back to this UserTelnet, which then sends an IS to the client.
+    // For V1, we will not support client SEND requests for MUD variables.
+
+    // Example of how one might respond if MMapper had its own variables:
+    // TelnetFormatter s{*this};
+    // s.addSubnegBegin(OPT_NEW_ENVIRON);
+    // s.addRaw(TNSB_IS);
+    // if (requested_var == "MMAPPER_PROXY_VERSION") {
+    //     s.addRaw(TNEV_VAR); s.addEscapedBytes("MMAPPER_PROXY_VERSION");
+    //     s.addRaw(TNEV_VAL); s.addEscapedBytes(getMMapperVersion().toUtf8());
+    // }
+    // s.addSubnegEnd();
+}
+
+void UserTelnet::virt_onTerminalTypeEnabledByPeer() {
+    // This is called when the client (peer) sends WILL TTYPE
+    // in response to our (UserTelnet, acting as server) DO TTYPE.
+    // Now we should send the first TTYPE SEND request.
+    if (getDebug()) {
+        qDebug() << "UserTelnet: Client enabled TERMINAL-TYPE. Requesting client name.";
+    }
+    m_ttypeState = TtypeState::AwaitingClientName;
+    sendTerminalTypeRequest(); // AbstractTelnet::sendTerminalTypeRequest sends IAC SB TTYPE SEND IAC SE
+}
+
+void UserTelnet::virt_receiveNewEnvironInfo(const QByteArray &data) {
+    if (getDebug()) {
+        qDebug() << "UserTelnet: Received NEW-ENVIRON INFO:" << data.toHex();
+    }
+    // Treat INFO the same as IS for now, as it's an unsolicited update.
+    auto client_vars = parseNewEnvironVariables(data, getDebug());
+     for(auto const& [key, val] : client_vars) {
+        if (getDebug()) {
+            qDebug() << "Client provided NEW-ENVIRON INFO variable:" << key << "=" << val;
+        }
+        m_clientEnvironVariables[key] = val;
+        if (key == "IPADDRESS") {
+            m_clientIpAddress = val;
+            m_outputs.onClientEnvironVariableReceived(key, val);
+        } else if (key == "CHARSET") {
+            m_outputs.onClientEnvironVariableReceived(key, val);
+        } else if (key == "MTTS") {
+            m_outputs.onClientMttsValueReceived(val);
+        } else if (key == "CLIENT_NAME" || key == "CLIENT_VERSION" || key == "TERMINAL_TYPE") {
+            m_outputs.onClientEnvironVariableReceived(key, val);
+        }
+    }
 }

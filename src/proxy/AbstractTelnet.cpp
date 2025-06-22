@@ -67,6 +67,7 @@ NODISCARD static QString telnetOptionName(uint8_t opt)
         CASE(SUPPRESS_GA);
         CASE(STATUS);
         CASE(TIMING_MARK);
+        CASE(NEW_ENVIRON);
         CASE(TERMINAL_TYPE);
         CASE(NAWS);
         CASE(CHARSET);
@@ -573,7 +574,7 @@ void AbstractTelnet::processTelnetCommand(const AppendBuffer &command)
                     || (option == OPT_TERMINAL_TYPE) || (option == OPT_NAWS) || (option == OPT_ECHO)
                     || (option == OPT_CHARSET) || (option == OPT_COMPRESS2 && !NO_ZLIB)
                     || (option == OPT_GMCP) || (option == OPT_MSSP) || (option == OPT_LINEMODE)
-                    || (option == OPT_EOR)) {
+                    || (option == OPT_EOR) || (option == OPT_NEW_ENVIRON)) {
                     sendTelnetOption(TN_DO, option);
                     hisOptionState[option] = true;
 
@@ -582,11 +583,25 @@ void AbstractTelnet::processTelnetCommand(const AppendBuffer &command)
                     } else if (option == OPT_LINEMODE) {
                         sendLineModeEdit();
                     } else if (option == OPT_GMCP) {
-                        onGmcpEnabled();
+                        onGmcpEnabled(); // We (as client) received WILL from server, server enabled GMCP.
+                                         // MudTelnet uses this to send Core.Hello.
                     } else if (option == OPT_TERMINAL_TYPE) {
-                        sendTerminalTypeRequest();
+                        // If we are UserTelnet (server to client) and client sent WILL TTYPE
+                        // in response to our DO TTYPE, we should send the first TTYPE SEND.
+                        // MudTelnet (client to MUD) also calls sendTerminalTypeRequest if MUD sends WILL TTYPE
+                        // (though MUD usually sends DO TTYPE).
+                        virt_onTerminalTypeEnabledByPeer();
                     } else if (option == OPT_CHARSET) {
-                        sendCharsetRequest();
+                        sendCharsetRequest(); // We (as client) received WILL from server for CHARSET.
+                    } else if (option == OPT_NEW_ENVIRON) {
+                        // If we are UserTelnet (acting as server to the client),
+                        // and the client has just sent WILL NEW-ENVIRON in response to our DO,
+                        // then we should request the standard MNES variables from the client.
+                        // This requires knowing if *we* initiated the DO.
+                        // myOptionState[OPT_NEW_ENVIRON] would be true if we sent DO and wanted it.
+                        // hisOptionState[OPT_NEW_ENVIRON] is now true because client sent WILL.
+                        // This is the point where UserTelnet should send its SEND request.
+                        virt_onNewEnvironEnabledByPeer();
                     }
                 } else {
                     sendTelnetOption(TN_DONT, option);
@@ -626,7 +641,7 @@ void AbstractTelnet::processTelnetCommand(const AppendBuffer &command)
                 if ((option == OPT_SUPPRESS_GA) || (option == OPT_STATUS)
                     || (option == OPT_TERMINAL_TYPE) || (option == OPT_NAWS)
                     || (option == OPT_CHARSET) || (option == OPT_GMCP) || (option == OPT_LINEMODE)
-                    || (option == OPT_EOR)) {
+                    || (option == OPT_EOR) || (option == OPT_NEW_ENVIRON)) {
                     sendTelnetOption(TN_WILL, option);
                     myOptionState[option] = true;
                     if (option == OPT_NAWS) {
@@ -658,6 +673,42 @@ void AbstractTelnet::processTelnetCommand(const AppendBuffer &command)
             }
             myOptionState[option] = false;
             break;
+        }
+        break;
+
+    case OPT_NEW_ENVIRON:
+        if (hisOptionState[OPT_NEW_ENVIRON] || myOptionState[OPT_NEW_ENVIRON]) {
+            // Payload must be at least 1 byte for the command (IS, SEND, INFO)
+            if (payload.length() < 2) {
+                if (m_debug) {
+                    qDebug() << "NEW-ENVIRON subnegotiation too short:" << payload;
+                }
+                break;
+            }
+            const auto command = static_cast<uint8_t>(payload[1]);
+            switch (command) {
+            case TNSB_IS:
+                // Server/Client is providing variable(s)
+                // IAC SB NEW-ENVIRON IS VAR <name> VAL <value> ... IAC SE
+                virt_receiveNewEnvironIs(payload.getQByteArray().mid(2));
+                break;
+            case TNSB_SEND:
+                // Server/Client is requesting variable(s)
+                // IAC SB NEW-ENVIRON SEND VAR <name> ... IAC SE
+                // IAC SB NEW-ENVIRON SEND VAR IAC SE (request all)
+                virt_receiveNewEnvironSend(payload.getQByteArray().mid(2));
+                break;
+            case TNSB_INFO:
+                // Server/Client is providing an unsolicited update of variable(s)
+                // IAC SB NEW-ENVIRON INFO VAR <name> VAL <value> ... IAC SE
+                virt_receiveNewEnvironInfo(payload.getQByteArray().mid(2));
+                break;
+            default:
+                if (m_debug) {
+                    qDebug() << "Unknown NEW-ENVIRON command:" << command;
+                }
+                break;
+            }
         }
         break;
 
@@ -706,7 +757,7 @@ void AbstractTelnet::processTelnetSubnegotiation(const AppendBuffer &payload)
             switch (payload[1]) {
             case TNSB_SEND:
                 // server wants us to send terminal type
-                sendTerminalType(m_termType);
+                virt_handleTerminalTypeSendRequest();
                 break;
             case TNSB_IS:
                 // Extract sender's terminal type

@@ -24,7 +24,11 @@
 
 MapFrontend::MapFrontend(QObject *const parent)
     : QObject(parent)
-{}
+{
+    // Ensure undo/redo are initially unavailable
+    emit sig_undoAvailable(false);
+    emit sig_redoAvailable(false);
+}
 
 MapFrontend::~MapFrontend()
 {
@@ -60,11 +64,32 @@ void MapFrontend::revert()
 
 void MapFrontend::clear()
 {
+    // Push current state to undo stack to make clear undoable
+    if (!m_current.map.getRoomSet().empty() || !m_undo_stack.empty()) {
+        // Only push if there's something to clear or if there's an existing undo history
+        // This avoids pushing an empty map if clear is called multiple times on an empty map initially.
+        m_undo_stack.push_back(m_current.map);
+        if (m_undo_stack.size() > MAX_UNDO_HISTORY) {
+            m_undo_stack.erase(m_undo_stack.begin());
+        }
+    }
+
+    if (!m_redo_stack.empty()) {
+        m_redo_stack.clear();
+        emit sig_redoAvailable(false);
+    } else {
+        emit sig_redoAvailable(false); // Ensure emitted
+    }
+
     emit sig_clearingMap();
-    setCurrentMap(Map{});
-    currentHasBeenSaved();
+    setCurrentMap(Map{}); // This sets m_current.map to an empty map
+    currentHasBeenSaved(); // This sets m_saved = m_current (which is now empty)
     checkSize(); // called for side effect of sending signal
     virt_clear();
+
+    // After clear, undo is available if we pushed something, redo is not.
+    emit sig_undoAvailable(!m_undo_stack.empty());
+    // sig_redoAvailable already emitted or handled
 }
 
 bool MapFrontend::createEmptyRoom(const Coordinate &c)
@@ -219,6 +244,17 @@ void MapFrontend::setCurrentMap(Map map)
 {
     // Always update everything when the map is changed like this.
     setCurrentMap(MapApplyResult{std::move(map)});
+
+    // When a map is set directly (e.g., loading a new map), clear undo/redo history.
+    if (!m_undo_stack.empty()) {
+        m_undo_stack.clear();
+    }
+    if (!m_redo_stack.empty()) {
+        m_redo_stack.clear();
+    }
+    // Emit signals after stacks are definitively cleared.
+    emit sig_undoAvailable(false);
+    emit sig_redoAvailable(false);
 }
 
 bool MapFrontend::applySingleChange(ProgressCounter &pc, const Change &change)
@@ -232,7 +268,38 @@ bool MapFrontend::applySingleChange(ProgressCounter &pc, const Change &change)
         return false;
     }
 
+    // The state *before* this change is m_current.map. Store it.
+    Map previous_map_state = m_current.map;
+
+    // Apply the change. setCurrentMap updates m_current.map to result.map.
     setCurrentMap(result);
+
+    // Check if the map content actually changed.
+    // World::operator== is used by Map::operator==
+    bool map_content_changed = m_current.map != previous_map_state;
+
+    if (map_content_changed) {
+        m_undo_stack.push_back(previous_map_state);
+        if (m_undo_stack.size() > MAX_UNDO_HISTORY) {
+            // Remove the oldest state if history limit exceeded
+            m_undo_stack.erase(m_undo_stack.begin());
+        }
+    }
+
+    // Any successful operation (even if it didn't change map content)
+    // clears the redo stack.
+    if (!m_redo_stack.empty()) {
+        m_redo_stack.clear();
+        emit sig_redoAvailable(false);
+    } else {
+        // Ensure sig_redoAvailable(false) is emitted if it was already false and stack is empty
+        // This handles the case where redo stack was already empty.
+        emit sig_redoAvailable(false);
+    }
+
+    // Update undo availability based on the stack.
+    emit sig_undoAvailable(!m_undo_stack.empty());
+
     return true;
 }
 
@@ -265,7 +332,35 @@ bool MapFrontend::applyChanges(ProgressCounter &pc, const ChangeList &changes)
         return false;
     }
 
+    // The state *before* this batch of changes is m_current.map. Store it.
+    Map previous_map_state = m_current.map;
+
+    // Apply the changes. setCurrentMap updates m_current.map to result.map.
     setCurrentMap(result);
+
+    // Check if the map content actually changed.
+    bool map_content_changed = m_current.map != previous_map_state;
+
+    if (map_content_changed) {
+        m_undo_stack.push_back(previous_map_state);
+        if (m_undo_stack.size() > MAX_UNDO_HISTORY) {
+            // Remove the oldest state if history limit exceeded
+            m_undo_stack.erase(m_undo_stack.begin());
+        }
+    }
+
+    // Any successful batch operation (even if it didn't change map content overall)
+    // clears the redo stack.
+    if (!m_redo_stack.empty()) {
+        m_redo_stack.clear();
+        emit sig_redoAvailable(false);
+    } else {
+        emit sig_redoAvailable(false); // Ensure emitted if already false and stack empty
+    }
+
+    // Update undo availability based on the stack.
+    emit sig_undoAvailable(!m_undo_stack.empty());
+
     return true;
 }
 
@@ -273,4 +368,43 @@ bool MapFrontend::applyChanges(const ChangeList &changes)
 {
     ProgressCounter dummyPc;
     return applyChanges(dummyPc, changes);
+}
+
+void MapFrontend::slot_undo()
+{
+    if (m_undo_stack.empty()) {
+        return;
+    }
+
+    m_redo_stack.push_back(m_current.map);
+    // MAX_UNDO_HISTORY applies to undo stack, redo stack can grow
+    // or we can also cap redo_stack if necessary, but typically not done.
+
+    m_current.map = m_undo_stack.back();
+    m_undo_stack.pop_back();
+
+    setCurrentMap(m_current.map); // This version of setCurrentMap takes a Map object
+
+    emit sig_undoAvailable(!m_undo_stack.empty());
+    emit sig_redoAvailable(true); // Redo is now possible
+}
+
+void MapFrontend::slot_redo()
+{
+    if (m_redo_stack.empty()) {
+        return;
+    }
+
+    m_undo_stack.push_back(m_current.map);
+    if (m_undo_stack.size() > MAX_UNDO_HISTORY) {
+        m_undo_stack.erase(m_undo_stack.begin());
+    }
+
+    m_current.map = m_redo_stack.back();
+    m_redo_stack.pop_back();
+
+    setCurrentMap(m_current.map); // This version of setCurrentMap takes a Map object
+
+    emit sig_undoAvailable(true); // Undo is now possible
+    emit sig_redoAvailable(!m_redo_stack.empty());
 }

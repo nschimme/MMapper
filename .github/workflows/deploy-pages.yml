@@ -28,25 +28,36 @@ jobs:
 
       - name: Prepare Changes Page
         run: |
-          # Prepare changes.md from NEWS.md
-          cp NEWS.md docs/changes.md
-          sed -i '1s/^/---\ntitle: Changes\nlayout: default\n---\n\n/' docs/changes.md
+          # Prepare changes.md using placeholder replacement
+          NEWS_CONTENT=$(cat NEWS.md)
+          # Escape for sed: backslashes, forward slashes, newlines, and ampersands
+          NEWS_CONTENT_ESCAPED=$(echo "$NEWS_CONTENT" | sed -e 's/\\/\\\\/g' -e 's/\//\\\//g' -e 's/&/\\\&/g' -e ':a;N;$!ba;s/\n/\\n/g')
+          # POSIX sed compliant way to replace content of a file using a placeholder
+          # Create a temporary file for sed script
+          echo "s/<!-- NEWS_CONTENT_GOES_HERE -->/$NEWS_CONTENT_ESCAPED/g" > sed_script_changes.txt
+          sed -i.bak -f sed_script_changes.txt docs/changes.md && rm sed_script_changes.txt docs/changes.md.bak
 
-          # Prepare authors list for about.md
-          AUTHORS_CONTENT="## Contributors\n"
+          # Prepare authors list for about.md using placeholder replacement
+          AUTHORS_SECTION_CONTENT="## Contributors\n"
+          AUTHORS_LIST_MARKDOWN=""
           while IFS= read -r line || [ -n "$line" ]; do
             if [ -n "$line" ]; then
-              AUTHORS_CONTENT="${AUTHORS_CONTENT}\n- $line"
+              AUTHORS_LIST_MARKDOWN="${AUTHORS_LIST_MARKDOWN}\n- $line"
             fi
           done < AUTHORS.txt
 
-          # Escape for sed: first escape backslashes, then forward slashes, then newlines
-          AUTHORS_CONTENT_ESCAPED=$(echo "$AUTHORS_CONTENT" | sed -e 's/\\/\\\\/g' -e 's/\//\\\//g' -e ':a;N;$!ba;s/\n/\\n/g')
-
-          # The line to be replaced in about.md (escape special characters for sed pattern)
-          LINE_TO_REPLACE_PATTERN="The MMapper project is maintained by the following \\[contributors\\]({{site.authors}})\\."
-
-          sed -i "/${LINE_TO_REPLACE_PATTERN}/c\\${AUTHORS_CONTENT_ESCAPED}" docs/about.md
+          if [ -n "$AUTHORS_LIST_MARKDOWN" ]; then
+            AUTHORS_SECTION_CONTENT="${AUTHORS_SECTION_CONTENT}${AUTHORS_LIST_MARKDOWN}"
+            # Escape for sed
+            AUTHORS_SECTION_ESCAPED=$(echo "$AUTHORS_SECTION_CONTENT" | sed -e 's/\\/\\\\/g' -e 's/\//\\\//g' -e 's/&/\\\&/g' -e ':a;N;$!ba;s/\n/\\n/g')
+            # Create a temporary file for sed script
+            echo "s/<!-- AUTHORS_LIST_GOES_HERE -->/$AUTHORS_SECTION_ESCAPED/g" > sed_script_authors.txt
+            sed -i.bak -f sed_script_authors.txt docs/about.md && rm sed_script_authors.txt docs/about.md.bak
+          else
+            # If there are no authors, replace placeholder with empty string or a message
+            echo "s/<!-- AUTHORS_LIST_GOES_HERE -->//g" > sed_script_authors.txt
+            sed -i.bak -f sed_script_authors.txt docs/about.md && rm sed_script_authors.txt docs/about.md.bak
+          fi
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

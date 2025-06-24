@@ -14,4 +14,6 @@ MMapper is a graphical mapping tool that enhances the MUME (Multi-Users in Middl
 - <span class="feature-box">Navigate Easily</span> By highlighting terrain types (e.g., forests, roads, mountains) and exits, MMapper helps you quickly understand your environment and find the fastest path.
 - <span class="feature-box">Enhanced Gameplay</span> With features like terrain detection, pseudo-3D views, and group map sharing, MMapper adds an extra layer of convenience and immersion to your MUME experience.
 
+## Contributors
+
 <!-- AUTHORS_LIST_GOES_HERE -->

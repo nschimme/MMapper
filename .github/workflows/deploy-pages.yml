@@ -38,26 +38,27 @@ jobs:
           sed -i.bak -f sed_script_changes.txt docs/changes.md && rm sed_script_changes.txt docs/changes.md.bak
 
           # Prepare authors list for about.md using placeholder replacement
-          AUTHORS_SECTION_CONTENT="## Contributors\n"
-          AUTHORS_LIST_MARKDOWN=""
+          AUTHORS_LIST_ITEMS=""
+          # Read AUTHORS.txt and build the list items. Add newline before first item if list is not empty.
+          FIRST_ITEM=true
           while IFS= read -r line || [ -n "$line" ]; do
             if [ -n "$line" ]; then
-              AUTHORS_LIST_MARKDOWN="${AUTHORS_LIST_MARKDOWN}\n- $line"
+              if $FIRST_ITEM; then
+                AUTHORS_LIST_ITEMS="- $line"
+                FIRST_ITEM=false
+              else
+                AUTHORS_LIST_ITEMS="${AUTHORS_LIST_ITEMS}\n- $line"
+              fi
             fi
           done < AUTHORS.txt
 
-          if [ -n "$AUTHORS_LIST_MARKDOWN" ]; then
-            AUTHORS_SECTION_CONTENT="${AUTHORS_SECTION_CONTENT}${AUTHORS_LIST_MARKDOWN}"
-            # Escape for sed
-            AUTHORS_SECTION_ESCAPED=$(echo "$AUTHORS_SECTION_CONTENT" | sed -e 's/\\/\\\\/g' -e 's/\//\\\//g' -e 's/&/\\\&/g' -e ':a;N;$!ba;s/\n/\\n/g')
-            # Create a temporary file for sed script
-            echo "s/<!-- AUTHORS_LIST_GOES_HERE -->/$AUTHORS_SECTION_ESCAPED/g" > sed_script_authors.txt
-            sed -i.bak -f sed_script_authors.txt docs/about.md && rm sed_script_authors.txt docs/about.md.bak
-          else
-            # If there are no authors, replace placeholder with empty string or a message
-            echo "s/<!-- AUTHORS_LIST_GOES_HERE -->//g" > sed_script_authors.txt
-            sed -i.bak -f sed_script_authors.txt docs/about.md && rm sed_script_authors.txt docs/about.md.bak
-          fi
+          # Escape for sed: backslashes, forward slashes, newlines, and ampersands
+          AUTHORS_LIST_ESCAPED=$(echo "$AUTHORS_LIST_ITEMS" | sed -e 's/\\/\\\\/g' -e 's/\//\\\//g' -e 's/&/\\\&/g' -e ':a;N;$!ba;s/\n/\\n/g')
+
+          # Create a temporary file for sed script to replace placeholder with list items
+          # If AUTHORS_LIST_ESCAPED is empty, it will replace the placeholder with an empty string.
+          echo "s/<!-- AUTHORS_LIST_GOES_HERE -->/$AUTHORS_LIST_ESCAPED/g" > sed_script_authors.txt
+          sed -i.bak -f sed_script_authors.txt docs/about.md && rm sed_script_authors.txt docs/about.md.bak
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

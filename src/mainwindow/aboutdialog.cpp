@@ -11,6 +11,9 @@
 #include <QtConfig>
 #include <QtGui>
 #include <QtWidgets>
+#include <QFile>
+#include <QTextStream>
+#include <QDebug> // For error reporting
 
 NODISCARD static QString getBuildInformation()
 {
@@ -61,15 +64,31 @@ AboutDialog::AboutDialog(QWidget *parent)
     aboutText->setText(about_text());
 
     /* Authors tab */
-    authorsView->setHtml(tr(
-        "<p>Maintainer: Jahara (please report bugs <a href=\"https://github.com/MUME/MMapper/issues\">here</a>)</p>"
-        "<p><u>Special thanks to:</u><br>"
-        "Alve for his great map engine<br>"
-        "Caligor for starting the mmapper project<br>"
-        "Azazello for creating the group manager</p>"
-        "<p><u>Contributors:</u><br>"
-        "Arfang, Cosmos, Cuantar, Elval, Kalev, Korir, Kovis, Krush, Mirnir, Taryn, Teoli, and Waba"
-        "</p>"));
+    authorsView->clear(); // Clear existing hardcoded content
+    QFile authorsFile(":/AUTHORS.txt");
+    if (!authorsFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qWarning() << "AboutDialog: Could not open :/AUTHORS.txt from resources.";
+        authorsView->setHtml(tr("Could not load authors file.")); // Use setHtml for consistency if an error occurs
+    } else {
+        QTextStream in(&authorsFile);
+        QString authorsHtml = "<ul>"; // Start with a <ul>
+        bool isEmpty = true;
+        while (!in.atEnd()) {
+            QString line = in.readLine().trimmed();
+            if (!line.isEmpty()) {
+                authorsHtml += "<li>" + Qt::Html::escape(line) + "</li>";
+                isEmpty = false;
+            }
+        }
+        authorsHtml += "</ul>";
+
+        if (isEmpty) {
+            authorsView->setHtml(tr("No authors listed in AUTHORS.txt."));
+        } else {
+            authorsView->setHtml(authorsHtml);
+        }
+        authorsFile.close();
+    }
 
     /* Licenses tab */
     const auto loadLicenseResource = [](const QString &path) {

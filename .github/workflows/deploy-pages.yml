@@ -25,6 +25,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Prepare Changes Page
+        run: |
+          cp NEWS.md docs/changes.md
+          sed -i '1s/^/---\ntitle: Changes\nlayout: default\n---\n\n/' docs/changes.md
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Build

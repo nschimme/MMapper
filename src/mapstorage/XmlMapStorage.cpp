@@ -628,10 +628,7 @@ void XmlMapStorage::loadMarker(QXmlStreamReader &stream) const
         marker.setText(mmqt::makeInfoMarkText("New Marker"));
     }
 
-    if (!m_loading->result.markerData) {
-        m_loading->result.markerData.emplace();
-    }
-    RawMarkerData &data = *m_loading->result.markerData;
+    RawMarkerData &data = m_loading->result.markerData;
     data.markers.emplace_back(std::move(marker));
 }
 
@@ -736,8 +733,8 @@ void XmlMapStorage::saveWorld(QXmlStreamWriter &stream)
         throw std::runtime_error("too many rooms");
     }
 
-    const auto &opt_markers = m_saving->map.markerData;
-    const auto markerCount = static_cast<uint32_t>(opt_markers ? opt_markers->size() : 0u);
+    const auto &markers = m_saving->map.markerData;
+    const auto markerCount = static_cast<uint32_t>(markers.size());
 
     ProgressCounter &progressCounter = getProgressCounter();
     progressCounter.reset();
@@ -752,9 +749,9 @@ void XmlMapStorage::saveWorld(QXmlStreamWriter &stream)
 
     progressCounter.setCurrentTask(ProgressMsg{"Saving rooms..."});
     saveRooms(stream, map.getRooms());
-    if (opt_markers && !opt_markers->empty()) {
+    if (!markers.empty()) {
         progressCounter.setCurrentTask(ProgressMsg{"Saving markers..."});
-        saveMarkers(stream, *opt_markers);
+        saveMarkers(stream, markers);
     }
     // write selected room x,y,z
     saveCoordinate(stream, "position", m_saving->map.position);

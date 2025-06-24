@@ -21,7 +21,7 @@ struct NODISCARD RawMarkerData final
 struct NODISCARD RawMapLoadData final
 {
     std::vector<ExternalRawRoom> rooms;
-    std::optional<RawMarkerData> markerData;
+    RawMarkerData markerData;
     Coordinate position;
     QString filename;
     bool readonly = true;
@@ -30,7 +30,6 @@ struct NODISCARD RawMapLoadData final
 struct NODISCARD MapLoadData final
 {
     MapPair mapPair;
-    InfomarkDb markerData;
     Coordinate position;
     QString filename;
     bool readonly = true;
@@ -40,7 +39,7 @@ struct NODISCARD MapLoadData final
 struct NODISCARD RawMapData final
 {
     MapPair mapPair;
-    std::optional<RawMarkerData> markerData;
+    RawMarkerData markerData;
     Coordinate position;
     QString filename;
     bool readonly = true;

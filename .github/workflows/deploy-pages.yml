@@ -28,8 +28,25 @@ jobs:
 
       - name: Prepare Changes Page
         run: |
+          # Prepare changes.md from NEWS.md
           cp NEWS.md docs/changes.md
           sed -i '1s/^/---\ntitle: Changes\nlayout: default\n---\n\n/' docs/changes.md
+
+          # Prepare authors list for about.md
+          AUTHORS_CONTENT="## Contributors\n"
+          while IFS= read -r line || [ -n "$line" ]; do
+            if [ -n "$line" ]; then
+              AUTHORS_CONTENT="${AUTHORS_CONTENT}\n- $line"
+            fi
+          done < AUTHORS.txt
+
+          # Escape for sed: first escape backslashes, then forward slashes, then newlines
+          AUTHORS_CONTENT_ESCAPED=$(echo "$AUTHORS_CONTENT" | sed -e 's/\\/\\\\/g' -e 's/\//\\\//g' -e ':a;N;$!ba;s/\n/\\n/g')
+
+          # The line to be replaced in about.md (escape special characters for sed pattern)
+          LINE_TO_REPLACE_PATTERN="The MMapper project is maintained by the following \\[contributors\\]({{site.authors}})\\."
+
+          sed -i "/${LINE_TO_REPLACE_PATTERN}/c\\${AUTHORS_CONTENT_ESCAPED}" docs/about.md
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

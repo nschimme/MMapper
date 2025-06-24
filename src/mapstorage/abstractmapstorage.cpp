@@ -51,8 +51,8 @@ bool AbstractMapStorage::saveData(const MapData &mapData, const bool baseMapOnly
     }
 
     // REVIST: Convert infomarks to immutable data structure to make this copy O(1).
-    if (const InfomarkDb &markers = mapData.getMarkersList(); !markers.empty()) {
-        auto &data = rawMapData.markerData.emplace();
+    if (const InfomarkDb &markers = mapData.getCurrentMap().getInfomarkDb(); !markers.empty()) {
+        auto &data = rawMapData.markerData;
         auto &copy = data.markers;
         auto &pc = getProgressCounter();
         pc.setNewTask(ProgressMsg{"copying markers"}, markers.getIdSet().size());

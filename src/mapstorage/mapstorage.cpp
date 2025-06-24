@@ -356,7 +356,7 @@ std::optional<RawMapLoadData> MapStorage::virt_loadData()
     RawMapLoadData result;
     result.filename = fileName;
     result.readonly = !QFileInfo(fileName).isWritable();
-    auto &markerData = result.markerData.emplace();
+    auto &markerData = result.markerData;
     auto &markers = markerData.markers;
 
     {
@@ -600,9 +600,7 @@ bool MapStorage::virt_saveData(const RawMapData &mapData)
     log("Writing data to file ...");
 
     const auto &map = mapData.mapPair.modified;
-    const RawMarkerData noMarkers;
-    const RawMarkerData &markerList = mapData.markerData.has_value() ? mapData.markerData.value()
-                                                                     : noMarkers;
+    const RawMarkerData &markerList = mapData.markerData;
 
     QDataStream fileStream(getFile());
     fileStream.setVersion(QDataStream::Qt_4_8);

@@ -437,9 +437,7 @@ bool JsonMapStorage::virt_saveData(const RawMapData &mapData)
     ConstRoomList roomList;
 
     const auto &map = mapData.mapPair.modified;
-    const RawMarkerData noMarkers;
-    const RawMarkerData &markerList = mapData.markerData.has_value() ? mapData.markerData.value()
-                                                                     : noMarkers;
+    const RawMarkerData &markerList = mapData.markerData;
 
     // REVISIT: This only excludes temporary rooms from being written,
     // but it doesn't exclude temporary rooms from connections.

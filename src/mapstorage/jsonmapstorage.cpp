@@ -427,7 +427,7 @@ JsonMapStorage::JsonMapStorage(const AbstractMapStorage::Data &data, QObject *pa
 
 JsonMapStorage::~JsonMapStorage() = default;
 
-bool JsonMapStorage::virt_saveData(const RawMapData &mapData)
+bool JsonMapStorage::virt_saveData(const MapLoadData &mapData)
 {
     log("Writing data to files ...");
 
@@ -437,7 +437,6 @@ bool JsonMapStorage::virt_saveData(const RawMapData &mapData)
     ConstRoomList roomList;
 
     const auto &map = mapData.mapPair.modified;
-    const RawMarkerData &markerList = mapData.markerData;
 
     // REVISIT: This only excludes temporary rooms from being written,
     // but it doesn't exclude temporary rooms from connections.
@@ -450,7 +449,7 @@ bool JsonMapStorage::virt_saveData(const RawMapData &mapData)
     }
 
     const auto roomsCount = static_cast<uint32_t>(roomList.size());
-    const auto marksCount = static_cast<uint32_t>(markerList.size());
+    const auto marksCount = static_cast<uint32_t>(map.getMarksCount());
 
     auto &progressCounter = getProgressCounter();
     progressCounter.setNewTask(ProgressMsg{}, roomsCount * 2 + marksCount);

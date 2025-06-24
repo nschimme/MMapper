@@ -167,7 +167,7 @@ NODISCARD bool hasRooms(const RawMapLoadData &data)
 
 NODISCARD bool hasMarkers(const RawMapLoadData &data)
 {
-    return !data.markerData.empty();
+    return !data.markers.empty();
 }
 
 // true if the map contains either rooms or markers;
@@ -223,7 +223,7 @@ NODISCARD std::optional<MapLoadData> load_map_data(ProgressCounter &pc, Abstract
     pc.setCurrentTask(ProgressMsg{/*"phase 2: "*/ "construct map from raw rooms and infomarks"});
     auto mapPair = Map::fromRooms(pc,
                                   std::exchange(data.rooms, {}),
-                                  std::exchange(data.markerData.markers, {}));
+                                  std::exchange(data.markers, {}));
 
     pc.setCurrentTask(ProgressMsg{"finished building map"});
 

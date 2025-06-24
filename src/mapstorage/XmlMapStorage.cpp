@@ -628,8 +628,8 @@ void XmlMapStorage::loadMarker(QXmlStreamReader &stream) const
         marker.setText(mmqt::makeInfoMarkText("New Marker"));
     }
 
-    RawMarkerData &data = m_loading->result.markerData;
-    data.markers.emplace_back(std::move(marker));
+    std::vector<InfoMarkFields> &data = m_loading->result.markers;
+    data.emplace_back(std::move(marker));
 }
 
 // load current element, which is expected to contain ONLY the name of an enum value
@@ -704,7 +704,7 @@ void XmlMapStorage::throwIfDuplicate(QXmlStreamReader &stream,
 }
 
 // ---------------------------- XmlMapStorage::saveData() ----------------------
-bool XmlMapStorage::virt_saveData(const RawMapData &map)
+bool XmlMapStorage::virt_saveData(const MapLoadData &map)
 {
     m_saving = std::make_unique<Saving>(map);
     try {
@@ -733,8 +733,7 @@ void XmlMapStorage::saveWorld(QXmlStreamWriter &stream)
         throw std::runtime_error("too many rooms");
     }
 
-    const auto &markers = m_saving->map.markerData;
-    const auto markerCount = static_cast<uint32_t>(markers.size());
+    const auto markerCount = static_cast<uint32_t>(map.getMarksCount());
 
     ProgressCounter &progressCounter = getProgressCounter();
     progressCounter.reset();
@@ -749,9 +748,10 @@ void XmlMapStorage::saveWorld(QXmlStreamWriter &stream)
 
     progressCounter.setCurrentTask(ProgressMsg{"Saving rooms..."});
     saveRooms(stream, map.getRooms());
-    if (!markers.empty()) {
+    auto &db = map.getInfomarkDb();
+    if (!db.empty()) {
         progressCounter.setCurrentTask(ProgressMsg{"Saving markers..."});
-        saveMarkers(stream, markers);
+        saveMarkers(stream, db);
     }
     // write selected room x,y,z
     saveCoordinate(stream, "position", m_saving->map.position);
@@ -842,15 +842,15 @@ void XmlMapStorage::saveExitTo(QXmlStreamWriter &stream, const ExternalRawExit &
     }
 }
 
-void XmlMapStorage::saveMarkers(QXmlStreamWriter &stream, const RawMarkerData &markerList)
+void XmlMapStorage::saveMarkers(QXmlStreamWriter &stream, const InfomarkDb &db)
 {
-    if (markerList.empty()) {
+    if (db.empty()) {
         return;
     }
 
     ProgressCounter &progressCounter = getProgressCounter();
-    for (const auto &marker : markerList.markers) {
-        saveMarker(stream, marker);
+    for (const InfomarkId id : db.getIdSet()) {
+        saveMarker(stream, db.getRawCopy(id));
         progressCounter.step();
     }
 }

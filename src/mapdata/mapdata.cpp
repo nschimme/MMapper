@@ -275,7 +275,7 @@ Map MapData::mergeMapData(ProgressCounter &counter, const Map &currentMap, RawMa
     return Map::merge(counter,
                       currentMap,
                       std::move(newMapData.rooms),
-                      std::move(newMapData.markerData.markers),
+                      std::move(newMapData.markers),
                       mapOffset);
 }
 

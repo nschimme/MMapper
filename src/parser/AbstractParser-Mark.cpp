@@ -240,8 +240,8 @@ void AbstractParser::parseMark(StringView input)
             mark.setClass(InfoMarkClassEnum::COMMENT);
             mark.setPosition1(c);
 
-            auto added = m_mapData.addMarker(mark);
-            if (added == INVALID_INFOMARK_ID) {
+            bool added = m_mapData.addMarker(mark);
+            if (!added) { // Changed condition to check boolean success
                 os << "Unable to add mark.\n";
                 return;
             }

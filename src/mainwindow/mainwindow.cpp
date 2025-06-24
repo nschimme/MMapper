@@ -2039,14 +2039,14 @@ void MainWindow::onSuccessfulLoad(const MapLoadData &mapLoadData)
     global::sendToUser("Map loaded.\n");
 }
 
-void MainWindow::onSuccessfulMerge(const Map &map, const InfomarkDb &infomarks)
+void MainWindow::onSuccessfulMerge(const Map &map) // InfomarkDb parameter removed
 {
     auto &mapData = deref(m_mapData);
     auto &mapCanvas = deref(getCanvas());
     auto &groupWidget = deref(m_groupWidget);
 
     mapData.setCurrentMap(map);
-    mapData.setCurrentMarks(infomarks);
+    // mapData.setCurrentMarks(infomarks); // Removed, infomarks are part of the map
     mapData.checkSize();
 
     // FIXME: mapData.setMapData() or mapData.checkSize() kicks off an async remesh,

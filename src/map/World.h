@@ -13,6 +13,7 @@
 #include "ServerIdMap.h"
 #include "SpatialDb.h"
 #include "WorldAreaMap.h"
+#include "infomark.h"
 
 #include <memory>
 #include <optional>
@@ -47,6 +48,7 @@ private:
     ServerIdMap m_serverIds;
     ParseTree m_parseTree;
     AreaInfoMap m_areaInfos;
+    InfomarkDb m_infomarks;
     bool m_checkedConsistency = false;
 
 public:
@@ -71,6 +73,7 @@ private:
 
 public:
     NODISCARD const ParseTree &getParseTree() const { return m_parseTree; }
+    NODISCARD InfomarkDb getInfomarkDb() const;
 
 public:
     NODISCARD const RawRoom *getRoom(RoomId id) const;

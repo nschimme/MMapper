@@ -253,9 +253,9 @@ NODISCARD std::optional<MapLoadData> load_map_data(ProgressCounter &pc, Abstract
     return result;
 }
 
-NODISCARD std::optional<std::pair<Map, InfomarkDb>> merge_map_data(ProgressCounter &pc,
-                                                                   AbstractMapStorage &storage,
-                                                                   const MapData &mapData)
+NODISCARD std::optional<Map> merge_map_data(ProgressCounter &pc,
+                                            AbstractMapStorage &storage,
+                                            const MapData &mapData)
 {
     if (!storage.canLoad()) {
         return std::nullopt;
@@ -272,7 +272,7 @@ NODISCARD std::optional<std::pair<Map, InfomarkDb>> merge_map_data(ProgressCount
     // TODO: move ownership of the counter out of the storage object
     return MapData::mergeMapData(pc,
                                  mapData.getCurrentMap(),
-                                 mapData.getCurrentMarks(),
+                                 // mapData.getCurrentMarks(), // Removed
                                  opt_data.value());
 }
 
@@ -580,7 +580,7 @@ MainWindow::AsyncLoader::~AsyncLoader() = default;
 struct NODISCARD MainWindow::AsyncMerge final : public AsyncHelper
 {
 private:
-    using Result = std::optional<std::pair<Map, InfomarkDb>>;
+    using Result = std::optional<Map>; // Changed return type
     using Future = std::future<Result>;
 
 private:
@@ -631,7 +631,8 @@ private:
         }
 
         extraBlockers.reset();
-        mainWindow.onSuccessfulMerge(result->first, result->second);
+        // mainWindow.onSuccessfulMerge(result->first, result->second); // Old call
+        mainWindow.onSuccessfulMerge(*result); // New call with single Map argument
     }
 };
 

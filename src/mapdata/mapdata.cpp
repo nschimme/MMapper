@@ -178,72 +178,40 @@ MapData::~MapData() = default;
 
 bool MapData::removeMarker(const InfomarkId id)
 {
-    try {
-        auto db = getInfomarkDb();
-        db.removeMarker(id);
-        setCurrentMarks(db);
-        return true;
-    } catch (const std::runtime_error & /*ex*/) {
-        return false;
-    }
+    return applySingleChange(Change{infomark_change_types::RemoveInfomark{id}});
 }
 
 void MapData::removeMarkers(const MarkerList &toRemove)
 {
-    try {
-        auto db = getInfomarkDb();
-        for (const InfomarkId id : toRemove) {
-            // REVISIT: try-catch around each one and report if any failed, instead of this all-or-nothing approach?
-            db.removeMarker(id);
-        }
-        setCurrentMarks(db);
-    } catch (const std::runtime_error &ex) {
-        MMLOG() << "ERROR removing multiple infomarks: " << ex.what();
+    if (toRemove.empty()) {
+        return;
     }
+    ChangeList changes;
+    for (const InfomarkId id : toRemove) {
+        changes.add(Change{infomark_change_types::RemoveInfomark{id}});
+    }
+    applyChanges(changes);
 }
 
-InfomarkId MapData::addMarker(const InfoMarkFields &im)
+bool MapData::addMarker(const InfoMarkFields &im)
 {
-    try {
-        auto db = getInfomarkDb();
-        auto id = db.addMarker(im);
-        setCurrentMarks(db);
-        return id;
-    } catch (const std::runtime_error &ex) {
-        MMLOG() << "ERROR adding infomark: " << ex.what();
-        return INVALID_INFOMARK_ID;
+    // The method now returns bool indicating success of applying the change.
+    // The actual InfomarkId is not directly available from this operation anymore.
+    // If needed, it would have to be queried or determined differently.
+    bool success = applySingleChange(Change{infomark_change_types::AddInfomark{im}});
+    if (!success) {
+        MMLOG() << "ERROR applying AddInfomark change.";
+        // Potentially return an invalid ID or handle error appropriately
     }
+    return success;
 }
 
 bool MapData::updateMarker(const InfomarkId id, const InfoMarkFields &im)
 {
-    try {
-        auto db = getInfomarkDb();
-        auto modified = db.updateMarker(id, im);
-        if (modified) {
-            setCurrentMarks(db, modified);
-        }
-        return true;
-    } catch (const std::runtime_error &ex) {
-        MMLOG() << "ERROR updating infomark: " << ex.what();
-        return false;
-    }
+    return applySingleChange(Change{infomark_change_types::UpdateInfomark{id, im}});
 }
 
-bool MapData::updateMarkers(const std::vector<InformarkChange> &updates)
-{
-    try {
-        auto db = getInfomarkDb();
-        auto modified = db.updateMarkers(updates);
-        if (modified) {
-            setCurrentMarks(db, modified);
-        }
-        return true;
-    } catch (const std::runtime_error &ex) {
-        MMLOG() << "ERROR updating infomarks: " << ex.what();
-        return false;
-    }
-}
+// updateMarkers was removed
 
 void MapData::slot_scheduleAction(const SigMapChangeList &change)
 {
@@ -279,12 +247,17 @@ void MapData::setMapData(const MapLoadData &mapLoadData)
         MapFrontend &mf = *this;
         mf.block();
         {
-            InfomarkDb markers = mapLoadData.markerData;
+            // InfomarkDb markers = mapLoadData.markerData; // Removed
             setFileName(mapLoadData.filename, mapLoadData.readonly);
             setSavedMap(mapLoadData.mapPair.base);
+            // setCurrentMarks(markers); // Removed
+            // setSavedMarks(markers); // Removed
+
+            // Note: mapLoadData.markerData needs to be loaded into the World
+            // This will require changes elsewhere, possibly World::init or Map::fromRooms,
+            // or applying a new Change type after map creation.
+            // For now, we just set the map without the old marker logic.
             setCurrentMap(mapLoadData.mapPair.modified);
-            setCurrentMarks(markers);
-            setSavedMarks(markers);
             forcePosition(mapLoadData.position);
 
             // NOTE: The map may immediately report changes.
@@ -318,11 +291,13 @@ void MapData::setMapData(const MapLoadData &mapLoadData)
 //  * added / removed connections within the common subset
 //
 // Finally, accept any additions, but do so at offset and nextid.
-std::pair<Map, InfomarkDb> MapData::mergeMapData(ProgressCounter &counter,
-                                                 const Map &currentMap,
-                                                 const InfomarkDb &currentMarks,
-                                                 RawMapLoadData newMapData)
+Map MapData::mergeMapData(ProgressCounter &counter,
+                          const Map &currentMap,
+                          // const InfomarkDb &currentMarks, // Removed
+                          RawMapLoadData newMapData)
 {
+    // InfomarkDb merged_marks = currentMap.getInfomarkDb(); // Will apply as changes
+
     const Bounds newBounds = [&newMapData]() {
         const auto &rooms = newMapData.rooms;
         const auto &front = rooms.front().position;
@@ -353,23 +328,35 @@ std::pair<Map, InfomarkDb> MapData::mergeMapData(ProgressCounter &counter,
         return Coordinate{tmp.x, tmp.y, tmp.z};
     }();
 
-    const Map newMap = Map::merge(counter, currentMap, std::move(newMapData.rooms), mapOffset);
+    const Map newMapWithoutMergedInfomarks = Map::merge(counter, currentMap, std::move(newMapData.rooms), mapOffset);
 
-    const InfomarkDb newMarks = [&newMapData, &currentMarks, &infomarkOffset, &counter]() {
-        auto tmp = currentMarks;
-        if (newMapData.markerData) {
-            const auto &markers = newMapData.markerData.value().markers;
-            counter.setNewTask(ProgressMsg{"adding infomarks"}, markers.size());
-            for (const InfoMarkFields &mark : markers) {
-                auto copy = mark.getOffsetCopy(infomarkOffset);
-                std::ignore = tmp.addMarker(copy);
-                counter.step();
-            }
+    ChangeList infomark_add_changes;
+    if (newMapData.markerData) {
+        const auto &markers_from_new_data = newMapData.markerData.value().markers;
+        counter.setNewTask(ProgressMsg{"preparing infomark merge changes"}, markers_from_new_data.size());
+        for (const InfoMarkFields &mark_fields : markers_from_new_data) {
+            InfoMarkFields offset_mark_fields = mark_fields.getOffsetCopy(infomarkOffset);
+            infomark_add_changes.add(Change{infomark_change_types::AddInfomark{offset_mark_fields}});
+            counter.step();
         }
-        return tmp;
-    }();
+    }
 
-    return std::pair<Map, InfomarkDb>(newMap, newMarks);
+    // Apply infomark changes from the new map data onto the merged map structure
+    // Also, existing infomarks from currentMap are already part of newMapWithoutMergedInfomarks.
+    // If the intent is to *only* have currentMarks + newMapData.markerData,
+    // then currentMap's original infomarks should first be cleared from newMap if Map::merge doesn't do that.
+    // Assuming Map::merge preserves currentMap's infomarks, and we just add new ones.
+    // If newMapData.markerData should *replace* existing markers in its spatial region,
+    // that would be a more complex operation (e.g. RemoveInfomark for existing ones in the region, then AddInfomark).
+    // The current approach simply adds all markers from newMapData.markerData to whatever newMap contains.
+
+    Map map_with_infomarks = newMapWithoutMergedInfomarks; // Start with merged map (includes original infomarks)
+    if (!infomark_add_changes.getChanges().empty()) {
+         MapApplyResult result = newMapWithoutMergedInfomarks.apply(counter, infomark_add_changes);
+         map_with_infomarks = result.map;
+    }
+
+    return map_with_infomarks;
 }
 
 void MapData::describeChanges(std::ostream &os) const

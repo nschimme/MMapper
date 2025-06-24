@@ -9,6 +9,7 @@
 #include "RoomFieldVariant.h"
 #include "RoomIdSet.h"
 #include "coordinate.h"
+#include "infomark.h" // Added for InfomarkDb
 #include "mmapper2room.h"
 #include "parseevent.h"
 #include "room.h"
@@ -96,6 +97,7 @@ public:
 
 public:
     NODISCARD const World &getWorld() const { return *m_world; }
+    NODISCARD InfomarkDb getInfomarkDb() const;
 
 public:
     NODISCARD static MapPair fromRooms(ProgressCounter &counter, std::vector<ExternalRawRoom> rooms);

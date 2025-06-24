@@ -50,6 +50,11 @@ Map::Map(std::shared_ptr<const World> world)
     std::ignore = deref(m_world);
 }
 
+InfomarkDb Map::getInfomarkDb() const
+{
+    return getWorld().getInfomarkDb();
+}
+
 size_t Map::getRoomsCount() const
 {
     return getWorld().getRoomSet().size();

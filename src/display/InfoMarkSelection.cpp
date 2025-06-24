@@ -82,26 +82,36 @@ void InfoMarkSelection::applyOffset(const Coordinate &offset) const
         return;
     }
 
-    const auto updates = [this, &offset]() {
-        std::vector<InformarkChange> result_updates;
-        const auto oldDb = m_mapData.getInfomarkDb();
-        for (const InfomarkId marker : m_markerList) {
-            InfoMarkFields copy = oldDb.getRawCopy(marker);
-            copy.offsetBy(offset);
-            result_updates.emplace_back(marker, copy);
-        }
-        return result_updates;
-    }();
+    ChangeList change_list;
+    // Get InfomarkDb via the new path: MapData -> Map -> World
+    const auto &current_db = m_mapData.getCurrentMap().getInfomarkDb();
 
-    if (updates.empty()) {
-        qWarning() << "Failed to move any markers.";
+    for (const InfomarkId marker_id : m_markerList) {
+        // It's possible a marker in the selection might have been removed by another operation
+        // but InfomarkDb::getRawCopy would throw if marker_id is not found.
+        // A more robust way would be to check if current_db.hasMarker(marker_id) first,
+        // but for now, let's assume it exists, consistent with original logic.
+        try {
+            InfoMarkFields current_fields = current_db.getRawCopy(marker_id);
+            current_fields.offsetBy(offset); // Apply offset
+            change_list.add(Change{infomark_change_types::UpdateInfomark{marker_id, current_fields}});
+        } catch (const std::out_of_range& e) {
+            qWarning() << "InfoMarkSelection::applyOffset: Failed to find marker with ID"
+                       << marker_id.value() << "in current InfomarkDb:" << e.what();
+        }
+    }
+
+    if (change_list.getChanges().empty()) {
+        if (!m_markerList.empty()) { // Only warn if there were markers to move
+             qWarning() << "InfoMarkSelection::applyOffset: No valid markers found to move.";
+        }
         return;
     }
 
-    const auto count = updates.size();
-    if (m_mapData.updateMarkers(updates)) {
-        qInfo() << "Moved" << count << "marker(s).";
+    const auto count = change_list.getChanges().size();
+    if (m_mapData.applyChanges(change_list)) {
+        qInfo() << "Applied offset to" << count << "marker(s).";
     } else {
-        qWarning() << "Failed to move" << count << "marker(s).";
+        qWarning() << "Failed to apply offset to" << count << "marker(s).";
     }
 }

@@ -371,7 +371,7 @@ private:
     void applyGroupAction(const std::function<Change(const RawRoom &)> &getChange);
     NODISCARD QString chooseLoadOrMergeFileName();
     void onSuccessfulLoad(const MapLoadData &mapLoadData);
-    void onSuccessfulMerge(const Map &map, const InfomarkDb &infomarks);
+    void onSuccessfulMerge(const Map &map); // InfomarkDb parameter removed
     void onSuccessfulSave(SaveModeEnum mode, SaveFormatEnum format, const QString &fileName);
     void reportOpenFileFailure(const QString &fileName, const QString &reason);
     void reportOpenFileException(const QString &fileName, const std::exception_ptr &eptr);

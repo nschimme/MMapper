@@ -106,14 +106,19 @@ void InfoMarksEditDlg::slot_createClicked()
     InfoMarkFields im;
     updateMark(im);
 
-    const InfomarkId id = mapData.addMarker(im);
-    m_selection->emplace_back(id);
-    updateMarkers();
-
-    setCurrentInfoMark(id);
-    updateDialog();
-
-    emit sig_infomarksChanged();
+    bool success = mapData.addMarker(im);
+    if (success) {
+        // ID is no longer returned, so we cannot directly add it to m_selection
+        // or call setCurrentInfoMark(id).
+        // The dialog will still show "Create New Marker" selected.
+        // User will need to manually find the new marker if they want to edit it immediately.
+        updateMarkers(); // This will re-query the now updated InfomarkDb
+        updateDialog();
+        emit sig_infomarksChanged();
+    } else {
+        // Handle error, e.g., show a message to the user
+        QMessageBox::warning(this, "Error", "Failed to create infomark.");
+    }
 }
 
 void InfoMarksEditDlg::updateMark(InfoMarkFields &im)
@@ -287,10 +292,12 @@ InfomarkHandle InfoMarksEditDlg::getCurrentInfoMark()
     bool ok = false;
     int n = objectsList->itemData(objectsList->currentIndex()).toInt(&ok);
     if (!ok || n == -1 || n >= static_cast<int>(m_markers.size())) {
-        return InfomarkHandle{m_mapData->getMarkersList(), INVALID_INFOMARK_ID};
+        // Ensure we are calling the correct method to get the InfomarkDb
+        return InfomarkHandle{m_mapData->getCurrentMap().getInfomarkDb(), INVALID_INFOMARK_ID};
     }
     auto id = m_markers.at(static_cast<size_t>(n));
-    return m_mapData->getMarkersList().find(id);
+    // Ensure we are calling the correct method to get the InfomarkDb
+    return m_mapData->getCurrentMap().getInfomarkDb().find(id);
 }
 
 void InfoMarksEditDlg::setCurrentInfoMark(InfomarkId id)

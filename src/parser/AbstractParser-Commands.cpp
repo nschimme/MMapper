@@ -707,7 +707,7 @@ void AbstractParser::doMapCommand(StringView input)
         if (map.applySingleChange(Change{world_change_types::CompactRoomIds{}})) {
             // Mark *everything* as changed.
             map.setSavedMap(Map{});
-            map.setSavedMarks({});
+            // map.setSavedMarks({}); // Removed as infomarks are part of Map
             sendOkToUser();
             sendToUser(SendToUserSourceEnum::FromMMapper,
                        "WARNING: You should save the map immediately.\n");

@@ -98,9 +98,9 @@ public:
     NODISCARD InfomarkDb getMarkersList() const { return MapFrontend::getCurrentMarks(); }
     NODISCARD bool isEmpty() const;
 
-    NODISCARD InfomarkId addMarker(const InfoMarkFields &im);
+    NODISCARD bool addMarker(const InfoMarkFields &im); // Return type changed to bool
     NODISCARD bool updateMarker(InfomarkId id, const InfoMarkFields &im);
-    NODISCARD bool updateMarkers(const std::vector<InformarkChange> &updates);
+    // NODISCARD bool updateMarkers(const std::vector<InformarkChange> &updates); // Removed
     void removeMarkers(const MarkerList &toRemove);
     NODISCARD bool removeMarker(InfomarkId id);
 
@@ -131,10 +131,10 @@ public:
 
 public:
     void setMapData(const MapLoadData &mapLoadData);
-    NODISCARD static std::pair<Map, InfomarkDb> mergeMapData(ProgressCounter &,
-                                                             const Map &currentMap,
-                                                             const InfomarkDb &currentMarks,
-                                                             RawMapLoadData newMapData);
+    NODISCARD static Map mergeMapData(ProgressCounter &,
+                                      const Map &currentMap,
+                                      // const InfomarkDb &currentMarks, // Removed
+                                      RawMapLoadData newMapData); // Signature Changed
 
 public:
     void setFileName(QString filename, const bool readOnly)

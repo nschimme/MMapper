@@ -38,12 +38,13 @@ class NODISCARD_QOBJECT MapFrontend : public QObject,
 private:
     struct NODISCARD MapState final
     {
-        InfomarkDb marks;
+        // InfomarkDb marks; // Removed
         Map map;
 
         NODISCARD bool operator==(const MapState &rhs) const
         {
-            return marks == rhs.marks && map == rhs.map;
+            // return marks == rhs.marks && map == rhs.map; // Old comparison
+            return map == rhs.map; // New comparison
         }
         NODISCARD bool operator!=(const MapState &rhs) const { return !(rhs == *this); }
     };
@@ -57,8 +58,8 @@ public:
     ~MapFrontend() override;
 
 public:
-    NODISCARD InfomarkDb getCurrentMarks() const { return m_current.marks; }
-    NODISCARD InfomarkDb getSavedMarks() const { return m_saved.marks; }
+    NODISCARD InfomarkDb getCurrentMarks() const { return m_current.map.getInfomarkDb(); }
+    NODISCARD InfomarkDb getSavedMarks() const { return m_saved.map.getInfomarkDb(); }
     NODISCARD Map getCurrentMap() const { return m_current.map; }
     NODISCARD Map getSavedMap() const { return m_saved.map; }
 
@@ -70,8 +71,8 @@ private:
 
 public:
     void setCurrentMap(Map map);
-    void setCurrentMarks(InfomarkDb marks, InfoMarkUpdateFlags modified);
-    void setSavedMarks(InfomarkDb marks);
+    // void setCurrentMarks(InfomarkDb marks, InfoMarkUpdateFlags modified); // Removed
+    // void setSavedMarks(InfomarkDb marks); // Removed
     void setSavedMap(Map map);
     void currentHasBeenSaved() { m_saved = m_current; }
 
@@ -80,10 +81,7 @@ public:
     void restoreSnapshot();
 
 public:
-    void setCurrentMarks(InfomarkDb marks)
-    {
-        setCurrentMarks(std::move(marks), ~InfoMarkUpdateFlags{});
-    }
+    // setCurrentMarks(InfomarkDb marks) overload removed
     NODISCARD InfomarkDb getInfomarkDb() const { return getCurrentMarks(); }
 
 public:

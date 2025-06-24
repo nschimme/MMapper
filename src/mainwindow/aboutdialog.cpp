@@ -4,7 +4,6 @@
 
 #include "aboutdialog.h"
 
-#include "../global/TextUtils.h"
 #include "../global/Version.h"
 
 #include <QString>
@@ -54,25 +53,13 @@ AboutDialog::AboutDialog(QWidget *parent)
                  "<p align=\"center\">"
                + getBuildInformation()
                + tr("Based on Qt %1 (%2 bit)")
-                     .arg(QT_VERSION_STR)
+                     .arg(qVersion())
                      .arg(static_cast<size_t>(QSysInfo::WordSize))
                + "</p>";
     };
     aboutText->setText(about_text());
 
-    /* Authors tab */
-    authorsView->setHtml(tr(
-        "<p>Maintainer: Jahara (please report bugs <a href=\"https://github.com/MUME/MMapper/issues\">here</a>)</p>"
-        "<p><u>Special thanks to:</u><br>"
-        "Alve for his great map engine<br>"
-        "Caligor for starting the mmapper project<br>"
-        "Azazello for creating the group manager</p>"
-        "<p><u>Contributors:</u><br>"
-        "Arfang, Cosmos, Cuantar, Elval, Kalev, Korir, Kovis, Krush, Mirnir, Taryn, Teoli, and Waba"
-        "</p>"));
-
-    /* Licenses tab */
-    const auto loadLicenseResource = [](const QString &path) {
+    const auto loadResource = [](const QString &path) {
         QFile f(path);
         if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
             return QString("Unable to open resource '%1'.").arg(path);
@@ -81,6 +68,23 @@ AboutDialog::AboutDialog(QWidget *parent)
             return ts.readAll();
         }
     };
+
+    /* Authors tab */
+    authorsView->clear();
+    const QStringList authors = loadResource(":/AUTHORS.txt").split("\n");
+    if (authors.isEmpty()) {
+        authorsView->setHtml("Could not load authors file.");
+    } else {
+        QString authorsHtml
+            = "<p>The MMapper project is maintained by the following contributors:</p><ul>";
+        for (const auto &line : authors) {
+            authorsHtml += "<li>" + line + "</li></br>";
+        }
+        authorsHtml += "</ul>";
+        authorsView->setHtml(authorsHtml);
+    }
+
+    /* Licenses tab */
     licenseView->setText(
         "<p>"
         "This program is free software; you can redistribute it and/or "
@@ -96,40 +100,40 @@ AboutDialog::AboutDialog(QWidget *parent)
         "</p>"
         "<hr/><h1>GNU General Public License 2.0</h1>"
         "<pre>"
-        + loadLicenseResource(":/LICENSE.GPL2")
+        + loadResource(":/LICENSE.GPL2")
         + "</pre>"
           "<hr/><h1>GNU Lesser General Public License 2.1</h1>"
           "<p>Some versions of this product contains code from the "
           "following LGPLed libraries: "
           "<a href=\"https://github.com/jrfonseca/drmingw\">DrMingW</a></p>"
           "<pre>"
-        + loadLicenseResource(":/LICENSE.LGPL")
+        + loadResource(":/LICENSE.LGPL")
         + "</pre>"
           "<hr/><h1>DejaVu Fonts License</h1>"
           "<p>This license applies to the file <code>src/resources/fonts/DejaVuSansMono.ttf</code></p>"
           "<pre>"
-        + loadLicenseResource(":/fonts/LICENSE")
+        + loadResource(":/fonts/LICENSE")
         + "</pre>"
           "<hr/><h1>GLM License</h1>"
           "<p>This product contains code from the "
           "<a href=\"https://glm.g-truc.net/\">OpenGL Mathematics (GLM)</a>"
           " project.</p>"
           "<pre>"
-        + loadLicenseResource(":/LICENSE.GLM")
+        + loadResource(":/LICENSE.GLM")
         + "</pre>"
           "<hr/><h1>QtKeychain License</h1>"
           "<p>This product contains code from the "
           "<a href=\"https://github.com/frankosterfeld/qtkeychain\">QtKeychain</a>"
           " project.</p>"
           "<pre>"
-        + loadLicenseResource(":/LICENSE.QTKEYCHAIN")
+        + loadResource(":/LICENSE.QTKEYCHAIN")
         + "</pre>"
           "<hr/><h1>OpenSSL License</h1>"
           "<p>Some versions of this product contains code from the "
           "<a href=\"https://www.openssl.org/\">OpenSSL toolkit</a>"
           ".</p>"
           "<pre>"
-        + loadLicenseResource(":/LICENSE.OPENSSL") + "</pre>");
+        + loadResource(":/LICENSE.OPENSSL") + "</pre>");
     setFixedFont(licenseView);
 
     adjustSize();

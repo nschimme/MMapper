@@ -2,167 +2,116 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2021-2024 The MMapper Authors & Jeff Plaisance
 
-#include "macros.h" // Adjusted path, assuming it's in the same global directory
+#include "macros.h"
 
-#include <bpptree/bpptree.hpp>   // Main BppTree header
-#include <bpptree/ordered.hpp> // For BppTreeSet and Ordered mixin functionality
+#include <bpptree/bpptree.hpp>
+#include <bpptree/ordered.hpp>
 
-#include <optional>
-#include <stdexcept> // For std::out_of_range
-#include <algorithm> // For std::equal
+#include <initializer_list>
+#include <stdexcept> // For std::out_of_range (used by BppTree's front/back)
+#include <algorithm> // For std::equal (though bpptree::Persistent might have its own ==)
 
-// Removed: #include "roomid.h" - BppOrderedSet should be generic
-
-// Removed: namespace detail {
+// BppOrderedSet is a lean struct wrapping bpptree::BppTreeSet::Persistent.
+// It provides essential set operations, modifying the set in-place by
+// reassigning the internal persistent tree. It's intended as a generic
+// building block for more specialized set classes.
 template<typename Type_>
-struct NODISCARD BppOrderedSet // Renamed from BasicRoomIdSet
+struct BppOrderedSet
 {
-public: // Added public accessibility for ValueType
-    using ValueType = Type_; // Standard alias for the type of elements
-private:
-    // using Type = Type_; // This alias is now ValueType
-    // Use BppTreeSet for COW semantics and ordered, unique key behavior.
+public: // Public by default in struct, but explicit for clarity
+    using ValueType = Type_;
     using InternalSet = typename bpptree::BppTreeSet<ValueType>::Persistent;
-
-public:
-    // Iterators from Persistent BppTreeSet are const_iterators.
     using ConstIterator = typename InternalSet::const_iterator;
 
-private:
-    InternalSet m_set;
-
-    // Private constructor to create from an existing InternalSet (used by modifying methods)
-    explicit BppOrderedSet(InternalSet new_set) : m_set(std::move(new_set)) {}
+    InternalSet m_set; // Made public for potential direct access by wrapping classes if absolutely necessary, though prefer methods.
 
 public:
-    BppOrderedSet() noexcept = default; // Creates an empty persistent set
+    // --- Constructors ---
+    BppOrderedSet() noexcept = default;
 
-    // Constructor for a single element.
-    explicit BppOrderedSet(const ValueType one) : m_set(InternalSet().insert_v(one)) {}
+    explicit BppOrderedSet(const ValueType& one) : m_set(InternalSet().insert_v(one)) {}
 
-    // Constructor from an existing bpptree set (e.g. for interop or advanced usage)
+    BppOrderedSet(std::initializer_list<ValueType> ilist) : m_set() {
+        if (ilist.size() > 0) {
+            auto transient_set = m_set.transient();
+            for (const auto& item : ilist) {
+                transient_set.insert_v(item);
+            }
+            m_set = transient_set.persistent();
+        }
+    }
+
     explicit BppOrderedSet(const InternalSet &other_bpp_set) : m_set(other_bpp_set) {}
     explicit BppOrderedSet(InternalSet &&other_bpp_set) : m_set(std::move(other_bpp_set)) {}
 
-    // Assignment operators for underlying set type
-    BppOrderedSet &operator=(const InternalSet &other_bpp_set)
-    {
+    // --- Assignment Operators ---
+    BppOrderedSet& operator=(const InternalSet &other_bpp_set) {
         m_set = other_bpp_set;
         return *this;
     }
-    BppOrderedSet &operator=(InternalSet &&other_bpp_set)
-    {
+    BppOrderedSet& operator=(InternalSet &&other_bpp_set) {
         m_set = std::move(other_bpp_set);
         return *this;
     }
-
-
-public:
-    // clear() returns a new, empty BppOrderedSet
-    NODISCARD BppOrderedSet clear() const noexcept {
-        return BppOrderedSet(); // Return a default-constructed (empty) set
+    BppOrderedSet& operator=(std::initializer_list<ValueType> ilist) {
+        m_set = InternalSet(); // Clear current content
+        if (ilist.size() > 0) {
+            auto transient_set = m_set.transient();
+            for (const auto& item : ilist) {
+                transient_set.insert_v(item);
+            }
+            m_set = transient_set.persistent();
+        }
+        return *this;
     }
 
-public:
+    // --- Modifying Operations ---
+    void clear() noexcept {
+        m_set = InternalSet();
+    }
+
+    void insert(const ValueType& id) {
+        m_set = m_set.insert_v(id);
+    }
+
+    void erase(const ValueType& id) {
+        m_set = m_set.erase_key(id);
+    }
+
+    // --- Non-modifying (const) Operations ---
     NODISCARD ConstIterator cbegin() const { return m_set.cbegin(); }
     NODISCARD ConstIterator cend() const { return m_set.cend(); }
-    NODISCARD ConstIterator begin() const { return m_set.cbegin(); } // Common alias for cbegin
-    NODISCARD ConstIterator end() const { return m_set.cend(); }     // Common alias for cend
+    NODISCARD ConstIterator begin() const { return m_set.cbegin(); }
+    NODISCARD ConstIterator end() const { return m_set.cend(); }
 
     NODISCARD size_t size() const { return m_set.size(); }
     NODISCARD bool empty() const noexcept { return m_set.empty(); }
 
-public:
-    NODISCARD bool contains(const ValueType id) const {
+    NODISCARD bool contains(const ValueType& id) const {
         return m_set.contains(id);
     }
 
-private:
-    // Helper for containsElementNotIn, uses iterators.
-    NODISCARD static std::optional<ValueType> firstElementNotInDetail(const InternalSet &a, const InternalSet &b_set)
-    {
-        auto a_it = a.cbegin();
-        const auto a_end = a.cend();
-        auto b_it = b_set.cbegin();
-        const auto b_end = b_set.cend();
-
-        while (a_it != a_end) {
-            const auto &x = *a_it;
-            if (b_it == b_end) {
-                return x;
-            }
-            const auto &y = *b_it;
-            if (x < y) {
-                return x;
-            }
-            if (!(y < x)) { // x == y
-                ++a_it;
-            }
-            ++b_it;
-        }
-        return std::nullopt;
-    }
-
-public:
-    NODISCARD bool containsElementNotIn(const BppOrderedSet &other) const
-    {
-        if (this == &other) return false;
-        if (m_set == other.m_set) return false; // B+ Tree persistent sets are comparable directly
-        return firstElementNotInDetail(m_set, other.m_set).has_value();
-    }
-
+    // --- Comparison Operators ---
     NODISCARD bool operator==(const BppOrderedSet &rhs) const {
-        // Persistent B+ trees with COW often have efficient equality:
-        // if root pointers are same, they are equal.
-        // The bpptree::BppTreeSet::Persistent itself should define operator==
-        return m_set == rhs.m_set;
+        return m_set == rhs.m_set; // Relies on bpptree::Persistent::operator==
     }
-    NODISCARD bool operator!=(const BppOrderedSet &rhs) const { return !operator==(rhs); }
-
-public:
-    NODISCARD BppOrderedSet erase(const ValueType id) const {
-        return BppOrderedSet(m_set.erase_key(id));
+    NODISCARD bool operator!=(const BppOrderedSet &rhs) const {
+        return !(operator==(rhs));
     }
 
-    NODISCARD BppOrderedSet insert(const ValueType id) const {
-        return BppOrderedSet(m_set.insert_v(id));
-    }
-
-public:
-    NODISCARD BppOrderedSet insertAll(const BppOrderedSet &other) const {
-        if (other.empty()) return *this; // Optimization: if other is empty, return current set
-        if (this->empty()) return other; // Optimization: if current is empty, return other set
-
-        auto transient_set = m_set.transient(); // Create a transient copy for efficient batch modification
-        for (const ValueType& id : other.m_set) { // Iterate over the internal bpp-tree of 'other'
-            transient_set.insert_v(id); // insert_v handles duplicates by ignoring them (set semantics)
-        }
-        return BppOrderedSet(transient_set.persistent()); // Convert back to persistent
-    }
-
-public:
-    NODISCARD ValueType first() const
-    {
-        if (empty()) {
-            throw std::out_of_range("BppOrderedSet::first(): set is empty");
-        }
-        // BppTreeSet::Persistent provides front()
-        return m_set.front();
-    }
-
-    NODISCARD ValueType last() const
-    {
-        if (empty()) {
-            throw std::out_of_range("BppOrderedSet::last(): set is empty");
-        }
-        // BppTreeSet::Persistent provides back()
-        return m_set.back();
-    }
-
-    // Provide access to the underlying bpptree set if needed for advanced operations or interoperability
+    // --- Access to underlying bpptree set ---
+    // For use by wrapping classes that might need more direct control or specific bpp_tree features.
     NODISCARD const InternalSet& bpptreeSet() const { return m_set; }
+    // Non-const version to allow wrapper to modify (e.g. for efficient insertAll by getting transient tree)
+    // This is a bit of a controlled escape hatch.
+    InternalSet& bpptreeSet() { return m_set; }
+
+    // Methods intentionally EXCLUDED from this lean generic struct:
+    // - insertAll(const BppOrderedSet& other)
+    // - containsElementNotIn(const BppOrderedSet& other) const
+    // - first() const
+    // - last() const
+    // These are considered more specialized and can be implemented by
+    // wrapping classes (like RoomIdSet) if needed.
+    // BppTree's front() and back() can be used by wrappers to implement first()/last().
 };
-// Removed: using RoomIdSet = detail::BasicRoomIdSet<RoomId>;
-// Removed: using ExternalRoomIdSet = detail::BasicRoomIdSet<ExternalRoomId>;
-// Removed: namespace test { extern void testRoomIdSet(); }
-// Removed: } // namespace detail

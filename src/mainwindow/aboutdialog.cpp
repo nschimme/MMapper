@@ -160,22 +160,18 @@ AboutDialog::AboutDialog(QWidget *parent)
     }
 
     QString allLicensesTextHtml;
-    if (!licenses.isEmpty()) {
-        const auto &firstLicense = licenses.first();
-        allLicensesTextHtml += "<h1>" + firstLicense.title + "</h1>";
-        if (!firstLicense.introText.isEmpty()) {
-            allLicensesTextHtml += firstLicense.introText;
+    bool isFirstLicense = true;
+    for (const auto &license : licenses) {
+        if (isFirstLicense) {
+            isFirstLicense = false;
+        } else {
+            allLicensesTextHtml += "<hr/>";
         }
-        allLicensesTextHtml += "<pre>" + loadResource(firstLicense.resourcePath) + "</pre>";
-
-        for (int i = 1; i < licenses.size(); ++i) {
-            const auto &license = licenses.at(i);
-            allLicensesTextHtml += "<hr/><h1>" + license.title + "</h1>";
-            if (!license.introText.isEmpty()) {
-                allLicensesTextHtml += license.introText;
-            }
-            allLicensesTextHtml += "<pre>" + loadResource(license.resourcePath) + "</pre>";
+        allLicensesTextHtml += "<h1>" + license.title + "</h1>";
+        if (!license.introText.isEmpty()) {
+            allLicensesTextHtml += license.introText;
         }
+        allLicensesTextHtml += "<pre>" + loadResource(license.resourcePath) + "</pre>";
     }
 
     licenseView->setText(allLicensesTextHtml);

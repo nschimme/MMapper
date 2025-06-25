@@ -777,7 +777,7 @@ void OstreamDiffReporter::printOutgoing(const RoomHandle &room, const ExitDirEnu
         if (!ex.getOutgoingSet().empty()) {
             ExternalRoomIdSet ext;
             for (const RoomId to : ex.getOutgoingSet()) {
-                ext.insert(w.convertToExternal(to));
+                ext = ext.insert(w.convertToExternal(to));
             }
 
             bool first = true;

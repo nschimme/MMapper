@@ -477,7 +477,7 @@ void World::addExit_inconsistent(const RoomId from,
     const TinyRoomIdSet &view = m_rooms.getExitInOut(from, dir, mode);
     if (!view.contains(to)) {
         RoomIdSet tmp = toRoomIdSet(view);
-        tmp.insert(to);
+        tmp = tmp.insert(to);
         m_rooms.setExitInOut(from, dir, mode, toTinyRoomIdSet(tmp));
     }
 
@@ -1239,9 +1239,9 @@ World World::init(ProgressCounter &counter,
                     const RoomName &name = room.getName();
                     const RoomDesc &desc = room.getDescription();
                     const NameDesc nameDesc{name, desc};
-                    tmp.name_only[name].insert(room.id);
-                    tmp.desc_only[desc].insert(room.id);
-                    tmp.name_desc[nameDesc].insert(room.id);
+                    tmp.name_only[name] = tmp.name_only[name].insert(room.id);
+                    tmp.desc_only[desc] = tmp.desc_only[desc].insert(room.id);
+                    tmp.name_desc[nameDesc] = tmp.name_desc[nameDesc].insert(room.id);
                     counter.step();
                 }
                 return tmp;
@@ -1436,7 +1436,7 @@ ExternalRoomIdSet World::convertToExternal(ProgressCounter &pc, const TinyRoomId
     pc.increaseTotalStepsBy(set.size());
     ExternalRoomIdSet result;
     for (const RoomId id : set) {
-        result.insert(convertToExternal(id));
+        result = result.insert(convertToExternal(id));
         pc.step();
     }
     return result;

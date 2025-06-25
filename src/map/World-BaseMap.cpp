@@ -21,7 +21,7 @@ void World::apply(ProgressCounter &pc, const world_change_types::GenerateBaseMap
                 // m_impl->secretLinks.emplace(RoomLink{id, to_ext});
             } else {
                 for (const RoomId to_id : exit.getOutgoingSet()) {
-                    baseRooms.insert(to_id);
+                    baseRooms = baseRooms.insert(to_id);
                     roomsTodo.emplace_back(to_id);
                 }
             }
@@ -38,7 +38,7 @@ void World::apply(ProgressCounter &pc, const world_change_types::GenerateBaseMap
             auto rname = room.getName().getStdStringViewUtf8();
             for (auto &seed : seeds) {
                 if (areEqualAsLowerUtf8(seed, rname)) {
-                    baseRooms.insert(id);
+                    baseRooms = baseRooms.insert(id);
                     roomsTodo.push_back(id);
                 }
             }
@@ -62,7 +62,7 @@ void World::apply(ProgressCounter &pc, const world_change_types::GenerateBaseMap
             continue;
         }
 
-        considered.insert(todo);
+        considered = considered.insert(todo);
         if (const RawRoom *pRoom = getRoom(todo)) {
             receiveRoom(*pRoom);
         }

@@ -80,7 +80,7 @@ SanitizerChanges WorldBuilder::sanitize(ProgressCounter &counter,
         for (const ExternalRoomId otherId : set) {
             if (!lookupTable.contains(otherId)) {
                 // Note: Can't modify the set we're iterating.
-                remove_set.insert(otherId);
+                remove_set = remove_set.insert(otherId);
                 continue;
             }
 

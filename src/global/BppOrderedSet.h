@@ -8,8 +8,8 @@
 #include <bpptree/ordered.hpp>
 
 #include <initializer_list>
-#include <stdexcept> // For std::out_of_range (used by BppTree's front/back if they were here)
-#include <algorithm> // For std::equal (though bpptree::Persistent might have its own ==)
+#include <stdexcept>
+#include <algorithm>
 
 // BppOrderedSet is a lean struct wrapping bpptree::BppTreeSet::Persistent.
 // It provides essential set operations, modifying the set in-place by
@@ -104,5 +104,4 @@ public:
     InternalSet& bpptreeSet() { return m_set; }
 
     // Methods intentionally EXCLUDED: insertAll, containsElementNotIn, first, last
-    // BppTree's m_set.front() and m_set.back() can be accessed via bpptreeSet() if needed by wrappers.
 };

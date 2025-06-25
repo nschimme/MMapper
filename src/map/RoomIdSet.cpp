@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2021-2024 The MMapper Authors
 
-#include "RoomIdSet.h" // This now includes BasicSetWrapper.h via RoomIdSet alias
-#include "../global/BppOrderedSet.h" // Needed for BppOrderedSet constructor test
+#include "RoomIdSet.h" // This now defines BasicSetWrapper and aliases RoomIdSet
+#include "../global/BppOrderedSet.h" // For BppOrderedSet constructor/assignment test with BasicSetWrapper
 #include "../global/tests.h"   // For TEST_ASSERT
 #include <stdexcept>           // For std::out_of_range checks for first/last
 
@@ -59,14 +59,8 @@ void testRoomIdSet()
     TEST_ASSERT(c.first() == RoomId(10));
     TEST_ASSERT(c.last() == RoomId(20));
 
-    // Test initializer list assignment (needs operator= in BasicSetWrapper for this)
-    // BasicSetWrapper doesn't have direct assignment from initializer_list, but BppOrderedSet does.
-    // Let's assume RoomIdSet c = {...} re-constructs or has an op= that takes BppOrderedSet.
-    // The current BasicSetWrapper has op= from BppOrderedSet.
-    // BppOrderedSet has op= from initializer_list.
-    // So, c.asBppOrderedSet() = {RoomId(30), RoomId(40), RoomId(50)}; would work.
-    // Or, more directly:
-    c = RoomIdSet{RoomId(30), RoomId(40), RoomId(50)}; // This constructs a temporary and moves/copies.
+    // Test initializer list assignment
+    c = {RoomId(30), RoomId(40), RoomId(50)};
     TEST_ASSERT(c.contains(RoomId(30)));
     TEST_ASSERT(c.contains(RoomId(40)));
     TEST_ASSERT(c.contains(RoomId(50)));
@@ -76,7 +70,10 @@ void testRoomIdSet()
     TEST_ASSERT(c.last() == RoomId(50));
 
     // Reset b to {1}
-    // b is currently {1}
+    b = {RoomId(1)}; // Re-assign b using initializer list
+    TEST_ASSERT(b.size() == 1);
+    TEST_ASSERT(b.contains(RoomId(1)));
+
     b.insert(RoomId(8)); // b={1,8}, a={1,7}
     TEST_ASSERT(a.containsElementNotIn(b));
     TEST_ASSERT(b.containsElementNotIn(a));
@@ -147,7 +144,7 @@ void testRoomIdSet()
     BppOrderedSet<RoomId> base_bpp_set_payload;
     base_bpp_set_payload.insert(RoomId(500));
     base_bpp_set_payload.insert(RoomId(600));
-    RoomIdSet from_bpp_wrapper(base_bpp_set_payload); // Uses constructor from BppOrderedSet
+    RoomIdSet from_bpp_wrapper(base_bpp_set_payload);
     TEST_ASSERT(from_bpp_wrapper.size() == 2);
     TEST_ASSERT(from_bpp_wrapper.contains(RoomId(500)));
     TEST_ASSERT(from_bpp_wrapper.first() == RoomId(500));
@@ -156,7 +153,7 @@ void testRoomIdSet()
     // Test assignment of BasicSetWrapper from BppOrderedSet
     BppOrderedSet<RoomId> another_bpp_payload;
     another_bpp_payload.insert(RoomId(700));
-    from_bpp_wrapper = another_bpp_payload; // Uses operator= from BppOrderedSet
+    from_bpp_wrapper = another_bpp_payload;
     TEST_ASSERT(from_bpp_wrapper.size() == 1);
     TEST_ASSERT(from_bpp_wrapper.contains(RoomId(700)));
     TEST_ASSERT(from_bpp_wrapper.first() == RoomId(700));

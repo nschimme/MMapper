@@ -244,7 +244,6 @@ set(mmapper_SRCS
     mainwindow/utils.h
     map/AbstractChangeVisitor.cpp
     map/AbstractChangeVisitor.h
-    map/BasicSetWrapper.h
     map/Change.cpp
     map/Change.h
     map/ChangeList.cpp

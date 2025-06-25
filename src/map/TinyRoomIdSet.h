@@ -263,20 +263,22 @@ public:
     {
     private:
         using SetConstIt = typename BigSet::ConstIterator;
-        SetConstIt m_setIt{};
-        Type m_val{};
+        std::optional<SetConstIt> m_setItOpt; // Use optional for BppTree iterator
+        Type m_val{}; // Used only if state is One
         enum class NODISCARD StateEnum : uint8_t { Empty, One, Big };
         StateEnum m_state = StateEnum::Empty;
 
     private:
         friend TinySet;
-        explicit ConstIterator() = default;
-        explicit ConstIterator(const Type val)
+        explicit ConstIterator() : m_state(StateEnum::Empty) {} // Default constructor for Empty state
+
+        explicit ConstIterator(const Type val) // Constructor for One state
             : m_val{val}
             , m_state{StateEnum::One}
         {}
-        explicit ConstIterator(const SetConstIt setIt)
-            : m_setIt{setIt}
+
+        explicit ConstIterator(SetConstIt setIt) // Constructor for Big state, takes a BppTree iterator
+            : m_setItOpt{std::move(setIt)}
             , m_state{StateEnum::Big}
         {}
 
@@ -285,50 +287,56 @@ public:
         {
             switch (m_state) {
             case StateEnum::Empty:
-                assert(false);
-                return Type{};
+                assert(false && "Dereferencing an empty iterator");
+                throw std::logic_error("Dereferencing an empty TinySet::ConstIterator");
             case StateEnum::One:
                 return m_val;
             case StateEnum::Big:
-                return *m_setIt;
+                assert(m_setItOpt.has_value());
+                return *m_setItOpt.value();
             }
-            assert(false);
+            assert(false); // Should not reach here
             std::abort();
-            return Type{};
         }
+
         ALLOW_DISCARD ConstIterator &operator++()
         {
             switch (m_state) {
             case StateEnum::Empty:
-                assert(false);
+                assert(false && "Incrementing an empty iterator");
                 break;
             case StateEnum::One:
+                // Transition from One to Empty (end of single element iteration)
                 m_state = StateEnum::Empty;
+                m_val = {}; // Clear value
                 break;
             case StateEnum::Big:
-                ++m_setIt;
+                assert(m_setItOpt.has_value());
+                ++(*m_setItOpt); // Increment the BppTree iterator
                 break;
             }
             return *this;
         }
-        void operator++(int) = delete;
+        void operator++(int) = delete; // Postfix increment not supported
+
         NODISCARD bool operator==(const ConstIterator &other) const
         {
-            if (other.m_state != m_state) {
+            if (m_state != other.m_state) {
                 return false;
             }
 
             switch (m_state) {
             case StateEnum::Empty:
-                return true;
+                return true; // All empty iterators are equal
             case StateEnum::One:
                 return m_val == other.m_val;
             case StateEnum::Big:
-                return m_setIt == other.m_setIt;
+                // Both must have values if state is Big and they are equal by state
+                assert(m_setItOpt.has_value() && other.m_setItOpt.has_value());
+                return m_setItOpt.value() == other.m_setItOpt.value();
             }
-            assert(false);
+            assert(false); // Should not reach here
             std::abort();
-            return false;
         }
         NODISCARD bool operator!=(const ConstIterator &other) const { return !operator==(other); }
     };
@@ -337,18 +345,21 @@ public:
     NODISCARD ConstIterator begin() const
     {
         if (isEmpty()) {
-            return ConstIterator{};
+            return ConstIterator{}; // Returns an iterator in Empty state
         } else if (hasOne()) {
-            return ConstIterator{getOnly()};
+            return ConstIterator{getOnly()}; // Returns an iterator in One state
         } else {
+            // HasBig: returns an iterator in Big state, initialized with BppTree's begin
             return ConstIterator{getBig().begin()};
         }
     }
     NODISCARD ConstIterator end() const
     {
         if (isEmpty() || hasOne()) {
+            // For Empty or One state, end() is an iterator in Empty state
             return ConstIterator{};
         } else {
+            // HasBig: returns an iterator in Big state, initialized with BppTree's end
             return ConstIterator{getBig().end()};
         }
     }

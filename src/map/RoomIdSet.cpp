@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2021-2024 The MMapper Authors
 
-#include "RoomIdSet.h" // This now defines BasicSetWrapper and aliases RoomIdSet
-#include "../global/BppOrderedSet.h" // For BppOrderedSet constructor/assignment test with BasicSetWrapper
+#include "RoomIdSet.h" // Defines BasicRoomIdSet template and RoomIdSet alias
+#include "../global/BppOrderedSet.h" // For BppOrderedSet constructor/assignment test
 #include "../global/tests.h"   // For TEST_ASSERT
 #include <stdexcept>           // For std::out_of_range checks for first/last
 
 namespace test {
 void testRoomIdSet()
 {
-    RoomIdSet a; // Actually BasicSetWrapper<RoomId>
+    RoomIdSet a; // Actually BasicRoomIdSet<RoomId>
     RoomIdSet b;
 
     TEST_ASSERT(a == b);
@@ -29,10 +29,10 @@ void testRoomIdSet()
     TEST_ASSERT(a.last() == RoomId(1));
 
     b.insert(RoomId(1));
-    TEST_ASSERT(!a.containsElementNotIn(b)); // a={1}, b={1}
+    TEST_ASSERT(!a.containsElementNotIn(b));
     TEST_ASSERT(a == b);
 
-    a.insert(RoomId(7)); // a={1,7}, b={1}
+    a.insert(RoomId(7));
     TEST_ASSERT(a.contains(RoomId(7)));
     TEST_ASSERT(a.size() == 2);
     TEST_ASSERT(a.first() == RoomId(1));
@@ -40,18 +40,18 @@ void testRoomIdSet()
     TEST_ASSERT(a.containsElementNotIn(b));
     TEST_ASSERT(a != b);
 
-    b.insert(RoomId(7)); // a={1,7}, b={1,7}
+    b.insert(RoomId(7));
     TEST_ASSERT(!a.containsElementNotIn(b));
     TEST_ASSERT(a == b);
 
     // Test erase
-    b.erase(RoomId(7)); // a={1,7}, b={1}
+    b.erase(RoomId(7));
     TEST_ASSERT(!b.contains(RoomId(7)));
     TEST_ASSERT(b.size() == 1);
     TEST_ASSERT(a.containsElementNotIn(b));
     TEST_ASSERT(a != b);
 
-    // Test initializer list constructor for BasicSetWrapper
+    // Test initializer list constructor for BasicRoomIdSet
     RoomIdSet c = {RoomId(10), RoomId(20)};
     TEST_ASSERT(c.contains(RoomId(10)));
     TEST_ASSERT(c.contains(RoomId(20)));
@@ -70,16 +70,16 @@ void testRoomIdSet()
     TEST_ASSERT(c.last() == RoomId(50));
 
     // Reset b to {1}
-    b = {RoomId(1)}; // Re-assign b using initializer list
+    b = {RoomId(1)};
     TEST_ASSERT(b.size() == 1);
     TEST_ASSERT(b.contains(RoomId(1)));
 
-    b.insert(RoomId(8)); // b={1,8}, a={1,7}
+    b.insert(RoomId(8));
     TEST_ASSERT(a.containsElementNotIn(b));
     TEST_ASSERT(b.containsElementNotIn(a));
     TEST_ASSERT(a != b);
 
-    b.insert(RoomId(7)); // b={1,7,8}, a={1,7}
+    b.insert(RoomId(7));
     TEST_ASSERT(!a.containsElementNotIn(b));
     TEST_ASSERT(b.containsElementNotIn(a));
     TEST_ASSERT(a != b);
@@ -140,7 +140,7 @@ void testRoomIdSet()
     TEST_ASSERT(!sA.containsElementNotIn(sD));
     TEST_ASSERT(!sD.containsElementNotIn(sA));
 
-    // Test construction of BasicSetWrapper from BppOrderedSet
+    // Test construction of BasicRoomIdSet from BppOrderedSet
     BppOrderedSet<RoomId> base_bpp_set_payload;
     base_bpp_set_payload.insert(RoomId(500));
     base_bpp_set_payload.insert(RoomId(600));
@@ -150,7 +150,7 @@ void testRoomIdSet()
     TEST_ASSERT(from_bpp_wrapper.first() == RoomId(500));
     TEST_ASSERT(from_bpp_wrapper.last() == RoomId(600));
 
-    // Test assignment of BasicSetWrapper from BppOrderedSet
+    // Test assignment of BasicRoomIdSet from BppOrderedSet
     BppOrderedSet<RoomId> another_bpp_payload;
     another_bpp_payload.insert(RoomId(700));
     from_bpp_wrapper = another_bpp_payload;

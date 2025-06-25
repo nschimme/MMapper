@@ -4,6 +4,8 @@
 
 #include "aboutdialog.h"
 
+#include "../global/ConfigConsts-Computed.h"
+#include "../global/ConfigEnums.h"
 #include "../global/Version.h"
 
 #include <QString>
@@ -101,16 +103,20 @@ AboutDialog::AboutDialog(QWidget *parent)
         "<hr/><h1>GNU General Public License 2.0</h1>"
         "<pre>"
         + loadResource(":/LICENSE.GPL2")
-        + "</pre>"
-          "<hr/><h1>GNU Lesser General Public License 2.1</h1>"
-          "<p>Some versions of this product contains code from the "
-          "following LGPLed libraries: "
-          "<a href=\"https://github.com/jrfonseca/drmingw\">DrMingW</a></p>"
-          "<pre>"
-        + loadResource(":/LICENSE.LGPL")
-        + "</pre>"
-          "<hr/><h1>DejaVu Fonts License</h1>"
-          "<p>This license applies to the file <code>src/resources/fonts/DejaVuSansMono.ttf</code></p>"
+        + "</pre>";
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Windows) {
+        licenseView->append(
+            "<hr/><h1>GNU Lesser General Public License 2.1</h1>"
+            "<p>Some versions of this product contains code from the "
+            "following LGPLed libraries: "
+            "<a href=\"https://github.com/jrfonseca/drmingw\">DrMingW</a></p>"
+            "<pre>"
+            + loadResource(":/LICENSE.LGPL")
+            + "</pre>");
+    }
+    licenseView->append(
+        "<hr/><h1>DejaVu Fonts License</h1>"
+        "<p>This license applies to the file <code>src/resources/fonts/DejaVuSansMono.ttf</code></p>"
           "<pre>"
         + loadResource(":/fonts/LICENSE")
         + "</pre>"

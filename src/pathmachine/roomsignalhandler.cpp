@@ -11,7 +11,7 @@
 
 void RoomSignalHandler::hold(const RoomId room)
 {
-    m_owners.insert(room);
+    m_owners = m_owners.insert(room);
     m_holdCount[room]++;
 }
 
@@ -27,7 +27,7 @@ void RoomSignalHandler::release(const RoomId room)
             assert(false);
         }
 
-        m_owners.erase(room);
+        m_owners = m_owners.erase(room);
         m_holdCount.erase(room);
     }
 }

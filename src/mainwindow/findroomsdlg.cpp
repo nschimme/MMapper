@@ -80,7 +80,7 @@ FindRoomsDlg::FindRoomsDlg(MapData &md, QWidget *const parent)
         for (const auto &selectedItem : resultTable->selectedItems()) {
             const auto extid = ExternalRoomId{selectedItem->text(0).toUInt()};
             if (const auto room = currentMap.findRoomHandle(extid)) {
-                set.insert(room.getId());
+                set = set.insert(room.getId());
             }
         }
         auto tmpSel = RoomSelection::createSelection(std::move(set));

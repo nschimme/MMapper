@@ -547,7 +547,7 @@ void PathMachine::syncing(const SigParseEvent &sigParseEvent, ChangeList &change
             RoomIdSet ids = m_map.lookingForRooms(sigParseEvent);
             if (event.hasServerId()) {
                 if (auto rh = m_map.findRoomHandle(event.getServerId())) {
-                    ids.insert(rh.getId());
+                    ids = ids.insert(rh.getId());
                 }
             }
             for (RoomId id : ids) {
@@ -588,7 +588,7 @@ void PathMachine::experimenting(const SigParseEvent &sigParseEvent, ChangeList &
         RoomIdSet ids = m_map.lookingForRooms(sigParseEvent);
         if (event.hasServerId()) {
             if (auto rh = m_map.findRoomHandle(event.getServerId())) {
-                ids.insert(rh.getId());
+                ids = ids.insert(rh.getId());
             }
         }
         for (RoomId id : ids) {

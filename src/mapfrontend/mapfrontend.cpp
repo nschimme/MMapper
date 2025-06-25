@@ -286,18 +286,15 @@ bool MapFrontend::applySingleChange(ProgressCounter &pc, const Change &change)
         }
     }
 
-    // Any successful operation (even if it didn't change map content)
-    // clears the redo stack.
-    if (!m_redo_stack.empty()) {
+    // A new action always clears the redo stack.
+    bool redo_stack_was_emptied = !m_redo_stack.empty();
+    if (redo_stack_was_emptied) {
         m_redo_stack.clear();
-        emit sig_redoAvailable(false);
-    } else {
-        // Ensure sig_redoAvailable(false) is emitted if it was already false and stack is empty
-        // This handles the case where redo stack was already empty.
-        emit sig_redoAvailable(false);
     }
+    // Always emit false for redo availability after a new action completes successfully.
+    emit sig_redoAvailable(false);
 
-    // Update undo availability based on the stack.
+    // Update undo availability based on the stack's current state.
     emit sig_undoAvailable(!m_undo_stack.empty());
 
     return true;
@@ -349,16 +346,15 @@ bool MapFrontend::applyChanges(ProgressCounter &pc, const ChangeList &changes)
         }
     }
 
-    // Any successful batch operation (even if it didn't change map content overall)
-    // clears the redo stack.
-    if (!m_redo_stack.empty()) {
+    // A new action always clears the redo stack.
+    bool redo_stack_was_emptied = !m_redo_stack.empty();
+    if (redo_stack_was_emptied) {
         m_redo_stack.clear();
-        emit sig_redoAvailable(false);
-    } else {
-        emit sig_redoAvailable(false); // Ensure emitted if already false and stack empty
     }
+    // Always emit false for redo availability after a new action completes successfully.
+    emit sig_redoAvailable(false);
 
-    // Update undo availability based on the stack.
+    // Update undo availability based on the stack's current state.
     emit sig_undoAvailable(!m_undo_stack.empty());
 
     return true;

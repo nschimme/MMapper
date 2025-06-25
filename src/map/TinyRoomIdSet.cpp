@@ -16,7 +16,11 @@ static T convertTo(const U &input)
 {
     T copy;
     for (const auto &x : input) {
-        copy.insert(x);
+        if constexpr (std::is_same_v<T, RoomIdSet> || std::is_same_v<T, ExternalRoomIdSet>) {
+            copy = copy.insert(x);
+        } else {
+            copy.insert(x); // Assumes mutable API for other types like TinyRoomIdSet itself
+        }
     }
     return copy;
 }
@@ -50,10 +54,17 @@ private:
         constexpr RoomId VAL{42};
 
         Set set;
-        set.insert(VAL);
-        TEST_ASSERT(set.size() == 1);
-        TEST_ASSERT(set.first() == VAL);
-        set.erase(VAL);
+        if constexpr (std::is_same_v<Set, RoomIdSet> || std::is_same_v<Set, ExternalRoomIdSet>) {
+            set = set.insert(VAL);
+            TEST_ASSERT(set.size() == 1);
+            TEST_ASSERT(set.first() == VAL);
+            set = set.erase(VAL);
+        } else {
+            set.insert(VAL);
+            TEST_ASSERT(set.size() == 1);
+            TEST_ASSERT(set.first() == VAL);
+            set.erase(VAL);
+        }
         TEST_ASSERT(set.size() == 0);
         TEST_ASSERT(set.empty());
     }
@@ -66,7 +77,11 @@ private:
 
         Set set;
         for (uint32_t i = 0; i < SIZE; ++i) {
-            set.insert(RoomId{i});
+            if constexpr (std::is_same_v<Set, RoomIdSet> || std::is_same_v<Set, ExternalRoomIdSet>) {
+                set = set.insert(RoomId{i});
+            } else {
+                set.insert(RoomId{i});
+            }
             TEST_ASSERT(set.size() == i + 1);
         }
 
@@ -84,14 +99,22 @@ private:
         }
 
         for (uint32_t i = 0; i < SIZE - KEEP; ++i) {
-            set.erase(RoomId{i});
+            if constexpr (std::is_same_v<Set, RoomIdSet> || std::is_same_v<Set, ExternalRoomIdSet>) {
+                set = set.erase(RoomId{i});
+            } else {
+                set.erase(RoomId{i});
+            }
         }
 
         TEST_ASSERT(set.size() == KEEP);
         {
             Set tmp;
             for (const RoomId x : set) {
-                tmp.insert(x);
+                if constexpr (std::is_same_v<Set, RoomIdSet> || std::is_same_v<Set, ExternalRoomIdSet>) {
+                    tmp = tmp.insert(x);
+                } else {
+                    tmp.insert(x);
+                }
             }
             TEST_ASSERT(tmp == set);
         }
@@ -102,7 +125,8 @@ namespace test {
 void testTinyRoomIdSet()
 {
     static_assert(sizeof(RoomIdSet) > sizeof(TinyRoomIdSet));
-    static_assert(sizeof(RoomIdSet) == sizeof(std::set<RoomId>));
+    // The sizeof(std::set<RoomId>) comparison will change with BppTree.
+    // static_assert(sizeof(RoomIdSet) == sizeof(std::set<RoomId>));
     static_assert(sizeof(TinyRoomIdSet) == sizeof(uintptr_t));
 
     TestHelper<RoomIdSet>::test();

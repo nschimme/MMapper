@@ -14,32 +14,32 @@ void testRoomIdSet()
     TEST_ASSERT(a == b);
     TEST_ASSERT(!a.contains(RoomId(1)));
 
-    a.insert(RoomId(1));
+    a = a.insert(RoomId(1));
 
     TEST_ASSERT(a.contains(RoomId(1)));
     TEST_ASSERT(a != b);
 
-    b.insert(RoomId(1));
+    b = b.insert(RoomId(1));
     TEST_ASSERT(!a.containsElementNotIn(b));
     TEST_ASSERT(a == b);
 
-    a.insert(RoomId(7));
+    a = a.insert(RoomId(7));
     TEST_ASSERT(a.containsElementNotIn(b));
     TEST_ASSERT(a != b);
 
-    b.insert(RoomId(7));
+    b = b.insert(RoomId(7));
     TEST_ASSERT(!a.containsElementNotIn(b));
     TEST_ASSERT(a == b);
 
-    b.erase(RoomId(7));
+    b = b.erase(RoomId(7));
     TEST_ASSERT(a.containsElementNotIn(b));
     TEST_ASSERT(a != b);
 
-    b.insert(RoomId(8));
+    b = b.insert(RoomId(8));
     TEST_ASSERT(a.containsElementNotIn(b));
     TEST_ASSERT(a != b);
 
-    b.insert(RoomId(7));
+    b = b.insert(RoomId(7));
     TEST_ASSERT(!a.containsElementNotIn(b));
     TEST_ASSERT(a != b);
 }

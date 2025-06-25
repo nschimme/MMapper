@@ -52,11 +52,10 @@ void insertId(ImmUnorderedMap<Key, RoomIdSet> &map, const Key &key, const RoomId
 {
     const RoomIdSet *const old = map.find(key);
     if (old == nullptr) {
-        map.set(key, RoomIdSet{id});
+        map.set(key, RoomIdSet{id}); // RoomIdSet constructor creates a set with one element
     } else if (!old->contains(id)) {
-        auto copy = *old;
-        copy.insert(id);
-        map.set(key, copy);
+        RoomIdSet updated_set = old->insert(id); // insert() is const and returns new RoomIdSet
+        map.set(key, updated_set);
     }
 }
 
@@ -68,12 +67,11 @@ void removeId(ImmUnorderedMap<Key, RoomIdSet> &map, const Key &key, const RoomId
         return;
     }
 
-    auto copy = *old;
-    copy.erase(id);
-    if (copy.empty()) {
+    RoomIdSet updated_set = old->erase(id); // erase() is const and returns new RoomIdSet
+    if (updated_set.empty()) {
         map.erase(key);
     } else {
-        map.set(key, copy);
+        map.set(key, updated_set);
     }
 }
 
@@ -1218,8 +1216,10 @@ World World::init(ProgressCounter &counter,
             std::unordered_map<RoomArea, AreaInfo> map;
             AreaInfo global;
             for (const auto &room : rooms) {
-                map[room.getArea()].roomSet.insert(room.id);
-                global.roomSet.insert(room.id);
+                // For std::unordered_map, operator[] creates if not exists.
+                // Then we modify the RoomIdSet member using its COW API.
+                map[room.getArea()].roomSet = map[room.getArea()].roomSet.insert(room.id);
+                global.roomSet = global.roomSet.insert(room.id);
                 counter.step();
             }
             counter.setNewTask(ProgressMsg{"inserting rooms to areas"}, 1);

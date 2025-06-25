@@ -399,63 +399,61 @@ public:
 
         if (hasOne()) {
             if (getOnly() == id) {
-                clear();
+                clear(); // m_var becomes empty
             }
             return;
         }
 
-        auto &big = getBig();
-        big.erase(id);
+        // HasBig case
+        // getBig() returns BigSet&, but BigSet (BasicRoomIdSet) methods are now const and return new values.
+        // We need to get the old set, call its COW erase, and assign the new unique_ptr.
+        const BigSet current_big_set = getBig(); // Get a const ref/copy to the current big set content
+        BigSet updated_big_set = current_big_set.erase(id); // This returns a new COW BasicRoomIdSet
 
-        if (big.empty()) {
-            clear();
-            return;
+        if (updated_big_set.empty()) {
+            clear(); // m_var becomes empty
+        } else if (updated_big_set.size() == 1) {
+            // Shrink to single element storage
+            assign(updated_big_set.first()); // assign(Type) handles clearing old m_var and setting single value
+        } else {
+            // Assign the new non-empty, multi-element big set
+            assign(std::make_unique<BigSet>(std::move(updated_big_set)));
         }
-
-        if (big.size() > 1) {
-            return;
-        }
-
-        // shrink since we just have one element
-        const auto first = *big.begin();
-
-        assert(hasBig());
-        assign(first); // conversion happens here
-        assert(hasOne());
     }
 
     void insert(const Type id)
     {
         assert(!IdHelper_::isInvalid(id));
 
-        if (contains(id)) {
+        if (contains(id)) { // contains() itself needs to be correct for hasBig() case with COW set.
             return;
         }
 
         if (isEmpty()) {
-            assign(id);
+            assign(id); // Sets as single value
             assert(hasOne());
             return;
         }
 
         if (hasBig()) {
-            auto &big = getBig();
-            big.insert(id);
+            const BigSet current_big_set = getBig();
+            BigSet updated_big_set = current_big_set.insert(id);
+            assign(std::make_unique<BigSet>(std::move(updated_big_set)));
+            assert(hasBig()); // Should still be big or have grown
             return;
         }
 
-        if (getOnly() == id) {
-            return;
-        }
-
-        // convert to BigSet
-        UniqueBigSet uniqueBigSet = std::make_unique<BigSet>();
-        auto &big = *uniqueBigSet;
-        big.insert(getOnly());
-        big.insert(id);
-
+        // Must be hasOne() and id is not currently in set (checked by contains(id) above)
         assert(hasOne());
-        assign(std::exchange(uniqueBigSet, {})); // conversion to BigSet happens here
+
+        Type current_val = getOnly();
+        // Convert to BigSet: create a new BigSet, add current_val, add new id.
+        // BigSet() creates an empty COW BasicRoomIdSet.
+        BigSet new_big_content; // Default empty
+        new_big_content = new_big_content.insert(current_val);
+        new_big_content = new_big_content.insert(id);
+
+        assign(std::make_unique<BigSet>(std::move(new_big_content)));
         assert(hasBig());
     }
 

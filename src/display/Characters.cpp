@@ -451,6 +451,6 @@ void MapCanvas::drawGroupCharacters(CharacterBatch &batch)
         const bool fill = !drawnRoomIds.contains(id);
 
         batch.drawCharacter(pos, color, fill);
-        drawnRoomIds.insert(id);
+        drawnRoomIds = drawnRoomIds.insert(id);
     }
 }

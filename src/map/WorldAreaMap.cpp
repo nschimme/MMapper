@@ -14,7 +14,7 @@ void AreaInfo::remove(const RoomId id)
         return;
     }
 
-    roomSet.erase(id);
+    roomSet = roomSet.erase(id);
 }
 
 AreaInfoMap::AreaInfoMap()
@@ -55,7 +55,7 @@ bool AreaInfoMap::operator==(const AreaInfoMap &other) const
 
 void AreaInfoMap::insert(const RoomArea &areaName, const RoomId id)
 {
-    m_global.roomSet.insert(id);
+    m_global.roomSet = m_global.roomSet.insert(id);
 
     // REVISIT: use update()?
     m_map.set(areaName, [id, ptr = m_map.find(areaName)]() -> AreaInfo {
@@ -63,7 +63,7 @@ void AreaInfoMap::insert(const RoomArea &areaName, const RoomId id)
         if (ptr != nullptr) {
             tmp = *ptr;
         }
-        tmp.roomSet.insert(id);
+        tmp.roomSet = tmp.roomSet.insert(id);
         return tmp;
     }());
 }

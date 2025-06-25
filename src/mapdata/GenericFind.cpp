@@ -12,7 +12,7 @@ RoomIdSet genericFind(const Map &map, const RoomFilter &f)
     for (const RoomId id : map.getRooms()) {
         const auto &room = map.getRawRoom(id);
         if (f.filter(room)) {
-            result.insert(id);
+            result = result.insert(id);
         }
     }
     return result;

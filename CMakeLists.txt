@@ -114,6 +114,7 @@ endif()
 
 add_subdirectory(external/glm)
 add_subdirectory(external/immer)
+add_subdirectory(external/bpptree)
 
 # Extract git branch and revision
 if(EXISTS "${PROJECT_SOURCE_DIR}/.git")

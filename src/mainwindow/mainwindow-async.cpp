@@ -1003,11 +1003,11 @@ bool MainWindow::slot_generateBaseMap()
                     if (newMap.findRoomHandle(maybe)) {
                         return maybe;
                     }
-                    seen.insert(maybe);
+                    seen = seen.insert(maybe);
                     const auto oldr = oldMap.findRoomHandle(maybe);
                     for (const auto &ex : oldr.getExits()) {
-                        for (const auto to : ex.outgoing) {
-                            if (!seen.contains(to)) {
+                        for (const auto to : ex.outgoing) { // ex.outgoing is TinyRoomIdSet
+                            if (!seen.contains(to)) { // .contains on RoomIdSet is fine
                                 todo.push_back(to);
                             }
                         }

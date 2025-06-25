@@ -497,7 +497,7 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
                 assert(static_cast<int>(std::lround(pos.z)) == z);
                 const Coordinate c2 = MouseSel{Coordinate2f{pos.x, pos.y}, z}.getCoordinate();
                 if (const auto r = m_data.findRoomHandle(c2)) {
-                    tmpSel.insert(r.getId());
+                    tmpSel = tmpSel.insert(r.getId());
                 }
             }
 

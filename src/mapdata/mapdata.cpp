@@ -186,19 +186,20 @@ bool MapData::isEmpty() const
     return getCurrentMap().empty();
 }
 
-void MapData::removeMissing(RoomIdSet &set) const
+RoomIdSet MapData::removeMissing(const RoomIdSet &inputSet) const
 {
-    RoomIdSet invalid;
-
-    for (const RoomId id : set) {
+    RoomIdSet invalid; // This will store IDs to be removed.
+    for (const RoomId id : inputSet) { // Iterate the input const RoomIdSet
         if (!findRoomHandle(id)) {
-            invalid.insert(id);
+            invalid = invalid.insert(id); // Build up the set of invalid IDs using COW API
         }
     }
 
-    for (const RoomId id : invalid) {
-        set.erase(id);
+    RoomIdSet resultSet = inputSet; // Start with a (cheap COW) copy of the input set
+    for (const RoomId id : invalid) { // Iterate the set of invalid IDs
+        resultSet = resultSet.erase(id); // Erase from the resultSet using COW API
     }
+    return resultSet;
 }
 
 void MapData::setMapData(const MapLoadData &mapLoadData)

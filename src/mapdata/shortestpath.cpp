@@ -131,7 +131,7 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
         if (visited.contains(room_id)) {
             continue;
         }
-        visited.insert(room_id);
+        visited = visited.insert(room_id);
         if (f.filter(thisr.getRaw())) {
             recipient.receiveShortestPath(sp_nodes, spindex);
             if (--max_hits == 0) {

@@ -42,10 +42,10 @@ public:
     NODISCARD RoomId getFirstRoomId() const;
 
 public:
-    void insert(const RoomId id) { m_set.insert(id); }
+    void insert(const RoomId id) { m_set = m_set.insert(id); } // COW update
     void insert(const RoomHandle &room);
-    void erase(RoomId targetId) { m_set.erase(targetId); }
-    void clear() { m_set = {}; }
+    void erase(RoomId targetId) { m_set = m_set.erase(targetId); } // COW update
+    void clear() { m_set = RoomIdSet{}; } // Assign new empty COW set
 
 public:
     NODISCARD const RoomIdSet &getRoomIds() const { return m_set; }

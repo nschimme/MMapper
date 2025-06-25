@@ -199,7 +199,7 @@ public:
     }
 
 private:
-    void removeMissing(RoomIdSet &set) const;
+    NODISCARD RoomIdSet removeMissing(const RoomIdSet &set) const;
 
 signals:
     void sig_log(const QString &, const QString &);

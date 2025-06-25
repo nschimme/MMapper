@@ -174,7 +174,7 @@ RoomIdSet MapFrontend::findAllRooms(const Coordinate &input_min, const Coordinat
     for (const RoomId id : map.getRooms()) {
         const auto &r = map.getRoomHandle(id);
         if (bounds.contains(r.getPosition())) {
-            result.insert(r.getId());
+            result = result.insert(r.getId());
         }
     }
     return result;

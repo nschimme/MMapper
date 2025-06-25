@@ -681,9 +681,11 @@ set_target_properties(
 
 target_include_directories(mmapper SYSTEM PUBLIC ${GLM_INCLUDE_DIR})
 target_include_directories(mmapper SYSTEM PUBLIC ${IMMER_INCLUDE_DIR})
+target_include_directories(mmapper SYSTEM PUBLIC ${BPPTREE_INCLUDE_DIR})
 target_include_directories(mm_global SYSTEM PUBLIC
         ${GLM_INCLUDE_DIR}
         ${IMMER_INCLUDE_DIR}
+        ${BPPTREE_INCLUDE_DIR}
         ${Qt5Core_INCLUDE_DIRS}
         ${Qt5Widgets_INCLUDE_DIRS}
         #${Qt5_Network_INCLUDE_DIRS}
@@ -692,6 +694,7 @@ target_include_directories(mm_global SYSTEM PUBLIC
 target_include_directories(mm_map SYSTEM PUBLIC
         ${GLM_INCLUDE_DIR}
         ${IMMER_INCLUDE_DIR}
+        ${BPPTREE_INCLUDE_DIR}
         ${Qt5Core_INCLUDE_DIRS}
         ${Qt5Widgets_INCLUDE_DIRS}
         #${Qt5_Network_INCLUDE_DIRS}
@@ -700,10 +703,12 @@ target_include_directories(mm_map SYSTEM PUBLIC
 target_link_libraries(mm_global PUBLIC
     Qt5::Core
     Qt5::Widgets
+    bpptree_interface
 )
 target_link_libraries(mm_map PUBLIC
     Qt5::Core
     Qt5::Widgets
+    bpptree_interface
 )
 add_dependencies(mmapper mm_global mm_map)
 add_dependencies(mm_map mm_global)
@@ -714,10 +719,18 @@ if(NOT GLM_FOUND)
     add_dependencies(mm_global glm)
 endif()
 if(NOT IMMER_FOUND)
-    add_dependencies(mmapper immer)
-    add_dependencies(mm_map immer)
+    add_dependencies(mmapper immer) # This should be immer_project if immer also uses ExternalProject
+    add_dependencies(mm_map immer)   # Similar to bpptree_external below
     add_dependencies(mm_global immer)
 endif()
+# Add dependency on the BppTree external project to ensure it's downloaded
+# BPPTREE_PROJECT_NAME was set in external/bpptree/CMakeLists.txt but not directly accessible here.
+# However, bpptree_interface depends on bpptree_external, so linking bpptree_interface
+# should correctly order the build.
+# If direct dependency is needed:
+# add_dependencies(mm_map bpptree_external)
+# add_dependencies(mm_global bpptree_external)
+# For now, relying on the dependency chain via bpptree_interface.
 
 if(WIN32)
     target_link_libraries(mmapper PUBLIC ws2_32)

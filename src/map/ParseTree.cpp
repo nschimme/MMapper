@@ -117,7 +117,7 @@ RoomIdSet getRooms(const Map &map, const ParseTree &tree, const ParseEvent &even
     for (const RoomId id : set) {
         if (const auto optRoom = map.findRoomHandle(id)) {
             if (tryReport(optRoom)) {
-                results.insert(id);
+                results = results.insert(id);
                 ++numReported;
             }
         }

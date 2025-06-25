@@ -33,5 +33,5 @@ void RoomSelection::insert(const RoomHandle &room)
 
 void RoomSelection::removeMissing(MapData &mapData)
 {
-    mapData.removeMissing(m_set);
+    m_set = mapData.removeMissing(m_set);
 }

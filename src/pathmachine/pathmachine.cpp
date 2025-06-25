@@ -581,7 +581,7 @@ void PathMachine::experimenting(const SigParseEvent &sigParseEvent, ChangeList &
                 if (getMapMode() == MapModeEnum::MAP) {
                     m_map.slot_createRoom(sigParseEvent, working.getPosition() + move);
                 }
-                pathEnds.insert(workingId);
+                pathEnds = pathEnds.insert(workingId);
             }
         }
         // Look for appropriate rooms (including those we just created)

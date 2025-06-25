@@ -59,7 +59,7 @@ FindRoomsDlg::FindRoomsDlg(MapData &md, QWidget *const parent)
             const auto id = ExternalRoomId{selectedItem->text(0).toUInt()};
             if (const auto room = map.findRoomHandle(id)) {
                 sum += room.getPosition().to_vec2();
-                tmpSet.insert(room.getId());
+                tmpSet = tmpSet.insert(room.getId());
             }
         }
 

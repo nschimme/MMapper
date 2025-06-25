@@ -6,6 +6,7 @@ include_directories(
 
 include_directories(SYSTEM ${GLM_INCLUDE_DIR})
 include_directories(SYSTEM ${IMMER_INCLUDE_DIR})
+include_directories(SYSTEM ${BPPTREE_INCLUDE_DIR})
 
 if(MMAPPER_IS_DEBUG)
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")

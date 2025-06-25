@@ -1,6 +1,7 @@
 <!DOCTYPE RCC><RCC version="1.0">
     <qresource>
         <file alias="AUTHORS.txt">../../AUTHORS.txt</file>
+        <file>LICENSE.BOOST</file>
         <file>LICENSE.GLM</file>
         <file>LICENSE.GPL2</file>
         <file>LICENSE.LGPL</file>

@@ -133,7 +133,13 @@ AboutDialog::AboutDialog(QWidget *parent)
           "<a href=\"https://www.openssl.org/\">OpenSSL toolkit</a>"
           ".</p>"
           "<pre>"
-        + loadResource(":/LICENSE.OPENSSL") + "</pre>");
+        + loadResource(":/LICENSE.OPENSSL") + "</pre>"
+          "<hr/><h1>Boost Software License 1.0</h1>"
+          "<p>This product contains code from the "
+          "<a href=\"https://github.com/arximboldi/immer\">immer</a>"
+          " project.</p>"
+          "<pre>"
+        + loadResource(":/LICENSE.BOOST") + "</pre>");
     setFixedFont(licenseView);
 
     adjustSize();

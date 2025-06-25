@@ -159,20 +159,26 @@ AboutDialog::AboutDialog(QWidget *parent)
                          ":/LICENSE.LGPL"});
     }
 
-    QString allLicensesText;
-    for (const auto &license : licenses) {
-        allLicensesText += "<hr/><h1>" + license.title + "</h1>";
-        if (!license.introText.isEmpty()) {
-            allLicensesText += license.introText;
+    QString allLicensesTextHtml;
+    if (!licenses.isEmpty()) {
+        const auto &firstLicense = licenses.first();
+        allLicensesTextHtml += "<h1>" + firstLicense.title + "</h1>";
+        if (!firstLicense.introText.isEmpty()) {
+            allLicensesTextHtml += firstLicense.introText;
         }
-        allLicensesText += "<pre>" + loadResource(license.resourcePath) + "</pre>";
-    }
-    // Remove the first <hr/>
-    if (!allLicensesText.isEmpty()) {
-        allLicensesText = allLicensesText.mid(5);
+        allLicensesTextHtml += "<pre>" + loadResource(firstLicense.resourcePath) + "</pre>";
+
+        for (int i = 1; i < licenses.size(); ++i) {
+            const auto &license = licenses.at(i);
+            allLicensesTextHtml += "<hr/><h1>" + license.title + "</h1>";
+            if (!license.introText.isEmpty()) {
+                allLicensesTextHtml += license.introText;
+            }
+            allLicensesTextHtml += "<pre>" + loadResource(license.resourcePath) + "</pre>";
+        }
     }
 
-    licenseView->setText(allLicensesText);
+    licenseView->setText(allLicensesTextHtml);
     setFixedFont(licenseView);
 
     adjustSize();

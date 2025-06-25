@@ -379,7 +379,9 @@ void MapFrontend::slot_undo()
     m_current.map = m_undo_stack.back();
     m_undo_stack.pop_back();
 
-    setCurrentMap(m_current.map); // This version of setCurrentMap takes a Map object
+    // Call the MapApplyResult version directly to apply the map state
+    // without clearing the undo/redo stacks.
+    setCurrentMap(MapApplyResult{m_current.map});
 
     emit sig_undoAvailable(!m_undo_stack.empty());
     emit sig_redoAvailable(true); // Redo is now possible
@@ -399,8 +401,10 @@ void MapFrontend::slot_redo()
     m_current.map = m_redo_stack.back();
     m_redo_stack.pop_back();
 
-    setCurrentMap(m_current.map); // This version of setCurrentMap takes a Map object
+    // Call the MapApplyResult version directly to apply the map state
+    // without clearing the undo/redo stacks.
+    setCurrentMap(MapApplyResult{m_current.map});
 
-    emit sig_undoAvailable(true); // Undo is now possible
-    emit sig_redoAvailable(!m_redo_stack.empty());
+    emit sig_undoAvailable(true); // Undo is now possible (to undo the redo)
+    emit sig_redoAvailable(!m_redo_stack.empty()); // Update redo availability
 }

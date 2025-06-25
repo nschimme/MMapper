@@ -64,32 +64,33 @@ void MapFrontend::revert()
 
 void MapFrontend::clear()
 {
-    // Push current state to undo stack to make clear undoable
-    if (!m_current.map.getRoomSet().empty() || !m_undo_stack.empty()) {
-        // Only push if there's something to clear or if there's an existing undo history
-        // This avoids pushing an empty map if clear is called multiple times on an empty map initially.
-        m_undo_stack.push_back(m_current.map);
-        if (m_undo_stack.size() > MAX_UNDO_HISTORY) {
-            m_undo_stack.erase(m_undo_stack.begin());
-        }
+    // Push current state to undo history to make clear undoable
+    if (!m_current.map.getRoomSet().empty() || !m_undo_history.isEmpty()) {
+        // Only push if there's something to clear or if there's an existing undo history.
+        m_undo_history.push(m_current.map);
+        // Capping is handled by MapHistory::push.
     }
 
-    if (!m_redo_stack.empty()) {
-        m_redo_stack.clear();
-        emit sig_redoAvailable(false);
-    } else {
-        emit sig_redoAvailable(false); // Ensure emitted
+    if (!m_redo_history.isEmpty()) {
+        m_redo_history.clear();
+        // sig_redoAvailable will be emitted below
     }
+    // Always emit false for redo after a clear action.
+    emit sig_redoAvailable(false);
 
     emit sig_clearingMap();
-    setCurrentMap(Map{}); // This sets m_current.map to an empty map
+    // Set m_current.map to empty, then call the MapApplyResult version of setCurrentMap
+    // to update UI without clearing history stacks here.
+    m_current.map = Map{};
+    setCurrentMap(MapApplyResult{m_current.map});
+
     currentHasBeenSaved(); // This sets m_saved = m_current (which is now empty)
     checkSize(); // called for side effect of sending signal
     virt_clear();
 
-    // After clear, undo is available if we pushed something, redo is not.
-    emit sig_undoAvailable(!m_undo_stack.empty());
-    // sig_redoAvailable already emitted or handled
+    // After clear, undo is available if we pushed something to make 'clear' undoable.
+    emit sig_undoAvailable(!m_undo_history.isEmpty());
+    // sig_redoAvailable(false) was already emitted.
 }
 
 bool MapFrontend::createEmptyRoom(const Coordinate &c)
@@ -224,6 +225,11 @@ void MapFrontend::saveSnapshot()
 
 void MapFrontend::restoreSnapshot()
 {
+    // NOTE: Restoring a snapshot sets the current map to the snapshot's map state.
+    // It calls setCurrentMap(Map map), which, by design (similar to loading a file),
+    // clears the existing undo/redo history. Therefore, the act of restoring a
+    // snapshot is NOT undoable itself, and the history prior to restore is cleared.
+    // This is Option A as discussed: snapshot restore is a history reset point.
     setCurrentMap(m_snapshot.map);
 }
 
@@ -246,13 +252,13 @@ void MapFrontend::setCurrentMap(Map map)
     setCurrentMap(MapApplyResult{std::move(map)});
 
     // When a map is set directly (e.g., loading a new map), clear undo/redo history.
-    if (!m_undo_stack.empty()) {
-        m_undo_stack.clear();
+    if (!m_undo_history.isEmpty()) {
+        m_undo_history.clear();
     }
-    if (!m_redo_stack.empty()) {
-        m_redo_stack.clear();
+    if (!m_redo_history.isEmpty()) {
+        m_redo_history.clear();
     }
-    // Emit signals after stacks are definitively cleared.
+    // Emit signals after history objects are definitively cleared.
     emit sig_undoAvailable(false);
     emit sig_redoAvailable(false);
 }
@@ -279,23 +285,20 @@ bool MapFrontend::applySingleChange(ProgressCounter &pc, const Change &change)
     bool map_content_changed = m_current.map != previous_map_state;
 
     if (map_content_changed) {
-        m_undo_stack.push_back(previous_map_state);
-        if (m_undo_stack.size() > MAX_UNDO_HISTORY) {
-            // Remove the oldest state if history limit exceeded
-            m_undo_stack.erase(m_undo_stack.begin());
-        }
+        m_undo_history.push(previous_map_state);
+        // Capping logic is now inside MapHistory::push
     }
 
     // A new action always clears the redo stack.
-    bool redo_stack_was_emptied = !m_redo_stack.empty();
-    if (redo_stack_was_emptied) {
-        m_redo_stack.clear();
+    bool redo_history_was_emptied = !m_redo_history.isEmpty();
+    if (redo_history_was_emptied) {
+        m_redo_history.clear();
     }
     // Always emit false for redo availability after a new action completes successfully.
     emit sig_redoAvailable(false);
 
-    // Update undo availability based on the stack's current state.
-    emit sig_undoAvailable(!m_undo_stack.empty());
+    // Update undo availability based on the history's current state.
+    emit sig_undoAvailable(!m_undo_history.isEmpty());
 
     return true;
 }
@@ -339,23 +342,20 @@ bool MapFrontend::applyChanges(ProgressCounter &pc, const ChangeList &changes)
     bool map_content_changed = m_current.map != previous_map_state;
 
     if (map_content_changed) {
-        m_undo_stack.push_back(previous_map_state);
-        if (m_undo_stack.size() > MAX_UNDO_HISTORY) {
-            // Remove the oldest state if history limit exceeded
-            m_undo_stack.erase(m_undo_stack.begin());
-        }
+        m_undo_history.push(previous_map_state);
+        // Capping logic is now inside MapHistory::push
     }
 
     // A new action always clears the redo stack.
-    bool redo_stack_was_emptied = !m_redo_stack.empty();
-    if (redo_stack_was_emptied) {
-        m_redo_stack.clear();
+    bool redo_history_was_emptied = !m_redo_history.isEmpty();
+    if (redo_history_was_emptied) {
+        m_redo_history.clear();
     }
     // Always emit false for redo availability after a new action completes successfully.
     emit sig_redoAvailable(false);
 
-    // Update undo availability based on the stack's current state.
-    emit sig_undoAvailable(!m_undo_stack.empty());
+    // Update undo availability based on the history's current state.
+    emit sig_undoAvailable(!m_undo_history.isEmpty());
 
     return true;
 }

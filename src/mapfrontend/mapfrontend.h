@@ -11,13 +11,14 @@
 #include "../map/parseevent.h"
 #include "../map/roomid.h"
 
-#include <deque>
+#include "MapHistory.h" // Include the new MapHistory class
 #include <map>
 #include <memory>
 #include <optional>
 #include <set>
 #include <utility>
-#include <vector>
+// #include <vector> // No longer needed for m_undo_stack/m_redo_stack
+// #include <deque> // No longer needed directly here, MapHistory uses it
 
 #include <QString>
 #include <QtCore>
@@ -46,10 +47,10 @@ private:
     MapState m_current;
     MapState m_snapshot;
 
-    // Undo/Redo stacks
-    std::vector<Map> m_undo_stack;
-    std::vector<Map> m_redo_stack;
-    static const size_t MAX_UNDO_HISTORY = 100;
+    // Undo/Redo history using MapHistory class
+    MapHistory m_undo_history;
+    MapHistory m_redo_history;
+    static const size_t MAX_UNDO_HISTORY = 100; // Used to initialize m_undo_history
 
 public:
     explicit MapFrontend(QObject *parent);

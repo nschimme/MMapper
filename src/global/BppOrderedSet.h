@@ -8,7 +8,7 @@
 #include <bpptree/ordered.hpp>
 
 #include <initializer_list>
-#include <stdexcept> // For std::out_of_range (used by BppTree's front/back)
+#include <stdexcept> // For std::out_of_range (used by BppTree's front/back if they were here)
 #include <algorithm> // For std::equal (though bpptree::Persistent might have its own ==)
 
 // BppOrderedSet is a lean struct wrapping bpptree::BppTreeSet::Persistent.
@@ -18,12 +18,12 @@
 template<typename Type_>
 struct BppOrderedSet
 {
-public: // Public by default in struct, but explicit for clarity
+public:
     using ValueType = Type_;
     using InternalSet = typename bpptree::BppTreeSet<ValueType>::Persistent;
     using ConstIterator = typename InternalSet::const_iterator;
 
-    InternalSet m_set; // Made public for potential direct access by wrapping classes if absolutely necessary, though prefer methods.
+    InternalSet m_set; // Public member for flexibility by wrapping classes
 
 public:
     // --- Constructors ---
@@ -54,7 +54,7 @@ public:
         return *this;
     }
     BppOrderedSet& operator=(std::initializer_list<ValueType> ilist) {
-        m_set = InternalSet(); // Clear current content
+        m_set = InternalSet();
         if (ilist.size() > 0) {
             auto transient_set = m_set.transient();
             for (const auto& item : ilist) {
@@ -93,25 +93,16 @@ public:
 
     // --- Comparison Operators ---
     NODISCARD bool operator==(const BppOrderedSet &rhs) const {
-        return m_set == rhs.m_set; // Relies on bpptree::Persistent::operator==
+        return m_set == rhs.m_set;
     }
     NODISCARD bool operator!=(const BppOrderedSet &rhs) const {
         return !(operator==(rhs));
     }
 
     // --- Access to underlying bpptree set ---
-    // For use by wrapping classes that might need more direct control or specific bpp_tree features.
     NODISCARD const InternalSet& bpptreeSet() const { return m_set; }
-    // Non-const version to allow wrapper to modify (e.g. for efficient insertAll by getting transient tree)
-    // This is a bit of a controlled escape hatch.
     InternalSet& bpptreeSet() { return m_set; }
 
-    // Methods intentionally EXCLUDED from this lean generic struct:
-    // - insertAll(const BppOrderedSet& other)
-    // - containsElementNotIn(const BppOrderedSet& other) const
-    // - first() const
-    // - last() const
-    // These are considered more specialized and can be implemented by
-    // wrapping classes (like RoomIdSet) if needed.
-    // BppTree's front() and back() can be used by wrappers to implement first()/last().
+    // Methods intentionally EXCLUDED: insertAll, containsElementNotIn, first, last
+    // BppTree's m_set.front() and m_set.back() can be accessed via bpptreeSet() if needed by wrappers.
 };

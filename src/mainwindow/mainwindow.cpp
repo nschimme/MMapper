@@ -582,6 +582,26 @@ void MainWindow::createActions()
     exitAct->setStatusTip(tr("Exit the application"));
     connect(exitAct, &QAction::triggered, this, &QWidget::close);
 
+    m_undoAction = new QAction(QIcon::fromTheme("edit-undo",
+                                                QIcon(":/icons/undo.png")), // Placeholder icon
+                               tr("&Undo"),
+                               this);
+    m_undoAction->setShortcut(QKeySequence::Undo);
+    m_undoAction->setStatusTip(tr("Undo the last action"));
+    connect(m_undoAction, &QAction::triggered, m_mapData, &MapData::slot_undo);
+    connect(m_mapData, &MapData::sig_undoAvailable, m_undoAction, &QAction::setEnabled);
+    m_undoAction->setEnabled(false);
+
+    m_redoAction = new QAction(QIcon::fromTheme("edit-redo",
+                                                QIcon(":/icons/redo.png")), // Placeholder icon
+                               tr("&Redo"),
+                               this);
+    m_redoAction->setShortcut(QKeySequence::Redo);
+    m_redoAction->setStatusTip(tr("Redo the last undone action"));
+    connect(m_redoAction, &QAction::triggered, m_mapData, &MapData::slot_redo);
+    connect(m_mapData, &MapData::sig_redoAvailable, m_redoAction, &QAction::setEnabled);
+    m_redoAction->setEnabled(false);
+
     preferencesAct = new QAction(QIcon::fromTheme("preferences-desktop",
                                                   QIcon(":/icons/preferences.png")),
                                  tr("&Preferences"),
@@ -1094,6 +1114,9 @@ void MainWindow::setupMenuBar()
     modeMenu->addAction(mapperMode.playModeAct);
     modeMenu->addAction(mapperMode.mapModeAct);
     modeMenu->addAction(mapperMode.offlineModeAct);
+    editMenu->addSeparator();
+    editMenu->addAction(m_undoAction);
+    editMenu->addAction(m_redoAction);
     editMenu->addSeparator();
 
     QMenu *infoMarkMenu = editMenu->addMenu(QIcon(":/icons/infomarkselection.png"), tr("M&arkers"));

@@ -82,6 +82,7 @@ set(mmapper_SRCS
     global/AsyncTasks.h
     global/Badge.cpp
     global/Badge.h
+    global/BppOrderedSet.h
     global/CaseUtils.cpp
     global/CaseUtils.h
     global/ChangeMonitor.h

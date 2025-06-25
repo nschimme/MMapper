@@ -11,12 +11,13 @@
 #include "../map/parseevent.h"
 #include "../map/roomid.h"
 
+#include <deque>
 #include <map>
 #include <memory>
 #include <optional>
 #include <set>
-#include <stack>
 #include <utility>
+#include <vector>
 
 #include <QString>
 #include <QtCore>
@@ -44,6 +45,11 @@ private:
     MapState m_saved;
     MapState m_current;
     MapState m_snapshot;
+
+    // Undo/Redo stacks
+    std::vector<Map> m_undo_stack;
+    std::vector<Map> m_redo_stack;
+    static const size_t MAX_UNDO_HISTORY = 100;
 
 public:
     explicit MapFrontend(QObject *parent);
@@ -114,9 +120,15 @@ signals:
     // working on this room can start some emergency action.
     void sig_mapSizeChanged(const Coordinate &, const Coordinate &);
     void sig_clearingMap();
+    void sig_undoAvailable(bool available);
+    void sig_redoAvailable(bool available);
 
 public slots:
     // createRoom creates a room without a lock
     // it will get deleted if no one looks for it for a certain time
     void slot_createRoom(const SigParseEvent &, const Coordinate &);
+
+    // Undo/Redo slots
+    void slot_undo();
+    void slot_redo();
 };

@@ -13,6 +13,14 @@
 #include <QtGui>
 #include <QtWidgets>
 
+namespace {
+struct LicenseInfo {
+    QString title;
+    QString introText;
+    QString resourcePath;
+};
+} // namespace
+
 NODISCARD static QString getBuildInformation()
 {
     const auto get_compiler = []() -> QString {
@@ -87,65 +95,84 @@ AboutDialog::AboutDialog(QWidget *parent)
     }
 
     /* Licenses tab */
-    licenseView->setText(
-        "<p>"
-        "This program is free software; you can redistribute it and/or "
-        "modify it under the terms of the GNU General Public License "
-        "as published by the Free Software Foundation; either version 2 "
-        "of the License, or (at your option) any later version."
-        "</p><p>"
-        "This program is distributed in the hope that it will be useful, "
-        "but WITHOUT ANY WARRANTY; without even the implied warranty of "
-        "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
-        "</p><p>"
-        "See the GNU General Public License for more details. "
-        "</p>"
-        "<hr/><h1>GNU General Public License 2.0</h1>"
-        "<pre>"
-        + loadResource(":/LICENSE.GPL2")
-        + "</pre>";
+    QList<LicenseInfo> licenses;
+    licenses.append({tr("GNU General Public License 2.0"),
+                     "<p>"
+                     "This program is free software; you can redistribute it and/or "
+                     "modify it under the terms of the GNU General Public License "
+                     "as published by the Free Software Foundation; either version 2 "
+                     "of the License, or (at your option) any later version."
+                     "</p><p>"
+                     "This program is distributed in the hope that it will be useful, "
+                     "but WITHOUT ANY WARRANTY; without even the implied warranty of "
+                     "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+                     "</p><p>"
+                     "See the GNU General Public License for more details. "
+                     "</p>",
+                     ":/LICENSE.GPL2"});
+
+    licenses.append({tr("DejaVu Fonts License"),
+                     "<p>" +
+                         tr("This license applies to the file "
+                            "<code>src/resources/fonts/DejaVuSansMono.ttf</code>") +
+                         "</p>",
+                     ":/fonts/LICENSE"});
+
+    licenses.append({tr("GLM License"),
+                     "<p>" +
+                         tr("This product contains code from the "
+                            "<a href=\"https://glm.g-truc.net/\">OpenGL Mathematics (GLM)</a>"
+                            " project.") +
+                         "</p>",
+                     ":/LICENSE.GLM"});
+
+    licenses.append({tr("QtKeychain License"),
+                     "<p>" +
+                         tr("This product contains code from the "
+                            "<a href=\"https://github.com/frankosterfeld/qtkeychain\">QtKeychain</a>"
+                            " project.") +
+                         "</p>",
+                     ":/LICENSE.QTKEYCHAIN"});
+
+    licenses.append({tr("OpenSSL License"),
+                     "<p>" +
+                         tr("Some versions of this product contains code from the "
+                            "<a href=\"https://www.openssl.org/\">OpenSSL toolkit</a>.") +
+                         "</p>",
+                     ":/LICENSE.OPENSSL"});
+
+    licenses.append({tr("Boost Software License 1.0"),
+                     "<p>" +
+                         tr("This product contains code from the "
+                            "<a href=\"https://github.com/arximboldi/immer\">immer</a>"
+                            " project.") +
+                         "</p>",
+                     ":/LICENSE.BOOST"});
+
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Windows) {
-        licenseView->append(
-            "<hr/><h1>GNU Lesser General Public License 2.1</h1>"
-            "<p>Some versions of this product contains code from the "
-            "following LGPLed libraries: "
-            "<a href=\"https://github.com/jrfonseca/drmingw\">DrMingW</a></p>"
-            "<pre>"
-            + loadResource(":/LICENSE.LGPL")
-            + "</pre>");
+        licenses.append({tr("GNU Lesser General Public License 2.1"),
+                         "<p>" +
+                             tr("Some versions of this product contains code from the "
+                                "following LGPLed libraries: "
+                                "<a href=\"https://github.com/jrfonseca/drmingw\">DrMingW</a>") +
+                             "</p>",
+                         ":/LICENSE.LGPL"});
     }
-    licenseView->append(
-        "<hr/><h1>DejaVu Fonts License</h1>"
-        "<p>This license applies to the file <code>src/resources/fonts/DejaVuSansMono.ttf</code></p>"
-          "<pre>"
-        + loadResource(":/fonts/LICENSE")
-        + "</pre>"
-          "<hr/><h1>GLM License</h1>"
-          "<p>This product contains code from the "
-          "<a href=\"https://glm.g-truc.net/\">OpenGL Mathematics (GLM)</a>"
-          " project.</p>"
-          "<pre>"
-        + loadResource(":/LICENSE.GLM")
-        + "</pre>"
-          "<hr/><h1>QtKeychain License</h1>"
-          "<p>This product contains code from the "
-          "<a href=\"https://github.com/frankosterfeld/qtkeychain\">QtKeychain</a>"
-          " project.</p>"
-          "<pre>"
-        + loadResource(":/LICENSE.QTKEYCHAIN")
-        + "</pre>"
-          "<hr/><h1>OpenSSL License</h1>"
-          "<p>Some versions of this product contains code from the "
-          "<a href=\"https://www.openssl.org/\">OpenSSL toolkit</a>"
-          ".</p>"
-          "<pre>"
-        + loadResource(":/LICENSE.OPENSSL") + "</pre>"
-          "<hr/><h1>Boost Software License 1.0</h1>"
-          "<p>This product contains code from the "
-          "<a href=\"https://github.com/arximboldi/immer\">immer</a>"
-          " project.</p>"
-          "<pre>"
-        + loadResource(":/LICENSE.BOOST") + "</pre>");
+
+    QString allLicensesText;
+    for (const auto &license : licenses) {
+        allLicensesText += "<hr/><h1>" + license.title + "</h1>";
+        if (!license.introText.isEmpty()) {
+            allLicensesText += license.introText;
+        }
+        allLicensesText += "<pre>" + loadResource(license.resourcePath) + "</pre>";
+    }
+    // Remove the first <hr/>
+    if (!allLicensesText.isEmpty()) {
+        allLicensesText = allLicensesText.mid(5);
+    }
+
+    licenseView->setText(allLicensesText);
     setFixedFont(licenseView);
 
     adjustSize();

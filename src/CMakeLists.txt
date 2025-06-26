@@ -82,6 +82,7 @@ set(mmapper_SRCS
     global/AsyncTasks.h
     global/Badge.cpp
     global/Badge.h
+    global/BppOrderedSet.h
     global/CaseUtils.cpp
     global/CaseUtils.h
     global/ChangeMonitor.h
@@ -681,7 +682,9 @@ set_target_properties(
 
 target_include_directories(mmapper SYSTEM PUBLIC ${GLM_INCLUDE_DIR})
 target_include_directories(mmapper SYSTEM PUBLIC ${IMMER_INCLUDE_DIR})
+target_include_directories(mmapper SYSTEM PUBLIC ${BPPTREE_INCLUDE_DIR})
 target_include_directories(mm_global SYSTEM PUBLIC
+        ${BPPTREE_INCLUDE_DIR}
         ${GLM_INCLUDE_DIR}
         ${IMMER_INCLUDE_DIR}
         ${Qt5Core_INCLUDE_DIRS}
@@ -690,6 +693,7 @@ target_include_directories(mm_global SYSTEM PUBLIC
         #${Qt5_OpenGL_INCLUDE_DIRS}
 )
 target_include_directories(mm_map SYSTEM PUBLIC
+        ${BPPTREE_INCLUDE_DIR}
         ${GLM_INCLUDE_DIR}
         ${IMMER_INCLUDE_DIR}
         ${Qt5Core_INCLUDE_DIRS}
@@ -718,6 +722,12 @@ if(NOT IMMER_FOUND)
     add_dependencies(mm_map immer)
     add_dependencies(mm_global immer)
 endif()
+if(NOT BPPTREE_FOUND)
+    add_dependencies(mmapper bpptree)
+    add_dependencies(mm_map bpptree)
+    add_dependencies(mm_global bpptree)
+endif()
+
 
 if(WIN32)
     target_link_libraries(mmapper PUBLIC ws2_32)

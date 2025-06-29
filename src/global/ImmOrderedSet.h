@@ -61,6 +61,10 @@ public:
     NODISCARD ConstIterator end() const { return m_vector.end(); }
 
 public:
+    // Added to allow access to the underlying flex_vector for custom iteration strategies
+    NODISCARD const Vector& get_flex_vector() const { return m_vector; }
+
+public:
     void clear() noexcept { m_vector = Vector(); }
 
 public:

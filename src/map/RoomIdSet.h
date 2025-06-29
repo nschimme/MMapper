@@ -3,6 +3,7 @@
 // Copyright (C) 2021 The MMapper Authors
 
 #include "../global/ImmOrderedSet.h"
+#include "../global/ImmUnorderedSet.h"
 #include "../global/macros.h"
 #include "roomid.h"
 
@@ -130,6 +131,7 @@ using RoomIdSet = detail::BasicRoomIdSet<RoomId>;
 using ExternalRoomIdSet = detail::BasicRoomIdSet<ExternalRoomId>;
 
 using ImmRoomIdSet = ImmOrderedSet<RoomId>;
+using ImmUnorderedRoomIdSet = ImmUnorderedSet<RoomId>;
 
 namespace test {
 extern void testRoomIdSet();

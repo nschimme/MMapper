@@ -15,6 +15,8 @@
 #include <deque>
 #include <optional>
 
+#include <variant> // Required for std::variant and std::visit
+
 RoomIdSet getRooms(const Map &map, const ParseTree &tree, const ParseEvent &event)
 {
     // REVISIT: use Timer here instead of manually doing the same thing with Clock::now(),
@@ -25,7 +27,10 @@ RoomIdSet getRooms(const Map &map, const ParseTree &tree, const ParseEvent &even
     static volatile bool fallbackToRemainder = true;
     static volatile bool fallbackToWholeMap = true;
 
-    const ImmRoomIdSet *const pSet = [&map, &event, &tree]() -> const ImmRoomIdSet * {
+    // Define a variant type for the set pointers
+    using SetPtrVariant = std::variant<const ImmRoomIdSet*, const ImmUnorderedRoomIdSet*, std::nullptr_t>;
+
+    const SetPtrVariant pSetVariant = [&map, &event, &tree]() -> SetPtrVariant {
         const World &world = map.getWorld();
         const RoomArea &areaName = event.getRoomArea();
 
@@ -36,55 +41,73 @@ RoomIdSet getRooms(const Map &map, const ParseTree &tree, const ParseEvent &even
         const bool hasDesc = !desc.empty();
 
         if (hasName && hasDesc) {
+            // tree.name_desc now holds ImmUnorderedRoomIdSet
             if (auto set = tree.name_desc.find(NameDesc{name, desc})) {
-                return set;
+                return set; // Returns const ImmUnorderedRoomIdSet*
             }
-
             MMLOG() << "[getRooms] Failed to find a match with name+desc. Falling back to name or desc...";
         }
 
         if (hasName) {
+            // tree.name_only now holds ImmUnorderedRoomIdSet
             if (auto ptr = tree.name_only.find(name)) {
-                return ptr;
+                return ptr; // Returns const ImmUnorderedRoomIdSet*
             }
         }
 
         if (hasDesc) {
+            // tree.desc_only now holds ImmUnorderedRoomIdSet
             if (auto ptr = tree.desc_only.find(desc)) {
-                return ptr;
+                return ptr; // Returns const ImmUnorderedRoomIdSet*
             }
         }
 
         if (fallbackToCurrentArea) {
             MMLOG() << "[getRooms] Falling back to the current area!";
             MMLOG() << "[getRooms] event: " << mmqt::toStdStringUtf8(event.toQString());
+            auto areaSetResult = world.findAreaRoomSet(areaName);
+            bool foundNonEmptySetInArea = false;
+            std::visit([&foundNonEmptySetInArea](auto* s_ptr) {
+                if (s_ptr && !s_ptr->empty()) {
+                    foundNonEmptySetInArea = true;
+                }
+            }, areaSetResult);
 
-            if (const auto *const set = world.findAreaRoomSet(areaName); set == nullptr) {
-                MMLOG() << "[getRooms] Area does not exist.";
-            } else if (set->empty()) {
-                MMLOG() << "[getRooms] Area was empty.";
+            if (foundNonEmptySetInArea) {
+                return areaSetResult;
             } else {
-                return set;
+                if (std::holds_alternative<std::nullptr_t>(areaSetResult)) {
+                     MMLOG() << "[getRooms] Area does not exist.";
+                } else {
+                     MMLOG() << "[getRooms] Area was empty.";
+                }
             }
         }
 
         if (fallbackToRemainder && !areaName.empty()) {
             MMLOG() << "[getRooms] Falling back to the remainder area...";
-            if (const auto *const set = world.findAreaRoomSet(RoomArea{}); set == nullptr) {
-                MMLOG() << "[getRooms] Fallback area does not exist.";
-            } else if (set->empty()) {
-                // this should just return nullptr.
-                MMLOG() << "[getRooms] Fallback area was empty.";
+            auto remainderSetResult = world.findAreaRoomSet(RoomArea{});
+            bool foundNonEmptySetInRemainder = false;
+            std::visit([&foundNonEmptySetInRemainder](auto* s_ptr) {
+                if (s_ptr && !s_ptr->empty()) {
+                    foundNonEmptySetInRemainder = true;
+                }
+            }, remainderSetResult);
+
+            if (foundNonEmptySetInRemainder) {
+                return remainderSetResult;
             } else {
-                return set;
+                 if (std::holds_alternative<std::nullptr_t>(remainderSetResult)) {
+                     MMLOG() << "[getRooms] Fallback area does not exist.";
+                } else {
+                     MMLOG() << "[getRooms] Fallback area was empty.";
+                }
             }
         }
 
         if (fallbackToWholeMap) {
             MMLOG() << "[getRooms] Falling back to the whole map...";
-            // this is probably unnecessary, and it's probably also the source of some bugs,
-            // since it could find a room known to be in a different area.
-            return &world.getRoomSet();
+            return &world.getRoomSet(); // Returns const ImmRoomIdSet*
         }
 
         MMLOG() << "[getRooms] Failed to find a match; giving up.";
@@ -93,51 +116,69 @@ RoomIdSet getRooms(const Map &map, const ParseTree &tree, const ParseEvent &even
     }();
 
     const auto t1 = Clock::now();
-
-    if (pSet == nullptr) {
-        MMLOG() << "[getRooms] Unable to find any matches.";
-        return {};
-    }
-
-    auto &set = *pSet;
-
-    const int tolerance = getConfig().pathMachine.matchingTolerance;
-    auto tryReport = [&event, tolerance](const RoomHandle &room) {
-        if (::compare(room.getRaw(), event, tolerance) == ComparisonResultEnum::DIFFERENT) {
-            return false;
-        }
-        return true;
-    };
-
-    MMLOG() << "[getRooms] Found " << set.size() << " potential match(es).";
-
     RoomIdSet results;
-    const auto t2 = Clock::now();
-    size_t numReported = 0;
-    set.for_each([&](const RoomId id) {
-        if (const auto optRoom = map.findRoomHandle(id)) {
-            if (tryReport(optRoom)) {
-                results.insert(id);
-                ++numReported;
-            }
+    Clock::time_point t2_for_timing = t1; // Initialize t2 for timing log
+    Clock::time_point t3_for_timing = t1; // Initialize t3 for timing log
+
+
+    std::visit([&](auto &&arg_pSet) {
+        if (!arg_pSet) {
+            MMLOG() << "[getRooms] Unable to find any matches (variant holds null or nullptr_t).";
+            t2_for_timing = Clock::now();
+            t3_for_timing = t2_for_timing;
+            return;
         }
-    });
-    const auto t3 = Clock::now();
 
-    MMLOG() << "[getRooms] Reported " << numReported << " potential match(es).";
+        using PSetType = std::decay_t<decltype(arg_pSet)>;
+        if constexpr (std::is_same_v<PSetType, std::nullptr_t>) {
+            MMLOG() << "[getRooms] Unable to find any matches (variant holds std::nullptr_t).";
+            t2_for_timing = Clock::now();
+            t3_for_timing = t2_for_timing;
+            return;
+        }
 
-    auto &&os = MMLOG();
-    os << "[getRooms] timing follows:\n";
+        const auto& set = *arg_pSet;
 
-    auto report = [&os](std::string_view what, Clock::time_point a, Clock::time_point b) {
+        const int tolerance = getConfig().pathMachine.matchingTolerance;
+        auto tryReport = [&event, tolerance](const RoomHandle &room) {
+            if (::compare(room.getRaw(), event, tolerance) == ComparisonResultEnum::DIFFERENT) {
+                return false;
+            }
+            return true;
+        };
+
+        MMLOG() << "[getRooms] Found " << set.size() << " potential match(es).";
+
+        t2_for_timing = Clock::now();
+        size_t numReported = 0;
+        set.for_each([&](const RoomId id) {
+            if (const auto optRoom = map.findRoomHandle(id)) {
+                if (tryReport(optRoom)) {
+                    results.insert(id);
+                    ++numReported;
+                }
+            }
+        });
+        t3_for_timing = Clock::now();
+
+        MMLOG() << "[getRooms] Reported " << numReported << " potential match(es).";
+
+    }, pSetVariant);
+
+    const auto t_end_visit = Clock::now();
+
+    auto &&os_log = MMLOG();
+    os_log << "[getRooms] timing follows:\n";
+
+    auto report_timing = [&os_log](std::string_view what, Clock::time_point a, Clock::time_point b) {
         auto ms = static_cast<double>(static_cast<std::chrono::nanoseconds>(b - a).count()) * 1e-6;
-        os << "[TIMER] [getRooms] " << what << ": " << ms << " ms\n";
+        os_log << "[TIMER] [getRooms] " << what << ": " << ms << " ms\n";
     };
 
-    report("part0. lookup rooms", t0, t1);
-    report("part1. (nothing)", t1, t2);
-    report("part2. for(...) tryReport() ", t2, t3);
-    report("overall", t0, t3);
+    report_timing("part0. lookup rooms (lambda)", t0, t1);
+    report_timing("part1. (visitor setup, etc.)", t1, t2_for_timing);
+    report_timing("part2. for(...) tryReport() ", t2_for_timing, t3_for_timing);
+    report_timing("overall", t0, t_end_visit);
 
     return results;
 }

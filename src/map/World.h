@@ -74,6 +74,11 @@ private:
     NODISCARD const AreaInfo &getGlobalArea() const { return getArea(std::nullopt); }
 
 public:
+    // NODISCARD const AreaInfo *findArea(const std::optional<RoomArea> &area) const; // Old
+    // NODISCARD const AreaInfo &getArea(const std::optional<RoomArea> &area) const; // Old
+    NODISCARD const AreaInfo &getGlobalArea() const; // Implementation will call m_areaInfos.getGlobalArea()
+
+public:
     NODISCARD const ParseTree &getParseTree() const { return m_parseTree; }
 
 public:
@@ -93,8 +98,9 @@ public:
     NODISCARD ExternalRoomId getNextExternalId() const;
 
 public:
-    NODISCARD const ImmRoomIdSet &getRoomSet() const;
-    NODISCARD const ImmRoomIdSet *findAreaRoomSet(const RoomArea &areaName) const;
+    using AreaRoomSetVariant = std::variant<const ImmRoomIdSet *, const ImmUnorderedRoomIdSet *, std::nullptr_t>;
+    NODISCARD const ImmRoomIdSet &getRoomSet() const; // This is the global room set
+    NODISCARD AreaRoomSetVariant findAreaRoomSet(const RoomArea &areaName) const;
 
 public:
     NODISCARD bool hasRoom(RoomId id) const;

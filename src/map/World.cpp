@@ -163,7 +163,7 @@ World World::copy() const
     result.m_spatialDb = m_spatialDb;
     result.m_serverIds = m_serverIds;
     result.m_parseTree = m_parseTree;
-    result.m_areaInfos = m_areaInfos;
+    result.m_areaInfos = m_areaInfos; // This copy should be fine
     result.m_infomarks = m_infomarks;
     result.m_checkedConsistency = false;
 
@@ -182,15 +182,44 @@ bool World::operator==(const World &rhs) const
            && m_infomarks == rhs.m_infomarks;
 }
 
-NODISCARD auto World::findArea(const std::optional<RoomArea> &area) const -> const AreaInfo *
+NODISCARD const AreaInfo &World::getGlobalArea() const
 {
-    return m_areaInfos.find(area);
+    return m_areaInfos.getGlobalArea();
 }
 
-NODISCARD auto World::getArea(const std::optional<RoomArea> &area) const -> const AreaInfo &
-{
-    return m_areaInfos.get(area);
-}
+// NODISCARD auto World::findArea(const std::optional<RoomArea> &area) const -> const AreaInfo *
+// {
+//     // This function is replaced by more specific finders or a variant returning one
+//     // For internal use, prefer m_areaInfos.findGlobalArea() or m_areaInfos.findNonGlobalArea()
+//     // or m_areaInfos.find(area) returning a variant.
+//     auto result = m_areaInfos.find(area);
+//     if (std::holds_alternative<const AreaInfo*>(result)) {
+//         return std::get<const AreaInfo*>(result);
+//     }
+//     // This old signature can't support NonGlobalAreaInfo directly.
+//     // Callers need to be updated or this function needs a breaking change in return type.
+//     return nullptr; // Or handle error/variant appropriately
+// }
+
+// NODISCARD auto World::getArea(const std::optional<RoomArea> &area) const -> const AreaInfo &
+// {
+//     // Similar to findArea, this is problematic with the new structure.
+//     // Prefer m_areaInfos.getGlobalArea() or m_areaInfos.getNonGlobalArea().
+//     if (!area.has_value()) {
+//         return m_areaInfos.getGlobalArea();
+//     }
+//     // This would throw if area.value() is not found or if it's a NonGlobalAreaInfo
+//     // and the old get() in AreaInfoMap is removed/changed.
+//     // For now, assuming direct calls are updated.
+//     auto variant_ptr = m_areaInfos.find(area);
+//     if (auto** info_ptr = std::get_if<const AreaInfo*>(&variant_ptr)) {
+//         if (*info_ptr) return **info_ptr;
+//     }
+//     // This path is tricky, as getArea was expected to return AreaInfo&
+//     // Throwing or returning a variant would be a significant change.
+//     // Let's assume internal callers will adapt.
+//     throw std::runtime_error("getArea called for non-global area with old signature logic");
+// }
 
 const RawRoom *World::getRoom(const RoomId id) const
 {
@@ -643,16 +672,26 @@ void World::checkConsistency(ProgressCounter &counter) const
     };
 
     auto checkRemapping = [this](const RoomId id) {
-        if (!getGlobalArea().roomSet.contains(id)) {
-            throw MapConsistencyError("room set does not contain the room id");
+        // Check 1: Room must be in the global set of all rooms.
+        if (!m_areaInfos.getGlobalArea().roomSet.contains(id)) {
+            throw MapConsistencyError("Global area room set does not contain the room id");
         }
 
-        const auto &areaName = getRoomArea(id);
-        auto &area = getArea(areaName);
-        if (!area.roomSet.contains(id)) {
-            throw MapConsistencyError("room set does not contain the room id");
+        // Check 2: Room must be in its designated non-global area's room set.
+        const RoomArea& roomAreaName = getRoomArea(id); // Get the specific area of the room.
+                                                        // This could be empty (default non-global) or named.
+
+        const NonGlobalAreaInfo* ngAreaInfo = m_areaInfos.findNonGlobalArea(roomAreaName);
+        if (!ngAreaInfo) {
+            // This case should ideally not happen if a room has an area, that area should exist.
+            // Or, if areaName is empty, the default area must exist.
+            throw MapConsistencyError("Room's designated non-global area does not exist in AreaInfoMap");
+        }
+        if (!ngAreaInfo->roomSet.contains(id)) { // .contains() on ImmUnorderedRoomIdSet
+            throw MapConsistencyError("Room not found in its designated non-global area's room set");
         }
 
+        // Check 3: Remapping consistency (original checks).
         if (!m_remapping.contains(id)) {
             throw MapConsistencyError("remapping did not contain this id");
         }
@@ -2350,7 +2389,7 @@ void World::printStats(ProgressCounter &pc, AnsiOstream &os) const
     struct alignas(CACHE_LINE_SIZE) NODISCARD MyArea final
     {
         RoomArea area;
-        const AreaInfo *info = nullptr;
+        const NonGlobalAreaInfo *info = nullptr; // Changed from AreaInfo to NonGlobalAreaInfo
         std::optional<AreaStats> stats{};
     };
     std::vector<MyArea> names;

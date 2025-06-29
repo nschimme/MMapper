@@ -127,12 +127,12 @@ static void testTinyRoomIdSet_CopyOnWrite()
 
     TinyRoomIdSet set2 = set1; // Copy constructor, should share data initially
     TEST_ASSERT(set1 == set2);
-    TEST_ASSERT(checkContents(set1, {{1}, {2}}));
-    TEST_ASSERT(checkContents(set2, {{1}, {2}}));
+    TEST_ASSERT(checkContents(set1, std::vector<RoomId>{{1}, {2}}));
+    TEST_ASSERT(checkContents(set2, std::vector<RoomId>{{1}, {2}}));
 
     set1.insert(RoomId{3}); // Modify set1, COW should occur
-    TEST_ASSERT(checkContents(set1, {{1}, {2}, {3}})); // set1 is {1, 2, 3}
-    TEST_ASSERT(checkContents(set2, {{1}, {2}}));     // set2 should remain {1, 2}
+    TEST_ASSERT(checkContents(set1, std::vector<RoomId>{{1}, {2}, {3}})); // set1 is {1, 2, 3}
+    TEST_ASSERT(checkContents(set2, std::vector<RoomId>{{1}, {2}}));     // set2 should remain {1, 2}
     TEST_ASSERT(set1 != set2);
 
     TinyRoomIdSet set3;
@@ -141,11 +141,11 @@ static void testTinyRoomIdSet_CopyOnWrite()
     TinyRoomIdSet set4;
     set4 = set3; // Copy assignment, should share data
     TEST_ASSERT(set3 == set4);
-    TEST_ASSERT(checkContents(set4, {{10}, {20}}));
+    TEST_ASSERT(checkContents(set4, std::vector<RoomId>{{10}, {20}}));
 
     set3.erase(RoomId{10}); // Modify set3, COW should occur
-    TEST_ASSERT(checkContents(set3, {{20}}));      // set3 is {20}
-    TEST_ASSERT(checkContents(set4, {{10}, {20}})); // set4 should remain {10, 20}
+    TEST_ASSERT(checkContents(set3, std::vector<RoomId>{{20}}));      // set3 is {20}
+    TEST_ASSERT(checkContents(set4, std::vector<RoomId>{{10}, {20}})); // set4 should remain {10, 20}
     TEST_ASSERT(set3 != set4);
 
     // Test COW when original becomes single/empty after erase
@@ -155,27 +155,27 @@ static void testTinyRoomIdSet_CopyOnWrite()
     TinyRoomIdSet set6 = set5;
 
     set5.erase(RoomId{100}); // set5 becomes {200} (single)
-    TEST_ASSERT(checkContents(set5, {{200}}));
-    TEST_ASSERT(checkContents(set6, {{100}, {200}}));
+    TEST_ASSERT(checkContents(set5, std::vector<RoomId>{{200}}));
+    TEST_ASSERT(checkContents(set6, std::vector<RoomId>{{100}, {200}}));
     TEST_ASSERT(set5 != set6);
 
     set5.erase(RoomId{200}); // set5 becomes {} (empty)
     TEST_ASSERT(set5.empty());
-    TEST_ASSERT(checkContents(set6, {{100}, {200}}));
+    TEST_ASSERT(checkContents(set6, std::vector<RoomId>{{100}, {200}}));
     TEST_ASSERT(set5 != set6);
 
     // Test behavior with initially empty or single sets (COW logic not dominant but correctness check)
     TinyRoomIdSet empty1;
     TinyRoomIdSet empty2 = empty1;
     empty1.insert(RoomId{1});
-    TEST_ASSERT(checkContents(empty1, {{1}}));
+    TEST_ASSERT(checkContents(empty1, std::vector<RoomId>{{1}}));
     TEST_ASSERT(empty2.empty());
 
     TinyRoomIdSet single1(RoomId{7});
     TinyRoomIdSet single2 = single1;
     single1.insert(RoomId{8}); // single1 becomes big {7,8}
-    TEST_ASSERT(checkContents(single1, {{7}, {8}}));
-    TEST_ASSERT(checkContents(single2, {{7}})); // single2 should remain {7}
+    TEST_ASSERT(checkContents(single1, std::vector<RoomId>{{7}, {8}}));
+    TEST_ASSERT(checkContents(single2, std::vector<RoomId>{{7}})); // single2 should remain {7}
 }
 
 void testTinyRoomIdSet()

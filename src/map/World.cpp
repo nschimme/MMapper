@@ -693,10 +693,22 @@ void World::checkConsistency(ProgressCounter &counter) const
         sanityCheckEnum(m_rooms.getRoomTerrainType(id));
     };
 
-    counter.setNewTask(ProgressMsg{"checking room consistency"}, getRoomSet().size());
+    // Phase 1: Collect RoomIds sequentially
+    std::vector<RoomId> room_ids_to_check;
+    if (!getRoomSet().empty()) {
+        DECL_TIMER(t_collect, "checkConsistency room ID collection (sequential)");
+        room_ids_to_check.reserve(getRoomSet().size());
+        // Not using counter here, as it will be used by parallel_for_each later
+        getRoomSet().for_each([&](RoomId id) {
+            room_ids_to_check.push_back(id);
+        });
+    }
+
+    // Phase 2: Process collected RoomIds in parallel
+    counter.setNewTask(ProgressMsg{"checking room consistency"}, room_ids_to_check.size());
     {
         DECL_TIMER(t_rooms, "checkConsistency for each room (parallel)");
-        thread_utils::parallel_for_each(getRoomSet(), counter, [&, this](const RoomId id) {
+        thread_utils::parallel_for_each(room_ids_to_check, counter, [&, this](const RoomId id) {
             checkAllExitsConsistent(id);
             checkEnums(id);
             checkFlags(id);

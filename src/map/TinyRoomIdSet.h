@@ -25,7 +25,12 @@ private:
     struct NODISCARD Variant final
     {
     public:
-        struct EmptyTag {}; // Tag for empty state
+        struct EmptyTag { // Tag for empty state
+            // Two EmptyTags are always considered equal
+            bool operator==(const EmptyTag& /*other*/) const noexcept {
+                return true;
+            }
+        };
 
     private:
         std::variant<EmptyTag, Type, SharedConstBigSet> m_data;

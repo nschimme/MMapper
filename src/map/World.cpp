@@ -1367,20 +1367,6 @@ const ImmRoomIdSet &World::getRoomSet() const
     return getGlobalArea().roomSet;
 }
 
-World::AreaRoomSetView World::findAreaRoomSet(const RoomArea &areaName) const
-{
-    // Note: areaName being empty (RoomArea{}) refers to the default non-global area.
-    // This function is for specific non-global areas or the default non-global area.
-    // For the set of ALL rooms, getRoomSet() should be used.
-    try {
-        const LocalAreaInfo& areaInfo = m_areaInfos.findNonGlobalArea(areaName); // Now returns ref
-        return AreaRoomSetView{&areaInfo.roomSet}; // Construct view with pointer
-    } catch (const std::runtime_error&) {
-        // Area not found, findNonGlobalArea threw an exception.
-        return AreaRoomSetView{}; // Return default (invalid) view
-    }
-}
-
 RoomId World::addRoom(const Coordinate &position)
 {
     if (findRoom(position)) {
@@ -1498,6 +1484,11 @@ ExternalRawExit World::convertToExternal(const RawExit &exit) const
 ExternalRawRoom World::convertToExternal(const RawRoom &room) const
 {
     return m_remapping.convertToExternal(room);
+}
+
+const AreaInfoMap &World::getAreaInfoMap() const
+{
+    return m_areaInfos;
 }
 
 RoomId World::convertToInternal(const ExternalRoomId ext) const

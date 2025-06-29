@@ -990,17 +990,19 @@ void Map::statRoom(AnsiOstream &os, RoomId id) const
 
 // #include <variant> // For std::visit - no longer needed here
 
+#include "WorldAreaMap.h" // Required for LocalAreaInfo
+
 std::optional<size_t> Map::countRoomsWithArea(const RoomArea &areaName) const
 {
     const auto &world = getWorld();
-    const World::AreaRoomSetView areaSetView = world.findAreaRoomSet(areaName);
-
-    if (areaSetView.isValid()) {
-        return areaSetView.size();
-    } else {
-        // This case means the area itself was not found.
-        // The original code returned nullopt if the variant held nullptr *or* if it held a null pointer to a set.
-        // An empty area (valid area, but no rooms) would return size 0.
+    try {
+        // findLocalArea returns a const LocalAreaInfo&
+        // LocalAreaInfo has a public member ImmUnorderedRoomIdSet roomSet;
+        const LocalAreaInfo& localAreaInfo = world.getAreaInfoMap().findLocalArea(areaName);
+        return localAreaInfo.roomSet.size();
+    } catch (const std::runtime_error&) {
+        // This catch block handles the case where findLocalArea throws
+        // (i.e., the area itself doesn't exist)
         return std::nullopt;
     }
 }

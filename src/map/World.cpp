@@ -187,39 +187,15 @@ NODISCARD const AreaInfo &World::getGlobalArea() const
     return m_areaInfos.getGlobalArea();
 }
 
-// NODISCARD auto World::findArea(const std::optional<RoomArea> &area) const -> const AreaInfo *
-// {
-//     // This function is replaced by more specific finders or a variant returning one
-//     // For internal use, prefer m_areaInfos.findGlobalArea() or m_areaInfos.findNonGlobalArea()
-//     // or m_areaInfos.find(area) returning a variant.
-//     auto result = m_areaInfos.find(area);
-//     if (std::holds_alternative<const AreaInfo*>(result)) {
-//         return std::get<const AreaInfo*>(result);
-//     }
-//     // This old signature can't support NonGlobalAreaInfo directly.
-//     // Callers need to be updated or this function needs a breaking change in return type.
-//     return nullptr; // Or handle error/variant appropriately
-// }
+NODISCARD const LocalAreaInfo *World::findLocalArea(const RoomArea &areaName) const
+{
+    return m_areaInfos.findNonGlobalArea(areaName);
+}
 
-// NODISCARD auto World::getArea(const std::optional<RoomArea> &area) const -> const AreaInfo &
-// {
-//     // Similar to findArea, this is problematic with the new structure.
-//     // Prefer m_areaInfos.getGlobalArea() or m_areaInfos.getNonGlobalArea().
-//     if (!area.has_value()) {
-//         return m_areaInfos.getGlobalArea();
-//     }
-//     // This would throw if area.value() is not found or if it's a NonGlobalAreaInfo
-//     // and the old get() in AreaInfoMap is removed/changed.
-//     // For now, assuming direct calls are updated.
-//     auto variant_ptr = m_areaInfos.find(area);
-//     if (auto** info_ptr = std::get_if<const AreaInfo*>(&variant_ptr)) {
-//         if (*info_ptr) return **info_ptr;
-//     }
-//     // This path is tricky, as getArea was expected to return AreaInfo&
-//     // Throwing or returning a variant would be a significant change.
-//     // Let's assume internal callers will adapt.
-//     throw std::runtime_error("getArea called for non-global area with old signature logic");
-// }
+NODISCARD const LocalAreaInfo &World::getLocalArea(const RoomArea &areaName) const
+{
+    return m_areaInfos.getNonGlobalArea(areaName);
+}
 
 const RawRoom *World::getRoom(const RoomId id) const
 {
@@ -681,7 +657,7 @@ void World::checkConsistency(ProgressCounter &counter) const
         const RoomArea& roomAreaName = getRoomArea(id); // Get the specific area of the room.
                                                         // This could be empty (default non-global) or named.
 
-        const NonGlobalAreaInfo* ngAreaInfo = m_areaInfos.findNonGlobalArea(roomAreaName);
+        const LocalAreaInfo* ngAreaInfo = m_areaInfos.findNonGlobalArea(roomAreaName);
         if (!ngAreaInfo) {
             // This case should ideally not happen if a room has an area, that area should exist.
             // Or, if areaName is empty, the default area must exist.
@@ -1254,7 +1230,7 @@ World World::init(ProgressCounter &counter,
         {
             DECL_TIMER(t3, "insert-rooms-area-infos");
             counter.setNewTask(ProgressMsg{"preparing to insert rooms to areas"}, rooms.size());
-            std::unordered_map<RoomArea, NonGlobalAreaInfo> non_global_map; // Corrected type
+            std::unordered_map<RoomArea, LocalAreaInfo> non_global_map; // Corrected type
             AreaInfo global;
             for (const auto &room : rooms) {
                 const auto& areaName = room.getArea();
@@ -1370,7 +1346,7 @@ World::AreaRoomSetVariant World::findAreaRoomSet(const RoomArea &areaName) const
     // Note: areaName being empty (RoomArea{}) refers to the default non-global area.
     // This function is for specific non-global areas or the default non-global area.
     // For the set of ALL rooms, getRoomSet() should be used.
-    if (const NonGlobalAreaInfo *const areaInfo = m_areaInfos.findNonGlobalArea(areaName)) {
+    if (const LocalAreaInfo *const areaInfo = m_areaInfos.findNonGlobalArea(areaName)) {
         return &areaInfo->roomSet;
     }
     return nullptr;
@@ -2393,7 +2369,7 @@ void World::printStats(ProgressCounter &pc, AnsiOstream &os) const
     struct alignas(CACHE_LINE_SIZE) NODISCARD MyArea final
     {
         RoomArea area;
-        const NonGlobalAreaInfo *info = nullptr; // Changed from AreaInfo to NonGlobalAreaInfo
+        const LocalAreaInfo *info = nullptr; // Changed from AreaInfo to LocalAreaInfo
         std::optional<AreaStats> stats{};
     };
     std::vector<MyArea> names;

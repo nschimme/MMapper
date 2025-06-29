@@ -21,11 +21,11 @@ struct NODISCARD AreaInfo final
     // Insert is implicitly handled by roomSet.insert()
 };
 
-struct NODISCARD NonGlobalAreaInfo final
+struct NODISCARD LocalAreaInfo final
 {
     ImmUnorderedRoomIdSet roomSet; // Unordered set for non-global areas
 
-    NODISCARD bool operator==(const NonGlobalAreaInfo &other) const;
+    NODISCARD bool operator==(const LocalAreaInfo &other) const;
     void remove(RoomId id);
     // Insert is implicitly handled by roomSet.insert()
 };
@@ -36,14 +36,14 @@ struct NODISCARD NonGlobalAreaInfo final
 struct NODISCARD AreaInfoMap final
 {
 private:
-    using NonGlobalMap = ImmUnorderedMap<RoomArea, NonGlobalAreaInfo>;
+    using NonGlobalMap = ImmUnorderedMap<RoomArea, LocalAreaInfo>;
     NonGlobalMap m_map; // Stores non-global areas
     AreaInfo m_global;  // Stores the global area info
 
 public:
     NODISCARD explicit AreaInfoMap();
-    // Init will need to take NonGlobalAreaInfo for the map part
-    void init(const std::unordered_map<RoomArea, NonGlobalAreaInfo> &map,
+    // Init will need to take LocalAreaInfo for the map part
+    void init(const std::unordered_map<RoomArea, LocalAreaInfo> &map,
               const AreaInfo &global);
 
 public:
@@ -54,15 +54,11 @@ public:
     // A simpler approach for now: find returns a pointer to the respective type,
     // and get might throw or return a variant/optional.
     NODISCARD const AreaInfo *findGlobalArea() const { return &m_global; }
-    NODISCARD const NonGlobalAreaInfo *findNonGlobalArea(const RoomArea &area) const;
+    NODISCARD const LocalAreaInfo *findNonGlobalArea(const RoomArea &area) const;
 
     // get will throw if not found or wrong type is requested implicitly
     NODISCARD const AreaInfo &getGlobalArea() const { return m_global; }
-    NODISCARD const NonGlobalAreaInfo &getNonGlobalArea(const RoomArea &area) const;
-
-    // A generic find could return a variant
-    using FindResultVariant = std::variant<const AreaInfo *, const NonGlobalAreaInfo *, std::nullptr_t>;
-    NODISCARD FindResultVariant find(const std::optional<RoomArea> &area) const;
+    NODISCARD const LocalAreaInfo &getNonGlobalArea(const RoomArea &area) const;
 
     NODISCARD bool operator==(const AreaInfoMap &other) const;
     NODISCARD size_t numAreas() const { return m_map.size(); } // Number of non-global areas

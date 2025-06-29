@@ -68,15 +68,10 @@ public:
     NODISCARD bool operator==(const World &rhs) const;
     NODISCARD bool operator!=(const World &rhs) const { return !(rhs == *this); }
 
-private:
-    NODISCARD const AreaInfo *findArea(const std::optional<RoomArea> &area) const;
-    NODISCARD const AreaInfo &getArea(const std::optional<RoomArea> &area) const;
-    // NODISCARD const AreaInfo &getGlobalArea() const { return getArea(std::nullopt); } // REMOVED OLD INLINE
-
 public:
-    // NODISCARD const AreaInfo *findArea(const std::optional<RoomArea> &area) const; // Old
-    // NODISCARD const AreaInfo &getArea(const std::optional<RoomArea> &area) const; // Old
-    NODISCARD const AreaInfo &getGlobalArea() const; // Implementation will call m_areaInfos.getGlobalArea()
+    NODISCARD const AreaInfo &getGlobalArea() const;
+    NODISCARD const LocalAreaInfo *findLocalArea(const RoomArea &areaName) const;
+    NODISCARD const LocalAreaInfo &getLocalArea(const RoomArea &areaName) const;
 
 public:
     NODISCARD const ParseTree &getParseTree() const { return m_parseTree; }

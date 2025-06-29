@@ -681,14 +681,16 @@ void World::checkConsistency(ProgressCounter &counter) const
         const RoomArea& roomAreaName = getRoomArea(id); // Get the specific area of the room.
                                                         // This could be empty (default non-global) or named.
 
-        const NonGlobalAreaInfo* ngAreaInfo = m_areaInfos.findNonGlobalArea(roomAreaName);
-        if (!ngAreaInfo) {
-            // This case should ideally not happen if a room has an area, that area should exist.
-            // Or, if areaName is empty, the default area must exist.
-            throw MapConsistencyError("Room's designated non-global area does not exist in AreaInfoMap");
-        }
-        if (!ngAreaInfo->roomSet.contains(id)) { // .contains() on ImmUnorderedRoomIdSet
-            throw MapConsistencyError("Room not found in its designated non-global area's room set");
+        try {
+            const LocalAreaInfo& localAreaInfo = m_areaInfos.findNonGlobalArea(roomAreaName);
+            if (!localAreaInfo.roomSet.contains(id)) { // Use the reference
+                throw MapConsistencyError("Room not found in its designated local area's room set");
+            }
+        } catch (const std::runtime_error& e) {
+            // This catch block handles the case where findNonGlobalArea throws
+            // (i.e., the area itself doesn't exist)
+            // We also need to update the error message to reflect LocalAreaInfo.
+            throw MapConsistencyError("Room's designated local area does not exist in AreaInfoMap: " + std::string(e.what()));
         }
 
         // Check 3: Remapping consistency (original checks).
@@ -1365,15 +1367,18 @@ const ImmRoomIdSet &World::getRoomSet() const
     return getGlobalArea().roomSet;
 }
 
-World::AreaRoomSetVariant World::findAreaRoomSet(const RoomArea &areaName) const
+World::AreaRoomSetView World::findAreaRoomSet(const RoomArea &areaName) const
 {
     // Note: areaName being empty (RoomArea{}) refers to the default non-global area.
     // This function is for specific non-global areas or the default non-global area.
     // For the set of ALL rooms, getRoomSet() should be used.
-    if (const NonGlobalAreaInfo *const areaInfo = m_areaInfos.findNonGlobalArea(areaName)) {
-        return &areaInfo->roomSet;
+    try {
+        const LocalAreaInfo& areaInfo = m_areaInfos.findNonGlobalArea(areaName); // Now returns ref
+        return AreaRoomSetView{&areaInfo.roomSet}; // Construct view with pointer
+    } catch (const std::runtime_error&) {
+        // Area not found, findNonGlobalArea threw an exception.
+        return AreaRoomSetView{}; // Return default (invalid) view
     }
-    return nullptr;
 }
 
 RoomId World::addRoom(const Coordinate &position)
@@ -2393,7 +2398,7 @@ void World::printStats(ProgressCounter &pc, AnsiOstream &os) const
     struct alignas(CACHE_LINE_SIZE) NODISCARD MyArea final
     {
         RoomArea area;
-        const NonGlobalAreaInfo *info = nullptr; // Changed from AreaInfo to NonGlobalAreaInfo
+        const LocalAreaInfo *info = nullptr; // Changed from AreaInfo to LocalAreaInfo
         std::optional<AreaStats> stats{};
     };
     std::vector<MyArea> names;

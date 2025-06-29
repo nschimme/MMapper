@@ -27,10 +27,10 @@ RoomIdSet getRooms(const Map &map, const ParseTree &tree, const ParseEvent &even
     static volatile bool fallbackToRemainder = true;
     static volatile bool fallbackToWholeMap = true;
 
-    // Define a variant type for the set pointers
-    using SetPtrVariant = std::variant<const ImmRoomIdSet*, const ImmUnorderedRoomIdSet*, std::nullptr_t>;
+    // pSetVariant will now be of type AreaRoomSetView
+    // using SetPtrVariant = std::variant<const ImmRoomIdSet*, const ImmUnorderedRoomIdSet*, std::nullptr_t>; // No longer needed
 
-    const SetPtrVariant pSetVariant = [&map, &event, &tree]() -> SetPtrVariant {
+    const World::AreaRoomSetView pSetView = [&map, &event, &tree]() -> World::AreaRoomSetView { // Returns AreaRoomSetView
         const World &world = map.getWorld();
         const RoomArea &areaName = event.getRoomArea();
 
@@ -43,7 +43,7 @@ RoomIdSet getRooms(const Map &map, const ParseTree &tree, const ParseEvent &even
         if (hasName && hasDesc) {
             // tree.name_desc now holds ImmUnorderedRoomIdSet
             if (auto set = tree.name_desc.find(NameDesc{name, desc})) {
-                return set; // Returns const ImmUnorderedRoomIdSet*
+                return World::AreaRoomSetView{set};
             }
             MMLOG() << "[getRooms] Failed to find a match with name+desc. Falling back to name or desc...";
         }
@@ -51,39 +51,29 @@ RoomIdSet getRooms(const Map &map, const ParseTree &tree, const ParseEvent &even
         if (hasName) {
             // tree.name_only now holds ImmUnorderedRoomIdSet
             if (auto ptr = tree.name_only.find(name)) {
-                return ptr; // Returns const ImmUnorderedRoomIdSet*
+                return World::AreaRoomSetView{ptr};
             }
         }
 
         if (hasDesc) {
             // tree.desc_only now holds ImmUnorderedRoomIdSet
             if (auto ptr = tree.desc_only.find(desc)) {
-                return ptr; // Returns const ImmUnorderedRoomIdSet*
+                return World::AreaRoomSetView{ptr};
             }
         }
 
         if (fallbackToCurrentArea) {
             MMLOG() << "[getRooms] Falling back to the current area!";
             MMLOG() << "[getRooms] event: " << mmqt::toStdStringUtf8(event.toQString());
-            auto areaSetResult = world.findAreaRoomSet(areaName);
-            bool foundNonEmptySetInArea = false;
-            std::visit([&foundNonEmptySetInArea](auto&& arg) {
-                using ArgT = std::decay_t<decltype(arg)>;
-                if constexpr (std::is_same_v<ArgT, std::nullptr_t>) {
-                    // It's nullptr_t, do nothing
-                } else { // It's one of the pointer types
-                    if (arg && !arg->empty()) { // Check if pointer is non-null AND set is non-empty
-                        foundNonEmptySetInArea = true;
-                    }
-                }
-            }, areaSetResult);
+            World::AreaRoomSetView areaSetView = world.findAreaRoomSet(areaName);
+            bool foundNonEmptySetInArea = areaSetView.isValid() && !areaSetView.empty();
 
             if (foundNonEmptySetInArea) {
-                return areaSetResult;
+                return areaSetView; // Directly return the view
             } else {
-                if (std::holds_alternative<std::nullptr_t>(areaSetResult)) {
+                if (!areaSetView.isValid()) {
                      MMLOG() << "[getRooms] Area does not exist.";
-                } else {
+                } else { // isValid but empty
                      MMLOG() << "[getRooms] Area was empty.";
                 }
             }
@@ -91,25 +81,15 @@ RoomIdSet getRooms(const Map &map, const ParseTree &tree, const ParseEvent &even
 
         if (fallbackToRemainder && !areaName.empty()) {
             MMLOG() << "[getRooms] Falling back to the remainder area...";
-            auto remainderSetResult = world.findAreaRoomSet(RoomArea{});
-            bool foundNonEmptySetInRemainder = false;
-            std::visit([&foundNonEmptySetInRemainder](auto&& arg) {
-                using ArgT = std::decay_t<decltype(arg)>;
-                 if constexpr (std::is_same_v<ArgT, std::nullptr_t>) {
-                    // It's nullptr_t, do nothing
-                } else { // It's one of the pointer types
-                    if (arg && !arg->empty()) { // Check if pointer is non-null AND set is non-empty
-                        foundNonEmptySetInRemainder = true;
-                    }
-                }
-            }, remainderSetResult);
+            World::AreaRoomSetView remainderSetView = world.findAreaRoomSet(RoomArea{});
+            bool foundNonEmptySetInRemainder = remainderSetView.isValid() && !remainderSetView.empty();
 
             if (foundNonEmptySetInRemainder) {
-                return remainderSetResult;
+                return remainderSetView; // Directly return the view
             } else {
-                 if (std::holds_alternative<std::nullptr_t>(remainderSetResult)) {
+                 if (!remainderSetView.isValid()) {
                      MMLOG() << "[getRooms] Fallback area does not exist.";
-                } else {
+                } else { // isValid but empty
                      MMLOG() << "[getRooms] Fallback area was empty.";
                 }
             }
@@ -117,12 +97,12 @@ RoomIdSet getRooms(const Map &map, const ParseTree &tree, const ParseEvent &even
 
         if (fallbackToWholeMap) {
             MMLOG() << "[getRooms] Falling back to the whole map...";
-            return &world.getRoomSet(); // Returns const ImmRoomIdSet*
+            return World::AreaRoomSetView{&world.getRoomSet()};
         }
 
         MMLOG() << "[getRooms] Failed to find a match; giving up.";
         MMLOG() << "[getRooms] event: " << mmqt::toStdStringUtf8(event.toQString());
-        return nullptr;
+        return World::AreaRoomSetView{}; // Return default invalid view
     }();
 
     const auto t1 = Clock::now();
@@ -130,58 +110,36 @@ RoomIdSet getRooms(const Map &map, const ParseTree &tree, const ParseEvent &even
     Clock::time_point t2_for_timing = t1; // Initialize t2 for timing log
     Clock::time_point t3_for_timing = t1; // Initialize t3 for timing log
 
-    std::visit(
-        [&](auto&& arg_pSet_variant_val) {
-            // Common processing logic for pointer types
-            auto processSet = [&](const auto* set_ptr) {
-                if (!set_ptr) {
-                    MMLOG() << "[getRooms] Unable to find any matches (variant holds a null pointer).";
-                    t2_for_timing = Clock::now();
-                    t3_for_timing = t2_for_timing;
-                    return;
-                }
-
-                const auto& set = *set_ptr;
-                const int tolerance = getConfig().pathMachine.matchingTolerance;
-                auto tryReport = [&event, tolerance](const RoomHandle &room) {
-                    if (::compare(room.getRaw(), event, tolerance) == ComparisonResultEnum::DIFFERENT) {
-                        return false;
-                    }
-                    return true;
-                };
-
-                MMLOG() << "[getRooms] Found " << set.size() << " potential match(es).";
-                t2_for_timing = Clock::now();
-                size_t numReported = 0;
-                set.for_each([&](const RoomId id) {
-                    if (const auto optRoom = map.findRoomHandle(id)) {
-                        if (tryReport(optRoom)) {
-                            results.insert(id);
-                            ++numReported;
-                        }
-                    }
-                });
-                t3_for_timing = Clock::now();
-                MMLOG() << "[getRooms] Reported " << numReported << " potential match(es).";
-            }; // End of processSet lambda ; <-- Added semicolon
-
-            using ArgType = std::decay_t<decltype(arg_pSet_variant_val)>;
-
-            if constexpr (std::is_same_v<ArgType, const ImmRoomIdSet*>) {
-                processSet(arg_pSet_variant_val);
-            } else if constexpr (std::is_same_v<ArgType, const ImmUnorderedRoomIdSet*>) {
-                processSet(arg_pSet_variant_val);
-            } else if constexpr (std::is_same_v<ArgType, std::nullptr_t>) {
-                MMLOG() << "[getRooms] Unable to find any matches (variant holds std::nullptr_t).";
-                t2_for_timing = Clock::now();
-                t3_for_timing = t2_for_timing;
-                // No return here, already void lambda
+    // Replace std::visit with direct operations on pSetView
+    if (!pSetView.isValid()) {
+        MMLOG() << "[getRooms] Unable to find any matches (AreaRoomSetView is invalid).";
+        t2_for_timing = Clock::now(); // Should be t1 effectively
+        t3_for_timing = t2_for_timing;
+    } else {
+        const int tolerance = getConfig().pathMachine.matchingTolerance;
+        auto tryReport = [&event, tolerance](const RoomHandle &room) {
+            if (::compare(room.getRaw(), event, tolerance) == ComparisonResultEnum::DIFFERENT) {
+                return false;
             }
-        }, // End of main visitor lambda
-        pSetVariant
-    ); // End of std::visit call
+            return true;
+        };
 
-    const auto t_end_visit = Clock::now();
+        MMLOG() << "[getRooms] Found " << pSetView.size() << " potential match(es).";
+        t2_for_timing = Clock::now();
+        size_t numReported = 0;
+        pSetView.for_each([&](const RoomId id) { // Use for_each from AreaRoomSetView
+            if (const auto optRoom = map.findRoomHandle(id)) {
+                if (tryReport(optRoom)) {
+                    results.insert(id);
+                    ++numReported;
+                }
+            }
+        });
+        t3_for_timing = Clock::now();
+        MMLOG() << "[getRooms] Reported " << numReported << " potential match(es).";
+    }
+
+    const auto t_end_visit = Clock::now(); // This variable name is now a bit misleading
 
     auto &&os_log = MMLOG();
     os_log << "[getRooms] timing follows:\n";

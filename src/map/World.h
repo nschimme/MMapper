@@ -54,6 +54,52 @@ private:
     bool m_checkedConsistency = false;
 
 public:
+    // Forward declarations for AreaRoomSetView
+    class ImmRoomIdSet;
+    template<typename K, typename V> struct ImmUnorderedMap; // Assuming ImmUnorderedRoomIdSet is related or this is sufficient
+    // If ImmUnorderedRoomIdSet is a specific type, forward declare it directly:
+    // class ImmUnorderedRoomIdSet; // Or use the actual definition if it's simple enough
+
+    struct NODISCARD AreaRoomSetView {
+    private:
+        // Using std::variant to hold a pointer to either type of set.
+        // We need to ensure ImmUnorderedRoomIdSet is declared or included before this.
+        // For now, assuming ImmUnorderedRoomIdSet is pullable from RoomIdSet.h like ImmRoomIdSet
+        std::variant<const ImmRoomIdSet*, const ImmUnorderedRoomIdSet*> m_set_variant;
+
+    public:
+        // Default constructor creates an invalid/empty view
+        AreaRoomSetView() : m_set_variant(static_cast<const ImmRoomIdSet*>(nullptr)) {}
+
+        explicit AreaRoomSetView(const ImmRoomIdSet* set) : m_set_variant(set) {}
+        // Need to ensure ImmUnorderedRoomIdSet is known here. It's in RoomIdSet.h
+        explicit AreaRoomSetView(const ImmUnorderedRoomIdSet* set) : m_set_variant(set) {}
+
+        NODISCARD bool isValid() const {
+            return std::visit([](const auto* ptr) { return ptr != nullptr; }, m_set_variant);
+        }
+
+        NODISCARD size_t size() const {
+            if (!isValid()) return 0;
+            return std::visit([](const auto* ptr) { return ptr->size(); }, m_set_variant);
+        }
+
+        NODISCARD bool empty() const {
+            if (!isValid()) return true;
+            return std::visit([](const auto* ptr) { return ptr->empty(); }, m_set_variant);
+        }
+
+        template<typename Func>
+        void for_each(Func&& func) const {
+            if (!isValid()) return;
+            std::visit([&func](const auto* ptr) {
+                // Ensure the passed func is compatible with RoomId
+                ptr->for_each(std::forward<Func>(func));
+            }, m_set_variant);
+        }
+    };
+
+public:
     explicit World() = default;
     ~World() = default;
     World(World &&) = default;
@@ -98,9 +144,9 @@ public:
     NODISCARD ExternalRoomId getNextExternalId() const;
 
 public:
-    using AreaRoomSetVariant = std::variant<const ImmRoomIdSet *, const ImmUnorderedRoomIdSet *, std::nullptr_t>;
+    // using AreaRoomSetVariant = std::variant<const ImmRoomIdSet *, const ImmUnorderedRoomIdSet *, std::nullptr_t>; // Replaced by AreaRoomSetView
     NODISCARD const ImmRoomIdSet &getRoomSet() const; // This is the global room set
-    NODISCARD AreaRoomSetVariant findAreaRoomSet(const RoomArea &areaName) const;
+    NODISCARD AreaRoomSetView findAreaRoomSet(const RoomArea &areaName) const; // Now returns AreaRoomSetView
 
 public:
     NODISCARD bool hasRoom(RoomId id) const;

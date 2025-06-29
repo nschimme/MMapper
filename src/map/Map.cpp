@@ -988,26 +988,21 @@ void Map::statRoom(AnsiOstream &os, RoomId id) const
     // os << "\n";
 }
 
-#include <variant> // For std::visit
+// #include <variant> // For std::visit - no longer needed here
 
 std::optional<size_t> Map::countRoomsWithArea(const RoomArea &areaName) const
 {
     const auto &world = getWorld();
-    const World::AreaRoomSetVariant areaSetVariant = world.findAreaRoomSet(areaName);
+    const World::AreaRoomSetView areaSetView = world.findAreaRoomSet(areaName);
 
-    return std::visit(
-        [](auto&& arg) -> std::optional<size_t> {
-            using ArgT = std::decay_t<decltype(arg)>;
-            if constexpr (std::is_same_v<ArgT, std::nullptr_t>) {
-                return std::nullopt;
-            } else { // It's one of the pointer types (const ImmRoomIdSet* or const ImmUnorderedRoomIdSet*)
-                if (arg) { // Check if the pointer is not null
-                    return arg->size();
-                }
-                return std::nullopt;
-            }
-        },
-        areaSetVariant);
+    if (areaSetView.isValid()) {
+        return areaSetView.size();
+    } else {
+        // This case means the area itself was not found.
+        // The original code returned nullopt if the variant held nullptr *or* if it held a null pointer to a set.
+        // An empty area (valid area, but no rooms) would return size 0.
+        return std::nullopt;
+    }
 }
 
 size_t Map::countRoomsWithName(const RoomName &name) const

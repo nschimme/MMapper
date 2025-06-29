@@ -1254,15 +1254,16 @@ World World::init(ProgressCounter &counter,
         {
             DECL_TIMER(t3, "insert-rooms-area-infos");
             counter.setNewTask(ProgressMsg{"preparing to insert rooms to areas"}, rooms.size());
-            std::unordered_map<RoomArea, AreaInfo> map;
+            std::unordered_map<RoomArea, NonGlobalAreaInfo> non_global_map; // Corrected type
             AreaInfo global;
             for (const auto &room : rooms) {
-                map[room.getArea()].roomSet.insert(room.id);
-                global.roomSet.insert(room.id);
+                const auto& areaName = room.getArea();
+                non_global_map[areaName].roomSet.insert(room.id); // Use non_global_map
+                global.roomSet.insert(room.id); // Global still gets all rooms
                 counter.step();
             }
             counter.setNewTask(ProgressMsg{"inserting rooms to areas"}, 1);
-            w.m_areaInfos.init(map, global);
+            w.m_areaInfos.init(non_global_map, global); // Pass corrected map
             counter.step();
         }
         {
@@ -1364,10 +1365,13 @@ const ImmRoomIdSet &World::getRoomSet() const
     return getGlobalArea().roomSet;
 }
 
-const ImmRoomIdSet *World::findAreaRoomSet(const RoomArea &areaName) const
+World::AreaRoomSetVariant World::findAreaRoomSet(const RoomArea &areaName) const
 {
-    if (const AreaInfo *const area = this->findArea(areaName)) {
-        return &area->roomSet;
+    // Note: areaName being empty (RoomArea{}) refers to the default non-global area.
+    // This function is for specific non-global areas or the default non-global area.
+    // For the set of ALL rooms, getRoomSet() should be used.
+    if (const NonGlobalAreaInfo *const areaInfo = m_areaInfos.findNonGlobalArea(areaName)) {
+        return &areaInfo->roomSet;
     }
     return nullptr;
 }

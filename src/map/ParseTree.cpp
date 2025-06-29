@@ -67,10 +67,14 @@ RoomIdSet getRooms(const Map &map, const ParseTree &tree, const ParseEvent &even
             MMLOG() << "[getRooms] event: " << mmqt::toStdStringUtf8(event.toQString());
             auto areaSetResult = world.findAreaRoomSet(areaName);
             bool foundNonEmptySetInArea = false;
-            std::visit([&foundNonEmptySetInArea](auto* s_ptr) {
-                if (s_ptr && !s_ptr->empty()) {
-                    foundNonEmptySetInArea = true;
+            std::visit([&foundNonEmptySetInArea](auto&& arg) {
+                using ArgT = std::decay_t<decltype(arg)>;
+                if constexpr (!std::is_same_v<ArgT, std::nullptr_t>) { // If it's a pointer type
+                    if (arg && !arg->empty()) { // Check if pointer is non-null and set is non-empty
+                        foundNonEmptySetInArea = true;
+                    }
                 }
+                // If ArgT is std::nullptr_t, it does nothing, foundNonEmptySetInArea remains false.
             }, areaSetResult);
 
             if (foundNonEmptySetInArea) {
@@ -88,9 +92,12 @@ RoomIdSet getRooms(const Map &map, const ParseTree &tree, const ParseEvent &even
             MMLOG() << "[getRooms] Falling back to the remainder area...";
             auto remainderSetResult = world.findAreaRoomSet(RoomArea{});
             bool foundNonEmptySetInRemainder = false;
-            std::visit([&foundNonEmptySetInRemainder](auto* s_ptr) {
-                if (s_ptr && !s_ptr->empty()) {
-                    foundNonEmptySetInRemainder = true;
+            std::visit([&foundNonEmptySetInRemainder](auto&& arg) {
+                using ArgT = std::decay_t<decltype(arg)>;
+                if constexpr (!std::is_same_v<ArgT, std::nullptr_t>) { // If it's a pointer type
+                    if (arg && !arg->empty()) { // Check if pointer is non-null and set is non-empty
+                        foundNonEmptySetInRemainder = true;
+                    }
                 }
             }, remainderSetResult);
 
@@ -121,26 +128,26 @@ RoomIdSet getRooms(const Map &map, const ParseTree &tree, const ParseEvent &even
     Clock::time_point t3_for_timing = t1; // Initialize t3 for timing log
 
 
-    std::visit([&](auto &&arg_pSet) {
-        if (!arg_pSet) {
-            MMLOG() << "[getRooms] Unable to find any matches (variant holds null or nullptr_t).";
-            t2_for_timing = Clock::now();
-            t3_for_timing = t2_for_timing;
-            return;
-        }
+    std::visit([&](auto &&arg_pSet_variant_val) {
+        using ArgType = std::decay_t<decltype(arg_pSet_variant_val)>;
 
-        using PSetType = std::decay_t<decltype(arg_pSet)>;
-        if constexpr (std::is_same_v<PSetType, std::nullptr_t>) {
+        if constexpr (std::is_same_v<ArgType, std::nullptr_t>) {
             MMLOG() << "[getRooms] Unable to find any matches (variant holds std::nullptr_t).";
             t2_for_timing = Clock::now();
             t3_for_timing = t2_for_timing;
             return;
-        }
+        } else { // It's one of the pointer types
+            if (!arg_pSet_variant_val) { // Check if the pointer itself is null
+                MMLOG() << "[getRooms] Unable to find any matches (variant holds a null pointer).";
+                t2_for_timing = Clock::now();
+                t3_for_timing = t2_for_timing;
+                return;
+            }
 
-        const auto& set = *arg_pSet;
+            const auto& set = *arg_pSet_variant_val; // Dereference the non-null pointer
 
-        const int tolerance = getConfig().pathMachine.matchingTolerance;
-        auto tryReport = [&event, tolerance](const RoomHandle &room) {
+            const int tolerance = getConfig().pathMachine.matchingTolerance;
+            auto tryReport = [&event, tolerance](const RoomHandle &room) {
             if (::compare(room.getRaw(), event, tolerance) == ComparisonResultEnum::DIFFERENT) {
                 return false;
             }

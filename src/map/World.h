@@ -71,7 +71,7 @@ public:
 private:
     NODISCARD const AreaInfo *findArea(const std::optional<RoomArea> &area) const;
     NODISCARD const AreaInfo &getArea(const std::optional<RoomArea> &area) const;
-    NODISCARD const AreaInfo &getGlobalArea() const { return getArea(std::nullopt); }
+    // NODISCARD const AreaInfo &getGlobalArea() const { return getArea(std::nullopt); } // REMOVED OLD INLINE
 
 public:
     // NODISCARD const AreaInfo *findArea(const std::optional<RoomArea> &area) const; // Old

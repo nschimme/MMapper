@@ -988,13 +988,21 @@ void Map::statRoom(AnsiOstream &os, RoomId id) const
     // os << "\n";
 }
 
+#include <variant> // For std::visit
+
 std::optional<size_t> Map::countRoomsWithArea(const RoomArea &areaName) const
 {
     const auto &world = getWorld();
-    if (const ImmRoomIdSet *const area = world.findAreaRoomSet(areaName)) {
-        return area->size();
-    }
-    return std::nullopt;
+    const World::AreaRoomSetVariant areaSetVariant = world.findAreaRoomSet(areaName);
+
+    return std::visit(
+        [](auto *roomSetPtr) -> std::optional<size_t> {
+            if (roomSetPtr) {
+                return roomSetPtr->size();
+            }
+            return std::nullopt;
+        },
+        areaSetVariant);
 }
 
 size_t Map::countRoomsWithName(const RoomName &name) const

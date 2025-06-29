@@ -19,10 +19,10 @@ struct NODISCARD TinySet
 private:
     using Type = Type_;
     using BigSet = Set_; // big as opposed to tiny
-    using UniqueBigSet = std::unique_ptr<BigSet>;
+    using SharedConstBigSet = std::shared_ptr<const BigSet>;
 
 private:
-    // This Variant class is basically just a "compiler approved" union of Type and UniqueBig,
+    // This Variant class is basically just a "compiler approved" union of Type and SharedConstBigSet,
     // where the least significant bit decides which type it is.
     //
     // Note that Storage does not control the lifetime of the pointed-to-set,
@@ -32,7 +32,7 @@ private:
     private:
         static inline constexpr size_t BUF_SIZE = sizeof(uintptr_t);
         static inline constexpr size_t BUF_ALIGN = alignof(uintptr_t);
-        static_assert(BUF_SIZE == sizeof(UniqueBigSet));
+        static_assert(BUF_SIZE == sizeof(SharedConstBigSet));
         static_assert(BUF_SIZE >= sizeof(size_t));
         static_assert(sizeof(size_t) >= sizeof(Type)); /* note: must be at least one bit larger */
         alignas(BUF_ALIGN) char m_buf[BUF_SIZE]{0};
@@ -76,7 +76,7 @@ private:
         // empty is effectively just holding "(UniqueBig*)nullptr"
         NODISCARD bool holds_nothing() const noexcept { return get_uintptrt() == 0u; }
         NODISCARD bool holds_single_value() const noexcept { return (get_uintptrt() & 1u) == 1u; }
-        NODISCARD bool holds_unique_bigset() const noexcept
+        NODISCARD bool holds_shared_const_bigset() const noexcept
         {
             return !holds_nothing() && !holds_single_value();
         }
@@ -84,8 +84,8 @@ private:
     public:
         void clear() noexcept
         {
-            if (holds_unique_bigset()) {
-                assign_unique_bigset(nullptr);
+            if (holds_shared_const_bigset()) {
+                assign_shared_const_bigset(nullptr);
             } else {
                 // would it be okay to write "*this = {};" here?
                 *std::launder(reinterpret_cast<uintptr_t *>(m_buf)) = 0u;
@@ -103,8 +103,8 @@ private:
         }
         void set_single_value(const Type value) noexcept
         {
-            if (holds_unique_bigset()) {
-                assert(!holds_unique_bigset());
+            if (holds_shared_const_bigset()) {
+                assert(!holds_shared_const_bigset());
                 std::abort(); // crash
             }
 
@@ -120,36 +120,41 @@ private:
         }
 
     private:
-        NODISCARD UniqueBigSet &getUniqueBigSet() noexcept
+        NODISCARD SharedConstBigSet &getSharedConstBigSet_Unsafe() noexcept
         {
-            assert(holds_nothing() || holds_unique_bigset()); // used in assignment
-            return *std::launder(reinterpret_cast<UniqueBigSet *>(m_buf));
+            assert(holds_nothing() || holds_shared_const_bigset()); // used in assignment
+            return *std::launder(reinterpret_cast<SharedConstBigSet *>(m_buf));
         }
-        NODISCARD const UniqueBigSet &getUniqueBigSet() const noexcept
+        NODISCARD const SharedConstBigSet &getSharedConstBigSet() const noexcept
         {
-            assert(holds_unique_bigset());
-            return *std::launder(reinterpret_cast<const UniqueBigSet *>(m_buf));
+            assert(holds_shared_const_bigset());
+            return *std::launder(reinterpret_cast<const SharedConstBigSet *>(m_buf));
         }
 
     public:
-        NODISCARD BigSet &get_big() noexcept
+        // Added for use_count checks
+        NODISCARD SharedConstBigSet get_const_big_set_ptr() const noexcept
         {
-            assert(holds_unique_bigset());
-            return *getUniqueBigSet();
+            assert(holds_shared_const_bigset());
+            return getSharedConstBigSet();
         }
+
         NODISCARD const BigSet &get_big() const noexcept
         {
-            assert(holds_unique_bigset());
-            return *getUniqueBigSet();
+            assert(holds_shared_const_bigset());
+            return *getSharedConstBigSet();
         }
         // newValue is allowed to be nullptr
-        void assign_unique_bigset(UniqueBigSet newValue) noexcept
+        // Note: This method is now for assigning a std::shared_ptr<const BigSet>.
+        // If a std::shared_ptr<BigSet> (mutable) needs to be assigned,
+        // it should be std::const_pointer_cast-ed before calling this or a new overload created.
+        void assign_shared_const_bigset(SharedConstBigSet newValue) noexcept
         {
-            assert(holds_nothing() || holds_unique_bigset());
-            UniqueBigSet &ref = getUniqueBigSet();
+            assert(holds_nothing() || holds_shared_const_bigset());
+            SharedConstBigSet &ref = getSharedConstBigSet_Unsafe();
             using std::swap;
-            swap(ref, newValue);
-            assert(holds_nothing() || holds_unique_bigset());
+            swap(ref, newValue); // Manages ref counts automatically
+            assert(holds_nothing() || holds_shared_const_bigset());
         }
     };
     Variant m_var;
@@ -157,16 +162,18 @@ private:
 private:
     NODISCARD bool isEmpty() const noexcept { return m_var.holds_nothing(); }
     NODISCARD bool hasOne() const noexcept { return m_var.holds_single_value(); }
-    NODISCARD bool hasBig() const noexcept { return m_var.holds_unique_bigset(); }
+    NODISCARD bool hasBig() const noexcept { return m_var.holds_shared_const_bigset(); }
 
 private:
-    NODISCARD BigSet &getBig()
-    {
-        if (!hasBig()) {
-            throw std::runtime_error("bad type");
-        }
-        return m_var.get_big();
-    }
+    // This non-const getBig() is problematic with shared_ptr<const BigSet> and will be removed.
+    // Mutating operations will use copy-on-write.
+    // NODISCARD BigSet &getBig()
+    // {
+    //     if (!hasBig()) {
+    //         throw std::runtime_error("bad type");
+    //     }
+    //     return m_var.get_big(); // This would need to change if m_var.get_big() is const
+    // }
     NODISCARD const BigSet &getBig() const
     {
         if (!hasBig()) {
@@ -184,14 +191,17 @@ private:
     }
 
 private:
-    void assign(UniqueBigSet newValue)
+    // Assigns a shared pointer to a potentially new BigSet.
+    // This is used when a BigSet is newly created or copied for modification.
+    void assign(SharedConstBigSet new_shared_set)
     {
-        if (!hasBig()) {
+        if (!hasBig()) { // If currently not big (empty or single), ensure m_var is cleared of single value first.
             m_var.clear();
         }
 
-        const bool should_expect_empty = newValue == nullptr;
-        m_var.assign_unique_bigset(std::exchange(newValue, {}));
+        const bool should_expect_empty = new_shared_set == nullptr;
+        // The old shared_ptr in m_var (if any) is destructed/decremented by assign_shared_const_bigset.
+        m_var.assign_shared_const_bigset(std::move(new_shared_set));
 
         if (should_expect_empty) {
             assert(isEmpty());
@@ -233,16 +243,28 @@ public:
     TinySet(const TinySet &other)
     {
         if (other.hasBig()) {
-            assign(std::make_unique<BigSet>(other.getBig()));
+            // Share ownership of the const BigSet
+            assign(other.m_var.get_const_big_set_ptr());
         } else {
-            clear();
-            m_var = other.m_var;
+            // For empty or single value, m_var can be directly copied.
+            // Ensure current is cleared if it was big.
+            if (hasBig()) {
+                 m_var.clear(); // Frees the currently owned big set if any
+            }
+            m_var = other.m_var; // shallow copy for non-big cases
         }
     }
 
     TinySet &operator=(TinySet &&other) noexcept
     {
         if (std::addressof(other) != this) {
+            // Clear current content before swapping, especially if it holds a shared_ptr,
+            // to correctly manage its lifecycle if it's not overwritten by a big set from other.
+            if (hasBig()) {
+                m_var.assign_shared_const_bigset(nullptr); // Explicitly release resource
+            } else if (hasOne() || isEmpty()) {
+                m_var.clear(); // Clear single value or ensure empty state
+            }
             std::swap(m_var, other.m_var);
         }
         return *this;
@@ -251,12 +273,22 @@ public:
     TinySet &operator=(const TinySet &other)
     {
         if (std::addressof(other) != this) {
-            *this = TinySet(other);
+            if (other.hasBig()) {
+                // Share ownership of the const BigSet from other
+                assign(other.m_var.get_const_big_set_ptr());
+            } else {
+                // If other is not big, clear current if it is big, then copy m_var.
+                if (hasBig()) {
+                    // This assign(nullptr) correctly clears the current big set.
+                    assign(nullptr);
+                }
+                m_var = other.m_var; // shallow copy for non-big cases
+            }
         }
         return *this;
     }
 
-    explicit TinySet(BigSet &&other) = delete;
+    explicit TinySet(BigSet &&other) = delete; // Keep deleted, direct construction from rvalue BigSet not sensible here.
 
 public:
     struct NODISCARD ConstIterator final
@@ -372,18 +404,27 @@ public:
         } else if (hasOne()) {
             return getOnly() == id;
         } else {
-            const auto &big = getBig();
-            return big.contains(id);
+            // getBig() returns const BigSet&, which is fine for const operations
+            return getBig().contains(id);
         }
     }
 
     NODISCARD bool operator==(const TinySet &rhs) const
     {
-        if (m_var == rhs.m_var) {
-            return true;
+        if (m_var.holds_nothing() && rhs.m_var.holds_nothing()) return true;
+        if (m_var.holds_single_value() && rhs.m_var.holds_single_value()) {
+            return m_var.get_single_value() == rhs.m_var.get_single_value();
         }
-
-        return hasBig() && rhs.hasBig() && getBig() == rhs.getBig();
+        if (m_var.holds_shared_const_bigset() && rhs.m_var.holds_shared_const_bigset()) {
+            // If pointers are same, sets are same (or both null)
+            if (m_var.get_const_big_set_ptr() == rhs.m_var.get_const_big_set_ptr()) return true;
+            // If one is null and other isn't (but both hold_shared_const_bigset), they are different.
+            // This case should ideally not happen if nullptr means holds_nothing().
+            // Assuming get_const_big_set_ptr() never returns a nullptr shared_ptr if holds_shared_const_bigset() is true.
+            // Dereference and compare contents if pointers are different but both non-null.
+            return getBig() == rhs.getBig();
+        }
+        return false; // Different types
     }
 
     NODISCARD bool operator!=(const TinySet &rhs) const { return !operator==(rhs); }
@@ -399,63 +440,70 @@ public:
 
         if (hasOne()) {
             if (getOnly() == id) {
-                clear();
+                clear(); // m_var.clear() handles this
             }
             return;
         }
 
-        auto &big = getBig();
-        big.erase(id);
+        // Must be hasBig()
+        if (!hasBig()) return; // Should not happen due to prior checks
 
-        if (big.empty()) {
-            clear();
+        auto current_big_set_ptr = m_var.get_const_big_set_ptr();
+        // Check if id is actually in the set. If not, no modification needed.
+        if (!current_big_set_ptr->contains(id)) {
             return;
         }
 
-        if (big.size() > 1) {
-            return;
+        // If count is 1, or if we need to modify, we create a mutable copy.
+        // Since current_big_set_ptr is shared_ptr<const BigSet>, we always copy to modify.
+        auto mutable_big_set = std::make_shared<BigSet>(*current_big_set_ptr);
+        mutable_big_set->erase(id);
+
+        if (mutable_big_set->empty()) {
+            assign(nullptr); // Becomes empty
+            assert(isEmpty());
+        } else if (mutable_big_set->size() == 1) {
+            assign(*mutable_big_set->begin()); // Becomes single
+            assert(hasOne());
+        } else {
+            assign(std::const_pointer_cast<const BigSet>(mutable_big_set)); // Assign new modified big set
+            assert(hasBig());
         }
-
-        // shrink since we just have one element
-        const auto first = *big.begin();
-
-        assert(hasBig());
-        assign(first); // conversion happens here
-        assert(hasOne());
     }
 
     void insert(const Type id)
     {
         assert(!IdHelper_::isInvalid(id));
 
-        if (contains(id)) {
+        if (contains(id)) { // contains() is const, no issue
             return;
         }
 
         if (isEmpty()) {
-            assign(id);
+            assign(id); // assign(Type) handles this
             assert(hasOne());
             return;
         }
 
-        if (hasBig()) {
-            auto &big = getBig();
-            big.insert(id);
+        if (hasOne()) {
+            Type current_val = getOnly();
+            // Convert to BigSet
+            auto new_big_set = std::make_shared<BigSet>();
+            new_big_set->insert(current_val);
+            new_big_set->insert(id);
+            assign(std::const_pointer_cast<const BigSet>(new_big_set));
+            assert(hasBig());
             return;
         }
 
-        if (getOnly() == id) {
-            return;
-        }
+        // Must be hasBig()
+        if (!hasBig()) return; // Should not happen
 
-        // convert to BigSet
-        UniqueBigSet uniqueBigSet = std::make_unique<BigSet>();
-        auto &big = *uniqueBigSet;
-        big.insert(getOnly());
-        big.insert(id);
-
-        assert(hasOne());
-        assign(std::exchange(uniqueBigSet, {})); // conversion to BigSet happens here
+        auto current_big_set_ptr = m_var.get_const_big_set_ptr();
+        // Copy-on-write: create a mutable copy
+        auto new_big_set = std::make_shared<BigSet>(*current_big_set_ptr);
+        new_big_set->insert(id);
+        assign(std::const_pointer_cast<const BigSet>(new_big_set));
         assert(hasBig());
     }
 

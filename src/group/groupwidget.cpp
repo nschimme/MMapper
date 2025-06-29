@@ -28,9 +28,11 @@
 #include <QStringList>
 #include <QStyledItemDelegate>
 #include <QTableView>
+#include <QTimer>
 #include <QVBoxLayout>
 
 static constexpr const char *GROUP_MIME_TYPE = "application/vnd.mm_groupchar.row";
+static constexpr int GROUP_WIDGET_UPDATE_COALESCE_MS = 50; // 50ms timer, similar to Mmapper2Group
 
 namespace { // anonymous
 
@@ -297,6 +299,7 @@ void GroupModel::setCharacters(const GroupVector &newGameChars)
 
     beginResetModel();
     m_characters = std::move(resultingCharacterList);
+    m_groupStateDataCache.clear(); // Clear cache on full reset
     endResetModel();
 }
 
@@ -348,6 +351,7 @@ void GroupModel::removeCharacterById(const GroupId charId)
 
     beginRemoveRows(QModelIndex(), index, index);
     m_characters.erase(m_characters.begin() + index);
+    m_groupStateDataCache.remove(charId); // Remove from cache
     endRemoveRows();
 }
 
@@ -357,12 +361,23 @@ void GroupModel::updateCharacter(const SharedGroupChar &updatedCharacter)
     const GroupId charId = updatedCharacter->getId();
     const int index = findIndexById(charId);
     if (index == -1) {
+        // If character is new, it will be inserted, and cache will be populated on next data request.
         insertCharacter(updatedCharacter);
         return;
     }
 
     SharedGroupChar &existingChar = m_characters[static_cast<size_t>(index)];
+    // Check if state-affecting data has changed to invalidate cache
+    // This requires comparing relevant fields from old and new character data.
+    // For simplicity here, we'll invalidate if any part of the character is updated.
+    // A more refined check would compare specific fields: color, position, affects.
+    if (existingChar->getColor() != updatedCharacter->getColor() ||
+        existingChar->getPosition() != updatedCharacter->getPosition() ||
+        existingChar->getAffects() != updatedCharacter->getAffects()) {
+        m_groupStateDataCache.remove(charId);
+    }
     existingChar = updatedCharacter;
+
 
     emit dataChanged(this->index(index, 0),
                      this->index(index, columnCount(QModelIndex()) - 1),
@@ -370,7 +385,7 @@ void GroupModel::updateCharacter(const SharedGroupChar &updatedCharacter)
                       Qt::BackgroundRole,
                       Qt::ForegroundRole,
                       Qt::ToolTipRole,
-                      Qt::UserRole + 1});
+                      Qt::UserRole + 1}); // UserRole + 1 is often used for custom data like GroupStateData
 }
 
 SharedGroupChar GroupModel::getCharacter(int row) const
@@ -384,6 +399,8 @@ SharedGroupChar GroupModel::getCharacter(int row) const
 void GroupModel::resetModel()
 {
     beginResetModel();
+    m_characters.clear(); // Ensure characters are cleared
+    m_groupStateDataCache.clear(); // Clear cache
     endResetModel();
 }
 
@@ -502,10 +519,16 @@ QVariant GroupModel::dataForCharacter(const SharedGroupChar &pCharacter,
             } else {
                 return formatStat(character.getMoves(), character.getMaxMoves(), column);
             }
-        case ColumnTypeEnum::STATE:
-            return QVariant::fromValue(GroupStateData(character.getColor(),
-                                                      character.getPosition(),
-                                                      character.getAffects()));
+        case ColumnTypeEnum::STATE: {
+            if (m_groupStateDataCache.contains(character.getId())) {
+                return QVariant::fromValue(m_groupStateDataCache.value(character.getId()));
+            }
+            GroupStateData stateData(character.getColor(),
+                                     character.getPosition(),
+                                     character.getAffects());
+            m_groupStateDataCache.insert(character.getId(), stateData);
+            return QVariant::fromValue(stateData);
+        }
         case ColumnTypeEnum::ROOM_NAME:
             if (character.getRoomName().isEmpty()) {
                 return QStringLiteral("Somewhere");
@@ -706,6 +729,10 @@ GroupWidget::GroupWidget(Mmapper2Group *const group, MapData *const md, QWidget 
     , m_map(md)
     , m_model(this)
 {
+    m_updateTimer.setSingleShot(true);
+    m_updateTimer.setInterval(GROUP_WIDGET_UPDATE_COALESCE_MS);
+    connect(&m_updateTimer, &QTimer::timeout, this, &GroupWidget::processPendingCharacterUpdates);
+
     if (m_group) {
         m_model.setCharacters(m_group->selectAll());
     } else {
@@ -860,11 +887,34 @@ void GroupWidget::slot_onCharacterRemoved(const GroupId characterId)
 void GroupWidget::slot_onCharacterUpdated(SharedGroupChar character)
 {
     assert(character);
-    m_model.updateCharacter(character);
+    m_pendingCharacterUpdates.insert(character->getId(), character);
+    if (!m_updateTimer.isActive()) {
+        m_updateTimer.start();
+    }
 }
+
+void GroupWidget::processPendingCharacterUpdates()
+{
+    if (m_pendingCharacterUpdates.isEmpty()) {
+        return;
+    }
+
+    // Create a copy for iteration, then clear the member variable
+    // This prevents issues if updateCharacter indirectly triggers new updates
+    const auto updatesToProcess = m_pendingCharacterUpdates;
+    m_pendingCharacterUpdates.clear();
+
+    for (const auto &character : updatesToProcess) {
+        m_model.updateCharacter(character);
+    }
+    // updateColumnVisibility(); // Potentially needed if character stats (like mana) change visibility rules
+}
+
 
 void GroupWidget::slot_onGroupReset(const GroupVector &newCharacterList)
 {
+    m_updateTimer.stop();
+    m_pendingCharacterUpdates.clear();
     m_model.setCharacters(newCharacterList);
     updateColumnVisibility();
 }

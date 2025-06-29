@@ -96,6 +96,8 @@ enum class NODISCARD ColumnTypeEnum {
 
 static_assert(GROUP_COLUMN_COUNT == static_cast<int>(ColumnTypeEnum::ROOM_NAME) + 1, "# of columns");
 
+#include <QMap>
+
 class NODISCARD_QOBJECT GroupModel final : public QAbstractTableModel
 {
     Q_OBJECT
@@ -103,6 +105,7 @@ class NODISCARD_QOBJECT GroupModel final : public QAbstractTableModel
 private:
     GroupVector m_characters;
     bool m_mapLoaded = false;
+    mutable QMap<GroupId, GroupStateData> m_groupStateDataCache;
 
 public:
     explicit GroupModel(QObject *parent = nullptr);
@@ -161,6 +164,9 @@ private:
     QAction *m_center = nullptr;
     QAction *m_recolor = nullptr;
     SharedGroupChar selectedCharacter;
+
+    QTimer m_updateTimer;
+    QMap<GroupId, SharedGroupChar> m_pendingCharacterUpdates;
 
 public:
     explicit GroupWidget(Mmapper2Group *group, MapData *md, QWidget *parent);

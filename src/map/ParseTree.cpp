@@ -163,7 +163,7 @@ RoomIdSet getRooms(const Map &map, const ParseTree &tree, const ParseEvent &even
                 });
                 t3_for_timing = Clock::now();
                 MMLOG() << "[getRooms] Reported " << numReported << " potential match(es).";
-            }; // End of processSet lambda
+            }; // End of processSet lambda ; <-- Added semicolon
 
             using ArgType = std::decay_t<decltype(arg_pSet_variant_val)>;
 

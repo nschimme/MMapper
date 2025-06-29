@@ -69,12 +69,13 @@ RoomIdSet getRooms(const Map &map, const ParseTree &tree, const ParseEvent &even
             bool foundNonEmptySetInArea = false;
             std::visit([&foundNonEmptySetInArea](auto&& arg) {
                 using ArgT = std::decay_t<decltype(arg)>;
-                if constexpr (!std::is_same_v<ArgT, std::nullptr_t>) { // If it's a pointer type
-                    if (arg && !arg->empty()) { // Check if pointer is non-null and set is non-empty
+                if constexpr (std::is_same_v<ArgT, std::nullptr_t>) {
+                    // It's nullptr_t, do nothing
+                } else { // It's one of the pointer types
+                    if (arg && !arg->empty()) { // Check if pointer is non-null AND set is non-empty
                         foundNonEmptySetInArea = true;
                     }
                 }
-                // If ArgT is std::nullptr_t, it does nothing, foundNonEmptySetInArea remains false.
             }, areaSetResult);
 
             if (foundNonEmptySetInArea) {
@@ -94,8 +95,10 @@ RoomIdSet getRooms(const Map &map, const ParseTree &tree, const ParseEvent &even
             bool foundNonEmptySetInRemainder = false;
             std::visit([&foundNonEmptySetInRemainder](auto&& arg) {
                 using ArgT = std::decay_t<decltype(arg)>;
-                if constexpr (!std::is_same_v<ArgT, std::nullptr_t>) { // If it's a pointer type
-                    if (arg && !arg->empty()) { // Check if pointer is non-null and set is non-empty
+                 if constexpr (std::is_same_v<ArgT, std::nullptr_t>) {
+                    // It's nullptr_t, do nothing
+                } else { // It's one of the pointer types
+                    if (arg && !arg->empty()) { // Check if pointer is non-null AND set is non-empty
                         foundNonEmptySetInRemainder = true;
                     }
                 }
@@ -127,50 +130,56 @@ RoomIdSet getRooms(const Map &map, const ParseTree &tree, const ParseEvent &even
     Clock::time_point t2_for_timing = t1; // Initialize t2 for timing log
     Clock::time_point t3_for_timing = t1; // Initialize t3 for timing log
 
+    std::visit(
+        [&](auto&& arg_pSet_variant_val) {
+            // Common processing logic for pointer types
+            auto processSet = [&](const auto* set_ptr) {
+                if (!set_ptr) {
+                    MMLOG() << "[getRooms] Unable to find any matches (variant holds a null pointer).";
+                    t2_for_timing = Clock::now();
+                    t3_for_timing = t2_for_timing;
+                    return;
+                }
 
-    std::visit([&](auto &&arg_pSet_variant_val) {
-        using ArgType = std::decay_t<decltype(arg_pSet_variant_val)>;
+                const auto& set = *set_ptr;
+                const int tolerance = getConfig().pathMachine.matchingTolerance;
+                auto tryReport = [&event, tolerance](const RoomHandle &room) {
+                    if (::compare(room.getRaw(), event, tolerance) == ComparisonResultEnum::DIFFERENT) {
+                        return false;
+                    }
+                    return true;
+                };
 
-        if constexpr (std::is_same_v<ArgType, std::nullptr_t>) {
-            MMLOG() << "[getRooms] Unable to find any matches (variant holds std::nullptr_t).";
-            t2_for_timing = Clock::now();
-            t3_for_timing = t2_for_timing;
-            return;
-        } else { // It's one of the pointer types
-            if (!arg_pSet_variant_val) { // Check if the pointer itself is null
-                MMLOG() << "[getRooms] Unable to find any matches (variant holds a null pointer).";
+                MMLOG() << "[getRooms] Found " << set.size() << " potential match(es).";
+                t2_for_timing = Clock::now();
+                size_t numReported = 0;
+                set.for_each([&](const RoomId id) {
+                    if (const auto optRoom = map.findRoomHandle(id)) {
+                        if (tryReport(optRoom)) {
+                            results.insert(id);
+                            ++numReported;
+                        }
+                    }
+                });
+                t3_for_timing = Clock::now();
+                MMLOG() << "[getRooms] Reported " << numReported << " potential match(es).";
+            }; // End of processSet lambda
+
+            using ArgType = std::decay_t<decltype(arg_pSet_variant_val)>;
+
+            if constexpr (std::is_same_v<ArgType, const ImmRoomIdSet*>) {
+                processSet(arg_pSet_variant_val);
+            } else if constexpr (std::is_same_v<ArgType, const ImmUnorderedRoomIdSet*>) {
+                processSet(arg_pSet_variant_val);
+            } else if constexpr (std::is_same_v<ArgType, std::nullptr_t>) {
+                MMLOG() << "[getRooms] Unable to find any matches (variant holds std::nullptr_t).";
                 t2_for_timing = Clock::now();
                 t3_for_timing = t2_for_timing;
-                return;
+                // No return here, already void lambda
             }
-
-            const auto& set = *arg_pSet_variant_val; // Dereference the non-null pointer
-
-            const int tolerance = getConfig().pathMachine.matchingTolerance;
-            auto tryReport = [&event, tolerance](const RoomHandle &room) {
-            if (::compare(room.getRaw(), event, tolerance) == ComparisonResultEnum::DIFFERENT) {
-                return false;
-            }
-            return true;
-        };
-
-        MMLOG() << "[getRooms] Found " << set.size() << " potential match(es).";
-
-        t2_for_timing = Clock::now();
-        size_t numReported = 0;
-        set.for_each([&](const RoomId id) {
-            if (const auto optRoom = map.findRoomHandle(id)) {
-                if (tryReport(optRoom)) {
-                    results.insert(id);
-                    ++numReported;
-                }
-            }
-        });
-        t3_for_timing = Clock::now();
-
-        MMLOG() << "[getRooms] Reported " << numReported << " potential match(es).";
-
-    }, pSetVariant);
+        }, // End of main visitor lambda
+        pSetVariant
+    ); // End of std::visit call
 
     const auto t_end_visit = Clock::now();
 

@@ -996,11 +996,16 @@ std::optional<size_t> Map::countRoomsWithArea(const RoomArea &areaName) const
     const World::AreaRoomSetVariant areaSetVariant = world.findAreaRoomSet(areaName);
 
     return std::visit(
-        [](auto *roomSetPtr) -> std::optional<size_t> {
-            if (roomSetPtr) {
-                return roomSetPtr->size();
+        [](auto&& arg) -> std::optional<size_t> {
+            using ArgT = std::decay_t<decltype(arg)>;
+            if constexpr (std::is_same_v<ArgT, std::nullptr_t>) {
+                return std::nullopt;
+            } else { // It's one of the pointer types (const ImmRoomIdSet* or const ImmUnorderedRoomIdSet*)
+                if (arg) { // Check if the pointer is not null
+                    return arg->size();
+                }
+                return std::nullopt;
             }
-            return std::nullopt;
         },
         areaSetVariant);
 }

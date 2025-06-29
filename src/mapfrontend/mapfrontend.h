@@ -17,10 +17,12 @@
 #include <optional>
 #include <set>
 #include <utility>
-#include <vector>
+// #include <vector> // Replaced by MapHistory
+#include "./MapHistory.h" // Added MapHistory include
 
 #include <QString>
 #include <QtCore>
+#include <optional> // For std::optional in UndoRedoCoordinator
 
 class ParseEvent;
 class QObject;
@@ -46,10 +48,62 @@ private:
     MapState m_current;
     MapState m_snapshot;
 
-    // Undo/Redo stacks
-    std::vector<Map> m_undo_stack;
-    std::vector<Map> m_redo_stack;
-    static const size_t MAX_UNDO_HISTORY = 100;
+    // Undo/Redo Coordinator
+    struct UndoRedoCoordinator
+    {
+        MapHistory undo_stack;
+        MapHistory redo_stack;
+        // No need to store max_undo_depth here if MapHistory handles it internally via its own max_size.
+        // The m_undo_history object within MapFrontend was configured with this upon construction.
+        // The UndoRedoCoordinator's undo_stack will be configured similarly.
+
+        // Constructor for UndoRedoCoordinator
+        UndoRedoCoordinator(size_t max_depth)
+            : undo_stack(true, max_depth) // Capped undo stack
+            , redo_stack(false)           // Uncapped redo stack (or capped very high if desired)
+        {
+        }
+
+        void recordChange(Map previous_map_state)
+        {
+            undo_stack.push(std::move(previous_map_state));
+            if (!redo_stack.isEmpty())
+            {
+                redo_stack.clear();
+            }
+        }
+
+        std::optional<Map> undo(Map current_map_state_for_redo)
+        {
+            if (undo_stack.isEmpty())
+            {
+                return std::nullopt;
+            }
+            redo_stack.push(std::move(current_map_state_for_redo));
+            return undo_stack.pop();
+        }
+
+        std::optional<Map> redo(Map current_map_state_for_undo)
+        {
+            if (redo_stack.isEmpty())
+            {
+                return std::nullopt;
+            }
+            undo_stack.push(std::move(current_map_state_for_undo)); // Assumes undo_stack handles its cap
+            return redo_stack.pop();
+        }
+
+        bool isUndoAvailable() const { return !undo_stack.isEmpty(); }
+        bool isRedoAvailable() const { return !redo_stack.isEmpty(); }
+
+        void clearAll()
+        {
+            undo_stack.clear();
+            redo_stack.clear();
+        }
+    };
+
+    UndoRedoCoordinator m_history_coordinator;
 
 public:
     explicit MapFrontend(QObject *parent);

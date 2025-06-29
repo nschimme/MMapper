@@ -4,6 +4,7 @@
 
 #include "RuleOf5.h"
 #include "macros.h"
+#include "ImmOrderedSetChunkView.h" // Include the new ChunkedView
 
 #include <algorithm>
 #include <optional>
@@ -19,7 +20,8 @@ struct NODISCARD ImmOrderedSet final
 public:
     using Vector = immer::flex_vector<T>;
     using Type = T;
-    using ConstIterator = typename Vector::const_iterator;
+    using ConstIterator = typename Vector::const_iterator; // Standard flex_vector iterator
+    using ChunkViewType = detail::ChunkedView<T>; // Alias for convenience
 
 private:
     Vector m_vector;
@@ -38,6 +40,10 @@ public:
     explicit ImmOrderedSet(Vector &&other)
         : m_vector{std::move(other)}
     {}
+
+    NODISCARD ChunkViewType get_chunked_view() const {
+        return ChunkViewType(m_vector);
+    }
 
     ImmOrderedSet &operator=(const Vector &other)
     {

@@ -530,8 +530,8 @@ void Map::diff(ProgressCounter &pc, AnsiOstream &os, const Map &a, const Map &b)
     };
 
     pc.setNewTask(ProgressMsg{"scanning old rooms"}, a.getRoomsCount());
-    thread_utils::parallel_for_each_on_immer_chunks_tl<Sets>( // Changed here
-        a.getRooms(),
+    thread_utils::parallel_for_each_tl<Sets>(
+        a.getRooms().get_chunked_view(), // Changed here
         pc,
         [&aWorld, &b](auto &tl, const RoomId oldRoom) {
             const ExternalRoomId extId = aWorld.convertToExternal(oldRoom);
@@ -544,8 +544,8 @@ void Map::diff(ProgressCounter &pc, AnsiOstream &os, const Map &a, const Map &b)
         merge_sets_tls);
 
     pc.setNewTask(ProgressMsg{"scanning new rooms"}, b.getRoomsCount());
-    thread_utils::parallel_for_each_on_immer_chunks_tl<Sets>( // Changed here
-        b.getRooms(),
+    thread_utils::parallel_for_each_tl<Sets>(
+        b.getRooms().get_chunked_view(), // Changed here
         pc,
         [&bWorld, &a](auto &tl, const RoomId newRoom) {
             const ExternalRoomId extId = bWorld.convertToExternal(newRoom);
@@ -1309,8 +1309,8 @@ BasicDiffStats getBasicDiffStats(const Map &baseMap, const Map &modMap)
         }
     };
 
-    thread_utils::parallel_for_each_on_immer_chunks_tl<BasicDiffStats>( // Changed here
-        base.getRoomSet(),
+    thread_utils::parallel_for_each_tl<BasicDiffStats>(
+        base.getRoomSet().get_chunked_view(), // Changed here
         dummyPc,
         [&mod](auto &tl, const RoomId id) {
             if (!mod.hasRoom(id)) {
@@ -1319,8 +1319,8 @@ BasicDiffStats getBasicDiffStats(const Map &baseMap, const Map &modMap)
         },
         merge_tls);
 
-    thread_utils::parallel_for_each_on_immer_chunks_tl<BasicDiffStats>( // Changed here
-        mod.getRoomSet(),
+    thread_utils::parallel_for_each_tl<BasicDiffStats>(
+        mod.getRoomSet().get_chunked_view(), // Changed here
         dummyPc,
         [&base, &mod](auto &tl, const RoomId id) {
             if (!base.hasRoom(id)) {

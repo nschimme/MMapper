@@ -368,9 +368,6 @@ void GroupModel::updateCharacter(const SharedGroupChar &updatedCharacter)
 
     SharedGroupChar &existingChar = m_characters[static_cast<size_t>(index)];
     // Check if state-affecting data has changed to invalidate cache
-    // This requires comparing relevant fields from old and new character data.
-    // For simplicity here, we'll invalidate if any part of the character is updated.
-    // A more refined check would compare specific fields: color, position, affects.
     if (existingChar->getColor() != updatedCharacter->getColor() ||
         existingChar->getPosition() != updatedCharacter->getPosition() ||
         existingChar->getAffects() != updatedCharacter->getAffects()) {
@@ -378,14 +375,17 @@ void GroupModel::updateCharacter(const SharedGroupChar &updatedCharacter)
     }
     existingChar = updatedCharacter;
 
+    // DO NOT EMIT dataChanged here anymore. This will be handled by notifyViewBatchUpdateFinished.
+}
 
-    emit dataChanged(this->index(index, 0),
-                     this->index(index, columnCount(QModelIndex()) - 1),
-                     {Qt::DisplayRole,
-                      Qt::BackgroundRole,
-                      Qt::ForegroundRole,
-                      Qt::ToolTipRole,
-                      Qt::UserRole + 1}); // UserRole + 1 is often used for custom data like GroupStateData
+void GroupModel::notifyViewBatchUpdateFinished()
+{
+    // Emit layoutChanged to tell the view that data has changed,
+    // potentially in ways that affect layout (though here it's mostly item data).
+    // This is a broad signal but effective for batch updates.
+    // A more fine-grained approach could be to collect dirty row ranges and emit
+    // specific dataChanged(topLeft, bottomRight) signals.
+    emit layoutChanged();
 }
 
 SharedGroupChar GroupModel::getCharacter(int row) const
@@ -731,7 +731,7 @@ GroupWidget::GroupWidget(Mmapper2Group *const group, MapData *const md, QWidget 
 {
     m_updateTimer.setSingleShot(true);
     m_updateTimer.setInterval(GROUP_WIDGET_UPDATE_COALESCE_MS);
-    connect(&m_updateTimer, &QTimer::timeout, this, &GroupWidget::processPendingCharacterUpdates);
+    connect(&m_updateTimer, &QTimer::timeout, this, &GroupWidget::processBatchedUINotification);
 
     if (m_group) {
         m_model.setCharacters(m_group->selectAll());
@@ -873,48 +873,52 @@ void GroupWidget::updateColumnVisibility()
 void GroupWidget::slot_onCharacterAdded(SharedGroupChar character)
 {
     assert(character);
-    m_model.insertCharacter(character);
+    m_model.insertCharacter(character); // Still emits its own signals for now
+    m_needsUIRefresh = true; // To ensure a broad update signal if other changes happened
+    if (!m_updateTimer.isActive()) {
+        m_updateTimer.start();
+    }
     updateColumnVisibility();
 }
 
 void GroupWidget::slot_onCharacterRemoved(const GroupId characterId)
 {
     assert(characterId != INVALID_GROUPID);
-    m_model.removeCharacterById(characterId);
+    m_model.removeCharacterById(characterId); // Still emits its own signals for now
+    m_needsUIRefresh = true; // To ensure a broad update signal if other changes happened
+    if (!m_updateTimer.isActive()) {
+        m_updateTimer.start();
+    }
     updateColumnVisibility();
 }
 
 void GroupWidget::slot_onCharacterUpdated(SharedGroupChar character)
 {
     assert(character);
-    m_pendingCharacterUpdates.insert(character->getId(), character);
+    // The model's updateCharacter will be modified to not emit dataChanged directly.
+    m_model.updateCharacter(character);
+    m_needsUIRefresh = true;
     if (!m_updateTimer.isActive()) {
         m_updateTimer.start();
     }
 }
 
-void GroupWidget::processPendingCharacterUpdates()
+void GroupWidget::processBatchedUINotification()
 {
-    if (m_pendingCharacterUpdates.isEmpty()) {
-        return;
+    if (m_needsUIRefresh) {
+        // This new model method will emit a broad signal like layoutChanged()
+        // or dataChanged(top, bottom) for the entire view.
+        m_model.notifyViewBatchUpdateFinished();
+        m_needsUIRefresh = false;
     }
-
-    // Create a copy for iteration, then clear the member variable
-    // This prevents issues if updateCharacter indirectly triggers new updates
-    const auto updatesToProcess = m_pendingCharacterUpdates;
-    m_pendingCharacterUpdates.clear();
-
-    for (const auto &character : updatesToProcess) {
-        m_model.updateCharacter(character);
-    }
-    // updateColumnVisibility(); // Potentially needed if character stats (like mana) change visibility rules
+    // updateColumnVisibility(); // This might be needed here if model changes could affect it
 }
 
 
 void GroupWidget::slot_onGroupReset(const GroupVector &newCharacterList)
 {
     m_updateTimer.stop();
-    m_pendingCharacterUpdates.clear();
-    m_model.setCharacters(newCharacterList);
+    m_needsUIRefresh = false;
+    m_model.setCharacters(newCharacterList); // This does a beginResetModel/endResetModel
     updateColumnVisibility();
 }

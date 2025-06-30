@@ -119,8 +119,9 @@ public:
     void setCharacters(const GroupVector &newChars);
     void insertCharacter(const SharedGroupChar &newCharacter);
     void removeCharacterById(GroupId charId);
-    void updateCharacter(const SharedGroupChar &updatedCharacter);
+    void updateCharacter(const SharedGroupChar &updatedCharacter); // Will be modified to be silent
     void resetModel();
+    void notifyViewBatchUpdateFinished(); // New method
 
 private:
     NODISCARD QVariant dataForCharacter(const SharedGroupChar &character,
@@ -166,7 +167,7 @@ private:
     SharedGroupChar selectedCharacter;
 
     QTimer m_updateTimer;
-    QMap<GroupId, SharedGroupChar> m_pendingCharacterUpdates;
+    bool m_needsUIRefresh = false;
 
 public:
     explicit GroupWidget(Mmapper2Group *group, MapData *md, QWidget *parent);
@@ -188,4 +189,5 @@ private slots:
     void slot_onCharacterRemoved(GroupId characterId);
     void slot_onCharacterUpdated(SharedGroupChar character);
     void slot_onGroupReset(const GroupVector &newCharacterList);
+    void processBatchedUINotification();
 };

@@ -290,14 +290,15 @@ public:
 
     struct NODISCARD PathMachineSettings final
     {
-        double acceptBestRelative = 0.0;
-        double acceptBestAbsolute = 0.0;
-        double newRoomPenalty = 0.0;
-        double multipleConnectionsPenalty = 0.0;
-        double correctPositionBonus = 0.0;
-        int maxPaths = 0;
-        int matchingTolerance = 0;
-        bool onlyAllowChangesInMapMode = false;
+        NamedConfig<double> acceptBestRelative{"PATHMACHINE_ACCEPT_BEST_RELATIVE", 10.0};
+        NamedConfig<double> acceptBestAbsolute{"PATHMACHINE_ACCEPT_BEST_ABSOLUTE", 3.0};
+        NamedConfig<double> newRoomPenalty{"PATHMACHINE_NEW_ROOM_PENALTY", 5.0};
+        NamedConfig<double> multipleConnectionsPenalty{"PATHMACHINE_MULTIPLE_CONNECTIONS_PENALTY", 2.0};
+        NamedConfig<double> correctPositionBonus{"PATHMACHINE_CORRECT_POSITION_BONUS", 5.1};
+        NamedConfig<int> maxPaths{"PATHMACHINE_MAX_PATHS", 500};
+        NamedConfig<int> matchingTolerance{"PATHMACHINE_MATCHING_TOLERANCE", 5};
+        NamedConfig<uint32_t> maxSkipped{"PATHMACHINE_MAX_SKIPPED", 1}; // Added from PathParameters
+        NamedConfig<bool> onlyAllowChangesInMapMode{"PATHMACHINE_ONLY_ALLOW_CHANGES_IN_MAP_MODE", false};
 
     private:
         SUBGROUP();

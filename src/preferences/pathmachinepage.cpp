@@ -52,52 +52,54 @@ PathmachinePage::PathmachinePage(QWidget *parent)
 void PathmachinePage::slot_loadConfig()
 {
     const auto &settings = getConfig().pathMachine;
-    acceptBestRelativeDoubleSpinBox->setValue(settings.acceptBestRelative);
-    acceptBestAbsoluteDoubleSpinBox->setValue(settings.acceptBestAbsolute);
-    newRoomPenaltyDoubleSpinBox->setValue(settings.newRoomPenalty);
-    correctPositionBonusDoubleSpinBox->setValue(settings.correctPositionBonus);
-    maxPaths->setValue(settings.maxPaths);
-    matchingToleranceSpinBox->setValue(settings.matchingTolerance);
-    multipleConnectionsPenaltyDoubleSpinBox->setValue(settings.multipleConnectionsPenalty);
-    onlyAllowChangesInMapModeCheckBox->setChecked(settings.onlyAllowChangesInMapMode);
+    acceptBestRelativeDoubleSpinBox->setValue(settings.acceptBestRelative.get());
+    acceptBestAbsoluteDoubleSpinBox->setValue(settings.acceptBestAbsolute.get());
+    newRoomPenaltyDoubleSpinBox->setValue(settings.newRoomPenalty.get());
+    correctPositionBonusDoubleSpinBox->setValue(settings.correctPositionBonus.get());
+    maxPaths->setValue(settings.maxPaths.get());
+    matchingToleranceSpinBox->setValue(settings.matchingTolerance.get());
+    multipleConnectionsPenaltyDoubleSpinBox->setValue(settings.multipleConnectionsPenalty.get());
+    onlyAllowChangesInMapModeCheckBox->setChecked(settings.onlyAllowChangesInMapMode.get());
+    // TODO: Add UI element for maxSkipped and load it here
 }
 
 void PathmachinePage::slot_acceptBestRelativeDoubleSpinBoxValueChanged(const double val)
 {
-    setConfig().pathMachine.acceptBestRelative = val;
+    setConfig().pathMachine.acceptBestRelative.set(val);
 }
 
 void PathmachinePage::slot_acceptBestAbsoluteDoubleSpinBoxValueChanged(const double val)
 {
-    setConfig().pathMachine.acceptBestAbsolute = val;
+    setConfig().pathMachine.acceptBestAbsolute.set(val);
 }
 
 void PathmachinePage::slot_newRoomPenaltyDoubleSpinBoxValueChanged(const double val)
 {
-    setConfig().pathMachine.newRoomPenalty = val;
+    setConfig().pathMachine.newRoomPenalty.set(val);
 }
 
 void PathmachinePage::slot_correctPositionBonusDoubleSpinBoxValueChanged(const double val)
 {
-    setConfig().pathMachine.correctPositionBonus = val;
+    setConfig().pathMachine.correctPositionBonus.set(val);
 }
 
 void PathmachinePage::slot_multipleConnectionsPenaltyDoubleSpinBoxValueChanged(const double val)
 {
-    setConfig().pathMachine.multipleConnectionsPenalty = val;
+    setConfig().pathMachine.multipleConnectionsPenalty.set(val);
 }
 
 void PathmachinePage::slot_maxPathsValueChanged(const int val)
 {
-    setConfig().pathMachine.maxPaths = utils::clampNonNegative(val);
+    setConfig().pathMachine.maxPaths.set(utils::clampNonNegative(val));
 }
 
 void PathmachinePage::slot_matchingToleranceSpinBoxValueChanged(const int val)
 {
-    setConfig().pathMachine.matchingTolerance = utils::clampNonNegative(val);
+    setConfig().pathMachine.matchingTolerance.set(utils::clampNonNegative(val));
 }
 
 void PathmachinePage::slot_onlyAllowChangesInMapModeCheckBoxStateChanged(const int state)
 {
-    setConfig().pathMachine.onlyAllowChangesInMapMode = (state == Qt::Checked);
+    setConfig().pathMachine.onlyAllowChangesInMapMode.set(state == Qt::Checked);
 }
+// TODO: Add slot for maxSkipped when UI element is added

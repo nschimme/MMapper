@@ -675,13 +675,15 @@ void Configuration::MumeNativeSettings::read(const QSettings &conf)
 
 void Configuration::PathMachineSettings::read(const QSettings &conf)
 {
-    acceptBestRelative = conf.value(KEY_RELATIVE_PATH_ACCEPTANCE, 25).toDouble();
-    acceptBestAbsolute = conf.value(KEY_ABSOLUTE_PATH_ACCEPTANCE, 6).toDouble();
-    newRoomPenalty = conf.value(KEY_ROOM_CREATION_PENALTY, 5).toDouble();
-    correctPositionBonus = conf.value(KEY_CORRECT_POSITION_BONUS, 5).toDouble();
-    multipleConnectionsPenalty = conf.value(KEY_MULTIPLE_CONNECTIONS_PENALTY, 2.0).toDouble();
-    maxPaths = utils::clampNonNegative(conf.value(KEY_MAXIMUM_NUMBER_OF_PATHS, 1000).toInt());
-    matchingTolerance = utils::clampNonNegative(conf.value(KEY_ROOM_MATCHING_TOLERANCE, 8).toInt());
+    acceptBestRelative.set(conf.value(acceptBestRelative.getName().c_str(), acceptBestRelative.getDefault()).toDouble());
+    acceptBestAbsolute.set(conf.value(acceptBestAbsolute.getName().c_str(), acceptBestAbsolute.getDefault()).toDouble());
+    newRoomPenalty.set(conf.value(newRoomPenalty.getName().c_str(), newRoomPenalty.getDefault()).toDouble());
+    correctPositionBonus.set(conf.value(correctPositionBonus.getName().c_str(), correctPositionBonus.getDefault()).toDouble());
+    multipleConnectionsPenalty.set(conf.value(multipleConnectionsPenalty.getName().c_str(), multipleConnectionsPenalty.getDefault()).toDouble());
+    maxPaths.set(utils::clampNonNegative(conf.value(maxPaths.getName().c_str(), maxPaths.getDefault()).toInt()));
+    matchingTolerance.set(utils::clampNonNegative(conf.value(matchingTolerance.getName().c_str(), matchingTolerance.getDefault()).toInt()));
+    maxSkipped.set(static_cast<uint32_t>(utils::clampNonNegative(conf.value(maxSkipped.getName().c_str(), maxSkipped.getDefault()).toUInt())));
+    onlyAllowChangesInMapMode.set(conf.value(onlyAllowChangesInMapMode.getName().c_str(), onlyAllowChangesInMapMode.getDefault()).toBool());
 }
 
 void Configuration::GroupManagerSettings::read(const QSettings &conf)
@@ -842,13 +844,15 @@ void Configuration::MumeClientProtocolSettings::write(QSettings &conf) const
 
 void Configuration::PathMachineSettings::write(QSettings &conf) const
 {
-    conf.setValue(KEY_RELATIVE_PATH_ACCEPTANCE, acceptBestRelative);
-    conf.setValue(KEY_ABSOLUTE_PATH_ACCEPTANCE, acceptBestAbsolute);
-    conf.setValue(KEY_ROOM_CREATION_PENALTY, newRoomPenalty);
-    conf.setValue(KEY_CORRECT_POSITION_BONUS, correctPositionBonus);
-    conf.setValue(KEY_MAXIMUM_NUMBER_OF_PATHS, utils::clampNonNegative(maxPaths));
-    conf.setValue(KEY_ROOM_MATCHING_TOLERANCE, utils::clampNonNegative(matchingTolerance));
-    conf.setValue(KEY_MULTIPLE_CONNECTIONS_PENALTY, multipleConnectionsPenalty);
+    conf.setValue(acceptBestRelative.getName().c_str(), acceptBestRelative.get());
+    conf.setValue(acceptBestAbsolute.getName().c_str(), acceptBestAbsolute.get());
+    conf.setValue(newRoomPenalty.getName().c_str(), newRoomPenalty.get());
+    conf.setValue(correctPositionBonus.getName().c_str(), correctPositionBonus.get());
+    conf.setValue(multipleConnectionsPenalty.getName().c_str(), multipleConnectionsPenalty.get());
+    conf.setValue(maxPaths.getName().c_str(), utils::clampNonNegative(maxPaths.get()));
+    conf.setValue(matchingTolerance.getName().c_str(), utils::clampNonNegative(matchingTolerance.get()));
+    conf.setValue(maxSkipped.getName().c_str(), utils::clampNonNegative(maxSkipped.get()));
+    conf.setValue(onlyAllowChangesInMapMode.getName().c_str(), onlyAllowChangesInMapMode.get());
 }
 
 void Configuration::GroupManagerSettings::write(QSettings &conf) const

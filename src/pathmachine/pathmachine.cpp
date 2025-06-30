@@ -41,9 +41,20 @@ PathMachine::PathMachine(MapFrontend &map, QObject *const parent)
     , m_lastEvent{ParseEvent::createDummyEvent()}
     , m_paths{PathList::alloc()}
 {
-    // TODO: Connect this to the global configuration change signal
+    // TODO: Connect this to the global configuration change signal for general.mapMode
     m_params.mapMode = getConfig().general.mapMode;
-    m_params.onlyAllowChangesInMapMode = getConfig().pathMachine.onlyAllowChangesInMapMode;
+
+    // TODO: Register callbacks for these PathMachineSettings to update m_params dynamically
+    const auto &pmSettings = getConfig().pathMachine;
+    m_params.acceptBestRelative = pmSettings.acceptBestRelative.get();
+    m_params.acceptBestAbsolute = pmSettings.acceptBestAbsolute.get();
+    m_params.newRoomPenalty = pmSettings.newRoomPenalty.get();
+    m_params.multipleConnectionsPenalty = pmSettings.multipleConnectionsPenalty.get();
+    m_params.correctPositionBonus = pmSettings.correctPositionBonus.get();
+    m_params.maxPaths = static_cast<double>(pmSettings.maxPaths.get()); // PathParameters uses double for maxPaths
+    m_params.matchingTolerance = pmSettings.matchingTolerance.get();
+    m_params.maxSkipped = pmSettings.maxSkipped.get();
+    m_params.onlyAllowChangesInMapMode = pmSettings.onlyAllowChangesInMapMode.get();
 }
 
 bool PathMachine::hasLastEvent() const

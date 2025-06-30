@@ -39,7 +39,28 @@ class NODISCARD Configuration final
 public:
     void read();
     void write() const;
-    void reset();
+    void reset()
+    {
+        general = {};
+        connection = {};
+        parser = {};
+        mumeClientProtocol = {};
+        mumeNative = {};
+        canvas = {};
+        colorSettings.resetToDefaults();
+        account = {};
+        autoLoad = {};
+        autoLog = {};
+        pathMachine = {};
+        groupManager = {};
+        mumeClock = {};
+        adventurePanel = {};
+        integratedClient = {};
+        roomPanel = {};
+        infomarksDialog = {};
+        roomEditDialog = {};
+        findRoomsDialog = {};
+    }
 
 public:
     struct NODISCARD GeneralSettings final
@@ -276,6 +297,7 @@ public:
         double correctPositionBonus = 0.0;
         int maxPaths = 0;
         int matchingTolerance = 0;
+        bool onlyAllowChangesInMapMode = false;
 
     private:
         SUBGROUP();

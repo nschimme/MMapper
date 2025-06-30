@@ -175,6 +175,16 @@
         </property>
        </widget>
       </item>
+      <item row="7" column="0">
+       <widget class="QLabel" name="onlyAllowChangesInMapModeLabel">
+        <property name="text">
+         <string>Only Allow Changes in Map Mode:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="1">
+       <widget class="QCheckBox" name="onlyAllowChangesInMapModeCheckBox"/>
+      </item>
      </layout>
     </widget>
    </item>
@@ -201,6 +211,7 @@
   <tabstop>newRoomPenaltyDoubleSpinBox</tabstop>
   <tabstop>correctPositionBonusDoubleSpinBox</tabstop>
   <tabstop>multipleConnectionsPenaltyDoubleSpinBox</tabstop>
+  <tabstop>onlyAllowChangesInMapModeCheckBox</tabstop>
  </tabstops>
  <resources/>
  <connections/>

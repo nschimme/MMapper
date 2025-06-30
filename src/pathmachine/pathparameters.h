@@ -5,6 +5,7 @@
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 
 #include "../global/macros.h"
+#include "../map/mapmode.h"
 
 #include <cstdint>
 
@@ -22,4 +23,5 @@ struct NODISCARD PathParameters final
     int matchingTolerance = 5;
     uint32_t maxSkipped = 1;
     bool onlyAllowChangesInMapMode = false;
+    MapModeEnum mapMode = MapModeEnum::OFFLINE;
 };

@@ -29,4 +29,5 @@ public slots:
     void slot_multipleConnectionsPenaltyDoubleSpinBoxValueChanged(double);
     void slot_maxPathsValueChanged(int);
     void slot_matchingToleranceSpinBoxValueChanged(int);
+    void slot_onlyAllowChangesInMapModeCheckBoxStateChanged(int);
 };

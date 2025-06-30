@@ -41,8 +41,9 @@ PathMachine::PathMachine(MapFrontend &map, QObject *const parent)
     , m_lastEvent{ParseEvent::createDummyEvent()}
     , m_paths{PathList::alloc()}
 {
-    // TODO: Initialize m_params.onlyAllowChangesInMapMode from configuration
-    m_params.onlyAllowChangesInMapMode = false;
+    // TODO: Connect this to the global configuration change signal
+    m_params.mapMode = getConfig().general.mapMode;
+    m_params.onlyAllowChangesInMapMode = getConfig().pathMachine.onlyAllowChangesInMapMode;
 }
 
 bool PathMachine::hasLastEvent() const

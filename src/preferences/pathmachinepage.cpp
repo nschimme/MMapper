@@ -43,6 +43,10 @@ PathmachinePage::PathmachinePage(QWidget *parent)
             QOverload<int>::of(&QSpinBox::valueChanged),
             this,
             &PathmachinePage::slot_matchingToleranceSpinBoxValueChanged);
+    connect(onlyAllowChangesInMapModeCheckBox,
+            &QCheckBox::stateChanged,
+            this,
+            &PathmachinePage::slot_onlyAllowChangesInMapModeCheckBoxStateChanged);
 }
 
 void PathmachinePage::slot_loadConfig()
@@ -55,6 +59,7 @@ void PathmachinePage::slot_loadConfig()
     maxPaths->setValue(settings.maxPaths);
     matchingToleranceSpinBox->setValue(settings.matchingTolerance);
     multipleConnectionsPenaltyDoubleSpinBox->setValue(settings.multipleConnectionsPenalty);
+    onlyAllowChangesInMapModeCheckBox->setChecked(settings.onlyAllowChangesInMapMode);
 }
 
 void PathmachinePage::slot_acceptBestRelativeDoubleSpinBoxValueChanged(const double val)
@@ -90,4 +95,9 @@ void PathmachinePage::slot_maxPathsValueChanged(const int val)
 void PathmachinePage::slot_matchingToleranceSpinBoxValueChanged(const int val)
 {
     setConfig().pathMachine.matchingTolerance = utils::clampNonNegative(val);
+}
+
+void PathmachinePage::slot_onlyAllowChangesInMapModeCheckBoxStateChanged(const int state)
+{
+    setConfig().pathMachine.onlyAllowChangesInMapMode = (state == Qt::Checked);
 }

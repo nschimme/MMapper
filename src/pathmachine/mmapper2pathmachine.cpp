@@ -38,21 +38,8 @@ NODISCARD static const char *stateName(const PathStateEnum state)
 
 void Mmapper2PathMachine::slot_handleParseEvent(const SigParseEvent &sigParseEvent)
 {
-    /*
-     * REVISIT: replace PathParameters with Configuration::PathMachineSettings
-     * and then just do: params = config.pathMachine; ? 
-     */
-    const auto &settings = getConfig().pathMachine;
-    auto &params = m_params;
-
-    // Note: clamping here isn't necessary if all writes are clamped.
-    params.acceptBestRelative = settings.acceptBestRelative;
-    params.acceptBestAbsolute = settings.acceptBestAbsolute;
-    params.newRoomPenalty = settings.newRoomPenalty;
-    params.correctPositionBonus = settings.correctPositionBonus;
-    params.maxPaths = utils::clampNonNegative(settings.maxPaths);
-    params.matchingTolerance = utils::clampNonNegative(settings.matchingTolerance);
-    params.multipleConnectionsPenalty = settings.multipleConnectionsPenalty;
+    // m_params are now kept in sync with configuration by the PathMachine base class
+    // constructor and its NamedConfig callbacks.
 
     try {
         PathMachine::handleParseEvent(sigParseEvent);

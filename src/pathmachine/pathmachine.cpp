@@ -40,7 +40,10 @@ PathMachine::PathMachine(MapFrontend &map, QObject *const parent)
     , m_signaler{map, this}
     , m_lastEvent{ParseEvent::createDummyEvent()}
     , m_paths{PathList::alloc()}
-{}
+{
+    // TODO: Initialize m_params.onlyAllowChangesInMapMode from configuration
+    m_params.onlyAllowChangesInMapMode = false;
+}
 
 bool PathMachine::hasLastEvent() const
 {
@@ -643,8 +646,14 @@ void PathMachine::evaluatePaths(ChangeList &changes)
 
 void PathMachine::scheduleAction(const ChangeList &action)
 {
-    if (getMapMode() != MapModeEnum::OFFLINE) {
-        m_map.applyChanges(action);
+    if (m_params.onlyAllowChangesInMapMode) {
+        if (getMapMode() == MapModeEnum::MAP) {
+            m_map.applyChanges(action);
+        }
+    } else {
+        if (getMapMode() != MapModeEnum::OFFLINE) {
+            m_map.applyChanges(action);
+        }
     }
 }
 

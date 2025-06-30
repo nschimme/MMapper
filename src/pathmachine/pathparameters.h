@@ -21,4 +21,5 @@ struct NODISCARD PathParameters final
     double maxPaths = 500.0;
     int matchingTolerance = 5;
     uint32_t maxSkipped = 1;
+    bool onlyAllowChangesInMapMode = false;
 };

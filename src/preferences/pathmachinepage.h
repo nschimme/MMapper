@@ -30,4 +30,5 @@ public slots:
     void slot_maxPathsValueChanged(int);
     void slot_matchingToleranceSpinBoxValueChanged(int);
     void slot_onlyAllowChangesInMapModeCheckBoxStateChanged(int);
+    void slot_maxSkippedSpinBoxValueChanged(int);
 };

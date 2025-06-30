@@ -40,20 +40,57 @@ PathMachine::PathMachine(MapFrontend &map, QObject *const parent)
     , m_signaler{map, this}
     , m_lastEvent{ParseEvent::createDummyEvent()}
     , m_paths{PathList::alloc()}
+    , m_lifetime{std::make_shared<ChangeMonitor::LifetimeTracker>()}
 {
-    // TODO: Connect this to the global configuration change signal for general.mapMode
+    // TODO: Connect this to a global configuration change signal for general.mapMode
+    // For now, initialize once. Dynamic updates for mapMode would require a broader signal/slot mechanism.
     m_params.mapMode = getConfig().general.mapMode;
 
-    // TODO: Register callbacks for these PathMachineSettings to update m_params dynamically
-    const auto &pmSettings = getConfig().pathMachine;
+    auto &pmSettings = setConfig().pathMachine;
+
+    pmSettings.acceptBestRelative.registerChangeCallback(m_lifetime, [this](double newValue) {
+        m_params.acceptBestRelative = newValue;
+    });
     m_params.acceptBestRelative = pmSettings.acceptBestRelative.get();
+
+    pmSettings.acceptBestAbsolute.registerChangeCallback(m_lifetime, [this](double newValue) {
+        m_params.acceptBestAbsolute = newValue;
+    });
     m_params.acceptBestAbsolute = pmSettings.acceptBestAbsolute.get();
+
+    pmSettings.newRoomPenalty.registerChangeCallback(m_lifetime, [this](double newValue) {
+        m_params.newRoomPenalty = newValue;
+    });
     m_params.newRoomPenalty = pmSettings.newRoomPenalty.get();
+
+    pmSettings.multipleConnectionsPenalty.registerChangeCallback(m_lifetime, [this](double newValue) {
+        m_params.multipleConnectionsPenalty = newValue;
+    });
     m_params.multipleConnectionsPenalty = pmSettings.multipleConnectionsPenalty.get();
+
+    pmSettings.correctPositionBonus.registerChangeCallback(m_lifetime, [this](double newValue) {
+        m_params.correctPositionBonus = newValue;
+    });
     m_params.correctPositionBonus = pmSettings.correctPositionBonus.get();
-    m_params.maxPaths = static_cast<double>(pmSettings.maxPaths.get()); // PathParameters uses double for maxPaths
+
+    pmSettings.maxPaths.registerChangeCallback(m_lifetime, [this](int newValue) {
+        m_params.maxPaths = static_cast<double>(newValue);
+    });
+    m_params.maxPaths = static_cast<double>(pmSettings.maxPaths.get());
+
+    pmSettings.matchingTolerance.registerChangeCallback(m_lifetime, [this](int newValue) {
+        m_params.matchingTolerance = newValue;
+    });
     m_params.matchingTolerance = pmSettings.matchingTolerance.get();
+
+    pmSettings.maxSkipped.registerChangeCallback(m_lifetime, [this](uint32_t newValue) {
+        m_params.maxSkipped = newValue;
+    });
     m_params.maxSkipped = pmSettings.maxSkipped.get();
+
+    pmSettings.onlyAllowChangesInMapMode.registerChangeCallback(m_lifetime, [this](bool newValue) {
+        m_params.onlyAllowChangesInMapMode = newValue;
+    });
     m_params.onlyAllowChangesInMapMode = pmSettings.onlyAllowChangesInMapMode.get();
 }
 

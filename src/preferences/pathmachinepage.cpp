@@ -47,6 +47,10 @@ PathmachinePage::PathmachinePage(QWidget *parent)
             &QCheckBox::stateChanged,
             this,
             &PathmachinePage::slot_onlyAllowChangesInMapModeCheckBoxStateChanged);
+    connect(maxSkippedSpinBox,
+            QOverload<int>::of(&QSpinBox::valueChanged),
+            this,
+            &PathmachinePage::slot_maxSkippedSpinBoxValueChanged);
 }
 
 void PathmachinePage::slot_loadConfig()
@@ -60,7 +64,7 @@ void PathmachinePage::slot_loadConfig()
     matchingToleranceSpinBox->setValue(settings.matchingTolerance.get());
     multipleConnectionsPenaltyDoubleSpinBox->setValue(settings.multipleConnectionsPenalty.get());
     onlyAllowChangesInMapModeCheckBox->setChecked(settings.onlyAllowChangesInMapMode.get());
-    // TODO: Add UI element for maxSkipped and load it here
+    maxSkippedSpinBox->setValue(settings.maxSkipped.get());
 }
 
 void PathmachinePage::slot_acceptBestRelativeDoubleSpinBoxValueChanged(const double val)
@@ -102,4 +106,8 @@ void PathmachinePage::slot_onlyAllowChangesInMapModeCheckBoxStateChanged(const i
 {
     setConfig().pathMachine.onlyAllowChangesInMapMode.set(state == Qt::Checked);
 }
-// TODO: Add slot for maxSkipped when UI element is added
+
+void PathmachinePage::slot_maxSkippedSpinBoxValueChanged(const int val)
+{
+    setConfig().pathMachine.maxSkipped.set(static_cast<uint32_t>(utils::clampNonNegative(val)));
+}

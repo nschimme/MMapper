@@ -12,6 +12,7 @@
 #include "path.h"
 #include "pathparameters.h"
 #include "roomsignalhandler.h"
+#include "../global/ChangeMonitor.h"
 
 #include <memory>
 #include <optional>
@@ -56,6 +57,7 @@ private:
     std::optional<RoomId> m_pathRoot;
     std::optional<RoomId> m_mostLikelyRoom;
     PathStateEnum m_state = PathStateEnum::SYNCING;
+    ChangeMonitor::Lifetime m_lifetime;
 
 public:
     void onPositionChange(std::optional<RoomId> optId)

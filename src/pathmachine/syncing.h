@@ -14,6 +14,7 @@
 
 class RoomSignalHandler;
 struct PathParameters;
+class PathContext; // Forward declaration
 
 /*!
  * @brief PathProcessor strategy for the "Syncing" pathfinding state.
@@ -27,6 +28,7 @@ class NODISCARD Syncing final : public PathProcessor
 {
 private:
     RoomSignalHandler &signaler;
+    PathContext &m_context; // Add PathContext reference
     PathParameters &params;
     const std::shared_ptr<PathList> paths;
     // This is not our parent; it's the parent we assign to new objects.
@@ -34,7 +36,8 @@ private:
     uint32_t numPaths = 0u;
 
 public:
-    explicit Syncing(PathParameters &p,
+    explicit Syncing(PathContext &context,
+                     PathParameters &p,
                      std::shared_ptr<PathList> paths,
                      RoomSignalHandler &signaler);
 

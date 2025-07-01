@@ -9,24 +9,28 @@
 #include "../map/room.h"
 #include "../mapdata/mapdata.h"
 #include "experimenting.h"
+#include "PathContext.h" // Include PathContext.h
 
 #include <memory>
 
 struct PathParameters;
 
-Crossover::Crossover(MapFrontend &map,
+Crossover::Crossover(PathContext &context, // Removed MapFrontend &map
                      std::shared_ptr<PathList> _paths,
                      const ExitDirEnum _dirCode,
                      PathParameters &_params)
     : Experimenting(std::move(_paths), _dirCode, _params)
-    , m_map{map}
+    // , m_map{map} // Removed m_map initialization
+    , m_context{context}
 {}
 
 void Crossover::virt_receiveRoom(const RoomHandle &room)
 {
     auto &shortPaths = deref(m_shortPaths);
     if (shortPaths.empty()) {
-        std::ignore = m_map.tryRemoveTemporary(room.getId());
+        // If there are no short paths to extend, this received room is unexpected in Crossover.
+        // If it's temporary, request its deletion.
+        m_context.requestDeleteTemporaryRoom(room.getId());
     }
 
     for (auto &shortPath : shortPaths) {

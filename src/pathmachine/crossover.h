@@ -12,6 +12,7 @@
 
 class MapFrontend;
 struct PathParameters;
+class PathContext; // Forward declaration
 
 /*!
  * @brief PathProcessor strategy for creating paths when new rooms might be formed.
@@ -23,10 +24,11 @@ struct PathParameters;
 class NODISCARD Crossover final : public Experimenting
 {
 private:
-    MapFrontend &m_map;
+    // MapFrontend &m_map; // Removed
+    PathContext &m_context;
 
 public:
-    Crossover(MapFrontend &map,
+    Crossover(PathContext &context, // Removed MapFrontend &map
               std::shared_ptr<PathList> paths,
               ExitDirEnum dirCode,
               PathParameters &params);

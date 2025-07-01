@@ -431,6 +431,8 @@ set(mmapper_SRCS
     parser/mumexmlparser-gmcp.cpp
     parser/mumexmlparser.cpp
     parser/mumexmlparser.h
+    pathmachine/PathContext.cpp
+    pathmachine/PathContext.h
     pathmachine/approved.cpp
     pathmachine/approved.h
     pathmachine/crossover.cpp

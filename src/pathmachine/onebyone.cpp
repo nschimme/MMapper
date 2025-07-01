@@ -13,17 +13,20 @@
 #include "experimenting.h"
 #include "pathparameters.h"
 #include "roomsignalhandler.h"
+#include "PathContext.h" // Include PathContext.h
 
 #include <memory>
 
 class Path;
 
-OneByOne::OneByOne(const SigParseEvent &sigParseEvent,
+OneByOne::OneByOne(PathContext &context,
+                   const SigParseEvent &sigParseEvent,
                    PathParameters &in_params,
                    RoomSignalHandler &in_handler)
     : Experimenting{PathList::alloc(), getDirection(sigParseEvent.deref().getMoveType()), in_params}
     , m_event{sigParseEvent.getShared()}
     , m_handler{in_handler}
+    , m_context{context}
 {}
 
 void OneByOne::virt_receiveRoom(const RoomHandle &room)

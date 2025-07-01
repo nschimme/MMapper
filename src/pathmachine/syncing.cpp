@@ -8,13 +8,16 @@
 #include "../map/ExitDirection.h"
 #include "path.h"
 #include "pathparameters.h"
+#include "PathContext.h" // Include PathContext.h
 
 #include <memory>
 
-Syncing::Syncing(PathParameters &in_p,
+Syncing::Syncing(PathContext &context,
+                 PathParameters &in_p,
                  std::shared_ptr<PathList> moved_paths,
                  RoomSignalHandler &in_signaler)
     : signaler(in_signaler)
+    , m_context{context}
     , params(in_p)
     , paths(std::move(moved_paths))
     , parent(Path::alloc(RoomHandle{}, signaler, std::nullopt))

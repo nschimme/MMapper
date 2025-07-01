@@ -13,6 +13,7 @@
 class ParseEvent;
 class Path;
 struct PathParameters;
+class PathContext; // Forward declaration
 
 /*!
  * @brief PathProcessor strategy for exploring from existing paths to known rooms.
@@ -27,9 +28,11 @@ class NODISCARD OneByOne final : public Experimenting
 private:
     SharedParseEvent m_event;
     RoomSignalHandler &m_handler;
+    PathContext &m_context; // Add PathContext reference
 
 public:
-    explicit OneByOne(const SigParseEvent &sigParseEvent,
+    explicit OneByOne(PathContext &context,
+                      const SigParseEvent &sigParseEvent,
                       PathParameters &in_params,
                       RoomSignalHandler &handler);
 

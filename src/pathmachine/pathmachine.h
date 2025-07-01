@@ -9,6 +9,7 @@
 #include "../map/ChangeList.h"
 #include "../map/parseevent.h"
 #include "../map/room.h"
+#include "PathContext.h" // Added PathContext include
 #include "path.h"
 #include "pathparameters.h"
 #include "roomsignalhandler.h"
@@ -79,10 +80,10 @@ private:
     void forcePositionChange(RoomId id, bool update);
 
 private:
-    void experimenting(const SigParseEvent &sigParseEvent, ChangeList &changes);
-    void syncing(const SigParseEvent &sigParseEvent, ChangeList &changes);
-    void approved(const SigParseEvent &sigParseEvent, ChangeList &changes);
-    void evaluatePaths(ChangeList &changes);
+    void experimenting(const SigParseEvent &sigParseEvent, ChangeList &changes, PathContext &context);
+    void syncing(const SigParseEvent &sigParseEvent, ChangeList &changes, PathContext &context);
+    void approved(const SigParseEvent &sigParseEvent, ChangeList &changes, PathContext &context);
+    void evaluatePaths(ChangeList &changes, PathContext &context); // Also update evaluatePaths
     void tryExits(const RoomHandle &, PathProcessor &, const ParseEvent &, bool out);
     void tryExit(const RawExit &possible, PathProcessor &recipient, bool out);
     void tryCoordinate(const RoomHandle &, PathProcessor &, const ParseEvent &);

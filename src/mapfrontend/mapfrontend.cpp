@@ -303,6 +303,32 @@ void MapFrontend::emitUndoRedoAvailability()
     emit sig_redoAvailable(m_history.isRedoAvailable());
 }
 
+std::optional<RoomId> MapFrontend::getOrCreateRoomId(const SigParseEvent& sigParseEvent, const Coordinate& coord) {
+    RoomHandle roomHandle = findRoomHandle(coord);
+    if (roomHandle) {
+        return roomHandle.getId();
+    } else {
+        // Room doesn't exist, try to create it.
+        // slot_createRoom uses room_change_types::AddRoom2, so we do the same.
+        const ParseEvent &event = sigParseEvent.deref();
+        Change createChange{room_change_types::AddRoom2{coord, event}};
+
+        ProgressCounter pc; // Dummy progress counter for applySingleChange
+        if (applySingleChange(pc, createChange)) {
+            // If successful, the room should now exist. Find it.
+            roomHandle = findRoomHandle(coord);
+            if (roomHandle) {
+                return roomHandle.getId();
+            } else {
+                MMLOG_ERROR() << "[MapFrontend::getOrCreateRoomId] Failed to find room at " << coord.toQString() << " after successful creation.";
+            }
+        } else {
+            MMLOG_ERROR() << "[MapFrontend::getOrCreateRoomId] Failed to apply change to create room at " << coord.toQString();
+        }
+    }
+    return std::nullopt; // Failed to get or create
+}
+
 void MapFrontend::slot_undo()
 {
     if (std::optional<Map> optMap = m_history.undo(m_current.map)) {

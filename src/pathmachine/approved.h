@@ -15,6 +15,7 @@
 
 class MapFrontend;
 class ParseEvent;
+class PathContext; // Forward declaration
 
 /*!
  * @brief PathProcessor strategy for the "Approved" pathfinding state.
@@ -30,13 +31,14 @@ private:
     SigParseEvent m_myEvent;
     std::unordered_map<RoomId, ComparisonResultEnum> m_compareCache;
     RoomHandle m_matchedRoom;
-    MapFrontend &m_map;
+    MapFrontend &m_map; // Retain for findRoomHandle, compare, etc.
+    PathContext &m_context; // Add PathContext reference
     const int m_matchingTolerance;
     bool m_moreThanOne = false;
     bool m_update = false;
 
 public:
-    explicit Approved(MapFrontend &map, const SigParseEvent &sigParseEvent, int matchingTolerance);
+    explicit Approved(MapFrontend &map, PathContext &context, const SigParseEvent &sigParseEvent, int matchingTolerance);
     ~Approved() final;
 
 public:

@@ -122,36 +122,55 @@ void PathMachine::handleParseEvent(const SigParseEvent &sigParseEvent)
 
     m_lastEvent.requireValid();
 
+    // PathContext needs to be created at the very beginning of the event handling.
+    PathContext pathContext{m_map};
+    // Single ChangeList for this entire event cycle.
+    ChangeList masterChangeList;
+
     if (m_map.getCurrentMap().empty()) {
         // Bootstrap an empty map with its first room
-        Coordinate c(0, 0, 0);
-        m_map.slot_createRoom(sigParseEvent, c);
-        if (auto rh = m_map.findRoomHandle(c)) {
-            forcePositionChange(rh.getId(), false);
-            return;
+        if (auto newRoomId = pathContext.requestCreateRoom(sigParseEvent, Coordinate(0,0,0))) {
+             forcePositionChange(*newRoomId, false);
+             // Add any pending PathContext changes (e.g., MakePermanent for the new room if logic implies)
+             // to the masterChangeList.
+             pathContext.flushChanges(masterChangeList);
+             // Schedule the single list of changes if any were made.
+             if (!masterChangeList.empty()) {
+                scheduleAction(masterChangeList);
+             }
+             return;
+        } else {
+            // Failed to create initial room, cannot proceed.
+            MMLOG_ERROR() << "Failed to create initial room in empty map for PathMachine.";
+            return; // Or handle error appropriately
         }
     }
 
-    ChangeList changes;
-
+    // Pass masterChangeList to state handlers
     switch (m_state) {
     case PathStateEnum::APPROVED:
-        approved(sigParseEvent, changes);
+        approved(sigParseEvent, masterChangeList, pathContext);
         break;
     case PathStateEnum::EXPERIMENTING:
-        experimenting(sigParseEvent, changes);
+        experimenting(sigParseEvent, masterChangeList, pathContext);
         break;
     case PathStateEnum::SYNCING:
-        syncing(sigParseEvent, changes);
+        syncing(sigParseEvent, masterChangeList, pathContext);
         break;
     }
 
     if (m_state == PathStateEnum::APPROVED && hasMostLikelyRoom()) {
-        updateMostLikelyRoom(sigParseEvent, changes, false);
+        updateMostLikelyRoom(sigParseEvent, masterChangeList, false);
     }
-    if (!changes.empty()) {
-        scheduleAction(changes);
+
+    // Consolidate PathContext's room lifecycle changes into the masterChangeList.
+    pathContext.flushChanges(masterChangeList);
+
+    // Apply all accumulated changes once.
+    if (!masterChangeList.empty()) {
+        scheduleAction(masterChangeList);
     }
+
     if (m_state != PathStateEnum::SYNCING) {
         if (const auto room = getMostLikelyRoom()) {
             emit sig_playerMoved(room.getId());
@@ -229,12 +248,13 @@ void PathMachine::tryCoordinate(const RoomHandle &room,
     }
 }
 
-void PathMachine::approved(const SigParseEvent &sigParseEvent, ChangeList &changes)
+void PathMachine::approved(const SigParseEvent &sigParseEvent, ChangeList &changes, PathContext &context)
 {
     ParseEvent &event = sigParseEvent.deref();
 
     RoomHandle perhaps;
-    Approved appr{m_map, sigParseEvent, m_params.matchingTolerance};
+    // Anticipating Approved constructor change in Step 6
+    Approved appr{m_map, context, sigParseEvent, m_params.matchingTolerance};
 
     if (event.hasServerId()) {
         perhaps = m_map.findRoomHandle(event.getServerId());
@@ -314,7 +334,7 @@ void PathMachine::approved(const SigParseEvent &sigParseEvent, ChangeList &chang
         }
 
         deref(m_paths).push_front(Path::alloc(pathRoot, m_signaler, std::nullopt));
-        experimenting(sigParseEvent, changes);
+        experimenting(sigParseEvent, changes, context);
 
         return;
     }
@@ -537,12 +557,13 @@ void PathMachine::updateMostLikelyRoom(const SigParseEvent &sigParseEvent,
     }
 }
 
-void PathMachine::syncing(const SigParseEvent &sigParseEvent, ChangeList &changes)
+void PathMachine::syncing(const SigParseEvent &sigParseEvent, ChangeList &changes, PathContext &context)
 {
     auto &params = m_params;
     ParseEvent &event = sigParseEvent.deref();
     {
-        Syncing sync{params, m_paths, m_signaler};
+        // Anticipating Syncing constructor change in Step 6
+        Syncing sync{context, params, m_paths, m_signaler};
         if (event.getNumSkipped() <= params.maxSkipped) {
             RoomIdSet ids = m_map.lookingForRooms(sigParseEvent);
             if (event.hasServerId()) {
@@ -558,34 +579,35 @@ void PathMachine::syncing(const SigParseEvent &sigParseEvent, ChangeList &change
         }
         m_paths = sync.evaluate();
     }
-    evaluatePaths(changes);
+    evaluatePaths(changes, context);
 }
 
-void PathMachine::experimenting(const SigParseEvent &sigParseEvent, ChangeList &changes)
+void PathMachine::experimenting(const SigParseEvent &sigParseEvent, ChangeList &changes, PathContext &context)
 {
     auto &params = m_params;
     ParseEvent &event = sigParseEvent.deref();
     const CommandEnum moveCode = event.getMoveType();
 
     // only create rooms if it has a serverId or no properties are skipped and the direction is NESWUD.
-    if (event.canCreateNewRoom() && isDirectionNESWUD(moveCode) && hasMostLikelyRoom()) {
+    // only create rooms if it has a serverId or no properties are skipped and the direction is NESWUD.
+    if (event.canCreateNewRoom() && isDirectionNESWUD(moveCode) && hasMostLikelyRoom()) { // Ensure hasMostLikelyRoom to have a base for relative creation
         const auto dir = getDirection(moveCode);
-        const Coordinate &move = ::exitDir(dir);
-        Crossover exp{m_map, m_paths, dir, params};
+        const Coordinate &moveOffset = ::exitDir(dir);
+        Crossover exp{context, m_paths, dir, params}; // Removed m_map from Crossover instantiation
         RoomIdSet pathEnds;
         for (const auto &path : deref(m_paths)) {
-            const auto &working = path->getRoom();
+            const auto &working = path->getRoom(); // This is the 'from' room for the path
             const RoomId workingId = working.getId();
-            if (!pathEnds.contains(workingId)) {
-                qInfo() << "creating RoomId" << workingId.asUint32();
-                if (getMapMode() == MapModeEnum::MAP) {
-                    m_map.slot_createRoom(sigParseEvent, working.getPosition() + move);
-                }
+            if (!pathEnds.contains(workingId)) { // Process each path end once
+                 if (getMapMode() == MapModeEnum::MAP) {
+                    // Create room relative to the path's current room
+                    context.requestCreateRoom(sigParseEvent, working.getPosition() + moveOffset);
+                 }
                 pathEnds.insert(workingId);
             }
         }
-        // Look for appropriate rooms (including those we just created)
-        RoomIdSet ids = m_map.lookingForRooms(sigParseEvent);
+        // Look for appropriate rooms (including those we just created via context)
+        RoomIdSet ids = m_map.lookingForRooms(sigParseEvent); // This still queries MapFrontend directly
         if (event.hasServerId()) {
             if (auto rh = m_map.findRoomHandle(event.getServerId())) {
                 ids.insert(rh.getId());
@@ -598,7 +620,8 @@ void PathMachine::experimenting(const SigParseEvent &sigParseEvent, ChangeList &
         }
         m_paths = exp.evaluate();
     } else {
-        OneByOne oneByOne{sigParseEvent, params, m_signaler};
+        // Anticipating OneByOne constructor change in Step 6
+        OneByOne oneByOne{context, sigParseEvent, params, m_signaler};
         {
             auto &tmp = oneByOne;
             for (const auto &path : deref(m_paths)) {
@@ -612,10 +635,10 @@ void PathMachine::experimenting(const SigParseEvent &sigParseEvent, ChangeList &
         m_paths = oneByOne.evaluate();
     }
 
-    evaluatePaths(changes);
+    evaluatePaths(changes, context);
 }
 
-void PathMachine::evaluatePaths(ChangeList &changes)
+void PathMachine::evaluatePaths(ChangeList &changes, PathContext &context)
 {
     auto &paths = deref(m_paths);
     if (paths.empty()) {

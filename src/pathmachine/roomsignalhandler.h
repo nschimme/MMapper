@@ -62,11 +62,13 @@ public:
     // Overrides release if the room was previously un-cached.
     void hold(RoomId room);
     // room isn't needed anymore and can be deleted if its hold count reaches zero and it's temporary.
-    void release(RoomId room);
+    void release(RoomId room, ChangeList &masterChanges);
     // keep the room but un-cache it - overrides both hold and release
     // toId is negative if no exit should be added, else it's the id of
     // the room where the exit should lead
-    void keep(RoomId room, ExitDirEnum dir, RoomId fromId, ChangeList &changes);
+    // pathChanges is for exit modifications related to this specific path approval
+    // masterChanges is for broader changes like making a room permanent
+    void keep(RoomId room, ExitDirEnum dir, RoomId fromId, ChangeList &pathChanges, ChangeList &masterChanges);
 
     /* Sending to the rooms' owners:
        keepRoom: keep the room, but we don't need it anymore for now

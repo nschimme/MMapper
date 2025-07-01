@@ -121,7 +121,9 @@ void Path::approve(ChangeList &changes)
         assert(m_dir.has_value());
         const RoomHandle proom = parent->getRoom();
         const auto pId = !proom.exists() ? INVALID_ROOMID : proom.getId();
-        m_signaler.keep(m_room.getId(), m_dir.value(), pId, changes);
+        // Pass 'changes' as both pathChanges and masterChanges,
+        // as MakePermanent is a direct result of this path's approval.
+        m_signaler.keep(m_room.getId(), m_dir.value(), pId, changes, changes);
         parent->removeChild(this->shared_from_this());
         parent->approve(changes);
     }
@@ -139,7 +141,7 @@ void Path::approve(ChangeList &changes)
 /** removes this path and all parents up to the next branch
  * and removes the respective rooms if experimental
  */
-void Path::deny()
+void Path::deny(ChangeList &masterChanges)
 {
     assert(!m_zombie);
 
@@ -147,11 +149,11 @@ void Path::deny()
         return;
     }
     if (m_dir.has_value()) {
-        m_signaler.release(m_room.getId());
+        m_signaler.release(m_room.getId(), masterChanges);
     }
     if (const auto &parent = getParent()) {
         parent->removeChild(shared_from_this());
-        parent->deny();
+        parent->deny(masterChanges);
     }
 
     // was: `delete this`

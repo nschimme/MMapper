@@ -56,6 +56,8 @@ private:
     std::optional<RoomId> m_pathRoot;
     std::optional<RoomId> m_mostLikelyRoom;
     PathStateEnum m_state = PathStateEnum::SYNCING;
+    ChangeList m_tempRoomCreationChanges;
+    ChangeList m_masterChanges;
 
 public:
     void onPositionChange(std::optional<RoomId> optId)
@@ -75,8 +77,9 @@ protected:
     void handleParseEvent(const SigParseEvent &);
 
 private:
-    void scheduleAction(const ChangeList &action);
+    void scheduleAction(const ChangeList &action); // Will be modified to append to m_masterChanges
     void forcePositionChange(RoomId id, bool update);
+    void applyBatchedChanges(); // New method to apply batched changes
 
 private:
     void experimenting(const SigParseEvent &sigParseEvent, ChangeList &changes);

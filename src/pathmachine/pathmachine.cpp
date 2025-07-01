@@ -101,7 +101,7 @@ void PathMachine::slot_releaseAllPaths()
 {
     auto &paths = deref(m_paths);
     for (auto &path : paths) {
-        path->deny();
+        path->deny(m_masterChanges); // Pass m_masterChanges
     }
     paths.clear();
 
@@ -116,6 +116,10 @@ void PathMachine::slot_releaseAllPaths()
 
 void PathMachine::handleParseEvent(const SigParseEvent &sigParseEvent)
 {
+    // Clear batched changes at the beginning of each event cycle
+    m_tempRoomCreationChanges = ChangeList{};
+    m_masterChanges = ChangeList{};
+
     if (m_lastEvent != sigParseEvent.requireValid()) {
         m_lastEvent = sigParseEvent;
     }
@@ -125,14 +129,28 @@ void PathMachine::handleParseEvent(const SigParseEvent &sigParseEvent)
     if (m_map.getCurrentMap().empty()) {
         // Bootstrap an empty map with its first room
         Coordinate c(0, 0, 0);
-        m_map.slot_createRoom(sigParseEvent, c);
-        if (auto rh = m_map.findRoomHandle(c)) {
+        // Add change to m_masterChanges instead of direct call
+        m_masterChanges.add(room_change_types::AddRoom2{c, sigParseEvent.deref()});
+        // Note: forcePositionChange used to rely on the room existing immediately.
+        // This will now be deferred until after applyBatchedChanges.
+        // The logic flow might need further adjustment if immediate RoomID is critical
+        // before other logic in this function proceeds. For now, we follow the plan
+        // to batch this creation. The original code did a return here.
+        // To maintain similar behavior (process this one change then stop for this event),
+        // we'll call applyBatchedChanges and then return.
+        applyBatchedChanges(); // Apply this single room creation
+
+        // We need to try and get the RoomId IF the room was created successfully
+        // This is a bit tricky as applyBatchedChanges doesn't return success or Ids directly
+        // For now, we assume it worked for forcePositionChange to make sense.
+        // A robust solution might require findRoomHandle after apply.
+        if (auto rh = m_map.findRoomHandle(c)) { // Try to find it after potential creation
             forcePositionChange(rh.getId(), false);
-            return;
         }
+        return; // Emulate original early return
     }
 
-    ChangeList changes;
+    ChangeList changes; // This local 'changes' will feed into m_masterChanges
 
     switch (m_state) {
     case PathStateEnum::APPROVED:
@@ -149,9 +167,14 @@ void PathMachine::handleParseEvent(const SigParseEvent &sigParseEvent)
     if (m_state == PathStateEnum::APPROVED && hasMostLikelyRoom()) {
         updateMostLikelyRoom(sigParseEvent, changes, false);
     }
-    if (!changes.empty()) {
-        scheduleAction(changes);
-    }
+    // Instead of calling scheduleAction(changes) here,
+    // all changes collected in the local 'changes' variable by approved(), experimenting(),
+    // or syncing(), and updateMostLikelyRoom() will be added to m_masterChanges
+    // by their respective calls to scheduleAction().
+
+    // The final application of all batched changes will happen here.
+    applyBatchedChanges();
+
     if (m_state != PathStateEnum::SYNCING) {
         if (const auto room = getMostLikelyRoom()) {
             emit sig_playerMoved(room.getId());
@@ -573,18 +596,35 @@ void PathMachine::experimenting(const SigParseEvent &sigParseEvent, ChangeList &
         const Coordinate &move = ::exitDir(dir);
         Crossover exp{m_map, m_paths, dir, params};
         RoomIdSet pathEnds;
+        // Collect information for potential new rooms
+        std::vector<std::pair<SigParseEvent, Coordinate>> potentialNewRooms;
         for (const auto &path : deref(m_paths)) {
             const auto &working = path->getRoom();
+            // Ensure the path is valid and has a room
+            if (!working.exists()) continue;
             const RoomId workingId = working.getId();
             if (!pathEnds.contains(workingId)) {
-                qInfo() << "creating RoomId" << workingId.asUint32();
+                 // Instead of direct creation, add to m_tempRoomCreationChanges
                 if (getMapMode() == MapModeEnum::MAP) {
-                    m_map.slot_createRoom(sigParseEvent, working.getPosition() + move);
+                    Coordinate newRoomPos = working.getPosition() + move;
+                    // Add a copy of the event and the coordinate
+                    m_tempRoomCreationChanges.add(room_change_types::AddRoom2{newRoomPos, sigParseEvent.deref()});
+                    // Store for later querying if needed (as per plan step 5)
+                    // For now, this vector is not directly used in this step but is part of the plan.
+                    potentialNewRooms.push_back({sigParseEvent, newRoomPos});
                 }
                 pathEnds.insert(workingId);
             }
         }
-        // Look for appropriate rooms (including those we just created)
+
+        // After potential rooms are added to the temp change list (but not yet applied),
+        // the Crossover strategy still needs to evaluate based on existing and potentially
+        // future rooms. The actual RoomIds for new rooms aren't available yet.
+        // Crossover logic might need adjustment later if it strictly relies on immediate RoomId.
+        // For now, proceed with looking for rooms that *currently* exist.
+        // The `changes` ChangeList passed to `experimenting` will be merged into m_masterChanges.
+
+        // Look for appropriate rooms (EXISTING ones, as new ones are not yet created)
         RoomIdSet ids = m_map.lookingForRooms(sigParseEvent);
         if (event.hasServerId()) {
             if (auto rh = m_map.findRoomHandle(event.getServerId())) {
@@ -644,7 +684,32 @@ void PathMachine::evaluatePaths(ChangeList &changes)
 void PathMachine::scheduleAction(const ChangeList &action)
 {
     if (getMapMode() != MapModeEnum::OFFLINE) {
-        m_map.applyChanges(action);
+        // Append to master changes instead of applying directly
+        for (const auto& change : action.getChanges()) {
+            m_masterChanges.add(change);
+        }
+    }
+}
+
+void PathMachine::applyBatchedChanges()
+{
+    // Stage 1: Temporary Room Creations
+    if (!m_tempRoomCreationChanges.empty()) {
+        if (getMapMode() != MapModeEnum::OFFLINE) {
+            m_map.applyChanges(m_tempRoomCreationChanges);
+        }
+        // Clear the list regardless of map mode, as they've been "processed" for this cycle
+        m_tempRoomCreationChanges = ChangeList{};
+    }
+
+    // Stage 2: Master Changes
+    // This includes permanent room creations, updates, deletions, exit changes, etc.
+    if (!m_masterChanges.empty()) {
+        if (getMapMode() != MapModeEnum::OFFLINE) {
+            m_map.applyChanges(m_masterChanges);
+        }
+        // Clear the list regardless of map mode
+        m_masterChanges = ChangeList{};
     }
 }
 

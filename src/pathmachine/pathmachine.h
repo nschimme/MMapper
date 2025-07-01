@@ -59,6 +59,15 @@ private:
     ChangeList m_tempRoomCreationChanges;
     ChangeList m_masterChanges;
 
+    struct PendingPathSegmentContext {
+        Coordinate newRoomCoord;
+        std::weak_ptr<Path> parentPath; // Use weak_ptr to avoid owning cycles if Path objects were to hold these
+        ExitDirEnum viaDir = ExitDirEnum::NONE; // Direction from parent to new room
+        SigParseEvent triggerEvent; // Event that triggered this potential room
+        // Add other necessary context if Path::fork or Path::alloc needs more.
+    };
+    std::vector<PendingPathSegmentContext> m_pendingPathSegments;
+
 public:
     void onPositionChange(std::optional<RoomId> optId)
     {
@@ -77,9 +86,9 @@ protected:
     void handleParseEvent(const SigParseEvent &);
 
 private:
-    void scheduleAction(const ChangeList &action); // Will be modified to append to m_masterChanges
+    void scheduleAction(const ChangeList &action);
     void forcePositionChange(RoomId id, bool update);
-    void applyBatchedChanges(); // New method to apply batched changes
+    // void applyBatchedChanges(); // Removed, logic integrated into handleParseEvent
 
 private:
     void experimenting(const SigParseEvent &sigParseEvent, ChangeList &changes);

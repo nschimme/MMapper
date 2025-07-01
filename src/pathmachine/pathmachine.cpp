@@ -116,65 +116,119 @@ void PathMachine::slot_releaseAllPaths()
 
 void PathMachine::handleParseEvent(const SigParseEvent &sigParseEvent)
 {
-    // Clear batched changes at the beginning of each event cycle
+    // Clear batched changes and pending path segments at the beginning of each event cycle
     m_tempRoomCreationChanges = ChangeList{};
     m_masterChanges = ChangeList{};
+    m_pendingPathSegments.clear();
 
     if (m_lastEvent != sigParseEvent.requireValid()) {
         m_lastEvent = sigParseEvent;
     }
-
     m_lastEvent.requireValid();
 
+    // --- Initial Logic Block ---
     if (m_map.getCurrentMap().empty()) {
-        // Bootstrap an empty map with its first room
         Coordinate c(0, 0, 0);
-        // Add change to m_masterChanges instead of direct call
+        // This initial room creation goes to master changes.
         m_masterChanges.add(room_change_types::AddRoom2{c, sigParseEvent.deref()});
-        // Note: forcePositionChange used to rely on the room existing immediately.
-        // This will now be deferred until after applyBatchedChanges.
-        // The logic flow might need further adjustment if immediate RoomID is critical
-        // before other logic in this function proceeds. For now, we follow the plan
-        // to batch this creation. The original code did a return here.
-        // To maintain similar behavior (process this one change then stop for this event),
-        // we'll call applyBatchedChanges and then return.
-        applyBatchedChanges(); // Apply this single room creation
 
-        // We need to try and get the RoomId IF the room was created successfully
-        // This is a bit tricky as applyBatchedChanges doesn't return success or Ids directly
-        // For now, we assume it worked for forcePositionChange to make sense.
-        // A robust solution might require findRoomHandle after apply.
-        if (auto rh = m_map.findRoomHandle(c)) { // Try to find it after potential creation
-            forcePositionChange(rh.getId(), false);
+        // Apply this immediately as it's a bootstrap case. This is Transaction 1.
+        if (getMapMode() != MapModeEnum::OFFLINE && !m_masterChanges.empty()) {
+            m_map.applyChanges(m_masterChanges);
         }
-        return; // Emulate original early return
+        // m_masterChanges is now applied. Clear it before forcePositionChange potentially adds to it.
+        m_masterChanges = ChangeList{};
+
+        RoomHandle bootstrappedRoomHandle = m_map.findRoomHandle(c);
+        if (bootstrappedRoomHandle) {
+            // forcePositionChange will add to m_masterChanges via its own scheduleAction.
+            forcePositionChange(bootstrappedRoomHandle.getId(), false);
+
+            // Apply these secondary changes from forcePositionChange immediately as well. This is Transaction 2.
+            if (getMapMode() != MapModeEnum::OFFLINE && !m_masterChanges.empty()) {
+                 m_map.applyChanges(m_masterChanges);
+                 m_masterChanges = ChangeList{}; // Clear after applying.
+            }
+        }
+        return; // Bootstrap case is complete.
     }
 
-    ChangeList changes; // This local 'changes' will feed into m_masterChanges
+    // This local ChangeList is used by the state-specific logic (approved, experimenting, syncing)
+    // and updateMostLikelyRoom to collect changes that are NOT temporary room creations initially.
+    ChangeList initial_phase_changes;
 
+    // Main state logic. `experimenting` will be modified in Step 2 to populate
+    // m_tempRoomCreationChanges & m_pendingPathSegments.
+    // It can also add to `initial_phase_changes` for operations on existing paths.
     switch (m_state) {
     case PathStateEnum::APPROVED:
-        approved(sigParseEvent, changes);
+        approved(sigParseEvent, initial_phase_changes);
         break;
     case PathStateEnum::EXPERIMENTING:
-        experimenting(sigParseEvent, changes);
+        experimenting(sigParseEvent, initial_phase_changes);
         break;
     case PathStateEnum::SYNCING:
-        syncing(sigParseEvent, changes);
+        syncing(sigParseEvent, initial_phase_changes);
         break;
     }
 
     if (m_state == PathStateEnum::APPROVED && hasMostLikelyRoom()) {
-        updateMostLikelyRoom(sigParseEvent, changes, false);
+        updateMostLikelyRoom(sigParseEvent, initial_phase_changes, false);
     }
-    // Instead of calling scheduleAction(changes) here,
-    // all changes collected in the local 'changes' variable by approved(), experimenting(),
-    // or syncing(), and updateMostLikelyRoom() will be added to m_masterChanges
-    // by their respective calls to scheduleAction().
 
-    // The final application of all batched changes will happen here.
-    applyBatchedChanges();
+    if (!initial_phase_changes.empty()) {
+        scheduleAction(initial_phase_changes); // Adds to m_masterChanges
+    }
 
+    // --- Transaction 1: Apply Temporary Room Creations ---
+    if (!m_tempRoomCreationChanges.empty()) {
+        if (getMapMode() != MapModeEnum::OFFLINE) {
+            m_map.applyChanges(m_tempRoomCreationChanges);
+        }
+        // Temp changes are applied. Don't clear m_tempRoomCreationChanges yet if its contents (like coords)
+        // are needed by m_pendingPathSegments logic. The plan is to clear it after its info is used.
+    }
+
+    // --- Resolve New RoomIds and Create/Update Path Objects ---
+    if (!m_pendingPathSegments.empty()) {
+        // auto& current_paths_list = deref(m_paths); // Not directly adding to m_paths here. Path::fork handles linkage.
+        for (const auto& segment : m_pendingPathSegments) {
+            if (auto parent = segment.parentPath.lock()) {
+                RoomHandle newRoomHandle = m_map.findRoomHandle(segment.newRoomCoord);
+                if (newRoomHandle) {
+                    // Path::fork creates the new path, links it to parent, calls 'hold', etc.
+                    // The new path segment is now part of the explorable path structure via its parent.
+                    parent->fork(newRoomHandle, segment.newRoomCoord, m_params, segment.viaDir);
+                }
+            }
+            // TODO in Step 2 & 3: Handle cases where parentPath might be null for new root paths,
+            // Path::alloc would be used and the new path added to m_paths.
+            // For now, PendingPathSegmentContext implies a parent.
+        }
+        m_pendingPathSegments.clear();
+    }
+    // Now that coordinates from m_tempRoomCreationChanges have been used to find RoomHandles (if any),
+    // and m_pendingPathSegments is processed, clear m_tempRoomCreationChanges.
+    m_tempRoomCreationChanges = ChangeList{};
+
+    // --- Path Evaluation Phase ---
+    // This list collects changes from approving/denying paths, including MakePermanent for new rooms.
+    ChangeList eval_changes;
+    evaluatePaths(eval_changes); // Operates on m_paths, which might now include newly forked paths to just-created rooms.
+    if (!eval_changes.empty()) {
+        scheduleAction(eval_changes); // Adds to m_masterChanges
+    }
+
+    // --- Transaction 2: Apply Master Changes ---
+    // This includes changes from initial_phase_changes AND eval_changes.
+    if (!m_masterChanges.empty()) {
+        if (getMapMode() != MapModeEnum::OFFLINE) {
+            m_map.applyChanges(m_masterChanges);
+        }
+        m_masterChanges = ChangeList{};
+    }
+
+    // --- Final Signal ---
     if (m_state != PathStateEnum::SYNCING) {
         if (const auto room = getMostLikelyRoom()) {
             emit sig_playerMoved(room.getId());
@@ -596,47 +650,55 @@ void PathMachine::experimenting(const SigParseEvent &sigParseEvent, ChangeList &
         const Coordinate &move = ::exitDir(dir);
         Crossover exp{m_map, m_paths, dir, params};
         RoomIdSet pathEnds;
-        // Collect information for potential new rooms
-        std::vector<std::pair<SigParseEvent, Coordinate>> potentialNewRooms;
-        for (const auto &path : deref(m_paths)) {
-            const auto &working = path->getRoom();
-            // Ensure the path is valid and has a room
-            if (!working.exists()) continue;
-            const RoomId workingId = working.getId();
-            if (!pathEnds.contains(workingId)) {
-                 // Instead of direct creation, add to m_tempRoomCreationChanges
+        // This part of experimenting is responsible for identifying potential new temporary rooms.
+        // It populates m_tempRoomCreationChanges and m_pendingPathSegments.
+        // The actual Path objects for these new rooms will be created in handleParseEvent
+        // after these temporary rooms are applied and have RoomIds.
+        RoomIdSet pathEnds; // To avoid creating multiple rooms from the same path end.
+        for (const auto &current_path_ptr : deref(m_paths)) { // Iterate over existing paths
+            if (!current_path_ptr) continue; // Should not happen with shared_ptr in list
+            const RoomHandle &working_room = current_path_ptr->getRoom();
+
+            if (!working_room.exists()) continue;
+
+            const RoomId working_room_id = working_room.getId();
+            if (!pathEnds.contains(working_room_id)) {
                 if (getMapMode() == MapModeEnum::MAP) {
-                    Coordinate newRoomPos = working.getPosition() + move;
-                    // Add a copy of the event and the coordinate
-                    m_tempRoomCreationChanges.add(room_change_types::AddRoom2{newRoomPos, sigParseEvent.deref()});
-                    // Store for later querying if needed (as per plan step 5)
-                    // For now, this vector is not directly used in this step but is part of the plan.
-                    potentialNewRooms.push_back({sigParseEvent, newRoomPos});
+                    Coordinate new_room_coord = working_room.getPosition() + move;
+                    m_tempRoomCreationChanges.add(room_change_types::AddRoom2{new_room_coord, sigParseEvent.deref()});
+
+                    // Store context for creating the Path object later in handleParseEvent
+                    m_pendingPathSegments.push_back(PendingPathSegmentContext{
+                        new_room_coord,
+                        current_path_ptr, // Store weak_ptr to the parent path
+                        dir,        // The direction from parent to this new room
+                        sigParseEvent // The event triggering this
+                    });
                 }
-                pathEnds.insert(workingId);
+                pathEnds.insert(working_room_id);
             }
         }
 
-        // After potential rooms are added to the temp change list (but not yet applied),
-        // the Crossover strategy still needs to evaluate based on existing and potentially
-        // future rooms. The actual RoomIds for new rooms aren't available yet.
-        // Crossover logic might need adjustment later if it strictly relies on immediate RoomId.
-        // For now, proceed with looking for rooms that *currently* exist.
-        // The `changes` ChangeList passed to `experimenting` will be merged into m_masterChanges.
+        // The Crossover (or OneByOne) strategy will then be run.
+        // IMPORTANT: These strategies will operate on the *current* state of m_paths,
+        // which contains paths to *existing* rooms. They will not yet see paths
+        // for the temporary rooms just added to m_tempRoomCreationChanges.
+        // Their `evaluate()` methods might update `m_paths` based on existing rooms.
+        // The new paths (from m_pendingPathSegments) are added to m_paths later in handleParseEvent.
 
-        // Look for appropriate rooms (EXISTING ones, as new ones are not yet created)
-        RoomIdSet ids = m_map.lookingForRooms(sigParseEvent);
+        Crossover exp{m_map, m_paths, dir, params}; // Renamed exp_processor to exp
+        RoomIdSet ids = m_map.lookingForRooms(sigParseEvent); // Renamed existing_room_ids to ids
         if (event.hasServerId()) {
             if (auto rh = m_map.findRoomHandle(event.getServerId())) {
                 ids.insert(rh.getId());
             }
         }
-        for (RoomId id : ids) {
+        for (RoomId id : ids) { // Use the renamed 'ids'
             if (auto rh = m_map.findRoomHandle(id)) {
-                exp.receiveRoom(rh);
+                exp.receiveRoom(rh); // Use the renamed 'exp'
             }
         }
-        m_paths = exp.evaluate();
+        m_paths = exp.evaluate(); // Use the renamed 'exp'
     } else {
         OneByOne oneByOne{sigParseEvent, params, m_signaler};
         {
@@ -691,27 +753,7 @@ void PathMachine::scheduleAction(const ChangeList &action)
     }
 }
 
-void PathMachine::applyBatchedChanges()
-{
-    // Stage 1: Temporary Room Creations
-    if (!m_tempRoomCreationChanges.empty()) {
-        if (getMapMode() != MapModeEnum::OFFLINE) {
-            m_map.applyChanges(m_tempRoomCreationChanges);
-        }
-        // Clear the list regardless of map mode, as they've been "processed" for this cycle
-        m_tempRoomCreationChanges = ChangeList{};
-    }
-
-    // Stage 2: Master Changes
-    // This includes permanent room creations, updates, deletions, exit changes, etc.
-    if (!m_masterChanges.empty()) {
-        if (getMapMode() != MapModeEnum::OFFLINE) {
-            m_map.applyChanges(m_masterChanges);
-        }
-        // Clear the list regardless of map mode
-        m_masterChanges = ChangeList{};
-    }
-}
+// Old applyBatchedChanges method is now removed. Its logic is integrated into handleParseEvent.
 
 RoomHandle PathMachine::getPathRoot() const
 {

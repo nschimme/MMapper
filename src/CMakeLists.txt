@@ -919,58 +919,124 @@ if(WIN32)
     message(STATUS "System runtime libs: ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS}")
     set(CMAKE_WIN32_EXECUTABLE ON)
 
-    # Install Executables
+    # Install Executables - Normalized to install to root (.)
     install(
         TARGETS mmapper RUNTIME
-        DESTINATION bin # For NSIS
+        DESTINATION . # Install to root
         COMPONENT applications
     )
-    # For MSIX: mmapper.exe needs to be in the root of the package
-    install(
-        TARGETS mmapper RUNTIME
-        DESTINATION . # Root for MSIX staging
-        COMPONENT MSIX_Package_Component
-    )
 
-    # Bundle Library Files
-    install(FILES ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS} DESTINATION bin COMPONENT libraries) # For NSIS
-    # For MSIX: system runtime libs also need to be in the root
-    if(CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS)
-        install(FILES ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS} DESTINATION . COMPONENT MSIX_Package_Component)
+    # Install System Runtime Libraries - Normalized to install to root (.)
+    if(CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS) # CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS can be empty
+        install(
+            FILES ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS}
+            DESTINATION . # Install to root
+            COMPONENT libraries
+        )
     endif()
-    set(WINDEPLOYQT_ARGS ${WINDEPLOYQT_ARGS} --dir ${CMAKE_CURRENT_BINARY_DIR}/bin --compiler-runtime --no-angle)
-    find_program(WINDEPLOYQT_APP windeployqt HINTS ${QTDIR} ENV QTDIR PATH_SUFFIXES bin)
+
+    # Define the directory where mmapper.exe is built. This is where all DLLs should end up.
+    set(MMAPPER_RUNTIME_DIR "$<TARGET_FILE_DIR:mmapper>")
+    message(STATUS "MMAPPER_RUNTIME_DIR (for DLL staging): ${MMAPPER_RUNTIME_DIR}")
+
+    # --- Pre-windeployqt: Copy third-party DLLs to MMAPPER_RUNTIME_DIR ---
+    set(PREBUILT_DLL_SRC_DIR "${CMAKE_BINARY_DIR}/src/bin") # Current location of pre-copied external DLLs
+
+    if(WITH_DRMINGW)
+        set(DRMINGW_DLLS "exchndl.dll;dbgcore.dll;dbghelp.dll;mgwhelp.dll;symsrv.dll;symsrv.yes")
+        foreach(DLL_NAME ${DRMINGW_DLLS})
+            add_custom_command(TARGET mmapper POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PREBUILT_DLL_SRC_DIR}/${DLL_NAME}" "${MMAPPER_RUNTIME_DIR}"
+                COMMENT "Copying DrMinGW DLL: ${DLL_NAME} to ${MMAPPER_RUNTIME_DIR}"
+                VERBATIM)
+        endforeach()
+    endif()
+
+    if(WITH_OPENSSL)
+        # These filenames might vary based on exact OpenSSL version used by CI or local build
+        # The external/openssl/CMakeLists.txt attempts to copy these to PREBUILT_DLL_SRC_DIR
+        set(OPENSSL_DLL_FILES "")
+        if(EXISTS "${PREBUILT_DLL_SRC_DIR}/libcrypto-1_1-x64.dll")
+            list(APPEND OPENSSL_DLL_FILES "${PREBUILT_DLL_SRC_DIR}/libcrypto-1_1-x64.dll")
+            list(APPEND OPENSSL_DLL_FILES "${PREBUILT_DLL_SRC_DIR}/libssl-1_1-x64.dll")
+        elseif(EXISTS "${PREBUILT_DLL_SRC_DIR}/libcrypto-3-x64.dll")
+            list(APPEND OPENSSL_DLL_FILES "${PREBUILT_DLL_SRC_DIR}/libcrypto-3-x64.dll")
+            list(APPEND OPENSSL_DLL_FILES "${PREBUILT_DLL_SRC_DIR}/libssl-3-x64.dll")
+        endif()
+        if(EXISTS "${PREBUILT_DLL_SRC_DIR}/vcruntime140.dll") # If Shining Light OpenSSL
+             list(APPEND OPENSSL_DLL_FILES "${PREBUILT_DLL_SRC_DIR}/vcruntime140.dll")
+        endif()
+        if(OPENSSL_DLL_FILES)
+            foreach(DLL_FILE ${OPENSSL_DLL_FILES})
+                add_custom_command(TARGET mmapper POST_BUILD
+                    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${DLL_FILE}" "${MMAPPER_RUNTIME_DIR}"
+                    COMMENT "Copying OpenSSL related DLL: ${DLL_FILE} to ${MMAPPER_RUNTIME_DIR}"
+                    VERBATIM)
+            endforeach()
+        else()
+            message(WARNING "OpenSSL DLLs not found in ${PREBUILT_DLL_SRC_DIR} for POST_BUILD copy. windeployqt might need to find them via PATH.")
+        endif()
+    endif()
+
+    if(WITH_QTKEYCHAIN AND NOT APPLE AND MINGW) # Only for MinGW, MSVC windeployqt should handle it if QtKeychain is in Qt path
+        set(QTKEYCHAIN_DLL_NAME "qt5keychain.dll")
+        if(CMAKE_BUILD_TYPE STREQUAL "Debug") # Assuming specific debug name for QtKeychain DLL
+            set(QTKEYCHAIN_DLL_NAME "qt5keychaind.dll") # This might vary by how QtKeychain is built
+        endif()
+        if(EXISTS "${PREBUILT_DLL_SRC_DIR}/${QTKEYCHAIN_DLL_NAME}")
+            add_custom_command(TARGET mmapper POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PREBUILT_DLL_SRC_DIR}/${QTKEYCHAIN_DLL_NAME}" "${MMAPPER_RUNTIME_DIR}"
+                COMMENT "Copying QtKeychain DLL (MinGW): ${QTKEYCHAIN_DLL_NAME} to ${MMAPPER_RUNTIME_DIR}"
+                VERBATIM)
+        endif()
+    endif()
+
+    if(WITH_ZLIB AND EXISTS "${PREBUILT_DLL_SRC_DIR}/zlib1.dll") # If system zlib is shared and copied to src/bin
+        add_custom_command(TARGET mmapper POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PREBUILT_DLL_SRC_DIR}/zlib1.dll" "${MMAPPER_RUNTIME_DIR}"
+            COMMENT "Copying zlib1.dll to ${MMAPPER_RUNTIME_DIR}"
+            VERBATIM)
+    endif()
+    # --- End Pre-windeployqt DLL Copy ---
+
+    # windeployqt configuration - now targets MMAPPER_RUNTIME_DIR
+    set(WINDEPLOYQT_ARGS --dir "${MMAPPER_RUNTIME_DIR}" --compiler-runtime --no-angle --verbose 1) # Added verbose
+    find_program(WINDEPLOYQT_APP windeployqt HINTS "${Qt5_DIR}/bin" "${QTDIR}" ENV QTDIR PATH_SUFFIXES bin REQUIRED) # Use Qt5_DIR for hint
     message(" - windeployqt path: ${WINDEPLOYQT_APP}")
     message(" - windeployqt args: ${WINDEPLOYQT_ARGS}")
     add_custom_command(
             TARGET mmapper
             POST_BUILD
-            COMMAND ${WINDEPLOYQT_APP} ${WINDEPLOYQT_ARGS} ${CMAKE_CURRENT_BINARY_DIR}/mmapper.exe
-            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-            COMMENT "Finding the Qt framework dependencies"
+            COMMAND ${WINDEPLOYQT_APP} ${WINDEPLOYQT_ARGS} # windeployqt uses --dir, no need to specify exe
+            WORKING_DIRECTORY "${MMAPPER_RUNTIME_DIR}" # Ensure windeployqt runs with correct context
+            COMMENT "Running windeployqt to deploy Qt dependencies to ${MMAPPER_RUNTIME_DIR}"
+            VERBATIM
     )
-    install(DIRECTORY
-        ${CMAKE_CURRENT_BINARY_DIR}/bin
-        DESTINATION . # For NSIS, this means bin/ will be at the root of install.
-        COMPONENT libraries
-    )
-    # For MSIX: Install all files deployed by windeployqt (which are in CMAKE_CURRENT_BINARY_DIR/bin)
-    # to the root of the MSIX staging directory.
-    # This includes Qt DLLs, platform plugins, etc.
-    # We use a GLOB to get all files and directories, then install them.
-    # This is done after the windeployqt custom command has run.
-    # Note: This install rule is for the MSIX_Package_Component.
+
+    # Install the directory populated by mmapper.exe, third-party DLLs, and Qt DLLs (via windeployqt)
+    # This serves the 'libraries' component for NSIS and MSIX.
+    # It effectively installs everything that ended up in MMAPPER_RUNTIME_DIR.
     install(
-        DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin/
-        DESTINATION . # Root for MSIX staging
-        COMPONENT MSIX_Package_Component
-        USE_SOURCE_PERMISSIONS # Preserve executable flags if any
-        FILES_MATCHING PATTERN "*" # Make sure to copy everything
+        DIRECTORY "${MMAPPER_RUNTIME_DIR}/" # Source is the mmapper executable's runtime directory
+        DESTINATION .                       # Destination is root of install/staging path
+        COMPONENT libraries                 # NSIS uses this. MSIX will also use this via CPACK_EXTERNAL_COMPONENT.
+        USE_SOURCE_PERMISSIONS
+        # Define patterns for what to include from the runtime directory
+        FILES_MATCHING
+            PATTERN "*.dll"
+            PATTERN "*.exe" # To catch mmapper.exe if not solely handled by 'applications' component install for some reason
+            PATTERN "plugins/" DIRECTORY # Qt plugins
+            PATTERN "qml/" DIRECTORY     # Qt QML files, if any
+            PATTERN "translations/" DIRECTORY # Qt translations
+            PATTERN "*.json" # e.g., qtwebengine_devtools_resources.json
+        # Optionally exclude PDBs from here if they are handled by a separate debug symbol package
+        # For now, let them be included if present.
     )
     if(MSVC)
+        # vc_redist.x64.exe is installed to the root now by the 'libraries' component.
         set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "${CPACK_NSIS_EXTRA_INSTALL_COMMANDS}
-            ExecWait '\\$INSTDIR\\\\bin\\\\vc_redist.x64.exe /q /norestart'
-            Delete '\\$INSTDIR\\\\bin\\\\vc_redist.x64.exe'
+            ExecWait '\\$INSTDIR\\\\vc_redist.x64.exe /q /norestart'
+            Delete '\\$INSTDIR\\\\vc_redist.x64.exe'
             ")
     endif()
 
@@ -980,17 +1046,18 @@ if(WIN32)
     set(CPACK_SOURCE_GENERATOR "ZIP")
 
     # CPack External Generator settings for MSIX
-    # The MSIX_Package_Component is defined and used within msix.cmake for all its install rules.
-    # CPack will install only this component to the temporary staging directory for the external script.
-    set(CPACK_EXTERNAL_COMPONENT "MSIX_Package_Component")
+    # Define the components that CPack should stage for the External (MSIX) generator.
+    # 'applications' for mmapper.exe
+    # 'libraries' for all DLLs (system, Qt, third-party)
+    # 'MSIX_Assets' for AppxManifest.xml and image assets
+    set(CPACK_EXTERNAL_COMPONENT "applications;libraries;MSIX_Assets")
     # Path to the script that CPack's External generator will run.
-    # CMAKE_SOURCE_DIR is the root of the project.
     set(CPACK_EXTERNAL_PACKAGE_SCRIPT "${CMAKE_SOURCE_DIR}/cmake/msix.cmake")
 
-    # Windows (NSIS) Settings
-    set(CPACK_NSIS_EXECUTABLES_DIRECTORY "bin")
-    set(CPACK_NSIS_MENU_LINKS "bin/mmapper.exe;MMapper")
-    set(CPACK_NSIS_INSTALLED_ICON_NAME "mmapper.exe")
+    # Windows (NSIS) Settings - Normalized to root install directory (no 'bin/')
+    set(CPACK_NSIS_EXECUTABLES_DIRECTORY ".") # Executables are now in the root
+    set(CPACK_NSIS_MENU_LINKS "mmapper.exe;MMapper") # Link to mmapper.exe in root
+    set(CPACK_NSIS_INSTALLED_ICON_NAME "mmapper.exe") # Icon source is mmapper.exe in root
     set(CPACK_NSIS_HELP_LINK "http://github.com/mume/mmapper")
     set(CPACK_NSIS_MUI_ICON "${CMAKE_CURRENT_SOURCE_DIR}/resources/win32\\\\m-${MMAPPER_BRAND_SUFFIX}.ico")
     set(CPACK_NSIS_MUI_UNIICON "${CMAKE_CURRENT_SOURCE_DIR}/resources/win32\\\\m-${MMAPPER_BRAND_SUFFIX}.ico")
@@ -1031,7 +1098,7 @@ if(WIN32)
     install(
         FILES "${CMAKE_SOURCE_DIR}/AppxManifest.xml"
         DESTINATION . # Root for MSIX staging
-        COMPONENT MSIX_Package_Component
+        COMPONENT MSIX_Assets # Changed component name
     )
 
     # Install assets for MSIX to the "Assets" subdirectory in the MSIX staging directory
@@ -1040,32 +1107,32 @@ if(WIN32)
         FILES "${CMAKE_SOURCE_DIR}/src/resources/pixmaps/splash-release.png"
         DESTINATION "${MSIX_ASSETS_INSTALL_DIR}"
         RENAME "SplashScreen.png"
-        COMPONENT MSIX_Package_Component
+        COMPONENT MSIX_Assets # Changed component name
     )
     install(
         FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/hi128-app-mmapper-release.png"
         DESTINATION "${MSIX_ASSETS_INSTALL_DIR}"
         RENAME "Square150x150Logo.png"
-        COMPONENT MSIX_Package_Component
+        COMPONENT MSIX_Assets # Changed component name
     )
     # Using 128px version as placeholder for Wide310x150Logo, will be scaled by OS or should be replaced by actual asset
     install(
         FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/hi128-app-mmapper-release.png"
         DESTINATION "${MSIX_ASSETS_INSTALL_DIR}"
         RENAME "Wide310x150Logo.png"
-        COMPONENT MSIX_Package_Component
+        COMPONENT MSIX_Assets # Changed component name
     )
     install(
         FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/hi48-app-mmapper-release.png"
         DESTINATION "${MSIX_ASSETS_INSTALL_DIR}"
         RENAME "Square44x44Logo.png"
-        COMPONENT MSIX_Package_Component
+        COMPONENT MSIX_Assets # Changed component name
     )
     install(
         FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/hi48-app-mmapper-release.png"
         DESTINATION "${MSIX_ASSETS_INSTALL_DIR}"
         RENAME "StoreLogo.png"
-        COMPONENT MSIX_Package_Component
+        COMPONENT MSIX_Assets # Changed component name
     )
 endif(WIN32)
 

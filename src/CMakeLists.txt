@@ -988,21 +988,18 @@ if(WIN32)
 
     # windeployqt configuration - targets MMAPPER_DEPLOY_STAGING_DIR
     find_program(WINDEPLOYQT_APP windeployqt HINTS "${Qt5_DIR}/bin" "${QTDIR}" ENV QTDIR PATH_SUFFIXES bin REQUIRED)
+    set(WINDEPLOYQT_OPTIONS --compiler-runtime --no-angle --verbose 1) # Options for windeployqt
+
     message(" - windeployqt path: ${WINDEPLOYQT_APP}")
-    message(" - windeployqt will operate on directory: ${MMAPPER_DEPLOY_STAGING_DIR}")
+    message(" - windeployqt will process: ${MMAPPER_DEPLOY_STAGING_DIR}/mmapper.exe with options: ${WINDEPLOYQT_OPTIONS}")
 
     add_custom_command(
-            TARGET mmapper
-            POST_BUILD
-            COMMAND "${WINDEPLOYQT_APP}"
-            ARGS
-                --dir "${MMAPPER_DEPLOY_STAGING_DIR}"
-                --compiler-runtime
-                --no-angle
-                --verbose 1
-            WORKING_DIRECTORY "${MMAPPER_DEPLOY_STAGING_DIR}"
-            COMMENT "Deploying Qt dependencies to ${MMAPPER_DEPLOY_STAGING_DIR} (using windeployqt)"
-            # VERBATIM removed
+        TARGET mmapper
+        POST_BUILD
+        COMMAND "${WINDEPLOYQT_APP}" ${WINDEPLOYQT_OPTIONS} "${MMAPPER_DEPLOY_STAGING_DIR}/mmapper.exe"
+        WORKING_DIRECTORY "${MMAPPER_DEPLOY_STAGING_DIR}" # Good practice to set WD
+        COMMENT "Deploying Qt dependencies to ${MMAPPER_DEPLOY_STAGING_DIR} for mmapper.exe"
+        VERBATIM
     )
 
     # Install the directory populated by mmapper.exe, third-party DLLs, and Qt DLLs (via windeployqt)

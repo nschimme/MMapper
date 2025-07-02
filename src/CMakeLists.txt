@@ -952,8 +952,17 @@ if(WIN32)
     endif()
 
     # ZIP requires 7-zip
-    set(CPACK_GENERATOR "NSIS")
+    # For Windows, we want both NSIS and our MSIX package (via External generator)
+    set(CPACK_GENERATOR "NSIS;External")
     set(CPACK_SOURCE_GENERATOR "ZIP")
+
+    # CPack External Generator settings for MSIX
+    # The MSIX_Package_Component is defined and used within msix.cmake for all its install rules.
+    # CPack will install only this component to the temporary staging directory for the external script.
+    set(CPACK_EXTERNAL_COMPONENT "MSIX_Package_Component")
+    # Path to the script that CPack's External generator will run.
+    # CMAKE_SOURCE_DIR is the root of the project.
+    set(CPACK_EXTERNAL_PACKAGE_SCRIPT "${CMAKE_SOURCE_DIR}/cmake/msix.cmake")
 
     # Windows (NSIS) Settings
     set(CPACK_NSIS_EXECUTABLES_DIRECTORY "bin")

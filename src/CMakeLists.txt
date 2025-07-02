@@ -935,102 +935,101 @@ if(WIN32)
         )
     endif()
 
-    # Define the directory where mmapper.exe is built. This is where all DLLs should end up.
-    set(MMAPPER_RUNTIME_DIR "$<TARGET_FILE_DIR:mmapper>")
-    message(STATUS "MMAPPER_RUNTIME_DIR (for DLL staging): ${MMAPPER_RUNTIME_DIR}")
+    # Define a fixed staging directory within the build tree for runtime artifacts (exe, DLLs).
+    set(MMAPPER_DEPLOY_STAGING_DIR "${CMAKE_CURRENT_BINARY_DIR}/win_runtime_staging")
+    message(STATUS "MMAPPER_DEPLOY_STAGING_DIR (for windeployqt and install source): ${MMAPPER_DEPLOY_STAGING_DIR}")
+    # Ensure the staging directory exists before trying to copy into it with POST_BUILD commands.
+    # This can be done by a pre-build command on mmapper, or ensure first POST_BUILD command creates it.
+    # Or, more simply, ensure it's created before defining commands that use it.
+    # However, POST_BUILD commands run relative to build, so CMAKE_COMMAND -E make_directory might be better inside them if needed.
+    # For simplicity, we'll assume copy_if_different handles the destination dir creation or rely on the mmapper.exe copy.
 
-    # --- Pre-windeployqt: Copy third-party DLLs to MMAPPER_RUNTIME_DIR ---
-    set(PREBUILT_DLL_SRC_DIR "${CMAKE_BINARY_DIR}/src/bin") # Current location of pre-copied external DLLs
+    # --- Pre-windeployqt: Copy mmapper.exe and third-party DLLs to MMAPPER_DEPLOY_STAGING_DIR ---
+    add_custom_command(TARGET mmapper POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${MMAPPER_DEPLOY_STAGING_DIR}" # Ensure dir exists
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:mmapper>" "${MMAPPER_DEPLOY_STAGING_DIR}"
+        COMMENT "Copy mmapper.exe to staging dir for deployment"
+        VERBATIM)
+
+    set(PREBUILT_DLL_SRC_DIR "${CMAKE_BINARY_DIR}/src/bin") # Current location of some pre-copied external DLLs
 
     if(WITH_DRMINGW)
         set(DRMINGW_DLLS "exchndl.dll;dbgcore.dll;dbghelp.dll;mgwhelp.dll;symsrv.dll;symsrv.yes")
         foreach(DLL_NAME ${DRMINGW_DLLS})
-            add_custom_command(TARGET mmapper POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PREBUILT_DLL_SRC_DIR}/${DLL_NAME}" "${MMAPPER_RUNTIME_DIR}"
-                COMMENT "Copying DrMinGW DLL: ${DLL_NAME} to ${MMAPPER_RUNTIME_DIR}"
-                VERBATIM)
+            if(EXISTS "${PREBUILT_DLL_SRC_DIR}/${DLL_NAME}") # Check if the source DLL exists
+                add_custom_command(TARGET mmapper POST_BUILD
+                    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PREBUILT_DLL_SRC_DIR}/${DLL_NAME}" "${MMAPPER_DEPLOY_STAGING_DIR}"
+                    COMMENT "Copying DrMinGW DLL: ${DLL_NAME} to ${MMAPPER_DEPLOY_STAGING_DIR}"
+                    VERBATIM)
+            else()
+                message(WARNING "DrMinGW DLL ${DLL_NAME} not found in ${PREBUILT_DLL_SRC_DIR} for POST_BUILD copy.")
+            endif()
         endforeach()
     endif()
 
-    if(WITH_OPENSSL)
-        # These filenames might vary based on exact OpenSSL version used by CI or local build
-        # The external/openssl/CMakeLists.txt attempts to copy these to PREBUILT_DLL_SRC_DIR
-        set(OPENSSL_DLL_FILES "")
-        if(EXISTS "${PREBUILT_DLL_SRC_DIR}/libcrypto-1_1-x64.dll")
-            list(APPEND OPENSSL_DLL_FILES "${PREBUILT_DLL_SRC_DIR}/libcrypto-1_1-x64.dll")
-            list(APPEND OPENSSL_DLL_FILES "${PREBUILT_DLL_SRC_DIR}/libssl-1_1-x64.dll")
-        elseif(EXISTS "${PREBUILT_DLL_SRC_DIR}/libcrypto-3-x64.dll")
-            list(APPEND OPENSSL_DLL_FILES "${PREBUILT_DLL_SRC_DIR}/libcrypto-3-x64.dll")
-            list(APPEND OPENSSL_DLL_FILES "${PREBUILT_DLL_SRC_DIR}/libssl-3-x64.dll")
-        endif()
-        if(EXISTS "${PREBUILT_DLL_SRC_DIR}/vcruntime140.dll") # If Shining Light OpenSSL
-             list(APPEND OPENSSL_DLL_FILES "${PREBUILT_DLL_SRC_DIR}/vcruntime140.dll")
-        endif()
-        if(OPENSSL_DLL_FILES)
-            foreach(DLL_FILE ${OPENSSL_DLL_FILES})
-                add_custom_command(TARGET mmapper POST_BUILD
-                    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${DLL_FILE}" "${MMAPPER_RUNTIME_DIR}"
-                    COMMENT "Copying OpenSSL related DLL: ${DLL_FILE} to ${MMAPPER_RUNTIME_DIR}"
-                    VERBATIM)
-            endforeach()
-        else()
-            message(WARNING "OpenSSL DLLs not found in ${PREBUILT_DLL_SRC_DIR} for POST_BUILD copy. windeployqt might need to find them via PATH.")
-        endif()
-    endif()
+    # OpenSSL DLLs are no longer explicitly copied here. Relying on windeployqt and PATH.
 
-    if(WITH_QTKEYCHAIN AND NOT APPLE AND MINGW) # Only for MinGW, MSVC windeployqt should handle it if QtKeychain is in Qt path
+    if(WITH_QTKEYCHAIN AND NOT APPLE AND MINGW) # Only for MinGW builds being packaged.
         set(QTKEYCHAIN_DLL_NAME "qt5keychain.dll")
-        if(CMAKE_BUILD_TYPE STREQUAL "Debug") # Assuming specific debug name for QtKeychain DLL
-            set(QTKEYCHAIN_DLL_NAME "qt5keychaind.dll") # This might vary by how QtKeychain is built
+        if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+            set(QTKEYCHAIN_DLL_NAME "qt5keychaind.dll")
         endif()
         if(EXISTS "${PREBUILT_DLL_SRC_DIR}/${QTKEYCHAIN_DLL_NAME}")
             add_custom_command(TARGET mmapper POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PREBUILT_DLL_SRC_DIR}/${QTKEYCHAIN_DLL_NAME}" "${MMAPPER_RUNTIME_DIR}"
-                COMMENT "Copying QtKeychain DLL (MinGW): ${QTKEYCHAIN_DLL_NAME} to ${MMAPPER_RUNTIME_DIR}"
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PREBUILT_DLL_SRC_DIR}/${QTKEYCHAIN_DLL_NAME}" "${MMAPPER_DEPLOY_STAGING_DIR}"
+                COMMENT "Copying QtKeychain DLL (MinGW): ${QTKEYCHAIN_DLL_NAME} to ${MMAPPER_DEPLOY_STAGING_DIR}"
                 VERBATIM)
+        else()
+            message(WARNING "QtKeychain DLL (MinGW) ${QTKEYCHAIN_DLL_NAME} not found in ${PREBUILT_DLL_SRC_DIR} for POST_BUILD copy.")
         endif()
     endif()
 
     if(WITH_ZLIB AND EXISTS "${PREBUILT_DLL_SRC_DIR}/zlib1.dll") # If system zlib is shared and copied to src/bin
         add_custom_command(TARGET mmapper POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PREBUILT_DLL_SRC_DIR}/zlib1.dll" "${MMAPPER_RUNTIME_DIR}"
-            COMMENT "Copying zlib1.dll to ${MMAPPER_RUNTIME_DIR}"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PREBUILT_DLL_SRC_DIR}/zlib1.dll" "${MMAPPER_DEPLOY_STAGING_DIR}"
+            COMMENT "Copying zlib1.dll to ${MMAPPER_DEPLOY_STAGING_DIR}"
             VERBATIM)
     endif()
     # --- End Pre-windeployqt DLL Copy ---
 
-    # windeployqt configuration - now targets MMAPPER_RUNTIME_DIR
-    set(WINDEPLOYQT_ARGS --dir "${MMAPPER_RUNTIME_DIR}" --compiler-runtime --no-angle --verbose 1) # Added verbose
-    find_program(WINDEPLOYQT_APP windeployqt HINTS "${Qt5_DIR}/bin" "${QTDIR}" ENV QTDIR PATH_SUFFIXES bin REQUIRED) # Use Qt5_DIR for hint
-    message(" - windeployqt path: ${WINDEPLOYQT_APP}")
-    message(" - windeployqt args: ${WINDEPLOYQT_ARGS}")
+    # windeployqt configuration - targets MMAPPER_DEPLOY_STAGING_DIR
+    # Note: WINDEPLOYQT_ARGS was already set with MMAPPER_DEPLOY_STAGING_DIR in the previous diff part.
+    # find_program for WINDEPLOYQT_APP was also already present.
+    # We just need to ensure the add_custom_command is correct.
+    # The WINDEPLOYQT_ARGS variable should already be: --dir "${MMAPPER_DEPLOY_STAGING_DIR}" --compiler-runtime --no-angle --verbose 1
+    # The find_program for WINDEPLOYQT_APP should already be: find_program(WINDEPLOYQT_APP windeployqt HINTS "${Qt5_DIR}/bin" "${QTDIR}" ENV QTDIR PATH_SUFFIXES bin REQUIRED)
+    # message for path and args also exist.
+
+    # Ensure the custom command for windeployqt uses MMAPPER_DEPLOY_STAGING_DIR correctly for WORKING_DIRECTORY
     add_custom_command(
             TARGET mmapper
             POST_BUILD
-            COMMAND ${WINDEPLOYQT_APP} ${WINDEPLOYQT_ARGS} # windeployqt uses --dir, no need to specify exe
-            WORKING_DIRECTORY "${MMAPPER_RUNTIME_DIR}" # Ensure windeployqt runs with correct context
-            COMMENT "Running windeployqt to deploy Qt dependencies to ${MMAPPER_RUNTIME_DIR}"
+            COMMAND ${WINDEPLOYQT_APP} ${WINDEPLOYQT_ARGS}
+            WORKING_DIRECTORY "${MMAPPER_DEPLOY_STAGING_DIR}" # Corrected working directory
+            COMMENT "Running windeployqt to deploy Qt dependencies to ${MMAPPER_DEPLOY_STAGING_DIR}"
             VERBATIM
     )
 
     # Install the directory populated by mmapper.exe, third-party DLLs, and Qt DLLs (via windeployqt)
     # This serves the 'libraries' component for NSIS and MSIX.
-    # It effectively installs everything that ended up in MMAPPER_RUNTIME_DIR.
+    # It effectively installs everything that ended up in MMAPPER_DEPLOY_STAGING_DIR.
     install(
-        DIRECTORY "${MMAPPER_RUNTIME_DIR}/" # Source is the mmapper executable's runtime directory
-        DESTINATION .                       # Destination is root of install/staging path
-        COMPONENT libraries                 # NSIS uses this. MSIX will also use this via CPACK_EXTERNAL_COMPONENT.
+        DIRECTORY "${MMAPPER_DEPLOY_STAGING_DIR}/" # Source is the now fully populated staging directory
+        DESTINATION .                       # Destination is root of install/CPack staging path
+        COMPONENT libraries
         USE_SOURCE_PERMISSIONS
-        # Define patterns for what to include from the runtime directory
-        FILES_MATCHING
+        FILES_MATCHING # Ensure these patterns are appropriate for what's in MMAPPER_DEPLOY_STAGING_DIR
             PATTERN "*.dll"
-            PATTERN "*.exe" # To catch mmapper.exe if not solely handled by 'applications' component install for some reason
-            PATTERN "plugins/" DIRECTORY # Qt plugins
-            PATTERN "qml/" DIRECTORY     # Qt QML files, if any
-            PATTERN "translations/" DIRECTORY # Qt translations
-            PATTERN "*.json" # e.g., qtwebengine_devtools_resources.json
-        # Optionally exclude PDBs from here if they are handled by a separate debug symbol package
-        # For now, let them be included if present.
+            PATTERN "*.exe"
+            PATTERN "plugins/" DIRECTORY
+            PATTERN "qml/" DIRECTORY
+            PATTERN "translations/" DIRECTORY
+            PATTERN "*.json"
+            PATTERN "*.dat" # e.g. for QtWebEngine locales
+        # PDBs are generally useful for release packages if providing symbols,
+        # but sometimes excluded if a separate symbol package is made.
+        # For now, including them if windeployqt brings them or they were copied.
+        # PATTERN "*.pdb" # To include PDBs explicitly if desired and not covered by *.dll/*.exe
     )
     if(MSVC)
         # vc_redist.x64.exe is installed to the root now by the 'libraries' component.

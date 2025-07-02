@@ -994,15 +994,15 @@ if(WIN32)
     add_custom_command(
             TARGET mmapper
             POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E execute_process
-                    "${WINDEPLOYQT_APP}"
-                    --dir "${MMAPPER_DEPLOY_STAGING_DIR}"
-                    --compiler-runtime
-                    --no-angle
-                    --verbose 1
+            COMMAND "${WINDEPLOYQT_APP}"
+            ARGS
+                --dir "${MMAPPER_DEPLOY_STAGING_DIR}"
+                --compiler-runtime
+                --no-angle
+                --verbose 1
             WORKING_DIRECTORY "${MMAPPER_DEPLOY_STAGING_DIR}"
             COMMENT "Deploying Qt dependencies to ${MMAPPER_DEPLOY_STAGING_DIR} (using windeployqt)"
-            VERBATIM
+            # VERBATIM removed
     )
 
     # Install the directory populated by mmapper.exe, third-party DLLs, and Qt DLLs (via windeployqt)

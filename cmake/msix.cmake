@@ -5,71 +5,13 @@ if(NOT WIN32)
     return()
 endif()
 
-message(FATAL_ERROR "MSIX DEBUG: CMAKE_INSTALL_PREFIX is currently ${CMAKE_INSTALL_PREFIX}. CMAKE_COMMAND is ${CMAKE_COMMAND}. CPACK_TOPLEVEL_TAG is ${CPACK_TOPLEVEL_TAG}. CPACK_TEMPORARY_DIRECTORY is ${CPACK_TEMPORARY_DIRECTORY}.")
+# This script is called by CPack's External generator.
+# CPack is responsible for staging all necessary files for the MSIX_Package_Component
+# into CPACK_TEMPORARY_DIRECTORY. This script then uses that directory as input.
 
 set(APP_TARGET mmapper) # As determined from src/CMakeLists.txt
 
-# CPack External generator will set CMAKE_INSTALL_PREFIX to a temporary staging directory.
-# We use this directory to stage all files needed for MakeAppx.exe.
-message(STATUS "MSIX (CPack External): Staging base directory (CMAKE_INSTALL_PREFIX): ${CMAKE_INSTALL_PREFIX}")
-
-# Install the main application executable
-install(
-    TARGETS ${APP_TARGET}
-    RUNTIME DESTINATION . # Installs to CMAKE_INSTALL_PREFIX set by CPack External
-    COMPONENT MSIX_Package_Component
-)
-
-# Ensure the VC redistributables are included.
-include(InstallRequiredSystemLibraries)
-if(CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS)
-    install(
-        FILES ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS}
-        DESTINATION . # Installs to CMAKE_INSTALL_PREFIX
-        COMPONENT MSIX_Package_Component
-    )
-endif()
-
-# Install AppxManifest.xml from the source directory to the root of the install prefix
-install(
-    FILES "${CMAKE_SOURCE_DIR}/AppxManifest.xml" # Assuming AppxManifest.xml is in the root of the source dir
-    DESTINATION "." # Installs to CMAKE_INSTALL_PREFIX
-    COMPONENT MSIX_Package_Component
-)
-
-# Install Microsoft Store assets from source "src/resources/..." to "Assets" in the install prefix
-set(MSIX_ASSETS_DESTINATION_DIR "Assets") # Relative to CMAKE_INSTALL_PREFIX
-install(
-    FILES "${CMAKE_SOURCE_DIR}/src/resources/pixmaps/splash-release.png"
-    DESTINATION "${MSIX_ASSETS_DESTINATION_DIR}"
-    RENAME "SplashScreen.png"
-    COMPONENT MSIX_Package_Component
-)
-install(
-    FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/hi128-app-mmapper-release.png"
-    DESTINATION "${MSIX_ASSETS_DESTINATION_DIR}"
-    RENAME "Square150x150Logo.png"
-    COMPONENT MSIX_Package_Component
-)
-install( # Placeholder for Wide310x150Logo
-    FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/hi128-app-mmapper-release.png"
-    DESTINATION "${MSIX_ASSETS_DESTINATION_DIR}"
-    RENAME "Wide310x150Logo.png"
-    COMPONENT MSIX_Package_Component
-)
-install(
-    FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/hi48-app-mmapper-release.png"
-    DESTINATION "${MSIX_ASSETS_DESTINATION_DIR}"
-    RENAME "Square44x44Logo.png"
-    COMPONENT MSIX_Package_Component
-)
-install(
-    FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/hi48-app-mmapper-release.png"
-    DESTINATION "${MSIX_ASSETS_DESTINATION_DIR}"
-    RENAME "StoreLogo.png"
-    COMPONENT MSIX_Package_Component
-)
-
+# Versioning: Use CPACK_PACKAGE_VERSION variables. These are set by CPack when it runs.
 # Versioning: Use CPACK_PACKAGE_VERSION variables. These should be set by the main CMakeLists.txt
 # CPack itself also sets CPACK_PACKAGE_VERSION_MAJOR etc. when it runs.
 if(NOT DEFINED CPACK_PACKAGE_VERSION_MAJOR OR NOT DEFINED CPACK_PACKAGE_VERSION_MINOR OR NOT DEFINED CPACK_PACKAGE_VERSION_PATCH)
@@ -125,24 +67,23 @@ set(APPX_UPLOAD_FULL_PATH "${CMAKE_BINARY_DIR}/${APPX_UPLOAD_FILE_NAME}")
 set(install_code)
 string(CONCAT install_code
     "message(STATUS \"MSIX (CPack External): Starting packaging process.\")\n"
-    "message(STATUS \"MSIX (CPack External): Staging directory used by MakeAppx (CMAKE_INSTALL_PREFIX): ${CMAKE_INSTALL_PREFIX}\")\n"
+    "message(STATUS \"MSIX (CPack External): Staging directory used by MakeAppx (CPACK_TEMPORARY_DIRECTORY): ${CPACK_TEMPORARY_DIRECTORY}\")\n"
     "message(STATUS \"MSIX (CPack External): Output directory for intermediate packages (APPX_PACKAGES_FULL_DIR): ${APPX_PACKAGES_FULL_DIR}\")\n"
     "message(STATUS \"MSIX (CPack External): Final .appxupload will be in (CMAKE_BINARY_DIR): ${CMAKE_BINARY_DIR}\")\n"
     "message(STATUS \"MSIX (CPack External): PDB file expected at (APPX_PDB_FULL_PATH): ${APPX_PDB_FULL_PATH}\")\n"
     "\n"
-    "# Ensure output directories exist\n"
+    "# Ensure output directories exist for intermediate packages\n"
     "file(MAKE_DIRECTORY \"${APPX_PACKAGES_FULL_DIR}\")\n"
     "\n"
-    "# Update AppxManifest.xml with the correct version (it's already staged by CPack a_CPack_Packages/.../MSIX_Package_Component/AppxManifest.xml)\n"
-    "# So CMAKE_INSTALL_PREFIX here is the root of that staging dir.\n"
-    "set(MANIFEST_PATH \"${CMAKE_INSTALL_PREFIX}/AppxManifest.xml\")\n"
+    "# AppxManifest.xml is expected to be at the root of CPACK_TEMPORARY_DIRECTORY, staged by CPack.\n"
+    "set(MANIFEST_PATH \"${CPACK_TEMPORARY_DIRECTORY}/AppxManifest.xml\")\n"
     "if(EXISTS \${MANIFEST_PATH})\n"
     "    message(STATUS \"MSIX: Updating version in \${MANIFEST_PATH} to ${APPX_BUILD_VERSION_STRING}\")\n"
     "    file(READ \${MANIFEST_PATH} MANIFEST_CONTENT)\n"
     "    string(REGEX REPLACE \"Version=\\\"[0-9]+\\\\.[0-9]+\\\\.[0-9]+\\\\.[0-9]+\\\"\" \"Version=\\\"${APPX_BUILD_VERSION_STRING}\\\"\" MANIFEST_CONTENT \${MANIFEST_CONTENT})\n"
     "    file(WRITE \${MANIFEST_PATH} \"\${MANIFEST_CONTENT}\")\n"
     "else()\n"
-    "    message(FATAL_ERROR \"MSIX: AppxManifest.xml not found at \${MANIFEST_PATH} during CPack External install phase. Packaging will fail.\")\n"
+    "    message(FATAL_ERROR \"MSIX: AppxManifest.xml not found at \${MANIFEST_PATH}. Check if it's part of MSIX_Package_Component and staged correctly by CPack.\")\n"
     "endif()\n"
     "\n"
     "message(STATUS \"MSIX: Removing previous packages and bundle from binary dir (if present)...\")\n"
@@ -154,13 +95,13 @@ string(CONCAT install_code
     "\n"
 )
 
-set(package_x64_command "MakeAppx.exe pack /d \\\"${CMAKE_INSTALL_PREFIX}\\\" /p \\\"${APPX_PACKAGE_X64_FULL_PATH}\\\" /o")
+set(package_x64_command "MakeAppx.exe pack /d \\\"${CPACK_TEMPORARY_DIRECTORY}\\\" /p \\\"${APPX_PACKAGE_X64_FULL_PATH}\\\" /o") # Use CPACK_TEMPORARY_DIRECTORY
 set(package_x64_execute_process "execute_process(COMMAND ${package_x64_command} RESULT_VARIABLE _res OUTPUT_QUIET ERROR_QUIET)")
 set(bundle_command "MakeAppx.exe bundle /d \\\"${APPX_PACKAGES_FULL_DIR}\\\" /p \\\"${APPX_BUNDLE_FULL_PATH}\\\" /o")
 set(bundle_execute_process "execute_process(COMMAND ${bundle_command} RESULT_VARIABLE _res OUTPUT_QUIET ERROR_QUIET)")
 
 string(CONCAT install_code "${install_code}"
-    "message(STATUS \"MSIX: Packaging 64-bit app (Input: ${CMAKE_INSTALL_PREFIX}, Output: ${APPX_PACKAGE_X64_FULL_PATH})\")\n"
+    "message(STATUS \"MSIX: Packaging 64-bit app (Input: ${CPACK_TEMPORARY_DIRECTORY}, Output: ${APPX_PACKAGE_X64_FULL_PATH})\")\n" # Use CPACK_TEMPORARY_DIRECTORY
     "${package_x64_execute_process}\n"
     "if(NOT _res EQUAL 0){message(FATAL_ERROR \"MSIX: MakeAppx.exe pack failed with \${_res}. Check logs.\")}\n"
     "message(STATUS \"MSIX: Bundling all packages (Input: ${APPX_PACKAGES_FULL_DIR}, Output: ${APPX_BUNDLE_FULL_PATH})\")\n"

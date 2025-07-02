@@ -922,12 +922,22 @@ if(WIN32)
     # Install Executables
     install(
         TARGETS mmapper RUNTIME
-        DESTINATION bin
+        DESTINATION bin # For NSIS
         COMPONENT applications
+    )
+    # For MSIX: mmapper.exe needs to be in the root of the package
+    install(
+        TARGETS mmapper RUNTIME
+        DESTINATION . # Root for MSIX staging
+        COMPONENT MSIX_Package_Component
     )
 
     # Bundle Library Files
-    install(FILES ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS} DESTINATION bin COMPONENT libraries)
+    install(FILES ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS} DESTINATION bin COMPONENT libraries) # For NSIS
+    # For MSIX: system runtime libs also need to be in the root
+    if(CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS)
+        install(FILES ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS} DESTINATION . COMPONENT MSIX_Package_Component)
+    endif()
     set(WINDEPLOYQT_ARGS ${WINDEPLOYQT_ARGS} --dir ${CMAKE_CURRENT_BINARY_DIR}/bin --compiler-runtime --no-angle)
     find_program(WINDEPLOYQT_APP windeployqt HINTS ${QTDIR} ENV QTDIR PATH_SUFFIXES bin)
     message(" - windeployqt path: ${WINDEPLOYQT_APP}")
@@ -941,8 +951,21 @@ if(WIN32)
     )
     install(DIRECTORY
         ${CMAKE_CURRENT_BINARY_DIR}/bin
-        DESTINATION .
+        DESTINATION . # For NSIS, this means bin/ will be at the root of install.
         COMPONENT libraries
+    )
+    # For MSIX: Install all files deployed by windeployqt (which are in CMAKE_CURRENT_BINARY_DIR/bin)
+    # to the root of the MSIX staging directory.
+    # This includes Qt DLLs, platform plugins, etc.
+    # We use a GLOB to get all files and directories, then install them.
+    # This is done after the windeployqt custom command has run.
+    # Note: This install rule is for the MSIX_Package_Component.
+    install(
+        DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin/
+        DESTINATION . # Root for MSIX staging
+        COMPONENT MSIX_Package_Component
+        USE_SOURCE_PERMISSIONS # Preserve executable flags if any
+        FILES_MATCHING PATTERN "*" # Make sure to copy everything
     )
     if(MSVC)
         set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "${CPACK_NSIS_EXTRA_INSTALL_COMMANDS}
@@ -1002,6 +1025,48 @@ if(WIN32)
     endif()
     # NSIS always displays a license page
     set(CPACK_RESOURCE_FILE_LICENSE "${PROJECT_SOURCE_DIR}/COPYING.txt")
+
+    # MSIX Package Component Installations
+    # Install AppxManifest.xml to the root of the MSIX staging directory
+    install(
+        FILES "${CMAKE_SOURCE_DIR}/AppxManifest.xml"
+        DESTINATION . # Root for MSIX staging
+        COMPONENT MSIX_Package_Component
+    )
+
+    # Install assets for MSIX to the "Assets" subdirectory in the MSIX staging directory
+    set(MSIX_ASSETS_INSTALL_DIR "Assets")
+    install(
+        FILES "${CMAKE_SOURCE_DIR}/src/resources/pixmaps/splash-release.png"
+        DESTINATION "${MSIX_ASSETS_INSTALL_DIR}"
+        RENAME "SplashScreen.png"
+        COMPONENT MSIX_Package_Component
+    )
+    install(
+        FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/hi128-app-mmapper-release.png"
+        DESTINATION "${MSIX_ASSETS_INSTALL_DIR}"
+        RENAME "Square150x150Logo.png"
+        COMPONENT MSIX_Package_Component
+    )
+    # Using 128px version as placeholder for Wide310x150Logo, will be scaled by OS or should be replaced by actual asset
+    install(
+        FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/hi128-app-mmapper-release.png"
+        DESTINATION "${MSIX_ASSETS_INSTALL_DIR}"
+        RENAME "Wide310x150Logo.png"
+        COMPONENT MSIX_Package_Component
+    )
+    install(
+        FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/hi48-app-mmapper-release.png"
+        DESTINATION "${MSIX_ASSETS_INSTALL_DIR}"
+        RENAME "Square44x44Logo.png"
+        COMPONENT MSIX_Package_Component
+    )
+    install(
+        FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/hi48-app-mmapper-release.png"
+        DESTINATION "${MSIX_ASSETS_INSTALL_DIR}"
+        RENAME "StoreLogo.png"
+        COMPONENT MSIX_Package_Component
+    )
 endif(WIN32)
 
 # Apple Install Settings

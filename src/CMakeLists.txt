@@ -1018,7 +1018,7 @@ if(WIN32)
         DESTINATION .                       # Destination is root of install/CPack staging path
         COMPONENT libraries
         USE_SOURCE_PERMISSIONS
-        FILES_MATCHING # Ensure these patterns are appropriate for what's in MMAPPER_DEPLOY_STAGING_DIR
+        # PATTERN arguments imply FILES_MATCHING behavior
             PATTERN "*.dll"
             PATTERN "*.exe"
             PATTERN "plugins/" DIRECTORY

@@ -97,7 +97,14 @@ jobs:
 
     # Package
     - name: Package MMapper
-      run: cd build && cpack
+      shell: bash
+      run: |
+        cd build
+        if [[ "${{ runner.os }}" == "Windows" ]]; then
+          cpack -C RelWithDebInfo
+        else
+          cpack
+        fi
     - if: runner.os == 'Linux'
       name: Get Linux package file base name
       id: get_linux_package_name

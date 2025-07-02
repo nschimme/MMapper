@@ -5,6 +5,8 @@ if(NOT WIN32)
     return()
 endif()
 
+message(FATAL_ERROR "MSIX DEBUG: CMAKE_INSTALL_PREFIX is currently ${CMAKE_INSTALL_PREFIX}. CMAKE_COMMAND is ${CMAKE_COMMAND}. CPACK_TOPLEVEL_TAG is ${CPACK_TOPLEVEL_TAG}. CPACK_TEMPORARY_DIRECTORY is ${CPACK_TEMPORARY_DIRECTORY}.")
+
 set(APP_TARGET mmapper) # As determined from src/CMakeLists.txt
 
 # CPack External generator will set CMAKE_INSTALL_PREFIX to a temporary staging directory.

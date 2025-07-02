@@ -956,14 +956,11 @@ if(WIN32)
     if(WITH_DRMINGW)
         set(DRMINGW_DLLS "exchndl.dll;dbgcore.dll;dbghelp.dll;mgwhelp.dll;symsrv.dll;symsrv.yes")
         foreach(DLL_NAME ${DRMINGW_DLLS})
-            if(EXISTS "${PREBUILT_DLL_SRC_DIR}/${DLL_NAME}") # Check if the source DLL exists
-                add_custom_command(TARGET mmapper POST_BUILD
-                    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PREBUILT_DLL_SRC_DIR}/${DLL_NAME}" "${MMAPPER_DEPLOY_STAGING_DIR}"
-                    COMMENT "Copying DrMinGW DLL: ${DLL_NAME} to ${MMAPPER_DEPLOY_STAGING_DIR}"
-                    VERBATIM)
-            else()
-                message(WARNING "DrMinGW DLL ${DLL_NAME} not found in ${PREBUILT_DLL_SRC_DIR} for POST_BUILD copy.")
-            endif()
+            # Removed if(EXISTS ...) check; copy_if_different will handle it at build time.
+            add_custom_command(TARGET mmapper POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PREBUILT_DLL_SRC_DIR}/${DLL_NAME}" "${MMAPPER_DEPLOY_STAGING_DIR}"
+                COMMENT "Attempting to copy DrMinGW DLL: ${DLL_NAME} to ${MMAPPER_DEPLOY_STAGING_DIR}"
+                VERBATIM)
         endforeach()
     endif()
 
@@ -974,17 +971,14 @@ if(WIN32)
         if(CMAKE_BUILD_TYPE STREQUAL "Debug")
             set(QTKEYCHAIN_DLL_NAME "qt5keychaind.dll")
         endif()
-        if(EXISTS "${PREBUILT_DLL_SRC_DIR}/${QTKEYCHAIN_DLL_NAME}")
-            add_custom_command(TARGET mmapper POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PREBUILT_DLL_SRC_DIR}/${QTKEYCHAIN_DLL_NAME}" "${MMAPPER_DEPLOY_STAGING_DIR}"
-                COMMENT "Copying QtKeychain DLL (MinGW): ${QTKEYCHAIN_DLL_NAME} to ${MMAPPER_DEPLOY_STAGING_DIR}"
-                VERBATIM)
-        else()
-            message(WARNING "QtKeychain DLL (MinGW) ${QTKEYCHAIN_DLL_NAME} not found in ${PREBUILT_DLL_SRC_DIR} for POST_BUILD copy.")
-        endif()
+        # Removed if(EXISTS ...) check; copy_if_different will handle it at build time.
+        add_custom_command(TARGET mmapper POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PREBUILT_DLL_SRC_DIR}/${QTKEYCHAIN_DLL_NAME}" "${MMAPPER_DEPLOY_STAGING_DIR}"
+            COMMENT "Attempting to copy QtKeychain DLL (MinGW): ${QTKEYCHAIN_DLL_NAME} to ${MMAPPER_DEPLOY_STAGING_DIR}"
+            VERBATIM)
     endif()
 
-    if(WITH_ZLIB AND EXISTS "${PREBUILT_DLL_SRC_DIR}/zlib1.dll") # If system zlib is shared and copied to src/bin
+    if(WITH_ZLIB AND EXISTS "${PREBUILT_DLL_SRC_DIR}/zlib1.dll") # Check for zlib1.dll still okay, as it's a single file.
         add_custom_command(TARGET mmapper POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PREBUILT_DLL_SRC_DIR}/zlib1.dll" "${MMAPPER_DEPLOY_STAGING_DIR}"
             COMMENT "Copying zlib1.dll to ${MMAPPER_DEPLOY_STAGING_DIR}"
@@ -993,19 +987,16 @@ if(WIN32)
     # --- End Pre-windeployqt DLL Copy ---
 
     # windeployqt configuration - targets MMAPPER_DEPLOY_STAGING_DIR
-    # Note: WINDEPLOYQT_ARGS was already set with MMAPPER_DEPLOY_STAGING_DIR in the previous diff part.
-    # find_program for WINDEPLOYQT_APP was also already present.
-    # We just need to ensure the add_custom_command is correct.
-    # The WINDEPLOYQT_ARGS variable should already be: --dir "${MMAPPER_DEPLOY_STAGING_DIR}" --compiler-runtime --no-angle --verbose 1
-    # The find_program for WINDEPLOYQT_APP should already be: find_program(WINDEPLOYQT_APP windeployqt HINTS "${Qt5_DIR}/bin" "${QTDIR}" ENV QTDIR PATH_SUFFIXES bin REQUIRED)
-    # message for path and args also exist.
+    find_program(WINDEPLOYQT_APP windeployqt HINTS "${Qt5_DIR}/bin" "${QTDIR}" ENV QTDIR PATH_SUFFIXES bin REQUIRED)
+    message(" - windeployqt path: ${WINDEPLOYQT_APP}")
+    message(" - windeployqt will operate on directory: ${MMAPPER_DEPLOY_STAGING_DIR}")
 
-    # Ensure the custom command for windeployqt uses MMAPPER_DEPLOY_STAGING_DIR correctly for WORKING_DIRECTORY
     add_custom_command(
             TARGET mmapper
             POST_BUILD
-            COMMAND ${WINDEPLOYQT_APP} ${WINDEPLOYQT_ARGS}
-            WORKING_DIRECTORY "${MMAPPER_DEPLOY_STAGING_DIR}" # Corrected working directory
+            COMMAND ${WINDEPLOYQT_APP}
+            ARGS --dir "${MMAPPER_DEPLOY_STAGING_DIR}" --compiler-runtime --no-angle --verbose 1
+            WORKING_DIRECTORY "${MMAPPER_DEPLOY_STAGING_DIR}"
             COMMENT "Running windeployqt to deploy Qt dependencies to ${MMAPPER_DEPLOY_STAGING_DIR}"
             VERBATIM
     )
@@ -1018,18 +1009,8 @@ if(WIN32)
         DESTINATION .                       # Destination is root of install/CPack staging path
         COMPONENT libraries
         USE_SOURCE_PERMISSIONS
-        # PATTERN arguments imply FILES_MATCHING behavior
-            PATTERN "*.dll"
-            PATTERN "*.exe"
-            PATTERN "plugins/" DIRECTORY
-            PATTERN "qml/" DIRECTORY
-            PATTERN "translations/" DIRECTORY
-            PATTERN "*.json"
-            PATTERN "*.dat" # e.g. for QtWebEngine locales
-        # PDBs are generally useful for release packages if providing symbols,
-        # but sometimes excluded if a separate symbol package is made.
-        # For now, including them if windeployqt brings them or they were copied.
-        # PATTERN "*.pdb" # To include PDBs explicitly if desired and not covered by *.dll/*.exe
+        # Temporarily simplified to copy all contents, excluding PDBs optionally, to diagnose previous parse error.
+        # PATTERN "*.pdb" EXCLUDE OPTIONAL # Keeping this commented for now to ensure maximum inclusion for testing.
     )
     if(MSVC)
         # vc_redist.x64.exe is installed to the root now by the 'libraries' component.

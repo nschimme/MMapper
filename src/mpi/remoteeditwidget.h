@@ -42,84 +42,99 @@ enum class NODISCARD EditCmd2Enum { EDIT_ONLY, EDIT_OR_VIEW, SPACER };
 
 // NOTE: Ctrl+A is "Select All" by default.
 // XMACRO to define menu items for the RemoteEditWidget.
-// Arguments: internal_name, EditViewCmdEnum category, UI display text, status tip text, shortcut string (or nullptr)
+// Arguments: internal_name, EditViewCmdEnum category, UI display text, status tip text, shortcut QKeySequence, icon_theme_name (nullable), icon_fallback_resource_path (nullable)
 #define XFOREACH_REMOTE_EDIT_MENU_ITEM(X) \
     X(justifyText, \
       EditViewCmdEnum::EDIT_ALIGNMENT, \
       "&Justify Entire Message", \
       "Justify text to 80 characters", \
-      nullptr) /* Reverted */ \
+      QKeySequence(), /* No shortcut */ \
+      nullptr, nullptr) \
     X(justifyLines, \
       EditViewCmdEnum::EDIT_ALIGNMENT, \
       "Justify &Selection", \
       "Justify selection to 80 characters", \
-      "Ctrl+J") /* Reverted */ \
+      QKeySequence(tr("Ctrl+J")), \
+      nullptr, nullptr) \
     X(expandTabs, \
       EditViewCmdEnum::EDIT_WHITESPACE, \
       "&Expand Tabs", \
       "Expand tabs to 8-character tabstops", \
-      "Ctrl+E") /* Reverted */ \
+      QKeySequence(tr("Ctrl+E")), \
+      nullptr, nullptr) \
     X(removeTrailingWhitespace, \
       EditViewCmdEnum::EDIT_WHITESPACE, \
       "Remove Trailing &Whitespace", \
       "Remove trailing whitespace", \
-      "Ctrl+W") /* Reverted */ \
+      QKeySequence(tr("Ctrl+W")), \
+      nullptr, nullptr) \
     X(removeDuplicateSpaces, \
       EditViewCmdEnum::EDIT_WHITESPACE, \
       "Remove &Duplicate Spaces", \
       "Remove duplicate spaces in any partly-selected lines", \
-      "Ctrl+D") /* Reverted */ \
+      QKeySequence(tr("Ctrl+D")), \
+      nullptr, nullptr) \
     X(normalizeAnsi, \
       EditViewCmdEnum::EDIT_COLORS, \
       "&Normalize Ansi Codes", \
       "Normalize ansi codes.", \
-      "Ctrl+N") /* Reverted */ \
+      QKeySequence(tr("Ctrl+N")), \
+      nullptr, nullptr) \
     X(insertAnsiReset, \
       EditViewCmdEnum::EDIT_COLORS, \
       "&Insert Ansi Reset Code", \
       "Insert an ansi reset code (ESC[0m).", \
-      "Ctrl+I") /* Reverted */ \
+      QKeySequence(tr("Ctrl+I")), \
+      nullptr, nullptr) \
     X(joinLines, \
       EditViewCmdEnum::EDIT_ALIGNMENT, \
       "Joi&n Lines", \
       "Join all partly-selected lines.", \
-      "Ctrl+Shift+J") /* Reverted */ \
+      QKeySequence(tr("Ctrl+Shift+J")), \
+      nullptr, nullptr) \
     X(quoteLines, \
       EditViewCmdEnum::EDIT_ALIGNMENT, \
       "&Quote Lines", \
       "Add a quote prefix to all partly-selected lines.", \
-      "Ctrl+>") /* Reverted */ \
+      QKeySequence(tr("Ctrl+>")), \
+      nullptr, nullptr) \
     X(previewAnsi, \
       EditViewCmdEnum::VIEW_OPTION, \
       "&Preview Ansi Codes", \
       "Preview message with ansi coloring.", \
-      "Ctrl+P") /* Reverted */ \
+      QKeySequence(tr("Ctrl+P")), \
+      nullptr, nullptr) \
     X(toggleWhitespace, \
       EditViewCmdEnum::VIEW_OPTION, \
       "Toggle &Whitespace", \
       "Toggle the display of whitespace.", \
-      "Ctrl+Shift+W") /* Reverted */ \
+      QKeySequence(tr("Ctrl+Shift+W")), \
+      nullptr, nullptr) \
     /* Find/Replace Actions */ \
     X(findReplace, \
       EditViewCmdEnum::EDIT_FIND_REPLACE, \
       "&Find/Replace...", \
       "Show the find/replace dialog.", \
-      "Ctrl+F") /* Reverted */ \
+      QKeySequence(QKeySequence::Find), \
+      "edit-find", nullptr) \
     X(findNext, \
       EditViewCmdEnum::EDIT_FIND_REPLACE, \
       "Find &Next", \
       "Find next occurrence of the search text.", \
-      "F3") /* Reverted */ \
+      QKeySequence(QKeySequence::FindNext), \
+      "go-next", nullptr) \
     X(findPrevious, \
       EditViewCmdEnum::EDIT_FIND_REPLACE, \
       "Find &Previous", \
       "Find previous occurrence of the search text.", \
-      "Shift+F3") /* Reverted */ \
+      QKeySequence(QKeySequence::FindPrevious), \
+      "go-previous", nullptr) \
     X(replace, \
       EditViewCmdEnum::EDIT_FIND_REPLACE, \
       "&Replace", \
       "Replace the current selection with the replacement text and find next.", \
-      "Ctrl+H") /* Reverted */ \
+      QKeySequence(QKeySequence::Replace), \
+      "edit-find-replace", nullptr) \
     /* Go to Line Action is now handled manually */
 
 class NODISCARD_QOBJECT RemoteTextEdit final : public QPlainTextEdit

@@ -40,51 +40,43 @@ set(APPX_PDB_FILE_NAME "${APP_TARGET}.pdb")
 set(APPX_SYM_FILE_NAME "${APP_TARGET}-${APPX_VERSION_FILENAME_PART}.appxsym")
 set(APPX_UPLOAD_FILE_NAME "${APP_TARGET}-${APPX_VERSION_FILENAME_PART}.appxupload")
 
-set(APPX_PACKAGES_FULL_DIR "${CMAKE_BINARY_DIR}/${APPX_PACKAGES_DIR_NAME}")
+# Paths for outputs will use CPACK_TOPLEVEL_DIRECTORY (the build dir where cpack was invoked)
+set(APPX_PACKAGES_FULL_DIR "${CPACK_TOPLEVEL_DIRECTORY}/${APPX_PACKAGES_DIR_NAME}")
 set(APPX_PACKAGE_X64_FULL_PATH "${APPX_PACKAGES_FULL_DIR}/${APPX_PACKAGE_X64_FILE_NAME}")
-set(APPX_BUNDLE_FULL_PATH "${CMAKE_BINARY_DIR}/${APPX_BUNDLE_FILE_NAME}")
+set(APPX_BUNDLE_FULL_PATH "${CPACK_TOPLEVEL_DIRECTORY}/${APPX_BUNDLE_FILE_NAME}") # Bundle goes to toplevel
+set(APPX_SYM_FULL_PATH "${CPACK_TOPLEVEL_DIRECTORY}/${APPX_SYM_FILE_NAME}")
+set(APPX_UPLOAD_FULL_PATH "${CPACK_TOPLEVEL_DIRECTORY}/${APPX_UPLOAD_FILE_NAME}")
 
-# Determine PDB path carefully
-# For single-config generators (like Ninja on CI unless multi-config is specified):
-set(PDB_SEARCH_PATH "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
-if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
-    set(PDB_SEARCH_PATH "${CMAKE_BINARY_DIR}") # Fallback
-endif()
-# For multi-config generators (like Visual Studio locally):
-if(CMAKE_CFG_INTDIR AND NOT CMAKE_CFG_INTDIR STREQUAL ".")
-    set(PDB_SEARCH_PATH "${PDB_SEARCH_PATH}/${CMAKE_CFG_INTDIR}")
-endif()
-set(APPX_PDB_FULL_PATH "${PDB_SEARCH_PATH}/${APPX_PDB_FILE_NAME}")
+# Determine CMAKE_BUILD_TYPE for PDB path logic (already done above this section in the current file)
+# The CMAKE_BUILD_TYPE determined above will be used.
 
-if(NOT (CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo" OR CMAKE_BUILD_TYPE STREQUAL "Debug"))
-    message(STATUS "MSIX: WARNING - Build type is ${CMAKE_BUILD_TYPE}. PDB file for .appxsym might not be generated or found. For full symbols, use RelWithDebInfo or Debug.")
-endif()
-
-set(APPX_SYM_FULL_PATH "${CMAKE_BINARY_DIR}/${APPX_SYM_FILE_NAME}")
-set(APPX_UPLOAD_FULL_PATH "${CMAKE_BINARY_DIR}/${APPX_UPLOAD_FILE_NAME}")
-
-# Determine CMAKE_BUILD_TYPE for PDB path logic
-if(NOT CMAKE_BUILD_TYPE AND DEFINED CPACK_CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE "${CPACK_CMAKE_BUILD_TYPE}")
-    message(STATUS "MSIX: Using CPACK_CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
-elseif(NOT CMAKE_BUILD_TYPE)
-    # If still not defined (e.g. CPack wasn't called with -C), default for CI context
-    set(CMAKE_BUILD_TYPE "RelWithDebInfo")
-    message(STATUS "MSIX: CMAKE_BUILD_TYPE not found, defaulting to 'RelWithDebInfo' for PDB path logic.")
-else()
-    message(STATUS "MSIX: Using CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE} (already defined)")
-endif()
-
-# Adjust PDB path based on typical Ninja (single-config) output for CI
-# From CI log: /out:src\mmapper.exe /pdb:src\mmapper.pdb
-# This path is relative to CMAKE_BINARY_DIR (which is 'build' in CI)
-set(APPX_PDB_FULL_PATH "${CMAKE_BINARY_DIR}/src/${APPX_PDB_FILE_NAME}")
+# PDB path, relative to CPACK_TOPLEVEL_DIRECTORY. From CI log: /pdb:src\mmapper.pdb
+set(APPX_PDB_FULL_PATH "${CPACK_TOPLEVEL_DIRECTORY}/src/${APPX_PDB_FILE_NAME}") # Corrected base path
 
 # --- Start of direct execution block (formerly install_code) ---
+
+# Diagnostic: List contents of CPACK_TEMPORARY_DIRECTORY
+message(STATUS "MSIX: Listing contents of CPACK_TEMPORARY_DIRECTORY (${CPACK_TEMPORARY_DIRECTORY}):")
+execute_process(
+    COMMAND cmd /c dir "${CPACK_TEMPORARY_DIRECTORY}" /b /s
+    OUTPUT_VARIABLE _dir_listing
+    ERROR_VARIABLE _dir_listing_error
+    RESULT_VARIABLE _dir_listing_result
+)
+message(STATUS "MSIX: Directory listing output of CPACK_TEMPORARY_DIRECTORY:\n${_dir_listing}")
+if(NOT _dir_listing_result EQUAL 0)
+    message(WARNING "MSIX: Directory listing command failed or produced error:\n${_dir_listing_error}")
+endif()
+if(EXISTS "${CPACK_TEMPORARY_DIRECTORY}/AppxManifest.xml")
+    message(STATUS "MSIX: AppxManifest.xml FOUND in CPACK_TEMPORARY_DIRECTORY by initial check.")
+else()
+    message(WARNING "MSIX: AppxManifest.xml NOT FOUND in CPACK_TEMPORARY_DIRECTORY by initial check.")
+endif()
+
 message(STATUS "MSIX (CPack External): Starting packaging process.")
 message(STATUS "MSIX (CPack External): Staging directory used by MakeAppx (CPACK_TEMPORARY_DIRECTORY): ${CPACK_TEMPORARY_DIRECTORY}")
 message(STATUS "MSIX (CPack External): Output directory for intermediate packages (APPX_PACKAGES_FULL_DIR): ${APPX_PACKAGES_FULL_DIR}")
-message(STATUS "MSIX (CPack External): Final .appxupload will be in (CMAKE_BINARY_DIR): ${CMAKE_BINARY_DIR}")
+message(STATUS "MSIX (CPack External): Final .appxupload will be in (CPACK_TOPLEVEL_DIRECTORY): ${CPACK_TOPLEVEL_DIRECTORY}") # Corrected variable
 message(STATUS "MSIX (CPack External): PDB file expected at (APPX_PDB_FULL_PATH): ${APPX_PDB_FULL_PATH}")
 
 # Ensure output directories exist for intermediate packages

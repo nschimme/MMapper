@@ -230,8 +230,19 @@ execute_process(
     ERROR_VARIABLE _err_pack
 )
 message(STATUS "MSIX: Packaging 64-bit app (Input: ${MSIX_STAGING_DIR}, Output: ${APPX_PACKAGE_X64_FULL_PATH})")
+# Always print MakeAppx.exe pack output
+message(STATUS "MSIX: MakeAppx.exe pack stdout:\n${_out_pack}")
+if(_err_pack)
+    message(WARNING "MSIX: MakeAppx.exe pack stderr:\n${_err_pack}")
+endif()
 if(NOT _res_pack EQUAL 0)
-    message(FATAL_ERROR "MSIX: MakeAppx.exe pack failed with ${_res_pack}.\nOutput:\n${_out_pack}\nError:\n${_err_pack}")
+    message(FATAL_ERROR "MSIX: MakeAppx.exe pack failed with result: ${_res_pack}. See stdout/stderr above.")
+endif()
+# Verify .appx package was created (optional, but good practice)
+if(NOT EXISTS "${APPX_PACKAGE_X64_FULL_PATH}")
+    message(FATAL_ERROR "MSIX: CRITICAL - MakeAppx.exe pack appeared to succeed, but output file NOT FOUND: ${APPX_PACKAGE_X64_FULL_PATH}")
+else()
+    message(STATUS "MSIX: Package file ${APPX_PACKAGE_X64_FULL_PATH} successfully created.")
 endif()
 
 execute_process(
@@ -245,8 +256,19 @@ execute_process(
     ERROR_VARIABLE _err_bundle
 )
 message(STATUS "MSIX: Bundling all packages (Input: ${APPX_PACKAGES_FULL_DIR}, Output: ${APPX_BUNDLE_FULL_PATH})")
+message(STATUS "MSIX: MakeAppx.exe bundle stdout:\n${_out_bundle}")
+if(_err_bundle)
+    message(WARNING "MSIX: MakeAppx.exe bundle stderr:\n${_err_bundle}")
+endif()
 if(NOT _res_bundle EQUAL 0)
-    message(FATAL_ERROR "MSIX: MakeAppx.exe bundle failed with ${_res_bundle}.\nOutput:\n${_out_bundle}\nError:\n${_err_bundle}")
+    message(FATAL_ERROR "MSIX: MakeAppx.exe bundle failed with result: ${_res_bundle}. See stdout/stderr above.")
+endif()
+
+# NEW: Explicit check for the bundle file's existence
+if(NOT EXISTS "${APPX_BUNDLE_FULL_PATH}")
+    message(FATAL_ERROR "MSIX: CRITICAL - MakeAppx.exe bundle appeared to succeed (result: ${_res_bundle}), but the output bundle file was NOT FOUND at expected path: ${APPX_BUNDLE_FULL_PATH}. Check MakeAppx bundle stdout/stderr for details.")
+else()
+    message(STATUS "MSIX: Bundle file ${APPX_BUNDLE_FULL_PATH} successfully created and found.")
 endif()
 
 # Commands for .pdb to .appxsym conversion and .appxupload creation

@@ -58,7 +58,7 @@ set(APPX_PDB_FULL_PATH "${CPACK_TOPLEVEL_DIRECTORY}/src/${APPX_PDB_FILE_NAME}") 
 # Diagnostic: List contents of CPACK_TEMPORARY_DIRECTORY
 message(STATUS "MSIX: Listing contents of CPACK_TEMPORARY_DIRECTORY (${CPACK_TEMPORARY_DIRECTORY}):")
 execute_process(
-    COMMAND cmd /c dir "${CPACK_TEMPORARY_DIRECTORY}" /b /s
+    COMMAND cmd /c "dir \"${CPACK_TEMPORARY_DIRECTORY}\" /s /b"
     OUTPUT_VARIABLE _dir_listing
     ERROR_VARIABLE _dir_listing_error
     RESULT_VARIABLE _dir_listing_result

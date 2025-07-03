@@ -261,7 +261,7 @@ protected slots:
     void slot_replaceAll(); // Added: Slot for handling replaceAll signal from FindReplaceDialog
     void slot_gotoLine();   // Added: Slot for manually created "Go to Line" action
 
-#define X_DECLARE_SLOT(a, b, c, d, e) void slot_##a();
+#define X_DECLARE_SLOT(a, b, c, d, e, f, g) void slot_##a(); // Accept 7 args, use only the first
     XFOREACH_REMOTE_EDIT_MENU_ITEM(X_DECLARE_SLOT)
 #undef X_DECLARE_SLOT
 };

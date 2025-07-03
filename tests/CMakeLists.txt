@@ -1,6 +1,7 @@
 add_compile_definitions(MM_TESTING)
 
 include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR} # Add tests directory itself for its headers
     ${CMAKE_CURRENT_SOURCE_DIR}/../src
 )
 

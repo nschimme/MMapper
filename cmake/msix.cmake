@@ -86,7 +86,7 @@ endif()
 # Update version in the staged AppxManifest.xml
 message(STATUS "MSIX: Updating version in ${MANIFEST_STAGING_PATH} to ${APPX_BUILD_VERSION_STRING}")
 file(READ "${MANIFEST_STAGING_PATH}" MANIFEST_CONTENT)
-string(REGEX REPLACE "Version=\\\"[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+\\\"" "Version=\\\"${APPX_BUILD_VERSION_STRING}\\\"" MANIFEST_CONTENT "${MANIFEST_CONTENT}")
+string(REGEX REPLACE "(Version=\\\\\")([0-9]+\\\\.[0-9]+\\\\.[0-9]+\\\\.[0-9]+)(\\\\\")" "\\\\1${APPX_BUILD_VERSION_STRING}\\\\3" MANIFEST_CONTENT "${MANIFEST_CONTENT}")
 file(WRITE "${MANIFEST_STAGING_PATH}" "${MANIFEST_CONTENT}")
 
 # 2. Copy Assets to MSIX_STAGING_DIR/Assets

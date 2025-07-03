@@ -970,13 +970,34 @@ void RemoteEditWidget::addToMenu(QMenu *const menu, const EditViewCommand &cmd)
     // Using cmd.internal_name now for robust identification
     if (strcmp(cmd.internal_name, "gotoLine") == 0) {
 #ifdef Q_OS_MAC
-        shortcuts.append(QKeySequence("Cmd+L"));
-#endif
+        // For macOS, make Cmd+L primary, Ctrl+G secondary for Go To Line
+        // The XMACRO already added Ctrl+G to the shortcuts list.
+        // We want Cmd+L to be the one displayed primarily if possible,
+        // so we add it. QAction::setShortcuts will take the list.
+        // To ensure Cmd+L is "more primary" if display order matters,
+        // we could rebuild the list for this specific case on Mac.
+        QList<QKeySequence> macGoToLineShortcuts;
+        macGoToLineShortcuts.append(QKeySequence("Cmd+L"));
+        // Add Ctrl+G back if it was the original from XMACRO and not already Cmd+L
+        if (cmd.shortcut.isValid() && cmd.shortcut.toString().toUpper() != "CMD+L") {
+             if (cmd.shortcut.type() == QVariant::String) {
+                macGoToLineShortcuts.append(QKeySequence(cmd.shortcut.toString()));
+            } else if (cmd.shortcut.canConvert<QKeySequence::StandardKey>()) {
+                // This case shouldn't happen for Ctrl+G as it's a string
+                macGoToLineShortcuts.append(cmd.shortcut.value<QKeySequence::StandardKey>());
+            }
+        }
+        act->setShortcuts(macGoToLineShortcuts); // Override with Mac-specific list
+    } else if (!shortcuts.isEmpty()) {
+        act->setShortcuts(shortcuts); // For other actions, use the populated list
     }
-
+#else
+    // For non-Mac, or if not gotoLine, use the shortcuts list as populated
     if (!shortcuts.isEmpty()) {
         act->setShortcuts(shortcuts);
     }
+#endif
+
 
     act->setStatusTip(tr(cmd.status));
     menu->addAction(act);

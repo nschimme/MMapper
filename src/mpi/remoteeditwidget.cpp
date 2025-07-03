@@ -753,127 +753,6 @@ void RemoteEditWidget::addFileMenu(QMenuBar *const menuBar, const Editor *const 
 
 struct NODISCARD EditViewCommand final
 {
-    using mem_fn_ptr_type = void (RemoteEditWidget::*)();
-    const mem_fn_ptr_type mem_fn_ptr;
-    const EditViewCmdEnum cmd_type;
-    const char *const action_text; // Renamed from 'action' to avoid conflict if member was named 'action'
-    const char *const status_tip;  // Renamed from 'status'
-    const QKeySequence shortcut_key;
-    const QIcon icon;
-
-    explicit EditViewCommand(
-        const mem_fn_ptr_type _mem_fn_ptr,
-        const EditViewCmdEnum _cmd_type,
-        const char *const _action_text,
-        const char *const _status_tip,
-        const QKeySequence& _shortcut_key,
-        const char* const _icon_theme_name,
-        const char* const _icon_fallback_path
-    )
-        : mem_fn_ptr{_mem_fn_ptr}
-        , cmd_type{_cmd_type}
-        , action_text{_action_text}
-        , status_tip{_status_tip}
-        , shortcut_key{_shortcut_key}
-        , icon // Initialize icon
-    {
-        QIcon loaded_icon;
-        if (_icon_theme_name != nullptr && !QString(_icon_theme_name).isEmpty()) {
-            QIcon fallback_icon;
-            if (_icon_fallback_path != nullptr && !QString(_icon_fallback_path).isEmpty()) {
-                fallback_icon = QIcon(_icon_fallback_path);
-            }
-            loaded_icon = QIcon::fromTheme(QString(_icon_theme_name), fallback_icon);
-        } else if (_icon_fallback_path != nullptr && !QString(_icon_fallback_path).isEmpty()) {
-            loaded_icon = QIcon(_icon_fallback_path);
-        }
-        // Workaround for const member initialization by assigning to a temporary then move or copy
-        // This is tricky with const members. Let's make icon non-const and assign directly.
-        // Or, use an initializer list with a helper function if icon must be const.
-        // For simplicity, making icon non-const if direct assignment in body is easier.
-        // However, the struct is defined locally and typically all members are const.
-        // Let's try with a helper function approach for const QIcon icon;
-        // This requires icon to be initialized in the member initializer list.
-        // The current struct definition is local, so I can modify it more freely.
-        // Simpler: make icon non-const, or pass QIcon directly.
-        // The plan says: "icon" member, then logic in constructor.
-        // The most straightforward way to do this in constructor body for a const member is not possible.
-        // So, icon should be initialized in initializer list, possibly from a helper or by making it non-const.
-        // Let's assume icon is made non-const for this step for simplicity of direct assignment,
-        // or the helper method is implicitly used. The plan says "Initialize icon".
-        // The example in the prompt had `icon` then `{// init logic}`. This implies icon is not const or init-list is more complex.
-        // Let's stick to the prompt's direct logic flow which means icon is likely non-const.
-        // The struct is local, so I'll change QIcon icon; to QIcon m_icon; and initialize it.
-        // No, `icon` is fine as a member name.
-        // The issue is it should be `const QIcon icon;` then init in list.
-        // Let's use a static helper.
-        // static QIcon load_icon_helper(const char* theme, const char* fallback) { ... }
-        // icon{load_icon_helper(_icon_theme_name, _icon_fallback_path)}
-        // For now, I will implement the logic as if `icon` can be assigned in the body,
-        // which implies it might be non-const or there's a detail I'm missing about the local struct scope.
-        // Given the prompt's example, I'll write the logic as if it works.
-        // The prompt was an example structure, not C++ code.
-        // The actual way:
-        // icon{determineIcon(_icon_theme_name, _icon_fallback_path)}
-        // where determineIcon is a static private helper or lambda.
-        // I will write the logic directly assuming icon can be assigned to.
-        // This means `const QIcon icon;` must be `QIcon icon;`
-        // This is a deviation from typical "all const members" for such structs.
-        // Given tool limitations, I'll write the assignment logic.
-        // The struct is local, so this is acceptable.
-        // The prompt's example was: `icon // Initialize icon { QIcon loaded_icon; ... this->icon = loaded_icon; }`
-        // This implies `icon` is not const.
-        // Let's redefine the struct with non-const icon for the constructor body init.
-    }
-};
-
-// Corrected EditViewCommand with non-const icon member for easier initialization in constructor body
-struct NODISCARD EditViewCommand_Helper final // Renaming to avoid conflict for now
-{
-    using mem_fn_ptr_type = void (RemoteEditWidget::*)();
-    const mem_fn_ptr_type mem_fn_ptr;
-    const EditViewCmdEnum cmd_type;
-    const char *const action_text;
-    const char *const status_tip;
-    const QKeySequence shortcut_key;
-    QIcon icon; // Made non-const
-
-    explicit EditViewCommand_Helper(
-        const mem_fn_ptr_type _mem_fn_ptr,
-        const EditViewCmdEnum _cmd_type,
-        const char *const _action_text,
-        const char *const _status_tip,
-        const QKeySequence& _shortcut_key,
-        const char* const _icon_theme_name,
-        const char* const _icon_fallback_path
-    )
-        : mem_fn_ptr{_mem_fn_ptr}
-        , cmd_type{_cmd_type}
-        , action_text{_action_text}
-        , status_tip{_status_tip}
-        , shortcut_key{_shortcut_key}
-    // icon is default-initialized
-    {
-        if (_icon_theme_name != nullptr && !QString(_icon_theme_name).isEmpty()) {
-            QIcon fallback_icon_obj; // Default QIcon isNull()
-            if (_icon_fallback_path != nullptr && !QString(_icon_fallback_path).isEmpty()) {
-                fallback_icon_obj = QIcon(_icon_fallback_path);
-            }
-            this->icon = QIcon::fromTheme(QString(_icon_theme_name), fallback_icon_obj);
-        } else if (_icon_fallback_path != nullptr && !QString(_icon_fallback_path).isEmpty()) {
-            this->icon = QIcon(_icon_fallback_path);
-        }
-        // If both are null/empty, this->icon remains default-constructed (null QIcon)
-    }
-};
-
-// I will use EditViewCommand and assume the icon initialization is done correctly.
-// The prompt had:
-// const QIcon icon;
-// explicit EditViewCommand(...) : ..., icon{determineIcon(...)} {}
-// static QIcon determineIcon(...) { /* logic */ }
-// This is the proper way. I will write it like that.
-
 struct NODISCARD EditViewCommand final
 {
     using mem_fn_ptr_type = void (RemoteEditWidget::*)();
@@ -884,35 +763,42 @@ struct NODISCARD EditViewCommand final
     const QKeySequence shortcut_key;
     const QIcon icon;
 
+    // Helper function to determine the icon based on theme and fallback
     static QIcon determineIcon(const char* theme_name, const char* fallback_path) {
-        QIcon loaded_icon;
+        QIcon loaded_icon; // Starts as a null icon
         if (theme_name != nullptr && !QString(theme_name).isEmpty()) {
-            QIcon fallback_icon_obj;
+            QIcon fallback_icon_obj; // Null icon by default
             if (fallback_path != nullptr && !QString(fallback_path).isEmpty()) {
-                fallback_icon_obj = QIcon(fallback_path);
+                // Only create QIcon from fallback_path if it's a valid resource string
+                if (QString(fallback_path).startsWith(":/")) {
+                    fallback_icon_obj = QIcon(fallback_path);
+                }
             }
             loaded_icon = QIcon::fromTheme(QString(theme_name), fallback_icon_obj);
         } else if (fallback_path != nullptr && !QString(fallback_path).isEmpty()) {
-            loaded_icon = QIcon(fallback_path);
+            // Only create QIcon from fallback_path if it's a valid resource string
+            if (QString(fallback_path).startsWith(":/")) {
+                loaded_icon = QIcon(fallback_path);
+            }
         }
-        return loaded_icon;
+        return loaded_icon; // Returns null icon if nothing is found/valid
     }
 
     explicit EditViewCommand(
         const mem_fn_ptr_type _mem_fn_ptr,
         const EditViewCmdEnum _cmd_type,
-        const char *const _action_text,
-        const char *const _status_tip,
-        const QKeySequence& _shortcut_key,
-        const char* const _icon_theme_name,
-        const char* const _icon_fallback_path
+        const char *const _action_text, // Parameter for action's display text
+        const char *const _status_tip,  // Parameter for status tip
+        const QKeySequence& _shortcut_key, // Parameter for shortcut
+        const char* const _icon_theme_name,      // Parameter for theme icon name
+        const char* const _icon_fallback_path    // Parameter for fallback resource icon path
     )
         : mem_fn_ptr{_mem_fn_ptr}
         , cmd_type{_cmd_type}
-        , action_text{_action_text}
-        , status_tip{_status_tip}
-        , shortcut_key{_shortcut_key}
-        , icon{determineIcon(_icon_theme_name, _icon_fallback_path)}
+        , action_text{_action_text}     // Initialize member
+        , status_tip{_status_tip}       // Initialize member
+        , shortcut_key{_shortcut_key}   // Initialize member
+        , icon{determineIcon(_icon_theme_name, _icon_fallback_path)} // Initialize icon using helper
     {}
 };
 

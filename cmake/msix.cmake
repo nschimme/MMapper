@@ -73,7 +73,7 @@ file(MAKE_DIRECTORY "${MSIX_STAGING_DIR}")
 file(MAKE_DIRECTORY "${MSIX_STAGING_DIR}/Assets")
 
 # 1. Copy AppxManifest.xml to MSIX_STAGING_DIR
-set(MANIFEST_SOURCE_PATH "${CMAKE_SOURCE_DIR}/AppxManifest.xml")
+set(MANIFEST_SOURCE_PATH "${CMAKE_CURRENT_LIST_DIR}/../AppxManifest.xml")
 set(MANIFEST_STAGING_PATH "${MSIX_STAGING_DIR}/AppxManifest.xml")
 message(STATUS "MSIX: Copying ${MANIFEST_SOURCE_PATH} to ${MANIFEST_STAGING_PATH}")
 execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -91,7 +91,7 @@ file(WRITE "${MANIFEST_STAGING_PATH}" "${MANIFEST_CONTENT}")
 
 # 2. Copy Assets to MSIX_STAGING_DIR/Assets
 message(STATUS "MSIX: Copying assets to ${MSIX_STAGING_DIR}/Assets")
-set(ASSETS_SOURCE_BASE_PATH "${CMAKE_SOURCE_DIR}/src/resources")
+set(ASSETS_SOURCE_BASE_PATH "${CMAKE_CURRENT_LIST_DIR}/../src/resources")
 
 # Helper macro for copying assets
 macro(COPY_ASSET SOURCE_SUB_PATH TARGET_NAME)

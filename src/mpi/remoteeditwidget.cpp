@@ -756,20 +756,17 @@ struct NODISCARD EditViewCommand final
     using mem_fn_ptr_type = void (RemoteEditWidget::*)();
     const mem_fn_ptr_type mem_fn_ptr;
     const EditViewCmdEnum cmd_type;
-    const char *const internal_name; // Added for robust action identification
     const char *const action;
     const char *const status;
-    const QVariant shortcut;
+    const char *const shortcut; // Reverted to const char*
 
     explicit EditViewCommand(const mem_fn_ptr_type _mem_fn_ptr,
                                        const EditViewCmdEnum _cmd_type,
-                                       const char *const _internal_name, // Added
                                        const char *const _action,
                                        const char *const _status,
-                                       const QVariant &_shortcut)
+                                       const char *const _shortcut) // Reverted
         : mem_fn_ptr{_mem_fn_ptr}
         , cmd_type{_cmd_type}
-        , internal_name{_internal_name} // Added
         , action{_action}
         , status{_status}
         , shortcut{_shortcut}
@@ -904,10 +901,25 @@ void RemoteEditWidget::addEditAndViewMenus(QMenuBar *const menuBar, const Editor
     };
 #define X_ADD_MENU(a, b, c, d, e) \
     if (auto menu = getMenu(b)) { \
-         addToMenu(menu, EditViewCommand{&RemoteEditWidget::slot_##a, (b), #a, (c), (d), (e)}); /* Pass internal_name */ \
+         addToMenu(menu, EditViewCommand{&RemoteEditWidget::slot_##a, (b), (c), (d), (e)}); /* Reverted */ \
     }
     XFOREACH_REMOTE_EDIT_MENU_ITEM(X_ADD_MENU)
 #undef X_ADD_MENU
+
+    // Manually create and configure "Go to Line..." action
+    if (findReplaceMenu) { // Ensure the "Find/Replace" submenu exists
+        QAction *gotoLineAction = new QAction(tr("&Go to Line..."), this);
+        gotoLineAction->setStatusTip(tr("Go to a specific line number in the document."));
+        connect(gotoLineAction, &QAction::triggered, this, &RemoteEditWidget::slot_gotoLine);
+
+        QList<QKeySequence> gotoShortcuts;
+        gotoShortcuts.append(QKeySequence(tr("Ctrl+G")));
+#ifdef Q_OS_MAC
+        gotoShortcuts.append(QKeySequence(tr("Cmd+L")));
+#endif
+        gotoLineAction->setShortcuts(gotoShortcuts);
+        findReplaceMenu->addAction(gotoLineAction);
+    }
 }
 
 void RemoteEditWidget::addSave(QMenu *const fileMenu)
@@ -951,54 +963,9 @@ void RemoteEditWidget::addToMenu(QMenu *const menu, const EditViewCommand &cmd)
     }
 
     QAction *const act = new QAction(tr(cmd.action), this);
-    QList<QKeySequence> shortcuts;
-
-    if (cmd.shortcut.isValid()) {
-        if (cmd.shortcut.type() == QVariant::String) {
-            shortcuts.append(QKeySequence(cmd.shortcut.toString()));
-        } else if (cmd.shortcut.canConvert<QKeySequence::StandardKey>()) {
-            shortcuts.append(cmd.shortcut.value<QKeySequence::StandardKey>());
-        }
+    if (cmd.shortcut != nullptr) { // Reverted to check const char*
+        act->setShortcut(tr(cmd.shortcut)); // Reverted to simple setShortcut
     }
-
-    // Specific handling for gotoLine to add Cmd+L on macOS
-    // We need a way to identify the 'gotoLine' command. We can compare cmd.action or add a field to EditViewCommand.
-    // For now, let's assume we identify it by its action text or a unique property if we had one.
-    // A simple string comparison for now, though not ideal if text changes.
-    // The internal name used in XMACRO is 'gotoLine'. We don't have that directly in EditViewCommand.
-    // Let's use the action text "Go to Line..."
-    // Using cmd.internal_name now for robust identification
-    if (strcmp(cmd.internal_name, "gotoLine") == 0) {
-#ifdef Q_OS_MAC
-        // For macOS, make Cmd+L primary, Ctrl+G secondary for Go To Line
-        // The XMACRO already added Ctrl+G to the shortcuts list.
-        // We want Cmd+L to be the one displayed primarily if possible,
-        // so we add it. QAction::setShortcuts will take the list.
-        // To ensure Cmd+L is "more primary" if display order matters,
-        // we could rebuild the list for this specific case on Mac.
-        QList<QKeySequence> macGoToLineShortcuts;
-        macGoToLineShortcuts.append(QKeySequence("Cmd+L"));
-        // Add Ctrl+G back if it was the original from XMACRO and not already Cmd+L
-        if (cmd.shortcut.isValid() && cmd.shortcut.toString().toUpper() != "CMD+L") {
-             if (cmd.shortcut.type() == QVariant::String) {
-                macGoToLineShortcuts.append(QKeySequence(cmd.shortcut.toString()));
-            } else if (cmd.shortcut.canConvert<QKeySequence::StandardKey>()) {
-                // This case shouldn't happen for Ctrl+G as it's a string
-                macGoToLineShortcuts.append(cmd.shortcut.value<QKeySequence::StandardKey>());
-            }
-        }
-        act->setShortcuts(macGoToLineShortcuts); // Override with Mac-specific list
-    } else if (!shortcuts.isEmpty()) {
-        act->setShortcuts(shortcuts); // For other actions, use the populated list
-    }
-#else
-    // For non-Mac, or if not gotoLine, use the shortcuts list as populated
-    if (!shortcuts.isEmpty()) {
-        act->setShortcuts(shortcuts);
-    }
-#endif
-
-
     act->setStatusTip(tr(cmd.status));
     menu->addAction(act);
     connect(act, &QAction::triggered, this, cmd.mem_fn_ptr);

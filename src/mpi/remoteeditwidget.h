@@ -48,84 +48,79 @@ enum class NODISCARD EditCmd2Enum { EDIT_ONLY, EDIT_OR_VIEW, SPACER };
       EditViewCmdEnum::EDIT_ALIGNMENT, \
       "&Justify Entire Message", \
       "Justify text to 80 characters", \
-      QVariant()) /* nullptr -> QVariant() for invalid/no shortcut */ \
+      nullptr) /* Reverted */ \
     X(justifyLines, \
       EditViewCmdEnum::EDIT_ALIGNMENT, \
       "Justify &Selection", \
       "Justify selection to 80 characters", \
-      QVariant("Ctrl+J")) \
+      "Ctrl+J") /* Reverted */ \
     X(expandTabs, \
       EditViewCmdEnum::EDIT_WHITESPACE, \
       "&Expand Tabs", \
       "Expand tabs to 8-character tabstops", \
-      QVariant("Ctrl+E")) \
+      "Ctrl+E") /* Reverted */ \
     X(removeTrailingWhitespace, \
       EditViewCmdEnum::EDIT_WHITESPACE, \
       "Remove Trailing &Whitespace", \
       "Remove trailing whitespace", \
-      QVariant("Ctrl+W")) \
+      "Ctrl+W") /* Reverted */ \
     X(removeDuplicateSpaces, \
       EditViewCmdEnum::EDIT_WHITESPACE, \
       "Remove &Duplicate Spaces", \
       "Remove duplicate spaces in any partly-selected lines", \
-      QVariant("Ctrl+D")) \
+      "Ctrl+D") /* Reverted */ \
     X(normalizeAnsi, \
       EditViewCmdEnum::EDIT_COLORS, \
       "&Normalize Ansi Codes", \
       "Normalize ansi codes.", \
-      QVariant("Ctrl+N")) \
+      "Ctrl+N") /* Reverted */ \
     X(insertAnsiReset, \
       EditViewCmdEnum::EDIT_COLORS, \
       "&Insert Ansi Reset Code", \
       "Insert an ansi reset code (ESC[0m).", \
-      QVariant("Ctrl+I")) \
+      "Ctrl+I") /* Reverted */ \
     X(joinLines, \
       EditViewCmdEnum::EDIT_ALIGNMENT, \
       "Joi&n Lines", \
       "Join all partly-selected lines.", \
-      QVariant("Ctrl+Shift+J")) \
+      "Ctrl+Shift+J") /* Reverted */ \
     X(quoteLines, \
       EditViewCmdEnum::EDIT_ALIGNMENT, \
       "&Quote Lines", \
       "Add a quote prefix to all partly-selected lines.", \
-      QVariant("Ctrl+>")) /* aka "Ctrl+Shift+." */ \
+      "Ctrl+>") /* Reverted */ \
     X(previewAnsi, \
       EditViewCmdEnum::VIEW_OPTION, \
       "&Preview Ansi Codes", \
       "Preview message with ansi coloring.", \
-      QVariant("Ctrl+P")) \
+      "Ctrl+P") /* Reverted */ \
     X(toggleWhitespace, \
       EditViewCmdEnum::VIEW_OPTION, \
       "Toggle &Whitespace", \
       "Toggle the display of whitespace.", \
-      QVariant("Ctrl+Shift+W")) \
+      "Ctrl+Shift+W") /* Reverted */ \
     /* Find/Replace Actions */ \
     X(findReplace, \
       EditViewCmdEnum::EDIT_FIND_REPLACE, \
       "&Find/Replace...", \
       "Show the find/replace dialog.", \
-      QVariant(QKeySequence::Find)) \
+      "Ctrl+F") /* Reverted */ \
     X(findNext, \
       EditViewCmdEnum::EDIT_FIND_REPLACE, \
       "Find &Next", \
       "Find next occurrence of the search text.", \
-      QVariant(QKeySequence::FindNext)) \
+      "F3") /* Reverted */ \
     X(findPrevious, \
       EditViewCmdEnum::EDIT_FIND_REPLACE, \
       "Find &Previous", \
       "Find previous occurrence of the search text.", \
-      QVariant(QKeySequence::FindPrevious)) \
+      "Shift+F3") /* Reverted */ \
     X(replace, \
       EditViewCmdEnum::EDIT_FIND_REPLACE, \
       "&Replace", \
       "Replace the current selection with the replacement text and find next.", \
-      QVariant(QKeySequence::Replace)) \
-    /* Go to Line Action */ \
-    X(gotoLine, \
-      EditViewCmdEnum::EDIT_FIND_REPLACE, \
-      "&Go to Line...", \
-      "Go to a specific line number in the document.", \
-      QVariant("Ctrl+G"))
+      "Ctrl+H") /* Reverted */ \
+    /* Go to Line Action is now handled manually */
 
 class NODISCARD_QOBJECT RemoteTextEdit final : public QPlainTextEdit
 {
@@ -249,6 +244,7 @@ protected slots:
     NODISCARD bool slot_contentsChanged() const;
     void slot_updateStatusBar();
     void slot_replaceAll(); // Added: Slot for handling replaceAll signal from FindReplaceDialog
+    void slot_gotoLine();   // Added: Slot for manually created "Go to Line" action
 
 #define X_DECLARE_SLOT(a, b, c, d, e) void slot_##a();
     XFOREACH_REMOTE_EDIT_MENU_ITEM(X_DECLARE_SLOT)

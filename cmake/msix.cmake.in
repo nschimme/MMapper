@@ -49,6 +49,10 @@ set(APPX_PDB_SOURCE_PATH "@ABS_MMAPPER_DEPLOY_STAGING_DIR@/${APPX_PDB_FILE_NAME}
 set(MSIX_STAGING_DIR "${CPACK_TEMPORARY_DIRECTORY}/msix_stage")
 message(STATUS "MSIX: Internal staging directory (MSIX_STAGING_DIR) set to: ${MSIX_STAGING_DIR}")
 
+message(STATUS "DEBUG: Running msix.configured.cmake")
+message(STATUS "DEBUG: Configured ABS_MMAPPER_DEPLOY_STAGING_DIR is: @ABS_MMAPPER_DEPLOY_STAGING_DIR@")
+message(STATUS "DEBUG: Configured PROJECT_SOURCE_DIR_CONFIG is: @PROJECT_SOURCE_DIR_CONFIG@")
+
 # --- Start of direct execution block ---
 
 # Diagnostic: List contents of CPACK_TEMPORARY_DIRECTORY (to see if CPack put anything there)
@@ -73,7 +77,7 @@ file(MAKE_DIRECTORY "${MSIX_STAGING_DIR}")
 file(MAKE_DIRECTORY "${MSIX_STAGING_DIR}/Assets")
 
 # 1. Copy AppxManifest.xml to MSIX_STAGING_DIR
-set(MANIFEST_SOURCE_PATH "${CMAKE_CURRENT_LIST_DIR}/../AppxManifest.xml")
+set(MANIFEST_SOURCE_PATH "@PROJECT_SOURCE_DIR_CONFIG@/AppxManifest.xml")
 set(MANIFEST_STAGING_PATH "${MSIX_STAGING_DIR}/AppxManifest.xml")
 message(STATUS "MSIX: Copying ${MANIFEST_SOURCE_PATH} to ${MANIFEST_STAGING_PATH}")
 execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -91,7 +95,7 @@ file(WRITE "${MANIFEST_STAGING_PATH}" "${MANIFEST_CONTENT}")
 
 # 2. Copy Assets to MSIX_STAGING_DIR/Assets
 message(STATUS "MSIX: Copying assets to ${MSIX_STAGING_DIR}/Assets")
-set(ASSETS_SOURCE_BASE_PATH "${CMAKE_CURRENT_LIST_DIR}/../src/resources")
+set(ASSETS_SOURCE_BASE_PATH "@PROJECT_SOURCE_DIR_CONFIG@/src/resources")
 
 # Helper macro for copying assets
 macro(COPY_ASSET SOURCE_SUB_PATH TARGET_NAME)

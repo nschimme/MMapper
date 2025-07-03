@@ -1037,6 +1037,7 @@ if(WIN32)
     # MMAPPER_DEPLOY_STAGING_DIR is already an absolute path: ${CMAKE_CURRENT_BINARY_DIR}/win_runtime_staging
     # which resolves to <project_binary_dir>/src/win_runtime_staging
     set(ABS_MMAPPER_DEPLOY_STAGING_DIR_CONFIG "${MMAPPER_DEPLOY_STAGING_DIR}")
+    set(PROJECT_SOURCE_DIR_CONFIG "${PROJECT_SOURCE_DIR}") # Pass the project's root source directory
 
     # Ensure the target directory for the configured script exists in the top-level build dir
     file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/cmake")
@@ -1044,11 +1045,14 @@ if(WIN32)
     configure_file(
         "${CMAKE_SOURCE_DIR}/cmake/msix.cmake.in"
         "${CMAKE_BINARY_DIR}/cmake/msix.configured.cmake"
-        @ONLY
+        @ONLY # IMPORTANT: Only replace @VAR@ style variables, not ${VAR} style.
     )
 
     # Path to the script that CPack's External generator will run.
     set(CPACK_EXTERNAL_PACKAGE_SCRIPT "${CMAKE_BINARY_DIR}/cmake/msix.configured.cmake")
+    message(STATUS "DEBUG: CPACK_EXTERNAL_PACKAGE_SCRIPT in src/CMakeLists.txt is set to: ${CPACK_EXTERNAL_PACKAGE_SCRIPT}")
+    message(STATUS "DEBUG: ABS_MMAPPER_DEPLOY_STAGING_DIR_CONFIG for configure_file is: ${ABS_MMAPPER_DEPLOY_STAGING_DIR_CONFIG}")
+    message(STATUS "DEBUG: PROJECT_SOURCE_DIR_CONFIG for configure_file is: ${PROJECT_SOURCE_DIR_CONFIG}")
 
     # Windows (NSIS) Settings - Normalized to root install directory (no 'bin/')
     set(CPACK_NSIS_EXECUTABLES_DIRECTORY ".") # Executables are now in the root

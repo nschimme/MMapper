@@ -42,15 +42,15 @@ set(APPX_BUNDLE_FULL_PATH "${CPACK_TOPLEVEL_DIRECTORY}/${APPX_BUNDLE_FILE_NAME}"
 set(APPX_SYM_FULL_PATH "${CPACK_TOPLEVEL_DIRECTORY}/${APPX_SYM_FILE_NAME}")
 set(APPX_UPLOAD_FULL_PATH "${CPACK_TOPLEVEL_DIRECTORY}/${APPX_UPLOAD_FILE_NAME}")
 
-# Source PDB path: Configured via @ABS_MMAPPER_DEPLOY_STAGING_DIR@
-set(APPX_PDB_SOURCE_PATH "@ABS_MMAPPER_DEPLOY_STAGING_DIR@/${APPX_PDB_FILE_NAME}")
+# Source PDB path: Configured via @ABS_MMAPPER_DEPLOY_STAGING_DIR_CONFIG@
+set(APPX_PDB_SOURCE_PATH "@ABS_MMAPPER_DEPLOY_STAGING_DIR_CONFIG@/${APPX_PDB_FILE_NAME}")
 
 # Define the MSIX-specific staging directory within CPACK_TEMPORARY_DIRECTORY
 set(MSIX_STAGING_DIR "${CPACK_TEMPORARY_DIRECTORY}/msix_stage")
 message(STATUS "MSIX: Internal staging directory (MSIX_STAGING_DIR) set to: ${MSIX_STAGING_DIR}")
 
 message(STATUS "DEBUG: Running msix.configured.cmake")
-message(STATUS "DEBUG: Configured ABS_MMAPPER_DEPLOY_STAGING_DIR is: @ABS_MMAPPER_DEPLOY_STAGING_DIR@")
+message(STATUS "DEBUG: Configured ABS_MMAPPER_DEPLOY_STAGING_DIR_CONFIG is: @ABS_MMAPPER_DEPLOY_STAGING_DIR_CONFIG@")
 message(STATUS "DEBUG: Configured PROJECT_SOURCE_DIR_CONFIG is: @PROJECT_SOURCE_DIR_CONFIG@")
 
 # --- Start of direct execution block ---
@@ -121,8 +121,8 @@ COPY_ASSET("icons/hi48-app-mmapper-release.png" "Square44x44Logo.png")
 COPY_ASSET("icons/hi48-app-mmapper-release.png" "StoreLogo.png") # Placeholder, scaled by OS (often same as Square44x44Logo or a specific version)
 
 # 3. Copy Application Executable (mmapper.exe)
-# Source path is configured via @ABS_MMAPPER_DEPLOY_STAGING_DIR@
-set(APP_EXE_SOURCE_PATH "@ABS_MMAPPER_DEPLOY_STAGING_DIR@/${APP_TARGET}.exe")
+# Source path is configured via @ABS_MMAPPER_DEPLOY_STAGING_DIR_CONFIG@
+set(APP_EXE_SOURCE_PATH "@ABS_MMAPPER_DEPLOY_STAGING_DIR_CONFIG@/${APP_TARGET}.exe")
 set(APP_EXE_STAGING_PATH "${MSIX_STAGING_DIR}/${APP_TARGET}.exe")
 message(STATUS "MSIX: Attempting to copy application from: ${APP_EXE_SOURCE_PATH} to ${APP_EXE_STAGING_PATH}")
 if(NOT EXISTS "${APP_EXE_SOURCE_PATH}")

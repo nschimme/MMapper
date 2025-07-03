@@ -22,6 +22,7 @@ struct EditViewCommand;
 struct EditCommand2;
 
 class AnsiViewWindow;
+class FindReplaceDialog; // Added
 class QCloseEvent;
 class QMenu;
 class QMenuBar;
@@ -30,66 +31,101 @@ class QPlainTextEdit;
 class QWidget;
 class QStatusBar;
 
-enum class NODISCARD EditViewCmdEnum { VIEW_OPTION, EDIT_ALIGNMENT, EDIT_COLORS, EDIT_WHITESPACE };
+enum class NODISCARD EditViewCmdEnum {
+    VIEW_OPTION, /* For view-related options like preview, toggle whitespace */
+    EDIT_ALIGNMENT, /* For text alignment and justification commands */
+    EDIT_COLORS, /* For ANSI color related commands */
+    EDIT_WHITESPACE, /* For commands related to whitespace manipulation */
+    EDIT_FIND_REPLACE /* For Find/Replace and Go to Line actions */
+};
 enum class NODISCARD EditCmd2Enum { EDIT_ONLY, EDIT_OR_VIEW, SPACER };
 
 // NOTE: Ctrl+A is "Select All" by default.
+// XMACRO to define menu items for the RemoteEditWidget.
+// Arguments: internal_name, EditViewCmdEnum category, UI display text, status tip text, shortcut string (or nullptr)
 #define XFOREACH_REMOTE_EDIT_MENU_ITEM(X) \
     X(justifyText, \
       EditViewCmdEnum::EDIT_ALIGNMENT, \
       "&Justify Entire Message", \
       "Justify text to 80 characters", \
-      nullptr) \
+      QVariant()) /* nullptr -> QVariant() for invalid/no shortcut */ \
     X(justifyLines, \
       EditViewCmdEnum::EDIT_ALIGNMENT, \
       "Justify &Selection", \
       "Justify selection to 80 characters", \
-      "Ctrl+J") \
+      QVariant("Ctrl+J")) \
     X(expandTabs, \
       EditViewCmdEnum::EDIT_WHITESPACE, \
       "&Expand Tabs", \
       "Expand tabs to 8-character tabstops", \
-      "Ctrl+E") \
+      QVariant("Ctrl+E")) \
     X(removeTrailingWhitespace, \
       EditViewCmdEnum::EDIT_WHITESPACE, \
       "Remove Trailing &Whitespace", \
       "Remove trailing whitespace", \
-      "Ctrl+W") \
+      QVariant("Ctrl+W")) \
     X(removeDuplicateSpaces, \
       EditViewCmdEnum::EDIT_WHITESPACE, \
       "Remove &Duplicate Spaces", \
       "Remove duplicate spaces in any partly-selected lines", \
-      "Ctrl+D") \
+      QVariant("Ctrl+D")) \
     X(normalizeAnsi, \
       EditViewCmdEnum::EDIT_COLORS, \
       "&Normalize Ansi Codes", \
       "Normalize ansi codes.", \
-      "Ctrl+N") \
+      QVariant("Ctrl+N")) \
     X(insertAnsiReset, \
       EditViewCmdEnum::EDIT_COLORS, \
       "&Insert Ansi Reset Code", \
       "Insert an ansi reset code (ESC[0m).", \
-      "Ctrl+I") \
+      QVariant("Ctrl+I")) \
     X(joinLines, \
       EditViewCmdEnum::EDIT_ALIGNMENT, \
       "Joi&n Lines", \
       "Join all partly-selected lines.", \
-      "Ctrl+Shift+J") \
+      QVariant("Ctrl+Shift+J")) \
     X(quoteLines, \
       EditViewCmdEnum::EDIT_ALIGNMENT, \
       "&Quote Lines", \
       "Add a quote prefix to all partly-selected lines.", \
-      "Ctrl+>" /* aka "Ctrl+Shift+." */) \
+      QVariant("Ctrl+>")) /* aka "Ctrl+Shift+." */ \
     X(previewAnsi, \
       EditViewCmdEnum::VIEW_OPTION, \
       "&Preview Ansi Codes", \
       "Preview message with ansi coloring.", \
-      "Ctrl+P") \
+      QVariant("Ctrl+P")) \
     X(toggleWhitespace, \
       EditViewCmdEnum::VIEW_OPTION, \
       "Toggle &Whitespace", \
       "Toggle the display of whitespace.", \
-      "Ctrl+Shift+W")
+      QVariant("Ctrl+Shift+W")) \
+    /* Find/Replace Actions */ \
+    X(findReplace, \
+      EditViewCmdEnum::EDIT_FIND_REPLACE, \
+      "&Find/Replace...", \
+      "Show the find/replace dialog.", \
+      QVariant(QKeySequence::Find)) \
+    X(findNext, \
+      EditViewCmdEnum::EDIT_FIND_REPLACE, \
+      "Find &Next", \
+      "Find next occurrence of the search text.", \
+      QVariant(QKeySequence::FindNext)) \
+    X(findPrevious, \
+      EditViewCmdEnum::EDIT_FIND_REPLACE, \
+      "Find &Previous", \
+      "Find previous occurrence of the search text.", \
+      QVariant(QKeySequence::FindPrevious)) \
+    X(replace, \
+      EditViewCmdEnum::EDIT_FIND_REPLACE, \
+      "&Replace", \
+      "Replace the current selection with the replacement text and find next.", \
+      QVariant(QKeySequence::Replace)) \
+    /* Go to Line Action */ \
+    X(gotoLine, \
+      EditViewCmdEnum::EDIT_FIND_REPLACE, \
+      "&Go to Line...", \
+      "Go to a specific line number in the document.", \
+      QVariant("Ctrl+G"))
 
 class NODISCARD_QOBJECT RemoteTextEdit final : public QPlainTextEdit
 {
@@ -124,6 +160,36 @@ public:
 public:
     void prefixPartialSelection(const QString &prefix);
 
+    // Find/Replace and Goto Line methods
+    /// Finds the next occurrence of the given text.
+    /// @param text The text to find.
+    /// @param flags The search flags (e.g., case sensitivity).
+    /// @return True if the text was found, false otherwise.
+    bool findNext(const QString &text, QTextDocument::FindFlags flags);
+
+    /// Finds the previous occurrence of the given text.
+    /// @param text The text to find.
+    /// @param flags The search flags (e.g., case sensitivity).
+    /// @return True if the text was found, false otherwise.
+    bool findPrevious(const QString &text, QTextDocument::FindFlags flags);
+
+    /// Replaces the current selection if it matches findText and then finds the next occurrence.
+    /// @param findText The text to find.
+    /// @param replaceText The text to replace with.
+    /// @param flags The search flags.
+    void replace(const QString &findText, const QString &replaceText, QTextDocument::FindFlags flags);
+
+    /// Replaces all occurrences of findText with replaceText.
+    /// @param findText The text to find.
+    /// @param replaceText The text to replace with.
+    /// @param flags The search flags.
+    void replaceAll(const QString &findText, const QString &replaceText, QTextDocument::FindFlags flags);
+
+    /// Moves the cursor to the beginning of the specified line number.
+    /// @param lineNum The 0-indexed line number to go to.
+    void gotoLine(int lineNum);
+
+
 private:
     void handleEventTab(QKeyEvent *event);
     void handleEventBacktab(QKeyEvent *event);
@@ -143,8 +209,9 @@ private:
     const QString m_body;
 
     bool m_submitted = false;
-    QScopedPointer<Editor> m_textEdit;
-    std::unique_ptr<AnsiViewWindow> m_preview;
+    QScopedPointer<Editor> m_textEdit; // The main text editing widget
+    std::unique_ptr<AnsiViewWindow> m_preview; // Window for ANSI preview
+    FindReplaceDialog *m_findReplaceDialog = nullptr; // Modeless find/replace dialog instance
 
 public:
     explicit RemoteEditWidget(bool editSession, QString title, QString body, QWidget *parent);

@@ -6,122 +6,221 @@ if(NOT WIN32)
 endif()
 
 # This script is called by CPack's External generator.
-# CPack is responsible for staging all necessary files for the MSIX_Package_Component
-# into CPACK_TEMPORARY_DIRECTORY. This script then uses that directory as input.
+# It is responsible for creating its own staging area, populating it, and packaging it.
 
 set(APP_TARGET mmapper) # As determined from src/CMakeLists.txt
 
-# Versioning: Use CPACK_PACKAGE_VERSION variables. These are set by CPack when it runs.
-# Versioning: Use CPACK_PACKAGE_VERSION variables. These should be set by the main CMakeLists.txt
-# CPack itself also sets CPACK_PACKAGE_VERSION_MAJOR etc. when it runs.
+# Versioning: Use CPACK_PACKAGE_VERSION variables. These should be set by CPack.
 if(NOT DEFINED CPACK_PACKAGE_VERSION_MAJOR OR NOT DEFINED CPACK_PACKAGE_VERSION_MINOR OR NOT DEFINED CPACK_PACKAGE_VERSION_PATCH)
-    # Fallback to project version if CPack vars aren't populated yet (e.g. if script is included directly)
-    # However, for CPack External, CPack variables should be available.
+    # Fallback for direct script execution/testing, less likely for CPack External
     get_filename_component(PROJECT_VERSION_FROM_FILE "${CMAKE_SOURCE_DIR}/MMAPPER_VERSION" NAME)
     string(REPLACE "." ";" PROJECT_VERSION_LIST ${PROJECT_VERSION_FROM_FILE})
     list(GET PROJECT_VERSION_LIST 0 CPACK_PACKAGE_VERSION_MAJOR)
     list(GET PROJECT_VERSION_LIST 1 CPACK_PACKAGE_VERSION_MINOR)
     list(GET PROJECT_VERSION_LIST 2 CPACK_PACKAGE_VERSION_PATCH)
-    if(NOT DEFINED CPACK_PACKAGE_VERSION_MAJOR) # Still not defined? Error.
-        message(FATAL_ERROR "MSIX: Package version information is not available.")
+    if(NOT DEFINED CPACK_PACKAGE_VERSION_MAJOR)
+        message(FATAL_ERROR "MSIX: Package version information is not available via CPack or fallback.")
     endif()
-    message(STATUS "MSIX: Using project version ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH} as fallback.")
+    message(STATUS "MSIX: Using project version ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH} as fallback for versioning.")
 endif()
 
 set(APPX_BUILD_VERSION_STRING "${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}.0")
 set(APPX_VERSION_FILENAME_PART "${CPACK_PACKAGE_VERSION_MAJOR}_${CPACK_PACKAGE_VERSION_MINOR}_${CPACK_PACKAGE_VERSION_PATCH}_0")
 
 # File and directory names for output
-# Output .appxupload to CMAKE_BINARY_DIR as it's a persistent location outside CPack's temp staging.
-set(APPX_PACKAGES_DIR_NAME "msix_intermediate_packages") # Subdirectory in CMAKE_BINARY_DIR for .appx
+set(APPX_PACKAGES_DIR_NAME "msix_intermediate_packages")
 set(APPX_PACKAGE_X64_FILE_NAME "${APP_TARGET}-${APPX_VERSION_FILENAME_PART}-x64.appx")
 set(APPX_BUNDLE_FILE_NAME "${APP_TARGET}-${APPX_VERSION_FILENAME_PART}.appxbundle")
-set(APPX_PDB_FILE_NAME "${APP_TARGET}.pdb")
+set(APPX_PDB_FILE_NAME "${APP_TARGET}.pdb") # This is just the filename, path is separate
 set(APPX_SYM_FILE_NAME "${APP_TARGET}-${APPX_VERSION_FILENAME_PART}.appxsym")
 set(APPX_UPLOAD_FILE_NAME "${APP_TARGET}-${APPX_VERSION_FILENAME_PART}.appxupload")
 
-# Paths for outputs will use CPACK_TOPLEVEL_DIRECTORY (the build dir where cpack was invoked)
+# Paths for final outputs will use CPACK_TOPLEVEL_DIRECTORY (the build dir where cpack was invoked)
 set(APPX_PACKAGES_FULL_DIR "${CPACK_TOPLEVEL_DIRECTORY}/${APPX_PACKAGES_DIR_NAME}")
 set(APPX_PACKAGE_X64_FULL_PATH "${APPX_PACKAGES_FULL_DIR}/${APPX_PACKAGE_X64_FILE_NAME}")
-set(APPX_BUNDLE_FULL_PATH "${CPACK_TOPLEVEL_DIRECTORY}/${APPX_BUNDLE_FILE_NAME}") # Bundle goes to toplevel
+set(APPX_BUNDLE_FULL_PATH "${CPACK_TOPLEVEL_DIRECTORY}/${APPX_BUNDLE_FILE_NAME}")
 set(APPX_SYM_FULL_PATH "${CPACK_TOPLEVEL_DIRECTORY}/${APPX_SYM_FILE_NAME}")
 set(APPX_UPLOAD_FULL_PATH "${CPACK_TOPLEVEL_DIRECTORY}/${APPX_UPLOAD_FILE_NAME}")
 
-# Determine CMAKE_BUILD_TYPE for PDB path logic (already done above this section in the current file)
-# The CMAKE_BUILD_TYPE determined above will be used.
+# Source PDB path: Assumed to be in <CPACK_TOPLEVEL_DIRECTORY>/src/ for RelWithDebInfo
+set(APPX_PDB_SOURCE_PATH "${CPACK_TOPLEVEL_DIRECTORY}/src/${APPX_PDB_FILE_NAME}")
 
-# PDB path, relative to CPACK_TOPLEVEL_DIRECTORY. From CI log: /pdb:src\mmapper.pdb
-set(APPX_PDB_FULL_PATH "${CPACK_TOPLEVEL_DIRECTORY}/src/${APPX_PDB_FILE_NAME}") # Corrected base path
+# Define the MSIX-specific staging directory within CPACK_TEMPORARY_DIRECTORY
+set(MSIX_STAGING_DIR "${CPACK_TEMPORARY_DIRECTORY}/msix_stage")
+message(STATUS "MSIX: Internal staging directory (MSIX_STAGING_DIR) set to: ${MSIX_STAGING_DIR}")
 
-# --- Start of direct execution block (formerly install_code) ---
+# --- Start of direct execution block ---
 
-# Diagnostic: List contents of CPACK_TEMPORARY_DIRECTORY
-message(STATUS "MSIX: Attempting to list contents of CPACK_TEMPORARY_DIRECTORY (${CPACK_TEMPORARY_DIRECTORY}) using file(GLOB_RECURSE):")
-file(GLOB_RECURSE _staged_files LIST_DIRECTORIES true FOLLOW_SYMLINKS
+# Diagnostic: List contents of CPACK_TEMPORARY_DIRECTORY (to see if CPack put anything there)
+message(STATUS "MSIX: Initial check of CPACK_TEMPORARY_DIRECTORY (${CPACK_TEMPORARY_DIRECTORY}) before MSIX staging operations:")
+file(GLOB_RECURSE _initial_cpack_temp_files LIST_DIRECTORIES true FOLLOW_SYMLINKS
      RELATIVE "${CPACK_TEMPORARY_DIRECTORY}"
      "${CPACK_TEMPORARY_DIRECTORY}/*"
 )
-message(STATUS "MSIX: Staged files/dirs in CPACK_TEMPORARY_DIRECTORY (relative paths from GLOB_RECURSE):")
-if(_staged_files)
-    foreach(_file ${_staged_files})
+if(_initial_cpack_temp_files)
+    message(STATUS "MSIX: Files/dirs found in CPACK_TEMPORARY_DIRECTORY by CPack (should ideally be empty or only basic structure):")
+    foreach(_file ${_initial_cpack_temp_files})
         message(STATUS "  -- ${_file}")
     endforeach()
 else()
-    message(WARNING "MSIX: No files or directories found in CPACK_TEMPORARY_DIRECTORY by file(GLOB_RECURSE).")
+    message(STATUS "MSIX: CPACK_TEMPORARY_DIRECTORY is initially empty or contains no enumerable items.")
 endif()
 
-# Explicit check for AppxManifest.xml (remains important)
-if(EXISTS "${CPACK_TEMPORARY_DIRECTORY}/AppxManifest.xml")
-    message(STATUS "MSIX: AppxManifest.xml FOUND in CPACK_TEMPORARY_DIRECTORY by direct EXISTS check.")
+# Clean and create MSIX staging directory and its 'Assets' subdirectory
+message(STATUS "MSIX: Preparing MSIX staging directory: ${MSIX_STAGING_DIR}")
+file(REMOVE_RECURSE "${MSIX_STAGING_DIR}")
+file(MAKE_DIRECTORY "${MSIX_STAGING_DIR}")
+file(MAKE_DIRECTORY "${MSIX_STAGING_DIR}/Assets")
+
+# 1. Copy AppxManifest.xml to MSIX_STAGING_DIR
+set(MANIFEST_SOURCE_PATH "${CMAKE_SOURCE_DIR}/AppxManifest.xml")
+set(MANIFEST_STAGING_PATH "${MSIX_STAGING_DIR}/AppxManifest.xml")
+message(STATUS "MSIX: Copying ${MANIFEST_SOURCE_PATH} to ${MANIFEST_STAGING_PATH}")
+execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${MANIFEST_SOURCE_PATH}" "${MANIFEST_STAGING_PATH}"
+    RESULT_VARIABLE _copy_manifest_res)
+if(NOT _copy_manifest_res EQUAL 0)
+    message(FATAL_ERROR "MSIX: Failed to copy AppxManifest.xml to ${MANIFEST_STAGING_PATH} (Error: ${_copy_manifest_res})")
+endif()
+
+# Update version in the staged AppxManifest.xml
+message(STATUS "MSIX: Updating version in ${MANIFEST_STAGING_PATH} to ${APPX_BUILD_VERSION_STRING}")
+file(READ "${MANIFEST_STAGING_PATH}" MANIFEST_CONTENT)
+string(REGEX REPLACE "Version=\\\"[0-9]+\\\\.[0-9]+\\\\.[0-9]+\\\\.[0-9]+\\\"" "Version=\\\"${APPX_BUILD_VERSION_STRING}\\\"" MANIFEST_CONTENT "${MANIFEST_CONTENT}")
+file(WRITE "${MANIFEST_STAGING_PATH}" "${MANIFEST_CONTENT}")
+
+# 2. Copy Assets to MSIX_STAGING_DIR/Assets
+message(STATUS "MSIX: Copying assets to ${MSIX_STAGING_DIR}/Assets")
+set(ASSETS_SOURCE_BASE_PATH "${CMAKE_SOURCE_DIR}/src/resources")
+
+# Helper macro for copying assets
+macro(COPY_ASSET SOURCE_SUB_PATH TARGET_NAME)
+    set(ASSET_SOURCE_FULL_PATH "${ASSETS_SOURCE_BASE_PATH}/${SOURCE_SUB_PATH}")
+    set(ASSET_TARGET_FULL_PATH "${MSIX_STAGING_DIR}/Assets/${TARGET_NAME}")
+    message(STATUS "MSIX: Copying asset ${ASSET_SOURCE_FULL_PATH} to ${ASSET_TARGET_FULL_PATH}")
+    execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${ASSET_SOURCE_FULL_PATH}" "${ASSET_TARGET_FULL_PATH}"
+        RESULT_VARIABLE _copy_asset_res)
+    if(NOT _copy_asset_res EQUAL 0)
+        message(FATAL_ERROR "MSIX: Failed to copy asset ${TARGET_NAME} (Source: ${ASSET_SOURCE_FULL_PATH}) (Error: ${_copy_asset_res})")
+    endif()
+endmacro()
+
+COPY_ASSET("pixmaps/splash-release.png" "SplashScreen.png")
+COPY_ASSET("icons/app/icon-256.png" "Logo.png") # Using app/icon-256.png as general logo
+COPY_ASSET("icons/hi128-app-mmapper-release.png" "Square150x150Logo.png")
+COPY_ASSET("icons/hi128-app-mmapper-release.png" "Wide310x150Logo.png") # Placeholder
+COPY_ASSET("icons/hi48-app-mmapper-release.png" "Square44x44Logo.png")
+COPY_ASSET("icons/hi48-app-mmapper-release.png" "StoreLogo.png") # Placeholder, same as Square44x44Logo
+
+# 3. Copy Application Executable (mmapper.exe)
+# Assumes mmapper.exe is in ${CPACK_TOPLEVEL_DIRECTORY}/src/ after build (typical for RelWithDebInfo if not customized)
+set(APP_EXE_SOURCE_PATH "${CPACK_TOPLEVEL_DIRECTORY}/src/${APP_TARGET}.exe")
+set(APP_EXE_STAGING_PATH "${MSIX_STAGING_DIR}/${APP_TARGET}.exe")
+message(STATUS "MSIX: Attempting to copy application from: ${APP_EXE_SOURCE_PATH} to ${APP_EXE_STAGING_PATH}")
+if(NOT EXISTS "${APP_EXE_SOURCE_PATH}")
+    message(FATAL_ERROR "MSIX: Application executable NOT FOUND at ${APP_EXE_SOURCE_PATH}. Check CMAKE_RUNTIME_OUTPUT_DIRECTORY or build output paths if different from <build_dir>/src/.")
+endif()
+execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${APP_EXE_SOURCE_PATH}" "${APP_EXE_STAGING_PATH}"
+    RESULT_VARIABLE _copy_exe_res)
+if(NOT _copy_exe_res EQUAL 0)
+    message(FATAL_ERROR "MSIX: Failed to copy ${APP_TARGET}.exe from ${APP_EXE_SOURCE_PATH} (Error: ${_copy_exe_res})")
+endif()
+
+# 4. Run windeployqt targeting MSIX_STAGING_DIR
+message(STATUS "MSIX: Preparing to run windeployqt.")
+# Ensure Qt6 is found. This relies on the main CMake project having found Qt6 correctly
+# and CMAKE_PREFIX_PATH being set up for find_package to work in this script context.
+# If Qt6 was found as Qt5::Core etc. in main, use that. Assume Qt6::Core etc.
+find_package(Qt6 COMPONENTS Core Gui Qml Quick Svg Widgets QUIET)
+if(NOT Qt6_FOUND)
+    message(FATAL_ERROR "MSIX: Qt6 not found by find_package(Qt6 ...). Ensure CMAKE_PREFIX_PATH is correct for CPack External script execution.")
+endif()
+
+if(NOT TARGET Qt6::windeployqt)
+    message(FATAL_ERROR "MSIX: Qt6::windeployqt target not found. Qt6 deployment tools might not be available or correctly found.")
+endif()
+get_target_property(QT_DEPLOY_BIN Qt6::windeployqt IMPORTED_LOCATION)
+if(NOT EXISTS "${QT_DEPLOY_BIN}") # Should be redundant if target exists, but good check
+    message(FATAL_ERROR "MSIX: windeployqt executable not found at imported location '${QT_DEPLOY_BIN}'.")
+endif()
+
+message(STATUS "MSIX: Running windeployqt (${QT_DEPLOY_BIN}) on ${MSIX_STAGING_DIR} for ${APP_EXE_STAGING_PATH}")
+set(WINDEPLOYQT_OPTIONS
+    --no-compiler-runtime # VC redistributables handled by InstallRequiredSystemLibraries for NSIS, MSIX should bundle what it needs or declare dependencies.
+    --no-opengl-sw
+    --no-translations
+    --no-system-d3d-compiler # Avoids system D3D compiler if not needed
+    --dir "${MSIX_STAGING_DIR}" # Directory to deploy into
+    #"${MSIX_STAGING_DIR}/${APP_TARGET}.exe" # The executable to process - no, this should be just the dir
+    --pdb # try to get PDBs for Qt DLLs as well
+    --verbose 1
+)
+execute_process(COMMAND "${QT_DEPLOY_BIN}" ${WINDEPLOYQT_OPTIONS} "${APP_EXE_STAGING_PATH}"
+    WORKING_DIRECTORY "${MSIX_STAGING_DIR}" # Ensure windeployqt runs in the context of the staging dir
+    RESULT_VARIABLE _windeployqt_res
+    OUTPUT_VARIABLE _windeployqt_out
+    ERROR_VARIABLE _windeployqt_err)
+
+if(NOT _windeployqt_res EQUAL 0)
+    message(FATAL_ERROR "MSIX: windeployqt failed (Error: ${_windeployqt_res}):\nOUT: ${_windeployqt_out}\nERR: ${_windeployqt_err}")
 else()
-    message(WARNING "MSIX: AppxManifest.xml NOT FOUND in CPACK_TEMPORARY_DIRECTORY by direct EXISTS check.")
+    message(STATUS "MSIX: windeployqt finished. Output:\n${_windeployqt_out}")
+    if(_windeployqt_err)
+        message(WARNING "MSIX: windeployqt stderr:\n${_windeployqt_err}")
+    endif()
 endif()
 
-message(STATUS "MSIX (CPack External): Starting packaging process.")
-message(STATUS "MSIX (CPack External): Staging directory used by MakeAppx (CPACK_TEMPORARY_DIRECTORY): ${CPACK_TEMPORARY_DIRECTORY}")
+# Diagnostic: List contents of MSIX_STAGING_DIR after all operations
+message(STATUS "MSIX: Contents of MSIX_STAGING_DIR (${MSIX_STAGING_DIR}) after staging operations:")
+file(GLOB_RECURSE _staged_msix_files LIST_DIRECTORIES true FOLLOW_SYMLINKS
+     RELATIVE "${MSIX_STAGING_DIR}"
+     "${MSIX_STAGING_DIR}/*"
+)
+if(_staged_msix_files)
+    foreach(_file ${_staged_msix_files})
+        message(STATUS "  -- ${_file}")
+    endforeach()
+else()
+    message(WARNING "MSIX: No files or directories found in MSIX_STAGING_DIR by file(GLOB_RECURSE) after staging attempts.")
+endif()
+
+
+message(STATUS "MSIX (CPack External): Starting packaging process using staged content.")
+message(STATUS "MSIX (CPack External): Input directory for MakeAppx (MSIX_STAGING_DIR): ${MSIX_STAGING_DIR}")
 message(STATUS "MSIX (CPack External): Output directory for intermediate packages (APPX_PACKAGES_FULL_DIR): ${APPX_PACKAGES_FULL_DIR}")
-message(STATUS "MSIX (CPack External): Final .appxupload will be in (CPACK_TOPLEVEL_DIRECTORY): ${CPACK_TOPLEVEL_DIRECTORY}") # Corrected variable
-message(STATUS "MSIX (CPack External): PDB file expected at (APPX_PDB_FULL_PATH): ${APPX_PDB_FULL_PATH}")
+message(STATUS "MSIX (CPack External): Final .appxupload will be in (CPACK_TOPLEVEL_DIRECTORY): ${CPACK_TOPLEVEL_DIRECTORY}")
+message(STATUS "MSIX (CPack External): PDB source file for symbols (APPX_PDB_SOURCE_PATH): ${APPX_PDB_SOURCE_PATH}")
 
 # Ensure output directories exist for intermediate packages
 file(MAKE_DIRECTORY "${APPX_PACKAGES_FULL_DIR}")
 
-# AppxManifest.xml is expected to be at the root of CPACK_TEMPORARY_DIRECTORY, staged by CPack.
-set(MANIFEST_PATH "${CPACK_TEMPORARY_DIRECTORY}/AppxManifest.xml")
-if(EXISTS "${MANIFEST_PATH}")
-    message(STATUS "MSIX: Updating version in ${MANIFEST_PATH} to ${APPX_BUILD_VERSION_STRING}")
-    file(READ "${MANIFEST_PATH}" MANIFEST_CONTENT)
-    string(REGEX REPLACE "Version=\\\"[0-9]+\\\\.[0-9]+\\\\.[0-9]+\\\\.[0-9]+\\\"" "Version=\\\"${APPX_BUILD_VERSION_STRING}\\\"" MANIFEST_CONTENT "${MANIFEST_CONTENT}")
-    file(WRITE "${MANIFEST_PATH}" "${MANIFEST_CONTENT}")
-else()
-    message(FATAL_ERROR "MSIX: AppxManifest.xml not found at ${MANIFEST_PATH}. Check if it's part of MSIX_Assets component and staged correctly by CPack.")
-endif()
-
-message(STATUS "MSIX: Removing previous packages and bundle from binary dir (if present)...")
-file(REMOVE_RECURSE "${APPX_PACKAGES_FULL_DIR}")
+message(STATUS "MSIX: Removing previous packages and bundle from output dir (if present)...")
+file(REMOVE_RECURSE "${APPX_PACKAGES_FULL_DIR}") # Clean intermediate dir
 file(MAKE_DIRECTORY "${APPX_PACKAGES_FULL_DIR}") # Recreate it
 file(REMOVE "${APPX_BUNDLE_FULL_PATH}")
 file(REMOVE "${APPX_SYM_FULL_PATH}")
 file(REMOVE "${APPX_UPLOAD_FULL_PATH}")
 
 # Package and bundle commands
-set(package_x64_command "MakeAppx.exe pack /d \"${CPACK_TEMPORARY_DIRECTORY}\" /p \"${APPX_PACKAGE_X64_FULL_PATH}\" /o") # Use CPACK_TEMPORARY_DIRECTORY
-execute_process(COMMAND ${package_x64_command} RESULT_VARIABLE _res_pack OUTPUT_QUIET ERROR_QUIET)
-message(STATUS "MSIX: Packaging 64-bit app (Input: ${CPACK_TEMPORARY_DIRECTORY}, Output: ${APPX_PACKAGE_X64_FULL_PATH})")
+set(package_x64_command "MakeAppx.exe pack /d \"${MSIX_STAGING_DIR}\" /p \"${APPX_PACKAGE_X64_FULL_PATH}\" /o") # Use MSIX_STAGING_DIR
+execute_process(COMMAND ${package_x64_command} RESULT_VARIABLE _res_pack OUTPUT_VARIABLE _out_pack ERROR_VARIABLE _err_pack)
+message(STATUS "MSIX: Packaging 64-bit app (Input: ${MSIX_STAGING_DIR}, Output: ${APPX_PACKAGE_X64_FULL_PATH})")
 if(NOT _res_pack EQUAL 0)
-    message(FATAL_ERROR "MSIX: MakeAppx.exe pack failed with ${_res_pack}. Check logs.")
+    message(FATAL_ERROR "MSIX: MakeAppx.exe pack failed with ${_res_pack}.\nOutput:\n${_out_pack}\nError:\n${_err_pack}")
 endif()
 
 set(bundle_command "MakeAppx.exe bundle /d \"${APPX_PACKAGES_FULL_DIR}\" /p \"${APPX_BUNDLE_FULL_PATH}\" /o")
-execute_process(COMMAND ${bundle_command} RESULT_VARIABLE _res_bundle OUTPUT_QUIET ERROR_QUIET)
+execute_process(COMMAND ${bundle_command} RESULT_VARIABLE _res_bundle OUTPUT_VARIABLE _out_bundle ERROR_VARIABLE _err_bundle)
 message(STATUS "MSIX: Bundling all packages (Input: ${APPX_PACKAGES_FULL_DIR}, Output: ${APPX_BUNDLE_FULL_PATH})")
 if(NOT _res_bundle EQUAL 0)
-    message(FATAL_ERROR "MSIX: MakeAppx.exe bundle failed with ${_res_bundle}. Check logs.")
+    message(FATAL_ERROR "MSIX: MakeAppx.exe bundle failed with ${_res_bundle}.\nOutput:\n${_out_bundle}\nError:\n${_err_bundle}")
 endif()
 
 # Commands for .pdb to .appxsym conversion and .appxupload creation
-if(NOT EXISTS "${APPX_PDB_FULL_PATH}")
-    message(STATUS "MSIX: WARNING - PDB file not found at ${APPX_PDB_FULL_PATH}. Skipping .appxsym creation. .appxupload will not include symbols.")
+if(NOT EXISTS "${APPX_PDB_SOURCE_PATH}")
+    message(STATUS "MSIX: WARNING - PDB file not found at ${APPX_PDB_SOURCE_PATH}. Skipping .appxsym creation. .appxupload will not include symbols.")
     set(create_appxupload_final_command "powershell.exe -NoProfile -Command \"Compress-Archive -Path '${APPX_BUNDLE_FULL_PATH}' -DestinationPath '${APPX_UPLOAD_FULL_PATH}.zip' -ErrorAction Stop -Force\"")
     execute_process(COMMAND ${create_appxupload_final_command} RESULT_VARIABLE _res_upload_zip OUTPUT_QUIET ERROR_QUIET)
     message(STATUS "MSIX: Creating .appxupload (without symbols)...")
@@ -135,8 +234,8 @@ if(NOT EXISTS "${APPX_PDB_FULL_PATH}")
         message(FATAL_ERROR "MSIX: Move-Item for .appxupload (no symbols) failed: ${_res_upload_rename}")
     endif()
 else()
-    message(STATUS "MSIX: Converting .pdb to .appxsym (PDB: ${APPX_PDB_FULL_PATH}, Output: ${APPX_SYM_FULL_PATH})")
-    set(compress_pdb_final_command "powershell.exe -NoProfile -Command \"Compress-Archive -Path '${APPX_PDB_FULL_PATH}' -DestinationPath '${APPX_SYM_FULL_PATH}.zip' -ErrorAction Stop -Force\"")
+    message(STATUS "MSIX: Converting .pdb to .appxsym (PDB source: ${APPX_PDB_SOURCE_PATH}, Temp Symbol Zip: ${APPX_SYM_FULL_PATH}.zip)")
+    set(compress_pdb_final_command "powershell.exe -NoProfile -Command \"Compress-Archive -Path '${APPX_PDB_SOURCE_PATH}' -DestinationPath '${APPX_SYM_FULL_PATH}.zip' -ErrorAction Stop -Force\"")
     execute_process(COMMAND ${compress_pdb_final_command} RESULT_VARIABLE _res_pdb_zip OUTPUT_QUIET ERROR_QUIET)
     if(NOT _res_pdb_zip EQUAL 0)
         message(FATAL_ERROR "MSIX: Compress-Archive for PDB failed: ${_res_pdb_zip}")

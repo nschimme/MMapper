@@ -1031,7 +1031,7 @@ if(WIN32)
     # 'applications' for mmapper.exe
     # 'libraries' for all DLLs (system, Qt, third-party)
     # 'MSIX_Assets' for AppxManifest.xml and image assets
-    set(CPACK_EXTERNAL_COMPONENT "applications;libraries;MSIX_Assets")
+    # set(CPACK_EXTERNAL_COMPONENT "applications;libraries;MSIX_Assets") # Commented out: msix.cmake now handles its own staging.
     # Path to the script that CPack's External generator will run.
     set(CPACK_EXTERNAL_PACKAGE_SCRIPT "${CMAKE_SOURCE_DIR}/cmake/msix.cmake")
 

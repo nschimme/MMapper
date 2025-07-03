@@ -53,6 +53,7 @@ message(STATUS "DEBUG: Running msix.configured.cmake")
 message(STATUS "DEBUG: Configured ABS_MMAPPER_DEPLOY_STAGING_DIR_CONFIG is: @ABS_MMAPPER_DEPLOY_STAGING_DIR_CONFIG@")
 message(STATUS "DEBUG: Configured PROJECT_SOURCE_DIR_CONFIG is: @PROJECT_SOURCE_DIR_CONFIG@")
 message(STATUS "DEBUG: Configured QT5_DIR_CONFIG is: @QT5_DIR_CONFIG@")
+message(STATUS "DEBUG: Configured CONFIGURED_MANIFEST_PATH is: @CONFIGURED_MANIFEST_PATH@")
 
 # --- Start of direct execution block ---
 
@@ -78,8 +79,8 @@ file(MAKE_DIRECTORY "${MSIX_STAGING_DIR}")
 file(MAKE_DIRECTORY "${MSIX_STAGING_DIR}/Assets")
 
 # 1. Copy AppxManifest.xml to MSIX_STAGING_DIR
-set(MANIFEST_SOURCE_PATH "@PROJECT_SOURCE_DIR_CONFIG@/AppxManifest.xml")
-set(MANIFEST_STAGING_PATH "${MSIX_STAGING_DIR}/AppxManifest.xml")
+set(MANIFEST_SOURCE_PATH "@CONFIGURED_MANIFEST_PATH@") # Use the path to the already configured manifest
+set(MANIFEST_STAGING_PATH "${MSIX_STAGING_DIR}/AppxManifest.xml") # Destination in our MSIX staging
 message(STATUS "MSIX: Copying ${MANIFEST_SOURCE_PATH} to ${MANIFEST_STAGING_PATH}")
 execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different
     "${MANIFEST_SOURCE_PATH}" "${MANIFEST_STAGING_PATH}"

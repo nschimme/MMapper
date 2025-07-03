@@ -1039,12 +1039,22 @@ if(WIN32)
     set(ABS_MMAPPER_DEPLOY_STAGING_DIR_CONFIG "${MMAPPER_DEPLOY_STAGING_DIR}")
     set(PROJECT_SOURCE_DIR_CONFIG "${PROJECT_SOURCE_DIR}") # Pass the project's root source directory
     set(QT5_DIR_CONFIG "${Qt5_DIR}") # Pass Qt5_DIR (set by root CMakeLists.txt finding Qt5)
+    set(APP_EXECUTABLE_NAME_CONFIG "mmapper.exe") # Actual executable name for AppxManifest
 
-    # Ensure the target directory for the configured script exists in the top-level build dir
+    # Ensure the target directory for configured files exists in the top-level build dir
     file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/cmake")
 
+    # Configure AppxManifest.xml.in
     configure_file(
-        "${CMAKE_SOURCE_DIR}/cmake/msix.cmake.in"
+        "${PROJECT_SOURCE_DIR_CONFIG}/AppxManifest.xml.in"
+        "${CMAKE_BINARY_DIR}/cmake/AppxManifest.configured.xml"
+        @ONLY
+    )
+    set(CONFIGURED_MANIFEST_PATH "${CMAKE_BINARY_DIR}/cmake/AppxManifest.configured.xml")
+
+    # Configure msix.cmake.in (the CPack External script)
+    configure_file(
+        "${PROJECT_SOURCE_DIR_CONFIG}/cmake/msix.cmake.in" # Use PROJECT_SOURCE_DIR_CONFIG for clarity
         "${CMAKE_BINARY_DIR}/cmake/msix.configured.cmake"
         @ONLY # IMPORTANT: Only replace @VAR@ style variables, not ${VAR} style.
     )
@@ -1052,9 +1062,11 @@ if(WIN32)
     # Path to the script that CPack's External generator will run.
     set(CPACK_EXTERNAL_PACKAGE_SCRIPT "${CMAKE_BINARY_DIR}/cmake/msix.configured.cmake")
     message(STATUS "DEBUG: CPACK_EXTERNAL_PACKAGE_SCRIPT in src/CMakeLists.txt is set to: ${CPACK_EXTERNAL_PACKAGE_SCRIPT}")
-    message(STATUS "DEBUG: ABS_MMAPPER_DEPLOY_STAGING_DIR_CONFIG for configure_file is: ${ABS_MMAPPER_DEPLOY_STAGING_DIR_CONFIG}")
-    message(STATUS "DEBUG: PROJECT_SOURCE_DIR_CONFIG for configure_file is: ${PROJECT_SOURCE_DIR_CONFIG}")
-    message(STATUS "DEBUG: QT5_DIR_CONFIG for configure_file is: ${QT5_DIR_CONFIG}")
+    message(STATUS "DEBUG: ABS_MMAPPER_DEPLOY_STAGING_DIR_CONFIG for msix.cmake.in is: ${ABS_MMAPPER_DEPLOY_STAGING_DIR_CONFIG}")
+    message(STATUS "DEBUG: PROJECT_SOURCE_DIR_CONFIG for msix.cmake.in is: ${PROJECT_SOURCE_DIR_CONFIG}")
+    message(STATUS "DEBUG: QT5_DIR_CONFIG for msix.cmake.in is: ${QT5_DIR_CONFIG}")
+    message(STATUS "DEBUG: CONFIGURED_MANIFEST_PATH for msix.cmake.in is: ${CONFIGURED_MANIFEST_PATH}")
+    message(STATUS "DEBUG: APP_EXECUTABLE_NAME_CONFIG for AppxManifest.xml.in is: ${APP_EXECUTABLE_NAME_CONFIG}")
 
     # Windows (NSIS) Settings - Normalized to root install directory (no 'bin/')
     set(CPACK_NSIS_EXECUTABLES_DIRECTORY ".") # Executables are now in the root

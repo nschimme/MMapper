@@ -56,21 +56,25 @@ set(APPX_PDB_FULL_PATH "${CPACK_TOPLEVEL_DIRECTORY}/src/${APPX_PDB_FILE_NAME}") 
 # --- Start of direct execution block (formerly install_code) ---
 
 # Diagnostic: List contents of CPACK_TEMPORARY_DIRECTORY
-message(STATUS "MSIX: Listing contents of CPACK_TEMPORARY_DIRECTORY (${CPACK_TEMPORARY_DIRECTORY}):")
-execute_process(
-    COMMAND cmd /c "dir \"${CPACK_TEMPORARY_DIRECTORY}\" /s /b"
-    OUTPUT_VARIABLE _dir_listing
-    ERROR_VARIABLE _dir_listing_error
-    RESULT_VARIABLE _dir_listing_result
+message(STATUS "MSIX: Attempting to list contents of CPACK_TEMPORARY_DIRECTORY (${CPACK_TEMPORARY_DIRECTORY}) using file(GLOB_RECURSE):")
+file(GLOB_RECURSE _staged_files LIST_DIRECTORIES true FOLLOW_SYMLINKS
+     RELATIVE "${CPACK_TEMPORARY_DIRECTORY}"
+     "${CPACK_TEMPORARY_DIRECTORY}/*"
 )
-message(STATUS "MSIX: Directory listing output of CPACK_TEMPORARY_DIRECTORY:\n${_dir_listing}")
-if(NOT _dir_listing_result EQUAL 0)
-    message(WARNING "MSIX: Directory listing command failed or produced error:\n${_dir_listing_error}")
-endif()
-if(EXISTS "${CPACK_TEMPORARY_DIRECTORY}/AppxManifest.xml")
-    message(STATUS "MSIX: AppxManifest.xml FOUND in CPACK_TEMPORARY_DIRECTORY by initial check.")
+message(STATUS "MSIX: Staged files/dirs in CPACK_TEMPORARY_DIRECTORY (relative paths from GLOB_RECURSE):")
+if(_staged_files)
+    foreach(_file ${_staged_files})
+        message(STATUS "  -- ${_file}")
+    endforeach()
 else()
-    message(WARNING "MSIX: AppxManifest.xml NOT FOUND in CPACK_TEMPORARY_DIRECTORY by initial check.")
+    message(WARNING "MSIX: No files or directories found in CPACK_TEMPORARY_DIRECTORY by file(GLOB_RECURSE).")
+endif()
+
+# Explicit check for AppxManifest.xml (remains important)
+if(EXISTS "${CPACK_TEMPORARY_DIRECTORY}/AppxManifest.xml")
+    message(STATUS "MSIX: AppxManifest.xml FOUND in CPACK_TEMPORARY_DIRECTORY by direct EXISTS check.")
+else()
+    message(WARNING "MSIX: AppxManifest.xml NOT FOUND in CPACK_TEMPORARY_DIRECTORY by direct EXISTS check.")
 endif()
 
 message(STATUS "MSIX (CPack External): Starting packaging process.")

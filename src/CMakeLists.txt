@@ -1038,6 +1038,7 @@ if(WIN32)
     # which resolves to <project_binary_dir>/src/win_runtime_staging
     set(ABS_MMAPPER_DEPLOY_STAGING_DIR_CONFIG "${MMAPPER_DEPLOY_STAGING_DIR}")
     set(PROJECT_SOURCE_DIR_CONFIG "${PROJECT_SOURCE_DIR}") # Pass the project's root source directory
+    set(QT5_DIR_CONFIG "${Qt5_DIR}") # Pass Qt5_DIR (set by root CMakeLists.txt finding Qt5)
 
     # Ensure the target directory for the configured script exists in the top-level build dir
     file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/cmake")
@@ -1053,6 +1054,7 @@ if(WIN32)
     message(STATUS "DEBUG: CPACK_EXTERNAL_PACKAGE_SCRIPT in src/CMakeLists.txt is set to: ${CPACK_EXTERNAL_PACKAGE_SCRIPT}")
     message(STATUS "DEBUG: ABS_MMAPPER_DEPLOY_STAGING_DIR_CONFIG for configure_file is: ${ABS_MMAPPER_DEPLOY_STAGING_DIR_CONFIG}")
     message(STATUS "DEBUG: PROJECT_SOURCE_DIR_CONFIG for configure_file is: ${PROJECT_SOURCE_DIR_CONFIG}")
+    message(STATUS "DEBUG: QT5_DIR_CONFIG for configure_file is: ${QT5_DIR_CONFIG}")
 
     # Windows (NSIS) Settings - Normalized to root install directory (no 'bin/')
     set(CPACK_NSIS_EXECUTABLES_DIRECTORY ".") # Executables are now in the root

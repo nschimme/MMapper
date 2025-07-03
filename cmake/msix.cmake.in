@@ -52,6 +52,7 @@ message(STATUS "MSIX: Internal staging directory (MSIX_STAGING_DIR) set to: ${MS
 message(STATUS "DEBUG: Running msix.configured.cmake")
 message(STATUS "DEBUG: Configured ABS_MMAPPER_DEPLOY_STAGING_DIR_CONFIG is: @ABS_MMAPPER_DEPLOY_STAGING_DIR_CONFIG@")
 message(STATUS "DEBUG: Configured PROJECT_SOURCE_DIR_CONFIG is: @PROJECT_SOURCE_DIR_CONFIG@")
+message(STATUS "DEBUG: Configured QT5_DIR_CONFIG is: @QT5_DIR_CONFIG@")
 
 # --- Start of direct execution block ---
 
@@ -137,25 +138,15 @@ endif()
 
 # 4. Run windeployqt targeting MSIX_STAGING_DIR
 message(STATUS "MSIX: Preparing to run windeployqt.")
-# Find Qt5 and windeployqt
-find_package(Qt5 COMPONENTS Core Gui Widgets Network OpenGL Svg QUIET) # Added Network, OpenGL based on project
-if(NOT Qt5_FOUND)
-    message(FATAL_ERROR "MSIX: Qt5 not found by find_package(Qt5 ...). Ensure CMAKE_PREFIX_PATH is correct or Qt5_DIR is set for CPack External script execution. CMAKE_PREFIX_PATH is currently: $ENV{CMAKE_PREFIX_PATH}")
-else()
-    message(STATUS "MSIX: Found Qt5. Qt5_DIR='${Qt5_DIR}'. Qt5_BIN_DIR='${Qt5_BIN_DIR}' (if set).")
-endif()
-
+# Find windeployqt using configured Qt5_DIR
+message(STATUS "MSIX: QT5_DIR_CONFIG configured as: @QT5_DIR_CONFIG@") # Re-state for clarity before use
 find_program(MSIX_WINDEPLOYQT_EXECUTABLE windeployqt
     HINTS
-        "${Qt5_BIN_DIR}"  # Primary hint from find_package(Qt5)
-        ENV Qt5_DIR # Check environment variable Qt5_DIR (often points to Qt installation root)
-        ENV QTDIR   # Check environment variable QTDIR
+        "@QT5_DIR_CONFIG@/bin"  # Primary hint using the configured Qt5 root
+        ENV QTDIR                # Fallback to environment variable QTDIR
     PATH_SUFFIXES bin
+    REQUIRED                 # Make find_program itself fatal if not found
 )
-
-if(NOT MSIX_WINDEPLOYQT_EXECUTABLE)
-     message(FATAL_ERROR "MSIX: windeployqt (for Qt5) not found. Searched in HINTS like Qt5_BIN_DIR ('${Qt5_BIN_DIR}'), $ENV{Qt5_DIR}/bin, $ENV{QTDIR}/bin. Ensure Qt5 development tools are in PATH or relevant CMake/environment variables are set.")
-endif()
 set(QT_DEPLOY_BIN "${MSIX_WINDEPLOYQT_EXECUTABLE}")
 message(STATUS "MSIX: Using windeployqt (Qt5) found at: ${QT_DEPLOY_BIN}")
 

@@ -33,8 +33,7 @@
         Description="A mud mapper especially written for the mud MUME"
         BackgroundColor="transparent"
         Square150x150Logo="Assets/Square150x150Logo.png"
-        Square44x44Logo="Assets/Square44x44Logo.png"
-        SplashScreenImage="Assets/SplashScreen.png">
+        Square44x44Logo="Assets/Square44x44Logo.png">
         <uap:DefaultTile Wide310x150Logo="Assets/Wide310x150Logo.png" ShortName="MMapper">
           <uap:ShowNameOnTiles>
             <uap:ShowOn Tile="square150x150Logo" />

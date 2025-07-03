@@ -137,21 +137,27 @@ endif()
 
 # 4. Run windeployqt targeting MSIX_STAGING_DIR
 message(STATUS "MSIX: Preparing to run windeployqt.")
-# Ensure Qt6 is found. This relies on the main CMake project having found Qt6 correctly
-# and CMAKE_PREFIX_PATH being set up for find_package to work in this script context.
-# If Qt6 was found as Qt5::Core etc. in main, use that. Assume Qt6::Core etc.
-find_package(Qt6 COMPONENTS Core Gui Qml Quick Svg Widgets QUIET)
-if(NOT Qt6_FOUND)
-    message(FATAL_ERROR "MSIX: Qt6 not found by find_package(Qt6 ...). Ensure CMAKE_PREFIX_PATH is correct for CPack External script execution.")
+# Find Qt5 and windeployqt
+find_package(Qt5 COMPONENTS Core Gui Widgets Network OpenGL Svg QUIET) # Added Network, OpenGL based on project
+if(NOT Qt5_FOUND)
+    message(FATAL_ERROR "MSIX: Qt5 not found by find_package(Qt5 ...). Ensure CMAKE_PREFIX_PATH is correct or Qt5_DIR is set for CPack External script execution. CMAKE_PREFIX_PATH is currently: $ENV{CMAKE_PREFIX_PATH}")
+else()
+    message(STATUS "MSIX: Found Qt5. Qt5_DIR='${Qt5_DIR}'. Qt5_BIN_DIR='${Qt5_BIN_DIR}' (if set).")
 endif()
 
-if(NOT TARGET Qt6::windeployqt)
-    message(FATAL_ERROR "MSIX: Qt6::windeployqt target not found. Qt6 deployment tools might not be available or correctly found.")
+find_program(MSIX_WINDEPLOYQT_EXECUTABLE windeployqt
+    HINTS
+        "${Qt5_BIN_DIR}"  # Primary hint from find_package(Qt5)
+        ENV Qt5_DIR # Check environment variable Qt5_DIR (often points to Qt installation root)
+        ENV QTDIR   # Check environment variable QTDIR
+    PATH_SUFFIXES bin
+)
+
+if(NOT MSIX_WINDEPLOYQT_EXECUTABLE)
+     message(FATAL_ERROR "MSIX: windeployqt (for Qt5) not found. Searched in HINTS like Qt5_BIN_DIR ('${Qt5_BIN_DIR}'), $ENV{Qt5_DIR}/bin, $ENV{QTDIR}/bin. Ensure Qt5 development tools are in PATH or relevant CMake/environment variables are set.")
 endif()
-get_target_property(QT_DEPLOY_BIN Qt6::windeployqt IMPORTED_LOCATION)
-if(NOT EXISTS "${QT_DEPLOY_BIN}") # Should be redundant if target exists, but good check
-    message(FATAL_ERROR "MSIX: windeployqt executable not found at imported location '${QT_DEPLOY_BIN}'.")
-endif()
+set(QT_DEPLOY_BIN "${MSIX_WINDEPLOYQT_EXECUTABLE}")
+message(STATUS "MSIX: Using windeployqt (Qt5) found at: ${QT_DEPLOY_BIN}")
 
 message(STATUS "MSIX: Running windeployqt (${QT_DEPLOY_BIN}) on ${MSIX_STAGING_DIR} for ${APP_EXE_STAGING_PATH}")
 set(WINDEPLOYQT_OPTIONS

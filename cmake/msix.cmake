@@ -86,7 +86,7 @@ endif()
 # Update version in the staged AppxManifest.xml
 message(STATUS "MSIX: Updating version in ${MANIFEST_STAGING_PATH} to ${APPX_BUILD_VERSION_STRING}")
 file(READ "${MANIFEST_STAGING_PATH}" MANIFEST_CONTENT)
-string(REGEX REPLACE "Version=\\\"[0-9]+\\\\.[0-9]+\\\\.[0-9]+\\\\.[0-9]+\\\"" "Version=\\\"${APPX_BUILD_VERSION_STRING}\\\"" MANIFEST_CONTENT "${MANIFEST_CONTENT}")
+string(REGEX REPLACE "Version=\\\"[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+\\\"" "Version=\\\"${APPX_BUILD_VERSION_STRING}\\\"" MANIFEST_CONTENT "${MANIFEST_CONTENT}")
 file(WRITE "${MANIFEST_STAGING_PATH}" "${MANIFEST_CONTENT}")
 
 # 2. Copy Assets to MSIX_STAGING_DIR/Assets
@@ -98,6 +98,9 @@ macro(COPY_ASSET SOURCE_SUB_PATH TARGET_NAME)
     set(ASSET_SOURCE_FULL_PATH "${ASSETS_SOURCE_BASE_PATH}/${SOURCE_SUB_PATH}")
     set(ASSET_TARGET_FULL_PATH "${MSIX_STAGING_DIR}/Assets/${TARGET_NAME}")
     message(STATUS "MSIX: Copying asset ${ASSET_SOURCE_FULL_PATH} to ${ASSET_TARGET_FULL_PATH}")
+    if(NOT EXISTS "${ASSET_SOURCE_FULL_PATH}")
+        message(FATAL_ERROR "MSIX: Asset source file NOT FOUND at resolved path: ${ASSET_SOURCE_FULL_PATH}")
+    endif()
     execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${ASSET_SOURCE_FULL_PATH}" "${ASSET_TARGET_FULL_PATH}"
         RESULT_VARIABLE _copy_asset_res)
@@ -107,11 +110,11 @@ macro(COPY_ASSET SOURCE_SUB_PATH TARGET_NAME)
 endmacro()
 
 COPY_ASSET("pixmaps/splash-release.png" "SplashScreen.png")
-COPY_ASSET("icons/app/icon-256.png" "Logo.png") # Using app/icon-256.png as general logo
+COPY_ASSET("icons/hi256-app-mmapper-release.png" "Logo.png") # General logo
 COPY_ASSET("icons/hi128-app-mmapper-release.png" "Square150x150Logo.png")
-COPY_ASSET("icons/hi128-app-mmapper-release.png" "Wide310x150Logo.png") # Placeholder
+COPY_ASSET("icons/hi128-app-mmapper-release.png" "Wide310x150Logo.png") # Placeholder, scaled by OS
 COPY_ASSET("icons/hi48-app-mmapper-release.png" "Square44x44Logo.png")
-COPY_ASSET("icons/hi48-app-mmapper-release.png" "StoreLogo.png") # Placeholder, same as Square44x44Logo
+COPY_ASSET("icons/hi48-app-mmapper-release.png" "StoreLogo.png") # Placeholder, scaled by OS (often same as Square44x44Logo or a specific version)
 
 # 3. Copy Application Executable (mmapper.exe)
 # Assumes mmapper.exe is in ${CPACK_TOPLEVEL_DIRECTORY}/src/ after build (typical for RelWithDebInfo if not customized)

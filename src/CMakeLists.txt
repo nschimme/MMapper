@@ -1032,8 +1032,23 @@ if(WIN32)
     # 'libraries' for all DLLs (system, Qt, third-party)
     # 'MSIX_Assets' for AppxManifest.xml and image assets
     # set(CPACK_EXTERNAL_COMPONENT "applications;libraries;MSIX_Assets") # Commented out: msix.cmake now handles its own staging.
+
+    # Configure msix.cmake.in to msix.configured.cmake with absolute paths
+    # MMAPPER_DEPLOY_STAGING_DIR is already an absolute path: ${CMAKE_CURRENT_BINARY_DIR}/win_runtime_staging
+    # which resolves to <project_binary_dir>/src/win_runtime_staging
+    set(ABS_MMAPPER_DEPLOY_STAGING_DIR_CONFIG "${MMAPPER_DEPLOY_STAGING_DIR}")
+
+    # Ensure the target directory for the configured script exists in the top-level build dir
+    file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/cmake")
+
+    configure_file(
+        "${CMAKE_SOURCE_DIR}/cmake/msix.cmake.in"
+        "${CMAKE_BINARY_DIR}/cmake/msix.configured.cmake"
+        @ONLY
+    )
+
     # Path to the script that CPack's External generator will run.
-    set(CPACK_EXTERNAL_PACKAGE_SCRIPT "${CMAKE_SOURCE_DIR}/cmake/msix.cmake")
+    set(CPACK_EXTERNAL_PACKAGE_SCRIPT "${CMAKE_BINARY_DIR}/cmake/msix.configured.cmake")
 
     # Windows (NSIS) Settings - Normalized to root install directory (no 'bin/')
     set(CPACK_NSIS_EXECUTABLES_DIRECTORY ".") # Executables are now in the root

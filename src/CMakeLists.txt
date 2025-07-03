@@ -951,10 +951,12 @@ if(WIN32)
         COMMENT "Copy mmapper.exe to staging dir for deployment"
         VERBATIM)
 
-    # Add this new command to copy the PDB file if it exists for the configuration
+    # Revised POST_BUILD command for PDB copy, compatible with older CMake versions
     add_custom_command(TARGET mmapper POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_PDB_FILE_IF_EXISTS:mmapper>" "${MMAPPER_DEPLOY_STAGING_DIR}"
-        COMMENT "Copy mmapper.pdb (if it exists) to staging dir for deployment"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE_DIR:mmapper>/mmapper.pdb"
+                "${MMAPPER_DEPLOY_STAGING_DIR}/mmapper.pdb"
+        COMMENT "Copy mmapper.pdb to staging dir for deployment (if PDB exists alongside executable)"
         VERBATIM
     )
 

@@ -200,6 +200,16 @@ message(STATUS "MSIX (CPack External): PDB source file for symbols (APPX_PDB_SOU
 # Ensure output directories exist for intermediate packages
 file(MAKE_DIRECTORY "${APPX_PACKAGES_FULL_DIR}")
 
+# Find MakeAppx.exe
+find_program(MAKEAPPX_EXE MakeAppx.exe
+    HINTS
+        # Common location for Windows Kits if ProgramFiles(x86) is defined
+        # find_program will search common subdirectories like specific SDK versions/x64 or /x86
+        "$ENV{ProgramFiles\(x86\)}/Windows Kits/10/bin"
+    REQUIRED
+)
+message(STATUS "MSIX: Using MakeAppx.exe found at: ${MAKEAPPX_EXE}")
+
 message(STATUS "MSIX: Removing previous packages and bundle from output dir (if present)...")
 file(REMOVE_RECURSE "${APPX_PACKAGES_FULL_DIR}") # Clean intermediate dir
 file(MAKE_DIRECTORY "${APPX_PACKAGES_FULL_DIR}") # Recreate it
@@ -208,14 +218,14 @@ file(REMOVE "${APPX_SYM_FULL_PATH}")
 file(REMOVE "${APPX_UPLOAD_FULL_PATH}")
 
 # Package and bundle commands
-set(package_x64_command "MakeAppx.exe pack /d \"${MSIX_STAGING_DIR}\" /p \"${APPX_PACKAGE_X64_FULL_PATH}\" /o") # Use MSIX_STAGING_DIR
+set(package_x64_command "\"${MAKEAPPX_EXE}\" pack /d \"${MSIX_STAGING_DIR}\" /p \"${APPX_PACKAGE_X64_FULL_PATH}\" /o")
 execute_process(COMMAND ${package_x64_command} RESULT_VARIABLE _res_pack OUTPUT_VARIABLE _out_pack ERROR_VARIABLE _err_pack)
 message(STATUS "MSIX: Packaging 64-bit app (Input: ${MSIX_STAGING_DIR}, Output: ${APPX_PACKAGE_X64_FULL_PATH})")
 if(NOT _res_pack EQUAL 0)
     message(FATAL_ERROR "MSIX: MakeAppx.exe pack failed with ${_res_pack}.\nOutput:\n${_out_pack}\nError:\n${_err_pack}")
 endif()
 
-set(bundle_command "MakeAppx.exe bundle /d \"${APPX_PACKAGES_FULL_DIR}\" /p \"${APPX_BUNDLE_FULL_PATH}\" /o")
+set(bundle_command "\"${MAKEAPPX_EXE}\" bundle /d \"${APPX_PACKAGES_FULL_DIR}\" /p \"${APPX_BUNDLE_FULL_PATH}\" /o")
 execute_process(COMMAND ${bundle_command} RESULT_VARIABLE _res_bundle OUTPUT_VARIABLE _out_bundle ERROR_VARIABLE _err_bundle)
 message(STATUS "MSIX: Bundling all packages (Input: ${APPX_PACKAGES_FULL_DIR}, Output: ${APPX_BUNDLE_FULL_PATH})")
 if(NOT _res_bundle EQUAL 0)

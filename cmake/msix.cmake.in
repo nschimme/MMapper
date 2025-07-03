@@ -272,8 +272,8 @@ else()
 endif()
 
 # Commands for .pdb to .appxsym conversion and .appxupload creation
-set(TEMP_FORCE_SKIP_PDB TRUE) # TODO: Remove this after testing
-if(TEMP_FORCE_SKIP_PDB OR NOT EXISTS "${APPX_PDB_SOURCE_PATH}")
+# TODO: Remove this after testing (TEMP_FORCE_SKIP_PDB was here)
+if(TEMP_FORCE_SKIP_PDB OR NOT EXISTS "${APPX_PDB_SOURCE_PATH}") # TEMP_FORCE_SKIP_PDB will be undefined now, so condition relies on NOT EXISTS
     message(STATUS "MSIX: WARNING - PDB file not found at ${APPX_PDB_SOURCE_PATH} or PDB processing forced off. Skipping .appxsym creation. .appxupload will not include symbols.")
 
     message(STATUS "MSIX: Creating .appxupload (without symbols) using cmake -E tar...")

@@ -248,6 +248,7 @@ protected slots:
     NODISCARD bool slot_maybeCancel();
     NODISCARD bool slot_contentsChanged() const;
     void slot_updateStatusBar();
+    void slot_replaceAll(); // Added: Slot for handling replaceAll signal from FindReplaceDialog
 
 #define X_DECLARE_SLOT(a, b, c, d, e) void slot_##a();
     XFOREACH_REMOTE_EDIT_MENU_ITEM(X_DECLARE_SLOT)

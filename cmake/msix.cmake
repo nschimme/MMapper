@@ -42,8 +42,8 @@ set(APPX_BUNDLE_FULL_PATH "${CPACK_TOPLEVEL_DIRECTORY}/${APPX_BUNDLE_FILE_NAME}"
 set(APPX_SYM_FULL_PATH "${CPACK_TOPLEVEL_DIRECTORY}/${APPX_SYM_FILE_NAME}")
 set(APPX_UPLOAD_FULL_PATH "${CPACK_TOPLEVEL_DIRECTORY}/${APPX_UPLOAD_FILE_NAME}")
 
-# Source PDB path: Assumed to be in <CPACK_TOPLEVEL_DIRECTORY>/src/ for RelWithDebInfo
-set(APPX_PDB_SOURCE_PATH "${CPACK_TOPLEVEL_DIRECTORY}/src/${APPX_PDB_FILE_NAME}")
+# Source PDB path: Assumed to be in <build_dir>/src/win_runtime_staging/ for RelWithDebInfo
+set(APPX_PDB_SOURCE_PATH "${CPACK_TOPLEVEL_DIRECTORY}/../../src/win_runtime_staging/${APPX_PDB_FILE_NAME}")
 
 # Define the MSIX-specific staging directory within CPACK_TEMPORARY_DIRECTORY
 set(MSIX_STAGING_DIR "${CPACK_TEMPORARY_DIRECTORY}/msix_stage")
@@ -117,12 +117,12 @@ COPY_ASSET("icons/hi48-app-mmapper-release.png" "Square44x44Logo.png")
 COPY_ASSET("icons/hi48-app-mmapper-release.png" "StoreLogo.png") # Placeholder, scaled by OS (often same as Square44x44Logo or a specific version)
 
 # 3. Copy Application Executable (mmapper.exe)
-# Assumes mmapper.exe is in ${CPACK_TOPLEVEL_DIRECTORY}/src/ after build (typical for RelWithDebInfo if not customized)
-set(APP_EXE_SOURCE_PATH "${CPACK_TOPLEVEL_DIRECTORY}/src/${APP_TARGET}.exe")
+# Assumes mmapper.exe is in <build_dir>/src/win_runtime_staging/ after POST_BUILD steps
+set(APP_EXE_SOURCE_PATH "${CPACK_TOPLEVEL_DIRECTORY}/../../src/win_runtime_staging/${APP_TARGET}.exe")
 set(APP_EXE_STAGING_PATH "${MSIX_STAGING_DIR}/${APP_TARGET}.exe")
 message(STATUS "MSIX: Attempting to copy application from: ${APP_EXE_SOURCE_PATH} to ${APP_EXE_STAGING_PATH}")
 if(NOT EXISTS "${APP_EXE_SOURCE_PATH}")
-    message(FATAL_ERROR "MSIX: Application executable NOT FOUND at ${APP_EXE_SOURCE_PATH}. Check CMAKE_RUNTIME_OUTPUT_DIRECTORY or build output paths if different from <build_dir>/src/.")
+    message(FATAL_ERROR "MSIX: Application executable NOT FOUND at ${APP_EXE_SOURCE_PATH}. Check MMAPPER_DEPLOY_STAGING_DIR in src/CMakeLists.txt and its population via POST_BUILD commands.")
 endif()
 execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different
     "${APP_EXE_SOURCE_PATH}" "${APP_EXE_STAGING_PATH}"

@@ -318,7 +318,7 @@ set(remoteeditwidget_SRCS
     ../src/global/entities.cpp
     ../src/global/entities.h
 )
-set(TestRemoteEditWidget_SRCS TestRemoteEditWidget.cpp TestRemoteEditWidget.h)
+set(TestRemoteEditWidget_SRCS TestRemoteEditWidget.cpp) # Removed TestRemoteEditWidget.h
 add_executable(TestRemoteEditWidget ${TestRemoteEditWidget_SRCS} ${remoteeditwidget_SRCS})
 add_dependencies(TestRemoteEditWidget mm_global) # Assuming mm_global is a common library target
 target_link_libraries(TestRemoteEditWidget

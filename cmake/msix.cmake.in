@@ -35,12 +35,17 @@ set(APPX_PDB_FILE_NAME "${APP_TARGET}.pdb") # This is just the filename, path is
 set(APPX_SYM_FILE_NAME "${APP_TARGET}-${APPX_VERSION_FILENAME_PART}.appxsym")
 set(APPX_UPLOAD_FILE_NAME "${APP_TARGET}-${APPX_VERSION_FILENAME_PART}.appxupload")
 
-# Paths for final outputs will use CPACK_TOPLEVEL_DIRECTORY (the build dir where cpack was invoked)
-set(APPX_PACKAGES_FULL_DIR "${CPACK_TOPLEVEL_DIRECTORY}/${APPX_PACKAGES_DIR_NAME}")
+# Paths for final outputs will use CPACK_TOPLEVEL_DIRECTORY (the build dir where cpack was invoked for this script)
+set(APPX_PACKAGES_FULL_DIR "${CPACK_TOPLEVEL_DIRECTORY}/${APPX_PACKAGES_DIR_NAME}") # Intermediate packages
 set(APPX_PACKAGE_X64_FULL_PATH "${APPX_PACKAGES_FULL_DIR}/${APPX_PACKAGE_X64_FILE_NAME}")
-set(APPX_BUNDLE_FULL_PATH "${CPACK_TOPLEVEL_DIRECTORY}/${APPX_BUNDLE_FILE_NAME}")
-set(APPX_SYM_FULL_PATH "${CPACK_TOPLEVEL_DIRECTORY}/${APPX_SYM_FILE_NAME}")
-set(APPX_UPLOAD_FULL_PATH "${CPACK_TOPLEVEL_DIRECTORY}/${APPX_UPLOAD_FILE_NAME}")
+set(APPX_BUNDLE_FULL_PATH "${CPACK_TOPLEVEL_DIRECTORY}/${APPX_BUNDLE_FILE_NAME}") # Intermediate bundle
+set(APPX_SYM_FULL_PATH "${CPACK_TOPLEVEL_DIRECTORY}/${APPX_SYM_FILE_NAME}")       # Intermediate symbols
+
+# CPACK_TOPLEVEL_DIRECTORY for external script is .../artifact/_CPack_Packages/Windows/External/
+# We want the final .appxupload to be in .../artifact/
+get_filename_component(MAIN_ARTIFACT_DIR "${CPACK_TOPLEVEL_DIRECTORY}/../../../" ABSOLUTE CLEAN)
+set(APPX_UPLOAD_FULL_PATH "${MAIN_ARTIFACT_DIR}/${APPX_UPLOAD_FILE_NAME}")
+message(STATUS "MSIX: Adjusted final .appxupload output path to: ${APPX_UPLOAD_FULL_PATH}")
 
 # Source PDB path: Configured via @ABS_MMAPPER_DEPLOY_STAGING_DIR_CONFIG@
 set(APPX_PDB_SOURCE_PATH "@ABS_MMAPPER_DEPLOY_STAGING_DIR_CONFIG@/${APPX_PDB_FILE_NAME}")

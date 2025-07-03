@@ -183,7 +183,8 @@ public:
     /// @param findText The text to find.
     /// @param replaceText The text to replace with.
     /// @param flags The search flags.
-    void replaceAll(const QString &findText, const QString &replaceText, QTextDocument::FindFlags flags);
+    /// @return The number of replacements made.
+    int replaceAll(const QString &findText, const QString &replaceText, QTextDocument::FindFlags flags);
 
     /// Moves the cursor to the beginning of the specified line number.
     /// @param lineNum The 0-indexed line number to go to.

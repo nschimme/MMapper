@@ -760,7 +760,7 @@ struct NODISCARD EditViewCommand final
     const char *const status;
     const QVariant shortcut; // Changed from const char*
 
-    constexpr explicit EditViewCommand(const mem_fn_ptr_type _mem_fn_ptr,
+    explicit EditViewCommand(const mem_fn_ptr_type _mem_fn_ptr, // Removed constexpr
                                        const EditViewCmdEnum _cmd_type,
                                        const char *const _action,
                                        const char *const _status,
@@ -949,14 +949,19 @@ void RemoteEditWidget::addToMenu(QMenu *const menu, const EditViewCommand &cmd)
 
     QAction *const act = new QAction(tr(cmd.action), this);
     if (cmd.shortcut.isValid()) {
-        if (cmd.shortcut.typeId() == QMetaType::QString) {
+        if (cmd.shortcut.type() == QVariant::String) { // Changed typeId() to type() and comparing with QVariant::String
             act->setShortcut(QKeySequence(cmd.shortcut.toString()));
         } else if (cmd.shortcut.canConvert<QKeySequence::StandardKey>()) {
             act->setShortcut(cmd.shortcut.value<QKeySequence::StandardKey>());
-        } else if (cmd.shortcut.isNull() && cmd.shortcut.typeId() == QMetaType::UnknownType) {
-            // This case handles nullptr passed to QVariant for shortcut
-            // No shortcut to set
         }
+        // No explicit check for QVariant::Invalid needed here if it's an empty QVariant from QVariant()
+        // as it won't satisfy the other conditions. An invalid QVariant from QVariant() has type QVariant::Invalid.
+        // The previous cmd.shortcut.isNull() && cmd.shortcut.typeId() == QMetaType::UnknownType was for QVariant() from nullptr.
+        // QVariant() results in type QVariant::Invalid.
+        // If QVariant() was used for nullptr in macro, cmd.shortcut.type() == QVariant::Invalid would be true.
+        // QKeySequence constructor handles empty string from an invalid QVariant gracefully (no shortcut).
+        // So, the existing logic should be mostly fine if QVariant() was used for nullptr.
+        // If cmd.shortcut is an invalid QVariant, toString() is empty, and canConvert is false.
     }
     act->setStatusTip(tr(cmd.status));
     menu->addAction(act);
@@ -1302,7 +1307,8 @@ void RemoteTextEdit::replace(const QString &findText, const QString &replaceText
 }
 
 /// Replaces all occurrences of findText with replaceText in the document.
-void RemoteTextEdit::replaceAll(const QString &findText, const QString &replaceText, QTextDocument::FindFlags flags)
+/// Returns the number of replacements made.
+int RemoteTextEdit::replaceAll(const QString &findText, const QString &replaceText, QTextDocument::FindFlags flags)
 {
     QTextCursor cursor = textCursor();
     cursor.movePosition(QTextCursor::Start);
@@ -1315,6 +1321,7 @@ void RemoteTextEdit::replaceAll(const QString &findText, const QString &replaceT
     }
     // Optionally, display a message with the number of replacements made.
     // QMessageBox::information(this, tr("Replace All"), tr("%1 occurrence(s) replaced.").arg(count));
+    return count;
 }
 
 

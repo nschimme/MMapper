@@ -250,8 +250,9 @@ if(NOT _res_bundle EQUAL 0)
 endif()
 
 # Commands for .pdb to .appxsym conversion and .appxupload creation
-if(NOT EXISTS "${APPX_PDB_SOURCE_PATH}")
-    message(STATUS "MSIX: WARNING - PDB file not found at ${APPX_PDB_SOURCE_PATH}. Skipping .appxsym creation. .appxupload will not include symbols.")
+set(TEMP_FORCE_SKIP_PDB TRUE) # TODO: Remove this after testing
+if(TEMP_FORCE_SKIP_PDB OR NOT EXISTS "${APPX_PDB_SOURCE_PATH}")
+    message(STATUS "MSIX: WARNING - PDB file not found at ${APPX_PDB_SOURCE_PATH} or PDB processing forced off. Skipping .appxsym creation. .appxupload will not include symbols.")
     set(create_appxupload_final_command "powershell.exe -NoProfile -Command \"Compress-Archive -Path '${APPX_BUNDLE_FULL_PATH}' -DestinationPath '${APPX_UPLOAD_FULL_PATH}.zip' -ErrorAction Stop -Force\"")
     execute_process(COMMAND ${create_appxupload_final_command} RESULT_VARIABLE _res_upload_zip OUTPUT_QUIET ERROR_QUIET)
     message(STATUS "MSIX: Creating .appxupload (without symbols)...")

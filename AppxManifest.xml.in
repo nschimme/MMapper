@@ -26,8 +26,8 @@
 
   <Applications>
     <Application Id="App"
-      Executable="@APP_EXECUTABLE_NAME@"
-      EntryPoint="@APP_EXECUTABLE_NAME@">
+      Executable="@APP_EXECUTABLE_NAME_CONFIG@"
+      EntryPoint="@APP_EXECUTABLE_NAME_CONFIG@">
       <uap:VisualElements
         DisplayName="MMapper"
         Description="A mud mapper especially written for the mud MUME"

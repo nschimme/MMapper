@@ -756,17 +756,20 @@ struct NODISCARD EditViewCommand final
     using mem_fn_ptr_type = void (RemoteEditWidget::*)();
     const mem_fn_ptr_type mem_fn_ptr;
     const EditViewCmdEnum cmd_type;
+    const char *const internal_name; // Added for robust action identification
     const char *const action;
     const char *const status;
-    const QVariant shortcut; // Changed from const char*
+    const QVariant shortcut;
 
-    explicit EditViewCommand(const mem_fn_ptr_type _mem_fn_ptr, // Removed constexpr
+    explicit EditViewCommand(const mem_fn_ptr_type _mem_fn_ptr,
                                        const EditViewCmdEnum _cmd_type,
+                                       const char *const _internal_name, // Added
                                        const char *const _action,
                                        const char *const _status,
-                                       const QVariant &_shortcut) // Changed type
+                                       const QVariant &_shortcut)
         : mem_fn_ptr{_mem_fn_ptr}
         , cmd_type{_cmd_type}
+        , internal_name{_internal_name} // Added
         , action{_action}
         , status{_status}
         , shortcut{_shortcut}
@@ -901,7 +904,7 @@ void RemoteEditWidget::addEditAndViewMenus(QMenuBar *const menuBar, const Editor
     };
 #define X_ADD_MENU(a, b, c, d, e) \
     if (auto menu = getMenu(b)) { \
-        addToMenu(menu, EditViewCommand{&RemoteEditWidget::slot_##a, (b), (c), (d), (e)}); \
+         addToMenu(menu, EditViewCommand{&RemoteEditWidget::slot_##a, (b), #a, (c), (d), (e)}); /* Pass internal_name */ \
     }
     XFOREACH_REMOTE_EDIT_MENU_ITEM(X_ADD_MENU)
 #undef X_ADD_MENU
@@ -948,21 +951,33 @@ void RemoteEditWidget::addToMenu(QMenu *const menu, const EditViewCommand &cmd)
     }
 
     QAction *const act = new QAction(tr(cmd.action), this);
+    QList<QKeySequence> shortcuts;
+
     if (cmd.shortcut.isValid()) {
-        if (cmd.shortcut.type() == QVariant::String) { // Changed typeId() to type() and comparing with QVariant::String
-            act->setShortcut(QKeySequence(cmd.shortcut.toString()));
+        if (cmd.shortcut.type() == QVariant::String) {
+            shortcuts.append(QKeySequence(cmd.shortcut.toString()));
         } else if (cmd.shortcut.canConvert<QKeySequence::StandardKey>()) {
-            act->setShortcut(cmd.shortcut.value<QKeySequence::StandardKey>());
+            shortcuts.append(cmd.shortcut.value<QKeySequence::StandardKey>());
         }
-        // No explicit check for QVariant::Invalid needed here if it's an empty QVariant from QVariant()
-        // as it won't satisfy the other conditions. An invalid QVariant from QVariant() has type QVariant::Invalid.
-        // The previous cmd.shortcut.isNull() && cmd.shortcut.typeId() == QMetaType::UnknownType was for QVariant() from nullptr.
-        // QVariant() results in type QVariant::Invalid.
-        // If QVariant() was used for nullptr in macro, cmd.shortcut.type() == QVariant::Invalid would be true.
-        // QKeySequence constructor handles empty string from an invalid QVariant gracefully (no shortcut).
-        // So, the existing logic should be mostly fine if QVariant() was used for nullptr.
-        // If cmd.shortcut is an invalid QVariant, toString() is empty, and canConvert is false.
     }
+
+    // Specific handling for gotoLine to add Cmd+L on macOS
+    // We need a way to identify the 'gotoLine' command. We can compare cmd.action or add a field to EditViewCommand.
+    // For now, let's assume we identify it by its action text or a unique property if we had one.
+    // A simple string comparison for now, though not ideal if text changes.
+    // The internal name used in XMACRO is 'gotoLine'. We don't have that directly in EditViewCommand.
+    // Let's use the action text "Go to Line..."
+    // Using cmd.internal_name now for robust identification
+    if (strcmp(cmd.internal_name, "gotoLine") == 0) {
+#ifdef Q_OS_MAC
+        shortcuts.append(QKeySequence("Cmd+L"));
+#endif
+    }
+
+    if (!shortcuts.isEmpty()) {
+        act->setShortcuts(shortcuts);
+    }
+
     act->setStatusTip(tr(cmd.status));
     menu->addAction(act);
     connect(act, &QAction::triggered, this, cmd.mem_fn_ptr);

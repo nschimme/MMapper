@@ -97,7 +97,14 @@ jobs:
 
     # Package
     - name: Package MMapper
-      run: cd build && cpack
+      shell: bash
+      run: |
+        cd build
+        if [[ "${{ runner.os }}" == "Windows" ]]; then
+          cpack -C RelWithDebInfo
+        else
+          cpack
+        fi
     - if: runner.os == 'Linux'
       name: Get Linux package file base name
       id: get_linux_package_name
@@ -133,8 +140,11 @@ jobs:
         name: release-${{ steps.get_linux_package_name.outputs.PACKAGE_BASENAME }}
         path: ${{ github.workspace }}/artifact/*.deb*
     - if: runner.os == 'Windows'
-      name: Upload Package for Windows
+      name: Upload Package for Windows (NSIS and MSIX)
       uses: actions/upload-artifact@v4
       with:
-        name: release-${{ steps.get_windows_package_name.outputs.PACKAGE_BASENAME }}
-        path: ${{ github.workspace }}/artifact/*.exe*
+        name: release-windows-${{ steps.get_windows_package_name.outputs.PACKAGE_BASENAME }}
+        path: |
+          ${{ github.workspace }}/artifact/*.exe*
+          ${{ github.workspace }}/artifact/*.appxupload
+        if-no-files-found: error # Keep this to ensure we catch if an expected package isn't generated

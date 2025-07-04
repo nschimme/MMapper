@@ -84,6 +84,15 @@ file(MAKE_DIRECTORY "${MSIX_STAGING_DIR}")
 file(MAKE_DIRECTORY "${MSIX_STAGING_DIR}/Assets")
 
 # 1. Copy AppxManifest.xml to MSIX_STAGING_DIR
+message(STATUS "MSIX: Attempting to read and display content of configured manifest: @CONFIGURED_MANIFEST_PATH@")
+if(EXISTS "@CONFIGURED_MANIFEST_PATH@")
+    file(READ "@CONFIGURED_MANIFEST_PATH@" _configured_manifest_content_for_debug)
+    message(STATUS "---- START OF CONFIGURED AppxManifest.xml ----")
+    message(STATUS "${_configured_manifest_content_for_debug}")
+    message(STATUS "---- END OF CONFIGURED AppxManifest.xml ----")
+else()
+    message(WARNING "MSIX: Configured manifest file NOT FOUND at @CONFIGURED_MANIFEST_PATH@ before copy attempt!")
+endif()
 set(MANIFEST_SOURCE_PATH "@CONFIGURED_MANIFEST_PATH@") # Use the path to the already configured manifest
 set(MANIFEST_STAGING_PATH "${MSIX_STAGING_DIR}/AppxManifest.xml") # Destination in our MSIX staging
 message(STATUS "MSIX: Copying ${MANIFEST_SOURCE_PATH} to ${MANIFEST_STAGING_PATH}")

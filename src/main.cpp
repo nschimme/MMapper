@@ -4,6 +4,10 @@
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
+#ifdef __MINGW32__
+#include "global/mingw_pointer_compat.h"
+#endif
+
 #include "./configuration/configuration.h"
 #include "./display/Filenames.h"
 #include "./global/ConfigConsts.h"
@@ -42,7 +46,7 @@ static void tryInitDrMingw()
     ExcHndlInit();
     // Set the log file path to %LocalAppData%\mmappercrash.log
     QString logFile = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation)
-                          .replace(L'/', L'\\')
+                          .replace(QChar('/'), QChar('\\'))
                       + QStringLiteral("\\mmappercrash.log");
     ExcHndlSetLogFileNameA(logFile.toUtf8().constData());
 #endif

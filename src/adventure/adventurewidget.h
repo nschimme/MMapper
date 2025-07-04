@@ -3,6 +3,10 @@
 // Copyright (C) 2023 The MMapper Authors
 // Author: Mike Repass <mike.repass@gmail.com> (Taryn)
 
+#ifdef __MINGW32__
+#include "../global/mingw_pointer_compat.h" // Adjusted path for ../global
+#endif
+
 #include "../global/macros.h"
 #include "adventuretracker.h"
 

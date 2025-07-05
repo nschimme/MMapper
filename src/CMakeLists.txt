@@ -1072,20 +1072,6 @@ if(WIN32)
             message(FATAL_ERROR "SDKManifest.xml not found using find_file. Cannot determine VCLibs dependency version. Ensure Windows SDK is installed correctly.")
         endif()
 
-        # Find the VCLibs Desktop .appx package for x64
-        find_file(VCLIBS_DESKTOP_APPX_PATH
-            NAMES "Microsoft.VCLibs.x64.14.00.Desktop.appx"
-            HINTS
-                "C:/Program Files (x86)/Microsoft SDKs/Windows Kits/10/ExtensionSDKs/Microsoft.VCLibs.Desktop/14.0/Appx/Retail/x64"
-                "C:/Program Files/Microsoft SDKs/Windows Kits/10/ExtensionSDKs/Microsoft.VCLibs.Desktop/14.0/Appx/Retail/x64"
-            REQUIRED
-        )
-        if(NOT VCLIBS_DESKTOP_APPX_PATH)
-            message(FATAL_ERROR "MSIX: Could not find the VCLibs Desktop APPX package. Ensure the 'C++ Universal Windows Platform tools' are installed via the Visual Studio Installer.")
-        else()
-            message(STATUS "MSIX: Found VCLibs Desktop APPX package at: ${VCLIBS_DESKTOP_APPX_PATH}")
-        endif()
-
         # Install AppxManifest.xml and image Assets
         configure_file(
             "${PROJECT_SOURCE_DIR}/AppxManifest.xml.in"

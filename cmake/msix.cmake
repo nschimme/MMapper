@@ -257,8 +257,24 @@ if(NOT EXISTS "${APPX_SYM_FULL_PATH}") # Check for the renamed .appxsym
 endif()
 message(STATUS "MSIX: Bundle and Symbol files confirmed to exist before cmake -E tar (with symbols).")
 
+# Find the VCLibs Desktop .appx package for x64
+find_file(VCLIBS_DESKTOP_APPX_PATH
+    NAMES "Microsoft.VCLibs.x64.14.00.Desktop.appx"
+    HINTS
+        "$ENV{ProgramFiles\(x86\)}/Microsoft SDKs/Windows Kits/10/ExtensionSDKs/Microsoft.VCLibs.Desktop/14.0/Appx/Retail/x64"
+    REQUIRED
+)
+if(NOT VCLIBS_DESKTOP_APPX_PATH)
+    message(FATAL_ERROR "MSIX: Could not find the VCLibs Desktop APPX package. Ensure the 'C++ Universal Windows Platform tools' are installed via the Visual Studio Installer.")
+else()
+    message(STATUS "MSIX: Found VCLibs Desktop APPX package at: ${VCLIBS_DESKTOP_APPX_PATH}")
+endif()
+
 execute_process(
-    COMMAND ${CMAKE_COMMAND} -E tar cvf "${APPX_UPLOAD_FULL_PATH}.zip" --format=zip "${APPX_BUNDLE_FULL_PATH}" "${APPX_SYM_FULL_PATH}" "${VCLIBS_DESKTOP_APPX_PATH}"
+    COMMAND ${CMAKE_COMMAND} -E tar cvf "${APPX_UPLOAD_FULL_PATH}.zip" --format=zip
+            "${APPX_BUNDLE_FULL_PATH}"
+            "${APPX_SYM_FULL_PATH}"
+            "${VCLIBS_DESKTOP_APPX_PATH}"
     RESULT_VARIABLE _res_cmake_zip_with_sym
     OUTPUT_VARIABLE _out_cmake_zip_with_sym
     ERROR_VARIABLE _err_cmake_zip_with_sym

@@ -835,17 +835,33 @@ set(CPACK_SOURCE_PACKAGE_FILE_NAME "${PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-sou
 set(CPACK_PACKAGE_CHECKSUM "SHA256")
 if(NOT TARGET_ARCHITECTURE)
     if(WIN32)
-        if("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
-            set(TARGET_ARCHITECTURE "x64")
-        else()
-            set(TARGET_ARCHITECTURE "x86")
-        endif()
+        set(TARGET_ARCHITECTURE "x64")
     else()
         set(TARGET_ARCHITECTURE "${CMAKE_SYSTEM_PROCESSOR}")
     endif()
 endif()
 message(STATUS "Packaging for target: ${CPACK_SYSTEM_NAME} ${TARGET_ARCHITECTURE}")
 set(CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_SYSTEM_NAME}-${TARGET_ARCHITECTURE}")
+
+# More General CPack Settings
+set(CPACK_PACKAGE_NAME "${PROJECT_NAME}")
+set(CPACK_PACKAGE_VENDOR "Nils Schimmelmann")
+set(CPACK_PACKAGE_CONTACT "nschimme@gmail.com")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A mud mapper especially written for the mud MUME")
+set(CPACK_PACKAGE_INSTALL_DIRECTORY "MMapper")
+
+# Applications Component
+set(CPACK_COMPONENTS_ALL applications libraries)
+set(CPACK_COMPONENT_APPLICATIONS_DISPLAY_NAME "MMapper")
+set(CPACK_COMPONENT_APPLICATIONS_DESCRIPTION "A mud mapper especially written for the mud MUME")
+set(CPACK_COMPONENT_APPLICATIONS_REQUIRED TRUE)
+
+# Libraries Component
+set(CPACK_COMPONENT_LIBRARIES_DISPLAY_NAME "Runtime Libraries")
+set(CPACK_COMPONENT_LIBRARIES_DESCRIPTION "Runtime libraries for running MMapper")
+set(CPACK_COMPONENT_LIBRARIES_REQUIRED TRUE)
+
+set(CPACK_INSTALL_CMAKE_PROJECTS "${CMAKE_CURRENT_BINARY_DIR};applications;ALL;/")
 
 # Components:
 if(CMAKE_BUILD_TYPE_UPPER MATCHES "^(DEBUG|RELWITHDEBINFO)$")
@@ -967,6 +983,7 @@ if(WIN32)
         COMPONENT libraries
         USE_SOURCE_PERMISSIONS
         PATTERN "*.exe" EXCLUDE
+
     )
     if(MSVC)
         set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "${CPACK_NSIS_EXTRA_INSTALL_COMMANDS}
@@ -975,48 +992,130 @@ if(WIN32)
             ")
     endif()
 
-    # ZIP requires 7-zip
-    set(CPACK_GENERATOR "NSIS")
-    set(CPACK_SOURCE_GENERATOR "ZIP")
+    if(WITH_UPDATER)
+        # ZIP requires 7-zip
+        set(CPACK_GENERATOR "NSIS")
 
-    # Windows (NSIS) Settings
-    set(CPACK_NSIS_EXECUTABLES_DIRECTORY ".")
-    set(CPACK_NSIS_MENU_LINKS "mmapper.exe;MMapper")
-    set(CPACK_NSIS_INSTALLED_ICON_NAME "mmapper.exe")
-    set(CPACK_NSIS_HELP_LINK "http://github.com/mume/mmapper")
-    set(CPACK_NSIS_MUI_ICON "${CMAKE_CURRENT_SOURCE_DIR}/resources/win32\\\\m-${MMAPPER_BRAND_SUFFIX}.ico")
-    set(CPACK_NSIS_MUI_UNIICON "${CMAKE_CURRENT_SOURCE_DIR}/resources/win32\\\\m-${MMAPPER_BRAND_SUFFIX}.ico")
-    set(CPACK_PACKAGE_ICON "${CMAKE_CURRENT_SOURCE_DIR}/resources/icons\\\\m-${MMAPPER_BRAND_SUFFIX}.png")
-    set(CPACK_NSIS_INSTALLED_ICON_NAME "${CMAKE_CURRENT_SOURCE_DIR}/resources/win32\\\\m-${MMAPPER_BRAND_SUFFIX}.ico")
-    set(CPACK_NSIS_COMPRESSOR "/SOLID lzma")
-    set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL "ON")
-    set(CPACK_NSIS_MUI_FINISHPAGE_RUN "mmapper.exe")
-    set(CPACK_NSIS_MANIFEST_DPI_AWARE "ON")
-    set(CPACK_NSIS_DISPLAY_NAME "MUME Mapper (x64)")
-    set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "${CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS}
-        Push \$0
-        mmapper_check:
-          ExecWait 'cmd /C tasklist /FI \\\"IMAGENAME eq mmapper.exe\\\" | findstr /I \\\"mmapper.exe\\\" >nul' \$0
-          StrCmp \$0 0 mmapper_found mmapper_done
-        mmapper_found:
-          MessageBox MB_OKCANCEL|MB_ICONQUESTION \\\"MMapper is running. Please close it to continue.\\\" IDOK mmapper_check
-          Abort
-        mmapper_done:
-          Pop \$0
-        ")
-    if(WITH_DRMINGW)
-        # Include shortcut to crash logs
-        set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "${CPACK_NSIS_EXTRA_INSTALL_COMMANDS}
-            CreateShortCut \\\"$SMPROGRAMS\\\\${CPACK_NSIS_DISPLAY_NAME}\\\\Crash Log.lnk\\\" \\\"$PROFILE\\\\AppData\\\\Local\\\\mmappercrash.log\\\"
-            ")
-        # Delete shortcut and crash log
+        # Windows (NSIS) Settings
+        set(CPACK_NSIS_EXECUTABLES_DIRECTORY ".")
+        set(CPACK_NSIS_MENU_LINKS "mmapper.exe;MMapper")
+        set(CPACK_NSIS_INSTALLED_ICON_NAME "mmapper.exe")
+        set(CPACK_NSIS_HELP_LINK "http://github.com/mume/mmapper")
+        set(CPACK_NSIS_MUI_ICON "${CMAKE_CURRENT_SOURCE_DIR}/resources/win32\\\\m-${MMAPPER_BRAND_SUFFIX}.ico")
+        set(CPACK_NSIS_MUI_UNIICON "${CMAKE_CURRENT_SOURCE_DIR}/resources/win32\\\\m-${MMAPPER_BRAND_SUFFIX}.ico")
+        set(CPACK_PACKAGE_ICON "${CMAKE_CURRENT_SOURCE_DIR}/resources/icons\\\\m-${MMAPPER_BRAND_SUFFIX}.png")
+        set(CPACK_NSIS_INSTALLED_ICON_NAME "${CMAKE_CURRENT_SOURCE_DIR}/resources/win32\\\\m-${MMAPPER_BRAND_SUFFIX}.ico")
+        set(CPACK_NSIS_COMPRESSOR "/SOLID lzma")
+        set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL "ON")
+        set(CPACK_NSIS_MUI_FINISHPAGE_RUN "mmapper.exe")
+        set(CPACK_NSIS_MANIFEST_DPI_AWARE "ON")
+        set(CPACK_NSIS_DISPLAY_NAME "MUME Mapper (x64)")
         set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "${CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS}
-            Delete \\\"$SMPROGRAMS\\\\${CPACK_NSIS_DISPLAY_NAME}\\\\Crash Log.lnk\\\"
-            Delete \\\"$PROFILE\\\\AppData\\\\Local\\\\mmappercrash.log\\\"
+            Push \$0
+            mmapper_check:
+              ExecWait 'cmd /C tasklist /FI \\\"IMAGENAME eq mmapper.exe\\\" | findstr /I \\\"mmapper.exe\\\" >nul' \$0
+              StrCmp \$0 0 mmapper_found mmapper_done
+            mmapper_found:
+              MessageBox MB_OKCANCEL|MB_ICONQUESTION \\\"MMapper is running. Please close it to continue.\\\" IDOK mmapper_check
+              Abort
+            mmapper_done:
+              Pop \$0
             ")
+        if(WITH_DRMINGW)
+            # Include shortcut to crash logs
+            set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "${CPACK_NSIS_EXTRA_INSTALL_COMMANDS}
+                CreateShortCut \\\"$SMPROGRAMS\\\\${CPACK_NSIS_DISPLAY_NAME}\\\\Crash Log.lnk\\\" \\\"$PROFILE\\\\AppData\\\\Local\\\\mmappercrash.log\\\"
+                ")
+            # Delete shortcut and crash log
+            set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "${CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS}
+                Delete \\\"$SMPROGRAMS\\\\${CPACK_NSIS_DISPLAY_NAME}\\\\Crash Log.lnk\\\"
+                Delete \\\"$PROFILE\\\\AppData\\\\Local\\\\mmappercrash.log\\\"
+                ")
+        endif()
+        # NSIS always displays a license page
+        set(CPACK_RESOURCE_FILE_LICENSE "${PROJECT_SOURCE_DIR}/COPYING.txt")
+    else()
+        # AppX
+        set(CPACK_GENERATOR "External")
+        set(CPACK_EXTERNAL_ENABLE_STAGING TRUE)
+        set(CPACK_SOURCE_GENERATOR "ZIP")
+        set(APP_EXECUTABLE_NAME_CONFIG "mmapper.exe")
+        set(CPACK_EXTERNAL_PACKAGE_SCRIPT "${PROJECT_SOURCE_DIR}/cmake/msix.cmake")
+
+        # Attempt to find SDKManifest.xml for the VC 14.0 desktop framework package
+        find_file(SDK_MANIFEST_PATH SDKManifest.xml
+            HINTS
+                "C:/Program Files/Microsoft SDKs/Windows Kits/10/ExtensionSDKs/Microsoft.VCLibs.Desktop/14.0"
+                "C:/Program Files (x86)/Microsoft SDKs/Windows Kits/10/ExtensionSDKs/Microsoft.VCLibs.Desktop/14.0"
+            DOC "Path to SDKManifest.xml for VCLibs 14.0 Desktop framework package"
+        )
+        if(SDK_MANIFEST_PATH)
+            message(STATUS "Found SDKManifest.xml at: ${SDK_MANIFEST_PATH}")
+            file(READ "${SDK_MANIFEST_PATH}" SDK_MANIFEST_CONTENT)
+
+            # Search for FrameworkIdentity-Retail and extract MinVersion
+            # Regex to find FrameworkIdentity-Retail="..." and capture MinVersion="..."
+            # Note: This regex is sensitive to the exact format in SDKManifest.xml
+            string(REGEX MATCH "FrameworkIdentity-Retail = \"[^\"]*MinVersion = ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)[^\"]*\""
+                   _match "${SDK_MANIFEST_CONTENT}")
+
+            if(_match)
+                # Extract the captured MinVersion (CMAKE_MATCH_1)
+                set(VCLIBS_MIN_VERSION ${CMAKE_MATCH_1})
+                message(STATUS "Extracted VCLibs MinVersion: ${VCLIBS_MIN_VERSION}")
+            else()
+                # If regex fails, this is a fatal error as we need the version
+                message(FATAL_ERROR "Could not find FrameworkIdentity-Retail or extract MinVersion from SDKManifest.xml at ${SDK_MANIFEST_PATH}. Cannot determine VCLibs dependency version.")
+            endif()
+        else()
+            # If SDKManifest.xml is not found, this is a fatal error
+            message(FATAL_ERROR "SDKManifest.xml not found using find_file. Cannot determine VCLibs dependency version. Ensure Windows SDK is installed correctly.")
+        endif()
+
+        # Install AppxManifest.xml and image Assets
+        configure_file(
+            "${PROJECT_SOURCE_DIR}/AppxManifest.xml.in"
+            "${CMAKE_BINARY_DIR}/AppxManifest.xml"
+            @ONLY
+        )
+        install(
+            FILES "${CMAKE_BINARY_DIR}/AppxManifest.xml"
+            DESTINATION .
+            COMPONENT applications
+        )
+        set(APPX_ASSETS_INSTALL_DIR "Assets")
+        install(
+            FILES "${CMAKE_SOURCE_DIR}/src/resources/pixmaps/splash-release.png"
+            DESTINATION "${APPX_ASSETS_INSTALL_DIR}"
+            RENAME "SplashScreen.png"
+            COMPONENT applications
+        )
+        install(
+            FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/hi128-app-mmapper-release.png"
+            DESTINATION "${APPX_ASSETS_INSTALL_DIR}"
+            RENAME "Square150x150Logo.png"
+            COMPONENT applications
+        )
+        # Using 128px version as placeholder for Wide310x150Logo, will be scaled by OS or should be replaced by actual asset
+        install(
+            FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/hi128-app-mmapper-release.png"
+            DESTINATION "${APPX_ASSETS_INSTALL_DIR}"
+            RENAME "Wide310x150Logo.png"
+            COMPONENT applications
+        )
+        install(
+            FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/hi48-app-mmapper-release.png"
+            DESTINATION "${APPX_ASSETS_INSTALL_DIR}"
+            RENAME "Square44x44Logo.png"
+            COMPONENT applications
+        )
+        install(
+            FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/hi48-app-mmapper-release.png"
+            DESTINATION "${APPX_ASSETS_INSTALL_DIR}"
+            RENAME "StoreLogo.png"
+            COMPONENT applications
+        )
     endif()
-    # NSIS always displays a license page
-    set(CPACK_RESOURCE_FILE_LICENSE "${PROJECT_SOURCE_DIR}/COPYING.txt")
 endif(WIN32)
 
 # Apple Install Settings
@@ -1049,7 +1148,7 @@ if(APPLE)
         TARGET mmapper
         POST_BUILD
         COMMAND ${CODESIGN_APP} --remove-signature ${CMAKE_CURRENT_BINARY_DIR}/mmapper.app
-        COMMAND ${CODESIGN_APP} --deep -f -s - ${CMAKE_CURRENT_BINARY_DIR}/mmapper.app -o runtime --entitlements ${CMAKE_CURRENT_SOURCE_DIR}/entitlements.plist
+        COMMAND ${CODESIGN_APP} --deep -f -s - ${CMAKE_CURRENT_SOURCE_DIR}/entitlements.plist
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         COMMENT "Code signing the bundle"
         VERBATIM
@@ -1079,26 +1178,6 @@ if(APPLE)
     set(MACOSX_BUNDLE_COPYRIGHT "Copyright (c) 2019 The MMapper Team")
     set(MACOSX_BUNDLE_GUI_IDENTIFIER "org.mume.mmapper")
 endif(APPLE)
-
-# More General CPack Settings
-set(CPACK_PACKAGE_NAME "${PROJECT_NAME}")
-set(CPACK_PACKAGE_VENDOR "Nils Schimmelmann")
-set(CPACK_PACKAGE_CONTACT "nschimme@gmail.com")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A mud mapper especially written for the mud MUME")
-set(CPACK_PACKAGE_INSTALL_DIRECTORY "MMapper")
-
-# Applications Component
-set(CPACK_COMPONENTS_ALL applications libraries)
-set(CPACK_COMPONENT_APPLICATIONS_DISPLAY_NAME "MMapper")
-set(CPACK_COMPONENT_APPLICATIONS_DESCRIPTION "A mud mapper especially written for the mud MUME")
-set(CPACK_COMPONENT_APPLICATIONS_REQUIRED TRUE)
-
-# Libraries Component
-set(CPACK_COMPONENT_LIBRARIES_DISPLAY_NAME "Runtime Libraries")
-set(CPACK_COMPONENT_LIBRARIES_DESCRIPTION "Runtime libraries for running MMapper")
-set(CPACK_COMPONENT_LIBRARIES_REQUIRED TRUE)
-
-set(CPACK_INSTALL_CMAKE_PROJECTS "${CMAKE_CURRENT_BINARY_DIR};applications;ALL;/")
 
 # Source Package
 set(CPACK_SOURCE_IGNORE_FILES

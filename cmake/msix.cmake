@@ -302,7 +302,7 @@ else()
     message(STATUS "MSIX: Bundle and Symbol files confirmed to exist before cmake -E tar (with symbols).")
 
     execute_process(
-        COMMAND ${CMAKE_COMMAND} -E tar cvf "${APPX_UPLOAD_FULL_PATH}.zip" --format=zip "${APPX_BUNDLE_FULL_PATH}" "${APPX_SYM_FULL_PATH}"
+        COMMAND ${CMAKE_COMMAND} -E tar cvf "${APPX_UPLOAD_FULL_PATH}.zip" --format=zip "${APPX_BUNDLE_FULL_PATH}" "${APPX_SYM_FULL_PATH}" "${VCLIBS_DESKTOP_APPX_PATH}"
         RESULT_VARIABLE _res_cmake_zip_with_sym
         OUTPUT_VARIABLE _out_cmake_zip_with_sym
         ERROR_VARIABLE _err_cmake_zip_with_sym

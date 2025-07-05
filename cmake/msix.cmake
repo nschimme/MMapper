@@ -209,128 +209,83 @@ else()
 endif()
 
 # Commands for .pdb to .appxsym conversion and .appxupload creation
-# TODO: Remove this after testing (TEMP_FORCE_SKIP_PDB was here)
-if(TEMP_FORCE_SKIP_PDB OR NOT EXISTS "${APPX_PDB_SOURCE_PATH}") # TEMP_FORCE_SKIP_PDB will be undefined now, so condition relies on NOT EXISTS
-    message(STATUS "MSIX: WARNING - PDB file not found at ${APPX_PDB_SOURCE_PATH} or PDB processing forced off. Skipping .appxsym creation. .appxupload will not include symbols.")
-
-    message(STATUS "MSIX: Creating .appxupload (without symbols) using cmake -E tar...")
-    # Re-verify bundle existence right before compression
-    if(NOT EXISTS "${APPX_BUNDLE_FULL_PATH}")
-        message(FATAL_ERROR "MSIX: INTERNAL ERROR - Bundle file ${APPX_BUNDLE_FULL_PATH} was found by earlier check, but is MISSING right before cmake -E tar (no symbols path).")
-    else()
-        message(STATUS "MSIX: Bundle file ${APPX_BUNDLE_FULL_PATH} confirmed to still exist before cmake -E tar (no symbols path).")
-    endif()
-
-    execute_process(
-        COMMAND ${CMAKE_COMMAND} -E tar cvf "${APPX_UPLOAD_FULL_PATH}.zip" --format=zip "${APPX_BUNDLE_FULL_PATH}"
-        RESULT_VARIABLE _res_cmake_zip_no_sym
-        OUTPUT_VARIABLE _out_cmake_zip_no_sym
-        ERROR_VARIABLE _err_cmake_zip_no_sym
-    )
-    message(STATUS "MSIX: cmake -E tar (no symbols) stdout:\n${_out_cmake_zip_no_sym}")
-    if(_err_cmake_zip_no_sym)
-        message(WARNING "MSIX: cmake -E tar (no symbols) stderr:\n${_err_cmake_zip_no_sym}")
-    endif()
-    if(NOT _res_cmake_zip_no_sym EQUAL 0)
-        message(FATAL_ERROR "MSIX: cmake -E tar for .appxupload (no symbols) failed with result: ${_res_cmake_zip_no_sym}. See stdout/stderr above.")
-    endif()
-
-    # Rename .zip to .appxupload
-    if(NOT EXISTS "${APPX_UPLOAD_FULL_PATH}.zip") # Check if the zip was created before trying to rename
-        message(FATAL_ERROR "MSIX: INTERNAL ERROR - Expected zip file ${APPX_UPLOAD_FULL_PATH}.zip was NOT created by cmake -E tar (no symbols path).")
-    endif()
-    execute_process(
-        COMMAND ${CMAKE_COMMAND} -E rename "${APPX_UPLOAD_FULL_PATH}.zip" "${APPX_UPLOAD_FULL_PATH}"
-        RESULT_VARIABLE _res_cmake_rename_no_sym
-        OUTPUT_VARIABLE _out_cmake_rename_no_sym
-        ERROR_VARIABLE _err_cmake_rename_no_sym
-    )
-    message(STATUS "MSIX: cmake -E rename (no symbols) stdout:\n${_out_cmake_rename_no_sym}")
-    if(_err_cmake_rename_no_sym)
-        message(WARNING "MSIX: cmake -E rename (no symbols) stderr:\n${_err_cmake_rename_no_sym}")
-    endif()
-    if(NOT _res_cmake_rename_no_sym EQUAL 0)
-        message(FATAL_ERROR "MSIX: cmake -E rename for .appxupload (no symbols) failed with result: ${_res_cmake_rename_no_sym}. See stdout/stderr above.")
-    endif()
+message(STATUS "MSIX: Converting .pdb to .appxsym (PDB source: ${APPX_PDB_SOURCE_PATH}, Temp Symbol Zip: ${APPX_SYM_FULL_PATH}.zip) using cmake -E tar...")
+# Re-check PDB existence right before compression
+if(NOT EXISTS "${APPX_PDB_SOURCE_PATH}")
+    message(FATAL_ERROR "MSIX: INTERNAL ERROR - PDB file ${APPX_PDB_SOURCE_PATH} was reported as existing by initial check, but is MISSING right before cmake -E tar (with symbols path).")
 else()
-    message(STATUS "MSIX: Converting .pdb to .appxsym (PDB source: ${APPX_PDB_SOURCE_PATH}, Temp Symbol Zip: ${APPX_SYM_FULL_PATH}.zip) using cmake -E tar...")
-    # Re-check PDB existence right before compression
-    if(NOT EXISTS "${APPX_PDB_SOURCE_PATH}")
-        message(FATAL_ERROR "MSIX: INTERNAL ERROR - PDB file ${APPX_PDB_SOURCE_PATH} was reported as existing by initial check, but is MISSING right before cmake -E tar (with symbols path).")
-    else()
-        message(STATUS "MSIX: PDB file ${APPX_PDB_SOURCE_PATH} confirmed to still exist before cmake -E tar (with symbols path).")
-    endif()
+    message(STATUS "MSIX: PDB file ${APPX_PDB_SOURCE_PATH} confirmed to still exist before cmake -E tar (with symbols path).")
+endif()
 
-    execute_process(
-        COMMAND ${CMAKE_COMMAND} -E tar cvf "${APPX_SYM_FULL_PATH}.zip" --format=zip "${APPX_PDB_SOURCE_PATH}"
-        RESULT_VARIABLE _res_cmake_zip_pdb
-        OUTPUT_VARIABLE _out_cmake_zip_pdb
-        ERROR_VARIABLE _err_cmake_zip_pdb
-    )
-    message(STATUS "MSIX: cmake -E tar for PDB stdout:\n${_out_cmake_zip_pdb}")
-    if(_err_cmake_zip_pdb)
-        message(WARNING "MSIX: cmake -E tar for PDB stderr:\n${_err_cmake_zip_pdb}")
-    endif()
-    if(NOT _res_cmake_zip_pdb EQUAL 0)
-        message(FATAL_ERROR "MSIX: cmake -E tar for PDB failed with result: ${_res_cmake_zip_pdb}. See stdout/stderr above.")
-    endif()
+execute_process(
+    COMMAND ${CMAKE_COMMAND} -E tar cvf "${APPX_SYM_FULL_PATH}.zip" --format=zip "${APPX_PDB_SOURCE_PATH}"
+    RESULT_VARIABLE _res_cmake_zip_pdb
+    OUTPUT_VARIABLE _out_cmake_zip_pdb
+    ERROR_VARIABLE _err_cmake_zip_pdb
+)
+message(STATUS "MSIX: cmake -E tar for PDB stdout:\n${_out_cmake_zip_pdb}")
+if(_err_cmake_zip_pdb)
+    message(WARNING "MSIX: cmake -E tar for PDB stderr:\n${_err_cmake_zip_pdb}")
+endif()
+if(NOT _res_cmake_zip_pdb EQUAL 0)
+    message(FATAL_ERROR "MSIX: cmake -E tar for PDB failed with result: ${_res_cmake_zip_pdb}. See stdout/stderr above.")
+endif()
 
-    if(NOT EXISTS "${APPX_SYM_FULL_PATH}.zip")
-        message(FATAL_ERROR "MSIX: INTERNAL ERROR - Expected zip file ${APPX_SYM_FULL_PATH}.zip was NOT created by cmake -E tar for PDB.")
-    endif()
-    execute_process(
-        COMMAND ${CMAKE_COMMAND} -E rename "${APPX_SYM_FULL_PATH}.zip" "${APPX_SYM_FULL_PATH}"
-        RESULT_VARIABLE _res_cmake_rename_sym
-        OUTPUT_VARIABLE _out_cmake_rename_sym
-        ERROR_VARIABLE _err_cmake_rename_sym
-    )
-    message(STATUS "MSIX: cmake -E rename for .appxsym stdout:\n${_out_cmake_rename_sym}")
-    if(_err_cmake_rename_sym)
-        message(WARNING "MSIX: cmake -E rename for .appxsym stderr:\n${_err_cmake_rename_sym}")
-    endif()
-    if(NOT _res_cmake_rename_sym EQUAL 0)
-        message(FATAL_ERROR "MSIX: cmake -E rename for .appxsym failed with result: ${_res_cmake_rename_sym}. See stdout/stderr above.")
-    endif()
+if(NOT EXISTS "${APPX_SYM_FULL_PATH}.zip")
+    message(FATAL_ERROR "MSIX: INTERNAL ERROR - Expected zip file ${APPX_SYM_FULL_PATH}.zip was NOT created by cmake -E tar for PDB.")
+endif()
+execute_process(
+    COMMAND ${CMAKE_COMMAND} -E rename "${APPX_SYM_FULL_PATH}.zip" "${APPX_SYM_FULL_PATH}"
+    RESULT_VARIABLE _res_cmake_rename_sym
+    OUTPUT_VARIABLE _out_cmake_rename_sym
+    ERROR_VARIABLE _err_cmake_rename_sym
+)
+message(STATUS "MSIX: cmake -E rename for .appxsym stdout:\n${_out_cmake_rename_sym}")
+if(_err_cmake_rename_sym)
+    message(WARNING "MSIX: cmake -E rename for .appxsym stderr:\n${_err_cmake_rename_sym}")
+endif()
+if(NOT _res_cmake_rename_sym EQUAL 0)
+    message(FATAL_ERROR "MSIX: cmake -E rename for .appxsym failed with result: ${_res_cmake_rename_sym}. See stdout/stderr above.")
+endif()
 
-    message(STATUS "MSIX: Creating .appxupload (Bundle: ${APPX_BUNDLE_FULL_PATH}, Symbols: ${APPX_SYM_FULL_PATH}, Output: ${APPX_UPLOAD_FULL_PATH}) using cmake -E tar...")
-    if(NOT EXISTS "${APPX_BUNDLE_FULL_PATH}")
-        message(FATAL_ERROR "MSIX: INTERNAL ERROR - Bundle file ${APPX_BUNDLE_FULL_PATH} is MISSING right before cmake -E tar (with symbols path).")
-    endif()
-    if(NOT EXISTS "${APPX_SYM_FULL_PATH}") # Check for the renamed .appxsym
-        message(FATAL_ERROR "MSIX: INTERNAL ERROR - Symbol file ${APPX_SYM_FULL_PATH} is MISSING right before cmake -E tar (with symbols path).")
-    endif()
-    message(STATUS "MSIX: Bundle and Symbol files confirmed to exist before cmake -E tar (with symbols).")
+message(STATUS "MSIX: Creating .appxupload (Bundle: ${APPX_BUNDLE_FULL_PATH}, Symbols: ${APPX_SYM_FULL_PATH}, Output: ${APPX_UPLOAD_FULL_PATH}) using cmake -E tar...")
+if(NOT EXISTS "${APPX_BUNDLE_FULL_PATH}")
+    message(FATAL_ERROR "MSIX: INTERNAL ERROR - Bundle file ${APPX_BUNDLE_FULL_PATH} is MISSING right before cmake -E tar (with symbols path).")
+endif()
+if(NOT EXISTS "${APPX_SYM_FULL_PATH}") # Check for the renamed .appxsym
+    message(FATAL_ERROR "MSIX: INTERNAL ERROR - Symbol file ${APPX_SYM_FULL_PATH} is MISSING right before cmake -E tar (with symbols path).")
+endif()
+message(STATUS "MSIX: Bundle and Symbol files confirmed to exist before cmake -E tar (with symbols).")
 
-    execute_process(
-        COMMAND ${CMAKE_COMMAND} -E tar cvf "${APPX_UPLOAD_FULL_PATH}.zip" --format=zip "${APPX_BUNDLE_FULL_PATH}" "${APPX_SYM_FULL_PATH}" "${VCLIBS_DESKTOP_APPX_PATH}"
-        RESULT_VARIABLE _res_cmake_zip_with_sym
-        OUTPUT_VARIABLE _out_cmake_zip_with_sym
-        ERROR_VARIABLE _err_cmake_zip_with_sym
-    )
-    message(STATUS "MSIX: cmake -E tar for .appxupload (with symbols) stdout:\n${_out_cmake_zip_with_sym}")
-    if(_err_cmake_zip_with_sym)
-        message(WARNING "MSIX: cmake -E tar for .appxupload (with symbols) stderr:\n${_err_cmake_zip_with_sym}")
-    endif()
-    if(NOT _res_cmake_zip_with_sym EQUAL 0)
-        message(FATAL_ERROR "MSIX: cmake -E tar for .appxupload (with symbols) failed with result: ${_res_cmake_zip_with_sym}. See stdout/stderr above.")
-    endif()
+execute_process(
+    COMMAND ${CMAKE_COMMAND} -E tar cvf "${APPX_UPLOAD_FULL_PATH}.zip" --format=zip "${APPX_BUNDLE_FULL_PATH}" "${APPX_SYM_FULL_PATH}" "${VCLIBS_DESKTOP_APPX_PATH}"
+    RESULT_VARIABLE _res_cmake_zip_with_sym
+    OUTPUT_VARIABLE _out_cmake_zip_with_sym
+    ERROR_VARIABLE _err_cmake_zip_with_sym
+)
+message(STATUS "MSIX: cmake -E tar for .appxupload (with symbols) stdout:\n${_out_cmake_zip_with_sym}")
+if(_err_cmake_zip_with_sym)
+    message(WARNING "MSIX: cmake -E tar for .appxupload (with symbols) stderr:\n${_err_cmake_zip_with_sym}")
+endif()
+if(NOT _res_cmake_zip_with_sym EQUAL 0)
+    message(FATAL_ERROR "MSIX: cmake -E tar for .appxupload (with symbols) failed with result: ${_res_cmake_zip_with_sym}. See stdout/stderr above.")
+endif()
 
-    if(NOT EXISTS "${APPX_UPLOAD_FULL_PATH}.zip")
-        message(FATAL_ERROR "MSIX: INTERNAL ERROR - Expected zip file ${APPX_UPLOAD_FULL_PATH}.zip was NOT created by cmake -E tar for PDB.")
-    endif()
-    execute_process(
-        COMMAND ${CMAKE_COMMAND} -E rename "${APPX_UPLOAD_FULL_PATH}.zip" "${APPX_UPLOAD_FULL_PATH}"
-        RESULT_VARIABLE _res_cmake_rename_sym
-        OUTPUT_VARIABLE _out_cmake_rename_sym
-        ERROR_VARIABLE _err_cmake_rename_sym
-    )
-    message(STATUS "MSIX: cmake -E rename for .appxsym stdout:\n${_out_cmake_rename_sym}")
-    if(_err_cmake_rename_sym)
-        message(WARNING "MSIX: cmake -E rename for .appxsym stderr:\n${_err_cmake_rename_sym}")
-    endif()
-    if(NOT _res_cmake_rename_sym EQUAL 0)
-        message(FATAL_ERROR "MSIX: cmake -E rename for .appxsym failed with result: ${_res_cmake_rename_sym}. See stdout/stderr above.")
-    endif()
+if(NOT EXISTS "${APPX_UPLOAD_FULL_PATH}.zip")
+    message(FATAL_ERROR "MSIX: INTERNAL ERROR - Expected zip file ${APPX_UPLOAD_FULL_PATH}.zip was NOT created by cmake -E tar for PDB.")
+endif()
+execute_process(
+    COMMAND ${CMAKE_COMMAND} -E rename "${APPX_UPLOAD_FULL_PATH}.zip" "${APPX_UPLOAD_FULL_PATH}"
+    RESULT_VARIABLE _res_cmake_rename_sym
+    OUTPUT_VARIABLE _out_cmake_rename_sym
+    ERROR_VARIABLE _err_cmake_rename_sym
+)
+message(STATUS "MSIX: cmake -E rename for .appxsym stdout:\n${_out_cmake_rename_sym}")
+if(_err_cmake_rename_sym)
+    message(WARNING "MSIX: cmake -E rename for .appxsym stderr:\n${_err_cmake_rename_sym}")
+endif()
+if(NOT _res_cmake_rename_sym EQUAL 0)
+    message(FATAL_ERROR "MSIX: cmake -E rename for .appxsym failed with result: ${_res_cmake_rename_sym}. See stdout/stderr above.")
 endif()
 
 message(STATUS "MSIX: Packaging complete. Final upload file: ${APPX_UPLOAD_FULL_PATH}")

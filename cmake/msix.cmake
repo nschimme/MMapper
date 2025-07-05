@@ -10,22 +10,65 @@ endif()
 
 set(APP_TARGET mmapper) # As determined from src/CMakeLists.txt
 
-# Versioning: Use CPACK_PACKAGE_VERSION variables. These should be set by CPack.
-if(NOT DEFINED CPACK_PACKAGE_VERSION_MAJOR OR NOT DEFINED CPACK_PACKAGE_VERSION_MINOR OR NOT DEFINED CPACK_PACKAGE_VERSION_PATCH)
-    # Fallback for direct script execution/testing, less likely for CPack External
-    get_filename_component(PROJECT_VERSION_FROM_FILE "${CMAKE_SOURCE_DIR}/MMAPPER_VERSION" NAME)
-    string(REPLACE "." ";" PROJECT_VERSION_LIST ${PROJECT_VERSION_FROM_FILE})
-    list(GET PROJECT_VERSION_LIST 0 CPACK_PACKAGE_VERSION_MAJOR)
-    list(GET PROJECT_VERSION_LIST 1 CPACK_PACKAGE_VERSION_MINOR)
-    list(GET PROJECT_VERSION_LIST 2 CPACK_PACKAGE_VERSION_PATCH)
-    if(NOT DEFINED CPACK_PACKAGE_VERSION_MAJOR)
-        message(FATAL_ERROR "MSIX: Package version information is not available via CPack or fallback.")
+# Versioning: Determine the MSIX version (Major.Minor.Patch.Build)
+# Prefer CPACK_PACKAGE_VERSION if it's in a recognizable format (simple or Git-based).
+# Fallback to MMAPPER_VERSION if CPACK_PACKAGE_VERSION is not suitable or defined.
+
+set(MSIX_MAJOR_VERSION 0)
+set(MSIX_MINOR_VERSION 0)
+set(MSIX_PATCH_VERSION 0)
+set(MSIX_BUILD_VERSION 0)
+set(VERSION_SOURCE "Unknown")
+
+if(DEFINED CPACK_PACKAGE_VERSION)
+    # Try matching simple Major.Minor.Patch first (e.g., for release tags)
+    if(CPACK_PACKAGE_VERSION MATCHES "^([0-9]+)\\.([0-9]+)\\.([0-9]+)$")
+        set(MSIX_MAJOR_VERSION ${CMAKE_MATCH_1})
+        set(MSIX_MINOR_VERSION ${CMAKE_MATCH_2})
+        set(MSIX_PATCH_VERSION ${CMAKE_MATCH_3})
+        set(MSIX_BUILD_VERSION 0) # Default build number for simple versions
+        set(VERSION_SOURCE "CPACK_PACKAGE_VERSION (Simple)")
+    # Then try matching Git-based Major.Minor.Patch-Commits-gHash
+    elseif(CPACK_PACKAGE_VERSION MATCHES "^([0-9]+)\\.([0-9]+)\\.([0-9]+)-([0-9]+)-g[0-9a-f]+$")
+        set(MSIX_MAJOR_VERSION ${CMAKE_MATCH_1})
+        set(MSIX_MINOR_VERSION ${CMAKE_MATCH_2})
+        set(MSIX_PATCH_VERSION ${CMAKE_MATCH_3})
+        set(MSIX_BUILD_VERSION ${CMAKE_MATCH_4}) # Use commit count as build number
+        set(VERSION_SOURCE "CPACK_PACKAGE_VERSION (Git)")
+    else()
+        message(WARNING "MSIX: CPACK_PACKAGE_VERSION '${CPACK_PACKAGE_VERSION}' is defined but does not match expected formats (Major.Minor.Patch or Git-based). Falling back to MMAPPER_VERSION.")
+        set(VERSION_SOURCE "CPACK_PACKAGE_VERSION (Unmatched) -> MMAPPER_VERSION")
     endif()
-    message(STATUS "MSIX: Using project version ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH} as fallback for versioning.")
+else()
+    message(STATUS "MSIX: CPACK_PACKAGE_VERSION is not defined. Falling back to MMAPPER_VERSION.")
+    set(VERSION_SOURCE "MMAPPER_VERSION")
 endif()
 
-set(APPX_BUILD_VERSION_STRING "${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}.0")
-set(APPX_VERSION_FILENAME_PART "${CPACK_PACKAGE_VERSION_MAJOR}_${CPACK_PACKAGE_VERSION_MINOR}_${CPACK_PACKAGE_VERSION_PATCH}_0")
+# If version components are still 0 (meaning CPACK_PACKAGE_VERSION wasn't suitable or defined),
+# try to get them from the MMAPPER_VERSION file.
+if(${MSIX_MAJOR_VERSION} EQUAL 0 AND ${MSIX_MINOR_VERSION} EQUAL 0 AND ${MSIX_PATCH_VERSION} EQUAL 0)
+    get_filename_component(PROJECT_VERSION_FROM_FILE "${CMAKE_SOURCE_DIR}/MMAPPER_VERSION" NAME)
+    if(PROJECT_VERSION_FROM_FILE MATCHES "^([0-9]+)\\.([0-9]+)\\.([0-9]+)$")
+        set(MSIX_MAJOR_VERSION ${CMAKE_MATCH_1})
+        set(MSIX_MINOR_VERSION ${CMAKE_MATCH_2})
+        set(MSIX_PATCH_VERSION ${CMAKE_MATCH_3})
+        set(MSIX_BUILD_VERSION 0) # Default build number for file-based versions
+        if(VERSION_SOURCE STREQUAL "MMAPPER_VERSION")
+             message(STATUS "MSIX: Using file-based version ${MSIX_MAJOR_VERSION}.${MSIX_MINOR_VERSION}.${MSIX_PATCH_VERSION}.${MSIX_BUILD_VERSION} from MMAPPER_VERSION (${PROJECT_VERSION_FROM_FILE}).")
+        else()
+             # This case happens if CPACK_PACKAGE_VERSION was defined but unmatched, and we successfully parsed MMAPPER_VERSION
+             message(STATUS "MSIX: Successfully parsed file-based version ${MSIX_MAJOR_VERSION}.${MSIX_MINOR_VERSION}.${MSIX_PATCH_VERSION}.${MSIX_BUILD_VERSION} from MMAPPER_VERSION (${PROJECT_VERSION_FROM_FILE}) after CPACK_PACKAGE_VERSION mismatch.")
+        endif()
+    else()
+        message(FATAL_ERROR "MSIX: Could not determine package version from CPACK_PACKAGE_VERSION or MMAPPER_VERSION file.")
+    endif()
+endif()
+
+set(APPX_BUILD_VERSION_STRING "${MSIX_MAJOR_VERSION}.${MSIX_MINOR_VERSION}.${MSIX_PATCH_VERSION}.${MSIX_BUILD_VERSION}")
+set(APPX_VERSION_FILENAME_PART "${MSIX_MAJOR_VERSION}_${MSIX_MINOR_VERSION}_${MSIX_PATCH_VERSION}_${MSIX_BUILD_VERSION}")
+
+message(STATUS "MSIX: Final package version string: ${APPX_BUILD_VERSION_STRING}")
+message(STATUS "MSIX: Final package filename part: ${APPX_VERSION_FILENAME_PART}")
 
 # File and directory names for output
 set(APPX_PACKAGES_DIR_NAME "msix_intermediate_packages")

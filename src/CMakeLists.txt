@@ -1042,6 +1042,36 @@ if(WIN32)
         set(APP_EXECUTABLE_NAME_CONFIG "mmapper.exe")
         set(CPACK_EXTERNAL_PACKAGE_SCRIPT "${PROJECT_SOURCE_DIR}/cmake/msix.cmake")
 
+        # Attempt to find SDKManifest.xml for the VC 14.0 desktop framework package
+        find_file(SDK_MANIFEST_PATH SDKManifest.xml
+            HINTS
+                "C:/Program Files/Microsoft SDKs/Windows Kits/10/ExtensionSDKs/Microsoft.VCLibs.Desktop/14.0"
+                "C:/Program Files (x86)/Microsoft SDKs/Windows Kits/10/ExtensionSDKs/Microsoft.VCLibs.Desktop/14.0"
+            DOC "Path to SDKManifest.xml for VCLibs 14.0 Desktop framework package"
+        )
+        if(SDK_MANIFEST_PATH)
+            message(STATUS "Found SDKManifest.xml at: ${SDK_MANIFEST_PATH}")
+            file(READ "${SDK_MANIFEST_PATH}" SDK_MANIFEST_CONTENT)
+
+            # Search for FrameworkIdentity-Retail and extract MinVersion
+            # Regex to find FrameworkIdentity-Retail="..." and capture MinVersion="..."
+            # Note: This regex is sensitive to the exact format in SDKManifest.xml
+            string(REGEX MATCH "FrameworkIdentity-Retail = \"[^\"]*MinVersion = ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)[^\"]*\""
+                   _match "${SDK_MANIFEST_CONTENT}")
+
+            if(_match)
+                # Extract the captured MinVersion (CMAKE_MATCH_1)
+                set(VCLIBS_MIN_VERSION ${CMAKE_MATCH_1})
+                message(STATUS "Extracted VCLibs MinVersion: ${VCLIBS_MIN_VERSION}")
+            else()
+                # If regex fails, this is a fatal error as we need the version
+                message(FATAL_ERROR "Could not find FrameworkIdentity-Retail or extract MinVersion from SDKManifest.xml at ${SDK_MANIFEST_PATH}. Cannot determine VCLibs dependency version.")
+            endif()
+        else()
+            # If SDKManifest.xml is not found, this is a fatal error
+            message(FATAL_ERROR "SDKManifest.xml not found using find_file. Cannot determine VCLibs dependency version. Ensure Windows SDK is installed correctly.")
+        endif()
+
         # Install AppxManifest.xml and image Assets
         configure_file(
             "${PROJECT_SOURCE_DIR}/AppxManifest.xml.in"

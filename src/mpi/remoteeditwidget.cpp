@@ -16,6 +16,7 @@
 #include "../global/utils.h"
 #include "../global/window_utils.h"
 #include "../viewers/AnsiViewWindow.h"
+#include "findreplacedialog.h"
 
 #include <cassert>
 #include <cctype>
@@ -25,6 +26,9 @@
 #include <vector>
 
 #include <QAction>
+#include <QApplication>
+#include <QInputDialog>
+#include <QKeySequence>
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
@@ -32,10 +36,13 @@
 #include <QPlainTextEdit>
 #include <QRegularExpression>
 #include <QScopedPointer>
+#include <QScreen>
 #include <QSize>
 #include <QStatusBar>
 #include <QString>
+#include <QStyle>
 #include <QTextDocument>
+#include <QToolTip>
 #include <QtGui>
 #include <QtWidgets>
 
@@ -825,7 +832,7 @@ void RemoteEditWidget::addEditAndViewMenus(QMenuBar *const menuBar, const Editor
         EditCommand2{},
         EditCommand2{&Editor::selectAll,
                      "edit-select-all",
-                     ":/icons/redo.png",
+                     ":/icons/select-all.png",
                      "&Select All",
                      "Select the entire document",
                      "Ctrl+A",
@@ -898,6 +905,57 @@ void RemoteEditWidget::addEditAndViewMenus(QMenuBar *const menuBar, const Editor
     }
     XFOREACH_REMOTE_EDIT_MENU_ITEM(X_ADD_MENU)
 #undef X_ADD_MENU
+
+    if (m_editSession) {
+        QMenu *findReplaceMenu = editMenu->addMenu(tr("&Find/Replace"));
+
+        QAction *findAction = new QAction(QIcon::fromTheme("edit-find"),
+                                          tr("&Find/Replace..."),
+                                          this);
+        findAction->setShortcut(QKeySequence::Find);
+        findAction->setStatusTip(tr("Show the find/replace dialog."));
+        connect(findAction, &QAction::triggered, this, &RemoteEditWidget::slot_findReplace);
+        findReplaceMenu->addAction(findAction);
+
+        QAction *findNextAction = new QAction(QIcon::fromTheme("edit-find-next"),
+                                              tr("Find &Next"),
+                                              this);
+        findNextAction->setShortcut(QKeySequence::FindNext);
+        findNextAction->setStatusTip(tr("Find next occurrence of the search text."));
+        connect(findNextAction, &QAction::triggered, this, &RemoteEditWidget::slot_findNext);
+        findReplaceMenu->addAction(findNextAction);
+
+        QAction *findPreviousAction = new QAction(QIcon::fromTheme("edit-find-previous"),
+                                                  tr("Find &Previous"),
+                                                  this);
+        findPreviousAction->setShortcut(QKeySequence::FindPrevious);
+        findPreviousAction->setStatusTip(tr("Find previous occurrence of the search text."));
+        connect(findPreviousAction, &QAction::triggered, this, &RemoteEditWidget::slot_findPrevious);
+        findReplaceMenu->addAction(findPreviousAction);
+
+        QAction *replaceAction = new QAction(QIcon::fromTheme("edit-find-replace"),
+                                             tr("&Replace"),
+                                             this);
+        replaceAction->setShortcut(QKeySequence::Replace);
+        replaceAction->setStatusTip(
+            tr("Replace the current selection with the replacement text and find next."));
+        connect(replaceAction, &QAction::triggered, this, &RemoteEditWidget::slot_replace);
+        findReplaceMenu->addAction(replaceAction);
+    }
+
+    QAction *gotoLineAction = new QAction(QIcon::fromTheme("go-jump", QIcon(":/icons/goto.png")),
+                                          tr("&Go to Line..."),
+                                          this);
+    QList<QKeySequence> gotoLineShortcuts;
+#ifdef Q_OS_MAC
+    gotoLineShortcuts.append(QKeySequence("Cmd+L"));
+#else
+    gotoLineShortcuts.append(QKeySequence("Ctrl+G"));
+#endif
+    gotoLineAction->setShortcuts(gotoLineShortcuts);
+    gotoLineAction->setStatusTip(tr("Go to a specific line number in the document."));
+    connect(gotoLineAction, &QAction::triggered, this, &RemoteEditWidget::slot_gotoLine);
+    editMenu->addAction(gotoLineAction);
 }
 
 void RemoteEditWidget::addSave(QMenu *const fileMenu)
@@ -1253,9 +1311,307 @@ void RemoteEditWidget::slot_toggleWhitespace()
     m_textEdit->toggleWhitespace();
 }
 
+/// Moves the cursor to the beginning of the specified line number.
+/// Assumes lineNum is 0-indexed.
+void RemoteTextEdit::gotoLine(int lineNum)
+{
+    QTextCursor cursor(document()->findBlockByNumber(lineNum));
+    setTextCursor(cursor);
+}
+
+bool RemoteTextEdit::findNext(const QString &text, QTextDocument::FindFlags flags)
+{
+    return find(text, flags);
+}
+
+/// Finds the previous occurrence of the text.
+bool RemoteTextEdit::findPrevious(const QString &text, QTextDocument::FindFlags flags)
+{
+    return find(text, flags | QTextDocument::FindBackward);
+}
+
+/// Replaces the currently selected text if it matches findText, then finds the next occurrence.
+void RemoteTextEdit::replace(const QString &findText,
+                             const QString &replaceText,
+                             QTextDocument::FindFlags flags)
+{
+    QTextCursor cursor = textCursor();
+    if (cursor.hasSelection()) {
+        // Check if the selected text actually matches what we are looking for
+        // This is important if the user manually changed selection after a find operation
+        QString selected = cursor.selectedText();
+        if (selected.compare(findText,
+                             flags.testFlag(QTextDocument::FindCaseSensitively)
+                                 ? Qt::CaseSensitive
+                                 : Qt::CaseInsensitive)
+            == 0) {
+            cursor.insertText(replaceText);
+        }
+    }
+    findNext(findText,
+             flags); // Find the next occurrence regardless of whether a replacement happened
+}
+
+/// Replaces all occurrences of findText with replaceText in the document.
+/// Returns the number of replacements made.
+int RemoteTextEdit::replaceAll(const QString &findText,
+                               const QString &replaceText,
+                               QTextDocument::FindFlags flags)
+{
+    QTextCursor cursor = textCursor();
+    cursor.movePosition(QTextCursor::Start);
+    setTextCursor(cursor);
+
+    int count = 0;
+    while (findNext(findText, flags)) {
+        textCursor().insertText(replaceText);
+        count++;
+    }
+    // Optionally, display a message with the number of replacements made.
+    // QMessageBox::information(this, tr("Replace All"), tr("%1 occurrence(s)
+    // replaced.").arg(count));
+    return count;
+}
+
 void RemoteEditWidget::slot_justifyLines()
 {
     m_textEdit->justifyLines(MAX_LENGTH);
+}
+
+/// Slot to show the Find/Replace dialog.
+/// Creates the dialog if it doesn't exist, then shows and activates it.
+void RemoteEditWidget::slot_findReplace()
+{
+    if (!m_findReplaceDialog) {
+        m_findReplaceDialog = new FindReplaceDialog(this);
+        connect(m_findReplaceDialog,
+                &FindReplaceDialog::findNext,
+                this,
+                &RemoteEditWidget::slot_findNext);
+        connect(m_findReplaceDialog,
+                &FindReplaceDialog::findPrevious,
+                this,
+                &RemoteEditWidget::slot_findPrevious);
+        connect(m_findReplaceDialog,
+                &FindReplaceDialog::replace,
+                this,
+                &RemoteEditWidget::slot_replace);
+        connect(m_findReplaceDialog,
+                &FindReplaceDialog::replaceAll,
+                this,
+                &RemoteEditWidget::slot_replaceAll);
+    }
+    m_findReplaceDialog->show();
+    m_findReplaceDialog->raise();
+    m_findReplaceDialog->activateWindow();
+}
+
+/// Slot to find the next occurrence of the search text.
+/// Uses parameters from the FindReplaceDialog if it's open and visible.
+/// If the dialog is not visible (e.g., F3 shortcut used), it attempts to use
+/// the last search parameters from the dialog. If no dialog/text, opens the dialog.
+void RemoteEditWidget::slot_findNext()
+{
+    QString findText;
+    QTextDocument::FindFlags flags;
+    bool wrapAround = false;
+    bool dialogAvailable = false;
+
+    if (m_findReplaceDialog) {
+        dialogAvailable = true;
+        findText = m_findReplaceDialog->getFindText();
+        if (m_findReplaceDialog->isCaseSensitive())
+            flags |= QTextDocument::FindCaseSensitively;
+        if (m_findReplaceDialog->isWholeWords())
+            flags |= QTextDocument::FindWholeWords;
+        wrapAround = m_findReplaceDialog->isWrapAround();
+    }
+
+    if (findText.isEmpty()) {
+        if (dialogAvailable) { // If dialog was there but no text, prompt in dialog
+            statusBar()->showMessage(tr("Nothing to find. Please enter search text in the dialog."));
+            m_findReplaceDialog->activateWindow();
+            m_findReplaceDialog->raise();
+        } else { // No dialog, no text, so open it
+            slot_findReplace();
+        }
+        return;
+    }
+
+    if (!m_textEdit->findNext(findText, flags)) {
+        if (wrapAround) {
+            m_textEdit->moveCursor(QTextCursor::Start); // Move to start for wrap around
+            if (!m_textEdit->findNext(findText, flags)) {
+                statusBar()->showMessage(tr("Text not found: '%1'").arg(findText));
+            } else {
+                statusBar()->showMessage(tr("Found: '%1' (wrapped)").arg(findText));
+            }
+        } else {
+            statusBar()->showMessage(tr("Text not found: '%1'").arg(findText));
+        }
+    } else {
+        statusBar()->showMessage(tr("Found: '%1'").arg(findText));
+    }
+}
+
+/// Slot to find the previous occurrence of the search text.
+/// Uses parameters from the FindReplaceDialog if it's open and visible.
+/// If the dialog is not visible (e.g., Shift+F3 shortcut used), it attempts to use
+/// the last search parameters from the dialog. If no dialog/text, opens the dialog.
+void RemoteEditWidget::slot_findPrevious()
+{
+    QString findText;
+    QTextDocument::FindFlags flags;
+    bool wrapAround = false;
+    bool dialogAvailable = false;
+
+    if (m_findReplaceDialog) {
+        dialogAvailable = true;
+        findText = m_findReplaceDialog->getFindText();
+        if (m_findReplaceDialog->isCaseSensitive())
+            flags |= QTextDocument::FindCaseSensitively;
+        if (m_findReplaceDialog->isWholeWords())
+            flags |= QTextDocument::FindWholeWords;
+        wrapAround = m_findReplaceDialog->isWrapAround();
+    }
+
+    if (findText.isEmpty()) {
+        if (dialogAvailable) { // If dialog was there but no text, prompt in dialog
+            statusBar()->showMessage(tr("Nothing to find. Please enter search text in the dialog."));
+            m_findReplaceDialog->activateWindow();
+            m_findReplaceDialog->raise();
+        } else { // No dialog, no text, so open it
+            slot_findReplace();
+        }
+        return;
+    }
+
+    if (!m_textEdit->findPrevious(findText, flags)) {
+        if (wrapAround) {
+            m_textEdit->moveCursor(QTextCursor::End); // Move to end for wrap around
+            if (!m_textEdit->findPrevious(findText, flags)) {
+                statusBar()->showMessage(tr("Text not found: '%1'").arg(findText));
+            } else {
+                statusBar()->showMessage(tr("Found: '%1' (wrapped)").arg(findText));
+            }
+        } else {
+            statusBar()->showMessage(tr("Text not found: '%1'").arg(findText));
+        }
+    } else {
+        statusBar()->showMessage(tr("Found: '%1'").arg(findText));
+    }
+}
+
+/// Slot to replace the current selection (if it matches the find text)
+/// with the replacement text and then find the next occurrence.
+/// Requires the FindReplaceDialog to be open. If not, it opens the dialog.
+void RemoteEditWidget::slot_replace()
+{
+    if (!m_findReplaceDialog || !m_findReplaceDialog->isVisible()) {
+        statusBar()->showMessage(tr("Please open the Find/Replace dialog first."));
+        slot_findReplace(); // Open or show the dialog
+        return;
+    }
+
+    QString findText = m_findReplaceDialog->getFindText();
+    QString replaceText = m_findReplaceDialog->getReplaceText();
+
+    if (findText.isEmpty()) {
+        statusBar()->showMessage(tr("Nothing to find. Please enter search text."));
+        m_findReplaceDialog->activateWindow(); // Bring dialog to front
+        return;
+    }
+
+    QTextDocument::FindFlags flags;
+    if (m_findReplaceDialog->isCaseSensitive())
+        flags |= QTextDocument::FindCaseSensitively;
+    if (m_findReplaceDialog->isWholeWords())
+        flags |= QTextDocument::FindWholeWords;
+
+    // The replace method in RemoteTextEdit handles the actual replacement and then finds next.
+    // It also internally checks if the current selection matches findText.
+    m_textEdit->replace(findText, replaceText, flags);
+
+    // Status update for what was found next (or not) will be handled by findNext logic
+    // called within m_textEdit->replace, which eventually updates the status bar.
+    // We can add a specific "Replaced and found..." message if desired.
+    if (m_textEdit->textCursor().hasSelection()) {
+        statusBar()->showMessage(tr("Replaced and found next: '%1'").arg(findText));
+    } else {
+        // If findNext within replace didn't find anything, it might have already shown "Text not
+        // found" or we might be at the end. For clarity, we can set a status here if nothing is
+        // selected.
+        if (!m_textEdit->findNext(findText,
+                                  flags
+                                      | QTextDocument::FindBackward)) // check if any instance exists
+            statusBar()->showMessage(tr("Replaced last occurrence of '%1'").arg(findText));
+        // else findNext in replace already showed "Text not found" if it was not a wrap search
+    }
+}
+
+/// Slot to replace all occurrences of the find text with the replacement text.
+/// Requires the FindReplaceDialog to be open. If not, it opens the dialog.
+void RemoteEditWidget::slot_replaceAll()
+{
+    if (!m_findReplaceDialog || !m_findReplaceDialog->isVisible()) {
+        statusBar()->showMessage(tr("Please open the Find/Replace dialog first."));
+        slot_findReplace(); // Open or show the dialog
+        return;
+    }
+
+    QString findText = m_findReplaceDialog->getFindText();
+    QString replaceText = m_findReplaceDialog->getReplaceText();
+
+    if (findText.isEmpty()) {
+        statusBar()->showMessage(tr("Nothing to find. Please enter search text."));
+        m_findReplaceDialog->activateWindow(); // Bring dialog to front
+        return;
+    }
+
+    QTextDocument::FindFlags flags;
+    if (m_findReplaceDialog->isCaseSensitive())
+        flags |= QTextDocument::FindCaseSensitively;
+    if (m_findReplaceDialog->isWholeWords())
+        flags |= QTextDocument::FindWholeWords;
+
+    // Store current cursor position
+    QTextCursor oldCursor = m_textEdit->textCursor();
+
+    m_textEdit->replaceAll(findText, replaceText, flags); // This moves the cursor
+
+    // Restore cursor position to where it was before "Replace All"
+    // This is a common behavior for "Replace All" to not lose user's context.
+    m_textEdit->setTextCursor(oldCursor);
+
+    // A more accurate count could be returned by RemoteTextEdit::replaceAll if modified.
+    // For now, a generic message.
+    statusBar()->showMessage(
+        tr("Replaced all occurrences of '%1' with '%2'.").arg(findText, replaceText));
+}
+
+/// Slot to show a dialog and go to the specified line number.
+void RemoteEditWidget::slot_gotoLine()
+{
+    bool ok;
+    // QPlainTextEdit::document()->blockCount() gives the number of lines.
+    // QInputDialog::getInt takes min and max values for the input.
+    // Current line is blockNumber() + 1 (for 1-indexed display).
+    const int currentLine = m_textEdit->textCursor().blockNumber() + 1;
+    const int maxLines = m_textEdit->document()->blockCount();
+
+    const int lineNum = QInputDialog::getInt(this,
+                                             tr("Go to Line"),
+                                             tr("Line number (1-%1):").arg(maxLines),
+                                             currentLine, // Default value
+                                             1,           // Minimum line number
+                                             maxLines,    // Maximum line number
+                                             1,           // Step
+                                             &ok);
+    if (ok) {
+        // lineNum is 1-indexed from dialog, convert to 0-indexed for gotoLine
+        m_textEdit->gotoLine(lineNum - 1);
+        statusBar()->showMessage(tr("Moved to line %1").arg(lineNum));
+    }
 }
 
 RemoteEditWidget::~RemoteEditWidget()

@@ -22,6 +22,7 @@ struct EditViewCommand;
 struct EditCommand2;
 
 class AnsiViewWindow;
+class FindReplaceDialog;
 class QCloseEvent;
 class QMenu;
 class QMenuBar;
@@ -124,6 +125,40 @@ public:
 public:
     void prefixPartialSelection(const QString &prefix);
 
+    // Find/Replace and Goto Line methods
+    /// Finds the next occurrence of the given text.
+    /// @param text The text to find.
+    /// @param flags The search flags (e.g., case sensitivity).
+    /// @return True if the text was found, false otherwise.
+    bool findNext(const QString &text, QTextDocument::FindFlags flags);
+
+    /// Finds the previous occurrence of the given text.
+    /// @param text The text to find.
+    /// @param flags The search flags (e.g., case sensitivity).
+    /// @return True if the text was found, false otherwise.
+    bool findPrevious(const QString &text, QTextDocument::FindFlags flags);
+
+    /// Replaces the current selection if it matches findText and then finds the next occurrence.
+    /// @param findText The text to find.
+    /// @param replaceText The text to replace with.
+    /// @param flags The search flags.
+    void replace(const QString &findText,
+                 const QString &replaceText,
+                 QTextDocument::FindFlags flags);
+
+    /// Replaces all occurrences of findText with replaceText.
+    /// @param findText The text to find.
+    /// @param replaceText The text to replace with.
+    /// @param flags The search flags.
+    /// @return The number of replacements made.
+    int replaceAll(const QString &findText,
+                   const QString &replaceText,
+                   QTextDocument::FindFlags flags);
+
+    /// Moves the cursor to the beginning of the specified line number.
+    /// @param lineNum The 0-indexed line number to go to.
+    void gotoLine(int lineNum);
+
 private:
     void handleEventTab(QKeyEvent *event);
     void handleEventBacktab(QKeyEvent *event);
@@ -145,6 +180,7 @@ private:
     bool m_submitted = false;
     QScopedPointer<Editor> m_textEdit;
     std::unique_ptr<AnsiViewWindow> m_preview;
+    FindReplaceDialog *m_findReplaceDialog = nullptr; // Modeless find/replace dialog instance
 
 public:
     explicit RemoteEditWidget(bool editSession, QString title, QString body, QWidget *parent);
@@ -180,6 +216,14 @@ protected slots:
     NODISCARD bool slot_maybeCancel();
     NODISCARD bool slot_contentsChanged() const;
     void slot_updateStatusBar();
+
+    // Slots for Find/Replace/Goto actions, manually declared
+    void slot_findReplace();
+    void slot_findNext();
+    void slot_findPrevious();
+    void slot_replace();
+    void slot_replaceAll();
+    void slot_gotoLine();
 
 #define X_DECLARE_SLOT(a, b, c, d, e) void slot_##a();
     XFOREACH_REMOTE_EDIT_MENU_ITEM(X_DECLARE_SLOT)

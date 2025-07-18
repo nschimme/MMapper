@@ -17,7 +17,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include <QOpenGLFunctions_3_3_Core>
+#include <QOpenGLExtraFunctions>
 
 class OpenGL;
 
@@ -77,11 +77,10 @@ using WeakFunctions = std::weak_ptr<Functions>;
 /// \c Legacy::Functions implements both GL 3.1 and ES 2.0 (based on a subset of
 /// GL 2.0); this is accomplished by using separate implementation files for the
 /// differences between GL 3.1 and ES 2.0.
-class NODISCARD Functions final : private QOpenGLFunctions_3_3_Core,
-                                  public std::enable_shared_from_this<Functions>
+class NODISCARD Functions final : public std::enable_shared_from_this<Functions>
 {
 private:
-    using Base = QOpenGLFunctions_3_3_Core;
+    std::unique_ptr<QOpenGLExtraFunctions> m_gl;
     glm::mat4 m_viewProj = glm::mat4(1);
     Viewport m_viewport;
     float m_devicePixelRatio = 1.f;
@@ -96,10 +95,11 @@ public:
 public:
     explicit Functions(Badge<Functions>);
 
-    ~Functions() override;
+    ~Functions();
     DELETE_CTORS_AND_ASSIGN_OPS(Functions);
 
 public:
+    NODISCARD QOpenGLExtraFunctions *get() { return m_gl.get(); }
     NODISCARD float getDevicePixelRatio() const { return m_devicePixelRatio; }
 
     void setDevicePixelRatio(const float devicePixelRatio)
@@ -122,53 +122,65 @@ public:
     }
 
 public:
-    using Base::initializeOpenGLFunctions;
+    void initializeOpenGLFunctions();
 
 public:
-    using Base::glAttachShader;
-    using Base::glBindBuffer;
-    using Base::glBlendFunc;
-    using Base::glBlendFuncSeparate;
-    using Base::glBufferData;
-    using Base::glClear;
-    using Base::glClearColor;
-    using Base::glCompileShader;
-    using Base::glCreateProgram;
-    using Base::glCreateShader;
-    using Base::glCullFace;
-    using Base::glDeleteBuffers;
-    using Base::glDeleteProgram;
-    using Base::glDeleteShader;
-    using Base::glDepthFunc;
-    using Base::glDetachShader;
-    using Base::glDisable;
-    using Base::glDisableVertexAttribArray;
-    using Base::glDrawArrays;
-    using Base::glEnable;
-    using Base::glEnableVertexAttribArray;
-    using Base::glGenBuffers;
-    using Base::glGetAttribLocation;
-    using Base::glGetIntegerv;
-    using Base::glGetProgramInfoLog;
-    using Base::glGetProgramiv;
-    using Base::glGetShaderInfoLog;
-    using Base::glGetShaderiv;
-    using Base::glGetString;
-    using Base::glGetUniformLocation;
-    using Base::glHint;
-    using Base::glIsBuffer;
-    using Base::glIsProgram;
-    using Base::glIsShader;
-    using Base::glIsTexture;
-    using Base::glLinkProgram;
-    using Base::glShaderSource;
-    using Base::glUniform1fv;
-    using Base::glUniform1iv;
-    using Base::glUniform4fv;
-    using Base::glUniform4iv;
-    using Base::glUniformMatrix4fv;
-    using Base::glUseProgram;
-    using Base::glVertexAttribPointer;
+    // Forward declarations for the functions we need
+    void glAttachShader(GLuint program, GLuint shader);
+    void glBindBuffer(GLenum target, GLuint buffer);
+    void glBlendFunc(GLenum sfactor, GLenum dfactor);
+    void glBlendFuncSeparate(GLenum srcRGB, GLenum dstRGB, GLenum srcAlpha, GLenum dstAlpha);
+    void glBufferData(GLenum target, GLsizeiptr size, const void *data, GLenum usage);
+    void glClear(GLbitfield mask);
+    void glClearColor(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha);
+    void glCompileShader(GLuint shader);
+    GLuint glCreateProgram();
+    GLuint glCreateShader(GLenum type);
+    void glCullFace(GLenum mode);
+    void glDeleteBuffers(GLsizei n, const GLuint *buffers);
+    void glDeleteProgram(GLuint program);
+    void glDeleteShader(GLuint shader);
+    void glDepthFunc(GLenum func);
+    void glDetachShader(GLuint program, GLuint shader);
+    void glDisable(GLenum cap);
+    void glDisableVertexAttribArray(GLuint index);
+    void glDrawArrays(GLenum mode, GLint first, GLsizei count);
+    void glEnable(GLenum cap);
+    void glEnableVertexAttribArray(GLuint index);
+    void glGenBuffers(GLsizei n, GLuint *buffers);
+    GLint glGetAttribLocation(GLuint program, const GLchar *name);
+    void glGetIntegerv(GLenum pname, GLint *data);
+    void glGetProgramInfoLog(GLuint program, GLsizei maxLength, GLsizei *length, GLchar *infoLog);
+    void glGetProgramiv(GLuint program, GLenum pname, GLint *params);
+    void glGetShaderInfoLog(GLuint shader, GLsizei maxLength, GLsizei *length, GLchar *infoLog);
+    void glGetShaderiv(GLuint shader, GLenum pname, GLint *params);
+    const GLubyte *glGetString(GLenum name);
+    GLint glGetUniformLocation(GLuint program, const GLchar *name);
+    void glHint(GLenum target, GLenum mode);
+    GLboolean glIsBuffer(GLuint buffer);
+    GLboolean glIsProgram(GLuint program);
+    GLboolean glIsShader(GLuint shader);
+    GLboolean glIsTexture(GLuint texture);
+    void glLinkProgram(GLuint program);
+    void glShaderSource(GLuint shader,
+                        GLsizei count,
+                        const GLchar *const *string,
+                        const GLint *length);
+    void glUniform1fv(GLint location, GLsizei count, const GLfloat *value);
+    void glUniform1iv(GLint location, GLsizei count, const GLint *value);
+    void glUniform4fv(GLint location, GLsizei count, const GLfloat *value);
+    void glUniform4iv(GLint location, GLsizei count, const GLint *value);
+    void glUniformMatrix4fv(GLint location,
+                            GLsizei count,
+                            GLboolean transpose,
+                            const GLfloat *value);
+    void glUseProgram(GLuint program);
+    void glVertexAttribPointer(GLuint index,
+                               GLint size,
+                               GLenum type,
+                               GLboolean normalized,
+                               GLsizei stride,
+                               const void *pointer);
 
     // VAO functions
     void glGenVertexArrays(GLsizei n, GLuint *arrays);
@@ -176,18 +188,10 @@ public:
     void glDeleteVertexArrays(GLsizei n, const GLuint *arrays);
 
 public:
-    void glLineWidth(const GLfloat /*lineWidth*/)
-    {
-        // OpenGL man page says "Only width 1 is guaranteed to be supported."
-        Base::glLineWidth(1.f);
-    }
+    void glLineWidth(GLfloat lineWidth);
 
 public:
-    void glViewport(const GLint x, const GLint y, const GLsizei width, const GLsizei height)
-    {
-        m_viewport = Viewport{{x, y}, {width, height}};
-        Base::glViewport(scalei(x), scalei(y), scalei(width), scalei(height));
-    }
+    void glViewport(GLint x, GLint y, GLsizei width, GLsizei height);
 
 private:
     NODISCARD float scalef(const float f) const
@@ -239,7 +243,7 @@ private:
 
 public:
     /// platform-specific (ES vs GL)
-    NODISCARD static const char *getShaderVersion();
+    NODISCARD const char *getShaderVersion();
 
 private:
     template<typename VertexType_>
@@ -250,18 +254,18 @@ private:
         const auto numVerts = static_cast<GLsizei>(batch.size());
         const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
         const auto numBytes = numVerts * vertSize;
-        Base::glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        Base::glBufferData(GL_ARRAY_BUFFER, numBytes, batch.data(), Legacy::toGLenum(usage));
-        Base::glBindBuffer(GL_ARRAY_BUFFER, 0);
+        m_gl->glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        m_gl->glBufferData(GL_ARRAY_BUFFER, numBytes, batch.data(), Legacy::toGLenum(usage));
+        m_gl->glBindBuffer(GL_ARRAY_BUFFER, 0);
         return numVerts;
     }
 
 public:
     /// platform-specific (ES vs GL)
-    NODISCARD static bool canRenderQuads();
+    NODISCARD bool canRenderQuads();
 
     /// platform-specific (ES vs GL)
-    NODISCARD static std::optional<GLenum> toGLenum(DrawModeEnum mode);
+    NODISCARD std::optional<GLenum> toGLenum(DrawModeEnum mode);
 
 public:
     void enableAttrib(const GLuint index,
@@ -271,8 +275,8 @@ public:
                       const GLsizei stride,
                       const GLvoid *const pointer)
     {
-        Base::glEnableVertexAttribArray(index);
-        Base::glVertexAttribPointer(index, size, type, normalized, stride, pointer);
+        m_gl->glEnableVertexAttribArray(index);
+        m_gl->glVertexAttribPointer(index, size, type, normalized, stride, pointer);
     }
 
     template<typename T>
@@ -291,9 +295,9 @@ public:
 
     void clearVbo(const GLuint vbo, const BufferUsageEnum usage = BufferUsageEnum::DYNAMIC_DRAW)
     {
-        Base::glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        Base::glBufferData(GL_ARRAY_BUFFER, 0, nullptr, Legacy::toGLenum(usage));
-        Base::glBindBuffer(GL_ARRAY_BUFFER, 0);
+        m_gl->glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        m_gl->glBufferData(GL_ARRAY_BUFFER, 0, nullptr, Legacy::toGLenum(usage));
+        m_gl->glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
 
 public:

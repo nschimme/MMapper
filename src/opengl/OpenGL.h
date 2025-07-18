@@ -48,7 +48,7 @@ public:
 
 public:
     /* must be called before any other functions */
-    void initializeOpenGLFunctions();
+    bool initializeOpenGLFunctions();
     void initializeRenderer(float devicePixelRatio);
     NODISCARD const char *glGetString(GLenum name);
     void setDevicePixelRatio(float devicePixelRatio);

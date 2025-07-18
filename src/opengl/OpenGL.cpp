@@ -479,11 +479,10 @@ void OpenGL::renderFont3d(const SharedMMTexture &texture, const std::vector<Font
     getFunctions().renderFont3d(texture, verts);
 }
 
-void OpenGL::initializeOpenGLFunctions()
+bool OpenGL::initializeOpenGLFunctions()
 {
-    if (!getFunctions().initializeOpenGLFunctions()) {
-        throw std::runtime_error("failed to initialize");
-    }
+    getFunctions().initializeOpenGLFunctions();
+    return true;
 }
 
 const char *OpenGL::glGetString(GLenum name)
@@ -515,7 +514,7 @@ void OpenGL::setTextureLookup(const MMTextureId id, SharedMMTexture tex)
 
 namespace init_array_helper {
 
-NODISCARD static GLint xglGetTexParameteri(QOpenGLFunctions_3_3_Core &gl,
+NODISCARD static GLint xglGetTexParameteri(QOpenGLExtraFunctions &gl,
                                            GLenum target,
                                            GLenum pname)
 {
@@ -524,7 +523,7 @@ NODISCARD static GLint xglGetTexParameteri(QOpenGLFunctions_3_3_Core &gl,
     return result;
 }
 
-NODISCARD static GLint xglGetTexLevelParameteri(QOpenGLFunctions_3_3_Core &gl,
+NODISCARD static GLint xglGetTexLevelParameteri(QOpenGLExtraFunctions &gl,
                                                 GLenum target,
                                                 GLint level,
                                                 GLenum pname)
@@ -534,7 +533,7 @@ NODISCARD static GLint xglGetTexLevelParameteri(QOpenGLFunctions_3_3_Core &gl,
     return result;
 }
 
-static void buildTexture2dArray(QOpenGLFunctions_3_3_Core &gl,
+static void buildTexture2dArray(QOpenGLExtraFunctions &gl,
                                 const GLuint vbo,
                                 const std::vector<GLuint> &srcNames,
                                 const GLuint dstName,
@@ -572,7 +571,7 @@ static void buildTexture2dArray(QOpenGLFunctions_3_3_Core &gl,
 
     struct NODISCARD CleanupRaii final
     {
-        QOpenGLFunctions_3_3_Core &m_gl;
+        QOpenGLExtraFunctions &m_gl;
         ~CleanupRaii()
         {
             m_gl.glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
@@ -627,7 +626,13 @@ static void buildTexture2dArray(QOpenGLFunctions_3_3_Core &gl,
             assert(level_width == img_width >> level);
 
             // writes to GL_PIXEL_PACK_BUFFER
-            gl.glGetTexImage(GL_TEXTURE_2D, level, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+            {
+                const GLsizei bufSize = level_width * level_height * 4;
+                gl.glBindBuffer(GL_PIXEL_PACK_BUFFER, vbo);
+                gl.glBufferData(GL_PIXEL_PACK_BUFFER, bufSize, nullptr, GL_DYNAMIC_COPY);
+                gl.glReadPixels(0, 0, level_width, level_height, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+                gl.glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+            }
 
             // reads from GL_PIXEL_UNPACK_BUFFER
             gl.glActiveTexture(GL_TEXTURE0);
@@ -664,7 +669,7 @@ void OpenGL::initArray(const SharedMMTexture &array, const std::vector<SharedMMT
     assert(srcNames.size() == input.size());
     assert(qtex.layers() == static_cast<int>(input.size()));
 
-    init_array_helper::buildTexture2dArray(getFunctions(),
+    init_array_helper::buildTexture2dArray(deref(getFunctions().get()),
                                            vbo.get(),
                                            srcNames,
                                            qtex.textureId(),

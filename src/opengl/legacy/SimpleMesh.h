@@ -182,7 +182,7 @@ private:
 
         auto attribUnbinder = bindAttribs();
 
-        if (const std::optional<GLenum> &optMode = Functions::toGLenum(m_drawMode)) {
+        if (const std::optional<GLenum> &optMode = m_functions.toGLenum(m_drawMode)) {
             m_functions.glDrawArrays(optMode.value(), 0, m_numVerts);
         } else {
             assert(false);

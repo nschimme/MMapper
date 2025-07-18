@@ -4,9 +4,17 @@
 
 namespace Legacy {
 
+#include <QOpenGLContext>
+#include <QSurfaceFormat>
+
 bool Functions::canRenderQuads()
 {
-    return true;
+    QOpenGLContext *ctx = QOpenGLContext::currentContext();
+    if (ctx) {
+        QSurfaceFormat format = ctx->format();
+        return format.profile() == QSurfaceFormat::CompatibilityProfile;
+    }
+    return false;
 }
 
 std::optional<GLenum> Functions::toGLenum(const DrawModeEnum mode)

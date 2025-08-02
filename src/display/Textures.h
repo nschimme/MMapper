@@ -128,7 +128,6 @@ using TextureArrayNESWUD = EnumIndexedArray<SharedMMTexture, ExitDirEnum, NUM_EX
     X(SharedMMTexture, room_sel_distant) \
     X(SharedMMTexture, room_sel_move_bad) \
     X(SharedMMTexture, room_sel_move_good) \
-    X(SharedMMTexture, room_needs_update) \
     X(SharedMMTexture, room_modified)
 
 struct NODISCARD MapCanvasTextures final

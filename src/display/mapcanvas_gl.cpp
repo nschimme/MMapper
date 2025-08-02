@@ -706,7 +706,7 @@ void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current)
                 if (showChanged) {
                     ProgressCounter dummyPc;
                     Map::foreachChangedRoom(dummyPc, saved, current, [&](const RawRoom &room) {
-                        room_highlights[room.getId()] = Colors::blue;
+                        room_highlights[room.getId()] = Colors::cyan;
                     });
                 }
 

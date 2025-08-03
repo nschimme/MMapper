@@ -699,9 +699,9 @@ void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current)
                         if (auto h = current.getRoomHandle(id)) {
                             if (h.isTemporary()) {
                                 // TODO: add a toggle for temporary rooms
-                                room_highlights[id] = colors.DIFF_NEW_ROOM;
+                                room_highlights[id] = colors.HIGHLIGHT_NEW_ROOM;
                             } else if (h.getServerId() == INVALID_SERVER_ROOMID) {
-                                room_highlights[id] = colors.DIFF_MODIFIED_ROOM;
+                                room_highlights[id] = colors.HIGHLIGHT_MODIFIED_ROOM;
                             }
                         }
                     });
@@ -711,7 +711,7 @@ void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current)
                     ProgressCounter dummyPc;
                     const auto &colors = getNamedColorOptions();
                     Map::foreachChangedRoom(dummyPc, saved, current, [&](const RawRoom &room) {
-                        room_highlights[room.getId()] = colors.DIFF_DELETED_ROOM;
+                        room_highlights[room.getId()] = colors.HIGHLIGHT_DELETED_ROOM;
                     });
                 }
 

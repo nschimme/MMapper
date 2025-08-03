@@ -696,7 +696,11 @@ void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current)
                 if (showNeedsServerId) {
                     current.getRooms().for_each([&](auto id) {
                         if (auto h = current.getRoomHandle(id)) {
-                            if (h.getServerId() == INVALID_SERVER_ROOMID) {
+                            if (h.isTemporary()) {
+                                // TODO: add a toggle for temporary rooms
+                                room_highlights[id] = Colors::red;
+                            }
+                            else if (h.getServerId() == INVALID_SERVER_ROOMID) {
                                 room_highlights[id] = Colors::yellow;
                             }
                         }

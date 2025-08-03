@@ -694,14 +694,14 @@ void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current)
 
                 std::map<RoomId, Color> room_highlights;
                 if (showNeedsServerId) {
+                    const auto &colors = getNamedColorOptions();
                     current.getRooms().for_each([&](auto id) {
                         if (auto h = current.getRoomHandle(id)) {
                             if (h.isTemporary()) {
                                 // TODO: add a toggle for temporary rooms
-                                room_highlights[id] = Colors::red;
-                            }
-                            else if (h.getServerId() == INVALID_SERVER_ROOMID) {
-                                room_highlights[id] = Colors::yellow;
+                                room_highlights[id] = colors.DIFF_NEW_ROOM;
+                            } else if (h.getServerId() == INVALID_SERVER_ROOMID) {
+                                room_highlights[id] = colors.DIFF_MODIFIED_ROOM;
                             }
                         }
                     });
@@ -709,8 +709,9 @@ void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current)
 
                 if (showChanged) {
                     ProgressCounter dummyPc;
+                    const auto &colors = getNamedColorOptions();
                     Map::foreachChangedRoom(dummyPc, saved, current, [&](const RawRoom &room) {
-                        room_highlights[room.getId()] = Colors::cyan;
+                        room_highlights[room.getId()] = colors.DIFF_DELETED_ROOM;
                     });
                 }
 

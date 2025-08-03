@@ -957,6 +957,10 @@ void Configuration::NamedColorOptions::resetToDefaults()
     WALL_COLOR_RANDOM = Colors::red;
     WALL_COLOR_REGULAR_EXIT = Colors::black;
     WALL_COLOR_SPECIAL = special;
+
+    DIFF_DELETED_ROOM = Colors::cyan;
+    DIFF_NEW_ROOM = Colors::red;
+    DIFF_MODIFIED_ROOM = Colors::yellow;
 }
 
 Configuration::CanvasSettings::Advanced::Advanced()

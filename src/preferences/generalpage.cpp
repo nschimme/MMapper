@@ -156,12 +156,17 @@ void GeneralPage::slot_loadConfig()
     ui->remoteName->setText(connection.remoteServerName);
     ui->remotePort->setValue(connection.remotePort);
     ui->localPort->setValue(connection.localPort);
+#ifdef Q_OS_WASM
+    ui->encryptionCheckBox->setDisabled(true);
+    ui->encryptionCheckBox->setChecked(true);
+#else
     if (!QSslSocket::supportsSsl() && NO_WEBSOCKET) {
         ui->encryptionCheckBox->setEnabled(false);
         ui->encryptionCheckBox->setChecked(false);
     } else {
         ui->encryptionCheckBox->setChecked(connection.tlsEncryption);
     }
+#endif
     ui->proxyListensOnAnyInterfaceCheckBox->setChecked(connection.proxyListensOnAnyInterface);
     ui->charsetComboBox->setCurrentIndex(static_cast<int>(general.characterEncoding));
 

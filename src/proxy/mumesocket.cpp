@@ -24,9 +24,18 @@ static constexpr int TIMEOUT_MILLIS = 5000;
 static constexpr auto ENCRYPTION_WARNING = "ENCRYPTION WARNING";
 static constexpr auto CONNECTION_WARNING = "Warning";
 
+namespace {
+
+bool supportsSsl()
+{
 #ifdef Q_OS_WASM
-#define QSslSocket::supportsSsl() false
+    return false;
+#else
+    return QSslSocket::supportsSsl();
 #endif
+}
+
+} // namespace
 
 MumeSocketOutputs::~MumeSocketOutputs() = default;
 
@@ -113,13 +122,13 @@ void MumeFallbackSocket::disconnectFromHost()
 void MumeFallbackSocket::connectToHost()
 {
     stopTimer();
-    if (m_state == SocketTypeEnum::SSL && !QSslSocket::supportsSsl()) {
+    if (m_state == SocketTypeEnum::SSL && !supportsSsl()) {
         m_state = SocketTypeEnum::WEBSOCKET;
     }
     if (m_state == SocketTypeEnum::WEBSOCKET && NO_WEBSOCKET) {
         m_state = SocketTypeEnum::INSECURE;
     }
-    if (m_state == SocketTypeEnum::INSECURE && (QSslSocket::supportsSsl() || !NO_WEBSOCKET)
+    if (m_state == SocketTypeEnum::INSECURE && (supportsSsl() || !NO_WEBSOCKET)
         && getConfig().connection.tlsEncryption) {
         // Request user to disable encryption
         m_outputs.onSocketError("Attempt was rejected because insecure connections are"
@@ -135,14 +144,18 @@ void MumeFallbackSocket::connectToHost()
     auto &wrapper = deref(m_wrapper);
     switch (m_state) {
     case SocketTypeEnum::SSL:
+#ifndef Q_OS_WASM
         m_socket.reset(new MumeSslSocket(this, wrapper));
+#endif
         break;
     case SocketTypeEnum::WEBSOCKET:
         assert(!NO_WEBSOCKET);
         m_socket.reset(new MumeWebSocket(this, wrapper));
         break;
     case SocketTypeEnum::INSECURE:
+#ifndef Q_OS_WASM
         m_socket.reset(new MumeTcpSocket(this, wrapper));
+#endif
         break;
     default:
         assert(false);
@@ -203,6 +216,7 @@ void MumeSocket::virt_onError2(const QString &errorString)
     m_outputs.onSocketError(errorStr);
 }
 
+#ifndef Q_OS_WASM
 MumeSslSocket::MumeSslSocket(QObject *parent, MumeSocketOutputs &outputs)
     : MumeSocket(parent, outputs)
     , m_socket{this}
@@ -339,7 +353,7 @@ void MumeTcpSocket::virt_connectToHost()
 void MumeTcpSocket::virt_onConnect()
 {
     // Warn user of the insecure connection
-    if (!QSslSocket::supportsSsl() && NO_WEBSOCKET) {
+    if (!supportsSsl() && NO_WEBSOCKET) {
         m_outputs.onSocketWarning(
             AnsiWarningMessage{AnsiColor16Enum::white,
                                AnsiColor16Enum::red,
@@ -348,7 +362,7 @@ void MumeTcpSocket::virt_onConnect()
                                " MMapper with OpenSSL or WebSocket support to get rid of"
                                " this message."});
 
-    } else if (QSslSocket::supportsSsl() || !NO_WEBSOCKET) {
+    } else if (supportsSsl() || !NO_WEBSOCKET) {
         m_outputs.onSocketWarning(
             AnsiWarningMessage{AnsiColor16Enum::white,
                                AnsiColor16Enum::red,
@@ -366,6 +380,7 @@ void MumeTcpSocket::virt_onConnect()
 
     m_outputs.onConnected();
 }
+#endif
 
 MumeWebSocket::MumeWebSocket(QObject *parent, MumeSocketOutputs &outputs)
     : MumeSocket(parent, outputs)
@@ -384,10 +399,12 @@ MumeWebSocket::MumeWebSocket(QObject *parent, MumeSocketOutputs &outputs)
             QOverload<QAbstractSocket::SocketError>::of(&QWebSocket::error),
             this,
             [this](QAbstractSocket::SocketError e) { onError(e); });
+#ifndef Q_OS_WASM
     connect(&m_socket,
             QOverload<const QList<QSslError> &>::of(&QWebSocket::sslErrors),
             this,
             &MumeWebSocket::onSslErrors);
+#endif
     connect(&m_pingTimer, &QTimer::timeout, &m_socket, [this]() { m_socket.ping(); });
 #endif
 
@@ -466,6 +483,7 @@ void MumeWebSocket::virt_onError(QAbstractSocket::SocketError e)
     }
 }
 
+#ifndef Q_OS_WASM
 void MumeWebSocket::onSslErrors(const QList<QSslError> &errors)
 {
     QString msg;
@@ -488,3 +506,4 @@ void MumeWebSocket::onSslErrors(const QList<QSslError> &errors)
     m_outputs.onSocketWarning(
         AnsiWarningMessage{AnsiColor16Enum::white, AnsiColor16Enum::red, ENCRYPTION_WARNING, msg});
 }
+#endif

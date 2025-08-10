@@ -318,9 +318,7 @@ void Proxy::allocMudSocket()
             getMudParser().onReset();
             getGroupManager().onReset();
             getProxy().mudTerminatedConnection();
-            if (getProxy().m_remoteEdit) {
-                getRemoteEdit().onDisconnected();
-            }
+            getRemoteEdit().onDisconnected();
         }
 
         void virt_onProcessMudStream(const TelnetIacBytes &bytes) final
@@ -458,6 +456,8 @@ void Proxy::allocMudTelnet()
             if (getProxy().m_connectionType == ConnectionType::External) {
                 // forwarded (to user)
                 getUserTelnet().onRelayEchoMode(echo);
+            } else {
+                emit getProxy().echoModeChanged(echo);
             }
 
             // observers
@@ -492,8 +492,10 @@ void Proxy::allocMudTelnet()
 
         void virt_onSendMSSPToUser(const TelnetMsspBytes &bytes) final
         {
-            // forwarded (to user)
-            getUserTelnet().onSendMSSPToUser(bytes);
+            if (getProxy().m_connectionType == ConnectionType::External) {
+                // forwarded (to user)
+                getUserTelnet().onSendMSSPToUser(bytes);
+            }
         }
 
         void virt_onTryCharLogin() final

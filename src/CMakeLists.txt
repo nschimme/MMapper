@@ -744,7 +744,7 @@ if(WITH_IMAGES)
     add_dependencies(mmapper images_qrc)
 endif()
 
-if(WITH_ZLIB)
+if(WITH_ZLIB AND NOT EMSCRIPTEN)
     target_include_directories(mmapper SYSTEM PUBLIC ${ZLIB_INCLUDE_DIRS})
     target_include_directories(mm_global SYSTEM PUBLIC ${ZLIB_INCLUDE_DIRS})
     target_link_libraries(mmapper PUBLIC ${ZLIB_LIBRARIES})

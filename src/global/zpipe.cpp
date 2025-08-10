@@ -26,15 +26,15 @@
 #include <io.h>
 #endif
 
-static inline constexpr const size_t PAGE_SIZE = 1u << 12;
-static_assert(PAGE_SIZE != 0 && (PAGE_SIZE & (PAGE_SIZE - 1)) == 0,
-              "PAGE_SIZE must be a power of two");
+static inline constexpr const size_t MM_PAGE_SIZE = 1u << 12;
+static_assert(MM_PAGE_SIZE != 0 && (MM_PAGE_SIZE & (MM_PAGE_SIZE - 1)) == 0,
+              "MM_PAGE_SIZE must be a power of two");
 
-#define PAGE_ALIGN alignas(PAGE_SIZE)
+#define PAGE_ALIGN alignas(MM_PAGE_SIZE)
 
 static inline constexpr const size_t CHUNK = 1u << 14;
 static_assert(CHUNK != 0 && (CHUNK & (CHUNK - 1)) == 0, "CHUNK must be a power of two");
-static_assert(CHUNK >= PAGE_SIZE);
+static_assert(CHUNK >= MM_PAGE_SIZE);
 
 namespace mmz {
 

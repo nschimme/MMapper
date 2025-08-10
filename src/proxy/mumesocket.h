@@ -146,7 +146,9 @@ class NODISCARD_QOBJECT MumeSslSocket : public MumeSocket
 
 protected:
     io::buffer<(1 << 13)> m_buffer;
+#ifndef Q_OS_WASM
     QSslSocket m_socket;
+#endif
 
 public:
     explicit MumeSslSocket(QObject *parent, MumeSocketOutputs &outputs);

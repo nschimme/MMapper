@@ -38,6 +38,7 @@ class ConfigDialog;
 class ConnectionListener;
 class ConnectionSelection;
 class FindRoomsDlg;
+class Proxy;
 class GameObserver;
 class GroupWidget;
 class InfomarkSelection;
@@ -88,6 +89,7 @@ private:
 
     std::unique_ptr<GameObserver> m_gameObserver;
     AutoLogger *m_logger = nullptr;
+    QPointer<Proxy> m_proxy;
     ConnectionListener *m_listener = nullptr;
     Mmapper2PathMachine *m_pathMachine = nullptr;
     MapData *m_mapData = nullptr;

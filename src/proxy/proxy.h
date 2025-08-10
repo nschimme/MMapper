@@ -75,10 +75,13 @@ private:
     MumeClock &m_mumeClock;
     MapCanvas &m_mapCanvas;
     GameObserver &m_gameObserver;
-    const qintptr m_socketDescriptor;
+    qintptr m_socketDescriptor = 0;
     MainWindow &m_mainWindow;
 
 private:
+    enum class ConnectionType { None, BuiltIn, External };
+    ConnectionType m_connectionType = ConnectionType::None;
+
     class UserSocket;
     struct UserSocketOutputs;
     struct NODISCARD Pipeline final
@@ -165,18 +168,7 @@ private:
     ServerStateEnum m_serverState = ServerStateEnum::Initialized;
 
 public:
-    NODISCARD static QPointer<Proxy> allocInit(MapData &,
-                                               Mmapper2PathMachine &,
-                                               PrespammedPath &,
-                                               Mmapper2Group &,
-                                               MumeClock &,
-                                               MapCanvas &,
-                                               GameObserver &,
-                                               qintptr &,
-                                               ConnectionListener &);
-
-public:
-    explicit Proxy(Badge<Proxy>,
+    explicit Proxy(
                    MapData &,
                    Mmapper2PathMachine &,
                    PrespammedPath &,
@@ -184,9 +176,12 @@ public:
                    MumeClock &,
                    MapCanvas &,
                    GameObserver &,
-                   qintptr &,
-                   ConnectionListener &);
+                   MainWindow &);
     ~Proxy() final;
+
+    void activateAsBuiltIn();
+    void activateWithSocket(qintptr socketDescriptor);
+    void deactivate();
 
 private:
     void init();

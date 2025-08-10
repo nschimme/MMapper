@@ -26,6 +26,7 @@
 #include "../pathmachine/mmapper2pathmachine.h"
 #include "../preferences/configdialog.h"
 #include "../proxy/connectionlistener.h"
+#include "../proxy/proxy.h"
 #include "../roompanel/RoomManager.h"
 #include "../roompanel/RoomWidget.h"
 #include "../viewers/TopLevelWindows.h"
@@ -262,14 +263,17 @@ MainWindow::MainWindow()
         deref(m_logger).slot_writeToLog(msg);
     });
 
-    m_listener = new ConnectionListener(deref(m_mapData),
-                                        deref(m_pathMachine),
-                                        deref(m_prespammedPath),
-                                        deref(m_groupManager),
-                                        deref(m_mumeClock),
-                                        deref(getCanvas()),
-                                        deref(m_gameObserver),
-                                        this);
+    m_proxy = new Proxy(deref(m_mapData),
+                        deref(m_pathMachine),
+                        deref(m_prespammedPath),
+                        deref(m_groupManager),
+                        deref(m_mumeClock),
+                        deref(getCanvas()),
+                        deref(m_gameObserver),
+                        *this);
+
+    m_listener = new ConnectionListener(deref(m_proxy), this);
+    m_clientWidget->setProxy(m_proxy);
 
     // update connections
     wireConnections();
@@ -496,6 +500,24 @@ void MainWindow::wireConnections()
     });
     connect(m_clientWidget, &ClientWidget::sig_relayMessage, this, [this](const QString &message) {
         showStatusShort(message);
+    });
+    connect(m_clientWidget, &ClientWidget::playButtonClicked, this, [this]() {
+        m_proxy->activateAsBuiltIn();
+    });
+    connect(m_proxy, &Proxy::dataReadyForClient, m_clientWidget, [this](const QString &text) {
+        m_clientWidget->getDisplay().slot_displayText(text);
+    });
+    connect(m_proxy, &Proxy::clientConnected, m_clientWidget, [this]() {
+        m_clientWidget->relayMessage("Connected to MUME.");
+        m_clientWidget->getInput().setFocus();
+    });
+    connect(m_proxy, &Proxy::clientDisconnected, m_clientWidget, [this]() {
+        m_clientWidget->getDisplay().slot_displayText("\n\n\n");
+        m_clientWidget->relayMessage("Disconnected from MUME.");
+    });
+    connect(m_proxy, &Proxy::echoModeChanged, m_clientWidget, [this](bool echo) {
+        m_clientWidget->getInput().setEchoMode(echo ? EchoModeEnum::Visible
+                                                    : EchoModeEnum::Hidden);
     });
 
     // Find Room Dialog Connections

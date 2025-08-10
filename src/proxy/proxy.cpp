@@ -117,33 +117,16 @@ Proxy::UserSocket::~UserSocket()
     gracefulShutdown();
 }
 
-QPointer<Proxy> Proxy::allocInit(MapData &md,
-                                 Mmapper2PathMachine &pm,
-                                 PrespammedPath &pp,
-                                 Mmapper2Group &gm,
-                                 MumeClock &mc,
-                                 MapCanvas &mca,
-                                 GameObserver &go,
-                                 qintptr &socketDescriptor,
-                                 ConnectionListener &listener)
-{
-    auto proxy = makeQPointer<Proxy>(
-        Badge<Proxy>{}, md, pm, pp, gm, mc, mca, go, socketDescriptor, listener);
-    deref(proxy).init();
-    return proxy;
-}
-
-Proxy::Proxy(Badge<Proxy>,
-             MapData &md,
-             Mmapper2PathMachine &pm,
-             PrespammedPath &pp,
-             Mmapper2Group &gm,
-             MumeClock &mc,
-             MapCanvas &mca,
-             GameObserver &go,
-             qintptr &socketDescriptor,
-             ConnectionListener &listener)
-    : QObject(&listener)
+Proxy::Proxy(
+    MapData &md,
+    Mmapper2PathMachine &pm,
+    PrespammedPath &pp,
+    Mmapper2Group &gm,
+    MumeClock &mc,
+    MapCanvas &mca,
+    GameObserver &go,
+    MainWindow &mw)
+    : QObject(&mw)
     , m_mapData(md)
     , m_pathMachine(pm)
     , m_prespammedPath(pp)
@@ -151,45 +134,57 @@ Proxy::Proxy(Badge<Proxy>,
     , m_mumeClock(mc)
     , m_mapCanvas(mca)
     , m_gameObserver(go)
-    , m_socketDescriptor(socketDescriptor)
-    // REVISIT: It would be better to just pass in the MainWindow directly.
-    , m_mainWindow{::getMainWindow(listener)}
+    , m_mainWindow{mw}
 {
-    //
+}
+
+void Proxy::activateAsBuiltIn()
+{
+    deactivate();
+    m_connectionType = ConnectionType::BuiltIn;
+    init();
+}
+
+void Proxy::activateWithSocket(qintptr socketDescriptor)
+{
+    deactivate();
+    m_connectionType = ConnectionType::External;
+    m_socketDescriptor = socketDescriptor;
+    init();
+}
+
+void Proxy::deactivate()
+{
+    if (m_connectionType == ConnectionType::None) {
+        return;
+    }
+
+    if (m_connectionType == ConnectionType::External) {
+        userTerminatedConnection();
+    } else {
+        mudTerminatedConnection();
+    }
+
+    destroyPipelineObjects();
+    m_connectionType = ConnectionType::None;
 }
 
 Proxy::~Proxy()
 {
-    // This can happen as a result of the user hitting Alt-F4 to close the MMapper window.
-    sendNewlineToUser();
-    sendStatusToUser("MMapper proxy is shutting down.");
-
-    {
-        qDebug() << "disconnecting mud socket...";
-        getMudSocket().disconnectFromHost();
-    }
-
-    {
-        qDebug() << "disconnecting user socket...";
-        getUserSocket().gracefulShutdown();
-    }
-
-    {
-        auto &remoteEdit = deref(m_remoteEdit);
-        remoteEdit.onDisconnected();
-        remoteEdit.disconnect(); // disconnect all signals
-        remoteEdit.deleteLater();
-    }
-
-    destroyPipelineObjects();
+    deactivate();
 }
 
 void Proxy::destroyPipelineObjects()
 {
+    if (!m_pipeline) {
+        return;
+    }
     qDebug() << "disconnecting proxy";
     getPipeline().apis.sendToUserLifetime.reset();
     getPipeline().mud.mudSocket.reset();
-    getPipeline().user.userSocket.reset();
+    if (m_connectionType == ConnectionType::External) {
+        getPipeline().user.userSocket.reset();
+    }
     m_pipeline.reset();
 }
 
@@ -213,10 +208,11 @@ void Proxy::allocPipelineObjects()
     // The distinction is already partly in place for AbstractParser (User)
     //   vs the XmlParser (Mud) which is being converted from Xml to Gmcp.
 
-    allocUserSocket();
+    if (m_connectionType == ConnectionType::External) {
+        allocUserSocket();
+        allocUserTelnet();
+    }
     allocMudSocket();
-
-    allocUserTelnet();
     allocMudTelnet();
 
     allocMpiFilter();
@@ -292,7 +288,9 @@ void Proxy::allocMudSocket()
             qDebug() << "mud socket connected";
             // It's a historical accident that GameObserver is first. It should probably be last.
             getGameObserver().observeConnected();
-            getUserTelnet().onConnected();
+            if (getProxy().m_connectionType == ConnectionType::External) {
+                getUserTelnet().onConnected();
+            }
             getProxy().onMudConnected();
         }
 
@@ -320,7 +318,9 @@ void Proxy::allocMudSocket()
             getMudParser().onReset();
             getGroupManager().onReset();
             getProxy().mudTerminatedConnection();
-            getRemoteEdit().onDisconnected();
+            if (getProxy().m_remoteEdit) {
+                getRemoteEdit().onDisconnected();
+            }
         }
 
         void virt_onProcessMudStream(const TelnetIacBytes &bytes) final
@@ -455,8 +455,10 @@ void Proxy::allocMudTelnet()
 
         void virt_onRelayEchoMode(const bool echo) final
         {
-            // forwarded (to user)
-            getUserTelnet().onRelayEchoMode(echo);
+            if (getProxy().m_connectionType == ConnectionType::External) {
+                // forwarded (to user)
+                getUserTelnet().onRelayEchoMode(echo);
+            }
 
             // observers
             getGameObserver().observeToggledEchoMode(echo);
@@ -471,8 +473,10 @@ void Proxy::allocMudTelnet()
                 return;
             }
 
-            // forwarded (to user)
-            getUserTelnet().onGmcpToUser(msg);
+            if (getProxy().m_connectionType == ConnectionType::External) {
+                // forwarded (to user)
+                getUserTelnet().onGmcpToUser(msg);
+            }
 
             // REVISIT: should parser be first?
             getGroupManager().slot_parseGmcpInput(msg);
@@ -577,6 +581,10 @@ void Proxy::allocParser()
                                const QString &s,
                                const bool goAhead) final
         {
+            if (getProxy().m_connectionType == ConnectionType::BuiltIn) {
+                getProxy().sendToUser(source, s);
+                return;
+            }
             bool isTwiddler = false;
             bool isPrompt = false;
 
@@ -857,9 +865,11 @@ void Proxy::init()
 
     initMisc();
 
-    log("Connection to client established ...");
-    sendWelcomeToUser();
-    sendSyntaxHintToUser("Type", "help", "for help.");
+    if (m_connectionType == ConnectionType::External) {
+        log("Connection to client established ...");
+        sendWelcomeToUser();
+        sendSyntaxHintToUser("Type", "help", "for help.");
+    }
 
     connectToMud();
 }
@@ -870,6 +880,10 @@ void Proxy::gmcpToMud(const GmcpMessage &msg)
 }
 void Proxy::gmcpToUser(const GmcpMessage &msg)
 {
+    if (m_connectionType == ConnectionType::BuiltIn) {
+        // TODO: The built-in client doesn't support GMCP.
+        return;
+    }
     getUserTelnet().onGmcpToUser(msg);
 }
 
@@ -879,8 +893,22 @@ void Proxy::sendToMud(const QString &s)
     getMudTelnet().onSendToMud(s);
 }
 
+void Proxy::sendFromClient(const QString &text)
+{
+    getUserParser().slot_parseNewUserInput(TelnetData{text.toUtf8(), false});
+}
+
+void Proxy::windowSizeChanged(int w, int h)
+{
+    getMudTelnet().onRelayNaws(w, h);
+}
+
 void Proxy::sendToUser(const SendToUserSourceEnum source, const QString &s)
 {
+    if (m_connectionType == ConnectionType::BuiltIn) {
+        emit dataReadyForClient(s);
+        return;
+    }
     // FIXME: this is layered incorrectly
     getUserParser().sendToUser(source, s);
 }
@@ -893,6 +921,10 @@ void Proxy::onMudConnected()
 
     // Reset clock precision to its lowest level
     m_mumeClock.setPrecision(MumeClockPrecisionEnum::UNSET);
+
+    if (m_connectionType == ConnectionType::BuiltIn) {
+        emit clientConnected();
+    }
 }
 
 void Proxy::onMudError(const QString &errorStr)
@@ -904,6 +936,10 @@ void Proxy::onMudError(const QString &errorStr)
 
     sendNewlineToUser();
     sendErrorToUser(mmqt::toStdStringUtf8(errorStr));
+
+    if (m_connectionType == ConnectionType::BuiltIn) {
+        emit clientDisconnected();
+    }
 
     if (!getConfig().connection.proxyConnectionStatus) {
         sendNewlineToUser();
@@ -917,7 +953,7 @@ void Proxy::onMudError(const QString &errorStr)
         m_serverState = ServerStateEnum::Offline;
     } else {
         // Terminate connection
-        deleteLater();
+        deactivate();
     }
 }
 
@@ -925,7 +961,7 @@ void Proxy::userTerminatedConnection()
 {
     log("User terminated connection ...");
     getMudParser().onReset();
-    deleteLater();
+    deactivate();
 }
 
 void Proxy::mudTerminatedConnection()
@@ -936,7 +972,12 @@ void Proxy::mudTerminatedConnection()
 
     m_serverState = ServerStateEnum::Disconnected;
 
-    getUserTelnet().onRelayEchoMode(true);
+    if (m_connectionType == ConnectionType::BuiltIn) {
+        emit clientDisconnected();
+        emit echoModeChanged(true);
+    } else {
+        getUserTelnet().onRelayEchoMode(true);
+    }
 
     log("Mud terminated connection ...");
 
@@ -953,7 +994,7 @@ void Proxy::mudTerminatedConnection()
         sendPromptToUser();
     } else {
         // Terminate connection
-        deleteLater();
+        deactivate();
     }
 }
 

@@ -55,18 +55,12 @@ private:
     MumeClock &m_mumeClock;
     MapCanvas &m_mapCanvas;
     GameObserver &m_gameOberver;
+    Proxy &m_proxy;
     using ServerList = std::vector<QPointer<ConnectionListenerTcpServer>>;
     ServerList m_servers;
-    QPointer<Proxy> m_proxy;
 
 public:
-    explicit ConnectionListener(MapData &,
-                                Mmapper2PathMachine &,
-                                PrespammedPath &,
-                                Mmapper2Group &,
-                                MumeClock &,
-                                MapCanvas &,
-                                GameObserver &,
+    explicit ConnectionListener(Proxy &,
                                 QObject *parent);
     ~ConnectionListener() final;
 

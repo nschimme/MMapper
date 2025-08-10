@@ -65,7 +65,9 @@ private:
     bool m_connected = true;
 
 private:
+#ifndef Q_OS_WASM
     friend class RemoteEditExternalSession;
+#endif
     friend class RemoteEditInternalSession;
 
 public:
@@ -111,6 +113,7 @@ public:
     ~RemoteEditInternalSession() final;
 };
 
+#ifndef Q_OS_WASM
 class NODISCARD_QOBJECT RemoteEditExternalSession final : public RemoteEditSession
 {
     Q_OBJECT
@@ -126,3 +129,4 @@ public:
                                        RemoteEdit *remoteEdit);
     ~RemoteEditExternalSession() final;
 };
+#endif

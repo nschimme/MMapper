@@ -372,8 +372,6 @@ set(mmapper_SRCS
     mpi/mpifilter.h
     mpi/remoteedit.cpp
     mpi/remoteedit.h
-    mpi/remoteeditprocess.cpp
-    mpi/remoteeditprocess.h
     mpi/remoteeditsession.cpp
     mpi/remoteeditsession.h
     mpi/remoteeditwidget.cpp
@@ -541,6 +539,10 @@ set(mmapper_SRCS
     viewers/TopLevelWindows.cpp
     viewers/TopLevelWindows.h
 )
+
+if(NOT EMSCRIPTEN)
+    list(APPEND mmapper_SRCS mpi/remoteeditprocess.cpp mpi/remoteeditprocess.h)
+endif()
 
 qt_add_resources(mmapper_QRC resources/mmapper2.qrc)
 

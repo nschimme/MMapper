@@ -644,7 +644,7 @@ add_library(mm_global STATIC ${mmapper_global_SRCS})
 add_library(mm_map STATIC ${mmapper_map_SRCS})
 
 # Build the executable
-add_executable(mmapper WIN32 MACOSX_BUNDLE
+qt_add_executable(mmapper WIN32 MACOSX_BUNDLE
     ${mmapper_SRCS}
     ${mmapper_UIS}
     ${mmapper_RCS}
@@ -653,6 +653,11 @@ add_executable(mmapper WIN32 MACOSX_BUNDLE
 )
 
 set(mm_libs mm_map mm_global)
+
+if(EMSCRIPTEN)
+    target_link_options(mmapper PRIVATE
+        "-s INITIAL_MEMORY=20971520 -s ASYNCIFY -s ASYNCIFY_IMPORTS=[async_sleep]")
+endif()
 
 target_link_libraries(mmapper PUBLIC
     Qt6::Core

@@ -19,7 +19,11 @@ std::optional<GLenum> Functions::toGLenum(const DrawModeEnum mode)
     case DrawModeEnum::TRIANGLES:
         return GL_TRIANGLES;
     case DrawModeEnum::QUADS:
+#ifdef Q_OS_WASM
+        return GL_TRIANGLES;
+#else
         return GL_QUADS;
+#endif
     case DrawModeEnum::INVALID:
         break;
     }
@@ -34,11 +38,13 @@ const char *Functions::getShaderVersion()
 
 void Functions::enableProgramPointSize(const bool enable)
 {
+/*
     if (enable) {
         Base::glEnable(GL_PROGRAM_POINT_SIZE);
     } else {
         Base::glDisable(GL_PROGRAM_POINT_SIZE);
     }
+*/
 }
 
 bool Functions::tryEnableMultisampling(const int requestedSamples)
@@ -56,26 +62,30 @@ bool Functions::tryEnableMultisampling(const int requestedSamples)
     };
 
     const bool hasMultisampling = getSampleBuffers() > 1 || getSamples() > 1;
-
     if (hasMultisampling && requestedSamples > 0) {
+/*
         Base::glEnable(GL_MULTISAMPLE);
 
         Base::glEnable(GL_LINE_SMOOTH);
         Base::glDisable(GL_POLYGON_SMOOTH);
         Base::glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
-
+*/
         return true;
     } else {
         // NOTE: Currently we can use OpenGL 2.1 to fake multisampling with point/line/polygon smoothing.
         // TODO: We can use OpenGL 3.x FBOs to do multisampling even if the default framebuffer doesn't support it.
         if (requestedSamples > 0) {
+/*
             Base::glEnable(GL_LINE_SMOOTH);
             Base::glDisable(GL_POLYGON_SMOOTH);
             Base::glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+*/
             return true;
         } else {
+/*
             Base::glDisable(GL_LINE_SMOOTH);
             Base::glDisable(GL_POLYGON_SMOOTH);
+*/
             return false;
         }
     }

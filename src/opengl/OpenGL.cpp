@@ -450,17 +450,17 @@ bool OpenGL::tryEnableMultisampling(const int requestedSamples)
     // The FBO handles the actual multisampling rendering.
     auto &gl = getFunctions();
     if (requestedSamples > 0) {
-        gl.glEnable(GL_MULTISAMPLE);
+        //gl.glEnable(GL_MULTISAMPLE);
         // The old smoothing hints might still be useful as a fallback or in conjunction,
         // but the primary multisampling is now via FBO. We can keep them for now.
-        gl.glEnable(GL_LINE_SMOOTH);
-        gl.glDisable(GL_POLYGON_SMOOTH);
-        gl.glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+        //gl.glEnable(GL_LINE_SMOOTH);
+        //gl.glDisable(GL_POLYGON_SMOOTH);
+        //gl.glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
         return true;
     } else {
-        gl.glDisable(GL_MULTISAMPLE);
-        gl.glDisable(GL_LINE_SMOOTH);
-        gl.glDisable(GL_POLYGON_SMOOTH);
+        //gl.glDisable(GL_MULTISAMPLE);
+        //gl.glDisable(GL_LINE_SMOOTH);
+        //gl.glDisable(GL_POLYGON_SMOOTH);
         return false;
     }
 }

@@ -30,6 +30,10 @@ MumeProtocolPage::MumeProtocolPage(QWidget *parent)
             &QAbstractButton::clicked,
             this,
             &MumeProtocolPage::slot_externalEditorBrowseButtonClicked);
+
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+        ui->externalEditorRadioButton->setDisabled(true);
+    }
 }
 
 MumeProtocolPage::~MumeProtocolPage()

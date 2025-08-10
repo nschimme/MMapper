@@ -6,6 +6,7 @@
 
 #include "configdialog.h"
 
+#include "../configuration/configuration.h"
 #include "autologpage.h"
 #include "clientpage.h"
 #include "generalpage.h"
@@ -59,6 +60,7 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
             &QListWidget::currentItemChanged,
             this,
             &ConfigDialog::slot_changePage);
+    connect(ui->closeButton, &QAbstractButton::clicked, this, []() { getConfig().write(); });
     connect(ui->closeButton, &QAbstractButton::clicked, this, &QWidget::close);
 
     connect(generalPage, &GeneralPage::sig_factoryReset, this, [this]() {

@@ -183,6 +183,16 @@ public:
     void activateWithSocket(qintptr socketDescriptor);
     void deactivate();
 
+public:
+    void sendFromClient(const QString &text);
+    void windowSizeChanged(int w, int h);
+
+signals:
+    void dataReadyForClient(const QString &text);
+    void clientConnected();
+    void clientDisconnected();
+    void echoModeChanged(bool echo);
+
 private:
     void init();
 

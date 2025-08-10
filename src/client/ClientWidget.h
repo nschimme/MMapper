@@ -13,14 +13,15 @@
 #include <QWidget>
 #include <QtCore>
 
-class ClientTelnet;
+#include "stackedinputwidget.h"
+
+class Proxy;
 class DisplayWidget;
 class QEvent;
 class QObject;
 class StackedInputWidget;
 class PreviewWidget;
 
-struct ClientTelnetOutputs;
 struct DisplayWidgetOutputs;
 struct StackedInputWidgetOutputs;
 
@@ -39,11 +40,9 @@ private:
         {
             std::unique_ptr<StackedInputWidgetOutputs> stackedInputWidgetOutputs;
             std::unique_ptr<DisplayWidgetOutputs> displayWidgetOutputs;
-            std::unique_ptr<ClientTelnetOutputs> clientTelnetOutputs;
         };
         struct NODISCARD Objects final
         {
-            std::unique_ptr<ClientTelnet> clientTelnet;
             std::unique_ptr<Ui::ClientWidget> ui;
         };
 
@@ -54,16 +53,18 @@ private:
     };
 
     Pipeline m_pipeline;
+    QPointer<Proxy> m_proxy;
 
 public:
     explicit ClientWidget(QWidget *parent);
     ~ClientWidget() final;
 
+    void setProxy(QPointer<Proxy> proxy);
+
 private:
     void initPipeline();
     void initStackedInputWidget();
     void initDisplayWidget();
-    void initClientTelnet();
 
 private:
     NODISCARD Ui::ClientWidget &getUi() // NOLINT (no, it should not be const)
@@ -73,14 +74,19 @@ private:
     NODISCARD const Ui::ClientWidget &getUi() const { return deref(m_pipeline.objs.ui); }
     NODISCARD DisplayWidget &getDisplay();
     NODISCARD StackedInputWidget &getInput();
-    NODISCARD ClientTelnet &getTelnet();
     NODISCARD PreviewWidget &getPreview();
 
 public:
     NODISCARD bool isUsingClient() const;
 
-private:
-    void relayMessage(const QString &msg) { emit sig_relayMessage(msg); }
+public slots:
+    void displayText(const QString &text);
+    void setEchoMode(EchoModeEnum echoMode);
+    void setFocusOnInput();
+    void relayMessage(const QString &msg);
+    void slot_onVisibilityChanged(bool);
+    void slot_onShowMessage(const QString &);
+    void slot_saveLog();
 
 protected:
     NODISCARD QSize minimumSizeHint() const override;
@@ -88,9 +94,5 @@ protected:
 
 signals:
     void sig_relayMessage(const QString &);
-
-public slots:
-    void slot_onVisibilityChanged(bool);
-    void slot_onShowMessage(const QString &);
-    void slot_saveLog();
+    void playButtonClicked();
 };

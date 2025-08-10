@@ -5,7 +5,6 @@
 #include "ClientWidget.h"
 
 #include "../configuration/configuration.h"
-#include "ClientTelnet.h"
 #include "PreviewWidget.h"
 #include "displaywidget.h"
 #include "stackedinputwidget.h"
@@ -31,9 +30,9 @@ ClientWidget::ClientWidget(QWidget *const parent)
     ui.port->setText(QString("%1").arg(getConfig().connection.localPort));
 
     ui.playButton->setFocus();
+    QObject::connect(ui.playButton, &QAbstractButton::clicked, this, &ClientWidget::playButtonClicked);
     QObject::connect(ui.playButton, &QAbstractButton::clicked, this, [this]() {
         getUi().parent->setCurrentIndex(1);
-        getTelnet().connectToHost();
     });
 
     ui.input->installEventFilter(this);
@@ -44,7 +43,6 @@ ClientWidget::~ClientWidget() = default;
 
 ClientWidget::Pipeline::~Pipeline()
 {
-    objs.clientTelnet.reset();
     objs.ui.reset();
 }
 
@@ -78,12 +76,12 @@ void ClientWidget::initStackedInputWidget()
 
     private:
         NODISCARD ClientWidget &getSelf() { return m_self; }
-        NODISCARD ClientTelnet &getTelnet() { return getSelf().getTelnet(); }
+        NODISCARD Proxy &getProxy() { return deref(getSelf().m_proxy); }
         NODISCARD DisplayWidget &getDisplay() { return getSelf().getDisplay(); }
         NODISCARD PreviewWidget &getPreview() { return getSelf().getPreview(); }
 
     private:
-        void virt_sendUserInput(const QString &msg) final { getTelnet().sendToMud(msg); }
+        void virt_sendUserInput(const QString &msg) final { getProxy().sendFromClient(msg); }
 
         void virt_displayMessage(const QString &msg) final
         {
@@ -117,7 +115,7 @@ void ClientWidget::initDisplayWidget()
 
     private:
         NODISCARD ClientWidget &getSelf() { return m_self; }
-        NODISCARD ClientTelnet &getTelnet() { return getSelf().getTelnet(); }
+        NODISCARD Proxy &getProxy() { return deref(getSelf().m_proxy); }
 
     private:
         void virt_showMessage(const QString &msg, int /*timeout*/) final
@@ -126,7 +124,7 @@ void ClientWidget::initDisplayWidget()
         }
         void virt_windowSizeChanged(const int width, const int height) final
         {
-            getTelnet().onWindowSizeChanged(width, height);
+            getProxy().windowSizeChanged(width, height);
         }
         void virt_returnFocusToInput() final { getSelf().getInput().setFocus(); }
         void virt_showPreview(bool visible) final { getSelf().getPreview().setVisible(visible); }
@@ -134,61 +132,6 @@ void ClientWidget::initDisplayWidget()
     auto &out = m_pipeline.outputs.displayWidgetOutputs;
     out = std::make_unique<LocalDisplayWidgetOutputs>(*this);
     getDisplay().init(deref(out));
-}
-
-void ClientWidget::initClientTelnet()
-{
-    class NODISCARD LocalClientTelnetOutputs final : public ClientTelnetOutputs
-    {
-    private:
-        ClientWidget &m_self;
-
-    public:
-        explicit LocalClientTelnetOutputs(ClientWidget &self)
-            : m_self{self}
-        {}
-
-    private:
-        ClientWidget &getClient() { return m_self; }
-        DisplayWidget &getDisplay() { return getClient().getDisplay(); }
-        PreviewWidget &getPreview() { return getClient().getPreview(); }
-        StackedInputWidget &getInput() { return getClient().getInput(); }
-
-    private:
-        void virt_connected() final
-        {
-            getClient().relayMessage("Connected using the integrated client");
-            // Focus should be on the input
-            getInput().setFocus();
-        }
-        void virt_disconnected() final
-        {
-            getDisplay().slot_displayText("\n\n\n");
-            getClient().relayMessage("Disconnected using the integrated client");
-        }
-        void virt_socketError(const QString &errorStr) final
-        {
-            getDisplay().slot_displayText(QString("\nInternal error! %1\n").arg(errorStr));
-        }
-        void virt_echoModeChanged(const bool echo) final
-        {
-            getInput().setEchoMode(echo ? EchoModeEnum::Visible : EchoModeEnum::Hidden);
-        }
-
-        void virt_sendToUser(const QString &str) final
-        {
-            getDisplay().slot_displayText(str);
-            getPreview().displayText(str);
-
-            // Re-open the password dialog if we get a message in hidden echo mode
-            if (getClient().getInput().getEchoMode() == EchoModeEnum::Hidden) {
-                getClient().getInput().requestPassword();
-            }
-        }
-    };
-    auto &out = m_pipeline.outputs.clientTelnetOutputs;
-    out = std::make_unique<LocalClientTelnetOutputs>(*this);
-    m_pipeline.objs.clientTelnet = std::make_unique<ClientTelnet>(deref(out));
 }
 
 DisplayWidget &ClientWidget::getDisplay()
@@ -206,9 +149,30 @@ StackedInputWidget &ClientWidget::getInput()
     return deref(getUi().input);
 }
 
-ClientTelnet &ClientWidget::getTelnet() // NOLINT (no, this shouldn't be const)
+void ClientWidget::setProxy(QPointer<Proxy> proxy)
 {
-    return deref(m_pipeline.objs.clientTelnet);
+    m_proxy = proxy;
+}
+
+void ClientWidget::displayText(const QString &text)
+{
+    getDisplay().slot_displayText(text);
+    getPreview().displayText(text);
+}
+
+void ClientWidget::setEchoMode(EchoModeEnum echoMode)
+{
+    getInput().setEchoMode(echoMode);
+}
+
+void ClientWidget::setFocusOnInput()
+{
+    getInput().setFocus();
+}
+
+void ClientWidget::relayMessage(const QString &msg)
+{
+    emit sig_relayMessage(msg);
 }
 
 void ClientWidget::slot_onVisibilityChanged(const bool /*visible*/)
@@ -219,13 +183,16 @@ void ClientWidget::slot_onVisibilityChanged(const bool /*visible*/)
 
     // Delay connecting to verify that visibility is not just the dock popping back in
     QTimer::singleShot(500, [this]() {
+        if (!m_proxy) {
+            return;
+        }
         if (!isVisible()) {
             // Disconnect if the widget is closed or minimized
-            getTelnet().disconnectFromHost();
+            m_proxy->disconnectFromMud();
 
         } else {
             // Connect if the client was previously activated and the widget is re-opened
-            getTelnet().connectToHost();
+            m_proxy->connectToMud();
         }
     });
 }

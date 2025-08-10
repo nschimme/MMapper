@@ -895,7 +895,7 @@ void Proxy::sendToMud(const QString &s)
 
 void Proxy::sendFromClient(const QString &text)
 {
-    getUserParser().slot_parseNewUserInput(TelnetData{text.toUtf8(), false});
+    getUserParser().slot_parseNewUserInput(TelnetData{RawBytes{text.toUtf8()}});
 }
 
 void Proxy::windowSizeChanged(int w, int h)

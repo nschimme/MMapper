@@ -48,13 +48,6 @@ class NODISCARD_QOBJECT ConnectionListener final : public QObject
     Q_OBJECT
 
 private:
-    MapData &m_mapData;
-    Mmapper2PathMachine &m_pathMachine;
-    PrespammedPath &m_prespammedPath;
-    Mmapper2Group &m_groupManager;
-    MumeClock &m_mumeClock;
-    MapCanvas &m_mapCanvas;
-    GameObserver &m_gameOberver;
     Proxy &m_proxy;
     using ServerList = std::vector<QPointer<ConnectionListenerTcpServer>>;
     ServerList m_servers;

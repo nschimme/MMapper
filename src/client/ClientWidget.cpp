@@ -5,6 +5,7 @@
 #include "ClientWidget.h"
 
 #include "../configuration/configuration.h"
+#include "../proxy/proxy.h"
 #include "PreviewWidget.h"
 #include "displaywidget.h"
 #include "stackedinputwidget.h"
@@ -58,8 +59,6 @@ void ClientWidget::initPipeline()
 
     initStackedInputWidget();
     initDisplayWidget();
-
-    initClientTelnet();
 }
 
 void ClientWidget::initStackedInputWidget()

@@ -10,6 +10,8 @@
 #include "../adventure/adventurewidget.h"
 #include "../adventure/xpstatuswidget.h"
 #include "../client/ClientWidget.h"
+#include "../client/displaywidget.h"
+#include "../client/stackedinputwidget.h"
 #include "../clock/mumeclock.h"
 #include "../clock/mumeclockwidget.h"
 #include "../display/InfomarkSelection.h"
@@ -504,21 +506,16 @@ void MainWindow::wireConnections()
     connect(m_clientWidget, &ClientWidget::playButtonClicked, this, [this]() {
         m_proxy->activateAsBuiltIn();
     });
-    connect(m_proxy, &Proxy::dataReadyForClient, m_clientWidget, [this](const QString &text) {
-        m_clientWidget->getDisplay().slot_displayText(text);
-    });
+    connect(m_proxy, &Proxy::dataReadyForClient, m_clientWidget, &ClientWidget::displayText);
     connect(m_proxy, &Proxy::clientConnected, m_clientWidget, [this]() {
         m_clientWidget->relayMessage("Connected to MUME.");
-        m_clientWidget->getInput().setFocus();
+        m_clientWidget->setFocusOnInput();
     });
     connect(m_proxy, &Proxy::clientDisconnected, m_clientWidget, [this]() {
-        m_clientWidget->getDisplay().slot_displayText("\n\n\n");
+        m_clientWidget->displayText("\n\n\n");
         m_clientWidget->relayMessage("Disconnected from MUME.");
     });
-    connect(m_proxy, &Proxy::echoModeChanged, m_clientWidget, [this](bool echo) {
-        m_clientWidget->getInput().setEchoMode(echo ? EchoModeEnum::Visible
-                                                    : EchoModeEnum::Hidden);
-    });
+    connect(m_proxy, &Proxy::echoModeChanged, m_clientWidget, &ClientWidget::setEchoMode);
 
     // Find Room Dialog Connections
     connect(m_findRoomsDlg,

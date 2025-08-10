@@ -287,9 +287,17 @@ std::string OpenGL::g_highest_reportable_version_string = UNDEFINED_VERSION;
 
 QSurfaceFormat OpenGL::createDefaultSurfaceFormat()
 {
+#ifdef Q_OS_WASM
+    QSurfaceFormat format;
+    format.setVersion(3, 0);
+    format.setRenderableType(QSurfaceFormat::OpenGLES);
+    OpenGL::g_highest_reportable_version_string = "ES3.0";
+    return format;
+#else
     OpenGLProbeResult probeResult = probeOpenGLFormats();
     OpenGL::g_highest_reportable_version_string = probeResult.highestVersion;
     return probeResult.runningFormat;
+#endif
 }
 
 std::string OpenGL::getHighestReportableVersionString()

@@ -33,7 +33,11 @@ std::optional<GLenum> Functions::toGLenum(const DrawModeEnum mode)
 
 const char *Functions::getShaderVersion()
 {
+#ifdef Q_OS_WASM
+    return "#version 300 es\n\nprecision mediump float;\n\n";
+#else
     return "#version 330\n\n";
+#endif
 }
 
 void Functions::enableProgramPointSize(const bool enable)

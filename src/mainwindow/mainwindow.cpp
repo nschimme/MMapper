@@ -503,13 +503,11 @@ void MainWindow::wireConnections()
     connect(m_clientWidget, &ClientWidget::sig_relayMessage, this, [this](const QString &message) {
         showStatusShort(message);
     });
-    connect(m_clientWidget, &ClientWidget::playButtonClicked, this, [this]() {
-        m_proxy->activateAsBuiltIn();
-    });
+    connect(m_clientWidget, &ClientWidget::playButtonClicked, m_proxy, &Proxy::activateAsBuiltIn);
     connect(m_proxy, &Proxy::dataReadyForClient, m_clientWidget, &ClientWidget::displayText);
+    connect(m_proxy, &Proxy::clientConnected, m_clientWidget, &ClientWidget::setFocusOnInput);
     connect(m_proxy, &Proxy::clientConnected, m_clientWidget, [this]() {
         m_clientWidget->relayMessage("Connected to MUME.");
-        m_clientWidget->setFocusOnInput();
     });
     connect(m_proxy, &Proxy::clientDisconnected, m_clientWidget, [this]() {
         m_clientWidget->displayText("\n\n\n");

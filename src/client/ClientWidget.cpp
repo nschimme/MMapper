@@ -159,9 +159,9 @@ void ClientWidget::displayText(const QString &text)
     getPreview().displayText(text);
 }
 
-void ClientWidget::setEchoMode(EchoModeEnum echoMode)
+void ClientWidget::setEchoMode(bool echo)
 {
-    getInput().setEchoMode(echoMode);
+    getInput().setEchoMode(echo ? EchoModeEnum::Visible : EchoModeEnum::Hidden);
 }
 
 void ClientWidget::setFocusOnInput()

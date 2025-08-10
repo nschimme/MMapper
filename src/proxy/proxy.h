@@ -217,11 +217,13 @@ private:
     void onMudError(const QString &);
     void mudTerminatedConnection();
 
+public:
+    void connectToMud();
+    void disconnectFromMud();
+
 private:
     friend ProxyMudConnectionApi;
     NODISCARD bool isConnected() const;
-    void connectToMud();
-    void disconnectFromMud();
 
 private:
     friend ProxyMudGmcpApi;

@@ -81,7 +81,7 @@ public:
 
 public slots:
     void displayText(const QString &text);
-    void setEchoMode(EchoModeEnum echoMode);
+    void setEchoMode(bool echo);
     void setFocusOnInput();
     void relayMessage(const QString &msg);
     void slot_onVisibilityChanged(bool);

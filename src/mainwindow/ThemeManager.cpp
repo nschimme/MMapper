@@ -16,6 +16,10 @@
 #include <windows.h>
 #elif defined(Q_OS_MACOS)
 #include <QProcess>
+#elif defined(Q_OS_LINUX)
+#include <QDBusInterface>
+#include <QProcess>
+#include <QSettings>
 #endif
 
 ThemeManager::ThemeManager(QObject *const parent)
@@ -127,6 +131,54 @@ bool ThemeManager::isSystemDarkMode()
     process.waitForFinished(1000);
     return process.readAllStandardOutput().trimmed() == "Dark";
 #elif defined(Q_OS_LINUX)
+    // 1. Freedesktop color-scheme
+    QDBusInterface dbus("org.freedesktop.portal.Desktop",
+                        "/org/freedesktop/portal/desktop",
+                        "org.freedesktop.portal.Settings");
+    QDBusMessage reply = dbus.call("Read", "org.freedesktop.appearance", "color-scheme");
+    if (reply.type() == QDBusMessage::ReplyMessage && !reply.arguments().isEmpty()) {
+        const QVariant arg = reply.arguments().first();
+        if (arg.canConvert<QVariantMap>()) {
+            const QVariantMap map = arg.toMap();
+            if (map.contains("color-scheme")) {
+                const uint value = map.value("color-scheme").toUInt();
+                if (value == 1)
+                    return true; // Dark
+                if (value == 2)
+                    return false; // Light
+            }
+        }
+    }
+
+    // 2. GNOME/GTK
+    QProcess gsettings;
+    gsettings.start("gsettings", {"get", "org.gnome.desktop.interface", "color-scheme"});
+    gsettings.waitForFinished(1000);
+    if (gsettings.exitCode() == 0) {
+        const QString scheme = gsettings.readAllStandardOutput().trimmed();
+        if (scheme == "'prefer-dark'")
+            return true;
+        if (scheme == "'prefer-light'")
+            return false;
+    }
+
+    gsettings.start("gsettings", {"get", "org.gnome.desktop.interface", "gtk-theme"});
+    gsettings.waitForFinished(1000);
+    if (gsettings.exitCode() == 0) {
+        if (gsettings.readAllStandardOutput().trimmed().toLower().contains("dark"))
+            return true;
+    }
+
+    // 3. KDE
+    QSettings kdeglobals(QDir::home().filePath(".config/kdeglobals"), QSettings::IniFormat);
+    const QString colorScheme = kdeglobals.value("General/colorScheme", "").toString();
+    if (!colorScheme.isEmpty() && colorScheme.toLower().contains("dark"))
+        return true;
+    const QString widgetStyle = kdeglobals.value("General/widgetStyle", "").toString();
+    if (!widgetStyle.isEmpty() && widgetStyle.toLower().contains("dark"))
+        return true;
+
+    // 4. Fallback to palette check
     return qApp->palette().color(QPalette::WindowText).lightness()
            > qApp->palette().color(QPalette::Window).lightness();
 #endif

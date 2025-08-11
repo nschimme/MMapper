@@ -222,6 +222,7 @@ private:
 
     QAction *clientAct = nullptr;
     QAction *saveLogAct = nullptr;
+    QAction *saveLogAsHtmlAct = nullptr;
 
     QAction *gotoRoomAct = nullptr;
     QAction *forceRoomAct = nullptr;
@@ -235,6 +236,7 @@ private:
     struct AsyncLoader;
     struct AsyncMerge;
     struct AsyncSaver;
+    struct AsyncMapSerializer;
 
     struct NODISCARD AsyncTask final : public QObject
     {
@@ -270,6 +272,9 @@ public:
     enum class NODISCARD SaveFormatEnum { MM2, MM2XML, WEB, MMP };
     NODISCARD bool saveFile(const QString &fileName, SaveModeEnum mode, SaveFormatEnum format);
     void loadFile(const QString &fileName);
+    void loadFile(const QString &fileName, const QByteArray &fileContent);
+    void mergeFile(const QString &fileName, const QByteArray &fileContent);
+    void saveMap(SaveModeEnum mode, SaveFormatEnum format);
     void setCurrentFile(const QString &fileName);
     void percentageChanged(uint32_t);
 
@@ -279,6 +284,10 @@ private:
         const std::shared_ptr<ProgressCounter> &pc,
         const QString &fileName,
         std::shared_ptr<QFile> &pFile);
+    NODISCARD std::unique_ptr<AbstractMapStorage>
+    getLoadOrMergeMapStorage(const std::shared_ptr<ProgressCounter> &pc,
+                             const QString &fileName,
+                             QIODevice &device);
 
 protected:
     void closeEvent(QCloseEvent *event) override;
@@ -373,7 +382,6 @@ private:
 
 private:
     void applyGroupAction(const std::function<Change(const RawRoom &)> &getChange);
-    NODISCARD QString chooseLoadOrMergeFileName();
     void onSuccessfulLoad(const MapLoadData &mapLoadData);
     void onSuccessfulMerge(const Map &map);
     void onSuccessfulSave(SaveModeEnum mode, SaveFormatEnum format, const QString &fileName);

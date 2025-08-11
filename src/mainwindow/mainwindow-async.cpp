@@ -39,6 +39,7 @@
 #include <thread>
 #include <vector>
 
+#include <QBuffer>
 #include <QSize>
 #include <QString>
 #include <QXmlStreamReader>
@@ -50,44 +51,67 @@ enum class NODISCARD PollResultEnum : uint8_t { Timeout, Finished };
 namespace { // anonymous
 namespace mwa_detail {
 
+NODISCARD bool detectMm2Binary(QIODevice &device)
+{
+    auto result = getMM2FileVersion(device);
+    device.seek(0);
+    return result.has_value();
+}
+
 NODISCARD bool detectMm2Binary(const QString &fileName)
 {
-    return getMM2FileVersion(fileName).has_value();
+    QFile f{fileName};
+    if (!f.open(QIODevice::ReadOnly)) {
+        return false;
+    }
+    return detectMm2Binary(f);
 }
 
 // MMapper2 XML map (as opposed to Pandora XML map)
+NODISCARD bool detectMm2Xml(QIODevice &device)
+{
+    const QByteArray line = device.readLine(64);
+    const QByteArray line2 = device.readLine(64);
+    device.seek(0);
+    return line.contains("xml version") && line2.contains("mmapper2xml");
+}
+
 NODISCARD bool detectMm2Xml(const QString &fileName)
 {
     QFile f{fileName};
     if (!f.open(QIODevice::ReadOnly)) {
         return false;
     }
-
-    const QByteArray line = f.readLine(64);
-    if (!line.contains("xml version")) {
-        return false;
-    }
-
-    const QByteArray line2 = f.readLine(64);
-    return line2.contains("mmapper2xml");
+    return detectMm2Xml(f);
 }
 
 // Pandora XML map
+NODISCARD bool detectPandora(QIODevice &device)
+{
+    QXmlStreamReader xml(&device);
+    if (xml.readNextStartElement() && xml.error() != QXmlStreamReader::NoError) {
+        device.seek(0);
+        return false;
+    }
+    if (xml.name() != QStringLiteral("map")) {
+        device.seek(0);
+        return false;
+    }
+    if (xml.attributes().isEmpty() || !xml.attributes().hasAttribute("rooms")) {
+        device.seek(0);
+        return false;
+    }
+    device.seek(0);
+    return true;
+}
+
 NODISCARD bool detectPandora(const QString &fileName)
 {
     QFile f{fileName};
     if (!f.open(QIODevice::ReadOnly)) {
         return false;
     }
-    QXmlStreamReader xml{&f};
-    if (xml.readNextStartElement() && xml.error() != QXmlStreamReader::NoError) {
-        return false;
-    } else if (xml.name() != QStringLiteral("map")) {
-        return false;
-    } else if (xml.attributes().isEmpty() || !xml.attributes().hasAttribute("rooms")) {
-        return false;
-    }
-    return true;
+    return detectPandora(f);
 }
 
 template<typename T>
@@ -371,7 +395,7 @@ void MainWindow::AsyncTask::reset()
 
 struct NODISCARD MainWindow::AsyncHelper : public AsyncBase
 {
-    using SharedFile = std::shared_ptr<QFile>;
+    using SharedDevice = std::shared_ptr<QIODevice>;
     using UniqueStorage = std::unique_ptr<AbstractMapStorage>;
 
     struct NODISCARD ExtraBlockers final
@@ -392,7 +416,7 @@ protected:
     MainWindow &mainWindow;
 
     const QString fileName;
-    const SharedFile pFile;
+    const SharedDevice pDevice;
 
     CanvasDisabler canvasDisabler;
     ProgressDialogLifetime progressDlg;
@@ -409,14 +433,14 @@ public:
     explicit AsyncHelper(std::shared_ptr<ProgressCounter> pc,
                          MainWindow &mw,
                          const QString &name,
-                         SharedFile pf,
+                         SharedDevice pd,
                          UniqueStorage ps,
                          const QString &dialogText,
                          const CancelDispositionEnum allow_cancel)
         : AsyncBase{std::move(pc)}
         , mainWindow{mw}
         , fileName{name}
-        , pFile(std::move(pf))
+        , pDevice(std::move(pd))
         , canvasDisabler{deref(mw.m_mapWindow)}
         , progressDlg{mw.createNewProgressDialog(dialogText,
                                                  allow_cancel == CancelDispositionEnum::Allow)}
@@ -504,12 +528,12 @@ public:
     explicit AsyncLoader(std::shared_ptr<ProgressCounter> moved_pc,
                          MainWindow &mw,
                          const QString &name,
-                         SharedFile pf,
+                         SharedDevice pd,
                          UniqueStorage ps)
         : AsyncHelper{std::move(moved_pc),
                       mw,
                       name,
-                      std::move(pf),
+                      std::move(pd),
                       std::move(ps),
                       "Loading map...",
                       CancelDispositionEnum::Allow}
@@ -570,12 +594,12 @@ public:
     explicit AsyncMerge(std::shared_ptr<ProgressCounter> pc,
                         MainWindow &mw,
                         const QString &name,
-                        SharedFile pf,
+                        SharedDevice pd,
                         UniqueStorage ps)
         : AsyncHelper{std::move(pc),
                       mw,
                       name,
-                      std::move(pf),
+                      std::move(pd),
                       std::move(ps),
                       "Merging map...",
                       CancelDispositionEnum::Allow}
@@ -698,6 +722,136 @@ private:
 
 MainWindow::AsyncSaver::~AsyncSaver() = default;
 
+struct NODISCARD MainWindow::AsyncMapSerializer final : public AsyncHelper
+{
+private:
+    using Result = std::optional<QByteArray>;
+    using Future = std::future<Result>;
+
+private:
+    const SaveModeEnum mode;
+    const SaveFormatEnum format;
+    Future future;
+
+public:
+    explicit AsyncMapSerializer(std::shared_ptr<ProgressCounter> pc,
+                                MainWindow &mw,
+                                const SaveModeEnum _mode,
+                                const SaveFormatEnum _format)
+        : AsyncHelper{std::move(pc),
+                      mw,
+                      QString{},
+                      nullptr,
+                      nullptr,
+                      "Serializing map...",
+                      CancelDispositionEnum::Forbid}
+        , mode{_mode}
+        , format{_format}
+        , future{std::async(std::launch::async, &AsyncMapSerializer::background_serialize, this)}
+    {}
+
+    ~AsyncMapSerializer() final = default;
+
+private:
+    NODISCARD Result background_serialize()
+    {
+        auto buffer = std::make_shared<QBuffer>();
+        buffer->open(QIODevice::WriteOnly);
+
+        auto pStorage =
+            [this, &buffer]() -> std::unique_ptr<AbstractMapStorage> {
+            auto storage =
+                [this, &buffer]() -> std::unique_ptr<AbstractMapStorage> {
+                // The filename is not important here, as we are writing to a buffer.
+                const QString fakeFileName;
+                AbstractMapStorage::Data data{progressCounter, fakeFileName, *buffer};
+                switch (format) {
+                case SaveFormatEnum::MM2:
+                    return std::make_unique<MapStorage>(data, &mainWindow);
+                case SaveFormatEnum::MM2XML:
+                    return std::make_unique<XmlMapStorage>(data, &mainWindow);
+                case SaveFormatEnum::MMP:
+                    return std::make_unique<MmpMapStorage>(data, &mainWindow);
+                case SaveFormatEnum::WEB:
+                    // This case is not handled yet.
+                    return nullptr;
+                }
+                assert(false);
+                return {};
+            }();
+            if (storage) {
+                connect(storage.get(),
+                        &AbstractMapStorage::sig_log,
+                        &mainWindow,
+                        &MainWindow::slot_log);
+            }
+            return storage;
+        }();
+
+        if (!pStorage || !pStorage->canSave()) {
+            return std::nullopt;
+        }
+
+        if (pStorage->saveData(deref(mainWindow.m_mapData), mode == SaveModeEnum::BASEMAP)) {
+            return buffer->data();
+        }
+
+        return std::nullopt;
+    }
+
+    NODISCARD PollResultEnum virt_wait(const std::chrono::milliseconds ms) final
+    {
+        return mwa_detail::wait_for(future, ms);
+    }
+
+    void virt_finish() final
+    {
+        const Result result = mwa_detail::extract(future, mainWindow);
+        if (!result) {
+            mainWindow.showWarning(tr("Failed to serialize map."));
+            return;
+        }
+
+        const auto &byteArray = result.value();
+        // TODO: provide a better default name
+        QFileDialog::saveFileContent(byteArray, "map.mm2");
+    }
+};
+
+void MainWindow::saveMap(SaveModeEnum mode, SaveFormatEnum format)
+{
+    if (!tryStartNewAsync()) {
+        return;
+    }
+
+    auto pc = std::make_shared<ProgressCounter>();
+    m_asyncTask.begin(std::make_unique<AsyncMapSerializer>(std::move(pc), *this, mode, format));
+}
+
+std::unique_ptr<AbstractMapStorage> MainWindow::getLoadOrMergeMapStorage(
+    const std::shared_ptr<ProgressCounter> &pc,
+    const QString &fileName,
+    QIODevice &device)
+{
+    auto tmp = [this, pc, &fileName, &device]() -> std::unique_ptr<AbstractMapStorage> {
+        const AbstractMapStorage::Data data{pc, fileName, device};
+        if (mwa_detail::detectMm2Binary(device)) {
+            return mwa_detail::make<MapStorage>(data, this);
+        }
+        if (mwa_detail::detectMm2Xml(device)) {
+            return mwa_detail::make<XmlMapStorage>(data, this);
+        }
+        if (mwa_detail::detectPandora(device)) {
+            return mwa_detail::make<PandoraMapStorage>(data, this);
+        }
+        throw std::runtime_error("Unrecognized file format");
+    }();
+
+    AbstractMapStorage *const pStorage = tmp.get();
+    connect(pStorage, &AbstractMapStorage::sig_log, this, &MainWindow::slot_log);
+    return tmp;
+}
+
 std::unique_ptr<AbstractMapStorage> MainWindow::getLoadOrMergeMapStorage(
     const std::shared_ptr<ProgressCounter> &pc,
     const QString &fileName,
@@ -717,6 +871,72 @@ std::unique_ptr<AbstractMapStorage> MainWindow::getLoadOrMergeMapStorage(
     AbstractMapStorage *const pStorage = tmp.get();
     connect(pStorage, &AbstractMapStorage::sig_log, this, &MainWindow::slot_log);
     return tmp;
+}
+
+void MainWindow::loadFile(const QString &fileName, const QByteArray &fileContent)
+{
+    try {
+        if (!tryStartNewAsync()) {
+            return;
+        }
+
+        if (fileName.isEmpty()) {
+            showStatusShort(tr("No filename provided"));
+            return;
+        }
+
+        // Immediately discard the old map.
+        forceNewFile();
+
+        auto pc = std::make_shared<ProgressCounter>();
+
+        auto buffer = std::make_shared<QBuffer>();
+        buffer->setData(fileContent);
+        buffer->open(QIODevice::ReadOnly);
+
+        auto pStorage = getLoadOrMergeMapStorage(pc, fileName, *buffer);
+
+        m_asyncTask.begin(std::make_unique<AsyncLoader>(std::move(pc),
+                                                        *this,
+                                                        fileName,
+                                                        std::move(buffer),
+                                                        std::move(pStorage)));
+    } catch (...) {
+        reportOpenFileException(fileName, std::current_exception());
+        return;
+    }
+}
+
+void MainWindow::mergeFile(const QString &fileName, const QByteArray &fileContent)
+{
+    if (!tryStartNewAsync()) {
+        return;
+    }
+
+    if (fileName.isEmpty()) {
+        return;
+    }
+
+    try {
+        auto buffer = std::make_shared<QBuffer>();
+        buffer->setData(fileContent);
+        buffer->open(QIODevice::ReadOnly);
+
+        auto pc = std::make_shared<ProgressCounter>();
+
+        auto pStorage = getLoadOrMergeMapStorage(pc, fileName, *buffer);
+        connect(pStorage.get(), &AbstractMapStorage::sig_log, this, &MainWindow::slot_log);
+
+        getCanvas()->slot_clearAllSelections();
+        m_asyncTask.begin(std::make_unique<AsyncMerge>(std::move(pc),
+                                                       *this,
+                                                       fileName,
+                                                       std::move(buffer),
+                                                       std::move(pStorage)));
+    } catch (...) {
+        reportOpenFileException(fileName, std::current_exception());
+        return;
+    }
 }
 
 bool MainWindow::tryStartNewAsync()
@@ -786,36 +1006,21 @@ void MainWindow::slot_merge()
         return;
     }
 
-    const QString fileName = chooseLoadOrMergeFileName();
-    if (fileName.isEmpty()) {
-        return;
-    }
-
-    // what happens if one of the above throws?
-
-    try {
-        auto pFile = std::make_shared<QFile>(fileName);
-        auto &file = deref(pFile);
-        if (!file.open(QFile::ReadOnly)) {
-            reportOpenFileFailure(fileName, file.errorString());
-            return;
-        }
-
-        auto pc = std::make_shared<ProgressCounter>();
-
-        auto pStorage = getLoadOrMergeMapStorage(pc, fileName, pFile);
-        connect(pStorage.get(), &AbstractMapStorage::sig_log, this, &MainWindow::slot_log);
-
-        getCanvas()->slot_clearAllSelections();
-        m_asyncTask.begin(std::make_unique<AsyncMerge>(std::move(pc),
-                                                       *this,
-                                                       fileName,
-                                                       std::move(pFile),
-                                                       std::move(pStorage)));
-    } catch (...) {
-        reportOpenFileException(fileName, std::current_exception());
-        return;
-    }
+    const auto filters = QString{
+        "MMapper2 maps (*.mm2);;"
+        "MMapper2 XML or Pandora maps (*.xml);;"
+        "Alternate suffix for MMapper2 XML maps (*.mm2xml)"};
+    QFileDialog::getOpenFileContent(
+        filters,
+        [this](const QString &fileName, const QByteArray &fileContent) {
+            if (fileName.isEmpty()) {
+                return;
+            }
+            QFileInfo file(fileName);
+            auto &savedLastMapDir = setConfig().autoLoad.lastMapDirectory;
+            savedLastMapDir = file.dir().absolutePath();
+            mergeFile(fileName, fileContent);
+        });
 }
 
 bool MainWindow::saveFile(const QString &fileName,
@@ -892,7 +1097,7 @@ bool MainWindow::slot_checkMapConsistency()
             : AsyncHelper{std::move(pc),
                           mw,
                           QString{},
-                          SharedFile{},
+                          nullptr,
                           UniqueStorage{},
                           "Checking map consistency...",
                           CancelDispositionEnum::Allow}
@@ -958,7 +1163,7 @@ bool MainWindow::slot_generateBaseMap()
             : AsyncHelper{std::move(pc),
                           mw,
                           QString{},
-                          SharedFile{},
+                          nullptr,
                           UniqueStorage{},
                           "Generating base map...",
                           CancelDispositionEnum::Allow}

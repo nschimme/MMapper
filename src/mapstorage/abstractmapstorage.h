@@ -41,9 +41,9 @@ public:
     {
         const std::shared_ptr<ProgressCounter> progressCounter;
         QString fileName;
-        QFile *file = nullptr;
+    QIODevice *file = nullptr;
 
-        explicit Data(std::shared_ptr<ProgressCounter> moved_pc, QString moved_name, QFile &f)
+    explicit Data(std::shared_ptr<ProgressCounter> moved_pc, QString moved_name, QIODevice &f)
             : progressCounter(std::move(moved_pc))
             , fileName(std::move(moved_name))
             , file(&f)
@@ -72,9 +72,9 @@ public:
 protected:
     NODISCARD const QString &getFilename() const { return m_data.fileName; }
     NODISCARD ProgressCounter &getProgressCounter() const { return *m_data.progressCounter; }
-    NODISCARD QFile *getFile() const
+    NODISCARD QIODevice *getFile() const
     {
-        if (QFile *const pFile = m_data.file) {
+        if (QIODevice *const pFile = m_data.file) {
             return pFile;
         }
         throw NullPointerException();

@@ -57,3 +57,4 @@ struct NODISCARD MM2FileVersion final
 };
 
 NODISCARD extern std::optional<MM2FileVersion> getMM2FileVersion(const QString &fileName);
+NODISCARD std::optional<MM2FileVersion> getMM2FileVersion(QIODevice &file);

@@ -227,19 +227,29 @@ NODISCARD std::optional<MM2FileVersion> getMM2FileVersion(LoadRoomHelper &helper
 
 } // namespace
 
-NODISCARD std::optional<MM2FileVersion> getMM2FileVersion(const QString &fileName)
+NODISCARD std::optional<MM2FileVersion> getMM2FileVersion(QIODevice &file)
 {
     try {
-        QFile f{fileName};
-        if (!f.open(QIODevice::ReadOnly)) {
-            return std::nullopt;
-        }
-        QDataStream stream{&f};
+        QDataStream stream(&file);
         auto helper = LoadRoomHelper{stream};
         return getMM2FileVersion(helper);
     } catch (...) {
         return std::nullopt;
     }
+}
+
+NODISCARD std::optional<MM2FileVersion> getMM2FileVersion(const QString &fileName)
+{
+    if (fileName.isEmpty()) {
+        return std::nullopt;
+    }
+
+    QFile file(fileName);
+    if (!file.open(QIODevice::ReadOnly)) {
+        return std::nullopt;
+    }
+
+    return getMM2FileVersion(file);
 }
 
 MapStorage::MapStorage(const AbstractMapStorage::Data &data, QObject *parent)

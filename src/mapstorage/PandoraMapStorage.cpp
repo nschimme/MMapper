@@ -185,11 +185,11 @@ std::optional<RawMapLoadData> PandoraMapStorage::virt_loadData()
     auto &progressCounter = getProgressCounter();
     progressCounter.reset();
 
-    QFile *const file = getFile();
+    QIODevice *const file = getFile();
     QXmlStreamReader xml{file};
 
     // Discover total number of rooms
-    const QString &file_fileName = file->fileName();
+    const QString &file_fileName = getFilename();
     if (xml.readNextStartElement() && xml.error() != QXmlStreamReader::NoError) {
         qWarning() << "File cannot be read" << file_fileName;
         return std::nullopt;

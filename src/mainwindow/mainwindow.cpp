@@ -74,16 +74,6 @@ NODISCARD static const char *basic_plural(size_t n)
     return (n == 1) ? "" : "s";
 }
 
-QString MainWindow::chooseLoadOrMergeFileName()
-{
-    const QString &savedLastMapDir = setConfig().autoLoad.lastMapDirectory;
-    return QFileDialog::getOpenFileName(this,
-                                        "Choose map file ...",
-                                        savedLastMapDir,
-                                        "MMapper2 maps (*.mm2)"
-                                        ";;MMapper2 XML or Pandora maps (*.xml)"
-                                        ";;Alternate suffix for MMapper2 XML maps (*.mm2xml)");
-}
 
 static void addApplicationFont()
 {
@@ -879,10 +869,19 @@ void MainWindow::createActions()
     connect(clientAct, &QAction::triggered, this, &MainWindow::slot_onLaunchClient);
 
     saveLogAct = new QAction(QIcon::fromTheme("document-save", QIcon(":/icons/save.png")),
-                             tr("&Save log as..."),
+                             tr("&Save Log as Plain Text..."),
                              this);
     connect(saveLogAct, &QAction::triggered, m_clientWidget, &ClientWidget::slot_saveLog);
-    saveLogAct->setStatusTip(tr("Save log as file"));
+    saveLogAct->setStatusTip(tr("Save log as plain text file"));
+
+    saveLogAsHtmlAct = new QAction(QIcon::fromTheme("document-save", QIcon(":/icons/save.png")),
+                                   tr("&Save Log as HTML..."),
+                                   this);
+    connect(saveLogAsHtmlAct,
+            &QAction::triggered,
+            m_clientWidget,
+            &ClientWidget::slot_saveLogAsHtml);
+    saveLogAsHtmlAct->setStatusTip(tr("Save log as HTML file"));
 
     releaseAllPathsAct = new QAction(QIcon(":/icons/cancel.png"), tr("Release All Paths"), this);
     releaseAllPathsAct->setStatusTip(tr("Release all paths"));
@@ -1186,6 +1185,7 @@ void MainWindow::setupMenuBar()
                                               tr("&Integrated Mud Client"));
     clientMenu->addAction(clientAct);
     clientMenu->addAction(saveLogAct);
+    clientMenu->addAction(saveLogAsHtmlAct);
     QMenu *pathMachineMenu = settingsMenu->addMenu(QIcon(":/icons/goto.png"), tr("&Path Machine"));
     pathMachineMenu->addAction(mouseMode.modeRoomSelectAct);
     pathMachineMenu->addSeparator();
@@ -1545,15 +1545,22 @@ void MainWindow::slot_open()
         return;
     }
 
-    const QString fileName = chooseLoadOrMergeFileName();
-    if (fileName.isEmpty()) {
-        showStatusShort(tr("No filename provided"));
-        return;
-    }
-    QFileInfo file(fileName);
-    auto &savedLastMapDir = setConfig().autoLoad.lastMapDirectory;
-    savedLastMapDir = file.dir().absolutePath();
-    loadFile(file.absoluteFilePath());
+    const auto filters = QString{
+        "MMapper2 maps (*.mm2);;"
+        "MMapper2 XML or Pandora maps (*.xml);;"
+        "Alternate suffix for MMapper2 XML maps (*.mm2xml)"};
+    QFileDialog::getOpenFileContent(
+        filters,
+        [this](const QString &fileName, const QByteArray &fileContent) {
+            if (fileName.isEmpty()) {
+                showStatusShort(tr("No filename provided"));
+                return;
+            }
+            QFileInfo file(fileName);
+            auto &savedLastMapDir = setConfig().autoLoad.lastMapDirectory;
+            savedLastMapDir = file.dir().absolutePath();
+            loadFile(fileName, fileContent);
+        });
 }
 
 void MainWindow::slot_reload()

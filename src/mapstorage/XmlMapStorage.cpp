@@ -284,12 +284,12 @@ std::optional<RawMapLoadData> XmlMapStorage::virt_loadData()
 {
     try {
         log("Loading data ...");
-        QFile &file = deref(getFile());
+        QIODevice &file = deref(getFile());
         QXmlStreamReader stream(&file);
 
         m_loading = std::make_unique<Loading>();
-        m_loading->result.filename = file.fileName();
-        m_loading->result.readonly = !QFileInfo(file).isWritable();
+        m_loading->result.filename = getFilename();
+        m_loading->result.readonly = !file.isWritable();
         m_loading->loadProgressDivisor = static_cast<uint64_t>(
             std::max<int64_t>(1, file.size() / LOAD_PROGRESS_MAX));
 

@@ -242,51 +242,26 @@ void ClientWidget::slot_onShowMessage(const QString &message)
 
 void ClientWidget::slot_saveLog()
 {
-    struct NODISCARD Result
-    {
-        QStringList filenames;
-        bool isHtml = false;
-    };
-    const auto getFileNames = [this]() -> Result {
-        auto save = std::make_unique<QFileDialog>(this, "Choose log file name ...");
-        save->setFileMode(QFileDialog::AnyFile);
-        save->setDirectory(QDir::current());
-        save->setNameFilters(QStringList() << "Text log (*.log *.txt)"
-                                           << "HTML log (*.htm *.html)");
-        save->setDefaultSuffix("txt");
-        save->setAcceptMode(QFileDialog::AcceptSave);
-
-        if (save->exec() == QDialog::Accepted) {
-            const QString nameFilter = save->selectedNameFilter().toLower();
-            const bool isHtml = nameFilter.endsWith(".htm") || nameFilter.endsWith(".html");
-            return Result{save->selectedFiles(), isHtml};
-        }
-
-        return Result{};
-    };
-
-    const auto result = getFileNames();
-    const auto &fileNames = result.filenames;
-
-    if (fileNames.isEmpty()) {
-        relayMessage(tr("No filename provided"));
-        return;
-    }
-
-    QFile document(fileNames[0]);
-    if (!document.open(QFile::WriteOnly | QFile::Text)) {
-        relayMessage(QString("Error occurred while opening %1").arg(document.fileName()));
-        return;
-    }
-
-    const auto getDocStringUtf8 = [](const QTextDocument *const pDoc,
-                                     const bool isHtml) -> QByteArray {
+    const auto getDocStringUtf8 = [](const QTextDocument *const pDoc) -> QByteArray {
         auto &doc = deref(pDoc);
-        const QString string = isHtml ? doc.toHtml() : doc.toPlainText();
+        const QString string = doc.toPlainText();
         return string.toUtf8();
     };
-    document.write(getDocStringUtf8(getDisplay().document(), result.isHtml));
-    document.close();
+    const QByteArray logContent = getDocStringUtf8(getDisplay().document());
+
+    QFileDialog::saveFileContent(logContent, "client-log.txt");
+}
+
+void ClientWidget::slot_saveLogAsHtml()
+{
+    const auto getDocStringUtf8 = [](const QTextDocument *const pDoc) -> QByteArray {
+        auto &doc = deref(pDoc);
+        const QString string = doc.toHtml();
+        return string.toUtf8();
+    };
+    const QByteArray logContent = getDocStringUtf8(getDisplay().document());
+
+    QFileDialog::saveFileContent(logContent, "client-log.html");
 }
 
 bool ClientWidget::focusNextPrevChild(MAYBE_UNUSED bool next)

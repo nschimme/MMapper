@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2025 The MMapper Authors
 
-#include "WinDarkMode.h"
+#include "ThemeManager.h"
 
+#include "../configuration/configuration.h"
 #include "../global/ConfigConsts-Computed.h"
 
 #include <QApplication>
@@ -10,54 +11,95 @@
 #include <QPalette>
 #include <QWidget>
 
-#ifdef WIN32
+#if defined(Q_OS_WIN)
 #include <dwmapi.h>
 #include <windows.h>
+#elif defined(Q_OS_MACOS)
+#include <QProcess>
 #endif
 
-WinDarkMode::WinDarkMode(QObject *const parent)
+ThemeManager::ThemeManager(QObject *const parent)
     : QObject(parent)
 {
-    if constexpr (CURRENT_PLATFORM == PlatformEnum::Windows) {
-        qApp->installNativeEventFilter(this);
-        qApp->installEventFilter(this);
-        applyCurrentPalette();
-    }
+#if defined(Q_OS_WIN)
+    qApp->installNativeEventFilter(this);
+    qApp->installEventFilter(this);
+#endif
 }
 
-WinDarkMode::~WinDarkMode()
+ThemeManager::~ThemeManager()
 {
-    if constexpr (CURRENT_PLATFORM == PlatformEnum::Windows) {
-        qApp->removeNativeEventFilter(this);
-    }
+#if defined(Q_OS_WIN)
+    qApp->removeNativeEventFilter(this);
+#endif
 }
 
-bool WinDarkMode::nativeEventFilter(const QByteArray &eventType,
-                                    void *message,
-                                    qintptr * /*result */)
+bool ThemeManager::nativeEventFilter(const QByteArray &eventType,
+                                     void *message,
+                                     qintptr * /*result */)
 {
+#if defined(Q_OS_WIN)
     if (eventType != "windows_generic_MSG")
         return false;
 
-#ifdef WIN32
     MSG *msg = static_cast<MSG *>(message);
     if (msg->message == WM_SETTINGCHANGE && msg->lParam != 0) {
         const wchar_t *param = reinterpret_cast<const wchar_t *>(msg->lParam);
         if (QString::fromWCharArray(param) == "ImmersiveColorSet") {
-            applyCurrentPalette();
-            emit sig_darkModeChanged(isDarkMode());
+            applyTheme();
         }
     }
 #else
+    std::ignore = eventType;
     std::ignore = message;
 #endif
 
     return false;
 }
 
-bool WinDarkMode::isDarkMode()
+bool ThemeManager::eventFilter(QObject *watched, QEvent *event)
 {
-#ifdef WIN32
+#if defined(Q_OS_WIN)
+    if (event->type() == QEvent::Show) {
+        QWidget *widget = qobject_cast<QWidget *>(watched);
+        if (widget && widget->isWindow() && getConfig().general.darkMode != DarkMode::Light) {
+            //  Enable dark title bar
+            HWND hwnd = reinterpret_cast<HWND>(widget->winId());
+            const DWORD DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+            BOOL useDark = TRUE;
+            DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &useDark, sizeof(useDark));
+        }
+    }
+#else
+    std::ignore = watched;
+    std::ignore = event;
+#endif
+    return false;
+}
+
+void ThemeManager::applyTheme()
+{
+    const auto darkMode = getConfig().general.darkMode;
+
+    bool useDarkMode = false;
+    if (darkMode == DarkMode::Auto) {
+        useDarkMode = isSystemDarkMode();
+    } else if (darkMode == DarkMode::Dark) {
+        useDarkMode = true;
+    }
+
+    if (useDarkMode) {
+        applyDarkPalette();
+    } else {
+        applyLightPalette();
+    }
+
+    emit sig_darkModeChanged(useDarkMode);
+}
+
+bool ThemeManager::isSystemDarkMode()
+{
+#if defined(Q_OS_WIN)
     DWORD value = 1; // Default to light mode
     HKEY hKey;
     if (RegOpenKeyExW(HKEY_CURRENT_USER,
@@ -79,40 +121,19 @@ bool WinDarkMode::isDarkMode()
         }
         RegCloseKey(hKey);
     }
+#elif defined(Q_OS_MACOS)
+    QProcess process;
+    process.start("defaults", {"read", "-g", "AppleInterfaceStyle"});
+    process.waitForFinished(1000);
+    return process.readAllStandardOutput().trimmed() == "Dark";
+#elif defined(Q_OS_LINUX)
+    return qApp->palette().color(QPalette::WindowText).lightness()
+           > qApp->palette().color(QPalette::Window).lightness();
 #endif
     return false;
 }
 
-bool WinDarkMode::eventFilter(QObject *watched, QEvent *event)
-{
-#ifdef WIN32
-    if (event->type() == QEvent::Show) {
-        QWidget *widget = qobject_cast<QWidget *>(watched);
-        if (widget && widget->isWindow() && isDarkMode()) {
-            //  Enable dark title bar
-            HWND hwnd = reinterpret_cast<HWND>(widget->winId());
-            const DWORD DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
-            BOOL useDark = TRUE;
-            DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &useDark, sizeof(useDark));
-        }
-    }
-#else
-    std::ignore = watched;
-    std::ignore = event;
-#endif
-    return false;
-}
-
-void WinDarkMode::applyCurrentPalette()
-{
-    if (isDarkMode()) {
-        applyDarkPalette();
-    } else {
-        applyLightPalette();
-    }
-}
-
-void WinDarkMode::applyDarkPalette()
+void ThemeManager::applyDarkPalette()
 {
     QPalette dark;
     dark.setColor(QPalette::Window, QColor(53, 53, 53));
@@ -132,7 +153,7 @@ void WinDarkMode::applyDarkPalette()
     qApp->setStyle("Fusion");
 }
 
-void WinDarkMode::applyLightPalette()
+void ThemeManager::applyLightPalette()
 {
     qApp->setPalette(QPalette());
     qApp->setStyle("Fusion");

@@ -53,6 +53,7 @@ public:
         bool showMenuBar = true;
         MapModeEnum mapMode = MapModeEnum::PLAY;
         bool checkForUpdate = true;
+        DarkMode darkMode = DarkMode::Auto;
         CharacterEncodingEnum characterEncoding = CharacterEncodingEnum::LATIN1;
 
     private:

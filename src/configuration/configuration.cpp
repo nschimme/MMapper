@@ -219,6 +219,7 @@ ConstString KEY_AUTO_LOAD = "Auto load";
 ConstString KEY_AUTO_RESIZE_TERMINAL = "Auto resize terminal";
 ConstString KEY_BACKGROUND_COLOR = "Background color";
 ConstString KEY_CHARACTER_ENCODING = "Character encoding";
+ConstString KEY_DARK_MODE = "Dark mode";
 ConstString KEY_CHECK_FOR_UPDATE = "Check for update";
 ConstString KEY_CLEAR_INPUT_ON_ENTER = "Clear input on enter";
 ConstString KEY_COLUMNS = "Columns";
@@ -347,6 +348,17 @@ NODISCARD static bool isValidMapMode(const MapModeEnum mode)
     return false;
 }
 
+NODISCARD static bool isValidDarkMode(const DarkMode mode)
+{
+    switch (mode) {
+    case DarkMode::Auto:
+    case DarkMode::Light:
+    case DarkMode::Dark:
+        return true;
+    }
+    return false;
+}
+
 NODISCARD static bool isValidCharacterEncoding(const CharacterEncodingEnum encoding)
 {
     switch (encoding) {
@@ -403,6 +415,17 @@ NODISCARD static CharacterEncodingEnum sanitizeCharacterEncoding(const uint32_t 
 
     qWarning() << "invalid CharacterEncodingEnum:" << input;
     return CharacterEncodingEnum::LATIN1;
+}
+
+NODISCARD static DarkMode sanitizeDarkMode(const uint32_t input)
+{
+    const auto mode = static_cast<DarkMode>(input);
+    if (isValidDarkMode(mode)) {
+        return mode;
+    }
+
+    qWarning() << "invalid DarkMode:" << input;
+    return DarkMode::Auto;
 }
 
 NODISCARD static AutoLoggerEnum sanitizeAutoLoggerState(const int input)
@@ -544,6 +567,8 @@ void Configuration::GeneralSettings::read(const QSettings &conf)
     mapMode = sanitizeMapMode(
         conf.value(KEY_MAP_MODE, static_cast<uint32_t>(MapModeEnum::PLAY)).toUInt());
     checkForUpdate = conf.value(KEY_CHECK_FOR_UPDATE, true).toBool();
+    darkMode =
+        sanitizeDarkMode(conf.value(KEY_DARK_MODE, static_cast<uint32_t>(DarkMode::Auto)).toUInt());
     characterEncoding = sanitizeCharacterEncoding(
         conf.value(KEY_CHARACTER_ENCODING, static_cast<uint32_t>(CharacterEncodingEnum::LATIN1))
             .toUInt());
@@ -749,6 +774,7 @@ void Configuration::GeneralSettings::write(QSettings &conf) const
     conf.setValue(KEY_SHOW_MENU_BAR, showMenuBar);
     conf.setValue(KEY_MAP_MODE, static_cast<uint32_t>(mapMode));
     conf.setValue(KEY_CHECK_FOR_UPDATE, checkForUpdate);
+    conf.setValue(KEY_DARK_MODE, static_cast<uint32_t>(darkMode));
     conf.setValue(KEY_CHARACTER_ENCODING, static_cast<uint32_t>(characterEncoding));
 }
 

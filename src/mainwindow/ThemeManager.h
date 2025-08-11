@@ -8,24 +8,23 @@
 #include <QByteArray>
 #include <QObject>
 
-class NODISCARD_QOBJECT WinDarkMode final : public QObject, public QAbstractNativeEventFilter
+class NODISCARD_QOBJECT ThemeManager final : public QObject, public QAbstractNativeEventFilter
 {
     Q_OBJECT
 
 public:
-    explicit WinDarkMode(QObject *parent = nullptr);
-    ~WinDarkMode() override;
+    explicit ThemeManager(QObject *parent = nullptr);
+    ~ThemeManager() override;
 
+    void applyTheme();
     bool nativeEventFilter(const QByteArray &eventType, void *message, qintptr *result) override;
     bool eventFilter(QObject *watched, QEvent *event) override;
-
-    static bool isDarkMode();
 
 signals:
     void sig_darkModeChanged(bool dark);
 
 private:
-    void applyCurrentPalette();
     void applyDarkPalette();
     void applyLightPalette();
+    bool isSystemDarkMode();
 };

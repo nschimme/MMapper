@@ -31,6 +31,7 @@
 #include "../viewers/TopLevelWindows.h"
 #include "DescriptionWidget.h"
 #include "MapZoomSlider.h"
+#include "ThemeManager.h"
 #include "UpdateDialog.h"
 #include "aboutdialog.h"
 #include "findroomsdlg.h"
@@ -228,6 +229,9 @@ MainWindow::MainWindow()
                                          | QDockWidget::DockWidgetClosable);
     addDockWidget(Qt::RightDockWidgetArea, m_dockDialogDescription);
     m_dockDialogDescription->setWidget(m_descriptionWidget);
+
+    m_themeManager = new ThemeManager(this);
+    m_themeManager->applyTheme();
 
     m_mumeClock = new MumeClock(getConfig().mumeClock.startEpoch, deref(m_gameObserver), this);
     if constexpr (!NO_UPDATER) {
@@ -1418,6 +1422,10 @@ void MainWindow::slot_onPreferences()
             &ConfigDialog::sig_groupSettingsChanged,
             m_groupManager,
             &Mmapper2Group::slot_groupSettingsChanged);
+    connect(m_configDialog.get(),
+            &ConfigDialog::sig_darkModeChanged,
+            m_themeManager,
+            &ThemeManager::applyTheme);
     m_configDialog->show();
 }
 

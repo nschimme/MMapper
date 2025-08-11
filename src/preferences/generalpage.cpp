@@ -18,6 +18,11 @@ static_assert(static_cast<int>(CharacterEncodingEnum::LATIN1) == 0);
 static_assert(static_cast<int>(CharacterEncodingEnum::UTF8) == 1);
 static_assert(static_cast<int>(CharacterEncodingEnum::ASCII) == 2);
 
+// Order of entries in darkModeComboBox drop down
+static_assert(static_cast<int>(DarkMode::Auto) == 0);
+static_assert(static_cast<int>(DarkMode::Light) == 1);
+static_assert(static_cast<int>(DarkMode::Dark) == 2);
+
 GeneralPage::GeneralPage(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::GeneralPage)
@@ -86,6 +91,11 @@ GeneralPage::GeneralPage(QWidget *parent)
             &QCheckBox::stateChanged,
             this,
             &GeneralPage::slot_displayXPStatusStateChanged);
+
+    connect(ui->darkModeComboBox,
+            QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this,
+            &GeneralPage::slot_darkModeChanged);
 
     connect(ui->proxyConnectionStatusCheckBox, &QCheckBox::stateChanged, this, [this]() {
         setConfig().connection.proxyConnectionStatus = ui->proxyConnectionStatusCheckBox->isChecked();
@@ -164,6 +174,7 @@ void GeneralPage::slot_loadConfig()
     }
     ui->proxyListensOnAnyInterfaceCheckBox->setChecked(connection.proxyListensOnAnyInterface);
     ui->charsetComboBox->setCurrentIndex(static_cast<int>(general.characterEncoding));
+    ui->darkModeComboBox->setCurrentIndex(static_cast<int>(general.darkMode));
 
     ui->emulatedExitsCheckBox->setChecked(mumeNative.emulatedExits);
     ui->showHiddenExitFlagsCheckBox->setChecked(mumeNative.showHiddenExitFlags);
@@ -263,4 +274,9 @@ void GeneralPage::slot_displayMumeClockStateChanged(int /*unused*/)
 void GeneralPage::slot_displayXPStatusStateChanged([[maybe_unused]] int)
 {
     setConfig().adventurePanel.setDisplayXPStatus(ui->displayXPStatusCheckBox->isChecked());
+}
+
+void GeneralPage::slot_darkModeChanged(int)
+{
+    setConfig().general.darkMode = static_cast<DarkMode>(ui->darkModeComboBox->currentIndex());
 }

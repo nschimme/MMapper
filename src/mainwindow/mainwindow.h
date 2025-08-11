@@ -66,6 +66,7 @@ class RoomSelection;
 class RoomWidget;
 class UpdateDialog;
 class DescriptionWidget;
+class ThemeManager;
 
 struct MapLoadData;
 
@@ -109,6 +110,7 @@ private:
     AdventureWidget *m_adventureWidget = nullptr;
 
     DescriptionWidget *m_descriptionWidget = nullptr;
+    ThemeManager *m_themeManager = nullptr;
 
     SharedRoomSelection m_roomSelection;
     std::shared_ptr<ConnectionSelection> m_connectionSelection;

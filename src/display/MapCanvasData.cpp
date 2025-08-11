@@ -125,13 +125,30 @@ std::optional<glm::vec3> MapCanvasViewport::unproject(const QInputEvent *const e
     return glm::mix(a, b, glm::clamp(unclamped, 0.f, 1.f));
 }
 
-std::optional<MouseSel> MapCanvasViewport::getUnprojectedMouseSel(const QInputEvent *const event) const
+std::optional<MouseSel> MapCanvasViewport::getUnprojectedMouseSel(
+    const QInputEvent *const event) const
 {
     const auto opt_v = unproject(event);
     if (!opt_v.has_value()) {
         return std::nullopt;
     }
     const glm::vec3 &v = opt_v.value();
+    return MouseSel{Coordinate2f{v.x, v.y}, m_currentLayer};
+}
+
+std::optional<MouseSel> MapCanvasViewport::getUnprojectedMouseSel(const QPointF &pos) const
+{
+    const auto xy = glm::vec2{static_cast<float>(pos.x()), static_cast<float>(height() - pos.y())};
+    const auto a = unproject_raw(glm::vec3{xy, 0.f}); // near
+    const auto b = unproject_raw(glm::vec3{xy, 1.f}); // far
+    const auto unclamped = (static_cast<float>(m_currentLayer) - a.z) / (b.z - a.z);
+
+    const float epsilon = 1e-5f; // allow a small amount of overshoot
+    if (!::isClamped(unclamped, 0.f - epsilon, 1.f + epsilon)) {
+        return std::nullopt;
+    }
+
+    const auto v = glm::mix(a, b, glm::clamp(unclamped, 0.f, 1.f));
     return MouseSel{Coordinate2f{v.x, v.y}, m_currentLayer};
 }
 

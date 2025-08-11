@@ -150,6 +150,7 @@ private:
     Diff m_diff;
     FrameRateController m_frameRateController;
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
+    QList<QEventPoint> m_touchPoints;
     Signal2Lifetime m_lifetime;
 
 public:

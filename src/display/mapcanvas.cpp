@@ -32,7 +32,7 @@
 #include <utility>
 #include <vector>
 
-#include <QGestureEvent>
+#include <QTouchEvent>
 #include <QMessageLogContext>
 #include <QOpenGLDebugMessage>
 #include <QSize>
@@ -72,7 +72,7 @@ MapCanvas::MapCanvas(MapData &mapData,
     }
 
     setCursor(Qt::OpenHandCursor);
-    grabGesture(Qt::PinchGesture);
+    setAttribute(Qt::WA_AcceptTouchEvents);
     setContextMenuPolicy(Qt::CustomContextMenu);
 }
 
@@ -296,40 +296,72 @@ void MapCanvas::slot_onForcedPositionChange()
 
 bool MapCanvas::event(QEvent *const event)
 {
-    auto tryHandlePinchZoom = [this, event]() -> bool {
-        if (event->type() != QEvent::Gesture) {
+    auto tryHandleTouchEvent = [this, event]() -> bool {
+        const auto type = event->type();
+        if (type != QEvent::TouchBegin && type != QEvent::TouchUpdate && type != QEvent::TouchEnd) {
+            return false;
+        }
+        const auto *const touchEvent = dynamic_cast<const QTouchEvent *>(event);
+        if (touchEvent == nullptr) {
             return false;
         }
 
-        const auto *const gestureEvent = dynamic_cast<QGestureEvent *>(event);
-        if (gestureEvent == nullptr) {
-            return false;
+        m_touchPoints = touchEvent->points();
+        if (m_touchPoints.count() != 2) {
+            return true;
         }
 
-        // Zoom in / out
-        QGesture *const gesture = gestureEvent->gesture(Qt::PinchGesture);
-        const auto *const pinch = dynamic_cast<QPinchGesture *>(gesture);
-        if (pinch == nullptr) {
-            return false;
+        const QEventPoint &p1 = m_touchPoints.first();
+        const QEventPoint &p2 = m_touchPoints.last();
+
+        const auto p1_last = p1.lastPosition();
+        const auto p2_last = p2.lastPosition();
+        const auto dist_last = QLineF(p1_last, p2_last).length();
+
+        if (type != QEvent::TouchUpdate || dist_last == 0) {
+            return true;
         }
 
-        const QPinchGesture::ChangeFlags changeFlags = pinch->changeFlags();
-        if (changeFlags & QPinchGesture::ScaleFactorChanged) {
-            const auto pinchFactor = static_cast<float>(pinch->totalScaleFactor());
-            m_scaleFactor.setPinch(pinchFactor);
-            if ((false)) {
-                zoomChanged(); // Don't call this here, because it's not true yet.
-            }
+        const auto p1_curr = p1.position();
+        const auto p2_curr = p2.position();
+        const auto dist_curr = QLineF(p1_curr, p2_curr).length();
+
+        const auto center_last = (p1_last + p2_last) / 2.f;
+        const auto opt_center = getUnprojectedMouseSel(center_last);
+        if (!opt_center) {
+            return true;
         }
-        if (pinch->state() == Qt::GestureFinished) {
-            m_scaleFactor.endPinch();
-            zoomChanged(); // might not have actually changed
+
+        const auto zoomFactor = dist_curr / dist_last;
+        const auto oldCenter = m_mapScreen.getCenter();
+        const auto newCenter = opt_center->to_vec3();
+
+        // 1. recenter to mouse location
+        const auto delta1
+            = glm::ivec2(glm::vec2(newCenter - oldCenter) * static_cast<float>(SCROLL_SCALE));
+        emit sig_mapMove(delta1.x, delta1.y);
+
+        // 2. zoom in
+        m_scaleFactor *= zoomFactor;
+
+        // 3. adjust viewport for new projection
+        setViewportAndMvp(width(), height());
+
+        // 4. subtract the offset to same mouse coordinate;
+        const auto center_curr = (p1_curr + p2_curr) / 2.f;
+        if (const auto &optCenter2 = getUnprojectedMouseSel(center_curr)) {
+            const auto delta2 = glm::ivec2(glm::vec2(optCenter2->to_vec3() - newCenter)
+                                           * static_cast<float>(SCROLL_SCALE));
+            emit sig_mapMove(-delta2.x, -delta2.y);
         }
+
+        zoomChanged();
         resizeGL();
+
         return true;
     };
 
-    if (tryHandlePinchZoom()) {
+    if (tryHandleTouchEvent()) {
         return true;
     }
 

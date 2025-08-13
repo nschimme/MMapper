@@ -63,7 +63,7 @@ struct NODISCARD AnsiTextHelper final
 
     void init();
     void displayText(const QString &str);
-    void limitScrollback(int lineLimit);
+    NODISCARD std::optional<int> limitScrollback(int lineLimit);
 };
 
 extern void setAnsiText(QTextEdit *pEdit, std::string_view text);

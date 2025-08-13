@@ -340,16 +340,24 @@ void AnsiTextHelper::displayText(const QString &input_str)
         });
 }
 
-void AnsiTextHelper::limitScrollback(int lineLimit)
+std::optional<int> AnsiTextHelper::limitScrollback(int lineLimit)
 {
     const int lineCount = textEdit.document()->lineCount();
     if (lineCount > lineLimit) {
         const int trimLines = lineCount - lineLimit;
+
+        QScrollBar *scrollbar = textEdit.verticalScrollBar();
+        const int maxBefore = scrollbar->maximum();
+
         cursor.movePosition(QTextCursor::Start);
         cursor.movePosition(QTextCursor::Down, QTextCursor::KeepAnchor, trimLines);
         cursor.removeSelectedText();
         cursor.movePosition(QTextCursor::End);
+
+        const int maxAfter = scrollbar->maximum();
+        return maxBefore - maxAfter;
     }
+    return std::nullopt;
 }
 
 void DisplayWidget::slot_displayText(const QString &str)
@@ -359,13 +367,14 @@ void DisplayWidget::slot_displayText(const QString &str)
     auto &vscroll = deref(verticalScrollBar());
     constexpr int ALMOST_ALL_THE_WAY = 4;
     const bool wasAtBottom = (vscroll.sliderPosition() >= vscroll.maximum() - ALMOST_ALL_THE_WAY);
+    const int scrollValueBefore = vscroll.sliderPosition();
 
     m_ansiTextHelper.displayText(str);
 
     // REVISIT: include option to limit scrollback in the displayText function,
     // so it can choose to remove lines from the top when the overflow occurs,
     // to improve performance for massive inserts.
-    m_ansiTextHelper.limitScrollback(lineLimit);
+    const std::optional<int> maxDelta = m_ansiTextHelper.limitScrollback(lineLimit);
 
     // Detecting the keyboard Scroll Lock status would be preferable, but we'll have to live with
     // this because Qt is apparently the only windowing system in existence that doesn't provide
@@ -374,6 +383,8 @@ void DisplayWidget::slot_displayText(const QString &str)
     // REVISIT: should this be user-configurable?
     if (wasAtBottom) {
         vscroll.setSliderPosition(vscroll.maximum());
+    } else if (maxDelta) {
+        vscroll.setSliderPosition(scrollValueBefore - *maxDelta);
     }
 }
 

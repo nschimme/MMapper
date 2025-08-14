@@ -25,7 +25,7 @@
     </ul>
   </description>
   <developer id="org.mume.MMapper.authors">
-    <name>The MMapper Authors</name>
+    <name>the MMapper Authors</name>
   </developer>
   <screenshots>
     <screenshot type="default">
@@ -47,6 +47,10 @@
       <url>https://github.com/MUME/MMapper/releases/tag/@MMAPPER_VERSION_STRING@</url>
     </release>
   </releases>
+  <branding>
+    <color type="primary" scheme="light">#f0f0f0</color>
+    <color type="primary" scheme="dark">#1a1a1a</color>
+  </branding>
   <content_rating type="oars-1.1">
     <content_attribute id="drugs-alcohol">mild</content_attribute>
     <content_attribute id="drugs-narcotics">none</content_attribute>
@@ -71,4 +75,9 @@
     <content_attribute id="violence-sexual">none</content_attribute>
     <content_attribute id="violence-slavery">mild</content_attribute>
   </content_rating>
+  <requires>
+    <control>keyboard</control>
+    <control>pointing</control>
+    <display_length compare="ge">768</display_length>
+  </requires>
 </component>

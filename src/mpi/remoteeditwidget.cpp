@@ -28,14 +28,12 @@
 
 #include <QAction>
 #include <QMenu>
-#include <QMenuBar>
 #include <QMessageBox>
 #include <QMessageLogContext>
 #include <QPlainTextEdit>
 #include <QRegularExpression>
 #include <QScopedPointer>
 #include <QSize>
-#include <QStatusBar>
 #include <QString>
 #include <QTextDocument>
 #include <QtGui>
@@ -683,23 +681,21 @@ RemoteEditWidget::RemoteEditWidget(const bool editSession,
                                    QString title,
                                    QString body,
                                    QWidget *const parent)
-    : QMainWindow(parent)
+    : QWidget(parent)
     , m_editSession(editSession)
     , m_title(std::move(title))
     , m_body(std::move(body))
 {
-    setWindowFlags(windowFlags() | Qt::WindowType::Widget);
-    setWindowFlags(windowFlags() & ~Qt::WindowStaysOnTopHint);
-    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
-
     mmqt::setWindowTitle2(*this,
                           QString("MMapper %1").arg(m_editSession ? "Editor" : "Viewer"),
                           m_title);
 
-    QWidget *centralContainer = new QWidget(this);
-    QVBoxLayout *mainLayout = new QVBoxLayout(centralContainer);
+    QVBoxLayout *mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(0);
+
+    m_menuBar = new QMenuBar(this);
+    mainLayout->addWidget(m_menuBar);
 
     m_gotoWidget.reset(createGotoWidget());
     mainLayout->addWidget(m_gotoWidget.get(), 0);
@@ -707,15 +703,11 @@ RemoteEditWidget::RemoteEditWidget(const bool editSession,
     m_findReplaceWidget.reset(createFindReplaceWidget());
     mainLayout->addWidget(m_findReplaceWidget.get(), 0);
 
-    // REVISIT: can this be called as an initializer?
-    // Probably not. In fact this may be too early, since it accesses contentsMargins(),
-    // which assumes this object is fully constructed and initialized.
-    //
-    // REVISIT: does this have to be QScopedPointer, or can it be std::unique_ptr?
     m_textEdit.reset(createTextEdit());
     mainLayout->addWidget(m_textEdit.get(), 1);
 
-    setCentralWidget(centralContainer);
+    m_statusBar = new QStatusBar(this);
+    mainLayout->addWidget(m_statusBar);
 
     // REVISIT: Restore geometry from config?
     setGeometry(QStyle::alignedRect(Qt::LeftToRight,
@@ -740,8 +732,7 @@ auto RemoteEditWidget::createTextEdit() -> Editor *
     const auto pTextEdit = new Editor(m_body, this);
     pTextEdit->setFont(font);
     pTextEdit->setReadOnly(!m_editSession);
-    pTextEdit->setMinimumSize(QSize(x + contentsMargins().left() + contentsMargins().right(),
-                                    y + contentsMargins().top() + contentsMargins().bottom()));
+    pTextEdit->setMinimumSize(QSize(x, y));
     pTextEdit->setLineWrapMode(Editor::LineWrapMode::NoWrap);
     pTextEdit->setSizeIncrement(fm.averageCharWidth(), fm.lineSpacing());
     pTextEdit->setTabStopDistance(fm.horizontalAdvance(" ") * 8); // A tab is 8 spaces wide
@@ -751,7 +742,7 @@ auto RemoteEditWidget::createTextEdit() -> Editor *
     new LineHighlighter(MAX_LENGTH, doc);
 
     addStatusBar(pTextEdit);
-    addFileMenu(menuBar(), pTextEdit);
+    addFileMenu(pTextEdit);
     return pTextEdit;
 }
 
@@ -809,14 +800,14 @@ auto RemoteEditWidget::createFindReplaceWidget() -> FindReplaceWidget *
     return pFindReplaceWidget;
 }
 
-void RemoteEditWidget::addFileMenu(QMenuBar *const menuBar, const Editor *const pTextEdit)
+void RemoteEditWidget::addFileMenu(const Editor *const pTextEdit)
 {
-    QMenu *const fileMenu = menuBar->addMenu(tr("&File"));
+    QMenu *const fileMenu = m_menuBar->addMenu(tr("&File"));
     if (m_editSession) {
         addSave(fileMenu);
     }
     addExit(fileMenu);
-    addEditAndViewMenus(menuBar, pTextEdit);
+    addEditAndViewMenus(pTextEdit);
 }
 
 struct NODISCARD EditViewCommand final
@@ -870,10 +861,10 @@ struct NODISCARD EditCommand2 final
     {}
 };
 
-void RemoteEditWidget::addEditAndViewMenus(QMenuBar *const menuBar, const Editor *const pTextEdit)
+void RemoteEditWidget::addEditAndViewMenus(const Editor *const pTextEdit)
 {
-    QMenu *const editMenu = menuBar->addMenu("&Edit");
-    QMenu *const viewMenu = menuBar->addMenu("&View");
+    QMenu *const editMenu = m_menuBar->addMenu("&Edit");
+    QMenu *const viewMenu = m_menuBar->addMenu("&View");
 
     const std::vector<EditCommand2> cmds{
 
@@ -1069,8 +1060,7 @@ void RemoteEditWidget::addToMenu(QMenu *const menu,
 
 void RemoteEditWidget::addStatusBar(const Editor *const pTextEdit)
 {
-    QStatusBar *const status = statusBar();
-    status->showMessage(tr("Ready"));
+    m_statusBar->showMessage(tr("Ready"));
 
     connect(pTextEdit,
             &QPlainTextEdit::cursorPositionChanged,
@@ -1088,7 +1078,7 @@ void RemoteEditWidget::slot_updateStatus(const QString &message_param)
     if (message_param.isEmpty()) {
         slot_updateStatusBar();
     } else {
-        statusBar()->showMessage(message_param);
+        m_statusBar->showMessage(message_param);
     }
 }
 
@@ -1331,7 +1321,7 @@ void RemoteEditWidget::slot_updateStatusBar()
         }
     };
     report_errors();
-    statusBar()->showMessage(status);
+    m_statusBar->showMessage(status);
 }
 
 void RemoteEditWidget::slot_justifyText()
@@ -1466,20 +1456,6 @@ QSize RemoteEditWidget::sizeHint() const
     return QSize{640, 480};
 }
 
-void RemoteEditWidget::closeEvent(QCloseEvent *event)
-{
-    if (m_editSession) {
-        if (m_submitted || slot_maybeCancel()) {
-            event->accept();
-        } else {
-            event->ignore();
-        }
-    } else {
-        slot_cancelEdit();
-        event->accept();
-    }
-}
-
 bool RemoteEditWidget::slot_maybeCancel()
 {
     if (slot_contentsChanged()) {
@@ -1519,12 +1495,4 @@ void RemoteEditWidget::slot_finishEdit()
     m_submitted = true;
     emit sig_save(m_textEdit->toPlainText());
     close();
-}
-
-void RemoteEditWidget::setVisible(bool visible)
-{
-    QWidget::setVisible(visible);
-    if (visible) {
-        slot_updateStatusBar();
-    }
 }

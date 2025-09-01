@@ -13,6 +13,7 @@
 #include "../global/Version.h"
 #include "../global/emojis.h"
 #include "GmcpUtils.h"
+#include "TelnetConsts.h"
 
 #include <charconv>
 #include <list>
@@ -465,6 +466,20 @@ void MudTelnet::virt_receiveMudServerStatus(const TelnetMsspBytes &ba)
     m_outputs.onSendMSSPToUser(ba);
 }
 
+void MudTelnet::virt_receiveNewEnviron(const TelnetNewEnvironBytes &data)
+{
+    if (getDebug()) {
+        qDebug() << "Received NEW-ENVIRON data from MUME" << data.toDebugString();
+    }
+
+    // According to MNES, the client should only respond to SEND requests.
+    // For now, we will parse incoming IS and INFO commands to see what the server is sending.
+    // We won't act on them yet, but this allows for future extensions.
+
+    // Placeholder for parsing logic if needed in the future.
+    // For now, we just log if debugging is enabled.
+}
+
 void MudTelnet::virt_onGmcpEnabled()
 {
     if (getDebug()) {
@@ -489,6 +504,28 @@ void MudTelnet::virt_onGmcpEnabled()
 
     // Check if user has requested we remember our login credentials
     m_outputs.onTryCharLogin();
+}
+
+void MudTelnet::virt_onNewEnvironEnabled()
+{
+    if (getDebug()) {
+        qDebug() << "NEW-ENVIRON negotiated with MUME. Sending initial variables.";
+    }
+
+    // Send client information
+    QByteArrayList vars;
+    vars.append(QByteArrayLiteral("CLIENT_NAME"));
+    vars.append(QByteArrayLiteral("MMapper"));
+    vars.append(QByteArrayLiteral("CLIENT_VERSION"));
+    vars.append(QByteArrayLiteral(getMMapperVersion().c_str()));
+    vars.append(QByteArrayLiteral("CHARSET"));
+    vars.append(QByteArrayLiteral("UTF-8")); // MMapper uses UTF-8
+
+    // TODO: Potentially add IPADDRESS, MTTS, TERMINAL_TYPE if needed,
+    // ensuring proxy considerations are handled if this were for user/client proxying.
+    // For now, keeping it to the basics as per the initial request for mud telnet handler.
+
+    sendNewEnvironIs(vars);
 }
 
 void MudTelnet::virt_sendRawData(const TelnetIacBytes &data)

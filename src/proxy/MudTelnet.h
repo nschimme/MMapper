@@ -77,7 +77,9 @@ private:
     void virt_receiveEchoMode(bool toggle) final;
     void virt_receiveGmcpMessage(const GmcpMessage &) final;
     void virt_receiveMudServerStatus(const TelnetMsspBytes &) final;
+    void virt_receiveNewEnviron(const TelnetNewEnvironBytes &) final;
     void virt_onGmcpEnabled() final;
+    void virt_onNewEnvironEnabled() final;
     void virt_sendRawData(const TelnetIacBytes &data) final;
 
 private:

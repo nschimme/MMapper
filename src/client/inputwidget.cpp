@@ -359,9 +359,9 @@ void InputWidget::tabComplete()
 
         // Found a previous word to complete to
         current.removeSelectedText();
-        current.movePosition(QTextCursor::NextWord, QTextCursor::KeepAnchor);
-        current.insertText(word);
-        auto length = static_cast<int>(word.length() - m_tabFragment.length());
+        const auto suffix = word.mid(m_tabFragment.length());
+        current.insertText(suffix);
+        const auto length = suffix.length();
         current.movePosition(QTextCursor::Left, QTextCursor::MoveAnchor, length);
         current.movePosition(QTextCursor::Right, QTextCursor::KeepAnchor, length);
         setTextCursor(current);

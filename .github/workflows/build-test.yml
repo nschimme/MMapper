@@ -153,7 +153,9 @@ jobs:
       name: Run lcov
       run: |
         cd build
-        lcov --directory . --capture --output-file coverage.info
+        lcov --directory . --capture --initial --output-file coverage.base
+        lcov --directory . --capture --output-file coverage.run
+        lcov --add-tracefile coverage.base --add-tracefile coverage.run --output-file coverage.info
         lcov --list coverage.info
         lcov --remove coverage.info '/usr/*' --output-file filtered.info
     - if: env.COVERAGE == 'true'

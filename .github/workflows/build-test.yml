@@ -157,7 +157,7 @@ jobs:
         lcov --directory . --capture --output-file coverage.run
         lcov --add-tracefile coverage.base --add-tracefile coverage.run --output-file coverage.info
         lcov --list coverage.info
-        lcov --remove coverage.info '/usr/*' '*/external/*' '*/mmapper_autogen/*' '*/CMakeFiles/*' --output-file filtered.info
+        lcov --remove coverage.info '/usr/*' '*/external/*' '*/moc_*.cpp' '*/ui_*.h' '*/qrc_*.cpp' --output-file filtered.info
     - if: env.COVERAGE == 'true'
       uses: codecov/codecov-action@v5
       with:

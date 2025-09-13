@@ -717,6 +717,11 @@ target_link_libraries(mm_map PUBLIC
     Qt6::Core
     Qt6::Widgets
 )
+if(USE_CODE_COVERAGE)
+    target_link_libraries(mmapper PUBLIC coverage_config)
+    target_link_libraries(mm_global PUBLIC coverage_config)
+    target_link_libraries(mm_map PUBLIC coverage_config)
+endif()
 add_dependencies(mmapper mm_global mm_map)
 add_dependencies(mm_map mm_global)
 

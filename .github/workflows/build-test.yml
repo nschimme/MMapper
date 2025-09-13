@@ -81,7 +81,7 @@ jobs:
       run: |
         brew install lcov
         echo "MMAPPER_CMAKE_EXTRA=-DCMAKE_PREFIX_PATH=$env:QT_ROOT_DIR -DUSE_CODE_COVERAGE=true" >> $GITHUB_ENV
-        echo "COVERAGE=true" >> $GITHUB_ENV
+        echo "COVERAGE=false" >> $GITHUB_ENV
 
       #
       # Install Packages (Windows)
@@ -157,7 +157,7 @@ jobs:
         lcov --directory . --capture --output-file coverage.run
         lcov --add-tracefile coverage.base --add-tracefile coverage.run --output-file coverage.info
         lcov --list coverage.info
-        lcov --remove coverage.info '/usr/*' '*/external/*' '*/moc_*.cpp' '*/ui_*.h' '*/qrc_*.cpp' --output-file filtered.info
+        lcov --remove coverage.info '/usr/*' '*/external/*' '*/moc_*.cpp' '*/ui_*.h' '*/qrc_*.cpp' '*/src/gen/*' --output-file filtered.info
     - if: env.COVERAGE == 'true'
       uses: codecov/codecov-action@v5
       with:

@@ -81,7 +81,7 @@ jobs:
       run: |
         brew install lcov
         echo "MMAPPER_CMAKE_EXTRA=-DCMAKE_PREFIX_PATH=$env:QT_ROOT_DIR -DUSE_CODE_COVERAGE=true" >> $GITHUB_ENV
-        echo "COVERAGE=false" >> $GITHUB_ENV
+        echo "COVERAGE=true" >> $GITHUB_ENV
 
       #
       # Install Packages (Windows)

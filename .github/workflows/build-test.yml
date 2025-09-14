@@ -58,7 +58,7 @@ jobs:
     - if: runner.os == 'Linux' && matrix.compiler == 'clang'
       name: Install Clang for Ubuntu
       run: |
-        sudo apt install -y clang-18 binutils
+        sudo apt install -y clang-18 binutils lcov
         echo "QMAKESPEC=linux-clang" >> $GITHUB_ENV
         echo "CC=clang-18" >> $GITHUB_ENV
         echo "CXX=clang++-18" >> $GITHUB_ENV

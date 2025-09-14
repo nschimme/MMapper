@@ -160,8 +160,8 @@ jobs:
             LLVM_PROFDATA=llvm-profdata-18
             LLVM_COV=llvm-cov-18
           else # macOS
-            LLVM_PROFDATA=llvm-profdata
-            LLVM_COV=llvm-cov
+            LLVM_PROFDATA="xcrun llvm-profdata"
+            LLVM_COV="xcrun llvm-cov"
           fi
           $LLVM_PROFDATA merge -sparse $PROFRAW_FILES -o coverage.profdata
           OBJECT_FILES=$(find . -type f -name "mmapper" -o -name "Test*")

@@ -191,19 +191,32 @@ endif()
 
 # Code Coverage Configuration
 add_library(coverage_config INTERFACE)
-if(USE_CODE_COVERAGE AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+if(USE_CODE_COVERAGE)
     message(STATUS "Enabling code coverage reporting")
-    # Add required flags (GCC & LLVM/Clang)
-    target_compile_options(coverage_config INTERFACE
-        -O0        # no optimization
-        -g         # generate debug info
-        --coverage # sets all required flags
-        -fprofile-update=atomic
-    )
-    if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.13)
-        target_link_options(coverage_config INTERFACE --coverage)
-    else()
-        target_link_libraries(coverage_config INTERFACE --coverage)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        target_compile_options(coverage_config INTERFACE
+            -O0 # no optimization
+            -g # generate debug info
+            -fprofile-instr-generate
+            -fcoverage-mapping
+        )
+        if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.13)
+            target_link_options(coverage_config INTERFACE -fprofile-instr-generate)
+        else()
+            target_link_libraries(coverage_config INTERFACE -fprofile-instr-generate)
+        endif()
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+        # Add required flags (GCC)
+        target_compile_options(coverage_config INTERFACE
+            -O0        # no optimization
+            -g         # generate debug info
+            --coverage # sets all required flags
+        )
+        if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.13)
+            target_link_options(coverage_config INTERFACE --coverage)
+        else()
+            target_link_libraries(coverage_config INTERFACE --coverage)
+        endif()
     endif()
 endif()
 

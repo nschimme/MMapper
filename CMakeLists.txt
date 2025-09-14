@@ -211,6 +211,7 @@ if(USE_CODE_COVERAGE)
             -O0        # no optimization
             -g         # generate debug info
             --coverage # sets all required flags
+            -fprofile-update=atomic
         )
         if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.13)
             target_link_options(coverage_config INTERFACE --coverage)

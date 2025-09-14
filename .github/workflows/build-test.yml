@@ -167,7 +167,7 @@ jobs:
             LLVM_COV="xcrun llvm-cov"
           fi
           $LLVM_PROFDATA merge -sparse $PROFRAW_FILES -o coverage.profdata
-          OBJECT_FILES=$(find . -type f -executable \( -name "mmapper" -o -name "Test*" \))
+          OBJECT_FILES=$(find . -type f -perm +111 \( -name "mmapper" -o -name "Test*" \))
           $LLVM_COV export -format=lcov -instr-profile=coverage.profdata $OBJECT_FILES --ignore-filename-regex='.*/external/.*|.*/tests/.*|.*moc_.*\.cpp|.*ui_.*\.h|.*qrc_.*\.cpp' > filtered.info
         else # gcc
           lcov --directory . --capture --initial --output-file coverage.base

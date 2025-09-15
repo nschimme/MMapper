@@ -342,6 +342,7 @@ void InputWidget::tabComplete()
     if (current.selectedText().isEmpty()) {
         return;
     }
+    const bool isFirstTab = !m_tabbing;
     if (!m_tabbing) {
         m_tabFragment = current.selectedText();
         m_tabHistory.reset();
@@ -358,13 +359,10 @@ void InputWidget::tabComplete()
         }
 
         // Found a previous word to complete to
-        if (current.selectedText() != m_tabFragment) {
-            // This is a subsequent tab, the selection is an old suffix.
-            current.removeSelectedText();
-        } else {
-            // This is the first tab, the selection is the fragment.
-            // Don't remove it, just clear the selection so we can append.
+        if (isFirstTab) {
             current.clearSelection();
+        } else {
+            current.removeSelectedText();
         }
         const auto suffix = word.mid(m_tabFragment.length());
         current.insertText(suffix);

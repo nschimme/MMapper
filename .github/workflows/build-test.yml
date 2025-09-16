@@ -58,7 +58,7 @@ jobs:
     - if: runner.os == 'Linux' && matrix.compiler == 'clang'
       name: Install Clang for Ubuntu
       run: |
-        sudo apt install -y clang-18 binutils lcov
+        sudo apt install -y clang-18 binutils
         echo "QMAKESPEC=linux-clang" >> $GITHUB_ENV
         echo "CC=clang-18" >> $GITHUB_ENV
         echo "CXX=clang++-18" >> $GITHUB_ENV
@@ -80,8 +80,8 @@ jobs:
     - if: runner.os == 'macOS'
       name: Install Packages for Mac
       run: |
-        brew install lcov
-        echo "MMAPPER_CMAKE_EXTRA=-DCMAKE_PREFIX_PATH=$env:QT_ROOT_DIR" >> $GITHUB_ENV
+        echo "MMAPPER_CMAKE_EXTRA=-DUSE_CODE_COVERAGE=true -DCMAKE_PREFIX_PATH=$env:QT_ROOT_DIR" >> $GITHUB_ENV
+        echo "COVERAGE=true" >> $GITHUB_ENV
 
       #
       # Install Packages (Windows)
@@ -136,8 +136,8 @@ jobs:
       #
       # Run tests
       #
-    - if: env.COVERAGE == 'true'
-      name: Prepare lcov counters
+    - if: env.COVERAGE == 'true' && matrix.compiler == 'gcc'
+      name: Initialize GCC coverage counters
       run: cd build && lcov --zerocounters --directory .
     - name: Run unit tests
       run: cd build && ctest -V --no-compress-output -T test --output-junit ../ctest-to-junit-results.xml
@@ -150,14 +150,33 @@ jobs:
         name: test-results ${{ matrix.os }} ${{ matrix.compiler }}
         path: ctest-to-junit-results.xml
     - if: env.COVERAGE == 'true'
-      name: Run lcov
+      name: Generate coverage report
       run: |
         cd build
-        lcov --directory . --capture --initial --output-file coverage.base
-        lcov --directory . --capture --output-file coverage.run
-        lcov --add-tracefile coverage.base --add-tracefile coverage.run --output-file coverage.info
-        lcov --list coverage.info
-        lcov --remove coverage.info '/usr/*' '*/external/*' '*/moc_*.cpp' '*/ui_*.h' '*/qrc_*.cpp' '*/src/gen/*' --output-file filtered.info --ignore-errors unused
+        if [ "${{ matrix.compiler }}" = "clang" ]; then
+          PROFRAW_FILES=$(find . -name "*.profraw")
+          if [ -z "$PROFRAW_FILES" ]; then
+            echo "No .profraw files found. Skipping coverage generation."
+            exit 0
+          fi
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            LLVM_PROFDATA=llvm-profdata-18
+            LLVM_COV=llvm-cov-18
+            FIND_EXEC_CMD="-executable"
+          else # macOS
+            LLVM_PROFDATA="xcrun llvm-profdata"
+            LLVM_COV="xcrun llvm-cov"
+            FIND_EXEC_CMD="-perm -u+x"
+          fi
+          $LLVM_PROFDATA merge -sparse $PROFRAW_FILES -o coverage.profdata
+          OBJECT_FILES=$(find . -type f ${FIND_EXEC_CMD} \( -name "mmapper" -o -name "Test*" \))
+          $LLVM_COV export -format=lcov -instr-profile=coverage.profdata $OBJECT_FILES --ignore-filename-regex='.*/external/.*|.*/tests/.*|.*moc_.*\.cpp|.*ui_.*\.h|.*qrc_.*\.cpp' > filtered.info
+        else # gcc
+          lcov --directory . --capture --initial --output-file coverage.base
+          lcov --directory . --capture --output-file coverage.run
+          lcov --add-tracefile coverage.base --add-tracefile coverage.run --output-file coverage.info
+          lcov --remove coverage.info '/usr/*' '*/external/*' '*/moc_*.cpp' '*/ui_*.h' '*/qrc_*.cpp' '*/src/gen/*' --output-file filtered.info --ignore-errors unused
+        fi
     - if: env.COVERAGE == 'true'
       uses: codecov/codecov-action@v5
       with:

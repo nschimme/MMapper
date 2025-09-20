@@ -153,13 +153,13 @@ jobs:
       name: Generate coverage report
       run: |
         cd build
-        if [ "${{ matrix.compiler }}" = "clang" ]; then
+        if [ "${{ matrix.compiler }}" == "clang" ]; then
           PROFRAW_FILES=$(find . -name "*.profraw")
           if [ -z "$PROFRAW_FILES" ]; then
             echo "No .profraw files found. Skipping coverage generation."
             exit 0
           fi
-          if [ "${{ runner.os }}" = "Linux" ]; then
+          if [ "${{ runner.os }}" == "Linux" ]; then
             LLVM_PROFDATA=llvm-profdata-18
             LLVM_COV=llvm-cov-18
             FIND_EXEC_CMD="-executable"

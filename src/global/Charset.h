@@ -256,10 +256,6 @@ public:
     void append_char(const char c) { get_ostream() << maybe_ascii(c); }
     void append_codepoint(const char32_t codepoint)
     {
-        if (codepoint == 0) {
-            append_char(charset_detail::DEFAULT_UNMAPPED_CHARACTER);
-            return;
-        }
         append_char(to_latin1(maybe_transit_unicode(codepoint)));
     }
     void operator()(const char32_t codepoint) { append_codepoint(codepoint); }

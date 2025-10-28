@@ -171,7 +171,7 @@ struct NODISCARD Utf8Range final
     }
 };
 static constexpr std::array<Utf8Range, 5> utf8_ranges{Utf8Range{},
-                                                      {0x20u, 0x7Eu},
+                                                      {0x0u, 0x7Fu},
                                                       {0x80u, 0x07FFu},
                                                       {0x800u, 0xFFFFu},
                                                       {0x10000u, 0x10FFFFu}};
@@ -444,7 +444,9 @@ NODISCARD constexpr OptCodepoint try_match_utf8(const std::string_view sv) noexc
         return opt;
     }
 
-    if (opt.codepoint < 0x20 || opt.codepoint == 0x7F) {
+    if (opt.codepoint < 0x20 && opt.codepoint != 0x09 && opt.codepoint != 0x0A && opt.codepoint != 0x0D) {
+        opt.error = CodePointErrorEnum::NonPrintableAscii;
+    } else if (opt.codepoint == 0x7F) {
         opt.error = CodePointErrorEnum::NonPrintableAscii;
     } else if (isSurrogate(opt.codepoint)) {
         opt.error = CodePointErrorEnum::Utf16Surrogate;
@@ -489,8 +491,15 @@ static_assert(try_match_utf8("\x1f")
               == OptCodepoint{1, 0x1f, CodePointErrorEnum::NonPrintableAscii});
 static_assert(try_match_utf8("\x7F")
               == OptCodepoint{1, 0x7F, CodePointErrorEnum::NonPrintableAscii});
+static_assert(try_match_utf8("\x09") == OptCodepoint{1, 0x09});
+static_assert(try_match_utf8("\x0A") == OptCodepoint{1, 0x0A});
+static_assert(try_match_utf8("\x0D") == OptCodepoint{1, 0x0D});
 
 // 2 bytes
+static_assert(try_match_utf8("\xC0\x80")
+              == OptCodepoint{2, 0, CodePointErrorEnum::NonPrintableAscii});
+static_assert(try_match_utf8("\xC1\xBF")
+              == OptCodepoint{2, 0x7F, CodePointErrorEnum::NonPrintableAscii});
 static_assert(try_match_utf8("\xC2\x80") == OptCodepoint{2, 0x80});
 static_assert(try_match_utf8("\xDF\xBF") == OptCodepoint{2, 0x7Ff});
 

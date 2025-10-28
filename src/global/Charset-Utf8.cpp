@@ -437,6 +437,14 @@ NODISCARD constexpr bool isSurrogate(const char32_t codepoint) noexcept
     return is16Bit(codepoint) && utf16_detail::is_utf16_surrogate(static_cast<uint16_t>(codepoint));
 }
 
+NODISCARD constexpr bool isNonPrintableAscii(const char32_t c) noexcept
+{
+    if (c < 0x20) {
+        return c != 0x09 && c != 0x0A && c != 0x0D;
+    }
+    return c == 0x7F;
+}
+
 NODISCARD constexpr OptCodepoint try_match_utf8(const std::string_view sv) noexcept
 {
     OptCodepoint opt = Utf8MultiByteDecoder::try_decode(sv);
@@ -444,9 +452,7 @@ NODISCARD constexpr OptCodepoint try_match_utf8(const std::string_view sv) noexc
         return opt;
     }
 
-    if (opt.codepoint < 0x20 && opt.codepoint != 0x09 && opt.codepoint != 0x0A && opt.codepoint != 0x0D) {
-        opt.error = CodePointErrorEnum::NonPrintableAscii;
-    } else if (opt.codepoint == 0x7F) {
+    if (isNonPrintableAscii(opt.codepoint)) {
         opt.error = CodePointErrorEnum::NonPrintableAscii;
     } else if (isSurrogate(opt.codepoint)) {
         opt.error = CodePointErrorEnum::Utf16Surrogate;

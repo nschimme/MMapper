@@ -553,12 +553,9 @@ void test_conversion_to_ascii()
 } // namespace
 
 namespace { // anonymous
-void test_nul()
+void test_non_printable_ascii()
 {
     using sanitizer::SanitizedString;
-
-    // C-style strings are null-terminated, so we need to construct it like this.
-    const std::string input_nul = std::string("a") + C_NUL + std::string("b");
 
     auto testcase = [&](const std::string_view input, const std::string_view expect) {
         {
@@ -578,7 +575,11 @@ void test_nul()
         }
     };
 
-    testcase(input_nul, "a?b");
+    // C-style strings are null-terminated, so we need to construct it like this.
+    testcase(std::string("a") + C_NUL + std::string("b"), "a?b");
+    testcase(std::string("a") + '\x01' + std::string("b"), "a?b");
+    testcase(std::string("a") + '\x1f' + std::string("b"), "a?b");
+    testcase(std::string("a") + '\x7f' + std::string("b"), "a?b");
 }
 } // namespace
 
@@ -589,6 +590,6 @@ void testSanitizer()
     ::sanitizer::detail::test_sanitize_multiline();
     ::sanitizer::detail::test_sanitize_wordwrap();
     test_conversion_to_ascii();
-    test_nul();
+    test_non_printable_ascii();
 }
 } // namespace test

@@ -68,6 +68,7 @@ endif()
 
 if(APPLE)
     set(CMAKE_MACOSX_RPATH TRUE)
+    set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "Build architectures for macOS" FORCE)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" CACHE STRING "Minimum OS X deployment version" FORCE)
 endif()
 

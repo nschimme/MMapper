@@ -43,12 +43,16 @@ NODISCARD const char *getArchitectureRegexPattern()
         return (it != archPatterns.end()) ? it->second : nullptr;
     };
 
+#if defined(Q_OS_MACOS)
+    return "universal";
+#else
     if (auto pattern = findPattern(QSysInfo::currentCpuArchitecture())) {
         return pattern;
     }
     if (auto fallback = findPattern(QSysInfo::buildCpuArchitecture())) {
         return fallback;
     }
+#endif
     abort();
 }
 

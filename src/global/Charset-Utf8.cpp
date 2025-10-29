@@ -508,6 +508,8 @@ static_assert(try_match_utf8("\xC1\xBF")
               == OptCodepoint{2, 0x7F, CodePointErrorEnum::NonPrintableAscii});
 static_assert(try_match_utf8("\xC2\x80") == OptCodepoint{2, 0x80});
 static_assert(try_match_utf8("\xDF\xBF") == OptCodepoint{2, 0x7Ff});
+static_assert(try_match_utf8("\xC2\x7E")
+              == OptCodepoint{2, 0x7E, CodePointErrorEnum::OverLongEncoding});
 
 // 3 bytes
 static_assert(try_match_utf8("\xE0\x7F\x7F") == UtfErrInvalidContinuation2);

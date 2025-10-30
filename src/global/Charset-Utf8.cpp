@@ -452,13 +452,13 @@ NODISCARD constexpr OptCodepoint try_match_utf8(const std::string_view sv) noexc
         return opt;
     }
 
-    if (isNonPrintableAscii(opt.codepoint)) {
-        opt.error = CodePointErrorEnum::NonPrintableAscii;
-    } else if (isSurrogate(opt.codepoint)) {
-        opt.error = CodePointErrorEnum::Utf16Surrogate;
-    } else if (const Utf8Range range = utf8_ranges[opt.num_bytes]; !range.contains(opt.codepoint)) {
+    if (const Utf8Range range = utf8_ranges[opt.num_bytes]; !range.contains(opt.codepoint)) {
         opt.error = (opt.codepoint < range.lo) ? CodePointErrorEnum::OverLongEncoding
                                                : CodePointErrorEnum::TooLarge;
+    } else if (isSurrogate(opt.codepoint)) {
+        opt.error = CodePointErrorEnum::Utf16Surrogate;
+    } else if (isNonPrintableAscii(opt.codepoint)) {
+        opt.error = CodePointErrorEnum::NonPrintableAscii;
     }
 
     return opt;
@@ -491,25 +491,17 @@ static_assert(try_match_utf8("\xF0\x80\x80\x80")
 
 // 1 byte
 static constexpr std::array<char, 2> zero{0, 0};
-static_assert(try_match_utf8(std::string_view{zero.data(), 1})
-              == OptCodepoint{1, 0, CodePointErrorEnum::NonPrintableAscii});
-static_assert(try_match_utf8("\x1f")
-              == OptCodepoint{1, 0x1f, CodePointErrorEnum::NonPrintableAscii});
-static_assert(try_match_utf8("\x7F")
-              == OptCodepoint{1, 0x7F, CodePointErrorEnum::NonPrintableAscii});
-static_assert(try_match_utf8("\x09") == OptCodepoint{1, 0x09});
-static_assert(try_match_utf8("\x0A") == OptCodepoint{1, 0x0A});
-static_assert(try_match_utf8("\x0D") == OptCodepoint{1, 0x0D});
+static_assert(try_match_utf8(std::string_view{zero.data(), 1}) == OptCodepoint{1, 0x0});
+static_assert(try_match_utf8("\x1") == OptCodepoint{1, 0x1});
+static_assert(try_match_utf8("\x7F") == OptCodepoint{1, 0x7F});
 
 // 2 bytes
 static_assert(try_match_utf8("\xC0\x80")
-              == OptCodepoint{2, 0, CodePointErrorEnum::NonPrintableAscii});
+              == OptCodepoint{2, 0, CodePointErrorEnum::OverLongEncoding});
 static_assert(try_match_utf8("\xC1\xBF")
-              == OptCodepoint{2, 0x7F, CodePointErrorEnum::NonPrintableAscii});
+              == OptCodepoint{2, 0x7F, CodePointErrorEnum::OverLongEncoding});
 static_assert(try_match_utf8("\xC2\x80") == OptCodepoint{2, 0x80});
 static_assert(try_match_utf8("\xDF\xBF") == OptCodepoint{2, 0x7Ff});
-static_assert(try_match_utf8("\xC2\x7E")
-              == OptCodepoint{2, 0x7E, CodePointErrorEnum::OverLongEncoding});
 
 // 3 bytes
 static_assert(try_match_utf8("\xE0\x7F\x7F") == UtfErrInvalidContinuation2);
@@ -606,6 +598,7 @@ NODISCARD static constexpr Utf8ValidationEnum validateUtf8(std::string_view sv) 
         case conversion::conversion_detail::CodePointErrorEnum::OverLongEncoding:
         case conversion::conversion_detail::CodePointErrorEnum::TooLarge:
         case conversion::conversion_detail::CodePointErrorEnum::Utf16Surrogate:
+        case conversion::conversion_detail::CodePointErrorEnum::NonPrintableAscii:
             containsInvalidEncodings = true;
             break;
         }

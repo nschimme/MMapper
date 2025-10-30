@@ -420,7 +420,7 @@ SanitizedString sanitizeOneLine(std::string input)
 
     // force it to be one line
     for (char &c : input) {
-        if (detail::nbsp_aware::isAnySpace(c)) {
+        if (detail::nbsp_aware::isAnySpace(c) || c == '\0') {
             c = C_SPACE;
         }
     }
@@ -429,6 +429,11 @@ SanitizedString sanitizeOneLine(std::string input)
     std::ignore = detail::sanitize_oneline(os, input);
     auto output = std::move(os).str();
 
+    bool sanitized = isSanitizedOneLine(output);
+    if (!sanitized) {
+        qDebug() << input;
+        qDebug() << output;
+    }
     assert(isSanitizedOneLine(output));
     return SanitizedString{std::move(output)};
 }

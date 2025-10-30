@@ -366,7 +366,7 @@ void InputWidget::tabComplete()
         }
         const auto suffix = word.mid(m_tabFragment.length());
         current.insertText(suffix);
-        const auto length = suffix.length();
+        const auto length = static_cast<int>(suffix.length());
         current.movePosition(QTextCursor::Left, QTextCursor::MoveAnchor, length);
         current.movePosition(QTextCursor::Right, QTextCursor::KeepAnchor, length);
         setTextCursor(current);

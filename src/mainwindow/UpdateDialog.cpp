@@ -43,16 +43,12 @@ NODISCARD const char *getArchitectureRegexPattern()
         return (it != archPatterns.end()) ? it->second : nullptr;
     };
 
-#if defined(Q_OS_MACOS)
-    return "universal";
-#else
     if (auto pattern = findPattern(QSysInfo::currentCpuArchitecture())) {
         return pattern;
     }
     if (auto fallback = findPattern(QSysInfo::buildCpuArchitecture())) {
         return fallback;
     }
-#endif
     abort();
 }
 
@@ -162,40 +158,61 @@ QString UpdateDialog::findDownloadUrlForRelease(const QJsonObject &releaseObject
         }(),
         QRegularExpression::CaseInsensitiveOption);
 
-    // Compile architecture-specific regex
-    static const auto archRegex = QRegularExpression(getArchitectureRegexPattern(),
-                                                     QRegularExpression::CaseInsensitiveOption);
+    const auto assets = releaseObject.value("assets").toArray();
+    QString fallbackForMac;
 
-    auto assets = releaseObject.value("assets").toArray();
+    // First pass: look for the ideal asset
     for (const QJsonValueRef item : assets) {
         const auto asset = item.toObject();
         const QString name = asset.value("name").toString();
         const QString url = asset.value("browser_download_url").toString();
 
-        if (name.isEmpty() || url.isEmpty()) {
+        if (name.isEmpty() || url.isEmpty() || !name.contains(platformRegex)) {
             continue;
         }
 
-        if (!name.contains(platformRegex) || !name.contains(archRegex)) {
-            continue;
+#if defined(Q_OS_MACOS)
+        // On macOS, the ideal asset is a universal build
+        if (name.contains(QStringLiteral("universal"), Qt::CaseInsensitive)) {
+            return url;
         }
-
-        if constexpr (CURRENT_PLATFORM == PlatformEnum::Linux) {
-            const bool isAssetAppImage = name.contains("AppImage", Qt::CaseInsensitive);
-            const bool isEnvAppImage = qEnvironmentVariableIsSet(APPIMAGE_KEY);
-            if (isAssetAppImage != isEnvAppImage) {
-                continue;
-            }
-
-            const bool isAssetFlatpak = name.contains("flatpak", Qt::CaseInsensitive);
-            const bool isEnvFlatpak = qEnvironmentVariableIsSet(FLATPAK_KEY);
-            if (isAssetFlatpak != isEnvFlatpak) {
-                continue;
+        // Save the arch-specific build as a fallback
+        if (fallbackForMac.isEmpty()) {
+            static const auto archRegex = QRegularExpression(getArchitectureRegexPattern(),
+                                                             QRegularExpression::CaseInsensitiveOption);
+            if (name.contains(archRegex)) {
+                fallbackForMac = url;
             }
         }
+#else
+        // On other platforms, the ideal asset is the one matching the architecture
+        static const auto archRegex = QRegularExpression(getArchitectureRegexPattern(),
+                                                         QRegularExpression::CaseInsensitiveOption);
+        if (name.contains(archRegex)) {
+            if constexpr (CURRENT_PLATFORM == PlatformEnum::Linux) {
+                const bool isAssetAppImage = name.contains("AppImage", Qt::CaseInsensitive);
+                const bool isEnvAppImage = qEnvironmentVariableIsSet(APPIMAGE_KEY);
+                if (isAssetAppImage != isEnvAppImage) {
+                    continue;
+                }
 
-        return url;
+                const bool isAssetFlatpak = name.contains("flatpak", Qt::CaseInsensitive);
+                const bool isEnvFlatpak = qEnvironmentVariableIsSet(FLATPAK_KEY);
+                if (isAssetFlatpak != isEnvFlatpak) {
+                    continue;
+                }
+            }
+            return url;
+        }
+#endif
     }
+
+#if defined(Q_OS_MACOS)
+    // If we finished the loop on macOS without finding a universal build, use the fallback
+    if (!fallbackForMac.isEmpty()) {
+        return fallbackForMac;
+    }
+#endif
 
     const QString fallbackUrl = releaseObject.value("html_url").toString();
     if (!fallbackUrl.isEmpty()) {

@@ -44,22 +44,25 @@ NODISCARD extern RawAnsi updateFormat(QTextCharFormat &format,
 
 struct NODISCARD AnsiTextHelper final
 {
+    DisplayWidget &displayWidget;
     QTextEdit &textEdit;
     QTextCursor cursor;
     QTextCharFormat format;
     const FontDefaults defaults;
     RawAnsi currentAnsi;
 
-    explicit AnsiTextHelper(QTextEdit &input_textEdit, FontDefaults def)
-        : textEdit{input_textEdit}
+    explicit AnsiTextHelper(DisplayWidget &input_displayWidget, FontDefaults def)
+        : displayWidget{input_displayWidget}
+        , textEdit{input_displayWidget}
         , cursor{textEdit.document()->rootFrame()->firstCursorPosition()}
         , format{cursor.charFormat()}
         , defaults{std::move(def)}
     {}
 
-    explicit AnsiTextHelper(QTextEdit &input_textEdit)
-        : AnsiTextHelper{input_textEdit, FontDefaults{}}
+    explicit AnsiTextHelper(DisplayWidget &input_displayWidget)
+        : AnsiTextHelper{input_displayWidget, FontDefaults{}}
     {}
+
 
     void init();
     void displayText(const QString &str);
@@ -94,6 +97,7 @@ private:
 class NODISCARD_QOBJECT DisplayWidget final : public QTextBrowser
 {
     Q_OBJECT
+    Q_PROPERTY(QColor backgroundColor READ backgroundColor WRITE setBackgroundColor)
 
 private:
     using base = QTextBrowser;
@@ -102,6 +106,7 @@ private:
     DisplayWidgetOutputs *m_output = nullptr;
     AnsiTextHelper m_ansiTextHelper;
     bool m_canCopy = false;
+    std::unique_ptr<QPropertyAnimation> m_animation;
 
 public:
     explicit DisplayWidget(QWidget *parent);
@@ -136,4 +141,9 @@ protected:
 
 public slots:
     void slot_displayText(const QString &str);
+    void visualBeep();
+
+private:
+    void setBackgroundColor(const QColor &color);
+    NODISCARD QColor backgroundColor() const;
 };

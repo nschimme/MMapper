@@ -21,23 +21,31 @@ namespace { // anonymous
 const constexpr int TAB_WIDTH_SPACES = 8;
 const volatile bool ignore_non_default_underline_colors = false;
 
-void foreach_backspace(const QStringView text,
-                       const std::function<void()> &callback_backspace,
-                       const std::function<void(const QStringView nonBackspace)> &callback_between)
+void foreach_char(const QChar qchar,
+                  const QStringView text,
+                  const std::function<void()> &callback_qchar,
+                  const std::function<void(const QStringView nonQchar)> &callback_between)
 {
     qsizetype pos = 0;
     const qsizetype end = text.length();
     while (pos != end) {
-        const qsizetype backspaceIndex = text.indexOf(char_consts::C_BACKSPACE, pos);
-        if (backspaceIndex < 0) {
+        const qsizetype qcharIndex = text.indexOf(qchar, pos);
+        if (qcharIndex < 0) {
             callback_between(text.mid(pos));
             break;
         }
 
-        callback_between(text.mid(pos, backspaceIndex - pos));
-        callback_backspace();
-        pos = backspaceIndex + 1;
+        callback_between(text.mid(pos, qcharIndex - pos));
+        callback_qchar();
+        pos = qcharIndex + 1;
     }
+}
+
+void foreach_backspace(const QStringView text,
+                       const std::function<void()> &callback_backspace,
+                       const std::function<void(const QStringView nonBackspace)> &callback_between)
+{
+    foreach_char(char_consts::C_BACKSPACE, text, callback_backspace, callback_between);
 }
 
 } // namespace
@@ -69,7 +77,7 @@ void AnsiTextHelper::init()
 DisplayWidgetOutputs::~DisplayWidgetOutputs() = default;
 DisplayWidget::DisplayWidget(QWidget *const parent)
     : QTextBrowser(parent)
-    , m_ansiTextHelper{static_cast<QTextEdit &>(*this)}
+    , m_ansiTextHelper{*this}
 {
     setReadOnly(true);
     setOverwriteMode(true);
@@ -315,6 +323,21 @@ void AnsiTextHelper::displayText(const QString &input_str)
     };
 
     // Display text using a cursor
+    auto displayTextWithoutAnsi = [this, &try_add_backspace, &add_formatted](
+                                      const QStringView textStr) {
+        // According to https://www.vt100.net/docs/vt100-ug/chapter3.html
+        // The bell character is \x07.
+        // It's also audible, but we can't do that, so we'll do a visual beep instead.
+        static const QChar bell = mmqt::QC_ALERT;
+
+        auto on_bell = [this]() { displayWidget.visualBeep(); };
+        auto on_backspace = [&try_add_backspace, &add_formatted](const QStringView text) {
+            foreach_backspace(text, try_add_backspace, add_formatted);
+        };
+
+        foreach_char(bell, textStr, on_bell, on_backspace);
+    };
+
     mmqt::foreach_regex(
         ansi_regex,
         input_str,
@@ -335,9 +358,7 @@ void AnsiTextHelper::displayText(const QString &input_str)
                 }
             }
         },
-        [&try_add_backspace, &add_formatted](const QStringView textStr) {
-            foreach_backspace(textStr, try_add_backspace, add_formatted);
-        });
+        displayTextWithoutAnsi);
 }
 
 void AnsiTextHelper::limitScrollback(int lineLimit)
@@ -350,6 +371,36 @@ void AnsiTextHelper::limitScrollback(int lineLimit)
         cursor.removeSelectedText();
         cursor.movePosition(QTextCursor::End);
     }
+}
+
+void DisplayWidget::setBackgroundColor(const QColor &color)
+{
+    QTextFrameFormat frameFormat = document()->rootFrame()->frameFormat();
+    frameFormat.setBackground(color);
+    document()->rootFrame()->setFrameFormat(frameFormat);
+}
+
+QColor DisplayWidget::backgroundColor() const
+{
+    return document()->rootFrame()->frameFormat().background().color();
+}
+
+void DisplayWidget::visualBeep()
+{
+    if (m_animation) {
+        m_animation->stop();
+    }
+
+    const QColor startColor = m_ansiTextHelper.defaults.defaultBg;
+    QColor endColor = startColor;
+    endColor.setRed(std::min(255, endColor.red() + 80));
+
+    m_animation = std::make_unique<QPropertyAnimation>(this, "backgroundColor");
+    m_animation->setDuration(250);
+    m_animation->setStartValue(startColor);
+    m_animation->setKeyValueAt(0.1, endColor);
+    m_animation->setEndValue(startColor);
+    m_animation->start(QAbstractAnimation::DeleteWhenStopped);
 }
 
 void DisplayWidget::slot_displayText(const QString &str)
@@ -512,6 +563,7 @@ RawAnsi updateFormat(QTextCharFormat &format,
 
 void setAnsiText(QTextEdit *const pEdit, const std::string_view text)
 {
+    DisplayWidget *const pDisplayWidget = dynamic_cast<DisplayWidget *>(pEdit);
     QTextEdit &edit = deref(pEdit);
 
     edit.clear();
@@ -523,7 +575,7 @@ void setAnsiText(QTextEdit *const pEdit, const std::string_view text)
     // REVISIT: Is this necessary to do in both places?
     deref(edit.document()).setUndoRedoEnabled(false);
 
-    AnsiTextHelper helper{edit};
+    AnsiTextHelper helper(deref(pDisplayWidget));
     helper.init();
     helper.displayText(mmqt::toQStringUtf8(text));
 

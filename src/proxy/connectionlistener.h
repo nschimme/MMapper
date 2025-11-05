@@ -27,6 +27,7 @@ class PrespammedPath;
 class Proxy;
 class QObject;
 class RoomManager;
+class AbstractSocket;
 
 class NODISCARD_QOBJECT ConnectionListenerTcpServer final : public QTcpServer
 {
@@ -72,6 +73,7 @@ public:
 
 public:
     void listen();
+    void startVirtualConnection(std::unique_ptr<AbstractSocket> socket);
 
 private:
     void log(const QString &msg) { emit sig_log("Listener", msg); }
@@ -82,4 +84,5 @@ signals:
 
 protected slots:
     void slot_onIncomingConnection(qintptr socketDescriptor);
+    void proxyAboutToDelete();
 };

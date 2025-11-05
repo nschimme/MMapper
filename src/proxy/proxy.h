@@ -28,6 +28,7 @@
 #include <QtGlobal>
 
 class AbstractParser;
+class AbstractSocket;
 class CTimers;
 class ConnectionListener;
 class MainWindow;
@@ -75,11 +76,10 @@ private:
     MumeClock &m_mumeClock;
     MapCanvas &m_mapCanvas;
     GameObserver &m_gameObserver;
-    const qintptr m_socketDescriptor;
+    std::unique_ptr<AbstractSocket> m_userSocket;
     MainWindow &m_mainWindow;
 
 private:
-    class UserSocket;
     struct UserSocketOutputs;
     struct NODISCARD Pipeline final
     {
@@ -119,7 +119,6 @@ private:
     public: // from user: Sock -> Telnet -> LineFilter -> Parser
         struct NODISCARD User final
         {
-            std::unique_ptr<UserSocket> userSocket;
             std::unique_ptr<UserTelnet> userTelnet;
             std::unique_ptr<TelnetLineFilter> userTelnetFilter;
             std::unique_ptr<AbstractParser> userParser;
@@ -172,7 +171,7 @@ public:
                                                MumeClock &,
                                                MapCanvas &,
                                                GameObserver &,
-                                               qintptr &,
+                                               std::unique_ptr<AbstractSocket>,
                                                ConnectionListener &);
 
 public:
@@ -184,7 +183,7 @@ public:
                    MumeClock &,
                    MapCanvas &,
                    GameObserver &,
-                   qintptr &,
+                   std::unique_ptr<AbstractSocket>,
                    ConnectionListener &);
     ~Proxy() final;
 
@@ -195,7 +194,6 @@ private:
     void allocPipelineObjects();
     void destroyPipelineObjects();
 
-    void allocUserSocket();
     void allocMudSocket();
     void allocUserTelnet();
     void allocMudTelnet();
@@ -301,7 +299,7 @@ private:
         return deref(getPipeline().mud.mpiFilterToMud);
     }
 
-    NODISCARD UserSocket &getUserSocket() { return deref(getPipeline().user.userSocket); }
+    NODISCARD AbstractSocket &getUserSocket() { return deref(m_userSocket); }
     NODISCARD UserTelnet &getUserTelnet() { return deref(getPipeline().user.userTelnet); }
     NODISCARD TelnetLineFilter &getUserTelnetFilter()
     {

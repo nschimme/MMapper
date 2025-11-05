@@ -9,6 +9,7 @@
 #include "../global/io.h"
 #include "../global/utils.h"
 #include "../proxy/TextCodec.h"
+#include "../proxy/AbstractSocket.h"
 
 #include <limits>
 #include <tuple>
@@ -22,54 +23,48 @@
 
 ClientTelnetOutputs::~ClientTelnetOutputs() = default;
 
-ClientTelnet::ClientTelnet(ClientTelnetOutputs &output)
-    : AbstractTelnet(TextCodecStrategyEnum::FORCE_UTF_8, TelnetTermTypeBytes{"MMapper"})
+ClientTelnet::ClientTelnet(ClientTelnetOutputs &output, std::unique_ptr<AbstractSocket> socket)
+    : QObject(nullptr)
+    , AbstractTelnet(TextCodecStrategyEnum::FORCE_UTF_8, TelnetTermTypeBytes{"MMapper"})
     , m_output{output}
+    , m_socket(std::move(socket))
 {
-    auto &socket = m_socket;
-    QObject::connect(&socket, &QAbstractSocket::connected, &m_dummy, [this]() { onConnected(); });
-    QObject::connect(&socket, &QAbstractSocket::disconnected, &m_dummy, [this]() {
-        onDisconnected();
-    });
-
-    QObject::connect(&socket, &QIODevice::readyRead, &m_dummy, [this]() { onReadyRead(); });
-    QObject::connect(&socket,
-                     QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::errorOccurred),
-                     &m_dummy,
-                     [this](QAbstractSocket::SocketError err) { onError(err); });
+    QObject::connect(m_socket.get(), &AbstractSocket::connected, this, &ClientTelnet::onConnected);
+    QObject::connect(m_socket.get(), &AbstractSocket::disconnected, this, &ClientTelnet::onDisconnected);
+    QObject::connect(m_socket.get(), &AbstractSocket::readyRead, this, &ClientTelnet::onReadyRead);
+    QObject::connect(m_socket.get(), &AbstractSocket::errorOccurred, this, &ClientTelnet::onError);
 }
 
 ClientTelnet::~ClientTelnet()
 {
-    m_socket.disconnectFromHost();
+    m_socket->disconnectFromHost();
 }
 
 void ClientTelnet::connectToHost()
 {
-    auto &socket = m_socket;
-    if (socket.state() == QAbstractSocket::ConnectedState) {
+    if (m_socket->state() == QAbstractSocket::ConnectedState) {
         return;
     }
 
-    if (socket.state() != QAbstractSocket::UnconnectedState) {
-        socket.abort();
+    if (m_socket->state() != QAbstractSocket::UnconnectedState) {
+        m_socket->abort();
     }
 
-    socket.connectToHost(QHostAddress::LocalHost, getConfig().connection.localPort);
-    socket.waitForConnected(3000);
+    m_socket->connectToHost(QHostAddress(QHostAddress::LocalHost).toString(), getConfig().connection.localPort);
+    m_socket->waitForConnected(3000);
 }
 
 void ClientTelnet::onConnected()
 {
     reset();
-    m_socket.setSocketOption(QAbstractSocket::LowDelayOption, true);
-    m_socket.setSocketOption(QAbstractSocket::KeepAliveOption, true);
+    m_socket->setSocketOption(QAbstractSocket::LowDelayOption, true);
+    m_socket->setSocketOption(QAbstractSocket::KeepAliveOption, true);
     m_output.connected();
 }
 
 void ClientTelnet::disconnectFromHost()
 {
-    m_socket.disconnectFromHost();
+    m_socket->disconnectFromHost();
 }
 
 void ClientTelnet::onDisconnected()
@@ -86,8 +81,8 @@ void ClientTelnet::onError(QAbstractSocket::SocketError error)
         return;
     }
 
-    QString err = m_socket.errorString();
-    m_socket.abort();
+    QString err = m_socket->errorString();
+    m_socket->abort();
     m_output.socketError(err);
 }
 
@@ -98,7 +93,7 @@ void ClientTelnet::sendToMud(const QString &data)
 
 void ClientTelnet::virt_sendRawData(const TelnetIacBytes &data)
 {
-    m_socket.write(data.getQByteArray());
+    m_socket->write(data.getQByteArray());
 }
 
 void ClientTelnet::onWindowSizeChanged(const int width, const int height)
@@ -122,11 +117,10 @@ void ClientTelnet::onWindowSizeChanged(const int width, const int height)
 
 void ClientTelnet::onReadyRead()
 {
-    // REVISIT: check return value?
-    std::ignore = io::readAllAvailable(m_socket, m_buffer, [this](const QByteArray &byteArray) {
-        assert(!byteArray.isEmpty());
-        onReadInternal(TelnetIacBytes{byteArray});
-    });
+    const auto data = m_socket->readAll();
+    if (!data.isEmpty()) {
+        onReadInternal(TelnetIacBytes{data});
+    }
 }
 
 void ClientTelnet::virt_sendToMapper(const RawBytes &data, bool /*goAhead*/)

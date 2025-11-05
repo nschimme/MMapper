@@ -10,6 +10,7 @@
 
 #include <QPointer>
 #include <QString>
+#include "../proxy/AbstractSocket.h"
 #include <QWidget>
 #include <QtCore>
 
@@ -19,6 +20,7 @@ class QEvent;
 class QObject;
 class StackedInputWidget;
 class PreviewWidget;
+class ConnectionListener;
 
 struct ClientTelnetOutputs;
 struct DisplayWidgetOutputs;
@@ -54,16 +56,18 @@ private:
     };
 
     Pipeline m_pipeline;
+    ConnectionListener &m_listener;
+    bool m_isUsingVirtualConnection = false;
 
 public:
-    explicit ClientWidget(QWidget *parent);
+    explicit ClientWidget(QWidget *parent, ConnectionListener &listener);
     ~ClientWidget() final;
 
 private:
     void initPipeline();
     void initStackedInputWidget();
     void initDisplayWidget();
-    void initClientTelnet();
+    void initClientTelnet(std::unique_ptr<AbstractSocket> socket);
 
 private:
     NODISCARD Ui::ClientWidget &getUi() // NOLINT (no, it should not be const)

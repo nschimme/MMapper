@@ -11,6 +11,7 @@
 #include "../global/MakeQPointer.h"
 #include "../global/TextUtils.h"
 #include "proxy.h"
+#include "TcpSocket.h"
 
 #include <memory>
 
@@ -85,10 +86,10 @@ void ConnectionListener::listen()
     }
 }
 
-void ConnectionListener::slot_onIncomingConnection(qintptr socketDescriptor)
+void ConnectionListener::startVirtualConnection(std::unique_ptr<AbstractSocket> socket)
 {
     if (m_proxy == nullptr) {
-        log("New connection: accepted.");
+        log("New virtual connection: accepted.");
         emit sig_clientSuccessfullyConnected();
 
         m_proxy = Proxy::allocInit(m_mapData,
@@ -98,8 +99,43 @@ void ConnectionListener::slot_onIncomingConnection(qintptr socketDescriptor)
                                    m_mumeClock,
                                    m_mapCanvas,
                                    m_gameOberver,
-                                   socketDescriptor,
+                                   std::move(socket),
                                    *this);
+        connect(m_proxy, &QObject::destroyed, this, &ConnectionListener::proxyAboutToDelete);
+    } else {
+        log("New virtual connection: rejected.");
+    }
+}
+
+void ConnectionListener::proxyAboutToDelete()
+{
+    m_proxy = nullptr;
+}
+
+void ConnectionListener::slot_onIncomingConnection(qintptr socketDescriptor)
+{
+    if (m_proxy == nullptr) {
+        log("New connection: accepted.");
+        emit sig_clientSuccessfullyConnected();
+
+        auto socket = std::make_unique<TcpSocket>(this);
+        if (!socket->setSocketDescriptor(socketDescriptor)) {
+            log("Failed to set socket descriptor.");
+            return;
+        }
+        socket->setSocketOption(QAbstractSocket::LowDelayOption, true);
+        socket->setSocketOption(QAbstractSocket::KeepAliveOption, true);
+
+        m_proxy = Proxy::allocInit(m_mapData,
+                                   m_pathMachine,
+                                   m_prespammedPath,
+                                   m_groupManager,
+                                   m_mumeClock,
+                                   m_mapCanvas,
+                                   m_gameOberver,
+                                   std::move(socket),
+                                   *this);
+        connect(m_proxy, &QObject::destroyed, this, &ConnectionListener::proxyAboutToDelete);
     } else {
         log("New connection: rejected.");
         QTcpSocket tcpSocket;

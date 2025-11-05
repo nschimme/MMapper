@@ -11,7 +11,8 @@
 
 #include <QAbstractSocket>
 #include <QObject>
-#include <QTcpSocket>
+
+class AbstractSocket;
 
 struct ClientTelnetOutputs
 {
@@ -38,16 +39,18 @@ private:
     virtual void virt_sendToUser(const QString &data) = 0;
 };
 
-class NODISCARD ClientTelnet final : AbstractTelnet
+#include <memory>
+
+class NODISCARD_QOBJECT ClientTelnet final : public QObject, private AbstractTelnet
 {
+    Q_OBJECT
 private:
     ClientTelnetOutputs &m_output;
     io::buffer<(1 << 15)> m_buffer;
-    QTcpSocket m_socket;
-    QObject m_dummy;
+    std::unique_ptr<AbstractSocket> m_socket;
 
 public:
-    explicit ClientTelnet(ClientTelnetOutputs &output);
+    explicit ClientTelnet(ClientTelnetOutputs &output, std::unique_ptr<AbstractSocket> socket);
     ~ClientTelnet() final;
 
 private:

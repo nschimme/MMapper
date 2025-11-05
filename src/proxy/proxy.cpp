@@ -30,6 +30,8 @@
 #include "connectionlistener.h"
 #include "mumesocket.h"
 #include "telnetfilter.h"
+#include "AbstractSocket.h"
+#include "TcpSocket.h"
 
 #include <cassert>
 #include <memory>
@@ -82,41 +84,6 @@ private:
 
 Proxy::UserSocketOutputs::~UserSocketOutputs() = default;
 
-class NODISCARD Proxy::UserSocket final : public QTcpSocket
-{
-private:
-    Proxy::UserSocketOutputs &m_outputs;
-
-public:
-    explicit UserSocket(const qintptr socketDescriptor, QObject *parent, UserSocketOutputs &outputs)
-        : QTcpSocket{parent}
-        , m_outputs{outputs}
-    {
-        if (!setSocketDescriptor(socketDescriptor)) {
-            throw std::runtime_error("failed to accept user socket");
-        }
-        setSocketOption(QAbstractSocket::LowDelayOption, true);
-        setSocketOption(QAbstractSocket::KeepAliveOption, true);
-        QObject::connect(this, &QAbstractSocket::disconnected, this, [this]() {
-            m_outputs.onDisconnected();
-        });
-        QObject::connect(this, &QIODevice::readyRead, this, [this]() { m_outputs.onReadyRead(); });
-    }
-    ~UserSocket() final;
-
-public:
-    void gracefulShutdown()
-    {
-        flush();
-        disconnectFromHost();
-    }
-};
-
-Proxy::UserSocket::~UserSocket()
-{
-    gracefulShutdown();
-}
-
 QPointer<Proxy> Proxy::allocInit(MapData &md,
                                  Mmapper2PathMachine &pm,
                                  PrespammedPath &pp,
@@ -124,11 +91,11 @@ QPointer<Proxy> Proxy::allocInit(MapData &md,
                                  MumeClock &mc,
                                  MapCanvas &mca,
                                  GameObserver &go,
-                                 qintptr &socketDescriptor,
+                                 std::unique_ptr<AbstractSocket> socket,
                                  ConnectionListener &listener)
 {
     auto proxy = makeQPointer<Proxy>(
-        Badge<Proxy>{}, md, pm, pp, gm, mc, mca, go, socketDescriptor, listener);
+        Badge<Proxy>{}, md, pm, pp, gm, mc, mca, go, std::move(socket), listener);
     deref(proxy).init();
     return proxy;
 }
@@ -141,7 +108,7 @@ Proxy::Proxy(Badge<Proxy>,
              MumeClock &mc,
              MapCanvas &mca,
              GameObserver &go,
-             qintptr &socketDescriptor,
+             std::unique_ptr<AbstractSocket> socket,
              ConnectionListener &listener)
     : QObject(&listener)
     , m_mapData(md)
@@ -151,7 +118,7 @@ Proxy::Proxy(Badge<Proxy>,
     , m_mumeClock(mc)
     , m_mapCanvas(mca)
     , m_gameObserver(go)
-    , m_socketDescriptor(socketDescriptor)
+    , m_userSocket(std::move(socket))
     // REVISIT: It would be better to just pass in the MainWindow directly.
     , m_mainWindow{::getMainWindow(listener)}
 {
@@ -171,7 +138,8 @@ Proxy::~Proxy()
 
     {
         qDebug() << "disconnecting user socket...";
-        getUserSocket().gracefulShutdown();
+        getUserSocket().flush();
+        getUserSocket().disconnectFromHost();
     }
 
     {
@@ -189,7 +157,7 @@ void Proxy::destroyPipelineObjects()
     qDebug() << "disconnecting proxy";
     getPipeline().apis.sendToUserLifetime.reset();
     getPipeline().mud.mudSocket.reset();
-    getPipeline().user.userSocket.reset();
+    m_userSocket.reset();
     m_pipeline.reset();
 }
 
@@ -213,7 +181,6 @@ void Proxy::allocPipelineObjects()
     // The distinction is already partly in place for AbstractParser (User)
     //   vs the XmlParser (Mud) which is being converted from Xml to Gmcp.
 
-    allocUserSocket();
     allocMudSocket();
 
     allocUserTelnet();
@@ -230,12 +197,7 @@ void Proxy::allocPipelineObjects()
         sendToUser(SendToUserSourceEnum::FromMMapper, str);
         sendPromptToUser();
     });
-}
 
-void Proxy::allocUserSocket()
-{
-    // The only reason this class exist is for symmetry with the other output interfaces;
-    // the Proxy::UserSocket class could just call these directly without using a virtual interface.
     struct NODISCARD LocalUserSocketOutputs final : public UserSocketOutputs
     {
     private:
@@ -259,9 +221,10 @@ void Proxy::allocUserSocket()
     };
 
     auto &pipe = getPipeline();
-    auto &out = pipe.outputs.user.userSocketOutputs = std::make_unique<LocalUserSocketOutputs>(
-        *this);
-    pipe.user.userSocket = std::make_unique<UserSocket>(m_socketDescriptor, this, deref(out));
+    auto &out = pipe.outputs.user.userSocketOutputs = std::make_unique<LocalUserSocketOutputs>(*this);
+
+    connect(m_userSocket.get(), &AbstractSocket::disconnected, [&out]() { out->onDisconnected(); });
+    connect(m_userSocket.get(), &AbstractSocket::readyRead, [&out]() { out->onReadyRead(); });
 }
 
 void Proxy::allocMudSocket()
@@ -366,7 +329,7 @@ void Proxy::allocUserTelnet()
         {
             return getProxy().getUserTelnetFilter();
         }
-        NODISCARD UserSocket &getUserSocket() { return getProxy().getUserSocket(); }
+        NODISCARD AbstractSocket &getUserSocket() { return getProxy().getUserSocket(); }
 
     private:
         void virt_onAnalyzeUserStream(const RawBytes &rawBytes, const bool goAhead) final
@@ -965,13 +928,10 @@ void Proxy::processUserStream()
     }
 
     // REVISIT: check return value?
-    std::ignore = io::readAllAvailable(getUserSocket(),
-                                       m_buffer,
-                                       [this](const QByteArray &byteArray) {
-                                           assert(!byteArray.isEmpty());
-                                           getUserTelnet().onAnalyzeUserStream(
-                                               TelnetIacBytes{byteArray});
-                                       });
+    const auto data = getUserSocket().readAll();
+    if (!data.isEmpty()) {
+        getUserTelnet().onAnalyzeUserStream(TelnetIacBytes{data});
+    }
 }
 
 void Proxy::onSendToMudSocket(const TelnetIacBytes &bytes)
@@ -1184,7 +1144,5 @@ RemoteEdit &Proxy::getRemoteEdit()
 
 bool Proxy::hasConnectedUserSocket() const
 {
-    // REVISIT: Is this ever actually null, or is it just disconnected?
-    const auto &us = getPipeline().user.userSocket;
-    return us != nullptr /* && us->state() == QAbstractSocket::ConnectedState */;
+    return m_userSocket && m_userSocket->state() == QAbstractSocket::ConnectedState;
 }

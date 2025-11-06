@@ -157,7 +157,6 @@ void Proxy::destroyPipelineObjects()
     qDebug() << "disconnecting proxy";
     getPipeline().apis.sendToUserLifetime.reset();
     getPipeline().mud.mudSocket.reset();
-    m_userSocket.reset();
     m_pipeline.reset();
 }
 
@@ -221,10 +220,14 @@ void Proxy::allocPipelineObjects()
     };
 
     auto &pipe = getPipeline();
-    auto &out = pipe.outputs.user.userSocketOutputs = std::make_unique<LocalUserSocketOutputs>(*this);
+    pipe.outputs.user.userSocketOutputs = std::make_unique<LocalUserSocketOutputs>(*this);
 
-    connect(m_userSocket.get(), &AbstractSocket::disconnected, [&out]() { out->onDisconnected(); });
-    connect(m_userSocket.get(), &AbstractSocket::readyRead, [&out]() { out->onReadyRead(); });
+    connect(m_userSocket.get(), &AbstractSocket::disconnected, [this]() {
+        getPipeline().outputs.user.userSocketOutputs->onDisconnected();
+    });
+    connect(m_userSocket.get(), &AbstractSocket::readyRead, [this]() {
+        getPipeline().outputs.user.userSocketOutputs->onReadyRead();
+    });
 }
 
 void Proxy::allocMudSocket()

@@ -489,7 +489,11 @@ void MainWindow::wireConnections()
             &QDockWidget::visibilityChanged,
             m_clientWidget,
             &ClientWidget::slot_onVisibilityChanged);
-    connect(m_listener, &ConnectionListener::sig_clientSuccessfullyConnected, m_dockDialogClient, &QDockWidget::hide);
+    connect(m_listener, &ConnectionListener::sig_clientSuccessfullyConnected, this, [this]() {
+        if (!m_clientWidget->isUsingClient()) {
+            m_dockDialogClient->hide();
+        }
+    });
     connect(m_clientWidget, &ClientWidget::sig_relayMessage, this, [this](const QString &message) {
         showStatusShort(message);
     });

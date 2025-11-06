@@ -66,6 +66,7 @@ private:
     void initStackedInputWidget();
     void initDisplayWidget();
     void initClientTelnet(std::unique_ptr<AbstractSocket> socket);
+    void startVirtualConnection();
 
 private:
     NODISCARD Ui::ClientWidget &getUi() // NOLINT (no, it should not be const)

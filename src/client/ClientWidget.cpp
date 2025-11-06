@@ -12,6 +12,7 @@
 #include "../proxy/TcpSocket.h"
 #include "displaywidget.h"
 #include "stackedinputwidget.h"
+#include "../mainwindow/mainwindow.h"
 #include "ui_ClientWidget.h"
 
 #include <memory>
@@ -21,9 +22,8 @@
 #include <QString>
 #include <QTimer>
 
-ClientWidget::ClientWidget(QWidget *const parent, ConnectionListener &listener)
+ClientWidget::ClientWidget(QWidget *const parent)
     : QWidget(parent)
-    , m_listener(listener)
 {
     setWindowTitle("MMapper Client");
 
@@ -35,24 +35,21 @@ ClientWidget::ClientWidget(QWidget *const parent, ConnectionListener &listener)
     ui.port->setText(QString("%1").arg(getConfig().connection.localPort));
 
     ui.playButton->setFocus();
-    QObject::connect(ui.playButton, &QAbstractButton::clicked, this, [this]() {
-        getUi().parent->setCurrentIndex(1);
-        if (!m_isUsingVirtualConnection) {
-            getTelnet().connectToHost();
+    QObject::connect(ui.playButton, &QAbstractButton::clicked, this, [this, parent]() {
+        auto *mainWindow = qobject_cast<MainWindow *>(parent);
+        if (mainWindow) {
+            auto clientSocket = std::make_unique<VirtualSocket>(this);
+            auto proxySocket = std::make_unique<VirtualSocket>(this);
+            clientSocket->setPeer(proxySocket.get());
+            proxySocket->setPeer(clientSocket.get());
+            initClientTelnet(std::move(clientSocket));
+            mainWindow->getConnectionListener()->startVirtualConnection(std::move(proxySocket));
+            getUi().parent->setCurrentIndex(1);
         }
     });
 
     ui.input->installEventFilter(this);
     ui.display->setFocusPolicy(Qt::TabFocus);
-
-    m_isUsingVirtualConnection = true;
-    auto clientSocket = std::make_unique<VirtualSocket>(this);
-    auto proxySocket = std::make_unique<VirtualSocket>(this);
-    clientSocket->setPeer(proxySocket.get());
-    proxySocket->setPeer(clientSocket.get());
-    initClientTelnet(std::move(clientSocket));
-    m_listener.startVirtualConnection(std::move(proxySocket));
-    getUi().parent->setCurrentIndex(1);
 }
 
 ClientWidget::~ClientWidget() = default;
@@ -234,15 +231,8 @@ void ClientWidget::slot_onVisibilityChanged(const bool /*visible*/)
     QTimer::singleShot(500, [this]() {
         if (!isVisible()) {
             // Disconnect if the widget is closed or minimized
-            if (!m_isUsingVirtualConnection) {
-                getTelnet().disconnectFromHost();
-            }
-
         } else {
             // Connect if the client was previously activated and the widget is re-opened
-            if (!m_isUsingVirtualConnection) {
-                getTelnet().connectToHost();
-            }
         }
     });
 }

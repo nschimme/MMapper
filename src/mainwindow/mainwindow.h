@@ -371,6 +371,9 @@ private:
     void setMapModified(bool);
     void updateMapModified();
 
+public:
+    ConnectionListener *getConnectionListener() const { return m_listener; }
+
 private:
     void applyGroupAction(const std::function<Change(const RawRoom &)> &getChange);
     NODISCARD QString chooseLoadOrMergeFileName();

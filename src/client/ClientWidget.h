@@ -56,11 +56,9 @@ private:
     };
 
     Pipeline m_pipeline;
-    ConnectionListener &m_listener;
-    bool m_isUsingVirtualConnection = false;
 
 public:
-    explicit ClientWidget(QWidget *parent, ConnectionListener &listener);
+    explicit ClientWidget(QWidget *parent);
     ~ClientWidget() final;
 
 private:

@@ -149,7 +149,7 @@ MainWindow::MainWindow()
     m_adventureTracker = new AdventureTracker(deref(m_gameObserver), this);
 
     // View -> Side Panels -> Client Panel
-    m_clientWidget = new ClientWidget(this, deref(m_listener));
+    m_clientWidget = new ClientWidget(this);
     m_clientWidget->setObjectName("InternalMudClientWidget");
     m_dockDialogClient = new QDockWidget("Client Panel", this);
     m_dockDialogClient->setObjectName("DockWidgetClient");
@@ -489,11 +489,7 @@ void MainWindow::wireConnections()
             &QDockWidget::visibilityChanged,
             m_clientWidget,
             &ClientWidget::slot_onVisibilityChanged);
-    connect(m_listener, &ConnectionListener::sig_clientSuccessfullyConnected, this, [this]() {
-        if (!m_clientWidget->isUsingClient()) {
-            m_dockDialogClient->hide();
-        }
-    });
+    connect(m_listener, &ConnectionListener::sig_clientSuccessfullyConnected, m_dockDialogClient, &QDockWidget::hide);
     connect(m_clientWidget, &ClientWidget::sig_relayMessage, this, [this](const QString &message) {
         showStatusShort(message);
     });

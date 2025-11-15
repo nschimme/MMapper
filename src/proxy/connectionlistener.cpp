@@ -6,6 +6,9 @@
 
 #include "connectionlistener.h"
 #include "sockets/TcpSocket.h"
+#include "../global/TextUtils.h"
+#include "../global/AnsiOstream.h"
+#include <sstream>
 
 #include "../configuration/configuration.h"
 #include "../global/Charset.h"
@@ -109,7 +112,20 @@ void ConnectionListener::startClient(std::unique_ptr<AbstractSocket> socket)
                                    *this);
     } else {
         log("New connection: rejected.");
-        // Since we can't accept the socket, it will be destroyed and the connection closed.
+        const QByteArray msg = []() {
+            constexpr const auto whiteOnRed = getRawAnsi(AnsiColor16Enum::white,
+                                                         AnsiColor16Enum::red);
+            std::stringstream oss;
+            AnsiOstream aos{oss};
+            aos.writeWithColor(whiteOnRed, "You can't connect to MMapper more than once!\n");
+            aos.write("\n");
+            aos.writeWithColor(whiteOnRed, "Please close the existing connection.\n");
+            return mmqt::toQByteArrayUtf8(oss.str());
+        }();
+
+        socket->write(msg);
+        socket->flush();
+        socket->disconnectFromHost();
     }
 }
                 AnsiOstream aos{oss};

@@ -5,6 +5,7 @@
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
 #include "connectionlistener.h"
+#include "sockets/TcpSocket.h"
 
 #include "../configuration/configuration.h"
 #include "../global/Charset.h"
@@ -87,6 +88,12 @@ void ConnectionListener::listen()
 
 void ConnectionListener::slot_onIncomingConnection(qintptr socketDescriptor)
 {
+    auto socket = std::make_unique<TcpSocket>(socketDescriptor, this);
+    startClient(std::move(socket));
+}
+
+void ConnectionListener::startClient(std::unique_ptr<AbstractSocket> socket)
+{
     if (m_proxy == nullptr) {
         log("New connection: accepted.");
         emit sig_clientSuccessfullyConnected();
@@ -98,16 +105,13 @@ void ConnectionListener::slot_onIncomingConnection(qintptr socketDescriptor)
                                    m_mumeClock,
                                    m_mapCanvas,
                                    m_gameOberver,
-                                   socketDescriptor,
+                                   std::move(socket),
                                    *this);
     } else {
         log("New connection: rejected.");
-        QTcpSocket tcpSocket;
-        if (tcpSocket.setSocketDescriptor(socketDescriptor)) {
-            const QByteArray msg = []() {
-                constexpr const auto whiteOnRed = getRawAnsi(AnsiColor16Enum::white,
-                                                             AnsiColor16Enum::red);
-                std::stringstream oss;
+        // Since we can't accept the socket, it will be destroyed and the connection closed.
+    }
+}
                 AnsiOstream aos{oss};
                 aos.writeWithColor(whiteOnRed, "You can't connect to MMapper more than once!\n");
                 aos.write("\n");

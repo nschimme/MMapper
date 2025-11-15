@@ -9,9 +9,12 @@
 #include "../global/utils.h"
 #include "../proxy/AbstractTelnet.h"
 
+#include "../proxy/sockets/VirtualSocket.h"
+
 #include <QAbstractSocket>
 #include <QObject>
-#include <QTcpSocket>
+
+class ConnectionListener;
 
 struct ClientTelnetOutputs
 {
@@ -43,7 +46,7 @@ class NODISCARD ClientTelnet final : AbstractTelnet
 private:
     ClientTelnetOutputs &m_output;
     io::buffer<(1 << 15)> m_buffer;
-    QTcpSocket m_socket;
+    VirtualSocket m_socket;
     QObject m_dummy;
 
 public:
@@ -54,7 +57,7 @@ private:
     NODISCARD ClientTelnetOutputs &getOutput() { return m_output; }
 
 public:
-    void connectToHost();
+    void connectToHost(ConnectionListener *listener);
     void disconnectFromHost();
 
 private:

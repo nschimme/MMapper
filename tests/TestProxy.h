@@ -11,7 +11,7 @@ class NODISCARD_QOBJECT TestProxy final : public QObject
     Q_OBJECT
 
 public:
-    TestProxy() = default;
+    TestProxy();
     ~TestProxy() override = default;
 
 private Q_SLOTS:

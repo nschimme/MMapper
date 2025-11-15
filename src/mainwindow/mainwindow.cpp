@@ -149,7 +149,7 @@ MainWindow::MainWindow()
     m_adventureTracker = new AdventureTracker(deref(m_gameObserver), this);
 
     // View -> Side Panels -> Client Panel
-    m_clientWidget = new ClientWidget(this);
+    m_clientWidget = new ClientWidget(m_listener, this);
     m_clientWidget->setObjectName("InternalMudClientWidget");
     m_dockDialogClient = new QDockWidget("Client Panel", this);
     m_dockDialogClient->setObjectName("DockWidgetClient");

@@ -18,12 +18,14 @@
 #include <QString>
 #include <QTimer>
 
-ClientWidget::ClientWidget(QWidget *const parent)
+#include "../proxy/connectionlistener.h"
+
+ClientWidget::ClientWidget(ConnectionListener *listener, QWidget *const parent)
     : QWidget(parent)
 {
     setWindowTitle("MMapper Client");
 
-    initPipeline();
+    initPipeline(listener);
 
     auto &ui = getUi();
 
@@ -31,9 +33,9 @@ ClientWidget::ClientWidget(QWidget *const parent)
     ui.port->setText(QString("%1").arg(getConfig().connection.localPort));
 
     ui.playButton->setFocus();
-    QObject::connect(ui.playButton, &QAbstractButton::clicked, this, [this]() {
+    QObject::connect(ui.playButton, &QAbstractButton::clicked, this, [this, listener]() {
         getUi().parent->setCurrentIndex(1);
-        getTelnet().connectToHost();
+        getTelnet().connectToHost(listener);
     });
 
     ui.input->installEventFilter(this);
@@ -53,7 +55,7 @@ QSize ClientWidget::minimumSizeHint() const
     return m_pipeline.objs.ui->display->sizeHint();
 }
 
-void ClientWidget::initPipeline()
+void ClientWidget::initPipeline(ConnectionListener *listener)
 {
     m_pipeline.objs.ui = std::make_unique<Ui::ClientWidget>();
     getUi().setupUi(this); // creates stacked input and display
@@ -61,7 +63,7 @@ void ClientWidget::initPipeline()
     initStackedInputWidget();
     initDisplayWidget();
 
-    initClientTelnet();
+    initClientTelnet(listener);
 }
 
 void ClientWidget::initStackedInputWidget()
@@ -136,7 +138,7 @@ void ClientWidget::initDisplayWidget()
     getDisplay().init(deref(out));
 }
 
-void ClientWidget::initClientTelnet()
+void ClientWidget::initClientTelnet(ConnectionListener *listener)
 {
     class NODISCARD LocalClientTelnetOutputs final : public ClientTelnetOutputs
     {
@@ -225,7 +227,7 @@ void ClientWidget::slot_onVisibilityChanged(const bool /*visible*/)
 
         } else {
             // Connect if the client was previously activated and the widget is re-opened
-            getTelnet().connectToHost();
+            getTelnet().connectToHost(m_listener);
         }
     });
 }

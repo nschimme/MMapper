@@ -12,8 +12,14 @@
 #include <QDebug>
 #include <QtTest/QtTest>
 
+TestProxy::TestProxy()
+{
+    qDebug() << "TestProxy constructor";
+}
+
 void TestProxy::escapeTest()
 {
+    qDebug() << "Running escapeTest";
     QCOMPARE(GmcpUtils::escapeGmcpStringData(R"(12345)"), QString(R"(12345)"));
     QCOMPARE(GmcpUtils::escapeGmcpStringData(R"(1.0)"), QString(R"(1.0)"));
     QCOMPARE(GmcpUtils::escapeGmcpStringData(R"(true)"), QString(R"(true)"));
@@ -23,6 +29,7 @@ void TestProxy::escapeTest()
 
 void TestProxy::gmcpMessageDeserializeTest()
 {
+    qDebug() << "Running gmcpMessageDeserializeTest";
     GmcpMessage gmcp1 = GmcpMessage::fromRawBytes(R"(Core.Hello { "Hello": "world" })");
     QCOMPARE(gmcp1.getName().toQByteArray(), QByteArray("Core.Hello"));
     QCOMPARE(gmcp1.getJson()->toQString(), mmqt::toQStringUtf8(R"({ "Hello": "world" })"));
@@ -38,6 +45,7 @@ void TestProxy::gmcpMessageDeserializeTest()
 
 void TestProxy::gmcpMessageSerializeTest()
 {
+    qDebug() << "Running gmcpMessageSerializeTest";
     GmcpMessage gmcp1(GmcpMessageTypeEnum::CORE_HELLO);
     QCOMPARE(gmcp1.toRawBytes(), QByteArray("Core.Hello"));
 
@@ -47,6 +55,7 @@ void TestProxy::gmcpMessageSerializeTest()
 
 void TestProxy::gmcpModuleTest()
 {
+    qDebug() << "Running gmcpModuleTest";
     GmcpModule module1("Char 1");
     QCOMPARE(mmqt::toQByteArrayUtf8(module1.getNormalizedName()), QByteArray("char"));
     QCOMPARE(module1.getVersion().asUint32(), 1u);
@@ -65,6 +74,7 @@ void TestProxy::gmcpModuleTest()
 
 void TestProxy::telnetFilterTest()
 {
+    qDebug() << "Running telnetFilterTest";
     test::test_telnetfilter();
 }
 

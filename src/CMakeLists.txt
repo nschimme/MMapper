@@ -502,6 +502,11 @@ set(mmapper_SRCS
     proxy/mumesocket.h
     proxy/proxy.cpp
     proxy/proxy.h
+    proxy/AbstractSocket.h
+    proxy/sockets/TcpSocket.cpp
+    proxy/sockets/TcpSocket.h
+    proxy/sockets/VirtualSocket.cpp
+    proxy/sockets/VirtualSocket.h
     proxy/telnetfilter.cpp
     proxy/telnetfilter.h
     roompanel/RoomManager.cpp

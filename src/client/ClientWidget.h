@@ -19,6 +19,7 @@ class QEvent;
 class QObject;
 class StackedInputWidget;
 class PreviewWidget;
+class ConnectionListener;
 
 struct ClientTelnetOutputs;
 struct DisplayWidgetOutputs;
@@ -54,16 +55,17 @@ private:
     };
 
     Pipeline m_pipeline;
+    ConnectionListener *m_listener = nullptr;
 
 public:
-    explicit ClientWidget(QWidget *parent);
+    explicit ClientWidget(ConnectionListener *listener, QWidget *parent);
     ~ClientWidget() final;
 
 private:
-    void initPipeline();
+    void initPipeline(ConnectionListener *listener);
     void initStackedInputWidget();
     void initDisplayWidget();
-    void initClientTelnet();
+    void initClientTelnet(ConnectionListener *listener);
 
 private:
     NODISCARD Ui::ClientWidget &getUi() // NOLINT (no, it should not be const)

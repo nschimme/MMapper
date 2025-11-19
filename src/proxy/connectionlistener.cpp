@@ -128,22 +128,3 @@ void ConnectionListener::startClient(std::unique_ptr<AbstractSocket> socket)
         socket->disconnectFromHost();
     }
 }
-                AnsiOstream aos{oss};
-                aos.writeWithColor(whiteOnRed, "You can't connect to MMapper more than once!\n");
-                aos.write("\n");
-                aos.writeWithColor(whiteOnRed, "Please close the existing connection.\n");
-                // As long as the message is just ASCII, it doesn't matter that we send utf8,
-                // but hypothetically this function should do charset conversion and escape IACs
-                // if the message is ever changed to include non-ASCII characters.
-                return mmqt::toQByteArrayUtf8(oss.str());
-            }();
-
-            tcpSocket.write(msg);
-            tcpSocket.flush();
-            tcpSocket.disconnectFromHost();
-            if (tcpSocket.state() != QAbstractSocket::UnconnectedState) {
-                tcpSocket.waitForDisconnected();
-            }
-        }
-    }
-}

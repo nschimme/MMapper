@@ -200,35 +200,20 @@ void Proxy::allocPipelineObjects()
 
 void Proxy::allocUserSocket()
 {
-    // The only reason this class exist is for symmetry with the other output interfaces;
-    // the Proxy::UserSocket class could just call these directly without using a virtual interface.
-    struct NODISCARD LocalUserSocketOutputs final : public UserSocketOutputs
+    struct LocalUserSocketOutputs final : public UserSocketOutputs
     {
-    private:
-        Proxy &m_proxy;
-
-    public:
-        explicit LocalUserSocketOutputs(Proxy &proxy)
-            : m_proxy{proxy}
-        {}
-
-    private:
-        NODISCARD Proxy &getProxy() { return m_proxy; }
-
-    private:
-        void virt_onDisconnected() final
-        {
-            qDebug() << "user socket disconnected";
-            getProxy().userTerminatedConnection();
-        }
-        void virt_onReadyRead() final { getProxy().processUserStream(); }
+        void virt_onDisconnected() final {}
+        void virt_onReadyRead() final {}
     };
-
     auto &pipe = getPipeline();
-    auto &out = pipe.outputs.user.userSocketOutputs = std::make_unique<LocalUserSocketOutputs>(
-        *this);
-    QObject::connect(m_userSocket.get(), &AbstractSocket::disconnected, &deref(out), &UserSocketOutputs::onDisconnected);
-    QObject::connect(m_userSocket.get(), &AbstractSocket::readyRead, &deref(out), &UserSocketOutputs::onReadyRead);
+    pipe.outputs.user.userSocketOutputs = std::make_unique<LocalUserSocketOutputs>();
+    QObject::connect(m_userSocket.get(), &AbstractSocket::disconnected, this, [this]() {
+        qDebug() << "user socket disconnected";
+        userTerminatedConnection();
+    });
+    QObject::connect(m_userSocket.get(), &AbstractSocket::readyRead, this, [this]() {
+        processUserStream();
+    });
 }
 
 void Proxy::allocMudSocket()
@@ -332,7 +317,7 @@ void Proxy::allocUserTelnet()
         {
             return getProxy().getUserTelnetFilter();
         }
-        NODISCARD UserSocket &getUserSocket() { return getProxy().getUserSocket(); }
+        NODISCARD AbstractSocket &getUserSocket() { return getProxy().getUserSocket(); }
 
     private:
         void virt_onAnalyzeUserStream(const RawBytes &rawBytes, const bool goAhead) final

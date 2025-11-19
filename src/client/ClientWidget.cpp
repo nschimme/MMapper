@@ -5,6 +5,8 @@
 #include "ClientWidget.h"
 
 #include "../configuration/configuration.h"
+#include "../global/AnsiOstream.h"
+#include "../proxy/connectionlistener.h"
 #include "ClientTelnet.h"
 #include "PreviewWidget.h"
 #include "displaywidget.h"
@@ -13,13 +15,15 @@
 
 #include <memory>
 
+#include <QDateTime>
 #include <QFileDialog>
 #include <QScrollBar>
 #include <QString>
 #include <QTimer>
 
-ClientWidget::ClientWidget(QWidget *const parent)
+ClientWidget::ClientWidget(ConnectionListener *listener, QWidget *const parent)
     : QWidget(parent)
+    , m_listener{listener}
 {
     setWindowTitle("MMapper Client");
 
@@ -33,7 +37,7 @@ ClientWidget::ClientWidget(QWidget *const parent)
     ui.playButton->setFocus();
     QObject::connect(ui.playButton, &QAbstractButton::clicked, this, [this]() {
         getUi().parent->setCurrentIndex(1);
-        getTelnet().connectToHost();
+        getTelnet().connectToHost(m_listener);
     });
 
     ui.input->installEventFilter(this);
@@ -83,7 +87,14 @@ void ClientWidget::initStackedInputWidget()
         NODISCARD PreviewWidget &getPreview() { return getSelf().getPreview(); }
 
     private:
-        void virt_sendUserInput(const QString &msg) final { getTelnet().sendToMud(msg); }
+        void virt_sendUserInput(const QString &msg) final
+        {
+            if (!getTelnet().isConnected()) {
+                getTelnet().connectToHost(getSelf().m_listener);
+            } else {
+                getTelnet().sendToMud(msg);
+            }
+        }
 
         void virt_displayMessage(const QString &msg) final
         {
@@ -163,7 +174,7 @@ void ClientWidget::initClientTelnet()
         }
         void virt_disconnected() final
         {
-            getDisplay().slot_displayText(QStringLiteral("\n\n\n"));
+            getClient().displayReconnectHint();
             getClient().relayMessage("Disconnected using the integrated client");
         }
         void virt_socketError(const QString &errorStr) final
@@ -219,13 +230,11 @@ void ClientWidget::slot_onVisibilityChanged(const bool /*visible*/)
 
     // Delay connecting to verify that visibility is not just the dock popping back in
     QTimer::singleShot(500, [this]() {
-        if (!isVisible()) {
+        if (getTelnet().isConnected() && !isVisible()) {
             // Disconnect if the widget is closed or minimized
             getTelnet().disconnectFromHost();
-
-        } else {
-            // Connect if the client was previously activated and the widget is re-opened
-            getTelnet().connectToHost();
+        } else if (!getTelnet().isConnected() && isVisible()) {
+            getInput().setFocus();
         }
     });
 }
@@ -235,6 +244,15 @@ bool ClientWidget::isUsingClient() const
     return getUi().parent->currentIndex() != 0;
 }
 
+void ClientWidget::displayReconnectHint()
+{
+    constexpr const auto whiteOnCyan = getRawAnsi(AnsiColor16Enum::white, AnsiColor16Enum::cyan);
+    std::stringstream oss;
+    AnsiOstream aos{oss};
+    aos.writeWithColor(whiteOnCyan, "\n\n\nPress return to reconnect.\n");
+    getDisplay().slot_displayText(mmqt::toQStringUtf8(oss.str()));
+}
+
 void ClientWidget::slot_onShowMessage(const QString &message)
 {
     relayMessage(message);
@@ -242,51 +260,28 @@ void ClientWidget::slot_onShowMessage(const QString &message)
 
 void ClientWidget::slot_saveLog()
 {
-    struct NODISCARD Result
-    {
-        QStringList filenames;
-        bool isHtml = false;
-    };
-    const auto getFileNames = [this]() -> Result {
-        auto save = std::make_unique<QFileDialog>(this, "Choose log file name ...");
-        save->setFileMode(QFileDialog::AnyFile);
-        save->setDirectory(QDir::current());
-        save->setNameFilters(QStringList() << "Text log (*.log *.txt)"
-                                           << "HTML log (*.htm *.html)");
-        save->setDefaultSuffix("txt");
-        save->setAcceptMode(QFileDialog::AcceptSave);
-
-        if (save->exec() == QDialog::Accepted) {
-            const QString nameFilter = save->selectedNameFilter().toLower();
-            const bool isHtml = nameFilter.endsWith(".htm") || nameFilter.endsWith(".html");
-            return Result{save->selectedFiles(), isHtml};
-        }
-
-        return Result{};
-    };
-
-    const auto result = getFileNames();
-    const auto &fileNames = result.filenames;
-
-    if (fileNames.isEmpty()) {
-        relayMessage(tr("No filename provided"));
-        return;
-    }
-
-    QFile document(fileNames[0]);
-    if (!document.open(QFile::WriteOnly | QFile::Text)) {
-        relayMessage(QString("Error occurred while opening %1").arg(document.fileName()));
-        return;
-    }
-
-    const auto getDocStringUtf8 = [](const QTextDocument *const pDoc,
-                                     const bool isHtml) -> QByteArray {
+    const auto getDocStringUtf8 = [](const QTextDocument *const pDoc) -> QByteArray {
         auto &doc = deref(pDoc);
-        const QString string = isHtml ? doc.toHtml() : doc.toPlainText();
+        const QString string = doc.toPlainText();
         return string.toUtf8();
     };
-    document.write(getDocStringUtf8(getDisplay().document(), result.isHtml));
-    document.close();
+    const QByteArray logContent = getDocStringUtf8(getDisplay().document());
+    QString newFileName = "log-" + QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss")
+                          + ".txt";
+    QFileDialog::saveFileContent(logContent, newFileName);
+}
+
+void ClientWidget::slot_saveLogAsHtml()
+{
+    const auto getDocStringUtf8 = [](const QTextDocument *const pDoc) -> QByteArray {
+        auto &doc = deref(pDoc);
+        const QString string = doc.toHtml();
+        return string.toUtf8();
+    };
+    const QByteArray logContent = getDocStringUtf8(getDisplay().document());
+    QString newFileNameHtml = "log-" + QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss")
+                              + ".html";
+    QFileDialog::saveFileContent(logContent, newFileNameHtml);
 }
 
 bool ClientWidget::focusNextPrevChild(MAYBE_UNUSED bool next)

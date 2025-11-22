@@ -289,6 +289,11 @@ std::shared_ptr<Functions> Functions::alloc()
     return std::make_shared<Functions>(Badge<Functions>{});
 }
 
+void Functions::setCanRenderQuads(const bool canRenderQuads)
+{
+    m_canRenderQuads = canRenderQuads;
+}
+
 /// This only exists so we can detect errors in contexts that don't support \c glDebugMessageCallback().
 void Functions::checkError()
 {

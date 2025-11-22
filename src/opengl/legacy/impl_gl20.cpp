@@ -6,7 +6,7 @@ namespace Legacy {
 
 bool Functions::canRenderQuads()
 {
-    return false;
+    return m_canRenderQuads;
 }
 
 std::optional<GLenum> Functions::toGLenum(const DrawModeEnum mode)

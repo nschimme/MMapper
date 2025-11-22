@@ -89,9 +89,12 @@ private:
     std::unique_ptr<StaticVbos> m_staticVbos;
     std::unique_ptr<TexLookup> m_texLookup;
     std::vector<std::shared_ptr<IRenderable>> m_staticMeshes;
+    bool m_canRenderQuads = false;
 
 public:
     NODISCARD static std::shared_ptr<Functions> alloc();
+
+    void setCanRenderQuads(bool canRenderQuads);
 
 public:
     explicit Functions(Badge<Functions>);

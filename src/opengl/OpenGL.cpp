@@ -614,9 +614,21 @@ void OpenGL::renderFont3d(const SharedMMTexture &texture, const std::vector<Font
     getFunctions().renderFont3d(texture, verts);
 }
 
+#include <QOpenGLContext>
+
 void OpenGL::initializeOpenGLFunctions()
 {
-    getFunctions().initializeOpenGLFunctions();
+    auto &funcs = getFunctions();
+    funcs.initializeOpenGLFunctions();
+
+    const auto *ctx = QOpenGLContext::currentContext();
+    if (!ctx) {
+        return;
+    }
+
+    const auto &format = ctx->format();
+    const bool isCompat = (format.profile() == QSurfaceFormat::CompatibilityProfile);
+    funcs.setCanRenderQuads(isCompat);
 }
 
 const char *OpenGL::glGetString(GLenum name)

@@ -148,18 +148,6 @@ MainWindow::MainWindow()
     m_gameObserver = std::make_unique<GameObserver>();
     m_adventureTracker = new AdventureTracker(deref(m_gameObserver), this);
 
-    // View -> Side Panels -> Client Panel
-    m_clientWidget = new ClientWidget(this);
-    m_clientWidget->setObjectName("InternalMudClientWidget");
-    m_dockDialogClient = new QDockWidget("Client Panel", this);
-    m_dockDialogClient->setObjectName("DockWidgetClient");
-    m_dockDialogClient->setAllowedAreas(Qt::AllDockWidgetAreas);
-    m_dockDialogClient->setFeatures(QDockWidget::DockWidgetMovable
-                                    | QDockWidget::DockWidgetFloatable
-                                    | QDockWidget::DockWidgetClosable);
-    addDockWidget(Qt::LeftDockWidgetArea, m_dockDialogClient);
-    m_dockDialogClient->setWidget(m_clientWidget);
-
     // View -> Side Panels -> Log Panel
     m_dockDialogLog = new QDockWidget(tr("Log Panel"), this);
     m_dockDialogLog->setObjectName("DockWidgetLog");
@@ -234,16 +222,6 @@ MainWindow::MainWindow()
         m_updateDialog = new UpdateDialog(this);
     }
 
-    createActions();
-    setupToolBars();
-    setupMenuBar();
-    setupStatusBar();
-
-    setCorner(Qt::TopLeftCorner, Qt::TopDockWidgetArea);
-    setCorner(Qt::BottomLeftCorner, Qt::BottomDockWidgetArea);
-    setCorner(Qt::TopRightCorner, Qt::TopDockWidgetArea);
-    setCorner(Qt::BottomRightCorner, Qt::BottomDockWidgetArea);
-
     m_logger = new AutoLogger(this);
 
     // TODO move this connect() wiring into AutoLogger::ctor ?
@@ -270,6 +248,28 @@ MainWindow::MainWindow()
                                         deref(getCanvas()),
                                         deref(m_gameObserver),
                                         this);
+
+    // View -> Side Panels -> Client Panel
+    m_clientWidget = new ClientWidget(m_listener, this);
+    m_clientWidget->setObjectName("InternalMudClientWidget");
+    m_dockDialogClient = new QDockWidget("Client Panel", this);
+    m_dockDialogClient->setObjectName("DockWidgetClient");
+    m_dockDialogClient->setAllowedAreas(Qt::AllDockWidgetAreas);
+    m_dockDialogClient->setFeatures(QDockWidget::DockWidgetMovable
+                                    | QDockWidget::DockWidgetFloatable
+                                    | QDockWidget::DockWidgetClosable);
+    addDockWidget(Qt::LeftDockWidgetArea, m_dockDialogClient);
+    m_dockDialogClient->setWidget(m_clientWidget);
+
+    createActions();
+    setupToolBars();
+    setupMenuBar();
+    setupStatusBar();
+
+    setCorner(Qt::TopLeftCorner, Qt::TopDockWidgetArea);
+    setCorner(Qt::BottomLeftCorner, Qt::BottomDockWidgetArea);
+    setCorner(Qt::TopRightCorner, Qt::TopDockWidgetArea);
+    setCorner(Qt::BottomRightCorner, Qt::BottomDockWidgetArea);
 
     // update connections
     wireConnections();
@@ -879,10 +879,19 @@ void MainWindow::createActions()
     connect(clientAct, &QAction::triggered, this, &MainWindow::slot_onLaunchClient);
 
     saveLogAct = new QAction(QIcon::fromTheme("document-save", QIcon(":/icons/save.png")),
-                             tr("&Save log as..."),
+                             tr("Save Log as &Plain Text..."),
                              this);
     connect(saveLogAct, &QAction::triggered, m_clientWidget, &ClientWidget::slot_saveLog);
-    saveLogAct->setStatusTip(tr("Save log as file"));
+    saveLogAct->setStatusTip(tr("Save log as plain text file"));
+
+    saveLogAsHtmlAct = new QAction(QIcon::fromTheme("document-save", QIcon(":/icons/save.png")),
+                                   tr("Save Log as &HTML..."),
+                                   this);
+    connect(saveLogAsHtmlAct,
+            &QAction::triggered,
+            m_clientWidget,
+            &ClientWidget::slot_saveLogAsHtml);
+    saveLogAsHtmlAct->setStatusTip(tr("Save log as HTML file"));
 
     releaseAllPathsAct = new QAction(QIcon(":/icons/cancel.png"), tr("Release All Paths"), this);
     releaseAllPathsAct->setStatusTip(tr("Release all paths"));
@@ -1186,6 +1195,7 @@ void MainWindow::setupMenuBar()
                                               tr("&Integrated Mud Client"));
     clientMenu->addAction(clientAct);
     clientMenu->addAction(saveLogAct);
+    clientMenu->addAction(saveLogAsHtmlAct);
     QMenu *pathMachineMenu = settingsMenu->addMenu(QIcon(":/icons/goto.png"), tr("&Path Machine"));
     pathMachineMenu->addAction(mouseMode.modeRoomSelectAct);
     pathMachineMenu->addSeparator();
@@ -1665,7 +1675,6 @@ void MainWindow::slot_onFindRoom()
 void MainWindow::slot_onLaunchClient()
 {
     m_dockDialogClient->show();
-    m_clientWidget->setFocus();
 }
 
 void MainWindow::setCurrentFile(const QString &fileName)

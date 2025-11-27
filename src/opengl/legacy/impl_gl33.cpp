@@ -56,14 +56,11 @@ bool Functions::tryEnableMultisampling(const int requestedSamples)
     };
 
     const bool hasMultisampling = getSampleBuffers() > 1 || getSamples() > 1;
-
     if (hasMultisampling && requestedSamples > 0) {
         Base::glEnable(GL_MULTISAMPLE);
-
         Base::glEnable(GL_LINE_SMOOTH);
         Base::glDisable(GL_POLYGON_SMOOTH);
         Base::glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
-
         return true;
     } else {
         // NOTE: Currently we can use OpenGL 2.1 to fake multisampling with point/line/polygon smoothing.

@@ -413,7 +413,6 @@ set(mmapper_SRCS
     opengl/legacy/VAO.h
     opengl/legacy/VBO.cpp
     opengl/legacy/VBO.h
-    opengl/legacy/impl_gl33.cpp
     parser/Abbrev.cpp
     parser/Abbrev.h
     parser/AbstractParser-Actions.cpp
@@ -590,6 +589,12 @@ set(mmapper_UIS
     preferences/parserpage.ui
     preferences/pathmachinepage.ui
 )
+
+if(QT_HAS_OPENGL)
+    list(APPEND mmapper_SRCS "opengl/legacy/impl_gl33.cpp")
+elseif(QT_HAS_GLES)
+    list(APPEND mmapper_SRCS "opengl/legacy/impl_es30.cpp")
+endif()
 
 if(MMAPPER_IS_DEBUG)
     if(NOT DEFINED CHECK_ODR)

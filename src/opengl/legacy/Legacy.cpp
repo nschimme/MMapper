@@ -284,16 +284,6 @@ TexLookup &Functions::getTexLookup()
     return deref(m_texLookup);
 }
 
-std::shared_ptr<Functions> Functions::alloc()
-{
-    return std::make_shared<Functions>(Badge<Functions>{});
-}
-
-void Functions::setIsCompat(const bool isCompat)
-{
-    m_isCompat = isCompat;
-}
-
 /// This only exists so we can detect errors in contexts that don't support \c glDebugMessageCallback().
 void Functions::checkError()
 {

@@ -1,15 +1,19 @@
-#include "Legacy.h"
+#include "FunctionsGL33.h"
 
 #include <optional>
 
 namespace Legacy {
 
-bool Functions::canRenderQuads()
+FunctionsGL33::FunctionsGL33(Badge<Functions> badge)
+    : Functions(badge)
+{}
+
+bool FunctionsGL33::canRenderQuads()
 {
     return m_isCompat;
 }
 
-std::optional<GLenum> Functions::toGLenum(const DrawModeEnum mode)
+std::optional<GLenum> FunctionsGL33::toGLenum(const DrawModeEnum mode)
 {
     switch (mode) {
     case DrawModeEnum::POINTS:
@@ -27,12 +31,12 @@ std::optional<GLenum> Functions::toGLenum(const DrawModeEnum mode)
     return std::nullopt;
 }
 
-const char *Functions::getShaderVersion()
+const char *FunctionsGL33::getShaderVersion()
 {
     return "#version 330\n\n";
 }
 
-void Functions::enableProgramPointSize(const bool enable)
+void FunctionsGL33::enableProgramPointSize(const bool enable)
 {
     if (enable) {
         Base::glEnable(GL_PROGRAM_POINT_SIZE);
@@ -41,7 +45,7 @@ void Functions::enableProgramPointSize(const bool enable)
     }
 }
 
-bool Functions::tryEnableMultisampling(const int requestedSamples)
+bool FunctionsGL33::tryEnableMultisampling(const int requestedSamples)
 {
     const auto getSampleBuffers = [this]() -> GLint {
         GLint buffers;

@@ -6,8 +6,10 @@
 
 #include "../global/ConfigConsts.h"
 #include "../global/logging.h"
-#include "./legacy/Legacy.h"
+#include "./gl_functions.h"
+#include "./legacy/Functions.h"
 #include "./legacy/Meshes.h"
+#include "Backend.h"
 #include "OpenGLTypes.h"
 
 #include <cassert>
@@ -23,6 +25,8 @@
 
 #include <QOpenGLContext>
 #include <QSurfaceFormat>
+
+Backend g_backend = Backend::Unknown;
 
 #ifdef WIN32
 extern "C" {
@@ -64,6 +68,7 @@ struct GLContextCheckResult
     GLVersion version = {0, 0};
     bool isCore = false;
     bool isCompat = false;
+    bool isEs = false;
     bool isDeprecated = false;
     bool isDebug = false;
 };
@@ -85,6 +90,7 @@ NODISCARD GLContextCheckResult checkContext(QSurfaceFormat format,
 
     result.isCore = (actualFormat.profile() & QSurfaceFormat::CoreProfile);
     result.isCompat = (actualFormat.profile() & QSurfaceFormat::CompatibilityProfile);
+    result.isEs = (actualFormat.renderableType() == QSurfaceFormat::OpenGLES);
     result.isDeprecated = (actualFormat.options() & QSurfaceFormat::DeprecatedFunctions);
     result.isDebug = (actualFormat.options() & QSurfaceFormat::DebugContext);
     result.version = GLVersion{actualFormat.majorVersion(), actualFormat.minorVersion()};
@@ -120,17 +126,16 @@ NODISCARD GLContextCheckResult checkContext(QSurfaceFormat format,
     return result;
 }
 
-struct OpenGLProbeResult
-{
-    QSurfaceFormat runningFormat = QSurfaceFormat::defaultFormat();
-    std::string highestVersion = UNDEFINED_VERSION;
-};
-
 NODISCARD std::string formatGLVersionString(const GLContextCheckResult &result)
 {
     std::ostringstream oss;
-    oss << "GL" << result.version;
-    if (!result.isDeprecated && result.version > GLVersion{3, 1}) {
+    if (result.isEs) {
+        oss << "GLES";
+    } else {
+        oss << "GL";
+    }
+    oss << result.version;
+    if (result.isCore) {
         oss << "core";
     }
     return oss.str();
@@ -220,18 +225,24 @@ NODISCARD std::string getHighestGLVersion(std::optional<GLContextCheckResult> co
     return highestGLVersion;
 }
 
-NODISCARD QSurfaceFormat getOptimalFormat(std::optional<GLContextCheckResult> result)
+NODISCARD QSurfaceFormat getOptimalFormat(std::optional<GLContextCheckResult> result,
+                                          const Backend backend)
 {
     QSurfaceFormat format;
-    format.setRenderableType(QSurfaceFormat::OpenGL);
+    switch (backend) {
+    case Backend::GL33:
+        format.setRenderableType(QSurfaceFormat::OpenGL);
+        break;
+    case Backend::ES30:
+        format.setRenderableType(QSurfaceFormat::OpenGLES);
+        break;
+    case Backend::Unknown:
+        assert(false);
+        break;
+    }
     format.setDepthBufferSize(24);
     if (result) {
-        if ((false)) {
-            // REVISIT: GL_INVALID_ENUM in glEnable(GL_POINT_SMOOTH) on Mesa if we use this
-            format.setVersion(result->version.major, result->version.minor);
-        } else {
-            format.setVersion(3, 3);
-        }
+        format.setVersion(result->version.major, result->version.minor);
         format.setProfile(result->isCore ? QSurfaceFormat::CoreProfile
                                          : QSurfaceFormat::CompatibilityProfile);
         QSurfaceFormat::FormatOptions options;
@@ -241,8 +252,7 @@ NODISCARD QSurfaceFormat getOptimalFormat(std::optional<GLContextCheckResult> re
         if (result->isCompat) {
             options |= QSurfaceFormat::DeprecatedFunctions;
         }
-        MMLOG_INFO() << "[GL Probe] Optimal running format determined: GL " << format.majorVersion()
-                     << "." << format.minorVersion()
+        MMLOG_INFO() << "[GL Probe] Optimal running format determined:" << formatGLVersionString(*result)
                      << " Profile: " << (result->isCore ? "Core" : "Compat")
                      << (result->isDebug ? " (Debug)" : " (NO Debug)");
     } else {
@@ -255,7 +265,7 @@ NODISCARD QSurfaceFormat getOptimalFormat(std::optional<GLContextCheckResult> re
     return format;
 }
 
-NODISCARD OpenGLProbeResult probeOpenGLFormats()
+OpenGL::OpenGLProbeResult OpenGL::probeOpenGLFormats()
 {
     QSurfaceFormat format;
     format.setRenderableType(QSurfaceFormat::OpenGL);
@@ -276,8 +286,47 @@ NODISCARD OpenGLProbeResult probeOpenGLFormats()
                                                                    coreResult);
 
     OpenGLProbeResult result;
-    result.highestVersion = getHighestGLVersion(coreResult, compatResult);
-    result.runningFormat = getOptimalFormat(compatResult);
+    if (compatResult) {
+        result.valid = true;
+        result.highestVersion = getHighestGLVersion(coreResult, compatResult);
+    }
+    result.runningFormat = getOptimalFormat(compatResult, Backend::GL33);
+    result.backend = Backend::GL33;
+    return result;
+}
+
+std::optional<GLContextCheckResult> probeGLES(
+    QSurfaceFormat &format,
+    const std::vector<GLVersion> &versions)
+{
+    for (const auto &version : versions) {
+        format.setVersion(version.major, version.minor);
+        GLContextCheckResult contextCheckResult = checkContext(format,
+                                                               version,
+                                                               QSurfaceFormat::NoProfile);
+        if (contextCheckResult.valid) {
+            return contextCheckResult;
+        }
+    }
+    return std::nullopt;
+}
+
+OpenGL::OpenGLProbeResult OpenGL::probeOpenGLESFormats()
+{
+    QSurfaceFormat format;
+    format.setRenderableType(QSurfaceFormat::OpenGLES);
+    format.setDepthBufferSize(24);
+
+    const std::vector<GLVersion> versions = {{3, 2}, {3, 1}, {3, 0}};
+
+    auto glesResult = probeGLES(format, versions);
+    OpenGLProbeResult result;
+    if (glesResult) {
+        result.valid = true;
+        result.highestVersion = formatGLVersionString(*glesResult);
+    }
+    result.runningFormat = getOptimalFormat(glesResult, Backend::ES30);
+    result.backend = Backend::ES30;
     return result;
 }
 
@@ -285,11 +334,19 @@ NODISCARD OpenGLProbeResult probeOpenGLFormats()
 
 std::string OpenGL::g_highest_reportable_version_string = UNDEFINED_VERSION;
 
-QSurfaceFormat OpenGL::createDefaultSurfaceFormat()
+QSurfaceFormat OpenGL::createDefaultSurfaceFormat(const Backend backend)
 {
-    OpenGLProbeResult probeResult = probeOpenGLFormats();
-    OpenGL::g_highest_reportable_version_string = probeResult.highestVersion;
-    return probeResult.runningFormat;
+    g_backend = backend;
+    switch (backend) {
+    case Backend::GL33:
+        return probeOpenGLFormats().runningFormat;
+    case Backend::ES30:
+        return probeOpenGLESFormats().runningFormat;
+    case Backend::Unknown:
+        break;
+    }
+    assert(false);
+    return {};
 }
 
 std::string OpenGL::getHighestReportableVersionString()

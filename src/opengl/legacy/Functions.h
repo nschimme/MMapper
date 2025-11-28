@@ -6,6 +6,7 @@
 #include "../../global/RuleOf5.h"
 #include "../../global/utils.h"
 #include "../OpenGLTypes.h"
+#include "../gl_functions.h"
 
 #include <cmath>
 #include <memory>
@@ -76,10 +77,10 @@ using WeakFunctions = std::weak_ptr<Functions>;
 
 /// \c Legacy::Functions implements both GL 3.X and ES 3.X (based on a subset of
 /// ES 3.X)
-class NODISCARD Functions final : private QOpenGLExtraFunctions,
-                                  public std::enable_shared_from_this<Functions>
+class NODISCARD Functions : protected QOpenGLExtraFunctions,
+                            public std::enable_shared_from_this<Functions>
 {
-private:
+protected:
     using Base = QOpenGLExtraFunctions;
     glm::mat4 m_viewProj = glm::mat4(1);
     Viewport m_viewport;
@@ -93,13 +94,13 @@ private:
 public:
     NODISCARD static std::shared_ptr<Functions> alloc();
 
+    virtual ~Functions();
+    DELETE_CTORS_AND_ASSIGN_OPS(Functions);
+
     void setIsCompat(bool canRenderQuads);
 
-public:
+protected:
     explicit Functions(Badge<Functions>);
-
-    ~Functions();
-    DELETE_CTORS_AND_ASSIGN_OPS(Functions);
 
 public:
     NODISCARD float getDevicePixelRatio() const { return m_devicePixelRatio; }
@@ -233,17 +234,11 @@ public:
 
 private:
     friend PointSizeBinder;
-    /// platform-specific (ES vs GL)
-    void enableProgramPointSize(bool enable);
+    virtual void enableProgramPointSize(bool enable) = 0;
 
 private:
     friend OpenGL;
-    /// platform-specific (ES vs GL)
-    NODISCARD bool tryEnableMultisampling(int requestedSamples);
-
-public:
-    /// platform-specific (ES vs GL)
-    NODISCARD static const char *getShaderVersion();
+    NODISCARD virtual bool tryEnableMultisampling(int requestedSamples) = 0;
 
 private:
     template<typename VertexType_>
@@ -261,13 +256,10 @@ private:
     }
 
 public:
-    /// platform-specific (ES vs GL)
-    NODISCARD bool canRenderQuads();
+    NODISCARD virtual bool canRenderQuads() = 0;
+    NODISCARD virtual std::optional<GLenum> toGLenum(DrawModeEnum mode) = 0;
+    NODISCARD virtual const char *getShaderVersion() = 0;
 
-    /// platform-specific (ES vs GL)
-    NODISCARD std::optional<GLenum> toGLenum(DrawModeEnum mode);
-
-public:
     void enableAttrib(const GLuint index,
                       const GLint size,
                       const GLenum type,

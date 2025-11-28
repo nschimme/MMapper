@@ -6,7 +6,7 @@
 #include "../OpenGLTypes.h"
 #include "AbstractShaderProgram.h"
 #include "Binders.h"
-#include "Legacy.h"
+#include "Functions.h"
 #include "VAO.h"
 #include "VBO.h"
 

@@ -20,6 +20,7 @@
 #include "./display/Filenames.h"
 #include "./global/ConfigConsts.h"
 #include "./global/WinSock.h"
+#include "./global/emojis.h"
 #include "./mainwindow/WinDarkMode.h"
 #include "./mainwindow/mainwindow.h"
 #include "./opengl/OpenGL.h"

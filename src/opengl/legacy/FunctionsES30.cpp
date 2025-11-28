@@ -1,13 +1,17 @@
-#include "Legacy.h"
+#include "FunctionsES30.h"
 
 namespace Legacy {
 
-bool Functions::canRenderQuads()
+FunctionsES30::FunctionsES30(Badge<Functions> badge)
+    : Functions(badge)
+{}
+
+bool FunctionsES30::canRenderQuads()
 {
     return false;
 }
 
-std::optional<GLenum> Functions::toGLenum(const DrawModeEnum mode)
+std::optional<GLenum> FunctionsES30::toGLenum(const DrawModeEnum mode)
 {
     switch (mode) {
     case DrawModeEnum::POINTS:
@@ -25,17 +29,17 @@ std::optional<GLenum> Functions::toGLenum(const DrawModeEnum mode)
     return std::nullopt;
 }
 
-const char *Functions::getShaderVersion()
+const char *FunctionsES30::getShaderVersion()
 {
     return "#version 300 es\n\nprecision highp float;\n\n";
 }
 
-void Functions::enableProgramPointSize(bool /* enable */)
+void FunctionsES30::enableProgramPointSize(bool /* enable */)
 {
     // nop
 }
 
-bool Functions::tryEnableMultisampling(int /* requestedSamples */)
+bool FunctionsES30::tryEnableMultisampling(int /* requestedSamples */)
 {
     return false;
 }

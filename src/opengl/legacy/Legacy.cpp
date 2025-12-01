@@ -1,14 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
 
-#include "Functions.h"
+#include "Legacy.h"
 
 #include "../../display/Textures.h"
 #include "../../global/utils.h"
-#include "../Backend.h"
-#include "../gl_functions.h"
-#include "FunctionsES30.h"
-#include "FunctionsGL33.h"
 #include "../OpenGLTypes.h"
 #include "AbstractShaderProgram.h"
 #include "Binders.h"
@@ -243,7 +239,10 @@ Functions::Functions(Badge<Functions>)
     , m_texLookup{std::make_unique<TexLookup>()}
 {}
 
-Functions::~Functions() = default;
+Functions::~Functions()
+{
+    cleanup();
+}
 
 /// <ul>
 /// <li>Resets the Wrapped GL's cached copies of (compiled) shaders given out
@@ -287,18 +286,8 @@ TexLookup &Functions::getTexLookup()
 
 std::shared_ptr<Functions> Functions::alloc()
 {
-    switch (g_backend) {
-    case Backend::GL33:
-        return std::make_shared<FunctionsGL33>(Badge<Functions>{});
-    case Backend::ES30:
-        return std::make_shared<FunctionsES30>(Badge<Functions>{});
-    case Backend::Unknown:
-        break;
-    }
-    assert(false);
-    return nullptr;
+    return std::make_shared<Functions>(Badge<Functions>{});
 }
-
 
 void Functions::setIsCompat(const bool isCompat)
 {
@@ -339,6 +328,5 @@ void Functions::checkError()
 
 #undef CASE
 }
-
 
 } // namespace Legacy

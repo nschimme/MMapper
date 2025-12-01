@@ -384,6 +384,7 @@ set(mmapper_SRCS
     mpi/findreplacewidget.h
     observer/gameobserver.cpp
     observer/gameobserver.h
+    opengl/core/Backend.h
     opengl/Font.cpp
     opengl/Font.h
     opengl/FontFormatFlags.h
@@ -399,7 +400,8 @@ set(mmapper_SRCS
     opengl/legacy/Binders.h
     opengl/legacy/FontMesh3d.cpp
     opengl/legacy/FontMesh3d.h
-    opengl/legacy/Functions.h
+    opengl/legacy/Legacy.cpp
+    opengl/legacy/Legacy.h
     opengl/legacy/Meshes.cpp
     opengl/legacy/Meshes.h
     opengl/legacy/ShaderUtils.cpp
@@ -412,7 +414,6 @@ set(mmapper_SRCS
     opengl/legacy/VAO.h
     opengl/legacy/VBO.cpp
     opengl/legacy/VBO.h
-    opengl/legacy/Functions.cpp
     parser/Abbrev.cpp
     parser/Abbrev.h
     parser/AbstractParser-Actions.cpp
@@ -590,6 +591,9 @@ set(mmapper_UIS
     preferences/pathmachinepage.ui
 )
 
+list(APPEND mmapper_SRCS "opengl/legacy/impl_gl33.cpp")
+list(APPEND mmapper_SRCS "opengl/legacy/impl_es30.cpp")
+
 if(MMAPPER_IS_DEBUG)
     if(NOT DEFINED CHECK_ODR)
         set(CHECK_ODR YES)
@@ -656,11 +660,6 @@ add_executable(mmapper WIN32 MACOSX_BUNDLE
     ${mmapper_RCS}
     ${mmapper_QRC}
     ${mmapper_DATA}
-)
-
-target_sources(mmapper PRIVATE
-    "opengl/legacy/FunctionsGL33.cpp"
-    "opengl/legacy/FunctionsES30.cpp"
 )
 
 set(mm_libs mm_map mm_global)

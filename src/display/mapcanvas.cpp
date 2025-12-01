@@ -56,12 +56,13 @@ NODISCARD static NonOwningPointer &primaryMapCanvas()
 MapCanvas::MapCanvas(MapData &mapData,
                      PrespammedPath &prespammedPath,
                      Mmapper2Group &groupManager,
+                     Backend backend,
                      QWidget *const parent)
     : QOpenGLWidget{parent}
     , MapCanvasViewport{static_cast<QWidget &>(*this)}
     , MapCanvasInputState{prespammedPath}
     , m_mapScreen{static_cast<MapCanvasViewport &>(*this)}
-    , m_opengl{}
+    , m_opengl{backend}
     , m_glFont{m_opengl}
     , m_data{mapData}
     , m_groupManager{groupManager}

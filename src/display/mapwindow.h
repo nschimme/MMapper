@@ -6,6 +6,7 @@
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
 #include "../map/coordinate.h"
+#include "../opengl/core/Backend.h"
 #include "mapcanvas.h"
 
 #include <memory>
@@ -60,7 +61,11 @@ private:
     } m_knownMapSize;
 
 public:
-    explicit MapWindow(MapData &mapData, PrespammedPath &pp, Mmapper2Group &gm, QWidget *parent);
+    explicit MapWindow(MapData &mapData,
+                       PrespammedPath &pp,
+                       Mmapper2Group &gm,
+                       Backend backend,
+                       QWidget *parent);
     ~MapWindow() final;
 
 public:

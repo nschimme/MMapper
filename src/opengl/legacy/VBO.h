@@ -3,7 +3,7 @@
 // Copyright (C) 2019 The MMapper Authors
 
 #include "../../global/utils.h"
-#include "Functions.h"
+#include "Legacy.h"
 
 #include <memory>
 #include <vector>

@@ -117,8 +117,9 @@ MainWindow::~MainWindow()
     destroyTopLevelWindows();
 }
 
-MainWindow::MainWindow()
+MainWindow::MainWindow(Backend backend)
     : QMainWindow(nullptr, Qt::WindowFlags{})
+    , m_backend(backend)
     , m_asyncTask(this)
 {
     initTopLevelWindows();
@@ -139,7 +140,11 @@ MainWindow::MainWindow()
     m_groupManager = new Mmapper2Group(this);
     m_groupManager->setObjectName("GroupManager");
 
-    m_mapWindow = new MapWindow(mapData, deref(m_prespammedPath), deref(m_groupManager), this);
+    m_mapWindow = new MapWindow(mapData,
+                                deref(m_prespammedPath),
+                                deref(m_groupManager),
+                                m_backend,
+                                this);
     setCentralWidget(m_mapWindow);
 
     m_pathMachine = new Mmapper2PathMachine(mapData, this);

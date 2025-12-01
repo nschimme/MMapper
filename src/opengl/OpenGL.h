@@ -5,12 +5,8 @@
 
 #include "../global/Badge.h"
 #include "../global/utils.h"
-#include "Backend.h"
+#include "core/Backend.h"
 #include "OpenGLTypes.h"
-
-namespace Legacy {
-class Functions;
-}
 
 #include <memory>
 #include <string>
@@ -22,6 +18,9 @@ class Functions;
 #include <qopengl.h>
 
 class MapCanvas;
+namespace Legacy {
+class Functions;
+} // namespace Legacy
 
 class NODISCARD OpenGL final
 {
@@ -36,25 +35,13 @@ private:
     NODISCARD const auto &getSharedFunctions() { return m_opengl; }
 
 public:
-    struct OpenGLProbeResult
-    {
-        QSurfaceFormat runningFormat = QSurfaceFormat::defaultFormat();
-        std::string highestVersion;
-        Backend backend = Backend::Unknown;
-        bool valid = false;
-    };
-
-public:
-    OpenGL();
+    explicit OpenGL(Backend backend);
     ~OpenGL();
     OpenGL(const OpenGL &) = delete;
     OpenGL &operator=(const OpenGL &) = delete;
 
 public:
-    NODISCARD static QSurfaceFormat createDefaultSurfaceFormat(const Backend backend);
     NODISCARD static std::string getHighestReportableVersionString();
-    NODISCARD static OpenGLProbeResult probeOpenGLFormats();
-    NODISCARD static OpenGLProbeResult probeOpenGLESFormats();
 
 public:
     NODISCARD const auto &getSharedFunctions(Badge<MapCanvas>) { return getSharedFunctions(); }

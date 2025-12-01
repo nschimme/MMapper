@@ -11,6 +11,7 @@
 #include "../opengl/Font.h"
 #include "../opengl/FontFormatFlags.h"
 #include "../opengl/OpenGL.h"
+#include "../opengl/core/Backend.h"
 #include "Infomarks.h"
 #include "MapCanvasData.h"
 #include "MapCanvasRoomDrawer.h"
@@ -157,6 +158,7 @@ public:
     explicit MapCanvas(MapData &mapData,
                        PrespammedPath &prespammedPath,
                        Mmapper2Group &groupManager,
+                       Backend backend,
                        QWidget *parent);
     ~MapCanvas() final;
 

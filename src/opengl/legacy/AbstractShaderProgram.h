@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
 
-#include "Functions.h"
+#include "Legacy.h"
 #include "VBO.h"
 
 namespace Legacy {

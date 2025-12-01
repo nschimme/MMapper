@@ -9,6 +9,7 @@
 #include "../display/CanvasMouseModeEnum.h"
 #include "../global/Connections.h"
 #include "../global/Signal2.h"
+#include "../opengl/core/Backend.h"
 #include "../global/macros.h"
 #include "../group/mmapper2group.h"
 #include "../map/Changes.h"
@@ -163,6 +164,7 @@ private:
     QAction *aboutAct = nullptr;
     QAction *aboutQtAct = nullptr;
     QAction *zoomInAct = nullptr;
+    Backend m_backend;
     QAction *zoomOutAct = nullptr;
     QAction *zoomResetAct = nullptr;
     QAction *alwaysOnTopAct = nullptr;
@@ -264,7 +266,7 @@ private:
     Signal2Lifetime m_lifetime;
 
 public:
-    explicit MainWindow();
+    explicit MainWindow(Backend backend);
     ~MainWindow() final;
 
     enum class NODISCARD SaveModeEnum { FULL, BASEMAP };

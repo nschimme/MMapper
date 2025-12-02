@@ -5,7 +5,6 @@
 
 #include "../global/Badge.h"
 #include "../global/utils.h"
-#include "core/Backend.h"
 #include "OpenGLTypes.h"
 
 #include <memory>
@@ -35,12 +34,13 @@ private:
     NODISCARD const auto &getSharedFunctions() { return m_opengl; }
 
 public:
-    explicit OpenGL(Backend backend);
+    OpenGL();
     ~OpenGL();
     OpenGL(const OpenGL &) = delete;
     OpenGL &operator=(const OpenGL &) = delete;
 
 public:
+    NODISCARD static QSurfaceFormat createDefaultSurfaceFormat();
     NODISCARD static std::string getHighestReportableVersionString();
 
 public:

@@ -20,11 +20,7 @@
 
 class QResizeEvent;
 
-MapWindow::MapWindow(MapData &mapData,
-                     PrespammedPath &pp,
-                     Mmapper2Group &gm,
-                     Backend backend,
-                     QWidget *const parent)
+MapWindow::MapWindow(MapData &mapData, PrespammedPath &pp, Mmapper2Group &gm, QWidget *const parent)
     : QWidget(parent)
 {
     m_gridLayout = std::make_unique<QGridLayout>(this);
@@ -47,7 +43,7 @@ MapWindow::MapWindow(MapData &mapData,
 
     m_gridLayout->addWidget(m_horizontalScrollBar.get(), 1, 0, 1, 1);
 
-    m_canvas = std::make_unique<MapCanvas>(mapData, pp, gm, backend, this);
+    m_canvas = std::make_unique<MapCanvas>(mapData, pp, gm, this);
     MapCanvas *const canvas = m_canvas.get();
 
     m_gridLayout->addWidget(canvas, 0, 0, 1, 1);

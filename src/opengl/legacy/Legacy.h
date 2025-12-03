@@ -250,7 +250,10 @@ private:
 private:
     friend OpenGL;
     /// platform-specific (ES vs GL)
-    NODISCARD bool tryEnableMultisampling(int requestedSamples) { return virt_tryEnableMultisampling(requestedSamples); }
+    NODISCARD bool tryEnableMultisampling(int requestedSamples)
+    {
+        return virt_tryEnableMultisampling(requestedSamples);
+    }
 
 public:
     /// platform-specific (ES vs GL)

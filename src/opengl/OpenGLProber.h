@@ -12,12 +12,7 @@
 class OpenGLProber
 {
 public:
-    enum class BackendType
-    {
-        None,
-        GL,
-        GLES
-    };
+    enum class BackendType { None, GL, GLES };
 
     struct ProbeResult
     {

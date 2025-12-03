@@ -10,10 +10,10 @@
 #include "../global/ConfigConsts.h"
 #include "../global/ConfigEnums.h"
 #include "../global/Consts.h"
-#include "../opengl/OpenGLProber.h"
 #include "../global/FixedPoint.h"
 #include "../global/NamedColors.h"
 #include "../global/RuleOf5.h"
+#include "../opengl/OpenGLProber.h"
 #include "NamedConfig.h"
 
 #include <memory>

@@ -8,13 +8,13 @@
 
 #include "OpenGLProber.h"
 
-#include "../global/logging.h"
 #include "../global/ConfigConsts.h"
-
-#include <QOpenGLContext>
+#include "../global/logging.h"
 
 #include <optional>
 #include <sstream>
+
+#include <QOpenGLContext>
 
 #ifdef WIN32
 extern "C" {
@@ -239,7 +239,8 @@ NODISCARD QSurfaceFormat getOptimalFormat(std::optional<GLContextCheckResult> re
     return format;
 }
 
-OpenGLProber::ProbeResult probeOpenGL() {
+OpenGLProber::ProbeResult probeOpenGL()
+{
     QSurfaceFormat format;
     format.setRenderableType(QSurfaceFormat::OpenGL);
     format.setDepthBufferSize(24);
@@ -268,7 +269,8 @@ OpenGLProber::ProbeResult probeOpenGL() {
     return result;
 }
 
-OpenGLProber::ProbeResult probeOpenGLES() {
+OpenGLProber::ProbeResult probeOpenGLES()
+{
     QSurfaceFormat format;
     format.setRenderableType(QSurfaceFormat::OpenGLES);
     format.setVersion(3, 0);
@@ -287,7 +289,7 @@ OpenGLProber::ProbeResult probeOpenGLES() {
     return result;
 }
 
-} // anonymous
+} // namespace
 
 OpenGLProber::ProbeResult OpenGLProber::probe()
 {

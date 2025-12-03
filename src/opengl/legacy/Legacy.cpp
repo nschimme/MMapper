@@ -244,6 +244,11 @@ Functions::~Functions()
     cleanup();
 }
 
+void Functions::setIsCompat(bool isCompat)
+{
+    m_isCompat = isCompat;
+}
+
 /// <ul>
 /// <li>Resets the Wrapped GL's cached copies of (compiled) shaders given out
 /// to new meshes. This <em>does NOT</em> expire the shaders belonging to old

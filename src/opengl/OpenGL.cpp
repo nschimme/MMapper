@@ -9,6 +9,8 @@
 #include "./legacy/Legacy.h"
 #include "./legacy/Meshes.h"
 #include "OpenGLTypes.h"
+#include "./legacy/FunctionsGL33.h"
+#include "./legacy/FunctionsES30.h"
 
 #include <cassert>
 #include <optional>

@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
-// Author: Kalev Lember <kalev@smartlink.ee> (Kalev)
 
-#include "aboutdialog.h"
-
+#include "AboutDialogBackend.h"
 #include "../global/ConfigConsts-Computed.h"
 #include "../global/ConfigEnums.h"
 #include "../global/Version.h"
@@ -14,12 +12,6 @@
 #include <QtWidgets>
 
 namespace {
-struct LicenseInfo
-{
-    QString title;
-    QString introText;
-    QString resourcePath;
-};
 
 NODISCARD QString getBuildInformation()
 {
@@ -44,32 +36,8 @@ NODISCARD QString getBuildInformation()
 
 } // namespace
 
-AboutDialog::AboutDialog(QWidget *const parent)
-    : QDialog(parent)
+AboutDialogBackend::AboutDialogBackend(QObject *parent) : QObject(parent)
 {
-    setWindowIcon(QIcon(":/icons/m.png"));
-    setupUi(this);
-    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
-
-    /* About tab */
-    pixmapLabel->setPixmap(QPixmap(":/pixmaps/splash.png"));
-    const auto about_text = []() -> QString {
-        return "<p align=\"center\">"
-               "<h3>"
-               "<u>"
-               + QString("MMapper %1").arg(QString::fromUtf8(getMMapperVersion()))
-               + "</h3>"
-                 "</u>"
-                 "</p>"
-                 "<p align=\"center\">"
-               + getBuildInformation()
-               + QString("Based on Qt %1 (%2 bit)")
-                     .arg(qVersion())
-                     .arg(static_cast<size_t>(QSysInfo::WordSize))
-               + "</p>";
-    };
-    aboutText->setText(about_text());
-
     const auto loadResource = [](const QString &path) {
         QFile f(path);
         if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -80,24 +48,7 @@ AboutDialog::AboutDialog(QWidget *const parent)
         }
     };
 
-    /* Authors tab */
-    authorsView->clear();
-    const QStringList authors = loadResource(":/AUTHORS.txt").split("\n");
-    if (authors.isEmpty()) {
-        authorsView->setHtml("Could not load authors file.");
-    } else {
-        QString authorsHtml
-            = "<p>The MMapper project is maintained by the following contributors:</p><ul>";
-        for (const auto &line : authors) {
-            authorsHtml += "<li>" + line + "</li></br>";
-        }
-        authorsHtml += "</ul>";
-        authorsView->setHtml(authorsHtml);
-    }
-
-    /* Licenses tab */
-    QList<LicenseInfo> licenses;
-    licenses.append({"GNU General Public License 2.0",
+    m_licenses.append(new LicenseInfo("GNU General Public License 2.0",
                      "<p>"
                      "This program is free software; you can redistribute it and/or "
                      "modify it under the terms of the GNU General Public License "
@@ -112,87 +63,101 @@ AboutDialog::AboutDialog(QWidget *const parent)
                      "<p>"
                      "See the GNU General Public License for more details. "
                      "</p>",
-                     ":/LICENSE.GPL2"});
+                     loadResource(":/LICENSE.GPL2"), this));
 
-    licenses.append({"DejaVu Fonts License",
+    m_licenses.append(new LicenseInfo("DejaVu Fonts License",
                      "<p>"
                      "This license applies to the file "
                      "<code>src/resources/fonts/DejaVuSansMono.ttf</code>"
                      "</p>",
-                     ":/fonts/LICENSE"});
+                     loadResource(":/fonts/LICENSE"), this));
 
-    licenses.append({"GLM License",
+    m_licenses.append(new LicenseInfo("GLM License",
                      "<p>"
                      "This product contains code from the "
                      "<a href=\"https://glm.g-truc.net/\">OpenGL Mathematics (GLM)</a>"
                      " project."
                      "</p>",
-                     ":/LICENSE.GLM"});
+                     loadResource(":/LICENSE.GLM"), this));
 
-    licenses.append({"QtKeychain License",
+    m_licenses.append(new LicenseInfo("QtKeychain License",
                      "<p>"
                      "This product contains code from the "
                      "<a href=\"https://github.com/frankosterfeld/qtkeychain\">QtKeychain</a>"
                      " project."
                      "</p>",
-                     ":/LICENSE.QTKEYCHAIN"});
+                     loadResource(":/LICENSE.QTKEYCHAIN"), this));
 
-    licenses.append({"OpenSSL License",
+    m_licenses.append(new LicenseInfo("OpenSSL License",
                      "<p>"
                      "Some versions of this product contains code from the "
                      "<a href=\"https://www.openssl.org/\">OpenSSL toolkit</a>."
                      "</p>",
-                     ":/LICENSE.OPENSSL"});
+                     loadResource(":/LICENSE.OPENSSL"), this));
 
-    licenses.append({"Boost Software License 1.0",
+    m_licenses.append(new LicenseInfo("Boost Software License 1.0",
                      "<p>"
                      "This product contains code from the "
                      "<a href=\"https://github.com/arximboldi/immer\">immer</a>"
                      " project."
                      "</p>",
-                     ":/LICENSE.BOOST"});
+                     loadResource(":/LICENSE.BOOST"), this));
 
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Windows) {
-        licenses.append({"GNU Lesser General Public License 2.1",
+        m_licenses.append(new LicenseInfo("GNU Lesser General Public License 2.1",
                          "<p>"
                          "Some versions of this product contains code from the "
                          "following LGPLed libraries: "
                          "<a href=\"https://github.com/jrfonseca/drmingw\">DrMingW</a>"
                          "</p>",
-                         ":/LICENSE.LGPL"});
+                         loadResource(":/LICENSE.LGPL"), this));
     }
-
-    for (const auto &license : licenses) {
-        auto *titleLabel = new QLabel(QStringLiteral("<h2>%1</h2>").arg(license.title));
-        titleLabel->setTextFormat(Qt::RichText);
-        licenseLayout->addWidget(titleLabel);
-
-        if (!license.introText.isEmpty()) {
-            auto *introLabel = new QLabel(license.introText);
-            introLabel->setWordWrap(true);
-            introLabel->setTextFormat(Qt::RichText);
-            licenseLayout->addWidget(introLabel);
-        }
-
-        auto *textEdit = new QTextEdit;
-        textEdit->setReadOnly(true);
-        textEdit->setPlainText(loadResource(license.resourcePath));
-        textEdit->setFixedHeight(160);
-        licenseLayout->addWidget(textEdit);
-
-        auto *hr = new QFrame;
-        hr->setFrameShape(QFrame::HLine);
-        hr->setFrameShadow(QFrame::Sunken);
-        licenseLayout->addWidget(hr);
-    }
-
-    adjustSize();
 }
 
-void AboutDialog::setFixedFont(QTextBrowser *browser)
+QString AboutDialogBackend::aboutText() const
 {
-    QFont fixed;
-    fixed.setStyleHint(QFont::TypeWriter);
-    fixed.setFamily("Courier");
-    browser->setFont(fixed);
+    return "<p align=\"center\">"
+           "<h3>"
+           "<u>"
+           + QString("MMapper %1").arg(QString::fromUtf8(getMMapperVersion()))
+           + "</h3>"
+             "</u>"
+             "</p>"
+             "<p align=\"center\">"
+           + getBuildInformation()
+           + QString("Based on Qt %1 (%2 bit)")
+                 .arg(qVersion())
+                 .arg(static_cast<size_t>(QSysInfo::WordSize))
+           + "</p>";
+}
+
+QString AboutDialogBackend::authorsText() const
+{
+    const auto loadResource = [](const QString &path) {
+        QFile f(path);
+        if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            return QString("Unable to open resource '%1'.").arg(path);
+        } else {
+            QTextStream ts(&f);
+            return ts.readAll();
+        }
+    };
+
+    const QStringList authors = loadResource(":/AUTHORS.txt").split("\n");
+    if (authors.isEmpty()) {
+        return "Could not load authors file.";
+    } else {
+        QString authorsHtml
+            = "<p>The MMapper project is maintained by the following contributors:</p><ul>";
+        for (const auto &line : authors) {
+            authorsHtml += "<li>" + line + "</li></br>";
+        }
+        authorsHtml += "</ul>";
+        return authorsHtml;
+    }
+}
+
+QQmlListProperty<LicenseInfo> AboutDialogBackend::licenses()
+{
+    return QQmlListProperty<LicenseInfo>(this, m_licenses);
 }

@@ -228,8 +228,8 @@ set(mmapper_SRCS
     mainwindow/UpdateDialogBackend.h
     mainwindow/WinDarkMode.cpp
     mainwindow/WinDarkMode.h
-    mainwindow/aboutdialog.cpp
-    mainwindow/aboutdialog.h
+    mainwindow/AboutDialogBackend.cpp
+    mainwindow/AboutDialogBackend.h
     mainwindow/findroomsdlg.cpp
     mainwindow/findroomsdlg.h
     mainwindow/infomarkseditdlg.cpp
@@ -549,7 +549,7 @@ set(mmapper_SRCS
     viewers/TopLevelWindows.h
 )
 
-qt_add_resources(mmapper_QRC resources/mmapper2.qrc mainwindow/UpdateDialog.qml)
+qt_add_resources(mmapper_QRC resources/mmapper2.qrc mainwindow/UpdateDialog.qml mainwindow/AboutDialog.qml)
 
 if(MMAPPER_BETA)
     list(APPEND mmapper_RCS "resources/win32/beta.rc")
@@ -573,7 +573,6 @@ endif()
 set(mmapper_UIS
     client/ClientWidget.ui
     clock/mumeclockwidget.ui
-    mainwindow/aboutdialog.ui
     mainwindow/infomarkseditdlg.ui
     mainwindow/findroomsdlg.ui
     mainwindow/roomeditattrdlg.ui

@@ -32,6 +32,7 @@
 #include "DescriptionWidget.h"
 #include "MapZoomSlider.h"
 #include "UpdateDialogBackend.h"
+#include "AboutDialogBackend.h"
 #include "aboutdialog.h"
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
@@ -1576,8 +1577,25 @@ void MainWindow::slot_reload()
 
 void MainWindow::slot_about()
 {
-    AboutDialog about(this);
-    about.exec();
+    auto engine = new QQmlApplicationEngine(this);
+    auto backend = new AboutDialogBackend(engine);
+
+    engine->rootContext()->setContextProperty("aboutDialogBackend", backend);
+    engine->load(QUrl(QStringLiteral("qrc:/src/mainwindow/AboutDialog.qml")));
+
+    if (engine->rootObjects().isEmpty()) {
+        qWarning() << "Failed to load AboutDialog.qml";
+        engine->deleteLater();
+        return;
+    }
+
+    QObject *topLevel = engine->rootObjects().value(0);
+    QQuickWindow *window = qobject_cast<QQuickWindow *>(topLevel);
+    window->setParent(this->windowHandle());
+    window->setModality(Qt::ApplicationModal);
+    window->setAttribute(Qt::WA_DeleteOnClose);
+    connect(window, &QQuickWindow::closing, engine, &QQmlApplicationEngine::deleteLater);
+    window->show();
 }
 
 MainWindow::ProgressDialogLifetime MainWindow::createNewProgressDialog(const QString &text,

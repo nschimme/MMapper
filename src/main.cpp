@@ -104,6 +104,7 @@ static bool setSurfaceFormat()
     QSurfaceFormat fmt = probeResult.format;
     auto &config = setConfig().canvas;
     config.backendType = probeResult.backendType;
+    config.isCompat = probeResult.isCompat;
     fmt.setSamples(config.antialiasingSamples);
     QSurfaceFormat::setDefaultFormat(fmt);
     return true;

@@ -1,20 +1,17 @@
-#include "Legacy.h"
+#include "FunctionsGL33.h"
 
 #include <optional>
 
 namespace Legacy {
 
-class FunctionsGL33 final : public Functions
-{
-public:
-    FunctionsGL33()
-        : Functions(Badge<Functions>{})
-    {}
+FunctionsGL33::FunctionsGL33() = default;
 
-    bool canRenderQuads() override
-    {
-        return m_isCompat;
-    }
+FunctionsGL33::~FunctionsGL33() = default;
+
+bool FunctionsGL33::canRenderQuads()
+{
+    return m_isCompat;
+}
 
     std::optional<GLenum> toGLenum(const DrawModeEnum mode) override
     {

@@ -51,7 +51,7 @@ std::string OpenGL::getHighestReportableVersionString()
     return OpenGL::g_highest_reportable_version_string;
 }
 
-OpenGL::OpenGL(OpenGLProber::BackendType backendType)
+OpenGL::OpenGL(OpenGLProber::BackendType backendType, bool isCompat)
 {
     if (backendType == OpenGLProber::BackendType::GL) {
         m_opengl = Legacy::Functions::alloc<Legacy::FunctionsGL33>();
@@ -60,6 +60,7 @@ OpenGL::OpenGL(OpenGLProber::BackendType backendType)
     } else {
         qFatal("Invalid backend type");
     }
+    m_opengl->setIsCompat(isCompat);
 }
 
 OpenGL::~OpenGL() = default;
@@ -251,6 +252,7 @@ void OpenGL::initializeOpenGLFunctions()
     const auto &format = ctx->format();
     const bool isCompat = (format.profile() == QSurfaceFormat::CompatibilityProfile);
     funcs.setIsCompat(isCompat);
+    getFunctions().initializeOpenGLFunctions();
 }
 
 const char *OpenGL::glGetString(GLenum name)

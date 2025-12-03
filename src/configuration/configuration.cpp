@@ -910,17 +910,17 @@ void Configuration::FindRoomsDialog::write(QSettings &conf) const
     conf.setValue(KEY_WINDOW_GEOMETRY, geometry);
 }
 
-const Configuration &getConfig()
-{
-    return setConfig();
-}
-
 Configuration &setConfig()
 {
     assert(g_config_enteredMain);
     assert(g_thread == std::this_thread::get_id());
     static Configuration conf;
     return conf;
+}
+
+const Configuration &getConfig()
+{
+    return setConfig();
 }
 
 void Configuration::NamedColorOptions::resetToDefaults()

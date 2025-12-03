@@ -403,6 +403,8 @@ set(mmapper_SRCS
     opengl/legacy/FontMesh3d.h
     opengl/legacy/Legacy.cpp
     opengl/legacy/Legacy.h
+    opengl/legacy/FunctionsGL33.h
+    opengl/legacy/FunctionsES30.h
     opengl/legacy/Meshes.cpp
     opengl/legacy/Meshes.h
     opengl/legacy/ShaderUtils.cpp

@@ -35,7 +35,7 @@ private:
     NODISCARD const auto &getSharedFunctions() { return m_opengl; }
 
 public:
-    explicit OpenGL(OpenGLProber::BackendType backendType);
+    explicit OpenGL(OpenGLProber::BackendType backendType, bool isCompat);
     ~OpenGL();
     OpenGL(const OpenGL &) = delete;
     OpenGL &operator=(const OpenGL &) = delete;

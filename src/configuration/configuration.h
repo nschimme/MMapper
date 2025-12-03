@@ -145,6 +145,7 @@ public:
         bool softwareOpenGL = false;
         QString resourcesDirectory;
         OpenGLProber::BackendType backendType = OpenGLProber::BackendType::None;
+        bool isCompat = false;
 
         // not saved yet:
         bool drawCharBeacons = true;

@@ -1,18 +1,15 @@
-#include "Legacy.h"
+#include "FunctionsES30.h"
 
 namespace Legacy {
 
-class FunctionsES30 final : public Functions
-{
-public:
-    FunctionsES30()
-        : Functions(Badge<Functions>{})
-    {}
+FunctionsES30::FunctionsES30() = default;
 
-    bool canRenderQuads() override
-    {
-        return false;
-    }
+FunctionsES30::~FunctionsES30() = default;
+
+bool FunctionsES30::canRenderQuads()
+{
+    return false;
+}
 
     std::optional<GLenum> toGLenum(const DrawModeEnum mode) override
     {

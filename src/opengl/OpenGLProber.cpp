@@ -262,6 +262,7 @@ OpenGLProber::ProbeResult probeOpenGL() {
         result.backendType = OpenGLProber::BackendType::GL;
         result.highestVersionString = getHighestGLVersion(coreResult, compatResult);
         result.format = getOptimalFormat(compatResult);
+        result.isCompat = compatResult->isCompat;
     }
     return result;
 }

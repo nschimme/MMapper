@@ -81,6 +81,9 @@ using WeakFunctions = std::weak_ptr<Functions>;
 class NODISCARD Functions : protected QOpenGLExtraFunctions,
                             public std::enable_shared_from_this<Functions>
 {
+    friend class FunctionsGL33;
+    friend class FunctionsES30;
+
 public:
     template<typename T>
     NODISCARD static std::shared_ptr<Functions> alloc()
@@ -102,9 +105,10 @@ private:
 public:
     void setIsCompat(bool canRenderQuads);
 
-public:
-    explicit Functions(Badge<Functions>);
+protected:
+    Functions();
 
+public:
     virtual ~Functions();
     DELETE_CTORS_AND_ASSIGN_OPS(Functions);
 

@@ -54,11 +54,6 @@ NODISCARD const char *getPlatformEditor()
 
 } // namespace
 
-Configuration::Configuration()
-{
-    read(); // read the settings or set them to the default values
-}
-
 /*
  * TODO: Make a dialog asking if the user wants to import settings
  * from an older version of MMapper, and then change the organization name
@@ -67,6 +62,11 @@ Configuration::Configuration()
  *
  * Also, don't use space, because it will be a file name on disk.
  */
+Configuration::Configuration()
+{
+    read(); // read the settings or set them to the default values
+}
+
 #define ConstString static constexpr const char *const
 ConstString SETTINGS_ORGANIZATION = "MUME";
 ConstString OLD_SETTINGS_ORGANIZATION = "Caligor soft";
@@ -910,17 +910,17 @@ void Configuration::FindRoomsDialog::write(QSettings &conf) const
     conf.setValue(KEY_WINDOW_GEOMETRY, geometry);
 }
 
+const Configuration &getConfig()
+{
+    return setConfig();
+}
+
 Configuration &setConfig()
 {
     assert(g_config_enteredMain);
     assert(g_thread == std::this_thread::get_id());
     static Configuration conf;
     return conf;
-}
-
-const Configuration &getConfig()
-{
-    return setConfig();
 }
 
 void Configuration::NamedColorOptions::resetToDefaults()

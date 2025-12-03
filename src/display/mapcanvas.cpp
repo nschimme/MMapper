@@ -61,7 +61,7 @@ MapCanvas::MapCanvas(MapData &mapData,
     , MapCanvasViewport{static_cast<QWidget &>(*this)}
     , MapCanvasInputState{prespammedPath}
     , m_mapScreen{static_cast<MapCanvasViewport &>(*this)}
-    , m_opengl{}
+    , m_opengl{getConfig().canvas.backendType}
     , m_glFont{m_opengl}
     , m_data{mapData}
     , m_groupManager{groupManager}

@@ -10,6 +10,7 @@
 #include "../global/ConfigConsts.h"
 #include "../global/ConfigEnums.h"
 #include "../global/Consts.h"
+#include "../opengl/OpenGLProber.h"
 #include "../global/FixedPoint.h"
 #include "../global/NamedColors.h"
 #include "../global/RuleOf5.h"
@@ -143,6 +144,7 @@ public:
         bool trilinearFiltering = false;
         bool softwareOpenGL = false;
         QString resourcesDirectory;
+        OpenGLProber::BackendType backendType = OpenGLProber::BackendType::None;
 
         // not saved yet:
         bool drawCharBeacons = true;
@@ -400,8 +402,8 @@ private:
 /// Please don't try to cheat it. Only call this function from main().
 void setEnteredMain();
 /// Returns a reference to the application configuration object.
-NODISCARD Configuration &setConfig();
 NODISCARD const Configuration &getConfig();
+NODISCARD Configuration &setConfig();
 
 using SharedCanvasNamedColorOptions = std::shared_ptr<const Configuration::CanvasNamedColorOptions>;
 using SharedNamedColorOptions = std::shared_ptr<const Configuration::NamedColorOptions>;

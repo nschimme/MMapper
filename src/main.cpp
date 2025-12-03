@@ -12,6 +12,7 @@
 #include "./mainwindow/WinDarkMode.h"
 #include "./mainwindow/mainwindow.h"
 #include "./opengl/OpenGL.h"
+#include "./opengl/OpenGLProber.h"
 
 #include <memory>
 #include <optional>
@@ -88,14 +89,24 @@ static void tryAutoLoadMap(MainWindow &mw)
     }
 }
 
-static void setSurfaceFormat()
+static bool setSurfaceFormat()
 {
-    // Probe for supported OpenGL versions
-    QSurfaceFormat fmt = OpenGL::createDefaultSurfaceFormat();
+    OpenGLProber prober;
+    auto probeResult = prober.probe();
+    if (probeResult.backendType == OpenGLProber::BackendType::None) {
+        QMessageBox::critical(
+            nullptr,
+            "Fatal Error",
+            "No compatible rendering backend found.\n\nThe application requires OpenGL 3.3 or OpenGL ES 3.0 support to run.");
+        return false;
+    }
 
-    const auto &config = getConfig().canvas;
+    QSurfaceFormat fmt = probeResult.format;
+    auto &config = setConfig().canvas;
+    config.backendType = probeResult.backendType;
     fmt.setSamples(config.antialiasingSamples);
     QSurfaceFormat::setDefaultFormat(fmt);
+    return true;
 }
 
 int main(int argc, char **argv)
@@ -113,7 +124,9 @@ int main(int argc, char **argv)
     tryInitDrMingw();
     auto tryLoadingWinSock = std::make_unique<WinSock>();
     auto tryLoadingWinDarkMode = std::make_unique<WinDarkMode>(&app);
-    setSurfaceFormat();
+    if (!setSurfaceFormat()) {
+        return 1;
+    }
 
     tryLoadEmojis(getResourceFilenameRaw("emojis", "short-codes.json"));
     auto mw = std::make_unique<MainWindow>();

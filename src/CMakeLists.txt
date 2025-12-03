@@ -386,6 +386,8 @@ set(mmapper_SRCS
     observer/gameobserver.h
     opengl/Font.cpp
     opengl/Font.h
+    opengl/OpenGLProber.cpp
+    opengl/OpenGLProber.h
     opengl/FontFormatFlags.h
     opengl/LineRendering.cpp
     opengl/LineRendering.h
@@ -592,7 +594,8 @@ set(mmapper_UIS
 
 if(QT_HAS_OPENGL)
     list(APPEND mmapper_SRCS "opengl/legacy/impl_gl33.cpp")
-elseif(QT_HAS_GLES)
+endif()
+if(QT_HAS_GLES)
     list(APPEND mmapper_SRCS "opengl/legacy/impl_es30.cpp")
 endif()
 

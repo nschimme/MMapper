@@ -237,12 +237,11 @@ Functions::Functions(Badge<Functions>)
     : m_shaderPrograms{std::make_unique<ShaderPrograms>(*this)}
     , m_staticVbos{std::make_unique<StaticVbos>()}
     , m_texLookup{std::make_unique<TexLookup>()}
-{}
-
-Functions::~Functions()
 {
-    cleanup();
+    initializeOpenGLFunctions();
 }
+
+Functions::~Functions() = default;
 
 /// <ul>
 /// <li>Resets the Wrapped GL's cached copies of (compiled) shaders given out
@@ -282,16 +281,6 @@ StaticVbos &Functions::getStaticVbos()
 TexLookup &Functions::getTexLookup()
 {
     return deref(m_texLookup);
-}
-
-std::shared_ptr<Functions> Functions::alloc()
-{
-    return std::make_shared<Functions>(Badge<Functions>{});
-}
-
-void Functions::setIsCompat(const bool isCompat)
-{
-    m_isCompat = isCompat;
 }
 
 /// This only exists so we can detect errors in contexts that don't support \c glDebugMessageCallback().

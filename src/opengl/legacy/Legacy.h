@@ -71,14 +71,23 @@ NODISCARD static inline std::vector<VertexType_> convertQuadsToTris(
 }
 
 class Functions;
+class FunctionsGL33;
+class FunctionsES30;
 using SharedFunctions = std::shared_ptr<Functions>;
 using WeakFunctions = std::weak_ptr<Functions>;
 
 /// \c Legacy::Functions implements both GL 3.X and ES 3.X (based on a subset of
 /// ES 3.X)
-class NODISCARD Functions final : private QOpenGLExtraFunctions,
-                                  public std::enable_shared_from_this<Functions>
+class NODISCARD Functions : protected QOpenGLExtraFunctions,
+                            public std::enable_shared_from_this<Functions>
 {
+public:
+    template<typename T>
+    NODISCARD static std::shared_ptr<Functions> alloc()
+    {
+        return std::make_shared<T>();
+    }
+
 private:
     using Base = QOpenGLExtraFunctions;
     glm::mat4 m_viewProj = glm::mat4(1);
@@ -91,14 +100,12 @@ private:
     bool m_isCompat = false;
 
 public:
-    NODISCARD static std::shared_ptr<Functions> alloc();
-
     void setIsCompat(bool canRenderQuads);
 
 public:
     explicit Functions(Badge<Functions>);
 
-    ~Functions();
+    virtual ~Functions();
     DELETE_CTORS_AND_ASSIGN_OPS(Functions);
 
 public:
@@ -234,16 +241,16 @@ public:
 private:
     friend PointSizeBinder;
     /// platform-specific (ES vs GL)
-    void enableProgramPointSize(bool enable);
+    virtual void enableProgramPointSize(bool enable) = 0;
 
 private:
     friend OpenGL;
     /// platform-specific (ES vs GL)
-    NODISCARD bool tryEnableMultisampling(int requestedSamples);
+    NODISCARD virtual bool tryEnableMultisampling(int requestedSamples) = 0;
 
 public:
     /// platform-specific (ES vs GL)
-    NODISCARD static const char *getShaderVersion();
+    NODISCARD virtual const char *getShaderVersion() const = 0;
 
 private:
     template<typename VertexType_>
@@ -262,10 +269,10 @@ private:
 
 public:
     /// platform-specific (ES vs GL)
-    NODISCARD bool canRenderQuads();
+    NODISCARD virtual bool canRenderQuads() = 0;
 
     /// platform-specific (ES vs GL)
-    NODISCARD std::optional<GLenum> toGLenum(DrawModeEnum mode);
+    NODISCARD virtual std::optional<GLenum> toGLenum(DrawModeEnum mode) = 0;
 
 public:
     void enableAttrib(const GLuint index,

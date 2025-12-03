@@ -5,6 +5,7 @@
 
 #include "../global/Badge.h"
 #include "../global/utils.h"
+#include "OpenGLProber.h"
 #include "OpenGLTypes.h"
 
 #include <memory>
@@ -34,7 +35,7 @@ private:
     NODISCARD const auto &getSharedFunctions() { return m_opengl; }
 
 public:
-    OpenGL();
+    explicit OpenGL(OpenGLProber::BackendType backendType);
     ~OpenGL();
     OpenGL(const OpenGL &) = delete;
     OpenGL &operator=(const OpenGL &) = delete;

@@ -2,9 +2,12 @@
 
 #include <optional>
 
+#ifndef MMAPPER_NO_OPENGL
+
 namespace Legacy {
 
-FunctionsGL33::FunctionsGL33() = default;
+FunctionsGL33::FunctionsGL33(Badge<Functions> badge)
+    : Functions(badge){};
 
 FunctionsGL33::~FunctionsGL33() = default;
 
@@ -83,3 +86,5 @@ bool FunctionsGL33::virt_tryEnableMultisampling(const int requestedSamples)
 }
 
 } // namespace Legacy
+
+#endif

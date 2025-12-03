@@ -88,7 +88,7 @@ public:
     template<typename T>
     NODISCARD static std::shared_ptr<Functions> alloc()
     {
-        return std::make_shared<T>();
+        return std::make_shared<T>(Badge<Functions>{});
     }
 
 private:
@@ -106,7 +106,7 @@ public:
     void setIsCompat(bool canRenderQuads);
 
 protected:
-    Functions();
+    Functions(Badge<Functions>);
 
 public:
     virtual ~Functions();

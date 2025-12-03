@@ -9,7 +9,7 @@ namespace Legacy {
 class FunctionsES30 final : public Functions
 {
 public:
-    FunctionsES30();
+    FunctionsES30(Badge<Functions>);
     ~FunctionsES30() override;
 
 private:

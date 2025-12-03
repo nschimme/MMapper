@@ -9,7 +9,7 @@ namespace Legacy {
 class FunctionsGL33 final : public Functions
 {
 public:
-    FunctionsGL33();
+    FunctionsGL33(Badge<Functions>);
     ~FunctionsGL33() override;
 
 private:

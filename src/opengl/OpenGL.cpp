@@ -10,6 +10,7 @@
 #include "./legacy/FunctionsGL33.h"
 #include "./legacy/Legacy.h"
 #include "./legacy/Meshes.h"
+#include "OpenGLProber.h"
 #include "OpenGLTypes.h"
 
 #include <cassert>
@@ -25,16 +26,6 @@
 
 #include <QOpenGLContext>
 #include <QSurfaceFormat>
-
-#ifdef WIN32
-extern "C" {
-// Prefer discrete nVidia and AMD GPUs by default on Windows
-__declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
-__declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
-}
-#endif
-
-#include "OpenGLProber.h"
 
 static const constexpr auto UNDEFINED_VERSION = "Fallback";
 
@@ -56,9 +47,9 @@ std::string OpenGL::getHighestReportableVersionString()
 OpenGL::OpenGL(OpenGLProber::BackendType backendType, bool isCompat)
 {
     if (backendType == OpenGLProber::BackendType::GL) {
-        m_opengl = std::make_shared<Legacy::FunctionsGL33>();
+        m_opengl = Legacy::Functions::alloc<Legacy::FunctionsGL33>();
     } else if (backendType == OpenGLProber::BackendType::GLES) {
-        m_opengl = std::make_shared<Legacy::FunctionsES30>();
+        m_opengl = Legacy::Functions::alloc<Legacy::FunctionsES30>();
     } else {
         qFatal("Invalid backend type");
     }

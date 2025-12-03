@@ -1,8 +1,11 @@
 #include "FunctionsES30.h"
 
+#ifndef MMAPPER_NO_GLES
+
 namespace Legacy {
 
-FunctionsES30::FunctionsES30() = default;
+FunctionsES30::FunctionsES30(Badge<Functions> badge)
+    : Functions(badge){};
 
 FunctionsES30::~FunctionsES30() = default;
 
@@ -45,3 +48,5 @@ bool FunctionsES30::virt_tryEnableMultisampling(int /* requestedSamples */)
 }
 
 } // namespace Legacy
+
+#endif

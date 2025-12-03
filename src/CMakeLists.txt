@@ -403,7 +403,9 @@ set(mmapper_SRCS
     opengl/legacy/FontMesh3d.h
     opengl/legacy/Legacy.cpp
     opengl/legacy/Legacy.h
+    opengl/legacy/FunctionsGL33.cpp
     opengl/legacy/FunctionsGL33.h
+    opengl/legacy/FunctionsES30.cpp
     opengl/legacy/FunctionsES30.h
     opengl/legacy/Meshes.cpp
     opengl/legacy/Meshes.h
@@ -593,13 +595,6 @@ set(mmapper_UIS
     preferences/parserpage.ui
     preferences/pathmachinepage.ui
 )
-
-if(QT_HAS_OPENGL)
-    list(APPEND mmapper_SRCS "opengl/legacy/impl_gl33.cpp")
-endif()
-if(QT_HAS_GLES)
-    list(APPEND mmapper_SRCS "opengl/legacy/impl_es30.cpp")
-endif()
 
 if(MMAPPER_IS_DEBUG)
     if(NOT DEFINED CHECK_ODR)

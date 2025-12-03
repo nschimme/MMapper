@@ -9,6 +9,7 @@
 #include "OpenGLProber.h"
 
 #include "../global/logging.h"
+#include "../global/ConfigConsts.h"
 
 #include <QOpenGLContext>
 
@@ -258,11 +259,11 @@ OpenGLProber::ProbeResult probeOpenGL() {
                                                                    coreResult);
 
     OpenGLProber::ProbeResult result;
-    if (compatResult) {
+    if (compatResult || coreResult) {
         result.backendType = OpenGLProber::BackendType::GL;
         result.highestVersionString = getHighestGLVersion(coreResult, compatResult);
-        result.format = getOptimalFormat(compatResult);
-        result.isCompat = compatResult->isCompat;
+        result.format = getOptimalFormat(compatResult ? compatResult : coreResult);
+        result.isCompat = (compatResult && compatResult->isCompat);
     }
     return result;
 }
@@ -290,20 +291,20 @@ OpenGLProber::ProbeResult probeOpenGLES() {
 
 OpenGLProber::ProbeResult OpenGLProber::probe()
 {
-#if defined(QT_HAS_OPENGL)
-    MMLOG_DEBUG() << "Probing for OpenGL support...";
-    auto glResult = probeOpenGL();
-    if (glResult.backendType != BackendType::None) {
-        return glResult;
+    if constexpr (!NO_OPENGL) {
+        MMLOG_DEBUG() << "Probing for OpenGL support...";
+        auto glResult = probeOpenGL();
+        if (glResult.backendType != BackendType::None) {
+            return glResult;
+        }
     }
-#endif
-#if defined(QT_HAS_GLES)
-    MMLOG_DEBUG() << "Probing for OpenGL ES support...";
-    auto glesResult = probeOpenGLES();
-    if (glesResult.backendType != BackendType::None) {
-        return glesResult;
+    if constexpr (!NO_GLES) {
+        MMLOG_DEBUG() << "Probing for OpenGL ES support...";
+        auto glesResult = probeOpenGLES();
+        if (glesResult.backendType != BackendType::None) {
+            return glesResult;
+        }
     }
-#endif
     MMLOG_DEBUG() << "No suitable backend found.";
     return {};
 }

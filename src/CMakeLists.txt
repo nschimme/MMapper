@@ -224,8 +224,8 @@ set(mmapper_SRCS
     mainwindow/DescriptionWidget.h
     mainwindow/MapZoomSlider.cpp
     mainwindow/MapZoomSlider.h
-    mainwindow/UpdateDialog.cpp
-    mainwindow/UpdateDialog.h
+    mainwindow/UpdateDialogBackend.cpp
+    mainwindow/UpdateDialogBackend.h
     mainwindow/WinDarkMode.cpp
     mainwindow/WinDarkMode.h
     mainwindow/aboutdialog.cpp
@@ -549,7 +549,7 @@ set(mmapper_SRCS
     viewers/TopLevelWindows.h
 )
 
-qt_add_resources(mmapper_QRC resources/mmapper2.qrc)
+qt_add_resources(mmapper_QRC resources/mmapper2.qrc mainwindow/UpdateDialog.qml)
 
 if(MMAPPER_BETA)
     list(APPEND mmapper_RCS "resources/win32/beta.rc")
@@ -665,6 +665,7 @@ target_link_libraries(mmapper PUBLIC
     Qt6::Network
     Qt6::OpenGL
     Qt6::OpenGLWidgets
+    Qt6::Qml
     # note: link order matters on some platforms. include ${mm_libs} twice if you have a link failure.
     ${mm_libs}
     ${CMAKE_THREAD_LIBS_INIT}

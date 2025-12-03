@@ -64,7 +64,6 @@ class RoomEditAttrDlg;
 class RoomManager;
 class RoomSelection;
 class RoomWidget;
-class UpdateDialog;
 class DescriptionWidget;
 
 struct MapLoadData;
@@ -103,7 +102,6 @@ private:
     RoomManager *m_roomManager = nullptr;
 
     ClientWidget *m_clientWidget = nullptr;
-    UpdateDialog *m_updateDialog = nullptr;
 
     AdventureTracker *m_adventureTracker = nullptr;
     AdventureWidget *m_adventureWidget = nullptr;
@@ -442,7 +440,7 @@ public slots:
     void slot_newInfomarkSelection(InfomarkSelection *);
     void slot_showContextMenu(const QPoint &);
 
-    void slot_onCheckForUpdate();
+    void slot_onCheckForUpdate(bool interactive);
     void slot_voteForMUME();
     void slot_openMumeWebsite();
     void slot_openMumeForum();

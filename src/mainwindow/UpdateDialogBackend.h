@@ -5,12 +5,11 @@
 
 #include "../global/Array.h"
 
-#include <QDebug>
-#include <QDialog>
-#include <QDialogButtonBox>
-#include <QLabel>
 #include <QNetworkAccessManager>
+#include <QObject>
 #include <QString>
+#include <QJsonObject>
+#include <QDebug>
 
 class NODISCARD CompareVersion final
 {
@@ -37,25 +36,27 @@ public:
     }
 };
 
-class NODISCARD_QOBJECT UpdateDialog : public QDialog
+class UpdateDialogBackend : public QObject
 {
     Q_OBJECT
-
-private:
-    QNetworkAccessManager m_manager;
-    QString m_downloadUrl;
-    QLabel *m_text = nullptr;
-    QDialogButtonBox *m_buttonBox = nullptr;
+    Q_PROPERTY(QString downloadUrl READ downloadUrl)
 
 public:
-    explicit UpdateDialog(QWidget *parent);
+    explicit UpdateDialogBackend(QObject *parent = nullptr);
 
-    void open() override;
+    Q_INVOKABLE void checkForUpdate(bool interactive);
+    QString downloadUrl() const { return m_downloadUrl; }
+
+signals:
+    void updateStatus(const QString &message, bool enableUpgradeButton, bool showAndUpdateDialog);
 
 private slots:
     void managerFinished(QNetworkReply *reply);
 
 private:
-    void setUpdateStatus(const QString &message, bool enableUpgradeButton, bool showAndUpdateDialog);
     QString findDownloadUrlForRelease(const QJsonObject &releaseObject) const;
+
+    QNetworkAccessManager m_manager;
+    QString m_downloadUrl;
+    bool m_interactive = false;
 };

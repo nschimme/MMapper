@@ -31,8 +31,11 @@
 #include "../viewers/TopLevelWindows.h"
 #include "DescriptionWidget.h"
 #include "MapZoomSlider.h"
-#include "UpdateDialog.h"
+#include "UpdateDialogBackend.h"
 #include "aboutdialog.h"
+#include <QQmlApplicationEngine>
+#include <QQmlContext>
+#include <QQuickWindow>
 #include "findroomsdlg.h"
 #include "infomarkseditdlg.h"
 #include "metatypes.h"
@@ -218,9 +221,6 @@ MainWindow::MainWindow()
     m_dockDialogDescription->setWidget(m_descriptionWidget);
 
     m_mumeClock = new MumeClock(getConfig().mumeClock.startEpoch, deref(m_gameObserver), this);
-    if constexpr (!NO_UPDATER) {
-        m_updateDialog = new UpdateDialog(this);
-    }
 
     m_logger = new AutoLogger(this);
 
@@ -329,9 +329,8 @@ void MainWindow::startServices()
 
     if constexpr (!NO_UPDATER) {
         auto should_check_for_update = []() -> bool { return getConfig().general.checkForUpdate; };
-        // Raise the update dialog if an update is found
         if (should_check_for_update()) {
-            m_updateDialog->open();
+            slot_onCheckForUpdate(false);
         }
     }
 }
@@ -611,7 +610,7 @@ void MainWindow::createActions()
         connect(mmapperCheckForUpdateAct,
                 &QAction::triggered,
                 this,
-                &MainWindow::slot_onCheckForUpdate);
+                [this]() { slot_onCheckForUpdate(true); });
     }
     mumeWebsiteAct = new QAction(tr("&Website"), this);
     connect(mumeWebsiteAct, &QAction::triggered, this, &MainWindow::slot_openMumeWebsite);
@@ -1959,19 +1958,42 @@ void MainWindow::slot_forceMapperToRoom()
     }
 }
 
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wmissing-noreturn"
-#endif
-void MainWindow::slot_onCheckForUpdate()
+void MainWindow::slot_onCheckForUpdate(bool interactive)
 {
-    assert(!NO_UPDATER);
-    m_updateDialog->show();
-    m_updateDialog->open();
+    if constexpr (NO_UPDATER) {
+        return;
+    }
+
+    auto engine = new QQmlApplicationEngine(this);
+    auto backend = new UpdateDialogBackend(engine);
+
+    engine->rootContext()->setContextProperty("updateDialogBackend", backend);
+    engine->load(QUrl(QStringLiteral("qrc:/src/mainwindow/UpdateDialog.qml")));
+    if (engine->rootObjects().isEmpty()) {
+        qWarning() << "Failed to load UpdateDialog.qml";
+        engine->deleteLater();
+        return;
+    }
+
+    QObject *topLevel = engine->rootObjects().value(0);
+    QQuickWindow *window = qobject_cast<QQuickWindow *>(topLevel);
+    window->setParent(this->windowHandle());
+    window->setModality(Qt::ApplicationModal);
+    window->setAttribute(Qt::WA_DeleteOnClose);
+    connect(window, &QQuickWindow::closing, engine, &QQmlApplicationEngine::deleteLater);
+
+    connect(backend, &UpdateDialogBackend::updateStatus, window, [window](const QString &message, bool enableUpgradeButton, bool showAndUpdateDialog) {
+        if (showAndUpdateDialog) {
+            window->setProperty("statusText", message);
+            window->setProperty("upgradeEnabled", enableUpgradeButton);
+            window->show();
+        } else {
+            window->close();
+        }
+    });
+
+    backend->checkForUpdate(interactive);
 }
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
 
 void MainWindow::slot_voteForMUME()
 {

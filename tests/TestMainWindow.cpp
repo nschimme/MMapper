@@ -4,7 +4,7 @@
 #include "TestMainWindow.h"
 
 #include "../src/global/Version.h"
-#include "../src/mainwindow/UpdateDialog.h"
+#include "../src/mainwindow/UpdateDialogBackend.h"
 
 #include <QDebug>
 #include <QtTest/QtTest>

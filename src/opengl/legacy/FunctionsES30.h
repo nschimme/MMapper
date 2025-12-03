@@ -10,7 +10,9 @@ class FunctionsES30 final : public Functions
 {
 public:
     FunctionsES30(Badge<Functions>);
-    ~FunctionsES30() override;
+    ~FunctionsES30() override = default;
+
+    DELETE_CTORS_AND_ASSIGN_OPS(FunctionsES30);
 
 private:
     void virt_enableProgramPointSize(bool enable) override;

@@ -10,7 +10,9 @@ class FunctionsGL33 final : public Functions
 {
 public:
     FunctionsGL33(Badge<Functions>);
-    ~FunctionsGL33() override;
+    ~FunctionsGL33() override = default;
+
+    DELETE_CTORS_AND_ASSIGN_OPS(FunctionsGL33);
 
 private:
     void virt_enableProgramPointSize(bool enable) override;

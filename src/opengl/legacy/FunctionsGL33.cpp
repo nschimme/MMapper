@@ -2,14 +2,10 @@
 
 #include <optional>
 
-#ifndef MMAPPER_NO_OPENGL
-
 namespace Legacy {
 
 FunctionsGL33::FunctionsGL33(Badge<Functions> badge)
     : Functions(badge){};
-
-FunctionsGL33::~FunctionsGL33() = default;
 
 bool FunctionsGL33::virt_canRenderQuads()
 {
@@ -26,7 +22,9 @@ std::optional<GLenum> FunctionsGL33::virt_toGLenum(const DrawModeEnum mode)
     case DrawModeEnum::TRIANGLES:
         return GL_TRIANGLES;
     case DrawModeEnum::QUADS:
+#ifndef MMAPPER_NO_OPENGL
         return m_isCompat ? std::make_optional(GL_QUADS) : std::nullopt;
+#endif
     case DrawModeEnum::INVALID:
         break;
     }
@@ -41,15 +39,18 @@ const char *FunctionsGL33::virt_getShaderVersion() const
 
 void FunctionsGL33::virt_enableProgramPointSize(const bool enable)
 {
+#ifndef MMAPPER_NO_OPENGL
     if (enable) {
         Base::glEnable(GL_PROGRAM_POINT_SIZE);
     } else {
         Base::glDisable(GL_PROGRAM_POINT_SIZE);
     }
+#endif
 }
 
 bool FunctionsGL33::virt_tryEnableMultisampling(const int requestedSamples)
 {
+#ifndef MMAPPER_NO_OPENGL
     const auto getSampleBuffers = [this]() -> GLint {
         GLint buffers;
         Base::glGetIntegerv(GL_SAMPLE_BUFFERS, &buffers);
@@ -83,8 +84,9 @@ bool FunctionsGL33::virt_tryEnableMultisampling(const int requestedSamples)
             return false;
         }
     }
+#else
+    return false
+#endif
 }
 
 } // namespace Legacy
-
-#endif

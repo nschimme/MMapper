@@ -63,6 +63,9 @@ if(Qt6OpenGL_FOUND)
         #ifndef GL_TRIANGLES
         # error
         #endif
+        #ifdef Q_OS_MAC
+        # error
+        #endif
         int main(int argc, char** argv) { return 0; }")
     try_compile(QT_HAS_GLES
                     ${CMAKE_BINARY_DIR}

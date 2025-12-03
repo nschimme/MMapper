@@ -54,9 +54,9 @@ std::string OpenGL::getHighestReportableVersionString()
 OpenGL::OpenGL(OpenGLProber::BackendType backendType, bool isCompat)
 {
     if (backendType == OpenGLProber::BackendType::GL) {
-        m_opengl = Legacy::Functions::alloc<Legacy::FunctionsGL33>();
+        m_opengl = std::make_shared<Legacy::FunctionsGL33>();
     } else if (backendType == OpenGLProber::BackendType::GLES) {
-        m_opengl = Legacy::Functions::alloc<Legacy::FunctionsES30>();
+        m_opengl = std::make_shared<Legacy::FunctionsES30>();
     } else {
         qFatal("Invalid backend type");
     }

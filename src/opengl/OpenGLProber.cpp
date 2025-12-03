@@ -267,9 +267,26 @@ OpenGLProber::ProbeResult probeOpenGL() {
     return result;
 }
 
-namespace {
-OpenGLProber::ProbeResult probeOpenGLES();
-} // namespace
+OpenGLProber::ProbeResult probeOpenGLES() {
+    QSurfaceFormat format;
+    format.setRenderableType(QSurfaceFormat::OpenGLES);
+    format.setVersion(3, 0);
+
+    QOpenGLContext context;
+    context.setFormat(format);
+    if (!context.create()) {
+        MMLOG_DEBUG() << "Failed to create GLES 3.0 context";
+        return {};
+    }
+
+    OpenGLProber::ProbeResult result;
+    result.backendType = OpenGLProber::BackendType::GLES;
+    result.format = format;
+    result.highestVersionString = "GLES 3.0";
+    return result;
+}
+
+} // anonymous
 
 OpenGLProber::ProbeResult OpenGLProber::probe()
 {
@@ -289,25 +306,4 @@ OpenGLProber::ProbeResult OpenGLProber::probe()
 #endif
     MMLOG_DEBUG() << "No suitable backend found.";
     return {};
-}
-
-namespace {
-OpenGLProber::ProbeResult probeOpenGLES() {
-    QSurfaceFormat format;
-    format.setRenderableType(QSurfaceFormat::OpenGLES);
-    format.setVersion(3, 0);
-
-    QOpenGLContext context;
-    context.setFormat(format);
-    if (!context.create()) {
-        MMLOG_DEBUG() << "Failed to create GLES 3.0 context";
-        return {};
-    }
-
-    OpenGLProber::ProbeResult result;
-    result.backendType = OpenGLProber::BackendType::GLES;
-    result.format = format;
-    result.highestVersionString = "GLES 3.0";
-    return result;
-}
 }

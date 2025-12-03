@@ -245,16 +245,23 @@ public:
 private:
     friend PointSizeBinder;
     /// platform-specific (ES vs GL)
-    virtual void enableProgramPointSize(bool enable) = 0;
+    void enableProgramPointSize(bool enable) { virt_enableProgramPointSize(enable); }
 
 private:
     friend OpenGL;
     /// platform-specific (ES vs GL)
-    NODISCARD virtual bool tryEnableMultisampling(int requestedSamples) = 0;
+    NODISCARD bool tryEnableMultisampling(int requestedSamples) { return virt_tryEnableMultisampling(requestedSamples); }
 
 public:
     /// platform-specific (ES vs GL)
-    NODISCARD virtual const char *getShaderVersion() const = 0;
+    NODISCARD const char *getShaderVersion() const { return virt_getShaderVersion(); }
+
+protected:
+    NODISCARD virtual bool virt_canRenderQuads() = 0;
+    NODISCARD virtual std::optional<GLenum> virt_toGLenum(DrawModeEnum mode) = 0;
+    virtual void virt_enableProgramPointSize(bool enable) = 0;
+    NODISCARD virtual bool virt_tryEnableMultisampling(int requestedSamples) = 0;
+    NODISCARD virtual const char *virt_getShaderVersion() const = 0;
 
 private:
     template<typename VertexType_>
@@ -273,10 +280,10 @@ private:
 
 public:
     /// platform-specific (ES vs GL)
-    NODISCARD virtual bool canRenderQuads() = 0;
+    NODISCARD bool canRenderQuads() { return virt_canRenderQuads(); }
 
     /// platform-specific (ES vs GL)
-    NODISCARD virtual std::optional<GLenum> toGLenum(DrawModeEnum mode) = 0;
+    NODISCARD std::optional<GLenum> toGLenum(DrawModeEnum mode) { return virt_toGLenum(mode); }
 
 public:
     void enableAttrib(const GLuint index,

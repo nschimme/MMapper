@@ -6,43 +6,42 @@ FunctionsES30::FunctionsES30() = default;
 
 FunctionsES30::~FunctionsES30() = default;
 
-bool FunctionsES30::canRenderQuads()
+bool FunctionsES30::virt_canRenderQuads()
 {
     return false;
 }
 
-    std::optional<GLenum> toGLenum(const DrawModeEnum mode) override
-    {
-        switch (mode) {
-        case DrawModeEnum::POINTS:
-            return GL_POINTS;
-        case DrawModeEnum::LINES:
-            return GL_LINES;
-        case DrawModeEnum::TRIANGLES:
-            return GL_TRIANGLES;
+std::optional<GLenum> FunctionsES30::virt_toGLenum(const DrawModeEnum mode)
+{
+    switch (mode) {
+    case DrawModeEnum::POINTS:
+        return GL_POINTS;
+    case DrawModeEnum::LINES:
+        return GL_LINES;
+    case DrawModeEnum::TRIANGLES:
+        return GL_TRIANGLES;
 
-        case DrawModeEnum::INVALID:
-        case DrawModeEnum::QUADS:
-            break;
-        }
-
-        return std::nullopt;
+    case DrawModeEnum::INVALID:
+    case DrawModeEnum::QUADS:
+        break;
     }
 
-    const char *getShaderVersion() const override
-    {
-        return "#version 300 es\n\nprecision highp float;\n\n";
-    }
+    return std::nullopt;
+}
 
-    void enableProgramPointSize(bool /* enable */) override
-    {
-        // nop
-    }
+const char *FunctionsES30::virt_getShaderVersion() const
+{
+    return "#version 300 es\n\nprecision highp float;\n\n";
+}
 
-    bool tryEnableMultisampling(int /* requestedSamples */) override
-    {
-        return false;
-    }
-};
+void FunctionsES30::virt_enableProgramPointSize(bool /* enable */)
+{
+    // nop
+}
+
+bool FunctionsES30::virt_tryEnableMultisampling(int /* requestedSamples */)
+{
+    return false;
+}
 
 } // namespace Legacy

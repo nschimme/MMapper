@@ -13,11 +13,11 @@ public:
     ~FunctionsGL33() override;
 
 private:
-    void enableProgramPointSize(bool enable) override;
-    NODISCARD bool tryEnableMultisampling(int requestedSamples) override;
-    NODISCARD const char *getShaderVersion() const override;
-    NODISCARD bool canRenderQuads() override;
-    NODISCARD std::optional<GLenum> toGLenum(DrawModeEnum mode) override;
+    void virt_enableProgramPointSize(bool enable) override;
+    NODISCARD bool virt_tryEnableMultisampling(int requestedSamples) override;
+    NODISCARD const char *virt_getShaderVersion() const override;
+    NODISCARD bool virt_canRenderQuads() override;
+    NODISCARD std::optional<GLenum> virt_toGLenum(DrawModeEnum mode) override;
 };
 
 } // namespace Legacy

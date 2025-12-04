@@ -220,6 +220,7 @@ NODISCARD QSurfaceFormat getOptimalFormat(std::optional<GLContextCheckResult> re
         if (result->isCompat) {
             options |= QSurfaceFormat::DeprecatedFunctions;
         }
+        format.setOptions(options);
         MMLOG_INFO() << "[GL Probe] Optimal running format determined: GL " << format.majorVersion()
                      << "." << format.minorVersion()
                      << " Profile: " << (result->isCore ? "Core" : "Compat")

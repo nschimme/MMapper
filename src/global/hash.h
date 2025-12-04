@@ -9,10 +9,10 @@
 #include <type_traits>
 
 template<typename T>
-MAYBE_UNUSED NODISCARD static auto numeric_hash(const T val) noexcept
+MAYBE_UNUSED NODISCARD auto numeric_hash(const T val) noexcept
     -> std::enable_if_t<std::is_arithmetic_v<T>, size_t>
 {
-    static constexpr const size_t size = sizeof(val);
+    static constexpr size_t size = sizeof(val);
     char buf[size];
     std::memcpy(buf, &val, size);
     return std::hash<std::string_view>()({buf, size});

@@ -669,7 +669,9 @@ private:
 
     void finish_saving(const bool success)
     {
-        pMapDestination->finalize(success);
+        if (success) {
+            pMapDestination->finalize();
+        }
         extraBlockers.reset();
 
         if (!success) {

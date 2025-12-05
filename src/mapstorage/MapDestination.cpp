@@ -81,19 +81,15 @@ const QByteArray MapDestination::getWasmBufferData() const
     return {};
 }
 
-void MapDestination::finalize(bool success)
+void MapDestination::finalize()
 {
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
         assert(isFileWasm());
-        if (success) {
-            assert(m_buffer);
-        }
+        assert(m_buffer);
     } else if (isFileNative()) {
         assert(m_fileSaver);
         m_fileSaver->close();
     } else {
         assert(isDirectory());
     }
-
-    Q_UNUSED(success);
 }

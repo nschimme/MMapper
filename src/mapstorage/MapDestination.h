@@ -45,6 +45,7 @@ public:
     NODISCARD const QString &getFileName() const { return m_fileName; }
 
     NODISCARD std::shared_ptr<QIODevice> getIODevice() const;
+    NODISCARD const QByteArray getWasmBufferData() const;
 
     void finalize(bool success);
 };

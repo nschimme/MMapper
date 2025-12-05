@@ -36,11 +36,14 @@ class NODISCARD_QOBJECT AbstractMapStorage : public QObject
 public:
     struct NODISCARD Data final
     {
+        enum class Type { File, Directory };
+
         const std::shared_ptr<ProgressCounter> progressCounter;
         // For loading:
         std::shared_ptr<MapSource> loadSource;
         // For saving:
         std::shared_ptr<MapDestination> saveDestination;
+        Type destinationType = Type::File;
 
         explicit Data(std::shared_ptr<ProgressCounter> moved_pc,
                       std::shared_ptr<MapSource> moved_src)
@@ -59,6 +62,7 @@ public:
                       std::shared_ptr<MapDestination> moved_dest)
             : progressCounter(std::move(moved_pc))
             , saveDestination(std::move(moved_dest))
+            , destinationType{moved_dest->isDirectory() ? Type::Directory : Type::File}
         {
             if (!progressCounter) {
                 throw std::invalid_argument("pc");

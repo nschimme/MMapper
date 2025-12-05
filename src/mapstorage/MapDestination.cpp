@@ -11,7 +11,6 @@
 
 #include <QBuffer>
 #include <QDir>
-#include <QFileDialog>
 #include <QFileInfo>
 #include <QIODevice>
 
@@ -24,28 +23,25 @@ std::shared_ptr<MapDestination> MapDestination::alloc(const QString fileName, Sa
         assert(format != SaveFormatEnum::WEB);
         buffer = std::make_shared<QBuffer>();
         if (!buffer->open(QIODevice::WriteOnly)) {
-            throw std::runtime_error("Cannot open QBuffer for writing.");
+            throw std::runtime_error("Cannot open QBuffer for writing");
         }
 
     } else if (format == SaveFormatEnum::WEB) {
         QDir destDir(fileName);
         if (!destDir.exists()) {
             if (!QDir().mkpath(fileName)) {
-                throw std::runtime_error(
-                    mmqt::toStdStringUtf8(QString("Cannot create directory %1.").arg(fileName)));
+                throw std::runtime_error("Cannot create directory");
             }
         }
         if (!QFileInfo(fileName).isWritable()) {
-            throw std::runtime_error(
-                mmqt::toStdStringUtf8(QString("Directory %1 is not writable.").arg(fileName)));
+            throw std::runtime_error("Directory is not writable");
         }
     } else {
         fileSaver = std::make_shared<FileSaver>();
         try {
             fileSaver->open(fileName);
         } catch (const std::exception &e) {
-            throw std::runtime_error(mmqt::toStdStringUtf8(
-                QString("Cannot write file %1:\n%2.").arg(fileName, e.what())));
+            throw std::runtime_error(e.what());
         }
     }
 
@@ -76,13 +72,21 @@ std::shared_ptr<QIODevice> MapDestination::getIODevice() const
     return nullptr;
 }
 
+const QByteArray MapDestination::getWasmBufferData() const
+{
+    if (isFileWasm()) {
+        assert(m_buffer);
+        return m_buffer->data();
+    }
+    return {};
+}
+
 void MapDestination::finalize(bool success)
 {
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
         assert(isFileWasm());
         if (success) {
             assert(m_buffer);
-            QFileDialog::saveFileContent(m_buffer->data(), m_fileName);
         }
     } else if (isFileNative()) {
         assert(m_fileSaver);
@@ -90,4 +94,6 @@ void MapDestination::finalize(bool success)
     } else {
         assert(isDirectory());
     }
+
+    Q_UNUSED(success);
 }

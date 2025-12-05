@@ -679,6 +679,13 @@ private:
             return;
         }
 
+        if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+            if (pMapDestination->isFileWasm()) {
+                QFileDialog::saveFileContent(pMapDestination->getWasmBufferData(),
+                                             pMapDestination->getFileName());
+            }
+        }
+
         mainWindow.onSuccessfulSave(mode, format, fileName);
     }
 };
@@ -796,11 +803,19 @@ void MainWindow::slot_merge()
     }
 }
 
-bool MainWindow::saveFile(std::shared_ptr<MapDestination> pDest,
+bool MainWindow::saveFile(const QString &fileName,
                           const SaveModeEnum mode,
                           const SaveFormatEnum format)
 {
     if (!tryStartNewAsync()) {
+        return false;
+    }
+
+    std::shared_ptr<MapDestination> pDest = nullptr;
+    try {
+        pDest = MapDestination::alloc(fileName, format);
+    } catch (const std::exception &e) {
+        showWarning(tr("Cannot set up save destination %1:\n%2.").arg(fileName, e.what()));
         return false;
     }
 

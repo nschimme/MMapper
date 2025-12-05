@@ -17,8 +17,7 @@ std::shared_ptr<MapSource> MapSource::alloc(const QString fileName,
         auto pBuffer = std::make_shared<QBuffer>();
         pBuffer->setData(fileContent.value());
         if (!pBuffer->open(QIODevice::ReadOnly)) {
-            throw std::runtime_error(mmqt::toStdStringUtf8(
-                QString("Failed to open QBuffer for reading: %1.").arg(pBuffer->errorString())));
+            throw std::runtime_error(mmqt::toStdStringUtf8(pBuffer->errorString()));
         }
         return std::make_shared<MapSource>(Badge<MapSource>{},
                                            std::move(fileName),
@@ -26,9 +25,7 @@ std::shared_ptr<MapSource> MapSource::alloc(const QString fileName,
     } else {
         auto pFile = std::make_shared<QFile>(fileName);
         if (!pFile->open(QFile::ReadOnly)) {
-            throw std::runtime_error(
-                mmqt::toStdStringUtf8(QString("Failed to open file \"%1\" for reading: %2.")
-                                          .arg(fileName, pFile->errorString())));
+            throw std::runtime_error(mmqt::toStdStringUtf8(pFile->errorString()));
         }
         return std::make_shared<MapSource>(Badge<MapSource>{},
                                            std::move(fileName),

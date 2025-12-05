@@ -35,6 +35,6 @@ private:
     DEFAULT_MOVE_ASSIGN_OP(MapSource);
 
 public:
-    NODISCARD std::shared_ptr<QIODevice> getIODevice() { return m_device; }
+    NODISCARD const std::shared_ptr<QIODevice> &getIODevice() const { return m_device; }
     NODISCARD const QString &getFileName() const { return m_fileName; }
 };

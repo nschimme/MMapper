@@ -209,6 +209,7 @@ protected:
     bool event(QEvent *e) override;
 
 private:
+    void recreateFbo(int width, int height);
     void setAnimating(bool value);
     void renderLoop();
 

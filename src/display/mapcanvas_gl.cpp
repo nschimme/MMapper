@@ -465,6 +465,16 @@ void MapCanvas::setViewportAndMvp(int width, int height)
     setMvp(viewProj);
 }
 
+void MapCanvas::recreateFbo(int width, int height)
+{
+    if (m_fbo) {
+        m_fbo->emplace(getOpenGL().getSharedFunctions(Badge<MapCanvas>{}),
+                       width,
+                       height,
+                       getConfig().canvas.antialiasingSamples);
+    }
+}
+
 void MapCanvas::resizeGL(int width, int height)
 {
     if (m_textures.room_highlight == nullptr) {
@@ -472,12 +482,7 @@ void MapCanvas::resizeGL(int width, int height)
         return;
     }
 
-    if (m_fbo) {
-        m_fbo->emplace(getOpenGL().getSharedFunctions(Badge<MapCanvas>{}),
-                       width,
-                       height,
-                       getConfig().canvas.antialiasingSamples);
-    }
+    recreateFbo(width, height);
 
     setViewportAndMvp(width, height);
 

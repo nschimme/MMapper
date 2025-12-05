@@ -1080,6 +1080,12 @@ void MapCanvas::selectionChanged()
 
 void MapCanvas::graphicsSettingsChanged()
 {
+    if (!m_opengl.isRendererInitialized()) {
+        return;
+    }
+
+    recreateFbo(width(), height());
+
     update();
 }
 

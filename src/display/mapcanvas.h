@@ -151,6 +151,7 @@ private:
     OptionStatus m_graphicsOptionsStatus;
     Diff m_diff;
     FrameRateController m_frameRateController;
+    double longestBatchMs = 0.0;
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
     std::unique_ptr<Fbo> m_fbo;
     Signal2Lifetime m_lifetime;

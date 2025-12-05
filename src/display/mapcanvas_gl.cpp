@@ -611,26 +611,6 @@ void MapCanvas::finishPendingMapBatches()
 #undef LOG
 }
 
-void MapCanvas::actuallyPaintGL()
-{
-    // DECL_TIMER(t, __FUNCTION__);
-    setViewportAndMvp(width(), height());
-
-    auto &gl = getOpenGL();
-    gl.clear(Color{getConfig().canvas.backgroundColor});
-
-    if (m_data.isEmpty()) {
-        getGLFont().renderTextCentered("No map loaded");
-        return;
-    }
-
-    paintMap();
-    paintBatchedInfomarks();
-    paintSelections();
-    paintCharacters();
-    paintDifferences();
-}
-
 NODISCARD bool MapCanvas::Diff::isUpToDate(const Map &saved, const Map &current) const
 {
     return highlight && highlight->saved.isSamePointer(saved)
@@ -805,23 +785,17 @@ void MapCanvas::paintSelections()
     paintSelectedInfomarks();
 }
 
-void MapCanvas::paintGL()
-{
-    if (m_fbo && *m_fbo) {
-        m_fbo->bind();
-    }
-
-    actuallyPaintGL();
-
-    if (m_fbo && *m_fbo) {
-        m_fbo->release();
-        m_fbo->blit();
-    }
-}
-
 void MapCanvas::actuallyPaintGL()
 {
-    // DECL_TIMER(t, __FUNCTION__);
+    const bool showPerfStats = MapCanvasConfig::getShowPerfStats();
+    using Clock = std::chrono::high_resolution_clock;
+    std::optional<Clock::time_point> optStart;
+    std::optional<Clock::time_point> optAfterTextures;
+    std::optional<Clock::time_point> optAfterBatches;
+    if (showPerfStats) {
+        optStart = Clock::now();
+    }
+
     setViewportAndMvp(width(), height());
 
     auto &gl = getOpenGL();
@@ -830,21 +804,6 @@ void MapCanvas::actuallyPaintGL()
     if (m_data.isEmpty()) {
         getGLFont().renderTextCentered("No map loaded");
         return;
-    }
-
-    paintMap();
-    paintBatchedInfomarks();
-    paintSelections();
-    paintCharacters();
-    paintDifferences();
-}
-
-    using Clock = std::chrono::high_resolution_clock;
-    std::optional<Clock::time_point> optStart;
-    std::optional<Clock::time_point> optAfterTextures;
-    std::optional<Clock::time_point> optAfterBatches;
-    if (showPerfStats) {
-        optStart = Clock::now();
     }
 
     {
@@ -971,6 +930,20 @@ void MapCanvas::actuallyPaintGL()
                             static_cast<double>(ctr.z)));
 
     font.render2dTextImmediate(text);
+}
+
+void MapCanvas::paintGL()
+{
+    if (m_fbo && *m_fbo) {
+        m_fbo->bind();
+    }
+
+    actuallyPaintGL();
+
+    if (m_fbo && *m_fbo) {
+        m_fbo->release();
+        m_fbo->blit();
+    }
 }
 
 void MapCanvas::paintSelectionArea()

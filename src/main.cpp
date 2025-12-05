@@ -148,7 +148,6 @@ int main(int argc, char **argv)
             "[%{time} %{threadid}] %{type} in %{function} (at %{file}:%{line}): %{message}");
     }
 
-    QApplication app(argc, argv);
     tryInitDrMingw();
     auto tryLoadingWinSock = std::make_unique<WinSock>();
     auto tryLoadingWinDarkMode = std::make_unique<WinDarkMode>(&app);

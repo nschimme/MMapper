@@ -7,6 +7,7 @@
 #include "mapcanvas.h"
 
 #include "../configuration/configuration.h"
+#include "Fbo.h"
 #include "../global/parserutils.h"
 #include "../global/progresscounter.h"
 #include "../global/utils.h"

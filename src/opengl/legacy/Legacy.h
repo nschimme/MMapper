@@ -79,7 +79,7 @@ using WeakFunctions = std::weak_ptr<Functions>;
 
 /// \c Legacy::Functions implements both GL 3.X and ES 3.X (based on a subset of
 /// ES 3.X)
-class NODISCARD Functions : protected QOpenGLExtraFunctions,
+class NODISCARD Functions : public QOpenGLExtraFunctions,
                             public std::enable_shared_from_this<Functions>
 {
     friend class FunctionsGL33;

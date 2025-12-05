@@ -28,3 +28,10 @@ snap/
 stage/
 *.snap
 *_source.tar.bz2
+
+docs/_site/
+server.log
+docs/_includes/news.md
+docs/_includes/authors.md
+docs/demo/
+docs/beta/

@@ -1078,15 +1078,19 @@ void MapCanvas::selectionChanged()
     emit sig_selectionChanged();
 }
 
+#include <QSurfaceFormat>
 void MapCanvas::graphicsSettingsChanged()
 {
     if (!m_opengl.isRendererInitialized()) {
         return;
     }
 
-    recreateFbo(width(), height());
-
-    update();
+    QSurfaceFormat fmt = format();
+    const int samples = getConfig().canvas.antialiasingSamples;
+    if (fmt.samples() != samples) {
+        fmt.setSamples(samples);
+        setFormat(fmt);
+    }
 }
 
 void MapCanvas::userPressedEscape(bool /*pressed*/)

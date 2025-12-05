@@ -120,6 +120,25 @@ static bool setSurfaceFormat()
 
 int main(int argc, char **argv)
 {
+    QApplication app(argc, argv);
+
+    if (app.arguments().contains("--screenshot")) {
+        setHighDpiScaleFactorRoundingPolicy();
+        setEnteredMain();
+        if (!setSurfaceFormat()) {
+            return 1;
+        }
+
+        MainWindow mw;
+        mw.show();
+        mw.openPreferencesDialog();
+        QTimer::singleShot(1000, [&]() {
+            mw.grab().save("/home/jules/verification/verification.png");
+            app.quit();
+        });
+        return app.exec();
+    }
+
     setHighDpiScaleFactorRoundingPolicy();
     setEnteredMain();
     if constexpr (IS_DEBUG_BUILD) {

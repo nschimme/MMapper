@@ -6,6 +6,7 @@
 
 #include "../configuration/configuration.h"
 #include "../global/utils.h"
+#include "../opengl/OpenGLConfig.h"
 #include "AdvancedGraphics.h"
 #include "ui_graphicspage.h"
 
@@ -27,6 +28,17 @@ GraphicsPage::GraphicsPage(QWidget *parent)
     , ui(new Ui::GraphicsPage)
 {
     ui->setupUi(this);
+
+    {
+        ui->antialiasingSamplesComboBox->clear();
+        const int maxSamples = OpenGLConfig::getMaxSamples();
+        for (int i = 0; i <= maxSamples; i *= 2) {
+            ui->antialiasingSamplesComboBox->addItem(QString::number(i));
+            if (i == 0) {
+                i = 1;
+            }
+        }
+    }
 
     m_advanced = std::make_unique<AdvancedGraphicsGroupBox>(deref(ui->groupBox_Advanced));
 
@@ -109,7 +121,9 @@ void GraphicsPage::slot_loadConfig()
     setIconColor(ui->darkLitPushButton, settings.roomDarkLitColor);
     setIconColor(ui->connectionNormalPushButton, settings.connectionNormalColor);
 
-    const QString antiAliasingSamples = QString::number(settings.antialiasingSamples);
+    const int maxSamples = OpenGLConfig::getMaxSamples();
+    const int samples = std::min(settings.antialiasingSamples, maxSamples);
+    const QString antiAliasingSamples = QString::number(samples);
     const int index = utils::clampNonNegative(
         ui->antialiasingSamplesComboBox->findText(antiAliasingSamples));
     ui->antialiasingSamplesComboBox->setCurrentIndex(index);

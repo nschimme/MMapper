@@ -46,6 +46,7 @@ class QOpenGLDebugMessage;
 class QWheelEvent;
 class QWidget;
 class RoomSelFakeGL;
+class Fbo;
 
 class NODISCARD_QOBJECT MapCanvas final : public QOpenGLWidget,
                                           private MapCanvasViewport,
@@ -151,6 +152,7 @@ private:
     Diff m_diff;
     FrameRateController m_frameRateController;
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
+    std::unique_ptr<Fbo> m_fbo;
     Signal2Lifetime m_lifetime;
 
 public:

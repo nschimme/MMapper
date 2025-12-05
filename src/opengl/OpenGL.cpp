@@ -4,6 +4,7 @@
 
 #include "OpenGL.h"
 
+#include "../configuration/configuration.h"
 #include "../global/ConfigConsts.h"
 #include "./legacy/FunctionsES30.h"
 #include "./legacy/FunctionsGL33.h"
@@ -61,11 +62,6 @@ Viewport OpenGL::getPhysicalViewport() const
 void OpenGL::setProjectionMatrix(const glm::mat4 &m)
 {
     getFunctions().setProjectionMatrix(m);
-}
-
-bool OpenGL::tryEnableMultisampling(const int requestedSamples)
-{
-    return getFunctions().tryEnableMultisampling(requestedSamples);
 }
 
 UniqueMesh OpenGL::createPointBatch(const std::vector<ColorVert> &batch)
@@ -217,9 +213,27 @@ void OpenGL::renderFont3d(const SharedMMTexture &texture, const std::vector<Font
     getFunctions().renderFont3d(texture, verts);
 }
 
+static void sanityCheckConfig()
+{
+    const int maxSamples = OpenGLConfig::getMaxSamples();
+    auto &config = setConfig().canvas;
+    if (config.antialiasingSamples > maxSamples) {
+        qWarning() << "Clamping antialiasing samples from" << config.antialiasingSamples << "to"
+                   << maxSamples;
+        config.antialiasingSamples = maxSamples;
+    }
+}
+
 void OpenGL::initializeOpenGLFunctions()
 {
-    getFunctions().initializeOpenGLFunctions();
+    auto &gl = getFunctions();
+    gl.initializeOpenGLFunctions();
+
+    GLint maxSamples = 0;
+    gl.glGetIntegerv(GL_MAX_SAMPLES, &maxSamples);
+    OpenGLConfig::setMaxSamples(maxSamples);
+
+    sanityCheckConfig();
 }
 
 const char *OpenGL::glGetString(GLenum name)

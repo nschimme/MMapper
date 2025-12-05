@@ -267,6 +267,8 @@ public:
     explicit MainWindow();
     ~MainWindow() final;
 
+    void openPreferencesDialog();
+
     enum class NODISCARD SaveModeEnum { FULL, BASEMAP };
     enum class NODISCARD SaveFormatEnum { MM2, MM2XML, WEB, MMP };
     NODISCARD bool saveFile(const QString &fileName, SaveModeEnum mode, SaveFormatEnum format);

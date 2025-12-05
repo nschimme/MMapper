@@ -20,6 +20,7 @@
 #include "../opengl/legacy/Meshes.h"
 #include "../src/global/SendToUser.h"
 #include "Connections.h"
+#include "Fbo.h"
 #include "MapCanvasConfig.h"
 #include "MapCanvasData.h"
 #include "MapCanvasRoomDrawer.h"
@@ -471,6 +472,13 @@ void MapCanvas::resizeGL(int width, int height)
         return;
     }
 
+    if (m_fbo) {
+        m_fbo->emplace(getOpenGL().getSharedFunctions(Badge<MapCanvas>{}),
+                       width,
+                       height,
+                       getConfig().canvas.antialiasingSamples);
+    }
+
     setViewportAndMvp(width, height);
 
     // Render
@@ -799,9 +807,37 @@ void MapCanvas::paintSelections()
 
 void MapCanvas::paintGL()
 {
-    static thread_local double longestBatchMs = 0.0;
+    if (m_fbo && *m_fbo) {
+        m_fbo->bind();
+    }
 
-    const bool showPerfStats = MapCanvasConfig::getShowPerfStats();
+    actuallyPaintGL();
+
+    if (m_fbo && *m_fbo) {
+        m_fbo->release();
+        m_fbo->blit();
+    }
+}
+
+void MapCanvas::actuallyPaintGL()
+{
+    // DECL_TIMER(t, __FUNCTION__);
+    setViewportAndMvp(width(), height());
+
+    auto &gl = getOpenGL();
+    gl.clear(Color{getConfig().canvas.backgroundColor});
+
+    if (m_data.isEmpty()) {
+        getGLFont().renderTextCentered("No map loaded");
+        return;
+    }
+
+    paintMap();
+    paintBatchedInfomarks();
+    paintSelections();
+    paintCharacters();
+    paintDifferences();
+}
 
     using Clock = std::chrono::high_resolution_clock;
     std::optional<Clock::time_point> optStart;
@@ -831,7 +867,12 @@ void MapCanvas::paintGL()
             optAfterBatches = Clock::now();
         }
 
-        actuallyPaintGL();
+        // Call the paint function
+        paintMap();
+        paintBatchedInfomarks();
+        paintSelections();
+        paintCharacters();
+        paintDifferences();
     }
 
     if (!showPerfStats) {
@@ -990,15 +1031,25 @@ void MapCanvas::paintSelectionArea()
 
 void MapCanvas::updateMultisampling()
 {
-    const int wantMultisampling = getConfig().canvas.antialiasingSamples;
+    const int samples = getConfig().canvas.antialiasingSamples;
     std::optional<int> &activeStatus = m_graphicsOptionsStatus.multisampling;
-    if (activeStatus == wantMultisampling) {
+    if (activeStatus == samples) {
         return;
     }
 
-    // REVISIT: check return value?
-    MAYBE_UNUSED const bool enabled = getOpenGL().tryEnableMultisampling(wantMultisampling);
-    activeStatus = wantMultisampling;
+    if (samples > 1) {
+        if (!m_fbo) {
+            m_fbo = std::make_unique<Fbo>();
+        }
+        m_fbo->emplace(getOpenGL().getSharedFunctions(Badge<MapCanvas>{}),
+                       width(),
+                       height(),
+                       samples);
+    } else {
+        m_fbo.reset();
+    }
+
+    activeStatus = samples;
 }
 
 void MapCanvas::renderMapBatches()

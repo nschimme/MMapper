@@ -57,9 +57,6 @@ public:
     void glViewport(GLint x, GLint y, GLsizei w, GLsizei h);
 
 public:
-    NODISCARD bool tryEnableMultisampling(int samples);
-
-public:
     NODISCARD UniqueMesh createPointBatch(const std::vector<ColorVert> &verts);
 
 public:

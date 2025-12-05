@@ -1,0 +1,5 @@
+[2025-12-04T23:13:22 20336] warning in unknown (at unknown:0): could not connect to display
+[2025-12-04T23:13:22 20336] info in unknown (at unknown:0): Could not load the Qt platform plugin "xcb" in "" even though it was found.
+[2025-12-04T23:13:22 20336] fatal in unknown (at unknown:0): This application failed to start because no Qt platform plugin could be initialized. Reinstalling the application may fix this problem.
+
+Available platform plugins are: vnc, vkkhrdisplay, xcb, wayland, minimal, offscreen, wayland-egl, eglfs, minimalegl, linuxfb.

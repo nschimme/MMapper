@@ -44,6 +44,8 @@ set(mmapper_SRCS
     display/ConnectionLineBuilder.h
     display/Connections.cpp
     display/Connections.h
+    display/Fbo.cpp
+    display/Fbo.h
     display/Filenames.cpp
     display/Filenames.h
     display/IMapBatchesFinisher.cpp

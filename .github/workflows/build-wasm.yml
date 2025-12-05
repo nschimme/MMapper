@@ -35,15 +35,14 @@ jobs:
     - name: Configure and Build
       shell: bash
       run: |
-        $QT_ROOT_DIR/bin/qt-cmake -S . -B build-wasm \
-          -G Ninja \
+        $QT_ROOT_DIR/bin/qt-cmake -S . -B build \
           -DQT_HOST_PATH=$QT_HOST_PATH \
           -DWITH_OPENSSL=OFF \
           -DWITH_TESTS=OFF \
           -DWITH_WEBSOCKET=ON \
           -DWITH_UPDATER=OFF \
           -DCMAKE_BUILD_TYPE=Release
-        cmake --build build-wasm --parallel
+        cmake --build build --parallel
 
     - name: Get Version
       id: get_version
@@ -63,12 +62,12 @@ jobs:
     - name: Package
       run: |
         mkdir -p demo
-        cp build-wasm/mmapper.js demo/
-        cp build-wasm/mmapper.worker.js demo/
-        cp build-wasm/mmapper.wasm demo/
-        cp build-wasm/qtloader.js demo/
-        cp build-wasm/qtlogo.svg demo/
-        cp build-wasm/mmapper.html demo/index.html
+        cp build/mmapper.js demo/
+        cp build/mmapper.worker.js demo/
+        cp build/mmapper.wasm demo/
+        cp build/qtloader.js demo/
+        cp build/qtlogo.svg demo/
+        cp build/mmapper.html demo/index.html
         zip -r mmapper-${{ steps.get_version.outputs.version }}-wasm.zip demo
 
     - name: Upload Package

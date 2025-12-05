@@ -120,37 +120,32 @@ bool MainWindow::slot_save()
 
 bool MainWindow::slot_saveAs()
 {
-    if (!tryStartNewAsync()) {
-        return false;
-    }
-
-    if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
-        return false;
-    }
-
-    const auto makeSaveDialog = [this]() {
-        auto saveDialog = mwss_detail::createDefaultSaveDialog(*this);
-        QFileInfo currentFile(m_mapData->getFileName());
-        if (currentFile.exists()) {
-            QString suggestedFileName = (currentFile.suffix().contains("xml")
-                                             ? currentFile.baseName().append("-import.mm2")
-                                             : currentFile.baseName().append("-copy.mm2"));
-            saveDialog->selectFile(suggestedFileName);
-        }
-        return saveDialog;
-    };
-    const QStringList fileNames = getSaveFileNames(makeSaveDialog());
-    if (fileNames.isEmpty()) {
-        showStatusShort(tr("No filename provided"));
-        return false;
-    }
-    const QString fileName = fileNames[0];
+    const QFileInfo currentFile(m_mapData->getFileName());
+    const QString suggestedName = currentFile.suffix().contains("xml")
+                                      ? currentFile.baseName().append("-import.mm2")
+                                      : currentFile.baseName().append("-copy.mm2");
 
     std::shared_ptr<MapDestination> pDest = nullptr;
     try {
-        pDest = MapDestination::alloc(fileName, ::SaveFormatEnum::MM2);
+        if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+            pDest = MapDestination::alloc(suggestedName, ::SaveFormatEnum::MM2);
+        } else {
+            const auto makeSaveDialog = [this, &suggestedName]() {
+                auto saveDialog = mwss_detail::createDefaultSaveDialog(*this);
+                if (QFileInfo(m_mapData->getFileName()).exists()) {
+                    saveDialog->selectFile(suggestedName);
+                }
+                return saveDialog;
+            };
+            const QStringList fileNames = getSaveFileNames(makeSaveDialog());
+            if (fileNames.isEmpty()) {
+                showStatusShort(tr("No filename provided"));
+                return false;
+            }
+            pDest = MapDestination::alloc(fileNames[0], ::SaveFormatEnum::MM2);
+        }
     } catch (const std::exception &e) {
-        showWarning(tr("Cannot set up save destination %1:\n%2.").arg(fileName, e.what()));
+        showWarning(tr("Cannot set up save destination: %1.").arg(e.what()));
         return false;
     }
 

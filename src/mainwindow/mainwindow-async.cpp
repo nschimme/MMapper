@@ -669,8 +669,13 @@ private:
 
     void finish_saving(const bool success)
     {
-        if (success) {
-            pMapDestination->finalize();
+        pMapDestination->finalize();
+        if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+            if (success) {
+                assert(pMapDestination->isFileWasm());
+                QFileDialog::saveFileContent(pMapDestination->getWasmBufferData(),
+                                             pMapDestination->getFileName());
+            }
         }
         extraBlockers.reset();
 
@@ -679,13 +684,6 @@ private:
                                         AsyncTypeEnum::Save,
                                         progressCounter->requestedCancel());
             return;
-        }
-
-        if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
-            if (pMapDestination->isFileWasm()) {
-                QFileDialog::saveFileContent(pMapDestination->getWasmBufferData(),
-                                             pMapDestination->getFileName());
-            }
         }
 
         mainWindow.onSuccessfulSave(mode, format, fileName);

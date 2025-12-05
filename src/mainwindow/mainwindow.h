@@ -267,7 +267,9 @@ public:
     explicit MainWindow();
     ~MainWindow() final;
 
-    NODISCARD bool saveFile(const QString &fileName, SaveModeEnum mode, SaveFormatEnum format);
+    NODISCARD bool saveFile(std::shared_ptr<MapDestination> pDest,
+                            SaveModeEnum mode,
+                            SaveFormatEnum format);
     void loadFile(std::shared_ptr<MapSource> source);
     void setCurrentFile(const QString &fileName);
     void percentageChanged(uint32_t);

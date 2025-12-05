@@ -105,7 +105,17 @@ bool MainWindow::slot_save()
     if (m_mapData->getFileName().isEmpty() || m_mapData->isFileReadOnly()) {
         return slot_saveAs();
     }
-    return saveFile(m_mapData->getFileName(), ::SaveModeEnum::FULL, ::SaveFormatEnum::MM2);
+
+    std::shared_ptr<MapDestination> pDest = nullptr;
+    const QString fileName = m_mapData->getFileName();
+    try {
+        pDest = MapDestination::alloc(fileName, ::SaveFormatEnum::MM2);
+    } catch (const std::exception &e) {
+        showWarning(tr("Cannot set up save destination %1:\n%2.").arg(fileName, e.what()));
+        return false;
+    }
+
+    return saveFile(pDest, ::SaveModeEnum::FULL, ::SaveFormatEnum::MM2);
 }
 
 bool MainWindow::slot_saveAs()
@@ -135,53 +145,80 @@ bool MainWindow::slot_saveAs()
         return false;
     }
     const QString fileName = fileNames[0];
-    return saveFile(fileName, ::SaveModeEnum::FULL, ::SaveFormatEnum::MM2);
+
+    std::shared_ptr<MapDestination> pDest = nullptr;
+    try {
+        pDest = MapDestination::alloc(fileName, ::SaveFormatEnum::MM2);
+    } catch (const std::exception &e) {
+        showWarning(tr("Cannot set up save destination %1:\n%2.").arg(fileName, e.what()));
+        return false;
+    }
+
+    return saveFile(pDest, ::SaveModeEnum::FULL, ::SaveFormatEnum::MM2);
 }
 
 bool MainWindow::slot_exportBaseMap()
 {
     const QString suggestedName = QFileInfo(m_mapData->getFileName()).baseName().append("-base.mm2");
-    QString fileName = suggestedName;
-    if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
-        const auto makeSaveDialog = [this, &suggestedName]() {
-            auto saveDialog = mwss_detail::createDefaultSaveDialog(*this);
-            QFileInfo currentFile(m_mapData->getFileName());
-            if (currentFile.exists()) {
-                saveDialog->selectFile(suggestedName);
-            }
-            return saveDialog;
-        };
 
-        const auto fileNames = getSaveFileNames(makeSaveDialog());
-        if (fileNames.isEmpty()) {
-            showStatusShort(tr("No filename provided"));
-            return false;
+    std::shared_ptr<MapDestination> pDest = nullptr;
+    try {
+        if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+            pDest = MapDestination::alloc(suggestedName, ::SaveFormatEnum::MM2);
+        } else {
+            const auto makeSaveDialog = [this, &suggestedName]() {
+                auto saveDialog = mwss_detail::createDefaultSaveDialog(*this);
+                QFileInfo currentFile(m_mapData->getFileName());
+                if (currentFile.exists()) {
+                    saveDialog->selectFile(suggestedName);
+                }
+                return saveDialog;
+            };
+
+            const auto fileNames = getSaveFileNames(makeSaveDialog());
+            if (fileNames.isEmpty()) {
+                showStatusShort(tr("No filename provided"));
+                return false;
+            }
+            pDest = MapDestination::alloc(fileNames[0], ::SaveFormatEnum::MM2);
         }
-        fileName = fileNames[0];
+    } catch (const std::exception &e) {
+        showWarning(tr("Cannot set up save destination %1:\n%2.").arg(suggestedName, e.what()));
+        return false;
     }
-    return saveFile(fileName, ::SaveModeEnum::BASEMAP, ::SaveFormatEnum::MM2);
+
+    return saveFile(pDest, ::SaveModeEnum::BASEMAP, ::SaveFormatEnum::MM2);
 }
 
 bool MainWindow::slot_exportMm2xmlMap()
 {
     const QString suggestedName = QFileInfo(m_mapData->getFileName()).baseName().append(".xml");
-    QString fileName = suggestedName;
-    if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
-        const auto makeSaveDialog = [this, &suggestedName]() {
-            auto save =
-                mwss_detail::createFileSaveDialog(*this, "MMapper2 XML maps (*.xml)", "xml");
-            save->selectFile(suggestedName);
-            return save;
-        };
+    std::shared_ptr<MapDestination> pDest = nullptr;
+    try {
+        if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+            pDest = MapDestination::alloc(suggestedName, ::SaveFormatEnum::MM2XML);
+        } else {
+            const auto makeSaveDialog = [this, &suggestedName]() {
+                auto save = mwss_detail::createFileSaveDialog(*this,
+                                                              "MMapper2 XML maps (*.xml)",
+                                                              "xml");
+                save->selectFile(suggestedName);
+                return save;
+            };
 
-        const auto fileNames = getSaveFileNames(makeSaveDialog());
-        if (fileNames.isEmpty()) {
-            showStatusShort(tr("No filename provided"));
-            return false;
+            const auto fileNames = getSaveFileNames(makeSaveDialog());
+            if (fileNames.isEmpty()) {
+                showStatusShort(tr("No filename provided"));
+                return false;
+            }
+            pDest = MapDestination::alloc(fileNames[0], ::SaveFormatEnum::MM2XML);
         }
-        fileName = fileNames[0];
+    } catch (const std::exception &e) {
+        showWarning(tr("Cannot set up save destination %1:\n%2.").arg(suggestedName, e.what()));
+        return false;
     }
-    return saveFile(fileName, ::SaveModeEnum::FULL, ::SaveFormatEnum::MM2XML);
+
+    return saveFile(pDest, ::SaveModeEnum::FULL, ::SaveFormatEnum::MM2XML);
 }
 
 bool MainWindow::slot_exportWebMap()
@@ -198,28 +235,45 @@ bool MainWindow::slot_exportWebMap()
         return false;
     }
     const QString dirName = fileNames[0];
-    return saveFile(dirName, ::SaveModeEnum::BASEMAP, ::SaveFormatEnum::WEB);
+
+    std::shared_ptr<MapDestination> pDest = nullptr;
+    try {
+        pDest = MapDestination::alloc(dirName, ::SaveFormatEnum::WEB);
+    } catch (const std::exception &e) {
+        showWarning(tr("Cannot set up save destination %1:\n%2.").arg(dirName, e.what()));
+        return false;
+    }
+
+    return saveFile(pDest, ::SaveModeEnum::BASEMAP, ::SaveFormatEnum::WEB);
 }
 
 bool MainWindow::slot_exportMmpMap()
 {
     const QString suggestedName = QFileInfo(m_mapData->getFileName()).baseName().append("-mmp.xml");
-    QString fileName = suggestedName;
-    if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
-        const auto makeSaveDialog = [this, &suggestedName]() {
-            auto save = mwss_detail::createFileSaveDialog(*this, "MMP maps (*.xml)", "xml");
-            save->setAcceptMode(QFileDialog::AcceptSave);
-            save->selectFile(suggestedName);
-            return save;
-        };
 
-        const auto fileNames = getSaveFileNames(makeSaveDialog());
-        if (fileNames.isEmpty()) {
-            showStatusShort(tr("No filename provided"));
-            return false;
+    std::shared_ptr<MapDestination> pDest = nullptr;
+    try {
+        if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+            pDest = MapDestination::alloc(suggestedName, ::SaveFormatEnum::MMP);
+        } else {
+            const auto makeSaveDialog = [this, &suggestedName]() {
+                auto save = mwss_detail::createFileSaveDialog(*this, "MMP maps (*.xml)", "xml");
+                save->setAcceptMode(QFileDialog::AcceptSave);
+                save->selectFile(suggestedName);
+                return save;
+            };
+
+            const auto fileNames = getSaveFileNames(makeSaveDialog());
+            if (fileNames.isEmpty()) {
+                showStatusShort(tr("No filename provided"));
+                return false;
+            }
+            pDest = MapDestination::alloc(fileNames[0], ::SaveFormatEnum::MMP);
         }
-        fileName = fileNames[0];
+    } catch (const std::exception &e) {
+        showWarning(tr("Cannot set up save destination %1:\n%2.").arg(suggestedName, e.what()));
+        return false;
     }
 
-    return saveFile(fileName, ::SaveModeEnum::FULL, ::SaveFormatEnum::MMP);
+    return saveFile(pDest, ::SaveModeEnum::FULL, ::SaveFormatEnum::MMP);
 }

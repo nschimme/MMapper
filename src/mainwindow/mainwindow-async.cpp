@@ -805,7 +805,7 @@ void MainWindow::slot_merge()
     }
 }
 
-bool MainWindow::saveFile(const QString &fileName,
+bool MainWindow::saveFile(std::shared_ptr<MapDestination> pDest,
                           const SaveModeEnum mode,
                           const SaveFormatEnum format)
 {
@@ -813,35 +813,27 @@ bool MainWindow::saveFile(const QString &fileName,
         return false;
     }
 
-    std::shared_ptr<MapDestination> pDest = nullptr;
-    try {
-        pDest = MapDestination::alloc(fileName, format);
-    } catch (const std::exception &e) {
-        showWarning(tr("Cannot set up save destination %1:\n%2.").arg(fileName, e.what()));
-        return false;
-    }
-
     auto pc = std::make_shared<ProgressCounter>();
-    AbstractMapStorage::Data data{pc, pDest};
-    std::unique_ptr<AbstractMapStorage> pStorage;
-    switch (format) {
-    case SaveFormatEnum::MM2:
-        pStorage = std::make_unique<MapStorage>(data, this);
-        break;
-    case SaveFormatEnum::MM2XML:
-        pStorage = std::make_unique<XmlMapStorage>(data, this);
-        break;
-    case SaveFormatEnum::MMP:
-        pStorage = std::make_unique<MmpMapStorage>(data, this);
-        break;
-    case SaveFormatEnum::WEB:
-        pStorage = std::make_unique<JsonMapStorage>(data, this);
-        break;
-    default:
-        assert(false);
-        return false;
-    }
-    connect(pStorage.get(), &AbstractMapStorage::sig_log, this, &MainWindow::slot_log);
+
+    auto pStorage = [this, pc, format, pDest]() -> std::unique_ptr<AbstractMapStorage> {
+        auto storage = [this, pc, format, pDest]() -> std::unique_ptr<AbstractMapStorage> {
+            AbstractMapStorage::Data data{pc, pDest};
+            switch (format) {
+            case SaveFormatEnum::MM2:
+                return std::make_unique<MapStorage>(data, this);
+            case SaveFormatEnum::MM2XML:
+                return std::make_unique<XmlMapStorage>(data, this);
+            case SaveFormatEnum::MMP:
+                return std::make_unique<MmpMapStorage>(data, this);
+            case SaveFormatEnum::WEB:
+                return std::make_unique<JsonMapStorage>(data, this);
+            }
+            assert(false);
+            return {};
+        }();
+        connect(storage.get(), &AbstractMapStorage::sig_log, this, &MainWindow::slot_log);
+        return storage;
+    }();
 
     if (!pStorage || !pStorage->canSave()) {
         showWarning(tr("Selected format cannot save."));

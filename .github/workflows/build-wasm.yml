@@ -1,0 +1,77 @@
+name: build-wasm
+
+on:
+  push:
+    tags:
+    - 'v*'
+    branches:
+    - master
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-wasm:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+        submodules: true
+
+    - name: Install Qt for Mac
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: 6.5.3
+        host: mac
+        arch: wasm_multithread
+        cache: true
+        modules: 'qtwebsockets'
+
+    - name: Setup emsdk
+      uses: mymindstorm/setup-emsdk@v14
+      with:
+        version: 3.1.25
+
+    - name: Configure and Build
+      shell: bash
+      run: |
+        $QT_ROOT_DIR/bin/qt-cmake -S . -B build \
+          -DQT_HOST_PATH=$QT_HOST_PATH \
+          -DWITH_OPENSSL=OFF \
+          -DWITH_TESTS=OFF \
+          -DWITH_WEBSOCKET=ON \
+          -DWITH_UPDATER=OFF \
+          -DCMAKE_BUILD_TYPE=Release
+        cmake --build build --parallel
+
+    - name: Get Version
+      id: get_version
+      run: |
+        # Get the tag name if it exists
+        GIT_TAG_NAME=$(git name-rev --name-only --tags --no-undefined HEAD --exclude beta 2>/dev/null)
+
+        if [ -n "$GIT_TAG_NAME" ]; then
+          # This is a tagged release
+          MMAPPER_VERSION_STRING="$GIT_TAG_NAME"
+        else
+          # This is a beta build from master
+          MMAPPER_VERSION_STRING=$(git describe --tags --always --long --exclude beta)
+        fi
+        echo "version=$MMAPPER_VERSION_STRING" >> $GITHUB_OUTPUT
+
+    - name: Package
+      run: |
+        mkdir -p demo
+        cp build/mmapper.js demo/
+        cp build/mmapper.worker.js demo/
+        cp build/mmapper.wasm demo/
+        cp build/qtloader.js demo/
+        cp build/qtlogo.svg demo/
+        cp build/mmapper.html demo/index.html
+        zip -r mmapper-${{ steps.get_version.outputs.version }}-wasm.zip demo
+
+    - name: Upload Package
+      uses: actions/upload-artifact@v5
+      with:
+        name: release-mmapper-${{ steps.get_version.outputs.version }}-wasm
+        path: mmapper-${{ steps.get_version.outputs.version }}-wasm.zip

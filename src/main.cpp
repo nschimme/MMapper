@@ -137,7 +137,7 @@ int main(int argc, char **argv)
     QApplication app(argc, argv);
     tryInitDrMingw();
     auto tryLoadingWinSock = std::make_unique<WinSock>();
-    Theme::applyTheme(getConfig().theme);
+    Theme::applyTheme(getConfig().general.theme);
     if (!setSurfaceFormat()) {
         return 1;
     }

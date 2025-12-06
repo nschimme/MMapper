@@ -472,6 +472,8 @@ void MapCanvas::resizeGL(int width, int height)
         return;
     }
 
+    updateMultisampling();
+
     if (m_fbo) {
         m_fbo->emplace(getOpenGL().getSharedFunctions(Badge<MapCanvas>{}),
                        width,

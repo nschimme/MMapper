@@ -24,10 +24,7 @@ Fbo::~Fbo()
     reset();
 }
 
-void Fbo::emplace(const Legacy::SharedFunctions &sharedFunctions,
-                  int width,
-                  int height,
-                  int samples)
+void Fbo::emplace(const Legacy::SharedFunctions &sharedFunctions, int width, int height, int samples)
 {
     if (m_state) {
         reset();
@@ -52,11 +49,7 @@ void Fbo::emplace(const Legacy::SharedFunctions &sharedFunctions,
 
     gl.glGenRenderbuffers(1, &m_state->depthRenderbufferId);
     gl.glBindRenderbuffer(GL_RENDERBUFFER, m_state->depthRenderbufferId);
-    gl.glRenderbufferStorageMultisample(GL_RENDERBUFFER,
-                                        samples,
-                                        GL_DEPTH24_STENCIL8,
-                                        width,
-                                        height);
+    gl.glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_DEPTH24_STENCIL8, width, height);
     gl.glFramebufferRenderbuffer(GL_FRAMEBUFFER,
                                  GL_DEPTH_ATTACHMENT,
                                  GL_RENDERBUFFER,

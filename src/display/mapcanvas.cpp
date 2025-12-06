@@ -7,7 +7,6 @@
 #include "mapcanvas.h"
 
 #include "../configuration/configuration.h"
-#include "Fbo.h"
 #include "../global/parserutils.h"
 #include "../global/progresscounter.h"
 #include "../global/utils.h"
@@ -19,6 +18,7 @@
 #include "../map/roomid.h"
 #include "../mapdata/mapdata.h"
 #include "../mapdata/roomselection.h"
+#include "Fbo.h"
 #include "InfomarkSelection.h"
 #include "MapCanvasData.h"
 #include "MapCanvasRoomDrawer.h"
@@ -1078,9 +1078,19 @@ void MapCanvas::selectionChanged()
     emit sig_selectionChanged();
 }
 
+#include <QSurfaceFormat>
 void MapCanvas::graphicsSettingsChanged()
 {
-    update();
+    if (!m_opengl.isRendererInitialized()) {
+        return;
+    }
+
+    QSurfaceFormat fmt = format();
+    const int samples = getConfig().canvas.antialiasingSamples;
+    if (fmt.samples() != samples) {
+        fmt.setSamples(samples);
+        setFormat(fmt);
+    }
 }
 
 void MapCanvas::userPressedEscape(bool /*pressed*/)

@@ -467,6 +467,8 @@ void MapCanvas::setViewportAndMvp(int width, int height)
 
 void MapCanvas::resizeGL(int width, int height)
 {
+    getOpenGL().setDevicePixelRatio(devicePixelRatioF());
+
     if (m_textures.room_highlight == nullptr) {
         // resizeGL called but initializeGL was not called yet
         return;

@@ -9,7 +9,7 @@
 #include "./global/ConfigConsts.h"
 #include "./global/WinSock.h"
 #include "./global/emojis.h"
-#include "./mainwindow/WinDarkMode.h"
+#include "./mainwindow/Theme.h"
 #include "./mainwindow/mainwindow.h"
 #include "./opengl/OpenGLConfig.h"
 #include "./opengl/OpenGLProber.h"
@@ -137,7 +137,7 @@ int main(int argc, char **argv)
     QApplication app(argc, argv);
     tryInitDrMingw();
     auto tryLoadingWinSock = std::make_unique<WinSock>();
-    auto tryLoadingWinDarkMode = std::make_unique<WinDarkMode>(&app);
+    Theme::applyTheme(getConfig().theme);
     if (!setSurfaceFormat()) {
         return 1;
     }

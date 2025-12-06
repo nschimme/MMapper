@@ -51,6 +51,7 @@ public:
         bool showStatusBar = true;
         bool showScrollBars = true;
         bool showMenuBar = true;
+        ThemeEnum theme = ThemeEnum::System;
         MapModeEnum mapMode = MapModeEnum::PLAY;
         bool checkForUpdate = true;
         CharacterEncodingEnum characterEncoding = CharacterEncodingEnum::LATIN1;

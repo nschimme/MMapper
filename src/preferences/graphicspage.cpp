@@ -6,6 +6,7 @@
 
 #include "../configuration/configuration.h"
 #include "../global/utils.h"
+#include "../mainwindow/Theme.h"
 #include "AdvancedGraphics.h"
 #include "ui_graphicspage.h"
 
@@ -46,6 +47,11 @@ GraphicsPage::GraphicsPage(QWidget *parent)
         changeColorClicked(setConfig().canvas.connectionNormalColor, ui->connectionNormalPushButton);
         graphicsSettingsChanged();
     });
+
+    connect(ui->themeComboBox,
+            QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this,
+            &GraphicsPage::slot_themeChanged);
     connect(ui->antialiasingSamplesComboBox,
             &QComboBox::currentTextChanged,
             this,
@@ -108,6 +114,7 @@ GraphicsPage::~GraphicsPage()
 
 void GraphicsPage::slot_loadConfig()
 {
+    ui->themeComboBox->setCurrentIndex(static_cast<int>(getConfig().general.theme));
     const auto &settings = getConfig().canvas;
     setIconColor(ui->bgChangeColor, settings.backgroundColor);
     setIconColor(ui->darkPushButton, settings.roomDarkColor);
@@ -171,5 +178,13 @@ void GraphicsPage::slot_drawDoorNamesStateChanged(int /*unused*/)
 void GraphicsPage::slot_drawUpperLayersTexturedStateChanged(int /*unused*/)
 {
     setConfig().canvas.drawUpperLayersTextured = ui->drawUpperLayersTextured->isChecked();
+    graphicsSettingsChanged();
+}
+
+void GraphicsPage::slot_themeChanged(int index)
+{
+    const auto theme = static_cast<ThemeEnum>(index);
+    setConfig().general.theme = theme;
+    Theme::applyTheme(theme);
     graphicsSettingsChanged();
 }

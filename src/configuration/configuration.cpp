@@ -294,6 +294,7 @@ ConstString KEY_WINDOW_GEOMETRY = "Window Geometry";
 ConstString KEY_WINDOW_STATE = "Window State";
 ConstString KEY_BELL_AUDIBLE = "Bell audible";
 ConstString KEY_BELL_VISUAL = "Bell visual";
+ConstString KEY_THEME = "Theme";
 
 void Settings::tryCopyOldSettings()
 {
@@ -417,6 +418,20 @@ NODISCARD static AutoLoggerEnum sanitizeAutoLoggerState(const int input)
 
     qWarning() << "invalid AutoLoggerEnum:" << input;
     return AutoLoggerEnum::DeleteDays;
+}
+
+NODISCARD static ThemeEnum sanitizeThemeEnum(const uint32_t input)
+{
+    const auto theme = static_cast<ThemeEnum>(input);
+    switch (theme) {
+    case ThemeEnum::System:
+    case ThemeEnum::Dark:
+    case ThemeEnum::Light:
+        return theme;
+    }
+
+    qWarning() << "invalid ThemeEnum:" << input;
+    return ThemeEnum::System;
 }
 
 NODISCARD static uint16_t sanitizeUint16(const int input, const uint16_t defaultValue)
@@ -544,6 +559,8 @@ void Configuration::GeneralSettings::read(const QSettings &conf)
     showStatusBar = conf.value(KEY_SHOW_STATUS_BAR, true).toBool();
     showScrollBars = conf.value(KEY_SHOW_SCROLL_BARS, true).toBool();
     showMenuBar = conf.value(KEY_SHOW_MENU_BAR, true).toBool();
+    theme = sanitizeThemeEnum(
+        conf.value(KEY_THEME, static_cast<uint32_t>(ThemeEnum::System)).toUInt());
     mapMode = sanitizeMapMode(
         conf.value(KEY_MAP_MODE, static_cast<uint32_t>(MapModeEnum::PLAY)).toUInt());
     checkForUpdate = conf.value(KEY_CHECK_FOR_UPDATE, true).toBool();
@@ -757,6 +774,7 @@ void Configuration::GeneralSettings::write(QSettings &conf) const
     conf.setValue(KEY_SHOW_STATUS_BAR, showStatusBar);
     conf.setValue(KEY_SHOW_SCROLL_BARS, showScrollBars);
     conf.setValue(KEY_SHOW_MENU_BAR, showMenuBar);
+    conf.setValue(KEY_THEME, static_cast<uint32_t>(theme));
     conf.setValue(KEY_MAP_MODE, static_cast<uint32_t>(mapMode));
     conf.setValue(KEY_CHECK_FOR_UPDATE, checkForUpdate);
     conf.setValue(KEY_CHARACTER_ENCODING, static_cast<uint32_t>(characterEncoding));

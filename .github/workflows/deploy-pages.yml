@@ -46,7 +46,7 @@ jobs:
           fi
 
           # Attempt to download and deploy stable artifact
-          LATEST_TAG=$(gh release list --exclude "prereleases" --limit 1 --json tagName --jq '.[0].tagName')
+          LATEST_TAG=$(gh release list --exclude-pre-releases --limit 1 --json tagName --jq '.[0].tagName')
           if [ -n "$LATEST_TAG" ] && gh release download "$LATEST_TAG" --pattern 'mmapper-*-wasm.zip' --clobber -O stable_artifact.zip; then
             unzip -o stable_artifact.zip
             mv demo docs/demo

@@ -5,9 +5,9 @@
 #include "../global/RuleOf5.h"
 #include "../opengl/legacy/Legacy.h"
 
-#include <QOpenGLExtraFunctions>
-
 #include <memory>
+
+#include <QOpenGLExtraFunctions>
 
 class OpenGL;
 

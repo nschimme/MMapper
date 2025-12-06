@@ -475,9 +475,10 @@ void MapCanvas::resizeGL(int width, int height)
     updateMultisampling();
 
     if (m_fbo) {
+        const auto pixelRatio = devicePixelRatioF();
         m_fbo->emplace(getOpenGL().getSharedFunctions(Badge<MapCanvas>{}),
-                       width,
-                       height,
+                       static_cast<int>(width * pixelRatio),
+                       static_cast<int>(height * pixelRatio),
                        getConfig().canvas.antialiasingSamples);
     }
 
@@ -1016,9 +1017,10 @@ void MapCanvas::updateMultisampling()
         if (!m_fbo) {
             m_fbo = std::make_unique<Fbo>();
         }
+        const auto pixelRatio = devicePixelRatioF();
         m_fbo->emplace(getOpenGL().getSharedFunctions(Badge<MapCanvas>{}),
-                       width(),
-                       height(),
+                       static_cast<int>(width() * pixelRatio),
+                       static_cast<int>(height() * pixelRatio),
                        samples);
     } else {
         m_fbo.reset();

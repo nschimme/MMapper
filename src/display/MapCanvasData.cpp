@@ -92,17 +92,27 @@ glm::vec3 MapCanvasViewport::unproject_clamped(const glm::vec2 &mouse) const
 
 glm::vec2 MapCanvasViewport::getMouseCoords(const QInputEvent *const event) const
 {
-    if (const auto *const mouse = dynamic_cast<const QMouseEvent *>(event)) {
-        const auto x = static_cast<float>(mouse->pos().x());
-        const auto y = static_cast<float>(height() - mouse->pos().y());
-        return glm::vec2{x, y};
-    } else if (const auto *const wheel = dynamic_cast<const QWheelEvent *>(event)) {
-        const auto x = static_cast<float>(wheel->position().x());
-        const auto y = static_cast<float>(height() - wheel->position().y());
-        return glm::vec2{x, y};
-    } else {
+    // REVISIT: The wheel event is probably fine, but what about other events?
+    const auto getPos = [event]() -> std::optional<QPointF> {
+        if (const auto *const mouse = dynamic_cast<const QMouseEvent *>(event)) {
+            return mouse->position();
+        }
+        if (const auto *const wheel = dynamic_cast<const QWheelEvent *>(event)) {
+            return wheel->position();
+        }
+        return std::nullopt;
+    };
+
+    const auto &optPos = getPos();
+    if (!optPos.has_value()) {
         throw std::invalid_argument("event");
     }
+
+    const QPointF &pos = optPos.value();
+    const auto pixelRatio = getDevicePixelRatio();
+    const float x = static_cast<float>(pos.x()) * pixelRatio;
+    const float y = static_cast<float>(height() - pos.y()) * pixelRatio;
+    return glm::vec2{x, y};
 }
 
 // input: screen coordinates;

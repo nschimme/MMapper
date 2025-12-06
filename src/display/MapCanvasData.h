@@ -122,7 +122,6 @@ public:
         return Viewport{glm::ivec2{r.x(), r.y()}, glm::ivec2{r.width(), r.height()}};
     }
     NODISCARD float getTotalScaleFactor() const { return m_scaleFactor.getTotal(); }
-    NODISCARD auto getDevicePixelRatio() const { return m_sizeWidget.devicePixelRatioF(); }
 
 public:
     NODISCARD std::optional<glm::vec3> project(const glm::vec3 &) const;

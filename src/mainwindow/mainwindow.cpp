@@ -117,6 +117,9 @@ MainWindow::MainWindow()
     addApplicationFont();
     registerMetatypes();
 
+    m_themeManager = new ThemeManager(this);
+    m_themeManager->setTheme(getConfig().general.theme.get());
+
     m_mapData = new MapData(this);
     MapData &mapData = deref(m_mapData);
 
@@ -1420,7 +1423,7 @@ void MainWindow::setupStatusBar()
 void MainWindow::slot_onPreferences()
 {
     if (m_configDialog == nullptr) {
-        m_configDialog = std::make_unique<ConfigDialog>(this);
+        m_configDialog = std::make_unique<ConfigDialog>(this, deref(m_themeManager));
     }
 
     connect(m_configDialog.get(),

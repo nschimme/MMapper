@@ -16,16 +16,19 @@ namespace Ui {
 class GeneralPage;
 }
 
+class ThemeManager;
+
 class NODISCARD_QOBJECT GeneralPage final : public QWidget
 {
     Q_OBJECT
 
 private:
+    ThemeManager &m_themeManager;
     Ui::GeneralPage *const ui;
     PasswordConfig passCfg;
 
 public:
-    explicit GeneralPage(QWidget *parent);
+    explicit GeneralPage(QWidget *parent, ThemeManager &themeManager);
     ~GeneralPage() final;
 
 signals:
@@ -47,4 +50,7 @@ public slots:
 
     void slot_displayMumeClockStateChanged(int);
     void slot_displayXPStatusStateChanged(int);
+
+private slots:
+    void onThemeChanged(int index);
 };

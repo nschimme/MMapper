@@ -7,6 +7,7 @@
 #include "generalpage.h"
 
 #include "../configuration/configuration.h"
+#include "../mainwindow/ThemeManager.h"
 #include "ui_generalpage.h"
 
 #include <QSslSocket>
@@ -18,13 +19,18 @@ static_assert(static_cast<int>(CharacterEncodingEnum::LATIN1) == 0);
 static_assert(static_cast<int>(CharacterEncodingEnum::UTF8) == 1);
 static_assert(static_cast<int>(CharacterEncodingEnum::ASCII) == 2);
 
-GeneralPage::GeneralPage(QWidget *parent)
+GeneralPage::GeneralPage(QWidget *parent, ThemeManager &themeManager)
     : QWidget(parent)
+    , m_themeManager(themeManager)
     , ui(new Ui::GeneralPage)
     , passCfg(this)
 {
     ui->setupUi(this);
 
+    connect(ui->themeComboBox,
+            QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this,
+            &GeneralPage::onThemeChanged);
     connect(ui->remoteName, &QLineEdit::textChanged, this, &GeneralPage::slot_remoteNameTextChanged);
     connect(ui->remotePort,
             QOverload<int>::of(&QSpinBox::valueChanged),
@@ -200,6 +206,8 @@ void GeneralPage::slot_loadConfig()
 
     ui->proxyConnectionStatusCheckBox->setChecked(connection.proxyConnectionStatus);
 
+    ui->themeComboBox->setCurrentIndex(static_cast<int>(general.theme.get()));
+
     if constexpr (NO_QTKEYCHAIN) {
         ui->autoLogin->setEnabled(false);
         ui->accountName->setEnabled(false);
@@ -281,4 +289,11 @@ void GeneralPage::slot_displayMumeClockStateChanged(int /*unused*/)
 void GeneralPage::slot_displayXPStatusStateChanged([[maybe_unused]] int)
 {
     setConfig().adventurePanel.setDisplayXPStatus(ui->displayXPStatusCheckBox->isChecked());
+}
+
+void GeneralPage::onThemeChanged(const int index)
+{
+    const auto theme = static_cast<Theme>(index);
+    setConfig().general.theme.set(theme);
+    m_themeManager.setTheme(theme);
 }

@@ -287,6 +287,7 @@ ConstString KEY_SHOW_NOTES = "Show notes";
 ConstString KEY_SHOW_UNSAVED_CHANGES = "Show unsaved changes";
 ConstString KEY_SHOW_MISSING_MAP_ID = "Show missing map id";
 ConstString KEY_TAB_COMPLETION_DICTIONARY_SIZE = "Tab completion dictionary size";
+ConstString KEY_THEME = "Theme";
 ConstString KEY_TLS_ENCRYPTION = "TLS encryption";
 ConstString KEY_USE_INTERNAL_EDITOR = "Use internal editor";
 ConstString KEY_USE_TRILINEAR_FILTERING = "Use trilinear filtering";
@@ -550,6 +551,7 @@ void Configuration::GeneralSettings::read(const QSettings &conf)
     characterEncoding = sanitizeCharacterEncoding(
         conf.value(KEY_CHARACTER_ENCODING, static_cast<uint32_t>(CharacterEncodingEnum::LATIN1))
             .toUInt());
+    theme.set(static_cast<Theme>(conf.value(KEY_THEME, static_cast<int>(Theme::System)).toInt()));
 }
 
 void Configuration::ConnectionSettings::read(const QSettings &conf)
@@ -760,6 +762,7 @@ void Configuration::GeneralSettings::write(QSettings &conf) const
     conf.setValue(KEY_MAP_MODE, static_cast<uint32_t>(mapMode));
     conf.setValue(KEY_CHECK_FOR_UPDATE, checkForUpdate);
     conf.setValue(KEY_CHARACTER_ENCODING, static_cast<uint32_t>(characterEncoding));
+    conf.setValue(KEY_THEME, static_cast<int>(theme.get()));
 }
 
 void Configuration::ConnectionSettings::write(QSettings &conf) const

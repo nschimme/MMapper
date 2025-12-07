@@ -12,6 +12,7 @@
 #include "../mapdata/roomselection.h"
 #include "../mapstorage/MapDestination.h"
 #include "../mapstorage/MapSource.h"
+#include "ThemeManager.h"
 
 #include <memory>
 #include <optional>
@@ -87,6 +88,7 @@ private:
     QDockWidget *m_dockDialogDescription = nullptr;
 
     std::unique_ptr<GameObserver> m_gameObserver;
+    ThemeManager *m_themeManager = nullptr;
     AutoLogger *m_logger = nullptr;
     ConnectionListener *m_listener = nullptr;
     Mmapper2PathMachine *m_pathMachine = nullptr;

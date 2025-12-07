@@ -15,6 +15,7 @@ class QObject;
 class QShowEvent;
 class QStackedWidget;
 class QWidget;
+class ThemeManager;
 
 namespace Ui {
 class ConfigDialog;
@@ -29,7 +30,7 @@ private:
     QStackedWidget *m_pagesWidget = nullptr;
 
 public:
-    explicit ConfigDialog(QWidget *parent);
+    explicit ConfigDialog(QWidget *parent, ThemeManager &themeManager);
     ~ConfigDialog() final;
 
 protected:

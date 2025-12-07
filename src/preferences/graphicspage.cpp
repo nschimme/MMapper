@@ -108,24 +108,24 @@ GraphicsPage::~GraphicsPage()
 
 void GraphicsPage::slot_loadConfig()
 {
-    const auto &settings = getConfig().canvas;
-    setIconColor(ui->bgChangeColor, settings.backgroundColor);
-    setIconColor(ui->darkPushButton, settings.roomDarkColor);
-    setIconColor(ui->darkLitPushButton, settings.roomDarkLitColor);
-    setIconColor(ui->connectionNormalPushButton, settings.connectionNormalColor);
+    const auto &settings = getConfig();
+    setIconColor(ui->bgChangeColor, settings.canvas.backgroundColor);
+    setIconColor(ui->darkPushButton, settings.canvas.roomDarkColor);
+    setIconColor(ui->darkLitPushButton, settings.canvas.roomDarkLitColor);
+    setIconColor(ui->connectionNormalPushButton, settings.canvas.connectionNormalColor);
 
-    const QString antiAliasingSamples = QString::number(settings.antialiasingSamples);
-    const int index = utils::clampNonNegative(
+    const QString antiAliasingSamples = QString::number(settings.canvas.antialiasingSamples);
+    const int aaIndex = utils::clampNonNegative(
         ui->antialiasingSamplesComboBox->findText(antiAliasingSamples));
-    ui->antialiasingSamplesComboBox->setCurrentIndex(index);
-    ui->trilinearFilteringCheckBox->setChecked(settings.trilinearFiltering);
+    ui->antialiasingSamplesComboBox->setCurrentIndex(aaIndex);
+    ui->trilinearFilteringCheckBox->setChecked(settings.canvas.trilinearFiltering);
 
-    ui->drawUnsavedChanges->setChecked(settings.showUnsavedChanges.get());
-    ui->drawNeedsUpdate->setChecked(settings.showMissingMapId.get());
-    ui->drawNotMappedExits->setChecked(settings.showUnmappedExits.get());
-    ui->drawDoorNames->setChecked(settings.drawDoorNames);
+    ui->drawUnsavedChanges->setChecked(settings.canvas.showUnsavedChanges.get());
+    ui->drawNeedsUpdate->setChecked(settings.canvas.showMissingMapId.get());
+    ui->drawNotMappedExits->setChecked(settings.canvas.showUnmappedExits.get());
+    ui->drawDoorNames->setChecked(settings.canvas.drawDoorNames);
 
-    ui->resourceLineEdit->setText(settings.resourcesDirectory);
+    ui->resourceLineEdit->setText(settings.canvas.resourcesDirectory);
 }
 
 void GraphicsPage::changeColorClicked(XNamedColor &namedColor, QPushButton *const pushButton)

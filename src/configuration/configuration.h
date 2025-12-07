@@ -11,6 +11,7 @@
 #include "../global/ConfigEnums.h"
 #include "../global/Consts.h"
 #include "../global/FixedPoint.h"
+#include "../mainwindow/ThemeManager.h"
 #include "../global/NamedColors.h"
 #include "../global/RuleOf5.h"
 #include "NamedConfig.h"
@@ -44,6 +45,7 @@ public:
 public:
     struct NODISCARD GeneralSettings final
     {
+        NamedConfig<Theme> theme{"THEME", Theme::System};
         bool firstRun = false;
         QByteArray windowGeometry;
         QByteArray windowState;

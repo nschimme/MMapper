@@ -21,7 +21,7 @@
 #include <QListWidget>
 #include <QtWidgets>
 
-ConfigDialog::ConfigDialog(QWidget *const parent)
+ConfigDialog::ConfigDialog(QWidget *const parent, ThemeManager &themeManager)
     : QDialog(parent)
     , ui(new Ui::ConfigDialog)
 {
@@ -31,7 +31,7 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
 
     createIcons();
 
-    auto generalPage = new GeneralPage(this);
+    auto generalPage = new GeneralPage(this, themeManager);
     auto graphicsPage = new GraphicsPage(this);
     auto parserPage = new ParserPage(this);
     auto clientPage = new ClientPage(this);

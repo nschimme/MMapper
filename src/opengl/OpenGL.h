@@ -12,10 +12,10 @@
 
 #include <glm/glm.hpp>
 
-#include <QOpenGLFramebufferObject>
 #include <QSurfaceFormat>
 #include <qopengl.h>
 
+class Fbo;
 class MapCanvas;
 namespace Legacy {
 class Functions;
@@ -25,11 +25,8 @@ class NODISCARD OpenGL final
 {
 private:
     std::shared_ptr<Legacy::Functions> m_opengl;
+    std::unique_ptr<Fbo> m_fbo;
     bool m_rendererInitialized = false;
-    // Replaced raw multisampling FBO with QOpenGLFramebufferObject
-    std::unique_ptr<QOpenGLFramebufferObject> m_multisamplingFbo;
-    // Added resolved FBO using QOpenGLFramebufferObject
-    std::unique_ptr<QOpenGLFramebufferObject> m_resolvedFbo;
 
 private:
     NODISCARD auto &getFunctions() { return deref(m_opengl); }
@@ -62,22 +59,10 @@ public:
     void glViewport(GLint x, GLint y, GLsizei w, GLsizei h);
 
 public:
-    NODISCARD bool tryEnableMultisampling(int samples);
-
-public:
-    // Modified setMultisamplingFbo to handle QOpenGLFramebufferObject
-    void setMultisamplingFbo(int samples, const QSize &size);
-    // Modified bindMultisamplingFbo to use QOpenGLFramebufferObject
-    void bindMultisamplingFbo();
-    // Modified releaseMultisamplingFbo to use QOpenGLFramebufferObject
-    void releaseMultisamplingFbo();
-    // Removed blitMultisamplingFboToDefault as blitting will be handled differently
-
-    // Added a new function to perform the blit sequence
-    void blitResolvedToDefault(const QSize &size);
-
-    // Added function to get the FBO to render to
-    NODISCARD QOpenGLFramebufferObject *getRenderFbo() const;
+    void configureFbo(const QSize &size, int samples);
+    void bindFbo();
+    void releaseFbo();
+    void blitFboToDefault();
 
 public:
     NODISCARD UniqueMesh createPointBatch(const std::vector<ColorVert> &verts);
@@ -176,13 +161,6 @@ public:
 public:
     void cleanup();
     void setTextureLookup(MMTextureId, SharedMMTexture);
-
-public:
-    NODISCARD QOpenGLFramebufferObject *getMultisamplingFbo() const
-    {
-        return m_multisamplingFbo.get();
-    }
-    NODISCARD QOpenGLFramebufferObject *getResolvedFbo() const { return m_resolvedFbo.get(); }
 
 public:
     void initArray(const SharedMMTexture &array, const std::vector<SharedMMTexture> &input);

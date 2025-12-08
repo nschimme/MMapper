@@ -480,7 +480,7 @@ void MapCanvas::resizeGL(int width, int height)
 
     // Update the multisampling FBO size when the canvas is resized
     const int wantMultisampling = getConfig().canvas.advanced.antialiasingSamples.get();
-    getOpenGL().setMultisamplingFbo(wantMultisampling, size());
+    getOpenGL().configureFbo(size(), wantMultisampling);
 
     // Render
     update();
@@ -632,17 +632,7 @@ void MapCanvas::actuallyPaintGL()
 
     auto &gl = getOpenGL();
 
-    // Bind the appropriate FBO: multisampling if valid, otherwise resolved if valid, fallback to default
-    QOpenGLFramebufferObject *fboToBind = nullptr;
-    if (gl.getMultisamplingFbo() && gl.getMultisamplingFbo()->isValid()) {
-        fboToBind = gl.getMultisamplingFbo();
-    } else if (gl.getResolvedFbo() && gl.getResolvedFbo()->isValid()) {
-        fboToBind = gl.getResolvedFbo();
-    }
-
-    if (fboToBind) {
-        fboToBind->bind();
-    }
+    gl.bindFbo();
 
     // Clear the FBO
     gl.clear(Color{getConfig().canvas.backgroundColor});
@@ -658,13 +648,10 @@ void MapCanvas::actuallyPaintGL()
     paintCharacters();
     paintDifferences();
 
-    // Unbind the FBO we rendered to
-    if (fboToBind) {
-        fboToBind->release();
-    }
+    gl.releaseFbo();
 
     // Blit from the resolved FBO to the default framebuffer (handles multisample resolve if needed)
-    gl.blitResolvedToDefault(size());
+    gl.blitFboToDefault();
 }
 
 NODISCARD bool MapCanvas::Diff::isUpToDate(const Map &saved, const Map &current) const
@@ -1035,15 +1022,7 @@ void MapCanvas::paintSelectionArea()
 void MapCanvas::updateMultisampling()
 {
     const int wantMultisampling = getConfig().canvas.advanced.antialiasingSamples.get();
-    std::optional<int> &activeStatus = m_graphicsOptionsStatus.multisampling;
-    if (activeStatus == wantMultisampling) {
-        return;
-    }
-
-    // Update the multisampling FBO in the OpenGL class
-    getOpenGL().setMultisamplingFbo(wantMultisampling, size());
-
-    activeStatus = wantMultisampling;
+    getOpenGL().configureFbo(size(), wantMultisampling);
 }
 
 void MapCanvas::renderMapBatches()

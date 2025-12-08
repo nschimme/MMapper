@@ -4,6 +4,7 @@
 
 #include "OpenGL.h"
 
+#include "Fbo.h"
 #include "../global/ConfigConsts.h"
 #include "./legacy/FunctionsES30.h"
 #include "./legacy/FunctionsGL33.h"
@@ -26,6 +27,7 @@
 #include <QSurfaceFormat>
 
 OpenGL::OpenGL()
+    : m_fbo{std::make_unique<Fbo>()}
 {
     switch (OpenGLConfig::getBackendType()) {
     case OpenGLProber::BackendType::GL:
@@ -63,146 +65,24 @@ void OpenGL::setProjectionMatrix(const glm::mat4 &m)
     getFunctions().setProjectionMatrix(m);
 }
 
-void OpenGL::setMultisamplingFbo(int requestedSamples, const QSize &size)
+void OpenGL::configureFbo(const QSize &size, int samples)
 {
-    // Calculate physical size based on logical size and device pixel ratio
-    const float dpr = getDevicePixelRatio();
-    const QSize physicalSize(size.width() * static_cast<int>(dpr),
-                             size.height() * static_cast<int>(dpr));
-
-    // Always manage the resolved FBO if size is not empty
-    if (!physicalSize.isEmpty()) {
-        QOpenGLFramebufferObjectFormat resolvedFormat;
-        resolvedFormat.setAttachment(QOpenGLFramebufferObject::CombinedDepthStencil);
-        resolvedFormat.setSamples(0); // Not multisampled
-        resolvedFormat.setTextureTarget(GL_TEXTURE_2D);
-        resolvedFormat.setInternalTextureFormat(GL_RGBA8);
-
-        if (!m_resolvedFbo || m_resolvedFbo->size() != physicalSize) {
-            m_resolvedFbo = std::make_unique<QOpenGLFramebufferObject>(physicalSize, resolvedFormat);
-            if (!m_resolvedFbo->isValid()) {
-                MMLOG_ERROR() << "Failed to create resolved FBO with physical size "
-                              << physicalSize.width() << "x" << physicalSize.height()
-                              << ". This may cause rendering issues.";
-                m_resolvedFbo.reset(); // Indicate failure
-            } else {
-                MMLOG_INFO() << "Created resolved FBO with physical size "
-                             << m_resolvedFbo->size().width() << "x"
-                             << m_resolvedFbo->size().height();
-            }
-        }
-    } else {
-        m_resolvedFbo.reset();
-        MMLOG_INFO() << "Resolved FBO destroyed (size empty)";
-    }
-
-    // Manage the multisampling FBO only if samples > 0 and size is not empty
-    if (requestedSamples > 0 && !physicalSize.isEmpty()) {
-        auto &gl = getFunctions();
-        GLint maxSamples = 0;
-        gl.glGetIntegerv(GL_MAX_SAMPLES, &maxSamples);
-        int actualSamples = std::min(requestedSamples, static_cast<int>(maxSamples));
-
-        if (actualSamples == 0 && requestedSamples > 0) {
-            MMLOG_WARNING() << "Requested " << requestedSamples
-                            << " samples, but max supported is 0. Disabling multisampling.";
-        } else if (actualSamples < requestedSamples) {
-            MMLOG_INFO() << "Requested " << requestedSamples << " samples, but using "
-                         << actualSamples << " (max supported).";
-        }
-
-        QOpenGLFramebufferObjectFormat msFormat;
-        msFormat.setAttachment(QOpenGLFramebufferObject::CombinedDepthStencil);
-        msFormat.setSamples(actualSamples);
-        msFormat.setTextureTarget(GL_TEXTURE_2D_MULTISAMPLE);
-        msFormat.setInternalTextureFormat(GL_RGBA8);
-
-        if (!m_multisamplingFbo || m_multisamplingFbo->size() != physicalSize
-            || m_multisamplingFbo->format().samples() != actualSamples) {
-            m_multisamplingFbo = std::make_unique<QOpenGLFramebufferObject>(physicalSize, msFormat);
-            if (!m_multisamplingFbo->isValid()) {
-                MMLOG_ERROR() << "Failed to create multisampling FBO with " << actualSamples
-                              << " samples and physical size " << physicalSize.width() << "x"
-                              << physicalSize.height() << ". Falling back to no multisampling.";
-                m_multisamplingFbo.reset(); // Fallback
-            } else {
-                MMLOG_INFO() << "Created multisampling FBO with "
-                             << m_multisamplingFbo->format().samples()
-                             << " samples and physical size " << m_multisamplingFbo->size().width()
-                             << "x" << m_multisamplingFbo->size().height();
-            }
-        }
-    } else {
-        m_multisamplingFbo.reset();
-        MMLOG_INFO() << "Multisampling FBO destroyed (samples <= 0 or size empty)";
-    }
+    m_fbo->configure(size, samples, getDevicePixelRatio(), getFunctions());
 }
 
-QOpenGLFramebufferObject *OpenGL::getRenderFbo() const
+void OpenGL::bindFbo()
 {
-    // Render to the multisampling FBO if it's valid, otherwise render to the resolved FBO
-    if (m_multisamplingFbo && m_multisamplingFbo->isValid()) {
-        return m_multisamplingFbo.get();
-    }
-    // Fallback to resolved FBO (which should always be valid if size is not empty)
-    return m_resolvedFbo.get();
+    m_fbo->bind();
 }
 
-void OpenGL::bindMultisamplingFbo()
+void OpenGL::releaseFbo()
 {
-    if (m_multisamplingFbo) {
-        m_multisamplingFbo->bind();
-    }
+    m_fbo->release();
 }
 
-void OpenGL::releaseMultisamplingFbo()
+void OpenGL::blitFboToDefault()
 {
-    if (m_multisamplingFbo) {
-        m_multisamplingFbo->release();
-    }
-}
-
-void OpenGL::blitResolvedToDefault(const QSize & /*size*/)
-{
-    if (!m_resolvedFbo || !m_resolvedFbo->isValid()) {
-        MMLOG_WARNING() << "Resolved FBO not valid for blitting. Skipping blit sequence.";
-        return;
-    }
-
-    // If multisampling FBO is valid, blit from it to the resolved FBO first
-    if (m_multisamplingFbo && m_multisamplingFbo->isValid()) {
-        QOpenGLFramebufferObject::blitFramebuffer(m_resolvedFbo.get(),
-                                                  m_multisamplingFbo.get(),
-                                                  GL_COLOR_BUFFER_BIT,
-                                                  GL_LINEAR); // Use GL_LINEAR for filtering during resolve
-    }
-    // Always blit from the resolved FBO to the default framebuffer (displays on screen)
-    QOpenGLFramebufferObject::blitFramebuffer(
-        nullptr, // Default framebuffer
-        m_resolvedFbo.get(),
-        GL_COLOR_BUFFER_BIT,
-        GL_NEAREST); // GL_NEAREST is usually fine for 1:1 blit to screen
-}
-
-bool OpenGL::tryEnableMultisampling(const int requestedSamples)
-{
-    // This function now primarily manages the GL_MULTISAMPLE state for the default framebuffer.
-    // The FBO handles the actual multisampling rendering.
-    auto &gl = getFunctions();
-    if (requestedSamples > 0) {
-        gl.glEnable(GL_MULTISAMPLE);
-        // The old smoothing hints might still be useful as a fallback or in conjunction,
-        // but the primary multisampling is now via FBO. We can keep them for now.
-        gl.glEnable(GL_LINE_SMOOTH);
-        gl.glDisable(GL_POLYGON_SMOOTH);
-        gl.glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
-        return true;
-    } else {
-        gl.glDisable(GL_MULTISAMPLE);
-        gl.glDisable(GL_LINE_SMOOTH);
-        gl.glDisable(GL_POLYGON_SMOOTH);
-        return false;
-    }
+    m_fbo->blitToDefault();
 }
 
 UniqueMesh OpenGL::createPointBatch(const std::vector<ColorVert> &batch)

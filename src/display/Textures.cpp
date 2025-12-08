@@ -320,7 +320,7 @@ MapCanvasTexturesProxy getProxy(const MapCanvasTextures &mct)
 
 void MapCanvas::updateTextures()
 {
-    const bool wantTrilinear = getConfig().canvas.trilinearFiltering;
+    const bool wantTrilinear = getConfig().canvas.trilinearFiltering.get();
     m_textures.for_each([wantTrilinear](SharedMMTexture &tex) -> void {
         if (tex->canBeUpdated()) {
             ::setTrilinear(tex, wantTrilinear);

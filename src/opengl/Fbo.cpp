@@ -2,6 +2,7 @@
 // Copyright (C) 2023 The MMapper Authors
 
 #include "Fbo.h"
+
 #include "../global/logging.h"
 #include "./legacy/Legacy.h"
 
@@ -11,7 +12,10 @@
 Fbo::Fbo() = default;
 Fbo::~Fbo() = default;
 
-void Fbo::configure(const QSize &size, int requestedSamples, float devicePixelRatio, Legacy::Functions &gl)
+void Fbo::configure(const QSize &size,
+                    int requestedSamples,
+                    float devicePixelRatio,
+                    Legacy::Functions &gl)
 {
     // Unconditionally release old FBOs to ensure a clean slate.
     m_multisamplingFbo.reset();
@@ -55,10 +59,11 @@ void Fbo::configure(const QSize &size, int requestedSamples, float devicePixelRa
 
             m_multisamplingFbo = std::make_unique<QOpenGLFramebufferObject>(physicalSize, msFormat);
             if (!m_multisamplingFbo->isValid()) {
-                MMLOG_ERROR() << "Failed to create multisampling FBO. Falling back to no multisampling.";
+                MMLOG_ERROR()
+                    << "Failed to create multisampling FBO. Falling back to no multisampling.";
                 m_multisamplingFbo.reset();
             } else {
-                 MMLOG_INFO() << "Created multisampling FBO with " << actualSamples << " samples.";
+                MMLOG_INFO() << "Created multisampling FBO with " << actualSamples << " samples.";
             }
         }
     }
@@ -66,7 +71,8 @@ void Fbo::configure(const QSize &size, int requestedSamples, float devicePixelRa
 
 void Fbo::bind()
 {
-    QOpenGLFramebufferObject *fboToBind = m_multisamplingFbo ? m_multisamplingFbo.get() : m_resolvedFbo.get();
+    QOpenGLFramebufferObject *fboToBind = m_multisamplingFbo ? m_multisamplingFbo.get()
+                                                             : m_resolvedFbo.get();
     if (fboToBind) {
         fboToBind->bind();
     }
@@ -74,7 +80,8 @@ void Fbo::bind()
 
 void Fbo::release()
 {
-    QOpenGLFramebufferObject *fboToRelease = m_multisamplingFbo ? m_multisamplingFbo.get() : m_resolvedFbo.get();
+    QOpenGLFramebufferObject *fboToRelease = m_multisamplingFbo ? m_multisamplingFbo.get()
+                                                                : m_resolvedFbo.get();
     if (fboToRelease) {
         fboToRelease->release();
     }

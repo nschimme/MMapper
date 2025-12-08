@@ -4,12 +4,12 @@
 
 #include "OpenGL.h"
 
-#include "Fbo.h"
 #include "../global/ConfigConsts.h"
 #include "./legacy/FunctionsES30.h"
 #include "./legacy/FunctionsGL33.h"
 #include "./legacy/Legacy.h"
 #include "./legacy/Meshes.h"
+#include "Fbo.h"
 #include "OpenGLConfig.h"
 #include "OpenGLProber.h"
 #include "OpenGLTypes.h"

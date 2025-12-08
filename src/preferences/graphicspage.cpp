@@ -50,13 +50,13 @@ GraphicsPage::GraphicsPage(QWidget *parent)
             &QComboBox::currentTextChanged,
             this,
             [this](const QString &text) {
-                setConfig().canvas.advanced.antialiasingSamples.set(text.toInt());
+                setConfig().canvas.antialiasingSamples.set(text.toInt());
                 graphicsSettingsChanged();
             });
-    connect(ui->trilinearFilteringCheckBox,
-            &QCheckBox::stateChanged,
-            this,
-            &GraphicsPage::slot_trilinearFilteringStateChanged);
+    connect(ui->trilinearFilteringCheckBox, &QCheckBox::stateChanged, this, [this](int /*unused*/) {
+        setConfig().canvas.trilinearFiltering.set(ui->trilinearFilteringCheckBox->isChecked());
+        graphicsSettingsChanged();
+    });
 
     connect(ui->drawUnsavedChanges, &QCheckBox::stateChanged, this, [this](int /*unused*/) {
         setConfig().canvas.showUnsavedChanges.set(ui->drawUnsavedChanges->isChecked());
@@ -117,11 +117,11 @@ void GraphicsPage::slot_loadConfig()
     setIconColor(ui->darkLitPushButton, settings.roomDarkLitColor);
     setIconColor(ui->connectionNormalPushButton, settings.connectionNormalColor);
 
-    const QString antiAliasingSamples = QString::number(settings.advanced.antialiasingSamples.get());
+    const QString antiAliasingSamples = QString::number(settings.antialiasingSamples.get());
     const int index = utils::clampNonNegative(
         ui->antialiasingSamplesComboBox->findText(antiAliasingSamples));
     ui->antialiasingSamplesComboBox->setCurrentIndex(index);
-    ui->trilinearFilteringCheckBox->setChecked(settings.trilinearFiltering);
+    ui->trilinearFilteringCheckBox->setChecked(settings.trilinearFiltering.get());
 
     ui->drawUnsavedChanges->setChecked(settings.showUnsavedChanges.get());
     ui->drawNeedsUpdate->setChecked(settings.showMissingMapId.get());
@@ -139,12 +139,6 @@ void GraphicsPage::changeColorClicked(XNamedColor &namedColor, QPushButton *cons
         namedColor = Color(newColor);
         setIconColor(pushButton, namedColor);
     }
-}
-
-void GraphicsPage::slot_trilinearFilteringStateChanged(int /*unused*/)
-{
-    setConfig().canvas.trilinearFiltering = ui->trilinearFilteringCheckBox->isChecked();
-    graphicsSettingsChanged();
 }
 
 void GraphicsPage::slot_drawNeedsUpdateStateChanged(int /*unused*/)

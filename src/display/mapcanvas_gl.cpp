@@ -238,6 +238,7 @@ void MapCanvas::initializeGL()
     auto &font = getGLFont();
     font.setTextureId(allocateTextureId());
     font.init();
+    updateTextures();
 
     // compile all shaders
     {
@@ -270,8 +271,13 @@ void MapCanvas::initializeGL()
         this->forceUpdateMeshes();
     });
 
-    setConfig().canvas.advanced.antialiasingSamples.registerChangeCallback(m_lifetime, [this]() {
+    setConfig().canvas.antialiasingSamples.registerChangeCallback(m_lifetime, [this]() {
         this->updateMultisampling();
+        this->update();
+    });
+
+    setConfig().canvas.trilinearFiltering.registerChangeCallback(m_lifetime, [this]() {
+        this->updateTextures();
         this->update();
     });
 }
@@ -477,10 +483,7 @@ void MapCanvas::resizeGL(int width, int height)
     }
 
     setViewportAndMvp(width, height);
-
-    // Update the multisampling FBO size when the canvas is resized
-    const int wantMultisampling = getConfig().canvas.advanced.antialiasingSamples.get();
-    getOpenGL().configureFbo(size(), wantMultisampling);
+    updateMultisampling();
 
     // Render
     update();
@@ -843,8 +846,6 @@ void MapCanvas::paintGL()
     }
 
     {
-        updateMultisampling();
-        updateTextures();
         if (showPerfStats) {
             optAfterTextures = Clock::now();
         }
@@ -1021,7 +1022,7 @@ void MapCanvas::paintSelectionArea()
 
 void MapCanvas::updateMultisampling()
 {
-    const int wantMultisampling = getConfig().canvas.advanced.antialiasingSamples.get();
+    const int wantMultisampling = getConfig().canvas.antialiasingSamples.get();
     getOpenGL().configureFbo(size(), wantMultisampling);
 }
 

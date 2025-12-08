@@ -284,6 +284,10 @@ TexLookup &Functions::getTexLookup()
 {
     return deref(m_texLookup);
 }
+FBO &Functions::getFBO()
+{
+    return deref(m_fbo);
+}
 
 /// This only exists so we can detect errors in contexts that don't support \c glDebugMessageCallback().
 void Functions::checkError()
@@ -320,24 +324,24 @@ void Functions::checkError()
 #undef CASE
 }
 
-void Functions::configureFbo(const QSize &size, int samples)
+void Functions::configureFbo(int samples)
 {
-    deref(m_fbo).configure(size, samples, m_devicePixelRatio);
+    getFBO().configure(getPhysicalViewport(), samples);
 }
 
 void Functions::bindFbo()
 {
-    deref(m_fbo).bind();
+    getFBO().bind();
 }
 
 void Functions::releaseFbo()
 {
-    deref(m_fbo).release();
+    getFBO().release();
 }
 
 void Functions::blitFboToDefault()
 {
-    deref(m_fbo).blitToDefault();
+    getFBO().blitToDefault();
 }
 
 } // namespace Legacy

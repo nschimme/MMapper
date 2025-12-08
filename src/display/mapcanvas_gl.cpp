@@ -1023,7 +1023,7 @@ void MapCanvas::paintSelectionArea()
 void MapCanvas::updateMultisampling()
 {
     const int wantMultisampling = getConfig().canvas.antialiasingSamples.get();
-    getOpenGL().configureFbo(size(), wantMultisampling);
+    getOpenGL().configureFbo(wantMultisampling);
 }
 
 void MapCanvas::renderMapBatches()

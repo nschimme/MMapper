@@ -241,6 +241,8 @@ public:
 
     NODISCARD TexLookup &getTexLookup();
 
+    NODISCARD FBO &getFBO();
+
 private:
     friend PointSizeBinder;
     /// platform-specific (ES vs GL)
@@ -351,7 +353,7 @@ public:
     void checkError();
 
 public:
-    void configureFbo(const QSize &size, int samples);
+    void configureFbo(int samples);
     void bindFbo();
     void releaseFbo();
     void blitFboToDefault();

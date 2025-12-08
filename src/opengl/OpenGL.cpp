@@ -63,9 +63,9 @@ void OpenGL::setProjectionMatrix(const glm::mat4 &m)
     getFunctions().setProjectionMatrix(m);
 }
 
-void OpenGL::configureFbo(const QSize &size, int samples)
+void OpenGL::configureFbo(int samples)
 {
-    getFunctions().configureFbo(size, samples);
+    getFunctions().configureFbo(samples);
 }
 
 void OpenGL::bindFbo()

@@ -58,7 +58,7 @@ public:
     void glViewport(GLint x, GLint y, GLsizei w, GLsizei h);
 
 public:
-    void configureFbo(const QSize &size, int samples);
+    void configureFbo(int samples);
     void bindFbo();
     void releaseFbo();
     void blitFboToDefault();

@@ -3,6 +3,7 @@
 // Copyright (C) 2023 The MMapper Authors
 
 #include "../../global/RuleOf5.h"
+#include "../OpenGLTypes.h"
 
 #include <memory>
 
@@ -21,7 +22,7 @@ public:
     DELETE_CTORS_AND_ASSIGN_OPS(FBO);
 
 public:
-    void configure(const QSize &size, int samples, float devicePixelRatio);
+    void configure(const Viewport &physicalViewport, int samples);
     void bind();
     void release();
     void blitToDefault();

@@ -6,24 +6,22 @@
 #include "../../global/logging.h"
 #include "../OpenGLConfig.h"
 
-#include <QOpenGLFramebufferObject>
-#include <QOpenGLFramebufferObjectFormat>
-
 namespace Legacy {
 
-bool LOG_FBO_ALLOCATIONS = false;
+bool LOG_FBO_ALLOCATIONS = true;
 
-void FBO::configure(const QSize &size, int requestedSamples, float devicePixelRatio)
+void FBO::configure(const Viewport &physicalViewport, int requestedSamples)
 {
     // Unconditionally release old FBOs to ensure a clean slate.
     m_multisamplingFbo.reset();
     m_resolvedFbo.reset();
 
-    const QSize physicalSize(size.width() * static_cast<int>(devicePixelRatio),
-                             size.height() * static_cast<int>(devicePixelRatio));
-
+    const QSize physicalSize(physicalViewport.offset.x, physicalViewport.offset.y);
     if (physicalSize.isEmpty()) {
-        throw std::runtime_error("FBOs destroyed (size empty)");
+        if (LOG_FBO_ALLOCATIONS) {
+            MMLOG_INFO() << "FBOs destroyed (size empty)";
+        }
+        return;
     }
 
     // Always create the resolved FBO. This is our target for MSAA resolve

@@ -244,14 +244,6 @@ private:
     /// platform-specific (ES vs GL)
     void enableProgramPointSize(bool enable) { virt_enableProgramPointSize(enable); }
 
-private:
-    friend OpenGL;
-    /// platform-specific (ES vs GL)
-    NODISCARD bool tryEnableMultisampling(int requestedSamples)
-    {
-        return virt_tryEnableMultisampling(requestedSamples);
-    }
-
 public:
     /// platform-specific (ES vs GL)
     NODISCARD const char *getShaderVersion() const { return virt_getShaderVersion(); }
@@ -260,7 +252,6 @@ protected:
     NODISCARD virtual bool virt_canRenderQuads() = 0;
     NODISCARD virtual std::optional<GLenum> virt_toGLenum(DrawModeEnum mode) = 0;
     virtual void virt_enableProgramPointSize(bool enable) = 0;
-    NODISCARD virtual bool virt_tryEnableMultisampling(int requestedSamples) = 0;
     NODISCARD virtual const char *virt_getShaderVersion() const = 0;
 
 private:

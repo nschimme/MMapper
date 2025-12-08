@@ -9,7 +9,6 @@
 #include "./legacy/FunctionsGL33.h"
 #include "./legacy/Legacy.h"
 #include "./legacy/Meshes.h"
-#include "FBO.h"
 #include "OpenGLConfig.h"
 #include "OpenGLProber.h"
 #include "OpenGLTypes.h"
@@ -40,7 +39,6 @@ OpenGL::OpenGL()
         qFatal("Invalid backend type");
         break;
     }
-    m_fbo = std::make_unique<FBO>();
 }
 
 OpenGL::~OpenGL() = default;
@@ -67,22 +65,22 @@ void OpenGL::setProjectionMatrix(const glm::mat4 &m)
 
 void OpenGL::configureFbo(const QSize &size, int samples)
 {
-    m_fbo->configure(size, samples, getDevicePixelRatio());
+    getFunctions().configureFbo(size, samples);
 }
 
 void OpenGL::bindFbo()
 {
-    m_fbo->bind();
+    getFunctions().bindFbo();
 }
 
 void OpenGL::releaseFbo()
 {
-    m_fbo->release();
+    getFunctions().releaseFbo();
 }
 
 void OpenGL::blitFboToDefault()
 {
-    m_fbo->blitToDefault();
+    getFunctions().blitFboToDefault();
 }
 
 UniqueMesh OpenGL::createPointBatch(const std::vector<ColorVert> &batch)
@@ -227,6 +225,7 @@ void OpenGL::initializeRenderer(const float devicePixelRatio)
 {
     setDevicePixelRatio(devicePixelRatio);
 
+    // REVISIT: Move this somewhere else?
     GLint maxSamples = 0;
     getFunctions().glGetIntegerv(GL_MAX_SAMPLES, &maxSamples);
     OpenGLConfig::setMaxSamples(maxSamples);

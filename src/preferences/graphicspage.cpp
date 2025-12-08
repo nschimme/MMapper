@@ -50,9 +50,14 @@ GraphicsPage::GraphicsPage(QWidget *parent)
     connect(ui->antialiasingSamplesComboBox,
             &QComboBox::currentTextChanged,
             this,
-            [this](const QString &text) {
-                setConfig().canvas.antialiasingSamples.set(text.toInt());
-                graphicsSettingsChanged();
+            [this](const QString & /*text*/) {
+                if (ui->antialiasingSamplesComboBox->isEnabled()) {
+                    setConfig().canvas.antialiasingSamples.set(
+                        ui->antialiasingSamplesComboBox
+                            ->itemData(ui->antialiasingSamplesComboBox->currentIndex())
+                            .toInt());
+                    graphicsSettingsChanged();
+                }
             });
     connect(ui->trilinearFilteringCheckBox, &QCheckBox::stateChanged, this, [this](int /*unused*/) {
         setConfig().canvas.trilinearFiltering.set(ui->trilinearFilteringCheckBox->isChecked());
@@ -119,19 +124,21 @@ void GraphicsPage::slot_loadConfig()
     setIconColor(ui->connectionNormalPushButton, settings.connectionNormalColor);
 
     {
+        ui->antialiasingSamplesComboBox->setEnabled(false);
         ui->antialiasingSamplesComboBox->clear();
         const int maxSamples = OpenGLConfig::getMaxSamples();
         for (int i = 0; i <= maxSamples; i *= 2) {
-            ui->antialiasingSamplesComboBox->addItem(QString::number(i));
+            ui->antialiasingSamplesComboBox->addItem(i != 0 ? QString("%1x").arg(i) : "Off", i);
             if (i == 0) {
                 i = 1;
             }
         }
-        const QString antiAliasingSamples = QString::number(
-            std::min(settings.antialiasingSamples.get(), maxSamples));
+        const auto samples = std::min(settings.antialiasingSamples.get(), maxSamples);
         const int index = utils::clampNonNegative(
-            ui->antialiasingSamplesComboBox->findText(antiAliasingSamples));
+            ui->antialiasingSamplesComboBox->findData(QVariant(samples), Qt::UserRole));
+        qDebug() << samples << maxSamples << index;
         ui->antialiasingSamplesComboBox->setCurrentIndex(index);
+        ui->antialiasingSamplesComboBox->setEnabled(true);
     }
     ui->trilinearFilteringCheckBox->setChecked(settings.trilinearFiltering.get());
 

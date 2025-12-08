@@ -2,22 +2,23 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2023 The MMapper Authors
 
+#include "../../global/RuleOf5.h"
+
 #include <memory>
 
 #include <QOpenGLFramebufferObject>
 #include <QSize>
 
 namespace Legacy {
-class Functions;
-}
+
+extern bool LOG_FBO_ALLOCATIONS;
 
 class FBO final
 {
 public:
-    explicit FBO();
-    ~FBO();
-    FBO(const FBO &) = delete;
-    FBO &operator=(const FBO &) = delete;
+    FBO() = default;
+    ~FBO() = default;
+    DELETE_CTORS_AND_ASSIGN_OPS(FBO);
 
 public:
     void configure(const QSize &size, int samples, float devicePixelRatio);
@@ -29,3 +30,5 @@ private:
     std::unique_ptr<QOpenGLFramebufferObject> m_multisamplingFbo;
     std::unique_ptr<QOpenGLFramebufferObject> m_resolvedFbo;
 };
+
+} // namespace Legacy

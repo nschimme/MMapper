@@ -25,7 +25,6 @@ class NODISCARD OpenGL final
 {
 private:
     std::shared_ptr<Legacy::Functions> m_opengl;
-    std::unique_ptr<FBO> m_fbo;
     bool m_rendererInitialized = false;
 
 private:

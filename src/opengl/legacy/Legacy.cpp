@@ -237,6 +237,7 @@ Functions::Functions(Badge<Functions>)
     : m_shaderPrograms{std::make_unique<ShaderPrograms>(*this)}
     , m_staticVbos{std::make_unique<StaticVbos>()}
     , m_texLookup{std::make_unique<TexLookup>()}
+    , m_fbo{std::make_unique<FBO>()}
 {}
 
 Functions::~Functions()
@@ -317,6 +318,26 @@ void Functions::checkError()
     }
 
 #undef CASE
+}
+
+void Functions::configureFbo(const QSize &size, int samples)
+{
+    deref(m_fbo).configure(size, samples, m_devicePixelRatio);
+}
+
+void Functions::bindFbo()
+{
+    deref(m_fbo).bind();
+}
+
+void Functions::releaseFbo()
+{
+    deref(m_fbo).release();
+}
+
+void Functions::blitFboToDefault()
+{
+    deref(m_fbo).blitToDefault();
 }
 
 } // namespace Legacy

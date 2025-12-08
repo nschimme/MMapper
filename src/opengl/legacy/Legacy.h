@@ -7,6 +7,7 @@
 #include "../../global/utils.h"
 #include "../OpenGLConfig.h"
 #include "../OpenGLTypes.h"
+#include "FBO.h"
 
 #include <cmath>
 #include <memory>
@@ -100,6 +101,7 @@ private:
     std::unique_ptr<ShaderPrograms> m_shaderPrograms;
     std::unique_ptr<StaticVbos> m_staticVbos;
     std::unique_ptr<TexLookup> m_texLookup;
+    std::unique_ptr<FBO> m_fbo;
     std::vector<std::shared_ptr<IRenderable>> m_staticMeshes;
 
 protected:
@@ -347,5 +349,11 @@ public:
 
 public:
     void checkError();
+
+public:
+    void configureFbo(const QSize &size, int samples);
+    void bindFbo();
+    void releaseFbo();
+    void blitFboToDefault();
 };
 } // namespace Legacy

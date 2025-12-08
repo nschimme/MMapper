@@ -3,14 +3,15 @@
 
 #include "FBO.h"
 
-#include "../global/logging.h"
-#include "OpenGLConfig.h"
+#include "../../global/logging.h"
+#include "../OpenGLConfig.h"
 
 #include <QOpenGLFramebufferObject>
 #include <QOpenGLFramebufferObjectFormat>
 
-FBO::FBO() = default;
-FBO::~FBO() = default;
+namespace Legacy {
+
+bool LOG_FBO_ALLOCATIONS = false;
 
 void FBO::configure(const QSize &size, int requestedSamples, float devicePixelRatio)
 {
@@ -22,8 +23,7 @@ void FBO::configure(const QSize &size, int requestedSamples, float devicePixelRa
                              size.height() * static_cast<int>(devicePixelRatio));
 
     if (physicalSize.isEmpty()) {
-        MMLOG_INFO() << "FBOs destroyed (size empty)";
-        return;
+        throw std::runtime_error("FBOs destroyed (size empty)");
     }
 
     // Always create the resolved FBO. This is our target for MSAA resolve
@@ -36,9 +36,8 @@ void FBO::configure(const QSize &size, int requestedSamples, float devicePixelRa
 
     m_resolvedFbo = std::make_unique<QOpenGLFramebufferObject>(physicalSize, resolvedFormat);
     if (!m_resolvedFbo->isValid()) {
-        MMLOG_ERROR() << "Failed to create resolved FBO. Rendering will be broken.";
         m_resolvedFbo.reset();
-        return; // Can't proceed
+        throw std::runtime_error("Failed to create resolved FBO");
     }
 
     // Only create the multisampling FBO if requested.
@@ -54,10 +53,12 @@ void FBO::configure(const QSize &size, int requestedSamples, float devicePixelRa
 
             m_multisamplingFbo = std::make_unique<QOpenGLFramebufferObject>(physicalSize, msFormat);
             if (!m_multisamplingFbo->isValid()) {
-                MMLOG_ERROR()
-                    << "Failed to create multisampling FBO. Falling back to no multisampling.";
+                if (LOG_FBO_ALLOCATIONS) {
+                    MMLOG_ERROR()
+                        << "Failed to create multisampling FBO. Falling back to no multisampling.";
+                }
                 m_multisamplingFbo.reset();
-            } else {
+            } else if (LOG_FBO_ALLOCATIONS) {
                 MMLOG_INFO() << "Created multisampling FBO with " << actualSamples << " samples.";
             }
         }
@@ -102,3 +103,5 @@ void FBO::blitToDefault()
                                               GL_COLOR_BUFFER_BIT,
                                               GL_NEAREST);
 }
+
+} // namespace Legacy

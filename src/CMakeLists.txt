@@ -386,8 +386,8 @@ set(mmapper_SRCS
     mpi/findreplacewidget.h
     observer/gameobserver.cpp
     observer/gameobserver.h
-    opengl/Fbo.cpp
-    opengl/Fbo.h
+    opengl/FBO.cpp
+    opengl/FBO.h
     opengl/Font.cpp
     opengl/Font.h
     opengl/OpenGLProber.cpp

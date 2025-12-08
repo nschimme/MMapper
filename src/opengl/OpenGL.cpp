@@ -9,7 +9,7 @@
 #include "./legacy/FunctionsGL33.h"
 #include "./legacy/Legacy.h"
 #include "./legacy/Meshes.h"
-#include "Fbo.h"
+#include "FBO.h"
 #include "OpenGLConfig.h"
 #include "OpenGLProber.h"
 #include "OpenGLTypes.h"
@@ -27,7 +27,6 @@
 #include <QSurfaceFormat>
 
 OpenGL::OpenGL()
-    : m_fbo{std::make_unique<Fbo>()}
 {
     switch (OpenGLConfig::getBackendType()) {
     case OpenGLProber::BackendType::GL:
@@ -41,6 +40,7 @@ OpenGL::OpenGL()
         qFatal("Invalid backend type");
         break;
     }
+    m_fbo = std::make_unique<FBO>();
 }
 
 OpenGL::~OpenGL() = default;
@@ -67,7 +67,7 @@ void OpenGL::setProjectionMatrix(const glm::mat4 &m)
 
 void OpenGL::configureFbo(const QSize &size, int samples)
 {
-    m_fbo->configure(size, samples, getDevicePixelRatio(), getFunctions());
+    m_fbo->configure(size, samples, getDevicePixelRatio());
 }
 
 void OpenGL::bindFbo()
@@ -226,6 +226,11 @@ void OpenGL::cleanup()
 void OpenGL::initializeRenderer(const float devicePixelRatio)
 {
     setDevicePixelRatio(devicePixelRatio);
+
+    GLint maxSamples = 0;
+    getFunctions().glGetIntegerv(GL_MAX_SAMPLES, &maxSamples);
+    OpenGLConfig::setMaxSamples(maxSamples);
+
     m_rendererInitialized = true;
 }
 

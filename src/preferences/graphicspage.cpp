@@ -6,6 +6,7 @@
 
 #include "../configuration/configuration.h"
 #include "../global/utils.h"
+#include "../opengl/OpenGLConfig.h"
 #include "AdvancedGraphics.h"
 #include "ui_graphicspage.h"
 
@@ -117,10 +118,21 @@ void GraphicsPage::slot_loadConfig()
     setIconColor(ui->darkLitPushButton, settings.roomDarkLitColor);
     setIconColor(ui->connectionNormalPushButton, settings.connectionNormalColor);
 
-    const QString antiAliasingSamples = QString::number(settings.antialiasingSamples.get());
-    const int index = utils::clampNonNegative(
-        ui->antialiasingSamplesComboBox->findText(antiAliasingSamples));
-    ui->antialiasingSamplesComboBox->setCurrentIndex(index);
+    {
+        ui->antialiasingSamplesComboBox->clear();
+        const int maxSamples = OpenGLConfig::getMaxSamples();
+        for (int i = 0; i <= maxSamples; i *= 2) {
+            ui->antialiasingSamplesComboBox->addItem(QString::number(i));
+            if (i == 0) {
+                i = 1;
+            }
+        }
+        const QString antiAliasingSamples = QString::number(
+            std::min(settings.antialiasingSamples.get(), maxSamples));
+        const int index = utils::clampNonNegative(
+            ui->antialiasingSamplesComboBox->findText(antiAliasingSamples));
+        ui->antialiasingSamplesComboBox->setCurrentIndex(index);
+    }
     ui->trilinearFilteringCheckBox->setChecked(settings.trilinearFiltering.get());
 
     ui->drawUnsavedChanges->setChecked(settings.showUnsavedChanges.get());

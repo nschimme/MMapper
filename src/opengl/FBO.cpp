@@ -1,21 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2023 The MMapper Authors
 
-#include "Fbo.h"
+#include "FBO.h"
 
 #include "../global/logging.h"
-#include "./legacy/Legacy.h"
+#include "OpenGLConfig.h"
 
 #include <QOpenGLFramebufferObject>
 #include <QOpenGLFramebufferObjectFormat>
 
-Fbo::Fbo() = default;
-Fbo::~Fbo() = default;
+FBO::FBO() = default;
+FBO::~FBO() = default;
 
-void Fbo::configure(const QSize &size,
-                    int requestedSamples,
-                    float devicePixelRatio,
-                    Legacy::Functions &gl)
+void FBO::configure(const QSize &size, int requestedSamples, float devicePixelRatio)
 {
     // Unconditionally release old FBOs to ensure a clean slate.
     m_multisamplingFbo.reset();
@@ -46,9 +43,7 @@ void Fbo::configure(const QSize &size,
 
     // Only create the multisampling FBO if requested.
     if (requestedSamples > 0) {
-        GLint maxSamples = 0;
-        gl.glGetIntegerv(GL_MAX_SAMPLES, &maxSamples);
-        int actualSamples = std::min(requestedSamples, static_cast<int>(maxSamples));
+        int actualSamples = std::min(requestedSamples, OpenGLConfig::getMaxSamples());
 
         if (actualSamples > 0) {
             QOpenGLFramebufferObjectFormat msFormat;
@@ -69,7 +64,7 @@ void Fbo::configure(const QSize &size,
     }
 }
 
-void Fbo::bind()
+void FBO::bind()
 {
     QOpenGLFramebufferObject *fboToBind = m_multisamplingFbo ? m_multisamplingFbo.get()
                                                              : m_resolvedFbo.get();
@@ -78,7 +73,7 @@ void Fbo::bind()
     }
 }
 
-void Fbo::release()
+void FBO::release()
 {
     QOpenGLFramebufferObject *fboToRelease = m_multisamplingFbo ? m_multisamplingFbo.get()
                                                                 : m_resolvedFbo.get();
@@ -87,7 +82,7 @@ void Fbo::release()
     }
 }
 
-void Fbo::blitToDefault()
+void FBO::blitToDefault()
 {
     if (!m_resolvedFbo) {
         return; // Nothing to blit from

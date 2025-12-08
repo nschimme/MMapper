@@ -11,16 +11,16 @@ namespace Legacy {
 class Functions;
 }
 
-class Fbo final
+class FBO final
 {
 public:
-    explicit Fbo();
-    ~Fbo();
-    Fbo(const Fbo &) = delete;
-    Fbo &operator=(const Fbo &) = delete;
+    explicit FBO();
+    ~FBO();
+    FBO(const FBO &) = delete;
+    FBO &operator=(const FBO &) = delete;
 
 public:
-    void configure(const QSize &size, int samples, float devicePixelRatio, Legacy::Functions &gl);
+    void configure(const QSize &size, int samples, float devicePixelRatio);
     void bind();
     void release();
     void blitToDefault();

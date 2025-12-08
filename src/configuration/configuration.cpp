@@ -29,7 +29,6 @@ std::thread::id g_thread{};
 std::atomic_bool g_config_enteredMain{false};
 
 thread_local SharedCanvasNamedColorOptions tl_canvas_named_color_options;
-thread_local SharedNamedColorOptions tl_named_color_options;
 
 NODISCARD const char *getPlatformEditor()
 {
@@ -448,7 +447,7 @@ NODISCARD static uint16_t sanitizeUint16(const int input, const uint16_t default
         GROUP_CALLBACK(callback, GRP_AUTO_LOAD_WORLD, autoLoad); \
         GROUP_CALLBACK(callback, GRP_AUTO_LOG, autoLog); \
         GROUP_CALLBACK(callback, GRP_PARSER, parser); \
-        GROUP_CALLBACK(callback, GRP_MUME_CLIENT_PROTOCOL, mumeClientProtocol); \
+        GROUP_CALLBACK(callback, GRP_MUME_CLIENT_protocol, mumeClientProtocol); \
         GROUP_CALLBACK(callback, GRP_MUME_NATIVE, mumeNative); \
         GROUP_CALLBACK(callback, GRP_PATH_MACHINE, pathMachine); \
         GROUP_CALLBACK(callback, GRP_GROUP_MANAGER, groupManager); \
@@ -464,7 +463,7 @@ NODISCARD static uint16_t sanitizeUint16(const int input, const uint16_t default
 void Configuration::read()
 {
     // reset to defaults before reading colors that might override them
-    colorSettings.resetToDefaults();
+    canvas.resetToDefaults();
 
     SETTINGS(conf);
     FOREACH_CONFIG_GROUP(read);
@@ -479,14 +478,9 @@ void Configuration::read()
         autoLog.autoLog = (CURRENT_PLATFORM != PlatformEnum::Wasm);
     }
 
-    assert(canvas.backgroundColor == colorSettings.BACKGROUND);
-    assert(canvas.roomDarkColor == colorSettings.ROOM_DARK);
-    assert(canvas.roomDarkLitColor == colorSettings.ROOM_NO_SUNDEATH);
-
-    assert(colorSettings.TRANSPARENT.isInitialized()
-           && colorSettings.TRANSPARENT.getColor().isTransparent());
-    assert(colorSettings.BACKGROUND.isInitialized()
-           && !colorSettings.BACKGROUND.getColor().isTransparent());
+    assert(canvas.transparent.isInitialized() && canvas.transparent.getColor().isTransparent());
+    assert(canvas.backgroundColor.isInitialized()
+           && !canvas.backgroundColor.getColor().isTransparent());
 }
 
 void Configuration::write() const
@@ -600,10 +594,10 @@ void Configuration::CanvasSettings::read(const QSettings &conf)
     showUnmappedExits.set(conf.value(KEY_DRAW_NOT_MAPPED_EXITS, true).toBool());
     drawUpperLayersTextured = conf.value(KEY_DRAW_UPPER_LAYERS_TEXTURED, false).toBool();
     drawDoorNames = conf.value(KEY_DRAW_DOOR_NAMES, true).toBool();
-    backgroundColor = lookupColor(KEY_BACKGROUND_COLOR, DEFAULT_BGCOLOR);
-    connectionNormalColor = lookupColor(KEY_CONNECTION_NORMAL_COLOR, Colors::white.toHex());
-    roomDarkColor = lookupColor(KEY_ROOM_DARK_COLOR, DEFAULT_DARK_COLOR);
-    roomDarkLitColor = lookupColor(KEY_ROOM_DARK_LIT_COLOR, DEFAULT_NO_SUNDEATH_COLOR);
+#define X_READ(_id, _capsId, _name, _uiName) \
+    _id = Color(QColor(conf.value(QString::fromStdString(std::string{_name})).toString()));
+    XFOREACH_CANVAS_NAMED_COLOR_OPTIONS(X_READ)
+#undef X_READ
     antialiasingSamples = conf.value(KEY_NUMBER_OF_ANTI_ALIASING_SAMPLES, 0).toInt();
     trilinearFiltering = conf.value(KEY_USE_TRILINEAR_FILTERING, true).toBool();
     advanced.use3D.set(conf.value(KEY_3D_CANVAS, false).toBool());
@@ -785,10 +779,10 @@ void Configuration::CanvasSettings::write(QSettings &conf) const
     conf.setValue(KEY_DRAW_NOT_MAPPED_EXITS, showUnmappedExits.get());
     conf.setValue(KEY_DRAW_UPPER_LAYERS_TEXTURED, drawUpperLayersTextured);
     conf.setValue(KEY_DRAW_DOOR_NAMES, drawDoorNames);
-    conf.setValue(KEY_BACKGROUND_COLOR, getQColorName(backgroundColor));
-    conf.setValue(KEY_ROOM_DARK_COLOR, getQColorName(roomDarkColor));
-    conf.setValue(KEY_ROOM_DARK_LIT_COLOR, getQColorName(roomDarkLitColor));
-    conf.setValue(KEY_CONNECTION_NORMAL_COLOR, getQColorName(connectionNormalColor));
+#define X_WRITE(_id, _capsId, _name, _uiName) \
+    conf.setValue(QString::fromStdString(std::string{_name}), getQColorName(_id));
+    XFOREACH_CANVAS_NAMED_COLOR_OPTIONS(X_WRITE)
+#undef X_WRITE
     conf.setValue(KEY_NUMBER_OF_ANTI_ALIASING_SAMPLES, antialiasingSamples);
     conf.setValue(KEY_USE_TRILINEAR_FILTERING, trilinearFiltering);
     conf.setValue(KEY_3D_CANVAS, advanced.use3D.get());
@@ -929,7 +923,7 @@ const Configuration &getConfig()
     return setConfig();
 }
 
-void Configuration::NamedColorOptions::resetToDefaults()
+void Configuration::CanvasNamedColorOptions::resetToDefaults()
 {
     assert(Colors::black.getRGB() == 0 && Colors::black.getRGBA() != 0);
     static const auto fromHashHex = [](std::string_view sv) {
@@ -945,33 +939,33 @@ void Configuration::NamedColorOptions::resetToDefaults()
     static const Color noflee{123, 63, 0};    // closest well-known color is "Cinnamon"
     static const Color water{76, 216, 255};   // closest well-known color is "Malibu"
 
-    BACKGROUND = background;
-    CONNECTION_NORMAL = Colors::white;
-    HIGHLIGHT_UNSAVED = Colors::cyan;
-    HIGHLIGHT_TEMPORARY = Colors::red;
-    HIGHLIGHT_NEEDS_SERVER_ID = Colors::yellow;
-    INFOMARK_COMMENT = Colors::gray75;
-    INFOMARK_HERB = Colors::green;
-    INFOMARK_MOB = Colors::red;
-    INFOMARK_OBJECT = Colors::yellow;
-    INFOMARK_RIVER = water;
-    INFOMARK_ROAD = road;
-    ROOM_DARK = darkRoom;
-    ROOM_NO_SUNDEATH = noSundeath;
-    STREAM = water;
-    TRANSPARENT = Color(0, 0, 0, 0);
-    VERTICAL_COLOR_CLIMB = Colors::webGray;
-    VERTICAL_COLOR_REGULAR_EXIT = Colors::white;
-    WALL_COLOR_BUG_WALL_DOOR = Colors::red20;
-    WALL_COLOR_CLIMB = Colors::gray70;
-    WALL_COLOR_FALL_DAMAGE = Colors::cyan;
-    WALL_COLOR_GUARDED = Colors::yellow;
-    WALL_COLOR_NO_FLEE = noflee;
-    WALL_COLOR_NO_MATCH = Colors::blue;
-    WALL_COLOR_NOT_MAPPED = Colors::darkOrange1;
-    WALL_COLOR_RANDOM = Colors::red;
-    WALL_COLOR_REGULAR_EXIT = Colors::black;
-    WALL_COLOR_SPECIAL = special;
+    backgroundColor = background;
+    connectionNormalColor = Colors::white;
+    highlightUnsaved = Colors::cyan;
+    highlightTemporary = Colors::red;
+    highlightNeedsServerId = Colors::yellow;
+    infomarkComment = Colors::gray75;
+    infomarkHerb = Colors::green;
+    infomarkMob = Colors::red;
+    infomarkObject = Colors::yellow;
+    infomarkRiver = water;
+    infomarkRoad = road;
+    roomDarkColor = darkRoom;
+    roomDarkLitColor = noSundeath;
+    stream = water;
+    transparent = Color(0, 0, 0, 0);
+    verticalColorClimb = Colors::webGray;
+    verticalColorRegular = Colors::white;
+    wallBuggedDoor = Colors::red20;
+    wallClimb = Colors::gray70;
+    wallFallDamage = Colors::cyan;
+    wallGuarded = Colors::yellow;
+    wallNoFlee = noflee;
+    wallNoMatch = Colors::blue;
+    wallNotMapped = Colors::darkOrange1;
+    wallRandom = Colors::red;
+    wallRegular = Colors::black;
+    wallSpecial = special;
 }
 
 Configuration::CanvasSettings::Advanced::Advanced()
@@ -1012,15 +1006,6 @@ void setEnteredMain()
     g_config_enteredMain = true;
 }
 
-const Configuration::NamedColorOptions &getNamedColorOptions()
-{
-    assert(g_config_enteredMain);
-    if (g_thread == std::this_thread::get_id()) {
-        return getConfig().colorSettings;
-    }
-
-    return deref(tl_named_color_options);
-}
 
 const Configuration::CanvasNamedColorOptions &getCanvasNamedColorOptions()
 {
@@ -1032,17 +1017,21 @@ const Configuration::CanvasNamedColorOptions &getCanvasNamedColorOptions()
     return deref(tl_canvas_named_color_options);
 }
 
+const Configuration::CanvasNamedColorOptions &getNamedColorOptions()
+{
+    return getCanvasNamedColorOptions();
+}
+
 ThreadLocalNamedColorRaii::ThreadLocalNamedColorRaii(
-    SharedCanvasNamedColorOptions canvasNamedColorOptions, SharedNamedColorOptions namedColorOptions)
+    SharedCanvasNamedColorOptions canvasNamedColorOptions,
+    SharedCanvasNamedColorOptions /*namedColorOptions*/)
 {
     assert(g_config_enteredMain);
     assert(g_thread != std::this_thread::get_id());
     tl_canvas_named_color_options = std::move(canvasNamedColorOptions);
-    tl_named_color_options = std::move(namedColorOptions);
 }
 
 ThreadLocalNamedColorRaii::~ThreadLocalNamedColorRaii()
 {
     tl_canvas_named_color_options.reset();
-    tl_named_color_options.reset();
 }

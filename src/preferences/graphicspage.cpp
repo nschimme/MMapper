@@ -5,6 +5,7 @@
 #include "graphicspage.h"
 
 #include "../configuration/configuration.h"
+#include "../global/ConfigConsts.h"
 #include "../global/utils.h"
 #include "AdvancedGraphics.h"
 #include "ui_graphicspage.h"
@@ -30,22 +31,34 @@ GraphicsPage::GraphicsPage(QWidget *parent)
 
     m_advanced = std::make_unique<AdvancedGraphicsGroupBox>(deref(ui->groupBox_Advanced));
 
-    connect(ui->bgChangeColor, &QAbstractButton::clicked, this, [this]() {
-        changeColorClicked(setConfig().canvas.backgroundColor, ui->bgChangeColor);
-        graphicsSettingsChanged();
-    });
-    connect(ui->darkPushButton, &QAbstractButton::clicked, this, [this]() {
-        changeColorClicked(setConfig().canvas.roomDarkColor, ui->darkPushButton);
-        graphicsSettingsChanged();
-    });
-    connect(ui->darkLitPushButton, &QAbstractButton::clicked, this, [this]() {
-        changeColorClicked(setConfig().canvas.roomDarkLitColor, ui->darkLitPushButton);
-        graphicsSettingsChanged();
-    });
-    connect(ui->connectionNormalPushButton, &QAbstractButton::clicked, this, [this]() {
-        changeColorClicked(setConfig().canvas.connectionNormalColor, ui->connectionNormalPushButton);
-        graphicsSettingsChanged();
-    });
+    {
+        QGridLayout *layout = ui->gridLayout_3;
+        int row = 0;
+#define ADD_COLOR_PICKER(_id, _name, _uiName) \
+    if (_uiName) { \
+        auto *label = new QLabel(tr(_uiName)); \
+        auto *button = new QPushButton(tr("Select")); \
+        button->setObjectName(QString::fromUtf8(_name)); \
+        layout->addWidget(label, row, 0); \
+        layout->addWidget(button, row, 1); \
+        label->setBuddy(button); \
+        connect(button, &QAbstractButton::clicked, this, [this, button]() { \
+            changeColorClicked(setConfig().canvas._id, button); \
+            graphicsSettingsChanged(); \
+        }); \
+        row++; \
+    }
+        XFOREACH_CANVAS_NAMED_COLOR_OPTIONS(ADD_COLOR_PICKER)
+#undef ADD_COLOR_PICKER
+
+        layout->addItem(new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum), \
+                        0, \
+                        2, \
+                        row, \
+                        1);
+        layout->setColumnStretch(2, 1);
+    }
+
     connect(ui->antialiasingSamplesComboBox,
             &QComboBox::currentTextChanged,
             this,
@@ -108,24 +121,30 @@ GraphicsPage::~GraphicsPage()
 
 void GraphicsPage::slot_loadConfig()
 {
-    const auto &settings = getConfig().canvas;
-    setIconColor(ui->bgChangeColor, settings.backgroundColor);
-    setIconColor(ui->darkPushButton, settings.roomDarkColor);
-    setIconColor(ui->darkLitPushButton, settings.roomDarkLitColor);
-    setIconColor(ui->connectionNormalPushButton, settings.connectionNormalColor);
+    const auto &canvas = getConfig().canvas;
 
-    const QString antiAliasingSamples = QString::number(settings.antialiasingSamples);
+#define SET_BUTTON_ICON(_id, _name, _uiName) \
+    if (_uiName) { \
+        auto *button = ui->groupBox_Colour->findChild<QPushButton *>(QString::fromUtf8(_name)); \
+        if (button) { \
+            setIconColor(button, canvas._id); \
+        } \
+    }
+    XFOREACH_CANVAS_NAMED_COLOR_OPTIONS(SET_BUTTON_ICON)
+#undef SET_BUTTON_ICON
+
+    const QString antiAliasingSamples = QString::number(canvas.antialiasingSamples);
     const int index = utils::clampNonNegative(
         ui->antialiasingSamplesComboBox->findText(antiAliasingSamples));
     ui->antialiasingSamplesComboBox->setCurrentIndex(index);
-    ui->trilinearFilteringCheckBox->setChecked(settings.trilinearFiltering);
+    ui->trilinearFilteringCheckBox->setChecked(canvas.trilinearFiltering);
 
-    ui->drawUnsavedChanges->setChecked(settings.showUnsavedChanges.get());
-    ui->drawNeedsUpdate->setChecked(settings.showMissingMapId.get());
-    ui->drawNotMappedExits->setChecked(settings.showUnmappedExits.get());
-    ui->drawDoorNames->setChecked(settings.drawDoorNames);
+    ui->drawUnsavedChanges->setChecked(canvas.showUnsavedChanges.get());
+    ui->drawNeedsUpdate->setChecked(canvas.showMissingMapId.get());
+    ui->drawNotMappedExits->setChecked(canvas.showUnmappedExits.get());
+    ui->drawDoorNames->setChecked(canvas.drawDoorNames);
 
-    ui->resourceLineEdit->setText(settings.resourcesDirectory);
+    ui->resourceLineEdit->setText(canvas.resourcesDirectory);
 }
 
 void GraphicsPage::changeColorClicked(XNamedColor &namedColor, QPushButton *const pushButton)

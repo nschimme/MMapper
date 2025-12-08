@@ -52,7 +52,6 @@
 struct NODISCARD VisitRoomOptions final
 {
     SharedCanvasNamedColorOptions canvasColors;
-    SharedNamedColorOptions colorSettings;
     bool drawNotMappedExits = false;
 };
 
@@ -70,14 +69,13 @@ NODISCARD static VisitRoomOptions getVisitRoomOptions()
     auto &canvas = config.canvas;
     VisitRoomOptions result;
     result.canvasColors = canvas.clone();
-    result.colorSettings = config.colorSettings.clone();
     result.drawNotMappedExits = canvas.showUnmappedExits.get();
     return result;
 }
 
 NODISCARD static bool isTransparent(const XNamedColor &namedColor)
 {
-    return !namedColor.isInitialized() || namedColor == LOOKUP_COLOR(TRANSPARENT);
+    return !namedColor.isInitialized() || namedColor == LOOKUP_COLOR(transparent);
 }
 
 NODISCARD static std::optional<Color> getColor(const XNamedColor &namedColor)
@@ -99,32 +97,32 @@ NODISCARD static XNamedColor getWallNamedColorCommon(const ExitFlags flags,
     // using the same order of flag testing as the horizontal case.
     //
     // In other words, eliminate this `if (isVertical)` block and just use
-    //   return (isVertical ? LOOKUP_COLOR(VERTICAL_COLOR_CLIMB) : LOOKUP_COLOR(WALL_COLOR_CLIMB));
+    //   return (isVertical ? LOOKUP_COLOR(verticalColorClimb) : LOOKUP_COLOR(wallClimb));
     // in the appropriate places in the following chained test for flags.
     if (isVertical) {
         if (flags.isClimb()) {
             // NOTE: This color is slightly darker than WALL_COLOR_CLIMB
-            return LOOKUP_COLOR(VERTICAL_COLOR_CLIMB);
+            return LOOKUP_COLOR(verticalColorClimb);
         }
         /*FALL-THRU*/
     }
 
     if (flags.isNoFlee()) {
-        return LOOKUP_COLOR(WALL_COLOR_NO_FLEE);
+        return LOOKUP_COLOR(wallNoFlee);
     } else if (flags.isRandom()) {
-        return LOOKUP_COLOR(WALL_COLOR_RANDOM);
+        return LOOKUP_COLOR(wallRandom);
     } else if (flags.isFall() || flags.isDamage()) {
-        return LOOKUP_COLOR(WALL_COLOR_FALL_DAMAGE);
+        return LOOKUP_COLOR(wallFallDamage);
     } else if (flags.isSpecial()) {
-        return LOOKUP_COLOR(WALL_COLOR_SPECIAL);
+        return LOOKUP_COLOR(wallSpecial);
     } else if (flags.isClimb()) {
-        return LOOKUP_COLOR(WALL_COLOR_CLIMB);
+        return LOOKUP_COLOR(wallClimb);
     } else if (flags.isGuarded()) {
-        return LOOKUP_COLOR(WALL_COLOR_GUARDED);
+        return LOOKUP_COLOR(wallGuarded);
     } else if (flags.isNoMatch()) {
-        return LOOKUP_COLOR(WALL_COLOR_NO_MATCH);
+        return LOOKUP_COLOR(wallNoMatch);
     } else {
-        return LOOKUP_COLOR(TRANSPARENT);
+        return LOOKUP_COLOR(transparent);
     }
 }
 
@@ -300,7 +298,7 @@ static void visitRoom(const RoomHandle &room,
         if (visitRoomOptions.drawNotMappedExits && exit.exitIsUnmapped()) {
             callbacks.visitWall(room,
                                 dir,
-                                LOOKUP_COLOR(WALL_COLOR_NOT_MAPPED),
+                                LOOKUP_COLOR(wallNotMapped),
                                 WallTypeEnum::DOTTED,
                                 isClimb);
         } else {
@@ -319,13 +317,13 @@ static void visitRoom(const RoomHandle &room,
             if (!isDoor && !exit.outIsEmpty()) {
                 callbacks.visitWall(room,
                                     dir,
-                                    LOOKUP_COLOR(WALL_COLOR_BUG_WALL_DOOR),
+                                    LOOKUP_COLOR(wallBuggedDoor),
                                     WallTypeEnum::DOTTED,
                                     isClimb);
             } else {
                 callbacks.visitWall(room,
                                     dir,
-                                    LOOKUP_COLOR(WALL_COLOR_REGULAR_EXIT),
+                                    LOOKUP_COLOR(wallRegular),
                                     WallTypeEnum::SOLID,
                                     isClimb);
             }
@@ -334,7 +332,7 @@ static void visitRoom(const RoomHandle &room,
         if (isDoor) {
             callbacks.visitWall(room,
                                 dir,
-                                LOOKUP_COLOR(WALL_COLOR_REGULAR_EXIT),
+                                LOOKUP_COLOR(wallRegular),
                                 WallTypeEnum::DOOR,
                                 isClimb);
         }
@@ -353,7 +351,7 @@ static void visitRoom(const RoomHandle &room,
         if (visitRoomOptions.drawNotMappedExits && flags.isUnmapped()) {
             callbacks.visitWall(room,
                                 dir,
-                                LOOKUP_COLOR(WALL_COLOR_NOT_MAPPED),
+                                LOOKUP_COLOR(wallNotMapped),
                                 WallTypeEnum::DOTTED,
                                 isClimb);
             continue;
@@ -369,7 +367,7 @@ static void visitRoom(const RoomHandle &room,
         } else {
             callbacks.visitWall(room,
                                 dir,
-                                LOOKUP_COLOR(VERTICAL_COLOR_REGULAR_EXIT),
+                                LOOKUP_COLOR(verticalColorRegular),
                                 WallTypeEnum::SOLID,
                                 isClimb);
         }
@@ -377,7 +375,7 @@ static void visitRoom(const RoomHandle &room,
         if (flags.isDoor()) {
             callbacks.visitWall(room,
                                 dir,
-                                LOOKUP_COLOR(WALL_COLOR_REGULAR_EXIT),
+                                LOOKUP_COLOR(wallRegular),
                                 WallTypeEnum::DOOR,
                                 isClimb);
         }
@@ -818,7 +816,7 @@ private:
                           const ExitDirEnum dir,
                           const StreamTypeEnum type) final
     {
-        const Color color = LOOKUP_COLOR(STREAM).getColor();
+        const Color color = LOOKUP_COLOR(stream).getColor();
         switch (type) {
         case StreamTypeEnum::OutFlow:
             m_data.streamOuts.emplace_back(room, m_textures.stream_out[dir], color);
@@ -1016,9 +1014,9 @@ void LayerMeshes::render(const int thisLayer, const int focusedLayer)
         const auto namedColor = std::invoke([tint]() -> XNamedColor {
             switch (tint) {
             case RoomTintEnum::DARK:
-                return LOOKUP_COLOR(ROOM_DARK);
+            return LOOKUP_COLOR(roomDarkColor);
             case RoomTintEnum::NO_SUNDEATH:
-                return LOOKUP_COLOR(ROOM_NO_SUNDEATH);
+            return LOOKUP_COLOR(roomDarkLitColor);
             }
             std::abort();
         });
@@ -1102,7 +1100,7 @@ FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTextur
     return std::async(std::launch::async,
                       [textures, font, map, visitRoomOptions]() -> SharedMapBatchFinisher {
                           ThreadLocalNamedColorRaii tlRaii{visitRoomOptions.canvasColors,
-                                                           visitRoomOptions.colorSettings};
+                                                           visitRoomOptions.canvasColors};
                           DECL_TIMER(t, "[ASYNC] generateAllLayerMeshes");
 
                           ProgressCounter dummyPc;

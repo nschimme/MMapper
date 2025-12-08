@@ -46,17 +46,17 @@ NODISCARD static Color getInfomarkColor(const InfomarkTypeEnum infoMarkType,
                                                                         : Colors::white;
     switch (infoMarkClass) {
     case InfomarkClassEnum::HERB:
-        return LOOKUP_COLOR_INFOMARK(INFOMARK_HERB);
+        return LOOKUP_COLOR_INFOMARK(infomarkHerb);
     case InfomarkClassEnum::RIVER:
-        return LOOKUP_COLOR_INFOMARK(INFOMARK_RIVER);
+        return LOOKUP_COLOR_INFOMARK(infomarkRiver);
     case InfomarkClassEnum::MOB:
-        return LOOKUP_COLOR_INFOMARK(INFOMARK_MOB);
+        return LOOKUP_COLOR_INFOMARK(infomarkMob);
     case InfomarkClassEnum::COMMENT:
-        return LOOKUP_COLOR_INFOMARK(INFOMARK_COMMENT);
+        return LOOKUP_COLOR_INFOMARK(infomarkComment);
     case InfomarkClassEnum::ROAD:
-        return LOOKUP_COLOR_INFOMARK(INFOMARK_ROAD);
+        return LOOKUP_COLOR_INFOMARK(infomarkRoad);
     case InfomarkClassEnum::OBJECT:
-        return LOOKUP_COLOR_INFOMARK(INFOMARK_OBJECT);
+        return LOOKUP_COLOR_INFOMARK(infomarkObject);
 
     case InfomarkClassEnum::GENERIC:
     case InfomarkClassEnum::PLACE:

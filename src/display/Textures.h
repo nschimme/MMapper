@@ -34,11 +34,16 @@ private:
     std::optional<MMTexArrayPosition> m_arrayPos;
     bool m_forbidUpdates = false;
     QString m_name;
+    QImage m_image;
 
 public:
     NODISCARD static std::shared_ptr<MMTexture> alloc(const QString &name)
     {
         return std::make_shared<MMTexture>(Badge<MMTexture>{}, name);
+    }
+    NODISCARD static std::shared_ptr<MMTexture> alloc(const QImage &image)
+    {
+        return std::make_shared<MMTexture>(Badge<MMTexture>{}, image);
     }
     NODISCARD static std::shared_ptr<MMTexture> alloc(
         const QOpenGLTexture::Target target,
@@ -51,6 +56,7 @@ public:
 public:
     MMTexture() = delete;
     MMTexture(Badge<MMTexture>, const QString &name);
+    MMTexture(Badge<MMTexture>, const QImage &image);
     MMTexture(Badge<MMTexture>,
               const QOpenGLTexture::Target target,
               const std::function<void(QOpenGLTexture &)> &init,
@@ -64,6 +70,7 @@ public:
 
 public:
     NODISCARD const QString &getName() const { return m_name; }
+    NODISCARD const QImage &getImage() const { return m_image; }
     NODISCARD QOpenGLTexture *get() { return &m_qt_texture; }
     NODISCARD const QOpenGLTexture *get() const { return &m_qt_texture; }
     QOpenGLTexture *operator->() { return get(); }

@@ -163,5 +163,6 @@ public:
     void setTextureLookup(MMTextureId, SharedMMTexture);
 
 public:
-    void initArray(const SharedMMTexture &array, const std::vector<QString> &input);
+    void initArrayFromFiles(const SharedMMTexture &array, const std::vector<QString> &input);
+    void initArrayFromImages(const SharedMMTexture &array, const std::vector<QImage> &input);
 };

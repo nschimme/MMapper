@@ -273,7 +273,7 @@ void OpenGL::setTextureLookup(const MMTextureId id, SharedMMTexture tex)
     getFunctions().getTexLookup().set(id, std::move(tex));
 }
 
-void OpenGL::initArray(const SharedMMTexture &array, const std::vector<QString> &input)
+void OpenGL::initArrayFromFiles(const SharedMMTexture &array, const std::vector<QString> &input)
 {
     auto &gl = getFunctions();
     MMTexture &tex = deref(array);
@@ -289,6 +289,41 @@ void OpenGL::initArray(const SharedMMTexture &array, const std::vector<QString> 
             qWarning() << "Upscaling image" << input[static_cast<size_t>(i)] << "from"
                        << image.width() << "x" << image.height() << "to" << qtex.width() << "x"
                        << qtex.height();
+            image = image.scaled(qtex.width(), qtex.height(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+        }
+        const QImage swappedImage = image.rgbSwapped();
+        gl.glTexSubImage3D(GL_TEXTURE_2D_ARRAY,
+                           0,
+                           0,
+                           0,
+                           i,
+                           swappedImage.width(),
+                           swappedImage.height(),
+                           1,
+                           GL_RGBA,
+                           GL_UNSIGNED_BYTE,
+                           swappedImage.constBits());
+    }
+
+    gl.glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
+    gl.glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+}
+
+void OpenGL::initArrayFromImages(const SharedMMTexture &array, const std::vector<QImage> &input)
+{
+    auto &gl = getFunctions();
+    MMTexture &tex = deref(array);
+    QOpenGLTexture &qtex = deref(tex.get());
+
+    gl.glActiveTexture(GL_TEXTURE0);
+    gl.glBindTexture(GL_TEXTURE_2D_ARRAY, qtex.textureId());
+
+    const auto numLayers = static_cast<GLsizei>(input.size());
+    for (GLsizei i = 0; i < numLayers; ++i) {
+        QImage image = input[static_cast<size_t>(i)].mirrored();
+        if (image.width() != qtex.width() || image.height() != qtex.height()) {
+            qWarning() << "Scaling image from" << image.width() << "x" << image.height() << "to"
+                       << qtex.width() << "x" << qtex.height();
             image = image.scaled(qtex.width(), qtex.height(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
         }
         const QImage swappedImage = image.rgbSwapped();

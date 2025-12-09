@@ -28,14 +28,14 @@ static constexpr const float PROJECTION_EPSILON = 1e-5f;
 static constexpr const float ZERO_LENGTH_THRESHOLD_SQ = GEOMETRIC_EPSILON * GEOMETRIC_EPSILON;
 
 // NOTE: perpendicular_normal is assumed to be unit length.
-void generateLineQuad(std::vector<ColorVert> &verts,
+void generateLineQuad(std::vector<LineVert> &verts,
                       const glm::vec3 &p1,
                       const glm::vec3 &p2,
                       float width,
                       const Color &color,
                       const glm::vec3 &perpendicular_normal);
 
-void drawZeroLengthSquare(std::vector<ColorVert> &verts,
+void drawZeroLengthSquare(std::vector<LineVert> &verts,
                           const glm::vec3 &center,
                           float width,
                           const Color &color);
@@ -50,7 +50,7 @@ NODISCARD glm::vec3 getOrthogonalNormal(const glm::vec3 &direction, const glm::v
 
 // Generates a line quad, handling zero-length segments by drawing a square instead.
 // Uses getPerpendicularNormal for the quad generation.
-void generateLineQuadsSafe(std::vector<ColorVert> &verts,
+void generateLineQuadsSafe(std::vector<LineVert> &verts,
                            const glm::vec3 &p1,
                            const glm::vec3 &p2,
                            float width,

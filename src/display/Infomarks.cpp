@@ -141,7 +141,7 @@ void InfomarksBatch::drawLine(const glm::vec3 &a, const glm::vec3 &b)
     const glm::vec3 start_v = a + m_offset;
     const glm::vec3 end_v = b + m_offset;
 
-    mmgl::generateLineQuadsSafe(m_quads, start_v, end_v, INFOMARK_ARROW_LINE_WIDTH, m_color);
+    mmgl::generateLineQuadsSafe(m_lines, start_v, end_v, INFOMARK_ARROW_LINE_WIDTH, m_color);
 }
 
 void InfomarksBatch::drawTriangle(const glm::vec3 &a, const glm::vec3 &b, const glm::vec3 &c)
@@ -169,7 +169,7 @@ InfomarksMeshes InfomarksBatch::getMeshes()
     auto &gl = m_realGL;
     result.points = gl.createPointBatch(m_points);
     result.tris = gl.createColoredTriBatch(m_tris);
-    result.quads = gl.createColoredQuadBatch(m_quads);
+    result.lines = gl.createColoredLineBatch(m_lines);
 
     {
         assert(!m_text.locked);
@@ -190,8 +190,8 @@ void InfomarksBatch::renderImmediate(const GLRenderState &state)
     if (!m_tris.empty()) {
         gl.renderColoredTris(m_tris, state);
     }
-    if (!m_quads.empty()) {
-        gl.renderColoredQuads(m_quads, state);
+    if (!m_lines.empty()) {
+        gl.renderLines(m_lines, state);
     }
     if (!m_text.text.empty()) {
         m_font.render3dTextImmediate(m_text.text);
@@ -212,7 +212,7 @@ void InfomarksMeshes::render()
 
     points.render(common_state.withPointSize(INFOMARK_POINT_SIZE));
     tris.render(common_state);
-    quads.render(common_state);
+    lines.render(common_state);
     textMesh.render(common_state);
 }
 
@@ -300,11 +300,14 @@ void MapCanvas::paintNewInfomarkSelection()
 
     // Draw yellow guide when creating an infomark line/arrow
     if (m_canvasMouseMode == CanvasMouseModeEnum::CREATE_INFOMARKS && m_selectedArea) {
-        const auto infomarksLineStyle = GLRenderState()
-                                            .withColor(Color{Qt::yellow})
-                                            .withLineParams(LineParams{INFOMARK_GUIDE_LINE_WIDTH});
-        const std::vector<glm::vec3> verts{glm::vec3{pos1, layer}, glm::vec3{pos2, layer}};
-        gl.renderPlainLines(verts, infomarksLineStyle);
+        const auto infomarksLineStyle = GLRenderState().withColor(Color{Qt::yellow});
+        std::vector<LineVert> verts;
+        mmgl::generateLineQuadsSafe(verts,
+                                    glm::vec3{pos1, layer},
+                                    glm::vec3{pos2, layer},
+                                    INFOMARK_GUIDE_LINE_WIDTH,
+                                    Color{Qt::yellow});
+        gl.renderLines(verts, infomarksLineStyle);
     }
 }
 

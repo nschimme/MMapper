@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2025 The MMapper Authors
+
+uniform mat4 uMVP;
+
+layout(location = 0) in vec3 aVert;
+layout(location = 1) in vec4 aColor;
+layout(location = 2) in vec2 aLineCoord;
+
+out vec4 vColor;
+out vec2 vLineCoord;
+
+void main()
+{
+    gl_Position = uMVP * vec4(aVert, 1.0);
+    vColor = aColor;
+    vLineCoord = aLineCoord;
+}

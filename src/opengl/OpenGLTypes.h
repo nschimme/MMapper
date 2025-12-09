@@ -54,10 +54,25 @@ struct NODISCARD ColorVert final
 {
     Color color;
     glm::vec3 vert{};
+    float pointSize = 1.f;
 
-    explicit ColorVert(const Color &color_, const glm::vec3 &vert_)
+    explicit ColorVert(const Color &color_, const glm::vec3 &vert_, const float pointSize_ = 1.f)
         : color{color_}
         , vert{vert_}
+        , pointSize{pointSize_}
+    {}
+};
+
+struct NODISCARD LineVert final
+{
+    Color color;
+    glm::vec3 vert{};
+    glm::vec2 lineCoord{};
+
+    explicit LineVert(const Color &color_, const glm::vec3 &vert_, const glm::vec2 &lineCoord_)
+        : color{color_}
+        , vert{vert_}
+        , lineCoord{lineCoord_}
     {}
 };
 
@@ -180,9 +195,6 @@ struct NODISCARD GLRenderState final
     using OptDepth = std::optional<DepthFunctionEnum>;
     OptDepth depth;
 
-    // glLineWidth() + { glEnable(LINE_STIPPLE) + glLineStipple() }
-    LineParams lineParams;
-
     using Textures = MMapper::Array<MMTextureId, 2>;
     struct NODISCARD Uniforms final
     {
@@ -226,13 +238,6 @@ struct NODISCARD GLRenderState final
     {
         GLRenderState copy = *this;
         copy.depth.reset();
-        return copy;
-    }
-
-    NODISCARD GLRenderState withLineParams(const LineParams &new_lineParams) const
-    {
-        GLRenderState copy = *this;
-        copy.lineParams = new_lineParams;
         return copy;
     }
 

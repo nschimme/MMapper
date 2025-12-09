@@ -70,6 +70,7 @@ public:
     // plain means the color is defined by uniform
     NODISCARD UniqueMesh createPlainLineBatch(const std::vector<glm::vec3> &verts);
     // colored means the color is defined by attribute
+    NODISCARD UniqueMesh createColoredLineBatch(const std::vector<LineVert> &verts);
     NODISCARD UniqueMesh createColoredLineBatch(const std::vector<ColorVert> &verts);
 
 public:
@@ -91,13 +92,14 @@ public:
                                         DrawModeEnum mode,
                                         const std::vector<FontVert3d> &batch);
 
-protected:
+public:
     void renderPlain(DrawModeEnum type,
                      const std::vector<glm::vec3> &verts,
                      const GLRenderState &state);
     void renderColored(DrawModeEnum type,
                        const std::vector<ColorVert> &verts,
                        const GLRenderState &state);
+    void renderLines(const std::vector<LineVert> &verts, const GLRenderState &state);
     void renderTextured(DrawModeEnum type,
                         const std::vector<TexVert> &verts,
                         const GLRenderState &state);

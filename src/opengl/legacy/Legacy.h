@@ -188,15 +188,6 @@ public:
     using Base::glGenVertexArrays;
 
 public:
-    void glLineWidth(const GLfloat lineWidth)
-    {
-        // REVISIT: Only width 1 is guaranteed to be supported for core profiles
-        if (OpenGLConfig::getIsCompat()) {
-            Base::glLineWidth(lineWidth);
-        }
-    }
-
-public:
     void glViewport(const GLint x, const GLint y, const GLsizei width, const GLsizei height)
     {
         m_viewport = Viewport{{x, y}, {width, height}};
@@ -315,6 +306,7 @@ public:
 
 public:
     NODISCARD UniqueMesh createPointBatch(const std::vector<ColorVert> &batch);
+    NODISCARD UniqueMesh createColoredLineBatch(const std::vector<LineVert> &batch);
 
 public:
     NODISCARD UniqueMesh createPlainBatch(DrawModeEnum mode, const std::vector<glm::vec3> &batch);
@@ -333,6 +325,7 @@ public:
 
 public:
     void renderPoints(const std::vector<ColorVert> &verts, const GLRenderState &state);
+    void renderLines(const std::vector<LineVert> &verts, const GLRenderState &state);
 
 public:
     void renderPlain(DrawModeEnum mode,

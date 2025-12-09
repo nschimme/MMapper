@@ -622,8 +622,8 @@ ConnectionMeshes ConnectionDrawerBuffers::getMeshes(OpenGL &gl) const
     ConnectionMeshes result;
     result.normalTris = gl.createColoredTriBatch(normal.triVerts);
     result.redTris = gl.createColoredTriBatch(red.triVerts);
-    result.normalQuads = gl.createColoredQuadBatch(normal.quadVerts);
-    result.redQuads = gl.createColoredQuadBatch(red.quadVerts);
+    result.normalLines = gl.createColoredLineBatch(normal.lineVerts);
+    result.redLines = gl.createColoredLineBatch(red.lineVerts);
     return result;
 }
 
@@ -643,8 +643,8 @@ void ConnectionMeshes::render(const int thisLayer, const int focusedLayer) const
 
     normalTris.render(common_style);
     redTris.render(common_style);
-    normalQuads.render(common_style);
-    redQuads.render(common_style);
+    normalLines.render(common_style);
+    redLines.render(common_style);
 }
 
 void MapCanvas::paintNearbyConnectionPoints()
@@ -763,9 +763,9 @@ void MapCanvas::paintSelectedConnection()
     const auto rs = GLRenderState().withColor(Colors::red);
 
     {
-        std::vector<ColorVert> verts;
+        std::vector<LineVert> verts;
         mmgl::generateLineQuadsSafe(verts, pos1, pos2, CONNECTION_LINE_WIDTH, Colors::red);
-        gl.renderColoredQuads(verts, rs);
+        gl.renderLines(verts, rs);
     }
 
     std::vector<ColorVert> points;
@@ -800,7 +800,7 @@ void ConnectionDrawer::ConnectionFakeGL::drawLineStrip(const std::vector<glm::ve
 
     // Helper lambda to generate a quad between two points with a specific color.
     auto generateQuad = [&](const glm::vec3 &p1, const glm::vec3 &p2, const Color &quad_color) {
-        auto &verts = deref(m_currentBuffer).quadVerts;
+        auto &verts = deref(m_currentBuffer).lineVerts;
 
         const glm::vec3 segment = p2 - p1;
         if (mmgl::isNearZero(segment)) {

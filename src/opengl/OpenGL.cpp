@@ -93,6 +93,11 @@ UniqueMesh OpenGL::createPlainLineBatch(const std::vector<glm::vec3> &batch)
     return getFunctions().createPlainBatch(DrawModeEnum::LINES, batch);
 }
 
+UniqueMesh OpenGL::createColoredLineBatch(const std::vector<LineVert> &batch)
+{
+    return getFunctions().createColoredLineBatch(batch);
+}
+
 UniqueMesh OpenGL::createColoredLineBatch(const std::vector<ColorVert> &batch)
 {
     return getFunctions().createColoredBatch(DrawModeEnum::LINES, batch);
@@ -163,6 +168,11 @@ void OpenGL::renderColored(const DrawModeEnum type,
                            const GLRenderState &state)
 {
     getFunctions().renderColored(type, verts, state);
+}
+
+void OpenGL::renderLines(const std::vector<LineVert> &verts, const GLRenderState &state)
+{
+    getFunctions().renderLines(verts, state);
 }
 
 void OpenGL::renderPoints(const std::vector<ColorVert> &verts, const GLRenderState &state)

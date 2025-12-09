@@ -19,9 +19,11 @@ NODISCARD static std::string readWholeResourceFile(const std::string &fullPath)
     return in.readAll().toUtf8().toStdString();
 }
 
-NODISCARD static ShaderUtils::Source readWholeShader(const std::string &dir, const std::string &name)
+NODISCARD static ShaderUtils::Source readWholeShader(const std::string &shader,
+                                                 const std::string &dir,
+                                                 const std::string &name)
 {
-    const auto fullPathName = ":/shaders/legacy/" + dir + "/" + name;
+    const auto fullPathName = ":/shaders/" + shader + "/" + dir + "/" + name;
     return ShaderUtils::Source{fullPathName, readWholeResourceFile(fullPathName)};
 }
 
@@ -33,16 +35,18 @@ AColorTexturedShader::~AColorTexturedShader() = default;
 UColorTexturedShader::~UColorTexturedShader() = default;
 FontShader::~FontShader() = default;
 PointShader::~PointShader() = default;
+LineShader::~LineShader() = default;
 
 // essentially a private member of ShaderPrograms
 template<typename T>
 NODISCARD static std::shared_ptr<T> loadSimpleShaderProgram(Functions &functions,
+                                                            const std::string &shader,
                                                             const std::string &dir)
 {
     static_assert(std::is_base_of_v<AbstractShaderProgram, T>);
 
-    const auto getSource = [&dir](const std::string &name) -> ShaderUtils::Source {
-        return ::readWholeShader(dir, name);
+    const auto getSource = [&shader, &dir](const std::string &name) -> ShaderUtils::Source {
+        return ::readWholeShader(shader, dir, name);
     };
 
     auto program = ShaderUtils::loadShaders(functions,
@@ -55,42 +59,60 @@ NODISCARD static std::shared_ptr<T> loadSimpleShaderProgram(Functions &functions
 template<typename T>
 NODISCARD static const std::shared_ptr<T> &getInitialized(std::shared_ptr<T> &shader,
                                                           Functions &functions,
+                                                          const std::string &shaderName,
                                                           const std::string &dir)
 {
     if (!shader) {
-        shader = Legacy::loadSimpleShaderProgram<T>(functions, dir);
+        shader = Legacy::loadSimpleShaderProgram<T>(functions, shaderName, dir);
     }
     return shader;
 }
 
 const std::shared_ptr<AColorPlainShader> &ShaderPrograms::getPlainAColorShader()
 {
-    return getInitialized<AColorPlainShader>(m_aColorShader, getFunctions(), "plain/acolor");
+    return getInitialized<AColorPlainShader>(m_aColorShader,
+                                             getFunctions(),
+                                             "legacy",
+                                             "plain/acolor");
 }
 
 const std::shared_ptr<UColorPlainShader> &ShaderPrograms::getPlainUColorShader()
 {
-    return getInitialized<UColorPlainShader>(m_uColorShader, getFunctions(), "plain/ucolor");
+    return getInitialized<UColorPlainShader>(m_uColorShader,
+                                             getFunctions(),
+                                             "legacy",
+                                             "plain/ucolor");
 }
 
 const std::shared_ptr<AColorTexturedShader> &ShaderPrograms::getTexturedAColorShader()
 {
-    return getInitialized<AColorTexturedShader>(m_aTexturedShader, getFunctions(), "tex/acolor");
+    return getInitialized<AColorTexturedShader>(m_aTexturedShader,
+                                                getFunctions(),
+                                                "legacy",
+                                                "tex/acolor");
 }
 
 const std::shared_ptr<UColorTexturedShader> &ShaderPrograms::getTexturedUColorShader()
 {
-    return getInitialized<UColorTexturedShader>(m_uTexturedShader, getFunctions(), "tex/ucolor");
+    return getInitialized<UColorTexturedShader>(m_uTexturedShader,
+                                                getFunctions(),
+                                                "legacy",
+                                                "tex/ucolor");
 }
 
 const std::shared_ptr<FontShader> &ShaderPrograms::getFontShader()
 {
-    return getInitialized<FontShader>(m_font, getFunctions(), "font");
+    return getInitialized<FontShader>(m_font, getFunctions(), "legacy", "font");
 }
 
 const std::shared_ptr<PointShader> &ShaderPrograms::getPointShader()
 {
-    return getInitialized<PointShader>(m_point, getFunctions(), "point");
+    return getInitialized<PointShader>(m_point, getFunctions(), "legacy", "point");
+}
+
+const std::shared_ptr<LineShader> &ShaderPrograms::getLineShader()
+{
+    return getInitialized<LineShader>(m_line, getFunctions(), "legacy", "line");
 }
 
 } // namespace Legacy

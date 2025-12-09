@@ -74,6 +74,12 @@ UniqueMesh Functions::createPointBatch(const std::vector<ColorVert> &batch)
     return createUniqueMesh<PointMesh>(shared_from_this(), DrawModeEnum::POINTS, batch, prog);
 }
 
+UniqueMesh Functions::createColoredLineBatch(const std::vector<LineVert> &batch)
+{
+    const auto &prog = getShaderPrograms().getLineShader();
+    return createUniqueMesh<LineMesh>(shared_from_this(), DrawModeEnum::QUADS, batch, prog);
+}
+
 UniqueMesh Functions::createPlainBatch(const DrawModeEnum mode, const std::vector<glm::vec3> &batch)
 {
     assert(static_cast<size_t>(mode) >= VERTS_PER_LINE);
@@ -174,15 +180,24 @@ void Functions::renderColored(const DrawModeEnum mode,
     renderImmediate<ColorVert, Legacy::ColoredMesh>(shared_from_this(), mode, verts, prog, state);
 }
 
+void Functions::renderLines(const std::vector<LineVert> &verts, const GLRenderState &state)
+{
+    const auto &prog = getShaderPrograms().getLineShader();
+    renderImmediate<LineVert, Legacy::LineMesh>(shared_from_this(),
+                                                DrawModeEnum::QUADS,
+                                                verts,
+                                                prog,
+                                                state);
+}
+
 void Functions::renderPoints(const std::vector<ColorVert> &verts, const GLRenderState &state)
 {
-    assert(state.uniforms.pointSize);
     const auto &prog = getShaderPrograms().getPointShader();
     renderImmediate<ColorVert, Legacy::PointMesh>(shared_from_this(),
                                                   DrawModeEnum::POINTS,
                                                   verts,
-                                                  prog,
-                                                  state);
+                                                 prog,
+                                                 state);
 }
 
 void Functions::renderTextured(const DrawModeEnum mode,

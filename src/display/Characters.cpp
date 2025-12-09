@@ -107,7 +107,7 @@ void CharacterBatch::CharFakeGL::drawPathSegment(const glm::vec3 &p1,
                                                  const glm::vec3 &p2,
                                                  const Color &color)
 {
-    mmgl::generateLineQuadsSafe(m_pathLineQuads, p1, p2, PATH_LINE_WIDTH, color);
+    mmgl::generateLineQuadsSafe(m_pathLines, p1, p2, PATH_LINE_WIDTH, color);
 }
 
 void CharacterBatch::drawPreSpammedPath(const Coordinate &c1,
@@ -212,17 +212,10 @@ void CharacterBatch::CharFakeGL::drawQuadCommon(const glm::vec2 &in_a,
 
     if (::utils::isSet(options, QuadOptsEnum::OUTLINE)) {
         const auto color = m_color.withAlpha(LINE_ALPHA);
-        auto emitVert = [this, &color](const auto &x) -> void {
-            m_charLines.emplace_back(color, x);
-        };
-        auto emitLine = [&emitVert](const auto &v0, const auto &v1) -> void {
-            emitVert(v0);
-            emitVert(v1);
-        };
-        emitLine(a, b);
-        emitLine(b, c);
-        emitLine(c, d);
-        emitLine(d, a);
+        mmgl::generateLineQuadsSafe(m_charLines, a, b, CHAR_ARROW_LINE_WIDTH, color);
+        mmgl::generateLineQuadsSafe(m_charLines, b, c, CHAR_ARROW_LINE_WIDTH, color);
+        mmgl::generateLineQuadsSafe(m_charLines, c, d, CHAR_ARROW_LINE_WIDTH, color);
+        mmgl::generateLineQuadsSafe(m_charLines, d, a, CHAR_ARROW_LINE_WIDTH, color);
     }
 }
 
@@ -337,8 +330,7 @@ void CharacterBatch::CharFakeGL::reallyDrawCharacters(OpenGL &gl, const MapCanva
     }
 
     if (!m_charLines.empty()) {
-        gl.renderColoredLines(m_charLines,
-                              blended_noDepth.withLineParams(LineParams{CHAR_ARROW_LINE_WIDTH}));
+        gl.renderLines(m_charLines, blended_noDepth);
     }
 
     if (!m_screenSpaceArrows.empty()) {
@@ -358,8 +350,8 @@ void CharacterBatch::CharFakeGL::reallyDrawPaths(OpenGL &gl)
         = GLRenderState().withDepthFunction(std::nullopt).withBlend(BlendModeEnum::TRANSPARENCY);
 
     gl.renderPoints(m_pathPoints, blended_noDepth.withPointSize(PATH_POINT_SIZE));
-    if (!m_pathLineQuads.empty()) {
-        gl.renderColoredQuads(m_pathLineQuads, blended_noDepth);
+    if (!m_pathLines.empty()) {
+        gl.renderLines(m_pathLines, blended_noDepth);
     }
 }
 

@@ -10,7 +10,7 @@
 
 namespace mmgl {
 
-void generateLineQuad(std::vector<ColorVert> &verts,
+void generateLineQuad(std::vector<LineVert> &verts,
                       const glm::vec3 &p1,
                       const glm::vec3 &p2,
                       float width,
@@ -30,10 +30,10 @@ void generateLineQuad(std::vector<ColorVert> &verts,
     glm::vec3 v3 = p2 - offset1;
     glm::vec3 v4 = p2 + offset1;
 
-    verts.emplace_back(color, v1);
-    verts.emplace_back(color, v2);
-    verts.emplace_back(color, v3);
-    verts.emplace_back(color, v4);
+    verts.emplace_back(color, v1, glm::vec2(0, 1));
+    verts.emplace_back(color, v2, glm::vec2(0, -1));
+    verts.emplace_back(color, v4, glm::vec2(1, 1));
+    verts.emplace_back(color, v3, glm::vec2(1, -1));
 }
 
 bool isDegenerate(const glm::vec3 &vec)
@@ -64,7 +64,7 @@ glm::vec3 getOrthogonalNormal(const glm::vec3 &direction, const glm::vec3 &perp_
     return glm::normalize(perp_normal_2_candidate);
 }
 
-void generateLineQuadsSafe(std::vector<ColorVert> &verts,
+void generateLineQuadsSafe(std::vector<LineVert> &verts,
                            const glm::vec3 &p1,
                            const glm::vec3 &p2,
                            float width,
@@ -81,7 +81,7 @@ void generateLineQuadsSafe(std::vector<ColorVert> &verts,
     generateLineQuad(verts, p1, p2, width, color, perp_normal);
 }
 
-void drawZeroLengthSquare(std::vector<ColorVert> &verts,
+void drawZeroLengthSquare(std::vector<LineVert> &verts,
                           const glm::vec3 &center,
                           float width,
                           const Color &color)
@@ -92,10 +92,10 @@ void drawZeroLengthSquare(std::vector<ColorVert> &verts,
     glm::vec3 v3 = center + glm::vec3(half_size, half_size, 0.0f);
     glm::vec3 v4 = center + glm::vec3(-half_size, half_size, 0.0f);
 
-    verts.emplace_back(color, v1);
-    verts.emplace_back(color, v2);
-    verts.emplace_back(color, v3);
-    verts.emplace_back(color, v4);
+    verts.emplace_back(color, v1, glm::vec2(0, 1));
+    verts.emplace_back(color, v2, glm::vec2(1, 1));
+    verts.emplace_back(color, v3, glm::vec2(1, -1));
+    verts.emplace_back(color, v4, glm::vec2(0, -1));
 }
 
 } // namespace mmgl

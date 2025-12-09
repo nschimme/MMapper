@@ -46,8 +46,8 @@ MMTexture::MMTexture(Badge<MMTexture>,
                      const std::optional<QOpenGLTexture::Filter> &minMagFilter,
                      const bool forbidUpdates)
     : m_qt_texture{image.mirrored()}
-    , m_forbidUpdates{forbidUpdates}
     , m_image{image}
+    , m_forbidUpdates{forbidUpdates}
 {
     auto &tex = m_qt_texture;
     tex.setWrapMode(QOpenGLTexture::WrapMode::MirroredRepeat);
@@ -149,39 +149,107 @@ static void setTrilinear(const SharedMMTexture &mmtex, const bool trilinear)
     }
 }
 
-NODISCARD static QImage createDottedWallImage(const ExitDirEnum dir)
+NODISCARD static SharedMMTexture createDottedWall(const ExitDirEnum dir)
 {
-    static constexpr const int SIZE = 128;
+    static constexpr const uint32_t MAX_BITS = 7;
+    static constexpr const int SIZE = 1 << MAX_BITS;
 
-    const QColor OPAQUE_WHITE = Qt::white;
-    const QColor TRANSPARENT_BLACK = QColor::fromRgbF(0.0, 0.0, 0.0, 0.0);
-    QImage image{SIZE, SIZE, QImage::Format::Format_RGBA8888};
-    image.fill(TRANSPARENT_BLACK);
+    const auto init = [dir](QOpenGLTexture &tex) -> void {
+        const QColor OPAQUE_WHITE = Qt::white;
+        const QColor TRANSPARENT_BLACK = QColor::fromRgbF(0.0, 0.0, 0.0, 0.0);
+        MMapper::Array<QImage, MAX_BITS + 1> images;
 
-    const int width = 4;
-    assert(isClamped(width, 1, 4));
+        for (auto i = 0u; i <= MAX_BITS; ++i) {
+            const int size = 1 << (MAX_BITS - i);
+            QImage image{size, size, QImage::Format::Format_RGBA8888};
+            image.fill(TRANSPARENT_BLACK);
+            if (size >= 16) {
+                // 64 and 128:
+                // ##..##..##..##..##..##..##..##..##..##..##..##..##..##..##..##..
+                // ##..##..##..##..##..##..##..##..##..##..##..##..##..##..##..##..
+                // ##..##..##..##..##..##..##..##..##..##..##..##..##..##..##..##..
+                // ##..##..##..##..##..##..##..##..##..##..##..##..##..##..##..##..
+                // 32:
+                // ##..##..##..##..##..##..##..##..
+                // ##..##..##..##..##..##..##..##..
+                // 16:
+                // ##..##..##..##..
 
-    for (int y = 0; y < width; ++y) {
-        for (int x = 0; x < SIZE; x += 4) {
-            image.setPixelColor(x + 0, y, OPAQUE_WHITE);
-            image.setPixelColor(x + 1, y, OPAQUE_WHITE);
+                const int width = std::invoke([i]() -> int {
+                    switch (MAX_BITS - i) {
+                    case 4:
+                        return 1;
+                    case 5:
+                        return 2;
+                    case 6:
+                    case 7:
+                        return 4;
+                    default:
+                        assert(false);
+                        return 4;
+                    }
+                });
+
+                assert(isClamped(width, 1, 4));
+
+                for (int y = 0; y < width; ++y) {
+                    for (int x = 0; x < size; x += 4) {
+                        image.setPixelColor(x + 0, y, OPAQUE_WHITE);
+                        image.setPixelColor(x + 1, y, OPAQUE_WHITE);
+                    }
+                }
+            } else if (size == 8) {
+                // #...#...
+                image.setPixelColor(1, 0, OPAQUE_WHITE);
+                image.setPixelColor(5, 0, OPAQUE_WHITE);
+            } else if (size == 4) {
+                // -.-.
+                image.setPixelColor(0, 0, QColor::fromRgbF(1.0, 1.0, 1.0, 0.5));
+                image.setPixelColor(2, 0, QColor::fromRgbF(1.0, 1.0, 1.0, 0.5));
+            } else if (size == 2) {
+                // ..
+                image.setPixelColor(0, 0, QColor::fromRgbF(1.0, 1.0, 1.0, 0.25));
+                image.setPixelColor(1, 0, QColor::fromRgbF(1.0, 1.0, 1.0, 0.25));
+            }
+
+            if (dir == ExitDirEnum::EAST || dir == ExitDirEnum::WEST) {
+                const auto halfSize = static_cast<double>(size) * 0.5;
+                QTransform matrix;
+                matrix.translate(halfSize, halfSize);
+                matrix.rotate(90);
+                matrix.translate(-halfSize, -halfSize);
+                images[i] = image.transformed(matrix, Qt::FastTransformation);
+            } else {
+                images[i] = image;
+            }
+
+            if (dir == ExitDirEnum::NORTH || dir == ExitDirEnum::WEST) {
+                images[i] = images[i].mirrored(true, true);
+            }
         }
-    }
 
-    if (dir == ExitDirEnum::EAST || dir == ExitDirEnum::WEST) {
-        const auto halfSize = static_cast<double>(SIZE) * 0.5;
-        QTransform matrix;
-        matrix.translate(halfSize, halfSize);
-        matrix.rotate(90);
-        matrix.translate(-halfSize, -halfSize);
-        image = image.transformed(matrix, Qt::FastTransformation);
-    }
+        tex.setWrapMode(QOpenGLTexture::WrapMode::MirroredRepeat);
+        tex.setMinMagFilters(QOpenGLTexture::Filter::NearestMipMapNearest,
+                             QOpenGLTexture::Filter::Nearest);
+        tex.setAutoMipMapGenerationEnabled(false);
+        tex.create();
+        tex.setSize(SIZE, SIZE, 1);
+        tex.setMipLevels(tex.maximumMipLevels());
+        tex.setFormat(QOpenGLTexture::TextureFormat::RGBA8_UNorm);
+        tex.allocateStorage(QOpenGLTexture::PixelFormat::RGBA, QOpenGLTexture::PixelType::UInt8);
 
-    if (dir == ExitDirEnum::NORTH || dir == ExitDirEnum::WEST) {
-        image = image.mirrored(true, true);
-    }
+        tex.setData(QOpenGLTexture::PixelFormat::RGBA,
+                    QOpenGLTexture::PixelType::UInt8,
+                    images[0].constBits());
+        for (auto i = 1u; i <= MAX_BITS; ++i) {
+            tex.setData(static_cast<int>(i),
+                        QOpenGLTexture::PixelFormat::RGBA,
+                        QOpenGLTexture::PixelType::UInt8,
+                        images[i].constBits());
+        }
+    };
 
-    return image;
+    return MMTexture::alloc(QOpenGLTexture::Target::Target2D, init, true);
 }
 
 template<typename Type>
@@ -211,8 +279,7 @@ void MapCanvas::initTextures()
     loadPixmapArray(textures.load);    // 128
 
     for (const ExitDirEnum dir : ALL_EXITS_NESW) {
-        textures.dotted_wall[dir] = MMTexture::alloc(
-            createDottedWallImage(dir), QOpenGLTexture::Filter::Nearest, true);
+        textures.dotted_wall[dir] = createDottedWall(dir);
         textures.wall[dir] = loadTexture(
             getPixmapFilenameRaw(QString::asprintf("wall-%s.png", lowercaseDirection(dir))));
     }
@@ -291,6 +358,11 @@ void MapCanvas::initTextures()
         }();
 
         auto maybeCreateArray2 = [&assignId, &opengl](auto &thing, SharedMMTexture &pArrayTex) {
+            for (const auto &x : thing) {
+                if (!x->canBeUpdated()) {
+                    return;
+                }
+            }
             std::optional<std::pair<int, int>> bounds;
             auto getBounds = [](const auto &x) {
                 return std::make_pair<int, int>(x->get()->width(), x->get()->height());
@@ -334,7 +406,7 @@ void MapCanvas::initTextures()
                 }
             }
 
-            const auto numLayers = fileInputs.empty() ? imageInputs.size() : fileInputs.size();
+            const int numLayers = fileInputs.empty() ? imageInputs.size() : fileInputs.size();
 
             auto init_array = [&](QOpenGLTexture &tex) {
                 using Dir = QOpenGLTexture::CoordinateDirection;

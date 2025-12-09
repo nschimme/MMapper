@@ -46,8 +46,8 @@ MMTexture::MMTexture(Badge<MMTexture>,
                      const std::optional<QOpenGLTexture::Filter> &minMagFilter,
                      const bool forbidUpdates)
     : m_qt_texture{image.mirrored()}
-    , m_image{image}
     , m_forbidUpdates{forbidUpdates}
+    , m_image{image}
 {
     auto &tex = m_qt_texture;
     tex.setWrapMode(QOpenGLTexture::WrapMode::MirroredRepeat);
@@ -334,7 +334,7 @@ void MapCanvas::initTextures()
                 }
             }
 
-            const int numLayers = fileInputs.empty() ? imageInputs.size() : fileInputs.size();
+            const auto numLayers = fileInputs.empty() ? imageInputs.size() : fileInputs.size();
 
             auto init_array = [&](QOpenGLTexture &tex) {
                 using Dir = QOpenGLTexture::CoordinateDirection;

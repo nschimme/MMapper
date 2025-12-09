@@ -41,9 +41,15 @@ public:
     {
         return std::make_shared<MMTexture>(Badge<MMTexture>{}, name);
     }
-    NODISCARD static std::shared_ptr<MMTexture> alloc(const QImage &image)
+    NODISCARD static std::shared_ptr<MMTexture> alloc(
+        const QImage &image,
+        const std::optional<QOpenGLTexture::Filter> &minMagFilter = std::nullopt,
+        const bool forbidUpdates = false)
     {
-        return std::make_shared<MMTexture>(Badge<MMTexture>{}, image);
+        return std::make_shared<MMTexture>(Badge<MMTexture>{},
+                                           image,
+                                           minMagFilter,
+                                           forbidUpdates);
     }
     NODISCARD static std::shared_ptr<MMTexture> alloc(
         const QOpenGLTexture::Target target,
@@ -56,7 +62,10 @@ public:
 public:
     MMTexture() = delete;
     MMTexture(Badge<MMTexture>, const QString &name);
-    MMTexture(Badge<MMTexture>, const QImage &image);
+    MMTexture(Badge<MMTexture>,
+              const QImage &image,
+              const std::optional<QOpenGLTexture::Filter> &minMagFilter,
+              bool forbidUpdates);
     MMTexture(Badge<MMTexture>,
               const QOpenGLTexture::Target target,
               const std::function<void(QOpenGLTexture &)> &init,

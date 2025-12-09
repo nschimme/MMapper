@@ -41,13 +41,22 @@ MMTexture::MMTexture(Badge<MMTexture>, const QString &name)
     tex.setMinMagFilters(QOpenGLTexture::Filter::LinearMipMapLinear, QOpenGLTexture::Filter::Linear);
 }
 
-MMTexture::MMTexture(Badge<MMTexture>, const QImage &image)
+MMTexture::MMTexture(Badge<MMTexture>,
+                     const QImage &image,
+                     const std::optional<QOpenGLTexture::Filter> &minMagFilter,
+                     const bool forbidUpdates)
     : m_qt_texture{image.mirrored()}
     , m_image{image}
+    , m_forbidUpdates{forbidUpdates}
 {
     auto &tex = m_qt_texture;
     tex.setWrapMode(QOpenGLTexture::WrapMode::MirroredRepeat);
-    tex.setMinMagFilters(QOpenGLTexture::Filter::LinearMipMapLinear, QOpenGLTexture::Filter::Linear);
+    if (minMagFilter) {
+        tex.setMinMagFilters(deref(minMagFilter), deref(minMagFilter));
+    } else {
+        tex.setMinMagFilters(QOpenGLTexture::Filter::LinearMipMapLinear,
+                             QOpenGLTexture::Filter::Linear);
+    }
 }
 
 void MapCanvasTextures::destroyAll()
@@ -202,7 +211,8 @@ void MapCanvas::initTextures()
     loadPixmapArray(textures.load);    // 128
 
     for (const ExitDirEnum dir : ALL_EXITS_NESW) {
-        textures.dotted_wall[dir] = MMTexture::alloc(createDottedWallImage(dir));
+        textures.dotted_wall[dir] = MMTexture::alloc(
+            createDottedWallImage(dir), QOpenGLTexture::Filter::Nearest, true);
         textures.wall[dir] = loadTexture(
             getPixmapFilenameRaw(QString::asprintf("wall-%s.png", lowercaseDirection(dir))));
     }

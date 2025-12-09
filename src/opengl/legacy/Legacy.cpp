@@ -70,7 +70,8 @@ NODISCARD static UniqueMesh createTexturedMesh(const SharedFunctions &functions,
 
 UniqueMesh Functions::createPointBatch(const std::vector<ColorVert> &batch)
 {
-    return createColoredBatch(DrawModeEnum::POINTS, batch);
+    const auto &prog = getShaderPrograms().getPlainAColorShader();
+    return createUniqueMesh<ColoredMesh>(shared_from_this(), DrawModeEnum::POINTS, batch, prog);
 }
 
 UniqueMesh Functions::createColoredLineBatch(const std::vector<LineVert> &batch)

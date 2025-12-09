@@ -107,12 +107,12 @@ void CharacterBatch::CharFakeGL::drawPathSegment(const glm::vec3 &p1,
                                                  const glm::vec3 &p2,
                                                  const Color &color)
 {
-    mmgl::generateLineQuadsSafe(m_pathLines, p1, p2, PATH_LINE_WIDTH, color);
+    mmgl::generateLine(m_pathLines, p1, p2, PATH_LINE_WIDTH, color);
 }
 
 void CharacterBatch::CharFakeGL::drawPathPoint(const Color &color, const glm::vec3 &p)
 {
-    m_pathPoints.emplace_back(color, p, PATH_POINT_SIZE);
+    m_pathPoints.emplace_back(color, p);
 }
 
 void CharacterBatch::drawPreSpammedPath(const Coordinate &c1,
@@ -217,10 +217,10 @@ void CharacterBatch::CharFakeGL::drawQuadCommon(const glm::vec2 &in_a,
 
     if (::utils::isSet(options, QuadOptsEnum::OUTLINE)) {
         const auto color = m_color.withAlpha(LINE_ALPHA);
-        mmgl::generateLineQuadsSafe(m_charLines, a, b, CHAR_ARROW_LINE_WIDTH, color);
-        mmgl::generateLineQuadsSafe(m_charLines, b, c, CHAR_ARROW_LINE_WIDTH, color);
-        mmgl::generateLineQuadsSafe(m_charLines, c, d, CHAR_ARROW_LINE_WIDTH, color);
-        mmgl::generateLineQuadsSafe(m_charLines, d, a, CHAR_ARROW_LINE_WIDTH, color);
+        mmgl::generateLine(m_charLines, a, b, CHAR_ARROW_LINE_WIDTH, color);
+        mmgl::generateLine(m_charLines, b, c, CHAR_ARROW_LINE_WIDTH, color);
+        mmgl::generateLine(m_charLines, c, d, CHAR_ARROW_LINE_WIDTH, color);
+        mmgl::generateLine(m_charLines, d, a, CHAR_ARROW_LINE_WIDTH, color);
     }
 }
 
@@ -354,7 +354,7 @@ void CharacterBatch::CharFakeGL::reallyDrawPaths(OpenGL &gl)
     const auto blended_noDepth
         = GLRenderState().withDepthFunction(std::nullopt).withBlend(BlendModeEnum::TRANSPARENCY);
 
-    gl.renderPoints(m_pathPoints, blended_noDepth);
+    gl.renderPoints(m_pathPoints, blended_noDepth.withPointSize(PATH_POINT_SIZE));
     if (!m_pathLines.empty()) {
         gl.renderLines(m_pathLines, blended_noDepth);
     }

@@ -133,7 +133,7 @@ BatchedInfomarksMeshes MapCanvas::getInfomarksMeshes()
 
 void InfomarksBatch::drawPoint(const glm::vec3 &a)
 {
-    m_points.emplace_back(m_color, a + m_offset, INFOMARK_POINT_SIZE);
+    m_points.emplace_back(m_color, a + m_offset);
 }
 
 void InfomarksBatch::drawLine(const glm::vec3 &a, const glm::vec3 &b)
@@ -141,7 +141,7 @@ void InfomarksBatch::drawLine(const glm::vec3 &a, const glm::vec3 &b)
     const glm::vec3 start_v = a + m_offset;
     const glm::vec3 end_v = b + m_offset;
 
-    mmgl::generateLineQuadsSafe(m_lines, start_v, end_v, INFOMARK_ARROW_LINE_WIDTH, m_color);
+    mmgl::generateLine(m_lines, start_v, end_v, INFOMARK_ARROW_LINE_WIDTH, m_color);
 }
 
 void InfomarksBatch::drawTriangle(const glm::vec3 &a, const glm::vec3 &b, const glm::vec3 &c)
@@ -197,7 +197,7 @@ void InfomarksBatch::renderImmediate(const GLRenderState &state)
         m_font.render3dTextImmediate(m_text.text);
     }
     if (!m_points.empty()) {
-        gl.renderPoints(m_points, state);
+        gl.renderPoints(m_points, state.withPointSize(INFOMARK_POINT_SIZE));
     }
 }
 
@@ -210,7 +210,7 @@ void InfomarksMeshes::render()
     const auto common_state
         = GLRenderState().withDepthFunction(std::nullopt).withBlend(BlendModeEnum::TRANSPARENCY);
 
-    points.render(common_state);
+    points.render(common_state.withPointSize(INFOMARK_POINT_SIZE));
     tris.render(common_state);
     lines.render(common_state);
     textMesh.render(common_state);
@@ -302,11 +302,11 @@ void MapCanvas::paintNewInfomarkSelection()
     if (m_canvasMouseMode == CanvasMouseModeEnum::CREATE_INFOMARKS && m_selectedArea) {
         const auto infomarksLineStyle = GLRenderState().withColor(Color{Qt::yellow});
         std::vector<LineVert> verts;
-        mmgl::generateLineQuadsSafe(verts,
-                                    glm::vec3{pos1, layer},
-                                    glm::vec3{pos2, layer},
-                                    INFOMARK_GUIDE_LINE_WIDTH,
-                                    Color{Qt::yellow});
+        mmgl::generateLine(verts,
+                           glm::vec3{pos1, layer},
+                           glm::vec3{pos2, layer},
+                           INFOMARK_GUIDE_LINE_WIDTH,
+                           Color{Qt::yellow});
         gl.renderLines(verts, infomarksLineStyle);
     }
 }

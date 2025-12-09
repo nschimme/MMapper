@@ -61,29 +61,26 @@ struct NODISCARD ColorVert final
     {}
 };
 
-struct NODISCARD PointVert final
-{
-    Color color;
-    glm::vec3 vert{};
-    float pointSize = 1.f;
-
-    explicit PointVert(const Color &color_, const glm::vec3 &vert_, const float pointSize_ = 1.f)
-        : color{color_}
-        , vert{vert_}
-        , pointSize{pointSize_}
-    {}
-};
 
 struct NODISCARD LineVert final
 {
+    glm::vec3 p1{};
+    glm::vec3 p2{};
     Color color;
-    glm::vec3 vert{};
-    glm::vec2 lineCoord{};
+    float thickness = 1.f;
+    // -1 for bottom-left, -1 for top-left, 1 for bottom-right, 1 for top-right
+    glm::vec2 corner{};
 
-    explicit LineVert(const Color &color_, const glm::vec3 &vert_, const glm::vec2 &lineCoord_)
-        : color{color_}
-        , vert{vert_}
-        , lineCoord{lineCoord_}
+    explicit LineVert(const glm::vec3 &p1_,
+                      const glm::vec3 &p2_,
+                      const Color &color_,
+                      const float thickness_,
+                      const glm::vec2 &corner_)
+        : p1{p1_}
+        , p2{p2_}
+        , color{color_}
+        , thickness{thickness_}
+        , corner{corner_}
     {}
 };
 

@@ -36,9 +36,15 @@ static constexpr const float NEW_CONNECTION_POINT_SIZE = 8.f;
 
 static constexpr const float FAINT_CONNECTION_ALPHA = 0.1f;
 
+namespace {
+// Geometric epsilon for degeneracy checks (e.g., near-zero vectors, collinearity).
+// This is used for comparisons where small floating-point variations should be treated as equivalent to zero.
+static constexpr const float GEOMETRIC_EPSILON = 1e-5f;
+} // namespace
+
 NODISCARD static bool isCrossingZAxis(const glm::vec3 &p1, const glm::vec3 &p2)
 {
-    return std::abs(p1.z - p2.z) > mmgl::GEOMETRIC_EPSILON;
+    return std::abs(p1.z - p2.z) > GEOMETRIC_EPSILON;
 }
 
 NODISCARD static bool isConnectionMode(const CanvasMouseModeEnum mode)
@@ -518,7 +524,7 @@ void ConnectionDrawer::drawConnStartTri(const ExitDirEnum startDir, const float 
         // Do not draw triangles for 2-way up/down
         break;
     case ExitDirEnum::UNKNOWN:
-        drawConnEndTriUpDownUnknown(0, 0, srcZ);
+        drawConnEndTriUpDownUnknown(0.f, 0.f, srcZ);
         break;
     case ExitDirEnum::NONE:
         assert(false);
@@ -612,9 +618,9 @@ void ConnectionDrawer::drawConnEndTri1Way(const ExitDirEnum endDir,
 
 void ConnectionDrawer::drawConnEndTriUpDownUnknown(float dX, float dY, float dstZ)
 {
-    getFakeGL().drawTriangle(glm::vec3{dX + 0.5f, dY + 0.5f, dstZ},
-                             glm::vec3{dX + 0.55f, dY + 0.3f, dstZ},
-                             glm::vec3{dX + 0.7f, dY + 0.45f, dstZ});
+    getFakeGL().drawTriangle({dX + 0.5f, dY + 0.5f, dstZ},
+                             {dX + 0.55f, dY + 0.3f, dstZ},
+                             {dX + 0.7f, dY + 0.45f, dstZ});
 }
 
 ConnectionMeshes ConnectionDrawerBuffers::getMeshes(OpenGL &gl) const
@@ -660,7 +666,7 @@ void MapCanvas::paintNearbyConnectionPoints()
         return tmp;
     });
 
-    std::vector<PointVert> points;
+    std::vector<ColorVert> points;
     const auto addPoint = [isSelection, &points](const Coordinate &roomCoord,
                                                  const RoomHandle &room,
                                                  const ExitDirEnum dir,
@@ -678,9 +684,7 @@ void MapCanvas::paintNearbyConnectionPoints()
             }
         }
 
-        points.emplace_back(Colors::cyan,
-                            roomCoord.to_vec3() + getConnectionOffset(dir),
-                            VALID_CONNECTION_POINT_SIZE);
+        points.emplace_back(Colors::cyan, roomCoord.to_vec3() + getConnectionOffset(dir));
     };
     const auto addPoints =
         [this, isSelection, &addPoint](const std::optional<MouseSel> &sel,
@@ -716,9 +720,7 @@ void MapCanvas::paintNearbyConnectionPoints()
                                                                : m_connectionSelection->getSecond();
         const Coordinate &c = valid.room.getPosition();
         const glm::vec3 &pos = c.to_vec3();
-        points.emplace_back(Colors::cyan,
-                            pos + getConnectionOffset(valid.direction),
-                            VALID_CONNECTION_POINT_SIZE);
+        points.emplace_back(Colors::cyan, pos + getConnectionOffset(valid.direction));
 
         addPoints(MouseSel{Coordinate2f{pos.x, pos.y}, c.z}, valid);
         addPoints(m_sel1, valid);
@@ -728,7 +730,7 @@ void MapCanvas::paintNearbyConnectionPoints()
         addPoints(m_sel2, std::nullopt);
     }
 
-    getOpenGL().renderPoints(points, GLRenderState());
+    getOpenGL().renderPoints(points, GLRenderState().withPointSize(VALID_CONNECTION_POINT_SIZE));
 }
 
 void MapCanvas::paintSelectedConnection()
@@ -768,14 +770,14 @@ void MapCanvas::paintSelectedConnection()
 
     {
         std::vector<LineVert> verts;
-        mmgl::generateLineQuadsSafe(verts, pos1, pos2, CONNECTION_LINE_WIDTH, Colors::red);
+        mmgl::generateLine(verts, pos1, pos2, CONNECTION_LINE_WIDTH, Colors::red);
         gl.renderLines(verts, rs);
     }
 
-    std::vector<PointVert> points;
-    points.emplace_back(Colors::red, pos1, NEW_CONNECTION_POINT_SIZE);
-    points.emplace_back(Colors::red, pos2, NEW_CONNECTION_POINT_SIZE);
-    gl.renderPoints(points, rs);
+    std::vector<ColorVert> points;
+    points.emplace_back(Colors::red, pos1);
+    points.emplace_back(Colors::red, pos2);
+    gl.renderPoints(points, rs.withPointSize(NEW_CONNECTION_POINT_SIZE));
 }
 
 static constexpr float LONG_LINE_HALFLEN = 1.5f;
@@ -800,28 +802,6 @@ void ConnectionDrawer::ConnectionFakeGL::drawTriangle(const glm::vec3 &a,
 void ConnectionDrawer::ConnectionFakeGL::drawLineStrip(const std::vector<glm::vec3> &points)
 {
     const auto transform = [this](const glm::vec3 &vert) { return vert + m_offset; };
-    const float extension = CONNECTION_LINE_WIDTH * 0.5f;
-
-    // Helper lambda to generate a quad between two points with a specific color.
-    auto generateQuad = [&](const glm::vec3 &p1, const glm::vec3 &p2, const Color &quad_color) {
-        auto &verts = deref(m_currentBuffer).lineVerts;
-
-        const glm::vec3 segment = p2 - p1;
-        if (mmgl::isNearZero(segment)) {
-            mmgl::drawZeroLengthSquare(verts, p1, CONNECTION_LINE_WIDTH, quad_color);
-            return;
-        }
-
-        const glm::vec3 dir = glm::normalize(segment);
-        const glm::vec3 perp_normal_1 = mmgl::getPerpendicularNormal(dir);
-        mmgl::generateLineQuad(verts, p1, p2, CONNECTION_LINE_WIDTH, quad_color, perp_normal_1);
-
-        // If the line crosses different Z-layers, draw a second perpendicular quad to form a "cross" shape.
-        if (isCrossingZAxis(p1, p2)) {
-            const glm::vec3 perp_normal_2 = mmgl::getOrthogonalNormal(dir, perp_normal_1);
-            mmgl::generateLineQuad(verts, p1, p2, CONNECTION_LINE_WIDTH, quad_color, perp_normal_2);
-        }
-    };
 
     const auto size = points.size();
     assert(size >= 2);
@@ -831,56 +811,8 @@ void ConnectionDrawer::ConnectionFakeGL::drawLineStrip(const std::vector<glm::ve
                                  : Colors::red;
 
     for (size_t i = 1; i < size; ++i) {
-        const glm::vec3 start_orig = points[i - 1u];
-        const glm::vec3 end_orig = points[i];
-
-        const glm::vec3 start_v = transform(start_orig);
-        const glm::vec3 end_v = transform(end_orig);
-
-        Color current_segment_color = base_color;
-
-        // Handle original zero-length segments first.
-        const glm::vec3 segment = end_v - start_v;
-        if (mmgl::isNearZero(segment)) {
-            generateQuad(start_v, end_v, current_segment_color);
-            continue;
-        }
-
-        // If the segment crosses the Z-axis, apply fading.
-        if (isCrossingZAxis(start_v, end_v)) {
-            current_segment_color = current_segment_color.withAlpha(FAINT_CONNECTION_ALPHA);
-        }
-
-        glm::vec3 quad_start_v = start_v;
-        glm::vec3 quad_end_v = end_v;
-        const glm::vec3 segment_dir = glm::normalize(segment);
-
-        // Extend the first and last segments for better visual continuity.
-        if (i == 1) {
-            // First segment of the polyline.
-            quad_start_v = start_v - segment_dir * extension;
-        }
-        if (i == size - 1) {
-            // Last segment of the polyline.
-            quad_end_v = end_v + segment_dir * extension;
-        }
-
-        // If it's not a long line, just draw a single quad.
-        if (!isLongLine(quad_start_v, quad_end_v)) {
-            generateQuad(quad_start_v, quad_end_v, current_segment_color);
-            continue;
-        }
-
-        // It is a long line, apply fading.
-        const float len = glm::length(quad_end_v - quad_start_v);
-        const float faintCutoff = (len > 1e-6f) ? (LONG_LINE_HALFLEN / len) : 0.5f;
-
-        const glm::vec3 mid1 = glm::mix(quad_start_v, quad_end_v, faintCutoff);
-        const glm::vec3 mid2 = glm::mix(quad_start_v, quad_end_v, 1.f - faintCutoff);
-        const Color faint_color = current_segment_color.withAlpha(FAINT_CONNECTION_ALPHA);
-
-        generateQuad(quad_start_v, mid1, current_segment_color);
-        generateQuad(mid1, mid2, faint_color);
-        generateQuad(mid2, quad_end_v, current_segment_color);
+        const glm::vec3 start_v = transform(points[i - 1u]);
+        const glm::vec3 end_v = transform(points[i]);
+        mmgl::generateLine(deref(m_currentBuffer).lineVerts, start_v, end_v, CONNECTION_LINE_WIDTH, base_color);
     }
 }

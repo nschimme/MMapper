@@ -996,10 +996,10 @@ void MapCanvas::paintSelectionArea()
             static constexpr float SELECTION_AREA_LINE_WIDTH = 2.f;
             const auto lineStyle = rs.withColor(selFgColor);
             std::vector<LineVert> verts;
-            mmgl::generateLineQuadsSafe(verts, A, B, SELECTION_AREA_LINE_WIDTH, selFgColor);
-            mmgl::generateLineQuadsSafe(verts, B, C, SELECTION_AREA_LINE_WIDTH, selFgColor);
-            mmgl::generateLineQuadsSafe(verts, C, D, SELECTION_AREA_LINE_WIDTH, selFgColor);
-            mmgl::generateLineQuadsSafe(verts, D, A, SELECTION_AREA_LINE_WIDTH, selFgColor);
+            mmgl::generateLine(verts, A, B, SELECTION_AREA_LINE_WIDTH, selFgColor);
+            mmgl::generateLine(verts, B, C, SELECTION_AREA_LINE_WIDTH, selFgColor);
+            mmgl::generateLine(verts, C, D, SELECTION_AREA_LINE_WIDTH, selFgColor);
+            mmgl::generateLine(verts, D, A, SELECTION_AREA_LINE_WIDTH, selFgColor);
             gl.renderLines(verts, lineStyle);
         }
     }

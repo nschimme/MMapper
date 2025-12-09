@@ -129,16 +129,20 @@ public:
 private:
     struct NODISCARD Attribs final
     {
+        GLuint p1Pos = INVALID_ATTRIB_LOCATION;
+        GLuint p2Pos = INVALID_ATTRIB_LOCATION;
         GLuint colorPos = INVALID_ATTRIB_LOCATION;
-        GLuint vertPos = INVALID_ATTRIB_LOCATION;
-        GLuint lineCoordPos = INVALID_ATTRIB_LOCATION;
+        GLuint thicknessPos = INVALID_ATTRIB_LOCATION;
+        GLuint cornerPos = INVALID_ATTRIB_LOCATION;
 
         NODISCARD static Attribs getLocations(AbstractShaderProgram &shader)
         {
             Attribs result;
+            result.p1Pos = shader.getAttribLocation("aP1");
+            result.p2Pos = shader.getAttribLocation("aP2");
             result.colorPos = shader.getAttribLocation("aColor");
-            result.vertPos = shader.getAttribLocation("aVert");
-            result.lineCoordPos = shader.getAttribLocation("aLineCoord");
+            result.thicknessPos = shader.getAttribLocation("aThickness");
+            result.cornerPos = shader.getAttribLocation("aCorner");
             return result;
         }
     };
@@ -148,16 +152,20 @@ private:
     void virt_bind() override
     {
         const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
+        static_assert(sizeof(std::declval<VertexType_>().p1) == 3 * sizeof(GLfloat));
+        static_assert(sizeof(std::declval<VertexType_>().p2) == 3 * sizeof(GLfloat));
         static_assert(sizeof(std::declval<VertexType_>().color) == 4 * sizeof(uint8_t));
-        static_assert(sizeof(std::declval<VertexType_>().vert) == 3 * sizeof(GLfloat));
-        static_assert(sizeof(std::declval<VertexType_>().lineCoord) == 2 * sizeof(GLfloat));
+        static_assert(sizeof(std::declval<VertexType_>().thickness) == 1 * sizeof(GLfloat));
+        static_assert(sizeof(std::declval<VertexType_>().corner) == 2 * sizeof(GLfloat));
 
         Functions &gl = Base::m_functions;
         const auto attribs = Attribs::getLocations(Base::m_program);
         gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
+        gl.enableAttrib(attribs.p1Pos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(p1));
+        gl.enableAttrib(attribs.p2Pos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(p2));
         gl.enableAttrib(attribs.colorPos, 4, GL_UNSIGNED_BYTE, GL_TRUE, vertSize, VPO(color));
-        gl.enableAttrib(attribs.vertPos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(vert));
-        gl.enableAttrib(attribs.lineCoordPos, 2, GL_FLOAT, GL_FALSE, vertSize, VPO(lineCoord));
+        gl.enableAttrib(attribs.thicknessPos, 1, GL_FLOAT, GL_FALSE, vertSize, VPO(thickness));
+        gl.enableAttrib(attribs.cornerPos, 2, GL_FLOAT, GL_FALSE, vertSize, VPO(corner));
         m_boundAttribs = attribs;
     }
 
@@ -170,13 +178,15 @@ private:
 
         auto &attribs = m_boundAttribs.value();
         Functions &gl = Base::m_functions;
+        gl.glDisableVertexAttribArray(attribs.p1Pos);
+        gl.glDisableVertexAttribArray(attribs.p2Pos);
         gl.glDisableVertexAttribArray(attribs.colorPos);
-        gl.glDisableVertexAttribArray(attribs.vertPos);
-        gl.glDisableVertexAttribArray(attribs.lineCoordPos);
+        gl.glDisableVertexAttribArray(attribs.thicknessPos);
+        gl.glDisableVertexAttribArray(attribs.cornerPos);
         gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
         m_boundAttribs.reset();
     }
-}; // namespace Legacy
+};
 
 // Textured mesh with color modulated by uniform
 template<typename VertexType_>
@@ -297,64 +307,7 @@ private:
 
 // Per-vertex color
 // flat-shaded in MMapper, due to glShadeModel(GL_FLAT)
-template<typename VertexType_>
-class NODISCARD PointMesh final : public SimpleMesh<VertexType_, PointShader>
-{
-public:
-    using Base = SimpleMesh<VertexType_, PointShader>;
-    using Base::Base;
-
-private:
-    struct NODISCARD Attribs final
-    {
-        GLuint colorPos = INVALID_ATTRIB_LOCATION;
-        GLuint vertPos = INVALID_ATTRIB_LOCATION;
-        GLuint pointSizePos = INVALID_ATTRIB_LOCATION;
-
-        NODISCARD static Attribs getLocations(AbstractShaderProgram &fontShader)
-        {
-            Attribs result;
-            result.colorPos = fontShader.getAttribLocation("aColor");
-            result.vertPos = fontShader.getAttribLocation("aVert");
-            result.pointSizePos = fontShader.getAttribLocation("aPointSize");
-            return result;
-        }
-    };
-
-    std::optional<Attribs> m_boundAttribs;
-
-    void virt_bind() override
-    {
-        const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
-        static_assert(sizeof(std::declval<VertexType_>().color) == 4 * sizeof(uint8_t));
-        static_assert(sizeof(std::declval<VertexType_>().vert) == 3 * sizeof(GLfloat));
-        static_assert(sizeof(std::declval<VertexType_>().pointSize) == 1 * sizeof(GLfloat));
-
-        Functions &gl = Base::m_functions;
-        const auto attribs = Attribs::getLocations(Base::m_program);
-        gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
-        gl.enableAttrib(attribs.colorPos, 4, GL_UNSIGNED_BYTE, GL_TRUE, vertSize, VPO(color));
-        gl.enableAttrib(attribs.vertPos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(vert));
-        gl.enableAttrib(attribs.pointSizePos, 1, GL_FLOAT, GL_FALSE, vertSize, VPO(pointSize));
-        m_boundAttribs = attribs;
-    }
-
-    void virt_unbind() override
-    {
-        if (!m_boundAttribs) {
-            assert(false);
-            return;
-        }
-
-        auto &attribs = m_boundAttribs.value();
-        Functions &gl = Base::m_functions;
-        gl.glDisableVertexAttribArray(attribs.colorPos);
-        gl.glDisableVertexAttribArray(attribs.vertPos);
-        gl.glDisableVertexAttribArray(attribs.pointSizePos);
-        gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
-        m_boundAttribs.reset();
-    }
-};
+using PointMesh = ColoredMesh<ColorVert>;
 
 } // namespace Legacy
 

@@ -157,7 +157,7 @@ NODISCARD static TerrainAndTrail getRoomTerrainAndTrail(const mctp::MapCanvasTex
                                                                 : textures.terrain[roomTerrainType];
 
     if (roadIndex != RoadIndexMaskEnum::NONE && roomTerrainType != RoomTerrainEnum::ROAD) {
-        result.trail.array = textures.trail[roadIndex];
+        result.trail = textures.trail[roadIndex];
     }
     return result;
 }
@@ -244,7 +244,7 @@ static void visitRoom(const RoomHandle &room,
 
     callbacks.visitTerrainTexture(room, terrainAndTrail.terrain);
 
-    if (auto trail = terrainAndTrail.trail; trail.array) {
+    if (auto trail = terrainAndTrail.trail; trail.array != INVALID_MM_TEXTURE_ID) {
         callbacks.visitTrailTexture(room, trail);
     }
 

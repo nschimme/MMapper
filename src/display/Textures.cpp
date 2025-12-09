@@ -34,6 +34,7 @@ MMTextureId allocateTextureId()
 
 MMTexture::MMTexture(Badge<MMTexture>, const QString &name)
     : m_qt_texture{QImage{name}.mirrored()}
+    , m_name{name}
 {
     auto &tex = m_qt_texture;
     tex.setWrapMode(QOpenGLTexture::WrapMode::MirroredRepeat);
@@ -362,7 +363,11 @@ void MapCanvas::initTextures()
             }
 
             auto &first = deref(pFirst);
-            std::vector<SharedMMTexture> inputs{thing.begin(), thing.end()};
+            std::vector<QString> inputs;
+            inputs.reserve(thing.size());
+            for (const auto &x : thing) {
+                inputs.emplace_back(getPixmapFilename(x));
+            }
 
             auto init_array = [&first, &inputs](QOpenGLTexture &tex) {
                 using Dir = QOpenGLTexture::CoordinateDirection;

@@ -189,7 +189,24 @@ public:
 
     using Base::glActiveTexture;
     using Base::glBindTexture;
+    using Base::glGenerateMipmap;
     using Base::glTexSubImage3D;
+
+public:
+    void glGetTexParameteriv(GLenum target, GLenum pname, GLint *params)
+    {
+        Base::glGetTexParameteriv(target, pname, params);
+    }
+
+    void glGetTexLevelParameteriv(GLenum target, GLint level, GLenum pname, GLint *params)
+    {
+        Base::glGetTexLevelParameteriv(target, level, pname, params);
+    }
+
+    void glPixelStorei(GLenum pname, GLint param)
+    {
+        Base::glPixelStorei(pname, param);
+    }
 
 public:
     void glLineWidth(const GLfloat lineWidth)

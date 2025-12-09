@@ -33,6 +33,7 @@ private:
     MMTextureId m_id = INVALID_MM_TEXTURE_ID;
     std::optional<MMTexArrayPosition> m_arrayPos;
     bool m_forbidUpdates = false;
+    QString m_name;
 
 public:
     NODISCARD static std::shared_ptr<MMTexture> alloc(const QString &name)
@@ -62,6 +63,7 @@ public:
     DELETE_CTORS_AND_ASSIGN_OPS(MMTexture);
 
 public:
+    NODISCARD const QString &getName() const { return m_name; }
     NODISCARD QOpenGLTexture *get() { return &m_qt_texture; }
     NODISCARD const QOpenGLTexture *get() const { return &m_qt_texture; }
     QOpenGLTexture *operator->() { return get(); }

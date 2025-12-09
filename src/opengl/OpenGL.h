@@ -14,6 +14,7 @@
 
 #include <QSurfaceFormat>
 #include <qopengl.h>
+#include <QString>
 
 class FBO;
 class MapCanvas;
@@ -162,5 +163,5 @@ public:
     void setTextureLookup(MMTextureId, SharedMMTexture);
 
 public:
-    void initArray(const SharedMMTexture &array, const std::vector<SharedMMTexture> &input);
+    void initArray(const SharedMMTexture &array, const std::vector<QString> &input);
 };

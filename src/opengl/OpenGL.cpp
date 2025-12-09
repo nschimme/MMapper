@@ -286,22 +286,23 @@ void OpenGL::initArray(const SharedMMTexture &array, const std::vector<QString> 
     for (GLsizei i = 0; i < numLayers; ++i) {
         QImage image = QImage{input[static_cast<size_t>(i)]}.mirrored();
         if (image.width() != qtex.width() || image.height() != qtex.height()) {
-            qWarning() << "Scaling image" << input[static_cast<size_t>(i)] << "from"
+            qWarning() << "Upscaling image" << input[static_cast<size_t>(i)] << "from"
                        << image.width() << "x" << image.height() << "to" << qtex.width() << "x"
                        << qtex.height();
             image = image.scaled(qtex.width(), qtex.height(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
         }
+        const QImage swappedImage = image.rgbSwapped();
         gl.glTexSubImage3D(GL_TEXTURE_2D_ARRAY,
                            0,
                            0,
                            0,
                            i,
-                           image.width(),
-                           image.height(),
+                           swappedImage.width(),
+                           swappedImage.height(),
                            1,
                            GL_RGBA,
                            GL_UNSIGNED_BYTE,
-                           image.constBits());
+                           swappedImage.constBits());
     }
 
     gl.glGenerateMipmap(GL_TEXTURE_2D_ARRAY);

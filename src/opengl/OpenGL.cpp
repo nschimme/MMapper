@@ -284,9 +284,12 @@ void OpenGL::initArray(const SharedMMTexture &array, const std::vector<QString> 
 
     const auto numLayers = static_cast<GLsizei>(input.size());
     for (GLsizei i = 0; i < numLayers; ++i) {
-        const QImage image = QImage{input[static_cast<size_t>(i)]}.mirrored();
+        QImage image = QImage{input[static_cast<size_t>(i)]}.mirrored();
         if (image.width() != qtex.width() || image.height() != qtex.height()) {
-            throw std::runtime_error("all images in a texture array must have the same dimensions");
+            qWarning() << "Scaling image" << input[static_cast<size_t>(i)] << "from"
+                       << image.width() << "x" << image.height() << "to" << qtex.width() << "x"
+                       << qtex.height();
+            image = image.scaled(qtex.width(), qtex.height(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
         }
         gl.glTexSubImage3D(GL_TEXTURE_2D_ARRAY,
                            0,

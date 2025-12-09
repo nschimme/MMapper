@@ -83,7 +83,7 @@ void OpenGL::blitFboToDefault()
     getFunctions().blitFboToDefault();
 }
 
-UniqueMesh OpenGL::createPointBatch(const std::vector<ColorVert> &batch)
+UniqueMesh OpenGL::createPointBatch(const std::vector<PointVert> &batch)
 {
     return getFunctions().createPointBatch(batch);
 }
@@ -175,7 +175,7 @@ void OpenGL::renderLines(const std::vector<LineVert> &verts, const GLRenderState
     getFunctions().renderLines(verts, state);
 }
 
-void OpenGL::renderPoints(const std::vector<ColorVert> &verts, const GLRenderState &state)
+void OpenGL::renderPoints(const std::vector<PointVert> &verts, const GLRenderState &state)
 {
     getFunctions().renderPoints(verts, state);
 }

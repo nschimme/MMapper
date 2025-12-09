@@ -660,7 +660,7 @@ void MapCanvas::paintNearbyConnectionPoints()
         return tmp;
     });
 
-    std::vector<ColorVert> points;
+    std::vector<PointVert> points;
     const auto addPoint = [isSelection, &points](const Coordinate &roomCoord,
                                                  const RoomHandle &room,
                                                  const ExitDirEnum dir,
@@ -678,7 +678,9 @@ void MapCanvas::paintNearbyConnectionPoints()
             }
         }
 
-        points.emplace_back(Colors::cyan, roomCoord.to_vec3() + getConnectionOffset(dir));
+        points.emplace_back(Colors::cyan,
+                            roomCoord.to_vec3() + getConnectionOffset(dir),
+                            VALID_CONNECTION_POINT_SIZE);
     };
     const auto addPoints =
         [this, isSelection, &addPoint](const std::optional<MouseSel> &sel,
@@ -714,7 +716,9 @@ void MapCanvas::paintNearbyConnectionPoints()
                                                                : m_connectionSelection->getSecond();
         const Coordinate &c = valid.room.getPosition();
         const glm::vec3 &pos = c.to_vec3();
-        points.emplace_back(Colors::cyan, pos + getConnectionOffset(valid.direction));
+        points.emplace_back(Colors::cyan,
+                            pos + getConnectionOffset(valid.direction),
+                            VALID_CONNECTION_POINT_SIZE);
 
         addPoints(MouseSel{Coordinate2f{pos.x, pos.y}, c.z}, valid);
         addPoints(m_sel1, valid);
@@ -724,7 +728,7 @@ void MapCanvas::paintNearbyConnectionPoints()
         addPoints(m_sel2, std::nullopt);
     }
 
-    getOpenGL().renderPoints(points, GLRenderState().withPointSize(VALID_CONNECTION_POINT_SIZE));
+    getOpenGL().renderPoints(points, GLRenderState());
 }
 
 void MapCanvas::paintSelectedConnection()
@@ -768,10 +772,10 @@ void MapCanvas::paintSelectedConnection()
         gl.renderLines(verts, rs);
     }
 
-    std::vector<ColorVert> points;
-    points.emplace_back(Colors::red, pos1);
-    points.emplace_back(Colors::red, pos2);
-    gl.renderPoints(points, rs.withPointSize(NEW_CONNECTION_POINT_SIZE));
+    std::vector<PointVert> points;
+    points.emplace_back(Colors::red, pos1, NEW_CONNECTION_POINT_SIZE);
+    points.emplace_back(Colors::red, pos2, NEW_CONNECTION_POINT_SIZE);
+    gl.renderPoints(points, rs);
 }
 
 static constexpr float LONG_LINE_HALFLEN = 1.5f;

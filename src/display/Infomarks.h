@@ -39,7 +39,7 @@ private:
     glm::vec3 m_offset{0};
     Color m_color;
 
-    std::vector<ColorVert> m_points;
+    std::vector<PointVert> m_points;
     std::vector<ColorVert> m_tris;
     std::vector<LineVert> m_lines;
 

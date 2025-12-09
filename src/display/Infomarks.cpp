@@ -133,7 +133,7 @@ BatchedInfomarksMeshes MapCanvas::getInfomarksMeshes()
 
 void InfomarksBatch::drawPoint(const glm::vec3 &a)
 {
-    m_points.emplace_back(m_color, a + m_offset);
+    m_points.emplace_back(m_color, a + m_offset, INFOMARK_POINT_SIZE);
 }
 
 void InfomarksBatch::drawLine(const glm::vec3 &a, const glm::vec3 &b)
@@ -197,7 +197,7 @@ void InfomarksBatch::renderImmediate(const GLRenderState &state)
         m_font.render3dTextImmediate(m_text.text);
     }
     if (!m_points.empty()) {
-        gl.renderPoints(m_points, state.withPointSize(INFOMARK_POINT_SIZE));
+        gl.renderPoints(m_points, state);
     }
 }
 
@@ -210,7 +210,7 @@ void InfomarksMeshes::render()
     const auto common_state
         = GLRenderState().withDepthFunction(std::nullopt).withBlend(BlendModeEnum::TRANSPARENCY);
 
-    points.render(common_state.withPointSize(INFOMARK_POINT_SIZE));
+    points.render(common_state);
     tris.render(common_state);
     lines.render(common_state);
     textMesh.render(common_state);

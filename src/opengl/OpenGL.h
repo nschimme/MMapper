@@ -64,7 +64,7 @@ public:
     void blitFboToDefault();
 
 public:
-    NODISCARD UniqueMesh createPointBatch(const std::vector<ColorVert> &verts);
+    NODISCARD UniqueMesh createPointBatch(const std::vector<PointVert> &verts);
 
 public:
     // plain means the color is defined by uniform
@@ -108,7 +108,7 @@ public:
                                const GLRenderState &state);
 
 public:
-    void renderPoints(const std::vector<ColorVert> &verts, const GLRenderState &state);
+    void renderPoints(const std::vector<PointVert> &verts, const GLRenderState &state);
 
 public:
     void renderPlainLines(const std::vector<glm::vec3> &verts, const GLRenderState &state)

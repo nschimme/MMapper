@@ -77,14 +77,12 @@ private:
     {
         GLuint colorPos = INVALID_ATTRIB_LOCATION;
         GLuint vertPos = INVALID_ATTRIB_LOCATION;
-        GLuint pointSizePos = INVALID_ATTRIB_LOCATION;
 
         NODISCARD static Attribs getLocations(AbstractShaderProgram &fontShader)
         {
             Attribs result;
             result.colorPos = fontShader.getAttribLocation("aColor");
             result.vertPos = fontShader.getAttribLocation("aVert");
-            result.pointSizePos = fontShader.getAttribLocation("aPointSize");
             return result;
         }
     };
@@ -96,14 +94,12 @@ private:
         const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
         static_assert(sizeof(std::declval<VertexType_>().color) == 4 * sizeof(uint8_t));
         static_assert(sizeof(std::declval<VertexType_>().vert) == 3 * sizeof(GLfloat));
-        static_assert(sizeof(std::declval<VertexType_>().pointSize) == 1 * sizeof(GLfloat));
 
         Functions &gl = Base::m_functions;
         const auto attribs = Attribs::getLocations(Base::m_program);
         gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
         gl.enableAttrib(attribs.colorPos, 4, GL_UNSIGNED_BYTE, GL_TRUE, vertSize, VPO(color));
         gl.enableAttrib(attribs.vertPos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(vert));
-        gl.enableAttrib(attribs.pointSizePos, 1, GL_FLOAT, GL_FALSE, vertSize, VPO(pointSize));
         m_boundAttribs = attribs;
     }
 
@@ -118,7 +114,6 @@ private:
         Functions &gl = Base::m_functions;
         gl.glDisableVertexAttribArray(attribs.colorPos);
         gl.glDisableVertexAttribArray(attribs.vertPos);
-        gl.glDisableVertexAttribArray(attribs.pointSizePos);
         gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
         m_boundAttribs.reset();
     }
@@ -314,12 +309,14 @@ private:
     {
         GLuint colorPos = INVALID_ATTRIB_LOCATION;
         GLuint vertPos = INVALID_ATTRIB_LOCATION;
+        GLuint pointSizePos = INVALID_ATTRIB_LOCATION;
 
         NODISCARD static Attribs getLocations(AbstractShaderProgram &fontShader)
         {
             Attribs result;
             result.colorPos = fontShader.getAttribLocation("aColor");
             result.vertPos = fontShader.getAttribLocation("aVert");
+            result.pointSizePos = fontShader.getAttribLocation("aPointSize");
             return result;
         }
     };
@@ -331,12 +328,14 @@ private:
         const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
         static_assert(sizeof(std::declval<VertexType_>().color) == 4 * sizeof(uint8_t));
         static_assert(sizeof(std::declval<VertexType_>().vert) == 3 * sizeof(GLfloat));
+        static_assert(sizeof(std::declval<VertexType_>().pointSize) == 1 * sizeof(GLfloat));
 
         Functions &gl = Base::m_functions;
         const auto attribs = Attribs::getLocations(Base::m_program);
         gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
         gl.enableAttrib(attribs.colorPos, 4, GL_UNSIGNED_BYTE, GL_TRUE, vertSize, VPO(color));
         gl.enableAttrib(attribs.vertPos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(vert));
+        gl.enableAttrib(attribs.pointSizePos, 1, GL_FLOAT, GL_FALSE, vertSize, VPO(pointSize));
         m_boundAttribs = attribs;
     }
 
@@ -351,6 +350,7 @@ private:
         Functions &gl = Base::m_functions;
         gl.glDisableVertexAttribArray(attribs.colorPos);
         gl.glDisableVertexAttribArray(attribs.vertPos);
+        gl.glDisableVertexAttribArray(attribs.pointSizePos);
         gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
         m_boundAttribs.reset();
     }

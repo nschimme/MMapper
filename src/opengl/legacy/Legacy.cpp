@@ -68,7 +68,7 @@ NODISCARD static UniqueMesh createTexturedMesh(const SharedFunctions &functions,
         texture, createMesh<Mesh_, VertType_, ProgType_>(functions, mode, batch, prog))};
 }
 
-UniqueMesh Functions::createPointBatch(const std::vector<ColorVert> &batch)
+UniqueMesh Functions::createPointBatch(const std::vector<PointVert> &batch)
 {
     const auto &prog = getShaderPrograms().getPointShader();
     return createUniqueMesh<PointMesh>(shared_from_this(), DrawModeEnum::POINTS, batch, prog);
@@ -190,14 +190,14 @@ void Functions::renderLines(const std::vector<LineVert> &verts, const GLRenderSt
                                                 state);
 }
 
-void Functions::renderPoints(const std::vector<ColorVert> &verts, const GLRenderState &state)
+void Functions::renderPoints(const std::vector<PointVert> &verts, const GLRenderState &state)
 {
     const auto &prog = getShaderPrograms().getPointShader();
-    renderImmediate<ColorVert, Legacy::PointMesh>(shared_from_this(),
+    renderImmediate<PointVert, Legacy::PointMesh>(shared_from_this(),
                                                   DrawModeEnum::POINTS,
                                                   verts,
-                                                 prog,
-                                                 state);
+                                                  prog,
+                                                  state);
 }
 
 void Functions::renderTextured(const DrawModeEnum mode,

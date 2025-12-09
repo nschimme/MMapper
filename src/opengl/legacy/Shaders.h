@@ -18,6 +18,7 @@ public:
 private:
     void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final
     {
+        setColor("uColor", uniforms.color);
         setMatrix("uMVP", mvp);
     }
 };
@@ -46,7 +47,6 @@ public:
 private:
     void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final
     {
-        setColor("uColor", uniforms.color);
         setMatrix("uMVP", mvp);
     }
 };

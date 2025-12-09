@@ -104,7 +104,7 @@ private:
         std::vector<ColorVert> m_charBeaconQuads;
         std::vector<LineVert> m_charLines;
         std::vector<ColoredTexVert> m_charRoomQuads;
-        std::vector<ColorVert> m_pathPoints;
+        std::vector<PointVert> m_pathPoints;
         std::vector<LineVert> m_pathLines;
         std::vector<FontVert3d> m_screenSpaceArrows;
         std::map<Coordinate, int, CoordCompare> m_coordCounts;
@@ -154,10 +154,7 @@ private:
         void drawPathSegment(const glm::vec3 &p1, const glm::vec3 &p2, const Color &color);
 
         // with blending, without depth; always size 8
-        void drawPathPoint(const Color &color, const glm::vec3 &pos)
-        {
-            m_pathPoints.emplace_back(color, pos);
-        }
+        void drawPathPoint(const Color &color, const glm::vec3 &pos);
 
     private:
         enum class NODISCARD QuadOptsEnum : uint32_t {

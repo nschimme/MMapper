@@ -110,6 +110,11 @@ void CharacterBatch::CharFakeGL::drawPathSegment(const glm::vec3 &p1,
     mmgl::generateLineQuadsSafe(m_pathLines, p1, p2, PATH_LINE_WIDTH, color);
 }
 
+void CharacterBatch::CharFakeGL::drawPathPoint(const Color &color, const glm::vec3 &p)
+{
+    m_pathPoints.emplace_back(color, p, PATH_POINT_SIZE);
+}
+
 void CharacterBatch::drawPreSpammedPath(const Coordinate &c1,
                                         const std::vector<Coordinate> &path,
                                         const Color &color)
@@ -349,7 +354,7 @@ void CharacterBatch::CharFakeGL::reallyDrawPaths(OpenGL &gl)
     const auto blended_noDepth
         = GLRenderState().withDepthFunction(std::nullopt).withBlend(BlendModeEnum::TRANSPARENCY);
 
-    gl.renderPoints(m_pathPoints, blended_noDepth.withPointSize(PATH_POINT_SIZE));
+    gl.renderPoints(m_pathPoints, blended_noDepth);
     if (!m_pathLines.empty()) {
         gl.renderLines(m_pathLines, blended_noDepth);
     }

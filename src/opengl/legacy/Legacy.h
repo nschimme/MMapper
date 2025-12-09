@@ -305,7 +305,7 @@ public:
     }
 
 public:
-    NODISCARD UniqueMesh createPointBatch(const std::vector<ColorVert> &batch);
+    NODISCARD UniqueMesh createPointBatch(const std::vector<PointVert> &batch);
     NODISCARD UniqueMesh createColoredLineBatch(const std::vector<LineVert> &batch);
 
 public:
@@ -324,7 +324,7 @@ public:
                                         const std::vector<FontVert3d> &batch);
 
 public:
-    void renderPoints(const std::vector<ColorVert> &verts, const GLRenderState &state);
+    void renderPoints(const std::vector<PointVert> &verts, const GLRenderState &state);
     void renderLines(const std::vector<LineVert> &verts, const GLRenderState &state);
 
 public:

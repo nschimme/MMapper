@@ -55,7 +55,7 @@ Call Stack (most recent call first):
 This warning is for project developers.  Use -Wno-dev to suppress it.
 
 -- Found Git: /usr/bin/git (found version "2.51.2")
--- Building from branch jules-11342912436555179907-c28c7f5c with ref ecfd617
+-- Building from branch jules-11342912436555179907-c28c7f5c with ref efd66e5
 -- Debug build type: Debug
 -- Forcing QT assertions
 -- Using _GLIBCXX_DEBUG
@@ -88,31 +88,14 @@ mmapper_map_SRCS=[map/AbstractChangeVisitor.cpp;map/AbstractChangeVisitor.h;map/
  * USE_CODE_COVERAGE
  * USE_MOLD, faster build linking
 
--- Configuring done (9.6s)
+-- Configuring done (9.0s)
 -- Generating done (0.1s)
 -- Build files have been written to: /app/build
-[1/691] Creating directories for 'glm'
+[1/691] Creating directories for 'map_repo'
 [2/691] Creating directories for 'immer'
-[3/691] Creating directories for 'map_repo'
+[3/691] Creating directories for 'glm'
 [4/691] Creating directories for 'images_repo'
-[5/691] Performing download step (download, verify and extract) for 'immer'
--- Downloading...
-   dst='/app/build/external/immer/immer-prefix/src/v0.8.1.tar.gz'
-   timeout='none'
-   inactivity timeout='none'
--- Using src='https://github.com/arximboldi/immer/archive/v0.8.1.tar.gz'
--- verifying file...
-       file='/app/build/external/immer/immer-prefix/src/v0.8.1.tar.gz'
--- Downloading... done
--- extracting...
-     src='/app/build/external/immer/immer-prefix/src/v0.8.1.tar.gz'
-     dst='/app/build/external/immer/immer'
--- extracting... [tar xfz]
--- extracting... [analysis]
--- extracting... [rename]
--- extracting... [clean up]
--- extracting... done
-[6/691] Performing download step (download, verify and extract) for 'glm'
+[5/691] Performing download step (download, verify and extract) for 'glm'
 -- Downloading...
    dst='/app/build/external/glm/glm-prefix/src/glm-0.9.9.8.zip'
    timeout='none'
@@ -131,10 +114,22 @@ mmapper_map_SRCS=[map/AbstractChangeVisitor.cpp;map/AbstractChangeVisitor.h;map/
 -- [download 10% complete]
 -- [download 11% complete]
 -- [download 12% complete]
--- [download 24% complete]
--- [download 53% complete]
--- [download 82% complete]
--- [download 83% complete]
+-- [download 13% complete]
+-- [download 14% complete]
+-- [download 15% complete]
+-- [download 16% complete]
+-- [download 18% complete]
+-- [download 19% complete]
+-- [download 20% complete]
+-- [download 21% complete]
+-- [download 22% complete]
+-- [download 23% complete]
+-- [download 25% complete]
+-- [download 27% complete]
+-- [download 28% complete]
+-- [download 47% complete]
+-- [download 48% complete]
+-- [download 77% complete]
 -- [download 100% complete]
 -- verifying file...
        file='/app/build/external/glm/glm-prefix/src/glm-0.9.9.8.zip'
@@ -147,175 +142,192 @@ mmapper_map_SRCS=[map/AbstractChangeVisitor.cpp;map/AbstractChangeVisitor.h;map/
 -- extracting... [rename]
 -- extracting... [clean up]
 -- extracting... done
-[7/691] No update step for 'immer'
-[8/691] No update step for 'glm'
-[9/691] No patch step for 'immer'
-[10/691] No patch step for 'glm'
-[11/691] No configure step for 'immer'
-[12/691] No configure step for 'glm'
-[13/691] Performing download step (git clone) for 'images_repo'
+[6/691] No update step for 'glm'
+[7/691] No patch step for 'glm'
+[8/691] No configure step for 'glm'
+[9/691] No build step for 'glm'
+[10/691] No install step for 'glm'
+[11/691] Performing download step (download, verify and extract) for 'immer'
+-- Downloading...
+   dst='/app/build/external/immer/immer-prefix/src/v0.8.1.tar.gz'
+   timeout='none'
+   inactivity timeout='none'
+-- Using src='https://github.com/arximboldi/immer/archive/v0.8.1.tar.gz'
+-- verifying file...
+       file='/app/build/external/immer/immer-prefix/src/v0.8.1.tar.gz'
+-- Downloading... done
+-- extracting...
+     src='/app/build/external/immer/immer-prefix/src/v0.8.1.tar.gz'
+     dst='/app/build/external/immer/immer'
+-- extracting... [tar xfz]
+-- extracting... [analysis]
+-- extracting... [rename]
+-- extracting... [clean up]
+-- extracting... done
+[12/691] Completed 'glm'
+[13/691] No update step for 'immer'
+[14/691] No patch step for 'immer'
+[15/691] No configure step for 'immer'
+[16/691] Performing download step (git clone) for 'images_repo'
 Cloning into 'images'...
 HEAD is now at 235b9d6 initial commit
-[14/691] No build step for 'immer'
-[15/691] No build step for 'glm'
-[16/691] No install step for 'glm'
-[17/691] No install step for 'immer'
+[17/691] No build step for 'immer'
 [18/691] No update step for 'images_repo'
-[19/691] No patch step for 'images_repo'
-[20/691] Completed 'glm'
+[19/691] No install step for 'immer'
+[20/691] No patch step for 'images_repo'
 [21/691] Completed 'immer'
 [22/691] No configure step for 'images_repo'
 [23/691] No build step for 'images_repo'
-[24/691] Automatic MOC and UIC for target mm_global
-[25/691] No install step for 'images_repo'
+[24/691] No install step for 'images_repo'
+[25/691] Automatic MOC and UIC for target mm_global
 [26/691] Building CXX object src/CMakeFiles/mm_global.dir/mm_global_autogen/mocs_compilation.cpp.o
-[27/691] Building CXX object src/CMakeFiles/mm_global.dir/global/AnsiOstream.cpp.o
-[28/691] Building CXX object src/CMakeFiles/mm_global.dir/global/Badge.cpp.o
-[29/691] Building CXX object src/CMakeFiles/mm_global.dir/global/AnsiTextUtils.cpp.o
-[30/691] Completed 'images_repo'
-[31/691] Building CXX object src/CMakeFiles/mm_global.dir/global/AsyncTasks.cpp.o
-[32/691] Building CXX object src/CMakeFiles/mm_global.dir/global/CaseUtils.cpp.o
-[33/691] Building CXX object src/CMakeFiles/mm_global.dir/global/Charset-Utf8.cpp.o
-[34/691] Generating images.qrc
-[35/691] Building CXX object src/CMakeFiles/mm_global.dir/global/Charset-Utf16.cpp.o
-[36/691] Building CXX object src/CMakeFiles/mm_global.dir/global/CharUtils.cpp.o
+[27/691] Building CXX object src/CMakeFiles/mm_global.dir/global/Badge.cpp.o
+[28/691] Completed 'images_repo'
+[29/691] Building CXX object src/CMakeFiles/mm_global.dir/global/AnsiOstream.cpp.o
+[30/691] Building CXX object src/CMakeFiles/mm_global.dir/global/CaseUtils.cpp.o
+[31/691] Generating images.qrc
+[32/691] Building CXX object src/CMakeFiles/mm_global.dir/global/CharUtils.cpp.o
+[33/691] Building CXX object src/CMakeFiles/mm_global.dir/global/Charset-Utf16.cpp.o
+[34/691] Building CXX object src/CMakeFiles/mm_global.dir/global/AnsiTextUtils.cpp.o
+[35/691] Building CXX object src/CMakeFiles/mm_global.dir/global/AsyncTasks.cpp.o
+[36/691] Building CXX object src/CMakeFiles/mm_global.dir/global/Charset-Utf8.cpp.o
 [37/691] Building CXX object src/CMakeFiles/mm_global.dir/global/Charset.cpp.o
-[38/691] Building CXX object src/CMakeFiles/mm_global.dir/global/Connections.cpp.o
+[38/691] Building CXX object src/CMakeFiles/mm_global.dir/global/Color.cpp.o
 [39/691] Building CXX object src/CMakeFiles/mm_global.dir/global/Consts.cpp.o
-[40/691] Building CXX object src/CMakeFiles/mm_global.dir/global/HideQDebug.cpp.o
-[41/691] Building CXX object src/CMakeFiles/mm_global.dir/global/IndexedVectorWithDefault.cpp.o
-[42/691] Building CXX object src/CMakeFiles/mm_global.dir/global/Color.cpp.o
-[43/691] Building CXX object src/CMakeFiles/mm_global.dir/global/Flags.cpp.o
-[44/691] Building CXX object src/CMakeFiles/mm_global.dir/global/Diff.cpp.o
+[40/691] Building CXX object src/CMakeFiles/mm_global.dir/global/Connections.cpp.o
+[41/691] Building CXX object src/CMakeFiles/mm_global.dir/global/HideQDebug.cpp.o
+[42/691] Building CXX object src/CMakeFiles/mm_global.dir/global/Flags.cpp.o
+[43/691] Building CXX object src/CMakeFiles/mm_global.dir/global/Diff.cpp.o
+[44/691] Building CXX object src/CMakeFiles/mm_global.dir/global/IndexedVectorWithDefault.cpp.o
 [45/691] Building CXX object src/CMakeFiles/mm_global.dir/global/JsonObj.cpp.o
-[46/691] Building CXX object src/CMakeFiles/mm_global.dir/global/OrderedMap.cpp.o
+[46/691] Building CXX object src/CMakeFiles/mm_global.dir/global/NullPointerException.cpp.o
 [47/691] Building CXX object src/CMakeFiles/mm_global.dir/global/LineUtils.cpp.o
-[48/691] Building CXX object src/CMakeFiles/mm_global.dir/global/NullPointerException.cpp.o
-[49/691] Building CXX object src/CMakeFiles/mm_global.dir/global/OrderedSet.cpp.o
-[50/691] Building CXX object src/CMakeFiles/mm_global.dir/global/JsonValue.cpp.o
-[51/691] Building CXX object src/CMakeFiles/mm_global.dir/global/NamedColors.cpp.o
+[48/691] Building CXX object src/CMakeFiles/mm_global.dir/global/JsonValue.cpp.o
+[49/691] Building CXX object src/CMakeFiles/mm_global.dir/global/NamedColors.cpp.o
+[50/691] Building CXX object src/CMakeFiles/mm_global.dir/global/OrderedSet.cpp.o
+[51/691] Building CXX object src/CMakeFiles/mm_global.dir/global/OrderedMap.cpp.o
 [52/691] Building CXX object src/CMakeFiles/mm_global.dir/global/RAII.cpp.o
-[53/691] Building CXX object src/CMakeFiles/mm_global.dir/global/SendToUser.cpp.o
-[54/691] Building CXX object src/CMakeFiles/mm_global.dir/global/PrintUtils.cpp.o
-[55/691] Building CXX object src/CMakeFiles/mm_global.dir/global/SignalBlocker.cpp.o
-[56/691] Building CXX object src/CMakeFiles/mm_global.dir/global/StorageUtils.cpp.o
+[53/691] Building CXX object src/CMakeFiles/mm_global.dir/global/StorageUtils.cpp.o
+[54/691] Building CXX object src/CMakeFiles/mm_global.dir/global/SignalBlocker.cpp.o
+[55/691] Building CXX object src/CMakeFiles/mm_global.dir/global/PrintUtils.cpp.o
+[56/691] Building CXX object src/CMakeFiles/mm_global.dir/global/StringView.cpp.o
 [57/691] Building CXX object src/CMakeFiles/mm_global.dir/global/TabUtils.cpp.o
-[58/691] Building CXX object src/CMakeFiles/mm_global.dir/global/TextBuffer.cpp.o
+[58/691] Building CXX object src/CMakeFiles/mm_global.dir/global/SendToUser.cpp.o
+[59/691] Building CXX object src/CMakeFiles/mm_global.dir/global/TaggedString.cpp.o
+[60/691] Building CXX object src/CMakeFiles/mm_global.dir/global/TextUtils.cpp.o
+[61/691] Building CXX object src/CMakeFiles/mm_global.dir/global/TextBuffer.cpp.o
 /app/src/global/TextBuffer.cpp: In member function ‘void mmqt::TextBuffer::appendJustified(QStringView, int)’:
 /app/src/global/TextBuffer.cpp:169:36: warning: conversion from ‘qsizetype’ {aka ‘long long int’} to ‘int’ may change value [-Wconversion]
   169 |                 col += word.length();
       |                                    ^
-[59/691] Building CXX object src/CMakeFiles/mm_global.dir/global/StringView.cpp.o
-[60/691] Building CXX object src/CMakeFiles/mm_global.dir/global/TaggedString.cpp.o
-[61/691] Building CXX object src/CMakeFiles/mm_global.dir/global/TextUtils.cpp.o
 [62/691] Building CXX object src/CMakeFiles/mm_global.dir/global/WeakHandle.cpp.o
-[63/691] Building CXX object src/CMakeFiles/mm_global.dir/global/cast_error.cpp.o
-[64/691] Building CXX object src/CMakeFiles/mm_global.dir/global/Timer.cpp.o
-[65/691] Building CXX object src/CMakeFiles/mm_global.dir/global/float_cast.cpp.o
+[63/691] Building CXX object src/CMakeFiles/mm_global.dir/global/Timer.cpp.o
+[64/691] Building CXX object src/CMakeFiles/mm_global.dir/global/cast_error.cpp.o
+[65/691] Building CXX object src/CMakeFiles/mm_global.dir/global/int_cast.cpp.o
 [66/691] Building CXX object src/CMakeFiles/mm_global.dir/global/WinSock.cpp.o
-[67/691] Building CXX object src/CMakeFiles/mm_global.dir/global/emojis.cpp.o
+[67/691] Building CXX object src/CMakeFiles/mm_global.dir/global/float_cast.cpp.o
 [68/691] Building CXX object src/CMakeFiles/mm_global.dir/global/entities.cpp.o
-[69/691] Building CXX object src/CMakeFiles/mm_global.dir/global/int_cast.cpp.o
-[70/691] Building CXX object src/CMakeFiles/mm_global.dir/global/logging.cpp.o
-[71/691] Building CXX object src/CMakeFiles/mm_global.dir/global/progresscounter.cpp.o
-[72/691] Building CXX object src/CMakeFiles/mm_global.dir/global/parserutils.cpp.o
-[73/691] Building CXX object src/CMakeFiles/mm_global.dir/global/string_view_utils.cpp.o
-[74/691] Building CXX object src/CMakeFiles/mm_global.dir/global/random.cpp.o
+[69/691] Building CXX object src/CMakeFiles/mm_global.dir/global/emojis.cpp.o
+[70/691] Building CXX object src/CMakeFiles/mm_global.dir/global/parserutils.cpp.o
+[71/691] Building CXX object src/CMakeFiles/mm_global.dir/global/random.cpp.o
+[72/691] Building CXX object src/CMakeFiles/mm_global.dir/global/logging.cpp.o
+[73/691] Building CXX object src/CMakeFiles/mm_global.dir/global/progresscounter.cpp.o
+[74/691] Building CXX object src/CMakeFiles/mm_global.dir/global/io.cpp.o
 [75/691] Building CXX object src/CMakeFiles/mm_global.dir/global/tests.cpp.o
-[76/691] Building CXX object src/CMakeFiles/mm_global.dir/global/io.cpp.o
-[77/691] Building CXX object src/CMakeFiles/mm_global.dir/global/utils.cpp.o
-[78/691] Building CXX object src/CMakeFiles/mm_global.dir/global/thread_utils.cpp.o
-[79/691] Building CXX object src/CMakeFiles/mm_global.dir/global/unquote.cpp.o
-[80/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Array.h.gen.cpp.o
-[81/691] Building CXX object src/CMakeFiles/mm_global.dir/global/window_utils.cpp.o
-[82/691] Building CXX object src/CMakeFiles/mm_global.dir/global/zpipe.cpp.o
-[83/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/AnsiTextUtils.h.gen.cpp.o
-[84/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/AnsiOstream.h.gen.cpp.o
-[85/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Badge.h.gen.cpp.o
-[86/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/CaseUtils.h.gen.cpp.o
-[87/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/CharUtils.h.gen.cpp.o
-[88/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/AsyncTasks.h.gen.cpp.o
-[89/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/ConfigConsts.h.gen.cpp.o
+[76/691] Building CXX object src/CMakeFiles/mm_global.dir/global/utils.cpp.o
+[77/691] Building CXX object src/CMakeFiles/mm_global.dir/global/string_view_utils.cpp.o
+[78/691] Building CXX object src/CMakeFiles/mm_global.dir/global/unquote.cpp.o
+[79/691] Building CXX object src/CMakeFiles/mm_global.dir/global/zpipe.cpp.o
+[80/691] Building CXX object src/CMakeFiles/mm_global.dir/global/window_utils.cpp.o
+[81/691] Building CXX object src/CMakeFiles/mm_global.dir/global/thread_utils.cpp.o
+[82/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Array.h.gen.cpp.o
+[83/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Badge.h.gen.cpp.o
+[84/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/AsyncTasks.h.gen.cpp.o
+[85/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/CaseUtils.h.gen.cpp.o
+[86/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/AnsiOstream.h.gen.cpp.o
+[87/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/AnsiTextUtils.h.gen.cpp.o
+[88/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Color.h.gen.cpp.o
+[89/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/CharUtils.h.gen.cpp.o
 [90/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/ChangeMonitor.h.gen.cpp.o
-[91/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/ConfigEnums.h.gen.cpp.o
-[92/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Charset.h.gen.cpp.o
-[93/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/ConfigConsts-Computed.h.gen.cpp.o
-[94/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Color.h.gen.cpp.o
-[95/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Consts.h.gen.cpp.o
-[96/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/ConversionResult.h.gen.cpp.o
-[97/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Connections.h.gen.cpp.o
-[98/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Diff.h.gen.cpp.o
-[99/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/EnumIndexedArray.h.gen.cpp.o
-[100/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/HideQDebug.h.gen.cpp.o
-[101/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/FixedPoint.h.gen.cpp.o
-[102/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Flags.h.gen.cpp.o
-[103/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/ImmIndexedVector.h.gen.cpp.o
-[104/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/ImmIndexedVectorWithDefault.h.gen.cpp.o
-[105/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/ImmOrderedSet.h.gen.cpp.o
+[91/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/ConfigConsts-Computed.h.gen.cpp.o
+[92/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/ConfigConsts.h.gen.cpp.o
+[93/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/ConfigEnums.h.gen.cpp.o
+[94/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Charset.h.gen.cpp.o
+[95/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/ConversionResult.h.gen.cpp.o
+[96/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Consts.h.gen.cpp.o
+[97/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/EnumIndexedArray.h.gen.cpp.o
+[98/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Connections.h.gen.cpp.o
+[99/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Diff.h.gen.cpp.o
+[100/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/FixedPoint.h.gen.cpp.o
+[101/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/HideQDebug.h.gen.cpp.o
+[102/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/ImmIndexedVector.h.gen.cpp.o
+[103/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Flags.h.gen.cpp.o
+[104/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/ImmOrderedSet.h.gen.cpp.o
+[105/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/ImmUnorderedSet.h.gen.cpp.o
 [106/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/ImmUnorderedMap.h.gen.cpp.o
-[107/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/ImmUnorderedSet.h.gen.cpp.o
+[107/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/ImmIndexedVectorWithDefault.h.gen.cpp.o
 [108/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/IndexedVector.h.gen.cpp.o
-[109/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/IndexedVectorWithDefault.h.gen.cpp.o
-[110/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/JsonObj.h.gen.cpp.o
-[111/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/JsonArray.h.gen.cpp.o
-[112/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/JsonValue.h.gen.cpp.o
-[113/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/LineUtils.h.gen.cpp.o
-[114/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/JsonDoc.h.gen.cpp.o
-[115/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/MakeQPointer.h.gen.cpp.o
-[116/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/NamedColors.h.gen.cpp.o
-[117/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/NullPointerException.h.gen.cpp.o
-[118/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/MmQtHandle.h.gen.cpp.o
-[119/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/OrderedMap.h.gen.cpp.o
-[120/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/OrderedSet.h.gen.cpp.o
-[121/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/QuotedQString.h.gen.cpp.o
-[122/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/RuleOf5.h.gen.cpp.o
-[123/691] Performing download step (git clone) for 'map_repo'
+[109/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/JsonArray.h.gen.cpp.o
+[110/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/JsonDoc.h.gen.cpp.o
+[111/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/IndexedVectorWithDefault.h.gen.cpp.o
+[112/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/JsonObj.h.gen.cpp.o
+[113/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/JsonValue.h.gen.cpp.o
+[114/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/MakeQPointer.h.gen.cpp.o
+[115/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/LineUtils.h.gen.cpp.o
+[116/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/MmQtHandle.h.gen.cpp.o
+[117/691] Performing download step (git clone) for 'map_repo'
 Cloning into 'map_repo'...
 HEAD is now at 07d3129 add schema 42
+[118/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/OrderedMap.h.gen.cpp.o
+[119/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/OrderedSet.h.gen.cpp.o
+[120/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/NullPointerException.h.gen.cpp.o
+[121/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/RuleOf5.h.gen.cpp.o
+[122/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/NamedColors.h.gen.cpp.o
+[123/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/RAII.h.gen.cpp.o
 [124/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/PrintUtils.h.gen.cpp.o
-[125/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/RAII.h.gen.cpp.o
-[126/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Signal2.h.gen.cpp.o
-[127/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/StorageUtils.h.gen.cpp.o
-[128/691] No update step for 'map_repo'
-[129/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/SendToUser.h.gen.cpp.o
-[130/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/SignalBlocker.h.gen.cpp.o
-[131/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/StringView.h.gen.cpp.o
-[132/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/TaggedInt.h.gen.cpp.o
-[133/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/TabUtils.h.gen.cpp.o
-[134/691] No patch step for 'map_repo'
-[135/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Timer.h.gen.cpp.o
-[136/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/TextBuffer.h.gen.cpp.o
-[137/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Version.h.gen.cpp.o
+[125/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/QuotedQString.h.gen.cpp.o
+[126/691] No update step for 'map_repo'
+[127/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/SendToUser.h.gen.cpp.o
+[128/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/SignalBlocker.h.gen.cpp.o
+[129/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/StorageUtils.h.gen.cpp.o
+[130/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/StringView.h.gen.cpp.o
+[131/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/TaggedInt.h.gen.cpp.o
+[132/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/TabUtils.h.gen.cpp.o
+[133/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Signal2.h.gen.cpp.o
+[134/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Version.h.gen.cpp.o
+[135/691] No patch step for 'map_repo'
+[136/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/TaggedString.h.gen.cpp.o
+[137/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Timer.h.gen.cpp.o
 [138/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/WinSock.h.gen.cpp.o
-[139/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/TaggedString.h.gen.cpp.o
-[140/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/TextUtils.h.gen.cpp.o
-[141/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/bits.h.gen.cpp.o
-[142/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/cast_error.h.gen.cpp.o
-[143/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/WeakHandle.h.gen.cpp.o
-[144/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/emojis.h.gen.cpp.o
-[145/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/hash.h.gen.cpp.o
+[139/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/WeakHandle.h.gen.cpp.o
+[140/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/TextBuffer.h.gen.cpp.o
+[141/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/TextUtils.h.gen.cpp.o
+[142/691] No configure step for 'map_repo'
+[143/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/emojis.h.gen.cpp.o
+[144/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/cast_error.h.gen.cpp.o
+[145/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/bits.h.gen.cpp.o
 [146/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/enums.h.gen.cpp.o
-[147/691] No configure step for 'map_repo'
-[148/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/float_cast.h.gen.cpp.o
+[147/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/float_cast.h.gen.cpp.o
+[148/691] No build step for 'map_repo'
 [149/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/entities.h.gen.cpp.o
 [150/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/int_cast.h.gen.cpp.o
-[151/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/mm_source_location.h.gen.cpp.o
-[152/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/macros.h.gen.cpp.o
-[153/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/parserutils.h.gen.cpp.o
-[154/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/logging.h.gen.cpp.o
-[155/691] No build step for 'map_repo'
-[156/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/progresscounter.h.gen.cpp.o
-[157/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/random.h.gen.cpp.o
-[158/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/range.h.gen.cpp.o
-[159/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/io.h.gen.cpp.o
-[160/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/tests.h.gen.cpp.o
-[161/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/string_view_utils.h.gen.cpp.o
+[151/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/macros.h.gen.cpp.o
+[152/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/hash.h.gen.cpp.o
+[153/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/logging.h.gen.cpp.o
+[154/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/mm_source_location.h.gen.cpp.o
+[155/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/parserutils.h.gen.cpp.o
+[156/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/random.h.gen.cpp.o
+[157/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/progresscounter.h.gen.cpp.o
+[158/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/tests.h.gen.cpp.o
+[159/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/range.h.gen.cpp.o
+[160/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/io.h.gen.cpp.o
+[161/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/thread_utils.h.gen.cpp.o
 [162/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/window_utils.h.gen.cpp.o
-[163/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/unquote.h.gen.cpp.o
-[164/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/thread_utils.h.gen.cpp.o
+[163/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/string_view_utils.h.gen.cpp.o
+[164/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/unquote.h.gen.cpp.o
 [165/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/utils.h.gen.cpp.o
-[166/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/zpipe.h.gen.cpp.o
-[167/691] Performing install step for 'map_repo'
+[166/691] Performing install step for 'map_repo'
+[167/691] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/zpipe.h.gen.cpp.o
 [168/691] Completed 'map_repo'
 [169/691] Generating map.qrc
 [170/691] Linking CXX static library src/libmm_global.a
@@ -325,13 +337,13 @@ HEAD is now at 07d3129 add schema 42
 [174/691] Building CXX object src/CMakeFiles/mm_map.dir/map/Change.cpp.o
 [175/691] Building CXX object src/CMakeFiles/mm_map.dir/map/ChangeList.cpp.o
 [176/691] Building CXX object src/CMakeFiles/mm_map.dir/map/ChangePrinter.cpp.o
-[177/691] Building CXX object src/CMakeFiles/mm_map.dir/map/ChangeTypes.cpp.o
-[178/691] Automatic MOC and UIC for target TestGlobal
+[177/691] Automatic MOC and UIC for target TestGlobal
+[178/691] Building CXX object src/CMakeFiles/mm_map.dir/map/ChangeTypes.cpp.o
 [179/691] Building CXX object src/CMakeFiles/mm_map.dir/map/Changes.cpp.o
 [180/691] Building CXX object src/CMakeFiles/mm_map.dir/map/CommandId.cpp.o
 [181/691] Building CXX object src/CMakeFiles/mm_map.dir/map/Diff-Test.cpp.o
-[182/691] Automatic MOC and UIC for target TestProxy
-[183/691] Building CXX object src/CMakeFiles/mm_map.dir/map/DoorFlags.cpp.o
+[182/691] Building CXX object src/CMakeFiles/mm_map.dir/map/DoorFlags.cpp.o
+[183/691] Building CXX object src/CMakeFiles/mm_map.dir/map/ExitDirection.cpp.o
 [184/691] Building CXX object src/CMakeFiles/mm_map.dir/map/Diff.cpp.o
 /app/src/map/Diff.cpp: In member function ‘void OstreamDiffReporter::printOutgoing(const RoomHandle&, ExitDirEnum)’:
 /app/src/map/Diff.cpp:765:18: warning: possibly dangling reference to a temporary [-Wdangling-reference]
@@ -340,158 +352,158 @@ HEAD is now at 07d3129 add schema 42
 /app/src/map/Diff.cpp:765:44: note: the temporary was destroyed at the end of the full expression ‘RoomHandle::getMap() const().Map::getWorld()’
   765 |     const World &w = room.getMap().getWorld();
       |                      ~~~~~~~~~~~~~~~~~~~~~~^~
-[185/691] Building CXX object src/CMakeFiles/mm_map.dir/map/ExitDirection.cpp.o
-[186/691] Building CXX object src/CMakeFiles/mm_map.dir/map/ExitFieldVariant.cpp.o
-[187/691] Building CXX object src/CMakeFiles/mm_map.dir/map/ExitFields.cpp.o
+[185/691] Building CXX object src/CMakeFiles/mm_map.dir/map/ExitFields.cpp.o
+[186/691] Automatic MOC and UIC for target TestProxy
+[187/691] Building CXX object src/CMakeFiles/mm_map.dir/map/ExitFieldVariant.cpp.o
 [188/691] Building CXX object src/CMakeFiles/mm_map.dir/map/InOutEnum.cpp.o
 [189/691] Building CXX object src/CMakeFiles/mm_map.dir/map/ExitFlags.cpp.o
-[190/691] Building CXX object src/CMakeFiles/mm_map.dir/map/InvalidMapOperation.cpp.o
-[191/691] Automatic MOC and UIC for target TestMainWindow
-[192/691] Building CXX object src/CMakeFiles/mm_map.dir/map/MapConsistencyError.cpp.o
-[193/691] Building CXX object src/CMakeFiles/mm_map.dir/map/RawExit.cpp.o
-[194/691] Building CXX object src/CMakeFiles/mm_map.dir/map/PromptFlags.cpp.o
-[195/691] Building CXX object src/CMakeFiles/mm_map.dir/map/ParseTree.cpp.o
-[196/691] Building CXX object src/CMakeFiles/mm_map.dir/map/RawRoom.cpp.o
-[197/691] Building CXX object src/CMakeFiles/mm_map.dir/map/RawRooms.cpp.o
-[198/691] Building CXX object src/CMakeFiles/mm_map.dir/map/Remapping.cpp.o
-[199/691] Building CXX object src/CMakeFiles/mm_map.dir/map/RoomFields.cpp.o
-[200/691] Building CXX object src/CMakeFiles/mm_map.dir/map/Map.cpp.o
+[190/691] Building CXX object src/CMakeFiles/mm_map.dir/map/MapConsistencyError.cpp.o
+[191/691] Building CXX object src/CMakeFiles/mm_map.dir/map/InvalidMapOperation.cpp.o
+[192/691] Building CXX object src/CMakeFiles/mm_map.dir/map/PromptFlags.cpp.o
+[193/691] Building CXX object src/CMakeFiles/mm_map.dir/map/ParseTree.cpp.o
+[194/691] Building CXX object src/CMakeFiles/mm_map.dir/map/RawRoom.cpp.o
+[195/691] Building CXX object src/CMakeFiles/mm_map.dir/map/RawExit.cpp.o
+[196/691] Building CXX object src/CMakeFiles/mm_map.dir/map/RawRooms.cpp.o
+[197/691] Building CXX object src/CMakeFiles/mm_map.dir/map/Map.cpp.o
+[198/691] Building CXX object src/CMakeFiles/mm_map.dir/map/RoomFields.cpp.o
+[199/691] Building CXX object src/CMakeFiles/mm_map.dir/map/RoomIdSet.cpp.o
+[200/691] Building CXX object src/CMakeFiles/mm_map.dir/map/Remapping.cpp.o
 [201/691] Building CXX object src/CMakeFiles/mm_map.dir/map/RoomHandle.cpp.o
-[202/691] Automatic MOC and UIC for target TestAdventure
-[203/691] Building CXX object src/CMakeFiles/mm_map.dir/map/RoomIdSet.cpp.o
-[204/691] Building CXX object src/CMakeFiles/mm_map.dir/map/ServerIdMap.cpp.o
-[205/691] Building CXX object src/CMakeFiles/mm_map.dir/map/TinyRoomIdSet.cpp.o
+[202/691] Building CXX object src/CMakeFiles/mm_map.dir/map/ServerIdMap.cpp.o
+[203/691] Building CXX object src/CMakeFiles/mm_map.dir/map/TinyRoomIdSet.cpp.o
+[204/691] Building CXX object src/CMakeFiles/mm_map.dir/map/SpatialDb.cpp.o
+[205/691] Building CXX object src/CMakeFiles/mm_map.dir/map/World-BaseMap.cpp.o
 [206/691] Building CXX object src/CMakeFiles/mm_map.dir/map/RoomRevert.cpp.o
-[207/691] Building CXX object src/CMakeFiles/mm_map.dir/map/SpatialDb.cpp.o
-[208/691] Building CXX object src/CMakeFiles/mm_map.dir/map/World-BaseMap.cpp.o
-[209/691] Building CXX object src/CMakeFiles/mm_map.dir/map/coordinate.cpp.o
-[210/691] Building CXX object src/CMakeFiles/mm_map.dir/map/enums.cpp.o
+[207/691] Building CXX object src/CMakeFiles/mm_map.dir/map/WorldAreaMap.cpp.o
+[208/691] Building CXX object src/CMakeFiles/mm_map.dir/map/coordinate.cpp.o
+[209/691] Building CXX object src/CMakeFiles/mm_map.dir/map/enums.cpp.o
+[210/691] Building CXX object src/CMakeFiles/mm_map.dir/map/infomark.cpp.o
 [211/691] Building CXX object src/CMakeFiles/mm_map.dir/map/mmapper2room.cpp.o
-[212/691] Building CXX object src/CMakeFiles/mm_map.dir/map/WorldAreaMap.cpp.o
-[213/691] Automatic MOC and UIC for target TestClock
-[214/691] Building CXX object src/CMakeFiles/mm_map.dir/map/infomark.cpp.o
-[215/691] Building CXX object src/CMakeFiles/mm_map.dir/map/parseevent.cpp.o
-[216/691] Building CXX object src/CMakeFiles/mm_map.dir/map/sanitizer.cpp.o
-[217/691] Building CXX object src/CMakeFiles/mm_map.dir/map/room.cpp.o
-[218/691] Building CXX object src/CMakeFiles/mm_map.dir/map/roomid.cpp.o
-[219/691] Building CXX object src/CMakeFiles/mm_map.dir/map/World.cpp.o
-[220/691] Building CXX object src/CMakeFiles/mm_map.dir/map/utils.cpp.o
-[221/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/ChangePrinter.h.gen.cpp.o
-[222/691] Building CXX object src/CMakeFiles/mm_map.dir/map/WorldBuilder.cpp.o
+[212/691] Building CXX object src/CMakeFiles/mm_map.dir/map/parseevent.cpp.o
+[213/691] Building CXX object src/CMakeFiles/mm_map.dir/map/room.cpp.o
+[214/691] Building CXX object src/CMakeFiles/mm_map.dir/map/WorldBuilder.cpp.o
+[215/691] Building CXX object src/CMakeFiles/mm_map.dir/map/roomid.cpp.o
+[216/691] Building CXX object src/CMakeFiles/mm_map.dir/map/utils.cpp.o
+[217/691] Building CXX object src/CMakeFiles/mm_map.dir/map/sanitizer.cpp.o
+[218/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/AbstractChangeVisitor.h.gen.cpp.o
+[219/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/Change.h.gen.cpp.o
+[220/691] Automatic MOC and UIC for target TestClock
+[221/691] Automatic MOC and UIC for target TestMainWindow
+[222/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/ChangePrinter.h.gen.cpp.o
 [223/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/ChangeList.h.gen.cpp.o
-[224/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/AbstractChangeVisitor.h.gen.cpp.o
-[225/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/Change.h.gen.cpp.o
+[224/691] Building CXX object src/CMakeFiles/mm_map.dir/map/World.cpp.o
+[225/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/CommandId.h.gen.cpp.o
 [226/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/ChangeTypes.h.gen.cpp.o
 [227/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/Changes.h.gen.cpp.o
-[228/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/CommandId.h.gen.cpp.o
-[229/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/Crtp.h.gen.cpp.o
-[230/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/ConnectedRoomFlags.h.gen.cpp.o
-[231/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/Compare.h.gen.cpp.o
-[232/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/ExitDirection.h.gen.cpp.o
-[233/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/ExitFieldVariant.h.gen.cpp.o
-[234/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/DoorFlags.h.gen.cpp.o
-[235/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/Diff.h.gen.cpp.o
-[236/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/ExitFlags.h.gen.cpp.o
-[237/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/ExitsFlags.h.gen.cpp.o
+[228/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/Compare.h.gen.cpp.o
+[229/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/ConnectedRoomFlags.h.gen.cpp.o
+[230/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/DoorFlags.h.gen.cpp.o
+[231/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/Crtp.h.gen.cpp.o
+[232/691] Automatic MOC and UIC for target TestAdventure
+[233/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/ExitDirection.h.gen.cpp.o
+[234/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/ExitFields.h.gen.cpp.o
+[235/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/ExitsFlags.h.gen.cpp.o
+[236/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/Diff.h.gen.cpp.o
+[237/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/ExitFieldVariant.h.gen.cpp.o
 [238/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/InOutEnum.h.gen.cpp.o
-[239/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/MapConsistencyError.h.gen.cpp.o
-[240/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/ExitFields.h.gen.cpp.o
-[241/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/InvalidMapOperation.h.gen.cpp.o
-[242/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/Map.h.gen.cpp.o
-[243/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/ParseTree.h.gen.cpp.o
-[244/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/PromptFlags.h.gen.cpp.o
+[239/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/InvalidMapOperation.h.gen.cpp.o
+[240/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/ExitFlags.h.gen.cpp.o
+[241/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/MapConsistencyError.h.gen.cpp.o
+[242/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/PromptFlags.h.gen.cpp.o
+[243/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/Map.h.gen.cpp.o
+[244/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/ParseTree.h.gen.cpp.o
 [245/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/RawExit.h.gen.cpp.o
-[246/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/Remapping.h.gen.cpp.o
-[247/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/RawRooms.h.gen.cpp.o
-[248/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/RoomFieldVariant.h.gen.cpp.o
+[246/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/RoomFieldVariant.h.gen.cpp.o
+[247/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/RoomFields.h.gen.cpp.o
+[248/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/RawRooms.h.gen.cpp.o
 [249/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/RawRoom.h.gen.cpp.o
-[250/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/RoomFields.h.gen.cpp.o
-[251/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/RoomHandle.h.gen.cpp.o
-[252/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/RoomRevert.h.gen.cpp.o
-[253/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/RoomIdSet.h.gen.cpp.o
-[254/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/SpatialDb.h.gen.cpp.o
-[255/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/TinyRoomIdSet.h.gen.cpp.o
-[256/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/WorldAreaMap.h.gen.cpp.o
-[257/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/ServerIdMap.h.gen.cpp.o
-[258/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/coordinate.h.gen.cpp.o
-[259/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/World.h.gen.cpp.o
-[260/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/exit.h.gen.cpp.o
-[261/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/WorldBuilder.h.gen.cpp.o
-[262/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/enums.h.gen.cpp.o
-[263/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/mmapper2room.h.gen.cpp.o
+[250/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/RoomIdSet.h.gen.cpp.o
+[251/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/Remapping.h.gen.cpp.o
+[252/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/ServerIdMap.h.gen.cpp.o
+[253/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/RoomHandle.h.gen.cpp.o
+[254/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/TinyRoomIdSet.h.gen.cpp.o
+[255/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/World.h.gen.cpp.o
+[256/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/SpatialDb.h.gen.cpp.o
+[257/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/RoomRevert.h.gen.cpp.o
+[258/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/WorldAreaMap.h.gen.cpp.o
+[259/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/coordinate.h.gen.cpp.o
+[260/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/enums.h.gen.cpp.o
+[261/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/exit.h.gen.cpp.o
+[262/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/WorldBuilder.h.gen.cpp.o
+[263/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/room.h.gen.cpp.o
 [264/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/infomark.h.gen.cpp.o
-[265/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/roomid.h.gen.cpp.o
-[266/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/utils.h.gen.cpp.o
-[267/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/sanitizer.h.gen.cpp.o
-[268/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/parseevent.h.gen.cpp.o
-[269/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/room.h.gen.cpp.o
-[270/691] Building CXX object tests/CMakeFiles/TestClock.dir/TestClock_autogen/mocs_compilation.cpp.o
-[271/691] Building CXX object tests/CMakeFiles/TestClock.dir/__/src/clock/mumeclock.cpp.o
-[272/691] Building CXX object tests/CMakeFiles/TestClock.dir/testclock.cpp.o
+[265/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/mmapper2room.h.gen.cpp.o
+[266/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/parseevent.h.gen.cpp.o
+[267/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/roomid.h.gen.cpp.o
+[268/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/utils.h.gen.cpp.o
+[269/691] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/sanitizer.h.gen.cpp.o
+[270/691] Building CXX object tests/CMakeFiles/TestClock.dir/__/src/observer/gameobserver.cpp.o
+[271/691] Building CXX object tests/CMakeFiles/TestClock.dir/__/src/clock/mumemoment.cpp.o
+[272/691] Building CXX object tests/CMakeFiles/TestProxy.dir/TestProxy_autogen/mocs_compilation.cpp.o
 [273/691] Building CXX object tests/CMakeFiles/TestClock.dir/__/src/proxy/GmcpMessage.cpp.o
-[274/691] Building CXX object tests/CMakeFiles/TestClock.dir/__/src/clock/mumemoment.cpp.o
-[275/691] Building CXX object tests/CMakeFiles/TestClock.dir/__/src/observer/gameobserver.cpp.o
-[276/691] Building CXX object tests/CMakeFiles/TestProxy.dir/TestProxy_autogen/mocs_compilation.cpp.o
-[277/691] Building CXX object tests/CMakeFiles/TestProxy.dir/__/src/proxy/GmcpMessage.cpp.o
+[274/691] Building CXX object tests/CMakeFiles/TestClock.dir/__/src/clock/mumeclock.cpp.o
+[275/691] Building CXX object tests/CMakeFiles/TestClock.dir/TestClock_autogen/mocs_compilation.cpp.o
+[276/691] Building CXX object tests/CMakeFiles/TestProxy.dir/__/src/proxy/GmcpMessage.cpp.o
+[277/691] Building CXX object tests/CMakeFiles/TestClock.dir/testclock.cpp.o
 [278/691] Building CXX object tests/CMakeFiles/TestProxy.dir/TestProxy.cpp.o
 [279/691] Building CXX object tests/CMakeFiles/TestProxy.dir/__/src/proxy/GmcpUtils.cpp.o
-[280/691] Building CXX object tests/CMakeFiles/TestProxy.dir/__/src/proxy/telnetfilter.cpp.o
-[281/691] Building CXX object tests/CMakeFiles/TestMainWindow.dir/TestMainWindow_autogen/mocs_compilation.cpp.o
-[282/691] Building CXX object tests/CMakeFiles/TestProxy.dir/__/src/proxy/GmcpModule.cpp.o
+[280/691] Building CXX object tests/CMakeFiles/TestProxy.dir/__/src/proxy/GmcpModule.cpp.o
+[281/691] Building CXX object tests/CMakeFiles/TestProxy.dir/__/src/proxy/telnetfilter.cpp.o
+[282/691] Building CXX object tests/CMakeFiles/TestMainWindow.dir/TestMainWindow_autogen/mocs_compilation.cpp.o
 [283/691] Building CXX object tests/CMakeFiles/TestMainWindow.dir/__/src/mainwindow/UpdateDialog.cpp.o
 [284/691] Building CXX object tests/CMakeFiles/TestMainWindow.dir/TestMainWindow.cpp.o
 [285/691] Building CXX object tests/CMakeFiles/TestGlobal.dir/TestGlobal_autogen/mocs_compilation.cpp.o
-[286/691] Building CXX object tests/CMakeFiles/TestGlobal.dir/TestGlobal.cpp.o
-[287/691] Building CXX object tests/CMakeFiles/TestAdventure.dir/TestAdventure_autogen/mocs_compilation.cpp.o
-[288/691] Building CXX object tests/CMakeFiles/TestAdventure.dir/testadventure.cpp.o
-[289/691] Building CXX object tests/CMakeFiles/TestAdventure.dir/__/src/adventure/adventuresession.cpp.o
-[290/691] Building CXX object tests/CMakeFiles/TestAdventure.dir/__/src/adventure/adventuretracker.cpp.o
-[291/691] Building CXX object tests/CMakeFiles/TestAdventure.dir/__/src/adventure/lineparsers.cpp.o
+[286/691] Building CXX object tests/CMakeFiles/TestAdventure.dir/TestAdventure_autogen/mocs_compilation.cpp.o
+[287/691] Building CXX object tests/CMakeFiles/TestAdventure.dir/testadventure.cpp.o
+[288/691] Building CXX object tests/CMakeFiles/TestAdventure.dir/__/src/adventure/adventuresession.cpp.o
+[289/691] Building CXX object tests/CMakeFiles/TestAdventure.dir/__/src/adventure/adventuretracker.cpp.o
+[290/691] Building CXX object tests/CMakeFiles/TestAdventure.dir/__/src/adventure/lineparsers.cpp.o
+[291/691] Building CXX object tests/CMakeFiles/TestGlobal.dir/TestGlobal.cpp.o
 [292/691] Building CXX object tests/CMakeFiles/TestAdventure.dir/__/src/configuration/configuration.cpp.o
 [293/691] Building CXX object tests/CMakeFiles/TestAdventure.dir/__/src/observer/gameobserver.cpp.o
-[294/691] Linking CXX executable tests/TestProxy
-[295/691] Linking CXX executable tests/TestMainWindow
-[296/691] Automatic MOC and UIC for target TestTimer
-[297/691] Building CXX object tests/CMakeFiles/TestTimer.dir/TestTimer_autogen/mocs_compilation.cpp.o
-[298/691] Building CXX object tests/CMakeFiles/TestTimer.dir/__/src/timers/CTimers.cpp.o
-[299/691] Building CXX object tests/CMakeFiles/TestTimer.dir/TestCTimers.cpp.o
-[300/691] Linking CXX executable tests/TestClock
-[301/691] Linking CXX executable tests/TestGlobal
+[294/691] Linking CXX executable tests/TestMainWindow
+[295/691] Linking CXX executable tests/TestClock
+[296/691] Linking CXX executable tests/TestProxy
+[297/691] Automatic MOC and UIC for target TestTimer
+[298/691] Linking CXX executable tests/TestGlobal
+[299/691] Building CXX object tests/CMakeFiles/TestTimer.dir/TestTimer_autogen/mocs_compilation.cpp.o
+[300/691] Building CXX object tests/CMakeFiles/TestTimer.dir/__/src/timers/CTimers.cpp.o
+[301/691] Building CXX object tests/CMakeFiles/TestTimer.dir/TestCTimers.cpp.o
 [302/691] Automatic MOC and UIC for target TestRoomMob
 [303/691] Building CXX object tests/CMakeFiles/TestRoomMob.dir/TestRoomMob_autogen/mocs_compilation.cpp.o
 [304/691] Building CXX object tests/CMakeFiles/TestRoomMob.dir/__/src/roompanel/RoomMob.cpp.o
 [305/691] Building CXX object tests/CMakeFiles/TestRoomMob.dir/roompanel/TestRoomMob.cpp.o
-[306/691] Linking CXX executable tests/TestTimer
-[307/691] Linking CXX executable tests/TestAdventure
-[308/691] Automatic MOC and UIC for target TestRoomManager
-[309/691] Building CXX object tests/CMakeFiles/TestRoomManager.dir/TestRoomManager_autogen/mocs_compilation.cpp.o
-[310/691] Building CXX object tests/CMakeFiles/TestRoomManager.dir/__/src/roompanel/RoomMob.cpp.o
-[311/691] Automatic MOC and UIC for target TestRoomMobs
-[312/691] Building CXX object tests/CMakeFiles/TestRoomManager.dir/__/src/roompanel/RoomManager.cpp.o
-[313/691] Linking CXX executable tests/TestRoomMob
-[314/691] Building CXX object tests/CMakeFiles/TestRoomManager.dir/__/src/roompanel/RoomMobs.cpp.o
-[315/691] Building CXX object tests/CMakeFiles/TestRoomManager.dir/__/src/proxy/GmcpMessage.cpp.o
-[316/691] Building CXX object tests/CMakeFiles/TestRoomMobs.dir/TestRoomMobs_autogen/mocs_compilation.cpp.o
-[317/691] Building CXX object tests/CMakeFiles/TestRoomManager.dir/roompanel/TestRoomManager.cpp.o
-[318/691] Building CXX object tests/CMakeFiles/TestRoomMobs.dir/__/src/roompanel/RoomMobs.cpp.o
-[319/691] Building CXX object tests/CMakeFiles/TestRoomMobs.dir/__/src/roompanel/RoomMob.cpp.o
-[320/691] Building CXX object tests/CMakeFiles/TestRoomMobs.dir/roompanel/TestRoomMobs.cpp.o
+[306/691] Automatic MOC and UIC for target TestRoomMobs
+[307/691] Building CXX object tests/CMakeFiles/TestRoomMobs.dir/TestRoomMobs_autogen/mocs_compilation.cpp.o
+[308/691] Building CXX object tests/CMakeFiles/TestRoomMobs.dir/__/src/roompanel/RoomMobs.cpp.o
+[309/691] Linking CXX executable tests/TestAdventure
+[310/691] Building CXX object tests/CMakeFiles/TestRoomMobs.dir/__/src/roompanel/RoomMob.cpp.o
+[311/691] Building CXX object tests/CMakeFiles/TestRoomMobs.dir/roompanel/TestRoomMobs.cpp.o
+[312/691] Automatic MOC and UIC for target TestRoomManager
+[313/691] Linking CXX executable tests/TestTimer
+[314/691] Building CXX object tests/CMakeFiles/TestRoomManager.dir/__/src/roompanel/RoomMob.cpp.o
+[315/691] Building CXX object tests/CMakeFiles/TestRoomManager.dir/TestRoomManager_autogen/mocs_compilation.cpp.o
+[316/691] Building CXX object tests/CMakeFiles/TestRoomManager.dir/__/src/roompanel/RoomMobs.cpp.o
+[317/691] Building CXX object tests/CMakeFiles/TestRoomManager.dir/__/src/proxy/GmcpMessage.cpp.o
+[318/691] Building CXX object tests/CMakeFiles/TestRoomManager.dir/__/src/roompanel/RoomManager.cpp.o
+[319/691] Linking CXX executable tests/TestRoomMob
+[320/691] Building CXX object tests/CMakeFiles/TestRoomManager.dir/roompanel/TestRoomManager.cpp.o
 [321/691] Linking CXX executable tests/TestRoomMobs
 [322/691] Linking CXX executable tests/TestRoomManager
 [323/691] Linking CXX static library src/libmm_map.a
-[324/691] Automatic MOC and UIC for target TestParser
-[325/691] Automatic MOC and UIC for target TestMap
-[326/691] Building CXX object tests/CMakeFiles/TestParser.dir/TestParser_autogen/mocs_compilation.cpp.o
-[327/691] Building CXX object tests/CMakeFiles/TestParser.dir/testparser.cpp.o
-[328/691] Building CXX object tests/CMakeFiles/TestMap.dir/TestMap_autogen/mocs_compilation.cpp.o
-[329/691] Building CXX object tests/CMakeFiles/TestParser.dir/__/src/configuration/configuration.cpp.o
-[330/691] Building CXX object tests/CMakeFiles/TestMap.dir/__/src/configuration/configuration.cpp.o
-[331/691] Building CXX object tests/CMakeFiles/TestMap.dir/TestMap.cpp.o
+[324/691] Automatic MOC and UIC for target TestMap
+[325/691] Automatic MOC and UIC for target TestParser
+[326/691] Building CXX object tests/CMakeFiles/TestMap.dir/TestMap_autogen/mocs_compilation.cpp.o
+[327/691] Building CXX object tests/CMakeFiles/TestMap.dir/__/src/configuration/configuration.cpp.o
+[328/691] Building CXX object tests/CMakeFiles/TestParser.dir/TestParser_autogen/mocs_compilation.cpp.o
+[329/691] Building CXX object tests/CMakeFiles/TestMap.dir/TestMap.cpp.o
+[330/691] Building CXX object tests/CMakeFiles/TestParser.dir/testparser.cpp.o
+[331/691] Building CXX object tests/CMakeFiles/TestParser.dir/__/src/configuration/configuration.cpp.o
 [332/691] Automatic MOC and UIC for target TestExpandoraCommon
 [333/691] Building CXX object tests/CMakeFiles/TestExpandoraCommon.dir/TestExpandoraCommon_autogen/mocs_compilation.cpp.o
 [334/691] Building CXX object tests/CMakeFiles/TestExpandoraCommon.dir/__/src/parser/Abbrev.cpp.o
-[335/691] Building CXX object tests/CMakeFiles/TestExpandoraCommon.dir/testexpandoracommon.cpp.o
-[336/691] Building CXX object tests/CMakeFiles/TestExpandoraCommon.dir/__/src/configuration/configuration.cpp.o
+[335/691] Building CXX object tests/CMakeFiles/TestExpandoraCommon.dir/__/src/configuration/configuration.cpp.o
+[336/691] Building CXX object tests/CMakeFiles/TestExpandoraCommon.dir/testexpandoracommon.cpp.o
 [337/691] Linking CXX executable tests/TestParser
 [338/691] Linking CXX executable tests/TestExpandoraCommon
 [339/691] Linking CXX executable tests/TestMap
@@ -501,31 +513,477 @@ HEAD is now at 07d3129 add schema 42
 [343/691] Generating qrc_images.cpp
 [344/691] Generating qrc_map.cpp
 [345/691] Building CXX object src/CMakeFiles/mmapper.dir/adventure/adventuresession.cpp.o
-[346/691] Building CXX object src/CMakeFiles/mmapper.dir/adventure/adventuretracker.cpp.o
-[347/691] Building CXX object src/CMakeFiles/mmapper.dir/adventure/lineparsers.cpp.o
-[348/691] Building CXX object src/CMakeFiles/mmapper.dir/adventure/adventurewidget.cpp.o
-[349/691] Building CXX object src/CMakeFiles/mmapper.dir/adventure/xpstatuswidget.cpp.o
-[350/691] Building CXX object src/CMakeFiles/mmapper.dir/client/ClientTelnet.cpp.o
-[351/691] Building CXX object src/CMakeFiles/mmapper.dir/main.cpp.o
-[352/691] Building CXX object src/CMakeFiles/mmapper.dir/client/PaletteManager.cpp.o
+[346/691] Building CXX object src/CMakeFiles/mmapper.dir/adventure/lineparsers.cpp.o
+[347/691] Building CXX object src/CMakeFiles/mmapper.dir/adventure/adventuretracker.cpp.o
+[348/691] Building CXX object src/CMakeFiles/mmapper.dir/client/ClientTelnet.cpp.o
+[349/691] Building CXX object src/CMakeFiles/mmapper.dir/main.cpp.o
+[350/691] Building CXX object src/CMakeFiles/mmapper.dir/adventure/xpstatuswidget.cpp.o
+[351/691] Building CXX object src/CMakeFiles/mmapper.dir/adventure/adventurewidget.cpp.o
+[352/691] Building CXX object src/CMakeFiles/mmapper.dir/client/ClientWidget.cpp.o
 [353/691] Building CXX object src/CMakeFiles/mmapper.dir/mmapper_autogen/mocs_compilation.cpp.o
-[354/691] Building CXX object src/CMakeFiles/mmapper.dir/client/ClientWidget.cpp.o
-[355/691] Building CXX object src/CMakeFiles/mmapper.dir/client/displaywidget.cpp.o
-[356/691] Building CXX object src/CMakeFiles/mmapper.dir/client/inputwidget.cpp.o
-[357/691] Building CXX object src/CMakeFiles/mmapper.dir/client/stackedinputwidget.cpp.o
-[358/691] Building CXX object src/CMakeFiles/mmapper.dir/client/PreviewWidget.cpp.o
-[359/691] Building CXX object src/CMakeFiles/mmapper.dir/client/PasswordDialog.cpp.o
-[360/691] Building CXX object src/CMakeFiles/mmapper.dir/clock/mumeclock.cpp.o
-[361/691] Building CXX object src/CMakeFiles/mmapper.dir/configuration/PasswordConfig.cpp.o
-[362/691] Building CXX object src/CMakeFiles/mmapper.dir/clock/mumemoment.cpp.o
-[363/691] Building CXX object src/CMakeFiles/mmapper.dir/clock/mumeclockwidget.cpp.o
-[364/691] Building CXX object src/CMakeFiles/mmapper.dir/display/ConnectionLineBuilder.cpp.o
-[365/691] Building CXX object src/CMakeFiles/mmapper.dir/configuration/configuration.cpp.o
-[366/691] Building CXX object src/CMakeFiles/mmapper.dir/display/Connections.cpp.o
-[367/691] Building CXX object src/CMakeFiles/mmapper.dir/display/Characters.cpp.o
-[368/691] Building CXX object src/CMakeFiles/mmapper.dir/display/IMapBatchesFinisher.cpp.o
-[369/691] Building CXX object src/CMakeFiles/mmapper.dir/display/Filenames.cpp.o
-[370/691] Building CXX object src/CMakeFiles/mmapper.dir/display/Infomarks.cpp.o
+[354/691] Building CXX object src/CMakeFiles/mmapper.dir/client/PaletteManager.cpp.o
+[355/691] Building CXX object src/CMakeFiles/mmapper.dir/client/PasswordDialog.cpp.o
+[356/691] Building CXX object src/CMakeFiles/mmapper.dir/client/PreviewWidget.cpp.o
+[357/691] Building CXX object src/CMakeFiles/mmapper.dir/client/displaywidget.cpp.o
+[358/691] Building CXX object src/CMakeFiles/mmapper.dir/client/stackedinputwidget.cpp.o
+[359/691] Building CXX object src/CMakeFiles/mmapper.dir/clock/mumeclock.cpp.o
+[360/691] Building CXX object src/CMakeFiles/mmapper.dir/client/inputwidget.cpp.o
+[361/691] Building CXX object src/CMakeFiles/mmapper.dir/clock/mumemoment.cpp.o
+[362/691] Building CXX object src/CMakeFiles/mmapper.dir/configuration/PasswordConfig.cpp.o
+[363/691] Building CXX object src/CMakeFiles/mmapper.dir/display/ConnectionLineBuilder.cpp.o
+[364/691] Building CXX object src/CMakeFiles/mmapper.dir/clock/mumeclockwidget.cpp.o
+[365/691] Building CXX object src/CMakeFiles/mmapper.dir/display/IMapBatchesFinisher.cpp.o
+[366/691] Building CXX object src/CMakeFiles/mmapper.dir/configuration/configuration.cpp.o
+[367/691] Building CXX object src/CMakeFiles/mmapper.dir/display/Filenames.cpp.o
+[368/691] Building CXX object src/CMakeFiles/mmapper.dir/display/InfomarkSelection.cpp.o
+In file included from /app/src/display/InfomarkSelection.cpp:5:
+/app/src/display/InfomarkSelection.h: In member function ‘InfomarkHandle InfomarkSelection::front() const’:
+/app/src/display/InfomarkSelection.h:67:21: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                     ^~
+/app/src/display/InfomarkSelection.h:67:65: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
+   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
+/app/src/display/InfomarkSelection.cpp: In member function ‘void InfomarkSelection::init()’:
+/app/src/display/InfomarkSelection.cpp:70:17: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+   70 |     const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                 ^~
+/app/src/display/InfomarkSelection.cpp:70:61: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
+   70 |     const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
+/app/src/display/InfomarkSelection.cpp: In member function ‘void InfomarkSelection::applyOffset(const Coordinate&) const’:
+/app/src/display/InfomarkSelection.cpp:86:17: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+   86 |     const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                 ^~
+/app/src/display/InfomarkSelection.cpp:86:61: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
+   86 |     const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
+[369/691] Building CXX object src/CMakeFiles/mmapper.dir/display/MapBatches.cpp.o
+[370/691] Building CXX object src/CMakeFiles/mmapper.dir/display/RoadIndex.cpp.o
+[371/691] Building CXX object src/CMakeFiles/mmapper.dir/display/MapCanvasData.cpp.o
+[372/691] Building CXX object src/CMakeFiles/mmapper.dir/display/MapCanvasRoomDrawer.cpp.o
+[373/691] Building CXX object src/CMakeFiles/mmapper.dir/display/RoomSelections.cpp.o
+[374/691] Building CXX object src/CMakeFiles/mmapper.dir/display/Textures.cpp.o
+[375/691] Building CXX object src/CMakeFiles/mmapper.dir/display/connectionselection.cpp.o
+[376/691] Building CXX object src/CMakeFiles/mmapper.dir/display/mapcanvas_gl.cpp.o
+[377/691] Building CXX object src/CMakeFiles/mmapper.dir/display/mapwindow.cpp.o
+[378/691] Building CXX object src/CMakeFiles/mmapper.dir/display/mapcanvas.cpp.o
+In file included from /app/src/display/mapcanvas.cpp:21:
+/app/src/display/InfomarkSelection.h: In member function ‘InfomarkHandle InfomarkSelection::front() const’:
+/app/src/display/InfomarkSelection.h:67:21: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                     ^~
+/app/src/display/InfomarkSelection.h:67:65: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
+   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
+[379/691] Building CXX object src/CMakeFiles/mmapper.dir/display/prespammedpath.cpp.o
+[380/691] Building CXX object src/CMakeFiles/mmapper.dir/group/CGroupChar.cpp.o
+[381/691] Building CXX object src/CMakeFiles/mmapper.dir/group/GroupManagerApi.cpp.o
+[382/691] Building CXX object src/CMakeFiles/mmapper.dir/group/ColorGenerator.cpp.o
+[383/691] Building CXX object src/CMakeFiles/mmapper.dir/group/enums.cpp.o
+[384/691] Building CXX object src/CMakeFiles/mmapper.dir/group/mmapper2character.cpp.o
+[385/691] Building CXX object src/CMakeFiles/mmapper.dir/group/groupwidget.cpp.o
+[386/691] Building CXX object src/CMakeFiles/mmapper.dir/group/mmapper2group.cpp.o
+[387/691] Building CXX object src/CMakeFiles/mmapper.dir/logger/autologger.cpp.o
+[388/691] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/MapZoomSlider.cpp.o
+[389/691] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/UpdateDialog.cpp.o
+[390/691] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/DescriptionWidget.cpp.o
+[391/691] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/ThemeManager.cpp.o
+[392/691] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/findroomsdlg.cpp.o
+[393/691] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/aboutdialog.cpp.o
+[394/691] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/mainwindow-saveslots.cpp.o
+[395/691] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/infomarkseditdlg.cpp.o
+In file included from /app/src/mainwindow/infomarkseditdlg.cpp:9:
+/app/src/mainwindow/../display/InfomarkSelection.h: In member function ‘InfomarkHandle InfomarkSelection::front() const’:
+/app/src/mainwindow/../display/InfomarkSelection.h:67:21: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                     ^~
+/app/src/mainwindow/../display/InfomarkSelection.h:67:65: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
+   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
+/app/src/mainwindow/infomarkseditdlg.cpp: In member function ‘InfomarkHandle InfomarksEditDlg::getCurrentInfomark()’:
+/app/src/mainwindow/infomarkseditdlg.cpp:282:17: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+  282 |     const auto &db = m_mapData->getCurrentMap().getInfomarkDb();
+      |                 ^~
+/app/src/mainwindow/infomarkseditdlg.cpp:282:62: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
+  282 |     const auto &db = m_mapData->getCurrentMap().getInfomarkDb();
+      |                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
+/app/src/mainwindow/../display/InfomarkSelection.h: In instantiation of ‘void InfomarkSelection::for_each(Callback&&) const [with Callback = InfomarksEditDlg::updateMarkers()::<lambda(const InfomarkHandle&)>]’:
+/app/src/mainwindow/infomarkseditdlg.cpp:182:17:   required from here
+/app/src/mainwindow/../display/InfomarkSelection.h:84:21: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+   84 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                     ^~
+/app/src/mainwindow/../display/InfomarkSelection.h:84:65: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
+   84 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
+[396/691] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/mainwindow-async.cpp.o
+/app/src/mainwindow/mainwindow-async.cpp: In member function ‘virtual void MainWindow::slot_generateBaseMap()::AsyncGenerateBaseMap::virt_finish()’:
+/app/src/mainwindow/mainwindow-async.cpp:1017:32: warning: redundant move in initialization [-Wredundant-move]
+ 1017 |             onSuccess(std::move(*result));
+      |                       ~~~~~~~~~^~~~~~~~~
+/app/src/mainwindow/mainwindow-async.cpp:1017:32: note: remove ‘std::move’ call
+[397/691] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/mainwindow.cpp.o
+In file included from /app/src/mainwindow/mainwindow.cpp:15:
+/app/src/mainwindow/../display/InfomarkSelection.h: In member function ‘InfomarkHandle InfomarkSelection::front() const’:
+/app/src/mainwindow/../display/InfomarkSelection.h:67:21: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                     ^~
+/app/src/mainwindow/../display/InfomarkSelection.h:67:65: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
+   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
+/app/src/mainwindow/mainwindow.cpp: In lambda function:
+/app/src/mainwindow/mainwindow.cpp:445:39: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+  445 |                     const Coordinate &here = m_mapData->getRoomHandle(id).getPosition();
+      |                                       ^~~~
+/app/src/mainwindow/mainwindow.cpp:445:86: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getRoomHandle(RoomId) const(id).RoomHandle::getPosition()’
+  445 |                     const Coordinate &here = m_mapData->getRoomHandle(id).getPosition();
+      |                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
+[398/691] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/metatypes.cpp.o
+[399/691] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/roomeditattrdlg.cpp.o
+[400/691] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/utils.cpp.o
+[401/691] Building CXX object src/CMakeFiles/mmapper.dir/mapdata/GenericFind.cpp.o
+[402/691] Building CXX object src/CMakeFiles/mmapper.dir/mapdata/MarkerList.cpp.o
+[403/691] Building CXX object src/CMakeFiles/mmapper.dir/mapdata/roomfilter.cpp.o
+[404/691] Building CXX object src/CMakeFiles/mmapper.dir/mapdata/roomselection.cpp.o
+[405/691] Building CXX object src/CMakeFiles/mmapper.dir/mapfrontend/MapHistory.cpp.o
+[406/691] Building CXX object src/CMakeFiles/mmapper.dir/mapdata/mapdata.cpp.o
+[407/691] Building CXX object src/CMakeFiles/mmapper.dir/mapdata/shortestpath.cpp.o
+[408/691] Building CXX object src/CMakeFiles/mmapper.dir/mapfrontend/mapfrontend.cpp.o
+[409/691] Building CXX object src/CMakeFiles/mmapper.dir/mapstorage/MapDestination.cpp.o
+[410/691] Building CXX object src/CMakeFiles/mmapper.dir/mapstorage/MapSource.cpp.o
+[411/691] Building CXX object src/CMakeFiles/mmapper.dir/mapstorage/MmpMapStorage.cpp.o
+[412/691] Building CXX object src/CMakeFiles/mmapper.dir/mapstorage/RawMapData.cpp.o
+[413/691] Building CXX object src/CMakeFiles/mmapper.dir/mapstorage/PandoraMapStorage.cpp.o
+[414/691] Building CXX object src/CMakeFiles/mmapper.dir/mapstorage/filesaver.cpp.o
+[415/691] Building CXX object src/CMakeFiles/mmapper.dir/mapstorage/jsonmapstorage.cpp.o
+[416/691] Building CXX object src/CMakeFiles/mmapper.dir/mapstorage/XmlMapStorage.cpp.o
+[417/691] Building CXX object src/CMakeFiles/mmapper.dir/mapstorage/abstractmapstorage.cpp.o
+[418/691] Building CXX object src/CMakeFiles/mmapper.dir/mpi/mpifilter.cpp.o
+[419/691] Building CXX object src/CMakeFiles/mmapper.dir/mapstorage/mapstorage.cpp.o
+[420/691] Building CXX object src/CMakeFiles/mmapper.dir/mpi/remoteeditsession.cpp.o
+[421/691] Building CXX object src/CMakeFiles/mmapper.dir/mpi/remoteedit.cpp.o
+[422/691] Building CXX object src/CMakeFiles/mmapper.dir/mpi/remoteeditwidget.cpp.o
+[423/691] Building CXX object src/CMakeFiles/mmapper.dir/mpi/gotowidget.cpp.o
+[424/691] Building CXX object src/CMakeFiles/mmapper.dir/mpi/findreplacewidget.cpp.o
+[425/691] Building CXX object src/CMakeFiles/mmapper.dir/observer/gameobserver.cpp.o
+[426/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/Font.cpp.o
+[427/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/OpenGLProber.cpp.o
+[428/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/OpenGL.cpp.o
+[429/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/OpenGLConfig.cpp.o
+[430/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/AbstractShaderProgram.cpp.o
+[431/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/OpenGLTypes.cpp.o
+[432/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/Binders.cpp.o
+[433/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/FBO.cpp.o
+[434/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/FontMesh3d.cpp.o
+[435/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/FunctionsGL33.cpp.o
+[436/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/FunctionsES30.cpp.o
+[437/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/Legacy.cpp.o
+[438/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/Meshes.cpp.o
+[439/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/Shaders.cpp.o
+[440/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/SimpleMesh.cpp.o
+[441/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/ShaderUtils.cpp.o
+[442/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/VBO.cpp.o
+[443/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/VAO.cpp.o
+[444/691] Building CXX object src/CMakeFiles/mmapper.dir/parser/AbstractParser-Actions.cpp.o
+[445/691] Building CXX object src/CMakeFiles/mmapper.dir/parser/Abbrev.cpp.o
+[446/691] Building CXX object src/CMakeFiles/mmapper.dir/parser/AbstractParser-Group.cpp.o
+[447/691] Building CXX object src/CMakeFiles/mmapper.dir/parser/AbstractParser-Config.cpp.o
+[448/691] Building CXX object src/CMakeFiles/mmapper.dir/parser/AbstractParser-Commands.cpp.o
+[449/691] Building CXX object src/CMakeFiles/mmapper.dir/parser/AbstractParser-Timer.cpp.o
+[450/691] Building CXX object src/CMakeFiles/mmapper.dir/parser/AbstractParser-Utils.cpp.o
+[451/691] Building CXX object src/CMakeFiles/mmapper.dir/parser/AbstractParser-Mark.cpp.o
+In file included from /app/src/parser/AbstractParser-Mark.cpp:5:
+/app/src/parser/../display/InfomarkSelection.h: In member function ‘InfomarkHandle InfomarkSelection::front() const’:
+/app/src/parser/../display/InfomarkSelection.h:67:21: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                     ^~
+/app/src/parser/../display/InfomarkSelection.h:67:65: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
+   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
+/app/src/parser/AbstractParser-Mark.cpp: In lambda function:
+/app/src/parser/AbstractParser-Mark.cpp:255:15: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+  255 |         auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |               ^~
+/app/src/parser/AbstractParser-Mark.cpp:255:59: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
+  255 |         auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
+/app/src/parser/AbstractParser-Mark.cpp: In lambda function:
+/app/src/parser/AbstractParser-Mark.cpp:284:23: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+  284 |                 auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                       ^~
+/app/src/parser/AbstractParser-Mark.cpp:284:67: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
+  284 |                 auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
+/app/src/parser/../display/InfomarkSelection.h: In instantiation of ‘void InfomarkSelection::for_each(Callback&&) const [with Callback = AbstractParser::parseMark(StringView)::<lambda(User&, const Pair*)>::<lambda(const InfomarkHandle&)>]’:
+/app/src/parser/AbstractParser-Mark.cpp:147:25:   required from here
+/app/src/parser/../display/InfomarkSelection.h:84:21: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+   84 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                     ^~
+/app/src/parser/../display/InfomarkSelection.h:84:65: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
+   84 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
+[452/691] Building CXX object src/CMakeFiles/mmapper.dir/parser/AbstractParser-Room.cpp.o
+[453/691] Building CXX object src/CMakeFiles/mmapper.dir/parser/DoorAction.cpp.o
+[454/691] Building CXX object src/CMakeFiles/mmapper.dir/parser/CommandQueue.cpp.o
+[455/691] Building CXX object src/CMakeFiles/mmapper.dir/parser/Action.cpp.o
+[456/691] Building CXX object src/CMakeFiles/mmapper.dir/parser/abstractparser.cpp.o
+[457/691] Building CXX object src/CMakeFiles/mmapper.dir/parser/mumexmlparser-gmcp.cpp.o
+[458/691] Building CXX object src/CMakeFiles/mmapper.dir/parser/mumexmlparser.cpp.o
+[459/691] Building CXX object src/CMakeFiles/mmapper.dir/pathmachine/approved.cpp.o
+[460/691] Building CXX object src/CMakeFiles/mmapper.dir/pathmachine/experimenting.cpp.o
+[461/691] Building CXX object src/CMakeFiles/mmapper.dir/pathmachine/crossover.cpp.o
+[462/691] Building CXX object src/CMakeFiles/mmapper.dir/pathmachine/mmapper2pathmachine.cpp.o
+[463/691] Building CXX object src/CMakeFiles/mmapper.dir/pathmachine/onebyone.cpp.o
+[464/691] Building CXX object src/CMakeFiles/mmapper.dir/pathmachine/pathprocessor.cpp.o
+[465/691] Building CXX object src/CMakeFiles/mmapper.dir/pathmachine/path.cpp.o
+[466/691] Building CXX object src/CMakeFiles/mmapper.dir/pathmachine/syncing.cpp.o
+[467/691] Building CXX object src/CMakeFiles/mmapper.dir/pathmachine/pathmachine.cpp.o
+[468/691] Building CXX object src/CMakeFiles/mmapper.dir/pathmachine/roomsignalhandler.cpp.o
+[469/691] Building CXX object src/CMakeFiles/mmapper.dir/preferences/AdvancedGraphics.cpp.o
+[470/691] Building CXX object src/CMakeFiles/mmapper.dir/preferences/AnsiColorDialog.cpp.o
+[471/691] Building CXX object src/CMakeFiles/mmapper.dir/preferences/ansicombo.cpp.o
+[472/691] Building CXX object src/CMakeFiles/mmapper.dir/preferences/autologpage.cpp.o
+[473/691] Building CXX object src/CMakeFiles/mmapper.dir/preferences/clientpage.cpp.o
+[474/691] Building CXX object src/CMakeFiles/mmapper.dir/preferences/configdialog.cpp.o
+[475/691] Building CXX object src/CMakeFiles/mmapper.dir/preferences/graphicspage.cpp.o
+[476/691] Building CXX object src/CMakeFiles/mmapper.dir/preferences/generalpage.cpp.o
+[477/691] Building CXX object src/CMakeFiles/mmapper.dir/preferences/grouppage.cpp.o
+[478/691] Building CXX object src/CMakeFiles/mmapper.dir/preferences/mumeprotocolpage.cpp.o
+[479/691] Building CXX object src/CMakeFiles/mmapper.dir/preferences/pathmachinepage.cpp.o
+[480/691] Building CXX object src/CMakeFiles/mmapper.dir/preferences/parserpage.cpp.o
+[481/691] Building CXX object src/CMakeFiles/mmapper.dir/proxy/GmcpMessage.cpp.o
+[482/691] Building CXX object src/CMakeFiles/mmapper.dir/proxy/AbstractTelnet.cpp.o
+[483/691] Building CXX object src/CMakeFiles/mmapper.dir/proxy/GmcpUtils.cpp.o
+[484/691] Building CXX object src/CMakeFiles/mmapper.dir/proxy/GmcpModule.cpp.o
+[485/691] Building CXX object src/CMakeFiles/mmapper.dir/proxy/ProxyParserApi.cpp.o
+[486/691] Building CXX object src/CMakeFiles/mmapper.dir/proxy/MudTelnet.cpp.o
+[487/691] Building CXX object src/CMakeFiles/mmapper.dir/proxy/TcpSocket.cpp.o
+[488/691] Building CXX object src/CMakeFiles/mmapper.dir/proxy/TextCodec.cpp.o
+[489/691] Building CXX object src/CMakeFiles/mmapper.dir/proxy/VirtualSocket.cpp.o
+[490/691] Building CXX object src/CMakeFiles/mmapper.dir/proxy/UserTelnet.cpp.o
+[491/691] Building CXX object src/CMakeFiles/mmapper.dir/proxy/connectionlistener.cpp.o
+[492/691] Building CXX object src/CMakeFiles/mmapper.dir/proxy/mumesocket.cpp.o
+[493/691] Building CXX object src/CMakeFiles/mmapper.dir/proxy/telnetfilter.cpp.o
+[494/691] Building CXX object src/CMakeFiles/mmapper.dir/roompanel/RoomManager.cpp.o
+[495/691] Building CXX object src/CMakeFiles/mmapper.dir/proxy/proxy.cpp.o
+[496/691] Building CXX object src/CMakeFiles/mmapper.dir/roompanel/RoomMob.cpp.o
+[497/691] Building CXX object src/CMakeFiles/mmapper.dir/roompanel/RoomMobs.cpp.o
+[498/691] Building CXX object src/CMakeFiles/mmapper.dir/syntax/Accept.cpp.o
+[499/691] Building CXX object src/CMakeFiles/mmapper.dir/roompanel/RoomWidget.cpp.o
+[500/691] Building CXX object src/CMakeFiles/mmapper.dir/syntax/IArgument.cpp.o
+[501/691] Building CXX object src/CMakeFiles/mmapper.dir/syntax/MatchResult.cpp.o
+[502/691] Building CXX object src/CMakeFiles/mmapper.dir/syntax/ParserInput.cpp.o
+[503/691] Building CXX object src/CMakeFiles/mmapper.dir/syntax/Sublist.cpp.o
+[504/691] Building CXX object src/CMakeFiles/mmapper.dir/syntax/TokenMatcher.cpp.o
+[505/691] Building CXX object src/CMakeFiles/mmapper.dir/syntax/SyntaxArgs.cpp.o
+[506/691] Building CXX object src/CMakeFiles/mmapper.dir/syntax/TreeParser.cpp.o
+[507/691] Building CXX object src/CMakeFiles/mmapper.dir/timers/CTimers.cpp.o
+[508/691] Building CXX object src/CMakeFiles/mmapper.dir/syntax/Value.cpp.o
+[509/691] Building CXX object src/CMakeFiles/mmapper.dir/viewers/AnsiViewWindow.cpp.o
+[510/691] Building CXX object src/CMakeFiles/mmapper.dir/viewers/TopLevelWindows.cpp.o
+[511/691] Building CXX object src/CMakeFiles/mmapper.dir/mpi/remoteeditprocess.cpp.o
+[512/691] Building CXX object src/CMakeFiles/mmapper.dir/Version.cpp.o
+[513/691] Building CXX object src/CMakeFiles/mmapper.dir/odr.cpp.o
+In file included from /app/build/src/odr.cpp:30:
+/app/src/display/InfomarkSelection.h: In member function ‘InfomarkHandle InfomarkSelection::front() const’:
+/app/src/display/InfomarkSelection.h:67:21: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                     ^~
+/app/src/display/InfomarkSelection.h:67:65: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
+   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
+In file included from /app/build/src/odr.cpp:69:
+/app/src/global/IndexedVectorWithDefault.h: At global scope:
+/app/src/global/IndexedVectorWithDefault.h:128:6: warning: redundant redeclaration of ‘void test::testIndexedVectorWithDefault()’ in same scope [-Wredundant-decls]
+  128 | void testIndexedVectorWithDefault();
+      |      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /app/build/src/odr.cpp:64:
+/app/src/global/ImmIndexedVectorWithDefault.h:134:6: note: previous declaration of ‘void test::testIndexedVectorWithDefault()’
+  134 | void testIndexedVectorWithDefault();
+      |      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+[514/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/adventure/adventuresession.h.gen.cpp.o
+[515/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/adventure/adventuretracker.h.gen.cpp.o
+[516/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/adventure/lineparsers.h.gen.cpp.o
+[517/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/client/ClientTelnet.h.gen.cpp.o
+[518/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/adventure/xpstatuswidget.h.gen.cpp.o
+[519/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/adventure/adventurewidget.h.gen.cpp.o
+[520/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/client/PaletteManager.h.gen.cpp.o
+[521/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/client/PasswordDialog.h.gen.cpp.o
+[522/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/client/ClientWidget.h.gen.cpp.o
+[523/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/client/inputwidget.h.gen.cpp.o
+[524/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/client/PreviewWidget.h.gen.cpp.o
+[525/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/client/displaywidget.h.gen.cpp.o
+[526/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/client/stackedinputwidget.h.gen.cpp.o
+[527/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/clock/mumeclockwidget.h.gen.cpp.o
+[528/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/clock/mumeclock.h.gen.cpp.o
+[529/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/clock/mumemoment.h.gen.cpp.o
+[530/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/configuration/NamedConfig.h.gen.cpp.o
+[531/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/configuration/PasswordConfig.h.gen.cpp.o
+[532/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/CanvasMouseModeEnum.h.gen.cpp.o
+[533/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/ConnectionLineBuilder.h.gen.cpp.o
+[534/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/Characters.h.gen.cpp.o
+[535/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/Connections.h.gen.cpp.o
+[536/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/configuration/configuration.h.gen.cpp.o
+[537/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/IMapBatchesFinisher.h.gen.cpp.o
+[538/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/Filenames.h.gen.cpp.o
+[539/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/Infomarks.h.gen.cpp.o
+[540/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/MapCanvasConfig.h.gen.cpp.o
+[541/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/InfomarkSelection.h.gen.cpp.o
+In file included from /app/build/src/gen/display/InfomarkSelection.h.gen.cpp:1:
+/app/src/display/InfomarkSelection.h: In member function ‘InfomarkHandle InfomarkSelection::front() const’:
+/app/src/display/InfomarkSelection.h:67:21: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                     ^~
+/app/src/display/InfomarkSelection.h:67:65: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
+   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
+[542/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/MapBatches.h.gen.cpp.o
+[543/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/RoadIndex.h.gen.cpp.o
+[544/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/MapCanvasData.h.gen.cpp.o
+[545/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/MapCanvasRoomDrawer.h.gen.cpp.o
+[546/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/connectionselection.h.gen.cpp.o
+[547/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/Textures.h.gen.cpp.o
+[548/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/mapwindow.h.gen.cpp.o
+[549/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/mapcanvas.h.gen.cpp.o
+[550/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/group/CGroupChar.h.gen.cpp.o
+[551/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/prespammedpath.h.gen.cpp.o
+[552/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/group/ColorGenerator.h.gen.cpp.o
+[553/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/group/GroupManagerApi.h.gen.cpp.o
+[554/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/group/mmapper2character.h.gen.cpp.o
+[555/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/group/enums.h.gen.cpp.o
+[556/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/group/groupwidget.h.gen.cpp.o
+[557/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/logger/autologger.h.gen.cpp.o
+[558/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/group/mmapper2group.h.gen.cpp.o
+[559/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mainwindow/DescriptionWidget.h.gen.cpp.o
+[560/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mainwindow/UpdateDialog.h.gen.cpp.o
+[561/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mainwindow/ThemeManager.h.gen.cpp.o
+[562/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mainwindow/aboutdialog.h.gen.cpp.o
+[563/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mainwindow/findroomsdlg.h.gen.cpp.o
+[564/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mainwindow/MapZoomSlider.h.gen.cpp.o
+[565/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mainwindow/metatypes.h.gen.cpp.o
+[566/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mainwindow/infomarkseditdlg.h.gen.cpp.o
+[567/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mainwindow/utils.h.gen.cpp.o
+[568/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapdata/GenericFind.h.gen.cpp.o
+[569/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mainwindow/roomeditattrdlg.h.gen.cpp.o
+[570/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mainwindow/mainwindow.h.gen.cpp.o
+[571/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapdata/MarkerList.h.gen.cpp.o
+[572/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapdata/roomfilter.h.gen.cpp.o
+[573/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapdata/mapdata.h.gen.cpp.o
+[574/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapdata/roomselection.h.gen.cpp.o
+[575/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapdata/shortestpath.h.gen.cpp.o
+[576/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapstorage/MapDestination.h.gen.cpp.o
+[577/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapstorage/MapSource.h.gen.cpp.o
+[578/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapfrontend/MapHistory.h.gen.cpp.o
+[579/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapstorage/MmpMapStorage.h.gen.cpp.o
+[580/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapstorage/PandoraMapStorage.h.gen.cpp.o
+[581/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapfrontend/mapfrontend.h.gen.cpp.o
+[582/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapstorage/RawMapData.h.gen.cpp.o
+[583/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapstorage/filesaver.h.gen.cpp.o
+[584/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapstorage/abstractmapstorage.h.gen.cpp.o
+[585/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapstorage/XmlMapStorage.h.gen.cpp.o
+[586/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mpi/findreplacewidget.h.gen.cpp.o
+[587/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mpi/gotowidget.h.gen.cpp.o
+[588/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapstorage/jsonmapstorage.h.gen.cpp.o
+[589/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mpi/mpifilter.h.gen.cpp.o
+[590/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapstorage/mapstorage.h.gen.cpp.o
+[591/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mpi/remoteeditprocess.h.gen.cpp.o
+[592/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mpi/remoteedit.h.gen.cpp.o
+[593/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mpi/remoteeditwidget.h.gen.cpp.o
+[594/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/Font.h.gen.cpp.o
+[595/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mpi/remoteeditsession.h.gen.cpp.o
+[596/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/FontFormatFlags.h.gen.cpp.o
+[597/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/OpenGLConfig.h.gen.cpp.o
+[598/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/OpenGL.h.gen.cpp.o
+[599/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/observer/gameobserver.h.gen.cpp.o
+[600/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/OpenGLProber.h.gen.cpp.o
+[601/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/OpenGLTypes.h.gen.cpp.o
+[602/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/legacy/Binders.h.gen.cpp.o
+[603/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/legacy/FontMesh3d.h.gen.cpp.o
+[604/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/legacy/FBO.h.gen.cpp.o
+[605/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/legacy/AbstractShaderProgram.h.gen.cpp.o
+[606/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/legacy/FunctionsES30.h.gen.cpp.o
+[607/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/legacy/Legacy.h.gen.cpp.o
+[608/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/legacy/Meshes.h.gen.cpp.o
+[609/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/legacy/FunctionsGL33.h.gen.cpp.o
+[610/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/legacy/ShaderUtils.h.gen.cpp.o
+[611/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/legacy/Shaders.h.gen.cpp.o
+[612/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/legacy/VAO.h.gen.cpp.o
+[613/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/legacy/SimpleMesh.h.gen.cpp.o
+[614/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/parser/Abbrev.h.gen.cpp.o
+[615/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/legacy/VBO.h.gen.cpp.o
+[616/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/parser/AbstractParser-Utils.h.gen.cpp.o
+[617/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/parser/CommandQueue.h.gen.cpp.o
+[618/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/parser/DoorAction.h.gen.cpp.o
+[619/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/parser/AbstractParser-Commands.h.gen.cpp.o
+[620/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/parser/Action.h.gen.cpp.o
+[621/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/parser/LineFlags.h.gen.cpp.o
+[622/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/parser/SendToUserSourceEnum.h.gen.cpp.o
+[623/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/pathmachine/approved.h.gen.cpp.o
+[624/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/parser/abstractparser.h.gen.cpp.o
+[625/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/parser/mumexmlparser.h.gen.cpp.o
+[626/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/pathmachine/experimenting.h.gen.cpp.o
+[627/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/pathmachine/crossover.h.gen.cpp.o
+[628/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/pathmachine/mmapper2pathmachine.h.gen.cpp.o
+[629/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/pathmachine/onebyone.h.gen.cpp.o
+[630/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/pathmachine/path.h.gen.cpp.o
+[631/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/pathmachine/pathparameters.h.gen.cpp.o
+[632/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/pathmachine/pathprocessor.h.gen.cpp.o
+[633/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/pathmachine/pathmachine.h.gen.cpp.o
+[634/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/preferences/AdvancedGraphics.h.gen.cpp.o
+[635/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/pathmachine/roomsignalhandler.h.gen.cpp.o
+[636/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/pathmachine/syncing.h.gen.cpp.o
+[637/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/preferences/AnsiColorDialog.h.gen.cpp.o
+[638/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/preferences/autologpage.h.gen.cpp.o
+[639/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/preferences/configdialog.h.gen.cpp.o
+[640/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/preferences/ansicombo.h.gen.cpp.o
+[641/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/preferences/clientpage.h.gen.cpp.o
+[642/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/preferences/graphicspage.h.gen.cpp.o
+[643/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/preferences/generalpage.h.gen.cpp.o
+[644/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/preferences/grouppage.h.gen.cpp.o
+[645/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/preferences/mumeprotocolpage.h.gen.cpp.o
+[646/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/preferences/pathmachinepage.h.gen.cpp.o
+[647/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/AbstractSocket.h.gen.cpp.o
+[648/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/preferences/parserpage.h.gen.cpp.o
+[649/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/GmcpModule.h.gen.cpp.o
+[650/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/GmcpMessage.h.gen.cpp.o
+[651/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/AbstractTelnet.h.gen.cpp.o
+[652/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/GmcpUtils.h.gen.cpp.o
+[653/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/TaggedBytes.h.gen.cpp.o
+[654/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/TcpSocket.h.gen.cpp.o
+[655/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/ProxyParserApi.h.gen.cpp.o
+[656/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/TextCodec.h.gen.cpp.o
+[657/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/MudTelnet.h.gen.cpp.o
+[658/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/VirtualSocket.h.gen.cpp.o
+[659/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/connectionlistener.h.gen.cpp.o
+[660/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/UserTelnet.h.gen.cpp.o
+[661/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/proxy.h.gen.cpp.o
+[662/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/telnetfilter.h.gen.cpp.o
+[663/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/roompanel/RoomManager.h.gen.cpp.o
+[664/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/roompanel/RoomMob.h.gen.cpp.o
+[665/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/mumesocket.h.gen.cpp.o
+[666/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/roompanel/RoomMobs.h.gen.cpp.o
+[667/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/syntax/IArgument.h.gen.cpp.o
+[668/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/syntax/Accept.h.gen.cpp.o
+[669/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/syntax/IMatchErrorLogger.h.gen.cpp.o
+[670/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/roompanel/RoomWidget.h.gen.cpp.o
+[671/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/syntax/ParseResult.h.gen.cpp.o
+[672/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/syntax/MatchResult.h.gen.cpp.o
+[673/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/syntax/SyntaxArgs.h.gen.cpp.o
+[674/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/syntax/ParserInput.h.gen.cpp.o
+[675/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/syntax/TokenMatcher.h.gen.cpp.o
+[676/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/syntax/Sublist.h.gen.cpp.o
+[677/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/syntax/User.h.gen.cpp.o
+[678/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/timers/CTimers.h.gen.cpp.o
+[679/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/viewers/AnsiViewWindow.h.gen.cpp.o
+[680/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/syntax/Value.h.gen.cpp.o
+[681/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/syntax/TreeParser.h.gen.cpp.o
+[682/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/viewers/TopLevelWindows.h.gen.cpp.o
+[683/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/viewers/LaunchAsyncViewer.h.gen.cpp.o
+[684/691] Building CXX object src/CMakeFiles/mmapper.dir/qrc_build.cpp.o
+[685/691] Building CXX object src/CMakeFiles/mmapper.dir/qrc_mmapper2.cpp.o
+[686/691] Building CXX object src/CMakeFiles/mmapper.dir/qrc_map.cpp.o
+[687/691] Building CXX object src/CMakeFiles/mmapper.dir/qrc_images.cpp.o
+[688/691] Building CXX object src/CMakeFiles/mmapper.dir/display/Infomarks.cpp.o
 In file included from /app/src/display/Infomarks.cpp:15:
 /app/src/display/InfomarkSelection.h: In member function ‘InfomarkHandle InfomarkSelection::front() const’:
 /app/src/display/InfomarkSelection.h:67:21: warning: possibly dangling reference to a temporary [-Wdangling-reference]
@@ -570,481 +1028,35 @@ In file included from /app/src/display/Infomarks.cpp:15:
 /app/src/display/InfomarkSelection.h:84:65: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
    84 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
       |                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
-[371/691] Building CXX object src/CMakeFiles/mmapper.dir/display/MapCanvasData.cpp.o
-[372/691] Building CXX object src/CMakeFiles/mmapper.dir/display/MapBatches.cpp.o
-[373/691] Building CXX object src/CMakeFiles/mmapper.dir/display/RoadIndex.cpp.o
-[374/691] Building CXX object src/CMakeFiles/mmapper.dir/display/MapCanvasRoomDrawer.cpp.o
-[375/691] Building CXX object src/CMakeFiles/mmapper.dir/display/InfomarkSelection.cpp.o
-In file included from /app/src/display/InfomarkSelection.cpp:5:
-/app/src/display/InfomarkSelection.h: In member function ‘InfomarkHandle InfomarkSelection::front() const’:
-/app/src/display/InfomarkSelection.h:67:21: warning: possibly dangling reference to a temporary [-Wdangling-reference]
-   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
-      |                     ^~
-/app/src/display/InfomarkSelection.h:67:65: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
-   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
-      |                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
-/app/src/display/InfomarkSelection.cpp: In member function ‘void InfomarkSelection::init()’:
-/app/src/display/InfomarkSelection.cpp:70:17: warning: possibly dangling reference to a temporary [-Wdangling-reference]
-   70 |     const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
-      |                 ^~
-/app/src/display/InfomarkSelection.cpp:70:61: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
-   70 |     const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
-      |                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
-/app/src/display/InfomarkSelection.cpp: In member function ‘void InfomarkSelection::applyOffset(const Coordinate&) const’:
-/app/src/display/InfomarkSelection.cpp:86:17: warning: possibly dangling reference to a temporary [-Wdangling-reference]
-   86 |     const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
-      |                 ^~
-/app/src/display/InfomarkSelection.cpp:86:61: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
-   86 |     const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
-      |                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
-[376/691] Building CXX object src/CMakeFiles/mmapper.dir/display/Textures.cpp.o
-[377/691] Building CXX object src/CMakeFiles/mmapper.dir/display/RoomSelections.cpp.o
-[378/691] Building CXX object src/CMakeFiles/mmapper.dir/display/connectionselection.cpp.o
-[379/691] Building CXX object src/CMakeFiles/mmapper.dir/display/mapwindow.cpp.o
-[380/691] Building CXX object src/CMakeFiles/mmapper.dir/display/prespammedpath.cpp.o
-[381/691] Building CXX object src/CMakeFiles/mmapper.dir/group/CGroupChar.cpp.o
-[382/691] Building CXX object src/CMakeFiles/mmapper.dir/group/ColorGenerator.cpp.o
-[383/691] Building CXX object src/CMakeFiles/mmapper.dir/group/GroupManagerApi.cpp.o
-[384/691] Building CXX object src/CMakeFiles/mmapper.dir/group/enums.cpp.o
-[385/691] Building CXX object src/CMakeFiles/mmapper.dir/display/mapcanvas.cpp.o
-In file included from /app/src/display/mapcanvas.cpp:21:
-/app/src/display/InfomarkSelection.h: In member function ‘InfomarkHandle InfomarkSelection::front() const’:
-/app/src/display/InfomarkSelection.h:67:21: warning: possibly dangling reference to a temporary [-Wdangling-reference]
-   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
-      |                     ^~
-/app/src/display/InfomarkSelection.h:67:65: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
-   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
-      |                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
-[386/691] Building CXX object src/CMakeFiles/mmapper.dir/group/mmapper2character.cpp.o
-[387/691] Building CXX object src/CMakeFiles/mmapper.dir/logger/autologger.cpp.o
-[388/691] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/DescriptionWidget.cpp.o
-[389/691] Building CXX object src/CMakeFiles/mmapper.dir/group/mmapper2group.cpp.o
-[390/691] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/MapZoomSlider.cpp.o
-[391/691] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/UpdateDialog.cpp.o
-[392/691] Building CXX object src/CMakeFiles/mmapper.dir/group/groupwidget.cpp.o
-[393/691] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/ThemeManager.cpp.o
-[394/691] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/aboutdialog.cpp.o
-[395/691] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/infomarkseditdlg.cpp.o
-In file included from /app/src/mainwindow/infomarkseditdlg.cpp:9:
-/app/src/mainwindow/../display/InfomarkSelection.h: In member function ‘InfomarkHandle InfomarkSelection::front() const’:
-/app/src/mainwindow/../display/InfomarkSelection.h:67:21: warning: possibly dangling reference to a temporary [-Wdangling-reference]
-   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
-      |                     ^~
-/app/src/mainwindow/../display/InfomarkSelection.h:67:65: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
-   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
-      |                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
-/app/src/mainwindow/infomarkseditdlg.cpp: In member function ‘InfomarkHandle InfomarksEditDlg::getCurrentInfomark()’:
-/app/src/mainwindow/infomarkseditdlg.cpp:282:17: warning: possibly dangling reference to a temporary [-Wdangling-reference]
-  282 |     const auto &db = m_mapData->getCurrentMap().getInfomarkDb();
-      |                 ^~
-/app/src/mainwindow/infomarkseditdlg.cpp:282:62: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
-  282 |     const auto &db = m_mapData->getCurrentMap().getInfomarkDb();
-      |                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
-/app/src/mainwindow/../display/InfomarkSelection.h: In instantiation of ‘void InfomarkSelection::for_each(Callback&&) const [with Callback = InfomarksEditDlg::updateMarkers()::<lambda(const InfomarkHandle&)>]’:
-/app/src/mainwindow/infomarkseditdlg.cpp:182:17:   required from here
-/app/src/mainwindow/../display/InfomarkSelection.h:84:21: warning: possibly dangling reference to a temporary [-Wdangling-reference]
-   84 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
-      |                     ^~
-/app/src/mainwindow/../display/InfomarkSelection.h:84:65: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
-   84 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
-      |                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
-[396/691] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/findroomsdlg.cpp.o
-[397/691] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/mainwindow-saveslots.cpp.o
-[398/691] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/metatypes.cpp.o
-[399/691] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/mainwindow.cpp.o
-In file included from /app/src/mainwindow/mainwindow.cpp:15:
-/app/src/mainwindow/../display/InfomarkSelection.h: In member function ‘InfomarkHandle InfomarkSelection::front() const’:
-/app/src/mainwindow/../display/InfomarkSelection.h:67:21: warning: possibly dangling reference to a temporary [-Wdangling-reference]
-   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
-      |                     ^~
-/app/src/mainwindow/../display/InfomarkSelection.h:67:65: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
-   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
-      |                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
-/app/src/mainwindow/mainwindow.cpp: In lambda function:
-/app/src/mainwindow/mainwindow.cpp:445:39: warning: possibly dangling reference to a temporary [-Wdangling-reference]
-  445 |                     const Coordinate &here = m_mapData->getRoomHandle(id).getPosition();
-      |                                       ^~~~
-/app/src/mainwindow/mainwindow.cpp:445:86: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getRoomHandle(RoomId) const(id).RoomHandle::getPosition()’
-  445 |                     const Coordinate &here = m_mapData->getRoomHandle(id).getPosition();
-      |                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
-[400/691] Building CXX object src/CMakeFiles/mmapper.dir/mapdata/GenericFind.cpp.o
-[401/691] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/mainwindow-async.cpp.o
-/app/src/mainwindow/mainwindow-async.cpp: In member function ‘virtual void MainWindow::slot_generateBaseMap()::AsyncGenerateBaseMap::virt_finish()’:
-/app/src/mainwindow/mainwindow-async.cpp:1017:32: warning: redundant move in initialization [-Wredundant-move]
- 1017 |             onSuccess(std::move(*result));
-      |                       ~~~~~~~~~^~~~~~~~~
-/app/src/mainwindow/mainwindow-async.cpp:1017:32: note: remove ‘std::move’ call
-[402/691] Building CXX object src/CMakeFiles/mmapper.dir/mapdata/MarkerList.cpp.o
-[403/691] Building CXX object src/CMakeFiles/mmapper.dir/mapdata/roomfilter.cpp.o
-[404/691] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/roomeditattrdlg.cpp.o
-[405/691] Building CXX object src/CMakeFiles/mmapper.dir/mapdata/roomselection.cpp.o
-[406/691] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/utils.cpp.o
-[407/691] Building CXX object src/CMakeFiles/mmapper.dir/mapdata/shortestpath.cpp.o
-[408/691] Building CXX object src/CMakeFiles/mmapper.dir/mapfrontend/MapHistory.cpp.o
-[409/691] Building CXX object src/CMakeFiles/mmapper.dir/mapdata/mapdata.cpp.o
-[410/691] Building CXX object src/CMakeFiles/mmapper.dir/mapstorage/MapSource.cpp.o
-[411/691] Building CXX object src/CMakeFiles/mmapper.dir/mapstorage/MapDestination.cpp.o
-[412/691] Building CXX object src/CMakeFiles/mmapper.dir/mapfrontend/mapfrontend.cpp.o
-[413/691] Building CXX object src/CMakeFiles/mmapper.dir/mapstorage/MmpMapStorage.cpp.o
-[414/691] Building CXX object src/CMakeFiles/mmapper.dir/mapstorage/filesaver.cpp.o
-[415/691] Building CXX object src/CMakeFiles/mmapper.dir/mapstorage/RawMapData.cpp.o
-[416/691] Building CXX object src/CMakeFiles/mmapper.dir/mapstorage/abstractmapstorage.cpp.o
-[417/691] Building CXX object src/CMakeFiles/mmapper.dir/mapstorage/PandoraMapStorage.cpp.o
-[418/691] Building CXX object src/CMakeFiles/mmapper.dir/mpi/mpifilter.cpp.o
-[419/691] Building CXX object src/CMakeFiles/mmapper.dir/mapstorage/jsonmapstorage.cpp.o
-[420/691] Building CXX object src/CMakeFiles/mmapper.dir/mapstorage/mapstorage.cpp.o
-[421/691] Building CXX object src/CMakeFiles/mmapper.dir/mpi/remoteeditsession.cpp.o
-[422/691] Building CXX object src/CMakeFiles/mmapper.dir/mpi/findreplacewidget.cpp.o
-[423/691] Building CXX object src/CMakeFiles/mmapper.dir/mpi/gotowidget.cpp.o
-[424/691] Building CXX object src/CMakeFiles/mmapper.dir/mpi/remoteeditwidget.cpp.o
-[425/691] Building CXX object src/CMakeFiles/mmapper.dir/mpi/remoteedit.cpp.o
-[426/691] Building CXX object src/CMakeFiles/mmapper.dir/mapstorage/XmlMapStorage.cpp.o
-[427/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/OpenGLProber.cpp.o
-[428/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/OpenGLTypes.cpp.o
-[429/691] Building CXX object src/CMakeFiles/mmapper.dir/observer/gameobserver.cpp.o
-[430/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/OpenGLConfig.cpp.o
-[431/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/FBO.cpp.o
-[432/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/Font.cpp.o
-[433/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/AbstractShaderProgram.cpp.o
-[434/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/Binders.cpp.o
-[435/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/OpenGL.cpp.o
-[436/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/FontMesh3d.cpp.o
-[437/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/FunctionsGL33.cpp.o
-[438/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/FunctionsES30.cpp.o
-[439/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/Meshes.cpp.o
-[440/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/Legacy.cpp.o
-[441/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/SimpleMesh.cpp.o
-[442/691] Building CXX object src/CMakeFiles/mmapper.dir/parser/Abbrev.cpp.o
-[443/691] Building CXX object src/CMakeFiles/mmapper.dir/parser/AbstractParser-Actions.cpp.o
-[444/691] Building CXX object src/CMakeFiles/mmapper.dir/parser/AbstractParser-Commands.cpp.o
-[445/691] Building CXX object src/CMakeFiles/mmapper.dir/parser/AbstractParser-Config.cpp.o
-[446/691] Building CXX object src/CMakeFiles/mmapper.dir/parser/AbstractParser-Group.cpp.o
-[447/691] Building CXX object src/CMakeFiles/mmapper.dir/parser/AbstractParser-Mark.cpp.o
-In file included from /app/src/parser/AbstractParser-Mark.cpp:5:
-/app/src/parser/../display/InfomarkSelection.h: In member function ‘InfomarkHandle InfomarkSelection::front() const’:
-/app/src/parser/../display/InfomarkSelection.h:67:21: warning: possibly dangling reference to a temporary [-Wdangling-reference]
-   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
-      |                     ^~
-/app/src/parser/../display/InfomarkSelection.h:67:65: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
-   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
-      |                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
-/app/src/parser/AbstractParser-Mark.cpp: In lambda function:
-/app/src/parser/AbstractParser-Mark.cpp:255:15: warning: possibly dangling reference to a temporary [-Wdangling-reference]
-  255 |         auto &db = m_mapData.getCurrentMap().getInfomarkDb();
-      |               ^~
-/app/src/parser/AbstractParser-Mark.cpp:255:59: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
-  255 |         auto &db = m_mapData.getCurrentMap().getInfomarkDb();
-      |                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
-/app/src/parser/AbstractParser-Mark.cpp: In lambda function:
-/app/src/parser/AbstractParser-Mark.cpp:284:23: warning: possibly dangling reference to a temporary [-Wdangling-reference]
-  284 |                 auto &db = m_mapData.getCurrentMap().getInfomarkDb();
-      |                       ^~
-/app/src/parser/AbstractParser-Mark.cpp:284:67: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
-  284 |                 auto &db = m_mapData.getCurrentMap().getInfomarkDb();
-      |                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
-/app/src/parser/../display/InfomarkSelection.h: In instantiation of ‘void InfomarkSelection::for_each(Callback&&) const [with Callback = AbstractParser::parseMark(StringView)::<lambda(User&, const Pair*)>::<lambda(const InfomarkHandle&)>]’:
-/app/src/parser/AbstractParser-Mark.cpp:147:25:   required from here
-/app/src/parser/../display/InfomarkSelection.h:84:21: warning: possibly dangling reference to a temporary [-Wdangling-reference]
-   84 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
-      |                     ^~
-/app/src/parser/../display/InfomarkSelection.h:84:65: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
-   84 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
-      |                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
-[448/691] Building CXX object src/CMakeFiles/mmapper.dir/parser/AbstractParser-Room.cpp.o
-[449/691] Building CXX object src/CMakeFiles/mmapper.dir/parser/AbstractParser-Timer.cpp.o
-[450/691] Building CXX object src/CMakeFiles/mmapper.dir/parser/AbstractParser-Utils.cpp.o
-[451/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/ShaderUtils.cpp.o
-[452/691] Building CXX object src/CMakeFiles/mmapper.dir/parser/CommandQueue.cpp.o
-[453/691] Building CXX object src/CMakeFiles/mmapper.dir/parser/Action.cpp.o
-[454/691] Building CXX object src/CMakeFiles/mmapper.dir/parser/DoorAction.cpp.o
-[455/691] Building CXX object src/CMakeFiles/mmapper.dir/parser/abstractparser.cpp.o
-[456/691] Building CXX object src/CMakeFiles/mmapper.dir/parser/mumexmlparser-gmcp.cpp.o
-[457/691] Building CXX object src/CMakeFiles/mmapper.dir/parser/mumexmlparser.cpp.o
-[458/691] Building CXX object src/CMakeFiles/mmapper.dir/pathmachine/approved.cpp.o
-[459/691] Building CXX object src/CMakeFiles/mmapper.dir/pathmachine/crossover.cpp.o
-[460/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/Shaders.cpp.o
-[461/691] Building CXX object src/CMakeFiles/mmapper.dir/pathmachine/experimenting.cpp.o
-[462/691] Building CXX object src/CMakeFiles/mmapper.dir/pathmachine/mmapper2pathmachine.cpp.o
-[463/691] Building CXX object src/CMakeFiles/mmapper.dir/pathmachine/onebyone.cpp.o
-[464/691] Building CXX object src/CMakeFiles/mmapper.dir/pathmachine/path.cpp.o
-[465/691] Building CXX object src/CMakeFiles/mmapper.dir/pathmachine/pathprocessor.cpp.o
-[466/691] Building CXX object src/CMakeFiles/mmapper.dir/pathmachine/syncing.cpp.o
-[467/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/VAO.cpp.o
-[468/691] Building CXX object src/CMakeFiles/mmapper.dir/pathmachine/pathmachine.cpp.o
-[469/691] Building CXX object src/CMakeFiles/mmapper.dir/pathmachine/roomsignalhandler.cpp.o
-[470/691] Building CXX object src/CMakeFiles/mmapper.dir/preferences/AnsiColorDialog.cpp.o
-[471/691] Building CXX object src/CMakeFiles/mmapper.dir/preferences/AdvancedGraphics.cpp.o
-[472/691] Building CXX object src/CMakeFiles/mmapper.dir/preferences/ansicombo.cpp.o
-[473/691] Building CXX object src/CMakeFiles/mmapper.dir/preferences/autologpage.cpp.o
-[474/691] Building CXX object src/CMakeFiles/mmapper.dir/preferences/configdialog.cpp.o
-[475/691] Building CXX object src/CMakeFiles/mmapper.dir/preferences/generalpage.cpp.o
-[476/691] Building CXX object src/CMakeFiles/mmapper.dir/preferences/clientpage.cpp.o
-[477/691] Building CXX object src/CMakeFiles/mmapper.dir/preferences/grouppage.cpp.o
-[478/691] Building CXX object src/CMakeFiles/mmapper.dir/preferences/graphicspage.cpp.o
-[479/691] Building CXX object src/CMakeFiles/mmapper.dir/preferences/mumeprotocolpage.cpp.o
-[480/691] Building CXX object src/CMakeFiles/mmapper.dir/preferences/parserpage.cpp.o
-[481/691] Building CXX object src/CMakeFiles/mmapper.dir/preferences/pathmachinepage.cpp.o
-[482/691] Building CXX object src/CMakeFiles/mmapper.dir/proxy/GmcpMessage.cpp.o
-[483/691] Building CXX object src/CMakeFiles/mmapper.dir/proxy/AbstractTelnet.cpp.o
-[484/691] Building CXX object src/CMakeFiles/mmapper.dir/proxy/GmcpModule.cpp.o
-[485/691] Building CXX object src/CMakeFiles/mmapper.dir/proxy/GmcpUtils.cpp.o
-[486/691] Building CXX object src/CMakeFiles/mmapper.dir/proxy/TcpSocket.cpp.o
-[487/691] Building CXX object src/CMakeFiles/mmapper.dir/proxy/ProxyParserApi.cpp.o
-[488/691] Building CXX object src/CMakeFiles/mmapper.dir/proxy/TextCodec.cpp.o
-[489/691] Building CXX object src/CMakeFiles/mmapper.dir/proxy/MudTelnet.cpp.o
-[490/691] Building CXX object src/CMakeFiles/mmapper.dir/proxy/VirtualSocket.cpp.o
-[491/691] Building CXX object src/CMakeFiles/mmapper.dir/proxy/UserTelnet.cpp.o
-[492/691] Building CXX object src/CMakeFiles/mmapper.dir/proxy/connectionlistener.cpp.o
-[493/691] Building CXX object src/CMakeFiles/mmapper.dir/proxy/telnetfilter.cpp.o
-[494/691] Building CXX object src/CMakeFiles/mmapper.dir/proxy/mumesocket.cpp.o
-[495/691] Building CXX object src/CMakeFiles/mmapper.dir/roompanel/RoomManager.cpp.o
-[496/691] Building CXX object src/CMakeFiles/mmapper.dir/proxy/proxy.cpp.o
-[497/691] Building CXX object src/CMakeFiles/mmapper.dir/roompanel/RoomMobs.cpp.o
-[498/691] Building CXX object src/CMakeFiles/mmapper.dir/roompanel/RoomMob.cpp.o
-[499/691] Building CXX object src/CMakeFiles/mmapper.dir/roompanel/RoomWidget.cpp.o
-[500/691] Building CXX object src/CMakeFiles/mmapper.dir/syntax/MatchResult.cpp.o
-[501/691] Building CXX object src/CMakeFiles/mmapper.dir/syntax/Accept.cpp.o
-[502/691] Building CXX object src/CMakeFiles/mmapper.dir/syntax/ParserInput.cpp.o
-[503/691] Building CXX object src/CMakeFiles/mmapper.dir/syntax/IArgument.cpp.o
-[504/691] Building CXX object src/CMakeFiles/mmapper.dir/syntax/Sublist.cpp.o
-[505/691] Building CXX object src/CMakeFiles/mmapper.dir/syntax/TokenMatcher.cpp.o
-[506/691] Building CXX object src/CMakeFiles/mmapper.dir/syntax/TreeParser.cpp.o
-[507/691] Building CXX object src/CMakeFiles/mmapper.dir/syntax/Value.cpp.o
-[508/691] Building CXX object src/CMakeFiles/mmapper.dir/timers/CTimers.cpp.o
-[509/691] Building CXX object src/CMakeFiles/mmapper.dir/syntax/SyntaxArgs.cpp.o
-[510/691] Building CXX object src/CMakeFiles/mmapper.dir/viewers/TopLevelWindows.cpp.o
-[511/691] Building CXX object src/CMakeFiles/mmapper.dir/viewers/AnsiViewWindow.cpp.o
-[512/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/adventure/adventuresession.h.gen.cpp.o
-[513/691] Building CXX object src/CMakeFiles/mmapper.dir/mpi/remoteeditprocess.cpp.o
-[514/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/adventure/adventuretracker.h.gen.cpp.o
-[515/691] Building CXX object src/CMakeFiles/mmapper.dir/Version.cpp.o
-[516/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/adventure/lineparsers.h.gen.cpp.o
-[517/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/adventure/adventurewidget.h.gen.cpp.o
-[518/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/adventure/xpstatuswidget.h.gen.cpp.o
-[519/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/client/ClientTelnet.h.gen.cpp.o
-[520/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/client/PaletteManager.h.gen.cpp.o
-[521/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/client/ClientWidget.h.gen.cpp.o
-[522/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/client/displaywidget.h.gen.cpp.o
-[523/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/client/PasswordDialog.h.gen.cpp.o
-[524/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/client/inputwidget.h.gen.cpp.o
-[525/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/client/stackedinputwidget.h.gen.cpp.o
-[526/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/client/PreviewWidget.h.gen.cpp.o
-[527/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/clock/mumeclock.h.gen.cpp.o
-[528/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/clock/mumemoment.h.gen.cpp.o
-[529/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/configuration/NamedConfig.h.gen.cpp.o
-[530/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/configuration/PasswordConfig.h.gen.cpp.o
-[531/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/CanvasMouseModeEnum.h.gen.cpp.o
-[532/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/clock/mumeclockwidget.h.gen.cpp.o
-[533/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/Characters.h.gen.cpp.o
-[534/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/configuration/configuration.h.gen.cpp.o
-[535/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/Connections.h.gen.cpp.o
-[536/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/ConnectionLineBuilder.h.gen.cpp.o
-[537/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/IMapBatchesFinisher.h.gen.cpp.o
-[538/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/Filenames.h.gen.cpp.o
-[539/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/Infomarks.h.gen.cpp.o
-[540/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/InfomarkSelection.h.gen.cpp.o
-In file included from /app/build/src/gen/display/InfomarkSelection.h.gen.cpp:1:
-/app/src/display/InfomarkSelection.h: In member function ‘InfomarkHandle InfomarkSelection::front() const’:
-/app/src/display/InfomarkSelection.h:67:21: warning: possibly dangling reference to a temporary [-Wdangling-reference]
-   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
-      |                     ^~
-/app/src/display/InfomarkSelection.h:67:65: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
-   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
-      |                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
-[541/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/MapCanvasConfig.h.gen.cpp.o
-[542/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/MapBatches.h.gen.cpp.o
-[543/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/MapCanvasData.h.gen.cpp.o
-[544/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/RoadIndex.h.gen.cpp.o
-[545/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/Textures.h.gen.cpp.o
-[546/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/MapCanvasRoomDrawer.h.gen.cpp.o
-[547/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/connectionselection.h.gen.cpp.o
-[548/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/mapcanvas.h.gen.cpp.o
-[549/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/group/CGroupChar.h.gen.cpp.o
-[550/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/group/ColorGenerator.h.gen.cpp.o
-[551/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/prespammedpath.h.gen.cpp.o
-[552/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/mapwindow.h.gen.cpp.o
-[553/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/group/GroupManagerApi.h.gen.cpp.o
-[554/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/group/enums.h.gen.cpp.o
-[555/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/group/mmapper2character.h.gen.cpp.o
-[556/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/logger/autologger.h.gen.cpp.o
-[557/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/group/groupwidget.h.gen.cpp.o
-[558/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/group/mmapper2group.h.gen.cpp.o
-[559/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mainwindow/DescriptionWidget.h.gen.cpp.o
-[560/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mainwindow/ThemeManager.h.gen.cpp.o
-[561/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mainwindow/UpdateDialog.h.gen.cpp.o
-[562/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mainwindow/aboutdialog.h.gen.cpp.o
-[563/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mainwindow/findroomsdlg.h.gen.cpp.o
-[564/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mainwindow/infomarkseditdlg.h.gen.cpp.o
-[565/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mainwindow/metatypes.h.gen.cpp.o
-[566/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mainwindow/mainwindow.h.gen.cpp.o
-[567/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mainwindow/utils.h.gen.cpp.o
-[568/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mainwindow/MapZoomSlider.h.gen.cpp.o
-[569/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapdata/GenericFind.h.gen.cpp.o
-[570/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mainwindow/roomeditattrdlg.h.gen.cpp.o
-[571/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapdata/MarkerList.h.gen.cpp.o
-[572/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapdata/mapdata.h.gen.cpp.o
-[573/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapdata/roomfilter.h.gen.cpp.o
-[574/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapdata/roomselection.h.gen.cpp.o
-[575/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapfrontend/MapHistory.h.gen.cpp.o
-[576/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapdata/shortestpath.h.gen.cpp.o
-[577/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapstorage/MapDestination.h.gen.cpp.o
-[578/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapfrontend/mapfrontend.h.gen.cpp.o
-[579/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapstorage/MapSource.h.gen.cpp.o
-[580/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapstorage/MmpMapStorage.h.gen.cpp.o
-[581/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapstorage/PandoraMapStorage.h.gen.cpp.o
-[582/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapstorage/RawMapData.h.gen.cpp.o
-[583/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapstorage/abstractmapstorage.h.gen.cpp.o
-[584/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapstorage/XmlMapStorage.h.gen.cpp.o
-[585/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapstorage/filesaver.h.gen.cpp.o
-[586/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mpi/findreplacewidget.h.gen.cpp.o
-[587/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapstorage/jsonmapstorage.h.gen.cpp.o
-[588/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mpi/gotowidget.h.gen.cpp.o
-[589/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mapstorage/mapstorage.h.gen.cpp.o
-[590/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mpi/mpifilter.h.gen.cpp.o
-[591/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mpi/remoteeditprocess.h.gen.cpp.o
-[592/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mpi/remoteedit.h.gen.cpp.o
-[593/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mpi/remoteeditsession.h.gen.cpp.o
-[594/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/observer/gameobserver.h.gen.cpp.o
-[595/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/mpi/remoteeditwidget.h.gen.cpp.o
-[596/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/Font.h.gen.cpp.o
-[597/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/FontFormatFlags.h.gen.cpp.o
-[598/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/OpenGL.h.gen.cpp.o
-[599/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/OpenGLConfig.h.gen.cpp.o
-[600/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/OpenGLProber.h.gen.cpp.o
-[601/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/OpenGLTypes.h.gen.cpp.o
-[602/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/legacy/FBO.h.gen.cpp.o
-[603/691] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/VBO.cpp.o
-[604/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/legacy/FontMesh3d.h.gen.cpp.o
-[605/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/legacy/AbstractShaderProgram.h.gen.cpp.o
-[606/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/legacy/Binders.h.gen.cpp.o
-[607/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/legacy/FunctionsES30.h.gen.cpp.o
-[608/691] Building CXX object src/CMakeFiles/mmapper.dir/display/mapcanvas_gl.cpp.o
-[609/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/legacy/Legacy.h.gen.cpp.o
-[610/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/legacy/FunctionsGL33.h.gen.cpp.o
-[611/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/legacy/ShaderUtils.h.gen.cpp.o
-[612/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/legacy/Meshes.h.gen.cpp.o
-[613/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/parser/Abbrev.h.gen.cpp.o
-[614/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/parser/AbstractParser-Commands.h.gen.cpp.o
-[615/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/parser/AbstractParser-Utils.h.gen.cpp.o
-[616/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/parser/Action.h.gen.cpp.o
-[617/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/parser/CommandQueue.h.gen.cpp.o
-[618/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/parser/DoorAction.h.gen.cpp.o
-[619/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/parser/LineFlags.h.gen.cpp.o
-[620/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/parser/SendToUserSourceEnum.h.gen.cpp.o
-[621/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/parser/abstractparser.h.gen.cpp.o
-[622/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/parser/mumexmlparser.h.gen.cpp.o
-[623/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/pathmachine/approved.h.gen.cpp.o
-[624/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/pathmachine/crossover.h.gen.cpp.o
-[625/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/pathmachine/experimenting.h.gen.cpp.o
-[626/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/pathmachine/mmapper2pathmachine.h.gen.cpp.o
-[627/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/pathmachine/onebyone.h.gen.cpp.o
-[628/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/pathmachine/path.h.gen.cpp.o
-[629/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/pathmachine/pathmachine.h.gen.cpp.o
-[630/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/pathmachine/pathparameters.h.gen.cpp.o
-[631/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/pathmachine/pathprocessor.h.gen.cpp.o
-[632/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/pathmachine/roomsignalhandler.h.gen.cpp.o
-[633/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/pathmachine/syncing.h.gen.cpp.o
-[634/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/preferences/AdvancedGraphics.h.gen.cpp.o
-[635/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/preferences/AnsiColorDialog.h.gen.cpp.o
-[636/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/preferences/ansicombo.h.gen.cpp.o
-[637/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/preferences/autologpage.h.gen.cpp.o
-[638/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/preferences/clientpage.h.gen.cpp.o
-[639/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/preferences/configdialog.h.gen.cpp.o
-[640/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/preferences/generalpage.h.gen.cpp.o
-[641/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/preferences/graphicspage.h.gen.cpp.o
-[642/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/preferences/grouppage.h.gen.cpp.o
-[643/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/preferences/mumeprotocolpage.h.gen.cpp.o
-[644/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/preferences/parserpage.h.gen.cpp.o
-[645/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/preferences/pathmachinepage.h.gen.cpp.o
-[646/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/AbstractSocket.h.gen.cpp.o
-[647/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/AbstractTelnet.h.gen.cpp.o
-[648/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/GmcpMessage.h.gen.cpp.o
-[649/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/GmcpModule.h.gen.cpp.o
-[650/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/GmcpUtils.h.gen.cpp.o
-[651/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/MudTelnet.h.gen.cpp.o
-[652/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/ProxyParserApi.h.gen.cpp.o
-[653/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/TaggedBytes.h.gen.cpp.o
-[654/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/TcpSocket.h.gen.cpp.o
-[655/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/TextCodec.h.gen.cpp.o
-[656/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/UserTelnet.h.gen.cpp.o
-[657/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/VirtualSocket.h.gen.cpp.o
-[658/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/connectionlistener.h.gen.cpp.o
-[659/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/legacy/Shaders.h.gen.cpp.o
-[660/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/mumesocket.h.gen.cpp.o
-[661/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/proxy.h.gen.cpp.o
-[662/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/proxy/telnetfilter.h.gen.cpp.o
-[663/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/roompanel/RoomMob.h.gen.cpp.o
-[664/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/roompanel/RoomManager.h.gen.cpp.o
-[665/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/roompanel/RoomMobs.h.gen.cpp.o
-[666/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/roompanel/RoomWidget.h.gen.cpp.o
-[667/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/syntax/Accept.h.gen.cpp.o
-[668/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/syntax/IArgument.h.gen.cpp.o
-[669/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/syntax/IMatchErrorLogger.h.gen.cpp.o
-[670/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/syntax/MatchResult.h.gen.cpp.o
-[671/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/syntax/ParseResult.h.gen.cpp.o
-[672/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/syntax/ParserInput.h.gen.cpp.o
-[673/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/syntax/Sublist.h.gen.cpp.o
-[674/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/syntax/SyntaxArgs.h.gen.cpp.o
-[675/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/syntax/TokenMatcher.h.gen.cpp.o
-[676/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/syntax/TreeParser.h.gen.cpp.o
-[677/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/syntax/User.h.gen.cpp.o
-[678/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/timers/CTimers.h.gen.cpp.o
-[679/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/syntax/Value.h.gen.cpp.o
-[680/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/viewers/AnsiViewWindow.h.gen.cpp.o
-[681/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/viewers/LaunchAsyncViewer.h.gen.cpp.o
-[682/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/viewers/TopLevelWindows.h.gen.cpp.o
-[683/691] Building CXX object src/CMakeFiles/mmapper.dir/qrc_build.cpp.o
-[684/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/legacy/SimpleMesh.h.gen.cpp.o
-[685/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/legacy/VBO.h.gen.cpp.o
-[686/691] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/legacy/VAO.h.gen.cpp.o
-[687/691] Building CXX object src/CMakeFiles/mmapper.dir/qrc_mmapper2.cpp.o
-[688/691] Building CXX object src/CMakeFiles/mmapper.dir/qrc_map.cpp.o
-[689/691] Building CXX object src/CMakeFiles/mmapper.dir/odr.cpp.o
-In file included from /app/build/src/odr.cpp:30:
-/app/src/display/InfomarkSelection.h: In member function ‘InfomarkHandle InfomarkSelection::front() const’:
-/app/src/display/InfomarkSelection.h:67:21: warning: possibly dangling reference to a temporary [-Wdangling-reference]
-   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
-      |                     ^~
-/app/src/display/InfomarkSelection.h:67:65: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
-   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
-      |                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
-In file included from /app/build/src/odr.cpp:69:
-/app/src/global/IndexedVectorWithDefault.h: At global scope:
-/app/src/global/IndexedVectorWithDefault.h:128:6: warning: redundant redeclaration of ‘void test::testIndexedVectorWithDefault()’ in same scope [-Wredundant-decls]
-  128 | void testIndexedVectorWithDefault();
-      |      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
-In file included from /app/build/src/odr.cpp:64:
-/app/src/global/ImmIndexedVectorWithDefault.h:134:6: note: previous declaration of ‘void test::testIndexedVectorWithDefault()’
-  134 | void testIndexedVectorWithDefault();
-      |      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
-[690/691] Building CXX object src/CMakeFiles/mmapper.dir/qrc_images.cpp.o
+[689/691] Building CXX object src/CMakeFiles/mmapper.dir/display/Connections.cpp.o
+[690/691] Building CXX object src/CMakeFiles/mmapper.dir/display/Characters.cpp.o
 [691/691] Linking CXX executable src/mmapper
 Test project /app/build
       Start  1: TestClock
- 1/12 Test  #1: TestClock ........................   Passed    0.24 sec
+ 1/12 Test  #1: TestClock ........................   Passed    0.31 sec
       Start  2: TestExpandoraCommon
- 2/12 Test  #2: TestExpandoraCommon ..............   Passed    0.17 sec
+ 2/12 Test  #2: TestExpandoraCommon ..............   Passed    0.21 sec
       Start  3: TestParser
- 3/12 Test  #3: TestParser .......................   Passed    0.10 sec
+ 3/12 Test  #3: TestParser .......................   Passed    0.19 sec
       Start  4: TestProxy
- 4/12 Test  #4: TestProxy ........................   Passed    0.07 sec
+ 4/12 Test  #4: TestProxy ........................   Passed    0.09 sec
       Start  5: TestMainWindow
- 5/12 Test  #5: TestMainWindow ...................   Passed    0.08 sec
+ 5/12 Test  #5: TestMainWindow ...................   Passed    0.10 sec
       Start  6: TestGlobal
- 6/12 Test  #6: TestGlobal .......................   Passed    0.21 sec
+ 6/12 Test  #6: TestGlobal .......................   Passed    0.20 sec
       Start  7: TestMap
  7/12 Test  #7: TestMap ..........................   Passed    0.25 sec
       Start  8: TestAdventure
- 8/12 Test  #8: TestAdventure ....................   Passed    0.10 sec
+ 8/12 Test  #8: TestAdventure ....................   Passed    0.14 sec
       Start  9: TestTimer
  9/12 Test  #9: TestTimer ........................   Passed    0.07 sec
       Start 10: TestRoomMob
-10/12 Test #10: TestRoomMob ......................   Passed    0.06 sec
+10/12 Test #10: TestRoomMob ......................   Passed    0.09 sec
       Start 11: TestRoomMobs
 11/12 Test #11: TestRoomMobs .....................   Passed    0.07 sec
       Start 12: TestRoomManager
-12/12 Test #12: TestRoomManager ..................   Passed    0.05 sec
+12/12 Test #12: TestRoomManager ..................   Passed    0.06 sec
 
 100% tests passed, 0 tests failed out of 12
 
-Total Test time (real) =   1.47 sec
+Total Test time (real) =   1.81 sec

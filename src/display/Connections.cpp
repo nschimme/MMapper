@@ -29,7 +29,7 @@
 #include <QMessageLogContext>
 #include <QtCore>
 
-static constexpr const float CONNECTION_LINE_WIDTH = 0.045f;
+static constexpr const float CONNECTION_LINE_WIDTH = 2.0f;
 static constexpr const float VALID_CONNECTION_POINT_SIZE = 6.f;
 static constexpr const float NEW_CONNECTION_POINT_SIZE = 8.f;
 

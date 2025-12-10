@@ -1,3 +1,13 @@
+#if IS_GLES
+#version 300 es
+#else
+#version 330 core
+#endif
+
+#if IS_GLES
+precision mediump float;
+#endif
+
 in vec4 v_color;
 in float v_dist_ratio; // Comes in as -1 or 1
 

@@ -98,7 +98,7 @@ UniqueMesh Functions::createModernLineBatch(const std::vector<LineVert> &verts)
     auto program = shaders.getLineShader();
 
     auto mesh = std::make_unique<LineMesh<LineVert>>(shared_from_this(), program);
-    mesh->setDynamic(DrawModeEnum::TRIANGLE_STRIP, verts);
+    mesh->setDynamic(DrawModeEnum::TRIANGLES, verts);
     return UniqueMesh{std::move(mesh)};
 }
 
@@ -247,7 +247,7 @@ void Functions::renderModernLines(const std::vector<LineVert> &verts,
     auto program = shaders.getLineShader();
 
     renderImmediate<LineVert, Legacy::LineMesh>(shared_from_this(),
-                                                DrawModeEnum::TRIANGLE_STRIP,
+                                                DrawModeEnum::TRIANGLES,
                                                 verts,
                                                 program,
                                                 renderState);

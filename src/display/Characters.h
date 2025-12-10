@@ -152,10 +152,6 @@ private:
         void drawBox(const Coordinate &coord, bool fill, bool beacon, bool isFar);
         void addScreenSpaceArrow(const glm::vec3 &pos, float degrees, const Color &color, bool fill);
         void drawPathSegment(const glm::vec3 &p1, const glm::vec3 &p2, const Color &color);
-        void generateLine(std::vector<LineVert> &verts,
-                        const glm::vec3 &p1,
-                        const glm::vec3 &p2,
-                        const Color &color);
 
         // with blending, without depth; always size 8
         void drawPathPoint(const Color &color, const glm::vec3 &pos)

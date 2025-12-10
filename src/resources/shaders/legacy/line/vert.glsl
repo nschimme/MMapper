@@ -1,8 +1,19 @@
+#if IS_GLES
+#version 300 es
+#else
+#version 330 core
+#endif
+
+#if IS_GLES
+precision mediump float;
+#endif
+
 // Per-vertex inputs
 layout (location = 0) in vec3 prev_vert_pos;
 layout (location = 1) in vec3 curr_vert_pos;
 layout (location = 2) in vec3 next_vert_pos;
 layout (location = 3) in vec4 color;
+layout (location = 4) in float side;
 
 // Uniforms
 uniform mat4 u_mvp;
@@ -50,16 +61,15 @@ void main() {
         normal *= min(miter_scale, 5.0);
     }
 
-    float side = (gl_VertexID % 2 == 0) ? -1.0 : 1.0;
     v_dist_ratio = side; // Pass -1 or 1 to fragment shader
 
     float half_width = u_line_width * 0.5;
-    vec2 offset = normal * half_width;
+    vec2 offset = normal * half_width * side;
 
     vec2 final_screen_pos = curr_screen + offset;
 
     // Convert back to NDC
     vec2 final_ndc = final_screen_pos / u_viewport_size;
 
-    gl_Position = vec4(final_ndc * curr_clip.w, curr_clip.z, curr_clip.w);
+    gl_Position = vec4(final_ndc, curr_clip.z / curr_clip.w, 1.0) * curr_clip.w;
 }

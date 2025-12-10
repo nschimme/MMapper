@@ -1,9 +1,45 @@
-[1/7] No install step for 'immer'
-[2/7] Completed 'immer'
-[3/7] Automatic MOC and UIC for target mmapper
-[4/6] Building CXX object src/CMakeFiles/mmapper.dir/display/Characters.cpp.o
-[5/6] Building CXX object src/CMakeFiles/mmapper.dir/display/Connections.cpp.o
-[6/6] Linking CXX executable src/mmapper
+[1/42] No install step for 'immer'
+[2/42] Completed 'immer'
+[3/42] Automatic MOC and UIC for target mmapper
+[4/42] Building CXX object src/CMakeFiles/mmapper.dir/display/ConnectionLineBuilder.cpp.o
+[5/42] Building CXX object src/CMakeFiles/mmapper.dir/display/MapBatches.cpp.o
+[6/42] Building CXX object src/CMakeFiles/mmapper.dir/display/Characters.cpp.o
+[7/42] Building CXX object src/CMakeFiles/mmapper.dir/display/MapCanvasData.cpp.o
+[8/42] Building CXX object src/CMakeFiles/mmapper.dir/display/Infomarks.cpp.o
+[9/42] Building CXX object src/CMakeFiles/mmapper.dir/display/Connections.cpp.o
+[10/42] Building CXX object src/CMakeFiles/mmapper.dir/mmapper_autogen/mocs_compilation.cpp.o
+[11/42] Building CXX object src/CMakeFiles/mmapper.dir/display/RoomSelections.cpp.o
+[12/42] Building CXX object src/CMakeFiles/mmapper.dir/display/Textures.cpp.o
+[13/42] Building CXX object src/CMakeFiles/mmapper.dir/display/mapcanvas.cpp.o
+[14/42] Building CXX object src/CMakeFiles/mmapper.dir/display/MapCanvasRoomDrawer.cpp.o
+[15/42] Building CXX object src/CMakeFiles/mmapper.dir/display/mapwindow.cpp.o
+[16/42] Building CXX object src/CMakeFiles/mmapper.dir/display/mapcanvas_gl.cpp.o
+[17/42] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/MapZoomSlider.cpp.o
+[18/42] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/infomarkseditdlg.cpp.o
+[19/42] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/utils.cpp.o
+[20/42] Building CXX object src/CMakeFiles/mmapper.dir/opengl/OpenGL.cpp.o
+[21/42] Building CXX object src/CMakeFiles/mmapper.dir/mapdata/mapdata.cpp.o
+[22/42] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/mainwindow-async.cpp.o
+[23/42] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/roomeditattrdlg.cpp.o
+[24/42] Building CXX object src/CMakeFiles/mmapper.dir/opengl/OpenGLTypes.cpp.o
+[25/42] Building CXX object src/CMakeFiles/mmapper.dir/opengl/Font.cpp.o
+[26/42] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/AbstractShaderProgram.cpp.o
+[27/42] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/FBO.cpp.o
+[28/42] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/mainwindow.cpp.o
+[29/42] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/Binders.cpp.o
+[30/42] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/FontMesh3d.cpp.o
+[31/42] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/FunctionsGL33.cpp.o
+[32/42] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/Meshes.cpp.o
+[33/42] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/FunctionsES30.cpp.o
+[34/42] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/SimpleMesh.cpp.o
+[35/42] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/ShaderUtils.cpp.o
+[36/42] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/Shaders.cpp.o
+[37/42] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/Legacy.cpp.o
+[38/42] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/VBO.cpp.o
+[39/42] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/VAO.cpp.o
+[40/42] Building CXX object src/CMakeFiles/mmapper.dir/parser/AbstractParser-Config.cpp.o
+[41/42] Building CXX object src/CMakeFiles/mmapper.dir/proxy/proxy.cpp.o
+[42/42] Linking CXX executable src/mmapper
 Test project /app/build
       Start  1: TestClock
  1/12 Test  #1: TestClock ........................   Passed    0.03 sec
@@ -20,16 +56,16 @@ Test project /app/build
       Start  7: TestMap
  7/12 Test  #7: TestMap ..........................   Passed    0.04 sec
       Start  8: TestAdventure
- 8/12 Test  #8: TestAdventure ....................   Passed    0.03 sec
+ 8/12 Test  #8: TestAdventure ....................   Passed    0.04 sec
       Start  9: TestTimer
  9/12 Test  #9: TestTimer ........................   Passed    0.02 sec
       Start 10: TestRoomMob
-10/12 Test #10: TestRoomMob ......................   Passed    0.02 sec
+10/12 Test #10: TestRoomMob ......................   Passed    0.03 sec
       Start 11: TestRoomMobs
-11/12 Test #11: TestRoomMobs .....................   Passed    0.02 sec
+11/12 Test #11: TestRoomMobs .....................   Passed    0.03 sec
       Start 12: TestRoomManager
 12/12 Test #12: TestRoomManager ..................   Passed    0.01 sec
 
 100% tests passed, 0 tests failed out of 12
 
-Total Test time (real) =   0.34 sec
+Total Test time (real) =   0.35 sec

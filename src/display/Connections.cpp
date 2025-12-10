@@ -634,7 +634,10 @@ void ConnectionMeshes::render(const int thisLayer, const int focusedLayer) const
         }
         return Colors::gray70.withAlpha(FAINT_CONNECTION_ALPHA);
     });
-    const auto common_style = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withColor(color);
+    const auto common_style = GLRenderState()
+                                  .withBlend(BlendModeEnum::TRANSPARENCY)
+                                  .withColor(color)
+                                  .withLineParams(LineParams{CONNECTION_LINE_WIDTH});
 
     // Even though we can draw colored lines and tris,
     // the reason for having separate lines is so red will always be on top.

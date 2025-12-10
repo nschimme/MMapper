@@ -7,6 +7,7 @@
 #include "AbstractShaderProgram.h"
 #include "Binders.h"
 #include "Legacy.h"
+#include "Shaders.h"
 #include "VAO.h"
 #include "VBO.h"
 
@@ -50,7 +51,11 @@ public:
                         const std::vector<VertexType_> &verts)
         : SimpleMesh{sharedFunctions, sharedProgram}
     {
-        setStatic(mode, verts);
+        if constexpr (std::is_same_v<ProgramType_, LineShader>) {
+            setStatic(DrawModeEnum::TRIANGLES, verts);
+        } else {
+            setStatic(mode, verts);
+        }
     }
 
     ~SimpleMesh() override { reset(); }
@@ -108,7 +113,7 @@ private:
                    const BufferUsageEnum usage)
     {
         const auto numVerts = verts.size();
-        assert(mode == DrawModeEnum::INVALID || (mode == DrawModeEnum::TRIANGLE_STRIP || numVerts % static_cast<size_t>(mode) == 0));
+        assert(mode == DrawModeEnum::INVALID || numVerts % static_cast<size_t>(mode) == 0);
 
         if (!m_vbo && numVerts != 0) {
             m_vbo.emplace(m_shared_functions);

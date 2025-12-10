@@ -21,7 +21,6 @@ std::optional<GLenum> FunctionsES30::virt_toGLenum(const DrawModeEnum mode)
     case DrawModeEnum::LINES:
         return GL_LINES;
     case DrawModeEnum::TRIANGLES:
-    case DrawModeEnum::TRIANGLE_STRIP:
         return GL_TRIANGLES;
 
     case DrawModeEnum::INVALID:

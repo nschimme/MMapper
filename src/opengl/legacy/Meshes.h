@@ -306,6 +306,7 @@ private:
         GLuint currPos = INVALID_ATTRIB_LOCATION;
         GLuint nextPos = INVALID_ATTRIB_LOCATION;
         GLuint colorPos = INVALID_ATTRIB_LOCATION;
+        GLuint sidePos = INVALID_ATTRIB_LOCATION;
 
         NODISCARD static Attribs getLocations(AbstractShaderProgram &shader)
         {
@@ -314,6 +315,7 @@ private:
             result.currPos = shader.getAttribLocation("curr_vert_pos");
             result.nextPos = shader.getAttribLocation("next_vert_pos");
             result.colorPos = shader.getAttribLocation("color");
+            result.sidePos = shader.getAttribLocation("side");
             return result;
         }
     };
@@ -327,6 +329,7 @@ private:
         static_assert(sizeof(std::declval<VertexType_>().curr) == 3 * sizeof(GLfloat));
         static_assert(sizeof(std::declval<VertexType_>().next) == 3 * sizeof(GLfloat));
         static_assert(sizeof(std::declval<VertexType_>().color) == 4 * sizeof(uint8_t));
+        static_assert(sizeof(std::declval<VertexType_>().side) == 1 * sizeof(GLfloat));
 
         Functions &gl = Base::m_functions;
         const auto attribs = Attribs::getLocations(Base::m_program);
@@ -335,6 +338,7 @@ private:
         gl.enableAttrib(attribs.currPos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(curr));
         gl.enableAttrib(attribs.nextPos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(next));
         gl.enableAttrib(attribs.colorPos, 4, GL_UNSIGNED_BYTE, GL_TRUE, vertSize, VPO(color));
+        gl.enableAttrib(attribs.sidePos, 1, GL_FLOAT, GL_FALSE, vertSize, VPO(side));
         m_boundAttribs = attribs;
     }
 
@@ -351,6 +355,7 @@ private:
         gl.glDisableVertexAttribArray(attribs.currPos);
         gl.glDisableVertexAttribArray(attribs.nextPos);
         gl.glDisableVertexAttribArray(attribs.colorPos);
+        gl.glDisableVertexAttribArray(attribs.sidePos);
         gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
         m_boundAttribs.reset();
     }

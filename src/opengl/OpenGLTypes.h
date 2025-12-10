@@ -68,15 +68,18 @@ struct NODISCARD LineVert final
     glm::vec3 curr;
     glm::vec3 next;
     Color color;
+    float side;
 
     explicit LineVert(const glm::vec3 &prev_,
                       const glm::vec3 &curr_,
                       const glm::vec3 &next_,
-                      const Color &color_)
+                      const Color &color_,
+                      const float side_)
         : prev{prev_}
         , curr{curr_}
         , next{next_}
         , color{color_}
+        , side{side_}
     {}
 };
 
@@ -109,8 +112,7 @@ enum class NODISCARD DrawModeEnum {
     POINTS = 1,
     LINES = 2,
     TRIANGLES = 3,
-    QUADS = 4,
-    TRIANGLE_STRIP = 5
+    QUADS = 4
 };
 
 struct NODISCARD LineParams final
@@ -427,10 +429,19 @@ inline void generateModernLine(std::vector<LineVert> &verts,
                                const Color &c1,
                                const Color &c2)
 {
-    verts.emplace_back(p1, p1, p2, c1);
-    verts.emplace_back(p1, p1, p2, c1);
-    verts.emplace_back(p1, p2, p2, c2);
-    verts.emplace_back(p1, p2, p2, c2);
+    // a
+    verts.emplace_back(p1, p1, p2, c1, -1.f);
+    // b
+    verts.emplace_back(p1, p1, p2, c1, +1.f);
+    // c
+    verts.emplace_back(p1, p2, p2, c2, -1.f);
+
+    // c
+    verts.emplace_back(p1, p2, p2, c2, -1.f);
+    // b
+    verts.emplace_back(p1, p1, p2, c1, +1.f);
+    // d
+    verts.emplace_back(p1, p2, p2, c2, +1.f);
 }
 
 } // namespace mmgl

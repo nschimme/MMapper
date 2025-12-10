@@ -71,6 +71,7 @@ public:
     NODISCARD UniqueMesh createPlainLineBatch(const std::vector<glm::vec3> &verts);
     // colored means the color is defined by attribute
     NODISCARD UniqueMesh createColoredLineBatch(const std::vector<ColorVert> &verts);
+    NODISCARD UniqueMesh createModernLineBatch(const std::vector<LineVert> &verts);
 
 public:
     // plain means the color is defined by uniform
@@ -123,6 +124,7 @@ public:
     }
 
 public:
+    void renderModernLines(const std::vector<LineVert> &verts, const GLRenderState &state);
     void renderColoredLines(const std::vector<ColorVert> &verts, const GLRenderState &state)
     {
         renderColored(DrawModeEnum::LINES, verts, state);

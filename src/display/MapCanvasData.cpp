@@ -4,7 +4,7 @@
 
 #include "MapCanvasData.h"
 
-#include "../opengl/LineRendering.h"
+#include "../opengl/OpenGLTypes.h"
 
 #include <cmath>
 #include <optional>

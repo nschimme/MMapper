@@ -23,7 +23,7 @@ struct NODISCARD InfomarksMeshes final
 {
     UniqueMesh points;
     UniqueMesh tris;
-    UniqueMesh quads;
+    UniqueMesh lines;
     UniqueMesh textMesh;
     bool isValid = false;
     void render();
@@ -41,7 +41,7 @@ private:
 
     std::vector<ColorVert> m_points;
     std::vector<ColorVert> m_tris;
-    std::vector<ColorVert> m_quads;
+    std::vector<LineVert> m_lines;
 
     // REVISIT: This is ill-advised and may contain bugs.
     struct NODISCARD Text final
@@ -63,6 +63,10 @@ public:
     void setOffset(const glm::vec3 &offset) { m_offset = offset; }
     void drawPoint(const glm::vec3 &a);
     void drawLine(const glm::vec3 &a, const glm::vec3 &b);
+    void generateLine(std::vector<LineVert> &verts,
+                    const glm::vec3 &p1,
+                    const glm::vec3 &p2,
+                    const Color &color);
     void drawLineStrip(const glm::vec3 &a, const glm::vec3 &b, const glm::vec3 &c)
     {
         drawLine(a, b);

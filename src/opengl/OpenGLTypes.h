@@ -18,6 +18,7 @@
 #include <vector>
 
 #include <glm/glm.hpp>
+#include <glm/gtx/norm.hpp>
 
 #include <QDebug>
 #include <qopengl.h>
@@ -61,6 +62,24 @@ struct NODISCARD ColorVert final
     {}
 };
 
+struct NODISCARD LineVert final
+{
+    glm::vec3 prev;
+    glm::vec3 curr;
+    glm::vec3 next;
+    Color color;
+
+    explicit LineVert(const glm::vec3 &prev_,
+                      const glm::vec3 &curr_,
+                      const glm::vec3 &next_,
+                      const Color &color_)
+        : prev{prev_}
+        , curr{curr_}
+        , next{next_}
+        , color{color_}
+    {}
+};
+
 // Similar to ColoredTexVert, except it has a base position in world coordinates.
 // the font's vertex shader transforms the world position to screen space,
 // rounds to integer pixel offset, and then adds the vertex position in screen space.
@@ -85,7 +104,14 @@ struct NODISCARD FontVert3d final
     {}
 };
 
-enum class NODISCARD DrawModeEnum { INVALID = 0, POINTS = 1, LINES = 2, TRIANGLES = 3, QUADS = 4 };
+enum class NODISCARD DrawModeEnum {
+    INVALID = 0,
+    POINTS = 1,
+    LINES = 2,
+    TRIANGLES = 3,
+    QUADS = 4,
+    TRIANGLE_STRIP = 5
+};
 
 struct NODISCARD LineParams final
 {
@@ -371,3 +397,40 @@ struct NODISCARD Viewport final
 static constexpr const size_t VERTS_PER_LINE = 2;
 static constexpr const size_t VERTS_PER_TRI = 3;
 static constexpr const size_t VERTS_PER_QUAD = 4;
+
+namespace mmgl {
+
+// Tolerance for projecting world coordinates to screen space.
+// Small but non-zero w values can cause numerical instability if used as divisors.
+// A threshold of 1e-6f is a balance between precision and avoiding noise amplification.
+static constexpr const float W_PROJECTION_EPSILON = 1e-6f;
+
+// Geometric epsilon for degeneracy checks (e.g., near-zero vectors, collinearity).
+// This is used for comparisons where small floating-point variations should be treated as equivalent to zero.
+static constexpr const float GEOMETRIC_EPSILON = 1e-5f;
+
+// Projection epsilon for clamping logic in screen space.
+// This handles numerical instability during world-to-screen projections.
+static constexpr const float PROJECTION_EPSILON = 1e-5f;
+
+// Squared threshold for zero-length segment checks to avoid sqrt operations.
+static constexpr const float ZERO_LENGTH_THRESHOLD_SQ = GEOMETRIC_EPSILON * GEOMETRIC_EPSILON;
+
+NODISCARD inline bool isNearZero(const glm::vec3 &v)
+{
+    return glm::length2(v) < ZERO_LENGTH_THRESHOLD_SQ;
+}
+
+inline void generateModernLine(std::vector<LineVert> &verts,
+                               const glm::vec3 &p1,
+                               const glm::vec3 &p2,
+                               const Color &c1,
+                               const Color &c2)
+{
+    verts.emplace_back(p1, p1, p2, c1);
+    verts.emplace_back(p1, p1, p2, c1);
+    verts.emplace_back(p1, p2, p2, c2);
+    verts.emplace_back(p1, p2, p2, c2);
+}
+
+} // namespace mmgl

@@ -13,6 +13,8 @@
 #include "ShaderUtils.h"
 #include "Shaders.h"
 #include "SimpleMesh.h"
+
+#include <vector>
 #include "VBO.h"
 
 #include <cassert>
@@ -87,6 +89,17 @@ UniqueMesh Functions::createColoredBatch(const DrawModeEnum mode,
     assert(static_cast<size_t>(mode) >= VERTS_PER_LINE);
     const auto &prog = getShaderPrograms().getPlainAColorShader();
     return createUniqueMesh<ColoredMesh>(shared_from_this(), mode, batch, prog);
+}
+
+
+UniqueMesh Functions::createModernLineBatch(const std::vector<LineVert> &verts)
+{
+    auto &shaders = getShaderPrograms();
+    auto program = shaders.getLineShader();
+
+    auto mesh = std::make_unique<LineMesh<LineVert>>(shared_from_this(), program);
+    mesh->setDynamic(DrawModeEnum::TRIANGLE_STRIP, verts);
+    return UniqueMesh{std::move(mesh)};
 }
 
 UniqueMesh Functions::createTexturedBatch(const DrawModeEnum mode,
@@ -221,6 +234,23 @@ void Functions::renderFont3d(const SharedMMTexture &texture, const std::vector<F
                                                           verts,
                                                           prog,
                                                           state);
+}
+
+void Functions::renderModernLines(const std::vector<LineVert> &verts,
+                                  const GLRenderState &renderState)
+{
+    if (verts.empty()) {
+        return;
+    }
+
+    auto &shaders = getShaderPrograms();
+    auto program = shaders.getLineShader();
+
+    renderImmediate<LineVert, Legacy::LineMesh>(shared_from_this(),
+                                                DrawModeEnum::TRIANGLE_STRIP,
+                                                verts,
+                                                program,
+                                                renderState);
 }
 
 UniqueMesh Functions::createFontMesh(const SharedMMTexture &texture,

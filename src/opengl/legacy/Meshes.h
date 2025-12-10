@@ -292,6 +292,70 @@ private:
     }
 };
 
+template<typename VertexType_>
+class NODISCARD LineMesh final : public SimpleMesh<VertexType_, LineShader>
+{
+public:
+    using Base = SimpleMesh<VertexType_, LineShader>;
+    using Base::Base;
+
+private:
+    struct NODISCARD Attribs final
+    {
+        GLuint prevPos = INVALID_ATTRIB_LOCATION;
+        GLuint currPos = INVALID_ATTRIB_LOCATION;
+        GLuint nextPos = INVALID_ATTRIB_LOCATION;
+        GLuint colorPos = INVALID_ATTRIB_LOCATION;
+
+        NODISCARD static Attribs getLocations(AbstractShaderProgram &shader)
+        {
+            Attribs result;
+            result.prevPos = shader.getAttribLocation("prev_vert_pos");
+            result.currPos = shader.getAttribLocation("curr_vert_pos");
+            result.nextPos = shader.getAttribLocation("next_vert_pos");
+            result.colorPos = shader.getAttribLocation("color");
+            return result;
+        }
+    };
+
+    std::optional<Attribs> m_boundAttribs;
+
+    void virt_bind() override
+    {
+        const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
+        static_assert(sizeof(std::declval<VertexType_>().prev) == 3 * sizeof(GLfloat));
+        static_assert(sizeof(std::declval<VertexType_>().curr) == 3 * sizeof(GLfloat));
+        static_assert(sizeof(std::declval<VertexType_>().next) == 3 * sizeof(GLfloat));
+        static_assert(sizeof(std::declval<VertexType_>().color) == 4 * sizeof(uint8_t));
+
+        Functions &gl = Base::m_functions;
+        const auto attribs = Attribs::getLocations(Base::m_program);
+        gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
+        gl.enableAttrib(attribs.prevPos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(prev));
+        gl.enableAttrib(attribs.currPos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(curr));
+        gl.enableAttrib(attribs.nextPos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(next));
+        gl.enableAttrib(attribs.colorPos, 4, GL_UNSIGNED_BYTE, GL_TRUE, vertSize, VPO(color));
+        m_boundAttribs = attribs;
+    }
+
+    void virt_unbind() override
+    {
+        if (!m_boundAttribs) {
+            assert(false);
+            return;
+        }
+
+        auto &attribs = m_boundAttribs.value();
+        Functions &gl = Base::m_functions;
+        gl.glDisableVertexAttribArray(attribs.prevPos);
+        gl.glDisableVertexAttribArray(attribs.currPos);
+        gl.glDisableVertexAttribArray(attribs.nextPos);
+        gl.glDisableVertexAttribArray(attribs.colorPos);
+        gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
+        m_boundAttribs.reset();
+    }
+};
+
 } // namespace Legacy
 
 #undef VOIDPTR_OFFSETOF

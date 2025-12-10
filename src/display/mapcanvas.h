@@ -248,6 +248,10 @@ private:
     void paintCharacters();
     void paintDifferences();
     void forceUpdateMeshes();
+    void generateLine(std::vector<LineVert> &verts,
+                    const glm::vec3 &p1,
+                    const glm::vec3 &p2,
+                    const Color &color);
 
 public:
     void slot_rebuildMeshes() { forceUpdateMeshes(); }

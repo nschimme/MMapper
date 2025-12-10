@@ -33,6 +33,16 @@ AColorTexturedShader::~AColorTexturedShader() = default;
 UColorTexturedShader::~UColorTexturedShader() = default;
 FontShader::~FontShader() = default;
 PointShader::~PointShader() = default;
+LineShader::~LineShader() = default;
+
+void LineShader::virt_setUniforms(const glm::mat4 &mvp, const GLRenderState &renderState)
+{
+    auto functions = m_functions.lock();
+    setMatrix("u_mvp", mvp);
+    const auto viewport = deref(functions).getPhysicalViewport();
+    setVec2("u_viewport_size", glm::vec2{viewport.size});
+    setFloat("u_line_width", renderState.lineParams.width);
+}
 
 // essentially a private member of ShaderPrograms
 template<typename T>
@@ -91,6 +101,11 @@ const std::shared_ptr<FontShader> &ShaderPrograms::getFontShader()
 const std::shared_ptr<PointShader> &ShaderPrograms::getPointShader()
 {
     return getInitialized<PointShader>(m_point, getFunctions(), "point");
+}
+
+const std::shared_ptr<LineShader> &ShaderPrograms::getLineShader()
+{
+    return getInitialized<LineShader>(m_line, getFunctions(), "line");
 }
 
 } // namespace Legacy

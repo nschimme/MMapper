@@ -37,14 +37,13 @@ void AbstractShaderProgram::unbind()
     m_isBound = false;
 }
 
-void AbstractShaderProgram::setUniforms(const glm::mat4 &mvp,
-                                        const GLRenderState::Uniforms &uniforms)
+void AbstractShaderProgram::setUniforms(const glm::mat4 &mvp, const GLRenderState &renderState)
 {
     assert(m_isBound);
-    virt_setUniforms(mvp, uniforms);
+    virt_setUniforms(mvp, renderState);
 
-    if (uniforms.pointSize.has_value()) {
-        setPointSize(uniforms.pointSize.value());
+    if (renderState.uniforms.pointSize.has_value()) {
+        setPointSize(renderState.uniforms.pointSize.value());
     }
 }
 
@@ -95,6 +94,15 @@ void AbstractShaderProgram::setUniform1fv(const GLint location,
     assert(m_isBound);
     auto functions = m_functions.lock();
     deref(functions).glUniform1fv(location, count, value);
+}
+
+void AbstractShaderProgram::setUniform2fv(const GLint location,
+                                            const GLsizei count,
+                                            const GLfloat *const value)
+{
+    assert(m_isBound);
+    auto functions = m_functions.lock();
+    deref(functions).glUniform2fv(location, count, value);
 }
 
 void AbstractShaderProgram::setUniform4fv(const GLint location,
@@ -151,6 +159,18 @@ void AbstractShaderProgram::setMatrix(const char *const name, const glm::mat4 &m
 {
     const auto location = getUniformLocation(name);
     setUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(m));
+}
+
+void AbstractShaderProgram::setVec2(const char *const name, const glm::vec2 &v)
+{
+    const auto location = getUniformLocation(name);
+    setUniform2fv(location, 1, glm::value_ptr(v));
+}
+
+void AbstractShaderProgram::setFloat(const char *const name, const float f)
+{
+    const auto location = getUniformLocation(name);
+    setUniform1fv(location, 1, &f);
 }
 
 void AbstractShaderProgram::setTexture(const char *const name, const int textureUnit)

@@ -176,6 +176,7 @@ public:
     using Base::glShaderSource;
     using Base::glUniform1fv;
     using Base::glUniform1iv;
+    using Base::glUniform2fv;
     using Base::glUniform4fv;
     using Base::glUniform4iv;
     using Base::glUniformMatrix4fv;
@@ -319,6 +320,7 @@ public:
 public:
     NODISCARD UniqueMesh createPlainBatch(DrawModeEnum mode, const std::vector<glm::vec3> &batch);
     NODISCARD UniqueMesh createColoredBatch(DrawModeEnum mode, const std::vector<ColorVert> &batch);
+    NODISCARD UniqueMesh createModernLineBatch(const std::vector<LineVert> &verts);
     NODISCARD UniqueMesh createTexturedBatch(DrawModeEnum mode,
                                              const std::vector<TexVert> &batch,
                                              MMTextureId texture);
@@ -332,6 +334,7 @@ public:
                                         const std::vector<FontVert3d> &batch);
 
 public:
+    void renderModernLines(const std::vector<LineVert> &verts, const GLRenderState &state);
     void renderPoints(const std::vector<ColorVert> &verts, const GLRenderState &state);
 
 public:

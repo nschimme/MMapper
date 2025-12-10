@@ -168,7 +168,7 @@ private:
 
         const glm::mat4 mvp = m_functions.getProjectionMatrix();
         auto programUnbinder = m_program.bind();
-        m_program.setUniforms(mvp, renderState.uniforms);
+        m_program.setUniforms(mvp, renderState);
         RenderStateBinder renderStateBinder(m_functions, m_functions.getTexLookup(), renderState);
 
         m_functions.glBindVertexArray(m_vao.get());

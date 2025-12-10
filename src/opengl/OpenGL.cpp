@@ -98,6 +98,16 @@ UniqueMesh OpenGL::createColoredLineBatch(const std::vector<ColorVert> &batch)
     return getFunctions().createColoredBatch(DrawModeEnum::LINES, batch);
 }
 
+UniqueMesh OpenGL::createModernLineBatch(const std::vector<LineVert> &verts)
+{
+    return getFunctions().createModernLineBatch(verts);
+}
+
+void OpenGL::renderModernLines(const std::vector<LineVert> &verts, const GLRenderState &state)
+{
+    getFunctions().renderModernLines(verts, state);
+}
+
 UniqueMesh OpenGL::createPlainTriBatch(const std::vector<glm::vec3> &batch)
 {
     return getFunctions().createPlainBatch(DrawModeEnum::TRIANGLES, batch);

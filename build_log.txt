@@ -1,0 +1,35 @@
+[1/7] No install step for 'immer'
+[2/7] Completed 'immer'
+[3/7] Automatic MOC and UIC for target mmapper
+[4/6] Building CXX object src/CMakeFiles/mmapper.dir/display/Characters.cpp.o
+[5/6] Building CXX object src/CMakeFiles/mmapper.dir/display/Connections.cpp.o
+[6/6] Linking CXX executable src/mmapper
+Test project /app/build
+      Start  1: TestClock
+ 1/12 Test  #1: TestClock ........................   Passed    0.03 sec
+      Start  2: TestExpandoraCommon
+ 2/12 Test  #2: TestExpandoraCommon ..............   Passed    0.04 sec
+      Start  3: TestParser
+ 3/12 Test  #3: TestParser .......................   Passed    0.03 sec
+      Start  4: TestProxy
+ 4/12 Test  #4: TestProxy ........................   Passed    0.02 sec
+      Start  5: TestMainWindow
+ 5/12 Test  #5: TestMainWindow ...................   Passed    0.03 sec
+      Start  6: TestGlobal
+ 6/12 Test  #6: TestGlobal .......................   Passed    0.03 sec
+      Start  7: TestMap
+ 7/12 Test  #7: TestMap ..........................   Passed    0.04 sec
+      Start  8: TestAdventure
+ 8/12 Test  #8: TestAdventure ....................   Passed    0.03 sec
+      Start  9: TestTimer
+ 9/12 Test  #9: TestTimer ........................   Passed    0.02 sec
+      Start 10: TestRoomMob
+10/12 Test #10: TestRoomMob ......................   Passed    0.02 sec
+      Start 11: TestRoomMobs
+11/12 Test #11: TestRoomMobs .....................   Passed    0.02 sec
+      Start 12: TestRoomManager
+12/12 Test #12: TestRoomManager ..................   Passed    0.01 sec
+
+100% tests passed, 0 tests failed out of 12
+
+Total Test time (real) =   0.34 sec

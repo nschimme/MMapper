@@ -105,7 +105,7 @@ private:
         std::vector<ColorVert> m_charLines;
         std::vector<ColoredTexVert> m_charRoomQuads;
         std::vector<ColorVert> m_pathPoints;
-        std::vector<ColorVert> m_pathLineQuads;
+        std::vector<LineVert> m_pathLines;
         std::vector<FontVert3d> m_screenSpaceArrows;
         std::map<Coordinate, int, CoordCompare> m_coordCounts;
 
@@ -152,6 +152,10 @@ private:
         void drawBox(const Coordinate &coord, bool fill, bool beacon, bool isFar);
         void addScreenSpaceArrow(const glm::vec3 &pos, float degrees, const Color &color, bool fill);
         void drawPathSegment(const glm::vec3 &p1, const glm::vec3 &p2, const Color &color);
+        void generateLine(std::vector<LineVert> &verts,
+                        const glm::vec3 &p1,
+                        const glm::vec3 &p2,
+                        const Color &color);
 
         // with blending, without depth; always size 8
         void drawPathPoint(const Color &color, const glm::vec3 &pos)

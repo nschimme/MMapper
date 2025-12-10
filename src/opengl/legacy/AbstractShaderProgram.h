@@ -60,10 +60,10 @@ private:
 
 public:
     // set program uniforms...
-    void setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms);
+    void setUniforms(const glm::mat4 &mvp, const GLRenderState &renderState);
 
 private:
-    virtual void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) = 0;
+    virtual void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState &renderState) = 0;
 
 public:
     NODISCARD GLuint getAttribLocation(const char *name) const;
@@ -73,6 +73,7 @@ public:
 public:
     void setUniform1iv(GLint location, GLsizei count, const GLint *value);
     void setUniform1fv(GLint location, GLsizei count, const GLfloat *value);
+    void setUniform2fv(GLint location, GLsizei count, const GLfloat *value);
     void setUniform4fv(GLint location, GLsizei count, const GLfloat *value);
     void setUniform4iv(GLint location, GLsizei count, const GLint *value);
     void setUniformMatrix4fv(GLint location,
@@ -87,6 +88,8 @@ public:
     void setPointSize(float in_pointSize);
     void setColor(const char *name, const Color &color);
     void setMatrix(const char *name, const glm::mat4 &m);
+    void setVec2(const char *name, const glm::vec2 &v);
+    void setFloat(const char *name, float f);
     void setTexture(const char *name, int textureUnit);
     void setViewport(const char *name, const Viewport &input_viewport);
 };

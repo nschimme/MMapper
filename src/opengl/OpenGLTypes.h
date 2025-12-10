@@ -61,6 +61,15 @@ struct NODISCARD ColorVert final
     {}
 };
 
+// A single vertex for a modern line, containing adjacency information.
+struct NODISCARD LineVert final {
+    glm::vec3 prev;
+    glm::vec3 curr;
+    glm::vec3 next;
+    Color color;
+    float side;
+};
+
 // Similar to ColoredTexVert, except it has a base position in world coordinates.
 // the font's vertex shader transforms the world position to screen space,
 // rounds to integer pixel offset, and then adds the vertex position in screen space.
@@ -85,7 +94,7 @@ struct NODISCARD FontVert3d final
     {}
 };
 
-enum class NODISCARD DrawModeEnum { INVALID = 0, POINTS = 1, LINES = 2, TRIANGLES = 3, QUADS = 4 };
+enum class NODISCARD DrawModeEnum { INVALID = 0, POINTS = 1, LINES = 2, TRIANGLES = 3, QUADS = 4, TRIANGLE_STRIP = 5 };
 
 struct NODISCARD LineParams final
 {
@@ -180,12 +189,11 @@ struct NODISCARD GLRenderState final
     using OptDepth = std::optional<DepthFunctionEnum>;
     OptDepth depth;
 
-    // glLineWidth() + { glEnable(LINE_STIPPLE) + glLineStipple() }
-    LineParams lineParams;
-
     using Textures = MMapper::Array<MMTextureId, 2>;
     struct NODISCARD Uniforms final
     {
+        // glLineWidth() + { glEnable(LINE_STIPPLE) + glLineStipple() }
+        LineParams lineParams;
         Color color;
         // glEnable(TEXTURE_2D), or glEnable(TEXTURE_3D)
         Textures textures;
@@ -232,7 +240,7 @@ struct NODISCARD GLRenderState final
     NODISCARD GLRenderState withLineParams(const LineParams &new_lineParams) const
     {
         GLRenderState copy = *this;
-        copy.lineParams = new_lineParams;
+        copy.uniforms.lineParams = new_lineParams;
         return copy;
     }
 
@@ -371,3 +379,38 @@ struct NODISCARD Viewport final
 static constexpr const size_t VERTS_PER_LINE = 2;
 static constexpr const size_t VERTS_PER_TRI = 3;
 static constexpr const size_t VERTS_PER_QUAD = 4;
+
+namespace mmgl {
+// Tolerance for projecting world coordinates to screen space.
+// Small but non-zero w values can cause numerical instability if used as divisors.
+// A threshold of 1e-6f is a balance between precision and avoiding noise amplification.
+static constexpr const float W_PROJECTION_EPSILON = 1e-6f;
+
+// Geometric epsilon for degeneracy checks (e.g., near-zero vectors, collinearity).
+// This is used for comparisons where small floating-point variations should be treated as equivalent to zero.
+static constexpr const float GEOMETRIC_EPSILON = 1e-5f;
+
+// Projection epsilon for clamping logic in screen space.
+// This handles numerical instability during world-to-screen projections.
+static constexpr const float PROJECTION_EPSILON = 1e-5f;
+
+// Generates vertices for a line strip with adjacency information.
+// This is used for modern line rendering with billboards.
+inline void generateLine(std::vector<LineVert> &verts,
+                         const std::vector<glm::vec3> &points,
+                         const Color &color)
+{
+    if (points.size() < 2) {
+        return;
+    }
+
+    for (size_t i = 0; i < points.size(); ++i) {
+        const glm::vec3 &prev = (i == 0) ? points[i] : points[i - 1];
+        const glm::vec3 &curr = points[i];
+        const glm::vec3 &next = (i == points.size() - 1) ? points[i] : points[i + 1];
+
+        verts.push_back({prev, curr, next, color, -1.0f});
+        verts.push_back({prev, curr, next, color, 1.0f});
+    }
+}
+}

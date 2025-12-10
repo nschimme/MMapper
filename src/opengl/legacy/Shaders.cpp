@@ -33,6 +33,7 @@ AColorTexturedShader::~AColorTexturedShader() = default;
 UColorTexturedShader::~UColorTexturedShader() = default;
 FontShader::~FontShader() = default;
 PointShader::~PointShader() = default;
+LineShader::~LineShader() = default;
 
 // essentially a private member of ShaderPrograms
 template<typename T>
@@ -91,6 +92,11 @@ const std::shared_ptr<FontShader> &ShaderPrograms::getFontShader()
 const std::shared_ptr<PointShader> &ShaderPrograms::getPointShader()
 {
     return getInitialized<PointShader>(m_point, getFunctions(), "point");
+}
+
+const std::shared_ptr<LineShader> &ShaderPrograms::getLineShader()
+{
+    return getInitialized<LineShader>(m_line, getFunctions(), "line");
 }
 
 } // namespace Legacy

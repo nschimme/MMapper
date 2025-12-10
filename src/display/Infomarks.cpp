@@ -10,7 +10,6 @@
 #include "../mapdata/mapdata.h"
 #include "../opengl/Font.h"
 #include "../opengl/FontFormatFlags.h"
-#include "../opengl/LineRendering.h"
 #include "../opengl/OpenGL.h"
 #include "../opengl/OpenGLTypes.h"
 #include "InfomarkSelection.h"
@@ -97,7 +96,7 @@ BatchedInfomarksMeshes MapCanvas::getInfomarksMeshes()
 {
     BatchedInfomarksMeshes result;
     {
-        const auto &db = m_data.getCurrentMap().getInfomarkDb();
+        const InfomarkDb &db = m_data.getCurrentMap().getInfomarkDb();
         db.getIdSet().for_each([&](const InfomarkId id) {
             InfomarkHandle mark{db, id};
             const int layer = mark.getPosition1().z;
@@ -119,7 +118,7 @@ BatchedInfomarksMeshes MapCanvas::getInfomarksMeshes()
     // If the performance gets too bad, count # in each layer,
     // allocate vectors, fill the vectors, and then only visit
     // each one once per layer.
-    const auto &db = m_data.getCurrentMap().getInfomarkDb();
+    const InfomarkDb &db = m_data.getCurrentMap().getInfomarkDb();
     for (auto &it : result) {
         const int layer = it.first;
         InfomarksBatch batch{getOpenGL(), getGLFont()};
@@ -141,7 +140,7 @@ void InfomarksBatch::drawLine(const glm::vec3 &a, const glm::vec3 &b)
     const glm::vec3 start_v = a + m_offset;
     const glm::vec3 end_v = b + m_offset;
 
-    mmgl::generateLineQuadsSafe(m_quads, start_v, end_v, INFOMARK_ARROW_LINE_WIDTH, m_color);
+    mmgl::generateLine(m_lines, {start_v, end_v}, m_color);
 }
 
 void InfomarksBatch::drawTriangle(const glm::vec3 &a, const glm::vec3 &b, const glm::vec3 &c)
@@ -169,7 +168,7 @@ InfomarksMeshes InfomarksBatch::getMeshes()
     auto &gl = m_realGL;
     result.points = gl.createPointBatch(m_points);
     result.tris = gl.createColoredTriBatch(m_tris);
-    result.quads = gl.createColoredQuadBatch(m_quads);
+    result.lines = gl.createLineBatch(m_lines);
 
     {
         assert(!m_text.locked);
@@ -190,8 +189,8 @@ void InfomarksBatch::renderImmediate(const GLRenderState &state)
     if (!m_tris.empty()) {
         gl.renderColoredTris(m_tris, state);
     }
-    if (!m_quads.empty()) {
-        gl.renderColoredQuads(m_quads, state);
+    if (!m_lines.empty()) {
+        gl.renderLines(m_lines, state.withLineParams(LineParams{INFOMARK_ARROW_LINE_WIDTH}));
     }
     if (!m_text.text.empty()) {
         m_font.render3dTextImmediate(m_text.text);
@@ -212,7 +211,7 @@ void InfomarksMeshes::render()
 
     points.render(common_state.withPointSize(INFOMARK_POINT_SIZE));
     tris.render(common_state);
-    quads.render(common_state);
+    lines.render(common_state.withLineParams(LineParams{INFOMARK_ARROW_LINE_WIDTH}));
     textMesh.render(common_state);
 }
 

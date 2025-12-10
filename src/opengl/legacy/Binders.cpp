@@ -172,7 +172,7 @@ RenderStateBinder::RenderStateBinder(Functions &functions,
     : m_blendBinder{functions, renderState.blend}
     , m_cullingBinder{functions, renderState.culling}
     , m_depthBinder{functions, renderState.depth}
-    , m_lineParamsBinder{functions, renderState.lineParams}
+    , m_lineParamsBinder{functions, renderState.uniforms.lineParams}
     , m_pointSizeBinder{functions, renderState.uniforms.pointSize}
     , m_texturesBinder{texLookup, renderState.uniforms.textures}
 {}

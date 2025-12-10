@@ -222,5 +222,7 @@
         <file>shaders/legacy/tex/acolor/vert.glsl</file>
         <file>shaders/legacy/tex/ucolor/frag.glsl</file>
         <file>shaders/legacy/tex/ucolor/vert.glsl</file>
+        <file>shaders/legacy/line/frag.glsl</file>
+        <file>shaders/legacy/line/vert.glsl</file>
     </qresource>
 </RCC>

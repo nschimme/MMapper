@@ -9,7 +9,6 @@
 #include "../map/roomid.h"
 #include "../mapdata/mapdata.h"
 #include "../mapdata/roomselection.h"
-#include "../opengl/LineRendering.h"
 #include "../opengl/OpenGL.h"
 #include "../opengl/OpenGLTypes.h"
 #include "MapCanvasData.h"
@@ -107,7 +106,7 @@ void CharacterBatch::CharFakeGL::drawPathSegment(const glm::vec3 &p1,
                                                  const glm::vec3 &p2,
                                                  const Color &color)
 {
-    mmgl::generateLineQuadsSafe(m_pathLineQuads, p1, p2, PATH_LINE_WIDTH, color);
+    mmgl::generateLine(m_pathLines, {p1, p2}, color);
 }
 
 void CharacterBatch::drawPreSpammedPath(const Coordinate &c1,
@@ -358,8 +357,8 @@ void CharacterBatch::CharFakeGL::reallyDrawPaths(OpenGL &gl)
         = GLRenderState().withDepthFunction(std::nullopt).withBlend(BlendModeEnum::TRANSPARENCY);
 
     gl.renderPoints(m_pathPoints, blended_noDepth.withPointSize(PATH_POINT_SIZE));
-    if (!m_pathLineQuads.empty()) {
-        gl.renderColoredQuads(m_pathLineQuads, blended_noDepth);
+    if (!m_pathLines.empty()) {
+        gl.renderLines(m_pathLines, blended_noDepth.withLineParams(LineParams{PATH_LINE_WIDTH}));
     }
 }
 

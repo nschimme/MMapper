@@ -108,7 +108,7 @@ private:
                    const BufferUsageEnum usage)
     {
         const auto numVerts = verts.size();
-        assert(mode == DrawModeEnum::INVALID || numVerts % static_cast<size_t>(mode) == 0);
+        assert(mode == DrawModeEnum::INVALID || (mode == DrawModeEnum::TRIANGLE_STRIP || numVerts % static_cast<size_t>(mode) == 0));
 
         if (!m_vbo && numVerts != 0) {
             m_vbo.emplace(m_shared_functions);

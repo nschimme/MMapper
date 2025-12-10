@@ -1,13 +1,3 @@
-#if IS_GLES
-#version 300 es
-#else
-#version 330 core
-#endif
-
-#if IS_GLES
-precision mediump float;
-#endif
-
 // Per-vertex inputs
 layout (location = 0) in vec3 prev_vert_pos;
 layout (location = 1) in vec3 curr_vert_pos;

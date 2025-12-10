@@ -123,7 +123,9 @@ private:
     {
         auto functions = m_functions.lock();
         setMatrix("mvp", mvp);
-        setViewport("viewport_size", deref(functions).getPhysicalViewport());
+        const auto viewport = deref(functions).getPhysicalViewport();
+        const float v[2] = {static_cast<float>(viewport.size.x), static_cast<float>(viewport.size.y)};
+        setUniform2fv(getUniformLocation("viewport_size"), 1, v);
         setFloat("line_width", uniforms.lineParams.width);
     }
 };

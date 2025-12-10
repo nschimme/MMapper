@@ -1,8 +1,3 @@
-#version 330 core
-#ifdef GL_ES
-precision highp float;
-#endif
-
 // See https://mattdesl.svbtle.com/drawing-lines-is-hard
 // for a nice reference.
 

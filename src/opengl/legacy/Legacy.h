@@ -176,6 +176,7 @@ public:
     using Base::glShaderSource;
     using Base::glUniform1fv;
     using Base::glUniform1iv;
+    using Base::glUniform2fv;
     using Base::glUniform4fv;
     using Base::glUniform4iv;
     using Base::glUniformMatrix4fv;

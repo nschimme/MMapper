@@ -1,8 +1,3 @@
-#version 330 core
-#ifdef GL_ES
-precision highp float;
-#endif
-
 // The interpolated vertex color from the vertex shader.
 in vec4 color_out;
 in float side_out;

@@ -73,6 +73,7 @@ public:
 public:
     void setUniform1iv(GLint location, GLsizei count, const GLint *value);
     void setUniform1fv(GLint location, GLsizei count, const GLfloat *value);
+    void setUniform2fv(GLint location, GLsizei count, const GLfloat *value);
     void setUniform4fv(GLint location, GLsizei count, const GLfloat *value);
     void setUniform4iv(GLint location, GLsizei count, const GLint *value);
     void setUniformMatrix4fv(GLint location,

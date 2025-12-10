@@ -74,6 +74,12 @@ UniqueMesh Functions::createPointBatch(const std::vector<ColorVert> &batch)
     return createUniqueMesh<PointMesh>(shared_from_this(), DrawModeEnum::POINTS, batch, prog);
 }
 
+UniqueMesh Functions::createLineBatch(const std::vector<LineVert> &batch)
+{
+    const auto &prog = getShaderPrograms().getLineShader();
+    return createUniqueMesh<LineMesh>(shared_from_this(), DrawModeEnum::TRIANGLE_STRIP, batch, prog);
+}
+
 UniqueMesh Functions::createPlainBatch(const DrawModeEnum mode, const std::vector<glm::vec3> &batch)
 {
     assert(static_cast<size_t>(mode) >= VERTS_PER_LINE);
@@ -221,6 +227,16 @@ void Functions::renderFont3d(const SharedMMTexture &texture, const std::vector<F
                                                           verts,
                                                           prog,
                                                           state);
+}
+
+void Functions::renderLines(const std::vector<LineVert> &verts, const GLRenderState &state)
+{
+    const auto &prog = getShaderPrograms().getLineShader();
+    renderImmediate<LineVert, Legacy::LineMesh>(shared_from_this(),
+                                                DrawModeEnum::TRIANGLE_STRIP,
+                                                verts,
+                                                prog,
+                                                state);
 }
 
 UniqueMesh Functions::createFontMesh(const SharedMMTexture &texture,

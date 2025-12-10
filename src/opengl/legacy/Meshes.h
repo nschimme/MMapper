@@ -292,7 +292,90 @@ private:
     }
 };
 
-} // namespace Legacy
+struct NODISCARD LineVert final
+{
+    glm::vec3 p1{};
+    glm::vec3 p2{};
+    Color color;
+    float width = 0.f;
+
+    explicit LineVert(const glm::vec3 &p1_,
+                      const glm::vec3 &p2_,
+                      const Color &color_,
+                      const float &width_)
+        : p1{p1_}
+        , p2{p2_}
+        , color{color_}
+        , width{width_}
+    {}
+};
+
+// A "mesh" for drawing screen-space anti-aliased lines.
+// Each "vertex" is actually a line segment, and the vertex shader
+// expands each segment into a quad.
+template<typename VertexType_>
+class NODISCARD LineMesh final : public SimpleMesh<VertexType_, LineShader>
+{
+public:
+    using Base = SimpleMesh<VertexType_, LineShader>;
+    using Base::Base;
+
+private:
+    struct NODISCARD Attribs final
+    {
+        GLuint p1Pos = INVALID_ATTRIB_LOCATION;
+        GLuint p2Pos = INVALID_ATTRIB_LOCATION;
+        GLuint colorPos = INVALID_ATTRIB_LOCATION;
+        GLuint widthPos = INVALID_ATTRIB_LOCATION;
+
+        NODISCARD static Attribs getLocations(AbstractShaderProgram &lineShader)
+        {
+            Attribs result;
+            result.p1Pos = lineShader.getAttribLocation("in_p1");
+            result.p2Pos = lineShader.getAttribLocation("in_p2");
+            result.colorPos = lineShader.getAttribLocation("in_color");
+            result.widthPos = lineShader.getAttribLocation("in_width");
+            return result;
+        }
+    };
+
+    std::optional<Attribs> m_boundAttribs;
+
+    void virt_bind() override
+    {
+        const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
+        static_assert(sizeof(std::declval<VertexType_>().p1) == 3 * sizeof(GLfloat));
+        static_assert(sizeof(std::declval<VertexType_>().p2) == 3 * sizeof(GLfloat));
+        static_assert(sizeof(std::declval<VertexType_>().color) == 4 * sizeof(uint8_t));
+        static_assert(sizeof(std::declval<VertexType_>().width) == 1 * sizeof(GLfloat));
+
+        Functions &gl = Base::m_functions;
+        const auto attribs = Attribs::getLocations(Base::m_program);
+        gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
+        gl.enableAttrib(attribs.p1Pos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(p1));
+        gl.enableAttrib(attribs.p2Pos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(p2));
+        gl.enableAttrib(attribs.colorPos, 4, GL_UNSIGNED_BYTE, GL_TRUE, vertSize, VPO(color));
+        gl.enableAttrib(attribs.widthPos, 1, GL_FLOAT, GL_FALSE, vertSize, VPO(width));
+        m_boundAttribs = attribs;
+    }
+
+    void virt_unbind() override
+    {
+        if (!m_boundAttribs) {
+            assert(false);
+            return;
+        }
+
+        auto &attribs = m_boundAttribs.value();
+        Functions &gl = Base::m_functions;
+        gl.glDisableVertexAttribArray(attribs.p1Pos);
+        gl.glDisableVertexAttribArray(attribs.p2Pos);
+        gl.glDisableVertexAttribArray(attribs.colorPos);
+        gl.glDisableVertexAttribArray(attribs.widthPos);
+        gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
+        m_boundAttribs.reset();
+    }
+};
 
 #undef VOIDPTR_OFFSETOF
 #undef VPO

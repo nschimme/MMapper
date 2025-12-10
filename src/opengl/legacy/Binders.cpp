@@ -101,17 +101,10 @@ LineParamsBinder::LineParamsBinder(Functions &functions, const LineParams &lineP
     : m_functions{functions}
     , m_lineParams{lineParams}
 {
-    m_functions.glLineWidth(m_lineParams.width);
 }
 
 LineParamsBinder::~LineParamsBinder()
 {
-    const auto &width = m_lineParams.width;
-    const float ONE = 1.f;
-    static_assert(sizeof(ONE) == sizeof(width));
-    if (!utils::equals(&width, &ONE)) {
-        m_functions.glLineWidth(ONE);
-    }
 }
 
 PointSizeBinder::PointSizeBinder(Functions &functions, const std::optional<GLfloat> &pointSize)

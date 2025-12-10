@@ -24,6 +24,7 @@ struct NODISCARD InfomarksMeshes final
     UniqueMesh points;
     UniqueMesh tris;
     UniqueMesh quads;
+    UniqueMesh lines;
     UniqueMesh textMesh;
     bool isValid = false;
     void render();
@@ -42,6 +43,7 @@ private:
     std::vector<ColorVert> m_points;
     std::vector<ColorVert> m_tris;
     std::vector<ColorVert> m_quads;
+    std::vector<Legacy::LineVert> m_lines;
 
     // REVISIT: This is ill-advised and may contain bugs.
     struct NODISCARD Text final

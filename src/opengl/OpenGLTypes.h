@@ -18,9 +18,42 @@
 #include <vector>
 
 #include <glm/glm.hpp>
+#include <glm/gtx/norm.hpp>
 
 #include <QDebug>
 #include <qopengl.h>
+
+namespace mmgl {
+
+// Tolerance for projecting world coordinates to screen space.
+// Small but non-zero w values can cause numerical instability if used as divisors.
+// A threshold of 1e-6f is a balance between precision and avoiding noise amplification.
+static constexpr const float W_PROJECTION_EPSILON = 1e-6f;
+
+// Geometric epsilon for degeneracy checks (e.g., near-zero vectors, collinearity).
+// This is used for comparisons where small floating-point variations should be treated as equivalent to zero.
+static constexpr const float GEOMETRIC_EPSILON = 1e-5f;
+
+// Projection epsilon for clamping logic in screen space.
+// This handles numerical instability during world-to-screen projections.
+static constexpr const float PROJECTION_EPSILON = 1e-5f;
+
+// Squared threshold for zero-length segment checks to avoid sqrt operations.
+static constexpr const float ZERO_LENGTH_THRESHOLD_SQ = GEOMETRIC_EPSILON * GEOMETRIC_EPSILON;
+
+// Checks if the squared length of a vector is below the degeneration threshold.
+NODISCARD inline bool isDegenerate(const glm::vec3 &vec)
+{
+    return glm::length2(vec) < mmgl::GEOMETRIC_EPSILON * 10.f;
+}
+
+// Checks if the squared length of a segment vector is below the zero-length threshold.
+NODISCARD inline bool isNearZero(const glm::vec3 &segment)
+{
+    return glm::length2(segment) < mmgl::ZERO_LENGTH_THRESHOLD_SQ;
+}
+
+} // namespace mmgl
 
 struct NODISCARD TexVert final
 {

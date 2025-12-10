@@ -10,6 +10,7 @@
 #include "../map/coordinate.h"
 #include "../map/roomid.h"
 #include "../opengl/Font.h"
+#include "../opengl/legacy/Meshes.h"
 #include "../opengl/OpenGLTypes.h"
 
 #include <algorithm>
@@ -71,6 +72,7 @@ struct NODISCARD ConnectionDrawerColorBuffer final
 {
     std::vector<ColorVert> triVerts;
     std::vector<ColorVert> quadVerts;
+    std::vector<Legacy::LineVert> lineVerts;
 
     ConnectionDrawerColorBuffer() = default;
     DEFAULT_MOVES_DELETE_COPIES(ConnectionDrawerColorBuffer);
@@ -80,8 +82,9 @@ struct NODISCARD ConnectionDrawerColorBuffer final
     {
         triVerts.clear();
         quadVerts.clear();
+        lineVerts.clear();
     }
-    NODISCARD bool empty() const { return triVerts.empty() && quadVerts.empty(); }
+    NODISCARD bool empty() const { return triVerts.empty() && quadVerts.empty() && lineVerts.empty(); }
 };
 
 struct NODISCARD ConnectionMeshes final
@@ -90,6 +93,8 @@ struct NODISCARD ConnectionMeshes final
     UniqueMesh redTris;
     UniqueMesh normalQuads;
     UniqueMesh redQuads;
+    UniqueMesh normalLines;
+    UniqueMesh redLines;
 
     ConnectionMeshes() = default;
     DEFAULT_MOVES_DELETE_COPIES(ConnectionMeshes);

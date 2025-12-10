@@ -190,10 +190,7 @@ public:
 public:
     void glLineWidth(const GLfloat lineWidth)
     {
-        // REVISIT: Only width 1 is guaranteed to be supported for core profiles
-        if (OpenGLConfig::getIsCompat()) {
-            Base::glLineWidth(lineWidth);
-        }
+        // This is a no-op, as line width is now handled by the line shader.
     }
 
 public:
@@ -315,6 +312,7 @@ public:
 
 public:
     NODISCARD UniqueMesh createPointBatch(const std::vector<ColorVert> &batch);
+    NODISCARD UniqueMesh createLineBatch(const std::vector<LineVert> &batch);
 
 public:
     NODISCARD UniqueMesh createPlainBatch(DrawModeEnum mode, const std::vector<glm::vec3> &batch);
@@ -333,6 +331,7 @@ public:
 
 public:
     void renderPoints(const std::vector<ColorVert> &verts, const GLRenderState &state);
+    void renderLines(const std::vector<LineVert> &verts, const GLRenderState &state);
 
 public:
     void renderPlain(DrawModeEnum mode,

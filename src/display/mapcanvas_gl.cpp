@@ -368,10 +368,10 @@ NODISCARD static float getPitchDegrees(const float zoomScale)
     return glm::smoothstep(0.5f, 2.f, zoomScale) * degrees;
 }
 
-glm::mat4 MapCanvas::getViewProj(const glm::vec2 &scrollPos,
-                                 const glm::ivec2 &size,
-                                 const float zoomScale,
-                                 const int currentLayer)
+std::pair<glm::mat4, glm::mat4> MapCanvas::getViewProj(const glm::vec2 &scrollPos,
+                                                     const glm::ivec2 &size,
+                                                     const float zoomScale,
+                                                     const int currentLayer)
 {
     static_assert(GLM_CONFIG_CLIP_CONTROL == GLM_CLIP_CONTROL_RH_NO);
 
@@ -448,14 +448,16 @@ glm::mat4 MapCanvas::getViewProj(const glm::vec2 &scrollPos,
     const auto view = glm::lookAt(eye, center, up);
     const auto scaleZ = glm::scale(glm::mat4(1), glm::vec3(1.f, 1.f, ZSCALE));
 
-    return proj * view * scaleZ;
+    return {proj, view * scaleZ};
 }
 
-void MapCanvas::setMvp(const glm::mat4 &viewProj)
+void MapCanvas::setViewProjection(const glm::mat4 &view, const glm::mat4 &proj)
 {
     auto &gl = getOpenGL();
-    m_viewProj = viewProj;
-    gl.setProjectionMatrix(m_viewProj);
+    m_view = view;
+    m_proj = proj;
+    m_viewProj = proj * view;
+    gl.setViewProjectionMatrix(m_view, m_proj);
 }
 
 void MapCanvas::setViewportAndMvp(int width, int height)
@@ -470,9 +472,28 @@ void MapCanvas::setViewportAndMvp(int width, int height)
     assert(size.y == height);
 
     const float zoomScale = getTotalScaleFactor();
-    const auto viewProj = (!want3D) ? getViewProj_old(m_scroll, size, zoomScale, m_currentLayer)
-                                    : getViewProj(m_scroll, size, zoomScale, m_currentLayer);
-    setMvp(viewProj);
+
+    if (!want3D) {
+        constexpr float FIXED_VIEW_DISTANCE = 60.f;
+        constexpr float ROOM_Z_SCALE = 7.f;
+        constexpr auto baseSize = static_cast<float>(BASESIZE);
+
+        const float swp = zoomScale * baseSize / static_cast<float>(size.x);
+        const float shp = zoomScale * baseSize / static_cast<float>(size.y);
+
+        QMatrix4x4 proj;
+        proj.frustum(-0.5f, +0.5f, -0.5f, 0.5f, 5.f, 10000.f);
+        proj.scale(swp, shp, 1.f);
+
+        QMatrix4x4 view;
+        view.translate(-m_scroll.x, -m_scroll.y, -FIXED_VIEW_DISTANCE);
+        view.scale(1.f, 1.f, ROOM_Z_SCALE);
+
+        setViewProjection(glm::make_mat4(view.constData()), glm::make_mat4(proj.constData()));
+    } else {
+        const auto pair = getViewProj(m_scroll, size, zoomScale, m_currentLayer);
+        setViewProjection(pair.second, pair.first);
+    }
 }
 
 void MapCanvas::resizeGL(int width, int height)

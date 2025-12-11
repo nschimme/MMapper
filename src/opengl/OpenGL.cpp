@@ -58,9 +58,14 @@ Viewport OpenGL::getPhysicalViewport() const
     return getFunctions().getPhysicalViewport();
 }
 
-void OpenGL::setProjectionMatrix(const glm::mat4 &m)
+glm::mat4 OpenGL::getViewMatrix() const
 {
-    getFunctions().setProjectionMatrix(m);
+    return getFunctions().getViewMatrix();
+}
+
+void OpenGL::setViewProjectionMatrix(const glm::mat4 &view, const glm::mat4 &proj)
+{
+    getFunctions().setViewProjectionMatrix(view, proj);
 }
 
 void OpenGL::configureFbo(int samples)
@@ -221,9 +226,10 @@ void OpenGL::renderPlainFullScreenQuad(const GLRenderState &renderState)
 
     MeshType &mesh = deref(sharedMesh);
     const auto oldProj = getProjectionMatrix();
-    setProjectionMatrix(glm::mat4(1));
+    const auto oldView = getViewMatrix();
+    setViewProjectionMatrix(glm::mat4(1), glm::mat4(1));
     mesh.render(renderState.withDepthFunction(std::nullopt));
-    setProjectionMatrix(oldProj);
+    setViewProjectionMatrix(oldView, oldProj);
 }
 
 void OpenGL::cleanup()

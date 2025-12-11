@@ -849,9 +849,10 @@ void GLFont::render2dTextImmediate(const std::vector<GLText> &text)
                           * glm::translate(glm::mat4(1), glm::vec3(-glm::vec2(vp.offset), 1.f));
 
     const auto oldProj = m_gl.getProjectionMatrix();
-    m_gl.setProjectionMatrix(viewProj);
+    const auto oldView = m_gl.getViewMatrix();
+    m_gl.setViewProjectionMatrix(glm::mat4(1.0f), viewProj);
     render3dTextImmediate(text);
-    m_gl.setProjectionMatrix(oldProj);
+    m_gl.setViewProjectionMatrix(oldView, oldProj);
 }
 
 void GLFont::render3dTextImmediate(const std::vector<FontVert3d> &rawVerts)

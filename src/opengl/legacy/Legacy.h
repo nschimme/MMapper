@@ -177,6 +177,7 @@ public:
     using Base::glUniform1fv;
     using Base::glUniform1iv;
     using Base::glUniform2fv;
+    using Base::glUniform3fv;
     using Base::glUniform4fv;
     using Base::glUniform4iv;
     using Base::glUniformMatrix4fv;
@@ -229,9 +230,14 @@ public:
     }
 
 public:
-    NODISCARD glm::mat4 getProjectionMatrix() const { return m_viewProj; }
+    NODISCARD const glm::mat4 &getProjectionMatrix() const { return m_proj; }
+    NODISCARD const glm::mat4 &getViewMatrix() const { return m_view; }
 
-    void setProjectionMatrix(const glm::mat4 &viewProj) { m_viewProj = viewProj; }
+    void setViewProjectionMatrix(const glm::mat4 &view, const glm::mat4 &proj);
+
+private:
+    glm::mat4 m_proj = glm::mat4(1);
+    glm::mat4 m_view = glm::mat4(1);
 
 public:
     void cleanup();

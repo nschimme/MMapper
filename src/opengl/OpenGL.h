@@ -52,9 +52,10 @@ public:
 
 public:
     NODISCARD glm::mat4 getProjectionMatrix() const;
+    NODISCARD glm::mat4 getViewMatrix() const;
     NODISCARD Viewport getViewport() const;
     NODISCARD Viewport getPhysicalViewport() const;
-    void setProjectionMatrix(const glm::mat4 &m);
+    void setViewProjectionMatrix(const glm::mat4 &view, const glm::mat4 &proj);
     void glViewport(GLint x, GLint y, GLsizei w, GLsizei h);
 
 public:

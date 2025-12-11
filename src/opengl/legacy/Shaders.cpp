@@ -33,18 +33,17 @@ AColorTexturedShader::~AColorTexturedShader() = default;
 UColorTexturedShader::~UColorTexturedShader() = default;
 FontShader::~FontShader() = default;
 PointShader::~PointShader() = default;
+
 LineShader::~LineShader() = default;
 
 void LineShader::virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms)
 {
     auto functions = m_functions.lock();
     setMatrix("mvp", mvp);
-    const auto viewport = deref(functions).getPhysicalViewport();
-    const float v[2] = {static_cast<float>(viewport.size.x), static_cast<float>(viewport.size.y)};
-    setUniform2fv(getUniformLocation("viewport_size"), 1, v);
     setFloat("line_width", uniforms.lineParams.width);
-    const auto &projection = deref(functions).getProjectionMatrix();
-    setFloat("projection_y_scale", projection[1][1]);
+    const auto &view = deref(functions).getViewMatrix();
+    const glm::vec3 camera_pos_ws = glm::inverse(view)[3];
+    setUniform3fv(getUniformLocation("camera_pos_ws"), 1, &camera_pos_ws[0]);
 }
 
 // essentially a private member of ShaderPrograms

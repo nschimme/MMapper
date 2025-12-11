@@ -1,6 +1,3 @@
-// See https://mattdesl.svbtle.com/drawing-lines-is-hard
-// for a nice reference.
-
 // The raw world-space vertex data.
 layout(location = 0) in vec3 prev_pos_in;
 layout(location = 1) in vec3 curr_pos_in;
@@ -11,11 +8,8 @@ layout(location = 4) in float side_in;
 // The combined model-view-projection matrix.
 uniform mat4 mvp;
 
-// The viewport size in pixels (e.g., [800, 600]).
-uniform vec2 viewport_size;
-
-// The scaling factor from the projection matrix, i.e., P[1][1] or cot(fov/2).
-uniform float projection_y_scale;
+// The camera's position in world-space.
+uniform vec3 camera_pos_ws;
 
 // The desired line width in world-space units.
 uniform float line_width;
@@ -24,58 +18,52 @@ uniform float line_width;
 out vec4 color_out;
 out float side_out;
 
-// Helper to convert clip space coordinates to screen space.
-vec2 clip_to_screen(vec4 clip)
-{
-    vec2 ndc = clip.xy / clip.w;
-    return (ndc + 1.0) / 2.0 * viewport_size;
-}
+const float EPSILON = 0.0001;
 
 void main()
 {
     color_out = color_in;
     side_out = side_in;
 
-    // Project the world-space positions into clip space.
-    vec4 prev_clip = mvp * vec4(prev_pos_in, 1.0);
-    vec4 curr_clip = mvp * vec4(curr_pos_in, 1.0);
-    vec4 next_clip = mvp * vec4(next_pos_in, 1.0);
+    vec2 dir1 = curr_pos_in.xy - prev_pos_in.xy;
+    vec2 dir2 = next_pos_in.xy - curr_pos_in.xy;
 
-    // Convert clip space to screen space for geometry calculations.
-    vec2 prev_screen = clip_to_screen(prev_clip);
-    vec2 curr_screen = clip_to_screen(curr_clip);
-    vec2 next_screen = clip_to_screen(next_clip);
+    bool is_prev_endpoint = (prev_pos_in == curr_pos_in);
+    bool is_next_endpoint = (next_pos_in == curr_pos_in);
 
-    // Calculate screen-space direction vectors.
-    vec2 dir1 = curr_screen - prev_screen;
-    vec2 dir2 = next_screen - curr_screen;
+    // A segment is "vertical" if its projection onto the XY plane is basically a point.
+    bool is_incoming_vertical = !is_prev_endpoint && (length(dir1) < EPSILON);
+    bool is_outgoing_vertical = !is_next_endpoint && (length(dir2) < EPSILON);
 
-    // Determine the normal direction for the line segment.
     vec2 normal;
-    if (prev_pos_in == curr_pos_in) {
-        // Start of the line: use the direction of the first segment.
-        normal = normalize(vec2(-dir2.y, dir2.x));
-    } else if (next_pos_in == curr_pos_in) {
-        // End of the line: use the direction of the last segment.
-        normal = normalize(vec2(-dir1.y, dir1.x));
+    if (is_incoming_vertical || is_outgoing_vertical) {
+        // For vertical segments or corners connected to them, billboard around the Z-axis.
+        // The normal is perpendicular to the view direction in the XY plane.
+        vec2 view_dir = normalize(curr_pos_in.xy - camera_pos_ws.xy);
+        normal = vec2(-view_dir.y, view_dir.x);
     } else {
-        // Middle of the line (miter join): average the normals of the two segments.
-        vec2 n1 = normalize(vec2(-dir1.y, dir1.x));
-        vec2 n2 = normalize(vec2(-dir2.y, dir2.x));
-        normal = normalize(n1 + n2);
+        // For horizontal segments, calculate the miter join in the XY plane.
+        if (is_prev_endpoint) {
+            // Start of the line
+            normal = normalize(vec2(-dir2.y, dir2.x));
+        } else if (is_next_endpoint) {
+            // End of the line
+            normal = normalize(vec2(-dir1.y, dir1.x));
+        } else {
+            // Middle of the line (miter join)
+            vec2 n1 = normalize(vec2(-dir1.y, dir1.x));
+            vec2 n2 = normalize(vec2(-dir2.y, dir2.x));
+            normal = normalize(n1 + n2);
+        }
     }
 
-    // Convert world-space line_width to screen-space pixel width.
-    // The number of pixels per world unit at a given depth is:
-    // px_per_world = (viewport_height * projection_y_scale) / (2.0 * w_clip)
-    float line_width_pixels = line_width * (projection_y_scale * viewport_size.y) / (2.0 * curr_clip.w);
+    // Calculate the offset in world-space.
+    vec2 offset = normal * line_width * 0.5;
 
-    // Calculate the pixel offset for the vertex.
-    vec2 offset = normal * line_width_pixels * 0.5 * side_in;
+    // Apply the offset to the current vertex's XY position.
+    vec3 final_pos = curr_pos_in;
+    final_pos.xy += offset * side_in;
 
-    // Apply the offset in screen space and convert back to clip space.
-    vec2 final_screen = curr_screen + offset;
-    vec2 final_ndc = (final_screen / viewport_size) * 2.0 - 1.0;
-
-    gl_Position = vec4(final_ndc * curr_clip.w, curr_clip.z, curr_clip.w);
+    // Transform the final position into clip space.
+    gl_Position = mvp * vec4(final_pos, 1.0);
 }

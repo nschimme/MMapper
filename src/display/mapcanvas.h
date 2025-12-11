@@ -215,11 +215,14 @@ private:
                                                const glm::ivec2 &size,
                                                float zoomScale,
                                                int currentLayer);
-    NODISCARD static glm::mat4 getViewProj(const glm::vec2 &scrollPos,
-                                           const glm::ivec2 &size,
-                                           float zoomScale,
-                                           int currentLayer);
-    void setMvp(const glm::mat4 &viewProj);
+    NODISCARD static std::pair<glm::mat4, glm::mat4> getViewProj(const glm::vec2 &scrollPos,
+                                                                 const glm::ivec2 &size,
+                                                                 float zoomScale,
+                                                                 int currentLayer);
+    void setViewProjection(const glm::mat4 &view, const glm::mat4 &proj);
+private:
+    glm::mat4 m_proj = glm::mat4(1);
+    glm::mat4 m_view = glm::mat4(1);
     void setViewportAndMvp(int width, int height);
 
     NODISCARD BatchedInfomarksMeshes getInfomarksMeshes();

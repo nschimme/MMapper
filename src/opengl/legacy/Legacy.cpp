@@ -256,6 +256,13 @@ Functions::Functions(Badge<Functions>)
     , m_fbo{std::make_unique<FBO>()}
 {}
 
+void Functions::setViewProjectionMatrix(const glm::mat4 &view, const glm::mat4 &proj)
+{
+    m_view = view;
+    m_proj = proj;
+    m_viewProj = proj * view;
+}
+
 Functions::~Functions()
 {
     cleanup();

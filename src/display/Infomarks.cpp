@@ -31,7 +31,7 @@
 
 #include <QMessageLogContext>
 
-static constexpr const float INFOMARK_ARROW_LINE_WIDTH = 0.05f;
+static constexpr const float INFOMARK_ARROW_LINE_WIDTH = 0.045f;
 static constexpr float INFOMARK_GUIDE_LINE_WIDTH = 3.f;
 static constexpr float INFOMARK_POINT_SIZE = 6.f;
 

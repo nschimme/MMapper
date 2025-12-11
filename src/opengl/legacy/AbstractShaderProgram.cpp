@@ -106,6 +106,15 @@ void AbstractShaderProgram::setUniform2fv(const GLint location,
     deref(functions).glUniform2fv(location, count, value);
 }
 
+void AbstractShaderProgram::setUniform3fv(const GLint location,
+                                          const GLsizei count,
+                                          const GLfloat *const value)
+{
+    assert(m_isBound);
+    auto functions = m_functions.lock();
+    deref(functions).glUniform3fv(location, count, value);
+}
+
 void AbstractShaderProgram::setUniform4fv(const GLint location,
                                           const GLsizei count,
                                           const GLfloat *const value)

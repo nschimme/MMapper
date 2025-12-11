@@ -27,7 +27,7 @@
 #include <QtCore>
 
 static constexpr float CHAR_ARROW_LINE_WIDTH = 2.f;
-static constexpr float PATH_LINE_WIDTH = 4.0f;
+static constexpr float PATH_LINE_WIDTH = 0.1f;
 static constexpr float PATH_POINT_SIZE = 8.f;
 
 DistantObjectTransform DistantObjectTransform::construct(const glm::vec3 &pos,

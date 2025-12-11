@@ -14,7 +14,10 @@ uniform mat4 mvp;
 // The viewport size in pixels (e.g., [800, 600]).
 uniform vec2 viewport_size;
 
-// The desired line width in pixels.
+// The scaling factor from the projection matrix, i.e., P[1][1] or cot(fov/2).
+uniform float projection_y_scale;
+
+// The desired line width in world-space units.
 uniform float line_width;
 
 // The vertex color, passed to the fragment shader.
@@ -62,8 +65,13 @@ void main()
         normal = normalize(n1 + n2);
     }
 
+    // Convert world-space line_width to screen-space pixel width.
+    // The number of pixels per world unit at a given depth is:
+    // px_per_world = (viewport_height * projection_y_scale) / (2.0 * w_clip)
+    float line_width_pixels = line_width * (projection_y_scale * viewport_size.y) / (2.0 * curr_clip.w);
+
     // Calculate the pixel offset for the vertex.
-    vec2 offset = normal * line_width * 0.5 * side_in;
+    vec2 offset = normal * line_width_pixels * 0.5 * side_in;
 
     // Apply the offset in screen space and convert back to clip space.
     vec2 final_screen = curr_screen + offset;

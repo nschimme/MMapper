@@ -29,7 +29,7 @@
 #include <QMessageLogContext>
 #include <QtCore>
 
-static constexpr const float CONNECTION_LINE_WIDTH = 2.0f;
+static constexpr const float CONNECTION_LINE_WIDTH = 0.05f;
 static constexpr const float VALID_CONNECTION_POINT_SIZE = 6.f;
 static constexpr const float NEW_CONNECTION_POINT_SIZE = 8.f;
 
@@ -629,7 +629,10 @@ void ConnectionMeshes::render(const int thisLayer, const int focusedLayer) const
         }
         return Colors::gray70.withAlpha(FAINT_CONNECTION_ALPHA);
     });
-    const auto common_style = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withColor(color);
+    const auto common_style = GLRenderState()
+                                  .withDepthFunction(std::nullopt)
+                                  .withBlend(BlendModeEnum::TRANSPARENCY)
+                                  .withColor(color);
     const auto line_style = common_style.withLineParams(LineParams{CONNECTION_LINE_WIDTH});
 
     // Even though we can draw colored lines and tris,

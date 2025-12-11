@@ -1,0 +1,111 @@
+[1/22] No install step for 'glm'
+[2/22] No install step for 'immer'
+[3/22] Completed 'immer'
+[4/22] Completed 'glm'
+[5/22] Automatic MOC and UIC for target mmapper
+[6/21] Generating qrc_mmapper2.cpp
+[7/21] Building CXX object src/CMakeFiles/mmapper.dir/display/Characters.cpp.o
+[8/21] Building CXX object src/CMakeFiles/mmapper.dir/opengl/OpenGL.cpp.o
+[9/21] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/FontMesh3d.cpp.o
+[10/21] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/Meshes.cpp.o
+[11/21] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/Legacy.cpp.o
+[12/21] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/Shaders.cpp.o
+[13/21] Building CXX object src/CMakeFiles/mmapper.dir/display/Infomarks.cpp.o
+In file included from /app/src/display/Infomarks.cpp:15:
+/app/src/display/InfomarkSelection.h: In member function ‘InfomarkHandle InfomarkSelection::front() const’:
+/app/src/display/InfomarkSelection.h:67:21: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                     ^~
+/app/src/display/InfomarkSelection.h:67:65: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
+   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
+/app/src/display/Infomarks.cpp: In member function ‘BatchedInfomarksMeshes MapCanvas::getInfomarksMeshes()’:
+/app/src/display/Infomarks.cpp:99:27: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+   99 |         const InfomarkDb &db = m_data.getCurrentMap().getInfomarkDb();
+      |                           ^~
+/app/src/display/Infomarks.cpp:99:68: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
+   99 |         const InfomarkDb &db = m_data.getCurrentMap().getInfomarkDb();
+      |                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
+/app/src/display/Infomarks.cpp:121:23: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+  121 |     const InfomarkDb &db = m_data.getCurrentMap().getInfomarkDb();
+      |                       ^~
+/app/src/display/Infomarks.cpp:121:64: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
+  121 |     const InfomarkDb &db = m_data.getCurrentMap().getInfomarkDb();
+      |                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
+/app/src/display/Infomarks.cpp: In member function ‘void MapCanvas::paintSelectedInfomarks()’:
+/app/src/display/Infomarks.cpp:365:31: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+  365 |             const InfomarkDb &db = m_data.getCurrentMap().getInfomarkDb();
+      |                               ^~
+/app/src/display/Infomarks.cpp:365:72: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
+  365 |             const InfomarkDb &db = m_data.getCurrentMap().getInfomarkDb();
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
+/app/src/display/InfomarkSelection.h: In instantiation of ‘void InfomarkSelection::for_each(Callback&&) const [with Callback = MapCanvas::paintSelectedInfomarks()::<lambda(const InfomarkHandle&)>]’:
+/app/src/display/Infomarks.cpp:322:25:   required from here
+/app/src/display/InfomarkSelection.h:84:21: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+   84 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                     ^~
+/app/src/display/InfomarkSelection.h:84:65: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
+   84 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
+/app/src/display/InfomarkSelection.h: In instantiation of ‘void InfomarkSelection::for_each(Callback&&) const [with Callback = MapCanvas::paintSelectedInfomarks()::<lambda(const InfomarkHandle&)>]’:
+/app/src/display/Infomarks.cpp:327:29:   required from here
+/app/src/display/InfomarkSelection.h:84:21: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+   84 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                     ^~
+/app/src/display/InfomarkSelection.h:84:65: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
+   84 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
+[14/21] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/legacy/FontMesh3d.h.gen.cpp.o
+[15/21] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/legacy/Meshes.h.gen.cpp.o
+[16/21] Building CXX object src/CMakeFiles/mmapper.dir/display/Connections.cpp.o
+[17/21] Building CXX object src/CMakeFiles/mmapper.dir/gen/opengl/legacy/Shaders.h.gen.cpp.o
+[18/21] Building CXX object src/CMakeFiles/mmapper.dir/qrc_mmapper2.cpp.o
+[19/21] Building CXX object src/CMakeFiles/mmapper.dir/display/mapcanvas_gl.cpp.o
+[20/21] Building CXX object src/CMakeFiles/mmapper.dir/odr.cpp.o
+In file included from /app/build/src/odr.cpp:30:
+/app/src/display/InfomarkSelection.h: In member function ‘InfomarkHandle InfomarkSelection::front() const’:
+/app/src/display/InfomarkSelection.h:67:21: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                     ^~
+/app/src/display/InfomarkSelection.h:67:65: note: the temporary was destroyed at the end of the full expression ‘MapFrontend::getCurrentMap() const().Map::getInfomarkDb()’
+   67 |         const auto &db = m_mapData.getCurrentMap().getInfomarkDb();
+      |                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~
+In file included from /app/build/src/odr.cpp:69:
+/app/src/global/IndexedVectorWithDefault.h: At global scope:
+/app/src/global/IndexedVectorWithDefault.h:128:6: warning: redundant redeclaration of ‘void test::testIndexedVectorWithDefault()’ in same scope [-Wredundant-decls]
+  128 | void testIndexedVectorWithDefault();
+      |      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /app/build/src/odr.cpp:64:
+/app/src/global/ImmIndexedVectorWithDefault.h:134:6: note: previous declaration of ‘void test::testIndexedVectorWithDefault()’
+  134 | void testIndexedVectorWithDefault();
+      |      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+[21/21] Linking CXX executable src/mmapper
+Test project /app/build
+      Start  1: TestClock
+ 1/12 Test  #1: TestClock ........................   Passed    0.24 sec
+      Start  2: TestExpandoraCommon
+ 2/12 Test  #2: TestExpandoraCommon ..............   Passed    0.18 sec
+      Start  3: TestParser
+ 3/12 Test  #3: TestParser .......................   Passed    0.09 sec
+      Start  4: TestProxy
+ 4/12 Test  #4: TestProxy ........................   Passed    0.07 sec
+      Start  5: TestMainWindow
+ 5/12 Test  #5: TestMainWindow ...................   Passed    0.08 sec
+      Start  6: TestGlobal
+ 6/12 Test  #6: TestGlobal .......................   Passed    0.20 sec
+      Start  7: TestMap
+ 7/12 Test  #7: TestMap ..........................   Passed    0.23 sec
+      Start  8: TestAdventure
+ 8/12 Test  #8: TestAdventure ....................   Passed    0.10 sec
+      Start  9: TestTimer
+ 9/12 Test  #9: TestTimer ........................   Passed    0.06 sec
+      Start 10: TestRoomMob
+10/12 Test #10: TestRoomMob ......................   Passed    0.07 sec
+      Start 11: TestRoomMobs
+11/12 Test #11: TestRoomMobs .....................   Passed    0.07 sec
+      Start 12: TestRoomManager
+12/12 Test #12: TestRoomManager ..................   Passed    0.07 sec
+
+100% tests passed, 0 tests failed out of 12
+
+Total Test time (real) =   1.47 sec

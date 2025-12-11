@@ -119,15 +119,7 @@ public:
     ~LineShader() final;
 
 private:
-    void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final
-    {
-        auto functions = m_functions.lock();
-        setMatrix("mvp", mvp);
-        const auto viewport = deref(functions).getPhysicalViewport();
-        const float v[2] = {static_cast<float>(viewport.size.x), static_cast<float>(viewport.size.y)};
-        setUniform2fv(getUniformLocation("viewport_size"), 1, v);
-        setFloat("line_width", uniforms.lineParams.width);
-    }
+    void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final;
 };
 
 /* owned by Functions */

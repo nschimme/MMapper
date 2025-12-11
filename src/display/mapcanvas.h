@@ -144,9 +144,11 @@ private:
     Diff m_diff;
     FrameRateController m_frameRateController;
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
+    std::unique_ptr<WeatherRenderer> m_weatherRenderer;
     Signal2Lifetime m_lifetime;
 
 public:
+    NODISCARD WeatherRenderer *getWeatherRenderer() const { return m_weatherRenderer.get(); }
     explicit MapCanvas(MapData &mapData,
                        PrespammedPath &prespammedPath,
                        Mmapper2Group &groupManager,
@@ -172,6 +174,7 @@ public:
         zoomChanged();
     }
     NODISCARD float getRawZoom() const { return m_scaleFactor.getRaw(); }
+    NODISCARD glm::mat4 getViewProj() const { return m_viewProj; }
 
 public:
     NODISCARD auto width() const { return QOpenGLWidget::width(); }
@@ -199,7 +202,6 @@ protected:
     bool event(QEvent *e) override;
 
 private:
-    void setAnimating(bool value);
     void renderLoop();
 
 private:

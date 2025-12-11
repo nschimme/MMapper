@@ -1,0 +1,570 @@
+-- The CXX compiler identification is GNU 13.3.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- MMapper version 25.07.0 (Debug distribution)
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+-- Performing Test HAVE_STDATOMIC
+-- Performing Test HAVE_STDATOMIC - Success
+-- Found WrapAtomic: TRUE
+-- Found OpenGL: /usr/lib/x86_64-linux-gnu/libOpenGL.so
+-- Found WrapOpenGL: TRUE
+-- Could NOT find XKB (missing: XKB_LIBRARY XKB_INCLUDE_DIR) (Required is at least version "0.5.0")
+-- Found WrapVulkanHeaders: /usr/include
+-- QOpenGLExtraFunctions supports both GLES 3.0 and OpenGL 3.3
+-- Found ZLIB: /usr/lib/x86_64-linux-gnu/libz.so (found version "1.3")
+-- zlib found: /usr/lib/x86_64-linux-gnu/libz.so /usr/include
+-- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.0.13")
+-- OpenSSL 3.0.13 found: /usr/lib/x86_64-linux-gnu/libssl.so;/usr/lib/x86_64-linux-gnu/libcrypto.so
+-- Found QtKeychain: /usr/lib/x86_64-linux-gnu/libqt6keychain.so
+-- QtKeychain found:
+-- Could not find a local glm; downloading to local source tree
+CMake Warning (dev) at /usr/share/cmake-3.28/Modules/ExternalProject.cmake:3195 (message):
+  The DOWNLOAD_EXTRACT_TIMESTAMP option was not given and policy CMP0135 is
+  not set.  The policy's OLD behavior will be used.  When using a URL
+  download, the timestamps of extracted files should preferably be that of
+  the time of extraction, otherwise code that depends on the extracted
+  contents might not be rebuilt if the URL changes.  The OLD behavior
+  preserves the timestamps from the archive instead, but this is usually not
+  what you want.  Update your project to the NEW behavior or specify the
+  DOWNLOAD_EXTRACT_TIMESTAMP option with a value of true to avoid this
+  robustness issue.
+Call Stack (most recent call first):
+  /usr/share/cmake-3.28/Modules/ExternalProject.cmake:4418 (_ep_add_download_command)
+  external/glm/CMakeLists.txt:11 (ExternalProject_Add)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+-- Could not find a local immer; downloading to local source tree
+CMake Warning (dev) at /usr/share/cmake-3.28/Modules/ExternalProject.cmake:3195 (message):
+  The DOWNLOAD_EXTRACT_TIMESTAMP option was not given and policy CMP0135 is
+  not set.  The policy's OLD behavior will be used.  When using a URL
+  download, the timestamps of extracted files should preferably be that of
+  the time of extraction, otherwise code that depends on the extracted
+  contents might not be rebuilt if the URL changes.  The OLD behavior
+  preserves the timestamps from the archive instead, but this is usually not
+  what you want.  Update your project to the NEW behavior or specify the
+  DOWNLOAD_EXTRACT_TIMESTAMP option with a value of true to avoid this
+  robustness issue.
+Call Stack (most recent call first):
+  /usr/share/cmake-3.28/Modules/ExternalProject.cmake:4418 (_ep_add_download_command)
+  external/immer/CMakeLists.txt:11 (ExternalProject_Add)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+-- Found Git: /usr/bin/git (found version "2.51.2")
+-- Building from branch HEAD with ref 5698db5
+-- Debug build type: Debug
+-- Forcing QT assertions
+-- Using _GLIBCXX_DEBUG
+-- Building with GCC (/usr/bin/c++)
+-- -- Building with GCC address sanitizer
+-- Building with GCC undefined behavior sanitizer
+-- Map QRC file will be included: /app/build/map/map.qrc
+-- Images QRC file will be included: /app/build/images/images.qrc
+-- Will check headers for ODR violations (slow)
+-- Will check headers for missing includes (slow)
+mmapper_SRCS=[main.cpp;adventure/adventuresession.cpp;adventure/adventuresession.h;adventure/adventuretracker.cpp;adventure/adventuretracker.h;adventure/adventurewidget.cpp;adventure/adventurewidget.h;adventure/lineparsers.cpp;adventure/lineparsers.h;adventure/xpstatuswidget.cpp;adventure/xpstatuswidget.h;client/ClientTelnet.cpp;client/ClientTelnet.h;client/ClientWidget.cpp;client/ClientWidget.h;client/PaletteManager.cpp;client/PaletteManager.h;client/displaywidget.cpp;client/displaywidget.h;client/inputwidget.cpp;client/inputwidget.h;client/stackedinputwidget.cpp;client/stackedinputwidget.h;client/PasswordDialog.cpp;client/PasswordDialog.h;client/PreviewWidget.cpp;client/PreviewWidget.h;clock/mumeclock.cpp;clock/mumeclock.h;clock/mumeclockwidget.cpp;clock/mumeclockwidget.h;clock/mumemoment.cpp;clock/mumemoment.h;configuration/NamedConfig.h;configuration/PasswordConfig.cpp;configuration/PasswordConfig.h;configuration/configuration.cpp;configuration/configuration.h;display/CanvasMouseModeEnum.h;display/Characters.cpp;display/Characters.h;display/ConnectionLineBuilder.cpp;display/ConnectionLineBuilder.h;display/Connections.cpp;display/Connections.h;display/Filenames.cpp;display/Filenames.h;display/IMapBatchesFinisher.cpp;display/IMapBatchesFinisher.h;display/InfomarkSelection.cpp;display/InfomarkSelection.h;display/Infomarks.cpp;display/Infomarks.h;display/MapBatches.cpp;display/MapBatches.h;display/MapCanvasConfig.h;display/MapCanvasData.cpp;display/MapCanvasData.h;display/MapCanvasRoomDrawer.cpp;display/MapCanvasRoomDrawer.h;display/RoadIndex.cpp;display/RoadIndex.h;display/RoomSelections.cpp;display/Textures.cpp;display/Textures.h;display/connectionselection.cpp;display/connectionselection.h;display/mapcanvas.cpp;display/mapcanvas.h;display/mapcanvas_gl.cpp;display/mapwindow.cpp;display/mapwindow.h;display/prespammedpath.cpp;display/prespammedpath.h;group/CGroupChar.cpp;group/CGroupChar.h;group/ColorGenerator.cpp;group/ColorGenerator.h;group/GroupManagerApi.cpp;group/GroupManagerApi.h;group/enums.cpp;group/enums.h;group/groupwidget.cpp;group/groupwidget.h;group/mmapper2character.cpp;group/mmapper2character.h;group/mmapper2group.cpp;group/mmapper2group.h;logger/autologger.cpp;logger/autologger.h;mainwindow/DescriptionWidget.cpp;mainwindow/DescriptionWidget.h;mainwindow/MapZoomSlider.cpp;mainwindow/MapZoomSlider.h;mainwindow/UpdateDialog.cpp;mainwindow/UpdateDialog.h;mainwindow/ThemeManager.cpp;mainwindow/ThemeManager.h;mainwindow/aboutdialog.cpp;mainwindow/aboutdialog.h;mainwindow/findroomsdlg.cpp;mainwindow/findroomsdlg.h;mainwindow/infomarkseditdlg.cpp;mainwindow/infomarkseditdlg.h;mainwindow/mainwindow-async.cpp;mainwindow/mainwindow-saveslots.cpp;mainwindow/mainwindow.cpp;mainwindow/mainwindow.h;mainwindow/metatypes.cpp;mainwindow/metatypes.h;mainwindow/roomeditattrdlg.cpp;mainwindow/roomeditattrdlg.h;mainwindow/utils.cpp;mainwindow/utils.h;mapdata/GenericFind.cpp;mapdata/GenericFind.h;mapdata/MarkerList.cpp;mapdata/MarkerList.h;mapdata/mapdata.cpp;mapdata/mapdata.h;mapdata/roomfilter.cpp;mapdata/roomfilter.h;mapdata/roomselection.cpp;mapdata/roomselection.h;mapdata/shortestpath.cpp;mapdata/shortestpath.h;mapfrontend/MapHistory.cpp;mapfrontend/MapHistory.h;mapfrontend/mapfrontend.cpp;mapfrontend/mapfrontend.h;mapstorage/MapDestination.cpp;mapstorage/MapDestination.h;mapstorage/MapSource.cpp;mapstorage/MapSource.h;mapstorage/MmpMapStorage.cpp;mapstorage/MmpMapStorage.h;mapstorage/PandoraMapStorage.cpp;mapstorage/PandoraMapStorage.h;mapstorage/RawMapData.cpp;mapstorage/RawMapData.h;mapstorage/XmlMapStorage.cpp;mapstorage/XmlMapStorage.h;mapstorage/abstractmapstorage.cpp;mapstorage/abstractmapstorage.h;mapstorage/filesaver.cpp;mapstorage/filesaver.h;mapstorage/jsonmapstorage.cpp;mapstorage/jsonmapstorage.h;mapstorage/mapstorage.cpp;mapstorage/mapstorage.h;mpi/mpifilter.cpp;mpi/mpifilter.h;mpi/remoteedit.cpp;mpi/remoteedit.h;mpi/remoteeditsession.cpp;mpi/remoteeditsession.h;mpi/remoteeditwidget.cpp;mpi/remoteeditwidget.h;mpi/gotowidget.cpp;mpi/gotowidget.h;mpi/findreplacewidget.cpp;mpi/findreplacewidget.h;observer/gameobserver.cpp;observer/gameobserver.h;opengl/Font.cpp;opengl/Font.h;opengl/OpenGLProber.cpp;opengl/OpenGLProber.h;opengl/FontFormatFlags.h;opengl/LineRendering.cpp;opengl/LineRendering.h;opengl/OpenGL.cpp;opengl/OpenGL.h;opengl/OpenGLConfig.cpp;opengl/OpenGLConfig.h;opengl/OpenGLTypes.cpp;opengl/OpenGLTypes.h;opengl/legacy/AbstractShaderProgram.cpp;opengl/legacy/AbstractShaderProgram.h;opengl/legacy/Binders.cpp;opengl/legacy/Binders.h;opengl/legacy/FBO.cpp;opengl/legacy/FBO.h;opengl/legacy/FontMesh3d.cpp;opengl/legacy/FontMesh3d.h;opengl/legacy/Legacy.cpp;opengl/legacy/Legacy.h;opengl/legacy/FunctionsGL33.cpp;opengl/legacy/FunctionsGL33.h;opengl/legacy/FunctionsES30.cpp;opengl/legacy/FunctionsES30.h;opengl/legacy/Meshes.cpp;opengl/legacy/Meshes.h;opengl/legacy/ShaderUtils.cpp;opengl/legacy/ShaderUtils.h;opengl/legacy/Shaders.cpp;opengl/legacy/Shaders.h;opengl/legacy/SimpleMesh.cpp;opengl/legacy/SimpleMesh.h;opengl/legacy/VAO.cpp;opengl/legacy/VAO.h;opengl/legacy/VBO.cpp;opengl/legacy/VBO.h;parser/Abbrev.cpp;parser/Abbrev.h;parser/AbstractParser-Actions.cpp;parser/AbstractParser-Commands.cpp;parser/AbstractParser-Commands.h;parser/AbstractParser-Config.cpp;parser/AbstractParser-Group.cpp;parser/AbstractParser-Mark.cpp;parser/AbstractParser-Room.cpp;parser/AbstractParser-Timer.cpp;parser/AbstractParser-Utils.cpp;parser/AbstractParser-Utils.h;parser/Action.cpp;parser/Action.h;parser/CommandQueue.cpp;parser/CommandQueue.h;parser/DoorAction.cpp;parser/DoorAction.h;parser/LineFlags.h;parser/SendToUserSourceEnum.h;parser/abstractparser.cpp;parser/abstractparser.h;parser/mumexmlparser-gmcp.cpp;parser/mumexmlparser.cpp;parser/mumexmlparser.h;pathmachine/approved.cpp;pathmachine/approved.h;pathmachine/crossover.cpp;pathmachine/crossover.h;pathmachine/experimenting.cpp;pathmachine/experimenting.h;pathmachine/mmapper2pathmachine.cpp;pathmachine/mmapper2pathmachine.h;pathmachine/onebyone.cpp;pathmachine/onebyone.h;pathmachine/path.cpp;pathmachine/path.h;pathmachine/pathmachine.cpp;pathmachine/pathmachine.h;pathmachine/pathparameters.h;pathmachine/pathprocessor.cpp;pathmachine/pathprocessor.h;pathmachine/roomsignalhandler.cpp;pathmachine/roomsignalhandler.h;pathmachine/syncing.cpp;pathmachine/syncing.h;preferences/AdvancedGraphics.cpp;preferences/AdvancedGraphics.h;preferences/AnsiColorDialog.cpp;preferences/AnsiColorDialog.h;preferences/ansicombo.cpp;preferences/ansicombo.h;preferences/autologpage.cpp;preferences/autologpage.h;preferences/clientpage.cpp;preferences/clientpage.h;preferences/configdialog.cpp;preferences/configdialog.h;preferences/generalpage.cpp;preferences/generalpage.h;preferences/graphicspage.cpp;preferences/graphicspage.h;preferences/grouppage.cpp;preferences/grouppage.h;preferences/mumeprotocolpage.cpp;preferences/mumeprotocolpage.h;preferences/parserpage.cpp;preferences/parserpage.h;preferences/pathmachinepage.cpp;preferences/pathmachinepage.h;proxy/AbstractSocket.h;proxy/AbstractTelnet.cpp;proxy/AbstractTelnet.h;proxy/GmcpMessage.cpp;proxy/GmcpMessage.h;proxy/GmcpModule.cpp;proxy/GmcpModule.h;proxy/GmcpUtils.cpp;proxy/GmcpUtils.h;proxy/MudTelnet.cpp;proxy/MudTelnet.h;proxy/ProxyParserApi.cpp;proxy/ProxyParserApi.h;proxy/TcpSocket.cpp;proxy/TcpSocket.h;proxy/TextCodec.cpp;proxy/TextCodec.h;proxy/UserTelnet.cpp;proxy/UserTelnet.h;proxy/VirtualSocket.cpp;proxy/VirtualSocket.h;proxy/connectionlistener.cpp;proxy/connectionlistener.h;proxy/mumesocket.cpp;proxy/mumesocket.h;proxy/proxy.cpp;proxy/proxy.h;proxy/telnetfilter.cpp;proxy/telnetfilter.h;roompanel/RoomManager.cpp;roompanel/RoomManager.h;roompanel/RoomMob.cpp;roompanel/RoomMob.h;roompanel/RoomMobs.cpp;roompanel/RoomMobs.h;roompanel/RoomWidget.cpp;roompanel/RoomWidget.h;syntax/Accept.cpp;syntax/Accept.h;syntax/IArgument.cpp;syntax/IArgument.h;syntax/IMatchErrorLogger.h;syntax/MatchResult.cpp;syntax/MatchResult.h;syntax/ParseResult.h;syntax/ParserInput.cpp;syntax/ParserInput.h;syntax/Sublist.cpp;syntax/Sublist.h;syntax/SyntaxArgs.cpp;syntax/SyntaxArgs.h;syntax/TokenMatcher.cpp;syntax/TokenMatcher.h;syntax/TreeParser.cpp;syntax/TreeParser.h;syntax/User.h;syntax/Value.cpp;syntax/Value.h;timers/CTimers.cpp;timers/CTimers.h;viewers/AnsiViewWindow.cpp;viewers/AnsiViewWindow.h;viewers/LaunchAsyncViewer.h;viewers/TopLevelWindows.cpp;viewers/TopLevelWindows.h;mpi/remoteeditprocess.cpp;mpi/remoteeditprocess.h;/app/build/src/Version.cpp;/app/build/src/odr.cpp;/app/build/src/gen/adventure/adventuresession.h.gen.cpp;/app/build/src/gen/adventure/adventuretracker.h.gen.cpp;/app/build/src/gen/adventure/adventurewidget.h.gen.cpp;/app/build/src/gen/adventure/lineparsers.h.gen.cpp;/app/build/src/gen/adventure/xpstatuswidget.h.gen.cpp;/app/build/src/gen/client/ClientTelnet.h.gen.cpp;/app/build/src/gen/client/ClientWidget.h.gen.cpp;/app/build/src/gen/client/PaletteManager.h.gen.cpp;/app/build/src/gen/client/PasswordDialog.h.gen.cpp;/app/build/src/gen/client/PreviewWidget.h.gen.cpp;/app/build/src/gen/client/displaywidget.h.gen.cpp;/app/build/src/gen/client/inputwidget.h.gen.cpp;/app/build/src/gen/client/stackedinputwidget.h.gen.cpp;/app/build/src/gen/clock/mumeclock.h.gen.cpp;/app/build/src/gen/clock/mumeclockwidget.h.gen.cpp;/app/build/src/gen/clock/mumemoment.h.gen.cpp;/app/build/src/gen/configuration/NamedConfig.h.gen.cpp;/app/build/src/gen/configuration/PasswordConfig.h.gen.cpp;/app/build/src/gen/configuration/configuration.h.gen.cpp;/app/build/src/gen/display/CanvasMouseModeEnum.h.gen.cpp;/app/build/src/gen/display/Characters.h.gen.cpp;/app/build/src/gen/display/ConnectionLineBuilder.h.gen.cpp;/app/build/src/gen/display/Connections.h.gen.cpp;/app/build/src/gen/display/Filenames.h.gen.cpp;/app/build/src/gen/display/IMapBatchesFinisher.h.gen.cpp;/app/build/src/gen/display/InfomarkSelection.h.gen.cpp;/app/build/src/gen/display/Infomarks.h.gen.cpp;/app/build/src/gen/display/MapBatches.h.gen.cpp;/app/build/src/gen/display/MapCanvasConfig.h.gen.cpp;/app/build/src/gen/display/MapCanvasData.h.gen.cpp;/app/build/src/gen/display/MapCanvasRoomDrawer.h.gen.cpp;/app/build/src/gen/display/RoadIndex.h.gen.cpp;/app/build/src/gen/display/Textures.h.gen.cpp;/app/build/src/gen/display/WeatherRenderer.h.gen.cpp;/app/build/src/gen/display/connectionselection.h.gen.cpp;/app/build/src/gen/display/mapcanvas.h.gen.cpp;/app/build/src/gen/display/mapwindow.h.gen.cpp;/app/build/src/gen/display/prespammedpath.h.gen.cpp;/app/build/src/gen/group/CGroupChar.h.gen.cpp;/app/build/src/gen/group/ColorGenerator.h.gen.cpp;/app/build/src/gen/group/GroupManagerApi.h.gen.cpp;/app/build/src/gen/group/enums.h.gen.cpp;/app/build/src/gen/group/groupwidget.h.gen.cpp;/app/build/src/gen/group/mmapper2character.h.gen.cpp;/app/build/src/gen/group/mmapper2group.h.gen.cpp;/app/build/src/gen/logger/autologger.h.gen.cpp;/app/build/src/gen/mainwindow/DescriptionWidget.h.gen.cpp;/app/build/src/gen/mainwindow/MapZoomSlider.h.gen.cpp;/app/build/src/gen/mainwindow/ThemeManager.h.gen.cpp;/app/build/src/gen/mainwindow/UpdateDialog.h.gen.cpp;/app/build/src/gen/mainwindow/aboutdialog.h.gen.cpp;/app/build/src/gen/mainwindow/findroomsdlg.h.gen.cpp;/app/build/src/gen/mainwindow/infomarkseditdlg.h.gen.cpp;/app/build/src/gen/mainwindow/mainwindow.h.gen.cpp;/app/build/src/gen/mainwindow/metatypes.h.gen.cpp;/app/build/src/gen/mainwindow/roomeditattrdlg.h.gen.cpp;/app/build/src/gen/mainwindow/utils.h.gen.cpp;/app/build/src/gen/mapdata/GenericFind.h.gen.cpp;/app/build/src/gen/mapdata/MarkerList.h.gen.cpp;/app/build/src/gen/mapdata/mapdata.h.gen.cpp;/app/build/src/gen/mapdata/roomfilter.h.gen.cpp;/app/build/src/gen/mapdata/roomselection.h.gen.cpp;/app/build/src/gen/mapdata/shortestpath.h.gen.cpp;/app/build/src/gen/mapfrontend/MapHistory.h.gen.cpp;/app/build/src/gen/mapfrontend/mapfrontend.h.gen.cpp;/app/build/src/gen/mapstorage/MapDestination.h.gen.cpp;/app/build/src/gen/mapstorage/MapSource.h.gen.cpp;/app/build/src/gen/mapstorage/MmpMapStorage.h.gen.cpp;/app/build/src/gen/mapstorage/PandoraMapStorage.h.gen.cpp;/app/build/src/gen/mapstorage/RawMapData.h.gen.cpp;/app/build/src/gen/mapstorage/XmlMapStorage.h.gen.cpp;/app/build/src/gen/mapstorage/abstractmapstorage.h.gen.cpp;/app/build/src/gen/mapstorage/filesaver.h.gen.cpp;/app/build/src/gen/mapstorage/jsonmapstorage.h.gen.cpp;/app/build/src/gen/mapstorage/mapstorage.h.gen.cpp;/app/build/src/gen/mpi/findreplacewidget.h.gen.cpp;/app/build/src/gen/mpi/gotowidget.h.gen.cpp;/app/build/src/gen/mpi/mpifilter.h.gen.cpp;/app/build/src/gen/mpi/remoteedit.h.gen.cpp;/app/build/src/gen/mpi/remoteeditprocess.h.gen.cpp;/app/build/src/gen/mpi/remoteeditsession.h.gen.cpp;/app/build/src/gen/mpi/remoteeditwidget.h.gen.cpp;/app/build/src/gen/observer/gameobserver.h.gen.cpp;/app/build/src/gen/opengl/Font.h.gen.cpp;/app/build/src/gen/opengl/FontFormatFlags.h.gen.cpp;/app/build/src/gen/opengl/LineRendering.h.gen.cpp;/app/build/src/gen/opengl/OpenGL.h.gen.cpp;/app/build/src/gen/opengl/OpenGLConfig.h.gen.cpp;/app/build/src/gen/opengl/OpenGLProber.h.gen.cpp;/app/build/src/gen/opengl/OpenGLTypes.h.gen.cpp;/app/build/src/gen/opengl/legacy/AbstractShaderProgram.h.gen.cpp;/app/build/src/gen/opengl/legacy/Binders.h.gen.cpp;/app/build/src/gen/opengl/legacy/FBO.h.gen.cpp;/app/build/src/gen/opengl/legacy/FontMesh3d.h.gen.cpp;/app/build/src/gen/opengl/legacy/FunctionsES30.h.gen.cpp;/app/build/src/gen/opengl/legacy/FunctionsGL33.h.gen.cpp;/app/build/src/gen/opengl/legacy/Legacy.h.gen.cpp;/app/build/src/gen/opengl/legacy/Meshes.h.gen.cpp;/app/build/src/gen/opengl/legacy/ShaderUtils.h.gen.cpp;/app/build/src/gen/opengl/legacy/Shaders.h.gen.cpp;/app/build/src/gen/opengl/legacy/SimpleMesh.h.gen.cpp;/app/build/src/gen/opengl/legacy/VAO.h.gen.cpp;/app/build/src/gen/opengl/legacy/VBO.h.gen.cpp;/app/build/src/gen/parser/Abbrev.h.gen.cpp;/app/build/src/gen/parser/AbstractParser-Commands.h.gen.cpp;/app/build/src/gen/parser/AbstractParser-Utils.h.gen.cpp;/app/build/src/gen/parser/Action.h.gen.cpp;/app/build/src/gen/parser/CommandQueue.h.gen.cpp;/app/build/src/gen/parser/DoorAction.h.gen.cpp;/app/build/src/gen/parser/LineFlags.h.gen.cpp;/app/build/src/gen/parser/SendToUserSourceEnum.h.gen.cpp;/app/build/src/gen/parser/abstractparser.h.gen.cpp;/app/build/src/gen/parser/mumexmlparser.h.gen.cpp;/app/build/src/gen/pathmachine/approved.h.gen.cpp;/app/build/src/gen/pathmachine/crossover.h.gen.cpp;/app/build/src/gen/pathmachine/experimenting.h.gen.cpp;/app/build/src/gen/pathmachine/mmapper2pathmachine.h.gen.cpp;/app/build/src/gen/pathmachine/onebyone.h.gen.cpp;/app/build/src/gen/pathmachine/path.h.gen.cpp;/app/build/src/gen/pathmachine/pathmachine.h.gen.cpp;/app/build/src/gen/pathmachine/pathparameters.h.gen.cpp;/app/build/src/gen/pathmachine/pathprocessor.h.gen.cpp;/app/build/src/gen/pathmachine/roomsignalhandler.h.gen.cpp;/app/build/src/gen/pathmachine/syncing.h.gen.cpp;/app/build/src/gen/preferences/AdvancedGraphics.h.gen.cpp;/app/build/src/gen/preferences/AnsiColorDialog.h.gen.cpp;/app/build/src/gen/preferences/ansicombo.h.gen.cpp;/app/build/src/gen/preferences/autologpage.h.gen.cpp;/app/build/src/gen/preferences/clientpage.h.gen.cpp;/app/build/src/gen/preferences/configdialog.h.gen.cpp;/app/build/src/gen/preferences/generalpage.h.gen.cpp;/app/build/src/gen/preferences/graphicspage.h.gen.cpp;/app/build/src/gen/preferences/grouppage.h.gen.cpp;/app/build/src/gen/preferences/mumeprotocolpage.h.gen.cpp;/app/build/src/gen/preferences/parserpage.h.gen.cpp;/app/build/src/gen/preferences/pathmachinepage.h.gen.cpp;/app/build/src/gen/proxy/AbstractSocket.h.gen.cpp;/app/build/src/gen/proxy/AbstractTelnet.h.gen.cpp;/app/build/src/gen/proxy/GmcpMessage.h.gen.cpp;/app/build/src/gen/proxy/GmcpModule.h.gen.cpp;/app/build/src/gen/proxy/GmcpUtils.h.gen.cpp;/app/build/src/gen/proxy/MudTelnet.h.gen.cpp;/app/build/src/gen/proxy/ProxyParserApi.h.gen.cpp;/app/build/src/gen/proxy/TaggedBytes.h.gen.cpp;/app/build/src/gen/proxy/TcpSocket.h.gen.cpp;/app/build/src/gen/proxy/TextCodec.h.gen.cpp;/app/build/src/gen/proxy/UserTelnet.h.gen.cpp;/app/build/src/gen/proxy/VirtualSocket.h.gen.cpp;/app/build/src/gen/proxy/connectionlistener.h.gen.cpp;/app/build/src/gen/proxy/mumesocket.h.gen.cpp;/app/build/src/gen/proxy/proxy.h.gen.cpp;/app/build/src/gen/proxy/telnetfilter.h.gen.cpp;/app/build/src/gen/roompanel/RoomManager.h.gen.cpp;/app/build/src/gen/roompanel/RoomMob.h.gen.cpp;/app/build/src/gen/roompanel/RoomMobs.h.gen.cpp;/app/build/src/gen/roompanel/RoomWidget.h.gen.cpp;/app/build/src/gen/syntax/Accept.h.gen.cpp;/app/build/src/gen/syntax/IArgument.h.gen.cpp;/app/build/src/gen/syntax/IMatchErrorLogger.h.gen.cpp;/app/build/src/gen/syntax/MatchResult.h.gen.cpp;/app/build/src/gen/syntax/ParseResult.h.gen.cpp;/app/build/src/gen/syntax/ParserInput.h.gen.cpp;/app/build/src/gen/syntax/Sublist.h.gen.cpp;/app/build/src/gen/syntax/SyntaxArgs.h.gen.cpp;/app/build/src/gen/syntax/TokenMatcher.h.gen.cpp;/app/build/src/gen/syntax/TreeParser.h.gen.cpp;/app/build/src/gen/syntax/User.h.gen.cpp;/app/build/src/gen/syntax/Value.h.gen.cpp;/app/build/src/gen/timers/CTimers.h.gen.cpp;/app/build/src/gen/viewers/AnsiViewWindow.h.gen.cpp;/app/build/src/gen/viewers/LaunchAsyncViewer.h.gen.cpp;/app/build/src/gen/viewers/TopLevelWindows.h.gen.cpp]
+mmapper_global_SRCS=[global/AnsiOstream.cpp;global/AnsiOstream.h;global/AnsiTextUtils.cpp;global/AnsiTextUtils.h;global/Array.h;global/AsyncTasks.cpp;global/AsyncTasks.h;global/Badge.cpp;global/Badge.h;global/CaseUtils.cpp;global/CaseUtils.h;global/ChangeMonitor.h;global/CharUtils.cpp;global/CharUtils.h;global/Charset-Utf16.cpp;global/Charset-Utf8.cpp;global/Charset.cpp;global/Charset.h;global/Color.cpp;global/Color.h;global/ConfigConsts-Computed.h;global/ConfigConsts.h;global/ConfigEnums.h;global/Connections.cpp;global/Connections.h;global/Consts.cpp;global/Consts.h;global/ConversionResult.h;global/Diff.cpp;global/Diff.h;global/EnumIndexedArray.h;global/Flags.cpp;global/Flags.h;global/HideQDebug.cpp;global/HideQDebug.h;global/ImmIndexedVector.h;global/ImmIndexedVectorWithDefault.h;global/ImmOrderedSet.h;global/ImmUnorderedMap.h;global/ImmUnorderedSet.h;global/IndexedVector.h;global/IndexedVectorWithDefault.cpp;global/IndexedVectorWithDefault.h;global/JsonArray.h;global/JsonDoc.h;global/JsonObj.cpp;global/JsonObj.h;global/JsonValue.h;global/JsonValue.cpp;global/LineUtils.cpp;global/LineUtils.h;global/MakeQPointer.h;global/MmQtHandle.h;global/NamedColors.cpp;global/NamedColors.h;global/NullPointerException.cpp;global/NullPointerException.h;global/OrderedMap.cpp;global/OrderedMap.h;global/OrderedSet.cpp;global/OrderedSet.h;global/PrintUtils.cpp;global/PrintUtils.h;global/RAII.cpp;global/RAII.h;global/RuleOf5.h;global/SendToUser.cpp;global/SendToUser.h;global/Signal2.h;global/SignalBlocker.cpp;global/SignalBlocker.h;global/StorageUtils.cpp;global/StorageUtils.h;global/StringView.cpp;global/StringView.h;global/TabUtils.cpp;global/TabUtils.h;global/TaggedInt.h;global/TaggedString.cpp;global/TaggedString.h;global/TextBuffer.cpp;global/TextBuffer.h;global/TextUtils.cpp;global/TextUtils.h;global/Timer.cpp;global/Timer.h;global/Version.h;global/WeakHandle.cpp;global/WeakHandle.h;global/WinSock.cpp;global/WinSock.h;global/bits.h;global/cast_error.cpp;global/cast_error.h;global/emojis.cpp;global/emojis.h;global/entities-xforeach.txt;global/entities.cpp;global/entities.h;global/enums.h;global/float_cast.cpp;global/float_cast.h;global/hash.h;global/int_cast.cpp;global/int_cast.h;global/io.cpp;global/io.h;global/logging.cpp;global/logging.h;global/macros.h;global/parserutils.cpp;global/parserutils.h;global/progresscounter.cpp;global/progresscounter.h;global/random.cpp;global/random.h;global/range.h;global/string_view_utils.cpp;global/string_view_utils.h;global/tests.cpp;global/tests.h;global/thread_utils.cpp;global/thread_utils.h;global/unquote.cpp;global/unquote.h;global/utils.cpp;global/utils.h;global/window_utils.cpp;global/window_utils.h;global/zpipe.cpp;global/zpipe.h;/app/build/src/gen/global/AnsiOstream.h.gen.cpp;/app/build/src/gen/global/AnsiTextUtils.h.gen.cpp;/app/build/src/gen/global/Array.h.gen.cpp;/app/build/src/gen/global/AsyncTasks.h.gen.cpp;/app/build/src/gen/global/Badge.h.gen.cpp;/app/build/src/gen/global/CaseUtils.h.gen.cpp;/app/build/src/gen/global/ChangeMonitor.h.gen.cpp;/app/build/src/gen/global/CharUtils.h.gen.cpp;/app/build/src/gen/global/Charset.h.gen.cpp;/app/build/src/gen/global/Color.h.gen.cpp;/app/build/src/gen/global/ConfigConsts-Computed.h.gen.cpp;/app/build/src/gen/global/ConfigConsts.h.gen.cpp;/app/build/src/gen/global/ConfigEnums.h.gen.cpp;/app/build/src/gen/global/Connections.h.gen.cpp;/app/build/src/gen/global/Consts.h.gen.cpp;/app/build/src/gen/global/ConversionResult.h.gen.cpp;/app/build/src/gen/global/Diff.h.gen.cpp;/app/build/src/gen/global/EnumIndexedArray.h.gen.cpp;/app/build/src/gen/global/FixedPoint.h.gen.cpp;/app/build/src/gen/global/Flags.h.gen.cpp;/app/build/src/gen/global/HideQDebug.h.gen.cpp;/app/build/src/gen/global/ImmIndexedVector.h.gen.cpp;/app/build/src/gen/global/ImmIndexedVectorWithDefault.h.gen.cpp;/app/build/src/gen/global/ImmOrderedSet.h.gen.cpp;/app/build/src/gen/global/ImmUnorderedMap.h.gen.cpp;/app/build/src/gen/global/ImmUnorderedSet.h.gen.cpp;/app/build/src/gen/global/IndexedVector.h.gen.cpp;/app/build/src/gen/global/IndexedVectorWithDefault.h.gen.cpp;/app/build/src/gen/global/JsonArray.h.gen.cpp;/app/build/src/gen/global/JsonDoc.h.gen.cpp;/app/build/src/gen/global/JsonObj.h.gen.cpp;/app/build/src/gen/global/JsonValue.h.gen.cpp;/app/build/src/gen/global/LineUtils.h.gen.cpp;/app/build/src/gen/global/MakeQPointer.h.gen.cpp;/app/build/src/gen/global/MmQtHandle.h.gen.cpp;/app/build/src/gen/global/NamedColors.h.gen.cpp;/app/build/src/gen/global/NullPointerException.h.gen.cpp;/app/build/src/gen/global/OrderedMap.h.gen.cpp;/app/build/src/gen/global/OrderedSet.h.gen.cpp;/app/build/src/gen/global/PrintUtils.h.gen.cpp;/app/build/src/gen/global/QuotedQString.h.gen.cpp;/app/build/src/gen/global/RAII.h.gen.cpp;/app/build/src/gen/global/RuleOf5.h.gen.cpp;/app/build/src/gen/global/SendToUser.h.gen.cpp;/app/build/src/gen/global/Signal2.h.gen.cpp;/app/build/src/gen/global/SignalBlocker.h.gen.cpp;/app/build/src/gen/global/StorageUtils.h.gen.cpp;/app/build/src/gen/global/StringView.h.gen.cpp;/app/build/src/gen/global/TabUtils.h.gen.cpp;/app/build/src/gen/global/TaggedInt.h.gen.cpp;/app/build/src/gen/global/TaggedString.h.gen.cpp;/app/build/src/gen/global/TextBuffer.h.gen.cpp;/app/build/src/gen/global/TextUtils.h.gen.cpp;/app/build/src/gen/global/Timer.h.gen.cpp;/app/build/src/gen/global/Version.h.gen.cpp;/app/build/src/gen/global/WeakHandle.h.gen.cpp;/app/build/src/gen/global/WinSock.h.gen.cpp;/app/build/src/gen/global/bits.h.gen.cpp;/app/build/src/gen/global/cast_error.h.gen.cpp;/app/build/src/gen/global/emojis.h.gen.cpp;/app/build/src/gen/global/entities.h.gen.cpp;/app/build/src/gen/global/enums.h.gen.cpp;/app/build/src/gen/global/float_cast.h.gen.cpp;/app/build/src/gen/global/hash.h.gen.cpp;/app/build/src/gen/global/int_cast.h.gen.cpp;/app/build/src/gen/global/io.h.gen.cpp;/app/build/src/gen/global/logging.h.gen.cpp;/app/build/src/gen/global/macros.h.gen.cpp;/app/build/src/gen/global/mm_source_location.h.gen.cpp;/app/build/src/gen/global/parserutils.h.gen.cpp;/app/build/src/gen/global/progresscounter.h.gen.cpp;/app/build/src/gen/global/random.h.gen.cpp;/app/build/src/gen/global/range.h.gen.cpp;/app/build/src/gen/global/string_view_utils.h.gen.cpp;/app/build/src/gen/global/tests.h.gen.cpp;/app/build/src/gen/global/thread_utils.h.gen.cpp;/app/build/src/gen/global/unquote.h.gen.cpp;/app/build/src/gen/global/utils.h.gen.cpp;/app/build/src/gen/global/window_utils.h.gen.cpp;/app/build/src/gen/global/zpipe.h.gen.cpp]
+mmapper_map_SRCS=[map/AbstractChangeVisitor.cpp;map/AbstractChangeVisitor.h;map/Change.cpp;map/Change.h;map/ChangeList.cpp;map/ChangeList.h;map/ChangePrinter.cpp;map/ChangePrinter.h;map/ChangeTypes.cpp;map/ChangeTypes.h;map/Changes.cpp;map/Changes.h;map/CommandId.cpp;map/CommandId.h;map/Compare.h;map/ConnectedRoomFlags.h;map/Crtp.h;map/Diff-Test.cpp;map/Diff.cpp;map/Diff.h;map/DoorFlags.cpp;map/DoorFlags.h;map/ExitDirection.cpp;map/ExitDirection.h;map/ExitFieldVariant.cpp;map/ExitFieldVariant.h;map/ExitFields.cpp;map/ExitFields.h;map/ExitFlags.cpp;map/ExitFlags.h;map/ExitsFlags.h;map/InOutEnum.cpp;map/InOutEnum.h;map/InvalidMapOperation.cpp;map/InvalidMapOperation.h;map/Map.cpp;map/Map.h;map/MapConsistencyError.cpp;map/MapConsistencyError.h;map/ParseTree.cpp;map/ParseTree.h;map/PromptFlags.cpp;map/PromptFlags.h;map/RawExit.cpp;map/RawExit.h;map/RawRoom.cpp;map/RawRoom.h;map/RawRooms.cpp;map/RawRooms.h;map/Remapping.cpp;map/Remapping.h;map/RoomFieldVariant.h;map/RoomFields.cpp;map/RoomFields.h;map/RoomHandle.cpp;map/RoomHandle.h;map/RoomIdSet.cpp;map/RoomIdSet.h;map/RoomRevert.cpp;map/RoomRevert.h;map/ServerIdMap.cpp;map/ServerIdMap.h;map/SpatialDb.cpp;map/SpatialDb.h;map/TinyRoomIdSet.cpp;map/TinyRoomIdSet.h;map/World-BaseMap.cpp;map/World.cpp;map/World.h;map/WorldAreaMap.cpp;map/WorldAreaMap.h;map/WorldBuilder.cpp;map/WorldBuilder.h;map/coordinate.cpp;map/coordinate.h;map/enums.cpp;map/enums.h;map/exit.h;map/infomark.cpp;map/infomark.h;map/mmapper2room.cpp;map/mmapper2room.h;map/parseevent.cpp;map/parseevent.h;map/room.cpp;map/room.h;map/roomid.cpp;map/roomid.h;map/sanitizer.cpp;map/sanitizer.h;map/utils.cpp;map/utils.h;/app/build/src/gen/map/AbstractChangeVisitor.h.gen.cpp;/app/build/src/gen/map/Change.h.gen.cpp;/app/build/src/gen/map/ChangeList.h.gen.cpp;/app/build/src/gen/map/ChangePrinter.h.gen.cpp;/app/build/src/gen/map/ChangeTypes.h.gen.cpp;/app/build/src/gen/map/Changes.h.gen.cpp;/app/build/src/gen/map/CommandId.h.gen.cpp;/app/build/src/gen/map/Compare.h.gen.cpp;/app/build/src/gen/map/ConnectedRoomFlags.h.gen.cpp;/app/build/src/gen/map/Crtp.h.gen.cpp;/app/build/src/gen/map/Diff.h.gen.cpp;/app/build/src/gen/map/DoorFlags.h.gen.cpp;/app/build/src/gen/map/ExitDirection.h.gen.cpp;/app/build/src/gen/map/ExitFieldVariant.h.gen.cpp;/app/build/src/gen/map/ExitFields.h.gen.cpp;/app/build/src/gen/map/ExitFlags.h.gen.cpp;/app/build/src/gen/map/ExitsFlags.h.gen.cpp;/app/build/src/gen/map/InOutEnum.h.gen.cpp;/app/build/src/gen/map/InvalidMapOperation.h.gen.cpp;/app/build/src/gen/map/Map.h.gen.cpp;/app/build/src/gen/map/MapConsistencyError.h.gen.cpp;/app/build/src/gen/map/ParseTree.h.gen.cpp;/app/build/src/gen/map/PromptFlags.h.gen.cpp;/app/build/src/gen/map/RawExit.h.gen.cpp;/app/build/src/gen/map/RawRoom.h.gen.cpp;/app/build/src/gen/map/RawRooms.h.gen.cpp;/app/build/src/gen/map/Remapping.h.gen.cpp;/app/build/src/gen/map/RoomFieldVariant.h.gen.cpp;/app/build/src/gen/map/RoomFields.h.gen.cpp;/app/build/src/gen/map/RoomHandle.h.gen.cpp;/app/build/src/gen/map/RoomIdSet.h.gen.cpp;/app/build/src/gen/map/RoomRevert.h.gen.cpp;/app/build/src/gen/map/ServerIdMap.h.gen.cpp;/app/build/src/gen/map/SpatialDb.h.gen.cpp;/app/build/src/gen/map/TinyRoomIdSet.h.gen.cpp;/app/build/src/gen/map/World.h.gen.cpp;/app/build/src/gen/map/WorldAreaMap.h.gen.cpp;/app/build/src/gen/map/WorldBuilder.h.gen.cpp;/app/build/src/gen/map/coordinate.h.gen.cpp;/app/build/src/gen/map/enums.h.gen.cpp;/app/build/src/gen/map/exit.h.gen.cpp;/app/build/src/gen/map/infomark.h.gen.cpp;/app/build/src/gen/map/mmapper2room.h.gen.cpp;/app/build/src/gen/map/parseevent.h.gen.cpp;/app/build/src/gen/map/room.h.gen.cpp;/app/build/src/gen/map/roomid.h.gen.cpp;/app/build/src/gen/map/sanitizer.h.gen.cpp;/app/build/src/gen/map/utils.h.gen.cpp]
+-- Packaging for target: Linux x86_64
+
+-- Enabled options:
+ * WITH_ZLIB, backwards compatability with old .mm2 saves
+ * WITH_UPDATER, check GitHub for new releases
+ * WITH_OPENSSL, encrypt connections with TLS
+ * WITH_WEBSOCKET, bypass firewalls and connect over Secure WebSockets
+ * WITH_QTKEYCHAIN, account credentials encryption and auto-login
+ * WITH_MAP, include default map as a resource
+ * WITH_IMAGES, include default images as a resource
+ * WITH_TESTS, compile unit tests
+
+-- Disabled options:
+ * USE_TIDY
+ * USE_IWYU
+ * USE_DISTCC
+ * USE_CODE_COVERAGE
+ * USE_MOLD, faster build linking
+
+-- Configuring done (2.4s)
+-- Generating done (0.1s)
+-- Build files have been written to: /app/build
+[1/694] Creating directories for 'map_repo'
+[2/694] Creating directories for 'glm'
+[3/694] Creating directories for 'immer'
+[4/694] Creating directories for 'images_repo'
+[5/694] Performing download step (download, verify and extract) for 'immer'
+-- Downloading...
+   dst='/app/build/external/immer/immer-prefix/src/v0.8.1.tar.gz'
+   timeout='none'
+   inactivity timeout='none'
+-- Using src='https://github.com/arximboldi/immer/archive/v0.8.1.tar.gz'
+-- verifying file...
+       file='/app/build/external/immer/immer-prefix/src/v0.8.1.tar.gz'
+-- Downloading... done
+-- extracting...
+     src='/app/build/external/immer/immer-prefix/src/v0.8.1.tar.gz'
+     dst='/app/build/external/immer/immer'
+-- extracting... [tar xfz]
+-- extracting... [analysis]
+-- extracting... [rename]
+-- extracting... [clean up]
+-- extracting... done
+[6/694] No update step for 'immer'
+[7/694] No patch step for 'immer'
+[8/694] No configure step for 'immer'
+[9/694] No build step for 'immer'
+[10/694] No install step for 'immer'
+[11/694] Completed 'immer'
+[12/694] Performing download step (git clone) for 'images_repo'
+Cloning into 'images'...
+HEAD is now at 235b9d6 initial commit
+[13/694] No update step for 'images_repo'
+[14/694] No patch step for 'images_repo'
+[15/694] No configure step for 'images_repo'
+[16/694] No build step for 'images_repo'
+[17/694] No install step for 'images_repo'
+[18/694] Completed 'images_repo'
+[19/694] Generating images.qrc
+[20/694] Performing download step (git clone) for 'map_repo'
+Cloning into 'map_repo'...
+HEAD is now at 07d3129 add schema 42
+[21/694] No update step for 'map_repo'
+[22/694] No patch step for 'map_repo'
+[23/694] No configure step for 'map_repo'
+[24/694] No build step for 'map_repo'
+[25/694] Performing install step for 'map_repo'
+[26/694] Completed 'map_repo'
+[27/694] Generating map.qrc
+[28/694] Performing download step (download, verify and extract) for 'glm'
+-- Downloading...
+   dst='/app/build/external/glm/glm-prefix/src/glm-0.9.9.8.zip'
+   timeout='none'
+   inactivity timeout='none'
+-- Using src='https://github.com/g-truc/glm/releases/download/0.9.9.8/glm-0.9.9.8.zip'
+-- [download 0% complete]
+-- [download 1% complete]
+-- [download 2% complete]
+-- [download 3% complete]
+-- [download 4% complete]
+-- [download 5% complete]
+-- [download 6% complete]
+-- [download 7% complete]
+-- [download 8% complete]
+-- [download 9% complete]
+-- [download 10% complete]
+-- [download 11% complete]
+-- [download 12% complete]
+-- [download 13% complete]
+-- [download 14% complete]
+-- [download 15% complete]
+-- [download 16% complete]
+-- [download 17% complete]
+-- [download 18% complete]
+-- [download 20% complete]
+-- [download 21% complete]
+-- [download 23% complete]
+-- [download 24% complete]
+-- [download 25% complete]
+-- [download 27% complete]
+-- [download 28% complete]
+-- [download 29% complete]
+-- [download 30% complete]
+-- [download 31% complete]
+-- [download 32% complete]
+-- [download 35% complete]
+-- [download 36% complete]
+-- [download 38% complete]
+-- [download 39% complete]
+-- [download 40% complete]
+-- [download 41% complete]
+-- [download 42% complete]
+-- [download 44% complete]
+-- [download 46% complete]
+-- [download 48% complete]
+-- [download 51% complete]
+-- [download 52% complete]
+-- [download 55% complete]
+-- [download 56% complete]
+-- [download 58% complete]
+-- [download 59% complete]
+-- [download 64% complete]
+-- [download 71% complete]
+-- [download 83% complete]
+-- [download 84% complete]
+-- [download 87% complete]
+-- [download 92% complete]
+-- [download 93% complete]
+-- [download 100% complete]
+-- verifying file...
+       file='/app/build/external/glm/glm-prefix/src/glm-0.9.9.8.zip'
+-- Downloading... done
+-- extracting...
+     src='/app/build/external/glm/glm-prefix/src/glm-0.9.9.8.zip'
+     dst='/app/build/external/glm/glm'
+-- extracting... [tar xfz]
+-- extracting... [analysis]
+-- extracting... [rename]
+-- extracting... [clean up]
+-- extracting... done
+[29/694] No update step for 'glm'
+[30/694] No patch step for 'glm'
+[31/694] No configure step for 'glm'
+[32/694] No build step for 'glm'
+[33/694] No install step for 'glm'
+[34/694] Completed 'glm'
+[35/694] Automatic MOC and UIC for target mm_global
+[36/694] Building CXX object src/CMakeFiles/mm_global.dir/mm_global_autogen/mocs_compilation.cpp.o
+[37/694] Building CXX object src/CMakeFiles/mm_global.dir/global/AnsiOstream.cpp.o
+[38/694] Building CXX object src/CMakeFiles/mm_global.dir/global/CharUtils.cpp.o
+[39/694] Building CXX object src/CMakeFiles/mm_global.dir/global/Badge.cpp.o
+[40/694] Building CXX object src/CMakeFiles/mm_global.dir/global/Charset-Utf16.cpp.o
+[41/694] Building CXX object src/CMakeFiles/mm_global.dir/global/AsyncTasks.cpp.o
+[42/694] Building CXX object src/CMakeFiles/mm_global.dir/global/CaseUtils.cpp.o
+[43/694] Building CXX object src/CMakeFiles/mm_global.dir/global/Color.cpp.o
+[44/694] Building CXX object src/CMakeFiles/mm_global.dir/global/AnsiTextUtils.cpp.o
+[45/694] Building CXX object src/CMakeFiles/mm_global.dir/global/Connections.cpp.o
+[46/694] Building CXX object src/CMakeFiles/mm_global.dir/global/Charset-Utf8.cpp.o
+[47/694] Building CXX object src/CMakeFiles/mm_global.dir/global/Charset.cpp.o
+[48/694] Building CXX object src/CMakeFiles/mm_global.dir/global/IndexedVectorWithDefault.cpp.o
+[49/694] Building CXX object src/CMakeFiles/mm_global.dir/global/Consts.cpp.o
+[50/694] Building CXX object src/CMakeFiles/mm_global.dir/global/HideQDebug.cpp.o
+[51/694] Building CXX object src/CMakeFiles/mm_global.dir/global/Diff.cpp.o
+[52/694] Building CXX object src/CMakeFiles/mm_global.dir/global/JsonObj.cpp.o
+[53/694] Building CXX object src/CMakeFiles/mm_global.dir/global/Flags.cpp.o
+[54/694] Building CXX object src/CMakeFiles/mm_global.dir/global/NullPointerException.cpp.o
+[55/694] Building CXX object src/CMakeFiles/mm_global.dir/global/OrderedMap.cpp.o
+[56/694] Building CXX object src/CMakeFiles/mm_global.dir/global/JsonValue.cpp.o
+[57/694] Building CXX object src/CMakeFiles/mm_global.dir/global/NamedColors.cpp.o
+[58/694] Building CXX object src/CMakeFiles/mm_global.dir/global/PrintUtils.cpp.o
+[59/694] Building CXX object src/CMakeFiles/mm_global.dir/global/OrderedSet.cpp.o
+[60/694] Building CXX object src/CMakeFiles/mm_global.dir/global/LineUtils.cpp.o
+[61/694] Building CXX object src/CMakeFiles/mm_global.dir/global/SignalBlocker.cpp.o
+[62/694] Building CXX object src/CMakeFiles/mm_global.dir/global/RAII.cpp.o
+[63/694] Building CXX object src/CMakeFiles/mm_global.dir/global/StorageUtils.cpp.o
+[64/694] Building CXX object src/CMakeFiles/mm_global.dir/global/TabUtils.cpp.o
+[65/694] Building CXX object src/CMakeFiles/mm_global.dir/global/TaggedString.cpp.o
+[66/694] Building CXX object src/CMakeFiles/mm_global.dir/global/WeakHandle.cpp.o
+[67/694] Building CXX object src/CMakeFiles/mm_global.dir/global/TextBuffer.cpp.o
+/app/src/global/TextBuffer.cpp: In member function ‘void mmqt::TextBuffer::appendJustified(QStringView, int)’:
+/app/src/global/TextBuffer.cpp:169:36: warning: conversion from ‘qsizetype’ {aka ‘long long int’} to ‘int’ may change value [-Wconversion]
+  169 |                 col += word.length();
+      |                                    ^
+[68/694] Building CXX object src/CMakeFiles/mm_global.dir/global/SendToUser.cpp.o
+[69/694] Building CXX object src/CMakeFiles/mm_global.dir/global/Timer.cpp.o
+[70/694] Building CXX object src/CMakeFiles/mm_global.dir/global/StringView.cpp.o
+[71/694] Building CXX object src/CMakeFiles/mm_global.dir/global/TextUtils.cpp.o
+[72/694] Building CXX object src/CMakeFiles/mm_global.dir/global/cast_error.cpp.o
+[73/694] Building CXX object src/CMakeFiles/mm_global.dir/global/int_cast.cpp.o
+[74/694] Building CXX object src/CMakeFiles/mm_global.dir/global/WinSock.cpp.o
+[75/694] Building CXX object src/CMakeFiles/mm_global.dir/global/float_cast.cpp.o
+[76/694] Building CXX object src/CMakeFiles/mm_global.dir/global/logging.cpp.o
+[77/694] Building CXX object src/CMakeFiles/mm_global.dir/global/io.cpp.o
+[78/694] Building CXX object src/CMakeFiles/mm_global.dir/global/entities.cpp.o
+[79/694] Building CXX object src/CMakeFiles/mm_global.dir/global/parserutils.cpp.o
+[80/694] Building CXX object src/CMakeFiles/mm_global.dir/global/random.cpp.o
+[81/694] Building CXX object src/CMakeFiles/mm_global.dir/global/string_view_utils.cpp.o
+[82/694] Building CXX object src/CMakeFiles/mm_global.dir/global/progresscounter.cpp.o
+[83/694] Building CXX object src/CMakeFiles/mm_global.dir/global/emojis.cpp.o
+[84/694] Building CXX object src/CMakeFiles/mm_global.dir/global/utils.cpp.o
+[85/694] Building CXX object src/CMakeFiles/mm_global.dir/global/tests.cpp.o
+[86/694] Building CXX object src/CMakeFiles/mm_global.dir/global/unquote.cpp.o
+[87/694] Building CXX object src/CMakeFiles/mm_global.dir/global/window_utils.cpp.o
+[88/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Array.h.gen.cpp.o
+[89/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Badge.h.gen.cpp.o
+[90/694] Building CXX object src/CMakeFiles/mm_global.dir/global/zpipe.cpp.o
+[91/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/AnsiTextUtils.h.gen.cpp.o
+[92/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/CaseUtils.h.gen.cpp.o
+[93/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/AsyncTasks.h.gen.cpp.o
+[94/694] Building CXX object src/CMakeFiles/mm_global.dir/global/thread_utils.cpp.o
+[95/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Charset.h.gen.cpp.o
+[96/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/ChangeMonitor.h.gen.cpp.o
+[97/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/AnsiOstream.h.gen.cpp.o
+[98/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/ConfigConsts.h.gen.cpp.o
+[99/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/ConfigConsts-Computed.h.gen.cpp.o
+[100/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/CharUtils.h.gen.cpp.o
+[101/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Color.h.gen.cpp.o
+[102/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/ConfigEnums.h.gen.cpp.o
+[103/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/ConversionResult.h.gen.cpp.o
+[104/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Connections.h.gen.cpp.o
+[105/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Diff.h.gen.cpp.o
+[106/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Consts.h.gen.cpp.o
+[107/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/HideQDebug.h.gen.cpp.o
+[108/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/EnumIndexedArray.h.gen.cpp.o
+[109/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/ImmOrderedSet.h.gen.cpp.o
+[110/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/ImmIndexedVector.h.gen.cpp.o
+[111/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/ImmUnorderedMap.h.gen.cpp.o
+[112/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/FixedPoint.h.gen.cpp.o
+[113/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/ImmUnorderedSet.h.gen.cpp.o
+[114/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Flags.h.gen.cpp.o
+[115/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/IndexedVector.h.gen.cpp.o
+[116/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/ImmIndexedVectorWithDefault.h.gen.cpp.o
+[117/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/JsonObj.h.gen.cpp.o
+[118/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/JsonArray.h.gen.cpp.o
+[119/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/JsonValue.h.gen.cpp.o
+[120/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/IndexedVectorWithDefault.h.gen.cpp.o
+[121/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/LineUtils.h.gen.cpp.o
+[122/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/JsonDoc.h.gen.cpp.o
+[123/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/OrderedSet.h.gen.cpp.o
+[124/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/OrderedMap.h.gen.cpp.o
+[125/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/NullPointerException.h.gen.cpp.o
+[126/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/NamedColors.h.gen.cpp.o
+[127/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/MakeQPointer.h.gen.cpp.o
+[128/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/MmQtHandle.h.gen.cpp.o
+[129/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/RuleOf5.h.gen.cpp.o
+[130/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/QuotedQString.h.gen.cpp.o
+[131/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/SignalBlocker.h.gen.cpp.o
+[132/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/SendToUser.h.gen.cpp.o
+[133/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/RAII.h.gen.cpp.o
+[134/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/PrintUtils.h.gen.cpp.o
+[135/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/StorageUtils.h.gen.cpp.o
+[136/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Signal2.h.gen.cpp.o
+[137/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/TabUtils.h.gen.cpp.o
+[138/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Timer.h.gen.cpp.o
+[139/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/Version.h.gen.cpp.o
+[140/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/TaggedInt.h.gen.cpp.o
+[141/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/TextBuffer.h.gen.cpp.o
+[142/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/StringView.h.gen.cpp.o
+[143/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/TextUtils.h.gen.cpp.o
+[144/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/WinSock.h.gen.cpp.o
+[145/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/TaggedString.h.gen.cpp.o
+[146/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/emojis.h.gen.cpp.o
+[147/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/enums.h.gen.cpp.o
+[148/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/entities.h.gen.cpp.o
+[149/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/cast_error.h.gen.cpp.o
+[150/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/hash.h.gen.cpp.o
+[151/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/float_cast.h.gen.cpp.o
+[152/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/int_cast.h.gen.cpp.o
+[153/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/WeakHandle.h.gen.cpp.o
+[154/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/mm_source_location.h.gen.cpp.o
+[155/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/bits.h.gen.cpp.o
+[156/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/macros.h.gen.cpp.o
+[157/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/parserutils.h.gen.cpp.o
+[158/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/random.h.gen.cpp.o
+[159/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/logging.h.gen.cpp.o
+[160/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/tests.h.gen.cpp.o
+[161/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/range.h.gen.cpp.o
+[162/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/string_view_utils.h.gen.cpp.o
+[163/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/io.h.gen.cpp.o
+[164/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/progresscounter.h.gen.cpp.o
+[165/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/unquote.h.gen.cpp.o
+[166/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/window_utils.h.gen.cpp.o
+[167/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/utils.h.gen.cpp.o
+[168/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/thread_utils.h.gen.cpp.o
+[169/694] Building CXX object src/CMakeFiles/mm_global.dir/gen/global/zpipe.h.gen.cpp.o
+[170/694] Linking CXX static library src/libmm_global.a
+[171/694] Automatic MOC and UIC for target mm_map
+[172/694] Building CXX object src/CMakeFiles/mm_map.dir/mm_map_autogen/mocs_compilation.cpp.o
+[173/694] Building CXX object src/CMakeFiles/mm_map.dir/map/AbstractChangeVisitor.cpp.o
+[174/694] Building CXX object src/CMakeFiles/mm_map.dir/map/Change.cpp.o
+[175/694] Building CXX object src/CMakeFiles/mm_map.dir/map/ChangeList.cpp.o
+[176/694] Building CXX object src/CMakeFiles/mm_map.dir/map/ChangePrinter.cpp.o
+[177/694] Building CXX object src/CMakeFiles/mm_map.dir/map/ChangeTypes.cpp.o
+[178/694] Automatic MOC and UIC for target TestGlobal
+[179/694] Building CXX object src/CMakeFiles/mm_map.dir/map/CommandId.cpp.o
+[180/694] Building CXX object src/CMakeFiles/mm_map.dir/map/Changes.cpp.o
+[181/694] Building CXX object src/CMakeFiles/mm_map.dir/map/Diff-Test.cpp.o
+[182/694] Building CXX object src/CMakeFiles/mm_map.dir/map/DoorFlags.cpp.o
+[183/694] Building CXX object src/CMakeFiles/mm_map.dir/map/ExitDirection.cpp.o
+[184/694] Building CXX object src/CMakeFiles/mm_map.dir/map/Diff.cpp.o
+/app/src/map/Diff.cpp: In member function ‘void OstreamDiffReporter::printOutgoing(const RoomHandle&, ExitDirEnum)’:
+/app/src/map/Diff.cpp:765:18: warning: possibly dangling reference to a temporary [-Wdangling-reference]
+  765 |     const World &w = room.getMap().getWorld();
+      |                  ^
+/app/src/map/Diff.cpp:765:44: note: the temporary was destroyed at the end of the full expression ‘RoomHandle::getMap() const().Map::getWorld()’
+  765 |     const World &w = room.getMap().getWorld();
+      |                      ~~~~~~~~~~~~~~~~~~~~~~^~
+[185/694] Automatic MOC and UIC for target TestProxy
+[186/694] Building CXX object src/CMakeFiles/mm_map.dir/map/ExitFieldVariant.cpp.o
+[187/694] Building CXX object src/CMakeFiles/mm_map.dir/map/ExitFields.cpp.o
+[188/694] Building CXX object src/CMakeFiles/mm_map.dir/map/ExitFlags.cpp.o
+[189/694] Building CXX object src/CMakeFiles/mm_map.dir/map/InvalidMapOperation.cpp.o
+[190/694] Building CXX object src/CMakeFiles/mm_map.dir/map/MapConsistencyError.cpp.o
+[191/694] Building CXX object src/CMakeFiles/mm_map.dir/map/InOutEnum.cpp.o
+[192/694] Building CXX object src/CMakeFiles/mm_map.dir/map/PromptFlags.cpp.o
+[193/694] Building CXX object src/CMakeFiles/mm_map.dir/map/RawExit.cpp.o
+[194/694] Building CXX object src/CMakeFiles/mm_map.dir/map/RawRoom.cpp.o
+[195/694] Automatic MOC and UIC for target TestAdventure
+[196/694] Building CXX object src/CMakeFiles/mm_map.dir/map/RawRooms.cpp.o
+[197/694] Automatic MOC and UIC for target TestMainWindow
+[198/694] Building CXX object src/CMakeFiles/mm_map.dir/map/RoomFields.cpp.o
+[199/694] Building CXX object src/CMakeFiles/mm_map.dir/map/Remapping.cpp.o
+[200/694] Building CXX object src/CMakeFiles/mm_map.dir/map/RoomHandle.cpp.o
+[201/694] Building CXX object src/CMakeFiles/mm_map.dir/map/RoomIdSet.cpp.o
+[202/694] Building CXX object src/CMakeFiles/mm_map.dir/map/ServerIdMap.cpp.o
+[203/694] Building CXX object src/CMakeFiles/mm_map.dir/map/SpatialDb.cpp.o
+[204/694] Building CXX object src/CMakeFiles/mm_map.dir/map/RoomRevert.cpp.o
+[205/694] Building CXX object src/CMakeFiles/mm_map.dir/map/TinyRoomIdSet.cpp.o
+[206/694] Building CXX object src/CMakeFiles/mm_map.dir/map/World-BaseMap.cpp.o
+[207/694] Building CXX object src/CMakeFiles/mm_map.dir/map/World.cpp.o
+[208/694] Building CXX object src/CMakeFiles/mm_map.dir/map/coordinate.cpp.o
+[209/694] Building CXX object src/CMakeFiles/mm_map.dir/map/WorldAreaMap.cpp.o
+[210/694] Automatic MOC and UIC for target TestClock
+[211/694] Building CXX object src/CMakeFiles/mm_map.dir/map/mmapper2room.cpp.o
+[212/694] Building CXX object src/CMakeFiles/mm_map.dir/map/enums.cpp.o
+[213/694] Building CXX object src/CMakeFiles/mm_map.dir/map/room.cpp.o
+[214/694] Building CXX object src/CMakeFiles/mm_map.dir/map/roomid.cpp.o
+[215/694] Building CXX object src/CMakeFiles/mm_map.dir/map/sanitizer.cpp.o
+[216/694] Building CXX object src/CMakeFiles/mm_map.dir/map/parseevent.cpp.o
+[217/694] Building CXX object src/CMakeFiles/mm_map.dir/map/utils.cpp.o
+[218/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/Change.h.gen.cpp.o
+[219/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/ChangeList.h.gen.cpp.o
+[220/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/AbstractChangeVisitor.h.gen.cpp.o
+[221/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/ChangePrinter.h.gen.cpp.o
+[222/694] Building CXX object src/CMakeFiles/mm_map.dir/map/infomark.cpp.o
+[223/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/Changes.h.gen.cpp.o
+[224/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/CommandId.h.gen.cpp.o
+[225/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/ConnectedRoomFlags.h.gen.cpp.o
+[226/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/ChangeTypes.h.gen.cpp.o
+[227/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/Crtp.h.gen.cpp.o
+[228/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/DoorFlags.h.gen.cpp.o
+[229/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/ExitDirection.h.gen.cpp.o
+[230/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/Compare.h.gen.cpp.o
+[231/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/ExitFieldVariant.h.gen.cpp.o
+[232/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/ExitFlags.h.gen.cpp.o
+[233/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/Diff.h.gen.cpp.o
+[234/694] Building CXX object src/CMakeFiles/mm_map.dir/map/WorldBuilder.cpp.o
+[235/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/InvalidMapOperation.h.gen.cpp.o
+[236/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/ExitsFlags.h.gen.cpp.o
+[237/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/ExitFields.h.gen.cpp.o
+[238/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/MapConsistencyError.h.gen.cpp.o
+[239/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/InOutEnum.h.gen.cpp.o
+[240/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/PromptFlags.h.gen.cpp.o
+[241/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/ParseTree.h.gen.cpp.o
+[242/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/RawRoom.h.gen.cpp.o
+[243/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/Map.h.gen.cpp.o
+[244/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/RawExit.h.gen.cpp.o
+[245/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/RawRooms.h.gen.cpp.o
+[246/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/RoomFieldVariant.h.gen.cpp.o
+[247/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/Remapping.h.gen.cpp.o
+[248/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/RoomIdSet.h.gen.cpp.o
+[249/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/RoomFields.h.gen.cpp.o
+[250/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/RoomHandle.h.gen.cpp.o
+[251/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/RoomRevert.h.gen.cpp.o
+[252/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/TinyRoomIdSet.h.gen.cpp.o
+[253/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/SpatialDb.h.gen.cpp.o
+[254/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/ServerIdMap.h.gen.cpp.o
+[255/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/WorldBuilder.h.gen.cpp.o
+[256/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/coordinate.h.gen.cpp.o
+[257/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/WorldAreaMap.h.gen.cpp.o
+[258/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/World.h.gen.cpp.o
+[259/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/enums.h.gen.cpp.o
+[260/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/parseevent.h.gen.cpp.o
+[261/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/exit.h.gen.cpp.o
+[262/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/mmapper2room.h.gen.cpp.o
+[263/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/roomid.h.gen.cpp.o
+[264/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/sanitizer.h.gen.cpp.o
+[265/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/infomark.h.gen.cpp.o
+[266/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/utils.h.gen.cpp.o
+[267/694] Building CXX object src/CMakeFiles/mm_map.dir/gen/map/room.h.gen.cpp.o
+[268/694] Building CXX object tests/CMakeFiles/TestClock.dir/__/src/clock/mumemoment.cpp.o
+[269/694] Building CXX object tests/CMakeFiles/TestClock.dir/testclock.cpp.o
+[270/694] Building CXX object tests/CMakeFiles/TestClock.dir/__/src/proxy/GmcpMessage.cpp.o
+[271/694] Building CXX object tests/CMakeFiles/TestClock.dir/__/src/observer/gameobserver.cpp.o
+[272/694] Building CXX object tests/CMakeFiles/TestProxy.dir/TestProxy_autogen/mocs_compilation.cpp.o
+[273/694] Building CXX object tests/CMakeFiles/TestProxy.dir/TestProxy.cpp.o
+[274/694] Building CXX object tests/CMakeFiles/TestClock.dir/TestClock_autogen/mocs_compilation.cpp.o
+[275/694] Building CXX object tests/CMakeFiles/TestProxy.dir/__/src/proxy/GmcpModule.cpp.o
+[276/694] Building CXX object tests/CMakeFiles/TestProxy.dir/__/src/proxy/GmcpMessage.cpp.o
+[277/694] Building CXX object tests/CMakeFiles/TestProxy.dir/__/src/proxy/GmcpUtils.cpp.o
+[278/694] Building CXX object tests/CMakeFiles/TestProxy.dir/__/src/proxy/telnetfilter.cpp.o
+[279/694] Building CXX object tests/CMakeFiles/TestMainWindow.dir/TestMainWindow_autogen/mocs_compilation.cpp.o
+[280/694] Building CXX object tests/CMakeFiles/TestMainWindow.dir/TestMainWindow.cpp.o
+[281/694] Building CXX object tests/CMakeFiles/TestGlobal.dir/TestGlobal_autogen/mocs_compilation.cpp.o
+[282/694] Building CXX object tests/CMakeFiles/TestGlobal.dir/TestGlobal.cpp.o
+[283/694] Linking CXX executable tests/TestProxy
+[284/694] Building CXX object tests/CMakeFiles/TestAdventure.dir/TestAdventure_autogen/mocs_compilation.cpp.o
+[285/694] Building CXX object tests/CMakeFiles/TestAdventure.dir/testadventure.cpp.o
+[286/694] Building CXX object tests/CMakeFiles/TestAdventure.dir/__/src/adventure/adventuresession.cpp.o
+[287/694] Building CXX object tests/CMakeFiles/TestAdventure.dir/__/src/adventure/adventuretracker.cpp.o
+[288/694] Building CXX object tests/CMakeFiles/TestAdventure.dir/__/src/adventure/lineparsers.cpp.o
+[289/694] Linking CXX executable tests/TestGlobal
+[290/694] Building CXX object tests/CMakeFiles/TestAdventure.dir/__/src/observer/gameobserver.cpp.o
+[291/694] Automatic MOC and UIC for target TestTimer
+[292/694] Building CXX object tests/CMakeFiles/TestTimer.dir/TestTimer_autogen/mocs_compilation.cpp.o
+[293/694] Building CXX object tests/CMakeFiles/TestTimer.dir/__/src/timers/CTimers.cpp.o
+[294/694] Building CXX object tests/CMakeFiles/TestTimer.dir/TestCTimers.cpp.o
+[295/694] Linking CXX executable tests/TestTimer
+[296/694] Automatic MOC and UIC for target TestRoomMob
+[297/694] Building CXX object tests/CMakeFiles/TestRoomMob.dir/TestRoomMob_autogen/mocs_compilation.cpp.o
+[298/694] Building CXX object tests/CMakeFiles/TestMainWindow.dir/__/src/mainwindow/UpdateDialog.cpp.o
+[299/694] Linking CXX executable tests/TestMainWindow
+[300/694] Building CXX object tests/CMakeFiles/TestRoomMob.dir/roompanel/TestRoomMob.cpp.o
+[301/694] Automatic MOC and UIC for target TestRoomMobs
+[302/694] Building CXX object tests/CMakeFiles/TestRoomMobs.dir/TestRoomMobs_autogen/mocs_compilation.cpp.o
+[303/694] Building CXX object tests/CMakeFiles/TestClock.dir/__/src/clock/mumeclock.cpp.o
+[304/694] Linking CXX executable tests/TestClock
+[305/694] Building CXX object tests/CMakeFiles/TestAdventure.dir/__/src/configuration/configuration.cpp.o
+[306/694] Building CXX object src/CMakeFiles/mm_map.dir/map/ParseTree.cpp.o
+[307/694] Building CXX object tests/CMakeFiles/TestRoomMobs.dir/roompanel/TestRoomMobs.cpp.o
+[308/694] Automatic MOC and UIC for target TestRoomManager
+[309/694] Building CXX object tests/CMakeFiles/TestRoomManager.dir/TestRoomManager_autogen/mocs_compilation.cpp.o
+[310/694] Linking CXX executable tests/TestAdventure
+[311/694] Building CXX object tests/CMakeFiles/TestRoomMob.dir/__/src/roompanel/RoomMob.cpp.o
+[312/694] Linking CXX executable tests/TestRoomMob
+[313/694] Building CXX object tests/CMakeFiles/TestRoomManager.dir/__/src/roompanel/RoomManager.cpp.o
+[314/694] Building CXX object tests/CMakeFiles/TestRoomManager.dir/__/src/proxy/GmcpMessage.cpp.o
+[315/694] Building CXX object tests/CMakeFiles/TestRoomManager.dir/roompanel/TestRoomManager.cpp.o
+[316/694] Building CXX object tests/CMakeFiles/TestRoomMobs.dir/__/src/roompanel/RoomMobs.cpp.o
+[317/694] Building CXX object tests/CMakeFiles/TestRoomMobs.dir/__/src/roompanel/RoomMob.cpp.o
+[318/694] Linking CXX executable tests/TestRoomMobs
+[319/694] Building CXX object tests/CMakeFiles/TestRoomManager.dir/__/src/roompanel/RoomMobs.cpp.o
+[320/694] Building CXX object tests/CMakeFiles/TestRoomManager.dir/__/src/roompanel/RoomMob.cpp.o
+[321/694] Linking CXX executable tests/TestRoomManager
+[322/694] Building CXX object src/CMakeFiles/mm_map.dir/map/Map.cpp.o
+[323/694] Linking CXX static library src/libmm_map.a
+[324/694] Automatic MOC and UIC for target TestMap
+[325/694] Building CXX object tests/CMakeFiles/TestMap.dir/TestMap_autogen/mocs_compilation.cpp.o
+[326/694] Automatic MOC and UIC for target TestParser
+[327/694] Building CXX object tests/CMakeFiles/TestMap.dir/TestMap.cpp.o
+[328/694] Building CXX object tests/CMakeFiles/TestParser.dir/TestParser_autogen/mocs_compilation.cpp.o
+[329/694] Building CXX object tests/CMakeFiles/TestParser.dir/testparser.cpp.o
+[330/694] Automatic MOC and UIC for target TestExpandoraCommon
+[331/694] Building CXX object tests/CMakeFiles/TestExpandoraCommon.dir/TestExpandoraCommon_autogen/mocs_compilation.cpp.o
+[332/694] Building CXX object tests/CMakeFiles/TestExpandoraCommon.dir/testexpandoracommon.cpp.o
+[333/694] Building CXX object tests/CMakeFiles/TestExpandoraCommon.dir/__/src/parser/Abbrev.cpp.o
+[334/694] Building CXX object tests/CMakeFiles/TestParser.dir/__/src/configuration/configuration.cpp.o
+[335/694] Building CXX object tests/CMakeFiles/TestExpandoraCommon.dir/__/src/configuration/configuration.cpp.o
+[336/694] Building CXX object tests/CMakeFiles/TestMap.dir/__/src/configuration/configuration.cpp.o
+[337/694] Linking CXX executable tests/TestParser
+[338/694] Linking CXX executable tests/TestMap
+[339/694] Linking CXX executable tests/TestExpandoraCommon
+[340/694] Automatic MOC and UIC for target mmapper
+[341/694] Generating qrc_build.cpp
+[342/694] Generating qrc_mmapper2.cpp
+[343/694] Generating qrc_images.cpp
+[344/694] Generating qrc_map.cpp
+[345/694] Building CXX object src/CMakeFiles/mmapper.dir/adventure/adventuresession.cpp.o
+[346/694] Building CXX object src/CMakeFiles/mmapper.dir/adventure/adventuretracker.cpp.o
+[347/694] Building CXX object src/CMakeFiles/mmapper.dir/adventure/lineparsers.cpp.o
+[348/694] Building CXX object src/CMakeFiles/mmapper.dir/client/ClientTelnet.cpp.o
+[349/694] Building CXX object src/CMakeFiles/mmapper.dir/client/PaletteManager.cpp.o
+[350/694] Building CXX object src/CMakeFiles/mmapper.dir/adventure/xpstatuswidget.cpp.o
+[351/694] Building CXX object src/CMakeFiles/mmapper.dir/client/ClientWidget.cpp.o
+[352/694] Building CXX object src/CMakeFiles/mmapper.dir/client/stackedinputwidget.cpp.o
+[353/694] Building CXX object src/CMakeFiles/mmapper.dir/client/PasswordDialog.cpp.o
+[354/694] Building CXX object src/CMakeFiles/mmapper.dir/main.cpp.o
+[355/694] Building CXX object src/CMakeFiles/mmapper.dir/adventure/adventurewidget.cpp.o
+[356/694] Building CXX object src/CMakeFiles/mmapper.dir/mmapper_autogen/mocs_compilation.cpp.o
+FAILED: src/CMakeFiles/mmapper.dir/mmapper_autogen/mocs_compilation.cpp.o
+ccache /usr/bin/c++ -DQT_CORE_LIB -DQT_DISABLE_DEPRECATED_UP_TO=0x060200 -DQT_FORCE_ASSERTS -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_OPENGLWIDGETS_LIB -DQT_OPENGL_LIB -DQT_WEBSOCKETS_LIB -DQT_WIDGETS_LIB -DZLIB_CONST -D_GLIBCXX_DEBUG -I/app/build/src -I/app/src -I/app/build/src/mmapper_autogen/include -isystem /app/build/external/glm/glm -isystem /app/build/external/immer/immer -isystem /usr/include/qt6keychain -isystem /usr/include/x86_64-linux-gnu/qt6/QtCore -isystem /usr/include/x86_64-linux-gnu/qt6 -isystem /usr/lib/x86_64-linux-gnu/qt6/mkspecs/linux-g++ -isystem /usr/include/x86_64-linux-gnu/qt6/QtWidgets -isystem /usr/include/x86_64-linux-gnu/qt6/QtGui -isystem /usr/include/x86_64-linux-gnu/qt6/QtNetwork -isystem /usr/include/x86_64-linux-gnu/qt6/QtOpenGL -isystem /usr/include/x86_64-linux-gnu/qt6/QtOpenGLWidgets -isystem /usr/include/x86_64-linux-gnu/qt6/QtDBus -isystem /usr/include/x86_64-linux-gnu/qt6/QtWebSockets -g -std=c++17 -DQT_DISABLE_DEPRECATED_BEFORE=0x050F00 -O0 -Wall -Wextra -pedantic -ggdb3 -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-inline -fno-inline-functions -fsanitize=address -fsanitize=undefined -Waddress -Wcast-align -Wcast-qual -Wconversion -Wdelete-non-virtual-dtor -Wnon-virtual-dtor -Wendif-labels -Wenum-compare -Werror=switch -Wignored-qualifiers -Winit-self -Wmultichar -Wnarrowing -Wnonnull -Wnormalized -Wold-style-cast -Wparentheses -Wpointer-arith -Wredundant-decls -Wsequence-point -Wsign-conversion -Wsign-promo -Wstrict-aliasing -Wstrict-null-sentinel -Wsuggest-override -Wtype-limits -Wundef -Wuninitialized -Wunused-result -Wunused-variable -Wvla -Wwrite-strings -Wno-system-headers -Werror=double-promotion -Werror=reorder -Werror=return-local-addr -Werror=return-type -Werror=sign-compare -fPIC -MD -MT src/CMakeFiles/mmapper.dir/mmapper_autogen/mocs_compilation.cpp.o -MF src/CMakeFiles/mmapper.dir/mmapper_autogen/mocs_compilation.cpp.o.d -o src/CMakeFiles/mmapper.dir/mmapper_autogen/mocs_compilation.cpp.o -c /app/build/src/mmapper_autogen/mocs_compilation.cpp
+In file included from /app/build/src/mmapper_autogen/DN7JKY5LSD/moc_mapcanvas.cpp:10,
+                 from /app/build/src/mmapper_autogen/mocs_compilation.cpp:14:
+/app/build/src/mmapper_autogen/DN7JKY5LSD/../../../../src/display/mapcanvas.h:147:21: error: ‘WeatherRenderer’ was not declared in this scope
+  147 |     std::unique_ptr<WeatherRenderer> m_weatherRenderer;
+      |                     ^~~~~~~~~~~~~~~
+/app/build/src/mmapper_autogen/DN7JKY5LSD/../../../../src/display/mapcanvas.h:147:36: error: template argument 1 is invalid
+  147 |     std::unique_ptr<WeatherRenderer> m_weatherRenderer;
+      |                                    ^
+/app/build/src/mmapper_autogen/DN7JKY5LSD/../../../../src/display/mapcanvas.h:147:36: error: template argument 2 is invalid
+/app/build/src/mmapper_autogen/DN7JKY5LSD/../../../../src/display/mapcanvas.h:151:15: error: ‘WeatherRenderer’ does not name a type
+  151 |     NODISCARD WeatherRenderer *getWeatherRenderer() const { return m_weatherRenderer.get(); }
+      |               ^~~~~~~~~~~~~~~
+[357/694] Building CXX object src/CMakeFiles/mmapper.dir/client/displaywidget.cpp.o
+[358/694] Building CXX object src/CMakeFiles/mmapper.dir/clock/mumeclockwidget.cpp.o
+[359/694] Building CXX object src/CMakeFiles/mmapper.dir/client/inputwidget.cpp.o
+[360/694] Building CXX object src/CMakeFiles/mmapper.dir/clock/mumeclock.cpp.o
+[361/694] Building CXX object src/CMakeFiles/mmapper.dir/client/PreviewWidget.cpp.o
+ninja: build stopped: subcommand failed.

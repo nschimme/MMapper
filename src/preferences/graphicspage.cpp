@@ -64,6 +64,11 @@ GraphicsPage::GraphicsPage(QWidget *parent)
         graphicsSettingsChanged();
     });
 
+    connect(ui->effectIntensityComboBox, &QComboBox::currentIndexChanged, this, [this](int index) {
+        setConfig().canvas.effectIntensity.set(static_cast<EffectIntensityEnum>(index));
+        graphicsSettingsChanged();
+    });
+
     connect(ui->drawUnsavedChanges, &QCheckBox::stateChanged, this, [this](int /*unused*/) {
         setConfig().canvas.showUnsavedChanges.set(ui->drawUnsavedChanges->isChecked());
         graphicsSettingsChanged();
@@ -140,6 +145,8 @@ void GraphicsPage::slot_loadConfig()
         ui->antialiasingSamplesComboBox->setEnabled(true);
     }
     ui->trilinearFilteringCheckBox->setChecked(settings.trilinearFiltering.get());
+
+    ui->effectIntensityComboBox->setCurrentIndex(static_cast<int>(settings.effectIntensity.get()));
 
     ui->drawUnsavedChanges->setChecked(settings.showUnsavedChanges.get());
     ui->drawNeedsUpdate->setChecked(settings.showMissingMapId.get());

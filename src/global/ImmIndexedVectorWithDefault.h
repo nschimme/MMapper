@@ -129,7 +129,3 @@ public:
         m_vec.for_each(std::forward<Callback>(callback));
     }
 };
-
-namespace test {
-void testIndexedVectorWithDefault();
-} // namespace test

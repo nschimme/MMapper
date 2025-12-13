@@ -466,7 +466,7 @@ void MudTelnet::virt_onGmcpEnabled()
                  mmqt::toQStringUtf8(OpenGLConfig::getHighestReportableVersionString())),
              GmcpUtils::escapeGmcpStringData(mmqt::toQStringUtf8(getOs())),
              GmcpUtils::escapeGmcpStringData(mmqt::toQStringUtf8(arch)),
-             GmcpUtils::escapeGmcpStringData(MMAPPER_PACKAGE_TYPE));
+             GmcpUtils::escapeGmcpStringData(QString(MMAPPER_PACKAGE_TYPE)));
     // clang-format on
     sendGmcpMessage(GmcpMessage(GmcpMessageTypeEnum::CORE_HELLO, GmcpJson{json}));
 

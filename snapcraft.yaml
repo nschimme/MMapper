@@ -52,7 +52,6 @@ parts:
     cmake-parameters:
       - -DCMAKE_INSTALL_PREFIX=/usr
       - -DCMAKE_BUILD_TYPE=Release
-      - -DWITH_TESTS=OFF
       - -DWITH_UPDATER=OFF
       - -DWITH_WEBSOCKET=ON
       - -DWITH_QTKEYCHAIN=ON
@@ -71,10 +70,12 @@ parts:
       - libssl-dev
       - zlib1g-dev
       - libxkbcommon-dev
+      - duktape-dev
     stage-packages:
       - libssl3t64
       - zlib1g
       - libxkbcommon0
+      - libduktape
     override-pull: |
       craftctl default
       craftctl set version=$(git describe --tags --always --long --exclude beta | sed 's/^v//')

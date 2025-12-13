@@ -65,6 +65,7 @@ parts:
       - --log-level=STATUS
       - -DCMAKE_LIBRARY_PATH=lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
     build-packages:
+      - git
       - libglm-dev
       - libssl-dev
       - zlib1g-dev

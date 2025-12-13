@@ -236,6 +236,13 @@ struct NODISCARD GLRenderState final
         return copy;
     }
 
+    NODISCARD GLRenderState withLineWidth(const float new_lineWidth) const
+    {
+        GLRenderState copy = *this;
+        copy.lineParams.width = new_lineWidth;
+        return copy;
+    }
+
     NODISCARD GLRenderState withPointSize(const GLfloat size) const
     {
         GLRenderState copy = *this;

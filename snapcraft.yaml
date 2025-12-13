@@ -69,6 +69,8 @@ parts:
       - libglm-dev
       - libssl-dev
       - zlib1g-dev
+    build-environment:
+      - CRAFT_CMAKE_BUILD_OPTIONS: "-v"
     stage-packages:
       - libssl3t64
       - zlib1g

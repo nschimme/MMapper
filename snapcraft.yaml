@@ -52,6 +52,7 @@ parts:
     cmake-parameters:
       - -DCMAKE_INSTALL_PREFIX=/usr
       - -DCMAKE_BUILD_TYPE=Release
+      - -DWITH_TESTS=OFF
       - -DWITH_UPDATER=OFF
       - -DWITH_WEBSOCKET=ON
       - -DWITH_QTKEYCHAIN=ON

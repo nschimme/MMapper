@@ -69,11 +69,11 @@ parts:
       - libglm-dev
       - libssl-dev
       - zlib1g-dev
-    build-environment:
-      - CRAFT_CMAKE_BUILD_OPTIONS: "-v"
+      - libxkbcommon-dev
     stage-packages:
       - libssl3t64
       - zlib1g
+      - libxkbcommon0
     override-pull: |
       craftctl default
       craftctl set version=$(git describe --tags --always --long --exclude beta | sed 's/^v//')

@@ -35,6 +35,25 @@ endif()
 if(WIN32 AND MINGW)
    option(WITH_DRMINGW "Include Dr. Mingw crash dumping (Windows only)" ON)
 endif()
+set(PACKAGE_TYPE "Source" CACHE STRING "Set the package type for instrumentation")
+
+set(VALID_PACKAGE_TYPES Source Deb Dmg Exe AppImage AppX Flatpak Snap Wasm)
+set(PACKAGE_TYPE_NORMALIZED "")
+
+foreach(VALID_TYPE ${VALID_PACKAGE_TYPES})
+    string(TOLOWER "${VALID_TYPE}" VALID_TYPE_LOWER)
+    string(TOLOWER "${PACKAGE_TYPE}" PACKAGE_TYPE_LOWER)
+    if(PACKAGE_TYPE_LOWER STREQUAL VALID_TYPE_LOWER)
+        set(PACKAGE_TYPE_NORMALIZED ${VALID_TYPE})
+        break()
+    endif()
+endforeach()
+
+if(NOT PACKAGE_TYPE_NORMALIZED)
+    message(FATAL_ERROR "Invalid PACKAGE_TYPE: ${PACKAGE_TYPE}. Must be one of: ${VALID_PACKAGE_TYPES}")
+endif()
+
+add_compile_definitions(MMAPPER_PACKAGE_TYPE="${PACKAGE_TYPE_NORMALIZED}")
 
 set(MMAPPER_QT_COMPONENTS Core Widgets Network OpenGL OpenGLWidgets Test)
 if(WITH_WEBSOCKET)

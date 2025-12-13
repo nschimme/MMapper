@@ -115,7 +115,11 @@ static bool setSurfaceFormat()
     }
 
     QSurfaceFormat fmt = probeResult.format;
-    OpenGLConfig::setHighestReportableVersionString(probeResult.highestVersionString);
+    if (probeResult.backendType == OpenGLProber::BackendType::GLES) {
+        OpenGLConfig::setHighestReportableESVersionString(probeResult.highestVersionString);
+    } else {
+        OpenGLConfig::setHighestReportableVersionString(probeResult.highestVersionString);
+    }
     OpenGLConfig::setBackendType(probeResult.backendType);
     OpenGLConfig::setIsCompat(probeResult.isCompat);
     QSurfaceFormat::setDefaultFormat(fmt);

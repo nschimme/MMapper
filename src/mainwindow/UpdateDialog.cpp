@@ -5,6 +5,7 @@
 #include "UpdateDialog.h"
 
 #include "../configuration/configuration.h"
+#include "../global/ConfigConsts-Computed.h"
 #include "../global/RAII.h"
 #include "../global/Version.h"
 
@@ -144,20 +145,6 @@ void UpdateDialog::setUpdateStatus(const QString &message,
 
 QString UpdateDialog::findDownloadUrlForRelease(const QJsonObject &releaseObject) const
 {
-    // Compile platform-specific regex
-    static const auto platformRegex
-        = QRegularExpression(std::invoke([]() -> const char * {
-                                 if constexpr (CURRENT_PLATFORM == PlatformEnum::Mac) {
-                                     return R"(^.+\.dmg$)";
-                                 } else if constexpr (CURRENT_PLATFORM == PlatformEnum::Linux) {
-                                     return R"(^.+\.(deb|AppImage|flatpak)$)";
-                                 } else if constexpr (CURRENT_PLATFORM == PlatformEnum::Windows) {
-                                     return R"(^.+\.exe$)";
-                                 }
-                                 abort();
-                             }),
-                             QRegularExpression::CaseInsensitiveOption);
-
     // Compile architecture-specific regex
     static const auto archRegex = QRegularExpression(getArchitectureRegexPattern(),
                                                      QRegularExpression::CaseInsensitiveOption);
@@ -172,25 +159,40 @@ QString UpdateDialog::findDownloadUrlForRelease(const QJsonObject &releaseObject
             continue;
         }
 
-        if (!name.contains(platformRegex) || !name.contains(archRegex)) {
+        if (!name.contains(archRegex)) {
             continue;
         }
 
-        if constexpr (CURRENT_PLATFORM == PlatformEnum::Linux) {
-            const bool isAssetAppImage = name.contains("AppImage", Qt::CaseInsensitive);
-            const bool isEnvAppImage = qEnvironmentVariableIsSet(APPIMAGE_KEY);
-            if (isAssetAppImage != isEnvAppImage) {
-                continue;
+        switch (CURRENT_PACKAGE_TYPE) {
+        case PackageTypeEnum::Source:
+            break;
+        case PackageTypeEnum::Deb:
+            if (name.endsWith(".deb", Qt::CaseInsensitive)) {
+                return url;
             }
-
-            const bool isAssetFlatpak = name.contains("flatpak", Qt::CaseInsensitive);
-            const bool isEnvFlatpak = qEnvironmentVariableIsSet(FLATPAK_KEY);
-            if (isAssetFlatpak != isEnvFlatpak) {
-                continue;
+            break;
+        case PackageTypeEnum::Dmg:
+            if (name.endsWith(".dmg", Qt::CaseInsensitive)) {
+                return url;
             }
+            break;
+        case PackageTypeEnum::Exe:
+            if (name.endsWith(".exe", Qt::CaseInsensitive)) {
+                return url;
+            }
+            break;
+        case PackageTypeEnum::AppImage:
+            if (name.endsWith(".AppImage", Qt::CaseInsensitive)) {
+                return url;
+            }
+            break;
+        case PackageTypeEnum::AppX:
+        case PackageTypeEnum::Flatpak:
+        case PackageTypeEnum::Snap:
+        case PackageTypeEnum::Wasm:
+            // These are handled by the caller.
+            break;
         }
-
-        return url;
     }
 
     const QString fallbackUrl = releaseObject.value("html_url").toString();
@@ -267,12 +269,38 @@ void UpdateDialog::managerFinished(QNetworkReply *reply)
             return;
         }
     }
-    m_downloadUrl = findDownloadUrlForRelease(obj);
-    setUpdateStatus(QString("A new %1version of MMapper is available!"
-                            "\n"
-                            "\n"
-                            "Press 'Upgrade' to download %2!")
-                        .arg(isMMapperBeta() ? "beta " : "", isMMapperBeta() ? "it" : latestTag),
-                    true,
-                    true);
+    switch (CURRENT_PACKAGE_TYPE) {
+    case PackageTypeEnum::Source:
+    case PackageTypeEnum::Deb:
+    case PackageTypeEnum::Dmg:
+    case PackageTypeEnum::Exe:
+    case PackageTypeEnum::AppImage:
+        m_downloadUrl = findDownloadUrlForRelease(obj);
+        setUpdateStatus(QString("A new %1version of MMapper is available!"
+                                "\n"
+                                "\n"
+                                "Press 'Upgrade' to download %2!")
+                            .arg(isMMapperBeta() ? "beta " : "", isMMapperBeta() ? "it" : latestTag),
+                        true,
+                        true);
+        break;
+    case PackageTypeEnum::AppX:
+        setUpdateStatus(tr("A new version of MMapper is available from the Microsoft Store!"),
+                        false,
+                        true);
+        break;
+    case PackageTypeEnum::Flatpak:
+        setUpdateStatus(tr("A new version of MMapper is available from Flathub!"), false, true);
+        break;
+    case PackageTypeEnum::Snap:
+        setUpdateStatus(tr("A new version of MMapper is available from the Snap Store!"),
+                        false,
+                        true);
+        break;
+    case PackageTypeEnum::Wasm:
+        setUpdateStatus(tr("A new version of MMapper is available, refresh the page to update!"),
+                        false,
+                        true);
+        break;
+    }
 }

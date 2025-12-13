@@ -24,6 +24,8 @@
 #include <QByteArray>
 #include <QOperatingSystemVersion>
 #include <QSysInfo>
+#include <QJsonObject>
+#include <QJsonDocument>
 
 namespace { // anonymous
 
@@ -68,19 +70,6 @@ NODISCARD std::string getOs()
         return getOsName() + ver.value();
     }
     return getOsName();
-}
-
-NODISCARD TelnetTermTypeBytes addTerminalTypeSuffix(const std::string_view prefix)
-{
-    // It's probably required to be ASCII.
-    const auto arch = mmqt::toStdStringUtf8(QSysInfo::currentCpuArchitecture().toUtf8());
-
-    std::ostringstream ss;
-    ss << prefix << "/MMapper-" << getMMapperVersion() << "/"
-       << OpenGLConfig::getHighestReportableVersionString() << "/" << getOs() << "/" << arch;
-    auto str = std::move(ss).str();
-
-    return TelnetTermTypeBytes{mmqt::toQByteArrayUtf8(str)};
 }
 
 using OptStdString = std::optional<std::string>;
@@ -232,7 +221,7 @@ NODISCARD bool isOneLineCrlf(const QString &s)
 MudTelnetOutputs::~MudTelnetOutputs() = default;
 
 MudTelnet::MudTelnet(MudTelnetOutputs &outputs)
-    : AbstractTelnet(TextCodecStrategyEnum::FORCE_UTF_8, addTerminalTypeSuffix("unknown"))
+    : AbstractTelnet(TextCodecStrategyEnum::FORCE_UTF_8, TelnetTermTypeBytes{"unknown"})
     , m_outputs{outputs}
 {
     // RFC 2066 states we can provide many character sets but we force UTF-8 when
@@ -364,8 +353,7 @@ void MudTelnet::onRelayNaws(const int width, const int height)
 
 void MudTelnet::onRelayTermType(const TelnetTermTypeBytes &terminalType)
 {
-    // Append the MMapper version suffix to the terminal type
-    setTerminalType(addTerminalTypeSuffix(terminalType.getQByteArray().constData()));
+    setTerminalType(terminalType);
     if (getOptions().myOptionState[OPT_TERMINAL_TYPE]) {
         sendTerminalType(getTerminalType());
     }
@@ -472,10 +460,28 @@ void MudTelnet::virt_onGmcpEnabled()
         qDebug() << "Requesting GMCP from MUME";
     }
 
-    sendGmcpMessage(
-        GmcpMessage(GmcpMessageTypeEnum::CORE_HELLO,
-                    GmcpJson{QString(R"({ "client": "MMapper", "version": "%1" })")
-                                 .arg(GmcpUtils::escapeGmcpStringData(getMMapperVersion()))}));
+    const auto arch = mmqt::toStdStringUtf8(QSysInfo::currentCpuArchitecture().toUtf8());
+    // clang-format off
+    const auto gl_version = mmqt::toQStringUtf8(OpenGLConfig::getHighestReportableVersionString());
+    const auto gles_version = mmqt::toQStringUtf8(OpenGLConfig::getHighestReportableESVersionString());
+
+    QJsonObject jsonObject;
+    jsonObject["client"] = "MMapper";
+    jsonObject["version"] = GmcpUtils::escapeGmcpStringData(mmqt::toQStringUtf8(getMMapperVersion()));
+    if (!gl_version.isEmpty()) {
+        jsonObject["gl_version"] = GmcpUtils::escapeGmcpStringData(gl_version);
+    }
+    if (!gles_version.isEmpty()) {
+        jsonObject["gles_version"] = GmcpUtils::escapeGmcpStringData(gles_version);
+    }
+    jsonObject["os"] = GmcpUtils::escapeGmcpStringData(mmqt::toQStringUtf8(getOs()));
+    jsonObject["arch"] = GmcpUtils::escapeGmcpStringData(mmqt::toQStringUtf8(arch));
+    jsonObject["package"] = GmcpUtils::escapeGmcpStringData(QString(MMAPPER_PACKAGE_TYPE));
+
+    const QJsonDocument doc(jsonObject);
+    const QString json = doc.toJson(QJsonDocument::Compact);
+    // clang-format on
+    sendGmcpMessage(GmcpMessage(GmcpMessageTypeEnum::CORE_HELLO, GmcpJson{json}));
 
     // Request GMCP modules that might have already been sent by the local client
     sendCoreSupports();

@@ -24,6 +24,8 @@
 #include <QByteArray>
 #include <QOperatingSystemVersion>
 #include <QSysInfo>
+#include <QJsonObject>
+#include <QJsonDocument>
 
 namespace { // anonymous
 
@@ -460,13 +462,24 @@ void MudTelnet::virt_onGmcpEnabled()
 
     const auto arch = mmqt::toStdStringUtf8(QSysInfo::currentCpuArchitecture().toUtf8());
     // clang-format off
-    const auto json = QString(R"({ "client": "MMapper", "version": "%1", "gl_version": "%2", "os": "%3", "arch": "%4", "package": "%5" })")
-        .arg(GmcpUtils::escapeGmcpStringData(mmqt::toQStringUtf8(getMMapperVersion())),
-             GmcpUtils::escapeGmcpStringData(
-                 mmqt::toQStringUtf8(OpenGLConfig::getHighestReportableVersionString())),
-             GmcpUtils::escapeGmcpStringData(mmqt::toQStringUtf8(getOs())),
-             GmcpUtils::escapeGmcpStringData(mmqt::toQStringUtf8(arch)),
-             GmcpUtils::escapeGmcpStringData(QString(MMAPPER_PACKAGE_TYPE)));
+    const auto gl_version = mmqt::toQStringUtf8(OpenGLConfig::getHighestReportableVersionString());
+    const auto gles_version = mmqt::toQStringUtf8(OpenGLConfig::getHighestReportableESVersionString());
+
+    QJsonObject jsonObject;
+    jsonObject["client"] = "MMapper";
+    jsonObject["version"] = GmcpUtils::escapeGmcpStringData(mmqt::toQStringUtf8(getMMapperVersion()));
+    if (!gl_version.isEmpty()) {
+        jsonObject["gl_version"] = GmcpUtils::escapeGmcpStringData(gl_version);
+    }
+    if (!gles_version.isEmpty()) {
+        jsonObject["gles_version"] = GmcpUtils::escapeGmcpStringData(gles_version);
+    }
+    jsonObject["os"] = GmcpUtils::escapeGmcpStringData(mmqt::toQStringUtf8(getOs()));
+    jsonObject["arch"] = GmcpUtils::escapeGmcpStringData(mmqt::toQStringUtf8(arch));
+    jsonObject["package"] = GmcpUtils::escapeGmcpStringData(QString(MMAPPER_PACKAGE_TYPE));
+
+    const QJsonDocument doc(jsonObject);
+    const QString json = doc.toJson(QJsonDocument::Compact);
     // clang-format on
     sendGmcpMessage(GmcpMessage(GmcpMessageTypeEnum::CORE_HELLO, GmcpJson{json}));
 

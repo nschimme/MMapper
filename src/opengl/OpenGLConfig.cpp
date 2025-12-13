@@ -8,6 +8,7 @@ namespace OpenGLConfig {
 static OpenGLProber::BackendType g_backendType;
 static bool g_isCompat = false;
 static std::string g_versionString;
+static std::string g_esVersionString;
 static int g_maxSamples = 0;
 
 NODISCARD OpenGLProber::BackendType getBackendType()
@@ -38,6 +39,16 @@ NODISCARD std::string getHighestReportableVersionString()
 void setHighestReportableVersionString(const std::string &versionString)
 {
     g_versionString = versionString;
+}
+
+NODISCARD std::string getHighestReportableESVersionString()
+{
+    return g_esVersionString;
+}
+
+void setHighestReportableESVersionString(const std::string &versionString)
+{
+    g_esVersionString = versionString;
 }
 
 NODISCARD int getMaxSamples()

@@ -391,6 +391,8 @@ set(mmapper_SRCS
     opengl/OpenGLProber.cpp
     opengl/OpenGLProber.h
     opengl/FontFormatFlags.h
+    opengl/LineRendering.cpp
+    opengl/LineRendering.h
     opengl/OpenGL.cpp
     opengl/OpenGL.h
     opengl/OpenGLConfig.cpp

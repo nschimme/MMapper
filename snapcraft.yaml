@@ -75,7 +75,9 @@ parts:
       - libssl3t64
       - zlib1g
       - libxkbcommon0
-      - libduktape
+      - libduktape207
+    build-environment:
+      - LD_LIBRARY_PATH: "$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR"
     override-pull: |
       craftctl default
       craftctl set version=$(git describe --tags --always --long --exclude beta | sed 's/^v//')

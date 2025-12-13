@@ -461,10 +461,11 @@ void MudTelnet::virt_onGmcpEnabled()
     const auto arch = mmqt::toStdStringUtf8(QSysInfo::currentCpuArchitecture().toUtf8());
     // clang-format off
     const auto json = QString(R"({ "client": "MMapper", "version": "%1", "gl_version": "%2", "os": "%3", "arch": "%4", "package": "%5" })")
-        .arg(GmcpUtils::escapeGmcpStringData(getMMapperVersion()),
-             GmcpUtils::escapeGmcpStringData(OpenGLConfig::getHighestReportableVersionString()),
-             GmcpUtils::escapeGmcpStringData(getOs()),
-             GmcpUtils::escapeGmcpStringData(arch),
+        .arg(GmcpUtils::escapeGmcpStringData(mmqt::toQStringUtf8(getMMapperVersion())),
+             GmcpUtils::escapeGmcpStringData(
+                 mmqt::toQStringUtf8(OpenGLConfig::getHighestReportableVersionString())),
+             GmcpUtils::escapeGmcpStringData(mmqt::toQStringUtf8(getOs())),
+             GmcpUtils::escapeGmcpStringData(mmqt::toQStringUtf8(arch)),
              GmcpUtils::escapeGmcpStringData(MMAPPER_PACKAGE_TYPE));
     // clang-format on
     sendGmcpMessage(GmcpMessage(GmcpMessageTypeEnum::CORE_HELLO, GmcpJson{json}));

@@ -35,6 +35,8 @@ endif()
 if(WIN32 AND MINGW)
    option(WITH_DRMINGW "Include Dr. Mingw crash dumping (Windows only)" ON)
 endif()
+option(PACKAGE_TYPE "Set the package type for instrumentation" "Source")
+add_compile_definitions(MMAPPER_PACKAGE_TYPE="${PACKAGE_TYPE}")
 
 set(MMAPPER_QT_COMPONENTS Core Widgets Network OpenGL OpenGLWidgets Test)
 if(WITH_WEBSOCKET)

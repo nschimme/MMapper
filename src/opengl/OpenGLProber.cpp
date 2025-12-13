@@ -262,22 +262,29 @@ OpenGLProber::ProbeResult probeOpenGL()
 
 OpenGLProber::ProbeResult probeOpenGLES()
 {
-    QSurfaceFormat format;
-    format.setRenderableType(QSurfaceFormat::OpenGLES);
-    format.setVersion(3, 0);
+    std::vector<GLVersion> glesVersions = {{3, 2}, {3, 1}, {3, 0}};
 
-    QOpenGLContext context;
-    context.setFormat(format);
-    if (!context.create()) {
-        MMLOG_DEBUG() << "Failed to create GLES 3.0 context";
-        return {};
+    for (const auto &version : glesVersions) {
+        QSurfaceFormat format;
+        format.setRenderableType(QSurfaceFormat::OpenGLES);
+        format.setVersion(version.major, version.minor);
+
+        QOpenGLContext context;
+        context.setFormat(format);
+        if (context.create()) {
+            MMLOG_DEBUG() << "[GL Probe] Found highest supported GLES version: " << version;
+            OpenGLProber::ProbeResult result;
+            result.backendType = OpenGLProber::BackendType::GLES;
+            result.format = format;
+            std::ostringstream oss;
+            oss << "ES" << version;
+            result.highestVersionString = oss.str();
+            return result;
+        }
     }
 
-    OpenGLProber::ProbeResult result;
-    result.backendType = OpenGLProber::BackendType::GLES;
-    result.format = format;
-    result.highestVersionString = "ES3.0";
-    return result;
+    MMLOG_DEBUG() << "No suitable GLES context found.";
+    return {};
 }
 
 } // namespace

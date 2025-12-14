@@ -633,8 +633,8 @@ ConnectionMeshes ConnectionDrawerBuffers::getMeshes(OpenGL &gl) const
     ConnectionMeshes result;
     result.normalTris = gl.createColoredTriBatch(normal.triVerts);
     result.redTris = gl.createColoredTriBatch(red.triVerts);
-    result.normalLines = gl.createColoredLineBatch(normal.lineVerts);
-    result.redLines = gl.createColoredLineBatch(red.lineVerts);
+    result.normalLines = gl.createLineBatch(normal.lineVerts);
+    result.redLines = gl.createLineBatch(red.lineVerts);
     return result;
 }
 
@@ -775,10 +775,9 @@ void MapCanvas::paintSelectedConnection()
                         .withLineWidth(CONNECTION_LINE_WIDTH);
 
     {
-        std::vector<ColorVert> verts;
-        verts.emplace_back(Colors::red, pos1);
-        verts.emplace_back(Colors::red, pos2);
-        gl.renderColoredLines(verts, rs);
+        std::vector<LineVert> verts;
+        verts.emplace_back(LineVert{pos1, pos2, Colors::red, {0.0f, 0.0f}});
+        gl.renderLines(verts, rs);
     }
 
     std::vector<ColorVert> points;
@@ -826,8 +825,7 @@ void ConnectionDrawer::ConnectionFakeGL::drawLineStrip(const std::vector<glm::ve
         // Handle original zero-length segments first.
         const glm::vec3 segment = end_v - start_v;
         if (isNearZero(segment)) {
-            verts.emplace_back(base_color, start_v);
-            verts.emplace_back(base_color, end_v);
+            verts.emplace_back(LineVert{start_v, end_v, base_color, {0.0f, 0.0f}});
             continue;
         }
 
@@ -839,8 +837,7 @@ void ConnectionDrawer::ConnectionFakeGL::drawLineStrip(const std::vector<glm::ve
 
         // If it's not a long line, just draw a single quad.
         if (!isLongLine(start_v, end_v)) {
-            verts.emplace_back(current_segment_color, start_v);
-            verts.emplace_back(current_segment_color, end_v);
+            verts.emplace_back(LineVert{start_v, end_v, current_segment_color, {0.0f, 0.0f}});
             continue;
         }
 
@@ -852,11 +849,8 @@ void ConnectionDrawer::ConnectionFakeGL::drawLineStrip(const std::vector<glm::ve
         const glm::vec3 mid2 = glm::mix(start_v, end_v, 1.f - faintCutoff);
         const Color faint_color = current_segment_color.withAlpha(FAINT_CONNECTION_ALPHA);
 
-        verts.emplace_back(current_segment_color, start_v);
-        verts.emplace_back(current_segment_color, mid1);
-        verts.emplace_back(faint_color, mid1);
-        verts.emplace_back(faint_color, mid2);
-        verts.emplace_back(current_segment_color, mid2);
-        verts.emplace_back(current_segment_color, end_v);
+        verts.emplace_back(LineVert{start_v, mid1, current_segment_color, {0.0f, 0.0f}});
+        verts.emplace_back(LineVert{mid1, mid2, faint_color, {0.0f, 0.0f}});
+        verts.emplace_back(LineVert{mid2, end_v, current_segment_color, {0.0f, 0.0f}});
     }
 }

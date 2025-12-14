@@ -63,6 +63,19 @@ NODISCARD static const std::shared_ptr<T> &getInitialized(std::shared_ptr<T> &sh
     return shader;
 }
 
+LineShader::~LineShader() = default;
+const std::shared_ptr<LineShader> &ShaderPrograms::getLineShader()
+{
+    if (!m_line) {
+        auto shared = getFunctions().shared_from_this();
+        m_line = std::make_shared<LineShader>(std::move(shared));
+        auto vert = getShaderVersion() + readShader(":/resources/shaders/legacy/line/vert.glsl");
+        auto frag = getShaderVersion() + readShader(":/resources/shaders/legacy/line/frag.glsl");
+        m_line->compile(vert.toUtf8(), frag.toUtf8());
+    }
+    return m_line;
+}
+
 const std::shared_ptr<AColorPlainShader> &ShaderPrograms::getPlainAColorShader()
 {
     return getInitialized<AColorPlainShader>(m_aColorShader, getFunctions(), "plain/acolor");

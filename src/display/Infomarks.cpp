@@ -142,8 +142,7 @@ void InfomarksBatch::drawLine(const glm::vec3 &a, const glm::vec3 &b)
     const glm::vec3 start_v = a + m_offset;
     const glm::vec3 end_v = b + m_offset;
 
-    m_lines.emplace_back(m_color, start_v);
-    m_lines.emplace_back(m_color, end_v);
+    m_lines.emplace_back(LineVert{start_v, end_v, m_color, {0.0f, 0.0f}});
 }
 
 void InfomarksBatch::drawTriangle(const glm::vec3 &a, const glm::vec3 &b, const glm::vec3 &c)
@@ -171,7 +170,7 @@ InfomarksMeshes InfomarksBatch::getMeshes()
     auto &gl = m_realGL;
     result.points = gl.createPointBatch(m_points);
     result.tris = gl.createColoredTriBatch(m_tris);
-    result.lines = gl.createColoredLineBatch(m_lines);
+    result.lines = gl.createLineBatch(m_lines);
 
     {
         assert(!m_text.locked);
@@ -193,7 +192,7 @@ void InfomarksBatch::renderImmediate(const GLRenderState &state)
         gl.renderColoredTris(m_tris, state);
     }
     if (!m_lines.empty()) {
-        gl.renderColoredLines(m_lines, state.withLineWidth(INFOMARK_ARROW_LINE_WIDTH));
+        gl.renderLines(m_lines, state);
     }
     if (!m_text.text.empty()) {
         m_font.render3dTextImmediate(m_text.text);

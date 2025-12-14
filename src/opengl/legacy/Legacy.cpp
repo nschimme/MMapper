@@ -107,6 +107,14 @@ UniqueMesh Functions::createColoredTexturedBatch(const DrawModeEnum mode,
     return createTexturedMesh<ColoredTexturedMesh>(shared_from_this(), mode, batch, prog, texture);
 }
 
+UniqueMesh Functions::createLineBatch(const std::vector<LineVert> &batch)
+{
+    const auto &prog = getShaderPrograms().getLineShader();
+    auto mesh = std::make_unique<LineMesh>(shared_from_this(), prog);
+    mesh->setDynamic(m_quadVerts, batch);
+    return UniqueMesh{std::move(mesh)};
+}
+
 template<typename VertexType_, template<typename> typename Mesh_, typename ShaderType_>
 static void renderImmediate(const SharedFunctions &sharedFunctions,
                             const DrawModeEnum mode,
@@ -233,12 +241,28 @@ UniqueMesh Functions::createFontMesh(const SharedMMTexture &texture,
         std::make_unique<Legacy::FontMesh3d>(shared_from_this(), prog, texture, mode, batch)};
 }
 
+void Functions::renderLines(const std::vector<LineVert> &verts, const GLRenderState &state)
+{
+    if (verts.empty()) {
+        return;
+    }
+
+    const auto &prog = getShaderPrograms().getLineShader();
+    LineMesh mesh{shared_from_this(), prog};
+    mesh.setDynamic(m_quadVerts, verts);
+    mesh.render(state);
+}
+
 Functions::Functions(Badge<Functions>)
     : m_shaderPrograms{std::make_unique<ShaderPrograms>(*this)}
     , m_staticVbos{std::make_unique<StaticVbos>()}
     , m_texLookup{std::make_unique<TexLookup>()}
     , m_fbo{std::make_unique<FBO>()}
-{}
+{
+    m_quadVerts.emplace(shared_from_this());
+    m_quadVerts->setStatic(DrawModeEnum::TRIANGLE_STRIP,
+                           {{-1.0f, -1.0f}, {1.0f, -1.0f}, {-1.0f, 1.0f}, {1.0f, 1.0f}});
+}
 
 Functions::~Functions()
 {

@@ -7,6 +7,7 @@
 #include "../../global/utils.h"
 #include "../OpenGLConfig.h"
 #include "../OpenGLTypes.h"
+#include "Meshes.h"
 #include "FBO.h"
 
 #include <cmath>
@@ -102,6 +103,7 @@ private:
     std::unique_ptr<StaticVbos> m_staticVbos;
     std::unique_ptr<TexLookup> m_texLookup;
     std::unique_ptr<FBO> m_fbo;
+    VBO m_quadVerts;
     std::vector<std::shared_ptr<IRenderable>> m_staticMeshes;
 
 protected:
@@ -325,6 +327,7 @@ public:
     NODISCARD UniqueMesh createColoredTexturedBatch(DrawModeEnum mode,
                                                     const std::vector<ColoredTexVert> &batch,
                                                     MMTextureId texture);
+    NODISCARD UniqueMesh createLineBatch(const std::vector<LineVert> &batch);
 
 public:
     NODISCARD UniqueMesh createFontMesh(const SharedMMTexture &texture,
@@ -348,6 +351,7 @@ public:
                                const std::vector<ColoredTexVert> &verts,
                                const GLRenderState &state);
     void renderFont3d(const SharedMMTexture &texture, const std::vector<FontVert3d> &verts);
+    void renderLines(const std::vector<LineVert> &verts, const GLRenderState &state);
 
 public:
     void checkError();

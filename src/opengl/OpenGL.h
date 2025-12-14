@@ -127,6 +127,14 @@ public:
     {
         renderColored(DrawModeEnum::LINES, verts, state);
     }
+    void renderLines(const std::vector<LineVert> &verts, const GLRenderState &state)
+    {
+        getFunctions().renderLines(verts, state);
+    }
+    NODISCARD UniqueMesh createLineBatch(const std::vector<LineVert> &batch)
+    {
+        return getFunctions().createLineBatch(batch);
+    }
     void renderColoredTris(const std::vector<ColorVert> &verts, const GLRenderState &state)
     {
         renderColored(DrawModeEnum::TRIANGLES, verts, state);

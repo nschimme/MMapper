@@ -296,3 +296,83 @@ private:
 
 #undef VOIDPTR_OFFSETOF
 #undef VPO
+
+class NODISCARD LineMesh final : public SimpleMesh<glm::vec2, LineShader>
+{
+public:
+    using Base = SimpleMesh<glm::vec2, LineShader>;
+    using Base::Base;
+
+private:
+    struct NODISCARD Attribs final
+    {
+        GLuint fromPos = INVALID_ATTRIB_LOCATION;
+        GLuint toPos = INVALID_ATTRIB_LOCATION;
+        GLuint colorPos = INVALID_ATTRIB_LOCATION;
+        GLuint stipplePos = INVALID_ATTRIB_LOCATION;
+        GLuint cornerPos = INVALID_ATTRIB_LOCATION;
+
+        NODISCARD static Attribs getLocations(AbstractShaderProgram &shader)
+        {
+            Attribs result;
+            result.fromPos = shader.getAttribLocation("aFrom");
+            result.toPos = shader.getAttribLocation("aTo");
+            result.colorPos = shader.getAttribLocation("aColor");
+            result.stipplePos = shader.getAttribLocation("aStipple");
+            result.cornerPos = shader.getAttribLocation("aCorner");
+            return result;
+        }
+    };
+
+    std::optional<Attribs> m_boundAttribs;
+    VBO m_instanceVbo;
+
+    void virt_bind() override
+    {
+        Functions &gl = Base::m_functions;
+        const auto attribs = Attribs::getLocations(Base::m_program);
+
+        // Per-vertex attributes
+        gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
+        gl.enableAttrib(attribs.cornerPos, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
+
+        // Per-instance attributes
+        gl.glBindBuffer(GL_ARRAY_BUFFER, m_instanceVbo.get());
+        const auto stride = static_cast<GLsizei>(sizeof(LineVert));
+        gl.enableAttrib(attribs.fromPos, 3, GL_FLOAT, GL_FALSE, stride, VPO(from));
+        gl.enableAttrib(attribs.toPos, 3, GL_FLOAT, GL_FALSE, stride, VPO(to));
+        gl.enableAttrib(attribs.colorPos, 4, GL_UNSIGNED_BYTE, GL_TRUE, stride, VPO(color));
+        gl.enableAttrib(attribs.stipplePos, 2, GL_FLOAT, GL_FALSE, stride, VPO(stipple));
+
+        gl.glVertexAttribDivisor(attribs.fromPos, 1);
+        gl.glVertexAttribDivisor(attribs.toPos, 1);
+        gl.glVertexAttribDivisor(attribs.colorPos, 1);
+        gl.glVertexAttribDivisor(attribs.stipplePos, 1);
+
+        m_boundAttribs = attribs;
+    }
+
+    void virt_unbind() override
+    {
+        if (!m_boundAttribs) {
+            assert(false);
+            return;
+        }
+
+        auto &attribs = m_boundAttribs.value();
+        Functions &gl = Base::m_functions;
+        gl.glDisableVertexAttribArray(attribs.fromPos);
+        gl.glDisableVertexAttribArray(attribs.toPos);
+        gl.glDisableVertexAttribArray(attribs.colorPos);
+        gl.glDisableVertexAttribArray(attribs.stipplePos);
+        gl.glDisableVertexAttribArray(attribs.cornerPos);
+        gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+        gl.glVertexAttribDivisor(attribs.fromPos, 0);
+        gl.glVertexAttribDivisor(attribs.toPos, 0);
+        gl.glVertexAttribDivisor(attribs.colorPos, 0);
+        gl.glVertexAttribDivisor(attribs.stipplePos, 0);
+
+        m_boundAttribs.reset();
+    }
+};

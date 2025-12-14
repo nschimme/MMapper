@@ -106,8 +106,7 @@ void CharacterBatch::CharFakeGL::drawPathSegment(const glm::vec3 &p1,
                                                  const glm::vec3 &p2,
                                                  const Color &color)
 {
-    m_pathLines.emplace_back(color, p1);
-    m_pathLines.emplace_back(color, p2);
+    m_pathLines.emplace_back(LineVert{p1, p2, color, {0.0f, 0.0f}});
 }
 
 void CharacterBatch::drawPreSpammedPath(const Coordinate &c1,
@@ -337,8 +336,8 @@ void CharacterBatch::CharFakeGL::reallyDrawCharacters(OpenGL &gl, const MapCanva
     }
 
     if (!m_charLines.empty()) {
-        gl.renderColoredLines(m_charLines,
-                              blended_noDepth.withLineParams(LineParams{CHAR_ARROW_LINE_WIDTH}));
+        gl.renderLines(m_charLines,
+                              blended_noDepth.withLineWidth(CHAR_ARROW_LINE_WIDTH));
     }
 
     if (!m_screenSpaceArrows.empty()) {
@@ -359,7 +358,7 @@ void CharacterBatch::CharFakeGL::reallyDrawPaths(OpenGL &gl)
 
     gl.renderPoints(m_pathPoints, blended_noDepth.withPointSize(PATH_POINT_SIZE));
     if (!m_pathLines.empty()) {
-        gl.renderColoredLines(m_pathLines, blended_noDepth.withLineWidth(PATH_LINE_WIDTH));
+        gl.renderLines(m_pathLines, blended_noDepth.withLineWidth(PATH_LINE_WIDTH));
     }
 }
 

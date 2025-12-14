@@ -18,9 +18,15 @@
 #include <QPixmap>
 #include <QScrollBar>
 
+#include "../observer/gameobserver.h"
+
 class QResizeEvent;
 
-MapWindow::MapWindow(MapData &mapData, PrespammedPath &pp, Mmapper2Group &gm, QWidget *const parent)
+MapWindow::MapWindow(MapData &mapData,
+                     PrespammedPath &pp,
+                     Mmapper2Group &gm,
+                     GameObserver &observer,
+                     QWidget *const parent)
     : QWidget(parent)
 {
     m_gridLayout = std::make_unique<QGridLayout>(this);
@@ -43,7 +49,7 @@ MapWindow::MapWindow(MapData &mapData, PrespammedPath &pp, Mmapper2Group &gm, QW
 
     m_gridLayout->addWidget(m_horizontalScrollBar.get(), 1, 0, 1, 1);
 
-    m_canvas = std::make_unique<MapCanvas>(mapData, pp, gm, this);
+    m_canvas = std::make_unique<MapCanvas>(mapData, pp, gm, observer, this);
     MapCanvas *const canvas = m_canvas.get();
 
     m_gridLayout->addWidget(canvas, 0, 0, 1, 1);

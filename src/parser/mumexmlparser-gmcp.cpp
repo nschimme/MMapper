@@ -12,6 +12,7 @@
 #include "../proxy/GmcpMessage.h"
 #include "abstractparser.h"
 #include "mumexmlparser.h"
+#include "../observer/gameobserver.h"
 
 #include <optional>
 #include <utility>

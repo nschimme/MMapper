@@ -46,6 +46,8 @@ class QOpenGLDebugMessage;
 class QWheelEvent;
 class QWidget;
 class RoomSelFakeGL;
+class WeatherRenderer;
+class GameObserver;
 
 class NODISCARD_QOBJECT MapCanvas final : public QOpenGLWidget,
                                           private MapCanvasViewport,
@@ -144,12 +146,14 @@ private:
     Diff m_diff;
     FrameRateController m_frameRateController;
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
+    std::unique_ptr<WeatherRenderer> m_weatherRenderer;
     Signal2Lifetime m_lifetime;
 
 public:
     explicit MapCanvas(MapData &mapData,
                        PrespammedPath &prespammedPath,
                        Mmapper2Group &groupManager,
+                       GameObserver &observer,
                        QWidget *parent);
     ~MapCanvas() final;
 
@@ -198,8 +202,11 @@ protected:
     void wheelEvent(QWheelEvent *event) override;
     bool event(QEvent *e) override;
 
-private:
+public:
     void setAnimating(bool value);
+    float getElapsedTime() const;
+
+private:
     void renderLoop();
 
 private:

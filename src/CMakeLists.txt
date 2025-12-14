@@ -64,6 +64,8 @@ set(mmapper_SRCS
     display/RoomSelections.cpp
     display/Textures.cpp
     display/Textures.h
+    display/WeatherRenderer.cpp
+    display/WeatherRenderer.h
     display/connectionselection.cpp
     display/connectionselection.h
     display/mapcanvas.cpp

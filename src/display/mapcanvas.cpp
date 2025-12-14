@@ -21,6 +21,7 @@
 #include "InfomarkSelection.h"
 #include "MapCanvasData.h"
 #include "MapCanvasRoomDrawer.h"
+#include "WeatherRenderer.h"
 #include "connectionselection.h"
 
 #include <array>
@@ -56,6 +57,7 @@ NODISCARD static NonOwningPointer &primaryMapCanvas()
 MapCanvas::MapCanvas(MapData &mapData,
                      PrespammedPath &prespammedPath,
                      Mmapper2Group &groupManager,
+                     GameObserver &observer,
                      QWidget *const parent)
     : QOpenGLWidget{parent}
     , MapCanvasViewport{static_cast<QWidget &>(*this)}
@@ -66,6 +68,7 @@ MapCanvas::MapCanvas(MapData &mapData,
     , m_data{mapData}
     , m_groupManager{groupManager}
 {
+    m_weatherRenderer = std::make_unique<WeatherRenderer>(*this, deref(m_opengl.getSharedFunctions(Badge<MapCanvas>{})), observer);
     NonOwningPointer &pmc = primaryMapCanvas();
     if (pmc == nullptr) {
         pmc = this;

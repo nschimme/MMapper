@@ -2,6 +2,7 @@
 // Copyright (C) 2019 The MMapper Authors
 
 #include "Shaders.h"
+#include "Legacy.h"
 
 #include "ShaderUtils.h"
 
@@ -33,6 +34,26 @@ AColorTexturedShader::~AColorTexturedShader() = default;
 UColorTexturedShader::~UColorTexturedShader() = default;
 FontShader::~FontShader() = default;
 PointShader::~PointShader() = default;
+GenericShader::~GenericShader() = default;
+
+std::shared_ptr<AbstractShaderProgram> ShaderPrograms::getShader(const std::string &name)
+{
+    auto it = m_customShaders.find(name);
+    if (it != m_customShaders.end()) {
+        return it->second;
+    }
+
+    auto shader = std::make_shared<GenericShader>(getFunctions().shared_from_this());
+    const auto getSource = [&name](const std::string &fileName) -> ShaderUtils::Source {
+        return ::readWholeShader(name, fileName);
+    };
+    auto program = ShaderUtils::loadShaders(getFunctions(),
+                                            getSource("vert.glsl"),
+                                            getSource("frag.glsl"));
+    shader->setProgram(std::move(program));
+    m_customShaders[name] = shader;
+    return shader;
+}
 
 // essentially a private member of ShaderPrograms
 template<typename T>
@@ -48,7 +69,9 @@ NODISCARD static std::shared_ptr<T> loadSimpleShaderProgram(Functions &functions
     auto program = ShaderUtils::loadShaders(functions,
                                             getSource("vert.glsl"),
                                             getSource("frag.glsl"));
-    return std::make_shared<T>(dir, functions.shared_from_this(), std::move(program));
+    auto shader = std::make_shared<T>(functions.shared_from_this());
+    shader->setProgram(std::move(program));
+    return shader;
 }
 
 // essentially a private member of ShaderPrograms

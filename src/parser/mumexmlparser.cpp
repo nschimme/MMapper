@@ -5,6 +5,7 @@
 
 #include "mumexmlparser.h"
 
+#include "../observer/gameobserver.h"
 #include "../configuration/configuration.h"
 #include "../global/AnsiOstream.h"
 #include "../global/Consts.h"

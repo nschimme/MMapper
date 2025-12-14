@@ -32,7 +32,7 @@
 
 #define SUBGROUP() \
     friend class Configuration; \
-    void read(const QSettings &conf); \
+    void read(QSettings &conf); \
     void write(QSettings &conf) const
 
 class NODISCARD Configuration final
@@ -180,6 +180,20 @@ public:
 
         struct NODISCARD Advanced final
         {
+            struct NODISCARD WeatherEffects final
+            {
+                NamedConfig<bool> showFog{"MMAPPER_SHOW_FOG", true};
+                NamedConfig<bool> showRain{"MMAPPER_SHOW_RAIN", true};
+                NamedConfig<bool> showSnow{"MMAPPER_SHOW_SNOW", true};
+                NamedConfig<bool> showTimeOfDay{"MMAPPER_SHOW_TIMEOFDAY", true};
+
+            public:
+                void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                            const ChangeMonitor::Function &callback);
+
+                WeatherEffects();
+            } weatherEffects;
+
             NamedConfig<bool> use3D{"MMAPPER_3D", true};
             NamedConfig<bool> autoTilt{"MMAPPER_AUTO_TILT", true};
             NamedConfig<bool> printPerfStats{"MMAPPER_GL_PERFSTATS", IS_DEBUG_BUILD};

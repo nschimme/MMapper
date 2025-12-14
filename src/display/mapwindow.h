@@ -60,7 +60,11 @@ private:
     } m_knownMapSize;
 
 public:
-    explicit MapWindow(MapData &mapData, PrespammedPath &pp, Mmapper2Group &gm, QWidget *parent);
+    explicit MapWindow(MapData &mapData,
+                       PrespammedPath &pp,
+                       Mmapper2Group &gm,
+                       GameObserver &observer,
+                       QWidget *parent);
     ~MapWindow() final;
 
 public:

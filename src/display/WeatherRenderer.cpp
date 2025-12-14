@@ -26,8 +26,8 @@ public:
         std::vector<float> particleData;
         std::random_device rd;
         std::mt19937 gen(rd());
-        std::uniform_real_distribution<> dis(-100.0, 100.0);
-        std::uniform_real_distribution<> dis_y(0.0, 200.0);
+        std::uniform_real_distribution<float> dis(-100.0f, 100.0f);
+        std::uniform_real_distribution<float> dis_y(0.0f, 200.0f);
 
         for (int i = 0; i < 1000; ++i) {
             particleData.push_back(dis(gen)); // start x
@@ -41,7 +41,7 @@ public:
         m_particleVbo = std::make_unique<Legacy::VBO>();
         m_particleVbo->emplace(m_gl.shared_from_this());
         m_gl.glBindBuffer(GL_ARRAY_BUFFER, m_particleVbo->get());
-        m_gl.glBufferData(GL_ARRAY_BUFFER, particleData.size() * sizeof(float), particleData.data(), GL_STATIC_DRAW);
+        m_gl.glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(particleData.size() * sizeof(float)), particleData.data(), GL_STATIC_DRAW);
     }
 
     void render() {
@@ -58,7 +58,8 @@ public:
             case MumeTimeEnum::NIGHT:
                 color = Color(0.2f, 0.2f, 0.8f, 0.2f);
                 break;
-            default:
+            case MumeTimeEnum::UNKNOWN:
+            case MumeTimeEnum::DAY:
                 break;
             }
             if (color.getAlpha() > 0) {
@@ -87,11 +88,11 @@ public:
 
         GLuint posAttrib = m_particleShader->getAttribLocation("aStartPosition");
         m_gl.glEnableVertexAttribArray(posAttrib);
-        m_gl.glVertexAttribPointer(posAttrib, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), 0);
+        m_gl.glVertexAttribPointer(posAttrib, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), nullptr);
 
         GLuint velAttrib = m_particleShader->getAttribLocation("aVelocity");
         m_gl.glEnableVertexAttribArray(velAttrib);
-        m_gl.glVertexAttribPointer(velAttrib, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+        m_gl.glVertexAttribPointer(velAttrib, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), reinterpret_cast<void*>(3 * sizeof(float)));
 
         if (rain) {
             m_gl.glDrawArrays(GL_POINTS, 0, 500);
@@ -102,8 +103,8 @@ public:
 
         if (config.showFog.get() && (m_fog == PromptFogEnum::LIGHT_FOG || m_fog == PromptFogEnum::HEAVY_FOG)) {
             auto fogBinder = m_fogShader->bind();
-            GLint timeLoc = m_fogShader->getUniformLocation("uTime");
-            m_fogShader->setUniform1fv(timeLoc, 1, &m_elapsedTime);
+            GLint fogTimeLoc = m_fogShader->getUniformLocation("uTime");
+            m_fogShader->setUniform1fv(fogTimeLoc, 1, &m_elapsedTime);
             m_gl.glBindVertexArray(m_vao->get());
             m_gl.glDrawArrays(GL_TRIANGLES, 0, 6);
         }

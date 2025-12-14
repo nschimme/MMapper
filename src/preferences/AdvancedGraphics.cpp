@@ -195,8 +195,8 @@ AdvancedGraphicsGroupBox::AdvancedGraphicsGroupBox(QGroupBox &groupBox)
 
     auto &weatherEffects = setConfig().canvas.advanced.weatherEffects;
 
-    auto addWeatherCheckbox = [this, vertical, &weatherEffects](const QString &name,
-                                                                NamedConfig<bool> &config) {
+    auto addWeatherCheckbox = [this, vertical](const QString &name,
+                                               NamedConfig<bool> &config) {
         auto *checkbox = new QCheckBox(name);
         checkbox->setChecked(config.get());
         vertical->addWidget(checkbox);

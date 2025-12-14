@@ -33,6 +33,14 @@ struct NODISCARD TexVert final
     {}
 };
 
+struct NODISCARD LineVert final
+{
+    glm::vec3 from;
+    glm::vec3 to;
+    Color color;
+    glm::vec2 stipple;
+};
+
 using TexVertVector = std::vector<TexVert>;
 
 struct NODISCARD ColoredTexVert final
@@ -190,6 +198,7 @@ struct NODISCARD GLRenderState final
         // glEnable(TEXTURE_2D), or glEnable(TEXTURE_3D)
         Textures textures;
         std::optional<float> pointSize;
+        float lineWidth = 1.0f;
     };
 
     Uniforms uniforms;
@@ -239,7 +248,7 @@ struct NODISCARD GLRenderState final
     NODISCARD GLRenderState withLineWidth(const float new_lineWidth) const
     {
         GLRenderState copy = *this;
-        copy.lineParams.width = new_lineWidth;
+        copy.uniforms.lineWidth = new_lineWidth;
         return copy;
     }
 

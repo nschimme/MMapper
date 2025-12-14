@@ -191,6 +191,30 @@ AdvancedGraphicsGroupBox::AdvancedGraphicsGroupBox(QGroupBox &groupBox)
     autoTilt->setChecked(MapCanvasConfig::isAutoTilt());
     vertical->addWidget(autoTilt);
 
+    addLine(*vertical);
+
+    auto &weatherEffects = setConfig().canvas.advanced.weatherEffects;
+
+    auto addWeatherCheckbox = [this, vertical, &weatherEffects](const QString &name,
+                                                                NamedConfig<bool> &config) {
+        auto *checkbox = new QCheckBox(name);
+        checkbox->setChecked(config.get());
+        vertical->addWidget(checkbox);
+        connect(checkbox, &QCheckBox::stateChanged, this, [this, &config](int state) {
+            config.set(state == Qt::Checked);
+            graphicsSettingsChanged();
+        });
+        config.registerChangeCallback(m_lifetime, [checkbox, &config]() {
+            SignalBlocker sb{*checkbox};
+            checkbox->setChecked(config.get());
+        });
+    };
+
+    addWeatherCheckbox("Show Fog", weatherEffects.showFog);
+    addWeatherCheckbox("Show Rain", weatherEffects.showRain);
+    addWeatherCheckbox("Show Snow", weatherEffects.showSnow);
+    addWeatherCheckbox("Show Time of Day", weatherEffects.showTimeOfDay);
+
     {
         // NOTE: This is a slight abuse of the interface, because we're taking a persistent reference.
         auto &advanced = setConfig().canvas.advanced;

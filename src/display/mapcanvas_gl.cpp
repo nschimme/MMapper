@@ -24,6 +24,7 @@
 #include "MapCanvasData.h"
 #include "MapCanvasRoomDrawer.h"
 #include "Textures.h"
+#include "WeatherRenderer.h"
 #include "connectionselection.h"
 #include "mapcanvas.h"
 
@@ -283,6 +284,8 @@ void MapCanvas::initializeGL()
         this->updateTextures();
         this->update();
     });
+
+    m_weatherRenderer->initialize();
 }
 
 /* Direct means it is always called from the emitter's thread */
@@ -529,6 +532,14 @@ void MapCanvas::renderLoop()
     m_frameRateController.lastFrameTime = now;
 }
 
+float MapCanvas::getElapsedTime() const
+{
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::duration<float>>(
+        now - m_frameRateController.lastFrameTime);
+    return elapsed.count();
+}
+
 void MapCanvas::updateBatches()
 {
     updateMapBatches();
@@ -651,6 +662,8 @@ void MapCanvas::actuallyPaintGL()
     paintSelections();
     paintCharacters();
     paintDifferences();
+
+    m_weatherRenderer->render();
 
     gl.releaseFbo();
     gl.blitFboToDefault();

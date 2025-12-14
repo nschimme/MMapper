@@ -5,6 +5,8 @@
 #include "AbstractShaderProgram.h"
 
 #include <memory>
+#include <map>
+#include <string>
 
 namespace Legacy {
 
@@ -111,6 +113,21 @@ private:
     }
 };
 
+struct NODISCARD GenericShader final : public AbstractShaderProgram
+{
+public:
+    using AbstractShaderProgram::AbstractShaderProgram;
+
+    ~GenericShader() final;
+
+private:
+    void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final
+    {
+        (void)uniforms;
+        setMatrix("uMVP", mvp);
+    }
+};
+
 /* owned by Functions */
 struct NODISCARD ShaderPrograms final
 {
@@ -122,6 +139,7 @@ private:
     std::shared_ptr<UColorTexturedShader> m_uTexturedShader;
     std::shared_ptr<FontShader> m_font;
     std::shared_ptr<PointShader> m_point;
+    std::map<std::string, std::shared_ptr<AbstractShaderProgram>> m_customShaders;
 
 public:
     explicit ShaderPrograms(Functions &functions)
@@ -142,9 +160,11 @@ public:
         m_uTexturedShader.reset();
         m_font.reset();
         m_point.reset();
+        m_customShaders.clear();
     }
 
 public:
+    NODISCARD std::shared_ptr<AbstractShaderProgram> getShader(const std::string &name);
     // attribute color (aka "Colored")
     NODISCARD const std::shared_ptr<AColorPlainShader> &getPlainAColorShader();
     // uniform color (aka "Plain")

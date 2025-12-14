@@ -23,9 +23,11 @@ public:
     DELETE_CTORS_AND_ASSIGN_OPS(AbstractShaderProgram);
 
 public:
-    AbstractShaderProgram(std::string dirName, const SharedFunctions &functions, Program program);
+    explicit AbstractShaderProgram(const SharedFunctions &functions);
 
     virtual ~AbstractShaderProgram();
+
+    void setProgram(Program program);
 
     NODISCARD GLuint getProgram() const { return m_program.get(); }
 

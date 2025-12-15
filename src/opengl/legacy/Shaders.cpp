@@ -110,7 +110,7 @@ void LineShader::virt_setUniforms(const glm::mat4 &mvp,
 
     const auto functions = m_functions.lock();
     setFloat("uWidth", functions->getDevicePixelRatio() * 2.f);
-    setViewport("uViewport", deref(functions).getViewport());
+    setViewportF("uViewport", deref(functions).getViewport());
 }
 
 } // namespace Legacy

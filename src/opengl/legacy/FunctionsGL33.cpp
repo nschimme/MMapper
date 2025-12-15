@@ -24,6 +24,8 @@ std::optional<GLenum> FunctionsGL33::virt_toGLenum(const DrawModeEnum mode)
         return GL_LINES;
     case DrawModeEnum::TRIANGLES:
         return GL_TRIANGLES;
+    case DrawModeEnum::TRIANGLE_STRIP:
+        return GL_TRIANGLE_STRIP;
     case DrawModeEnum::QUADS:
 #ifndef MMAPPER_NO_OPENGL
         return canRenderQuads() ? std::make_optional(GL_QUADS) : std::nullopt;

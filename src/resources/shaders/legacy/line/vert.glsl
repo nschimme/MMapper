@@ -4,9 +4,25 @@ uniform float uWidth;
 
 in vec3 aFrom;
 in vec3 aTo;
+in vec4 aColor;
+
+out vec3 vFrom;
+out vec3 vTo;
+out vec4 vColor;
+out float vT;
 
 void main()
 {
+    vFrom = aFrom;
+    vTo = aTo;
+    vColor = aColor;
+
+    if (gl_VertexID < 2) {
+        vT = 0.0;
+    } else {
+        vT = 1.0;
+    }
+
     vec4 p1 = uMVP * vec4(aFrom, 1.0);
     vec4 p2 = uMVP * vec4(aTo, 1.0);
 

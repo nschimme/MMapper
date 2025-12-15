@@ -65,6 +65,7 @@ struct NODISCARD LineVert final
 {
     glm::vec3 from;
     glm::vec3 to;
+    Color color;
 };
 
 // Similar to ColoredTexVert, except it has a base position in world coordinates.
@@ -100,12 +101,10 @@ enum class NODISCARD DrawModeEnum {
     TRIANGLE_STRIP = 5
 };
 
-struct NODISCARD LineWidth final
+struct NODISCARD LineParams final
 {
     float width = 1.f;
-    explicit LineWidth(const float width_)
-        : width{width_}
-    {}
+    bool connectionFading = false;
 };
 
 #define XFOREACH_DEPTHFUNC(X) \
@@ -198,7 +197,7 @@ struct NODISCARD GLRenderState final
         // glEnable(TEXTURE_2D), or glEnable(TEXTURE_3D)
         Textures textures;
         std::optional<float> pointSize;
-        std::optional<LineWidth> lineWidth;
+        std::optional<LineParams> lineParams;
     };
 
     Uniforms uniforms;
@@ -238,10 +237,10 @@ struct NODISCARD GLRenderState final
         return copy;
     }
 
-    NODISCARD GLRenderState withLineWidth(const LineWidth &new_lineWidth) const
+    NODISCARD GLRenderState withLineParams(const LineParams &new_lineParams) const
     {
         GLRenderState copy = *this;
-        copy.uniforms.lineWidth = new_lineWidth;
+        copy.uniforms.lineParams = new_lineParams;
         return copy;
     }
 

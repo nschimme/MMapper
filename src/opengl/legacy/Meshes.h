@@ -336,12 +336,14 @@ private:
     {
         GLuint fromPos = INVALID_ATTRIB_LOCATION;
         GLuint toPos = INVALID_ATTRIB_LOCATION;
+        GLuint colorPos = INVALID_ATTRIB_LOCATION;
 
         NODISCARD static Attribs getLocations(AbstractShaderProgram &shader)
         {
             Attribs result;
             result.fromPos = shader.getAttribLocation("aFrom");
             result.toPos = shader.getAttribLocation("aTo");
+            result.colorPos = shader.getAttribLocation("aColor");
             return result;
         }
     };
@@ -353,6 +355,7 @@ private:
         const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
         static_assert(sizeof(std::declval<VertexType_>().from) == (3 * sizeof(GLfloat)));
         static_assert(sizeof(std::declval<VertexType_>().to) == (3 * sizeof(GLfloat)));
+        static_assert(sizeof(std::declval<VertexType_>().color) == (4 * sizeof(uint8_t)));
 
         Functions &gl = m_functions;
         const auto attribs = Attribs::getLocations(m_program);
@@ -360,9 +363,11 @@ private:
 
         gl.enableAttrib(attribs.fromPos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(from));
         gl.enableAttrib(attribs.toPos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(to));
+        gl.enableAttrib(attribs.colorPos, 4, GL_UNSIGNED_BYTE, GL_TRUE, vertSize, VPO(color));
 
         gl.glVertexAttribDivisor(attribs.fromPos, 1);
         gl.glVertexAttribDivisor(attribs.toPos, 1);
+        gl.glVertexAttribDivisor(attribs.colorPos, 1);
         m_boundAttribs = attribs;
     }
 
@@ -378,9 +383,11 @@ private:
 
         gl.glVertexAttribDivisor(attribs.fromPos, 0);
         gl.glVertexAttribDivisor(attribs.toPos, 0);
+        gl.glVertexAttribDivisor(attribs.colorPos, 0);
 
         gl.glDisableVertexAttribArray(attribs.fromPos);
         gl.glDisableVertexAttribArray(attribs.toPos);
+        gl.glDisableVertexAttribArray(attribs.colorPos);
 
         gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
         m_boundAttribs.reset();

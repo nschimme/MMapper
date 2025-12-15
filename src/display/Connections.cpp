@@ -484,11 +484,20 @@ void ConnectionDrawer::drawConnectionLine(const ExitDirEnum startDir,
 
 void ConnectionDrawer::drawLineStrip(const std::vector<glm::vec3> &points)
 {
-    std::vector<LineVert> lines;
-    for (size_t i = 1; i < points.size(); ++i) {
-        lines.emplace_back(LineVert{points[i - 1], points[i]});
+    if (points.size() < 2) {
+        return;
     }
-    getFakeGL().drawLines(lines);
+
+    std::vector<LineVert> lines;
+    lines.reserve(points.size() - 1);
+    auto &gl = getFakeGL();
+    const auto &color = gl.isNormal()
+                            ? getCanvasNamedColorOptions().connectionNormalColor.getColor()
+                            : Colors::red;
+    for (size_t i = 1; i < points.size(); ++i) {
+        lines.emplace_back(LineVert{points[i - 1], points[i], color});
+    }
+    gl.drawLines(lines);
 }
 
 void ConnectionDrawer::drawConnStartTri(const ExitDirEnum startDir, const float srcZ)
@@ -626,29 +635,33 @@ ConnectionMeshes ConnectionDrawerBuffers::getMeshes(OpenGL &gl) const
     ConnectionMeshes result;
     result.normalTris = gl.createColoredTriBatch(normal.triVerts);
     result.redTris = gl.createColoredTriBatch(red.triVerts);
-    result.normalLines = gl.createLineBatch(normal.lineVerts);
-    result.redLines = gl.createLineBatch(red.lineVerts);
+
+    auto combinedLines = normal.lineVerts;
+    combinedLines.insert(combinedLines.end(), red.lineVerts.begin(), red.lineVerts.end());
+    result.lines = gl.createLineBatch(combinedLines);
     return result;
 }
 
 void ConnectionMeshes::render(const int thisLayer, const int focusedLayer) const
 {
-    const auto color = std::invoke([&thisLayer, &focusedLayer]() -> Color {
+    const auto tri_color = std::invoke([&thisLayer, &focusedLayer]() -> Color {
         if (thisLayer == focusedLayer) {
             return getCanvasNamedColorOptions().connectionNormalColor.getColor();
         }
         return Colors::gray70.withAlpha(FAINT_CONNECTION_ALPHA);
     });
-    const auto common_style = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withColor(color);
+    const auto common_style = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY);
+    const auto tri_style = common_style.withColor(tri_color);
+    const auto line_style =
+        common_style.withLineParams(LineParams{CONNECTION_LINE_WIDTH, true});
 
     // Even though we can draw colored lines and tris,
     // the reason for having separate lines is so red will always be on top.
     // If you don't think that's important, you can combine the batches.
 
-    normalTris.render(common_style);
-    redTris.render(common_style);
-    normalLines.render(common_style);
-    redLines.render(common_style);
+    normalTris.render(tri_style);
+    redTris.render(tri_style);
+    lines.render(line_style);
 }
 
 void MapCanvas::paintNearbyConnectionPoints()
@@ -768,7 +781,7 @@ void MapCanvas::paintSelectedConnection()
 
     {
         std::vector<LineVert> verts;
-        verts.emplace_back(LineVert{pos1, pos2});
+        verts.emplace_back(LineVert{pos1, pos2, Colors::red});
         gl.renderLines(verts, rs);
     }
 
@@ -801,6 +814,6 @@ void ConnectionDrawer::ConnectionFakeGL::drawLines(const std::vector<LineVert> &
 {
     auto &verts = deref(m_currentBuffer).lineVerts;
     for (const auto &line : lines) {
-        verts.emplace_back(LineVert{line.from + m_offset, line.to + m_offset});
+        verts.emplace_back(LineVert{line.from + m_offset, line.to + m_offset, line.color});
     }
 }

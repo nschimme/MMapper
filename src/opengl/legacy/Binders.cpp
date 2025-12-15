@@ -97,12 +97,22 @@ DepthBinder::~DepthBinder()
     }
 }
 
-LineWidthBinder::LineWidthBinder(Functions &functions, const std::optional<LineWidth> &lineWidth)
+LineParamsBinder::LineParamsBinder(Functions &functions,
+                                     const std::optional<LineParams> &lineParams)
     : m_functions{functions}
-    , m_optLineWidth{lineWidth}
-{}
+    , m_optLineParams{lineParams}
+{
+    if (m_optLineParams) {
+        m_functions.glLineWidth(m_optLineParams->width);
+    }
+}
 
-LineWidthBinder::~LineWidthBinder() = default;
+LineParamsBinder::~LineParamsBinder()
+{
+    if (m_optLineParams) {
+        m_functions.glLineWidth(1.f);
+    }
+}
 
 PointSizeBinder::PointSizeBinder(Functions &functions, const std::optional<GLfloat> &pointSize)
     : m_functions{functions}
@@ -162,7 +172,7 @@ RenderStateBinder::RenderStateBinder(Functions &functions,
     : m_blendBinder{functions, renderState.blend}
     , m_cullingBinder{functions, renderState.culling}
     , m_depthBinder{functions, renderState.depth}
-    , m_lineWidthBinder{functions, renderState.uniforms.lineWidth}
+    , m_lineParamsBinder{functions, renderState.uniforms.lineParams}
     , m_pointSizeBinder{functions, renderState.uniforms.pointSize}
     , m_texturesBinder{texLookup, renderState.uniforms.textures}
 {}

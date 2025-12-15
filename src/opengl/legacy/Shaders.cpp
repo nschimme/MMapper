@@ -108,8 +108,15 @@ void LineShader::virt_setUniforms(const glm::mat4 &mvp,
 
     const auto functions = m_functions.lock();
     const auto dpr = deref(functions).getDevicePixelRatio();
-    const auto width = uniforms.lineWidth.has_value() ? uniforms.lineWidth.value().width : 1.f;
-    setFloat("uWidth", width * dpr);
+    if (const auto &lineParams = uniforms.lineParams) {
+        setFloat("uWidth", lineParams->width * dpr);
+        const GLint val = lineParams->connectionFading;
+        setUniform1iv(getUniformLocation("u_connectionFading"), 1, &val);
+    } else {
+        setFloat("uWidth", 1.0f * dpr);
+        const GLint val = 0;
+        setUniform1iv(getUniformLocation("u_connectionFading"), 1, &val);
+    }
 
     setViewportF("uViewport", deref(functions).getViewport());
 }

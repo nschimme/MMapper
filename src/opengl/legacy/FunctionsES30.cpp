@@ -22,7 +22,8 @@ std::optional<GLenum> FunctionsES30::virt_toGLenum(const DrawModeEnum mode)
         return GL_LINES;
     case DrawModeEnum::TRIANGLES:
         return GL_TRIANGLES;
-
+    case DrawModeEnum::TRIANGLE_STRIP:
+        return GL_TRIANGLE_STRIP;
     case DrawModeEnum::INVALID:
     case DrawModeEnum::QUADS:
         break;
@@ -42,3 +43,4 @@ void FunctionsES30::virt_enableProgramPointSize(bool /* enable */)
 }
 
 } // namespace Legacy
+

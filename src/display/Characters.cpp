@@ -332,7 +332,7 @@ void CharacterBatch::CharFakeGL::reallyDrawCharacters(OpenGL &gl, const MapCanva
 
     if (!m_charLines.empty()) {
         gl.renderLines(m_charLines,
-                       blended_noDepth.withLineParams(LineParams{CHAR_ARROW_LINE_WIDTH}));
+                       blended_noDepth.withLineWidth(LineWidth{CHAR_ARROW_LINE_WIDTH}));
     }
 
     if (!m_screenSpaceArrows.empty()) {
@@ -353,7 +353,7 @@ void CharacterBatch::CharFakeGL::reallyDrawPaths(OpenGL &gl)
 
     gl.renderPoints(m_pathPoints, blended_noDepth.withPointSize(PATH_POINT_SIZE));
     if (!m_pathLines.empty()) {
-        gl.renderLines(m_pathLines, blended_noDepth.withLineParams(LineParams{PATH_LINE_WIDTH}));
+        gl.renderLines(m_pathLines, blended_noDepth.withLineWidth(LineWidth{PATH_LINE_WIDTH}));
     }
 }
 

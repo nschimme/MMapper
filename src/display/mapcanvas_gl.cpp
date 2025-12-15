@@ -996,7 +996,7 @@ void MapCanvas::paintSelectionArea()
         const auto selFgColor = Colors::yellow;
         {
             static constexpr float SELECTION_AREA_LINE_WIDTH = 2.f;
-            const auto lineStyle = rs.withLineParams(LineParams{SELECTION_AREA_LINE_WIDTH});
+            const auto lineStyle = rs.withLineWidth(LineWidth{SELECTION_AREA_LINE_WIDTH});
             const std::vector<glm::vec3> verts{A, B, B, C, C, D, D, A};
 
             // FIXME: ASAN flags this as out-of-bounds memory access inside an assertion

@@ -51,16 +51,16 @@ public:
     DELETE_CTORS_AND_ASSIGN_OPS(DepthBinder);
 };
 
-struct NODISCARD LineParamsBinder
+struct NODISCARD LineWidthBinder
 {
 private:
     Functions &m_functions;
-    const LineParams &m_lineParams;
+    const std::optional<LineWidth> &m_optLineWidth;
 
 public:
-    explicit LineParamsBinder(Functions &functions, const LineParams &lineParams);
-    ~LineParamsBinder();
-    DELETE_CTORS_AND_ASSIGN_OPS(LineParamsBinder);
+    explicit LineWidthBinder(Functions &functions, const std::optional<LineWidth> &lineWidth);
+    ~LineWidthBinder();
+    DELETE_CTORS_AND_ASSIGN_OPS(LineWidthBinder);
 };
 
 struct NODISCARD PointSizeBinder
@@ -96,7 +96,7 @@ private:
     BlendBinder m_blendBinder;
     CullingBinder m_cullingBinder;
     DepthBinder m_depthBinder;
-    LineParamsBinder m_lineParamsBinder;
+    LineWidthBinder m_lineWidthBinder;
     PointSizeBinder m_pointSizeBinder;
     TexturesBinder m_texturesBinder;
 

@@ -100,15 +100,11 @@ enum class NODISCARD DrawModeEnum {
     TRIANGLE_STRIP = 5
 };
 
-struct NODISCARD LineParams final
+struct NODISCARD LineWidth final
 {
     float width = 1.f;
-    float stipple = 0.f;
-    LineParams() = default;
-
-    explicit LineParams(const float width_, const float stipple_ = 0.f)
+    explicit LineWidth(const float width_)
         : width{width_}
-        , stipple{stipple_}
     {}
 };
 
@@ -195,9 +191,6 @@ struct NODISCARD GLRenderState final
     using OptDepth = std::optional<DepthFunctionEnum>;
     OptDepth depth;
 
-    // glLineWidth() + { glEnable(LINE_STIPPLE) + glLineStipple() }
-    LineParams lineParams;
-
     using Textures = MMapper::Array<MMTextureId, 2>;
     struct NODISCARD Uniforms final
     {
@@ -205,6 +198,7 @@ struct NODISCARD GLRenderState final
         // glEnable(TEXTURE_2D), or glEnable(TEXTURE_3D)
         Textures textures;
         std::optional<float> pointSize;
+        std::optional<LineWidth> lineWidth;
     };
 
     Uniforms uniforms;
@@ -244,10 +238,10 @@ struct NODISCARD GLRenderState final
         return copy;
     }
 
-    NODISCARD GLRenderState withLineParams(const LineParams &new_lineParams) const
+    NODISCARD GLRenderState withLineWidth(const LineWidth &new_lineWidth) const
     {
         GLRenderState copy = *this;
-        copy.lineParams = new_lineParams;
+        copy.uniforms.lineWidth = new_lineWidth;
         return copy;
     }
 

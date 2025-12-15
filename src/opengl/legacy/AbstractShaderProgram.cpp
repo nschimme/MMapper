@@ -38,11 +38,10 @@ void AbstractShaderProgram::unbind()
 }
 
 void AbstractShaderProgram::setUniforms(const glm::mat4 &mvp,
-                                        const GLRenderState::Uniforms &uniforms,
-                                        const LineParams &lineParams)
+                                        const GLRenderState::Uniforms &uniforms)
 {
     assert(m_isBound);
-    virt_setUniforms(mvp, uniforms, lineParams);
+    virt_setUniforms(mvp, uniforms);
 
     if (uniforms.pointSize.has_value()) {
         setPointSize(uniforms.pointSize.value());

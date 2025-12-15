@@ -60,14 +60,11 @@ private:
 
 public:
     // set program uniforms...
-    void setUniforms(const glm::mat4 &mvp,
-                     const GLRenderState::Uniforms &uniforms,
-                     const LineParams &lineParams);
+    void setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms);
 
 private:
     virtual void virt_setUniforms(const glm::mat4 &mvp,
-                                  const GLRenderState::Uniforms &uniforms,
-                                  const LineParams &lineParams) = 0;
+                                  const GLRenderState::Uniforms &uniforms) = 0;
 
 public:
     NODISCARD GLuint getAttribLocation(const char *name) const;

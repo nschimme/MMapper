@@ -101,15 +101,16 @@ const std::shared_ptr<LineShader> &ShaderPrograms::getLineShader()
 LineShader::~LineShader() = default;
 
 void LineShader::virt_setUniforms(const glm::mat4 &mvp,
-                                  const GLRenderState::Uniforms &uniforms,
-                                  const LineParams &lineParams)
+                                  const GLRenderState::Uniforms &uniforms)
 {
     setColor("uColor", uniforms.color);
     setMatrix("uMVP", mvp);
-    setFloat("uStipple", lineParams.stipple);
 
     const auto functions = m_functions.lock();
-    setFloat("uWidth", functions->getDevicePixelRatio() * 2.f);
+    const auto dpr = deref(functions).getDevicePixelRatio();
+    const auto width = uniforms.lineWidth.has_value() ? uniforms.lineWidth.value().width : 1.f;
+    setFloat("uWidth", width * dpr);
+
     setViewportF("uViewport", deref(functions).getViewport());
 }
 

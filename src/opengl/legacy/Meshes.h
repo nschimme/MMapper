@@ -299,6 +299,18 @@ public:
     using Base = SimpleMesh<VertexType_, LineShader>;
     using Base::Base;
 
+    void setDynamic(const DrawModeEnum mode, const std::vector<VertexType_> &verts)
+    {
+        Base::setDynamic(mode, verts);
+        Base::m_numVerts = 4;
+    }
+
+    void setStatic(const DrawModeEnum mode, const std::vector<VertexType_> &verts)
+    {
+        Base::setStatic(mode, verts);
+        Base::m_numVerts = 4;
+    }
+
 private:
     struct NODISCARD Attribs final
     {

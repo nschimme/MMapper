@@ -303,7 +303,7 @@ void MapCanvas::paintNewInfomarkSelection()
     if (m_canvasMouseMode == CanvasMouseModeEnum::CREATE_INFOMARKS && m_selectedArea) {
         const auto infomarksLineStyle = GLRenderState()
                                             .withColor(Color{Qt::yellow})
-                                            .withLineParams(LineParams{INFOMARK_GUIDE_LINE_WIDTH});
+                                            .withLineWidth(LineWidth{INFOMARK_GUIDE_LINE_WIDTH});
         const std::vector<glm::vec3> verts{glm::vec3{pos1, layer}, glm::vec3{pos2, layer}};
         gl.renderPlainLines(verts, infomarksLineStyle);
     }

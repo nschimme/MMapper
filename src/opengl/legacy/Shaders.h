@@ -16,7 +16,9 @@ public:
     ~AColorPlainShader() final;
 
 private:
-    void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final
+    void virt_setUniforms(const glm::mat4 &mvp,
+                          const GLRenderState::Uniforms &uniforms,
+                          const LineParams &) final
     {
         setColor("uColor", uniforms.color);
         setMatrix("uMVP", mvp);
@@ -31,7 +33,9 @@ public:
     ~UColorPlainShader() final;
 
 private:
-    void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final
+    void virt_setUniforms(const glm::mat4 &mvp,
+                          const GLRenderState::Uniforms &uniforms,
+                          const LineParams &) final
     {
         setColor("uColor", uniforms.color);
         setMatrix("uMVP", mvp);
@@ -46,7 +50,9 @@ public:
     ~AColorTexturedShader() final;
 
 private:
-    void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final
+    void virt_setUniforms(const glm::mat4 &mvp,
+                          const GLRenderState::Uniforms &uniforms,
+                          const LineParams &) final
     {
         assert(uniforms.textures[0] != INVALID_MM_TEXTURE_ID);
 
@@ -64,7 +70,9 @@ public:
     ~UColorTexturedShader() final;
 
 private:
-    void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final
+    void virt_setUniforms(const glm::mat4 &mvp,
+                          const GLRenderState::Uniforms &uniforms,
+                          const LineParams &) final
     {
         assert(uniforms.textures[0] != INVALID_MM_TEXTURE_ID);
 
@@ -85,7 +93,9 @@ public:
     ~FontShader() final;
 
 private:
-    void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final
+    void virt_setUniforms(const glm::mat4 &mvp,
+                          const GLRenderState::Uniforms &uniforms,
+                          const LineParams &) final
     {
         assert(uniforms.textures[0] != INVALID_MM_TEXTURE_ID);
         auto functions = Base::m_functions.lock();
@@ -104,11 +114,25 @@ public:
     ~PointShader() final;
 
 private:
-    void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final
+    void virt_setUniforms(const glm::mat4 &mvp,
+                          const GLRenderState::Uniforms &uniforms,
+                          const LineParams &) final
     {
         setColor("uColor", uniforms.color);
         setMatrix("uMVP", mvp);
     }
+};
+
+struct NODISCARD LineShader final : public AbstractShaderProgram
+{
+public:
+    using AbstractShaderProgram::AbstractShaderProgram;
+    ~LineShader() final;
+
+private:
+    void virt_setUniforms(const glm::mat4 &mvp,
+                          const GLRenderState::Uniforms &uniforms,
+                          const LineParams &lineParams) final;
 };
 
 /* owned by Functions */
@@ -122,6 +146,7 @@ private:
     std::shared_ptr<UColorTexturedShader> m_uTexturedShader;
     std::shared_ptr<FontShader> m_font;
     std::shared_ptr<PointShader> m_point;
+    std::shared_ptr<LineShader> m_line;
 
 public:
     explicit ShaderPrograms(Functions &functions)
@@ -142,6 +167,7 @@ public:
         m_uTexturedShader.reset();
         m_font.reset();
         m_point.reset();
+        m_line.reset();
     }
 
 public:
@@ -155,6 +181,7 @@ public:
     NODISCARD const std::shared_ptr<UColorTexturedShader> &getTexturedUColorShader();
     NODISCARD const std::shared_ptr<FontShader> &getFontShader();
     NODISCARD const std::shared_ptr<PointShader> &getPointShader();
+    NODISCARD const std::shared_ptr<LineShader> &getLineShader();
 };
 
 } // namespace Legacy

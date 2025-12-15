@@ -68,6 +68,10 @@ NODISCARD static UniqueMesh createTexturedMesh(const SharedFunctions &functions,
         texture, createMesh<Mesh_, VertType_, ProgType_>(functions, mode, batch, prog))};
 }
 
+
+
+
+
 UniqueMesh Functions::createPointBatch(const std::vector<ColorVert> &batch)
 {
     const auto &prog = getShaderPrograms().getPointShader();
@@ -80,6 +84,16 @@ UniqueMesh Functions::createPlainBatch(const DrawModeEnum mode, const std::vecto
     const auto &prog = getShaderPrograms().getPlainUColorShader();
     return createUniqueMesh<PlainMesh>(shared_from_this(), mode, batch, prog);
 }
+
+UniqueMesh Functions::createLineBatch(const std::vector<LineVert> &batch)
+{
+    const auto &prog = getShaderPrograms().getLineShader();
+    return createUniqueMesh<LineMesh>(shared_from_this(), DrawModeEnum::TRIANGLE_STRIP, batch, prog);
+}
+
+
+
+
 
 UniqueMesh Functions::createColoredBatch(const DrawModeEnum mode,
                                          const std::vector<ColorVert> &batch)
@@ -107,12 +121,13 @@ UniqueMesh Functions::createColoredTexturedBatch(const DrawModeEnum mode,
     return createTexturedMesh<ColoredTexturedMesh>(shared_from_this(), mode, batch, prog, texture);
 }
 
-template<typename VertexType_, template<typename> typename Mesh_, typename ShaderType_>
+template<typename VertexType_, typename Mesh_, typename ShaderType_>
 static void renderImmediate(const SharedFunctions &sharedFunctions,
                             const DrawModeEnum mode,
                             const std::vector<VertexType_> &verts,
                             const std::shared_ptr<ShaderType_> &sharedShader,
-                            const GLRenderState &renderState)
+                            const GLRenderState &renderState,
+                            const std::optional<int> instanceCount = {})
 {
     if (verts.empty()) {
         return;
@@ -132,7 +147,7 @@ static void renderImmediate(const SharedFunctions &sharedFunctions,
         vbo.emplace(sharedFunctions);
     }
 
-    using Mesh = Mesh_<VertexType_>;
+    using Mesh = Mesh_;
     static_assert(std::is_same_v<typename Mesh::ProgramType, ShaderType_>);
 
     const auto before = vbo.get();
@@ -144,7 +159,7 @@ static void renderImmediate(const SharedFunctions &sharedFunctions,
             assert(!vbo);
             {
                 mesh.setDynamic(mode, verts);
-                mesh.render(renderState);
+                mesh.render(renderState, instanceCount);
             }
             mesh.unsafe_swapVboId(vbo);
             assert(vbo);
@@ -162,7 +177,12 @@ void Functions::renderPlain(const DrawModeEnum mode,
     assert(static_cast<size_t>(mode) >= VERTS_PER_LINE);
     const auto &shared = shared_from_this();
     const auto &prog = getShaderPrograms().getPlainUColorShader();
-    renderImmediate<glm::vec3, Legacy::PlainMesh>(shared, mode, verts, prog, state);
+    renderImmediate<glm::vec3, Legacy::PlainMesh<glm::vec3>>(shared,
+                                                            mode,
+                                                            verts,
+                                                            prog,
+                                                            state,
+                                                            std::nullopt);
 }
 
 void Functions::renderColored(const DrawModeEnum mode,
@@ -171,18 +191,36 @@ void Functions::renderColored(const DrawModeEnum mode,
 {
     assert(static_cast<size_t>(mode) >= VERTS_PER_LINE);
     const auto &prog = getShaderPrograms().getPlainAColorShader();
-    renderImmediate<ColorVert, Legacy::ColoredMesh>(shared_from_this(), mode, verts, prog, state);
+    renderImmediate<ColorVert, Legacy::ColoredMesh<ColorVert>>(shared_from_this(),
+                                                               mode,
+                                                               verts,
+                                                               prog,
+                                                               state,
+                                                               std::nullopt);
 }
 
 void Functions::renderPoints(const std::vector<ColorVert> &verts, const GLRenderState &state)
 {
     assert(state.uniforms.pointSize);
     const auto &prog = getShaderPrograms().getPointShader();
-    renderImmediate<ColorVert, Legacy::PointMesh>(shared_from_this(),
-                                                  DrawModeEnum::POINTS,
-                                                  verts,
-                                                  prog,
-                                                  state);
+    renderImmediate<ColorVert, Legacy::PointMesh<ColorVert>>(shared_from_this(),
+                                                             DrawModeEnum::POINTS,
+                                                             verts,
+                                                             prog,
+                                                             state,
+                                                             std::nullopt);
+}
+
+void Functions::renderLines(const std::vector<LineVert> &verts, const GLRenderState &state)
+{
+    assert(state.lineParams.width > 0.f);
+    const auto &prog = getShaderPrograms().getLineShader();
+    renderImmediate<LineVert, Legacy::LineMesh<LineVert>>(shared_from_this(),
+                                                          DrawModeEnum::TRIANGLE_STRIP,
+                                                          verts,
+                                                          prog,
+                                                          state,
+                                                          verts.size());
 }
 
 void Functions::renderTextured(const DrawModeEnum mode,
@@ -191,7 +229,12 @@ void Functions::renderTextured(const DrawModeEnum mode,
 {
     assert(static_cast<size_t>(mode) >= VERTS_PER_TRI);
     const auto &prog = getShaderPrograms().getTexturedUColorShader();
-    renderImmediate<TexVert, Legacy::TexturedMesh>(shared_from_this(), mode, verts, prog, state);
+    renderImmediate<TexVert, Legacy::TexturedMesh<TexVert>>(shared_from_this(),
+                                                            mode,
+                                                            verts,
+                                                            prog,
+                                                            state,
+                                                            std::nullopt);
 }
 
 void Functions::renderColoredTextured(const DrawModeEnum mode,
@@ -200,11 +243,12 @@ void Functions::renderColoredTextured(const DrawModeEnum mode,
 {
     assert(static_cast<size_t>(mode) >= VERTS_PER_TRI);
     const auto &prog = getShaderPrograms().getTexturedAColorShader();
-    renderImmediate<ColoredTexVert, Legacy::ColoredTexturedMesh>(shared_from_this(),
-                                                                 mode,
-                                                                 verts,
-                                                                 prog,
-                                                                 state);
+    renderImmediate<ColoredTexVert, Legacy::ColoredTexturedMesh<ColoredTexVert>>(shared_from_this(),
+                                                                                 mode,
+                                                                                 verts,
+                                                                                 prog,
+                                                                                 state,
+                                                                                 std::nullopt);
 }
 
 void Functions::renderFont3d(const SharedMMTexture &texture, const std::vector<FontVert3d> &verts)
@@ -216,11 +260,12 @@ void Functions::renderFont3d(const SharedMMTexture &texture, const std::vector<F
                            .withTexture0(texture->getId());
 
     const auto &prog = getShaderPrograms().getFontShader();
-    renderImmediate<FontVert3d, Legacy::SimpleFont3dMesh>(shared_from_this(),
-                                                          DrawModeEnum::QUADS,
-                                                          verts,
-                                                          prog,
-                                                          state);
+    renderImmediate<FontVert3d, Legacy::SimpleFont3dMesh<FontVert3d>>(shared_from_this(),
+                                                                      DrawModeEnum::QUADS,
+                                                                      verts,
+                                                                      prog,
+                                                                      state,
+                                                                      std::nullopt);
 }
 
 UniqueMesh Functions::createFontMesh(const SharedMMTexture &texture,

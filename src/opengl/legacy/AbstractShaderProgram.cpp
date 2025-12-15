@@ -38,10 +38,11 @@ void AbstractShaderProgram::unbind()
 }
 
 void AbstractShaderProgram::setUniforms(const glm::mat4 &mvp,
-                                        const GLRenderState::Uniforms &uniforms)
+                                        const GLRenderState::Uniforms &uniforms,
+                                        const LineParams &lineParams)
 {
     assert(m_isBound);
-    virt_setUniforms(mvp, uniforms);
+    virt_setUniforms(mvp, uniforms, lineParams);
 
     if (uniforms.pointSize.has_value()) {
         setPointSize(uniforms.pointSize.value());
@@ -125,6 +126,12 @@ void AbstractShaderProgram::setUniformMatrix4fv(const GLint location,
     deref(functions).glUniformMatrix4fv(location, count, transpose, value);
 }
 
+void AbstractShaderProgram::setFloat(const char *const name, const float value)
+{
+    const auto location = getUniformLocation(name);
+    setUniform1fv(location, 1, &value);
+}
+
 float AbstractShaderProgram::getDevicePixelRatio() const
 {
     auto functions = m_functions.lock();
@@ -165,6 +172,16 @@ void AbstractShaderProgram::setViewport(const char *const name, const Viewport &
     const glm::ivec4 viewport{input_viewport.offset, input_viewport.size};
     const GLint location = getUniformLocation(name);
     setUniform4iv(location, 1, glm::value_ptr(viewport));
+}
+
+void AbstractShaderProgram::setViewportF(const char *const name, const Viewport &input_viewport)
+{
+    const glm::vec4 viewport{input_viewport.offset.x,
+                             input_viewport.offset.y,
+                             input_viewport.size.x,
+                             input_viewport.size.y};
+    const GLint location = getUniformLocation(name);
+    setUniform4fv(location, 1, glm::value_ptr(viewport));
 }
 
 } // namespace Legacy

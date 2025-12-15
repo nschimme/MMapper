@@ -106,6 +106,10 @@ protected:
                                const GLRenderState &state);
 
 public:
+    NODISCARD UniqueMesh createLineBatch(const std::vector<LineVert> &verts);
+
+public:
+    void renderLines(const std::vector<LineVert> &verts, const GLRenderState &state);
     void renderPoints(const std::vector<ColorVert> &verts, const GLRenderState &state);
 
 public:

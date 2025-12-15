@@ -292,6 +292,81 @@ private:
     }
 };
 
+template<typename VertexType_>
+class NODISCARD LineMesh final : public SimpleMesh<VertexType_, LineShader>
+{
+public:
+    using Base = SimpleMesh<VertexType_, LineShader>;
+    using Base::Base;
+
+    void setDynamic(const DrawModeEnum mode, const std::vector<VertexType_> &verts)
+    {
+        Base::setDynamic(mode, verts);
+        Base::m_numVerts = 4;
+    }
+
+    void setStatic(const DrawModeEnum mode, const std::vector<VertexType_> &verts)
+    {
+        Base::setStatic(mode, verts);
+        Base::m_numVerts = 4;
+    }
+
+private:
+    struct NODISCARD Attribs final
+    {
+        GLuint fromPos = INVALID_ATTRIB_LOCATION;
+        GLuint toPos = INVALID_ATTRIB_LOCATION;
+
+        NODISCARD static Attribs getLocations(AbstractShaderProgram &shader)
+        {
+            Attribs result;
+            result.fromPos = shader.getAttribLocation("aFrom");
+            result.toPos = shader.getAttribLocation("aTo");
+            return result;
+        }
+    };
+
+    std::optional<Attribs> m_boundAttribs;
+
+    void virt_bind() override
+    {
+        const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
+        static_assert(sizeof(std::declval<VertexType_>().from) == (3 * sizeof(GLfloat)));
+        static_assert(sizeof(std::declval<VertexType_>().to) == (3 * sizeof(GLfloat)));
+
+        Functions &gl = Base::m_functions;
+        const auto attribs = Attribs::getLocations(Base::m_program);
+        gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
+
+        gl.enableAttrib(attribs.fromPos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(from));
+        gl.enableAttrib(attribs.toPos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(to));
+
+        gl.glVertexAttribDivisor(attribs.fromPos, 1);
+        gl.glVertexAttribDivisor(attribs.toPos, 1);
+        m_boundAttribs = attribs;
+    }
+
+    void virt_unbind() override
+    {
+        if (!m_boundAttribs) {
+            assert(false);
+            return;
+        }
+
+        auto &attribs = m_boundAttribs.value();
+        Functions &gl = Base::m_functions;
+
+        gl.glVertexAttribDivisor(attribs.fromPos, 0);
+        gl.glVertexAttribDivisor(attribs.toPos, 0);
+
+        gl.glDisableVertexAttribArray(attribs.fromPos);
+        gl.glDisableVertexAttribArray(attribs.toPos);
+
+        gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
+        m_boundAttribs.reset();
+    }
+};
+
 } // namespace Legacy
 
 #undef VOIDPTR_OFFSETOF

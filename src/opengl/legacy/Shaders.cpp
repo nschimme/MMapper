@@ -93,4 +93,24 @@ const std::shared_ptr<PointShader> &ShaderPrograms::getPointShader()
     return getInitialized<PointShader>(m_point, getFunctions(), "point");
 }
 
+const std::shared_ptr<LineShader> &ShaderPrograms::getLineShader()
+{
+    return getInitialized<LineShader>(m_line, getFunctions(), "line");
+}
+
+LineShader::~LineShader() = default;
+
+void LineShader::virt_setUniforms(const glm::mat4 &mvp,
+                                  const GLRenderState::Uniforms &uniforms,
+                                  const LineParams &lineParams)
+{
+    setColor("uColor", uniforms.color);
+    setMatrix("uMVP", mvp);
+    setFloat("uStipple", lineParams.stipple);
+
+    const auto functions = m_functions.lock();
+    setFloat("uWidth", functions->getDevicePixelRatio() * 2.f);
+    setViewport("uViewport", deref(functions).getViewport());
+}
+
 } // namespace Legacy

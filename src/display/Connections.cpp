@@ -36,11 +36,6 @@ static constexpr const float NEW_CONNECTION_POINT_SIZE = 8.f;
 
 static constexpr const float FAINT_CONNECTION_ALPHA = 0.1f;
 
-NODISCARD static bool isCrossingZAxis(const glm::vec3 &p1, const glm::vec3 &p2)
-{
-    return std::abs(p1.z - p2.z) > GEOMETRIC_EPSILON;
-}
-
 NODISCARD static bool isConnectionMode(const CanvasMouseModeEnum mode)
 {
     switch (mode) {
@@ -789,13 +784,6 @@ void MapCanvas::paintSelectedConnection()
     points.emplace_back(Colors::red, pos1);
     points.emplace_back(Colors::red, pos2);
     gl.renderPoints(points, rs.withPointSize(NEW_CONNECTION_POINT_SIZE));
-}
-
-static constexpr float LONG_LINE_HALFLEN = 1.5f;
-static constexpr float LONG_LINE_LEN = 2.f * LONG_LINE_HALFLEN;
-NODISCARD static bool isLongLine(const glm::vec3 &a, const glm::vec3 &b)
-{
-    return glm::length(a - b) >= LONG_LINE_LEN;
 }
 
 void ConnectionDrawer::ConnectionFakeGL::drawTriangle(const glm::vec3 &a,

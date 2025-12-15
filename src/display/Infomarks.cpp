@@ -31,7 +31,6 @@
 
 #include <QMessageLogContext>
 
-static constexpr const float INFOMARK_ARROW_LINE_WIDTH = 0.045f;
 static constexpr float INFOMARK_GUIDE_LINE_WIDTH = 3.f;
 static constexpr float INFOMARK_POINT_SIZE = 6.f;
 
@@ -142,7 +141,7 @@ void InfomarksBatch::drawLine(const glm::vec3 &a, const glm::vec3 &b)
     const glm::vec3 start_v = a + m_offset;
     const glm::vec3 end_v = b + m_offset;
 
-    m_lines.emplace_back(LineVert{start_v, end_v});
+    m_lines.emplace_back(LineVert{start_v, end_v, m_color});
 }
 
 void InfomarksBatch::drawTriangle(const glm::vec3 &a, const glm::vec3 &b, const glm::vec3 &c)

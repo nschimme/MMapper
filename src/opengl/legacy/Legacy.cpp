@@ -213,7 +213,7 @@ void Functions::renderPoints(const std::vector<ColorVert> &verts, const GLRender
 
 void Functions::renderLines(const std::vector<LineVert> &verts, const GLRenderState &state)
 {
-    assert(state.lineParams.width > 0.f);
+    assert(!state.uniforms.lineWidth.has_value() || state.uniforms.lineWidth.value().width > 0.f);
     const auto &prog = getShaderPrograms().getLineShader();
     renderImmediate<LineVert, Legacy::LineMesh<LineVert>>(shared_from_this(),
                                                           DrawModeEnum::TRIANGLE_STRIP,

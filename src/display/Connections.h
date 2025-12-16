@@ -88,8 +88,7 @@ struct NODISCARD ConnectionMeshes final
 {
     UniqueMesh normalTris;
     UniqueMesh redTris;
-    UniqueMesh normalLines;
-    UniqueMesh redLines;
+    UniqueMesh lines;
 
     ConnectionMeshes() = default;
     DEFAULT_MOVES_DELETE_COPIES(ConnectionMeshes);

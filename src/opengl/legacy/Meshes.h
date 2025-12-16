@@ -334,14 +334,20 @@ public:
 private:
     struct NODISCARD Attribs final
     {
-        GLuint fromPos = INVALID_ATTRIB_LOCATION;
-        GLuint toPos = INVALID_ATTRIB_LOCATION;
+        GLuint p_1Pos = INVALID_ATTRIB_LOCATION;
+        GLuint p0Pos = INVALID_ATTRIB_LOCATION;
+        GLuint p1Pos = INVALID_ATTRIB_LOCATION;
+        GLuint p2Pos = INVALID_ATTRIB_LOCATION;
+        GLuint colorPos = INVALID_ATTRIB_LOCATION;
 
         NODISCARD static Attribs getLocations(AbstractShaderProgram &shader)
         {
             Attribs result;
-            result.fromPos = shader.getAttribLocation("aFrom");
-            result.toPos = shader.getAttribLocation("aTo");
+            result.p_1Pos = shader.getAttribLocation("aP_1");
+            result.p0Pos = shader.getAttribLocation("aP0");
+            result.p1Pos = shader.getAttribLocation("aP1");
+            result.p2Pos = shader.getAttribLocation("aP2");
+            result.colorPos = shader.getAttribLocation("aColor");
             return result;
         }
     };
@@ -351,18 +357,27 @@ private:
     void virt_bind()
     {
         const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
-        static_assert(sizeof(std::declval<VertexType_>().from) == (3 * sizeof(GLfloat)));
-        static_assert(sizeof(std::declval<VertexType_>().to) == (3 * sizeof(GLfloat)));
+        static_assert(sizeof(std::declval<VertexType_>().p_1) == (3 * sizeof(GLfloat)));
+        static_assert(sizeof(std::declval<VertexType_>().p0) == (3 * sizeof(GLfloat)));
+        static_assert(sizeof(std::declval<VertexType_>().p1) == (3 * sizeof(GLfloat)));
+        static_assert(sizeof(std::declval<VertexType_>().p2) == (3 * sizeof(GLfloat)));
+        static_assert(sizeof(std::declval<VertexType_>().color) == (4 * sizeof(uint8_t)));
 
         Functions &gl = m_functions;
         const auto attribs = Attribs::getLocations(m_program);
         gl.glBindBuffer(GL_ARRAY_BUFFER, m_vbo.get());
 
-        gl.enableAttrib(attribs.fromPos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(from));
-        gl.enableAttrib(attribs.toPos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(to));
+        gl.enableAttrib(attribs.p_1Pos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(p_1));
+        gl.enableAttrib(attribs.p0Pos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(p0));
+        gl.enableAttrib(attribs.p1Pos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(p1));
+        gl.enableAttrib(attribs.p2Pos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(p2));
+        gl.enableAttrib(attribs.colorPos, 4, GL_UNSIGNED_BYTE, GL_TRUE, vertSize, VPO(color));
 
-        gl.glVertexAttribDivisor(attribs.fromPos, 1);
-        gl.glVertexAttribDivisor(attribs.toPos, 1);
+        gl.glVertexAttribDivisor(attribs.p_1Pos, 1);
+        gl.glVertexAttribDivisor(attribs.p0Pos, 1);
+        gl.glVertexAttribDivisor(attribs.p1Pos, 1);
+        gl.glVertexAttribDivisor(attribs.p2Pos, 1);
+        gl.glVertexAttribDivisor(attribs.colorPos, 1);
         m_boundAttribs = attribs;
     }
 
@@ -376,11 +391,17 @@ private:
         auto &attribs = m_boundAttribs.value();
         Functions &gl = m_functions;
 
-        gl.glVertexAttribDivisor(attribs.fromPos, 0);
-        gl.glVertexAttribDivisor(attribs.toPos, 0);
+        gl.glVertexAttribDivisor(attribs.p_1Pos, 0);
+        gl.glVertexAttribDivisor(attribs.p0Pos, 0);
+        gl.glVertexAttribDivisor(attribs.p1Pos, 0);
+        gl.glVertexAttribDivisor(attribs.p2Pos, 0);
+        gl.glVertexAttribDivisor(attribs.colorPos, 0);
 
-        gl.glDisableVertexAttribArray(attribs.fromPos);
-        gl.glDisableVertexAttribArray(attribs.toPos);
+        gl.glDisableVertexAttribArray(attribs.p_1Pos);
+        gl.glDisableVertexAttribArray(attribs.p0Pos);
+        gl.glDisableVertexAttribArray(attribs.p1Pos);
+        gl.glDisableVertexAttribArray(attribs.p2Pos);
+        gl.glDisableVertexAttribArray(attribs.colorPos);
 
         gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
         m_boundAttribs.reset();

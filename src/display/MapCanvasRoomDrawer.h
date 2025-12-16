@@ -124,6 +124,7 @@ struct NODISCARD Batches final
     std::optional<MapBatches> next_mapBatches;
     std::optional<MapBatches> mapBatches;
     std::optional<BatchedInfomarksMeshes> infomarksMeshes;
+    std::optional<CharacterBatches> characterBatches;
     struct NODISCARD FlashState final
     {
     private:
@@ -159,6 +160,7 @@ struct NODISCARD Batches final
     {
         mapBatches.reset();
         infomarksMeshes.reset();
+        characterBatches.reset();
     }
 
     void ignorePendingRemesh()

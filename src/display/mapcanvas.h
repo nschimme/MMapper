@@ -33,7 +33,7 @@
 #include <QOpenGLWidget>
 #include <QtCore>
 
-class CharacterBatch;
+class CharacterBatches;
 class ConnectionSelection;
 class Coordinate;
 class InfomarkSelection;
@@ -189,8 +189,6 @@ protected:
     void initializeGL() override;
     void paintGL() override;
 
-    void drawGroupCharacters(CharacterBatch &characterBatch);
-
     void resizeGL(int width, int height) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
@@ -232,6 +230,9 @@ private:
     void finishPendingMapBatches();
     void updateMapBatches();
     void updateInfomarkBatches();
+    void updateCharacterBatches();
+
+    void drawGroupCharacters(CharacterBatches &batches);
 
     void actuallyPaintGL();
     void paintMap();

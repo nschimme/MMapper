@@ -56,7 +56,7 @@ struct NODISCARD CharacterMeshes final
     UniqueMesh screenSpaceArrows;
 };
 
-class NODISCARD CharacterBatch final
+class NODISCARD CharacterBatches final
 {
 private:
     static constexpr const float FILL_ALPHA = 0.1f;
@@ -194,7 +194,7 @@ private:
     std::optional<CharacterMeshes> m_meshes;
 
 public:
-    explicit CharacterBatch(const MapScreen &mapScreen, const int currentLayer, const float scale)
+    explicit CharacterBatches(const MapScreen &mapScreen, const int currentLayer, const float scale)
         : m_mapScreen(mapScreen)
         , m_currentLayer(currentLayer)
         , m_scale(scale)
@@ -223,5 +223,5 @@ public:
         m_meshes.emplace(m_fakeGL.bake(gl, textures));
     }
 
-    void render();
+    void render(int currentLayer);
 };

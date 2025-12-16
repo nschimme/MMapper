@@ -533,6 +533,7 @@ void MapCanvas::updateBatches()
 {
     updateMapBatches();
     updateInfomarkBatches();
+    updateCharacterBatches();
 }
 
 void MapCanvas::updateMapBatches()

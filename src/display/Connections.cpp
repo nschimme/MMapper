@@ -488,9 +488,9 @@ void ConnectionDrawer::drawLineStrip(const std::vector<glm::vec3> &points)
     auto &gl = getFakeGL();
     const auto &color = gl.isNormal()
                             ? getCanvasNamedColorOptions().connectionNormalColor.getColor()
-                            : Colors::red;
+                            : Colors::red.getColor();
     for (size_t i = 1; i < points.size(); ++i) {
-        lines.emplace_back(LineVert{points[i - 1], points[i], color});
+        lines.emplace_back(LineVert{points[i - 1], points[i], color.to_vec4()});
     }
     gl.drawLines(lines);
 }
@@ -776,7 +776,7 @@ void MapCanvas::paintSelectedConnection()
 
     {
         std::vector<LineVert> verts;
-        verts.emplace_back(LineVert{pos1, pos2, Colors::red});
+        verts.emplace_back(LineVert{pos1, pos2, Colors::red.getColor().to_vec4()});
         gl.renderLines(verts, rs);
     }
 

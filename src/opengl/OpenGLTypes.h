@@ -65,7 +65,7 @@ struct NODISCARD LineVert final
 {
     glm::vec3 from;
     glm::vec3 to;
-    Color color;
+    glm::vec4 color;
 };
 
 // Similar to ColoredTexVert, except it has a base position in world coordinates.

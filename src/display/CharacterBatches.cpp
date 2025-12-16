@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
 
-#include "Characters.h"
+#include "CharacterBatches.h"
 
 #include "../configuration/configuration.h"
 #include "../group/CGroupChar.h"
@@ -43,12 +43,12 @@ DistantObjectTransform DistantObjectTransform::construct(const glm::vec3 &pos,
     return DistantObjectTransform{hint, degrees};
 }
 
-bool CharacterBatch::isVisible(const Coordinate &c, float margin) const
+bool CharacterBatches::isVisible(const Coordinate &c, float margin) const
 {
     return m_mapScreen.isRoomVisible(c, margin);
 }
 
-void CharacterBatch::drawCharacter(const Coordinate &c, const Color &color, bool fill)
+void CharacterBatches::drawCharacter(const Coordinate &c, const Color &color, bool fill)
 {
     const Configuration::CanvasSettings &settings = getConfig().canvas;
 
@@ -102,16 +102,16 @@ void CharacterBatch::drawCharacter(const Coordinate &c, const Color &color, bool
     gl.drawBox(c, fill, beacon, isFar);
 }
 
-void CharacterBatch::CharFakeGL::drawPathSegment(const glm::vec3 &p1,
-                                                 const glm::vec3 &p2,
-                                                 const Color &color)
+void CharacterBatches::CharFakeGL::drawPathSegment(const glm::vec3 &p1,
+                                                   const glm::vec3 &p2,
+                                                   const Color &color)
 {
-    m_pathLines.emplace_back(LineVert{p1, p2, color});
+    m_pathLines.emplace_back(LineVert{p1, p2, color.to_vec4()});
 }
 
-void CharacterBatch::drawPreSpammedPath(const Coordinate &c1,
-                                        const std::vector<Coordinate> &path,
-                                        const Color &color)
+void CharacterBatches::drawPreSpammedPath(const Coordinate &c1,
+                                          const std::vector<Coordinate> &path,
+                                          const Color &color)
 {
     if (path.empty()) {
         return;
@@ -145,9 +145,9 @@ void CharacterBatch::drawPreSpammedPath(const Coordinate &c1,
     gl.drawPathPoint(color, verts.back());
 }
 
-void CharacterBatch::CharFakeGL::drawQuadCommon(const glm::vec2 &in_a,
-                                                const glm::vec2 &in_b,
-                                                const glm::vec2 &in_c,
+void CharacterBatches::CharFakeGL::drawQuadCommon(const glm::vec2 &in_a,
+                                                  const glm::vec2 &in_b,
+                                                  const glm::vec2 &in_c,
                                                 const glm::vec2 &in_d,
                                                 const QuadOptsEnum options)
 {
@@ -211,7 +211,7 @@ void CharacterBatch::CharFakeGL::drawQuadCommon(const glm::vec2 &in_a,
 
     if (::utils::isSet(options, QuadOptsEnum::OUTLINE)) {
         auto emitLine = [this](const auto &v0, const auto &v1) -> void {
-            m_charLines.emplace_back(LineVert{v0, v1, m_color});
+            m_charLines.emplace_back(LineVert{v0, v1, m_color.to_vec4()});
         };
         emitLine(a, b);
         emitLine(b, c);
@@ -220,9 +220,9 @@ void CharacterBatch::CharFakeGL::drawQuadCommon(const glm::vec2 &in_a,
     }
 }
 
-void CharacterBatch::CharFakeGL::drawBox(const Coordinate &coord,
-                                         bool fill,
-                                         bool beacon,
+void CharacterBatches::CharFakeGL::drawBox(const Coordinate &coord,
+                                           bool fill,
+                                           bool beacon,
                                          const bool isFar)
 {
     const bool dontFillRotatedQuads = true;
@@ -291,7 +291,7 @@ void CharacterBatch::CharFakeGL::drawBox(const Coordinate &coord,
     glPopMatrix();
 }
 
-void CharacterBatch::CharFakeGL::drawArrow(const bool fill, const bool beacon)
+void CharacterBatches::CharFakeGL::drawArrow(const bool fill, const bool beacon)
 {
     // Generic topology:
     //    d
@@ -310,7 +310,7 @@ void CharacterBatch::CharFakeGL::drawArrow(const bool fill, const bool beacon)
     drawQuadCommon(a, b, c, d, options);
 }
 
-CharacterMeshes CharacterBatch::CharFakeGL::bake(OpenGL &gl, const MapCanvasTextures &textures)
+CharacterMeshes CharacterBatches::CharFakeGL::bake(OpenGL &gl, const MapCanvasTextures &textures)
 {
     // FIXME: add an option to auto-scale to DPR.
     const float dpr = gl.getDevicePixelRatio();
@@ -334,9 +334,9 @@ CharacterMeshes CharacterBatch::CharFakeGL::bake(OpenGL &gl, const MapCanvasText
     return meshes;
 }
 
-void CharacterBatch::render()
+void CharacterBatches::render(int currentLayer)
 {
-    if (!m_meshes) {
+    if (!m_meshes || m_currentLayer != currentLayer) {
         return;
     }
 
@@ -354,9 +354,9 @@ void CharacterBatch::render()
     meshes.pathLines.render(blended_noDepth.withLineParams(LineParams{PATH_LINE_WIDTH, false}));
 }
 
-void CharacterBatch::CharFakeGL::addScreenSpaceArrow(const glm::vec3 &pos,
-                                                     const float degrees,
-                                                     const Color &color,
+void CharacterBatches::CharFakeGL::addScreenSpaceArrow(const glm::vec3 &pos,
+                                                       const float degrees,
+                                                       const Color &color,
                                                      const bool fill)
 {
     std::array<glm::vec2, 4> texCoords{
@@ -385,50 +385,13 @@ void CharacterBatch::CharFakeGL::addScreenSpaceArrow(const glm::vec3 &pos,
 
 void MapCanvas::paintCharacters()
 {
-    if (m_data.isEmpty()) {
+    if (!m_batches.characterBatches) {
         return;
     }
-
-    if (!m_characterBatch || m_data.getNeedsCharUpdate()) {
-        m_characterBatch.emplace(m_mapScreen, m_currentLayer, getTotalScaleFactor());
-        CharacterBatch &characterBatch = m_characterBatch.value();
-
-        // IIFE to abuse return to avoid duplicate else branches
-        std::invoke([this, &characterBatch]() -> void {
-            if (const std::optional<RoomId> opt_pos = m_data.getCurrentRoomId()) {
-                const auto &id = opt_pos.value();
-                if (const auto room = m_data.findRoomHandle(id)) {
-                    const auto &pos = room.getPosition();
-                    // draw the characters before the current position
-                    characterBatch.incrementCount(pos);
-                    drawGroupCharacters(characterBatch);
-                    characterBatch.resetCount(pos);
-
-                    // paint char current position
-                    const Color color{getConfig().groupManager.color};
-                    characterBatch.drawCharacter(pos, color);
-
-                    // paint prespam
-                    const auto prespam = m_data.getPath(id, m_prespammedPath.getQueue());
-                    characterBatch.drawPreSpammedPath(pos, prespam, color);
-                    return;
-                } else {
-                    // this can happen if the "current room" is deleted
-                    // and we failed to clear it elsewhere.
-                    m_data.clearSelectedRoom();
-                }
-            }
-            drawGroupCharacters(characterBatch);
-        });
-
-        characterBatch.bake(getOpenGL(), m_textures);
-        m_data.clearNeedsCharUpdate();
-    }
-
-    m_characterBatch->render();
+    m_batches.characterBatches->render(m_currentLayer);
 }
 
-void MapCanvas::drawGroupCharacters(CharacterBatch &batch)
+void MapCanvas::drawGroupCharacters(CharacterBatches &batch)
 {
     if (m_data.isEmpty()) {
         return;

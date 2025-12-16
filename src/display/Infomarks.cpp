@@ -141,7 +141,7 @@ void InfomarksBatch::drawLine(const glm::vec3 &a, const glm::vec3 &b)
     const glm::vec3 start_v = a + m_offset;
     const glm::vec3 end_v = b + m_offset;
 
-    m_lines.emplace_back(LineVert{start_v, end_v, m_color});
+    m_lines.emplace_back(LineVert{start_v, end_v, m_color.to_vec4()});
 }
 
 void InfomarksBatch::drawTriangle(const glm::vec3 &a, const glm::vec3 &b, const glm::vec3 &c)

@@ -38,8 +38,8 @@ set(mmapper_SRCS
     configuration/configuration.cpp
     configuration/configuration.h
     display/CanvasMouseModeEnum.h
-    display/Characters.cpp
-    display/Characters.h
+    display/CharacterBatches.cpp
+    display/CharacterBatches.h
     display/ConnectionLineBuilder.cpp
     display/ConnectionLineBuilder.h
     display/Connections.cpp
@@ -69,6 +69,7 @@ set(mmapper_SRCS
     display/mapcanvas.cpp
     display/mapcanvas.h
     display/mapcanvas_gl.cpp
+    display/mapcanvas_characters.cpp
     display/mapwindow.cpp
     display/mapwindow.h
     display/prespammedpath.cpp

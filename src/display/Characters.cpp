@@ -310,51 +310,48 @@ void CharacterBatch::CharFakeGL::drawArrow(const bool fill, const bool beacon)
     drawQuadCommon(a, b, c, d, options);
 }
 
-void CharacterBatch::CharFakeGL::reallyDrawCharacters(OpenGL &gl, const MapCanvasTextures &textures)
+CharacterMeshes CharacterBatch::CharFakeGL::bake(OpenGL &gl, const MapCanvasTextures &textures)
 {
-    const auto blended_noDepth
-        = GLRenderState().withDepthFunction(std::nullopt).withBlend(BlendModeEnum::TRANSPARENCY);
-
-    // Cull the front faces, because the quads point towards the center of the room,
-    // and we don't want to draw over the entire terrain if we're inside the room.
-    if (!m_charBeaconQuads.empty()) {
-        gl.renderColoredQuads(m_charBeaconQuads, blended_noDepth.withCulling(CullingEnum::FRONT));
+    // FIXME: add an option to auto-scale to DPR.
+    const float dpr = gl.getDevicePixelRatio();
+    for (auto &v : m_screenSpaceArrows) {
+        v.vert *= dpr;
     }
 
-    if (!m_charRoomQuads.empty()) {
-        gl.renderColoredTexturedQuads(m_charRoomQuads,
-                                      blended_noDepth.withTexture0(textures.char_room_sel->getId()));
-    }
+    CharacterMeshes meshes;
 
-    if (!m_charTris.empty()) {
-        gl.renderColoredTris(m_charTris, blended_noDepth);
-    }
+    meshes.charTris = gl.createColoredTriBatch(m_charTris);
+    meshes.charBeaconQuads = gl.createColoredQuadBatch(m_charBeaconQuads);
+    meshes.charLines = gl.createLineBatch(m_charLines);
+    meshes.charRoomQuads = gl.createColoredTexturedQuadBatch(m_charRoomQuads,
+                                                             textures.char_room_sel->getId());
+    meshes.pathPoints = gl.createPointBatch(m_pathPoints);
+    meshes.pathLines = gl.createLineBatch(m_pathLines);
+    meshes.screenSpaceArrows = gl.createFontMesh(textures.char_arrows,
+                                                 DrawModeEnum::QUADS,
+                                                 m_screenSpaceArrows);
 
-    if (!m_charLines.empty()) {
-        gl.renderLines(m_charLines,
-                       blended_noDepth.withLineParams(LineParams{CHAR_ARROW_LINE_WIDTH, false}));
-    }
-
-    if (!m_screenSpaceArrows.empty()) {
-        // FIXME: add an option to auto-scale to DPR.
-        const float dpr = gl.getDevicePixelRatio();
-        for (auto &v : m_screenSpaceArrows) {
-            v.vert *= dpr;
-        }
-        gl.renderFont3d(textures.char_arrows, m_screenSpaceArrows);
-        m_screenSpaceArrows.clear();
-    }
+    return meshes;
 }
 
-void CharacterBatch::CharFakeGL::reallyDrawPaths(OpenGL &gl)
+void CharacterBatch::render()
 {
+    if (!m_meshes) {
+        return;
+    }
+
+    const auto &meshes = m_meshes.value();
+
     const auto blended_noDepth
         = GLRenderState().withDepthFunction(std::nullopt).withBlend(BlendModeEnum::TRANSPARENCY);
 
-    gl.renderPoints(m_pathPoints, blended_noDepth.withPointSize(PATH_POINT_SIZE));
-    if (!m_pathLines.empty()) {
-        gl.renderLines(m_pathLines, blended_noDepth.withLineParams(LineParams{PATH_LINE_WIDTH, false}));
-    }
+    meshes.charBeaconQuads.render(blended_noDepth.withCulling(CullingEnum::FRONT));
+    meshes.charRoomQuads.render(blended_noDepth);
+    meshes.charTris.render(blended_noDepth);
+    meshes.charLines.render(blended_noDepth.withLineParams(LineParams{CHAR_ARROW_LINE_WIDTH, false}));
+    meshes.screenSpaceArrows.render(blended_noDepth);
+    meshes.pathPoints.render(blended_noDepth.withPointSize(PATH_POINT_SIZE));
+    meshes.pathLines.render(blended_noDepth.withLineParams(LineParams{PATH_LINE_WIDTH, false}));
 }
 
 void CharacterBatch::CharFakeGL::addScreenSpaceArrow(const glm::vec3 &pos,
@@ -392,37 +389,43 @@ void MapCanvas::paintCharacters()
         return;
     }
 
-    CharacterBatch characterBatch{m_mapScreen, m_currentLayer, getTotalScaleFactor()};
+    if (!m_characterBatch || m_data.getNeedsCharUpdate()) {
+        m_characterBatch.emplace(m_mapScreen, m_currentLayer, getTotalScaleFactor());
+        CharacterBatch &characterBatch = m_characterBatch.value();
 
-    // IIFE to abuse return to avoid duplicate else branches
-    std::invoke([this, &characterBatch]() -> void {
-        if (const std::optional<RoomId> opt_pos = m_data.getCurrentRoomId()) {
-            const auto &id = opt_pos.value();
-            if (const auto room = m_data.findRoomHandle(id)) {
-                const auto &pos = room.getPosition();
-                // draw the characters before the current position
-                characterBatch.incrementCount(pos);
-                drawGroupCharacters(characterBatch);
-                characterBatch.resetCount(pos);
+        // IIFE to abuse return to avoid duplicate else branches
+        std::invoke([this, &characterBatch]() -> void {
+            if (const std::optional<RoomId> opt_pos = m_data.getCurrentRoomId()) {
+                const auto &id = opt_pos.value();
+                if (const auto room = m_data.findRoomHandle(id)) {
+                    const auto &pos = room.getPosition();
+                    // draw the characters before the current position
+                    characterBatch.incrementCount(pos);
+                    drawGroupCharacters(characterBatch);
+                    characterBatch.resetCount(pos);
 
-                // paint char current position
-                const Color color{getConfig().groupManager.color};
-                characterBatch.drawCharacter(pos, color);
+                    // paint char current position
+                    const Color color{getConfig().groupManager.color};
+                    characterBatch.drawCharacter(pos, color);
 
-                // paint prespam
-                const auto prespam = m_data.getPath(id, m_prespammedPath.getQueue());
-                characterBatch.drawPreSpammedPath(pos, prespam, color);
-                return;
-            } else {
-                // this can happen if the "current room" is deleted
-                // and we failed to clear it elsewhere.
-                m_data.clearSelectedRoom();
+                    // paint prespam
+                    const auto prespam = m_data.getPath(id, m_prespammedPath.getQueue());
+                    characterBatch.drawPreSpammedPath(pos, prespam, color);
+                    return;
+                } else {
+                    // this can happen if the "current room" is deleted
+                    // and we failed to clear it elsewhere.
+                    m_data.clearSelectedRoom();
+                }
             }
-        }
-        drawGroupCharacters(characterBatch);
-    });
+            drawGroupCharacters(characterBatch);
+        });
 
-    characterBatch.reallyDraw(getOpenGL(), m_textures);
+        characterBatch.bake(getOpenGL(), m_textures);
+        m_data.clearNeedsCharUpdate();
+    }
+
+    m_characterBatch->render();
 }
 
 void MapCanvas::drawGroupCharacters(CharacterBatch &batch)

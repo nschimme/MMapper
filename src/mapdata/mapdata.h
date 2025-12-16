@@ -61,6 +61,7 @@ private:
     friend class RoomSelection;
 
 private:
+    bool m_needsCharUpdate = true;
     bool m_fileReadOnly = false;
     QString m_fileName;
     std::optional<RoomId> m_selectedRoom;
@@ -68,6 +69,10 @@ private:
 public:
     explicit MapData(QObject *parent);
     ~MapData() final;
+
+    NODISCARD bool getNeedsCharUpdate() const { return m_needsCharUpdate; }
+    void clearNeedsCharUpdate() { m_needsCharUpdate = false; }
+    void setNeedsCharUpdate() { m_needsCharUpdate = true; }
 
     NODISCARD FutureSharedMapBatchFinisher
     generateBatches(const mctp::MapCanvasTexturesProxy &textures,
@@ -141,7 +146,11 @@ public:
     NODISCARD ExitDirFlags getExitDirections(const Coordinate &pos);
 
 private:
-    void virt_onNotifyModified(const RoomUpdateFlags /*updateFlags*/) final { setDataChanged(); }
+    void virt_onNotifyModified(const RoomUpdateFlags /*updateFlags*/) final
+    {
+        setDataChanged();
+        setNeedsCharUpdate();
+    }
 
     void log(const QString &msg) { emit sig_log("MapData", msg); }
     void setDataChanged() { emit sig_onDataChanged(); }

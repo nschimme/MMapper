@@ -45,6 +45,17 @@ public:
                                                       float marginPixels);
 };
 
+struct NODISCARD CharacterMeshes final
+{
+    UniqueMesh charTris;
+    UniqueMesh charBeaconQuads;
+    UniqueMesh charLines;
+    UniqueMesh charRoomQuads;
+    UniqueMesh pathPoints;
+    UniqueMesh pathLines;
+    UniqueMesh screenSpaceArrows;
+};
+
 class NODISCARD CharacterBatch final
 {
 private:
@@ -115,15 +126,7 @@ private:
         DELETE_CTORS_AND_ASSIGN_OPS(CharFakeGL);
 
     public:
-        void reallyDraw(OpenGL &gl, const MapCanvasTextures &textures)
-        {
-            reallyDrawCharacters(gl, textures);
-            reallyDrawPaths(gl);
-        }
-
-    private:
-        void reallyDrawCharacters(OpenGL &gl, const MapCanvasTextures &textures);
-        void reallyDrawPaths(OpenGL &gl);
+        NODISCARD CharacterMeshes bake(OpenGL &gl, const MapCanvasTextures &textures);
 
     public:
         void setColor(const Color &color) { m_color = color; }
@@ -188,6 +191,7 @@ private:
     const int m_currentLayer;
     const float m_scale;
     CharFakeGL m_fakeGL;
+    std::optional<CharacterMeshes> m_meshes;
 
 public:
     explicit CharacterBatch(const MapScreen &mapScreen, const int currentLayer, const float scale)
@@ -214,8 +218,10 @@ public:
                             const Color &color);
 
 public:
-    void reallyDraw(OpenGL &gl, const MapCanvasTextures &textures)
+    void bake(OpenGL &gl, const MapCanvasTextures &textures)
     {
-        m_fakeGL.reallyDraw(gl, textures);
+        m_meshes.emplace(m_fakeGL.bake(gl, textures));
     }
+
+    void render();
 };

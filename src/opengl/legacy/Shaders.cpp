@@ -103,7 +103,6 @@ LineShader::~LineShader() = default;
 void LineShader::virt_setUniforms(const glm::mat4 &mvp,
                                   const GLRenderState::Uniforms &uniforms)
 {
-    setColor("uColor", uniforms.color);
     setMatrix("uMVP", mvp);
 
     const auto functions = m_functions.lock();

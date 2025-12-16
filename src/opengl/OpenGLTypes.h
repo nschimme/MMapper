@@ -63,8 +63,10 @@ struct NODISCARD ColorVert final
 
 struct NODISCARD LineVert final
 {
-    glm::vec3 from;
-    glm::vec3 to;
+    glm::vec3 p_1; // previous point
+    glm::vec3 p0;  // from
+    glm::vec3 p1;  // to
+    glm::vec3 p2;  // next point
     Color color;
 };
 

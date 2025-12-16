@@ -489,8 +489,18 @@ void ConnectionDrawer::drawLineStrip(const std::vector<glm::vec3> &points)
     const auto &color = gl.isNormal()
                             ? getCanvasNamedColorOptions().connectionNormalColor.getColor()
                             : Colors::red;
-    for (size_t i = 1; i < points.size(); ++i) {
-        lines.emplace_back(LineVert{points[i - 1], points[i], color});
+
+    for (size_t i = 0; i < points.size() - 1; ++i) {
+        const glm::vec3 p0 = points[i];
+        const glm::vec3 p1 = points[i + 1];
+
+        // If i == 0, there is no previous point. Extrapolate backwards from p1->p0.
+        const glm::vec3 p_1 = (i == 0) ? p0 - (p1 - p0) : points[i - 1];
+
+        // If i is the second to last point, there is no next point. Extrapolate forwards from p0->p1.
+        const glm::vec3 p2 = (i >= points.size() - 2) ? p1 + (p1 - p0) : points[i + 2];
+
+        lines.emplace_back(LineVert{p_1, p0, p1, p2, color});
     }
     gl.drawLines(lines);
 }
@@ -776,7 +786,7 @@ void MapCanvas::paintSelectedConnection()
 
     {
         std::vector<LineVert> verts;
-        verts.emplace_back(LineVert{pos1, pos2, Colors::red});
+        verts.emplace_back(LineVert{pos1, pos1, pos2, pos2, Colors::red});
         gl.renderLines(verts, rs);
     }
 
@@ -802,6 +812,7 @@ void ConnectionDrawer::ConnectionFakeGL::drawLines(const std::vector<LineVert> &
 {
     auto &verts = deref(m_currentBuffer).lineVerts;
     for (const auto &line : lines) {
-        verts.emplace_back(LineVert{line.from + m_offset, line.to + m_offset, line.color});
+        verts.emplace_back(LineVert{
+            line.p_1 + m_offset, line.p0 + m_offset, line.p1 + m_offset, line.p2 + m_offset, line.color});
     }
 }

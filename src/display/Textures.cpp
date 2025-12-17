@@ -34,9 +34,8 @@ MMTextureId allocateTextureId()
 
 MMTexture::MMTexture(Badge<MMTexture>, const QString &name)
     : m_qt_texture{QImage{name}.mirrored()}
-    , m_sourceData{std::make_unique<SourceData>()}
+    , m_sourceData{std::make_unique<SourceData>(name)}
 {
-    m_sourceData->m_name = name;
     auto &tex = m_qt_texture;
     tex.setWrapMode(QOpenGLTexture::WrapMode::MirroredRepeat);
     tex.setMinMagFilters(QOpenGLTexture::Filter::LinearMipMapLinear, QOpenGLTexture::Filter::Linear);
@@ -44,9 +43,8 @@ MMTexture::MMTexture(Badge<MMTexture>, const QString &name)
 
 MMTexture::MMTexture(Badge<MMTexture>, std::vector<QImage> images)
     : m_qt_texture{images.front().mirrored()} // will crash if images.empty()
-    , m_sourceData{std::make_unique<SourceData>()}
+    , m_sourceData{std::make_unique<SourceData>(std::move(images))}
 {
-    m_sourceData->m_images = std::move(images);
     const auto &front = m_sourceData->m_images.front();
     size_t level = 0;
     for (const auto &im : m_sourceData->m_images) {

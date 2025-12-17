@@ -38,6 +38,14 @@ private:
     {
         QString m_name;
         std::vector<QImage> m_images;
+
+        SourceData() = default;
+        explicit SourceData(QString name)
+            : m_name{std::move(name)}
+        {}
+        explicit SourceData(std::vector<QImage> images)
+            : m_images{std::move(images)}
+        {}
     };
     std::unique_ptr<SourceData> m_sourceData;
 

@@ -19,7 +19,4 @@ NODISCARD extern QString getPixmapFilename(TaggedRoad);
 NODISCARD extern QString getPixmapFilename(TaggedTrail);
 NODISCARD extern QString getIconFilename(CharacterPositionEnum);
 NODISCARD extern QString getIconFilename(CharacterAffectEnum);
-NODISCARD inline QString getPixmapFilename(const SharedMMTexture &tex)
-{
-    return tex->getName();
-}
+NODISCARD extern QString getPixmapFilename(const SharedMMTexture &tex);

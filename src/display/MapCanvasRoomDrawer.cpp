@@ -535,117 +535,29 @@ static void foreach_texture(const T &textures, Callback &&callback)
     }
 }
 
-NODISCARD static LayerMeshesIntermediate::FnVec createSortedTexturedMeshes(
-    const std::string_view /*what*/, const RoomTexVector &textures)
+
+using InstanceData = std::vector<glm::mat4>;
+using TexToInstanceData = std::map<MMTextureId, InstanceData>;
+
+struct ColoredInstanceData
 {
-    if (textures.empty()) {
-        return {};
-    }
+    glm::mat4 matrix;
+    glm::vec4 color;
+};
 
-    const size_t numUniqueTextures = std::invoke([&textures]() -> size_t {
-        size_t texCount = 0;
-        ::foreach_texture(textures,
-                          [&texCount](size_t /* beg */, size_t /*end*/) -> void { ++texCount; });
-        return texCount;
-    });
-
-    LayerMeshesIntermediate::FnVec tmp_meshes;
-    tmp_meshes.reserve(numUniqueTextures);
-    const auto lambda = [&tmp_meshes, &textures](const size_t beg, const size_t end) -> void {
-        const RoomTex &rtex = textures[beg];
-        const size_t count = end - beg;
-
-        std::vector<TexVert> verts;
-        verts.reserve(count * VERTS_PER_QUAD); /* quads */
-
-        // D-C
-        // | |  ccw winding
-        // A-B
-        for (size_t i = beg; i < end; ++i) {
-            const auto &pos = textures[i].room.getPosition();
-            const auto v0 = pos.to_vec3();
-#define EMIT(x, y) verts.emplace_back(glm::vec2((x), (y)), v0 + glm::vec3((x), (y), 0))
-            EMIT(0, 0);
-            EMIT(1, 0);
-            EMIT(1, 1);
-            EMIT(0, 1);
-#undef EMIT
-        }
-
-        tmp_meshes.emplace_back([v = std::move(verts), t = rtex.tex](OpenGL &g) {
-            return g.createTexturedQuadBatch(v, t);
-        });
-    };
-
-    ::foreach_texture(textures, lambda);
-    assert(tmp_meshes.size() == numUniqueTextures);
-    return tmp_meshes;
-}
-
-NODISCARD static LayerMeshesIntermediate::FnVec createSortedColoredTexturedMeshes(
-    const std::string_view /*what*/, const ColoredRoomTexVector &textures)
-{
-    if (textures.empty()) {
-        return {};
-    }
-
-    const size_t numUniqueTextures = std::invoke([&textures]() -> size_t {
-        size_t texCount = 0;
-        ::foreach_texture(textures,
-                          [&texCount](size_t /* beg */, size_t /*end*/) -> void { ++texCount; });
-        return texCount;
-    });
-
-    LayerMeshesIntermediate::FnVec tmp_meshes;
-    tmp_meshes.reserve(numUniqueTextures);
-
-    const auto lambda = [&tmp_meshes, &textures](const size_t beg, const size_t end) -> void {
-        const RoomTex &rtex = textures[beg];
-        const size_t count = end - beg;
-
-        std::vector<ColoredTexVert> verts;
-        verts.reserve(count * VERTS_PER_QUAD); /* quads */
-
-        // D-C
-        // | |  ccw winding
-        // A-B
-        for (size_t i = beg; i < end; ++i) {
-            const ColoredRoomTex &thisVert = textures[i];
-            const auto &pos = thisVert.room.getPosition();
-            const auto v0 = pos.to_vec3();
-            const auto color = thisVert.color;
-
-#define EMIT(x, y) verts.emplace_back(color, glm::vec2((x), (y)), v0 + glm::vec3((x), (y), 0))
-            EMIT(0, 0);
-            EMIT(1, 0);
-            EMIT(1, 1);
-            EMIT(0, 1);
-#undef EMIT
-        }
-
-        tmp_meshes.emplace_back([v = std::move(verts), t = rtex.tex](OpenGL &g) {
-            return g.createColoredTexturedQuadBatch(v, t);
-        });
-    };
-
-    ::foreach_texture(textures, lambda);
-    assert(tmp_meshes.size() == numUniqueTextures);
-    return tmp_meshes;
-}
+using TexToColoredInstanceData = std::map<MMTextureId, std::vector<ColoredInstanceData>>;
 
 struct NODISCARD LayerBatchData final
 {
-    RoomTexVector roomTerrains;
-    RoomTexVector roomTrails;
-    RoomTexVector roomOverlays;
-    // REVISIT: Consider storing up/down door lines in a separate batch,
-    // so they can be rendered thicker.
-    ColoredRoomTexVector doors;
-    ColoredRoomTexVector solidWallLines;
-    ColoredRoomTexVector dottedWallLines;
-    ColoredRoomTexVector roomUpDownExits;
-    ColoredRoomTexVector streamIns;
-    ColoredRoomTexVector streamOuts;
+    TexToInstanceData roomTerrains;
+    TexToInstanceData roomTrails;
+    TexToInstanceData roomOverlays;
+    TexToColoredInstanceData doors;
+    TexToColoredInstanceData solidWallLines;
+    TexToColoredInstanceData dottedWallLines;
+    TexToColoredInstanceData roomUpDownExits;
+    TexToColoredInstanceData streamIns;
+    TexToColoredInstanceData streamOuts;
     RoomTintArray<PlainQuadBatch> roomTints;
     PlainQuadBatch roomLayerBoostQuads;
 
@@ -656,41 +568,78 @@ struct NODISCARD LayerBatchData final
 
     void sort()
     {
-        DECL_TIMER(t, "sort");
-
-        /* TODO: Only sort on 2.1 path, since 3.0 can use GL_TEXTURE_2D_ARRAY. */
-        roomTerrains.sortByTexture();
-        roomTrails.sortByTexture();
-        roomOverlays.sortByTexture();
-
-        // REVISIT: We could just make two separate lists and avoid the sort.
-        // However, it may be convenient to have separate dotted vs solid texture,
-        // so we'd still need to sort in that case.
-        roomUpDownExits.sortByTexture();
-        doors.sortByTexture();
-        solidWallLines.sortByTexture();
-        dottedWallLines.sortByTexture();
-        streamIns.sortByTexture();
-        streamOuts.sortByTexture();
+        // No longer needed for instanced rendering
     }
 
     NODISCARD LayerMeshesIntermediate buildIntermediate() const
     {
         DECL_TIMER(t2, "LayerBatchData::buildIntermediate");
         LayerMeshesIntermediate meshes;
-        meshes.terrain = ::createSortedTexturedMeshes("terrain", roomTerrains);
-        meshes.trails = ::createSortedTexturedMeshes("trails", roomTrails);
-        meshes.tints = roomTints; // REVISIT: this is a copy instead of a move
-        meshes.overlays = ::createSortedTexturedMeshes("overlays", roomOverlays);
-        meshes.doors = ::createSortedColoredTexturedMeshes("doors", doors);
-        meshes.walls = ::createSortedColoredTexturedMeshes("solidWalls", solidWallLines);
-        meshes.dottedWalls = ::createSortedColoredTexturedMeshes("dottedWalls", dottedWallLines);
-        meshes.upDownExits = ::createSortedColoredTexturedMeshes("upDownExits", roomUpDownExits);
-        meshes.streamIns = ::createSortedColoredTexturedMeshes("streamIns", streamIns);
-        meshes.streamOuts = ::createSortedColoredTexturedMeshes("streamOuts", streamOuts);
-        meshes.layerBoost = roomLayerBoostQuads; // REVISIT: this is a copy instead of a move
+        meshes.terrain = createInstancedMeshes(roomTerrains);
+        meshes.trails = createInstancedMeshes(roomTrails);
+        meshes.tints = roomTints;
+        meshes.overlays = createInstancedMeshes(roomOverlays);
+        meshes.doors = createInstancedColoredTexturedMeshes(doors);
+        meshes.walls = createInstancedColoredTexturedMeshes(solidWallLines);
+        meshes.dottedWalls = createInstancedColoredTexturedMeshes(dottedWallLines);
+        meshes.upDownExits = createInstancedColoredTexturedMeshes(roomUpDownExits);
+        meshes.streamIns = createInstancedColoredTexturedMeshes(streamIns);
+        meshes.streamOuts = createInstancedColoredTexturedMeshes(streamOuts);
+        meshes.layerBoost = roomLayerBoostQuads;
         meshes.isValid = true;
         return meshes;
+    }
+
+    NODISCARD static LayerMeshesIntermediate::FnVec createInstancedColoredTexturedMeshes(const TexToColoredInstanceData &texToInstanceData)
+    {
+        LayerMeshesIntermediate::FnVec tmp_meshes;
+        tmp_meshes.reserve(texToInstanceData.size());
+
+        for (const auto &[texId, instanceData] : texToInstanceData) {
+            std::vector<TexVert> verts;
+            verts.reserve(VERTS_PER_QUAD);
+    // D-C
+    // | |  ccw winding
+    // A-B
+    #define EMIT(x, y) verts.emplace_back(glm::vec2((x), (y)), glm::vec3((x), (y), 0))
+            EMIT(0, 0);
+            EMIT(1, 0);
+            EMIT(1, 1);
+            EMIT(0, 1);
+    #undef EMIT
+
+            tmp_meshes.emplace_back([v = std::move(verts), t = texId, i = instanceData](OpenGL &g) {
+                return g.createInstancedColoredTexturedQuadBatch(v, t, i);
+            });
+        }
+
+        return tmp_meshes;
+    }
+
+    NODISCARD static LayerMeshesIntermediate::FnVec createInstancedMeshes(const TexToInstanceData &texToInstanceData)
+    {
+        LayerMeshesIntermediate::FnVec tmp_meshes;
+        tmp_meshes.reserve(texToInstanceData.size());
+
+        for (const auto &[texId, instanceData] : texToInstanceData) {
+            std::vector<TexVert> verts;
+            verts.reserve(VERTS_PER_QUAD);
+    // D-C
+    // | |  ccw winding
+    // A-B
+    #define EMIT(x, y) verts.emplace_back(glm::vec2((x), (y)), glm::vec3((x), (y), 0))
+            EMIT(0, 0);
+            EMIT(1, 0);
+            EMIT(1, 1);
+            EMIT(0, 1);
+    #undef EMIT
+
+            tmp_meshes.emplace_back([v = std::move(verts), t = texId, i = instanceData](OpenGL &g) {
+                return g.createInstancedTexturedQuadBatch(v, t, i);
+            });
+        }
+
+        return tmp_meshes;
     }
 
     NODISCARD LayerMeshes getMeshes(OpenGL &gl) const
@@ -732,9 +681,9 @@ private:
             return;
         }
 
-        m_data.roomTerrains.emplace_back(room, terrain);
-
         const auto v0 = room.getPosition().to_vec3();
+        m_data.roomTerrains[terrain].emplace_back(glm::translate(glm::mat4(1.0f), v0));
+
 #define EMIT(x, y) m_data.roomLayerBoostQuads.emplace_back(v0 + glm::vec3((x), (y), 0))
         EMIT(0, 0);
         EMIT(1, 0);
@@ -746,14 +695,16 @@ private:
     void virt_visitTrailTexture(const RoomHandle &room, const MMTextureId trail) final
     {
         if (trail != INVALID_MM_TEXTURE_ID) {
-            m_data.roomTrails.emplace_back(room, trail);
+            const auto v0 = room.getPosition().to_vec3();
+            m_data.roomTrails[trail].emplace_back(glm::translate(glm::mat4(1.0f), v0));
         }
     }
 
     void virt_visitOverlayTexture(const RoomHandle &room, const MMTextureId overlay) final
     {
         if (overlay != INVALID_MM_TEXTURE_ID) {
-            m_data.roomOverlays.emplace_back(room, overlay);
+            const auto v0 = room.getPosition().to_vec3();
+            m_data.roomOverlays[overlay].emplace_back(glm::translate(glm::mat4(1.0f), v0));
         }
     }
 
@@ -778,27 +729,21 @@ private:
             return;
         }
 
-        const std::optional<Color> optColor = getColor(color);
-        if (!optColor.has_value()) {
-            assert(false);
-            return;
-        }
-
-        const auto glcolor = optColor.value();
+        const auto v0 = room.getPosition().to_vec3();
+        const auto transform = glm::translate(glm::mat4(1.0f), v0);
+        const auto glcolor = getColor(color).value_or(Colors::magenta).to_vec4();
 
         if (wallType == WallTypeEnum::DOOR) {
-            // Note: We could use two door textures (NESW and UD), and then just rotate the
-            // texture coordinates, but doing that would require a different code path.
             const MMTextureId tex = m_textures.door[dir];
-            m_data.doors.emplace_back(room, tex, glcolor);
+            m_data.doors[tex].emplace_back(ColoredInstanceData{transform, glcolor});
         } else {
             if (isNESW(dir)) {
                 if (wallType == WallTypeEnum::SOLID) {
                     const MMTextureId tex = m_textures.wall[dir];
-                    m_data.solidWallLines.emplace_back(room, tex, glcolor);
+                    m_data.solidWallLines[tex].emplace_back(ColoredInstanceData{transform, glcolor});
                 } else {
                     const MMTextureId tex = m_textures.dotted_wall[dir];
-                    m_data.dottedWallLines.emplace_back(room, tex, glcolor);
+                    m_data.dottedWallLines[tex].emplace_back(ColoredInstanceData{transform, glcolor});
                 }
             } else {
                 const bool isUp = dir == ExitDirEnum::UP;
@@ -809,7 +754,7 @@ private:
                                                     : m_textures.exit_climb_down)
                                             : (isUp ? m_textures.exit_up : m_textures.exit_down);
 
-                m_data.roomUpDownExits.emplace_back(room, tex, glcolor);
+                m_data.roomUpDownExits[tex].emplace_back(ColoredInstanceData{transform, glcolor});
             }
         }
     }
@@ -818,13 +763,16 @@ private:
                           const ExitDirEnum dir,
                           const StreamTypeEnum type) final
     {
-        const Color color = LOOKUP_COLOR(STREAM).getColor();
+        const auto v0 = room.getPosition().to_vec3();
+        const auto transform = glm::translate(glm::mat4(1.0f), v0);
+        const auto glcolor = LOOKUP_COLOR(STREAM).getColor().to_vec4();
+
         switch (type) {
         case StreamTypeEnum::OutFlow:
-            m_data.streamOuts.emplace_back(room, m_textures.stream_out[dir], color);
+            m_data.streamOuts[m_textures.stream_out[dir]].emplace_back(ColoredInstanceData{transform, glcolor});
             return;
         case StreamTypeEnum::InFlow:
-            m_data.streamIns.emplace_back(room, m_textures.stream_in[dir], color);
+            m_data.streamIns[m_textures.stream_in[dir]].emplace_back(ColoredInstanceData{transform, glcolor});
             return;
         default:
             break;

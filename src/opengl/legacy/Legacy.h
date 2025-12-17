@@ -156,6 +156,8 @@ public:
     using Base::glDisable;
     using Base::glDisableVertexAttribArray;
     using Base::glDrawArrays;
+    using Base::glDrawArraysInstanced;
+    using Base::glDrawElementsInstanced;
     using Base::glEnable;
     using Base::glEnableVertexAttribArray;
     using Base::glGenBuffers;
@@ -181,6 +183,7 @@ public:
     using Base::glUniformMatrix4fv;
     using Base::glUseProgram;
     using Base::glVertexAttribPointer;
+    using Base::glVertexAttribDivisor;
 
     // VAO functions
     using Base::glBindVertexArray;
@@ -322,6 +325,14 @@ public:
     NODISCARD UniqueMesh createTexturedBatch(DrawModeEnum mode,
                                              const std::vector<TexVert> &batch,
                                              MMTextureId texture);
+    NODISCARD UniqueMesh createInstancedTexturedBatch(DrawModeEnum mode,
+                                                      const std::vector<TexVert> &batch,
+                                                      MMTextureId texture,
+                                                      const std::vector<glm::mat4> &instanceData);
+    NODISCARD UniqueMesh createInstancedColoredTexturedBatch(DrawModeEnum mode,
+                                                              const std::vector<TexVert> &batch,
+                                                              MMTextureId texture,
+                                                              const std::vector<ColoredInstanceData> &instanceData);
     NODISCARD UniqueMesh createColoredTexturedBatch(DrawModeEnum mode,
                                                     const std::vector<ColoredTexVert> &batch,
                                                     MMTextureId texture);

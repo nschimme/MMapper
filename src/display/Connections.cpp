@@ -474,10 +474,11 @@ void ConnectionDrawer::drawConnectionLine(const ExitDirEnum startDir,
         return;
     }
 
-    drawLineStrip(points);
+    drawLineStrip(points, true);
 }
 
-void ConnectionDrawer::drawLineStrip(const std::vector<glm::vec3> &points)
+void ConnectionDrawer::drawLineStrip(const std::vector<glm::vec3> &points,
+                                      const bool connectionFading)
 {
     if (points.size() < 2) {
         return;
@@ -486,11 +487,37 @@ void ConnectionDrawer::drawLineStrip(const std::vector<glm::vec3> &points)
     std::vector<LineVert> lines;
     lines.reserve(points.size() - 1);
     auto &gl = getFakeGL();
-    const auto &color = gl.isNormal()
-                            ? getCanvasNamedColorOptions().connectionNormalColor.getColor()
-                            : Colors::red;
+    const auto &base_color = gl.isNormal()
+                                 ? getCanvasNamedColorOptions().connectionNormalColor.getColor()
+                                 : Colors::red;
+
     for (size_t i = 1; i < points.size(); ++i) {
-        lines.emplace_back(LineVert{points[i - 1], points[i], color});
+        const auto &p1 = points[i - 1];
+        const auto &p2 = points[i];
+
+        if (connectionFading) {
+            if (std::abs(p1.z - p2.z) > GEOMETRIC_EPSILON) {
+                lines.emplace_back(p1, p2, base_color.withAlpha(FAINT_CONNECTION_ALPHA));
+                continue;
+            }
+
+            const float world_dist = glm::distance(p1, p2);
+            static constexpr float LONG_LINE_HALFLEN = 1.5f;
+            static constexpr float LONG_LINE_LEN = 2.0f * LONG_LINE_HALFLEN;
+
+            if (world_dist >= LONG_LINE_LEN) {
+                const float faintCutoff = (world_dist > 1e-6f) ? (LONG_LINE_HALFLEN / world_dist)
+                                                              : 0.5f;
+                const auto p_mid1 = glm::mix(p1, p2, faintCutoff);
+                const auto p_mid2 = glm::mix(p1, p2, 1.0f - faintCutoff);
+                lines.emplace_back(p1, p_mid1, base_color);
+                lines.emplace_back(p_mid1, p_mid2, base_color.withAlpha(FAINT_CONNECTION_ALPHA));
+                lines.emplace_back(p_mid2, p2, base_color);
+                continue;
+            }
+        }
+
+        lines.emplace_back(p1, p2, base_color);
     }
     gl.drawLines(lines);
 }
@@ -647,8 +674,7 @@ void ConnectionMeshes::render(const int thisLayer, const int focusedLayer) const
     });
     const auto common_style = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY);
     const auto tri_style = common_style.withColor(tri_color);
-    const auto line_style =
-        common_style.withLineParams(LineParams{CONNECTION_LINE_WIDTH, true});
+    const auto line_style = common_style;
 
     // Even though we can draw colored lines and tris,
     // the reason for having separate lines is so red will always be on top.

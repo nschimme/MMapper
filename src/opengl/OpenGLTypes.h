@@ -66,6 +66,12 @@ struct NODISCARD LineVert final
     glm::vec3 from;
     glm::vec3 to;
     Color color;
+
+    explicit LineVert(const glm::vec3 &from_, const glm::vec3 &to_, const Color &color_)
+        : from{from_}
+        , to{to_}
+        , color{color_}
+    {}
 };
 
 // Similar to ColoredTexVert, except it has a base position in world coordinates.

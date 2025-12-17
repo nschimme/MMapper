@@ -181,7 +181,7 @@ public:
                           const RoomHandle &targetRoom,
                           ExitDirEnum targetDir);
 
-    void drawLineStrip(const std::vector<glm::vec3> &points);
+    void drawLineStrip(const std::vector<glm::vec3> &points, bool connectionFading);
 
     void drawConnection(const RoomHandle &leftRoom,
                         const RoomHandle &rightRoom,

@@ -159,7 +159,7 @@ static void renderImmediate(const SharedFunctions &sharedFunctions,
             assert(!vbo);
             {
                 mesh.setDynamic(mode, verts);
-                mesh.render(renderState, instanceCount);
+                mesh.renderInstanced(renderState, instanceCount.value_or(1));
             }
             mesh.unsafe_swapVboId(vbo);
             assert(vbo);

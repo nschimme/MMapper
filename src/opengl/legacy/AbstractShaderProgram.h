@@ -67,9 +67,9 @@ private:
                                   const GLRenderState::Uniforms &uniforms) = 0;
 
 public:
-    NODISCARD GLuint getAttribLocation(const char *name) const;
-    NODISCARD GLint getUniformLocation(const char *name) const;
-    NODISCARD bool hasUniform(const char *name) const;
+    NODISCARD GLuint getAttribLocation(const std::string &name) const;
+    NODISCARD GLint getUniformLocation(const std::string &name) const;
+    NODISCARD bool hasUniform(const std::string &name) const;
 
 public:
     void setUniform1iv(GLint location, GLsizei count, const GLint *value);
@@ -85,13 +85,13 @@ private:
     NODISCARD float getDevicePixelRatio() const;
 
 public:
-    void setFloat(const char *name, float value);
+    void setFloat(const std::string &name, float value);
     void setPointSize(float in_pointSize);
-    void setColor(const char *name, const Color &color);
-    void setMatrix(const char *name, const glm::mat4 &m);
-    void setTexture(const char *name, int textureUnit);
-    void setViewport(const char *name, const Viewport &input_viewport);
-    void setViewportF(const char *name, const Viewport &input_viewport);
+    void setColor(const std::string &name, const Color &color);
+    void setMatrix(const std::string &name, const glm::mat4 &m);
+    void setTexture(const std::string &name, int textureUnit);
+    void setViewport(const std::string &name, const Viewport &input_viewport);
+    void setViewportF(const std::string &name, const Viewport &input_viewport);
 };
 
 } // namespace Legacy

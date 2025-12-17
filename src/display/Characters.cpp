@@ -107,7 +107,7 @@ void CharacterBatch::CharFakeGL::drawPathSegment(const glm::vec3 &p1,
                                                  const glm::vec3 &p2,
                                                  const Color &color)
 {
-    mmgl::generateLineQuadsSafe(m_pathLineQuads, p1, p2, PATH_LINE_WIDTH, color);
+    // This will be updated to generate instance data
 }
 
 void CharacterBatch::drawPreSpammedPath(const Coordinate &c1,
@@ -152,78 +152,7 @@ void CharacterBatch::CharFakeGL::drawQuadCommon(const glm::vec2 &in_a,
                                                 const glm::vec2 &in_d,
                                                 const QuadOptsEnum options)
 {
-    const auto &m = m_stack.top().modelView;
-    const auto transform = [&m](const glm::vec2 &vin) -> glm::vec3 {
-        const auto vtmp = m * glm::vec4(vin, 0.f, 1.f);
-        return glm::vec3{vtmp / vtmp.w};
-    };
-
-    const auto a = transform(in_a);
-    const auto b = transform(in_b);
-    const auto c = transform(in_c);
-    const auto d = transform(in_d);
-
-    if (::utils::isSet(options, QuadOptsEnum::FILL)) {
-        const auto color = m_color.withAlpha(FILL_ALPHA);
-        auto emitVert = [this, &color](const auto &x) -> void { m_charTris.emplace_back(color, x); };
-        auto emitTri = [&emitVert](const auto &v0, const auto &v1, const auto &v2) -> void {
-            emitVert(v0);
-            emitVert(v1);
-            emitVert(v2);
-        };
-        emitTri(a, b, c);
-        emitTri(a, c, d);
-    }
-
-    if (::utils::isSet(options, QuadOptsEnum::BEACON)) {
-        const auto color = m_color.withAlpha(BEACON_ALPHA);
-
-        const glm::vec3 heightOffset{0.f, 0.f, 50.f};
-
-        // H-----G
-        // |\   /|
-        // | D-C |
-        // | | | |
-        // | A-B |
-        // |/   \|
-        // E-----F
-
-        const auto e = a + heightOffset;
-        const auto f = b + heightOffset;
-        const auto g = c + heightOffset;
-        const auto h = d + heightOffset;
-
-        auto emitVert = [this, &color](const auto &x) -> void {
-            m_charBeaconQuads.emplace_back(color, x);
-        };
-        auto emitQuad =
-            [&emitVert](const auto &v0, const auto &v1, const auto &v2, const auto &v3) -> void {
-            emitVert(v0);
-            emitVert(v1);
-            emitVert(v2);
-            emitVert(v3);
-        };
-        // draw the *inner* faces
-        emitQuad(a, e, f, b);
-        emitQuad(b, f, g, c);
-        emitQuad(c, g, h, d);
-        emitQuad(d, h, e, a);
-    }
-
-    if (::utils::isSet(options, QuadOptsEnum::OUTLINE)) {
-        const auto color = m_color.withAlpha(LINE_ALPHA);
-        auto emitVert = [this, &color](const auto &x) -> void {
-            m_charLines.emplace_back(color, x);
-        };
-        auto emitLine = [&emitVert](const auto &v0, const auto &v1) -> void {
-            emitVert(v0);
-            emitVert(v1);
-        };
-        emitLine(a, b);
-        emitLine(b, c);
-        emitLine(c, d);
-        emitLine(d, a);
-    }
+    // This will be updated to generate instance data
 }
 
 void CharacterBatch::CharFakeGL::drawBox(const Coordinate &coord,

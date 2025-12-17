@@ -6,6 +6,7 @@
 #include "Legacy.h"
 #include "Shaders.h"
 #include "SimpleMesh.h"
+#include "InstancedMesh.h"
 
 #include <optional>
 
@@ -13,6 +14,145 @@
 #define VPO(x) VOIDPTR_OFFSETOF(VertexType_, x)
 
 namespace Legacy {
+
+// Textured instanced mesh with color modulated by uniform
+template<typename VertexType_, typename InstanceDataType_>
+class NODISCARD InstancedTexturedMesh final : public InstancedMesh<VertexType_, InstanceDataType_, UColorTexturedShader>
+{
+public:
+    using Base = InstancedMesh<VertexType_, InstanceDataType_, UColorTexturedShader>;
+    using Base::Base;
+
+private:
+    struct NODISCARD Attribs final
+    {
+        GLuint texPos = INVALID_ATTRIB_LOCATION;
+        GLuint vertPos = INVALID_ATTRIB_LOCATION;
+        GLuint instanceMatrix = INVALID_ATTRIB_LOCATION;
+
+        NODISCARD static Attribs getLocations(AbstractShaderProgram &fontShader)
+        {
+            Attribs result;
+            result.texPos = fontShader.getAttribLocation("aTexCoord");
+            result.vertPos = fontShader.getAttribLocation("aVert");
+            result.instanceMatrix = fontShader.getAttribLocation("aInstanceMatrix");
+            return result;
+        }
+    };
+
+    std::optional<Attribs> m_boundAttribs;
+
+    void virt_bind() override
+    {
+        const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
+        static_assert(sizeof(std::declval<VertexType_>().tex) == 2 * sizeof(GLfloat));
+        static_assert(sizeof(std::declval<VertexType_>().vert) == 3 * sizeof(GLfloat));
+
+        Functions &gl = Base::m_functions;
+        const auto attribs = Attribs::getLocations(Base::m_program);
+        gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
+        gl.enableAttrib(attribs.texPos, 2, GL_FLOAT, GL_FALSE, vertSize, VPO(tex));
+        gl.enableAttrib(attribs.vertPos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(vert));
+
+        gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_instanceVbo.get());
+        for (int i = 0; i < 4; ++i) {
+            gl.enableAttrib(attribs.instanceMatrix + i, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(sizeof(glm::vec4) * i));
+            gl.glVertexAttribDivisor(attribs.instanceMatrix + i, 1);
+        }
+        m_boundAttribs = attribs;
+    }
+
+    void virt_unbind() override
+    {
+        if (!m_boundAttribs) {
+            assert(false);
+            return;
+        }
+
+        auto &attribs = m_boundAttribs.value();
+        Functions &gl = Base::m_functions;
+        gl.glDisableVertexAttribArray(attribs.texPos);
+        gl.glDisableVertexAttribArray(attribs.vertPos);
+        for (int i = 0; i < 4; ++i) {
+            gl.glDisableVertexAttribArray(attribs.instanceMatrix + i);
+        }
+        gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
+        m_boundAttribs.reset();
+    }
+};
+
+// Textured instanced mesh with per-instance color
+template<typename VertexType_, typename InstanceDataType_>
+class NODISCARD InstancedColoredTexturedMesh final : public InstancedMesh<VertexType_, InstanceDataType_, AColorTexturedShader>
+{
+public:
+    using Base = InstancedMesh<VertexType_, InstanceDataType_, AColorTexturedShader>;
+    using Base::Base;
+
+private:
+    struct NODISCARD Attribs final
+    {
+        GLuint texPos = INVALID_ATTRIB_LOCATION;
+        GLuint vertPos = INVALID_ATTRIB_LOCATION;
+        GLuint instanceMatrix = INVALID_ATTRIB_LOCATION;
+        GLuint instanceColor = INVALID_ATTRIB_LOCATION;
+
+        NODISCARD static Attribs getLocations(AbstractShaderProgram &fontShader)
+        {
+            Attribs result;
+            result.texPos = fontShader.getAttribLocation("aTexCoord");
+            result.vertPos = fontShader.getAttribLocation("aVert");
+            result.instanceMatrix = fontShader.getAttribLocation("aInstanceMatrix");
+            result.instanceColor = fontShader.getAttribLocation("aInstanceColor");
+            return result;
+        }
+    };
+
+    std::optional<Attribs> m_boundAttribs;
+
+    void virt_bind() override
+    {
+        const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
+        static_assert(sizeof(std::declval<VertexType_>().tex) == 2 * sizeof(GLfloat));
+        static_assert(sizeof(std::declval<VertexType_>().vert) == 3 * sizeof(GLfloat));
+
+        Functions &gl = Base::m_functions;
+        const auto attribs = Attribs::getLocations(Base::m_program);
+        gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
+        gl.enableAttrib(attribs.texPos, 2, GL_FLOAT, GL_FALSE, vertSize, VPO(tex));
+        gl.enableAttrib(attribs.vertPos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(vert));
+
+        gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_instanceVbo.get());
+        const auto instanceSize = static_cast<GLsizei>(sizeof(InstanceDataType_));
+        gl.enableAttrib(attribs.instanceColor, 4, GL_FLOAT, GL_FALSE, instanceSize, VPO(color));
+        gl.glVertexAttribDivisor(attribs.instanceColor, 1);
+
+        for (int i = 0; i < 4; ++i) {
+            gl.enableAttrib(attribs.instanceMatrix + i, 4, GL_FLOAT, GL_FALSE, instanceSize, (void*)(offsetof(InstanceDataType_, matrix) + sizeof(glm::vec4) * i));
+            gl.glVertexAttribDivisor(attribs.instanceMatrix + i, 1);
+        }
+        m_boundAttribs = attribs;
+    }
+
+    void virt_unbind() override
+    {
+        if (!m_boundAttribs) {
+            assert(false);
+            return;
+        }
+
+        auto &attribs = m_boundAttribs.value();
+        Functions &gl = Base::m_functions;
+        gl.glDisableVertexAttribArray(attribs.texPos);
+        gl.glDisableVertexAttribArray(attribs.vertPos);
+        gl.glDisableVertexAttribArray(attribs.instanceColor);
+        for (int i = 0; i < 4; ++i) {
+            gl.glDisableVertexAttribArray(attribs.instanceMatrix + i);
+        }
+        gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
+        m_boundAttribs.reset();
+    }
+};
 
 // Uniform color
 template<typename VertexType_>

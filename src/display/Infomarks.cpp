@@ -140,17 +140,19 @@ void InfomarksBatch::drawPoint(const glm::vec3 &a)
 
 void InfomarksBatch::drawLine(const glm::vec3 &a, const glm::vec3 &b)
 {
+    // This will be updated to generate instance data
     const glm::vec3 start_v = a + m_offset;
     const glm::vec3 end_v = b + m_offset;
 
-    mmgl::generateLineQuadsSafe(m_quads, start_v, end_v, INFOMARK_ARROW_LINE_WIDTH, m_color);
+    // mmgl::generateLineQuadsSafe(m_quads, start_v, end_v, INFOMARK_ARROW_LINE_WIDTH, m_color);
 }
 
 void InfomarksBatch::drawTriangle(const glm::vec3 &a, const glm::vec3 &b, const glm::vec3 &c)
 {
-    m_tris.emplace_back(m_color, a + m_offset);
-    m_tris.emplace_back(m_color, b + m_offset);
-    m_tris.emplace_back(m_color, c + m_offset);
+    // This will be updated to generate instance data
+    // m_tris.emplace_back(m_color, a + m_offset);
+    // m_tris.emplace_back(m_color, b + m_offset);
+    // m_tris.emplace_back(m_color, c + m_offset);
 }
 
 void InfomarksBatch::renderText(const glm::vec3 &pos,

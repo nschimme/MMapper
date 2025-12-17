@@ -7,6 +7,7 @@
 #include "../opengl/Font.h"
 #include "../opengl/FontFormatFlags.h"
 #include "../opengl/OpenGLTypes.h"
+#include "MapCanvasRoomDrawer.h"
 
 #include <cstddef>
 #include <optional>
@@ -40,8 +41,8 @@ private:
     Color m_color;
 
     std::vector<ColorVert> m_points;
-    std::vector<ColorVert> m_tris;
-    std::vector<ColorVert> m_quads;
+    TexToColoredInstanceData m_tris;
+    TexToColoredInstanceData m_quads;
 
     // REVISIT: This is ill-advised and may contain bugs.
     struct NODISCARD Text final

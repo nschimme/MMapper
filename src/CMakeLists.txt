@@ -414,6 +414,7 @@ set(mmapper_SRCS
     opengl/legacy/FunctionsES30.cpp
     opengl/legacy/FunctionsES30.h
     opengl/legacy/Meshes.cpp
+    opengl/legacy/InstancedMesh.h
     opengl/legacy/Meshes.h
     opengl/legacy/ShaderUtils.cpp
     opengl/legacy/ShaderUtils.h

@@ -7,6 +7,7 @@
 #include "../map/coordinate.h"
 #include "../opengl/Font.h"
 #include "../opengl/OpenGLTypes.h"
+#include "MapCanvasRoomDrawer.h"
 
 #include <cassert>
 #include <cstddef>
@@ -100,12 +101,12 @@ private:
     private:
         Color m_color;
         MatrixStack m_stack;
-        std::vector<ColorVert> m_charTris;
-        std::vector<ColorVert> m_charBeaconQuads;
-        std::vector<ColorVert> m_charLines;
-        std::vector<ColoredTexVert> m_charRoomQuads;
+        TexToColoredInstanceData m_charTris;
+        TexToColoredInstanceData m_charBeaconQuads;
+        TexToColoredInstanceData m_charLines;
+        TexToColoredInstanceData m_charRoomQuads;
         std::vector<ColorVert> m_pathPoints;
-        std::vector<ColorVert> m_pathLineQuads;
+        TexToColoredInstanceData m_pathLineQuads;
         std::vector<FontVert3d> m_screenSpaceArrows;
         std::map<Coordinate, int, CoordCompare> m_coordCounts;
 

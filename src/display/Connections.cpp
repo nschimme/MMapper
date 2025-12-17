@@ -620,10 +620,34 @@ void ConnectionDrawer::drawConnEndTriUpDownUnknown(float dX, float dY, float dst
 ConnectionMeshes ConnectionDrawerBuffers::getMeshes(OpenGL &gl) const
 {
     ConnectionMeshes result;
-    result.normalTris = gl.createColoredTriBatch(normal.triVerts);
-    result.redTris = gl.createColoredTriBatch(red.triVerts);
-    result.normalQuads = gl.createColoredQuadBatch(normal.quadVerts);
-    result.redQuads = gl.createColoredQuadBatch(red.quadVerts);
+
+    const auto createMeshes = [&](const TexToColoredInstanceData &tris, const TexToColoredInstanceData &quads) {
+        UniqueMeshVector triMeshes;
+        UniqueMeshVector quadMeshes;
+
+        for (const auto &[texId, instanceData] : tris) {
+            std::vector<TexVert> verts;
+            verts.emplace_back(glm::vec2(0.5f, 1.0f), glm::vec3(0.0f, 0.5f, 0.0f));
+            verts.emplace_back(glm::vec2(0.0f, 0.0f), glm::vec3(-0.5f, -0.5f, 0.0f));
+            verts.emplace_back(glm::vec2(1.0f, 0.0f), glm::vec3(0.5f, -0.5f, 0.0f));
+            triMeshes.emplace_back(gl.createInstancedColoredTexturedQuadBatch(verts, texId, instanceData));
+        }
+
+        for (const auto &[texId, instanceData] : quads) {
+            std::vector<TexVert> verts;
+            verts.emplace_back(glm::vec2(0.0f, 0.0f), glm::vec3(0.0f, -0.5f, 0.0f));
+            verts.emplace_back(glm::vec2(1.0f, 0.0f), glm::vec3(1.0f, -0.5f, 0.0f));
+            verts.emplace_back(glm::vec2(1.0f, 1.0f), glm::vec3(1.0f, 0.5f, 0.0f));
+            verts.emplace_back(glm::vec2(0.0f, 1.0f), glm::vec3(0.0f, 0.5f, 0.0f));
+            quadMeshes.emplace_back(gl.createInstancedColoredTexturedQuadBatch(verts, texId, instanceData));
+        }
+
+        return std::make_pair(std::move(triMeshes), std::move(quadMeshes));
+    };
+
+    std::tie(result.normalTris, result.normalQuads) = createMeshes(normal.tris, normal.quads);
+    std::tie(result.redTris, result.redQuads) = createMeshes(red.tris, red.quads);
+
     return result;
 }
 
@@ -787,96 +811,40 @@ void ConnectionDrawer::ConnectionFakeGL::drawTriangle(const glm::vec3 &a,
 {
     const auto &color = isNormal() ? getCanvasNamedColorOptions().connectionNormalColor.getColor()
                                    : Colors::red;
-    auto &verts = deref(m_currentBuffer).triVerts;
-    verts.emplace_back(color, a + m_offset);
-    verts.emplace_back(color, b + m_offset);
-    verts.emplace_back(color, c + m_offset);
+
+    // For now, hardcode a texture. This will be updated later.
+    const MMTextureId texture = MMTextureId{0};
+
+    const auto transform = glm::translate(glm::mat4(1.0f), a);
+    deref(m_currentBuffer).tris[texture].emplace_back(ColoredInstanceData{transform, color.to_vec4()});
 }
 
 void ConnectionDrawer::ConnectionFakeGL::drawLineStrip(const std::vector<glm::vec3> &points)
 {
-    const auto transform = [this](const glm::vec3 &vert) { return vert + m_offset; };
-    const float extension = CONNECTION_LINE_WIDTH * 0.5f;
+    const auto &color = isNormal() ? getCanvasNamedColorOptions().connectionNormalColor.getColor()
+                                   : Colors::red;
 
-    // Helper lambda to generate a quad between two points with a specific color.
-    auto generateQuad = [&](const glm::vec3 &p1, const glm::vec3 &p2, const Color &quad_color) {
-        auto &verts = deref(m_currentBuffer).quadVerts;
+    // For now, hardcode a texture. This will be updated later.
+    const MMTextureId texture = MMTextureId{0};
+
+    for (size_t i = 1; i < points.size(); ++i) {
+        const glm::vec3 &p1 = points[i - 1];
+        const glm::vec3 &p2 = points[i];
 
         const glm::vec3 segment = p2 - p1;
-        if (mmgl::isNearZero(segment)) {
-            mmgl::drawZeroLengthSquare(verts, p1, CONNECTION_LINE_WIDTH, quad_color);
-            return;
-        }
-
-        const glm::vec3 dir = glm::normalize(segment);
-        const glm::vec3 perp_normal_1 = mmgl::getPerpendicularNormal(dir);
-        mmgl::generateLineQuad(verts, p1, p2, CONNECTION_LINE_WIDTH, quad_color, perp_normal_1);
-
-        // If the line crosses different Z-layers, draw a second perpendicular quad to form a "cross" shape.
-        if (isCrossingZAxis(p1, p2)) {
-            const glm::vec3 perp_normal_2 = mmgl::getOrthogonalNormal(dir, perp_normal_1);
-            mmgl::generateLineQuad(verts, p1, p2, CONNECTION_LINE_WIDTH, quad_color, perp_normal_2);
-        }
-    };
-
-    const auto size = points.size();
-    assert(size >= 2);
-
-    const Color base_color = isNormal()
-                                 ? getCanvasNamedColorOptions().connectionNormalColor.getColor()
-                                 : Colors::red;
-
-    for (size_t i = 1; i < size; ++i) {
-        const glm::vec3 start_orig = points[i - 1u];
-        const glm::vec3 end_orig = points[i];
-
-        const glm::vec3 start_v = transform(start_orig);
-        const glm::vec3 end_v = transform(end_orig);
-
-        Color current_segment_color = base_color;
-
-        // Handle original zero-length segments first.
-        const glm::vec3 segment = end_v - start_v;
-        if (mmgl::isNearZero(segment)) {
-            generateQuad(start_v, end_v, current_segment_color);
+        const float length = glm::length(segment);
+        if (length < 1e-6) {
             continue;
         }
 
-        // If the segment crosses the Z-axis, apply fading.
-        if (isCrossingZAxis(start_v, end_v)) {
-            current_segment_color = current_segment_color.withAlpha(FAINT_CONNECTION_ALPHA);
-        }
+        const glm::vec3 dir = segment / length;
+        const float angle = atan2(dir.y, dir.x);
 
-        glm::vec3 quad_start_v = start_v;
-        glm::vec3 quad_end_v = end_v;
-        const glm::vec3 segment_dir = glm::normalize(segment);
+        glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(length, CONNECTION_LINE_WIDTH, 1.0f));
+        glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0, 0, 1));
+        glm::mat4 translate = glm::translate(glm::mat4(1.0f), p1);
 
-        // Extend the first and last segments for better visual continuity.
-        if (i == 1) {
-            // First segment of the polyline.
-            quad_start_v = start_v - segment_dir * extension;
-        }
-        if (i == size - 1) {
-            // Last segment of the polyline.
-            quad_end_v = end_v + segment_dir * extension;
-        }
-
-        // If it's not a long line, just draw a single quad.
-        if (!isLongLine(quad_start_v, quad_end_v)) {
-            generateQuad(quad_start_v, quad_end_v, current_segment_color);
-            continue;
-        }
-
-        // It is a long line, apply fading.
-        const float len = glm::length(quad_end_v - quad_start_v);
-        const float faintCutoff = (len > 1e-6f) ? (LONG_LINE_HALFLEN / len) : 0.5f;
-
-        const glm::vec3 mid1 = glm::mix(quad_start_v, quad_end_v, faintCutoff);
-        const glm::vec3 mid2 = glm::mix(quad_start_v, quad_end_v, 1.f - faintCutoff);
-        const Color faint_color = current_segment_color.withAlpha(FAINT_CONNECTION_ALPHA);
-
-        generateQuad(quad_start_v, mid1, current_segment_color);
-        generateQuad(mid1, mid2, faint_color);
-        generateQuad(mid2, quad_end_v, current_segment_color);
+        const glm::mat4 transform = translate * rotate * scale;
+        deref(m_currentBuffer).quads[texture].emplace_back(ColoredInstanceData{transform, color.to_vec4()});
     }
 }

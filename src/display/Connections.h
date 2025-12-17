@@ -11,6 +11,7 @@
 #include "../map/roomid.h"
 #include "../opengl/Font.h"
 #include "../opengl/OpenGLTypes.h"
+#include "MapCanvasRoomDrawer.h"
 
 #include <algorithm>
 #include <cassert>
@@ -69,8 +70,8 @@ using BatchedRoomNames = std::unordered_map<int, UniqueMesh>;
 
 struct NODISCARD ConnectionDrawerColorBuffer final
 {
-    std::vector<ColorVert> triVerts;
-    std::vector<ColorVert> quadVerts;
+    TexToColoredInstanceData tris;
+    TexToColoredInstanceData quads;
 
     ConnectionDrawerColorBuffer() = default;
     DEFAULT_MOVES_DELETE_COPIES(ConnectionDrawerColorBuffer);
@@ -78,18 +79,18 @@ struct NODISCARD ConnectionDrawerColorBuffer final
 
     void clear()
     {
-        triVerts.clear();
-        quadVerts.clear();
+        tris.clear();
+        quads.clear();
     }
-    NODISCARD bool empty() const { return triVerts.empty() && quadVerts.empty(); }
+    NODISCARD bool empty() const { return tris.empty() && quads.empty(); }
 };
 
 struct NODISCARD ConnectionMeshes final
 {
-    UniqueMesh normalTris;
-    UniqueMesh redTris;
-    UniqueMesh normalQuads;
-    UniqueMesh redQuads;
+    UniqueMeshVector normalTris;
+    UniqueMeshVector redTris;
+    UniqueMeshVector normalQuads;
+    UniqueMeshVector redQuads;
 
     ConnectionMeshes() = default;
     DEFAULT_MOVES_DELETE_COPIES(ConnectionMeshes);

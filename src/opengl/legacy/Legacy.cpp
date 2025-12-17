@@ -9,6 +9,7 @@
 #include "AbstractShaderProgram.h"
 #include "Binders.h"
 #include "FontMesh3d.h"
+#include "InstancedMesh.h"
 #include "Meshes.h"
 #include "ShaderUtils.h"
 #include "Shaders.h"
@@ -68,6 +69,31 @@ NODISCARD static UniqueMesh createTexturedMesh(const SharedFunctions &functions,
         texture, createMesh<Mesh_, VertType_, ProgType_>(functions, mode, batch, prog))};
 }
 
+template<template<typename, typename> typename Mesh_, typename VertType_, typename InstanceDataType_, typename ProgType_>
+NODISCARD static auto createInstancedMesh(const SharedFunctions &functions,
+                                 const DrawModeEnum mode,
+                                 const std::vector<VertType_> &batch,
+                                 const std::vector<InstanceDataType_> &instanceData,
+                                 const std::shared_ptr<ProgType_> &prog)
+{
+    using Mesh = Mesh_<VertType_, InstanceDataType_>;
+    static_assert(std::is_same_v<typename Mesh::ProgramType, ProgType_>);
+    return std::make_unique<Mesh>(functions, prog, mode, batch, instanceData);
+}
+
+template<template<typename, typename> typename Mesh_, typename VertType_, typename InstanceDataType_, typename ProgType_>
+NODISCARD static UniqueMesh createTexturedInstancedMesh(const SharedFunctions &functions,
+                                               const DrawModeEnum mode,
+                                               const std::vector<VertType_> &batch,
+                                               const std::vector<InstanceDataType_> &instanceData,
+                                               const std::shared_ptr<ProgType_> &prog,
+                                               const MMTextureId texture)
+{
+    assert(static_cast<size_t>(mode) >= VERTS_PER_TRI);
+    return UniqueMesh{std::make_unique<TexturedRenderable>(
+        texture, createInstancedMesh<Mesh_, VertType_, InstanceDataType_, ProgType_>(functions, mode, batch, instanceData, prog))};
+}
+
 UniqueMesh Functions::createPointBatch(const std::vector<ColorVert> &batch)
 {
     const auto &prog = getShaderPrograms().getPointShader();
@@ -105,6 +131,26 @@ UniqueMesh Functions::createColoredTexturedBatch(const DrawModeEnum mode,
     assert(static_cast<size_t>(mode) >= VERTS_PER_TRI);
     const auto &prog = getShaderPrograms().getTexturedAColorShader();
     return createTexturedMesh<ColoredTexturedMesh>(shared_from_this(), mode, batch, prog, texture);
+}
+
+UniqueMesh Functions::createInstancedTexturedBatch(const DrawModeEnum mode,
+                                                  const std::vector<TexVert> &batch,
+                                                  const MMTextureId texture,
+                                                  const std::vector<glm::mat4> &instanceData)
+{
+    assert(static_cast<size_t>(mode) >= VERTS_PER_TRI);
+    const auto &prog = getShaderPrograms().getTexturedUColorShader();
+    return createTexturedInstancedMesh<InstancedTexturedMesh>(shared_from_this(), mode, batch, instanceData, prog, texture);
+}
+
+UniqueMesh Functions::createInstancedColoredTexturedBatch(const DrawModeEnum mode,
+                                                              const std::vector<TexVert> &batch,
+                                                              const MMTextureId texture,
+                                                              const std::vector<ColoredInstanceData> &instanceData)
+{
+    assert(static_cast<size_t>(mode) >= VERTS_PER_TRI);
+    const auto &prog = getShaderPrograms().getTexturedAColorShader();
+    return createTexturedInstancedMesh<InstancedColoredTexturedMesh>(shared_from_this(), mode, batch, instanceData, prog, texture);
 }
 
 template<typename VertexType_, template<typename> typename Mesh_, typename ShaderType_>

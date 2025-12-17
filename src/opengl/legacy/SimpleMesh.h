@@ -162,7 +162,12 @@ private:
     void virt_render(const GLRenderState &renderState) final { render(renderState); }
 
 public:
-    void render(const GLRenderState &renderState, const std::optional<int> instanceCount = {})
+    void render(const GLRenderState &renderState)
+    {
+        renderInstanced(renderState, 1);
+    }
+
+    void renderInstanced(const GLRenderState &renderState, int instanceCount)
     {
         if (isEmpty()) {
             return;
@@ -184,14 +189,7 @@ public:
         auto attribUnbinder = bindAttribs();
 
         if (const std::optional<GLenum> &optMode = m_functions.toGLenum(m_drawMode)) {
-            if (instanceCount) {
-                m_functions.glDrawArraysInstanced(optMode.value(),
-                                                  0,
-                                                  m_numVerts,
-                                                  instanceCount.value());
-            } else {
-                m_functions.glDrawArrays(optMode.value(), 0, m_numVerts);
-            }
+            m_functions.glDrawArraysInstanced(optMode.value(), 0, m_numVerts, instanceCount);
         } else {
             assert(false);
         }

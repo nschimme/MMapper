@@ -463,7 +463,12 @@ public:
     void unsafe_swapVboId(VBO &vbo) { return m_vbo.unsafe_swapVboId(vbo); }
 
 public:
-    void render(const GLRenderState &renderState, const std::optional<int> instanceCount = {})
+    void render(const GLRenderState &renderState)
+    {
+        renderInstanced(renderState, 1);
+    }
+
+    void renderInstanced(const GLRenderState &renderState, int instanceCount)
     {
         if (virt_isEmpty()) {
             return;
@@ -485,7 +490,7 @@ public:
         auto attribUnbinder = bindAttribs();
 
         if (const std::optional<GLenum> &optMode = m_functions.toGLenum(m_drawMode)) {
-            m_functions.glDrawArraysInstanced(optMode.value(), 0, 4, instanceCount.value_or(m_numVerts));
+            m_functions.glDrawArraysInstanced(optMode.value(), 0, 4, instanceCount);
         } else {
             assert(false);
         }

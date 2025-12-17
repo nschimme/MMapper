@@ -48,12 +48,12 @@ void AbstractShaderProgram::setUniforms(const glm::mat4 &mvp,
     }
 }
 
-GLuint AbstractShaderProgram::getAttribLocation(const char *const name) const
+GLuint AbstractShaderProgram::getAttribLocation(const std::string &name) const
 {
-    assert(name != nullptr);
+    assert(!name.empty());
     assert(m_isBound);
     auto functions = m_functions.lock();
-    const auto tmp = deref(functions).glGetAttribLocation(getProgram(), name);
+    const auto tmp = deref(functions).glGetAttribLocation(getProgram(), name.c_str());
     // Reason for making the cast here: glGetAttribLocation uses signed GLint,
     // but glVertexAttribXXX() uses unsigned GLuint.
     const auto result = static_cast<GLuint>(tmp);
@@ -61,21 +61,21 @@ GLuint AbstractShaderProgram::getAttribLocation(const char *const name) const
     return result;
 }
 
-GLint AbstractShaderProgram::getUniformLocation(const char *const name) const
+GLint AbstractShaderProgram::getUniformLocation(const std::string &name) const
 {
-    assert(name != nullptr);
+    assert(!name.empty());
     assert(m_isBound);
     auto functions = m_functions.lock();
-    const auto result = deref(functions).glGetUniformLocation(getProgram(), name);
+    const auto result = deref(functions).glGetUniformLocation(getProgram(), name.c_str());
     assert(result != INVALID_UNIFORM_LOCATION);
     return result;
 }
 
-bool AbstractShaderProgram::hasUniform(const char *const name) const
+bool AbstractShaderProgram::hasUniform(const std::string &name) const
 {
-    assert(name != nullptr);
+    assert(!name.empty());
     auto functions = m_functions.lock();
-    const auto result = deref(functions).glGetUniformLocation(getProgram(), name);
+    const auto result = deref(functions).glGetUniformLocation(getProgram(), name.c_str());
     return result != INVALID_UNIFORM_LOCATION;
 }
 
@@ -125,7 +125,7 @@ void AbstractShaderProgram::setUniformMatrix4fv(const GLint location,
     deref(functions).glUniformMatrix4fv(location, count, transpose, value);
 }
 
-void AbstractShaderProgram::setFloat(const char *const name, const float value)
+void AbstractShaderProgram::setFloat(const std::string &name, const float value)
 {
     const auto location = getUniformLocation(name);
     setUniform1fv(location, 1, &value);
@@ -146,34 +146,34 @@ void AbstractShaderProgram::setPointSize(const float in_pointSize)
     }
 }
 
-void AbstractShaderProgram::setColor(const char *const name, const Color &color)
+void AbstractShaderProgram::setColor(const std::string &name, const Color &color)
 {
     const auto location = getUniformLocation(name);
     const glm::vec4 v = color.getVec4();
     setUniform4fv(location, 1, glm::value_ptr(v));
 }
 
-void AbstractShaderProgram::setMatrix(const char *const name, const glm::mat4 &m)
+void AbstractShaderProgram::setMatrix(const std::string &name, const glm::mat4 &m)
 {
     const auto location = getUniformLocation(name);
     setUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(m));
 }
 
-void AbstractShaderProgram::setTexture(const char *const name, const int textureUnit)
+void AbstractShaderProgram::setTexture(const std::string &name, const int textureUnit)
 {
     assert(textureUnit >= 0);
     const GLint uFontTextureLoc = getUniformLocation(name);
     setUniform1iv(uFontTextureLoc, 1, &textureUnit);
 }
 
-void AbstractShaderProgram::setViewport(const char *const name, const Viewport &input_viewport)
+void AbstractShaderProgram::setViewport(const std::string &name, const Viewport &input_viewport)
 {
     const glm::ivec4 viewport{input_viewport.offset, input_viewport.size};
     const GLint location = getUniformLocation(name);
     setUniform4iv(location, 1, glm::value_ptr(viewport));
 }
 
-void AbstractShaderProgram::setViewportF(const char *const name, const Viewport &input_viewport)
+void AbstractShaderProgram::setViewportF(const std::string &name, const Viewport &input_viewport)
 {
     const glm::vec4 viewport{input_viewport.offset.x,
                              input_viewport.offset.y,

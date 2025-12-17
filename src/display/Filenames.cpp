@@ -190,3 +190,8 @@ QString getIconFilename(const CharacterAffectEnum x)
 {
     return getIconFilename("affect", x);
 }
+
+QString getPixmapFilename(const SharedMMTexture &tex)
+{
+    return tex->getName();
+}

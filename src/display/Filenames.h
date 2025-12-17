@@ -3,6 +3,7 @@
 // Copyright (C) 2019 The MMapper Authors
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
+#include "../display/Textures.h"
 #include "../group/mmapper2character.h"
 #include "../map/mmapper2room.h"
 #include "RoadIndex.h"
@@ -18,3 +19,4 @@ NODISCARD extern QString getPixmapFilename(TaggedRoad);
 NODISCARD extern QString getPixmapFilename(TaggedTrail);
 NODISCARD extern QString getIconFilename(CharacterPositionEnum);
 NODISCARD extern QString getIconFilename(CharacterAffectEnum);
+NODISCARD extern QString getPixmapFilename(const SharedMMTexture &tex);

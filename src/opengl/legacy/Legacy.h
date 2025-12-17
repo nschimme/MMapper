@@ -183,9 +183,16 @@ public:
     using Base::glVertexAttribPointer;
 
     // VAO functions
+    using Base::glActiveTexture;
+    using Base::glBindTexture;
     using Base::glBindVertexArray;
     using Base::glDeleteVertexArrays;
+    using Base::glGenerateMipmap;
     using Base::glGenVertexArrays;
+    using Base::glGetTexLevelParameteriv;
+    using Base::glGetTexParameteriv;
+    using Base::glPixelStorei;
+    using Base::glTexSubImage3D;
 
 public:
     void glLineWidth(const GLfloat lineWidth)

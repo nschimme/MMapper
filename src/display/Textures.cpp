@@ -32,7 +32,8 @@ MMTextureId allocateTextureId()
 
 MMTexture::MMTexture(Badge<MMTexture>, const QString &name)
     : m_qt_texture{QImage{name}.mirrored()}
-    , m_sourceData{std::make_unique<SourceData>(name)}
+    , m_name{name}
+    , m_sourceData{std::make_unique<SourceData>()}
 {
     auto &tex = m_qt_texture;
     tex.setWrapMode(QOpenGLTexture::WrapMode::MirroredRepeat);
@@ -397,6 +398,9 @@ void MapCanvas::initTextures()
             }
 
             const bool useImages = fileInputs.empty();
+            if (!useImages) {
+                assert(imageInputs.empty());
+            }
             const auto numLayers = useImages ? imageInputs.size() : fileInputs.size();
             if (useImages) {
                 assert(first.mipLevels() == maxMipLevel);

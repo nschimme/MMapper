@@ -537,8 +537,7 @@ void MapCanvas::updateBatches()
 
 void MapCanvas::updateMapBatches()
 {
-    RemeshCookie &remeshCookie = m_batches.remeshCookie;
-    if (remeshCookie.isPending()) {
+    if (m_batches.isInProgress()) {
         return;
     }
 
@@ -558,8 +557,8 @@ void MapCanvas::updateMapBatches()
                                       getGLFont().getSharedFontMetrics());
     };
 
-    remeshCookie.set(getFuture());
-    assert(remeshCookie.isPending());
+    m_batches.remeshCookie.set(getFuture());
+    assert(m_batches.remeshCookie.isPending());
 
     m_diff.cancelUpdates(m_data.getSavedMap());
 }

@@ -795,7 +795,7 @@ void MapCanvas::paintDifferences()
 
 void MapCanvas::paintMap()
 {
-    const bool pending = m_batches.remeshCookie.isPending();
+    const bool pending = m_batches.isInProgress();
     if (pending) {
         setAnimating(true);
     }
@@ -804,8 +804,6 @@ void MapCanvas::paintMap()
         const QString msg = pending ? "Please wait... the map isn't ready yet." : "Batch error";
         getGLFont().renderTextCentered(msg);
         if (!pending) {
-            // REVISIT: does this need a better fix?
-            // pending already scheduled an update, but now we realize we need an update.
             update();
         }
         return;

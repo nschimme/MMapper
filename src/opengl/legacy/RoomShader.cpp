@@ -24,15 +24,15 @@ void RoomShader::enableAttributes(OpenGL &gl)
 {
     const auto stride = sizeof(modern::RoomInstanceData);
     gl.getFunctions().glEnableVertexAttribArray(0);
-    gl.getFunctions().glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void *)offsetof(modern::RoomInstanceData, position));
+    gl.getFunctions().glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<const void *>(offsetof(modern::RoomInstanceData, position)));
     gl.getFunctions().glVertexAttribDivisor(0, 1);
 
     gl.getFunctions().glEnableVertexAttribArray(1);
-    gl.getFunctions().glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void *)offsetof(modern::RoomInstanceData, tex_coord));
+    gl.getFunctions().glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<const void *>(offsetof(modern::RoomInstanceData, tex_coord)));
     gl.getFunctions().glVertexAttribDivisor(1, 1);
 
     gl.getFunctions().glEnableVertexAttribArray(2);
-    gl.getFunctions().glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, stride, (void *)offsetof(modern::RoomInstanceData, color));
+    gl.getFunctions().glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<const void *>(offsetof(modern::RoomInstanceData, color)));
     gl.getFunctions().glVertexAttribDivisor(2, 1);
 }
 

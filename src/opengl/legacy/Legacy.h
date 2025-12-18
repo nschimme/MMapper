@@ -155,7 +155,8 @@ public:
     using Base::glDetachShader;
     using Base::glDisable;
     using Base::glDisableVertexAttribArray;
-    using Base::glDrawArrays;
+    using Base::glDrawArraysInstanced;
+    using Base::glDrawElementsInstanced;
     using Base::glEnable;
     using Base::glEnableVertexAttribArray;
     using Base::glGenBuffers;
@@ -181,6 +182,7 @@ public:
     using Base::glUniformMatrix4fv;
     using Base::glUseProgram;
     using Base::glVertexAttribPointer;
+    using Base::glVertexAttribDivisor;
 
     // VAO functions
     using Base::glActiveTexture;

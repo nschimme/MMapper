@@ -36,6 +36,7 @@
 #include <cstdlib>
 #include <memory>
 #include <optional>
+#include <map>
 #include <set>
 #include <stdexcept>
 #include <unordered_map>
@@ -449,35 +450,15 @@ struct NODISCARD ColoredRoomTex : public RoomTex
 using RoomTexVector = std::vector<RoomTex>;
 using ColoredRoomTexVector = std::vector<ColoredRoomTex>;
 
-template<typename T, typename Callback>
-static void foreach_texture(const T &textures, Callback &&callback)
-{
-    const auto size = textures.size();
-    for (size_t beg = 0, next = size; beg < size; beg = next) {
-        const RoomTex &rtex = textures[beg];
-        const auto textureId = rtex.pos.array;
-
-        size_t end = beg + 1;
-        for (; end < size; ++end) {
-            if (textureId != textures[end].pos.array) {
-                break;
-            }
-        }
-
-        next = end;
-        /* note: casting to avoid passing references to beg and end */
-        callback(static_cast<size_t>(beg), static_cast<size_t>(end));
-    }
-}
-
-NODISCARD static LayerMeshesIntermediate::FnVec createTexturedMeshes(
+template<typename TMap>
+NODISCARD static LayerMeshesIntermediate::FnVec createAnyTexturedMeshes(
     const std::string_view what, const RoomTexVector &textures)
 {
     if (textures.empty()) {
         return {};
     }
 
-    std::unordered_map<MMTextureId, RoomTexVector> partitionedTextures;
+    TMap partitionedTextures;
     for (const auto &tex : textures) {
         partitionedTextures[tex.pos.array].push_back(tex);
     }
@@ -521,14 +502,15 @@ NODISCARD static LayerMeshesIntermediate::FnVec createTexturedMeshes(
     return tmp_meshes;
 }
 
-NODISCARD static LayerMeshesIntermediate::FnVec createColoredTexturedMeshes(
+template<typename TMap>
+NODISCARD static LayerMeshesIntermediate::FnVec createAnyColoredTexturedMeshes(
     const std::string_view what, const ColoredRoomTexVector &textures)
 {
     if (textures.empty()) {
         return {};
     }
 
-    std::unordered_map<MMTextureId, ColoredRoomTexVector> partitionedTextures;
+    TMap partitionedTextures;
     for (const auto &tex : textures) {
         partitionedTextures[tex.pos.array].push_back(tex);
     }
@@ -597,17 +579,27 @@ struct NODISCARD LayerBatchData final
     NODISCARD LayerMeshesIntermediate buildIntermediate() const
     {
         DECL_TIMER(t2, "LayerBatchData::buildIntermediate");
+
+        using UnorderedTexMap = std::unordered_map<MMTextureId, RoomTexVector>;
+        using UnorderedColoredTexMap = std::unordered_map<MMTextureId, ColoredRoomTexVector>;
+        using OrderedTexMap = std::map<MMTextureId, RoomTexVector>;
+
         LayerMeshesIntermediate meshes;
-        meshes.terrain = ::createTexturedMeshes("terrain", roomTerrains);
-        meshes.trails = ::createTexturedMeshes("trails", roomTrails);
+        meshes.terrain = ::createAnyTexturedMeshes<UnorderedTexMap>("terrain", roomTerrains);
+        meshes.trails = ::createAnyTexturedMeshes<UnorderedTexMap>("trails", roomTrails);
         meshes.tints = roomTints; // REVISIT: this is a copy instead of a move
-        meshes.overlays = ::createTexturedMeshes("overlays", roomOverlays);
-        meshes.doors = ::createColoredTexturedMeshes("doors", doors);
-        meshes.walls = ::createColoredTexturedMeshes("solidWalls", solidWallLines);
-        meshes.dottedWalls = ::createColoredTexturedMeshes("dottedWalls", dottedWallLines);
-        meshes.upDownExits = ::createColoredTexturedMeshes("upDownExits", roomUpDownExits);
-        meshes.streamIns = ::createColoredTexturedMeshes("streamIns", streamIns);
-        meshes.streamOuts = ::createColoredTexturedMeshes("streamOuts", streamOuts);
+        meshes.overlays = ::createAnyTexturedMeshes<OrderedTexMap>("overlays", roomOverlays);
+        meshes.doors = ::createAnyColoredTexturedMeshes<UnorderedColoredTexMap>("doors", doors);
+        meshes.walls
+            = ::createAnyColoredTexturedMeshes<UnorderedColoredTexMap>("solidWalls", solidWallLines);
+        meshes.dottedWalls = ::createAnyColoredTexturedMeshes<UnorderedColoredTexMap>("dottedWalls",
+                                                                                 dottedWallLines);
+        meshes.upDownExits = ::createAnyColoredTexturedMeshes<UnorderedColoredTexMap>("upDownExits",
+                                                                                 roomUpDownExits);
+        meshes.streamIns
+            = ::createAnyColoredTexturedMeshes<UnorderedColoredTexMap>("streamIns", streamIns);
+        meshes.streamOuts
+            = ::createAnyColoredTexturedMeshes<UnorderedColoredTexMap>("streamOuts", streamOuts);
         meshes.layerBoost = roomLayerBoostQuads; // REVISIT: this is a copy instead of a move
         meshes.isValid = true;
         return meshes;

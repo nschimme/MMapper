@@ -12,6 +12,7 @@
 
 #include <glm/glm.hpp>
 
+#include <QImage>
 #include <QString>
 #include <QSurfaceFormat>
 #include <qopengl.h>

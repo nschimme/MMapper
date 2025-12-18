@@ -33,16 +33,13 @@ private:
     MMTextureId m_id = INVALID_MM_TEXTURE_ID;
     std::optional<MMTexArrayPosition> m_arrayPos;
     bool m_forbidUpdates = false;
+    QString m_name;
 
     struct NODISCARD SourceData final
     {
-        QString m_name;
         std::vector<QImage> m_images;
 
         SourceData() = default;
-        explicit SourceData(QString name)
-            : m_name{std::move(name)}
-        {}
         explicit SourceData(std::vector<QImage> images)
             : m_images{std::move(images)}
         {}
@@ -83,13 +80,7 @@ public:
     DELETE_CTORS_AND_ASSIGN_OPS(MMTexture);
 
 public:
-    NODISCARD const QString &getName() const
-    {
-        if (!m_sourceData) {
-            throw std::logic_error("source data has been cleared");
-        }
-        return m_sourceData->m_name;
-    }
+    NODISCARD const QString &getName() const { return m_name; }
     NODISCARD const std::vector<QImage> &getImages() const
     {
         if (!m_sourceData) {

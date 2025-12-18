@@ -1,0 +1,53 @@
+[1/37] No install step for 'immer'
+[2/37] Completed 'immer'
+[3/37] Automatic MOC and UIC for target mmapper
+[4/37] Building CXX object src/CMakeFiles/mmapper.dir/display/Filenames.cpp.o
+[5/37] Building CXX object src/CMakeFiles/mmapper.dir/main.cpp.o
+[6/37] Building CXX object src/CMakeFiles/mmapper.dir/display/Infomarks.cpp.o
+[7/37] Building CXX object src/CMakeFiles/mmapper.dir/display/Connections.cpp.o
+[8/37] Building CXX object src/CMakeFiles/mmapper.dir/display/Characters.cpp.o
+[9/37] Building CXX object src/CMakeFiles/mmapper.dir/mmapper_autogen/mocs_compilation.cpp.o
+[10/37] Building CXX object src/CMakeFiles/mmapper.dir/display/RoomSelections.cpp.o
+[11/37] Building CXX object src/CMakeFiles/mmapper.dir/display/MapCanvasRoomDrawer.cpp.o
+[12/37] Building CXX object src/CMakeFiles/mmapper.dir/display/Textures.cpp.o
+[13/37] Building CXX object src/CMakeFiles/mmapper.dir/display/mapcanvas.cpp.o
+[14/37] Building CXX object src/CMakeFiles/mmapper.dir/display/mapwindow.cpp.o
+[15/37] Building CXX object src/CMakeFiles/mmapper.dir/display/mapcanvas_gl.cpp.o
+[16/37] Building CXX object src/CMakeFiles/mmapper.dir/group/groupwidget.cpp.o
+[17/37] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/MapZoomSlider.cpp.o
+[18/37] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/infomarkseditdlg.cpp.o
+[19/37] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/utils.cpp.o
+[20/37] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/mainwindow-async.cpp.o
+[21/37] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/roomeditattrdlg.cpp.o
+[22/37] Building CXX object src/CMakeFiles/mmapper.dir/opengl/OpenGL.cpp.o
+/app/src/opengl/OpenGL.cpp: In member function ‘void OpenGL::initArrayFromFiles(const SharedMMTexture&, const std::__debug::vector<QString>&)’:
+/app/src/opengl/OpenGL.cpp:293:19: warning: format not a string literal and no format arguments [-Wformat-security]
+  293 |             qFatal(s.c_str());
+      |                   ^
+/app/src/opengl/OpenGL.cpp: In member function ‘void OpenGL::initArrayFromImages(const SharedMMTexture&, const std::__debug::vector<std::__debug::vector<QImage> >&)’:
+/app/src/opengl/OpenGL.cpp:341:23: warning: format not a string literal and no format arguments [-Wformat-security]
+  341 |                 qFatal(s.c_str());
+      |                       ^
+[23/37] Building CXX object src/CMakeFiles/mmapper.dir/mapdata/mapdata.cpp.o
+[24/37] Building CXX object src/CMakeFiles/mmapper.dir/opengl/OpenGLTypes.cpp.o
+[25/37] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/Binders.cpp.o
+[26/37] Building CXX object src/CMakeFiles/mmapper.dir/opengl/Font.cpp.o
+[27/37] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/mainwindow.cpp.o
+[28/37] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/FontMesh3d.cpp.o
+[29/37] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/Filenames.h.gen.cpp.o
+[30/37] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/Textures.h.gen.cpp.o
+[31/37] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/Legacy.cpp.o
+[32/37] Building CXX object src/CMakeFiles/mmapper.dir/parser/AbstractParser-Config.cpp.o
+[33/37] Building CXX object src/CMakeFiles/mmapper.dir/odr.cpp.o
+In file included from /app/build/src/odr.cpp:69:
+/app/src/global/IndexedVectorWithDefault.h:128:6: warning: redundant redeclaration of ‘void test::testIndexedVectorWithDefault()’ in same scope [-Wredundant-decls]
+  128 | void testIndexedVectorWithDefault();
+      |      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /app/build/src/odr.cpp:64:
+/app/src/global/ImmIndexedVectorWithDefault.h:134:6: note: previous declaration of ‘void test::testIndexedVectorWithDefault()’
+  134 | void testIndexedVectorWithDefault();
+      |      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+[34/37] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/mapcanvas.h.gen.cpp.o
+[35/37] Building CXX object src/CMakeFiles/mmapper.dir/gen/display/mapwindow.h.gen.cpp.o
+[36/37] Building CXX object src/CMakeFiles/mmapper.dir/proxy/proxy.cpp.o
+[37/37] Linking CXX executable src/mmapper

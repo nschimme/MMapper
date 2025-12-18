@@ -28,21 +28,11 @@ struct NODISCARD MMTexArrayPosition final
 // so it can define SharedMMTexture
 class NODISCARD MMTexture final : public std::enable_shared_from_this<MMTexture>
 {
-public:
-    enum class TextureSourceType
-    {
-        FromFile,
-        FromImages,
-        FromInitializer,
-    };
-
 private:
     QOpenGLTexture m_qt_texture;
     MMTextureId m_id = INVALID_MM_TEXTURE_ID;
     std::optional<MMTexArrayPosition> m_arrayPos;
-    TextureSourceType m_sourceType;
     bool m_forbidUpdates = false;
-    bool m_forbidFilterChanges = false;
 
     struct NODISCARD SourceData final
     {
@@ -85,7 +75,6 @@ public:
               const std::function<void(QOpenGLTexture &)> &init,
               const bool forbidUpdates)
         : m_qt_texture{target}
-        , m_sourceType{TextureSourceType::FromInitializer}
         , m_forbidUpdates{forbidUpdates}
         , m_sourceData{std::make_unique<SourceData>()}
     {
@@ -94,7 +83,6 @@ public:
     DELETE_CTORS_AND_ASSIGN_OPS(MMTexture);
 
 public:
-    NODISCARD TextureSourceType getSourceType() const { return m_sourceType; }
     NODISCARD const QString &getName() const
     {
         if (!m_sourceData) {
@@ -121,7 +109,6 @@ public:
 
     NODISCARD QOpenGLTexture::Target target() const { return get()->target(); }
     NODISCARD bool canBeUpdated() const { return !m_forbidUpdates; }
-    NODISCARD bool filterChangesForbidden() const { return m_forbidFilterChanges; }
 
     NODISCARD bool hasArrayPosition() const { return m_arrayPos.has_value(); }
     NODISCARD MMTexArrayPosition getArrayPosition() const

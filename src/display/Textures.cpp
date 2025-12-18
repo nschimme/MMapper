@@ -33,7 +33,6 @@ MMTextureId allocateTextureId()
 
 MMTexture::MMTexture(Badge<MMTexture>, const QString &name)
     : m_qt_texture{QImage{name}.mirrored()}
-    , m_sourceType{TextureSourceType::FromFile}
     , m_sourceData{std::make_unique<SourceData>(name)}
 {
     auto &tex = m_qt_texture;
@@ -49,8 +48,6 @@ MMTexture::MMTexture(Badge<MMTexture>, std::vector<QImage> images)
         assert(!images.empty());
         return QOpenGLTexture{images.front().mirrored()};
     }()}
-    , m_sourceType{TextureSourceType::FromImages}
-    , m_forbidFilterChanges{true}
     , m_sourceData{std::make_unique<SourceData>(std::move(images))}
 {
     const auto &front = m_sourceData->m_images.front();
@@ -149,11 +146,14 @@ static void loadPixmapArray(road_texture_array<Tag> &textures)
 //
 static void setTrilinear(const SharedMMTexture &mmtex, const bool trilinear)
 {
-    if (mmtex == nullptr || mmtex->filterChangesForbidden()) {
+    if (mmtex == nullptr) {
         return;
     }
 
     if (QOpenGLTexture *const qtex = mmtex->get()) {
+        if (qtex->minificationFilter() == QOpenGLTexture::Filter::NearestMipMapNearest) {
+            return;
+        }
         qtex->setMinMagFilters(
             /* "minifying" filter */
             trilinear ? QOpenGLTexture::LinearMipMapLinear /* 8 samples */
@@ -353,12 +353,10 @@ void MapCanvas::initTextures()
             auto getBounds = [](const auto &x) {
                 return std::make_pair<int, int>(x->get()->width(), x->get()->height());
             };
-            SharedMMTexture pFirstTex;
             QOpenGLTexture *pFirst = nullptr;
 
             for (const SharedMMTexture &x : thing) {
                 if (!bounds) {
-                    pFirstTex = x;
                     pFirst = x->get();
                     bounds = getBounds(x);
                     const auto size = bounds->first;
@@ -373,10 +371,6 @@ void MapCanvas::initTextures()
                 }
             }
 
-            if (!pFirstTex) {
-                return;
-            }
-
             auto &first = deref(pFirst);
             std::vector<QString> fileInputs;
             std::vector<std::vector<QImage>> imageInputs;
@@ -384,25 +378,14 @@ void MapCanvas::initTextures()
             int maxHeight = 0;
             int maxMipLevel = 0;
 
-            const auto sourceType = pFirstTex->getSourceType();
             for (const auto &x : thing) {
-                if (x->getSourceType() != sourceType) {
-                    throw std::logic_error("cannot mix file-based and image-based textures");
-                }
-            }
-
-            switch (sourceType) {
-            case MMTexture::TextureSourceType::FromFile: {
-                for (const auto &x : thing) {
+                if (!x->getName().isEmpty()) {
                     const QString filename = getPixmapFilename(x);
                     fileInputs.emplace_back(filename);
                     const QImage image{filename};
                     maxWidth = std::max(maxWidth, image.width());
                     maxHeight = std::max(maxHeight, image.height());
-                }
-            } break;
-            case MMTexture::TextureSourceType::FromImages: {
-                for (const auto &x : thing) {
+                } else {
                     const auto &images = x->getImages();
                     imageInputs.emplace_back(images);
                     auto &front = images.front();
@@ -411,12 +394,9 @@ void MapCanvas::initTextures()
                     maxHeight = std::max(maxHeight, front.height());
                     maxMipLevel = std::max(maxMipLevel, static_cast<int>(images.size()));
                 }
-            } break;
-            case MMTexture::TextureSourceType::FromInitializer:
-                throw std::logic_error("unexpected texture source type");
             }
 
-            const bool useImages = (sourceType == MMTexture::TextureSourceType::FromImages);
+            const bool useImages = fileInputs.empty();
             const auto numLayers = useImages ? imageInputs.size() : fileInputs.size();
             if (useImages) {
                 assert(first.mipLevels() == maxMipLevel);

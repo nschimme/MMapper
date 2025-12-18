@@ -15,6 +15,7 @@
 #include <QDateTime>
 #include <QDir>
 #include <QMessageBox>
+#include <QSignalBlocker>
 
 #include "../configuration/configuration.h"
 #include "../logger/autologger.h"
@@ -41,6 +42,9 @@ CommsWidget::CommsWidget(CommsManager &commsManager, AutoLogger *autoLogger, QWi
     setupUI();
     connectSignals();
     slot_loadSettings();
+
+    // Let the document manage the history size automatically
+    m_textDisplay->document()->setMaximumBlockCount(MAX_MESSAGES);
 }
 
 CommsWidget::~CommsWidget() = default;
@@ -172,8 +176,9 @@ void CommsWidget::slot_loadSettings()
     palette.setColor(QPalette::Base, comms.backgroundColor.get());
     m_textDisplay->setPalette(palette);
 
-    // Refresh display to apply any color/style changes
-    rebuildDisplay();
+    // Re-apply styles to all messages and update visibility
+    reformatAllBlocks();
+    updateBlockVisibility();
 }
 
 void CommsWidget::resizeEvent(QResizeEvent *event)
@@ -199,7 +204,7 @@ void CommsWidget::slot_onFilterToggled(CommType type, bool enabled)
 {
     m_filterStates[type] = enabled;
     updateFilterButtonAppearance(m_filterButtons[type], enabled);
-    rebuildDisplay();
+    updateBlockVisibility();
 }
 
 void CommsWidget::slot_onCharMobToggle()
@@ -218,37 +223,20 @@ void CommsWidget::slot_onCharMobToggle()
     }
 
     updateCharMobButtonAppearance();
-    rebuildDisplay();
-}
-
-void CommsWidget::rebuildDisplay()
-{
-    m_textDisplay->clear();
-    for (const auto &cached : m_messageCache) {
-        if (!isMessageFiltered(cached.msg)) {
-            appendFormattedMessage(cached.msg);
-        }
-    }
+    updateBlockVisibility();
 }
 
 void CommsWidget::slot_onNewMessage(const CommMessage &msg)
 {
-    // Cache the message (always with timestamp)
-    m_messageCache.append({msg});
-
-    // Limit cache size
-    while (m_messageCache.size() > MAX_MESSAGES) {
-        m_messageCache.removeFirst();
-    }
-
-    // Only display if not filtered
-    if (!isMessageFiltered(msg)) {
-        appendFormattedMessage(msg);
-    }
+    appendFormattedMessage(msg);
 }
 
 void CommsWidget::appendFormattedMessage(const CommMessage &msg)
 {
+    // Keep a flag to prevent scrolling if the user has scrolled up
+    const bool isAtBottom =
+        m_textDisplay->verticalScrollBar()->value() >= m_textDisplay->verticalScrollBar()->maximum();
+
     QTextCursor cursor(m_textDisplay->document());
     cursor.movePosition(QTextCursor::End);
 
@@ -299,8 +287,17 @@ void CommsWidget::appendFormattedMessage(const CommMessage &msg)
         formatAndInsertMessage(cursor, msg, cleanedSender, message);
     }
 
-    // Auto-scroll to bottom
-    m_textDisplay->verticalScrollBar()->setValue(m_textDisplay->verticalScrollBar()->maximum());
+    // Attach user data to the new block for future filtering
+    QTextBlock newBlock = cursor.block();
+    newBlock.setUserData(new MessageBlockUserData(msg));
+
+    // Set initial visibility based on current filters
+    newBlock.setVisible(isMessageVisible(msg));
+
+    // Auto-scroll to bottom only if it was already at the bottom
+    if (isAtBottom) {
+        m_textDisplay->verticalScrollBar()->setValue(m_textDisplay->verticalScrollBar()->maximum());
+    }
 }
 
 void CommsWidget::formatAndInsertMessage(QTextCursor &cursor, const CommMessage &msg, const QString &sender, const QString &message)
@@ -444,31 +441,31 @@ QColor CommsWidget::getColorForTalker(TalkerType talkerType)
     }
 }
 
-bool CommsWidget::isMessageFiltered(const CommMessage &msg) const
+bool CommsWidget::isMessageVisible(const CommMessage &msg) const
 {
     // Check type filter
     if (!m_filterStates.value(msg.type, true)) {
-        return true; // Filtered out (muted)
+        return false; // Filtered out by type
     }
 
     // Check character/mob filter
     switch (m_charMobFilter) {
     case CharMobFilterEnum::CHAR_ONLY:
         if (msg.talkerType == TalkerType::NPC) {
-            return true; // Filter out NPCs
+            return false; // Filter out NPCs
         }
         break;
     case CharMobFilterEnum::MOB_ONLY:
         if (msg.talkerType != TalkerType::NPC) {
-            return true; // Filter out characters
+            return false; // Filter out non-NPCs
         }
         break;
     case CharMobFilterEnum::BOTH:
-        // Show all
+        // Show all, fall through
         break;
     }
 
-    return false;
+    return true; // Visible
 }
 
 void CommsWidget::updateFilterButtonAppearance(QPushButton *button, bool enabled)
@@ -498,6 +495,71 @@ void CommsWidget::updateCharMobButtonAppearance()
         m_charMobToggle->setToolTip("Showing Mobs only");
         break;
     }
+}
+
+void CommsWidget::updateBlockVisibility()
+{
+    for (auto block = m_textDisplay->document()->begin(); block.isValid(); block = block.next()) {
+        if (auto *userData = dynamic_cast<MessageBlockUserData *>(block.userData())) {
+            block.setVisible(isMessageVisible(userData->getMessage()));
+        }
+    }
+}
+
+void CommsWidget::reformatAllBlocks()
+{
+    QTextCursor cursor(m_textDisplay->document());
+    cursor.beginEditBlock();
+
+    for (auto block = m_textDisplay->document()->begin(); block.isValid(); block = block.next()) {
+        auto *userData = dynamic_cast<MessageBlockUserData *>(block.userData());
+        if (!userData) {
+            continue;
+        }
+
+        const auto &msg = userData->getMessage();
+        cursor.setPosition(block.position());
+        cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+
+        // Clear the block and re-insert the formatted text.
+        cursor.removeSelectedText();
+
+        // Re-insert the message with current formatting.
+        if (getConfig().comms.showTimestamps.get()) {
+            QTextCharFormat timestampFormat;
+            timestampFormat.setForeground(QColor(128, 128, 128)); // Gray
+            cursor.setCharFormat(timestampFormat);
+            cursor.insertText(QString("[%1] ").arg(msg.timestamp));
+        }
+
+        QString originalSender = stripAnsiCodes(msg.sender);
+        QString message = stripAnsiCodes(msg.message);
+        QString cleanedSender = cleanSenderName(originalSender);
+
+        if (message.startsWith(originalSender, Qt::CaseInsensitive)) {
+            QTextCharFormat nameFormat;
+            nameFormat.setForeground(getColorForTalker(msg.talkerType));
+            nameFormat.setFontWeight(QFont::Bold);
+
+            QTextCharFormat textFormat;
+            textFormat.setForeground(getColorForType(msg.type));
+
+            if ((msg.type == CommType::WHISPER && getConfig().comms.whisperItalic.get())
+                || ((msg.type == CommType::EMOTE || msg.type == CommType::SOCIAL) && getConfig().comms.emoteItalic.get())) {
+                textFormat.setFontItalic(true);
+                nameFormat.setFontItalic(true);
+            }
+
+            cursor.setCharFormat(nameFormat);
+            cursor.insertText(cleanedSender);
+            cursor.setCharFormat(textFormat);
+            cursor.insertText(message.mid(originalSender.length()));
+        } else {
+            formatAndInsertMessage(cursor, msg, cleanedSender, message);
+        }
+    }
+
+    cursor.endEditBlock();
 }
 
 void CommsWidget::slot_saveLog()

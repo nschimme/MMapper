@@ -10,6 +10,7 @@
 #include <QToolButton>
 #include <QMap>
 #include <QResizeEvent>
+#include <QTextBlockUserData>
 
 #include "../global/utils.h"
 #include "CommsManager.h"
@@ -17,6 +18,23 @@
 class AutoLogger;
 
 enum class NODISCARD CharMobFilterEnum : uint8_t { BOTH, CHAR_ONLY, MOB_ONLY };
+
+// User data stored with each text block to hold message metadata for filtering
+class MessageBlockUserData final : public QTextBlockUserData
+{
+public:
+    explicit MessageBlockUserData(const CommMessage &msg)
+        : m_message(msg)
+    {}
+    ~MessageBlockUserData() override = default;
+
+    DELETE_CTORS_AND_ASSIGN_OPS(MessageBlockUserData);
+
+    NODISCARD const CommMessage &getMessage() const { return m_message; }
+
+private:
+    CommMessage m_message;
+};
 
 class CommsWidget final : public QWidget
 {
@@ -50,10 +68,11 @@ private:
     QString cleanSenderName(const QString &sender);
     QColor getColorForType(CommType type);
     QColor getColorForTalker(TalkerType talkerType);
-    bool isMessageFiltered(const CommMessage &msg) const;
+    bool isMessageVisible(const CommMessage &msg) const;
     void updateFilterButtonAppearance(QPushButton *button, bool enabled);
     void updateCharMobButtonAppearance();
-    void rebuildDisplay();
+    void updateBlockVisibility();
+    void reformatAllBlocks();
     void updateButtonLabels();
 
     // Reference to data source
@@ -70,12 +89,6 @@ private:
 
     CharMobFilterEnum m_charMobFilter = CharMobFilterEnum::BOTH;
 
-    // Message cache for re-filtering
-    struct CachedMessage {
-        CommMessage msg;
-    };
-    QList<CachedMessage> m_messageCache;
-
-    // Maximum messages to keep in cache
+    // Maximum messages to keep in history
     static constexpr int MAX_MESSAGES = 1024;
 };

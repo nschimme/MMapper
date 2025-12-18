@@ -12,16 +12,10 @@ using RoomTintArray = EnumIndexedArray<T, RoomTintEnum, NUM_ROOM_TINTS>;
 
 struct NODISCARD LayerMeshes final
 {
-    UniqueMeshVector terrain;
-    UniqueMeshVector trails;
+    UniqueMeshVector batch_less_blended_transparent;
+    UniqueMeshVector batch_lequal_blended_transparent;
+    UniqueMeshVector batch_equal_blended_transparent;
     RoomTintArray<UniqueMesh> tints;
-    UniqueMeshVector overlays;
-    UniqueMeshVector doors;
-    UniqueMeshVector walls;
-    UniqueMeshVector dottedWalls;
-    UniqueMeshVector upDownExits;
-    UniqueMeshVector streamIns;
-    UniqueMeshVector streamOuts;
     UniqueMesh layerBoost;
     bool isValid = false;
 
@@ -39,16 +33,10 @@ struct NODISCARD LayerMeshesIntermediate final
 {
     using Fn = std::function<UniqueMesh(OpenGL &)>;
     using FnVec = std::vector<Fn>;
-    FnVec terrain;
-    FnVec trails;
+    FnVec batch_less_blended_transparent;
+    FnVec batch_lequal_blended_transparent;
+    FnVec batch_equal_blended_transparent;
     RoomTintArray<PlainQuadBatch> tints;
-    FnVec overlays;
-    FnVec doors;
-    FnVec walls;
-    FnVec dottedWalls;
-    FnVec upDownExits;
-    FnVec streamIns;
-    FnVec streamOuts;
     PlainQuadBatch layerBoost;
     bool isValid = false;
 

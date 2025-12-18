@@ -478,17 +478,9 @@ static void createInstanceMeshes(LayerMeshesIntermediate::FnVec &meshes,
 
 struct NODISCARD LayerBatchData final
 {
-    InstanceMap roomTerrains;
-    InstanceMap roomTrails;
-    InstanceMap roomOverlays;
-    // REVISIT: Consider storing up/down door lines in a separate batch,
-    // so they can be rendered thicker.
-    InstanceMap doors;
-    InstanceMap solidWallLines;
-    InstanceMap dottedWallLines;
-    InstanceMap roomUpDownExits;
-    InstanceMap streamIns;
-    InstanceMap streamOuts;
+    InstanceMap batch_less_blended_transparent;
+    InstanceMap batch_lequal_blended_transparent;
+    InstanceMap batch_equal_blended_transparent;
     RoomTintArray<PlainQuadBatch> roomTints;
     PlainQuadBatch roomLayerBoostQuads;
 
@@ -502,16 +494,16 @@ struct NODISCARD LayerBatchData final
     {
         DECL_TIMER(t2, "LayerBatchData::buildIntermediate");
         LayerMeshesIntermediate meshes;
-        createInstanceMeshes(meshes.terrain, "terrain", roomTerrains);
-        createInstanceMeshes(meshes.trails, "trails", roomTrails);
+        createInstanceMeshes(meshes.batch_less_blended_transparent,
+                             "batch_less_blended_transparent",
+                             batch_less_blended_transparent);
+        createInstanceMeshes(meshes.batch_lequal_blended_transparent,
+                             "batch_lequal_blended_transparent",
+                             batch_lequal_blended_transparent);
+        createInstanceMeshes(meshes.batch_equal_blended_transparent,
+                             "batch_equal_blended_transparent",
+                             batch_equal_blended_transparent);
         meshes.tints = roomTints; // REVISIT: this is a copy instead of a move
-        createInstanceMeshes(meshes.overlays, "overlays", roomOverlays);
-        createInstanceMeshes(meshes.doors, "doors", doors);
-        createInstanceMeshes(meshes.walls, "solidWalls", solidWallLines);
-        createInstanceMeshes(meshes.dottedWalls, "dottedWalls", dottedWallLines);
-        createInstanceMeshes(meshes.upDownExits, "upDownExits", roomUpDownExits);
-        createInstanceMeshes(meshes.streamIns, "streamIns", streamIns);
-        createInstanceMeshes(meshes.streamOuts, "streamOuts", streamOuts);
         meshes.layerBoost = roomLayerBoostQuads; // REVISIT: this is a copy instead of a move
         meshes.isValid = true;
         return meshes;
@@ -560,7 +552,7 @@ private:
         instance.position = room.getPosition().to_vec3();
         instance.tex_coord = glm::vec3(0.0f, 0.0f, static_cast<float>(terrain.position));
         instance.color = glm::vec4(1.0f);
-        m_data.roomTerrains[terrain.array].push_back(instance);
+        m_data.batch_less_blended_transparent[terrain.array].push_back(instance);
 
 
         const auto v0 = room.getPosition().to_vec3();
@@ -579,7 +571,7 @@ private:
             instance.position = room.getPosition().to_vec3();
             instance.tex_coord = glm::vec3(0.0f, 0.0f, static_cast<float>(trail.position));
             instance.color = glm::vec4(1.0f);
-            m_data.roomTrails[trail.array].push_back(instance);
+            m_data.batch_equal_blended_transparent[trail.array].push_back(instance);
         }
     }
 
@@ -590,7 +582,7 @@ private:
             instance.position = room.getPosition().to_vec3();
             instance.tex_coord = glm::vec3(0.0f, 0.0f, static_cast<float>(overlay.position));
             instance.color = glm::vec4(1.0f);
-            m_data.roomOverlays[overlay.array].push_back(instance);
+            m_data.batch_equal_blended_transparent[overlay.array].push_back(instance);
         }
     }
 
@@ -628,22 +620,20 @@ private:
         instance.color = glcolor;
 
         if (wallType == WallTypeEnum::DOOR) {
-            // Note: We could use two door textures (NESW and UD), and then just rotate the
-            // texture coordinates, but doing that would require a different code path.
             const MMTexArrayPosition &tex = m_textures.door[dir];
             instance.tex_coord = glm::vec3(0.0f, 0.0f, static_cast<float>(tex.position));
-            m_data.doors[tex.array].push_back(instance);
+            m_data.batch_lequal_blended_transparent[tex.array].push_back(instance);
 
         } else {
             if (isNESW(dir)) {
                 if (wallType == WallTypeEnum::SOLID) {
                     const MMTexArrayPosition &tex = m_textures.wall[dir];
                     instance.tex_coord = glm::vec3(0.0f, 0.0f, static_cast<float>(tex.position));
-                    m_data.solidWallLines[tex.array].push_back(instance);
+                    m_data.batch_lequal_blended_transparent[tex.array].push_back(instance);
                 } else {
                     const MMTexArrayPosition &tex = m_textures.dotted_wall[dir];
                     instance.tex_coord = glm::vec3(0.0f, 0.0f, static_cast<float>(tex.position));
-                    m_data.dottedWallLines[tex.array].push_back(instance);
+                    m_data.batch_lequal_blended_transparent[tex.array].push_back(instance);
                 }
             } else {
                 const bool isUp = dir == ExitDirEnum::UP;
@@ -655,7 +645,7 @@ private:
                                                                 : m_textures.exit_down);
 
                 instance.tex_coord = glm::vec3(0.0f, 0.0f, static_cast<float>(tex.position));
-                m_data.roomUpDownExits[tex.array].push_back(instance);
+                m_data.batch_equal_blended_transparent[tex.array].push_back(instance);
             }
         }
     }
@@ -673,13 +663,13 @@ private:
         case StreamTypeEnum::OutFlow: {
             const MMTexArrayPosition &tex = m_textures.stream_out[dir];
             instance.tex_coord = glm::vec3(0.0f, 0.0f, static_cast<float>(tex.position));
-            m_data.streamOuts[tex.array].push_back(instance);
+            m_data.batch_lequal_blended_transparent[tex.array].push_back(instance);
             return;
         }
         case StreamTypeEnum::InFlow: {
             const MMTexArrayPosition &tex = m_textures.stream_in[dir];
             instance.tex_coord = glm::vec3(0.0f, 0.0f, static_cast<float>(tex.position));
-            m_data.streamIns[tex.array].push_back(instance);
+            m_data.batch_lequal_blended_transparent[tex.array].push_back(instance);
             return;
         }
         default:
@@ -808,16 +798,10 @@ LayerMeshes LayerMeshesIntermediate::getLayerMeshes(OpenGL &gl) const
     DECL_TIMER(t, "LayerMeshesIntermediate::getLayerMeshes");
     Resolver r{gl};
     LayerMeshes lm;
-    lm.terrain = r.resolve(terrain);
-    lm.trails = r.resolve(trails);
+    lm.batch_less_blended_transparent = r.resolve(batch_less_blended_transparent);
+    lm.batch_lequal_blended_transparent = r.resolve(batch_lequal_blended_transparent);
+    lm.batch_equal_blended_transparent = r.resolve(batch_equal_blended_transparent);
     lm.tints = r.resolve(tints);
-    lm.overlays = r.resolve(overlays);
-    lm.doors = r.resolve(doors);
-    lm.walls = r.resolve(walls);
-    lm.dottedWalls = r.resolve(dottedWalls);
-    lm.upDownExits = r.resolve(upDownExits);
-    lm.streamIns = r.resolve(streamIns);
-    lm.streamOuts = r.resolve(streamOuts);
     lm.layerBoost = r.resolve(layerBoost);
     lm.isValid = true;
 
@@ -829,21 +813,22 @@ void LayerMeshes::render(const int thisLayer, const int focusedLayer)
     bool disableTextures = false;
     if (thisLayer > focusedLayer) {
         if (!getConfig().canvas.drawUpperLayersTextured) {
-            // Disable texturing for this layer. We want to draw
-            // all of the squares in white (using layer boost quads),
-            // and then still draw the walls.
             disableTextures = true;
         }
     }
 
-    const GLRenderState less = GLRenderState().withDepthFunction(DepthFunctionEnum::LESS);
-    const GLRenderState equal = GLRenderState().withDepthFunction(DepthFunctionEnum::EQUAL);
-    const GLRenderState lequal = GLRenderState().withDepthFunction(DepthFunctionEnum::LEQUAL);
-
-    const GLRenderState less_blended = less.withBlend(BlendModeEnum::TRANSPARENCY);
-    const GLRenderState lequal_blended = lequal.withBlend(BlendModeEnum::TRANSPARENCY);
-    const GLRenderState equal_blended = equal.withBlend(BlendModeEnum::TRANSPARENCY);
-    const GLRenderState equal_multiplied = equal.withBlend(BlendModeEnum::MODULATE);
+    const GLRenderState less_blended =
+        GLRenderState().withDepthFunction(DepthFunctionEnum::LESS).withBlend(
+            BlendModeEnum::TRANSPARENCY);
+    const GLRenderState lequal_blended =
+        GLRenderState().withDepthFunction(DepthFunctionEnum::LEQUAL).withBlend(
+            BlendModeEnum::TRANSPARENCY);
+    const GLRenderState equal_blended =
+        GLRenderState().withDepthFunction(DepthFunctionEnum::EQUAL).withBlend(
+            BlendModeEnum::TRANSPARENCY);
+    const GLRenderState equal_multiplied =
+        GLRenderState().withDepthFunction(DepthFunctionEnum::EQUAL).withBlend(
+            BlendModeEnum::MODULATE);
 
     const auto color = std::invoke([&thisLayer, &focusedLayer]() -> Color {
         if (thisLayer <= focusedLayer) {
@@ -852,20 +837,13 @@ void LayerMeshes::render(const int thisLayer, const int focusedLayer)
         return Colors::gray70.withAlpha(0.20f);
     });
 
-    {
-        /* REVISIT: For the modern case, we could render each layer separately,
-         * and then only blend the layers that actually overlap. Doing that would
-         * give higher contrast for the base textures.
-         */
-        if (disableTextures) {
-            const auto layerWhite = Colors::white.withAlpha(0.20f);
-            layerBoost.render(less_blended.withColor(layerWhite));
-        } else {
-            terrain.render(less_blended.withColor(color));
-        }
+    if (disableTextures) {
+        const auto layerWhite = Colors::white.withAlpha(0.20f);
+        layerBoost.render(less_blended.withColor(layerWhite));
+    } else {
+        batch_less_blended_transparent.render(less_blended.withColor(color));
     }
 
-    // REVISIT: move trails to their own batch also colored by the tint?
     for (const RoomTintEnum tint : ALL_ROOM_TINTS) {
         static_assert(NUM_ROOM_TINTS == 2);
         const auto namedColor = std::invoke([tint]() -> XNamedColor {
@@ -886,28 +864,11 @@ void LayerMeshes::render(const int thisLayer, const int focusedLayer)
     }
 
     if (!disableTextures) {
-        // streams go under everything else, including trails
-        streamIns.render(lequal_blended.withColor(color));
-        streamOuts.render(lequal_blended.withColor(color));
-
-        trails.render(equal_blended.withColor(color));
-        overlays.render(equal_blended.withColor(color));
-    }
-
-    // always
-    {
-        // doors and walls are considered lines, even though they're drawn with textures.
-        upDownExits.render(equal_blended.withColor(color));
-
-        // Doors are drawn on top of the up-down exits
-        doors.render(lequal_blended.withColor(color));
-        // and walls are drawn on top of doors.
-        walls.render(lequal_blended.withColor(color));
-        dottedWalls.render(lequal_blended.withColor(color));
+        batch_lequal_blended_transparent.render(lequal_blended.withColor(color));
+        batch_equal_blended_transparent.render(equal_blended.withColor(color));
     }
 
     if (thisLayer != focusedLayer) {
-        // Darker when below, lighter when above
         const auto baseAlpha = (thisLayer < focusedLayer) ? 0.5f : 0.1f;
         const auto alpha
             = glm::clamp(baseAlpha + 0.03f * static_cast<float>(std::abs(focusedLayer - thisLayer)),

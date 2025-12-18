@@ -111,6 +111,8 @@ private:
     }
 };
 
+class RoomShader;
+
 /* owned by Functions */
 struct NODISCARD ShaderPrograms final
 {
@@ -122,6 +124,7 @@ private:
     std::shared_ptr<UColorTexturedShader> m_uTexturedShader;
     std::shared_ptr<FontShader> m_font;
     std::shared_ptr<PointShader> m_point;
+    std::shared_ptr<RoomShader> m_room;
 
 public:
     explicit ShaderPrograms(Functions &functions)
@@ -142,6 +145,7 @@ public:
         m_uTexturedShader.reset();
         m_font.reset();
         m_point.reset();
+        m_room.reset();
     }
 
 public:
@@ -155,6 +159,7 @@ public:
     NODISCARD const std::shared_ptr<UColorTexturedShader> &getTexturedUColorShader();
     NODISCARD const std::shared_ptr<FontShader> &getFontShader();
     NODISCARD const std::shared_ptr<PointShader> &getPointShader();
+    NODISCARD const std::shared_ptr<RoomShader> &getRoomShader();
 };
 
 } // namespace Legacy

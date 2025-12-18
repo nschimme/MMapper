@@ -12,6 +12,8 @@
 #include "./legacy/Legacy.h"
 #include "./legacy/Meshes.h"
 #include "OpenGLConfig.h"
+#include "modern/ModernRoomRenderer.h"
+#include "modern/RoomInstanceData.h"
 #include "OpenGLProber.h"
 #include "OpenGLTypes.h"
 
@@ -131,6 +133,12 @@ UniqueMesh OpenGL::createColoredTexturedQuadBatch(const std::vector<ColoredTexVe
                                                   const MMTextureId texture)
 {
     return getFunctions().createColoredTexturedBatch(DrawModeEnum::QUADS, batch, texture);
+}
+
+UniqueMesh OpenGL::createInstancedRoomBatch(const std::vector<modern::RoomInstanceData> &instances,
+                                            MMTextureId texture)
+{
+    return UniqueMesh{std::make_unique<modern::RoomRenderer>(*this, instances)};
 }
 
 UniqueMesh OpenGL::createFontMesh(const SharedMMTexture &texture,

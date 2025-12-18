@@ -4,6 +4,7 @@
 #include "Shaders.h"
 
 #include "ShaderUtils.h"
+#include "RoomShader.h"
 
 #include <memory>
 
@@ -91,6 +92,11 @@ const std::shared_ptr<FontShader> &ShaderPrograms::getFontShader()
 const std::shared_ptr<PointShader> &ShaderPrograms::getPointShader()
 {
     return getInitialized<PointShader>(m_point, getFunctions(), "point");
+}
+
+const std::shared_ptr<RoomShader> &ShaderPrograms::getRoomShader()
+{
+    return getInitialized<RoomShader>(m_room, getFunctions(), "modern/room");
 }
 
 } // namespace Legacy

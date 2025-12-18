@@ -165,6 +165,8 @@ public:
     using Base::glGenBuffers;
     using Base::glGenerateMipmap;
     using Base::glGenVertexArrays;
+    using Base::glDrawArraysInstanced;
+    using Base::glVertexAttribDivisor;
     using Base::glGetAttribLocation;
     using Base::glGetIntegerv;
     using Base::glGetProgramInfoLog;

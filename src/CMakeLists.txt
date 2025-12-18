@@ -425,6 +425,11 @@ set(mmapper_SRCS
     opengl/legacy/VAO.h
     opengl/legacy/VBO.cpp
     opengl/legacy/VBO.h
+    opengl/legacy/RoomShader.cpp
+    opengl/legacy/RoomShader.h
+    opengl/modern/ModernRoomRenderer.cpp
+    opengl/modern/ModernRoomRenderer.h
+    opengl/modern/RoomInstanceData.h
     parser/Abbrev.cpp
     parser/Abbrev.h
     parser/AbstractParser-Actions.cpp

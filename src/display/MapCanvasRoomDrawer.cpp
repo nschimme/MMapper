@@ -27,6 +27,7 @@
 #include "../opengl/FontFormatFlags.h"
 #include "../opengl/OpenGL.h"
 #include "../opengl/OpenGLTypes.h"
+#include "../opengl/modern/RoomInstanceData.h"
 #include "ConnectionLineBuilder.h"
 #include "MapCanvasData.h"
 #include "RoadIndex.h"
@@ -449,120 +450,45 @@ struct NODISCARD ColoredRoomTex : public RoomTex
 using RoomTexVector = std::vector<RoomTex>;
 using ColoredRoomTexVector = std::vector<ColoredRoomTex>;
 
-NODISCARD static LayerMeshesIntermediate::FnVec createTexturedMeshes(const std::string_view what,
-                                                                     const RoomTexVector &textures)
-{
-    if (textures.empty()) {
-        return {};
-    }
+using InstanceMap = std::unordered_map<MMTextureId, std::vector<modern::RoomInstanceData>>;
 
-    std::unordered_map<MMTextureId, RoomTexVector> partitionedTextures;
-    for (const auto &tex : textures) {
-        partitionedTextures[tex.pos.array].push_back(tex);
+static void createInstanceMeshes(LayerMeshesIntermediate::FnVec &meshes,
+                                 const std::string_view what,
+                                 const InstanceMap &instances)
+{
+    if (instances.empty()) {
+        return;
     }
 
     if constexpr (IS_DEBUG_BUILD) {
-        if (partitionedTextures.size() > 1) {
-            MMLOG() << what << " has " << partitionedTextures.size() << " unique textures\n";
+        if (instances.size() > 1) {
+            MMLOG() << what << " has " << instances.size() << " unique textures\n";
         }
     }
 
-    LayerMeshesIntermediate::FnVec tmp_meshes;
-    tmp_meshes.reserve(partitionedTextures.size());
+    meshes.reserve(meshes.size() + instances.size());
 
-    for (auto const &[textureId, texVector] : partitionedTextures) {
-        std::vector<TexVert> verts;
-        verts.reserve(texVector.size() * VERTS_PER_QUAD); /* quads */
-
-        // D-C
-        // | |  ccw winding
-        // A-B
-        for (const auto &thisVert : texVector) {
-            const auto &pos = thisVert.room.getPosition();
-            const auto v0 = pos.to_vec3();
-            const auto z = thisVert.pos.position;
-
-#define EMIT(x, y) verts.emplace_back(glm::vec3((x), (y), z), v0 + glm::vec3((x), (y), 0))
-            EMIT(0, 0);
-            EMIT(1, 0);
-            EMIT(1, 1);
-            EMIT(0, 1);
-#undef EMIT
-        }
-
-        tmp_meshes.emplace_back([v = std::move(verts), t = textureId](OpenGL &g) {
-            return g.createTexturedQuadBatch(v, t);
+    for (auto const &[textureId, instanceVector] : instances) {
+        auto v_ptr = std::make_shared<std::vector<modern::RoomInstanceData>>(instanceVector);
+        meshes.emplace_back([v = v_ptr, t = textureId](OpenGL &g) {
+            return g.createInstancedRoomBatch(*v, t);
         });
     }
-
-    assert(tmp_meshes.size() == partitionedTextures.size());
-    return tmp_meshes;
-}
-
-NODISCARD static LayerMeshesIntermediate::FnVec createColoredTexturedMeshes(
-    const std::string_view what, const ColoredRoomTexVector &textures)
-{
-    if (textures.empty()) {
-        return {};
-    }
-
-    std::unordered_map<MMTextureId, ColoredRoomTexVector> partitionedTextures;
-    for (const auto &tex : textures) {
-        partitionedTextures[tex.pos.array].push_back(tex);
-    }
-
-    if constexpr (IS_DEBUG_BUILD) {
-        if (partitionedTextures.size() > 1) {
-            MMLOG() << what << " has " << partitionedTextures.size() << " unique textures\n";
-        }
-    }
-
-    LayerMeshesIntermediate::FnVec tmp_meshes;
-    tmp_meshes.reserve(partitionedTextures.size());
-
-    for (auto const &[textureId, texVector] : partitionedTextures) {
-        std::vector<ColoredTexVert> verts;
-        verts.reserve(texVector.size() * VERTS_PER_QUAD); /* quads */
-
-        // D-C
-        // | |  ccw winding
-        // A-B
-        for (const auto &thisVert : texVector) {
-            const auto &pos = thisVert.room.getPosition();
-            const auto v0 = pos.to_vec3();
-            const auto color = thisVert.color;
-            const auto z = thisVert.pos.position;
-
-#define EMIT(x, y) verts.emplace_back(color, glm::vec3((x), (y), z), v0 + glm::vec3((x), (y), 0))
-            EMIT(0, 0);
-            EMIT(1, 0);
-            EMIT(1, 1);
-            EMIT(0, 1);
-#undef EMIT
-        }
-
-        tmp_meshes.emplace_back([v = std::move(verts), t = textureId](OpenGL &g) {
-            return g.createColoredTexturedQuadBatch(v, t);
-        });
-    }
-
-    assert(tmp_meshes.size() == partitionedTextures.size());
-    return tmp_meshes;
 }
 
 struct NODISCARD LayerBatchData final
 {
-    RoomTexVector roomTerrains;
-    RoomTexVector roomTrails;
-    RoomTexVector roomOverlays;
+    InstanceMap roomTerrains;
+    InstanceMap roomTrails;
+    InstanceMap roomOverlays;
     // REVISIT: Consider storing up/down door lines in a separate batch,
     // so they can be rendered thicker.
-    ColoredRoomTexVector doors;
-    ColoredRoomTexVector solidWallLines;
-    ColoredRoomTexVector dottedWallLines;
-    ColoredRoomTexVector roomUpDownExits;
-    ColoredRoomTexVector streamIns;
-    ColoredRoomTexVector streamOuts;
+    InstanceMap doors;
+    InstanceMap solidWallLines;
+    InstanceMap dottedWallLines;
+    InstanceMap roomUpDownExits;
+    InstanceMap streamIns;
+    InstanceMap streamOuts;
     RoomTintArray<PlainQuadBatch> roomTints;
     PlainQuadBatch roomLayerBoostQuads;
 
@@ -576,16 +502,16 @@ struct NODISCARD LayerBatchData final
     {
         DECL_TIMER(t2, "LayerBatchData::buildIntermediate");
         LayerMeshesIntermediate meshes;
-        meshes.terrain = ::createTexturedMeshes("terrain", roomTerrains);
-        meshes.trails = ::createTexturedMeshes("trails", roomTrails);
+        createInstanceMeshes(meshes.terrain, "terrain", roomTerrains);
+        createInstanceMeshes(meshes.trails, "trails", roomTrails);
         meshes.tints = roomTints; // REVISIT: this is a copy instead of a move
-        meshes.overlays = ::createTexturedMeshes("overlays", roomOverlays);
-        meshes.doors = ::createColoredTexturedMeshes("doors", doors);
-        meshes.walls = ::createColoredTexturedMeshes("solidWalls", solidWallLines);
-        meshes.dottedWalls = ::createColoredTexturedMeshes("dottedWalls", dottedWallLines);
-        meshes.upDownExits = ::createColoredTexturedMeshes("upDownExits", roomUpDownExits);
-        meshes.streamIns = ::createColoredTexturedMeshes("streamIns", streamIns);
-        meshes.streamOuts = ::createColoredTexturedMeshes("streamOuts", streamOuts);
+        createInstanceMeshes(meshes.overlays, "overlays", roomOverlays);
+        createInstanceMeshes(meshes.doors, "doors", doors);
+        createInstanceMeshes(meshes.walls, "solidWalls", solidWallLines);
+        createInstanceMeshes(meshes.dottedWalls, "dottedWalls", dottedWallLines);
+        createInstanceMeshes(meshes.upDownExits, "upDownExits", roomUpDownExits);
+        createInstanceMeshes(meshes.streamIns, "streamIns", streamIns);
+        createInstanceMeshes(meshes.streamOuts, "streamOuts", streamOuts);
         meshes.layerBoost = roomLayerBoostQuads; // REVISIT: this is a copy instead of a move
         meshes.isValid = true;
         return meshes;
@@ -630,7 +556,12 @@ private:
             return;
         }
 
-        m_data.roomTerrains.emplace_back(room, terrain);
+        modern::RoomInstanceData instance;
+        instance.position = room.getPosition().to_vec3();
+        instance.tex_coord = glm::vec3(0.0f, 0.0f, static_cast<float>(terrain.position));
+        instance.color = glm::vec4(1.0f);
+        m_data.roomTerrains[terrain.array].push_back(instance);
+
 
         const auto v0 = room.getPosition().to_vec3();
 #define EMIT(x, y) m_data.roomLayerBoostQuads.emplace_back(v0 + glm::vec3((x), (y), 0))
@@ -644,14 +575,22 @@ private:
     void virt_visitTrailTexture(const RoomHandle &room, const MMTexArrayPosition &trail) final
     {
         if (trail.array != INVALID_MM_TEXTURE_ID) {
-            m_data.roomTrails.emplace_back(room, trail);
+            modern::RoomInstanceData instance;
+            instance.position = room.getPosition().to_vec3();
+            instance.tex_coord = glm::vec3(0.0f, 0.0f, static_cast<float>(trail.position));
+            instance.color = glm::vec4(1.0f);
+            m_data.roomTrails[trail.array].push_back(instance);
         }
     }
 
     void virt_visitOverlayTexture(const RoomHandle &room, const MMTexArrayPosition &overlay) final
     {
         if (overlay.array != INVALID_MM_TEXTURE_ID) {
-            m_data.roomOverlays.emplace_back(room, overlay);
+            modern::RoomInstanceData instance;
+            instance.position = room.getPosition().to_vec3();
+            instance.tex_coord = glm::vec3(0.0f, 0.0f, static_cast<float>(overlay.position));
+            instance.color = glm::vec4(1.0f);
+            m_data.roomOverlays[overlay.array].push_back(instance);
         }
     }
 
@@ -682,22 +621,29 @@ private:
             return;
         }
 
-        const auto glcolor = optColor.value();
+        const auto glcolor = optColor.value().getVec4();
+
+        modern::RoomInstanceData instance;
+        instance.position = room.getPosition().to_vec3();
+        instance.color = glcolor;
 
         if (wallType == WallTypeEnum::DOOR) {
             // Note: We could use two door textures (NESW and UD), and then just rotate the
             // texture coordinates, but doing that would require a different code path.
             const MMTexArrayPosition &tex = m_textures.door[dir];
-            m_data.doors.emplace_back(room, tex, glcolor);
+            instance.tex_coord = glm::vec3(0.0f, 0.0f, static_cast<float>(tex.position));
+            m_data.doors[tex.array].push_back(instance);
 
         } else {
             if (isNESW(dir)) {
                 if (wallType == WallTypeEnum::SOLID) {
                     const MMTexArrayPosition &tex = m_textures.wall[dir];
-                    m_data.solidWallLines.emplace_back(room, tex, glcolor);
+                    instance.tex_coord = glm::vec3(0.0f, 0.0f, static_cast<float>(tex.position));
+                    m_data.solidWallLines[tex.array].push_back(instance);
                 } else {
                     const MMTexArrayPosition &tex = m_textures.dotted_wall[dir];
-                    m_data.dottedWallLines.emplace_back(room, tex, glcolor);
+                    instance.tex_coord = glm::vec3(0.0f, 0.0f, static_cast<float>(tex.position));
+                    m_data.dottedWallLines[tex.array].push_back(instance);
                 }
             } else {
                 const bool isUp = dir == ExitDirEnum::UP;
@@ -708,7 +654,8 @@ private:
                                                         : (isUp ? m_textures.exit_up
                                                                 : m_textures.exit_down);
 
-                m_data.roomUpDownExits.emplace_back(room, tex, glcolor);
+                instance.tex_coord = glm::vec3(0.0f, 0.0f, static_cast<float>(tex.position));
+                m_data.roomUpDownExits[tex.array].push_back(instance);
             }
         }
     }
@@ -717,14 +664,24 @@ private:
                           const ExitDirEnum dir,
                           const StreamTypeEnum type) final
     {
-        const Color color = LOOKUP_COLOR(STREAM).getColor();
+        const auto color = LOOKUP_COLOR(STREAM).getColor().getVec4();
+        modern::RoomInstanceData instance;
+        instance.position = room.getPosition().to_vec3();
+        instance.color = color;
+
         switch (type) {
-        case StreamTypeEnum::OutFlow:
-            m_data.streamOuts.emplace_back(room, m_textures.stream_out[dir], color);
+        case StreamTypeEnum::OutFlow: {
+            const MMTexArrayPosition &tex = m_textures.stream_out[dir];
+            instance.tex_coord = glm::vec3(0.0f, 0.0f, static_cast<float>(tex.position));
+            m_data.streamOuts[tex.array].push_back(instance);
             return;
-        case StreamTypeEnum::InFlow:
-            m_data.streamIns.emplace_back(room, m_textures.stream_in[dir], color);
+        }
+        case StreamTypeEnum::InFlow: {
+            const MMTexArrayPosition &tex = m_textures.stream_in[dir];
+            instance.tex_coord = glm::vec3(0.0f, 0.0f, static_cast<float>(tex.position));
+            m_data.streamIns[tex.array].push_back(instance);
             return;
+        }
         default:
             break;
         }

@@ -17,6 +17,10 @@
 #include <QSurfaceFormat>
 #include <qopengl.h>
 
+namespace modern {
+struct RoomInstanceData;
+}
+
 class FBO;
 class MapCanvas;
 namespace Legacy {
@@ -29,10 +33,12 @@ private:
     std::shared_ptr<Legacy::Functions> m_opengl;
     bool m_rendererInitialized = false;
 
-private:
+public:
     NODISCARD auto &getFunctions() { return deref(m_opengl); }
     NODISCARD const auto &getFunctions() const { return deref(m_opengl); }
+public:
     NODISCARD const auto &getSharedFunctions() { return m_opengl; }
+private:
 
 public:
     explicit OpenGL();
@@ -88,6 +94,8 @@ public:
                                                  MMTextureId texture);
     NODISCARD UniqueMesh createColoredTexturedQuadBatch(const std::vector<ColoredTexVert> &verts,
                                                         MMTextureId texture);
+    NODISCARD UniqueMesh createInstancedRoomBatch(const std::vector<modern::RoomInstanceData> &instances,
+                                                  MMTextureId texture);
 
     NODISCARD UniqueMesh createFontMesh(const SharedMMTexture &texture,
                                         DrawModeEnum mode,

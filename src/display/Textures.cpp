@@ -41,7 +41,13 @@ MMTexture::MMTexture(Badge<MMTexture>, const QString &name)
 }
 
 MMTexture::MMTexture(Badge<MMTexture>, std::vector<QImage> images)
-    : m_qt_texture{images.front().mirrored()} // will crash if images.empty()
+    : m_qt_texture{[&images] {
+        if (images.empty()) {
+            throw std::logic_error("cannot construct MMTexture from empty vector of images");
+        }
+        assert(!images.empty());
+        return QOpenGLTexture{images.front().mirrored()};
+    }()}
     , m_sourceData{std::make_unique<SourceData>(std::move(images))}
 {
     const auto &front = m_sourceData->m_images.front();
@@ -140,11 +146,14 @@ static void loadPixmapArray(road_texture_array<Tag> &textures)
 //
 static void setTrilinear(const SharedMMTexture &mmtex, const bool trilinear)
 {
-    if (mmtex == nullptr || !mmtex->canBeUpdated()) {
+    if (mmtex == nullptr) {
         return;
     }
 
     if (QOpenGLTexture *const qtex = mmtex->get()) {
+        if (qtex->minificationFilter() == QOpenGLTexture::Filter::NearestMipMapNearest) {
+            return;
+        }
         qtex->setMinMagFilters(
             /* "minifying" filter */
             trilinear ? QOpenGLTexture::LinearMipMapLinear /* 8 samples */
@@ -581,11 +590,8 @@ MapCanvasTexturesProxy getProxy(const MapCanvasTextures &mct)
 void MapCanvas::updateTextures()
 {
     const bool wantTrilinear = getConfig().canvas.trilinearFiltering.get();
-    m_textures.for_each([wantTrilinear](SharedMMTexture &tex) -> void {
-        if (tex->canBeUpdated()) {
-            ::setTrilinear(tex, wantTrilinear);
-        }
-    });
+    m_textures.for_each(
+        [wantTrilinear](SharedMMTexture &tex) -> void { ::setTrilinear(tex, wantTrilinear); });
 
 #define XTEX(_TYPE, _NAME) \
     do { \

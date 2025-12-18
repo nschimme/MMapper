@@ -35,7 +35,7 @@ CommsWidget::CommsWidget(CommsManager &commsManager, AutoLogger *autoLogger, QWi
     m_filterStates[CommType::SAY] = true;
     m_filterStates[CommType::YELL] = true;
     m_filterStates[CommType::NARRATE] = true;
-    m_filterStates[CommType::SING] = true;
+    m_filterStates[CommType::SONG] = true;
     m_filterStates[CommType::PRAY] = true;
 
     setupUI();
@@ -123,7 +123,7 @@ void CommsWidget::setupUI()
     auto *globalButtonsLayout = new QHBoxLayout();
     globalButtonsLayout->setSpacing(2);
     globalButtonsLayout->addWidget(createFilterButton("Tales", "Ta", CommType::NARRATE));
-    globalButtonsLayout->addWidget(createFilterButton("Songs", "Sn", CommType::SING));
+    globalButtonsLayout->addWidget(createFilterButton("Songs", "Sn", CommType::SONG));
     globalButtonsLayout->addWidget(createFilterButton("Prayers", "Pr", CommType::PRAY));
     globalLayout->addLayout(globalButtonsLayout);
 
@@ -415,7 +415,7 @@ QColor CommsWidget::getColorForType(CommType type)
         return comms.prayColor.get();
     case CommType::SHOUT:
         return comms.shoutColor.get();
-    case CommType::SING:
+    case CommType::SONG:
         return comms.singColor.get();
     default:
         return Qt::white;

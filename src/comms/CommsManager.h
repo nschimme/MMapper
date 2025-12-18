@@ -23,7 +23,7 @@ enum class NODISCARD CommType {
     YELL,
     PRAY,
     SHOUT,
-    SING,
+    SONG,
     ASK,
     SOCIAL
 };

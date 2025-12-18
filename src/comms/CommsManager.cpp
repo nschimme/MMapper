@@ -125,7 +125,7 @@ CommType CommsManager::getCommTypeFromChannel(const QString &channel)
     } else if (channel == "shouts" || channel == "shout") {
         return CommType::SHOUT;
     } else if (channel == "songs" || channel == "song" || channel == "sing") {
-        return CommType::SING;
+        return CommType::SONG;
     } else if (channel == "questions" || channel == "question" || channel == "ask") {
         return CommType::ASK;
     } else if (channel == "socials" || channel == "social") {
@@ -153,7 +153,7 @@ CommCategory CommsManager::getCategoryFromType(CommType type)
     case CommType::YELL:
     case CommType::PRAY:
     case CommType::SHOUT:
-    case CommType::SING:
+    case CommType::SONG:
     case CommType::ASK:
         return CommCategory::GLOBAL;
 

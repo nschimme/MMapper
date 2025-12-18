@@ -180,6 +180,7 @@ public:
 
 private:
     void onMovement();
+    NODISCARD bool isCameraRotating() const { return m_cameraRotation.has_value(); }
 
 private:
     void reportGLVersion();

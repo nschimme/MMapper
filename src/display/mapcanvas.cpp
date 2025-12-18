@@ -22,6 +22,7 @@
 #include "MapCanvasData.h"
 #include "MapCanvasRoomDrawer.h"
 #include "connectionselection.h"
+#include "MapCanvasConfig.h"
 
 #include <array>
 #include <cmath>
@@ -412,18 +413,28 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
 {
     const bool hasLeftButton = (event->buttons() & Qt::LeftButton) != 0u;
     const bool hasRightButton = (event->buttons() & Qt::RightButton) != 0u;
+    const bool hasMiddleButton = (event->buttons() & Qt::MiddleButton) != 0u;
     const bool hasCtrl = (event->modifiers() & Qt::CTRL) != 0u;
-    MAYBE_UNUSED const bool hasAlt = (event->modifiers() & Qt::ALT) != 0u;
+    const bool hasAlt = (event->modifiers() & Qt::ALT) != 0u;
 
     m_sel1 = m_sel2 = getUnprojectedMouseSel(event);
     m_mouseLeftPressed = hasLeftButton;
     m_mouseRightPressed = hasRightButton;
+    m_mouseMiddlePressed = hasMiddleButton;
 
     if (event->button() == Qt::ForwardButton) {
         slot_layerUp();
         return event->accept();
     } else if (event->button() == Qt::BackButton) {
         slot_layerDown();
+        return event->accept();
+    } else if (hasMiddleButton && hasAlt && !MapCanvasConfig::isAutoTilt()) {
+        // Alt + Middle Mouse: Camera rotation (only when auto-tilt is disabled)
+        auto &advanced = setConfig().canvas.advanced;
+        m_cameraRotation.emplace(CameraRotationState{getMouseCoords(event),
+                                                     advanced.verticalAngle.getFloat(),
+                                                     advanced.horizontalAngle.getFloat()});
+        setCursor(Qt::SizeAllCursor);
         return event->accept();
     } else if (!m_mouseLeftPressed && m_mouseRightPressed) {
         if (m_canvasMouseMode == CanvasMouseModeEnum::MOVE && hasSel1()) {
@@ -586,6 +597,31 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
 
 void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
 {
+    // Handle camera rotation with Alt + Middle Mouse
+    if (isCameraRotating() && m_mouseMiddlePressed) {
+        const glm::vec2 currentMousePos = getMouseCoords(event);
+        const glm::vec2 delta = currentMousePos - m_cameraRotation->initialMousePos;
+
+        // Camera rotation sensitivity: 1.0 degree per pixel
+        constexpr float ROTATION_SENSITIVITY = 0.3f;
+
+        auto &advanced = setConfig().canvas.advanced;
+
+        // Horizontal mouse movement controls horizontal angle (yaw)
+        const float newHorizontalAngle = m_cameraRotation->initialHorizontalAngle
+                                         + (delta.x * ROTATION_SENSITIVITY);
+        advanced.horizontalAngle.setFloat(newHorizontalAngle);
+
+        // Vertical mouse movement controls vertical angle (pitch)
+        // Inverted: moving mouse down should decrease pitch angle
+        const float newVerticalAngle = m_cameraRotation->initialVerticalAngle
+                                       + (delta.y * ROTATION_SENSITIVITY);
+        advanced.verticalAngle.setFloat(newVerticalAngle);
+
+        slot_requestUpdate();
+        return event->accept();
+    }
+
     const bool hasLeftButton = (event->buttons() & Qt::LeftButton) != 0u;
 
     if (m_canvasMouseMode != CanvasMouseModeEnum::MOVE) {
@@ -721,6 +757,34 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
 
     if (m_mouseRightPressed) {
         m_mouseRightPressed = false;
+    }
+
+    // Handle camera rotation release
+    if (event->button() == Qt::MiddleButton && isCameraRotating()) {
+        m_cameraRotation.reset();
+        m_mouseMiddlePressed = false;
+        switch (m_canvasMouseMode) {
+        case CanvasMouseModeEnum::MOVE:
+            setCursor(Qt::OpenHandCursor);
+            break;
+
+        default:
+        case CanvasMouseModeEnum::NONE:
+        case CanvasMouseModeEnum::RAYPICK_ROOMS:
+        case CanvasMouseModeEnum::SELECT_CONNECTIONS:
+        case CanvasMouseModeEnum::CREATE_INFOMARKS:
+            setCursor(Qt::CrossCursor);
+            break;
+
+        case CanvasMouseModeEnum::SELECT_ROOMS:
+        case CanvasMouseModeEnum::CREATE_ROOMS:
+        case CanvasMouseModeEnum::CREATE_CONNECTIONS:
+        case CanvasMouseModeEnum::CREATE_ONEWAY_CONNECTIONS:
+        case CanvasMouseModeEnum::SELECT_INFOMARKS:
+            setCursor(Qt::ArrowCursor);
+            break;
+        }
+        return event->accept();
     }
 
     switch (m_canvasMouseMode) {

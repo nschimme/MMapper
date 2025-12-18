@@ -195,6 +195,7 @@ ConstString GRP_ACCOUNT = "Account";
 ConstString GRP_AUTO_LOAD_WORLD = "Auto load world";
 ConstString GRP_AUTO_LOG = "Auto log";
 ConstString GRP_CANVAS = "Canvas";
+ConstString GRP_COMMS = "Communications";
 ConstString GRP_CONNECTION = "Connection";
 ConstString GRP_FINDROOMS_DIALOG = "FindRooms Dialog";
 ConstString GRP_GENERAL = "General";
@@ -469,6 +470,7 @@ NODISCARD static uint16_t sanitizeUint16(const int input, const uint16_t default
         GROUP_CALLBACK(callback, GRP_GENERAL, general); \
         GROUP_CALLBACK(callback, GRP_CONNECTION, connection); \
         GROUP_CALLBACK(callback, GRP_CANVAS, canvas); \
+        GROUP_CALLBACK(callback, GRP_COMMS, comms); \
         GROUP_CALLBACK(callback, GRP_ACCOUNT, account); \
         GROUP_CALLBACK(callback, GRP_AUTO_LOAD_WORLD, autoLoad); \
         GROUP_CALLBACK(callback, GRP_AUTO_LOG, autoLog); \
@@ -726,6 +728,49 @@ void Configuration::GroupManagerSettings::read(const QSettings &conf)
     npcSortBottom = conf.value(KEY_GROUP_NPC_SORT_BOTTOM, false).toBool();
 }
 
+void Configuration::CommsSettings::read(const QSettings &conf)
+{
+    // Communication colors
+    tellColor.set(conf.value(tellColor.getName(), QColor(32, 108, 9)).value<QColor>());
+    whisperColor.set(conf.value(whisperColor.getName(), QColor(103, 135, 149)).value<QColor>());
+    groupColor.set(conf.value(groupColor.getName(), QColor(15, 123, 255)).value<QColor>());
+    askColor.set(conf.value(askColor.getName(), QColor(Qt::yellow)).value<QColor>());
+    sayColor.set(conf.value(sayColor.getName(), QColor(80, 173, 199)).value<QColor>());
+    emoteColor.set(conf.value(emoteColor.getName(), QColor(203, 37, 111)).value<QColor>());
+    socialColor.set(conf.value(socialColor.getName(), QColor(217, 140, 151)).value<QColor>());
+    yellColor.set(conf.value(yellColor.getName(), QColor(176, 80, 189)).value<QColor>());
+    narrateColor.set(conf.value(narrateColor.getName(), QColor(119, 197, 203)).value<QColor>());
+    prayColor.set(conf.value(prayColor.getName(), QColor(173, 216, 230)).value<QColor>());
+    shoutColor.set(conf.value(shoutColor.getName(), QColor(160, 9, 198)).value<QColor>());
+    singColor.set(conf.value(singColor.getName(), QColor(144, 238, 144)).value<QColor>());
+    backgroundColor.set(conf.value(backgroundColor.getName(), QColor(22, 31, 33)).value<QColor>());
+
+    // Font styling options
+    yellAllCaps.set(conf.value(yellAllCaps.getName(), true).toBool());
+    whisperItalic.set(conf.value(whisperItalic.getName(), true).toBool());
+    emoteItalic.set(conf.value(emoteItalic.getName(), true).toBool());
+
+    // Display options
+    showTimestamps.set(conf.value(showTimestamps.getName(), false).toBool());
+    saveLogOnExit.set(conf.value(saveLogOnExit.getName(), false).toBool());
+    logDirectory.set(conf.value(logDirectory.getName(), QString("")).toString());
+
+    // Talker colors
+    talkerYouColor.set(conf.value(talkerYouColor.getName(), QColor(228, 250, 255)).value<QColor>());
+    talkerPlayerColor.set(
+        conf.value(talkerPlayerColor.getName(), QColor(255, 187, 16)).value<QColor>());
+    talkerNpcColor.set(conf.value(talkerNpcColor.getName(), QColor(25, 138, 23)).value<QColor>());
+    talkerAllyColor.set(conf.value(talkerAllyColor.getName(), QColor(33, 166, 255)).value<QColor>());
+    talkerNeutralColor.set(
+        conf.value(talkerNeutralColor.getName(), QColor(166, 168, 168)).value<QColor>());
+    talkerEnemyColor.set(conf.value(talkerEnemyColor.getName(), QColor(173, 7, 37)).value<QColor>());
+
+    // Tab muting (filters)
+    muteDirectTab.set(conf.value(muteDirectTab.getName(), false).toBool());
+    muteLocalTab.set(conf.value(muteLocalTab.getName(), false).toBool());
+    muteGlobalTab.set(conf.value(muteGlobalTab.getName(), false).toBool());
+}
+
 void Configuration::MumeClockSettings::read(const QSettings &conf)
 {
     // NOTE: old values might be stored as int32
@@ -896,6 +941,47 @@ void Configuration::GroupManagerSettings::write(QSettings &conf) const
     conf.setValue(KEY_GROUP_NPC_COLOR_OVERRIDE, npcColorOverride);
     conf.setValue(KEY_GROUP_NPC_HIDE, npcHide);
     conf.setValue(KEY_GROUP_NPC_SORT_BOTTOM, npcSortBottom);
+}
+
+void Configuration::CommsSettings::write(QSettings &conf) const
+{
+    // Communication colors
+    conf.setValue(tellColor.getName(), tellColor.get());
+    conf.setValue(whisperColor.getName(), whisperColor.get());
+    conf.setValue(groupColor.getName(), groupColor.get());
+    conf.setValue(askColor.getName(), askColor.get());
+    conf.setValue(sayColor.getName(), sayColor.get());
+    conf.setValue(emoteColor.getName(), emoteColor.get());
+    conf.setValue(socialColor.getName(), socialColor.get());
+    conf.setValue(yellColor.getName(), yellColor.get());
+    conf.setValue(narrateColor.getName(), narrateColor.get());
+    conf.setValue(prayColor.getName(), prayColor.get());
+    conf.setValue(shoutColor.getName(), shoutColor.get());
+    conf.setValue(singColor.getName(), singColor.get());
+    conf.setValue(backgroundColor.getName(), backgroundColor.get());
+
+    // Font styling options
+    conf.setValue(yellAllCaps.getName(), yellAllCaps.get());
+    conf.setValue(whisperItalic.getName(), whisperItalic.get());
+    conf.setValue(emoteItalic.getName(), emoteItalic.get());
+
+    // Display options
+    conf.setValue(showTimestamps.getName(), showTimestamps.get());
+    conf.setValue(saveLogOnExit.getName(), saveLogOnExit.get());
+    conf.setValue(logDirectory.getName(), logDirectory.get());
+
+    // Talker colors
+    conf.setValue(talkerYouColor.getName(), talkerYouColor.get());
+    conf.setValue(talkerPlayerColor.getName(), talkerPlayerColor.get());
+    conf.setValue(talkerNpcColor.getName(), talkerNpcColor.get());
+    conf.setValue(talkerAllyColor.getName(), talkerAllyColor.get());
+    conf.setValue(talkerNeutralColor.getName(), talkerNeutralColor.get());
+    conf.setValue(talkerEnemyColor.getName(), talkerEnemyColor.get());
+
+    // Tab muting (filters)
+    conf.setValue(muteDirectTab.getName(), muteDirectTab.get());
+    conf.setValue(muteLocalTab.getName(), muteLocalTab.get());
+    conf.setValue(muteGlobalTab.getName(), muteGlobalTab.get());
 }
 
 void Configuration::MumeClockSettings::write(QSettings &conf) const

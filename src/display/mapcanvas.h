@@ -180,7 +180,6 @@ public:
 
 private:
     void onMovement();
-    void restoreCursorForMouseMode();
     NODISCARD bool isCameraRotating() const { return m_cameraRotation.has_value(); }
 
 private:

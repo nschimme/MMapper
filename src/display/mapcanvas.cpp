@@ -22,6 +22,7 @@
 #include "MapCanvasData.h"
 #include "MapCanvasRoomDrawer.h"
 #include "connectionselection.h"
+#include "MapCanvasConfig.h"
 
 #include <array>
 #include <cmath>
@@ -109,9 +110,19 @@ void MapCanvas::slot_layerReset()
     layerChanged();
 }
 
-void MapCanvas::restoreCursorForMouseMode()
+void MapCanvas::slot_setCanvasMouseMode(const CanvasMouseModeEnum mode)
 {
-    switch (m_canvasMouseMode) {
+    // FIXME: This probably isn't what you actually want here,
+    // since it clears selections when re-choosing the same mode,
+    // or when changing to a compatible mode.
+    //
+    // e.g. RAYPICK_ROOMS vs SELECT_CONNECTIONS,
+    // or if you're trying to use MOVE to pan to reach more rooms
+    // (granted, the latter isn't "necessary" because you can use
+    // scrollbars or use the new zoom-recenter feature).
+    slot_clearAllSelections();
+
+    switch (mode) {
     case CanvasMouseModeEnum::MOVE:
         setCursor(Qt::OpenHandCursor);
         break;
@@ -132,22 +143,8 @@ void MapCanvas::restoreCursorForMouseMode()
         setCursor(Qt::ArrowCursor);
         break;
     }
-}
-
-void MapCanvas::slot_setCanvasMouseMode(const CanvasMouseModeEnum mode)
-{
-    // FIXME: This probably isn't what you actually want here,
-    // since it clears selections when re-choosing the same mode,
-    // or when changing to a compatible mode.
-    //
-    // e.g. RAYPICK_ROOMS vs SELECT_CONNECTIONS,
-    // or if you're trying to use MOVE to pan to reach more rooms
-    // (granted, the latter isn't "necessary" because you can use
-    // scrollbars or use the new zoom-recenter feature).
-    slot_clearAllSelections();
 
     m_canvasMouseMode = mode;
-    restoreCursorForMouseMode();
     m_selectedArea = false;
     selectionChanged();
 }
@@ -411,8 +408,6 @@ std::shared_ptr<InfomarkSelection> MapCanvas::getInfomarkSelection(const MouseSe
 
     return InfomarkSelection::alloc(m_data, lo, hi);
 }
-
-#include "MapCanvasConfig.h"
 
 void MapCanvas::mousePressEvent(QMouseEvent *const event)
 {
@@ -768,7 +763,27 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
     if (event->button() == Qt::MiddleButton && isCameraRotating()) {
         m_cameraRotation.reset();
         m_mouseMiddlePressed = false;
-        restoreCursorForMouseMode();
+        switch (m_canvasMouseMode) {
+        case CanvasMouseModeEnum::MOVE:
+            setCursor(Qt::OpenHandCursor);
+            break;
+
+        default:
+        case CanvasMouseModeEnum::NONE:
+        case CanvasMouseModeEnum::RAYPICK_ROOMS:
+        case CanvasMouseModeEnum::SELECT_CONNECTIONS:
+        case CanvasMouseModeEnum::CREATE_INFOMARKS:
+            setCursor(Qt::CrossCursor);
+            break;
+
+        case CanvasMouseModeEnum::SELECT_ROOMS:
+        case CanvasMouseModeEnum::CREATE_ROOMS:
+        case CanvasMouseModeEnum::CREATE_CONNECTIONS:
+        case CanvasMouseModeEnum::CREATE_ONEWAY_CONNECTIONS:
+        case CanvasMouseModeEnum::SELECT_INFOMARKS:
+            setCursor(Qt::ArrowCursor);
+            break;
+        }
         return event->accept();
     }
 

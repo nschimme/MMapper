@@ -1,5 +1,23 @@
 [1/6] No install step for 'immer'
 [2/6] Completed 'immer'
 [3/6] Automatic MOC and UIC for target mmapper
-[4/5] Building CXX object src/CMakeFiles/mmapper.dir/display/mapcanvas_gl.cpp.o
+[4/5] Building CXX object src/CMakeFiles/mmapper.dir/opengl/modern/ModernRoomRenderer.cpp.o
+/app/src/opengl/modern/ModernRoomRenderer.cpp: In constructor ‘modern::RoomRenderer::Private::Private(OpenGL&, const std::__debug::vector<modern::RoomInstanceData>&)’:
+/app/src/opengl/modern/ModernRoomRenderer.cpp:31:55: warning: conversion to ‘qopengl_GLsizeiptr’ {aka ‘long int’} from ‘std::__cxx1998::vector<modern::RoomInstanceData, std::allocator<modern::RoomInstanceData> >::size_type’ {aka ‘long unsigned int’} may change the sign of the result [-Wsign-conversion]
+   31 |                                      instances.size() * sizeof(RoomInstanceData),
+      |                                      ~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~
+/app/src/opengl/modern/ModernRoomRenderer.cpp: In member function ‘void modern::RoomRenderer::Private::render()’:
+/app/src/opengl/modern/ModernRoomRenderer.cpp:55:57: warning: conversion to ‘GLenum’ {aka ‘unsigned int’} from ‘int’ may change the sign of the result [-Wsign-conversion]
+   55 |         m_gl.getFunctions().glActiveTexture(GL_TEXTURE0 + m_texture_unit);
+      |                                                         ^
+/app/src/opengl/modern/ModernRoomRenderer.cpp:56:82: warning: conversion to ‘GLuint’ {aka ‘unsigned int’} from ‘TaggedInt<MMTextureId, tags::MMTextureIdTag, int, -1>::WrappedType’ {aka ‘int’} may change the sign of the result [-Wsign-conversion]
+   56 |         m_gl.getFunctions().glBindTexture(GL_TEXTURE_2D_ARRAY, m_texture_id.value());
+      |                                                                ~~~~~~~~~~~~~~~~~~^~
+/app/src/opengl/modern/ModernRoomRenderer.cpp:59:74: warning: conversion from ‘size_t’ {aka ‘long unsigned int’} to ‘GLsizei’ {aka ‘int’} may change value [-Wconversion]
+   59 |         m_gl.getFunctions().glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, 4, m_instance_count);
+      |                                                                          ^~~~~~~~~~~~~~~~
+/app/src/opengl/modern/ModernRoomRenderer.cpp: In member function ‘virtual void modern::RoomRenderer::virt_render(const GLRenderState&)’:
+/app/src/opengl/modern/ModernRoomRenderer.cpp:99:53: warning: unused parameter ‘renderState’ [-Wunused-parameter]
+   99 | void RoomRenderer::virt_render(const GLRenderState &renderState)
+      |                                ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~
 [5/5] Linking CXX executable src/mmapper

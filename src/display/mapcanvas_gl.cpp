@@ -531,6 +531,9 @@ void MapCanvas::renderLoop()
 
 void MapCanvas::updateBatches()
 {
+    if (hasBackup()) {
+        return;
+    }
     updateMapBatches();
     updateInfomarkBatches();
 }

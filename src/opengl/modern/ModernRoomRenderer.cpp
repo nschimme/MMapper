@@ -50,6 +50,10 @@ public:
     {
         auto unbinder = m_shader->bind();
         m_shader->setProjection(m_gl.getProjectionMatrix());
+        m_shader->setUniform1iv(m_shader->getUniformLocation("u_texture"), 1, &m_texture_unit);
+
+        m_gl.getFunctions().glActiveTexture(GL_TEXTURE0 + m_texture_unit);
+        m_gl.getFunctions().glBindTexture(GL_TEXTURE_2D_ARRAY, m_texture_id.value());
 
         m_gl.getFunctions().glBindVertexArray(m_vao);
         m_gl.getFunctions().glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, 4, m_instance_count);
@@ -62,6 +66,8 @@ public:
     GLuint m_vao;
     GLuint m_vbo;
     size_t m_instance_count;
+    MMTextureId m_texture_id;
+    GLint m_texture_unit = 0;
 };
 
 RoomRenderer::RoomRenderer(OpenGL &gl, const std::vector<RoomInstanceData> &instances)
@@ -69,6 +75,11 @@ RoomRenderer::RoomRenderer(OpenGL &gl, const std::vector<RoomInstanceData> &inst
 {}
 
 RoomRenderer::~RoomRenderer() = default;
+
+void RoomRenderer::setTexture(MMTextureId textureId)
+{
+    d->m_texture_id = textureId;
+}
 
 void RoomRenderer::virt_clear()
 {

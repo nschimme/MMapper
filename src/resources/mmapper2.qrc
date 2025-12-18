@@ -218,6 +218,8 @@
         <file>shaders/legacy/plain/ucolor/vert.glsl</file>
         <file>shaders/legacy/point/frag.glsl</file>
         <file>shaders/legacy/point/vert.glsl</file>
+        <file>shaders/legacy/modern/room/frag.glsl</file>
+        <file>shaders/legacy/modern/room/vert.glsl</file>
         <file>shaders/legacy/tex/acolor/frag.glsl</file>
         <file>shaders/legacy/tex/acolor/vert.glsl</file>
         <file>shaders/legacy/tex/ucolor/frag.glsl</file>

@@ -138,7 +138,9 @@ UniqueMesh OpenGL::createColoredTexturedQuadBatch(const std::vector<ColoredTexVe
 UniqueMesh OpenGL::createInstancedRoomBatch(const std::vector<modern::RoomInstanceData> &instances,
                                             MMTextureId texture)
 {
-    return UniqueMesh{std::make_unique<modern::RoomRenderer>(*this, instances)};
+    auto renderer = std::make_unique<modern::RoomRenderer>(*this, instances);
+    renderer->setTexture(texture);
+    return UniqueMesh{std::move(renderer)};
 }
 
 UniqueMesh OpenGL::createFontMesh(const SharedMMTexture &texture,

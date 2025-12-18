@@ -21,6 +21,8 @@ public:
     RoomRenderer(OpenGL &gl, const std::vector<RoomInstanceData> &instances);
     ~RoomRenderer() final;
 
+    void setTexture(MMTextureId textureId);
+
 private:
     void virt_clear() final;
     void virt_reset() final;

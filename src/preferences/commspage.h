@@ -2,12 +2,16 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2025 The MMapper Authors
 
+#include "../configuration/NamedConfig.h"
 #include "../global/utils.h"
 
 #include <QCheckBox>
-#include <QLabel>
-#include <QPushButton>
+#include <QColor>
+#include <QList>
 #include <QWidget>
+
+class QFormLayout;
+class QPushButton;
 
 class NODISCARD_QOBJECT CommsPage final : public QWidget
 {
@@ -27,45 +31,31 @@ public slots:
 
 private slots:
     void slot_onColorClicked();
-    void slot_onBgColorClicked();
-    void slot_onYellAllCapsChanged(int state);
-    void slot_onWhisperItalicChanged(int state);
-    void slot_onEmoteItalicChanged(int state);
-    void slot_onShowTimestampsChanged(int state);
+    void slot_onCheckboxToggled(bool checked);
 
 private:
+    // Helper structs to associate widgets with their config objects
+    struct ColorSetting
+    {
+        QPushButton *button = nullptr;
+        NamedConfig<QColor> *config = nullptr;
+        QString label;
+    };
+
+    struct CheckboxSetting
+    {
+        QCheckBox *checkbox = nullptr;
+        NamedConfig<bool> *config = nullptr;
+    };
+
     void setupUI();
     void connectSignals();
     void updateColorButton(QPushButton *button, const QColor &color);
 
-    // Color buttons (one per communication type)
-    QPushButton *m_tellColorButton = nullptr;
-    QPushButton *m_whisperColorButton = nullptr;
-    QPushButton *m_groupColorButton = nullptr;
-    QPushButton *m_askColorButton = nullptr;
-    QPushButton *m_sayColorButton = nullptr;
-    QPushButton *m_emoteColorButton = nullptr;
-    QPushButton *m_socialColorButton = nullptr;
-    QPushButton *m_yellColorButton = nullptr;
-    QPushButton *m_narrateColorButton = nullptr;
-    QPushButton *m_prayColorButton = nullptr;
-    QPushButton *m_shoutColorButton = nullptr;
-    QPushButton *m_singColorButton = nullptr;
-    QPushButton *m_bgColorButton = nullptr;
+    // Helper methods for UI creation
+    void createColorButton(QFormLayout *layout, const QString &label, NamedConfig<QColor> &config);
+    void createCheckbox(QFormLayout *layout, NamedConfig<bool> &config);
 
-    // Talker color buttons (based on GMCP talker-type)
-    QPushButton *m_talkerYouColorButton = nullptr;
-    QPushButton *m_talkerPlayerColorButton = nullptr;
-    QPushButton *m_talkerNpcColorButton = nullptr;
-    QPushButton *m_talkerAllyColorButton = nullptr;
-    QPushButton *m_talkerNeutralColorButton = nullptr;
-    QPushButton *m_talkerEnemyColorButton = nullptr;
-
-    // Font styling checkboxes
-    QCheckBox *m_yellAllCapsCheck = nullptr;
-    QCheckBox *m_whisperItalicCheck = nullptr;
-    QCheckBox *m_emoteItalicCheck = nullptr;
-
-    // Display options
-    QCheckBox *m_showTimestampsCheck = nullptr;
+    QList<ColorSetting> m_colorSettings;
+    QList<CheckboxSetting> m_checkboxSettings;
 };

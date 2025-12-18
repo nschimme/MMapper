@@ -446,79 +446,12 @@ struct NODISCARD ColoredRoomTex : public RoomTex
 //
 // Conclusion: Look elsewhere for optimization opportunities -- at least until profiling says
 // that sorting is at significant fraction of the total runtime.
-struct NODISCARD RoomTexVector final : public std::vector<RoomTex>
-{
-    // sorting stl iterators is slower than christmas with GLIBCXX_DEBUG,
-    // so we'll use pointers instead. std::stable_sort isn't
-    // necessary because everything's opaque, so we'll use
-    // vanilla std::sort, which is N log N instead of N^2 log N.
-    void sortByTexture()
-    {
-        if (size() < 2) {
-            return;
-        }
-
-        if (isSorted())
-            return;
-
-        RoomTex *const beg = data();
-        RoomTex *const end = beg + size();
-        // NOTE: comparison will be std::less<RoomTex>, which uses
-        // operator<() if it exists.
-        std::sort(beg, end, RoomTex::isPartitioned);
-    }
-
-    NODISCARD bool isSorted() const
-    {
-        if (size() < 2) {
-            return true;
-        }
-
-        const RoomTex *const beg = data();
-        const RoomTex *const end = beg + size();
-        return std::is_sorted(beg, end, RoomTex::isPartitioned);
-    }
-};
-
-struct NODISCARD ColoredRoomTexVector final : public std::vector<ColoredRoomTex>
-{
-    // sorting stl iterators is slower than christmas with GLIBCXX_DEBUG,
-    // so we'll use pointers instead. std::stable_sort isn't
-    // necessary because everything's opaque, so we'll use
-    // vanilla std::sort, which is N log N instead of N^2 log N.
-    void sortByTexture()
-    {
-        if (size() < 2) {
-            return;
-        }
-
-        if (isSorted())
-            return;
-
-        ColoredRoomTex *const beg = data();
-        ColoredRoomTex *const end = beg + size();
-        // NOTE: comparison will be std::less<RoomTex>, which uses
-        // operator<() if it exists.
-        std::sort(beg, end, RoomTex::isPartitioned);
-    }
-
-    NODISCARD bool isSorted() const
-    {
-        if (size() < 2) {
-            return true;
-        }
-
-        const ColoredRoomTex *const beg = data();
-        const ColoredRoomTex *const end = beg + size();
-        return std::is_sorted(beg, end, RoomTex::isPartitioned);
-    }
-};
+using RoomTexVector = std::vector<RoomTex>;
+using ColoredRoomTexVector = std::vector<ColoredRoomTex>;
 
 template<typename T, typename Callback>
 static void foreach_texture(const T &textures, Callback &&callback)
 {
-    assert(textures.isSorted());
-
     const auto size = textures.size();
     for (size_t beg = 0, next = size; beg < size; beg = next) {
         const RoomTex &rtex = textures[beg];
@@ -537,47 +470,35 @@ static void foreach_texture(const T &textures, Callback &&callback)
     }
 }
 
-NODISCARD static LayerMeshesIntermediate::FnVec createSortedTexturedMeshes(
+NODISCARD static LayerMeshesIntermediate::FnVec createTexturedMeshes(
     const std::string_view what, const RoomTexVector &textures)
 {
     if (textures.empty()) {
         return {};
     }
 
-    const size_t numUniqueTextures = std::invoke([&textures]() -> size_t {
-        size_t texCount = 0;
-        ::foreach_texture(textures,
-                          [&texCount](size_t /* beg */, size_t /*end*/) -> void { ++texCount; });
-        return texCount;
-    });
+    std::unordered_map<MMTextureId, RoomTexVector> partitionedTextures;
+    for (const auto &tex : textures) {
+        partitionedTextures[tex.pos.array].push_back(tex);
+    }
 
     if constexpr (IS_DEBUG_BUILD) {
-        if (numUniqueTextures > 1) {
-            MMLOG() << what << " has " << numUniqueTextures << " unique textures\n";
-
-            {
-                auto &&os = MMLOG();
-                for (auto &x : textures) {
-                    os << x.pos.array.value() << " at " << x.pos.position << "\n";
-                }
-            }
+        if (partitionedTextures.size() > 1) {
+            MMLOG() << what << " has " << partitionedTextures.size() << " unique textures\n";
         }
     }
 
     LayerMeshesIntermediate::FnVec tmp_meshes;
-    tmp_meshes.reserve(numUniqueTextures);
-    const auto lambda = [&tmp_meshes, &textures](const size_t beg, const size_t end) -> void {
-        const RoomTex &rtex = textures[beg];
-        const size_t count = end - beg;
+    tmp_meshes.reserve(partitionedTextures.size());
 
+    for (auto const &[textureId, texVector] : partitionedTextures) {
         std::vector<TexVert> verts;
-        verts.reserve(count * VERTS_PER_QUAD); /* quads */
+        verts.reserve(texVector.size() * VERTS_PER_QUAD); /* quads */
 
         // D-C
         // | |  ccw winding
         // A-B
-        for (size_t i = beg; i < end; ++i) {
-            const RoomTex &thisVert = textures[i];
+        for (const auto &thisVert : texVector) {
             const auto &pos = thisVert.room.getPosition();
             const auto v0 = pos.to_vec3();
             const auto z = thisVert.pos.position;
@@ -590,58 +511,45 @@ NODISCARD static LayerMeshesIntermediate::FnVec createSortedTexturedMeshes(
 #undef EMIT
         }
 
-        tmp_meshes.emplace_back([v = std::move(verts), t = rtex.pos.array](OpenGL &g) {
-            return g.createTexturedQuadBatch(v, t);
-        });
-    };
+        tmp_meshes.emplace_back(
+            [v = std::move(verts), t = textureId](OpenGL &g) {
+                return g.createTexturedQuadBatch(v, t);
+            });
+    }
 
-    ::foreach_texture(textures, lambda);
-    assert(tmp_meshes.size() == numUniqueTextures);
+    assert(tmp_meshes.size() == partitionedTextures.size());
     return tmp_meshes;
 }
 
-NODISCARD static LayerMeshesIntermediate::FnVec createSortedColoredTexturedMeshes(
+NODISCARD static LayerMeshesIntermediate::FnVec createColoredTexturedMeshes(
     const std::string_view what, const ColoredRoomTexVector &textures)
 {
     if (textures.empty()) {
         return {};
     }
 
-    const size_t numUniqueTextures = std::invoke([&textures]() -> size_t {
-        size_t texCount = 0;
-        ::foreach_texture(textures,
-                          [&texCount](size_t /* beg */, size_t /*end*/) -> void { ++texCount; });
-        return texCount;
-    });
+    std::unordered_map<MMTextureId, ColoredRoomTexVector> partitionedTextures;
+    for (const auto &tex : textures) {
+        partitionedTextures[tex.pos.array].push_back(tex);
+    }
 
     if constexpr (IS_DEBUG_BUILD) {
-        if (numUniqueTextures > 1) {
-            MMLOG() << what << " has " << numUniqueTextures << " unique textures\n";
-
-            {
-                auto &&os = MMLOG();
-                for (auto &x : textures) {
-                    os << x.pos.array.value() << " at " << x.pos.position << "\n";
-                }
-            }
+        if (partitionedTextures.size() > 1) {
+            MMLOG() << what << " has " << partitionedTextures.size() << " unique textures\n";
         }
     }
 
     LayerMeshesIntermediate::FnVec tmp_meshes;
-    tmp_meshes.reserve(numUniqueTextures);
+    tmp_meshes.reserve(partitionedTextures.size());
 
-    const auto lambda = [&tmp_meshes, &textures](const size_t beg, const size_t end) -> void {
-        const RoomTex &rtex = textures[beg];
-        const size_t count = end - beg;
-
+    for (auto const &[textureId, texVector] : partitionedTextures) {
         std::vector<ColoredTexVert> verts;
-        verts.reserve(count * VERTS_PER_QUAD); /* quads */
+        verts.reserve(texVector.size() * VERTS_PER_QUAD); /* quads */
 
         // D-C
         // | |  ccw winding
         // A-B
-        for (size_t i = beg; i < end; ++i) {
-            const ColoredRoomTex &thisVert = textures[i];
+        for (const auto &thisVert : texVector) {
             const auto &pos = thisVert.room.getPosition();
             const auto v0 = pos.to_vec3();
             const auto color = thisVert.color;
@@ -655,13 +563,12 @@ NODISCARD static LayerMeshesIntermediate::FnVec createSortedColoredTexturedMeshe
 #undef EMIT
         }
 
-        tmp_meshes.emplace_back([v = std::move(verts), t = rtex.pos.array](OpenGL &g) {
+        tmp_meshes.emplace_back([v = std::move(verts), t = textureId](OpenGL &g) {
             return g.createColoredTexturedQuadBatch(v, t);
         });
-    };
+    }
 
-    ::foreach_texture(textures, lambda);
-    assert(tmp_meshes.size() == numUniqueTextures);
+    assert(tmp_meshes.size() == partitionedTextures.size());
     return tmp_meshes;
 }
 
@@ -687,40 +594,20 @@ struct NODISCARD LayerBatchData final
     ~LayerBatchData() = default;
     DEFAULT_MOVES_DELETE_COPIES(LayerBatchData);
 
-    void sort()
-    {
-        DECL_TIMER(t, "sort");
-
-        /* TODO: Only sort on 2.1 path, since 3.0 can use GL_TEXTURE_2D_ARRAY. */
-        roomTerrains.sortByTexture();
-        roomTrails.sortByTexture();
-        roomOverlays.sortByTexture();
-
-        // REVISIT: We could just make two separate lists and avoid the sort.
-        // However, it may be convenient to have separate dotted vs solid texture,
-        // so we'd still need to sort in that case.
-        roomUpDownExits.sortByTexture();
-        doors.sortByTexture();
-        solidWallLines.sortByTexture();
-        dottedWallLines.sortByTexture();
-        streamIns.sortByTexture();
-        streamOuts.sortByTexture();
-    }
-
     NODISCARD LayerMeshesIntermediate buildIntermediate() const
     {
         DECL_TIMER(t2, "LayerBatchData::buildIntermediate");
         LayerMeshesIntermediate meshes;
-        meshes.terrain = ::createSortedTexturedMeshes("terrain", roomTerrains);
-        meshes.trails = ::createSortedTexturedMeshes("trails", roomTrails);
+        meshes.terrain = ::createTexturedMeshes("terrain", roomTerrains);
+        meshes.trails = ::createTexturedMeshes("trails", roomTrails);
         meshes.tints = roomTints; // REVISIT: this is a copy instead of a move
-        meshes.overlays = ::createSortedTexturedMeshes("overlays", roomOverlays);
-        meshes.doors = ::createSortedColoredTexturedMeshes("doors", doors);
-        meshes.walls = ::createSortedColoredTexturedMeshes("solidWalls", solidWallLines);
-        meshes.dottedWalls = ::createSortedColoredTexturedMeshes("dottedWalls", dottedWallLines);
-        meshes.upDownExits = ::createSortedColoredTexturedMeshes("upDownExits", roomUpDownExits);
-        meshes.streamIns = ::createSortedColoredTexturedMeshes("streamIns", streamIns);
-        meshes.streamOuts = ::createSortedColoredTexturedMeshes("streamOuts", streamOuts);
+        meshes.overlays = ::createTexturedMeshes("overlays", roomOverlays);
+        meshes.doors = ::createColoredTexturedMeshes("doors", doors);
+        meshes.walls = ::createColoredTexturedMeshes("solidWalls", solidWallLines);
+        meshes.dottedWalls = ::createColoredTexturedMeshes("dottedWalls", dottedWallLines);
+        meshes.upDownExits = ::createColoredTexturedMeshes("upDownExits", roomUpDownExits);
+        meshes.streamIns = ::createColoredTexturedMeshes("streamIns", streamIns);
+        meshes.streamOuts = ::createColoredTexturedMeshes("streamOuts", streamOuts);
         meshes.layerBoost = roomLayerBoostQuads; // REVISIT: this is a copy instead of a move
         meshes.isValid = true;
         return meshes;
@@ -882,7 +769,6 @@ NODISCARD static LayerMeshesIntermediate generateLayerMeshes(
     LayerBatchBuilder builder{data, textures, bounds};
     visitRooms(rooms, textures, builder, visitRoomOptions);
 
-    data.sort();
     return data.buildIntermediate();
 }
 

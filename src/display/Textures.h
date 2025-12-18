@@ -33,7 +33,7 @@ public:
     {
         FromFile,
         FromImages,
-        Procedural,
+        FromInitializer,
     };
 
 private:
@@ -85,7 +85,7 @@ public:
               const std::function<void(QOpenGLTexture &)> &init,
               const bool forbidUpdates)
         : m_qt_texture{target}
-        , m_sourceType{TextureSourceType::Procedural}
+        , m_sourceType{TextureSourceType::FromInitializer}
         , m_forbidUpdates{forbidUpdates}
         , m_sourceData{std::make_unique<SourceData>()}
     {

@@ -412,7 +412,7 @@ void MapCanvas::initTextures()
                     maxMipLevel = std::max(maxMipLevel, static_cast<int>(images.size()));
                 }
             } break;
-            case MMTexture::TextureSourceType::Procedural:
+            case MMTexture::TextureSourceType::FromInitializer:
                 throw std::logic_error("unexpected texture source type");
             }
 
@@ -610,11 +610,8 @@ MapCanvasTexturesProxy getProxy(const MapCanvasTextures &mct)
 void MapCanvas::updateTextures()
 {
     const bool wantTrilinear = getConfig().canvas.trilinearFiltering.get();
-    m_textures.for_each([wantTrilinear](SharedMMTexture &tex) -> void {
-        if (tex->canBeUpdated()) {
-            ::setTrilinear(tex, wantTrilinear);
-        }
-    });
+    m_textures.for_each(
+        [wantTrilinear](SharedMMTexture &tex) -> void { ::setTrilinear(tex, wantTrilinear); });
 
 #define XTEX(_TYPE, _NAME) \
     do { \

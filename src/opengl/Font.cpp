@@ -589,20 +589,15 @@ public:
         data.pos = m_opts.pos;
         data.color = m_opts.fgColor.getVec4();
         data.italics = m_opts.wantItalics ? 0.2f : 0.0f;
+        data.size = iglyphSize;
 
-        const auto getTransformed = [&](const glm::ivec2& pixelOffset) {
-            const glm::ivec2 relativeVertPos = iVertex00 + pixelOffset;
-            if (!isEmpty) {
-                m_bounds.include(relativeVertPos);
-            }
-            return transformVert(relativeVertPos);
-        };
-
-        const auto &x = iglyphSize.x;
-        const auto &y = iglyphSize.y;
+        if (!isEmpty) {
+            m_bounds.include(iVertex00);
+            m_bounds.include(iVertex00 + iglyphSize);
+        }
 
         data.texTopLeft = getTexCoord(iTexCoord00);
-        data.texBottomRight = getTexCoord(iTexCoord00 + glm::ivec2{x, y});
+        data.texBottomRight = getTexCoord(iTexCoord00 + iglyphSize);
 
         m_verts3d.emplace_back(data);
     }
@@ -643,17 +638,18 @@ public:
 
         // measurement, background color, and underline.
         {
-            const auto add = [this](const Color &c, const glm::ivec2 &ivert, const glm::ivec2 &itc) {
+            const auto add = [this](const Color &c, const glm::ivec2 &ivert, const glm::ivec2 &itc, const glm::ivec2 &isize) {
                 FontData data;
                 data.pos = m_opts.pos;
                 data.color = c.getVec4();
-                data.texTopLeft = transformVert(ivert);
-                data.texBottomRight = transformVert(ivert + itc);
+                data.size = isize;
+                data.texTopLeft = getTexCoord(ivert);
+                data.texBottomRight = getTexCoord(ivert + itc);
                 m_verts3d.emplace_back(data);
             };
 
             const auto quad = [&add](const Color &c, const Rect &vert, const Rect &tc) {
-                add(c, vert.lo, vert.size());
+                add(c, vert.lo, tc.lo, vert.size());
             };
 
             const glm::ivec2 margin{m_fm.common.marginX, m_fm.common.marginY};

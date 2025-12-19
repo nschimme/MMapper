@@ -6,10 +6,12 @@ uniform ivec4 uPhysViewport;
 
 // Per-instance data
 layout(location = 0) in vec3 aPos;
-layout(location = 1) in vec2 aTexTopLeft;
-layout(location = 2) in vec2 aTexBottomRight;
-layout(location = 3) in vec4 aColor;
-layout(location = 4) in float aItalics;
+layout(location = 1) in vec2 aSize;
+layout(location = 2) in vec2 aTexTopLeft;
+layout(location = 3) in vec2 aTexBottomRight;
+layout(location = 4) in vec4 aColor;
+layout(location = 5) in float aItalics;
+layout(location = 6) in float aRotation;
 
 out vec4 vColor;
 out vec2 vTexCoord;
@@ -60,25 +62,35 @@ void main()
     vec2 wordOriginScreen = anti_flicker(convertNDCtoScreenSpace(pos.xy));
 
     // Determine corner vertex offset and texture coordinate from gl_VertexID
-    vec2 cornerPos;
+    vec2 cornerOffset;
+    vec2 texCoord;
+
     if (gl_VertexID == 0) { // Top-left
-        cornerPos = aTexTopLeft;
+        cornerOffset = vec2(0.0, 0.0);
+        texCoord = aTexTopLeft;
     } else if (gl_VertexID == 1) { // Top-right
-        cornerPos = vec2(aTexBottomRight.x, aTexTopLeft.y);
-    } else if (gl_VertexID == 2) { // Bottom-left
-        cornerPos = vec2(aTexTopLeft.x, aTexBottomRight.y);
-    } else { // Bottom-right
-        cornerPos = aTexBottomRight;
+        cornerOffset = vec2(aSize.x, 0.0);
+        texCoord = vec2(aTexBottomRight.x, aTexTopLeft.y);
+    } else if (gl_VertexID == 2) { // Bottom-right
+        cornerOffset = aSize;
+        texCoord = aTexBottomRight;
+    } else { // Bottom-left
+        cornerOffset = vec2(0.0, aSize.y);
+        texCoord = vec2(aTexTopLeft.x, aTexBottomRight.y);
     }
-    vTexCoord = cornerPos;
+    vTexCoord = texCoord;
 
     // Apply italics shear transformation
-    float quadHeight = aTexBottomRight.y - aTexTopLeft.y;
-    float yPosInQuad = cornerPos.y - aTexTopLeft.y;
-    cornerPos.x += aItalics * (quadHeight - yPosInQuad);
+    float yPosInQuad = cornerOffset.y;
+    cornerOffset.x += aItalics * (aSize.y - yPosInQuad);
+
+    // Apply rotation
+    float angle = radians(aRotation);
+    mat2 rotationMatrix = mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
+    cornerOffset = rotationMatrix * (cornerOffset - aSize * 0.5) + aSize * 0.5;
 
     // Combine base position with the corner offset and convert back to NDC clip space
-    pos.xy = convertScreen01toNdcClip(wordOriginScreen + convertPhysPixelsToScreen01(cornerPos));
+    pos.xy = convertScreen01toNdcClip(wordOriginScreen + convertPhysPixelsToScreen01(cornerOffset));
 
     gl_Position = pos;
 }

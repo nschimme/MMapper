@@ -403,6 +403,8 @@ set(mmapper_SRCS
     opengl/legacy/AbstractShaderProgram.h
     opengl/legacy/Binders.cpp
     opengl/legacy/Binders.h
+    opengl/legacy/FBO.cpp
+    opengl/legacy/FBO.h
     opengl/legacy/FontMesh.cpp
     opengl/legacy/FontMesh.h
     opengl/legacy/InstancedMesh.cpp

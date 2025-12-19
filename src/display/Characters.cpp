@@ -345,8 +345,7 @@ void CharacterBatch::CharFakeGL::reallyDrawCharacters(OpenGL &gl, const MapCanva
     if (!m_screenSpaceArrows.empty()) {
         const float dpr = gl.getDevicePixelRatio();
         for (auto &v : m_screenSpaceArrows) {
-            v.texTopLeft *= dpr;
-            v.texBottomRight *= dpr;
+            v.size *= dpr;
         }
 
         auto mesh = gl.createFontMesh(textures.char_arrows, m_screenSpaceArrows);
@@ -374,19 +373,17 @@ void CharacterBatch::CharFakeGL::addScreenSpaceArrow(const glm::vec3 &pos,
     FontData data;
     data.pos = pos;
     data.color = color.getVec4();
+    data.size = {MapScreen::DEFAULT_MARGIN_PIXELS, MapScreen::DEFAULT_MARGIN_PIXELS};
+    data.italics = 0.0f;
+    data.rotation = degrees;
 
-    const float scale = MapScreen::DEFAULT_MARGIN_PIXELS;
-    const float radians = glm::radians(degrees);
-    const glm::vec3 z{0, 0, 1};
-    const glm::mat4 rotation = glm::rotate(glm::mat4(1), radians, z);
-
-    const auto transform = [&](const glm::vec2& tc) {
-        const auto tmp = rotation * glm::vec4(tc * 2.f - 1.f, 0, 1);
-        return scale * glm::vec2(tmp) / tmp.w;
-    };
-
-    data.texTopLeft = transform({0.f, 0.f});
-    data.texBottomRight = transform({1.f, 1.f});
+    if (fill) {
+        data.texTopLeft = {0.5f, 0.5f};
+        data.texBottomRight = {1.0f, 1.0f};
+    } else {
+        data.texTopLeft = {0.0f, 0.0f};
+        data.texBottomRight = {0.5f, 0.5f};
+    }
 
     m_screenSpaceArrows.emplace_back(data);
 }

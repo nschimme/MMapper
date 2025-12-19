@@ -10,6 +10,8 @@
 #include "../adventure/adventurewidget.h"
 #include "../adventure/xpstatuswidget.h"
 #include "../client/ClientWidget.h"
+#include "../comms/CommsManager.h"
+#include "../comms/CommsWidget.h"
 #include "../clock/mumeclock.h"
 #include "../clock/mumeclockwidget.h"
 #include "../display/InfomarkSelection.h"
@@ -137,6 +139,33 @@ MainWindow::MainWindow()
     m_gameObserver = std::make_unique<GameObserver>();
     m_adventureTracker = new AdventureTracker(deref(m_gameObserver), this);
 
+    // Create AutoLogger early (needed by CommsWidget)
+    m_logger = new AutoLogger(this);
+
+    // Communications Manager
+    m_commsManager = new CommsManager(deref(m_gameObserver), this);
+
+    m_listener = new ConnectionListener(deref(m_mapData),
+                                        deref(m_pathMachine),
+                                        deref(m_prespammedPath),
+                                        deref(m_groupManager),
+                                        deref(m_mumeClock),
+                                        deref(getCanvas()),
+                                        deref(m_gameObserver),
+                                        this);
+
+    // View -> Side Panels -> Client Panel
+    m_clientWidget = new ClientWidget(deref(m_listener), this);
+    m_clientWidget->setObjectName("InternalMudClientWidget");
+    m_dockDialogClient = new QDockWidget("Client Panel", this);
+    m_dockDialogClient->setObjectName("DockWidgetClient");
+    m_dockDialogClient->setAllowedAreas(Qt::AllDockWidgetAreas);
+    m_dockDialogClient->setFeatures(QDockWidget::DockWidgetMovable
+                                    | QDockWidget::DockWidgetFloatable
+                                    | QDockWidget::DockWidgetClosable);
+    addDockWidget(Qt::LeftDockWidgetArea, m_dockDialogClient);
+    m_dockDialogClient->setWidget(m_clientWidget);
+
     // View -> Side Panels -> Log Panel
     m_dockDialogLog = new QDockWidget(tr("Log Panel"), this);
     m_dockDialogLog->setObjectName("DockWidgetLog");
@@ -195,6 +224,18 @@ MainWindow::MainWindow()
     m_dockDialogAdventure->setWidget(m_adventureWidget);
     m_dockDialogAdventure->hide();
 
+    // View -> Side Panels -> Communications Panel
+    m_dockDialogComms = new QDockWidget(tr("Communications"), this);
+    m_dockDialogComms->setObjectName("DockWidgetComms");
+    m_dockDialogComms->setAllowedAreas(Qt::BottomDockWidgetArea | Qt::TopDockWidgetArea);
+    m_dockDialogComms->setFeatures(QDockWidget::DockWidgetClosable
+                                    | QDockWidget::DockWidgetFloatable
+                                    | QDockWidget::DockWidgetMovable);
+    addDockWidget(Qt::BottomDockWidgetArea, m_dockDialogComms);
+    m_commsWidget = new CommsWidget(deref(m_commsManager), m_logger, this);
+    m_dockDialogComms->setWidget(m_commsWidget);
+    m_dockDialogComms->hide();
+
     // View -> Side Panels -> Description / Area Panel
     m_descriptionWidget = new DescriptionWidget(this);
     m_dockDialogDescription = new QDockWidget(tr("Description Panel"), this);
@@ -210,55 +251,6 @@ MainWindow::MainWindow()
     if constexpr (!NO_UPDATER) {
         m_updateDialog = new UpdateDialog(this);
     }
-
-    m_logger = new AutoLogger(this);
-
-    // TODO move this connect() wiring into AutoLogger::ctor ?
-    GameObserver &observer = deref(m_gameObserver);
-    observer.sig2_connected.connect(m_lifetime, [this]() {
-        //
-        deref(m_logger).slot_onConnected();
-    });
-    observer.sig2_toggledEchoMode.connect(m_lifetime, [this](bool echo) {
-        deref(m_logger).slot_shouldLog(echo);
-    });
-    observer.sig2_sentToMudString.connect(m_lifetime, [this](const QString &msg) {
-        deref(m_logger).slot_writeToLog(msg);
-    });
-    observer.sig2_sentToUserString.connect(m_lifetime, [this](const QString &msg) {
-        deref(m_logger).slot_writeToLog(msg);
-    });
-
-    m_listener = new ConnectionListener(deref(m_mapData),
-                                        deref(m_pathMachine),
-                                        deref(m_prespammedPath),
-                                        deref(m_groupManager),
-                                        deref(m_mumeClock),
-                                        deref(getCanvas()),
-                                        deref(m_gameObserver),
-                                        this);
-
-    // View -> Side Panels -> Client Panel
-    m_clientWidget = new ClientWidget(deref(m_listener), this);
-    m_clientWidget->setObjectName("InternalMudClientWidget");
-    m_dockDialogClient = new QDockWidget("Client Panel", this);
-    m_dockDialogClient->setObjectName("DockWidgetClient");
-    m_dockDialogClient->setAllowedAreas(Qt::AllDockWidgetAreas);
-    m_dockDialogClient->setFeatures(QDockWidget::DockWidgetMovable
-                                    | QDockWidget::DockWidgetFloatable
-                                    | QDockWidget::DockWidgetClosable);
-    addDockWidget(Qt::LeftDockWidgetArea, m_dockDialogClient);
-    m_dockDialogClient->setWidget(m_clientWidget);
-
-    createActions();
-    setupToolBars();
-    setupMenuBar();
-    setupStatusBar();
-
-    setCorner(Qt::TopLeftCorner, Qt::TopDockWidgetArea);
-    setCorner(Qt::BottomLeftCorner, Qt::BottomDockWidgetArea);
-    setCorner(Qt::TopRightCorner, Qt::TopDockWidgetArea);
-    setCorner(Qt::BottomRightCorner, Qt::BottomDockWidgetArea);
 
     // update connections
     wireConnections();
@@ -881,14 +873,11 @@ void MainWindow::createActions()
     connect(saveLogAct, &QAction::triggered, m_clientWidget, &ClientWidget::slot_saveLog);
     saveLogAct->setStatusTip(tr("Save log as plain text file"));
 
-    saveLogAsHtmlAct = new QAction(QIcon::fromTheme("document-save", QIcon(":/icons/save.png")),
-                                   tr("Save Log as &HTML..."),
-                                   this);
-    connect(saveLogAsHtmlAct,
-            &QAction::triggered,
-            m_clientWidget,
-            &ClientWidget::slot_saveLogAsHtml);
-    saveLogAsHtmlAct->setStatusTip(tr("Save log as HTML file"));
+    saveCommsLogAct = new QAction(QIcon::fromTheme("document-save", QIcon(":/icons/save.png")),
+                                  tr("Save &communications log as..."),
+                                  this);
+    connect(saveCommsLogAct, &QAction::triggered, m_commsWidget, &CommsWidget::slot_saveLog);
+    saveCommsLogAct->setStatusTip(tr("Save communications log as file"));
 
     releaseAllPathsAct = new QAction(QIcon(":/icons/cancel.png"), tr("Release All Paths"), this);
     releaseAllPathsAct->setStatusTip(tr("Release all paths"));
@@ -1174,6 +1163,7 @@ void MainWindow::setupMenuBar()
     sidepanels->addAction(m_dockDialogGroup->toggleViewAction());
     sidepanels->addAction(m_dockDialogRoom->toggleViewAction());
     sidepanels->addAction(m_dockDialogAdventure->toggleViewAction());
+    sidepanels->addAction(m_dockDialogComms->toggleViewAction());
     sidepanels->addAction(m_dockDialogDescription->toggleViewAction());
     viewMenu->addSeparator();
     viewMenu->addAction(zoomInAct);
@@ -1198,7 +1188,8 @@ void MainWindow::setupMenuBar()
                                               tr("&Integrated Mud Client"));
     clientMenu->addAction(clientAct);
     clientMenu->addAction(saveLogAct);
-    clientMenu->addAction(saveLogAsHtmlAct);
+    clientMenu->addSeparator();
+    clientMenu->addAction(saveCommsLogAct);
     QMenu *pathMachineMenu = settingsMenu->addMenu(QIcon(":/icons/goto.png"), tr("&Path Machine"));
     pathMachineMenu->addAction(mouseMode.modeRoomSelectAct);
     pathMachineMenu->addSeparator();
@@ -1431,6 +1422,10 @@ void MainWindow::slot_onPreferences()
             &ConfigDialog::sig_groupSettingsChanged,
             m_groupManager,
             &Mmapper2Group::slot_groupSettingsChanged);
+    connect(m_configDialog.get(),
+            &ConfigDialog::sig_commsSettingsChanged,
+            m_commsWidget,
+            &CommsWidget::slot_loadSettings);
     m_configDialog->show();
 }
 
@@ -1491,6 +1486,12 @@ bool MainWindow::eventFilter(QObject *const obj, QEvent *const event)
 void MainWindow::closeEvent(QCloseEvent *const event)
 {
     // REVISIT: wait and see if we're actually exiting first?
+
+    // Save communications log if enabled
+    if (m_commsWidget) {
+        m_commsWidget->slot_saveLogOnExit();
+    }
+
     writeSettings();
 
     if (!maybeSave()) {

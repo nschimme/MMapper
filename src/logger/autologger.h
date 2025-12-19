@@ -33,6 +33,10 @@ private:
     NODISCARD bool showDeleteDialog(QString message);
     NODISCARD bool createFile();
 
+public:
+    NODISCARD int getCurrentFileNumber() const { return m_curFile; }
+    NODISCARD const std::string &getRunId() const { return m_runId; }
+
 public slots:
     void slot_writeToLog(const QString &str);
     void slot_shouldLog(bool echo);

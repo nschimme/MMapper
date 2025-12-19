@@ -16,6 +16,7 @@ public:
 
     Signal2<QString> sig2_sentToMudString;  // removes ANSI
     Signal2<QString> sig2_sentToUserString; // removes ANSI
+    Signal2<QString> sig2_rawGameText;
 
     Signal2<GmcpMessage> sig2_sentToUserGmcp;
     Signal2<bool> sig2_toggledEchoMode;
@@ -24,6 +25,7 @@ public:
     void observeConnected();
     void observeSentToMud(const QString &ba);
     void observeSentToUser(const QString &ba);
+    void observeRawGameText(const QString &ba);
     void observeSentToUserGmcp(const GmcpMessage &m);
     void observeToggledEchoMode(bool echo);
 };

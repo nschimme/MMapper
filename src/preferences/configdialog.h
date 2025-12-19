@@ -43,6 +43,7 @@ signals:
     void sig_graphicsSettingsChanged();
     void sig_groupSettingsChanged();
     void sig_loadConfig();
+    void sig_commsSettingsChanged();
 
 public slots:
     void slot_changePage(QListWidgetItem *current, QListWidgetItem *previous);

@@ -594,20 +594,31 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
 void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
 {
     if (m_altDragState.has_value()) {
+        // The user released the Alt key mid-drag.
+        if (!((event->modifiers() & Qt::ALT) != 0u)) {
+            setCursor(m_altDragState->originalCursor);
+            m_altDragState.reset();
+            // Don't accept the event; let the underlying widgets handle it.
+            return;
+        }
+
         auto &conf = setConfig().canvas.advanced;
         auto &dragState = m_altDragState.value();
+        bool angleChanged = false;
+
         const auto pos = event->pos();
         const auto delta = pos - dragState.lastPos;
         dragState.lastPos = pos;
 
-        // Arbitrary sensitivity factor
-        constexpr float SENSITIVITY = 0.5f;
+        // Camera rotation sensitivity: 1.0 degree per 10 pixels of mouse movement.
+        constexpr float SENSITIVITY = 0.1f;
 
         // Horizontal movement adjusts yaw (horizontalAngle)
         const int dx = delta.x();
         if (dx != 0) {
             conf.horizontalAngle.set(conf.horizontalAngle.get()
-                                     + static_cast<int>(static_cast<float>(dx) * SENSITIVITY));
+                                       + static_cast<int>(static_cast<float>(dx) * SENSITIVITY));
+            angleChanged = true;
         }
 
         // Vertical movement adjusts pitch (verticalAngle), if auto-tilt is off
@@ -615,12 +626,16 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
             const int dy = delta.y();
             if (dy != 0) {
                 // Negated to match intuitive up/down dragging
-                conf.verticalAngle.set(conf.verticalAngle.get()
-                                       + static_cast<int>(static_cast<float>(-dy) * SENSITIVITY));
+                conf.verticalAngle.set(
+                    conf.verticalAngle.get()
+                    + static_cast<int>(static_cast<float>(-dy) * SENSITIVITY));
+                angleChanged = true;
             }
         }
 
-        graphicsSettingsChanged();
+        if (angleChanged) {
+            graphicsSettingsChanged();
+        }
         event->accept();
         return;
     }

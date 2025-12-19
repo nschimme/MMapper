@@ -26,7 +26,7 @@ void FontMesh::update(const std::vector<FontData>& fontData)
 
     Functions& gl = *m_functions;
     gl.glBindBuffer(GL_ARRAY_BUFFER, m_vbo.get());
-    gl.glBufferData(GL_ARRAY_BUFFER, fontData.size() * sizeof(FontData), fontData.data(), GL_DYNAMIC_DRAW);
+    gl.glBufferData(GL_ARRAY_BUFFER, static_cast<qopengl_GLsizeiptr>(fontData.size() * sizeof(FontData)), fontData.data(), GL_DYNAMIC_DRAW);
     gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 

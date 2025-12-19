@@ -31,7 +31,7 @@ bool InstancedMesh::virt_isEmpty() const
     return m_instanceCount == 0;
 }
 
-void InstancedMesh::virt_render(const GLRenderState& renderState)
+void InstancedMesh::virt_render([[maybe_unused]] const GLRenderState& renderState)
 {
     if (virt_isEmpty()) {
         return;
@@ -40,7 +40,7 @@ void InstancedMesh::virt_render(const GLRenderState& renderState)
     Functions& gl = *m_functions;
     gl.glBindVertexArray(m_vao.get());
     virt_bind_attributes();
-    gl.glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, m_instanceCount);
+    gl.glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, static_cast<GLsizei>(m_instanceCount));
     gl.glBindVertexArray(0);
 }
 

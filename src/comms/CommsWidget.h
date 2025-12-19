@@ -23,10 +23,8 @@ enum class NODISCARD CharMobFilterEnum : uint8_t { BOTH, CHAR_ONLY, MOB_ONLY };
 class MessageBlockUserData final : public QTextBlockUserData
 {
 public:
-    explicit MessageBlockUserData(const CommMessage &msg)
-        : m_message(msg)
-    {}
-    ~MessageBlockUserData() override = default;
+    explicit MessageBlockUserData(const CommMessage &msg);
+    ~MessageBlockUserData() override;
 
     DELETE_CTORS_AND_ASSIGN_OPS(MessageBlockUserData);
 

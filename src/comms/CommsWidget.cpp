@@ -21,6 +21,12 @@
 #include "../logger/autologger.h"
 #include "../global/TextUtils.h"
 
+MessageBlockUserData::MessageBlockUserData(const CommMessage &msg)
+    : m_message(msg)
+{}
+
+MessageBlockUserData::~MessageBlockUserData() = default;
+
 CommsWidget::CommsWidget(CommsManager &commsManager, AutoLogger *autoLogger, QWidget *parent)
     : QWidget(parent)
     , m_commsManager{commsManager}

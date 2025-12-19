@@ -607,7 +607,7 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
         const int dx = delta.x();
         if (dx != 0) {
             conf.horizontalAngle.set(conf.horizontalAngle.get()
-                                       + static_cast<int>(static_cast<float>(dx) * SENSITIVITY));
+                                     + static_cast<int>(static_cast<float>(dx) * SENSITIVITY));
         }
 
         // Vertical movement adjusts pitch (verticalAngle), if auto-tilt is off
@@ -615,9 +615,8 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
             const int dy = delta.y();
             if (dy != 0) {
                 // Negated to match intuitive up/down dragging
-                conf.verticalAngle.set(
-                    conf.verticalAngle.get()
-                    + static_cast<int>(static_cast<float>(-dy) * SENSITIVITY));
+                conf.verticalAngle.set(conf.verticalAngle.get()
+                                       + static_cast<int>(static_cast<float>(-dy) * SENSITIVITY));
             }
         }
 

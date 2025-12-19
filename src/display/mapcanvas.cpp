@@ -415,6 +415,13 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
     const bool hasCtrl = (event->modifiers() & Qt::CTRL) != 0u;
     MAYBE_UNUSED const bool hasAlt = (event->modifiers() & Qt::ALT) != 0u;
 
+    if (hasLeftButton && hasAlt) {
+        m_altDragState.active = true;
+        m_altDragState.lastPos = event->pos();
+        event->accept();
+        return;
+    }
+
     m_sel1 = m_sel2 = getUnprojectedMouseSel(event);
     m_mouseLeftPressed = hasLeftButton;
     m_mouseRightPressed = hasRightButton;
@@ -586,6 +593,36 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
 
 void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
 {
+    if (m_altDragState.active) {
+        auto &conf = setConfig().canvas.advanced;
+        const auto pos = event->pos();
+        const auto delta = pos - m_altDragState.lastPos;
+        m_altDragState.lastPos = pos;
+
+        // Arbitrary sensitivity factor
+        constexpr float SENSITIVITY = 0.5f;
+
+        // Horizontal movement adjusts yaw (horizontalAngle)
+        const int dx = delta.x();
+        if (dx != 0) {
+            conf.horizontalAngle.set(conf.horizontalAngle.get() + static_cast<int>(dx * SENSITIVITY));
+        }
+
+        // Vertical movement adjusts pitch (verticalAngle), if auto-tilt is off
+        if (!conf.autoTilt.get()) {
+            const int dy = delta.y();
+            if (dy != 0) {
+                // Negated to match intuitive up/down dragging
+                conf.verticalAngle.set(conf.verticalAngle.get()
+                                       + static_cast<int>(-dy * SENSITIVITY));
+            }
+        }
+
+        graphicsSettingsChanged();
+        event->accept();
+        return;
+    }
+
     const bool hasLeftButton = (event->buttons() & Qt::LeftButton) != 0u;
 
     if (m_canvasMouseMode != CanvasMouseModeEnum::MOVE) {
@@ -716,6 +753,12 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
 
 void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
 {
+    if (m_altDragState.active) {
+        m_altDragState.active = false;
+        event->accept();
+        return;
+    }
+
     emit sig_continuousScroll(0, 0);
     m_sel2 = getUnprojectedMouseSel(event);
 

@@ -416,9 +416,7 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
     MAYBE_UNUSED const bool hasAlt = (event->modifiers() & Qt::ALT) != 0u;
 
     if (hasLeftButton && hasAlt) {
-        m_altDragState.active = true;
-        m_altDragState.lastPos = event->pos();
-        m_altDragState.originalCursor = cursor();
+        m_altDragState.emplace(AltDragState{event->pos(), cursor()});
         setCursor(Qt::ClosedHandCursor);
         event->accept();
         return;
@@ -595,11 +593,12 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
 
 void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
 {
-    if (m_altDragState.active) {
+    if (m_altDragState.has_value()) {
         auto &conf = setConfig().canvas.advanced;
+        auto &dragState = m_altDragState.value();
         const auto pos = event->pos();
-        const auto delta = pos - m_altDragState.lastPos;
-        m_altDragState.lastPos = pos;
+        const auto delta = pos - dragState.lastPos;
+        dragState.lastPos = pos;
 
         // Arbitrary sensitivity factor
         constexpr float SENSITIVITY = 0.5f;
@@ -757,9 +756,9 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
 
 void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
 {
-    if (m_altDragState.active) {
-        m_altDragState.active = false;
-        setCursor(m_altDragState.originalCursor);
+    if (m_altDragState.has_value()) {
+        setCursor(m_altDragState->originalCursor);
+        m_altDragState.reset();
         event->accept();
         return;
     }

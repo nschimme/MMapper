@@ -148,11 +148,10 @@ private:
 
     struct AltDragState
     {
-        bool active = false;
         QPoint lastPos;
         QCursor originalCursor;
     };
-    AltDragState m_altDragState;
+    std::optional<AltDragState> m_altDragState;
 
 public:
     explicit MapCanvas(MapData &mapData,

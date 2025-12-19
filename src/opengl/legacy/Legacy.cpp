@@ -8,7 +8,7 @@
 #include "../OpenGLTypes.h"
 #include "AbstractShaderProgram.h"
 #include "Binders.h"
-#include "FontMesh3d.h"
+#include "FontMesh.h"
 #include "Meshes.h"
 #include "ShaderUtils.h"
 #include "Shaders.h"
@@ -207,30 +207,15 @@ void Functions::renderColoredTextured(const DrawModeEnum mode,
                                                                  state);
 }
 
-void Functions::renderFont3d(const SharedMMTexture &texture, const std::vector<FontVert3d> &verts)
-
-{
-    const auto state = GLRenderState()
-                           .withBlend(BlendModeEnum::TRANSPARENCY)
-                           .withDepthFunction(std::nullopt)
-                           .withTexture0(texture->getId());
-
-    const auto &prog = getShaderPrograms().getFontShader();
-    renderImmediate<FontVert3d, Legacy::SimpleFont3dMesh>(shared_from_this(),
-                                                          DrawModeEnum::QUADS,
-                                                          verts,
-                                                          prog,
-                                                          state);
-}
-
 UniqueMesh Functions::createFontMesh(const SharedMMTexture &texture,
-                                     const DrawModeEnum mode,
-                                     const std::vector<FontVert3d> &batch)
+                                     const std::vector<FontData> &batch)
 {
-    assert(static_cast<size_t>(mode) >= VERTS_PER_TRI);
     const auto &prog = getShaderPrograms().getFontShader();
+    auto mesh = std::make_unique<FontMesh>(shared_from_this(), prog);
+    mesh->update(batch);
+
     return UniqueMesh{
-        std::make_unique<Legacy::FontMesh3d>(shared_from_this(), prog, texture, mode, batch)};
+        std::make_unique<TexturedRenderable>(texture->getId(), std::move(mesh))};
 }
 
 Functions::Functions(Badge<Functions>)

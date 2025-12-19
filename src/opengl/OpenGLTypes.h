@@ -86,6 +86,15 @@ struct NODISCARD FontVert3d final
     {}
 };
 
+struct NODISCARD FontData final
+{
+    glm::vec3 pos{};
+    glm::vec2 texTopLeft{};
+    glm::vec2 texBottomRight{};
+    glm::vec4 color{};
+    float italics = 0.0f;
+};
+
 enum class NODISCARD DrawModeEnum { INVALID = 0, POINTS = 1, LINES = 2, TRIANGLES = 3, QUADS = 4 };
 
 struct NODISCARD LineParams final

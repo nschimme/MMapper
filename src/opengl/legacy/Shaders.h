@@ -91,7 +91,6 @@ private:
         auto functions = Base::m_functions.lock();
 
         setMatrix("uMVP3D", mvp);
-        setTexture("uFontTexture", 0);
         setViewport("uPhysViewport", deref(functions).getPhysicalViewport());
     }
 };

@@ -418,6 +418,8 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
     if (hasLeftButton && hasAlt) {
         m_altDragState.active = true;
         m_altDragState.lastPos = event->pos();
+        m_altDragState.originalCursor = cursor();
+        setCursor(Qt::ClosedHandCursor);
         event->accept();
         return;
     }
@@ -755,6 +757,7 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
 {
     if (m_altDragState.active) {
         m_altDragState.active = false;
+        setCursor(m_altDragState.originalCursor);
         event->accept();
         return;
     }

@@ -150,6 +150,7 @@ private:
     {
         bool active = false;
         QPoint lastPos;
+        QCursor originalCursor;
     };
     AltDragState m_altDragState;
 

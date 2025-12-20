@@ -398,6 +398,7 @@ set(mmapper_SRCS
     opengl/OpenGLConfig.cpp
     opengl/OpenGLConfig.h
     opengl/OpenGLTypes.cpp
+    opengl/OpenGLTypes.cpp
     opengl/OpenGLTypes.h
     opengl/legacy/AbstractShaderProgram.cpp
     opengl/legacy/AbstractShaderProgram.h

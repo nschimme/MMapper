@@ -13,13 +13,13 @@ FontMesh::FontMesh(const SharedFunctions& functions, const std::shared_ptr<FontS
     : InstancedMesh(functions)
     , m_shader(sharedShader)
 {
-    m_posAttr = m_shader->getAttribLocation("aPos");
-    m_sizeAttr = m_shader->getAttribLocation("aSize");
-    m_texTopLeftAttr = m_shader->getAttribLocation("aTexTopLeft");
-    m_texBottomRightAttr = m_shader->getAttribLocation("aTexBottomRight");
-    m_colorAttr = m_shader->getAttribLocation("aColor");
-    m_italicsAttr = m_shader->getAttribLocation("aItalics");
-    m_rotationAttr = m_shader->getAttribLocation("aRotation");
+    m_posAttr = static_cast<GLint>(m_shader->getAttribLocation("aPos"));
+    m_sizeAttr = static_cast<GLint>(m_shader->getAttribLocation("aSize"));
+    m_texTopLeftAttr = static_cast<GLint>(m_shader->getAttribLocation("aTexTopLeft"));
+    m_texBottomRightAttr = static_cast<GLint>(m_shader->getAttribLocation("aTexBottomRight"));
+    m_colorAttr = static_cast<GLint>(m_shader->getAttribLocation("aColor"));
+    m_italicsAttr = static_cast<GLint>(m_shader->getAttribLocation("aItalics"));
+    m_rotationAttr = static_cast<GLint>(m_shader->getAttribLocation("aRotation"));
 }
 
 FontMesh::~FontMesh() = default;

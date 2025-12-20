@@ -286,7 +286,7 @@ void GeneralPage::slot_loadConfig()
 
     ui->resourceLineEdit->setText(config.canvas.resourcesDirectory);
 
-    if constexpr (NO_QTKEYCHAIN) {
+    if (NO_QTKEYCHAIN || !PasswordConfig::isAvailable()) {
         ui->autoLogin->setEnabled(false);
         ui->accountName->setEnabled(false);
         ui->accountPassword->setEnabled(false);

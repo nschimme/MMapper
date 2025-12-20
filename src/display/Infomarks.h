@@ -47,7 +47,7 @@ private:
     struct NODISCARD Text final
     {
         std::vector<GLText> text;
-        std::vector<FontVert3d> verts;
+        std::vector<FontData> verts;
         bool locked = false;
     };
 

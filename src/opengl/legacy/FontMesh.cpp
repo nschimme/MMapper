@@ -78,6 +78,7 @@ void FontMesh::virt_render(const GLRenderState& renderState)
 {
     auto unbinder = m_shader->bind();
     cacheAttributeLocations();
+    m_shader->setUniforms(m_functions->getProjectionMatrix(), renderState.uniforms);
     draw(renderState);
 }
 

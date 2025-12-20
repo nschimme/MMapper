@@ -68,15 +68,15 @@ void main()
     if (gl_VertexID == 0) { // Top-left
         cornerOffset = vec2(0.0, 0.0);
         texCoord = aTexTopLeft;
-    } else if (gl_VertexID == 1) { // Top-right
-        cornerOffset = vec2(aSize.x, 0.0);
-        texCoord = vec2(aTexBottomRight.x, aTexTopLeft.y);
-    } else if (gl_VertexID == 2) { // Bottom-right
-        cornerOffset = aSize;
-        texCoord = aTexBottomRight;
-    } else { // Bottom-left
+    } else if (gl_VertexID == 1) { // Bottom-left
         cornerOffset = vec2(0.0, aSize.y);
         texCoord = vec2(aTexTopLeft.x, aTexBottomRight.y);
+    } else if (gl_VertexID == 2) { // Top-right
+        cornerOffset = vec2(aSize.x, 0.0);
+        texCoord = vec2(aTexBottomRight.x, aTexTopLeft.y);
+    } else { // Bottom-right
+        cornerOffset = aSize;
+        texCoord = aTexBottomRight;
     }
     vTexCoord = texCoord;
 

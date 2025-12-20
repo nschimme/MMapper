@@ -70,26 +70,6 @@ struct NODISCARD ColorVert final
 // the font's vertex shader transforms the world position to screen space,
 // rounds to integer pixel offset, and then adds the vertex position in screen space.
 //
-// Rendering with the font shader requires passing uniforms for the world space
-// model-view-projection matrix and the output viewport.
-struct NODISCARD FontVert3d final
-{
-    glm::vec3 base{}; // world space
-    Color color;
-    glm::vec2 tex{};
-    glm::vec2 vert{}; // screen space
-
-    explicit FontVert3d(const glm::vec3 &base_,
-                        const Color &color_,
-                        const glm::vec2 &tex_,
-                        const glm::vec2 &vert_)
-        : base{base_}
-        , color{color_}
-        , tex{tex_}
-        , vert{vert_}
-    {}
-};
-
 struct NODISCARD FontData final
 {
     glm::vec3 pos{};

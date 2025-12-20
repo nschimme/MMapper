@@ -371,7 +371,7 @@ void CharacterBatch::CharFakeGL::addScreenSpaceArrow(const glm::vec3 &pos,
                                                      const bool fill)
 {
     FontData data;
-    data.pos = pos;
+    data.pos = glm::vec4(pos, 1.0f);
     data.color = color.getVec4();
     data.size = {MapScreen::DEFAULT_MARGIN_PIXELS, MapScreen::DEFAULT_MARGIN_PIXELS};
     data.italics = 0.0f;

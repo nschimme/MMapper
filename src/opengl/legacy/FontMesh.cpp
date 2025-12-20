@@ -50,7 +50,7 @@ void FontMesh::virt_bind_attributes()
     gl.glBindBuffer(GL_ARRAY_BUFFER, m_vbo.get());
     const auto stride = static_cast<GLsizei>(sizeof(FontData));
 
-    gl.enableAttrib(static_cast<GLuint>(m_posAttr.value()), 3, GL_FLOAT, GL_FALSE, stride, VPO(pos));
+    gl.enableAttrib(static_cast<GLuint>(m_posAttr.value()), 4, GL_FLOAT, GL_FALSE, stride, VPO(pos));
     gl.glVertexAttribDivisor(static_cast<GLuint>(m_posAttr.value()), 1);
 
     gl.enableAttrib(static_cast<GLuint>(m_sizeAttr.value()), 2, GL_FLOAT, GL_FALSE, stride, VPO(size));

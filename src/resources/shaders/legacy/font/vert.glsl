@@ -5,7 +5,7 @@ uniform mat4 uMVP3D;
 uniform ivec4 uPhysViewport;
 
 // Per-instance data
-layout(location = 0) in vec3 aPos;
+layout(location = 0) in vec4 aPos;
 layout(location = 1) in vec2 aSize;
 layout(location = 2) in vec2 aTexTopLeft;
 layout(location = 3) in vec2 aTexBottomRight;
@@ -47,7 +47,7 @@ void main()
     vColor = aColor;
 
     // Project world position to clip space
-    vec4 pos = uMVP3D * vec4(aPos, 1.0);
+    vec4 pos = uMVP3D * aPos;
 
     // Cull glyphs that are way off-screen or behind the camera
     if (any(greaterThan(abs(pos.xyz), vec3(1.5 * abs(pos.w)))) || abs(pos.w) < 1e-3) {

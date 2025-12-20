@@ -72,7 +72,7 @@ struct NODISCARD ColorVert final
 //
 struct NODISCARD FontData final
 {
-    glm::vec3 pos{};
+    glm::vec4 pos{};
     glm::vec2 size{};
     glm::vec2 texTopLeft{};
     glm::vec2 texBottomRight{};

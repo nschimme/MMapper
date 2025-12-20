@@ -586,7 +586,7 @@ public:
         }
 
         FontData data;
-        data.pos = m_opts.pos;
+        data.pos = glm::vec4(m_opts.pos, 1.0f);
         data.color = m_opts.fgColor.getVec4();
         data.italics = m_opts.wantItalics ? 0.2f : 0.0f;
         data.size = iglyphSize;
@@ -640,7 +640,7 @@ public:
         {
             const auto add = [this](const Color &c, const glm::ivec2 &ivert, const glm::ivec2 &itc, const glm::ivec2 &isize) {
                 FontData data;
-                data.pos = m_opts.pos;
+                data.pos = glm::vec4(m_opts.pos, 1.0f);
                 data.color = c.getVec4();
                 data.size = isize;
                 data.texTopLeft = getTexCoord(ivert);

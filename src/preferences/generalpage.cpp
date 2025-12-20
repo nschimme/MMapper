@@ -210,7 +210,7 @@ void GeneralPage::slot_loadConfig()
 
     ui->proxyConnectionStatusCheckBox->setChecked(connection.proxyConnectionStatus);
 
-    if constexpr (NO_QTKEYCHAIN) {
+    if (NO_QTKEYCHAIN || !PasswordConfig::isAvailable()) {
         ui->autoLogin->setEnabled(false);
         ui->accountName->setEnabled(false);
         ui->accountPassword->setEnabled(false);

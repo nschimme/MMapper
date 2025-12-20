@@ -3,8 +3,6 @@
 
 #include "PasswordConfig.h"
 
-#include "../global/macros.h"
-
 #ifndef MMAPPER_NO_QTKEYCHAIN
 static const QLatin1String PASSWORD_KEY("password");
 static const QLatin1String APP_NAME("org.mume.mmapper");
@@ -40,6 +38,10 @@ PasswordConfig::PasswordConfig(QObject *const parent)
 
 void PasswordConfig::setPassword(const QString &password)
 {
+    if (!isAvailable()) {
+        emit sig_error("Not available");
+        return;
+    }
 #ifndef MMAPPER_NO_QTKEYCHAIN
     m_writeJob.setKey(PASSWORD_KEY);
     m_writeJob.setTextData(password);
@@ -52,10 +54,25 @@ void PasswordConfig::setPassword(const QString &password)
 
 void PasswordConfig::getPassword()
 {
+    if (!isAvailable()) {
+        emit sig_error("Not available");
+        return;
+    }
 #ifndef MMAPPER_NO_QTKEYCHAIN
     m_readJob.setKey(PASSWORD_KEY);
     m_readJob.start();
 #else
     emit sig_error("Password retrieval is not available.");
+#endif
+}
+
+bool PasswordConfig::isAvailable()
+{
+#ifdef MMAPPER_NO_QTKEYCHAIN
+    return false;
+#elif defined(Q_OS_WASM)
+    return QKeychain::isAvailable();
+#else
+    return true;
 #endif
 }

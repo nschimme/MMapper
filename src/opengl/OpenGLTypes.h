@@ -23,6 +23,10 @@
 #include <QOpenGLTexture>
 #include <qopengl.h>
 
+namespace Legacy {
+class Functions;
+}
+
 struct NODISCARD TexVert final
 {
     glm::vec3 tex{};
@@ -261,6 +265,8 @@ struct NODISCARD GLRenderState final
         copy.uniforms.textures = Textures{new_texture, INVALID_MM_TEXTURE_ID};
         return copy;
     }
+
+    void apply(Legacy::Functions& gl) const;
 };
 
 struct NODISCARD IRenderable

@@ -18,8 +18,16 @@ public:
 
 private:
     void virt_bind_attributes() override;
+    void virt_render(const GLRenderState& renderState) override;
 
     std::shared_ptr<FontShader> m_shader;
+    mutable GLint m_posAttr = -1;
+    mutable GLint m_sizeAttr = -1;
+    mutable GLint m_texTopLeftAttr = -1;
+    mutable GLint m_texBottomRightAttr = -1;
+    mutable GLint m_colorAttr = -1;
+    mutable GLint m_italicsAttr = -1;
+    mutable GLint m_rotationAttr = -1;
 };
 
 } // namespace Legacy

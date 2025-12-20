@@ -24,11 +24,13 @@ protected:
     VBO m_vbo;
     size_t m_instanceCount = 0;
 
+    void draw(const GLRenderState& renderState);
+
 private:
     void virt_clear() final;
     void virt_reset() final;
     bool virt_isEmpty() const final;
-    void virt_render(const GLRenderState& renderState) override;
+    void virt_render(const GLRenderState& renderState) override = 0;
 };
 
 } // namespace Legacy

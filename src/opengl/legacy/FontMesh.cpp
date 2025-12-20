@@ -13,6 +13,13 @@ FontMesh::FontMesh(const SharedFunctions& functions, const std::shared_ptr<FontS
     : InstancedMesh(functions)
     , m_shader(sharedShader)
 {
+    m_posAttr = m_shader->getAttribLocation("aPos");
+    m_sizeAttr = m_shader->getAttribLocation("aSize");
+    m_texTopLeftAttr = m_shader->getAttribLocation("aTexTopLeft");
+    m_texBottomRightAttr = m_shader->getAttribLocation("aTexBottomRight");
+    m_colorAttr = m_shader->getAttribLocation("aColor");
+    m_italicsAttr = m_shader->getAttribLocation("aItalics");
+    m_rotationAttr = m_shader->getAttribLocation("aRotation");
 }
 
 FontMesh::~FontMesh() = default;
@@ -34,39 +41,37 @@ void FontMesh::virt_bind_attributes()
 {
     Functions& gl = *m_functions;
 
-    const auto pos = m_shader->getAttribLocation("aPos");
-    const auto size = m_shader->getAttribLocation("aSize");
-    const auto texTopLeft = m_shader->getAttribLocation("aTexTopLeft");
-    const auto texBottomRight = m_shader->getAttribLocation("aTexBottomRight");
-    const auto color = m_shader->getAttribLocation("aColor");
-    const auto italics = m_shader->getAttribLocation("aItalics");
-    const auto rotation = m_shader->getAttribLocation("aRotation");
-
     gl.glBindBuffer(GL_ARRAY_BUFFER, m_vbo.get());
     const auto stride = static_cast<GLsizei>(sizeof(FontData));
 
-    gl.enableAttrib(pos, 3, GL_FLOAT, GL_FALSE, stride, VPO(pos));
-    gl.glVertexAttribDivisor(pos, 1);
+    gl.enableAttrib(static_cast<GLuint>(m_posAttr), 3, GL_FLOAT, GL_FALSE, stride, VPO(pos));
+    gl.glVertexAttribDivisor(static_cast<GLuint>(m_posAttr), 1);
 
-    gl.enableAttrib(size, 2, GL_FLOAT, GL_FALSE, stride, VPO(size));
-    gl.glVertexAttribDivisor(size, 1);
+    gl.enableAttrib(static_cast<GLuint>(m_sizeAttr), 2, GL_FLOAT, GL_FALSE, stride, VPO(size));
+    gl.glVertexAttribDivisor(static_cast<GLuint>(m_sizeAttr), 1);
 
-    gl.enableAttrib(texTopLeft, 2, GL_FLOAT, GL_FALSE, stride, VPO(texTopLeft));
-    gl.glVertexAttribDivisor(texTopLeft, 1);
+    gl.enableAttrib(static_cast<GLuint>(m_texTopLeftAttr), 2, GL_FLOAT, GL_FALSE, stride, VPO(texTopLeft));
+    gl.glVertexAttribDivisor(static_cast<GLuint>(m_texTopLeftAttr), 1);
 
-    gl.enableAttrib(texBottomRight, 2, GL_FLOAT, GL_FALSE, stride, VPO(texBottomRight));
-    gl.glVertexAttribDivisor(texBottomRight, 1);
+    gl.enableAttrib(static_cast<GLuint>(m_texBottomRightAttr), 2, GL_FLOAT, GL_FALSE, stride, VPO(texBottomRight));
+    gl.glVertexAttribDivisor(static_cast<GLuint>(m_texBottomRightAttr), 1);
 
-    gl.enableAttrib(color, 4, GL_FLOAT, GL_FALSE, stride, VPO(color));
-    gl.glVertexAttribDivisor(color, 1);
+    gl.enableAttrib(static_cast<GLuint>(m_colorAttr), 4, GL_FLOAT, GL_FALSE, stride, VPO(color));
+    gl.glVertexAttribDivisor(static_cast<GLuint>(m_colorAttr), 1);
 
-    gl.enableAttrib(italics, 1, GL_FLOAT, GL_FALSE, stride, VPO(italics));
-    gl.glVertexAttribDivisor(italics, 1);
+    gl.enableAttrib(static_cast<GLuint>(m_italicsAttr), 1, GL_FLOAT, GL_FALSE, stride, VPO(italics));
+    gl.glVertexAttribDivisor(static_cast<GLuint>(m_italicsAttr), 1);
 
-    gl.enableAttrib(rotation, 1, GL_FLOAT, GL_FALSE, stride, VPO(rotation));
-    gl.glVertexAttribDivisor(rotation, 1);
+    gl.enableAttrib(static_cast<GLuint>(m_rotationAttr), 1, GL_FLOAT, GL_FALSE, stride, VPO(rotation));
+    gl.glVertexAttribDivisor(static_cast<GLuint>(m_rotationAttr), 1);
 
     gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+void FontMesh::virt_render(const GLRenderState& renderState)
+{
+    auto unbinder = m_shader->bind();
+    draw(renderState);
 }
 
 } // namespace Legacy

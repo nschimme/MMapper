@@ -274,6 +274,56 @@ FBO &Functions::getFBO()
     return deref(m_fbo);
 }
 
+void Functions::applyRenderState(const GLRenderState &renderState)
+{
+    // Blending
+    {
+        const auto mode = renderState.blend;
+        if (mode == BlendModeEnum::NONE) {
+            glDisable(GL_BLEND);
+        } else {
+            glEnable(GL_BLEND);
+            if (mode == BlendModeEnum::TRANSPARENCY) {
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            } else if (mode == BlendModeEnum::MODULATE) {
+                glBlendFuncSeparate(GL_ZERO, GL_SRC_COLOR, GL_ZERO, GL_ONE);
+            } else {
+                assert(false);
+            }
+        }
+    }
+
+    // Culling
+    {
+        const auto mode = renderState.culling;
+        if (mode == CullingEnum::DISABLED) {
+            glDisable(GL_CULL_FACE);
+        } else {
+            glEnable(GL_CULL_FACE);
+            if (mode == CullingEnum::BACK) {
+                glCullFace(GL_BACK);
+            } else if (mode == CullingEnum::FRONT) {
+                glCullFace(GL_FRONT);
+            } else if (mode == CullingEnum::FRONT_AND_BACK) {
+                glCullFace(GL_FRONT_AND_BACK);
+            } else {
+                assert(false);
+            }
+        }
+    }
+
+    // Depth test
+    {
+        const auto &depth = renderState.depth;
+        if (depth) {
+            glEnable(GL_DEPTH_TEST);
+            glDepthFunc(static_cast<GLenum>(*depth));
+        } else {
+            glDisable(GL_DEPTH_TEST);
+        }
+    }
+}
+
 /// This only exists so we can detect errors in contexts that don't support \c glDebugMessageCallback().
 void Functions::checkError()
 {

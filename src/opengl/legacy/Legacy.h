@@ -355,6 +355,9 @@ public:
                                const GLRenderState &state);
 
 public:
+    void applyRenderState(const GLRenderState &renderState);
+
+public:
     void checkError();
 
 public:

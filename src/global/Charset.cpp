@@ -76,11 +76,23 @@ NODISCARD constexpr bool is_latin_control(const T uc)
     return std::is_unsigned_v<T>           //
            && (uc >= 0x80u && uc < 0xA0u); // Latin1 control character
 }
+
+NODISCARD constexpr bool is_latin_control(const char c)
+{
+    return is_latin_control(static_cast<uint8_t>(c));
+}
+NODISCARD constexpr bool is_latin_control(const uint8_t c)
+{
+    return c >= 0x80u && c < 0xA0u; // Latin1 control character
+}
 template<typename T>
 NODISCARD constexpr bool is_noncontrol_latin1(const T byte)
 {
     // non-control ASCII
-    return std::is_same_v<char, T> && !is_latin_control(static_cast<uint8_t>(byte));
+    const auto uc = static_cast<uint8_t>(byte);
+    // This is equivalent to `isPrintLatin1` but is usable in this anonymous namespace.
+    // It excludes ASCII control codes (0x00-0x1F, 0x7F) and Latin-1 control codes (0x80-0x9F).
+    return std::is_same_v<char, T> && uc >= ((uc < 0x7Fu) ? 0x20u : 0xA0u);
 }
 template<typename T>
 NODISCARD constexpr bool is_16bit_unicode(const T uc)
@@ -295,7 +307,7 @@ NODISCARD QChar simple_unicode_translit(const QChar qc) noexcept
     return QChar{charset::simple_unicode_translit(static_cast<char16_t>(qc.unicode()))};
 }
 
-NODISCARD static bool isValidLatin1(char latin1)
+NODISCARD static bool isValidLatin1(const uint8_t latin1)
 {
     // Eventually we may want to exclude some other ASCII control codes,
     // but be careful not to exclude things like "\t\r\n".
@@ -305,7 +317,7 @@ NODISCARD static bool isValidLatin1(char latin1)
 NODISCARD static QLatin1Char toQLatin1Char(const QChar input)
 {
     const QChar qc = mmqt::simple_unicode_translit(input);
-    if (const char latin1 = qc.toLatin1(); isValidLatin1(latin1)) {
+    if (const char latin1 = qc.toLatin1(); isValidLatin1(static_cast<uint8_t>(latin1))) {
         return QLatin1Char{latin1};
     } else {
         return QLatin1Char{'?'};
@@ -638,6 +650,31 @@ void testAsciiCharTypes()
     testIsCntrl();
     testIsPunct();
     testIsSpace();
+}
+
+void testLatin1ValidityChecks()
+{
+    // Test is_noncontrol_latin1
+    TEST_ASSERT(!is_noncontrol_latin1('\x00')); // NUL
+    TEST_ASSERT(!is_noncontrol_latin1('\x1F')); // US
+    TEST_ASSERT(is_noncontrol_latin1('\x20'));  // Space
+    TEST_ASSERT(is_noncontrol_latin1('\x7E'));  // Tilde
+    TEST_ASSERT(!is_noncontrol_latin1('\x7F')); // DEL
+    TEST_ASSERT(!is_noncontrol_latin1('\x80')); // C1 control
+    TEST_ASSERT(!is_noncontrol_latin1('\x9F')); // C1 control
+    TEST_ASSERT(is_noncontrol_latin1('\xA0'));  // NBSP
+    TEST_ASSERT(is_noncontrol_latin1('\xFF'));  // y with diaeresis
+
+    // Test mmqt::isValidLatin1
+    TEST_ASSERT(!mmqt::isValidLatin1(0x00)); // NUL
+    TEST_ASSERT(mmqt::isValidLatin1(0x1F));  // US
+    TEST_ASSERT(mmqt::isValidLatin1(0x20));  // Space
+    TEST_ASSERT(mmqt::isValidLatin1(0x7E));  // Tilde
+    TEST_ASSERT(mmqt::isValidLatin1(0x7F));  // DEL
+    TEST_ASSERT(!mmqt::isValidLatin1(0x80)); // C1 control
+    TEST_ASSERT(!mmqt::isValidLatin1(0x9F)); // C1 control
+    TEST_ASSERT(mmqt::isValidLatin1(0xA0));  // NBSP
+    TEST_ASSERT(mmqt::isValidLatin1(0xFF));  // y with diaeresis
 }
 
 } // namespace
@@ -1076,6 +1113,7 @@ namespace test {
 void testCharset()
 {
     testAsciiCharTypes();
+    testLatin1ValidityChecks();
     testStrings();
     testMmqtLatin1();
 

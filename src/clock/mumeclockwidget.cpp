@@ -16,8 +16,10 @@
 #include <QMouseEvent>
 #include <QString>
 
-MumeClockWidget::MumeClockWidget(MumeClock *const clock, QWidget *const parent)
+MumeClockWidget::MumeClockWidget(GameObserver &observer, MumeClock *const clock,
+                                 QWidget *const parent)
     : QWidget(parent)
+    , m_observer(observer)
     , m_clock(clock)
 {
     setupUi(this);
@@ -64,7 +66,7 @@ void MumeClockWidget::slot_updateLabel()
     const MumeClockPrecisionEnum precision = m_clock->getPrecision();
 
     bool updateMoonText = false;
-    const MumeMoonPhaseEnum phase = moment.moonPhase();
+    const MumeMoonPhaseEnum phase = m_observer.getMoonPhase();
     if (phase != m_lastPhase) {
         m_lastPhase = phase;
         switch (phase) {
@@ -165,7 +167,7 @@ void MumeClockWidget::slot_updateLabel()
         timeLabel->setText(m_clock->toCountdown(moment));
     }
 
-    const MumeMoonVisibilityEnum moonVisibility = moment.moonVisibility();
+    const MumeMoonVisibilityEnum moonVisibility = m_observer.getMoonVisibility();
     if (moonVisibility != m_lastVisibility || updateMoonStyleSheet) {
         m_lastVisibility = moonVisibility;
         const QString moonStyleSheet = (moonVisibility == MumeMoonVisibilityEnum::INVISIBLE

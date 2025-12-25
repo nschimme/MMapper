@@ -244,6 +244,9 @@ void TestClock::parseWeatherTest()
 
     clock.onUserGmcp(GmcpMessage::fromRawBytes(R"(Event.Moon {"what":"rise"})"));
     QCOMPARE(clock.toMumeTime(clock.getMumeMoment()), expectedTime);
+
+    QCOMPARE(static_cast<int>(observer.getMoonVisibility()),
+             static_cast<int>(MumeMoonVisibilityEnum::BRIGHT));
 }
 
 void TestClock::parseClockTimeTest()

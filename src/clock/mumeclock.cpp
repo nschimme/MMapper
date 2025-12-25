@@ -287,6 +287,12 @@ void MumeClock::parseWeather(const MumeTimeEnum time, int64_t secsSinceEpoch)
         m_observer.observeMoonPhase(m_moonPhase);
     }
 
+    const auto moonVisibility = moment.moonVisibility();
+    if (moonVisibility != m_moonVisibility) {
+        m_moonVisibility = moonVisibility;
+        m_observer.observeMoonVisibility(m_moonVisibility);
+    }
+
     // Predict current hour given the month
     const auto dawnDusk = getDawnDusk(moment.month);
     const int dawn = dawnDusk.dawnHour;

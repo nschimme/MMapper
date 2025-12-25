@@ -51,6 +51,14 @@ void GameObserver::observeMoonPhase(const MumeMoonPhaseEnum moonPhase)
     }
 }
 
+void GameObserver::observeMoonVisibility(const MumeMoonVisibilityEnum moonVisibility)
+{
+    if (m_moonVisibility != moonVisibility) {
+        m_moonVisibility = moonVisibility;
+        sig2_moonVisibilityChanged.invoke(moonVisibility);
+    }
+}
+
 void GameObserver::observeWeather(const PromptWeatherEnum weather)
 {
     if (m_weather != weather) {

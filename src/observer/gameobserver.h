@@ -16,6 +16,7 @@ class NODISCARD_QOBJECT GameObserver final
 private:
     MumeTimeEnum m_timeOfDay = MumeTimeEnum::UNKNOWN;
     MumeMoonPhaseEnum m_moonPhase = MumeMoonPhaseEnum::UNKNOWN;
+    MumeMoonVisibilityEnum m_moonVisibility = MumeMoonVisibilityEnum::UNKNOWN;
     PromptWeatherEnum m_weather = PromptWeatherEnum::NICE;
     PromptFogEnum m_fog = PromptFogEnum::NO_FOG;
 
@@ -30,6 +31,7 @@ public:
 
     Signal2<MumeTimeEnum> sig2_timeOfDayChanged;
     Signal2<MumeMoonPhaseEnum> sig2_moonPhaseChanged;
+    Signal2<MumeMoonVisibilityEnum> sig2_moonVisibilityChanged;
     Signal2<PromptWeatherEnum> sig2_weatherChanged;
     Signal2<PromptFogEnum> sig2_fogChanged;
 
@@ -42,11 +44,13 @@ public:
 
     void observeTimeOfDay(MumeTimeEnum timeOfDay);
     void observeMoonPhase(MumeMoonPhaseEnum moonPhase);
+    void observeMoonVisibility(MumeMoonVisibilityEnum moonVisibility);
     void observeWeather(PromptWeatherEnum weather);
     void observeFog(PromptFogEnum fog);
 
     MumeTimeEnum getTimeOfDay() const { return m_timeOfDay; }
     MumeMoonPhaseEnum getMoonPhase() const { return m_moonPhase; }
+    MumeMoonVisibilityEnum getMoonVisibility() const { return m_moonVisibility; }
     PromptWeatherEnum getWeather() const { return m_weather; }
     PromptFogEnum getFog() const { return m_fog; }
 };

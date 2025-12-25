@@ -3,6 +3,7 @@
 // Copyright (C) 2019 The MMapper Authors
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
+#include "../observer/gameobserver.h"
 #include "mumeclock.h"
 #include "mumemoment.h"
 #include "ui_mumeclockwidget.h"
@@ -22,6 +23,7 @@ class NODISCARD_QOBJECT MumeClockWidget final : public QWidget, private Ui::Mume
     Q_OBJECT
 
 private:
+    GameObserver &m_observer;
     MumeClock *m_clock = nullptr;
     std::unique_ptr<QTimer> m_timer;
 
@@ -32,7 +34,7 @@ private:
     MumeClockPrecisionEnum m_lastPrecision = MumeClockPrecisionEnum::UNSET;
 
 public:
-    explicit MumeClockWidget(MumeClock *clock, QWidget *parent);
+    explicit MumeClockWidget(GameObserver &observer, MumeClock *clock, QWidget *parent);
     ~MumeClockWidget() final;
 
 protected:

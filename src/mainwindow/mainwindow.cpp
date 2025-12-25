@@ -1520,10 +1520,12 @@ void MainWindow::closeEvent(QCloseEvent *const event)
 
 void MainWindow::changeEvent(QEvent *event)
 {
-    if (event->type() == QEvent::WindowStateChange && getConfig().general.hideToSystemTray) {
+    if (event->type() == QEvent::WindowStateChange) {
         if (isMinimized()) {
-            m_trayManager->setVisible(true);
-            hide();
+            if (getConfig().general.hideToSystemTray) {
+                m_trayManager->setVisible(true);
+                hide();
+            }
         }
     }
     QMainWindow::changeEvent(event);

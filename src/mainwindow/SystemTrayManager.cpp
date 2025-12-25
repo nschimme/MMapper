@@ -30,14 +30,8 @@ void SystemTrayManager::onCharacterUpdated(SharedGroupChar character)
 
 void SystemTrayManager::onIconActivated(QSystemTrayIcon::ActivationReason reason)
 {
-    switch (reason) {
-    case QSystemTrayIcon::Trigger:
-    case QSystemTrayIcon::DoubleClick:
-        m_mainWindow->show();
-        break;
-    default:
-        ;
-    }
+    // Deliberately empty to avoid showing the window on icon click.
+    // The "Open" action in the context menu is the correct way to show the window.
 }
 
 void SystemTrayManager::onMessageClicked()

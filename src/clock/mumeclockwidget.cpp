@@ -16,8 +16,7 @@
 #include <QMouseEvent>
 #include <QString>
 
-MumeClockWidget::MumeClockWidget(GameObserver &observer, MumeClock *const clock,
-                                 QWidget *const parent)
+MumeClockWidget::MumeClockWidget(GameObserver &observer, MumeClock &clock, QWidget *const parent)
     : QWidget(parent)
     , m_observer(observer)
     , m_clock(clock)
@@ -38,8 +37,8 @@ MumeClockWidget::~MumeClockWidget() = default;
 void MumeClockWidget::mousePressEvent(QMouseEvent * /*event*/)
 {
     // Force precision to minute and reset last sync to current timestamp
-    m_clock->setPrecision(MumeClockPrecisionEnum::MINUTE);
-    m_clock->setLastSyncEpoch(QDateTime::currentDateTimeUtc().toSecsSinceEpoch());
+    m_clock.setPrecision(MumeClockPrecisionEnum::MINUTE);
+    m_clock.setLastSyncEpoch(QDateTime::currentDateTimeUtc().toSecsSinceEpoch());
 
     slot_updateLabel();
 }
@@ -47,7 +46,7 @@ void MumeClockWidget::mousePressEvent(QMouseEvent * /*event*/)
 void MumeClockWidget::slot_updateLabel()
 {
     // Ensure we have updated the epoch
-    setConfig().mumeClock.startEpoch = m_clock->getMumeStartEpoch();
+    setConfig().mumeClock.startEpoch = m_clock.getMumeStartEpoch();
 
     // Hide or show the widget if necessary
     if (!getConfig().mumeClock.display) {
@@ -62,8 +61,8 @@ void MumeClockWidget::slot_updateLabel()
         m_timer->setInterval(1000);
     }
 
-    const MumeMoment moment = m_clock->getMumeMoment();
-    const MumeClockPrecisionEnum precision = m_clock->getPrecision();
+    const MumeMoment moment = m_clock.getMumeMoment();
+    const MumeClockPrecisionEnum precision = m_clock.getPrecision();
 
     bool updateMoonText = false;
     const MumeMoonPhaseEnum phase = m_observer.getMoonPhase();
@@ -101,7 +100,7 @@ void MumeClockWidget::slot_updateLabel()
         updateMoonText = true;
     }
 
-    seasonLabel->setStatusTip(m_clock->toMumeTime(moment));
+    seasonLabel->setStatusTip(m_clock.toMumeTime(moment));
     const MumeSeasonEnum season = moment.toSeason();
     if (season != m_lastSeason) {
         m_lastSeason = season;
@@ -162,9 +161,9 @@ void MumeClockWidget::slot_updateLabel()
     }
     if (precision <= MumeClockPrecisionEnum::HOUR) {
         // Prepend warning emoji to countdown
-        timeLabel->setText(QString::fromUtf8("\xE2\x9A\xA0").append(m_clock->toCountdown(moment)));
+        timeLabel->setText(QString::fromUtf8("\xE2\x9A\xA0").append(m_clock.toCountdown(moment)));
     } else {
-        timeLabel->setText(m_clock->toCountdown(moment));
+        timeLabel->setText(m_clock.toCountdown(moment));
     }
 
     const MumeMoonVisibilityEnum moonVisibility = m_observer.getMoonVisibility();

@@ -24,7 +24,7 @@ class NODISCARD_QOBJECT MumeClockWidget final : public QWidget, private Ui::Mume
 
 private:
     GameObserver &m_observer;
-    MumeClock *m_clock = nullptr;
+    MumeClock &m_clock;
     std::unique_ptr<QTimer> m_timer;
 
     MumeTimeEnum m_lastTime = MumeTimeEnum::UNKNOWN;
@@ -34,7 +34,7 @@ private:
     MumeClockPrecisionEnum m_lastPrecision = MumeClockPrecisionEnum::UNSET;
 
 public:
-    explicit MumeClockWidget(GameObserver &observer, MumeClock *clock, QWidget *parent);
+    explicit MumeClockWidget(GameObserver &observer, MumeClock &clock, QWidget *parent);
     ~MumeClockWidget() final;
 
 protected:

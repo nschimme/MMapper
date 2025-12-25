@@ -293,6 +293,12 @@ void MumeClock::parseWeather(const MumeTimeEnum time, int64_t secsSinceEpoch)
         m_observer.observeMoonVisibility(m_moonVisibility);
     }
 
+    const auto season = moment.toSeason();
+    if (season != m_season) {
+        m_season = season;
+        m_observer.observeSeason(m_season);
+    }
+
     // Predict current hour given the month
     const auto dawnDusk = getDawnDusk(moment.month);
     const int dawn = dawnDusk.dawnHour;

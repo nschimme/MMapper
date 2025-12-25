@@ -11,12 +11,14 @@
 
 #include <QObject>
 
-class NODISCARD_QOBJECT GameObserver final
+class NODISCARD_QOBJECT GameObserver final : public QObject
 {
+    Q_OBJECT
 private:
     MumeTimeEnum m_timeOfDay = MumeTimeEnum::UNKNOWN;
     MumeMoonPhaseEnum m_moonPhase = MumeMoonPhaseEnum::UNKNOWN;
     MumeMoonVisibilityEnum m_moonVisibility = MumeMoonVisibilityEnum::UNKNOWN;
+    MumeSeasonEnum m_season = MumeSeasonEnum::UNKNOWN;
     PromptWeatherEnum m_weather = PromptWeatherEnum::NICE;
     PromptFogEnum m_fog = PromptFogEnum::NO_FOG;
 
@@ -32,6 +34,7 @@ public:
     Signal2<MumeTimeEnum> sig2_timeOfDayChanged;
     Signal2<MumeMoonPhaseEnum> sig2_moonPhaseChanged;
     Signal2<MumeMoonVisibilityEnum> sig2_moonVisibilityChanged;
+    Signal2<MumeSeasonEnum> sig2_seasonChanged;
     Signal2<PromptWeatherEnum> sig2_weatherChanged;
     Signal2<PromptFogEnum> sig2_fogChanged;
 
@@ -45,12 +48,21 @@ public:
     void observeTimeOfDay(MumeTimeEnum timeOfDay);
     void observeMoonPhase(MumeMoonPhaseEnum moonPhase);
     void observeMoonVisibility(MumeMoonVisibilityEnum moonVisibility);
+    void observeSeason(MumeSeasonEnum season);
     void observeWeather(PromptWeatherEnum weather);
     void observeFog(PromptFogEnum fog);
 
+signals:
+    void timeOfDayChanged(MumeTimeEnum timeOfDay);
+    void moonPhaseChanged(MumeMoonPhaseEnum moonPhase);
+    void moonVisibilityChanged(MumeMoonVisibilityEnum moonVisibility);
+    void seasonChanged(MumeSeasonEnum season);
+
+public:
     MumeTimeEnum getTimeOfDay() const { return m_timeOfDay; }
     MumeMoonPhaseEnum getMoonPhase() const { return m_moonPhase; }
     MumeMoonVisibilityEnum getMoonVisibility() const { return m_moonVisibility; }
+    MumeSeasonEnum getSeason() const { return m_season; }
     PromptWeatherEnum getWeather() const { return m_weather; }
     PromptFogEnum getFog() const { return m_fog; }
 };

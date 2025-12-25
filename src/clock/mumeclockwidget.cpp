@@ -29,6 +29,13 @@ MumeClockWidget::MumeClockWidget(GameObserver &observer, MumeClock &clock, QWidg
     connect(m_timer.get(), &QTimer::timeout, this, &MumeClockWidget::slot_updateLabel);
     m_timer->start(1000);
 
+    connect(&m_observer, &GameObserver::timeOfDayChanged, this, &MumeClockWidget::slot_updateTime);
+    connect(&m_observer, &GameObserver::moonPhaseChanged, this,
+            &MumeClockWidget::slot_updateMoonPhase);
+    connect(&m_observer, &GameObserver::moonVisibilityChanged, this,
+            &MumeClockWidget::slot_updateMoonVisibility);
+    connect(&m_observer, &GameObserver::seasonChanged, this, &MumeClockWidget::slot_updateSeason);
+
     slot_updateLabel();
 }
 
@@ -64,8 +71,46 @@ void MumeClockWidget::slot_updateLabel()
     const MumeMoment moment = m_clock.getMumeMoment();
     const MumeClockPrecisionEnum precision = m_clock.getPrecision();
 
-    bool updateMoonText = false;
-    const MumeMoonPhaseEnum phase = m_observer.getMoonPhase();
+    if (precision <= MumeClockPrecisionEnum::HOUR) {
+        // Prepend warning emoji to countdown
+        timeLabel->setText(QString::fromUtf8("\xE2\x9A\xA0").append(m_clock.toCountdown(moment)));
+    } else {
+        timeLabel->setText(m_clock.toCountdown(moment));
+    }
+    moonPhaseLabel->setStatusTip(moment.toMumeMoonTime());
+    seasonLabel->setStatusTip(m_clock.toMumeTime(moment));
+}
+
+void MumeClockWidget::slot_updateTime(MumeTimeEnum time)
+{
+    if (time != m_lastTime) {
+        m_lastTime = time;
+        // The current time is 12:15 am.
+        QString styleSheet = "";
+        QString statusTip = "";
+        if (m_clock.getPrecision() <= MumeClockPrecisionEnum::UNSET) {
+            styleSheet = "padding-left:1px;padding-right:1px;color:white;background:grey";
+        } else if (time == MumeTimeEnum::DAWN) {
+            styleSheet = "padding-left:1px;padding-right:1px;color:white;background:red";
+            statusTip = "Ticks left until day";
+        } else if (time >= MumeTimeEnum::DUSK) {
+            styleSheet = "padding-left:1px;padding-right:1px;color:white;background:blue";
+            statusTip = "Ticks left until day";
+        } else {
+            styleSheet = "padding-left:1px;padding-right:1px;color:black;background:yellow";
+            statusTip = "Ticks left until night";
+        }
+        if (m_clock.getPrecision() != MumeClockPrecisionEnum::MINUTE) {
+            statusTip = "The clock has not synced with MUME! Click to override at your own risk.";
+        }
+
+        timeLabel->setStyleSheet(styleSheet);
+        timeLabel->setStatusTip(statusTip);
+    }
+}
+
+void MumeClockWidget::slot_updateMoonPhase(MumeMoonPhaseEnum phase)
+{
     if (phase != m_lastPhase) {
         m_lastPhase = phase;
         switch (phase) {
@@ -97,11 +142,25 @@ void MumeClockWidget::slot_updateLabel()
             moonPhaseLabel->setText("");
             break;
         }
-        updateMoonText = true;
     }
+}
 
-    seasonLabel->setStatusTip(m_clock.toMumeTime(moment));
-    const MumeSeasonEnum season = moment.toSeason();
+void MumeClockWidget::slot_updateMoonVisibility(MumeMoonVisibilityEnum visibility)
+{
+    if (visibility != m_lastVisibility) {
+        m_lastVisibility = visibility;
+        const QString moonStyleSheet = (visibility == MumeMoonVisibilityEnum::INVISIBLE
+                                        || visibility == MumeMoonVisibilityEnum::UNKNOWN)
+                                           ? "color:black;background:grey"
+                                       : (visibility == MumeMoonVisibilityEnum::BRIGHT)
+                                           ? "color:black;background:yellow"
+                                           : "color:black;background:white";
+        moonPhaseLabel->setStyleSheet(moonStyleSheet);
+    }
+}
+
+void MumeClockWidget::slot_updateSeason(MumeSeasonEnum season)
+{
     if (season != m_lastSeason) {
         m_lastSeason = season;
         QString styleSheet = "color:black";
@@ -129,57 +188,5 @@ void MumeClockWidget::slot_updateLabel()
         }
         seasonLabel->setStyleSheet(styleSheet);
         seasonLabel->setText(text);
-    }
-
-    bool updateMoonStyleSheet = false;
-    const MumeTimeEnum time = moment.toTimeOfDay();
-    if (time != m_lastTime || precision != m_lastPrecision) {
-        m_lastTime = time;
-        m_lastPrecision = precision;
-        // The current time is 12:15 am.
-        QString styleSheet = "";
-        QString statusTip = "";
-        if (precision <= MumeClockPrecisionEnum::UNSET) {
-            styleSheet = "padding-left:1px;padding-right:1px;color:white;background:grey";
-        } else if (time == MumeTimeEnum::DAWN) {
-            styleSheet = "padding-left:1px;padding-right:1px;color:white;background:red";
-            statusTip = "Ticks left until day";
-        } else if (time >= MumeTimeEnum::DUSK) {
-            styleSheet = "padding-left:1px;padding-right:1px;color:white;background:blue";
-            statusTip = "Ticks left until day";
-        } else {
-            styleSheet = "padding-left:1px;padding-right:1px;color:black;background:yellow";
-            statusTip = "Ticks left until night";
-        }
-        if (precision != MumeClockPrecisionEnum::MINUTE) {
-            statusTip = "The clock has not synced with MUME! Click to override at your own risk.";
-        }
-
-        timeLabel->setStyleSheet(styleSheet);
-        timeLabel->setStatusTip(statusTip);
-        updateMoonStyleSheet = true;
-    }
-    if (precision <= MumeClockPrecisionEnum::HOUR) {
-        // Prepend warning emoji to countdown
-        timeLabel->setText(QString::fromUtf8("\xE2\x9A\xA0").append(m_clock.toCountdown(moment)));
-    } else {
-        timeLabel->setText(m_clock.toCountdown(moment));
-    }
-
-    const MumeMoonVisibilityEnum moonVisibility = m_observer.getMoonVisibility();
-    if (moonVisibility != m_lastVisibility || updateMoonStyleSheet) {
-        m_lastVisibility = moonVisibility;
-        const QString moonStyleSheet = (moonVisibility == MumeMoonVisibilityEnum::INVISIBLE
-                                        || moonVisibility == MumeMoonVisibilityEnum::UNKNOWN)
-                                           ? "color:black;background:grey"
-                                       : (moonVisibility == MumeMoonVisibilityEnum::BRIGHT)
-                                           ? "color:black;background:yellow"
-                                           : "color:black;background:white";
-        moonPhaseLabel->setStyleSheet(moonStyleSheet);
-        updateMoonText = true;
-    }
-
-    if (updateMoonText) {
-        moonPhaseLabel->setStatusTip(moment.toMumeMoonTime());
     }
 }

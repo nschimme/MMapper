@@ -82,6 +82,7 @@ private:
     MumeTimeEnum m_timeOfDay = MumeTimeEnum::UNKNOWN;
     MumeMoonPhaseEnum m_moonPhase = MumeMoonPhaseEnum::UNKNOWN;
     MumeMoonVisibilityEnum m_moonVisibility = MumeMoonVisibilityEnum::UNKNOWN;
+    MumeSeasonEnum m_season = MumeSeasonEnum::UNKNOWN;
     GameObserver &m_observer;
     Signal2Lifetime m_lifetime;
 

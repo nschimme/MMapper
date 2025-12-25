@@ -42,4 +42,8 @@ protected:
 
 public slots:
     void slot_updateLabel();
+    void slot_updateTime(MumeTimeEnum time);
+    void slot_updateMoonPhase(MumeMoonPhaseEnum phase);
+    void slot_updateMoonVisibility(MumeMoonVisibilityEnum visibility);
+    void slot_updateSeason(MumeSeasonEnum season);
 };

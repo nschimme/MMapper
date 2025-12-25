@@ -247,6 +247,8 @@ void TestClock::parseWeatherTest()
 
     QCOMPARE(static_cast<int>(observer.getMoonVisibility()),
              static_cast<int>(MumeMoonVisibilityEnum::BRIGHT));
+
+    QCOMPARE(static_cast<int>(observer.getSeason()), static_cast<int>(MumeSeasonEnum::SUMMER));
 }
 
 void TestClock::parseClockTimeTest()

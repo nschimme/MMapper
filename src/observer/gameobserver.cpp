@@ -40,6 +40,7 @@ void GameObserver::observeTimeOfDay(const MumeTimeEnum timeOfDay)
     if (m_timeOfDay != timeOfDay) {
         m_timeOfDay = timeOfDay;
         sig2_timeOfDayChanged.invoke(timeOfDay);
+        emit timeOfDayChanged(timeOfDay);
     }
 }
 
@@ -48,6 +49,7 @@ void GameObserver::observeMoonPhase(const MumeMoonPhaseEnum moonPhase)
     if (m_moonPhase != moonPhase) {
         m_moonPhase = moonPhase;
         sig2_moonPhaseChanged.invoke(moonPhase);
+        emit moonPhaseChanged(moonPhase);
     }
 }
 
@@ -56,6 +58,16 @@ void GameObserver::observeMoonVisibility(const MumeMoonVisibilityEnum moonVisibi
     if (m_moonVisibility != moonVisibility) {
         m_moonVisibility = moonVisibility;
         sig2_moonVisibilityChanged.invoke(moonVisibility);
+        emit moonVisibilityChanged(moonVisibility);
+    }
+}
+
+void GameObserver::observeSeason(const MumeSeasonEnum season)
+{
+    if (m_season != season) {
+        m_season = season;
+        sig2_seasonChanged.invoke(season);
+        emit seasonChanged(season);
     }
 }
 

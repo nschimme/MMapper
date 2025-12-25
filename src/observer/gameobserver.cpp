@@ -34,3 +34,35 @@ void GameObserver::observeToggledEchoMode(const bool echo)
 {
     sig2_toggledEchoMode.invoke(echo);
 }
+
+void GameObserver::observeTimeOfDay(const MumeTimeEnum timeOfDay)
+{
+    if (m_timeOfDay != timeOfDay) {
+        m_timeOfDay = timeOfDay;
+        sig2_timeOfDayChanged.invoke(timeOfDay);
+    }
+}
+
+void GameObserver::observeMoonPhase(const MumeMoonPhaseEnum moonPhase)
+{
+    if (m_moonPhase != moonPhase) {
+        m_moonPhase = moonPhase;
+        sig2_moonPhaseChanged.invoke(moonPhase);
+    }
+}
+
+void GameObserver::observeWeather(const PromptWeatherEnum weather)
+{
+    if (m_weather != weather) {
+        m_weather = weather;
+        sig2_weatherChanged.invoke(weather);
+    }
+}
+
+void GameObserver::observeFog(const PromptFogEnum fog)
+{
+    if (m_fog != fog) {
+        m_fog = fog;
+        sig2_fogChanged.invoke(fog);
+    }
+}

@@ -18,6 +18,7 @@
 #include "../global/io.h"
 #include "../group/mmapper2group.h"
 #include "../mainwindow/mainwindow.h"
+#include "../observer/gameobserver.h"
 #include "../map/parseevent.h"
 #include "../mpi/mpifilter.h"
 #include "../mpi/remoteedit.h"
@@ -720,6 +721,7 @@ void Proxy::allocParser()
                                                          deref(conn),
                                                          deref(gmcp),
                                                          m_groupManager.getGroupManagerApi(),
+                                                         m_gameObserver,
                                                          this,
                                                          deref(out),
                                                          deref(parserCommon));

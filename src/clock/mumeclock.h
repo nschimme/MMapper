@@ -79,6 +79,8 @@ private:
     int64_t m_lastSyncEpoch = 0;
     int64_t m_mumeStartEpoch = 0;
     MumeClockPrecisionEnum m_precision = MumeClockPrecisionEnum::UNSET;
+    MumeTimeEnum m_timeOfDay = MumeTimeEnum::UNKNOWN;
+    MumeMoonPhaseEnum m_moonPhase = MumeMoonPhaseEnum::UNKNOWN;
     GameObserver &m_observer;
     Signal2Lifetime m_lifetime;
 

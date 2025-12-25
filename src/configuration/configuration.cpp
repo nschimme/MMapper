@@ -213,6 +213,7 @@ ConstString KEY_ABSOLUTE_PATH_ACCEPTANCE = "absolute path acceptance";
 ConstString KEY_ACCOUNT_NAME = "account name";
 ConstString KEY_ACCOUNT_PASSWORD = "account password";
 ConstString KEY_ALWAYS_ON_TOP = "Always On Top";
+ConstString KEY_HIDE_TO_SYSTEM_TRAY = "Hide to system tray";
 ConstString KEY_SHOW_STATUS_BAR = "Show Status Bar";
 ConstString KEY_SHOW_SCROLL_BARS = "Show Scroll Bars";
 ConstString KEY_SHOW_MENU_BAR = "Show Menu Bar";
@@ -566,6 +567,7 @@ void Configuration::GeneralSettings::read(const QSettings &conf)
     windowGeometry = conf.value(KEY_WINDOW_GEOMETRY).toByteArray();
     windowState = conf.value(KEY_WINDOW_STATE).toByteArray();
     alwaysOnTop = conf.value(KEY_ALWAYS_ON_TOP, false).toBool();
+    hideToSystemTray = conf.value(KEY_HIDE_TO_SYSTEM_TRAY, false).toBool();
     showStatusBar = conf.value(KEY_SHOW_STATUS_BAR, true).toBool();
     showScrollBars = conf.value(KEY_SHOW_SCROLL_BARS, true).toBool();
     showMenuBar = conf.value(KEY_SHOW_MENU_BAR, true).toBool();
@@ -784,6 +786,7 @@ void Configuration::GeneralSettings::write(QSettings &conf) const
     conf.setValue(KEY_WINDOW_GEOMETRY, windowGeometry);
     conf.setValue(KEY_WINDOW_STATE, windowState);
     conf.setValue(KEY_ALWAYS_ON_TOP, alwaysOnTop);
+    conf.setValue(KEY_HIDE_TO_SYSTEM_TRAY, hideToSystemTray);
     conf.setValue(KEY_SHOW_STATUS_BAR, showStatusBar);
     conf.setValue(KEY_SHOW_SCROLL_BARS, showScrollBars);
     conf.setValue(KEY_SHOW_MENU_BAR, showMenuBar);

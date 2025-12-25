@@ -73,6 +73,7 @@ public:
         QByteArray windowGeometry;
         QByteArray windowState;
         bool alwaysOnTop = false;
+        bool hideToSystemTray = false;
         bool showStatusBar = true;
         bool showScrollBars = true;
         bool showMenuBar = true;

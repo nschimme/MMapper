@@ -1,0 +1,288 @@
+[0/1] Re-running CMake...
+-- MMapper version 25.07.0 (RelWithDebInfo distribution)
+-- QOpenGLExtraFunctions supports both GLES 3.0 and OpenGL 3.3
+-- zlib found: /usr/lib/x86_64-linux-gnu/libz.so /usr/include
+-- OpenSSL 3.0.13 found: /usr/lib/x86_64-linux-gnu/libssl.so;/usr/lib/x86_64-linux-gnu/libcrypto.so
+-- Found QtKeychain: /usr/lib/x86_64-linux-gnu/libqt6keychain.so
+-- QtKeychain found:
+-- Found glm: /usr/include
+-- Could not find a local immer; downloading to local source tree
+CMake Warning (dev) at /usr/share/cmake-3.28/Modules/ExternalProject.cmake:3195 (message):
+  The DOWNLOAD_EXTRACT_TIMESTAMP option was not given and policy CMP0135 is
+  not set.  The policy's OLD behavior will be used.  When using a URL
+  download, the timestamps of extracted files should preferably be that of
+  the time of extraction, otherwise code that depends on the extracted
+  contents might not be rebuilt if the URL changes.  The OLD behavior
+  preserves the timestamps from the archive instead, but this is usually not
+  what you want.  Update your project to the NEW behavior or specify the
+  DOWNLOAD_EXTRACT_TIMESTAMP option with a value of true to avoid this
+  robustness issue.
+Call Stack (most recent call first):
+  /usr/share/cmake-3.28/Modules/ExternalProject.cmake:4418 (_ep_add_download_command)
+  external/immer/CMakeLists.txt:11 (ExternalProject_Add)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+-- Building from branch jules-16507662234915976052-76a05f0d with ref 2623545
+-- Release build type: RelWithDebInfo
+-- Building with GCC (/usr/bin/c++)
+-- Map QRC file will be included: /app/build/map/map.qrc
+-- Images QRC file will be included: /app/build/images/images.qrc
+mmapper_SRCS=[main.cpp;adventure/adventuresession.cpp;adventure/adventuresession.h;adventure/adventuretracker.cpp;adventure/adventuretracker.h;adventure/adventurewidget.cpp;adventure/adventurewidget.h;adventure/lineparsers.cpp;adventure/lineparsers.h;adventure/xpstatuswidget.cpp;adventure/xpstatuswidget.h;client/ClientTelnet.cpp;client/ClientTelnet.h;client/ClientWidget.cpp;client/ClientWidget.h;client/PaletteManager.cpp;client/PaletteManager.h;client/displaywidget.cpp;client/displaywidget.h;client/inputwidget.cpp;client/inputwidget.h;client/stackedinputwidget.cpp;client/stackedinputwidget.h;client/PasswordDialog.cpp;client/PasswordDialog.h;client/PreviewWidget.cpp;client/PreviewWidget.h;clock/mumeclock.cpp;clock/mumeclock.h;clock/mumeclockwidget.cpp;clock/mumeclockwidget.h;clock/mumemoment.cpp;clock/mumemoment.h;configuration/NamedConfig.h;configuration/PasswordConfig.cpp;configuration/PasswordConfig.h;configuration/configuration.cpp;configuration/configuration.h;display/CanvasMouseModeEnum.h;display/Characters.cpp;display/Characters.h;display/ConnectionLineBuilder.cpp;display/ConnectionLineBuilder.h;display/Connections.cpp;display/Connections.h;display/Filenames.cpp;display/Filenames.h;display/IMapBatchesFinisher.cpp;display/IMapBatchesFinisher.h;display/InfomarkSelection.cpp;display/InfomarkSelection.h;display/Infomarks.cpp;display/Infomarks.h;display/MapBatches.cpp;display/MapBatches.h;display/MapCanvasConfig.h;display/MapCanvasData.cpp;display/MapCanvasData.h;display/MapCanvasRoomDrawer.cpp;display/MapCanvasRoomDrawer.h;display/RoadIndex.cpp;display/RoadIndex.h;display/RoomSelections.cpp;display/Textures.cpp;display/Textures.h;display/connectionselection.cpp;display/connectionselection.h;display/mapcanvas.cpp;display/mapcanvas.h;display/mapcanvas_gl.cpp;display/mapwindow.cpp;display/mapwindow.h;display/prespammedpath.cpp;display/prespammedpath.h;group/CGroupChar.cpp;group/CGroupChar.h;group/ColorGenerator.cpp;group/ColorGenerator.h;group/GroupManagerApi.cpp;group/GroupManagerApi.h;group/enums.cpp;group/enums.h;group/groupwidget.cpp;group/groupwidget.h;group/mmapper2character.cpp;group/mmapper2character.h;group/mmapper2group.cpp;group/mmapper2group.h;logger/autologger.cpp;logger/autologger.h;mainwindow/DescriptionWidget.cpp;mainwindow/DescriptionWidget.h;mainwindow/MapZoomSlider.cpp;mainwindow/MapZoomSlider.h;mainwindow/SystemTrayManager.cpp;mainwindow/SystemTrayManager.h;mainwindow/UpdateDialog.cpp;mainwindow/UpdateDialog.h;mainwindow/ThemeManager.cpp;mainwindow/ThemeManager.h;mainwindow/aboutdialog.cpp;mainwindow/aboutdialog.h;mainwindow/findroomsdlg.cpp;mainwindow/findroomsdlg.h;mainwindow/infomarkseditdlg.cpp;mainwindow/infomarkseditdlg.h;mainwindow/mainwindow-async.cpp;mainwindow/mainwindow-saveslots.cpp;mainwindow/mainwindow.cpp;mainwindow/mainwindow.h;mainwindow/metatypes.cpp;mainwindow/metatypes.h;mainwindow/roomeditattrdlg.cpp;mainwindow/roomeditattrdlg.h;mainwindow/utils.cpp;mainwindow/utils.h;mapdata/GenericFind.cpp;mapdata/GenericFind.h;mapdata/MarkerList.cpp;mapdata/MarkerList.h;mapdata/mapdata.cpp;mapdata/mapdata.h;mapdata/roomfilter.cpp;mapdata/roomfilter.h;mapdata/roomselection.cpp;mapdata/roomselection.h;mapdata/shortestpath.cpp;mapdata/shortestpath.h;mapfrontend/MapHistory.cpp;mapfrontend/MapHistory.h;mapfrontend/mapfrontend.cpp;mapfrontend/mapfrontend.h;mapstorage/MapDestination.cpp;mapstorage/MapDestination.h;mapstorage/MapSource.cpp;mapstorage/MapSource.h;mapstorage/MmpMapStorage.cpp;mapstorage/MmpMapStorage.h;mapstorage/PandoraMapStorage.cpp;mapstorage/PandoraMapStorage.h;mapstorage/RawMapData.cpp;mapstorage/RawMapData.h;mapstorage/XmlMapStorage.cpp;mapstorage/XmlMapStorage.h;mapstorage/abstractmapstorage.cpp;mapstorage/abstractmapstorage.h;mapstorage/filesaver.cpp;mapstorage/filesaver.h;mapstorage/jsonmapstorage.cpp;mapstorage/jsonmapstorage.h;mapstorage/mapstorage.cpp;mapstorage/mapstorage.h;mpi/mpifilter.cpp;mpi/mpifilter.h;mpi/remoteedit.cpp;mpi/remoteedit.h;mpi/remoteeditsession.cpp;mpi/remoteeditsession.h;mpi/remoteeditwidget.cpp;mpi/remoteeditwidget.h;mpi/gotowidget.cpp;mpi/gotowidget.h;mpi/findreplacewidget.cpp;mpi/findreplacewidget.h;observer/gameobserver.cpp;observer/gameobserver.h;opengl/Font.cpp;opengl/Font.h;opengl/OpenGLProber.cpp;opengl/OpenGLProber.h;opengl/FontFormatFlags.h;opengl/LineRendering.cpp;opengl/LineRendering.h;opengl/OpenGL.cpp;opengl/OpenGL.h;opengl/OpenGLConfig.cpp;opengl/OpenGLConfig.h;opengl/OpenGLTypes.cpp;opengl/OpenGLTypes.h;opengl/legacy/AbstractShaderProgram.cpp;opengl/legacy/AbstractShaderProgram.h;opengl/legacy/Binders.cpp;opengl/legacy/Binders.h;opengl/legacy/FBO.cpp;opengl/legacy/FBO.h;opengl/legacy/FontMesh3d.cpp;opengl/legacy/FontMesh3d.h;opengl/legacy/Legacy.cpp;opengl/legacy/Legacy.h;opengl/legacy/FunctionsGL33.cpp;opengl/legacy/FunctionsGL33.h;opengl/legacy/FunctionsES30.cpp;opengl/legacy/FunctionsES30.h;opengl/legacy/Meshes.cpp;opengl/legacy/Meshes.h;opengl/legacy/ShaderUtils.cpp;opengl/legacy/ShaderUtils.h;opengl/legacy/Shaders.cpp;opengl/legacy/Shaders.h;opengl/legacy/SimpleMesh.cpp;opengl/legacy/SimpleMesh.h;opengl/legacy/VAO.cpp;opengl/legacy/VAO.h;opengl/legacy/VBO.cpp;opengl/legacy/VBO.h;parser/Abbrev.cpp;parser/Abbrev.h;parser/AbstractParser-Actions.cpp;parser/AbstractParser-Commands.cpp;parser/AbstractParser-Commands.h;parser/AbstractParser-Config.cpp;parser/AbstractParser-Group.cpp;parser/AbstractParser-Mark.cpp;parser/AbstractParser-Room.cpp;parser/AbstractParser-Timer.cpp;parser/AbstractParser-Utils.cpp;parser/AbstractParser-Utils.h;parser/Action.cpp;parser/Action.h;parser/CommandQueue.cpp;parser/CommandQueue.h;parser/DoorAction.cpp;parser/DoorAction.h;parser/LineFlags.h;parser/SendToUserSourceEnum.h;parser/abstractparser.cpp;parser/abstractparser.h;parser/mumexmlparser-gmcp.cpp;parser/mumexmlparser.cpp;parser/mumexmlparser.h;pathmachine/approved.cpp;pathmachine/approved.h;pathmachine/crossover.cpp;pathmachine/crossover.h;pathmachine/experimenting.cpp;pathmachine/experimenting.h;pathmachine/mmapper2pathmachine.cpp;pathmachine/mmapper2pathmachine.h;pathmachine/onebyone.cpp;pathmachine/onebyone.h;pathmachine/path.cpp;pathmachine/path.h;pathmachine/pathmachine.cpp;pathmachine/pathmachine.h;pathmachine/pathparameters.h;pathmachine/pathprocessor.cpp;pathmachine/pathprocessor.h;pathmachine/roomsignalhandler.cpp;pathmachine/roomsignalhandler.h;pathmachine/syncing.cpp;pathmachine/syncing.h;preferences/AdvancedGraphics.cpp;preferences/AdvancedGraphics.h;preferences/AnsiColorDialog.cpp;preferences/AnsiColorDialog.h;preferences/ansicombo.cpp;preferences/ansicombo.h;preferences/autologpage.cpp;preferences/autologpage.h;preferences/clientpage.cpp;preferences/clientpage.h;preferences/configdialog.cpp;preferences/configdialog.h;preferences/generalpage.cpp;preferences/generalpage.h;preferences/graphicspage.cpp;preferences/graphicspage.h;preferences/grouppage.cpp;preferences/grouppage.h;preferences/mumeprotocolpage.cpp;preferences/mumeprotocolpage.h;preferences/parserpage.cpp;preferences/parserpage.h;preferences/pathmachinepage.cpp;preferences/pathmachinepage.h;proxy/AbstractSocket.h;proxy/AbstractTelnet.cpp;proxy/AbstractTelnet.h;proxy/GmcpMessage.cpp;proxy/GmcpMessage.h;proxy/GmcpModule.cpp;proxy/GmcpModule.h;proxy/GmcpUtils.cpp;proxy/GmcpUtils.h;proxy/MudTelnet.cpp;proxy/MudTelnet.h;proxy/ProxyParserApi.cpp;proxy/ProxyParserApi.h;proxy/TcpSocket.cpp;proxy/TcpSocket.h;proxy/TextCodec.cpp;proxy/TextCodec.h;proxy/UserTelnet.cpp;proxy/UserTelnet.h;proxy/VirtualSocket.cpp;proxy/VirtualSocket.h;proxy/connectionlistener.cpp;proxy/connectionlistener.h;proxy/mumesocket.cpp;proxy/mumesocket.h;proxy/proxy.cpp;proxy/proxy.h;proxy/telnetfilter.cpp;proxy/telnetfilter.h;roompanel/RoomManager.cpp;roompanel/RoomManager.h;roompanel/RoomMob.cpp;roompanel/RoomMob.h;roompanel/RoomMobs.cpp;roompanel/RoomMobs.h;roompanel/RoomWidget.cpp;roompanel/RoomWidget.h;syntax/Accept.cpp;syntax/Accept.h;syntax/IArgument.cpp;syntax/IArgument.h;syntax/IMatchErrorLogger.h;syntax/MatchResult.cpp;syntax/MatchResult.h;syntax/ParseResult.h;syntax/ParserInput.cpp;syntax/ParserInput.h;syntax/Sublist.cpp;syntax/Sublist.h;syntax/SyntaxArgs.cpp;syntax/SyntaxArgs.h;syntax/TokenMatcher.cpp;syntax/TokenMatcher.h;syntax/TreeParser.cpp;syntax/TreeParser.h;syntax/User.h;syntax/Value.cpp;syntax/Value.h;timers/CTimers.cpp;timers/CTimers.h;viewers/AnsiViewWindow.cpp;viewers/AnsiViewWindow.h;viewers/LaunchAsyncViewer.h;viewers/TopLevelWindows.cpp;viewers/TopLevelWindows.h;mpi/remoteeditprocess.cpp;mpi/remoteeditprocess.h;/app/build/src/Version.cpp]
+mmapper_global_SRCS=[global/AnsiOstream.cpp;global/AnsiOstream.h;global/AnsiTextUtils.cpp;global/AnsiTextUtils.h;global/Array.h;global/AsyncTasks.cpp;global/AsyncTasks.h;global/Badge.cpp;global/Badge.h;global/CaseUtils.cpp;global/CaseUtils.h;global/ChangeMonitor.h;global/CharUtils.cpp;global/CharUtils.h;global/Charset-Utf16.cpp;global/Charset-Utf8.cpp;global/Charset.cpp;global/Charset.h;global/Color.cpp;global/Color.h;global/ConfigConsts-Computed.h;global/ConfigConsts.h;global/ConfigEnums.h;global/Connections.cpp;global/Connections.h;global/Consts.cpp;global/Consts.h;global/ConversionResult.h;global/Diff.cpp;global/Diff.h;global/EnumIndexedArray.h;global/Flags.cpp;global/Flags.h;global/HideQDebug.cpp;global/HideQDebug.h;global/ImmIndexedVector.h;global/ImmIndexedVectorWithDefault.h;global/ImmOrderedSet.h;global/ImmUnorderedMap.h;global/ImmUnorderedSet.h;global/IndexedVector.h;global/IndexedVectorWithDefault.cpp;global/IndexedVectorWithDefault.h;global/JsonArray.h;global/JsonDoc.h;global/JsonObj.cpp;global/JsonObj.h;global/JsonValue.h;global/JsonValue.cpp;global/LineUtils.cpp;global/LineUtils.h;global/MakeQPointer.h;global/MmQtHandle.h;global/NamedColors.cpp;global/NamedColors.h;global/NullPointerException.cpp;global/NullPointerException.h;global/OrderedMap.cpp;global/OrderedMap.h;global/OrderedSet.cpp;global/OrderedSet.h;global/PrintUtils.cpp;global/PrintUtils.h;global/RAII.cpp;global/RAII.h;global/RuleOf5.h;global/SendToUser.cpp;global/SendToUser.h;global/Signal2.h;global/SignalBlocker.cpp;global/SignalBlocker.h;global/StorageUtils.cpp;global/StorageUtils.h;global/StringView.cpp;global/StringView.h;global/TabUtils.cpp;global/TabUtils.h;global/TaggedInt.h;global/TaggedString.cpp;global/TaggedString.h;global/TextBuffer.cpp;global/TextBuffer.h;global/TextUtils.cpp;global/TextUtils.h;global/Timer.cpp;global/Timer.h;global/Version.h;global/WeakHandle.cpp;global/WeakHandle.h;global/WinSock.cpp;global/WinSock.h;global/bits.h;global/cast_error.cpp;global/cast_error.h;global/emojis.cpp;global/emojis.h;global/entities-xforeach.txt;global/entities.cpp;global/entities.h;global/enums.h;global/float_cast.cpp;global/float_cast.h;global/hash.h;global/int_cast.cpp;global/int_cast.h;global/io.cpp;global/io.h;global/logging.cpp;global/logging.h;global/macros.h;global/parserutils.cpp;global/parserutils.h;global/progresscounter.cpp;global/progresscounter.h;global/random.cpp;global/random.h;global/range.h;global/string_view_utils.cpp;global/string_view_utils.h;global/tests.cpp;global/tests.h;global/thread_utils.cpp;global/thread_utils.h;global/unquote.cpp;global/unquote.h;global/utils.cpp;global/utils.h;global/window_utils.cpp;global/window_utils.h;global/zpipe.cpp;global/zpipe.h]
+mmapper_map_SRCS=[map/AbstractChangeVisitor.cpp;map/AbstractChangeVisitor.h;map/Change.cpp;map/Change.h;map/ChangeList.cpp;map/ChangeList.h;map/ChangePrinter.cpp;map/ChangePrinter.h;map/ChangeTypes.cpp;map/ChangeTypes.h;map/Changes.cpp;map/Changes.h;map/CommandId.cpp;map/CommandId.h;map/Compare.h;map/ConnectedRoomFlags.h;map/Crtp.h;map/Diff-Test.cpp;map/Diff.cpp;map/Diff.h;map/DoorFlags.cpp;map/DoorFlags.h;map/ExitDirection.cpp;map/ExitDirection.h;map/ExitFieldVariant.cpp;map/ExitFieldVariant.h;map/ExitFields.cpp;map/ExitFields.h;map/ExitFlags.cpp;map/ExitFlags.h;map/ExitsFlags.h;map/InOutEnum.cpp;map/InOutEnum.h;map/InvalidMapOperation.cpp;map/InvalidMapOperation.h;map/Map.cpp;map/Map.h;map/MapConsistencyError.cpp;map/MapConsistencyError.h;map/ParseTree.cpp;map/ParseTree.h;map/PromptFlags.cpp;map/PromptFlags.h;map/RawExit.cpp;map/RawExit.h;map/RawRoom.cpp;map/RawRoom.h;map/RawRooms.cpp;map/RawRooms.h;map/Remapping.cpp;map/Remapping.h;map/RoomFieldVariant.h;map/RoomFields.cpp;map/RoomFields.h;map/RoomHandle.cpp;map/RoomHandle.h;map/RoomIdSet.cpp;map/RoomIdSet.h;map/RoomRevert.cpp;map/RoomRevert.h;map/ServerIdMap.cpp;map/ServerIdMap.h;map/SpatialDb.cpp;map/SpatialDb.h;map/TinyRoomIdSet.cpp;map/TinyRoomIdSet.h;map/World-BaseMap.cpp;map/World.cpp;map/World.h;map/WorldAreaMap.cpp;map/WorldAreaMap.h;map/WorldBuilder.cpp;map/WorldBuilder.h;map/coordinate.cpp;map/coordinate.h;map/enums.cpp;map/enums.h;map/exit.h;map/infomark.cpp;map/infomark.h;map/mmapper2room.cpp;map/mmapper2room.h;map/parseevent.cpp;map/parseevent.h;map/room.cpp;map/room.h;map/roomid.cpp;map/roomid.h;map/sanitizer.cpp;map/sanitizer.h;map/utils.cpp;map/utils.h]
+-- Packaging for target: Linux x86_64 Source
+
+-- Enabled options:
+ * WITH_ZLIB, backwards compatability with old .mm2 saves
+ * WITH_UPDATER, check GitHub for new releases
+ * WITH_OPENSSL, encrypt connections with TLS
+ * WITH_WEBSOCKET, bypass firewalls and connect over Secure WebSockets
+ * WITH_QTKEYCHAIN, account credentials encryption and auto-login
+ * WITH_MAP, include default map as a resource
+ * WITH_IMAGES, include default images as a resource
+ * WITH_TESTS, compile unit tests
+ * USE_MOLD, faster build linking
+
+-- Disabled options:
+ * USE_TIDY
+ * USE_IWYU
+ * USE_DISTCC
+ * USE_CODE_COVERAGE
+
+-- Configuring done (9.1s)
+-- Generating done (0.1s)
+-- Build files have been written to: /app/build
+[1/242] No install step for 'immer'
+[2/242] Creating directories for 'map_repo'
+[3/242] Creating directories for 'images_repo'
+[4/242] Performing download step (git clone) for 'map_repo'
+-- Avoiding repeated git clone, stamp file is up to date: '/app/build/external/map/map_repo-prefix/src/map_repo-stamp/map_repo-gitclone-lastrun.txt'
+[5/242] Performing download step (git clone) for 'images_repo'
+-- Avoiding repeated git clone, stamp file is up to date: '/app/build/external/images/images_repo-prefix/src/images_repo-stamp/images_repo-gitclone-lastrun.txt'
+[6/242] Completed 'immer'
+[7/242] No update step for 'map_repo'
+[8/242] No update step for 'images_repo'
+[9/242] No patch step for 'images_repo'
+[10/242] No patch step for 'map_repo'
+[11/242] Automatic MOC and UIC for target mm_global
+[12/237] No configure step for 'map_repo'
+[13/237] No configure step for 'images_repo'
+[14/237] No build step for 'map_repo'
+[15/237] No build step for 'images_repo'
+[16/237] Automatic MOC and UIC for target mm_map
+[17/236] No install step for 'images_repo'
+[18/236] Completed 'images_repo'
+[19/236] Generating images.qrc
+[20/236] Performing install step for 'map_repo'
+[21/236] Completed 'map_repo'
+[22/236] Generating map.qrc
+[23/236] Building CXX object tests/CMakeFiles/TestMainWindow.dir/__/src/mainwindow/UpdateDialog.cpp.o
+[24/236] Linking CXX executable tests/TestMainWindow
+[25/236] Building CXX object tests/CMakeFiles/TestRoomMob.dir/__/src/roompanel/RoomMob.cpp.o
+[26/236] Linking CXX executable tests/TestRoomMob
+[27/236] Building CXX object tests/CMakeFiles/TestRoomMobs.dir/__/src/roompanel/RoomMobs.cpp.o
+[28/236] Building CXX object tests/CMakeFiles/TestClock.dir/__/src/clock/mumeclock.cpp.o
+[29/236] Linking CXX executable tests/TestClock
+[30/236] Automatic MOC and UIC for target TestAdventure
+[31/235] Building CXX object tests/CMakeFiles/TestRoomManager.dir/__/src/roompanel/RoomMobs.cpp.o
+[32/235] Building CXX object tests/CMakeFiles/TestRoomManager.dir/__/src/roompanel/RoomMob.cpp.o
+[33/235] Linking CXX executable tests/TestRoomManager
+[34/235] Building CXX object src/CMakeFiles/mm_map.dir/map/ParseTree.cpp.o
+[35/235] Building CXX object tests/CMakeFiles/TestRoomMobs.dir/__/src/roompanel/RoomMob.cpp.o
+[36/235] Linking CXX executable tests/TestRoomMobs
+[37/235] Building CXX object tests/CMakeFiles/TestAdventure.dir/__/src/configuration/configuration.cpp.o
+[38/235] Linking CXX executable tests/TestAdventure
+[39/235] Building CXX object src/CMakeFiles/mm_map.dir/map/Map.cpp.o
+[40/235] Linking CXX static library src/libmm_map.a
+[41/235] Automatic MOC and UIC for target TestParser
+[42/234] Automatic MOC and UIC for target TestMap
+[43/233] Automatic MOC and UIC for target TestExpandoraCommon
+[44/232] Building CXX object tests/CMakeFiles/TestParser.dir/__/src/configuration/configuration.cpp.o
+[45/232] Building CXX object tests/CMakeFiles/TestExpandoraCommon.dir/__/src/configuration/configuration.cpp.o
+[46/232] Linking CXX executable tests/TestParser
+[47/232] Building CXX object tests/CMakeFiles/TestMap.dir/__/src/configuration/configuration.cpp.o
+[48/232] Linking CXX executable tests/TestExpandoraCommon
+[49/232] Linking CXX executable tests/TestMap
+[50/232] Automatic MOC and UIC for target mmapper
+[51/232] Generating qrc_build.cpp
+[52/232] Generating qrc_mmapper2.cpp
+[53/232] Generating qrc_images.cpp
+[54/232] Generating qrc_map.cpp
+[55/232] Building CXX object src/CMakeFiles/mmapper.dir/adventure/adventuresession.cpp.o
+[56/232] Building CXX object src/CMakeFiles/mmapper.dir/adventure/lineparsers.cpp.o
+[57/232] Building CXX object src/CMakeFiles/mmapper.dir/adventure/adventuretracker.cpp.o
+[58/232] Building CXX object src/CMakeFiles/mmapper.dir/adventure/xpstatuswidget.cpp.o
+[59/232] Building CXX object src/CMakeFiles/mmapper.dir/client/PaletteManager.cpp.o
+[60/232] Building CXX object src/CMakeFiles/mmapper.dir/client/ClientTelnet.cpp.o
+[61/232] Building CXX object src/CMakeFiles/mmapper.dir/adventure/adventurewidget.cpp.o
+[62/232] Building CXX object src/CMakeFiles/mmapper.dir/client/stackedinputwidget.cpp.o
+[63/232] Building CXX object src/CMakeFiles/mmapper.dir/client/PasswordDialog.cpp.o
+[64/232] Building CXX object src/CMakeFiles/mmapper.dir/client/ClientWidget.cpp.o
+[65/232] Building CXX object src/CMakeFiles/mmapper.dir/main.cpp.o
+[66/232] Building CXX object src/CMakeFiles/mmapper.dir/clock/mumeclock.cpp.o
+[67/232] Building CXX object src/CMakeFiles/mmapper.dir/clock/mumemoment.cpp.o
+[68/232] Building CXX object src/CMakeFiles/mmapper.dir/configuration/PasswordConfig.cpp.o
+[69/232] Building CXX object src/CMakeFiles/mmapper.dir/configuration/configuration.cpp.o
+[70/232] Building CXX object src/CMakeFiles/mmapper.dir/client/displaywidget.cpp.o
+[71/232] Building CXX object src/CMakeFiles/mmapper.dir/display/ConnectionLineBuilder.cpp.o
+[72/232] Building CXX object src/CMakeFiles/mmapper.dir/clock/mumeclockwidget.cpp.o
+[73/232] Building CXX object src/CMakeFiles/mmapper.dir/client/inputwidget.cpp.o
+[74/232] Building CXX object src/CMakeFiles/mmapper.dir/display/IMapBatchesFinisher.cpp.o
+[75/232] Building CXX object src/CMakeFiles/mmapper.dir/client/PreviewWidget.cpp.o
+[76/232] Building CXX object src/CMakeFiles/mmapper.dir/mmapper_autogen/mocs_compilation.cpp.o
+[77/232] Building CXX object src/CMakeFiles/mmapper.dir/display/Filenames.cpp.o
+[78/232] Building CXX object src/CMakeFiles/mmapper.dir/display/Characters.cpp.o
+[79/232] Building CXX object src/CMakeFiles/mmapper.dir/display/InfomarkSelection.cpp.o
+[80/232] Building CXX object src/CMakeFiles/mmapper.dir/display/RoadIndex.cpp.o
+[81/232] Building CXX object src/CMakeFiles/mmapper.dir/display/Connections.cpp.o
+[82/232] Building CXX object src/CMakeFiles/mmapper.dir/display/MapBatches.cpp.o
+[83/232] Building CXX object src/CMakeFiles/mmapper.dir/display/connectionselection.cpp.o
+[84/232] Building CXX object src/CMakeFiles/mmapper.dir/display/Infomarks.cpp.o
+[85/232] Building CXX object src/CMakeFiles/mmapper.dir/display/MapCanvasData.cpp.o
+[86/232] Building CXX object src/CMakeFiles/mmapper.dir/display/RoomSelections.cpp.o
+[87/232] Building CXX object src/CMakeFiles/mmapper.dir/display/MapCanvasRoomDrawer.cpp.o
+[88/232] Building CXX object src/CMakeFiles/mmapper.dir/group/CGroupChar.cpp.o
+[89/232] Building CXX object src/CMakeFiles/mmapper.dir/group/ColorGenerator.cpp.o
+[90/232] Building CXX object src/CMakeFiles/mmapper.dir/group/GroupManagerApi.cpp.o
+[91/232] Building CXX object src/CMakeFiles/mmapper.dir/group/enums.cpp.o
+[92/232] Building CXX object src/CMakeFiles/mmapper.dir/display/Textures.cpp.o
+[93/232] Building CXX object src/CMakeFiles/mmapper.dir/group/mmapper2character.cpp.o
+[94/232] Building CXX object src/CMakeFiles/mmapper.dir/display/prespammedpath.cpp.o
+[95/232] Building CXX object src/CMakeFiles/mmapper.dir/display/mapcanvas.cpp.o
+[96/232] Building CXX object src/CMakeFiles/mmapper.dir/display/mapcanvas_gl.cpp.o
+[97/232] Building CXX object src/CMakeFiles/mmapper.dir/display/mapwindow.cpp.o
+[98/232] Building CXX object src/CMakeFiles/mmapper.dir/group/mmapper2group.cpp.o
+[99/232] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/UpdateDialog.cpp.o
+[100/232] Building CXX object src/CMakeFiles/mmapper.dir/logger/autologger.cpp.o
+[101/232] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/aboutdialog.cpp.o
+[102/232] Building CXX object src/CMakeFiles/mmapper.dir/group/groupwidget.cpp.o
+[103/232] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/DescriptionWidget.cpp.o
+[104/232] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/MapZoomSlider.cpp.o
+[105/232] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/SystemTrayManager.cpp.o
+[106/232] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/ThemeManager.cpp.o
+[107/232] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/metatypes.cpp.o
+[108/232] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/findroomsdlg.cpp.o
+[109/232] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/mainwindow-saveslots.cpp.o
+[110/232] Building CXX object src/CMakeFiles/mmapper.dir/mapdata/GenericFind.cpp.o
+[111/232] Building CXX object src/CMakeFiles/mmapper.dir/mapdata/MarkerList.cpp.o
+[112/232] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/infomarkseditdlg.cpp.o
+[113/232] Building CXX object src/CMakeFiles/mmapper.dir/mapdata/roomfilter.cpp.o
+[114/232] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/mainwindow-async.cpp.o
+[115/232] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/utils.cpp.o
+[116/232] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/roomeditattrdlg.cpp.o
+[117/232] Building CXX object src/CMakeFiles/mmapper.dir/mapfrontend/mapfrontend.cpp.o
+[118/232] Building CXX object src/CMakeFiles/mmapper.dir/mapfrontend/MapHistory.cpp.o
+[119/232] Building CXX object src/CMakeFiles/mmapper.dir/mapstorage/MapSource.cpp.o
+[120/232] Building CXX object src/CMakeFiles/mmapper.dir/mapstorage/MapDestination.cpp.o
+[121/232] Building CXX object src/CMakeFiles/mmapper.dir/mapdata/roomselection.cpp.o
+[122/232] Building CXX object src/CMakeFiles/mmapper.dir/mapstorage/RawMapData.cpp.o
+[123/232] Building CXX object src/CMakeFiles/mmapper.dir/mainwindow/mainwindow.cpp.o
+[124/232] Building CXX object src/CMakeFiles/mmapper.dir/mapdata/mapdata.cpp.o
+[125/232] Building CXX object src/CMakeFiles/mmapper.dir/mapdata/shortestpath.cpp.o
+[126/232] Building CXX object src/CMakeFiles/mmapper.dir/mapstorage/MmpMapStorage.cpp.o
+[127/232] Building CXX object src/CMakeFiles/mmapper.dir/mapstorage/abstractmapstorage.cpp.o
+[128/232] Building CXX object src/CMakeFiles/mmapper.dir/mapstorage/PandoraMapStorage.cpp.o
+[129/232] Building CXX object src/CMakeFiles/mmapper.dir/mapstorage/filesaver.cpp.o
+[130/232] Building CXX object src/CMakeFiles/mmapper.dir/mpi/remoteeditsession.cpp.o
+[131/232] Building CXX object src/CMakeFiles/mmapper.dir/mapstorage/XmlMapStorage.cpp.o
+[132/232] Building CXX object src/CMakeFiles/mmapper.dir/mpi/gotowidget.cpp.o
+[133/232] Building CXX object src/CMakeFiles/mmapper.dir/mpi/findreplacewidget.cpp.o
+[134/232] Building CXX object src/CMakeFiles/mmapper.dir/observer/gameobserver.cpp.o
+[135/232] Building CXX object src/CMakeFiles/mmapper.dir/mpi/remoteedit.cpp.o
+[136/232] Building CXX object src/CMakeFiles/mmapper.dir/opengl/OpenGLProber.cpp.o
+[137/232] Building CXX object src/CMakeFiles/mmapper.dir/opengl/LineRendering.cpp.o
+[138/232] Building CXX object src/CMakeFiles/mmapper.dir/opengl/OpenGL.cpp.o
+[139/232] Building CXX object src/CMakeFiles/mmapper.dir/opengl/OpenGLConfig.cpp.o
+[140/232] Building CXX object src/CMakeFiles/mmapper.dir/opengl/OpenGLTypes.cpp.o
+[141/232] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/AbstractShaderProgram.cpp.o
+[142/232] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/Binders.cpp.o
+[143/232] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/FBO.cpp.o
+[144/232] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/FontMesh3d.cpp.o
+[145/232] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/Legacy.cpp.o
+[146/232] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/FunctionsGL33.cpp.o
+[147/232] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/FunctionsES30.cpp.o
+[148/232] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/Meshes.cpp.o
+[149/232] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/ShaderUtils.cpp.o
+[150/232] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/Shaders.cpp.o
+[151/232] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/SimpleMesh.cpp.o
+[152/232] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/VAO.cpp.o
+[153/232] Building CXX object src/CMakeFiles/mmapper.dir/opengl/legacy/VBO.cpp.o
+[154/232] Building CXX object src/CMakeFiles/mmapper.dir/parser/Abbrev.cpp.o
+[155/232] Building CXX object src/CMakeFiles/mmapper.dir/mpi/mpifilter.cpp.o
+[156/232] Building CXX object src/CMakeFiles/mmapper.dir/mapstorage/jsonmapstorage.cpp.o
+[157/232] Building CXX object src/CMakeFiles/mmapper.dir/mpi/remoteeditwidget.cpp.o
+[158/232] Building CXX object src/CMakeFiles/mmapper.dir/mapstorage/mapstorage.cpp.o
+[159/232] Building CXX object src/CMakeFiles/mmapper.dir/opengl/Font.cpp.o
+[160/232] Building CXX object src/CMakeFiles/mmapper.dir/parser/AbstractParser-Actions.cpp.o
+[161/232] Building CXX object src/CMakeFiles/mmapper.dir/parser/AbstractParser-Group.cpp.o
+[162/232] Building CXX object src/CMakeFiles/mmapper.dir/parser/AbstractParser-Commands.cpp.o
+[163/232] Building CXX object src/CMakeFiles/mmapper.dir/parser/Action.cpp.o
+[164/232] Building CXX object src/CMakeFiles/mmapper.dir/parser/CommandQueue.cpp.o
+[165/232] Building CXX object src/CMakeFiles/mmapper.dir/parser/DoorAction.cpp.o
+[166/232] Building CXX object src/CMakeFiles/mmapper.dir/parser/AbstractParser-Mark.cpp.o
+[167/232] Building CXX object src/CMakeFiles/mmapper.dir/parser/AbstractParser-Timer.cpp.o
+[168/232] Building CXX object src/CMakeFiles/mmapper.dir/parser/AbstractParser-Config.cpp.o
+[169/232] Building CXX object src/CMakeFiles/mmapper.dir/parser/AbstractParser-Utils.cpp.o
+[170/232] Building CXX object src/CMakeFiles/mmapper.dir/parser/mumexmlparser-gmcp.cpp.o
+[171/232] Building CXX object src/CMakeFiles/mmapper.dir/pathmachine/experimenting.cpp.o
+[172/232] Building CXX object src/CMakeFiles/mmapper.dir/pathmachine/approved.cpp.o
+[173/232] Building CXX object src/CMakeFiles/mmapper.dir/pathmachine/onebyone.cpp.o
+[174/232] Building CXX object src/CMakeFiles/mmapper.dir/pathmachine/path.cpp.o
+[175/232] Building CXX object src/CMakeFiles/mmapper.dir/pathmachine/crossover.cpp.o
+[176/232] Building CXX object src/CMakeFiles/mmapper.dir/pathmachine/pathprocessor.cpp.o
+[177/232] Building CXX object src/CMakeFiles/mmapper.dir/parser/AbstractParser-Room.cpp.o
+[178/232] Building CXX object src/CMakeFiles/mmapper.dir/pathmachine/syncing.cpp.o
+[179/232] Building CXX object src/CMakeFiles/mmapper.dir/parser/mumexmlparser.cpp.o
+[180/232] Building CXX object src/CMakeFiles/mmapper.dir/preferences/AnsiColorDialog.cpp.o
+[181/232] Building CXX object src/CMakeFiles/mmapper.dir/preferences/ansicombo.cpp.o
+[182/232] Building CXX object src/CMakeFiles/mmapper.dir/parser/abstractparser.cpp.o
+[183/232] Building CXX object src/CMakeFiles/mmapper.dir/pathmachine/mmapper2pathmachine.cpp.o
+[184/232] Building CXX object src/CMakeFiles/mmapper.dir/preferences/AdvancedGraphics.cpp.o
+[185/232] Building CXX object src/CMakeFiles/mmapper.dir/preferences/autologpage.cpp.o
+[186/232] Building CXX object src/CMakeFiles/mmapper.dir/pathmachine/roomsignalhandler.cpp.o
+[187/232] Building CXX object src/CMakeFiles/mmapper.dir/preferences/clientpage.cpp.o
+[188/232] Building CXX object src/CMakeFiles/mmapper.dir/pathmachine/pathmachine.cpp.o
+[189/232] Building CXX object src/CMakeFiles/mmapper.dir/preferences/configdialog.cpp.o
+[190/232] Building CXX object src/CMakeFiles/mmapper.dir/preferences/generalpage.cpp.o
+[191/232] Building CXX object src/CMakeFiles/mmapper.dir/preferences/grouppage.cpp.o
+[192/232] Building CXX object src/CMakeFiles/mmapper.dir/proxy/GmcpMessage.cpp.o
+[193/232] Building CXX object src/CMakeFiles/mmapper.dir/proxy/GmcpModule.cpp.o
+[194/232] Building CXX object src/CMakeFiles/mmapper.dir/proxy/GmcpUtils.cpp.o
+[195/232] Building CXX object src/CMakeFiles/mmapper.dir/preferences/graphicspage.cpp.o
+[196/232] Building CXX object src/CMakeFiles/mmapper.dir/proxy/ProxyParserApi.cpp.o
+[197/232] Building CXX object src/CMakeFiles/mmapper.dir/proxy/TcpSocket.cpp.o
+[198/232] Building CXX object src/CMakeFiles/mmapper.dir/preferences/mumeprotocolpage.cpp.o
+[199/232] Building CXX object src/CMakeFiles/mmapper.dir/preferences/pathmachinepage.cpp.o
+[200/232] Building CXX object src/CMakeFiles/mmapper.dir/proxy/VirtualSocket.cpp.o
+[201/232] Building CXX object src/CMakeFiles/mmapper.dir/preferences/parserpage.cpp.o
+[202/232] Building CXX object src/CMakeFiles/mmapper.dir/proxy/AbstractTelnet.cpp.o
+[203/232] Building CXX object src/CMakeFiles/mmapper.dir/proxy/TextCodec.cpp.o
+[204/232] Building CXX object src/CMakeFiles/mmapper.dir/proxy/telnetfilter.cpp.o
+[205/232] Building CXX object src/CMakeFiles/mmapper.dir/roompanel/RoomManager.cpp.o
+[206/232] Building CXX object src/CMakeFiles/mmapper.dir/roompanel/RoomMob.cpp.o
+[207/232] Building CXX object src/CMakeFiles/mmapper.dir/proxy/MudTelnet.cpp.o
+[208/232] Building CXX object src/CMakeFiles/mmapper.dir/roompanel/RoomMobs.cpp.o
+[209/232] Building CXX object src/CMakeFiles/mmapper.dir/syntax/Accept.cpp.o
+[210/232] Building CXX object src/CMakeFiles/mmapper.dir/syntax/IArgument.cpp.o
+[211/232] Building CXX object src/CMakeFiles/mmapper.dir/syntax/MatchResult.cpp.o
+[212/232] Building CXX object src/CMakeFiles/mmapper.dir/syntax/ParserInput.cpp.o
+[213/232] Building CXX object src/CMakeFiles/mmapper.dir/syntax/Sublist.cpp.o
+[214/232] Building CXX object src/CMakeFiles/mmapper.dir/syntax/SyntaxArgs.cpp.o
+[215/232] Building CXX object src/CMakeFiles/mmapper.dir/syntax/TokenMatcher.cpp.o
+[216/232] Building CXX object src/CMakeFiles/mmapper.dir/syntax/TreeParser.cpp.o
+[217/232] Building CXX object src/CMakeFiles/mmapper.dir/syntax/Value.cpp.o
+[218/232] Building CXX object src/CMakeFiles/mmapper.dir/timers/CTimers.cpp.o
+[219/232] Building CXX object src/CMakeFiles/mmapper.dir/viewers/AnsiViewWindow.cpp.o
+[220/232] Building CXX object src/CMakeFiles/mmapper.dir/viewers/TopLevelWindows.cpp.o
+[221/232] Building CXX object src/CMakeFiles/mmapper.dir/proxy/UserTelnet.cpp.o
+[222/232] Building CXX object src/CMakeFiles/mmapper.dir/Version.cpp.o
+[223/232] Building CXX object src/CMakeFiles/mmapper.dir/qrc_mmapper2.cpp.o
+[224/232] Building CXX object src/CMakeFiles/mmapper.dir/qrc_build.cpp.o
+[225/232] Building CXX object src/CMakeFiles/mmapper.dir/proxy/connectionlistener.cpp.o
+[226/232] Building CXX object src/CMakeFiles/mmapper.dir/qrc_images.cpp.o
+[227/232] Building CXX object src/CMakeFiles/mmapper.dir/proxy/mumesocket.cpp.o
+[228/232] Building CXX object src/CMakeFiles/mmapper.dir/mpi/remoteeditprocess.cpp.o
+[229/232] Building CXX object src/CMakeFiles/mmapper.dir/qrc_map.cpp.o
+[230/232] Building CXX object src/CMakeFiles/mmapper.dir/roompanel/RoomWidget.cpp.o
+[231/232] Building CXX object src/CMakeFiles/mmapper.dir/proxy/proxy.cpp.o
+[232/232] Linking CXX executable src/mmapper

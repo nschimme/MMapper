@@ -66,6 +66,7 @@ class RoomSelection;
 class RoomWidget;
 class UpdateDialog;
 class DescriptionWidget;
+class SystemTrayManager;
 struct MapLoadData;
 class MapDestination;
 
@@ -109,6 +110,7 @@ private:
     AdventureWidget *m_adventureWidget = nullptr;
 
     DescriptionWidget *m_descriptionWidget = nullptr;
+    SystemTrayManager *m_trayManager = nullptr;
 
     SharedRoomSelection m_roomSelection;
     std::shared_ptr<ConnectionSelection> m_connectionSelection;
@@ -279,6 +281,7 @@ private:
 
 protected:
     void closeEvent(QCloseEvent *event) override;
+    void changeEvent(QEvent *event) override;
     void keyPressEvent(QKeyEvent *event) override;
     void keyReleaseEvent(QKeyEvent *event) override;
     void showEvent(QShowEvent *event) override;

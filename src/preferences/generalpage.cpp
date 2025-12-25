@@ -96,6 +96,10 @@ GeneralPage::GeneralPage(QWidget *parent)
             this,
             &GeneralPage::slot_displayXPStatusStateChanged);
 
+    connect(ui->hideToSystemTrayCheckBox, &QCheckBox::stateChanged, this, [this]() {
+        setConfig().general.hideToSystemTray = ui->hideToSystemTrayCheckBox->isChecked();
+    });
+
     connect(ui->proxyConnectionStatusCheckBox, &QCheckBox::stateChanged, this, [this]() {
         setConfig().connection.proxyConnectionStatus = ui->proxyConnectionStatusCheckBox->isChecked();
     });
@@ -207,6 +211,8 @@ void GeneralPage::slot_loadConfig()
     ui->displayMumeClockCheckBox->setChecked(config.mumeClock.display);
 
     ui->displayXPStatusCheckBox->setChecked(config.adventurePanel.getDisplayXPStatus());
+
+    ui->hideToSystemTrayCheckBox->setChecked(general.hideToSystemTray);
 
     ui->proxyConnectionStatusCheckBox->setChecked(connection.proxyConnectionStatus);
 

@@ -38,6 +38,7 @@
 #include "metatypes.h"
 #include "roomeditattrdlg.h"
 #include "utils.h"
+#include "SystemTrayManager.h"
 
 #include <memory>
 #include <mutex>
@@ -206,6 +207,9 @@ MainWindow::MainWindow()
     addDockWidget(Qt::RightDockWidgetArea, m_dockDialogDescription);
     m_dockDialogDescription->setWidget(m_descriptionWidget);
 
+    m_trayManager = new SystemTrayManager(this);
+    connect(m_groupManager, &Mmapper2Group::sig_characterUpdated, m_trayManager, &SystemTrayManager::onCharacterUpdated);
+
     m_mumeClock = new MumeClock(getConfig().mumeClock.startEpoch, deref(m_gameObserver), this);
     if constexpr (!NO_UPDATER) {
         m_updateDialog = new UpdateDialog(this);
@@ -292,6 +296,10 @@ MainWindow::MainWindow()
     if constexpr (CURRENT_PLATFORM != PlatformEnum::Mac) {
         showMenuBarAct->setChecked(getConfig().general.showMenuBar);
         slot_setShowMenuBar();
+    }
+
+    if (getConfig().general.hideToSystemTray) {
+        m_trayManager->setVisible(true);
     }
 
     connect(m_mapData,
@@ -1490,19 +1498,35 @@ bool MainWindow::eventFilter(QObject *const obj, QEvent *const event)
 
 void MainWindow::closeEvent(QCloseEvent *const event)
 {
-    // REVISIT: wait and see if we're actually exiting first?
-    writeSettings();
-
-    if (!maybeSave()) {
+    if (getConfig().general.hideToSystemTray) {
+        hide();
         event->ignore();
-        return;
-    }
+    } else {
+        // REVISIT: wait and see if we're actually exiting first?
+        writeSettings();
 
-    if (m_asyncTask) {
-        qInfo() << "Attempting to async task for faster shutdown";
-        m_progressDlg->reject();
+        if (!maybeSave()) {
+            event->ignore();
+            return;
+        }
+
+        if (m_asyncTask) {
+            qInfo() << "Attempting to async task for faster shutdown";
+            m_progressDlg->reject();
+        }
+        event->accept();
     }
-    event->accept();
+}
+
+void MainWindow::changeEvent(QEvent *event)
+{
+    if (event->type() == QEvent::WindowStateChange && getConfig().general.hideToSystemTray) {
+        if (isMinimized()) {
+            m_trayManager->setVisible(true);
+            hide();
+        }
+    }
+    QMainWindow::changeEvent(event);
 }
 
 void MainWindow::showEvent(QShowEvent *const event)

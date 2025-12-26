@@ -21,8 +21,10 @@ private:
     MumeSeasonEnum m_season = MumeSeasonEnum::UNKNOWN;
     PromptWeatherEnum m_weather = PromptWeatherEnum::NICE;
     PromptFogEnum m_fog = PromptFogEnum::NO_FOG;
+    QString m_countdownText;
 
 public:
+    explicit GameObserver(QObject *parent = nullptr);
     Signal2<> sig2_connected;
 
     Signal2<QString> sig2_sentToMudString;  // removes ANSI
@@ -37,6 +39,8 @@ public:
     Signal2<MumeSeasonEnum> sig2_seasonChanged;
     Signal2<PromptWeatherEnum> sig2_weatherChanged;
     Signal2<PromptFogEnum> sig2_fogChanged;
+    Signal2<QString> sig2_countdownChanged;
+    Signal2<MumeMoment> sig2_tick;
 
 public:
     void observeConnected();
@@ -51,12 +55,16 @@ public:
     void observeSeason(MumeSeasonEnum season);
     void observeWeather(PromptWeatherEnum weather);
     void observeFog(PromptFogEnum fog);
+    void observeCountdown(const QString &countdownText);
+    void observeTick(const MumeMoment &moment);
 
 signals:
     void timeOfDayChanged(MumeTimeEnum timeOfDay);
     void moonPhaseChanged(MumeMoonPhaseEnum moonPhase);
     void moonVisibilityChanged(MumeMoonVisibilityEnum moonVisibility);
     void seasonChanged(MumeSeasonEnum season);
+    void countdownChanged(const QString &countdownText);
+    void tick(const MumeMoment &moment);
 
 public:
     MumeTimeEnum getTimeOfDay() const { return m_timeOfDay; }
@@ -65,4 +73,5 @@ public:
     MumeSeasonEnum getSeason() const { return m_season; }
     PromptWeatherEnum getWeather() const { return m_weather; }
     PromptFogEnum getFog() const { return m_fog; }
+    QString getCountdown() const { return m_countdownText; }
 };

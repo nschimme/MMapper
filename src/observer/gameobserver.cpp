@@ -6,6 +6,10 @@
 
 #include "../global/parserutils.h"
 
+GameObserver::GameObserver(QObject *parent) : QObject(parent)
+{
+}
+
 void GameObserver::observeConnected()
 {
     sig2_connected.invoke();
@@ -85,4 +89,19 @@ void GameObserver::observeFog(const PromptFogEnum fog)
         m_fog = fog;
         sig2_fogChanged.invoke(fog);
     }
+}
+
+void GameObserver::observeCountdown(const QString &countdownText)
+{
+    if (m_countdownText != countdownText) {
+        m_countdownText = countdownText;
+        sig2_countdownChanged.invoke(countdownText);
+        emit countdownChanged(countdownText);
+    }
+}
+
+void GameObserver::observeTick(const MumeMoment &moment)
+{
+    sig2_tick.invoke(moment);
+    emit tick(moment);
 }

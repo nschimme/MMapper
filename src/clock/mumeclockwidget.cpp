@@ -16,7 +16,7 @@
 #include <QMouseEvent>
 #include <QString>
 
-MumeClockWidget::MumeClockWidget(GameObserver &observer, MumeClock &clock, QWidget *const parent)
+MumeClockWidget::MumeClockWidget(GameObserver &observer, MumeClock *clock, QWidget *const parent)
     : QWidget(parent)
     , m_observer(observer)
     , m_clock(clock)
@@ -25,18 +25,22 @@ MumeClockWidget::MumeClockWidget(GameObserver &observer, MumeClock &clock, QWidg
     setAttribute(Qt::WA_DeleteOnClose);
     assert(testAttribute(Qt::WA_DeleteOnClose));
 
-    m_timer = std::make_unique<QTimer>(this);
-    connect(m_timer.get(), &QTimer::timeout, this, &MumeClockWidget::slot_updateLabel);
-    m_timer->start(1000);
-
-    connect(&m_observer, &GameObserver::timeOfDayChanged, this, &MumeClockWidget::slot_updateTime);
-    connect(&m_observer, &GameObserver::moonPhaseChanged, this,
+    connect(&observer, &GameObserver::timeOfDayChanged, this, &MumeClockWidget::slot_updateTime);
+    connect(&observer, &GameObserver::moonPhaseChanged, this,
             &MumeClockWidget::slot_updateMoonPhase);
-    connect(&m_observer, &GameObserver::moonVisibilityChanged, this,
+    connect(&observer, &GameObserver::moonVisibilityChanged, this,
             &MumeClockWidget::slot_updateMoonVisibility);
-    connect(&m_observer, &GameObserver::seasonChanged, this, &MumeClockWidget::slot_updateSeason);
+    connect(&observer, &GameObserver::seasonChanged, this, &MumeClockWidget::slot_updateSeason);
+    connect(&observer, &GameObserver::countdownChanged, this,
+            &MumeClockWidget::slot_updateCountdown);
+    connect(&observer, &GameObserver::tick, this, &MumeClockWidget::slot_updateStatusTips);
 
-    slot_updateLabel();
+    slot_updateTime(observer.getTimeOfDay());
+    slot_updateMoonPhase(observer.getMoonPhase());
+    slot_updateMoonVisibility(observer.getMoonVisibility());
+    slot_updateSeason(observer.getSeason());
+    slot_updateCountdown(observer.getCountdown());
+    slot_updateStatusTips(clock->getMumeMoment());
 }
 
 MumeClockWidget::~MumeClockWidget() = default;
@@ -44,41 +48,8 @@ MumeClockWidget::~MumeClockWidget() = default;
 void MumeClockWidget::mousePressEvent(QMouseEvent * /*event*/)
 {
     // Force precision to minute and reset last sync to current timestamp
-    m_clock.setPrecision(MumeClockPrecisionEnum::MINUTE);
-    m_clock.setLastSyncEpoch(QDateTime::currentDateTimeUtc().toSecsSinceEpoch());
-
-    slot_updateLabel();
-}
-
-void MumeClockWidget::slot_updateLabel()
-{
-    // Ensure we have updated the epoch
-    setConfig().mumeClock.startEpoch = m_clock.getMumeStartEpoch();
-
-    // Hide or show the widget if necessary
-    if (!getConfig().mumeClock.display) {
-        hide();
-        // Slow down the interval to a reasonable number
-        m_timer->setInterval(60 * 1000);
-        return;
-    }
-    if (m_timer->interval() != 1000) {
-        show();
-        // Speed up the interval again if the display needs to be shown
-        m_timer->setInterval(1000);
-    }
-
-    const MumeMoment moment = m_clock.getMumeMoment();
-    const MumeClockPrecisionEnum precision = m_clock.getPrecision();
-
-    if (precision <= MumeClockPrecisionEnum::HOUR) {
-        // Prepend warning emoji to countdown
-        timeLabel->setText(QString::fromUtf8("\xE2\x9A\xA0").append(m_clock.toCountdown(moment)));
-    } else {
-        timeLabel->setText(m_clock.toCountdown(moment));
-    }
-    moonPhaseLabel->setStatusTip(moment.toMumeMoonTime());
-    seasonLabel->setStatusTip(m_clock.toMumeTime(moment));
+    m_clock->setPrecision(MumeClockPrecisionEnum::MINUTE);
+    m_clock->setLastSyncEpoch(QDateTime::currentDateTimeUtc().toSecsSinceEpoch());
 }
 
 void MumeClockWidget::slot_updateTime(MumeTimeEnum time)
@@ -88,7 +59,7 @@ void MumeClockWidget::slot_updateTime(MumeTimeEnum time)
         // The current time is 12:15 am.
         QString styleSheet = "";
         QString statusTip = "";
-        if (m_clock.getPrecision() <= MumeClockPrecisionEnum::UNSET) {
+        if (m_clock->getPrecision() <= MumeClockPrecisionEnum::UNSET) {
             styleSheet = "padding-left:1px;padding-right:1px;color:white;background:grey";
         } else if (time == MumeTimeEnum::DAWN) {
             styleSheet = "padding-left:1px;padding-right:1px;color:white;background:red";
@@ -100,7 +71,7 @@ void MumeClockWidget::slot_updateTime(MumeTimeEnum time)
             styleSheet = "padding-left:1px;padding-right:1px;color:black;background:yellow";
             statusTip = "Ticks left until night";
         }
-        if (m_clock.getPrecision() != MumeClockPrecisionEnum::MINUTE) {
+        if (m_clock->getPrecision() != MumeClockPrecisionEnum::MINUTE) {
             statusTip = "The clock has not synced with MUME! Click to override at your own risk.";
         }
 
@@ -189,4 +160,15 @@ void MumeClockWidget::slot_updateSeason(MumeSeasonEnum season)
         seasonLabel->setStyleSheet(styleSheet);
         seasonLabel->setText(text);
     }
+}
+
+void MumeClockWidget::slot_updateCountdown(const QString &text)
+{
+    timeLabel->setText(text);
+}
+
+void MumeClockWidget::slot_updateStatusTips(const MumeMoment &moment)
+{
+    moonPhaseLabel->setStatusTip(moment.toMumeMoonTime());
+    seasonLabel->setStatusTip(m_clock->toMumeTime(moment));
 }

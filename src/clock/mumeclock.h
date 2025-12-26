@@ -164,4 +164,5 @@ signals:
 public slots:
     void parseMumeTime(const QString &mumeTime);
     void parseClockTime(const QString &clockTime);
+    void slot_tick();
 };

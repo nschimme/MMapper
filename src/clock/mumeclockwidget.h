@@ -16,7 +16,6 @@
 
 class QMouseEvent;
 class QObject;
-class QTimer;
 
 class NODISCARD_QOBJECT MumeClockWidget final : public QWidget, private Ui::MumeClockWidget
 {

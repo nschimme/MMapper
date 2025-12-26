@@ -117,6 +117,9 @@ MumeClock::MumeClock(int64_t mumeEpoch, GameObserver &observer, QObject *const p
 {
     m_observer.sig2_sentToUserGmcp.connect(m_lifetime,
                                            [this](const GmcpMessage &gmcp) { onUserGmcp(gmcp); });
+    m_timer = new QTimer(this);
+    connect(m_timer, &QTimer::timeout, this, &MumeClock::slot_tick);
+    m_timer->start(1000);
 }
 
 MumeClock::MumeClock(GameObserver &observer)

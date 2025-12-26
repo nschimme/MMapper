@@ -22,6 +22,8 @@ MumeClockWidget::MumeClockWidget(GameObserver &observer, MumeClock *clock, QWidg
     , m_clock(clock)
 {
     setupUi(this);
+    moonPhaseLabel->setText("");
+    seasonLabel->setText("");
     setAttribute(Qt::WA_DeleteOnClose);
     assert(testAttribute(Qt::WA_DeleteOnClose));
 
@@ -135,7 +137,7 @@ void MumeClockWidget::slot_updateSeason(MumeSeasonEnum season)
     if (season != m_lastSeason) {
         m_lastSeason = season;
         QString styleSheet = "color:black";
-        QString text = "Unknown";
+        QString text = "";
         switch (season) {
         case MumeSeasonEnum::WINTER:
             styleSheet = "color:black;background:white";
@@ -169,6 +171,11 @@ void MumeClockWidget::slot_updateCountdown(const QString &text)
 
 void MumeClockWidget::slot_updateStatusTips(const MumeMoment &moment)
 {
+    setVisible(getConfig().mumeClock.display);
+    if (!getConfig().mumeClock.display) {
+        return;
+    }
+    setConfig().mumeClock.startEpoch = m_clock->getMumeStartEpoch();
     moonPhaseLabel->setStatusTip(moment.toMumeMoonTime());
     seasonLabel->setStatusTip(m_clock->toMumeTime(moment));
 }

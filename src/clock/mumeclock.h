@@ -85,6 +85,7 @@ private:
     MumeSeasonEnum m_season = MumeSeasonEnum::UNKNOWN;
     GameObserver &m_observer;
     Signal2Lifetime m_lifetime;
+    QTimer *m_timer;
 
 public:
     static inline constexpr const int NUM_MONTHS = 12;

@@ -248,12 +248,7 @@ void MapCanvas::initializeGL()
         auto &sharedFuncs = gl.getSharedFunctions(Badge<MapCanvas>{});
         Legacy::Functions &funcs = deref(sharedFuncs);
         Legacy::ShaderPrograms &programs = funcs.getShaderPrograms();
-        std::ignore = programs.getPlainAColorShader();
-        std::ignore = programs.getPlainUColorShader();
-        std::ignore = programs.getTexturedAColorShader();
-        std::ignore = programs.getTexturedUColorShader();
-        std::ignore = programs.getFontShader();
-        std::ignore = programs.getPointShader();
+        programs.early_init();
     }
 
     setConfig().canvas.showUnsavedChanges.registerChangeCallback(m_lifetime, [this]() {

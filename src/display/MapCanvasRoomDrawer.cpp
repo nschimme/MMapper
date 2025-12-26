@@ -555,28 +555,19 @@ NODISCARD static LayerMeshesIntermediate::FnVec createSortedTexturedMeshes(
         const RoomTex &rtex = textures[beg];
         const size_t count = end - beg;
 
-        std::vector<TexVert> verts;
-        verts.reserve(count * VERTS_PER_QUAD); /* quads */
+        std::vector<InstancedQuadTexVert> verts;
+        verts.reserve(count);
 
-        // D-C
-        // | |  ccw winding
-        // A-B
         for (size_t i = beg; i < end; ++i) {
             const RoomTex &thisVert = textures[i];
             const auto &pos = thisVert.coord;
-            const auto v0 = pos.to_vec3();
+            const auto v0 = pos.to_ivec3();
             const auto z = thisVert.pos.position;
-
-#define EMIT(x, y) verts.emplace_back(glm::vec3((x), (y), z), v0 + glm::vec3((x), (y), 0))
-            EMIT(0, 0);
-            EMIT(1, 0);
-            EMIT(1, 1);
-            EMIT(0, 1);
-#undef EMIT
+            verts.emplace_back(z, v0);
         }
 
         tmp_meshes.emplace_back([v = std::move(verts), t = rtex.pos.array](OpenGL &g) {
-            return g.createTexturedQuadBatch(v, t);
+            return g.createInstancedTexturedQuadBatch(v, t);
         });
     };
 
@@ -619,29 +610,20 @@ NODISCARD static LayerMeshesIntermediate::FnVec createSortedColoredTexturedMeshe
         const RoomTex &rtex = textures[beg];
         const size_t count = end - beg;
 
-        std::vector<ColoredTexVert> verts;
-        verts.reserve(count * VERTS_PER_QUAD); /* quads */
+        std::vector<InstancedQuadColoredTexVert> verts;
+        verts.reserve(count);
 
-        // D-C
-        // | |  ccw winding
-        // A-B
         for (size_t i = beg; i < end; ++i) {
             const ColoredRoomTex &thisVert = textures[i];
             const auto &pos = thisVert.coord;
-            const auto v0 = pos.to_vec3();
+            const auto v0 = pos.to_ivec3();
             const auto color = XNamedColor{thisVert.colorId}.getColor();
             const auto z = thisVert.pos.position;
-
-#define EMIT(x, y) verts.emplace_back(color, glm::vec3((x), (y), z), v0 + glm::vec3((x), (y), 0))
-            EMIT(0, 0);
-            EMIT(1, 0);
-            EMIT(1, 1);
-            EMIT(0, 1);
-#undef EMIT
+            verts.emplace_back(color, z, v0);
         }
 
         tmp_meshes.emplace_back([v = std::move(verts), t = rtex.pos.array](OpenGL &g) {
-            return g.createColoredTexturedQuadBatch(v, t);
+            return g.createInstancedColoredTexturedQuadBatch(v, t);
         });
     };
 
@@ -663,8 +645,8 @@ struct NODISCARD LayerBatchData final
     ColoredRoomTexVector roomUpDownExits;
     RoomTexVector streamIns;
     RoomTexVector streamOuts;
-    RoomTintArray<PlainQuadBatch> roomTints;
-    PlainQuadBatch roomLayerBoostQuads;
+    RoomTintArray<PlainIndexedQuadBatch> roomTints;
+    PlainIndexedQuadBatch roomLayerBoostQuads;
 
     // So it can be used in std containers
     explicit LayerBatchData() = default;
@@ -740,13 +722,8 @@ private:
         const auto pos = room.getPosition();
         m_data.roomTerrains.emplace_back(pos, terrain);
 
-        const auto v0 = pos.to_vec3();
-#define EMIT(x, y) m_data.roomLayerBoostQuads.emplace_back(v0 + glm::vec3((x), (y), 0))
-        EMIT(0, 0);
-        EMIT(1, 0);
-        EMIT(1, 1);
-        EMIT(0, 1);
-#undef EMIT
+        const auto v0 = pos.to_ivec3();
+        m_data.roomLayerBoostQuads.emplace_back(v0);
     }
 
     void virt_visitTrailTexture(const RoomHandle &room, const MMTexArrayPosition &trail) final
@@ -765,13 +742,8 @@ private:
 
     void virt_visitNamedColorTint(const RoomHandle &room, const RoomTintEnum tint) final
     {
-        const auto v0 = room.getPosition().to_vec3();
-#define EMIT(x, y) m_data.roomTints[tint].emplace_back(v0 + glm::vec3((x), (y), 0))
-        EMIT(0, 0);
-        EMIT(1, 0);
-        EMIT(1, 1);
-        EMIT(0, 1);
-#undef EMIT
+        const auto v0 = room.getPosition().to_ivec3();
+        m_data.roomTints[tint].emplace_back(v0);
     }
 
     void virt_visitWall(const RoomHandle &room,
@@ -933,16 +905,16 @@ LayerMeshes LayerMeshesIntermediate::getLayerMeshes(OpenGL &gl) const
             }
             return UniqueMeshVector{std::move(result)};
         }
-        NODISCARD UniqueMesh resolve(const PlainQuadBatch &batch)
+        NODISCARD UniqueMesh resolve(const PlainIndexedQuadBatch &batch)
         {
-            return m_gl.createPlainQuadBatch(batch);
+            return m_gl.createInstancedPlainQuadBatch(batch);
         }
-        NODISCARD RoomTintArray<UniqueMesh> resolve(const RoomTintArray<PlainQuadBatch> &arr)
+        NODISCARD RoomTintArray<UniqueMesh> resolve(const RoomTintArray<PlainIndexedQuadBatch> &arr)
         {
             RoomTintArray<UniqueMesh> result;
             for (const RoomTintEnum tint : ALL_ROOM_TINTS) {
-                const PlainQuadBatch &b = arr[tint];
-                result[tint] = m_gl.createPlainQuadBatch(b);
+                const PlainIndexedQuadBatch &b = arr[tint];
+                result[tint] = m_gl.createInstancedPlainQuadBatch(b);
             }
             return result;
         }

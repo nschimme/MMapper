@@ -31,6 +31,11 @@ AColorPlainShader::~AColorPlainShader() = default;
 UColorPlainShader::~UColorPlainShader() = default;
 AColorTexturedShader::~AColorTexturedShader() = default;
 UColorTexturedShader::~UColorTexturedShader() = default;
+
+IQUColorPlainShader::~IQUColorPlainShader() = default;
+IQAColorTexturedShader::~IQAColorTexturedShader() = default;
+IQUColorTexturedShader::~IQUColorTexturedShader() = default;
+
 FontShader::~FontShader() = default;
 PointShader::~PointShader() = default;
 
@@ -78,9 +83,28 @@ const std::shared_ptr<AColorTexturedShader> &ShaderPrograms::getTexturedAColorSh
     return getInitialized<AColorTexturedShader>(m_aTexturedShader, getFunctions(), "tex/acolor");
 }
 
+const std::shared_ptr<IQAColorTexturedShader> &ShaderPrograms::getInstancedQuadsTexturedAColorShader()
+{
+    return getInitialized<IQAColorTexturedShader>(m_iq_aTexturedShader,
+                                                  getFunctions(),
+                                                  "iq_tex/acolor");
+}
+
 const std::shared_ptr<UColorTexturedShader> &ShaderPrograms::getTexturedUColorShader()
 {
     return getInitialized<UColorTexturedShader>(m_uTexturedShader, getFunctions(), "tex/ucolor");
+}
+
+const std::shared_ptr<IQUColorPlainShader> &ShaderPrograms::getInstancedQuadsPlainUColorShader()
+{
+    return getInitialized<IQUColorPlainShader>(m_iq_uColorShader, getFunctions(), "iq_plain/ucolor");
+}
+
+const std::shared_ptr<IQUColorTexturedShader> &ShaderPrograms::getInstancedQuadsTexturedUColorShader()
+{
+    return getInitialized<IQUColorTexturedShader>(m_iq_uTexturedShader,
+                                                  getFunctions(),
+                                                  "iq_tex/ucolor");
 }
 
 const std::shared_ptr<FontShader> &ShaderPrograms::getFontShader()
@@ -91,6 +115,21 @@ const std::shared_ptr<FontShader> &ShaderPrograms::getFontShader()
 const std::shared_ptr<PointShader> &ShaderPrograms::getPointShader()
 {
     return getInitialized<PointShader>(m_point, getFunctions(), "point");
+}
+
+void ShaderPrograms::early_init()
+{
+    std::ignore = getPlainAColorShader();
+    std::ignore = getPlainUColorShader();
+    std::ignore = getTexturedAColorShader();
+    std::ignore = getTexturedUColorShader();
+
+    std::ignore = getInstancedQuadsPlainUColorShader();
+    std::ignore = getInstancedQuadsTexturedAColorShader();
+    std::ignore = getInstancedQuadsTexturedUColorShader();
+
+    std::ignore = getFontShader();
+    std::ignore = getPointShader();
 }
 
 } // namespace Legacy

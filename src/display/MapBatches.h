@@ -34,6 +34,7 @@ struct NODISCARD LayerMeshes final
 };
 
 using PlainQuadBatch = std::vector<glm::vec3>;
+using PlainIndexedQuadBatch = std::vector<glm::ivec3>;
 
 struct NODISCARD LayerMeshesIntermediate final
 {
@@ -41,7 +42,7 @@ struct NODISCARD LayerMeshesIntermediate final
     using FnVec = std::vector<Fn>;
     FnVec terrain;
     FnVec trails;
-    RoomTintArray<PlainQuadBatch> tints;
+    RoomTintArray<PlainIndexedQuadBatch> tints;
     FnVec overlays;
     FnVec doors;
     FnVec walls;
@@ -49,7 +50,7 @@ struct NODISCARD LayerMeshesIntermediate final
     FnVec upDownExits;
     FnVec streamIns;
     FnVec streamOuts;
-    PlainQuadBatch layerBoost;
+    PlainIndexedQuadBatch layerBoost;
     bool isValid = false;
 
     LayerMeshesIntermediate() = default;

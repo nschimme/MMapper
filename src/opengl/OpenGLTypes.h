@@ -36,6 +36,15 @@ struct NODISCARD TexVert final
     {}
 };
 
+struct NODISCARD InstancedQuadTexVert final
+{
+    glm::ivec4 vertTex{};
+
+    explicit InstancedQuadTexVert(const int tex_z, const glm::ivec3 &vert)
+        : vertTex{vert, tex_z}
+    {}
+};
+
 using TexVertVector = std::vector<TexVert>;
 
 struct NODISCARD ColoredTexVert final
@@ -48,6 +57,18 @@ struct NODISCARD ColoredTexVert final
         : color{color_}
         , tex{tex_}
         , vert{vert_}
+    {}
+};
+struct NODISCARD InstancedQuadColoredTexVert final
+{
+    Color color;
+    glm::ivec4 vertTex{};
+
+    explicit InstancedQuadColoredTexVert(const Color &color_,
+                                         const int tex_z,
+                                         const glm::ivec3 &vert)
+        : color{color_}
+        , vertTex{vert, tex_z}
     {}
 };
 
@@ -88,7 +109,14 @@ struct NODISCARD FontVert3d final
     {}
 };
 
-enum class NODISCARD DrawModeEnum { INVALID = 0, POINTS = 1, LINES = 2, TRIANGLES = 3, QUADS = 4 };
+enum class NODISCARD DrawModeEnum {
+    INVALID = 0,
+    POINTS = 1,
+    LINES = 2,
+    TRIANGLES = 3,
+    QUADS = 4,
+    INSTANCED_QUADS = 5
+};
 
 struct NODISCARD LineParams final
 {

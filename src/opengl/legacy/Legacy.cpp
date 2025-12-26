@@ -107,6 +107,29 @@ UniqueMesh Functions::createColoredTexturedBatch(const DrawModeEnum mode,
     return createTexturedMesh<ColoredTexturedMesh>(shared_from_this(), mode, batch, prog, texture);
 }
 
+UniqueMesh Functions::createInstancedPlainQuadBatch(const std::vector<glm::ivec3> &batch)
+{
+    const DrawModeEnum mode = DrawModeEnum::INSTANCED_QUADS;
+    const auto &prog = getShaderPrograms().getInstancedQuadsPlainUColorShader();
+    return createUniqueMesh<IQPlainMesh>(shared_from_this(), mode, batch, prog);
+}
+
+UniqueMesh Functions::createInstancedQuadTexturedBatch(
+    const std::vector<InstancedQuadTexVert> &batch, const MMTextureId texture)
+{
+    const auto mode = DrawModeEnum::INSTANCED_QUADS;
+    const auto &prog = getShaderPrograms().getInstancedQuadsTexturedUColorShader();
+    return createTexturedMesh<IQTexturedMesh>(shared_from_this(), mode, batch, prog, texture);
+}
+
+UniqueMesh Functions::createInstancedQuadColoredTexturedBatch(
+    const std::vector<InstancedQuadColoredTexVert> &batch, const MMTextureId texture)
+{
+    const auto mode = DrawModeEnum::INSTANCED_QUADS;
+    const auto &prog = getShaderPrograms().getInstancedQuadsTexturedAColorShader();
+    return createTexturedMesh<IQColoredTexturedMesh>(shared_from_this(), mode, batch, prog, texture);
+}
+
 template<typename VertexType_, template<typename> typename Mesh_, typename ShaderType_>
 static void renderImmediate(const SharedFunctions &sharedFunctions,
                             const DrawModeEnum mode,

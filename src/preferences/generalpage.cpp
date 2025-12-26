@@ -97,7 +97,7 @@ GeneralPage::GeneralPage(QWidget *parent)
             &GeneralPage::slot_displayXPStatusStateChanged);
 
     connect(ui->hideToSystemTrayCheckBox, &QCheckBox::stateChanged, this, [this]() {
-        setConfig().general.hideToSystemTray = ui->hideToSystemTrayCheckBox->isChecked();
+        setConfig().general.setHideToSystemTray(ui->hideToSystemTrayCheckBox->isChecked());
     });
 
     connect(ui->proxyConnectionStatusCheckBox, &QCheckBox::stateChanged, this, [this]() {
@@ -212,9 +212,8 @@ void GeneralPage::slot_loadConfig()
 
     ui->displayXPStatusCheckBox->setChecked(config.adventurePanel.getDisplayXPStatus());
 
-    ui->hideToSystemTrayCheckBox->setChecked(general.hideToSystemTray);
-
     ui->proxyConnectionStatusCheckBox->setChecked(connection.proxyConnectionStatus);
+    ui->hideToSystemTrayCheckBox->setChecked(general.getHideToSystemTray());
 
     if constexpr (NO_QTKEYCHAIN) {
         ui->autoLogin->setEnabled(false);

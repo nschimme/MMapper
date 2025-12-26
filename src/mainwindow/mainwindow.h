@@ -273,6 +273,7 @@ public:
     void loadFile(std::shared_ptr<MapSource> source);
     void setCurrentFile(const QString &fileName);
     void percentageChanged(uint32_t);
+    NODISCARD bool isUsingIntegratedClient() const;
 
 private:
     void showAsyncFailure(const QString &fileName, AsyncTypeEnum mode, bool wasCanceled);

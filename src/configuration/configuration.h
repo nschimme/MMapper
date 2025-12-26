@@ -48,6 +48,7 @@ public:
     private:
         ChangeMonitor m_changeMonitor;
         ThemeEnum m_theme = ThemeEnum::System;
+        bool m_hideToSystemTray = false;
 
     public:
         explicit GeneralSettings() = default;
@@ -62,6 +63,13 @@ public:
             m_changeMonitor.notifyAll();
         }
 
+        NODISCARD bool getHideToSystemTray() const { return m_hideToSystemTray; }
+        void setHideToSystemTray(const bool hide)
+        {
+            m_hideToSystemTray = hide;
+            m_changeMonitor.notifyAll();
+        }
+
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
                                     const ChangeMonitor::Function &callback)
         {
@@ -73,7 +81,6 @@ public:
         QByteArray windowGeometry;
         QByteArray windowState;
         bool alwaysOnTop = false;
-        bool hideToSystemTray = false;
         bool showStatusBar = true;
         bool showScrollBars = true;
         bool showMenuBar = true;

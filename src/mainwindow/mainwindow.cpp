@@ -298,10 +298,6 @@ MainWindow::MainWindow()
         slot_setShowMenuBar();
     }
 
-    if (getConfig().general.hideToSystemTray) {
-        m_trayManager->setVisible(true);
-    }
-
     connect(m_mapData,
             &MapData::sig_checkMapConsistency,
             this,
@@ -1498,7 +1494,7 @@ bool MainWindow::eventFilter(QObject *const obj, QEvent *const event)
 
 void MainWindow::closeEvent(QCloseEvent *const event)
 {
-    if (getConfig().general.hideToSystemTray) {
+    if (getConfig().general.getHideToSystemTray()) {
         hide();
         event->ignore();
     } else {
@@ -1522,8 +1518,7 @@ void MainWindow::changeEvent(QEvent *event)
 {
     if (event->type() == QEvent::WindowStateChange) {
         if (isMinimized()) {
-            if (getConfig().general.hideToSystemTray) {
-                m_trayManager->setVisible(true);
+            if (getConfig().general.getHideToSystemTray()) {
                 hide();
             }
         }
@@ -1693,6 +1688,11 @@ void MainWindow::updateMapModified()
 {
     setMapModified(m_mapData->isModified());
     getCanvas()->update();
+}
+
+bool MainWindow::isUsingIntegratedClient() const
+{
+    return m_clientWidget->isUsingClient();
 }
 
 void MainWindow::percentageChanged(const uint32_t p)

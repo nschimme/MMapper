@@ -51,6 +51,29 @@ struct NODISCARD ColoredTexVert final
     {}
 };
 
+struct NODISCARD RoomQuadTexVert final
+{
+    // xyz = room coord, w = (colorId << 8 | tex_z)
+    // - colorId: packed into bits 8-15 (must be < MAX_NAMED_COLORS)
+    // - tex_z:   packed into bits 0-7  (must be < 256)
+    glm::ivec4 vertTexCol{};
+
+    explicit RoomQuadTexVert(const glm::ivec3 &vert, const int tex_z)
+        : RoomQuadTexVert{vert, tex_z, NamedColorEnum::DEFAULT}
+    {}
+
+    explicit RoomQuadTexVert(const glm::ivec3 &vert, const int tex_z, const NamedColorEnum color)
+        : vertTexCol{vert, (static_cast<uint8_t>(color) << 8) | tex_z}
+    {
+        if (IS_DEBUG_BUILD) {
+            constexpr auto max_texture_layers = 256;
+            const auto c = static_cast<uint8_t>(color);
+            assert(c == std::clamp<uint8_t>(c, 0, NUM_NAMED_COLORS - 1));
+            assert(tex_z == std::clamp(tex_z, 0, max_texture_layers - 1));
+        }
+    }
+};
+
 using ColoredTexVertVector = std::vector<ColoredTexVert>;
 
 struct NODISCARD ColorVert final
@@ -88,7 +111,14 @@ struct NODISCARD FontVert3d final
     {}
 };
 
-enum class NODISCARD DrawModeEnum { INVALID = 0, POINTS = 1, LINES = 2, TRIANGLES = 3, QUADS = 4 };
+enum class NODISCARD DrawModeEnum {
+    INVALID = 0,
+    POINTS = 1,
+    LINES = 2,
+    TRIANGLES = 3,
+    QUADS = 4,
+    INSTANCED_QUADS = 5
+};
 
 struct NODISCARD LineParams final
 {
@@ -344,6 +374,7 @@ public:
     DEFAULT_MOVES_DELETE_COPIES(UniqueMesh);
 
     void render(const GLRenderState &rs) const { deref(m_mesh).render(rs); }
+    NODISCARD explicit operator bool() const { return m_mesh != nullptr; }
 };
 
 struct NODISCARD UniqueMeshVector final

@@ -107,6 +107,14 @@ UniqueMesh Functions::createColoredTexturedBatch(const DrawModeEnum mode,
     return createTexturedMesh<ColoredTexturedMesh>(shared_from_this(), mode, batch, prog, texture);
 }
 
+UniqueMesh Functions::createRoomQuadTexBatch(const std::vector<RoomQuadTexVert> &batch,
+                                             const MMTextureId texture)
+{
+    const auto mode = DrawModeEnum::INSTANCED_QUADS;
+    const auto &prog = getShaderPrograms().getRoomQuadTexShader();
+    return createTexturedMesh<RoomQuadTexMesh>(shared_from_this(), mode, batch, prog, texture);
+}
+
 template<typename VertexType_, template<typename> typename Mesh_, typename ShaderType_>
 static void renderImmediate(const SharedFunctions &sharedFunctions,
                             const DrawModeEnum mode,

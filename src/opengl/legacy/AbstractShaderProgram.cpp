@@ -3,6 +3,8 @@
 
 #include "AbstractShaderProgram.h"
 
+#include "../global/ConfigConsts.h"
+
 namespace Legacy {
 
 AbstractShaderProgram::AbstractShaderProgram(std::string dirName,
@@ -158,6 +160,16 @@ void AbstractShaderProgram::setTexture(const char *const name, const int texture
     assert(textureUnit >= 0);
     const GLint uFontTextureLoc = getUniformLocation(name);
     setUniform1iv(uFontTextureLoc, 1, &textureUnit);
+}
+
+void AbstractShaderProgram::setUBO(const char *const block_name, const GLuint uboId)
+{
+    assert(uboId != 0);
+    auto functions = m_functions.lock();
+    const GLuint program = m_program.get();
+    auto block_index = functions->glGetUniformBlockIndex(program, block_name);
+    functions->glUniformBlockBinding(program, block_index, 0);
+    deref(functions).glBindBufferBase(GL_UNIFORM_BUFFER, 0, uboId);
 }
 
 void AbstractShaderProgram::setViewport(const char *const name, const Viewport &input_viewport)

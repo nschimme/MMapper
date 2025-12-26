@@ -133,6 +133,12 @@ UniqueMesh OpenGL::createColoredTexturedQuadBatch(const std::vector<ColoredTexVe
     return getFunctions().createColoredTexturedBatch(DrawModeEnum::QUADS, batch, texture);
 }
 
+UniqueMesh OpenGL::createRoomQuadTexBatch(const std::vector<RoomQuadTexVert> &batch,
+                                          const MMTextureId texture)
+{
+    return getFunctions().createRoomQuadTexBatch(batch, texture);
+}
+
 UniqueMesh OpenGL::createFontMesh(const SharedMMTexture &texture,
                                   const DrawModeEnum mode,
                                   const std::vector<FontVert3d> &batch)

@@ -661,8 +661,8 @@ struct NODISCARD LayerBatchData final
     ColoredRoomTexVector solidWallLines;
     ColoredRoomTexVector dottedWallLines;
     ColoredRoomTexVector roomUpDownExits;
-    ColoredRoomTexVector streamIns;
-    ColoredRoomTexVector streamOuts;
+    RoomTexVector streamIns;
+    RoomTexVector streamOuts;
     RoomTintArray<PlainQuadBatch> roomTints;
     PlainQuadBatch roomLayerBoostQuads;
 
@@ -691,8 +691,8 @@ struct NODISCARD LayerBatchData final
         meshes.walls = ::createSortedColoredTexturedMeshes("solidWalls", solidWallLines);
         meshes.dottedWalls = ::createSortedColoredTexturedMeshes("dottedWalls", dottedWallLines);
         meshes.upDownExits = ::createSortedColoredTexturedMeshes("upDownExits", roomUpDownExits);
-        meshes.streamIns = ::createSortedColoredTexturedMeshes("streamIns", streamIns);
-        meshes.streamOuts = ::createSortedColoredTexturedMeshes("streamOuts", streamOuts);
+        meshes.streamIns = ::createSortedTexturedMeshes("streamIns", streamIns);
+        meshes.streamOuts = ::createSortedTexturedMeshes("streamOuts", streamOuts);
         meshes.layerBoost = roomLayerBoostQuads; // REVISIT: this is a copy instead of a move
         meshes.isValid = true;
         return meshes;
@@ -825,13 +825,12 @@ private:
                           const ExitDirEnum dir,
                           const StreamTypeEnum type) final
     {
-        const Color color = LOOKUP_COLOR(STREAM).getColor();
         switch (type) {
         case StreamTypeEnum::OutFlow:
-            m_data.streamOuts.emplace_back(room.getPosition(), m_textures.stream_out[dir], color);
+            m_data.streamOuts.emplace_back(room.getPosition(), m_textures.stream_out[dir]);
             return;
         case StreamTypeEnum::InFlow:
-            m_data.streamIns.emplace_back(room.getPosition(), m_textures.stream_in[dir], color);
+            m_data.streamIns.emplace_back(room.getPosition(), m_textures.stream_in[dir]);
             return;
         default:
             break;
@@ -1039,8 +1038,12 @@ void LayerMeshes::render(const int thisLayer, const int focusedLayer)
 
     if (!disableTextures) {
         // streams go under everything else, including trails
-        streamIns.render(lequal_blended.withColor(color));
-        streamOuts.render(lequal_blended.withColor(color));
+        {
+            const Color streamColor = LOOKUP_COLOR(STREAM).getColor();
+            const auto combined = Color::multiplyAsVec4(streamColor, color);
+            streamIns.render(lequal_blended.withColor(combined));
+            streamOuts.render(lequal_blended.withColor(combined));
+        }
 
         trails.render(equal_blended.withColor(color));
         overlays.render(equal_blended.withColor(color));

@@ -4,6 +4,7 @@
 #include "global/ChangeMonitor.h"
 #include <QMenu>
 #include <QApplication>
+#include <QTimer>
 
 SystemTrayManager::SystemTrayManager(MainWindow* parent)
     : QObject(parent), m_mainWindow(parent) {
@@ -27,7 +28,7 @@ SystemTrayManager::SystemTrayManager(MainWindow* parent)
         updateIconVisibility();
     });
 
-    updateIconVisibility();
+    QTimer::singleShot(0, this, &SystemTrayManager::updateIconVisibility);
 }
 
 void SystemTrayManager::onIconActivated(QSystemTrayIcon::ActivationReason reason) {

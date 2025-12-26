@@ -160,6 +160,7 @@ public:
     using Base::glDisable;
     using Base::glDisableVertexAttribArray;
     using Base::glDrawArrays;
+    using Base::glDrawElementsInstanced;
     using Base::glEnable;
     using Base::glEnableVertexAttribArray;
     using Base::glGenBuffers;
@@ -190,6 +191,7 @@ public:
     using Base::glUniform4iv;
     using Base::glUniformMatrix4fv;
     using Base::glUseProgram;
+    using Base::glVertexAttribDivisor;
     using Base::glVertexAttribPointer;
 
 public:
@@ -297,6 +299,16 @@ public:
         Base::glVertexAttribPointer(index, size, type, normalized, stride, pointer);
     }
 
+    void enableAttribI(const GLuint index,
+                       const GLint size,
+                       const GLenum type,
+                       const GLsizei stride,
+                       const GLvoid *const pointer)
+    {
+        Base::glEnableVertexAttribArray(index);
+        Base::glVertexAttribIPointer(index, size, type, stride, pointer);
+    }
+
     template<typename T>
     NODISCARD std::pair<DrawModeEnum, GLsizei> setVbo(
         const DrawModeEnum mode,
@@ -330,6 +342,13 @@ public:
     NODISCARD UniqueMesh createColoredTexturedBatch(DrawModeEnum mode,
                                                     const std::vector<ColoredTexVert> &batch,
                                                     MMTextureId texture);
+
+public:
+    NODISCARD UniqueMesh createInstancedPlainQuadBatch(const std::vector<glm::ivec3> &batch);
+    NODISCARD UniqueMesh createInstancedQuadTexturedBatch(
+        const std::vector<InstancedQuadTexVert> &batch, MMTextureId texture);
+    NODISCARD UniqueMesh createInstancedQuadColoredTexturedBatch(
+        const std::vector<InstancedQuadColoredTexVert> &batch, MMTextureId texture);
 
 public:
     NODISCARD UniqueMesh createFontMesh(const SharedMMTexture &texture,

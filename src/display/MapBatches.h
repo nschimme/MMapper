@@ -29,11 +29,9 @@ struct NODISCARD LayerMeshes final
     DEFAULT_MOVES_DELETE_COPIES(LayerMeshes);
     ~LayerMeshes() = default;
 
-    void render(int thisLayer, int focusedLayer);
+    void render(int thisLayer, int focusedLayer, GLuint named_colors_buffer_id);
     explicit operator bool() const { return isValid; }
 };
-
-using PlainQuadBatch = std::vector<glm::vec3>;
 
 struct NODISCARD LayerMeshesIntermediate final
 {
@@ -41,7 +39,7 @@ struct NODISCARD LayerMeshesIntermediate final
     using FnVec = std::vector<Fn>;
     FnVec terrain;
     FnVec trails;
-    RoomTintArray<PlainQuadBatch> tints;
+    RoomTintArray<Fn> tints;
     FnVec overlays;
     FnVec doors;
     FnVec walls;
@@ -49,7 +47,7 @@ struct NODISCARD LayerMeshesIntermediate final
     FnVec upDownExits;
     FnVec streamIns;
     FnVec streamOuts;
-    PlainQuadBatch layerBoost;
+    Fn layerBoost;
     bool isValid = false;
 
     LayerMeshesIntermediate() = default;

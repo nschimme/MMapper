@@ -248,12 +248,7 @@ void MapCanvas::initializeGL()
         auto &sharedFuncs = gl.getSharedFunctions(Badge<MapCanvas>{});
         Legacy::Functions &funcs = deref(sharedFuncs);
         Legacy::ShaderPrograms &programs = funcs.getShaderPrograms();
-        std::ignore = programs.getPlainAColorShader();
-        std::ignore = programs.getPlainUColorShader();
-        std::ignore = programs.getTexturedAColorShader();
-        std::ignore = programs.getTexturedUColorShader();
-        std::ignore = programs.getFontShader();
-        std::ignore = programs.getPointShader();
+        programs.early_init();
     }
 
     setConfig().canvas.showUnsavedChanges.registerChangeCallback(m_lifetime, [this]() {
@@ -628,6 +623,8 @@ void MapCanvas::finishPendingMapBatches()
                            .arg(msg);
         qWarning().noquote() << s;
         global::sendToUser(s);
+
+        // FIXME: This causes a cycle when the remeshing throws.
         m_data.restoreSnapshot();
     }
 #undef LOG
@@ -637,6 +634,7 @@ void MapCanvas::actuallyPaintGL()
 {
     // DECL_TIMER(t, __FUNCTION__);
     setViewportAndMvp(width(), height());
+    updateNamedColorsUBO();
 
     auto &gl = getOpenGL();
 
@@ -711,45 +709,23 @@ void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current)
     const bool showNeedsServerId = canvas.showMissingMapId.get();
     const bool showChanged = canvas.showUnsavedChanges.get();
 
-    // Note: Eventually just want to use NamedColorEnum and then reading from the
-    // NamedColors Uniform Buffer instead of making copies of the current values.
-    const struct NODISCARD HighlightColors final
-    {
-        Color HIGHLIGHT_TEMPORARY = XNamedColor{NamedColorEnum::HIGHLIGHT_TEMPORARY}.getColor();
-        Color HIGHLIGHT_NEEDS_SERVER_ID = XNamedColor{NamedColorEnum::HIGHLIGHT_NEEDS_SERVER_ID}
-                                              .getColor();
-        Color HIGHLIGHT_UNSAVED = XNamedColor{NamedColorEnum::HIGHLIGHT_UNSAVED}.getColor();
-    } colors;
-
     diff.futureHighlight = std::async(
         std::launch::async,
-        [saved, current, showNeedsServerId, showChanged, colors]() -> Diff::HighlightDiff {
+        [saved, current, showNeedsServerId, showChanged]() -> Diff::HighlightDiff {
             DECL_TIMER(t2,
                        "[async] actuallyPaintGL: highlight changes, temporary, and needs update");
 
-            // 3-2
-            // |/|
-            // 0-1
-            static constexpr std::array<glm::vec3, 4> corners{
-                glm::vec3{0, 0, 0},
-                glm::vec3{1, 0, 0},
-                glm::vec3{1, 1, 0},
-                glm::vec3{0, 1, 0},
-            };
-
-            auto getHighlights = [&saved, &current, showChanged, showNeedsServerId, &colors]()
-                -> Diff::MaybeDataOrMesh {
+            auto getHighlights =
+                [&saved, &current, showChanged, showNeedsServerId]() -> Diff::MaybeDataOrMesh {
                 if (!showChanged && !showNeedsServerId) {
                     return Diff::MaybeDataOrMesh{};
                 }
 
                 DECL_TIMER(t3, "[async] actuallyPaintGL: compute highlights");
-                ColoredTexVertVector highlights;
-                auto drawQuad = [&highlights](const RawRoom &room, const Color color) {
+                DiffQuadVector highlights;
+                auto drawQuad = [&highlights](const RawRoom &room, const NamedColorEnum color) {
                     const auto &pos = room.getPosition().to_vec3();
-                    for (auto &corner : corners) {
-                        highlights.emplace_back(color, corner, pos + corner);
-                    }
+                    highlights.emplace_back(pos, 0, color);
                 };
 
                 // Handle rooms needing a server ID or that are temporary
@@ -757,9 +733,9 @@ void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current)
                     current.getRooms().for_each([&](auto id) {
                         if (auto h = current.getRoomHandle(id)) {
                             if (h.isTemporary()) {
-                                drawQuad(h.getRaw(), colors.HIGHLIGHT_TEMPORARY);
+                                drawQuad(h.getRaw(), NamedColorEnum::HIGHLIGHT_TEMPORARY);
                             } else if (h.getServerId() == INVALID_SERVER_ROOMID) {
-                                drawQuad(h.getRaw(), colors.HIGHLIGHT_NEEDS_SERVER_ID);
+                                drawQuad(h.getRaw(), NamedColorEnum::HIGHLIGHT_NEEDS_SERVER_ID);
                             }
                         }
                     });
@@ -769,7 +745,7 @@ void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current)
                 if (showChanged) {
                     ProgressCounter dummyPc;
                     Map::foreachChangedRoom(dummyPc, saved, current, [&](const RawRoom &room) {
-                        drawQuad(room, colors.HIGHLIGHT_UNSAVED);
+                        drawQuad(room, NamedColorEnum::HIGHLIGHT_UNSAVED);
                     });
                 }
 
@@ -798,7 +774,7 @@ void MapCanvas::paintDifferences()
     auto &gl = getOpenGL();
 
     if (auto &highlights = highlight.highlights; !highlights.empty()) {
-        highlights.render(gl, m_textures.room_highlight->getArrayPosition().array);
+        highlights.render(*this, gl, m_textures.room_highlight->getArrayPosition().array);
     }
 }
 
@@ -1034,6 +1010,35 @@ void MapCanvas::updateMultisampling()
     getOpenGL().configureFbo(wantMultisampling);
 }
 
+void MapCanvas::updateNamedColorsUBO()
+{
+    auto &gl = getOpenGL();
+    static std::weak_ptr<Legacy::VBO> g_weak_vbo;
+    std::shared_ptr<Legacy::VBO> shared_vbo = g_weak_vbo.lock();
+    if (shared_vbo == nullptr) {
+        auto &fns = gl.getSharedFunctions(Badge<MapCanvas>{});
+
+        g_weak_vbo = shared_vbo = fns->getStaticVbos().alloc();
+        Legacy::VBO &vbo = deref(shared_vbo);
+        vbo.emplace(fns);
+    }
+
+    m_named_colors_buffer_id = std::invoke([&gl, &shared_vbo]() {
+        auto &fns = gl.getSharedFunctions(Badge<MapCanvas>{});
+        Legacy::VBO &vbo = deref(shared_vbo);
+
+        // the shader is declared vec4, so the data has to be 4 floats per entry.
+        const auto &vec4_colors = XNamedColor::getAllColorsAsVec4();
+
+        // Can we avoid the upload if it's not necessary?
+        MAYBE_UNUSED const auto result = fns->setUbo(vbo.get(),
+                                                     vec4_colors,
+                                                     BufferUsageEnum::DYNAMIC_DRAW);
+        assert(result == static_cast<int>(vec4_colors.size()));
+        return vbo.get();
+    });
+}
+
 void MapCanvas::renderMapBatches()
 {
     std::optional<MapBatches> &mapBatches = m_batches.mapBatches;
@@ -1051,25 +1056,48 @@ void MapCanvas::renderMapBatches()
                                && (totalScaleFactor >= settings.doorNameScaleCutoff);
 
     auto &gl = getOpenGL();
+    static std::weak_ptr<Legacy::VBO> g_weak_vbo;
+    std::shared_ptr<Legacy::VBO> shared_vbo = g_weak_vbo.lock();
+    if (shared_vbo == nullptr) {
+        auto &fns = gl.getSharedFunctions(Badge<MapCanvas>{});
+
+        g_weak_vbo = shared_vbo = fns->getStaticVbos().alloc();
+        Legacy::VBO &vbo = deref(shared_vbo);
+        vbo.emplace(fns);
+    }
+
+    m_named_colors_buffer_id = std::invoke([&gl, &shared_vbo]() {
+        auto &fns = gl.getSharedFunctions(Badge<MapCanvas>{});
+        Legacy::VBO &vbo = deref(shared_vbo);
+
+        // the shader is declared vec4, so the data has to be 4 floats per entry.
+        const auto &vec4_colors = XNamedColor::getAllColorsAsVec4();
+
+        // Can we avoid the upload if it's not necessary?
+        MAYBE_UNUSED const auto result = fns->setUbo(vbo.get(),
+                                                     vec4_colors,
+                                                     BufferUsageEnum::DYNAMIC_DRAW);
+        assert(result == static_cast<int>(vec4_colors.size()));
+
+        return vbo.get();
+    });
 
     BatchedMeshes &batchedMeshes = batches.batchedMeshes;
     const auto drawLayer =
-        [&batches, &batchedMeshes, wantExtraDetail, wantDoorNames](const int thisLayer,
-                                                                   const int currentLayer) {
+        [this, &batches, &batchedMeshes, wantExtraDetail, wantDoorNames](const int thisLayer,
+                                                                         const int currentLayer) {
             const auto it_mesh = batchedMeshes.find(thisLayer);
             if (it_mesh != batchedMeshes.end()) {
                 LayerMeshes &meshes = it_mesh->second;
-                meshes.render(thisLayer, currentLayer);
+                meshes.render(thisLayer, currentLayer, m_named_colors_buffer_id);
             }
 
             if (wantExtraDetail) {
-                {
-                    BatchedConnectionMeshes &connectionMeshes = batches.connectionMeshes;
-                    const auto it_conn = connectionMeshes.find(thisLayer);
-                    if (it_conn != connectionMeshes.end()) {
-                        ConnectionMeshes &meshes = it_conn->second;
-                        meshes.render(thisLayer, currentLayer);
-                    }
+                BatchedConnectionMeshes &connectionMeshes = batches.connectionMeshes;
+                const auto it_conn = connectionMeshes.find(thisLayer);
+                if (it_conn != connectionMeshes.end()) {
+                    ConnectionMeshes &meshes = it_conn->second;
+                    meshes.render(thisLayer, currentLayer);
                 }
 
                 // NOTE: This can display room names in lower layers, but the text
@@ -1103,4 +1131,11 @@ void MapCanvas::renderMapBatches()
         }
         drawLayer(thisLayer, m_currentLayer);
     }
+}
+
+GLRenderState MapCanvas::getDefaultRenderState()
+{
+    GLRenderState defaultState;
+    defaultState.uniforms.namedColorBufferObject = m_named_colors_buffer_id;
+    return defaultState;
 }

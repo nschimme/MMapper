@@ -98,5 +98,6 @@ public:
 
 public:
     NODISCARD static const std::vector<Color> &getAllColors();
+    NODISCARD static const std::vector<glm::vec4> &getAllColorsAsVec4();
     NODISCARD static const std::vector<std::string> &getAllNames();
 };

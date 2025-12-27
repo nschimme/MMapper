@@ -44,7 +44,7 @@ struct NODISCARD ColoredTexVert final
     glm::vec3 tex{};
     glm::vec3 vert{};
 
-    explicit ColoredTexVert(const Color &color_, const glm::vec3 &tex_, const glm::vec3 &vert_)
+    explicit ColoredTexVert(const Color color_, const glm::vec3 &tex_, const glm::vec3 &vert_)
         : color{color_}
         , tex{tex_}
         , vert{vert_}
@@ -58,7 +58,7 @@ struct NODISCARD ColorVert final
     Color color;
     glm::vec3 vert{};
 
-    explicit ColorVert(const Color &color_, const glm::vec3 &vert_)
+    explicit ColorVert(const Color color_, const glm::vec3 &vert_)
         : color{color_}
         , vert{vert_}
     {}
@@ -78,7 +78,7 @@ struct NODISCARD FontVert3d final
     glm::vec2 vert{}; // screen space
 
     explicit FontVert3d(const glm::vec3 &base_,
-                        const Color &color_,
+                        const Color color_,
                         const glm::vec2 &tex_,
                         const glm::vec2 &vert_)
         : base{base_}
@@ -204,7 +204,7 @@ struct NODISCARD GLRenderState final
         return copy;
     }
 
-    NODISCARD GLRenderState withColor(const Color &new_color) const
+    NODISCARD GLRenderState withColor(const Color new_color) const
     {
         GLRenderState copy = *this;
         copy.uniforms.color = new_color;

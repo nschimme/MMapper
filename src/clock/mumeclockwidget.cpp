@@ -16,19 +16,30 @@
 #include <QMouseEvent>
 #include <QString>
 
-MumeClockWidget::MumeClockWidget(MumeClock *const clock, QWidget *const parent)
+MumeClockWidget::MumeClockWidget(GameObserver &observer, MumeClock *clock, QWidget *const parent)
     : QWidget(parent)
+    , m_observer(observer)
     , m_clock(clock)
 {
     setupUi(this);
+    moonPhaseLabel->setText("");
+    seasonLabel->setText("");
     setAttribute(Qt::WA_DeleteOnClose);
     assert(testAttribute(Qt::WA_DeleteOnClose));
 
-    m_timer = std::make_unique<QTimer>(this);
-    connect(m_timer.get(), &QTimer::timeout, this, &MumeClockWidget::slot_updateLabel);
-    m_timer->start(1000);
+    connect(&observer, &GameObserver::timeOfDayChanged, this, &MumeClockWidget::slot_updateTime);
+    connect(&observer, &GameObserver::moonPhaseChanged, this,
+            &MumeClockWidget::slot_updateMoonPhase);
+    connect(&observer, &GameObserver::moonVisibilityChanged, this,
+            &MumeClockWidget::slot_updateMoonVisibility);
+    connect(&observer, &GameObserver::seasonChanged, this, &MumeClockWidget::slot_updateSeason);
+    connect(&observer, &GameObserver::tick, this, &MumeClockWidget::slot_updateStatusTips);
 
-    slot_updateLabel();
+    slot_updateTime(observer.getTimeOfDay());
+    slot_updateMoonPhase(observer.getMoonPhase());
+    slot_updateMoonVisibility(observer.getMoonVisibility());
+    slot_updateSeason(observer.getSeason());
+    slot_updateStatusTips(clock->getMumeMoment());
 }
 
 MumeClockWidget::~MumeClockWidget() = default;
@@ -38,33 +49,45 @@ void MumeClockWidget::mousePressEvent(QMouseEvent * /*event*/)
     // Force precision to minute and reset last sync to current timestamp
     m_clock->setPrecision(MumeClockPrecisionEnum::MINUTE);
     m_clock->setLastSyncEpoch(QDateTime::currentDateTimeUtc().toSecsSinceEpoch());
-
-    slot_updateLabel();
+    updateTimeStyle(m_lastTime);
+    slot_updateStatusTips(m_clock->getMumeMoment());
 }
 
-void MumeClockWidget::slot_updateLabel()
+void MumeClockWidget::updateTimeStyle(MumeTimeEnum time)
 {
-    // Ensure we have updated the epoch
-    setConfig().mumeClock.startEpoch = m_clock->getMumeStartEpoch();
-
-    // Hide or show the widget if necessary
-    if (!getConfig().mumeClock.display) {
-        hide();
-        // Slow down the interval to a reasonable number
-        m_timer->setInterval(60 * 1000);
-        return;
+    // The current time is 12:15 am.
+    QString styleSheet = "";
+    QString statusTip = "";
+    if (m_clock->getPrecision() <= MumeClockPrecisionEnum::UNSET) {
+        styleSheet = "padding-left:1px;padding-right:1px;color:white;background:grey";
+    } else if (time == MumeTimeEnum::DAWN) {
+        styleSheet = "padding-left:1px;padding-right:1px;color:white;background:red";
+        statusTip = "Ticks left until day";
+    } else if (time >= MumeTimeEnum::DUSK) {
+        styleSheet = "padding-left:1px;padding-right:1px;color:white;background:blue";
+        statusTip = "Ticks left until day";
+    } else {
+        styleSheet = "padding-left:1px;padding-right:1px;color:black;background:yellow";
+        statusTip = "Ticks left until night";
     }
-    if (m_timer->interval() != 1000) {
-        show();
-        // Speed up the interval again if the display needs to be shown
-        m_timer->setInterval(1000);
+    if (m_clock->getPrecision() != MumeClockPrecisionEnum::MINUTE) {
+        statusTip = "The clock has not synced with MUME! Click to override at your own risk.";
     }
 
-    const MumeMoment moment = m_clock->getMumeMoment();
-    const MumeClockPrecisionEnum precision = m_clock->getPrecision();
+    timeLabel->setStyleSheet(styleSheet);
+    timeLabel->setStatusTip(statusTip);
+}
 
-    bool updateMoonText = false;
-    const MumeMoonPhaseEnum phase = moment.moonPhase();
+void MumeClockWidget::slot_updateTime(MumeTimeEnum time)
+{
+    if (time != m_lastTime) {
+        m_lastTime = time;
+        updateTimeStyle(time);
+    }
+}
+
+void MumeClockWidget::slot_updateMoonPhase(MumeMoonPhaseEnum phase)
+{
     if (phase != m_lastPhase) {
         m_lastPhase = phase;
         switch (phase) {
@@ -96,15 +119,29 @@ void MumeClockWidget::slot_updateLabel()
             moonPhaseLabel->setText("");
             break;
         }
-        updateMoonText = true;
     }
+}
 
-    seasonLabel->setStatusTip(m_clock->toMumeTime(moment));
-    const MumeSeasonEnum season = moment.toSeason();
+void MumeClockWidget::slot_updateMoonVisibility(MumeMoonVisibilityEnum visibility)
+{
+    if (visibility != m_lastVisibility) {
+        m_lastVisibility = visibility;
+        const QString moonStyleSheet = (visibility == MumeMoonVisibilityEnum::INVISIBLE
+                                        || visibility == MumeMoonVisibilityEnum::UNKNOWN)
+                                           ? "color:black;background:grey"
+                                       : (visibility == MumeMoonVisibilityEnum::BRIGHT)
+                                           ? "color:black;background:yellow"
+                                           : "color:black;background:white";
+        moonPhaseLabel->setStyleSheet(moonStyleSheet);
+    }
+}
+
+void MumeClockWidget::slot_updateSeason(MumeSeasonEnum season)
+{
     if (season != m_lastSeason) {
         m_lastSeason = season;
         QString styleSheet = "color:black";
-        QString text = "Unknown";
+        QString text = "";
         switch (season) {
         case MumeSeasonEnum::WINTER:
             styleSheet = "color:black;background:white";
@@ -129,56 +166,23 @@ void MumeClockWidget::slot_updateLabel()
         seasonLabel->setStyleSheet(styleSheet);
         seasonLabel->setText(text);
     }
+}
 
-    bool updateMoonStyleSheet = false;
-    const MumeTimeEnum time = moment.toTimeOfDay();
-    if (time != m_lastTime || precision != m_lastPrecision) {
-        m_lastTime = time;
-        m_lastPrecision = precision;
-        // The current time is 12:15 am.
-        QString styleSheet = "";
-        QString statusTip = "";
-        if (precision <= MumeClockPrecisionEnum::UNSET) {
-            styleSheet = "padding-left:1px;padding-right:1px;color:white;background:grey";
-        } else if (time == MumeTimeEnum::DAWN) {
-            styleSheet = "padding-left:1px;padding-right:1px;color:white;background:red";
-            statusTip = "Ticks left until day";
-        } else if (time >= MumeTimeEnum::DUSK) {
-            styleSheet = "padding-left:1px;padding-right:1px;color:white;background:blue";
-            statusTip = "Ticks left until day";
-        } else {
-            styleSheet = "padding-left:1px;padding-right:1px;color:black;background:yellow";
-            statusTip = "Ticks left until night";
-        }
-        if (precision != MumeClockPrecisionEnum::MINUTE) {
-            statusTip = "The clock has not synced with MUME! Click to override at your own risk.";
-        }
-
-        timeLabel->setStyleSheet(styleSheet);
-        timeLabel->setStatusTip(statusTip);
-        updateMoonStyleSheet = true;
+void MumeClockWidget::slot_updateStatusTips(const MumeMoment &moment)
+{
+    setVisible(getConfig().mumeClock.display);
+    if (!getConfig().mumeClock.display) {
+        return;
     }
+
+    const MumeClockPrecisionEnum precision = m_clock->getPrecision();
     if (precision <= MumeClockPrecisionEnum::HOUR) {
-        // Prepend warning emoji to countdown
-        timeLabel->setText(QString::fromUtf8("\xE2\x9A\xA0").append(m_clock->toCountdown(moment)));
+        timeLabel->setText(
+            QString::fromUtf8("\xE2\x9A\xA0").append(m_clock->toCountdown(moment)));
     } else {
         timeLabel->setText(m_clock->toCountdown(moment));
     }
 
-    const MumeMoonVisibilityEnum moonVisibility = moment.moonVisibility();
-    if (moonVisibility != m_lastVisibility || updateMoonStyleSheet) {
-        m_lastVisibility = moonVisibility;
-        const QString moonStyleSheet = (moonVisibility == MumeMoonVisibilityEnum::INVISIBLE
-                                        || moonVisibility == MumeMoonVisibilityEnum::UNKNOWN)
-                                           ? "color:black;background:grey"
-                                       : (moonVisibility == MumeMoonVisibilityEnum::BRIGHT)
-                                           ? "color:black;background:yellow"
-                                           : "color:black;background:white";
-        moonPhaseLabel->setStyleSheet(moonStyleSheet);
-        updateMoonText = true;
-    }
-
-    if (updateMoonText) {
-        moonPhaseLabel->setStatusTip(moment.toMumeMoonTime());
-    }
+    moonPhaseLabel->setStatusTip(moment.toMumeMoonTime());
+    seasonLabel->setStatusTip(m_clock->toMumeTime(moment));
 }

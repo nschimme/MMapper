@@ -20,8 +20,8 @@
 #include <QtCore>
 #include <QtGlobal>
 
+#include "../observer/gameobserver.h"
 class GmcpMessage;
-class GameObserver;
 class GroupManagerApi;
 class JsonObj;
 class MapData;

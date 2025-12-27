@@ -117,6 +117,9 @@ MumeClock::MumeClock(int64_t mumeEpoch, GameObserver &observer, QObject *const p
 {
     m_observer.sig2_sentToUserGmcp.connect(m_lifetime,
                                            [this](const GmcpMessage &gmcp) { onUserGmcp(gmcp); });
+    m_timer = new QTimer(this);
+    connect(m_timer, &QTimer::timeout, this, &MumeClock::slot_tick);
+    m_timer->start(1000);
 }
 
 MumeClock::MumeClock(GameObserver &observer)
@@ -268,6 +271,9 @@ void MumeClock::onUserGmcp(const GmcpMessage &msg)
 
 void MumeClock::parseWeather(const MumeTimeEnum time, int64_t secsSinceEpoch)
 {
+    // Restart the timer to sync with the game's tick
+    m_timer->start(1000);
+
     // Update last sync timestamp
     setLastSyncEpoch(secsSinceEpoch);
 
@@ -275,17 +281,7 @@ void MumeClock::parseWeather(const MumeTimeEnum time, int64_t secsSinceEpoch)
     auto moment = MumeMoment::sinceMumeEpoch(secsSinceEpoch - m_mumeStartEpoch);
     moment.minute = 0;
 
-    const auto timeOfDay = moment.toTimeOfDay();
-    if (timeOfDay != m_timeOfDay) {
-        m_timeOfDay = timeOfDay;
-        m_observer.observeTimeOfDay(m_timeOfDay);
-    }
-
-    const auto moonPhase = moment.moonPhase();
-    if (moonPhase != m_moonPhase) {
-        m_moonPhase = moonPhase;
-        m_observer.observeMoonPhase(m_moonPhase);
-    }
+    updateObserver(moment);
 
     // Predict current hour given the month
     const auto dawnDusk = getDawnDusk(moment.month);
@@ -502,4 +498,38 @@ int MumeClock::getMumeMonth(const QString &monthName)
 int MumeClock::getMumeWeekday(const QString &weekdayName)
 {
     return mmqt::parseTwoEnums<WestronWeekDayNamesEnum, SindarinWeekDayNamesEnum>(weekdayName);
+}
+
+void MumeClock::slot_tick()
+{
+    const MumeMoment moment = getMumeMoment();
+    m_observer.observeTick(moment);
+    updateObserver(moment);
+}
+
+void MumeClock::updateObserver(const MumeMoment &moment)
+{
+    const auto timeOfDay = moment.toTimeOfDay();
+    if (timeOfDay != m_timeOfDay) {
+        m_timeOfDay = timeOfDay;
+        m_observer.observeTimeOfDay(m_timeOfDay);
+    }
+
+    const auto moonPhase = moment.moonPhase();
+    if (moonPhase != m_moonPhase) {
+        m_moonPhase = moonPhase;
+        m_observer.observeMoonPhase(m_moonPhase);
+    }
+
+    const auto moonVisibility = moment.moonVisibility();
+    if (moonVisibility != m_moonVisibility) {
+        m_moonVisibility = moonVisibility;
+        m_observer.observeMoonVisibility(m_moonVisibility);
+    }
+
+    const auto season = moment.toSeason();
+    if (season != m_season) {
+        m_season = season;
+        m_observer.observeSeason(m_season);
+    }
 }

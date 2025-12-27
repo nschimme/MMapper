@@ -88,6 +88,7 @@ public:
     void setColor(const char *name, Color color);
     void setMatrix(const char *name, const glm::mat4 &m);
     void setTexture(const char *name, int textureUnit);
+    void setUBO(const char *block_name, GLuint uboId); // make this type stronger?
     void setViewport(const char *name, const Viewport &input_viewport);
 };
 

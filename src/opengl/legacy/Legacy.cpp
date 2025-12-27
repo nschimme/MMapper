@@ -114,7 +114,6 @@ UniqueMesh Functions::createInstancedPlainQuadBatch(const std::vector<glm::ivec3
     return createUniqueMesh<IQPlainMesh>(shared_from_this(), mode, batch, prog);
 }
 
-
 UniqueMesh Functions::createInstancedQuadTexturedBatch(
     const std::vector<InstancedQuadTexVert> &batch, const MMTextureId texture)
 {

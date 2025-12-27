@@ -36,15 +36,6 @@ struct NODISCARD TexVert final
     {}
 };
 
-struct NODISCARD InstancedQuadTexVert final
-{
-    glm::ivec4 vertTex{};
-
-    explicit InstancedQuadTexVert(const int tex_z, const glm::ivec3 &vert)
-        : vertTex{vert, tex_z}
-    {}
-};
-
 using TexVertVector = std::vector<TexVert>;
 
 struct NODISCARD ColoredTexVert final
@@ -59,10 +50,15 @@ struct NODISCARD ColoredTexVert final
         , vert{vert_}
     {}
 };
+
 struct NODISCARD InstancedQuadColoredTexVert final
 {
     // xyz = room coord, w = (color << 16 | tex_z)
     glm::ivec4 vertTexCol{};
+
+    explicit InstancedQuadColoredTexVert(const glm::ivec3 &vert, const int tex_z)
+        : InstancedQuadColoredTexVert{vert, tex_z, NamedColorEnum::DEFAULT}
+    {}
 
     explicit InstancedQuadColoredTexVert(const glm::ivec3 &vert,
                                          const int tex_z,

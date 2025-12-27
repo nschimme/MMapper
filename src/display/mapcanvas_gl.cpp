@@ -1057,7 +1057,6 @@ void MapCanvas::renderMapBatches()
     const GLuint named_colors_buffer_id = std::invoke([&gl, &shared_vbo]() {
         auto &fns = gl.getSharedFunctions(Badge<MapCanvas>{});
         Legacy::VBO &vbo = deref(shared_vbo);
-        const std::vector<Color> colors = XNamedColor::getAllColors();
 
         // the shader is declared vec4, so the data has to be 4 floats per entry.
         std::vector<glm::vec4> vec4_colors;
@@ -1066,13 +1065,13 @@ void MapCanvas::renderMapBatches()
             vec4_colors.emplace_back(c.getVec4());
         }
 
-        // Can we avoid the upload if it's not necessary?
+	// Can we avoid the upload if it's not necessary?
         MAYBE_UNUSED const auto result = fns->setVbo(DrawModeEnum::INVALID,
                                                      vbo.get(),
                                                      vec4_colors,
                                                      BufferUsageEnum::DYNAMIC_DRAW);
         assert(result.first == DrawModeEnum::INVALID);
-        assert(result.second == static_cast<int>(colors.size()));
+        assert(result.second == static_cast<int>(vec4_colors.size()));
 
         return vbo.get();
     });

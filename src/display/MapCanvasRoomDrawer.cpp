@@ -419,6 +419,7 @@ struct NODISCARD RoomTex
 
     NODISCARD static bool isPartitioned(const RoomTex &a, const RoomTex &b)
     {
+        assert(a.pos.array == b.pos.array);
         return a.pos.array < b.pos.array;
     }
 };
@@ -430,9 +431,9 @@ struct NODISCARD ColoredRoomTex : public RoomTex
 
     explicit ColoredRoomTex(const Coordinate input_coord,
                             const MMTexArrayPosition input_pos,
-                            const Color &input_color)
+                            const XNamedColor &input_color)
         : RoomTex{input_coord, input_pos}
-        , color{input_color}
+        , color{input_color.getColor()}
     {}
 };
 
@@ -780,32 +781,25 @@ private:
                         const WallTypeEnum wallType,
                         const bool isClimb) final
     {
+        assert(color.isInitialized());
         if (isTransparent(color)) {
             return;
         }
-
-        const std::optional<Color> optColor = getColor(color);
-        if (!optColor.has_value()) {
-            assert(false);
-            return;
-        }
-
-        const auto glcolor = optColor.value();
 
         if (wallType == WallTypeEnum::DOOR) {
             // Note: We could use two door textures (NESW and UD), and then just rotate the
             // texture coordinates, but doing that would require a different code path.
             const MMTexArrayPosition &tex = m_textures.door[dir];
-            m_data.doors.emplace_back(room.getPosition(), tex, glcolor);
+            m_data.doors.emplace_back(room.getPosition(), tex, color);
 
         } else {
             if (isNESW(dir)) {
                 if (wallType == WallTypeEnum::SOLID) {
                     const MMTexArrayPosition &tex = m_textures.wall[dir];
-                    m_data.solidWallLines.emplace_back(room.getPosition(), tex, glcolor);
+                    m_data.solidWallLines.emplace_back(room.getPosition(), tex, color);
                 } else {
                     const MMTexArrayPosition &tex = m_textures.dotted_wall[dir];
-                    m_data.dottedWallLines.emplace_back(room.getPosition(), tex, glcolor);
+                    m_data.dottedWallLines.emplace_back(room.getPosition(), tex, color);
                 }
             } else {
                 const bool isUp = dir == ExitDirEnum::UP;
@@ -816,7 +810,7 @@ private:
                                                         : (isUp ? m_textures.exit_up
                                                                 : m_textures.exit_down);
 
-                m_data.roomUpDownExits.emplace_back(room.getPosition(), tex, glcolor);
+                m_data.roomUpDownExits.emplace_back(room.getPosition(), tex, color);
             }
         }
     }

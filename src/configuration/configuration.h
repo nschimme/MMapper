@@ -129,20 +129,15 @@ public:
         SUBGROUP();
     } mumeNative;
 
-    static constexpr const std::string_view BACKGROUND_NAME = "background";
-    static constexpr const std::string_view CONNECTION_NORMAL_NAME = "connection-normal";
-    static constexpr const std::string_view ROOM_DARK_NAME = "room-dark";
-    static constexpr const std::string_view ROOM_NO_SUNDEATH_NAME = "room-no-sundeath";
-
 #define XFOREACH_CANVAS_NAMED_COLOR_OPTIONS(X) \
-    X(backgroundColor, BACKGROUND_NAME) \
-    X(connectionNormalColor, CONNECTION_NORMAL_NAME) \
-    X(roomDarkColor, ROOM_DARK_NAME) \
-    X(roomDarkLitColor, ROOM_NO_SUNDEATH_NAME)
+    X(backgroundColor, BACKGROUND) \
+    X(connectionNormalColor, CONNECTION_NORMAL) \
+    X(roomDarkColor, ROOM_DARK) \
+    X(roomDarkLitColor, ROOM_NO_SUNDEATH)
 
     struct NODISCARD CanvasNamedColorOptions
     {
-#define X_DECL(_id, _name) XNamedColor _id{_name};
+#define X_DECL(_id, _name) XNamedColor _id{NamedColorEnum::_name};
         XFOREACH_CANVAS_NAMED_COLOR_OPTIONS(X_DECL)
 #undef X_DECL
 
@@ -204,38 +199,9 @@ public:
         SUBGROUP();
     } canvas;
 
-#define XFOREACH_NAMED_COLOR_OPTIONS(X) \
-    X(BACKGROUND, BACKGROUND_NAME) \
-    X(CONNECTION_NORMAL, CONNECTION_NORMAL_NAME) \
-    X(HIGHLIGHT_NEEDS_SERVER_ID, "highlight-needs-server-id") \
-    X(HIGHLIGHT_UNSAVED, "highlight-unsaved") \
-    X(HIGHLIGHT_TEMPORARY, "highlight-temporary") \
-    X(INFOMARK_COMMENT, "infomark-comment") \
-    X(INFOMARK_HERB, "infomark-herb") \
-    X(INFOMARK_MOB, "infomark-mob") \
-    X(INFOMARK_OBJECT, "infomark-object") \
-    X(INFOMARK_RIVER, "infomark-river") \
-    X(INFOMARK_ROAD, "infomark-road") \
-    X(ROOM_DARK, ROOM_DARK_NAME) \
-    X(ROOM_NO_SUNDEATH, ROOM_NO_SUNDEATH_NAME) \
-    X(STREAM, "stream") \
-    X(TRANSPARENT, ".transparent") \
-    X(VERTICAL_COLOR_CLIMB, "vertical-climb") \
-    X(VERTICAL_COLOR_REGULAR_EXIT, "vertical-regular") \
-    X(WALL_COLOR_BUG_WALL_DOOR, "wall-bug-wall-door") \
-    X(WALL_COLOR_CLIMB, "wall-climb") \
-    X(WALL_COLOR_FALL_DAMAGE, "wall-fall-damage") \
-    X(WALL_COLOR_GUARDED, "wall-guarded") \
-    X(WALL_COLOR_NO_FLEE, "wall-no-flee") \
-    X(WALL_COLOR_NO_MATCH, "wall-no-match") \
-    X(WALL_COLOR_NOT_MAPPED, "wall-not-mapped") \
-    X(WALL_COLOR_RANDOM, "wall-random") \
-    X(WALL_COLOR_REGULAR_EXIT, "wall-regular-exit") \
-    X(WALL_COLOR_SPECIAL, "wall-special")
-
     struct NODISCARD NamedColorOptions
     {
-#define X_DECL(_id, _name) XNamedColor _id{_name};
+#define X_DECL(_id, _name) XNamedColor _id{NamedColorEnum::_id};
         XFOREACH_NAMED_COLOR_OPTIONS(X_DECL)
 #undef X_DECL
         NamedColorOptions() = default;

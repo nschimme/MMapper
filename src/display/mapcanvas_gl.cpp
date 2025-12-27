@@ -1042,6 +1042,7 @@ void MapCanvas::renderMapBatches()
                                && (totalScaleFactor >= settings.doorNameScaleCutoff);
 
     auto &gl = getOpenGL();
+
     BatchedMeshes &batchedMeshes = batches.batchedMeshes;
     const auto drawLayer =
         [&batches, &batchedMeshes, wantExtraDetail, wantDoorNames](const int thisLayer,

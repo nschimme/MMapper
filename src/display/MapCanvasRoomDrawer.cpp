@@ -61,7 +61,8 @@ enum class NODISCARD WallTypeEnum { SOLID, DOTTED, DOOR };
 static constexpr const size_t NUM_WALL_TYPES = 3;
 DEFINE_ENUM_COUNT(WallTypeEnum, NUM_WALL_TYPES)
 
-#define LOOKUP_COLOR(X) (getNamedColorOptions().X)
+#define LOOKUP_COLOR(_X) (getNamedColorOptions()._X)
+// #define LOOKUP_COLOR_ENUM(_X) (NamedColorEnum::_X)
 
 // must be called from the main thread
 NODISCARD static VisitRoomOptions getVisitRoomOptions()

@@ -145,7 +145,7 @@ public:
         {
             auto pResult = std::make_shared<CanvasNamedColorOptions>();
             auto &result = deref(pResult);
-#define X_CLONE(_id, _name) result._id = this->_id.getColor();
+#define X_CLONE(_id, _name) (result._id) = (this->_id).getColor();
             XFOREACH_CANVAS_NAMED_COLOR_OPTIONS(X_CLONE)
 #undef X_CLONE
             return pResult;
@@ -211,7 +211,7 @@ public:
         {
             auto pResult = std::make_shared<NamedColorOptions>();
             auto &result = deref(pResult);
-#define X_CLONE(_id, _name) result._id = this->_id.getColor();
+#define X_CLONE(_id, _name) (result._id) = (this->_id).getColor();
             XFOREACH_NAMED_COLOR_OPTIONS(X_CLONE)
 #undef X_CLONE
             return pResult;

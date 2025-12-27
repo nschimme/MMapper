@@ -114,7 +114,7 @@ bool XNamedColor::isInitialized() const
     return getGlobalData().isInitialized(m_value);
 }
 
-std::string XNamedColor::getName() const
+const std::string &XNamedColor::getName() const
 {
     return getGlobalData().getName(m_value);
 }

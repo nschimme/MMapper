@@ -77,7 +77,7 @@ public:
     NODISCARD NamedColorEnum getNamedColorEnum() const noexcept { return m_value; }
 
 public:
-    NODISCARD std::string getName() const;
+    NODISCARD const std::string &getName() const;
     NODISCARD Color getColor() const;
     // note: you can't actaully set DEFAULT or TRANSPARENT
     ALLOW_DISCARD bool setColor(Color c);

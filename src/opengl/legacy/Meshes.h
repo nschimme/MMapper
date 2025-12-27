@@ -353,14 +353,12 @@ public:
 private:
     struct NODISCARD Attribs final
     {
-        GLuint colorPos = INVALID_ATTRIB_LOCATION;
-        GLuint vertTexPos = INVALID_ATTRIB_LOCATION;
+        GLuint vertTexColPos = INVALID_ATTRIB_LOCATION;
 
         NODISCARD static Attribs getLocations(IQAColorTexturedShader &fontShader)
         {
             Attribs result;
-            result.colorPos = fontShader.getAttribLocation("aColor");
-            result.vertTexPos = fontShader.getAttribLocation("aVertTex");
+            result.vertTexColPos = fontShader.getAttribLocation("aVertTexCol");
             return result;
         }
     };
@@ -370,19 +368,16 @@ private:
     void virt_bind() override
     {
         const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
-        static_assert(sizeof(std::declval<VertexType_>().color) == 4 * sizeof(uint8_t));
-        static_assert(sizeof(std::declval<VertexType_>().vertTex) == 4 * sizeof(int32_t));
+        static_assert(sizeof(std::declval<VertexType_>().vertTexCol) == 4 * sizeof(int32_t));
 
         Functions &gl = Base::m_functions;
         const auto attribs = Attribs::getLocations(Base::m_program);
         gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
-        gl.enableAttrib(attribs.colorPos, 4, GL_UNSIGNED_BYTE, GL_TRUE, vertSize, VPO(color));
         // ivec4
-        gl.enableAttribI(attribs.vertTexPos, 4, GL_INT, vertSize, VPO(vertTex));
+        gl.enableAttribI(attribs.vertTexColPos, 4, GL_INT, vertSize, VPO(vertTexCol));
 
         // instancing
-        gl.glVertexAttribDivisor(attribs.colorPos, 1);
-        gl.glVertexAttribDivisor(attribs.vertTexPos, 1);
+        gl.glVertexAttribDivisor(attribs.vertTexColPos, 1);
 
         m_boundAttribs = attribs;
     }
@@ -396,8 +391,7 @@ private:
 
         auto &attribs = m_boundAttribs.value();
         Functions &gl = Base::m_functions;
-        gl.glDisableVertexAttribArray(attribs.colorPos);
-        gl.glDisableVertexAttribArray(attribs.vertTexPos);
+        gl.glDisableVertexAttribArray(attribs.vertTexColPos);
         gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
         m_boundAttribs.reset();
     }

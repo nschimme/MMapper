@@ -27,6 +27,7 @@
 #include "../opengl/FontFormatFlags.h"
 #include "../opengl/OpenGL.h"
 #include "../opengl/OpenGLTypes.h"
+#include "../opengl/legacy/VBO.h"
 #include "ConnectionLineBuilder.h"
 #include "MapCanvasData.h"
 #include "RoadIndex.h"
@@ -424,14 +425,17 @@ struct NODISCARD RoomTex
     }
 };
 
-struct NODISCARD ColoredRoomTex : public RoomTex
+struct NODISCARD ColoredRoomTex
 {
+    Coordinate coord;
+    MMTexArrayPosition pos;
     NamedColorEnum colorId = NamedColorEnum::DEFAULT;
 
     explicit ColoredRoomTex(const Coordinate input_coord,
                             const MMTexArrayPosition input_pos,
                             const NamedColorEnum input_color)
-        : RoomTex{input_coord, input_pos}
+        : coord{input_coord}
+        , pos{input_pos}
         , colorId{input_color}
     {}
 };
@@ -502,11 +506,14 @@ struct NODISCARD ColoredRoomTexVector final : public std::vector<ColoredRoomTex>
 template<typename T, typename Callback>
 static void foreach_texture(const T &textures, Callback &&callback)
 {
+    using U = utils::remove_cvref_t<decltype(textures.front())>;
+    static_assert(std::is_same_v<U, RoomTex> or std::is_same_v<U, ColoredRoomTex>);
+
     assert(textures.isSorted());
 
     const auto size = textures.size();
     for (size_t beg = 0, next = size; beg < size; beg = next) {
-        const RoomTex &rtex = textures[beg];
+        const auto &rtex = textures[beg];
         const auto textureId = rtex.pos.array;
 
         size_t end = beg + 1;
@@ -607,7 +614,7 @@ NODISCARD static LayerMeshesIntermediate::FnVec createSortedColoredTexturedMeshe
     tmp_meshes.reserve(numUniqueTextures);
 
     const auto lambda = [&tmp_meshes, &textures](const size_t beg, const size_t end) -> void {
-        const RoomTex &rtex = textures[beg];
+        const ColoredRoomTex &rtex = textures[beg];
         const size_t count = end - beg;
 
         std::vector<InstancedQuadColoredTexVert> verts;
@@ -617,9 +624,9 @@ NODISCARD static LayerMeshesIntermediate::FnVec createSortedColoredTexturedMeshe
             const ColoredRoomTex &thisVert = textures[i];
             const auto &pos = thisVert.coord;
             const auto v0 = pos.to_ivec3();
-            const auto color = XNamedColor{thisVert.colorId}.getColor();
+            const auto color = thisVert.colorId;
             const auto z = thisVert.pos.position;
-            verts.emplace_back(color, z, v0);
+            verts.emplace_back(v0, z, color);
         }
 
         tmp_meshes.emplace_back([v = std::move(verts), t = rtex.pos.array](OpenGL &g) {
@@ -939,7 +946,9 @@ LayerMeshes LayerMeshesIntermediate::getLayerMeshes(OpenGL &gl) const
     return lm;
 }
 
-void LayerMeshes::render(const int thisLayer, const int focusedLayer)
+void LayerMeshes::render(const int thisLayer,
+                         const int focusedLayer,
+                         const GLuint named_colors_buffer_id)
 {
     // Disable texturing for this layer. We want to draw
     // all of the squares in white (using layer boost quads),
@@ -947,9 +956,15 @@ void LayerMeshes::render(const int thisLayer, const int focusedLayer)
     const bool disableTextures = (thisLayer > focusedLayer)
                                  && !getConfig().canvas.drawUpperLayersTextured;
 
-    const GLRenderState less = GLRenderState().withDepthFunction(DepthFunctionEnum::LESS);
-    const GLRenderState equal = GLRenderState().withDepthFunction(DepthFunctionEnum::EQUAL);
-    const GLRenderState lequal = GLRenderState().withDepthFunction(DepthFunctionEnum::LEQUAL);
+    const auto defaultState = std::invoke([named_colors_buffer_id]() -> GLRenderState {
+        GLRenderState rs;
+        rs.uniforms.namedColorBufferObject = named_colors_buffer_id;
+        return rs;
+    });
+
+    const GLRenderState less = defaultState.withDepthFunction(DepthFunctionEnum::LESS);
+    const GLRenderState equal = defaultState.withDepthFunction(DepthFunctionEnum::EQUAL);
+    const GLRenderState lequal = defaultState.withDepthFunction(DepthFunctionEnum::LEQUAL);
 
     const GLRenderState less_blended = less.withBlend(BlendModeEnum::TRANSPARENCY);
     const GLRenderState lequal_blended = lequal.withBlend(BlendModeEnum::TRANSPARENCY);

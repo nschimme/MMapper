@@ -61,15 +61,21 @@ struct NODISCARD ColoredTexVert final
 };
 struct NODISCARD InstancedQuadColoredTexVert final
 {
-    Color color;
-    glm::ivec4 vertTex{};
+    // xyz = room coord, w = (color << 16 | tex_z)
+    glm::ivec4 vertTexCol{};
 
-    explicit InstancedQuadColoredTexVert(const Color &color_,
+    explicit InstancedQuadColoredTexVert(const glm::ivec3 &vert,
                                          const int tex_z,
-                                         const glm::ivec3 &vert)
-        : color{color_}
-        , vertTex{vert, tex_z}
-    {}
+                                         const NamedColorEnum color)
+        : vertTexCol{vert, (static_cast<uint8_t>(color) << 8) | tex_z}
+    {
+        if (IS_DEBUG_BUILD) {
+            constexpr auto max_texture_layers = 256;
+            const auto c = static_cast<uint8_t>(color);
+            assert(c == std::clamp<uint8_t>(c, 0, NUM_NAMED_COLORS - 1));
+            assert(tex_z == std::clamp(tex_z, 0, max_texture_layers - 1));
+        }
+    }
 };
 
 using ColoredTexVertVector = std::vector<ColoredTexVert>;
@@ -220,6 +226,7 @@ struct NODISCARD GLRenderState final
         Color color;
         // glEnable(TEXTURE_2D), or glEnable(TEXTURE_3D)
         Textures textures;
+        GLuint namedColorBufferObject = 0u;
         std::optional<float> pointSize;
     };
 

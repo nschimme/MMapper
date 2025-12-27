@@ -86,6 +86,7 @@ public:
 
     NODISCARD const std::vector<std::string> &getAllNames() const { return m_names; }
     NODISCARD const std::vector<Color> &getAllColors() const { return m_colors; }
+    NODISCARD const std::vector<glm::vec4> &getAllVec4s() const { return m_vec4s; }
 
 public:
     NODISCARD std::optional<NamedColorEnum> lookup(std::string_view name) const
@@ -143,4 +144,9 @@ const std::vector<std::string> &XNamedColor::getAllNames()
 const std::vector<Color> &XNamedColor::getAllColors()
 {
     return getGlobalData().getAllColors();
+}
+
+const std::vector<glm::vec4> &XNamedColor::getAllColorsAsVec4()
+{
+    return getGlobalData().getAllVec4s();
 }

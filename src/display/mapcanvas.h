@@ -66,29 +66,28 @@ private:
 
     struct NODISCARD Diff final
     {
+        using DiffQuadVector = std::vector<InstancedQuadColoredTexVert>;
+
         struct NODISCARD MaybeDataOrMesh final
-            : public std::variant<std::monostate, ColoredTexVertVector, UniqueMesh>
+            : public std::variant<std::monostate, DiffQuadVector, UniqueMesh>
         {
         public:
-            using base = std::variant<std::monostate, ColoredTexVertVector, UniqueMesh>;
+            using base = std::variant<std::monostate, DiffQuadVector, UniqueMesh>;
             using base::base;
 
         public:
             NODISCARD bool empty() const { return std::holds_alternative<std::monostate>(*this); }
-            NODISCARD bool hasData() const
-            {
-                return std::holds_alternative<ColoredTexVertVector>(*this);
-            }
+            NODISCARD bool hasData() const { return std::holds_alternative<DiffQuadVector>(*this); }
             NODISCARD bool hasMesh() const { return std::holds_alternative<UniqueMesh>(*this); }
 
         public:
-            NODISCARD const ColoredTexVertVector &getData() const
+            NODISCARD const DiffQuadVector &getData() const
             {
-                return std::get<ColoredTexVertVector>(*this);
+                return std::get<DiffQuadVector>(*this);
             }
             NODISCARD const UniqueMesh &getMesh() const { return std::get<UniqueMesh>(*this); }
 
-            void render(OpenGL &gl, const MMTextureId texId)
+            void render(MapCanvas &mc, OpenGL &gl, const MMTextureId texId)
             {
                 if (empty()) {
                     assert(false);
@@ -96,7 +95,7 @@ private:
                 }
 
                 if (hasData()) {
-                    *this = gl.createColoredTexturedQuadBatch(getData(), texId);
+                    *this = gl.createInstancedColoredTexturedQuadBatch(getData(), texId);
                     assert(hasMesh());
                     // REVISIT: rendering immediately after uploading the mesh may lag,
                     // so consider delaying until the data is already on the GPU.
@@ -107,7 +106,7 @@ private:
                     return;
                 }
                 auto &mesh = getMesh();
-                mesh.render(GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY));
+                mesh.render(mc.getDefaultRenderState().withBlend(BlendModeEnum::TRANSPARENCY));
             }
         };
 
@@ -145,6 +144,7 @@ private:
     FrameRateController m_frameRateController;
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
     Signal2Lifetime m_lifetime;
+    GLuint m_named_colors_buffer_id = 0;
 
     struct AltDragState
     {
@@ -216,6 +216,8 @@ private:
     void initTextures();
     void updateTextures();
     void updateMultisampling();
+    NODISCARD GLRenderState getDefaultRenderState();
+    void updateNamedColorsUBO();
 
     NODISCARD std::shared_ptr<InfomarkSelection> getInfomarkSelection(const MouseSel &sel);
     NODISCARD static glm::mat4 getViewProj_old(const glm::vec2 &scrollPos,

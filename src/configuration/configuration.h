@@ -135,19 +135,26 @@ public:
     X(roomDarkColor, ROOM_DARK) \
     X(roomDarkLitColor, ROOM_NO_SUNDEATH)
 
+    struct CanvasNamedColorOptions;
+    struct NODISCARD ResolvedCanvasNamedColorOptions final
+    {
+#define X_DECL(_id, _name) Color _id;
+        XFOREACH_CANVAS_NAMED_COLOR_OPTIONS(X_DECL)
+#undef X_DECL
+        void setFrom(const CanvasNamedColorOptions &);
+    };
+
     struct NODISCARD CanvasNamedColorOptions
     {
 #define X_DECL(_id, _name) XNamedColor _id{NamedColorEnum::_name};
         XFOREACH_CANVAS_NAMED_COLOR_OPTIONS(X_DECL)
 #undef X_DECL
 
-        NODISCARD std::shared_ptr<const CanvasNamedColorOptions> clone() const
+        NODISCARD std::shared_ptr<const ResolvedCanvasNamedColorOptions> clone() const
         {
-            auto pResult = std::make_shared<CanvasNamedColorOptions>();
+            auto pResult = std::make_shared<ResolvedCanvasNamedColorOptions>();
             auto &result = deref(pResult);
-#define X_CLONE(_id, _name) (result._id) = (this->_id).getColor();
-            XFOREACH_CANVAS_NAMED_COLOR_OPTIONS(X_CLONE)
-#undef X_CLONE
+            result.setFrom(*this);
             return pResult;
         }
     };
@@ -199,6 +206,16 @@ public:
         SUBGROUP();
     } canvas;
 
+    struct NODISCARD NamedColorOptions;
+    struct NODISCARD ResolvedNamedColorOptions final
+    {
+#define X_DECL(_id, _name) XNamedColor _id{NamedColorEnum::_id};
+        XFOREACH_NAMED_COLOR_OPTIONS(X_DECL)
+#undef X_DECL
+
+        void setFrom(const NamedColorOptions &);
+    };
+
     struct NODISCARD NamedColorOptions
     {
 #define X_DECL(_id, _name) XNamedColor _id{NamedColorEnum::_id};
@@ -207,13 +224,11 @@ public:
         NamedColorOptions() = default;
         void resetToDefaults();
 
-        NODISCARD std::shared_ptr<const NamedColorOptions> clone() const
+        NODISCARD std::shared_ptr<const ResolvedNamedColorOptions> clone() const
         {
-            auto pResult = std::make_shared<NamedColorOptions>();
+            auto pResult = std::make_shared<ResolvedNamedColorOptions>();
             auto &result = deref(pResult);
-#define X_CLONE(_id, _name) (result._id) = (this->_id).getColor();
-            XFOREACH_NAMED_COLOR_OPTIONS(X_CLONE)
-#undef X_CLONE
+            result.setFrom(*this);
             return pResult;
         }
     };
@@ -396,11 +411,12 @@ void setEnteredMain();
 NODISCARD Configuration &setConfig();
 NODISCARD const Configuration &getConfig();
 
-using SharedCanvasNamedColorOptions = std::shared_ptr<const Configuration::CanvasNamedColorOptions>;
-using SharedNamedColorOptions = std::shared_ptr<const Configuration::NamedColorOptions>;
+using SharedCanvasNamedColorOptions
+    = std::shared_ptr<const Configuration::ResolvedCanvasNamedColorOptions>;
+using SharedNamedColorOptions = std::shared_ptr<const Configuration::ResolvedNamedColorOptions>;
 
-const Configuration::CanvasNamedColorOptions &getCanvasNamedColorOptions();
-const Configuration::NamedColorOptions &getNamedColorOptions();
+const Configuration::ResolvedCanvasNamedColorOptions &getCanvasNamedColorOptions();
+const Configuration::ResolvedNamedColorOptions &getNamedColorOptions();
 
 struct NODISCARD ThreadLocalNamedColorRaii final
 {

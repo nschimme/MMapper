@@ -6,11 +6,14 @@
 #include "../configuration/configuration.h"
 #include "../global/Flags.h"
 #include "../map/DoorFlags.h"
+
+// Geometric epsilon for degeneracy checks (e.g., near-zero vectors, collinearity).
+// This is used for comparisons where small floating-point variations should be treated as equivalent to zero.
+static constexpr const float GEOMETRIC_EPSILON = 1e-5f;
 #include "../map/ExitFieldVariant.h"
 #include "../mapdata/mapdata.h"
 #include "../opengl/Font.h"
 #include "../opengl/FontFormatFlags.h"
-#include "../opengl/LineRendering.h"
 #include "../opengl/OpenGL.h"
 #include "../opengl/OpenGLTypes.h"
 #include "ConnectionLineBuilder.h"
@@ -36,9 +39,17 @@ static constexpr const float NEW_CONNECTION_POINT_SIZE = 8.f;
 
 static constexpr const float FAINT_CONNECTION_ALPHA = 0.1f;
 
+// Squared threshold for zero-length segment checks to avoid sqrt operations.
+static constexpr const float ZERO_LENGTH_THRESHOLD_SQ = GEOMETRIC_EPSILON * GEOMETRIC_EPSILON;
+
+NODISCARD static bool isNearZero(const glm::vec3 &segment)
+{
+    return glm::length2(segment) < ZERO_LENGTH_THRESHOLD_SQ;
+}
+
 NODISCARD static bool isCrossingZAxis(const glm::vec3 &p1, const glm::vec3 &p2)
 {
-    return std::abs(p1.z - p2.z) > mmgl::GEOMETRIC_EPSILON;
+    return std::abs(p1.z - p2.z) > GEOMETRIC_EPSILON;
 }
 
 NODISCARD static bool isConnectionMode(const CanvasMouseModeEnum mode)
@@ -622,8 +633,8 @@ ConnectionMeshes ConnectionDrawerBuffers::getMeshes(OpenGL &gl) const
     ConnectionMeshes result;
     result.normalTris = gl.createColoredTriBatch(normal.triVerts);
     result.redTris = gl.createColoredTriBatch(red.triVerts);
-    result.normalQuads = gl.createColoredQuadBatch(normal.quadVerts);
-    result.redQuads = gl.createColoredQuadBatch(red.quadVerts);
+    result.normalLines = gl.createColoredLineBatch(normal.lineVerts);
+    result.redLines = gl.createColoredLineBatch(red.lineVerts);
     return result;
 }
 
@@ -643,8 +654,8 @@ void ConnectionMeshes::render(const int thisLayer, const int focusedLayer) const
 
     normalTris.render(common_style);
     redTris.render(common_style);
-    normalQuads.render(common_style);
-    redQuads.render(common_style);
+    normalLines.render(common_style.withLineWidth(CONNECTION_LINE_WIDTH));
+    redLines.render(common_style.withLineWidth(CONNECTION_LINE_WIDTH));
 }
 
 void MapCanvas::paintNearbyConnectionPoints()
@@ -760,12 +771,14 @@ void MapCanvas::paintSelectedConnection()
     const glm::vec3 &pos2 = optPos2.value();
 
     auto &gl = getOpenGL();
-    const auto rs = GLRenderState().withColor(Colors::red);
+    const auto rs = GLRenderState().withColor(Colors::red)
+                        .withLineWidth(CONNECTION_LINE_WIDTH);
 
     {
         std::vector<ColorVert> verts;
-        mmgl::generateLineQuadsSafe(verts, pos1, pos2, CONNECTION_LINE_WIDTH, Colors::red);
-        gl.renderColoredQuads(verts, rs);
+        verts.emplace_back(Colors::red, pos1);
+        verts.emplace_back(Colors::red, pos2);
+        gl.renderColoredLines(verts, rs);
     }
 
     std::vector<ColorVert> points;
@@ -796,28 +809,6 @@ void ConnectionDrawer::ConnectionFakeGL::drawTriangle(const glm::vec3 &a,
 void ConnectionDrawer::ConnectionFakeGL::drawLineStrip(const std::vector<glm::vec3> &points)
 {
     const auto transform = [this](const glm::vec3 &vert) { return vert + m_offset; };
-    const float extension = CONNECTION_LINE_WIDTH * 0.5f;
-
-    // Helper lambda to generate a quad between two points with a specific color.
-    auto generateQuad = [&](const glm::vec3 &p1, const glm::vec3 &p2, const Color &quad_color) {
-        auto &verts = deref(m_currentBuffer).quadVerts;
-
-        const glm::vec3 segment = p2 - p1;
-        if (mmgl::isNearZero(segment)) {
-            mmgl::drawZeroLengthSquare(verts, p1, CONNECTION_LINE_WIDTH, quad_color);
-            return;
-        }
-
-        const glm::vec3 dir = glm::normalize(segment);
-        const glm::vec3 perp_normal_1 = mmgl::getPerpendicularNormal(dir);
-        mmgl::generateLineQuad(verts, p1, p2, CONNECTION_LINE_WIDTH, quad_color, perp_normal_1);
-
-        // If the line crosses different Z-layers, draw a second perpendicular quad to form a "cross" shape.
-        if (isCrossingZAxis(p1, p2)) {
-            const glm::vec3 perp_normal_2 = mmgl::getOrthogonalNormal(dir, perp_normal_1);
-            mmgl::generateLineQuad(verts, p1, p2, CONNECTION_LINE_WIDTH, quad_color, perp_normal_2);
-        }
-    };
 
     const auto size = points.size();
     assert(size >= 2);
@@ -827,56 +818,45 @@ void ConnectionDrawer::ConnectionFakeGL::drawLineStrip(const std::vector<glm::ve
                                  : Colors::red;
 
     for (size_t i = 1; i < size; ++i) {
-        const glm::vec3 start_orig = points[i - 1u];
-        const glm::vec3 end_orig = points[i];
+        const glm::vec3 start_v = transform(points[i - 1u]);
+        const glm::vec3 end_v = transform(points[i]);
 
-        const glm::vec3 start_v = transform(start_orig);
-        const glm::vec3 end_v = transform(end_orig);
-
-        Color current_segment_color = base_color;
+        auto &verts = deref(m_currentBuffer).lineVerts;
 
         // Handle original zero-length segments first.
         const glm::vec3 segment = end_v - start_v;
-        if (mmgl::isNearZero(segment)) {
-            generateQuad(start_v, end_v, current_segment_color);
+        if (isNearZero(segment)) {
+            verts.emplace_back(base_color, start_v);
+            verts.emplace_back(base_color, end_v);
             continue;
         }
 
+        Color current_segment_color = base_color;
         // If the segment crosses the Z-axis, apply fading.
         if (isCrossingZAxis(start_v, end_v)) {
             current_segment_color = current_segment_color.withAlpha(FAINT_CONNECTION_ALPHA);
         }
 
-        glm::vec3 quad_start_v = start_v;
-        glm::vec3 quad_end_v = end_v;
-        const glm::vec3 segment_dir = glm::normalize(segment);
-
-        // Extend the first and last segments for better visual continuity.
-        if (i == 1) {
-            // First segment of the polyline.
-            quad_start_v = start_v - segment_dir * extension;
-        }
-        if (i == size - 1) {
-            // Last segment of the polyline.
-            quad_end_v = end_v + segment_dir * extension;
-        }
-
         // If it's not a long line, just draw a single quad.
-        if (!isLongLine(quad_start_v, quad_end_v)) {
-            generateQuad(quad_start_v, quad_end_v, current_segment_color);
+        if (!isLongLine(start_v, end_v)) {
+            verts.emplace_back(current_segment_color, start_v);
+            verts.emplace_back(current_segment_color, end_v);
             continue;
         }
 
         // It is a long line, apply fading.
-        const float len = glm::length(quad_end_v - quad_start_v);
+        const float len = glm::length(end_v - start_v);
         const float faintCutoff = (len > 1e-6f) ? (LONG_LINE_HALFLEN / len) : 0.5f;
 
-        const glm::vec3 mid1 = glm::mix(quad_start_v, quad_end_v, faintCutoff);
-        const glm::vec3 mid2 = glm::mix(quad_start_v, quad_end_v, 1.f - faintCutoff);
+        const glm::vec3 mid1 = glm::mix(start_v, end_v, faintCutoff);
+        const glm::vec3 mid2 = glm::mix(start_v, end_v, 1.f - faintCutoff);
         const Color faint_color = current_segment_color.withAlpha(FAINT_CONNECTION_ALPHA);
 
-        generateQuad(quad_start_v, mid1, current_segment_color);
-        generateQuad(mid1, mid2, faint_color);
-        generateQuad(mid2, quad_end_v, current_segment_color);
+        verts.emplace_back(current_segment_color, start_v);
+        verts.emplace_back(current_segment_color, mid1);
+        verts.emplace_back(faint_color, mid1);
+        verts.emplace_back(faint_color, mid2);
+        verts.emplace_back(current_segment_color, mid2);
+        verts.emplace_back(current_segment_color, end_v);
     }
 }

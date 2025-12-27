@@ -4,10 +4,17 @@
 
 #include "MapCanvasData.h"
 
-#include "../opengl/LineRendering.h"
-
 #include <cmath>
 #include <optional>
+
+// Tolerance for projecting world coordinates to screen space.
+// Small but non-zero w values can cause numerical instability if used as divisors.
+// A threshold of 1e-6f is a balance between precision and avoiding noise amplification.
+static constexpr const float W_PROJECTION_EPSILON = 1e-6f;
+
+// Projection epsilon for clamping logic in screen space.
+// This handles numerical instability during world-to-screen projections.
+static constexpr const float PROJECTION_EPSILON = 1e-5f;
 
 #include <glm/gtc/epsilon.hpp>
 
@@ -34,12 +41,12 @@ std::optional<glm::vec3> MapCanvasViewport::project(const glm::vec3 &v) const
     // This can happen if you set the layer height to the view distance
     // and then try to project a point on layer = 1, when the vertical
     // angle is 1, so the plane would pass through the camera.
-    if (std::abs(tmp.w) < mmgl::W_PROJECTION_EPSILON) {
+    if (std::abs(tmp.w) < W_PROJECTION_EPSILON) {
         return std::nullopt;
     }
     const auto ndc = glm::vec3{tmp} / tmp.w; /* [-1, 1]^3 if clamped */
 
-    if (glm::any(glm::greaterThan(glm::abs(ndc), glm::vec3{1.f + mmgl::PROJECTION_EPSILON}))) {
+    if (glm::any(glm::greaterThan(glm::abs(ndc), glm::vec3{1.f + PROJECTION_EPSILON}))) {
         // result is not visible on screen.
         return std::nullopt;
     }
@@ -47,7 +54,7 @@ std::optional<glm::vec3> MapCanvasViewport::project(const glm::vec3 &v) const
     const auto screen = glm::clamp(ndc * 0.5f + 0.5f, 0.f, 1.f); /* [0, 1]^3 if clamped */
 
     const Viewport viewport = getViewport();
-    const auto mouse = glm::vec2{screen} * glm::vec2{viewport.size} + glm::vec2{viewport.offset};
+    const auto mouse = glm::vec2{screen.x, screen.y} * glm::vec2{viewport.size} + glm::vec2{viewport.offset};
     const glm::vec3 mouse_depth{mouse, screen.z};
     return mouse_depth;
 }
@@ -119,7 +126,7 @@ std::optional<glm::vec3> MapCanvasViewport::unproject(const QInputEvent *const e
     const auto b = unproject_raw(glm::vec3{xy, 1.f}); // far
     const auto unclamped = (static_cast<float>(m_currentLayer) - a.z) / (b.z - a.z);
 
-    if (!::isClamped(unclamped, 0.f - mmgl::PROJECTION_EPSILON, 1.f + mmgl::PROJECTION_EPSILON)) {
+    if (!::isClamped(unclamped, 0.f - PROJECTION_EPSILON, 1.f + PROJECTION_EPSILON)) {
         return std::nullopt;
     }
 

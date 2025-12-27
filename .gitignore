@@ -28,3 +28,4 @@ snap/
 stage/
 *.snap
 *_source.tar.bz2
+build.log

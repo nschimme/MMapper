@@ -493,6 +493,7 @@ void Configuration::read()
 
     SETTINGS(conf);
     FOREACH_CONFIG_GROUP(read);
+    hotkeyManager.loadFromSettings(conf);
 
     // This logic only runs once on a MMapper fresh install (or factory reset)
     // Subsequent MMapper starts will always read "firstRun" as false
@@ -518,6 +519,7 @@ void Configuration::write() const
 {
     SETTINGS(conf);
     FOREACH_CONFIG_GROUP(write);
+    hotkeyManager.saveToSettings(conf);
 }
 
 void Configuration::reset()

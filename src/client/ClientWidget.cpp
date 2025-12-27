@@ -112,6 +112,15 @@ void ClientWidget::initStackedInputWidget()
             getSelf().slot_onShowMessage(msg);
         }
         void virt_requestPassword() final { getSelf().getInput().requestPassword(); }
+        void virt_scrollDisplay(bool pageUp) final
+        {
+            auto *scrollBar = getDisplay().verticalScrollBar();
+            if (scrollBar) {
+                int pageStep = scrollBar->pageStep();
+                int delta = pageUp ? -pageStep : pageStep;
+                scrollBar->setValue(scrollBar->value() + delta);
+            }
+        }
     };
     auto &out = m_pipeline.outputs.stackedInputWidgetOutputs;
     out = std::make_unique<LocalStackedInputWidgetOutputs>(*this);

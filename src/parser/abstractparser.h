@@ -311,7 +311,7 @@ private:
     std::shared_ptr<ParseRoomHelper> m_parseRoomHelper;
 
 public:
-    using HelpCallback = std::function<void(const std::string &name)>;
+    using HelpCallback = std::function<void(const std::string &name, const std::string &subcommand)>;
     using ParserCallback
         = std::function<bool(const std::vector<StringView> &matched, StringView args)>;
     struct NODISCARD ParserRecord final
@@ -405,6 +405,7 @@ private:
     NODISCARD bool evalSpecialCommandMap(StringView args);
 
     void parseHelp(StringView words);
+    void parseHotkey(StringView input);
     void parseMark(StringView input);
     void parseRoom(StringView input);
     void parseGroup(StringView input);

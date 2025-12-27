@@ -562,7 +562,7 @@ NODISCARD static LayerMeshesIntermediate::FnVec createSortedTexturedMeshes(
         const RoomTex &rtex = textures[beg];
         const size_t count = end - beg;
 
-        std::vector<InstancedQuadTexVert> verts;
+        std::vector<InstancedQuadColoredTexVert> verts;
         verts.reserve(count);
 
         for (size_t i = beg; i < end; ++i) {
@@ -570,11 +570,11 @@ NODISCARD static LayerMeshesIntermediate::FnVec createSortedTexturedMeshes(
             const auto &pos = thisVert.coord;
             const auto v0 = pos.to_ivec3();
             const auto z = thisVert.pos.position;
-            verts.emplace_back(z, v0);
+            verts.emplace_back(v0, z);
         }
 
         tmp_meshes.emplace_back([v = std::move(verts), t = rtex.pos.array](OpenGL &g) {
-            return g.createInstancedTexturedQuadBatch(v, t);
+            return g.createInstancedColoredTexturedQuadBatch(v, t);
         });
     };
 

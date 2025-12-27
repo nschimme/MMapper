@@ -38,6 +38,9 @@ public:
 protected:
     void mousePressEvent(QMouseEvent *event) override;
 
+private:
+    void updateTimeStyle(MumeTimeEnum time);
+
 public slots:
     void slot_updateTime(MumeTimeEnum time);
     void slot_updateMoonPhase(MumeMoonPhaseEnum phase);

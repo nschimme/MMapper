@@ -91,15 +91,6 @@ void GameObserver::observeFog(const PromptFogEnum fog)
     }
 }
 
-void GameObserver::observeCountdown(const QString &countdownText)
-{
-    if (m_countdownText != countdownText) {
-        m_countdownText = countdownText;
-        sig2_countdownChanged.invoke(countdownText);
-        emit countdownChanged(countdownText);
-    }
-}
-
 void GameObserver::observeTick(const MumeMoment &moment)
 {
     sig2_tick.invoke(moment);

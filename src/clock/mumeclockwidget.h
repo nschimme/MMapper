@@ -46,6 +46,5 @@ public slots:
     void slot_updateMoonPhase(MumeMoonPhaseEnum phase);
     void slot_updateMoonVisibility(MumeMoonVisibilityEnum visibility);
     void slot_updateSeason(MumeSeasonEnum season);
-    void slot_updateCountdown(const QString &text);
     void slot_updateStatusTips(const MumeMoment &moment);
 };

@@ -281,29 +281,7 @@ void MumeClock::parseWeather(const MumeTimeEnum time, int64_t secsSinceEpoch)
     auto moment = MumeMoment::sinceMumeEpoch(secsSinceEpoch - m_mumeStartEpoch);
     moment.minute = 0;
 
-    const auto timeOfDay = moment.toTimeOfDay();
-    if (timeOfDay != m_timeOfDay) {
-        m_timeOfDay = timeOfDay;
-        m_observer.observeTimeOfDay(m_timeOfDay);
-    }
-
-    const auto moonPhase = moment.moonPhase();
-    if (moonPhase != m_moonPhase) {
-        m_moonPhase = moonPhase;
-        m_observer.observeMoonPhase(m_moonPhase);
-    }
-
-    const auto moonVisibility = moment.moonVisibility();
-    if (moonVisibility != m_moonVisibility) {
-        m_moonVisibility = moonVisibility;
-        m_observer.observeMoonVisibility(m_moonVisibility);
-    }
-
-    const auto season = moment.toSeason();
-    if (season != m_season) {
-        m_season = season;
-        m_observer.observeSeason(m_season);
-    }
+    updateObserver(moment);
 
     // Predict current hour given the month
     const auto dawnDusk = getDawnDusk(moment.month);
@@ -526,7 +504,11 @@ void MumeClock::slot_tick()
 {
     const MumeMoment moment = getMumeMoment();
     m_observer.observeTick(moment);
+    updateObserver(moment);
+}
 
+void MumeClock::updateObserver(const MumeMoment &moment)
+{
     const auto timeOfDay = moment.toTimeOfDay();
     if (timeOfDay != m_timeOfDay) {
         m_timeOfDay = timeOfDay;
@@ -549,13 +531,5 @@ void MumeClock::slot_tick()
     if (season != m_season) {
         m_season = season;
         m_observer.observeSeason(m_season);
-    }
-
-    const MumeClockPrecisionEnum precision = getPrecision();
-    if (precision <= MumeClockPrecisionEnum::HOUR) {
-        m_observer.observeCountdown(
-            QString::fromUtf8("\xE2\x9A\xA0").append(toCountdown(moment)));
-    } else {
-        m_observer.observeCountdown(toCountdown(moment));
     }
 }

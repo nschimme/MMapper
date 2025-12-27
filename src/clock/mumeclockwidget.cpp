@@ -33,15 +33,12 @@ MumeClockWidget::MumeClockWidget(GameObserver &observer, MumeClock *clock, QWidg
     connect(&observer, &GameObserver::moonVisibilityChanged, this,
             &MumeClockWidget::slot_updateMoonVisibility);
     connect(&observer, &GameObserver::seasonChanged, this, &MumeClockWidget::slot_updateSeason);
-    connect(&observer, &GameObserver::countdownChanged, this,
-            &MumeClockWidget::slot_updateCountdown);
     connect(&observer, &GameObserver::tick, this, &MumeClockWidget::slot_updateStatusTips);
 
     slot_updateTime(observer.getTimeOfDay());
     slot_updateMoonPhase(observer.getMoonPhase());
     slot_updateMoonVisibility(observer.getMoonVisibility());
     slot_updateSeason(observer.getSeason());
-    slot_updateCountdown(observer.getCountdown());
     slot_updateStatusTips(clock->getMumeMoment());
 }
 
@@ -53,6 +50,7 @@ void MumeClockWidget::mousePressEvent(QMouseEvent * /*event*/)
     m_clock->setPrecision(MumeClockPrecisionEnum::MINUTE);
     m_clock->setLastSyncEpoch(QDateTime::currentDateTimeUtc().toSecsSinceEpoch());
     updateTimeStyle(m_lastTime);
+    slot_updateStatusTips(m_clock->getMumeMoment());
 }
 
 void MumeClockWidget::updateTimeStyle(MumeTimeEnum time)
@@ -170,17 +168,21 @@ void MumeClockWidget::slot_updateSeason(MumeSeasonEnum season)
     }
 }
 
-void MumeClockWidget::slot_updateCountdown(const QString &text)
-{
-    timeLabel->setText(text);
-}
-
 void MumeClockWidget::slot_updateStatusTips(const MumeMoment &moment)
 {
     setVisible(getConfig().mumeClock.display);
     if (!getConfig().mumeClock.display) {
         return;
     }
+
+    const MumeClockPrecisionEnum precision = m_clock->getPrecision();
+    if (precision <= MumeClockPrecisionEnum::HOUR) {
+        timeLabel->setText(
+            QString::fromUtf8("\xE2\x9A\xA0").append(m_clock->toCountdown(moment)));
+    } else {
+        timeLabel->setText(m_clock->toCountdown(moment));
+    }
+
     moonPhaseLabel->setStatusTip(moment.toMumeMoonTime());
     seasonLabel->setStatusTip(m_clock->toMumeTime(moment));
 }

@@ -158,6 +158,7 @@ protected:
 
 private:
     void onUserGmcp(const GmcpMessage &msg);
+    void updateObserver(const MumeMoment &moment);
 
 signals:
     void sig_log(const QString &, const QString &);

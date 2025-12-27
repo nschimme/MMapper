@@ -61,6 +61,7 @@ private:
 
 class NODISCARD MudTelnet final : public AbstractTelnet
 {
+    friend class TestMudTelnet;
 private:
     MudTelnetOutputs &m_outputs;
     /** modules for GMCP */

@@ -29,6 +29,19 @@
 
 namespace { // anonymous
 
+NODISCARD QString to_string(const CharacterEncodingEnum e)
+{
+    switch (e) {
+    case CharacterEncodingEnum::LATIN1:
+        return ENCODING_LATIN_1;
+    case CharacterEncodingEnum::UTF8:
+        return ENCODING_UTF_8;
+    case CharacterEncodingEnum::ASCII:
+        return ENCODING_US_ASCII;
+    }
+    Q_UNREACHABLE();
+}
+
 constexpr const auto GAME_YEAR = "GAME YEAR";
 constexpr const auto GAME_MONTH = "GAME MONTH";
 constexpr const auto GAME_DAY = "GAME DAY";
@@ -493,6 +506,7 @@ void MudTelnet::virt_onGmcpEnabled()
     obj["os"] = mmqt::toQStringUtf8(getOs());
     obj["arch"] = QSysInfo::currentCpuArchitecture();
     obj["package"] = mmqt::toQStringUtf8(getPackage());
+    obj["charset"] = to_string(getEncoding());
 
     const QJsonDocument doc(obj);
     const QString json = doc.toJson(QJsonDocument::Compact);

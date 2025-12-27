@@ -1059,14 +1059,18 @@ void MapCanvas::renderMapBatches()
     const GLuint named_colors_buffer_id = std::invoke([&gl, &shared_vbo]() {
         auto &fns = gl.getSharedFunctions(Badge<MapCanvas>{});
         Legacy::VBO &vbo = deref(shared_vbo);
-        const std::vector<Color> colors = XNamedColor::getAllColors();
 
-        // the shader is declared vec4, so the data has to be 4 floats per entry.
-        std::vector<glm::vec4> vec4_colors;
-        vec4_colors.reserve(colors.size());
-        for (auto &c : colors) {
-            vec4_colors.emplace_back(c.getVec4());
-        }
+        // the shader is declared vec4, so the data has to be 4 floats per entry;
+        // it might be nice to get rid of this dynamic allocation.
+        const auto vec4_colors = std::invoke([]() {
+            const std::vector<Color> &all_colors = XNamedColor::getAllColors();
+            std::vector<glm::vec4> result;
+            result.reserve(all_colors.size());
+            for (const auto &c : all_colors) {
+                result.emplace_back(c.getVec4());
+            }
+            return result;
+        });
 
         // Can we avoid the upload if it's not necessary?
         MAYBE_UNUSED const auto result = fns->setVbo(DrawModeEnum::INVALID,
@@ -1074,7 +1078,7 @@ void MapCanvas::renderMapBatches()
                                                      vec4_colors,
                                                      BufferUsageEnum::DYNAMIC_DRAW);
         assert(result.first == DrawModeEnum::INVALID);
-        assert(result.second == static_cast<int>(colors.size()));
+        assert(result.second == static_cast<int>(vec4_colors.size()));
 
         return vbo.get();
     });

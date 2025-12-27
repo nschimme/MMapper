@@ -108,24 +108,6 @@ private:
     }
 };
 
-struct NODISCARD IQUColorTexturedShader final : public AbstractShaderProgram
-{
-public:
-    using AbstractShaderProgram::AbstractShaderProgram;
-
-    ~IQUColorTexturedShader() final;
-
-private:
-    void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final
-    {
-        assert(uniforms.textures[0] != INVALID_MM_TEXTURE_ID);
-
-        setColor("uColor", uniforms.color);
-        setMatrix("uMVP", mvp);
-        setTexture("uTexture", 0);
-    }
-};
-
 struct NODISCARD FontShader final : public AbstractShaderProgram
 {
 private:
@@ -178,7 +160,6 @@ private:
 private:
     std::shared_ptr<IQUColorPlainShader> m_iq_uColorShader;
     std::shared_ptr<IQAColorTexturedShader> m_iq_aTexturedShader;
-    std::shared_ptr<IQUColorTexturedShader> m_iq_uTexturedShader;
 
 private:
     std::shared_ptr<FontShader> m_font;
@@ -195,18 +176,7 @@ private:
     NODISCARD Functions &getFunctions() { return m_functions; }
 
 public:
-    void resetAll()
-    {
-        m_aColorShader.reset();
-        m_uColorShader.reset();
-        m_aTexturedShader.reset();
-        m_uTexturedShader.reset();
-        m_iq_uColorShader.reset();
-        m_iq_aTexturedShader.reset();
-        m_iq_uTexturedShader.reset();
-        m_font.reset();
-        m_point.reset();
-    }
+    void resetAll();
 
 public:
     // attribute color (aka "Colored")
@@ -221,7 +191,6 @@ public:
 public:
     NODISCARD const std::shared_ptr<IQUColorPlainShader> &getInstancedQuadsPlainUColorShader();
     NODISCARD const std::shared_ptr<IQAColorTexturedShader> &getInstancedQuadsTexturedAColorShader();
-    NODISCARD const std::shared_ptr<IQUColorTexturedShader> &getInstancedQuadsTexturedUColorShader();
 
 public:
     NODISCARD const std::shared_ptr<FontShader> &getFontShader();

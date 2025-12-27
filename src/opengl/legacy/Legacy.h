@@ -348,8 +348,6 @@ public:
 
 public:
     NODISCARD UniqueMesh createInstancedPlainQuadBatch(const std::vector<glm::ivec3> &batch);
-    NODISCARD UniqueMesh createInstancedQuadTexturedBatch(
-        const std::vector<InstancedQuadTexVert> &batch, MMTextureId texture);
     NODISCARD UniqueMesh createInstancedQuadColoredTexturedBatch(
         const std::vector<InstancedQuadColoredTexVert> &batch, MMTextureId texture);
 

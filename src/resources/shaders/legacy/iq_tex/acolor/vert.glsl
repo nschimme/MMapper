@@ -20,7 +20,7 @@ void main()
     ivec3 ioffset = ioffsets_ccw[gl_VertexID];
 
     int texZ = aVertTexCol.w & 0xFF;
-    int colorId = (aVertTexCol.w >> 16) % MAX_NAMED_COLORS;
+    int colorId = (aVertTexCol.w >> 8) % MAX_NAMED_COLORS;
 
     vColor = uNamedColors[colorId];
     vTexCoord = vec3(ioffset.xy, float(texZ));

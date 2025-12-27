@@ -138,12 +138,6 @@ UniqueMesh OpenGL::createInstancedPlainQuadBatch(const std::vector<glm::ivec3> &
     return getFunctions().createInstancedPlainQuadBatch(batch);
 }
 
-UniqueMesh OpenGL::createInstancedTexturedQuadBatch(const std::vector<InstancedQuadTexVert> &batch,
-                                                    const MMTextureId texture)
-{
-    return getFunctions().createInstancedQuadTexturedBatch(batch, texture);
-}
-
 UniqueMesh OpenGL::createInstancedColoredTexturedQuadBatch(
     const std::vector<InstancedQuadColoredTexVert> &batch, const MMTextureId texture)
 {

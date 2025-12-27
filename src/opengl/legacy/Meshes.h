@@ -227,61 +227,6 @@ private:
     }
 };
 
-// Textured mesh with color modulated by uniform
-template<typename VertexType_>
-class NODISCARD IQTexturedMesh final : public SimpleMesh<VertexType_, IQUColorTexturedShader>
-{
-public:
-    using Base = SimpleMesh<VertexType_, IQUColorTexturedShader>;
-    using Base::Base;
-
-private:
-    struct NODISCARD Attribs final
-    {
-        GLuint vertTexPos = INVALID_ATTRIB_LOCATION;
-
-        NODISCARD static Attribs getLocations(AbstractShaderProgram &fontShader)
-        {
-            Attribs result;
-            result.vertTexPos = fontShader.getAttribLocation("aVertTex");
-            return result;
-        }
-    };
-
-    std::optional<Attribs> m_boundAttribs;
-
-    void virt_bind() override
-    {
-        const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
-        static_assert(sizeof(std::declval<VertexType_>().vertTex) == 4 * sizeof(int32_t));
-
-        Functions &gl = Base::m_functions;
-        const auto attribs = Attribs::getLocations(Base::m_program);
-        gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
-        // ivec4
-        gl.enableAttribI(attribs.vertTexPos, 4, GL_INT, vertSize, VPO(vertTex));
-
-        // instancing
-        gl.glVertexAttribDivisor(attribs.vertTexPos, 1);
-
-        m_boundAttribs = attribs;
-    }
-
-    void virt_unbind() override
-    {
-        if (!m_boundAttribs) {
-            assert(false);
-            return;
-        }
-
-        auto &attribs = m_boundAttribs.value();
-        Functions &gl = Base::m_functions;
-        gl.glDisableVertexAttribArray(attribs.vertTexPos);
-        gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
-        m_boundAttribs.reset();
-    }
-};
-
 // Textured mesh with color modulated by color attribute.
 template<typename VertexType_>
 class NODISCARD ColoredTexturedMesh final : public SimpleMesh<VertexType_, AColorTexturedShader>

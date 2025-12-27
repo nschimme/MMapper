@@ -65,6 +65,7 @@ private:
     MudTelnetOutputs &m_outputs;
     /** modules for GMCP */
     GmcpModuleSet m_gmcp;
+    CharacterEncodingEnum m_charset{CharacterEncodingEnum::UTF8};
     QString m_lineBuffer;
     bool m_receivedExternalDiscordHello = false;
 
@@ -98,6 +99,7 @@ public:
     void onSendToMud(const QString &);
     void onRelayNaws(int, int);
     void onRelayTermType(const TelnetTermTypeBytes &);
+    void onRelayCharset(const CharacterEncodingEnum);
     void onGmcpToMud(const GmcpMessage &);
     void onLoginCredentials(const QString &, const QString &);
 };

@@ -737,6 +737,7 @@ void AbstractTelnet::processTelnetSubnegotiation(const AppendBuffer &payload)
                         if (m_textCodec.supports(name)) {
                             accepted = true;
                             m_textCodec.setEncodingForName(name);
+                            receiveCharset(m_textCodec.getEncoding());
 
                             // Reply to server that we accepted this encoding
                             sendCharsetAccepted(TelnetCharsetBytes{characterSet});
@@ -762,6 +763,7 @@ void AbstractTelnet::processTelnetSubnegotiation(const AppendBuffer &payload)
                     if (m_debug) {
                         qDebug() << "He accepted charset" << characterSet;
                     }
+                    receiveCharset(m_textCodec.getEncoding());
                     // TODO: RFC 2066 states to stop queueing data
                 }
                 break;

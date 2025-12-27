@@ -271,6 +271,9 @@ void MumeClock::onUserGmcp(const GmcpMessage &msg)
 
 void MumeClock::parseWeather(const MumeTimeEnum time, int64_t secsSinceEpoch)
 {
+    // Restart the timer to sync with the game's tick
+    m_timer->start(1000);
+
     // Update last sync timestamp
     setLastSyncEpoch(secsSinceEpoch);
 

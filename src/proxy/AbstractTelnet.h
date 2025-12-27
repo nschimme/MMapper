@@ -223,6 +223,7 @@ private:
     virtual void virt_receiveEchoMode(bool) {}
     virtual void virt_receiveGmcpMessage(const GmcpMessage &) {}
     virtual void virt_receiveTerminalType(const TelnetTermTypeBytes &) {}
+    virtual void virt_receiveCharset(const CharacterEncodingEnum) {}
     virtual void virt_receiveMudServerStatus(const TelnetMsspBytes &) {}
     virtual void virt_receiveWindowSize(int, int) {}
     virtual void virt_sendRawData(const TelnetIacBytes &data) = 0;
@@ -237,6 +238,7 @@ protected:
     }
     void receiveGmcpMessage(const GmcpMessage &msg) { virt_receiveGmcpMessage(msg); }
     void receiveTerminalType(const TelnetTermTypeBytes &ba) { virt_receiveTerminalType(ba); }
+    void receiveCharset(const CharacterEncodingEnum cs) { virt_receiveCharset(cs); }
     void receiveMudServerStatus(const TelnetMsspBytes &ba) { virt_receiveMudServerStatus(ba); }
     void receiveWindowSize(int x, int y) { virt_receiveWindowSize(x, y); }
 

@@ -233,6 +233,14 @@ void UserTelnet::virt_receiveTerminalType(const TelnetTermTypeBytes &data)
     m_outputs.onRelayTermTypeFromUserToMud(data);
 }
 
+void UserTelnet::virt_receiveCharset(const CharacterEncodingEnum charset)
+{
+    if (getDebug()) {
+        qDebug() << "Received Charset" << static_cast<int>(charset);
+    }
+    m_outputs.onRelayCharsetFromUserToMud(charset);
+}
+
 void UserTelnet::virt_receiveWindowSize(const int x, const int y)
 {
     m_outputs.onRelayNawsFromUserToMud(x, y);

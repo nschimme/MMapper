@@ -127,6 +127,42 @@ set_target_properties(
 )
 add_test(NAME TestProxy COMMAND TestProxy)
 
+# MudTelnet
+set(mudtelnet_SRCS
+    ../src/clock/mumeclock.cpp
+    ../src/clock/mumemoment.cpp
+    ../src/configuration/configuration.cpp
+    ../src/Version.cpp
+    ../src/opengl/OpenGLConfig.cpp
+    ../src/proxy/AbstractTelnet.cpp
+    ../src/proxy/GmcpMessage.cpp
+    ../src/proxy/GmcpModule.cpp
+    ../src/proxy/GmcpUtils.cpp
+    ../src/proxy/MudTelnet.cpp
+    ../src/proxy/TextCodec.cpp
+    ../src/proxy/telnetfilter.cpp
+)
+set(TestMudTelnet_SRCS TestMudTelnet.cpp)
+add_executable(TestMudTelnet ${TestMudTelnet_SRCS} ${mudtelnet_SRCS})
+add_dependencies(TestMudTelnet mm_global mm_map)
+target_link_libraries(
+    TestMudTelnet
+    mm_global
+    mm_map
+    Qt6::Gui
+    Qt6::Network
+    Qt6::Test
+    Qt6::Widgets
+    coverage_config)
+set_target_properties(
+  TestMudTelnet PROPERTIES
+  CXX_STANDARD 17
+  CXX_STANDARD_REQUIRED ON
+  CXX_EXTENSIONS OFF
+  COMPILE_FLAGS "${WARNING_FLAGS}"
+)
+add_test(NAME TestMudTelnet COMMAND TestMudTelnet)
+
 # MainWindow
 set(mainwindow_SRCS
     ../src/global/Version.h
@@ -300,39 +336,3 @@ set_target_properties(
         COMPILE_FLAGS "${WARNING_FLAGS}"
 )
 add_test(NAME TestRoomManager COMMAND TestRoomManager)
-
-# MudTelnet
-set(mudtelnet_SRCS
-    ../src/clock/mumeclock.cpp
-    ../src/clock/mumemoment.cpp
-    ../src/configuration/configuration.cpp
-    ../src/Version.cpp
-    ../src/opengl/OpenGLConfig.cpp
-    ../src/proxy/AbstractTelnet.cpp
-    ../src/proxy/GmcpMessage.cpp
-    ../src/proxy/GmcpModule.cpp
-    ../src/proxy/GmcpUtils.cpp
-    ../src/proxy/MudTelnet.cpp
-    ../src/proxy/TextCodec.cpp
-    ../src/proxy/telnetfilter.cpp
-)
-set(TestMudTelnet_SRCS TestMudTelnet.cpp)
-add_executable(TestMudTelnet ${TestMudTelnet_SRCS} ${mudtelnet_SRCS})
-add_dependencies(TestMudTelnet mm_global mm_map)
-target_link_libraries(
-    TestMudTelnet
-    mm_global
-    mm_map
-    Qt6::Gui
-    Qt6::Network
-    Qt6::Test
-    Qt6::Widgets
-    coverage_config)
-set_target_properties(
-  TestMudTelnet PROPERTIES
-  CXX_STANDARD 17
-  CXX_STANDARD_REQUIRED ON
-  CXX_EXTENSIONS OFF
-  COMPILE_FLAGS "${WARNING_FLAGS}"
-)
-add_test(NAME TestMudTelnet COMMAND TestMudTelnet)

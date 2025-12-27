@@ -29,6 +29,10 @@ public:
     {
         virt_onRelayTermTypeFromUserToMud(bytes);
     }
+    void onRelayCharsetFromUserToMud(const CharacterEncodingEnum charset)
+    {
+        virt_onRelayCharsetFromUserToMud(charset);
+    }
 
 private:
     virtual void virt_onAnalyzeUserStream(const RawBytes &, bool) = 0;
@@ -36,6 +40,7 @@ private:
     virtual void virt_onRelayGmcpFromUserToMud(const GmcpMessage &) = 0;
     virtual void virt_onRelayNawsFromUserToMud(int, int) = 0;
     virtual void virt_onRelayTermTypeFromUserToMud(const TelnetTermTypeBytes &) = 0;
+    virtual void virt_onRelayCharsetFromUserToMud(const CharacterEncodingEnum) = 0;
 };
 
 class NODISCARD UserTelnet final : public AbstractTelnet
@@ -62,6 +67,7 @@ private:
     void virt_sendToMapper(const RawBytes &data, bool goAhead) final;
     void virt_receiveGmcpMessage(const GmcpMessage &) final;
     void virt_receiveTerminalType(const TelnetTermTypeBytes &) final;
+    void virt_receiveCharset(const CharacterEncodingEnum) final;
     void virt_receiveWindowSize(int, int) final;
     void virt_sendRawData(const TelnetIacBytes &data) final;
 

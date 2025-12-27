@@ -393,6 +393,11 @@ void MudTelnet::onRelayTermType(const TelnetTermTypeBytes &terminalType)
     }
 }
 
+void MudTelnet::onRelayCharset(const CharacterEncodingEnum cs)
+{
+    m_charset = cs;
+}
+
 void MudTelnet::onLoginCredentials(const QString &name, const QString &password)
 {
     sendGmcpMessage(
@@ -506,7 +511,8 @@ void MudTelnet::virt_onGmcpEnabled()
     obj["os"] = mmqt::toQStringUtf8(getOs());
     obj["arch"] = QSysInfo::currentCpuArchitecture();
     obj["package"] = mmqt::toQStringUtf8(getPackage());
-    obj["charset"] = to_string(getEncoding());
+    obj["terminalType"] = mmqt::toQStringUtf8(getTerminalType().getQByteArray().toStdString());
+    obj["charset"] = to_string(m_charset);
 
     const QJsonDocument doc(obj);
     const QString json = doc.toJson(QJsonDocument::Compact);

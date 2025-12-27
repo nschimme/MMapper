@@ -405,6 +405,11 @@ void Proxy::allocUserTelnet()
             // forwarded (to mud)
             getMudTelnet().onRelayTermType(bytes);
         }
+        void virt_onRelayCharsetFromUserToMud(const CharacterEncodingEnum charset) final
+        {
+            // forwarded (to mud)
+            getMudTelnet().onRelayCharset(charset);
+        }
     };
 
     auto &pipe = getPipeline();

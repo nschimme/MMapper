@@ -140,6 +140,7 @@ public:
     using Base::glActiveTexture;
     using Base::glAttachShader;
     using Base::glBindBuffer;
+    using Base::glBindBufferBase;
     using Base::glBindTexture;
     using Base::glBindVertexArray;
     using Base::glBlendFunc;
@@ -175,6 +176,7 @@ public:
     using Base::glGetString;
     using Base::glGetTexLevelParameteriv;
     using Base::glGetTexParameteriv;
+    using Base::glGetUniformBlockIndex;
     using Base::glGetUniformLocation;
     using Base::glHint;
     using Base::glIsBuffer;
@@ -189,6 +191,7 @@ public:
     using Base::glUniform1iv;
     using Base::glUniform4fv;
     using Base::glUniform4iv;
+    using Base::glUniformBlockBinding;
     using Base::glUniformMatrix4fv;
     using Base::glUseProgram;
     using Base::glVertexAttribDivisor;

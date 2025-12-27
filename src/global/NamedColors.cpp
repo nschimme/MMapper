@@ -17,11 +17,13 @@ struct NODISCARD GlobalData final
     using InitArray = EnumIndexedArray<bool, NamedColorEnum, NUM_NAMED_COLORS>;
     using Map = std::map<std::string, NamedColorEnum>;
     using NamesVector = std::vector<std::string>;
+    using Vec4Vector = std::vector<glm::vec4>;
 
 private:
     Map m_map;
     NamesVector m_names;
     ColorVector m_colors;
+    Vec4Vector m_vec4s;
     InitArray m_initialized;
 
 private:
@@ -31,6 +33,7 @@ public:
     GlobalData()
     {
         m_colors.resize(NUM_NAMED_COLORS);
+        m_vec4s.resize(NUM_NAMED_COLORS);
         m_names.resize(NUM_NAMED_COLORS);
 
         static const auto white = Colors::white;
@@ -43,6 +46,7 @@ public:
             const auto color = (id == NamedColorEnum::TRANSPARENT) ? transparent_black : white;
 
             m_colors[idx] = color;
+            m_vec4s[idx] = color.getVec4();
             m_names[idx] = name;
             m_map.emplace(name, id);
         };
@@ -69,6 +73,7 @@ public:
 
         const auto idx = getIndex(id);
         m_colors.at(idx) = c;
+        m_vec4s.at(idx) = c.getVec4();
         m_initialized.at(id) = true;
         return true;
     }

@@ -971,15 +971,11 @@ LayerMeshes LayerMeshesIntermediate::getLayerMeshes(OpenGL &gl) const
 
 void LayerMeshes::render(const int thisLayer, const int focusedLayer)
 {
-    bool disableTextures = false;
-    if (thisLayer > focusedLayer) {
-        if (!getConfig().canvas.drawUpperLayersTextured) {
-            // Disable texturing for this layer. We want to draw
-            // all of the squares in white (using layer boost quads),
-            // and then still draw the walls.
-            disableTextures = true;
-        }
-    }
+    // Disable texturing for this layer. We want to draw
+    // all of the squares in white (using layer boost quads),
+    // and then still draw the walls.
+    const bool disableTextures = (thisLayer > focusedLayer)
+                                 && !getConfig().canvas.drawUpperLayersTextured;
 
     const GLRenderState less = GLRenderState().withDepthFunction(DepthFunctionEnum::LESS);
     const GLRenderState equal = GLRenderState().withDepthFunction(DepthFunctionEnum::EQUAL);
@@ -990,12 +986,8 @@ void LayerMeshes::render(const int thisLayer, const int focusedLayer)
     const GLRenderState equal_blended = equal.withBlend(BlendModeEnum::TRANSPARENCY);
     const GLRenderState equal_multiplied = equal.withBlend(BlendModeEnum::MODULATE);
 
-    const auto color = std::invoke([&thisLayer, &focusedLayer]() -> Color {
-        if (thisLayer <= focusedLayer) {
-            return Colors::white.withAlpha(0.90f);
-        }
-        return Colors::gray70.withAlpha(0.20f);
-    });
+    const auto color = (thisLayer <= focusedLayer) ? Colors::white.withAlpha(0.90f)
+                                                   : Colors::gray70.withAlpha(0.20f);
 
     {
         /* REVISIT: For the modern case, we could render each layer separately,

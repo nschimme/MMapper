@@ -623,6 +623,8 @@ void MapCanvas::finishPendingMapBatches()
                      .arg(msg);
         qWarning().noquote() << s;
         global::sendToUser(s);
+
+        // FIXME: This causes a cycle when the remeshing throws.
         m_data.restoreSnapshot();
     }
 #undef LOG

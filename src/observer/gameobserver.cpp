@@ -6,6 +6,8 @@
 
 #include "../global/parserutils.h"
 
+GameObserver::GameObserver() = default;
+
 void GameObserver::observeConnected()
 {
     sig2_connected.invoke();
@@ -33,22 +35,6 @@ void GameObserver::observeSentToUserGmcp(const GmcpMessage &m)
 void GameObserver::observeToggledEchoMode(const bool echo)
 {
     sig2_toggledEchoMode.invoke(echo);
-}
-
-void GameObserver::observeTimeOfDay(const MumeTimeEnum timeOfDay)
-{
-    if (m_timeOfDay != timeOfDay) {
-        m_timeOfDay = timeOfDay;
-        sig2_timeOfDayChanged.invoke(timeOfDay);
-    }
-}
-
-void GameObserver::observeMoonPhase(const MumeMoonPhaseEnum moonPhase)
-{
-    if (m_moonPhase != moonPhase) {
-        m_moonPhase = moonPhase;
-        sig2_moonPhaseChanged.invoke(moonPhase);
-    }
 }
 
 void GameObserver::observeWeather(const PromptWeatherEnum weather)

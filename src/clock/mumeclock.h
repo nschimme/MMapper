@@ -81,8 +81,11 @@ private:
     MumeClockPrecisionEnum m_precision = MumeClockPrecisionEnum::UNSET;
     MumeTimeEnum m_timeOfDay = MumeTimeEnum::UNKNOWN;
     MumeMoonPhaseEnum m_moonPhase = MumeMoonPhaseEnum::UNKNOWN;
+    MumeMoonVisibilityEnum m_moonVisibility = MumeMoonVisibilityEnum::UNKNOWN;
+    MumeSeasonEnum m_season = MumeSeasonEnum::UNKNOWN;
     GameObserver &m_observer;
     Signal2Lifetime m_lifetime;
+    QTimer *m_timer;
 
 public:
     static inline constexpr const int NUM_MONTHS = 12;
@@ -155,6 +158,7 @@ protected:
 
 private:
     void onUserGmcp(const GmcpMessage &msg);
+    void updateObserver(const MumeMoment &moment);
 
 signals:
     void sig_log(const QString &, const QString &);
@@ -162,4 +166,5 @@ signals:
 public slots:
     void parseMumeTime(const QString &mumeTime);
     void parseClockTime(const QString &clockTime);
+    void slot_tick();
 };

@@ -1207,7 +1207,7 @@ void AbstractParser::initSpecialCommandMap()
                        "\tkeys                 # Show available key names\n"
                        "\treset                # Reset hotkeys to defaults\n"
                        "\n"
-                       "Use \"help hotkey <subcommand>\" for detailed help on each subcommand.\n";
+                       "Use \"help hotkey <subcommand>\" for detailed help on each subcommand.";
             } else if (subcommand == "set" || subcommand.rfind("set ", 0) == 0) {
                 cmdDisplay = name + " set";
                 help = "Assign a command to a hotkey.\n"

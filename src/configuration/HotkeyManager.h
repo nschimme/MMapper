@@ -11,8 +11,9 @@
 #include <vector>
 
 #include <QString>
-#include <QSettings>
 #include <Qt>
+
+class QSettings;
 
 /// Represents a hotkey as (key, modifiers, isNumpad) for efficient lookup
 struct NODISCARD HotkeyKey final
@@ -91,13 +92,13 @@ public:
 
     DELETE_CTORS_AND_ASSIGN_OPS(HotkeyManager);
 
-    /// Load hotkeys from QSettings
+    /// Load hotkeys from QSettings (called on startup)
     void loadFromSettings(QSettings &settings);
 
     /// Save hotkeys to QSettings
     void saveToSettings(QSettings &settings) const;
 
-    /// Set a hotkey using string key name (does not save automatically)
+    /// Set a hotkey using string key name (saves to QSettings immediately)
     /// This is used by the _hotkey command for user convenience
     /// Returns true if the hotkey was set successfully, false if the key name is invalid
     NODISCARD bool setHotkey(const QString &keyName, const QString &command);

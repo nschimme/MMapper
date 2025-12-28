@@ -39,6 +39,7 @@ set(mmapper_SRCS
     configuration/configuration.h
     configuration/HotkeyManager.cpp
     configuration/HotkeyManager.h
+    configuration/HotkeyMacros.h
     display/CanvasMouseModeEnum.h
     display/Characters.cpp
     display/Characters.h

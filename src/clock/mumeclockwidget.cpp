@@ -61,25 +61,17 @@ void MumeClockWidget::updateTimeStyle(MumeTimeEnum time)
 {
     // The current time is 12:15 am.
     QString styleSheet = "";
-    QString statusTip = "";
     if (m_clock.getPrecision() <= MumeClockPrecisionEnum::UNSET) {
         styleSheet = "padding-left:1px;padding-right:1px;color:white;background:grey";
     } else if (time == MumeTimeEnum::DAWN) {
         styleSheet = "padding-left:1px;padding-right:1px;color:white;background:red";
-        statusTip = "Ticks left until day";
     } else if (time >= MumeTimeEnum::DUSK) {
         styleSheet = "padding-left:1px;padding-right:1px;color:white;background:blue";
-        statusTip = "Ticks left until day";
     } else {
         styleSheet = "padding-left:1px;padding-right:1px;color:black;background:yellow";
-        statusTip = "Ticks left until night";
-    }
-    if (m_clock.getPrecision() != MumeClockPrecisionEnum::MINUTE) {
-        statusTip = "The clock has not synced with MUME! Click to override at your own risk.";
     }
 
     timeLabel->setStyleSheet(styleSheet);
-    timeLabel->setStatusTip(statusTip);
 }
 
 void MumeClockWidget::updateTime(MumeTimeEnum time)
@@ -186,6 +178,22 @@ void MumeClockWidget::updateStatusTips(const MumeMoment &moment)
     } else {
         timeLabel->setText(m_clock.toCountdown(moment));
     }
+
+    QString statusTip = "";
+    const auto time = moment.toTimeOfDay();
+    if (precision <= MumeClockPrecisionEnum::UNSET) {
+        // No status tip
+    } else if (time == MumeTimeEnum::DAWN) {
+        statusTip = "Ticks left until day";
+    } else if (time >= MumeTimeEnum::DUSK) {
+        statusTip = "Ticks left until day";
+    } else {
+        statusTip = "Ticks left until night";
+    }
+    if (precision != MumeClockPrecisionEnum::MINUTE) {
+        statusTip = "The clock has not synced with MUME! Click to override at your own risk.";
+    }
+    timeLabel->setStatusTip(statusTip);
 
     moonPhaseLabel->setStatusTip(moment.toMumeMoonTime());
     seasonLabel->setStatusTip(m_clock.toMumeTime(moment));

@@ -303,7 +303,6 @@ void Proxy::allocMudSocket()
             qDebug() << "mud socket connected";
             // It's a historical accident that GameObserver is first. It should probably be last.
             getGameObserver().observeConnected();
-            getUserTelnet().onConnected();
             getProxy().onMudConnected();
         }
 
@@ -411,6 +410,7 @@ void Proxy::allocUserTelnet()
             // forwarded (to mud)
             getMudTelnet().onRelayCharset(charset);
         }
+        void virt_onCharsetNegotiationFinished() final { getProxy().connectToMud(); }
     };
 
     auto &pipe = getPipeline();
@@ -873,7 +873,7 @@ void Proxy::init()
     sendWelcomeToUser();
     sendSyntaxHintToUser("Type", "help", "for help.");
 
-    connectToMud();
+    getUserTelnet().startNegotiation();
 }
 
 void Proxy::gmcpToMud(const GmcpMessage &msg)

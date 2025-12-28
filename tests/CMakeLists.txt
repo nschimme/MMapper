@@ -217,7 +217,7 @@ set(adventure_SRCS
         ../src/observer/gameobserver.h
         )
 set(TestAdventure_SRCS testadventure.cpp testadventure.h)
-add_executable(TestAdventure ${TestAdventure_SRCS} ${adventure_SRCS})
+add_executable(TestAdventure ${TestAdventure_SRCS} ${adventure_SRCS} ../src/configuration/HotkeyManager.cpp ../src/configuration/HotkeyManager.h)
 add_dependencies(TestAdventure mm_global)
 target_link_libraries(TestAdventure mm_global Qt6::Widgets Qt6::Network Qt6::Test coverage_config)
 set_target_properties(

@@ -1,5 +1,14 @@
 #pragma once
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2019 The MMapper Authors
 
+#include <Qt>
+
+// X-Macro for defining hotkeys. This allows us to define all hotkey information in one place.
+// Format: X(name, qtKey, isNumpad)
+// - name: The string name of the key (e.g., "F1", "NUMPAD8")
+// - qtKey: The Qt::Key enum value
+// - isNumpad: bool, true if this key is on the numpad and requires the KeypadModifier
 #define X_FOREACH_HOTKEY(X) \
     X("F1", Qt::Key_F1, false) \
     X("F2", Qt::Key_F2, false) \

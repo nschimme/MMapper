@@ -5,6 +5,7 @@
 #include "inputwidget.h"
 
 #include "../configuration/HotkeyManager.h"
+#include "../configuration/HotkeyMacros.h"
 #include "../configuration/configuration.h"
 #include "../global/Color.h"
 
@@ -13,76 +14,12 @@
 #include <QRegularExpression>
 #include <QSize>
 #include <QString>
-#include <QTextStream>
 #include <QtGui>
 #include <QtWidgets>
 
 static constexpr const int MIN_WORD_LENGTH = 3;
 
 static const QRegularExpression g_whitespaceRx(R"(\s+)");
-
-// Lookup tables for key name mapping (reduces cyclomatic complexity)
-static const QHash<int, QString> &getNumpadKeyMap()
-{
-    static const QHash<int, QString> map{{Qt::Key_0, "NUMPAD0"},
-                                         {Qt::Key_1, "NUMPAD1"},
-                                         {Qt::Key_2, "NUMPAD2"},
-                                         {Qt::Key_3, "NUMPAD3"},
-                                         {Qt::Key_4, "NUMPAD4"},
-                                         {Qt::Key_5, "NUMPAD5"},
-                                         {Qt::Key_6, "NUMPAD6"},
-                                         {Qt::Key_7, "NUMPAD7"},
-                                         {Qt::Key_8, "NUMPAD8"},
-                                         {Qt::Key_9, "NUMPAD9"},
-                                         {Qt::Key_Slash, "NUMPAD_SLASH"},
-                                         {Qt::Key_Asterisk, "NUMPAD_ASTERISK"},
-                                         {Qt::Key_Minus, "NUMPAD_MINUS"},
-                                         {Qt::Key_Plus, "NUMPAD_PLUS"},
-                                         {Qt::Key_Period, "NUMPAD_PERIOD"}};
-    return map;
-}
-
-static QString getNumpadKeyName(int key)
-{
-    return getNumpadKeyMap().value(key);
-}
-
-static const QHash<int, QString> &getNavigationKeyMap()
-{
-    static const QHash<int, QString> map{{Qt::Key_Home, "HOME"},
-                                         {Qt::Key_End, "END"},
-                                         {Qt::Key_Insert, "INSERT"},
-                                         {Qt::Key_Help, "INSERT"}}; // macOS maps Insert to Help
-    return map;
-}
-
-static QString getNavigationKeyName(int key)
-{
-    return getNavigationKeyMap().value(key);
-}
-
-static const QHash<int, QString> &getMiscKeyMap()
-{
-    static const QHash<int, QString> map{{Qt::Key_QuoteLeft, "ACCENT"},
-                                         {Qt::Key_1, "1"},
-                                         {Qt::Key_2, "2"},
-                                         {Qt::Key_3, "3"},
-                                         {Qt::Key_4, "4"},
-                                         {Qt::Key_5, "5"},
-                                         {Qt::Key_6, "6"},
-                                         {Qt::Key_7, "7"},
-                                         {Qt::Key_8, "8"},
-                                         {Qt::Key_9, "9"},
-                                         {Qt::Key_0, "0"},
-                                         {Qt::Key_Minus, "HYPHEN"},
-                                         {Qt::Key_Equal, "EQUAL"}};
-    return map;
-}
-
-static QString getMiscKeyName(int key)
-{
-    return getMiscKeyMap().value(key);
-}
 
 static KeyClassification classifyKey(int key, Qt::KeyboardModifiers mods)
 {
@@ -99,24 +36,58 @@ static KeyClassification classifyKey(int key, Qt::KeyboardModifiers mods)
 
     // Numpad keys (only with KeypadModifier)
     if (mods & Qt::KeypadModifier) {
-        QString name = getNumpadKeyName(key);
-        if (!name.isEmpty()) {
-            result.type = KeyType::NumpadKey;
-            result.keyName = name;
-            result.shouldHandle = true;
+        switch (key) {
+        case Qt::Key_0:
+            result.keyName = "NUMPAD0";
+            break;
+        case Qt::Key_1:
+            result.keyName = "NUMPAD1";
+            break;
+        case Qt::Key_2:
+            result.keyName = "NUMPAD2";
+            break;
+        case Qt::Key_3:
+            result.keyName = "NUMPAD3";
+            break;
+        case Qt::Key_4:
+            result.keyName = "NUMPAD4";
+            break;
+        case Qt::Key_5:
+            result.keyName = "NUMPAD5";
+            break;
+        case Qt::Key_6:
+            result.keyName = "NUMPAD6";
+            break;
+        case Qt::Key_7:
+            result.keyName = "NUMPAD7";
+            break;
+        case Qt::Key_8:
+            result.keyName = "NUMPAD8";
+            break;
+        case Qt::Key_9:
+            result.keyName = "NUMPAD9";
+            break;
+        case Qt::Key_Slash:
+            result.keyName = "NUMPAD_SLASH";
+            break;
+        case Qt::Key_Asterisk:
+            result.keyName = "NUMPAD_ASTERISK";
+            break;
+        case Qt::Key_Minus:
+            result.keyName = "NUMPAD_MINUS";
+            break;
+        case Qt::Key_Plus:
+            result.keyName = "NUMPAD_PLUS";
+            break;
+        case Qt::Key_Period:
+            result.keyName = "NUMPAD_PERIOD";
+            break;
+        default:
             return result;
         }
-    }
-
-    // Navigation keys (HOME, END, INSERT - from any source)
-    {
-        QString name = getNavigationKeyName(key);
-        if (!name.isEmpty()) {
-            result.type = KeyType::NavigationKey;
-            result.keyName = name;
-            result.shouldHandle = true;
-            return result;
-        }
+        result.type = KeyType::NumpadKey;
+        result.shouldHandle = true;
+        return result;
     }
 
     // Arrow keys (UP, DOWN, LEFT, RIGHT)
@@ -142,13 +113,61 @@ static KeyClassification classifyKey(int key, Qt::KeyboardModifiers mods)
 
     // Misc keys (only when NOT from numpad)
     if (!(mods & Qt::KeypadModifier)) {
-        QString name = getMiscKeyName(key);
-        if (!name.isEmpty()) {
-            result.type = KeyType::MiscKey;
-            result.keyName = name;
-            result.shouldHandle = true;
+        switch (key) {
+        case Qt::Key_Home:
+            result.keyName = "HOME";
+            break;
+        case Qt::Key_End:
+            result.keyName = "END";
+            break;
+        case Qt::Key_Insert:
+            result.keyName = "INSERT";
+            break;
+        case Qt::Key_QuoteLeft:
+            result.keyName = "ACCENT";
+            break;
+        case Qt::Key_1:
+            result.keyName = "1";
+            break;
+        case Qt::Key_2:
+            result.keyName = "2";
+            break;
+        case Qt::Key_3:
+            result.keyName = "3";
+            break;
+        case Qt::Key_4:
+            result.keyName = "4";
+            break;
+        case Qt::Key_5:
+            result.keyName = "5";
+            break;
+        case Qt::Key_6:
+            result.keyName = "6";
+            break;
+        case Qt::Key_7:
+            result.keyName = "7";
+            break;
+        case Qt::Key_8:
+            result.keyName = "8";
+            break;
+        case Qt::Key_9:
+            result.keyName = "9";
+            break;
+        case Qt::Key_0:
+            result.keyName = "0";
+            break;
+        case Qt::Key_Minus:
+            result.keyName = "HYPHEN";
+            break;
+        case Qt::Key_Equal:
+            result.keyName = "EQUAL";
+            break;
+        default:
             return result;
         }
+        result.type = KeyType::MiscKey;
+        result.shouldHandle = true;
+        return result;
     }
 
     // Terminal shortcuts (Ctrl+U, Ctrl+W, Ctrl+H or Cmd+U, Cmd+W, Cmd+H)
@@ -666,54 +685,6 @@ void InputWidget::tabComplete()
 
 bool InputWidget::event(QEvent *const event)
 {
-    if (event->type() == QEvent::ShortcutOverride) {
-        QKeyEvent *keyEvent = static_cast<QKeyEvent *>(event);
-        auto classification = classifyKey(keyEvent->key(), keyEvent->modifiers());
-
-        if (classification.shouldHandle) {
-            // Handle directly if there are real modifiers (some don't generate KeyPress)
-            if (classification.realModifiers != Qt::NoModifier) {
-                bool handled = false;
-
-                switch (classification.type) {
-                case KeyType::FunctionKey:
-                    functionKeyPressed(keyEvent->key(), classification.realModifiers);
-                    handled = true;
-                    break;
-                case KeyType::NumpadKey:
-                    handled = numpadKeyPressed(keyEvent->key(), classification.realModifiers);
-                    break;
-                case KeyType::NavigationKey:
-                    handled = navigationKeyPressed(keyEvent->key(), classification.realModifiers);
-                    break;
-                case KeyType::ArrowKey:
-                    handled = arrowKeyPressed(keyEvent->key(), classification.realModifiers);
-                    break;
-                case KeyType::MiscKey:
-                    handled = miscKeyPressed(keyEvent->key(), classification.realModifiers);
-                    break;
-                case KeyType::PageKey:
-                    handled = handlePageKey(keyEvent->key(), classification.realModifiers);
-                    break;
-                case KeyType::TerminalShortcut:
-                case KeyType::BasicKey:
-                case KeyType::Other:
-                    break;
-                }
-
-                if (handled) {
-                    m_handledInShortcutOverride = true;
-                    event->accept();
-                    return true;
-                }
-            }
-
-            // Accept so KeyPress comes through
-            event->accept();
-            return true;
-        }
-    }
-
     m_paletteManager.tryUpdateFromFocusEvent(*this, deref(event).type());
     return QPlainTextEdit::event(event);
 }

@@ -83,7 +83,7 @@ const QHash<int, QString> &getQtKeyToKeyNameMap()
         QHash<int, QString> m;
 #define ADD_TO_MAP(name, qtKey, isNumpad) \
     if (!isNumpad) { \
-        m[qtKey] = name; \
+        m.insert(qtKey, name); \
     }
         X_FOREACH_HOTKEY(ADD_TO_MAP)
 #undef ADD_TO_MAP
@@ -99,7 +99,7 @@ const QHash<int, QString> &getNumpadQtKeyToKeyNameMap()
         QHash<int, QString> m;
 #define ADD_TO_MAP(name, qtKey, isNumpad) \
     if (isNumpad) { \
-        m[qtKey] = name; \
+        m.insert(qtKey, name); \
     }
         X_FOREACH_HOTKEY(ADD_TO_MAP)
 #undef ADD_TO_MAP

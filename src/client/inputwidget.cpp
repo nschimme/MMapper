@@ -29,7 +29,6 @@ static KeyClassification classifyKey(int key, Qt::KeyboardModifiers mods)
     // Function keys F1-F12 (always handled)
     if (key >= Qt::Key_F1 && key <= Qt::Key_F12) {
         result.type = KeyType::FunctionKey;
-        result.keyName = QString("F%1").arg(key - Qt::Key_F1 + 1);
         result.shouldHandle = true;
         return result;
     }
@@ -38,75 +37,31 @@ static KeyClassification classifyKey(int key, Qt::KeyboardModifiers mods)
     if (mods & Qt::KeypadModifier) {
         switch (key) {
         case Qt::Key_0:
-            result.keyName = "NUMPAD0";
-            break;
         case Qt::Key_1:
-            result.keyName = "NUMPAD1";
-            break;
         case Qt::Key_2:
-            result.keyName = "NUMPAD2";
-            break;
         case Qt::Key_3:
-            result.keyName = "NUMPAD3";
-            break;
         case Qt::Key_4:
-            result.keyName = "NUMPAD4";
-            break;
         case Qt::Key_5:
-            result.keyName = "NUMPAD5";
-            break;
         case Qt::Key_6:
-            result.keyName = "NUMPAD6";
-            break;
         case Qt::Key_7:
-            result.keyName = "NUMPAD7";
-            break;
         case Qt::Key_8:
-            result.keyName = "NUMPAD8";
-            break;
         case Qt::Key_9:
-            result.keyName = "NUMPAD9";
-            break;
         case Qt::Key_Slash:
-            result.keyName = "NUMPAD_SLASH";
-            break;
         case Qt::Key_Asterisk:
-            result.keyName = "NUMPAD_ASTERISK";
-            break;
         case Qt::Key_Minus:
-            result.keyName = "NUMPAD_MINUS";
-            break;
         case Qt::Key_Plus:
-            result.keyName = "NUMPAD_PLUS";
-            break;
         case Qt::Key_Period:
-            result.keyName = "NUMPAD_PERIOD";
-            break;
+            result.type = KeyType::NumpadKey;
+            result.shouldHandle = true;
+            return result;
         default:
             return result;
         }
-        result.type = KeyType::NumpadKey;
-        result.shouldHandle = true;
-        return result;
     }
 
     // Arrow keys (UP, DOWN, LEFT, RIGHT)
     if (key == Qt::Key_Up || key == Qt::Key_Down || key == Qt::Key_Left || key == Qt::Key_Right) {
         result.type = KeyType::ArrowKey;
-        switch (key) {
-        case Qt::Key_Up:
-            result.keyName = "UP";
-            break;
-        case Qt::Key_Down:
-            result.keyName = "DOWN";
-            break;
-        case Qt::Key_Left:
-            result.keyName = "LEFT";
-            break;
-        case Qt::Key_Right:
-            result.keyName = "RIGHT";
-            break;
-        }
         result.shouldHandle = true;
         return result;
     }
@@ -115,59 +70,27 @@ static KeyClassification classifyKey(int key, Qt::KeyboardModifiers mods)
     if (!(mods & Qt::KeypadModifier)) {
         switch (key) {
         case Qt::Key_Home:
-            result.keyName = "HOME";
-            break;
         case Qt::Key_End:
-            result.keyName = "END";
-            break;
         case Qt::Key_Insert:
-            result.keyName = "INSERT";
-            break;
         case Qt::Key_QuoteLeft:
-            result.keyName = "ACCENT";
-            break;
         case Qt::Key_1:
-            result.keyName = "1";
-            break;
         case Qt::Key_2:
-            result.keyName = "2";
-            break;
         case Qt::Key_3:
-            result.keyName = "3";
-            break;
         case Qt::Key_4:
-            result.keyName = "4";
-            break;
         case Qt::Key_5:
-            result.keyName = "5";
-            break;
         case Qt::Key_6:
-            result.keyName = "6";
-            break;
         case Qt::Key_7:
-            result.keyName = "7";
-            break;
         case Qt::Key_8:
-            result.keyName = "8";
-            break;
         case Qt::Key_9:
-            result.keyName = "9";
-            break;
         case Qt::Key_0:
-            result.keyName = "0";
-            break;
         case Qt::Key_Minus:
-            result.keyName = "HYPHEN";
-            break;
         case Qt::Key_Equal:
-            result.keyName = "EQUAL";
-            break;
+            result.type = KeyType::MiscKey;
+            result.shouldHandle = true;
+            return result;
         default:
             return result;
         }
-        result.type = KeyType::MiscKey;
-        result.shouldHandle = true;
-        return result;
     }
 
     // Terminal shortcuts (Ctrl+U, Ctrl+W, Ctrl+H or Cmd+U, Cmd+W, Cmd+H)
@@ -190,7 +113,6 @@ static KeyClassification classifyKey(int key, Qt::KeyboardModifiers mods)
     // Page keys (PageUp, PageDown - for scrolling display)
     if (key == Qt::Key_PageUp || key == Qt::Key_PageDown) {
         result.type = KeyType::PageKey;
-        result.keyName = (key == Qt::Key_PageUp) ? "PAGEUP" : "PAGEDOWN";
         result.shouldHandle = true;
         return result;
     }

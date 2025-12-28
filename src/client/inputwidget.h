@@ -38,7 +38,6 @@ enum class KeyType {
 struct NODISCARD KeyClassification
 {
     KeyType type = KeyType::Other;
-    QString keyName;
     Qt::KeyboardModifiers realModifiers = Qt::NoModifier;
     bool shouldHandle = false;
 };

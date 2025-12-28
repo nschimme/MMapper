@@ -11,9 +11,8 @@
 
 #include <QObject>
 
-class NODISCARD_QOBJECT GameObserver final : public QObject
+class GameObserver final
 {
-    Q_OBJECT
 private:
     MumeTimeEnum m_timeOfDay = MumeTimeEnum::UNKNOWN;
     MumeMoonPhaseEnum m_moonPhase = MumeMoonPhaseEnum::UNKNOWN;
@@ -23,7 +22,7 @@ private:
     PromptFogEnum m_fog = PromptFogEnum::NO_FOG;
 
 public:
-    explicit GameObserver(QObject *parent = nullptr);
+    explicit GameObserver();
     Signal2<> sig2_connected;
 
     Signal2<QString> sig2_sentToMudString;  // removes ANSI
@@ -47,20 +46,42 @@ public:
     void observeSentToUserGmcp(const GmcpMessage &m);
     void observeToggledEchoMode(bool echo);
 
-    void observeTimeOfDay(MumeTimeEnum timeOfDay);
-    void observeMoonPhase(MumeMoonPhaseEnum moonPhase);
-    void observeMoonVisibility(MumeMoonVisibilityEnum moonVisibility);
-    void observeSeason(MumeSeasonEnum season);
+    void observeTimeOfDay(MumeTimeEnum timeOfDay)
+    {
+        if (m_timeOfDay != timeOfDay) {
+            m_timeOfDay = timeOfDay;
+            sig2_timeOfDayChanged.invoke(m_timeOfDay);
+        }
+    }
+
+    void observeMoonPhase(MumeMoonPhaseEnum moonPhase)
+    {
+        if (m_moonPhase != moonPhase) {
+            m_moonPhase = moonPhase;
+            sig2_moonPhaseChanged.invoke(m_moonPhase);
+        }
+    }
+
+    void observeMoonVisibility(MumeMoonVisibilityEnum moonVisibility)
+    {
+        if (m_moonVisibility != moonVisibility) {
+            m_moonVisibility = moonVisibility;
+            sig2_moonVisibilityChanged.invoke(m_moonVisibility);
+        }
+    }
+
+    void observeSeason(MumeSeasonEnum season)
+    {
+        if (m_season != season) {
+            m_season = season;
+            sig2_seasonChanged.invoke(m_season);
+        }
+    }
+
     void observeWeather(PromptWeatherEnum weather);
     void observeFog(PromptFogEnum fog);
-    void observeTick(const MumeMoment &moment);
 
-signals:
-    void timeOfDayChanged(MumeTimeEnum timeOfDay);
-    void moonPhaseChanged(MumeMoonPhaseEnum moonPhase);
-    void moonVisibilityChanged(MumeMoonVisibilityEnum moonVisibility);
-    void seasonChanged(MumeSeasonEnum season);
-    void tick(const MumeMoment &moment);
+    void observeTick(const MumeMoment &moment) { sig2_tick.invoke(moment); }
 
 public:
     MumeTimeEnum getTimeOfDay() const { return m_timeOfDay; }

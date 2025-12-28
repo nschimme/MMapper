@@ -14,16 +14,16 @@
 #include <QWidget>
 #include <QtCore>
 
+#include "../global/Signal2.h"
 class QMouseEvent;
 class QObject;
 
-class NODISCARD_QOBJECT MumeClockWidget final : public QWidget, private Ui::MumeClockWidget
+class MumeClockWidget final : public QWidget, private Ui::MumeClockWidget
 {
-    Q_OBJECT
-
 private:
     GameObserver &m_observer;
-    MumeClock *m_clock;
+    MumeClock &m_clock;
+    Signal2Lifetime m_lifetime;
 
     MumeTimeEnum m_lastTime = MumeTimeEnum::UNKNOWN;
     MumeSeasonEnum m_lastSeason = MumeSeasonEnum::UNKNOWN;
@@ -32,7 +32,7 @@ private:
     MumeClockPrecisionEnum m_lastPrecision = MumeClockPrecisionEnum::UNSET;
 
 public:
-    explicit MumeClockWidget(GameObserver &observer, MumeClock *clock, QWidget *parent);
+    explicit MumeClockWidget(GameObserver &observer, MumeClock &clock, QWidget *parent);
     ~MumeClockWidget() final;
 
 protected:
@@ -40,11 +40,9 @@ protected:
 
 private:
     void updateTimeStyle(MumeTimeEnum time);
-
-public slots:
-    void slot_updateTime(MumeTimeEnum time);
-    void slot_updateMoonPhase(MumeMoonPhaseEnum phase);
-    void slot_updateMoonVisibility(MumeMoonVisibilityEnum visibility);
-    void slot_updateSeason(MumeSeasonEnum season);
-    void slot_updateStatusTips(const MumeMoment &moment);
+    void updateTime(MumeTimeEnum time);
+    void updateMoonPhase(MumeMoonPhaseEnum phase);
+    void updateMoonVisibility(MumeMoonVisibilityEnum visibility);
+    void updateSeason(MumeSeasonEnum season);
+    void updateStatusTips(const MumeMoment &moment);
 };

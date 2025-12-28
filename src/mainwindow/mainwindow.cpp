@@ -869,12 +869,6 @@ void MainWindow::createActions()
     connect(saveLogAct, &QAction::triggered, m_clientWidget, &ClientWidget::slot_saveLog);
     saveLogAct->setStatusTip(tr("Save log as plain text file"));
 
-    saveCommsLogAct = new QAction(QIcon::fromTheme("document-save", QIcon(":/icons/save.png")),
-                                  tr("Save &communications log as..."),
-                                  this);
-    connect(saveCommsLogAct, &QAction::triggered, m_commsWidget, &CommsWidget::slot_saveLog);
-    saveCommsLogAct->setStatusTip(tr("Save communications log as file"));
-
     releaseAllPathsAct = new QAction(QIcon(":/icons/cancel.png"), tr("Release All Paths"), this);
     releaseAllPathsAct->setStatusTip(tr("Release all paths"));
     releaseAllPathsAct->setCheckable(false);
@@ -1184,8 +1178,6 @@ void MainWindow::setupMenuBar()
                                               tr("&Integrated Mud Client"));
     clientMenu->addAction(clientAct);
     clientMenu->addAction(saveLogAct);
-    clientMenu->addSeparator();
-    clientMenu->addAction(saveCommsLogAct);
     QMenu *pathMachineMenu = settingsMenu->addMenu(QIcon(":/icons/goto.png"), tr("&Path Machine"));
     pathMachineMenu->addAction(mouseMode.modeRoomSelectAct);
     pathMachineMenu->addSeparator();
@@ -1482,11 +1474,6 @@ bool MainWindow::eventFilter(QObject *const obj, QEvent *const event)
 void MainWindow::closeEvent(QCloseEvent *const event)
 {
     // REVISIT: wait and see if we're actually exiting first?
-
-    // Save communications log if enabled
-    if (m_commsWidget) {
-        m_commsWidget->slot_saveLogOnExit();
-    }
 
     writeSettings();
 

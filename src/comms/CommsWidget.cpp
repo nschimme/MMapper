@@ -10,11 +10,7 @@
 #include <QLabel>
 #include <QGroupBox>
 #include <QRegularExpression>
-#include <QFileDialog>
-#include <QFile>
 #include <QDateTime>
-#include <QDir>
-#include <QMessageBox>
 #include <QSignalBlocker>
 
 #include "../configuration/configuration.h"
@@ -566,102 +562,4 @@ void CommsWidget::reformatAllBlocks()
     }
 
     cursor.endEditBlock();
-}
-
-void CommsWidget::slot_saveLog()
-{
-    struct NODISCARD Result
-    {
-        QStringList filenames;
-        bool isHtml = false;
-    };
-    const auto getFileNames = [this]() -> Result {
-        auto save = std::make_unique<QFileDialog>(this, "Choose communications log file name ...");
-        save->setFileMode(QFileDialog::AnyFile);
-        save->setDirectory(QDir::current());
-        save->setNameFilters(QStringList() << "Text log (*.log *.txt)"
-                                           << "HTML log (*.htm *.html)");
-        save->setDefaultSuffix("txt");
-        save->setAcceptMode(QFileDialog::AcceptSave);
-
-        if (save->exec() == QDialog::Accepted) {
-            const QString nameFilter = save->selectedNameFilter().toLower();
-            const bool isHtml = nameFilter.endsWith(".htm") || nameFilter.endsWith(".html");
-            return Result{save->selectedFiles(), isHtml};
-        }
-
-        return Result{};
-    };
-
-    const auto result = getFileNames();
-    const auto &fileNames = result.filenames;
-
-    if (fileNames.isEmpty()) {
-        return;
-    }
-
-    QFile document(fileNames[0]);
-    if (!document.open(QFile::WriteOnly | QFile::Text)) {
-        QMessageBox::warning(this,
-                           tr("Save Error"),
-                           tr("Error occurred while opening %1").arg(document.fileName()));
-        return;
-    }
-
-    const auto getDocStringUtf8 = [](const QTextDocument *const pDoc,
-                                     const bool isHtml) -> QByteArray {
-        const QString string = isHtml ? pDoc->toHtml() : pDoc->toPlainText();
-        return string.toUtf8();
-    };
-    document.write(getDocStringUtf8(m_textDisplay->document(), result.isHtml));
-    document.close();
-}
-
-void CommsWidget::slot_saveLogOnExit()
-{
-    const auto &comms = getConfig().comms;
-    if (!comms.saveLogOnExit.get()) {
-        return;
-    }
-
-    // Use the same directory as AutoLogger
-    const auto &autoLogConfig = getConfig().autoLog;
-    QString logDir = autoLogConfig.autoLogDirectory;
-    if (logDir.isEmpty()) {
-        logDir = QDir::current().path();
-    }
-
-    // Create directory if it doesn't exist
-    QDir dir(logDir);
-    if (!dir.exists()) {
-        dir.mkpath(".");
-    }
-
-    // Generate filename matching AutoLogger format: Comms_Log_{date}_{filenum}_{runId}.txt
-    QString fileName;
-    if (m_autoLogger) {
-        // Note: getCurrentFileNumber() returns the NEXT file number, so we subtract 1
-        // to get the current file number that matches the active MMapper log
-        const int currentFileNum = std::max(0, m_autoLogger->getCurrentFileNumber() - 1);
-        fileName = QString("Comms_Log_%1_%2_%3.txt")
-                       .arg(QDate::currentDate().toString("yyyy_MM_dd"))
-                       .arg(QString::number(currentFileNum))
-                       .arg(mmqt::toQStringUtf8(m_autoLogger->getRunId()));
-    } else {
-        // Fallback if AutoLogger is not available
-        const QString timestamp = QDateTime::currentDateTime().toString("yyyy_MM_dd_HH_mm_ss");
-        fileName = QString("Comms_Log_%1.txt").arg(timestamp);
-    }
-
-    const QString fullPath = dir.filePath(fileName);
-    QFile document(fullPath);
-    if (!document.open(QFile::WriteOnly | QFile::Text)) {
-        qWarning() << "Failed to save communications log to" << fullPath;
-        return;
-    }
-
-    const QString plainText = m_textDisplay->document()->toPlainText();
-    document.write(plainText.toUtf8());
-    document.close();
-    qInfo() << "Communications log saved to" << fullPath;
 }

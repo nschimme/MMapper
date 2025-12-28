@@ -47,8 +47,6 @@ public:
 public slots:
     void slot_onNewMessage(const CommMessage &msg);
     void slot_loadSettings();
-    void slot_saveLog();
-    void slot_saveLogOnExit();
 
 protected:
     void resizeEvent(QResizeEvent *event) override;

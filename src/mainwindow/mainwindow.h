@@ -228,7 +228,6 @@ private:
 
     QAction *clientAct = nullptr;
     QAction *saveLogAct = nullptr;
-    QAction* saveCommsLogAct = nullptr;
 
     QAction *gotoRoomAct = nullptr;
     QAction *forceRoomAct = nullptr;

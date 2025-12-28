@@ -375,6 +375,7 @@ public:
     DEFAULT_MOVES_DELETE_COPIES(UniqueMesh);
 
     void render(const GLRenderState &rs) const { deref(m_mesh).render(rs); }
+    NODISCARD explicit operator bool() const { return m_mesh != nullptr; }
 };
 
 struct NODISCARD UniqueMeshVector final

@@ -139,11 +139,7 @@ MainWindow::MainWindow()
     m_gameObserver = std::make_unique<GameObserver>();
     m_adventureTracker = new AdventureTracker(deref(m_gameObserver), this);
 
-    // Create AutoLogger early (needed by CommsWidget)
-    m_logger = new AutoLogger(this);
-
-    // Communications Manager
-    m_commsManager = new CommsManager(deref(m_gameObserver), this);
+    m_mumeClock = new MumeClock(getConfig().mumeClock.startEpoch, deref(m_gameObserver), this);
 
     m_listener = new ConnectionListener(deref(m_mapData),
                                         deref(m_pathMachine),
@@ -224,18 +220,6 @@ MainWindow::MainWindow()
     m_dockDialogAdventure->setWidget(m_adventureWidget);
     m_dockDialogAdventure->hide();
 
-    // View -> Side Panels -> Communications Panel
-    m_dockDialogComms = new QDockWidget(tr("Communications"), this);
-    m_dockDialogComms->setObjectName("DockWidgetComms");
-    m_dockDialogComms->setAllowedAreas(Qt::BottomDockWidgetArea | Qt::TopDockWidgetArea);
-    m_dockDialogComms->setFeatures(QDockWidget::DockWidgetClosable
-                                    | QDockWidget::DockWidgetFloatable
-                                    | QDockWidget::DockWidgetMovable);
-    addDockWidget(Qt::BottomDockWidgetArea, m_dockDialogComms);
-    m_commsWidget = new CommsWidget(deref(m_commsManager), m_logger, this);
-    m_dockDialogComms->setWidget(m_commsWidget);
-    m_dockDialogComms->hide();
-
     // View -> Side Panels -> Description / Area Panel
     m_descriptionWidget = new DescriptionWidget(this);
     m_dockDialogDescription = new QDockWidget(tr("Description Panel"), this);
@@ -247,7 +231,19 @@ MainWindow::MainWindow()
     addDockWidget(Qt::RightDockWidgetArea, m_dockDialogDescription);
     m_dockDialogDescription->setWidget(m_descriptionWidget);
 
-    m_mumeClock = new MumeClock(getConfig().mumeClock.startEpoch, deref(m_gameObserver), this);
+    m_logger = new AutoLogger(this);
+    m_commsManager = new CommsManager(deref(m_gameObserver), this);
+    m_dockDialogComms = new QDockWidget(tr("Communications"), this);
+    m_dockDialogComms->setObjectName("DockWidgetComms");
+    m_dockDialogComms->setAllowedAreas(Qt::BottomDockWidgetArea | Qt::TopDockWidgetArea);
+    m_dockDialogComms->setFeatures(QDockWidget::DockWidgetClosable
+                                    | QDockWidget::DockWidgetFloatable
+                                    | QDockWidget::DockWidgetMovable);
+    addDockWidget(Qt::BottomDockWidgetArea, m_dockDialogComms);
+    m_commsWidget = new CommsWidget(deref(m_commsManager), m_logger, this);
+    m_dockDialogComms->setWidget(m_commsWidget);
+    m_dockDialogComms->hide();
+
     if constexpr (!NO_UPDATER) {
         m_updateDialog = new UpdateDialog(this);
     }

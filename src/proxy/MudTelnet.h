@@ -65,7 +65,7 @@ private:
     MudTelnetOutputs &m_outputs;
     /** modules for GMCP */
     GmcpModuleSet m_gmcp;
-    CharacterEncodingEnum m_charset{CharacterEncodingEnum::UTF8};
+    CharacterEncodingEnum m_charset = getConfig().general.characterEncoding;
     QString m_lineBuffer;
     bool m_receivedExternalDiscordHello = false;
 

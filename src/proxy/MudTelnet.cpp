@@ -382,6 +382,9 @@ void MudTelnet::onRelayTermType(const TelnetTermTypeBytes &terminalType)
 
 void MudTelnet::onRelayCharset(const CharacterEncodingEnum cs)
 {
+    if (getDebug()) {
+        qDebug() << "MudTelnet::onRelayCharset" << static_cast<int>(cs);
+    }
     m_charset = cs;
 }
 
@@ -499,6 +502,7 @@ void MudTelnet::virt_onGmcpEnabled()
     obj["arch"] = QSysInfo::currentCpuArchitecture();
     obj["package"] = mmqt::toQStringUtf8(getPackage());
     obj["charset"] = mmqt::toQStringUtf8(std::invoke([this]() {
+        qDebug() << "MudTelnet::virt_onGmcpEnabled" << static_cast<int>(m_charset);
         switch (m_charset) {
         case CharacterEncodingEnum::LATIN1:
             return ENCODING_LATIN_1;

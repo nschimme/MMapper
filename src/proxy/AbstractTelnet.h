@@ -169,7 +169,7 @@ private:
     bool m_recvdGA = false;
     bool m_inflateTelnet = false;
     bool m_recvdCompress = false;
-    bool m_debug = false;
+    bool m_debug = true;
 
 public:
     explicit AbstractTelnet(TextCodecStrategyEnum strategy, TelnetTermTypeBytes defaultTermType);

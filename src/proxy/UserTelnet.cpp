@@ -86,10 +86,12 @@ UserTelnetOutputs::~UserTelnetOutputs() = default;
 UserTelnet::UserTelnet(UserTelnetOutputs &outputs)
     : AbstractTelnet(TextCodecStrategyEnum::AUTO_SELECT_CODEC, TelnetTermTypeBytes{"unknown"})
     , m_outputs{outputs}
+    , m_charsetNegotiationFinished{false}
 {}
 
-void UserTelnet::onConnected()
+void UserTelnet::startNegotiation()
 {
+    m_charsetNegotiationFinished = false;
     reset();
     resetGmcpModules();
 
@@ -144,6 +146,10 @@ void UserTelnet::onSendMSSPToUser(const TelnetMsspBytes &data)
 
 void UserTelnet::virt_sendToMapper(const RawBytes &data, const bool goAhead)
 {
+    if (!m_charsetNegotiationFinished && getOptions().triedToEnable[OPT_CHARSET]) {
+        m_charsetNegotiationFinished = true;
+        m_outputs.onCharsetNegotiationFinished();
+    }
     m_outputs.onAnalyzeUserStream(decodeFromUser(getEncoding(), data), goAhead);
 }
 
@@ -238,7 +244,22 @@ void UserTelnet::virt_receiveCharset(const CharacterEncodingEnum charset)
     if (getDebug()) {
         qDebug() << "Received Charset" << static_cast<int>(charset);
     }
+    if (!m_charsetNegotiationFinished) {
+        m_charsetNegotiationFinished = true;
+        m_outputs.onCharsetNegotiationFinished();
+    }
     m_outputs.onRelayCharsetFromUserToMud(charset);
+}
+
+void UserTelnet::virt_receiveWontCharset()
+{
+    if (getDebug()) {
+        qDebug() << "User client does not support CHARSET";
+    }
+    if (!m_charsetNegotiationFinished) {
+        m_charsetNegotiationFinished = true;
+        m_outputs.onCharsetNegotiationFinished();
+    }
 }
 
 void UserTelnet::virt_receiveWindowSize(const int x, const int y)

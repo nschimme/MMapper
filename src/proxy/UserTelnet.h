@@ -33,6 +33,7 @@ public:
     {
         virt_onRelayCharsetFromUserToMud(charset);
     }
+    void onCharsetNegotiationFinished() { virt_onCharsetNegotiationFinished(); }
 
 private:
     virtual void virt_onAnalyzeUserStream(const RawBytes &, bool) = 0;
@@ -41,6 +42,7 @@ private:
     virtual void virt_onRelayNawsFromUserToMud(int, int) = 0;
     virtual void virt_onRelayTermTypeFromUserToMud(const TelnetTermTypeBytes &) = 0;
     virtual void virt_onRelayCharsetFromUserToMud(const CharacterEncodingEnum) = 0;
+    virtual void virt_onCharsetNegotiationFinished() = 0;
 };
 
 class NODISCARD UserTelnet final : public AbstractTelnet
@@ -57,6 +59,7 @@ private:
 
 private:
     UserTelnetOutputs &m_outputs;
+    bool m_charsetNegotiationFinished = false;
 
 public:
     explicit UserTelnet(UserTelnetOutputs &outputs);
@@ -68,6 +71,7 @@ private:
     void virt_receiveGmcpMessage(const GmcpMessage &) final;
     void virt_receiveTerminalType(const TelnetTermTypeBytes &) final;
     void virt_receiveCharset(const CharacterEncodingEnum) final;
+    void virt_receiveWontCharset() final;
     void virt_receiveWindowSize(int, int) final;
     void virt_sendRawData(const TelnetIacBytes &data) final;
 
@@ -80,7 +84,7 @@ public:
 
 public:
     void onSendToUser(const QString &data, bool goAhead);
-    void onConnected();
+    void startNegotiation();
     void onRelayEchoMode(bool);
     void onGmcpToUser(const GmcpMessage &);
     void onSendMSSPToUser(const TelnetMsspBytes &);

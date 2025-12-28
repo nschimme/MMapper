@@ -606,6 +606,9 @@ void AbstractTelnet::processTelnetCommand(const AppendBuffer &command)
             if (option == OPT_ECHO) {
                 receiveEchoMode(true);
             }
+            if (option == OPT_CHARSET) {
+                virt_receiveWontCharset();
+            }
             break;
         case TN_DO:
             // peer allows us to enable some option

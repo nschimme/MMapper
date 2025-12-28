@@ -224,6 +224,7 @@ private:
     virtual void virt_receiveGmcpMessage(const GmcpMessage &) {}
     virtual void virt_receiveTerminalType(const TelnetTermTypeBytes &) {}
     virtual void virt_receiveCharset(const CharacterEncodingEnum) {}
+    virtual void virt_receiveWontCharset() {}
     virtual void virt_receiveMudServerStatus(const TelnetMsspBytes &) {}
     virtual void virt_receiveWindowSize(int, int) {}
     virtual void virt_sendRawData(const TelnetIacBytes &data) = 0;

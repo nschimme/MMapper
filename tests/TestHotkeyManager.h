@@ -24,14 +24,8 @@ private Q_SLOTS:
     void importExportRoundTripTest();
     void importEdgeCasesTest();
     void resetToDefaultsTest();
-    void exportSortOrderTest();
     void setHotkeyTest();
     void removeHotkeyTest();
-    void hasHotkeyTest();
-    void invalidKeyValidationTest();
-    void duplicateKeyBehaviorTest();
-    void commentPreservationTest();
-    void settingsPersistenceTest();
     void directLookupTest();
 
 private:

@@ -3,8 +3,8 @@
 // Copyright (C) 2019 The MMapper Authors
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
-#include "../global/macros.h"
-#include "../global/utils.h"
+#include "global/macros.h"
+#include "global/utils.h"
 
 #include <memory>
 

@@ -20,6 +20,8 @@ set(mmapper_SRCS
     client/displaywidget.h
     client/inputwidget.cpp
     client/inputwidget.h
+    client/HotkeyManager.cpp
+    client/HotkeyManager.h
     client/stackedinputwidget.cpp
     client/stackedinputwidget.h
     client/PasswordDialog.cpp
@@ -37,9 +39,6 @@ set(mmapper_SRCS
     configuration/PasswordConfig.h
     configuration/configuration.cpp
     configuration/configuration.h
-    configuration/HotkeyManager.cpp
-    configuration/HotkeyManager.h
-    configuration/HotkeyMacros.h
     display/CanvasMouseModeEnum.h
     display/Characters.cpp
     display/Characters.h
@@ -207,6 +206,8 @@ set(mmapper_SRCS
     global/window_utils.h
     global/zpipe.cpp
     global/zpipe.h
+    global/HotkeyMacros.h
+    global/GroupConfig.h
     group/CGroupChar.cpp
     group/CGroupChar.h
     group/ColorGenerator.cpp
@@ -658,7 +659,7 @@ set(mmapper_DATA
 set(mmapper_map_SRCS ${mmapper_SRCS})
 set(mmapper_global_SRCS ${mmapper_SRCS})
 list(FILTER mmapper_map_SRCS INCLUDE REGEX "map/")
-list(FILTER mmapper_global_SRCS INCLUDE REGEX "global/")
+list(FILTER mmapper_global_SRCS INCLUDE REGEX "global/|client/")
 list(FILTER mmapper_SRCS EXCLUDE REGEX "map/")
 list(FILTER mmapper_SRCS EXCLUDE REGEX "global/")
 
@@ -733,7 +734,10 @@ set_target_properties(
 
 target_include_directories(mmapper SYSTEM PUBLIC ${GLM_INCLUDE_DIR})
 target_include_directories(mmapper SYSTEM PUBLIC ${IMMER_INCLUDE_DIR})
+target_include_directories(mmapper PUBLIC ${CMAKE_SOURCE_DIR} src/global)
 target_include_directories(mm_global SYSTEM PUBLIC
+        ${CMAKE_SOURCE_DIR}
+        src/global
         ${GLM_INCLUDE_DIR}
         ${IMMER_INCLUDE_DIR}
         ${Qt6Core_INCLUDE_DIRS}
@@ -743,6 +747,7 @@ target_include_directories(mm_global SYSTEM PUBLIC
         #${Qt6OpenGLWidgets_INCLUDE_DIRS}
 )
 target_include_directories(mm_map SYSTEM PUBLIC
+        ${CMAKE_SOURCE_DIR}
         ${GLM_INCLUDE_DIR}
         ${IMMER_INCLUDE_DIR}
         ${Qt6Core_INCLUDE_DIRS}

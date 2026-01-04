@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
 
-#include "../configuration/configuration.h"
+#include "../client/HotkeyManager.h"
 #include "../global/TextUtils.h"
 #include "../syntax/SyntaxArgs.h"
 #include "../syntax/TreeParser.h"
@@ -51,7 +51,7 @@ void AbstractParser::parseHotkey(StringView input)
             const std::string cmdStr = concatenate_unquoted(v[2].getVector());
             const auto command = mmqt::toQStringUtf8(cmdStr);
 
-            if (setConfig().hotkeyManager.setHotkey(keyName, command)) {
+            if (HotkeyManager::getInstance().setHotkey(keyName, command)) {
                 os << "Hotkey set: " << mmqt::toStdStringUtf8(keyName.toUpper()) << " = " << cmdStr
                    << "\n";
                 send_ok(os);
@@ -70,8 +70,8 @@ void AbstractParser::parseHotkey(StringView input)
 
             const auto keyName = mmqt::toQStringUtf8(v[1].getString());
 
-            if (getConfig().hotkeyManager.hasHotkey(keyName)) {
-                setConfig().hotkeyManager.removeHotkey(keyName);
+            if (HotkeyManager::getInstance().hasHotkey(keyName)) {
+                HotkeyManager::getInstance().removeHotkey(keyName);
                 os << "Hotkey removed: " << mmqt::toStdStringUtf8(keyName.toUpper()) << "\n";
             } else {
                 os << "No hotkey configured for: " << mmqt::toStdStringUtf8(keyName.toUpper())
@@ -85,15 +85,14 @@ void AbstractParser::parseHotkey(StringView input)
     auto listHotkeys = Accept(
         [](User &user, const Pair *) {
             auto &os = user.getOstream();
-            const auto &hotkeys = getConfig().hotkeyManager.getAllHotkeys();
+            const auto &hotkeys = HotkeyManager::getInstance().getAllHotkeys();
 
             if (hotkeys.empty()) {
                 os << "No hotkeys configured.\n";
             } else {
                 os << "Configured hotkeys:\n";
-                for (const auto &[key, cmd] : hotkeys) {
-                    // key is QString (needs conversion), cmd is already std::string
-                    os << "  " << mmqt::toStdStringUtf8(key) << " = " << cmd << "\n";
+                for (auto it = hotkeys.constBegin(); it != hotkeys.constEnd(); ++it) {
+                    os << "  " << mmqt::toStdStringUtf8(it.key()) << " = " << mmqt::toStdStringUtf8(it.value()) << "\n";
                 }
             }
             send_ok(os);
@@ -123,7 +122,7 @@ void AbstractParser::parseHotkey(StringView input)
     auto resetHotkeys = Accept(
         [](User &user, const Pair *) {
             auto &os = user.getOstream();
-            setConfig().hotkeyManager.resetToDefaults();
+            HotkeyManager::getInstance().resetToDefaults();
             os << "Hotkeys reset to defaults.\n";
             send_ok(os);
         },

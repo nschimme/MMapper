@@ -4,11 +4,11 @@
 // Copyright (C) 2019 The MMapper Authors
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
-#include "../global/Signal2.h"
-#include "../global/io.h"
-#include "../global/utils.h"
-#include "../proxy/AbstractTelnet.h"
-#include "../proxy/VirtualSocket.h"
+#include "global/Signal2.h"
+#include "global/io.h"
+#include "global/utils.h"
+#include "proxy/AbstractTelnet.h"
+#include "proxy/VirtualSocket.h"
 
 #include <QAbstractSocket>
 #include <QObject>

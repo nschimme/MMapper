@@ -4,10 +4,10 @@
 
 #include "inputwidget.h"
 
-#include "../configuration/HotkeyManager.h"
-#include "../configuration/HotkeyMacros.h"
+#include "HotkeyManager.h"
+#include "../global/HotkeyMacros.h"
 #include "../configuration/configuration.h"
-#include "../global/Color.h"
+#include "global/Color.h"
 
 #include <QFont>
 #include <QMessageLogContext>
@@ -264,7 +264,7 @@ void InputWidget::functionKeyPressed(int key, Qt::KeyboardModifiers modifiers)
 {
     // Check if there's a configured hotkey for this key combination
     // Function keys are never numpad keys
-    const QString command = getConfig().hotkeyManager.getCommandQString(key, modifiers, false);
+    const QString command = HotkeyManager::getInstance().getAction(key, modifiers);
 
     if (!command.isEmpty()) {
         sendCommandWithSeparator(command);
@@ -279,7 +279,7 @@ void InputWidget::functionKeyPressed(int key, Qt::KeyboardModifiers modifiers)
 bool InputWidget::numpadKeyPressed(int key, Qt::KeyboardModifiers modifiers)
 {
     // Check if there's a configured hotkey for this numpad key (isNumpad=true)
-    const QString command = getConfig().hotkeyManager.getCommandQString(key, modifiers, true);
+    const QString command = HotkeyManager::getInstance().getAction(key, modifiers);
 
     if (!command.isEmpty()) {
         sendCommandWithSeparator(command);
@@ -291,7 +291,7 @@ bool InputWidget::numpadKeyPressed(int key, Qt::KeyboardModifiers modifiers)
 bool InputWidget::navigationKeyPressed(int key, Qt::KeyboardModifiers modifiers)
 {
     // Check if there's a configured hotkey for this navigation key (isNumpad=false)
-    const QString command = getConfig().hotkeyManager.getCommandQString(key, modifiers, false);
+    const QString command = HotkeyManager::getInstance().getAction(key, modifiers);
 
     if (!command.isEmpty()) {
         sendCommandWithSeparator(command);
@@ -336,7 +336,7 @@ bool InputWidget::arrowKeyPressed(const int key, Qt::KeyboardModifiers modifiers
     }
 
     // Arrow keys with modifiers check for hotkeys (isNumpad=false)
-    const QString command = getConfig().hotkeyManager.getCommandQString(key, modifiers, false);
+    const QString command = HotkeyManager::getInstance().getAction(key, modifiers);
 
     if (!command.isEmpty()) {
         sendCommandWithSeparator(command);
@@ -350,7 +350,7 @@ bool InputWidget::arrowKeyPressed(const int key, Qt::KeyboardModifiers modifiers
 bool InputWidget::miscKeyPressed(int key, Qt::KeyboardModifiers modifiers)
 {
     // Check if there's a configured hotkey for this misc key (isNumpad=false)
-    const QString command = getConfig().hotkeyManager.getCommandQString(key, modifiers, false);
+    const QString command = HotkeyManager::getInstance().getAction(key, modifiers);
 
     if (!command.isEmpty()) {
         sendCommandWithSeparator(command);
@@ -417,7 +417,7 @@ bool InputWidget::handlePageKey(int key, Qt::KeyboardModifiers modifiers)
     }
 
     // With modifiers, check for hotkeys (isNumpad=false for page keys)
-    const QString command = getConfig().hotkeyManager.getCommandQString(key, modifiers, false);
+    const QString command = HotkeyManager::getInstance().getAction(key, modifiers);
     if (!command.isEmpty()) {
         sendCommandWithSeparator(command);
         return true;

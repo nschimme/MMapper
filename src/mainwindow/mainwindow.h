@@ -34,6 +34,8 @@ class AdventureTracker;
 class AdventureWidget;
 class AutoLogger;
 class ClientWidget;
+class CommsManager;
+class CommsWidget;
 class ConfigDialog;
 class ConnectionListener;
 class ConnectionSelection;
@@ -85,6 +87,7 @@ private:
     QDockWidget *m_dockDialogGroup = nullptr;
     QDockWidget *m_dockDialogAdventure = nullptr;
     QDockWidget *m_dockDialogDescription = nullptr;
+    QDockWidget *m_dockDialogComms = nullptr;
 
     std::unique_ptr<GameObserver> m_gameObserver;
     AutoLogger *m_logger = nullptr;
@@ -107,6 +110,9 @@ private:
 
     AdventureTracker *m_adventureTracker = nullptr;
     AdventureWidget *m_adventureWidget = nullptr;
+
+    CommsManager *m_commsManager = nullptr;
+    CommsWidget *m_commsWidget = nullptr;
 
     DescriptionWidget *m_descriptionWidget = nullptr;
 
@@ -222,7 +228,6 @@ private:
 
     QAction *clientAct = nullptr;
     QAction *saveLogAct = nullptr;
-    QAction *saveLogAsHtmlAct = nullptr;
 
     QAction *gotoRoomAct = nullptr;
     QAction *forceRoomAct = nullptr;

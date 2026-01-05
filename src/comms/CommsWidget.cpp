@@ -1,0 +1,565 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2025 The MMapper Authors
+
+#include "CommsWidget.h"
+
+#include <algorithm>
+#include <QTextCursor>
+#include <QTextCharFormat>
+#include <QScrollBar>
+#include <QLabel>
+#include <QGroupBox>
+#include <QRegularExpression>
+#include <QDateTime>
+#include <QSignalBlocker>
+
+#include "../configuration/configuration.h"
+#include "../logger/autologger.h"
+#include "../global/TextUtils.h"
+
+MessageBlockUserData::MessageBlockUserData(const CommMessage &msg)
+    : m_message(msg)
+{}
+
+MessageBlockUserData::~MessageBlockUserData() = default;
+
+CommsWidget::CommsWidget(CommsManager &commsManager, AutoLogger *autoLogger, QWidget *parent)
+    : QWidget(parent)
+    , m_commsManager{commsManager}
+    , m_autoLogger{autoLogger}
+{
+    // Initialize all filter states to enabled (not muted)
+    m_filterStates[CommType::TELL] = true;
+    m_filterStates[CommType::WHISPER] = true;
+    m_filterStates[CommType::GROUP] = true;
+    m_filterStates[CommType::ASK] = true;
+    m_filterStates[CommType::EMOTE] = true;
+    m_filterStates[CommType::SOCIAL] = true;
+    m_filterStates[CommType::SAY] = true;
+    m_filterStates[CommType::YELL] = true;
+    m_filterStates[CommType::NARRATE] = true;
+    m_filterStates[CommType::SONG] = true;
+    m_filterStates[CommType::PRAY] = true;
+
+    setupUI();
+    connectSignals();
+    slot_loadSettings();
+
+    // Let the document manage the history size automatically
+    m_textDisplay->document()->setMaximumBlockCount(MAX_MESSAGES);
+}
+
+CommsWidget::~CommsWidget() = default;
+
+void CommsWidget::setupUI()
+{
+    auto *mainLayout = new QVBoxLayout(this);
+    mainLayout->setContentsMargins(2, 2, 2, 2);
+    mainLayout->setSpacing(4);
+
+    // Top row: Filter buttons and C&M toggle
+    auto *topLayout = new QHBoxLayout();
+    topLayout->setSpacing(4);
+
+    // Helper to create a filter button
+    auto createFilterButton = [this](const QString &fullLabel, const QString &shortLabel, CommType type) {
+        auto *btn = new QPushButton(fullLabel);
+        btn->setToolTip(fullLabel);
+        btn->setProperty("shortLabel", shortLabel);
+        btn->setProperty("fullLabel", fullLabel);
+        btn->setCheckable(true);
+        btn->setChecked(true); // Initially not muted
+        btn->setMaximumHeight(24);
+        btn->setMinimumWidth(40);
+        m_filterButtons[type] = btn;
+
+        connect(btn, &QPushButton::toggled, this, [this, type](bool checked) {
+            slot_onFilterToggled(type, checked);
+        });
+
+        return btn;
+    };
+
+    // Direct group
+    auto *directGroup = new QWidget();
+    auto *directLayout = new QVBoxLayout(directGroup);
+    directLayout->setContentsMargins(0, 0, 0, 0);
+    directLayout->setSpacing(2);
+
+    auto *directLabel = new QLabel("<b>Direct</b>");
+    directLabel->setAlignment(Qt::AlignCenter);
+    directLayout->addWidget(directLabel);
+
+    auto *directButtonsLayout = new QHBoxLayout();
+    directButtonsLayout->setSpacing(2);
+    directButtonsLayout->addWidget(createFilterButton("Tells", "Te", CommType::TELL));
+    directButtonsLayout->addWidget(createFilterButton("Qtions", "Qt", CommType::ASK));
+    directButtonsLayout->addWidget(createFilterButton("Whispers", "Wh", CommType::WHISPER));
+    directButtonsLayout->addWidget(createFilterButton("Group", "Gr", CommType::GROUP));
+    directLayout->addLayout(directButtonsLayout);
+
+    // Local group
+    auto *localGroup = new QWidget();
+    auto *localLayout = new QVBoxLayout(localGroup);
+    localLayout->setContentsMargins(0, 0, 0, 0);
+    localLayout->setSpacing(2);
+
+    auto *localLabel = new QLabel("<b>Local</b>");
+    localLabel->setAlignment(Qt::AlignCenter);
+    localLayout->addWidget(localLabel);
+
+    auto *localButtonsLayout = new QHBoxLayout();
+    localButtonsLayout->setSpacing(2);
+    localButtonsLayout->addWidget(createFilterButton("Emotes", "Em", CommType::EMOTE));
+    localButtonsLayout->addWidget(createFilterButton("Socials", "So", CommType::SOCIAL));
+    localButtonsLayout->addWidget(createFilterButton("Says", "Sa", CommType::SAY));
+    localButtonsLayout->addWidget(createFilterButton("Yells", "Ye", CommType::YELL));
+    localLayout->addLayout(localButtonsLayout);
+
+    // Global group
+    auto *globalGroup = new QWidget();
+    auto *globalLayout = new QVBoxLayout(globalGroup);
+    globalLayout->setContentsMargins(0, 0, 0, 0);
+    globalLayout->setSpacing(2);
+
+    auto *globalLabel = new QLabel("<b>Global</b>");
+    globalLabel->setAlignment(Qt::AlignCenter);
+    globalLayout->addWidget(globalLabel);
+
+    auto *globalButtonsLayout = new QHBoxLayout();
+    globalButtonsLayout->setSpacing(2);
+    globalButtonsLayout->addWidget(createFilterButton("Tales", "Ta", CommType::NARRATE));
+    globalButtonsLayout->addWidget(createFilterButton("Songs", "Sn", CommType::SONG));
+    globalButtonsLayout->addWidget(createFilterButton("Prayers", "Pr", CommType::PRAY));
+    globalLayout->addLayout(globalButtonsLayout);
+
+    // Add groups to top layout
+    topLayout->addWidget(directGroup);
+    topLayout->addWidget(localGroup);
+    topLayout->addWidget(globalGroup);
+    topLayout->addStretch();
+
+    // C&M toggle button (Characters and Mobs)
+    m_charMobToggle = new QToolButton();
+    m_charMobToggle->setText("C&M");
+    m_charMobToggle->setToolTip("Toggle between Characters, Mobs, or All");
+    m_charMobToggle->setMaximumSize(32, 24);
+    connect(m_charMobToggle, &QToolButton::clicked, this, &CommsWidget::slot_onCharMobToggle);
+    updateCharMobButtonAppearance();
+    topLayout->addWidget(m_charMobToggle);
+
+    mainLayout->addLayout(topLayout);
+
+    // Main text display
+    m_textDisplay = new QTextEdit();
+    m_textDisplay->setReadOnly(true);
+    m_textDisplay->setLineWrapMode(QTextEdit::WidgetWidth);
+    m_textDisplay->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
+    mainLayout->addWidget(m_textDisplay);
+
+    setLayout(mainLayout);
+}
+
+void CommsWidget::connectSignals()
+{
+    // Connect to CommsManager signals
+    connect(&m_commsManager,
+            &CommsManager::sig_newMessage,
+            this,
+            &CommsWidget::slot_onNewMessage);
+}
+
+void CommsWidget::slot_loadSettings()
+{
+    const auto &comms = getConfig().comms;
+
+    // Apply background color
+    QPalette palette = m_textDisplay->palette();
+    palette.setColor(QPalette::Base, comms.backgroundColor.get());
+    m_textDisplay->setPalette(palette);
+
+    // Re-apply styles to all messages and update visibility
+    reformatAllBlocks();
+    updateBlockVisibility();
+}
+
+void CommsWidget::resizeEvent(QResizeEvent *event)
+{
+    QWidget::resizeEvent(event);
+    updateButtonLabels();
+}
+
+void CommsWidget::updateButtonLabels()
+{
+    const int availableWidth = width();
+    const bool useShortLabels = availableWidth < 600;  // Threshold for switching to short labels
+
+    for (auto it = m_filterButtons.constBegin(); it != m_filterButtons.constEnd(); ++it) {
+        auto *btn = it.value();
+        const QString fullLabel = btn->property("fullLabel").toString();
+        const QString shortLabel = btn->property("shortLabel").toString();
+        btn->setText(useShortLabels ? shortLabel : fullLabel);
+    }
+}
+
+void CommsWidget::slot_onFilterToggled(CommType type, bool enabled)
+{
+    m_filterStates[type] = enabled;
+    updateFilterButtonAppearance(m_filterButtons[type], enabled);
+    updateBlockVisibility();
+}
+
+void CommsWidget::slot_onCharMobToggle()
+{
+    // Cycle through: C&M -> C -> M -> C&M
+    switch (m_charMobFilter) {
+    case CharMobFilterEnum::BOTH:
+        m_charMobFilter = CharMobFilterEnum::CHAR_ONLY;
+        break;
+    case CharMobFilterEnum::CHAR_ONLY:
+        m_charMobFilter = CharMobFilterEnum::MOB_ONLY;
+        break;
+    case CharMobFilterEnum::MOB_ONLY:
+        m_charMobFilter = CharMobFilterEnum::BOTH;
+        break;
+    }
+
+    updateCharMobButtonAppearance();
+    updateBlockVisibility();
+}
+
+void CommsWidget::slot_onNewMessage(const CommMessage &msg)
+{
+    appendFormattedMessage(msg);
+}
+
+void CommsWidget::appendFormattedMessage(const CommMessage &msg)
+{
+    // Keep a flag to prevent scrolling if the user has scrolled up
+    const bool isAtBottom =
+        m_textDisplay->verticalScrollBar()->value() >= m_textDisplay->verticalScrollBar()->maximum();
+
+    QTextCursor cursor(m_textDisplay->document());
+    cursor.movePosition(QTextCursor::End);
+
+    // Add timestamp if enabled
+    if (getConfig().comms.showTimestamps.get()) {
+        QTextCharFormat timestampFormat;
+        timestampFormat.setForeground(QColor(128, 128, 128)); // Gray
+        cursor.setCharFormat(timestampFormat);
+        cursor.insertText(QString("[%1] ").arg(msg.timestamp));
+    }
+
+    // Strip ANSI codes first
+    QString originalSender = stripAnsiCodes(msg.sender);
+    QString message = stripAnsiCodes(msg.message);
+
+    // Clean sender name (remove articles, capitalize)
+    QString cleanedSender = cleanSenderName(originalSender);
+
+    // Check if message already contains formatting (double caption issue)
+    // Check against ORIGINAL sender name before cleaning
+    if (message.startsWith(originalSender, Qt::CaseInsensitive)) {
+        // Message already contains the full formatted text
+        // We need to replace the original sender with cleaned sender and use that
+        QTextCharFormat nameFormat;
+        nameFormat.setForeground(getColorForTalker(msg.talkerType));  // Use talker color for names
+        nameFormat.setFontWeight(QFont::Bold);
+
+        QTextCharFormat textFormat;
+        textFormat.setForeground(getColorForType(msg.type));
+        textFormat.setFontWeight(QFont::Normal);
+
+        // Apply italic for whispers/emotes/socials if configured
+        if ((msg.type == CommType::WHISPER && getConfig().comms.whisperItalic.get())
+            || ((msg.type == CommType::EMOTE || msg.type == CommType::SOCIAL) && getConfig().comms.emoteItalic.get())) {
+            textFormat.setFontItalic(true);
+            nameFormat.setFontItalic(true);  // Name also italic for emotes/socials
+        }
+
+        // Insert cleaned sender name in bold
+        cursor.setCharFormat(nameFormat);
+        cursor.insertText(cleanedSender);
+
+        // Insert rest of message (skip original sender part)
+        cursor.setCharFormat(textFormat);
+        cursor.insertText(message.mid(originalSender.length()) + "\n");
+    } else {
+        // Format the message ourselves
+        formatAndInsertMessage(cursor, msg, cleanedSender, message);
+    }
+
+    // Attach user data to the new block for future filtering
+    QTextBlock newBlock = cursor.block();
+    newBlock.setUserData(new MessageBlockUserData(msg));
+
+    // Set initial visibility based on current filters
+    newBlock.setVisible(isMessageVisible(msg));
+
+    // Auto-scroll to bottom only if it was already at the bottom
+    if (isAtBottom) {
+        m_textDisplay->verticalScrollBar()->setValue(m_textDisplay->verticalScrollBar()->maximum());
+    }
+}
+
+void CommsWidget::formatAndInsertMessage(QTextCursor &cursor, const CommMessage &msg, const QString &sender, const QString &message)
+{
+    // Apply transformations
+    QString finalMessage = message;
+    if (msg.type == CommType::YELL && getConfig().comms.yellAllCaps.get()) {
+        // Only uppercase the message text, not qualifier prefix like "[faintly from below]"
+        static const QRegularExpression qualifierPrefix(R"(^(\[.+?\] )(.*)$)");
+        auto match = qualifierPrefix.match(finalMessage);
+        if (match.hasMatch()) {
+            // Keep prefix lowercase, uppercase the message
+            finalMessage = match.captured(1) + match.captured(2).toUpper();
+        } else {
+            // No prefix, uppercase everything
+            finalMessage = finalMessage.toUpper();
+        }
+    }
+
+    // Format: [Bold Name] verb: 'message'
+    QTextCharFormat nameFormat;
+    nameFormat.setForeground(getColorForTalker(msg.talkerType));  // Use talker color for name
+    nameFormat.setFontWeight(QFont::Bold);  // Only name is bold
+
+    QTextCharFormat textFormat;
+    textFormat.setForeground(getColorForType(msg.type));
+    textFormat.setFontWeight(QFont::Normal);  // Rest is normal
+
+    // Apply italic for whispers/emotes if configured
+    if ((msg.type == CommType::WHISPER && getConfig().comms.whisperItalic.get())
+        || ((msg.type == CommType::EMOTE || msg.type == CommType::SOCIAL) && getConfig().comms.emoteItalic.get())) {
+        textFormat.setFontItalic(true);
+    }
+
+    // Simplified format: "Name: 'message'" for all types
+    if (msg.type == CommType::PRAY) {
+        // Special case for prayer (no sender from others)
+        cursor.setCharFormat(nameFormat);
+        cursor.insertText("You");
+        cursor.setCharFormat(textFormat);
+        cursor.insertText(QString(": %1\n").arg(finalMessage));
+    } else {
+        // Standard format
+        cursor.setCharFormat(nameFormat);
+        cursor.insertText(sender);
+        cursor.setCharFormat(textFormat);
+
+        // For emotes and socials, no colon (just "Name message")
+        if (msg.type == CommType::EMOTE || msg.type == CommType::SOCIAL) {
+            cursor.insertText(QString(" %1\n").arg(finalMessage));
+        } else {
+            // All other types: "Name: 'message'"
+            cursor.insertText(QString(": %1\n").arg(finalMessage));
+        }
+    }
+}
+
+QString CommsWidget::stripAnsiCodes(const QString &text)
+{
+    // ANSI escape sequence pattern: \x1b[...m or similar
+    static const QRegularExpression ansiPattern(R"(\x1b\[[0-9;]*m)");
+    QString cleaned = text;
+    cleaned.remove(ansiPattern);
+
+    // Also handle the ∂[ format seen in the screenshot
+    static const QRegularExpression altAnsiPattern(R"(∂\[[0-9;]*m?)");
+    cleaned.remove(altAnsiPattern);
+
+    return cleaned;
+}
+
+QString CommsWidget::cleanSenderName(const QString &sender)
+{
+    QString cleaned = sender;
+
+    // Remove leading articles (case insensitive)
+    static const QRegularExpression articlePattern(R"(^(an?)\s+)", QRegularExpression::CaseInsensitiveOption);
+    cleaned.remove(articlePattern);
+
+    // Capitalize first letter
+    if (!cleaned.isEmpty() && cleaned[0].isLetter()) {
+        cleaned[0] = cleaned[0].toUpper();
+    }
+
+    return cleaned;
+}
+
+QColor CommsWidget::getColorForType(CommType type)
+{
+    const auto &comms = getConfig().comms;
+
+    switch (type) {
+    case CommType::TELL:
+        return comms.tellColor.get();
+    case CommType::WHISPER:
+        return comms.whisperColor.get();
+    case CommType::GROUP:
+        return comms.groupColor.get();
+    case CommType::ASK:
+        return comms.askColor.get();
+    case CommType::SAY:
+        return comms.sayColor.get();
+    case CommType::EMOTE:
+        return comms.emoteColor.get();
+    case CommType::SOCIAL:
+        return comms.socialColor.get();
+    case CommType::YELL:
+        return comms.yellColor.get();
+    case CommType::NARRATE:
+        return comms.narrateColor.get();
+    case CommType::PRAY:
+        return comms.prayColor.get();
+    case CommType::SHOUT:
+        return comms.shoutColor.get();
+    case CommType::SONG:
+        return comms.singColor.get();
+    default:
+        return Qt::white;
+    }
+}
+
+QColor CommsWidget::getColorForTalker(TalkerType talkerType)
+{
+    const auto &comms = getConfig().comms;
+
+    switch (talkerType) {
+    case TalkerType::YOU:
+        return comms.talkerYouColor.get();
+    case TalkerType::PLAYER:
+        return comms.talkerPlayerColor.get();
+    case TalkerType::NPC:
+        return comms.talkerNpcColor.get();
+    case TalkerType::ALLY:
+        return comms.talkerAllyColor.get();
+    case TalkerType::NEUTRAL:
+        return comms.talkerNeutralColor.get();
+    case TalkerType::ENEMY:
+        return comms.talkerEnemyColor.get();
+    default:
+        return Qt::white;
+    }
+}
+
+bool CommsWidget::isMessageVisible(const CommMessage &msg) const
+{
+    // Check type filter
+    if (!m_filterStates.value(msg.type, true)) {
+        return false; // Filtered out by type
+    }
+
+    // Check character/mob filter
+    switch (m_charMobFilter) {
+    case CharMobFilterEnum::CHAR_ONLY:
+        if (msg.talkerType == TalkerType::NPC) {
+            return false; // Filter out NPCs
+        }
+        break;
+    case CharMobFilterEnum::MOB_ONLY:
+        if (msg.talkerType != TalkerType::NPC) {
+            return false; // Filter out non-NPCs
+        }
+        break;
+    case CharMobFilterEnum::BOTH:
+        // Show all, fall through
+        break;
+    }
+
+    return true; // Visible
+}
+
+void CommsWidget::updateFilterButtonAppearance(QPushButton *button, bool enabled)
+{
+    if (enabled) {
+        // Normal appearance (not muted)
+        button->setStyleSheet("");
+    } else {
+        // Red appearance (muted)
+        button->setStyleSheet("QPushButton { background-color: #8B0000; color: white; }");
+    }
+}
+
+void CommsWidget::updateCharMobButtonAppearance()
+{
+    switch (m_charMobFilter) {
+    case CharMobFilterEnum::BOTH:
+        m_charMobToggle->setText("C&M");
+        m_charMobToggle->setToolTip("Showing both Characters and Mobs");
+        break;
+    case CharMobFilterEnum::CHAR_ONLY:
+        m_charMobToggle->setText("C");
+        m_charMobToggle->setToolTip("Showing Characters only");
+        break;
+    case CharMobFilterEnum::MOB_ONLY:
+        m_charMobToggle->setText("M");
+        m_charMobToggle->setToolTip("Showing Mobs only");
+        break;
+    }
+}
+
+void CommsWidget::updateBlockVisibility()
+{
+    for (auto block = m_textDisplay->document()->begin(); block.isValid(); block = block.next()) {
+        if (auto *userData = dynamic_cast<MessageBlockUserData *>(block.userData())) {
+            block.setVisible(isMessageVisible(userData->getMessage()));
+        }
+    }
+}
+
+void CommsWidget::reformatAllBlocks()
+{
+    QTextCursor cursor(m_textDisplay->document());
+    cursor.beginEditBlock();
+
+    for (auto block = m_textDisplay->document()->begin(); block.isValid(); block = block.next()) {
+        auto *userData = dynamic_cast<MessageBlockUserData *>(block.userData());
+        if (!userData) {
+            continue;
+        }
+
+        const auto &msg = userData->getMessage();
+        cursor.setPosition(block.position());
+        cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+
+        // Clear the block and re-insert the formatted text.
+        cursor.removeSelectedText();
+
+        // Re-insert the message with current formatting.
+        if (getConfig().comms.showTimestamps.get()) {
+            QTextCharFormat timestampFormat;
+            timestampFormat.setForeground(QColor(128, 128, 128)); // Gray
+            cursor.setCharFormat(timestampFormat);
+            cursor.insertText(QString("[%1] ").arg(msg.timestamp));
+        }
+
+        QString originalSender = stripAnsiCodes(msg.sender);
+        QString message = stripAnsiCodes(msg.message);
+        QString cleanedSender = cleanSenderName(originalSender);
+
+        if (message.startsWith(originalSender, Qt::CaseInsensitive)) {
+            QTextCharFormat nameFormat;
+            nameFormat.setForeground(getColorForTalker(msg.talkerType));
+            nameFormat.setFontWeight(QFont::Bold);
+
+            QTextCharFormat textFormat;
+            textFormat.setForeground(getColorForType(msg.type));
+
+            if ((msg.type == CommType::WHISPER && getConfig().comms.whisperItalic.get())
+                || ((msg.type == CommType::EMOTE || msg.type == CommType::SOCIAL) && getConfig().comms.emoteItalic.get())) {
+                textFormat.setFontItalic(true);
+                nameFormat.setFontItalic(true);
+            }
+
+            cursor.setCharFormat(nameFormat);
+            cursor.insertText(cleanedSender);
+            cursor.setCharFormat(textFormat);
+            cursor.insertText(message.mid(originalSender.length()));
+        } else {
+            formatAndInsertMessage(cursor, msg, cleanedSender, message);
+        }
+    }
+
+    cursor.endEditBlock();
+}

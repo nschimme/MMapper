@@ -21,8 +21,8 @@ jobs:
     - name: ccache
       uses: hendrikmuhs/ccache-action@v1.2
       with:
-        create-symlink: true
-        key: ${{ github.job }}-${{ matrix.os }}
+        create-symlink: ${{ runner.os != 'Windows' }}
+        key: ${{ github.job }}-${{ runner.os }}
     - uses: lukka/get-cmake@latest
     - uses: ilammy/msvc-dev-cmd@v1
 

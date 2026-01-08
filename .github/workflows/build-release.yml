@@ -22,11 +22,10 @@ jobs:
       with:
         fetch-depth: 0
         submodules: true
-    - if: runner.os == 'Linux' || runner.os == 'macOS' || runner.os == 'Windows'
-      name: ccache
+    - name: ccache
       uses: hendrikmuhs/ccache-action@v1.2
       with:
-        create-symlink: true
+        create-symlink: ${{ runner.os != 'Windows' }}
         key: ${{ github.job }}-${{ matrix.os }}
     - if: runner.os == 'Windows' || runner.os == 'macOS'
       uses: lukka/get-cmake@latest

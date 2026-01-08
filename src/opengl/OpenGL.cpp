@@ -134,10 +134,9 @@ UniqueMesh OpenGL::createColoredTexturedQuadBatch(const std::vector<ColoredTexVe
 }
 
 UniqueMesh OpenGL::createFontMesh(const SharedMMTexture &texture,
-                                  const DrawModeEnum mode,
-                                  const std::vector<FontVert3d> &batch)
+                                  const std::vector<FontData> &batch)
 {
-    return getFunctions().createFontMesh(texture, mode, batch);
+    return getFunctions().createFontMesh(texture, batch);
 }
 
 void OpenGL::clear(const Color &color)
@@ -234,11 +233,6 @@ void OpenGL::initializeRenderer(const float devicePixelRatio)
     OpenGLConfig::setMaxSamples(maxSamples);
 
     m_rendererInitialized = true;
-}
-
-void OpenGL::renderFont3d(const SharedMMTexture &texture, const std::vector<FontVert3d> &verts)
-{
-    getFunctions().renderFont3d(texture, verts);
 }
 
 void OpenGL::initializeOpenGLFunctions()

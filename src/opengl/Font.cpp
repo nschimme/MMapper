@@ -4,6 +4,7 @@
 // FIXME: including display/ from opengl/ is a modularity violation.
 
 #include "Font.h"
+#include "OpenGLTypes.h"
 
 #include "../configuration/configuration.h"
 #include "../display/Filenames.h"
@@ -328,13 +329,13 @@ struct NODISCARD FontMetrics final
 
     void getFontBatchRawData(const GLText *text,
                              size_t count,
-                             std::vector<FontVert3d> &output) const;
+                             std::vector<FontData> &output) const;
 };
 
 void getFontBatchRawData(const FontMetrics &fm,
                          const GLText *const text,
                          const size_t count,
-                         std::vector<FontVert3d> &output)
+                         std::vector<FontData> &output)
 {
     fm.getFontBatchRawData(text, count, output);
 }
@@ -534,7 +535,7 @@ private:
 private:
     const FontMetrics &m_fm;
     const glm::ivec2 m_iTexSize{};
-    std::vector<FontVert3d> &m_verts3d;
+    std::vector<FontData> &m_verts3d;
     Opts m_opts;
     Bounds m_bounds;
     int m_xlinepos = 0;
@@ -548,7 +549,7 @@ private:
     }
 
 public:
-    explicit FontBatchBuilder(const FontMetrics &fm, std::vector<FontVert3d> &output)
+    explicit FontBatchBuilder(const FontMetrics &fm, std::vector<FontData> &output)
         : m_fm{fm}
         , m_iTexSize{fm.common.scaleW, fm.common.scaleH}
         , m_verts3d{output}
@@ -580,32 +581,25 @@ public:
                        const glm::ivec2 &iTexCoord00,
                        const glm::ivec2 &iglyphSize)
     {
-        const auto emitWithOffset =
-            [this, isEmpty, &iVertex00, &iTexCoord00](const glm::ivec2 &pixelOffset) -> void {
-            const glm::ivec2 relativeVertPos = iVertex00 + pixelOffset;
-            if (!isEmpty) {
-                // side-effect: updates bounds; this must come before return
-                m_bounds.include(relativeVertPos);
-            }
+        if (m_noOutput) {
+            return;
+        }
 
-            if (m_noOutput) {
-                return;
-            }
+        FontData data;
+        data.pos = glm::vec4(m_opts.pos, 1.0f);
+        data.color = m_opts.fgColor.getVec4();
+        data.italics = m_opts.wantItalics ? 0.2f : 0.0f;
+        data.size = iglyphSize;
 
-            const glm::vec2 tc = getTexCoord(iTexCoord00 + pixelOffset);
-            const glm::vec2 vert = transformVert(relativeVertPos);
-            m_verts3d.emplace_back(m_opts.pos, m_opts.fgColor, tc, vert);
-        };
+        if (!isEmpty) {
+            m_bounds.include(iVertex00);
+            m_bounds.include(iVertex00 + iglyphSize);
+        }
 
-        const auto &x = iglyphSize.x;
-        const auto &y = iglyphSize.y;
-        // 3-2
-        // | |
-        // 0-1
-        emitWithOffset(glm::ivec2(0, 0));
-        emitWithOffset(glm::ivec2(x, 0));
-        emitWithOffset(glm::ivec2(x, y));
-        emitWithOffset(glm::ivec2(0, y));
+        data.texTopLeft = getTexCoord(iTexCoord00);
+        data.texBottomRight = getTexCoord(iTexCoord00 + iglyphSize);
+
+        m_verts3d.emplace_back(data);
     }
 
     void emitGlyph(const FontMetrics::Glyph *const g, const FontMetrics::Kerning *const k)
@@ -644,20 +638,18 @@ public:
 
         // measurement, background color, and underline.
         {
-            const auto add = [this](const Color &c, const glm::ivec2 &ivert, const glm::ivec2 &itc) {
-                const glm::vec2 tc = getTexCoord(itc);
-                const glm::vec2 vert = transformVert(ivert);
-                m_verts3d.emplace_back(m_opts.pos, c, tc, vert);
+            const auto add = [this](const Color &c, const glm::ivec2 &ivert, const glm::ivec2 &itc, const glm::ivec2 &isize) {
+                FontData data;
+                data.pos = glm::vec4(m_opts.pos, 1.0f);
+                data.color = c.getVec4();
+                data.size = isize;
+                data.texTopLeft = getTexCoord(ivert);
+                data.texBottomRight = getTexCoord(ivert + itc);
+                m_verts3d.emplace_back(data);
             };
 
             const auto quad = [&add](const Color &c, const Rect &vert, const Rect &tc) {
-#define ADD(a, b) add(c, glm::ivec2{vert.a.x, vert.b.y}, glm::ivec2{tc.a.x, tc.b.y})
-                // note: lo and hi refer to members of vert and tc.
-                ADD(lo, lo);
-                ADD(hi, lo);
-                ADD(hi, hi);
-                ADD(lo, hi);
-#undef ADD
+                add(c, vert.lo, tc.lo, vert.size());
             };
 
             const glm::ivec2 margin{m_fm.common.marginX, m_fm.common.marginY};
@@ -805,7 +797,7 @@ glm::ivec2 GLFont::getScreenCenter() const
 
 void FontMetrics::getFontBatchRawData(const GLText *const text,
                                       const size_t count,
-                                      std::vector<FontVert3d> &output) const
+                                      std::vector<FontData> &output) const
 {
     if (count == 0) {
         return;
@@ -820,7 +812,7 @@ void FontMetrics::getFontBatchRawData(const GLText *const text,
             numGlyphs += static_cast<int>(it->text.size()) + (it->bgcolor.has_value() ? 1 : 0)
                          + (it->fontFormatFlag.contains(FontFormatFlagEnum::UNDERLINE) ? 1 : 0);
         }
-        return 4 * static_cast<size_t>(numGlyphs);
+        return static_cast<size_t>(numGlyphs);
     });
 
     output.reserve(before + expectedVerts);
@@ -854,13 +846,14 @@ void GLFont::render2dTextImmediate(const std::vector<GLText> &text)
     m_gl.setProjectionMatrix(oldProj);
 }
 
-void GLFont::render3dTextImmediate(const std::vector<FontVert3d> &rawVerts)
+void GLFont::render3dTextImmediate(const std::vector<FontData> &rawVerts)
 {
     if (rawVerts.empty()) {
         return;
     }
 
-    m_gl.renderFont3d(m_texture, rawVerts);
+    auto mesh = m_gl.createFontMesh(m_texture, rawVerts);
+    mesh.render(GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withDepthFunction(std::nullopt));
 }
 
 void GLFont::render3dTextImmediate(const std::vector<GLText> &text)
@@ -873,16 +866,16 @@ void GLFont::render3dTextImmediate(const std::vector<GLText> &text)
     render3dTextImmediate(rawVerts);
 }
 
-std::vector<FontVert3d> GLFont::getFontMeshIntermediate(const std::vector<GLText> &text)
+std::vector<FontData> GLFont::getFontMeshIntermediate(const std::vector<GLText> &text)
 {
-    std::vector<FontVert3d> output;
+    std::vector<FontData> output;
     getFontMetrics().getFontBatchRawData(text.data(), text.size(), output);
     return output;
 }
 
-UniqueMesh GLFont::getFontMesh(const std::vector<FontVert3d> &rawVerts)
+UniqueMesh GLFont::getFontMesh(const std::vector<FontData> &rawVerts)
 {
-    return m_gl.createFontMesh(m_texture, DrawModeEnum::QUADS, rawVerts);
+    return m_gl.createFontMesh(m_texture, rawVerts);
 }
 
 void GLFont::renderTextCentered(const QString &text,

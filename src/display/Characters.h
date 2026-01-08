@@ -106,7 +106,7 @@ private:
         std::vector<ColoredTexVert> m_charRoomQuads;
         std::vector<ColorVert> m_pathPoints;
         std::vector<ColorVert> m_pathLineQuads;
-        std::vector<FontVert3d> m_screenSpaceArrows;
+        std::vector<FontData> m_screenSpaceArrows;
         std::map<Coordinate, int, CoordCompare> m_coordCounts;
 
     public:

@@ -681,7 +681,7 @@ if(EMSCRIPTEN)
     target_link_options(mmapper PUBLIC -sASYNCIFY -Os)
     target_link_options(mmapper
         PUBLIC
-            -sPTHREAD_POOL_SIZE=navigator.hardwareConcurrency
+            -sPTHREAD_POOL_SIZE=Math.max(2, navigator.hardwareConcurrency)
     )
     target_link_libraries(mmapper PUBLIC z)
 else()

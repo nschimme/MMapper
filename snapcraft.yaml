@@ -11,12 +11,12 @@ description: |
 
 grade: stable
 confinement: strict
-base: core22
+base: core24
 compression: lzo
 
-architectures:
-  - build-on: arm64
-  - build-on: amd64
+platforms:
+  amd64:
+  arm64:
 
 apps:
   mmapper:
@@ -36,7 +36,7 @@ package-repositories:
     components:
       - main
     suites:
-      - jammy
+      - noble
     key-id: 444DABCF3667D0283F894EDDE6D4736255751E5D
     url: http://origin.archive.neon.kde.org/user
     key-server: keyserver.ubuntu.com
@@ -66,12 +66,19 @@ parts:
       - --log-level=STATUS
       - -DCMAKE_LIBRARY_PATH=lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
     build-packages:
+      - git
       - libglm-dev
       - libssl-dev
       - zlib1g-dev
+      - libxkbcommon-dev
+      - duktape-dev
     stage-packages:
-      - libssl3
+      - libssl3t64
       - zlib1g
+      - libxkbcommon0
+      - libduktape207
+    build-environment:
+      - LD_LIBRARY_PATH: "$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR"
     override-pull: |
       craftctl default
       craftctl set version=$(git describe --tags --always --long --exclude beta | sed 's/^v//')
@@ -92,10 +99,10 @@ parts:
       - mmapper
     plugin: nil
     build-snaps:
-      - core22
-      - kf6-core22
+      - core24
+      - kf6-core24
     override-prime: |
       set -eux
-      for snap in "core22" "kf6-core22"; do
+      for snap in "core24" "kf6-core24"; do
           cd "/snap/$snap/current" && find . -type f,l -exec rm -rf "${CRAFT_PRIME}/{}" \;
       done

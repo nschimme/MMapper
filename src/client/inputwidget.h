@@ -21,6 +21,7 @@
 class QKeyEvent;
 class QObject;
 class QWidget;
+class HotkeyManager;
 
 // Key classification system for unified key handling
 enum class KeyType {
@@ -122,6 +123,7 @@ private:
 
 private:
     InputWidgetOutputs &m_outputs;
+    HotkeyManager &m_hotkeyManager;
     QString m_tabFragment;
     TabHistory m_tabHistory;
     InputHistory m_inputHistory;
@@ -130,7 +132,7 @@ private:
     bool m_handledInShortcutOverride = false; // Track if key was already handled in ShortcutOverride
 
 public:
-    explicit InputWidget(QWidget *parent, InputWidgetOutputs &);
+    explicit InputWidget(QWidget *parent, InputWidgetOutputs &, HotkeyManager &);
     ~InputWidget() final;
 
     NODISCARD QSize sizeHint() const override;

@@ -18,6 +18,8 @@
 #include "../global/io.h"
 #include "../group/mmapper2group.h"
 #include "../mainwindow/mainwindow.h"
+#include "../client/ClientWidget.h"
+#include "../client/HotkeyManager.h"
 #include "../map/parseevent.h"
 #include "../mpi/mpifilter.h"
 #include "../mpi/remoteedit.h"
@@ -704,7 +706,7 @@ void Proxy::allocParser()
         void virt_onOpenClientConfigEditor() final
         {
             // Get content in CLI format (preserves comments and order)
-            const QString content = getConfig().hotkeyManager.exportToCliFormat();
+            const QString content = getMainWindow().getClientWidget().getHotkeyManager().exportToCliFormat();
 
             // Create the editor widget
             auto *editor = new RemoteEditWidget(true, // editSession = true (editable)
@@ -715,7 +717,7 @@ void Proxy::allocParser()
             // Connect save signal to import the edited content
             QObject::connect(editor, &RemoteEditWidget::sig_save, [this](const QString &edited) {
                 // Import using HotkeyManager (handles parsing, clears existing, saves to QSettings)
-                int hotkeyCount = setConfig().hotkeyManager.importFromCliFormat(edited);
+                int hotkeyCount = getMainWindow().getClientWidget().getHotkeyManager().importFromCliFormat(edited);
 
                 // Send feedback to user
                 QString msg = QString("\n%1 hotkeys imported.\n").arg(hotkeyCount);
@@ -750,6 +752,7 @@ void Proxy::allocParser()
                                                          m_groupManager.getGroupManagerApi(),
                                                          this,
                                                          deref(out),
+                                                         getMainWindow().getClientWidget().getHotkeyManager(),
                                                          deref(parserCommon));
     pipe.user.userParser = std::make_unique<AbstractParser>(m_mapData,
                                                             m_mumeClock,
@@ -758,6 +761,7 @@ void Proxy::allocParser()
                                                             m_groupManager.getGroupManagerApi(),
                                                             this,
                                                             deref(out),
+                                                            getMainWindow().getClientWidget().getHotkeyManager(),
                                                             deref(parserCommon));
 
     /* The login credentials are fetched asynchronously because the OS will prompt the user for permission */

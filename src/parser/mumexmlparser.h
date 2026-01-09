@@ -82,6 +82,7 @@ public:
                            GroupManagerApi &,
                            QObject *parent,
                            AbstractParserOutputs &outputs,
+                           HotkeyManager &hotkeyManager,
                            ParserCommonData &parserCommonData);
     ~MumeXmlParser() final;
 

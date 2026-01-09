@@ -38,4 +38,5 @@ private:
     // Original QSettings namespace (restored in cleanupTestCase)
     QString m_originalOrganization;
     QString m_originalApplication;
+    QString m_hotkeyContent;
 };

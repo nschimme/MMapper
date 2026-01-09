@@ -10,7 +10,6 @@
 
 #include <QDebug>
 #include <QRegularExpression>
-#include <QSettings>
 #include <QTextStream>
 
 namespace {
@@ -216,49 +215,26 @@ bool isNumpadKeyName(const QString &keyName)
 
 } // namespace
 
-HotkeyManager::HotkeyManager()
+HotkeyManager::HotkeyManager(std::function<QString()> loadCallback,
+                           std::function<void(const QString &)> saveCallback)
+    : m_loadCallback(std::move(loadCallback))
+    , m_saveCallback(std::move(saveCallback))
 {
-    loadFromSettings();
+    load();
 }
 
-void HotkeyManager::loadFromSettings()
+void HotkeyManager::load()
 {
     m_hotkeys.clear();
     m_orderedHotkeys.clear();
 
-    QSettings settings;
+    // Load raw content using the callback
+    m_rawContent = m_loadCallback();
 
-    // Try to load raw content first (preserves comments and order)
-    m_rawContent = settings.value(SETTINGS_RAW_CONTENT_KEY).toString();
-
+    // If the content is empty (e.g., first run), use defaults
     if (m_rawContent.isEmpty()) {
-        // Check if there are legacy hotkeys in the old format
-        settings.beginGroup(SETTINGS_GROUP);
-        const QStringList keys = settings.childKeys();
-        settings.endGroup();
-
-        if (keys.isEmpty()) {
-            // First run - use default hotkeys
-            m_rawContent = DEFAULT_HOTKEYS_CONTENT;
-        } else {
-            // Migrate from legacy format: build raw content from existing keys
-            QString migrated;
-            QTextStream stream(&migrated);
-            stream << "# Hotkey Configuration\n";
-            stream << "# Format: _hotkey KEY command\n\n";
-
-            settings.beginGroup(SETTINGS_GROUP);
-            for (const QString &key : keys) {
-                QString command = settings.value(key).toString();
-                if (!command.isEmpty()) {
-                    stream << "_hotkey " << key << " " << command << "\n";
-                }
-            }
-            settings.endGroup();
-            m_rawContent = migrated;
-        }
-        // Save in new format
-        saveToSettings();
+        m_rawContent = DEFAULT_HOTKEYS_CONTENT;
+        // The new content will be saved on the first modification or shutdown.
     }
 
     // Parse the raw content to populate lookup structures
@@ -302,15 +278,10 @@ void HotkeyManager::parseRawContent()
     }
 }
 
-void HotkeyManager::saveToSettings() const
+void HotkeyManager::save() const
 {
-    QSettings settings;
-
-    // Remove legacy format if it exists
-    settings.remove(SETTINGS_GROUP);
-
-    // Save the raw content (preserves comments, order, and formatting)
-    settings.setValue(SETTINGS_RAW_CONTENT_KEY, m_rawContent);
+    // Save the raw content using the callback
+    m_saveCallback(m_rawContent);
 }
 
 bool HotkeyManager::setHotkey(const QString &keyName, const QString &command)
@@ -353,7 +324,7 @@ bool HotkeyManager::setHotkey(const QString &keyName, const QString &command)
 
     // Re-parse and save
     parseRawContent();
-    saveToSettings();
+    save();
     return true;
 }
 
@@ -391,7 +362,7 @@ void HotkeyManager::removeHotkey(const QString &keyName)
 
     // Re-parse and save
     parseRawContent();
-    saveToSettings();
+    save();
 }
 
 std::string HotkeyManager::getCommand(int key, Qt::KeyboardModifiers modifiers, bool isNumpad) const
@@ -629,7 +600,7 @@ void HotkeyManager::resetToDefaults()
 {
     m_rawContent = DEFAULT_HOTKEYS_CONTENT;
     parseRawContent();
-    saveToSettings();
+    save();
 }
 
 void HotkeyManager::clear()
@@ -664,7 +635,7 @@ int HotkeyManager::importFromCliFormat(const QString &content)
     parseRawContent();
 
     // Save to settings
-    saveToSettings();
+    save();
 
     return static_cast<int>(m_orderedHotkeys.size());
 }

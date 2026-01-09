@@ -3,7 +3,7 @@
 
 #include "TestHotkeyManager.h"
 
-#include "../src/configuration/HotkeyManager.h"
+#include "../src/client/HotkeyManager.h"
 
 #include <QCoreApplication>
 #include <QSettings>
@@ -33,7 +33,8 @@ void TestHotkeyManager::cleanupTestCase()
 
 void TestHotkeyManager::keyNormalizationTest()
 {
-    HotkeyManager manager;
+    HotkeyManager manager([this]() { return m_hotkeyContent; },
+                          [this](const QString &content) { m_hotkeyContent = content; });
 
     // Test that modifiers are normalized to canonical order: CTRL+SHIFT+ALT+META
     // Set a hotkey with non-canonical modifier order
@@ -75,7 +76,8 @@ void TestHotkeyManager::keyNormalizationTest()
 
 void TestHotkeyManager::importExportRoundTripTest()
 {
-    HotkeyManager manager;
+    HotkeyManager manager([this]() { return m_hotkeyContent; },
+                          [this](const QString &content) { m_hotkeyContent = content; });
 
     // Test import with a known string (this clears existing hotkeys)
     QString testConfig = "_hotkey F1 look\n"
@@ -130,7 +132,8 @@ void TestHotkeyManager::importExportRoundTripTest()
 
 void TestHotkeyManager::importEdgeCasesTest()
 {
-    HotkeyManager manager;
+    HotkeyManager manager([this]() { return m_hotkeyContent; },
+                          [this](const QString &content) { m_hotkeyContent = content; });
 
     // Test command with multiple spaces (should preserve spaces in command)
     manager.importFromCliFormat("_hotkey F1 cast 'cure light'");
@@ -159,7 +162,8 @@ void TestHotkeyManager::importEdgeCasesTest()
 
 void TestHotkeyManager::resetToDefaultsTest()
 {
-    HotkeyManager manager;
+    HotkeyManager manager([this]() { return m_hotkeyContent; },
+                          [this](const QString &content) { m_hotkeyContent = content; });
 
     // Import custom hotkeys
     manager.importFromCliFormat("_hotkey F1 custom\n_hotkey F2 another");
@@ -185,7 +189,8 @@ void TestHotkeyManager::resetToDefaultsTest()
 
 void TestHotkeyManager::exportSortOrderTest()
 {
-    HotkeyManager manager;
+    HotkeyManager manager([this]() { return m_hotkeyContent; },
+                          [this](const QString &content) { m_hotkeyContent = content; });
 
     // Import hotkeys in a specific order - order should be preserved (no auto-sorting)
     QString testConfig = "_hotkey CTRL+SHIFT+F1 two_mods\n"
@@ -215,7 +220,8 @@ void TestHotkeyManager::exportSortOrderTest()
 
 void TestHotkeyManager::setHotkeyTest()
 {
-    HotkeyManager manager;
+    HotkeyManager manager([this]() { return m_hotkeyContent; },
+                          [this](const QString &content) { m_hotkeyContent = content; });
 
     // Clear any existing hotkeys
     manager.importFromCliFormat("");
@@ -256,7 +262,8 @@ void TestHotkeyManager::setHotkeyTest()
 
 void TestHotkeyManager::removeHotkeyTest()
 {
-    HotkeyManager manager;
+    HotkeyManager manager([this]() { return m_hotkeyContent; },
+                          [this](const QString &content) { m_hotkeyContent = content; });
 
     // Setup: import some hotkeys
     manager.importFromCliFormat("_hotkey F1 look\n_hotkey F2 flee\n_hotkey CTRL+F3 open exit n\n");
@@ -296,7 +303,8 @@ void TestHotkeyManager::removeHotkeyTest()
 
 void TestHotkeyManager::hasHotkeyTest()
 {
-    HotkeyManager manager;
+    HotkeyManager manager([this]() { return m_hotkeyContent; },
+                          [this](const QString &content) { m_hotkeyContent = content; });
 
     // Clear and setup
     manager.importFromCliFormat("_hotkey F1 look\n_hotkey CTRL+F2 flee\n");
@@ -325,7 +333,8 @@ void TestHotkeyManager::hasHotkeyTest()
 
 void TestHotkeyManager::invalidKeyValidationTest()
 {
-    HotkeyManager manager;
+    HotkeyManager manager([this]() { return m_hotkeyContent; },
+                          [this](const QString &content) { m_hotkeyContent = content; });
 
     // Clear any existing hotkeys
     manager.importFromCliFormat("");
@@ -395,7 +404,8 @@ void TestHotkeyManager::invalidKeyValidationTest()
 
 void TestHotkeyManager::duplicateKeyBehaviorTest()
 {
-    HotkeyManager manager;
+    HotkeyManager manager([this]() { return m_hotkeyContent; },
+                          [this](const QString &content) { m_hotkeyContent = content; });
 
     // Test that duplicate keys in imported content use the last definition
     QString contentWithDuplicates = "_hotkey F1 first\n"
@@ -420,7 +430,8 @@ void TestHotkeyManager::duplicateKeyBehaviorTest()
 
 void TestHotkeyManager::commentPreservationTest()
 {
-    HotkeyManager manager;
+    HotkeyManager manager([this]() { return m_hotkeyContent; },
+                          [this](const QString &content) { m_hotkeyContent = content; });
 
     // Test that comments and formatting survive import/export round trip
     const QString cliFormat = "# Leading comment\n"
@@ -459,11 +470,12 @@ void TestHotkeyManager::commentPreservationTest()
 void TestHotkeyManager::settingsPersistenceTest()
 {
     // Test that the HotkeyManager constructor loads settings and
-    // that saveToSettings() can be called without error.
+    // that save() can be called without error.
     // Note: Full persistence testing would require dependency injection
     // of QSettings, which is beyond the scope of this test.
 
-    HotkeyManager manager;
+    HotkeyManager manager([this]() { return m_hotkeyContent; },
+                          [this](const QString &content) { m_hotkeyContent = content; });
 
     // Manager should have loaded something (either defaults or saved settings)
     // Just verify it's in a valid state
@@ -475,8 +487,8 @@ void TestHotkeyManager::settingsPersistenceTest()
 
     QCOMPARE(manager.getCommandQString("F1"), QString("testcmd"));
 
-    // Verify saveToSettings() doesn't crash
-    manager.saveToSettings();
+    // Verify save() doesn't crash
+    manager.save();
 
     // Verify state is still valid after save
     QCOMPARE(manager.getCommandQString("F1"), QString("testcmd"));
@@ -485,7 +497,8 @@ void TestHotkeyManager::settingsPersistenceTest()
 
 void TestHotkeyManager::directLookupTest()
 {
-    HotkeyManager manager;
+    HotkeyManager manager([this]() { return m_hotkeyContent; },
+                          [this](const QString &content) { m_hotkeyContent = content; });
 
     // Import hotkeys for testing
     manager.importFromCliFormat("_hotkey F1 look\n"

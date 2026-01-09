@@ -298,6 +298,7 @@ ConstString KEY_BELL_AUDIBLE = "Bell audible";
 ConstString KEY_BELL_VISUAL = "Bell visual";
 ConstString KEY_USE_COMMAND_SEPARATOR = "Use command separator";
 ConstString KEY_COMMAND_SEPARATOR = "Command separator";
+ConstString KEY_HOTKEYS_RAW_CONTENT = "HotkeysRawContent";
 
 void Settings::tryCopyOldSettings()
 {
@@ -757,6 +758,43 @@ void Configuration::IntegratedMudClientSettings::read(const QSettings &conf)
     autoStartClient = conf.value(KEY_AUTO_START_CLIENT, false).toBool();
     useCommandSeparator = conf.value(KEY_USE_COMMAND_SEPARATOR, false).toBool();
     commandSeparator = conf.value(KEY_COMMAND_SEPARATOR, QString(";;")).toString();
+
+    // Load hotkeys, handling migration from the old format if necessary
+    hotkeysRawContent = conf.value(KEY_HOTKEYS_RAW_CONTENT).toString();
+    if (hotkeysRawContent.isEmpty()) {
+        // Check for legacy hotkeys in the old group format
+        QSettings settings;
+        settings.beginGroup(GRP_INTEGRATED_MUD_CLIENT);
+        settings.beginGroup("Hotkeys");
+        const QStringList keys = settings.childKeys();
+        settings.endGroup();
+        settings.endGroup();
+
+        if (!keys.isEmpty()) {
+            // Migrate from legacy format: build raw content from existing keys
+            QString migrated;
+            QTextStream stream(&migrated);
+            stream << "# Hotkey Configuration\n";
+            stream << "# Format: _hotkey KEY command\n\n";
+
+            settings.beginGroup(GRP_INTEGRATED_MUD_CLIENT);
+            settings.beginGroup("Hotkeys");
+            for (const QString &key : keys) {
+                QString command = settings.value(key).toString();
+                if (!command.isEmpty()) {
+                    stream << "_hotkey " << key << " " << command << "\n";
+                }
+            }
+            settings.endGroup();
+            settings.endGroup();
+            hotkeysRawContent = migrated;
+
+            // Remove the old group to complete migration
+            settings.beginGroup(GRP_INTEGRATED_MUD_CLIENT);
+            settings.remove("Hotkeys");
+            settings.endGroup();
+        }
+    }
 }
 
 void Configuration::RoomPanelSettings::read(const QSettings &conf)
@@ -929,6 +967,7 @@ void Configuration::IntegratedMudClientSettings::write(QSettings &conf) const
     conf.setValue(KEY_AUTO_START_CLIENT, autoStartClient);
     conf.setValue(KEY_USE_COMMAND_SEPARATOR, useCommandSeparator);
     conf.setValue(KEY_COMMAND_SEPARATOR, commandSeparator);
+    conf.setValue(KEY_HOTKEYS_RAW_CONTENT, hotkeysRawContent);
 }
 
 void Configuration::RoomPanelSettings::write(QSettings &conf) const

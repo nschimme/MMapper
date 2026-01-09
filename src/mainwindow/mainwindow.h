@@ -267,6 +267,7 @@ public:
     explicit MainWindow();
     ~MainWindow() final;
 
+    NODISCARD ClientWidget &getClientWidget();
     NODISCARD bool saveFile(const QString &fileName, SaveModeEnum mode, SaveFormatEnum format);
     void loadFile(std::shared_ptr<MapSource> source);
     void setCurrentFile(const QString &fileName);

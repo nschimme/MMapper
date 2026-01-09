@@ -56,8 +56,8 @@ add_test(NAME TestClock COMMAND TestClock)
 set(expandoracommon_SRCS
     ../src/configuration/configuration.cpp
     ../src/configuration/configuration.h
-    ../src/configuration/HotkeyManager.cpp
-    ../src/configuration/HotkeyManager.h
+    ../src/client/HotkeyManager.cpp
+    ../src/client/HotkeyManager.h
     ../src/parser/Abbrev.cpp
     )
 set(TestExpandoraCommon_SRCS testexpandoracommon.cpp)
@@ -84,8 +84,8 @@ add_test(NAME TestExpandoraCommon COMMAND TestExpandoraCommon)
 set(parser_SRCS
     ../src/configuration/configuration.cpp
     ../src/configuration/configuration.h
-    ../src/configuration/HotkeyManager.cpp
-    ../src/configuration/HotkeyManager.h
+    ../src/client/HotkeyManager.cpp
+    ../src/client/HotkeyManager.h
 )
 set(TestParser_SRCS testparser.cpp)
 add_executable(TestParser ${TestParser_SRCS} ${parser_SRCS})
@@ -178,8 +178,8 @@ add_test(NAME TestGlobal COMMAND TestGlobal)
 set(TestMap_SRCS
         ../src/configuration/configuration.cpp
         ../src/configuration/configuration.h
-        ../src/configuration/HotkeyManager.cpp
-        ../src/configuration/HotkeyManager.h
+        ../src/client/HotkeyManager.cpp
+        ../src/client/HotkeyManager.h
         TestMap.cpp
 )
 add_executable(TestMap ${TestMap_SRCS})
@@ -211,8 +211,8 @@ set(adventure_SRCS
         ../src/adventure/lineparsers.h
         ../src/configuration/configuration.cpp
         ../src/configuration/configuration.h
-        ../src/configuration/HotkeyManager.cpp
-        ../src/configuration/HotkeyManager.h
+        ../src/client/HotkeyManager.cpp
+        ../src/client/HotkeyManager.h
         ../src/observer/gameobserver.cpp
         ../src/observer/gameobserver.h
         )
@@ -311,8 +311,8 @@ add_test(NAME TestRoomManager COMMAND TestRoomManager)
 
 # HotkeyManager
 set(hotkey_manager_SRCS
-        ../src/configuration/HotkeyManager.cpp
-        ../src/configuration/HotkeyManager.h
+        ../src/client/HotkeyManager.cpp
+        ../src/client/HotkeyManager.h
 )
 set(TestHotkeyManager_SRCS TestHotkeyManager.cpp TestHotkeyManager.h)
 add_executable(TestHotkeyManager ${TestHotkeyManager_SRCS} ${hotkey_manager_SRCS})

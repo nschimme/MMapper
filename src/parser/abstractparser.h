@@ -50,6 +50,7 @@ class MumeClock;
 class RoomFieldVariant;
 class RoomFilter;
 class CTimers;
+class HotkeyManager;
 
 namespace syntax {
 class Sublist;
@@ -172,6 +173,7 @@ protected:
     GroupManagerApi &m_group;
     ProxyUserGmcpApi &m_proxyUserGmcp;
     AbstractParserOutputs &m_outputs;
+    HotkeyManager &m_hotkeyManager;
 
 protected:
     ParserCommonData &m_commonData;
@@ -183,6 +185,7 @@ protected:
                           GroupManagerApi &group,
                           ProxyUserGmcpApi &proxyUserGmcp,
                           AbstractParserOutputs &outputs,
+                          HotkeyManager &hotkeyManager,
                           ParserCommonData &commonData)
         : QObject{parent}
         , m_mumeClock{mumeClock}
@@ -190,6 +193,7 @@ protected:
         , m_group{group}
         , m_proxyUserGmcp{proxyUserGmcp}
         , m_outputs{outputs}
+        , m_hotkeyManager{hotkeyManager}
         , m_commonData{commonData}
     {}
 
@@ -276,8 +280,9 @@ protected:
                                GroupManagerApi &group,
                                ProxyUserGmcpApi &proxyUserGmcp,
                                AbstractParserOutputs &outputs,
+                               HotkeyManager &hotkeyManager,
                                ParserCommonData &parserCommonData)
-        : ParserCommon{parent, mumeClock, mapData, group, proxyUserGmcp, outputs, parserCommonData}
+        : ParserCommon{parent, mumeClock, mapData, group, proxyUserGmcp, outputs, hotkeyManager, parserCommonData}
     {
         initActionMap();
     }
@@ -345,6 +350,7 @@ public:
                             GroupManagerApi &,
                             QObject *parent,
                             AbstractParserOutputs &outputs,
+                            HotkeyManager &hotkeyManager,
                             ParserCommonData &commonData);
     ~AbstractParser() override;
 

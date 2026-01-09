@@ -49,6 +49,10 @@ struct HotkeyKeyHash final
 class NODISCARD HotkeyManager final
 {
 private:
+    // Persistence callbacks
+    std::function<QString()> m_loadCallback;
+    std::function<void(const QString &)> m_saveCallback;
+
     // Fast lookup map for runtime hotkey resolution: (key, modifiers) -> command (std::string)
     std::unordered_map<HotkeyKey, std::string, HotkeyKeyHash> m_hotkeys;
 
@@ -85,16 +89,17 @@ private:
     NODISCARD static QString qtKeyToBaseKeyName(int qtKey);
 
 public:
-    HotkeyManager();
+    explicit HotkeyManager(std::function<QString()> loadCallback,
+                           std::function<void(const QString &)> saveCallback);
     ~HotkeyManager() = default;
 
     DELETE_CTORS_AND_ASSIGN_OPS(HotkeyManager);
 
-    /// Load hotkeys from QSettings (called on startup)
-    void loadFromSettings();
+    /// Load hotkeys
+    void load();
 
-    /// Save hotkeys to QSettings
-    void saveToSettings() const;
+    /// Save hotkeys
+    void save() const;
 
     /// Set a hotkey using string key name (saves to QSettings immediately)
     /// This is used by the _hotkey command for user convenience

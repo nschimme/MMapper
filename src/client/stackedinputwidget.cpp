@@ -21,8 +21,6 @@ StackedInputWidget::StackedInputWidget(QWidget *const parent)
 {
     // Multiline Input Widget
 
-    initPipeline();
-
     auto &inputWidget = getInputWidget();
 
     addWidget(&inputWidget);
@@ -43,13 +41,13 @@ StackedInputWidget::Pipeline::~Pipeline()
     objs.passwordDialog.reset();
 }
 
-void StackedInputWidget::initPipeline()
+void StackedInputWidget::initPipeline(HotkeyManager &hotkeyManager)
 {
-    initInput();
+    initInput(hotkeyManager);
     initPassword();
 }
 
-void StackedInputWidget::initInput()
+void StackedInputWidget::initInput(HotkeyManager &hotkeyManager)
 {
     class NODISCARD LocalInputWidgetOutputs final : public InputWidgetOutputs
     {
@@ -83,7 +81,7 @@ void StackedInputWidget::initInput()
 
     auto &out = m_pipeline.outputs.inputOutputs;
     out = std::make_unique<LocalInputWidgetOutputs>(*this);
-    m_pipeline.objs.inputWidget = std::make_unique<InputWidget>(this, deref(out));
+    m_pipeline.objs.inputWidget = std::make_unique<InputWidget>(this, deref(out), hotkeyManager);
 }
 
 void StackedInputWidget::initPassword()

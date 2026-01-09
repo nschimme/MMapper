@@ -8,6 +8,7 @@
 #include "../global/AnsiOstream.h"
 #include "../proxy/connectionlistener.h"
 #include "ClientTelnet.h"
+#include "HotkeyManager.h"
 #include "PreviewWidget.h"
 #include "displaywidget.h"
 #include "stackedinputwidget.h"
@@ -28,6 +29,11 @@ ClientWidget::ClientWidget(ConnectionListener &listener, QWidget *const parent)
     setWindowTitle("MMapper Client");
 
     initPipeline();
+
+    // Create HotkeyManager with persistence callbacks
+    m_hotkeyManager = std::make_unique<HotkeyManager>(
+        []() { return setConfig().integratedClient.hotkeysRawContent; },
+        [](const QString &content) { setConfig().integratedClient.hotkeysRawContent = content; });
 
     auto &ui = getUi();
 
@@ -131,7 +137,7 @@ void ClientWidget::initStackedInputWidget()
     };
     auto &out = m_pipeline.outputs.stackedInputWidgetOutputs;
     out = std::make_unique<LocalStackedInputWidgetOutputs>(*this);
-    getInput().init(deref(out));
+    getInput().init(deref(out), getHotkeyManager());
 }
 
 void ClientWidget::initDisplayWidget()
@@ -240,6 +246,11 @@ StackedInputWidget &ClientWidget::getInput()
 ClientTelnet &ClientWidget::getTelnet() // NOLINT (no, this shouldn't be const)
 {
     return deref(m_pipeline.objs.clientTelnet);
+}
+
+HotkeyManager &ClientWidget::getHotkeyManager()
+{
+    return deref(m_hotkeyManager);
 }
 
 void ClientWidget::slot_onVisibilityChanged(const bool /*visible*/)

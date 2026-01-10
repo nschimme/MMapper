@@ -67,8 +67,9 @@ MumeXmlParser::MumeXmlParser(MapData &md,
                              GroupManagerApi &group,
                              QObject *parent,
                              AbstractParserOutputs &outputs,
+                             HotkeyManager &hotkeyManager,
                              ParserCommonData &parserCommonData)
-    : MumeXmlParserBase{parent, mc, md, group, proxyGmcp, outputs, parserCommonData}
+    : MumeXmlParserBase{parent, mc, md, group, proxyGmcp, outputs, hotkeyManager, parserCommonData}
 {}
 
 MumeXmlParser::~MumeXmlParser() = default;

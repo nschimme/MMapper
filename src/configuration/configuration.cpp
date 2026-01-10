@@ -17,6 +17,7 @@
 #include <QChar>
 #include <QDir>
 #include <QHostInfo>
+#include <QRegularExpression>
 #include <QSslSocket>
 #include <QString>
 #include <QStringList>
@@ -298,6 +299,7 @@ ConstString KEY_BELL_AUDIBLE = "Bell audible";
 ConstString KEY_BELL_VISUAL = "Bell visual";
 ConstString KEY_USE_COMMAND_SEPARATOR = "Use command separator";
 ConstString KEY_COMMAND_SEPARATOR = "Command separator";
+ConstString KEY_HOTKEYS_RAW_CONTENT = "HotkeysRawContent";
 
 void Settings::tryCopyOldSettings()
 {
@@ -757,6 +759,60 @@ void Configuration::IntegratedMudClientSettings::read(const QSettings &conf)
     autoStartClient = conf.value(KEY_AUTO_START_CLIENT, false).toBool();
     useCommandSeparator = conf.value(KEY_USE_COMMAND_SEPARATOR, false).toBool();
     commandSeparator = conf.value(KEY_COMMAND_SEPARATOR, QString(";;")).toString();
+
+    hotkeys.clear();
+
+    // New settings are stored under a "Hotkeys" subgroup.
+    // Check if that group exists by looking for its keys.
+    if (conf.childGroups().contains("Hotkeys", Qt::CaseInsensitive)) {
+        // We use a separate QSettings object because beginGroup() is non-const
+        // and we only have a const QSettings reference here.
+        QSettings settings;
+        settings.beginGroup(GRP_INTEGRATED_MUD_CLIENT);
+        settings.beginGroup("Hotkeys");
+        const QStringList keys = settings.childKeys();
+        for (const QString &key : keys) {
+            hotkeys.insert(key, settings.value(key).toString());
+        }
+        settings.endGroup();
+        settings.endGroup();
+
+        // If we loaded from the group, we are done.
+        if (!keys.isEmpty()) {
+            return;
+        }
+    }
+
+    // If we are here, the group format doesn't exist.
+    // Try migrating from the old raw string format.
+    const QString rawContent = conf.value(KEY_HOTKEYS_RAW_CONTENT).toString();
+    if (!rawContent.isEmpty()) {
+        qInfo() << "Migrating hotkeys from old raw string format to new group format...";
+        static const QRegularExpression hotkeyRegex(R"(^\s*_hotkey\s+(\S+)\s+(.+)$)");
+        const QStringList lines = rawContent.split('\n');
+
+        for (const QString &line : lines) {
+            QString trimmedLine = line.trimmed();
+            if (trimmedLine.isEmpty() || trimmedLine.startsWith('#')) {
+                continue;
+            }
+            QRegularExpressionMatch match = hotkeyRegex.match(trimmedLine);
+            if (match.hasMatch()) {
+                QString keyStr = match.captured(1);
+                QString commandQStr = match.captured(2).trimmed();
+                if (!keyStr.isEmpty() && !commandQStr.isEmpty()) {
+                    hotkeys.insert(keyStr, commandQStr);
+                }
+            }
+        }
+
+        // After migrating, remove the old key.
+        QSettings mutableConf;
+        mutableConf.beginGroup(GRP_INTEGRATED_MUD_CLIENT);
+        mutableConf.remove(KEY_HOTKEYS_RAW_CONTENT);
+        mutableConf.endGroup();
+        qInfo() << "Hotkey migration complete.";
+    }
 }
 
 void Configuration::RoomPanelSettings::read(const QSettings &conf)
@@ -929,6 +985,18 @@ void Configuration::IntegratedMudClientSettings::write(QSettings &conf) const
     conf.setValue(KEY_AUTO_START_CLIENT, autoStartClient);
     conf.setValue(KEY_USE_COMMAND_SEPARATOR, useCommandSeparator);
     conf.setValue(KEY_COMMAND_SEPARATOR, commandSeparator);
+
+    // Write hotkeys to the "Hotkeys" group.
+    conf.beginGroup("Hotkeys");
+    // Clear any existing keys first to handle removals.
+    conf.remove("");
+    for (auto it = hotkeys.constBegin(); it != hotkeys.constEnd(); ++it) {
+        conf.setValue(it.key(), it.value());
+    }
+    conf.endGroup();
+
+    // Ensure the old key is not present after saving.
+    conf.remove(KEY_HOTKEYS_RAW_CONTENT);
 }
 
 void Configuration::RoomPanelSettings::write(QSettings &conf) const

@@ -10,6 +10,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include <QMap>
 #include <QString>
 #include <Qt>
 
@@ -49,14 +50,15 @@ struct HotkeyKeyHash final
 class NODISCARD HotkeyManager final
 {
 private:
+    // Persistence callbacks
+    std::function<QMap<QString, QString>()> m_loadCallback;
+    std::function<void(const QMap<QString, QString> &)> m_saveCallback;
+
     // Fast lookup map for runtime hotkey resolution: (key, modifiers) -> command (std::string)
     std::unordered_map<HotkeyKey, std::string, HotkeyKeyHash> m_hotkeys;
 
     // Ordered list of hotkey entries (key string, command) to preserve user's order for display
     std::vector<std::pair<QString, std::string>> m_orderedHotkeys;
-
-    // Raw content preserving comments and formatting (used for export)
-    QString m_rawContent;
 
     /// Normalize a key string to canonical modifier order: CTRL+SHIFT+ALT+META+Key
     /// Example: "ALT+CTRL+F1" -> "CTRL+ALT+F1"
@@ -65,9 +67,6 @@ private:
 
     /// Check if a base key name (without modifiers) is valid
     NODISCARD static bool isValidBaseKey(const QString &baseKey);
-
-    /// Parse raw content to populate m_hotkeys and m_orderedHotkeys
-    void parseRawContent();
 
     /// Convert a key string (e.g., "CTRL+F1") to a HotkeyKey
     /// Returns HotkeyKey with key=0 if parsing fails
@@ -85,16 +84,17 @@ private:
     NODISCARD static QString qtKeyToBaseKeyName(int qtKey);
 
 public:
-    HotkeyManager();
+    explicit HotkeyManager(std::function<QMap<QString, QString>()> loadCallback,
+                           std::function<void(const QMap<QString, QString> &)> saveCallback);
     ~HotkeyManager() = default;
 
     DELETE_CTORS_AND_ASSIGN_OPS(HotkeyManager);
 
-    /// Load hotkeys from QSettings (called on startup)
-    void loadFromSettings();
+    /// Load hotkeys
+    void load();
 
-    /// Save hotkeys to QSettings
-    void saveToSettings() const;
+    /// Save hotkeys
+    void save() const;
 
     /// Set a hotkey using string key name (saves to QSettings immediately)
     /// This is used by the _hotkey command for user convenience

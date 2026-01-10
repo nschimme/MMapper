@@ -106,6 +106,11 @@ MainWindow::~MainWindow()
     destroyTopLevelWindows();
 }
 
+ClientWidget &MainWindow::getClientWidget()
+{
+    return deref(m_clientWidget);
+}
+
 MainWindow::MainWindow()
     : QMainWindow(nullptr, Qt::WindowFlags{})
     , m_asyncTask(this)

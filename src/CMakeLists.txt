@@ -14,6 +14,8 @@ set(mmapper_SRCS
     client/ClientTelnet.h
     client/ClientWidget.cpp
     client/ClientWidget.h
+    client/HotkeyManager.cpp
+    client/HotkeyManager.h
     client/PaletteManager.cpp
     client/PaletteManager.h
     client/displaywidget.cpp
@@ -37,8 +39,6 @@ set(mmapper_SRCS
     configuration/PasswordConfig.h
     configuration/configuration.cpp
     configuration/configuration.h
-    configuration/HotkeyManager.cpp
-    configuration/HotkeyManager.h
     display/CanvasMouseModeEnum.h
     display/Characters.cpp
     display/Characters.h

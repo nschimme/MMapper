@@ -18,6 +18,7 @@ class QLineEdit;
 class QObject;
 class QPlainTextEdit;
 class QWidget;
+class HotkeyManager;
 
 struct InputWidgetOutputs;
 
@@ -87,17 +88,18 @@ public:
     ~StackedInputWidget() final;
 
 private:
-    void initPipeline();
-    void initInput();
+    void initPipeline(HotkeyManager &hotkeyManager);
+    void initInput(HotkeyManager &hotkeyManager);
     void initPassword();
 
 public:
-    void init(StackedInputWidgetOutputs &output)
+    void init(StackedInputWidgetOutputs &output, HotkeyManager &hotkeyManager)
     {
         if (m_output != nullptr) {
             std::abort();
         }
         m_output = &output;
+        initPipeline(hotkeyManager);
     }
 
 private:

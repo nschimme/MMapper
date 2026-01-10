@@ -162,8 +162,9 @@ AbstractParser::AbstractParser(MapData &md,
                                GroupManagerApi &group,
                                QObject *const parent,
                                AbstractParserOutputs &outputs,
+                               HotkeyManager &hotkeyManager,
                                ParserCommonData &commonData)
-    : ParserCommon{parent, mc, md, group, proxyUserGmcp, outputs, commonData}
+    : ParserCommon{parent, mc, md, group, proxyUserGmcp, outputs, hotkeyManager, commonData}
     , m_proxyMudConnection{proxyMudConnection}
 {
     QObject::connect(&m_offlineCommandTimer, &QTimer::timeout, this, [this]() {

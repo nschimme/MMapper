@@ -13,54 +13,48 @@
 #include <QTextStream>
 
 namespace {
-constexpr const char *SETTINGS_GROUP = "IntegratedClient/Hotkeys";
-constexpr const char *SETTINGS_RAW_CONTENT_KEY = "IntegratedClient/HotkeysRawContent";
-
-// Default hotkeys content preserving order and formatting
-const QString DEFAULT_HOTKEYS_CONTENT = R"(# Hotkey Configuration
-# Format: _hotkey KEY command
-# Lines starting with # are comments.
-
-# Basic movement (numpad)
-_hotkey NUMPAD8 n
-_hotkey NUMPAD4 w
-_hotkey NUMPAD6 e
-_hotkey NUMPAD5 s
-_hotkey NUMPAD_MINUS u
-_hotkey NUMPAD_PLUS d
-
-# Open exit (CTRL+numpad)
-_hotkey CTRL+NUMPAD8 open exit n
-_hotkey CTRL+NUMPAD4 open exit w
-_hotkey CTRL+NUMPAD6 open exit e
-_hotkey CTRL+NUMPAD5 open exit s
-_hotkey CTRL+NUMPAD_MINUS open exit u
-_hotkey CTRL+NUMPAD_PLUS open exit d
-
-# Close exit (ALT+numpad)
-_hotkey ALT+NUMPAD8 close exit n
-_hotkey ALT+NUMPAD4 close exit w
-_hotkey ALT+NUMPAD6 close exit e
-_hotkey ALT+NUMPAD5 close exit s
-_hotkey ALT+NUMPAD_MINUS close exit u
-_hotkey ALT+NUMPAD_PLUS close exit d
-
-# Pick exit (SHIFT+numpad)
-_hotkey SHIFT+NUMPAD8 pick exit n
-_hotkey SHIFT+NUMPAD4 pick exit w
-_hotkey SHIFT+NUMPAD6 pick exit e
-_hotkey SHIFT+NUMPAD5 pick exit s
-_hotkey SHIFT+NUMPAD_MINUS pick exit u
-_hotkey SHIFT+NUMPAD_PLUS pick exit d
-
-# Other actions
-_hotkey NUMPAD7 look
-_hotkey NUMPAD9 flee
-_hotkey NUMPAD2 lead
-_hotkey NUMPAD0 bash
-_hotkey NUMPAD1 ride
-_hotkey NUMPAD3 stand
-)";
+// Default hotkeys
+const QMap<QString, QString> &getDefaultHotkeys()
+{
+    static const QMap<QString, QString> defaultHotkeys{
+        // Basic movement (numpad)
+        {"NUMPAD8", "n"},
+        {"NUMPAD4", "w"},
+        {"NUMPAD6", "e"},
+        {"NUMPAD5", "s"},
+        {"NUMPAD_MINUS", "u"},
+        {"NUMPAD_PLUS", "d"},
+        // Open exit (CTRL+numpad)
+        {"CTRL+NUMPAD8", "open exit n"},
+        {"CTRL+NUMPAD4", "open exit w"},
+        {"CTRL+NUMPAD6", "open exit e"},
+        {"CTRL+NUMPAD5", "open exit s"},
+        {"CTRL+NUMPAD_MINUS", "open exit u"},
+        {"CTRL+NUMPAD_PLUS", "open exit d"},
+        // Close exit (ALT+numpad)
+        {"ALT+NUMPAD8", "close exit n"},
+        {"ALT+NUMPAD4", "close exit w"},
+        {"ALT+NUMPAD6", "close exit e"},
+        {"ALT+NUMPAD5", "close exit s"},
+        {"ALT+NUMPAD_MINUS", "close exit u"},
+        {"ALT+NUMPAD_PLUS", "close exit d"},
+        // Pick exit (SHIFT+numpad)
+        {"SHIFT+NUMPAD8", "pick exit n"},
+        {"SHIFT+NUMPAD4", "pick exit w"},
+        {"SHIFT+NUMPAD6", "pick exit e"},
+        {"SHIFT+NUMPAD5", "pick exit s"},
+        {"SHIFT+NUMPAD_MINUS", "pick exit u"},
+        {"SHIFT+NUMPAD_PLUS", "pick exit d"},
+        // Other actions
+        {"NUMPAD7", "look"},
+        {"NUMPAD9", "flee"},
+        {"NUMPAD2", "lead"},
+        {"NUMPAD0", "bash"},
+        {"NUMPAD1", "ride"},
+        {"NUMPAD3", "stand"},
+    };
+    return defaultHotkeys;
+}
 
 // Key name to Qt::Key mapping
 const QHash<QString, int> &getKeyNameToQtKeyMap()
@@ -215,8 +209,8 @@ bool isNumpadKeyName(const QString &keyName)
 
 } // namespace
 
-HotkeyManager::HotkeyManager(std::function<QString()> loadCallback,
-                           std::function<void(const QString &)> saveCallback)
+HotkeyManager::HotkeyManager(std::function<QMap<QString, QString>()> loadCallback,
+                           std::function<void(const QMap<QString, QString> &)> saveCallback)
     : m_loadCallback(std::move(loadCallback))
     , m_saveCallback(std::move(saveCallback))
 {
@@ -228,51 +222,26 @@ void HotkeyManager::load()
     m_hotkeys.clear();
     m_orderedHotkeys.clear();
 
-    // Load raw content using the callback
-    m_rawContent = m_loadCallback();
+    // Load key-value map using the callback
+    QMap<QString, QString> hotkeysMap = m_loadCallback();
 
-    // If the content is empty (e.g., first run), use defaults
-    if (m_rawContent.isEmpty()) {
-        m_rawContent = DEFAULT_HOTKEYS_CONTENT;
-        // The new content will be saved on the first modification or shutdown.
+    // If the map is empty (e.g., first run), use defaults
+    if (hotkeysMap.isEmpty()) {
+        hotkeysMap = getDefaultHotkeys();
     }
 
-    // Parse the raw content to populate lookup structures
-    parseRawContent();
-}
+    // Populate lookup structures from the map
+    for (auto it = hotkeysMap.constBegin(); it != hotkeysMap.constEnd(); ++it) {
+        const QString &keyStr = it.key();
+        const QString &commandQStr = it.value();
 
-void HotkeyManager::parseRawContent()
-{
-    // Regex for parsing _hotkey commands: _hotkey KEY command
-    static const QRegularExpression hotkeyRegex(R"(^\s*_hotkey\s+(\S+)\s+(.+)$)");
-
-    m_hotkeys.clear();
-    m_orderedHotkeys.clear();
-
-    const QStringList lines = m_rawContent.split('\n');
-
-    for (const QString &line : lines) {
-        QString trimmedLine = line.trimmed();
-
-        // Skip empty lines and comments
-        if (trimmedLine.isEmpty() || trimmedLine.startsWith('#')) {
-            continue;
-        }
-
-        // Parse hotkey command
-        QRegularExpressionMatch match = hotkeyRegex.match(trimmedLine);
-        if (match.hasMatch()) {
-            QString keyStr = normalizeKeyString(match.captured(1));
-            QString commandQStr = match.captured(2).trimmed();
-            if (!keyStr.isEmpty() && !commandQStr.isEmpty()) {
-                // Convert string to HotkeyKey for fast lookup
-                HotkeyKey hk = stringToHotkeyKey(keyStr);
-                if (hk.key != 0) {
-                    // Convert command to std::string for storage (cold path - OK)
-                    std::string command = mmqt::toStdStringUtf8(commandQStr);
-                    m_hotkeys[hk] = command;
-                    m_orderedHotkeys.emplace_back(keyStr, command);
-                }
+        QString normalizedKey = normalizeKeyString(keyStr);
+        if (!normalizedKey.isEmpty() && !commandQStr.isEmpty()) {
+            HotkeyKey hk = stringToHotkeyKey(normalizedKey);
+            if (hk.key != 0) {
+                std::string command = mmqt::toStdStringUtf8(commandQStr);
+                m_hotkeys[hk] = command;
+                m_orderedHotkeys.emplace_back(normalizedKey, command);
             }
         }
     }
@@ -280,8 +249,11 @@ void HotkeyManager::parseRawContent()
 
 void HotkeyManager::save() const
 {
-    // Save the raw content using the callback
-    m_saveCallback(m_rawContent);
+    QMap<QString, QString> hotkeysMap;
+    for (const auto &pair : m_orderedHotkeys) {
+        hotkeysMap.insert(pair.first, mmqt::toQStringUtf8(pair.second));
+    }
+    m_saveCallback(hotkeysMap);
 }
 
 bool HotkeyManager::setHotkey(const QString &keyName, const QString &command)
@@ -291,39 +263,31 @@ bool HotkeyManager::setHotkey(const QString &keyName, const QString &command)
         return false; // Invalid key name
     }
 
-    // Update or add in raw content
-    static const QRegularExpression hotkeyLineRegex(R"(^(\s*_hotkey\s+)(\S+)(\s+)(.+)$)",
-                                                    QRegularExpression::MultilineOption);
+    HotkeyKey newHk = stringToHotkeyKey(normalizedKey);
+    if (newHk.key == 0) {
+        return false;
+    }
 
-    QString newLine = "_hotkey " + normalizedKey + " " + command;
+    std::string newCommand = mmqt::toStdStringUtf8(command);
+
+    // Check if hotkey already exists and update it
     bool found = false;
-
-    // Try to find and replace existing hotkey line
-    QStringList lines = m_rawContent.split('\n');
-    for (int i = 0; i < lines.size(); ++i) {
-        QRegularExpressionMatch match = hotkeyLineRegex.match(lines[i]);
-        if (match.hasMatch()) {
-            QString existingKey = normalizeKeyString(match.captured(2));
-            if (existingKey == normalizedKey) {
-                lines[i] = newLine;
-                found = true;
-                break;
-            }
+    for (auto &pair : m_orderedHotkeys) {
+        if (pair.first == normalizedKey) {
+            pair.second = newCommand;
+            found = true;
+            break;
         }
     }
 
+    // If not found, add a new one
     if (!found) {
-        // Append new hotkey at the end
-        if (!m_rawContent.endsWith('\n')) {
-            m_rawContent += '\n';
-        }
-        m_rawContent += newLine + '\n';
-    } else {
-        m_rawContent = lines.join('\n');
+        m_orderedHotkeys.emplace_back(normalizedKey, newCommand);
     }
 
-    // Re-parse and save
-    parseRawContent();
+    // Update the fast lookup map
+    m_hotkeys[newHk] = newCommand;
+
     save();
     return true;
 }
@@ -336,32 +300,21 @@ void HotkeyManager::removeHotkey(const QString &keyName)
     }
 
     HotkeyKey hk = stringToHotkeyKey(normalizedKey);
-    if (m_hotkeys.count(hk) == 0) {
+    if (hk.key == 0 || m_hotkeys.count(hk) == 0) {
         return;
     }
 
-    // Remove from raw content
-    static const QRegularExpression hotkeyLineRegex(R"(^\s*_hotkey\s+(\S+)\s+.+$)");
+    // Remove from fast lookup map
+    m_hotkeys.erase(hk);
 
-    QStringList lines = m_rawContent.split('\n');
-    QStringList newLines;
+    // Remove from ordered list
+    m_orderedHotkeys.erase(std::remove_if(m_orderedHotkeys.begin(),
+                                          m_orderedHotkeys.end(),
+                                          [&](const auto &pair) {
+                                              return pair.first == normalizedKey;
+                                          }),
+                           m_orderedHotkeys.end());
 
-    for (const QString &line : lines) {
-        QRegularExpressionMatch match = hotkeyLineRegex.match(line);
-        if (match.hasMatch()) {
-            QString existingKey = normalizeKeyString(match.captured(1));
-            if (existingKey == normalizedKey) {
-                // Skip this line (remove it)
-                continue;
-            }
-        }
-        newLines.append(line);
-    }
-
-    m_rawContent = newLines.join('\n');
-
-    // Re-parse and save
-    parseRawContent();
     save();
 }
 
@@ -598,16 +551,27 @@ QString HotkeyManager::qtKeyToBaseKeyName(int qtKey)
 
 void HotkeyManager::resetToDefaults()
 {
-    m_rawContent = DEFAULT_HOTKEYS_CONTENT;
-    parseRawContent();
-    save();
+    clear();
+    const QMap<QString, QString> &defaultHotkeys = getDefaultHotkeys();
+    for (auto it = defaultHotkeys.constBegin(); it != defaultHotkeys.constEnd(); ++it) {
+        // Normalize and add directly to internal structures, bypassing setHotkey's immediate save
+        QString normalizedKey = normalizeKeyString(it.key());
+        if (!normalizedKey.isEmpty()) {
+            HotkeyKey hk = stringToHotkeyKey(normalizedKey);
+            if (hk.key != 0) {
+                std::string command = mmqt::toStdStringUtf8(it.value());
+                m_hotkeys[hk] = command;
+                m_orderedHotkeys.emplace_back(normalizedKey, command);
+            }
+        }
+    }
+    save(); // Save only once after all defaults are loaded
 }
 
 void HotkeyManager::clear()
 {
     m_hotkeys.clear();
     m_orderedHotkeys.clear();
-    m_rawContent.clear();
 }
 
 std::vector<QString> HotkeyManager::getAllKeyNames() const
@@ -622,21 +586,52 @@ std::vector<QString> HotkeyManager::getAllKeyNames() const
 
 QString HotkeyManager::exportToCliFormat() const
 {
-    // Return the raw content exactly as saved (preserves order, comments, and formatting)
-    return m_rawContent;
+    QString content;
+    QTextStream stream(&content);
+    stream << "# Hotkey Configuration\n";
+    stream << "# Format: _hotkey KEY command\n\n";
+
+    for (const auto &pair : m_orderedHotkeys) {
+        stream << "_hotkey " << pair.first << " " << mmqt::toQStringUtf8(pair.second) << "\n";
+    }
+
+    return content;
 }
 
 int HotkeyManager::importFromCliFormat(const QString &content)
 {
-    // Store the raw content exactly as provided (preserves order, comments, and formatting)
-    m_rawContent = content;
+    clear();
 
-    // Parse to populate lookup structures
-    parseRawContent();
+    // Regex for parsing _hotkey commands: _hotkey KEY command
+    static const QRegularExpression hotkeyRegex(R"(^\s*_hotkey\s+(\S+)\s+(.+)$)");
 
-    // Save to settings
-    save();
+    const QStringList lines = content.split('\n');
 
+    for (const QString &line : lines) {
+        QString trimmedLine = line.trimmed();
+        if (trimmedLine.isEmpty() || trimmedLine.startsWith('#')) {
+            continue;
+        }
+
+        QRegularExpressionMatch match = hotkeyRegex.match(trimmedLine);
+        if (match.hasMatch()) {
+            QString keyStr = match.captured(1);
+            QString commandQStr = match.captured(2).trimmed();
+
+            // Normalize and add directly to internal structures, bypassing setHotkey's immediate save
+            QString normalizedKey = normalizeKeyString(keyStr);
+            if (!normalizedKey.isEmpty() && !commandQStr.isEmpty()) {
+                HotkeyKey hk = stringToHotkeyKey(normalizedKey);
+                if (hk.key != 0) {
+                    std::string command = mmqt::toStdStringUtf8(commandQStr);
+                    m_hotkeys[hk] = command;
+                    m_orderedHotkeys.emplace_back(normalizedKey, command);
+                }
+            }
+        }
+    }
+
+    save(); // Save only once after all hotkeys have been processed
     return static_cast<int>(m_orderedHotkeys.size());
 }
 

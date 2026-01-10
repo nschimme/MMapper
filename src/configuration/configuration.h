@@ -377,7 +377,7 @@ public:
         bool autoStartClient = false;
         bool useCommandSeparator = false;
         QString commandSeparator;
-        QString hotkeysRawContent;
+        QMap<QString, QString> hotkeys;
 
     private:
         SUBGROUP();

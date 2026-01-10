@@ -4,7 +4,9 @@
 
 #include "../src/global/macros.h"
 
+#include <QMap>
 #include <QObject>
+#include <QString>
 
 class NODISCARD_QOBJECT TestHotkeyManager final : public QObject
 {
@@ -24,13 +26,11 @@ private Q_SLOTS:
     void importExportRoundTripTest();
     void importEdgeCasesTest();
     void resetToDefaultsTest();
-    void exportSortOrderTest();
     void setHotkeyTest();
     void removeHotkeyTest();
     void hasHotkeyTest();
     void invalidKeyValidationTest();
     void duplicateKeyBehaviorTest();
-    void commentPreservationTest();
     void settingsPersistenceTest();
     void directLookupTest();
 
@@ -38,5 +38,5 @@ private:
     // Original QSettings namespace (restored in cleanupTestCase)
     QString m_originalOrganization;
     QString m_originalApplication;
-    QString m_hotkeyContent;
+    QMap<QString, QString> m_hotkeys;
 };

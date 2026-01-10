@@ -32,8 +32,10 @@ ClientWidget::ClientWidget(ConnectionListener &listener, QWidget *const parent)
 
     // Create HotkeyManager with persistence callbacks
     m_hotkeyManager = std::make_unique<HotkeyManager>(
-        []() { return setConfig().integratedClient.hotkeysRawContent; },
-        [](const QString &content) { setConfig().integratedClient.hotkeysRawContent = content; });
+        []() { return getConfig().integratedClient.hotkeys; },
+        [](const QMap<QString, QString> &hotkeys) {
+            setConfig().integratedClient.hotkeys = hotkeys;
+        });
 
     auto &ui = getUi();
 

@@ -191,6 +191,8 @@ public:
     using Base::glUniformMatrix4fv;
     using Base::glUseProgram;
     using Base::glVertexAttribPointer;
+    using Base::glDrawArraysInstanced;
+    using Base::glVertexAttribDivisor;
 
 public:
     void glLineWidth(const GLfloat lineWidth)
@@ -333,8 +335,7 @@ public:
 
 public:
     NODISCARD UniqueMesh createFontMesh(const SharedMMTexture &texture,
-                                        DrawModeEnum mode,
-                                        const std::vector<FontVert3d> &batch);
+                                        const std::vector<FontData> &batch);
 
 public:
     void renderPoints(const std::vector<ColorVert> &verts, const GLRenderState &state);
@@ -352,7 +353,9 @@ public:
     void renderColoredTextured(DrawModeEnum mode,
                                const std::vector<ColoredTexVert> &verts,
                                const GLRenderState &state);
-    void renderFont3d(const SharedMMTexture &texture, const std::vector<FontVert3d> &verts);
+
+public:
+    void applyRenderState(const GLRenderState &renderState);
 
 public:
     void checkError();

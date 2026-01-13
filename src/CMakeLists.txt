@@ -405,8 +405,10 @@ set(mmapper_SRCS
     opengl/legacy/Binders.h
     opengl/legacy/FBO.cpp
     opengl/legacy/FBO.h
-    opengl/legacy/FontMesh3d.cpp
-    opengl/legacy/FontMesh3d.h
+    opengl/legacy/FontMesh.cpp
+    opengl/legacy/FontMesh.h
+    opengl/legacy/InstancedMesh.cpp
+    opengl/legacy/InstancedMesh.h
     opengl/legacy/Legacy.cpp
     opengl/legacy/Legacy.h
     opengl/legacy/FunctionsGL33.cpp

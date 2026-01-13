@@ -23,6 +23,10 @@
 #include <QOpenGLTexture>
 #include <qopengl.h>
 
+namespace Legacy {
+class Functions;
+}
+
 struct NODISCARD TexVert final
 {
     glm::vec3 tex{};
@@ -66,24 +70,15 @@ struct NODISCARD ColorVert final
 // the font's vertex shader transforms the world position to screen space,
 // rounds to integer pixel offset, and then adds the vertex position in screen space.
 //
-// Rendering with the font shader requires passing uniforms for the world space
-// model-view-projection matrix and the output viewport.
-struct NODISCARD FontVert3d final
+struct NODISCARD FontData final
 {
-    glm::vec3 base{}; // world space
-    Color color;
-    glm::vec2 tex{};
-    glm::vec2 vert{}; // screen space
-
-    explicit FontVert3d(const glm::vec3 &base_,
-                        const Color &color_,
-                        const glm::vec2 &tex_,
-                        const glm::vec2 &vert_)
-        : base{base_}
-        , color{color_}
-        , tex{tex_}
-        , vert{vert_}
-    {}
+    glm::vec4 pos{};
+    glm::vec2 size{};
+    glm::vec2 texTopLeft{};
+    glm::vec2 texBottomRight{};
+    glm::vec4 color{};
+    float italics = 0.0f;
+    float rotation = 0.0f;
 };
 
 enum class NODISCARD DrawModeEnum { INVALID = 0, POINTS = 1, LINES = 2, TRIANGLES = 3, QUADS = 4 };
@@ -250,6 +245,8 @@ struct NODISCARD GLRenderState final
         copy.uniforms.textures = Textures{new_texture, INVALID_MM_TEXTURE_ID};
         return copy;
     }
+
+    void apply(Legacy::Functions& gl) const;
 };
 
 struct NODISCARD IRenderable

@@ -30,6 +30,9 @@
 
 #undef TRANSPARENT // Bad dog, Microsoft; bad dog!!!
 
+// Forward declaration for InfomarkClassEnum
+enum class InfomarkClassEnum : uint8_t;
+
 #define SUBGROUP() \
     friend class Configuration; \
     void read(const QSettings &conf); \
@@ -104,6 +107,7 @@ public:
         char prefixChar = char_consts::C_UNDERSCORE;
         bool encodeEmoji = true;
         bool decodeEmoji = true;
+        bool enableYellFallbackParsing = true; // Parse yells from game text when GMCP unavailable
 
     private:
         SUBGROUP();
@@ -203,6 +207,50 @@ public:
     private:
         SUBGROUP();
     } canvas;
+
+    struct NODISCARD CommsSettings final
+    {
+        // Colors for each communication type
+        NamedConfig<QColor> tellColor{"COMMS_TELL_COLOR", QColor(Qt::cyan)};
+        NamedConfig<QColor> whisperColor{"COMMS_WHISPER_COLOR", QColor(135, 206, 250)};  // Light sky blue
+        NamedConfig<QColor> groupColor{"COMMS_GROUP_COLOR", QColor(Qt::green)};
+        NamedConfig<QColor> askColor{"COMMS_ASK_COLOR", QColor(Qt::yellow)};
+        NamedConfig<QColor> sayColor{"COMMS_SAY_COLOR", QColor(Qt::white)};
+        NamedConfig<QColor> emoteColor{"COMMS_EMOTE_COLOR", QColor(Qt::magenta)};
+        NamedConfig<QColor> socialColor{"COMMS_SOCIAL_COLOR", QColor(255, 182, 193)};  // Light pink
+        NamedConfig<QColor> yellColor{"COMMS_YELL_COLOR", QColor(Qt::red)};
+        NamedConfig<QColor> narrateColor{"COMMS_NARRATE_COLOR", QColor(255, 165, 0)};  // Orange
+        NamedConfig<QColor> prayColor{"COMMS_PRAY_COLOR", QColor(173, 216, 230)};  // Light blue
+        NamedConfig<QColor> shoutColor{"COMMS_SHOUT_COLOR", QColor(139, 0, 0)};  // Dark red
+        NamedConfig<QColor> singColor{"COMMS_SING_COLOR", QColor(144, 238, 144)};  // Light green
+        NamedConfig<QColor> backgroundColor{"COMMS_BG_COLOR", QColor(Qt::black)};
+
+        // Talker colors (based on GMCP Comm.Channel talker-type)
+        NamedConfig<QColor> talkerYouColor{"COMMS_TALKER_YOU_COLOR", QColor(255, 215, 0)};  // Gold
+        NamedConfig<QColor> talkerPlayerColor{"COMMS_TALKER_PLAYER_COLOR", QColor(Qt::white)};
+        NamedConfig<QColor> talkerNpcColor{"COMMS_TALKER_NPC_COLOR", QColor(192, 192, 192)};  // Silver/Gray
+        NamedConfig<QColor> talkerAllyColor{"COMMS_TALKER_ALLY_COLOR", QColor(0, 255, 0)};  // Bright green
+        NamedConfig<QColor> talkerNeutralColor{"COMMS_TALKER_NEUTRAL_COLOR", QColor(255, 255, 0)};  // Yellow
+        NamedConfig<QColor> talkerEnemyColor{"COMMS_TALKER_ENEMY_COLOR", QColor(255, 0, 0)};  // Red
+
+        // Font styling options
+        NamedConfig<bool> yellAllCaps{"COMMS_YELL_ALL_CAPS", true};
+        NamedConfig<bool> whisperItalic{"COMMS_WHISPER_ITALIC", true};
+        NamedConfig<bool> emoteItalic{"COMMS_EMOTE_ITALIC", true};
+
+        // Display options
+        NamedConfig<bool> showTimestamps{"COMMS_SHOW_TIMESTAMPS", false};
+        NamedConfig<bool> saveLogOnExit{"COMMS_SAVE_LOG_ON_EXIT", false};
+        NamedConfig<QString> logDirectory{"COMMS_LOG_DIR", ""};
+
+        // Tab muting (acts as a filter)
+        NamedConfig<bool> muteDirectTab{"COMMS_MUTE_DIRECT", false};
+        NamedConfig<bool> muteLocalTab{"COMMS_MUTE_LOCAL", false};
+        NamedConfig<bool> muteGlobalTab{"COMMS_MUTE_GLOBAL", false};
+
+    private:
+        SUBGROUP();
+    } comms;
 
 #define XFOREACH_NAMED_COLOR_OPTIONS(X) \
     X(BACKGROUND, BACKGROUND_NAME) \

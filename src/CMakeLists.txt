@@ -32,6 +32,10 @@ set(mmapper_SRCS
     clock/mumeclockwidget.h
     clock/mumemoment.cpp
     clock/mumemoment.h
+    comms/CommsManager.cpp
+    comms/CommsManager.h
+    comms/CommsWidget.cpp
+    comms/CommsWidget.h
     configuration/NamedConfig.h
     configuration/PasswordConfig.cpp
     configuration/PasswordConfig.h
@@ -481,6 +485,8 @@ set(mmapper_SRCS
     preferences/autologpage.h
     preferences/clientpage.cpp
     preferences/clientpage.h
+    preferences/commspage.cpp
+    preferences/commspage.h
     preferences/configdialog.cpp
     preferences/configdialog.h
     preferences/generalpage.cpp

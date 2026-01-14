@@ -25,6 +25,11 @@ void GameObserver::observeSentToUser(const QString &input)
     sig2_sentToUserString.invoke(str);
 }
 
+void GameObserver::observeRawGameText(const QString &input)
+{
+    sig2_rawGameText.invoke(input);
+}
+
 void GameObserver::observeSentToUserGmcp(const GmcpMessage &m)
 {
     sig2_sentToUserGmcp.invoke(m);

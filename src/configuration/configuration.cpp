@@ -195,6 +195,7 @@ ConstString GRP_ACCOUNT = "Account";
 ConstString GRP_AUTO_LOAD_WORLD = "Auto load world";
 ConstString GRP_AUTO_LOG = "Auto log";
 ConstString GRP_CANVAS = "Canvas";
+ConstString GRP_COMMS = "Communications";
 ConstString GRP_CONNECTION = "Connection";
 ConstString GRP_FINDROOMS_DIALOG = "FindRooms Dialog";
 ConstString GRP_GENERAL = "General";
@@ -469,6 +470,7 @@ NODISCARD static uint16_t sanitizeUint16(const int input, const uint16_t default
         GROUP_CALLBACK(callback, GRP_GENERAL, general); \
         GROUP_CALLBACK(callback, GRP_CONNECTION, connection); \
         GROUP_CALLBACK(callback, GRP_CANVAS, canvas); \
+        GROUP_CALLBACK(callback, GRP_COMMS, comms); \
         GROUP_CALLBACK(callback, GRP_ACCOUNT, account); \
         GROUP_CALLBACK(callback, GRP_AUTO_LOAD_WORLD, autoLoad); \
         GROUP_CALLBACK(callback, GRP_AUTO_LOG, autoLog); \
@@ -725,6 +727,49 @@ void Configuration::GroupManagerSettings::read(const QSettings &conf)
     npcSortBottom = conf.value(KEY_GROUP_NPC_SORT_BOTTOM, false).toBool();
 }
 
+void Configuration::CommsSettings::read(const QSettings &conf)
+{
+    // Communication colors
+    tellColor.set(conf.value(QString::fromStdString(tellColor.getName()), QColor(32, 108, 9)).value<QColor>());
+    whisperColor.set(conf.value(QString::fromStdString(whisperColor.getName()), QColor(103, 135, 149)).value<QColor>());
+    groupColor.set(conf.value(QString::fromStdString(groupColor.getName()), QColor(15, 123, 255)).value<QColor>());
+    askColor.set(conf.value(QString::fromStdString(askColor.getName()), QColor(Qt::yellow)).value<QColor>());
+    sayColor.set(conf.value(QString::fromStdString(sayColor.getName()), QColor(80, 173, 199)).value<QColor>());
+    emoteColor.set(conf.value(QString::fromStdString(emoteColor.getName()), QColor(203, 37, 111)).value<QColor>());
+    socialColor.set(conf.value(QString::fromStdString(socialColor.getName()), QColor(217, 140, 151)).value<QColor>());
+    yellColor.set(conf.value(QString::fromStdString(yellColor.getName()), QColor(176, 80, 189)).value<QColor>());
+    narrateColor.set(conf.value(QString::fromStdString(narrateColor.getName()), QColor(119, 197, 203)).value<QColor>());
+    prayColor.set(conf.value(QString::fromStdString(prayColor.getName()), QColor(173, 216, 230)).value<QColor>());
+    shoutColor.set(conf.value(QString::fromStdString(shoutColor.getName()), QColor(160, 9, 198)).value<QColor>());
+    singColor.set(conf.value(QString::fromStdString(singColor.getName()), QColor(144, 238, 144)).value<QColor>());
+    backgroundColor.set(conf.value(QString::fromStdString(backgroundColor.getName()), QColor(22, 31, 33)).value<QColor>());
+
+    // Font styling options
+    yellAllCaps.set(conf.value(QString::fromStdString(yellAllCaps.getName()), true).toBool());
+    whisperItalic.set(conf.value(QString::fromStdString(whisperItalic.getName()), true).toBool());
+    emoteItalic.set(conf.value(QString::fromStdString(emoteItalic.getName()), true).toBool());
+
+    // Display options
+    showTimestamps.set(conf.value(QString::fromStdString(showTimestamps.getName()), false).toBool());
+    saveLogOnExit.set(conf.value(QString::fromStdString(saveLogOnExit.getName()), false).toBool());
+    logDirectory.set(conf.value(QString::fromStdString(logDirectory.getName()), QString("")).toString());
+
+    // Talker colors
+    talkerYouColor.set(conf.value(QString::fromStdString(talkerYouColor.getName()), QColor(228, 250, 255)).value<QColor>());
+    talkerPlayerColor.set(
+        conf.value(QString::fromStdString(talkerPlayerColor.getName()), QColor(255, 187, 16)).value<QColor>());
+    talkerNpcColor.set(conf.value(QString::fromStdString(talkerNpcColor.getName()), QColor(25, 138, 23)).value<QColor>());
+    talkerAllyColor.set(conf.value(QString::fromStdString(talkerAllyColor.getName()), QColor(33, 166, 255)).value<QColor>());
+    talkerNeutralColor.set(
+        conf.value(QString::fromStdString(talkerNeutralColor.getName()), QColor(166, 168, 168)).value<QColor>());
+    talkerEnemyColor.set(conf.value(QString::fromStdString(talkerEnemyColor.getName()), QColor(173, 7, 37)).value<QColor>());
+
+    // Tab muting (filters)
+    muteDirectTab.set(conf.value(QString::fromStdString(muteDirectTab.getName()), false).toBool());
+    muteLocalTab.set(conf.value(QString::fromStdString(muteLocalTab.getName()), false).toBool());
+    muteGlobalTab.set(conf.value(QString::fromStdString(muteGlobalTab.getName()), false).toBool());
+}
+
 void Configuration::MumeClockSettings::read(const QSettings &conf)
 {
     // NOTE: old values might be stored as int32
@@ -895,6 +940,47 @@ void Configuration::GroupManagerSettings::write(QSettings &conf) const
     conf.setValue(KEY_GROUP_NPC_COLOR_OVERRIDE, npcColorOverride);
     conf.setValue(KEY_GROUP_NPC_HIDE, npcHide);
     conf.setValue(KEY_GROUP_NPC_SORT_BOTTOM, npcSortBottom);
+}
+
+void Configuration::CommsSettings::write(QSettings &conf) const
+{
+    // Communication colors
+    conf.setValue(QString::fromStdString(tellColor.getName()), tellColor.get());
+    conf.setValue(QString::fromStdString(whisperColor.getName()), whisperColor.get());
+    conf.setValue(QString::fromStdString(groupColor.getName()), groupColor.get());
+    conf.setValue(QString::fromStdString(askColor.getName()), askColor.get());
+    conf.setValue(QString::fromStdString(sayColor.getName()), sayColor.get());
+    conf.setValue(QString::fromStdString(emoteColor.getName()), emoteColor.get());
+    conf.setValue(QString::fromStdString(socialColor.getName()), socialColor.get());
+    conf.setValue(QString::fromStdString(yellColor.getName()), yellColor.get());
+    conf.setValue(QString::fromStdString(narrateColor.getName()), narrateColor.get());
+    conf.setValue(QString::fromStdString(prayColor.getName()), prayColor.get());
+    conf.setValue(QString::fromStdString(shoutColor.getName()), shoutColor.get());
+    conf.setValue(QString::fromStdString(singColor.getName()), singColor.get());
+    conf.setValue(QString::fromStdString(backgroundColor.getName()), backgroundColor.get());
+
+    // Font styling options
+    conf.setValue(QString::fromStdString(yellAllCaps.getName()), yellAllCaps.get());
+    conf.setValue(QString::fromStdString(whisperItalic.getName()), whisperItalic.get());
+    conf.setValue(QString::fromStdString(emoteItalic.getName()), emoteItalic.get());
+
+    // Display options
+    conf.setValue(QString::fromStdString(showTimestamps.getName()), showTimestamps.get());
+    conf.setValue(QString::fromStdString(saveLogOnExit.getName()), saveLogOnExit.get());
+    conf.setValue(QString::fromStdString(logDirectory.getName()), logDirectory.get());
+
+    // Talker colors
+    conf.setValue(QString::fromStdString(talkerYouColor.getName()), talkerYouColor.get());
+    conf.setValue(QString::fromStdString(talkerPlayerColor.getName()), talkerPlayerColor.get());
+    conf.setValue(QString::fromStdString(talkerNpcColor.getName()), talkerNpcColor.get());
+    conf.setValue(QString::fromStdString(talkerAllyColor.getName()), talkerAllyColor.get());
+    conf.setValue(QString::fromStdString(talkerNeutralColor.getName()), talkerNeutralColor.get());
+    conf.setValue(QString::fromStdString(talkerEnemyColor.getName()), talkerEnemyColor.get());
+
+    // Tab muting (filters)
+    conf.setValue(QString::fromStdString(muteDirectTab.getName()), muteDirectTab.get());
+    conf.setValue(QString::fromStdString(muteLocalTab.getName()), muteLocalTab.get());
+    conf.setValue(QString::fromStdString(muteGlobalTab.getName()), muteGlobalTab.get());
 }
 
 void Configuration::MumeClockSettings::write(QSettings &conf) const

@@ -213,6 +213,7 @@ ConstString KEY_ABSOLUTE_PATH_ACCEPTANCE = "absolute path acceptance";
 ConstString KEY_ACCOUNT_NAME = "account name";
 ConstString KEY_ACCOUNT_PASSWORD = "account password";
 ConstString KEY_ALWAYS_ON_TOP = "Always On Top";
+ConstString KEY_HIDE_TO_SYSTEM_TRAY = "Hide to system tray";
 ConstString KEY_SHOW_STATUS_BAR = "Show Status Bar";
 ConstString KEY_SHOW_SCROLL_BARS = "Show Scroll Bars";
 ConstString KEY_SHOW_MENU_BAR = "Show Menu Bar";
@@ -569,6 +570,7 @@ void Configuration::GeneralSettings::read(const QSettings &conf)
     showStatusBar = conf.value(KEY_SHOW_STATUS_BAR, true).toBool();
     showScrollBars = conf.value(KEY_SHOW_SCROLL_BARS, true).toBool();
     showMenuBar = conf.value(KEY_SHOW_MENU_BAR, true).toBool();
+    m_hideToSystemTray = conf.value(KEY_HIDE_TO_SYSTEM_TRAY, false).toBool();
     mapMode = sanitizeMapMode(
         conf.value(KEY_MAP_MODE, static_cast<uint32_t>(MapModeEnum::PLAY)).toUInt());
     checkForUpdate = conf.value(KEY_CHECK_FOR_UPDATE, true).toBool();
@@ -786,6 +788,7 @@ void Configuration::GeneralSettings::write(QSettings &conf) const
     conf.setValue(KEY_SHOW_STATUS_BAR, showStatusBar);
     conf.setValue(KEY_SHOW_SCROLL_BARS, showScrollBars);
     conf.setValue(KEY_SHOW_MENU_BAR, showMenuBar);
+    conf.setValue(KEY_HIDE_TO_SYSTEM_TRAY, m_hideToSystemTray);
     conf.setValue(KEY_MAP_MODE, static_cast<uint32_t>(mapMode));
     conf.setValue(KEY_CHECK_FOR_UPDATE, checkForUpdate);
     conf.setValue(KEY_CHARACTER_ENCODING, static_cast<uint32_t>(characterEncoding));

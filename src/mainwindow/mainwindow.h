@@ -66,6 +66,7 @@ class RoomSelection;
 class RoomWidget;
 class UpdateDialog;
 class DescriptionWidget;
+class SystemTrayManager;
 struct MapLoadData;
 class MapDestination;
 
@@ -109,6 +110,7 @@ private:
     AdventureWidget *m_adventureWidget = nullptr;
 
     DescriptionWidget *m_descriptionWidget = nullptr;
+    SystemTrayManager *m_trayManager = nullptr;
 
     SharedRoomSelection m_roomSelection;
     std::shared_ptr<ConnectionSelection> m_connectionSelection;
@@ -271,6 +273,7 @@ public:
     void loadFile(std::shared_ptr<MapSource> source);
     void setCurrentFile(const QString &fileName);
     void percentageChanged(uint32_t);
+    NODISCARD bool isUsingIntegratedClient() const;
 
 private:
     void showAsyncFailure(const QString &fileName, AsyncTypeEnum mode, bool wasCanceled);
@@ -279,6 +282,7 @@ private:
 
 protected:
     void closeEvent(QCloseEvent *event) override;
+    void changeEvent(QEvent *event) override;
     void keyPressEvent(QKeyEvent *event) override;
     void keyReleaseEvent(QKeyEvent *event) override;
     void showEvent(QShowEvent *event) override;

@@ -224,6 +224,8 @@ set(mmapper_SRCS
     mainwindow/DescriptionWidget.h
     mainwindow/MapZoomSlider.cpp
     mainwindow/MapZoomSlider.h
+    mainwindow/SystemTrayManager.cpp
+    mainwindow/SystemTrayManager.h
     mainwindow/UpdateDialog.cpp
     mainwindow/UpdateDialog.h
     mainwindow/ThemeManager.cpp

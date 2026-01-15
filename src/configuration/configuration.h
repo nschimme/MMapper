@@ -48,6 +48,7 @@ public:
     private:
         ChangeMonitor m_changeMonitor;
         ThemeEnum m_theme = ThemeEnum::System;
+        bool m_hideToSystemTray = false;
 
     public:
         explicit GeneralSettings() = default;
@@ -59,6 +60,13 @@ public:
         void setTheme(const ThemeEnum theme)
         {
             m_theme = theme;
+            m_changeMonitor.notifyAll();
+        }
+
+        NODISCARD bool getHideToSystemTray() const { return m_hideToSystemTray; }
+        void setHideToSystemTray(const bool hide)
+        {
+            m_hideToSystemTray = hide;
             m_changeMonitor.notifyAll();
         }
 

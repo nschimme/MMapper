@@ -60,10 +60,14 @@ private:
 
 public:
     // set program uniforms...
-    void setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms);
+    void setUniforms(const glm::mat4 &mvp,
+                     const GLRenderState::Uniforms &uniforms,
+                     const LineParams &lineParams);
 
 private:
-    virtual void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) = 0;
+    virtual void virt_setUniforms(const glm::mat4 &mvp,
+                                  const GLRenderState::Uniforms &uniforms,
+                                  const LineParams &lineParams) = 0;
 
 public:
     NODISCARD GLuint getAttribLocation(const char *name) const;
@@ -84,11 +88,13 @@ private:
     NODISCARD float getDevicePixelRatio() const;
 
 public:
+    void setFloat(const char *name, float value);
     void setPointSize(float in_pointSize);
     void setColor(const char *name, const Color &color);
     void setMatrix(const char *name, const glm::mat4 &m);
     void setTexture(const char *name, int textureUnit);
     void setViewport(const char *name, const Viewport &input_viewport);
+    void setViewportF(const char *name, const Viewport &input_viewport);
 };
 
 } // namespace Legacy

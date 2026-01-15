@@ -9,7 +9,6 @@
 #include "../map/roomid.h"
 #include "../mapdata/mapdata.h"
 #include "../mapdata/roomselection.h"
-#include "../opengl/LineRendering.h"
 #include "../opengl/OpenGL.h"
 #include "../opengl/OpenGLTypes.h"
 #include "MapCanvasData.h"
@@ -105,9 +104,9 @@ void CharacterBatch::drawCharacter(const Coordinate &c, const Color &color, bool
 
 void CharacterBatch::CharFakeGL::drawPathSegment(const glm::vec3 &p1,
                                                  const glm::vec3 &p2,
-                                                 const Color &color)
+                                                 const Color &)
 {
-    mmgl::generateLineQuadsSafe(m_pathLineQuads, p1, p2, PATH_LINE_WIDTH, color);
+    m_pathLines.emplace_back(LineVert{p1, p2});
 }
 
 void CharacterBatch::drawPreSpammedPath(const Coordinate &c1,
@@ -211,13 +210,8 @@ void CharacterBatch::CharFakeGL::drawQuadCommon(const glm::vec2 &in_a,
     }
 
     if (::utils::isSet(options, QuadOptsEnum::OUTLINE)) {
-        const auto color = m_color.withAlpha(LINE_ALPHA);
-        auto emitVert = [this, &color](const auto &x) -> void {
-            m_charLines.emplace_back(color, x);
-        };
-        auto emitLine = [&emitVert](const auto &v0, const auto &v1) -> void {
-            emitVert(v0);
-            emitVert(v1);
+        auto emitLine = [this](const auto &v0, const auto &v1) -> void {
+            m_charLines.emplace_back(LineVert{v0, v1});
         };
         emitLine(a, b);
         emitLine(b, c);
@@ -338,8 +332,8 @@ void CharacterBatch::CharFakeGL::reallyDrawCharacters(OpenGL &gl, const MapCanva
     }
 
     if (!m_charLines.empty()) {
-        gl.renderColoredLines(m_charLines,
-                              blended_noDepth.withLineParams(LineParams{CHAR_ARROW_LINE_WIDTH}));
+        gl.renderLines(m_charLines,
+                       blended_noDepth.withLineParams(LineParams{CHAR_ARROW_LINE_WIDTH}));
     }
 
     if (!m_screenSpaceArrows.empty()) {
@@ -359,8 +353,8 @@ void CharacterBatch::CharFakeGL::reallyDrawPaths(OpenGL &gl)
         = GLRenderState().withDepthFunction(std::nullopt).withBlend(BlendModeEnum::TRANSPARENCY);
 
     gl.renderPoints(m_pathPoints, blended_noDepth.withPointSize(PATH_POINT_SIZE));
-    if (!m_pathLineQuads.empty()) {
-        gl.renderColoredQuads(m_pathLineQuads, blended_noDepth);
+    if (!m_pathLines.empty()) {
+        gl.renderLines(m_pathLines, blended_noDepth.withLineParams(LineParams{PATH_LINE_WIDTH}));
     }
 }
 

@@ -160,6 +160,7 @@ public:
     using Base::glDisable;
     using Base::glDisableVertexAttribArray;
     using Base::glDrawArrays;
+    using Base::glDrawArraysInstanced;
     using Base::glEnable;
     using Base::glEnableVertexAttribArray;
     using Base::glGenBuffers;
@@ -191,6 +192,7 @@ public:
     using Base::glUniformMatrix4fv;
     using Base::glUseProgram;
     using Base::glVertexAttribPointer;
+    using Base::glVertexAttribDivisor;
 
 public:
     void glLineWidth(const GLfloat lineWidth)
@@ -320,6 +322,7 @@ public:
 
 public:
     NODISCARD UniqueMesh createPointBatch(const std::vector<ColorVert> &batch);
+    NODISCARD UniqueMesh createLineBatch(const std::vector<LineVert> &batch);
 
 public:
     NODISCARD UniqueMesh createPlainBatch(DrawModeEnum mode, const std::vector<glm::vec3> &batch);
@@ -338,6 +341,7 @@ public:
 
 public:
     void renderPoints(const std::vector<ColorVert> &verts, const GLRenderState &state);
+    void renderLines(const std::vector<LineVert> &verts, const GLRenderState &state);
 
 public:
     void renderPlain(DrawModeEnum mode,

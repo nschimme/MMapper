@@ -62,6 +62,12 @@ struct NODISCARD ColorVert final
     {}
 };
 
+struct NODISCARD LineVert final
+{
+    glm::vec3 from;
+    glm::vec3 to;
+};
+
 // Similar to ColoredTexVert, except it has a base position in world coordinates.
 // the font's vertex shader transforms the world position to screen space,
 // rounds to integer pixel offset, and then adds the vertex position in screen space.
@@ -86,15 +92,24 @@ struct NODISCARD FontVert3d final
     {}
 };
 
-enum class NODISCARD DrawModeEnum { INVALID = 0, POINTS = 1, LINES = 2, TRIANGLES = 3, QUADS = 4 };
+enum class NODISCARD DrawModeEnum {
+    INVALID = 0,
+    POINTS = 1,
+    LINES = 2,
+    TRIANGLES = 3,
+    QUADS = 4,
+    TRIANGLE_STRIP = 5
+};
 
 struct NODISCARD LineParams final
 {
     float width = 1.f;
+    float stipple = 0.f;
     LineParams() = default;
 
-    explicit LineParams(const float width_)
+    explicit LineParams(const float width_, const float stipple_ = 0.f)
         : width{width_}
+        , stipple{stipple_}
     {}
 };
 

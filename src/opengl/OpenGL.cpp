@@ -173,6 +173,16 @@ void OpenGL::renderPoints(const std::vector<ColorVert> &verts, const GLRenderSta
     getFunctions().renderPoints(verts, state);
 }
 
+void OpenGL::renderLines(const std::vector<LineVert> &verts, const GLRenderState &state)
+{
+    getFunctions().renderLines(verts, state);
+}
+
+UniqueMesh OpenGL::createLineBatch(const std::vector<LineVert> &verts)
+{
+    return getFunctions().createLineBatch(verts);
+}
+
 void OpenGL::renderTextured(const DrawModeEnum type,
                             const std::vector<TexVert> &verts,
                             const GLRenderState &state)

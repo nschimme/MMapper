@@ -108,7 +108,8 @@ private:
                    const BufferUsageEnum usage)
     {
         const auto numVerts = verts.size();
-        assert(mode == DrawModeEnum::INVALID || numVerts % static_cast<size_t>(mode) == 0);
+        assert(mode == DrawModeEnum::INVALID || mode == DrawModeEnum::TRIANGLE_STRIP
+               || numVerts % static_cast<size_t>(mode) == 0);
 
         if (!m_vbo && numVerts != 0) {
             m_vbo.emplace(m_shared_functions);
@@ -158,7 +159,10 @@ private:
     }
 
 private:
-    void virt_render(const GLRenderState &renderState) final
+    void virt_render(const GLRenderState &renderState) final { render(renderState); }
+
+public:
+    void render(const GLRenderState &renderState, const std::optional<int> instanceCount = {})
     {
         if (isEmpty()) {
             return;
@@ -168,7 +172,7 @@ private:
 
         const glm::mat4 mvp = m_functions.getProjectionMatrix();
         auto programUnbinder = m_program.bind();
-        m_program.setUniforms(mvp, renderState.uniforms);
+        m_program.setUniforms(mvp, renderState.uniforms, renderState.lineParams);
         RenderStateBinder renderStateBinder(m_functions, m_functions.getTexLookup(), renderState);
 
         m_functions.glBindVertexArray(m_vao.get());
@@ -180,7 +184,14 @@ private:
         auto attribUnbinder = bindAttribs();
 
         if (const std::optional<GLenum> &optMode = m_functions.toGLenum(m_drawMode)) {
-            m_functions.glDrawArrays(optMode.value(), 0, m_numVerts);
+            if (instanceCount) {
+                m_functions.glDrawArraysInstanced(optMode.value(),
+                                                  0,
+                                                  m_numVerts,
+                                                  instanceCount.value());
+            } else {
+                m_functions.glDrawArrays(optMode.value(), 0, m_numVerts);
+            }
         } else {
             assert(false);
         }

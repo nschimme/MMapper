@@ -145,6 +145,7 @@ void ClientWidget::initDisplayWidget()
         }
         void virt_returnFocusToInput() final { getSelf().getInput().setFocus(); }
         void virt_showPreview(bool visible) final { getSelf().getPreview().setVisible(visible); }
+        void virt_sendToMud(const QString &cmd) final { getTelnet().sendToMud(cmd); }
     };
     auto &out = m_pipeline.outputs.displayWidgetOutputs;
     out = std::make_unique<LocalDisplayWidgetOutputs>(*this);

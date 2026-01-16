@@ -37,6 +37,9 @@ public:
         setValue(m_fp.get());
     }
     ~FpSlider() final;
+
+public:
+    void setFpRange(int min, int max) { setRange(min, max); }
 };
 
 FpSlider::~FpSlider() = default;
@@ -59,6 +62,13 @@ public:
         setSingleStep(fraction);
     }
     ~FpSpinBox() final;
+
+public:
+    void setFpRange(int min, int max)
+    {
+        const double fraction = std::pow(10.0, -FP::digits);
+        setRange(static_cast<double>(min) * fraction, static_cast<double>(max) * fraction);
+    }
 
 public:
     NODISCARD int getIntValue() const
@@ -154,6 +164,17 @@ public:
         }
     }
 
+    void updateRange(int min, int max)
+    {
+        m_slider.setFpRange(min, max);
+        m_spin.setFpRange(min, max);
+        if (m_fp.get() < min || m_fp.get() > max) {
+            m_fp.set(std::clamp(m_fp.get(), min, max));
+            m_group.graphicsSettingsChanged();
+        }
+        forcedUpdate();
+    }
+
     DELETE_CTORS_AND_ASSIGN_OPS(SliderSpinboxButton);
 };
 
@@ -191,6 +212,9 @@ AdvancedGraphicsGroupBox::AdvancedGraphicsGroupBox(QGroupBox &groupBox)
     autoTilt->setChecked(MapCanvasConfig::isAutoTilt());
     vertical->addWidget(autoTilt);
 
+    m_checkboxAllowExtreme = new QCheckBox("Allow extreme camera angles");
+    vertical->addWidget(m_checkboxAllowExtreme);
+
     {
         // NOTE: This is a slight abuse of the interface, because we're taking a persistent reference.
         auto &advanced = setConfig().canvas.advanced;
@@ -199,6 +223,35 @@ AdvancedGraphicsGroupBox::AdvancedGraphicsGroupBox(QGroupBox &groupBox)
         makeSsb("Horizontal Angle (yaw)", advanced.horizontalAngle);
         makeSsb("Layer height (in rooms)", advanced.layerHeight);
     }
+
+    auto updateHorizontalAngleRange = [this]() {
+        const bool extreme = m_checkboxAllowExtreme->isChecked();
+        // Horizontal Angle is at index 2
+        m_ssbs[2]->updateRange(extreme ? -1800 : -450, extreme ? 1800 : 450);
+    };
+
+    m_checkboxAllowExtreme->setChecked(
+        std::abs(setConfig().canvas.advanced.horizontalAngle.get()) > 450);
+    updateHorizontalAngleRange();
+
+    connect(m_checkboxAllowExtreme,
+            &QCheckBox::stateChanged,
+            this,
+            [updateHorizontalAngleRange](int) { updateHorizontalAngleRange(); });
+
+    MapCanvasConfig::registerChangeCallback(m_lifetime,
+                                            [this, updateHorizontalAngleRange]() -> void {
+                                                if (std::abs(setConfig()
+                                                                 .canvas.advanced.horizontalAngle
+                                                                 .get())
+                                                    > 450) {
+                                                    if (!m_checkboxAllowExtreme->isChecked()) {
+                                                        SignalBlocker sb{*m_checkboxAllowExtreme};
+                                                        m_checkboxAllowExtreme->setChecked(true);
+                                                        updateHorizontalAngleRange();
+                                                    }
+                                                }
+                                            });
 
     enableSsbs(is3dAtInit);
     autoTilt->setEnabled(is3dAtInit);
@@ -230,6 +283,7 @@ AdvancedGraphicsGroupBox::AdvancedGraphicsGroupBox(QGroupBox &groupBox)
                                                 SignalBlocker sb1{*checkboxDiag};
                                                 SignalBlocker sb2{*checkbox3d};
                                                 SignalBlocker sb3{*autoTilt};
+                                                SignalBlocker sb4{*m_checkboxAllowExtreme};
                                                 for (auto &ssb : m_ssbs) {
                                                     ssb->forcedUpdate();
                                                 }
@@ -238,6 +292,12 @@ AdvancedGraphicsGroupBox::AdvancedGraphicsGroupBox(QGroupBox &groupBox)
                                                 checkbox3d->setChecked(
                                                     MapCanvasConfig::isIn3dMode());
                                                 autoTilt->setChecked(MapCanvasConfig::isAutoTilt());
+                                                if (std::abs(setConfig()
+                                                                 .canvas.advanced.horizontalAngle
+                                                                 .get())
+                                                    > 450) {
+                                                    m_checkboxAllowExtreme->setChecked(true);
+                                                }
                                             });
 }
 
@@ -248,4 +308,5 @@ void AdvancedGraphicsGroupBox::enableSsbs(bool enabled)
     for (auto &ssb : m_ssbs) {
         ssb->setEnabled(enabled);
     }
+    m_checkboxAllowExtreme->setEnabled(enabled);
 }

@@ -8,6 +8,7 @@
 #include "../global/AnsiTextUtils.h"
 
 #include <QApplication>
+#include <QDesktopServices>
 #include <QMessageLogContext>
 #include <QRegularExpression>
 #include <QScrollBar>
@@ -16,6 +17,7 @@
 #include <QTextCursor>
 #include <QTimer>
 #include <QToolTip>
+#include <QUrlQuery>
 #include <QtGui>
 
 namespace { // anonymous
@@ -94,8 +96,22 @@ DisplayWidget::DisplayWidget(QWidget *const parent)
     });
     setDocumentTitle("MMapper Mud Client");
     setTextInteractionFlags(Qt::TextBrowserInteraction);
-    setOpenExternalLinks(true);
+    setOpenExternalLinks(false);
     setTabChangesFocus(false);
+
+    connect(this, &DisplayWidget::anchorClicked, this, [this](const QUrl &url) {
+        if (url.scheme() == "mud") {
+            if (url.host() == "send") {
+                QUrlQuery query(url);
+                QString cmd = query.queryItemValue("cmd");
+                if (!cmd.isEmpty()) {
+                    getOutput().sendToMud(cmd);
+                }
+            }
+        } else {
+            QDesktopServices::openUrl(url);
+        }
+    });
 
     // REVISIT: Is this necessary to do in both places?
     document()->setUndoRedoEnabled(false);
@@ -234,8 +250,11 @@ void setDefaultFormat(QTextCharFormat &format, const FontDefaults &defaults)
 void AnsiTextHelper::displayText(const QStringView input_str)
 {
     // ANSI codes are formatted as the following:
-    // escape + [ + n1 (+ n2) + m
-    static const QRegularExpression ansi_regex{R"regex(\x1B[^A-Za-z\x1B]*[A-Za-z]?)regex"};
+    // CSI: escape + [ + n1 (+ n2) + m
+    // OSC: escape + ] + ... + (escape + \ or BEL)
+    // and other ESC sequences (e.g. ESC ( B)
+    static const QRegularExpression ansi_regex{
+        R"regex(\x1B(?:\][^\x07\x1B]*(\x1B\\|\x07)?|[^A-Za-z\x1B]*[A-Za-z]?))regex"};
     static const QRegularExpression url_regex{
         R"regex(https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*))regex"};
 
@@ -336,20 +355,60 @@ void AnsiTextHelper::displayText(const QStringView input_str)
     mmqt::foreach_regex(
         ansi_regex,
         input_str,
-        [this, &add_raw](const QStringView ansiStr) {
-            assert(!ansiStr.isEmpty() && ansiStr.front() == char_consts::C_ESC);
-            if (mmqt::isAnsiColor(ansiStr)) {
-                if (auto optNewColor = mmqt::parseAnsiColor(currentAnsi, ansiStr)) {
+        [this, &add_raw](const QStringView ansi_str) {
+            assert(!ansi_str.isEmpty() && ansi_str.front() == char_consts::C_ESC);
+            if (mmqt::isAnsiColor(ansi_str)) {
+                if (auto optNewColor = mmqt::parseAnsiColor(currentAnsi, ansi_str)) {
                     currentAnsi = updateFormat(format, defaults, currentAnsi, *optNewColor);
                 }
-            } else if (mmqt::isAnsiEraseLine(ansiStr)) {
+            } else if (mmqt::isAnsiEraseLine(ansi_str)) {
                 cursor.movePosition(QTextCursor::Left, QTextCursor::MoveAnchor, 1);
                 cursor.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
                 cursor.removeSelectedText();
+            } else if (ansi_str.startsWith(u"\x1B]8;")) {
+                // OSC 8: Hyperlinks
+                // format: ESC ] 8 ; [params] ; [url] ST
+                // our ansi_str starts with ESC ] 8 ;
+                QString payload = ansi_str.mid(4).toString();
+                if (payload.endsWith("\x1B\\")) {
+                    payload.chop(2);
+                } else if (payload.endsWith("\x07")) {
+                    payload.chop(1);
+                }
+
+                // payload is now "[params];[url]"
+                qsizetype semi_idx = payload.indexOf(';');
+                if (semi_idx >= 0) {
+                    QString url = payload.mid(semi_idx + 1);
+
+                    if (url.isEmpty()) {
+                        format.setAnchor(false);
+                        format.setAnchorHref(QString());
+                        format.setToolTip(QString());
+                        // Restore colors from the tracked ANSI state
+                        std::ignore = updateFormat(format, defaults, RawAnsi(), currentAnsi);
+                    } else {
+                        format.setAnchor(true);
+                        format.setAnchorHref(url);
+                        // Apply default hyperlink styling
+                        format.setForeground(QColor("cyan"));
+                        format.setBackground(QColor("#003333"));
+                        format.setFontWeight(QFont::Normal);
+
+                        QUrl qurl(url);
+                        if (qurl.scheme() == "mud") {
+                            QUrlQuery query(qurl);
+                            QString hint = query.queryItemValue("hint");
+                            format.setToolTip(hint.isEmpty() ? url : hint);
+                        } else {
+                            format.setToolTip(url);
+                        }
+                    }
+                }
             } else {
                 add_raw(u"<ESC>", {});
-                if (ansiStr.length() > 1) {
-                    add_raw(ansiStr.mid(1), format);
+                if (ansi_str.length() > 1) {
+                    add_raw(ansi_str.mid(1), format);
                 }
             }
         },

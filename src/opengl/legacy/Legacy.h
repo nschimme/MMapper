@@ -269,18 +269,19 @@ protected:
     NODISCARD virtual const char *virt_getShaderVersion() const = 0;
 
 private:
-    template<typename VertexType_>
-    NODISCARD GLsizei setVbo_internal(const GLuint vbo,
-                                      const std::vector<VertexType_> &batch,
-                                      const BufferUsageEnum usage)
+    template<typename T>
+    NODISCARD GLsizei setBufferData_internal(const GLenum target,
+                                             const GLuint buffer,
+                                             const std::vector<T> &batch,
+                                             const BufferUsageEnum usage)
     {
-        const auto numVerts = static_cast<GLsizei>(batch.size());
-        const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
-        const auto numBytes = numVerts * vertSize;
-        Base::glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        Base::glBufferData(GL_ARRAY_BUFFER, numBytes, batch.data(), Legacy::toGLenum(usage));
-        Base::glBindBuffer(GL_ARRAY_BUFFER, 0);
-        return numVerts;
+        const auto numElements = static_cast<GLsizei>(batch.size());
+        const auto elementSize = static_cast<GLsizei>(sizeof(T));
+        const auto numBytes = numElements * elementSize;
+        Base::glBindBuffer(target, buffer);
+        Base::glBufferData(target, numBytes, batch.data(), Legacy::toGLenum(usage));
+        Base::glBindBuffer(target, 0);
+        return numElements;
     }
 
 public:
@@ -321,9 +322,20 @@ public:
     {
         if (mode == DrawModeEnum::QUADS && !canRenderQuads()) {
             return std::pair(DrawModeEnum::TRIANGLES,
-                             setVbo_internal(vbo, convertQuadsToTris(batch), usage));
+                             setBufferData_internal(GL_ARRAY_BUFFER,
+                                                    vbo,
+                                                    convertQuadsToTris(batch),
+                                                    usage));
         }
-        return std::pair(mode, setVbo_internal(vbo, batch, usage));
+        return std::pair(mode, setBufferData_internal(GL_ARRAY_BUFFER, vbo, batch, usage));
+    }
+
+    template<typename T>
+    NODISCARD GLsizei setIbo(const GLuint ibo,
+                             const std::vector<T> &batch,
+                             const BufferUsageEnum usage = BufferUsageEnum::STATIC_DRAW)
+    {
+        return setBufferData_internal(GL_ELEMENT_ARRAY_BUFFER, ibo, batch, usage);
     }
 
     void clearVbo(const GLuint vbo, const BufferUsageEnum usage = BufferUsageEnum::DYNAMIC_DRAW)

@@ -1031,12 +1031,10 @@ void MapCanvas::updateNamedColorsUBO()
         const auto &vec4_colors = XNamedColor::getAllColorsAsVec4();
 
         // Can we avoid the upload if it's not necessary?
-        MAYBE_UNUSED const auto result = fns->setVbo(DrawModeEnum::INVALID,
-                                                     vbo.get(),
+        MAYBE_UNUSED const auto result = fns->setUbo(vbo.get(),
                                                      vec4_colors,
                                                      BufferUsageEnum::DYNAMIC_DRAW);
-        assert(result.first == DrawModeEnum::INVALID);
-        assert(result.second == static_cast<int>(vec4_colors.size()));
+        assert(result == static_cast<int>(vec4_colors.size()));
         return vbo.get();
     });
 }
@@ -1076,12 +1074,10 @@ void MapCanvas::renderMapBatches()
         const auto &vec4_colors = XNamedColor::getAllColorsAsVec4();
 
         // Can we avoid the upload if it's not necessary?
-        MAYBE_UNUSED const auto result = fns->setVbo(DrawModeEnum::INVALID,
-                                                     vbo.get(),
+        MAYBE_UNUSED const auto result = fns->setUbo(vbo.get(),
                                                      vec4_colors,
                                                      BufferUsageEnum::DYNAMIC_DRAW);
-        assert(result.first == DrawModeEnum::INVALID);
-        assert(result.second == static_cast<int>(vec4_colors.size()));
+        assert(result == static_cast<int>(vec4_colors.size()));
 
         return vbo.get();
     });

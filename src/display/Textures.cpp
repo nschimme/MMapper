@@ -283,8 +283,12 @@ void MapCanvas::initTextures()
         textures.stream_out[dir] = loadTexture(
             getPixmapFilenameRaw(QString::asprintf("stream-out-%s.png", lowercaseDirection(dir))));
     }
-    // 1x1
-    textures.white_pixel = loadTexture(getPixmapFilenameRaw("white-pixel.png"));
+    {
+        // 1x1
+        QImage whitePixel(1, 1, QImage::Format_RGBA8888);
+        whitePixel.fill(Qt::white);
+        textures.white_pixel = MMTexture::alloc(std::vector<QImage>{whitePixel});
+    }
 
     // char images are 256
     textures.char_arrows = loadTexture(getPixmapFilenameRaw("char-arrows.png"));

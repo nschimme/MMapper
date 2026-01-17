@@ -210,7 +210,6 @@
         <file>pixmaps/wall-north.png</file>
         <file>pixmaps/wall-south.png</file>
         <file>pixmaps/wall-west.png</file>
-        <file>pixmaps/white-pixel.png</file>
         <file>shaders/legacy/font/frag.glsl</file>
         <file>shaders/legacy/font/vert.glsl</file>
         <file>shaders/legacy/iq_plain/ucolor/frag.glsl</file>

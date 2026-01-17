@@ -338,6 +338,14 @@ public:
         return setBufferData_internal(GL_ELEMENT_ARRAY_BUFFER, ibo, batch, usage);
     }
 
+    template<typename T>
+    NODISCARD GLsizei setUbo(const GLuint ubo,
+                             const std::vector<T> &batch,
+                             const BufferUsageEnum usage = BufferUsageEnum::DYNAMIC_DRAW)
+    {
+        return setBufferData_internal(GL_UNIFORM_BUFFER, ubo, batch, usage);
+    }
+
     void clearVbo(const GLuint vbo, const BufferUsageEnum usage = BufferUsageEnum::DYNAMIC_DRAW)
     {
         Base::glBindBuffer(GL_ARRAY_BUFFER, vbo);

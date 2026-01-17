@@ -25,12 +25,10 @@ void Legacy::drawInstancedQuad(Functions &gl, const GLsizei numVerts)
         const std::vector<uint8_t> indices{0, 1, 2, 3};
         assert(indices.size() == NUM_ELEMENTS);
 
-        MAYBE_UNUSED const auto result = gl.setVbo(DrawModeEnum::INSTANCED_QUADS,
-                                                   vbo.get(),
-                                                   indices,
-                                                   BufferUsageEnum::STATIC_DRAW);
-        assert(result.first == DrawModeEnum::INSTANCED_QUADS);
-        assert(result.second == NUM_ELEMENTS);
+        MAYBE_UNUSED const auto numIndices = gl.setIbo(vbo.get(),
+                                                       indices,
+                                                       BufferUsageEnum::STATIC_DRAW);
+        assert(numIndices == NUM_ELEMENTS);
     }
 
     struct NODISCARD IBOBinder final

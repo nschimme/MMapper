@@ -33,7 +33,7 @@ public:
     GlobalData()
     {
         m_colors.resize(NUM_NAMED_COLORS);
-        m_vec4s.resize(NUM_NAMED_COLORS);
+        m_vec4s.resize(MAX_NAMED_COLORS);
         m_names.resize(NUM_NAMED_COLORS);
 
         static const auto white = Colors::white;

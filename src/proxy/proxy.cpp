@@ -18,6 +18,7 @@
 #include "../global/io.h"
 #include "../group/mmapper2group.h"
 #include "../mainwindow/mainwindow.h"
+#include "../client/HotkeyManager.h"
 #include "../map/parseevent.h"
 #include "../mpi/mpifilter.h"
 #include "../mpi/remoteedit.h"

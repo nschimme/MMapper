@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
 
+#include "../client/HotkeyManager.h"
 #include "../configuration/configuration.h"
 #include "../global/TextUtils.h"
 #include "../syntax/SyntaxArgs.h"
@@ -43,7 +44,7 @@ void AbstractParser::parseHotkey(StringView input)
 
     // _hotkey set KEY command
     auto setHotkey = Accept(
-        [](User &user, const Pair *const args) {
+        [this](User &user, const Pair *const args) {
             auto &os = user.getOstream();
             const auto v = getAnyVectorReversed(args);
 
@@ -64,7 +65,7 @@ void AbstractParser::parseHotkey(StringView input)
 
     // _hotkey remove KEY
     auto removeHotkey = Accept(
-        [](User &user, const Pair *const args) {
+        [this](User &user, const Pair *const args) {
             auto &os = user.getOstream();
             const auto v = getAnyVectorReversed(args);
 
@@ -102,7 +103,7 @@ void AbstractParser::parseHotkey(StringView input)
 
     // _hotkey keys (show available keys)
     auto listKeys = Accept(
-        [](User &user, const Pair *) {
+        [this](User &user, const Pair *) {
             auto &os = user.getOstream();
             os << "Available key names:\n"
                << "  Function keys: F1-F12\n"

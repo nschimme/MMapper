@@ -114,7 +114,7 @@ void HotkeyManager::read(const QSettings &settings)
     for (const QString &key : keys) {
         HotkeyCommand hk = HotkeyCommand::deserialize(key);
         if (hk.isValid()) {
-            setHotkey(hk, mmqt::toStdStringUtf8(settings.value(key).toString()));
+            std::ignore = setHotkey(hk, mmqt::toStdStringUtf8(settings.value(key).toString()));
         }
     }
 }
@@ -209,7 +209,7 @@ std::vector<std::pair<QString, std::string>> HotkeyManager::getAllHotkeys() cons
 void HotkeyManager::resetToDefaults()
 {
     clear();
-#define X_DEFAULT(key, cmd) setHotkey(key, cmd);
+#define X_DEFAULT(key, cmd) std::ignore = setHotkey(key, cmd);
     XFOREACH_DEFAULT_HOTKEYS(X_DEFAULT)
 #undef X_DEFAULT
 }

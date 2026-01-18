@@ -81,9 +81,9 @@ private:
     NODISCARD StackedInputWidget &getInput();
     NODISCARD ClientTelnet &getTelnet();
     NODISCARD PreviewWidget &getPreview();
-    NODISCARD HotkeyManager &getHotkeys();
 
 public:
+    NODISCARD HotkeyManager &getHotkeys();
     NODISCARD bool isUsingClient() const;
     void displayReconnectHint();
     void playMume();

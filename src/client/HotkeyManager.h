@@ -70,6 +70,7 @@ public:
     void removeHotkey(const QString &keyName);
 
     NODISCARD std::string getCommand(int key, Qt::KeyboardModifiers modifiers, bool isNumpad) const;
+    NODISCARD std::string getCommand(HotkeyKeyEnum key, uint8_t mask) const;
     NODISCARD std::string getCommand(const QString &keyName) const;
     NODISCARD QString getCommandQString(int key,
                                         Qt::KeyboardModifiers modifiers,
@@ -85,8 +86,9 @@ public:
     NODISCARD static std::vector<QString> getAvailableKeyNames();
     NODISCARD static std::vector<QString> getAvailableModifiers();
 
-private:
     NODISCARD static HotkeyKeyEnum qtKeyToBaseKeyEnum(int key, bool isNumpad);
+
+private:
     NODISCARD static QString baseKeyEnumToName(HotkeyKeyEnum key);
     NODISCARD static HotkeyKeyEnum nameToBaseKeyEnum(const QString &name);
 

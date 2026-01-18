@@ -79,6 +79,11 @@ void StackedInputWidget::initInput()
         }
 
         void virt_scrollDisplay(bool pageUp) final { getOutput().scrollDisplay(pageUp); }
+
+        bool virt_tryHandleHotkey(const HotkeyCommand &hk) final
+        {
+            return getOutput().tryHandleHotkey(hk);
+        }
     };
 
     auto &out = m_pipeline.outputs.inputOutputs;

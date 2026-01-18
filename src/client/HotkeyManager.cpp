@@ -162,7 +162,15 @@ std::string HotkeyManager::getCommand(int key, Qt::KeyboardModifiers modifiers, 
         return std::string();
 
     uint8_t mask = HotkeyCommand::qtModifiersToMask(modifiers);
-    return m_lookupTable[calculateIndex(baseKey, mask)];
+    return getCommand(baseKey, mask);
+}
+
+std::string HotkeyManager::getCommand(HotkeyKeyEnum key, uint8_t mask) const
+{
+    if (key == HotkeyKeyEnum::INVALID)
+        return std::string();
+
+    return m_lookupTable[calculateIndex(key, mask)];
 }
 
 std::string HotkeyManager::getCommand(const QString &keyName) const

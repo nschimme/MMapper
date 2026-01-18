@@ -136,9 +136,9 @@ void ClientWidget::initStackedInputWidget()
         bool virt_tryHandleHotkey(const HotkeyCommand &hk) final
         {
             auto &hotkeys = getSelf().getHotkeys();
-            const std::string command = hotkeys.getCommand(hk.baseKey, hk.modifiers);
-            if (!command.empty()) {
-                virt_sendUserInput(mmqt::toQStringUtf8(command));
+            const auto command = hotkeys.getCommand(hk.baseKey, hk.modifiers);
+            if (command) {
+                virt_sendUserInput(mmqt::toQStringUtf8(*command));
                 return true;
             }
             return false;

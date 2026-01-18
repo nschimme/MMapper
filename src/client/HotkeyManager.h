@@ -9,6 +9,7 @@
 class QSettings;
 
 #include <array>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -69,9 +70,11 @@ public:
     NODISCARD bool setHotkey(const HotkeyCommand &hk, const std::string &command);
     void removeHotkey(const QString &keyName);
 
-    NODISCARD std::string getCommand(int key, Qt::KeyboardModifiers modifiers, bool isNumpad) const;
-    NODISCARD std::string getCommand(HotkeyKeyEnum key, uint8_t mask) const;
-    NODISCARD std::string getCommand(const QString &keyName) const;
+    NODISCARD std::optional<std::string> getCommand(int key,
+                                                    Qt::KeyboardModifiers modifiers,
+                                                    bool isNumpad) const;
+    NODISCARD std::optional<std::string> getCommand(HotkeyKeyEnum key, uint8_t mask) const;
+    NODISCARD std::optional<std::string> getCommand(const QString &keyName) const;
     NODISCARD QString getCommandQString(int key,
                                         Qt::KeyboardModifiers modifiers,
                                         bool isNumpad) const;

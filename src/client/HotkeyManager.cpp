@@ -155,48 +155,56 @@ void HotkeyManager::removeHotkey(const QString &keyName)
     }
 }
 
-std::string HotkeyManager::getCommand(int key, Qt::KeyboardModifiers modifiers, bool isNumpad) const
+std::optional<std::string> HotkeyManager::getCommand(int key,
+                                                     Qt::KeyboardModifiers modifiers,
+                                                     bool isNumpad) const
 {
     HotkeyKeyEnum baseKey = qtKeyToBaseKeyEnum(key, isNumpad);
     if (baseKey == HotkeyKeyEnum::INVALID)
-        return std::string();
+        return std::nullopt;
 
     uint8_t mask = HotkeyCommand::qtModifiersToMask(modifiers);
     return getCommand(baseKey, mask);
 }
 
-std::string HotkeyManager::getCommand(HotkeyKeyEnum key, uint8_t mask) const
+std::optional<std::string> HotkeyManager::getCommand(HotkeyKeyEnum key, uint8_t mask) const
 {
     if (key == HotkeyKeyEnum::INVALID)
-        return std::string();
+        return std::nullopt;
 
-    return m_lookupTable[calculateIndex(key, mask)];
+    const std::string &command = m_lookupTable[calculateIndex(key, mask)];
+    if (command.empty())
+        return std::nullopt;
+
+    return command;
 }
 
-std::string HotkeyManager::getCommand(const QString &keyName) const
+std::optional<std::string> HotkeyManager::getCommand(const QString &keyName) const
 {
     HotkeyCommand hk = HotkeyCommand::deserialize(keyName);
     if (!hk.isValid())
-        return std::string();
+        return std::nullopt;
 
-    return m_lookupTable[calculateIndex(hk.baseKey, hk.modifiers)];
+    return getCommand(hk.baseKey, hk.modifiers);
 }
 
 QString HotkeyManager::getCommandQString(int key,
                                          Qt::KeyboardModifiers modifiers,
                                          bool isNumpad) const
 {
-    return mmqt::toQStringUtf8(getCommand(key, modifiers, isNumpad));
+    auto command = getCommand(key, modifiers, isNumpad);
+    return command ? mmqt::toQStringUtf8(*command) : QString();
 }
 
 QString HotkeyManager::getCommandQString(const QString &keyName) const
 {
-    return mmqt::toQStringUtf8(getCommand(keyName));
+    auto command = getCommand(keyName);
+    return command ? mmqt::toQStringUtf8(*command) : QString();
 }
 
 bool HotkeyManager::hasHotkey(const QString &keyName) const
 {
-    return !getCommand(keyName).empty();
+    return getCommand(keyName).has_value();
 }
 
 std::vector<std::pair<QString, std::string>> HotkeyManager::getAllHotkeys() const

@@ -51,7 +51,7 @@ void AbstractParser::parseHotkey(StringView input)
             const std::string cmdStr = concatenate_unquoted(v[2].getVector());
             const auto command = mmqt::toQStringUtf8(cmdStr);
 
-            if (setConfig().hotkeyManager.setHotkey(keyName, command)) {
+            if (m_hotkeyManager.setHotkey(keyName, command)) {
                 os << "Hotkey set: " << mmqt::toStdStringUtf8(keyName.toUpper()) << " = " << cmdStr
                    << "\n";
                 send_ok(os);
@@ -70,8 +70,8 @@ void AbstractParser::parseHotkey(StringView input)
 
             const auto keyName = mmqt::toQStringUtf8(v[1].getString());
 
-            if (getConfig().hotkeyManager.hasHotkey(keyName)) {
-                setConfig().hotkeyManager.removeHotkey(keyName);
+            if (m_hotkeyManager.hasHotkey(keyName)) {
+                m_hotkeyManager.removeHotkey(keyName);
                 os << "Hotkey removed: " << mmqt::toStdStringUtf8(keyName.toUpper()) << "\n";
             } else {
                 os << "No hotkey configured for: " << mmqt::toStdStringUtf8(keyName.toUpper())
@@ -83,9 +83,9 @@ void AbstractParser::parseHotkey(StringView input)
 
     // _hotkey config (list all)
     auto listHotkeys = Accept(
-        [](User &user, const Pair *) {
+        [this](User &user, const Pair *) {
             auto &os = user.getOstream();
-            const auto &hotkeys = getConfig().hotkeyManager.getAllHotkeys();
+            const auto &hotkeys = m_hotkeyManager.getAllHotkeys();
 
             if (hotkeys.empty()) {
                 os << "No hotkeys configured.\n";
@@ -121,9 +121,9 @@ void AbstractParser::parseHotkey(StringView input)
 
     // _hotkey reset
     auto resetHotkeys = Accept(
-        [](User &user, const Pair *) {
+        [this](User &user, const Pair *) {
             auto &os = user.getOstream();
-            setConfig().hotkeyManager.resetToDefaults();
+            m_hotkeyManager.resetToDefaults();
             os << "Hotkeys reset to defaults.\n";
             send_ok(os);
         },

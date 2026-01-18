@@ -4,6 +4,7 @@
 
 #include "ClientWidget.h"
 
+#include "../mainwindow/mainwindow.h"
 #include "../configuration/configuration.h"
 #include "../global/AnsiOstream.h"
 #include "../proxy/connectionlistener.h"
@@ -21,9 +22,12 @@
 #include <QString>
 #include <QTimer>
 
-ClientWidget::ClientWidget(ConnectionListener &listener, QWidget *const parent)
+ClientWidget::ClientWidget(ConnectionListener &listener,
+                           HotkeyManager &hotkeyManager,
+                           QWidget *const parent)
     : QWidget(parent)
     , m_listener{listener}
+    , m_hotkeyManager{hotkeyManager}
 {
     setWindowTitle("MMapper Client");
 
@@ -240,6 +244,11 @@ StackedInputWidget &ClientWidget::getInput()
 ClientTelnet &ClientWidget::getTelnet() // NOLINT (no, this shouldn't be const)
 {
     return deref(m_pipeline.objs.clientTelnet);
+}
+
+HotkeyManager &ClientWidget::getHotkeys()
+{
+    return m_hotkeyManager;
 }
 
 void ClientWidget::slot_onVisibilityChanged(const bool /*visible*/)

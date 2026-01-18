@@ -703,8 +703,13 @@ void Proxy::allocParser()
 
         void virt_onOpenClientConfigEditor() final
         {
-            // Get content in CLI format (preserves comments and order)
-            const QString content = getConfig().hotkeyManager.exportToCliFormat();
+            // Get all hotkeys and format them as CLI commands
+            QString content;
+            QTextStream stream(&content);
+            for (const auto &hk : getMainWindow().getHotkeyManager().getAllHotkeys()) {
+                stream << "_hotkey set " << hk.first << " " << mmqt::toQStringUtf8(hk.second)
+                       << "\n";
+            }
 
             // Create the editor widget
             auto *editor = new RemoteEditWidget(true, // editSession = true (editable)
@@ -714,8 +719,26 @@ void Proxy::allocParser()
 
             // Connect save signal to import the edited content
             QObject::connect(editor, &RemoteEditWidget::sig_save, [this](const QString &edited) {
-                // Import using HotkeyManager (handles parsing, clears existing, saves to QSettings)
-                int hotkeyCount = setConfig().hotkeyManager.importFromCliFormat(edited);
+                // Parse the edited content and update hotkeys
+                int hotkeyCount = 0;
+                HotkeyManager &hm = getMainWindow().getHotkeyManager();
+                hm.clear();
+
+                const QStringList lines = edited.split('\n');
+                for (const QString &line : lines) {
+                    QString trimmed = line.trimmed();
+                    if (trimmed.startsWith("_hotkey set ")) {
+                        QString rest = trimmed.mid(12).trimmed();
+                        int spaceIdx = rest.indexOf(' ');
+                        if (spaceIdx != -1) {
+                            QString key = rest.left(spaceIdx).trimmed();
+                            QString cmd = rest.mid(spaceIdx).trimmed();
+                            if (hm.setHotkey(key, cmd)) {
+                                hotkeyCount++;
+                            }
+                        }
+                    }
+                }
 
                 // Send feedback to user
                 QString msg = QString("\n%1 hotkeys imported.\n").arg(hotkeyCount);
@@ -748,6 +771,7 @@ void Proxy::allocParser()
                                                          deref(conn),
                                                          deref(gmcp),
                                                          m_groupManager.getGroupManagerApi(),
+                                                         m_mainWindow.getHotkeyManager(),
                                                          this,
                                                          deref(out),
                                                          deref(parserCommon));
@@ -756,6 +780,7 @@ void Proxy::allocParser()
                                                             deref(conn),
                                                             deref(gmcp),
                                                             m_groupManager.getGroupManagerApi(),
+                                                            m_mainWindow.getHotkeyManager(),
                                                             this,
                                                             deref(out),
                                                             deref(parserCommon));

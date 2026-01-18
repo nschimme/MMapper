@@ -495,6 +495,10 @@ void Configuration::read()
     SETTINGS(conf);
     FOREACH_CONFIG_GROUP(read);
 
+    conf.beginGroup(hotkeys.getName());
+    hotkeys.read(conf);
+    conf.endGroup();
+
     // This logic only runs once on a MMapper fresh install (or factory reset)
     // Subsequent MMapper starts will always read "firstRun" as false
     if (general.firstRun) {
@@ -519,6 +523,10 @@ void Configuration::write() const
 {
     SETTINGS(conf);
     FOREACH_CONFIG_GROUP(write);
+
+    conf.beginGroup(hotkeys.getName());
+    hotkeys.write(conf);
+    conf.endGroup();
 }
 
 void Configuration::reset()

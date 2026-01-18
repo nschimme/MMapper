@@ -104,7 +104,7 @@ void TestHotkeyManager::importEdgeCasesTest()
     manager.clear();
 
     // Test command with multiple spaces (should preserve spaces in command)
-    manager.setHotkey("F1", "cast 'cure light'");
+    std::ignore = manager.setHotkey("F1", "cast 'cure light'");
     QCOMPARE(manager.getCommandQString("F1"), QString("cast 'cure light'"));
 
     // Test leading/trailing whitespace handling in key name
@@ -118,8 +118,8 @@ void TestHotkeyManager::resetToDefaultsTest()
     manager.clear();
 
     // Set custom hotkeys
-    manager.setHotkey("F1", "custom");
-    manager.setHotkey("F2", "another");
+    std::ignore = manager.setHotkey("F1", "custom");
+    std::ignore = manager.setHotkey("F2", "another");
     QCOMPARE(manager.getCommandQString("F1"), QString("custom"));
     QCOMPARE(manager.getAllHotkeys().size(), 2);
 
@@ -147,8 +147,8 @@ void TestHotkeyManager::exportSortOrderTest()
     HotkeyManager manager;
     manager.clear();
 
-    manager.setHotkey("F1", "cmd1");
-    manager.setHotkey("F2", "cmd2");
+    std::ignore = manager.setHotkey("F1", "cmd1");
+    std::ignore = manager.setHotkey("F2", "cmd2");
 
     auto hotkeys = manager.getAllHotkeys();
     QCOMPARE(hotkeys.size(), 2);
@@ -185,9 +185,9 @@ void TestHotkeyManager::removeHotkeyTest()
     HotkeyManager manager;
     manager.clear();
 
-    manager.setHotkey("F1", "look");
-    manager.setHotkey("F2", "flee");
-    manager.setHotkey("CTRL+F3", "open exit n");
+    std::ignore = manager.setHotkey("F1", "look");
+    std::ignore = manager.setHotkey("F2", "flee");
+    std::ignore = manager.setHotkey("CTRL+F3", "open exit n");
     QCOMPARE(manager.getAllHotkeys().size(), 3);
 
     // Test removing a hotkey
@@ -206,8 +206,8 @@ void TestHotkeyManager::hasHotkeyTest()
     HotkeyManager manager;
     manager.clear();
 
-    manager.setHotkey("F1", "look");
-    manager.setHotkey("CTRL+F2", "flee");
+    std::ignore = manager.setHotkey("F1", "look");
+    std::ignore = manager.setHotkey("CTRL+F2", "flee");
 
     // Test hasHotkey returns true for existing keys
     QVERIFY(manager.hasHotkey("F1"));
@@ -237,7 +237,7 @@ void TestHotkeyManager::duplicateKeyBehaviorTest()
     manager.clear();
 
     // Test that setHotkey replaces existing entry
-    manager.setHotkey("F1", "original");
+    std::ignore = manager.setHotkey("F1", "original");
     QCOMPARE(manager.getCommandQString("F1"), QString("original"));
     QCOMPARE(manager.getAllHotkeys().size(), 1);
 
@@ -266,11 +266,11 @@ void TestHotkeyManager::directLookupTest()
     manager.clear();
 
     // Set hotkeys for testing
-    manager.setHotkey("F1", "look");
-    manager.setHotkey("CTRL+F2", "flee");
-    manager.setHotkey("NUMPAD8", "n");
-    manager.setHotkey("CTRL+NUMPAD5", "s");
-    manager.setHotkey("SHIFT+ALT+UP", "north");
+    std::ignore = manager.setHotkey("F1", "look");
+    std::ignore = manager.setHotkey("CTRL+F2", "flee");
+    std::ignore = manager.setHotkey("NUMPAD8", "n");
+    std::ignore = manager.setHotkey("CTRL+NUMPAD5", "s");
+    std::ignore = manager.setHotkey("SHIFT+ALT+UP", "north");
 
     // Test direct lookup for function keys (isNumpad=false)
     QCOMPARE(manager.getCommandQString(Qt::Key_F1, Qt::NoModifier, false), QString("look"));

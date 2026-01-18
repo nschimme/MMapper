@@ -6,6 +6,7 @@
 
 #include "proxy.h"
 
+#include "../client/HotkeyManager.h"
 #include "../clock/mumeclock.h"
 #include "../configuration/PasswordConfig.h"
 #include "../configuration/configuration.h"
@@ -18,7 +19,6 @@
 #include "../global/io.h"
 #include "../group/mmapper2group.h"
 #include "../mainwindow/mainwindow.h"
-#include "../client/HotkeyManager.h"
 #include "../map/parseevent.h"
 #include "../mpi/mpifilter.h"
 #include "../mpi/remoteedit.h"
@@ -730,7 +730,7 @@ void Proxy::allocParser()
                     QString trimmed = line.trimmed();
                     if (trimmed.startsWith("_hotkey set ")) {
                         QString rest = trimmed.mid(12).trimmed();
-                        int spaceIdx = rest.indexOf(' ');
+                        auto spaceIdx = rest.indexOf(' ');
                         if (spaceIdx != -1) {
                             QString key = rest.left(spaceIdx).trimmed();
                             QString cmd = rest.mid(spaceIdx).trimmed();

@@ -80,6 +80,7 @@ public:
                            ProxyMudConnectionApi &,
                            ProxyUserGmcpApi &,
                            GroupManagerApi &,
+                           HotkeyManager &,
                            QObject *parent,
                            AbstractParserOutputs &outputs,
                            ParserCommonData &parserCommonData);

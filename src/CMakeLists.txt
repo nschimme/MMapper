@@ -22,6 +22,9 @@ set(mmapper_SRCS
     client/inputwidget.h
     client/stackedinputwidget.cpp
     client/stackedinputwidget.h
+    client/HotkeyMacros.h
+    client/HotkeyManager.cpp
+    client/HotkeyManager.h
     client/PasswordDialog.cpp
     client/PasswordDialog.h
     client/PreviewWidget.cpp
@@ -32,13 +35,13 @@ set(mmapper_SRCS
     clock/mumeclockwidget.h
     clock/mumemoment.cpp
     clock/mumemoment.h
+    configuration/GroupConfig.cpp
+    configuration/GroupConfig.h
     configuration/NamedConfig.h
     configuration/PasswordConfig.cpp
     configuration/PasswordConfig.h
     configuration/configuration.cpp
     configuration/configuration.h
-    configuration/HotkeyManager.cpp
-    configuration/HotkeyManager.h
     display/CanvasMouseModeEnum.h
     display/Characters.cpp
     display/Characters.h

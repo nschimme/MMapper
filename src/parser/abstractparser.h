@@ -45,6 +45,7 @@
 #include <QVariant>
 
 class Coordinate;
+class HotkeyManager;
 class MapData;
 class MumeClock;
 class RoomFieldVariant;
@@ -170,6 +171,7 @@ protected:
 
 protected:
     GroupManagerApi &m_group;
+    HotkeyManager &m_hotkeyManager;
     ProxyUserGmcpApi &m_proxyUserGmcp;
     AbstractParserOutputs &m_outputs;
 
@@ -181,6 +183,7 @@ protected:
                           MumeClock &mumeClock,
                           MapData &mapData,
                           GroupManagerApi &group,
+                          HotkeyManager &hotkeyManager,
                           ProxyUserGmcpApi &proxyUserGmcp,
                           AbstractParserOutputs &outputs,
                           ParserCommonData &commonData)
@@ -188,6 +191,7 @@ protected:
         , m_mumeClock{mumeClock}
         , m_mapData{mapData}
         , m_group{group}
+        , m_hotkeyManager{hotkeyManager}
         , m_proxyUserGmcp{proxyUserGmcp}
         , m_outputs{outputs}
         , m_commonData{commonData}
@@ -274,10 +278,18 @@ protected:
                                MumeClock &mumeClock,
                                MapData &mapData,
                                GroupManagerApi &group,
+                               HotkeyManager &hotkeyManager,
                                ProxyUserGmcpApi &proxyUserGmcp,
                                AbstractParserOutputs &outputs,
                                ParserCommonData &parserCommonData)
-        : ParserCommon{parent, mumeClock, mapData, group, proxyUserGmcp, outputs, parserCommonData}
+        : ParserCommon{parent,
+                       mumeClock,
+                       mapData,
+                       group,
+                       hotkeyManager,
+                       proxyUserGmcp,
+                       outputs,
+                       parserCommonData}
     {
         initActionMap();
     }
@@ -343,6 +355,7 @@ public:
                             ProxyMudConnectionApi &,
                             ProxyUserGmcpApi &,
                             GroupManagerApi &,
+                            HotkeyManager &,
                             QObject *parent,
                             AbstractParserOutputs &outputs,
                             ParserCommonData &commonData);

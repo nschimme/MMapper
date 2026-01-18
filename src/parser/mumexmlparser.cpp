@@ -65,10 +65,11 @@ MumeXmlParser::MumeXmlParser(MapData &md,
                              ProxyMudConnectionApi & /*proxyMudConnection*/,
                              ProxyUserGmcpApi &proxyGmcp,
                              GroupManagerApi &group,
+                             HotkeyManager &hm,
                              QObject *parent,
                              AbstractParserOutputs &outputs,
                              ParserCommonData &parserCommonData)
-    : MumeXmlParserBase{parent, mc, md, group, proxyGmcp, outputs, parserCommonData}
+    : MumeXmlParserBase{parent, mc, md, group, hm, proxyGmcp, outputs, parserCommonData}
 {}
 
 MumeXmlParser::~MumeXmlParser() = default;

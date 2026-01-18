@@ -29,6 +29,7 @@
 #include "../roompanel/RoomManager.h"
 #include "../roompanel/RoomWidget.h"
 #include "../viewers/TopLevelWindows.h"
+#include "../client/HotkeyManager.h"
 #include "DescriptionWidget.h"
 #include "MapZoomSlider.h"
 #include "UpdateDialog.h"
@@ -198,6 +199,8 @@ MainWindow::MainWindow()
     // View -> Side Panels -> Description / Area Panel
     m_descriptionWidget = new DescriptionWidget(this);
     m_dockDialogDescription = new QDockWidget(tr("Description Panel"), this);
+
+    m_hotkeyManager = std::make_unique<HotkeyManager>();
     m_dockDialogDescription->setObjectName("DockWidgetDescription");
     m_dockDialogDescription->setAllowedAreas(Qt::AllDockWidgetAreas);
     m_dockDialogDescription->setFeatures(QDockWidget::DockWidgetMovable
@@ -239,7 +242,7 @@ MainWindow::MainWindow()
                                         this);
 
     // View -> Side Panels -> Client Panel
-    m_clientWidget = new ClientWidget(deref(m_listener), this);
+    m_clientWidget = new ClientWidget(deref(m_listener), *m_hotkeyManager, this);
     m_clientWidget->setObjectName("InternalMudClientWidget");
     m_dockDialogClient = new QDockWidget("Client Panel", this);
     m_dockDialogClient->setObjectName("DockWidgetClient");

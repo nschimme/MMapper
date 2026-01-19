@@ -21,6 +21,7 @@
 #include <ostream>
 
 #include <QColor>
+#include <QPointer>
 #include <QSettings>
 #include <QTemporaryFile>
 
@@ -392,22 +393,29 @@ void AbstractParser::doConfig(const StringView cmd)
                     QString content;
                     {
                         QTemporaryFile tempFile;
+                        tempFile.setAutoRemove(false);
                         if (!tempFile.open()) {
                             return;
                         }
                         const QString fileName = tempFile.fileName();
+                        tempFile.close();
                         {
                             QSettings tempSettings(fileName, QSettings::IniFormat);
-                            getConfig().writeTo(tempSettings);
+                            getConfig().exportTo(tempSettings);
                             tempSettings.sync();
                         }
-                        tempFile.close();
 
-                        if (tempFile.open()) {
-                            content = QString::fromUtf8(tempFile.readAll());
-                        } else {
-                            return;
+                        QFile readFile(fileName);
+                        if (readFile.open(QIODevice::ReadOnly)) {
+                            content = QString::fromUtf8(readFile.readAll());
+                            readFile.close();
                         }
+                        QFile::remove(fileName);
+                    }
+
+                    if (content.isEmpty()) {
+                        os << "Error: Configuration is empty or could not be read.\n";
+                        return;
                     }
 
                     // Create the editor widget
@@ -431,10 +439,7 @@ void AbstractParser::doConfig(const StringView cmd)
                             const auto oldMode = getConfig().general.mapMode;
 
                             QSettings tempSettings(tempFile.fileName(), QSettings::IniFormat);
-                            setConfig().readFrom(tempSettings);
-
-                            // Persist to the main configuration file
-                            setConfig().write();
+                            setConfig().importFrom(tempSettings);
 
                             // Trigger UI updates
                             parser->graphicsSettingsChanged();

@@ -43,6 +43,8 @@ public:
     void readFrom(QSettings &conf);
     void write() const;
     void writeTo(QSettings &conf) const;
+    void exportTo(QSettings &target) const;
+    void importFrom(QSettings &source);
     void reset();
 
 public:

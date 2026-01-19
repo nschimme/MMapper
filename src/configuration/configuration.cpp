@@ -539,6 +539,33 @@ void Configuration::writeTo(QSettings &conf) const
     conf.endGroup();
 }
 
+void Configuration::exportTo(QSettings &target) const
+{
+    // Load from disk first
+    SETTINGS(actual);
+    for (const QString &key : actual.allKeys()) {
+        target.setValue(key, actual.value(key));
+    }
+
+    // Overlay current memory state (including defaults)
+    writeTo(target);
+    target.sync();
+}
+
+void Configuration::importFrom(QSettings &source)
+{
+    // Update disk first
+    SETTINGS(actual);
+    actual.clear();
+    for (const QString &key : source.allKeys()) {
+        actual.setValue(key, source.value(key));
+    }
+    actual.sync();
+
+    // Reload into memory
+    read();
+}
+
 void Configuration::reset()
 {
     {

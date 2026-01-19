@@ -132,6 +132,12 @@ void ClientWidget::initStackedInputWidget()
                 scrollBar->setValue(scrollBar->value() + delta);
             }
         }
+
+        std::optional<QString> virt_getHotkeyCommand(const HotkeyCommand &hk) final
+        {
+            auto &hotkeys = getSelf().getHotkeys();
+            return hotkeys.getCommandQString(hk.baseKey, hk.modifiers);
+        }
     };
     auto &out = m_pipeline.outputs.stackedInputWidgetOutputs;
     out = std::make_unique<LocalStackedInputWidgetOutputs>(*this);

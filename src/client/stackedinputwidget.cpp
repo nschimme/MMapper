@@ -79,6 +79,11 @@ void StackedInputWidget::initInput()
         }
 
         void virt_scrollDisplay(bool pageUp) final { getOutput().scrollDisplay(pageUp); }
+
+        std::optional<QString> virt_getHotkeyCommand(const HotkeyCommand &hk) final
+        {
+            return getOutput().getHotkeyCommand(hk);
+        }
     };
 
     auto &out = m_pipeline.outputs.inputOutputs;

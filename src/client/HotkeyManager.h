@@ -9,6 +9,7 @@
 class QSettings;
 
 #include <array>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -69,12 +70,16 @@ public:
     NODISCARD bool setHotkey(const HotkeyCommand &hk, const std::string &command);
     void removeHotkey(const QString &keyName);
 
-    NODISCARD std::string getCommand(int key, Qt::KeyboardModifiers modifiers, bool isNumpad) const;
-    NODISCARD std::string getCommand(const QString &keyName) const;
-    NODISCARD QString getCommandQString(int key,
-                                        Qt::KeyboardModifiers modifiers,
-                                        bool isNumpad) const;
-    NODISCARD QString getCommandQString(const QString &keyName) const;
+    NODISCARD std::optional<std::string> getCommand(int key,
+                                                    Qt::KeyboardModifiers modifiers,
+                                                    bool isNumpad) const;
+    NODISCARD std::optional<std::string> getCommand(HotkeyKeyEnum key, uint8_t mask) const;
+    NODISCARD std::optional<std::string> getCommand(const QString &keyName) const;
+    NODISCARD std::optional<QString> getCommandQString(int key,
+                                                       Qt::KeyboardModifiers modifiers,
+                                                       bool isNumpad) const;
+    NODISCARD std::optional<QString> getCommandQString(HotkeyKeyEnum key, uint8_t mask) const;
+    NODISCARD std::optional<QString> getCommandQString(const QString &keyName) const;
 
     NODISCARD bool hasHotkey(const QString &keyName) const;
     NODISCARD std::vector<std::pair<QString, std::string>> getAllHotkeys() const;
@@ -85,8 +90,9 @@ public:
     NODISCARD static std::vector<QString> getAvailableKeyNames();
     NODISCARD static std::vector<QString> getAvailableModifiers();
 
-private:
     NODISCARD static HotkeyKeyEnum qtKeyToBaseKeyEnum(int key, bool isNumpad);
+
+private:
     NODISCARD static QString baseKeyEnumToName(HotkeyKeyEnum key);
     NODISCARD static HotkeyKeyEnum nameToBaseKeyEnum(const QString &name);
 

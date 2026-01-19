@@ -3,11 +3,11 @@
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
 #include "inputwidget.h"
-#include "ClientWidget.h"
-#include "HotkeyManager.h"
 
 #include "../configuration/configuration.h"
 #include "../global/Color.h"
+#include "ClientWidget.h"
+#include "HotkeyManager.h"
 
 #include <QFont>
 #include <QMessageLogContext>

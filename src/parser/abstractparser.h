@@ -96,6 +96,7 @@ public:
     // for commands that set the mode (emulation, play, map)
     // these are connected to MainWindow
     void onSetMode(const MapModeEnum mode) { virt_onSetMode(mode); }
+
 private:
     // sent to MudTelnet
     virtual void virt_onSendToMud(const QString &) = 0;

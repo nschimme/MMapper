@@ -4,9 +4,9 @@
 
 #include "ClientWidget.h"
 
-#include "../mainwindow/mainwindow.h"
 #include "../configuration/configuration.h"
 #include "../global/AnsiOstream.h"
+#include "../mainwindow/mainwindow.h"
 #include "../proxy/connectionlistener.h"
 #include "ClientTelnet.h"
 #include "PreviewWidget.h"

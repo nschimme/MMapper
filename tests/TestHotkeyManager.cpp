@@ -133,8 +133,7 @@ void TestHotkeyManager::resetToDefaultsTest()
     QCOMPARE(manager.getCommandQString("NUMPAD4").value_or(QString()), QString("w"));
     QCOMPARE(manager.getCommandQString("CTRL+NUMPAD8").value_or(QString()), QString("open exit n"));
     QCOMPARE(manager.getCommandQString("ALT+NUMPAD8").value_or(QString()), QString("close exit n"));
-    QCOMPARE(manager.getCommandQString("SHIFT+NUMPAD8").value_or(QString()),
-             QString("pick exit n"));
+    QCOMPARE(manager.getCommandQString("SHIFT+NUMPAD8").value_or(QString()), QString("pick exit n"));
 
     // F1 is not in defaults, should be empty
     QCOMPARE(manager.getCommandQString("F1").value_or(QString()), QString());

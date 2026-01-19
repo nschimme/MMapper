@@ -75,14 +75,15 @@ HotkeyCommand HotkeyCommand::deserialize(const QString &s)
             mods |= 8;
         } else {
             // Assume it's the base key
-            baseKey = HotkeyManager::getAvailableKeyNames().size() > 0
-                          ? [] (const QString& name) {
-#define X_CHECK(id, str, key, numpad) if (name == str) return HotkeyKeyEnum::id;
-                              XFOREACH_HOTKEY_BASE_KEYS(X_CHECK)
+            baseKey = HotkeyManager::getAvailableKeyNames().size() > 0 ? [](const QString &name) {
+#define X_CHECK(id, str, key, numpad) \
+    if (name == str) \
+        return HotkeyKeyEnum::id;
+                XFOREACH_HOTKEY_BASE_KEYS(X_CHECK)
 #undef X_CHECK
-                              return HotkeyKeyEnum::INVALID;
-                          }(part)
-                          : HotkeyKeyEnum::INVALID;
+                return HotkeyKeyEnum::INVALID;
+            }(part)
+                                                                       : HotkeyKeyEnum::INVALID;
         }
     }
 
@@ -91,7 +92,8 @@ HotkeyCommand HotkeyCommand::deserialize(const QString &s)
 
 HotkeyManager::HotkeyManager()
 {
-    setConfig().hotkeys.registerChangeCallback(m_configLifetime, [this]() { this->syncFromConfig(); });
+    setConfig().hotkeys.registerChangeCallback(m_configLifetime,
+                                               [this]() { this->syncFromConfig(); });
     syncFromConfig();
 
     if (getAllHotkeys().empty()) {
@@ -111,7 +113,8 @@ void HotkeyManager::syncFromConfig()
     for (auto it = data.begin(); it != data.end(); ++it) {
         HotkeyCommand hk = HotkeyCommand::deserialize(it.key());
         if (hk.isValid()) {
-            m_lookupTable[calculateIndex(hk.baseKey, hk.modifiers)] = mmqt::toStdStringUtf8(it.value().toString());
+            m_lookupTable[calculateIndex(hk.baseKey, hk.modifiers)] = mmqt::toStdStringUtf8(
+                it.value().toString());
         }
     }
 }

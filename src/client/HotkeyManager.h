@@ -17,8 +17,7 @@ class QSettings;
 #include <QString>
 #include <Qt>
 
-enum class HotkeyKeyEnum : uint8_t
-{
+enum class HotkeyKeyEnum : uint8_t {
 #define X_ENUM(id, name, key, numpad) id,
     XFOREACH_HOTKEY_BASE_KEYS(X_ENUM)
 #undef X_ENUM

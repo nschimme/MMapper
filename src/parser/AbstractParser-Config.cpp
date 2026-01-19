@@ -3,7 +3,6 @@
 
 #include "../configuration/NamedConfig.h"
 #include "../configuration/configuration.h"
-#include "../mpi/remoteeditwidget.h"
 #include "../display/MapCanvasConfig.h"
 #include "../display/MapCanvasData.h"
 #include "../display/mapcanvas.h"
@@ -11,6 +10,7 @@
 #include "../global/Consts.h"
 #include "../global/NamedColors.h"
 #include "../global/PrintUtils.h"
+#include "../mpi/remoteeditwidget.h"
 #include "../proxy/proxy.h"
 #include "../syntax/SyntaxArgs.h"
 #include "../syntax/TreeParser.h"

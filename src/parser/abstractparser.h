@@ -96,9 +96,6 @@ public:
     // for commands that set the mode (emulation, play, map)
     // these are connected to MainWindow
     void onSetMode(const MapModeEnum mode) { virt_onSetMode(mode); }
-    // opens the client configuration editor (hotkeys, etc.)
-    void onOpenClientConfigEditor() { virt_onOpenClientConfigEditor(); }
-
 private:
     // sent to MudTelnet
     virtual void virt_onSendToMud(const QString &) = 0;
@@ -125,8 +122,6 @@ private:
     // for commands that set the mode (emulation, play, map)
     // these are connected to MainWindow
     virtual void virt_onSetMode(MapModeEnum) = 0;
-    // opens the client configuration editor (hotkeys, etc.)
-    virtual void virt_onOpenClientConfigEditor() = 0;
 };
 
 struct NODISCARD ParserCommonData final
@@ -443,7 +438,6 @@ protected:
 
 private:
     void graphicsSettingsChanged() { m_outputs.onGraphicsSettingsChanged(); }
-    void openClientConfigEditor() { m_outputs.onOpenClientConfigEditor(); }
 
     void sendToMud(const QByteArray &msg) = delete;
     void sendToMud(const QString &msg) { m_outputs.onSendToMud(msg); }

@@ -3,6 +3,7 @@
 
 #include "../configuration/NamedConfig.h"
 #include "../configuration/configuration.h"
+#include "../mpi/remoteeditwidget.h"
 #include "../display/MapCanvasConfig.h"
 #include "../display/MapCanvasData.h"
 #include "../display/mapcanvas.h"
@@ -329,6 +330,71 @@ void AbstractParser::doConfig(const StringView cmd)
                         send_ok(os);
                     },
                     "read config file")),
+            syn("edit",
+                Accept(
+                    [this](User &user, auto) {
+                        auto &os = user.getOstream();
+                        os << "Opening client configuration editor...\n";
+
+                        QTemporaryFile tempWrite;
+                        if (!tempWrite.open()) {
+                            os << "Failed to create temporary file.\n";
+                            return;
+                        }
+                        {
+                            QSettings settings(tempWrite.fileName(), QSettings::IniFormat);
+                            getConfig().writeTo(settings);
+                            settings.sync();
+                        }
+                        tempWrite.close();
+
+                        if (!tempWrite.open()) {
+                            os << "Failed to read temporary file.\n";
+                            return;
+                        }
+                        QString content = QString::fromUtf8(tempWrite.readAll());
+                        tempWrite.close();
+
+                        auto *editor = new RemoteEditWidget(true,
+                                                            "MMapper Client Configuration",
+                                                            content,
+                                                            nullptr);
+
+                        QObject::connect(editor,
+                                         &RemoteEditWidget::sig_save,
+                                         [this, weakParser = QPointer<AbstractParser>(this)](
+                                             const QString &edited) {
+                                             if (weakParser.isNull())
+                                                 return;
+
+                                             QTemporaryFile tempRead;
+                                             if (tempRead.open()) {
+                                                 tempRead.write(edited.toUtf8());
+                                                 tempRead.close();
+
+                                                 {
+                                                     QSettings settings(tempRead.fileName(),
+                                                                        QSettings::IniFormat);
+                                                     setConfig().readFrom(settings);
+                                                 }
+                                                 setConfig().write();
+
+                                                 weakParser->graphicsSettingsChanged();
+                                                 weakParser->mapChanged();
+
+                                                 weakParser->sendToUser(
+                                                     SendToUserSourceEnum::FromMMapper,
+                                                     "\nConfiguration imported and persisted.\n"
+                                                     "You can use '_config file load' to "
+                                                     "reload from disk if needed.\n");
+                                             }
+                                         });
+
+                        editor->setAttribute(Qt::WA_DeleteOnClose);
+                        editor->show();
+                        editor->activateWindow();
+                    },
+                    "edit client configuration")),
             syn("factory",
                 "reset",
                 TokenMatcher::alloc<ArgStringExact>("Yes, I'm sure!"),
@@ -363,15 +429,7 @@ void AbstractParser::doConfig(const StringView cmd)
                     makeFixedPointArg(advanced.fov, "fov"),
                     makeFixedPointArg(advanced.verticalAngle, "pitch"),
                     makeFixedPointArg(advanced.horizontalAngle, "yaw"),
-                    makeFixedPointArg(advanced.layerHeight, "layer-height")))),
-        syn("edit",
-            Accept(
-                [this](User &user, auto) {
-                    auto &os = user.getOstream();
-                    os << "Opening client configuration editor...\n";
-                    openClientConfigEditor();
-                },
-                "edit client configuration")));
+                    makeFixedPointArg(advanced.layerHeight, "layer-height")))));
 
     eval("config", configSyntax, cmd);
 }

@@ -33,7 +33,7 @@
 
 #define SUBGROUP() \
     friend class Configuration; \
-    void read(const QSettings &conf); \
+    void read(QSettings &conf); \
     void write(QSettings &conf) const
 
 class NODISCARD Configuration final
@@ -42,6 +42,9 @@ public:
     void read();
     void write() const;
     void reset();
+
+    void readFrom(QSettings &conf);
+    void writeTo(QSettings &conf) const;
 
 public:
     struct NODISCARD GeneralSettings final
@@ -362,6 +365,8 @@ public:
 
     struct NODISCARD IntegratedMudClientSettings final
     {
+        explicit IntegratedMudClientSettings(QString hotkeyGroupName);
+
         QString font;
         QColor foregroundColor;
         QColor backgroundColor;
@@ -378,6 +383,8 @@ public:
         bool autoStartClient = false;
         bool useCommandSeparator = false;
         QString commandSeparator;
+
+        GroupConfig hotkeys;
 
     private:
         SUBGROUP();
@@ -414,9 +421,6 @@ public:
     private:
         SUBGROUP();
     } findRoomsDialog;
-
-    // Configuration groups
-    GroupConfig hotkeys{"IntegratedClient/Hotkeys"};
 
 public:
     DELETE_CTORS_AND_ASSIGN_OPS(Configuration);

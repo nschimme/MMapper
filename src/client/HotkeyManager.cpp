@@ -102,6 +102,11 @@ HotkeyManager::HotkeyManager()
     settings.endGroup();
 }
 
+HotkeyManager::~HotkeyManager()
+{
+    setConfig().hotkeys.registerCallbacks(nullptr, nullptr);
+}
+
 void HotkeyManager::read(const QSettings &settings)
 {
     clear();

@@ -462,9 +462,9 @@ NODISCARD static uint16_t sanitizeUint16(const int input, const uint16_t default
 
 #define GROUP_CALLBACK(callback, name, ref) \
     do { \
-        const_cast<QSettings &>(conf).beginGroup(name); \
+        conf.beginGroup(name); \
         ref.callback(conf); \
-        const_cast<QSettings &>(conf).endGroup(); \
+        conf.endGroup(); \
     } while (false)
 
 #define FOREACH_CONFIG_GROUP(callback) \

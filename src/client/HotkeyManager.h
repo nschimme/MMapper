@@ -59,7 +59,7 @@ private:
 
 public:
     HotkeyManager();
-    ~HotkeyManager() = default;
+    ~HotkeyManager();
 
     DELETE_CTORS_AND_ASSIGN_OPS(HotkeyManager);
 

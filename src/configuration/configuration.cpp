@@ -461,9 +461,9 @@ NODISCARD static uint16_t sanitizeUint16(const int input, const uint16_t default
 
 #define GROUP_CALLBACK(callback, name, ref) \
     do { \
-        conf.beginGroup(name); \
+        const_cast<QSettings &>(conf).beginGroup(name); \
         ref.callback(conf); \
-        conf.endGroup(); \
+        const_cast<QSettings &>(conf).endGroup(); \
     } while (false)
 
 #define FOREACH_CONFIG_GROUP(callback) \
@@ -500,7 +500,7 @@ void Configuration::write() const
     writeTo(conf);
 }
 
-void Configuration::readFrom(QSettings &conf)
+void Configuration::readFrom(const QSettings &conf)
 {
     // reset to defaults before reading colors that might override them
     colorSettings.resetToDefaults();
@@ -561,7 +561,7 @@ NODISCARD static QString getDefaultDirectory()
     return QDir(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).absolutePath();
 }
 
-void Configuration::GeneralSettings::read(QSettings &conf)
+void Configuration::GeneralSettings::read(const QSettings &conf)
 {
     firstRun = conf.value(KEY_RUN_FIRST_TIME, true).toBool();
     /*
@@ -591,7 +591,7 @@ void Configuration::GeneralSettings::read(QSettings &conf)
         conf.value(KEY_THEME, static_cast<uint32_t>(ThemeEnum::System)).toUInt());
 }
 
-void Configuration::ConnectionSettings::read(QSettings &conf)
+void Configuration::ConnectionSettings::read(const QSettings &conf)
 {
     static constexpr const int DEFAULT_PORT = 4242;
 
@@ -618,7 +618,7 @@ static constexpr const std::string_view DEFAULT_DARK_COLOR = "#A19494";
 // closest well-known color is "Cold Turkey"
 static constexpr const std::string_view DEFAULT_NO_SUNDEATH_COLOR = "#D4C7C7";
 
-void Configuration::CanvasSettings::read(QSettings &conf)
+void Configuration::CanvasSettings::read(const QSettings &conf)
 {
     // REVISIT: Consider just using the "current" value of the named color object,
     // since we can assume they're initialized before the values are read.
@@ -654,14 +654,14 @@ void Configuration::CanvasSettings::read(QSettings &conf)
     advanced.layerHeight.set(conf.value(KEY_3D_LAYER_HEIGHT, 15).toInt());
 }
 
-void Configuration::AccountSettings::read(QSettings &conf)
+void Configuration::AccountSettings::read(const QSettings &conf)
 {
     accountName = conf.value(KEY_ACCOUNT_NAME, "").toString();
     accountPassword = conf.value(KEY_ACCOUNT_PASSWORD, false).toBool();
     rememberLogin = NO_QTKEYCHAIN ? false : conf.value(KEY_REMEMBER_LOGIN, false).toBool();
 }
 
-void Configuration::AutoLoadSettings::read(QSettings &conf)
+void Configuration::AutoLoadSettings::read(const QSettings &conf)
 {
     autoLoadMap = conf.value(KEY_AUTO_LOAD, true).toBool();
     fileName = conf.value(KEY_FILE_NAME, "").toString();
@@ -670,7 +670,7 @@ void Configuration::AutoLoadSettings::read(QSettings &conf)
                            .toString();
 }
 
-void Configuration::AutoLogSettings::read(QSettings &conf)
+void Configuration::AutoLogSettings::read(const QSettings &conf)
 {
     autoLogDirectory = conf.value(KEY_AUTO_LOG_DIRECTORY,
                                   getDefaultDirectory()
@@ -688,7 +688,7 @@ void Configuration::AutoLogSettings::read(QSettings &conf)
     deleteWhenLogsReachBytes = conf.value(KEY_AUTO_LOG_DELETE_AFTER_BYTES, 100 * 1000000).toInt();
 }
 
-void Configuration::ParserSettings::read(QSettings &conf)
+void Configuration::ParserSettings::read(const QSettings &conf)
 {
     static constexpr const char *const ANSI_GREEN = "[32m";
     static constexpr const char *const ANSI_RESET = "[0m";
@@ -704,21 +704,21 @@ void Configuration::ParserSettings::read(QSettings &conf)
     decodeEmoji = conf.value(KEY_EMOJI_DECODE, true).toBool();
 }
 
-void Configuration::MumeClientProtocolSettings::read(QSettings &conf)
+void Configuration::MumeClientProtocolSettings::read(const QSettings &conf)
 {
     internalRemoteEditor = conf.value(KEY_USE_INTERNAL_EDITOR, true).toBool();
     externalRemoteEditorCommand = conf.value(KEY_EXTERNAL_EDITOR_COMMAND, getPlatformEditor())
                                       .toString();
 }
 
-void Configuration::MumeNativeSettings::read(QSettings &conf)
+void Configuration::MumeNativeSettings::read(const QSettings &conf)
 {
     emulatedExits = conf.value(KEY_EMULATED_EXITS, true).toBool();
     showHiddenExitFlags = conf.value(KEY_SHOW_HIDDEN_EXIT_FLAGS, true).toBool();
     showNotes = conf.value(KEY_SHOW_NOTES, true).toBool();
 }
 
-void Configuration::PathMachineSettings::read(QSettings &conf)
+void Configuration::PathMachineSettings::read(const QSettings &conf)
 {
     acceptBestRelative = conf.value(KEY_RELATIVE_PATH_ACCEPTANCE, 25).toDouble();
     acceptBestAbsolute = conf.value(KEY_ABSOLUTE_PATH_ACCEPTANCE, 6).toDouble();
@@ -729,7 +729,7 @@ void Configuration::PathMachineSettings::read(QSettings &conf)
     matchingTolerance = utils::clampNonNegative(conf.value(KEY_ROOM_MATCHING_TOLERANCE, 8).toInt());
 }
 
-void Configuration::GroupManagerSettings::read(QSettings &conf)
+void Configuration::GroupManagerSettings::read(const QSettings &conf)
 {
     color = QColor(conf.value(KEY_GROUP_YOUR_COLOR, "#FFFF00").toString());
     npcColor = QColor(conf.value(KEY_GROUP_NPC_COLOR, QColor(Qt::lightGray)).toString());
@@ -738,14 +738,14 @@ void Configuration::GroupManagerSettings::read(QSettings &conf)
     npcSortBottom = conf.value(KEY_GROUP_NPC_SORT_BOTTOM, false).toBool();
 }
 
-void Configuration::MumeClockSettings::read(QSettings &conf)
+void Configuration::MumeClockSettings::read(const QSettings &conf)
 {
     // NOTE: old values might be stored as int32
     startEpoch = conf.value(KEY_MUME_START_EPOCH, 1517443173).toLongLong();
     display = conf.value(KEY_DISPLAY_CLOCK, true).toBool();
 }
 
-void Configuration::AdventurePanelSettings::read(QSettings &conf)
+void Configuration::AdventurePanelSettings::read(const QSettings &conf)
 {
     m_displayXPStatus = conf.value(KEY_DISPLAY_XP_STATUS, true).toBool();
 }
@@ -755,7 +755,7 @@ Configuration::IntegratedMudClientSettings::IntegratedMudClientSettings(QString 
 {
 }
 
-void Configuration::IntegratedMudClientSettings::read(QSettings &conf)
+void Configuration::IntegratedMudClientSettings::read(const QSettings &conf)
 {
     font = conf.value(KEY_FONT, "").toString();
     backgroundColor = conf.value(KEY_BACKGROUND_COLOR, QColor(Qt::black).name()).toString();
@@ -774,27 +774,27 @@ void Configuration::IntegratedMudClientSettings::read(QSettings &conf)
     useCommandSeparator = conf.value(KEY_USE_COMMAND_SEPARATOR, false).toBool();
     commandSeparator = conf.value(KEY_COMMAND_SEPARATOR, QString(";;")).toString();
 
-    conf.beginGroup("Hotkeys");
+    const_cast<QSettings &>(conf).beginGroup("Hotkeys");
     hotkeys.read(conf);
-    conf.endGroup();
+    const_cast<QSettings &>(conf).endGroup();
 }
 
-void Configuration::RoomPanelSettings::read(QSettings &conf)
+void Configuration::RoomPanelSettings::read(const QSettings &conf)
 {
     geometry = conf.value(KEY_WINDOW_GEOMETRY).toByteArray();
 }
 
-void Configuration::InfomarksDialog::read(QSettings &conf)
+void Configuration::InfomarksDialog::read(const QSettings &conf)
 {
     geometry = conf.value(KEY_WINDOW_GEOMETRY).toByteArray();
 }
 
-void Configuration::RoomEditDialog::read(QSettings &conf)
+void Configuration::RoomEditDialog::read(const QSettings &conf)
 {
     geometry = conf.value(KEY_WINDOW_GEOMETRY).toByteArray();
 }
 
-void Configuration::FindRoomsDialog::read(QSettings &conf)
+void Configuration::FindRoomsDialog::read(const QSettings &conf)
 {
     geometry = conf.value(KEY_WINDOW_GEOMETRY).toByteArray();
 }

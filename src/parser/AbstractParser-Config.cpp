@@ -336,24 +336,33 @@ void AbstractParser::doConfig(const StringView cmd)
                         auto &os = user.getOstream();
                         os << "Opening client configuration editor...\n";
 
-                        QTemporaryFile tempWrite;
-                        if (!tempWrite.open()) {
-                            os << "Failed to create temporary file.\n";
-                            return;
-                        }
+                        QString content;
                         {
-                            QSettings settings(tempWrite.fileName(), QSettings::IniFormat);
-                            getConfig().writeTo(settings);
-                            settings.sync();
-                        }
-                        tempWrite.close();
+                            QTemporaryFile tempWrite(QDir::tempPath() + "/mmapper_XXXXXX.ini");
+                            tempWrite.setAutoRemove(true);
+                            if (!tempWrite.open()) {
+                                os << "Failed to create temporary file.\n";
+                                return;
+                            }
+                            QString fileName = tempWrite.fileName();
+                            tempWrite.close();
 
-                        if (!tempWrite.open()) {
-                            os << "Failed to read temporary file.\n";
+                            {
+                                QSettings settings(fileName, QSettings::IniFormat);
+                                getConfig().writeTo(settings);
+                                settings.sync();
+                            }
+
+                            if (tempWrite.open()) {
+                                content = QString::fromUtf8(tempWrite.readAll());
+                                tempWrite.close();
+                            }
+                        }
+
+                        if (content.isEmpty()) {
+                            os << "Configuration is empty or failed to export.\n";
                             return;
                         }
-                        QString content = QString::fromUtf8(tempWrite.readAll());
-                        tempWrite.close();
 
                         auto *editor = new RemoteEditWidget(true,
                                                             "MMapper Client Configuration",
@@ -367,13 +376,15 @@ void AbstractParser::doConfig(const StringView cmd)
                                              if (weakParser.isNull())
                                                  return;
 
-                                             QTemporaryFile tempRead;
+                                             QTemporaryFile tempRead(QDir::tempPath() + "/mmapper_XXXXXX.ini");
+                                             tempRead.setAutoRemove(true);
                                              if (tempRead.open()) {
+                                                 QString fileName = tempRead.fileName();
                                                  tempRead.write(edited.toUtf8());
                                                  tempRead.close();
 
                                                  {
-                                                     QSettings settings(tempRead.fileName(),
+                                                     QSettings settings(fileName,
                                                                         QSettings::IniFormat);
                                                      setConfig().readFrom(settings);
                                                  }

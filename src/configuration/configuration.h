@@ -33,7 +33,7 @@
 
 #define SUBGROUP() \
     friend class Configuration; \
-    void read(QSettings &conf); \
+    void read(const QSettings &conf); \
     void write(QSettings &conf) const
 
 class NODISCARD Configuration final
@@ -43,7 +43,7 @@ public:
     void write() const;
     void reset();
 
-    void readFrom(QSettings &conf);
+    void readFrom(const QSettings &conf);
     void writeTo(QSettings &conf) const;
 
 public:

@@ -194,6 +194,7 @@ ConstString GRP_CONNECTION = "Connection";
 ConstString GRP_FINDROOMS_DIALOG = "FindRooms Dialog";
 ConstString GRP_GENERAL = "General";
 ConstString GRP_GROUP_MANAGER = "Group Manager";
+ConstString GRP_HOTKEYS = "Hotkeys";
 ConstString GRP_INFOMARKS_DIALOG = "InfoMarks Dialog";
 ConstString GRP_INTEGRATED_MUD_CLIENT = "Integrated Mud Client";
 ConstString GRP_MUME_CLIENT_PROTOCOL = "Mume client protocol";
@@ -205,7 +206,7 @@ ConstString GRP_ROOM_PANEL = "Room Panel";
 ConstString GRP_ROOMEDIT_DIALOG = "RoomEdit Dialog";
 
 Configuration::Configuration()
-    : integratedClient(QString("%1/Hotkeys").arg(GRP_INTEGRATED_MUD_CLIENT))
+    : hotkeys(GRP_HOTKEYS)
 {
     read(); // read the settings or set them to the default values
 }
@@ -486,6 +487,7 @@ NODISCARD static uint16_t sanitizeUint16(const int input, const uint16_t default
         GROUP_CALLBACK(callback, GRP_ROOMEDIT_DIALOG, roomEditDialog); \
         GROUP_CALLBACK(callback, GRP_ROOM_PANEL, roomPanel); \
         GROUP_CALLBACK(callback, GRP_FINDROOMS_DIALOG, findRoomsDialog); \
+        GROUP_CALLBACK(callback, GRP_HOTKEYS, hotkeys); \
     } while (false)
 
 void Configuration::read()
@@ -506,12 +508,6 @@ void Configuration::readFrom(QSettings &conf)
     colorSettings.resetToDefaults();
 
     FOREACH_CONFIG_GROUP(read);
-
-    conf.beginGroup(GRP_INTEGRATED_MUD_CLIENT);
-    conf.beginGroup("Hotkeys");
-    integratedClient.hotkeys.read(conf);
-    conf.endGroup();
-    conf.endGroup();
 
     // This logic only runs once on a MMapper fresh install (or factory reset)
     // Subsequent MMapper starts will always read "firstRun" as false
@@ -536,12 +532,6 @@ void Configuration::readFrom(QSettings &conf)
 void Configuration::writeTo(QSettings &conf) const
 {
     FOREACH_CONFIG_GROUP(write);
-
-    conf.beginGroup(GRP_INTEGRATED_MUD_CLIENT);
-    conf.beginGroup("Hotkeys");
-    integratedClient.hotkeys.write(conf);
-    conf.endGroup();
-    conf.endGroup();
 }
 
 void Configuration::reset()
@@ -760,11 +750,6 @@ void Configuration::MumeClockSettings::read(const QSettings &conf)
 void Configuration::AdventurePanelSettings::read(const QSettings &conf)
 {
     m_displayXPStatus = conf.value(KEY_DISPLAY_XP_STATUS, true).toBool();
-}
-
-Configuration::IntegratedMudClientSettings::IntegratedMudClientSettings(QString hotkeyGroupName)
-    : hotkeys(std::move(hotkeyGroupName))
-{
 }
 
 void Configuration::IntegratedMudClientSettings::read(const QSettings &conf)

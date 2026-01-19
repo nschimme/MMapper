@@ -365,8 +365,6 @@ public:
 
     struct NODISCARD IntegratedMudClientSettings final
     {
-        explicit IntegratedMudClientSettings(QString hotkeyGroupName);
-
         QString font;
         QColor foregroundColor;
         QColor backgroundColor;
@@ -383,8 +381,6 @@ public:
         bool autoStartClient = false;
         bool useCommandSeparator = false;
         QString commandSeparator;
-
-        GroupConfig hotkeys;
 
     private:
         SUBGROUP();
@@ -421,6 +417,8 @@ public:
     private:
         SUBGROUP();
     } findRoomsDialog;
+
+    GroupConfig hotkeys;
 
 public:
     DELETE_CTORS_AND_ASSIGN_OPS(Configuration);

@@ -91,7 +91,7 @@ HotkeyCommand HotkeyCommand::deserialize(const QString &s)
 
 HotkeyManager::HotkeyManager()
 {
-    auto &group = setConfig().integratedClient.hotkeys;
+    auto &group = setConfig().hotkeys;
     group.registerCallbacks([this](const QSettings &s) { this->read(s); },
                             [this](QSettings &s) { this->write(s); });
 
@@ -142,7 +142,7 @@ bool HotkeyManager::setHotkey(const HotkeyCommand &hk, const std::string &comman
         return false;
 
     m_lookupTable[calculateIndex(hk.baseKey, hk.modifiers)] = command;
-    setConfig().integratedClient.hotkeys.notifyChanged();
+    setConfig().hotkeys.notifyChanged();
     return true;
 }
 
@@ -151,7 +151,7 @@ void HotkeyManager::removeHotkey(const QString &keyName)
     HotkeyCommand hk = HotkeyCommand::deserialize(keyName);
     if (hk.isValid()) {
         m_lookupTable[calculateIndex(hk.baseKey, hk.modifiers)].clear();
-        setConfig().integratedClient.hotkeys.notifyChanged();
+        setConfig().hotkeys.notifyChanged();
     }
 }
 

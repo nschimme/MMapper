@@ -42,8 +42,11 @@ public:
     void requestPassword() { virt_requestPassword(); }
     // scroll display (pageUp=true for PageUp, false for PageDown)
     void scrollDisplay(bool pageUp) { virt_scrollDisplay(pageUp); }
-    // try to handle a hotkey
-    bool tryHandleHotkey(const HotkeyCommand &hk) { return virt_tryHandleHotkey(hk); }
+    // try to get a hotkey command
+    std::optional<QString> getHotkeyCommand(const HotkeyCommand &hk)
+    {
+        return virt_getHotkeyCommand(hk);
+    }
 
 private:
     // sent to the mud
@@ -56,8 +59,8 @@ private:
     virtual void virt_requestPassword() = 0;
     // scroll display
     virtual void virt_scrollDisplay(bool pageUp) = 0;
-    // try to handle a hotkey
-    virtual bool virt_tryHandleHotkey(const HotkeyCommand &hk) = 0;
+    // try to get a hotkey command
+    virtual std::optional<QString> virt_getHotkeyCommand(const HotkeyCommand &hk) = 0;
 };
 
 class NODISCARD_QOBJECT StackedInputWidget final : public QStackedWidget

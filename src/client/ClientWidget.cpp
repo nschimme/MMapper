@@ -133,15 +133,10 @@ void ClientWidget::initStackedInputWidget()
             }
         }
 
-        bool virt_tryHandleHotkey(const HotkeyCommand &hk) final
+        std::optional<QString> virt_getHotkeyCommand(const HotkeyCommand &hk) final
         {
             auto &hotkeys = getSelf().getHotkeys();
-            const auto command = hotkeys.getCommand(hk.baseKey, hk.modifiers);
-            if (command) {
-                virt_sendUserInput(mmqt::toQStringUtf8(*command));
-                return true;
-            }
-            return false;
+            return hotkeys.getCommandQString(hk.baseKey, hk.modifiers);
         }
     };
     auto &out = m_pipeline.outputs.stackedInputWidgetOutputs;

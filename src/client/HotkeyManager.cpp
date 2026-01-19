@@ -188,18 +188,24 @@ std::optional<std::string> HotkeyManager::getCommand(const QString &keyName) con
     return getCommand(hk.baseKey, hk.modifiers);
 }
 
-QString HotkeyManager::getCommandQString(int key,
-                                         Qt::KeyboardModifiers modifiers,
-                                         bool isNumpad) const
+std::optional<QString> HotkeyManager::getCommandQString(int key,
+                                                        Qt::KeyboardModifiers modifiers,
+                                                        bool isNumpad) const
 {
     auto command = getCommand(key, modifiers, isNumpad);
-    return command ? mmqt::toQStringUtf8(*command) : QString();
+    return command ? std::optional<QString>(mmqt::toQStringUtf8(*command)) : std::nullopt;
 }
 
-QString HotkeyManager::getCommandQString(const QString &keyName) const
+std::optional<QString> HotkeyManager::getCommandQString(HotkeyKeyEnum key, uint8_t mask) const
+{
+    auto command = getCommand(key, mask);
+    return command ? std::optional<QString>(mmqt::toQStringUtf8(*command)) : std::nullopt;
+}
+
+std::optional<QString> HotkeyManager::getCommandQString(const QString &keyName) const
 {
     auto command = getCommand(keyName);
-    return command ? mmqt::toQStringUtf8(*command) : QString();
+    return command ? std::optional<QString>(mmqt::toQStringUtf8(*command)) : std::nullopt;
 }
 
 bool HotkeyManager::hasHotkey(const QString &keyName) const

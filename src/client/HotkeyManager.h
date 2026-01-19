@@ -75,10 +75,11 @@ public:
                                                     bool isNumpad) const;
     NODISCARD std::optional<std::string> getCommand(HotkeyKeyEnum key, uint8_t mask) const;
     NODISCARD std::optional<std::string> getCommand(const QString &keyName) const;
-    NODISCARD QString getCommandQString(int key,
-                                        Qt::KeyboardModifiers modifiers,
-                                        bool isNumpad) const;
-    NODISCARD QString getCommandQString(const QString &keyName) const;
+    NODISCARD std::optional<QString> getCommandQString(int key,
+                                                       Qt::KeyboardModifiers modifiers,
+                                                       bool isNumpad) const;
+    NODISCARD std::optional<QString> getCommandQString(HotkeyKeyEnum key, uint8_t mask) const;
+    NODISCARD std::optional<QString> getCommandQString(const QString &keyName) const;
 
     NODISCARD bool hasHotkey(const QString &keyName) const;
     NODISCARD std::vector<std::pair<QString, std::string>> getAllHotkeys() const;

@@ -98,7 +98,8 @@ void InputWidget::keyPressEvent(QKeyEvent *const event)
     const auto baseKey = HotkeyManager::qtKeyToBaseKeyEnum(key, mods & Qt::KeypadModifier);
     if (baseKey != HotkeyKeyEnum::INVALID) {
         const HotkeyCommand hk(baseKey, HotkeyCommand::qtModifiersToMask(mods));
-        if (m_outputs.tryHandleHotkey(hk)) {
+        if (auto command = m_outputs.getHotkeyCommand(hk)) {
+            sendCommandWithSeparator(*command);
             event->accept();
             return;
         }
@@ -376,7 +377,8 @@ bool InputWidget::event(QEvent *const event)
             // If it has modifiers, we try to handle it immediately in ShortcutOverride
             // because some modifier combinations might not result in a KeyPress event.
             if (hk.modifiers != 0) {
-                if (m_outputs.tryHandleHotkey(hk)) {
+                if (auto command = m_outputs.getHotkeyCommand(hk)) {
+                    sendCommandWithSeparator(*command);
                     m_handledInShortcutOverride = true;
                     event->accept();
                     return true;

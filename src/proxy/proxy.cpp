@@ -43,8 +43,10 @@
 #include <QMessageLogContext>
 #include <QObject>
 #include <QScopedPointer>
+#include <QSettings>
 #include <QSslSocket>
 #include <QTcpSocket>
+#include <QTemporaryFile>
 
 using mmqt::makeQPointer;
 
@@ -702,55 +704,6 @@ void Proxy::allocParser()
         // (via user command)
         void virt_onSetMode(const MapModeEnum mode) final { getMainWindow().slot_setMode(mode); }
 
-        void virt_onOpenClientConfigEditor() final
-        {
-            // Get all hotkeys and format them as CLI commands
-            QString content;
-            QTextStream stream(&content);
-            for (const auto &hk : getMainWindow().getHotkeyManager().getAllHotkeys()) {
-                stream << "_hotkey set " << hk.first << " " << mmqt::toQStringUtf8(hk.second)
-                       << "\n";
-            }
-
-            // Create the editor widget
-            auto *editor = new RemoteEditWidget(true, // editSession = true (editable)
-                                                "MMapper Client Configuration",
-                                                content,
-                                                nullptr);
-
-            // Connect save signal to import the edited content
-            QObject::connect(editor, &RemoteEditWidget::sig_save, [this](const QString &edited) {
-                // Parse the edited content and update hotkeys
-                int hotkeyCount = 0;
-                HotkeyManager &hm = getMainWindow().getHotkeyManager();
-                hm.clear();
-
-                const QStringList lines = edited.split('\n');
-                for (const QString &line : lines) {
-                    QString trimmed = line.trimmed();
-                    if (trimmed.startsWith("_hotkey set ")) {
-                        QString rest = trimmed.mid(12).trimmed();
-                        auto spaceIdx = rest.indexOf(' ');
-                        if (spaceIdx != -1) {
-                            QString key = rest.left(spaceIdx).trimmed();
-                            QString cmd = rest.mid(spaceIdx).trimmed();
-                            if (hm.setHotkey(key, cmd)) {
-                                hotkeyCount++;
-                            }
-                        }
-                    }
-                }
-
-                // Send feedback to user
-                QString msg = QString("\n%1 hotkeys imported.\n").arg(hotkeyCount);
-                getUserTelnet().onSendToUser(msg, false);
-            });
-
-            // Show the editor
-            editor->setAttribute(Qt::WA_DeleteOnClose);
-            editor->show();
-            editor->activateWindow();
-        }
     };
 
     auto &pipe = getPipeline();

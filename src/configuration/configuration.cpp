@@ -502,7 +502,25 @@ void Configuration::readFrom(QSettings &conf)
     // reset to defaults before reading colors that might override them
     colorSettings.resetToDefaults();
 
-    FOREACH_CONFIG_GROUP(read);
+    conf.beginGroup(GRP_GENERAL); general.read(conf); conf.endGroup();
+    conf.beginGroup(GRP_CONNECTION); connection.read(conf); conf.endGroup();
+    conf.beginGroup(GRP_CANVAS); canvas.read(conf); conf.endGroup();
+    conf.beginGroup(GRP_COLORS); colorSettings.read(conf); conf.endGroup();
+    conf.beginGroup(GRP_ACCOUNT); account.read(conf); conf.endGroup();
+    conf.beginGroup(GRP_AUTO_LOAD_WORLD); autoLoad.read(conf); conf.endGroup();
+    conf.beginGroup(GRP_AUTO_LOG); autoLog.read(conf); conf.endGroup();
+    conf.beginGroup(GRP_PARSER); parser.read(conf); conf.endGroup();
+    conf.beginGroup(GRP_MUME_CLIENT_PROTOCOL); mumeClientProtocol.read(conf); conf.endGroup();
+    conf.beginGroup(GRP_MUME_NATIVE); mumeNative.read(conf); conf.endGroup();
+    conf.beginGroup(GRP_PATH_MACHINE); pathMachine.read(conf); conf.endGroup();
+    conf.beginGroup(GRP_GROUP_MANAGER); groupManager.read(conf); conf.endGroup();
+    conf.beginGroup(GRP_MUME_CLOCK); mumeClock.read(conf); conf.endGroup();
+    conf.beginGroup(GRP_ADVENTURE_PANEL); adventurePanel.read(conf); conf.endGroup();
+    conf.beginGroup(GRP_INTEGRATED_MUD_CLIENT); integratedClient.read(conf); conf.endGroup();
+    conf.beginGroup(GRP_INFOMARKS_DIALOG); infomarksDialog.read(conf); conf.endGroup();
+    conf.beginGroup(GRP_ROOMEDIT_DIALOG); roomEditDialog.read(conf); conf.endGroup();
+    conf.beginGroup(GRP_ROOM_PANEL); roomPanel.read(conf); conf.endGroup();
+    conf.beginGroup(GRP_FINDROOMS_DIALOG); findRoomsDialog.read(conf); conf.endGroup();
 
     conf.beginGroup(hotkeys.getName());
     hotkeys.read(conf);
@@ -536,7 +554,25 @@ void Configuration::write() const
 
 void Configuration::writeTo(QSettings &conf) const
 {
-    FOREACH_CONFIG_GROUP(write);
+    conf.beginGroup(GRP_GENERAL); general.write(conf); conf.endGroup();
+    conf.beginGroup(GRP_CONNECTION); connection.write(conf); conf.endGroup();
+    conf.beginGroup(GRP_CANVAS); canvas.write(conf); conf.endGroup();
+    conf.beginGroup(GRP_COLORS); colorSettings.write(conf); conf.endGroup();
+    conf.beginGroup(GRP_ACCOUNT); account.write(conf); conf.endGroup();
+    conf.beginGroup(GRP_AUTO_LOAD_WORLD); autoLoad.write(conf); conf.endGroup();
+    conf.beginGroup(GRP_AUTO_LOG); autoLog.write(conf); conf.endGroup();
+    conf.beginGroup(GRP_PARSER); parser.write(conf); conf.endGroup();
+    conf.beginGroup(GRP_MUME_CLIENT_PROTOCOL); mumeClientProtocol.write(conf); conf.endGroup();
+    conf.beginGroup(GRP_MUME_NATIVE); mumeNative.write(conf); conf.endGroup();
+    conf.beginGroup(GRP_PATH_MACHINE); pathMachine.write(conf); conf.endGroup();
+    conf.beginGroup(GRP_GROUP_MANAGER); groupManager.write(conf); conf.endGroup();
+    conf.beginGroup(GRP_MUME_CLOCK); mumeClock.write(conf); conf.endGroup();
+    conf.beginGroup(GRP_ADVENTURE_PANEL); adventurePanel.write(conf); conf.endGroup();
+    conf.beginGroup(GRP_INTEGRATED_MUD_CLIENT); integratedClient.write(conf); conf.endGroup();
+    conf.beginGroup(GRP_INFOMARKS_DIALOG); infomarksDialog.write(conf); conf.endGroup();
+    conf.beginGroup(GRP_ROOMEDIT_DIALOG); roomEditDialog.write(conf); conf.endGroup();
+    conf.beginGroup(GRP_ROOM_PANEL); roomPanel.write(conf); conf.endGroup();
+    conf.beginGroup(GRP_FINDROOMS_DIALOG); findRoomsDialog.write(conf); conf.endGroup();
 
     conf.beginGroup(hotkeys.getName());
     hotkeys.write(conf);

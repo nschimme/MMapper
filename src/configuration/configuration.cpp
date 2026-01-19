@@ -817,8 +817,9 @@ void Configuration::RoomPanelSettings::read(const QSettings &conf)
 void Configuration::ColorSettings::read(const QSettings &conf)
 {
 #define X_READ(_id, _name) \
-    _id.setColor(Color( \
-        QColor(conf.value(mmqt::toQStringUtf8(_name), _id.getColor().getQColor().name()).toString())));
+    if (auto val = conf.value(mmqt::toQStringUtf8(_name)); val.isValid()) { \
+        _id.setColor(mmqt::toColor(val.toString())); \
+    }
     XFOREACH_NAMED_COLOR_OPTIONS(X_READ)
 #undef X_READ
 }
@@ -998,7 +999,9 @@ void Configuration::RoomPanelSettings::write(QSettings &conf) const
 void Configuration::ColorSettings::write(QSettings &conf) const
 {
 #define X_WRITE(_id, _name) \
-    conf.setValue(mmqt::toQStringUtf8(_name), _id.getColor().getQColor().name());
+    if (!mmqt::toQStringUtf8(_name).startsWith('.')) { \
+        conf.setValue(mmqt::toQStringUtf8(_name), _id.getColor().getQColor().name(QColor::HexArgb)); \
+    }
     XFOREACH_NAMED_COLOR_OPTIONS(X_WRITE)
 #undef X_WRITE
 }

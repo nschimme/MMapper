@@ -500,12 +500,18 @@ void Configuration::write() const
     writeTo(conf);
 }
 
-void Configuration::readFrom(const QSettings &conf)
+void Configuration::readFrom(QSettings &conf)
 {
     // reset to defaults before reading colors that might override them
     colorSettings.resetToDefaults();
 
     FOREACH_CONFIG_GROUP(read);
+
+    conf.beginGroup(GRP_INTEGRATED_MUD_CLIENT);
+    conf.beginGroup("Hotkeys");
+    integratedClient.hotkeys.read(conf);
+    conf.endGroup();
+    conf.endGroup();
 
     // This logic only runs once on a MMapper fresh install (or factory reset)
     // Subsequent MMapper starts will always read "firstRun" as false
@@ -530,6 +536,12 @@ void Configuration::readFrom(const QSettings &conf)
 void Configuration::writeTo(QSettings &conf) const
 {
     FOREACH_CONFIG_GROUP(write);
+
+    conf.beginGroup(GRP_INTEGRATED_MUD_CLIENT);
+    conf.beginGroup("Hotkeys");
+    integratedClient.hotkeys.write(conf);
+    conf.endGroup();
+    conf.endGroup();
 }
 
 void Configuration::reset()
@@ -773,10 +785,6 @@ void Configuration::IntegratedMudClientSettings::read(const QSettings &conf)
     autoStartClient = conf.value(KEY_AUTO_START_CLIENT, false).toBool();
     useCommandSeparator = conf.value(KEY_USE_COMMAND_SEPARATOR, false).toBool();
     commandSeparator = conf.value(KEY_COMMAND_SEPARATOR, QString(";;")).toString();
-
-    const_cast<QSettings &>(conf).beginGroup("Hotkeys");
-    hotkeys.read(conf);
-    const_cast<QSettings &>(conf).endGroup();
 }
 
 void Configuration::RoomPanelSettings::read(const QSettings &conf)
@@ -949,10 +957,6 @@ void Configuration::IntegratedMudClientSettings::write(QSettings &conf) const
     conf.setValue(KEY_AUTO_START_CLIENT, autoStartClient);
     conf.setValue(KEY_USE_COMMAND_SEPARATOR, useCommandSeparator);
     conf.setValue(KEY_COMMAND_SEPARATOR, commandSeparator);
-
-    conf.beginGroup("Hotkeys");
-    hotkeys.write(conf);
-    conf.endGroup();
 }
 
 void Configuration::RoomPanelSettings::write(QSettings &conf) const

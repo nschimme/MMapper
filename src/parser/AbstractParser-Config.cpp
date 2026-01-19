@@ -20,6 +20,11 @@
 #include <ostream>
 
 #include <QColor>
+#include <QDir>
+#include <QFile>
+#include <QPointer>
+#include <QSettings>
+#include <QTemporaryFile>
 
 class NODISCARD ArgNamedColor final : public syntax::IArgument
 {
@@ -337,15 +342,16 @@ void AbstractParser::doConfig(const StringView cmd)
                         os << "Opening client configuration editor...\n";
 
                         QString content;
+                        QString fileName;
                         {
-                            QTemporaryFile tempWrite(QDir::tempPath() + "/mmapper_XXXXXX.ini");
-                            tempWrite.setAutoRemove(true);
-                            if (!tempWrite.open()) {
+                            QTemporaryFile temp(QDir::tempPath() + "/mmapper_XXXXXX.ini");
+                            temp.setAutoRemove(false);
+                            if (!temp.open()) {
                                 os << "Failed to create temporary file.\n";
                                 return;
                             }
-                            QString fileName = tempWrite.fileName();
-                            tempWrite.close();
+                            fileName = temp.fileName();
+                            temp.close();
 
                             {
                                 QSettings settings(fileName, QSettings::IniFormat);
@@ -353,10 +359,12 @@ void AbstractParser::doConfig(const StringView cmd)
                                 settings.sync();
                             }
 
-                            if (tempWrite.open()) {
-                                content = QString::fromUtf8(tempWrite.readAll());
-                                tempWrite.close();
+                            QFile file(fileName);
+                            if (file.open(QIODevice::ReadOnly)) {
+                                content = QString::fromUtf8(file.readAll());
+                                file.close();
                             }
+                            QFile::remove(fileName);
                         }
 
                         if (content.isEmpty()) {

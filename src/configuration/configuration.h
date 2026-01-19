@@ -43,7 +43,7 @@ public:
     void write() const;
     void reset();
 
-    void readFrom(const QSettings &conf);
+    void readFrom(QSettings &conf);
     void writeTo(QSettings &conf) const;
 
 public:

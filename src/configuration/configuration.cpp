@@ -489,10 +489,15 @@ NODISCARD static uint16_t sanitizeUint16(const int input, const uint16_t default
 
 void Configuration::read()
 {
+    SETTINGS(conf);
+    readFrom(conf);
+}
+
+void Configuration::readFrom(QSettings &conf)
+{
     // reset to defaults before reading colors that might override them
     colorSettings.resetToDefaults();
 
-    SETTINGS(conf);
     FOREACH_CONFIG_GROUP(read);
 
     conf.beginGroup(hotkeys.getName());
@@ -522,6 +527,11 @@ void Configuration::read()
 void Configuration::write() const
 {
     SETTINGS(conf);
+    writeTo(conf);
+}
+
+void Configuration::writeTo(QSettings &conf) const
+{
     FOREACH_CONFIG_GROUP(write);
 
     conf.beginGroup(hotkeys.getName());
@@ -584,8 +594,8 @@ void Configuration::GeneralSettings::read(const QSettings &conf)
     characterEncoding = sanitizeCharacterEncoding(
         conf.value(KEY_CHARACTER_ENCODING, static_cast<uint32_t>(CharacterEncodingEnum::LATIN1))
             .toUInt());
-    m_theme = sanitizeTheme(
-        conf.value(KEY_THEME, static_cast<uint32_t>(ThemeEnum::System)).toUInt());
+    setTheme(sanitizeTheme(
+        conf.value(KEY_THEME, static_cast<uint32_t>(ThemeEnum::System)).toUInt()));
 }
 
 void Configuration::ConnectionSettings::read(const QSettings &conf)
@@ -744,7 +754,7 @@ void Configuration::MumeClockSettings::read(const QSettings &conf)
 
 void Configuration::AdventurePanelSettings::read(const QSettings &conf)
 {
-    m_displayXPStatus = conf.value(KEY_DISPLAY_XP_STATUS, true).toBool();
+    setDisplayXPStatus(conf.value(KEY_DISPLAY_XP_STATUS, true).toBool());
 }
 
 void Configuration::IntegratedMudClientSettings::read(const QSettings &conf)

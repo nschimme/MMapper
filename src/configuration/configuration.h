@@ -40,7 +40,9 @@ class NODISCARD Configuration final
 {
 public:
     void read();
+    void readFrom(QSettings &conf);
     void write() const;
+    void writeTo(QSettings &conf) const;
     void reset();
 
 public:

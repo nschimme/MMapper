@@ -6,6 +6,7 @@
 
 #include "configuration.h"
 
+#include "../global/TextUtils.h"
 #include "../global/utils.h"
 
 #include <cassert>
@@ -460,6 +461,36 @@ NODISCARD static uint16_t sanitizeUint16(const int input, const uint16_t default
 }
 
 
+#define GROUP_CALLBACK(callback, name, ref) \
+    do { \
+        conf.beginGroup(name); \
+        ref.callback(conf); \
+        conf.endGroup(); \
+    } while (false)
+
+#define FOREACH_CONFIG_GROUP(callback) \
+    do { \
+        GROUP_CALLBACK(callback, GRP_GENERAL, general); \
+        GROUP_CALLBACK(callback, GRP_CONNECTION, connection); \
+        GROUP_CALLBACK(callback, GRP_CANVAS, canvas); \
+        GROUP_CALLBACK(callback, GRP_COLORS, colorSettings); \
+        GROUP_CALLBACK(callback, GRP_ACCOUNT, account); \
+        GROUP_CALLBACK(callback, GRP_AUTO_LOAD_WORLD, autoLoad); \
+        GROUP_CALLBACK(callback, GRP_AUTO_LOG, autoLog); \
+        GROUP_CALLBACK(callback, GRP_PARSER, parser); \
+        GROUP_CALLBACK(callback, GRP_MUME_CLIENT_PROTOCOL, mumeClientProtocol); \
+        GROUP_CALLBACK(callback, GRP_MUME_NATIVE, mumeNative); \
+        GROUP_CALLBACK(callback, GRP_PATH_MACHINE, pathMachine); \
+        GROUP_CALLBACK(callback, GRP_GROUP_MANAGER, groupManager); \
+        GROUP_CALLBACK(callback, GRP_MUME_CLOCK, mumeClock); \
+        GROUP_CALLBACK(callback, GRP_ADVENTURE_PANEL, adventurePanel); \
+        GROUP_CALLBACK(callback, GRP_INTEGRATED_MUD_CLIENT, integratedClient); \
+        GROUP_CALLBACK(callback, GRP_INFOMARKS_DIALOG, infomarksDialog); \
+        GROUP_CALLBACK(callback, GRP_ROOMEDIT_DIALOG, roomEditDialog); \
+        GROUP_CALLBACK(callback, GRP_ROOM_PANEL, roomPanel); \
+        GROUP_CALLBACK(callback, GRP_FINDROOMS_DIALOG, findRoomsDialog); \
+    } while (false)
+
 void Configuration::read()
 {
     SETTINGS(conf);
@@ -471,31 +502,7 @@ void Configuration::readFrom(QSettings &conf)
     // reset to defaults before reading colors that might override them
     colorSettings.resetToDefaults();
 
-    auto readGroup = [&](const char *name, auto &subgroup) {
-        conf.beginGroup(name);
-        subgroup.read(conf);
-        conf.endGroup();
-    };
-
-    readGroup(GRP_GENERAL, general);
-    readGroup(GRP_CONNECTION, connection);
-    readGroup(GRP_CANVAS, canvas);
-    readGroup(GRP_COLORS, colorSettings);
-    readGroup(GRP_ACCOUNT, account);
-    readGroup(GRP_AUTO_LOAD_WORLD, autoLoad);
-    readGroup(GRP_AUTO_LOG, autoLog);
-    readGroup(GRP_PARSER, parser);
-    readGroup(GRP_MUME_CLIENT_PROTOCOL, mumeClientProtocol);
-    readGroup(GRP_MUME_NATIVE, mumeNative);
-    readGroup(GRP_PATH_MACHINE, pathMachine);
-    readGroup(GRP_GROUP_MANAGER, groupManager);
-    readGroup(GRP_MUME_CLOCK, mumeClock);
-    readGroup(GRP_ADVENTURE_PANEL, adventurePanel);
-    readGroup(GRP_INTEGRATED_MUD_CLIENT, integratedClient);
-    readGroup(GRP_INFOMARKS_DIALOG, infomarksDialog);
-    readGroup(GRP_ROOMEDIT_DIALOG, roomEditDialog);
-    readGroup(GRP_ROOM_PANEL, roomPanel);
-    readGroup(GRP_FINDROOMS_DIALOG, findRoomsDialog);
+    FOREACH_CONFIG_GROUP(read);
 
     conf.beginGroup(hotkeys.getName());
     hotkeys.read(conf);
@@ -529,31 +536,7 @@ void Configuration::write() const
 
 void Configuration::writeTo(QSettings &conf) const
 {
-    auto writeGroup = [&](const char *name, const auto &subgroup) {
-        conf.beginGroup(name);
-        subgroup.write(conf);
-        conf.endGroup();
-    };
-
-    writeGroup(GRP_GENERAL, general);
-    writeGroup(GRP_CONNECTION, connection);
-    writeGroup(GRP_CANVAS, canvas);
-    writeGroup(GRP_COLORS, colorSettings);
-    writeGroup(GRP_ACCOUNT, account);
-    writeGroup(GRP_AUTO_LOAD_WORLD, autoLoad);
-    writeGroup(GRP_AUTO_LOG, autoLog);
-    writeGroup(GRP_PARSER, parser);
-    writeGroup(GRP_MUME_CLIENT_PROTOCOL, mumeClientProtocol);
-    writeGroup(GRP_MUME_NATIVE, mumeNative);
-    writeGroup(GRP_PATH_MACHINE, pathMachine);
-    writeGroup(GRP_GROUP_MANAGER, groupManager);
-    writeGroup(GRP_MUME_CLOCK, mumeClock);
-    writeGroup(GRP_ADVENTURE_PANEL, adventurePanel);
-    writeGroup(GRP_INTEGRATED_MUD_CLIENT, integratedClient);
-    writeGroup(GRP_INFOMARKS_DIALOG, infomarksDialog);
-    writeGroup(GRP_ROOMEDIT_DIALOG, roomEditDialog);
-    writeGroup(GRP_ROOM_PANEL, roomPanel);
-    writeGroup(GRP_FINDROOMS_DIALOG, findRoomsDialog);
+    FOREACH_CONFIG_GROUP(write);
 
     conf.beginGroup(hotkeys.getName());
     hotkeys.write(conf);
@@ -586,6 +569,9 @@ void Configuration::importFrom(QSettings &source)
     // Reload into memory
     read();
 }
+
+#undef FOREACH_CONFIG_GROUP
+#undef GROUP_CALLBACK
 
 void Configuration::reset()
 {
@@ -832,7 +818,7 @@ void Configuration::ColorSettings::read(const QSettings &conf)
 {
 #define X_READ(_id, _name) \
     _id.setColor(Color( \
-        QColor(conf.value(QString::fromStdString(std::string{_name}), _id.getColor().getQColor().name()).toString())));
+        QColor(conf.value(mmqt::toQStringUtf8(_name), _id.getColor().getQColor().name()).toString())));
     XFOREACH_NAMED_COLOR_OPTIONS(X_READ)
 #undef X_READ
 }
@@ -1012,7 +998,7 @@ void Configuration::RoomPanelSettings::write(QSettings &conf) const
 void Configuration::ColorSettings::write(QSettings &conf) const
 {
 #define X_WRITE(_id, _name) \
-    conf.setValue(QString::fromStdString(std::string{_name}), _id.getColor().getQColor().name());
+    conf.setValue(mmqt::toQStringUtf8(_name), _id.getColor().getQColor().name());
     XFOREACH_NAMED_COLOR_OPTIONS(X_WRITE)
 #undef X_WRITE
 }

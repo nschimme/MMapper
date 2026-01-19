@@ -8,7 +8,6 @@
 #include "../display/mapcanvas.h"
 #include "../global/AnsiOstream.h"
 #include "../global/Consts.h"
-#include "../global/MakeQPointer.h"
 #include "../global/NamedColors.h"
 #include "../global/PrintUtils.h"
 #include "../mpi/remoteeditwidget.h"
@@ -426,7 +425,7 @@ void AbstractParser::doConfig(const StringView cmd)
 
                     // Connect save signal to import the edited content
                     QPointer<AbstractParser> parser(this);
-                    QObject::connect(editor, &RemoteEditWidget::sig_save, [parser](const QString &edited) {
+                    QObject::connect(editor, &RemoteEditWidget::sig_save, [this, parser](const QString &edited) {
                         if (!parser) {
                             return;
                         }
@@ -442,14 +441,14 @@ void AbstractParser::doConfig(const StringView cmd)
                             setConfig().importFrom(tempSettings);
 
                             // Trigger UI updates
-                            parser->graphicsSettingsChanged();
-                            parser->mapChanged();
+                            this->graphicsSettingsChanged();
+                            this->mapChanged();
 
                             if (getConfig().general.mapMode != oldMode) {
-                                parser->setMode(getConfig().general.mapMode);
+                                this->setMode(getConfig().general.mapMode);
                             }
 
-                            parser->sendToUser(
+                            this->sendToUser(
                                 SendToUserSourceEnum::FromMMapper,
                                 "\nConfiguration imported. Some changes may require a restart to take effect.\n",
                                 false);

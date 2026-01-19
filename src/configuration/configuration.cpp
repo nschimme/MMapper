@@ -545,13 +545,6 @@ void Configuration::writeTo(QSettings &conf) const
 
 void Configuration::exportTo(QSettings &target) const
 {
-    // Load from disk first
-    SETTINGS(actual);
-    for (const QString &key : actual.allKeys()) {
-        target.setValue(key, actual.value(key));
-    }
-
-    // Overlay current memory state (including defaults)
     writeTo(target);
     target.sync();
 }
@@ -999,9 +992,7 @@ void Configuration::RoomPanelSettings::write(QSettings &conf) const
 void Configuration::ColorSettings::write(QSettings &conf) const
 {
 #define X_WRITE(_id, _name) \
-    if (!mmqt::toQStringUtf8(_name).startsWith('.')) { \
-        conf.setValue(mmqt::toQStringUtf8(_name), _id.getColor().getQColor().name(QColor::HexArgb)); \
-    }
+    conf.setValue(mmqt::toQStringUtf8(_name), _id.getColor().getQColor().name(QColor::HexArgb));
     XFOREACH_NAMED_COLOR_OPTIONS(X_WRITE)
 #undef X_WRITE
 }

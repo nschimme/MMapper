@@ -8,8 +8,10 @@
 #include "../display/mapcanvas.h"
 #include "../global/AnsiOstream.h"
 #include "../global/Consts.h"
+#include "../global/MakeQPointer.h"
 #include "../global/NamedColors.h"
 #include "../global/PrintUtils.h"
+#include "../mpi/remoteeditwidget.h"
 #include "../proxy/proxy.h"
 #include "../syntax/SyntaxArgs.h"
 #include "../syntax/TreeParser.h"
@@ -19,6 +21,8 @@
 #include <ostream>
 
 #include <QColor>
+#include <QSettings>
+#include <QTemporaryFile>
 
 class NODISCARD ArgNamedColor final : public syntax::IArgument
 {
@@ -320,12 +324,18 @@ void AbstractParser::doConfig(const StringView cmd)
                 Accept(
                     [this](User &user, auto) {
                         auto &os = user.getOstream();
-                        if (isConnected()) {
-                            os << "You must disconnect before you can reload the saved configuration.\n";
-                            return;
-                        }
                         os << "Loading saved file...\n";
+
+                        const auto oldMode = getConfig().general.mapMode;
                         setConfig().read();
+
+                        graphicsSettingsChanged();
+                        mapChanged();
+
+                        if (getConfig().general.mapMode != oldMode) {
+                            setMode(getConfig().general.mapMode);
+                        }
+
                         send_ok(os);
                     },
                     "read config file")),
@@ -335,14 +345,23 @@ void AbstractParser::doConfig(const StringView cmd)
                 Accept(
                     [this](User &user, auto) {
                         auto &os = user.getOstream();
-                        if (isConnected()) {
-                            os << "You must disconnect before you can do a factory reset.\n";
-                            return;
-                        }
-                        // REVISIT: only allow this when you're disconnected?
                         os << "Performing factory reset...\n";
+
+                        const auto oldMode = getConfig().general.mapMode;
                         setConfig().reset();
+
+                        graphicsSettingsChanged();
+                        mapChanged();
+
+                        if (getConfig().general.mapMode != oldMode) {
+                            setMode(getConfig().general.mapMode);
+                        }
+
                         os << "WARNING: You have just reset your configuration.\n";
+                        sendToUser(
+                            SendToUserSourceEnum::FromMMapper,
+                            "\nConfiguration reset. Some changes may require a restart to take effect.\n",
+                            false);
                     },
                     "factory reset the config"))),
         syn("map",
@@ -369,7 +388,73 @@ void AbstractParser::doConfig(const StringView cmd)
                 [this](User &user, auto) {
                     auto &os = user.getOstream();
                     os << "Opening client configuration editor...\n";
-                    openClientConfigEditor();
+
+                    QString content;
+                    {
+                        QTemporaryFile tempFile;
+                        if (!tempFile.open()) {
+                            return;
+                        }
+                        const QString fileName = tempFile.fileName();
+                        {
+                            QSettings tempSettings(fileName, QSettings::IniFormat);
+                            getConfig().writeTo(tempSettings);
+                            tempSettings.sync();
+                        }
+                        tempFile.close();
+
+                        if (tempFile.open()) {
+                            content = QString::fromUtf8(tempFile.readAll());
+                        } else {
+                            return;
+                        }
+                    }
+
+                    // Create the editor widget
+                    auto *editor = new RemoteEditWidget(true, // editSession = true (editable)
+                                                        "MMapper Client Configuration",
+                                                        content,
+                                                        nullptr);
+
+                    // Connect save signal to import the edited content
+                    QPointer<AbstractParser> parser(this);
+                    QObject::connect(editor, &RemoteEditWidget::sig_save, [parser](const QString &edited) {
+                        if (!parser) {
+                            return;
+                        }
+
+                        QTemporaryFile tempFile;
+                        if (tempFile.open()) {
+                            tempFile.write(edited.toUtf8());
+                            tempFile.close();
+
+                            const auto oldMode = getConfig().general.mapMode;
+
+                            QSettings tempSettings(tempFile.fileName(), QSettings::IniFormat);
+                            setConfig().readFrom(tempSettings);
+
+                            // Persist to the main configuration file
+                            setConfig().write();
+
+                            // Trigger UI updates
+                            parser->graphicsSettingsChanged();
+                            parser->mapChanged();
+
+                            if (getConfig().general.mapMode != oldMode) {
+                                parser->setMode(getConfig().general.mapMode);
+                            }
+
+                            parser->sendToUser(
+                                SendToUserSourceEnum::FromMMapper,
+                                "\nConfiguration imported. Some changes may require a restart to take effect.\n",
+                                false);
+                        }
+                    });
+
+                    // Show the editor
+                    editor->setAttribute(Qt::WA_DeleteOnClose);
+                    editor->show();
+                    editor->activateWindow();
                 },
                 "edit client configuration")));
 

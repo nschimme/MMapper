@@ -704,68 +704,6 @@ void Proxy::allocParser()
         // (via user command)
         void virt_onSetMode(const MapModeEnum mode) final { getMainWindow().slot_setMode(mode); }
 
-        void virt_onOpenClientConfigEditor() final
-        {
-            QString content;
-            {
-                QTemporaryFile tempFile;
-                if (!tempFile.open()) {
-                    return;
-                }
-                QSettings tempSettings(tempFile.fileName(), QSettings::IniFormat);
-                getConfig().writeTo(tempSettings);
-                tempSettings.sync();
-
-                tempFile.seek(0);
-                content = QString::fromUtf8(tempFile.readAll());
-            }
-
-            // Create the editor widget
-            auto *editor = new RemoteEditWidget(true, // editSession = true (editable)
-                                                "MMapper Client Configuration",
-                                                content,
-                                                nullptr);
-
-            // Connect save signal to import the edited content
-            QPointer<Proxy> proxy(&getProxy());
-            QObject::connect(editor, &RemoteEditWidget::sig_save, [proxy](const QString &edited) {
-                if (!proxy) {
-                    return;
-                }
-
-                QTemporaryFile tempFile;
-                if (tempFile.open()) {
-                    tempFile.write(edited.toUtf8());
-                    tempFile.close();
-
-                    const auto oldMode = getConfig().general.mapMode;
-
-                    QSettings tempSettings(tempFile.fileName(), QSettings::IniFormat);
-                    // This will also trigger HotkeyManager refresh via GroupConfig callbacks
-                    setConfig().readFrom(tempSettings);
-
-                    // Persist to the main configuration file
-                    setConfig().write();
-
-                    // Trigger UI updates
-                    proxy->getMapCanvas().graphicsSettingsChanged();
-                    proxy->getMapCanvas().slot_mapChanged();
-
-                    if (getConfig().general.mapMode != oldMode) {
-                        proxy->getMainWindow().slot_setMode(getConfig().general.mapMode);
-                    }
-
-                    proxy->getUserTelnet().onSendToUser(
-                        "\nConfiguration imported. Some changes may require a restart to take effect.\n",
-                        false);
-                }
-            });
-
-            // Show the editor
-            editor->setAttribute(Qt::WA_DeleteOnClose);
-            editor->show();
-            editor->activateWindow();
-        }
     };
 
     auto &pipe = getPipeline();

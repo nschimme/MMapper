@@ -384,16 +384,16 @@ void AbstractParser::doConfig(const StringView cmd)
                                              if (weakParser.isNull())
                                                  return;
 
-                                             QTemporaryFile tempRead(QDir::tempPath() + "/mmapper_XXXXXX.ini");
+                                             QTemporaryFile tempRead(QDir::tempPath()
+                                                                     + "/mmapper_XXXXXX.ini");
                                              tempRead.setAutoRemove(true);
                                              if (tempRead.open()) {
-                                                 QString fileName = tempRead.fileName();
+                                                 QString f = tempRead.fileName();
                                                  tempRead.write(edited.toUtf8());
                                                  tempRead.close();
 
                                                  {
-                                                     QSettings settings(fileName,
-                                                                        QSettings::IniFormat);
+                                                     QSettings settings(f, QSettings::IniFormat);
                                                      setConfig().readFrom(settings);
                                                  }
                                                  setConfig().write();

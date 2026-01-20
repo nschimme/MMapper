@@ -354,7 +354,11 @@ void AbstractParser::doConfig(const StringView cmd)
                 Accept(
                     [this](User &user, auto) {
                         auto &os = user.getOstream();
-                        os << "Opening client configuration editor...\n";
+                        if (isConnected()) {
+                            os << "You must disconnect before you can edit the saved configuration.\n";
+                            return;
+                        }
+                        os << "Opening configuration editor...\n";
 
                         QString content;
                         QString fileName;
@@ -387,40 +391,38 @@ void AbstractParser::doConfig(const StringView cmd)
                             return;
                         }
 
+                        // REVISIT: Ideally we support external editor as well
                         auto *editor = new RemoteEditWidget(true,
                                                             "MMapper Client Configuration",
                                                             content,
                                                             nullptr);
-
                         QObject::connect(editor,
                                          &RemoteEditWidget::sig_save,
-                                         [this, weakParser = QPointer<AbstractParser>(this)](
+                                         [weakParser = QPointer<AbstractParser>(this)](
                                              const QString &edited) {
-                                             if (weakParser.isNull())
+                                             if (weakParser.isNull()) {
                                                  return;
+                                             }
 
                                              QTemporaryFile tempRead(QDir::tempPath()
                                                                      + "/mmapper_XXXXXX.ini");
                                              tempRead.setAutoRemove(true);
                                              if (tempRead.open()) {
-                                                 QString f = tempRead.fileName();
+                                                 QString name = tempRead.fileName();
                                                  tempRead.write(edited.toUtf8());
                                                  tempRead.close();
 
                                                  {
-                                                     QSettings settings(f, QSettings::IniFormat);
-                                                     setConfig().readFrom(settings);
+                                                     auto &cfg = setConfig();
+                                                     QSettings settings(name, QSettings::IniFormat);
+                                                     cfg.readFrom(settings);
+                                                     cfg.write();
                                                  }
-                                                 setConfig().write();
-
-                                                 weakParser->graphicsSettingsChanged();
-                                                 weakParser->mapChanged();
 
                                                  weakParser->sendToUser(
                                                      SendToUserSourceEnum::FromMMapper,
-                                                     "\nConfiguration imported and persisted.\n"
-                                                     "You can use '_config file load' to "
-                                                     "reload from disk if needed.\n");
+                                                     "\nConfiguration imported and persisted.\n");
+                                                 weakParser->sendOkToUser();
                                              }
                                          });
 

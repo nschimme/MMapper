@@ -6,12 +6,15 @@
 
 #include "../configuration/configuration.h"
 #include "../global/Color.h"
+#include "ClientWidget.h"
+#include "HotkeyManager.h"
 
 #include <QFont>
 #include <QMessageLogContext>
 #include <QRegularExpression>
 #include <QSize>
 #include <QString>
+#include <QTextStream>
 #include <QtGui>
 #include <QtWidgets>
 
@@ -58,24 +61,32 @@ InputWidget::~InputWidget() = default;
 
 void InputWidget::keyPressEvent(QKeyEvent *const event)
 {
-    const auto currentKey = event->key();
-    const auto currentModifiers = event->modifiers();
+    // Check if this key was already handled in ShortcutOverride
+    if (m_handledInShortcutOverride) {
+        m_handledInShortcutOverride = false; // Reset for next key
+        event->accept();
+        return;
+    }
 
+    const auto key = event->key();
+    const auto mods = event->modifiers();
+
+    // Handle tabbing state (unchanged)
     if (m_tabbing) {
-        if (currentKey != Qt::Key_Tab) {
+        if (key != Qt::Key_Tab) {
             m_tabbing = false;
         }
 
         // If Backspace or Escape is pressed, reject the completion
         QTextCursor current = textCursor();
-        if (currentKey == Qt::Key_Backspace || currentKey == Qt::Key_Escape) {
+        if (key == Qt::Key_Backspace || key == Qt::Key_Escape) {
             current.removeSelectedText();
             event->accept();
             return;
         }
 
         // For any other key press, accept the completion
-        if (currentKey != Qt::Key_Tab) {
+        if (key != Qt::Key_Tab) {
             current.movePosition(QTextCursor::Right,
                                  QTextCursor::MoveAnchor,
                                  static_cast<int>(current.selectedText().length()));
@@ -83,143 +94,94 @@ void InputWidget::keyPressEvent(QKeyEvent *const event)
         }
     }
 
-    // REVISIT: if (useConsoleEscapeKeys) ...
-    if (currentModifiers == Qt::ControlModifier) {
-        switch (currentKey) {
-        case Qt::Key_H: // ^H = backspace
-            // REVISIT: can this be translated to backspace key?
-            break;
-        case Qt::Key_U: // ^U = delete line (clear the input)
-            base::clear();
-            return;
-        case Qt::Key_W: // ^W = delete word
-            // REVISIT: can this be translated to ctrl+shift+leftarrow + backspace?
-            break;
-        }
-
-    } else if (currentModifiers == Qt::NoModifier) {
-        switch (currentKey) {
-        /** Submit the current text */
-        case Qt::Key_Return:
-        case Qt::Key_Enter:
-            gotInput();
+    // 1. Try Hotkeys FIRST
+    const auto baseKey = HotkeyManager::qtKeyToBaseKeyEnum(key, mods & Qt::KeypadModifier);
+    if (baseKey != HotkeyKeyEnum::INVALID) {
+        const HotkeyCommand hk(baseKey, HotkeyCommand::qtModifiersToMask(mods));
+        if (auto command = m_outputs.getHotkeyCommand(hk)) {
+            sendCommandWithSeparator(*command);
             event->accept();
             return;
-
-#define X_CASE(_Name) \
-    case Qt::Key_##_Name: { \
-        event->accept(); \
-        functionKeyPressed(#_Name); \
-        break; \
+        }
     }
-            X_CASE(F1);
-            X_CASE(F2);
-            X_CASE(F3);
-            X_CASE(F4);
-            X_CASE(F5);
-            X_CASE(F6);
-            X_CASE(F7);
-            X_CASE(F8);
-            X_CASE(F9);
-            X_CASE(F10);
-            X_CASE(F11);
-            X_CASE(F12);
 
-#undef X_CASE
+    // 2. Terminal Shortcuts (Ctrl+U, Ctrl+W, Ctrl+H)
+    if ((mods & (Qt::ControlModifier | Qt::MetaModifier)) && handleTerminalShortcut(key)) {
+        event->accept();
+        return;
+    }
 
-            /** Key bindings for word history and tab completion */
-        case Qt::Key_Up:
-        case Qt::Key_Down:
-        case Qt::Key_Tab:
-            if (tryHistory(currentKey)) {
-                event->accept();
-                return;
-            }
-            break;
+    // 3. Command History (bare Up/Down)
+    if (mods == Qt::NoModifier && (key == Qt::Key_Up || key == Qt::Key_Down)) {
+        if (tryHistory(key)) {
+            event->accept();
+            return;
         }
+    }
 
-    } else if (currentModifiers == Qt::KeypadModifier) {
-        if constexpr (CURRENT_PLATFORM == PlatformEnum::Mac) {
-            // NOTE: MacOS does not differentiate between arrow keys and the keypad keys
-            // and as such we disable keypad movement functionality in favor of history
-            switch (currentKey) {
-            case Qt::Key_Up:
-            case Qt::Key_Down:
-            case Qt::Key_Tab:
-                if (tryHistory(currentKey)) {
-                    event->accept();
-                    return;
-                }
-                break;
-            }
-        } else {
-            switch (currentKey) {
-            case Qt::Key_Up:
-            case Qt::Key_Down:
-            case Qt::Key_Left:
-            case Qt::Key_Right:
-            case Qt::Key_PageUp:
-            case Qt::Key_PageDown:
-            case Qt::Key_Clear: // Numpad 5
-            case Qt::Key_Home:
-            case Qt::Key_End:
-                keypadMovement(currentKey);
-                event->accept();
-                return;
-            }
-        }
+    // 4. Scrolling (bare PageUp/PageDown)
+    if (mods == Qt::NoModifier && (key == Qt::Key_PageUp || key == Qt::Key_PageDown)) {
+        m_outputs.scrollDisplay(key == Qt::Key_PageUp);
+        event->accept();
+        return;
+    }
+
+    // 5. Basic keys (Enter, Tab)
+    if (mods == Qt::NoModifier && handleBasicKey(key)) {
+        event->accept();
+        return;
     }
 
     // All other input
     base::keyPressEvent(event);
 }
 
-void InputWidget::functionKeyPressed(const QString &keyName)
-{
-    sendUserInput(keyName);
-}
-
-void InputWidget::keypadMovement(const int key)
+bool InputWidget::handleTerminalShortcut(int key)
 {
     switch (key) {
-    case Qt::Key_Up:
-        sendUserInput("north");
-        break;
-    case Qt::Key_Down:
-        sendUserInput("south");
-        break;
-    case Qt::Key_Left:
-        sendUserInput("west");
-        break;
-    case Qt::Key_Right:
-        sendUserInput("east");
-        break;
-    case Qt::Key_PageUp:
-        sendUserInput("up");
-        break;
-    case Qt::Key_PageDown:
-        sendUserInput("down");
-        break;
-    case Qt::Key_Clear: // Numpad 5
-        sendUserInput("exits");
-        break;
-    case Qt::Key_Home:
-        sendUserInput("open exit");
-        break;
-    case Qt::Key_End:
-        sendUserInput("close exit");
-        break;
-    case Qt::Key_Insert:
-        sendUserInput("flee");
-        break;
-    case Qt::Key_Delete:
-    case Qt::Key_Plus:
-    case Qt::Key_Minus:
-    case Qt::Key_Slash:
-    case Qt::Key_Asterisk:
-    default:
-        qDebug() << "! Unknown keypad movement" << key;
+    case Qt::Key_H: // ^H = backspace
+        textCursor().deletePreviousChar();
+        return true;
+
+    case Qt::Key_U: // ^U = delete line (clear the input)
+        base::clear();
+        return true;
+
+    case Qt::Key_W: // ^W = delete word (whitespace-delimited)
+    {
+        QTextCursor cursor = textCursor();
+        // If at start, nothing to delete
+        if (cursor.atStart()) {
+            return true;
+        }
+        // First, skip any trailing whitespace before the word
+        while (!cursor.atStart() && document()->characterAt(cursor.position() - 1).isSpace()) {
+            cursor.movePosition(QTextCursor::PreviousCharacter, QTextCursor::KeepAnchor);
+        }
+        // Then, select the word (non-whitespace characters)
+        while (!cursor.atStart() && !document()->characterAt(cursor.position() - 1).isSpace()) {
+            cursor.movePosition(QTextCursor::PreviousCharacter, QTextCursor::KeepAnchor);
+        }
+        cursor.removeSelectedText();
+        setTextCursor(cursor);
+        return true;
     }
+    }
+    return false;
+}
+
+bool InputWidget::handleBasicKey(int key)
+{
+    switch (key) {
+    case Qt::Key_Return:
+    case Qt::Key_Enter:
+        gotInput();
+        return true;
+
+    case Qt::Key_Tab:
+        return tryHistory(key);
+    }
+    return false;
 }
 
 bool InputWidget::tryHistory(const int key)
@@ -247,6 +209,25 @@ bool InputWidget::tryHistory(const int key)
     return false;
 }
 
+void InputWidget::sendCommandWithSeparator(const QString &command)
+{
+    const auto &settings = getConfig().integratedClient;
+
+    // Handle command separator (e.g., "l;;look" sends "l" then "look")
+    if (settings.useCommandSeparator && !settings.commandSeparator.isEmpty()) {
+        const QString &sep = settings.commandSeparator;
+        const QString escaped = QRegularExpression::escape(sep);
+        const QRegularExpression regex(QString("(?<!\\\\)%1").arg(escaped));
+        const QStringList commands = command.split(regex);
+        for (QString cmd : commands) {
+            cmd.replace("\\" + sep, sep);
+            sendUserInput(cmd);
+        }
+    } else {
+        sendUserInput(command);
+    }
+}
+
 void InputWidget::gotInput()
 {
     const auto &settings = getConfig().integratedClient;
@@ -258,19 +239,8 @@ void InputWidget::gotInput()
         selectAll();
     }
 
-    if (settings.useCommandSeparator) {
-        const QString &sep = settings.commandSeparator;
-        assert(!settings.commandSeparator.isEmpty());
-        const QString escaped = QRegularExpression::escape(sep);
-        const QRegularExpression regex(QString("(?<!\\\\)%1").arg(escaped));
-        const QStringList commands = input.split(regex);
-        for (QString command : commands) {
-            command.replace("\\" + sep, sep);
-            sendUserInput(command);
-        }
-    } else {
-        sendUserInput(input);
-    }
+    // Send input (with command separator handling if enabled)
+    sendCommandWithSeparator(input);
 
     m_inputHistory.addInputLine(input);
     m_tabHistory.addInputLine(input);
@@ -395,6 +365,32 @@ void InputWidget::tabComplete()
 
 bool InputWidget::event(QEvent *const event)
 {
+    if (event->type() == QEvent::ShortcutOverride) {
+        auto *const keyEvent = static_cast<QKeyEvent *>(event);
+        const auto key = keyEvent->key();
+        const auto mods = keyEvent->modifiers();
+
+        const auto baseKey = HotkeyManager::qtKeyToBaseKeyEnum(key, mods & Qt::KeypadModifier);
+        if (baseKey != HotkeyKeyEnum::INVALID) {
+            const HotkeyCommand hk(baseKey, HotkeyCommand::qtModifiersToMask(mods));
+
+            // If it has modifiers, we try to handle it immediately in ShortcutOverride
+            // because some modifier combinations might not result in a KeyPress event.
+            if (hk.modifiers != 0) {
+                if (auto command = m_outputs.getHotkeyCommand(hk)) {
+                    sendCommandWithSeparator(*command);
+                    m_handledInShortcutOverride = true;
+                    event->accept();
+                    return true;
+                }
+            }
+
+            // Accept so KeyPress comes through for bare keys or unhandled hotkeys
+            event->accept();
+            return true;
+        }
+    }
+
     m_paletteManager.tryUpdateFromFocusEvent(*this, deref(event).type());
     return QPlainTextEdit::event(event);
 }

@@ -49,6 +49,7 @@ const Abbrev cmdDoorHelp{"doorhelp", 5};
 const Abbrev cmdGenerateBaseMap{"generate-base-map"};
 const Abbrev cmdGroup{"group", 2};
 const Abbrev cmdHelp{"help", 2};
+const Abbrev cmdHotkey{"hotkey", 3};
 const Abbrev cmdMap{"map"};
 const Abbrev cmdMark{"mark", 3};
 const Abbrev cmdRemoveDoorNames{"remove-secret-door-names"};

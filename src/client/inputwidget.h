@@ -5,6 +5,7 @@
 
 #include "../global/RuleOf5.h"
 #include "../global/macros.h"
+#include "HotkeyManager.h"
 #include "PaletteManager.h"
 
 #include <iterator>
@@ -82,12 +83,19 @@ public:
     void displayMessage(const QString &msg) { virt_displayMessage(msg); }
     void showMessage(const QString &msg, const int timeout) { virt_showMessage(msg, timeout); }
     void gotPasswordInput(const QString &password) { virt_gotPasswordInput(password); }
+    void scrollDisplay(bool pageUp) { virt_scrollDisplay(pageUp); }
+    std::optional<QString> getHotkeyCommand(const HotkeyCommand &hk)
+    {
+        return virt_getHotkeyCommand(hk);
+    }
 
 private:
     virtual void virt_sendUserInput(const QString &msg) = 0;
     virtual void virt_displayMessage(const QString &msg) = 0;
     virtual void virt_showMessage(const QString &msg, int timeout) = 0;
     virtual void virt_gotPasswordInput(const QString &password) = 0;
+    virtual void virt_scrollDisplay(bool pageUp) = 0;
+    virtual std::optional<QString> virt_getHotkeyCommand(const HotkeyCommand &hk) = 0;
 };
 
 class NODISCARD_QOBJECT InputWidget final : public QPlainTextEdit
@@ -104,6 +112,7 @@ private:
     InputHistory m_inputHistory;
     PaletteManager m_paletteManager;
     bool m_tabbing = false;
+    bool m_handledInShortcutOverride = false; // Track if key was already handled in ShortcutOverride
 
 public:
     explicit InputWidget(QWidget *parent, InputWidgetOutputs &);
@@ -118,8 +127,8 @@ protected:
 private:
     void gotInput();
     NODISCARD bool tryHistory(int);
-    void keypadMovement(int);
-    void functionKeyPressed(const QString &keyName);
+    NODISCARD bool handleTerminalShortcut(int key);
+    NODISCARD bool handleBasicKey(int key);
 
 private:
     void tabComplete();
@@ -130,4 +139,5 @@ private:
 
 private:
     void sendUserInput(const QString &msg) { m_outputs.sendUserInput(msg); }
+    void sendCommandWithSeparator(const QString &command);
 };

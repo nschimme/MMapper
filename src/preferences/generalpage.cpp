@@ -100,18 +100,6 @@ GeneralPage::GeneralPage(QWidget *parent)
         setConfig().connection.proxyConnectionStatus = ui->proxyConnectionStatusCheckBox->isChecked();
     });
 
-    connect(ui->configurationResetButton, &QAbstractButton::clicked, this, [this]() {
-        QMessageBox::StandardButton reply
-            = QMessageBox::question(this,
-                                    "MMapper Factory Reset",
-                                    "Are you sure you want to perform a factory reset?",
-                                    QMessageBox::Yes | QMessageBox::No);
-        if (reply == QMessageBox::Yes) {
-            setConfig().reset();
-            emit sig_factoryReset();
-        }
-    });
-
     connect(ui->autoLogin, &QCheckBox::stateChanged, this, [this]() {
         setConfig().account.rememberLogin = ui->autoLogin->isChecked();
     });

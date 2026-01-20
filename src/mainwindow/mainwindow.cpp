@@ -306,6 +306,11 @@ MainWindow::MainWindow()
     readSettings();
 }
 
+bool MainWindow::isConnected() const
+{
+    return m_listener && m_listener->isConnected();
+}
+
 void MainWindow::startServices()
 {
     try {

@@ -11,7 +11,9 @@
 #include "clientpage.h"
 #include "generalpage.h"
 #include "graphicspage.h"
+#include "maintenancepage.h"
 #include "grouppage.h"
+#include "../mainwindow/mainwindow.h"
 #include "mumeprotocolpage.h"
 #include "parserpage.h"
 #include "pathmachinepage.h"
@@ -39,6 +41,7 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     auto autoLogPage = new AutoLogPage(this);
     auto mumeProtocolPage = new MumeProtocolPage(this);
     auto pathmachinePage = new PathmachinePage(this);
+    auto maintenancePage = new MaintenancePage(qobject_cast<MainWindow *>(parent), this);
 
     m_pagesWidget = new QStackedWidget(this);
 
@@ -51,6 +54,7 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     pagesWidget->addWidget(autoLogPage);
     pagesWidget->addWidget(mumeProtocolPage);
     pagesWidget->addWidget(pathmachinePage);
+    pagesWidget->addWidget(maintenancePage);
     pagesWidget->setCurrentIndex(0);
 
     ui->pagesScrollArea->setWidget(pagesWidget);
@@ -62,8 +66,13 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
             &ConfigDialog::slot_changePage);
     connect(ui->closeButton, &QAbstractButton::clicked, this, &QWidget::close);
 
-    connect(generalPage, &GeneralPage::sig_factoryReset, this, [this]() {
+    auto onFactoryReset = [this]() {
         qDebug() << "Reloading config due to factory reset";
+        emit sig_loadConfig();
+    };
+    connect(generalPage, &GeneralPage::sig_factoryReset, this, onFactoryReset);
+    connect(maintenancePage, &MaintenancePage::sig_factoryReset, this, onFactoryReset);
+    connect(maintenancePage, &MaintenancePage::sig_loadConfig, this, [this]() {
         emit sig_loadConfig();
     });
     connect(this, &ConfigDialog::sig_loadConfig, generalPage, &GeneralPage::slot_loadConfig);
@@ -81,6 +90,7 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
             mumeProtocolPage,
             &MumeProtocolPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, pathmachinePage, &PathmachinePage::slot_loadConfig);
+    connect(this, &ConfigDialog::sig_loadConfig, maintenancePage, &MaintenancePage::slot_loadConfig);
     connect(graphicsPage,
             &GraphicsPage::sig_graphicsSettingsChanged,
             this,
@@ -135,6 +145,7 @@ void ConfigDialog::createIcons()
     addItem(":/icons/autologgercfg.png", tr("Auto\nLogger"));
     addItem(":/icons/mumeprotocolcfg.png", tr("Mume\nProtocol"));
     addItem(":/icons/pathmachinecfg.png", tr("Path\nMachine"));
+    addItem(":/icons/pathmachinecfg.png", tr("Backup"));
 }
 
 void ConfigDialog::slot_changePage(QListWidgetItem *current, QListWidgetItem *const previous)

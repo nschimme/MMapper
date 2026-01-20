@@ -91,6 +91,11 @@ void ConnectionListener::listen()
     }
 }
 
+bool ConnectionListener::isConnected() const
+{
+    return m_proxy && m_proxy->isConnected();
+}
+
 void ConnectionListener::slot_onIncomingConnection(qintptr socketDescriptor)
 {
     auto socket = std::make_unique<TcpSocket>(socketDescriptor, this);

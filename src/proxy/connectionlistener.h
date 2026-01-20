@@ -77,6 +77,7 @@ public:
 
 public:
     void listen();
+    NODISCARD bool isConnected() const;
 
 private:
     void log(const QString &msg) { emit sig_log("Listener", msg); }

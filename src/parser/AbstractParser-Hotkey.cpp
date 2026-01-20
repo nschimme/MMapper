@@ -45,18 +45,17 @@ QString getInstructionalError(const QString &keyCombo)
     QStringList parts = keyCombo.split('+', Qt::SkipEmptyParts);
 
     QString unrecognized;
+    auto validKeys = HotkeyManager::getAvailableKeyNames();
+
     for (const auto &part : parts) {
         QString p = part.trimmed().toUpper();
         if (p == "CTRL" || p == "SHIFT" || p == "ALT" || p == "META") {
             continue;
         }
 
-        bool found = false;
-#define X_CHECK(id, str, key, numpad) \
-    if (p == str) \
-        found = true;
-        XFOREACH_HOTKEY_BASE_KEYS(X_CHECK)
-#undef X_CHECK
+        bool found = std::any_of(validKeys.begin(), validKeys.end(), [&p](const QString &vk) {
+            return p == vk.toUpper();
+        });
 
         if (!found) {
             unrecognized = part.trimmed();

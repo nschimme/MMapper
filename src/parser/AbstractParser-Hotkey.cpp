@@ -45,7 +45,7 @@ QString getInstructionalError(const QString &keyCombo)
     QStringList parts = keyCombo.split('+', Qt::SkipEmptyParts);
 
     QString unrecognized;
-    auto validKeys = HotkeyManager::getAvailableKeyNames();
+    auto validKeys = Hotkey::getAvailableKeyNames();
 
     for (const auto &part : parts) {
         QString p = part.trimmed().toUpper();
@@ -119,14 +119,16 @@ void AbstractParser::parseHotkey(StringView input)
         [this](User &user, const Pair *) {
             auto &os = user.getOstream();
             auto hotkeys = m_hotkeyManager.getAllHotkeys();
-            std::sort(hotkeys.begin(), hotkeys.end());
+            std::sort(hotkeys.begin(),
+                      hotkeys.end(),
+                      [](const auto &a, const auto &b) { return a.first.serialize() < b.first.serialize(); });
 
             if (hotkeys.empty()) {
                 os << "No hotkeys configured.\n";
             } else {
                 os << "Active Hotkeys:\n";
-                for (const auto &[key, cmd] : hotkeys) {
-                    os << "  [" << mmqt::toStdStringUtf8(key) << "] -> " << cmd << "\n";
+                for (const auto &[hk, cmd] : hotkeys) {
+                    os << "  [" << mmqt::toStdStringUtf8(hk.serialize()) << "] -> " << cmd << "\n";
                 }
                 os << "Total: " << hotkeys.size() << "\n";
             }
@@ -181,7 +183,7 @@ void AbstractParser::parseHotkey(StringView input)
            << "Valid keys:\n";
 
         // Programmatically list all valid keys
-        auto keys = HotkeyManager::getAvailableKeyNames();
+        auto keys = Hotkey::getAvailableKeyNames();
         std::sort(keys.begin(), keys.end());
         os << "  ";
         for (size_t i = 0; i < keys.size(); ++i) {

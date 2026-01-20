@@ -95,7 +95,7 @@ void InputWidget::keyPressEvent(QKeyEvent *const event)
     }
 
     // 1. Try Hotkeys FIRST
-    const auto base = HotkeyManager::qtKeyToHotkeyBase(key, mods & Qt::KeypadModifier);
+    const auto base = Hotkey::qtKeyToHotkeyBase(key, mods & Qt::KeypadModifier);
     if (base != HotkeyEnum::INVALID) {
         const Hotkey hk(base, Hotkey::qtModifiersToMask(mods));
         if (auto command = m_outputs.getHotkey(hk)) {
@@ -370,7 +370,7 @@ bool InputWidget::event(QEvent *const event)
         const auto key = keyEvent->key();
         const auto mods = keyEvent->modifiers();
 
-        const auto base = HotkeyManager::qtKeyToHotkeyBase(key, mods & Qt::KeypadModifier);
+        const auto base = Hotkey::qtKeyToHotkeyBase(key, mods & Qt::KeypadModifier);
         if (base != HotkeyEnum::INVALID) {
             const Hotkey hk(base, Hotkey::qtModifiersToMask(mods));
 

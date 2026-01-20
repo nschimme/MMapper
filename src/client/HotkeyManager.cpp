@@ -62,7 +62,7 @@ QString Hotkey::serialize() const
     if (mods & 8)
         parts << "META";
 
-    QString name = HotkeyManager::hotkeyBaseToName(base());
+    QString name = hotkeyBaseToName(base());
     if (name.isEmpty())
         return QString();
 
@@ -90,7 +90,7 @@ Hotkey Hotkey::deserialize(const QString &s)
         } else if (part == "META" || part == "CMD" || part == "COMMAND") {
             mods |= 8;
         } else {
-            base = HotkeyManager::nameToHotkeyBase(part);
+            base = nameToHotkeyBase(part);
         }
     }
 
@@ -98,6 +98,50 @@ Hotkey Hotkey::deserialize(const QString &s)
         return Hotkey();
 
     return Hotkey(base, mods);
+}
+
+HotkeyEnum Hotkey::qtKeyToHotkeyBase(int key, bool isNumpad)
+{
+#define X_QT_CHECK(id, name, qkey, num) \
+    if (key == qkey && isNumpad == num) \
+        return HotkeyEnum::id;
+    XFOREACH_HOTKEY_BASE_KEYS(X_QT_CHECK)
+#undef X_QT_CHECK
+    return HotkeyEnum::INVALID;
+}
+
+QString Hotkey::hotkeyBaseToName(HotkeyEnum base)
+{
+#define X_NAME_CHECK(id, name, qkey, num) \
+    if (base == HotkeyEnum::id) \
+        return name;
+    XFOREACH_HOTKEY_BASE_KEYS(X_NAME_CHECK)
+#undef X_NAME_CHECK
+    return QString();
+}
+
+HotkeyEnum Hotkey::nameToHotkeyBase(const QString &name)
+{
+#define X_NAME_TO_ENUM(id, str, qkey, num) \
+    if (name.toUpper() == QString(str).toUpper()) \
+        return HotkeyEnum::id;
+    XFOREACH_HOTKEY_BASE_KEYS(X_NAME_TO_ENUM)
+#undef X_NAME_TO_ENUM
+    return HotkeyEnum::INVALID;
+}
+
+std::vector<QString> Hotkey::getAvailableKeyNames()
+{
+    return {
+#define X_STR(id, name, key, numpad) name,
+        XFOREACH_HOTKEY_BASE_KEYS(X_STR)
+#undef X_STR
+    };
+}
+
+std::vector<QString> Hotkey::getAvailableModifiers()
+{
+    return {"CTRL", "SHIFT", "ALT", "META"};
 }
 
 HotkeyManager::HotkeyManager()
@@ -166,7 +210,7 @@ std::optional<std::string> HotkeyManager::getCommand(int key,
                                                      Qt::KeyboardModifiers modifiers,
                                                      bool isNumpad) const
 {
-    HotkeyEnum base = qtKeyToHotkeyBase(key, isNumpad);
+    HotkeyEnum base = Hotkey::qtKeyToHotkeyBase(key, isNumpad);
     if (base == HotkeyEnum::INVALID)
         return std::nullopt;
 
@@ -221,12 +265,11 @@ bool HotkeyManager::hasHotkey(const Hotkey &hk) const
     return getCommand(hk).has_value();
 }
 
-std::vector<std::pair<QString, std::string>> HotkeyManager::getAllHotkeys() const
+std::vector<std::pair<Hotkey, std::string>> HotkeyManager::getAllHotkeys() const
 {
-    std::vector<std::pair<QString, std::string>> result;
+    std::vector<std::pair<Hotkey, std::string>> result;
     for (const auto &[key, cmd] : m_hotkeys) {
-        Hotkey hk(key);
-        result.emplace_back(hk.serialize(), cmd);
+        result.emplace_back(Hotkey(key), cmd);
     }
     return result;
 }
@@ -243,48 +286,4 @@ void HotkeyManager::resetToDefaults()
 void HotkeyManager::clear()
 {
     setConfig().hotkeys.setData(QVariantMap());
-}
-
-std::vector<QString> HotkeyManager::getAvailableKeyNames()
-{
-    return {
-#define X_STR(id, name, key, numpad) name,
-        XFOREACH_HOTKEY_BASE_KEYS(X_STR)
-#undef X_STR
-    };
-}
-
-std::vector<QString> HotkeyManager::getAvailableModifiers()
-{
-    return {"CTRL", "SHIFT", "ALT", "META"};
-}
-
-HotkeyEnum HotkeyManager::qtKeyToHotkeyBase(int key, bool isNumpad)
-{
-#define X_QT_CHECK(id, name, qkey, num) \
-    if (key == qkey && isNumpad == num) \
-        return HotkeyEnum::id;
-    XFOREACH_HOTKEY_BASE_KEYS(X_QT_CHECK)
-#undef X_QT_CHECK
-    return HotkeyEnum::INVALID;
-}
-
-QString HotkeyManager::hotkeyBaseToName(HotkeyEnum base)
-{
-#define X_NAME_CHECK(id, name, qkey, num) \
-    if (base == HotkeyEnum::id) \
-        return name;
-    XFOREACH_HOTKEY_BASE_KEYS(X_NAME_CHECK)
-#undef X_NAME_CHECK
-    return QString();
-}
-
-HotkeyEnum HotkeyManager::nameToHotkeyBase(const QString &name)
-{
-#define X_NAME_TO_ENUM(id, str, qkey, num) \
-    if (name.toUpper() == QString(str).toUpper()) \
-        return HotkeyEnum::id;
-    XFOREACH_HOTKEY_BASE_KEYS(X_NAME_TO_ENUM)
-#undef X_NAME_TO_ENUM
-    return HotkeyEnum::INVALID;
 }

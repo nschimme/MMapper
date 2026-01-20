@@ -56,6 +56,11 @@ public:
     NODISCARD uint8_t modifiers() const;
 
     NODISCARD static uint8_t qtModifiersToMask(Qt::KeyboardModifiers mods);
+    NODISCARD static HotkeyEnum qtKeyToHotkeyBase(int key, bool isNumpad);
+    NODISCARD static QString hotkeyBaseToName(HotkeyEnum base);
+    NODISCARD static HotkeyEnum nameToHotkeyBase(const QString &name);
+    NODISCARD static std::vector<QString> getAvailableKeyNames();
+    NODISCARD static std::vector<QString> getAvailableModifiers();
 };
 
 class NODISCARD HotkeyManager final
@@ -92,17 +97,10 @@ public:
 
     NODISCARD bool hasHotkey(const QString &keyName) const;
     NODISCARD bool hasHotkey(const Hotkey &hk) const;
-    NODISCARD std::vector<std::pair<QString, std::string>> getAllHotkeys() const;
+    NODISCARD std::vector<std::pair<Hotkey, std::string>> getAllHotkeys() const;
 
     void resetToDefaults();
     void clear();
-
-    NODISCARD static std::vector<QString> getAvailableKeyNames();
-    NODISCARD static std::vector<QString> getAvailableModifiers();
-
-    NODISCARD static HotkeyEnum qtKeyToHotkeyBase(int key, bool isNumpad);
-    NODISCARD static QString hotkeyBaseToName(HotkeyEnum base);
-    NODISCARD static HotkeyEnum nameToHotkeyBase(const QString &name);
 
 private:
     ChangeMonitor::Lifetime m_configLifetime;

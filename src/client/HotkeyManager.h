@@ -12,41 +12,48 @@ class QSettings;
 #include <array>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <QString>
 #include <Qt>
 
-enum class HotkeyKeyEnum : uint8_t {
-#define X_ENUM(id, name, key, numpad) id,
+#define X_HOTKEY_MODS(base) \
+    base, SHIFT_##base, CTRL_##base, CTRL_SHIFT_##base, ALT_##base, ALT_SHIFT_##base, \
+        ALT_CTRL_##base, ALT_CTRL_SHIFT_##base, META_##base, META_SHIFT_##base, META_CTRL_##base, \
+        META_CTRL_SHIFT_##base, META_ALT_##base, META_ALT_SHIFT_##base, META_ALT_CTRL_##base, \
+        META_ALT_CTRL_SHIFT_##base
+
+enum class HotkeyEnum : uint16_t {
+#define X_ENUM(id, name, key, numpad) X_HOTKEY_MODS(id),
     XFOREACH_HOTKEY_BASE_KEYS(X_ENUM)
 #undef X_ENUM
         COUNT,
-    INVALID = 255
+    INVALID = 0xFFFF
 };
 
-class NODISCARD HotkeyCommand final
+class NODISCARD Hotkey final
 {
-public:
-    HotkeyKeyEnum baseKey = HotkeyKeyEnum::INVALID;
-    uint8_t modifiers = 0; // 1: SHIFT, 2: CTRL, 4: ALT, 8: META
+private:
+    HotkeyEnum m_hotkey = HotkeyEnum::INVALID;
 
 public:
-    HotkeyCommand() = default;
-    HotkeyCommand(HotkeyKeyEnum key, uint8_t mods)
-        : baseKey(key)
-        , modifiers(mods)
+    Hotkey() = default;
+    explicit Hotkey(HotkeyEnum he)
+        : m_hotkey(he)
     {}
+    Hotkey(HotkeyEnum base, uint8_t mods);
 
-    NODISCARD bool isValid() const { return baseKey != HotkeyKeyEnum::INVALID; }
+    NODISCARD bool isValid() const { return m_hotkey != HotkeyEnum::INVALID; }
 
     NODISCARD QString serialize() const;
-    NODISCARD static HotkeyCommand deserialize(const QString &s);
+    NODISCARD static Hotkey deserialize(const QString &s);
 
-    NODISCARD bool operator==(const HotkeyCommand &other) const
-    {
-        return baseKey == other.baseKey && modifiers == other.modifiers;
-    }
+    NODISCARD bool operator==(const Hotkey &other) const { return m_hotkey == other.m_hotkey; }
+
+    NODISCARD HotkeyEnum toEnum() const { return m_hotkey; }
+    NODISCARD HotkeyEnum base() const;
+    NODISCARD uint8_t modifiers() const;
 
     NODISCARD static uint8_t qtModifiersToMask(Qt::KeyboardModifiers mods);
 };
@@ -54,8 +61,8 @@ public:
 class NODISCARD HotkeyManager final
 {
 private:
-    // O(1) runtime lookup table: [baseKey][modifierMask]
-    std::array<std::string, static_cast<size_t>(HotkeyKeyEnum::COUNT) * 16> m_lookupTable;
+    // Unordered map for O(1) runtime lookups
+    std::unordered_map<HotkeyEnum, std::string> m_hotkeys;
 
 public:
     HotkeyManager();
@@ -68,21 +75,23 @@ private:
 
 public:
     NODISCARD bool setHotkey(const QString &keyName, const QString &command);
-    NODISCARD bool setHotkey(const HotkeyCommand &hk, const std::string &command);
+    NODISCARD bool setHotkey(const Hotkey &hk, const std::string &command);
     void removeHotkey(const QString &keyName);
+    void removeHotkey(const Hotkey &hk);
 
     NODISCARD std::optional<std::string> getCommand(int key,
                                                     Qt::KeyboardModifiers modifiers,
                                                     bool isNumpad) const;
-    NODISCARD std::optional<std::string> getCommand(HotkeyKeyEnum key, uint8_t mask) const;
+    NODISCARD std::optional<std::string> getCommand(const Hotkey &hk) const;
     NODISCARD std::optional<std::string> getCommand(const QString &keyName) const;
     NODISCARD std::optional<QString> getCommandQString(int key,
                                                        Qt::KeyboardModifiers modifiers,
                                                        bool isNumpad) const;
-    NODISCARD std::optional<QString> getCommandQString(HotkeyKeyEnum key, uint8_t mask) const;
+    NODISCARD std::optional<QString> getCommandQString(const Hotkey &hk) const;
     NODISCARD std::optional<QString> getCommandQString(const QString &keyName) const;
 
     NODISCARD bool hasHotkey(const QString &keyName) const;
+    NODISCARD bool hasHotkey(const Hotkey &hk) const;
     NODISCARD std::vector<std::pair<QString, std::string>> getAllHotkeys() const;
 
     void resetToDefaults();
@@ -91,15 +100,10 @@ public:
     NODISCARD static std::vector<QString> getAvailableKeyNames();
     NODISCARD static std::vector<QString> getAvailableModifiers();
 
-    NODISCARD static HotkeyKeyEnum qtKeyToBaseKeyEnum(int key, bool isNumpad);
+    NODISCARD static HotkeyEnum qtKeyToHotkeyBase(int key, bool isNumpad);
+    NODISCARD static QString hotkeyBaseToName(HotkeyEnum base);
+    NODISCARD static HotkeyEnum nameToHotkeyBase(const QString &name);
 
 private:
     ChangeMonitor::Lifetime m_configLifetime;
-    NODISCARD static QString baseKeyEnumToName(HotkeyKeyEnum key);
-    NODISCARD static HotkeyKeyEnum nameToBaseKeyEnum(const QString &name);
-
-    NODISCARD static size_t calculateIndex(HotkeyKeyEnum key, uint8_t mods)
-    {
-        return (static_cast<size_t>(key) << 4) | (mods & 0xF);
-    }
 };

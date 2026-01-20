@@ -9,7 +9,7 @@
 #include <QDebug>
 #include <QSettings>
 
-uint8_t HotkeyCommand::qtModifiersToMask(Qt::KeyboardModifiers mods)
+uint8_t Hotkey::qtModifiersToMask(Qt::KeyboardModifiers mods)
 {
     uint8_t mask = 0;
     if (mods & Qt::ShiftModifier)
@@ -23,47 +23,61 @@ uint8_t HotkeyCommand::qtModifiersToMask(Qt::KeyboardModifiers mods)
     return mask;
 }
 
-QString HotkeyCommand::serialize() const
+Hotkey::Hotkey(HotkeyEnum base, uint8_t mods)
+{
+    if (base == HotkeyEnum::INVALID) {
+        m_hotkey = HotkeyEnum::INVALID;
+    } else {
+        m_hotkey = static_cast<HotkeyEnum>(static_cast<uint16_t>(base) + (mods & 0xF));
+    }
+}
+
+HotkeyEnum Hotkey::base() const
+{
+    if (!isValid())
+        return HotkeyEnum::INVALID;
+    return static_cast<HotkeyEnum>(static_cast<uint16_t>(m_hotkey) & 0xFFF0);
+}
+
+uint8_t Hotkey::modifiers() const
+{
+    if (!isValid())
+        return 0;
+    return static_cast<uint8_t>(static_cast<uint16_t>(m_hotkey) & 0xF);
+}
+
+QString Hotkey::serialize() const
 {
     if (!isValid())
         return QString();
 
     QStringList parts;
-    if (modifiers & 2)
+    uint8_t mods = modifiers();
+    if (mods & 2)
         parts << "CTRL";
-    if (modifiers & 1)
+    if (mods & 1)
         parts << "SHIFT";
-    if (modifiers & 4)
+    if (mods & 4)
         parts << "ALT";
-    if (modifiers & 8)
+    if (mods & 8)
         parts << "META";
 
-    QString keyName;
-#define X_NAME(id, name, key, numpad) \
-    case HotkeyKeyEnum::id: \
-        keyName = name; \
-        break;
-    switch (baseKey) {
-        XFOREACH_HOTKEY_BASE_KEYS(X_NAME)
-    case HotkeyKeyEnum::COUNT:
-    case HotkeyKeyEnum::INVALID:
-    default:
+    QString name = HotkeyManager::hotkeyBaseToName(base());
+    if (name.isEmpty())
         return QString();
-    }
-#undef X_NAME
 
-    parts << keyName;
+    parts << name;
     return parts.join("+");
 }
 
-HotkeyCommand HotkeyCommand::deserialize(const QString &s)
+Hotkey Hotkey::deserialize(const QString &s)
 {
     QStringList parts = s.toUpper().split('+', Qt::SkipEmptyParts);
     if (parts.isEmpty())
-        return HotkeyCommand();
+        return Hotkey();
 
     uint8_t mods = 0;
-    HotkeyKeyEnum baseKey = HotkeyKeyEnum::INVALID;
+    HotkeyEnum base = HotkeyEnum::INVALID;
 
     for (int i = 0; i < parts.size(); ++i) {
         QString part = parts[i].trimmed();
@@ -76,20 +90,14 @@ HotkeyCommand HotkeyCommand::deserialize(const QString &s)
         } else if (part == "META" || part == "CMD" || part == "COMMAND") {
             mods |= 8;
         } else {
-            // Assume it's the base key
-            baseKey = HotkeyManager::getAvailableKeyNames().size() > 0 ? [](const QString &name) {
-#define X_CHECK(id, str, key, numpad) \
-    if (name == str) \
-        return HotkeyKeyEnum::id;
-                XFOREACH_HOTKEY_BASE_KEYS(X_CHECK)
-#undef X_CHECK
-                return HotkeyKeyEnum::INVALID;
-            }(part)
-                                                                       : HotkeyKeyEnum::INVALID;
+            base = HotkeyManager::nameToHotkeyBase(part);
         }
     }
 
-    return HotkeyCommand(baseKey, mods);
+    if (base == HotkeyEnum::INVALID)
+        return Hotkey();
+
+    return Hotkey(base, mods);
 }
 
 HotkeyManager::HotkeyManager()
@@ -98,39 +106,37 @@ HotkeyManager::HotkeyManager()
                                                [this]() { this->syncFromConfig(); });
     syncFromConfig();
 
-    if (getAllHotkeys().empty()) {
+    if (m_hotkeys.empty()) {
         resetToDefaults();
     }
 }
 
 HotkeyManager::~HotkeyManager()
 {
-    // registerChangeCallback with Lifetime automatically unregisters
 }
 
 void HotkeyManager::syncFromConfig()
 {
-    m_lookupTable.fill(std::string());
+    m_hotkeys.clear();
     const QVariantMap &data = setConfig().hotkeys.data();
     for (auto it = data.begin(); it != data.end(); ++it) {
-        HotkeyCommand hk = HotkeyCommand::deserialize(it.key());
+        Hotkey hk = Hotkey::deserialize(it.key());
         if (hk.isValid()) {
-            m_lookupTable[calculateIndex(hk.baseKey, hk.modifiers)] = mmqt::toStdStringUtf8(
-                it.value().toString());
+            m_hotkeys[hk.toEnum()] = mmqt::toStdStringUtf8(it.value().toString());
         }
     }
 }
 
 bool HotkeyManager::setHotkey(const QString &keyName, const QString &command)
 {
-    HotkeyCommand hk = HotkeyCommand::deserialize(keyName);
+    Hotkey hk = Hotkey::deserialize(keyName);
     if (!hk.isValid())
         return false;
 
     return setHotkey(hk, mmqt::toStdStringUtf8(command));
 }
 
-bool HotkeyManager::setHotkey(const HotkeyCommand &hk, const std::string &command)
+bool HotkeyManager::setHotkey(const Hotkey &hk, const std::string &command)
 {
     if (!hk.isValid())
         return false;
@@ -143,7 +149,12 @@ bool HotkeyManager::setHotkey(const HotkeyCommand &hk, const std::string &comman
 
 void HotkeyManager::removeHotkey(const QString &keyName)
 {
-    HotkeyCommand hk = HotkeyCommand::deserialize(keyName);
+    Hotkey hk = Hotkey::deserialize(keyName);
+    removeHotkey(hk);
+}
+
+void HotkeyManager::removeHotkey(const Hotkey &hk)
+{
     if (hk.isValid()) {
         QVariantMap data = setConfig().hotkeys.data();
         data.remove(hk.serialize());
@@ -155,33 +166,29 @@ std::optional<std::string> HotkeyManager::getCommand(int key,
                                                      Qt::KeyboardModifiers modifiers,
                                                      bool isNumpad) const
 {
-    HotkeyKeyEnum baseKey = qtKeyToBaseKeyEnum(key, isNumpad);
-    if (baseKey == HotkeyKeyEnum::INVALID)
+    HotkeyEnum base = qtKeyToHotkeyBase(key, isNumpad);
+    if (base == HotkeyEnum::INVALID)
         return std::nullopt;
 
-    uint8_t mask = HotkeyCommand::qtModifiersToMask(modifiers);
-    return getCommand(baseKey, mask);
+    uint8_t mask = Hotkey::qtModifiersToMask(modifiers);
+    return getCommand(Hotkey(base, mask));
 }
 
-std::optional<std::string> HotkeyManager::getCommand(HotkeyKeyEnum key, uint8_t mask) const
+std::optional<std::string> HotkeyManager::getCommand(const Hotkey &hk) const
 {
-    if (key == HotkeyKeyEnum::INVALID)
+    if (!hk.isValid())
         return std::nullopt;
 
-    const std::string &command = m_lookupTable[calculateIndex(key, mask)];
-    if (command.empty())
+    auto it = m_hotkeys.find(hk.toEnum());
+    if (it == m_hotkeys.end())
         return std::nullopt;
-
-    return command;
+    return it->second;
 }
 
 std::optional<std::string> HotkeyManager::getCommand(const QString &keyName) const
 {
-    HotkeyCommand hk = HotkeyCommand::deserialize(keyName);
-    if (!hk.isValid())
-        return std::nullopt;
-
-    return getCommand(hk.baseKey, hk.modifiers);
+    Hotkey hk = Hotkey::deserialize(keyName);
+    return getCommand(hk);
 }
 
 std::optional<QString> HotkeyManager::getCommandQString(int key,
@@ -192,9 +199,9 @@ std::optional<QString> HotkeyManager::getCommandQString(int key,
     return command ? std::optional<QString>(mmqt::toQStringUtf8(*command)) : std::nullopt;
 }
 
-std::optional<QString> HotkeyManager::getCommandQString(HotkeyKeyEnum key, uint8_t mask) const
+std::optional<QString> HotkeyManager::getCommandQString(const Hotkey &hk) const
 {
-    auto command = getCommand(key, mask);
+    auto command = getCommand(hk);
     return command ? std::optional<QString>(mmqt::toQStringUtf8(*command)) : std::nullopt;
 }
 
@@ -209,17 +216,17 @@ bool HotkeyManager::hasHotkey(const QString &keyName) const
     return getCommand(keyName).has_value();
 }
 
+bool HotkeyManager::hasHotkey(const Hotkey &hk) const
+{
+    return getCommand(hk).has_value();
+}
+
 std::vector<std::pair<QString, std::string>> HotkeyManager::getAllHotkeys() const
 {
     std::vector<std::pair<QString, std::string>> result;
-    for (uint8_t i = 0; i < static_cast<uint8_t>(HotkeyKeyEnum::COUNT); ++i) {
-        for (uint8_t m = 0; m < 16; ++m) {
-            const std::string &cmd = m_lookupTable[calculateIndex(static_cast<HotkeyKeyEnum>(i), m)];
-            if (!cmd.empty()) {
-                HotkeyCommand hk(static_cast<HotkeyKeyEnum>(i), m);
-                result.emplace_back(hk.serialize(), cmd);
-            }
-        }
+    for (const auto &[key, cmd] : m_hotkeys) {
+        Hotkey hk(key);
+        result.emplace_back(hk.serialize(), cmd);
     }
     return result;
 }
@@ -252,32 +259,32 @@ std::vector<QString> HotkeyManager::getAvailableModifiers()
     return {"CTRL", "SHIFT", "ALT", "META"};
 }
 
-HotkeyKeyEnum HotkeyManager::qtKeyToBaseKeyEnum(int key, bool isNumpad)
+HotkeyEnum HotkeyManager::qtKeyToHotkeyBase(int key, bool isNumpad)
 {
 #define X_QT_CHECK(id, name, qkey, num) \
     if (key == qkey && isNumpad == num) \
-        return HotkeyKeyEnum::id;
+        return HotkeyEnum::id;
     XFOREACH_HOTKEY_BASE_KEYS(X_QT_CHECK)
 #undef X_QT_CHECK
-    return HotkeyKeyEnum::INVALID;
+    return HotkeyEnum::INVALID;
 }
 
-QString HotkeyManager::baseKeyEnumToName(HotkeyKeyEnum key)
+QString HotkeyManager::hotkeyBaseToName(HotkeyEnum base)
 {
 #define X_NAME_CHECK(id, name, qkey, num) \
-    if (key == HotkeyKeyEnum::id) \
+    if (base == HotkeyEnum::id) \
         return name;
     XFOREACH_HOTKEY_BASE_KEYS(X_NAME_CHECK)
 #undef X_NAME_CHECK
     return QString();
 }
 
-HotkeyKeyEnum HotkeyManager::nameToBaseKeyEnum(const QString &name)
+HotkeyEnum HotkeyManager::nameToHotkeyBase(const QString &name)
 {
 #define X_NAME_TO_ENUM(id, str, qkey, num) \
     if (name.toUpper() == QString(str).toUpper()) \
-        return HotkeyKeyEnum::id;
+        return HotkeyEnum::id;
     XFOREACH_HOTKEY_BASE_KEYS(X_NAME_TO_ENUM)
 #undef X_NAME_TO_ENUM
-    return HotkeyKeyEnum::INVALID;
+    return HotkeyEnum::INVALID;
 }

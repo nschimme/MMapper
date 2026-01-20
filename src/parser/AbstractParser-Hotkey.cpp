@@ -9,6 +9,7 @@
 #include "AbstractParser-Utils.h"
 #include "abstractparser.h"
 
+#include <algorithm>
 #include <ostream>
 #include <sstream>
 #include <vector>
@@ -37,120 +38,163 @@ std::ostream &ArgHotkeyName::virt_to_stream(std::ostream &os) const
     return os << "<key>";
 }
 
+namespace {
+QString getInstructionalError(const QString &keyCombo)
+{
+    QString error = "Error: ";
+    QStringList parts = keyCombo.split('+', Qt::SkipEmptyParts);
+
+    QString unrecognized;
+    for (const auto &part : parts) {
+        QString p = part.trimmed().toUpper();
+        if (p == "CTRL" || p == "SHIFT" || p == "ALT" || p == "META") {
+            continue;
+        }
+
+        bool found = false;
+#define X_CHECK(id, str, key, numpad) \
+    if (p == str) \
+        found = true;
+        XFOREACH_HOTKEY_BASE_KEYS(X_CHECK)
+#undef X_CHECK
+
+        if (!found) {
+            unrecognized = part.trimmed();
+            break;
+        }
+    }
+
+    if (unrecognized.isEmpty() && !keyCombo.isEmpty()) {
+        // Must be missing a base key (e.g., "CTRL+")
+        error += "\"" + keyCombo + "\" is missing a valid key.\n";
+    } else if (!unrecognized.isEmpty()) {
+        if (unrecognized.toUpper() == "COMMAND" || unrecognized.toUpper() == "CMD") {
+            error += "\"COMMAND\" is not a recognized modifier.\n";
+        } else {
+            error += "\"" + unrecognized + "\" is not recognized.\n";
+        }
+    } else {
+        error += "Invalid key combo.\n";
+    }
+
+    error += "Valid modifiers: CTRL, SHIFT, ALT, META\n";
+    error += "Valid keys include: F1-F12, 0-9, UP, DOWN, etc.\n";
+    error += "Try: \"-hotkey bind CTRL+G 75\"";
+    return error;
+}
+} // namespace
+
 void AbstractParser::parseHotkey(StringView input)
 {
     using namespace ::syntax;
     static const auto abb = syntax::abbrevToken;
 
-    // _hotkey set KEY command
-    auto setHotkey = Accept(
+    // -hotkey bind <key_combo> <command>
+    auto bindHotkey = Accept(
         [this](User &user, const Pair *const args) {
             auto &os = user.getOstream();
             const auto v = getAnyVectorReversed(args);
 
-            const auto keyName = mmqt::toQStringUtf8(v[1].getString());
-            const std::string cmdStr = concatenate_unquoted(v[2].getVector());
-            const auto command = mmqt::toQStringUtf8(cmdStr);
+            const QString keyName = mmqt::toQStringUtf8(v[1].getString());
+            const std::string cmdStr = v[2].isVector() ? concatenate_unquoted(v[2].getVector())
+                                                       : v[2].getString();
 
-            if (m_hotkeyManager.setHotkey(keyName, command)) {
-                os << "Hotkey set: " << mmqt::toStdStringUtf8(keyName.toUpper()) << " = " << cmdStr
+            Hotkey hk = Hotkey::deserialize(keyName);
+            if (!hk.isValid()) {
+                os << mmqt::toStdStringUtf8(getInstructionalError(keyName)) << "\n";
+                return;
+            }
+
+            if (m_hotkeyManager.setHotkey(hk, cmdStr)) {
+                os << "Hotkey bound: [" << mmqt::toStdStringUtf8(hk.serialize()) << "] -> " << cmdStr
                    << "\n";
                 send_ok(os);
             } else {
-                os << "Invalid key name: " << mmqt::toStdStringUtf8(keyName.toUpper()) << "\n";
-                os << "Use '_hotkey keys' to see available key names.\n";
+                os << "Failed to bind hotkey.\n";
             }
         },
-        "set hotkey");
+        "bind hotkey");
 
-    // _hotkey remove KEY
-    auto removeHotkey = Accept(
-        [this](User &user, const Pair *const args) {
-            auto &os = user.getOstream();
-            const auto v = getAnyVectorReversed(args);
-
-            const auto keyName = mmqt::toQStringUtf8(v[1].getString());
-
-            if (m_hotkeyManager.hasHotkey(keyName)) {
-                m_hotkeyManager.removeHotkey(keyName);
-                os << "Hotkey removed: " << mmqt::toStdStringUtf8(keyName.toUpper()) << "\n";
-            } else {
-                os << "No hotkey configured for: " << mmqt::toStdStringUtf8(keyName.toUpper())
-                   << "\n";
-            }
-            send_ok(os);
-        },
-        "remove hotkey");
-
-    // _hotkey config (list all)
+    // -hotkey list
     auto listHotkeys = Accept(
         [this](User &user, const Pair *) {
             auto &os = user.getOstream();
-            const auto &hotkeys = m_hotkeyManager.getAllHotkeys();
+            auto hotkeys = m_hotkeyManager.getAllHotkeys();
+            std::sort(hotkeys.begin(), hotkeys.end());
 
             if (hotkeys.empty()) {
                 os << "No hotkeys configured.\n";
             } else {
-                os << "Configured hotkeys:\n";
+                os << "Active Hotkeys:\n";
                 for (const auto &[key, cmd] : hotkeys) {
-                    // key is QString (needs conversion), cmd is already std::string
-                    os << "  " << mmqt::toStdStringUtf8(key) << " = " << cmd << "\n";
+                    os << "  [" << mmqt::toStdStringUtf8(key) << "] -> " << cmd << "\n";
                 }
+                os << "Total: " << hotkeys.size() << "\n";
             }
             send_ok(os);
         },
         "list hotkeys");
 
-    // _hotkey keys (show available keys)
-    auto listKeys = Accept(
-        [this](User &user, const Pair *) {
+    // -hotkey unbind <key_combo>
+    auto unbindHotkey = Accept(
+        [this](User &user, const Pair *const args) {
             auto &os = user.getOstream();
-            os << "Available key names:\n"
-               << "  Function keys: F1-F12\n"
-               << "  Numpad: NUMPAD0-9, NUMPAD_SLASH, NUMPAD_ASTERISK,\n"
-               << "          NUMPAD_MINUS, NUMPAD_PLUS, NUMPAD_PERIOD\n"
-               << "  Navigation: HOME, END, INSERT, PAGEUP, PAGEDOWN\n"
-               << "  Arrow keys: UP, DOWN, LEFT, RIGHT\n"
-               << "  Misc: ACCENT, 0-9, HYPHEN, EQUAL\n"
-               << "\n"
-               << "Available modifiers: CTRL, SHIFT, ALT, META\n"
-               << "\n"
-               << "Examples: CTRL+F1, SHIFT+NUMPAD8, ALT+F5\n";
-            send_ok(os);
-        },
-        "list available keys");
+            const auto v = getAnyVectorReversed(args);
+            const QString keyName = mmqt::toQStringUtf8(v[1].getString());
 
-    // _hotkey reset
-    auto resetHotkeys = Accept(
-        [this](User &user, const Pair *) {
-            auto &os = user.getOstream();
-            m_hotkeyManager.resetToDefaults();
-            os << "Hotkeys reset to defaults.\n";
-            send_ok(os);
+            Hotkey hk = Hotkey::deserialize(keyName);
+            if (!hk.isValid()) {
+                os << mmqt::toStdStringUtf8(getInstructionalError(keyName)) << "\n";
+                return;
+            }
+
+            if (m_hotkeyManager.hasHotkey(hk)) {
+                m_hotkeyManager.removeHotkey(hk);
+                os << "Hotkey unbound: [" << mmqt::toStdStringUtf8(hk.serialize()) << "]\n";
+                send_ok(os);
+            } else {
+                os << "No hotkey configured for: [" << mmqt::toStdStringUtf8(hk.serialize()) << "]\n";
+            }
         },
-        "reset to defaults");
+        "unbind hotkey");
 
     // Build syntax tree
-    auto setSyntax = buildSyntax(abb("set"),
-                                 TokenMatcher::alloc<ArgHotkeyName>(),
-                                 TokenMatcher::alloc<ArgRest>(),
-                                 setHotkey);
+    auto bindSyntax = buildSyntax(abb("bind"),
+                                  TokenMatcher::alloc<ArgHotkeyName>(),
+                                  TokenMatcher::alloc<ArgRest>(),
+                                  bindHotkey);
 
-    auto removeSyntax = buildSyntax(abb("remove"),
+    auto listSyntax = buildSyntax(abb("list"), listHotkeys);
+
+    auto unbindSyntax = buildSyntax(abb("unbind"),
                                     TokenMatcher::alloc<ArgHotkeyName>(),
-                                    removeHotkey);
+                                    unbindHotkey);
 
-    auto configSyntax = buildSyntax(abb("config"), listHotkeys);
+    // Basic syntax help trigger (if no arguments or invalid)
+    auto helpFn = [this](User &user, const Pair *) {
+        auto &os = user.getOstream();
+        os << "Basic syntax help:\n"
+           << "  -hotkey bind <key_combo> <command>\n"
+           << "  -hotkey list\n"
+           << "  -hotkey unbind <key_combo>\n"
+           << "\n"
+           << "Valid modifiers: CTRL, SHIFT, ALT, META\n"
+           << "Valid keys:\n";
 
-    auto keysSyntax = buildSyntax(abb("keys"), listKeys);
+        // Programmatically list all valid keys
+        auto keys = HotkeyManager::getAvailableKeyNames();
+        std::sort(keys.begin(), keys.end());
+        os << "  ";
+        for (size_t i = 0; i < keys.size(); ++i) {
+            os << mmqt::toStdStringUtf8(keys[i]) << (i == keys.size() - 1 ? "" : ", ");
+            if ((i + 1) % 8 == 0)
+                os << "\n  ";
+        }
+        os << "\n";
+        send_ok(os);
+    };
 
-    auto resetSyntax = buildSyntax(abb("reset"), resetHotkeys);
-
-    auto hotkeyUserSyntax = buildSyntax(setSyntax,
-                                        removeSyntax,
-                                        configSyntax,
-                                        keysSyntax,
-                                        resetSyntax);
+    auto hotkeyUserSyntax = buildSyntax(bindSyntax, listSyntax, unbindSyntax, Accept(helpFn, "help"));
 
     eval("hotkey", hotkeyUserSyntax, input);
 }

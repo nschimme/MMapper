@@ -1,0 +1,126 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2026 The MMapper Authors
+
+#include "Hotkey.h"
+
+#include "../global/CaseUtils.h"
+#include "../global/CharUtils.h"
+#include "../global/ConfigConsts-Computed.h"
+#include "../global/TextUtils.h"
+
+#include <sstream>
+
+Hotkey::Hotkey(HotkeyEnum base, HotkeyModifiers mods)
+    : m_base(base)
+    , m_modifiers(mods)
+{}
+
+Hotkey::Hotkey(const QString &s)
+    : Hotkey(mmqt::toStdStringUtf8(s))
+{}
+
+Hotkey::Hotkey(std::string_view s)
+{
+    if (s.empty()) {
+        return;
+    }
+
+    size_t start = 0;
+    size_t end = s.find('+');
+    while (true) {
+        std::string part = std::invoke([&s, &start, &end]() {
+            std::string_view sv = (end == std::string::npos) ? s.substr(start)
+                                                             : s.substr(start, end - start);
+            // Trim whitespace
+            while (!sv.empty() && ascii::isSpace(sv.front())) {
+                sv.remove_prefix(1);
+            }
+            while (!sv.empty() && ascii::isSpace(sv.back())) {
+                sv.remove_suffix(1);
+            }
+
+            return ::toUpperUtf8(sv);
+        });
+
+        if (!part.empty()) {
+#define X_PARSE(id, camel, qtenum) \
+    if (part == #id) { \
+        m_modifiers.insert(HotkeyModifierEnum::id); \
+    } else
+            XFOREACH_HOTKEY_MODIFIER(X_PARSE)
+            {
+                // Not a modifier, check if its a valid base key
+#define X_NAME_TO_ENUM(id, str, qkey, pol) \
+    if (part == str) { \
+        m_base = HotkeyEnum::id; \
+        m_policy = pol; \
+    } else
+                XFOREACH_HOTKEY_BASE_KEYS(X_NAME_TO_ENUM)
+#undef X_NAME_TO_ENUM
+                // Not a valid base key
+                m_base = HotkeyEnum::INVALID;
+            }
+#undef X_PARSE
+        }
+
+        if (end == std::string::npos) {
+            break;
+        }
+        start = end + 1;
+        end = s.find('+', start);
+    }
+}
+
+Hotkey::Hotkey(Qt::Key key, Qt::KeyboardModifiers modifiers)
+{
+    bool isNumpad = modifiers & Qt::KeypadModifier;
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Mac) {
+        if (key == Qt::Key_Up || key == Qt::Key_Down || key == Qt::Key_Left
+            || key == Qt::Key_Right) {
+            isNumpad = false;
+        }
+    }
+
+    assert(m_base == HotkeyEnum::INVALID);
+#define X_BASE(id, name, qk, pol) \
+    if (key == qk && ((pol == HotkeyPolicyEnum::Keypad) == isNumpad)) { \
+        m_base = HotkeyEnum::id; \
+        m_policy = pol; \
+    }
+    XFOREACH_HOTKEY_BASE_KEYS(X_BASE)
+#undef X_BASE
+    if (m_base == HotkeyEnum::INVALID) {
+        return;
+    }
+
+#define X_MODIFIER(id, camel, qtenum) \
+    if (modifiers & qtenum) { \
+        m_modifiers.insert(HotkeyModifierEnum::id); \
+    }
+    XFOREACH_HOTKEY_MODIFIER(X_MODIFIER)
+#undef X_MODIFIER
+}
+
+std::string Hotkey::to_string() const
+{
+    std::stringstream oss;
+#define X_STR(id, camel, qtenum) \
+    if (modifiers().is##camel()) { \
+        oss << #id << "+"; \
+    }
+    XFOREACH_HOTKEY_MODIFIER(X_STR)
+#undef X_STR
+
+    switch (base()) {
+#define X_SERIALIZE(id, name, qkey, policy) \
+    case HotkeyEnum::id: \
+        oss << name; \
+        break;
+        XFOREACH_HOTKEY_BASE_KEYS(X_SERIALIZE)
+#undef X_SERIALIZE
+    case HotkeyEnum::INVALID:
+        assert(false);
+        return {};
+    }
+    return oss.str();
+}

@@ -271,6 +271,8 @@ public:
 
     NODISCARD HotkeyManager &getHotkeyManager() const { return *m_hotkeyManager; }
 
+    NODISCARD bool isConnected() const;
+
     NODISCARD bool saveFile(const QString &fileName, SaveModeEnum mode, SaveFormatEnum format);
     void loadFile(std::shared_ptr<MapSource> source);
     void setCurrentFile(const QString &fileName);

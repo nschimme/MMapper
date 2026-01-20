@@ -189,6 +189,8 @@ public:
                    ConnectionListener &);
     ~Proxy() final;
 
+    NODISCARD bool isConnected() const;
+
 private:
     void init();
 
@@ -215,7 +217,6 @@ private:
 
 private:
     friend ProxyMudConnectionApi;
-    NODISCARD bool isConnected() const;
     void connectToMud();
     void disconnectFromMud();
 

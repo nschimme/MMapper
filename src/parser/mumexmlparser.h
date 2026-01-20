@@ -86,6 +86,7 @@ public:
                            GroupManagerApi &,
                            GameObserver &,
                            HotkeyManager &,
+                           RemoteEdit &,
                            QObject *parent,
                            AbstractParserOutputs &outputs,
                            ParserCommonData &parserCommonData);

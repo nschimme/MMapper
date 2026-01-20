@@ -14,6 +14,8 @@
 #include <QtCore>
 #include <QtGlobal>
 
+#include <functional>
+
 class RemoteEdit;
 class RemoteEditProcess;
 class RemoteEditWidget;
@@ -52,14 +54,21 @@ struct NODISCARD RemoteSessionId final
 
 // Internally shared across all view sessions
 static inline const RemoteSessionId REMOTE_VIEW_SESSION_ID = RemoteSessionId(-1);
+// Internally shared across all internal edit sessions
+static inline const RemoteSessionId REMOTE_INTERNAL_EDIT_SESSION_ID = RemoteSessionId(-2);
 
 class NODISCARD_QOBJECT RemoteEditSession : public QObject
 {
     Q_OBJECT
 
 private:
+    friend class RemoteEdit;
+
+private:
     RemoteEdit *m_manager = nullptr;
     QString m_content;
+    std::function<void(QString)> m_onSave;
+    std::function<void()> m_onCancel;
     const RemoteInternalId m_internalId{};
     const RemoteSessionId m_sessionId = REMOTE_VIEW_SESSION_ID;
     bool m_connected = true;

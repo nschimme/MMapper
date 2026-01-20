@@ -149,10 +149,6 @@ private:
     // because it's intended for sendXXX within the lifetime of this object.
     Signal2Lifetime m_lifetime;
 
-    // Technically we create this, but we don't "own" it;
-    // it outlives this object when the connection closes.
-    QPointer<RemoteEdit> m_remoteEdit;
-
     enum class NODISCARD ServerStateEnum {
         Initialized,
         Offline,
@@ -202,7 +198,6 @@ private:
     void allocMudTelnet();
     void allocParser();
     void allocMpiFilter();
-    void allocRemoteEdit();
 
 private:
     void processUserStream();

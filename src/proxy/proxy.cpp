@@ -188,10 +188,10 @@ Proxy::~Proxy()
     }
 
     {
-        auto &remoteEdit = deref(m_remoteEdit);
+        auto &remoteEdit = getRemoteEdit();
         remoteEdit.onDisconnected();
-        remoteEdit.disconnect(); // disconnect all signals
-        remoteEdit.deleteLater();
+        // Caution: Don't disconnect all signals or deleteLater here,
+        // because RemoteEdit is now owned by MainWindow and shared.
     }
 
     destroyPipelineObjects();
@@ -233,7 +233,6 @@ void Proxy::allocPipelineObjects()
     allocMudTelnet();
 
     allocMpiFilter();
-    allocRemoteEdit();
 
     allocParser();
 
@@ -725,6 +724,7 @@ void Proxy::allocParser()
                                                          m_groupManager.getGroupManagerApi(),
                                                          m_gameObserver,
                                                          m_mainWindow.getHotkeyManager(),
+                                                         m_mainWindow.getRemoteEdit(),
                                                          this,
                                                          deref(out),
                                                          deref(parserCommon));
@@ -734,6 +734,7 @@ void Proxy::allocParser()
                                                             deref(gmcp),
                                                             m_groupManager.getGroupManagerApi(),
                                                             m_mainWindow.getHotkeyManager(),
+                                                            m_mainWindow.getRemoteEdit(),
                                                             this,
                                                             deref(out),
                                                             deref(parserCommon));
@@ -811,16 +812,6 @@ void Proxy::allocMpiFilter()
         }
     };
 
-    auto &pipe = getPipeline();
-    auto &out = pipe.outputs.mud.mpiFilterOutputs = std::make_unique<LocalMpiFilterOutputs>(*this);
-    pipe.mud.mpiFilterFromMud = std::make_unique<MpiFilter>(deref(out));
-}
-
-void Proxy::allocRemoteEdit()
-{
-    // Caution: RemoteEdit outlives the proxy, since it manages windows.
-    m_remoteEdit = mmqt::makeQPointer<RemoteEdit>(&m_mainWindow);
-
     struct NODISCARD LocalMpiFilterToMud final : public MpiFilterToMud
     {
     private:
@@ -839,9 +830,11 @@ void Proxy::allocRemoteEdit()
     };
 
     auto &pipe = getPipeline();
+    auto &out = pipe.outputs.mud.mpiFilterOutputs = std::make_unique<LocalMpiFilterOutputs>(*this);
+    pipe.mud.mpiFilterFromMud = std::make_unique<MpiFilter>(deref(out));
     pipe.mud.mpiFilterToMud = std::make_unique<LocalMpiFilterToMud>(*this);
 
-    auto &remoteEdit = deref(m_remoteEdit);
+    auto &remoteEdit = m_mainWindow.getRemoteEdit();
     QObject::connect(&remoteEdit,
                      &RemoteEdit::sig_remoteEditCancel,
                      this,
@@ -854,6 +847,7 @@ void Proxy::allocRemoteEdit()
                          getMpiFilterToMud().saveRemoteEdit(id, content);
                      });
 }
+
 
 void Proxy::init()
 {
@@ -1184,5 +1178,5 @@ void Proxy::log(const QString &msg)
 
 RemoteEdit &Proxy::getRemoteEdit()
 {
-    return deref(m_remoteEdit);
+    return m_mainWindow.getRemoteEdit();
 }

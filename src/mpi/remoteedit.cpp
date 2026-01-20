@@ -37,6 +37,25 @@ void RemoteEdit::slot_remoteEdit(const RemoteSessionId sessionId,
     addSession(sessionId, title, body);
 }
 
+void RemoteEdit::startInternalEdit(const QString &title,
+                                   const QString &body,
+                                   std::function<void(QString)> onSave,
+                                   std::function<void()> onCancel)
+{
+    addSession(REMOTE_INTERNAL_EDIT_SESSION_ID, title, body);
+    const auto internalId = RemoteInternalId{m_greatestUsedId};
+    const auto search = m_sessions.find(internalId);
+    if (search != m_sessions.end()) {
+        search->second->m_onSave = std::move(onSave);
+        search->second->m_onCancel = std::move(onCancel);
+    }
+}
+
+void RemoteEdit::startInternalView(const QString &title, const QString &body)
+{
+    addSession(REMOTE_VIEW_SESSION_ID, title, body);
+}
+
 void RemoteEdit::addSession(const RemoteSessionId sessionId,
                             const QString &title,
                             const QString &body)
@@ -86,7 +105,9 @@ void RemoteEdit::cancel(const RemoteEditSession *const pSession)
 {
     auto &session = deref(pSession);
 
-    if (session.isEditSession() && session.isConnected()) {
+    if (session.m_onCancel) {
+        session.m_onCancel();
+    } else if (session.isEditSession() && session.isConnected()) {
         qDebug() << "Cancelling session" << session.getSessionId().asInt32();
         emit sig_remoteEditCancel(session.getSessionId());
     }
@@ -97,7 +118,11 @@ void RemoteEdit::cancel(const RemoteEditSession *const pSession)
 void RemoteEdit::save(const RemoteEditSession *const pSession)
 {
     auto &session = deref(pSession);
-    trySave(session);
+    if (session.m_onSave) {
+        session.m_onSave(session.getContent());
+    } else {
+        trySave(session);
+    }
     removeSession(session);
 }
 
@@ -159,7 +184,7 @@ void RemoteEdit::onDisconnected()
     for (const auto &pair : m_sessions) {
         const auto &id = pair.first;
         const auto &session = pair.second;
-        if (session->isEditSession()) {
+        if (session->isEditSession() && !session->m_onSave) {
             qWarning() << "Session" << id.asUint32() << "marked as disconnected";
             session->setDisconnected();
         }

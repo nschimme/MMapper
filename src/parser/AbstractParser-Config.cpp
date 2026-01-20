@@ -10,7 +10,7 @@
 #include "../global/Consts.h"
 #include "../global/NamedColors.h"
 #include "../global/PrintUtils.h"
-#include "../mpi/remoteeditwidget.h"
+#include "../mpi/remoteedit.h"
 #include "../proxy/proxy.h"
 #include "../syntax/SyntaxArgs.h"
 #include "../syntax/TreeParser.h"
@@ -391,44 +391,34 @@ void AbstractParser::doConfig(const StringView cmd)
                             return;
                         }
 
-                        // REVISIT: Ideally we support external editor as well
-                        auto *editor = new RemoteEditWidget(true,
-                                                            "MMapper Client Configuration",
-                                                            content,
-                                                            nullptr);
-                        QObject::connect(editor,
-                                         &RemoteEditWidget::sig_save,
-                                         [weakParser = QPointer<AbstractParser>(this)](
-                                             const QString &edited) {
-                                             if (weakParser.isNull()) {
-                                                 return;
-                                             }
+                        getRemoteEdit().startInternalEdit(
+                            "MMapper Client Configuration",
+                            content,
+                            [weakParser = QPointer<AbstractParser>(this)](const QString &edited) {
+                                if (weakParser.isNull()) {
+                                    return;
+                                }
 
-                                             QTemporaryFile tempRead(QDir::tempPath()
-                                                                     + "/mmapper_XXXXXX.ini");
-                                             tempRead.setAutoRemove(true);
-                                             if (tempRead.open()) {
-                                                 QString name = tempRead.fileName();
-                                                 tempRead.write(edited.toUtf8());
-                                                 tempRead.close();
+                                QTemporaryFile tempRead(QDir::tempPath() + "/mmapper_XXXXXX.ini");
+                                tempRead.setAutoRemove(true);
+                                if (tempRead.open()) {
+                                    QString name = tempRead.fileName();
+                                    tempRead.write(edited.toUtf8());
+                                    tempRead.close();
 
-                                                 {
-                                                     auto &cfg = setConfig();
-                                                     QSettings settings(name, QSettings::IniFormat);
-                                                     cfg.readFrom(settings);
-                                                     cfg.write();
-                                                 }
+                                    {
+                                        auto &cfg = setConfig();
+                                        QSettings settings(name, QSettings::IniFormat);
+                                        cfg.readFrom(settings);
+                                        cfg.write();
+                                    }
 
-                                                 weakParser->sendToUser(
-                                                     SendToUserSourceEnum::FromMMapper,
-                                                     "\nConfiguration imported and persisted.\n");
-                                                 weakParser->sendOkToUser();
-                                             }
-                                         });
-
-                        editor->setAttribute(Qt::WA_DeleteOnClose);
-                        editor->show();
-                        editor->activateWindow();
+                                    weakParser->sendToUser(
+                                        SendToUserSourceEnum::FromMMapper,
+                                        "\nConfiguration imported and persisted.\n");
+                                    weakParser->sendOkToUser();
+                                }
+                            });
                     },
                     "edit client configuration")),
             syn("factory",

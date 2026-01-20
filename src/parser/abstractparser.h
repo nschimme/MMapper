@@ -46,6 +46,7 @@
 
 class Coordinate;
 class HotkeyManager;
+class RemoteEdit;
 class MapData;
 class MumeClock;
 class RoomFieldVariant;
@@ -168,6 +169,7 @@ protected:
 protected:
     GroupManagerApi &m_group;
     HotkeyManager &m_hotkeyManager;
+    RemoteEdit &m_remoteEdit;
     ProxyUserGmcpApi &m_proxyUserGmcp;
     AbstractParserOutputs &m_outputs;
 
@@ -180,6 +182,7 @@ protected:
                           MapData &mapData,
                           GroupManagerApi &group,
                           HotkeyManager &hotkeyManager,
+                          RemoteEdit &remoteEdit,
                           ProxyUserGmcpApi &proxyUserGmcp,
                           AbstractParserOutputs &outputs,
                           ParserCommonData &commonData)
@@ -188,6 +191,7 @@ protected:
         , m_mapData{mapData}
         , m_group{group}
         , m_hotkeyManager{hotkeyManager}
+        , m_remoteEdit{remoteEdit}
         , m_proxyUserGmcp{proxyUserGmcp}
         , m_outputs{outputs}
         , m_commonData{commonData}
@@ -275,6 +279,7 @@ protected:
                                MapData &mapData,
                                GroupManagerApi &group,
                                HotkeyManager &hotkeyManager,
+                               RemoteEdit &remoteEdit,
                                ProxyUserGmcpApi &proxyUserGmcp,
                                AbstractParserOutputs &outputs,
                                ParserCommonData &parserCommonData)
@@ -283,6 +288,7 @@ protected:
                        mapData,
                        group,
                        hotkeyManager,
+                       remoteEdit,
                        proxyUserGmcp,
                        outputs,
                        parserCommonData}
@@ -352,6 +358,7 @@ public:
                             ProxyUserGmcpApi &,
                             GroupManagerApi &,
                             HotkeyManager &,
+                            RemoteEdit &,
                             QObject *parent,
                             AbstractParserOutputs &outputs,
                             ParserCommonData &commonData);
@@ -433,6 +440,9 @@ public:
         return self;
     }
     inline void sendOkToUser() { send_ok(*this); }
+
+protected:
+    NODISCARD RemoteEdit &getRemoteEdit() { return m_remoteEdit; }
 
 protected:
     void mapChanged() { m_outputs.onMapChanged(); }

@@ -17,6 +17,8 @@
 #include <QtCore>
 #include <QtGlobal>
 
+#include <functional>
+
 class RemoteEditSession;
 
 class NODISCARD_QOBJECT RemoteEdit final : public QObject
@@ -57,6 +59,13 @@ private:
 signals:
     void sig_remoteEditCancel(const RemoteSessionId sessionId);
     void sig_remoteEditSave(const RemoteSessionId sessionId, const Latin1Bytes &content);
+
+public:
+    void startInternalEdit(const QString &title,
+                           const QString &body,
+                           std::function<void(QString)> onSave,
+                           std::function<void()> onCancel = nullptr);
+    void startInternalView(const QString &title, const QString &body);
 
 public slots:
     void slot_remoteView(const QString &, const QString &);

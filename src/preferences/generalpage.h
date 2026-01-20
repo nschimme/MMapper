@@ -30,6 +30,7 @@ public:
 
 signals:
     void sig_factoryReset();
+    void sig_configImported();
 
 public slots:
     void slot_loadConfig();
@@ -48,4 +49,6 @@ public slots:
     void slot_displayMumeClockStateChanged(int);
     void slot_displayXPStatusStateChanged(int);
     void slot_themeComboBoxChanged(int);
+    void slot_configurationExportButtonClicked();
+    void slot_configurationImportButtonClicked();
 };

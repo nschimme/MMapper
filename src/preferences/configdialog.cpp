@@ -66,6 +66,10 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
         qDebug() << "Reloading config due to factory reset";
         emit sig_loadConfig();
     });
+    connect(generalPage, &GeneralPage::sig_configImported, this, [this]() {
+        qDebug() << "Reloading config due to import";
+        emit sig_loadConfig();
+    });
     connect(this, &ConfigDialog::sig_loadConfig, generalPage, &GeneralPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, graphicsPage, &GraphicsPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, parserPage, &ParserPage::slot_loadConfig);

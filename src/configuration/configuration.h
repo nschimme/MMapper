@@ -43,6 +43,9 @@ public:
     void write() const;
     void reset();
 
+    void readFrom(QSettings &conf);
+    void writeTo(QSettings &conf) const;
+
 public:
     struct NODISCARD GeneralSettings final
     {
@@ -415,8 +418,7 @@ public:
         SUBGROUP();
     } findRoomsDialog;
 
-    // Configuration groups
-    GroupConfig hotkeys{"IntegratedClient/Hotkeys"};
+    GroupConfig hotkeys;
 
 public:
     DELETE_CTORS_AND_ASSIGN_OPS(Configuration);

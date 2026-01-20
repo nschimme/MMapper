@@ -55,11 +55,6 @@ NODISCARD const char *getPlatformEditor()
 
 } // namespace
 
-Configuration::Configuration()
-{
-    read(); // read the settings or set them to the default values
-}
-
 /*
  * TODO: Make a dialog asking if the user wants to import settings
  * from an older version of MMapper, and then change the organization name
@@ -199,6 +194,7 @@ ConstString GRP_CONNECTION = "Connection";
 ConstString GRP_FINDROOMS_DIALOG = "FindRooms Dialog";
 ConstString GRP_GENERAL = "General";
 ConstString GRP_GROUP_MANAGER = "Group Manager";
+ConstString GRP_HOTKEYS = "Hotkeys";
 ConstString GRP_INFOMARKS_DIALOG = "InfoMarks Dialog";
 ConstString GRP_INTEGRATED_MUD_CLIENT = "Integrated Mud Client";
 ConstString GRP_MUME_CLIENT_PROTOCOL = "Mume client protocol";
@@ -208,6 +204,12 @@ ConstString GRP_PARSER = "Parser";
 ConstString GRP_PATH_MACHINE = "Path Machine";
 ConstString GRP_ROOM_PANEL = "Room Panel";
 ConstString GRP_ROOMEDIT_DIALOG = "RoomEdit Dialog";
+
+Configuration::Configuration()
+    : hotkeys(GRP_HOTKEYS)
+{
+    read(); // read the settings or set them to the default values
+}
 
 ConstString KEY_ABSOLUTE_PATH_ACCEPTANCE = "absolute path acceptance";
 ConstString KEY_ACCOUNT_NAME = "account name";
@@ -485,19 +487,27 @@ NODISCARD static uint16_t sanitizeUint16(const int input, const uint16_t default
         GROUP_CALLBACK(callback, GRP_ROOMEDIT_DIALOG, roomEditDialog); \
         GROUP_CALLBACK(callback, GRP_ROOM_PANEL, roomPanel); \
         GROUP_CALLBACK(callback, GRP_FINDROOMS_DIALOG, findRoomsDialog); \
+        GROUP_CALLBACK(callback, GRP_HOTKEYS, hotkeys); \
     } while (false)
 
 void Configuration::read()
 {
+    SETTINGS(conf);
+    readFrom(conf);
+}
+
+void Configuration::write() const
+{
+    SETTINGS(conf);
+    writeTo(conf);
+}
+
+void Configuration::readFrom(QSettings &conf)
+{
     // reset to defaults before reading colors that might override them
     colorSettings.resetToDefaults();
 
-    SETTINGS(conf);
     FOREACH_CONFIG_GROUP(read);
-
-    conf.beginGroup(hotkeys.getName());
-    hotkeys.read(conf);
-    conf.endGroup();
 
     // This logic only runs once on a MMapper fresh install (or factory reset)
     // Subsequent MMapper starts will always read "firstRun" as false
@@ -519,14 +529,9 @@ void Configuration::read()
            && !colorSettings.BACKGROUND.getColor().isTransparent());
 }
 
-void Configuration::write() const
+void Configuration::writeTo(QSettings &conf) const
 {
-    SETTINGS(conf);
     FOREACH_CONFIG_GROUP(write);
-
-    conf.beginGroup(hotkeys.getName());
-    hotkeys.write(conf);
-    conf.endGroup();
 }
 
 void Configuration::reset()

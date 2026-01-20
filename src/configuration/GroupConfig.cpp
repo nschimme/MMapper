@@ -9,24 +9,30 @@ GroupConfig::GroupConfig(QString groupName)
     : m_groupName(std::move(groupName))
 {}
 
-void GroupConfig::registerCallbacks(ReadCallback readCallback, WriteCallback writeCallback)
-{
-    m_readCallback = std::move(readCallback);
-    m_writeCallback = std::move(writeCallback);
-}
-
 void GroupConfig::read(const QSettings &settings)
 {
-    if (m_readCallback) {
-        m_readCallback(settings);
+    QVariantMap newData;
+    for (const QString &key : settings.childKeys()) {
+        newData[key] = settings.value(key);
     }
+    setData(std::move(newData));
 }
 
 void GroupConfig::write(QSettings &settings) const
 {
-    if (m_writeCallback) {
-        m_writeCallback(settings);
+    settings.remove(""); // clear the current group
+    for (auto it = m_data.begin(); it != m_data.end(); ++it) {
+        settings.setValue(it.key(), it.value());
     }
+}
+
+void GroupConfig::setData(QVariantMap data)
+{
+    if (m_data == data) {
+        return;
+    }
+    m_data = std::move(data);
+    notifyChanged();
 }
 
 void GroupConfig::notifyChanged()

@@ -146,7 +146,7 @@ int main(int argc, char **argv)
     auto mw = std::make_unique<MainWindow>();
     tryAutoLoadMap(*mw);
     const int ret = QApplication::exec();
-    mw.reset();
     getConfig().write();
+    mw.reset();
     return ret;
 }

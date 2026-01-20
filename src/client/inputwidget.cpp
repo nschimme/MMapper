@@ -3,11 +3,11 @@
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
 #include "inputwidget.h"
-#include "ClientWidget.h"
-#include "HotkeyManager.h"
 
 #include "../configuration/configuration.h"
 #include "../global/Color.h"
+#include "ClientWidget.h"
+#include "HotkeyManager.h"
 
 #include <QFont>
 #include <QMessageLogContext>
@@ -94,7 +94,15 @@ void InputWidget::keyPressEvent(QKeyEvent *const event)
         }
     }
 
-    // 1. Try Hotkeys FIRST
+    // 1. Command History (bare Up/Down)
+    if (key == Qt::Key_Up || key == Qt::Key_Down) {
+        if (tryHistory(key)) {
+            event->accept();
+            return;
+        }
+    }
+
+    // 2. Try Hotkeys
     const auto baseKey = HotkeyManager::qtKeyToBaseKeyEnum(key, mods & Qt::KeypadModifier);
     if (baseKey != HotkeyKeyEnum::INVALID) {
         const HotkeyCommand hk(baseKey, HotkeyCommand::qtModifiersToMask(mods));
@@ -105,18 +113,10 @@ void InputWidget::keyPressEvent(QKeyEvent *const event)
         }
     }
 
-    // 2. Terminal Shortcuts (Ctrl+U, Ctrl+W, Ctrl+H)
+    // 3. Terminal Shortcuts (Ctrl+U, Ctrl+W, Ctrl+H)
     if ((mods & (Qt::ControlModifier | Qt::MetaModifier)) && handleTerminalShortcut(key)) {
         event->accept();
         return;
-    }
-
-    // 3. Command History (bare Up/Down)
-    if (mods == Qt::NoModifier && (key == Qt::Key_Up || key == Qt::Key_Down)) {
-        if (tryHistory(key)) {
-            event->accept();
-            return;
-        }
     }
 
     // 4. Scrolling (bare PageUp/PageDown)

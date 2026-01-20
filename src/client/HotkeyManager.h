@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
 
+#include "../global/ChangeMonitor.h"
 #include "../global/RuleOf5.h"
 #include "../global/macros.h"
 #include "HotkeyMacros.h"
@@ -16,8 +17,7 @@ class QSettings;
 #include <QString>
 #include <Qt>
 
-enum class HotkeyKeyEnum : uint8_t
-{
+enum class HotkeyKeyEnum : uint8_t {
 #define X_ENUM(id, name, key, numpad) id,
     XFOREACH_HOTKEY_BASE_KEYS(X_ENUM)
 #undef X_ENUM
@@ -59,13 +59,14 @@ private:
 
 public:
     HotkeyManager();
-    ~HotkeyManager() = default;
+    ~HotkeyManager();
 
     DELETE_CTORS_AND_ASSIGN_OPS(HotkeyManager);
 
-    void read(const QSettings &settings);
-    void write(QSettings &settings);
+private:
+    void syncFromConfig();
 
+public:
     NODISCARD bool setHotkey(const QString &keyName, const QString &command);
     NODISCARD bool setHotkey(const HotkeyCommand &hk, const std::string &command);
     void removeHotkey(const QString &keyName);
@@ -93,6 +94,7 @@ public:
     NODISCARD static HotkeyKeyEnum qtKeyToBaseKeyEnum(int key, bool isNumpad);
 
 private:
+    ChangeMonitor::Lifetime m_configLifetime;
     NODISCARD static QString baseKeyEnumToName(HotkeyKeyEnum key);
     NODISCARD static HotkeyKeyEnum nameToBaseKeyEnum(const QString &name);
 

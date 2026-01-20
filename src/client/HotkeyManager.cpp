@@ -75,14 +75,15 @@ HotkeyCommand HotkeyCommand::deserialize(const QString &s)
             mods |= 8;
         } else {
             // Assume it's the base key
-            baseKey = HotkeyManager::getAvailableKeyNames().size() > 0
-                          ? [] (const QString& name) {
-#define X_CHECK(id, str, key, numpad) if (name == str) return HotkeyKeyEnum::id;
-                              XFOREACH_HOTKEY_BASE_KEYS(X_CHECK)
+            baseKey = HotkeyManager::getAvailableKeyNames().size() > 0 ? [](const QString &name) {
+#define X_CHECK(id, str, key, numpad) \
+    if (name == str) \
+        return HotkeyKeyEnum::id;
+                XFOREACH_HOTKEY_BASE_KEYS(X_CHECK)
 #undef X_CHECK
-                              return HotkeyKeyEnum::INVALID;
-                          }(part)
-                          : HotkeyKeyEnum::INVALID;
+                return HotkeyKeyEnum::INVALID;
+            }(part)
+                                                                       : HotkeyKeyEnum::INVALID;
         }
     }
 
@@ -91,39 +92,30 @@ HotkeyCommand HotkeyCommand::deserialize(const QString &s)
 
 HotkeyManager::HotkeyManager()
 {
-    auto &group = setConfig().hotkeys;
-    group.registerCallbacks([this](const QSettings &s) { this->read(s); },
-                            [this](QSettings &s) { this->write(s); });
+    setConfig().hotkeys.registerChangeCallback(m_configLifetime,
+                                               [this]() { this->syncFromConfig(); });
+    syncFromConfig();
 
-    // Initial read
-    QSettings settings;
-    settings.beginGroup(group.getName());
-    read(settings);
-    settings.endGroup();
-}
-
-void HotkeyManager::read(const QSettings &settings)
-{
-    clear();
-    const QStringList keys = settings.childKeys();
-    if (keys.isEmpty()) {
+    if (getAllHotkeys().empty()) {
         resetToDefaults();
-        return;
-    }
-
-    for (const QString &key : keys) {
-        HotkeyCommand hk = HotkeyCommand::deserialize(key);
-        if (hk.isValid()) {
-            std::ignore = setHotkey(hk, mmqt::toStdStringUtf8(settings.value(key).toString()));
-        }
     }
 }
 
-void HotkeyManager::write(QSettings &settings)
+HotkeyManager::~HotkeyManager()
 {
-    settings.clear();
-    for (const auto &hk : getAllHotkeys()) {
-        settings.setValue(hk.first, mmqt::toQStringUtf8(hk.second));
+    // registerChangeCallback with Lifetime automatically unregisters
+}
+
+void HotkeyManager::syncFromConfig()
+{
+    m_lookupTable.fill(std::string());
+    const QVariantMap &data = setConfig().hotkeys.data();
+    for (auto it = data.begin(); it != data.end(); ++it) {
+        HotkeyCommand hk = HotkeyCommand::deserialize(it.key());
+        if (hk.isValid()) {
+            m_lookupTable[calculateIndex(hk.baseKey, hk.modifiers)] = mmqt::toStdStringUtf8(
+                it.value().toString());
+        }
     }
 }
 
@@ -141,8 +133,9 @@ bool HotkeyManager::setHotkey(const HotkeyCommand &hk, const std::string &comman
     if (!hk.isValid())
         return false;
 
-    m_lookupTable[calculateIndex(hk.baseKey, hk.modifiers)] = command;
-    setConfig().hotkeys.notifyChanged();
+    QVariantMap data = setConfig().hotkeys.data();
+    data[hk.serialize()] = mmqt::toQStringUtf8(command);
+    setConfig().hotkeys.setData(std::move(data));
     return true;
 }
 
@@ -150,8 +143,9 @@ void HotkeyManager::removeHotkey(const QString &keyName)
 {
     HotkeyCommand hk = HotkeyCommand::deserialize(keyName);
     if (hk.isValid()) {
-        m_lookupTable[calculateIndex(hk.baseKey, hk.modifiers)].clear();
-        setConfig().hotkeys.notifyChanged();
+        QVariantMap data = setConfig().hotkeys.data();
+        data.remove(hk.serialize());
+        setConfig().hotkeys.setData(std::move(data));
     }
 }
 
@@ -230,15 +224,16 @@ std::vector<std::pair<QString, std::string>> HotkeyManager::getAllHotkeys() cons
 
 void HotkeyManager::resetToDefaults()
 {
-    clear();
-#define X_DEFAULT(key, cmd) std::ignore = setHotkey(key, cmd);
+    QVariantMap data;
+#define X_DEFAULT(key, cmd) data[key] = QString(cmd);
     XFOREACH_DEFAULT_HOTKEYS(X_DEFAULT)
 #undef X_DEFAULT
+    setConfig().hotkeys.setData(std::move(data));
 }
 
 void HotkeyManager::clear()
 {
-    m_lookupTable.fill(std::string());
+    setConfig().hotkeys.setData(QVariantMap());
 }
 
 std::vector<QString> HotkeyManager::getAvailableKeyNames()

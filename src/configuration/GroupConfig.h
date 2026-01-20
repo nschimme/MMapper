@@ -8,20 +8,17 @@
 
 #include <functional>
 
+#include <QMap>
 #include <QString>
+#include <QVariant>
 
 class QSettings;
 
 class NODISCARD GroupConfig final
 {
-public:
-    using ReadCallback = std::function<void(const QSettings &)>;
-    using WriteCallback = std::function<void(QSettings &)>;
-
 private:
     QString m_groupName;
-    ReadCallback m_readCallback;
-    WriteCallback m_writeCallback;
+    QVariantMap m_data;
     ChangeMonitor m_changeMonitor;
 
 public:
@@ -30,12 +27,12 @@ public:
 
     explicit GroupConfig(QString groupName);
 
-    void registerCallbacks(ReadCallback readCallback, WriteCallback writeCallback);
-
     void read(const QSettings &settings);
     void write(QSettings &settings) const;
 
     NODISCARD const QString &getName() const { return m_groupName; }
+    NODISCARD const QVariantMap &data() const { return m_data; }
+    void setData(QVariantMap data);
 
     void notifyChanged();
     void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,

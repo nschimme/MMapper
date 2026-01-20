@@ -41,6 +41,7 @@ class FindRoomsDlg;
 class GameObserver;
 class GroupWidget;
 class HotkeyManager;
+class RemoteEdit;
 class InfomarkSelection;
 class MapCanvas;
 class MapData;
@@ -111,6 +112,7 @@ private:
 
     DescriptionWidget *m_descriptionWidget = nullptr;
     std::unique_ptr<HotkeyManager> m_hotkeyManager;
+    std::unique_ptr<RemoteEdit> m_remoteEdit;
 
     SharedRoomSelection m_roomSelection;
     std::shared_ptr<ConnectionSelection> m_connectionSelection;
@@ -270,6 +272,7 @@ public:
     ~MainWindow() final;
 
     NODISCARD HotkeyManager &getHotkeyManager() const { return *m_hotkeyManager; }
+    NODISCARD RemoteEdit &getRemoteEdit() const { return *m_remoteEdit; }
 
     NODISCARD bool saveFile(const QString &fileName, SaveModeEnum mode, SaveFormatEnum format);
     void loadFile(std::shared_ptr<MapSource> source);

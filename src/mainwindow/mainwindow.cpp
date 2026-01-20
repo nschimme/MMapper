@@ -32,6 +32,7 @@
 #include "../viewers/TopLevelWindows.h"
 #include "DescriptionWidget.h"
 #include "MapZoomSlider.h"
+#include "../mpi/remoteedit.h"
 #include "UpdateDialog.h"
 #include "aboutdialog.h"
 #include "findroomsdlg.h"
@@ -111,6 +112,7 @@ MainWindow::MainWindow()
     : QMainWindow(nullptr, Qt::WindowFlags{})
     , m_asyncTask(this)
 {
+    m_remoteEdit = std::make_unique<RemoteEdit>(nullptr);
     initTopLevelWindows();
     async_tasks::init();
     setObjectName("MainWindow");

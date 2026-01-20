@@ -84,10 +84,7 @@ public:
     void showMessage(const QString &msg, const int timeout) { virt_showMessage(msg, timeout); }
     void gotPasswordInput(const QString &password) { virt_gotPasswordInput(password); }
     void scrollDisplay(bool pageUp) { virt_scrollDisplay(pageUp); }
-    std::optional<QString> getHotkeyCommand(const HotkeyCommand &hk)
-    {
-        return virt_getHotkeyCommand(hk);
-    }
+    std::optional<QString> getHotkey(const Hotkey &hk) { return virt_getHotkey(hk); }
 
 private:
     virtual void virt_sendUserInput(const QString &msg) = 0;
@@ -95,7 +92,7 @@ private:
     virtual void virt_showMessage(const QString &msg, int timeout) = 0;
     virtual void virt_gotPasswordInput(const QString &password) = 0;
     virtual void virt_scrollDisplay(bool pageUp) = 0;
-    virtual std::optional<QString> virt_getHotkeyCommand(const HotkeyCommand &hk) = 0;
+    virtual std::optional<QString> virt_getHotkey(const Hotkey &hk) = 0;
 };
 
 class NODISCARD_QOBJECT InputWidget final : public QPlainTextEdit

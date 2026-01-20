@@ -126,10 +126,10 @@ void ClientWidget::initStackedInputWidget()
             }
         }
 
-        std::optional<QString> virt_getHotkeyCommand(const HotkeyCommand &hk) final
+        std::optional<QString> virt_getHotkey(const Hotkey &hk) final
         {
             auto &hotkeys = getSelf().getHotkeys();
-            return hotkeys.getCommandQString(hk.baseKey, hk.modifiers);
+            return hotkeys.getCommandQString(hk);
         }
     };
     auto &out = m_pipeline.outputs.stackedInputWidgetOutputs;

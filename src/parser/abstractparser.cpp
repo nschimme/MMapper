@@ -646,6 +646,7 @@ void AbstractParser::showHelp()
                      "\n"
                      "Utility commands:\n"
                      "  %1group       - (see \"%1group ??\" for syntax help)\n"
+                     "  %1hotkey      - (see \"%1hotkey ??\" for syntax help)\n"
                      "  %1timer       - (see \"%1timer ??\" for syntax help)\n"
                      "\n"
                      "Config commands:\n"

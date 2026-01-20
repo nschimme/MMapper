@@ -1092,6 +1092,15 @@ void AbstractParser::initSpecialCommandMap()
         },
         makeSimpleHelp("Perform actions on the group manager."));
 
+    /* hpotkey commands */
+    add(
+        cmdHotkey,
+        [this](const std::vector<StringView> & /*s*/, StringView rest) {
+            parseHotkey(rest);
+            return true;
+        },
+        makeSimpleHelp("View or modify hotkeys for the integrated client."));
+
     /* timers command */
     add(
         cmdTimer,

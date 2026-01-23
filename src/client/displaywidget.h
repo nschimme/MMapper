@@ -43,6 +43,9 @@ NODISCARD extern RawAnsi updateFormat(QTextCharFormat &format,
                                       const RawAnsi &before,
                                       RawAnsi updated);
 
+NODISCARD extern RawAnsi formatToRawAnsi(const QTextCharFormat &format,
+                                         const FontDefaults &defaults);
+
 struct NODISCARD AnsiTextHelper final
 {
     QTextEdit &textEdit;
@@ -68,6 +71,8 @@ struct NODISCARD AnsiTextHelper final
 };
 
 extern void setAnsiText(QTextEdit *pEdit, std::string_view text);
+
+NODISCARD extern QString getAnsiText(const QTextEdit *pEdit, AnsiSupportFlags flags);
 
 struct DisplayWidgetOutputs
 {

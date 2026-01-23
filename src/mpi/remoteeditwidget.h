@@ -3,6 +3,7 @@
 // Copyright (C) 2019 The MMapper Authors
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
+#include "../global/AnsiTextUtils.h"
 #include "../global/macros.h"
 #include "remoteeditsession.h"
 
@@ -16,16 +17,15 @@
 #include <QString>
 #include <QtCore>
 
-struct EditViewCommand;
-struct EditCommand2;
-
 class AnsiViewWindow;
 class QCloseEvent;
 class QMenu;
 class QMenuBar;
 class QObject;
 class QPlainTextEdit;
+class QStackedWidget;
 class QStatusBar;
+class QTextEdit;
 class QVBoxLayout;
 class QWidget;
 class GotoWidget;
@@ -33,6 +33,57 @@ class FindReplaceWidget;
 
 enum class NODISCARD EditViewCmdEnum { VIEW_OPTION, EDIT_ALIGNMENT, EDIT_COLORS, EDIT_WHITESPACE };
 enum class NODISCARD EditCmd2Enum { EDIT_ONLY, EDIT_OR_VIEW, SPACER };
+
+struct NODISCARD EditViewCommand final
+{
+    using mem_fn_ptr_type = void (RemoteEditWidget::*)();
+    const mem_fn_ptr_type mem_fn_ptr;
+    const EditViewCmdEnum cmd_type;
+    const char *const action;
+    const char *const status;
+    const char *const shortcut;
+
+    constexpr explicit EditViewCommand(const mem_fn_ptr_type _mem_fn_ptr,
+                                       const EditViewCmdEnum _cmd_type,
+                                       const char *const _action,
+                                       const char *const _status,
+                                       const char *const _shortcut)
+        : mem_fn_ptr{_mem_fn_ptr}
+        , cmd_type{_cmd_type}
+        , action{_action}
+        , status{_status}
+        , shortcut{_shortcut}
+    {}
+};
+
+struct NODISCARD EditCommand2 final
+{
+    enum class StdAction { None, Undo, Redo, SelectAll, Cut, Copy, Paste };
+    StdAction stdAction = StdAction::None;
+    const char *theme = nullptr;
+    const char *icon = nullptr;
+    const char *action = nullptr;
+    const char *status = nullptr;
+    const char *shortcut = nullptr;
+    EditCmd2Enum cmd_type = EditCmd2Enum::SPACER;
+
+    constexpr EditCommand2() = default;
+    constexpr explicit EditCommand2(const StdAction _stdAction,
+                                    const char *const _theme,
+                                    const char *const _icon,
+                                    const char *const _action,
+                                    const char *const _status,
+                                    const char *const _shortcut,
+                                    const EditCmd2Enum _cmd_type)
+        : stdAction{_stdAction}
+        , theme{_theme}
+        , icon{_icon}
+        , action{_action}
+        , status{_status}
+        , shortcut{_shortcut}
+        , cmd_type{_cmd_type}
+    {}
+};
 
 // NOTE: Ctrl+A is "Select All" by default.
 #define XFOREACH_REMOTE_EDIT_MENU_ITEM(X) \
@@ -148,7 +199,14 @@ private:
     const QString m_body;
 
     bool m_submitted = false;
-    QScopedPointer<Editor> m_textEdit;
+
+    QStackedWidget *m_stackedWidget = nullptr;
+    Editor *m_sourceEdit = nullptr;
+    QTextEdit *m_wysiwygEdit = nullptr;
+    bool m_wysiwygMode = false;
+    AnsiSupportFlags m_exportFlags = ANSI_COLOR_SUPPORT_HI;
+    QMenu *m_formatMenu = nullptr;
+
     QScopedPointer<GotoWidget> m_gotoWidget;
     QScopedPointer<FindReplaceWidget> m_findReplaceWidget;
     std::unique_ptr<AnsiViewWindow> m_preview;
@@ -167,17 +225,24 @@ protected:
 
 private:
     NODISCARD Editor *createTextEdit();
+    NODISCARD QTextEdit *createWysiwygEdit();
     NODISCARD GotoWidget *createGotoWidget();
     NODISCARD FindReplaceWidget *createFindReplaceWidget();
 
     void addToMenu(QMenu *menu, const EditViewCommand &cmd);
-    void addToMenu(QMenu *menu, const EditCommand2 &cmd, const Editor *pTextEdit);
+    void addToMenu(QMenu *menu, const EditCommand2 &cmd, const QObject *pReceiver);
 
-    void addFileMenu(const Editor *pTextEdit);
-    void addEditAndViewMenus(const Editor *pTextEdit);
+    void addFileMenu();
+    void addEditAndViewMenus();
+    void addFormatMenu();
     void addSave(QMenu *fileMenu);
     void addExit(QMenu *fileMenu);
-    void addStatusBar(const Editor *pTextEdit);
+    void addExportModeMenu(QMenu *fileMenu);
+    void addStatusBar();
+
+    void syncToWysiwyg();
+    void syncToSource();
+    NODISCARD QString getCurrentText() const;
 
 signals:
     void sig_cancel();
@@ -197,6 +262,17 @@ protected slots:
     void slot_handleReplaceAllRequested(const QString &findTerm,
                                         const QString &replaceTerm,
                                         QTextDocument::FindFlags flags);
+
+    void slot_toggleWysiwygMode();
+    void slot_setExportMode16();
+    void slot_setExportMode256();
+    void slot_setExportModeRGB();
+    void slot_setFgColor();
+    void slot_setBgColor();
+    void slot_clearFormatting();
+    void slot_setBold();
+    void slot_setItalic();
+    void slot_setUnderline();
 
 #define X_DECLARE_SLOT(a, b, c, d, e) void slot_##a();
     XFOREACH_REMOTE_EDIT_MENU_ITEM(X_DECLARE_SLOT)

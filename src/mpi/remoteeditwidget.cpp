@@ -27,12 +27,15 @@
 #include <vector>
 
 #include <QAction>
+#include <QActionGroup>
+#include <QColorDialog>
 #include <QMenu>
 #include <QMessageBox>
 #include <QMessageLogContext>
 #include <QPlainTextEdit>
 #include <QRegularExpression>
 #include <QScopedPointer>
+#include <QStackedWidget>
 #include <QSize>
 #include <QString>
 #include <QTextDocument>
@@ -707,14 +710,21 @@ RemoteEditWidget::RemoteEditWidget(const bool editSession,
     m_findReplaceWidget.reset(createFindReplaceWidget());
     mainLayout->addWidget(m_findReplaceWidget.get(), 0);
 
-    m_textEdit.reset(createTextEdit());
-    mainLayout->addWidget(m_textEdit.get(), 1);
+    m_stackedWidget = new QStackedWidget(this);
+    mainLayout->addWidget(m_stackedWidget, 1);
+
+    m_sourceEdit = createTextEdit();
+    m_stackedWidget->addWidget(m_sourceEdit);
+
+    m_wysiwygEdit = createWysiwygEdit();
+    m_stackedWidget->addWidget(m_wysiwygEdit);
 
     m_statusBar = new QStatusBar(this);
     mainLayout->addWidget(m_statusBar);
 
-    addStatusBar(m_textEdit.get());
-    addFileMenu(m_textEdit.get());
+    addStatusBar();
+    addFileMenu();
+    addFormatMenu();
 
     // REVISIT: Restore geometry from config?
     setGeometry(QStyle::alignedRect(Qt::LeftToRight,
@@ -725,7 +735,7 @@ RemoteEditWidget::RemoteEditWidget(const bool editSession,
     show();
     raise();
     activateWindow();
-    m_textEdit->setFocus(); // REVISIT: can this be done in the creation function?
+    m_sourceEdit->setFocus(); // REVISIT: can this be done in the creation function?
 }
 
 auto RemoteEditWidget::createTextEdit() -> Editor *
@@ -751,28 +761,60 @@ auto RemoteEditWidget::createTextEdit() -> Editor *
     return pTextEdit;
 }
 
+auto RemoteEditWidget::createWysiwygEdit() -> QTextEdit *
+{
+    QFont font;
+    font.fromString(getConfig().integratedClient.font);
+    const QFontMetrics fm(font);
+    const int x = fm.averageCharWidth() * (80 + 1);
+    const int y = fm.lineSpacing() * (24 + 1);
+
+    const auto pTextEdit = new QTextEdit(this);
+    pTextEdit->setFont(font);
+    pTextEdit->setReadOnly(!m_editSession);
+    pTextEdit->setMinimumSize(QSize(x + contentsMargins().left() + contentsMargins().right(),
+                                    y + contentsMargins().top() + contentsMargins().bottom()));
+    pTextEdit->setLineWrapMode(QTextEdit::LineWrapMode::NoWrap);
+    pTextEdit->setSizeIncrement(fm.averageCharWidth(), fm.lineSpacing());
+    pTextEdit->setTabStopDistance(fm.horizontalAdvance(" ") * 8); // A tab is 8 spaces wide
+    pTextEdit->setAcceptRichText(true);
+
+    return pTextEdit;
+}
+
 auto RemoteEditWidget::createGotoWidget() -> GotoWidget *
 {
     const auto pGotoWidget = new GotoWidget(this);
     pGotoWidget->hide();
 
     connect(pGotoWidget, &GotoWidget::sig_gotoLineRequested, this, [this](int lineNum) {
-        QTextCursor cursor = m_textEdit->textCursor();
-        cursor.movePosition(QTextCursor::Start);
-        if (cursor.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, lineNum - 1)) {
-            m_textEdit->setTextCursor(cursor);
-            m_textEdit->ensureCursorVisible();
-            slot_updateStatus(QString("Moved to line %1").arg(lineNum));
-            m_gotoWidget->hide();
-            m_textEdit->setFocus(Qt::OtherFocusReason);
-        } else {
+        auto doGoto = [this, lineNum](auto *edit) {
+            QTextCursor cursor = edit->textCursor();
+            cursor.movePosition(QTextCursor::Start);
+            if (cursor.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, lineNum - 1)) {
+                edit->setTextCursor(cursor);
+                edit->ensureCursorVisible();
+                slot_updateStatus(QString("Moved to line %1").arg(lineNum));
+                m_gotoWidget->hide();
+                edit->setFocus(Qt::OtherFocusReason);
+                return true;
+            }
+            return false;
+        };
+
+        bool success = m_wysiwygMode ? doGoto(m_wysiwygEdit) : doGoto(m_sourceEdit);
+        if (!success) {
             slot_updateStatus(QString("Error: Line %1 not found.").arg(lineNum));
             m_gotoWidget->setFocusToInput();
         }
     });
     connect(pGotoWidget, &GotoWidget::sig_closeRequested, this, [this]() {
         m_gotoWidget->hide();
-        m_textEdit->setFocus(Qt::OtherFocusReason);
+        if (m_wysiwygMode) {
+            m_wysiwygEdit->setFocus(Qt::OtherFocusReason);
+        } else {
+            m_sourceEdit->setFocus(Qt::OtherFocusReason);
+        }
     });
     return pGotoWidget;
 }
@@ -796,7 +838,11 @@ auto RemoteEditWidget::createFindReplaceWidget() -> FindReplaceWidget *
             &RemoteEditWidget::slot_handleReplaceAllRequested);
     connect(pFindReplaceWidget, &FindReplaceWidget::sig_closeRequested, this, [this]() {
         m_findReplaceWidget->hide();
-        m_textEdit->setFocus(Qt::OtherFocusReason);
+        if (m_wysiwygMode) {
+            m_wysiwygEdit->setFocus(Qt::OtherFocusReason);
+        } else {
+            m_sourceEdit->setFocus(Qt::OtherFocusReason);
+        }
     });
     connect(pFindReplaceWidget,
             &FindReplaceWidget::sig_statusMessage,
@@ -805,82 +851,33 @@ auto RemoteEditWidget::createFindReplaceWidget() -> FindReplaceWidget *
     return pFindReplaceWidget;
 }
 
-void RemoteEditWidget::addFileMenu(const Editor *const pTextEdit)
+void RemoteEditWidget::addFileMenu()
 {
     QMenu *const fileMenu = m_menuBar->addMenu(tr("&File"));
     if (m_editSession) {
         addSave(fileMenu);
     }
+    addExportModeMenu(fileMenu);
     addExit(fileMenu);
-    addEditAndViewMenus(pTextEdit);
+    addEditAndViewMenus();
 }
 
-struct NODISCARD EditViewCommand final
-{
-    using mem_fn_ptr_type = void (RemoteEditWidget::*)();
-    const mem_fn_ptr_type mem_fn_ptr;
-    const EditViewCmdEnum cmd_type;
-    const char *const action;
-    const char *const status;
-    const char *const shortcut;
-
-    constexpr explicit EditViewCommand(const mem_fn_ptr_type _mem_fn_ptr,
-                                       const EditViewCmdEnum _cmd_type,
-                                       const char *const _action,
-                                       const char *const _status,
-                                       const char *const _shortcut)
-        : mem_fn_ptr{_mem_fn_ptr}
-        , cmd_type{_cmd_type}
-        , action{_action}
-        , status{_status}
-        , shortcut{_shortcut}
-    {}
-};
-
-struct NODISCARD EditCommand2 final
-{
-    using mem_fn_ptr_type = void (RemoteTextEdit::*)();
-    mem_fn_ptr_type mem_fn_ptr = nullptr;
-    const char *theme = nullptr;
-    const char *icon = nullptr;
-    const char *action = nullptr;
-    const char *status = nullptr;
-    const char *shortcut = nullptr;
-    EditCmd2Enum cmd_type = EditCmd2Enum::SPACER;
-
-    constexpr EditCommand2() = default;
-    constexpr explicit EditCommand2(const mem_fn_ptr_type _mem_fn_ptr,
-                                    const char *const _theme,
-                                    const char *const _icon,
-                                    const char *const _action,
-                                    const char *const _status,
-                                    const char *const _shortcut,
-                                    const EditCmd2Enum _cmd_type)
-        : mem_fn_ptr{_mem_fn_ptr}
-        , theme{_theme}
-        , icon{_icon}
-        , action{_action}
-        , status{_status}
-        , shortcut{_shortcut}
-        , cmd_type{_cmd_type}
-    {}
-};
-
-void RemoteEditWidget::addEditAndViewMenus(const Editor *const pTextEdit)
+void RemoteEditWidget::addEditAndViewMenus()
 {
     QMenu *const editMenu = m_menuBar->addMenu("&Edit");
     QMenu *const viewMenu = m_menuBar->addMenu("&View");
 
+    using SA = EditCommand2::StdAction;
     const std::vector<EditCommand2> cmds{
 
-        EditCommand2{&Editor::undo,
+        EditCommand2{SA::Undo,
                      "edit-undo",
                      ":/icons/undo.png",
                      "&Undo",
                      "Undo previous typing or commands",
                      "Ctrl+Z",
                      EditCmd2Enum::EDIT_ONLY},
-        EditCommand2{&Editor::redo,
+        EditCommand2{SA::Redo,
                      "edit-redo",
                      ":/icons/redo.png",
                      "&Redo",
@@ -891,7 +888,7 @@ void RemoteEditWidget::addEditAndViewMenus(const Editor *const pTextEdit)
                      "Ctrl+Shift+Z",
                      EditCmd2Enum::EDIT_ONLY},
         EditCommand2{},
-        EditCommand2{&Editor::selectAll,
+        EditCommand2{SA::SelectAll,
                      "edit-select-all",
                      ":/icons/redo.png",
                      "&Select All",
@@ -899,21 +896,21 @@ void RemoteEditWidget::addEditAndViewMenus(const Editor *const pTextEdit)
                      "Ctrl+A",
                      EditCmd2Enum::EDIT_OR_VIEW},
         EditCommand2{},
-        EditCommand2{&Editor::cut,
+        EditCommand2{SA::Cut,
                      "edit-cut",
                      ":/icons/cut.png",
                      "Cu&t",
                      "Cut the current selection's contents to the clipboard",
                      "Ctrl+X",
                      EditCmd2Enum::EDIT_ONLY},
-        EditCommand2{&Editor::copy,
+        EditCommand2{SA::Copy,
                      "edit-copy",
                      ":/icons/copy.png",
                      "&Copy",
                      "Copy the current selection's contents to the clipboard",
                      "Ctrl+C",
                      EditCmd2Enum::EDIT_OR_VIEW},
-        EditCommand2{&Editor::paste,
+        EditCommand2{SA::Paste,
                      "edit-paste",
                      ":/icons/paste.png",
                      "&Paste",
@@ -930,11 +927,13 @@ void RemoteEditWidget::addEditAndViewMenus(const Editor *const pTextEdit)
             break;
         case EditCmd2Enum::EDIT_ONLY:
             if (m_editSession) {
-                addToMenu(editMenu, cmd, pTextEdit);
+                addToMenu(editMenu, cmd, m_sourceEdit);
+                addToMenu(editMenu, cmd, m_wysiwygEdit);
             }
             break;
         case EditCmd2Enum::EDIT_OR_VIEW:
-            addToMenu(editMenu, cmd, pTextEdit);
+            addToMenu(editMenu, cmd, m_sourceEdit);
+            addToMenu(editMenu, cmd, m_wysiwygEdit);
             break;
         }
     }
@@ -991,6 +990,64 @@ void RemoteEditWidget::addEditAndViewMenus(const Editor *const pTextEdit)
     }
     XFOREACH_REMOTE_EDIT_MENU_ITEM(X_ADD_MENU)
 #undef X_ADD_MENU
+
+    viewMenu->addSeparator();
+    QAction *wysiwygAction = new QAction(tr("&WYSIWYG Mode"), this);
+    wysiwygAction->setCheckable(true);
+    wysiwygAction->setChecked(m_wysiwygMode);
+    wysiwygAction->setShortcut(QKeySequence("Ctrl+Shift+Y"));
+    wysiwygAction->setStatusTip(tr("Toggle between Source and WYSIWYG mode"));
+    connect(wysiwygAction, &QAction::triggered, this, &RemoteEditWidget::slot_toggleWysiwygMode);
+    viewMenu->addAction(wysiwygAction);
+}
+
+void RemoteEditWidget::addFormatMenu()
+{
+    m_formatMenu = m_menuBar->addMenu(tr("F&ormat"));
+    m_formatMenu->setEnabled(m_wysiwygMode);
+
+    QAction *boldAction = m_formatMenu->addAction(QIcon::fromTheme("format-text-bold"), tr("&Bold"));
+    boldAction->setShortcut(QKeySequence::Bold);
+    connect(boldAction, &QAction::triggered, this, &RemoteEditWidget::slot_setBold);
+
+    QAction *italicAction = m_formatMenu->addAction(QIcon::fromTheme("format-text-italic"), tr("&Italic"));
+    italicAction->setShortcut(QKeySequence("Ctrl+Shift+I"));
+    connect(italicAction, &QAction::triggered, this, &RemoteEditWidget::slot_setItalic);
+
+    QAction *underlineAction = m_formatMenu->addAction(QIcon::fromTheme("format-text-underline"), tr("&Underline"));
+    underlineAction->setShortcut(QKeySequence::Underline);
+    connect(underlineAction, &QAction::triggered, this, &RemoteEditWidget::slot_setUnderline);
+
+    m_formatMenu->addSeparator();
+
+    QAction *fgColorAction = m_formatMenu->addAction(tr("&Foreground Color..."));
+    connect(fgColorAction, &QAction::triggered, this, &RemoteEditWidget::slot_setFgColor);
+
+    QAction *bgColorAction = m_formatMenu->addAction(tr("&Background Color..."));
+    connect(bgColorAction, &QAction::triggered, this, &RemoteEditWidget::slot_setBgColor);
+
+    m_formatMenu->addSeparator();
+
+    QAction *clearAction = m_formatMenu->addAction(tr("&Clear Formatting"));
+    connect(clearAction, &QAction::triggered, this, &RemoteEditWidget::slot_clearFormatting);
+}
+
+void RemoteEditWidget::addExportModeMenu(QMenu *fileMenu)
+{
+    QMenu *exportMenu = fileMenu->addMenu(tr("ANSI &Export Mode"));
+    QActionGroup *group = new QActionGroup(this);
+
+    auto addExportAction = [&](const QString &text, bool checked, auto slot) {
+        QAction *act = exportMenu->addAction(text);
+        act->setCheckable(true);
+        act->setChecked(checked);
+        act->setActionGroup(group);
+        connect(act, &QAction::triggered, this, slot);
+    };
+
+    addExportAction(tr("16 Colors"), m_exportFlags == ANSI_COLOR_SUPPORT_HI, &RemoteEditWidget::slot_setExportMode16);
+    addExportAction(tr("256 Colors"), m_exportFlags == ANSI_COLOR_SUPPORT_256, &RemoteEditWidget::slot_setExportMode256);
+    addExportAction(tr("RGB Colors"), m_exportFlags == ANSI_COLOR_SUPPORT_RGB, &RemoteEditWidget::slot_setExportModeRGB);
 }
 
 void RemoteEditWidget::addSave(QMenu *const fileMenu)
@@ -1012,7 +1069,7 @@ void RemoteEditWidget::addExit(QMenu *const fileMenu)
     // FIXME: This should require confirmation if the user has modified the document,
     // and possibly even if ANY change has been made (even an undone change).
     if ((false)) {
-        auto *const doc = m_textEdit->document();
+        auto *const doc = m_sourceEdit->document();
         MAYBE_UNUSED const bool isModified = doc->isModified();
         MAYBE_UNUSED const bool canUndo = doc->isUndoAvailable();
     }
@@ -1044,10 +1101,9 @@ void RemoteEditWidget::addToMenu(QMenu *const menu, const EditViewCommand &cmd)
 
 void RemoteEditWidget::addToMenu(QMenu *const menu,
                                  const EditCommand2 &cmd,
-                                 const Editor *const pTextEdit)
+                                 const QObject *const pReceiver)
 {
-    if (menu == nullptr) {
-        assert(false);
+    if (menu == nullptr || pReceiver == nullptr) {
         return;
     }
 
@@ -1060,22 +1116,63 @@ void RemoteEditWidget::addToMenu(QMenu *const menu,
     act->setStatusTip(tr(cmd.status));
     menu->addAction(act);
 
-    connect(act, &QAction::triggered, pTextEdit, cmd.mem_fn_ptr);
+    auto connectAction = [this, act, &cmd](auto *edit) {
+        using SA = EditCommand2::StdAction;
+        switch (cmd.stdAction) {
+        case SA::Undo:      connect(act, &QAction::triggered, edit, &std::remove_pointer_t<decltype(edit)>::undo); break;
+        case SA::Redo:      connect(act, &QAction::triggered, edit, &std::remove_pointer_t<decltype(edit)>::redo); break;
+        case SA::SelectAll: connect(act, &QAction::triggered, edit, &std::remove_pointer_t<decltype(edit)>::selectAll); break;
+        case SA::Cut:       connect(act, &QAction::triggered, edit, &std::remove_pointer_t<decltype(edit)>::cut); break;
+        case SA::Copy:      connect(act, &QAction::triggered, edit, &std::remove_pointer_t<decltype(edit)>::copy); break;
+        case SA::Paste:     connect(act, &QAction::triggered, edit, &std::remove_pointer_t<decltype(edit)>::paste); break;
+        default: break;
+        }
+    };
+
+    if (pReceiver == m_sourceEdit) {
+        connectAction(m_sourceEdit);
+        connect(this, &RemoteEditWidget::slot_toggleWysiwygMode, act, [this, act]() {
+            act->setVisible(!m_wysiwygMode);
+        });
+        act->setVisible(!m_wysiwygMode);
+    } else if (pReceiver == m_wysiwygEdit) {
+        connectAction(m_wysiwygEdit);
+        connect(this, &RemoteEditWidget::slot_toggleWysiwygMode, act, [this, act]() {
+            act->setVisible(m_wysiwygMode);
+        });
+        act->setVisible(m_wysiwygMode);
+    }
 }
 
-void RemoteEditWidget::addStatusBar(const Editor *const pTextEdit)
+void RemoteEditWidget::addStatusBar()
 {
     m_statusBar->showMessage(tr("Ready"));
 
-    connect(pTextEdit,
-            &QPlainTextEdit::cursorPositionChanged,
-            this,
-            &RemoteEditWidget::slot_updateStatusBar);
-    connect(pTextEdit,
-            &QPlainTextEdit::selectionChanged,
-            this,
-            &RemoteEditWidget::slot_updateStatusBar);
-    connect(pTextEdit, &QPlainTextEdit::textChanged, this, &RemoteEditWidget::slot_updateStatusBar);
+    auto connectSource = [this](RemoteTextEdit *edit) {
+        connect(edit,
+                &QPlainTextEdit::cursorPositionChanged,
+                this,
+                &RemoteEditWidget::slot_updateStatusBar);
+        connect(edit,
+                &QPlainTextEdit::selectionChanged,
+                this,
+                &RemoteEditWidget::slot_updateStatusBar);
+        connect(edit, &QPlainTextEdit::textChanged, this, &RemoteEditWidget::slot_updateStatusBar);
+    };
+    auto connectWysiwyg = [this](QTextEdit *edit) {
+        connect(edit,
+                &QTextEdit::cursorPositionChanged,
+                this,
+                &RemoteEditWidget::slot_updateStatusBar);
+        connect(edit,
+                &QTextEdit::selectionChanged,
+                this,
+                &RemoteEditWidget::slot_updateStatusBar);
+        connect(edit, &QTextEdit::textChanged, this, &RemoteEditWidget::slot_updateStatusBar);
+    };
+
+    connectSource(m_sourceEdit);
+    connectWysiwyg(m_wysiwygEdit);
 }
 
 void RemoteEditWidget::slot_updateStatus(const QString &message_param)
@@ -1093,26 +1190,35 @@ void RemoteEditWidget::slot_handleFindRequested(const QString &term, QTextDocume
         return;
     }
 
-    QTextCursor originalCursor = m_textEdit->textCursor();
+    auto doFind = [this, &term, flags](auto *edit) {
+        QTextCursor originalCursor = edit->textCursor();
 
-    if (m_textEdit->find(term, flags)) {
-        slot_updateStatus(QString("Found: '%1'").arg(term));
-        return;
+        if (edit->find(term, flags)) {
+            slot_updateStatus(QString("Found: '%1'").arg(term));
+            return;
+        }
+
+        // Wrap around
+        edit->moveCursor(flags.testFlag(QTextDocument::FindBackward) ? QTextCursor::End
+                                                                     : QTextCursor::Start);
+        if (edit->find(term, flags)) {
+            slot_updateStatus(
+                QString("Found (from %1): '%2'")
+                    .arg(flags.testFlag(QTextDocument::FindBackward) ? "end" : "top")
+                    .arg(term));
+            return;
+        }
+
+        // Restore original cursor if not found
+        edit->setTextCursor(originalCursor);
+        slot_updateStatus(QString("Not found: '%1'").arg(term));
+    };
+
+    if (m_wysiwygMode) {
+        doFind(m_wysiwygEdit);
+    } else {
+        doFind(m_sourceEdit);
     }
-
-    // Wrap around
-    m_textEdit->moveCursor(flags.testFlag(QTextDocument::FindBackward) ? QTextCursor::End
-                                                                       : QTextCursor::Start);
-    if (m_textEdit->find(term, flags)) {
-        slot_updateStatus(QString("Found (from %1): '%2'")
-                              .arg(flags.testFlag(QTextDocument::FindBackward) ? "end" : "top")
-                              .arg(term));
-        return;
-    }
-
-    // Restore original cursor if not found
-    m_textEdit->setTextCursor(originalCursor);
-    slot_updateStatus(QString("Not found: '%1'").arg(term));
 }
 
 void RemoteEditWidget::slot_handleReplaceCurrentRequested(const QString &findTerm,
@@ -1123,16 +1229,24 @@ void RemoteEditWidget::slot_handleReplaceCurrentRequested(const QString &findTer
         return;
     }
 
-    QTextCursor cursor = m_textEdit->textCursor();
-    if (cursor.hasSelection()) {
-        QString selectedText = cursor.selectedText();
-        Qt::CaseSensitivity cs = flags.testFlag(QTextDocument::FindCaseSensitively)
-                                     ? Qt::CaseSensitive
-                                     : Qt::CaseInsensitive;
-        if (QString::compare(selectedText, findTerm, cs) == 0) {
-            cursor.insertText(replaceTerm);
-            slot_updateStatus(QString("Replaced: '%1'").arg(findTerm));
+    auto doReplace = [this, &findTerm, &replaceTerm, flags](auto *edit) {
+        QTextCursor cursor = edit->textCursor();
+        if (cursor.hasSelection()) {
+            QString selectedText = cursor.selectedText();
+            Qt::CaseSensitivity cs = flags.testFlag(QTextDocument::FindCaseSensitively)
+                                         ? Qt::CaseSensitive
+                                         : Qt::CaseInsensitive;
+            if (QString::compare(selectedText, findTerm, cs) == 0) {
+                cursor.insertText(replaceTerm);
+                slot_updateStatus(QString("Replaced: '%1'").arg(findTerm));
+            }
         }
+    };
+
+    if (m_wysiwygMode) {
+        doReplace(m_wysiwygEdit);
+    } else {
+        doReplace(m_sourceEdit);
     }
 
     // Always find the next occurrence after attempting replacement
@@ -1147,30 +1261,38 @@ void RemoteEditWidget::slot_handleReplaceAllRequested(const QString &findTerm,
         return;
     }
 
-    int replacements = 0;
-    QTextCursor originalCursor = m_textEdit->textCursor();
-    m_textEdit->moveCursor(QTextCursor::Start);
-    m_textEdit->textCursor().beginEditBlock();
+    auto doReplaceAll = [this, &findTerm, &replaceTerm, flags](auto *edit) {
+        int replacements = 0;
+        QTextCursor originalCursor = edit->textCursor();
+        edit->moveCursor(QTextCursor::Start);
+        edit->textCursor().beginEditBlock();
 
-    while (m_textEdit->find(findTerm, flags)) {
-        QTextCursor matchCursor = m_textEdit->textCursor();
-        if (matchCursor.hasSelection()) {
-            matchCursor.insertText(replaceTerm);
-            replacements++;
-        } else {
-            // Should not happen with QTextEdit::find, but as a safeguard
-            break;
+        while (edit->find(findTerm, flags)) {
+            QTextCursor matchCursor = edit->textCursor();
+            if (matchCursor.hasSelection()) {
+                matchCursor.insertText(replaceTerm);
+                replacements++;
+            } else {
+                // Should not happen with QTextEdit::find, but as a safeguard
+                break;
+            }
         }
-    }
 
-    m_textEdit->textCursor().endEditBlock();
-    m_textEdit->setTextCursor(originalCursor);
+        edit->textCursor().endEditBlock();
+        edit->setTextCursor(originalCursor);
 
-    if (replacements > 0) {
-        slot_updateStatus(
-            QString("Replaced %1 occurrence(s) of '%2'.").arg(replacements).arg(findTerm));
+        if (replacements > 0) {
+            slot_updateStatus(
+                QString("Replaced %1 occurrence(s) of '%2'.").arg(replacements).arg(findTerm));
+        } else {
+            slot_updateStatus(QString("Not found for replace all: '%1'.").arg(findTerm));
+        }
+    };
+
+    if (m_wysiwygMode) {
+        doReplaceAll(m_wysiwygEdit);
     } else {
-        slot_updateStatus(QString("Not found for replace all: '%1'.").arg(findTerm));
+        doReplaceAll(m_sourceEdit);
     }
 }
 
@@ -1264,9 +1386,108 @@ NODISCARD static bool hasLongLines(const QTextCursor &cur)
     });
 }
 
+void RemoteEditWidget::slot_toggleWysiwygMode()
+{
+    if (m_wysiwygMode) {
+        syncToSource();
+        m_wysiwygMode = false;
+        m_stackedWidget->setCurrentWidget(m_sourceEdit);
+        m_sourceEdit->setFocus();
+    } else {
+        syncToWysiwyg();
+        m_wysiwygMode = true;
+        m_stackedWidget->setCurrentWidget(m_wysiwygEdit);
+        m_wysiwygEdit->setFocus();
+    }
+    m_formatMenu->setEnabled(m_wysiwygMode);
+    slot_updateStatusBar(); // Refresh status bar
+}
+
+void RemoteEditWidget::syncToWysiwyg()
+{
+    QString text = m_sourceEdit->toPlainText();
+    setAnsiText(m_wysiwygEdit, mmqt::toStdStringUtf8(text));
+}
+
+void RemoteEditWidget::syncToSource()
+{
+    QString text = getAnsiText(m_wysiwygEdit, m_exportFlags);
+    m_sourceEdit->replaceAll(text);
+}
+
+QString RemoteEditWidget::getCurrentText() const
+{
+    QString text;
+    if (m_wysiwygMode) {
+        text = getAnsiText(m_wysiwygEdit, m_exportFlags);
+    } else {
+        text = m_sourceEdit->toPlainText();
+    }
+
+    // Normalize on save as requested
+    if (!mmqt::containsAnsi(text)) {
+        return text;
+    }
+    mmqt::TextBuffer normalized = mmqt::normalizeAnsi(m_exportFlags, text);
+    return normalized.getQString();
+}
+
+void RemoteEditWidget::slot_setExportMode16() { m_exportFlags = ANSI_COLOR_SUPPORT_HI; }
+void RemoteEditWidget::slot_setExportMode256() { m_exportFlags = ANSI_COLOR_SUPPORT_256; }
+void RemoteEditWidget::slot_setExportModeRGB() { m_exportFlags = ANSI_COLOR_SUPPORT_RGB; }
+
+void RemoteEditWidget::slot_setFgColor()
+{
+    if (!m_wysiwygMode) return;
+    QColor color = QColorDialog::getColor(m_wysiwygEdit->textColor(), this, tr("Select Foreground Color"));
+    if (color.isValid()) {
+        m_wysiwygEdit->setTextColor(color);
+    }
+}
+
+void RemoteEditWidget::slot_setBgColor()
+{
+    if (!m_wysiwygMode) return;
+    QColor color = QColorDialog::getColor(m_wysiwygEdit->textBackgroundColor(), this, tr("Select Background Color"));
+    if (color.isValid()) {
+        m_wysiwygEdit->setTextBackgroundColor(color);
+    }
+}
+
+void RemoteEditWidget::slot_clearFormatting()
+{
+    if (!m_wysiwygMode) return;
+    QTextCharFormat fmt;
+    fmt.setFontWeight(QFont::Normal);
+    fmt.setFontItalic(false);
+    fmt.setFontUnderline(false);
+    fmt.setFontStrikeOut(false);
+    fmt.setForeground(Qt::lightGray); // Default FG
+    fmt.setBackground(Qt::black);     // Default BG
+    m_wysiwygEdit->setCurrentCharFormat(fmt);
+}
+
+void RemoteEditWidget::slot_setBold()
+{
+    if (!m_wysiwygMode) return;
+    m_wysiwygEdit->setFontWeight(m_wysiwygEdit->fontWeight() == QFont::Bold ? QFont::Normal : QFont::Bold);
+}
+
+void RemoteEditWidget::slot_setItalic()
+{
+    if (!m_wysiwygMode) return;
+    m_wysiwygEdit->setFontItalic(!m_wysiwygEdit->fontItalic());
+}
+
+void RemoteEditWidget::slot_setUnderline()
+{
+    if (!m_wysiwygMode) return;
+    m_wysiwygEdit->setFontUnderline(!m_wysiwygEdit->fontUnderline());
+}
+
 void RemoteEditWidget::slot_updateStatusBar()
 {
-    auto cur = m_textEdit->textCursor();
+    auto cur = m_wysiwygMode ? m_wysiwygEdit->textCursor() : m_sourceEdit->textCursor();
 
     const auto cci = getCursorColumn(cur);
     const int row = cur.blockNumber() + 1;
@@ -1331,7 +1552,8 @@ void RemoteEditWidget::slot_updateStatusBar()
 
 void RemoteEditWidget::slot_justifyText()
 {
-    const QString &old = m_textEdit->toPlainText();
+    if (m_wysiwygMode) return;
+    const QString &old = m_sourceEdit->toPlainText();
     mmqt::TextBuffer text;
     text.reserve(static_cast<int>(old.length()));
     mmqt::foreachLine(old,
@@ -1339,13 +1561,14 @@ void RemoteEditWidget::slot_justifyText()
                           text.appendJustified(line, maxLen);
                           text.append(C_NEWLINE);
                       });
-    m_textEdit->replaceAll(text.getQString());
+    m_sourceEdit->replaceAll(text.getQString());
 }
 
 // TODO: Set the tabstops for the edit control to 8 spaces, so the text won't jump when you expand tabs.
 void RemoteEditWidget::slot_expandTabs()
 {
-    const QTextCursor &cur = m_textEdit->textCursor();
+    if (m_wysiwygMode) return;
+    const QTextCursor &cur = m_sourceEdit->textCursor();
     RaiiGroupUndoActions raii{cur};
 
     foreach_partly_selected_block(cur, [](QTextCursor line) -> void {
@@ -1357,7 +1580,8 @@ void RemoteEditWidget::slot_expandTabs()
 
 void RemoteEditWidget::slot_removeTrailingWhitespace()
 {
-    const QTextCursor &cur = m_textEdit->textCursor();
+    if (m_wysiwygMode) return;
+    const QTextCursor &cur = m_sourceEdit->textCursor();
     RaiiGroupUndoActions raii{cur};
 
     foreach_partly_selected_block(cur, [](QTextCursor line) -> void {
@@ -1377,7 +1601,8 @@ void RemoteEditWidget::slot_removeTrailingWhitespace()
 
 void RemoteEditWidget::slot_removeDuplicateSpaces()
 {
-    const QTextCursor &cur = m_textEdit->textCursor();
+    if (m_wysiwygMode) return;
+    const QTextCursor &cur = m_sourceEdit->textCursor();
     RaiiGroupUndoActions raii{cur};
 
     foreach_partly_selected_block(cur, [](QTextCursor line) -> void {
@@ -1397,22 +1622,29 @@ void RemoteEditWidget::slot_removeDuplicateSpaces()
 
 void RemoteEditWidget::slot_normalizeAnsi()
 {
-    const QString &old = m_textEdit->toPlainText();
+    if (m_wysiwygMode) return;
+    const QString &old = m_sourceEdit->toPlainText();
     if (!mmqt::containsAnsi(old)) {
         return;
     }
 
-    mmqt::TextBuffer output = mmqt::normalizeAnsi(ANSI_COLOR_SUPPORT_HI, old);
+    mmqt::TextBuffer output = mmqt::normalizeAnsi(m_exportFlags, old);
     if (!output.hasTrailingNewline()) {
         output.append(C_NEWLINE);
     }
 
-    m_textEdit->replaceAll(output.getQString());
+    m_sourceEdit->replaceAll(output.getQString());
 }
 
 void RemoteEditWidget::slot_previewAnsi()
 {
-    QString s = m_textEdit->toPlainText();
+    QString s;
+    if (m_wysiwygMode) {
+        s = getAnsiText(m_wysiwygEdit, m_exportFlags);
+    } else {
+        s = m_sourceEdit->toPlainText();
+    }
+
     if (!s.endsWith(C_NEWLINE)) {
         s += C_NEWLINE;
     }
@@ -1422,28 +1654,36 @@ void RemoteEditWidget::slot_previewAnsi()
 
 void RemoteEditWidget::slot_insertAnsiReset()
 {
-    const auto reset = AnsiString::get_reset_string();
-    m_textEdit->insertPlainText(reset.c_str());
+    if (m_wysiwygMode) {
+        slot_clearFormatting();
+    } else {
+        const auto reset = AnsiString::get_reset_string();
+        m_sourceEdit->insertPlainText(reset.c_str());
+    }
 }
 
 void RemoteEditWidget::slot_joinLines()
 {
-    m_textEdit->joinLines();
+    if (m_wysiwygMode) return;
+    m_sourceEdit->joinLines();
 }
 
 void RemoteEditWidget::slot_quoteLines()
 {
-    m_textEdit->quoteLines();
+    if (m_wysiwygMode) return;
+    m_sourceEdit->quoteLines();
 }
 
 void RemoteEditWidget::slot_toggleWhitespace()
 {
-    m_textEdit->toggleWhitespace();
+    if (m_wysiwygMode) return;
+    m_sourceEdit->toggleWhitespace();
 }
 
 void RemoteEditWidget::slot_justifyLines()
 {
-    m_textEdit->justifyLines(MAX_LENGTH);
+    if (m_wysiwygMode) return;
+    m_sourceEdit->justifyLines(MAX_LENGTH);
 }
 
 RemoteEditWidget::~RemoteEditWidget()
@@ -1505,7 +1745,12 @@ void RemoteEditWidget::showEvent(QShowEvent *event)
 
 bool RemoteEditWidget::slot_contentsChanged() const
 {
-    const QString text = m_textEdit->toPlainText();
+    QString text;
+    if (m_wysiwygMode) {
+        text = getAnsiText(m_wysiwygEdit, m_exportFlags);
+    } else {
+        text = m_sourceEdit->toPlainText();
+    }
     return QString::compare(text, m_body, Qt::CaseSensitive) != 0;
 }
 
@@ -1519,6 +1764,6 @@ void RemoteEditWidget::slot_cancelEdit()
 void RemoteEditWidget::slot_finishEdit()
 {
     m_submitted = true;
-    emit sig_save(m_textEdit->toPlainText());
+    emit sig_save(getCurrentText());
     close();
 }

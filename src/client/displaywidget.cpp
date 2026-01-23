@@ -7,6 +7,8 @@
 #include "../configuration/configuration.h"
 #include "../global/AnsiTextUtils.h"
 
+#include <sstream>
+
 #include <QApplication>
 #include <QMessageLogContext>
 #include <QRegularExpression>
@@ -550,6 +552,58 @@ RawAnsi updateFormat(QTextCharFormat &format,
     return updated;
 }
 
+RawAnsi formatToRawAnsi(const QTextCharFormat &format, const FontDefaults &defaults)
+{
+    RawAnsi ansi;
+    if (format.fontWeight() == QFont::Bold) {
+        ansi.setBold();
+    } else if (format.fontWeight() == QFont::Light) {
+        ansi.setFaint();
+    }
+
+    if (format.fontItalic()) {
+        ansi.setItalic();
+    }
+
+    if (format.fontStrikeOut()) {
+        ansi.setStrikeout();
+    }
+
+    if (format.fontUnderline()) {
+        ansi.setUnderline();
+        using ULS = QTextCharFormat::UnderlineStyle;
+        switch (format.underlineStyle()) {
+        case ULS::DotLine:
+            ansi.setUnderlineStyle(AnsiUnderlineStyleEnum::Dotted);
+            break;
+        case ULS::DashUnderline:
+            ansi.setUnderlineStyle(AnsiUnderlineStyleEnum::Dashed);
+            break;
+        case ULS::WaveUnderline:
+            ansi.setUnderlineStyle(AnsiUnderlineStyleEnum::Curly);
+            break;
+        default:
+            ansi.setUnderlineStyle(AnsiUnderlineStyleEnum::Normal);
+            break;
+        }
+    }
+
+    auto colorToVariant = [](QColor color, QColor defaultColor) -> AnsiColorVariant {
+        if (!color.isValid() || color == defaultColor) {
+            return AnsiColorVariant{};
+        }
+        return AnsiColorVariant{AnsiColorRGB{static_cast<uint8_t>(color.red()),
+                                             static_cast<uint8_t>(color.green()),
+                                             static_cast<uint8_t>(color.blue())}};
+    };
+
+    ansi.fg = colorToVariant(format.foreground().color(), defaults.defaultFg);
+    ansi.bg = colorToVariant(format.background().color(), defaults.defaultBg);
+    ansi.ul = colorToVariant(format.underlineColor(), defaults.getDefaultUl());
+
+    return ansi;
+}
+
 void setAnsiText(QTextEdit *const pEdit, const std::string_view text)
 {
     QTextEdit &edit = deref(pEdit);
@@ -571,4 +625,51 @@ void setAnsiText(QTextEdit *const pEdit, const std::string_view text)
     if (QScrollBar *const vs = edit.verticalScrollBar()) {
         vs->setEnabled(true);
     }
+}
+
+QString getAnsiText(const QTextEdit *const pEdit, const AnsiSupportFlags flags)
+{
+    const QTextEdit &edit = deref(pEdit);
+    const QTextDocument *doc = edit.document();
+    const FontDefaults defaults;
+
+    QString result;
+    RawAnsi currentAnsi;
+
+    for (QTextBlock block = doc->begin(); block.isValid(); block = block.next()) {
+        if (block != doc->begin()) {
+            // Newline: MUME wants reset before newline
+            if (currentAnsi != RawAnsi{}) {
+                std::ostringstream oss;
+                ansi_transition(oss, flags, currentAnsi, RawAnsi{});
+                result += QString::fromStdString(oss.str());
+                currentAnsi = RawAnsi{};
+            }
+            result += char_consts::C_NEWLINE;
+        }
+
+        for (QTextBlock::iterator it = block.begin(); !it.atEnd(); ++it) {
+            const QTextFragment fragment = it.fragment();
+            if (fragment.isValid()) {
+                const QTextCharFormat fmt = fragment.charFormat();
+                const RawAnsi nextAnsi = formatToRawAnsi(fmt, defaults);
+
+                if (nextAnsi != currentAnsi) {
+                    std::ostringstream oss;
+                    ansi_transition(oss, flags, currentAnsi, nextAnsi);
+                    result += QString::fromStdString(oss.str());
+                    currentAnsi = nextAnsi;
+                }
+                result += fragment.text();
+            }
+        }
+    }
+
+    if (currentAnsi != RawAnsi{}) {
+        std::ostringstream oss;
+        ansi_transition(oss, flags, currentAnsi, RawAnsi{});
+        result += QString::fromStdString(oss.str());
+    }
+
+    return result;
 }

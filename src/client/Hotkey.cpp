@@ -143,6 +143,22 @@ uint8_t Hotkey::qtModifiersToMask(Qt::KeyboardModifiers mods)
 
 HotkeyEnum Hotkey::qtKeyToHotkeyBase(int key, bool isNumpad)
 {
+    if (isNumpad) {
+        switch (key) {
+        case Qt::Key_Home: return HotkeyEnum::NUMPAD7;
+        case Qt::Key_Up: return HotkeyEnum::NUMPAD8;
+        case Qt::Key_PageUp: return HotkeyEnum::NUMPAD9;
+        case Qt::Key_Left: return HotkeyEnum::NUMPAD4;
+        case Qt::Key_Clear: return HotkeyEnum::NUMPAD5;
+        case Qt::Key_Right: return HotkeyEnum::NUMPAD6;
+        case Qt::Key_End: return HotkeyEnum::NUMPAD1;
+        case Qt::Key_Down: return HotkeyEnum::NUMPAD2;
+        case Qt::Key_PageDown: return HotkeyEnum::NUMPAD3;
+        case Qt::Key_Insert: return HotkeyEnum::NUMPAD0;
+        case Qt::Key_Delete: return HotkeyEnum::NUMPAD_PERIOD;
+        }
+    }
+
 #define X_QT_CHECK(id, name, qkey, num) \
     if (key == qkey && isNumpad == num) \
         return HotkeyEnum::id;

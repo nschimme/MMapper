@@ -95,12 +95,7 @@ uint8_t Hotkey::modifiers() const
     return static_cast<uint8_t>(static_cast<uint16_t>(m_hotkey) & 0xF);
 }
 
-QString Hotkey::serialize() const
-{
-    return mmqt::toQStringUtf8(serializeStd());
-}
-
-std::string Hotkey::serializeStd() const
+std::string Hotkey::serialize() const
 {
     if (!isValid())
         return {};
@@ -175,12 +170,8 @@ HotkeyEnum Hotkey::nameToHotkeyBase(std::string_view name)
                    [](unsigned char c) { return std::toupper(c); });
 
 #define X_NAME_TO_ENUM(id, str, qkey, num) \
-    { \
-        std::string s(str); \
-        std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::toupper(c); }); \
-        if (upperName == s) \
-            return HotkeyEnum::id; \
-    }
+    if (upperName == str) \
+        return HotkeyEnum::id;
     XFOREACH_HOTKEY_BASE_KEYS(X_NAME_TO_ENUM)
 #undef X_NAME_TO_ENUM
     return HotkeyEnum::INVALID;

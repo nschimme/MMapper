@@ -139,7 +139,7 @@ void AbstractParser::parseHotkey(StringView input)
             }
 
             if (m_hotkeyManager.setHotkey(hk, cmdStr)) {
-                os << "Hotkey bound: [" << hk.serializeStd() << "] -> "
+                os << "Hotkey bound: [" << hk.serialize() << "] -> "
                    << cmdStr << "\n";
                 send_ok(os);
             } else {
@@ -154,7 +154,7 @@ void AbstractParser::parseHotkey(StringView input)
             auto &os = user.getOstream();
             auto hotkeys = m_hotkeyManager.getAllHotkeys();
             std::sort(hotkeys.begin(), hotkeys.end(), [](const auto &a, const auto &b) {
-                return a.first.serializeStd() < b.first.serializeStd();
+                return a.first.serialize() < b.first.serialize();
             });
 
             if (hotkeys.empty()) {
@@ -162,7 +162,7 @@ void AbstractParser::parseHotkey(StringView input)
             } else {
                 os << "Active Hotkeys:\n";
                 for (const auto &[hk, cmd] : hotkeys) {
-                    os << "  [" << hk.serializeStd() << "] -> " << cmd << "\n";
+                    os << "  [" << hk.serialize() << "] -> " << cmd << "\n";
                 }
                 os << "Total: " << hotkeys.size() << "\n";
             }
@@ -185,10 +185,10 @@ void AbstractParser::parseHotkey(StringView input)
 
             if (m_hotkeyManager.hasHotkey(hk)) {
                 m_hotkeyManager.removeHotkey(hk);
-                os << "Hotkey unbound: [" << hk.serializeStd() << "]\n";
+                os << "Hotkey unbound: [" << hk.serialize() << "]\n";
                 send_ok(os);
             } else {
-                os << "No hotkey configured for: [" << hk.serializeStd()
+                os << "No hotkey configured for: [" << hk.serialize()
                    << "]\n";
             }
         },

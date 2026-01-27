@@ -40,7 +40,7 @@ bool HotkeyManager::setHotkey(const Hotkey &hk, std::string command)
         return false;
 
     QVariantMap data = getConfig().hotkeys.data();
-    data[hk.serialize()] = mmqt::toQStringUtf8(command);
+    data[mmqt::toQStringUtf8(hk.serialize())] = mmqt::toQStringUtf8(command);
     setConfig().hotkeys.setData(std::move(data));
     return true;
 }
@@ -49,7 +49,7 @@ void HotkeyManager::removeHotkey(const Hotkey &hk)
 {
     if (hk.isValid()) {
         QVariantMap data = getConfig().hotkeys.data();
-        data.remove(hk.serialize());
+        data.remove(mmqt::toQStringUtf8(hk.serialize()));
         setConfig().hotkeys.setData(std::move(data));
     }
 }

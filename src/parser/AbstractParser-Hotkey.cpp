@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
 
+#include "../client/Hotkey.h"
 #include "../client/HotkeyManager.h"
 #include "../configuration/configuration.h"
+#include "../global/CaseUtils.h"
 #include "../global/TextUtils.h"
 #include "../syntax/SyntaxArgs.h"
 #include "../syntax/TreeParser.h"
@@ -39,38 +41,67 @@ std::ostream &ArgHotkeyName::virt_to_stream(std::ostream &os) const
 }
 
 namespace {
-QString getInstructionalError(const QString &keyCombo)
+std::string getInstructionalError(std::string_view keyCombo)
 {
-    QString error = "Error: ";
-    QStringList parts = keyCombo.split('+', Qt::SkipEmptyParts);
+    std::string error = "Error: ";
 
-    QString unrecognized;
+    std::vector<std::string> parts;
+    {
+        std::string s(keyCombo);
+        size_t start = 0;
+        size_t end = s.find('+');
+        while (true) {
+            std::string part = s.substr(start, end - start);
+            // Trim
+            part.erase(0, part.find_first_not_of(" \t\n\r"));
+            part.erase(part.find_last_not_of(" \t\n\r") + 1);
+            if (!part.empty()) {
+                parts.push_back(std::move(part));
+            }
+            if (end == std::string::npos)
+                break;
+            start = end + 1;
+            end = s.find('+', start);
+        }
+    }
+
+    std::string unrecognized;
     auto validKeys = Hotkey::getAvailableKeyNames();
 
     for (const auto &part : parts) {
-        QString p = part.trimmed().toUpper();
-        if (p == "CTRL" || p == "SHIFT" || p == "ALT" || p == "META") {
+        const std::string p = toUpperUtf8(part);
+        if (p == "CTRL" || p == "SHIFT" || p == "ALT" || p == "META" || p == "CONTROL" || p == "CMD"
+            || p == "COMMAND") {
             continue;
         }
 
-        bool found = std::any_of(validKeys.begin(), validKeys.end(), [&p](const QString &vk) {
-            return p == vk.toUpper();
-        });
+        bool found = false;
+        for (const auto &vk : validKeys) {
+            if (p == toUpperUtf8(vk)) {
+                found = true;
+                break;
+            }
+        }
 
         if (!found) {
-            unrecognized = part.trimmed();
+            unrecognized = part;
             break;
         }
     }
 
-    if (unrecognized.isEmpty() && !keyCombo.isEmpty()) {
+    if (unrecognized.empty() && !keyCombo.empty()) {
         // Must be missing a base key (e.g., "CTRL+")
-        error += "\"" + keyCombo + "\" is missing a valid key.\n";
-    } else if (!unrecognized.isEmpty()) {
-        if (unrecognized.toUpper() == "COMMAND" || unrecognized.toUpper() == "CMD") {
+        error += "\"";
+        error += keyCombo;
+        error += "\" is missing a valid key.\n";
+    } else if (!unrecognized.empty()) {
+        const std::string up = toUpperUtf8(unrecognized);
+        if (up == "COMMAND" || up == "CMD") {
             error += "\"COMMAND\" is not a recognized modifier.\n";
         } else {
-            error += "\"" + unrecognized + "\" is not recognized.\n";
+            error += "\"";
+            error += unrecognized;
+            error += "\" is not recognized.\n";
         }
     } else {
         error += "Invalid key combo.\n";
@@ -94,19 +125,18 @@ void AbstractParser::parseHotkey(StringView input)
             auto &os = user.getOstream();
             const auto v = getAnyVectorReversed(args);
 
-            const QString keyName = mmqt::toQStringUtf8(v[1].getString());
+            const std::string keyName = v[1].getString();
             const std::string cmdStr = v[2].isVector() ? concatenate_unquoted(v[2].getVector())
                                                        : v[2].getString();
 
             Hotkey hk(keyName);
             if (!hk.isValid()) {
-                os << mmqt::toStdStringUtf8(getInstructionalError(keyName)) << "\n";
+                os << getInstructionalError(keyName) << "\n";
                 return;
             }
 
             if (m_hotkeyManager.setHotkey(hk, cmdStr)) {
-                os << "Hotkey bound: [" << mmqt::toStdStringUtf8(hk.serialize()) << "] -> "
-                   << cmdStr << "\n";
+                os << "Hotkey bound: [" << hk.serialize() << "] -> " << cmdStr << "\n";
                 send_ok(os);
             } else {
                 os << "Failed to bind hotkey.\n";
@@ -128,7 +158,7 @@ void AbstractParser::parseHotkey(StringView input)
             } else {
                 os << "Active Hotkeys:\n";
                 for (const auto &[hk, cmd] : hotkeys) {
-                    os << "  [" << mmqt::toStdStringUtf8(hk.serialize()) << "] -> " << cmd << "\n";
+                    os << "  [" << hk.serialize() << "] -> " << cmd << "\n";
                 }
                 os << "Total: " << hotkeys.size() << "\n";
             }
@@ -141,21 +171,20 @@ void AbstractParser::parseHotkey(StringView input)
         [this](User &user, const Pair *const args) {
             auto &os = user.getOstream();
             const auto v = getAnyVectorReversed(args);
-            const QString keyName = mmqt::toQStringUtf8(v[1].getString());
+            const std::string keyName = v[1].getString();
 
             Hotkey hk(keyName);
             if (!hk.isValid()) {
-                os << mmqt::toStdStringUtf8(getInstructionalError(keyName)) << "\n";
+                os << getInstructionalError(keyName) << "\n";
                 return;
             }
 
             if (m_hotkeyManager.hasHotkey(hk)) {
                 m_hotkeyManager.removeHotkey(hk);
-                os << "Hotkey unbound: [" << mmqt::toStdStringUtf8(hk.serialize()) << "]\n";
+                os << "Hotkey unbound: [" << hk.serialize() << "]\n";
                 send_ok(os);
             } else {
-                os << "No hotkey configured for: [" << mmqt::toStdStringUtf8(hk.serialize())
-                   << "]\n";
+                os << "No hotkey configured for: [" << hk.serialize() << "]\n";
             }
         },
         "unbind hotkey");
@@ -188,7 +217,7 @@ void AbstractParser::parseHotkey(StringView input)
         std::sort(keys.begin(), keys.end());
         os << "  ";
         for (size_t i = 0; i < keys.size(); ++i) {
-            os << mmqt::toStdStringUtf8(keys[i]) << (i == keys.size() - 1 ? "" : ", ");
+            os << keys[i] << (i == keys.size() - 1 ? "" : ", ");
             if ((i + 1) % 8 == 0)
                 os << "\n  ";
         }

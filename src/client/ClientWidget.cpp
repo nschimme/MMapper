@@ -9,6 +9,7 @@
 #include "../mainwindow/mainwindow.h"
 #include "../proxy/connectionlistener.h"
 #include "ClientTelnet.h"
+#include "HotkeyManager.h"
 #include "PreviewWidget.h"
 #include "displaywidget.h"
 #include "stackedinputwidget.h"
@@ -129,7 +130,10 @@ void ClientWidget::initStackedInputWidget()
         std::optional<QString> virt_getHotkey(const Hotkey &hk) final
         {
             auto &hotkeys = getSelf().getHotkeys();
-            return hotkeys.getCommandQString(hk);
+            if (auto cmd = hotkeys.getCommand(hk)) {
+                return mmqt::toQStringUtf8(*cmd);
+            }
+            return std::nullopt;
         }
     };
     auto &out = m_pipeline.outputs.stackedInputWidgetOutputs;

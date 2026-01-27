@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2019 The MMapper Authors
+// Copyright (C) 2026 The MMapper Authors
 
 #include "../client/Hotkey.h"
 #include "../client/HotkeyManager.h"
@@ -66,18 +66,20 @@ std::string getInstructionalError(std::string_view keyCombo)
     }
 
     std::string unrecognized;
+    auto validMods = Hotkey::getAvailableModifiers();
     auto validKeys = Hotkey::getAvailableKeyNames();
 
     for (const auto &part : parts) {
         const std::string p = toUpperUtf8(part);
-        if (p == "CTRL" || p == "SHIFT" || p == "ALT" || p == "META" || p == "CONTROL" || p == "CMD"
-            || p == "COMMAND") {
-            continue;
+        for (const auto &vm : validMods) {
+            if (p == vm) {
+                continue;
+            }
         }
 
         bool found = false;
         for (const auto &vk : validKeys) {
-            if (p == toUpperUtf8(vk)) {
+            if (p == vk) {
                 found = true;
                 break;
             }
@@ -94,22 +96,12 @@ std::string getInstructionalError(std::string_view keyCombo)
         error += "\"";
         error += keyCombo;
         error += "\" is missing a valid key.\n";
-    } else if (!unrecognized.empty()) {
-        const std::string up = toUpperUtf8(unrecognized);
-        if (up == "COMMAND" || up == "CMD") {
-            error += "\"COMMAND\" is not a recognized modifier.\n";
-        } else {
-            error += "\"";
-            error += unrecognized;
-            error += "\" is not recognized.\n";
-        }
     } else {
         error += "Invalid key combo.\n";
     }
 
     error += "Valid modifiers: CTRL, SHIFT, ALT, META\n";
     error += "Valid keys include: F1-F12, 0-9, UP, DOWN, etc.\n";
-    error += "Try: \"-hotkey bind CTRL+G 75\"";
     return error;
 }
 } // namespace
@@ -119,7 +111,6 @@ void AbstractParser::parseHotkey(StringView input)
     using namespace ::syntax;
     static const auto abb = syntax::abbrevToken;
 
-    // -hotkey bind <key_combo> <command>
     auto bindHotkey = Accept(
         [this](User &user, const Pair *const args) {
             auto &os = user.getOstream();
@@ -144,7 +135,6 @@ void AbstractParser::parseHotkey(StringView input)
         },
         "bind hotkey");
 
-    // -hotkey list
     auto listHotkeys = Accept(
         [this](User &user, const Pair *) {
             auto &os = user.getOstream();
@@ -166,14 +156,13 @@ void AbstractParser::parseHotkey(StringView input)
         },
         "list hotkeys");
 
-    // -hotkey unbind <key_combo>
     auto unbindHotkey = Accept(
         [this](User &user, const Pair *const args) {
             auto &os = user.getOstream();
             const auto v = getAnyVectorReversed(args);
             const std::string keyName = v[1].getString();
 
-            Hotkey hk(keyName);
+            Hotkey hk{keyName};
             if (!hk.isValid()) {
                 os << getInstructionalError(keyName) << "\n";
                 return;
@@ -202,14 +191,14 @@ void AbstractParser::parseHotkey(StringView input)
                                     unbindHotkey);
 
     // Basic syntax help trigger (if no arguments or invalid)
-    auto helpFn = [this](User &user, const Pair *) {
+    auto helpFn = [](User &user, const Pair *) {
         auto &os = user.getOstream();
         os << "Basic syntax help:\n"
            << "  -hotkey bind <key_combo> <command>\n"
            << "  -hotkey list\n"
            << "  -hotkey unbind <key_combo>\n"
            << "\n"
-           << "Valid modifiers: CTRL, SHIFT, ALT, META\n"
+           << "Valid modifiers: CTRL, SHIFT, ALT, META\n" // TODO: Change this to be programmatic
            << "Valid keys:\n";
 
         // Programmatically list all valid keys

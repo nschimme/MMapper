@@ -146,13 +146,12 @@ HotkeyEnum Hotkey::qtKeyToHotkeyBase(int key, bool isNumpad)
 #define X_QT_CHECK(id, qkey, num) \
     if (isNumpad == num && key == qkey) \
         return HotkeyEnum::id;
-
-    if (isNumpad) {
-        XFOREACH_HOTKEY_SECONDARY_MAPPINGS(X_QT_CHECK)
-    }
-
 #define X_BASE_QT_CHECK(id, name, qkey, num) X_QT_CHECK(id, qkey, num)
-    XFOREACH_HOTKEY_BASE_KEYS(X_BASE_QT_CHECK)
+#define S_QT_CHECK(id, qkey, num) X_QT_CHECK(id, qkey, num)
+
+    XFOREACH_HOTKEY_BASE_KEYS(X_BASE_QT_CHECK, S_QT_CHECK)
+
+#undef S_QT_CHECK
 #undef X_BASE_QT_CHECK
 #undef X_QT_CHECK
 
@@ -164,7 +163,9 @@ std::string Hotkey::hotkeyBaseToName(HotkeyEnum base)
 #define X_NAME_CHECK(id, name, qkey, num) \
     if (base == HotkeyEnum::id) \
         return name;
-    XFOREACH_HOTKEY_BASE_KEYS(X_NAME_CHECK)
+#define S_IGNORE(...)
+    XFOREACH_HOTKEY_BASE_KEYS(X_NAME_CHECK, S_IGNORE)
+#undef S_IGNORE
 #undef X_NAME_CHECK
     return {};
 }
@@ -176,18 +177,20 @@ HotkeyEnum Hotkey::nameToHotkeyBase(std::string_view name)
 #define X_NAME_TO_ENUM(id, str, qkey, num) \
     if (upperName == str) \
         return HotkeyEnum::id;
-    XFOREACH_HOTKEY_BASE_KEYS(X_NAME_TO_ENUM)
+#define S_IGNORE(...)
+    XFOREACH_HOTKEY_BASE_KEYS(X_NAME_TO_ENUM, S_IGNORE)
+#undef S_IGNORE
 #undef X_NAME_TO_ENUM
     return HotkeyEnum::INVALID;
 }
 
 std::vector<std::string> Hotkey::getAvailableKeyNames()
 {
-    return {
 #define X_STR(id, name, key, numpad) name,
-        XFOREACH_HOTKEY_BASE_KEYS(X_STR)
+#define S_IGNORE(...)
+    return {XFOREACH_HOTKEY_BASE_KEYS(X_STR, S_IGNORE)};
+#undef S_IGNORE
 #undef X_STR
-    };
 }
 
 std::vector<std::string> Hotkey::getAvailableModifiers()

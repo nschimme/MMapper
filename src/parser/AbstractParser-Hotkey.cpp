@@ -71,21 +71,16 @@ std::string getInstructionalError(std::string_view keyCombo)
 
     for (const auto &part : parts) {
         const std::string p = toUpperUtf8(part);
-        for (const auto &vm : validMods) {
-            if (p == vm) {
-                continue;
-            }
+
+        auto isMatch = [&](const auto &list) {
+            return std::any_of(list.begin(), list.end(), [&](const auto &s) { return p == s; });
+        };
+
+        if (isMatch(validMods)) {
+            continue;
         }
 
-        bool found = false;
-        for (const auto &vk : validKeys) {
-            if (p == vk) {
-                found = true;
-                break;
-            }
-        }
-
-        if (!found) {
+        if (!isMatch(validKeys)) {
             unrecognized = part;
             break;
         }

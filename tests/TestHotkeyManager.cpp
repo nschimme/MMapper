@@ -48,21 +48,18 @@ void TestHotkeyManager::keyNormalizationTest()
     HotkeyManager manager;
     manager.clear();
 
-    // Test all base keys defined in macro
+    // Test all base keys and secondary mappings defined in macro
 #define X_TEST_KEY(id, name, qkey, num) \
     QVERIFY(manager.setHotkey(Hotkey{name}, "cmd_" name)); \
     checkHk(manager, Hotkey{name}, "cmd_" name); \
     checkHk(manager, Hotkey{qkey, num ? Qt::KeypadModifier : Qt::NoModifier}, "cmd_" name);
 
-    XFOREACH_HOTKEY_BASE_KEYS(X_TEST_KEY)
-#undef X_TEST_KEY
-
-    // Test secondary Numpad navigation mappings
-#define X_TEST_SECONDARY(id, qkey, num) \
+#define S_TEST_KEY(id, qkey, num) \
     checkHk(manager, Hotkey{qkey, num ? Qt::KeypadModifier : Qt::NoModifier}, "cmd_" #id);
 
-    XFOREACH_HOTKEY_SECONDARY_MAPPINGS(X_TEST_SECONDARY)
-#undef X_TEST_SECONDARY
+    XFOREACH_HOTKEY_BASE_KEYS(X_TEST_KEY, S_TEST_KEY)
+#undef X_TEST_KEY
+#undef S_TEST_KEY
 
     // Test that modifiers are normalized to canonical order: SHIFT+CTRL+ALT+META
 

@@ -14,8 +14,14 @@
 #include <Qt>
 
 // Macro to define all supported base keys and their Qt mappings.
+//
 // X(EnumName, StringName, QtKey, IsNumpad) -> Defines a unique identity
 // S(EnumName, QtKey, IsNumpad)             -> Defines an additional mapping (alias)
+//
+// Secondary mappings (aliases) are needed because Qt often reports navigation keys
+// (e.g. Qt::Key_Left instead of Qt::Key_4) for Numpad keys when Shift is held or
+// NumLock is off, but it still includes the Qt::KeypadModifier. Aliases allow
+// these events to be correctly mapped back to the NUMPAD hotkey identity.
 #define XFOREACH_HOTKEY_BASE_KEYS(X, S) \
     X(F1, "F1", Qt::Key_F1, false) \
     X(F2, "F2", Qt::Key_F2, false) \

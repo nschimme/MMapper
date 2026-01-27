@@ -98,7 +98,7 @@ void AbstractParser::parseHotkey(StringView input)
             const std::string cmdStr = v[2].isVector() ? concatenate_unquoted(v[2].getVector())
                                                        : v[2].getString();
 
-            Hotkey hk = Hotkey::deserialize(keyName);
+            Hotkey hk(keyName);
             if (!hk.isValid()) {
                 os << mmqt::toStdStringUtf8(getInstructionalError(keyName)) << "\n";
                 return;
@@ -143,7 +143,7 @@ void AbstractParser::parseHotkey(StringView input)
             const auto v = getAnyVectorReversed(args);
             const QString keyName = mmqt::toQStringUtf8(v[1].getString());
 
-            Hotkey hk = Hotkey::deserialize(keyName);
+            Hotkey hk(keyName);
             if (!hk.isValid()) {
                 os << mmqt::toStdStringUtf8(getInstructionalError(keyName)) << "\n";
                 return;

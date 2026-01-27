@@ -41,9 +41,9 @@ void TestHotkeyManager::keyNormalizationTest()
 
     // Test all base keys defined in macro
 #define X_TEST_KEY(id, name, qkey, num) \
-    QVERIFY(manager.setHotkey(name, "cmd_" name)); \
-    QCOMPARE(manager.getCommandQString(name).value_or(QString()), QString("cmd_" name)); \
-    QCOMPARE(manager.getCommandQString(qkey, Qt::NoModifier, num).value_or(QString()), \
+    QVERIFY(manager.setHotkey(Hotkey(name), "cmd_" name)); \
+    QCOMPARE(manager.getCommand(Hotkey(name)), QString("cmd_" name)); \
+    QCOMPARE(manager.getCommand(Hotkey(qkey, Qt::NoModifier, num)), \
              QString("cmd_" name));
 
     XFOREACH_HOTKEY_BASE_KEYS(X_TEST_KEY)
@@ -51,33 +51,33 @@ void TestHotkeyManager::keyNormalizationTest()
 
     // Test that modifiers are normalized to canonical order: CTRL+SHIFT+ALT+META
     // Set a hotkey with non-canonical modifier order
-    QVERIFY(manager.setHotkey("ALT+CTRL+F1", "test1"));
+    QVERIFY(manager.setHotkey({"ALT+CTRL+F1"}, "test1"));
 
     // Should be retrievable with canonical order
-    QCOMPARE(manager.getCommandQString("CTRL+ALT+F1").value_or(QString()), QString("test1"));
+    QCOMPARE(manager.getCommand({"CTRL+ALT+F1"}), QString("test1"));
 
     // Should also be retrievable with the original order (due to normalization)
-    QCOMPARE(manager.getCommandQString("ALT+CTRL+F1").value_or(QString()), QString("test1"));
+    QCOMPARE(manager.getCommand({"ALT+CTRL+F1"}), QString("test1"));
 
     // Test all modifier combinations normalize correctly
-    QVERIFY(manager.setHotkey("META+ALT+SHIFT+CTRL+F2", "test2"));
-    QCOMPARE(manager.getCommandQString("CTRL+SHIFT+ALT+META+F2").value_or(QString()),
+    QVERIFY(manager.setHotkey(Hotkey("META+ALT+SHIFT+CTRL+F2"), "test2"));
+    QCOMPARE(manager.getCommand(Hotkey("CTRL+SHIFT+ALT+META+F2")),
              QString("test2"));
 
     // Test that case is normalized to uppercase
-    QVERIFY(manager.setHotkey("ctrl+f3", "test3"));
-    QCOMPARE(manager.getCommandQString("CTRL+F3").value_or(QString()), QString("test3"));
+    QVERIFY(manager.setHotkey({"ctrl+f3"}, "test3"));
+    QCOMPARE(manager.getCommand({"CTRL+F3"}), QString("test3"));
 
     // Test CONTROL alias normalizes to CTRL
-    QVERIFY(manager.setHotkey("CONTROL+F4", "test4"));
-    QCOMPARE(manager.getCommandQString("CTRL+F4").value_or(QString()), QString("test4"));
+    QVERIFY(manager.setHotkey(Hotkey("CONTROL+F4"), "test4"));
+    QCOMPARE(manager.getCommand({"CTRL+F4"}), QString("test4"));
 
     // Test CMD/COMMAND aliases normalize to META
-    QVERIFY(manager.setHotkey("CMD+F5", "test5"));
-    QCOMPARE(manager.getCommandQString("META+F5").value_or(QString()), QString("test5"));
+    QVERIFY(manager.setHotkey(Hotkey("CMD+F5"), "test5"));
+    QCOMPARE(manager.getCommand({"META+F5"}), QString("test5"));
 
-    QVERIFY(manager.setHotkey("COMMAND+F6", "test6"));
-    QCOMPARE(manager.getCommandQString("META+F6").value_or(QString()), QString("test6"));
+    QVERIFY(manager.setHotkey(Hotkey("COMMAND+F6"), "test6"));
+    QCOMPARE(manager.getCommand({"META+F6"}), QString("test6"));
 }
 
 void TestHotkeyManager::importExportRoundTripTest()
@@ -86,15 +86,15 @@ void TestHotkeyManager::importExportRoundTripTest()
     manager.clear();
 
     // Verify all hotkeys can be set and retrieved
-    QVERIFY(manager.setHotkey("F1", "look"));
-    QVERIFY(manager.setHotkey("CTRL+F2", "open exit n"));
-    QVERIFY(manager.setHotkey("SHIFT+ALT+F3", "pick exit s"));
-    QVERIFY(manager.setHotkey("NUMPAD8", "n"));
+    QVERIFY(manager.setHotkey({"F1"}, "look"));
+    QVERIFY(manager.setHotkey({"CTRL+F2"}, "open exit n"));
+    QVERIFY(manager.setHotkey({"SHIFT+ALT+F3"}, "pick exit s"));
+    QVERIFY(manager.setHotkey({"NUMPAD8"}, "n"));
 
-    QCOMPARE(manager.getCommandQString("F1").value_or(QString()), QString("look"));
-    QCOMPARE(manager.getCommandQString("CTRL+F2").value_or(QString()), QString("open exit n"));
-    QCOMPARE(manager.getCommandQString("SHIFT+ALT+F3").value_or(QString()), QString("pick exit s"));
-    QCOMPARE(manager.getCommandQString("NUMPAD8").value_or(QString()), QString("n"));
+    QCOMPARE(manager.getCommand({"F1"}), QString("look"));
+    QCOMPARE(manager.getCommand({"CTRL+F2"}), QString("open exit n"));
+    QCOMPARE(manager.getCommand({"SHIFT+ALT+F3"}), QString("pick exit s"));
+    QCOMPARE(manager.getCommand({"NUMPAD8"}), QString("n"));
 
     // Verify total count
     QCOMPARE(manager.getAllHotkeys().size(), 4);
@@ -106,12 +106,12 @@ void TestHotkeyManager::importEdgeCasesTest()
     manager.clear();
 
     // Test command with multiple spaces (should preserve spaces in command)
-    std::ignore = manager.setHotkey("F1", "cast 'cure light'");
-    QCOMPARE(manager.getCommandQString("F1").value_or(QString()), QString("cast 'cure light'"));
+    std::ignore = manager.setHotkey({"F1"}, "cast 'cure light'");
+    QCOMPARE(manager.getCommand({"F1"}), QString("cast 'cure light'"));
 
     // Test leading/trailing whitespace handling in key name
-    QVERIFY(manager.setHotkey("  F4  ", "command with spaces"));
-    QCOMPARE(manager.getCommandQString("F4").value_or(QString()), QString("command with spaces"));
+    QVERIFY(manager.setHotkey({"  F4  "}, "command with spaces"));
+    QCOMPARE(manager.getCommand({"F4"}), QString("command with spaces"));
 }
 
 void TestHotkeyManager::resetToDefaultsTest()
@@ -120,23 +120,23 @@ void TestHotkeyManager::resetToDefaultsTest()
     manager.clear();
 
     // Set custom hotkeys
-    std::ignore = manager.setHotkey("F1", "custom");
-    std::ignore = manager.setHotkey("F2", "another");
-    QCOMPARE(manager.getCommandQString("F1").value_or(QString()), QString("custom"));
+    std::ignore = manager.setHotkey({"F1"}, "custom");
+    std::ignore = manager.setHotkey({"F2"}, "another");
+    QCOMPARE(manager.getCommand({"F1"}), QString("custom"));
     QCOMPARE(manager.getAllHotkeys().size(), 2);
 
     // Reset to defaults
     manager.resetToDefaults();
 
     // Verify defaults are restored
-    QCOMPARE(manager.getCommandQString("NUMPAD8").value_or(QString()), QString("n"));
-    QCOMPARE(manager.getCommandQString("NUMPAD4").value_or(QString()), QString("w"));
-    QCOMPARE(manager.getCommandQString("CTRL+NUMPAD8").value_or(QString()), QString("open exit n"));
-    QCOMPARE(manager.getCommandQString("ALT+NUMPAD8").value_or(QString()), QString("close exit n"));
-    QCOMPARE(manager.getCommandQString("SHIFT+NUMPAD8").value_or(QString()), QString("pick exit n"));
+    QCOMPARE(manager.getCommand({"NUMPAD8"}), QString("n"));
+    QCOMPARE(manager.getCommand({"NUMPAD4"}), QString("w"));
+    QCOMPARE(manager.getCommand({"CTRL+NUMPAD8"}), QString("open exit n"));
+    QCOMPARE(manager.getCommand({"ALT+NUMPAD8"}), QString("close exit n"));
+    QCOMPARE(manager.getCommand({"SHIFT+NUMPAD8"}), QString("pick exit n"));
 
     // F1 is not in defaults, should be empty
-    QCOMPARE(manager.getCommandQString("F1").value_or(QString()), QString());
+    QCOMPARE(manager.getCommand({"F1"}), QString());
 
     // Verify defaults are non-empty (don't assert exact count to avoid brittleness)
     QVERIFY(!manager.getAllHotkeys().empty());
@@ -149,8 +149,8 @@ void TestHotkeyManager::exportSortOrderTest()
     HotkeyManager manager;
     manager.clear();
 
-    std::ignore = manager.setHotkey("F1", "cmd1");
-    std::ignore = manager.setHotkey("F2", "cmd2");
+    std::ignore = manager.setHotkey({"F1"}, "cmd1");
+    std::ignore = manager.setHotkey({"F2"}, "cmd2");
 
     auto hotkeys = manager.getAllHotkeys();
     QCOMPARE(hotkeys.size(), 2);
@@ -163,22 +163,22 @@ void TestHotkeyManager::setHotkeyTest()
 
     // Test setting a new hotkey directly
     QVERIFY(manager.setHotkey("F1", "look"));
-    QCOMPARE(manager.getCommandQString("F1").value_or(QString()), QString("look"));
+    QCOMPARE(manager.getCommand({"F1"}), QString("look"));
     QCOMPARE(manager.getAllHotkeys().size(), 1);
 
     // Test setting another hotkey
     QVERIFY(manager.setHotkey("F2", "flee"));
-    QCOMPARE(manager.getCommandQString("F2").value_or(QString()), QString("flee"));
+    QCOMPARE(manager.getCommand({"F2"}), QString("flee"));
     QCOMPARE(manager.getAllHotkeys().size(), 2);
 
     // Test updating an existing hotkey (should replace, not add)
     QVERIFY(manager.setHotkey("F1", "inventory"));
-    QCOMPARE(manager.getCommandQString("F1").value_or(QString()), QString("inventory"));
+    QCOMPARE(manager.getCommand({"F1"}), QString("inventory"));
     QCOMPARE(manager.getAllHotkeys().size(), 2); // Still 2, not 3
 
     // Test setting hotkey with modifiers
     QVERIFY(manager.setHotkey("CTRL+F3", "open exit n"));
-    QCOMPARE(manager.getCommandQString("CTRL+F3").value_or(QString()), QString("open exit n"));
+    QCOMPARE(manager.getCommand({"CTRL+F3"}), QString("open exit n"));
     QCOMPARE(manager.getAllHotkeys().size(), 3);
 }
 
@@ -194,13 +194,13 @@ void TestHotkeyManager::removeHotkeyTest()
 
     // Test removing a hotkey
     manager.removeHotkey("F1");
-    QCOMPARE(manager.getCommandQString("F1").value_or(QString()),
+    QCOMPARE(manager.getCommand({"F1"}),
              QString()); // Should be empty now
     QCOMPARE(manager.getAllHotkeys().size(), 2);
 
     // Test removing hotkey with modifiers
     manager.removeHotkey("CTRL+F3");
-    QCOMPARE(manager.getCommandQString("CTRL+F3").value_or(QString()), QString());
+    QCOMPARE(manager.getCommand({"CTRL+F3"}), QString());
     QCOMPARE(manager.getAllHotkeys().size(), 1);
 }
 
@@ -227,7 +227,7 @@ void TestHotkeyManager::invalidKeyValidationTest()
 
     // Test that invalid base keys are rejected
     QVERIFY(!manager.setHotkey("F13", "invalid"));
-    QCOMPARE(manager.getCommandQString("F13").value_or(QString()), QString()); // Should not be set
+    QCOMPARE(manager.getCommand({"F13"}), QString()); // Should not be set
     QCOMPARE(manager.getAllHotkeys().size(), 0);
 
     // Test typo in key name
@@ -241,11 +241,11 @@ void TestHotkeyManager::duplicateKeyBehaviorTest()
 
     // Test that setHotkey replaces existing entry
     std::ignore = manager.setHotkey("F1", "original");
-    QCOMPARE(manager.getCommandQString("F1").value_or(QString()), QString("original"));
+    QCOMPARE(manager.getCommand({"F1"}), QString("original"));
     QCOMPARE(manager.getAllHotkeys().size(), 1);
 
     QVERIFY(manager.setHotkey("F1", "replaced"));
-    QCOMPARE(manager.getCommandQString("F1").value_or(QString()), QString("replaced"));
+    QCOMPARE(manager.getCommand({"F1"}), QString("replaced"));
     QCOMPARE(manager.getAllHotkeys().size(), 1); // Still 1, not 2
 }
 
@@ -276,27 +276,27 @@ void TestHotkeyManager::directLookupTest()
     std::ignore = manager.setHotkey("SHIFT+ALT+UP", "north");
 
     // Test direct lookup for function keys (isNumpad=false)
-    QCOMPARE(manager.getCommandQString(Qt::Key_F1, Qt::NoModifier, false).value_or(QString()),
+    QCOMPARE(manager.getCommand({Qt::Key_F1, Qt::NoModifier, false}),
              QString("look"));
-    QCOMPARE(manager.getCommandQString(Qt::Key_F2, Qt::ControlModifier, false).value_or(QString()),
+    QCOMPARE(manager.getCommand({Qt::Key_F2, Qt::ControlModifier, false}),
              QString("flee"));
 
     // Test that wrong modifiers don't match
-    QCOMPARE(manager.getCommandQString(Qt::Key_F1, Qt::ControlModifier, false).value_or(QString()),
+    QCOMPARE(manager.getCommand({Qt::Key_F1, Qt::ControlModifier, false}),
              QString());
 
     // Test numpad keys (isNumpad=true) - Qt::Key_8 with isNumpad=true
-    QCOMPARE(manager.getCommandQString(Qt::Key_8, Qt::NoModifier, true).value_or(QString()),
+    QCOMPARE(manager.getCommand({Qt::Key_8, Qt::NoModifier, true}),
              QString("n"));
-    QCOMPARE(manager.getCommandQString(Qt::Key_5, Qt::ControlModifier, true).value_or(QString()),
+    QCOMPARE(manager.getCommand({Qt::Key_5, Qt::ControlModifier, true}),
              QString("s"));
 
     // Test that numpad keys don't match non-numpad lookups
-    QCOMPARE(manager.getCommandQString(Qt::Key_8, Qt::NoModifier, false).value_or(QString()),
+    QCOMPARE(manager.getCommand({Qt::Key_8, Qt::NoModifier, false}),
              QString());
 
     // Test arrow keys (isNumpad=false)
-    QCOMPARE(manager.getCommandQString(Qt::Key_Up, Qt::ShiftModifier | Qt::AltModifier, false)
+    QCOMPARE(manager.getCommand({Qt::Key_Up, Qt::ShiftModifier | Qt::AltModifier, false}
                  .value_or(QString()),
              QString("north"));
 }

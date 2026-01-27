@@ -26,11 +26,12 @@ public:
         : m_hotkey(he)
     {}
     Hotkey(HotkeyEnum base, uint8_t mods);
+    Hotkey(const QString &s);
+    Hotkey(int key, Qt::KeyboardModifiers modifiers, bool isNumpad);
 
     NODISCARD bool isValid() const { return m_hotkey != HotkeyEnum::INVALID; }
 
     NODISCARD QString serialize() const;
-    NODISCARD static Hotkey deserialize(const QString &s);
 
     NODISCARD bool operator==(const Hotkey &other) const { return m_hotkey == other.m_hotkey; }
 
@@ -62,23 +63,11 @@ private:
     void syncFromConfig();
 
 public:
-    NODISCARD bool setHotkey(const QString &keyName, const QString &command);
     NODISCARD bool setHotkey(const Hotkey &hk, const std::string &command);
-    void removeHotkey(const QString &keyName);
     void removeHotkey(const Hotkey &hk);
 
-    NODISCARD std::optional<std::string> getCommand(int key,
-                                                    Qt::KeyboardModifiers modifiers,
-                                                    bool isNumpad) const;
     NODISCARD std::optional<std::string> getCommand(const Hotkey &hk) const;
-    NODISCARD std::optional<std::string> getCommand(const QString &keyName) const;
-    NODISCARD std::optional<QString> getCommandQString(int key,
-                                                       Qt::KeyboardModifiers modifiers,
-                                                       bool isNumpad) const;
-    NODISCARD std::optional<QString> getCommandQString(const Hotkey &hk) const;
-    NODISCARD std::optional<QString> getCommandQString(const QString &keyName) const;
 
-    NODISCARD bool hasHotkey(const QString &keyName) const;
     NODISCARD bool hasHotkey(const Hotkey &hk) const;
     NODISCARD std::vector<std::pair<Hotkey, std::string>> getAllHotkeys() const;
 

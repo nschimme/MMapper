@@ -22,7 +22,8 @@ set(mmapper_SRCS
     client/inputwidget.h
     client/stackedinputwidget.cpp
     client/stackedinputwidget.h
-    client/HotkeyMacros.h
+    client/Hotkey.cpp
+    client/Hotkey.h
     client/HotkeyManager.cpp
     client/HotkeyManager.h
     client/PasswordDialog.cpp

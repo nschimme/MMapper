@@ -310,6 +310,8 @@ add_test(NAME TestRoomManager COMMAND TestRoomManager)
 
 # HotkeyManager
 set(hotkey_manager_SRCS
+        ../src/client/Hotkey.cpp
+        ../src/client/Hotkey.h
         ../src/client/HotkeyManager.cpp
         ../src/client/HotkeyManager.h
 )

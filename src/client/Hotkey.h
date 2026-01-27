@@ -2,7 +2,17 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2026 The MMapper Authors
 
+#include "../global/RuleOf5.h"
+#include "../global/macros.h"
+
 #include <cstdint>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include <QString>
+#include <Qt>
 
 // Macro to define all supported base keys
 // X(EnumName, StringName, QtKey, IsNumpad)
@@ -118,22 +128,48 @@
 
 enum class HotkeyEnum : uint16_t { XFOREACH_HOTKEY_BASE_KEYS(X_GENERATE_ALL_MODS) INVALID };
 
-namespace {
-#define X_COUNT_BASE(id, name, key, numpad) +1
-static constexpr int NUM_BASES = 0 XFOREACH_HOTKEY_BASE_KEYS(X_COUNT_BASE);
-#undef X_COUNT_BASE
-#define X_COUNT_MODS(mod) +1
-static constexpr int NUM_MOD_BITS = 0 XFOREACH_HOTKEY_MODIFIER(X_COUNT_MODS);
-#undef X_COUNT_MODS
-static constexpr int VARIANTS_PER_KEY = 1 << NUM_MOD_BITS;
-static constexpr int TOTAL_EXPECTED = NUM_BASES * VARIANTS_PER_KEY;
-static_assert(TOTAL_EXPECTED == 784, "Total keys count changed");
-static_assert(static_cast<int>(HotkeyEnum::INVALID) == TOTAL_EXPECTED, "Enum mismatch");
-} // namespace
-
 #undef PERMUTE_0
 #undef PERMUTE_1
 #undef PERMUTE_2
 #undef PERMUTE_3
 #undef PERMUTE_4
 #undef X_GENERATE_ALL_MODS
+
+class NODISCARD Hotkey final
+{
+private:
+    HotkeyEnum m_hotkey = HotkeyEnum::INVALID;
+
+public:
+    Hotkey() = default;
+    DEFAULT_RULE_OF_5(Hotkey);
+
+    explicit Hotkey(HotkeyEnum he)
+        : m_hotkey(he)
+    {}
+    Hotkey(HotkeyEnum base, uint8_t mods);
+    explicit Hotkey(const QString &s);
+    Hotkey(std::string_view s);
+    Hotkey(const char *s)
+        : Hotkey(std::string_view(s))
+    {}
+    Hotkey(int key, Qt::KeyboardModifiers modifiers, bool isNumpad);
+
+    NODISCARD bool isValid() const { return m_hotkey != HotkeyEnum::INVALID; }
+
+    NODISCARD QString serialize() const;
+    NODISCARD std::string serializeStd() const;
+
+    NODISCARD bool operator==(const Hotkey &other) const { return m_hotkey == other.m_hotkey; }
+
+    NODISCARD HotkeyEnum toEnum() const { return m_hotkey; }
+    NODISCARD HotkeyEnum base() const;
+    NODISCARD uint8_t modifiers() const;
+
+    NODISCARD static uint8_t qtModifiersToMask(Qt::KeyboardModifiers mods);
+    NODISCARD static HotkeyEnum qtKeyToHotkeyBase(int key, bool isNumpad);
+    NODISCARD static std::string hotkeyBaseToName(HotkeyEnum base);
+    NODISCARD static HotkeyEnum nameToHotkeyBase(std::string_view name);
+    NODISCARD static std::vector<std::string> getAvailableKeyNames();
+    NODISCARD static std::vector<std::string> getAvailableModifiers();
+};

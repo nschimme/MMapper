@@ -5,7 +5,7 @@
 
 #include "../global/RuleOf5.h"
 #include "../global/macros.h"
-#include "HotkeyManager.h"
+#include "Hotkey.h"
 #include "PaletteManager.h"
 
 #include <iterator>

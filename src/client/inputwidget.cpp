@@ -7,7 +7,6 @@
 #include "../configuration/configuration.h"
 #include "../global/Color.h"
 #include "ClientWidget.h"
-#include "HotkeyManager.h"
 
 #include <QFont>
 #include <QMessageLogContext>

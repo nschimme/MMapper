@@ -49,7 +49,7 @@ void TestHotkeyManager::keyNormalizationTest()
 #define X_TEST_KEY(id, name, qkey, num) \
     QVERIFY(manager.setHotkey(Hotkey{name}, "cmd_" name)); \
     checkHk(Hotkey{name}, "cmd_" name); \
-    checkHk(Hotkey{qkey, Qt::NoModifier, num}, "cmd_" name);
+    checkHk(Hotkey{qkey, num ? Qt::KeypadModifier : Qt::NoModifier}, "cmd_" name);
 
     XFOREACH_HOTKEY_BASE_KEYS(X_TEST_KEY)
 #undef X_TEST_KEY
@@ -298,21 +298,21 @@ void TestHotkeyManager::directLookupTest()
     std::ignore = manager.setHotkey(Hotkey{"SHIFT+ALT+UP"}, "north");
 
     // Test direct lookup for function keys (isNumpad=false)
-    checkHk(Hotkey{Qt::Key_F1, Qt::NoModifier, false}, "look");
-    checkHk(Hotkey{Qt::Key_F2, Qt::ControlModifier, false}, "flee");
+    checkHk(Hotkey{Qt::Key_F1, Qt::NoModifier}, "look");
+    checkHk(Hotkey{Qt::Key_F2, Qt::ControlModifier}, "flee");
 
     // Test that wrong modifiers don't match
-    checkHk(Hotkey{Qt::Key_F1, Qt::ControlModifier, false}, "");
+    checkHk(Hotkey{Qt::Key_F1, Qt::ControlModifier}, "");
 
     // Test numpad keys (isNumpad=true) - Qt::Key_8 with isNumpad=true
-    checkHk(Hotkey{Qt::Key_8, Qt::NoModifier, true}, "n");
-    checkHk(Hotkey{Qt::Key_5, Qt::ControlModifier, true}, "s");
+    checkHk(Hotkey{Qt::Key_8, Qt::KeypadModifier}, "n");
+    checkHk(Hotkey{Qt::Key_5, Qt::ControlModifier | Qt::KeypadModifier}, "s");
 
     // Test that numpad keys don't match non-numpad lookups
-    checkHk(Hotkey{Qt::Key_8, Qt::NoModifier, false}, "");
+    checkHk(Hotkey{Qt::Key_8, Qt::NoModifier}, "");
 
     // Test arrow keys (isNumpad=false)
-    checkHk(Hotkey{Qt::Key_Up, (Qt::ShiftModifier | Qt::AltModifier), false}, "north");
+    checkHk(Hotkey{Qt::Key_Up, (Qt::ShiftModifier | Qt::AltModifier)}, "north");
 
     // Test SHIFT+NUMPAD4 (NumLock ON) which often comes as Qt::Key_Left + Shift + Keypad
     std::ignore = manager.setHotkey(Hotkey{"SHIFT+NUMPAD4"}, "pick west");

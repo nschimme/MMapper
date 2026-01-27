@@ -6,7 +6,6 @@
 #include "../global/macros.h"
 
 #include <cstdint>
-#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -180,7 +179,7 @@ public:
     Hotkey(const char *s)
         : Hotkey(std::string_view(s))
     {}
-    Hotkey(int key, Qt::KeyboardModifiers modifiers, std::optional<bool> isNumpad = std::nullopt);
+    Hotkey(int key, Qt::KeyboardModifiers modifiers);
 
     NODISCARD bool isValid() const { return m_hotkey != HotkeyEnum::INVALID; }
 

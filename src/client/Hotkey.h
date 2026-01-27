@@ -113,10 +113,10 @@
     X("NUMPAD3", "stand")
 
 #define XFOREACH_HOTKEY_MODIFIER(X) \
-    X(SHIFT) \
-    X(CTRL) \
-    X(ALT) \
-    X(META)
+    X(SHIFT, Qt::ShiftModifier, 1) \
+    X(CTRL, Qt::ControlModifier, 2) \
+    X(ALT, Qt::AltModifier, 4) \
+    X(META, Qt::MetaModifier, 8)
 
 #define PERMUTE_0(key) key,
 #define PERMUTE_1(key) PERMUTE_0(key) PERMUTE_0(SHIFT_##key)
@@ -138,7 +138,7 @@ namespace {
 #define X_COUNT_BASE(id, name, key, numpad) +1
 static constexpr int NUM_BASES = 0 XFOREACH_HOTKEY_BASE_KEYS(X_COUNT_BASE);
 #undef X_COUNT_BASE
-#define X_COUNT_MODS(mod) +1
+#define X_COUNT_MODS(name, modifier, shift) +1
 static constexpr int NUM_MOD_BITS = 0 XFOREACH_HOTKEY_MODIFIER(X_COUNT_MODS);
 #undef X_COUNT_MODS
 static constexpr int VARIANTS_PER_KEY = 1 << NUM_MOD_BITS;

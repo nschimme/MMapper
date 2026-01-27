@@ -6,9 +6,6 @@
 #include "../global/CaseUtils.h"
 #include "../global/TextUtils.h"
 
-#include <algorithm>
-#include <sstream>
-
 Hotkey::Hotkey(HotkeyEnum base, uint8_t mods)
 {
     if (base == HotkeyEnum::INVALID) {
@@ -24,48 +21,55 @@ Hotkey::Hotkey(const QString &s)
 
 Hotkey::Hotkey(std::string_view s)
 {
-    if (s.empty()) {
+    if (s.empty())
         return;
-    }
 
     uint8_t mods = 0;
     HotkeyEnum base = HotkeyEnum::INVALID;
 
-    const std::string str = toUpperUtf8(s);
+    auto isModifier = [](std::string_view input, std::string_view target) {
+        if (input.size() != target.size())
+            return false;
+        for (size_t i = 0; i < input.size(); ++i) {
+            if (std::toupper(static_cast<unsigned char>(input[i]))
+                != static_cast<unsigned char>(target[i])) {
+                return false;
+            }
+        }
+        return true;
+    };
 
     size_t start = 0;
-    size_t end = str.find('+');
+    size_t end = s.find('+');
     while (true) {
-        std::string_view part;
-        if (end == std::string::npos) {
-            part = std::string_view(str).substr(start);
-        } else {
-            part = std::string_view(str).substr(start, end - start);
-        }
+        std::string_view part = (end == std::string::npos) ? s.substr(start)
+                                                           : s.substr(start, end - start);
 
-        // Trim
+        // Trim whitespace
         while (!part.empty() && std::isspace(static_cast<unsigned char>(part.front())))
             part.remove_prefix(1);
         while (!part.empty() && std::isspace(static_cast<unsigned char>(part.back())))
             part.remove_suffix(1);
 
-        if (part == "SHIFT") {
-            mods |= 1;
-        } else if (part == "CTRL" || part == "CONTROL") {
-            mods |= 2;
-        } else if (part == "ALT") {
-            mods |= 4;
-        } else if (part == "META" || part == "CMD" || part == "COMMAND") {
-            mods |= 8;
-        } else if (!part.empty()) {
-            base = nameToHotkeyBase(part);
+        if (!part.empty()) {
+// X-Macro expansion using the lambda
+#define X_PARSE(name, modifier, bit) \
+    if (isModifier(part, #name)) { \
+        mods |= bit; \
+    } else
+
+            XFOREACH_HOTKEY_MODIFIER(X_PARSE)
+            {
+                // This block is the final 'else' of the macro chain
+                base = nameToHotkeyBase(part);
+            }
+#undef X_PARSE
         }
 
-        if (end == std::string::npos) {
+        if (end == std::string::npos)
             break;
-        }
         start = end + 1;
-        end = str.find('+', start);
+        end = s.find('+', start);
     }
 
     *this = Hotkey(base, mods);
@@ -103,14 +107,11 @@ std::string Hotkey::serialize() const
 
     std::vector<std::string> parts;
     uint8_t mods = modifiers();
-    if (mods & 1)
-        parts.emplace_back("SHIFT");
-    if (mods & 2)
-        parts.emplace_back("CTRL");
-    if (mods & 4)
-        parts.emplace_back("ALT");
-    if (mods & 8)
-        parts.emplace_back("META");
+#define X_STR(name, modifier, shift) \
+    if (mods & shift) \
+        parts.emplace_back(#name);
+    XFOREACH_HOTKEY_MODIFIER(X_STR)
+#undef X_STR
 
     std::string name = hotkeyBaseToName(base());
     if (name.empty())
@@ -131,14 +132,11 @@ std::string Hotkey::serialize() const
 uint8_t Hotkey::qtModifiersToMask(Qt::KeyboardModifiers mods)
 {
     uint8_t mask = 0;
-    if (mods & Qt::ShiftModifier)
-        mask |= 1;
-    if (mods & Qt::ControlModifier)
-        mask |= 2;
-    if (mods & Qt::AltModifier)
-        mask |= 4;
-    if (mods & Qt::MetaModifier)
-        mask |= 8;
+#define X_STR(name, modifier, shift) \
+    if (mods & modifier) \
+        mask |= shift;
+    XFOREACH_HOTKEY_MODIFIER(X_STR)
+#undef X_STR
     return mask;
 }
 
@@ -186,7 +184,7 @@ std::vector<std::string> Hotkey::getAvailableKeyNames()
 std::vector<std::string> Hotkey::getAvailableModifiers()
 {
     return {
-#define X_STR(name) #name,
+#define X_STR(id, name, shift) #name,
         XFOREACH_HOTKEY_MODIFIER(X_STR)
 #undef X_STR
     };

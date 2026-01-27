@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2019 The MMapper Authors
+// Copyright (C) 2026 The MMapper Authors
 
 #include "HotkeyManager.h"
 
@@ -14,13 +14,7 @@ HotkeyManager::HotkeyManager()
     setConfig().hotkeys.registerChangeCallback(m_configLifetime,
                                                [this]() { this->syncFromConfig(); });
     syncFromConfig();
-
-    if (m_hotkeys.empty()) {
-        resetToDefaults();
-    }
 }
-
-HotkeyManager::~HotkeyManager() {}
 
 void HotkeyManager::syncFromConfig()
 {
@@ -32,12 +26,16 @@ void HotkeyManager::syncFromConfig()
             m_hotkeys[hk.toEnum()] = mmqt::toStdStringUtf8(it.value().toString());
         }
     }
+    if (m_hotkeys.empty()) {
+        resetToDefaults();
+    }
 }
 
 bool HotkeyManager::setHotkey(const Hotkey &hk, std::string command)
 {
-    if (!hk.isValid())
+    if (!hk.isValid()) {
         return false;
+    }
 
     QVariantMap data = getConfig().hotkeys.data();
     data[mmqt::toQStringUtf8(hk.serialize())] = mmqt::toQStringUtf8(command);
@@ -56,12 +54,14 @@ void HotkeyManager::removeHotkey(const Hotkey &hk)
 
 std::optional<std::string> HotkeyManager::getCommand(const Hotkey &hk) const
 {
-    if (!hk.isValid())
+    if (!hk.isValid()) {
         return std::nullopt;
+    }
 
     auto it = m_hotkeys.find(hk.toEnum());
-    if (it == m_hotkeys.end())
+    if (it == m_hotkeys.end()) {
         return std::nullopt;
+    }
     return it->second;
 }
 

@@ -367,13 +367,8 @@ bool InputWidget::event(QEvent *const event)
 {
     if (event->type() == QEvent::ShortcutOverride) {
         auto *const keyEvent = static_cast<QKeyEvent *>(event);
-        const auto key = keyEvent->key();
-        const auto mods = keyEvent->modifiers();
-
-        const auto base = Hotkey::qtKeyToHotkeyBase(key, mods & Qt::KeypadModifier);
-        if (base != HotkeyEnum::INVALID) {
-            const Hotkey hk(base, Hotkey::qtModifiersToMask(mods));
-
+        const Hotkey hk(keyEvent->key(), keyEvent->modifiers(), true);
+        if (hk.isValid()) {
             // If it has modifiers, we try to handle it immediately in ShortcutOverride
             // because some modifier combinations might not result in a KeyPress event.
             if (hk.modifiers() != 0) {
@@ -384,11 +379,11 @@ bool InputWidget::event(QEvent *const event)
                     return true;
                 }
             }
-
-            // Accept so KeyPress comes through for bare keys or unhandled hotkeys
-            event->accept();
-            return true;
         }
+
+        // Accept so KeyPress comes through for bare keys or unhandled hotkeys
+        event->accept();
+        return true;
     }
 
     m_paletteManager.tryUpdateFromFocusEvent(*this, deref(event).type());

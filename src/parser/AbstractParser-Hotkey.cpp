@@ -4,6 +4,7 @@
 #include "../client/Hotkey.h"
 #include "../client/HotkeyManager.h"
 #include "../configuration/configuration.h"
+#include "../global/CaseUtils.h"
 #include "../global/TextUtils.h"
 #include "../syntax/SyntaxArgs.h"
 #include "../syntax/TreeParser.h"
@@ -44,11 +45,6 @@ std::string getInstructionalError(std::string_view keyCombo)
 {
     std::string error = "Error: ";
 
-    auto toUpper = [](std::string s) {
-        std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::toupper(c); });
-        return s;
-    };
-
     std::vector<std::string> parts;
     {
         std::string s(keyCombo);
@@ -72,14 +68,15 @@ std::string getInstructionalError(std::string_view keyCombo)
     auto validKeys = Hotkey::getAvailableKeyNames();
 
     for (const auto &part : parts) {
-        std::string p = toUpper(part);
-        if (p == "CTRL" || p == "SHIFT" || p == "ALT" || p == "META" || p == "CONTROL" || p == "CMD" || p == "COMMAND") {
+        const std::string p = toUpperUtf8(part);
+        if (p == "CTRL" || p == "SHIFT" || p == "ALT" || p == "META" || p == "CONTROL" || p == "CMD"
+            || p == "COMMAND") {
             continue;
         }
 
         bool found = false;
         for (const auto &vk : validKeys) {
-            if (p == toUpper(vk)) {
+            if (p == toUpperUtf8(vk)) {
                 found = true;
                 break;
             }
@@ -97,8 +94,7 @@ std::string getInstructionalError(std::string_view keyCombo)
         error += keyCombo;
         error += "\" is missing a valid key.\n";
     } else if (!unrecognized.empty()) {
-        std::string up = unrecognized;
-        std::transform(up.begin(), up.end(), up.begin(), [](unsigned char c) { return std::toupper(c); });
+        const std::string up = toUpperUtf8(unrecognized);
         if (up == "COMMAND" || up == "CMD") {
             error += "\"COMMAND\" is not a recognized modifier.\n";
         } else {

@@ -2,6 +2,7 @@
 // Copyright (C) 2026 The MMapper Authors
 
 #include "Hotkey.h"
+#include "../global/CaseUtils.h"
 #include "../global/TextUtils.h"
 
 #include <algorithm>
@@ -29,8 +30,7 @@ Hotkey::Hotkey(std::string_view s)
     uint8_t mods = 0;
     HotkeyEnum base = HotkeyEnum::INVALID;
 
-    std::string str(s);
-    std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) { return std::toupper(c); });
+    const std::string str = toUpperUtf8(s);
 
     size_t start = 0;
     size_t end = str.find('+');
@@ -163,11 +163,7 @@ std::string Hotkey::hotkeyBaseToName(HotkeyEnum base)
 
 HotkeyEnum Hotkey::nameToHotkeyBase(std::string_view name)
 {
-    std::string upperName(name);
-    std::transform(upperName.begin(),
-                   upperName.end(),
-                   upperName.begin(),
-                   [](unsigned char c) { return std::toupper(c); });
+    const std::string upperName = toUpperUtf8(name);
 
 #define X_NAME_TO_ENUM(id, str, qkey, num) \
     if (upperName == str) \

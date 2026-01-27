@@ -313,6 +313,14 @@ void TestHotkeyManager::directLookupTest()
 
     // Test arrow keys (isNumpad=false)
     checkHk(Hotkey{Qt::Key_Up, (Qt::ShiftModifier | Qt::AltModifier), false}, "north");
+
+    // Test SHIFT+NUMPAD4 (NumLock ON) which often comes as Qt::Key_Left + Shift + Keypad
+    std::ignore = manager.setHotkey(Hotkey{"SHIFT+NUMPAD4"}, "pick west");
+    checkHk(Hotkey{Qt::Key_Left, (Qt::ShiftModifier | Qt::KeypadModifier)}, "pick west");
+
+    // Test NUMPAD8 (NumLock OFF) which comes as Qt::Key_Up + Keypad
+    std::ignore = manager.setHotkey(Hotkey{"NUMPAD8"}, "north");
+    checkHk(Hotkey{Qt::Key_Up, Qt::KeypadModifier}, "north");
 }
 
 QTEST_MAIN(TestHotkeyManager)

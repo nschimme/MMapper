@@ -367,7 +367,7 @@ bool InputWidget::event(QEvent *const event)
 {
     if (event->type() == QEvent::ShortcutOverride) {
         auto *const keyEvent = static_cast<QKeyEvent *>(event);
-        const Hotkey hk(keyEvent->key(), keyEvent->modifiers(), true);
+        const Hotkey hk(keyEvent->key(), keyEvent->modifiers());
         if (hk.isValid()) {
             // If it has modifiers, we try to handle it immediately in ShortcutOverride
             // because some modifier combinations might not result in a KeyPress event.

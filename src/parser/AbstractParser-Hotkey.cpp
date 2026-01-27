@@ -71,21 +71,16 @@ std::string getInstructionalError(std::string_view keyCombo)
 
     for (const auto &part : parts) {
         const std::string p = toUpperUtf8(part);
-        for (const auto &vm : validMods) {
-            if (p == vm) {
-                continue;
-            }
+
+        auto isMatch = [&](const auto &list) {
+            return std::any_of(list.begin(), list.end(), [&](const auto &s) { return p == s; });
+        };
+
+        if (isMatch(validMods)) {
+            continue;
         }
 
-        bool found = false;
-        for (const auto &vk : validKeys) {
-            if (p == vk) {
-                found = true;
-                break;
-            }
-        }
-
-        if (!found) {
+        if (!isMatch(validKeys)) {
             unrecognized = part;
             break;
         }
@@ -100,8 +95,16 @@ std::string getInstructionalError(std::string_view keyCombo)
         error += "Invalid key combo.\n";
     }
 
-    error += "Valid modifiers: CTRL, SHIFT, ALT, META\n";
-    error += "Valid keys include: F1-F12, 0-9, UP, DOWN, etc.\n";
+    error += "Valid modifiers: ";
+    for (size_t i = 0; i < validMods.size(); ++i) {
+        error += validMods[i] + (i == validMods.size() - 1 ? "" : ", ");
+    }
+    error += "\nValid keys include: ";
+    std::sort(validKeys.begin(), validKeys.end());
+    for (size_t i = 0; i < std::min<size_t>(validKeys.size(), 10); ++i) {
+        error += validKeys[i] + ", ";
+    }
+    error += "etc.\n";
     return error;
 }
 } // namespace
@@ -197,9 +200,15 @@ void AbstractParser::parseHotkey(StringView input)
            << "  -hotkey bind <key_combo> <command>\n"
            << "  -hotkey list\n"
            << "  -hotkey unbind <key_combo>\n"
-           << "\n"
-           << "Valid modifiers: CTRL, SHIFT, ALT, META\n" // TODO: Change this to be programmatic
-           << "Valid keys:\n";
+           << "\n";
+
+        os << "Valid modifiers: ";
+        auto mods = Hotkey::getAvailableModifiers();
+        for (size_t i = 0; i < mods.size(); ++i) {
+            os << mods[i] << (i == mods.size() - 1 ? "" : ", ");
+        }
+
+        os << "\nValid keys:\n";
 
         // Programmatically list all valid keys
         auto keys = Hotkey::getAvailableKeyNames();

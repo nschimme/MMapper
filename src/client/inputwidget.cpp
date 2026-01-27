@@ -94,11 +94,19 @@ void InputWidget::keyPressEvent(QKeyEvent *const event)
     }
 
     // 1. Try Hotkeys FIRST
-    const auto base = Hotkey::qtKeyToHotkeyBase(key, mods & Qt::KeypadModifier);
+    const bool isNumpad = mods & Qt::KeypadModifier;
+    const auto base = Hotkey::qtKeyToHotkeyBase(key, isNumpad);
     if (base != HotkeyEnum::INVALID) {
         const Hotkey hk(base, Hotkey::qtModifiersToMask(mods));
         if (auto command = m_outputs.getHotkey(hk)) {
             sendCommandWithSeparator(*command);
+            event->accept();
+            return;
+        }
+
+        // Always block Numpad keys from falling through to default behavior
+        // (like text selection or history navigation) even if no hotkey is bound.
+        if (isNumpad) {
             event->accept();
             return;
         }

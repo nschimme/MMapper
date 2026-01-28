@@ -13,9 +13,16 @@
 #include <QString>
 #include <Qt>
 
-// Macro to define all supported base keys
-// X(EnumName, StringName, QtKey, IsNumpad)
-#define XFOREACH_HOTKEY_BASE_KEYS(X) \
+// Macro to define all supported base keys and their Qt mappings.
+//
+// X(EnumName, StringName, QtKey, IsNumpad) -> Defines a unique identity
+// S(EnumName, QtKey, IsNumpad)             -> Defines an additional mapping (alias)
+//
+// Secondary mappings (aliases) are needed because Qt often reports navigation keys
+// (e.g. Qt::Key_Left instead of Qt::Key_4) for Numpad keys when Shift is held or
+// NumLock is off, but it still includes the Qt::KeypadModifier. Aliases allow
+// these events to be correctly mapped back to the NUMPAD hotkey identity.
+#define XFOREACH_HOTKEY_BASE_KEYS(X, S) \
     X(F1, "F1", Qt::Key_F1, false) \
     X(F2, "F2", Qt::Key_F2, false) \
     X(F3, "F3", Qt::Key_F3, false) \
@@ -29,20 +36,31 @@
     X(F11, "F11", Qt::Key_F11, false) \
     X(F12, "F12", Qt::Key_F12, false) \
     X(NUMPAD0, "NUMPAD0", Qt::Key_0, true) \
+    S(NUMPAD0, Qt::Key_Insert, true) \
     X(NUMPAD1, "NUMPAD1", Qt::Key_1, true) \
+    S(NUMPAD1, Qt::Key_End, true) \
     X(NUMPAD2, "NUMPAD2", Qt::Key_2, true) \
+    S(NUMPAD2, Qt::Key_Down, true) \
     X(NUMPAD3, "NUMPAD3", Qt::Key_3, true) \
+    S(NUMPAD3, Qt::Key_PageDown, true) \
     X(NUMPAD4, "NUMPAD4", Qt::Key_4, true) \
+    S(NUMPAD4, Qt::Key_Left, true) \
     X(NUMPAD5, "NUMPAD5", Qt::Key_5, true) \
+    S(NUMPAD5, Qt::Key_Clear, true) \
     X(NUMPAD6, "NUMPAD6", Qt::Key_6, true) \
+    S(NUMPAD6, Qt::Key_Right, true) \
     X(NUMPAD7, "NUMPAD7", Qt::Key_7, true) \
+    S(NUMPAD7, Qt::Key_Home, true) \
     X(NUMPAD8, "NUMPAD8", Qt::Key_8, true) \
+    S(NUMPAD8, Qt::Key_Up, true) \
     X(NUMPAD9, "NUMPAD9", Qt::Key_9, true) \
+    S(NUMPAD9, Qt::Key_PageUp, true) \
     X(NUMPAD_SLASH, "NUMPAD_SLASH", Qt::Key_Slash, true) \
     X(NUMPAD_ASTERISK, "NUMPAD_ASTERISK", Qt::Key_Asterisk, true) \
     X(NUMPAD_MINUS, "NUMPAD_MINUS", Qt::Key_Minus, true) \
     X(NUMPAD_PLUS, "NUMPAD_PLUS", Qt::Key_Plus, true) \
     X(NUMPAD_PERIOD, "NUMPAD_PERIOD", Qt::Key_Period, true) \
+    S(NUMPAD_PERIOD, Qt::Key_Delete, true) \
     X(HOME, "HOME", Qt::Key_Home, false) \
     X(END, "END", Qt::Key_End, false) \
     X(INSERT, "INSERT", Qt::Key_Insert, false) \
@@ -138,8 +156,11 @@
 #define PERMUTE_3(key) PERMUTE_2(key) PERMUTE_2(ALT_##key)
 #define PERMUTE_4(key) PERMUTE_3(key) PERMUTE_3(META_##key)
 #define X_GENERATE_ALL_MODS(id, name, key, numpad) PERMUTE_4(id)
+#define S_IGNORE(...)
 
-enum class HotkeyEnum : uint16_t { XFOREACH_HOTKEY_BASE_KEYS(X_GENERATE_ALL_MODS) INVALID };
+enum class HotkeyEnum : uint16_t {
+    XFOREACH_HOTKEY_BASE_KEYS(X_GENERATE_ALL_MODS, S_IGNORE) INVALID
+};
 
 #undef PERMUTE_0
 #undef PERMUTE_1
@@ -147,11 +168,14 @@ enum class HotkeyEnum : uint16_t { XFOREACH_HOTKEY_BASE_KEYS(X_GENERATE_ALL_MODS
 #undef PERMUTE_3
 #undef PERMUTE_4
 #undef X_GENERATE_ALL_MODS
+#undef S_IGNORE
 
 namespace {
 #define X_COUNT_BASE(id, name, key, numpad) +1
-static constexpr int NUM_BASES = 0 XFOREACH_HOTKEY_BASE_KEYS(X_COUNT_BASE);
+#define S_IGNORE(...)
+static constexpr int NUM_BASES = 0 XFOREACH_HOTKEY_BASE_KEYS(X_COUNT_BASE, S_IGNORE);
 #undef X_COUNT_BASE
+#undef S_IGNORE
 #define X_COUNT_MODS(name, modifier, shift) +1
 static constexpr int NUM_MOD_BITS = 0 XFOREACH_HOTKEY_MODIFIER(X_COUNT_MODS);
 #undef X_COUNT_MODS
@@ -171,8 +195,10 @@ constexpr bool isUppercase(const char *s)
 }
 #define X_CHECK_UPPER(id, name, qkey, num) \
     static_assert(isUppercase(name), "Hotkey name must be uppercase: " name);
-XFOREACH_HOTKEY_BASE_KEYS(X_CHECK_UPPER)
+#define S_IGNORE(...)
+XFOREACH_HOTKEY_BASE_KEYS(X_CHECK_UPPER, S_IGNORE)
 #undef X_CHECK_UPPER
+#undef S_IGNORE
 } // namespace
 
 class NODISCARD Hotkey final

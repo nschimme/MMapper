@@ -14,6 +14,9 @@ HotkeyManager::HotkeyManager()
     setConfig().hotkeys.registerChangeCallback(m_configLifetime,
                                                [this]() { this->syncFromConfig(); });
     syncFromConfig();
+    if (m_hotkeys.empty()) {
+        resetToDefaults();
+    }
 }
 
 void HotkeyManager::syncFromConfig()
@@ -25,9 +28,6 @@ void HotkeyManager::syncFromConfig()
         if (hk.isValid()) {
             m_hotkeys[hk.toEnum()] = mmqt::toStdStringUtf8(it.value().toString());
         }
-    }
-    if (m_hotkeys.empty()) {
-        resetToDefaults();
     }
 }
 
@@ -81,7 +81,6 @@ std::vector<std::pair<Hotkey, std::string>> HotkeyManager::getAllHotkeys() const
 
 void HotkeyManager::resetToDefaults()
 {
-    m_hotkeys.clear();
     QVariantMap data;
 #define X_DEFAULT(key, cmd) data[key] = QString(cmd);
     XFOREACH_DEFAULT_HOTKEYS(X_DEFAULT)
@@ -91,6 +90,5 @@ void HotkeyManager::resetToDefaults()
 
 void HotkeyManager::clear()
 {
-    m_hotkeys.clear();
     setConfig().hotkeys.setData(QVariantMap());
 }

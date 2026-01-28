@@ -6,6 +6,9 @@
 
 #include <QObject>
 
+class Hotkey;
+class HotkeyManager;
+
 class NODISCARD_QOBJECT TestHotkeyManager final : public QObject
 {
     Q_OBJECT
@@ -33,6 +36,9 @@ private Q_SLOTS:
     void commentPreservationTest();
     void settingsPersistenceTest();
     void directLookupTest();
+
+private:
+    void checkHk(const HotkeyManager &manager, const Hotkey &hk, std::string_view expected);
 
 private:
     // Original QSettings namespace (restored in cleanupTestCase)

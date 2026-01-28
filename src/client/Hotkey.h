@@ -66,6 +66,20 @@
     X(HYPHEN, "HYPHEN", Qt::Key_Minus, false) \
     X(EQUAL, "EQUAL", Qt::Key_Equal, false)
 
+// Secondary mappings for Numpad keys (e.g. navigation keys)
+#define XFOREACH_HOTKEY_SECONDARY_MAPPINGS(X) \
+    X(NUMPAD8, Qt::Key_Up, true) \
+    X(NUMPAD2, Qt::Key_Down, true) \
+    X(NUMPAD4, Qt::Key_Left, true) \
+    X(NUMPAD6, Qt::Key_Right, true) \
+    X(NUMPAD7, Qt::Key_Home, true) \
+    X(NUMPAD1, Qt::Key_End, true) \
+    X(NUMPAD9, Qt::Key_PageUp, true) \
+    X(NUMPAD3, Qt::Key_PageDown, true) \
+    X(NUMPAD0, Qt::Key_Insert, true) \
+    X(NUMPAD_PERIOD, Qt::Key_Delete, true) \
+    X(NUMPAD5, Qt::Key_Clear, true)
+
 // Macro to define default hotkeys
 // X(SerializedKey, Command)
 #define XFOREACH_DEFAULT_HOTKEYS(X) \

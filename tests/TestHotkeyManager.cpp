@@ -36,23 +36,33 @@ void TestHotkeyManager::cleanupTestCase()
     QCoreApplication::setApplicationName(m_originalApplication);
 }
 
+void TestHotkeyManager::checkHk(const HotkeyManager &manager,
+                                const Hotkey &hk,
+                                std::string_view expected)
+{
+    QCOMPARE(manager.getCommand(hk).value_or(""), std::string(expected));
+}
+
 void TestHotkeyManager::keyNormalizationTest()
 {
     HotkeyManager manager;
     manager.clear();
 
-    auto checkHk = [&](const Hotkey &hk, std::string_view expected) {
-        QCOMPARE(manager.getCommand(hk).value_or(""), std::string(expected));
-    };
-
     // Test all base keys defined in macro
 #define X_TEST_KEY(id, name, qkey, num) \
     QVERIFY(manager.setHotkey(Hotkey{name}, "cmd_" name)); \
-    checkHk(Hotkey{name}, "cmd_" name); \
-    checkHk(Hotkey{qkey, num ? Qt::KeypadModifier : Qt::NoModifier}, "cmd_" name);
+    checkHk(manager, Hotkey{name}, "cmd_" name); \
+    checkHk(manager, Hotkey{qkey, num ? Qt::KeypadModifier : Qt::NoModifier}, "cmd_" name);
 
     XFOREACH_HOTKEY_BASE_KEYS(X_TEST_KEY)
 #undef X_TEST_KEY
+
+    // Test secondary Numpad navigation mappings
+#define X_TEST_SECONDARY(id, qkey, num) \
+    checkHk(manager, Hotkey{qkey, num ? Qt::KeypadModifier : Qt::NoModifier}, "cmd_" #id);
+
+    XFOREACH_HOTKEY_SECONDARY_MAPPINGS(X_TEST_SECONDARY)
+#undef X_TEST_SECONDARY
 
     // Test that modifiers are normalized to canonical order: SHIFT+CTRL+ALT+META
 
@@ -60,29 +70,29 @@ void TestHotkeyManager::keyNormalizationTest()
     QVERIFY(manager.setHotkey(Hotkey{"ALT+CTRL+F1"}, "test1"));
 
     // Should be retrievable with canonical order
-    checkHk(Hotkey{"CTRL+ALT+F1"}, "test1");
+    checkHk(manager, Hotkey{"CTRL+ALT+F1"}, "test1");
 
     // Should also be retrievable with the original order (due to normalization)
-    checkHk(Hotkey{"ALT+CTRL+F1"}, "test1");
+    checkHk(manager, Hotkey{"ALT+CTRL+F1"}, "test1");
 
     // Test all modifier combinations normalize correctly
     QVERIFY(manager.setHotkey(Hotkey{"META+ALT+SHIFT+CTRL+F2"}, "test2"));
-    checkHk(Hotkey{"SHIFT+CTRL+ALT+META+F2"}, "test2");
+    checkHk(manager, Hotkey{"SHIFT+CTRL+ALT+META+F2"}, "test2");
 
     // Test that case is normalized to uppercase
     QVERIFY(manager.setHotkey(Hotkey{"ctrl+f3"}, "test3"));
-    checkHk(Hotkey{"CTRL+F3"}, "test3");
+    checkHk(manager, Hotkey{"CTRL+F3"}, "test3");
 
     // Test CONTROL alias normalizes to CTRL
     QVERIFY(manager.setHotkey(Hotkey{"CONTROL+F4"}, "test4"));
-    checkHk(Hotkey{"CTRL+F4"}, "test4");
+    checkHk(manager, Hotkey{"CTRL+F4"}, "test4");
 
     // Test CMD/COMMAND aliases normalize to META
     QVERIFY(manager.setHotkey(Hotkey{"CMD+F5"}, "test5"));
-    checkHk(Hotkey{"META+F5"}, "test5");
+    checkHk(manager, Hotkey{"META+F5"}, "test5");
 
     QVERIFY(manager.setHotkey(Hotkey{"COMMAND+F6"}, "test6"));
-    checkHk(Hotkey{"META+F6"}, "test6");
+    checkHk(manager, Hotkey{"META+F6"}, "test6");
 }
 
 void TestHotkeyManager::importExportRoundTripTest()
@@ -90,20 +100,16 @@ void TestHotkeyManager::importExportRoundTripTest()
     HotkeyManager manager;
     manager.clear();
 
-    auto checkHk = [&](const Hotkey &hk, std::string_view expected) {
-        QCOMPARE(manager.getCommand(hk).value_or(""), std::string(expected));
-    };
-
     // Verify all hotkeys can be set and retrieved
     QVERIFY(manager.setHotkey(Hotkey{"F1"}, "look"));
     QVERIFY(manager.setHotkey(Hotkey{"CTRL+F2"}, "open exit n"));
     QVERIFY(manager.setHotkey(Hotkey{"SHIFT+ALT+F3"}, "pick exit s"));
     QVERIFY(manager.setHotkey(Hotkey{"NUMPAD8"}, "n"));
 
-    checkHk(Hotkey{"F1"}, "look");
-    checkHk(Hotkey{"CTRL+F2"}, "open exit n");
-    checkHk(Hotkey{"SHIFT+ALT+F3"}, "pick exit s");
-    checkHk(Hotkey{"NUMPAD8"}, "n");
+    checkHk(manager, Hotkey{"F1"}, "look");
+    checkHk(manager, Hotkey{"CTRL+F2"}, "open exit n");
+    checkHk(manager, Hotkey{"SHIFT+ALT+F3"}, "pick exit s");
+    checkHk(manager, Hotkey{"NUMPAD8"}, "n");
 
     // Verify total count
     QCOMPARE(static_cast<int>(manager.getAllHotkeys().size()), 4);
@@ -128,28 +134,24 @@ void TestHotkeyManager::resetToDefaultsTest()
     HotkeyManager manager;
     manager.clear();
 
-    auto checkHk = [&](const Hotkey &hk, std::string_view expected) {
-        QCOMPARE(manager.getCommand(hk).value_or(""), std::string(expected));
-    };
-
     // Set custom hotkeys
     std::ignore = manager.setHotkey(Hotkey{"F1"}, "custom");
     std::ignore = manager.setHotkey(Hotkey{"F2"}, "another");
-    checkHk(Hotkey{"F1"}, "custom");
+    checkHk(manager, Hotkey{"F1"}, "custom");
     QCOMPARE(static_cast<int>(manager.getAllHotkeys().size()), 2);
 
     // Reset to defaults
     manager.resetToDefaults();
 
     // Verify defaults are restored
-    checkHk(Hotkey{"NUMPAD8"}, "north");
-    checkHk(Hotkey{"NUMPAD4"}, "west");
-    checkHk(Hotkey{"CTRL+NUMPAD8"}, "open exit north");
-    checkHk(Hotkey{"ALT+NUMPAD8"}, "close exit north");
-    checkHk(Hotkey{"SHIFT+NUMPAD8"}, "pick exit north");
+    checkHk(manager, Hotkey{"NUMPAD8"}, "north");
+    checkHk(manager, Hotkey{"NUMPAD4"}, "west");
+    checkHk(manager, Hotkey{"CTRL+NUMPAD8"}, "open exit north");
+    checkHk(manager, Hotkey{"ALT+NUMPAD8"}, "close exit north");
+    checkHk(manager, Hotkey{"SHIFT+NUMPAD8"}, "pick exit north");
 
     // F1 is in defaults
-    checkHk(Hotkey{"F1"}, "F1");
+    checkHk(manager, Hotkey{"F1"}, "F1");
 
     // Verify defaults are non-empty (don't assert exact count to avoid brittleness)
     QVERIFY(!manager.getAllHotkeys().empty());
@@ -172,28 +174,24 @@ void TestHotkeyManager::setHotkeyTest()
     HotkeyManager manager;
     manager.clear();
 
-    auto checkHk = [&](const Hotkey &hk, std::string_view expected) {
-        QCOMPARE(manager.getCommand(hk).value_or(""), std::string(expected));
-    };
-
     // Test setting a new hotkey directly
     QVERIFY(manager.setHotkey(Hotkey{"F1"}, "look"));
-    checkHk(Hotkey{"F1"}, "look");
+    checkHk(manager, Hotkey{"F1"}, "look");
     QCOMPARE(static_cast<int>(manager.getAllHotkeys().size()), 1);
 
     // Test setting another hotkey
     QVERIFY(manager.setHotkey(Hotkey{"F2"}, "flee"));
-    checkHk(Hotkey{"F2"}, "flee");
+    checkHk(manager, Hotkey{"F2"}, "flee");
     QCOMPARE(static_cast<int>(manager.getAllHotkeys().size()), 2);
 
     // Test updating an existing hotkey (should replace, not add)
     QVERIFY(manager.setHotkey(Hotkey{"F1"}, "inventory"));
-    checkHk(Hotkey{"F1"}, "inventory");
+    checkHk(manager, Hotkey{"F1"}, "inventory");
     QCOMPARE(static_cast<int>(manager.getAllHotkeys().size()), 2); // Still 2, not 3
 
     // Test setting hotkey with modifiers
     QVERIFY(manager.setHotkey(Hotkey{"CTRL+F3"}, "open exit n"));
-    checkHk(Hotkey{"CTRL+F3"}, "open exit n");
+    checkHk(manager, Hotkey{"CTRL+F3"}, "open exit n");
     QCOMPARE(static_cast<int>(manager.getAllHotkeys().size()), 3);
 }
 
@@ -202,10 +200,6 @@ void TestHotkeyManager::removeHotkeyTest()
     HotkeyManager manager;
     manager.clear();
 
-    auto checkHk = [&](const Hotkey &hk, std::string_view expected) {
-        QCOMPARE(manager.getCommand(hk).value_or(""), std::string(expected));
-    };
-
     std::ignore = manager.setHotkey(Hotkey{"F1"}, "look");
     std::ignore = manager.setHotkey(Hotkey{"F2"}, "flee");
     std::ignore = manager.setHotkey(Hotkey{"CTRL+F3"}, "open exit n");
@@ -213,12 +207,12 @@ void TestHotkeyManager::removeHotkeyTest()
 
     // Test removing a hotkey
     manager.removeHotkey(Hotkey{"F1"});
-    checkHk(Hotkey{"F1"}, ""); // Should be empty now
+    checkHk(manager, Hotkey{"F1"}, ""); // Should be empty now
     QCOMPARE(static_cast<int>(manager.getAllHotkeys().size()), 2);
 
     // Test removing hotkey with modifiers
     manager.removeHotkey(Hotkey{"CTRL+F3"});
-    checkHk(Hotkey{"CTRL+F3"}, "");
+    checkHk(manager, Hotkey{"CTRL+F3"}, "");
     QCOMPARE(static_cast<int>(manager.getAllHotkeys().size()), 1);
 }
 
@@ -286,10 +280,6 @@ void TestHotkeyManager::directLookupTest()
     HotkeyManager manager;
     manager.clear();
 
-    auto checkHk = [&](const Hotkey &hk, std::string_view expected) {
-        QCOMPARE(manager.getCommand(hk).value_or(""), std::string(expected));
-    };
-
     // Set hotkeys for testing
     std::ignore = manager.setHotkey(Hotkey{"F1"}, "look");
     std::ignore = manager.setHotkey(Hotkey{"CTRL+F2"}, "flee");
@@ -298,29 +288,29 @@ void TestHotkeyManager::directLookupTest()
     std::ignore = manager.setHotkey(Hotkey{"SHIFT+ALT+UP"}, "north");
 
     // Test direct lookup for function keys (isNumpad=false)
-    checkHk(Hotkey{Qt::Key_F1, Qt::NoModifier}, "look");
-    checkHk(Hotkey{Qt::Key_F2, Qt::ControlModifier}, "flee");
+    checkHk(manager, Hotkey{Qt::Key_F1, Qt::NoModifier}, "look");
+    checkHk(manager, Hotkey{Qt::Key_F2, Qt::ControlModifier}, "flee");
 
     // Test that wrong modifiers don't match
-    checkHk(Hotkey{Qt::Key_F1, Qt::ControlModifier}, "");
+    checkHk(manager, Hotkey{Qt::Key_F1, Qt::ControlModifier}, "");
 
     // Test numpad keys (isNumpad=true) - Qt::Key_8 with isNumpad=true
-    checkHk(Hotkey{Qt::Key_8, Qt::KeypadModifier}, "n");
-    checkHk(Hotkey{Qt::Key_5, Qt::ControlModifier | Qt::KeypadModifier}, "s");
+    checkHk(manager, Hotkey{Qt::Key_8, Qt::KeypadModifier}, "n");
+    checkHk(manager, Hotkey{Qt::Key_5, Qt::ControlModifier | Qt::KeypadModifier}, "s");
 
     // Test that numpad keys don't match non-numpad lookups
-    checkHk(Hotkey{Qt::Key_8, Qt::NoModifier}, "");
+    checkHk(manager, Hotkey{Qt::Key_8, Qt::NoModifier}, "");
 
     // Test arrow keys (isNumpad=false)
-    checkHk(Hotkey{Qt::Key_Up, (Qt::ShiftModifier | Qt::AltModifier)}, "north");
+    checkHk(manager, Hotkey{Qt::Key_Up, (Qt::ShiftModifier | Qt::AltModifier)}, "north");
 
     // Test SHIFT+NUMPAD4 (NumLock ON) which often comes as Qt::Key_Left + Shift + Keypad
     std::ignore = manager.setHotkey(Hotkey{"SHIFT+NUMPAD4"}, "pick west");
-    checkHk(Hotkey{Qt::Key_Left, (Qt::ShiftModifier | Qt::KeypadModifier)}, "pick west");
+    checkHk(manager, Hotkey{Qt::Key_Left, (Qt::ShiftModifier | Qt::KeypadModifier)}, "pick west");
 
     // Test NUMPAD8 (NumLock OFF) which comes as Qt::Key_Up + Keypad
     std::ignore = manager.setHotkey(Hotkey{"NUMPAD8"}, "north");
-    checkHk(Hotkey{Qt::Key_Up, Qt::KeypadModifier}, "north");
+    checkHk(manager, Hotkey{Qt::Key_Up, Qt::KeypadModifier}, "north");
 }
 
 QTEST_MAIN(TestHotkeyManager)

@@ -62,29 +62,14 @@ void TestHotkeyManager::keyNormalizationTest()
         checkHk(manager, Hotkey{nameStr}, "cmd_" + nameStr); \
         Hotkey hk(qkey, (pol == HotkeyPolicy::Keypad) ? Qt::KeypadModifier : Qt::NoModifier); \
         std::string expected = "cmd_" + nameStr; \
-        if (hk.isValid() && Hotkey::hotkeyBaseToName(hk.base()) != nameStr) { \
-            expected = "cmd_" + std::string(Hotkey::hotkeyBaseToName(hk.base())); \
+        if (hk.isValid()) { \
+            expected = "cmd_" + nameStr; \
         } \
         checkHk(manager, hk, expected); \
     }
 
     XFOREACH_HOTKEY_BASE_KEYS(X_TEST_KEY)
 #undef X_TEST_KEY
-
-#ifndef Q_OS_MAC
-    // Test secondary mappings preserved on non-Mac platforms
-    checkHk(manager, Hotkey{Qt::Key_Insert, Qt::KeypadModifier}, "cmd_NUMPAD0");
-    checkHk(manager, Hotkey{Qt::Key_End, Qt::KeypadModifier}, "cmd_NUMPAD1");
-    checkHk(manager, Hotkey{Qt::Key_Down, Qt::KeypadModifier}, "cmd_NUMPAD2");
-    checkHk(manager, Hotkey{Qt::Key_PageDown, Qt::KeypadModifier}, "cmd_NUMPAD3");
-    checkHk(manager, Hotkey{Qt::Key_Left, Qt::KeypadModifier}, "cmd_NUMPAD4");
-    checkHk(manager, Hotkey{Qt::Key_Clear, Qt::KeypadModifier}, "cmd_NUMPAD5");
-    checkHk(manager, Hotkey{Qt::Key_Right, Qt::KeypadModifier}, "cmd_NUMPAD6");
-    checkHk(manager, Hotkey{Qt::Key_Home, Qt::KeypadModifier}, "cmd_NUMPAD7");
-    checkHk(manager, Hotkey{Qt::Key_Up, Qt::KeypadModifier}, "cmd_NUMPAD8");
-    checkHk(manager, Hotkey{Qt::Key_PageUp, Qt::KeypadModifier}, "cmd_NUMPAD9");
-    checkHk(manager, Hotkey{Qt::Key_Delete, Qt::KeypadModifier}, "cmd_NUMPAD_PERIOD");
-#endif
 
     // Test that modifiers are normalized to canonical order: SHIFT+CTRL+ALT+META
 

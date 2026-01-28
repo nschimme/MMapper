@@ -134,9 +134,7 @@ enum class HotkeyPolicy : uint8_t {
 #define PERMUTE_4(key) PERMUTE_3(key) PERMUTE_3(META_##key)
 #define X_GENERATE_ALL_MODS(id, name, key, policy) PERMUTE_4(id)
 
-enum class HotkeyEnum : uint16_t {
-    XFOREACH_HOTKEY_BASE_KEYS(X_GENERATE_ALL_MODS) INVALID
-};
+enum class HotkeyEnum : uint16_t { XFOREACH_HOTKEY_BASE_KEYS(X_GENERATE_ALL_MODS) INVALID };
 
 #undef PERMUTE_0
 #undef PERMUTE_1
@@ -185,10 +183,7 @@ public:
 
 private:
     HotkeyEnum m_hotkey = HotkeyEnum::INVALID;
-    HotkeyEnum m_base = HotkeyEnum::INVALID;
-    uint8_t m_mods = 0;
     HotkeyPolicy m_policy = HotkeyPolicy::Any;
-    const char *m_baseName = nullptr;
 
 public:
     Hotkey() = default;
@@ -210,14 +205,20 @@ public:
     NODISCARD bool operator==(const Hotkey &other) const { return m_hotkey == other.m_hotkey; }
 
     NODISCARD HotkeyEnum toEnum() const { return m_hotkey; }
-    NODISCARD HotkeyEnum base() const { return m_base; }
-    NODISCARD uint8_t modifiers() const { return m_mods; }
+    NODISCARD HotkeyEnum base() const
+    {
+        return static_cast<HotkeyEnum>(static_cast<uint16_t>(m_hotkey) & ~AllModifiersMask);
+        ;
+    }
+    NODISCARD uint8_t modifiers() const
+    {
+        return static_cast<uint8_t>(static_cast<uint16_t>(m_hotkey) & AllModifiersMask);
+        ;
+    }
     NODISCARD HotkeyPolicy policy() const { return m_policy; }
 
     NODISCARD static uint8_t qtModifiersToMask(Qt::KeyboardModifiers mods);
     NODISCARD static HotkeyEnum qtKeyToHotkeyBase(int key, bool isNumpad);
-    NODISCARD static const char *hotkeyBaseToName(HotkeyEnum base);
-    NODISCARD static HotkeyPolicy hotkeyBaseToPolicy(HotkeyEnum base);
     NODISCARD static HotkeyEnum nameToHotkeyBase(std::string_view name);
     NODISCARD static std::vector<std::string> getAvailableKeyNames();
     NODISCARD static std::vector<std::string> getAvailableModifiers();

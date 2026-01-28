@@ -3,8 +3,8 @@
 
 #include "Hotkey.h"
 
-#include "../global/ConfigConsts-Computed.h"
 #include "../global/CaseUtils.h"
+#include "../global/ConfigConsts-Computed.h"
 #include "../global/TextUtils.h"
 
 Hotkey::Hotkey(HotkeyEnum he)
@@ -88,12 +88,6 @@ Hotkey::Hotkey(std::string_view s)
 Hotkey::Hotkey(int key, Qt::KeyboardModifiers modifiers)
 {
     bool isNumpad = modifiers & Qt::KeypadModifier;
-    if constexpr (CURRENT_PLATFORM == PlatformEnum::Mac) {
-        if (key == Qt::Key_Up || key == Qt::Key_Down || key == Qt::Key_Left || key == Qt::Key_Right) {
-            isNumpad = false;
-        }
-    }
-
     HotkeyEnum base = Hotkey::qtKeyToHotkeyBase(key, isNumpad);
     if (base == HotkeyEnum::INVALID) {
         decompose();
@@ -107,46 +101,63 @@ Hotkey::Hotkey(int key, Qt::KeyboardModifiers modifiers)
 void Hotkey::decompose()
 {
     if (!isValid()) {
-        m_base = HotkeyEnum::INVALID;
-        m_mods = 0;
         m_policy = HotkeyPolicy::Any;
-        m_baseName = nullptr;
         return;
     }
-    m_base = static_cast<HotkeyEnum>(static_cast<uint16_t>(m_hotkey) & ~AllModifiersMask);
-    m_mods = static_cast<uint8_t>(static_cast<uint16_t>(m_hotkey) & AllModifiersMask);
 
-    switch (m_base) {
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wswitch-enum"
+#endif
+    switch (base()) {
 #define X_DECOMPOSE(id, name, qkey, policy) \
     case HotkeyEnum::id: \
         m_policy = policy; \
-        m_baseName = name; \
         break;
         XFOREACH_HOTKEY_BASE_KEYS(X_DECOMPOSE)
 #undef X_DECOMPOSE
     default:
         m_policy = HotkeyPolicy::Any;
-        m_baseName = nullptr;
         break;
     }
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 }
 
 std::string Hotkey::serialize() const
 {
-    if (!isValid())
+    if (!isValid()) {
+        assert(false);
         return {};
+    }
 
+    const auto mods = modifiers();
     std::vector<std::string> parts;
 #define X_STR(id, mod, bit) \
-    if (m_mods & bit) \
+    if (mods & bit) \
         parts.emplace_back(#id);
     XFOREACH_HOTKEY_MODIFIER(X_STR)
 #undef X_STR
 
-    if (!m_baseName || *m_baseName == '\0')
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wswitch-enum"
+#endif
+    switch (base()) {
+#define X_SERIALIZE(id, name, qkey, policy) \
+    case HotkeyEnum::id: \
+        parts.push_back(name); \
+        break;
+        XFOREACH_HOTKEY_BASE_KEYS(X_SERIALIZE)
+#undef X_SERIALIZE
+    default:
+        assert(false);
         return {};
-
-    parts.push_back(m_baseName);
+    }
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
     std::string result;
     for (size_t i = 0; i < parts.size(); ++i) {
@@ -171,11 +182,17 @@ uint8_t Hotkey::qtModifiersToMask(Qt::KeyboardModifiers mods)
 
 HotkeyEnum Hotkey::qtKeyToHotkeyBase(int key, bool isNumpad)
 {
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Mac) {
+        if (key == Qt::Key_Up || key == Qt::Key_Down || key == Qt::Key_Left
+            || key == Qt::Key_Right) {
+            isNumpad = false;
+        }
+    }
 #define CHECK_NP(id, name, qk, pol) \
     if (isNumpad && pol == HotkeyPolicy::Keypad) \
         if (key == qk) \
             return HotkeyEnum::id;
-        XFOREACH_HOTKEY_BASE_KEYS(CHECK_NP)
+    XFOREACH_HOTKEY_BASE_KEYS(CHECK_NP)
 #undef CHECK_NP
     return HotkeyEnum::INVALID;
 }
@@ -206,30 +223,4 @@ std::vector<std::string> Hotkey::getAvailableModifiers()
         XFOREACH_HOTKEY_MODIFIER(X_STR)
 #undef X_STR
     };
-}
-
-const char *Hotkey::hotkeyBaseToName(HotkeyEnum base)
-{
-    switch (base) {
-#define X_NAME_CHECK(id, name, qkey, policy) \
-    case HotkeyEnum::id: \
-        return name;
-        XFOREACH_HOTKEY_BASE_KEYS(X_NAME_CHECK)
-#undef X_NAME_CHECK
-    default:
-        return nullptr;
-    }
-}
-
-HotkeyPolicy Hotkey::hotkeyBaseToPolicy(HotkeyEnum base)
-{
-    switch (base) {
-#define X_POLICY_CHECK(id, name, qkey, policy) \
-    case HotkeyEnum::id: \
-        return policy;
-        XFOREACH_HOTKEY_BASE_KEYS(X_POLICY_CHECK)
-#undef X_POLICY_CHECK
-    default:
-        return HotkeyPolicy::Any;
-    }
 }

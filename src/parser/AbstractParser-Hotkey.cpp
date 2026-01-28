@@ -225,18 +225,24 @@ void AbstractParser::parseHotkey(StringView input)
         os << "\nValid keys:\n";
 
         // Programmatically list all valid keys
-        auto keys = Hotkey::getAvailableKeyNames();
-        std::sort(keys.begin(), keys.end());
+        std::vector<std::pair<std::string, HotkeyPolicy>> keys;
+#define X(EnumName, StringName, QtKey, Policy) keys.push_back({StringName, Policy});
+        XFOREACH_HOTKEY_BASE_KEYS(X)
+#undef X
+        std::sort(keys.begin(), keys.end(), [](const auto &a, const auto &b) {
+            return a.first < b.first;
+        });
+
         os << "  ";
         for (size_t i = 0; i < keys.size(); ++i) {
-            const std::string &key = keys[i];
-            os << key;
-            const auto policy = Hotkey::hotkeyBaseToPolicy(Hotkey::nameToHotkeyBase(key));
-            if (policy == HotkeyPolicy::ModifierRequired) {
+            const auto &[name, policy] = keys[i];
+            os << name;
+
+            if (policy == HotkeyPolicy::ModifierRequired)
                 os << "*";
-            } else if (policy == HotkeyPolicy::ModifierNotShift) {
+            else if (policy == HotkeyPolicy::ModifierNotShift)
                 os << "**";
-            }
+
             os << (i == keys.size() - 1 ? "" : ", ");
             if ((i + 1) % 8 == 0)
                 os << "\n  ";

@@ -26,7 +26,7 @@ void HotkeyManager::syncFromConfig()
     for (auto it = data.begin(); it != data.end(); ++it) {
         Hotkey hk(it.key());
         if (hk.isValid()) {
-            m_hotkeys[hk.toEnum()] = mmqt::toStdStringUtf8(it.value().toString());
+            m_hotkeys[hk] = mmqt::toStdStringUtf8(it.value().toString());
         }
     }
 }
@@ -58,7 +58,7 @@ std::optional<std::string> HotkeyManager::getCommand(const Hotkey &hk) const
         return std::nullopt;
     }
 
-    auto it = m_hotkeys.find(hk.toEnum());
+    auto it = m_hotkeys.find(hk);
     if (it == m_hotkeys.end()) {
         return std::nullopt;
     }
@@ -73,8 +73,8 @@ bool HotkeyManager::hasHotkey(const Hotkey &hk) const
 std::vector<std::pair<Hotkey, std::string>> HotkeyManager::getAllHotkeys() const
 {
     std::vector<std::pair<Hotkey, std::string>> result;
-    for (const auto &[key, cmd] : m_hotkeys) {
-        result.emplace_back(Hotkey(key), cmd);
+    for (const auto &[hk, cmd] : m_hotkeys) {
+        result.emplace_back(hk, cmd);
     }
     return result;
 }

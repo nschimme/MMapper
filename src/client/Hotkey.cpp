@@ -6,19 +6,17 @@
 #include "../global/CaseUtils.h"
 #include "../global/TextUtils.h"
 
-Hotkey::Hotkey(HotkeyEnum he)
-    : m_hotkey(he)
+Hotkey::Hotkey(HotkeyEnum base, HotkeyModifiers mods)
+    : m_base(base)
+    , m_mods(mods)
 {
     decompose();
 }
 
 Hotkey::Hotkey(HotkeyEnum base, uint8_t mods)
+    : m_base(base)
+    , m_mods(static_cast<HotkeyModifiers::underlying_type>(mods))
 {
-    if (base == HotkeyEnum::INVALID) {
-        m_hotkey = HotkeyEnum::INVALID;
-    } else {
-        m_hotkey = static_cast<HotkeyEnum>(static_cast<uint16_t>(base) + (mods & AllModifiersMask));
-    }
     decompose();
 }
 
@@ -33,7 +31,7 @@ Hotkey::Hotkey(std::string_view s)
         return;
     }
 
-    uint8_t mods = 0;
+    HotkeyModifiers mods;
     HotkeyEnum base = HotkeyEnum::INVALID;
 
     auto isModifier = [](std::string_view input, std::string_view target) {
@@ -64,7 +62,7 @@ Hotkey::Hotkey(std::string_view s)
 // X-Macro expansion using the lambda
 #define X_PARSE(id, mod, bit) \
     if (isModifier(part, #id)) { \
-        mods |= bit; \
+        mods.insert(HotkeyModifier::id); \
     } else
 #define S_IGNORE(...)
 
@@ -88,14 +86,14 @@ Hotkey::Hotkey(std::string_view s)
 
 Hotkey::Hotkey(int key, Qt::KeyboardModifiers modifiers)
 {
-    bool isNumpad = modifiers & Qt::KeypadModifier;
-    HotkeyEnum base = Hotkey::qtKeyToHotkeyBase(key, isNumpad);
+    const bool isNumpad = (modifiers & Qt::KeypadModifier);
+    const HotkeyEnum base = Hotkey::qtKeyToHotkeyBase(key, isNumpad);
     if (base == HotkeyEnum::INVALID) {
         decompose();
         return;
     }
 
-    uint8_t mods = Hotkey::qtModifiersToMask(modifiers);
+    const HotkeyModifiers mods = Hotkey::qtModifiersToFlags(modifiers);
     *this = Hotkey(base, mods);
 }
 
@@ -103,13 +101,11 @@ void Hotkey::decompose()
 {
     if (!isValid()) {
         m_base = HotkeyEnum::INVALID;
-        m_mods = 0;
+        m_mods.clear();
         m_policy = HotkeyPolicy::Any;
         m_baseName = nullptr;
         return;
     }
-    m_base = static_cast<HotkeyEnum>(static_cast<uint16_t>(m_hotkey) & ~AllModifiersMask);
-    m_mods = static_cast<uint8_t>(static_cast<uint16_t>(m_hotkey) & AllModifiersMask);
 
     switch (m_base) {
 #define X_DECOMPOSE(id, name, qkey, policy) \
@@ -135,7 +131,7 @@ std::string Hotkey::serialize() const
 
     std::vector<std::string> parts;
 #define X_STR(id, mod, bit) \
-    if (m_mods & bit) \
+    if (m_mods.contains(HotkeyModifier::id)) \
         parts.emplace_back(#id);
 #define S_IGNORE(...)
     XFOREACH_HOTKEY_MODIFIER(X_STR, S_IGNORE)
@@ -157,17 +153,17 @@ std::string Hotkey::serialize() const
     return result;
 }
 
-uint8_t Hotkey::qtModifiersToMask(Qt::KeyboardModifiers mods)
+HotkeyModifiers Hotkey::qtModifiersToFlags(Qt::KeyboardModifiers mods)
 {
-    uint8_t mask = 0;
+    HotkeyModifiers flags;
 #define X_MASK(id, mod, bit) \
     if (mods & mod) \
-        mask |= bit;
+        flags.insert(HotkeyModifier::id);
 #define S_IGNORE(...)
     XFOREACH_HOTKEY_MODIFIER(X_MASK, S_IGNORE)
 #undef S_IGNORE
 #undef X_MASK
-    return mask;
+    return flags;
 }
 
 HotkeyEnum Hotkey::qtKeyToHotkeyBase(int key, bool isNumpad)

@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2026 The MMapper Authors
 
+#include "../global/Flags.h"
 #include "../global/RuleOf5.h"
 #include "../global/macros.h"
 
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -138,29 +140,34 @@ enum class HotkeyPolicy : uint8_t {
     X("NUMPAD3", "stand")
 
 #define XFOREACH_HOTKEY_MODIFIER(X, S) \
-    X(SHIFT, Qt::ShiftModifier, 1) \
-    X(CTRL, Qt::ControlModifier, 2) \
-    X(ALT, Qt::AltModifier, 4) \
-    X(META, Qt::MetaModifier, 8)
+    X(SHIFT, Qt::ShiftModifier, 0) \
+    X(CTRL, Qt::ControlModifier, 1) \
+    X(ALT, Qt::AltModifier, 2) \
+    X(META, Qt::MetaModifier, 3)
 
-#define PERMUTE_0(key) key,
-#define PERMUTE_1(key) PERMUTE_0(key) PERMUTE_0(SHIFT_##key)
-#define PERMUTE_2(key) PERMUTE_1(key) PERMUTE_1(CTRL_##key)
-#define PERMUTE_3(key) PERMUTE_2(key) PERMUTE_2(ALT_##key)
-#define PERMUTE_4(key) PERMUTE_3(key) PERMUTE_3(META_##key)
-#define X_GENERATE_ALL_MODS(id, name, key, policy) PERMUTE_4(id)
+enum class HotkeyModifier : uint8_t {
+#define X_MOD_ENUM(id, mod, bit) id = bit,
+#define S_IGNORE(...)
+    XFOREACH_HOTKEY_MODIFIER(X_MOD_ENUM, S_IGNORE)
+#undef S_IGNORE
+#undef X_MOD_ENUM
+};
+DEFINE_ENUM_COUNT(HotkeyModifier, 4)
+
+class HotkeyModifiers : public enums::Flags<HotkeyModifiers, HotkeyModifier, uint8_t>
+{
+public:
+    using Flags::Flags;
+};
+
+#define X_GENERATE_BASE_ENUM(id, name, key, policy) id,
 #define S_IGNORE(...)
 
 enum class HotkeyEnum : uint16_t {
-    XFOREACH_HOTKEY_BASE_KEYS(X_GENERATE_ALL_MODS, S_IGNORE) INVALID
+    XFOREACH_HOTKEY_BASE_KEYS(X_GENERATE_BASE_ENUM, S_IGNORE) INVALID
 };
 
-#undef PERMUTE_0
-#undef PERMUTE_1
-#undef PERMUTE_2
-#undef PERMUTE_3
-#undef PERMUTE_4
-#undef X_GENERATE_ALL_MODS
+#undef X_GENERATE_BASE_ENUM
 #undef S_IGNORE
 
 namespace {
@@ -174,10 +181,7 @@ static constexpr int NUM_BASES = 0 XFOREACH_HOTKEY_BASE_KEYS(X_COUNT_BASE, S_IGN
 static constexpr int NUM_MOD_BITS = 0 XFOREACH_HOTKEY_MODIFIER(X_COUNT_MODS, S_IGNORE);
 #undef S_IGNORE
 #undef X_COUNT_MODS
-static constexpr int VARIANTS_PER_KEY = 1 << NUM_MOD_BITS;
-static constexpr int TOTAL_EXPECTED = NUM_BASES * VARIANTS_PER_KEY;
-static_assert(TOTAL_EXPECTED == 784, "Total keys count changed");
-static_assert(static_cast<int>(HotkeyEnum::INVALID) == TOTAL_EXPECTED, "Enum mismatch");
+static_assert(static_cast<int>(HotkeyEnum::INVALID) == NUM_BASES, "Enum mismatch");
 
 constexpr bool isUppercase(const char *s)
 {
@@ -198,23 +202,9 @@ XFOREACH_HOTKEY_BASE_KEYS(X_CHECK_UPPER, S_IGNORE)
 
 class NODISCARD Hotkey final
 {
-public:
-#define X_MOD_MASK(id, mod, bit) static constexpr uint8_t id##_MASK = bit;
-#define S_IGNORE(...)
-    XFOREACH_HOTKEY_MODIFIER(X_MOD_MASK, S_IGNORE)
-#undef S_IGNORE
-#undef X_MOD_MASK
-
-#define X_MOD_TOTAL(id, mod, bit) | bit
-#define S_IGNORE(...)
-    static constexpr uint8_t AllModifiersMask = 0 XFOREACH_HOTKEY_MODIFIER(X_MOD_TOTAL, S_IGNORE);
-#undef S_IGNORE
-#undef X_MOD_TOTAL
-
 private:
-    HotkeyEnum m_hotkey = HotkeyEnum::INVALID;
     HotkeyEnum m_base = HotkeyEnum::INVALID;
-    uint8_t m_mods = 0;
+    HotkeyModifiers m_mods;
     HotkeyPolicy m_policy = HotkeyPolicy::Any;
     const char *m_baseName = nullptr;
 
@@ -222,7 +212,7 @@ public:
     Hotkey() = default;
     DEFAULT_RULE_OF_5(Hotkey);
 
-    explicit Hotkey(HotkeyEnum he);
+    explicit Hotkey(HotkeyEnum base, HotkeyModifiers mods = HotkeyModifiers());
     Hotkey(HotkeyEnum base, uint8_t mods);
     explicit Hotkey(const QString &s);
     Hotkey(std::string_view s);
@@ -231,18 +221,20 @@ public:
     {}
     Hotkey(int key, Qt::KeyboardModifiers modifiers);
 
-    NODISCARD bool isValid() const { return m_hotkey != HotkeyEnum::INVALID; }
+    NODISCARD bool isValid() const { return m_base != HotkeyEnum::INVALID; }
 
     NODISCARD std::string serialize() const;
 
-    NODISCARD bool operator==(const Hotkey &other) const { return m_hotkey == other.m_hotkey; }
+    NODISCARD bool operator==(const Hotkey &other) const
+    {
+        return m_base == other.m_base && m_mods == other.m_mods;
+    }
 
-    NODISCARD HotkeyEnum toEnum() const { return m_hotkey; }
     NODISCARD HotkeyEnum base() const { return m_base; }
-    NODISCARD uint8_t modifiers() const { return m_mods; }
+    NODISCARD HotkeyModifiers modifiers() const { return m_mods; }
     NODISCARD HotkeyPolicy policy() const { return m_policy; }
 
-    NODISCARD static uint8_t qtModifiersToMask(Qt::KeyboardModifiers mods);
+    NODISCARD static HotkeyModifiers qtModifiersToFlags(Qt::KeyboardModifiers mods);
     NODISCARD static HotkeyEnum qtKeyToHotkeyBase(int key, bool isNumpad);
     NODISCARD static const char *hotkeyBaseToName(HotkeyEnum base);
     NODISCARD static HotkeyPolicy hotkeyBaseToPolicy(HotkeyEnum base);
@@ -253,3 +245,16 @@ public:
 private:
     void decompose();
 };
+
+namespace std {
+template<>
+struct hash<Hotkey>
+{
+    size_t operator()(const Hotkey &hk) const noexcept
+    {
+        size_t h1 = std::hash<uint16_t>{}(static_cast<uint16_t>(hk.base()));
+        size_t h2 = std::hash<uint8_t>{}(static_cast<uint8_t>(hk.modifiers()));
+        return h1 ^ (h2 << 7);
+    }
+};
+} // namespace std

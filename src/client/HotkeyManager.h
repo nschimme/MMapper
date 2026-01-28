@@ -18,7 +18,7 @@
 class NODISCARD HotkeyManager final
 {
 private:
-    std::unordered_map<HotkeyEnum, std::string> m_hotkeys;
+    std::unordered_map<Hotkey, std::string> m_hotkeys;
     ChangeMonitor::Lifetime m_configLifetime;
 
 public:

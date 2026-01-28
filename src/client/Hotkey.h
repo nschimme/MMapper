@@ -23,13 +23,7 @@ enum class HotkeyPolicy : uint8_t {
 // Macro to define all supported base keys and their Qt mappings.
 //
 // X(EnumName, StringName, QtKey, Policy) -> Defines a unique identity
-// S(EnumName, QtKey, Policy)             -> Defines an additional mapping (alias)
-//
-// Secondary mappings (aliases) are needed because Qt often reports navigation keys
-// (e.g. Qt::Key_Left instead of Qt::Key_4) for Numpad keys when Shift is held or
-// NumLock is off, but it still includes the Qt::KeypadModifier. Aliases allow
-// these events to be correctly mapped back to the NUMPAD hotkey identity.
-#define XFOREACH_HOTKEY_BASE_KEYS(X, S) \
+#define XFOREACH_HOTKEY_BASE_KEYS(X) \
     X(F1, "F1", Qt::Key_F1, HotkeyPolicy::Any) \
     X(F2, "F2", Qt::Key_F2, HotkeyPolicy::Any) \
     X(F3, "F3", Qt::Key_F3, HotkeyPolicy::Any) \
@@ -43,31 +37,20 @@ enum class HotkeyPolicy : uint8_t {
     X(F11, "F11", Qt::Key_F11, HotkeyPolicy::Any) \
     X(F12, "F12", Qt::Key_F12, HotkeyPolicy::Any) \
     X(NUMPAD0, "NUMPAD0", Qt::Key_0, HotkeyPolicy::Keypad) \
-    S(NUMPAD0, Qt::Key_Insert, HotkeyPolicy::Keypad) \
     X(NUMPAD1, "NUMPAD1", Qt::Key_1, HotkeyPolicy::Keypad) \
-    S(NUMPAD1, Qt::Key_End, HotkeyPolicy::Keypad) \
     X(NUMPAD2, "NUMPAD2", Qt::Key_2, HotkeyPolicy::Keypad) \
-    S(NUMPAD2, Qt::Key_Down, HotkeyPolicy::Keypad) \
     X(NUMPAD3, "NUMPAD3", Qt::Key_3, HotkeyPolicy::Keypad) \
-    S(NUMPAD3, Qt::Key_PageDown, HotkeyPolicy::Keypad) \
     X(NUMPAD4, "NUMPAD4", Qt::Key_4, HotkeyPolicy::Keypad) \
-    S(NUMPAD4, Qt::Key_Left, HotkeyPolicy::Keypad) \
     X(NUMPAD5, "NUMPAD5", Qt::Key_5, HotkeyPolicy::Keypad) \
-    S(NUMPAD5, Qt::Key_Clear, HotkeyPolicy::Keypad) \
     X(NUMPAD6, "NUMPAD6", Qt::Key_6, HotkeyPolicy::Keypad) \
-    S(NUMPAD6, Qt::Key_Right, HotkeyPolicy::Keypad) \
     X(NUMPAD7, "NUMPAD7", Qt::Key_7, HotkeyPolicy::Keypad) \
-    S(NUMPAD7, Qt::Key_Home, HotkeyPolicy::Keypad) \
     X(NUMPAD8, "NUMPAD8", Qt::Key_8, HotkeyPolicy::Keypad) \
-    S(NUMPAD8, Qt::Key_Up, HotkeyPolicy::Keypad) \
     X(NUMPAD9, "NUMPAD9", Qt::Key_9, HotkeyPolicy::Keypad) \
-    S(NUMPAD9, Qt::Key_PageUp, HotkeyPolicy::Keypad) \
     X(NUMPAD_SLASH, "NUMPAD_SLASH", Qt::Key_Slash, HotkeyPolicy::Keypad) \
     X(NUMPAD_ASTERISK, "NUMPAD_ASTERISK", Qt::Key_Asterisk, HotkeyPolicy::Keypad) \
     X(NUMPAD_MINUS, "NUMPAD_MINUS", Qt::Key_Minus, HotkeyPolicy::Keypad) \
     X(NUMPAD_PLUS, "NUMPAD_PLUS", Qt::Key_Plus, HotkeyPolicy::Keypad) \
     X(NUMPAD_PERIOD, "NUMPAD_PERIOD", Qt::Key_Period, HotkeyPolicy::Keypad) \
-    S(NUMPAD_PERIOD, Qt::Key_Delete, HotkeyPolicy::Keypad) \
     X(HOME, "HOME", Qt::Key_Home, HotkeyPolicy::ModifierRequired) \
     X(END, "END", Qt::Key_End, HotkeyPolicy::ModifierRequired) \
     X(INSERT, "INSERT", Qt::Key_Insert, HotkeyPolicy::ModifierRequired) \
@@ -77,6 +60,7 @@ enum class HotkeyPolicy : uint8_t {
     X(DOWN, "DOWN", Qt::Key_Down, HotkeyPolicy::ModifierRequired) \
     X(LEFT, "LEFT", Qt::Key_Left, HotkeyPolicy::ModifierRequired) \
     X(RIGHT, "RIGHT", Qt::Key_Right, HotkeyPolicy::ModifierRequired) \
+    X(CLEAR, "CLEAR", Qt::Key_Clear, HotkeyPolicy::Keypad) \
     X(ACCENT, "ACCENT", Qt::Key_QuoteLeft, HotkeyPolicy::ModifierNotShift) \
     X(K_0, "0", Qt::Key_0, HotkeyPolicy::ModifierNotShift) \
     X(K_1, "1", Qt::Key_1, HotkeyPolicy::ModifierNotShift) \
@@ -137,7 +121,7 @@ enum class HotkeyPolicy : uint8_t {
     X("NUMPAD1", "ride") \
     X("NUMPAD3", "stand")
 
-#define XFOREACH_HOTKEY_MODIFIER(X, S) \
+#define XFOREACH_HOTKEY_MODIFIER(X) \
     X(SHIFT, Qt::ShiftModifier, 1) \
     X(CTRL, Qt::ControlModifier, 2) \
     X(ALT, Qt::AltModifier, 4) \
@@ -149,10 +133,9 @@ enum class HotkeyPolicy : uint8_t {
 #define PERMUTE_3(key) PERMUTE_2(key) PERMUTE_2(ALT_##key)
 #define PERMUTE_4(key) PERMUTE_3(key) PERMUTE_3(META_##key)
 #define X_GENERATE_ALL_MODS(id, name, key, policy) PERMUTE_4(id)
-#define S_IGNORE(...)
 
 enum class HotkeyEnum : uint16_t {
-    XFOREACH_HOTKEY_BASE_KEYS(X_GENERATE_ALL_MODS, S_IGNORE) INVALID
+    XFOREACH_HOTKEY_BASE_KEYS(X_GENERATE_ALL_MODS) INVALID
 };
 
 #undef PERMUTE_0
@@ -161,22 +144,17 @@ enum class HotkeyEnum : uint16_t {
 #undef PERMUTE_3
 #undef PERMUTE_4
 #undef X_GENERATE_ALL_MODS
-#undef S_IGNORE
 
 namespace {
 #define X_COUNT_BASE(id, name, key, policy) +1
-#define S_IGNORE(...)
-static constexpr int NUM_BASES = 0 XFOREACH_HOTKEY_BASE_KEYS(X_COUNT_BASE, S_IGNORE);
+static constexpr int NUM_BASES = 0 XFOREACH_HOTKEY_BASE_KEYS(X_COUNT_BASE);
 #undef X_COUNT_BASE
-#undef S_IGNORE
 #define X_COUNT_MODS(id, modifier, bit) +1
-#define S_IGNORE(...)
-static constexpr int NUM_MOD_BITS = 0 XFOREACH_HOTKEY_MODIFIER(X_COUNT_MODS, S_IGNORE);
-#undef S_IGNORE
+static constexpr int NUM_MOD_BITS = 0 XFOREACH_HOTKEY_MODIFIER(X_COUNT_MODS);
 #undef X_COUNT_MODS
 static constexpr int VARIANTS_PER_KEY = 1 << NUM_MOD_BITS;
 static constexpr int TOTAL_EXPECTED = NUM_BASES * VARIANTS_PER_KEY;
-static_assert(TOTAL_EXPECTED == 784, "Total keys count changed");
+static_assert(TOTAL_EXPECTED == 800, "Total keys count changed");
 static_assert(static_cast<int>(HotkeyEnum::INVALID) == TOTAL_EXPECTED, "Enum mismatch");
 
 constexpr bool isUppercase(const char *s)
@@ -190,25 +168,19 @@ constexpr bool isUppercase(const char *s)
 }
 #define X_CHECK_UPPER(id, name, qkey, policy) \
     static_assert(isUppercase(name), "Hotkey name must be uppercase: " name);
-#define S_IGNORE(...)
-XFOREACH_HOTKEY_BASE_KEYS(X_CHECK_UPPER, S_IGNORE)
+XFOREACH_HOTKEY_BASE_KEYS(X_CHECK_UPPER)
 #undef X_CHECK_UPPER
-#undef S_IGNORE
 } // namespace
 
 class NODISCARD Hotkey final
 {
 public:
 #define X_MOD_MASK(id, mod, bit) static constexpr uint8_t id##_MASK = bit;
-#define S_IGNORE(...)
-    XFOREACH_HOTKEY_MODIFIER(X_MOD_MASK, S_IGNORE)
-#undef S_IGNORE
+    XFOREACH_HOTKEY_MODIFIER(X_MOD_MASK)
 #undef X_MOD_MASK
 
 #define X_MOD_TOTAL(id, mod, bit) | bit
-#define S_IGNORE(...)
-    static constexpr uint8_t AllModifiersMask = 0 XFOREACH_HOTKEY_MODIFIER(X_MOD_TOTAL, S_IGNORE);
-#undef S_IGNORE
+    static constexpr uint8_t AllModifiersMask = 0 XFOREACH_HOTKEY_MODIFIER(X_MOD_TOTAL);
 #undef X_MOD_TOTAL
 
 private:

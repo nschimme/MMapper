@@ -137,11 +137,15 @@ enum class HotkeyPolicy : uint8_t {
     X("NUMPAD1", "ride") \
     X("NUMPAD3", "stand")
 
-#define XFOREACH_HOTKEY_MODIFIER(X) \
+#define XFOREACH_HOTKEY_MODIFIER(X, S) \
     X(SHIFT, Qt::ShiftModifier, 1) \
     X(CTRL, Qt::ControlModifier, 2) \
+    S(CTRL, "CONTROL", Qt::ControlModifier, 2) \
     X(ALT, Qt::AltModifier, 4) \
-    X(META, Qt::MetaModifier, 8)
+    X(META, Qt::MetaModifier, 8) \
+    S(META, "COMMAND", Qt::MetaModifier, 8) \
+    S(META, "CMD", Qt::MetaModifier, 8) \
+    S(META, "WIN", Qt::MetaModifier, 8)
 
 #define PERMUTE_0(key) key,
 #define PERMUTE_1(key) PERMUTE_0(key) PERMUTE_0(SHIFT_##key)
@@ -169,9 +173,11 @@ namespace {
 static constexpr int NUM_BASES = 0 XFOREACH_HOTKEY_BASE_KEYS(X_COUNT_BASE, S_IGNORE);
 #undef X_COUNT_BASE
 #undef S_IGNORE
-#define X_COUNT_MODS(name, modifier, shift) +1
-static constexpr int NUM_MOD_BITS = 0 XFOREACH_HOTKEY_MODIFIER(X_COUNT_MODS);
+#define X_COUNT_MODS(id, modifier, bit) +1
+#define S_IGNORE(...)
+static constexpr int NUM_MOD_BITS = 0 XFOREACH_HOTKEY_MODIFIER(X_COUNT_MODS, S_IGNORE);
 #undef X_COUNT_MODS
+#undef S_IGNORE
 static constexpr int VARIANTS_PER_KEY = 1 << NUM_MOD_BITS;
 static constexpr int TOTAL_EXPECTED = NUM_BASES * VARIANTS_PER_KEY;
 static_assert(TOTAL_EXPECTED == 784, "Total keys count changed");
@@ -197,12 +203,16 @@ XFOREACH_HOTKEY_BASE_KEYS(X_CHECK_UPPER, S_IGNORE)
 class NODISCARD Hotkey final
 {
 public:
-#define X_MOD_MASK(name, mod, bit) static constexpr uint8_t name##_MASK = bit;
-    XFOREACH_HOTKEY_MODIFIER(X_MOD_MASK)
+#define X_MOD_MASK(id, mod, bit) static constexpr uint8_t id##_MASK = bit;
+#define S_IGNORE(...)
+    XFOREACH_HOTKEY_MODIFIER(X_MOD_MASK, S_IGNORE)
+#undef S_IGNORE
 #undef X_MOD_MASK
 
-#define X_MOD_TOTAL(name, mod, bit) | bit
-    static constexpr uint8_t AllModifiersMask = 0 XFOREACH_HOTKEY_MODIFIER(X_MOD_TOTAL);
+#define X_MOD_TOTAL(id, mod, bit) | bit
+#define S_IGNORE(...)
+    static constexpr uint8_t AllModifiersMask = 0 XFOREACH_HOTKEY_MODIFIER(X_MOD_TOTAL, S_IGNORE);
+#undef S_IGNORE
 #undef X_MOD_TOTAL
 
 private:

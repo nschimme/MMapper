@@ -52,24 +52,23 @@ Hotkey::Hotkey(std::string_view s)
             part.remove_suffix(1);
 
         if (!part.empty()) {
-            if (isModifier(part, "CONTROL")) {
-                mods |= CTRL_MASK;
-            } else if (isModifier(part, "COMMAND") || isModifier(part, "CMD") || isModifier(part, "WIN")) {
-                mods |= META_MASK;
-            } else {
 // X-Macro expansion using the lambda
-#define X_PARSE(name, modifier, bit) \
-    if (isModifier(part, #name)) { \
+#define X_PARSE(id, mod, bit) \
+    if (isModifier(part, #id)) { \
+        mods |= bit; \
+    } else
+#define S_PARSE(id, str, mod, bit) \
+    if (isModifier(part, str)) { \
         mods |= bit; \
     } else
 
-                XFOREACH_HOTKEY_MODIFIER(X_PARSE)
-                {
-                    // This block is the final 'else' of the macro chain
-                    base = nameToHotkeyBase(part);
-                }
-#undef X_PARSE
+            XFOREACH_HOTKEY_MODIFIER(X_PARSE, S_PARSE)
+            {
+                // This block is the final 'else' of the macro chain
+                base = nameToHotkeyBase(part);
             }
+#undef S_PARSE
+#undef X_PARSE
         }
 
         if (end == std::string::npos)
@@ -121,10 +120,12 @@ std::string Hotkey::serialize() const
 
     std::vector<std::string> parts;
     uint8_t mods = modifiers();
-#define X_STR(name, modifier, shift) \
-    if (mods & shift) \
-        parts.emplace_back(#name);
-    XFOREACH_HOTKEY_MODIFIER(X_STR)
+#define X_STR(id, mod, bit) \
+    if (mods & bit) \
+        parts.emplace_back(#id);
+#define S_IGNORE(...)
+    XFOREACH_HOTKEY_MODIFIER(X_STR, S_IGNORE)
+#undef S_IGNORE
 #undef X_STR
 
     std::string name = hotkeyBaseToName(base());
@@ -146,11 +147,13 @@ std::string Hotkey::serialize() const
 uint8_t Hotkey::qtModifiersToMask(Qt::KeyboardModifiers mods)
 {
     uint8_t mask = 0;
-#define X_STR(name, modifier, shift) \
-    if (mods & modifier) \
-        mask |= shift;
-    XFOREACH_HOTKEY_MODIFIER(X_STR)
-#undef X_STR
+#define X_MASK(id, mod, bit) \
+    if (mods & mod) \
+        mask |= bit;
+#define S_IGNORE(...)
+    XFOREACH_HOTKEY_MODIFIER(X_MASK, S_IGNORE)
+#undef S_IGNORE
+#undef X_MASK
     return mask;
 }
 
@@ -224,8 +227,10 @@ std::vector<std::string> Hotkey::getAvailableKeyNames()
 std::vector<std::string> Hotkey::getAvailableModifiers()
 {
     return {
-#define X_STR(id, name, shift) #name,
-        XFOREACH_HOTKEY_MODIFIER(X_STR)
+#define X_STR(id, mod, bit) #id,
+#define S_IGNORE(...)
+        XFOREACH_HOTKEY_MODIFIER(X_STR, S_IGNORE)
+#undef S_IGNORE
 #undef X_STR
     };
 }

@@ -70,7 +70,7 @@ void InputWidget::keyPressEvent(QKeyEvent *const event)
     const auto key = event->key();
     const auto mods = event->modifiers();
 
-    // Handle tabbing state (unchanged)
+    // 1. Handle tabbing state (unchanged)
     if (m_tabbing) {
         if (key != Qt::Key_Tab) {
             m_tabbing = false;
@@ -90,25 +90,6 @@ void InputWidget::keyPressEvent(QKeyEvent *const event)
                                  QTextCursor::MoveAnchor,
                                  static_cast<int>(current.selectedText().length()));
             setTextCursor(current);
-        }
-    }
-
-    // 1. Try Hotkeys FIRST
-    const bool isNumpad = mods & Qt::KeypadModifier;
-    const auto base = Hotkey::qtKeyToHotkeyBase(key, isNumpad);
-    if (base != HotkeyEnum::INVALID) {
-        const Hotkey hk(base, Hotkey::qtModifiersToMask(mods));
-        if (auto command = m_outputs.getHotkey(hk)) {
-            sendCommandWithSeparator(*command);
-            event->accept();
-            return;
-        }
-
-        // Always block Numpad keys from falling through to default behavior
-        // (like text selection or history navigation) even if no hotkey is bound.
-        if (isNumpad) {
-            event->accept();
-            return;
         }
     }
 
@@ -135,6 +116,14 @@ void InputWidget::keyPressEvent(QKeyEvent *const event)
 
     // 5. Basic keys (Enter, Tab)
     if (mods == Qt::NoModifier && handleBasicKey(key)) {
+        event->accept();
+        return;
+    }
+
+    // 6. Try Hotkeys
+    const Hotkey hk(key, mods);
+    if (auto command = m_outputs.getHotkey(hk)) {
+        sendCommandWithSeparator(*command);
         event->accept();
         return;
     }
@@ -180,6 +169,10 @@ bool InputWidget::handleTerminalShortcut(int key)
 bool InputWidget::handleBasicKey(int key)
 {
     switch (key) {
+    case Qt::Key_Left:
+    case Qt::Key_Right:
+        // Cursor movement
+        return true;
     case Qt::Key_Return:
     case Qt::Key_Enter:
         gotInput();

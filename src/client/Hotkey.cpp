@@ -7,19 +7,10 @@
 #include "../global/ConfigConsts-Computed.h"
 #include "../global/TextUtils.h"
 
-Hotkey::Hotkey(HotkeyEnum he)
-    : m_hotkey(he)
+Hotkey::Hotkey(HotkeyEnum base, HotkeyModifiers mods)
+    : m_base(base)
+    , m_modifiers(mods)
 {
-    decompose();
-}
-
-Hotkey::Hotkey(HotkeyEnum base, uint8_t mods)
-{
-    if (base == HotkeyEnum::INVALID) {
-        m_hotkey = HotkeyEnum::INVALID;
-    } else {
-        m_hotkey = static_cast<HotkeyEnum>(static_cast<uint16_t>(base) + (mods & AllModifiersMask));
-    }
     decompose();
 }
 
@@ -34,7 +25,7 @@ Hotkey::Hotkey(std::string_view s)
         return;
     }
 
-    uint8_t mods = 0;
+    HotkeyModifiers mods;
     HotkeyEnum base = HotkeyEnum::INVALID;
 
     auto isModifier = [](std::string_view input, std::string_view target) {
@@ -63,9 +54,9 @@ Hotkey::Hotkey(std::string_view s)
 
         if (!part.empty()) {
 // X-Macro expansion using the lambda
-#define X_PARSE(id, mod, bit) \
+#define X_PARSE(id, mod) \
     if (isModifier(part, #id)) { \
-        mods |= bit; \
+        mods.insert(HotkeyModifierEnum::id); \
     } else
 
             XFOREACH_HOTKEY_MODIFIER(X_PARSE)
@@ -88,14 +79,14 @@ Hotkey::Hotkey(std::string_view s)
 Hotkey::Hotkey(Qt::Key key, Qt::KeyboardModifiers modifiers)
 {
     bool isNumpad = modifiers & Qt::KeypadModifier;
-    HotkeyEnum base = Hotkey::qtKeyToHotkeyBase(key, isNumpad);
-    if (base == HotkeyEnum::INVALID) {
+    m_base = Hotkey::qtKeyToHotkeyBase(key, isNumpad);
+    if (m_base == HotkeyEnum::INVALID) {
         decompose();
         return;
     }
 
-    uint8_t mods = Hotkey::qtModifiersToMask(modifiers);
-    *this = Hotkey(base, mods);
+    m_modifiers = Hotkey::qtModifiersToHotkeyModifiers(modifiers);
+    decompose();
 }
 
 void Hotkey::decompose()
@@ -109,7 +100,7 @@ void Hotkey::decompose()
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wswitch-enum"
 #endif
-    switch (base()) {
+    switch (m_base) {
 #define X_DECOMPOSE(id, name, qkey, policy) \
     case HotkeyEnum::id: \
         m_policy = policy; \
@@ -132,13 +123,17 @@ std::string Hotkey::serialize() const
         return {};
     }
 
-    const auto mods = modifiers();
     std::vector<std::string> parts;
-#define X_STR(id, mod, bit) \
-    if (mods & bit) \
-        parts.emplace_back(#id);
-    XFOREACH_HOTKEY_MODIFIER(X_STR)
+    m_modifiers.for_each([&parts](HotkeyModifierEnum mod) {
+        switch (mod) {
+#define X_STR(id, mod) \
+    case HotkeyModifierEnum::id: \
+        parts.emplace_back(#id); \
+        break;
+            XFOREACH_HOTKEY_MODIFIER(X_STR)
 #undef X_STR
+        }
+    });
 
 #ifdef __clang__
 #pragma clang diagnostic push
@@ -169,12 +164,12 @@ std::string Hotkey::serialize() const
     return result;
 }
 
-uint8_t Hotkey::qtModifiersToMask(Qt::KeyboardModifiers mods)
+HotkeyModifiers Hotkey::qtModifiersToHotkeyModifiers(Qt::KeyboardModifiers mods)
 {
-    uint8_t mask = 0;
-#define X_MASK(id, mod, bit) \
+    HotkeyModifiers mask;
+#define X_MASK(id, mod) \
     if (mods & mod) \
-        mask |= bit;
+        mask.insert(HotkeyModifierEnum::id);
     XFOREACH_HOTKEY_MODIFIER(X_MASK)
 #undef X_MASK
     return mask;
@@ -188,8 +183,36 @@ HotkeyEnum Hotkey::qtKeyToHotkeyBase(Qt::Key key, bool isNumpad)
             isNumpad = false;
         }
     }
+
+    if (isNumpad) {
+        switch (key) {
+        case Qt::Key_Up:
+            return HotkeyEnum::NUMPAD8;
+        case Qt::Key_Down:
+            return HotkeyEnum::NUMPAD2;
+        case Qt::Key_Left:
+            return HotkeyEnum::NUMPAD4;
+        case Qt::Key_Right:
+            return HotkeyEnum::NUMPAD6;
+        case Qt::Key_Home:
+            return HotkeyEnum::NUMPAD7;
+        case Qt::Key_End:
+            return HotkeyEnum::NUMPAD1;
+        case Qt::Key_PageUp:
+            return HotkeyEnum::NUMPAD9;
+        case Qt::Key_PageDown:
+            return HotkeyEnum::NUMPAD3;
+        case Qt::Key_Insert:
+            return HotkeyEnum::NUMPAD0;
+        case Qt::Key_Delete:
+            return HotkeyEnum::NUMPAD_PERIOD;
+        default:
+            break;
+        }
+    }
+
 #define X_CHECK_KEY(id, name, qk, pol) \
-    if (key == qk && ((pol == HotkeyPolicyEnum::Keypad) && isNumpad)) \
+    if (key == qk && ((pol == HotkeyPolicyEnum::Keypad) == isNumpad)) \
         return HotkeyEnum::id;
     XFOREACH_HOTKEY_BASE_KEYS(X_CHECK_KEY)
 #undef X_CHECK_KEY
@@ -218,7 +241,7 @@ std::vector<std::string> Hotkey::getAvailableKeyNames()
 std::vector<std::string> Hotkey::getAvailableModifiers()
 {
     return {
-#define X_STR(id, mod, bit) #id,
+#define X_STR(id, mod) #id,
         XFOREACH_HOTKEY_MODIFIER(X_STR)
 #undef X_STR
     };

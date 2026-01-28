@@ -102,10 +102,10 @@ void InputWidget::keyPressEvent(QKeyEvent *const event)
     // Now handle keys that were rejected by handleCommandInput either because
     // they aren't hotkeys or because they are restricted by policy (bare arrows, etc.)
     const Hotkey hk(key, mods);
-    const uint8_t mask = hk.modifiers();
+    const auto modifiers = hk.modifiers();
 
-    const bool isNoMod = (mask == 0);
-    const bool isOnlyShift = (mask == Hotkey::SHIFT_MASK);
+    const bool isNoMod = modifiers.isEmpty();
+    const bool isOnlyShift = (modifiers.isShift() && modifiers.size() == 1);
 
     // 3. Handle restricted keys that perform special widget actions
     if ((isNoMod && hk.isModifierRequired())
@@ -152,10 +152,10 @@ bool InputWidget::handleCommandInput(int key, Qt::KeyboardModifiers mods)
         return false;
     }
 
-    const uint8_t mask = hk.modifiers();
+    const auto modifiers = hk.modifiers();
 
-    const bool isNoMod = (mask == 0);
-    const bool isOnlyShift = (mask == Hotkey::SHIFT_MASK);
+    const bool isNoMod = modifiers.isEmpty();
+    const bool isOnlyShift = (modifiers.isShift() && modifiers.size() == 1);
 
     // Check if hotkey is allowed by policy
     if ((isNoMod && hk.isModifierRequired())

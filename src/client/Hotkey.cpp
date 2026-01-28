@@ -89,15 +89,17 @@ Hotkey::Hotkey(int key, Qt::KeyboardModifiers modifiers)
 
 HotkeyEnum Hotkey::base() const
 {
-    if (!isValid())
+    if (!isValid()) {
         return HotkeyEnum::INVALID;
+    }
     return static_cast<HotkeyEnum>(static_cast<uint16_t>(m_hotkey) & 0xFFF0);
 }
 
 uint8_t Hotkey::modifiers() const
 {
-    if (!isValid())
+    if (!isValid()) {
         return 0;
+    }
     return static_cast<uint8_t>(static_cast<uint16_t>(m_hotkey) & 0xF);
 }
 

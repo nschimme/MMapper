@@ -129,9 +129,10 @@ void AbstractParser::parseHotkey(StringView input)
                 return;
             }
 
-            const uint8_t mask = hk.modifiers();
-            if ((mask == 0 && hk.isModifierRequired())
-                || ((mask == 0 || mask == Hotkey::SHIFT_MASK) && hk.isModifierNotShift())) {
+            const auto mods = hk.modifiers();
+            if ((mods.isEmpty() && hk.isModifierRequired())
+                || ((mods.isEmpty() || (mods.isShift() && mods.size() == 1))
+                    && hk.isModifierNotShift())) {
                 os << "Error: [" << hk.serialize() << "] requires a ";
                 if (hk.isModifierNotShift()) {
                     os << "non-SHIFT modifier (CTRL or ALT).\n";

@@ -124,6 +124,7 @@ protected:
 private:
     void gotInput();
     NODISCARD bool tryHistory(int);
+    NODISCARD bool handleCommandInput(int key, Qt::KeyboardModifiers mods);
     NODISCARD bool handleTerminalShortcut(int key);
     NODISCARD bool handleBasicKey(int key);
 

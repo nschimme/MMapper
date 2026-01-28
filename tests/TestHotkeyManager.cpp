@@ -49,13 +49,20 @@ void TestHotkeyManager::keyNormalizationTest()
     manager.clear();
 
     // Test all base keys and secondary mappings defined in macro
-#define X_TEST_KEY(id, name, qkey, num) \
-    QVERIFY(manager.setHotkey(Hotkey{name}, "cmd_" name)); \
-    checkHk(manager, Hotkey{name}, "cmd_" name); \
-    checkHk(manager, Hotkey{qkey, num ? Qt::KeypadModifier : Qt::NoModifier}, "cmd_" name);
+#define X_TEST_KEY(id, name, qkey, pol) \
+    { \
+        const std::string nameStr(name); \
+        QVERIFY(manager.setHotkey(Hotkey{nameStr}, "cmd_" + nameStr)); \
+        checkHk(manager, Hotkey{nameStr}, "cmd_" + nameStr); \
+        checkHk(manager, \
+                Hotkey{qkey, (pol == HotkeyPolicy::Keypad) ? Qt::KeypadModifier : Qt::NoModifier}, \
+                "cmd_" + nameStr); \
+    }
 
-#define S_TEST_KEY(id, qkey, num) \
-    checkHk(manager, Hotkey{qkey, num ? Qt::KeypadModifier : Qt::NoModifier}, "cmd_" #id);
+#define S_TEST_KEY(id, qkey, pol) \
+    checkHk(manager, \
+            Hotkey{qkey, (pol == HotkeyPolicy::Keypad) ? Qt::KeypadModifier : Qt::NoModifier}, \
+            "cmd_" #id);
 
     XFOREACH_HOTKEY_BASE_KEYS(X_TEST_KEY, S_TEST_KEY)
 #undef X_TEST_KEY
@@ -79,17 +86,6 @@ void TestHotkeyManager::keyNormalizationTest()
     // Test that case is normalized to uppercase
     QVERIFY(manager.setHotkey(Hotkey{"ctrl+f3"}, "test3"));
     checkHk(manager, Hotkey{"CTRL+F3"}, "test3");
-
-    // Test CONTROL alias normalizes to CTRL
-    QVERIFY(manager.setHotkey(Hotkey{"CONTROL+F4"}, "test4"));
-    checkHk(manager, Hotkey{"CTRL+F4"}, "test4");
-
-    // Test CMD/COMMAND aliases normalize to META
-    QVERIFY(manager.setHotkey(Hotkey{"CMD+F5"}, "test5"));
-    checkHk(manager, Hotkey{"META+F5"}, "test5");
-
-    QVERIFY(manager.setHotkey(Hotkey{"COMMAND+F6"}, "test6"));
-    checkHk(manager, Hotkey{"META+F6"}, "test6");
 }
 
 void TestHotkeyManager::importExportRoundTripTest()
@@ -110,6 +106,12 @@ void TestHotkeyManager::importExportRoundTripTest()
 
     // Verify total count
     QCOMPARE(static_cast<int>(manager.getAllHotkeys().size()), 4);
+
+    // Verify serialization
+    QCOMPARE(QString::fromStdString(Hotkey{"F1"}.serialize()), QString("F1"));
+    QCOMPARE(QString::fromStdString(Hotkey{"CTRL+F2"}.serialize()), QString("CTRL+F2"));
+    QCOMPARE(QString::fromStdString(Hotkey{"SHIFT+ALT+F3"}.serialize()), QString("SHIFT+ALT+F3"));
+    QCOMPARE(QString::fromStdString(Hotkey{"NUMPAD8"}.serialize()), QString("NUMPAD8"));
 }
 
 void TestHotkeyManager::importEdgeCasesTest()

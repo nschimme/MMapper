@@ -13,67 +13,73 @@
 #include <QString>
 #include <Qt>
 
-enum class HotkeyPolicy : uint8_t {
-    Any,              // Can be bound with or without modifiers (e.g. F-keys)
-    Keypad,           // Can be bound with or without modifiers (e.g. Numpad)
-    ModifierRequired, // Requires any modifier (CTRL, ALT, or SHIFT) to be bound (e.g. Arrows)
-    ModifierNotShift, // Requires a non-SHIFT modifier (CTRL or ALT) (e.g. 1, -, =)
+// Macro to define all supporting hotkey policies.
+// X(EnumName, Help)
+#define XFOREACH_HOTKEY_POLICY(X) \
+    X(Any, "Can be bound with or without modifiers (e.g. F-keys)") \
+    X(Keypad, "Can be bound with or without modifiers (e.g. Numpad)") \
+    X(ModifierRequired, "Requires any modifier (CTRL, ALT, or SHIFT) to be bound (e.g. Arrows)") \
+    X(ModifierNotShift, "Requires a non-SHIFT modifier (CTRL or ALT) (e.g. 1, -, =)")
+
+enum class HotkeyPolicyEnum : uint8_t {
+#define X_ENUM(name, help) name,
+    XFOREACH_HOTKEY_POLICY(X_ENUM)
+#undef X_ENUM
 };
 
 // Macro to define all supported base keys and their Qt mappings.
-//
 // X(EnumName, StringName, QtKey, Policy) -> Defines a unique identity
 #define XFOREACH_HOTKEY_BASE_KEYS(X) \
-    X(F1, "F1", Qt::Key_F1, HotkeyPolicy::Any) \
-    X(F2, "F2", Qt::Key_F2, HotkeyPolicy::Any) \
-    X(F3, "F3", Qt::Key_F3, HotkeyPolicy::Any) \
-    X(F4, "F4", Qt::Key_F4, HotkeyPolicy::Any) \
-    X(F5, "F5", Qt::Key_F5, HotkeyPolicy::Any) \
-    X(F6, "F6", Qt::Key_F6, HotkeyPolicy::Any) \
-    X(F7, "F7", Qt::Key_F7, HotkeyPolicy::Any) \
-    X(F8, "F8", Qt::Key_F8, HotkeyPolicy::Any) \
-    X(F9, "F9", Qt::Key_F9, HotkeyPolicy::Any) \
-    X(F10, "F10", Qt::Key_F10, HotkeyPolicy::Any) \
-    X(F11, "F11", Qt::Key_F11, HotkeyPolicy::Any) \
-    X(F12, "F12", Qt::Key_F12, HotkeyPolicy::Any) \
-    X(NUMPAD0, "NUMPAD0", Qt::Key_0, HotkeyPolicy::Keypad) \
-    X(NUMPAD1, "NUMPAD1", Qt::Key_1, HotkeyPolicy::Keypad) \
-    X(NUMPAD2, "NUMPAD2", Qt::Key_2, HotkeyPolicy::Keypad) \
-    X(NUMPAD3, "NUMPAD3", Qt::Key_3, HotkeyPolicy::Keypad) \
-    X(NUMPAD4, "NUMPAD4", Qt::Key_4, HotkeyPolicy::Keypad) \
-    X(NUMPAD5, "NUMPAD5", Qt::Key_5, HotkeyPolicy::Keypad) \
-    X(NUMPAD6, "NUMPAD6", Qt::Key_6, HotkeyPolicy::Keypad) \
-    X(NUMPAD7, "NUMPAD7", Qt::Key_7, HotkeyPolicy::Keypad) \
-    X(NUMPAD8, "NUMPAD8", Qt::Key_8, HotkeyPolicy::Keypad) \
-    X(NUMPAD9, "NUMPAD9", Qt::Key_9, HotkeyPolicy::Keypad) \
-    X(NUMPAD_SLASH, "NUMPAD_SLASH", Qt::Key_Slash, HotkeyPolicy::Keypad) \
-    X(NUMPAD_ASTERISK, "NUMPAD_ASTERISK", Qt::Key_Asterisk, HotkeyPolicy::Keypad) \
-    X(NUMPAD_MINUS, "NUMPAD_MINUS", Qt::Key_Minus, HotkeyPolicy::Keypad) \
-    X(NUMPAD_PLUS, "NUMPAD_PLUS", Qt::Key_Plus, HotkeyPolicy::Keypad) \
-    X(NUMPAD_PERIOD, "NUMPAD_PERIOD", Qt::Key_Period, HotkeyPolicy::Keypad) \
-    X(HOME, "HOME", Qt::Key_Home, HotkeyPolicy::ModifierRequired) \
-    X(END, "END", Qt::Key_End, HotkeyPolicy::ModifierRequired) \
-    X(INSERT, "INSERT", Qt::Key_Insert, HotkeyPolicy::ModifierRequired) \
-    X(PAGEUP, "PAGEUP", Qt::Key_PageUp, HotkeyPolicy::ModifierRequired) \
-    X(PAGEDOWN, "PAGEDOWN", Qt::Key_PageDown, HotkeyPolicy::ModifierRequired) \
-    X(UP, "UP", Qt::Key_Up, HotkeyPolicy::ModifierRequired) \
-    X(DOWN, "DOWN", Qt::Key_Down, HotkeyPolicy::ModifierRequired) \
-    X(LEFT, "LEFT", Qt::Key_Left, HotkeyPolicy::ModifierRequired) \
-    X(RIGHT, "RIGHT", Qt::Key_Right, HotkeyPolicy::ModifierRequired) \
-    X(CLEAR, "CLEAR", Qt::Key_Clear, HotkeyPolicy::Keypad) \
-    X(ACCENT, "ACCENT", Qt::Key_QuoteLeft, HotkeyPolicy::ModifierNotShift) \
-    X(K_0, "0", Qt::Key_0, HotkeyPolicy::ModifierNotShift) \
-    X(K_1, "1", Qt::Key_1, HotkeyPolicy::ModifierNotShift) \
-    X(K_2, "2", Qt::Key_2, HotkeyPolicy::ModifierNotShift) \
-    X(K_3, "3", Qt::Key_3, HotkeyPolicy::ModifierNotShift) \
-    X(K_4, "4", Qt::Key_4, HotkeyPolicy::ModifierNotShift) \
-    X(K_5, "5", Qt::Key_5, HotkeyPolicy::ModifierNotShift) \
-    X(K_6, "6", Qt::Key_6, HotkeyPolicy::ModifierNotShift) \
-    X(K_7, "7", Qt::Key_7, HotkeyPolicy::ModifierNotShift) \
-    X(K_8, "8", Qt::Key_8, HotkeyPolicy::ModifierNotShift) \
-    X(K_9, "9", Qt::Key_9, HotkeyPolicy::ModifierNotShift) \
-    X(HYPHEN, "HYPHEN", Qt::Key_Minus, HotkeyPolicy::ModifierNotShift) \
-    X(EQUAL, "EQUAL", Qt::Key_Equal, HotkeyPolicy::ModifierNotShift)
+    X(F1, "F1", Qt::Key_F1, HotkeyPolicyEnum::Any) \
+    X(F2, "F2", Qt::Key_F2, HotkeyPolicyEnum::Any) \
+    X(F3, "F3", Qt::Key_F3, HotkeyPolicyEnum::Any) \
+    X(F4, "F4", Qt::Key_F4, HotkeyPolicyEnum::Any) \
+    X(F5, "F5", Qt::Key_F5, HotkeyPolicyEnum::Any) \
+    X(F6, "F6", Qt::Key_F6, HotkeyPolicyEnum::Any) \
+    X(F7, "F7", Qt::Key_F7, HotkeyPolicyEnum::Any) \
+    X(F8, "F8", Qt::Key_F8, HotkeyPolicyEnum::Any) \
+    X(F9, "F9", Qt::Key_F9, HotkeyPolicyEnum::Any) \
+    X(F10, "F10", Qt::Key_F10, HotkeyPolicyEnum::Any) \
+    X(F11, "F11", Qt::Key_F11, HotkeyPolicyEnum::Any) \
+    X(F12, "F12", Qt::Key_F12, HotkeyPolicyEnum::Any) \
+    X(NUMPAD0, "NUMPAD0", Qt::Key_0, HotkeyPolicyEnum::Keypad) \
+    X(NUMPAD1, "NUMPAD1", Qt::Key_1, HotkeyPolicyEnum::Keypad) \
+    X(NUMPAD2, "NUMPAD2", Qt::Key_2, HotkeyPolicyEnum::Keypad) \
+    X(NUMPAD3, "NUMPAD3", Qt::Key_3, HotkeyPolicyEnum::Keypad) \
+    X(NUMPAD4, "NUMPAD4", Qt::Key_4, HotkeyPolicyEnum::Keypad) \
+    X(NUMPAD5, "NUMPAD5", Qt::Key_5, HotkeyPolicyEnum::Keypad) \
+    X(NUMPAD6, "NUMPAD6", Qt::Key_6, HotkeyPolicyEnum::Keypad) \
+    X(NUMPAD7, "NUMPAD7", Qt::Key_7, HotkeyPolicyEnum::Keypad) \
+    X(NUMPAD8, "NUMPAD8", Qt::Key_8, HotkeyPolicyEnum::Keypad) \
+    X(NUMPAD9, "NUMPAD9", Qt::Key_9, HotkeyPolicyEnum::Keypad) \
+    X(NUMPAD_SLASH, "NUMPAD_SLASH", Qt::Key_Slash, HotkeyPolicyEnum::Keypad) \
+    X(NUMPAD_ASTERISK, "NUMPAD_ASTERISK", Qt::Key_Asterisk, HotkeyPolicyEnum::Keypad) \
+    X(NUMPAD_MINUS, "NUMPAD_MINUS", Qt::Key_Minus, HotkeyPolicyEnum::Keypad) \
+    X(NUMPAD_PLUS, "NUMPAD_PLUS", Qt::Key_Plus, HotkeyPolicyEnum::Keypad) \
+    X(NUMPAD_PERIOD, "NUMPAD_PERIOD", Qt::Key_Period, HotkeyPolicyEnum::Keypad) \
+    X(HOME, "HOME", Qt::Key_Home, HotkeyPolicyEnum::ModifierRequired) \
+    X(END, "END", Qt::Key_End, HotkeyPolicyEnum::ModifierRequired) \
+    X(INSERT, "INSERT", Qt::Key_Insert, HotkeyPolicyEnum::ModifierRequired) \
+    X(PAGEUP, "PAGEUP", Qt::Key_PageUp, HotkeyPolicyEnum::ModifierRequired) \
+    X(PAGEDOWN, "PAGEDOWN", Qt::Key_PageDown, HotkeyPolicyEnum::ModifierRequired) \
+    X(UP, "UP", Qt::Key_Up, HotkeyPolicyEnum::ModifierRequired) \
+    X(DOWN, "DOWN", Qt::Key_Down, HotkeyPolicyEnum::ModifierRequired) \
+    X(LEFT, "LEFT", Qt::Key_Left, HotkeyPolicyEnum::ModifierRequired) \
+    X(RIGHT, "RIGHT", Qt::Key_Right, HotkeyPolicyEnum::ModifierRequired) \
+    X(CLEAR, "CLEAR", Qt::Key_Clear, HotkeyPolicyEnum::Keypad) \
+    X(ACCENT, "ACCENT", Qt::Key_QuoteLeft, HotkeyPolicyEnum::ModifierNotShift) \
+    X(K_0, "0", Qt::Key_0, HotkeyPolicyEnum::ModifierNotShift) \
+    X(K_1, "1", Qt::Key_1, HotkeyPolicyEnum::ModifierNotShift) \
+    X(K_2, "2", Qt::Key_2, HotkeyPolicyEnum::ModifierNotShift) \
+    X(K_3, "3", Qt::Key_3, HotkeyPolicyEnum::ModifierNotShift) \
+    X(K_4, "4", Qt::Key_4, HotkeyPolicyEnum::ModifierNotShift) \
+    X(K_5, "5", Qt::Key_5, HotkeyPolicyEnum::ModifierNotShift) \
+    X(K_6, "6", Qt::Key_6, HotkeyPolicyEnum::ModifierNotShift) \
+    X(K_7, "7", Qt::Key_7, HotkeyPolicyEnum::ModifierNotShift) \
+    X(K_8, "8", Qt::Key_8, HotkeyPolicyEnum::ModifierNotShift) \
+    X(K_9, "9", Qt::Key_9, HotkeyPolicyEnum::ModifierNotShift) \
+    X(HYPHEN, "HYPHEN", Qt::Key_Minus, HotkeyPolicyEnum::ModifierNotShift) \
+    X(EQUAL, "EQUAL", Qt::Key_Equal, HotkeyPolicyEnum::ModifierNotShift)
 
 // Macro to define default hotkeys
 // X(SerializedKey, Command)
@@ -183,27 +189,28 @@ public:
 
 private:
     HotkeyEnum m_hotkey = HotkeyEnum::INVALID;
-    HotkeyPolicy m_policy = HotkeyPolicy::Any;
+    HotkeyPolicyEnum m_policy = HotkeyPolicyEnum::Any;
 
 public:
-    Hotkey() = default;
     DEFAULT_RULE_OF_5(Hotkey);
 
     explicit Hotkey(HotkeyEnum he);
-    Hotkey(HotkeyEnum base, uint8_t mods);
+    explicit Hotkey(HotkeyEnum base, uint8_t mods);
     explicit Hotkey(const QString &s);
-    Hotkey(std::string_view s);
-    Hotkey(const char *s)
+    explicit Hotkey(std::string_view s);
+    explicit Hotkey(const char *s)
         : Hotkey(std::string_view(s))
     {}
-    Hotkey(int key, Qt::KeyboardModifiers modifiers);
+    explicit Hotkey(Qt::Key key, Qt::KeyboardModifiers modifiers);
 
+public:
     NODISCARD bool isValid() const { return m_hotkey != HotkeyEnum::INVALID; }
-
     NODISCARD std::string serialize() const;
 
+public:
     NODISCARD bool operator==(const Hotkey &other) const { return m_hotkey == other.m_hotkey; }
 
+public:
     NODISCARD HotkeyEnum toEnum() const { return m_hotkey; }
     NODISCARD HotkeyEnum base() const
     {
@@ -215,10 +222,17 @@ public:
         return static_cast<uint8_t>(static_cast<uint16_t>(m_hotkey) & AllModifiersMask);
         ;
     }
-    NODISCARD HotkeyPolicy policy() const { return m_policy; }
+    NODISCARD HotkeyPolicyEnum policy() const { return m_policy; }
 
+public:
+#define X_IS_POLICY(name, help) \
+    NODISCARD bool is##name() const { return m_policy == HotkeyPolicyEnum::name; }
+    XFOREACH_HOTKEY_POLICY(X_IS_POLICY)
+#undef X_IS_POLICY
+
+public:
     NODISCARD static uint8_t qtModifiersToMask(Qt::KeyboardModifiers mods);
-    NODISCARD static HotkeyEnum qtKeyToHotkeyBase(int key, bool isNumpad);
+    NODISCARD static HotkeyEnum qtKeyToHotkeyBase(Qt::Key key, bool isNumpad);
     NODISCARD static HotkeyEnum nameToHotkeyBase(std::string_view name);
     NODISCARD static std::vector<std::string> getAvailableKeyNames();
     NODISCARD static std::vector<std::string> getAvailableModifiers();

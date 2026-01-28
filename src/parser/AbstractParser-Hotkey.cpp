@@ -130,12 +130,10 @@ void AbstractParser::parseHotkey(StringView input)
             }
 
             const uint8_t mask = hk.modifiers();
-            const auto policy = hk.policy();
-            if ((mask == 0 && policy == HotkeyPolicy::ModifierRequired)
-                || ((mask == 0 || mask == Hotkey::SHIFT_MASK)
-                    && policy == HotkeyPolicy::ModifierNotShift)) {
+            if ((mask == 0 && hk.isModifierRequired())
+                || ((mask == 0 || mask == Hotkey::SHIFT_MASK) && hk.isModifierNotShift())) {
                 os << "Error: [" << hk.serialize() << "] requires a ";
-                if (policy == HotkeyPolicy::ModifierNotShift) {
+                if (hk.isModifierNotShift()) {
                     os << "non-SHIFT modifier (CTRL or ALT).\n";
                 } else {
                     os << "modifier (CTRL, ALT, or SHIFT).\n";
@@ -225,7 +223,7 @@ void AbstractParser::parseHotkey(StringView input)
         os << "\nValid keys:\n";
 
         // Programmatically list all valid keys
-        std::vector<std::pair<std::string, HotkeyPolicy>> keys;
+        std::vector<std::pair<std::string, HotkeyPolicyEnum>> keys;
 #define X(EnumName, StringName, QtKey, Policy) keys.push_back({StringName, Policy});
         XFOREACH_HOTKEY_BASE_KEYS(X)
 #undef X
@@ -238,9 +236,9 @@ void AbstractParser::parseHotkey(StringView input)
             const auto &[name, policy] = keys[i];
             os << name;
 
-            if (policy == HotkeyPolicy::ModifierRequired)
+            if (policy == HotkeyPolicyEnum::ModifierRequired)
                 os << "*";
-            else if (policy == HotkeyPolicy::ModifierNotShift)
+            else if (policy == HotkeyPolicyEnum::ModifierNotShift)
                 os << "**";
 
             os << (i == keys.size() - 1 ? "" : ", ");

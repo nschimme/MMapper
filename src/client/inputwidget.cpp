@@ -67,7 +67,7 @@ void InputWidget::keyPressEvent(QKeyEvent *const event)
         return;
     }
 
-    const auto key = event->key();
+    const auto key = event->keyCombination().key();
     const auto mods = event->modifiers();
 
     // 1. Handle tabbing state (unchanged)
@@ -103,14 +103,13 @@ void InputWidget::keyPressEvent(QKeyEvent *const event)
     // they aren't hotkeys or because they are restricted by policy (bare arrows, etc.)
     const Hotkey hk(key, mods);
     const uint8_t mask = hk.modifiers();
-    const HotkeyPolicy policy = hk.policy();
 
     const bool isNoMod = (mask == 0);
     const bool isOnlyShift = (mask == Hotkey::SHIFT_MASK);
 
     // 3. Handle restricted keys that perform special widget actions
-    if ((isNoMod && policy == HotkeyPolicy::ModifierRequired)
-        || ((isNoMod || isOnlyShift) && policy == HotkeyPolicy::ModifierNotShift)) {
+    if ((isNoMod && hk.isModifierRequired())
+        || ((isNoMod || isOnlyShift) && hk.isModifierNotShift())) {
         if (key == Qt::Key_Up || key == Qt::Key_Down) {
             if (tryHistory(key)) {
                 event->accept();
@@ -148,20 +147,19 @@ bool InputWidget::handleCommandInput(int key, Qt::KeyboardModifiers mods)
         return true;
     }
 
-    const Hotkey hk(key, mods);
+    const Hotkey hk(static_cast<Qt::Key>(key), mods);
     if (!hk.isValid()) {
         return false;
     }
 
     const uint8_t mask = hk.modifiers();
-    const HotkeyPolicy policy = hk.policy();
 
     const bool isNoMod = (mask == 0);
     const bool isOnlyShift = (mask == Hotkey::SHIFT_MASK);
 
     // Check if hotkey is allowed by policy
-    if ((isNoMod && policy == HotkeyPolicy::ModifierRequired)
-        || ((isNoMod || isOnlyShift) && policy == HotkeyPolicy::ModifierNotShift)) {
+    if ((isNoMod && hk.isModifierRequired())
+        || ((isNoMod || isOnlyShift) && hk.isModifierNotShift())) {
         return false;
     }
 

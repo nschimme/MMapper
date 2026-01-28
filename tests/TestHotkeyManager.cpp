@@ -60,7 +60,7 @@ void TestHotkeyManager::keyNormalizationTest()
         const std::string nameStr(name); \
         QVERIFY(manager.setHotkey(Hotkey{nameStr}, "cmd_" + nameStr)); \
         checkHk(manager, Hotkey{nameStr}, "cmd_" + nameStr); \
-        Hotkey hk(qkey, (pol == HotkeyPolicy::Keypad) ? Qt::KeypadModifier : Qt::NoModifier); \
+        Hotkey hk(qkey, (pol == HotkeyPolicyEnum::Keypad) ? Qt::KeypadModifier : Qt::NoModifier); \
         std::string expected = "cmd_" + nameStr; \
         if (hk.isValid()) { \
             expected = "cmd_" + nameStr; \

@@ -85,7 +85,7 @@ Hotkey::Hotkey(std::string_view s)
     *this = Hotkey(base, mods);
 }
 
-Hotkey::Hotkey(int key, Qt::KeyboardModifiers modifiers)
+Hotkey::Hotkey(Qt::Key key, Qt::KeyboardModifiers modifiers)
 {
     bool isNumpad = modifiers & Qt::KeypadModifier;
     HotkeyEnum base = Hotkey::qtKeyToHotkeyBase(key, isNumpad);
@@ -101,7 +101,7 @@ Hotkey::Hotkey(int key, Qt::KeyboardModifiers modifiers)
 void Hotkey::decompose()
 {
     if (!isValid()) {
-        m_policy = HotkeyPolicy::Any;
+        m_policy = HotkeyPolicyEnum::Any;
         return;
     }
 
@@ -117,7 +117,7 @@ void Hotkey::decompose()
         XFOREACH_HOTKEY_BASE_KEYS(X_DECOMPOSE)
 #undef X_DECOMPOSE
     default:
-        m_policy = HotkeyPolicy::Any;
+        m_policy = HotkeyPolicyEnum::Any;
         break;
     }
 #ifdef __clang__
@@ -180,7 +180,7 @@ uint8_t Hotkey::qtModifiersToMask(Qt::KeyboardModifiers mods)
     return mask;
 }
 
-HotkeyEnum Hotkey::qtKeyToHotkeyBase(int key, bool isNumpad)
+HotkeyEnum Hotkey::qtKeyToHotkeyBase(Qt::Key key, bool isNumpad)
 {
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Mac) {
         if (key == Qt::Key_Up || key == Qt::Key_Down || key == Qt::Key_Left
@@ -188,12 +188,11 @@ HotkeyEnum Hotkey::qtKeyToHotkeyBase(int key, bool isNumpad)
             isNumpad = false;
         }
     }
-#define CHECK_NP(id, name, qk, pol) \
-    if (isNumpad && pol == HotkeyPolicy::Keypad) \
-        if (key == qk) \
-            return HotkeyEnum::id;
-    XFOREACH_HOTKEY_BASE_KEYS(CHECK_NP)
-#undef CHECK_NP
+#define X_CHECK_KEY(id, name, qk, pol) \
+    if (key == qk && ((pol == HotkeyPolicyEnum::Keypad) && isNumpad)) \
+        return HotkeyEnum::id;
+    XFOREACH_HOTKEY_BASE_KEYS(X_CHECK_KEY)
+#undef X_CHECK_KEY
     return HotkeyEnum::INVALID;
 }
 

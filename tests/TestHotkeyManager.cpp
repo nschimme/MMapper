@@ -106,6 +106,12 @@ void TestHotkeyManager::importExportRoundTripTest()
 
     // Verify total count
     QCOMPARE(static_cast<int>(manager.getAllHotkeys().size()), 4);
+
+    // Verify serialization
+    QCOMPARE(QString::fromStdString(Hotkey{"F1"}.serialize()), QString("F1"));
+    QCOMPARE(QString::fromStdString(Hotkey{"CTRL+F2"}.serialize()), QString("CTRL+F2"));
+    QCOMPARE(QString::fromStdString(Hotkey{"SHIFT+ALT+F3"}.serialize()), QString("SHIFT+ALT+F3"));
+    QCOMPARE(QString::fromStdString(Hotkey{"NUMPAD8"}.serialize()), QString("NUMPAD8"));
 }
 
 void TestHotkeyManager::importEdgeCasesTest()

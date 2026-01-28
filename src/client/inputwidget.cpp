@@ -93,12 +93,14 @@ void InputWidget::keyPressEvent(QKeyEvent *const event)
         }
     }
 
-    // 2. Terminal Shortcuts (Ctrl+U, Ctrl+W, Ctrl+H)
-    if ((mods & (Qt::ControlModifier | Qt::MetaModifier)) && handleTerminalShortcut(key)) {
+    // 2. Try Command/Hotkey logic (shared with ShortcutOverride)
+    if (handleCommandInput(key, mods)) {
         event->accept();
         return;
     }
 
+    // Now handle keys that were rejected by handleCommandInput either because
+    // they aren't hotkeys or because they are restricted by policy (bare arrows, etc.)
     const Hotkey hk(key, mods);
     const uint8_t mask = hk.modifiers();
     const HotkeyPolicy policy = hk.policy();
@@ -106,7 +108,7 @@ void InputWidget::keyPressEvent(QKeyEvent *const event)
     const bool isNoMod = (mask == 0);
     const bool isOnlyShift = (mask == Hotkey::SHIFT_MASK);
 
-    // 3. Handle keys that require modifiers to be hotkeys
+    // 3. Handle restricted keys that perform special widget actions
     if ((isNoMod && policy == HotkeyPolicy::ModifierRequired)
         || ((isNoMod || isOnlyShift) && policy == HotkeyPolicy::ModifierNotShift)) {
         if (key == Qt::Key_Up || key == Qt::Key_Down) {
@@ -135,15 +137,41 @@ void InputWidget::keyPressEvent(QKeyEvent *const event)
         return;
     }
 
-    // 5. Try Hotkeys
-    if (auto command = m_outputs.getHotkey(hk)) {
-        sendCommandWithSeparator(*command);
-        event->accept();
-        return;
-    }
-
     // All other input
     base::keyPressEvent(event);
+}
+
+bool InputWidget::handleCommandInput(int key, Qt::KeyboardModifiers mods)
+{
+    // Terminal Shortcuts (Ctrl+U, Ctrl+W, Ctrl+H)
+    if ((mods & (Qt::ControlModifier | Qt::MetaModifier)) && handleTerminalShortcut(key)) {
+        return true;
+    }
+
+    const Hotkey hk(key, mods);
+    if (!hk.isValid()) {
+        return false;
+    }
+
+    const uint8_t mask = hk.modifiers();
+    const HotkeyPolicy policy = hk.policy();
+
+    const bool isNoMod = (mask == 0);
+    const bool isOnlyShift = (mask == Hotkey::SHIFT_MASK);
+
+    // Check if hotkey is allowed by policy
+    if ((isNoMod && policy == HotkeyPolicy::ModifierRequired)
+        || ((isNoMod || isOnlyShift) && policy == HotkeyPolicy::ModifierNotShift)) {
+        return false;
+    }
+
+    // Try Hotkeys
+    if (auto command = m_outputs.getHotkey(hk)) {
+        sendCommandWithSeparator(*command);
+        return true;
+    }
+
+    return false;
 }
 
 bool InputWidget::handleTerminalShortcut(int key)
@@ -377,18 +405,10 @@ bool InputWidget::event(QEvent *const event)
 {
     if (event->type() == QEvent::ShortcutOverride) {
         auto *const keyEvent = static_cast<QKeyEvent *>(event);
-        const Hotkey hk(keyEvent->key(), keyEvent->modifiers());
-        if (hk.isValid()) {
-            // If it has modifiers, we try to handle it immediately in ShortcutOverride
-            // because some modifier combinations might not result in a KeyPress event.
-            if (hk.modifiers() != 0) {
-                if (auto command = m_outputs.getHotkey(hk)) {
-                    sendCommandWithSeparator(*command);
-                    m_handledInShortcutOverride = true;
-                    event->accept();
-                    return true;
-                }
-            }
+        if (handleCommandInput(keyEvent->key(), keyEvent->modifiers())) {
+            m_handledInShortcutOverride = true;
+            event->accept();
+            return true;
         }
 
         // Accept so KeyPress comes through for bare keys or unhandled hotkeys

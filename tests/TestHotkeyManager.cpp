@@ -86,17 +86,6 @@ void TestHotkeyManager::keyNormalizationTest()
     // Test that case is normalized to uppercase
     QVERIFY(manager.setHotkey(Hotkey{"ctrl+f3"}, "test3"));
     checkHk(manager, Hotkey{"CTRL+F3"}, "test3");
-
-    // Test CONTROL alias normalizes to CTRL
-    QVERIFY(manager.setHotkey(Hotkey{"CONTROL+F4"}, "test4"));
-    checkHk(manager, Hotkey{"CTRL+F4"}, "test4");
-
-    // Test CMD/COMMAND aliases normalize to META
-    QVERIFY(manager.setHotkey(Hotkey{"CMD+F5"}, "test5"));
-    checkHk(manager, Hotkey{"META+F5"}, "test5");
-
-    QVERIFY(manager.setHotkey(Hotkey{"COMMAND+F6"}, "test6"));
-    checkHk(manager, Hotkey{"META+F6"}, "test6");
 }
 
 void TestHotkeyManager::importExportRoundTripTest()
@@ -310,9 +299,7 @@ void TestHotkeyManager::directLookupTest()
 
     // Test SHIFT+NUMPAD4 (NumLock ON) which often comes as Qt::Key_Left + Shift + Keypad
     std::ignore = manager.setHotkey(Hotkey{"SHIFT+NUMPAD4"}, "pick west");
-    checkHk(manager,
-            Hotkey{Qt::Key_Left, (Qt::ShiftModifier | Qt::KeypadModifier)},
-            "pick west");
+    checkHk(manager, Hotkey{Qt::Key_Left, (Qt::ShiftModifier | Qt::KeypadModifier)}, "pick west");
 
     // Test NUMPAD8 (NumLock OFF) which comes as Qt::Key_Up + Keypad
     std::ignore = manager.setHotkey(Hotkey{"NUMPAD8"}, "north");

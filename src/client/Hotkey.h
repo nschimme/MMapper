@@ -14,10 +14,10 @@
 #include <Qt>
 
 enum class HotkeyPolicy : uint8_t {
-    Any,               // Can be bound with or without modifiers (e.g. F-keys)
-    Keypad,            // Can be bound with or without modifiers (e.g. Numpad)
-    ModifierRequired,  // Requires any modifier (CTRL, ALT, or SHIFT) to be bound (e.g. Arrows)
-    ModifierNotShift,  // Requires a non-SHIFT modifier (CTRL or ALT) (e.g. 1, -, =)
+    Any,              // Can be bound with or without modifiers (e.g. F-keys)
+    Keypad,           // Can be bound with or without modifiers (e.g. Numpad)
+    ModifierRequired, // Requires any modifier (CTRL, ALT, or SHIFT) to be bound (e.g. Arrows)
+    ModifierNotShift, // Requires a non-SHIFT modifier (CTRL or ALT) (e.g. 1, -, =)
 };
 
 // Macro to define all supported base keys and their Qt mappings.
@@ -140,12 +140,8 @@ enum class HotkeyPolicy : uint8_t {
 #define XFOREACH_HOTKEY_MODIFIER(X, S) \
     X(SHIFT, Qt::ShiftModifier, 1) \
     X(CTRL, Qt::ControlModifier, 2) \
-    S(CTRL, "CONTROL", Qt::ControlModifier, 2) \
     X(ALT, Qt::AltModifier, 4) \
-    X(META, Qt::MetaModifier, 8) \
-    S(META, "COMMAND", Qt::MetaModifier, 8) \
-    S(META, "CMD", Qt::MetaModifier, 8) \
-    S(META, "WIN", Qt::MetaModifier, 8)
+    X(META, Qt::MetaModifier, 8)
 
 #define PERMUTE_0(key) key,
 #define PERMUTE_1(key) PERMUTE_0(key) PERMUTE_0(SHIFT_##key)
@@ -176,8 +172,8 @@ static constexpr int NUM_BASES = 0 XFOREACH_HOTKEY_BASE_KEYS(X_COUNT_BASE, S_IGN
 #define X_COUNT_MODS(id, modifier, bit) +1
 #define S_IGNORE(...)
 static constexpr int NUM_MOD_BITS = 0 XFOREACH_HOTKEY_MODIFIER(X_COUNT_MODS, S_IGNORE);
-#undef X_COUNT_MODS
 #undef S_IGNORE
+#undef X_COUNT_MODS
 static constexpr int VARIANTS_PER_KEY = 1 << NUM_MOD_BITS;
 static constexpr int TOTAL_EXPECTED = NUM_BASES * VARIANTS_PER_KEY;
 static_assert(TOTAL_EXPECTED == 784, "Total keys count changed");
@@ -217,14 +213,16 @@ public:
 
 private:
     HotkeyEnum m_hotkey = HotkeyEnum::INVALID;
+    HotkeyEnum m_base = HotkeyEnum::INVALID;
+    uint8_t m_mods = 0;
+    HotkeyPolicy m_policy = HotkeyPolicy::Any;
+    const char *m_baseName = nullptr;
 
 public:
     Hotkey() = default;
     DEFAULT_RULE_OF_5(Hotkey);
 
-    explicit Hotkey(HotkeyEnum he)
-        : m_hotkey(he)
-    {}
+    explicit Hotkey(HotkeyEnum he);
     Hotkey(HotkeyEnum base, uint8_t mods);
     explicit Hotkey(const QString &s);
     Hotkey(std::string_view s);
@@ -240,15 +238,18 @@ public:
     NODISCARD bool operator==(const Hotkey &other) const { return m_hotkey == other.m_hotkey; }
 
     NODISCARD HotkeyEnum toEnum() const { return m_hotkey; }
-    NODISCARD HotkeyEnum base() const;
-    NODISCARD uint8_t modifiers() const;
-    NODISCARD HotkeyPolicy policy() const;
+    NODISCARD HotkeyEnum base() const { return m_base; }
+    NODISCARD uint8_t modifiers() const { return m_mods; }
+    NODISCARD HotkeyPolicy policy() const { return m_policy; }
 
     NODISCARD static uint8_t qtModifiersToMask(Qt::KeyboardModifiers mods);
     NODISCARD static HotkeyEnum qtKeyToHotkeyBase(int key, bool isNumpad);
-    NODISCARD static std::string hotkeyBaseToName(HotkeyEnum base);
+    NODISCARD static const char *hotkeyBaseToName(HotkeyEnum base);
     NODISCARD static HotkeyPolicy hotkeyBaseToPolicy(HotkeyEnum base);
     NODISCARD static HotkeyEnum nameToHotkeyBase(std::string_view name);
     NODISCARD static std::vector<std::string> getAvailableKeyNames();
     NODISCARD static std::vector<std::string> getAvailableModifiers();
+
+private:
+    void decompose();
 };

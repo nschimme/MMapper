@@ -132,7 +132,8 @@ void AbstractParser::parseHotkey(StringView input)
             const uint8_t mask = hk.modifiers();
             const auto policy = hk.policy();
             if ((mask == 0 && policy == HotkeyPolicy::ModifierRequired)
-                || ((mask == 0 || mask == Hotkey::SHIFT_MASK) && policy == HotkeyPolicy::ModifierNotShift)) {
+                || ((mask == 0 || mask == Hotkey::SHIFT_MASK)
+                    && policy == HotkeyPolicy::ModifierNotShift)) {
                 os << "Error: [" << hk.serialize() << "] requires a ";
                 if (policy == HotkeyPolicy::ModifierNotShift) {
                     os << "non-SHIFT modifier (CTRL or ALT).\n";

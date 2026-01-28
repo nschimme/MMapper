@@ -250,8 +250,8 @@ struct hash<Hotkey>
 {
     size_t operator()(const Hotkey &hk) const noexcept
     {
-        uint16_t packed = (static_cast<uint16_t>(hk.base()) << 8)
-                          | static_cast<uint8_t>(hk.modifiers());
+        uint16_t packed = static_cast<uint16_t>((static_cast<uint16_t>(hk.base()) << 8)
+                                                | static_cast<uint8_t>(hk.modifiers()));
         return numeric_hash(packed);
     }
 };

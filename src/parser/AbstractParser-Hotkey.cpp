@@ -131,10 +131,10 @@ void AbstractParser::parseHotkey(StringView input)
 
             const uint8_t mask = hk.modifiers();
             const auto policy = hk.policy();
-            if ((mask == 0 && policy == HotkeyPolicy::ModifierOnly)
-                || ((mask == 0 || mask == Hotkey::ShiftMask) && policy == HotkeyPolicy::NoShift)) {
+            if ((mask == 0 && policy == HotkeyPolicy::ModifierRequired)
+                || ((mask == 0 || mask == Hotkey::SHIFT_MASK) && policy == HotkeyPolicy::ModifierNotShift)) {
                 os << "Error: [" << hk.serialize() << "] requires a ";
-                if (policy == HotkeyPolicy::NoShift) {
+                if (policy == HotkeyPolicy::ModifierNotShift) {
                     os << "non-SHIFT modifier (CTRL or ALT).\n";
                 } else {
                     os << "modifier (CTRL, ALT, or SHIFT).\n";
@@ -231,9 +231,9 @@ void AbstractParser::parseHotkey(StringView input)
             const std::string &key = keys[i];
             os << key;
             const auto policy = Hotkey::hotkeyBaseToPolicy(Hotkey::nameToHotkeyBase(key));
-            if (policy == HotkeyPolicy::ModifierOnly) {
+            if (policy == HotkeyPolicy::ModifierRequired) {
                 os << "*";
-            } else if (policy == HotkeyPolicy::NoShift) {
+            } else if (policy == HotkeyPolicy::ModifierNotShift) {
                 os << "**";
             }
             os << (i == keys.size() - 1 ? "" : ", ");

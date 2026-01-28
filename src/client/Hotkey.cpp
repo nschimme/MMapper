@@ -11,7 +11,7 @@ Hotkey::Hotkey(HotkeyEnum base, uint8_t mods)
     if (base == HotkeyEnum::INVALID) {
         m_hotkey = HotkeyEnum::INVALID;
     } else {
-        m_hotkey = static_cast<HotkeyEnum>(static_cast<uint16_t>(base) + (mods & 0xF));
+        m_hotkey = static_cast<HotkeyEnum>(static_cast<uint16_t>(base) + (mods & AllModifiersMask));
     }
 }
 
@@ -53,9 +53,9 @@ Hotkey::Hotkey(std::string_view s)
 
         if (!part.empty()) {
             if (isModifier(part, "CONTROL")) {
-                mods |= CtrlMask;
+                mods |= CTRL_MASK;
             } else if (isModifier(part, "COMMAND") || isModifier(part, "CMD") || isModifier(part, "WIN")) {
-                mods |= MetaMask;
+                mods |= META_MASK;
             } else {
 // X-Macro expansion using the lambda
 #define X_PARSE(name, modifier, bit) \
@@ -98,7 +98,7 @@ HotkeyEnum Hotkey::base() const
     if (!isValid()) {
         return HotkeyEnum::INVALID;
     }
-    return static_cast<HotkeyEnum>(static_cast<uint16_t>(m_hotkey) & 0xFFF0);
+    return static_cast<HotkeyEnum>(static_cast<uint16_t>(m_hotkey) & ~AllModifiersMask);
 }
 
 uint8_t Hotkey::modifiers() const
@@ -106,7 +106,7 @@ uint8_t Hotkey::modifiers() const
     if (!isValid()) {
         return 0;
     }
-    return static_cast<uint8_t>(static_cast<uint16_t>(m_hotkey) & 0xF);
+    return static_cast<uint8_t>(static_cast<uint16_t>(m_hotkey) & AllModifiersMask);
 }
 
 HotkeyPolicy Hotkey::policy() const

@@ -104,11 +104,11 @@ void InputWidget::keyPressEvent(QKeyEvent *const event)
     const HotkeyPolicy policy = hk.policy();
 
     const bool isNoMod = (mask == 0);
-    const bool isOnlyShift = (mask == Hotkey::ShiftMask);
+    const bool isOnlyShift = (mask == Hotkey::SHIFT_MASK);
 
     // 3. Handle keys that require modifiers to be hotkeys
-    if ((isNoMod && policy == HotkeyPolicy::ModifierOnly)
-        || ((isNoMod || isOnlyShift) && policy == HotkeyPolicy::NoShift)) {
+    if ((isNoMod && policy == HotkeyPolicy::ModifierRequired)
+        || ((isNoMod || isOnlyShift) && policy == HotkeyPolicy::ModifierNotShift)) {
         if (key == Qt::Key_Up || key == Qt::Key_Down) {
             if (tryHistory(key)) {
                 event->accept();

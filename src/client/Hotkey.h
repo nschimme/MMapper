@@ -14,10 +14,10 @@
 #include <Qt>
 
 enum class HotkeyPolicy : uint8_t {
-    Any,          // Can be bound with or without modifiers (e.g. F-keys)
-    Keypad,       // Can be bound with or without modifiers (e.g. Numpad)
-    ModifierOnly, // Requires a modifier (CTRL, ALT, or SHIFT) to be bound (e.g. Arrows)
-    NoShift,      // Requires a modifier other than JUST Shift (e.g. 1, -, =)
+    Any,               // Can be bound with or without modifiers (e.g. F-keys)
+    Keypad,            // Can be bound with or without modifiers (e.g. Numpad)
+    ModifierRequired,  // Requires any modifier (CTRL, ALT, or SHIFT) to be bound (e.g. Arrows)
+    ModifierNotShift,  // Requires a non-SHIFT modifier (CTRL or ALT) (e.g. 1, -, =)
 };
 
 // Macro to define all supported base keys and their Qt mappings.
@@ -68,28 +68,28 @@ enum class HotkeyPolicy : uint8_t {
     X(NUMPAD_PLUS, "NUMPAD_PLUS", Qt::Key_Plus, HotkeyPolicy::Keypad) \
     X(NUMPAD_PERIOD, "NUMPAD_PERIOD", Qt::Key_Period, HotkeyPolicy::Keypad) \
     S(NUMPAD_PERIOD, Qt::Key_Delete, HotkeyPolicy::Keypad) \
-    X(HOME, "HOME", Qt::Key_Home, HotkeyPolicy::ModifierOnly) \
-    X(END, "END", Qt::Key_End, HotkeyPolicy::ModifierOnly) \
-    X(INSERT, "INSERT", Qt::Key_Insert, HotkeyPolicy::ModifierOnly) \
-    X(PAGEUP, "PAGEUP", Qt::Key_PageUp, HotkeyPolicy::ModifierOnly) \
-    X(PAGEDOWN, "PAGEDOWN", Qt::Key_PageDown, HotkeyPolicy::ModifierOnly) \
-    X(UP, "UP", Qt::Key_Up, HotkeyPolicy::ModifierOnly) \
-    X(DOWN, "DOWN", Qt::Key_Down, HotkeyPolicy::ModifierOnly) \
-    X(LEFT, "LEFT", Qt::Key_Left, HotkeyPolicy::ModifierOnly) \
-    X(RIGHT, "RIGHT", Qt::Key_Right, HotkeyPolicy::ModifierOnly) \
-    X(ACCENT, "ACCENT", Qt::Key_QuoteLeft, HotkeyPolicy::NoShift) \
-    X(K_0, "0", Qt::Key_0, HotkeyPolicy::NoShift) \
-    X(K_1, "1", Qt::Key_1, HotkeyPolicy::NoShift) \
-    X(K_2, "2", Qt::Key_2, HotkeyPolicy::NoShift) \
-    X(K_3, "3", Qt::Key_3, HotkeyPolicy::NoShift) \
-    X(K_4, "4", Qt::Key_4, HotkeyPolicy::NoShift) \
-    X(K_5, "5", Qt::Key_5, HotkeyPolicy::NoShift) \
-    X(K_6, "6", Qt::Key_6, HotkeyPolicy::NoShift) \
-    X(K_7, "7", Qt::Key_7, HotkeyPolicy::NoShift) \
-    X(K_8, "8", Qt::Key_8, HotkeyPolicy::NoShift) \
-    X(K_9, "9", Qt::Key_9, HotkeyPolicy::NoShift) \
-    X(HYPHEN, "HYPHEN", Qt::Key_Minus, HotkeyPolicy::NoShift) \
-    X(EQUAL, "EQUAL", Qt::Key_Equal, HotkeyPolicy::NoShift)
+    X(HOME, "HOME", Qt::Key_Home, HotkeyPolicy::ModifierRequired) \
+    X(END, "END", Qt::Key_End, HotkeyPolicy::ModifierRequired) \
+    X(INSERT, "INSERT", Qt::Key_Insert, HotkeyPolicy::ModifierRequired) \
+    X(PAGEUP, "PAGEUP", Qt::Key_PageUp, HotkeyPolicy::ModifierRequired) \
+    X(PAGEDOWN, "PAGEDOWN", Qt::Key_PageDown, HotkeyPolicy::ModifierRequired) \
+    X(UP, "UP", Qt::Key_Up, HotkeyPolicy::ModifierRequired) \
+    X(DOWN, "DOWN", Qt::Key_Down, HotkeyPolicy::ModifierRequired) \
+    X(LEFT, "LEFT", Qt::Key_Left, HotkeyPolicy::ModifierRequired) \
+    X(RIGHT, "RIGHT", Qt::Key_Right, HotkeyPolicy::ModifierRequired) \
+    X(ACCENT, "ACCENT", Qt::Key_QuoteLeft, HotkeyPolicy::ModifierNotShift) \
+    X(K_0, "0", Qt::Key_0, HotkeyPolicy::ModifierNotShift) \
+    X(K_1, "1", Qt::Key_1, HotkeyPolicy::ModifierNotShift) \
+    X(K_2, "2", Qt::Key_2, HotkeyPolicy::ModifierNotShift) \
+    X(K_3, "3", Qt::Key_3, HotkeyPolicy::ModifierNotShift) \
+    X(K_4, "4", Qt::Key_4, HotkeyPolicy::ModifierNotShift) \
+    X(K_5, "5", Qt::Key_5, HotkeyPolicy::ModifierNotShift) \
+    X(K_6, "6", Qt::Key_6, HotkeyPolicy::ModifierNotShift) \
+    X(K_7, "7", Qt::Key_7, HotkeyPolicy::ModifierNotShift) \
+    X(K_8, "8", Qt::Key_8, HotkeyPolicy::ModifierNotShift) \
+    X(K_9, "9", Qt::Key_9, HotkeyPolicy::ModifierNotShift) \
+    X(HYPHEN, "HYPHEN", Qt::Key_Minus, HotkeyPolicy::ModifierNotShift) \
+    X(EQUAL, "EQUAL", Qt::Key_Equal, HotkeyPolicy::ModifierNotShift)
 
 // Macro to define default hotkeys
 // X(SerializedKey, Command)
@@ -197,10 +197,13 @@ XFOREACH_HOTKEY_BASE_KEYS(X_CHECK_UPPER, S_IGNORE)
 class NODISCARD Hotkey final
 {
 public:
-    static constexpr uint8_t ShiftMask = 1;
-    static constexpr uint8_t CtrlMask = 2;
-    static constexpr uint8_t AltMask = 4;
-    static constexpr uint8_t MetaMask = 8;
+#define X_MOD_MASK(name, mod, bit) static constexpr uint8_t name##_MASK = bit;
+    XFOREACH_HOTKEY_MODIFIER(X_MOD_MASK)
+#undef X_MOD_MASK
+
+#define X_MOD_TOTAL(name, mod, bit) | bit
+    static constexpr uint8_t AllModifiersMask = 0 XFOREACH_HOTKEY_MODIFIER(X_MOD_TOTAL);
+#undef X_MOD_TOTAL
 
 private:
     HotkeyEnum m_hotkey = HotkeyEnum::INVALID;

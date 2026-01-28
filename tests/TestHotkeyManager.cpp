@@ -49,13 +49,20 @@ void TestHotkeyManager::keyNormalizationTest()
     manager.clear();
 
     // Test all base keys and secondary mappings defined in macro
-#define X_TEST_KEY(id, name, qkey, num) \
-    QVERIFY(manager.setHotkey(Hotkey{name}, "cmd_" name)); \
-    checkHk(manager, Hotkey{name}, "cmd_" name); \
-    checkHk(manager, Hotkey{qkey, num ? Qt::KeypadModifier : Qt::NoModifier}, "cmd_" name);
+#define X_TEST_KEY(id, name, qkey, pol) \
+    { \
+        const std::string nameStr(name); \
+        QVERIFY(manager.setHotkey(Hotkey{nameStr}, "cmd_" + nameStr)); \
+        checkHk(manager, Hotkey{nameStr}, "cmd_" + nameStr); \
+        checkHk(manager, \
+                Hotkey{qkey, (pol == HotkeyPolicy::Keypad) ? Qt::KeypadModifier : Qt::NoModifier}, \
+                "cmd_" + nameStr); \
+    }
 
-#define S_TEST_KEY(id, qkey, num) \
-    checkHk(manager, Hotkey{qkey, num ? Qt::KeypadModifier : Qt::NoModifier}, "cmd_" #id);
+#define S_TEST_KEY(id, qkey, pol) \
+    checkHk(manager, \
+            Hotkey{qkey, (pol == HotkeyPolicy::Keypad) ? Qt::KeypadModifier : Qt::NoModifier}, \
+            "cmd_" #id);
 
     XFOREACH_HOTKEY_BASE_KEYS(X_TEST_KEY, S_TEST_KEY)
 #undef X_TEST_KEY
@@ -303,7 +310,9 @@ void TestHotkeyManager::directLookupTest()
 
     // Test SHIFT+NUMPAD4 (NumLock ON) which often comes as Qt::Key_Left + Shift + Keypad
     std::ignore = manager.setHotkey(Hotkey{"SHIFT+NUMPAD4"}, "pick west");
-    checkHk(manager, Hotkey{Qt::Key_Left, (Qt::ShiftModifier | Qt::KeypadModifier)}, "pick west");
+    checkHk(manager,
+            Hotkey{Qt::Key_Left, (Qt::ShiftModifier | Qt::KeypadModifier)},
+            "pick west");
 
     // Test NUMPAD8 (NumLock OFF) which comes as Qt::Key_Up + Keypad
     std::ignore = manager.setHotkey(Hotkey{"NUMPAD8"}, "north");

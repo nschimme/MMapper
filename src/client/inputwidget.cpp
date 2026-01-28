@@ -99,29 +99,43 @@ void InputWidget::keyPressEvent(QKeyEvent *const event)
         return;
     }
 
-    // 3. Command History (bare Up/Down)
-    if (mods == Qt::NoModifier && (key == Qt::Key_Up || key == Qt::Key_Down)) {
-        if (tryHistory(key)) {
+    const Hotkey hk(key, mods);
+    const uint8_t mask = hk.modifiers();
+    const HotkeyPolicy policy = hk.policy();
+
+    const bool isNoMod = (mask == 0);
+    const bool isOnlyShift = (mask == Hotkey::ShiftMask);
+
+    // 3. Handle keys that require modifiers to be hotkeys
+    if ((isNoMod && policy == HotkeyPolicy::ModifierOnly)
+        || ((isNoMod || isOnlyShift) && policy == HotkeyPolicy::NoShift)) {
+        if (key == Qt::Key_Up || key == Qt::Key_Down) {
+            if (tryHistory(key)) {
+                event->accept();
+                return;
+            }
+        } else if (key == Qt::Key_PageUp || key == Qt::Key_PageDown) {
+            m_outputs.scrollDisplay(key == Qt::Key_PageUp);
+            event->accept();
+            return;
+        } else if (handleBasicKey(key)) {
             event->accept();
             return;
         }
-    }
 
-    // 4. Scrolling (bare PageUp/PageDown)
-    if (mods == Qt::NoModifier && (key == Qt::Key_PageUp || key == Qt::Key_PageDown)) {
-        m_outputs.scrollDisplay(key == Qt::Key_PageUp);
-        event->accept();
+        // All other restricted keys (Left/Right/Home/End/0-9/etc.)
+        // fall through to the editor's default behavior.
+        base::keyPressEvent(event);
         return;
     }
 
-    // 5. Basic keys (Enter, Tab)
+    // 4. Basic keys (Enter, Tab) - for keys that are NEVER hotkeys
     if (mods == Qt::NoModifier && handleBasicKey(key)) {
         event->accept();
         return;
     }
 
-    // 6. Try Hotkeys
-    const Hotkey hk(key, mods);
+    // 5. Try Hotkeys
     if (auto command = m_outputs.getHotkey(hk)) {
         sendCommandWithSeparator(*command);
         event->accept();
@@ -169,10 +183,6 @@ bool InputWidget::handleTerminalShortcut(int key)
 bool InputWidget::handleBasicKey(int key)
 {
     switch (key) {
-    case Qt::Key_Left:
-    case Qt::Key_Right:
-        // Cursor movement
-        return true;
     case Qt::Key_Return:
     case Qt::Key_Enter:
         gotInput();

@@ -3,6 +3,7 @@
 
 #include "Hotkey.h"
 
+#include "../global/ConfigConsts-Computed.h"
 #include "../global/CaseUtils.h"
 #include "../global/TextUtils.h"
 
@@ -87,11 +88,12 @@ Hotkey::Hotkey(std::string_view s)
 Hotkey::Hotkey(int key, Qt::KeyboardModifiers modifiers)
 {
     bool isNumpad = modifiers & Qt::KeypadModifier;
-#ifdef Q_OS_MAC
-    if (key == Qt::Key_Up || key == Qt::Key_Down || key == Qt::Key_Left || key == Qt::Key_Right) {
-        isNumpad = false;
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Mac) {
+        if (key == Qt::Key_Up || key == Qt::Key_Down || key == Qt::Key_Left || key == Qt::Key_Right) {
+            isNumpad = false;
+        }
     }
-#endif
+
     HotkeyEnum base = Hotkey::qtKeyToHotkeyBase(key, isNumpad);
     if (base == HotkeyEnum::INVALID) {
         decompose();
@@ -169,37 +171,12 @@ uint8_t Hotkey::qtModifiersToMask(Qt::KeyboardModifiers mods)
 
 HotkeyEnum Hotkey::qtKeyToHotkeyBase(int key, bool isNumpad)
 {
-    if (isNumpad) {
-#ifndef Q_OS_MAC
-        // Preserve Windows/Linux Numpad (NumLock off) mappings
-        if (key == Qt::Key_Insert) return HotkeyEnum::NUMPAD0;
-        if (key == Qt::Key_End) return HotkeyEnum::NUMPAD1;
-        if (key == Qt::Key_Down) return HotkeyEnum::NUMPAD2;
-        if (key == Qt::Key_PageDown) return HotkeyEnum::NUMPAD3;
-        if (key == Qt::Key_Left) return HotkeyEnum::NUMPAD4;
-        if (key == Qt::Key_Clear) return HotkeyEnum::NUMPAD5;
-        if (key == Qt::Key_Right) return HotkeyEnum::NUMPAD6;
-        if (key == Qt::Key_Home) return HotkeyEnum::NUMPAD7;
-        if (key == Qt::Key_Up) return HotkeyEnum::NUMPAD8;
-        if (key == Qt::Key_PageUp) return HotkeyEnum::NUMPAD9;
-        if (key == Qt::Key_Delete) return HotkeyEnum::NUMPAD_PERIOD;
-#endif
-
 #define CHECK_NP(id, name, qk, pol) \
-    if constexpr (pol == HotkeyPolicy::Keypad) \
+    if (isNumpad && pol == HotkeyPolicy::Keypad) \
         if (key == qk) \
             return HotkeyEnum::id;
         XFOREACH_HOTKEY_BASE_KEYS(CHECK_NP)
 #undef CHECK_NP
-    } else {
-#define CHECK_OTH(id, name, qk, pol) \
-    if constexpr (pol != HotkeyPolicy::Keypad) \
-        if (key == qk) \
-            return HotkeyEnum::id;
-        XFOREACH_HOTKEY_BASE_KEYS(CHECK_OTH)
-#undef CHECK_OTH
-    }
-
     return HotkeyEnum::INVALID;
 }
 

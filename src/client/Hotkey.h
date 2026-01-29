@@ -19,8 +19,8 @@
 #define XFOREACH_HOTKEY_POLICY(X) \
     X(Any, "Can be bound with or without modifiers (e.g. F-keys)") \
     X(Keypad, "Can be bound with or without modifiers (e.g. Numpad)") \
-    X(ModifierRequired, "Requires any modifier (CTRL, ALT, or SHIFT) to be bound (e.g. Arrows)") \
-    X(ModifierNotShift, "Requires a non-SHIFT modifier (CTRL or ALT) (e.g. 1, -, =)")
+    X(ModifierRequired, "Requires any modifier (CTRL, ALT, SHIFT, or META) to be bound") \
+    X(ModifierNotShift, "Requires a non-SHIFT modifier (CTRL, ALT, or META) (e.g. 1, -, =)")
 
 enum class HotkeyPolicyEnum : uint8_t {
 #define X_ENUM(name, help) name,
@@ -187,8 +187,8 @@ struct std::hash<Hotkey>
     std::size_t operator()(const Hotkey &hk) const noexcept
     {
         size_t seed = 0;
-        hash_combine(seed, static_cast<uint32_t>(hk.base()));
-        hash_combine(seed, static_cast<uint32_t>(hk.modifiers().asUint32()));
+        hash_combine(seed, static_cast<uint8_t>(hk.base()));
+        hash_combine(seed, hk.modifiers().asUint32());
         return seed;
     }
 };

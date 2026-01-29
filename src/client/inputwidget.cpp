@@ -399,10 +399,6 @@ bool InputWidget::event(QEvent *const event)
             event->accept();
             return true;
         }
-
-        // Accept so KeyPress comes through for bare keys or unhandled hotkeys
-        event->accept();
-        return true;
     }
 
     m_paletteManager.tryUpdateFromFocusEvent(*this, deref(event).type());

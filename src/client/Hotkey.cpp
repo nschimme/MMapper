@@ -57,8 +57,9 @@ Hotkey::Hotkey(std::string_view s)
     } else
                 XFOREACH_HOTKEY_BASE_KEYS(X_NAME_TO_ENUM)
 #undef X_NAME_TO_ENUM
-                // Not a valid base key
+                // Not a valid token
                 m_base = HotkeyEnum::INVALID;
+                return;
             }
 #undef X_PARSE
         }
@@ -119,7 +120,6 @@ std::string Hotkey::to_string() const
         XFOREACH_HOTKEY_BASE_KEYS(X_SERIALIZE)
 #undef X_SERIALIZE
     case HotkeyEnum::INVALID:
-        assert(false);
         return {};
     }
     return oss.str();

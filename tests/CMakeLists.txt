@@ -37,6 +37,8 @@ add_library(mm_test STATIC
 set_target_properties(mm_test PROPERTIES
     CXX_STANDARD 17
     CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+    COMPILE_FLAGS "${WARNING_FLAGS}"
 )
 target_link_libraries(mm_test
     mm_global
@@ -148,8 +150,9 @@ set(mainwindow_SRCS
     )
 set(TestMainWindow_SRCS TestMainWindow.cpp)
 add_executable(TestMainWindow ${TestMainWindow_SRCS} ${mainwindow_SRCS})
-add_dependencies(TestMainWindow mm_global)
+add_dependencies(TestMainWindow mm_test mm_global)
 target_link_libraries(TestMainWindow
+        mm_test
         mm_global
         Qt6::Network
         Qt6::Test

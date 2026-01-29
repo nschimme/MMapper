@@ -41,7 +41,7 @@
     X("CTRL+NUMPAD6", "open exit east") \
     X("CTRL+NUMPAD5", "open exit south") \
     X("CTRL+NUMPAD_MINUS", "open exit up") \
-    X("CTRL+NUMPAD_PLUS", "open exit dd") \
+    X("CTRL+NUMPAD_PLUS", "open exit down") \
     X("ALT+NUMPAD8", "close exit north") \
     X("ALT+NUMPAD4", "close exit west") \
     X("ALT+NUMPAD6", "close exit east") \
@@ -75,8 +75,8 @@ constexpr bool is_valid_hotkey(std::string_view hotkey_str)
     bool has_ctrl = hotkey_str.find("CTRL") != std::string_view::npos;
     bool has_alt = hotkey_str.find("ALT") != std::string_view::npos;
     bool has_shift = hotkey_str.find("SHIFT") != std::string_view::npos;
-    bool has_any_mod = has_ctrl || has_alt || has_shift
-                       || (hotkey_str.find("META") != std::string_view::npos);
+    bool has_meta = hotkey_str.find("META") != std::string_view::npos;
+    bool has_any_mod = has_ctrl || has_alt || has_shift || has_meta;
 
     // Match against the base key and check policy
 #define CHECK_POLICY(id, name, key, policy) \
@@ -84,7 +84,7 @@ constexpr bool is_valid_hotkey(std::string_view hotkey_str)
         if (policy == HotkeyPolicyEnum::ModifierRequired) \
             return has_any_mod; \
         if (policy == HotkeyPolicyEnum::ModifierNotShift) \
-            return (!has_any_mod || !has_shift || has_ctrl || has_alt); \
+            return (has_ctrl || has_alt || has_meta); \
         return true; \
     }
 

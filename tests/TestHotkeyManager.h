@@ -30,6 +30,7 @@ private Q_SLOTS:
     void commentPreservationTest();
     void settingsPersistenceTest();
     void directLookupTest();
+    void hotkeyParsingAndToStringTest();
 
 private:
     void checkHk(const HotkeyManager &manager, const Hotkey &hk, std::string_view expected);

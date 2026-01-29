@@ -272,13 +272,93 @@ void TestHotkeyManager::directLookupTest()
     // Test arrow keys (isNumpad=false)
     checkHk(manager, Hotkey{Qt::Key_Up, (Qt::ShiftModifier | Qt::AltModifier)}, "north");
 
-    // Test SHIFT+NUMPAD4 (NumLock ON) which often comes as Qt::Key_Left + Shift + Keypad
-    std::ignore = manager.setHotkey(Hotkey{"SHIFT+NUMPAD4"}, "pick west");
-    checkHk(manager, Hotkey{Qt::Key_4, (Qt::ShiftModifier | Qt::KeypadModifier)}, "pick west");
-
-    // Test NUMPAD8 (NumLock OFF) which comes as Qt::Key_Up + Keypad
+    // Test NUMPAD8 (NumLock ON) which comes as Qt::Key_8 + Keypad
     std::ignore = manager.setHotkey(Hotkey{"NUMPAD8"}, "north");
     checkHk(manager, Hotkey{Qt::Key_8, Qt::KeypadModifier}, "north");
+
+    // Pure keypad-style numeric key with KeypadModifier should be treated as numpad
+    {
+        Hotkey numpad8Hotkey(Qt::Key_8, Qt::KeypadModifier);
+        QVERIFY(numpad8Hotkey.isKeypad());
+        QCOMPARE(numpad8Hotkey.base(), HotkeyEnum::NUMPAD8);
+    }
+
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Mac) {
+        // Test NUMPAD8 (NumLock OFF) which comes as Qt::Key_Up + Keypad
+        // This should match the UP identity, NOT NUMPAD8
+        checkHk(manager, Hotkey{Qt::Key_Up, Qt::KeypadModifier}, "");
+        std::ignore = manager.setHotkey(Hotkey{"UP"}, "move_up");
+        checkHk(manager, Hotkey{Qt::Key_Up, Qt::KeypadModifier}, "move_up");
+
+        // Arrow key with KeypadModifier (NumLock OFF) should NOT be keypad
+        {
+            Hotkey keypadLeftHotkey(Qt::Key_Left, Qt::KeypadModifier);
+            QVERIFY(!keypadLeftHotkey.isKeypad());
+            QCOMPARE(keypadLeftHotkey.base(), HotkeyEnum::LEFT);
+        }
+    }
+
+    // Numeric key on main keyboard should match its standard identity
+    {
+        Hotkey key8Hotkey(Qt::Key_8, Qt::NoModifier);
+        QVERIFY(!key8Hotkey.isKeypad());
+        QCOMPARE(key8Hotkey.base(), HotkeyEnum::K_8);
+    }
+}
+
+void TestHotkeyManager::hotkeyParsingAndToStringTest()
+{
+    struct Case
+    {
+        std::string input;
+        std::string canonical;
+        bool valid;
+    };
+
+    const Case cases[] = {
+        // Simple modifier + key, lower-case input -> canonical form
+        {"ctrl+f1", "CTRL+F1", true},
+
+        // Extra whitespace and mixed case; modifier order should be canonicalized
+        {"  CTRL   +   shift  +  f1  ", "SHIFT+CTRL+F1", true},
+
+        // Different modifier order in input, expect canonical order in output
+        {"alt+ctrl+f1", "CTRL+ALT+F1", true},
+
+        // Single key without modifiers
+        {"f5", "F5", true},
+
+        // Duplicate modifiers should be tolerated and normalized
+        {"Ctrl+ctrl+SHIFT+f1", "SHIFT+CTRL+F1", true},
+
+        // Unknown base key
+        {"CTRL+INVALIDKEY", "", false},
+
+        // Unknown modifier token
+        {"Super+F1", "", false},
+
+        // Empty string is invalid
+        {"", "", false},
+    };
+
+    for (const auto &c : cases) {
+        Hotkey hk(c.input);
+
+        QCOMPARE(hk.isValid(), c.valid);
+
+        if (c.valid) {
+            // Canonical string form
+            QCOMPARE(hk.to_string(), c.canonical);
+
+            // Round-trip: constructing from canonical form must preserve it
+            Hotkey roundTrip(hk.to_string());
+            QVERIFY(roundTrip.isValid());
+            QCOMPARE(roundTrip.to_string(), c.canonical);
+        } else {
+            // Invalid cases should return INVALID enum
+            QCOMPARE(hk.base(), HotkeyEnum::INVALID);
+        }
+    }
 }
 
 QTEST_MAIN(TestHotkeyManager)

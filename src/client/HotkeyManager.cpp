@@ -13,6 +13,8 @@ HotkeyManager::HotkeyManager()
 {
     setConfig().hotkeys.registerChangeCallback(m_configLifetime,
                                                [this]() { this->syncFromConfig(); });
+    setConfig().hotkeys.registerResetCallback(m_configLifetime,
+                                              [this]() { this->resetToDefaults(); });
     syncFromConfig();
     if (m_hotkeys.empty()) {
         resetToDefaults();
@@ -27,6 +29,8 @@ void HotkeyManager::syncFromConfig()
         Hotkey hk(it.key());
         if (hk.isValid()) {
             m_hotkeys[hk] = mmqt::toStdStringUtf8(it.value().toString());
+        } else {
+            MMLOG_WARNING() << "invalid hotkey" << mmqt::toStdStringUtf8(it.key());
         }
     }
 }

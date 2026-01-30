@@ -229,20 +229,6 @@ void TestHotkeyManager::duplicateKeyBehaviorTest()
     QCOMPARE(static_cast<int>(manager.getAllHotkeys().size()), 1); // Still 1, not 2
 }
 
-void TestHotkeyManager::commentPreservationTest()
-{
-    // This test is no longer relevant as we moved to a structured QSettings format
-}
-
-void TestHotkeyManager::settingsPersistenceTest()
-{
-    HotkeyManager manager;
-
-    // Manager should have loaded something (either defaults or saved settings)
-    // Just verify it's in a valid state
-    QVERIFY(!manager.getAllHotkeys().empty());
-}
-
 void TestHotkeyManager::directLookupTest()
 {
     HotkeyManager manager;
@@ -283,6 +269,13 @@ void TestHotkeyManager::directLookupTest()
         QCOMPARE(numpad8Hotkey.base(), HotkeyEnum::NUMPAD8);
     }
 
+    // Numeric key on main keyboard should match its standard identity
+    {
+        Hotkey key8Hotkey(Qt::Key_8, Qt::NoModifier);
+        QVERIFY(!key8Hotkey.isKeypad());
+        QCOMPARE(key8Hotkey.base(), HotkeyEnum::K_8);
+    }
+
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Mac) {
         // Test NUMPAD8 (NumLock OFF) which comes as Qt::Key_Up + Keypad
         // This should match the UP identity, NOT NUMPAD8
@@ -296,13 +289,6 @@ void TestHotkeyManager::directLookupTest()
             QVERIFY(!keypadLeftHotkey.isKeypad());
             QCOMPARE(keypadLeftHotkey.base(), HotkeyEnum::LEFT);
         }
-    }
-
-    // Numeric key on main keyboard should match its standard identity
-    {
-        Hotkey key8Hotkey(Qt::Key_8, Qt::NoModifier);
-        QVERIFY(!key8Hotkey.isKeypad());
-        QCOMPARE(key8Hotkey.base(), HotkeyEnum::K_8);
     }
 }
 

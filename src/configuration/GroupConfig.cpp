@@ -45,3 +45,14 @@ void GroupConfig::registerChangeCallback(const ChangeMonitor::Lifetime &lifetime
 {
     m_changeMonitor.registerChangeCallback(lifetime, std::move(callback));
 }
+
+void GroupConfig::resetToDefault()
+{
+    m_resetMonitor.notifyAll();
+}
+
+void GroupConfig::registerResetCallback(const ChangeMonitor::Lifetime &lifetime,
+                                        ChangeMonitor::Function callback)
+{
+    m_resetMonitor.registerChangeCallback(lifetime, std::move(callback));
+}

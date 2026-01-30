@@ -67,6 +67,7 @@ enum class HotkeyPolicyEnum : uint8_t {
     X(DOWN, "DOWN", Qt::Key_Down, HotkeyPolicyEnum::ModifierRequired) \
     X(LEFT, "LEFT", Qt::Key_Left, HotkeyPolicyEnum::ModifierRequired) \
     X(RIGHT, "RIGHT", Qt::Key_Right, HotkeyPolicyEnum::ModifierRequired) \
+    X(DELETE, "DELETE", Qt::Key_Delete, HotkeyPolicyEnum::ModifierRequired) \
     X(ACCENT, "ACCENT", Qt::Key_QuoteLeft, HotkeyPolicyEnum::ModifierNotShift) \
     X(K_0, "0", Qt::Key_0, HotkeyPolicyEnum::ModifierNotShift) \
     X(K_1, "1", Qt::Key_1, HotkeyPolicyEnum::ModifierNotShift) \
@@ -80,6 +81,21 @@ enum class HotkeyPolicyEnum : uint8_t {
     X(K_9, "9", Qt::Key_9, HotkeyPolicyEnum::ModifierNotShift) \
     X(HYPHEN, "HYPHEN", Qt::Key_Minus, HotkeyPolicyEnum::ModifierNotShift) \
     X(EQUAL, "EQUAL", Qt::Key_Equal, HotkeyPolicyEnum::ModifierNotShift)
+
+// Macro to define the mapping between keypad navigation keys and their numeric counterparts.
+// X(From, To)
+#define XFOREACH_HOTKEY_KEYPAD_MAP(X) \
+    X(Qt::Key_Home, Qt::Key_7) \
+    X(Qt::Key_Up, Qt::Key_8) \
+    X(Qt::Key_PageUp, Qt::Key_9) \
+    X(Qt::Key_Left, Qt::Key_4) \
+    X(Qt::Key_Clear, Qt::Key_5) \
+    X(Qt::Key_Right, Qt::Key_6) \
+    X(Qt::Key_End, Qt::Key_1) \
+    X(Qt::Key_Down, Qt::Key_2) \
+    X(Qt::Key_PageDown, Qt::Key_3) \
+    X(Qt::Key_Insert, Qt::Key_0) \
+    X(Qt::Key_Delete, Qt::Key_Period)
 
 enum class HotkeyEnum : uint8_t {
 #define X_ENUM(id, name, key, policy) id,

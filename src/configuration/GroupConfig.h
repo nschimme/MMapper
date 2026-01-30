@@ -20,6 +20,7 @@ private:
     QString m_groupName;
     QVariantMap m_data;
     ChangeMonitor m_changeMonitor;
+    ChangeMonitor m_resetMonitor;
 
 public:
     GroupConfig() = delete;
@@ -37,4 +38,8 @@ public:
     void notifyChanged();
     void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
                                 ChangeMonitor::Function callback);
+
+    void resetToDefault();
+    void registerResetCallback(const ChangeMonitor::Lifetime &lifetime,
+                               ChangeMonitor::Function callback);
 };

@@ -48,6 +48,7 @@ Hotkey::Hotkey(std::string_view s)
         m_modifiers.insert(HotkeyModifierEnum::id); \
     } else
             XFOREACH_HOTKEY_MODIFIER(X_PARSE)
+#undef X_PARSE
             {
                 // Not a modifier, check if its a valid base key
 #define X_NAME_TO_ENUM(id, str, qkey, pol) \
@@ -57,11 +58,13 @@ Hotkey::Hotkey(std::string_view s)
     } else
                 XFOREACH_HOTKEY_BASE_KEYS(X_NAME_TO_ENUM)
 #undef X_NAME_TO_ENUM
-                // Not a valid token
-                m_base = HotkeyEnum::INVALID;
-                return;
+                {
+                    // Not a valid token
+                    m_base = HotkeyEnum::INVALID;
+                    m_modifiers.clear();
+                    return;
+                }
             }
-#undef X_PARSE
         }
 
         if (end == std::string::npos) {
@@ -74,13 +77,29 @@ Hotkey::Hotkey(std::string_view s)
 
 Hotkey::Hotkey(Qt::Key key, Qt::KeyboardModifiers modifiers)
 {
-    bool isNumpad = modifiers & Qt::KeypadModifier;
-    if constexpr (CURRENT_PLATFORM == PlatformEnum::Mac) {
-        if (key == Qt::Key_Up || key == Qt::Key_Down || key == Qt::Key_Left
-            || key == Qt::Key_Right) {
-            isNumpad = false;
+    bool isNumpad = (modifiers & Qt::KeypadModifier);
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wswitch-enum"
+    if (isNumpad) {
+        // Map keypad navigation keys to their numeric counterparts when isNumpad is true,
+        // except on Mac where num lock does not exist.
+        switch (key) {
+#define X_KEYPAD(from, to) \
+    case from: \
+        if constexpr (CURRENT_PLATFORM == PlatformEnum::Mac) { \
+            isNumpad = false; \
+        } else { \
+            key = to; \
+        } \
+        break;
+            XFOREACH_HOTKEY_KEYPAD_MAP(X_KEYPAD)
+#undef X_KEYPAD
+        default:
+            break;
         }
     }
+#pragma clang diagnostic pop
 
     assert(m_base == HotkeyEnum::INVALID);
 #define X_BASE(id, name, qk, pol) \

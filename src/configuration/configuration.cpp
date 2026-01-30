@@ -548,6 +548,8 @@ void Configuration::reset()
 
     // Reload defaults
     read();
+
+    hotkeys.resetToDefault();
 }
 
 #undef FOREACH_CONFIG_GROUP

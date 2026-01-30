@@ -44,6 +44,7 @@ target_link_libraries(mm_test
     mm_global
     Qt6::Core
     Qt6::Network
+    coverage_config
 )
 
 # Clock
@@ -81,8 +82,8 @@ set(TestExpandoraCommon_SRCS testexpandoracommon.cpp)
 add_executable(TestExpandoraCommon ${TestExpandoraCommon_SRCS} ${expandoracommon_SRCS})
 add_dependencies(TestExpandoraCommon mm_test mm_global mm_map)
 target_link_libraries(TestExpandoraCommon
-        mm_test
         mm_map
+        mm_test
         mm_global
         Qt6::Gui
         Qt6::Network
@@ -103,8 +104,8 @@ set(TestParser_SRCS testparser.cpp)
 add_executable(TestParser ${TestParser_SRCS})
 add_dependencies(TestParser mm_test mm_global mm_map)
 target_link_libraries(TestParser
-        mm_test
         mm_map
+        mm_test
         mm_global
         Qt6::Gui
         Qt6::Network
@@ -193,8 +194,8 @@ set(TestMap_SRCS
 add_executable(TestMap ${TestMap_SRCS})
 add_dependencies(TestMap mm_test mm_global mm_map)
 target_link_libraries(TestMap
-        mm_test
         mm_map
+        mm_test
         mm_global
         Qt6::Gui
         Qt6::Network
@@ -321,7 +322,7 @@ set(hotkey_manager_SRCS
 set(TestHotkeyManager_SRCS TestHotkeyManager.cpp TestHotkeyManager.h)
 add_executable(TestHotkeyManager ${TestHotkeyManager_SRCS} ${hotkey_manager_SRCS})
 add_dependencies(TestHotkeyManager mm_test mm_global mm_map)
-target_link_libraries(TestHotkeyManager mm_test mm_map mm_global Qt6::Test Qt6::Network coverage_config)
+target_link_libraries(TestHotkeyManager mm_map mm_test mm_global Qt6::Test Qt6::Network coverage_config)
 set_target_properties(
         TestHotkeyManager PROPERTIES
         CXX_STANDARD 17

@@ -14,6 +14,11 @@
 #include <QString>
 #include <Qt>
 
+#if defined(_MSC_VER) || defined(__MINGW32__)
+#undef DELETE  // Bad dog, Microsoft; bad dog!!!
+#undef INVALID // Bad dog, Microsoft; bad dog!!!
+#endif
+
 // Macro to define all supporting hotkey policies.
 // X(EnumName, Help)
 #define XFOREACH_HOTKEY_POLICY(X) \
@@ -27,6 +32,11 @@ enum class HotkeyPolicyEnum : uint8_t {
     XFOREACH_HOTKEY_POLICY(X_ENUM)
 #undef X_ENUM
 };
+
+#define X_COUNT(from, to) +1
+static constexpr const size_t NUM_HOTKEY_POLICIES = 0 XFOREACH_HOTKEY_POLICY(X_COUNT);
+#undef X_COUNT
+static_assert(NUM_HOTKEY_POLICIES == 4);
 
 // Macro to define all supported base keys and their Qt mappings.
 // X(EnumName, StringName, QtKey, Policy) -> Defines a unique identity
@@ -97,12 +107,21 @@ enum class HotkeyPolicyEnum : uint8_t {
     X(Qt::Key_Insert, Qt::Key_0) \
     X(Qt::Key_Delete, Qt::Key_Period)
 
+#define X_COUNT(from, to) +1
+static constexpr const size_t NUM_HOTKEY_KEYPAD_KEYS = 0 XFOREACH_HOTKEY_KEYPAD_MAP(X_COUNT);
+#undef X_COUNT
+static_assert(NUM_HOTKEY_KEYPAD_KEYS == 11);
+
 enum class HotkeyEnum : uint8_t {
-#define X_ENUM(id, name, key, policy) id,
+#define X_ENUM(id, name, key, pol) id,
     XFOREACH_HOTKEY_BASE_KEYS(X_ENUM)
 #undef X_ENUM
         INVALID
 };
+#define X_COUNT(id, name, key, pol) +1
+static constexpr const size_t NUM_HOTKEY_KEYS = 0 XFOREACH_HOTKEY_BASE_KEYS(X_COUNT);
+#undef X_COUNT
+static_assert(NUM_HOTKEY_KEYS == 50);
 
 // Macro to define hotkeys modifiers
 // X(UPPER, CamelCase, QtEnum)
@@ -121,6 +140,7 @@ enum class HotkeyModifierEnum : uint8_t {
 #define X_COUNT(id, camel, qtenum) +1
 static constexpr const size_t NUM_HOTKEY_MODIFIERS = 0 XFOREACH_HOTKEY_MODIFIER(X_COUNT);
 #undef X_COUNT
+static_assert(NUM_HOTKEY_MODIFIERS == 4);
 DEFINE_ENUM_COUNT(HotkeyModifierEnum, NUM_HOTKEY_MODIFIERS)
 
 class NODISCARD HotkeyModifiers final

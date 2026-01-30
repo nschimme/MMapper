@@ -130,7 +130,7 @@ void InputWidget::keyPressEvent(QKeyEvent *const event)
     base::keyPressEvent(event);
 }
 
-bool InputWidget::handleCommandInput(int key, Qt::KeyboardModifiers mods)
+bool InputWidget::handleCommandInput(Qt::Key key, Qt::KeyboardModifiers mods)
 {
     // Terminal Shortcuts (Ctrl+U, Ctrl+W, Ctrl+H)
     if ((mods & (Qt::ControlModifier | Qt::MetaModifier)) && handleTerminalShortcut(key)) {
@@ -394,7 +394,7 @@ bool InputWidget::event(QEvent *const event)
 {
     if (event->type() == QEvent::ShortcutOverride) {
         auto *const keyEvent = static_cast<QKeyEvent *>(event);
-        if (handleCommandInput(keyEvent->key(), keyEvent->modifiers())) {
+        if (handleCommandInput(keyEvent->keyCombination().key(), keyEvent->modifiers())) {
             m_handledInShortcutOverride = true;
             event->accept();
             return true;

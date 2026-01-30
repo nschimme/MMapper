@@ -141,7 +141,7 @@ void TestHotkeyManager::resetToDefaultsTest()
     QVERIFY(!manager.getAllHotkeys().empty());
 }
 
-void TestHotkeyManager::exportSortOrderTest()
+void TestHotkeyManager::exportCountTest()
 {
     HotkeyManager manager;
     manager.clear();

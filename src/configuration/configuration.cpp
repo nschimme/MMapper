@@ -516,6 +516,8 @@ void Configuration::readFrom(QSettings &conf)
 
         // New users get autologger turned on by default
         autoLog.autoLog = (CURRENT_PLATFORM != PlatformEnum::Wasm);
+
+        hotkeys.resetToDefault();
     }
 
     assert(canvas.backgroundColor == colorSettings.BACKGROUND);
@@ -548,8 +550,6 @@ void Configuration::reset()
 
     // Reload defaults
     read();
-
-    hotkeys.resetToDefault();
 }
 
 #undef FOREACH_CONFIG_GROUP

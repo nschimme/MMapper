@@ -22,7 +22,7 @@ private Q_SLOTS:
     void importExportRoundTripTest();
     void importEdgeCasesTest();
     void resetToDefaultsTest();
-    void exportSortOrderTest();
+    void exportCountTest();
     void setHotkeyTest();
     void removeHotkeyTest();
     void invalidKeyValidationTest();

@@ -9,6 +9,7 @@
 #include "abstractparser.h"
 
 #include <algorithm>
+#include <map>
 #include <ostream>
 #include <vector>
 

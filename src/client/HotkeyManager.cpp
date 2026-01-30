@@ -5,6 +5,7 @@
 
 #include "../configuration/configuration.h"
 #include "../global/TextUtils.h"
+#include "../src/global/logging.h"
 
 #include <QDebug>
 #include <QSettings>

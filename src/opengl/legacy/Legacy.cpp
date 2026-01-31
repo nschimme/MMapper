@@ -305,9 +305,7 @@ void Functions::updateNamedColorsUBO()
 
     VBO &vbo = deref(shared_vbo);
     const auto &vec4_colors = XNamedColor::getAllColorsAsVec4();
-    MAYBE_UNUSED const auto result = setUbo(vbo.get(),
-                                            vec4_colors,
-                                            BufferUsageEnum::DYNAMIC_DRAW);
+    MAYBE_UNUSED const auto result = setUbo(vbo.get(), vec4_colors, BufferUsageEnum::DYNAMIC_DRAW);
     assert(result == static_cast<int>(vec4_colors.size()));
     m_namedColorsBufferId = vbo.get();
     m_namedColorsDirty = false;

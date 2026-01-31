@@ -53,7 +53,9 @@ struct NODISCARD ColoredTexVert final
 
 struct NODISCARD RoomQuadTexVert final
 {
-    // xyz = room coord, w = (color << 16 | tex_z)
+    // xyz = room coord, w = (colorId << 8 | tex_z)
+    // - colorId: packed into bits 8-15 (must be < MAX_NAMED_COLORS)
+    // - tex_z:   packed into bits 0-7  (must be < 256)
     glm::ivec4 vertTexCol{};
 
     explicit RoomQuadTexVert(const glm::ivec3 &vert, const int tex_z)

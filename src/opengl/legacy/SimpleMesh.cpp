@@ -3,7 +3,7 @@
 
 #include "SimpleMesh.h"
 
-#include "../global/ConfigConsts.h"
+#include "../../global/ConfigConsts.h"
 
 void Legacy::drawRoomQuad(Functions &gl, const GLsizei numVerts)
 {

@@ -1,7 +1,7 @@
 #include "FunctionsGL33.h"
 
+#include "../../global/ConfigConsts.h"
 #include "../OpenGLConfig.h"
-#include "../global/ConfigConsts.h"
 
 #include <optional>
 

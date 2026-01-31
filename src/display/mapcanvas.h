@@ -145,6 +145,7 @@ private:
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
     Signal2Lifetime m_lifetime;
     GLuint m_named_colors_buffer_id = 0;
+    bool m_namedColorsDirty = true;
 
     struct AltDragState
     {

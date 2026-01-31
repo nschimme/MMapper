@@ -1139,6 +1139,7 @@ void MapCanvas::selectionChanged()
 
 void MapCanvas::graphicsSettingsChanged()
 {
+    m_namedColorsDirty = true;
     update();
 }
 

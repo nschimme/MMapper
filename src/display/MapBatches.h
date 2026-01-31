@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2021 The MMapper Authors
 
+#include "../opengl/OpenGLTypes.h"
 #include "Connections.h"
 #include "MapCanvasData.h"
 
@@ -29,7 +30,7 @@ struct NODISCARD LayerMeshes final
     DEFAULT_MOVES_DELETE_COPIES(LayerMeshes);
     ~LayerMeshes() = default;
 
-    void render(int thisLayer, int focusedLayer, GLuint named_colors_buffer_id);
+    void render(int thisLayer, int focusedLayer, const GLRenderState &defaultState);
     explicit operator bool() const { return isValid; }
 };
 

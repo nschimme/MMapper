@@ -277,11 +277,43 @@ void Functions::cleanup()
     getShaderPrograms().resetAll();
     getStaticVbos().resetAll();
     getTexLookup().clear();
+
+    m_roomQuadVbo.reset();
+    m_namedColorsVbo.reset();
+    m_namedColorsBufferId = 0;
 }
 
 ShaderPrograms &Functions::getShaderPrograms()
 {
     return deref(m_shaderPrograms);
+}
+
+void Functions::uploadNamedColors(const std::vector<glm::vec4> &colors)
+{
+    if (m_namedColorsVbo) {
+        return;
+    }
+
+    m_namedColorsVbo = std::make_unique<VBO>();
+    m_namedColorsVbo->emplace(shared_from_this());
+
+    VBO &vbo = *m_namedColorsVbo;
+    MAYBE_UNUSED const auto result = setUbo(vbo.get(), colors, BufferUsageEnum::DYNAMIC_DRAW);
+    assert(result == static_cast<int>(colors.size()));
+    m_namedColorsBufferId = vbo.get();
+}
+
+void Functions::markNamedColorsDirty()
+{
+    m_namedColorsVbo.reset();
+    m_namedColorsBufferId = 0;
+}
+
+GLRenderState Functions::getDefaultRenderState() const
+{
+    GLRenderState defaultState;
+    defaultState.uniforms.namedColorBufferObject = m_namedColorsBufferId;
+    return defaultState;
 }
 StaticVbos &Functions::getStaticVbos()
 {

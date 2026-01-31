@@ -64,6 +64,9 @@ public:
     void bindFbo();
     void releaseFbo();
     void blitFboToDefault();
+    void updateNamedColorsUBO();
+    void markNamedColorsDirty();
+    NODISCARD GLRenderState getDefaultRenderState() const;
 
 public:
     NODISCARD UniqueMesh createPointBatch(const std::vector<ColorVert> &verts);

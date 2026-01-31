@@ -5,6 +5,8 @@
 #include "Legacy.h"
 #include "VBO.h"
 
+#include <unordered_map>
+
 namespace Legacy {
 
 static constexpr GLuint INVALID_ATTRIB_LOCATION = ~0u;
@@ -17,6 +19,14 @@ protected:
     WeakFunctions m_functions;
     Program m_program;
     bool m_isBound = false;
+
+    struct UboCache
+    {
+        GLuint index;
+        GLuint binding;
+    };
+    mutable std::unordered_map<std::string, UboCache> m_uboCache;
+    mutable GLuint m_nextBindingPoint = 0;
 
 public:
     AbstractShaderProgram() = delete;

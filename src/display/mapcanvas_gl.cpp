@@ -724,7 +724,7 @@ void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current)
                 DECL_TIMER(t3, "[async] actuallyPaintGL: compute highlights");
                 DiffQuadVector highlights;
                 auto drawQuad = [&highlights](const RawRoom &room, const NamedColorEnum color) {
-                    const auto &pos = room.getPosition().to_vec3();
+                    const auto pos = room.getPosition().to_ivec3();
                     highlights.emplace_back(pos, 0, color);
                 };
 
@@ -1012,36 +1012,7 @@ void MapCanvas::updateMultisampling()
 
 void MapCanvas::updateNamedColorsUBO()
 {
-    auto &gl = getOpenGL();
-    static std::weak_ptr<Legacy::VBO> g_weak_vbo;
-    std::shared_ptr<Legacy::VBO> shared_vbo = g_weak_vbo.lock();
-    if (shared_vbo == nullptr) {
-        auto &fns = gl.getSharedFunctions(Badge<MapCanvas>{});
-
-        g_weak_vbo = shared_vbo = fns->getStaticVbos().alloc();
-        Legacy::VBO &vbo = deref(shared_vbo);
-        vbo.emplace(fns);
-        m_namedColorsDirty = true;
-    }
-
-    if (!m_namedColorsDirty) {
-        return;
-    }
-
-    m_named_colors_buffer_id = std::invoke([&gl, &shared_vbo]() {
-        auto &fns = gl.getSharedFunctions(Badge<MapCanvas>{});
-        Legacy::VBO &vbo = deref(shared_vbo);
-
-        // the shader is declared vec4, so the data has to be 4 floats per entry.
-        const auto &vec4_colors = XNamedColor::getAllColorsAsVec4();
-
-        MAYBE_UNUSED const auto result = fns->setUbo(vbo.get(),
-                                                     vec4_colors,
-                                                     BufferUsageEnum::DYNAMIC_DRAW);
-        assert(result == static_cast<int>(vec4_colors.size()));
-        return vbo.get();
-    });
-    m_namedColorsDirty = false;
+    getOpenGL().updateNamedColorsUBO();
 }
 
 void MapCanvas::renderMapBatches()
@@ -1064,36 +1035,40 @@ void MapCanvas::renderMapBatches()
     updateNamedColorsUBO();
 
     BatchedMeshes &batchedMeshes = batches.batchedMeshes;
-    const auto drawLayer =
-        [this, &batches, &batchedMeshes, wantExtraDetail, wantDoorNames](const int thisLayer,
-                                                                         const int currentLayer) {
-            const auto it_mesh = batchedMeshes.find(thisLayer);
-            if (it_mesh != batchedMeshes.end()) {
-                LayerMeshes &meshes = it_mesh->second;
-                meshes.render(thisLayer, currentLayer, m_named_colors_buffer_id);
+    const auto defaultState = getDefaultRenderState();
+    const auto drawLayer = [this,
+                            &batches,
+                            &batchedMeshes,
+                            wantExtraDetail,
+                            wantDoorNames,
+                            &defaultState](const int thisLayer, const int currentLayer) {
+        const auto it_mesh = batchedMeshes.find(thisLayer);
+        if (it_mesh != batchedMeshes.end()) {
+            LayerMeshes &meshes = it_mesh->second;
+            meshes.render(thisLayer, currentLayer, defaultState);
+        }
+
+        if (wantExtraDetail) {
+            BatchedConnectionMeshes &connectionMeshes = batches.connectionMeshes;
+            const auto it_conn = connectionMeshes.find(thisLayer);
+            if (it_conn != connectionMeshes.end()) {
+                ConnectionMeshes &meshes = it_conn->second;
+                meshes.render(thisLayer, currentLayer);
             }
 
-            if (wantExtraDetail) {
-                BatchedConnectionMeshes &connectionMeshes = batches.connectionMeshes;
-                const auto it_conn = connectionMeshes.find(thisLayer);
-                if (it_conn != connectionMeshes.end()) {
-                    ConnectionMeshes &meshes = it_conn->second;
-                    meshes.render(thisLayer, currentLayer);
-                }
-
-                // NOTE: This can display room names in lower layers, but the text
-                // isn't currently drawn with an appropriate Z-offset, so it doesn't
-                // stay aligned to its actual layer when you switch view layers.
-                if (wantDoorNames && thisLayer == currentLayer) {
-                    BatchedRoomNames &roomNameBatches = batches.roomNameBatches;
-                    const auto it_name = roomNameBatches.find(thisLayer);
-                    if (it_name != roomNameBatches.end()) {
-                        auto &roomNameBatch = it_name->second;
-                        roomNameBatch.render(GLRenderState());
-                    }
+            // NOTE: This can display room names in lower layers, but the text
+            // isn't currently drawn with an appropriate Z-offset, so it doesn't
+            // stay aligned to its actual layer when you switch view layers.
+            if (wantDoorNames && thisLayer == currentLayer) {
+                BatchedRoomNames &roomNameBatches = batches.roomNameBatches;
+                const auto it_name = roomNameBatches.find(thisLayer);
+                if (it_name != roomNameBatches.end()) {
+                    auto &roomNameBatch = it_name->second;
+                    roomNameBatch.render(GLRenderState());
                 }
             }
-        };
+        }
+    };
 
     const auto fadeBackground = [&gl, &settings]() {
         auto bgColor = Color{settings.backgroundColor.getColor(), 0.5f};
@@ -1116,7 +1091,5 @@ void MapCanvas::renderMapBatches()
 
 GLRenderState MapCanvas::getDefaultRenderState()
 {
-    GLRenderState defaultState;
-    defaultState.uniforms.namedColorBufferObject = m_named_colors_buffer_id;
-    return defaultState;
+    return getOpenGL().getDefaultRenderState();
 }

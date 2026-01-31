@@ -133,15 +133,10 @@ UniqueMesh OpenGL::createColoredTexturedQuadBatch(const std::vector<ColoredTexVe
     return getFunctions().createColoredTexturedBatch(DrawModeEnum::QUADS, batch, texture);
 }
 
-UniqueMesh OpenGL::createInstancedPlainQuadBatch(const std::vector<glm::ivec3> &batch)
+UniqueMesh OpenGL::createRoomQuadTexBatch(const std::vector<RoomQuadTexVert> &batch,
+                                          const MMTextureId texture)
 {
-    return getFunctions().createInstancedPlainQuadBatch(batch);
-}
-
-UniqueMesh OpenGL::createInstancedColoredTexturedQuadBatch(
-    const std::vector<InstancedQuadColoredTexVert> &batch, const MMTextureId texture)
-{
-    return getFunctions().createInstancedQuadColoredTexturedBatch(batch, texture);
+    return getFunctions().createRoomQuadTexBatch(batch, texture);
 }
 
 UniqueMesh OpenGL::createFontMesh(const SharedMMTexture &texture,

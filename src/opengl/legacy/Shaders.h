@@ -56,27 +56,12 @@ private:
     }
 };
 
-struct NODISCARD IQUColorPlainShader final : public AbstractShaderProgram
+struct NODISCARD RoomQuadTexShader final : public AbstractShaderProgram
 {
 public:
     using AbstractShaderProgram::AbstractShaderProgram;
 
-    ~IQUColorPlainShader() final;
-
-private:
-    void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final
-    {
-        setColor("uColor", uniforms.color);
-        setMatrix("uMVP", mvp);
-    }
-};
-
-struct NODISCARD IQAColorTexturedShader final : public AbstractShaderProgram
-{
-public:
-    using AbstractShaderProgram::AbstractShaderProgram;
-
-    ~IQAColorTexturedShader() final;
+    ~RoomQuadTexShader() final;
 
 private:
     void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final
@@ -158,8 +143,7 @@ private:
     std::shared_ptr<UColorTexturedShader> m_uTexturedShader;
 
 private:
-    std::shared_ptr<IQUColorPlainShader> m_iq_uColorShader;
-    std::shared_ptr<IQAColorTexturedShader> m_iq_aTexturedShader;
+    std::shared_ptr<RoomQuadTexShader> m_roomQuadTexShader;
 
 private:
     std::shared_ptr<FontShader> m_font;
@@ -189,8 +173,7 @@ public:
     NODISCARD const std::shared_ptr<UColorTexturedShader> &getTexturedUColorShader();
 
 public:
-    NODISCARD const std::shared_ptr<IQUColorPlainShader> &getInstancedQuadsPlainUColorShader();
-    NODISCARD const std::shared_ptr<IQAColorTexturedShader> &getInstancedQuadsTexturedAColorShader();
+    NODISCARD const std::shared_ptr<RoomQuadTexShader> &getRoomQuadTexShader();
 
 public:
     NODISCARD const std::shared_ptr<FontShader> &getFontShader();

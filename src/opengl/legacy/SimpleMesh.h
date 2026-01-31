@@ -17,7 +17,7 @@
 
 namespace Legacy {
 
-void drawInstancedQuad(Functions &gl, GLsizei numVerts);
+void drawRoomQuad(Functions &gl, GLsizei numVerts);
 
 template<typename VertexType_, typename ProgramType_>
 class NODISCARD SimpleMesh : public IRenderable
@@ -188,7 +188,7 @@ private:
         auto attribUnbinder = bindAttribs();
 
         if (m_drawMode == DrawModeEnum::INSTANCED_QUADS) {
-            drawInstancedQuad(m_functions, m_numVerts);
+            drawRoomQuad(m_functions, m_numVerts);
         } else if (const std::optional<GLenum> &optMode = m_functions.toGLenum(m_drawMode)) {
             m_functions.glDrawArrays(optMode.value(), 0, m_numVerts);
         } else {

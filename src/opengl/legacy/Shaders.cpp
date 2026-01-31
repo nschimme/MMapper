@@ -32,8 +32,7 @@ UColorPlainShader::~UColorPlainShader() = default;
 AColorTexturedShader::~AColorTexturedShader() = default;
 UColorTexturedShader::~UColorTexturedShader() = default;
 
-IQUColorPlainShader::~IQUColorPlainShader() = default;
-IQAColorTexturedShader::~IQAColorTexturedShader() = default;
+RoomQuadTexShader::~RoomQuadTexShader() = default;
 
 FontShader::~FontShader() = default;
 PointShader::~PointShader() = default;
@@ -45,8 +44,7 @@ void ShaderPrograms::early_init()
     std::ignore = getTexturedAColorShader();
     std::ignore = getTexturedUColorShader();
 
-    std::ignore = getInstancedQuadsPlainUColorShader();
-    std::ignore = getInstancedQuadsTexturedAColorShader();
+    std::ignore = getRoomQuadTexShader();
 
     std::ignore = getFontShader();
     std::ignore = getPointShader();
@@ -59,8 +57,7 @@ void ShaderPrograms::resetAll()
     m_aTexturedShader.reset();
     m_uTexturedShader.reset();
 
-    m_iq_uColorShader.reset();
-    m_iq_aTexturedShader.reset();
+    m_roomQuadTexShader.reset();
 
     m_font.reset();
     m_point.reset();
@@ -110,21 +107,14 @@ const std::shared_ptr<AColorTexturedShader> &ShaderPrograms::getTexturedAColorSh
     return getInitialized<AColorTexturedShader>(m_aTexturedShader, getFunctions(), "tex/acolor");
 }
 
-const std::shared_ptr<IQAColorTexturedShader> &ShaderPrograms::getInstancedQuadsTexturedAColorShader()
+const std::shared_ptr<RoomQuadTexShader> &ShaderPrograms::getRoomQuadTexShader()
 {
-    return getInitialized<IQAColorTexturedShader>(m_iq_aTexturedShader,
-                                                  getFunctions(),
-                                                  "iq_tex/acolor");
+    return getInitialized<RoomQuadTexShader>(m_roomQuadTexShader, getFunctions(), "room/tex/acolor");
 }
 
 const std::shared_ptr<UColorTexturedShader> &ShaderPrograms::getTexturedUColorShader()
 {
     return getInitialized<UColorTexturedShader>(m_uTexturedShader, getFunctions(), "tex/ucolor");
-}
-
-const std::shared_ptr<IQUColorPlainShader> &ShaderPrograms::getInstancedQuadsPlainUColorShader()
-{
-    return getInitialized<IQUColorPlainShader>(m_iq_uColorShader, getFunctions(), "iq_plain/ucolor");
 }
 
 const std::shared_ptr<FontShader> &ShaderPrograms::getFontShader()

@@ -1,6 +1,6 @@
 // This generated file exists to set the MMapper version.
 
-#include "../global/Version.h"
+#include "global/Version.h"
 
 const char *getMMapperVersion()
 {

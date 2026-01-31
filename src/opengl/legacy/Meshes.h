@@ -174,59 +174,6 @@ private:
     }
 };
 
-// Uniform color
-template<typename VertexType_>
-class NODISCARD IQPlainMesh final : public SimpleMesh<VertexType_, IQUColorPlainShader>
-{
-public:
-    using Base = SimpleMesh<VertexType_, IQUColorPlainShader>;
-    using Base::Base;
-
-private:
-    struct NODISCARD Attribs final
-    {
-        GLuint vertPos = INVALID_ATTRIB_LOCATION;
-
-        NODISCARD static Attribs getLocations(AbstractShaderProgram &fontShader)
-        {
-            Attribs result;
-            result.vertPos = fontShader.getAttribLocation("aVert");
-            return result;
-        }
-    };
-
-    std::optional<Attribs> m_boundAttribs;
-
-    void virt_bind() override
-    {
-        static_assert(sizeof(std::declval<VertexType_>()) == 3 * sizeof(int32_t));
-
-        Functions &gl = Base::m_functions;
-        const auto attribs = Attribs::getLocations(Base::m_program);
-        gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
-        gl.enableAttribI(attribs.vertPos, 3, GL_INT, 0, nullptr); // ivec3
-
-        // instancing
-        gl.glVertexAttribDivisor(attribs.vertPos, 1);
-
-        m_boundAttribs = attribs;
-    }
-
-    void virt_unbind() override
-    {
-        if (!m_boundAttribs) {
-            assert(false);
-            return;
-        }
-
-        auto &attribs = m_boundAttribs.value();
-        Functions &gl = Base::m_functions;
-        gl.glDisableVertexAttribArray(attribs.vertPos);
-        gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
-        m_boundAttribs.reset();
-    }
-};
-
 // Textured mesh with color modulated by color attribute.
 template<typename VertexType_>
 class NODISCARD ColoredTexturedMesh final : public SimpleMesh<VertexType_, AColorTexturedShader>
@@ -289,10 +236,10 @@ private:
 
 // Textured mesh with color modulated by color attribute.
 template<typename VertexType_>
-class NODISCARD IQColoredTexturedMesh final : public SimpleMesh<VertexType_, IQAColorTexturedShader>
+class NODISCARD RoomQuadTexMesh final : public SimpleMesh<VertexType_, RoomQuadTexShader>
 {
 public:
-    using Base = SimpleMesh<VertexType_, IQAColorTexturedShader>;
+    using Base = SimpleMesh<VertexType_, RoomQuadTexShader>;
     using Base::Base;
 
 private:
@@ -300,7 +247,7 @@ private:
     {
         GLuint vertTexColPos = INVALID_ATTRIB_LOCATION;
 
-        NODISCARD static Attribs getLocations(IQAColorTexturedShader &fontShader)
+        NODISCARD static Attribs getLocations(RoomQuadTexShader &fontShader)
         {
             Attribs result;
             result.vertTexColPos = fontShader.getAttribLocation("aVertTexCol");

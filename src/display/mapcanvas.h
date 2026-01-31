@@ -66,7 +66,7 @@ private:
 
     struct NODISCARD Diff final
     {
-        using DiffQuadVector = std::vector<InstancedQuadColoredTexVert>;
+        using DiffQuadVector = std::vector<RoomQuadTexVert>;
 
         struct NODISCARD MaybeDataOrMesh final
             : public std::variant<std::monostate, DiffQuadVector, UniqueMesh>
@@ -95,7 +95,7 @@ private:
                 }
 
                 if (hasData()) {
-                    *this = gl.createInstancedColoredTexturedQuadBatch(getData(), texId);
+                    *this = gl.createRoomQuadTexBatch(getData(), texId);
                     assert(hasMesh());
                     // REVISIT: rendering immediately after uploading the mesh may lag,
                     // so consider delaying until the data is already on the GPU.

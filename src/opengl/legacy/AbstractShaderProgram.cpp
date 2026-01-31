@@ -3,7 +3,7 @@
 
 #include "AbstractShaderProgram.h"
 
-#include "../global/ConfigConsts.h"
+#include "../../global/ConfigConsts.h"
 
 namespace Legacy {
 

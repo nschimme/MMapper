@@ -1021,6 +1021,11 @@ void MapCanvas::updateNamedColorsUBO()
         g_weak_vbo = shared_vbo = fns->getStaticVbos().alloc();
         Legacy::VBO &vbo = deref(shared_vbo);
         vbo.emplace(fns);
+        m_namedColorsDirty = true;
+    }
+
+    if (!m_namedColorsDirty) {
+        return;
     }
 
     m_named_colors_buffer_id = std::invoke([&gl, &shared_vbo]() {
@@ -1030,13 +1035,13 @@ void MapCanvas::updateNamedColorsUBO()
         // the shader is declared vec4, so the data has to be 4 floats per entry.
         const auto &vec4_colors = XNamedColor::getAllColorsAsVec4();
 
-        // Can we avoid the upload if it's not necessary?
         MAYBE_UNUSED const auto result = fns->setUbo(vbo.get(),
                                                      vec4_colors,
                                                      BufferUsageEnum::DYNAMIC_DRAW);
         assert(result == static_cast<int>(vec4_colors.size()));
         return vbo.get();
     });
+    m_namedColorsDirty = false;
 }
 
 void MapCanvas::renderMapBatches()
@@ -1056,31 +1061,7 @@ void MapCanvas::renderMapBatches()
                                && (totalScaleFactor >= settings.doorNameScaleCutoff);
 
     auto &gl = getOpenGL();
-    static std::weak_ptr<Legacy::VBO> g_weak_vbo;
-    std::shared_ptr<Legacy::VBO> shared_vbo = g_weak_vbo.lock();
-    if (shared_vbo == nullptr) {
-        auto &fns = gl.getSharedFunctions(Badge<MapCanvas>{});
-
-        g_weak_vbo = shared_vbo = fns->getStaticVbos().alloc();
-        Legacy::VBO &vbo = deref(shared_vbo);
-        vbo.emplace(fns);
-    }
-
-    m_named_colors_buffer_id = std::invoke([&gl, &shared_vbo]() {
-        auto &fns = gl.getSharedFunctions(Badge<MapCanvas>{});
-        Legacy::VBO &vbo = deref(shared_vbo);
-
-        // the shader is declared vec4, so the data has to be 4 floats per entry.
-        const auto &vec4_colors = XNamedColor::getAllColorsAsVec4();
-
-        // Can we avoid the upload if it's not necessary?
-        MAYBE_UNUSED const auto result = fns->setUbo(vbo.get(),
-                                                     vec4_colors,
-                                                     BufferUsageEnum::DYNAMIC_DRAW);
-        assert(result == static_cast<int>(vec4_colors.size()));
-
-        return vbo.get();
-    });
+    updateNamedColorsUBO();
 
     BatchedMeshes &batchedMeshes = batches.batchedMeshes;
     const auto drawLayer =

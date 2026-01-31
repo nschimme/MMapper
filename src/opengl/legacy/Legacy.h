@@ -105,9 +105,8 @@ private:
     std::unique_ptr<FBO> m_fbo;
     std::vector<std::shared_ptr<IRenderable>> m_staticMeshes;
     std::weak_ptr<VBO> m_roomQuadVbo;
-    std::weak_ptr<VBO> m_namedColorsVbo;
+    std::unique_ptr<VBO> m_namedColorsVbo;
     GLuint m_namedColorsBufferId = 0;
-    bool m_namedColorsDirty = true;
 
 protected:
     explicit Functions(Badge<Functions>);
@@ -258,13 +257,13 @@ public:
 
     NODISCARD FBO &getFBO();
 
-    void updateNamedColorsUBO();
+    void uploadNamedColors(const std::vector<glm::vec4> &colors);
 
     NODISCARD GLRenderState getDefaultRenderState() const;
 
     NODISCARD std::weak_ptr<VBO> &getRoomQuadVbo() { return m_roomQuadVbo; }
 
-    void markNamedColorsDirty() { m_namedColorsDirty = true; }
+    void markNamedColorsDirty();
 
 private:
     friend PointSizeBinder;

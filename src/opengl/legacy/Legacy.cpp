@@ -281,7 +281,6 @@ void Functions::cleanup()
     m_roomQuadVbo.reset();
     m_namedColorsVbo.reset();
     m_namedColorsBufferId = 0;
-    m_namedColorsDirty = true;
 }
 
 ShaderPrograms &Functions::getShaderPrograms()
@@ -289,26 +288,25 @@ ShaderPrograms &Functions::getShaderPrograms()
     return deref(m_shaderPrograms);
 }
 
-void Functions::updateNamedColorsUBO()
+void Functions::uploadNamedColors(const std::vector<glm::vec4> &colors)
 {
-    std::shared_ptr<VBO> shared_vbo = m_namedColorsVbo.lock();
-    if (shared_vbo == nullptr) {
-        m_namedColorsVbo = shared_vbo = getStaticVbos().alloc();
-        VBO &vbo = deref(shared_vbo);
-        vbo.emplace(shared_from_this());
-        m_namedColorsDirty = true;
-    }
-
-    if (!m_namedColorsDirty) {
+    if (m_namedColorsVbo) {
         return;
     }
 
-    VBO &vbo = deref(shared_vbo);
-    const auto &vec4_colors = XNamedColor::getAllColorsAsVec4();
-    MAYBE_UNUSED const auto result = setUbo(vbo.get(), vec4_colors, BufferUsageEnum::DYNAMIC_DRAW);
-    assert(result == static_cast<int>(vec4_colors.size()));
+    m_namedColorsVbo = std::make_unique<VBO>();
+    m_namedColorsVbo->emplace(shared_from_this());
+
+    VBO &vbo = *m_namedColorsVbo;
+    MAYBE_UNUSED const auto result = setUbo(vbo.get(), colors, BufferUsageEnum::DYNAMIC_DRAW);
+    assert(result == static_cast<int>(colors.size()));
     m_namedColorsBufferId = vbo.get();
-    m_namedColorsDirty = false;
+}
+
+void Functions::markNamedColorsDirty()
+{
+    m_namedColorsVbo.reset();
+    m_namedColorsBufferId = 0;
 }
 
 GLRenderState Functions::getDefaultRenderState() const

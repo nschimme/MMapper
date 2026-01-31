@@ -88,7 +88,7 @@ void OpenGL::blitFboToDefault()
 
 void OpenGL::updateNamedColorsUBO()
 {
-    getFunctions().updateNamedColorsUBO();
+    getFunctions().uploadNamedColors(XNamedColor::getAllColorsAsVec4());
 }
 
 void OpenGL::markNamedColorsDirty()

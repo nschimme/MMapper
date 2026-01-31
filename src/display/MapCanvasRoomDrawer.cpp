@@ -78,6 +78,7 @@ NODISCARD static VisitRoomOptions getVisitRoomOptions()
 
 NODISCARD static NamedColorEnum getTintColor(const RoomTintEnum tint)
 {
+    static_assert(NUM_ROOM_TINTS == 2);
     switch (tint) {
     case RoomTintEnum::DARK:
         return NamedColorEnum::ROOM_DARK;
@@ -551,14 +552,7 @@ NODISCARD static LayerMeshesIntermediate::Fn createMeshFn(MAYBE_UNUSED const std
                                                           const MMTexArrayPosition texture)
 {
     if (room_tints.empty()) {
-        constexpr bool return_null_function = false;
-        if (return_null_function) {
-            static LayerMeshesIntermediate::Fn nullFunction;
-            return nullFunction;
-        }
-
-        static auto notAMesh = [](OpenGL &) -> UniqueMesh { return UniqueMesh{}; };
-        return notAMesh;
+        return {};
     }
 
     const size_t count = room_tints.size();
@@ -966,12 +960,8 @@ LayerMeshes LayerMeshesIntermediate::getLayerMeshes(OpenGL &gl) const
 
         NODISCARD UniqueMesh resolve(const Fn &fn)
         {
-            constexpr bool handle_null_function = true;
-            if (handle_null_function) {
-                assert(fn);
-                if (!fn) {
-                    return {};
-                }
+            if (!fn) {
+                return {};
             }
             return fn(m_gl);
         }

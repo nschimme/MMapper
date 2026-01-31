@@ -51,18 +51,16 @@ struct NODISCARD ColoredTexVert final
     {}
 };
 
-struct NODISCARD InstancedQuadColoredTexVert final
+struct NODISCARD RoomQuadTexVert final
 {
     // xyz = room coord, w = (color << 16 | tex_z)
     glm::ivec4 vertTexCol{};
 
-    explicit InstancedQuadColoredTexVert(const glm::ivec3 &vert, const int tex_z)
-        : InstancedQuadColoredTexVert{vert, tex_z, NamedColorEnum::DEFAULT}
+    explicit RoomQuadTexVert(const glm::ivec3 &vert, const int tex_z)
+        : RoomQuadTexVert{vert, tex_z, NamedColorEnum::DEFAULT}
     {}
 
-    explicit InstancedQuadColoredTexVert(const glm::ivec3 &vert,
-                                         const int tex_z,
-                                         const NamedColorEnum color)
+    explicit RoomQuadTexVert(const glm::ivec3 &vert, const int tex_z, const NamedColorEnum color)
         : vertTexCol{vert, (static_cast<uint8_t>(color) << 8) | tex_z}
     {
         if (IS_DEBUG_BUILD) {

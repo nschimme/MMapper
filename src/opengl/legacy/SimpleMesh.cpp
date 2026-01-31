@@ -5,7 +5,7 @@
 
 #include "global/ConfigConsts.h"
 
-void Legacy::drawInstancedQuad(Functions &gl, const GLsizei numVerts)
+void Legacy::drawRoomQuad(Functions &gl, const GLsizei numVerts)
 {
     static constexpr size_t NUM_ELEMENTS = 4;
     static std::weak_ptr<VBO> g_weak_vbo;
@@ -13,7 +13,7 @@ void Legacy::drawInstancedQuad(Functions &gl, const GLsizei numVerts)
     auto shared = g_weak_vbo.lock();
     if (shared == nullptr) {
         if (IS_DEBUG_BUILD) {
-            qDebug() << "allocating shared VBO for drawInstancedQuad";
+            qDebug() << "allocating shared VBO for drawRoomQuad";
         }
 
         g_weak_vbo = shared = gl.getStaticVbos().alloc();

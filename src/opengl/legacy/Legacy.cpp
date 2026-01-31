@@ -107,19 +107,12 @@ UniqueMesh Functions::createColoredTexturedBatch(const DrawModeEnum mode,
     return createTexturedMesh<ColoredTexturedMesh>(shared_from_this(), mode, batch, prog, texture);
 }
 
-UniqueMesh Functions::createInstancedPlainQuadBatch(const std::vector<glm::ivec3> &batch)
-{
-    const DrawModeEnum mode = DrawModeEnum::INSTANCED_QUADS;
-    const auto &prog = getShaderPrograms().getInstancedQuadsPlainUColorShader();
-    return createUniqueMesh<IQPlainMesh>(shared_from_this(), mode, batch, prog);
-}
-
-UniqueMesh Functions::createInstancedQuadColoredTexturedBatch(
-    const std::vector<InstancedQuadColoredTexVert> &batch, const MMTextureId texture)
+UniqueMesh Functions::createRoomQuadTexBatch(const std::vector<RoomQuadTexVert> &batch,
+                                             const MMTextureId texture)
 {
     const auto mode = DrawModeEnum::INSTANCED_QUADS;
-    const auto &prog = getShaderPrograms().getInstancedQuadsTexturedAColorShader();
-    return createTexturedMesh<IQColoredTexturedMesh>(shared_from_this(), mode, batch, prog, texture);
+    const auto &prog = getShaderPrograms().getRoomQuadTexShader();
+    return createTexturedMesh<RoomQuadTexMesh>(shared_from_this(), mode, batch, prog, texture);
 }
 
 template<typename VertexType_, template<typename> typename Mesh_, typename ShaderType_>

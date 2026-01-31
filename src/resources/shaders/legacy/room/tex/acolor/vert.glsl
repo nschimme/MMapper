@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019-2025 The MMapper Authors
 
-#define MAX_NAMED_COLORS 32
-
 uniform mat4 uMVP;
 uniform NamedColorsBlock {
     vec4 uNamedColors[MAX_NAMED_COLORS];

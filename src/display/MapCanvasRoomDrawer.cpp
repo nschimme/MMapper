@@ -562,7 +562,7 @@ NODISCARD static LayerMeshesIntermediate::Fn createMeshFn(MAYBE_UNUSED const std
     }
 
     const size_t count = room_tints.size();
-    std::vector<InstancedQuadColoredTexVert> verts;
+    std::vector<RoomQuadTexVert> verts;
     verts.reserve(count);
 
     for (auto &thisVert : room_tints) {
@@ -572,7 +572,7 @@ NODISCARD static LayerMeshesIntermediate::Fn createMeshFn(MAYBE_UNUSED const std
     }
 
     return [v = std::move(verts), texture](OpenGL &g) {
-        return g.createInstancedColoredTexturedQuadBatch(v, texture.array);
+        return g.createRoomQuadTexBatch(v, texture.array);
     };
 }
 
@@ -621,7 +621,7 @@ NODISCARD static LayerMeshesIntermediate::FnVec createSortedTexturedMeshes(
         const RoomTex &rtex = textures[beg];
         const size_t count = end - beg;
 
-        std::vector<InstancedQuadColoredTexVert> verts;
+        std::vector<RoomQuadTexVert> verts;
         verts.reserve(count);
 
         for (size_t i = beg; i < end; ++i) {
@@ -633,7 +633,7 @@ NODISCARD static LayerMeshesIntermediate::FnVec createSortedTexturedMeshes(
         }
 
         tmp_meshes.emplace_back([v = std::move(verts), t = rtex.pos.array](OpenGL &g) {
-            return g.createInstancedColoredTexturedQuadBatch(v, t);
+            return g.createRoomQuadTexBatch(v, t);
         });
     };
 
@@ -676,7 +676,7 @@ NODISCARD static LayerMeshesIntermediate::FnVec createSortedColoredTexturedMeshe
         const ColoredRoomTex &rtex = textures[beg];
         const size_t count = end - beg;
 
-        std::vector<InstancedQuadColoredTexVert> verts;
+        std::vector<RoomQuadTexVert> verts;
         verts.reserve(count);
 
         for (size_t i = beg; i < end; ++i) {
@@ -689,7 +689,7 @@ NODISCARD static LayerMeshesIntermediate::FnVec createSortedColoredTexturedMeshe
         }
 
         tmp_meshes.emplace_back([v = std::move(verts), t = rtex.pos.array](OpenGL &g) {
-            return g.createInstancedColoredTexturedQuadBatch(v, t);
+            return g.createRoomQuadTexBatch(v, t);
         });
     };
 

@@ -1006,19 +1006,13 @@ LayerMeshes LayerMeshesIntermediate::getLayerMeshes(OpenGL &gl) const
 
 void LayerMeshes::render(const int thisLayer,
                          const int focusedLayer,
-                         const GLuint named_colors_buffer_id)
+                         const GLRenderState &defaultState)
 {
     // Disable texturing for this layer. We want to draw
     // all of the squares in white (using layer boost quads),
     // and then still draw the walls.
     const bool disableTextures = (thisLayer > focusedLayer)
                                  && !getConfig().canvas.drawUpperLayersTextured;
-
-    const auto defaultState = std::invoke([named_colors_buffer_id]() -> GLRenderState {
-        GLRenderState rs;
-        rs.uniforms.namedColorBufferObject = named_colors_buffer_id;
-        return rs;
-    });
 
     const GLRenderState less = defaultState.withDepthFunction(DepthFunctionEnum::LESS);
     const GLRenderState equal = defaultState.withDepthFunction(DepthFunctionEnum::EQUAL);

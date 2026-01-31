@@ -277,11 +277,47 @@ void Functions::cleanup()
     getShaderPrograms().resetAll();
     getStaticVbos().resetAll();
     getTexLookup().clear();
+
+    m_roomQuadVbo.reset();
+    m_namedColorsVbo.reset();
+    m_namedColorsBufferId = 0;
+    m_namedColorsDirty = true;
 }
 
 ShaderPrograms &Functions::getShaderPrograms()
 {
     return deref(m_shaderPrograms);
+}
+
+void Functions::updateNamedColorsUBO()
+{
+    std::shared_ptr<VBO> shared_vbo = m_namedColorsVbo.lock();
+    if (shared_vbo == nullptr) {
+        m_namedColorsVbo = shared_vbo = getStaticVbos().alloc();
+        VBO &vbo = deref(shared_vbo);
+        vbo.emplace(shared_from_this());
+        m_namedColorsDirty = true;
+    }
+
+    if (!m_namedColorsDirty) {
+        return;
+    }
+
+    VBO &vbo = deref(shared_vbo);
+    const auto &vec4_colors = XNamedColor::getAllColorsAsVec4();
+    MAYBE_UNUSED const auto result = setUbo(vbo.get(),
+                                            vec4_colors,
+                                            BufferUsageEnum::DYNAMIC_DRAW);
+    assert(result == static_cast<int>(vec4_colors.size()));
+    m_namedColorsBufferId = vbo.get();
+    m_namedColorsDirty = false;
+}
+
+GLRenderState Functions::getDefaultRenderState() const
+{
+    GLRenderState defaultState;
+    defaultState.uniforms.namedColorBufferObject = m_namedColorsBufferId;
+    return defaultState;
 }
 StaticVbos &Functions::getStaticVbos()
 {

@@ -86,6 +86,21 @@ void OpenGL::blitFboToDefault()
     getFunctions().blitFboToDefault();
 }
 
+void OpenGL::updateNamedColorsUBO()
+{
+    getFunctions().updateNamedColorsUBO();
+}
+
+void OpenGL::markNamedColorsDirty()
+{
+    getFunctions().markNamedColorsDirty();
+}
+
+GLRenderState OpenGL::getDefaultRenderState() const
+{
+    return getFunctions().getDefaultRenderState();
+}
+
 UniqueMesh OpenGL::createPointBatch(const std::vector<ColorVert> &batch)
 {
     return getFunctions().createPointBatch(batch);

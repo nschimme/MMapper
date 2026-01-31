@@ -165,11 +165,31 @@ void AbstractShaderProgram::setTexture(const char *const name, const int texture
 void AbstractShaderProgram::setUBO(const char *const block_name, const GLuint uboId)
 {
     assert(uboId != 0);
+    assert(m_isBound);
+
+    auto it = m_uboCache.find(block_name);
+    if (it == m_uboCache.end()) {
+        auto functions = m_functions.lock();
+        const GLuint program = m_program.get();
+        const GLuint block_index = functions->glGetUniformBlockIndex(program, block_name);
+        if (block_index == GL_INVALID_INDEX) {
+            assert(false && "Uniform block not found");
+            m_uboCache.emplace(block_name, UboCache{GL_INVALID_INDEX, 0});
+            return;
+        }
+
+        const GLuint binding = m_nextBindingPoint++;
+        functions->glUniformBlockBinding(program, block_index, binding);
+        it = m_uboCache.emplace(block_name, UboCache{block_index, binding}).first;
+    }
+
+    const auto &cache = it->second;
+    if (cache.index == GL_INVALID_INDEX) {
+        return;
+    }
+
     auto functions = m_functions.lock();
-    const GLuint program = m_program.get();
-    auto block_index = functions->glGetUniformBlockIndex(program, block_name);
-    functions->glUniformBlockBinding(program, block_index, 0);
-    deref(functions).glBindBufferBase(GL_UNIFORM_BUFFER, 0, uboId);
+    deref(functions).glBindBufferBase(GL_UNIFORM_BUFFER, cache.binding, uboId);
 }
 
 void AbstractShaderProgram::setViewport(const char *const name, const Viewport &input_viewport)

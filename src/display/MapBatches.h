@@ -4,6 +4,7 @@
 
 #include "Connections.h"
 #include "MapCanvasData.h"
+#include "../opengl/OpenGLTypes.h"
 
 #include <map>
 
@@ -29,7 +30,7 @@ struct NODISCARD LayerMeshes final
     DEFAULT_MOVES_DELETE_COPIES(LayerMeshes);
     ~LayerMeshes() = default;
 
-    void render(int thisLayer, int focusedLayer, GLuint named_colors_buffer_id);
+    void render(int thisLayer, int focusedLayer, const GLRenderState &defaultState);
     explicit operator bool() const { return isValid; }
 };
 

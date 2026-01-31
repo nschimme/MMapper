@@ -8,15 +8,15 @@
 void Legacy::drawRoomQuad(Functions &gl, const GLsizei numVerts)
 {
     static constexpr size_t NUM_ELEMENTS = 4;
-    static std::weak_ptr<VBO> g_weak_vbo;
 
-    auto shared = g_weak_vbo.lock();
+    auto &weak_vbo = gl.getRoomQuadVbo();
+    auto shared = weak_vbo.lock();
     if (shared == nullptr) {
         if (IS_DEBUG_BUILD) {
             qDebug() << "allocating shared VBO for drawRoomQuad";
         }
 
-        g_weak_vbo = shared = gl.getStaticVbos().alloc();
+        weak_vbo = shared = gl.getStaticVbos().alloc();
         VBO &vbo = deref(shared);
 
         vbo.emplace(gl.shared_from_this());

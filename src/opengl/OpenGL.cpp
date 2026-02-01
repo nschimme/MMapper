@@ -281,6 +281,12 @@ void OpenGL::initArrayFromFiles(const SharedMMTexture &array, const std::vector<
 
     gl.glActiveTexture(GL_TEXTURE0);
     gl.glBindTexture(GL_TEXTURE_2D_ARRAY, qtex.textureId());
+    gl.glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    gl.glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+    gl.glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0);
+    gl.glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+    gl.glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
+    gl.glPixelStorei(GL_UNPACK_SKIP_IMAGES, 0);
 
     const auto numLayers = static_cast<GLsizei>(input.size());
     for (GLsizei i = 0; i < numLayers; ++i) {
@@ -320,6 +326,12 @@ void OpenGL::initArrayFromImages(const SharedMMTexture &array,
 
     gl.glActiveTexture(GL_TEXTURE0);
     gl.glBindTexture(GL_TEXTURE_2D_ARRAY, qtex.textureId());
+    gl.glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    gl.glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+    gl.glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0);
+    gl.glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+    gl.glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
+    gl.glPixelStorei(GL_UNPACK_SKIP_IMAGES, 0);
 
     const auto numImages = input.size();
     for (size_t z = 0; z < numImages; ++z) {

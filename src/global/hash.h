@@ -21,6 +21,11 @@ MAYBE_UNUSED NODISCARD static auto numeric_hash(const T val) noexcept
 template<typename T>
 void hash_combine(std::size_t &seed, const T &value) noexcept
 {
-    constexpr const size_t GOLDEN_RATIO = 0x9e3779b97f4a7c15;
-    seed ^= std::hash<T>{}(value) + GOLDEN_RATIO + (seed << 6) + (seed >> 2);
+    size_t golden_ratio;
+    if constexpr (sizeof(size_t) == 8) {
+        golden_ratio = 0x9e3779b97f4a7c15ULL;
+    } else {
+        golden_ratio = 0x9e3779b9ULL;
+    }
+    seed ^= std::hash<T>{}(value) + golden_ratio + (seed << 6) + (seed >> 2);
 }

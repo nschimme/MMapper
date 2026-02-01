@@ -768,7 +768,7 @@ void GLFont::init()
 
             tex.setMinMagFilters(QOpenGLTexture::Filter::Linear, QOpenGLTexture::Filter::Linear);
             tex.setAutoMipMapGenerationEnabled(false);
-            tex.setMipLevels(0);
+            tex.setMipLevels(1);
             tex.setData(img, QOpenGLTexture::MipMapGeneration::DontGenerateMipMaps);
         },
         true);

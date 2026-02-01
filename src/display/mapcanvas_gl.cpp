@@ -636,9 +636,21 @@ void MapCanvas::finishPendingMapBatches()
 void MapCanvas::actuallyPaintGL()
 {
     // DECL_TIMER(t, __FUNCTION__);
-    setViewportAndMvp(width(), height());
+    const int w = width();
+    const int h = height();
+    setViewportAndMvp(w, h);
 
     auto &gl = getOpenGL();
+
+#ifdef Q_OS_WASM
+    static bool logged = false;
+    if (!logged) {
+        qDebug() << "[WASM DEBUG] Widget size:" << w << "x" << h
+                 << "DPR:" << QPaintDevice::devicePixelRatioF()
+                 << "defaultFBO:" << defaultFramebufferObject();
+        logged = true;
+    }
+#endif
 
     gl.bindFbo();
     gl.clear(Color{getConfig().canvas.backgroundColor});
@@ -655,7 +667,7 @@ void MapCanvas::actuallyPaintGL()
     paintDifferences();
 
     gl.releaseFbo();
-    gl.blitFboToDefault();
+    gl.blitFboToDefault(defaultFramebufferObject());
 }
 
 NODISCARD bool MapCanvas::Diff::isUpToDate(const Map &saved, const Map &current) const

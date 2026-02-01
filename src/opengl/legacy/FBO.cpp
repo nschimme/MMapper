@@ -5,6 +5,7 @@
 
 #include "../../global/logging.h"
 #include "../OpenGLConfig.h"
+#include "Legacy.h"
 
 namespace Legacy {
 
@@ -81,9 +82,9 @@ void FBO::release()
     }
 }
 
-void FBO::blitToDefault()
+void FBO::blitTo(Functions &gl, GLuint targetFbo)
 {
-    if (!m_resolvedFbo) {
+    if (!m_resolvedFbo || !m_resolvedFbo->isValid()) {
         return; // Nothing to blit from
     }
 
@@ -95,11 +96,36 @@ void FBO::blitToDefault()
                                                   GL_LINEAR);
     }
 
-    // Now blit the (potentially resolved) FBO to the default framebuffer.
-    QOpenGLFramebufferObject::blitFramebuffer(nullptr,
-                                              m_resolvedFbo.get(),
-                                              GL_COLOR_BUFFER_BIT,
-                                              GL_NEAREST);
+    // Now blit the (potentially resolved) FBO to the target framebuffer.
+    const QSize size = m_resolvedFbo->size();
+    const GLint w = static_cast<GLint>(size.width());
+    const GLint h = static_cast<GLint>(size.height());
+
+#ifdef Q_OS_WASM
+    qDebug() << "[WASM DEBUG] Blitting from" << m_resolvedFbo->handle() << "to" << targetFbo
+             << "size:" << w << "x" << h;
+#endif
+
+    gl.glBindFramebuffer(GL_READ_FRAMEBUFFER, m_resolvedFbo->handle());
+    gl.glBindFramebuffer(GL_DRAW_FRAMEBUFFER, targetFbo);
+
+    // Some drivers (Firefox/ANGLE) might be sensitive to scissor test during blit.
+    // Also, we must ensure depth test doesn't interfere if we were blitting depth (we aren't, but
+    // good practice).
+    GLboolean scissorEnabled = gl.glIsEnabled(GL_SCISSOR_TEST);
+    if (scissorEnabled) {
+        gl.glDisable(GL_SCISSOR_TEST);
+    }
+
+    gl.glBlitFramebuffer(0, 0, w, h, 0, 0, w, h, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+    if (scissorEnabled) {
+        gl.glEnable(GL_SCISSOR_TEST);
+    }
+
+    // Restore the binding to the target FBO for subsequent rendering (e.g. stats)
+    gl.glBindFramebuffer(GL_FRAMEBUFFER, targetFbo);
+    gl.glFlush(); // Ensure blit is submitted
 }
 
 } // namespace Legacy

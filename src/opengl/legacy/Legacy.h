@@ -140,10 +140,12 @@ public:
     using Base::glActiveTexture;
     using Base::glAttachShader;
     using Base::glBindBuffer;
+    using Base::glBindFramebuffer;
     using Base::glBindTexture;
     using Base::glBindVertexArray;
     using Base::glBlendFunc;
     using Base::glBlendFuncSeparate;
+    using Base::glBlitFramebuffer;
     using Base::glBufferData;
     using Base::glClear;
     using Base::glClearColor;
@@ -162,6 +164,7 @@ public:
     using Base::glDrawArrays;
     using Base::glEnable;
     using Base::glEnableVertexAttribArray;
+    using Base::glFlush;
     using Base::glGenBuffers;
     using Base::glGenerateMipmap;
     using Base::glGenVertexArrays;
@@ -177,6 +180,7 @@ public:
     using Base::glGetUniformLocation;
     using Base::glHint;
     using Base::glIsBuffer;
+    using Base::glIsEnabled;
     using Base::glIsProgram;
     using Base::glIsShader;
     using Base::glIsTexture;
@@ -361,6 +365,6 @@ public:
     void configureFbo(int samples);
     void bindFbo();
     void releaseFbo();
-    void blitFboToDefault();
+    void blitFboToDefault(GLuint targetFbo);
 };
 } // namespace Legacy

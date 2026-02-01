@@ -232,7 +232,6 @@ void OpenGL::cleanup()
 
 GLRenderState OpenGL::getDefaultRenderState()
 {
-    bindNamedColorsBuffer();
     return GLRenderState{};
 }
 

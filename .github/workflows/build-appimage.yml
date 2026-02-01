@@ -38,7 +38,7 @@ jobs:
         version: 6.5.3
         arch: gcc_64
         cache: true
-        modules: 'qtwebsockets'
+        modules: 'qtwebsockets qtwaylandcompositor'
 
     - name: Download linuxdeploy
       run: |

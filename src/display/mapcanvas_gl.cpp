@@ -655,7 +655,7 @@ void MapCanvas::actuallyPaintGL()
     paintDifferences();
 
     gl.releaseFbo();
-    gl.blitFboToDefault();
+    gl.blitFboToDefault(defaultFramebufferObject());
 }
 
 NODISCARD bool MapCanvas::Diff::isUpToDate(const Map &saved, const Map &current) const

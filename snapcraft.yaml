@@ -11,7 +11,7 @@ description: |
 
 grade: stable
 confinement: strict
-base: core22
+base: core24
 compression: lzo
 
 architectures:
@@ -20,7 +20,7 @@ architectures:
 
 apps:
   mmapper:
-    command: usr/bin/mmapper
+    command: bin/gpu-2404-wrapper usr/bin/mmapper
     common-id: org.mume.MMapper
     desktop: usr/share/applications/org.mume.MMapper.desktop
     extensions:
@@ -31,16 +31,6 @@ apps:
       - network-bind
       - opengl
 
-package-repositories:
-  - type: apt
-    components:
-      - main
-    suites:
-      - jammy
-    key-id: 444DABCF3667D0283F894EDDE6D4736255751E5D
-    url: http://origin.archive.neon.kde.org/user
-    key-server: keyserver.ubuntu.com
-
 parts:
   mmapper:
     parse-info:
@@ -48,6 +38,9 @@ parts:
     plugin: cmake
     source: .
     source-type: local
+    build-snaps:
+      - kde-qt6-core24-sdk/latest/beta
+      - kf6-core24-sdk/latest/beta
     cmake-generator: Ninja
     cmake-parameters:
       - -DPACKAGE_TYPE=Snap
@@ -70,7 +63,7 @@ parts:
       - libssl-dev
       - zlib1g-dev
     stage-packages:
-      - libssl3
+      - libssl3t64
       - zlib1g
     override-pull: |
       craftctl default
@@ -80,6 +73,7 @@ parts:
       sed -i 's|Icon=org.mume.MMapper|Icon=${SNAP}/usr/share/icons/hicolor/256x256/apps/org.mume.MMapper.png|g' $CRAFT_PART_INSTALL/usr/share/applications/org.mume.MMapper.desktop
     prime:
       - -usr/lib/*/cmake/*
+      - -usr/lib/*/pkgconfig/*
       - -usr/include/*
       - -usr/share/ECM/*
       - -usr/share/man/*
@@ -87,15 +81,25 @@ parts:
       - -usr/lib/gcc/$CRAFT_ARCH_TRIPLET_BUILD_FOR/6.0.0
       - -usr/lib/aspell/*
       - -usr/share/lintian
+  gpu-2404:
+    after: [mmapper]
+    source: https://github.com/canonical/gpu-snap.git
+    plugin: dump
+    override-prime: |
+      craftctl default
+      ${CRAFT_PART_SRC}/bin/gpu-2404-cleanup mesa-2404
+    prime:
+      - bin/gpu-2404-wrapper
   cleanup:
     after:
       - mmapper
+      - gpu-2404
     plugin: nil
     build-snaps:
-      - core22
-      - kf6-core22
+      - core24
+      - kf6-core24
     override-prime: |
       set -eux
-      for snap in "core22" "kf6-core22"; do
+      for snap in "core24" "kf6-core24"; do
           cd "/snap/$snap/current" && find . -type f,l -exec rm -rf "${CRAFT_PRIME}/{}" \;
       done

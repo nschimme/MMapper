@@ -162,7 +162,6 @@ void AbstractShaderProgram::setTexture(const char *const name, const int texture
     setUniform1iv(uFontTextureLoc, 1, &textureUnit);
 }
 
-
 void AbstractShaderProgram::setViewport(const char *const name, const Viewport &input_viewport)
 {
     const glm::ivec4 viewport{input_viewport.offset, input_viewport.size};

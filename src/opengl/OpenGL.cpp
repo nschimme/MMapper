@@ -81,9 +81,9 @@ void OpenGL::releaseFbo()
     getFunctions().releaseFbo();
 }
 
-void OpenGL::blitFboToDefault()
+void OpenGL::blitFboToDefault(GLuint targetFbo)
 {
-    getFunctions().blitFboToDefault();
+    getFunctions().blitFboToDefault(targetFbo);
 }
 
 UniqueMesh OpenGL::createPointBatch(const std::vector<ColorVert> &batch)

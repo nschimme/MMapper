@@ -71,7 +71,6 @@ private:
         setColor("uColor", uniforms.color);
         setMatrix("uMVP", mvp);
         setTexture("uTexture", 0);
-        setUBO(UniformBlockEnum::NamedColorsBlock, uniforms.namedColorBufferObject);
     }
 };
 

@@ -13,12 +13,7 @@ AbstractShaderProgram::AbstractShaderProgram(std::string dirName,
     : m_dirName{std::move(dirName)}
     , m_functions{functions} // conversion to weak ptr
     , m_program{std::move(program)}
-{
-    const GLuint progId = getProgram();
-    for (size_t i = 0; i < NUM_UNIFORM_BLOCKS; ++i) {
-        functions->glUniformBlockBinding(progId, static_cast<UniformBlockEnum>(i));
-    }
-}
+{}
 
 AbstractShaderProgram::~AbstractShaderProgram()
 {
@@ -167,12 +162,6 @@ void AbstractShaderProgram::setTexture(const char *const name, const int texture
     setUniform1iv(uFontTextureLoc, 1, &textureUnit);
 }
 
-void AbstractShaderProgram::setUBO(const UniformBlockEnum block, const GLuint uboId)
-{
-    assert(uboId != 0);
-    auto functions = m_functions.lock();
-    deref(functions).glBindBufferBase(GL_UNIFORM_BUFFER, block, uboId);
-}
 
 void AbstractShaderProgram::setViewport(const char *const name, const Viewport &input_viewport)
 {

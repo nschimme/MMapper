@@ -162,8 +162,18 @@ public:
     using Base::glAttachShader;
     using Base::glBindBuffer;
     using Base::glBindBufferBase;
+
+    /**
+     * @brief Binds a buffer to a uniform block binding point.
+     * @param target Must be GL_UNIFORM_BUFFER.
+     * @param block The uniform block to bind to.
+     * @param buffer The buffer ID.
+     *
+     * Note: This uses the enum value as the fixed binding point.
+     */
     void glBindBufferBase(const GLenum target, const UniformBlockEnum block, const GLuint buffer)
     {
+        assert(target == GL_UNIFORM_BUFFER);
         Base::glBindBufferBase(target, static_cast<GLuint>(block), buffer);
     }
     using Base::glBindTexture;
@@ -217,10 +227,24 @@ public:
     using Base::glUniform4fv;
     using Base::glUniform4iv;
     using Base::glUniformBlockBinding;
+
+    /**
+     * @brief Assigns a fixed binding point to a uniform block in a program.
+     * @param program The shader program.
+     * @param block The uniform block.
+     *
+     * Note: This uses the enum value as the fixed binding point.
+     */
     void glUniformBlockBinding(const GLuint program, const UniformBlockEnum block)
     {
         virt_glUniformBlockBinding(program, block);
     }
+
+    /**
+     * @brief Automatically assigns fixed binding points to all known uniform blocks.
+     * @param program The shader program after linking.
+     */
+    void applyDefaultUniformBlockBindings(GLuint program);
     using Base::glUniformMatrix4fv;
     using Base::glUseProgram;
     using Base::glVertexAttribDivisor;

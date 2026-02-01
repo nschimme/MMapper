@@ -636,6 +636,7 @@ void MapCanvas::actuallyPaintGL()
     setViewportAndMvp(width(), height());
 
     auto &gl = getOpenGL();
+    gl.bindNamedColorsBuffer();
 
     gl.bindFbo();
     gl.clear(Color{getConfig().canvas.backgroundColor});
@@ -1028,19 +1029,15 @@ void MapCanvas::renderMapBatches()
     auto &gl = getOpenGL();
 
     BatchedMeshes &batchedMeshes = batches.batchedMeshes;
-    const auto defaultState = gl.getDefaultRenderState();
 
-    const auto drawLayer = [this,
-                            &batches,
-                            &batchedMeshes,
-                            wantExtraDetail,
-                            wantDoorNames,
-                            &defaultState](const int thisLayer, const int currentLayer) {
-        const auto it_mesh = batchedMeshes.find(thisLayer);
-        if (it_mesh != batchedMeshes.end()) {
-            LayerMeshes &meshes = it_mesh->second;
-            meshes.render(thisLayer, currentLayer, defaultState);
-        }
+    const auto drawLayer =
+        [this, &batches, &batchedMeshes, wantExtraDetail, wantDoorNames](const int thisLayer,
+                                                                         const int currentLayer) {
+            const auto it_mesh = batchedMeshes.find(thisLayer);
+            if (it_mesh != batchedMeshes.end()) {
+                LayerMeshes &meshes = it_mesh->second;
+                meshes.render(thisLayer, currentLayer);
+            }
 
         if (wantExtraDetail) {
             BatchedConnectionMeshes &connectionMeshes = batches.connectionMeshes;

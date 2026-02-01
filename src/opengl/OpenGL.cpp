@@ -232,12 +232,11 @@ void OpenGL::cleanup()
 
 GLRenderState OpenGL::getDefaultRenderState()
 {
-    GLRenderState defaultState;
-    defaultState.uniforms.namedColorBufferObject = getNamedColorsBufferId();
-    return defaultState;
+    bindNamedColorsBuffer();
+    return GLRenderState{};
 }
 
-GLuint OpenGL::getNamedColorsBufferId()
+void OpenGL::bindNamedColorsBuffer()
 {
     auto &gl = getFunctions();
     const auto buffer = Legacy::SharedBufferEnum::NamedColorsBlock;
@@ -247,7 +246,9 @@ GLuint OpenGL::getNamedColorsBufferId()
         const auto &vec4_colors = XNamedColor::getAllColorsAsVec4();
         std::ignore = gl.uploadSharedBufferData(buffer, vec4_colors, BufferUsageEnum::DYNAMIC_DRAW);
     }
-    return shared->get();
+
+    const GLuint id = shared->get();
+    gl.glBindBufferBase(GL_UNIFORM_BUFFER, Legacy::UniformBlockEnum::NamedColorsBlock, id);
 }
 
 void OpenGL::invalidateNamedColorsBuffer()

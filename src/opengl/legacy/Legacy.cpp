@@ -57,6 +57,13 @@ void Functions::virt_glUniformBlockBinding(const GLuint program, const UniformBl
     }
 }
 
+void Functions::applyDefaultUniformBlockBindings(const GLuint program)
+{
+    for (size_t i = 0; i < NUM_UNIFORM_BLOCKS; ++i) {
+        virt_glUniformBlockBinding(program, static_cast<UniformBlockEnum>(i));
+    }
+}
+
 template<template<typename> typename Mesh_, typename VertType_, typename ProgType_>
 NODISCARD static auto createMesh(const SharedFunctions &functions,
                                  const DrawModeEnum mode,

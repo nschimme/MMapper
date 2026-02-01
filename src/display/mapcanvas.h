@@ -87,7 +87,7 @@ private:
             }
             NODISCARD const UniqueMesh &getMesh() const { return std::get<UniqueMesh>(*this); }
 
-            void render(MapCanvas &mc, OpenGL &gl, const MMTextureId texId)
+            void render(OpenGL &gl, const MMTextureId texId)
             {
                 if (empty()) {
                     assert(false);

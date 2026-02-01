@@ -71,7 +71,11 @@ MMTexture::MMTexture(Badge<MMTexture>, std::vector<QImage> images)
                          QOpenGLTexture::Filter::Nearest);
 
     for (int i = 0; i < numLevels; ++i) {
-        tex.setData(i, m_sourceData->m_images[static_cast<size_t>(i)]);
+        const QImage &img = m_sourceData->m_images[static_cast<size_t>(i)];
+        tex.setData(i,
+                    QOpenGLTexture::PixelFormat::RGBA,
+                    QOpenGLTexture::PixelType::UInt8,
+                    img.constBits());
     }
 }
 

@@ -14,6 +14,7 @@
 #include <optional>
 #include <stdexcept>
 #include <type_traits>
+#include <unordered_map>
 #include <vector>
 
 #include <glm/glm.hpp>
@@ -28,6 +29,33 @@ namespace Legacy {
 class StaticVbos;
 struct ShaderPrograms;
 struct PointSizeBinder;
+
+enum class SharedBufferEnum { NamedColorsBlock, InstancedQuadIbo };
+static constexpr size_t NUM_SHARED_BUFFERS = 2;
+
+#define XFOREACH_UNIFORM_BLOCK(X) X(NamedColorsBlock, "NamedColorsBlock")
+
+enum class UniformBlockEnum {
+#define X(EnumName, StringName) EnumName,
+    XFOREACH_UNIFORM_BLOCK(X)
+#undef X
+};
+
+#define X_COUNT(EnumName, StringName) +1
+static constexpr size_t NUM_UNIFORM_BLOCKS = XFOREACH_UNIFORM_BLOCK(X_COUNT);
+#undef X_COUNT
+
+NODISCARD static inline const char *getUniformBlockName(const UniformBlockEnum block)
+{
+    switch (block) {
+#define X(EnumName, StringName) \
+    case UniformBlockEnum::EnumName: \
+        return StringName;
+        XFOREACH_UNIFORM_BLOCK(X)
+#undef X
+    }
+    std::abort();
+}
 
 NODISCARD static inline GLenum toGLenum(const BufferUsageEnum usage)
 {
@@ -72,6 +100,10 @@ NODISCARD static inline std::vector<VertexType_> convertQuadsToTris(
     return triangles;
 }
 
+class VBO;
+using SharedVbo = std::shared_ptr<VBO>;
+using WeakVbo = std::weak_ptr<VBO>;
+
 class Functions;
 class FunctionsGL33;
 class FunctionsES30;
@@ -102,6 +134,7 @@ private:
     std::unique_ptr<StaticVbos> m_staticVbos;
     std::unique_ptr<TexLookup> m_texLookup;
     std::unique_ptr<FBO> m_fbo;
+    std::unordered_map<SharedBufferEnum, SharedVbo> m_sharedBuffers;
     std::vector<std::shared_ptr<IRenderable>> m_staticMeshes;
 
 protected:
@@ -252,6 +285,14 @@ public:
     NODISCARD TexLookup &getTexLookup();
 
     NODISCARD FBO &getFBO();
+
+public:
+    NODISCARD SharedVbo getSharedBuffer(SharedBufferEnum buffer);
+    void invalidateSharedBuffer(SharedBufferEnum buffer);
+
+    NODISCARD GLsizei uploadSharedBufferData(SharedBufferEnum buffer,
+                                             const std::vector<glm::vec4> &data,
+                                             BufferUsageEnum usage);
 
 private:
     friend PointSizeBinder;

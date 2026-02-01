@@ -166,6 +166,9 @@ public:
 
 public:
     void cleanup();
+    NODISCARD GLRenderState getDefaultRenderState();
+    NODISCARD GLuint getNamedColorsBufferId();
+    void invalidateNamedColorsBuffer();
     void setTextureLookup(MMTextureId, SharedMMTexture);
 
 public:

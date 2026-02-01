@@ -277,6 +277,7 @@ void Functions::cleanup()
     getShaderPrograms().resetAll();
     getStaticVbos().resetAll();
     getTexLookup().clear();
+    m_sharedBuffers.clear();
 }
 
 ShaderPrograms &Functions::getShaderPrograms()
@@ -295,6 +296,41 @@ TexLookup &Functions::getTexLookup()
 FBO &Functions::getFBO()
 {
     return deref(m_fbo);
+}
+
+SharedVbo Functions::getSharedBuffer(const SharedBufferEnum buffer)
+{
+    auto &shared = m_sharedBuffers[buffer];
+    if (shared == nullptr) {
+        shared = std::make_shared<VBO>();
+    }
+    return shared;
+}
+
+void Functions::invalidateSharedBuffer(const SharedBufferEnum buffer)
+{
+    m_sharedBuffers.erase(buffer);
+}
+
+GLsizei Functions::uploadSharedBufferData(const SharedBufferEnum buffer,
+                                          const std::vector<glm::vec4> &data,
+                                          const BufferUsageEnum usage)
+{
+    const SharedVbo shared = getSharedBuffer(buffer);
+    VBO &vbo = deref(shared);
+    if (!vbo) {
+        vbo.emplace(shared_from_this());
+    }
+
+    GLsizei numElements = 0;
+    if (buffer == SharedBufferEnum::InstancedQuadIbo) {
+        numElements = setIbo(vbo.get(), data, usage);
+    } else {
+        // default to UBO for now as NamedColorsBlock is a UBO.
+        // If we add shared VBOs later, we might need more logic here.
+        numElements = setUbo(vbo.get(), data, usage);
+    }
+    return numElements;
 }
 
 /// This only exists so we can detect errors in contexts that don't support \c glDebugMessageCallback().

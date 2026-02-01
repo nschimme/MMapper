@@ -106,7 +106,7 @@ private:
                     return;
                 }
                 auto &mesh = getMesh();
-                mesh.render(mc.getDefaultRenderState().withBlend(BlendModeEnum::TRANSPARENCY));
+                mesh.render(gl.getDefaultRenderState().withBlend(BlendModeEnum::TRANSPARENCY));
             }
         };
 
@@ -144,8 +144,6 @@ private:
     FrameRateController m_frameRateController;
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
     Signal2Lifetime m_lifetime;
-    GLuint m_named_colors_buffer_id = 0;
-    bool m_namedColorsDirty = true;
 
     struct AltDragState
     {
@@ -217,8 +215,6 @@ private:
     void initTextures();
     void updateTextures();
     void updateMultisampling();
-    NODISCARD GLRenderState getDefaultRenderState();
-    void updateNamedColorsUBO();
 
     NODISCARD std::shared_ptr<InfomarkSelection> getInfomarkSelection(const MouseSel &sel);
     NODISCARD static glm::mat4 getViewProj_old(const glm::vec2 &scrollPos,

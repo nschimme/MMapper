@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
 
+#include "../../global/EnumIndexedArray.h"
 #include "Legacy.h"
 #include "VBO.h"
 
@@ -88,8 +89,17 @@ public:
     void setColor(const char *name, Color color);
     void setMatrix(const char *name, const glm::mat4 &m);
     void setTexture(const char *name, int textureUnit);
-    void setUBO(const char *block_name, GLuint uboId); // make this type stronger?
+    void setUBO(UniformBlockEnum block, GLuint uboId);
     void setViewport(const char *name, const Viewport &input_viewport);
+
+private:
+    struct UboCacheEntry
+    {
+        GLuint index = GL_INVALID_INDEX;
+        GLuint binding = 0;
+    };
+    mutable EnumIndexedArray<UboCacheEntry, UniformBlockEnum, NUM_UNIFORM_BLOCKS> m_uboCache;
+    uint32_t m_nextBindingPoint = 0;
 };
 
 } // namespace Legacy

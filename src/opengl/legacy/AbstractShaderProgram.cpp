@@ -162,14 +162,26 @@ void AbstractShaderProgram::setTexture(const char *const name, const int texture
     setUniform1iv(uFontTextureLoc, 1, &textureUnit);
 }
 
-void AbstractShaderProgram::setUBO(const char *const block_name, const GLuint uboId)
+void AbstractShaderProgram::setUBO(const UniformBlockEnum block, const GLuint uboId)
 {
     assert(uboId != 0);
     auto functions = m_functions.lock();
     const GLuint program = m_program.get();
-    auto block_index = functions->glGetUniformBlockIndex(program, block_name);
-    functions->glUniformBlockBinding(program, block_index, 0);
-    deref(functions).glBindBufferBase(GL_UNIFORM_BUFFER, 0, uboId);
+
+    UboCacheEntry &entry = m_uboCache[block];
+    if (entry.index == GL_INVALID_INDEX) {
+        const char *const block_name = getUniformBlockName(block);
+        entry.index = functions->glGetUniformBlockIndex(program, block_name);
+        if (entry.index == GL_INVALID_INDEX) {
+            // Guard against GL_INVALID_INDEX (e.g. from a typo or shader changes)
+            assert(false);
+            return;
+        }
+        entry.binding = m_nextBindingPoint++;
+        functions->glUniformBlockBinding(program, entry.index, entry.binding);
+    }
+
+    deref(functions).glBindBufferBase(GL_UNIFORM_BUFFER, entry.binding, uboId);
 }
 
 void AbstractShaderProgram::setViewport(const char *const name, const Viewport &input_viewport)

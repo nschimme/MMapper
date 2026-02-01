@@ -273,6 +273,7 @@ UniqueMesh Functions::createFontMesh(const SharedMMTexture &texture,
 Functions::Functions(Badge<Functions>)
     : m_shaderPrograms{std::make_unique<ShaderPrograms>(*this)}
     , m_staticVbos{std::make_unique<StaticVbos>()}
+    , m_sharedBuffers{std::make_unique<SharedBuffers>()}
     , m_texLookup{std::make_unique<TexLookup>()}
     , m_fbo{std::make_unique<FBO>()}
 {}
@@ -305,8 +306,8 @@ void Functions::cleanup()
 
     getShaderPrograms().resetAll();
     getStaticVbos().resetAll();
+    m_sharedBuffers->resetAll();
     getTexLookup().clear();
-    m_sharedBuffers.clear();
 }
 
 ShaderPrograms &Functions::getShaderPrograms()
@@ -329,16 +330,12 @@ FBO &Functions::getFBO()
 
 SharedVbo Functions::getSharedBuffer(const SharedBufferEnum buffer)
 {
-    auto &shared = m_sharedBuffers[buffer];
-    if (shared == nullptr) {
-        shared = std::make_shared<VBO>();
-    }
-    return shared;
+    return m_sharedBuffers->get(buffer);
 }
 
 void Functions::invalidateSharedBuffer(const SharedBufferEnum buffer)
 {
-    m_sharedBuffers.erase(buffer);
+    m_sharedBuffers->invalidate(buffer);
 }
 
 GLsizei Functions::uploadSharedBufferData(const SharedBufferEnum buffer,

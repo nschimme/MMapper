@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
 
+#include "../../global/EnumIndexedArray.h"
 #include "../../global/utils.h"
 #include "Legacy.h"
 
@@ -54,6 +55,35 @@ public:
     }
 
     void resetAll() { base::clear(); }
+};
+
+class NODISCARD SharedBuffers final
+    : private EnumIndexedArray<SharedVbo, SharedBufferEnum, NUM_SHARED_BUFFERS>
+{
+private:
+    using base = EnumIndexedArray<SharedVbo, SharedBufferEnum, NUM_SHARED_BUFFERS>;
+
+public:
+    SharedBuffers() = default;
+
+public:
+    NODISCARD SharedVbo get(const SharedBufferEnum buffer)
+    {
+        SharedVbo &shared = base::operator[](buffer);
+        if (shared == nullptr) {
+            shared = std::make_shared<VBO>();
+        }
+        return shared;
+    }
+
+    void invalidate(const SharedBufferEnum buffer) { base::operator[](buffer).reset(); }
+
+    void resetAll()
+    {
+        for (auto &shared : *this) {
+            shared.reset();
+        }
+    }
 };
 
 class NODISCARD Program final

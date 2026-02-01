@@ -27,6 +27,7 @@ class OpenGL;
 namespace Legacy {
 
 class StaticVbos;
+class SharedBuffers;
 struct ShaderPrograms;
 struct PointSizeBinder;
 
@@ -120,9 +121,9 @@ private:
     float m_devicePixelRatio = 1.f;
     std::unique_ptr<ShaderPrograms> m_shaderPrograms;
     std::unique_ptr<StaticVbos> m_staticVbos;
+    std::unique_ptr<SharedBuffers> m_sharedBuffers;
     std::unique_ptr<TexLookup> m_texLookup;
     std::unique_ptr<FBO> m_fbo;
-    std::unordered_map<SharedBufferEnum, SharedVbo> m_sharedBuffers;
     std::vector<std::shared_ptr<IRenderable>> m_staticMeshes;
 
 protected:

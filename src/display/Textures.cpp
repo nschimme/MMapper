@@ -36,8 +36,11 @@ MMTexture::MMTexture(Badge<MMTexture>, const QString &name)
     auto &tex = m_qt_texture;
     QImage image{name};
     if (!image.isNull()) {
+        const QImage mirrored = image.mirrored();
         tex.setFormat(QOpenGLTexture::TextureFormat::RGBA8_UNorm);
-        tex.setData(image.mirrored());
+        tex.setSize(mirrored.width(), mirrored.height());
+        tex.allocateStorage();
+        tex.setData(mirrored);
     }
     tex.setWrapMode(QOpenGLTexture::WrapMode::MirroredRepeat);
     tex.setMinMagFilters(QOpenGLTexture::Filter::LinearMipMapLinear, QOpenGLTexture::Filter::Linear);
@@ -69,6 +72,8 @@ MMTexture::MMTexture(Badge<MMTexture>, std::vector<QImage> images)
     tex.setWrapMode(QOpenGLTexture::WrapMode::MirroredRepeat);
     tex.setMinMagFilters(QOpenGLTexture::Filter::NearestMipMapNearest,
                          QOpenGLTexture::Filter::Nearest);
+    tex.setSize(front.width(), front.height());
+    tex.allocateStorage();
 
     for (int i = 0; i < numLevels; ++i) {
         const QImage &img = m_sourceData->m_images[static_cast<size_t>(i)];

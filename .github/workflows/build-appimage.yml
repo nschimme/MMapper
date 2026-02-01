@@ -28,14 +28,14 @@ jobs:
       run: |
         sudo apt update -qq
         sudo apt install -y \
-          libgl1-mesa-dev build-essential mold git \
+          libwayland-egl1 libgl1-mesa-dev build-essential mold git \
           zlib1g-dev libssl-dev wget zsync fuse file cmake libxcb-cursor-dev \
           libsecret-1-dev
 
     - name: Install Qt
       uses: jurplel/install-qt-action@v4
       with:
-        version: 6.5.3
+        version: 6.8.3
         arch: gcc_64
         cache: true
         modules: 'qtwebsockets qtwaylandcompositor'

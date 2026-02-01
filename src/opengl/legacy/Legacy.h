@@ -14,6 +14,7 @@
 #include <optional>
 #include <stdexcept>
 #include <type_traits>
+#include <unordered_map>
 #include <vector>
 
 #include <glm/glm.hpp>
@@ -26,8 +27,24 @@ class OpenGL;
 namespace Legacy {
 
 class StaticVbos;
+class SharedVbos;
 struct ShaderPrograms;
 struct PointSizeBinder;
+
+enum class SharedVboEnum { NamedColorsBlock, InstancedQuadIbo };
+static constexpr size_t NUM_SHARED_VBOS = 2;
+
+#define XFOREACH_UNIFORM_BLOCK(X) X(NamedColorsBlock, "NamedColorsBlock")
+
+enum class UniformBlockEnum {
+#define X(EnumName, StringName) EnumName,
+    XFOREACH_UNIFORM_BLOCK(X)
+#undef X
+};
+
+#define X_COUNT(EnumName, StringName) +1
+static constexpr size_t NUM_UNIFORM_BLOCKS = XFOREACH_UNIFORM_BLOCK(X_COUNT);
+#undef X_COUNT
 
 NODISCARD static inline GLenum toGLenum(const BufferUsageEnum usage)
 {
@@ -72,6 +89,10 @@ NODISCARD static inline std::vector<VertexType_> convertQuadsToTris(
     return triangles;
 }
 
+class VBO;
+using SharedVbo = std::shared_ptr<VBO>;
+using WeakVbo = std::weak_ptr<VBO>;
+
 class Functions;
 class FunctionsGL33;
 class FunctionsES30;
@@ -100,6 +121,7 @@ private:
     float m_devicePixelRatio = 1.f;
     std::unique_ptr<ShaderPrograms> m_shaderPrograms;
     std::unique_ptr<StaticVbos> m_staticVbos;
+    std::unique_ptr<SharedVbos> m_sharedVbos;
     std::unique_ptr<TexLookup> m_texLookup;
     std::unique_ptr<FBO> m_fbo;
     std::vector<std::shared_ptr<IRenderable>> m_staticMeshes;
@@ -141,6 +163,20 @@ public:
     using Base::glAttachShader;
     using Base::glBindBuffer;
     using Base::glBindBufferBase;
+
+    /**
+     * @brief Binds a buffer to a uniform block binding point.
+     * @param target Must be GL_UNIFORM_BUFFER.
+     * @param block The uniform block to bind to.
+     * @param buffer The buffer ID.
+     *
+     * Note: This uses the enum value as the fixed binding point.
+     */
+    void glBindBufferBase(const GLenum target, const UniformBlockEnum block, const GLuint buffer)
+    {
+        assert(target == GL_UNIFORM_BUFFER);
+        Base::glBindBufferBase(target, static_cast<GLuint>(block), buffer);
+    }
     using Base::glBindTexture;
     using Base::glBindVertexArray;
     using Base::glBlendFunc;
@@ -192,6 +228,24 @@ public:
     using Base::glUniform4fv;
     using Base::glUniform4iv;
     using Base::glUniformBlockBinding;
+
+    /**
+     * @brief Assigns a fixed binding point to a uniform block in a program.
+     * @param program The shader program.
+     * @param block The uniform block.
+     *
+     * Note: This uses the enum value as the fixed binding point.
+     */
+    void glUniformBlockBinding(const GLuint program, const UniformBlockEnum block)
+    {
+        virt_glUniformBlockBinding(program, block);
+    }
+
+    /**
+     * @brief Automatically assigns fixed binding points to all known uniform blocks.
+     * @param program The shader program after linking.
+     */
+    void applyDefaultUniformBlockBindings(GLuint program);
     using Base::glUniformMatrix4fv;
     using Base::glUseProgram;
     using Base::glVertexAttribDivisor;
@@ -253,6 +307,14 @@ public:
 
     NODISCARD FBO &getFBO();
 
+public:
+    NODISCARD SharedVbo getSharedVbo(SharedVboEnum buffer);
+    void invalidateSharedVbo(SharedVboEnum buffer);
+
+    NODISCARD GLsizei uploadSharedVboData(SharedVboEnum buffer,
+                                          const std::vector<glm::vec4> &data,
+                                          BufferUsageEnum usage);
+
 private:
     friend PointSizeBinder;
     /// platform-specific (ES vs GL)
@@ -267,6 +329,10 @@ protected:
     NODISCARD virtual std::optional<GLenum> virt_toGLenum(DrawModeEnum mode) = 0;
     virtual void virt_enableProgramPointSize(bool enable) = 0;
     NODISCARD virtual const char *virt_getShaderVersion() const = 0;
+    virtual void virt_glUniformBlockBinding(GLuint program, UniformBlockEnum block);
+
+protected:
+    NODISCARD static const char *getUniformBlockName(UniformBlockEnum block);
 
 private:
     template<typename T>

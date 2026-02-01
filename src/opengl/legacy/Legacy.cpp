@@ -35,6 +35,35 @@
 #include <QOpenGLTexture>
 
 namespace Legacy {
+
+const char *Functions::getUniformBlockName(const UniformBlockEnum block)
+{
+    switch (block) {
+#define X(EnumName, StringName) \
+    case UniformBlockEnum::EnumName: \
+        return StringName;
+        XFOREACH_UNIFORM_BLOCK(X)
+#undef X
+    }
+    std::abort();
+}
+
+void Functions::virt_glUniformBlockBinding(const GLuint program, const UniformBlockEnum block)
+{
+    const char *const block_name = getUniformBlockName(block);
+    const GLuint block_index = Base::glGetUniformBlockIndex(program, block_name);
+    if (block_index != GL_INVALID_INDEX) {
+        Base::glUniformBlockBinding(program, block_index, static_cast<GLuint>(block));
+    }
+}
+
+void Functions::applyDefaultUniformBlockBindings(const GLuint program)
+{
+    for (size_t i = 0; i < NUM_UNIFORM_BLOCKS; ++i) {
+        virt_glUniformBlockBinding(program, static_cast<UniformBlockEnum>(i));
+    }
+}
+
 template<template<typename> typename Mesh_, typename VertType_, typename ProgType_>
 NODISCARD static auto createMesh(const SharedFunctions &functions,
                                  const DrawModeEnum mode,
@@ -244,6 +273,7 @@ UniqueMesh Functions::createFontMesh(const SharedMMTexture &texture,
 Functions::Functions(Badge<Functions>)
     : m_shaderPrograms{std::make_unique<ShaderPrograms>(*this)}
     , m_staticVbos{std::make_unique<StaticVbos>()}
+    , m_sharedVbos{std::make_unique<SharedVbos>()}
     , m_texLookup{std::make_unique<TexLookup>()}
     , m_fbo{std::make_unique<FBO>()}
 {}
@@ -276,6 +306,7 @@ void Functions::cleanup()
 
     getShaderPrograms().resetAll();
     getStaticVbos().resetAll();
+    m_sharedVbos->resetAll();
     getTexLookup().clear();
 }
 
@@ -295,6 +326,31 @@ TexLookup &Functions::getTexLookup()
 FBO &Functions::getFBO()
 {
     return deref(m_fbo);
+}
+
+SharedVbo Functions::getSharedVbo(const SharedVboEnum buffer)
+{
+    return m_sharedVbos->get(buffer);
+}
+
+void Functions::invalidateSharedVbo(const SharedVboEnum buffer)
+{
+    m_sharedVbos->invalidate(buffer);
+}
+
+GLsizei Functions::uploadSharedVboData(const SharedVboEnum buffer,
+                                       const std::vector<glm::vec4> &data,
+                                       const BufferUsageEnum usage)
+{
+    const SharedVbo shared = getSharedVbo(buffer);
+    VBO &vbo = deref(shared);
+    if (!vbo) {
+        vbo.emplace(shared_from_this());
+    }
+
+    // default to UBO for now as NamedColorsBlock is a UBO.
+    // If we add shared VBOs later, we might need more logic here.
+    return setUbo(vbo.get(), data, usage);
 }
 
 /// This only exists so we can detect errors in contexts that don't support \c glDebugMessageCallback().

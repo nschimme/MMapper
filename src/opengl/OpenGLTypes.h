@@ -222,7 +222,6 @@ struct NODISCARD GLRenderState final
         Color color;
         // glEnable(TEXTURE_2D), or glEnable(TEXTURE_3D)
         Textures textures;
-        GLuint namedColorBufferObject = 0u;
         std::optional<float> pointSize;
     };
 

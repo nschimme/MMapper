@@ -45,18 +45,6 @@ enum class UniformBlockEnum {
 static constexpr size_t NUM_UNIFORM_BLOCKS = XFOREACH_UNIFORM_BLOCK(X_COUNT);
 #undef X_COUNT
 
-NODISCARD static inline const char *getUniformBlockName(const UniformBlockEnum block)
-{
-    switch (block) {
-#define X(EnumName, StringName) \
-    case UniformBlockEnum::EnumName: \
-        return StringName;
-        XFOREACH_UNIFORM_BLOCK(X)
-#undef X
-    }
-    std::abort();
-}
-
 NODISCARD static inline GLenum toGLenum(const BufferUsageEnum usage)
 {
     switch (usage) {
@@ -174,6 +162,10 @@ public:
     using Base::glAttachShader;
     using Base::glBindBuffer;
     using Base::glBindBufferBase;
+    void glBindBufferBase(const GLenum target, const UniformBlockEnum block, const GLuint buffer)
+    {
+        Base::glBindBufferBase(target, static_cast<GLuint>(block), buffer);
+    }
     using Base::glBindTexture;
     using Base::glBindVertexArray;
     using Base::glBlendFunc;
@@ -225,6 +217,10 @@ public:
     using Base::glUniform4fv;
     using Base::glUniform4iv;
     using Base::glUniformBlockBinding;
+    void glUniformBlockBinding(const GLuint program, const UniformBlockEnum block)
+    {
+        virt_glUniformBlockBinding(program, block);
+    }
     using Base::glUniformMatrix4fv;
     using Base::glUseProgram;
     using Base::glVertexAttribDivisor;
@@ -308,6 +304,10 @@ protected:
     NODISCARD virtual std::optional<GLenum> virt_toGLenum(DrawModeEnum mode) = 0;
     virtual void virt_enableProgramPointSize(bool enable) = 0;
     NODISCARD virtual const char *virt_getShaderVersion() const = 0;
+    virtual void virt_glUniformBlockBinding(GLuint program, UniformBlockEnum block);
+
+protected:
+    NODISCARD static const char *getUniformBlockName(UniformBlockEnum block);
 
 private:
     template<typename T>

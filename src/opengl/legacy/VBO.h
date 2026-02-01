@@ -38,7 +38,6 @@ public:
     void unsafe_swapVboId(VBO &other) { std::swap(m_vbo, other.m_vbo); }
 };
 
-
 class NODISCARD StaticVbos final : private std::vector<SharedVbo>
 {
 private:

@@ -35,6 +35,28 @@
 #include <QOpenGLTexture>
 
 namespace Legacy {
+
+const char *Functions::getUniformBlockName(const UniformBlockEnum block)
+{
+    switch (block) {
+#define X(EnumName, StringName) \
+    case UniformBlockEnum::EnumName: \
+        return StringName;
+        XFOREACH_UNIFORM_BLOCK(X)
+#undef X
+    }
+    std::abort();
+}
+
+void Functions::virt_glUniformBlockBinding(const GLuint program, const UniformBlockEnum block)
+{
+    const char *const block_name = getUniformBlockName(block);
+    const GLuint block_index = Base::glGetUniformBlockIndex(program, block_name);
+    if (block_index != GL_INVALID_INDEX) {
+        Base::glUniformBlockBinding(program, block_index, static_cast<GLuint>(block));
+    }
+}
+
 template<template<typename> typename Mesh_, typename VertType_, typename ProgType_>
 NODISCARD static auto createMesh(const SharedFunctions &functions,
                                  const DrawModeEnum mode,

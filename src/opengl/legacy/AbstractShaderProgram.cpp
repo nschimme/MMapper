@@ -13,7 +13,12 @@ AbstractShaderProgram::AbstractShaderProgram(std::string dirName,
     : m_dirName{std::move(dirName)}
     , m_functions{functions} // conversion to weak ptr
     , m_program{std::move(program)}
-{}
+{
+    const GLuint progId = getProgram();
+    for (size_t i = 0; i < NUM_UNIFORM_BLOCKS; ++i) {
+        functions->glUniformBlockBinding(progId, static_cast<UniformBlockEnum>(i));
+    }
+}
 
 AbstractShaderProgram::~AbstractShaderProgram()
 {
@@ -166,22 +171,7 @@ void AbstractShaderProgram::setUBO(const UniformBlockEnum block, const GLuint ub
 {
     assert(uboId != 0);
     auto functions = m_functions.lock();
-    const GLuint program = m_program.get();
-
-    UboCacheEntry &entry = m_uboCache[block];
-    if (entry.index == GL_INVALID_INDEX) {
-        const char *const block_name = getUniformBlockName(block);
-        entry.index = functions->glGetUniformBlockIndex(program, block_name);
-        if (entry.index == GL_INVALID_INDEX) {
-            // Guard against GL_INVALID_INDEX (e.g. from a typo or shader changes)
-            assert(false);
-            return;
-        }
-        entry.binding = m_nextBindingPoint++;
-        functions->glUniformBlockBinding(program, entry.index, entry.binding);
-    }
-
-    deref(functions).glBindBufferBase(GL_UNIFORM_BUFFER, entry.binding, uboId);
+    deref(functions).glBindBufferBase(GL_UNIFORM_BUFFER, block, uboId);
 }
 
 void AbstractShaderProgram::setViewport(const char *const name, const Viewport &input_viewport)

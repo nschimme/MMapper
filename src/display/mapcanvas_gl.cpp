@@ -1009,7 +1009,6 @@ void MapCanvas::updateMultisampling()
     getOpenGL().configureFbo(wantMultisampling);
 }
 
-
 void MapCanvas::renderMapBatches()
 {
     std::optional<MapBatches> &mapBatches = m_batches.mapBatches;
@@ -1031,36 +1030,39 @@ void MapCanvas::renderMapBatches()
     BatchedMeshes &batchedMeshes = batches.batchedMeshes;
     const auto defaultState = gl.getDefaultRenderState();
 
-    const auto drawLayer =
-        [this, &batches, &batchedMeshes, wantExtraDetail, wantDoorNames, &defaultState](
-            const int thisLayer, const int currentLayer) {
-            const auto it_mesh = batchedMeshes.find(thisLayer);
-            if (it_mesh != batchedMeshes.end()) {
-                LayerMeshes &meshes = it_mesh->second;
-                meshes.render(thisLayer, currentLayer, defaultState);
+    const auto drawLayer = [this,
+                            &batches,
+                            &batchedMeshes,
+                            wantExtraDetail,
+                            wantDoorNames,
+                            &defaultState](const int thisLayer, const int currentLayer) {
+        const auto it_mesh = batchedMeshes.find(thisLayer);
+        if (it_mesh != batchedMeshes.end()) {
+            LayerMeshes &meshes = it_mesh->second;
+            meshes.render(thisLayer, currentLayer, defaultState);
+        }
+
+        if (wantExtraDetail) {
+            BatchedConnectionMeshes &connectionMeshes = batches.connectionMeshes;
+            const auto it_conn = connectionMeshes.find(thisLayer);
+            if (it_conn != connectionMeshes.end()) {
+                ConnectionMeshes &meshes = it_conn->second;
+                meshes.render(thisLayer, currentLayer);
             }
 
-            if (wantExtraDetail) {
-                BatchedConnectionMeshes &connectionMeshes = batches.connectionMeshes;
-                const auto it_conn = connectionMeshes.find(thisLayer);
-                if (it_conn != connectionMeshes.end()) {
-                    ConnectionMeshes &meshes = it_conn->second;
-                    meshes.render(thisLayer, currentLayer);
-                }
-
-                // NOTE: This can display room names in lower layers, but the text
-                // isn't currently drawn with an appropriate Z-offset, so it doesn't
-                // stay aligned to its actual layer when you switch view layers.
-                if (wantDoorNames && thisLayer == currentLayer) {
-                    BatchedRoomNames &roomNameBatches = batches.roomNameBatches;
-                    const auto it_name = roomNameBatches.find(thisLayer);
-                    if (it_name != roomNameBatches.end()) {
-                        auto &roomNameBatch = it_name->second;
-                        roomNameBatch.render(GLRenderState());
-                    }
+            // NOTE: This can display room names in lower layers, but the text
+            // isn't currently drawn with an appropriate Z-offset, so it doesn't
+            // stay aligned to its actual layer when you switch view layers.
+            if (wantDoorNames && thisLayer == currentLayer) {
+                BatchedRoomNames &roomNameBatches = batches.roomNameBatches;
+                const auto it_name = roomNameBatches.find(thisLayer);
+                if (it_name != roomNameBatches.end()) {
+                    auto &roomNameBatch = it_name->second;
+                    roomNameBatch.render(GLRenderState());
                 }
             }
-        };
+        }
+    };
 
     const auto fadeBackground = [&gl, &settings]() {
         auto bgColor = Color{settings.backgroundColor.getColor(), 0.5f};
@@ -1080,4 +1082,3 @@ void MapCanvas::renderMapBatches()
         drawLayer(thisLayer, m_currentLayer);
     }
 }
-

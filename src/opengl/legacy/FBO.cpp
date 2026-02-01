@@ -126,6 +126,21 @@ void FBO::blitTo(Functions &gl, GLuint targetFbo)
     // Restore the binding to the target FBO for subsequent rendering (e.g. stats)
     gl.glBindFramebuffer(GL_FRAMEBUFFER, targetFbo);
     gl.glFlush(); // Ensure blit is submitted
+    gl.glBindFramebuffer(GL_READ_FRAMEBUFFER, m_resolvedFbo->handle());
+    gl.glBindFramebuffer(GL_DRAW_FRAMEBUFFER, targetFbo);
+    gl.glBlitFramebuffer(0,
+                         0,
+                         size.width(),
+                         size.height(),
+                         0,
+                         0,
+                         size.width(),
+                         size.height(),
+                         GL_COLOR_BUFFER_BIT,
+                         GL_NEAREST);
+
+    // Restore the binding to the target FBO
+    gl.glBindFramebuffer(GL_FRAMEBUFFER, targetFbo);
 }
 
 } // namespace Legacy

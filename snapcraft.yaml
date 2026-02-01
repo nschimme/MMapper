@@ -39,8 +39,8 @@ parts:
     source: .
     source-type: local
     build-snaps:
-      - kde-qt6-core24-sdk/latest/beta
-      - kf6-core24-sdk/latest/beta
+      - kde-qt6-core24-sdk/latest/stable
+      - kf6-core24-sdk/latest/stable
     cmake-generator: Ninja
     cmake-parameters:
       - -DPACKAGE_TYPE=Snap

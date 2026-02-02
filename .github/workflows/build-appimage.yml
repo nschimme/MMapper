@@ -28,7 +28,7 @@ jobs:
       run: |
         sudo apt update -qq
         sudo apt install -y \
-          libwayland-egl1 libgl1-mesa-dev build-essential mold git \
+          libgl1-mesa-dev build-essential mold git \
           zlib1g-dev libssl-dev wget zsync fuse file cmake libxcb-cursor-dev \
           libsecret-1-dev
 
@@ -90,6 +90,12 @@ jobs:
           --desktop-file appdir/usr/share/applications/org.mume.MMapper.desktop \
           --icon-file appdir/usr/share/icons/hicolor/256x256/apps/org.mume.MMapper.png \
           --library "$LIBSECRET_PATH" \
+          --exclude-library libwayland-client.so.0 \
+          --exclude-library libwayland-cursor.so.0 \
+          --exclude-library libwayland-egl.so.1 \
+          --exclude-library libEGL.so.1 \
+          --exclude-library libGL.so.1 \
+          --exclude-library libdrm.so.2 \
           --plugin qt
 
     - name: Generate SHA256 checksum for AppImage

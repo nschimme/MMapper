@@ -76,7 +76,7 @@ public:
         return shared;
     }
 
-    void invalidate(const SharedVboEnum buffer) { base::operator[](buffer).reset(); }
+    void reset(const SharedVboEnum buffer) { base::operator[](buffer).reset(); }
 
     void resetAll()
     {

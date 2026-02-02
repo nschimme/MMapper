@@ -36,16 +36,6 @@ static constexpr size_t NUM_SHARED_VBOS = 2;
 
 #define XFOREACH_UNIFORM_BLOCK(X) X(NamedColorsBlock, "NamedColorsBlock")
 
-enum class UniformBlockEnum {
-#define X(EnumName, StringName) EnumName,
-    XFOREACH_UNIFORM_BLOCK(X)
-#undef X
-};
-
-#define X_COUNT(EnumName, StringName) +1
-static constexpr size_t NUM_UNIFORM_BLOCKS = XFOREACH_UNIFORM_BLOCK(X_COUNT);
-#undef X_COUNT
-
 NODISCARD static inline GLenum toGLenum(const BufferUsageEnum usage)
 {
     switch (usage) {
@@ -172,7 +162,7 @@ public:
      *
      * Note: This uses the enum value as the fixed binding point.
      */
-    void glBindBufferBase(const GLenum target, const UniformBlockEnum block, const GLuint buffer)
+    void glBindBufferBase(const GLenum target, const SharedVboEnum block, const GLuint buffer)
     {
         assert(target == GL_UNIFORM_BUFFER);
         Base::glBindBufferBase(target, static_cast<GLuint>(block), buffer);
@@ -236,7 +226,7 @@ public:
      *
      * Note: This uses the enum value as the fixed binding point.
      */
-    void glUniformBlockBinding(const GLuint program, const UniformBlockEnum block)
+    void glUniformBlockBinding(const GLuint program, const SharedVboEnum block)
     {
         virt_glUniformBlockBinding(program, block);
     }
@@ -308,12 +298,8 @@ public:
     NODISCARD FBO &getFBO();
 
 public:
-    NODISCARD SharedVbo getSharedVbo(SharedVboEnum buffer);
-    void invalidateSharedVbo(SharedVboEnum buffer);
-
-    NODISCARD GLsizei uploadSharedVboData(SharedVboEnum buffer,
-                                          const std::vector<glm::vec4> &data,
-                                          BufferUsageEnum usage);
+    NODISCARD SharedVbos &getSharedVbos() { return deref(m_sharedVbos); }
+    NODISCARD const SharedVbos &getSharedVbos() const { return deref(m_sharedVbos); }
 
 private:
     friend PointSizeBinder;
@@ -329,10 +315,10 @@ protected:
     NODISCARD virtual std::optional<GLenum> virt_toGLenum(DrawModeEnum mode) = 0;
     virtual void virt_enableProgramPointSize(bool enable) = 0;
     NODISCARD virtual const char *virt_getShaderVersion() const = 0;
-    virtual void virt_glUniformBlockBinding(GLuint program, UniformBlockEnum block);
+    virtual void virt_glUniformBlockBinding(GLuint program, SharedVboEnum block);
 
 protected:
-    NODISCARD static const char *getUniformBlockName(UniformBlockEnum block);
+    NODISCARD static const char *getUniformBlockName(SharedVboEnum block);
 
 private:
     template<typename T>

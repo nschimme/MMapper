@@ -36,21 +36,26 @@
 
 namespace Legacy {
 
-const char *Functions::getUniformBlockName(const UniformBlockEnum block)
+const char *Functions::getUniformBlockName(const SharedVboEnum block)
 {
     switch (block) {
 #define X(EnumName, StringName) \
-    case UniformBlockEnum::EnumName: \
+    case SharedVboEnum::EnumName: \
         return StringName;
         XFOREACH_UNIFORM_BLOCK(X)
 #undef X
+    default:
+        break;
     }
-    std::abort();
+    return nullptr;
 }
 
-void Functions::virt_glUniformBlockBinding(const GLuint program, const UniformBlockEnum block)
+void Functions::virt_glUniformBlockBinding(const GLuint program, const SharedVboEnum block)
 {
     const char *const block_name = getUniformBlockName(block);
+    if (block_name == nullptr) {
+        return;
+    }
     const GLuint block_index = Base::glGetUniformBlockIndex(program, block_name);
     if (block_index != GL_INVALID_INDEX) {
         Base::glUniformBlockBinding(program, block_index, static_cast<GLuint>(block));
@@ -59,9 +64,9 @@ void Functions::virt_glUniformBlockBinding(const GLuint program, const UniformBl
 
 void Functions::applyDefaultUniformBlockBindings(const GLuint program)
 {
-    for (size_t i = 0; i < NUM_UNIFORM_BLOCKS; ++i) {
-        virt_glUniformBlockBinding(program, static_cast<UniformBlockEnum>(i));
-    }
+#define X(EnumName, StringName) virt_glUniformBlockBinding(program, SharedVboEnum::EnumName);
+    XFOREACH_UNIFORM_BLOCK(X)
+#undef X
 }
 
 template<template<typename> typename Mesh_, typename VertType_, typename ProgType_>
@@ -326,31 +331,6 @@ TexLookup &Functions::getTexLookup()
 FBO &Functions::getFBO()
 {
     return deref(m_fbo);
-}
-
-SharedVbo Functions::getSharedVbo(const SharedVboEnum buffer)
-{
-    return m_sharedVbos->get(buffer);
-}
-
-void Functions::invalidateSharedVbo(const SharedVboEnum buffer)
-{
-    m_sharedVbos->invalidate(buffer);
-}
-
-GLsizei Functions::uploadSharedVboData(const SharedVboEnum buffer,
-                                       const std::vector<glm::vec4> &data,
-                                       const BufferUsageEnum usage)
-{
-    const SharedVbo shared = getSharedVbo(buffer);
-    VBO &vbo = deref(shared);
-    if (!vbo) {
-        vbo.emplace(shared_from_this());
-    }
-
-    // default to UBO for now as NamedColorsBlock is a UBO.
-    // If we add shared VBOs later, we might need more logic here.
-    return setUbo(vbo.get(), data, usage);
 }
 
 /// This only exists so we can detect errors in contexts that don't support \c glDebugMessageCallback().

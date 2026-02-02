@@ -11,7 +11,7 @@ on:
 
 jobs:
   build-snap:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v6
@@ -22,7 +22,7 @@ jobs:
       id: snapcraft
       uses: snapcore/action-build@v1
 
-    - name: Generate SHA256 checksum for AppImage
+    - name: Generate SHA256 checksum for Snap
       run: |
         BUILT_SNAP_PATH="${{ steps.snapcraft.outputs.snap }}"
         CANONICAL_SNAP_BASENAME=$(basename "${BUILT_SNAP_PATH}" .snap)

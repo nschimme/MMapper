@@ -2,6 +2,7 @@ name: mmapper
 adopt-info: mmapper
 icon: src/resources/icons/m-release.png
 summary: MUME Mapper
+license: GPL-2.0-or-later
 description: |
   MMapper is a graphical mapper for a MUD named MUME (Multi-Users in Middle
   Earth). The game is traditionally played in a text-only mode, but MMapper tries
@@ -30,7 +31,6 @@ apps:
       - network
       - network-bind
       - opengl
-      - wayland
 
 package-repositories:
   - type: apt
@@ -46,6 +46,9 @@ parts:
   mmapper:
     parse-info:
       - usr/share/metainfo/org.mume.MMapper.xml
+    build-snaps:
+      - kde-qt6-core24-sdk/latest/beta
+      - kf6-core24-sdk/latest/beta
     plugin: cmake
     source: .
     source-type: local
@@ -57,6 +60,7 @@ parts:
       - -DWITH_UPDATER=OFF
       - -DWITH_WEBSOCKET=ON
       - -DWITH_QTKEYCHAIN=ON
+      - -DUSE_MOLD=ON
       - -DCMAKE_INSTALL_SYSCONFDIR=/etc
       - -DCMAKE_INSTALL_LOCALSTATEDIR=/var
       - -DCMAKE_FIND_USE_PACKAGE_REGISTRY=OFF
@@ -66,12 +70,6 @@ parts:
       - -DCMAKE_INSTALL_LIBDIR=lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
       - --log-level=STATUS
       - -DCMAKE_LIBRARY_PATH=lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
-      - -DQMLDIR_FILE=/snap/kf6-core24/current/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/qml
-    build-environment:
-      - QT_PLUGIN_PATH: "$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/plugins:/snap/kf6-core24/current/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/plugins:/snap/kde-qt6-core24-sdk/current/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/plugins"
-      - QML2_IMPORT_PATH: "$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/qml:/snap/kf6-core24/current/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/qml:/snap/kde-qt6-core24-sdk/current/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/qml"
-      - QT_INSTALL_QML: $QML2_IMPORT_PATH
-      - LD_LIBRARY_PATH: "$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR:/snap/kde-qt6-core24-sdk/current/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libproxy:$LD_LIBRARY_PATH"
     build-packages:
       - libglm-dev
       - libssl-dev
@@ -85,6 +83,7 @@ parts:
       - libsecret-1-dev
       - libzstd-dev
       - libkrb5-dev
+      - mold
     stage-packages:
       - libssl3t64
       - zlib1g
@@ -104,6 +103,7 @@ parts:
       - -usr/lib/*/cmake/*
       - -usr/include/*
       - -usr/share/ECM/*
+      - -usr/share/doc/*
       - -usr/share/man/*
       - -usr/bin/X11
       - -usr/lib/gcc/$CRAFT_ARCH_TRIPLET_BUILD_FOR/6.0.0

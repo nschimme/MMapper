@@ -20,6 +20,7 @@
 #include <glm/glm.hpp>
 
 #include <QMessageLogContext>
+#include <QOpenGLPixelTransferOptions>
 
 MMTextureId allocateTextureId()
 {
@@ -29,43 +30,60 @@ MMTextureId allocateTextureId()
 }
 
 MMTexture::MMTexture(Badge<MMTexture>, const QString &name)
-    : m_qt_texture{QImage{name}.mirrored()}
+    : m_qt_texture{QOpenGLTexture::Target2D}
     , m_name{name}
     , m_sourceData{std::make_unique<SourceData>()}
 {
+    const QImage img = QImage{name}.mirrored().convertToFormat(QImage::Format_RGBA8888);
     auto &tex = m_qt_texture;
+    tex.setFormat(QOpenGLTexture::TextureFormat::RGBA8_UNorm);
+    tex.setSize(img.width(), img.height());
+    tex.setMipLevels(tex.maximumMipLevels());
+    tex.allocateStorage();
+
+    QOpenGLPixelTransferOptions options;
+    options.setAlignment(1);
+    options.setRowLength(0);
+    tex.setData(QOpenGLTexture::RGBA, QOpenGLTexture::UInt8, img.constBits(), &options);
+
     tex.setWrapMode(QOpenGLTexture::WrapMode::MirroredRepeat);
     tex.setMinMagFilters(QOpenGLTexture::Filter::LinearMipMapLinear, QOpenGLTexture::Filter::Linear);
 }
 
 MMTexture::MMTexture(Badge<MMTexture>, std::vector<QImage> images)
-    : m_qt_texture{std::invoke([&images] {
-        if (images.empty()) {
-            throw std::logic_error("cannot construct MMTexture from empty vector of images");
-        }
-        assert(!images.empty());
-        return QOpenGLTexture{images.front()};
-    })}
+    : m_qt_texture{QOpenGLTexture::Target2D}
     , m_sourceData{std::make_unique<SourceData>(std::move(images))}
 {
-    const auto &front = m_sourceData->m_images.front();
-    size_t level = 0;
-    for (const auto &im : m_sourceData->m_images) {
-        assert(im.width() == im.height());
-        assert(im.width() == (front.width() >> level));
-        assert(im.height() == (front.height() >> level));
-        ++level;
+    if (m_sourceData->m_images.empty()) {
+        throw std::logic_error("cannot construct MMTexture from empty vector of images");
     }
 
+    const auto &front = m_sourceData->m_images.front();
+    const int numLevels = static_cast<int>(m_sourceData->m_images.size());
+
     auto &tex = m_qt_texture;
+    tex.setFormat(QOpenGLTexture::TextureFormat::RGBA8_UNorm);
+    tex.setSize(front.width(), front.height());
+    tex.setMipLevels(numLevels);
+    tex.allocateStorage();
+
+    QOpenGLPixelTransferOptions options;
+    options.setAlignment(1);
+    options.setRowLength(0);
+
+    for (int level = 0; level < numLevels; ++level) {
+        const QImage img = m_sourceData->m_images[static_cast<size_t>(level)].convertToFormat(
+            QImage::Format_RGBA8888);
+        assert(img.width() == (front.width() >> level));
+        assert(img.height() == (front.height() >> level));
+
+        tex.setData(level, QOpenGLTexture::RGBA, QOpenGLTexture::UInt8, img.constBits(), &options);
+    }
+
     tex.setWrapMode(QOpenGLTexture::WrapMode::MirroredRepeat);
     tex.setMinMagFilters(QOpenGLTexture::Filter::NearestMipMapNearest,
                          QOpenGLTexture::Filter::Nearest);
-    tex.setFormat(QOpenGLTexture::TextureFormat::RGBA8_UNorm);
     tex.setAutoMipMapGenerationEnabled(false);
-    const int numLevels = static_cast<int>(level);
-    tex.setMipLevels(numLevels);
-    tex.setMipMaxLevel(numLevels - 1);
 }
 
 void MapCanvasTextures::destroyAll()

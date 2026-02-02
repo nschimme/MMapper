@@ -30,6 +30,7 @@
 
 #include <QtCore>
 #include <QtGui>
+#include <QOpenGLPixelTransferOptions>
 
 static const bool VERBOSE_FONT_DEBUG = std::invoke([]() -> bool {
     if (auto opt = utils::getEnvBool("MMAPPER_VERBOSE_FONT_DEBUG")) {
@@ -764,12 +765,20 @@ void GLFont::init()
         [&fm, &imageFilename](QOpenGLTexture &tex) -> void {
             QImage img{imageFilename};
             fm.tryAddSyntheticGlyphs(img);
-            img = img.mirrored();
+            img = img.mirrored().convertToFormat(QImage::Format_RGBA8888);
+
+            tex.setFormat(QOpenGLTexture::TextureFormat::RGBA8_UNorm);
+            tex.setSize(img.width(), img.height());
+            tex.setMipLevels(1);
+            tex.allocateStorage();
+
+            QOpenGLPixelTransferOptions options;
+            options.setAlignment(1);
+            options.setRowLength(0);
+            tex.setData(QOpenGLTexture::RGBA, QOpenGLTexture::UInt8, img.constBits(), &options);
 
             tex.setMinMagFilters(QOpenGLTexture::Filter::Linear, QOpenGLTexture::Filter::Linear);
             tex.setAutoMipMapGenerationEnabled(false);
-            tex.setMipLevels(0);
-            tex.setData(img, QOpenGLTexture::MipMapGeneration::DontGenerateMipMaps);
         },
         true);
 

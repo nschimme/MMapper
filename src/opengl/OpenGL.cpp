@@ -315,30 +315,33 @@ void OpenGL::initArrayFromFiles(const SharedMMTexture &array, const std::vector<
     gl.glBindTexture(GL_TEXTURE_2D_ARRAY, qtex.textureId());
 
     const auto numLayers = static_cast<GLsizei>(input.size());
+    gl.glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     for (GLsizei i = 0; i < numLayers; ++i) {
-        QImage image = QImage{input[static_cast<size_t>(i)]}.mirrored();
-        if (image.width() != qtex.width() || image.height() != qtex.height()) {
+        const QImage img = QImage{input[static_cast<size_t>(i)]}
+                               .mirrored()
+                               .convertToFormat(QImage::Format_RGBA8888);
+        if (img.width() != qtex.width() || img.height() != qtex.height()) {
             std::ostringstream oss;
-            oss << "Image is " << image.width() << "x" << image.height() << ", but expected "
+            oss << "Image is " << img.width() << "x" << img.height() << ", but expected "
                 << qtex.width() << "x" << qtex.height();
             auto s = std::move(oss).str();
             MMLOG_ERROR() << s.c_str();
         }
-        const QImage swappedImage = std::move(image).rgbSwapped();
         gl.glTexSubImage3D(GL_TEXTURE_2D_ARRAY,
                            0,
                            0,
                            0,
                            i,
-                           swappedImage.width(),
-                           swappedImage.height(),
+                           img.width(),
+                           img.height(),
                            1,
                            GL_RGBA,
                            GL_UNSIGNED_BYTE,
-                           swappedImage.constBits());
+                           img.constBits());
     }
 
     gl.glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
+    gl.glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
     gl.glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
 }
 
@@ -353,6 +356,7 @@ void OpenGL::initArrayFromImages(const SharedMMTexture &array,
     gl.glBindTexture(GL_TEXTURE_2D_ARRAY, qtex.textureId());
 
     const auto numImages = input.size();
+    gl.glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     for (size_t z = 0; z < numImages; ++z) {
         const auto &layer = input[z];
         const auto numLevels = layer.size();
@@ -362,31 +366,31 @@ void OpenGL::initArrayFromImages(const SharedMMTexture &array,
         assert(ipow2 == layer.front().height());
 
         for (size_t level_num = 0; level_num < numLevels; ++level_num) {
-            const QImage &image = layer[level_num];
-            if (image.width() != (qtex.width() >> level_num)
-                || image.height() != (qtex.height() >> level_num)) {
+            const QImage img = layer[level_num].convertToFormat(QImage::Format_RGBA8888);
+            if (img.width() != (qtex.width() >> level_num)
+                || img.height() != (qtex.height() >> level_num)) {
                 std::ostringstream oss;
-                oss << "Image is " << image.width() << "x" << image.height() << ", but expected "
+                oss << "Image is " << img.width() << "x" << img.height() << ", but expected "
                     << (qtex.width() >> level_num) << "x" << (qtex.height() >> level_num)
                     << " for level " << level_num;
                 auto s = std::move(oss).str();
                 MMLOG_ERROR() << s.c_str();
             }
 
-            const QImage swappedImage = std::move(image).rgbSwapped();
             gl.glTexSubImage3D(GL_TEXTURE_2D_ARRAY,
                                static_cast<GLint>(level_num),
                                0,
                                0,
                                static_cast<GLint>(z),
-                               swappedImage.width(),
-                               swappedImage.height(),
+                               img.width(),
+                               img.height(),
                                1,
                                GL_RGBA,
                                GL_UNSIGNED_BYTE,
-                               swappedImage.constBits());
+                               img.constBits());
         }
     }
+    gl.glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 
     gl.glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
 }

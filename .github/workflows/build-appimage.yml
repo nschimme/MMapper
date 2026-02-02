@@ -28,9 +28,17 @@ jobs:
       run: |
         sudo apt update -qq
         sudo apt install -y \
-          qt6-base-dev qt6-base-dev-tools libqt6opengl6-dev libqt6websockets6-dev \
-          libgl1-mesa-dev qt6-wayland qtkeychain-qt6-dev build-essential mold git \
-          zlib1g-dev libssl-dev wget zsync fuse file cmake libxcb-cursor-dev
+          libgl1-mesa-dev build-essential mold git \
+          zlib1g-dev libssl-dev wget zsync fuse file cmake libxcb-cursor-dev \
+          libsecret-1-dev
+
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: 6.8.3
+        arch: linux_gcc_64
+        cache: true
+        modules: 'qtwebsockets qtwaylandcompositor'
 
     - name: Download linuxdeploy
       run: |
@@ -49,6 +57,7 @@ jobs:
         cmake .. \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_INSTALL_PREFIX=/usr \
+          -DCMAKE_PREFIX_PATH=$QT_ROOT_DIR \
           -DUSE_MOLD=true \
           -DWITH_WEBSOCKET=ON \
           -DWITH_QTKEYCHAIN=ON \
@@ -65,9 +74,10 @@ jobs:
         # Configure linuxdeploy and make sure the plugin can be found
         export PATH=$PATH:$(pwd)/..
         export UPDATE_INFORMATION="gh-releases-zsync|MUME|MMapper|latest|MMapper-*-x86_64.AppImage.zsync"
-        export QMAKE=/usr/bin/qmake6
+        export QMAKE=$QT_ROOT_DIR/bin/qmake
         export EXTRA_PLATFORM_PLUGINS="libqoffscreen.so;libqwayland-egl.so;libqwayland-generic.so"
-        export EXTRA_QT_PLUGINS="wayland-decoration-client;wayland-graphics-integration-client;wayland-shell-integration;waylandcompositor"
+        export EXTRA_QT_MODULES="waylandcompositor"
+        export EXTRA_QT_PLUGINS="wayland-client;wayland-graphics-integration-client;wayland-shell-integration"
         export LIBSECRET_PATH=$(find /usr/lib -name "libsecret-1.so.0" 2>/dev/null | head -n 1)
 
         if [ -z "$LIBSECRET_PATH" ]; then

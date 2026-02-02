@@ -68,6 +68,9 @@ parts:
       - libgl-dev
       - libegl-dev
       - libvulkan-dev
+      - libduktape-dev
+      - libproxy-dev
+      - libsecret-1-dev
     stage-packages:
       - libssl3t64
       - zlib1g

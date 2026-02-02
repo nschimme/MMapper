@@ -3,6 +3,7 @@
 // Copyright (C) 2019 The MMapper Authors
 
 #include "../global/RuleOf5.h"
+#include "../global/macros.h"
 
 #include <QObject>
 #include <QString>
@@ -28,6 +29,8 @@ public:
 
     void setPassword(const QString &password);
     void getPassword();
+
+    NODISCARD static bool isAvailable();
 
 signals:
     void sig_error(const QString &msg);

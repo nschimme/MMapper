@@ -68,7 +68,7 @@ parts:
       - libgl-dev
       - libegl-dev
       - libvulkan-dev
-      - libduktape-dev
+      - duktape-dev
       - libproxy-dev
       - libsecret-1-dev
     stage-packages:

@@ -20,7 +20,7 @@ platforms:
 
 apps:
   mmapper:
-    command: bin/gpu-2404-wrapper usr/bin/mmapper
+    command: usr/bin/mmapper
     common-id: org.mume.MMapper
     desktop: usr/share/applications/org.mume.MMapper.desktop
     extensions:
@@ -70,7 +70,12 @@ parts:
       - QT_PLUGIN_PATH: "$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/plugins:/snap/kf6-core24/current/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/plugins:/snap/kde-qt6-core24-sdk/current/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/plugins"
       - QML2_IMPORT_PATH: "$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/qml:/snap/kf6-core24/current/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/qml:/snap/kde-qt6-core24-sdk/current/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/qml"
       - QT_INSTALL_QML: $QML2_IMPORT_PATH
-      - LD_LIBRARY_PATH: "/snap/mesa-2404/current/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR:$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR:/snap/kde-qt6-core24-sdk/current/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libproxy:$LD_LIBRARY_PATH"
+      - LD_LIBRARY_PATH: "/snap/mesa-2404/current/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR:$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR:/snap/ffmpeg-2404-sdk/current/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR:/snap/kde-qt6-core24-sdk/current/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libproxy:$LD_LIBRARY_PATH"
+    build-snaps:
+      - kde-qt6-core24-sdk
+      - kf6-core24-sdk
+      - mesa-2404
+      - ffmpeg-2404-sdk
     build-packages:
       - libglm-dev
       - libssl-dev
@@ -120,13 +125,14 @@ parts:
   cleanup:
     after:
       - mmapper
-      - gpu-2404
     plugin: nil
     build-snaps:
       - core24
       - kf6-core24
+      - kde-qt6-core24-sdk
+      - kf6-core24-sdk
     override-prime: |
       set -eux
-      for snap in "core24" "kf6-core24"; do
+      for snap in "core24" "kf6-core24" "kde-qt6-core24-sdk" "kf6-core24-sdk"; do
           cd "/snap/$snap/current" && find . -type f,l -exec rm -rf "${CRAFT_PRIME}/{}" \;
       done

@@ -71,9 +71,17 @@ parts:
       - duktape-dev
       - libproxy-dev
       - libsecret-1-dev
+      - libzstd-dev
+      - libkrb5-dev
     stage-packages:
       - libssl3t64
       - zlib1g
+      - libduktape207
+      - libproxy1v5
+      - libsecret-1-0
+      - libxkbcommon0
+      - libzstd1
+      - libgssapi-krb5-2
     override-pull: |
       craftctl default
       craftctl set version=$(git describe --tags --always --long --exclude beta | sed 's/^v//')
@@ -87,7 +95,7 @@ parts:
       - -usr/share/ECM/*
       - -usr/share/man/*
       - -usr/bin/X11
-      - -usr/lib/gcc/$CRAFT_ARCH_TRIPLET_BUILD_FOR/6.0.0
+      - -usr/lib/gcc/*/6.0.0
       - -usr/lib/aspell/*
       - -usr/share/lintian
   gpu-2404:

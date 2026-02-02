@@ -20,7 +20,7 @@ platforms:
 
 apps:
   mmapper:
-    command: bin/gpu-2404-wrapper usr/bin/mmapper
+    command: usr/bin/mmapper
     common-id: org.mume.MMapper
     desktop: usr/share/applications/org.mume.MMapper.desktop
     extensions:

@@ -116,6 +116,7 @@ private:
         static_assert(static_cast<size_t>(DrawModeEnum::TRIANGLES) == 3);
         static_assert(static_cast<size_t>(DrawModeEnum::QUADS) == 4);
         assert(mode == DrawModeEnum::INVALID || mode == DrawModeEnum::INSTANCED_QUADS
+               || mode == DrawModeEnum::INSTANCED_LINES
                || numVerts % static_cast<size_t>(mode) == 0);
 
         if (!m_vbo && numVerts != 0) {

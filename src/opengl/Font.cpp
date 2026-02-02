@@ -822,13 +822,27 @@ void FontMetrics::getFontBatchRawData(const GLText *const text,
     const auto before = output.size();
     const auto end = text + count;
 
-    const size_t expectedInstances = std::invoke([text, end]() -> size_t {
-        int numGlyphs = 0;
+    const size_t expectedInstances = std::invoke([text, end, this]() -> size_t {
+        size_t numGlyphs = 0;
+        const bool hasBackground = background.has_value();
+        const bool hasUnderline = underline.has_value();
+        const bool hasOops = lookupGlyph(char_consts::C_QUESTION_MARK) != nullptr;
+
         for (const GLText *it = text; it != end; ++it) {
-            numGlyphs += static_cast<int>(it->text.size()) + (it->bgcolor.has_value() ? 1 : 0)
-                         + (it->fontFormatFlag.contains(FontFormatFlagEnum::UNDERLINE) ? 1 : 0);
+            if (hasBackground && it->bgcolor.has_value()) {
+                numGlyphs++;
+            }
+            if (hasUnderline && it->fontFormatFlag.contains(FontFormatFlagEnum::UNDERLINE)) {
+                numGlyphs++;
+            }
+
+            for (const char &c : it->text) {
+                if (lookupGlyph(c) != nullptr || hasOops) {
+                    numGlyphs++;
+                }
+            }
         }
-        return static_cast<size_t>(numGlyphs);
+        return numGlyphs;
     });
 
     output.reserve(before + expectedInstances);

@@ -30,6 +30,7 @@ apps:
       - network
       - network-bind
       - opengl
+      - wayland
 
 package-repositories:
   - type: apt

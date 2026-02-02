@@ -212,17 +212,10 @@ void CharacterBatch::CharFakeGL::drawQuadCommon(const glm::vec2 &in_a,
 
     if (::utils::isSet(options, QuadOptsEnum::OUTLINE)) {
         const auto color = m_color.withAlpha(LINE_ALPHA);
-        auto emitVert = [this, &color](const auto &x) -> void {
-            m_charLines.emplace_back(color, x);
-        };
-        auto emitLine = [&emitVert](const auto &v0, const auto &v1) -> void {
-            emitVert(v0);
-            emitVert(v1);
-        };
-        emitLine(a, b);
-        emitLine(b, c);
-        emitLine(c, d);
-        emitLine(d, a);
+        m_charLines.emplace_back(color, a, b, CHAR_ARROW_LINE_WIDTH);
+        m_charLines.emplace_back(color, b, c, CHAR_ARROW_LINE_WIDTH);
+        m_charLines.emplace_back(color, c, d, CHAR_ARROW_LINE_WIDTH);
+        m_charLines.emplace_back(color, d, a, CHAR_ARROW_LINE_WIDTH);
     }
 }
 
@@ -338,8 +331,7 @@ void CharacterBatch::CharFakeGL::reallyDrawCharacters(OpenGL &gl, const MapCanva
     }
 
     if (!m_charLines.empty()) {
-        gl.renderColoredLines(m_charLines,
-                              blended_noDepth.withLineParams(LineParams{CHAR_ARROW_LINE_WIDTH}));
+        gl.renderLineInstances(m_charLines, blended_noDepth);
     }
 
     if (!m_screenSpaceArrows.empty()) {

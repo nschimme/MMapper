@@ -192,6 +192,7 @@ public:
     using Base::glDisable;
     using Base::glDisableVertexAttribArray;
     using Base::glDrawArrays;
+    using Base::glDrawArraysInstanced;
     using Base::glDrawElementsInstanced;
     using Base::glEnable;
     using Base::glEnableVertexAttribArray;
@@ -443,6 +444,7 @@ public:
     void renderColoredTextured(DrawModeEnum mode,
                                const std::vector<ColoredTexVert> &verts,
                                const GLRenderState &state);
+    void renderLineInstances(const std::vector<LineInstance> &verts, const GLRenderState &state);
     void renderFont3d(const SharedMMTexture &texture, const std::vector<FontVert3d> &verts);
 
 public:

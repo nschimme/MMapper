@@ -31,6 +31,7 @@ std::optional<GLenum> FunctionsGL33::virt_toGLenum(const DrawModeEnum mode)
 #else
         FALLTHROUGH;
 #endif
+    case DrawModeEnum::INSTANCED_LINES:
     case DrawModeEnum::INSTANCED_QUADS:
     case DrawModeEnum::INVALID:
         break;

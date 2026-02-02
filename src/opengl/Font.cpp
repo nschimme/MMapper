@@ -764,19 +764,13 @@ void GLFont::init()
         [&fm, &imageFilename](QOpenGLTexture &tex) -> void {
             QImage img{imageFilename};
             fm.tryAddSyntheticGlyphs(img);
-            img = img.mirrored();
-
-            const QImage converted = img.convertToFormat(QImage::Format_RGBA8888);
+            const QImage converted = img.mirrored().convertToFormat(QImage::Format_RGBA8888);
             tex.setFormat(QOpenGLTexture::TextureFormat::RGBA8_UNorm);
-            tex.setMinMagFilters(QOpenGLTexture::Filter::Linear, QOpenGLTexture::Filter::Linear);
-            tex.setAutoMipMapGenerationEnabled(false);
-            tex.setMipLevels(1);
             tex.setSize(converted.width(), converted.height());
+            tex.setMipLevels(1);
             tex.allocateStorage();
-            tex.setData(0,
-                        QOpenGLTexture::PixelFormat::RGBA,
-                        QOpenGLTexture::PixelType::UInt8,
-                        converted.constBits());
+            tex.setMinMagFilters(QOpenGLTexture::Filter::Linear, QOpenGLTexture::Filter::Linear);
+            tex.setData(converted, QOpenGLTexture::DontGenerateMipMaps);
         },
         true);
 

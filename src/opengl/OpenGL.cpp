@@ -26,6 +26,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <QOpenGLContext>
+#include <QOpenGLPixelTransferOptions>
 #include <QSurfaceFormat>
 
 OpenGL::OpenGL()
@@ -275,63 +276,45 @@ void OpenGL::setTextureLookup(const MMTextureId id, SharedMMTexture tex)
 
 void OpenGL::initArrayFromFiles(const SharedMMTexture &array, const std::vector<QString> &input)
 {
-    auto &gl = getFunctions();
     MMTexture &tex = deref(array);
     QOpenGLTexture &qtex = deref(tex.get());
 
-    gl.glActiveTexture(GL_TEXTURE0);
-    gl.glBindTexture(GL_TEXTURE_2D_ARRAY, qtex.textureId());
-    gl.glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    gl.glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-    gl.glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0);
-    gl.glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
-    gl.glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
-    gl.glPixelStorei(GL_UNPACK_SKIP_IMAGES, 0);
+    QOpenGLPixelTransferOptions options;
+    options.setAlignment(1);
+    options.setRowLength(0);
 
-    const auto numLayers = static_cast<GLsizei>(input.size());
-    for (GLsizei i = 0; i < numLayers; ++i) {
-        const QImage image = QImage{input[static_cast<size_t>(i)]}
-                                 .mirrored()
-                                 .convertToFormat(QImage::Format_RGBA8888);
+    const auto numLayers = static_cast<int>(input.size());
+    for (int i = 0; i < numLayers; ++i) {
+        const QImage image = QImage{input[static_cast<size_t>(i)]}.mirrored().convertToFormat(
+            QImage::Format_RGBA8888);
         if (image.width() != qtex.width() || image.height() != qtex.height()) {
             std::ostringstream oss;
-            oss << "Image is " << image.width() << "x" << image.height() << ", but expected "
-                << qtex.width() << "x" << qtex.height();
+            oss << "Image " << i << " is " << image.width() << "x" << image.height()
+                << ", but expected " << qtex.width() << "x" << qtex.height() << " for array "
+                << qtex.textureId();
             auto s = std::move(oss).str();
             MMLOG_ERROR() << s.c_str();
         }
-        gl.glTexSubImage3D(GL_TEXTURE_2D_ARRAY,
-                           0,
-                           0,
-                           0,
-                           i,
-                           image.width(),
-                           image.height(),
-                           1,
-                           GL_RGBA,
-                           GL_UNSIGNED_BYTE,
-                           image.constBits());
+        qtex.setData(0,
+                     i,
+                     QOpenGLTexture::PixelFormat::RGBA,
+                     QOpenGLTexture::PixelType::UInt8,
+                     image.constBits(),
+                     &options);
     }
 
-    gl.glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
-    gl.glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+    qtex.generateMipMaps();
 }
 
 void OpenGL::initArrayFromImages(const SharedMMTexture &array,
                                  const std::vector<std::vector<QImage>> &input)
 {
-    auto &gl = getFunctions();
     MMTexture &tex = deref(array);
     QOpenGLTexture &qtex = deref(tex.get());
 
-    gl.glActiveTexture(GL_TEXTURE0);
-    gl.glBindTexture(GL_TEXTURE_2D_ARRAY, qtex.textureId());
-    gl.glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    gl.glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-    gl.glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0);
-    gl.glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
-    gl.glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
-    gl.glPixelStorei(GL_UNPACK_SKIP_IMAGES, 0);
+    QOpenGLPixelTransferOptions options;
+    options.setAlignment(1);
+    options.setRowLength(0);
 
     const auto numImages = input.size();
     for (size_t z = 0; z < numImages; ++z) {
@@ -344,29 +327,24 @@ void OpenGL::initArrayFromImages(const SharedMMTexture &array,
 
         for (size_t level_num = 0; level_num < numLevels; ++level_num) {
             const QImage image = layer[level_num].convertToFormat(QImage::Format_RGBA8888);
-            if (image.width() != (qtex.width() >> level_num)
-                || image.height() != (qtex.height() >> level_num)) {
+            const int expectedW = (qtex.width() >> level_num);
+            const int expectedH = (qtex.height() >> level_num);
+
+            if (image.width() != expectedW || image.height() != expectedH) {
                 std::ostringstream oss;
-                oss << "Image is " << image.width() << "x" << image.height() << ", but expected "
-                    << (qtex.width() >> level_num) << "x" << (qtex.height() >> level_num)
-                    << " for level " << level_num;
+                oss << "Image at layer " << z << " level " << level_num << " is " << image.width()
+                    << "x" << image.height() << ", but expected " << expectedW << "x" << expectedH
+                    << " for array " << qtex.textureId();
                 auto s = std::move(oss).str();
                 MMLOG_ERROR() << s.c_str();
             }
 
-            gl.glTexSubImage3D(GL_TEXTURE_2D_ARRAY,
-                               static_cast<GLint>(level_num),
-                               0,
-                               0,
-                               static_cast<GLint>(z),
-                               image.width(),
-                               image.height(),
-                               1,
-                               GL_RGBA,
-                               GL_UNSIGNED_BYTE,
-                               image.constBits());
+            qtex.setData(static_cast<int>(level_num),
+                         static_cast<int>(z),
+                         QOpenGLTexture::PixelFormat::RGBA,
+                         QOpenGLTexture::PixelType::UInt8,
+                         image.constBits(),
+                         &options);
         }
     }
-
-    gl.glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
 }

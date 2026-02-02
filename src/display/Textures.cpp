@@ -20,6 +20,7 @@
 #include <glm/glm.hpp>
 
 #include <QMessageLogContext>
+#include <QOpenGLPixelTransferOptions>
 
 MMTextureId allocateTextureId()
 {
@@ -41,11 +42,7 @@ MMTexture::MMTexture(Badge<MMTexture>, const QString &name)
         tex.setSize(converted.width(), converted.height());
         tex.setMipLevels(tex.maximumMipLevels());
         tex.allocateStorage();
-        tex.setData(0,
-                    QOpenGLTexture::PixelFormat::RGBA,
-                    QOpenGLTexture::PixelType::UInt8,
-                    converted.constBits());
-        tex.generateMipMaps();
+        tex.setData(converted);
     }
     tex.setWrapMode(QOpenGLTexture::WrapMode::MirroredRepeat);
     tex.setMinMagFilters(QOpenGLTexture::Filter::LinearMipMapLinear, QOpenGLTexture::Filter::Linear);
@@ -73,12 +70,17 @@ MMTexture::MMTexture(Badge<MMTexture>, std::vector<QImage> images)
     const int numLevels = static_cast<int>(level);
     tex.setMipLevels(numLevels);
     tex.setMipMaxLevel(numLevels - 1);
+    tex.setSize(front.width(), front.height());
+    tex.allocateStorage();
+
     tex.setAutoMipMapGenerationEnabled(false);
     tex.setWrapMode(QOpenGLTexture::WrapMode::MirroredRepeat);
     tex.setMinMagFilters(QOpenGLTexture::Filter::NearestMipMapNearest,
                          QOpenGLTexture::Filter::Nearest);
-    tex.setSize(front.width(), front.height());
-    tex.allocateStorage();
+
+    QOpenGLPixelTransferOptions options;
+    options.setAlignment(1);
+    options.setRowLength(0);
 
     for (int i = 0; i < numLevels; ++i) {
         const QImage img = m_sourceData->m_images[static_cast<size_t>(i)].convertToFormat(
@@ -86,7 +88,8 @@ MMTexture::MMTexture(Badge<MMTexture>, std::vector<QImage> images)
         tex.setData(i,
                     QOpenGLTexture::PixelFormat::RGBA,
                     QOpenGLTexture::PixelType::UInt8,
-                    img.constBits());
+                    img.constBits(),
+                    &options);
     }
 }
 
@@ -435,7 +438,7 @@ void MapCanvas::initTextures()
                     tex.setMinMagFilters(first.minificationFilter(), first.magnificationFilter());
                     tex.setAutoMipMapGenerationEnabled(false);
                     tex.create();
-                    tex.setSize(maxWidth, maxHeight, 1);
+                    tex.setSize(maxWidth, maxHeight, static_cast<int>(numLayers));
                     tex.setLayers(static_cast<int>(numLayers));
                     tex.setMipLevels(useImages ? maxMipLevel : tex.maximumMipLevels());
                     tex.setFormat(first.format());

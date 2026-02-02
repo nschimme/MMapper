@@ -30,6 +30,8 @@ apps:
       - network
       - network-bind
       - opengl
+      - wayland
+      - x11
 
 parts:
   mmapper:

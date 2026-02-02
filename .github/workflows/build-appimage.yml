@@ -93,6 +93,8 @@ jobs:
           --exclude-library libwayland-client.so.0 \
           --exclude-library libwayland-cursor.so.0 \
           --exclude-library libwayland-egl.so.1 \
+          --exclude-library libxkbcommon.so.0 \
+          --exclude-library libX11-xcb.so.1 \
           --exclude-library libEGL.so.1 \
           --exclude-library libGL.so.1 \
           --exclude-library libdrm.so.2 \

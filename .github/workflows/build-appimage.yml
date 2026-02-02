@@ -76,7 +76,8 @@ jobs:
         export UPDATE_INFORMATION="gh-releases-zsync|MUME|MMapper|latest|MMapper-*-x86_64.AppImage.zsync"
         export QMAKE=$QT_ROOT_DIR/bin/qmake
         export EXTRA_PLATFORM_PLUGINS="libqoffscreen.so;libqwayland-egl.so;libqwayland-generic.so"
-        export EXTRA_QT_PLUGINS="wayland-decoration-client;wayland-graphics-integration-client;wayland-shell-integration;waylandcompositor"
+        export EXTRA_QT_MODULES="waylandcompositor;websockets"
+        export EXTRA_QT_PLUGINS="wayland-client;wayland-graphics-integration-client;wayland-shell-integration"
         export LIBSECRET_PATH=$(find /usr/lib -name "libsecret-1.so.0" 2>/dev/null | head -n 1)
 
         if [ -z "$LIBSECRET_PATH" ]; then
@@ -90,14 +91,6 @@ jobs:
           --desktop-file appdir/usr/share/applications/org.mume.MMapper.desktop \
           --icon-file appdir/usr/share/icons/hicolor/256x256/apps/org.mume.MMapper.png \
           --library "$LIBSECRET_PATH" \
-          --exclude-library libwayland-client.so.0 \
-          --exclude-library libwayland-cursor.so.0 \
-          --exclude-library libwayland-egl.so.1 \
-          --exclude-library libxkbcommon.so.0 \
-          --exclude-library libX11-xcb.so.1 \
-          --exclude-library libEGL.so.1 \
-          --exclude-library libGL.so.1 \
-          --exclude-library libdrm.so.2 \
           --plugin qt
 
     - name: Generate SHA256 checksum for AppImage

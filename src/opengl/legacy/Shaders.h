@@ -129,6 +129,24 @@ private:
     }
 };
 
+struct NODISCARD LineShader final : public AbstractShaderProgram
+{
+public:
+    using AbstractShaderProgram::AbstractShaderProgram;
+
+    ~LineShader() final;
+
+private:
+    void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final
+    {
+        auto functions = AbstractShaderProgram::m_functions.lock();
+
+        setColor("uColor", uniforms.color);
+        setMatrix("uMVP", mvp);
+        setViewport("uViewport", deref(functions).getPhysicalViewport());
+    }
+};
+
 /* owned by Functions */
 struct NODISCARD ShaderPrograms final
 {
@@ -147,6 +165,7 @@ private:
 private:
     std::shared_ptr<FontShader> m_font;
     std::shared_ptr<PointShader> m_point;
+    std::shared_ptr<LineShader> m_lineShader;
 
 public:
     explicit ShaderPrograms(Functions &functions)
@@ -177,6 +196,7 @@ public:
 public:
     NODISCARD const std::shared_ptr<FontShader> &getFontShader();
     NODISCARD const std::shared_ptr<PointShader> &getPointShader();
+    NODISCARD const std::shared_ptr<LineShader> &getLineShader();
 
 public:
     void early_init();

@@ -194,6 +194,11 @@ void OpenGL::renderColoredTextured(const DrawModeEnum type,
     getFunctions().renderColoredTextured(type, verts, state);
 }
 
+void OpenGL::renderLineInstances(const std::vector<LineInstance> &verts, const GLRenderState &state)
+{
+    getFunctions().renderLineInstances(verts, state);
+}
+
 void OpenGL::renderPlainFullScreenQuad(const GLRenderState &renderState)
 {
     using MeshType = Legacy::PlainMesh<glm::vec3>;

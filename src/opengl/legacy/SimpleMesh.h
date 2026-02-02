@@ -189,6 +189,8 @@ private:
 
         if (m_drawMode == DrawModeEnum::INSTANCED_QUADS) {
             drawRoomQuad(m_functions, m_numVerts);
+        } else if (m_drawMode == DrawModeEnum::INSTANCED_LINES) {
+            m_functions.glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, m_numVerts);
         } else if (const std::optional<GLenum> &optMode = m_functions.toGLenum(m_drawMode)) {
             m_functions.glDrawArrays(optMode.value(), 0, m_numVerts);
         } else {

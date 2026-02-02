@@ -130,6 +130,9 @@ public:
     }
 
 public:
+    void renderLineInstances(const std::vector<LineInstance> &verts, const GLRenderState &state);
+
+public:
     void renderColoredLines(const std::vector<ColorVert> &verts, const GLRenderState &state)
     {
         renderColored(DrawModeEnum::LINES, verts, state);

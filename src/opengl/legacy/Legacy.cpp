@@ -253,6 +253,17 @@ void Functions::renderColoredTextured(const DrawModeEnum mode,
                                                                  state);
 }
 
+void Functions::renderLineInstances(const std::vector<LineInstance> &verts,
+                                    const GLRenderState &state)
+{
+    const auto &prog = getShaderPrograms().getLineShader();
+    renderImmediate<LineInstance, Legacy::LineMesh>(shared_from_this(),
+                                                    DrawModeEnum::INSTANCED_LINES,
+                                                    verts,
+                                                    prog,
+                                                    state);
+}
+
 void Functions::renderFont3d(const SharedMMTexture &texture, const std::vector<FontVert3d> &verts)
 
 {

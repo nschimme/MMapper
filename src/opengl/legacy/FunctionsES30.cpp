@@ -26,6 +26,7 @@ std::optional<GLenum> FunctionsES30::virt_toGLenum(const DrawModeEnum mode)
     case DrawModeEnum::INVALID:
     case DrawModeEnum::QUADS:
     case DrawModeEnum::INSTANCED_QUADS:
+    case DrawModeEnum::INSTANCED_LINES:
         break;
     }
 

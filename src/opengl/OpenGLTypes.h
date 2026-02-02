@@ -87,6 +87,24 @@ struct NODISCARD ColorVert final
     {}
 };
 
+struct NODISCARD LineInstance final
+{
+    Color color;
+    glm::vec3 from{};
+    glm::vec3 to{};
+    float width = 1.0f;
+
+    explicit LineInstance(const Color color_,
+                          const glm::vec3 &from_,
+                          const glm::vec3 &to_,
+                          const float width_)
+        : color{color_}
+        , from{from_}
+        , to{to_}
+        , width{width_}
+    {}
+};
+
 // Similar to ColoredTexVert, except it has a base position in world coordinates.
 // the font's vertex shader transforms the world position to screen space,
 // rounds to integer pixel offset, and then adds the vertex position in screen space.
@@ -117,7 +135,8 @@ enum class NODISCARD DrawModeEnum {
     LINES = 2,
     TRIANGLES = 3,
     QUADS = 4,
-    INSTANCED_QUADS = 5
+    INSTANCED_QUADS = 5,
+    INSTANCED_LINES = 6
 };
 
 struct NODISCARD LineParams final

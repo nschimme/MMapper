@@ -36,6 +36,7 @@ RoomQuadTexShader::~RoomQuadTexShader() = default;
 
 FontShader::~FontShader() = default;
 PointShader::~PointShader() = default;
+LineShader::~LineShader() = default;
 
 void ShaderPrograms::early_init()
 {
@@ -48,6 +49,7 @@ void ShaderPrograms::early_init()
 
     std::ignore = getFontShader();
     std::ignore = getPointShader();
+    std::ignore = getLineShader();
 }
 
 void ShaderPrograms::resetAll()
@@ -61,6 +63,7 @@ void ShaderPrograms::resetAll()
 
     m_font.reset();
     m_point.reset();
+    m_lineShader.reset();
 }
 
 // essentially a private member of ShaderPrograms
@@ -125,6 +128,11 @@ const std::shared_ptr<FontShader> &ShaderPrograms::getFontShader()
 const std::shared_ptr<PointShader> &ShaderPrograms::getPointShader()
 {
     return getInitialized<PointShader>(m_point, getFunctions(), "point");
+}
+
+const std::shared_ptr<LineShader> &ShaderPrograms::getLineShader()
+{
+    return getInitialized<LineShader>(m_lineShader, getFunctions(), "line");
 }
 
 } // namespace Legacy

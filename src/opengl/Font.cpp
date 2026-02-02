@@ -629,9 +629,6 @@ public:
         {
             const auto emitSpecialInstance =
                 [this](uint32_t color, uint16_t flags, const Rect &vert, const Rect &tc) {
-                    if (m_noOutput) {
-                        return;
-                    }
                     m_verts3d.emplace_back(m_opts.pos,
                                            color,
                                            static_cast<int16_t>(vert.lo.x),

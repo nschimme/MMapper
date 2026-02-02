@@ -87,27 +87,45 @@ struct NODISCARD ColorVert final
     {}
 };
 
-// Similar to ColoredTexVert, except it has a base position in world coordinates.
+// Instance data for font rendering.
 // the font's vertex shader transforms the world position to screen space,
-// rounds to integer pixel offset, and then adds the vertex position in screen space.
-//
-// Rendering with the font shader requires passing uniforms for the world space
-// model-view-projection matrix and the output viewport.
-struct NODISCARD FontVert3d final
+// rounds to integer pixel offset, and then adds the (possibly rotated/italicized)
+// vertex offset in screen space.
+struct NODISCARD FontInstanceData final
 {
     glm::vec3 base{}; // world space
-    Color color;
-    glm::vec2 tex{};
-    glm::vec2 vert{}; // screen space
+    uint32_t color = 0;
+    int16_t offsetX = 0, offsetY = 0;
+    int16_t sizeW = 0, sizeH = 0;
+    int16_t uvX = 0, uvY = 0;
+    int16_t uvW = 0, uvH = 0;
+    int16_t rotation = 0;
+    uint16_t flags = 0;
 
-    explicit FontVert3d(const glm::vec3 &base_,
-                        const Color color_,
-                        const glm::vec2 &tex_,
-                        const glm::vec2 &vert_)
+    explicit FontInstanceData(const glm::vec3 &base_,
+                              uint32_t color_,
+                              int16_t offsetX_,
+                              int16_t offsetY_,
+                              int16_t sizeW_,
+                              int16_t sizeH_,
+                              int16_t uvX_,
+                              int16_t uvY_,
+                              int16_t uvW_,
+                              int16_t uvH_,
+                              int16_t rotation_,
+                              uint16_t flags_)
         : base{base_}
         , color{color_}
-        , tex{tex_}
-        , vert{vert_}
+        , offsetX{offsetX_}
+        , offsetY{offsetY_}
+        , sizeW{sizeW_}
+        , sizeH{sizeH_}
+        , uvX{uvX_}
+        , uvY{uvY_}
+        , uvW{uvW_}
+        , uvH{uvH_}
+        , rotation{rotation_}
+        , flags{flags_}
     {}
 };
 

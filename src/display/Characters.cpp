@@ -346,7 +346,10 @@ void CharacterBatch::CharFakeGL::reallyDrawCharacters(OpenGL &gl, const MapCanva
         // FIXME: add an option to auto-scale to DPR.
         const float dpr = gl.getDevicePixelRatio();
         for (auto &v : m_screenSpaceArrows) {
-            v.vert *= dpr;
+            v.offsetX = static_cast<int16_t>(std::lround(static_cast<float>(v.offsetX) * dpr));
+            v.offsetY = static_cast<int16_t>(std::lround(static_cast<float>(v.offsetY) * dpr));
+            v.sizeW = static_cast<int16_t>(std::lround(static_cast<float>(v.sizeW) * dpr));
+            v.sizeH = static_cast<int16_t>(std::lround(static_cast<float>(v.sizeH) * dpr));
         }
         gl.renderFont3d(textures.char_arrows, m_screenSpaceArrows);
         m_screenSpaceArrows.clear();
@@ -369,28 +372,31 @@ void CharacterBatch::CharFakeGL::addScreenSpaceArrow(const glm::vec3 &pos,
                                                      const Color color,
                                                      const bool fill)
 {
-    std::array<glm::vec2, 4> texCoords{
-        glm::vec2{0, 0},
-        glm::vec2{1, 0},
-        glm::vec2{1, 1},
-        glm::vec2{0, 1},
-    };
-
     const float scale = MapScreen::DEFAULT_MARGIN_PIXELS;
-    const float radians = glm::radians(degrees);
-    const glm::vec3 z{0, 0, 1};
-    const glm::mat4 rotation = glm::rotate(glm::mat4(1), radians, z);
-    for (size_t i = 0; i < 4; ++i) {
-        const glm::vec2 &tc = texCoords[i];
-        const auto tmp = rotation * glm::vec4(tc * 2.f - 1.f, 0, 1);
-        const glm::vec2 screenSpaceOffset = scale * glm::vec2(tmp) / tmp.w;
-        // solid   |filled
-        // --------+--------
-        // outline | n/a
-        const glm::vec2 tcOffset = tc * 0.5f
-                                   + (fill ? glm::vec2(0.5f, 0.5f) : glm::vec2(0.f, 0.0f));
-        m_screenSpaceArrows.emplace_back(pos, color, tcOffset, screenSpaceOffset);
-    }
+
+    const int16_t offsetX = static_cast<int16_t>(-scale);
+    const int16_t offsetY = static_cast<int16_t>(-scale);
+    const int16_t sizeW = static_cast<int16_t>(2.f * scale);
+    const int16_t sizeH = static_cast<int16_t>(2.f * scale);
+
+    // UVs for 256x256 texture
+    const int16_t uvX = fill ? 128 : 0;
+    const int16_t uvY = fill ? 128 : 0;
+    const int16_t uvW = 128;
+    const int16_t uvH = 128;
+
+    m_screenSpaceArrows.emplace_back(pos,
+                                     color.getUint32(),
+                                     offsetX,
+                                     offsetY,
+                                     sizeW,
+                                     sizeH,
+                                     uvX,
+                                     uvY,
+                                     uvW,
+                                     uvH,
+                                     static_cast<int16_t>(degrees),
+                                     static_cast<uint16_t>(0));
 }
 
 void MapCanvas::paintCharacters()

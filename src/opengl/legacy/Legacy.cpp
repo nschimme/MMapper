@@ -253,7 +253,8 @@ void Functions::renderColoredTextured(const DrawModeEnum mode,
                                                                  state);
 }
 
-void Functions::renderFont3d(const SharedMMTexture &texture, const std::vector<FontVert3d> &verts)
+void Functions::renderFont3d(const SharedMMTexture &texture,
+                             const std::vector<FontInstanceData> &verts)
 
 {
     const auto state = GLRenderState()
@@ -262,21 +263,24 @@ void Functions::renderFont3d(const SharedMMTexture &texture, const std::vector<F
                            .withTexture0(texture->getId());
 
     const auto &prog = getShaderPrograms().getFontShader();
-    renderImmediate<FontVert3d, Legacy::SimpleFont3dMesh>(shared_from_this(),
-                                                          DrawModeEnum::QUADS,
-                                                          verts,
-                                                          prog,
-                                                          state);
+    renderImmediate<FontInstanceData, Legacy::SimpleFont3dMesh>(shared_from_this(),
+                                                                DrawModeEnum::INSTANCED_QUADS,
+                                                                verts,
+                                                                prog,
+                                                                state);
 }
 
 UniqueMesh Functions::createFontMesh(const SharedMMTexture &texture,
                                      const DrawModeEnum mode,
-                                     const std::vector<FontVert3d> &batch)
+                                     const std::vector<FontInstanceData> &batch)
 {
-    assert(static_cast<size_t>(mode) >= VERTS_PER_TRI);
+    const auto instancedMode = (mode == DrawModeEnum::QUADS) ? DrawModeEnum::INSTANCED_QUADS : mode;
     const auto &prog = getShaderPrograms().getFontShader();
-    return UniqueMesh{
-        std::make_unique<Legacy::FontMesh3d>(shared_from_this(), prog, texture, mode, batch)};
+    return UniqueMesh{std::make_unique<Legacy::FontMesh3d>(shared_from_this(),
+                                                           prog,
+                                                           texture,
+                                                           instancedMode,
+                                                           batch)};
 }
 
 Functions::Functions(Badge<Functions>)

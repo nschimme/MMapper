@@ -28,7 +28,7 @@ struct FontMetrics;
 
 struct NODISCARD RoomNameBatchIntermediate final
 {
-    std::vector<FontVert3d> verts;
+    std::vector<FontInstanceData> verts;
 
     NODISCARD UniqueMesh getMesh(GLFont &gl) const;
     NODISCARD bool empty() const { return verts.empty(); }
@@ -39,7 +39,7 @@ struct NODISCARD RoomNameBatchIntermediate final
     {
         v.insert(v.end(), other.begin(), other.end());
     }
-    void append(const std::vector<FontVert3d> &other) { append(verts, other); }
+    void append(const std::vector<FontInstanceData> &other) { append(verts, other); }
 };
 
 struct NODISCARD RoomNameBatch final

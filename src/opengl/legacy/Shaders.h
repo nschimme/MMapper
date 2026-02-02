@@ -94,24 +94,13 @@ private:
 
 struct NODISCARD FontShader final : public AbstractShaderProgram
 {
-private:
-    using Base = AbstractShaderProgram;
-
 public:
-    using Base::AbstractShaderProgram;
+    using AbstractShaderProgram::AbstractShaderProgram;
 
     ~FontShader() final;
 
 private:
-    void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final
-    {
-        assert(uniforms.textures[0] != INVALID_MM_TEXTURE_ID);
-        auto functions = Base::m_functions.lock();
-
-        setMatrix("uMVP3D", mvp);
-        setTexture("uFontTexture", 0);
-        setViewport("uPhysViewport", deref(functions).getPhysicalViewport());
-    }
+    void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final;
 };
 
 struct NODISCARD PointShader final : public AbstractShaderProgram

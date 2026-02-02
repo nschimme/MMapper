@@ -328,13 +328,16 @@ struct NODISCARD FontMetrics final
 
     void getFontBatchRawData(const GLText *text,
                              size_t count,
-                             std::vector<FontVert3d> &output) const;
+                             std::vector<FontInstanceData> &output) const;
 };
+
+static constexpr uint16_t FONT_FLAG_ITALICS = 1 << 0;
+static constexpr uint16_t FONT_FLAG_NAMED_COLOR = 1 << 1;
 
 void getFontBatchRawData(const FontMetrics &fm,
                          const GLText *const text,
                          const size_t count,
-                         std::vector<FontVert3d> &output)
+                         std::vector<FontInstanceData> &output)
 {
     fm.getFontBatchRawData(text, count, output);
 }
@@ -490,12 +493,13 @@ private:
         glm::vec3 pos{0.f};
         Color fgColor;
         std::optional<Color> optBgColor;
+        std::optional<NamedColorEnum> namedColor;
+        std::optional<NamedColorEnum> namedBgColor;
         bool wantItalics = false;
         bool wantUnderline = false;
         bool wantAlignCenter = false;
         bool wantAlignRight = false;
         int rotationDegrees = 0;
-        std::optional<glm::mat4> rotation = glm::mat4(1.f);
 
         explicit Opts() = default;
 
@@ -506,17 +510,13 @@ private:
             , pos{text.pos}
             , fgColor{text.color}
             , optBgColor{text.bgcolor}
+            , namedColor{text.namedColor}
+            , namedBgColor{text.namedBgColor}
             , wantItalics{text.fontFormatFlag.contains(FontFormatFlagEnum::ITALICS)}
             , wantUnderline{text.fontFormatFlag.contains(FontFormatFlagEnum::UNDERLINE)}
             , wantAlignCenter{text.fontFormatFlag.contains(FontFormatFlagEnum::HALIGN_CENTER)}
             , wantAlignRight{text.fontFormatFlag.contains(FontFormatFlagEnum::HALIGN_RIGHT)}
             , rotationDegrees{text.rotationAngle}
-            , rotation{(rotationDegrees == 0)
-                           ? std::optional<glm::mat4>(std::nullopt)
-                           : std::optional<glm::mat4>(
-                                 glm::rotate(glm::mat4(1),
-                                             glm::radians(static_cast<float>(rotationDegrees)),
-                                             glm::vec3(0, 0, 1)))}
         {}
     };
 
@@ -533,8 +533,7 @@ private:
 
 private:
     const FontMetrics &m_fm;
-    const glm::ivec2 m_iTexSize{};
-    std::vector<FontVert3d> &m_verts3d;
+    std::vector<FontInstanceData> &m_verts3d;
     Opts m_opts;
     Bounds m_bounds;
     int m_xlinepos = 0;
@@ -548,64 +547,48 @@ private:
     }
 
 public:
-    explicit FontBatchBuilder(const FontMetrics &fm, std::vector<FontVert3d> &output)
+    explicit FontBatchBuilder(const FontMetrics &fm, std::vector<FontInstanceData> &output)
         : m_fm{fm}
-        , m_iTexSize{fm.common.scaleW, fm.common.scaleH}
         , m_verts3d{output}
     {}
 
-    NODISCARD glm::vec2 getTexCoord(const glm::ivec2 &iTexCoord) const
+    void emitGlyphInstance(const bool isEmpty,
+                           const glm::ivec2 &iVertex00,
+                           const glm::ivec2 &iTexCoord00,
+                           const glm::ivec2 &iglyphSize)
     {
-        return glm::vec2(iTexCoord) / glm::vec2(m_iTexSize);
-    }
+        if (!isEmpty) {
+            m_bounds.include(iVertex00);
+            m_bounds.include(iVertex00 + iglyphSize);
+        }
 
-    // REVISIT: This could be done in the shader,
-    // at the cost of transmitting italics bit and rotation angle.
-    NODISCARD glm::vec2 transformVert(const glm::ivec2 &ipos) const
-    {
-        glm::vec2 pos(ipos);
+        if (m_noOutput) {
+            return;
+        }
 
+        uint16_t flags = 0;
         if (m_opts.wantItalics) {
-            pos.x += pos.y / 6.f;
+            flags |= FONT_FLAG_ITALICS;
         }
 
-        if (m_opts.rotation) {
-            pos = glm::vec2(m_opts.rotation.value() * glm::vec4(pos, 0, 1));
+        uint32_t color = m_opts.fgColor.getUint32();
+        if (m_opts.namedColor) {
+            flags |= FONT_FLAG_NAMED_COLOR;
+            color = static_cast<uint32_t>(m_opts.namedColor.value());
         }
-        return pos;
-    }
 
-    void emitGlyphQuad(const bool isEmpty,
-                       const glm::ivec2 &iVertex00,
-                       const glm::ivec2 &iTexCoord00,
-                       const glm::ivec2 &iglyphSize)
-    {
-        const auto emitWithOffset =
-            [this, isEmpty, &iVertex00, &iTexCoord00](const glm::ivec2 &pixelOffset) -> void {
-            const glm::ivec2 relativeVertPos = iVertex00 + pixelOffset;
-            if (!isEmpty) {
-                // side-effect: updates bounds; this must come before return
-                m_bounds.include(relativeVertPos);
-            }
-
-            if (m_noOutput) {
-                return;
-            }
-
-            const glm::vec2 tc = getTexCoord(iTexCoord00 + pixelOffset);
-            const glm::vec2 vert = transformVert(relativeVertPos);
-            m_verts3d.emplace_back(m_opts.pos, m_opts.fgColor, tc, vert);
-        };
-
-        const auto &x = iglyphSize.x;
-        const auto &y = iglyphSize.y;
-        // 3-2
-        // | |
-        // 0-1
-        emitWithOffset(glm::ivec2(0, 0));
-        emitWithOffset(glm::ivec2(x, 0));
-        emitWithOffset(glm::ivec2(x, y));
-        emitWithOffset(glm::ivec2(0, y));
+        m_verts3d.emplace_back(m_opts.pos,
+                               color,
+                               static_cast<int16_t>(iVertex00.x),
+                               static_cast<int16_t>(iVertex00.y),
+                               static_cast<int16_t>(iglyphSize.x),
+                               static_cast<int16_t>(iglyphSize.y),
+                               static_cast<int16_t>(iTexCoord00.x),
+                               static_cast<int16_t>(iTexCoord00.y),
+                               static_cast<int16_t>(iglyphSize.x),
+                               static_cast<int16_t>(iglyphSize.y),
+                               static_cast<int16_t>(m_opts.rotationDegrees),
+                               flags);
     }
 
     void emitGlyph(const FontMetrics::Glyph *const g, const FontMetrics::Kerning *const k)
@@ -619,7 +602,7 @@ public:
         }
         const auto iVertex00 = glm::ivec2(m_xlinepos + g->xoffset, g->yoffset);
         m_xlinepos += g->xadvance;
-        emitGlyphQuad(std::isspace(g->id), iVertex00, iTexCoord00, glyphSize);
+        emitGlyphInstance(std::isspace(g->id), iVertex00, iTexCoord00, glyphSize);
     }
 
     void call_foreach_glyph(const int wordOffset, const bool output)
@@ -644,25 +627,23 @@ public:
 
         // measurement, background color, and underline.
         {
-            const auto add = [this](const Color c, const glm::ivec2 &ivert, const glm::ivec2 &itc) {
-                const glm::vec2 tc = getTexCoord(itc);
-                const glm::vec2 vert = transformVert(ivert);
-                m_verts3d.emplace_back(m_opts.pos, c, tc, vert);
-            };
-
-            const auto quad = [&add](const Color c, const Rect &vert, const Rect &tc) {
-#define ADD(a, b) add(c, glm::ivec2{vert.a.x, vert.b.y}, glm::ivec2{tc.a.x, tc.b.y})
-                // note: lo and hi refer to members of vert and tc.
-                ADD(lo, lo);
-                ADD(hi, lo);
-                ADD(hi, hi);
-                ADD(lo, hi);
-#undef ADD
-            };
+            const auto emitSpecialInstance =
+                [this](uint32_t color, uint16_t flags, const Rect &vert, const Rect &tc) {
+                    m_verts3d.emplace_back(m_opts.pos,
+                                           color,
+                                           static_cast<int16_t>(vert.lo.x),
+                                           static_cast<int16_t>(vert.lo.y),
+                                           static_cast<int16_t>(vert.width()),
+                                           static_cast<int16_t>(vert.height()),
+                                           static_cast<int16_t>(tc.lo.x),
+                                           static_cast<int16_t>(tc.lo.y),
+                                           static_cast<int16_t>(tc.width()),
+                                           static_cast<int16_t>(tc.height()),
+                                           static_cast<int16_t>(m_opts.rotationDegrees),
+                                           flags);
+                };
 
             const glm::ivec2 margin{m_fm.common.marginX, m_fm.common.marginY};
-            const auto &lo = m_bounds.minVertPos;
-            const auto &hi = m_bounds.maxVertPos;
 
             if (m_opts.wantAlignCenter) {
                 const auto halfWidth = m_xlinepos / 2;
@@ -675,11 +656,21 @@ public:
                 m_bounds.maxVertPos.x -= m_xlinepos;
             }
 
+            const auto &lo = m_bounds.minVertPos;
+            const auto &hi = m_bounds.maxVertPos;
+
             if (m_opts.optBgColor) {
                 if (const FontMetrics::Glyph *const background = m_fm.getBackground()) {
-                    quad(m_opts.optBgColor.value(),
-                         Rect{lo - margin, hi + margin},
-                         background->getRect());
+                    uint16_t flags = 0;
+                    uint32_t color = m_opts.optBgColor.value().getUint32();
+                    if (m_opts.namedBgColor) {
+                        flags |= FONT_FLAG_NAMED_COLOR;
+                        color = static_cast<uint32_t>(m_opts.namedBgColor.value());
+                    }
+                    emitSpecialInstance(color,
+                                        flags,
+                                        Rect{lo - margin, hi + margin},
+                                        background->getRect());
                 }
             }
 
@@ -687,9 +678,16 @@ public:
                 if (const FontMetrics::Glyph *const underline = m_fm.getUnderline()) {
                     const auto usize = underline->getSize();
                     const auto offset = underline->getOffset() + glm::ivec2{wordOffset, 0};
-                    quad(m_opts.fgColor,
-                         Rect{offset, offset + glm::ivec2{m_xlinepos, usize.y}},
-                         underline->getRect());
+                    uint16_t flags = 0;
+                    uint32_t color = m_opts.fgColor.getUint32();
+                    if (m_opts.namedColor) {
+                        flags |= FONT_FLAG_NAMED_COLOR;
+                        color = static_cast<uint32_t>(m_opts.namedColor.value());
+                    }
+                    emitSpecialInstance(color,
+                                        flags,
+                                        Rect{offset, offset + glm::ivec2{m_xlinepos, usize.y}},
+                                        underline->getRect());
                 }
             }
         }
@@ -812,7 +810,7 @@ glm::ivec2 GLFont::getScreenCenter() const
 
 void FontMetrics::getFontBatchRawData(const GLText *const text,
                                       const size_t count,
-                                      std::vector<FontVert3d> &output) const
+                                      std::vector<FontInstanceData> &output) const
 {
     if (count == 0) {
         return;
@@ -821,23 +819,37 @@ void FontMetrics::getFontBatchRawData(const GLText *const text,
     const auto before = output.size();
     const auto end = text + count;
 
-    const size_t expectedVerts = std::invoke([text, end]() -> size_t {
-        int numGlyphs = 0;
+    const size_t expectedInstances = std::invoke([text, end, this]() -> size_t {
+        size_t numGlyphs = 0;
+        const bool hasBackground = background.has_value();
+        const bool hasUnderline = underline.has_value();
+        const bool hasOops = lookupGlyph(char_consts::C_QUESTION_MARK) != nullptr;
+
         for (const GLText *it = text; it != end; ++it) {
-            numGlyphs += static_cast<int>(it->text.size()) + (it->bgcolor.has_value() ? 1 : 0)
-                         + (it->fontFormatFlag.contains(FontFormatFlagEnum::UNDERLINE) ? 1 : 0);
+            if (hasBackground && it->bgcolor.has_value()) {
+                numGlyphs++;
+            }
+            if (hasUnderline && it->fontFormatFlag.contains(FontFormatFlagEnum::UNDERLINE)) {
+                numGlyphs++;
+            }
+
+            for (const char &c : it->text) {
+                if (lookupGlyph(c) != nullptr || hasOops) {
+                    numGlyphs++;
+                }
+            }
         }
-        return 4 * static_cast<size_t>(numGlyphs);
+        return numGlyphs;
     });
 
-    output.reserve(before + expectedVerts);
+    output.reserve(before + expectedInstances);
 
     auto &fm = *this;
     FontBatchBuilder fontBatchBuilder{fm, output};
     for (const GLText *it = text; it != end; ++it) {
         fontBatchBuilder.addString(*it);
     }
-    assert(output.size() == before + expectedVerts);
+    assert(output.size() == before + expectedInstances);
 }
 
 void GLFont::render2dTextImmediate(const std::vector<GLText> &text)
@@ -861,7 +873,7 @@ void GLFont::render2dTextImmediate(const std::vector<GLText> &text)
     m_gl.setProjectionMatrix(oldProj);
 }
 
-void GLFont::render3dTextImmediate(const std::vector<FontVert3d> &rawVerts)
+void GLFont::render3dTextImmediate(const std::vector<FontInstanceData> &rawVerts)
 {
     if (rawVerts.empty()) {
         return;
@@ -880,14 +892,14 @@ void GLFont::render3dTextImmediate(const std::vector<GLText> &text)
     render3dTextImmediate(rawVerts);
 }
 
-std::vector<FontVert3d> GLFont::getFontMeshIntermediate(const std::vector<GLText> &text)
+std::vector<FontInstanceData> GLFont::getFontMeshIntermediate(const std::vector<GLText> &text)
 {
-    std::vector<FontVert3d> output;
+    std::vector<FontInstanceData> output;
     getFontMetrics().getFontBatchRawData(text.data(), text.size(), output);
     return output;
 }
 
-UniqueMesh GLFont::getFontMesh(const std::vector<FontVert3d> &rawVerts)
+UniqueMesh GLFont::getFontMesh(const std::vector<FontInstanceData> &rawVerts)
 {
     return m_gl.createFontMesh(m_texture, DrawModeEnum::QUADS, rawVerts);
 }

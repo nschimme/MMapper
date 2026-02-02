@@ -47,7 +47,7 @@ private:
     struct NODISCARD Text final
     {
         std::vector<GLText> text;
-        std::vector<FontVert3d> verts;
+        std::vector<FontInstanceData> verts;
         bool locked = false;
     };
 
@@ -74,7 +74,9 @@ public:
                     const Color color,
                     std::optional<Color> bgcolor,
                     FontFormatFlags fontFormatFlag,
-                    int rotationAngle);
+                    int rotationAngle,
+                    std::optional<NamedColorEnum> namedColor = std::nullopt,
+                    std::optional<NamedColorEnum> namedBgColor = std::nullopt);
 
     NODISCARD InfomarksMeshes getMeshes();
     void renderImmediate(const GLRenderState &state);

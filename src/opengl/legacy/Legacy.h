@@ -220,6 +220,7 @@ public:
     using Base::glTexSubImage3D;
     using Base::glUniform1fv;
     using Base::glUniform1iv;
+    using Base::glUniform2iv;
     using Base::glUniform4fv;
     using Base::glUniform4iv;
     using Base::glUniformBlockBinding;
@@ -425,7 +426,7 @@ public:
 public:
     NODISCARD UniqueMesh createFontMesh(const SharedMMTexture &texture,
                                         DrawModeEnum mode,
-                                        const std::vector<FontVert3d> &batch);
+                                        const std::vector<FontInstanceData> &batch);
 
 public:
     void renderPoints(const std::vector<ColorVert> &verts, const GLRenderState &state);
@@ -443,7 +444,7 @@ public:
     void renderColoredTextured(DrawModeEnum mode,
                                const std::vector<ColoredTexVert> &verts,
                                const GLRenderState &state);
-    void renderFont3d(const SharedMMTexture &texture, const std::vector<FontVert3d> &verts);
+    void renderFont3d(const SharedMMTexture &texture, const std::vector<FontInstanceData> &verts);
 
 public:
     void checkError();

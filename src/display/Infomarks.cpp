@@ -39,33 +39,43 @@ static constexpr float INFOMARK_POINT_SIZE = 6.f;
 #define LOOKUP_COLOR_INFOMARK(_X) (XNamedColor{NamedColorEnum::_X}.getColor())
 
 // NOTE: This currently requires rebuilding the infomark meshes if a color changes.
-NODISCARD static Color getInfomarkColor(const InfomarkTypeEnum infoMarkType,
-                                        const InfomarkClassEnum infoMarkClass)
+NODISCARD static std::optional<NamedColorEnum> getInfomarkNamedColor(
+    const InfomarkClassEnum infoMarkClass)
 {
-    const Color defaultColor = (infoMarkType == InfomarkTypeEnum::TEXT) ? Colors::black
-                                                                        : Colors::white;
     switch (infoMarkClass) {
     case InfomarkClassEnum::HERB:
-        return LOOKUP_COLOR_INFOMARK(INFOMARK_HERB);
+        return NamedColorEnum::INFOMARK_HERB;
     case InfomarkClassEnum::RIVER:
-        return LOOKUP_COLOR_INFOMARK(INFOMARK_RIVER);
+        return NamedColorEnum::INFOMARK_RIVER;
     case InfomarkClassEnum::MOB:
-        return LOOKUP_COLOR_INFOMARK(INFOMARK_MOB);
+        return NamedColorEnum::INFOMARK_MOB;
     case InfomarkClassEnum::COMMENT:
-        return LOOKUP_COLOR_INFOMARK(INFOMARK_COMMENT);
+        return NamedColorEnum::INFOMARK_COMMENT;
     case InfomarkClassEnum::ROAD:
-        return LOOKUP_COLOR_INFOMARK(INFOMARK_ROAD);
+        return NamedColorEnum::INFOMARK_ROAD;
     case InfomarkClassEnum::OBJECT:
-        return LOOKUP_COLOR_INFOMARK(INFOMARK_OBJECT);
+        return NamedColorEnum::INFOMARK_OBJECT;
 
     case InfomarkClassEnum::GENERIC:
     case InfomarkClassEnum::PLACE:
     case InfomarkClassEnum::ACTION:
     case InfomarkClassEnum::LOCALITY:
-        return defaultColor;
+        return std::nullopt;
     }
 
     assert(false);
+    return std::nullopt;
+}
+
+NODISCARD static Color getInfomarkColor(const InfomarkTypeEnum infoMarkType,
+                                        const InfomarkClassEnum infoMarkClass)
+{
+    const Color defaultColor = (infoMarkType == InfomarkTypeEnum::TEXT) ? Colors::black
+                                                                        : Colors::white;
+    const auto optNamed = getInfomarkNamedColor(infoMarkClass);
+    if (optNamed) {
+        return XNamedColor{*optNamed}.getColor();
+    }
     return defaultColor;
 }
 
@@ -158,10 +168,19 @@ void InfomarksBatch::renderText(const glm::vec3 &pos,
                                 const Color color,
                                 const std::optional<Color> bgcolor,
                                 const FontFormatFlags fontFormatFlag,
-                                const int rotationAngle)
+                                const int rotationAngle,
+                                const std::optional<NamedColorEnum> namedColor,
+                                const std::optional<NamedColorEnum> namedBgColor)
 {
     assert(!m_text.locked);
-    m_text.text.emplace_back(pos, text, color, bgcolor, fontFormatFlag, rotationAngle);
+    m_text.text.emplace_back(pos,
+                             text,
+                             color,
+                             bgcolor,
+                             fontFormatFlag,
+                             rotationAngle,
+                             namedColor,
+                             namedBgColor);
 }
 
 InfomarksMeshes InfomarksBatch::getMeshes()
@@ -267,7 +286,9 @@ void MapCanvas::drawInfomark(InfomarksBatch &batch,
                          textColor(bgColor),
                          bgColor,
                          fontFormatFlag,
-                         marker.getRotationAngle());
+                         marker.getRotationAngle(),
+                         std::nullopt,
+                         getInfomarkNamedColor(infoMarkClass));
         break;
     }
 

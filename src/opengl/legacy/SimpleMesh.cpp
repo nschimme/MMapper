@@ -5,7 +5,7 @@
 
 #include "../../global/ConfigConsts.h"
 
-void Legacy::drawRoomQuad(Functions &gl, const GLsizei numVerts)
+void Legacy::drawInstancedQuadGeometry(Functions &gl, const GLsizei numVerts)
 {
     static constexpr size_t NUM_ELEMENTS = 4;
     const SharedVbo shared = gl.getSharedVbos().get(SharedVboEnum::InstancedQuadIbo);
@@ -13,7 +13,7 @@ void Legacy::drawRoomQuad(Functions &gl, const GLsizei numVerts)
 
     if (!vbo) {
         if (IS_DEBUG_BUILD) {
-            qDebug() << "allocating shared VBO for drawRoomQuad";
+            qDebug() << "allocating shared VBO for drawInstancedQuadGeometry";
         }
 
         vbo.emplace(gl.shared_from_this());

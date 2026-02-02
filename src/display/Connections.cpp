@@ -131,7 +131,7 @@ NODISCARD UniqueMesh RoomNameBatchIntermediate::getMesh(GLFont &gl) const
 
 NODISCARD RoomNameBatchIntermediate RoomNameBatch::getIntermediate(const FontMetrics &font) const
 {
-    std::vector<FontVert3d> output;
+    std::vector<FontInstanceData> output;
     ::getFontBatchRawData(font, m_names.data(), m_names.size(), output);
     return RoomNameBatchIntermediate{std::move(output)};
 }

@@ -29,19 +29,25 @@ struct NODISCARD GLText final
     std::optional<Color> bgcolor;
     FontFormatFlags fontFormatFlag;
     int rotationAngle = 0;
+    std::optional<NamedColorEnum> namedColor;
+    std::optional<NamedColorEnum> namedBgColor;
 
     explicit GLText(const glm::vec3 &pos_,
                     std::string moved_text,
                     const Color color_ = {},
                     std::optional<Color> bgcolor_ = {},
                     const FontFormatFlags fontFormatFlag_ = {},
-                    int rotationAngle_ = 0)
+                    int rotationAngle_ = 0,
+                    std::optional<NamedColorEnum> namedColor_ = std::nullopt,
+                    std::optional<NamedColorEnum> namedBgColor_ = std::nullopt)
         : pos{pos_}
         , text{std::move(moved_text)}
         , color{color_}
         , bgcolor{bgcolor_}
         , fontFormatFlag{fontFormatFlag_}
         , rotationAngle{rotationAngle_}
+        , namedColor{namedColor_}
+        , namedBgColor{namedBgColor_}
     {}
 };
 
@@ -92,14 +98,14 @@ public:
                             std::optional<Color> bgcolor = {});
     void render2dTextImmediate(const std::vector<GLText> &text);
     void render3dTextImmediate(const std::vector<GLText> &text);
-    void render3dTextImmediate(const std::vector<FontVert3d> &rawVerts);
+    void render3dTextImmediate(const std::vector<FontInstanceData> &rawVerts);
 
 public:
-    NODISCARD std::vector<FontVert3d> getFontMeshIntermediate(const std::vector<GLText> &text);
-    NODISCARD UniqueMesh getFontMesh(const std::vector<FontVert3d> &text);
+    NODISCARD std::vector<FontInstanceData> getFontMeshIntermediate(const std::vector<GLText> &text);
+    NODISCARD UniqueMesh getFontMesh(const std::vector<FontInstanceData> &text);
 };
 
 extern void getFontBatchRawData(const FontMetrics &fm,
                                 const GLText *text,
                                 size_t count,
-                                std::vector<FontVert3d> &output);
+                                std::vector<FontInstanceData> &output);

@@ -142,7 +142,7 @@ UniqueMesh OpenGL::createRoomQuadTexBatch(const std::vector<RoomQuadTexVert> &ba
 
 UniqueMesh OpenGL::createFontMesh(const SharedMMTexture &texture,
                                   const DrawModeEnum mode,
-                                  const std::vector<FontVert3d> &batch)
+                                  const std::vector<FontInstanceData> &batch)
 {
     return getFunctions().createFontMesh(texture, mode, batch);
 }
@@ -268,7 +268,7 @@ void OpenGL::initializeRenderer(const float devicePixelRatio)
     m_rendererInitialized = true;
 }
 
-void OpenGL::renderFont3d(const SharedMMTexture &texture, const std::vector<FontVert3d> &verts)
+void OpenGL::renderFont3d(const SharedMMTexture &texture, const std::vector<FontInstanceData> &verts)
 {
     getFunctions().renderFont3d(texture, verts);
 }

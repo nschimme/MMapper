@@ -15,7 +15,7 @@
 namespace Legacy {
 
 // Textured mesh with color modulated by color attribute,
-// but it does a screen space transform. See FontVert3d.
+// but it does a screen space transform. See FontInstanceData.
 template<typename VertexType_>
 class NODISCARD SimpleFont3dMesh : public SimpleMesh<VertexType_, FontShader>
 {
@@ -27,16 +27,18 @@ private:
     {
         GLuint basePos = INVALID_ATTRIB_LOCATION;
         GLuint colorPos = INVALID_ATTRIB_LOCATION;
-        GLuint texPos = INVALID_ATTRIB_LOCATION;
-        GLuint vertPos = INVALID_ATTRIB_LOCATION;
+        GLuint rectPos = INVALID_ATTRIB_LOCATION;
+        GLuint uvRectPos = INVALID_ATTRIB_LOCATION;
+        GLuint paramsPos = INVALID_ATTRIB_LOCATION;
 
         static Attribs getLocations(AbstractShaderProgram &fontShader)
         {
             Attribs result;
             result.basePos = fontShader.getAttribLocation("aBase");
             result.colorPos = fontShader.getAttribLocation("aColor");
-            result.texPos = fontShader.getAttribLocation("aTexCoord");
-            result.vertPos = fontShader.getAttribLocation("aVert");
+            result.rectPos = fontShader.getAttribLocation("aRect");
+            result.uvRectPos = fontShader.getAttribLocation("aUVRect");
+            result.paramsPos = fontShader.getAttribLocation("aParams");
             return result;
         }
     };
@@ -62,18 +64,28 @@ private:
     {
         const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
         static_assert(sizeof(std::declval<VertexType_>().base) == 3 * sizeof(GLfloat));
-        static_assert(sizeof(std::declval<VertexType_>().color) == 4 * sizeof(uint8_t));
-        static_assert(sizeof(std::declval<VertexType_>().tex) == 2 * sizeof(GLfloat));
-        static_assert(sizeof(std::declval<VertexType_>().vert) == 2 * sizeof(GLfloat));
+        static_assert(sizeof(std::declval<VertexType_>().color) == 4);
+        static_assert(sizeof(std::declval<VertexType_>().offsetX) == 2);
+        static_assert(sizeof(std::declval<VertexType_>().uvX) == 2);
+        static_assert(sizeof(std::declval<VertexType_>().rotation) == 2);
 
         Functions &gl = Base::m_functions;
 
         gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
         const auto attribs = Attribs::getLocations(Base::m_program);
+
         gl.enableAttrib(attribs.basePos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(base));
-        gl.enableAttrib(attribs.colorPos, 4, GL_UNSIGNED_BYTE, GL_TRUE, vertSize, VPO(color));
-        gl.enableAttrib(attribs.texPos, 2, GL_FLOAT, GL_FALSE, vertSize, VPO(tex));
-        gl.enableAttrib(attribs.vertPos, 2, GL_FLOAT, GL_FALSE, vertSize, VPO(vert));
+        gl.enableAttribI(attribs.colorPos, 1, GL_UNSIGNED_INT, vertSize, VPO(color));
+        gl.enableAttribI(attribs.rectPos, 4, GL_SHORT, vertSize, VPO(offsetX));
+        gl.enableAttribI(attribs.uvRectPos, 4, GL_SHORT, vertSize, VPO(uvX));
+        gl.enableAttribI(attribs.paramsPos, 2, GL_SHORT, vertSize, VPO(rotation));
+
+        gl.glVertexAttribDivisor(attribs.basePos, 1);
+        gl.glVertexAttribDivisor(attribs.colorPos, 1);
+        gl.glVertexAttribDivisor(attribs.rectPos, 1);
+        gl.glVertexAttribDivisor(attribs.uvRectPos, 1);
+        gl.glVertexAttribDivisor(attribs.paramsPos, 1);
+
         m_boundAttribs = attribs;
     }
 
@@ -87,17 +99,25 @@ private:
         const auto attribs = m_boundAttribs.value();
         gl.glDisableVertexAttribArray(attribs.basePos);
         gl.glDisableVertexAttribArray(attribs.colorPos);
-        gl.glDisableVertexAttribArray(attribs.texPos);
-        gl.glDisableVertexAttribArray(attribs.vertPos);
+        gl.glDisableVertexAttribArray(attribs.rectPos);
+        gl.glDisableVertexAttribArray(attribs.uvRectPos);
+        gl.glDisableVertexAttribArray(attribs.paramsPos);
+
+        gl.glVertexAttribDivisor(attribs.basePos, 0);
+        gl.glVertexAttribDivisor(attribs.colorPos, 0);
+        gl.glVertexAttribDivisor(attribs.rectPos, 0);
+        gl.glVertexAttribDivisor(attribs.uvRectPos, 0);
+        gl.glVertexAttribDivisor(attribs.paramsPos, 0);
+
         gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
         m_boundAttribs.reset();
     }
 };
 
-class NODISCARD FontMesh3d final : public SimpleFont3dMesh<FontVert3d>
+class NODISCARD FontMesh3d final : public SimpleFont3dMesh<FontInstanceData>
 {
 private:
-    using Base = SimpleFont3dMesh<FontVert3d>;
+    using Base = SimpleFont3dMesh<FontInstanceData>;
     SharedMMTexture m_texture;
 
 public:
@@ -105,7 +125,7 @@ public:
                         const std::shared_ptr<FontShader> &sharedShader,
                         SharedMMTexture texture,
                         DrawModeEnum mode,
-                        const std::vector<FontVert3d> &verts);
+                        const std::vector<FontInstanceData> &verts);
 
 public:
     ~FontMesh3d() final;

@@ -3,6 +3,10 @@
 
 #include "Shaders.h"
 
+#include "../../display/Textures.h"
+#include "FunctionsES30.h"
+#include "FunctionsGL33.h"
+#include "Legacy.h"
 #include "ShaderUtils.h"
 
 #include <memory>
@@ -35,6 +39,24 @@ UColorTexturedShader::~UColorTexturedShader() = default;
 RoomQuadTexShader::~RoomQuadTexShader() = default;
 
 FontShader::~FontShader() = default;
+
+void FontShader::virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms)
+{
+    assert(uniforms.textures[0] != INVALID_MM_TEXTURE_ID);
+    auto shared_functions = m_functions.lock();
+    Functions &functions = deref(shared_functions);
+
+    setMatrix("uMVP3D", mvp);
+    setTexture("uFontTexture", 0);
+    setViewport("uPhysViewport", functions.getPhysicalViewport());
+
+    const auto &shared_tex = functions.getTexLookup().at(uniforms.textures[0]);
+    const MMTexture &tex = deref(shared_tex);
+    const QOpenGLTexture *qtex = tex.get();
+    if (qtex) {
+        setIVec2("uFontTexSize", glm::ivec2(qtex->width(), qtex->height()));
+    }
+}
 PointShader::~PointShader() = default;
 
 void ShaderPrograms::early_init()

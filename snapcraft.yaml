@@ -32,16 +32,6 @@ apps:
       - network-bind
       - opengl
 
-package-repositories:
-  - type: apt
-    components:
-      - main
-    suites:
-      - noble
-    key-id: 444DABCF3667D0283F894EDDE6D4736255751E5D
-    url: http://origin.archive.neon.kde.org/user
-    key-server: keyserver.ubuntu.com
-
 parts:
   mmapper:
     parse-info:
@@ -74,25 +64,10 @@ parts:
       - libglm-dev
       - libssl-dev
       - zlib1g-dev
-      - libxkbcommon-dev
-      - libgl-dev
-      - libegl-dev
-      - libvulkan-dev
-      - duktape-dev
-      - libproxy-dev
-      - libsecret-1-dev
-      - libzstd-dev
-      - libkrb5-dev
       - mold
     stage-packages:
       - libssl3t64
       - zlib1g
-      - libduktape207
-      - libproxy1v5
-      - libsecret-1-0
-      - libxkbcommon0
-      - libzstd1
-      - libgssapi-krb5-2
     override-pull: |
       craftctl default
       craftctl set version=$(git describe --tags --always --long --exclude beta | sed 's/^v//')

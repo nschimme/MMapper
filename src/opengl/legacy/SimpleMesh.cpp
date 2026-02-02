@@ -8,7 +8,7 @@
 void Legacy::drawRoomQuad(Functions &gl, const GLsizei numVerts)
 {
     static constexpr size_t NUM_ELEMENTS = 4;
-    const SharedVbo shared = gl.getSharedBuffer(SharedBufferEnum::InstancedQuadIbo);
+    const SharedVbo shared = gl.getSharedVbo(SharedVboEnum::InstancedQuadIbo);
     VBO &vbo = deref(shared);
 
     if (!vbo) {

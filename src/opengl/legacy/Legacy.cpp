@@ -273,7 +273,7 @@ UniqueMesh Functions::createFontMesh(const SharedMMTexture &texture,
 Functions::Functions(Badge<Functions>)
     : m_shaderPrograms{std::make_unique<ShaderPrograms>(*this)}
     , m_staticVbos{std::make_unique<StaticVbos>()}
-    , m_sharedBuffers{std::make_unique<SharedBuffers>()}
+    , m_sharedVbos{std::make_unique<SharedVbos>()}
     , m_texLookup{std::make_unique<TexLookup>()}
     , m_fbo{std::make_unique<FBO>()}
 {}
@@ -306,7 +306,7 @@ void Functions::cleanup()
 
     getShaderPrograms().resetAll();
     getStaticVbos().resetAll();
-    m_sharedBuffers->resetAll();
+    m_sharedVbos->resetAll();
     getTexLookup().clear();
 }
 
@@ -328,35 +328,29 @@ FBO &Functions::getFBO()
     return deref(m_fbo);
 }
 
-SharedVbo Functions::getSharedBuffer(const SharedBufferEnum buffer)
+SharedVbo Functions::getSharedVbo(const SharedVboEnum buffer)
 {
-    return m_sharedBuffers->get(buffer);
+    return m_sharedVbos->get(buffer);
 }
 
-void Functions::invalidateSharedBuffer(const SharedBufferEnum buffer)
+void Functions::invalidateSharedVbo(const SharedVboEnum buffer)
 {
-    m_sharedBuffers->invalidate(buffer);
+    m_sharedVbos->invalidate(buffer);
 }
 
-GLsizei Functions::uploadSharedBufferData(const SharedBufferEnum buffer,
-                                          const std::vector<glm::vec4> &data,
-                                          const BufferUsageEnum usage)
+GLsizei Functions::uploadSharedVboData(const SharedVboEnum buffer,
+                                       const std::vector<glm::vec4> &data,
+                                       const BufferUsageEnum usage)
 {
-    const SharedVbo shared = getSharedBuffer(buffer);
+    const SharedVbo shared = getSharedVbo(buffer);
     VBO &vbo = deref(shared);
     if (!vbo) {
         vbo.emplace(shared_from_this());
     }
 
-    GLsizei numElements = 0;
-    if (buffer == SharedBufferEnum::InstancedQuadIbo) {
-        numElements = setIbo(vbo.get(), data, usage);
-    } else {
-        // default to UBO for now as NamedColorsBlock is a UBO.
-        // If we add shared VBOs later, we might need more logic here.
-        numElements = setUbo(vbo.get(), data, usage);
-    }
-    return numElements;
+    // default to UBO for now as NamedColorsBlock is a UBO.
+    // If we add shared VBOs later, we might need more logic here.
+    return setUbo(vbo.get(), data, usage);
 }
 
 /// This only exists so we can detect errors in contexts that don't support \c glDebugMessageCallback().

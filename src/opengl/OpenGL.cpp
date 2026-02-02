@@ -238,12 +238,12 @@ GLRenderState OpenGL::getDefaultRenderState()
 void OpenGL::bindNamedColorsBuffer()
 {
     auto &gl = getFunctions();
-    const auto buffer = Legacy::SharedBufferEnum::NamedColorsBlock;
-    const auto shared = gl.getSharedBuffer(buffer);
+    const auto buffer = Legacy::SharedVboEnum::NamedColorsBlock;
+    const auto shared = gl.getSharedVbo(buffer);
     if (!*shared) {
         // the shader is declared vec4, so the data has to be 4 floats per entry.
         const auto &vec4_colors = XNamedColor::getAllColorsAsVec4();
-        std::ignore = gl.uploadSharedBufferData(buffer, vec4_colors, BufferUsageEnum::DYNAMIC_DRAW);
+        std::ignore = gl.uploadSharedVboData(buffer, vec4_colors, BufferUsageEnum::DYNAMIC_DRAW);
     }
 
     const GLuint id = shared->get();
@@ -252,7 +252,7 @@ void OpenGL::bindNamedColorsBuffer()
 
 void OpenGL::invalidateNamedColorsBuffer()
 {
-    getFunctions().invalidateSharedBuffer(Legacy::SharedBufferEnum::NamedColorsBlock);
+    getFunctions().invalidateSharedVbo(Legacy::SharedVboEnum::NamedColorsBlock);
 }
 
 void OpenGL::initializeRenderer(const float devicePixelRatio)

@@ -57,17 +57,17 @@ public:
     void resetAll() { base::clear(); }
 };
 
-class NODISCARD SharedBuffers final
-    : private EnumIndexedArray<SharedVbo, SharedBufferEnum, NUM_SHARED_BUFFERS>
+class NODISCARD SharedVbos final
+    : private EnumIndexedArray<SharedVbo, SharedVboEnum, NUM_SHARED_VBOS>
 {
 private:
-    using base = EnumIndexedArray<SharedVbo, SharedBufferEnum, NUM_SHARED_BUFFERS>;
+    using base = EnumIndexedArray<SharedVbo, SharedVboEnum, NUM_SHARED_VBOS>;
 
 public:
-    SharedBuffers() = default;
+    SharedVbos() = default;
 
 public:
-    NODISCARD SharedVbo get(const SharedBufferEnum buffer)
+    NODISCARD SharedVbo get(const SharedVboEnum buffer)
     {
         SharedVbo &shared = base::operator[](buffer);
         if (shared == nullptr) {
@@ -76,7 +76,7 @@ public:
         return shared;
     }
 
-    void invalidate(const SharedBufferEnum buffer) { base::operator[](buffer).reset(); }
+    void invalidate(const SharedVboEnum buffer) { base::operator[](buffer).reset(); }
 
     void resetAll()
     {

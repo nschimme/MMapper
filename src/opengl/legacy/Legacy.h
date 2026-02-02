@@ -27,12 +27,12 @@ class OpenGL;
 namespace Legacy {
 
 class StaticVbos;
-class SharedBuffers;
+class SharedVbos;
 struct ShaderPrograms;
 struct PointSizeBinder;
 
-enum class SharedBufferEnum { NamedColorsBlock, InstancedQuadIbo };
-static constexpr size_t NUM_SHARED_BUFFERS = 2;
+enum class SharedVboEnum { NamedColorsBlock, InstancedQuadIbo };
+static constexpr size_t NUM_SHARED_VBOS = 2;
 
 #define XFOREACH_UNIFORM_BLOCK(X) X(NamedColorsBlock, "NamedColorsBlock")
 
@@ -121,7 +121,7 @@ private:
     float m_devicePixelRatio = 1.f;
     std::unique_ptr<ShaderPrograms> m_shaderPrograms;
     std::unique_ptr<StaticVbos> m_staticVbos;
-    std::unique_ptr<SharedBuffers> m_sharedBuffers;
+    std::unique_ptr<SharedVbos> m_sharedVbos;
     std::unique_ptr<TexLookup> m_texLookup;
     std::unique_ptr<FBO> m_fbo;
     std::vector<std::shared_ptr<IRenderable>> m_staticMeshes;
@@ -308,12 +308,12 @@ public:
     NODISCARD FBO &getFBO();
 
 public:
-    NODISCARD SharedVbo getSharedBuffer(SharedBufferEnum buffer);
-    void invalidateSharedBuffer(SharedBufferEnum buffer);
+    NODISCARD SharedVbo getSharedVbo(SharedVboEnum buffer);
+    void invalidateSharedVbo(SharedVboEnum buffer);
 
-    NODISCARD GLsizei uploadSharedBufferData(SharedBufferEnum buffer,
-                                             const std::vector<glm::vec4> &data,
-                                             BufferUsageEnum usage);
+    NODISCARD GLsizei uploadSharedVboData(SharedVboEnum buffer,
+                                          const std::vector<glm::vec4> &data,
+                                          BufferUsageEnum usage);
 
 private:
     friend PointSizeBinder;

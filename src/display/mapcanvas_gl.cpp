@@ -981,23 +981,13 @@ void MapCanvas::paintSelectionArea()
         const auto selFgColor = Colors::yellow;
         {
             static constexpr float SELECTION_AREA_LINE_WIDTH = 2.f;
-            const auto lineStyle = rs.withLineParams(LineParams{SELECTION_AREA_LINE_WIDTH});
-            const std::vector<glm::vec3> verts{A, B, B, C, C, D, D, A};
+            const std::vector<LineInstance> verts{
+                LineInstance{selFgColor, A, B, SELECTION_AREA_LINE_WIDTH},
+                LineInstance{selFgColor, B, C, SELECTION_AREA_LINE_WIDTH},
+                LineInstance{selFgColor, C, D, SELECTION_AREA_LINE_WIDTH},
+                LineInstance{selFgColor, D, A, SELECTION_AREA_LINE_WIDTH}};
 
-            // FIXME: ASAN flags this as out-of-bounds memory access inside an assertion
-            //
-            //     Q_ASSERT(QOpenGLFunctions::isInitialized(d_ptr));
-            //
-            // in QOpenGLFunctions::glDrawArrays(). However, it works without ASAN,
-            // so maybe the problem is in my OpenGL driver?
-            //
-            // "OpenGL Version:" "3.1 Mesa 20.2.6"
-            // "OpenGL Renderer:" "llvmpipe (LLVM 11.0.0, 256 bits)"
-            // "OpenGL Vendor:" "Mesa/X.org"
-            // "OpenGL GLSL:" "1.40"
-            // "Current OpenGL Context:" "3.1 (valid)"
-            //
-            gl.renderPlainLines(verts, lineStyle.withColor(selFgColor));
+            gl.renderLineInstances(verts, rs);
         }
     }
 

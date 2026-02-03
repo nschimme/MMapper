@@ -302,11 +302,10 @@ void MapCanvas::paintNewInfomarkSelection()
 
     // Draw yellow guide when creating an infomark line/arrow
     if (m_canvasMouseMode == CanvasMouseModeEnum::CREATE_INFOMARKS && m_selectedArea) {
-        const auto infomarksLineStyle = GLRenderState()
-                                            .withColor(Color{Qt::yellow})
-                                            .withLineParams(LineParams{INFOMARK_GUIDE_LINE_WIDTH});
-        const std::vector<glm::vec3> verts{glm::vec3{pos1, layer}, glm::vec3{pos2, layer}};
-        gl.renderPlainLines(verts, infomarksLineStyle);
+        const Color color{Qt::yellow};
+        const std::vector<LineInstance> verts{
+            LineInstance{color, glm::vec3{pos1, layer}, glm::vec3{pos2, layer}, INFOMARK_GUIDE_LINE_WIDTH}};
+        gl.renderLineInstances(verts, GLRenderState());
     }
 }
 

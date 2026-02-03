@@ -139,16 +139,6 @@ enum class NODISCARD DrawModeEnum {
     INSTANCED_LINES = 6
 };
 
-struct NODISCARD LineParams final
-{
-    float width = 1.f;
-    LineParams() = default;
-
-    explicit LineParams(const float width_)
-        : width{width_}
-    {}
-};
-
 #define XFOREACH_DEPTHFUNC(X) \
     X(NEVER) \
     X(LESS) \
@@ -232,9 +222,6 @@ struct NODISCARD GLRenderState final
     using OptDepth = std::optional<DepthFunctionEnum>;
     OptDepth depth;
 
-    // glLineWidth() + { glEnable(LINE_STIPPLE) + glLineStipple() }
-    LineParams lineParams;
-
     using Textures = MMapper::Array<MMTextureId, 2>;
     struct NODISCARD Uniforms final
     {
@@ -278,13 +265,6 @@ struct NODISCARD GLRenderState final
     {
         GLRenderState copy = *this;
         copy.depth.reset();
-        return copy;
-    }
-
-    NODISCARD GLRenderState withLineParams(const LineParams &new_lineParams) const
-    {
-        GLRenderState copy = *this;
-        copy.lineParams = new_lineParams;
         return copy;
     }
 

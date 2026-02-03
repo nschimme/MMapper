@@ -118,12 +118,12 @@ class NODISCARD FontMesh3d final : public SimpleFont3dMesh<FontInstanceData>
 {
 private:
     using Base = SimpleFont3dMesh<FontInstanceData>;
-    SharedMMTexture m_texture;
+    MMTextureId m_textureId;
 
 public:
     explicit FontMesh3d(const SharedFunctions &functions,
                         const std::shared_ptr<FontShader> &sharedShader,
-                        SharedMMTexture texture,
+                        MMTextureId textureId,
                         DrawModeEnum mode,
                         const std::vector<FontInstanceData> &verts);
 

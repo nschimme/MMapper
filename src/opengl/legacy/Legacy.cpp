@@ -275,8 +275,11 @@ UniqueMesh Functions::createFontMesh(const SharedMMTexture &texture,
 {
     const auto mode = DrawModeEnum::INSTANCED_QUADS;
     const auto &prog = getShaderPrograms().getFontShader();
-    return UniqueMesh{
-        std::make_unique<Legacy::FontMesh3d>(shared_from_this(), prog, texture, mode, batch)};
+    return UniqueMesh{std::make_unique<Legacy::FontMesh3d>(shared_from_this(),
+                                                           prog,
+                                                           texture->getId(),
+                                                           mode,
+                                                           batch)};
 }
 
 Functions::Functions(Badge<Functions>)

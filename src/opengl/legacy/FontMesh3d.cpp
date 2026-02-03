@@ -12,24 +12,20 @@ namespace Legacy {
 
 FontMesh3d::FontMesh3d(const SharedFunctions &functions,
                        const std::shared_ptr<FontShader> &sharedShader,
-                       SharedMMTexture texture,
+                       const MMTextureId textureId,
                        const DrawModeEnum mode,
                        const std::vector<FontInstanceData> &verts)
     : Base{functions, sharedShader, mode, verts}
-    , m_texture{std::move(texture)}
+    , m_textureId{textureId}
 {}
 
 FontMesh3d::~FontMesh3d() = default;
 
 GLRenderState FontMesh3d::virt_modifyRenderState(const GLRenderState &renderState) const
 {
-    const SharedMMTexture &shared = m_texture;
-    const MMTexture &tex = *shared;
-    const MMTextureId id = tex.getId();
-
     return renderState.withBlend(BlendModeEnum::TRANSPARENCY)
         .withDepthFunction(std::nullopt)
-        .withTexture0(id);
+        .withTexture0(m_textureId);
 }
 
 } // namespace Legacy

@@ -562,7 +562,7 @@ public:
             m_bounds.include(iVertex00 + iglyphSize);
         }
 
-        if (m_noOutput) {
+        if (m_noOutput || isEmpty) {
             return;
         }
 
@@ -574,7 +574,8 @@ public:
         uint32_t color = m_opts.fgColor.getUint32();
         if (m_opts.namedColor) {
             flags |= FONT_FLAG_NAMED_COLOR;
-            color = static_cast<uint32_t>(m_opts.namedColor.value());
+            color = (color & 0xFF000000u)
+                    | (static_cast<uint32_t>(m_opts.namedColor.value()) & 0x00FFFFFFu);
         }
 
         m_verts3d.emplace_back(m_opts.pos,
@@ -665,7 +666,8 @@ public:
                     uint32_t color = m_opts.optBgColor.value().getUint32();
                     if (m_opts.namedBgColor) {
                         flags |= FONT_FLAG_NAMED_COLOR;
-                        color = static_cast<uint32_t>(m_opts.namedBgColor.value());
+                        color = (color & 0xFF000000u)
+                                | (static_cast<uint32_t>(m_opts.namedBgColor.value()) & 0x00FFFFFFu);
                     }
                     emitSpecialInstance(color,
                                         flags,
@@ -682,7 +684,8 @@ public:
                     uint32_t color = m_opts.fgColor.getUint32();
                     if (m_opts.namedColor) {
                         flags |= FONT_FLAG_NAMED_COLOR;
-                        color = static_cast<uint32_t>(m_opts.namedColor.value());
+                        color = (color & 0xFF000000u)
+                                | (static_cast<uint32_t>(m_opts.namedColor.value()) & 0x00FFFFFFu);
                     }
                     emitSpecialInstance(color,
                                         flags,
@@ -834,7 +837,12 @@ void FontMetrics::getFontBatchRawData(const GLText *const text,
             }
 
             for (const char &c : it->text) {
-                if (lookupGlyph(c) != nullptr || hasOops) {
+                const Glyph *g = lookupGlyph(c);
+                if (g == nullptr && hasOops) {
+                    g = lookupGlyph(char_consts::C_QUESTION_MARK);
+                }
+
+                if (g != nullptr && !std::isspace(static_cast<unsigned char>(g->id))) {
                     numGlyphs++;
                 }
             }

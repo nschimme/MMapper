@@ -79,8 +79,9 @@ void main()
     uint flags = uint(aParams.y);
 
     // Branchless color selection
-    vec4 namedCol = uNamedColors[aColor % uint(MAX_NAMED_COLORS)];
     vec4 unpackedCol = unpackRGBA(aColor);
+    vec4 namedCol = uNamedColors[(aColor & 0x00FFFFFFu) % uint(MAX_NAMED_COLORS)];
+    namedCol.a *= unpackedCol.a;
     vColor = mix(unpackedCol, namedCol, float((flags & FLAG_NAMED_COLOR) != 0u));
 
     const vec2[4] quad = vec2[4](vec2(0, 0), vec2(1, 0), vec2(1, 1), vec2(0, 1));

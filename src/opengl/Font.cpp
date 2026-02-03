@@ -901,7 +901,7 @@ std::vector<FontInstanceData> GLFont::getFontMeshIntermediate(const std::vector<
 
 UniqueMesh GLFont::getFontMesh(const std::vector<FontInstanceData> &rawVerts)
 {
-    return m_gl.createFontMesh(m_texture, DrawModeEnum::QUADS, rawVerts);
+    return m_gl.createFontMesh(m_texture, rawVerts);
 }
 
 void GLFont::renderTextCentered(const QString &text,

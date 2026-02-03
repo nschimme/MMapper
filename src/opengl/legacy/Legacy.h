@@ -425,7 +425,6 @@ public:
 
 public:
     NODISCARD UniqueMesh createFontMesh(const SharedMMTexture &texture,
-                                        DrawModeEnum mode,
                                         const std::vector<FontInstanceData> &batch);
 
 public:

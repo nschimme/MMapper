@@ -141,10 +141,9 @@ UniqueMesh OpenGL::createRoomQuadTexBatch(const std::vector<RoomQuadTexVert> &ba
 }
 
 UniqueMesh OpenGL::createFontMesh(const SharedMMTexture &texture,
-                                  const DrawModeEnum mode,
                                   const std::vector<FontInstanceData> &batch)
 {
-    return getFunctions().createFontMesh(texture, mode, batch);
+    return getFunctions().createFontMesh(texture, batch);
 }
 
 void OpenGL::clear(const Color color)

@@ -2,7 +2,7 @@
 // Copyright (C) 2019 The MMapper Authors
 
 uniform mat4 uMVP;
-uniform vec4 uViewport;
+uniform ivec4 uViewport;
 
 layout(location = 0) in vec4 aColor;
 layout(location = 1) in vec3 aFrom;
@@ -15,7 +15,7 @@ out float isoLinePos;
 vec2 toScreenSpace(vec4 v)
 {
     vec3 ndc = v.xyz / v.w;
-    return (ndc.xy * 0.5 + 0.5) * uViewport.zw;
+    return (ndc.xy * 0.5 + 0.5) * vec2(uViewport.zw);
 }
 
 void main()
@@ -29,16 +29,11 @@ void main()
     float halfWidth = aWidth * 0.5;
     vec2 offset = normal * halfWidth;
 
-    vec2 positions[4] = vec2[](
-        p1 - offset,
-        p1 + offset,
-        p2 - offset,
-        p2 + offset
-    );
+    vec2 positions[4] = vec2[](p1 - offset, p1 + offset, p2 - offset, p2 + offset);
 
     vec2 pos = positions[gl_VertexID];
     // to NDC
-    pos = (pos / uViewport.zw) * 2.0 - 1.0;
+    pos = (pos / vec2(uViewport.zw)) * 2.0 - 1.0;
     gl_Position = vec4(pos, 0.0, 1.0);
 
     float weights[4] = float[](-1.0, 1.0, -1.0, 1.0);

@@ -77,11 +77,11 @@ const vec4 ignored = vec4(2.0, 2.0, 2.0, 1.0);
 void main()
 {
     uint flags = uint(aParams.y);
-    if ((flags & FLAG_NAMED_COLOR) != 0u) {
-        vColor = uNamedColors[aColor % uint(MAX_NAMED_COLORS)];
-    } else {
-        vColor = unpackRGBA(aColor);
-    }
+
+    // Branchless color selection
+    vec4 namedCol = uNamedColors[aColor % uint(MAX_NAMED_COLORS)];
+    vec4 unpackedCol = unpackRGBA(aColor);
+    vColor = mix(unpackedCol, namedCol, float((flags & FLAG_NAMED_COLOR) != 0u));
 
     const vec2[4] quad = vec2[4](vec2(0, 0), vec2(1, 0), vec2(1, 1), vec2(0, 1));
     vec2 corner = quad[gl_VertexID];
@@ -90,28 +90,20 @@ void main()
 
     vec2 posPixels = vec2(aRect.xy) + corner * vec2(aRect.zw);
 
-    if ((flags & FLAG_ITALICS) != 0u) {
-        posPixels.x += posPixels.y / 6.0;
-    }
+    // Branchless italics
+    posPixels.x += (posPixels.y / 6.0) * float((flags & FLAG_ITALICS) != 0u);
 
-    int rotation = int(aParams.x);
-    if (rotation != 0) {
-        float rad = radians(float(rotation));
-        float s = sin(rad);
-        float c = cos(rad);
-        posPixels = vec2(posPixels.x * c - posPixels.y * s, posPixels.x * s + posPixels.y * c);
-    }
+    // Branchless rotation
+    float rad = radians(float(aParams.x));
+    float s = sin(rad);
+    float c = cos(rad);
+    posPixels = vec2(posPixels.x * c - posPixels.y * s, posPixels.x * s + posPixels.y * c);
 
     vec4 pos = uMVP3D * vec4(aBase, 1); /* 3D transform */
 
-    // Ignore any text that falls far outside of the clip region.
-    if (any(greaterThan(abs(pos.xyz), vec3(1.5 * abs(pos.w))))) {
-        gl_Position = ignored;
-        return;
-    }
-
-    // Also ignore anything that appears too close to the camera.
-    if (abs(pos.w) < 1e-3) {
+    // Clipping tests
+    bool isInvalid = any(greaterThan(abs(pos.xyz), vec3(1.5 * abs(pos.w)))) || (abs(pos.w) < 1e-3);
+    if (isInvalid) {
         gl_Position = ignored;
         return;
     }

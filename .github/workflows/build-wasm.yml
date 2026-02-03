@@ -12,6 +12,8 @@ on:
 jobs:
   build-wasm:
     runs-on: macos-latest
+    env:
+      EM_CACHE: ${{ github.workspace }}/emsdk-cache
     steps:
     - uses: actions/checkout@v6
       with:

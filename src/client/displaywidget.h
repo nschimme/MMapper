@@ -3,27 +3,14 @@
 // Copyright (C) 2019 The MMapper Authors
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
+#include "DisplayViewModel.h"
 #include "../global/AnsiTextUtils.h"
 #include "../global/macros.h"
 
 #include <optional>
-
-#include <QColor>
-#include <QFont>
-#include <QSize>
-#include <QString>
 #include <QTextBrowser>
 #include <QTextCursor>
-#include <QTextEdit>
-#include <QTextFormat>
 #include <QTimer>
-#include <QtCore>
-#include <QtGui>
-
-class QObject;
-class QResizeEvent;
-class QTextDocument;
-class QWidget;
 
 struct NODISCARD FontDefaults final
 {
@@ -37,11 +24,7 @@ struct NODISCARD FontDefaults final
 };
 
 extern void setDefaultFormat(QTextCharFormat &format, const FontDefaults &defaults);
-
-NODISCARD extern RawAnsi updateFormat(QTextCharFormat &format,
-                                      const FontDefaults &defaults,
-                                      const RawAnsi &before,
-                                      RawAnsi updated);
+NODISCARD extern RawAnsi updateFormat(QTextCharFormat &format, const FontDefaults &defaults, const RawAnsi &before, RawAnsi updated);
 
 struct NODISCARD AnsiTextHelper final
 {
@@ -51,16 +34,8 @@ struct NODISCARD AnsiTextHelper final
     const FontDefaults defaults;
     RawAnsi currentAnsi;
 
-    explicit AnsiTextHelper(QTextEdit &input_textEdit, FontDefaults def)
-        : textEdit{input_textEdit}
-        , cursor{textEdit.document()->rootFrame()->firstCursorPosition()}
-        , format{cursor.charFormat()}
-        , defaults{std::move(def)}
-    {}
-
-    explicit AnsiTextHelper(QTextEdit &input_textEdit)
-        : AnsiTextHelper{input_textEdit, FontDefaults{}}
-    {}
+    explicit AnsiTextHelper(QTextEdit &input_textEdit, FontDefaults def);
+    explicit AnsiTextHelper(QTextEdit &input_textEdit);
 
     void init();
     void displayText(const QStringView str);
@@ -68,65 +43,20 @@ struct NODISCARD AnsiTextHelper final
 };
 
 extern void setAnsiText(QTextEdit *pEdit, std::string_view text);
-
-struct DisplayWidgetOutputs
-{
-public:
-    explicit DisplayWidgetOutputs() = default;
-    virtual ~DisplayWidgetOutputs();
-    DELETE_CTORS_AND_ASSIGN_OPS(DisplayWidgetOutputs);
-
-public:
-    void showMessage(const QString &msg, const int timeout) { virt_showMessage(msg, timeout); }
-    void windowSizeChanged(const int width, const int height)
-    {
-        virt_windowSizeChanged(width, height);
-    }
-    void returnFocusToInput() { virt_returnFocusToInput(); }
-    void showPreview(bool visible) { virt_showPreview(visible); }
-
-private:
-    virtual void virt_showMessage(const QString &msg, int timeout) = 0;
-    virtual void virt_windowSizeChanged(int width, int height) = 0;
-    virtual void virt_returnFocusToInput() = 0;
-    virtual void virt_showPreview(bool visible) = 0;
-};
-
 class NODISCARD_QOBJECT DisplayWidget final : public QTextBrowser
 {
     Q_OBJECT
-
 private:
-    using base = QTextBrowser;
-
-private:
-    DisplayWidgetOutputs *m_output = nullptr;
+    DisplayViewModel m_viewModel;
     AnsiTextHelper m_ansiTextHelper;
-    QTimer *m_timer = nullptr;
+    QTimer *m_visualBellTimer = nullptr;
     bool m_canCopy = false;
 
 public:
-    explicit DisplayWidget(QWidget *parent);
+    explicit DisplayWidget(QWidget *parent = nullptr);
     ~DisplayWidget() final;
 
-public:
-    void init(DisplayWidgetOutputs &output)
-    {
-        if (m_output != nullptr) {
-            std::abort();
-        }
-        m_output = &output;
-    }
-
-private:
-    // if this fails, it means you forgot to call init
-    NODISCARD DisplayWidgetOutputs &getOutput() { return deref(m_output); }
-
-private:
-    NODISCARD const QFont &getDefaultFont() const
-    {
-        return m_ansiTextHelper.defaults.serverOutputFont;
-    }
+    DisplayViewModel* viewModel() { return &m_viewModel; }
 
 public:
     NODISCARD bool canCopy() const { return m_canCopy; }
@@ -136,6 +66,13 @@ protected:
     void resizeEvent(QResizeEvent *event) override;
     void keyPressEvent(QKeyEvent *event) override;
 
+signals:
+    void sig_windowSizeChanged(int cols, int rows);
+    void sig_returnFocusToInput();
+    void sig_showPreview(bool visible);
+
 public slots:
     void slot_displayText(const QStringView str);
+private:
+    void handleVisualBell();
 };

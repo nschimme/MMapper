@@ -1,29 +1,29 @@
 #pragma once
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
-// Author: Ulf Hermann <ulfonk_mennhar@gmx.de> (Alve)
-// Author: Marek Krejza <krejza@gmail.com> (Caligor)
 
-#include "../global/macros.h"
-#include "ui_parserpage.h"
-
-#include <QString>
+#include "ParserPageViewModel.h"
 #include <QWidget>
-#include <QtCore>
 
-class QObject;
+namespace Ui {
+class ParserPage;
+}
 
-enum class NODISCARD UiCharsetEnum { AsciiOrLatin1, UTF8 };
-
-class NODISCARD_QOBJECT ParserPage : public QWidget, private Ui::ParserPage
+class NODISCARD_QOBJECT ParserPage final : public QWidget
 {
     Q_OBJECT
 
+private:
+    Ui::ParserPage *const ui;
+    ParserPageViewModel m_viewModel;
+
 public:
     explicit ParserPage(QWidget *parent);
+    ~ParserPage() final;
 
 public slots:
     void slot_loadConfig();
-    void slot_roomNameColorClicked();
-    void slot_roomDescColorClicked();
+
+private:
+    void updateUI();
 };

@@ -109,8 +109,12 @@ MainWindow::~MainWindow()
 
 MainWindow::MainWindow()
     : QMainWindow(nullptr, Qt::WindowFlags{})
+    , m_viewModel(std::make_unique<MainViewModel>(this))
     , m_asyncTask(this)
 {
+    connect(m_viewModel.get(), &MainViewModel::windowTitleChanged, this, [this]() {
+        setWindowTitle(m_viewModel->windowTitle());
+    });
     initTopLevelWindows();
     async_tasks::init();
     setObjectName("MainWindow");

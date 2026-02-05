@@ -8,12 +8,24 @@ set(mmapper_SRCS
     adventure/adventurewidget.h
     adventure/lineparsers.cpp
     adventure/lineparsers.h
+    adventure/XPStatusViewModel.cpp
+    adventure/XPStatusViewModel.h
     adventure/xpstatuswidget.cpp
     adventure/xpstatuswidget.h
     client/ClientTelnet.cpp
     client/ClientTelnet.h
     client/ClientWidget.cpp
     client/ClientWidget.h
+    client/ClientWidgetViewModel.cpp
+    client/ClientWidgetViewModel.h
+    client/DisplayViewModel.cpp
+    client/DisplayViewModel.h
+    client/InputViewModel.cpp
+    client/InputViewModel.h
+    client/PasswordViewModel.cpp
+    client/PasswordViewModel.h
+    client/StackedInputViewModel.cpp
+    client/StackedInputViewModel.h
     client/PaletteManager.cpp
     client/PaletteManager.h
     client/displaywidget.cpp
@@ -32,6 +44,8 @@ set(mmapper_SRCS
     client/PreviewWidget.h
     clock/mumeclock.cpp
     clock/mumeclock.h
+    clock/MumeClockViewModel.cpp
+    clock/MumeClockViewModel.h
     clock/mumeclockwidget.cpp
     clock/mumeclockwidget.h
     clock/mumemoment.cpp
@@ -72,6 +86,8 @@ set(mmapper_SRCS
     display/Textures.h
     display/connectionselection.cpp
     display/connectionselection.h
+    display/MapCanvasViewModel.cpp
+    display/MapCanvasViewModel.h
     display/mapcanvas.cpp
     display/mapcanvas.h
     display/mapcanvas_gl.cpp
@@ -228,8 +244,20 @@ set(mmapper_SRCS
     logger/autologger.h
     mainwindow/DescriptionWidget.cpp
     mainwindow/DescriptionWidget.h
+    mainwindow/FindRoomsViewModel.cpp
+    mainwindow/FindRoomsViewModel.h
+    mainwindow/InfoMarksEditViewModel.cpp
+    mainwindow/InfoMarksEditViewModel.h
+    mainwindow/MainViewModel.cpp
+    mainwindow/MainViewModel.h
+    mainwindow/MapZoomSliderViewModel.cpp
+    mainwindow/MapZoomSliderViewModel.h
     mainwindow/MapZoomSlider.cpp
     mainwindow/MapZoomSlider.h
+    mainwindow/RoomEditAttrViewModel.cpp
+    mainwindow/RoomEditAttrViewModel.h
+    mainwindow/UpdateViewModel.cpp
+    mainwindow/UpdateViewModel.h
     mainwindow/UpdateDialog.cpp
     mainwindow/UpdateDialog.h
     mainwindow/ThemeManager.cpp
@@ -480,26 +508,44 @@ set(mmapper_SRCS
     pathmachine/syncing.h
     preferences/AdvancedGraphics.cpp
     preferences/AdvancedGraphics.h
+    preferences/AnsiColorViewModel.cpp
+    preferences/AnsiColorViewModel.h
     preferences/AnsiColorDialog.cpp
     preferences/AnsiColorDialog.h
     preferences/ansicombo.cpp
     preferences/ansicombo.h
+    preferences/AutoLogPageViewModel.cpp
+    preferences/AutoLogPageViewModel.h
     preferences/autologpage.cpp
     preferences/autologpage.h
+    preferences/ClientPageViewModel.cpp
+    preferences/ClientPageViewModel.h
     preferences/clientpage.cpp
     preferences/clientpage.h
     preferences/configdialog.cpp
     preferences/configdialog.h
+    preferences/GeneralViewModel.cpp
+    preferences/GeneralViewModel.h
     preferences/generalpage.cpp
     preferences/generalpage.h
+    preferences/GroupPageViewModel.cpp
+    preferences/GroupPageViewModel.h
+    preferences/GraphicsViewModel.cpp
+    preferences/GraphicsViewModel.h
     preferences/graphicspage.cpp
     preferences/graphicspage.h
     preferences/grouppage.cpp
     preferences/grouppage.h
+    preferences/MumeProtocolViewModel.cpp
+    preferences/MumeProtocolViewModel.h
     preferences/mumeprotocolpage.cpp
     preferences/mumeprotocolpage.h
+    preferences/ParserPageViewModel.cpp
+    preferences/ParserPageViewModel.h
     preferences/parserpage.cpp
     preferences/parserpage.h
+    preferences/PathMachinePageViewModel.cpp
+    preferences/PathMachinePageViewModel.h
     preferences/pathmachinepage.cpp
     preferences/pathmachinepage.h
     proxy/AbstractSocket.h

@@ -1,89 +1,53 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2025 The MMapper Authors
+// Copyright (C) 2019 The MMapper Authors
 
 #include "grouppage.h"
-
-#include "../configuration/configuration.h"
 #include "ui_grouppage.h"
-
-#include <QCheckBox>
+#include "../global/SignalBlocker.h"
 #include <QColorDialog>
-#include <QPixmap>
-#include <QPushButton>
 
-GroupPage::GroupPage(QWidget *const parent)
-    : QWidget(parent)
-    , ui(new Ui::GroupPage)
+GroupPage::GroupPage(QWidget *parent)
+    : QWidget(parent), ui(new Ui::GroupPage)
 {
     ui->setupUi(this);
+    connect(&m_viewModel, &GroupPageViewModel::settingsChanged, this, &GroupPage::updateUI);
+    connect(&m_viewModel, &GroupPageViewModel::settingsChanged, this, &GroupPage::sig_groupSettingsChanged);
 
     connect(ui->yourColorPushButton, &QPushButton::clicked, this, &GroupPage::slot_chooseColor);
+    connect(ui->npcOverrideColorPushButton, &QPushButton::clicked, this, &GroupPage::slot_chooseNpcOverrideColor);
+    connect(ui->npcOverrideColorCheckBox, &QCheckBox::toggled, &m_viewModel, &GroupPageViewModel::setNpcColorOverride);
+    connect(ui->npcSortBottomCheckbox, &QCheckBox::toggled, &m_viewModel, &GroupPageViewModel::setNpcSortBottom);
+    connect(ui->npcHideCheckbox, &QCheckBox::toggled, &m_viewModel, &GroupPageViewModel::setNpcHide);
 
-    connect(ui->npcOverrideColorCheckBox, &QCheckBox::stateChanged, this, [this](int checked) {
-        setConfig().groupManager.npcColorOverride = checked;
-        emit sig_groupSettingsChanged();
-    });
-    connect(ui->npcOverrideColorPushButton,
-            &QPushButton::clicked,
-            this,
-            &GroupPage::slot_chooseNpcOverrideColor);
-
-    connect(ui->npcSortBottomCheckbox, &QCheckBox::stateChanged, this, [this](int checked) {
-        setConfig().groupManager.npcSortBottom = checked;
-        emit sig_groupSettingsChanged();
-    });
-    connect(ui->npcHideCheckbox, &QCheckBox::stateChanged, this, [this](int checked) {
-        setConfig().groupManager.npcHide = checked;
-        emit sig_groupSettingsChanged();
-    });
-
-    slot_loadConfig();
+    updateUI();
 }
 
-GroupPage::~GroupPage()
+GroupPage::~GroupPage() = default;
+
+void GroupPage::updateUI()
 {
-    delete ui;
+    SignalBlocker sb1(*ui->npcOverrideColorCheckBox);
+    SignalBlocker sb2(*ui->npcSortBottomCheckbox);
+    SignalBlocker sb3(*ui->npcHideCheckbox);
+
+    ui->npcOverrideColorCheckBox->setChecked(m_viewModel.npcColorOverride());
+    ui->npcSortBottomCheckbox->setChecked(m_viewModel.npcSortBottom());
+    ui->npcHideCheckbox->setChecked(m_viewModel.npcHide());
 }
 
 void GroupPage::slot_loadConfig()
 {
-    const auto &settings = getConfig().groupManager;
-
-    QPixmap yourPix(16, 16);
-    yourPix.fill(settings.color);
-    ui->yourColorPushButton->setIcon(QIcon(yourPix));
-
-    ui->npcOverrideColorCheckBox->setChecked(settings.npcColorOverride);
-    QPixmap npcOverridePix(16, 16);
-    npcOverridePix.fill(settings.npcColor);
-    ui->npcOverrideColorPushButton->setIcon(QIcon(npcOverridePix));
-
-    ui->npcSortBottomCheckbox->setChecked(settings.npcSortBottom);
-    ui->npcHideCheckbox->setChecked(settings.npcHide);
+    m_viewModel.loadConfig();
 }
 
 void GroupPage::slot_chooseColor()
 {
-    const QColor color = QColorDialog::getColor(getConfig().groupManager.color,
-                                                this,
-                                                tr("Select Your Color"));
-
-    if (color.isValid()) {
-        setConfig().groupManager.color = color;
-        slot_loadConfig();
-        emit sig_groupSettingsChanged();
-    }
+    QColor color = QColorDialog::getColor(m_viewModel.color(), this);
+    if (color.isValid()) m_viewModel.setColor(color);
 }
 
 void GroupPage::slot_chooseNpcOverrideColor()
 {
-    const QColor color = QColorDialog::getColor(getConfig().groupManager.npcColor,
-                                                this,
-                                                tr("Select NPC Override Color"));
-
-    if (color.isValid()) {
-        setConfig().groupManager.npcColor = color;
-        slot_loadConfig();
-        emit sig_groupSettingsChanged();
-    }
+    QColor color = QColorDialog::getColor(m_viewModel.npcColor(), this);
+    if (color.isValid()) m_viewModel.setNpcColor(color);
 }

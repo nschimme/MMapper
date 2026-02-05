@@ -1,80 +1,44 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
-// Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
 #include "mumeprotocolpage.h"
-
-#include "../configuration/configuration.h"
 #include "ui_mumeprotocolpage.h"
-
-#include <utility>
-
-#include <QString>
-#include <QtWidgets>
+#include "../global/SignalBlocker.h"
 
 MumeProtocolPage::MumeProtocolPage(QWidget *parent)
-    : QWidget(parent)
-    , ui(new Ui::MumeProtocolPage)
+    : QWidget(parent), ui(new Ui::MumeProtocolPage)
 {
     ui->setupUi(this);
+    connect(&m_viewModel, &MumeProtocolViewModel::settingsChanged, this, &MumeProtocolPage::updateUI);
 
-    connect(ui->internalEditorRadioButton,
-            &QAbstractButton::toggled,
-            this,
-            &MumeProtocolPage::slot_internalEditorRadioButtonChanged);
-    connect(ui->externalEditorCommand,
-            &QLineEdit::textChanged,
-            this,
-            &MumeProtocolPage::slot_externalEditorCommandTextChanged);
-    connect(ui->externalEditorBrowseButton,
-            &QAbstractButton::clicked,
-            this,
-            &MumeProtocolPage::slot_externalEditorBrowseButtonClicked);
+    connect(ui->internalEditorRadioButton, &QRadioButton::toggled, this, [this](bool checked) {
+        if (checked) m_viewModel.setUseInternalEditor(true);
+    });
+    connect(ui->externalEditorRadioButton, &QRadioButton::toggled, this, [this](bool checked) {
+        if (checked) m_viewModel.setUseInternalEditor(false);
+    });
+    connect(ui->externalEditorCommand, &QLineEdit::textChanged, &m_viewModel, &MumeProtocolViewModel::setExternalEditorCommand);
+
+    updateUI();
 }
 
-MumeProtocolPage::~MumeProtocolPage()
+MumeProtocolPage::~MumeProtocolPage() = default;
+
+void MumeProtocolPage::updateUI()
 {
-    delete ui;
+    SignalBlocker sb1(*ui->internalEditorRadioButton);
+    SignalBlocker sb2(*ui->externalEditorRadioButton);
+    SignalBlocker sb3(*ui->externalEditorCommand);
+
+    if (m_viewModel.useInternalEditor()) {
+        ui->internalEditorRadioButton->setChecked(true);
+    } else {
+        ui->externalEditorRadioButton->setChecked(true);
+    }
+    ui->externalEditorCommand->setText(m_viewModel.externalEditorCommand());
 }
 
 void MumeProtocolPage::slot_loadConfig()
 {
-    const auto &settings = getConfig().mumeClientProtocol;
-    ui->internalEditorRadioButton->setChecked(settings.internalRemoteEditor);
-    ui->externalEditorRadioButton->setChecked(!settings.internalRemoteEditor);
-    ui->externalEditorCommand->setText(settings.externalRemoteEditorCommand);
-    ui->externalEditorCommand->setEnabled(!settings.internalRemoteEditor);
-    ui->externalEditorBrowseButton->setEnabled(!settings.internalRemoteEditor);
-
-    if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
-        ui->externalEditorRadioButton->setDisabled(true);
-    }
-}
-
-void MumeProtocolPage::slot_internalEditorRadioButtonChanged(bool /*unused*/)
-{
-    const bool useInternalEditor = ui->internalEditorRadioButton->isChecked();
-
-    setConfig().mumeClientProtocol.internalRemoteEditor = useInternalEditor;
-
-    ui->externalEditorCommand->setEnabled(!useInternalEditor);
-    ui->externalEditorBrowseButton->setEnabled(!useInternalEditor);
-}
-
-void MumeProtocolPage::slot_externalEditorCommandTextChanged(QString text)
-{
-    setConfig().mumeClientProtocol.externalRemoteEditorCommand = std::move(text);
-}
-
-void MumeProtocolPage::slot_externalEditorBrowseButtonClicked(bool /*unused*/)
-{
-    auto &command = setConfig().mumeClientProtocol.externalRemoteEditorCommand;
-    QFileInfo dirInfo(command);
-    const auto dir = dirInfo.exists() ? dirInfo.absoluteDir().absolutePath() : QDir::homePath();
-    QString fileName = QFileDialog::getOpenFileName(this, "Choose editor...", dir, "Editor (*)");
-    if (!fileName.isEmpty()) {
-        QString quotedFileName = QString(R"("%1")").arg(fileName.replace(R"(")", R"(\")"));
-        ui->externalEditorCommand->setText(quotedFileName);
-        command = quotedFileName;
-    }
+    m_viewModel.loadConfig();
 }

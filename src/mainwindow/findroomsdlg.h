@@ -1,59 +1,30 @@
 #pragma once
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
-// Author: Kalev Lember <kalev@smartlink.ee> (Kalev)
-// Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
+#include "FindRoomsViewModel.h"
 #include "../mapdata/roomselection.h"
-#include "../parser/abstractparser.h"
-
-#include <memory>
-
 #include <QDialog>
-#include <QString>
-#include <QtCore>
-#include <QtGlobal>
-#include <QtWidgets/QTreeWidgetItem>
+#include <memory>
+#include <glm/vec2.hpp>
 
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wreserved-identifier"
-#endif
-#include "ui_findroomsdlg.h" // auto-generated
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
-
-class MapCanvas;
-class MapData;
-class QCloseEvent;
-class QObject;
-class QShortcut;
+namespace Ui { class FindRoomsDlg; }
 class QTreeWidgetItem;
-class QWidget;
+class QShortcut;
+class MapData;
 
-class NODISCARD_QOBJECT FindRoomsDlg final : public QDialog, private Ui::FindRoomsDlg
+class NODISCARD_QOBJECT FindRoomsDlg final : public QDialog
 {
     Q_OBJECT
-
 private:
-    MapData &m_mapData;
+    std::unique_ptr<Ui::FindRoomsDlg> ui;
+    FindRoomsViewModel m_viewModel;
     QTreeWidgetItem *item = nullptr;
     std::unique_ptr<QShortcut> m_showSelectedRoom;
 
-private:
-    void closeEvent(QCloseEvent *event) final;
-
 public:
-    explicit FindRoomsDlg(MapData &, QWidget *parent);
+    explicit FindRoomsDlg(MapData &mapData, QWidget *parent = nullptr);
     ~FindRoomsDlg() final;
-
-    void readSettings();
-    void writeSettings();
-
-private:
-    void adjustResultTable();
-    NODISCARD QString constructToolTip(const RoomHandle &);
 
 signals:
     void sig_center(const glm::vec2 &worldPos);
@@ -62,16 +33,8 @@ signals:
     void sig_log(const QString &, const QString &);
 
 private slots:
-    void slot_on_lineEdit_textChanged();
     void slot_findClicked();
-    void slot_enableFindButton(const QString &text);
     void slot_itemDoubleClicked(QTreeWidgetItem *inputItem);
     void slot_showSelectedRoom();
-
-public slots:
-    void slot_closeEvent(QCloseEvent *event)
-    {
-        /* virtual */
-        closeEvent(event);
-    }
+    void updateUI();
 };

@@ -3,116 +3,23 @@
 // Copyright (C) 2019 The MMapper Authors
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
-#include "../global/RuleOf5.h"
-#include "../global/macros.h"
-#include "Hotkey.h"
+#include "InputViewModel.h"
 #include "PaletteManager.h"
-
-#include <iterator>
-#include <list>
-
-#include <QEvent>
-#include <QObject>
+#include "../global/macros.h"
 #include <QPlainTextEdit>
-#include <QSize>
-#include <QString>
-#include <QWidget>
-#include <QtCore>
-
-class QKeyEvent;
-class QObject;
-class QWidget;
-
-class NODISCARD InputHistory final : private std::list<QString>
-{
-private:
-    std::list<QString>::iterator m_iterator;
-
-public:
-    InputHistory() { m_iterator = begin(); }
-
-public:
-    void addInputLine(const QString &);
-
-public:
-    void forward() { std::advance(m_iterator, 1); }
-    void backward() { std::advance(m_iterator, -1); }
-
-public:
-    NODISCARD const QString &value() const { return *m_iterator; }
-
-public:
-    NODISCARD bool atFront() const { return m_iterator == begin(); }
-    NODISCARD bool atEnd() const { return m_iterator == end(); }
-};
-
-class NODISCARD TabHistory final : private std::list<QString>
-{
-    using base = std::list<QString>;
-
-private:
-    std::list<QString>::iterator m_iterator;
-
-public:
-    TabHistory() { m_iterator = begin(); }
-
-public:
-    void addInputLine(const QString &);
-
-public:
-    void forward() { std::advance(m_iterator, 1); }
-    void reset() { m_iterator = begin(); }
-
-public:
-    NODISCARD const QString &value() const { return *m_iterator; }
-
-public:
-    NODISCARD bool empty() { return base::empty(); }
-    NODISCARD bool atEnd() const { return m_iterator == end(); }
-};
-
-struct NODISCARD InputWidgetOutputs
-{
-public:
-    explicit InputWidgetOutputs() = default;
-    virtual ~InputWidgetOutputs();
-    DELETE_CTORS_AND_ASSIGN_OPS(InputWidgetOutputs);
-
-public:
-    void sendUserInput(const QString &msg) { virt_sendUserInput(msg); }
-    void displayMessage(const QString &msg) { virt_displayMessage(msg); }
-    void showMessage(const QString &msg, const int timeout) { virt_showMessage(msg, timeout); }
-    void gotPasswordInput(const QString &password) { virt_gotPasswordInput(password); }
-    void scrollDisplay(bool pageUp) { virt_scrollDisplay(pageUp); }
-    std::optional<QString> getHotkey(const Hotkey &hk) { return virt_getHotkey(hk); }
-
-private:
-    virtual void virt_sendUserInput(const QString &msg) = 0;
-    virtual void virt_displayMessage(const QString &msg) = 0;
-    virtual void virt_showMessage(const QString &msg, int timeout) = 0;
-    virtual void virt_gotPasswordInput(const QString &password) = 0;
-    virtual void virt_scrollDisplay(bool pageUp) = 0;
-    virtual std::optional<QString> virt_getHotkey(const Hotkey &hk) = 0;
-};
 
 class NODISCARD_QOBJECT InputWidget final : public QPlainTextEdit
 {
     Q_OBJECT
-
 private:
-    using base = QPlainTextEdit;
-
-private:
-    InputWidgetOutputs &m_outputs;
-    QString m_tabFragment;
-    TabHistory m_tabHistory;
-    InputHistory m_inputHistory;
+    InputViewModel *m_viewModel;
     PaletteManager m_paletteManager;
+    QString m_tabFragment;
     bool m_tabbing = false;
     bool m_handledInShortcutOverride = false;
 
 public:
-    explicit InputWidget(QWidget *parent, InputWidgetOutputs &);
+    explicit InputWidget(InputViewModel *vm, QWidget *parent);
     ~InputWidget() final;
 
     NODISCARD QSize sizeHint() const override;
@@ -122,20 +29,8 @@ protected:
     bool event(QEvent *event) override;
 
 private:
-    void gotInput();
-    NODISCARD bool tryHistory(int);
-    NODISCARD bool handleCommandInput(Qt::Key key, Qt::KeyboardModifiers mods);
-    NODISCARD bool handleTerminalShortcut(int key);
-    NODISCARD bool handleBasicKey(int key);
-
-private:
+    void handleInput();
     void tabComplete();
-
-private:
-    void forwardHistory();
-    void backwardHistory();
-
-private:
-    void sendUserInput(const QString &msg) { m_outputs.sendUserInput(msg); }
-    void sendCommandWithSeparator(const QString &command);
+    bool handleCommandInput(Qt::Key key, Qt::KeyboardModifiers mods);
+    bool handleTerminalShortcut(int key);
 };

@@ -2,52 +2,25 @@
 // Copyright (C) 2019 The MMapper Authors
 
 #include "PasswordDialog.h"
-
-#include "inputwidget.h"
-
-#include <QDialogButtonBox>
 #include <QVBoxLayout>
+#include <QLabel>
 
-PasswordDialog::PasswordDialog(InputWidgetOutputs &outputs, QWidget *const parent)
+PasswordDialog::PasswordDialog(QWidget *const parent)
     : QDialog(parent)
-    , m_outputs(outputs)
 {
-    setWindowTitle("Password");
-
+    auto *layout = new QVBoxLayout(this);
+    layout->addWidget(new QLabel(tr("Password:"), this));
     m_passwordLineEdit = new QLineEdit(this);
     m_passwordLineEdit->setEchoMode(QLineEdit::Password);
-
-    QDialogButtonBox *buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok
-                                                           | QDialogButtonBox::Cancel,
-                                                       this);
-
-    QVBoxLayout *layout = new QVBoxLayout(this);
     layout->addWidget(m_passwordLineEdit);
-    layout->addWidget(buttonBox);
-
-    setLayout(layout);
-
-    connect(buttonBox, &QDialogButtonBox::accepted, this, &PasswordDialog::accept);
-    connect(buttonBox, &QDialogButtonBox::rejected, this, &PasswordDialog::reject);
-}
-
-bool PasswordDialog::focusNextPrevChild(bool /*next*/)
-{
-    // Disable tabbing
-    return false;
+    connect(m_passwordLineEdit, &QLineEdit::returnPressed, this, &PasswordDialog::accept);
 }
 
 void PasswordDialog::accept()
 {
-    QString password = m_passwordLineEdit->text();
+    emit sig_passwordSubmitted(m_passwordLineEdit->text());
     m_passwordLineEdit->clear();
-    m_outputs.gotPasswordInput(password);
     QDialog::accept();
 }
 
-void PasswordDialog::reject()
-{
-    m_passwordLineEdit->clear();
-    m_outputs.gotPasswordInput(QString());
-    QDialog::reject();
-}
+bool PasswordDialog::focusNextPrevChild(bool) { return false; }

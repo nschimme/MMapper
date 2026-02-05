@@ -1,51 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2024 The MMapper Authors
+// Copyright (C) 2019-2024 The MMapper Authors
 
 #include "MapZoomSlider.h"
-
 #include "../display/mapwindow.h"
-#include "../global/SignalBlocker.h"
+#include <cmath>
 
+int MapZoomSlider::calcPos(const float z) noexcept { return static_cast<int>(std::round(std::log2(z) * 100.0f)); }
+MapZoomSlider::MapZoomSlider(MapWindow &m, QWidget *p) : QSlider(Qt::Horizontal, p), m_map(m) {
+    setRange(calcPos(ScaleFactor::MIN_VALUE), calcPos(ScaleFactor::MAX_VALUE));
+    connect(this, &QSlider::valueChanged, this, [this](int v) { m_viewModel.setSliderValue(v); requestChange(); });
+    connect(&m_viewModel, &MapZoomSliderViewModel::sliderValueChanged, this, [this]() { if (value() != m_viewModel.sliderValue()) setValue(m_viewModel.sliderValue()); });
+}
 MapZoomSlider::~MapZoomSlider() = default;
-
-int MapZoomSlider::calcPos(const float zoom) noexcept
-{
-    static const float INV_DIVISOR = 1.f / std::log2(ScaleFactor::ZOOM_STEP);
-    return static_cast<int>(std::lround(SCALE * std::log2(zoom) * INV_DIVISOR));
-}
-
-MapZoomSlider::MapZoomSlider(MapWindow &map, QWidget *const parent)
-    : QSlider(Qt::Orientation::Horizontal, parent)
-    , m_map{map}
-{
-    setRange(min, max);
-    setFromActual();
-
-    connect(this, &QSlider::valueChanged, this, [this](int /*value*/) {
-        requestChange();
-        setFromActual();
-    });
-
-    connect(&map, &MapWindow::sig_zoomChanged, this, [this](float) { setFromActual(); });
-    setToolTip("Zoom");
-}
-
-void MapZoomSlider::requestChange()
-{
-    const float desiredZoomSteps = static_cast<float>(clamp(value())) * INV_SCALE;
-    {
-        const SignalBlocker block{*this};
-        m_map.setZoom(std::pow(ScaleFactor::ZOOM_STEP, desiredZoomSteps));
-    }
-    m_map.slot_graphicsSettingsChanged();
-}
-
-void MapZoomSlider::setFromActual()
-{
-    const float actualZoom = m_map.getZoom();
-    const int rounded = calcPos(actualZoom);
-    {
-        const SignalBlocker block{*this};
-        setValue(clamp(rounded));
-    }
-}
+void MapZoomSlider::requestChange() { m_map.setZoom(m_viewModel.zoomValue()); }
+void MapZoomSlider::setFromActual() { m_viewModel.setZoomValue(m_map.getRawZoom()); }

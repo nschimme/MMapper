@@ -1,359 +1,79 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
-// Author: Ulf Hermann <ulfonk_mennhar@gmx.de> (Alve)
-// Author: Marek Krejza <krejza@gmail.com> (Caligor)
-// Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
 #include "generalpage.h"
-
-#include "../configuration/configuration.h"
 #include "ui_generalpage.h"
-
-#include <QSslSocket>
-#include <QString>
-#include <QtWidgets>
-
-// Order of entries in charsetComboBox drop down
-static_assert(static_cast<int>(CharacterEncodingEnum::LATIN1) == 0);
-static_assert(static_cast<int>(CharacterEncodingEnum::UTF8) == 1);
-static_assert(static_cast<int>(CharacterEncodingEnum::ASCII) == 2);
-
-// Order of entries in themeComboBox drop down
-static_assert(static_cast<int>(ThemeEnum::System) == 0);
-static_assert(static_cast<int>(ThemeEnum::Dark) == 1);
-static_assert(static_cast<int>(ThemeEnum::Light) == 2);
+#include "../global/SignalBlocker.h"
 
 GeneralPage::GeneralPage(QWidget *parent)
-    : QWidget(parent)
-    , ui(new Ui::GeneralPage)
-    , passCfg(this)
+    : QWidget(parent), ui(new Ui::GeneralPage)
 {
     ui->setupUi(this);
+    connect(&m_viewModel, &GeneralViewModel::settingsChanged, this, &GeneralPage::updateUI);
 
-    connect(ui->remoteName, &QLineEdit::textChanged, this, &GeneralPage::slot_remoteNameTextChanged);
-    connect(ui->remotePort,
-            QOverload<int>::of(&QSpinBox::valueChanged),
-            this,
-            &GeneralPage::slot_remotePortValueChanged);
-    connect(ui->localPort,
-            QOverload<int>::of(&QSpinBox::valueChanged),
-            this,
-            &GeneralPage::slot_localPortValueChanged);
-    connect(ui->encryptionCheckBox, &QCheckBox::clicked, this, [](const bool checked) {
-        setConfig().connection.tlsEncryption = checked;
-    });
-    connect(ui->proxyListensOnAnyInterfaceCheckBox, &QCheckBox::stateChanged, this, [this]() {
-        setConfig().connection.proxyListensOnAnyInterface = ui->proxyListensOnAnyInterfaceCheckBox
-                                                                ->isChecked();
-    });
-    connect(ui->charsetComboBox,
-            QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this,
-            [](const int index) {
-                setConfig().general.characterEncoding = static_cast<CharacterEncodingEnum>(index);
-            });
-    connect(ui->themeComboBox,
-            QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this,
-            &GeneralPage::slot_themeComboBoxChanged);
+    connect(ui->remoteName, &QLineEdit::textChanged, &m_viewModel, &GeneralViewModel::setRemoteName);
+    connect(ui->remotePort, QOverload<int>::of(&QSpinBox::valueChanged), &m_viewModel, &GeneralViewModel::setRemotePort);
+    connect(ui->localPort, QOverload<int>::of(&QSpinBox::valueChanged), &m_viewModel, &GeneralViewModel::setLocalPort);
+    connect(ui->encryptionCheckBox, &QCheckBox::toggled, &m_viewModel, &GeneralViewModel::setTlsEncryption);
+    connect(ui->proxyListensOnAnyInterfaceCheckBox, &QCheckBox::toggled, &m_viewModel, &GeneralViewModel::setProxyListensOnAnyInterface);
+    connect(ui->charsetComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), &m_viewModel, &GeneralViewModel::setCharacterEncoding);
+    connect(ui->themeComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), &m_viewModel, &GeneralViewModel::setTheme);
+    connect(ui->emulatedExitsCheckBox, &QCheckBox::toggled, &m_viewModel, &GeneralViewModel::setEmulateExits);
+    connect(ui->showHiddenExitFlagsCheckBox, &QCheckBox::toggled, &m_viewModel, &GeneralViewModel::setShowHiddenExitFlags);
+    connect(ui->showNotesCheckBox, &QCheckBox::toggled, &m_viewModel, &GeneralViewModel::setShowNotes);
+    connect(ui->checkForUpdateCheckBox, &QCheckBox::toggled, &m_viewModel, &GeneralViewModel::setCheckForUpdate);
+    connect(ui->autoLoadFileName, &QLineEdit::textChanged, &m_viewModel, &GeneralViewModel::setAutoLoadFileName);
+    connect(ui->autoLoadCheck, &QCheckBox::toggled, &m_viewModel, &GeneralViewModel::setAutoLoadMap);
+    connect(ui->displayMumeClockCheckBox, &QCheckBox::toggled, &m_viewModel, &GeneralViewModel::setDisplayMumeClock);
+    connect(ui->displayXPStatusCheckBox, &QCheckBox::toggled, &m_viewModel, &GeneralViewModel::setDisplayXPStatus);
+    connect(ui->proxyConnectionStatusCheckBox, &QCheckBox::toggled, &m_viewModel, &GeneralViewModel::setProxyConnectionStatus);
+    connect(ui->autoLogin, &QCheckBox::toggled, &m_viewModel, &GeneralViewModel::setRememberLogin);
+    connect(ui->accountName, &QLineEdit::textChanged, &m_viewModel, &GeneralViewModel::setAccountName);
 
-    connect(ui->emulatedExitsCheckBox,
-            &QCheckBox::stateChanged,
-            this,
-            &GeneralPage::slot_emulatedExitsStateChanged);
-    connect(ui->showHiddenExitFlagsCheckBox,
-            &QCheckBox::stateChanged,
-            this,
-            &GeneralPage::slot_showHiddenExitFlagsStateChanged);
-    connect(ui->showNotesCheckBox,
-            &QCheckBox::stateChanged,
-            this,
-            &GeneralPage::slot_showNotesStateChanged);
-
-    connect(ui->checkForUpdateCheckBox, &QCheckBox::stateChanged, this, [this]() {
-        setConfig().general.checkForUpdate = ui->checkForUpdateCheckBox->isChecked();
-    });
-    connect(ui->autoLoadFileName,
-            &QLineEdit::textChanged,
-            this,
-            &GeneralPage::slot_autoLoadFileNameTextChanged);
-    connect(ui->autoLoadCheck,
-            &QCheckBox::stateChanged,
-            this,
-            &GeneralPage::slot_autoLoadCheckStateChanged);
-    connect(ui->selectWorldFileButton,
-            &QAbstractButton::clicked,
-            this,
-            &GeneralPage::slot_selectWorldFileButtonClicked);
-
-    connect(ui->displayMumeClockCheckBox,
-            &QCheckBox::stateChanged,
-            this,
-            &GeneralPage::slot_displayMumeClockStateChanged);
-
-    connect(ui->displayXPStatusCheckBox,
-            &QCheckBox::stateChanged,
-            this,
-            &GeneralPage::slot_displayXPStatusStateChanged);
-
-    connect(ui->proxyConnectionStatusCheckBox, &QCheckBox::stateChanged, this, [this]() {
-        setConfig().connection.proxyConnectionStatus = ui->proxyConnectionStatusCheckBox->isChecked();
-    });
-
-    connect(ui->configurationResetButton, &QAbstractButton::clicked, this, [this]() {
-        QMessageBox::StandardButton reply
-            = QMessageBox::question(this,
-                                    "MMapper Factory Reset",
-                                    "Are you sure you want to perform a factory reset?",
-                                    QMessageBox::Yes | QMessageBox::No);
-        if (reply == QMessageBox::Yes) {
-            setConfig().reset();
-            emit sig_reloadConfig();
-        }
-    });
-
-    connect(ui->configurationExportButton, &QAbstractButton::clicked, this, []() {
-        QTemporaryFile temp(QDir::tempPath() + "/mmapper_XXXXXX.ini");
-        temp.setAutoRemove(false);
-        if (!temp.open()) {
-            qWarning() << "Failed to create temporary file for export";
-            return;
-        }
-        const QString fileName = temp.fileName();
-        temp.close();
-
-        {
-            QSettings settings(fileName, QSettings::IniFormat);
-            getConfig().writeTo(settings);
-            settings.sync();
-        }
-
-        QFile file(fileName);
-        if (file.open(QIODevice::ReadOnly)) {
-            const QByteArray content = file.readAll();
-            file.close();
-            QFileDialog::saveFileContent(content, "mmapper.ini");
-        }
-
-        QFile::remove(fileName);
-    });
-
-    connect(ui->configurationImportButton, &QAbstractButton::clicked, this, [this]() {
-        auto importFile = [this](const QString &fileName,
-                                 const std::optional<QByteArray> &fileContent) {
-            if (fileName.isEmpty() || !fileContent.has_value()) {
-                return;
-            }
-
-            const QByteArray &content = fileContent.value();
-            if (content.isEmpty()) {
-                return;
-            }
-
-            QTemporaryFile temp(QDir::tempPath() + "/mmapper_import_XXXXXX.ini");
-            temp.setAutoRemove(true);
-            if (temp.open()) {
-                temp.write(content);
-                temp.close();
-
-                {
-                    auto &cfg = setConfig();
-                    QSettings settings(temp.fileName(), QSettings::IniFormat);
-                    cfg.readFrom(settings);
-                    cfg.write();
-                }
-                emit sig_reloadConfig();
-            }
-        };
-
-        const auto nameFilter = QStringLiteral("Configuration (*.ini);;All files (*)");
-        QFileDialog::getOpenFileContent(nameFilter, importFile);
-    });
-
-    connect(ui->autoLogin, &QCheckBox::stateChanged, this, [this]() {
-        setConfig().account.rememberLogin = ui->autoLogin->isChecked();
-    });
-
-    connect(ui->accountName, &QLineEdit::textChanged, this, [](const QString &account) {
-        setConfig().account.accountName = account;
-    });
-
-    connect(&passCfg, &PasswordConfig::sig_error, this, [this](const QString &msg) {
-        qWarning() << msg;
-        QMessageBox::warning(this, "Password Error", msg);
-    });
-
-    connect(&passCfg, &PasswordConfig::sig_incomingPassword, this, [this](const QString &password) {
-        ui->showPassword->setText("Hide Password");
-        ui->accountPassword->setText(password);
-        ui->accountPassword->setEchoMode(QLineEdit::Normal);
-    });
-
-    connect(ui->accountPassword, &QLineEdit::textEdited, this, [this](const QString &password) {
-        setConfig().account.accountPassword = !password.isEmpty();
-        passCfg.setPassword(password);
-    });
-
-    connect(ui->showPassword, &QAbstractButton::clicked, this, [this]() {
-        if (ui->showPassword->text() == "Hide Password") {
-            ui->showPassword->setText("Show Password");
-            ui->accountPassword->clear();
-            ui->accountPassword->setEchoMode(QLineEdit::Password);
-        } else if (getConfig().account.accountPassword && ui->accountPassword->text().isEmpty()) {
-            ui->showPassword->setText("Request Password");
-            passCfg.getPassword();
-        }
-    });
-
-    if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
-        ui->remotePort->setDisabled(true);
-        ui->localPort->setDisabled(true);
-        ui->charsetComboBox->setDisabled(true);
-        ui->proxyListensOnAnyInterfaceCheckBox->setDisabled(true);
-        ui->proxyConnectionStatusCheckBox->setDisabled(true);
-    }
+    updateUI();
 }
 
-GeneralPage::~GeneralPage()
+GeneralPage::~GeneralPage() = default;
+
+void GeneralPage::updateUI()
 {
-    delete ui;
+    SignalBlocker sb1(*ui->remoteName);
+    SignalBlocker sb2(*ui->remotePort);
+    SignalBlocker sb3(*ui->localPort);
+    SignalBlocker sb4(*ui->encryptionCheckBox);
+    SignalBlocker sb5(*ui->proxyListensOnAnyInterfaceCheckBox);
+    SignalBlocker sb6(*ui->charsetComboBox);
+    SignalBlocker sb7(*ui->themeComboBox);
+    SignalBlocker sb8(*ui->emulatedExitsCheckBox);
+    SignalBlocker sb9(*ui->showHiddenExitFlagsCheckBox);
+    SignalBlocker sb10(*ui->showNotesCheckBox);
+    SignalBlocker sb11(*ui->checkForUpdateCheckBox);
+    SignalBlocker sb12(*ui->autoLoadFileName);
+    SignalBlocker sb13(*ui->autoLoadCheck);
+    SignalBlocker sb14(*ui->displayMumeClockCheckBox);
+    SignalBlocker sb15(*ui->displayXPStatusCheckBox);
+    SignalBlocker sb16(*ui->proxyConnectionStatusCheckBox);
+    SignalBlocker sb17(*ui->autoLogin);
+    SignalBlocker sb18(*ui->accountName);
+
+    ui->remoteName->setText(m_viewModel.remoteName());
+    ui->remotePort->setValue(m_viewModel.remotePort());
+    ui->localPort->setValue(m_viewModel.localPort());
+    ui->encryptionCheckBox->setChecked(m_viewModel.tlsEncryption());
+    ui->proxyListensOnAnyInterfaceCheckBox->setChecked(m_viewModel.proxyListensOnAnyInterface());
+    ui->charsetComboBox->setCurrentIndex(m_viewModel.characterEncoding());
+    ui->themeComboBox->setCurrentIndex(m_viewModel.theme());
+    ui->emulatedExitsCheckBox->setChecked(m_viewModel.emulateExits());
+    ui->showHiddenExitFlagsCheckBox->setChecked(m_viewModel.showHiddenExitFlags());
+    ui->showNotesCheckBox->setChecked(m_viewModel.showNotes());
+    ui->checkForUpdateCheckBox->setChecked(m_viewModel.checkForUpdate());
+    ui->autoLoadFileName->setText(m_viewModel.autoLoadFileName());
+    ui->autoLoadCheck->setChecked(m_viewModel.autoLoadMap());
+    ui->displayMumeClockCheckBox->setChecked(m_viewModel.displayMumeClock());
+    ui->displayXPStatusCheckBox->setChecked(m_viewModel.displayXPStatus());
+    ui->proxyConnectionStatusCheckBox->setChecked(m_viewModel.proxyConnectionStatus());
+    ui->autoLogin->setChecked(m_viewModel.rememberLogin());
+    ui->accountName->setText(m_viewModel.accountName());
 }
 
-void GeneralPage::slot_loadConfig()
-{
-    const auto &config = getConfig();
-    const auto &connection = config.connection;
-    const auto &mumeNative = config.mumeNative;
-    const auto &autoLoad = config.autoLoad;
-    const auto &general = config.general;
-    const auto &account = config.account;
-
-    ui->remoteName->setText(connection.remoteServerName);
-    ui->remotePort->setValue(connection.remotePort);
-    ui->localPort->setValue(connection.localPort);
-#ifdef Q_OS_WASM
-    ui->encryptionCheckBox->setDisabled(true);
-    ui->encryptionCheckBox->setChecked(true);
-#else
-    if (!QSslSocket::supportsSsl() && NO_WEBSOCKET) {
-        ui->encryptionCheckBox->setEnabled(false);
-        ui->encryptionCheckBox->setChecked(false);
-    } else {
-        ui->encryptionCheckBox->setChecked(connection.tlsEncryption);
-    }
-#endif
-    ui->proxyListensOnAnyInterfaceCheckBox->setChecked(connection.proxyListensOnAnyInterface);
-    ui->charsetComboBox->setCurrentIndex(static_cast<int>(general.characterEncoding));
-    ui->themeComboBox->setCurrentIndex(static_cast<int>(general.getTheme()));
-
-    ui->emulatedExitsCheckBox->setChecked(mumeNative.emulatedExits);
-    ui->showHiddenExitFlagsCheckBox->setChecked(mumeNative.showHiddenExitFlags);
-    ui->showNotesCheckBox->setChecked(mumeNative.showNotes);
-
-    ui->checkForUpdateCheckBox->setChecked(config.general.checkForUpdate);
-    ui->checkForUpdateCheckBox->setDisabled(NO_UPDATER);
-    ui->autoLoadFileName->setText(autoLoad.fileName);
-    ui->autoLoadCheck->setChecked(autoLoad.autoLoadMap);
-    if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
-        ui->autoLoadFileName->setDisabled(true);
-        ui->selectWorldFileButton->setDisabled(true);
-    } else {
-        ui->autoLoadFileName->setEnabled(autoLoad.autoLoadMap);
-        ui->selectWorldFileButton->setEnabled(autoLoad.autoLoadMap);
-    }
-
-    ui->displayMumeClockCheckBox->setChecked(config.mumeClock.display);
-
-    ui->displayXPStatusCheckBox->setChecked(config.adventurePanel.getDisplayXPStatus());
-
-    ui->proxyConnectionStatusCheckBox->setChecked(connection.proxyConnectionStatus);
-
-    if constexpr (NO_QTKEYCHAIN) {
-        ui->autoLogin->setEnabled(false);
-        ui->accountName->setEnabled(false);
-        ui->accountPassword->setEnabled(false);
-        ui->showPassword->setEnabled(false);
-    } else {
-        ui->autoLogin->setChecked(account.rememberLogin);
-        ui->accountName->setText(account.accountName);
-        if (!account.accountPassword) {
-            ui->accountPassword->setPlaceholderText("");
-        }
-    }
-}
-
-void GeneralPage::slot_selectWorldFileButtonClicked(bool /*unused*/)
-{
-    // FIXME: code duplication
-    const auto &savedLastMapDir = getConfig().autoLoad.lastMapDirectory;
-    QString fileName = QFileDialog::getOpenFileName(this,
-                                                    "Choose map file ...",
-                                                    savedLastMapDir,
-                                                    "MMapper2 (*.mm2);;MMapper (*.map)");
-    if (!fileName.isEmpty()) {
-        ui->autoLoadFileName->setText(fileName);
-        ui->autoLoadCheck->setChecked(true);
-        auto &savedAutoLoad = setConfig().autoLoad;
-        savedAutoLoad.fileName = fileName;
-        savedAutoLoad.autoLoadMap = true;
-    }
-}
-
-void GeneralPage::slot_remoteNameTextChanged(const QString & /*unused*/)
-{
-    setConfig().connection.remoteServerName = ui->remoteName->text();
-}
-
-void GeneralPage::slot_remotePortValueChanged(int /*unused*/)
-{
-    setConfig().connection.remotePort = static_cast<uint16_t>(ui->remotePort->value());
-}
-
-void GeneralPage::slot_localPortValueChanged(int /*unused*/)
-{
-    setConfig().connection.localPort = static_cast<uint16_t>(ui->localPort->value());
-}
-
-void GeneralPage::slot_emulatedExitsStateChanged(int /*unused*/)
-{
-    setConfig().mumeNative.emulatedExits = ui->emulatedExitsCheckBox->isChecked();
-}
-
-void GeneralPage::slot_showHiddenExitFlagsStateChanged(int /*unused*/)
-{
-    setConfig().mumeNative.showHiddenExitFlags = ui->showHiddenExitFlagsCheckBox->isChecked();
-}
-
-void GeneralPage::slot_showNotesStateChanged(int /*unused*/)
-{
-    setConfig().mumeNative.showNotes = ui->showNotesCheckBox->isChecked();
-}
-
-void GeneralPage::slot_autoLoadFileNameTextChanged(const QString & /*unused*/)
-{
-    setConfig().autoLoad.fileName = ui->autoLoadFileName->text();
-}
-
-void GeneralPage::slot_autoLoadCheckStateChanged(int /*unused*/)
-{
-    setConfig().autoLoad.autoLoadMap = ui->autoLoadCheck->isChecked();
-    if (CURRENT_PLATFORM != PlatformEnum::Wasm) {
-        ui->autoLoadFileName->setEnabled(ui->autoLoadCheck->isChecked());
-        ui->selectWorldFileButton->setEnabled(ui->autoLoadCheck->isChecked());
-    }
-}
-
-void GeneralPage::slot_displayMumeClockStateChanged(int /*unused*/)
-{
-    setConfig().mumeClock.display = ui->displayMumeClockCheckBox->isChecked();
-}
-
-void GeneralPage::slot_displayXPStatusStateChanged([[maybe_unused]] int)
-{
-    setConfig().adventurePanel.setDisplayXPStatus(ui->displayXPStatusCheckBox->isChecked());
-}
-
-void GeneralPage::slot_themeComboBoxChanged(int index)
-{
-    setConfig().general.setTheme(static_cast<ThemeEnum>(index));
-}
+void GeneralPage::slot_loadConfig() { m_viewModel.loadConfig(); }

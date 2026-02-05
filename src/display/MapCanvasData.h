@@ -20,7 +20,6 @@
 #include <unordered_map>
 
 #include <QOpenGLTexture>
-#include <QWidget>
 #include <QtGui/QMatrix4x4>
 #include <QtGui/QMouseEvent>
 #include <QtGui/qopengl.h>
@@ -36,94 +35,51 @@ static const size_t NUM_ROOM_TINTS = 2;
 NODISCARD extern const MMapper::Array<RoomTintEnum, NUM_ROOM_TINTS> &getAllRoomTints();
 #define ALL_ROOM_TINTS getAllRoomTints()
 
+static constexpr int BASESIZE = 32;
+
 struct NODISCARD ScaleFactor final
 {
 public:
-    // value chosen so the inverse hits 1/25th after 20 steps, just as before.
     static constexpr const float ZOOM_STEP = 1.175f;
-    static constexpr int MIN_VALUE_HUNDREDTHS = 4; // 1/25th
+    static constexpr int MIN_VALUE_HUNDREDTHS = 4;
     static constexpr int MAX_VALUE_INT = 5;
     static constexpr float MIN_VALUE = static_cast<float>(MIN_VALUE_HUNDREDTHS) * 0.01f;
     static constexpr float MAX_VALUE = static_cast<float>(MAX_VALUE_INT);
 
 private:
     float m_scaleFactor = 1.f;
-    // pinch gesture
     float m_pinchFactor = 1.f;
 
 private:
-    NODISCARD static float clamp(float x)
-    {
-        assert(std::isfinite(x)); // note: also checks for NaN
-        return std::clamp(x, MIN_VALUE, MAX_VALUE);
-    }
+    NODISCARD static float clamp(float x) { assert(std::isfinite(x)); return std::clamp(x, MIN_VALUE, MAX_VALUE); }
 
 public:
     NODISCARD static bool isClamped(float x) { return ::isClamped(x, MIN_VALUE, MAX_VALUE); }
-
-public:
     NODISCARD float getRaw() const { return clamp(m_scaleFactor); }
     NODISCARD float getTotal() const { return clamp(m_scaleFactor * m_pinchFactor); }
-
-public:
     void set(const float scale) { m_scaleFactor = clamp(scale); }
-    void setPinch(const float pinch)
-    {
-        // Don't bother to clamp this, since the total is clamped.
-        m_pinchFactor = pinch;
-    }
-    void endPinch()
-    {
-        const float total = getTotal();
-        m_scaleFactor = total;
-        m_pinchFactor = 1.f;
-    }
+    void setPinch(const float pinch) { m_pinchFactor = pinch; }
+    void endPinch() { m_scaleFactor = getTotal(); m_pinchFactor = 1.f; }
     void reset() { *this = ScaleFactor(); }
-
-public:
-    ScaleFactor &operator*=(const float ratio)
-    {
-        assert(std::isfinite(ratio) && ratio > 0.f);
-        set(m_scaleFactor * ratio);
-        return *this;
-    }
-    void logStep(const int numSteps)
-    {
-        if (numSteps == 0) {
-            return;
-        }
-        auto &self = *this;
-        self *= std::pow(ZOOM_STEP, static_cast<float>(numSteps));
-    }
+    ScaleFactor &operator*=(const float ratio) { set(m_scaleFactor * ratio); return *this; }
+    void logStep(const int numSteps) { if (numSteps != 0) *this *= std::pow(ZOOM_STEP, static_cast<float>(numSteps)); }
 };
 
 struct NODISCARD MapCanvasViewport
 {
-private:
-    QWidget &m_sizeWidget;
-
-public:
     glm::mat4 m_viewProj{1.f};
     glm::vec2 m_scroll{0.f};
     ScaleFactor m_scaleFactor;
     int m_currentLayer = 0;
+    Viewport m_viewportRect{{0,0},{0,0}};
 
-public:
-    explicit MapCanvasViewport(QWidget &sizeWidget)
-        : m_sizeWidget{sizeWidget}
-    {}
+    explicit MapCanvasViewport() = default;
 
-public:
-    NODISCARD auto width() const { return m_sizeWidget.width(); }
-    NODISCARD auto height() const { return m_sizeWidget.height(); }
-    NODISCARD Viewport getViewport() const
-    {
-        const auto &r = m_sizeWidget.rect();
-        return Viewport{glm::ivec2{r.x(), r.y()}, glm::ivec2{r.width(), r.height()}};
-    }
+    NODISCARD auto width() const { return m_viewportRect.size.x; }
+    NODISCARD auto height() const { return m_viewportRect.size.y; }
+    NODISCARD Viewport getViewport() const { return m_viewportRect; }
     NODISCARD float getTotalScaleFactor() const { return m_scaleFactor.getTotal(); }
 
-public:
     NODISCARD std::optional<glm::vec3> project(const glm::vec3 &) const;
     NODISCARD glm::vec3 unproject_raw(const glm::vec3 &) const;
     NODISCARD glm::vec3 unproject_clamped(const glm::vec2 &) const;
@@ -136,26 +92,16 @@ class NODISCARD MapScreen final
 {
 public:
     static constexpr const float DEFAULT_MARGIN_PIXELS = 24.f;
-
 private:
     const MapCanvasViewport &m_viewport;
-    enum class NODISCARD VisiblityResultEnum {
-        INSIDE_MARGIN,
-        ON_MARGIN,
-        OUTSIDE_MARGIN,
-        OFF_SCREEN
-    };
-
+    enum class NODISCARD VisiblityResultEnum { INSIDE_MARGIN, ON_MARGIN, OUTSIDE_MARGIN, OFF_SCREEN };
 public:
     explicit MapScreen(const MapCanvasViewport &);
     ~MapScreen();
     DELETE_CTORS_AND_ASSIGN_OPS(MapScreen);
-
-public:
     NODISCARD glm::vec3 getCenter() const;
     NODISCARD bool isRoomVisible(const Coordinate &c, float margin) const;
     NODISCARD glm::vec3 getProxyLocation(const glm::vec3 &pos, float margin) const;
-
 private:
     NODISCARD VisiblityResultEnum testVisibility(const glm::vec3 &input_pos, float margin) const;
 };
@@ -163,69 +109,29 @@ private:
 struct NODISCARD MapCanvasInputState
 {
     CanvasMouseModeEnum m_canvasMouseMode = CanvasMouseModeEnum::MOVE;
-
     bool m_mouseRightPressed = false;
     bool m_mouseLeftPressed = false;
     bool m_altPressed = false;
     bool m_ctrlPressed = false;
-
-    // mouse selection
-    std::optional<MouseSel> m_sel1;
-    std::optional<MouseSel> m_sel2;
-    // scroll origin of the current mouse movement
-    std::optional<MouseSel> m_moveBackup;
-
-    bool m_selectedArea = false; // no area selected at start time
+    std::optional<MouseSel> m_sel1, m_sel2, m_moveBackup;
+    bool m_selectedArea = false;
     SharedRoomSelection m_roomSelection;
-
-    struct NODISCARD RoomSelMove final
-    {
-        Coordinate2i pos;
-        bool wrongPlace = false;
-    };
-
+    struct NODISCARD RoomSelMove final { Coordinate2i pos; bool wrongPlace = false; };
     std::optional<RoomSelMove> m_roomSelectionMove;
-    NODISCARD bool hasRoomSelectionMove() { return m_roomSelectionMove.has_value(); }
-
     std::shared_ptr<InfomarkSelection> m_infoMarkSelection;
-
-    struct NODISCARD InfomarkSelectionMove final
-    {
-        Coordinate2f pos;
-    };
+    struct NODISCARD InfomarkSelectionMove final { Coordinate2f pos; };
     std::optional<InfomarkSelectionMove> m_infoMarkSelectionMove;
-    NODISCARD bool hasInfomarkSelectionMove() const { return m_infoMarkSelectionMove.has_value(); }
-
     std::shared_ptr<ConnectionSelection> m_connectionSelection;
-
     PrespammedPath &m_prespammedPath;
 
-public:
     explicit MapCanvasInputState(PrespammedPath &prespammedPath);
     ~MapCanvasInputState();
-
-public:
-    NODISCARD static MouseSel getMouseSel(const std::optional<MouseSel> &x)
-    {
-        if (x.has_value()) {
-            return x.value();
-        }
-
-        assert(false);
-        return {};
-    }
-
-public:
     NODISCARD bool hasSel1() const { return m_sel1.has_value(); }
     NODISCARD bool hasSel2() const { return m_sel2.has_value(); }
     NODISCARD bool hasBackup() const { return m_moveBackup.has_value(); }
-
-public:
-    NODISCARD MouseSel getSel1() const { return getMouseSel(m_sel1); }
-    NODISCARD MouseSel getSel2() const { return getMouseSel(m_sel2); }
-    NODISCARD MouseSel getBackup() const { return getMouseSel(m_moveBackup); }
-
-public:
+    NODISCARD MouseSel getSel1() const { return m_sel1.value(); }
+    NODISCARD MouseSel getSel2() const { return m_sel2.value(); }
+    NODISCARD MouseSel getBackup() const { return m_moveBackup.value(); }
     void startMoving(const MouseSel &startPos) { m_moveBackup = startPos; }
     void stopMoving() { m_moveBackup.reset(); }
 };

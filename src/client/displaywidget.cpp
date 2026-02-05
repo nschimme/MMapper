@@ -3,572 +3,184 @@
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
 #include "displaywidget.h"
-
 #include "../configuration/configuration.h"
 #include "../global/AnsiTextUtils.h"
-
 #include <QApplication>
-#include <QMessageLogContext>
-#include <QRegularExpression>
 #include <QScrollBar>
-#include <QString>
 #include <QStyle>
-#include <QTextCursor>
-#include <QTimer>
 #include <QToolTip>
-#include <QtGui>
+#include <QTextFrame>
+#include <QVBoxLayout>
 
-namespace { // anonymous
+static constexpr int TAB_WIDTH_SPACES = 8;
 
-const constexpr int TAB_WIDTH_SPACES = 8;
-const volatile bool ignore_non_default_underline_colors = false;
-
-void foreach_char(const QChar qchar,
-                  const QStringView text,
-                  const std::function<void()> &callback_qchar,
-                  const std::function<void(const QStringView nonQchar)> &callback_between)
-{
-    qsizetype pos = 0;
-    const qsizetype end = text.length();
-    while (pos != end) {
-        const qsizetype qcharIndex = text.indexOf(qchar, pos);
-        if (qcharIndex < 0) {
-            callback_between(text.mid(pos));
-            break;
-        }
-
-        callback_between(text.mid(pos, qcharIndex - pos));
-        callback_qchar();
-        pos = qcharIndex + 1;
+namespace {
+template<typename Q, typename B>
+void foreach_char(const QChar q, const QStringView t, Q &&cq, B &&cb) {
+    qsizetype p = 0; while (p != t.length()) {
+        qsizetype i = t.indexOf(q, p); if (i < 0) { cb(t.mid(p)); break; }
+        cb(t.mid(p, i - p)); cq(); p = i + 1;
     }
 }
-
-void foreach_backspace(const QStringView text,
-                       const std::function<void()> &callback_backspace,
-                       const std::function<void(const QStringView nonBackspace)> &callback_between)
-{
-    foreach_char(char_consts::C_BACKSPACE, text, callback_backspace, callback_between);
 }
 
-} // namespace
-
-FontDefaults::FontDefaults()
-{
-    const auto &settings = getConfig().integratedClient;
-
-    // Default Colors
-    defaultBg = settings.backgroundColor;
-    defaultFg = settings.foregroundColor;
-
-    // Default Font
-    serverOutputFont.fromString(settings.font);
+FontDefaults::FontDefaults() {
+    const auto &s = getConfig().integratedClient;
+    defaultBg = s.backgroundColor; defaultFg = s.foregroundColor;
+    serverOutputFont.fromString(s.font);
 }
 
-void AnsiTextHelper::init()
-{
-    QTextFrameFormat frameFormat = textEdit.document()->rootFrame()->frameFormat();
-    frameFormat.setBackground(defaults.defaultBg);
-    frameFormat.setForeground(defaults.defaultFg);
-    textEdit.document()->rootFrame()->setFrameFormat(frameFormat);
+AnsiTextHelper::AnsiTextHelper(QTextEdit &it, FontDefaults d) : textEdit(it), cursor(it.document()->rootFrame()->firstCursorPosition()), format(cursor.charFormat()), defaults(std::move(d)) {}
+AnsiTextHelper::AnsiTextHelper(QTextEdit &it) : AnsiTextHelper(it, FontDefaults{}) {}
 
-    format = cursor.charFormat();
-    setDefaultFormat(format, defaults);
-    cursor.setCharFormat(format);
+void AnsiTextHelper::init() {
+    auto *rf = textEdit.document()->rootFrame();
+    QTextFrameFormat ff = rf->frameFormat();
+    ff.setBackground(defaults.defaultBg); ff.setForeground(defaults.defaultFg);
+    rf->setFrameFormat(ff);
+    format = cursor.charFormat(); setDefaultFormat(format, defaults); cursor.setCharFormat(format);
 }
 
-DisplayWidgetOutputs::~DisplayWidgetOutputs() = default;
 DisplayWidget::DisplayWidget(QWidget *const parent)
-    : QTextBrowser(parent)
-    , m_ansiTextHelper{static_cast<QTextEdit &>(*this)}
-    , m_timer{new QTimer(this)}
+    : QTextBrowser(parent), m_ansiTextHelper(*this), m_visualBellTimer(new QTimer(this))
 {
-    setReadOnly(true);
-    setOverwriteMode(true);
-    setUndoRedoEnabled(false);
-
-    m_timer->setSingleShot(true);
-    connect(m_timer, &QTimer::timeout, this, [this]() {
-        QTextFrameFormat frameFormat = document()->rootFrame()->frameFormat();
-        frameFormat.setBackground(getConfig().integratedClient.backgroundColor);
-        document()->rootFrame()->setFrameFormat(frameFormat);
-    });
-    setDocumentTitle("MMapper Mud Client");
-    setTextInteractionFlags(Qt::TextBrowserInteraction);
-    setOpenExternalLinks(true);
-    setTabChangesFocus(false);
-
-    // REVISIT: Is this necessary to do in both places?
-    document()->setUndoRedoEnabled(false);
+    setReadOnly(true); setOverwriteMode(true); setUndoRedoEnabled(false);
+    setDocumentTitle("MMapper Mud Client"); setTextInteractionFlags(Qt::TextBrowserInteraction);
+    setOpenExternalLinks(true); setTabChangesFocus(false);
     m_ansiTextHelper.init();
 
-    // Set word wrap mode and other settings
-    QFontMetrics fm{getDefaultFont()};
-    setLineWrapMode(QTextEdit::FixedColumnWidth);
-    setWordWrapMode(QTextOption::WordWrap);
+    QFontMetrics fm(m_viewModel.font());
+    setLineWrapMode(QTextEdit::FixedColumnWidth); setWordWrapMode(QTextOption::WordWrap);
     setSizeIncrement(fm.averageCharWidth(), fm.lineSpacing());
-    setTabStopDistance(fm.horizontalAdvance(" ") * TAB_WIDTH_SPACES);
+    setTabStopDistance(fm.horizontalAdvance(' ') * TAB_WIDTH_SPACES);
 
-    // Scrollbar settings
-    QScrollBar *const scrollbar = verticalScrollBar();
-    scrollbar->setSingleStep(fm.lineSpacing());
-    scrollbar->setPageStep(sizeHint().height());
-    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
-    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    verticalScrollBar()->setSingleStep(fm.lineSpacing());
+    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn); setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
-    connect(this, &DisplayWidget::copyAvailable, this, [this](const bool available) {
-        m_canCopy = available;
-        if (available) {
-            this->setFocus();
+    connect(this, &DisplayWidget::copyAvailable, this, [this](bool a) { m_canCopy = a; if (a) setFocus(); });
+    connect(verticalScrollBar(), &QScrollBar::valueChanged, this, [this](int v) { emit sig_showPreview(v != verticalScrollBar()->maximum()); });
+
+    m_visualBellTimer->setSingleShot(true);
+    connect(m_visualBellTimer, &QTimer::timeout, this, [this]() {
+        if (auto *rf = document()->rootFrame()) {
+            QTextFrameFormat ff = rf->frameFormat(); ff.setBackground(m_viewModel.backgroundColor()); rf->setFrameFormat(ff);
         }
     });
 
-    connect(verticalScrollBar(), &QScrollBar::valueChanged, this, [this](int value) {
-        bool atBottom = (value == verticalScrollBar()->maximum());
-        getOutput().showPreview(!atBottom);
-    });
+    connect(&m_viewModel, &DisplayViewModel::sig_visualBell, this, &DisplayWidget::handleVisualBell);
+    connect(&m_viewModel, &DisplayViewModel::sig_returnFocusToInput, this, &DisplayWidget::sig_returnFocusToInput);
+    connect(&m_viewModel, &DisplayViewModel::sig_showPreview, this, &DisplayWidget::sig_showPreview);
+    connect(&m_viewModel, &DisplayViewModel::sig_windowSizeChanged, this, &DisplayWidget::sig_windowSizeChanged);
 }
 
 DisplayWidget::~DisplayWidget() = default;
 
-QSize DisplayWidget::sizeHint() const
-{
-    const auto &settings = getConfig().integratedClient;
-    const auto &margins = contentsMargins();
-    const int frame = frameWidth() * 2;
-    QFontMetrics fm{getDefaultFont()};
-    const int scrollbarExtent = style()->pixelMetric(QStyle::PM_ScrollBarExtent);
-
-    int x = (settings.columns * fm.averageCharWidth()) + margins.left() + margins.right()
-            + scrollbarExtent + frame;
-    int y = (settings.rows * fm.lineSpacing()) + margins.top() + margins.bottom() + scrollbarExtent
-            + frame;
-
-    return QSize(x, y);
+QSize DisplayWidget::sizeHint() const {
+    const auto &s = getConfig().integratedClient; QFontMetrics fm(m_viewModel.font());
+    int sb = style()->pixelMetric(QStyle::PM_ScrollBarExtent);
+    int fw = frameWidth() * 2;
+    return QSize(s.columns * fm.averageCharWidth() + sb + fw, s.rows * fm.lineSpacing() + sb + fw);
 }
 
-void DisplayWidget::resizeEvent(QResizeEvent *const event)
-{
-    const auto &margins = contentsMargins();
-    QFontMetrics fm{getDefaultFont()};
-    const int scrollbarExtent = style()->pixelMetric(QStyle::PM_ScrollBarExtent);
-    const int frame = frameWidth() * 2;
-
-    int widthAvailable = size().width() - margins.left() - margins.right() - scrollbarExtent
-                         - frame;
-    int heightAvailable = size().height() - margins.top() - margins.bottom() - scrollbarExtent
-                          - frame;
-
-    int x = widthAvailable / fm.averageCharWidth();
-    int y = heightAvailable / fm.lineSpacing();
-
-    // REVISIT: Right now only Mac is correct and we need to replace these row hacks
-    if constexpr (CURRENT_PLATFORM == PlatformEnum::Linux) {
-        y -= 6;
-    } else if constexpr (CURRENT_PLATFORM == PlatformEnum::Windows) {
-        y -= 2;
-    }
-
-    // Set the line wrap width/height
-    setLineWrapColumnOrWidth(x);
-    verticalScrollBar()->setPageStep(y);
-
-    // Inform user of new dimensions
-    QString message = QString("Dimensions: %1x%2").arg(x).arg(y);
-    QFontMetrics fmToolTip(QToolTip::font());
-    QPoint messageDiff(fmToolTip.horizontalAdvance(message) / 2, fmToolTip.lineSpacing() / 2);
-    QToolTip::showText(mapToGlobal(rect().center() - messageDiff), message, this, rect(), 1000);
-
-    const auto &settings = getConfig().integratedClient;
-    if (settings.autoResizeTerminal) {
-        getOutput().windowSizeChanged(x, y);
-    }
-
-    QTextEdit::resizeEvent(event);
-
-    bool atBottom = (verticalScrollBar()->sliderPosition() == verticalScrollBar()->maximum());
-    getOutput().showPreview(!atBottom);
+void DisplayWidget::resizeEvent(QResizeEvent *e) {
+    QFontMetrics fm(m_viewModel.font()); int sb = style()->pixelMetric(QStyle::PM_ScrollBarExtent);
+    int fw = frameWidth() * 2;
+    int cols = (width() - sb - fw) / fm.averageCharWidth();
+    int rows = (height() - sb - fw) / fm.lineSpacing();
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Linux) rows -= 6; else if constexpr (CURRENT_PLATFORM == PlatformEnum::Windows) rows -= 2;
+    setLineWrapColumnOrWidth(cols); verticalScrollBar()->setPageStep(rows);
+    QToolTip::showText(mapToGlobal(rect().center()), QString("%1x%2").arg(cols).arg(rows), this, rect(), 1000);
+    m_viewModel.windowSizeChanged(cols, rows);
+    QTextEdit::resizeEvent(e);
+    emit sig_showPreview(verticalScrollBar()->sliderPosition() != verticalScrollBar()->maximum());
 }
 
-void DisplayWidget::keyPressEvent(QKeyEvent *event)
-{
-    bool isModifier = event->modifiers() != Qt::NoModifier;
-    auto isNavigationKey = [&event]() {
-        switch (event->key()) {
-        case Qt::Key_PageUp:
-        case Qt::Key_PageDown:
-        case Qt::Key_Home:
-        case Qt::Key_End:
-        case Qt::Key_Left:
-        case Qt::Key_Right:
-        case Qt::Key_Up:
-        case Qt::Key_Down:
-            return true;
-        default:
-            return false;
-        }
-    };
-    auto isAllowedKeySequence = [&event]() {
-        return event->matches(QKeySequence::Copy) || event->matches(QKeySequence::Paste)
-               || event->matches(QKeySequence::Cut) || event->matches(QKeySequence::SelectAll);
-    };
+void DisplayWidget::keyPressEvent(QKeyEvent *e) {
+    if (e->modifiers() != Qt::NoModifier || e->key() == Qt::Key_PageUp || e->key() == Qt::Key_PageDown || e->key() == Qt::Key_Home || e->key() == Qt::Key_End || e->matches(QKeySequence::Copy) || e->matches(QKeySequence::SelectAll))
+        QTextBrowser::keyPressEvent(e);
+    else { m_viewModel.returnFocusToInput(); e->accept(); }
+}
 
-    if (isModifier || isNavigationKey() || isAllowedKeySequence()) {
-        QTextBrowser::keyPressEvent(event);
-    } else {
-        getOutput().returnFocusToInput();
-        event->accept();
+void DisplayWidget::slot_displayText(const QStringView str) {
+    auto on_bell = [this]() { m_viewModel.handleBell(); };
+    foreach_char(mmqt::QC_ALERT, str, on_bell, [this](const QStringView s) { m_ansiTextHelper.displayText(s); });
+    m_ansiTextHelper.limitScrollback(m_viewModel.lineLimit());
+    if (verticalScrollBar()->sliderPosition() >= verticalScrollBar()->maximum() - 4)
+        verticalScrollBar()->setSliderPosition(verticalScrollBar()->maximum());
+}
+
+void DisplayWidget::handleVisualBell() {
+    if (auto *rf = document()->rootFrame()) {
+        QTextFrameFormat ff = rf->frameFormat(); QColor c = m_viewModel.backgroundColor();
+        c.setRed(std::min(255, c.red() + 80)); ff.setBackground(c); rf->setFrameFormat(ff);
+        m_visualBellTimer->start(250);
     }
 }
 
-void setDefaultFormat(QTextCharFormat &format, const FontDefaults &defaults)
-{
-    format.setFont(defaults.serverOutputFont);
-    format.setBackground(defaults.defaultBg);
-    format.setForeground(defaults.defaultFg);
-    format.setFontWeight(QFont::Normal);
-    format.setFontUnderline(false);
-    format.setFontItalic(false);
-    format.setFontStrikeOut(false);
+void setDefaultFormat(QTextCharFormat &f, const FontDefaults &d) {
+    f.setFont(d.serverOutputFont); f.setBackground(d.defaultBg); f.setForeground(d.defaultFg);
+    f.setFontWeight(QFont::Normal); f.setFontUnderline(false); f.setFontItalic(false); f.setFontStrikeOut(false);
 }
 
-void AnsiTextHelper::displayText(const QStringView input_str)
-{
-    // ANSI codes are formatted as the following:
-    // escape + [ + n1 (+ n2) + m
-    static const QRegularExpression ansi_regex{R"regex(\x1B[^A-Za-z\x1B]*[A-Za-z]?)regex"};
-    static const QRegularExpression url_regex{
-        R"regex(https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*))regex"};
-
-    // REVISIT: should we even bother supporting backspaces?
-    //
-    // QTextEdit is not a terminal, so it doesn't really have the concept of a mutable text buffer
-    // where you can backspace and then later overwrite the previous letter with something else.
-    //
-    // (Yes, technically we could abuse the cursor this to achieve a similar result, but the
-    // cursor is used in multiple functions, so that might be too fragile.)
-    //
-    // Current solution: simulate the backspace operation by adding a backspace character to the
-    // buffer, and then later remove the backspace and previous character.
-    //
-    // MUME could send a telnet event that signals that the player is waiting,
-    // and then we could display the waiting state some other way.
-    //
-    // Or we could just ignore the backspaces and display "\|/-" instead of the animation.
-    //
-    // It might also be worth considering using an emoji or an icon instead of C_BACKSPACE.
-    static const volatile bool allow_backspaces = true;
-
-    // note: debug_backspaces effectively implies allow_backspaces == false,
-    // because writes "(Backspace)" instead of a backspace character, and then it leaves both
-    // "(Backspace)" and the letter that would have been removed by the backspace operation.
-    static const volatile bool debug_backspaces = false;
-
-    auto try_remove_backspace = [this]() {
-        if (!allow_backspaces) {
-            return;
-        }
-
-        const auto block = cursor.block();
-        if (!block.isValid() || cursor.block().length() == 0) {
-            return;
-        }
-
-        const auto text = block.text();
-        if (text.isNull() || text.isEmpty() || text.back() != char_consts::C_BACKSPACE) {
-            return;
-        }
-
-        cursor.deletePreviousChar();
-        if (block.length() > 0) {
-            cursor.deletePreviousChar();
-        }
+void AnsiTextHelper::displayText(const QStringView input) {
+    static const QRegularExpression ar(R"(\x1B[^A-Za-z\x1B]*[A-Za-z]?)"), ur(R"(https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*))");
+    auto add_raw = [this](const QStringView t, const QTextCharFormat &f) {
+        if (cursor.block().text().endsWith(char16_t(0x08))) { cursor.deletePreviousChar(); if (cursor.block().length() > 0) cursor.deletePreviousChar(); }
+        cursor.insertText(t.toString(), f);
     };
-
-    auto add_raw = [this, &try_remove_backspace](const QStringView text,
-                                                 const QTextCharFormat &withFmt) {
-        try_remove_backspace();
-        cursor.insertText(text.toString(), withFmt);
-    };
-
-    auto try_add_backspace = [this, &add_raw]() {
-        if (debug_backspaces) {
-            add_raw(u"(BACKSPACE)", {});
-            return;
-        }
-
-        if (!allow_backspaces || cursor.position() < 1) {
-            return;
-        }
-
-        const auto block = cursor.block();
-        if (!block.isValid() && block.length() < 1) {
-            return;
-        }
-
-        const auto text = block.text();
-        if (text.isNull() || text.isEmpty()) {
-            return;
-        }
-
-        add_raw(mmqt::QS_BACKSPACE, {});
-    };
-
-    auto add_formatted = [this, &add_raw, &try_remove_backspace](const QStringView text) {
-        mmqt::foreach_regex(
-            url_regex,
-            text,
-            [this, &try_remove_backspace](const QStringView url) {
-                const auto s = url.toString();
-                // TODO: override the document's CSS for URLs
-                const auto link
-                    = QString(
-                          R"(<a href="%1" style="color: cyan; background-color: #003333; font-weight: normal;">%2</a>)")
-                          .arg(QString::fromUtf8(QUrl::fromUserInput(s).toEncoded()),
-                               s.toHtmlEscaped());
-
-                try_remove_backspace();
-                cursor.insertHtml(link);
-            },
-            [this, &add_raw](const QStringView non_url) { add_raw(non_url, format); });
-    };
-
-    // Display text using a cursor
-    mmqt::foreach_regex(
-        ansi_regex,
-        input_str,
-        [this, &add_raw](const QStringView ansiStr) {
-            assert(!ansiStr.isEmpty() && ansiStr.front() == char_consts::C_ESC);
-            if (mmqt::isAnsiColor(ansiStr)) {
-                if (auto optNewColor = mmqt::parseAnsiColor(currentAnsi, ansiStr)) {
-                    currentAnsi = updateFormat(format, defaults, currentAnsi, *optNewColor);
-                }
-            } else if (mmqt::isAnsiEraseLine(ansiStr)) {
-                cursor.movePosition(QTextCursor::Left, QTextCursor::MoveAnchor, 1);
-                cursor.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
-                cursor.removeSelectedText();
-            } else {
-                add_raw(u"<ESC>", {});
-                if (ansiStr.length() > 1) {
-                    add_raw(ansiStr.mid(1), format);
-                }
-            }
-        },
-        [&try_add_backspace, &add_formatted](const QStringView textStr) {
-            foreach_backspace(textStr, try_add_backspace, add_formatted);
+    mmqt::foreach_regex(ar, input, [this, &add_raw](auto a) {
+        if (mmqt::isAnsiColor(a)) { if (auto n = mmqt::parseAnsiColor(currentAnsi, a)) currentAnsi = updateFormat(format, defaults, currentAnsi, *n); }
+        else if (mmqt::isAnsiEraseLine(a)) { cursor.movePosition(QTextCursor::Left); cursor.movePosition(QTextCursor::End, QTextCursor::KeepAnchor); cursor.removeSelectedText(); }
+        else { add_raw(u"<ESC>", QTextCharFormat()); if (a.length() > 1) add_raw(a.mid(1), format); }
+    }, [this, &add_raw](auto t) {
+        foreach_char(char16_t(0x08), t, [this, &add_raw]() { if (cursor.position() > 0) add_raw(u"\x08", QTextCharFormat()); }, [this, &add_raw](auto nt) {
+            mmqt::foreach_regex(ur, nt, [this](auto u) { cursor.insertHtml(QString(R"(<a href="%1" style="color: cyan; background-color: #003333;">%2</a>)").arg(QString::fromUtf8(QUrl::fromUserInput(u.toString()).toEncoded()), u.toString().toHtmlEscaped())); }, [this, &add_raw](auto nu) { add_raw(nu, format); });
         });
-}
-
-void AnsiTextHelper::limitScrollback(int lineLimit)
-{
-    const int lineCount = textEdit.document()->lineCount();
-    if (lineCount > lineLimit) {
-        const int trimLines = lineCount - lineLimit;
-        cursor.movePosition(QTextCursor::Start);
-        cursor.movePosition(QTextCursor::Down, QTextCursor::KeepAnchor, trimLines);
-        cursor.removeSelectedText();
-        cursor.movePosition(QTextCursor::End);
-    }
-}
-
-void DisplayWidget::slot_displayText(const QStringView str)
-{
-    const int lineLimit = getConfig().integratedClient.linesOfScrollback;
-
-    auto &vscroll = deref(verticalScrollBar());
-    constexpr int ALMOST_ALL_THE_WAY = 4;
-    const bool wasAtBottom = (vscroll.sliderPosition() >= vscroll.maximum() - ALMOST_ALL_THE_WAY);
-
-    auto on_bell = [this]() {
-        const auto &settings = getConfig().integratedClient;
-        if (settings.audibleBell) {
-            QApplication::beep();
-        }
-        if (settings.visualBell) {
-            auto setBackgroundColor = [this](const QColor &color) {
-                QTextFrameFormat frameFormat = document()->rootFrame()->frameFormat();
-                frameFormat.setBackground(color);
-                document()->rootFrame()->setFrameFormat(frameFormat);
-            };
-
-            QColor flashColor = getConfig().integratedClient.backgroundColor;
-            flashColor.setRed(std::min(255, flashColor.red() + 80));
-            setBackgroundColor(flashColor);
-
-            m_timer->start(250);
-        }
-    };
-
-    foreach_char(mmqt::QC_ALERT, str, on_bell, [this](const QStringView nonBellText) {
-        m_ansiTextHelper.displayText(nonBellText);
     });
+}
 
-    // REVISIT: include option to limit scrollback in the displayText function,
-    // so it can choose to remove lines from the top when the overflow occurs,
-    // to improve performance for massive inserts.
-    m_ansiTextHelper.limitScrollback(lineLimit);
-
-    // Detecting the keyboard Scroll Lock status would be preferable, but we'll have to live with
-    // this because Qt is apparently the only windowing system in existence that doesn't provide
-    // a way to query CapsLock/NumLock/ScrollLock ?!?
-    //
-    // REVISIT: should this be user-configurable?
-    if (wasAtBottom) {
-        vscroll.setSliderPosition(vscroll.maximum());
+void AnsiTextHelper::limitScrollback(int limit) {
+    if (textEdit.document()->lineCount() > limit) {
+        int trim = textEdit.document()->lineCount() - limit;
+        cursor.movePosition(QTextCursor::Start); cursor.movePosition(QTextCursor::Down, QTextCursor::KeepAnchor, trim);
+        cursor.removeSelectedText(); cursor.movePosition(QTextCursor::End);
     }
 }
 
-NODISCARD static QColor decodeColor(const AnsiColorRGB var)
-{
-    return QColor::fromRgb(var.r, var.g, var.b);
+static QColor decode(AnsiColorVariant v, QColor d, bool i) {
+    if (v.hasRGB()) return QColor::fromRgb(v.getRGB().r, v.getRGB().g, v.getRGB().b);
+    if (v.has256()) { auto c = v.get256().color; if (c < 8 && i) c += 8; return mmqt::ansi256toRgb(c); }
+    return d;
 }
 
-NODISCARD static QColor decodeColor(AnsiColor256 var, const bool intense)
-{
-    if (var.color < 8 && intense) {
-        var.color += 8;
-    }
-
-    return mmqt::ansi256toRgb(var.color);
-}
-
-NODISCARD static QColor decodeColor(const AnsiColorVariant var,
-                                    const QColor defaultColor,
-                                    const bool intense)
-{
-    if (var.hasRGB()) {
-        return decodeColor(var.getRGB());
-    }
-
-    if (var.has256()) {
-        return decodeColor(var.get256(), intense);
-    }
-
-    return defaultColor;
-}
-
-static void reverseInPlace(QColor &color)
-{
-    color.setRed(255 - color.red());
-    color.setGreen(255 - color.green());
-    color.setBlue(255 - color.blue());
-}
-
-RawAnsi updateFormat(QTextCharFormat &format,
-                     const FontDefaults &defaults,
-                     const RawAnsi &before,
-                     RawAnsi updated)
-{
-    if (ignore_non_default_underline_colors && !updated.ul.hasDefaultColor()) {
-        // Ignore underline color.
-        updated.ul = AnsiColorVariant{};
-    }
-
-    if (before == updated) {
-        return updated;
-    }
-
-    if (updated == RawAnsi{}) {
-        setDefaultFormat(format, defaults);
-        return updated;
-    }
-
-    // auto removed = before.flags & ~updated.flags;
-    // auto added = updated.flags & ~before.flags;
-    const auto diff = before.getFlags() ^ updated.getFlags();
-
-    for (const AnsiStyleFlagEnum flag : diff) {
-        switch (flag) {
-        case AnsiStyleFlagEnum::Italic:
-            format.setFontItalic(updated.hasItalic());
-            break;
-        case AnsiStyleFlagEnum::Underline: {
-            // QTextCharFormat doesn't support other underline styles.
-            format.setFontUnderline(updated.hasUnderline());
-            using ULS = QTextCharFormat::UnderlineStyle;
-            const auto style = std::invoke([&updated]() -> QTextCharFormat::UnderlineStyle {
-                switch (updated.getUnderlineStyle()) {
-                case AnsiUnderlineStyleEnum::Dotted:
-                    return ULS::DotLine;
-                case AnsiUnderlineStyleEnum::Curly:
-                    return ULS::WaveUnderline;
-                case AnsiUnderlineStyleEnum::Dashed:
-                    return ULS::DashUnderline;
-                case AnsiUnderlineStyleEnum::None:
-                case AnsiUnderlineStyleEnum::Normal:
-                case AnsiUnderlineStyleEnum::Double: // not supported by Qt
-                default:
-                    return ULS::SingleUnderline;
-                }
-            });
-            format.setUnderlineStyle(style);
-            break;
-        }
-        case AnsiStyleFlagEnum::Strikeout:
-            format.setFontStrikeOut(updated.hasStrikeout());
-            break;
-        case AnsiStyleFlagEnum::Bold:
-        case AnsiStyleFlagEnum::Faint:
-            if (updated.hasBold()) {
-                format.setFontWeight(QFont::Bold);
-            } else if (updated.hasFaint()) {
-                format.setFontWeight(QFont::Light);
-            } else {
-                format.setFontWeight(QFont::Normal);
+RawAnsi updateFormat(QTextCharFormat &f, const FontDefaults &d, const RawAnsi &b, RawAnsi u) {
+    if (b == u) return u;
+    if (u == RawAnsi{}) { setDefaultFormat(f, d); return u; }
+    auto df = b.getFlags() ^ u.getFlags();
+    for (auto flag : df) {
+        if (flag == AnsiStyleFlagEnum::Italic) f.setFontItalic(u.hasItalic());
+        else if (flag == AnsiStyleFlagEnum::Underline) {
+            f.setFontUnderline(u.hasUnderline());
+            switch (u.getUnderlineStyle()) {
+                case AnsiUnderlineStyleEnum::Dotted: f.setUnderlineStyle(QTextCharFormat::DotLine); break;
+                case AnsiUnderlineStyleEnum::Curly: f.setUnderlineStyle(QTextCharFormat::WaveUnderline); break;
+                case AnsiUnderlineStyleEnum::Dashed: f.setUnderlineStyle(QTextCharFormat::DashUnderline); break;
+                default: f.setUnderlineStyle(QTextCharFormat::SingleUnderline); break;
             }
-            break;
-        case AnsiStyleFlagEnum::Blink:   // ignored
-        case AnsiStyleFlagEnum::Reverse: // handled below
-        case AnsiStyleFlagEnum::Conceal: // handled below
-            break;
         }
+        else if (flag == AnsiStyleFlagEnum::Strikeout) f.setFontStrikeOut(u.hasStrikeout());
+        else if (flag == AnsiStyleFlagEnum::Bold || flag == AnsiStyleFlagEnum::Faint) f.setFontWeight(u.hasBold() ? QFont::Bold : (u.hasFaint() ? QFont::Light : QFont::Normal));
     }
-
-    const bool conceal = updated.hasConceal();
-    const bool reverse = updated.hasReverse();
-    const bool intense = updated.hasBold();
-
-    auto bg = decodeColor(updated.bg, defaults.defaultBg, false);
-    auto fg = decodeColor(updated.fg, defaults.defaultFg, intense);
-    auto ul = decodeColor(updated.ul, defaults.getDefaultUl(), intense);
-
-    if (reverse) {
-        // was swap(fg, bg) before we supported underline color
-        ::reverseInPlace(fg);
-        ::reverseInPlace(bg);
-        ::reverseInPlace(ul);
+    QColor bg = decode(u.bg, d.defaultBg, false), fg = decode(u.fg, d.defaultFg, u.hasBold()), ul = decode(u.ul, d.defaultUl.value_or(d.defaultFg), u.hasBold());
+    if (u.hasReverse()) {
+        auto rev = [](QColor &c) { c.setRgb(255-c.red(), 255-c.green(), 255-c.blue()); };
+        rev(bg); rev(fg); rev(ul);
     }
-
-    // Create a config setting and use it here if you really want to miss text that others will see!
-    bool userExplicitlyOptedInForConceal = false;
-    if (conceal && userExplicitlyOptedInForConceal) {
-        ul = fg = bg;
-    }
-
-    format.setBackground(bg);
-    format.setForeground(fg);
-    format.setUnderlineColor(ul);
-    return updated;
+    f.setBackground(bg); f.setForeground(fg); f.setUnderlineColor(ul); return u;
 }
 
-void setAnsiText(QTextEdit *const pEdit, const std::string_view text)
-{
-    QTextEdit &edit = deref(pEdit);
-
-    edit.clear();
-    edit.setReadOnly(true);
-    edit.setOverwriteMode(true);
-    edit.setUndoRedoEnabled(false);
-    edit.setTextInteractionFlags(Qt::TextSelectableByMouse);
-
-    // REVISIT: Is this necessary to do in both places?
-    deref(edit.document()).setUndoRedoEnabled(false);
-
-    AnsiTextHelper helper{edit};
-    helper.init();
-    helper.displayText(mmqt::toQStringUtf8(text));
-
-    // FIXME: why don't the scroll bars work?
-    if (QScrollBar *const vs = edit.verticalScrollBar()) {
-        vs->setEnabled(true);
-    }
+void setAnsiText(QTextEdit *p, std::string_view t) {
+    p->clear(); p->setReadOnly(true); p->setOverwriteMode(true); p->setUndoRedoEnabled(false);
+    p->document()->setUndoRedoEnabled(false); AnsiTextHelper h(*p); h.init(); h.displayText(mmqt::toQStringUtf8(t));
+    if (p->verticalScrollBar()) p->verticalScrollBar()->setEnabled(true);
 }

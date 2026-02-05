@@ -1,34 +1,23 @@
 #pragma once
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
-// Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
-#include "../global/macros.h"
-
-#include <QString>
+#include "MumeProtocolViewModel.h"
 #include <QWidget>
-#include <QtCore>
 
-class QObject;
-
-namespace Ui {
-class MumeProtocolPage;
-}
+namespace Ui { class MumeProtocolPage; }
 
 class NODISCARD_QOBJECT MumeProtocolPage final : public QWidget
 {
     Q_OBJECT
-
 private:
     Ui::MumeProtocolPage *const ui;
-
+    MumeProtocolViewModel m_viewModel;
 public:
     explicit MumeProtocolPage(QWidget *parent);
     ~MumeProtocolPage() final;
-
 public slots:
     void slot_loadConfig();
-    void slot_internalEditorRadioButtonChanged(bool);
-    void slot_externalEditorCommandTextChanged(QString);
-    void slot_externalEditorBrowseButtonClicked(bool);
+private:
+    void updateUI();
 };

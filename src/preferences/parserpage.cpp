@@ -1,102 +1,52 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
-// Author: Ulf Hermann <ulfonk_mennhar@gmx.de> (Alve)
-// Author: Marek Krejza <krejza@gmail.com> (Caligor)
 
 #include "parserpage.h"
-
-#include "../configuration/configuration.h"
-#include "../global/Charset.h"
-#include "../parser/AbstractParser-Utils.h"
+#include "ui_parserpage.h"
 #include "AnsiColorDialog.h"
 #include "ansicombo.h"
+#include "../global/SignalBlocker.h"
 
-#include <QColor>
-#include <QComboBox>
-#include <QString>
-#include <QValidator>
-#include <QtWidgets>
-
-class NODISCARD CommandPrefixValidator final : public QValidator
+ParserPage::ParserPage(QWidget *parent)
+    : QWidget(parent), ui(new Ui::ParserPage)
 {
-public:
-    explicit CommandPrefixValidator(QObject *parent);
-    ~CommandPrefixValidator() final;
+    ui->setupUi(this);
+    connect(&m_viewModel, &ParserPageViewModel::settingsChanged, this, &ParserPage::updateUI);
 
-    void fixup(QString &input) const override
-    {
-        mmqt::toLatin1InPlace(input); // transliterates non-latin1 codepoints
-    }
+    connect(ui->roomNameColorPushButton, &QPushButton::clicked, this, [this]() {
+        AnsiColorDialog::getColor(m_viewModel.roomNameColor(), this, [this](QString ansi) {
+            m_viewModel.setRoomNameColor(ansi);
+        });
+    });
+    connect(ui->roomDescColorPushButton, &QPushButton::clicked, this, [this]() {
+        AnsiColorDialog::getColor(m_viewModel.roomDescColor(), this, [this](QString ansi) {
+            m_viewModel.setRoomDescColor(ansi);
+        });
+    });
+    connect(ui->charPrefixLineEdit, &QLineEdit::textChanged, &m_viewModel, &ParserPageViewModel::setPrefixChar);
+    connect(ui->encodeEmoji, &QCheckBox::toggled, &m_viewModel, &ParserPageViewModel::setEncodeEmoji);
+    connect(ui->decodeEmoji, &QCheckBox::toggled, &m_viewModel, &ParserPageViewModel::setDecodeEmoji);
 
-    NODISCARD State validate(QString &input, int & /* pos */) const override
-    {
-        if (input.isEmpty()) {
-            return State::Intermediate;
-        }
+    updateUI();
+}
 
-        const bool valid = input.length() == 1 && isValidPrefix(mmqt::toLatin1(input[0]));
-        return valid ? State::Acceptable : State::Invalid;
-    }
-};
+ParserPage::~ParserPage() = default;
 
-CommandPrefixValidator::CommandPrefixValidator(QObject *const parent)
-    : QValidator(parent)
-{}
-
-CommandPrefixValidator::~CommandPrefixValidator() = default;
-
-ParserPage::ParserPage(QWidget *const parent)
-    : QWidget(parent)
+void ParserPage::updateUI()
 {
-    setupUi(this);
+    SignalBlocker sb1(*ui->charPrefixLineEdit);
+    SignalBlocker sb2(*ui->encodeEmoji);
+    SignalBlocker sb3(*ui->decodeEmoji);
 
-    connect(roomNameColorPushButton,
-            &QAbstractButton::clicked,
-            this,
-            &ParserPage::slot_roomNameColorClicked);
-    connect(roomDescColorPushButton,
-            &QAbstractButton::clicked,
-            this,
-            &ParserPage::slot_roomDescColorClicked);
+    AnsiCombo::makeWidgetColoured(ui->roomNameColorLabel, m_viewModel.roomNameColor());
+    AnsiCombo::makeWidgetColoured(ui->roomDescColorLabel, m_viewModel.roomDescColor());
 
-    connect(charPrefixLineEdit, &QLineEdit::editingFinished, this, [this]() {
-        setConfig().parser.prefixChar = mmqt::toLatin1(charPrefixLineEdit->text().front());
-    });
-
-    connect(encodeEmoji, &QCheckBox::clicked, this, [](bool checked) {
-        setConfig().parser.encodeEmoji = checked;
-    });
-    connect(decodeEmoji, &QCheckBox::clicked, this, [](bool checked) {
-        setConfig().parser.decodeEmoji = checked;
-    });
+    ui->charPrefixLineEdit->setText(m_viewModel.prefixChar());
+    ui->encodeEmoji->setChecked(m_viewModel.encodeEmoji());
+    ui->decodeEmoji->setChecked(m_viewModel.decodeEmoji());
 }
 
 void ParserPage::slot_loadConfig()
 {
-    const auto &settings = getConfig().parser;
-
-    AnsiCombo::makeWidgetColoured(roomNameColorLabel, settings.roomNameColor);
-    AnsiCombo::makeWidgetColoured(roomDescColorLabel, settings.roomDescColor);
-
-    charPrefixLineEdit->setText(QString(settings.prefixChar));
-    charPrefixLineEdit->setValidator(new CommandPrefixValidator(this));
-
-    encodeEmoji->setChecked(settings.encodeEmoji);
-    decodeEmoji->setChecked(settings.decodeEmoji);
-}
-
-void ParserPage::slot_roomNameColorClicked()
-{
-    AnsiColorDialog::getColor(getConfig().parser.roomNameColor, this, [this](QString ansiString) {
-        AnsiCombo::makeWidgetColoured(roomNameColorLabel, ansiString);
-        setConfig().parser.roomNameColor = ansiString;
-    });
-}
-
-void ParserPage::slot_roomDescColorClicked()
-{
-    AnsiColorDialog::getColor(getConfig().parser.roomDescColor, this, [this](QString ansiString) {
-        AnsiCombo::makeWidgetColoured(roomDescColorLabel, ansiString);
-        setConfig().parser.roomDescColor = ansiString;
-    });
+    m_viewModel.loadConfig();
 }

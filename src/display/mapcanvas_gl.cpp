@@ -452,8 +452,8 @@ glm::mat4 MapCanvas::getViewProj(const glm::vec2 &scrollPos,
 void MapCanvas::setMvp(const glm::mat4 &viewProj)
 {
     auto &gl = getOpenGL();
-    m_viewProj = viewProj;
-    gl.setProjectionMatrix(m_viewProj);
+    m_viewModel->m_viewProj = viewProj;
+    gl.setProjectionMatrix(m_viewModel->m_viewProj);
 }
 
 void MapCanvas::setViewportAndMvp(int width, int height)
@@ -467,9 +467,9 @@ void MapCanvas::setViewportAndMvp(int width, int height)
     assert(size.x == width);
     assert(size.y == height);
 
-    const float zoomScale = getTotalScaleFactor();
-    const auto viewProj = (!want3D) ? getViewProj_old(m_scroll, size, zoomScale, m_currentLayer)
-                                    : getViewProj(m_scroll, size, zoomScale, m_currentLayer);
+    const float zoomScale = m_viewModel->getTotalScaleFactor();
+    const auto viewProj = (!want3D) ? getViewProj_old(m_viewModel->m_scroll, size, zoomScale, m_viewModel->m_currentLayer)
+                                    : getViewProj(m_viewModel->m_scroll, size, zoomScale, m_viewModel->m_currentLayer);
     setMvp(viewProj);
 }
 
@@ -918,7 +918,7 @@ void MapCanvas::paintGL()
     print(QString::asprintf("Worst updateBatches: %.1f ms", longestBatchMs));
 
     const auto &advanced = getConfig().canvas.advanced;
-    const float zoom = getTotalScaleFactor();
+    const float zoom = m_viewModel->getTotalScaleFactor();
     const bool is3d = advanced.use3D.get();
     if (is3d) {
         print(QString::asprintf("3d mode: %.1f fovy, %.1f pitch, %.1f yaw, %.1f zscale",
@@ -927,8 +927,8 @@ void MapCanvas::paintGL()
                                 advanced.horizontalAngle.getDouble(),
                                 advanced.layerHeight.getDouble()));
     } else {
-        const glm::vec3 c = unproject_raw(glm::vec3{w / 2, h / 2, 0});
-        const glm::vec3 v = unproject_raw(glm::vec3{w / 2, 0, 0});
+        const glm::vec3 c = m_viewModel->unproject_raw(glm::vec3{w / 2, h / 2, 0});
+        const glm::vec3 v = m_viewModel->unproject_raw(glm::vec3{w / 2, 0, 0});
         const auto dy = std::abs((v - c).y);
         const auto dz = std::abs(c.z);
         const float fovy = 2.f * glm::degrees(std::atan2(dy, dz));
@@ -950,18 +950,18 @@ void MapCanvas::paintGL()
 
 void MapCanvas::paintSelectionArea()
 {
-    if (!hasSel1() || !hasSel2()) {
+    if (!m_viewModel->hasSel1() || !m_viewModel->hasSel2()) {
         return;
     }
 
-    const auto pos1 = getSel1().pos.to_vec2();
-    const auto pos2 = getSel2().pos.to_vec2();
+    const auto pos1 = m_viewModel->getSel1().pos.to_vec2();
+    const auto pos2 = m_viewModel->getSel2().pos.to_vec2();
 
     // Mouse selected area
     auto &gl = getOpenGL();
-    const auto layer = static_cast<float>(m_currentLayer);
+    const auto layer = static_cast<float>(m_viewModel->m_currentLayer);
 
-    if (m_selectedArea) {
+    if (m_viewModel->m_selectedArea) {
         const glm::vec3 A{pos1, layer};
         const glm::vec3 B{pos2.x, pos1.y, layer};
         const glm::vec3 C{pos2, layer};
@@ -1021,7 +1021,7 @@ void MapCanvas::renderMapBatches()
     MapBatches &batches = mapBatches.value();
     const Configuration::CanvasSettings &settings = getConfig().canvas;
 
-    const float totalScaleFactor = getTotalScaleFactor();
+    const float totalScaleFactor = m_viewModel->getTotalScaleFactor();
     const auto wantExtraDetail = totalScaleFactor >= settings.extraDetailScaleCutoff;
     const auto wantDoorNames = settings.drawDoorNames
                                && (totalScaleFactor >= settings.doorNameScaleCutoff);
@@ -1072,10 +1072,10 @@ void MapCanvas::renderMapBatches()
 
     for (const auto &layer : batchedMeshes) {
         const int thisLayer = layer.first;
-        if (thisLayer == m_currentLayer) {
+        if (thisLayer == m_viewModel->m_currentLayer) {
             gl.clearDepth();
             fadeBackground();
         }
-        drawLayer(thisLayer, m_currentLayer);
+        drawLayer(thisLayer, m_viewModel->m_currentLayer);
     }
 }

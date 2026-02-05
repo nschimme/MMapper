@@ -12,6 +12,7 @@
 #include "../mapdata/roomselection.h"
 #include "../mapstorage/MapDestination.h"
 #include "../mapstorage/MapSource.h"
+#include "MainViewModel.h"
 
 #include <memory>
 #include <optional>
@@ -77,6 +78,8 @@ class NODISCARD_QOBJECT MainWindow final : public QMainWindow
     Q_OBJECT
 
 private:
+    std::unique_ptr<MainViewModel> m_viewModel;
+
     MapWindow *m_mapWindow = nullptr;
     QTextBrowser *logWindow = nullptr;
 

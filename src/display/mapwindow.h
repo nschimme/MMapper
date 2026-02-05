@@ -74,6 +74,7 @@ public:
     void updateScrollBars();
     void setZoom(float zoom);
     NODISCARD float getZoom() const;
+    NODISCARD float getRawZoom() const { return getZoom(); }
     void hideSplashImage();
 
 private:

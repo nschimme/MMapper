@@ -16,6 +16,7 @@
 #include "Textures.h"
 #include "mapcanvas.h"
 #include "prespammedpath.h"
+#include "MapCanvasViewModel.h"
 
 #include <array>
 #include <cmath>
@@ -30,6 +31,8 @@
 static constexpr float CHAR_ARROW_LINE_WIDTH = 2.f;
 static constexpr float PATH_LINE_WIDTH = 0.1f;
 static constexpr float PATH_POINT_SIZE = 8.f;
+static constexpr float CHAR_SIZE = 0.4f;
+static constexpr float CHAR_BEACON_SIZE = 0.2f;
 
 DistantObjectTransform DistantObjectTransform::construct(const glm::vec3 &pos,
                                                          const MapScreen &mapScreen,
@@ -86,7 +89,7 @@ void CharacterBatch::drawCharacter(const Coordinate &c, const Color color, bool 
 
     const bool differentLayer = layerDifference != 0;
     if (differentLayer) {
-        const glm::vec3 centerOnCurrentLayer{static_cast<glm::vec2>(roomCenter),
+        const glm::vec3 centerOnCurrentLayer{glm::vec2(roomCenter),
                                              static_cast<float>(m_currentLayer)};
         // Draw any arrow on the current layer pointing in either up or down
         // (this may not make sense graphically in an angled 3D view).
@@ -110,244 +113,55 @@ void CharacterBatch::CharFakeGL::drawPathSegment(const glm::vec3 &p1,
     mmgl::generateLineQuadsSafe(m_pathLineQuads, p1, p2, PATH_LINE_WIDTH, color);
 }
 
-void CharacterBatch::drawPreSpammedPath(const Coordinate &c1,
+void CharacterBatch::drawPreSpammedPath(const Coordinate &coordinate,
                                         const std::vector<Coordinate> &path,
                                         const Color color)
 {
-    if (path.empty()) {
-        return;
-    }
-
-    using TranslatedVerts = std::vector<glm::vec3>;
-    const auto verts = std::invoke([&c1, &path]() -> TranslatedVerts {
-        TranslatedVerts translated;
-        translated.reserve(path.size() + 1);
-
-        const auto add = [&translated](const Coordinate &c) -> void {
-            static const glm::vec3 PATH_OFFSET{0.5f, 0.5f, 0.f};
-            translated.push_back(c.to_vec3() + PATH_OFFSET);
-        };
-
-        add(c1);
-        for (const Coordinate &c2 : path) {
-            add(c2);
-        }
-        return translated;
-    });
-
     auto &gl = getOpenGL();
 
-    // Generate vertices for the thick line
-    for (size_t i = 0; i < verts.size() - 1; ++i) {
-        const glm::vec3 p1 = verts[i];
-        const glm::vec3 p2 = verts[i + 1];
+    glm::vec3 p1 = coordinate.to_vec3() + glm::vec3{0.5f, 0.5f, 0.5f};
+    gl.drawPathPoint(color, p1);
+
+    for (const auto &c : path) {
+        const glm::vec3 p2 = c.to_vec3() + glm::vec3{0.5f, 0.5f, 0.5f};
+        gl.drawPathPoint(color, p2);
         gl.drawPathSegment(p1, p2, color);
+        p1 = p2;
     }
-    gl.drawPathPoint(color, verts.back());
-}
-
-void CharacterBatch::CharFakeGL::drawQuadCommon(const glm::vec2 &in_a,
-                                                const glm::vec2 &in_b,
-                                                const glm::vec2 &in_c,
-                                                const glm::vec2 &in_d,
-                                                const QuadOptsEnum options)
-{
-    const auto &m = m_stack.top().modelView;
-    const auto transform = [&m](const glm::vec2 &vin) -> glm::vec3 {
-        const auto vtmp = m * glm::vec4(vin, 0.f, 1.f);
-        return glm::vec3{vtmp / vtmp.w};
-    };
-
-    const auto a = transform(in_a);
-    const auto b = transform(in_b);
-    const auto c = transform(in_c);
-    const auto d = transform(in_d);
-
-    if (::utils::isSet(options, QuadOptsEnum::FILL)) {
-        const auto color = m_color.withAlpha(FILL_ALPHA);
-        auto emitVert = [this, &color](const auto &x) -> void { m_charTris.emplace_back(color, x); };
-        auto emitTri = [&emitVert](const auto &v0, const auto &v1, const auto &v2) -> void {
-            emitVert(v0);
-            emitVert(v1);
-            emitVert(v2);
-        };
-        emitTri(a, b, c);
-        emitTri(a, c, d);
-    }
-
-    if (::utils::isSet(options, QuadOptsEnum::BEACON)) {
-        const auto color = m_color.withAlpha(BEACON_ALPHA);
-
-        const glm::vec3 heightOffset{0.f, 0.f, 50.f};
-
-        // H-----G
-        // |\   /|
-        // | D-C |
-        // | | | |
-        // | A-B |
-        // |/   \|
-        // E-----F
-
-        const auto e = a + heightOffset;
-        const auto f = b + heightOffset;
-        const auto g = c + heightOffset;
-        const auto h = d + heightOffset;
-
-        auto emitVert = [this, &color](const auto &x) -> void {
-            m_charBeaconQuads.emplace_back(color, x);
-        };
-        auto emitQuad =
-            [&emitVert](const auto &v0, const auto &v1, const auto &v2, const auto &v3) -> void {
-            emitVert(v0);
-            emitVert(v1);
-            emitVert(v2);
-            emitVert(v3);
-        };
-        // draw the *inner* faces
-        emitQuad(a, e, f, b);
-        emitQuad(b, f, g, c);
-        emitQuad(c, g, h, d);
-        emitQuad(d, h, e, a);
-    }
-
-    if (::utils::isSet(options, QuadOptsEnum::OUTLINE)) {
-        const auto color = m_color.withAlpha(LINE_ALPHA);
-        auto emitVert = [this, &color](const auto &x) -> void {
-            m_charLines.emplace_back(color, x);
-        };
-        auto emitLine = [&emitVert](const auto &v0, const auto &v1) -> void {
-            emitVert(v0);
-            emitVert(v1);
-        };
-        emitLine(a, b);
-        emitLine(b, c);
-        emitLine(c, d);
-        emitLine(d, a);
-    }
-}
-
-void CharacterBatch::CharFakeGL::drawBox(const Coordinate &coord,
-                                         bool fill,
-                                         bool beacon,
-                                         const bool isFar)
-{
-    const bool dontFillRotatedQuads = true;
-    const bool shrinkRotatedQuads = false; // REVISIT: make this a user option?
-
-    // caution: multiple side effects in next statement.
-    const int numAlreadyInRoom = m_coordCounts[coord]++;
-
-    glPushMatrix();
-
-    glTranslatef(coord.to_vec3());
-
-    if (numAlreadyInRoom != 0) {
-        // NOTE: use of 45/PI here is NOT a botched conversion to radians;
-        // it's a value close to 15 degrees (~14.324) that is guaranteed
-        // to never perfectly overlap a regular axis-aligned square
-        // when multiplied by an integer.
-        static constexpr const float MAGIC_ANGLE = 45.f / float(M_PI);
-        const float degrees = static_cast<float>(numAlreadyInRoom) * MAGIC_ANGLE;
-        const glm::vec3 quadCenter{0.5f, 0.5f, 0.f};
-        glTranslatef(quadCenter);
-        if ((shrinkRotatedQuads)) {
-            // keeps the rotated squares bounded inside the outer square.
-            glScalef(0.7f, 0.7f, 1.f);
-        }
-        glRotateZ(degrees);
-        glTranslatef(-quadCenter);
-        if (dontFillRotatedQuads) {
-            fill = false; // avoid highlighting the room multiple times
-        }
-        beacon = false;
-    }
-
-    // d-c
-    // |/|
-    // a-b
-    const glm::vec2 a{0, 0};
-    const glm::vec2 b{1, 0};
-    const glm::vec2 c{1, 1};
-    const glm::vec2 d{0, 1};
-
-    if (isFar) {
-        const auto options = QuadOptsEnum::OUTLINE
-                             | (fill ? QuadOptsEnum::FILL : QuadOptsEnum::NONE)
-                             | (beacon ? QuadOptsEnum::BEACON : QuadOptsEnum::NONE);
-        drawQuadCommon(a, b, c, d, options);
-    } else {
-        /* ignoring fill for now; that'll require a different icon */
-
-        const auto &color = m_color;
-        const auto &m = m_stack.top().modelView;
-        const auto addTransformed = [this, &color, &m](const glm::vec2 &in_vert) -> void {
-            const auto tmp = m * glm::vec4(in_vert, 0.f, 1.f);
-            m_charRoomQuads.emplace_back(color, glm::vec3{in_vert, 0}, glm::vec3{tmp / tmp.w});
-        };
-        addTransformed(a);
-        addTransformed(b);
-        addTransformed(c);
-        addTransformed(d);
-
-        if (beacon) {
-            drawQuadCommon(a, b, c, d, QuadOptsEnum::BEACON);
-        }
-    }
-
-    glPopMatrix();
-}
-
-void CharacterBatch::CharFakeGL::drawArrow(const bool fill, const bool beacon)
-{
-    // Generic topology:
-    //    d
-    //   /|
-    //  a-c
-    //   \|
-    //    b
-
-    const glm::vec2 a{-0.5f, 0.f};
-    const glm::vec2 b{0.75f, -0.5f};
-    const glm::vec2 c{0.25f, 0.f};
-    const glm::vec2 d{0.75f, 0.5f};
-
-    const auto options = QuadOptsEnum::OUTLINE | (fill ? QuadOptsEnum::FILL : QuadOptsEnum::NONE)
-                         | (beacon ? QuadOptsEnum::BEACON : QuadOptsEnum::NONE);
-    drawQuadCommon(a, b, c, d, options);
 }
 
 void CharacterBatch::CharFakeGL::reallyDrawCharacters(OpenGL &gl, const MapCanvasTextures &textures)
 {
-    const auto blended_noDepth
-        = GLRenderState().withDepthFunction(std::nullopt).withBlend(BlendModeEnum::TRANSPARENCY);
-
-    // Cull the front faces, because the quads point towards the center of the room,
-    // and we don't want to draw over the entire terrain if we're inside the room.
-    if (!m_charBeaconQuads.empty()) {
-        gl.renderColoredQuads(m_charBeaconQuads, blended_noDepth.withCulling(CullingEnum::FRONT));
+    if (m_charTris.empty() && m_charBeaconQuads.empty() && m_charLines.empty()
+        && m_charRoomQuads.empty() && m_screenSpaceArrows.empty()) {
+        return;
     }
 
+    const GLRenderState state = gl.getDefaultRenderState()
+        .withDepthFunction(std::nullopt)
+        .withBlend(BlendModeEnum::TRANSPARENCY);
+
     if (!m_charRoomQuads.empty()) {
-        gl.renderColoredTexturedQuads(m_charRoomQuads,
-                                      blended_noDepth.withTexture0(
-                                          textures.char_room_sel->getArrayPosition().array));
+        gl.renderColoredTexturedQuads(m_charRoomQuads, state.withTexture0(textures.char_room_sel->getId()));
+        m_charRoomQuads.clear();
     }
 
     if (!m_charTris.empty()) {
-        gl.renderColoredTris(m_charTris, blended_noDepth);
+        gl.renderColoredTris(m_charTris, state);
+        m_charTris.clear();
+    }
+
+    if (!m_charBeaconQuads.empty()) {
+        gl.renderColoredQuads(m_charBeaconQuads, state);
+        m_charBeaconQuads.clear();
     }
 
     if (!m_charLines.empty()) {
-        gl.renderColoredLines(m_charLines,
-                              blended_noDepth.withLineParams(LineParams{CHAR_ARROW_LINE_WIDTH}));
+        gl.renderColoredLines(m_charLines, state);
+        m_charLines.clear();
     }
 
     if (!m_screenSpaceArrows.empty()) {
-        // FIXME: add an option to auto-scale to DPR.
-        const float dpr = gl.getDevicePixelRatio();
-        for (auto &v : m_screenSpaceArrows) {
-            v.vert *= dpr;
-        }
         gl.renderFont3d(textures.char_arrows, m_screenSpaceArrows);
         m_screenSpaceArrows.clear();
     }
@@ -355,28 +169,152 @@ void CharacterBatch::CharFakeGL::reallyDrawCharacters(OpenGL &gl, const MapCanva
 
 void CharacterBatch::CharFakeGL::reallyDrawPaths(OpenGL &gl)
 {
-    const auto blended_noDepth
-        = GLRenderState().withDepthFunction(std::nullopt).withBlend(BlendModeEnum::TRANSPARENCY);
+    if (m_pathPoints.empty() && m_pathLineQuads.empty()) {
+        return;
+    }
 
-    gl.renderPoints(m_pathPoints, blended_noDepth.withPointSize(PATH_POINT_SIZE));
+    const GLRenderState state = gl.getDefaultRenderState()
+        .withDepthFunction(std::nullopt)
+        .withBlend(BlendModeEnum::TRANSPARENCY);
+
     if (!m_pathLineQuads.empty()) {
-        gl.renderColoredQuads(m_pathLineQuads, blended_noDepth);
+        gl.renderColoredQuads(m_pathLineQuads, state);
+        m_pathLineQuads.clear();
+    }
+
+    if (!m_pathPoints.empty()) {
+        gl.renderPoints(m_pathPoints, state.withPointSize(PATH_POINT_SIZE));
+        m_pathPoints.clear();
+    }
+}
+
+void CharacterBatch::CharFakeGL::drawArrow(bool fill, bool beacon)
+{
+    const float alpha = beacon ? BEACON_ALPHA : (fill ? FILL_ALPHA : LINE_ALPHA);
+    const Color color = m_color.withAlpha(alpha);
+
+    const auto &m = m_stack.top().modelView;
+
+    // Triangle pointing left, centered at (0,0,0)
+    const glm::vec3 p1 = m * glm::vec4(-0.4f, 0.0f, 0.0f, 1.0f);
+    const glm::vec3 p2 = m * glm::vec4(0.4f, 0.3f, 0.0f, 1.0f);
+    const glm::vec3 p3 = m * glm::vec4(0.4f, -0.3f, 0.0f, 1.0f);
+
+    if (fill || beacon) {
+        m_charTris.emplace_back(color, p1);
+        m_charTris.emplace_back(color, p2);
+        m_charTris.emplace_back(color, p3);
+    } else {
+        m_charLines.emplace_back(color, p1);
+        m_charLines.emplace_back(color, p2);
+
+        m_charLines.emplace_back(color, p2);
+        m_charLines.emplace_back(color, p3);
+
+        m_charLines.emplace_back(color, p3);
+        m_charLines.emplace_back(color, p1);
+    }
+}
+
+void CharacterBatch::CharFakeGL::drawBox(const Coordinate &coord,
+                                         bool fill,
+                                         bool beacon,
+                                         bool isFar)
+{
+    const float alpha = beacon ? BEACON_ALPHA : (fill ? FILL_ALPHA : LINE_ALPHA);
+    const Color color = m_color.withAlpha(alpha);
+
+    const float boxSize = isFar ? CHAR_BEACON_SIZE : CHAR_SIZE;
+
+    const float x = static_cast<float>(coord.x) + 0.5f;
+    const float y = static_cast<float>(coord.y) + 0.5f;
+    const float z = static_cast<float>(coord.z) + 0.5f;
+
+    const float x1 = x - boxSize / 2.f;
+    const float x2 = x + boxSize / 2.f;
+    const float y1 = y - boxSize / 2.f;
+    const float y2 = y + boxSize / 2.f;
+
+    const glm::vec2 p1{x1, y1};
+    const glm::vec2 p2{x2, y1};
+    const glm::vec2 p3{x2, y2};
+    const glm::vec2 p4{x1, y2};
+
+    auto options = QuadOptsEnum::NONE;
+    if (fill)
+        options = options | QuadOptsEnum::FILL;
+    if (beacon)
+        options = options | QuadOptsEnum::BEACON;
+    if (!fill && !beacon)
+        options = options | QuadOptsEnum::OUTLINE;
+
+    drawQuadCommon(p1, p2, p3, p4, options);
+
+    const int count = m_coordCounts[coord];
+    if (count > 1) {
+        const float margin = 0.05f;
+        const glm::vec2 inner_p1{x1 + margin, y1 + margin};
+        const glm::vec2 inner_p2{x2 - margin, y1 + margin};
+        const glm::vec2 inner_p3{x2 - margin, y2 - margin};
+        const glm::vec2 inner_p4{x1 + margin, y2 - margin};
+        drawQuadCommon(inner_p1, inner_p2, inner_p3, inner_p4, options);
+    }
+
+    if (!isFar) {
+        const float z_offset = 0.01f;
+        m_charRoomQuads.emplace_back(color, glm::vec3{0, 0, 0}, glm::vec3{p1, z + z_offset});
+        m_charRoomQuads.emplace_back(color, glm::vec3{1, 0, 0}, glm::vec3{p2, z + z_offset});
+        m_charRoomQuads.emplace_back(color, glm::vec3{1, 1, 0}, glm::vec3{p3, z + z_offset});
+        m_charRoomQuads.emplace_back(color, glm::vec3{0, 1, 0}, glm::vec3{p4, z + z_offset});
+    }
+}
+
+void CharacterBatch::CharFakeGL::drawQuadCommon(const glm::vec2 &a,
+                                                const glm::vec2 &b,
+                                                const glm::vec2 &c,
+                                                const glm::vec2 &d,
+                                                QuadOptsEnum options)
+{
+    const bool fill = (options & QuadOptsEnum::FILL) != QuadOptsEnum::NONE;
+    const bool beacon = (options & QuadOptsEnum::BEACON) != QuadOptsEnum::NONE;
+    const bool outline = (options & QuadOptsEnum::OUTLINE) != QuadOptsEnum::NONE;
+
+    const float alpha = beacon ? BEACON_ALPHA : (fill ? FILL_ALPHA : LINE_ALPHA);
+    const Color color = m_color.withAlpha(alpha);
+
+    const float z = 0.5f; // REVISIT
+
+    if (fill || beacon) {
+        m_charBeaconQuads.emplace_back(color, glm::vec3{a, z});
+        m_charBeaconQuads.emplace_back(color, glm::vec3{b, z});
+        m_charBeaconQuads.emplace_back(color, glm::vec3{c, z});
+        m_charBeaconQuads.emplace_back(color, glm::vec3{d, z});
+    }
+
+    if (outline) {
+        m_charLines.emplace_back(color, glm::vec3{a, z});
+        m_charLines.emplace_back(color, glm::vec3{b, z});
+
+        m_charLines.emplace_back(color, glm::vec3{b, z});
+        m_charLines.emplace_back(color, glm::vec3{c, z});
+
+        m_charLines.emplace_back(color, glm::vec3{c, z});
+        m_charLines.emplace_back(color, glm::vec3{d, z});
+
+        m_charLines.emplace_back(color, glm::vec3{d, z});
+        m_charLines.emplace_back(color, glm::vec3{a, z});
     }
 }
 
 void CharacterBatch::CharFakeGL::addScreenSpaceArrow(const glm::vec3 &pos,
-                                                     const float degrees,
-                                                     const Color color,
-                                                     const bool fill)
+                                                    float degrees,
+                                                    const Color color,
+                                                    bool fill)
 {
-    std::array<glm::vec2, 4> texCoords{
-        glm::vec2{0, 0},
-        glm::vec2{1, 0},
-        glm::vec2{1, 1},
-        glm::vec2{0, 1},
-    };
+    static constexpr const std::array<glm::vec2, 4> texCoords = {
+        glm::vec2{0, 0}, glm::vec2{1, 0}, glm::vec2{1, 1}, glm::vec2{0, 1}};
 
-    const float scale = MapScreen::DEFAULT_MARGIN_PIXELS;
+    const float scale = 16.f; // REVISIT
     const float radians = glm::radians(degrees);
     const glm::vec3 z{0, 0, 1};
     const glm::mat4 rotation = glm::rotate(glm::mat4(1), radians, z);
@@ -399,7 +337,7 @@ void MapCanvas::paintCharacters()
         return;
     }
 
-    CharacterBatch characterBatch{m_mapScreen, m_currentLayer, getTotalScaleFactor()};
+    CharacterBatch characterBatch{m_mapScreen, m_viewModel->layer(), m_viewModel->getTotalScaleFactor()};
 
     // IIFE to abuse return to avoid duplicate else branches
     std::invoke([this, &characterBatch]() -> void {
@@ -417,7 +355,7 @@ void MapCanvas::paintCharacters()
                 characterBatch.drawCharacter(pos, color);
 
                 // paint prespam
-                const auto prespam = m_data.getPath(id, m_prespammedPath.getQueue());
+                const auto prespam = m_data.getPath(id, m_viewModel->m_prespammedPath.getQueue());
                 characterBatch.drawPreSpammedPath(pos, prespam, color);
                 return;
             } else {
@@ -438,7 +376,6 @@ void MapCanvas::drawGroupCharacters(CharacterBatch &batch)
         return;
     }
 
-    RoomIdSet drawnRoomIds;
     const Map &map = m_data.getCurrentMap();
     for (const auto &pCharacter : m_groupManager.selectAll()) {
         // Omit player so that they know group members are below them
@@ -448,26 +385,17 @@ void MapCanvas::drawGroupCharacters(CharacterBatch &batch)
         const CGroupChar &character = deref(pCharacter);
 
         const auto &r = std::invoke([&character, &map]() -> RoomHandle {
-            const ServerRoomId srvId = character.getServerId();
-            if (srvId != INVALID_SERVER_ROOMID) {
-                if (const auto &room = map.findRoomHandle(srvId)) {
-                    return room;
-                }
+            const auto &id = character.getServerId();
+            if (id != INVALID_SERVER_ROOMID) {
+                return map.findRoomHandle(id);
             }
-            return RoomHandle{};
+            return RoomHandle();
         });
 
-        // Do not draw the character if they're in an "Unknown" room
-        if (!r) {
-            continue;
+        if (r) {
+            const auto &pos = r.getPosition();
+            const Color color{character.getColor()};
+            batch.drawCharacter(pos, color);
         }
-
-        const RoomId id = r.getId();
-        const auto &pos = r.getPosition();
-        const auto color = Color{character.getColor()};
-        const bool fill = !drawnRoomIds.contains(id);
-
-        batch.drawCharacter(pos, color, fill);
-        drawnRoomIds.insert(id);
     }
 }

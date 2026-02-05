@@ -1,32 +1,29 @@
 #pragma once
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
-// Author: Ulf Hermann <ulfonk_mennhar@gmx.de> (Alve)
-// Author: Marek Krejza <krejza@gmail.com> (Caligor)
 
-#include "../global/macros.h"
-#include "ui_pathmachinepage.h"
-
-#include <QString>
+#include "PathMachinePageViewModel.h"
 #include <QWidget>
-#include <QtCore>
 
-class QObject;
+namespace Ui {
+class PathmachinePage;
+}
 
-class NODISCARD_QOBJECT PathmachinePage : public QWidget, private Ui::PathmachinePage
+class NODISCARD_QOBJECT PathmachinePage final : public QWidget
 {
     Q_OBJECT
 
+private:
+    Ui::PathmachinePage *const ui;
+    PathMachinePageViewModel m_viewModel;
+
 public:
     explicit PathmachinePage(QWidget *parent);
+    ~PathmachinePage() final;
 
 public slots:
     void slot_loadConfig();
-    void slot_acceptBestRelativeDoubleSpinBoxValueChanged(double);
-    void slot_acceptBestAbsoluteDoubleSpinBoxValueChanged(double);
-    void slot_newRoomPenaltyDoubleSpinBoxValueChanged(double);
-    void slot_correctPositionBonusDoubleSpinBoxValueChanged(double);
-    void slot_multipleConnectionsPenaltyDoubleSpinBoxValueChanged(double);
-    void slot_maxPathsValueChanged(int);
-    void slot_matchingToleranceSpinBoxValueChanged(int);
+
+private:
+    void updateUI();
 };

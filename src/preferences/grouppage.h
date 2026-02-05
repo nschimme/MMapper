@@ -1,16 +1,10 @@
 #pragma once
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2025 The MMapper Authors
+// Copyright (C) 2019 The MMapper Authors
 
 #include "../global/macros.h"
-
-#include <QColor>
+#include "GroupPageViewModel.h"
 #include <QWidget>
-
-class QCheckBox;
-class QPushButton;
-class QLabel;
-class QColorDialog;
 
 namespace Ui {
 class GroupPage;
@@ -22,6 +16,7 @@ class NODISCARD_QOBJECT GroupPage final : public QWidget
 
 private:
     Ui::GroupPage *const ui;
+    GroupPageViewModel m_viewModel;
 
 public:
     explicit GroupPage(QWidget *parent = nullptr);
@@ -36,4 +31,5 @@ public slots:
 private slots:
     void slot_chooseColor();
     void slot_chooseNpcOverrideColor();
+    void updateUI();
 };

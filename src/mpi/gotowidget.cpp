@@ -2,83 +2,48 @@
 // Copyright (C) 2025 The MMapper Authors
 
 #include "gotowidget.h"
-
+#include "GotoViewModel.h"
 #include <QHBoxLayout>
-#include <QIcon>
+#include <QLabel>
 #include <QIntValidator>
 #include <QKeyEvent>
-#include <QLabel>
-#include <QLineEdit>
-#include <QToolButton>
 
-GotoWidget::GotoWidget(QWidget *const parent)
+GotoWidget::GotoWidget(QWidget *parent)
     : QWidget(parent)
 {
-    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    auto *viewModel = new GotoViewModel(this);
 
-    QHBoxLayout *layout = new QHBoxLayout(this);
-    layout->setContentsMargins(2, 2, 2, 2);
-    layout->setSpacing(4);
+    auto *layout = new QHBoxLayout(this);
+    layout->setContentsMargins(5, 2, 5, 2);
+
+    layout->addWidget(new QLabel(tr("Go to line:"), this));
 
     m_lineEdit = new QLineEdit(this);
-    m_lineEdit->setPlaceholderText("Go to line");
-    m_lineEdit->setValidator(new QIntValidator(1, 1000000, this));
-    m_lineEdit->setMinimumWidth(80);
-    layout->addWidget(m_lineEdit, 1);
+    m_lineEdit->setValidator(new QIntValidator(1, 999999, this));
+    layout->addWidget(m_lineEdit);
 
-    QToolButton *goButton = new QToolButton(this);
-    goButton->setText("Go");
-    goButton->setIcon(QIcon::fromTheme("go-jump", QIcon(":/icons/goto.png")));
-    goButton->setToolTip("Go to specified line number");
-    goButton->setAutoRaise(true);
-    goButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-    goButton->setFocusPolicy(Qt::NoFocus);
-    layout->addWidget(goButton);
+    connect(m_lineEdit, &QLineEdit::textChanged, [viewModel](const QString &t) {
+        viewModel->setLineNum(t.toInt());
+    });
 
-    QToolButton *closeButton = new QToolButton(this);
-    closeButton->setIcon(QIcon::fromTheme("window-close", QIcon(":/icons/cancel.png")));
-    closeButton->setToolTip("Close (Esc)");
-    closeButton->setAutoRaise(true);
-    closeButton->setToolButtonStyle(Qt::ToolButtonIconOnly);
-    closeButton->setFocusPolicy(Qt::NoFocus);
-    layout->addWidget(closeButton);
+    connect(viewModel, &GotoViewModel::sig_gotoLineRequested, this, &GotoWidget::sig_gotoLineRequested);
 
-    setLayout(layout);
-
-    auto gotoLine = [this]() {
-        if (!m_lineEdit)
-            return;
-        bool ok;
-        int lineNum = m_lineEdit->text().toInt(&ok);
-        if (ok && lineNum > 0) {
-            emit sig_gotoLineRequested(lineNum);
-        } else {
-            m_lineEdit->selectAll();
-            m_lineEdit->setFocus();
-        }
-    };
-
-    connect(m_lineEdit, &QLineEdit::returnPressed, this, gotoLine);
-    connect(goButton, &QToolButton::clicked, this, gotoLine);
-    connect(closeButton, &QToolButton::clicked, this, [this]() { emit sig_closeRequested(); });
+    m_lineEdit->installEventFilter(this);
 }
 
 GotoWidget::~GotoWidget() = default;
 
-void GotoWidget::setFocusToInput()
-{
-    if (m_lineEdit) {
-        m_lineEdit->setFocus(Qt::OtherFocusReason);
-        m_lineEdit->clear();
-    }
+void GotoWidget::setFocusToInput() {
+    m_lineEdit->setFocus();
+    m_lineEdit->selectAll();
 }
 
-void GotoWidget::keyPressEvent(QKeyEvent *const event)
-{
-    if (event->key() == Qt::Key_Escape) {
+void GotoWidget::keyPressEvent(QKeyEvent *event) {
+    if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) {
+        // ViewModel request goto
+        emit sig_gotoLineRequested(m_lineEdit->text().toInt());
+    } else if (event->key() == Qt::Key_Escape) {
         emit sig_closeRequested();
-        event->accept();
-        return;
     }
     QWidget::keyPressEvent(event);
 }

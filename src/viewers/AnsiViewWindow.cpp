@@ -1,58 +1,32 @@
-#include <QApplication>
-#include <QScreen>
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2024 The MMapper Authors
 
 #include "AnsiViewWindow.h"
-
 #include "../client/displaywidget.h"
-#include "../global/macros.h"
-#include "../global/utils.h"
-#include "../global/window_utils.h"
-
-#include <tuple>
-
-#include <QDialog>
-#include <QStyle>
 #include <QTextBrowser>
 #include <QVBoxLayout>
+#include <QApplication>
+#include <QScreen>
 
-AnsiViewWindow::AnsiViewWindow(const QString &program,
-                               const QString &title,
-                               const std::string_view message)
-    : m_view{std::make_unique<QTextBrowser>(this)}
+AnsiViewWindow::AnsiViewWindow(const QString &program, const QString &title, std::string_view message)
+    : QDialog(nullptr), m_view(std::make_unique<QTextBrowser>(this))
 {
-    setWindowFlags(windowFlags() & ~Qt::WindowStaysOnTopHint);
-    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
-    mmqt::setWindowTitle2(*this, program, title);
+    setWindowTitle(QString("%1 - %2").arg(program, title));
+    QVBoxLayout *l = new QVBoxLayout(this);
+    l->addWidget(m_view.get());
 
-    QVBoxLayout *mainLayout = new QVBoxLayout(this);
-    mainLayout->setContentsMargins(0, 0, 0, 0);
-    mainLayout->setSpacing(0);
+    connect(&m_viewModel, &AnsiViewViewModel::textChanged, this, &AnsiViewWindow::updateUI);
+    m_viewModel.setText(QString::fromUtf8(message.data(), message.size()));
 
-    auto &view = deref(m_view);
-    setAnsiText(&view, message);
-    view.setOpenExternalLinks(true);
-    view.setTextInteractionFlags(Qt::TextBrowserInteraction);
-
-    // REVISIT: Restore geometry from config?
-    setGeometry(QStyle::alignedRect(Qt::LeftToRight,
-                                    Qt::AlignCenter,
-                                    size(),
-                                    qApp->primaryScreen()->availableGeometry()));
-
-    show();
-    raise();
-    activateWindow();
-    mainLayout->addWidget(&view, 0);
-    view.setFocus(); // REVISIT: can this be done in the creation function?
+    setGeometry(QStyle::alignedRect(Qt::LeftToRight, Qt::AlignCenter, size(), qApp->primaryScreen()->availableGeometry()));
 }
 
 AnsiViewWindow::~AnsiViewWindow() = default;
 
-std::unique_ptr<AnsiViewWindow> makeAnsiViewWindow(const QString &program,
-                                                   const QString &title,
-                                                   std::string_view body)
-{
+void AnsiViewWindow::updateUI() {
+    setAnsiText(m_view.get(), m_viewModel.text().toStdString());
+}
+
+std::unique_ptr<AnsiViewWindow> makeAnsiViewWindow(const QString &program, const QString &title, std::string_view body) {
     return std::make_unique<AnsiViewWindow>(program, title, body);
 }

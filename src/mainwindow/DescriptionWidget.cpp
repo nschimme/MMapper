@@ -6,6 +6,8 @@
 #include <QPainter>
 #include <QResizeEvent>
 #include <QFontMetrics>
+#include <QTextBlockFormat>
+#include <QTextCursor>
 
 DescriptionWidget::DescriptionWidget(QWidget *parent)
     : QWidget(parent)
@@ -16,33 +18,52 @@ DescriptionWidget::DescriptionWidget(QWidget *parent)
     m_textEdit->setReadOnly(true);
     m_textEdit->setFrameStyle(QFrame::NoFrame);
 
+    // Transparent background for text edit to see the blurred image behind it
+    m_textEdit->setAutoFillBackground(false);
+    QPalette palette = m_textEdit->viewport()->palette();
+    palette.setColor(QPalette::Base, QColor(0, 0, 0, 0));
+    m_textEdit->viewport()->setPalette(palette);
+    m_textEdit->raise();
+
     connect(&m_viewModel, &DescriptionViewModel::roomNameChanged, this, &DescriptionWidget::updateUI);
     connect(&m_viewModel, &DescriptionViewModel::roomDescriptionChanged, this, &DescriptionWidget::updateUI);
-    connect(&m_viewModel, &DescriptionViewModel::backgroundImagePathChanged, this, &DescriptionWidget::updateBackground);
+    connect(&m_viewModel, &DescriptionViewModel::blurredImageChanged, this, &DescriptionWidget::updateBackground);
 
     updateUI();
 }
 
 void DescriptionWidget::updateUI() {
     m_textEdit->clear();
-    m_textEdit->append(m_viewModel.roomName());
-    m_textEdit->append(m_viewModel.roomDescription());
+
+    // Set colors and partial background
+    QTextBlockFormat blockFormat;
+    blockFormat.setBackground(m_viewModel.backgroundColor());
+    QTextCursor cursor = m_textEdit->textCursor();
+    cursor.select(QTextCursor::Document);
+    cursor.mergeBlockFormat(blockFormat);
+
+    QTextCharFormat nameFormat;
+    nameFormat.setForeground(m_viewModel.roomNameColor());
+    cursor.insertText(m_viewModel.roomName() + "\n", nameFormat);
+
+    QTextCharFormat descFormat;
+    descFormat.setForeground(m_viewModel.roomDescColor());
+    cursor.insertText(m_viewModel.roomDescription(), descFormat);
 }
 
 void DescriptionWidget::updateBackground() {
-    QString path = m_viewModel.backgroundImagePath();
-    if (path.isEmpty()) {
+    QImage img = m_viewModel.blurredImage();
+    if (img.isNull()) {
         m_label->clear();
         return;
     }
-    QImage img(path);
-    m_label->setPixmap(QPixmap::fromImage(img).scaled(size(), Qt::KeepAspectRatio));
+    m_label->setPixmap(QPixmap::fromImage(img));
 }
 
 void DescriptionWidget::resizeEvent(QResizeEvent *event) {
     m_label->setGeometry(rect());
     m_textEdit->setGeometry(rect());
-    updateBackground();
+    m_viewModel.setWidgetSize(size());
 }
 
 QSize DescriptionWidget::minimumSizeHint() const { return QSize(100, 100); }

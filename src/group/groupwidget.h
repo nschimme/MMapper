@@ -1,10 +1,10 @@
 #pragma once
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
-// Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
 #include "CGroupChar.h"
 #include "mmapper2character.h"
+#include "GroupWidgetViewModel.h"
 
 #include <QAbstractTableModel>
 #include <QSortFilterProxyModel>
@@ -82,7 +82,6 @@ public:
     X(MOVES, moves, Moves, "Moves") \
     X(STATE, state, State, "State") \
     X(ROOM_NAME, room_name, RoomName, "Room Name") \
-    /* define column types above */
 
 #define X_COUNT(UPPER_CASE, lower_case, CamelCase, friendly) +1
 static constexpr const int GROUP_COLUMN_COUNT = XFOREACH_COLUMNTYPE(X_COUNT);
@@ -93,8 +92,6 @@ enum class NODISCARD ColumnTypeEnum {
     XFOREACH_COLUMNTYPE(X_DECL_COLUMNTYPE)
 #undef X_DECL_COLUMNTYPE
 };
-
-static_assert(GROUP_COLUMN_COUNT == static_cast<int>(ColumnTypeEnum::ROOM_NAME) + 1, "# of columns");
 
 class NODISCARD_QOBJECT GroupModel final : public QAbstractTableModel
 {
@@ -132,7 +129,6 @@ protected:
     NODISCARD QVariant data(const QModelIndex &index, int role) const override;
     NODISCARD QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
 
-    // Drag and drop overrides
     NODISCARD Qt::ItemFlags flags(const QModelIndex &index) const override;
     NODISCARD Qt::DropActions supportedDropActions() const override;
     NODISCARD QStringList mimeTypes() const override;
@@ -149,6 +145,7 @@ class NODISCARD_QOBJECT GroupWidget final : public QWidget
     Q_OBJECT
 
 private:
+    std::unique_ptr<GroupWidgetViewModel> m_viewModel;
     QTableView *m_table = nullptr;
     Mmapper2Group *m_group = nullptr;
     MapData *m_map = nullptr;

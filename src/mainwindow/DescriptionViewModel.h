@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2025 The MMapper Authors
 
-#include "../global/RoomHandle.h"
+#include "../map/RoomHandle.h"
 #include "../global/macros.h"
 #include <QColor>
 #include <QObject>
 #include <QString>
+#include <map>
+#include <set>
 
 class NODISCARD_QOBJECT DescriptionViewModel final : public QObject
 {
@@ -29,19 +31,21 @@ public:
     NODISCARD QColor roomDescColor() const;
 
     void updateRoom(const RoomHandle &r);
+    void scanDirectories();
 
 signals:
     void backgroundImagePathChanged();
-    void backgroundInvalidated();
     void roomNameChanged();
     void roomDescriptionChanged();
     void colorsChanged();
 
 private:
     void updateData();
+    NODISCARD QColor toColor(const QString &str) const;
 
     RoomHandle m_room;
     QString m_backgroundImagePath;
     QString m_roomName;
     QString m_roomDescription;
+    std::map<QString, QString> m_availableFiles;
 };

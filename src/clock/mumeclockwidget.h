@@ -7,6 +7,8 @@
 #include <memory>
 
 namespace Ui { class MumeClockWidget; }
+class GameObserver;
+class MumeClock;
 
 class NODISCARD_QOBJECT MumeClockWidget final : public QWidget
 {
@@ -16,7 +18,7 @@ private:
     MumeClockViewModel m_viewModel;
 
 public:
-    explicit MumeClockWidget(QWidget *parent = nullptr);
+    explicit MumeClockWidget(GameObserver &observer, MumeClock &clock, QWidget *parent = nullptr);
     ~MumeClockWidget() final;
 
 private slots:

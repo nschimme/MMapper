@@ -1827,10 +1827,10 @@ void MainWindow::slot_onEditRoomSelection()
         return;
     }
 
-    m_roomEditAttrDlg = std::make_unique<RoomEditAttrDlg>(this);
+    m_roomEditAttrDlg = std::make_unique<RoomEditAttrDlg>(*m_mapData, this);
     {
         auto &roomEditDialog = deref(m_roomEditAttrDlg);
-        roomEditDialog.setRoomSelection(m_roomSelection, m_mapData, getCanvas());
+        roomEditDialog.setSelection(m_roomSelection);
         roomEditDialog.show();
         connect(&roomEditDialog, &QDialog::finished, this, [this](MAYBE_UNUSED int result) {
             m_roomEditAttrDlg.reset();

@@ -8,6 +8,8 @@ set(mmapper_SRCS
     adventure/adventurewidget.h
     adventure/lineparsers.cpp
     adventure/lineparsers.h
+    adventure/AdventureViewModel.cpp
+    adventure/AdventureViewModel.h
     adventure/XPStatusViewModel.cpp
     adventure/XPStatusViewModel.h
     adventure/xpstatuswidget.cpp
@@ -41,6 +43,8 @@ set(mmapper_SRCS
     client/PasswordDialog.cpp
     client/PasswordDialog.h
     client/PreviewWidget.cpp
+    client/PreviewViewModel.cpp
+    client/PreviewViewModel.h
     client/PreviewWidget.h
     clock/mumeclock.cpp
     clock/mumeclock.h
@@ -93,6 +97,8 @@ set(mmapper_SRCS
     display/mapcanvas_gl.cpp
     display/mapwindow.cpp
     display/mapwindow.h
+    display/MapWindowViewModel.cpp
+    display/MapWindowViewModel.h
     display/prespammedpath.cpp
     display/prespammedpath.h
     global/AnsiOstream.cpp
@@ -230,6 +236,8 @@ set(mmapper_SRCS
     group/CGroupChar.h
     group/ColorGenerator.cpp
     group/ColorGenerator.h
+    group/GroupWidgetViewModel.cpp
+    group/GroupWidgetViewModel.h
     group/GroupManagerApi.cpp
     group/GroupManagerApi.h
     group/enums.cpp
@@ -244,6 +252,8 @@ set(mmapper_SRCS
     logger/autologger.h
     mainwindow/DescriptionWidget.cpp
     mainwindow/DescriptionWidget.h
+    mainwindow/AboutViewModel.cpp
+    mainwindow/AboutViewModel.h
     mainwindow/FindRoomsViewModel.cpp
     mainwindow/FindRoomsViewModel.h
     mainwindow/InfoMarksEditViewModel.cpp
@@ -414,10 +424,16 @@ set(mmapper_SRCS
     mpi/remoteeditsession.h
     mpi/remoteeditwidget.cpp
     mpi/remoteeditwidget.h
+    mpi/RemoteEditViewModel.cpp
+    mpi/RemoteEditViewModel.h
     mpi/gotowidget.cpp
     mpi/gotowidget.h
+    mpi/GotoViewModel.cpp
+    mpi/GotoViewModel.h
     mpi/findreplacewidget.cpp
     mpi/findreplacewidget.h
+    mpi/FindReplaceViewModel.cpp
+    mpi/FindReplaceViewModel.h
     observer/gameobserver.cpp
     observer/gameobserver.h
     opengl/Font.cpp
@@ -508,6 +524,8 @@ set(mmapper_SRCS
     pathmachine/syncing.h
     preferences/AdvancedGraphics.cpp
     preferences/AdvancedGraphics.h
+    preferences/AdvancedGraphicsViewModel.cpp
+    preferences/AdvancedGraphicsViewModel.h
     preferences/AnsiColorViewModel.cpp
     preferences/AnsiColorViewModel.h
     preferences/AnsiColorDialog.cpp
@@ -522,6 +540,8 @@ set(mmapper_SRCS
     preferences/ClientPageViewModel.h
     preferences/clientpage.cpp
     preferences/clientpage.h
+    preferences/ConfigViewModel.cpp
+    preferences/ConfigViewModel.h
     preferences/configdialog.cpp
     preferences/configdialog.h
     preferences/GeneralViewModel.cpp
@@ -583,6 +603,8 @@ set(mmapper_SRCS
     roompanel/RoomMob.h
     roompanel/RoomMobs.cpp
     roompanel/RoomMobs.h
+    roompanel/RoomViewModel.cpp
+    roompanel/RoomViewModel.h
     roompanel/RoomWidget.cpp
     roompanel/RoomWidget.h
     syntax/Accept.cpp
@@ -610,6 +632,8 @@ set(mmapper_SRCS
     timers/CTimers.h
     viewers/AnsiViewWindow.cpp
     viewers/AnsiViewWindow.h
+    viewers/AnsiViewViewModel.cpp
+    viewers/AnsiViewViewModel.h
     viewers/LaunchAsyncViewer.h
     viewers/TopLevelWindows.cpp
     viewers/TopLevelWindows.h

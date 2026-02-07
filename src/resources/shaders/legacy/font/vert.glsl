@@ -9,14 +9,23 @@ uniform NamedColorsBlock {
     vec4 uNamedColors[MAX_NAMED_COLORS];
 };
 
+struct GlyphMetrics {
+    ivec4 uvRect;  // uvX, uvY, uvW, uvH
+    ivec4 metrics; // width, height, xoffset, yoffset
+};
+
+uniform GlyphMetricsBlock {
+    GlyphMetrics uGlyphs[512]; // 256 latin-1 + 256 specials
+};
+
 layout(location = 0) in vec3 aBase;
 layout(location = 1) in uint aColor;
 layout(location = 2) in ivec4 aRect;   // offsetX, offsetY, sizeW, sizeH
-layout(location = 3) in ivec4 aUVRect; // uvX, uvY, uvW, uvH
-layout(location = 4) in ivec2 aParams; // rotation, flags
+layout(location = 3) in uint aPacked;  // glyphId (10), rotation (10), flags (6), namedColor (6)
 
 const uint FLAG_ITALICS = 1u;
 const uint FLAG_NAMED_COLOR = 2u;
+const uint FLAG_USE_EXPLICIT_RECT = 4u;
 
 out vec4 vColor;
 out vec2 vTexCoord;
@@ -76,9 +85,14 @@ const vec4 ignored = vec4(2.0, 2.0, 2.0, 1.0);
 
 void main()
 {
-    uint rawFlags = uint(aParams.y) & 0xFFFFu;
-    uint flags = rawFlags & 0xFFu;
-    uint namedColorIndex = rawFlags >> 8u;
+    uint glyphId = aPacked & 0x3FFu;
+    int rotation = int(aPacked >> 10u) & 0x3FF;
+    if (rotation >= 512) rotation -= 1024; // Sign extend 10 bits
+
+    uint flags = (aPacked >> 20u) & 0x3Fu;
+    uint namedColorIndex = (aPacked >> 26u) & 0x3Fu;
+
+    GlyphMetrics g = uGlyphs[glyphId % 512u];
 
     // Branchless color selection
     vec4 unpackedCol = unpackRGBA(aColor);
@@ -92,15 +106,22 @@ void main()
     const vec2[4] quad = vec2[4](vec2(0, 0), vec2(1, 0), vec2(1, 1), vec2(0, 1));
     vec2 corner = quad[gl_VertexID];
 
-    vTexCoord = (vec2(aUVRect.xy) + corner * vec2(aUVRect.zw)) / vec2(uFontTexSize);
+    vTexCoord = (vec2(g.uvRect.xy) + corner * vec2(g.uvRect.zw)) / vec2(uFontTexSize);
 
-    vec2 posPixels = vec2(aRect.xy) + corner * vec2(aRect.zw);
+    bool useExplicit = (flags & FLAG_USE_EXPLICIT_RECT) != 0u;
+
+    // aRect = offsetX, offsetY, sizeW, sizeH
+    // g.metrics = width, height, xoffset, yoffset
+    vec2 size = mix(vec2(g.metrics.xy), vec2(aRect.zw), float(useExplicit));
+    vec2 offset = mix(vec2(aRect.x + g.metrics.z, g.metrics.w), vec2(aRect.xy), float(useExplicit));
+
+    vec2 posPixels = offset + corner * size;
 
     // Branchless italics
     posPixels.x += (posPixels.y / 6.0) * float((flags & FLAG_ITALICS) != 0u);
 
     // Branchless rotation
-    float rad = radians(float(aParams.x));
+    float rad = radians(float(rotation));
     float s = sin(rad);
     float c = cos(rad);
     posPixels = vec2(posPixels.x * c - posPixels.y * s, posPixels.x * s + posPixels.y * c);

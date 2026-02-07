@@ -56,6 +56,13 @@ void FontShader::virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uni
     if (qtex) {
         setIVec2("uFontTexSize", glm::ivec2(qtex->width(), qtex->height()));
     }
+
+    const auto buffer = SharedVboEnum::GlyphMetricsBlock;
+    const auto shared = functions.getSharedVbos().get(buffer);
+    VBO &vbo = deref(shared);
+    if (vbo) {
+        functions.glBindBufferBase(GL_UNIFORM_BUFFER, buffer, vbo.get());
+    }
 }
 PointShader::~PointShader() = default;
 

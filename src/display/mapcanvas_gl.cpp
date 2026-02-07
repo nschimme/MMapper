@@ -637,6 +637,7 @@ void MapCanvas::actuallyPaintGL()
 
     auto &gl = getOpenGL();
     gl.bindNamedColorsBuffer();
+    gl.bindFontMetricsBuffer(getGLFont().getUboMetrics());
 
     gl.bindFbo();
     gl.clear(Color{getConfig().canvas.backgroundColor});

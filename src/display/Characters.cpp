@@ -351,8 +351,24 @@ void CharacterBatch::CharFakeGL::reallyDrawCharacters(OpenGL &gl, const MapCanva
             v.sizeW = static_cast<int16_t>(std::lround(static_cast<float>(v.sizeW) * dpr));
             v.sizeH = static_cast<int16_t>(std::lround(static_cast<float>(v.sizeH) * dpr));
         }
+
+        std::vector<GlyphMetrics> arrowMetrics(512);
+        // empty arrow (glyphId 0)
+        arrowMetrics[0].uvRect = glm::ivec4(0, 0, 128, 128);
+        arrowMetrics[0].metrics = glm::ivec4(128, 128, 0, 0);
+        // filled arrow (glyphId 1)
+        arrowMetrics[1].uvRect = glm::ivec4(128, 128, 128, 128);
+        arrowMetrics[1].metrics = glm::ivec4(128, 128, 0, 0);
+
+        gl.resetFontMetricsBuffer();
+        gl.bindFontMetricsBuffer(arrowMetrics);
+
         gl.renderFont3d(textures.char_arrows, m_screenSpaceArrows);
         m_screenSpaceArrows.clear();
+
+        // We reset it here so that if anyone else uses the font shader later in the frame
+        // (though currently they don't), it will be re-bound correctly.
+        gl.resetFontMetricsBuffer();
     }
 }
 
@@ -379,11 +395,9 @@ void CharacterBatch::CharFakeGL::addScreenSpaceArrow(const glm::vec3 &pos,
     const int16_t sizeW = static_cast<int16_t>(2.f * scale);
     const int16_t sizeH = static_cast<int16_t>(2.f * scale);
 
-    // UVs for 256x256 texture
-    const int16_t uvX = fill ? 128 : 0;
-    const int16_t uvY = fill ? 128 : 0;
-    const int16_t uvW = 128;
-    const int16_t uvH = 128;
+    // glyphId: 0 for empty arrow, 1 for filled arrow
+    const uint16_t glyphId = fill ? 1 : 0;
+    static constexpr uint8_t FONT_FLAG_USE_EXPLICIT_RECT = 1 << 2;
 
     m_screenSpaceArrows.emplace_back(pos,
                                      color.getUint32(),
@@ -391,12 +405,10 @@ void CharacterBatch::CharFakeGL::addScreenSpaceArrow(const glm::vec3 &pos,
                                      offsetY,
                                      sizeW,
                                      sizeH,
-                                     uvX,
-                                     uvY,
-                                     uvW,
-                                     uvH,
+                                     glyphId,
                                      static_cast<int16_t>(degrees),
-                                     static_cast<uint16_t>(0));
+                                     FONT_FLAG_USE_EXPLICIT_RECT,
+                                     0);
 }
 
 void MapCanvas::paintCharacters()

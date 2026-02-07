@@ -255,6 +255,24 @@ void OpenGL::resetNamedColorsBuffer()
     getFunctions().getSharedVbos().reset(Legacy::SharedVboEnum::NamedColorsBlock);
 }
 
+void OpenGL::bindFontMetricsBuffer(const std::vector<GlyphMetrics> &metrics)
+{
+    auto &gl = getFunctions();
+    const auto buffer = Legacy::SharedVboEnum::GlyphMetricsBlock;
+    const auto shared = gl.getSharedVbos().get(buffer);
+    Legacy::VBO &vbo = deref(shared);
+    if (!vbo) {
+        vbo.emplace(gl.shared_from_this());
+        std::ignore = gl.setUbo(vbo.get(), metrics, BufferUsageEnum::DYNAMIC_DRAW);
+    }
+    gl.glBindBufferBase(GL_UNIFORM_BUFFER, buffer, vbo.get());
+}
+
+void OpenGL::resetFontMetricsBuffer()
+{
+    getFunctions().getSharedVbos().reset(Legacy::SharedVboEnum::GlyphMetricsBlock);
+}
+
 void OpenGL::initializeRenderer(const float devicePixelRatio)
 {
     setDevicePixelRatio(devicePixelRatio);

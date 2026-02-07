@@ -87,6 +87,14 @@ struct NODISCARD ColorVert final
     {}
 };
 
+struct NODISCARD GlyphMetrics final
+{
+    // uvX, uvY, uvW, uvH
+    glm::ivec4 uvRect{};
+    // width, height, xoffset, yoffset
+    glm::ivec4 metrics{};
+};
+
 // Instance data for font rendering.
 // the font's vertex shader transforms the world position to screen space,
 // rounds to integer pixel offset, and then adds the (possibly rotated/italicized)
@@ -97,10 +105,7 @@ struct NODISCARD FontInstanceData final
     uint32_t color = 0;
     int16_t offsetX = 0, offsetY = 0;
     int16_t sizeW = 0, sizeH = 0;
-    int16_t uvX = 0, uvY = 0;
-    int16_t uvW = 0, uvH = 0;
-    int16_t rotation = 0;
-    uint16_t flags = 0;
+    uint32_t packedParams = 0;
 
     explicit FontInstanceData(const glm::vec3 &base_,
                               uint32_t color_,
@@ -108,26 +113,30 @@ struct NODISCARD FontInstanceData final
                               int16_t offsetY_,
                               int16_t sizeW_,
                               int16_t sizeH_,
-                              int16_t uvX_,
-                              int16_t uvY_,
-                              int16_t uvW_,
-                              int16_t uvH_,
-                              int16_t rotation_,
-                              uint16_t flags_)
+                              uint16_t glyphId,
+                              int16_t rotation,
+                              uint8_t flags,
+                              uint8_t namedColorIndex)
         : base{base_}
         , color{color_}
         , offsetX{offsetX_}
         , offsetY{offsetY_}
         , sizeW{sizeW_}
         , sizeH{sizeH_}
-        , uvX{uvX_}
-        , uvY{uvY_}
-        , uvW{uvW_}
-        , uvH{uvH_}
-        , rotation{rotation_}
-        , flags{flags_}
-    {}
+    {
+        // glyphId: 10 bits (0-1023)
+        // rotation: 10 bits (signed, -512 to 511)
+        // flags: 6 bits
+        // namedColorIndex: 6 bits
+        const uint32_t uGlyphId = static_cast<uint32_t>(glyphId) & 0x3FFu;
+        const uint32_t uRotation = static_cast<uint32_t>(rotation) & 0x3FFu;
+        const uint32_t uFlags = static_cast<uint32_t>(flags) & 0x3Fu;
+        const uint32_t uNamedColorIndex = static_cast<uint32_t>(namedColorIndex) & 0x3Fu;
+
+        packedParams = uGlyphId | (uRotation << 10) | (uFlags << 20) | (uNamedColorIndex << 26);
+    }
 };
+static_assert(sizeof(FontInstanceData) == 28);
 
 enum class NODISCARD DrawModeEnum {
     INVALID = 0,

@@ -84,6 +84,7 @@ public:
     }
     void init();
     void cleanup();
+    NODISCARD const std::vector<GlyphMetrics> &getUboMetrics() const;
 
 public:
     NODISCARD int getFontHeight() const;

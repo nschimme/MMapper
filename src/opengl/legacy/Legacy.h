@@ -33,6 +33,7 @@ struct PointSizeBinder;
 // X(EnumName, GL_String_Name, IsUniform)
 #define XFOREACH_SHARED_VBO(X) \
     X(NamedColorsBlock, "NamedColorsBlock", true) \
+    X(GlyphMetricsBlock, "GlyphMetricsBlock", true) \
     X(InstancedQuadIbo, nullptr, false)
 
 enum class SharedVboEnum : uint8_t {

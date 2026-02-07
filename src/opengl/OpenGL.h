@@ -168,6 +168,8 @@ public:
     NODISCARD GLRenderState getDefaultRenderState();
     void bindNamedColorsBuffer();
     void resetNamedColorsBuffer();
+    void bindFontMetricsBuffer(const std::vector<GlyphMetrics> &metrics);
+    void resetFontMetricsBuffer();
     void setTextureLookup(MMTextureId, SharedMMTexture);
 
 public:

@@ -183,6 +183,7 @@ struct NODISCARD FontMetrics final
     std::optional<Glyph> underline;
 
     Common common;
+    std::vector<GlyphMetrics> ubo_metrics;
 
     // REVISIT: Since we only support latin-1, it might make sense to just have fixed
     // size lookup tables such as array<const Glyph*, 256> and array<uint16_t, 65536>
@@ -331,8 +332,12 @@ struct NODISCARD FontMetrics final
                              std::vector<FontInstanceData> &output) const;
 };
 
-static constexpr uint16_t FONT_FLAG_ITALICS = 1 << 0;
-static constexpr uint16_t FONT_FLAG_NAMED_COLOR = 1 << 1;
+static constexpr uint8_t FONT_FLAG_ITALICS = 1 << 0;
+static constexpr uint8_t FONT_FLAG_NAMED_COLOR = 1 << 1;
+static constexpr uint8_t FONT_FLAG_USE_EXPLICIT_RECT = 1 << 2;
+
+static constexpr uint16_t GLYPH_ID_UNDERLINE = 256;
+static constexpr uint16_t GLYPH_ID_BACKGROUND = 257;
 
 void getFontBatchRawData(const FontMetrics &fm,
                          const GLText *const text,
@@ -480,6 +485,25 @@ QString FontMetrics::init(const QString &fontFilename)
         kernings[IntPair{kerning.first, kerning.second}] = &kerning;
     }
 
+    ubo_metrics.assign(512, GlyphMetrics{});
+    for (int i = 0; i < 256; ++i) {
+        if (const Glyph *g = lookupGlyph(i)) {
+            const auto index = static_cast<size_t>(i);
+            ubo_metrics[index].uvRect = glm::ivec4(g->x, g->y, g->width, g->height);
+            ubo_metrics[index].metrics = glm::ivec4(g->width, g->height, g->xoffset, g->yoffset);
+        }
+    }
+    if (underline) {
+        const Glyph &g = underline.value();
+        ubo_metrics[GLYPH_ID_UNDERLINE].uvRect = glm::ivec4(g.x, g.y, g.width, g.height);
+        ubo_metrics[GLYPH_ID_UNDERLINE].metrics = glm::ivec4(g.width, g.height, g.xoffset, g.yoffset);
+    }
+    if (background) {
+        const Glyph &g = background.value();
+        ubo_metrics[GLYPH_ID_BACKGROUND].uvRect = glm::ivec4(g.x, g.y, g.width, g.height);
+        ubo_metrics[GLYPH_ID_BACKGROUND].metrics = glm::ivec4(g.width, g.height, g.xoffset, g.yoffset);
+    }
+
     return imageFilename;
 }
 
@@ -553,8 +577,8 @@ public:
     {}
 
     void emitGlyphInstance(const bool isEmpty,
+                           const uint16_t glyphId,
                            const glm::ivec2 &iVertex00,
-                           const glm::ivec2 &iTexCoord00,
                            const glm::ivec2 &iglyphSize)
     {
         if (!isEmpty) {
@@ -566,15 +590,16 @@ public:
             return;
         }
 
-        uint16_t flags = 0;
+        uint8_t flags = 0;
         if (m_opts.wantItalics) {
             flags |= FONT_FLAG_ITALICS;
         }
 
         uint32_t color = m_opts.fgColor.getUint32();
+        uint8_t namedColorIndex = 0;
         if (m_opts.namedColor) {
             flags |= FONT_FLAG_NAMED_COLOR;
-            flags |= static_cast<uint16_t>(static_cast<uint16_t>(m_opts.namedColor.value()) << 8);
+            namedColorIndex = static_cast<uint8_t>(m_opts.namedColor.value());
         }
 
         m_verts3d.emplace_back(m_opts.pos,
@@ -583,26 +608,26 @@ public:
                                static_cast<int16_t>(iVertex00.y),
                                static_cast<int16_t>(iglyphSize.x),
                                static_cast<int16_t>(iglyphSize.y),
-                               static_cast<int16_t>(iTexCoord00.x),
-                               static_cast<int16_t>(iTexCoord00.y),
-                               static_cast<int16_t>(iglyphSize.x),
-                               static_cast<int16_t>(iglyphSize.y),
+                               glyphId,
                                static_cast<int16_t>(m_opts.rotationDegrees),
-                               flags);
+                               flags,
+                               namedColorIndex);
     }
 
     void emitGlyph(const FontMetrics::Glyph *const g, const FontMetrics::Kerning *const k)
     {
         assert(isClamped(g->id, 0, 255));
         const auto glyphSize = glm::ivec2(g->width, g->height);
-        const auto iTexCoord00 = glm::ivec2(g->x, g->y);
         if (k != nullptr) {
             // kerning amount is added to the advance
             m_xlinepos += k->amount;
         }
         const auto iVertex00 = glm::ivec2(m_xlinepos + g->xoffset, g->yoffset);
         m_xlinepos += g->xadvance;
-        emitGlyphInstance(std::isspace(g->id), iVertex00, iTexCoord00, glyphSize);
+        emitGlyphInstance(std::isspace(g->id),
+                          static_cast<uint16_t>(g->id),
+                          iVertex00,
+                          glyphSize);
     }
 
     void call_foreach_glyph(const int wordOffset, const bool output)
@@ -627,21 +652,23 @@ public:
 
         // measurement, background color, and underline.
         {
-            const auto emitSpecialInstance =
-                [this](uint32_t color, uint16_t flags, const Rect &vert, const Rect &tc) {
-                    m_verts3d.emplace_back(m_opts.pos,
-                                           color,
-                                           static_cast<int16_t>(vert.lo.x),
-                                           static_cast<int16_t>(vert.lo.y),
-                                           static_cast<int16_t>(vert.width()),
-                                           static_cast<int16_t>(vert.height()),
-                                           static_cast<int16_t>(tc.lo.x),
-                                           static_cast<int16_t>(tc.lo.y),
-                                           static_cast<int16_t>(tc.width()),
-                                           static_cast<int16_t>(tc.height()),
-                                           static_cast<int16_t>(m_opts.rotationDegrees),
-                                           flags);
-                };
+            const auto emitSpecialInstance = [this](const uint16_t glyphId,
+                                                    const uint32_t color,
+                                                    uint8_t flags,
+                                                    const uint8_t namedColorIndex,
+                                                    const Rect &vert) {
+                flags |= FONT_FLAG_USE_EXPLICIT_RECT;
+                m_verts3d.emplace_back(m_opts.pos,
+                                       color,
+                                       static_cast<int16_t>(vert.lo.x),
+                                       static_cast<int16_t>(vert.lo.y),
+                                       static_cast<int16_t>(vert.width()),
+                                       static_cast<int16_t>(vert.height()),
+                                       glyphId,
+                                       static_cast<int16_t>(m_opts.rotationDegrees),
+                                       flags,
+                                       namedColorIndex);
+            };
 
             const glm::ivec2 margin{m_fm.common.marginX, m_fm.common.marginY};
 
@@ -660,17 +687,19 @@ public:
             const auto &hi = m_bounds.maxVertPos;
 
             if (m_opts.optBgColor) {
-                if (const FontMetrics::Glyph *const background = m_fm.getBackground()) {
-                    uint16_t flags = 0;
+                if (m_fm.getBackground()) {
+                    uint8_t flags = 0;
+                    uint8_t namedColorIndex = 0;
                     uint32_t color = m_opts.optBgColor.value().getUint32();
                     if (m_opts.namedBgColor) {
                         flags |= FONT_FLAG_NAMED_COLOR;
-                        flags |= static_cast<uint16_t>(static_cast<uint16_t>(m_opts.namedBgColor.value()) << 8);
+                        namedColorIndex = static_cast<uint8_t>(m_opts.namedBgColor.value());
                     }
-                    emitSpecialInstance(color,
+                    emitSpecialInstance(GLYPH_ID_BACKGROUND,
+                                        color,
                                         flags,
-                                        Rect{lo - margin, hi + margin},
-                                        background->getRect());
+                                        namedColorIndex,
+                                        Rect{lo - margin, hi + margin});
                 }
             }
 
@@ -678,16 +707,18 @@ public:
                 if (const FontMetrics::Glyph *const underline = m_fm.getUnderline()) {
                     const auto usize = underline->getSize();
                     const auto offset = underline->getOffset() + glm::ivec2{wordOffset, 0};
-                    uint16_t flags = 0;
+                    uint8_t flags = 0;
+                    uint8_t namedColorIndex = 0;
                     uint32_t color = m_opts.fgColor.getUint32();
                     if (m_opts.namedColor) {
                         flags |= FONT_FLAG_NAMED_COLOR;
-                        flags |= static_cast<uint16_t>(static_cast<uint16_t>(m_opts.namedColor.value()) << 8);
+                        namedColorIndex = static_cast<uint8_t>(m_opts.namedColor.value());
                     }
-                    emitSpecialInstance(color,
+                    emitSpecialInstance(GLYPH_ID_UNDERLINE,
+                                        color,
                                         flags,
-                                        Rect{offset, offset + glm::ivec2{m_xlinepos, usize.y}},
-                                        underline->getRect());
+                                        namedColorIndex,
+                                        Rect{offset, offset + glm::ivec2{m_xlinepos, usize.y}});
                 }
             }
         }
@@ -755,6 +786,7 @@ void GLFont::init()
     if (m_texture) {
         m_texture->clearId();
     }
+    m_gl.resetFontMetricsBuffer();
 
     // REVISIT: can this avoid switching to a different MMTexture object?
     m_texture = MMTexture::alloc(
@@ -788,6 +820,11 @@ void GLFont::cleanup()
 {
     m_fontMetrics.reset();
     m_texture.reset();
+}
+
+const std::vector<GlyphMetrics> &GLFont::getUboMetrics() const
+{
+    return getFontMetrics().ubo_metrics;
 }
 
 int GLFont::getFontHeight() const
@@ -884,6 +921,7 @@ void GLFont::render3dTextImmediate(const std::vector<FontInstanceData> &rawVerts
         return;
     }
 
+    m_gl.bindFontMetricsBuffer(getFontMetrics().ubo_metrics);
     m_gl.renderFont3d(m_texture, rawVerts);
 }
 

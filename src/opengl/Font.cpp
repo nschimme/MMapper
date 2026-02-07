@@ -498,15 +498,19 @@ QString FontMetrics::init(const QString &fontFilename)
         const Glyph &g = underline.value();
         // Sample from the center of the white area to avoid filtering artifacts.
         ubo_metrics[GLYPH_ID_UNDERLINE].uvRect = glm::ivec4(g.x + 1, g.y, 0, 0);
-        ubo_metrics[GLYPH_ID_UNDERLINE].metrics =
-            glm::ivec4(g.width, g.height, g.xoffset, g.yoffset);
+        ubo_metrics[GLYPH_ID_UNDERLINE].metrics = glm::ivec4(g.width,
+                                                             g.height,
+                                                             g.xoffset,
+                                                             g.yoffset);
     }
     if (background) {
         const Glyph &g = background.value();
         // Sample from the center of the white area to avoid filtering artifacts.
         ubo_metrics[GLYPH_ID_BACKGROUND].uvRect = glm::ivec4(g.x + 1, g.y + 1, 0, 0);
-        ubo_metrics[GLYPH_ID_BACKGROUND].metrics =
-            glm::ivec4(g.width, g.height, g.xoffset, g.yoffset);
+        ubo_metrics[GLYPH_ID_BACKGROUND].metrics = glm::ivec4(g.width,
+                                                              g.height,
+                                                              g.xoffset,
+                                                              g.yoffset);
     }
 
     return imageFilename;
@@ -631,10 +635,7 @@ public:
         // offsetY is handled by the shader using g.metrics.w (yoffset).
         const auto iVertex00 = glm::ivec2(m_xlinepos, 0);
         m_xlinepos += g->xadvance;
-        emitGlyphInstance(std::isspace(g->id),
-                          static_cast<uint16_t>(g->id),
-                          iVertex00,
-                          glyphSize);
+        emitGlyphInstance(std::isspace(g->id), static_cast<uint16_t>(g->id), iVertex00, glyphSize);
     }
 
     void call_foreach_glyph(const int wordOffset, const bool output)

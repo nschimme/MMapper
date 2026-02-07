@@ -357,10 +357,8 @@ void CharacterBatch::CharFakeGL::reallyDrawCharacters(OpenGL &gl, const MapCanva
             arrowMetrics.assign(512, GlyphMetrics{});
             // empty arrow (glyphId 0)
             arrowMetrics[0].uvRect = glm::ivec4(0, 0, 128, 128);
-            arrowMetrics[0].metrics = glm::ivec4(128, 128, 0, 0);
             // filled arrow (glyphId 1)
             arrowMetrics[1].uvRect = glm::ivec4(128, 128, 128, 128);
-            arrowMetrics[1].metrics = glm::ivec4(128, 128, 0, 0);
         }
 
         gl.resetFontMetricsBuffer();
@@ -369,8 +367,7 @@ void CharacterBatch::CharFakeGL::reallyDrawCharacters(OpenGL &gl, const MapCanva
         gl.renderFont3d(textures.char_arrows, m_screenSpaceArrows);
         m_screenSpaceArrows.clear();
 
-        // We reset it here so that if anyone else uses the font shader later in the frame
-        // (though currently they don't), it will be re-bound correctly.
+        // Reset so subsequent font rendering uses its own metrics
         gl.resetFontMetricsBuffer();
     }
 }
@@ -400,7 +397,6 @@ void CharacterBatch::CharFakeGL::addScreenSpaceArrow(const glm::vec3 &pos,
 
     // glyphId: 0 for empty arrow, 1 for filled arrow
     const uint16_t glyphId = fill ? 1 : 0;
-    static constexpr uint8_t FONT_FLAG_USE_EXPLICIT_RECT = 1 << 2;
 
     m_screenSpaceArrows.emplace_back(pos,
                                      color.getUint32(),
@@ -410,7 +406,7 @@ void CharacterBatch::CharFakeGL::addScreenSpaceArrow(const glm::vec3 &pos,
                                      sizeH,
                                      glyphId,
                                      static_cast<int16_t>(degrees),
-                                     FONT_FLAG_USE_EXPLICIT_RECT,
+                                     0,
                                      0);
 }
 

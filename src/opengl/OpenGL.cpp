@@ -263,8 +263,9 @@ void OpenGL::bindFontMetricsBuffer(const std::vector<GlyphMetrics> &metrics)
     Legacy::VBO &vbo = deref(shared);
     if (!vbo) {
         vbo.emplace(gl.shared_from_this());
-        std::ignore = gl.setUbo(vbo.get(), metrics, BufferUsageEnum::DYNAMIC_DRAW);
     }
+    // Always update to handle multiple fonts correctly
+    std::ignore = gl.setUbo(vbo.get(), metrics, BufferUsageEnum::DYNAMIC_DRAW);
     gl.glBindBufferBase(GL_UNIFORM_BUFFER, buffer, vbo.get());
 }
 

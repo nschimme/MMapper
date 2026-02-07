@@ -73,7 +73,7 @@ private:
 
         gl.enableAttrib(attribs.basePos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(base));
         gl.enableAttrib(attribs.colorPos, 4, GL_UNSIGNED_BYTE, GL_TRUE, vertSize, VPO(color));
-        gl.enableAttrib(attribs.rectPos, 4, GL_SHORT, GL_FALSE, vertSize, VPO(offsetX));
+        gl.enableAttribI(attribs.rectPos, 4, GL_SHORT, vertSize, VPO(offsetX));
         gl.enableAttribI(attribs.packedParamsPos, 1, GL_UNSIGNED_INT, vertSize, VPO(packedParams));
 
         gl.glVertexAttribDivisor(attribs.basePos, 1);

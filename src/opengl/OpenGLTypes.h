@@ -89,12 +89,9 @@ struct NODISCARD ColorVert final
 
 struct NODISCARD GlyphMetrics final
 {
-    // uvX, uvY, uvW, uvH
-    glm::ivec4 uvRect{};
-    // width, height, xoffset, yoffset
-    glm::ivec4 metrics{};
+    glm::ivec4 uvRect{}; // uvX, uvY, uvW, uvH
 };
-static_assert(sizeof(GlyphMetrics) == 32);
+static_assert(sizeof(GlyphMetrics) == 16);
 
 // Instance data for font rendering.
 // the font's vertex shader transforms the world position to screen space,
@@ -130,7 +127,7 @@ struct NODISCARD FontInstanceData final
         // flags: 6 bits
         // namedColorIndex: 6 bits
         const uint32_t uGlyphId = static_cast<uint32_t>(glyphId) & 0x3FFu;
-        const uint32_t uRotation = static_cast<uint32_t>(rotation) & 0x3FFu;
+        const uint32_t uRotation = static_cast<uint32_t>(static_cast<uint16_t>(rotation)) & 0x3FFu;
         const uint32_t uFlags = static_cast<uint32_t>(flags) & 0x3Fu;
         const uint32_t uNamedColorIndex = static_cast<uint32_t>(namedColorIndex) & 0x3Fu;
 

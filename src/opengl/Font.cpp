@@ -217,8 +217,9 @@ struct NODISCARD FontMetrics final
         const int w = common.scaleW;
         const int h = common.scaleH;
 
-        // must not overlap underline
-        const Rect ourGlyph{{w - 4, 0}, {w, 4}};
+        // Use a larger block for solid colors to avoid edge bleeding
+        // (x range: [w-12, w-1], y range: [0, 11] in lower-left origin)
+        const Rect ourGlyph{{w - 12, 0}, {w, 12}};
 
         for (const Glyph &glyph : raw_glyphs) {
             if (intersects(glyph.getRect(), ourGlyph)) {
@@ -230,13 +231,14 @@ struct NODISCARD FontMetrics final
         if (VERBOSE_FONT_DEBUG) {
             qDebug() << "Adding background glyph";
         }
-        // glyph location uses lower left origin
-        background.emplace(BACKGROUND_ID, common.scaleW - 3, 1, 2, 2);
+        // glyph location uses lower left origin.
+        // We define the glyph as a 4x4 block in the middle of a 12x12 white area.
+        background.emplace(BACKGROUND_ID, common.scaleW - 8, 4, 4, 4);
 
         // note: the current image still uses UPPER left origin,
         // but it will be flipped after this function.
-        for (int dy = -4; dy < 0; ++dy) {
-            for (int dx = -4; dx < 0; ++dx) {
+        for (int dy = -12; dy < 0; ++dy) {
+            for (int dx = -12; dx < 0; ++dx) {
                 img.setPixelColor(w + dx, h + dy, Qt::white);
             }
         }
@@ -247,7 +249,8 @@ struct NODISCARD FontMetrics final
     {
         const int w = common.scaleW;
         const int h = common.scaleH;
-        const Rect ourGlyph{{w - 12, 0}, {w - 8, 4}};
+        // (x range: [w-24, w-13], y range: [0, 11] in lower-left origin)
+        const Rect ourGlyph{{w - 24, 0}, {w - 12, 12}};
 
         // must not overlap background
         for (const Glyph &glyph : raw_glyphs) {
@@ -260,16 +263,15 @@ struct NODISCARD FontMetrics final
         if (VERBOSE_FONT_DEBUG) {
             qDebug() << "Adding underline glyph";
         }
-        // glyph location uses lower left origin
-        underline.emplace(UNDERLINE_ID, common.scaleW - 11, 1, 2, 1, 0, -1);
+        // glyph location uses lower left origin.
+        // Again, 4x4 block in the middle of a 12x12 area.
+        underline.emplace(UNDERLINE_ID, common.scaleW - 20, 4, 4, 4, 0, -1);
 
         // note: the current image still uses UPPER left origin,
         // but it will be flipped after this function.
-        for (int dy = -4; dy < 0; ++dy) {
-            // Fill 3 rows with white to avoid transparency artifacts when sampling the 1-pixel high line
-            const auto color = (dy >= -3 && dy <= -1) ? QColor{Qt::white} : QColor(0, 0, 0, 0);
-            for (int dx = -12; dx < -8; ++dx) {
-                img.setPixelColor(w + dx, h + dy, color);
+        for (int dy = -12; dy < 0; ++dy) {
+            for (int dx = -24; dx < -12; ++dx) {
+                img.setPixelColor(w + dx, h + dy, Qt::white);
             }
         }
         return true;

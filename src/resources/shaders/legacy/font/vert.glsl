@@ -29,41 +29,6 @@ const uint FLAG_NAMED_COLOR = 2u;
 out vec4 vColor;
 out vec2 vTexCoord;
 
-// [0, 1]^2 to pixels
-vec2 convertScreen01toPhysPixels(vec2 pos)
-{
-    return pos * vec2(uPhysViewport.zw) + vec2(uPhysViewport.xy);
-}
-
-vec2 convertPhysPixelsToScreen01(vec2 pixels)
-{
-    return (pixels - vec2(uPhysViewport.xy)) / vec2(uPhysViewport.zw);
-}
-
-vec2 anti_flicker(vec2 pos)
-{
-    return convertPhysPixelsToScreen01(floor(convertScreen01toPhysPixels(pos)));
-}
-
-// [-1, 1]^2 to [0, 1]^2
-vec2 convertNDCtoScreenSpace(vec2 pos)
-{
-    return pos * 0.5 + 0.5;
-}
-
-// [0, 1]^2 to [-1, 1]^2
-vec2 convertScreen01toNdcClip(vec2 pos)
-{
-    pos = pos * 2.0 - 1.0;
-    return pos;
-}
-
-vec2 addPerVertexOffset(vec2 wordOriginNdc, vec2 glyphOffsetPixels)
-{
-    vec2 wordOriginScreen = anti_flicker(convertNDCtoScreenSpace(wordOriginNdc));
-    return convertScreen01toNdcClip(wordOriginScreen + convertPhysPixelsToScreen01(glyphOffsetPixels));
-}
-
 const vec4 ignored = vec4(2.0, 2.0, 2.0, 1.0);
 
 void main()
@@ -87,10 +52,12 @@ void main()
     ivec4 uvRect = uGlyphMetrics[glyphId].uvRect;
 
     // Improved sampling for solid blocks (ID 256 = underline, 257 = background)
-    // We sample from pixel centers to avoid edge bleeding.
+    // We sample from the center of the white block to avoid edge bleeding.
     vec2 uv;
     if (glyphId >= 256u) {
-        uv = vec2(uvRect.xy) + 0.5 + corner * (vec2(uvRect.zw) - 1.0);
+        // For stretched solid quads, we sample from the center of the 4x4 block
+        // to ensure linear filtering always picks up opaque white.
+        uv = vec2(uvRect.xy) + 2.0;
     } else {
         uv = vec2(uvRect.xy) + corner * vec2(uvRect.zw);
     }
@@ -108,17 +75,29 @@ void main()
     float c = cos(rotation);
     posPixels = vec2(posPixels.x * c - posPixels.y * s, posPixels.x * s + posPixels.y * c);
 
-    vec4 pos = uMVP3D * vec4(aBase, 1); /* 3D transform */
+    vec4 ndcPos = uMVP3D * vec4(aBase, 1); /* 3D transform */
 
     // Clipping tests
-    bool isInvalid = any(greaterThan(abs(pos.xyz), vec3(1.5 * abs(pos.w)))) || (abs(pos.w) < 1e-3);
-    if (isInvalid) {
+    if (any(greaterThan(abs(ndcPos.xyz), vec3(1.5 * abs(ndcPos.w)))) || (abs(ndcPos.w) < 1e-3)) {
         gl_Position = ignored;
         return;
     }
 
-    pos /= pos.w;
-    pos.xy = addPerVertexOffset(pos.xy, posPixels);
+    ndcPos /= ndcPos.w;
 
-    gl_Position = pos;
+    // Convert NDC to physical pixels
+    vec2 viewportSize = vec2(uPhysViewport.zw);
+    vec2 viewportOffset = vec2(uPhysViewport.xy);
+    vec2 pixelPos = (ndcPos.xy * 0.5 + 0.5) * viewportSize + viewportOffset;
+
+    // Snap to pixels (anti-flicker)
+    pixelPos = floor(pixelPos + 0.5);
+
+    // Add per-glyph offset in pixels
+    pixelPos += posPixels;
+
+    // Convert back to NDC
+    ndcPos.xy = ((pixelPos - viewportOffset) / viewportSize) * 2.0 - 1.0;
+
+    gl_Position = ndcPos;
 }

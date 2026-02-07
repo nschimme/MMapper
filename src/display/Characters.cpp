@@ -352,13 +352,16 @@ void CharacterBatch::CharFakeGL::reallyDrawCharacters(OpenGL &gl, const MapCanva
             v.sizeH = static_cast<int16_t>(std::lround(static_cast<float>(v.sizeH) * dpr));
         }
 
-        std::vector<GlyphMetrics> arrowMetrics(512);
-        // empty arrow (glyphId 0)
-        arrowMetrics[0].uvRect = glm::ivec4(0, 0, 128, 128);
-        arrowMetrics[0].metrics = glm::ivec4(128, 128, 0, 0);
-        // filled arrow (glyphId 1)
-        arrowMetrics[1].uvRect = glm::ivec4(128, 128, 128, 128);
-        arrowMetrics[1].metrics = glm::ivec4(128, 128, 0, 0);
+        static std::vector<GlyphMetrics> arrowMetrics;
+        if (arrowMetrics.empty()) {
+            arrowMetrics.assign(512, GlyphMetrics{});
+            // empty arrow (glyphId 0)
+            arrowMetrics[0].uvRect = glm::ivec4(0, 0, 128, 128);
+            arrowMetrics[0].metrics = glm::ivec4(128, 128, 0, 0);
+            // filled arrow (glyphId 1)
+            arrowMetrics[1].uvRect = glm::ivec4(128, 128, 128, 128);
+            arrowMetrics[1].metrics = glm::ivec4(128, 128, 0, 0);
+        }
 
         gl.resetFontMetricsBuffer();
         gl.bindFontMetricsBuffer(arrowMetrics);

@@ -486,7 +486,7 @@ QString FontMetrics::init(const QString &fontFilename)
         kernings[IntPair{kerning.first, kerning.second}] = &kerning;
     }
 
-    ubo_metrics.assign(512, GlyphMetrics{});
+    ubo_metrics.assign(1024, GlyphMetrics{});
     for (int i = 0; i < 256; ++i) {
         if (const Glyph *g = lookupGlyph(i)) {
             const auto index = static_cast<size_t>(i);
@@ -496,21 +496,15 @@ QString FontMetrics::init(const QString &fontFilename)
     }
     if (underline) {
         const Glyph &g = underline.value();
-        // Sample from the center of the white area to avoid filtering artifacts.
-        ubo_metrics[GLYPH_ID_UNDERLINE].uvRect = glm::ivec4(g.x + 1, g.y, 0, 0);
-        ubo_metrics[GLYPH_ID_UNDERLINE].metrics = glm::ivec4(g.width,
-                                                             g.height,
-                                                             g.xoffset,
-                                                             g.yoffset);
+        ubo_metrics[GLYPH_ID_UNDERLINE].uvRect = glm::ivec4(g.x, g.y, g.width, g.height);
+        // Offsets are handled by aRect for special glyphs
+        ubo_metrics[GLYPH_ID_UNDERLINE].metrics = glm::ivec4(g.width, g.height, 0, 0);
     }
     if (background) {
         const Glyph &g = background.value();
-        // Sample from the center of the white area to avoid filtering artifacts.
-        ubo_metrics[GLYPH_ID_BACKGROUND].uvRect = glm::ivec4(g.x + 1, g.y + 1, 0, 0);
-        ubo_metrics[GLYPH_ID_BACKGROUND].metrics = glm::ivec4(g.width,
-                                                              g.height,
-                                                              g.xoffset,
-                                                              g.yoffset);
+        ubo_metrics[GLYPH_ID_BACKGROUND].uvRect = glm::ivec4(g.x, g.y, g.width, g.height);
+        // Offsets are handled by aRect for special glyphs
+        ubo_metrics[GLYPH_ID_BACKGROUND].metrics = glm::ivec4(g.width, g.height, 0, 0);
     }
 
     return imageFilename;
@@ -590,11 +584,6 @@ public:
                            const glm::ivec2 &iVertex00,
                            const glm::ivec2 &iglyphSize)
     {
-        if (!isEmpty) {
-            m_bounds.include(iVertex00);
-            m_bounds.include(iVertex00 + iglyphSize);
-        }
-
         if (m_noOutput || isEmpty) {
             return;
         }
@@ -631,9 +620,14 @@ public:
             // kerning amount is added to the advance
             m_xlinepos += k->amount;
         }
-        // offsetX is handled by the shader adding g.metrics.z (xoffset).
-        // offsetY is handled by the shader using g.metrics.w (yoffset).
+
         const auto iVertex00 = glm::ivec2(m_xlinepos, 0);
+        if (!std::isspace(g->id)) {
+            const auto realLo = iVertex00 + glm::ivec2(g->xoffset, g->yoffset);
+            m_bounds.include(realLo);
+            m_bounds.include(realLo + glyphSize);
+        }
+
         m_xlinepos += g->xadvance;
         emitGlyphInstance(std::isspace(g->id), static_cast<uint16_t>(g->id), iVertex00, glyphSize);
     }
@@ -665,6 +659,8 @@ public:
                                                     uint8_t flags,
                                                     const uint8_t namedColorIndex,
                                                     const Rect &vert) {
+                m_bounds.include(vert.lo);
+                m_bounds.include(vert.hi);
                 flags |= FONT_FLAG_USE_EXPLICIT_RECT;
                 m_verts3d.emplace_back(m_opts.pos,
                                        color,

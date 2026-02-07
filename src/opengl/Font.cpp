@@ -266,7 +266,8 @@ struct NODISCARD FontMetrics final
         // note: the current image still uses UPPER left origin,
         // but it will be flipped after this function.
         for (int dy = -4; dy < 0; ++dy) {
-            const auto color = (dy == -2) ? QColor{Qt::white} : QColor(0, 0, 0, 0);
+            // Fill 3 rows with white to avoid transparency artifacts when sampling the 1-pixel high line
+            const auto color = (dy >= -3 && dy <= -1) ? QColor{Qt::white} : QColor(0, 0, 0, 0);
             for (int dx = -12; dx < -8; ++dx) {
                 img.setPixelColor(w + dx, h + dy, color);
             }
@@ -495,13 +496,17 @@ QString FontMetrics::init(const QString &fontFilename)
     }
     if (underline) {
         const Glyph &g = underline.value();
-        ubo_metrics[GLYPH_ID_UNDERLINE].uvRect = glm::ivec4(g.x, g.y, g.width, g.height);
-        ubo_metrics[GLYPH_ID_UNDERLINE].metrics = glm::ivec4(g.width, g.height, g.xoffset, g.yoffset);
+        // Sample from the center of the white area to avoid filtering artifacts.
+        ubo_metrics[GLYPH_ID_UNDERLINE].uvRect = glm::ivec4(g.x + 1, g.y, 0, 0);
+        ubo_metrics[GLYPH_ID_UNDERLINE].metrics =
+            glm::ivec4(g.width, g.height, g.xoffset, g.yoffset);
     }
     if (background) {
         const Glyph &g = background.value();
-        ubo_metrics[GLYPH_ID_BACKGROUND].uvRect = glm::ivec4(g.x, g.y, g.width, g.height);
-        ubo_metrics[GLYPH_ID_BACKGROUND].metrics = glm::ivec4(g.width, g.height, g.xoffset, g.yoffset);
+        // Sample from the center of the white area to avoid filtering artifacts.
+        ubo_metrics[GLYPH_ID_BACKGROUND].uvRect = glm::ivec4(g.x + 1, g.y + 1, 0, 0);
+        ubo_metrics[GLYPH_ID_BACKGROUND].metrics =
+            glm::ivec4(g.width, g.height, g.xoffset, g.yoffset);
     }
 
     return imageFilename;
@@ -622,7 +627,9 @@ public:
             // kerning amount is added to the advance
             m_xlinepos += k->amount;
         }
-        const auto iVertex00 = glm::ivec2(m_xlinepos + g->xoffset, g->yoffset);
+        // offsetX is handled by the shader adding g.metrics.z (xoffset).
+        // offsetY is handled by the shader using g.metrics.w (yoffset).
+        const auto iVertex00 = glm::ivec2(m_xlinepos, 0);
         m_xlinepos += g->xadvance;
         emitGlyphInstance(std::isspace(g->id),
                           static_cast<uint16_t>(g->id),

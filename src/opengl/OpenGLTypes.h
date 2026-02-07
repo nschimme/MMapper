@@ -94,6 +94,7 @@ struct NODISCARD GlyphMetrics final
     // width, height, xoffset, yoffset
     glm::ivec4 metrics{};
 };
+static_assert(sizeof(GlyphMetrics) == 32);
 
 // Instance data for font rendering.
 // the font's vertex shader transforms the world position to screen space,

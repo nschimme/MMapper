@@ -38,6 +38,9 @@ static const bool VERBOSE_FONT_DEBUG = std::invoke([]() -> bool {
     return false;
 });
 
+static constexpr uint32_t MASK_RGB = 0x00FFFFFFu;
+static constexpr uint32_t MASK_ALPHA = 0xFF000000u;
+
 // NOTE: Rect doesn't actually include the hi value.
 struct NODISCARD Rect final
 {
@@ -574,8 +577,8 @@ public:
         uint32_t color = m_opts.fgColor.getUint32();
         if (m_opts.namedColor) {
             flags |= FONT_FLAG_NAMED_COLOR;
-            color = (color & 0xFF000000u)
-                    | (static_cast<uint32_t>(m_opts.namedColor.value()) & 0x00FFFFFFu);
+            color = (color & MASK_ALPHA)
+                    | (static_cast<uint32_t>(m_opts.namedColor.value()) & MASK_RGB);
         }
 
         m_verts3d.emplace_back(m_opts.pos,
@@ -666,8 +669,8 @@ public:
                     uint32_t color = m_opts.optBgColor.value().getUint32();
                     if (m_opts.namedBgColor) {
                         flags |= FONT_FLAG_NAMED_COLOR;
-                        color = (color & 0xFF000000u)
-                                | (static_cast<uint32_t>(m_opts.namedBgColor.value()) & 0x00FFFFFFu);
+                        color = (color & MASK_ALPHA)
+                                | (static_cast<uint32_t>(m_opts.namedBgColor.value()) & MASK_RGB);
                     }
                     emitSpecialInstance(color,
                                         flags,
@@ -684,8 +687,8 @@ public:
                     uint32_t color = m_opts.fgColor.getUint32();
                     if (m_opts.namedColor) {
                         flags |= FONT_FLAG_NAMED_COLOR;
-                        color = (color & 0xFF000000u)
-                                | (static_cast<uint32_t>(m_opts.namedColor.value()) & 0x00FFFFFFu);
+                        color = (color & MASK_ALPHA)
+                                | (static_cast<uint32_t>(m_opts.namedColor.value()) & MASK_RGB);
                     }
                     emitSpecialInstance(color,
                                         flags,

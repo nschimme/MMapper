@@ -76,13 +76,18 @@ const vec4 ignored = vec4(2.0, 2.0, 2.0, 1.0);
 
 void main()
 {
-    uint flags = uint(aParams.y);
+    uint rawFlags = uint(aParams.y) & 0xFFFFu;
+    uint flags = rawFlags & 0xFFu;
+    uint namedColorIndex = rawFlags >> 8u;
 
     // Branchless color selection
     vec4 unpackedCol = unpackRGBA(aColor);
-    vec4 namedCol = uNamedColors[(aColor & 0x00FFFFFFu) % uint(MAX_NAMED_COLORS)];
-    namedCol.a *= unpackedCol.a;
-    vColor = mix(unpackedCol, namedCol, float((flags & FLAG_NAMED_COLOR) != 0u));
+    vec4 namedCol = uNamedColors[namedColorIndex % uint(MAX_NAMED_COLORS)];
+
+    // The named color's alpha is modulated by the instance alpha (e.g. for background opacity)
+    vec4 finalNamedCol = vec4(namedCol.rgb, namedCol.a * unpackedCol.a);
+
+    vColor = mix(unpackedCol, finalNamedCol, float((flags & FLAG_NAMED_COLOR) != 0u));
 
     const vec2[4] quad = vec2[4](vec2(0, 0), vec2(1, 0), vec2(1, 1), vec2(0, 1));
     vec2 corner = quad[gl_VertexID];

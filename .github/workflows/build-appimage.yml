@@ -26,7 +26,7 @@ jobs:
 
     - name: Add KDE Neon repository
       run: |
-        wget -qO - https://archive.neon.kde.org/public.key | sudo gpg --dearmor -o /usr/share/keyrings/kde-neon.gpg
+        sudo gpg --no-default-keyring --keyring /usr/share/keyrings/kde-neon.gpg --keyserver keyserver.ubuntu.com --recv-keys 444DABCF3667D0283F894EDDE6D4736255751E5D
         echo "deb [signed-by=/usr/share/keyrings/kde-neon.gpg] http://archive.neon.kde.org/user jammy main" | sudo tee /etc/apt/sources.list.d/kde-neon.list
         sudo apt update -qq
 

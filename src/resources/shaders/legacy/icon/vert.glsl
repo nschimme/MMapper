@@ -27,7 +27,7 @@ const uint FLAG_SCREEN_SPACE = 1u;
 const uint FLAG_FIXED_SIZE = 2u;
 
 out vec4 vColor;
-out vec2 vTexCoord;
+out vec3 vTexCoord;
 
 const vec4 ignored = vec4(2.0, 2.0, 2.0, 1.0);
 
@@ -55,7 +55,7 @@ void main()
 
     const vec2 quad[4] = vec2[4](vec2(0, 0), vec2(1, 0), vec2(1, 1), vec2(0, 1));
     vec2 corner = quad[gl_VertexID];
-    vTexCoord = metrics.uvRect.xy + corner * metrics.uvRect.zw;
+    vTexCoord = vec3(metrics.uvRect.xy + corner * metrics.uvRect.zw, float(iconIndex));
 
     vec2 posOffset = (corner + anchor) * size;
 

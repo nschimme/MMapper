@@ -229,11 +229,13 @@ struct NODISCARD FontMetrics final
         }
 
         if (VERBOSE_FONT_DEBUG) {
-            qDebug() << "Adding background glyph";
+            qDebug() << "Adding background glyph at" << common.scaleW - 8 << "4";
         }
         // glyph location uses lower left origin.
         // We define the glyph as a 4x4 block in the middle of a 12x12 white area.
-        background.emplace(BACKGROUND_ID, common.scaleW - 8, 4, 4, 4);
+        const Glyph g{BACKGROUND_ID, common.scaleW - 8, 4, 4, 4};
+        background.emplace(g);
+        ubo_metrics[257].uvRect = glm::ivec4(g.x, g.y, g.width, g.height);
 
         // note: the current image still uses UPPER left origin,
         // but it will be flipped after this function.
@@ -261,11 +263,13 @@ struct NODISCARD FontMetrics final
         }
 
         if (VERBOSE_FONT_DEBUG) {
-            qDebug() << "Adding underline glyph";
+            qDebug() << "Adding underline glyph at" << common.scaleW - 20 << "4";
         }
         // glyph location uses lower left origin.
         // Again, 4x4 block in the middle of a 12x12 area.
-        underline.emplace(UNDERLINE_ID, common.scaleW - 20, 4, 4, 4, 0, -1);
+        const Glyph g{UNDERLINE_ID, common.scaleW - 20, 4, 4, 4, 0, -1};
+        underline.emplace(g);
+        ubo_metrics[256].uvRect = glm::ivec4(g.x, g.y, g.width, g.height);
 
         // note: the current image still uses UPPER left origin,
         // but it will be flipped after this function.
@@ -485,21 +489,13 @@ QString FontMetrics::init(const QString &fontFilename)
     }
 
     ubo_metrics.assign(1024, GlyphMetrics{});
-    for (int i = 0; i < 256; ++i) {
-        if (const Glyph *g = lookupGlyph(i)) {
-            const auto index = static_cast<size_t>(i);
+    for (const auto &pair : glyphs) {
+        if (pair.first >= 0 && pair.first < 1024) {
+            const auto index = static_cast<size_t>(pair.first);
+            const Glyph *g = pair.second;
             ubo_metrics[index].uvRect = glm::ivec4(g->x, g->y, g->width, g->height);
         }
     }
-    if (underline) {
-        const Glyph &g = underline.value();
-        ubo_metrics[256].uvRect = glm::ivec4(g.x, g.y, g.width, g.height);
-    }
-    if (background) {
-        const Glyph &g = background.value();
-        ubo_metrics[257].uvRect = glm::ivec4(g.x, g.y, g.width, g.height);
-    }
-
     return imageFilename;
 }
 
@@ -784,21 +780,32 @@ void GLFont::init()
     m_texture = MMTexture::alloc(
         QOpenGLTexture::Target::Target2D,
         [&fm, &imageFilename](QOpenGLTexture &tex) -> void {
-            QImage img{imageFilename};
+            QImage rawImg{imageFilename};
+            if (rawImg.isNull()) {
+                qWarning() << "Failed to load font image" << imageFilename;
+                return;
+            }
+
+            // Ensure we are working with RGBA before adding synthetic glyphs
+            QImage img = rawImg.convertToFormat(QImage::Format_RGBA8888);
             fm.tryAddSyntheticGlyphs(img);
             img = img.mirrored();
 
-            const QImage converted = img.convertToFormat(QImage::Format_RGBA8888);
             tex.setFormat(QOpenGLTexture::TextureFormat::RGBA8_UNorm);
             tex.setMinMagFilters(QOpenGLTexture::Filter::Linear, QOpenGLTexture::Filter::Linear);
             tex.setAutoMipMapGenerationEnabled(false);
-            tex.setMipLevels(0);
-            tex.setSize(converted.width(), converted.height());
+            tex.setMipLevels(1); // One level (the base image)
+            tex.setSize(img.width(), img.height());
             tex.allocateStorage();
             tex.setData(0,
                         QOpenGLTexture::PixelFormat::RGBA,
                         QOpenGLTexture::PixelType::UInt8,
-                        converted.constBits());
+                        img.constBits());
+
+            if (VERBOSE_FONT_DEBUG) {
+                qDebug() << "Uploaded font texture" << img.width() << "x" << img.height()
+                         << "with synthetic glyphs";
+            }
         },
         true);
 

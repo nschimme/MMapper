@@ -97,7 +97,8 @@ void main()
     pixelPos += posPixels;
 
     // Convert back to NDC
-    ndcPos.xy = ((pixelPos - viewportOffset) / viewportSize) * 2.0 - 1.0;
+    // We use a small epsilon for the division to avoid potential NaN if viewportSize is 0.
+    ndcPos.xy = ((pixelPos - viewportOffset) / max(viewportSize, vec2(1.0))) * 2.0 - 1.0;
 
     gl_Position = ndcPos;
 }

@@ -347,7 +347,6 @@ void CharacterBatch::CharFakeGL::reallyDrawCharacters(OpenGL &gl, const MapCanva
         if (iconMetrics.empty()) {
             iconMetrics.assign(256, IconMetrics{});
             for (size_t i = 0; i < 256; ++i) {
-                iconMetrics[i].uvRect = glm::vec4(0, 0, 1, 1);
                 iconMetrics[i].sizeAnchor = glm::vec4(0.0, 0.0, -0.5, -0.5); // center
             }
         }

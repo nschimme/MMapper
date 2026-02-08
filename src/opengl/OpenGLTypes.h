@@ -102,15 +102,11 @@ static_assert(sizeof(GlyphMetrics) == 32);
 
 struct NODISCARD IconMetrics final
 {
-    // xy: uvOffset (0.0 to 1.0)
-    // zw: uvSize (0.0 to 1.0)
-    glm::vec4 uvRect{};
-
     // xy: Default size in world units or pixels (used if instance size is zero)
     // zw: Relative anchor offset (-0.5 is centered, 0.0 is top-left)
     glm::vec4 sizeAnchor{};
 };
-static_assert(sizeof(IconMetrics) == 32);
+static_assert(sizeof(IconMetrics) == 16);
 
 // Instance data for font rendering.
 // the font's vertex shader transforms the world position to screen space,

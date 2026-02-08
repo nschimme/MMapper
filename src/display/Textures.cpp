@@ -313,7 +313,13 @@ void MapCanvas::initTextures()
     }
 
     // char images are 256
-    textures.char_arrows = loadTexture(getPixmapFilenameRaw("char-arrows.png"));
+    {
+        // Character arrow is at [0,0,128,128] in char-arrows.png.
+        // Trim it so it fills its layer in the texture array.
+        auto mmtex = MMTexture::alloc(getPixmapFilenameRaw("char-arrows.png"));
+        QImage img = QImage{mmtex->getName()}.copy(0, 0, 128, 128);
+        textures.char_arrows = MMTexture::alloc(std::vector<QImage>{img});
+    }
     textures.char_room_sel = loadTexture(getPixmapFilenameRaw("char-room-sel.png"));
     // exits are 128
     textures.exit_climb_down = loadTexture(getPixmapFilenameRaw("exit-climb-down.png"));

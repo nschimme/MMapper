@@ -7,8 +7,13 @@ uniform float uDevicePixelRatio;
 
 struct GlyphMetrics
 {
-    vec4 uvRect;  // xy: uvOffset, zw: uvSize (normalized)
-    vec4 posRect; // xy: pixelOffset (rel to cursor), zw: pixelSize
+    // xy: uvOffset (normalized 0.0 to 1.0)
+    // zw: uvSize (normalized 0.0 to 1.0)
+    vec4 uvRect;
+
+    // xy: pixelOffset relative to cursor baseline (pre-scaled by DPR)
+    // zw: pixelSize (pre-scaled by DPR)
+    vec4 posRect;
 };
 
 // Binding point 1
@@ -17,7 +22,7 @@ layout(std140) uniform GlyphMetricsBlock
     GlyphMetrics uGlyphMetrics[512];
 };
 
-uniform NamedColorsBlock
+layout(std140) uniform NamedColorsBlock
 {
     vec4 uNamedColors[MAX_NAMED_COLORS];
 };

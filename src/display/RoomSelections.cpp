@@ -86,7 +86,6 @@ public:
         std::vector<IconMetrics> metrics(256);
         // Room selection icons are full quads [0,1]
         for (size_t i = 0; i < 256; ++i) {
-            metrics[i].uvRect = glm::vec4(0, 0, 1, 1);
             metrics[i].sizeAnchor = glm::vec4(1.0, 1.0, 0.0, 0.0); // Default 1.0 world units
         }
 
@@ -117,8 +116,7 @@ public:
 
                 const auto pos = texture->getArrayPosition();
                 const auto idx = static_cast<size_t>(pos.position);
-                // Room selection metrics: UVs [0,1], anchor is top-left (0,0)
-                metrics[idx].uvRect = glm::vec4(0.0, 0.0, 1.0, 1.0);
+                // Room selection metrics: anchor is top-left (0,0)
                 metrics[idx].sizeAnchor = glm::vec4(0.0, 0.0, 0.0, 0.0);
 
                 const int16_t sw = static_cast<int16_t>(inst.scale.x * 256.0f);

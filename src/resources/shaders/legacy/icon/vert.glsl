@@ -7,8 +7,9 @@ uniform float uDevicePixelRatio;
 
 struct IconMetrics
 {
-    vec4 uvRect;     // xy: uvOffset, zw: uvSize (normalized)
-    vec4 sizeAnchor; // xy: default size, zw: relative anchor offset
+    // xy: Default size in world units or pixels (used if instance size is zero)
+    // zw: Relative anchor offset (-0.5 is centered, 0.0 is top-left)
+    vec4 sizeAnchor;
 };
 
 // Binding point 2
@@ -59,7 +60,7 @@ void main()
 
     const vec2 quad[4] = vec2[4](vec2(0, 0), vec2(1, 0), vec2(1, 1), vec2(0, 1));
     vec2 corner = quad[gl_VertexID];
-    vTexCoord = vec3(metrics.uvRect.xy + corner * metrics.uvRect.zw, float(iconIndex));
+    vTexCoord = vec3(corner, float(iconIndex));
 
     vec2 posOffset = (corner + anchor) * size;
 

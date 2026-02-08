@@ -235,7 +235,7 @@ struct NODISCARD FontMetrics final
         // We define the glyph as a 4x4 block in the middle of a 12x12 white area.
         const Glyph g{BACKGROUND_ID, common.scaleW - 8, 4, 4, 4};
         background.emplace(g);
-        ubo_metrics[257].uvRect = glm::ivec4(g.x, g.y, g.width, g.height);
+        // Normalized UVs will be calculated in init()
 
         // note: the current image still uses UPPER left origin,
         // but it will be flipped after this function.
@@ -267,10 +267,9 @@ struct NODISCARD FontMetrics final
         }
         // glyph location uses lower left origin.
         // We define a 1px thick underline, placed 2px below the baseline.
-        // We keep the UV rect at 4x4 in the UBO so the shader's center-sampling logic works.
         const Glyph g{UNDERLINE_ID, common.scaleW - 20, 4, 4, 1, 0, -2};
         underline.emplace(g);
-        ubo_metrics[256].uvRect = glm::ivec4(g.x, g.y, g.width, 4);
+        // Normalized UVs will be calculated in init()
 
         // note: the current image still uses UPPER left origin,
         // but it will be flipped after this function.
@@ -342,6 +341,7 @@ struct NODISCARD FontMetrics final
 
 static constexpr uint16_t FONT_FLAG_ITALICS = 1 << 0;
 static constexpr uint16_t FONT_FLAG_NAMED_COLOR = 1 << 1;
+static constexpr uint16_t FONT_FLAG_APPLY_DPR = 1 << 2;
 
 void getFontBatchRawData(const FontMetrics &fm,
                          const GLText *const text,
@@ -490,13 +490,7 @@ QString FontMetrics::init(const QString &fontFilename)
     }
 
     ubo_metrics.assign(2048, GlyphMetrics{});
-    for (const auto &pair : glyphs) {
-        if (pair.first >= 0 && pair.first < 2048) {
-            const auto index = static_cast<size_t>(pair.first);
-            const Glyph *g = pair.second;
-            ubo_metrics[index].uvRect = glm::ivec4(g->x, g->y, g->width, g->height);
-        }
-    }
+    // Normalized UVs are calculated in GLFont::init after image dimensions are known.
     return imageFilename;
 }
 
@@ -791,6 +785,37 @@ void GLFont::init()
             QImage img = rawImg.convertToFormat(QImage::Format_RGBA8888);
             fm.tryAddSyntheticGlyphs(img);
             img = img.mirrored();
+
+            const float invW = 1.0f / static_cast<float>(img.width());
+            const float invH = 1.0f / static_cast<float>(img.height());
+
+            for (const auto &pair : fm.glyphs) {
+                if (pair.first >= 0 && pair.first < 2048) {
+                    const auto index = static_cast<size_t>(pair.first);
+                    const auto *g = pair.second;
+                    fm.ubo_metrics[index].uvRect = glm::vec4(static_cast<float>(g->x) * invW,
+                                                             static_cast<float>(g->y) * invH,
+                                                             static_cast<float>(g->width) * invW,
+                                                             static_cast<float>(g->height) * invH);
+                }
+            }
+
+            // Special handling for synthetic glyphs to remove branching in shader.
+            // We sample from the center of the 4x4 block inside the 12x12 white area.
+            if (fm.background) {
+                const auto &g = fm.background.value();
+                fm.ubo_metrics[257].uvRect = glm::vec4(static_cast<float>(g.x + 2) * invW,
+                                                       static_cast<float>(g.y + 2) * invH,
+                                                       0.0f,
+                                                       0.0f);
+            }
+            if (fm.underline) {
+                const auto &g = fm.underline.value();
+                fm.ubo_metrics[256].uvRect = glm::vec4(static_cast<float>(g.x + 2) * invW,
+                                                       static_cast<float>(g.y + 2) * invH,
+                                                       0.0f,
+                                                       0.0f);
+            }
 
             tex.setFormat(QOpenGLTexture::TextureFormat::RGBA8_UNorm);
             tex.setMinMagFilters(QOpenGLTexture::Filter::Linear, QOpenGLTexture::Filter::Linear);

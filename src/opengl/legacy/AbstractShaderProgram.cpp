@@ -184,4 +184,16 @@ void AbstractShaderProgram::setIVec2(const char *const name, const glm::ivec2 &v
     setUniform2iv(location, 1, glm::value_ptr(v));
 }
 
+void AbstractShaderProgram::setFloat(const char *const name, const float f)
+{
+    const GLint location = getUniformLocation(name);
+    setUniform1fv(location, 1, &f);
+}
+
+void AbstractShaderProgram::setVec2(const char *const name, const glm::vec2 &v)
+{
+    const GLint location = getUniformLocation(name);
+    setUniform1fv(location, 2, glm::value_ptr(v));
+}
+
 } // namespace Legacy

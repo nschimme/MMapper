@@ -91,6 +91,8 @@ public:
     void setTexture(const char *name, int textureUnit);
     void setViewport(const char *name, const Viewport &input_viewport);
     void setIVec2(const char *name, const glm::ivec2 &v);
+    void setFloat(const char *name, float f);
+    void setVec2(const char *name, const glm::vec2 &v);
 };
 
 } // namespace Legacy

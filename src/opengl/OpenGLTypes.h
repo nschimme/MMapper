@@ -89,7 +89,7 @@ struct NODISCARD ColorVert final
 
 struct NODISCARD GlyphMetrics final
 {
-    glm::ivec4 uvRect{}; // uvX, uvY, uvW, uvH
+    glm::vec4 uvRect{}; // normalized uvX, uvY, uvW, uvH
 };
 static_assert(sizeof(GlyphMetrics) == 16);
 
@@ -124,7 +124,7 @@ struct NODISCARD FontInstanceData final
     {
         // glyphId: 11 bits (0-2047)
         // rotation: 9 bits (unsigned, 0-511) - Infomark angles are 0-359.
-        // flags: 6 bits
+        // flags: 6 bits (Italics=1, NamedColor=2, ApplyDPR=4)
         // namedColorIndex: 6 bits
         const uint32_t uGlyphId = static_cast<uint32_t>(glyphId) & 0x7FFu;
         const uint32_t uRotation = static_cast<uint32_t>(static_cast<uint16_t>(rotation)) & 0x1FFu;

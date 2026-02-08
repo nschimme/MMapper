@@ -3,10 +3,11 @@
 
 uniform mat4 uMVP3D;
 uniform ivec4 uPhysViewport;
-uniform ivec2 uFontTexSize;
+uniform float uDevicePixelRatio;
+uniform vec2 uViewportScale;
 
 struct GlyphMetrics {
-    ivec4 uvRect;
+    vec4 uvRect;
 };
 
 // Binding point 1
@@ -25,6 +26,7 @@ layout(location = 3) in uint aPacked;  // glyphId (10), rotation (10), flags (6)
 
 const uint FLAG_ITALICS = 1u;
 const uint FLAG_NAMED_COLOR = 2u;
+const uint FLAG_APPLY_DPR = 4u;
 
 out vec4 vColor;
 out vec2 vTexCoord;
@@ -47,21 +49,13 @@ void main()
     const vec2 quad[4] = vec2[4](vec2(0, 0), vec2(1, 0), vec2(1, 1), vec2(0, 1));
     vec2 corner = quad[gl_VertexID];
 
-    ivec4 uvRect = uGlyphMetrics[glyphId].uvRect;
-
-    // Improved sampling for solid blocks (ID 256 = underline, 257 = background)
-    // We sample from the center of the white block to avoid edge bleeding.
-    vec2 uv;
-    if (glyphId >= 256u) {
-        // For stretched solid quads, we sample from the center of the 4x4 block
-        // to ensure linear filtering always picks up opaque white.
-        uv = vec2(uvRect.xy) + 2.0;
-    } else {
-        uv = vec2(uvRect.xy) + corner * vec2(uvRect.zw);
-    }
-    vTexCoord = uv / vec2(uFontTexSize);
+    vec4 uvRect = uGlyphMetrics[glyphId].uvRect;
+    vTexCoord = uvRect.xy + corner * uvRect.zw;
 
     vec2 posPixels = vec2(aRect.xy) + corner * vec2(aRect.zw);
+    if ((flags & FLAG_APPLY_DPR) != 0u) {
+        posPixels *= uDevicePixelRatio;
+    }
 
     // Italics
     if ((flags & FLAG_ITALICS) != 0u) {
@@ -95,8 +89,7 @@ void main()
     pixelPos += posPixels;
 
     // Convert back to NDC
-    // We use a small epsilon for the division to avoid potential NaN if viewportSize is 0.
-    ndcPos.xy = ((pixelPos - viewportOffset) / max(viewportSize, vec2(1.0))) * 2.0 - 1.0;
+    ndcPos.xy = (pixelPos - viewportOffset) * uViewportScale - 1.0;
 
     gl_Position = ndcPos;
 }

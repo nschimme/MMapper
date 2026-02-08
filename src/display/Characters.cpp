@@ -343,22 +343,14 @@ void CharacterBatch::CharFakeGL::reallyDrawCharacters(OpenGL &gl, const MapCanva
     }
 
     if (!m_screenSpaceArrows.empty()) {
-        // FIXME: add an option to auto-scale to DPR.
-        const float dpr = gl.getDevicePixelRatio();
-        for (auto &v : m_screenSpaceArrows) {
-            v.offsetX = static_cast<int16_t>(std::lround(static_cast<float>(v.offsetX) * dpr));
-            v.offsetY = static_cast<int16_t>(std::lround(static_cast<float>(v.offsetY) * dpr));
-            v.sizeW = static_cast<int16_t>(std::lround(static_cast<float>(v.sizeW) * dpr));
-            v.sizeH = static_cast<int16_t>(std::lround(static_cast<float>(v.sizeH) * dpr));
-        }
-
         static std::vector<GlyphMetrics> arrowMetrics;
         if (arrowMetrics.empty()) {
             arrowMetrics.assign(2048, GlyphMetrics{});
-            // empty arrow (glyphId 0)
-            arrowMetrics[0].uvRect = glm::ivec4(0, 0, 128, 128);
-            // filled arrow (glyphId 1)
-            arrowMetrics[1].uvRect = glm::ivec4(128, 128, 128, 128);
+            const float invSize = 1.0f / 256.0f;
+            // empty arrow (glyphId 0): rect [0, 0, 128, 128]
+            arrowMetrics[0].uvRect = glm::vec4(0.0f, 0.0f, 128.0f * invSize, 128.0f * invSize);
+            // filled arrow (glyphId 1): rect [128, 128, 128, 128]
+            arrowMetrics[1].uvRect = glm::vec4(128.0f * invSize, 128.0f * invSize, 128.0f * invSize, 128.0f * invSize);
         }
 
         gl.resetFontMetricsBuffer();
@@ -397,6 +389,7 @@ void CharacterBatch::CharFakeGL::addScreenSpaceArrow(const glm::vec3 &pos,
 
     // glyphId: 0 for empty arrow, 1 for filled arrow
     const uint16_t glyphId = fill ? 1 : 0;
+    const uint8_t flags = 4u; // FLAG_APPLY_DPR
 
     m_screenSpaceArrows.emplace_back(pos,
                                      color.getUint32(),
@@ -406,7 +399,7 @@ void CharacterBatch::CharFakeGL::addScreenSpaceArrow(const glm::vec3 &pos,
                                      sizeH,
                                      glyphId,
                                      static_cast<int16_t>(degrees),
-                                     0,
+                                     flags,
                                      0);
 }
 

@@ -114,6 +114,8 @@ public:
 private:
     using Base = QOpenGLExtraFunctions;
     glm::mat4 m_viewProj = glm::mat4(1);
+    glm::vec3 m_mapCenter = glm::vec3(0.f);
+    float m_baseSize = 528.f;
     Viewport m_viewport;
     float m_devicePixelRatio = 1.f;
     std::unique_ptr<ShaderPrograms> m_shaderPrograms;
@@ -224,6 +226,7 @@ public:
     using Base::glUniform1iv;
     using Base::glUniform2fv;
     using Base::glUniform2iv;
+    using Base::glUniform3fv;
     using Base::glUniform4fv;
     using Base::glUniform4iv;
     using Base::glUniformBlockBinding;
@@ -294,6 +297,14 @@ public:
     NODISCARD glm::mat4 getProjectionMatrix() const { return m_viewProj; }
 
     void setProjectionMatrix(const glm::mat4 &viewProj) { m_viewProj = viewProj; }
+
+    NODISCARD glm::vec3 getMapCenter() const { return m_mapCenter; }
+
+    void setMapCenter(const glm::vec3 &mapCenter) { m_mapCenter = mapCenter; }
+
+    NODISCARD float getBaseSize() const { return m_baseSize; }
+
+    void setBaseSize(const float baseSize) { m_baseSize = baseSize; }
 
 public:
     void cleanup();

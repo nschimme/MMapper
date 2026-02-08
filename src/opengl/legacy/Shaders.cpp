@@ -70,6 +70,8 @@ void IconShader::virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uni
     Functions &functions = deref(shared_functions);
 
     setMatrix("uMVP3D", mvp);
+    setVec3("uMapCenter", functions.getMapCenter());
+    setFloat("uBaseSize", functions.getBaseSize());
     setTexture("uIconTexture", 0);
     const Viewport vp = functions.getPhysicalViewport();
     setViewport("uPhysViewport", vp);

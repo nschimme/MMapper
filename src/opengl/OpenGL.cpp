@@ -67,6 +67,16 @@ void OpenGL::setProjectionMatrix(const glm::mat4 &m)
     getFunctions().setProjectionMatrix(m);
 }
 
+void OpenGL::setMapCenter(const glm::vec3 &v)
+{
+    getFunctions().setMapCenter(v);
+}
+
+void OpenGL::setBaseSize(const float f)
+{
+    getFunctions().setBaseSize(f);
+}
+
 void OpenGL::configureFbo(int samples)
 {
     getFunctions().configureFbo(samples);

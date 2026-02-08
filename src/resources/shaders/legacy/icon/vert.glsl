@@ -4,6 +4,8 @@
 uniform mat4 uMVP3D;
 uniform ivec4 uPhysViewport;
 uniform float uDevicePixelRatio;
+uniform vec3 uMapCenter;
+uniform float uBaseSize;
 
 struct IconMetrics
 {
@@ -13,7 +15,7 @@ struct IconMetrics
 };
 
 // Binding point 2
-layout(std140) uniform IconMetricsBlock
+layout(std140, binding = 2) uniform IconMetricsBlock
 {
     IconMetrics uIconMetrics[256];
 };
@@ -26,6 +28,7 @@ layout(location = 3) in uint aPacked;
 // Flags (bits 17+)
 const uint FLAG_SCREEN_SPACE = 1u;
 const uint FLAG_FIXED_SIZE = 2u;
+const uint FLAG_DISTANCE_SCALE = 4u;
 
 out vec4 vColor;
 out vec3 vTexCoord;
@@ -55,6 +58,11 @@ void main()
 
     if ((flags & FLAG_SCREEN_SPACE) == 0u && (flags & FLAG_FIXED_SIZE) == 0u) {
         size /= 256.0;
+
+        if ((flags & FLAG_DISTANCE_SCALE) != 0u) {
+            float dist = length(aBase.xy - uMapCenter.xy);
+            size *= clamp(1.0 - dist / uBaseSize, 0.5, 1.0);
+        }
     }
     vec2 anchor = metrics.sizeAnchor.zw;
 

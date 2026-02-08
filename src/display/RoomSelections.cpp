@@ -122,13 +122,18 @@ public:
                 const int16_t sw = static_cast<int16_t>(inst.scale.x * 256.0f);
                 const int16_t sh = static_cast<int16_t>(inst.scale.y * 256.0f);
 
+                uint32_t flags = 0;
+                if (type == SelTypeEnum::Distant) {
+                    flags |= IconInstanceData::DISTANCE_SCALE;
+                }
+
                 iconBatch.emplace_back(inst.base,
                                        0xFFFFFFFF, // white
                                        sw,
                                        sh,
                                        static_cast<uint16_t>(pos.position),
                                        static_cast<int16_t>(inst.rotation),
-                                       0); // no flags (world space)
+                                       flags);
             }
 
             if (!iconBatch.empty()) {
@@ -160,18 +165,6 @@ void MapCanvas::paintSelectedRoom(RoomSelFakeGL &gl, const RawRoom &room)
         gl.glRotatef(dot.rotationDegrees, 0.f, 0.f, 1.f);
         const glm::vec2 iconCenter{0.5f, 0.5f};
         gl.glTranslatef(-iconCenter.x, -iconCenter.y, 0.f);
-
-        // Scale based upon distance
-        const auto scaleFactor = std::invoke([this, roomCenter]() -> float {
-            const auto delta = roomCenter - m_mapScreen.getCenter();
-            const auto distance = std::sqrt((delta.y * delta.y) + (delta.x * delta.x));
-            // If we're too far away just scale down to 50% at most
-            if (distance >= static_cast<float>(BASESIZE)) {
-                return 0.5f;
-            }
-            return 1.f - (distance / static_cast<float>(BASESIZE));
-        });
-        gl.glScalef(scaleFactor, scaleFactor, 1.f);
 
         gl.drawColoredQuad(RoomSelFakeGL::SelTypeEnum::Distant);
     } else {

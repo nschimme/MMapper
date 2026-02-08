@@ -375,8 +375,9 @@ void CharacterBatch::CharFakeGL::addScreenSpaceArrow(const glm::vec3 &pos,
                                                      const Color color,
                                                      const bool /*fill*/)
 {
-    // FLAG_SCREEN_SPACE = 1, FLAG_FIXED_SIZE = 2
-    const uint32_t flags = 1u | 2u;
+    // FLAG_SCREEN_SPACE = 1, FIXED_SIZE = 2
+    // These arrows are anchored at a world-space proxy location but have a fixed pixel size.
+    const uint32_t flags = IconInstanceData::FIXED_SIZE;
 
     // iconIndex: 0 for the default arrow (the only one we use now)
     const uint16_t iconIndex = 0;

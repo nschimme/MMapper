@@ -76,6 +76,7 @@ public:
     void setUniform2iv(GLint location, GLsizei count, const GLint *value);
     void setUniform1fv(GLint location, GLsizei count, const GLfloat *value);
     void setUniform2fv(GLint location, GLsizei count, const GLfloat *value);
+    void setUniform3fv(GLint location, GLsizei count, const GLfloat *value);
     void setUniform4fv(GLint location, GLsizei count, const GLfloat *value);
     void setUniform4iv(GLint location, GLsizei count, const GLint *value);
     void setUniformMatrix4fv(GLint location,
@@ -95,6 +96,7 @@ public:
     void setIVec2(const char *name, const glm::ivec2 &v);
     void setFloat(const char *name, float f);
     void setVec2(const char *name, const glm::vec2 &v);
+    void setVec3(const char *name, const glm::vec3 &v);
 };
 
 } // namespace Legacy

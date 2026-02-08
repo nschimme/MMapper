@@ -234,6 +234,7 @@ void MapCanvas::initializeGL()
     initLogger();
 
     gl.initializeRenderer(static_cast<float>(QPaintDevice::devicePixelRatioF()));
+    gl.setBaseSize(static_cast<float>(BASESIZE));
     updateMultisampling();
 
     // REVISIT: should the font texture have the lowest ID?
@@ -636,6 +637,7 @@ void MapCanvas::actuallyPaintGL()
     setViewportAndMvp(width(), height());
 
     auto &gl = getOpenGL();
+    gl.setMapCenter(m_mapScreen.getCenter());
     gl.bindNamedColorsBuffer();
 
     gl.bindFbo();

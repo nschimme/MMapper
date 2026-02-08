@@ -114,11 +114,11 @@ static_assert(sizeof(IconMetrics) == 16);
 // vertex offset in screen space.
 struct NODISCARD FontInstanceData final
 {
-    glm::vec3 base{}; // world space
-    uint32_t color = 0;
-    int16_t offsetX = 0, offsetY = 0;
-    int16_t sizeW = 0, sizeH = 0;
-    uint32_t packedParams = 0;
+    glm::vec3 base{};       // 12 bytes: world space
+    uint32_t color = 0;     // 4 bytes: RGBA color (or instance alpha for named colors)
+    int16_t offsetX = 0;    // 2 bytes: cursorX for glyphs, or rect.x for synthetic
+    uint16_t packed1 = 0;   // 2 bytes: glyphId (10), flags (6)
+    uint32_t packedRest = 0; // 4 bytes: rotation/namedColorIndex OR offsetY/sizeW/sizeH/namedColorIndex
 
     explicit FontInstanceData(const glm::vec3 &base_,
                               uint32_t color_,
@@ -126,34 +126,46 @@ struct NODISCARD FontInstanceData final
                               int16_t offsetY_,
                               int16_t sizeW_,
                               int16_t sizeH_,
-                              uint16_t glyphId,
-                              int16_t rotation,
-                              uint8_t flags,
-                              uint8_t namedColorIndex)
+                              uint16_t glyphId_,
+                              int16_t rotation_,
+                              uint8_t flags_,
+                              uint8_t namedColorIndex_)
         : base{base_}
         , color{color_}
         , offsetX{offsetX_}
-        , offsetY{offsetY_}
-        , sizeW{sizeW_}
-        , sizeH{sizeH_}
     {
-        // glyphId: 11 bits (0-2047)
-        // rotation: 9 bits (unsigned, 0-511) - Infomark angles are 0-359.
-        // flags: 6 bits (Italics=1, NamedColor=2)
-        // namedColorIndex: 6 bits
-        const uint32_t uGlyphId = static_cast<uint32_t>(glyphId) & 0x7FFu;
-        const uint32_t uRotation = static_cast<uint32_t>(static_cast<uint16_t>(rotation)) & 0x1FFu;
-        const uint32_t uFlags = static_cast<uint32_t>(flags) & 0x3Fu;
-        const uint32_t uNamedColorIndex = static_cast<uint32_t>(namedColorIndex) & 0x3Fu;
+        const uint16_t uGlyphId = glyphId_ & 0x3FFu;
+        const uint16_t uFlags = flags_ & 0x3Fu;
+        packed1 = uGlyphId | (uFlags << 10);
 
-        packedParams = uGlyphId | (uRotation << 11) | (uFlags << 20) | (uNamedColorIndex << 26);
+        const uint32_t uNamedColorIndex = static_cast<uint32_t>(namedColorIndex_) & 0x3Fu;
+
+        if (glyphId_ < 256) {
+            // Regular character: pack rotation (9), namedColorIndex (6)
+            const uint32_t uRotation = static_cast<uint32_t>(static_cast<uint16_t>(rotation_))
+                                       & 0x1FFu;
+            packedRest = uRotation | (uNamedColorIndex << 9);
+        } else {
+            // Synthetic glyph: pack offsetY (8), sizeW (10), sizeH (8), namedColorIndex (6)
+            const uint32_t uOffsetY = static_cast<uint32_t>(static_cast<int8_t>(offsetY_)) & 0xFFu;
+            const uint32_t uSizeW = static_cast<uint32_t>(static_cast<uint16_t>(sizeW_)) & 0x3FFu;
+            const uint32_t uSizeH = static_cast<uint32_t>(static_cast<int8_t>(sizeH_)) & 0xFFu;
+
+            packedRest = uOffsetY | (uSizeW << 8) | (uSizeH << 18) | (uNamedColorIndex << 26);
+        }
     }
 };
-static_assert(sizeof(FontInstanceData) == 28);
+static_assert(sizeof(FontInstanceData) == 24);
 
 // Instance data for icons (characters, arrows, selections).
 struct NODISCARD IconInstanceData final
 {
+    enum Flags : uint32_t {
+        SCREEN_SPACE = 1 << 0,
+        FIXED_SIZE = 1 << 1,
+        DISTANCE_SCALE = 1 << 2,
+    };
+
     glm::vec3 base{}; // world space or screen pixels
     uint32_t color = 0;
     int16_t sizeW = 0, sizeH = 0;

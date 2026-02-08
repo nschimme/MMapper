@@ -57,6 +57,8 @@ public:
     NODISCARD Viewport getViewport() const;
     NODISCARD Viewport getPhysicalViewport() const;
     void setProjectionMatrix(const glm::mat4 &m);
+    void setMapCenter(const glm::vec3 &v);
+    void setBaseSize(float f);
     void glViewport(GLint x, GLint y, GLsizei w, GLsizei h);
 
 public:

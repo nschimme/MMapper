@@ -122,6 +122,15 @@ void AbstractShaderProgram::setUniform2fv(const GLint location,
     deref(functions).glUniform2fv(location, count, value);
 }
 
+void AbstractShaderProgram::setUniform3fv(const GLint location,
+                                          const GLsizei count,
+                                          const GLfloat *const value)
+{
+    assert(m_isBound);
+    auto functions = m_functions.lock();
+    deref(functions).glUniform3fv(location, count, value);
+}
+
 void AbstractShaderProgram::setUniform4fv(const GLint location,
                                           const GLsizei count,
                                           const GLfloat *const value)
@@ -221,6 +230,14 @@ void AbstractShaderProgram::setVec2(const char *const name, const glm::vec2 &v)
     const GLint location = getUniformLocationNoAssert(name);
     if (location != INVALID_UNIFORM_LOCATION) {
         setUniform2fv(location, 1, glm::value_ptr(v));
+    }
+}
+
+void AbstractShaderProgram::setVec3(const char *const name, const glm::vec3 &v)
+{
+    const GLint location = getUniformLocationNoAssert(name);
+    if (location != INVALID_UNIFORM_LOCATION) {
+        setUniform3fv(location, 1, glm::value_ptr(v));
     }
 }
 

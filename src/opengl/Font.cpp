@@ -266,10 +266,11 @@ struct NODISCARD FontMetrics final
             qDebug() << "Adding underline glyph at" << common.scaleW - 20 << "4";
         }
         // glyph location uses lower left origin.
-        // Again, 4x4 block in the middle of a 12x12 area.
-        const Glyph g{UNDERLINE_ID, common.scaleW - 20, 4, 4, 4, 0, -1};
+        // We define a 1px thick underline, placed 2px below the baseline.
+        // We keep the UV rect at 4x4 in the UBO so the shader's center-sampling logic works.
+        const Glyph g{UNDERLINE_ID, common.scaleW - 20, 4, 4, 1, 0, -2};
         underline.emplace(g);
-        ubo_metrics[256].uvRect = glm::ivec4(g.x, g.y, g.width, g.height);
+        ubo_metrics[256].uvRect = glm::ivec4(g.x, g.y, g.width, 4);
 
         // note: the current image still uses UPPER left origin,
         // but it will be flipped after this function.

@@ -89,19 +89,25 @@ struct NODISCARD ColorVert final
 
 struct NODISCARD GlyphMetrics final
 {
-    // xy = uvOffset, zw = uvSize (normalized 0.0 to 1.0)
+    // xy: uvOffset (0.0 to 1.0)
+    // zw: uvSize (0.0 to 1.0)
     glm::vec4 uvRect{};
-    // xy = pixelOffset (relative to cursor), zw = pixelSize
-    // Note: for regular characters, these are already scaled by DPR during font loading.
+
+    // xy: pixelOffset relative to cursor baseline (pre-scaled by DPR during font loading)
+    // zw: pixelSize (pre-scaled by DPR during font loading)
+    // Note: Synthetic glyphs (background/underline) typically ignore this in favor of VBO data.
     glm::vec4 posRect{};
 };
 static_assert(sizeof(GlyphMetrics) == 32);
 
 struct NODISCARD IconMetrics final
 {
-    // xy = uvOffset, zw = uvSize (normalized)
+    // xy: uvOffset (0.0 to 1.0)
+    // zw: uvSize (0.0 to 1.0)
     glm::vec4 uvRect{};
-    // xy = defaultWorldSize (if aSize is 0), zw = relativeAnchor (e.g. -0.5 for center)
+
+    // xy: Default size in world units or pixels (used if instance size is zero)
+    // zw: Relative anchor offset (-0.5 is centered, 0.0 is top-left)
     glm::vec4 sizeAnchor{};
 };
 static_assert(sizeof(IconMetrics) == 32);

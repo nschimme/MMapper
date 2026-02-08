@@ -7,8 +7,8 @@ uniform float uDevicePixelRatio;
 
 struct GlyphMetrics
 {
-    vec4 uvRect;
-    vec4 posRect; // offsetX, offsetY, sizeW, sizeH
+    vec4 uvRect;  // xy: uvOffset, zw: uvSize (normalized)
+    vec4 posRect; // xy: pixelOffset (rel to cursor), zw: pixelSize
 };
 
 // Binding point 1
@@ -37,8 +37,8 @@ const vec4 ignored = vec4(2.0, 2.0, 2.0, 1.0);
 
 void main()
 {
-    uint glyphId = aPacked & 0x1FFu; // glyphId limited to 512 entries
-    float rotation = radians(float((aPacked >> 11u) & 0x1FFu));
+    uint glyphId = aPacked & 0x7FFu; // 11 bits (up to 2047), but UBO limited to 512
+    float rotation = radians(float((aPacked >> 11u) & 0x1FFu)); // 9 bits (0-511)
     uint flags = (aPacked >> 20u) & 0x3Fu;
     uint namedColorIndex = (aPacked >> 26u) & 0x3Fu;
 

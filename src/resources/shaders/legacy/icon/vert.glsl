@@ -7,8 +7,8 @@ uniform float uDevicePixelRatio;
 
 struct IconMetrics
 {
-    vec4 uvRect;
-    vec4 sizeAnchor; // x,y = size, z,w = anchor offset
+    vec4 uvRect;     // xy: uvOffset, zw: uvSize (normalized)
+    vec4 sizeAnchor; // xy: default size, zw: relative anchor offset
 };
 
 // Binding point 2
@@ -48,6 +48,10 @@ void main()
 
     IconMetrics metrics = uIconMetrics[iconIndex];
     vec2 size = vec2(aSize);
+    if (size.x == 0.0 && size.y == 0.0) {
+        size = metrics.sizeAnchor.xy;
+    }
+
     if ((flags & FLAG_SCREEN_SPACE) == 0u && (flags & FLAG_FIXED_SIZE) == 0u) {
         size /= 256.0;
     }

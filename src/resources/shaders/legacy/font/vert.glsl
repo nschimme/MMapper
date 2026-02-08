@@ -11,7 +11,7 @@ struct GlyphMetrics {
 
 // Binding point 1
 layout(std140) uniform GlyphMetricsBlock {
-    GlyphMetrics uGlyphMetrics[1024];
+    GlyphMetrics uGlyphMetrics[2048];
 };
 
 uniform NamedColorsBlock {
@@ -33,10 +33,8 @@ const vec4 ignored = vec4(2.0, 2.0, 2.0, 1.0);
 
 void main()
 {
-    uint glyphId = aPacked & 0x3FFu;
-    int rotationInt = int((aPacked >> 10u) & 0x3FFu);
-    if (rotationInt >= 512) rotationInt -= 1024;
-    float rotation = radians(float(rotationInt));
+    uint glyphId = aPacked & 0x7FFu;
+    float rotation = radians(float((aPacked >> 11u) & 0x1FFu));
     uint flags = (aPacked >> 20u) & 0x3Fu;
     uint namedColorIndex = (aPacked >> 26u) & 0x3Fu;
 

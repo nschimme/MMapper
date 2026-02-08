@@ -489,9 +489,9 @@ QString FontMetrics::init(const QString &fontFilename)
         kernings[IntPair{kerning.first, kerning.second}] = &kerning;
     }
 
-    ubo_metrics.assign(1024, GlyphMetrics{});
+    ubo_metrics.assign(2048, GlyphMetrics{});
     for (const auto &pair : glyphs) {
-        if (pair.first >= 0 && pair.first < 1024) {
+        if (pair.first >= 0 && pair.first < 2048) {
             const auto index = static_cast<size_t>(pair.first);
             const Glyph *g = pair.second;
             ubo_metrics[index].uvRect = glm::ivec4(g->x, g->y, g->width, g->height);

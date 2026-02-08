@@ -122,16 +122,16 @@ struct NODISCARD FontInstanceData final
         , sizeW{sizeW_}
         , sizeH{sizeH_}
     {
-        // glyphId: 10 bits (0-1023)
-        // rotation: 10 bits (signed, -512 to 511)
+        // glyphId: 11 bits (0-2047)
+        // rotation: 9 bits (unsigned, 0-511) - Infomark angles are 0-359.
         // flags: 6 bits
         // namedColorIndex: 6 bits
-        const uint32_t uGlyphId = static_cast<uint32_t>(glyphId) & 0x3FFu;
-        const uint32_t uRotation = static_cast<uint32_t>(static_cast<uint16_t>(rotation)) & 0x3FFu;
+        const uint32_t uGlyphId = static_cast<uint32_t>(glyphId) & 0x7FFu;
+        const uint32_t uRotation = static_cast<uint32_t>(static_cast<uint16_t>(rotation)) & 0x1FFu;
         const uint32_t uFlags = static_cast<uint32_t>(flags) & 0x3Fu;
         const uint32_t uNamedColorIndex = static_cast<uint32_t>(namedColorIndex) & 0x3Fu;
 
-        packedParams = uGlyphId | (uRotation << 10) | (uFlags << 20) | (uNamedColorIndex << 26);
+        packedParams = uGlyphId | (uRotation << 11) | (uFlags << 20) | (uNamedColorIndex << 26);
     }
 };
 static_assert(sizeof(FontInstanceData) == 28);

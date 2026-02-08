@@ -354,7 +354,7 @@ void CharacterBatch::CharFakeGL::reallyDrawCharacters(OpenGL &gl, const MapCanva
 
         static std::vector<GlyphMetrics> arrowMetrics;
         if (arrowMetrics.empty()) {
-            arrowMetrics.assign(512, GlyphMetrics{});
+            arrowMetrics.assign(2048, GlyphMetrics{});
             // empty arrow (glyphId 0)
             arrowMetrics[0].uvRect = glm::ivec4(0, 0, 128, 128);
             // filled arrow (glyphId 1)

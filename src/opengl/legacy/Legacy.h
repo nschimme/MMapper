@@ -220,8 +220,8 @@ public:
     using Base::glShaderSource;
     using Base::glTexSubImage3D;
     using Base::glUniform1fv;
-    using Base::glUniform2fv;
     using Base::glUniform1iv;
+    using Base::glUniform2fv;
     using Base::glUniform2iv;
     using Base::glUniform4fv;
     using Base::glUniform4iv;

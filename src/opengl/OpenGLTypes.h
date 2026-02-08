@@ -248,6 +248,7 @@ struct NODISCARD GLRenderState final
         // glEnable(TEXTURE_2D), or glEnable(TEXTURE_3D)
         Textures textures;
         std::optional<float> pointSize;
+        float dprScale = 1.0f;
     };
 
     Uniforms uniforms;
@@ -298,6 +299,13 @@ struct NODISCARD GLRenderState final
     {
         GLRenderState copy = *this;
         copy.uniforms.pointSize = size;
+        return copy;
+    }
+
+    NODISCARD GLRenderState withDprScale(const float scale) const
+    {
+        GLRenderState copy = *this;
+        copy.uniforms.dprScale = scale;
         return copy;
     }
 

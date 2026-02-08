@@ -260,6 +260,7 @@ void Functions::renderFont3d(const SharedMMTexture &texture,
     const auto state = GLRenderState()
                            .withBlend(BlendModeEnum::TRANSPARENCY)
                            .withDepthFunction(std::nullopt)
+                           .withDprScale(getDevicePixelRatio())
                            .withTexture0(texture->getId());
 
     const auto &prog = getShaderPrograms().getFontShader();

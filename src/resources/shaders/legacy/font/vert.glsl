@@ -4,29 +4,30 @@
 uniform mat4 uMVP3D;
 uniform ivec4 uPhysViewport;
 uniform float uDevicePixelRatio;
-uniform vec2 uViewportScale;
 
-struct GlyphMetrics {
+struct GlyphMetrics
+{
     vec4 uvRect;
 };
 
 // Binding point 1
-layout(std140) uniform GlyphMetricsBlock {
+layout(std140) uniform GlyphMetricsBlock
+{
     GlyphMetrics uGlyphMetrics[2048];
 };
 
-uniform NamedColorsBlock {
+uniform NamedColorsBlock
+{
     vec4 uNamedColors[MAX_NAMED_COLORS];
 };
 
 layout(location = 0) in vec3 aBase;
 layout(location = 1) in vec4 aColor;
-layout(location = 2) in ivec4 aRect;   // offsetX, offsetY, sizeW, sizeH
-layout(location = 3) in uint aPacked;  // glyphId (10), rotation (10), flags (6), namedColor (6)
+layout(location = 2) in ivec4 aRect;  // offsetX, offsetY, sizeW, sizeH
+layout(location = 3) in uint aPacked; // glyphId (10), rotation (10), flags (6), namedColor (6)
 
 const uint FLAG_ITALICS = 1u;
 const uint FLAG_NAMED_COLOR = 2u;
-const uint FLAG_APPLY_DPR = 4u;
 
 out vec4 vColor;
 out vec2 vTexCoord;
@@ -52,10 +53,7 @@ void main()
     vec4 uvRect = uGlyphMetrics[glyphId].uvRect;
     vTexCoord = uvRect.xy + corner * uvRect.zw;
 
-    vec2 posPixels = vec2(aRect.xy) + corner * vec2(aRect.zw);
-    if ((flags & FLAG_APPLY_DPR) != 0u) {
-        posPixels *= uDevicePixelRatio;
-    }
+    vec2 posPixels = (vec2(aRect.xy) + corner * vec2(aRect.zw)) * uDevicePixelRatio;
 
     // Italics
     if ((flags & FLAG_ITALICS) != 0u) {
@@ -89,7 +87,7 @@ void main()
     pixelPos += posPixels;
 
     // Convert back to NDC
-    ndcPos.xy = (pixelPos - viewportOffset) * uViewportScale - 1.0;
+    ndcPos.xy = (pixelPos - viewportOffset) * 2.0 / vec2(uPhysViewport.zw) - 1.0;
 
     gl_Position = ndcPos;
 }

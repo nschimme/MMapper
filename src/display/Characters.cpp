@@ -350,7 +350,10 @@ void CharacterBatch::CharFakeGL::reallyDrawCharacters(OpenGL &gl, const MapCanva
             // empty arrow (glyphId 0): rect [0, 0, 128, 128]
             arrowMetrics[0].uvRect = glm::vec4(0.0f, 0.0f, 128.0f * invSize, 128.0f * invSize);
             // filled arrow (glyphId 1): rect [128, 128, 128, 128]
-            arrowMetrics[1].uvRect = glm::vec4(128.0f * invSize, 128.0f * invSize, 128.0f * invSize, 128.0f * invSize);
+            arrowMetrics[1].uvRect = glm::vec4(128.0f * invSize,
+                                               128.0f * invSize,
+                                               128.0f * invSize,
+                                               128.0f * invSize);
         }
 
         gl.resetFontMetricsBuffer();
@@ -389,7 +392,7 @@ void CharacterBatch::CharFakeGL::addScreenSpaceArrow(const glm::vec3 &pos,
 
     // glyphId: 0 for empty arrow, 1 for filled arrow
     const uint16_t glyphId = fill ? 1 : 0;
-    const uint8_t flags = 4u; // FLAG_APPLY_DPR
+    const uint8_t flags = 0;
 
     m_screenSpaceArrows.emplace_back(pos,
                                      color.getUint32(),

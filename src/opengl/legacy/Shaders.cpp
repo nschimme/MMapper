@@ -50,8 +50,7 @@ void FontShader::virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uni
     setTexture("uFontTexture", 0);
     const Viewport vp = functions.getPhysicalViewport();
     setViewport("uPhysViewport", vp);
-    setFloat("uDevicePixelRatio", functions.getDevicePixelRatio());
-    setVec2("uViewportScale", 2.0f / glm::max(glm::vec2(vp.size), glm::vec2(1.0f)));
+    setFloat("uDevicePixelRatio", uniforms.dprScale);
 
     const auto buffer = SharedVboEnum::GlyphMetricsBlock;
     const auto shared = functions.getSharedVbos().get(buffer);

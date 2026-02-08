@@ -341,7 +341,6 @@ struct NODISCARD FontMetrics final
 
 static constexpr uint16_t FONT_FLAG_ITALICS = 1 << 0;
 static constexpr uint16_t FONT_FLAG_NAMED_COLOR = 1 << 1;
-static constexpr uint16_t FONT_FLAG_APPLY_DPR = 1 << 2;
 
 void getFontBatchRawData(const FontMetrics &fm,
                          const GLText *const text,
@@ -489,7 +488,7 @@ QString FontMetrics::init(const QString &fontFilename)
         kernings[IntPair{kerning.first, kerning.second}] = &kerning;
     }
 
-    ubo_metrics.assign(2048, GlyphMetrics{});
+    ubo_metrics.assign(512, GlyphMetrics{});
     // Normalized UVs are calculated in GLFont::init after image dimensions are known.
     return imageFilename;
 }
@@ -569,8 +568,18 @@ public:
                            const glm::ivec2 &iglyphSize)
     {
         if (!isEmpty) {
-            m_bounds.include(iVertex00);
-            m_bounds.include(iVertex00 + iglyphSize);
+            // Bounds calculation on CPU for background/underline.
+            // glyphId < 256 are regular characters.
+            if (glyphId < 256) {
+                if (const auto *g = m_fm.lookupGlyph(glyphId)) {
+                    const auto pos = glm::ivec2(iVertex00.x + g->xoffset, g->yoffset);
+                    m_bounds.include(pos);
+                    m_bounds.include(pos + glm::ivec2(g->width, g->height));
+                }
+            } else {
+                m_bounds.include(iVertex00);
+                m_bounds.include(iVertex00 + iglyphSize);
+            }
         }
 
         if (m_noOutput || isEmpty) {
@@ -604,14 +613,19 @@ public:
     void emitGlyph(const FontMetrics::Glyph *const g, const FontMetrics::Kerning *const k)
     {
         assert(isClamped(g->id, 0, 255));
-        const auto glyphSize = glm::ivec2(g->width, g->height);
         if (k != nullptr) {
             // kerning amount is added to the advance
             m_xlinepos += k->amount;
         }
-        const auto iVertex00 = glm::ivec2(m_xlinepos + g->xoffset, g->yoffset);
+        const auto cursorX = static_cast<int16_t>(m_xlinepos);
         m_xlinepos += g->xadvance;
-        emitGlyphInstance(std::isspace(g->id), static_cast<uint16_t>(g->id), iVertex00, glyphSize);
+
+        // For regular glyphs, we only need cursorX in the VBO.
+        // xoffset, yoffset, width, height are in the UBO.
+        emitGlyphInstance(std::isspace(g->id),
+                          static_cast<uint16_t>(g->id),
+                          glm::ivec2(cursorX, 0),
+                          glm::ivec2(0, 0));
     }
 
     void call_foreach_glyph(const int wordOffset, const bool output)
@@ -790,13 +804,17 @@ void GLFont::init()
             const float invH = 1.0f / static_cast<float>(img.height());
 
             for (const auto &pair : fm.glyphs) {
-                if (pair.first >= 0 && pair.first < 2048) {
+                if (pair.first >= 0 && pair.first < 512) {
                     const auto index = static_cast<size_t>(pair.first);
                     const auto *g = pair.second;
                     fm.ubo_metrics[index].uvRect = glm::vec4(static_cast<float>(g->x) * invW,
                                                              static_cast<float>(g->y) * invH,
                                                              static_cast<float>(g->width) * invW,
                                                              static_cast<float>(g->height) * invH);
+                    fm.ubo_metrics[index].posRect = glm::vec4(static_cast<float>(g->xoffset),
+                                                              static_cast<float>(g->yoffset),
+                                                              static_cast<float>(g->width),
+                                                              static_cast<float>(g->height));
                 }
             }
 
@@ -808,6 +826,8 @@ void GLFont::init()
                                                        static_cast<float>(g.y + 2) * invH,
                                                        0.0f,
                                                        0.0f);
+                // Background and underline metrics are dynamic, but we can store
+                // default values here if needed.
             }
             if (fm.underline) {
                 const auto &g = fm.underline.value();

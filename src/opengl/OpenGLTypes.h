@@ -89,9 +89,17 @@ struct NODISCARD ColorVert final
 
 struct NODISCARD GlyphMetrics final
 {
-    glm::vec4 uvRect{}; // normalized uvX, uvY, uvW, uvH
+    glm::vec4 uvRect{};   // normalized uvX, uvY, uvW, uvH
+    glm::vec4 posRect{};  // offsetX, offsetY, sizeW, sizeH
 };
-static_assert(sizeof(GlyphMetrics) == 16);
+static_assert(sizeof(GlyphMetrics) == 32);
+
+struct NODISCARD IconMetrics final
+{
+    glm::vec4 uvRect{};      // normalized uvX, uvY, uvW, uvH
+    glm::vec4 sizeAnchor{};  // x,y = size (ignored if using aSize), z,w = relative anchor
+};
+static_assert(sizeof(IconMetrics) == 32);
 
 // Instance data for font rendering.
 // the font's vertex shader transforms the world position to screen space,
@@ -124,7 +132,7 @@ struct NODISCARD FontInstanceData final
     {
         // glyphId: 11 bits (0-2047)
         // rotation: 9 bits (unsigned, 0-511) - Infomark angles are 0-359.
-        // flags: 6 bits (Italics=1, NamedColor=2, ApplyDPR=4)
+        // flags: 6 bits (Italics=1, NamedColor=2)
         // namedColorIndex: 6 bits
         const uint32_t uGlyphId = static_cast<uint32_t>(glyphId) & 0x7FFu;
         const uint32_t uRotation = static_cast<uint32_t>(static_cast<uint16_t>(rotation)) & 0x1FFu;
@@ -135,6 +143,35 @@ struct NODISCARD FontInstanceData final
     }
 };
 static_assert(sizeof(FontInstanceData) == 28);
+
+// Instance data for icons (characters, arrows, selections).
+struct NODISCARD IconInstanceData final
+{
+    glm::vec3 base{}; // world space or screen pixels
+    uint32_t color = 0;
+    int16_t sizeW = 0, sizeH = 0;
+    uint32_t packed = 0; // rotation (9), iconIndex (8), flags (15)
+
+    explicit IconInstanceData(const glm::vec3 &base_,
+                              uint32_t color_,
+                              int16_t sizeW_,
+                              int16_t sizeH_,
+                              uint16_t iconIndex,
+                              int16_t rotation,
+                              uint32_t flags)
+        : base{base_}
+        , color{color_}
+        , sizeW{sizeW_}
+        , sizeH{sizeH_}
+    {
+        const uint32_t uRotation = static_cast<uint32_t>(static_cast<uint16_t>(rotation)) & 0x1FFu;
+        const uint32_t uIconIndex = static_cast<uint32_t>(iconIndex) & 0xFFu;
+        const uint32_t uFlags = flags & 0x7FFFu;
+
+        packed = uRotation | (uIconIndex << 9) | (uFlags << 17);
+    }
+};
+static_assert(sizeof(IconInstanceData) == 24);
 
 enum class NODISCARD DrawModeEnum {
     INVALID = 0,

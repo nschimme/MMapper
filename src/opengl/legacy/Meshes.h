@@ -345,6 +345,76 @@ private:
     }
 };
 
+// Icon mesh
+template<typename VertexType_>
+class NODISCARD IconMesh final : public SimpleMesh<VertexType_, IconShader>
+{
+public:
+    using Base = SimpleMesh<VertexType_, IconShader>;
+    using Base::Base;
+
+private:
+    struct NODISCARD Attribs final
+    {
+        GLuint basePos = INVALID_ATTRIB_LOCATION;
+        GLuint colorPos = INVALID_ATTRIB_LOCATION;
+        GLuint sizePos = INVALID_ATTRIB_LOCATION;
+        GLuint packedPos = INVALID_ATTRIB_LOCATION;
+
+        NODISCARD static Attribs getLocations(IconShader &shader)
+        {
+            Attribs result;
+            result.basePos = shader.getAttribLocation("aBase");
+            result.colorPos = shader.getAttribLocation("aColor");
+            result.sizePos = shader.getAttribLocation("aSize");
+            result.packedPos = shader.getAttribLocation("aPacked");
+            return result;
+        }
+    };
+
+    std::optional<Attribs> m_boundAttribs;
+
+    void virt_bind() override
+    {
+        const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
+        static_assert(sizeof(std::declval<VertexType_>().base) == 3 * sizeof(GLfloat));
+        static_assert(sizeof(std::declval<VertexType_>().color) == sizeof(uint32_t));
+        static_assert(sizeof(std::declval<VertexType_>().sizeW) == sizeof(int16_t));
+        static_assert(sizeof(std::declval<VertexType_>().packed) == sizeof(uint32_t));
+
+        Functions &gl = Base::m_functions;
+        const auto attribs = Attribs::getLocations(Base::m_program);
+        gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
+
+        gl.enableAttrib(attribs.basePos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(base));
+        gl.enableAttribI(attribs.colorPos, 1, GL_UNSIGNED_INT, vertSize, VPO(color));
+        gl.enableAttribI(attribs.sizePos, 2, GL_SHORT, vertSize, VPO(sizeW));
+        gl.enableAttribI(attribs.packedPos, 1, GL_UNSIGNED_INT, vertSize, VPO(packed));
+
+        gl.glVertexAttribDivisor(attribs.basePos, 1);
+        gl.glVertexAttribDivisor(attribs.colorPos, 1);
+        gl.glVertexAttribDivisor(attribs.sizePos, 1);
+        gl.glVertexAttribDivisor(attribs.packedPos, 1);
+
+        m_boundAttribs = attribs;
+    }
+
+    void virt_unbind() override
+    {
+        if (!m_boundAttribs) {
+            return;
+        }
+        auto &attribs = m_boundAttribs.value();
+        Functions &gl = Base::m_functions;
+        gl.glDisableVertexAttribArray(attribs.basePos);
+        gl.glDisableVertexAttribArray(attribs.colorPos);
+        gl.glDisableVertexAttribArray(attribs.sizePos);
+        gl.glDisableVertexAttribArray(attribs.packedPos);
+        gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
+        m_boundAttribs.reset();
+    }
+};
+
 } // namespace Legacy
 
 #undef VOIDPTR_OFFSETOF

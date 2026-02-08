@@ -342,28 +342,21 @@ void CharacterBatch::CharFakeGL::reallyDrawCharacters(OpenGL &gl, const MapCanva
                               blended_noDepth.withLineParams(LineParams{CHAR_ARROW_LINE_WIDTH}));
     }
 
-    if (!m_screenSpaceArrows.empty()) {
-        static std::vector<GlyphMetrics> arrowMetrics;
-        if (arrowMetrics.empty()) {
-            arrowMetrics.assign(2048, GlyphMetrics{});
-            const float invSize = 1.0f / 256.0f;
-            // empty arrow (glyphId 0): rect [0, 0, 128, 128]
-            arrowMetrics[0].uvRect = glm::vec4(0.0f, 0.0f, 128.0f * invSize, 128.0f * invSize);
-            // filled arrow (glyphId 1): rect [128, 128, 128, 128]
-            arrowMetrics[1].uvRect = glm::vec4(128.0f * invSize,
-                                               128.0f * invSize,
-                                               128.0f * invSize,
-                                               128.0f * invSize);
+    if (!m_screenSpaceIcons.empty()) {
+        static std::vector<IconMetrics> iconMetrics;
+        if (iconMetrics.empty()) {
+            iconMetrics.assign(256, IconMetrics{});
+            for (size_t i = 0; i < 256; ++i) {
+                iconMetrics[i].uvRect = glm::vec4(0, 0, 1, 1);
+                iconMetrics[i].sizeAnchor = glm::vec4(0.0, 0.0, -0.5, -0.5); // center
+            }
         }
 
-        gl.resetFontMetricsBuffer();
-        gl.bindFontMetricsBuffer(arrowMetrics);
-
-        gl.renderFont3d(textures.char_arrows, m_screenSpaceArrows);
-        m_screenSpaceArrows.clear();
-
-        // Reset so subsequent font rendering uses its own metrics
-        gl.resetFontMetricsBuffer();
+        gl.renderIcon3d(textures.char_arrows_Array,
+                        m_screenSpaceIcons,
+                        iconMetrics,
+                        gl.getDevicePixelRatio());
+        m_screenSpaceIcons.clear();
     }
 }
 
@@ -381,29 +374,25 @@ void CharacterBatch::CharFakeGL::reallyDrawPaths(OpenGL &gl)
 void CharacterBatch::CharFakeGL::addScreenSpaceArrow(const glm::vec3 &pos,
                                                      const float degrees,
                                                      const Color color,
-                                                     const bool fill)
+                                                     const bool /*fill*/)
 {
+    // FLAG_SCREEN_SPACE = 1, FLAG_FIXED_SIZE = 2
+    const uint32_t flags = 1u | 2u;
+
+    // iconIndex: 0 for the default arrow (the only one we use now)
+    const uint16_t iconIndex = 0;
+
     const float scale = MapScreen::DEFAULT_MARGIN_PIXELS;
+    const int16_t sw = static_cast<int16_t>(2.f * scale);
+    const int16_t sh = static_cast<int16_t>(2.f * scale);
 
-    const int16_t offsetX = static_cast<int16_t>(-scale);
-    const int16_t offsetY = static_cast<int16_t>(-scale);
-    const int16_t sizeW = static_cast<int16_t>(2.f * scale);
-    const int16_t sizeH = static_cast<int16_t>(2.f * scale);
-
-    // glyphId: 0 for empty arrow, 1 for filled arrow
-    const uint16_t glyphId = fill ? 1 : 0;
-    const uint8_t flags = 0;
-
-    m_screenSpaceArrows.emplace_back(pos,
-                                     color.getUint32(),
-                                     offsetX,
-                                     offsetY,
-                                     sizeW,
-                                     sizeH,
-                                     glyphId,
-                                     static_cast<int16_t>(degrees),
-                                     flags,
-                                     0);
+    m_screenSpaceIcons.emplace_back(pos,
+                                    color.getUint32(),
+                                    sw,
+                                    sh,
+                                    iconIndex,
+                                    static_cast<int16_t>(degrees),
+                                    flags);
 }
 
 void MapCanvas::paintCharacters()

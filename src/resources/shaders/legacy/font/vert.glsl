@@ -8,12 +8,13 @@ uniform float uDevicePixelRatio;
 struct GlyphMetrics
 {
     vec4 uvRect;
+    vec4 posRect; // offsetX, offsetY, sizeW, sizeH
 };
 
 // Binding point 1
 layout(std140) uniform GlyphMetricsBlock
 {
-    GlyphMetrics uGlyphMetrics[2048];
+    GlyphMetrics uGlyphMetrics[512];
 };
 
 uniform NamedColorsBlock
@@ -36,7 +37,7 @@ const vec4 ignored = vec4(2.0, 2.0, 2.0, 1.0);
 
 void main()
 {
-    uint glyphId = aPacked & 0x7FFu;
+    uint glyphId = aPacked & 0x1FFu; // glyphId limited to 512 entries
     float rotation = radians(float((aPacked >> 11u) & 0x1FFu));
     uint flags = (aPacked >> 20u) & 0x3Fu;
     uint namedColorIndex = (aPacked >> 26u) & 0x3Fu;
@@ -50,10 +51,21 @@ void main()
     const vec2 quad[4] = vec2[4](vec2(0, 0), vec2(1, 0), vec2(1, 1), vec2(0, 1));
     vec2 corner = quad[gl_VertexID];
 
-    vec4 uvRect = uGlyphMetrics[glyphId].uvRect;
-    vTexCoord = uvRect.xy + corner * uvRect.zw;
+    GlyphMetrics metrics = uGlyphMetrics[glyphId];
+    vTexCoord = metrics.uvRect.xy + corner * metrics.uvRect.zw;
 
-    vec2 posPixels = (vec2(aRect.xy) + corner * vec2(aRect.zw)) * uDevicePixelRatio;
+    vec2 posPixels;
+    if (glyphId >= 256u) {
+        // Synthetic: use full aRect.
+        // For 2D labels, these might need scaling?
+        // But for synthetic quads (bg/underline), they are usually already in pixels.
+        posPixels = (vec2(aRect.xy) + corner * vec2(aRect.zw));
+    } else {
+        // Normal character: use UBO posRect + aRect.x (cursorX).
+        // Font metrics in UBO are already scaled to physical pixels during loading.
+        vec4 posRect = metrics.posRect;
+        posPixels = (posRect.xy + vec2(aRect.x, 0) + corner * posRect.zw);
+    }
 
     // Italics
     if ((flags & FLAG_ITALICS) != 0u) {

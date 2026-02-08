@@ -156,7 +156,13 @@ public:
     }
 
 public:
-    void renderFont3d(const SharedMMTexture &texture, const std::vector<FontInstanceData> &verts);
+    void renderFont3d(const SharedMMTexture &texture,
+                      const std::vector<FontInstanceData> &verts,
+                      float dprScale = 1.0f);
+    void renderIcon3d(const SharedMMTexture &texture,
+                      const std::vector<IconInstanceData> &verts,
+                      const std::vector<IconMetrics> &metrics,
+                      float dprScale = 1.0f);
 
 public:
     void clear(const Color color);

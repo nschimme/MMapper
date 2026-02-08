@@ -505,6 +505,22 @@ void MapCanvas::initTextures()
                 = textures.exit_up_Array = pArrayTex;
         }
 
+        {
+            // Combine all icons into one array
+            using IconBatch = std::array<SharedMMTexture, 6>;
+            IconBatch icons{textures.char_arrows,
+                            textures.char_room_sel,
+                            textures.room_sel,
+                            textures.room_sel_distant,
+                            textures.room_sel_move_bad,
+                            textures.room_sel_move_good};
+            SharedMMTexture pArrayTex;
+            maybeCreateArray2(icons, pArrayTex);
+            textures.char_arrows_Array = textures.char_room_sel_Array = textures.room_sel_Array
+                = textures.room_sel_distant_Array = textures.room_sel_move_bad_Array
+                = textures.room_sel_move_good_Array = pArrayTex;
+        }
+
         auto maybeCreateArray = [&maybeCreateArray2](auto &thing, SharedMMTexture &pArrayTex) {
             if (pArrayTex)
                 return;

@@ -34,6 +34,7 @@ struct PointSizeBinder;
 #define XFOREACH_SHARED_VBO(X) \
     X(NamedColorsBlock, "NamedColorsBlock", true) \
     X(GlyphMetricsBlock, "GlyphMetricsBlock", true) \
+    X(IconMetricsBlock, "IconMetricsBlock", true) \
     X(InstancedQuadIbo, nullptr, false)
 
 enum class SharedVboEnum : uint8_t {
@@ -445,7 +446,13 @@ public:
     void renderColoredTextured(DrawModeEnum mode,
                                const std::vector<ColoredTexVert> &verts,
                                const GLRenderState &state);
-    void renderFont3d(const SharedMMTexture &texture, const std::vector<FontInstanceData> &verts);
+    void renderFont3d(const SharedMMTexture &texture,
+                      const std::vector<FontInstanceData> &verts,
+                      float dprScale);
+    void renderIcon3d(const SharedMMTexture &texture,
+                      const std::vector<IconInstanceData> &verts,
+                      const std::vector<IconMetrics> &metrics,
+                      float dprScale);
 
 public:
     void checkError();

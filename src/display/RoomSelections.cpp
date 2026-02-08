@@ -28,7 +28,15 @@ public:
 
 private:
     glm::mat4 m_modelView = glm::mat4(1);
-    EnumIndexedArray<std::vector<TexVert>, SelTypeEnum, NUM_SEL_TYPES> m_arrays;
+
+    struct Instance
+    {
+        SelTypeEnum type;
+        glm::vec3 base;
+        float rotation;
+        glm::vec2 scale;
+    };
+    std::vector<Instance> m_instances;
 
 public:
     void resetMatrix() { m_modelView = glm::mat4(1); }
@@ -54,63 +62,83 @@ public:
 
     void drawColoredQuad(const SelTypeEnum type)
     {
-#define DECL(name, a, b) \
-    const TexVert name \
-    { \
-        glm::vec3{(a), (b), 0}, glm::vec3 \
-        { \
-            (a), (b), 0 \
-        } \
-    }
-        DECL(A, 0, 0);
-        DECL(B, 1, 0);
-        DECL(C, 1, 1);
-        DECL(D, 0, 1);
-        auto &m = m_modelView;
-        const auto transform = [&m](const TexVert &in_vert) -> TexVert {
-            auto tmp = m * glm::vec4{in_vert.vert, 1.f};
-            return TexVert{in_vert.tex, glm::vec3{tmp / tmp.w}};
-        };
+        const auto &m = m_modelView;
+        // Extract translation from matrix
+        const glm::vec3 base{m[3][0], m[3][1], m[3][2]};
+        // Extract scale (approximate if rotated, but room sel quads are usually not rotated here)
+        const float sx = glm::length(glm::vec3(m[0]));
+        const float sy = glm::length(glm::vec3(m[1]));
+        // Extract rotation around Z
+        const float rotation = glm::degrees(std::atan2(m[0][1], m[0][0]));
 
-        m_arrays[type].emplace_back(transform(A));
-        m_arrays[type].emplace_back(transform(B));
-        m_arrays[type].emplace_back(transform(C));
-        m_arrays[type].emplace_back(transform(D));
-#undef DECL
+        m_instances.emplace_back(Instance{type, base, rotation, glm::vec2(sx, sy)});
     }
 
     void draw(OpenGL &gl, const MapCanvasTextures &textures)
     {
+        if (m_instances.empty()) {
+            return;
+        }
+
         static constexpr MMapper::Array<SelTypeEnum, NUM_SEL_TYPES> ALL_SEL_TYPES{
             SelTypeEnum::Near, SelTypeEnum::Distant, SelTypeEnum::MoveBad, SelTypeEnum::MoveGood};
 
-        const auto rs
-            = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withDepthFunction(std::nullopt);
+        std::vector<IconMetrics> metrics(256);
+        // Room selection icons are full quads [0,1]
+        for (size_t i = 0; i < 256; ++i) {
+            metrics[i].uvRect = glm::vec4(0, 0, 1, 1);
+            metrics[i].sizeAnchor = glm::vec4(1.0, 1.0, 0.0, 0.0); // Default 1.0 world units
+        }
 
         for (const SelTypeEnum type : ALL_SEL_TYPES) {
-            const std::vector<TexVert> &arr = m_arrays[type];
-            if (arr.empty()) {
-                continue;
+            std::vector<IconInstanceData> iconBatch;
+            SharedMMTexture tex;
+
+            for (const auto &inst : m_instances) {
+                if (inst.type != type)
+                    continue;
+
+                const auto &texture = std::invoke([&textures, type]() -> const SharedMMTexture & {
+                    switch (type) {
+                    case SelTypeEnum::Near:
+                        return textures.room_sel;
+                    case SelTypeEnum::Distant:
+                        return textures.room_sel_distant;
+                    case SelTypeEnum::MoveBad:
+                        return textures.room_sel_move_bad;
+                    case SelTypeEnum::MoveGood:
+                        return textures.room_sel_move_good;
+                    default:
+                        break;
+                    }
+                    std::abort();
+                });
+                tex = texture;
+
+                const auto pos = texture->getArrayPosition();
+                const auto idx = static_cast<size_t>(pos.position);
+                // Room selection metrics: UVs [0,1], anchor is top-left (0,0)
+                metrics[idx].uvRect = glm::vec4(0.0, 0.0, 1.0, 1.0);
+                metrics[idx].sizeAnchor = glm::vec4(0.0, 0.0, 0.0, 0.0);
+
+                const int16_t sw = static_cast<int16_t>(inst.scale.x * 256.0f);
+                const int16_t sh = static_cast<int16_t>(inst.scale.y * 256.0f);
+
+                iconBatch.emplace_back(inst.base,
+                                       0xFFFFFFFF, // white
+                                       sw,
+                                       sh,
+                                       static_cast<uint16_t>(pos.position),
+                                       static_cast<int16_t>(inst.rotation),
+                                       0); // no flags (world space)
             }
 
-            const auto &texture = std::invoke([&textures, type]() -> const SharedMMTexture & {
-                switch (type) {
-                case SelTypeEnum::Near:
-                    return textures.room_sel;
-                case SelTypeEnum::Distant:
-                    return textures.room_sel_distant;
-                case SelTypeEnum::MoveBad:
-                    return textures.room_sel_move_bad;
-                case SelTypeEnum::MoveGood:
-                    return textures.room_sel_move_good;
-                default:
-                    break;
-                }
-                std::abort();
-            });
-
-            gl.renderTexturedQuads(arr, rs.withTexture0(texture->getArrayPosition().array));
+            if (!iconBatch.empty()) {
+                gl.renderIcon3d(textures.room_sel_Array, iconBatch, metrics);
+            }
         }
+
+        m_instances.clear();
     }
 };
 

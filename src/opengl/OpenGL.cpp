@@ -286,9 +286,19 @@ void OpenGL::initializeRenderer(const float devicePixelRatio)
     m_rendererInitialized = true;
 }
 
-void OpenGL::renderFont3d(const SharedMMTexture &texture, const std::vector<FontInstanceData> &verts)
+void OpenGL::renderFont3d(const SharedMMTexture &texture,
+                          const std::vector<FontInstanceData> &verts,
+                          const float dprScale)
 {
-    getFunctions().renderFont3d(texture, verts);
+    getFunctions().renderFont3d(texture, verts, dprScale);
+}
+
+void OpenGL::renderIcon3d(const SharedMMTexture &texture,
+                          const std::vector<IconInstanceData> &verts,
+                          const std::vector<IconMetrics> &metrics,
+                          const float dprScale)
+{
+    getFunctions().renderIcon3d(texture, verts, metrics, dprScale);
 }
 
 void OpenGL::initializeOpenGLFunctions()

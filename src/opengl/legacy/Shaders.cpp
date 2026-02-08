@@ -53,13 +53,6 @@ void FontShader::virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uni
     setFloat("uDevicePixelRatio", functions.getDevicePixelRatio());
     setVec2("uViewportScale", 2.0f / glm::max(glm::vec2(vp.size), glm::vec2(1.0f)));
 
-    const auto &shared_tex = functions.getTexLookup().at(uniforms.textures[0]);
-    const MMTexture &tex = deref(shared_tex);
-    const QOpenGLTexture *qtex = tex.get();
-    if (qtex) {
-        setIVec2("uFontTexSize", glm::ivec2(qtex->width(), qtex->height()));
-    }
-
     const auto buffer = SharedVboEnum::GlyphMetricsBlock;
     const auto shared = functions.getSharedVbos().get(buffer);
     VBO &vbo = deref(shared);

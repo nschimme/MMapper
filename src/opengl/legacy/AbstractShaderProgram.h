@@ -68,12 +68,14 @@ private:
 public:
     NODISCARD GLuint getAttribLocation(const char *name) const;
     NODISCARD GLint getUniformLocation(const char *name) const;
+    NODISCARD GLint getUniformLocationNoAssert(const char *name) const;
     NODISCARD bool hasUniform(const char *name) const;
 
 public:
     void setUniform1iv(GLint location, GLsizei count, const GLint *value);
     void setUniform2iv(GLint location, GLsizei count, const GLint *value);
     void setUniform1fv(GLint location, GLsizei count, const GLfloat *value);
+    void setUniform2fv(GLint location, GLsizei count, const GLfloat *value);
     void setUniform4fv(GLint location, GLsizei count, const GLfloat *value);
     void setUniform4iv(GLint location, GLsizei count, const GLint *value);
     void setUniformMatrix4fv(GLint location,

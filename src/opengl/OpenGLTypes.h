@@ -114,11 +114,12 @@ static_assert(sizeof(IconMetrics) == 16);
 // vertex offset in screen space.
 struct NODISCARD FontInstanceData final
 {
-    glm::vec3 base{};       // 12 bytes: world space
-    uint32_t color = 0;     // 4 bytes: RGBA color (or instance alpha for named colors)
-    int16_t offsetX = 0;    // 2 bytes: cursorX for glyphs, or rect.x for synthetic
-    uint16_t packed1 = 0;   // 2 bytes: glyphId (10), flags (6)
-    uint32_t packedRest = 0; // 4 bytes: rotation/namedColorIndex OR offsetY/sizeW/sizeH/namedColorIndex
+    glm::vec3 base{};     // 12 bytes: world space
+    uint32_t color = 0;   // 4 bytes: RGBA color (or instance alpha for named colors)
+    int16_t offsetX = 0;  // 2 bytes: cursorX for glyphs, or rect.x for synthetic
+    uint16_t packed1 = 0; // 2 bytes: glyphId (10), flags (6)
+    uint32_t packedRest
+        = 0; // 4 bytes: rotation/namedColorIndex OR offsetY/sizeW/sizeH/namedColorIndex
 
     explicit FontInstanceData(const glm::vec3 &base_,
                               uint32_t color_,
@@ -134,9 +135,9 @@ struct NODISCARD FontInstanceData final
         , color{color_}
         , offsetX{offsetX_}
     {
-        const uint16_t uGlyphId = glyphId_ & 0x3FFu;
-        const uint16_t uFlags = flags_ & 0x3Fu;
-        packed1 = uGlyphId | (uFlags << 10);
+        const uint32_t uGlyphId = static_cast<uint32_t>(glyphId_) & 0x3FFu;
+        const uint32_t uFlags = static_cast<uint32_t>(flags_) & 0x3Fu;
+        packed1 = static_cast<uint16_t>(uGlyphId | (uFlags << 10));
 
         const uint32_t uNamedColorIndex = static_cast<uint32_t>(namedColorIndex_) & 0x3Fu;
 

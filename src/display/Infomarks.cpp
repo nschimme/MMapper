@@ -36,8 +36,6 @@ static constexpr const float INFOMARK_ARROW_LINE_WIDTH = 0.045f;
 static constexpr float INFOMARK_GUIDE_LINE_WIDTH = 3.f;
 static constexpr float INFOMARK_POINT_SIZE = 6.f;
 
-#define LOOKUP_COLOR_INFOMARK(_X) (XNamedColor{NamedColorEnum::_X}.getColor())
-
 // NOTE: This currently requires rebuilding the infomark meshes if a color changes.
 NODISCARD static std::optional<NamedColorEnum> getInfomarkNamedColor(
     const InfomarkClassEnum infoMarkClass)

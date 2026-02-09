@@ -405,9 +405,6 @@ void OpenGL::initArrayFromImages(const SharedMMTexture &array,
         const auto &layer = input[z];
         const auto numLevels = layer.size();
         assert(numLevels > 0);
-        const auto ipow2 = 1 << (numLevels - 1);
-        assert(ipow2 == layer.front().width());
-        assert(ipow2 == layer.front().height());
 
         for (size_t level_num = 0; level_num < numLevels; ++level_num) {
             const QImage image = layer[level_num].convertToFormat(QImage::Format_RGBA8888);

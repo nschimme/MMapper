@@ -56,7 +56,6 @@ void main()
         float((aColor >> 24u) & 0xFFu) / 255.0
     );
 
-    IconMetrics metrics = uIconMetrics[iconIndex];
     vec2 size = vec2(aSize);
     if (size.x == 0.0 && size.y == 0.0) {
         size = metrics.sizeAnchor.xy;
@@ -87,7 +86,7 @@ void main()
     float c = cos(rotation);
     posOffset = vec2(posOffset.x * c - posOffset.y * s, posOffset.x * s + posOffset.y * c);
 
-    vec2 viewportSize = vec2(uPhysViewport.zw);
+    vec2 viewportSize = max(vec2(uPhysViewport.zw), vec2(1.0));
     vec2 viewportOffset = vec2(uPhysViewport.xy);
 
     if ((flags & FLAG_SCREEN_SPACE) != 0u) {

@@ -102,7 +102,7 @@ void main()
     ndcPos /= ndcPos.w;
 
     // Convert NDC to physical pixels
-    vec2 viewportSize = vec2(uPhysViewport.zw);
+    vec2 viewportSize = max(vec2(uPhysViewport.zw), vec2(1.0));
     vec2 viewportOffset = vec2(uPhysViewport.xy);
     vec2 pixelPos = (ndcPos.xy * 0.5 + 0.5) * viewportSize + viewportOffset;
 
@@ -113,7 +113,7 @@ void main()
     pixelPos += posPixels;
 
     // Convert back to NDC
-    ndcPos.xy = (pixelPos - viewportOffset) * 2.0 / vec2(uPhysViewport.zw) - 1.0;
+    ndcPos.xy = (pixelPos - viewportOffset) * 2.0 / viewportSize - 1.0;
 
     gl_Position = ndcPos;
 }

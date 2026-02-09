@@ -12,6 +12,8 @@ struct IconMetrics
     // xy: Default size in world units or pixels (used if instance size is zero)
     // zw: Relative anchor offset (-0.5 is centered, 0.0 is top-left)
     vec4 sizeAnchor;
+    uint flags;
+    uint padding[3];
 };
 
 // Binding point 2
@@ -25,10 +27,12 @@ layout(location = 1) in uint aColor;
 layout(location = 2) in ivec2 aSize;
 layout(location = 3) in uint aPacked;
 
-// Flags (bits 17+)
+// Flags (from IconMetrics)
 const uint FLAG_SCREEN_SPACE = 1u;
 const uint FLAG_FIXED_SIZE = 2u;
 const uint FLAG_DISTANCE_SCALE = 4u;
+const uint FLAG_CLAMP_TO_EDGE = 8u;
+const uint FLAG_AUTO_ROTATE = 16u;
 
 out vec4 vColor;
 out vec3 vTexCoord;
@@ -39,7 +43,9 @@ void main()
 {
     uint rotationRaw = aPacked & 0x1FFu;
     uint iconIndex = (aPacked >> 9u) & 0xFFu;
-    uint flags = (aPacked >> 17u);
+
+    IconMetrics metrics = uIconMetrics[iconIndex];
+    uint flags = metrics.flags;
 
     float rotation = radians(float(rotationRaw));
 
@@ -92,16 +98,45 @@ void main()
         vec2 ndc = (pixelPos - viewportOffset) * 2.0 / viewportSize - 1.0;
         ndc.y = -ndc.y; // Y-flip for screen space
         gl_Position = vec4(ndc, 0.0, 1.0);
-    } else if ((flags & FLAG_FIXED_SIZE) != 0u) {
-        // World-space anchor, but fixed pixel size (like beacons)
+    } else if ((flags & FLAG_FIXED_SIZE) != 0u || (flags & FLAG_CLAMP_TO_EDGE) != 0u) {
+        // World-space anchor, but fixed pixel size or clamped to edge.
         vec4 ndcPos = uMVP3D * vec4(aBase, 1.0);
 
-        if (any(greaterThan(abs(ndcPos.xyz), vec3(1.5 * abs(ndcPos.w)))) || (abs(ndcPos.w) < 1e-3)) {
-            gl_Position = ignored;
-            return;
+        // Check if point is behind camera
+        if (ndcPos.w < 1e-3) {
+            if ((flags & FLAG_CLAMP_TO_EDGE) != 0u) {
+                // For off-screen indicators, we can approximate by flipping
+                ndcPos.xy = -normalize(ndcPos.xy) * 2.0;
+            } else {
+                gl_Position = ignored;
+                return;
+            }
         }
 
         ndcPos /= ndcPos.w;
+
+        bool isOffScreen = any(greaterThan(abs(ndcPos.xy), vec2(1.0)));
+
+        if (isOffScreen && (flags & FLAG_CLAMP_TO_EDGE) != 0u) {
+            vec2 margin = 40.0 / viewportSize; // 20px margin in pixels -> NDC
+            float scale = min((1.0 - margin.x) / abs(ndcPos.x), (1.0 - margin.y) / abs(ndcPos.y));
+            ndcPos.xy *= scale;
+
+            if ((flags & FLAG_AUTO_ROTATE) != 0u) {
+                // Point arrow from center to object
+                rotation = atan(ndcPos.y, ndcPos.x);
+                // Re-calculate posOffset with new rotation
+                float s = sin(rotation);
+                float c = cos(rotation);
+                posOffset = (corner + anchor) * size;
+                if ((flags & FLAG_FIXED_SIZE) != 0u)
+                    posOffset *= uDevicePixelRatio;
+                posOffset = vec2(posOffset.x * c - posOffset.y * s, posOffset.x * s + posOffset.y * c);
+            }
+        } else if (isOffScreen && (flags & FLAG_FIXED_SIZE) != 0u) {
+            gl_Position = ignored;
+            return;
+        }
 
         vec2 pixelPos = (ndcPos.xy * 0.5 + 0.5) * viewportSize + viewportOffset;
 
@@ -109,7 +144,7 @@ void main()
         pixelPos += posOffset;
 
         ndcPos.xy = (pixelPos - viewportOffset) * 2.0 / viewportSize - 1.0;
-        gl_Position = ndcPos;
+        gl_Position = vec4(ndcPos.xy, 0.0, 1.0); // Indicators usually on top
     } else {
         // Full world-space quad (like room selections)
         vec3 worldPos = aBase + vec3(posOffset, 0.0);

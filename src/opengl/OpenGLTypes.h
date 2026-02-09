@@ -102,11 +102,21 @@ static_assert(sizeof(GlyphMetrics) == 32);
 
 struct NODISCARD IconMetrics final
 {
+    enum Flags : uint32_t {
+        SCREEN_SPACE = 1 << 0,
+        FIXED_SIZE = 1 << 1,
+        DISTANCE_SCALE = 1 << 2,
+        CLAMP_TO_EDGE = 1 << 3,
+        AUTO_ROTATE = 1 << 4,
+    };
+
     // xy: Default size in world units or pixels (used if instance size is zero)
     // zw: Relative anchor offset (-0.5 is centered, 0.0 is top-left)
     glm::vec4 sizeAnchor{};
+    uint32_t flags = 0;
+    uint32_t padding[3]{};
 };
-static_assert(sizeof(IconMetrics) == 16);
+static_assert(sizeof(IconMetrics) == 32);
 
 // Instance data for font rendering.
 // the font's vertex shader transforms the world position to screen space,
@@ -161,24 +171,17 @@ static_assert(sizeof(FontInstanceData) == 24);
 // Instance data for icons (characters, arrows, selections).
 struct NODISCARD IconInstanceData final
 {
-    enum Flags : uint32_t {
-        SCREEN_SPACE = 1 << 0,
-        FIXED_SIZE = 1 << 1,
-        DISTANCE_SCALE = 1 << 2,
-    };
-
-    glm::vec3 base{}; // world space or screen pixels
-    uint32_t color = 0;
+    glm::vec3 base{};    // world space or screen pixels
+    uint32_t color = 0;  // 4 bytes: RGBA color
     int16_t sizeW = 0, sizeH = 0;
-    uint32_t packed = 0; // rotation (9), iconIndex (8), flags (15)
+    uint32_t packed = 0; // rotation (9), iconIndex (8)
 
     explicit IconInstanceData(const glm::vec3 &base_,
                               uint32_t color_,
                               int16_t sizeW_,
                               int16_t sizeH_,
                               uint16_t iconIndex,
-                              int16_t rotation,
-                              uint32_t flags)
+                              int16_t rotation)
         : base{base_}
         , color{color_}
         , sizeW{sizeW_}
@@ -186,9 +189,8 @@ struct NODISCARD IconInstanceData final
     {
         const uint32_t uRotation = static_cast<uint32_t>(static_cast<uint16_t>(rotation)) & 0x1FFu;
         const uint32_t uIconIndex = static_cast<uint32_t>(iconIndex) & 0xFFu;
-        const uint32_t uFlags = flags & 0x7FFFu;
 
-        packed = uRotation | (uIconIndex << 9) | (uFlags << 17);
+        packed = uRotation | (uIconIndex << 9);
     }
 };
 static_assert(sizeof(IconInstanceData) == 24);

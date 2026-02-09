@@ -24,27 +24,6 @@ class MapScreen;
 class OpenGL;
 struct MapCanvasTextures;
 
-// TODO: find a better home for this. It's common to characters and room selections.
-class NODISCARD DistantObjectTransform final
-{
-public:
-    const glm::vec3 offset{};
-    // rotation counterclockwise around the Z axis, starting at the +X axis.
-    const float rotationDegrees = 0.f;
-
-public:
-    explicit DistantObjectTransform(const glm::vec3 &offset_, const float rotationDegrees_)
-        : offset{offset_}
-        , rotationDegrees{rotationDegrees_}
-    {}
-
-public:
-    // Caller must apply the correct translation and rotation.
-    NODISCARD static DistantObjectTransform construct(const glm::vec3 &pos,
-                                                      const MapScreen &mapScreen,
-                                                      float marginPixels);
-};
-
 class NODISCARD CharacterBatch final
 {
 private:

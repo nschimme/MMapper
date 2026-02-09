@@ -31,19 +31,6 @@ static constexpr float CHAR_ARROW_LINE_WIDTH = 2.f;
 static constexpr float PATH_LINE_WIDTH = 0.1f;
 static constexpr float PATH_POINT_SIZE = 8.f;
 
-DistantObjectTransform DistantObjectTransform::construct(const glm::vec3 &pos,
-                                                         const MapScreen &mapScreen,
-                                                         const float marginPixels)
-{
-    assert(marginPixels > 0.f);
-    const glm::vec3 viewCenter = mapScreen.getCenter();
-    const auto delta = pos - viewCenter;
-    const float radians = std::atan2(delta.y, delta.x);
-    const auto hint = mapScreen.getProxyLocation(pos, marginPixels);
-    const float degrees = glm::degrees(radians);
-    return DistantObjectTransform{hint, degrees};
-}
-
 bool CharacterBatch::isVisible(const Coordinate &c, float margin) const
 {
     return m_mapScreen.isRoomVisible(c, margin);
@@ -65,23 +52,9 @@ void CharacterBatch::drawCharacter(const Coordinate &c, const Color color, bool 
     const bool isFar = m_scale <= settings.charBeaconScaleCutoff;
     const bool wantBeacons = settings.drawCharBeacons && isFar;
     if (!visible) {
-        static const bool useScreenSpacePlayerArrow = std::invoke([]() -> bool {
-            auto opt = utils::getEnvBool("MMAPPER_SCREEN_SPACE_ARROW");
-            return opt ? opt.value() : true;
-        });
-        const auto dot = DistantObjectTransform::construct(roomCenter, m_mapScreen, marginPixels);
-        // Player is distant
-        if (useScreenSpacePlayerArrow) {
-            gl.addScreenSpaceArrow(dot.offset, dot.rotationDegrees, color, fill);
-        } else {
-            gl.glPushMatrix();
-            gl.glTranslatef(dot.offset);
-            // NOTE: 180 degrees of additional rotation flips the arrow to point right instead of left.
-            gl.glRotateZ(dot.rotationDegrees + 180.f);
-            // NOTE: arrow is centered, so it doesn't need additional translation.
-            gl.drawArrow(fill, wantBeacons);
-            gl.glPopMatrix();
-        }
+        // Player is distant. We send the true room position and let the shader
+        // handle the clamping and rotation.
+        gl.addScreenSpaceArrow(roomCenter, 0.f, color, fill);
     }
 
     const bool differentLayer = layerDifference != 0;
@@ -348,6 +321,8 @@ void CharacterBatch::CharFakeGL::reallyDrawCharacters(OpenGL &gl, const MapCanva
             iconMetrics.assign(256, IconMetrics{});
             for (size_t i = 0; i < 256; ++i) {
                 iconMetrics[i].sizeAnchor = glm::vec4(0.0, 0.0, -0.5, -0.5); // center
+                iconMetrics[i].flags = IconMetrics::FIXED_SIZE | IconMetrics::CLAMP_TO_EDGE
+                                       | IconMetrics::AUTO_ROTATE;
             }
         }
 
@@ -375,10 +350,6 @@ void CharacterBatch::CharFakeGL::addScreenSpaceArrow(const glm::vec3 &pos,
                                                      const Color color,
                                                      const bool /*fill*/)
 {
-    // FLAG_SCREEN_SPACE = 1, FIXED_SIZE = 2
-    // These arrows are anchored at a world-space proxy location but have a fixed pixel size.
-    const uint32_t flags = IconInstanceData::FIXED_SIZE;
-
     // iconIndex: 0 for the default arrow (the only one we use now)
     const uint16_t iconIndex = 0;
 
@@ -391,8 +362,7 @@ void CharacterBatch::CharFakeGL::addScreenSpaceArrow(const glm::vec3 &pos,
                                     sw,
                                     sh,
                                     iconIndex,
-                                    static_cast<int16_t>(degrees),
-                                    flags);
+                                    static_cast<int16_t>(degrees));
 }
 
 void MapCanvas::paintCharacters()

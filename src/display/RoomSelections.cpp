@@ -87,6 +87,7 @@ public:
         // Room selection icons are full quads [0,1]
         for (size_t i = 0; i < 256; ++i) {
             metrics[i].sizeAnchor = glm::vec4(1.0, 1.0, 0.0, 0.0); // Default 1.0 world units
+            metrics[i].flags = 0;
         }
 
         for (const SelTypeEnum type : ALL_SEL_TYPES) {
@@ -118,22 +119,20 @@ public:
                 const auto idx = static_cast<size_t>(pos.position);
                 // Room selection metrics: anchor is top-left (0,0)
                 metrics[idx].sizeAnchor = glm::vec4(0.0, 0.0, 0.0, 0.0);
+                if (type == SelTypeEnum::Distant) {
+                    metrics[idx].flags |= IconMetrics::DISTANCE_SCALE | IconMetrics::CLAMP_TO_EDGE
+                                          | IconMetrics::AUTO_ROTATE;
+                }
 
                 const int16_t sw = static_cast<int16_t>(inst.scale.x * 256.0f);
                 const int16_t sh = static_cast<int16_t>(inst.scale.y * 256.0f);
-
-                uint32_t flags = 0;
-                if (type == SelTypeEnum::Distant) {
-                    flags |= IconInstanceData::DISTANCE_SCALE;
-                }
 
                 iconBatch.emplace_back(inst.base,
                                        0xFFFFFFFF, // white
                                        sw,
                                        sh,
                                        static_cast<uint16_t>(pos.position),
-                                       static_cast<int16_t>(inst.rotation),
-                                       flags);
+                                       static_cast<int16_t>(inst.rotation));
             }
 
             if (!iconBatch.empty()) {
@@ -160,12 +159,8 @@ void MapCanvas::paintSelectedRoom(RoomSelFakeGL &gl, const RawRoom &room)
 
     if (!isMoving && !m_mapScreen.isRoomVisible(roomPos, marginPixels / 2.f)) {
         const glm::vec3 roomCenter = roomPos.to_vec3() + glm::vec3{0.5f, 0.5f, 0.f};
-        const auto dot = DistantObjectTransform::construct(roomCenter, m_mapScreen, marginPixels);
-        gl.glTranslatef(dot.offset.x, dot.offset.y, dot.offset.z);
-        gl.glRotatef(dot.rotationDegrees, 0.f, 0.f, 1.f);
-        const glm::vec2 iconCenter{0.5f, 0.5f};
-        gl.glTranslatef(-iconCenter.x, -iconCenter.y, 0.f);
-
+        gl.glTranslatef(roomCenter.x, roomCenter.y, roomCenter.z);
+        // Anchor and rotation will be handled by the shader for Distant selections.
         gl.drawColoredQuad(RoomSelFakeGL::SelTypeEnum::Distant);
     } else {
         // Room is close

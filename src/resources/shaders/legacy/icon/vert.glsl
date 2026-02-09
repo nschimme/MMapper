@@ -103,8 +103,14 @@ void main()
         // Check if point is behind camera
         if (ndcPos.w < 1e-3) {
             if ((flags & FLAG_CLAMP_TO_EDGE) != 0u) {
-                // For off-screen indicators, we can approximate by flipping
-                ndcPos.xy = -normalize(ndcPos.xy) * 2.0;
+                // For off-screen indicators, we can approximate by flipping.
+                // We use a large NDC value to ensure isOffScreen is true.
+                if (length(ndcPos.xy) < 1e-3) {
+                    ndcPos.xy = vec2(0.0, -2.0); // Directly behind: bottom
+                } else {
+                    ndcPos.xy = -normalize(ndcPos.xy) * 2.0;
+                }
+                ndcPos.w = 1.0;
             } else {
                 gl_Position = ignored;
                 return;

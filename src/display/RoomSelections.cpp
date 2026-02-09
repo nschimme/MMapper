@@ -92,11 +92,11 @@ public:
 
         for (const SelTypeEnum type : ALL_SEL_TYPES) {
             std::vector<IconInstanceData> iconBatch;
-            SharedMMTexture tex;
 
             for (const auto &inst : m_instances) {
-                if (inst.type != type)
+                if (inst.type != type) {
                     continue;
+                }
 
                 const auto &texture = std::invoke([&textures, type]() -> const SharedMMTexture & {
                     switch (type) {
@@ -113,19 +113,30 @@ public:
                     }
                     std::abort();
                 });
-                tex = texture;
 
                 const auto pos = texture->getArrayPosition();
                 const auto idx = static_cast<size_t>(pos.position);
-                // Room selection metrics: anchor is top-left (0,0)
-                metrics[idx].sizeAnchor = glm::vec4(0.0, 0.0, 0.0, 0.0);
-                if (type == SelTypeEnum::Distant) {
-                    metrics[idx].flags |= IconMetrics::DISTANCE_SCALE | IconMetrics::CLAMP_TO_EDGE
-                                          | IconMetrics::AUTO_ROTATE;
-                }
 
-                const int16_t sw = static_cast<int16_t>(inst.scale.x * 256.0f);
-                const int16_t sh = static_cast<int16_t>(inst.scale.y * 256.0f);
+                int16_t sw = 0;
+                int16_t sh = 0;
+
+                if (type == SelTypeEnum::Distant) {
+                    // Center anchor for distant indicators
+                    metrics[idx].sizeAnchor = glm::vec4(0.0, 0.0, -0.5, -0.5);
+                    metrics[idx].flags = IconMetrics::FIXED_SIZE | IconMetrics::CLAMP_TO_EDGE
+                                         | IconMetrics::AUTO_ROTATE;
+
+                    const float margin = MapScreen::DEFAULT_MARGIN_PIXELS;
+                    sw = static_cast<int16_t>(2.f * margin);
+                    sh = static_cast<int16_t>(2.f * margin);
+                } else {
+                    // Top-left anchor for world-space selections
+                    metrics[idx].sizeAnchor = glm::vec4(0.0, 0.0, 0.0, 0.0);
+                    metrics[idx].flags = 0;
+
+                    sw = static_cast<int16_t>(inst.scale.x * 256.0f);
+                    sh = static_cast<int16_t>(inst.scale.y * 256.0f);
+                }
 
                 iconBatch.emplace_back(inst.base,
                                        0xFFFFFFFF, // white
@@ -136,7 +147,7 @@ public:
             }
 
             if (!iconBatch.empty()) {
-                gl.renderIcon3d(textures.room_sel_Array, iconBatch, metrics);
+                gl.renderIcon3d(textures.room_sel_Array, iconBatch, metrics, gl.getDevicePixelRatio());
             }
         }
 

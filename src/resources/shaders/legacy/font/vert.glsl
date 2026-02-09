@@ -16,13 +16,12 @@ struct GlyphMetrics
     vec4 posRect;
 };
 
-// Binding point 1
-layout(std140, binding = 1) uniform GlyphMetricsBlock
+layout(std140) uniform GlyphMetricsBlock
 {
     GlyphMetrics uGlyphMetrics[512];
 };
 
-layout(std140, binding = 0) uniform NamedColorsBlock
+layout(std140) uniform NamedColorsBlock
 {
     vec4 uNamedColors[MAX_NAMED_COLORS];
 };

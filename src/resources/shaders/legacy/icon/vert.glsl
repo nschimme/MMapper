@@ -16,8 +16,7 @@ struct IconMetrics
     uint padding[3];
 };
 
-// Binding point 2
-layout(std140, binding = 2) uniform IconMetricsBlock
+layout(std140) uniform IconMetricsBlock
 {
     IconMetrics uIconMetrics[256];
 };

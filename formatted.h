@@ -171,7 +171,7 @@ static_assert(sizeof(FontInstanceData) == 24);
 // Instance data for icons (characters, arrows, selections).
 struct NODISCARD IconInstanceData final
 {
-    glm::vec3 base{};    // world space or screen pixels
+    glm::vec3 base{};   // world space or screen pixels
     uint32_t color = 0; // 4 bytes: RGBA color
     int16_t sizeW = 0, sizeH = 0;
     uint32_t packed = 0; // rotation (9), iconIndex (8)

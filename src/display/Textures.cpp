@@ -316,8 +316,11 @@ void MapCanvas::initTextures()
     {
         // Character arrow is at [0,0,128,128] in char-arrows.png.
         // Trim it so it fills its layer in the texture array.
+        // We scale it to 256x256 to match the size of other icons in the array.
         auto mmtex = MMTexture::alloc(getPixmapFilenameRaw("char-arrows.png"));
-        QImage img = QImage{mmtex->getName()}.copy(0, 0, 128, 128);
+        QImage img = QImage{mmtex->getName()}
+                         .copy(0, 0, 128, 128)
+                         .scaled(256, 256, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
         textures.char_arrows = MMTexture::alloc(std::vector<QImage>{img});
     }
     textures.char_room_sel = loadTexture(getPixmapFilenameRaw("char-room-sel.png"));
@@ -400,7 +403,7 @@ void MapCanvas::initTextures()
                 }
 
                 if (bounds != getBounds(x)) {
-                    throw std::runtime_error("oops");
+                    throw std::runtime_error("bounds mismatch");
                 }
             }
 

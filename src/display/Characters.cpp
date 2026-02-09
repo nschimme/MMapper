@@ -357,12 +357,8 @@ void CharacterBatch::CharFakeGL::addScreenSpaceArrow(const glm::vec3 &pos,
     const int16_t sw = static_cast<int16_t>(2.f * scale);
     const int16_t sh = static_cast<int16_t>(2.f * scale);
 
-    m_screenSpaceIcons.emplace_back(pos,
-                                    color.getUint32(),
-                                    sw,
-                                    sh,
-                                    iconIndex,
-                                    static_cast<int16_t>(degrees));
+    m_screenSpaceIcons.emplace_back(
+        pos, color.getUint32(), sw, sh, iconIndex, static_cast<int16_t>(degrees));
 }
 
 void MapCanvas::paintCharacters()

@@ -145,7 +145,7 @@ struct NODISCARD FontInstanceData final
         , color{color_}
         , offsetX{offsetX_}
         , packed1{static_cast<uint16_t>((static_cast<uint32_t>(glyphId_) & 0x3FFu)
-                                       | ((static_cast<uint32_t>(flags_) & 0x3Fu) << 10))}
+                                        | ((static_cast<uint32_t>(flags_) & 0x3Fu) << 10))}
     {
         const uint32_t uNamedColorIndex = static_cast<uint32_t>(namedColorIndex_) & 0x3Fu;
 

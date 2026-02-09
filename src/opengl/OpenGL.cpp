@@ -380,6 +380,16 @@ void OpenGL::initArrayFromFiles(const SharedMMTexture &array, const std::vector<
     gl.glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
 }
 
+void OpenGL::generateMipmap2dArray(const SharedMMTexture &array)
+{
+    auto &gl = getFunctions();
+    const QOpenGLTexture &qtex = deref(array->get());
+    gl.glActiveTexture(GL_TEXTURE0);
+    gl.glBindTexture(GL_TEXTURE_2D_ARRAY, qtex.textureId());
+    gl.glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
+    gl.glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+}
+
 void OpenGL::initArrayFromImages(const SharedMMTexture &array,
                                  const std::vector<std::vector<QImage>> &input)
 {

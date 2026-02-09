@@ -184,4 +184,5 @@ public:
     void initArrayFromFiles(const SharedMMTexture &array, const std::vector<QString> &input);
     void initArrayFromImages(const SharedMMTexture &array,
                              const std::vector<std::vector<QImage>> &input);
+    void generateMipmap2dArray(const SharedMMTexture &array);
 };

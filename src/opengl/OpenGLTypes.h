@@ -144,11 +144,9 @@ struct NODISCARD FontInstanceData final
         : base{base_}
         , color{color_}
         , offsetX{offsetX_}
+        , packed1{static_cast<uint16_t>((static_cast<uint32_t>(glyphId_) & 0x3FFu)
+                                       | ((static_cast<uint32_t>(flags_) & 0x3Fu) << 10))}
     {
-        const uint32_t uGlyphId = static_cast<uint32_t>(glyphId_) & 0x3FFu;
-        const uint32_t uFlags = static_cast<uint32_t>(flags_) & 0x3Fu;
-        packed1 = static_cast<uint16_t>(uGlyphId | (uFlags << 10));
-
         const uint32_t uNamedColorIndex = static_cast<uint32_t>(namedColorIndex_) & 0x3Fu;
 
         if (glyphId_ < 256) {
@@ -171,7 +169,7 @@ static_assert(sizeof(FontInstanceData) == 24);
 // Instance data for icons (characters, arrows, selections).
 struct NODISCARD IconInstanceData final
 {
-    glm::vec3 base{};    // world space or screen pixels
+    glm::vec3 base{};   // world space or screen pixels
     uint32_t color = 0; // 4 bytes: RGBA color
     int16_t sizeW = 0, sizeH = 0;
     uint32_t packed = 0; // rotation (9), iconIndex (8)

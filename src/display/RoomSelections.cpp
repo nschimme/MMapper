@@ -90,68 +90,64 @@ public:
             metrics[i].flags = 0;
         }
 
-        for (const SelTypeEnum type : ALL_SEL_TYPES) {
-            std::vector<IconInstanceData> iconBatch;
+        std::vector<IconInstanceData> iconBatch;
+        iconBatch.reserve(m_instances.size());
 
-            for (const auto &inst : m_instances) {
-                if (inst.type != type) {
-                    continue;
+        for (const auto &inst : m_instances) {
+            const auto &texture = std::invoke([&textures, inst]() -> const SharedMMTexture & {
+                switch (inst.type) {
+                case SelTypeEnum::Near:
+                    return textures.room_sel;
+                case SelTypeEnum::Distant:
+                    return textures.room_sel_distant;
+                case SelTypeEnum::MoveBad:
+                    return textures.room_sel_move_bad;
+                case SelTypeEnum::MoveGood:
+                    return textures.room_sel_move_good;
+                default:
+                    break;
                 }
+                std::abort();
+            });
 
-                const auto &texture = std::invoke([&textures, type]() -> const SharedMMTexture & {
-                    switch (type) {
-                    case SelTypeEnum::Near:
-                        return textures.room_sel;
-                    case SelTypeEnum::Distant:
-                        return textures.room_sel_distant;
-                    case SelTypeEnum::MoveBad:
-                        return textures.room_sel_move_bad;
-                    case SelTypeEnum::MoveGood:
-                        return textures.room_sel_move_good;
-                    default:
-                        break;
-                    }
-                    std::abort();
-                });
+            const auto pos = texture->getArrayPosition();
+            const auto idx = static_cast<size_t>(pos.position);
 
-                const auto pos = texture->getArrayPosition();
-                const auto idx = static_cast<size_t>(pos.position);
+            int16_t sw = 0;
+            int16_t sh = 0;
 
-                int16_t sw = 0;
-                int16_t sh = 0;
+            if (inst.type == SelTypeEnum::Distant) {
+                // Center anchor for distant indicators
+                metrics[idx].sizeAnchor = glm::vec4(0.0, 0.0, -0.5, -0.5);
+                metrics[idx].flags = IconMetrics::FIXED_SIZE | IconMetrics::CLAMP_TO_EDGE
+                                     | IconMetrics::AUTO_ROTATE;
 
-                if (type == SelTypeEnum::Distant) {
-                    // Center anchor for distant indicators
-                    metrics[idx].sizeAnchor = glm::vec4(0.0, 0.0, -0.5, -0.5);
-                    metrics[idx].flags = IconMetrics::FIXED_SIZE | IconMetrics::CLAMP_TO_EDGE
-                                         | IconMetrics::AUTO_ROTATE;
+                const float margin = MapScreen::DEFAULT_MARGIN_PIXELS;
+                sw = static_cast<int16_t>(2.f * margin);
+                sh = static_cast<int16_t>(2.f * margin);
+            } else {
+                // Fixed-size world-space selection quads.
+                // We use sizeAnchor.xy = (1.0, 1.0) for world-units scaling.
+                metrics[idx].sizeAnchor = glm::vec4(1.0, 1.0, 0.0, 0.0);
+                metrics[idx].flags = 0;
 
-                    const float margin = MapScreen::DEFAULT_MARGIN_PIXELS;
-                    sw = static_cast<int16_t>(2.f * margin);
-                    sh = static_cast<int16_t>(2.f * margin);
-                } else {
-                    // Top-left anchor for world-space selections
-                    metrics[idx].sizeAnchor = glm::vec4(0.0, 0.0, 0.0, 0.0);
-                    metrics[idx].flags = 0;
-
-                    sw = static_cast<int16_t>(inst.scale.x * 256.0f);
-                    sh = static_cast<int16_t>(inst.scale.y * 256.0f);
-                }
-
-                iconBatch.emplace_back(inst.base,
-                                       0xFFFFFFFF, // white
-                                       sw,
-                                       sh,
-                                       static_cast<uint16_t>(pos.position),
-                                       static_cast<int16_t>(inst.rotation));
+                sw = static_cast<int16_t>(inst.scale.x);
+                sh = static_cast<int16_t>(inst.scale.y);
             }
 
-            if (!iconBatch.empty()) {
-                gl.renderIcon3d(textures.room_sel_Array,
-                                iconBatch,
-                                metrics,
-                                gl.getDevicePixelRatio());
-            }
+            iconBatch.emplace_back(inst.base,
+                                   0xFFFFFFFF, // white
+                                   sw,
+                                   sh,
+                                   static_cast<uint16_t>(pos.position),
+                                   static_cast<int16_t>(inst.rotation));
+        }
+
+        if (!iconBatch.empty()) {
+            gl.renderIcon3d(textures.room_sel_Array,
+                            iconBatch,
+                            metrics,
+                            gl.getDevicePixelRatio());
         }
 
         m_instances.clear();

@@ -23,8 +23,8 @@ layout(std140) uniform IconMetricsBlock
 
 layout(location = 0) in vec3 aBase;
 layout(location = 1) in uint aColor;
-layout(location = 2) in ivec2 aSize;
-layout(location = 3) in uint aPacked;
+layout(location = 2) in uint aPackedSize;
+layout(location = 3) in uint aPackedRest;
 
 // Flags (from IconMetrics)
 const uint FLAG_SCREEN_SPACE = 1u;
@@ -40,8 +40,8 @@ const vec4 ignored = vec4(2.0, 2.0, 2.0, 1.0);
 
 void main()
 {
-    uint rotationRaw = aPacked & 0x1FFu;
-    uint iconIndex = (aPacked >> 9u) & 0xFFu;
+    uint rotationRaw = aPackedRest & 0x1FFu;
+    uint iconIndex = (aPackedRest >> 9u) & 0xFFu;
 
     IconMetrics metrics = uIconMetrics[iconIndex];
     uint flags = metrics.flags;
@@ -53,7 +53,7 @@ void main()
                   float((aColor >> 16u) & 0xFFu) / 255.0,
                   float((aColor >> 24u) & 0xFFu) / 255.0);
 
-    vec2 size = vec2(aSize);
+    vec2 size = vec2(float(aPackedSize & 0xFFFFu), float(aPackedSize >> 16u));
     if (size.x == 0.0 && size.y == 0.0) {
         size = metrics.sizeAnchor.xy;
     }

@@ -28,9 +28,8 @@ layout(std140) uniform NamedColorsBlock
 
 layout(location = 0) in vec3 aBase;
 layout(location = 1) in vec4 aColor;
-layout(location = 2) in int aOffsetX;
-layout(location = 3) in uint aPacked1;
-layout(location = 4) in uint aPackedRest;
+layout(location = 2) in uint aPacked1;
+layout(location = 3) in uint aPackedRest;
 
 const uint FLAG_ITALICS = 1u;
 const uint FLAG_NAMED_COLOR = 2u;
@@ -42,8 +41,13 @@ const vec4 ignored = vec4(2.0, 2.0, 2.0, 1.0);
 
 void main()
 {
-    uint glyphId = aPacked1 & 0x3FFu;
-    uint flags = (aPacked1 >> 10u) & 0x3Fu;
+    int offsetXInt = int(aPacked1 & 0xFFFFu);
+    if (offsetXInt > 32767)
+        offsetXInt -= 65536; // Sign extend 16-bit to 32-bit
+    float offsetX = float(offsetXInt);
+
+    uint glyphId = (aPacked1 >> 16u) & 0x3FFu;
+    uint flags = (aPacked1 >> 26u) & 0x3Fu;
     float rotation = 0.0;
     uint namedColorIndex = 0u;
 
@@ -74,12 +78,11 @@ void main()
         int sizeH = int(aPackedRest << 6u)
                     >> 24u; // sizeH starts at bit 18, length 8. 32 - 18 - 8 = 6 bits shift.
 
-        posPixels = (vec2(float(aOffsetX), float(offsetY))
-                     + corner * vec2(float(sizeW), float(sizeH)));
+        posPixels = (vec2(offsetX, float(offsetY)) + corner * vec2(float(sizeW), float(sizeH)));
     } else {
-        // Normal character: use UBO posRect + aOffsetX (cursorX).
+        // Normal character: use UBO posRect + offsetX (cursorX).
         vec4 posRect = metrics.posRect;
-        posPixels = (posRect.xy + vec2(float(aOffsetX), 0.0) + corner * posRect.zw);
+        posPixels = (posRect.xy + vec2(offsetX, 0.0) + corner * posRect.zw);
     }
 
     // Italics

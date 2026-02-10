@@ -119,17 +119,12 @@ struct NODISCARD IconMetrics final
 static_assert(sizeof(IconMetrics) == 32);
 
 // Instance data for font rendering.
-// the font's vertex shader transforms the world position to screen space,
-// rounds to integer pixel offset, and then adds the (possibly rotated/italicized)
-// vertex offset in screen space.
 struct NODISCARD FontInstanceData final
 {
-    glm::vec3 base{};     // 12 bytes: world space
-    uint32_t color = 0;   // 4 bytes: RGBA color (or instance alpha for named colors)
-    int16_t offsetX = 0;  // 2 bytes: cursorX for glyphs, or rect.x for synthetic
-    uint16_t packed1 = 0; // 2 bytes: glyphId (10), flags (6)
-    uint32_t packedRest
-        = 0; // 4 bytes: rotation/namedColorIndex OR offsetY/sizeW/sizeH/namedColorIndex
+    glm::vec3 base{};    // 12 bytes: world space
+    uint32_t color = 0;  // 4 bytes: RGBA color
+    uint32_t packed1 = 0; // 4 bytes: bits 0-15: offsetX, 16-25: glyphId, 26-31: flags
+    uint32_t packedRest = 0; // 4 bytes: rotation/namedColorIndex OR offsetY/sizeW/sizeH/namedColorIndex
 
     explicit FontInstanceData(const glm::vec3 &base_,
                               uint32_t color_,
@@ -143,19 +138,17 @@ struct NODISCARD FontInstanceData final
                               uint8_t namedColorIndex_)
         : base{base_}
         , color{color_}
-        , offsetX{offsetX_}
-        , packed1{static_cast<uint16_t>((static_cast<uint32_t>(glyphId_) & 0x3FFu)
-                                        | ((static_cast<uint32_t>(flags_) & 0x3Fu) << 10))}
+        , packed1{(static_cast<uint32_t>(static_cast<uint16_t>(offsetX_)))
+                  | ((static_cast<uint32_t>(glyphId_) & 0x3FFu) << 16)
+                  | ((static_cast<uint32_t>(flags_) & 0x3Fu) << 26)}
     {
         const uint32_t uNamedColorIndex = static_cast<uint32_t>(namedColorIndex_) & 0x3Fu;
 
         if (glyphId_ < 256) {
-            // Regular character: pack rotation (9), namedColorIndex (6)
             const uint32_t uRotation = static_cast<uint32_t>(static_cast<uint16_t>(rotation_))
                                        & 0x1FFu;
             packedRest = uRotation | (uNamedColorIndex << 9);
         } else {
-            // Synthetic glyph: pack offsetY (8), sizeW (10), sizeH (8), namedColorIndex (6)
             const uint32_t uOffsetY = static_cast<uint32_t>(static_cast<int8_t>(offsetY_)) & 0xFFu;
             const uint32_t uSizeW = static_cast<uint32_t>(static_cast<uint16_t>(sizeW_)) & 0x3FFu;
             const uint32_t uSizeH = static_cast<uint32_t>(static_cast<int8_t>(sizeH_)) & 0xFFu;
@@ -169,10 +162,10 @@ static_assert(sizeof(FontInstanceData) == 24);
 // Instance data for icons (characters, arrows, selections).
 struct NODISCARD IconInstanceData final
 {
-    glm::vec3 base{};   // world space or screen pixels
-    uint32_t color = 0; // 4 bytes: RGBA color
-    int16_t sizeW = 0, sizeH = 0;
-    uint32_t packed = 0; // rotation (9), iconIndex (8)
+    glm::vec3 base{};    // 12 bytes: world space or screen pixels
+    uint32_t color = 0;  // 4 bytes: RGBA color
+    uint32_t packedSize = 0; // 4 bytes: bits 0-15: sizeW, 16-31: sizeH
+    uint32_t packedRest = 0; // 4 bytes: bits 0-8: rotation, 9-16: iconIndex
 
     explicit IconInstanceData(const glm::vec3 &base_,
                               uint32_t color_,
@@ -182,13 +175,11 @@ struct NODISCARD IconInstanceData final
                               int16_t rotation)
         : base{base_}
         , color{color_}
-        , sizeW{sizeW_}
-        , sizeH{sizeH_}
+        , packedSize{(static_cast<uint32_t>(static_cast<uint16_t>(sizeW_)))
+                     | (static_cast<uint32_t>(static_cast<uint16_t>(sizeH_)) << 16)}
+        , packedRest{(static_cast<uint32_t>(static_cast<uint16_t>(rotation)) & 0x1FFu)
+                     | ((static_cast<uint32_t>(iconIndex) & 0xFFu) << 9)}
     {
-        const uint32_t uRotation = static_cast<uint32_t>(static_cast<uint16_t>(rotation)) & 0x1FFu;
-        const uint32_t uIconIndex = static_cast<uint32_t>(iconIndex) & 0xFFu;
-
-        packed = uRotation | (uIconIndex << 9);
     }
 };
 static_assert(sizeof(IconInstanceData) == 24);

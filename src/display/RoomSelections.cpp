@@ -144,10 +144,7 @@ public:
         }
 
         if (!iconBatch.empty()) {
-            gl.renderIcon3d(textures.room_sel_Array,
-                            iconBatch,
-                            metrics,
-                            gl.getDevicePixelRatio());
+            gl.renderIcon3d(textures.room_sel_Array, iconBatch, metrics, gl.getDevicePixelRatio());
         }
 
         m_instances.clear();

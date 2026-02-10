@@ -37,8 +37,8 @@ parts:
     parse-info:
       - usr/share/metainfo/org.mume.MMapper.xml
     build-snaps:
-      - kde-qt6-core24-sdk
-      - kf6-core24-sdk
+      - kde-qt6-core24-sdk/latest/stable
+      - kf6-core24-sdk/latest/stable
     plugin: cmake
     source: .
     source-type: local

@@ -27,7 +27,7 @@ layout(std140) uniform NamedColorsBlock
 };
 
 layout(location = 0) in vec3 aBase;
-layout(location = 1) in vec4 aColor;
+layout(location = 1) in uint aColor;
 layout(location = 2) in uint aPacked1;
 layout(location = 3) in uint aPackedRest;
 
@@ -41,6 +41,11 @@ const vec4 ignored = vec4(2.0, 2.0, 2.0, 1.0);
 
 void main()
 {
+    vec4 instanceColor = vec4(float(aColor & 0xFFu) / 255.0,
+                              float((aColor >> 8u) & 0xFFu) / 255.0,
+                              float((aColor >> 16u) & 0xFFu) / 255.0,
+                              float((aColor >> 24u) & 0xFFu) / 255.0);
+
     int offsetXInt = int(aPacked1 & 0xFFFFu);
     if (offsetXInt > 32767)
         offsetXInt -= 65536; // Sign extend 16-bit to 32-bit
@@ -60,9 +65,9 @@ void main()
 
     vec4 namedCol = uNamedColors[namedColorIndex % uint(MAX_NAMED_COLORS)];
     // The named color's alpha is modulated by the instance alpha
-    vec4 finalNamedCol = vec4(namedCol.rgb, namedCol.a * aColor.a);
+    vec4 finalNamedCol = vec4(namedCol.rgb, namedCol.a * instanceColor.a);
 
-    vColor = mix(aColor, finalNamedCol, float((flags & FLAG_NAMED_COLOR) != 0u));
+    vColor = mix(instanceColor, finalNamedCol, float((flags & FLAG_NAMED_COLOR) != 0u));
 
     const vec2 quad[4] = vec2[4](vec2(0, 0), vec2(1, 0), vec2(1, 1), vec2(0, 1));
     vec2 corner = quad[gl_VertexID];

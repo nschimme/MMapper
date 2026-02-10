@@ -71,9 +71,11 @@ void main()
         // Synthetic: packRest = offsetY (8), sizeW (10), sizeH (8), namedColorIndex (6)
         int offsetY = int(aPackedRest << 24u) >> 24u;
         int sizeW = int((aPackedRest >> 8u) & 0x3FFu);
-        int sizeH = int(aPackedRest << 6u) >> 24u; // sizeH starts at bit 18, length 8. 32 - 18 - 8 = 6 bits shift.
+        int sizeH = int(aPackedRest << 6u)
+                    >> 24u; // sizeH starts at bit 18, length 8. 32 - 18 - 8 = 6 bits shift.
 
-        posPixels = (vec2(float(aOffsetX), float(offsetY)) + corner * vec2(float(sizeW), float(sizeH)));
+        posPixels = (vec2(float(aOffsetX), float(offsetY))
+                     + corner * vec2(float(sizeW), float(sizeH)));
     } else {
         // Normal character: use UBO posRect + aOffsetX (cursorX).
         vec4 posRect = metrics.posRect;

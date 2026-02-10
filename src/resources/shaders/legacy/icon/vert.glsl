@@ -48,12 +48,10 @@ void main()
 
     float rotation = radians(float(rotationRaw));
 
-    vColor = vec4(
-        float(aColor & 0xFFu) / 255.0,
-        float((aColor >> 8u) & 0xFFu) / 255.0,
-        float((aColor >> 16u) & 0xFFu) / 255.0,
-        float((aColor >> 24u) & 0xFFu) / 255.0
-    );
+    vColor = vec4(float(aColor & 0xFFu) / 255.0,
+                  float((aColor >> 8u) & 0xFFu) / 255.0,
+                  float((aColor >> 16u) & 0xFFu) / 255.0,
+                  float((aColor >> 24u) & 0xFFu) / 255.0);
 
     vec2 size = vec2(aSize);
     if (size.x == 0.0 && size.y == 0.0) {
@@ -135,7 +133,8 @@ void main()
                 posOffset = (corner + anchor) * size;
                 if ((flags & FLAG_FIXED_SIZE) != 0u)
                     posOffset *= uDevicePixelRatio;
-                posOffset = vec2(posOffset.x * c - posOffset.y * s, posOffset.x * s + posOffset.y * c);
+                posOffset = vec2(posOffset.x * c - posOffset.y * s,
+                                 posOffset.x * s + posOffset.y * c);
             }
         } else if (isOffScreen && (flags & FLAG_FIXED_SIZE) != 0u) {
             gl_Position = ignored;

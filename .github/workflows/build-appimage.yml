@@ -64,10 +64,10 @@ jobs:
         make -j$(getconf _NPROCESSORS_ONLN)
         make DESTDIR=appdir install
 
-        # Extract version from CPackConfig.cmake
+#Extract version from CPackConfig.cmake
         export VERSION=$(grep -i "SET(CPACK_PACKAGE_VERSION " CPackConfig.cmake | cut -d\" -f 2)
 
-        # Configure linuxdeploy and make sure the plugin can be found
+#Configure linuxdeploy and make sure the plugin can be found
         export PATH=$PATH:$(pwd)/..
         export UPDATE_INFORMATION="gh-releases-zsync|MUME|MMapper|latest|MMapper-*-x86_64.AppImage.zsync"
         export QMAKE=/usr/bin/qmake6
@@ -80,7 +80,7 @@ jobs:
             exit 1
         fi
 
-        # Run linuxdeploy
+#Run linuxdeploy
         ../linuxdeploy-x86_64.AppImage --appdir appdir --output appimage \
           --executable appdir/usr/bin/mmapper \
           --desktop-file appdir/usr/share/applications/org.mume.MMapper.desktop \

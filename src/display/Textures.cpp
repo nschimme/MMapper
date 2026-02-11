@@ -422,7 +422,13 @@ void MapCanvas::initTextures()
                 if (!x->getName().isEmpty()) {
                     levels.emplace_back(QImage{x->getName()}.mirrored());
                 } else {
-                    levels = x->getImages();
+                    for (auto img : x->getImages()) {
+                        levels.emplace_back(img.mirrored());
+                    }
+                }
+
+                if (levels.empty()) {
+                    continue;
                 }
 
                 const auto &front = levels.front();
@@ -437,6 +443,18 @@ void MapCanvas::initTextures()
 
             const auto numLayers = imageInputs.size();
             const bool useGeneratedMipmaps = !anyHasMipmaps;
+
+            // Normalize all images to the same size
+            for (auto &layer : imageInputs) {
+                for (auto &img : layer) {
+                    if (img.width() != maxWidth || img.height() != maxHeight) {
+                        img = img.scaled(maxWidth,
+                                         maxHeight,
+                                         Qt::IgnoreAspectRatio,
+                                         Qt::SmoothTransformation);
+                    }
+                }
+            }
 
             auto init2dTextureArray =
                 [numLayers, maxWidth, maxHeight, maxMipLevel, useGeneratedMipmaps, &first](

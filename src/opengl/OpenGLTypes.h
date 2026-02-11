@@ -170,16 +170,19 @@ struct NODISCARD IconInstanceData final
 
     explicit IconInstanceData(const glm::vec3 &base_,
                               uint32_t color_,
-                              int16_t sizeW_,
-                              int16_t sizeH_,
+                              float sizeW_,
+                              float sizeH_,
                               uint16_t iconIndex,
-                              int16_t rotation)
+                              int16_t rotation,
+                              uint32_t flags = 0)
         : base{base_}
         , color{color_}
-        , packedSize{(static_cast<uint32_t>(static_cast<uint16_t>(sizeW_)))
-                     | (static_cast<uint32_t>(static_cast<uint16_t>(sizeH_)) << 16)}
-        , packedRest{(static_cast<uint32_t>(static_cast<uint16_t>(rotation)) & 0x1FFu)
-                     | ((static_cast<uint32_t>(iconIndex) & 0xFFu) << 9)}
+        , packedSize{static_cast<uint32_t>(static_cast<uint16_t>(std::round(sizeW_ * 256.0f)))
+                     | (static_cast<uint32_t>(static_cast<uint16_t>(std::round(sizeH_ * 256.0f)))
+                        << 16)}
+        , packedRest{
+              (static_cast<uint32_t>((static_cast<int32_t>(rotation) % 360 + 360) % 360) & 0x1FFu)
+              | ((static_cast<uint32_t>(iconIndex) & 0xFFu) << 9) | ((flags & 0xFFu) << 17)}
     {}
 };
 static_assert(sizeof(IconInstanceData) == 24);

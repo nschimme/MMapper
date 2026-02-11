@@ -251,16 +251,17 @@ void CharacterBatch::CharFakeGL::drawBox(const Coordinate &coord,
     } else {
         /* ignoring fill for now; that'll require a different icon */
 
-        const auto &color = m_color;
         const auto &m = m_stack.top().modelView;
-        const auto addTransformed = [this, &color, &m](const glm::vec2 &in_vert) -> void {
-            const auto tmp = m * glm::vec4(in_vert, 0.f, 1.f);
-            m_charRoomQuads.emplace_back(color, glm::vec3{in_vert, 0}, glm::vec3{tmp / tmp.w});
-        };
-        addTransformed(a);
-        addTransformed(b);
-        addTransformed(c);
-        addTransformed(d);
+
+        // Extract translation from matrix
+        const glm::vec3 base{m[3][0], m[3][1], m[3][2]};
+        // Extract scale
+        const float sx = glm::length(glm::vec3(m[0]));
+        const float sy = glm::length(glm::vec3(m[1]));
+        // Extract rotation around Z
+        const float rotation = glm::degrees(std::atan2(m[0][1], m[0][0]));
+
+        m_charRoomIcons.emplace_back(CharRoomIcon{base, rotation, glm::vec2(sx, sy), m_color});
 
         if (beacon) {
             drawQuadCommon(a, b, c, d, QuadOptsEnum::BEACON);
@@ -300,10 +301,32 @@ void CharacterBatch::CharFakeGL::reallyDrawCharacters(OpenGL &gl, const MapCanva
         gl.renderColoredQuads(m_charBeaconQuads, blended_noDepth.withCulling(CullingEnum::FRONT));
     }
 
-    if (!m_charRoomQuads.empty()) {
-        gl.renderColoredTexturedQuads(m_charRoomQuads,
-                                      blended_noDepth.withTexture0(
-                                          textures.char_room_sel->getArrayPosition().array));
+    if (!m_charRoomIcons.empty()) {
+        std::vector<IconMetrics> metrics(256);
+        for (size_t i = 0; i < 256; ++i) {
+            metrics[i].sizeAnchor = glm::vec4(1.0, 1.0, 0.0, 0.0); // full world quad
+            metrics[i].flags = 0;
+        }
+
+        const auto pos = textures.char_room_sel->getArrayPosition();
+        const auto idx = static_cast<size_t>(pos.position);
+
+        std::vector<IconInstanceData> iconBatch;
+        iconBatch.reserve(m_charRoomIcons.size());
+        for (const auto &inst : m_charRoomIcons) {
+            iconBatch.emplace_back(inst.base,
+                                   inst.color.getUint32(),
+                                   inst.scale.x,
+                                   inst.scale.y,
+                                   static_cast<uint16_t>(idx),
+                                   static_cast<int16_t>(inst.rotation));
+        }
+
+        gl.renderIcon3d(textures.char_room_sel_Array,
+                        iconBatch,
+                        metrics,
+                        gl.getDevicePixelRatio());
+        m_charRoomIcons.clear();
     }
 
     if (!m_charTris.empty()) {
@@ -354,8 +377,8 @@ void CharacterBatch::CharFakeGL::addScreenSpaceArrow(const glm::vec3 &pos,
     const uint16_t iconIndex = 0;
 
     const float scale = MapScreen::DEFAULT_MARGIN_PIXELS;
-    const int16_t sw = static_cast<int16_t>(2.f * scale);
-    const int16_t sh = static_cast<int16_t>(2.f * scale);
+    const float sw = 2.f * scale;
+    const float sh = 2.f * scale;
 
     m_screenSpaceIcons
         .emplace_back(pos, color.getUint32(), sw, sh, iconIndex, static_cast<int16_t>(degrees));

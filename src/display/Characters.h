@@ -82,7 +82,14 @@ private:
         std::vector<ColorVert> m_charTris;
         std::vector<ColorVert> m_charBeaconQuads;
         std::vector<ColorVert> m_charLines;
-        std::vector<ColoredTexVert> m_charRoomQuads;
+        struct CharRoomIcon
+        {
+            glm::vec3 base;
+            float rotation;
+            glm::vec2 scale;
+            Color color;
+        };
+        std::vector<CharRoomIcon> m_charRoomIcons;
         std::vector<ColorVert> m_pathPoints;
         std::vector<ColorVert> m_pathLineQuads;
         std::vector<IconInstanceData> m_screenSpaceIcons;

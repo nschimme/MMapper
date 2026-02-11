@@ -49,7 +49,7 @@ void FontShader::virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uni
     setMatrix("uMVP3D", mvp);
     setTexture("uFontTexture", 0);
     const Viewport vp = functions.getPhysicalViewport();
-    setViewport("uPhysViewport", vp);
+    setVec2("uViewportSize", glm::vec2(vp.size));
     setFloat("uDevicePixelRatio", uniforms.dprScale);
 
     const auto buffer = SharedVboEnum::GlyphMetricsBlock;
@@ -74,7 +74,7 @@ void IconShader::virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uni
     setFloat("uBaseSize", functions.getBaseSize());
     setTexture("uIconTexture", 0);
     const Viewport vp = functions.getPhysicalViewport();
-    setViewport("uPhysViewport", vp);
+    setVec2("uViewportSize", glm::vec2(vp.size));
     setFloat("uDevicePixelRatio", uniforms.dprScale);
 
     const auto buffer = SharedVboEnum::IconMetricsBlock;

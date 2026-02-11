@@ -56,11 +56,11 @@ void main()
     vec2 size = vec2(float(aPackedSize & 0xFFFFu), float(aPackedSize >> 16u));
     if (size.x == 0.0 && size.y == 0.0) {
         size = metrics.sizeAnchor.xy;
+    } else {
+        size /= 256.0;
     }
 
     if ((flags & FLAG_SCREEN_SPACE) == 0u && (flags & FLAG_FIXED_SIZE) == 0u) {
-        size /= 256.0;
-
         if ((flags & FLAG_DISTANCE_SCALE) != 0u) {
             float dist = length(aBase.xy - uMapCenter.xy);
             size *= clamp(1.0 - dist / uBaseSize, 0.5, 1.0);

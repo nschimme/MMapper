@@ -113,8 +113,8 @@ public:
             const auto pos = texture->getArrayPosition();
             const auto idx = static_cast<size_t>(pos.position);
 
-            int16_t sw = 0;
-            int16_t sh = 0;
+            float sw = 0.0f;
+            float sh = 0.0f;
 
             if (inst.type == SelTypeEnum::Distant) {
                 // Center anchor for distant indicators
@@ -123,16 +123,16 @@ public:
                                      | IconMetrics::AUTO_ROTATE;
 
                 const float margin = MapScreen::DEFAULT_MARGIN_PIXELS;
-                sw = static_cast<int16_t>(2.f * margin);
-                sh = static_cast<int16_t>(2.f * margin);
+                sw = 2.f * margin;
+                sh = 2.f * margin;
             } else {
                 // Fixed-size world-space selection quads.
                 // We use sizeAnchor.xy = (1.0, 1.0) for world-units scaling.
                 metrics[idx].sizeAnchor = glm::vec4(1.0, 1.0, 0.0, 0.0);
                 metrics[idx].flags = 0;
 
-                sw = static_cast<int16_t>(inst.scale.x);
-                sh = static_cast<int16_t>(inst.scale.y);
+                sw = inst.scale.x;
+                sh = inst.scale.y;
             }
 
             iconBatch.emplace_back(inst.base,

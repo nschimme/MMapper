@@ -56,6 +56,7 @@ private:
     std::optional<RoomId> m_pathRoot;
     std::optional<RoomId> m_mostLikelyRoom;
     PathStateEnum m_state = PathStateEnum::SYNCING;
+    std::unique_ptr<HistoryGroup> m_sessionGroup;
 
 public:
     void onPositionChange(std::optional<RoomId> optId)
@@ -77,6 +78,7 @@ protected:
 private:
     void scheduleAction(const ChangeList &action);
     void forcePositionChange(RoomId id, bool update);
+    void updateHistoryGroup();
 
 private:
     void experimenting(const SigParseEvent &sigParseEvent, ChangeList &changes);

@@ -61,6 +61,8 @@ void PathMachine::onMapLoaded()
 
 void PathMachine::forcePositionChange(const RoomId id, const bool update)
 {
+    HistoryGroup group(m_map);
+
     if (id == INVALID_ROOMID) {
         MMLOG() << "in " << __FUNCTION__ << " detected invalid room.";
     }
@@ -95,6 +97,8 @@ void PathMachine::forcePositionChange(const RoomId id, const bool update)
     if (!changes.empty()) {
         scheduleAction(changes);
     }
+
+    updateHistoryGroup();
 }
 
 void PathMachine::slot_releaseAllPaths()
@@ -116,6 +120,8 @@ void PathMachine::slot_releaseAllPaths()
 
 void PathMachine::handleParseEvent(const SigParseEvent &sigParseEvent)
 {
+    HistoryGroup group(m_map);
+
     if (m_lastEvent != sigParseEvent.requireValid()) {
         m_lastEvent = sigParseEvent;
     }
@@ -157,6 +163,8 @@ void PathMachine::handleParseEvent(const SigParseEvent &sigParseEvent)
             emit sig_playerMoved(room.getId());
         }
     }
+
+    updateHistoryGroup();
 }
 
 void PathMachine::tryExits(const RoomHandle &room,
@@ -579,7 +587,7 @@ void PathMachine::experimenting(const SigParseEvent &sigParseEvent, ChangeList &
             if (!pathEnds.contains(workingId)) {
                 qInfo() << "creating RoomId" << workingId.asUint32();
                 if (getMapMode() == MapModeEnum::MAP) {
-                    m_map.slot_createRoom(sigParseEvent, working.getPosition() + move);
+                    m_map.slot_createRoom(sigParseEvent, working.getPosition() + move, true);
                 }
                 pathEnds.insert(workingId);
             }
@@ -644,7 +652,18 @@ void PathMachine::evaluatePaths(ChangeList &changes)
 void PathMachine::scheduleAction(const ChangeList &action)
 {
     if (getMapMode() != MapModeEnum::OFFLINE) {
-        m_map.applyChanges(action);
+        m_map.applyChanges(action, true);
+    }
+}
+
+void PathMachine::updateHistoryGroup()
+{
+    if (m_state != PathStateEnum::APPROVED) {
+        if (!m_sessionGroup) {
+            m_sessionGroup = std::make_unique<HistoryGroup>(m_map);
+        }
+    } else {
+        m_sessionGroup.reset();
     }
 }
 

@@ -322,10 +322,7 @@ void CharacterBatch::CharFakeGL::reallyDrawCharacters(OpenGL &gl, const MapCanva
                                    static_cast<int16_t>(inst.rotation));
         }
 
-        gl.renderIcon3d(textures.char_room_sel_Array,
-                        iconBatch,
-                        metrics,
-                        gl.getDevicePixelRatio());
+        gl.renderIcon3d(textures.char_room_sel_Array, iconBatch, metrics, gl.getDevicePixelRatio());
         m_charRoomIcons.clear();
     }
 

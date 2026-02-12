@@ -412,8 +412,8 @@ void MapCanvas::initTextures()
 
             auto &first = deref(pFirst);
             std::vector<std::vector<QImage>> imageInputs;
-            int maxWidth = 0;
-            int maxHeight = 0;
+            int maxWidth = bounds ? bounds->first : 0;
+            int maxHeight = bounds ? bounds->second : 0;
             int maxMipLevel = 0;
             bool anyHasMipmaps = false;
 
@@ -432,8 +432,10 @@ void MapCanvas::initTextures()
                 }
 
                 const auto &front = levels.front();
-                maxWidth = std::max(maxWidth, front.width());
-                maxHeight = std::max(maxHeight, front.height());
+                if (!bounds) {
+                    maxWidth = std::max(maxWidth, front.width());
+                    maxHeight = std::max(maxHeight, front.height());
+                }
                 maxMipLevel = std::max(maxMipLevel, static_cast<int>(levels.size()));
                 if (levels.size() > 1) {
                     anyHasMipmaps = true;
@@ -465,7 +467,7 @@ void MapCanvas::initTextures()
                     tex.setMinMagFilters(first.minificationFilter(), first.magnificationFilter());
                     tex.setAutoMipMapGenerationEnabled(false);
                     tex.create();
-                    tex.setSize(maxWidth, maxHeight, 1);
+                    tex.setSize(maxWidth, maxHeight, static_cast<int>(numLayers));
                     tex.setLayers(static_cast<int>(numLayers));
                     tex.setMipLevels(useGeneratedMipmaps ? tex.maximumMipLevels() : maxMipLevel);
                     tex.setFormat(first.format());

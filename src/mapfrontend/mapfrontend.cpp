@@ -126,9 +126,9 @@ void MapFrontend::slot_createRoom(const SigParseEvent &sigParseEvent,
 
     MMLOG() << "[mapfrontend] Adding new room from parseEvent";
 
-    const bool success = applySingleChange(
-        Change{room_change_types::AddRoom2{expectedPosition, event}},
-        grouped);
+    const bool success = applySingleChange(Change{room_change_types::AddRoom2{expectedPosition,
+                                                                              event}},
+                                           grouped);
 
     if (success) {
         MMLOG() << "[mapfrontend] Added new room.";

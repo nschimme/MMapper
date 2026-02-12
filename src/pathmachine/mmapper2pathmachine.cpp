@@ -5,6 +5,7 @@
 
 #include "mmapper2pathmachine.h"
 
+#include "../mapfrontend/mapfrontend.h"
 #include "../configuration/configuration.h"
 #include "../global/SendToUser.h"
 #include "../map/parseevent.h"
@@ -68,3 +69,5 @@ void Mmapper2PathMachine::slot_handleParseEvent(const SigParseEvent &sigParseEve
 Mmapper2PathMachine::Mmapper2PathMachine(MapFrontend &map, QObject *const parent)
     : PathMachine(map, parent)
 {}
+
+Mmapper2PathMachine::~Mmapper2PathMachine() = default;

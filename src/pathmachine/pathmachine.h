@@ -1,9 +1,13 @@
 #pragma once
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
-// Author: Ulf Hermann <ulfonk_mennhar@gmx.de> (Alve)
-// Author: Marek Krejza <krejza@gmail.com> (Caligor)
-// Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
+
+#include <memory>
+#include <optional>
+#include <vector>
+
+#include <QObject>
+#include <QString>
 
 #include "../configuration/configuration.h"
 #include "../map/ChangeList.h"
@@ -13,20 +17,12 @@
 #include "pathparameters.h"
 #include "roomsignalhandler.h"
 
-#include <memory>
-#include <optional>
-
-#include <QString>
-#include <QtCore>
-
 class Approved;
 class Coordinate;
 class HistoryGroup;
 class MapFrontend;
 class QEvent;
-class QObject;
 class PathProcessor;
-struct RoomId;
 
 enum class NODISCARD PathStateEnum : uint8_t { APPROVED = 0, EXPERIMENTING = 1, SYNCING = 2 };
 

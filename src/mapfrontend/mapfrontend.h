@@ -5,6 +5,7 @@
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
+#include "../global/RAII.h"
 #include "../map/Changes.h"
 #include "../map/Map.h"
 #include "../map/coordinate.h"
@@ -192,15 +193,14 @@ public slots:
 class NODISCARD HistoryGroup final
 {
 private:
-    MapFrontend &m_map;
+    RAIICallback m_callback;
 
 public:
     explicit HistoryGroup(MapFrontend &map)
-        : m_map{map}
+        : m_callback{[&map]() { map.endHistoryGroup(); }}
     {
-        m_map.beginHistoryGroup();
+        map.beginHistoryGroup();
     }
-    ~HistoryGroup() { m_map.endHistoryGroup(); }
 
     DELETE_CTORS_AND_ASSIGN_OPS(HistoryGroup);
 };

@@ -373,8 +373,8 @@ void MapWindow::handleMousePress(QMouseEvent *const event)
 {
     const bool hasLeftButton = (event->buttons() & Qt::LeftButton) != 0u;
     const bool hasRightButton = (event->buttons() & Qt::RightButton) != 0u;
-    const bool hasCtrl = (event->modifiers() & Qt::CTRL) != 0u;
-    const bool hasAlt = (event->modifiers() & Qt::ALT) != 0u;
+    const bool hasCtrl = (event->modifiers() & Qt::ControlModifier) != 0u;
+    const bool hasAlt = (event->modifiers() & Qt::AltModifier) != 0u;
 
     if (hasLeftButton && hasAlt) {
         m_altDragState.emplace(AltDragState{event->pos(), m_canvasContainer->cursor()});
@@ -771,7 +771,7 @@ void MapWindow::handleMouseMove(QMouseEvent *const event)
 {
     if (m_altDragState.has_value()) {
         // The user released the Alt key mid-drag.
-        if (!((event->modifiers() & Qt::ALT) != 0u)) {
+        if (!((event->modifiers() & Qt::AltModifier) != 0u)) {
             m_canvasContainer->setCursor(m_altDragState->originalCursor);
             m_altDragState.reset();
             return;
@@ -947,7 +947,7 @@ void MapWindow::handleMouseMove(QMouseEvent *const event)
 
 void MapWindow::handleWheel(QWheelEvent *const event)
 {
-    const bool hasCtrl = (event->modifiers() & Qt::CTRL) != 0u;
+    const bool hasCtrl = (event->modifiers() & Qt::ControlModifier) != 0u;
 
     switch (m_canvasMouseMode) {
     case CanvasMouseModeEnum::MOVE:

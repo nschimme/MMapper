@@ -292,8 +292,7 @@ MainWindow::MainWindow()
     showScrollBarsAct->setChecked(getConfig().general.showScrollBars);
     slot_setShowScrollBars();
 
-    if constexpr (CURRENT_PLATFORM == PlatformEnum::Mac) {
-    } else {
+    if constexpr (CURRENT_PLATFORM != PlatformEnum::Mac) {
         showMenuBarAct->setChecked(getConfig().general.showMenuBar);
         slot_setShowMenuBar();
     }
@@ -2073,6 +2072,11 @@ void MainWindow::keyReleaseEvent(QKeyEvent *event)
 MapCanvas *MainWindow::getMapCanvas() const
 {
     return m_mapWindow->getMapCanvas();
+}
+
+QWidget *MainWindow::getCanvas() const
+{
+    return static_cast<QWidget *>(m_mapWindow);
 }
 
 void MainWindow::mapChanged() const

@@ -21,6 +21,7 @@
 
 class Approved;
 class Coordinate;
+class HistoryGroup;
 class MapFrontend;
 class QEvent;
 class QObject;
@@ -68,6 +69,7 @@ public:
 
 public:
     void onMapLoaded();
+    ~PathMachine() override;
 
 protected:
     explicit PathMachine(MapFrontend &map, QObject *parent);

@@ -18,6 +18,7 @@
 #include "../map/room.h"
 #include "../map/roomid.h"
 #include "../mapdata/mapdata.h"
+#include "../mapfrontend/mapfrontend.h"
 #include "approved.h"
 #include "crossover.h"
 #include "experimenting.h"
@@ -41,6 +42,8 @@ PathMachine::PathMachine(MapFrontend &map, QObject *const parent)
     , m_lastEvent{ParseEvent::createDummyEvent()}
     , m_paths{PathList::alloc()}
 {}
+
+PathMachine::~PathMachine() = default;
 
 bool PathMachine::hasLastEvent() const
 {

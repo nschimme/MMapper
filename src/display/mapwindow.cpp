@@ -27,6 +27,11 @@
 #include <QToolTip>
 #include <QWheelEvent>
 
+#if defined(_MSC_VER) || defined(__MINGW32__)
+#undef near // Bad dog, Microsoft; bad dog!!!
+#undef far  // Bad dog, Microsoft; bad dog!!!
+#endif
+
 class QResizeEvent;
 
 MapWindow::MapWindow(MapData &mapData, PrespammedPath &pp, Mmapper2Group &gm, QWidget *const parent)
@@ -448,7 +453,7 @@ void MapWindow::handleMousePress(QMouseEvent *const event)
                 assert(isClamped(t, 0.f, 1.f));
                 const auto pos = glm::mix(nearPos, farPos, t);
                 assert(static_cast<int>(std::lround(pos.z)) == z);
-                const Coordinate c2 = MouseSel{Coordinate2f{pos.x, pos.y}, z}.getCoordinate();
+                const Coordinate c2 = MouseSel(Coordinate2f(pos.x, pos.y), z).getCoordinate();
                 if (const auto r = m_data.findRoomHandle(c2)) {
                     tmpSel.insert(r.getId());
                 }

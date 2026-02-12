@@ -299,16 +299,10 @@ public slots:
     void slot_setConnectionSelection(const std::shared_ptr<ConnectionSelection> &);
     void slot_setInfomarkSelection(const std::shared_ptr<InfomarkSelection> &);
 
-    void slot_clearRoomSelection() { slot_setRoomSelection(SigRoomSelection{}); }
-    void slot_clearConnectionSelection() { slot_setConnectionSelection(nullptr); }
-    void slot_clearInfomarkSelection() { slot_setInfomarkSelection(nullptr); }
-
-    void slot_clearAllSelections()
-    {
-        slot_clearRoomSelection();
-        slot_clearConnectionSelection();
-        slot_clearInfomarkSelection();
-    }
+    void slot_clearRoomSelection();
+    void slot_clearConnectionSelection();
+    void slot_clearInfomarkSelection();
+    void slot_clearAllSelections();
 
     void slot_dataLoaded();
     void slot_moveMarker(RoomId id);

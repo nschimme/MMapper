@@ -64,10 +64,13 @@ MapWindow::MapWindow(MapData &mapData, PrespammedPath &pp, Mmapper2Group &gm, QW
     MapCanvas *const canvas = m_canvas;
 
     m_canvasContainer = QWidget::createWindowContainer(m_canvas, this);
+    m_canvasContainer->setFocusPolicy(Qt::StrongFocus);
     m_canvasContainer->setCursor(Qt::OpenHandCursor);
     m_canvasContainer->grabGesture(Qt::PinchGesture);
     m_canvasContainer->setContextMenuPolicy(Qt::CustomContextMenu);
     m_canvasContainer->installEventFilter(this);
+
+    setMouseTracking(true);
 
     connect(m_canvasContainer,
             &QWidget::customContextMenuRequested,
@@ -198,6 +201,14 @@ void MapWindow::keyReleaseEvent(QKeyEvent *const event)
 }
 
 MapWindow::~MapWindow() = default;
+
+void MapWindow::setMouseTracking(const bool enable)
+{
+    QWidget::setMouseTracking(enable);
+    if (m_canvasContainer) {
+        m_canvasContainer->setMouseTracking(enable);
+    }
+}
 
 void MapWindow::slot_mapMove(const int dx, const int input_dy)
 {
@@ -349,16 +360,22 @@ bool MapWindow::eventFilter(QObject *watched, QEvent *event)
         switch (event->type()) {
         case QEvent::MouseButtonPress:
             handleMousePress(static_cast<QMouseEvent *>(event));
-            return true;
+            return false;
         case QEvent::MouseButtonRelease:
             handleMouseRelease(static_cast<QMouseEvent *>(event));
-            return true;
+            return false;
         case QEvent::MouseMove:
             handleMouseMove(static_cast<QMouseEvent *>(event));
-            return true;
+            return false;
         case QEvent::Wheel:
             handleWheel(static_cast<QWheelEvent *>(event));
-            return true;
+            return false;
+        case QEvent::KeyPress:
+            keyPressEvent(static_cast<QKeyEvent *>(event));
+            return false;
+        case QEvent::KeyRelease:
+            keyReleaseEvent(static_cast<QKeyEvent *>(event));
+            return false;
         case QEvent::Gesture:
             handleGesture(static_cast<QGestureEvent *>(event));
             return true;
@@ -371,6 +388,10 @@ bool MapWindow::eventFilter(QObject *watched, QEvent *event)
 
 void MapWindow::handleMousePress(QMouseEvent *const event)
 {
+    if (m_canvasContainer) {
+        m_canvasContainer->setFocus();
+    }
+
     const bool hasLeftButton = (event->buttons() & Qt::LeftButton) != 0u;
     const bool hasRightButton = (event->buttons() & Qt::RightButton) != 0u;
     const bool hasCtrl = (event->modifiers() & Qt::ControlModifier) != 0u;
@@ -389,10 +410,12 @@ void MapWindow::handleMousePress(QMouseEvent *const event)
 
     if (event->button() == Qt::ForwardButton) {
         m_canvas->slot_layerUp();
-        return event->accept();
+        event->accept();
+        return;
     } else if (event->button() == Qt::BackButton) {
         m_canvas->slot_layerDown();
-        return event->accept();
+        event->accept();
+        return;
     } else if (!m_mouseLeftPressed && m_mouseRightPressed) {
         if (m_canvasMouseMode == CanvasMouseModeEnum::MOVE && hasSel1()) {
             // Select the room under the cursor
@@ -538,6 +561,7 @@ void MapWindow::handleMousePress(QMouseEvent *const event)
     default:
         break;
     }
+    event->accept();
 }
 
 void MapWindow::handleMouseRelease(QMouseEvent *const event)
@@ -765,6 +789,7 @@ void MapWindow::handleMouseRelease(QMouseEvent *const event)
 
     m_altPressed = false;
     m_ctrlPressed = false;
+    event->accept();
 }
 
 void MapWindow::handleMouseMove(QMouseEvent *const event)
@@ -943,6 +968,7 @@ void MapWindow::handleMouseMove(QMouseEvent *const event)
     default:
         break;
     }
+    event->accept();
 }
 
 void MapWindow::handleWheel(QWheelEvent *const event)
@@ -1100,6 +1126,28 @@ void MapWindow::slot_setConnectionSelection(const std::shared_ptr<ConnectionSele
 void MapWindow::slot_setInfomarkSelection(const std::shared_ptr<InfomarkSelection> &selection)
 {
     m_canvas->slot_setInfomarkSelection(selection);
+}
+
+void MapWindow::slot_clearRoomSelection()
+{
+    slot_setRoomSelection(SigRoomSelection{});
+}
+
+void MapWindow::slot_clearConnectionSelection()
+{
+    slot_setConnectionSelection(nullptr);
+}
+
+void MapWindow::slot_clearInfomarkSelection()
+{
+    slot_setInfomarkSelection(nullptr);
+}
+
+void MapWindow::slot_clearAllSelections()
+{
+    slot_clearRoomSelection();
+    slot_clearConnectionSelection();
+    slot_clearInfomarkSelection();
 }
 
 void MapWindow::zoomChanged()

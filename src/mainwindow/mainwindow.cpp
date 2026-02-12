@@ -1319,7 +1319,7 @@ void MainWindow::slot_setShowMenuBar()
     m_dockDialogGroup->setMouseTracking(!showMenuBar);
     m_dockDialogLog->setMouseTracking(!showMenuBar);
     m_dockDialogRoom->setMouseTracking(!showMenuBar);
-    m_mapWindow->getCanvas()->setMouseTracking(!showMenuBar);
+    m_mapWindow->setMouseTracking(!showMenuBar);
 
     if (showMenuBar) {
         menuBar()->show();

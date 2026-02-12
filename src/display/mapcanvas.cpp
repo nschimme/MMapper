@@ -154,6 +154,28 @@ void MapCanvas::slot_setInfomarkSelection(const std::shared_ptr<InfomarkSelectio
     selectionChanged();
 }
 
+void MapCanvas::slot_clearRoomSelection()
+{
+    slot_setRoomSelection(SigRoomSelection{});
+}
+
+void MapCanvas::slot_clearConnectionSelection()
+{
+    slot_setConnectionSelection(nullptr);
+}
+
+void MapCanvas::slot_clearInfomarkSelection()
+{
+    slot_setInfomarkSelection(nullptr);
+}
+
+void MapCanvas::slot_clearAllSelections()
+{
+    slot_clearRoomSelection();
+    slot_clearConnectionSelection();
+    slot_clearInfomarkSelection();
+}
+
 void MapCanvas::slot_onForcedPositionChange()
 {
     slot_requestUpdate();

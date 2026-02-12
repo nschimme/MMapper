@@ -87,20 +87,45 @@ struct NODISCARD ColorVert final
     {}
 };
 
+struct NODISCARD GlyphMetrics final
+{
+    // xy: uvOffset (0.0 to 1.0)
+    // zw: uvSize (0.0 to 1.0)
+    glm::vec4 uvRect{};
+
+    // xy: pixelOffset relative to cursor baseline (pre-scaled by DPR during font loading)
+    // zw: pixelSize (pre-scaled by DPR during font loading)
+    // Note: Synthetic glyphs (background/underline) typically ignore this in favor of VBO data.
+    glm::vec4 posRect{};
+};
+static_assert(sizeof(GlyphMetrics) == 32);
+
+struct NODISCARD IconMetrics final
+{
+    enum Flags : uint32_t {
+        SCREEN_SPACE = 1 << 0,
+        FIXED_SIZE = 1 << 1,
+        DISTANCE_SCALE = 1 << 2,
+        CLAMP_TO_EDGE = 1 << 3,
+        AUTO_ROTATE = 1 << 4,
+    };
+
+    // xy: Default size in world units or pixels (used if instance size is zero)
+    // zw: Relative anchor offset (-0.5 is centered, 0.0 is top-left)
+    glm::vec4 sizeAnchor{};
+    uint32_t flags = 0;
+    uint32_t padding[3]{};
+};
+static_assert(sizeof(IconMetrics) == 32);
+
 // Instance data for font rendering.
-// the font's vertex shader transforms the world position to screen space,
-// rounds to integer pixel offset, and then adds the (possibly rotated/italicized)
-// vertex offset in screen space.
 struct NODISCARD FontInstanceData final
 {
-    glm::vec3 base{}; // world space
-    uint32_t color = 0;
-    int16_t offsetX = 0, offsetY = 0;
-    int16_t sizeW = 0, sizeH = 0;
-    int16_t uvX = 0, uvY = 0;
-    int16_t uvW = 0, uvH = 0;
-    int16_t rotation = 0;
-    uint16_t flags = 0;
+    glm::vec3 base{};     // 12 bytes: world space
+    uint32_t color = 0;   // 4 bytes: RGBA color
+    uint32_t packed1 = 0; // 4 bytes: bits 0-15: offsetX, 16-25: glyphId, 26-31: flags
+    uint32_t packedRest
+        = 0; // 4 bytes: rotation/namedColorIndex OR offsetY/sizeW/sizeH/namedColorIndex
 
     explicit FontInstanceData(const glm::vec3 &base_,
                               uint32_t color_,
@@ -108,26 +133,59 @@ struct NODISCARD FontInstanceData final
                               int16_t offsetY_,
                               int16_t sizeW_,
                               int16_t sizeH_,
-                              int16_t uvX_,
-                              int16_t uvY_,
-                              int16_t uvW_,
-                              int16_t uvH_,
+                              uint16_t glyphId_,
                               int16_t rotation_,
-                              uint16_t flags_)
+                              uint8_t flags_,
+                              uint8_t namedColorIndex_)
         : base{base_}
         , color{color_}
-        , offsetX{offsetX_}
-        , offsetY{offsetY_}
-        , sizeW{sizeW_}
-        , sizeH{sizeH_}
-        , uvX{uvX_}
-        , uvY{uvY_}
-        , uvW{uvW_}
-        , uvH{uvH_}
-        , rotation{rotation_}
-        , flags{flags_}
+        , packed1{(static_cast<uint32_t>(static_cast<uint16_t>(offsetX_)))
+                  | ((static_cast<uint32_t>(glyphId_) & 0x3FFu) << 16)
+                  | ((static_cast<uint32_t>(flags_) & 0x3Fu) << 26)}
+    {
+        const uint32_t uNamedColorIndex = static_cast<uint32_t>(namedColorIndex_) & 0x3Fu;
+
+        if (glyphId_ < 256) {
+            const uint32_t uRotation = static_cast<uint32_t>(static_cast<uint16_t>(rotation_))
+                                       & 0x1FFu;
+            packedRest = uRotation | (uNamedColorIndex << 9);
+        } else {
+            const uint32_t uOffsetY = static_cast<uint32_t>(static_cast<int8_t>(offsetY_)) & 0xFFu;
+            const uint32_t uSizeW = static_cast<uint32_t>(static_cast<uint16_t>(sizeW_)) & 0x3FFu;
+            const uint32_t uSizeH = static_cast<uint32_t>(static_cast<int8_t>(sizeH_)) & 0xFFu;
+
+            packedRest = uOffsetY | (uSizeW << 8) | (uSizeH << 18) | (uNamedColorIndex << 26);
+        }
+    }
+};
+static_assert(sizeof(FontInstanceData) == 24);
+
+// Instance data for icons (characters, arrows, selections).
+struct NODISCARD IconInstanceData final
+{
+    glm::vec3 base{};        // 12 bytes: world space or screen pixels
+    uint32_t color = 0;      // 4 bytes: RGBA color
+    uint32_t packedSize = 0; // 4 bytes: bits 0-15: sizeW, 16-31: sizeH
+    uint32_t packedRest = 0; // 4 bytes: bits 0-8: rotation, 9-16: iconIndex
+
+    explicit IconInstanceData(const glm::vec3 &base_,
+                              uint32_t color_,
+                              float sizeW_,
+                              float sizeH_,
+                              uint16_t iconIndex,
+                              int16_t rotation,
+                              uint32_t flags = 0)
+        : base{base_}
+        , color{color_}
+        , packedSize{static_cast<uint32_t>(static_cast<uint16_t>(std::round(sizeW_ * 256.0f)))
+                     | (static_cast<uint32_t>(static_cast<uint16_t>(std::round(sizeH_ * 256.0f)))
+                        << 16)}
+        , packedRest{
+              (static_cast<uint32_t>((static_cast<int32_t>(rotation) % 360 + 360) % 360) & 0x1FFu)
+              | ((static_cast<uint32_t>(iconIndex) & 0xFFu) << 9) | ((flags & 0xFFu) << 17)}
     {}
 };
+static_assert(sizeof(IconInstanceData) == 24);
 
 enum class NODISCARD DrawModeEnum {
     INVALID = 0,
@@ -241,6 +299,7 @@ struct NODISCARD GLRenderState final
         // glEnable(TEXTURE_2D), or glEnable(TEXTURE_3D)
         Textures textures;
         std::optional<float> pointSize;
+        float dprScale = 1.0f;
     };
 
     Uniforms uniforms;
@@ -291,6 +350,13 @@ struct NODISCARD GLRenderState final
     {
         GLRenderState copy = *this;
         copy.uniforms.pointSize = size;
+        return copy;
+    }
+
+    NODISCARD GLRenderState withDprScale(const float scale) const
+    {
+        GLRenderState copy = *this;
+        copy.uniforms.dprScale = scale;
         return copy;
     }
 

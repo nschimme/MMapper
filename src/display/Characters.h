@@ -24,27 +24,6 @@ class MapScreen;
 class OpenGL;
 struct MapCanvasTextures;
 
-// TODO: find a better home for this. It's common to characters and room selections.
-class NODISCARD DistantObjectTransform final
-{
-public:
-    const glm::vec3 offset{};
-    // rotation counterclockwise around the Z axis, starting at the +X axis.
-    const float rotationDegrees = 0.f;
-
-public:
-    explicit DistantObjectTransform(const glm::vec3 &offset_, const float rotationDegrees_)
-        : offset{offset_}
-        , rotationDegrees{rotationDegrees_}
-    {}
-
-public:
-    // Caller must apply the correct translation and rotation.
-    NODISCARD static DistantObjectTransform construct(const glm::vec3 &pos,
-                                                      const MapScreen &mapScreen,
-                                                      float marginPixels);
-};
-
 class NODISCARD CharacterBatch final
 {
 private:
@@ -103,10 +82,17 @@ private:
         std::vector<ColorVert> m_charTris;
         std::vector<ColorVert> m_charBeaconQuads;
         std::vector<ColorVert> m_charLines;
-        std::vector<ColoredTexVert> m_charRoomQuads;
+        struct CharRoomIcon
+        {
+            glm::vec3 base;
+            float rotation;
+            glm::vec2 scale;
+            Color color;
+        };
+        std::vector<CharRoomIcon> m_charRoomIcons;
         std::vector<ColorVert> m_pathPoints;
         std::vector<ColorVert> m_pathLineQuads;
-        std::vector<FontInstanceData> m_screenSpaceArrows;
+        std::vector<IconInstanceData> m_screenSpaceIcons;
         std::map<Coordinate, int, CoordCompare> m_coordCounts;
 
     public:

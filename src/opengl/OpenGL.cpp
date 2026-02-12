@@ -67,6 +67,16 @@ void OpenGL::setProjectionMatrix(const glm::mat4 &m)
     getFunctions().setProjectionMatrix(m);
 }
 
+void OpenGL::setMapCenter(const glm::vec3 &v)
+{
+    getFunctions().setMapCenter(v);
+}
+
+void OpenGL::setBaseSize(const float f)
+{
+    getFunctions().setBaseSize(f);
+}
+
 void OpenGL::configureFbo(int samples)
 {
     getFunctions().configureFbo(samples);
@@ -255,6 +265,25 @@ void OpenGL::resetNamedColorsBuffer()
     getFunctions().getSharedVbos().reset(Legacy::SharedVboEnum::NamedColorsBlock);
 }
 
+void OpenGL::bindFontMetricsBuffer(const std::vector<GlyphMetrics> &metrics)
+{
+    auto &gl = getFunctions();
+    const auto buffer = Legacy::SharedVboEnum::GlyphMetricsBlock;
+    const auto shared = gl.getSharedVbos().get(buffer);
+    Legacy::VBO &vbo = deref(shared);
+    if (!vbo) {
+        vbo.emplace(gl.shared_from_this());
+    }
+    // Always update to handle multiple fonts correctly
+    std::ignore = gl.setUbo(vbo.get(), metrics, BufferUsageEnum::DYNAMIC_DRAW);
+    gl.glBindBufferBase(GL_UNIFORM_BUFFER, buffer, vbo.get());
+}
+
+void OpenGL::resetFontMetricsBuffer()
+{
+    getFunctions().getSharedVbos().reset(Legacy::SharedVboEnum::GlyphMetricsBlock);
+}
+
 void OpenGL::initializeRenderer(const float devicePixelRatio)
 {
     setDevicePixelRatio(devicePixelRatio);
@@ -267,9 +296,19 @@ void OpenGL::initializeRenderer(const float devicePixelRatio)
     m_rendererInitialized = true;
 }
 
-void OpenGL::renderFont3d(const SharedMMTexture &texture, const std::vector<FontInstanceData> &verts)
+void OpenGL::renderFont3d(const SharedMMTexture &texture,
+                          const std::vector<FontInstanceData> &verts,
+                          const float dprScale)
 {
-    getFunctions().renderFont3d(texture, verts);
+    getFunctions().renderFont3d(texture, verts, dprScale);
+}
+
+void OpenGL::renderIcon3d(const SharedMMTexture &texture,
+                          const std::vector<IconInstanceData> &verts,
+                          const std::vector<IconMetrics> &metrics,
+                          const float dprScale)
+{
+    getFunctions().renderIcon3d(texture, verts, metrics, dprScale);
 }
 
 void OpenGL::initializeOpenGLFunctions()
@@ -341,6 +380,16 @@ void OpenGL::initArrayFromFiles(const SharedMMTexture &array, const std::vector<
     gl.glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
 }
 
+void OpenGL::generateMipmap2dArray(const SharedMMTexture &array)
+{
+    auto &gl = getFunctions();
+    const QOpenGLTexture &qtex = deref(array->get());
+    gl.glActiveTexture(GL_TEXTURE0);
+    gl.glBindTexture(GL_TEXTURE_2D_ARRAY, qtex.textureId());
+    gl.glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
+    gl.glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+}
+
 void OpenGL::initArrayFromImages(const SharedMMTexture &array,
                                  const std::vector<std::vector<QImage>> &input)
 {
@@ -356,9 +405,6 @@ void OpenGL::initArrayFromImages(const SharedMMTexture &array,
         const auto &layer = input[z];
         const auto numLevels = layer.size();
         assert(numLevels > 0);
-        const auto ipow2 = 1 << (numLevels - 1);
-        assert(ipow2 == layer.front().width());
-        assert(ipow2 == layer.front().height());
 
         for (size_t level_num = 0; level_num < numLevels; ++level_num) {
             const QImage image = layer[level_num].convertToFormat(QImage::Format_RGBA8888);

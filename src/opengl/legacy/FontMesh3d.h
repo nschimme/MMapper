@@ -27,18 +27,16 @@ private:
     {
         GLuint basePos = INVALID_ATTRIB_LOCATION;
         GLuint colorPos = INVALID_ATTRIB_LOCATION;
-        GLuint rectPos = INVALID_ATTRIB_LOCATION;
-        GLuint uvRectPos = INVALID_ATTRIB_LOCATION;
-        GLuint paramsPos = INVALID_ATTRIB_LOCATION;
+        GLuint packed1Pos = INVALID_ATTRIB_LOCATION;
+        GLuint packedRestPos = INVALID_ATTRIB_LOCATION;
 
         static Attribs getLocations(AbstractShaderProgram &fontShader)
         {
             Attribs result;
             result.basePos = fontShader.getAttribLocation("aBase");
             result.colorPos = fontShader.getAttribLocation("aColor");
-            result.rectPos = fontShader.getAttribLocation("aRect");
-            result.uvRectPos = fontShader.getAttribLocation("aUVRect");
-            result.paramsPos = fontShader.getAttribLocation("aParams");
+            result.packed1Pos = fontShader.getAttribLocation("aPacked1");
+            result.packedRestPos = fontShader.getAttribLocation("aPackedRest");
             return result;
         }
     };
@@ -63,11 +61,10 @@ private:
     void virt_bind() override
     {
         const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
-        static_assert(sizeof(std::declval<VertexType_>().base) == 3 * sizeof(GLfloat));
+        static_assert(sizeof(std::declval<VertexType_>().base) == 12);
         static_assert(sizeof(std::declval<VertexType_>().color) == 4);
-        static_assert(sizeof(std::declval<VertexType_>().offsetX) == 2);
-        static_assert(sizeof(std::declval<VertexType_>().uvX) == 2);
-        static_assert(sizeof(std::declval<VertexType_>().rotation) == 2);
+        static_assert(sizeof(std::declval<VertexType_>().packed1) == 4);
+        static_assert(sizeof(std::declval<VertexType_>().packedRest) == 4);
 
         Functions &gl = Base::m_functions;
 
@@ -76,15 +73,13 @@ private:
 
         gl.enableAttrib(attribs.basePos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(base));
         gl.enableAttribI(attribs.colorPos, 1, GL_UNSIGNED_INT, vertSize, VPO(color));
-        gl.enableAttribI(attribs.rectPos, 4, GL_SHORT, vertSize, VPO(offsetX));
-        gl.enableAttribI(attribs.uvRectPos, 4, GL_SHORT, vertSize, VPO(uvX));
-        gl.enableAttribI(attribs.paramsPos, 2, GL_SHORT, vertSize, VPO(rotation));
+        gl.enableAttribI(attribs.packed1Pos, 1, GL_UNSIGNED_INT, vertSize, VPO(packed1));
+        gl.enableAttribI(attribs.packedRestPos, 1, GL_UNSIGNED_INT, vertSize, VPO(packedRest));
 
         gl.glVertexAttribDivisor(attribs.basePos, 1);
         gl.glVertexAttribDivisor(attribs.colorPos, 1);
-        gl.glVertexAttribDivisor(attribs.rectPos, 1);
-        gl.glVertexAttribDivisor(attribs.uvRectPos, 1);
-        gl.glVertexAttribDivisor(attribs.paramsPos, 1);
+        gl.glVertexAttribDivisor(attribs.packed1Pos, 1);
+        gl.glVertexAttribDivisor(attribs.packedRestPos, 1);
 
         m_boundAttribs = attribs;
     }
@@ -99,15 +94,13 @@ private:
         const auto attribs = m_boundAttribs.value();
         gl.glDisableVertexAttribArray(attribs.basePos);
         gl.glDisableVertexAttribArray(attribs.colorPos);
-        gl.glDisableVertexAttribArray(attribs.rectPos);
-        gl.glDisableVertexAttribArray(attribs.uvRectPos);
-        gl.glDisableVertexAttribArray(attribs.paramsPos);
+        gl.glDisableVertexAttribArray(attribs.packed1Pos);
+        gl.glDisableVertexAttribArray(attribs.packedRestPos);
 
         gl.glVertexAttribDivisor(attribs.basePos, 0);
         gl.glVertexAttribDivisor(attribs.colorPos, 0);
-        gl.glVertexAttribDivisor(attribs.rectPos, 0);
-        gl.glVertexAttribDivisor(attribs.uvRectPos, 0);
-        gl.glVertexAttribDivisor(attribs.paramsPos, 0);
+        gl.glVertexAttribDivisor(attribs.packed1Pos, 0);
+        gl.glVertexAttribDivisor(attribs.packedRestPos, 0);
 
         gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
         m_boundAttribs.reset();

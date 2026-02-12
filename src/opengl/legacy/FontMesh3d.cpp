@@ -25,6 +25,7 @@ GLRenderState FontMesh3d::virt_modifyRenderState(const GLRenderState &renderStat
 {
     return renderState.withBlend(BlendModeEnum::TRANSPARENCY)
         .withDepthFunction(std::nullopt)
+        .withDprScale(1.0f)
         .withTexture0(m_textureId);
 }
 

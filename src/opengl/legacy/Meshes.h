@@ -117,7 +117,7 @@ private:
         gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
         m_boundAttribs.reset();
     }
-}; // namespace Legacy
+};
 
 // Textured mesh with color modulated by uniform
 template<typename VertexType_>
@@ -340,6 +340,76 @@ private:
         Functions &gl = Base::m_functions;
         gl.glDisableVertexAttribArray(attribs.colorPos);
         gl.glDisableVertexAttribArray(attribs.vertPos);
+        gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
+        m_boundAttribs.reset();
+    }
+};
+
+// Icon mesh
+template<typename VertexType_>
+class NODISCARD IconMesh final : public SimpleMesh<VertexType_, IconShader>
+{
+public:
+    using Base = SimpleMesh<VertexType_, IconShader>;
+    using Base::Base;
+
+private:
+    struct NODISCARD Attribs final
+    {
+        GLuint basePos = INVALID_ATTRIB_LOCATION;
+        GLuint colorPos = INVALID_ATTRIB_LOCATION;
+        GLuint packedSizePos = INVALID_ATTRIB_LOCATION;
+        GLuint packedRestPos = INVALID_ATTRIB_LOCATION;
+
+        NODISCARD static Attribs getLocations(IconShader &shader)
+        {
+            Attribs result;
+            result.basePos = shader.getAttribLocation("aBase");
+            result.colorPos = shader.getAttribLocation("aColor");
+            result.packedSizePos = shader.getAttribLocation("aPackedSize");
+            result.packedRestPos = shader.getAttribLocation("aPackedRest");
+            return result;
+        }
+    };
+
+    std::optional<Attribs> m_boundAttribs;
+
+    void virt_bind() override
+    {
+        const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
+        static_assert(sizeof(std::declval<VertexType_>().base) == 12);
+        static_assert(sizeof(std::declval<VertexType_>().color) == 4);
+        static_assert(sizeof(std::declval<VertexType_>().packedSize) == 4);
+        static_assert(sizeof(std::declval<VertexType_>().packedRest) == 4);
+
+        Functions &gl = Base::m_functions;
+        const auto attribs = Attribs::getLocations(Base::m_program);
+        gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
+
+        gl.enableAttrib(attribs.basePos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(base));
+        gl.enableAttribI(attribs.colorPos, 1, GL_UNSIGNED_INT, vertSize, VPO(color));
+        gl.enableAttribI(attribs.packedSizePos, 1, GL_UNSIGNED_INT, vertSize, VPO(packedSize));
+        gl.enableAttribI(attribs.packedRestPos, 1, GL_UNSIGNED_INT, vertSize, VPO(packedRest));
+
+        gl.glVertexAttribDivisor(attribs.basePos, 1);
+        gl.glVertexAttribDivisor(attribs.colorPos, 1);
+        gl.glVertexAttribDivisor(attribs.packedSizePos, 1);
+        gl.glVertexAttribDivisor(attribs.packedRestPos, 1);
+
+        m_boundAttribs = attribs;
+    }
+
+    void virt_unbind() override
+    {
+        if (!m_boundAttribs) {
+            return;
+        }
+        auto &attribs = m_boundAttribs.value();
+        Functions &gl = Base::m_functions;
+        gl.glDisableVertexAttribArray(attribs.basePos);
+        gl.glDisableVertexAttribArray(attribs.colorPos);
+        gl.glDisableVertexAttribArray(attribs.packedSizePos);
+        gl.glDisableVertexAttribArray(attribs.packedRestPos);
         gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
         m_boundAttribs.reset();
     }

@@ -28,7 +28,15 @@ public:
 
 private:
     glm::mat4 m_modelView = glm::mat4(1);
-    EnumIndexedArray<std::vector<TexVert>, SelTypeEnum, NUM_SEL_TYPES> m_arrays;
+
+    struct Instance
+    {
+        SelTypeEnum type;
+        glm::vec3 base;
+        float rotation;
+        glm::vec2 scale;
+    };
+    std::vector<Instance> m_instances;
 
 public:
     void resetMatrix() { m_modelView = glm::mat4(1); }
@@ -54,47 +62,40 @@ public:
 
     void drawColoredQuad(const SelTypeEnum type)
     {
-#define DECL(name, a, b) \
-    const TexVert name \
-    { \
-        glm::vec3{(a), (b), 0}, glm::vec3 \
-        { \
-            (a), (b), 0 \
-        } \
-    }
-        DECL(A, 0, 0);
-        DECL(B, 1, 0);
-        DECL(C, 1, 1);
-        DECL(D, 0, 1);
-        auto &m = m_modelView;
-        const auto transform = [&m](const TexVert &in_vert) -> TexVert {
-            auto tmp = m * glm::vec4{in_vert.vert, 1.f};
-            return TexVert{in_vert.tex, glm::vec3{tmp / tmp.w}};
-        };
+        const auto &m = m_modelView;
+        // Extract translation from matrix
+        const glm::vec3 base{m[3][0], m[3][1], m[3][2]};
+        // Extract scale (approximate if rotated, but room sel quads are usually not rotated here)
+        const float sx = glm::length(glm::vec3(m[0]));
+        const float sy = glm::length(glm::vec3(m[1]));
+        // Extract rotation around Z
+        const float rotation = glm::degrees(std::atan2(m[0][1], m[0][0]));
 
-        m_arrays[type].emplace_back(transform(A));
-        m_arrays[type].emplace_back(transform(B));
-        m_arrays[type].emplace_back(transform(C));
-        m_arrays[type].emplace_back(transform(D));
-#undef DECL
+        m_instances.emplace_back(Instance{type, base, rotation, glm::vec2(sx, sy)});
     }
 
     void draw(OpenGL &gl, const MapCanvasTextures &textures)
     {
+        if (m_instances.empty()) {
+            return;
+        }
+
         static constexpr MMapper::Array<SelTypeEnum, NUM_SEL_TYPES> ALL_SEL_TYPES{
             SelTypeEnum::Near, SelTypeEnum::Distant, SelTypeEnum::MoveBad, SelTypeEnum::MoveGood};
 
-        const auto rs
-            = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withDepthFunction(std::nullopt);
+        std::vector<IconMetrics> metrics(256);
+        // Room selection icons are full quads [0,1]
+        for (size_t i = 0; i < 256; ++i) {
+            metrics[i].sizeAnchor = glm::vec4(1.0, 1.0, 0.0, 0.0); // Default 1.0 world units
+            metrics[i].flags = 0;
+        }
 
-        for (const SelTypeEnum type : ALL_SEL_TYPES) {
-            const std::vector<TexVert> &arr = m_arrays[type];
-            if (arr.empty()) {
-                continue;
-            }
+        std::vector<IconInstanceData> iconBatch;
+        iconBatch.reserve(m_instances.size());
 
-            const auto &texture = std::invoke([&textures, type]() -> const SharedMMTexture & {
-                switch (type) {
+        for (const auto &inst : m_instances) {
+            const auto &texture = std::invoke([&textures, inst]() -> const SharedMMTexture & {
+                switch (inst.type) {
                 case SelTypeEnum::Near:
                     return textures.room_sel;
                 case SelTypeEnum::Distant:
@@ -109,8 +110,44 @@ public:
                 std::abort();
             });
 
-            gl.renderTexturedQuads(arr, rs.withTexture0(texture->getArrayPosition().array));
+            const auto pos = texture->getArrayPosition();
+            const auto idx = static_cast<size_t>(pos.position);
+
+            float sw = 0.0f;
+            float sh = 0.0f;
+
+            if (inst.type == SelTypeEnum::Distant) {
+                // Center anchor for distant indicators
+                metrics[idx].sizeAnchor = glm::vec4(0.0, 0.0, -0.5, -0.5);
+                metrics[idx].flags = IconMetrics::FIXED_SIZE | IconMetrics::CLAMP_TO_EDGE
+                                     | IconMetrics::AUTO_ROTATE;
+
+                const float margin = MapScreen::DEFAULT_MARGIN_PIXELS;
+                sw = 2.f * margin;
+                sh = 2.f * margin;
+            } else {
+                // Fixed-size world-space selection quads.
+                // We use sizeAnchor.xy = (1.0, 1.0) for world-units scaling.
+                metrics[idx].sizeAnchor = glm::vec4(1.0, 1.0, 0.0, 0.0);
+                metrics[idx].flags = 0;
+
+                sw = inst.scale.x;
+                sh = inst.scale.y;
+            }
+
+            iconBatch.emplace_back(inst.base,
+                                   0xFFFFFFFF, // white
+                                   sw,
+                                   sh,
+                                   static_cast<uint16_t>(pos.position),
+                                   static_cast<int16_t>(inst.rotation));
         }
+
+        if (!iconBatch.empty()) {
+            gl.renderIcon3d(textures.room_sel_Array, iconBatch, metrics, gl.getDevicePixelRatio());
+        }
+
+        m_instances.clear();
     }
 };
 
@@ -129,24 +166,8 @@ void MapCanvas::paintSelectedRoom(RoomSelFakeGL &gl, const RawRoom &room)
 
     if (!isMoving && !m_mapScreen.isRoomVisible(roomPos, marginPixels / 2.f)) {
         const glm::vec3 roomCenter = roomPos.to_vec3() + glm::vec3{0.5f, 0.5f, 0.f};
-        const auto dot = DistantObjectTransform::construct(roomCenter, m_mapScreen, marginPixels);
-        gl.glTranslatef(dot.offset.x, dot.offset.y, dot.offset.z);
-        gl.glRotatef(dot.rotationDegrees, 0.f, 0.f, 1.f);
-        const glm::vec2 iconCenter{0.5f, 0.5f};
-        gl.glTranslatef(-iconCenter.x, -iconCenter.y, 0.f);
-
-        // Scale based upon distance
-        const auto scaleFactor = std::invoke([this, roomCenter]() -> float {
-            const auto delta = roomCenter - m_mapScreen.getCenter();
-            const auto distance = std::sqrt((delta.y * delta.y) + (delta.x * delta.x));
-            // If we're too far away just scale down to 50% at most
-            if (distance >= static_cast<float>(BASESIZE)) {
-                return 0.5f;
-            }
-            return 1.f - (distance / static_cast<float>(BASESIZE));
-        });
-        gl.glScalef(scaleFactor, scaleFactor, 1.f);
-
+        gl.glTranslatef(roomCenter.x, roomCenter.y, roomCenter.z);
+        // Anchor and rotation will be handled by the shader for Distant selections.
         gl.drawColoredQuad(RoomSelFakeGL::SelTypeEnum::Distant);
     } else {
         // Room is close

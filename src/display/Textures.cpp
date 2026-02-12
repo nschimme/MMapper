@@ -313,7 +313,19 @@ void MapCanvas::initTextures()
     }
 
     // char images are 256
-    textures.char_arrows = loadTexture(getPixmapFilenameRaw("char-arrows.png"));
+    {
+        // Character arrow is at [0,0,128,128] in char-arrows.png.
+        // Trim it so it fills its layer in the texture array.
+        // We scale it to 256x256 to match the size of other icons in the array.
+        // We also mirror it because all other icons in the IconBatch are file-based
+        // and thus mirrored by the array loader.
+        auto mmtex = MMTexture::alloc(getPixmapFilenameRaw("char-arrows.png"));
+        QImage img = QImage{mmtex->getName()}
+                         .copy(0, 0, 128, 128)
+                         .scaled(256, 256, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)
+                         .mirrored();
+        textures.char_arrows = MMTexture::alloc(std::vector<QImage>{img});
+    }
     textures.char_room_sel = loadTexture(getPixmapFilenameRaw("char-room-sel.png"));
     // exits are 128
     textures.exit_climb_down = loadTexture(getPixmapFilenameRaw("exit-climb-down.png"));
@@ -394,46 +406,60 @@ void MapCanvas::initTextures()
                 }
 
                 if (bounds != getBounds(x)) {
-                    throw std::runtime_error("oops");
+                    throw std::runtime_error("bounds mismatch");
                 }
             }
 
             auto &first = deref(pFirst);
-            std::vector<QString> fileInputs;
             std::vector<std::vector<QImage>> imageInputs;
-            int maxWidth = 0;
-            int maxHeight = 0;
+            int maxWidth = bounds ? bounds->first : 0;
+            int maxHeight = bounds ? bounds->second : 0;
             int maxMipLevel = 0;
+            bool anyHasMipmaps = false;
 
             for (const auto &x : thing) {
+                std::vector<QImage> levels;
                 if (!x->getName().isEmpty()) {
-                    const QString filename = x->getName();
-                    fileInputs.emplace_back(filename);
-                    const QImage image{filename};
-                    maxWidth = std::max(maxWidth, image.width());
-                    maxHeight = std::max(maxHeight, image.height());
+                    levels.emplace_back(QImage{x->getName()}.mirrored());
                 } else {
-                    const auto &images = x->getImages();
-                    imageInputs.emplace_back(images);
-                    auto &front = images.front();
-                    assert(front.width() == front.height());
+                    for (auto img : x->getImages()) {
+                        levels.emplace_back(img.mirrored());
+                    }
+                }
+
+                if (levels.empty()) {
+                    continue;
+                }
+
+                const auto &front = levels.front();
+                if (!bounds) {
                     maxWidth = std::max(maxWidth, front.width());
                     maxHeight = std::max(maxHeight, front.height());
-                    maxMipLevel = std::max(maxMipLevel, static_cast<int>(images.size()));
+                }
+                maxMipLevel = std::max(maxMipLevel, static_cast<int>(levels.size()));
+                if (levels.size() > 1) {
+                    anyHasMipmaps = true;
+                }
+                imageInputs.emplace_back(std::move(levels));
+            }
+
+            const auto numLayers = imageInputs.size();
+            const bool useGeneratedMipmaps = !anyHasMipmaps;
+
+            // Normalize all images to the same size
+            for (auto &layer : imageInputs) {
+                for (auto &img : layer) {
+                    if (img.width() != maxWidth || img.height() != maxHeight) {
+                        img = img.scaled(maxWidth,
+                                         maxHeight,
+                                         Qt::IgnoreAspectRatio,
+                                         Qt::SmoothTransformation);
+                    }
                 }
             }
 
-            const bool useImages = fileInputs.empty();
-            if (!useImages) {
-                assert(imageInputs.empty());
-            }
-            const auto numLayers = useImages ? imageInputs.size() : fileInputs.size();
-            if (useImages) {
-                assert(first.mipLevels() == maxMipLevel);
-            }
-
             auto init2dTextureArray =
-                [useImages, numLayers, maxWidth, maxHeight, maxMipLevel, &first](
+                [numLayers, maxWidth, maxHeight, maxMipLevel, useGeneratedMipmaps, &first](
                     QOpenGLTexture &tex) {
                     using Dir = QOpenGLTexture::CoordinateDirection;
                     tex.setWrapMode(Dir::DirectionS, first.wrapMode(Dir::DirectionS));
@@ -441,25 +467,22 @@ void MapCanvas::initTextures()
                     tex.setMinMagFilters(first.minificationFilter(), first.magnificationFilter());
                     tex.setAutoMipMapGenerationEnabled(false);
                     tex.create();
-                    tex.setSize(maxWidth, maxHeight, 1);
+                    tex.setSize(maxWidth, maxHeight, static_cast<int>(numLayers));
                     tex.setLayers(static_cast<int>(numLayers));
-                    tex.setMipLevels(useImages ? maxMipLevel : tex.maximumMipLevels());
+                    tex.setMipLevels(useGeneratedMipmaps ? tex.maximumMipLevels() : maxMipLevel);
                     tex.setFormat(first.format());
                     tex.allocateStorage(QOpenGLTexture::PixelFormat::RGBA,
                                         QOpenGLTexture::PixelType::UInt8);
                 };
 
             {
-                const bool forbidUpdates = useImages;
                 pArrayTex = MMTexture::alloc(QOpenGLTexture::Target2DArray,
                                              init2dTextureArray,
-                                             forbidUpdates);
-                if (useImages) {
-                    opengl.initArrayFromImages(pArrayTex, imageInputs);
-                } else {
-                    opengl.initArrayFromFiles(pArrayTex, fileInputs);
+                                             !useGeneratedMipmaps /* forbidUpdates */);
+                opengl.initArrayFromImages(pArrayTex, imageInputs);
+                if (useGeneratedMipmaps) {
+                    opengl.generateMipmap2dArray(pArrayTex);
                 }
-                assert(pArrayTex->canBeUpdated() == !forbidUpdates);
             }
             const auto id = assignId(pArrayTex);
 
@@ -503,6 +526,22 @@ void MapCanvas::initTextures()
             maybeCreateArray2(exits, pArrayTex);
             textures.exit_climb_down_Array = textures.exit_climb_up_Array = textures.exit_down_Array
                 = textures.exit_up_Array = pArrayTex;
+        }
+
+        {
+            // Combine all icons into one array
+            using IconBatch = std::array<SharedMMTexture, 6>;
+            IconBatch icons{textures.char_arrows,
+                            textures.char_room_sel,
+                            textures.room_sel,
+                            textures.room_sel_distant,
+                            textures.room_sel_move_bad,
+                            textures.room_sel_move_good};
+            SharedMMTexture pArrayTex;
+            maybeCreateArray2(icons, pArrayTex);
+            textures.char_arrows_Array = textures.char_room_sel_Array = textures.room_sel_Array
+                = textures.room_sel_distant_Array = textures.room_sel_move_bad_Array
+                = textures.room_sel_move_good_Array = pArrayTex;
         }
 
         auto maybeCreateArray = [&maybeCreateArray2](auto &thing, SharedMMTexture &pArrayTex) {

@@ -254,12 +254,14 @@ void Functions::renderColoredTextured(const DrawModeEnum mode,
 }
 
 void Functions::renderFont3d(const SharedMMTexture &texture,
-                             const std::vector<FontInstanceData> &verts)
+                             const std::vector<FontInstanceData> &verts,
+                             const float dprScale)
 
 {
     const auto state = GLRenderState()
                            .withBlend(BlendModeEnum::TRANSPARENCY)
                            .withDepthFunction(std::nullopt)
+                           .withDprScale(dprScale)
                            .withTexture0(texture->getId());
 
     const auto &prog = getShaderPrograms().getFontShader();
@@ -268,6 +270,33 @@ void Functions::renderFont3d(const SharedMMTexture &texture,
                                                                 verts,
                                                                 prog,
                                                                 state);
+}
+
+void Functions::renderIcon3d(const SharedMMTexture &texture,
+                             const std::vector<IconInstanceData> &verts,
+                             const std::vector<IconMetrics> &metrics,
+                             const float dprScale)
+{
+    const auto buffer = SharedVboEnum::IconMetricsBlock;
+    const auto shared = getSharedVbos().get(buffer);
+    VBO &vbo = deref(shared);
+    if (!vbo) {
+        vbo.emplace(shared_from_this());
+    }
+    std::ignore = setUbo(vbo.get(), metrics, BufferUsageEnum::DYNAMIC_DRAW);
+
+    const auto state = GLRenderState()
+                           .withBlend(BlendModeEnum::TRANSPARENCY)
+                           .withDepthFunction(std::nullopt)
+                           .withDprScale(dprScale)
+                           .withTexture0(texture->getId());
+
+    const auto &prog = getShaderPrograms().getIconShader();
+    renderImmediate<IconInstanceData, Legacy::IconMesh>(shared_from_this(),
+                                                        DrawModeEnum::INSTANCED_QUADS,
+                                                        verts,
+                                                        prog,
+                                                        state);
 }
 
 UniqueMesh Functions::createFontMesh(const SharedMMTexture &texture,

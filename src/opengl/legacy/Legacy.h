@@ -33,6 +33,8 @@ struct PointSizeBinder;
 // X(EnumName, GL_String_Name, IsUniform)
 #define XFOREACH_SHARED_VBO(X) \
     X(NamedColorsBlock, "NamedColorsBlock", true) \
+    X(GlyphMetricsBlock, "GlyphMetricsBlock", true) \
+    X(IconMetricsBlock, "IconMetricsBlock", true) \
     X(InstancedQuadIbo, nullptr, false)
 
 enum class SharedVboEnum : uint8_t {
@@ -112,6 +114,8 @@ public:
 private:
     using Base = QOpenGLExtraFunctions;
     glm::mat4 m_viewProj = glm::mat4(1);
+    glm::vec3 m_mapCenter = glm::vec3(0.f);
+    float m_baseSize = 528.f;
     Viewport m_viewport;
     float m_devicePixelRatio = 1.f;
     std::unique_ptr<ShaderPrograms> m_shaderPrograms;
@@ -220,7 +224,9 @@ public:
     using Base::glTexSubImage3D;
     using Base::glUniform1fv;
     using Base::glUniform1iv;
+    using Base::glUniform2fv;
     using Base::glUniform2iv;
+    using Base::glUniform3fv;
     using Base::glUniform4fv;
     using Base::glUniform4iv;
     using Base::glUniformBlockBinding;
@@ -291,6 +297,14 @@ public:
     NODISCARD glm::mat4 getProjectionMatrix() const { return m_viewProj; }
 
     void setProjectionMatrix(const glm::mat4 &viewProj) { m_viewProj = viewProj; }
+
+    NODISCARD glm::vec3 getMapCenter() const { return m_mapCenter; }
+
+    void setMapCenter(const glm::vec3 &mapCenter) { m_mapCenter = mapCenter; }
+
+    NODISCARD float getBaseSize() const { return m_baseSize; }
+
+    void setBaseSize(const float baseSize) { m_baseSize = baseSize; }
 
 public:
     void cleanup();
@@ -443,7 +457,13 @@ public:
     void renderColoredTextured(DrawModeEnum mode,
                                const std::vector<ColoredTexVert> &verts,
                                const GLRenderState &state);
-    void renderFont3d(const SharedMMTexture &texture, const std::vector<FontInstanceData> &verts);
+    void renderFont3d(const SharedMMTexture &texture,
+                      const std::vector<FontInstanceData> &verts,
+                      float dprScale);
+    void renderIcon3d(const SharedMMTexture &texture,
+                      const std::vector<IconInstanceData> &verts,
+                      const std::vector<IconMetrics> &metrics,
+                      float dprScale);
 
 public:
     void checkError();

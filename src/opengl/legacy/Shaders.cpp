@@ -48,16 +48,42 @@ void FontShader::virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uni
 
     setMatrix("uMVP3D", mvp);
     setTexture("uFontTexture", 0);
-    setViewport("uPhysViewport", functions.getPhysicalViewport());
+    const Viewport vp = functions.getPhysicalViewport();
+    setVec2("uViewportSize", glm::vec2(vp.size));
+    setFloat("uDevicePixelRatio", uniforms.dprScale);
 
-    const auto &shared_tex = functions.getTexLookup().at(uniforms.textures[0]);
-    const MMTexture &tex = deref(shared_tex);
-    const QOpenGLTexture *qtex = tex.get();
-    if (qtex) {
-        setIVec2("uFontTexSize", glm::ivec2(qtex->width(), qtex->height()));
+    const auto buffer = SharedVboEnum::GlyphMetricsBlock;
+    const auto shared = functions.getSharedVbos().get(buffer);
+    VBO &vbo = deref(shared);
+    if (vbo) {
+        functions.glBindBufferBase(GL_UNIFORM_BUFFER, buffer, vbo.get());
     }
 }
 PointShader::~PointShader() = default;
+
+IconShader::~IconShader() = default;
+
+void IconShader::virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms)
+{
+    assert(uniforms.textures[0] != INVALID_MM_TEXTURE_ID);
+    auto shared_functions = m_functions.lock();
+    Functions &functions = deref(shared_functions);
+
+    setMatrix("uMVP3D", mvp);
+    setVec3("uMapCenter", functions.getMapCenter());
+    setFloat("uBaseSize", functions.getBaseSize());
+    setTexture("uIconTexture", 0);
+    const Viewport vp = functions.getPhysicalViewport();
+    setVec2("uViewportSize", glm::vec2(vp.size));
+    setFloat("uDevicePixelRatio", uniforms.dprScale);
+
+    const auto buffer = SharedVboEnum::IconMetricsBlock;
+    const auto shared = functions.getSharedVbos().get(buffer);
+    VBO &vbo = deref(shared);
+    if (vbo) {
+        functions.glBindBufferBase(GL_UNIFORM_BUFFER, buffer, vbo.get());
+    }
+}
 
 void ShaderPrograms::early_init()
 {
@@ -70,6 +96,7 @@ void ShaderPrograms::early_init()
 
     std::ignore = getFontShader();
     std::ignore = getPointShader();
+    std::ignore = getIconShader();
 }
 
 void ShaderPrograms::resetAll()
@@ -83,6 +110,7 @@ void ShaderPrograms::resetAll()
 
     m_font.reset();
     m_point.reset();
+    m_icon.reset();
 }
 
 // essentially a private member of ShaderPrograms
@@ -147,6 +175,11 @@ const std::shared_ptr<FontShader> &ShaderPrograms::getFontShader()
 const std::shared_ptr<PointShader> &ShaderPrograms::getPointShader()
 {
     return getInitialized<PointShader>(m_point, getFunctions(), "point");
+}
+
+const std::shared_ptr<IconShader> &ShaderPrograms::getIconShader()
+{
+    return getInitialized<IconShader>(m_icon, getFunctions(), "icon");
 }
 
 } // namespace Legacy

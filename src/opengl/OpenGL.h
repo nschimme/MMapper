@@ -57,6 +57,8 @@ public:
     NODISCARD Viewport getViewport() const;
     NODISCARD Viewport getPhysicalViewport() const;
     void setProjectionMatrix(const glm::mat4 &m);
+    void setMapCenter(const glm::vec3 &v);
+    void setBaseSize(float f);
     void glViewport(GLint x, GLint y, GLsizei w, GLsizei h);
 
 public:
@@ -156,7 +158,13 @@ public:
     }
 
 public:
-    void renderFont3d(const SharedMMTexture &texture, const std::vector<FontInstanceData> &verts);
+    void renderFont3d(const SharedMMTexture &texture,
+                      const std::vector<FontInstanceData> &verts,
+                      float dprScale = 1.0f);
+    void renderIcon3d(const SharedMMTexture &texture,
+                      const std::vector<IconInstanceData> &verts,
+                      const std::vector<IconMetrics> &metrics,
+                      float dprScale = 1.0f);
 
 public:
     void clear(const Color color);
@@ -168,10 +176,13 @@ public:
     NODISCARD GLRenderState getDefaultRenderState();
     void bindNamedColorsBuffer();
     void resetNamedColorsBuffer();
+    void bindFontMetricsBuffer(const std::vector<GlyphMetrics> &metrics);
+    void resetFontMetricsBuffer();
     void setTextureLookup(MMTextureId, SharedMMTexture);
 
 public:
     void initArrayFromFiles(const SharedMMTexture &array, const std::vector<QString> &input);
     void initArrayFromImages(const SharedMMTexture &array,
                              const std::vector<std::vector<QImage>> &input);
+    void generateMipmap2dArray(const SharedMMTexture &array);
 };

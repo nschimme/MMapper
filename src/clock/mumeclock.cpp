@@ -401,7 +401,7 @@ void MumeClock::setLastSyncEpoch(int64_t epoch)
 
 MumeClockPrecisionEnum MumeClock::getPrecision()
 {
-    const int64_t secsSinceEpoch = QDateTime::QDateTime::currentSecsSinceEpoch();
+    const int64_t secsSinceEpoch = QDateTime::currentSecsSinceEpoch();
     if (m_precision >= MumeClockPrecisionEnum::HOUR
         && secsSinceEpoch - m_lastSyncEpoch > ONE_RL_DAY_IN_SECONDS) {
         m_precision = MumeClockPrecisionEnum::DAY;

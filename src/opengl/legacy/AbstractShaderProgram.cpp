@@ -65,12 +65,17 @@ GLuint AbstractShaderProgram::getAttribLocation(const char *const name) const
 
 GLint AbstractShaderProgram::getUniformLocation(const char *const name) const
 {
+    const GLint result = getUniformLocationNoAssert(name);
+    assert(result != INVALID_UNIFORM_LOCATION);
+    return result;
+}
+
+GLint AbstractShaderProgram::getUniformLocationNoAssert(const char *const name) const
+{
     assert(name != nullptr);
     assert(m_isBound);
     auto functions = m_functions.lock();
-    const auto result = deref(functions).glGetUniformLocation(getProgram(), name);
-    assert(result != INVALID_UNIFORM_LOCATION);
-    return result;
+    return deref(functions).glGetUniformLocation(getProgram(), name);
 }
 
 bool AbstractShaderProgram::hasUniform(const char *const name) const
@@ -106,6 +111,24 @@ void AbstractShaderProgram::setUniform1fv(const GLint location,
     assert(m_isBound);
     auto functions = m_functions.lock();
     deref(functions).glUniform1fv(location, count, value);
+}
+
+void AbstractShaderProgram::setUniform2fv(const GLint location,
+                                          const GLsizei count,
+                                          const GLfloat *const value)
+{
+    assert(m_isBound);
+    auto functions = m_functions.lock();
+    deref(functions).glUniform2fv(location, count, value);
+}
+
+void AbstractShaderProgram::setUniform3fv(const GLint location,
+                                          const GLsizei count,
+                                          const GLfloat *const value)
+{
+    assert(m_isBound);
+    auto functions = m_functions.lock();
+    deref(functions).glUniform3fv(location, count, value);
 }
 
 void AbstractShaderProgram::setUniform4fv(const GLint location,
@@ -144,7 +167,7 @@ float AbstractShaderProgram::getDevicePixelRatio() const
 
 void AbstractShaderProgram::setPointSize(const float in_pointSize)
 {
-    const auto location = getUniformLocation("uPointSize");
+    const GLint location = getUniformLocationNoAssert("uPointSize");
     if (location != INVALID_UNIFORM_LOCATION) {
         const float pointSize = in_pointSize * getDevicePixelRatio();
         setUniform1fv(location, 1, &pointSize);
@@ -153,35 +176,69 @@ void AbstractShaderProgram::setPointSize(const float in_pointSize)
 
 void AbstractShaderProgram::setColor(const char *const name, const Color color)
 {
-    const auto location = getUniformLocation(name);
-    const glm::vec4 v = color.getVec4();
-    setUniform4fv(location, 1, glm::value_ptr(v));
+    const GLint location = getUniformLocationNoAssert(name);
+    if (location != INVALID_UNIFORM_LOCATION) {
+        const glm::vec4 v = color.getVec4();
+        setUniform4fv(location, 1, glm::value_ptr(v));
+    }
 }
 
 void AbstractShaderProgram::setMatrix(const char *const name, const glm::mat4 &m)
 {
-    const auto location = getUniformLocation(name);
-    setUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(m));
+    const GLint location = getUniformLocationNoAssert(name);
+    if (location != INVALID_UNIFORM_LOCATION) {
+        setUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(m));
+    }
 }
 
 void AbstractShaderProgram::setTexture(const char *const name, const int textureUnit)
 {
     assert(textureUnit >= 0);
-    const GLint uFontTextureLoc = getUniformLocation(name);
-    setUniform1iv(uFontTextureLoc, 1, &textureUnit);
+    const GLint location = getUniformLocationNoAssert(name);
+    if (location != INVALID_UNIFORM_LOCATION) {
+        setUniform1iv(location, 1, &textureUnit);
+    }
 }
 
 void AbstractShaderProgram::setViewport(const char *const name, const Viewport &input_viewport)
 {
-    const glm::ivec4 viewport{input_viewport.offset, input_viewport.size};
-    const GLint location = getUniformLocation(name);
-    setUniform4iv(location, 1, glm::value_ptr(viewport));
+    const GLint location = getUniformLocationNoAssert(name);
+    if (location != INVALID_UNIFORM_LOCATION) {
+        const glm::ivec4 viewport{input_viewport.offset, input_viewport.size};
+        setUniform4iv(location, 1, glm::value_ptr(viewport));
+    }
 }
 
 void AbstractShaderProgram::setIVec2(const char *const name, const glm::ivec2 &v)
 {
-    const GLint location = getUniformLocation(name);
-    setUniform2iv(location, 1, glm::value_ptr(v));
+    const GLint location = getUniformLocationNoAssert(name);
+    if (location != INVALID_UNIFORM_LOCATION) {
+        setUniform2iv(location, 1, glm::value_ptr(v));
+    }
+}
+
+void AbstractShaderProgram::setFloat(const char *const name, const float f)
+{
+    const GLint location = getUniformLocationNoAssert(name);
+    if (location != INVALID_UNIFORM_LOCATION) {
+        setUniform1fv(location, 1, &f);
+    }
+}
+
+void AbstractShaderProgram::setVec2(const char *const name, const glm::vec2 &v)
+{
+    const GLint location = getUniformLocationNoAssert(name);
+    if (location != INVALID_UNIFORM_LOCATION) {
+        setUniform2fv(location, 1, glm::value_ptr(v));
+    }
+}
+
+void AbstractShaderProgram::setVec3(const char *const name, const glm::vec3 &v)
+{
+    const GLint location = getUniformLocationNoAssert(name);
+    if (location != INVALID_UNIFORM_LOCATION) {
+        setUniform3fv(location, 1, glm::value_ptr(v));
+    }
 }
 
 } // namespace Legacy

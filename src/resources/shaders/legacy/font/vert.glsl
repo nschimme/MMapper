@@ -3,17 +3,33 @@
 
 uniform mat4 uMVP3D;
 uniform ivec4 uPhysViewport;
-uniform ivec2 uFontTexSize;
+uniform float uDevicePixelRatio;
 
-uniform NamedColorsBlock {
+struct GlyphMetrics
+{
+    // xy: uvOffset (normalized 0.0 to 1.0)
+    // zw: uvSize (normalized 0.0 to 1.0)
+    vec4 uvRect;
+
+    // xy: pixelOffset relative to cursor baseline (pre-scaled by DPR)
+    // zw: pixelSize (pre-scaled by DPR)
+    vec4 posRect;
+};
+
+layout(std140) uniform GlyphMetricsBlock
+{
+    GlyphMetrics uGlyphMetrics[512];
+};
+
+layout(std140) uniform NamedColorsBlock
+{
     vec4 uNamedColors[MAX_NAMED_COLORS];
 };
 
 layout(location = 0) in vec3 aBase;
 layout(location = 1) in uint aColor;
-layout(location = 2) in ivec4 aRect;   // offsetX, offsetY, sizeW, sizeH
-layout(location = 3) in ivec4 aUVRect; // uvX, uvY, uvW, uvH
-layout(location = 4) in ivec2 aParams; // rotation, flags
+layout(location = 2) in uint aPacked1;
+layout(location = 3) in uint aPackedRest;
 
 const uint FLAG_ITALICS = 1u;
 const uint FLAG_NAMED_COLOR = 2u;
@@ -21,104 +37,92 @@ const uint FLAG_NAMED_COLOR = 2u;
 out vec4 vColor;
 out vec2 vTexCoord;
 
-// [0, 1]^2 to pixels
-vec2 convertScreen01toPhysPixels(vec2 pos)
-{
-    return pos * vec2(uPhysViewport.zw) + vec2(uPhysViewport.xy);
-}
-
-vec2 convertPhysPixelsToScreen01(vec2 pixels)
-{
-    return (pixels - vec2(uPhysViewport.xy)) / vec2(uPhysViewport.zw);
-}
-
-vec2 anti_flicker(vec2 pos)
-{
-    return convertPhysPixelsToScreen01(floor(convertScreen01toPhysPixels(pos)));
-}
-
-// [-1, 1]^2 to [0, 1]^2
-vec2 convertNDCtoScreenSpace(vec2 pos)
-{
-    return pos * 0.5 + 0.5;
-}
-
-// [0, 1]^2 to [-1, 1]^2
-vec2 convertScreen01toNdcClip(vec2 pos)
-{
-    pos = pos * 2.0 - 1.0;
-    return pos;
-}
-
-vec4 unpackRGBA(uint c)
-{
-    return vec4(
-        float(c & 0xFFu) / 255.0,
-        float((c >> 8u) & 0xFFu) / 255.0,
-        float((c >> 16u) & 0xFFu) / 255.0,
-        float((c >> 24u) & 0xFFu) / 255.0
-    );
-}
-
-vec2 addPerVertexOffset(vec2 wordOriginNdc, vec2 glyphOffsetPixels)
-{
-    vec2 wordOriginScreen = anti_flicker(convertNDCtoScreenSpace(wordOriginNdc));
-    return convertScreen01toNdcClip(wordOriginScreen + convertPhysPixelsToScreen01(glyphOffsetPixels));
-}
-
-// NOTE:
-// 1. Returning identical coordinates will yield degenerate
-//    triangles, so no fragments will be generated.
-// 2. Returning a value that is outside the clip region
-//    might help some implementations bail out sooner.
-//    (hint: 2 is outside the clip region [-1, 1])
 const vec4 ignored = vec4(2.0, 2.0, 2.0, 1.0);
 
 void main()
 {
-    uint rawFlags = uint(aParams.y) & 0xFFFFu;
-    uint flags = rawFlags & 0xFFu;
-    uint namedColorIndex = rawFlags >> 8u;
+    vec4 instanceColor = vec4(float(aColor & 0xFFu) / 255.0,
+                              float((aColor >> 8u) & 0xFFu) / 255.0,
+                              float((aColor >> 16u) & 0xFFu) / 255.0,
+                              float((aColor >> 24u) & 0xFFu) / 255.0);
 
-    // Branchless color selection
-    vec4 unpackedCol = unpackRGBA(aColor);
+    int offsetXInt = int(aPacked1 & 0xFFFFu);
+    if (offsetXInt > 32767)
+        offsetXInt -= 65536; // Sign extend 16-bit to 32-bit
+    float offsetX = float(offsetXInt);
+
+    uint glyphId = (aPacked1 >> 16u) & 0x3FFu;
+    uint flags = (aPacked1 >> 26u) & 0x3Fu;
+    float rotation = 0.0;
+    uint namedColorIndex = 0u;
+
+    if (glyphId < 256u) {
+        rotation = radians(float(aPackedRest & 0x1FFu));
+        namedColorIndex = (aPackedRest >> 9u) & 0x3Fu;
+    } else {
+        namedColorIndex = (aPackedRest >> 26u) & 0x3Fu;
+    }
+
     vec4 namedCol = uNamedColors[namedColorIndex % uint(MAX_NAMED_COLORS)];
+    // The named color's alpha is modulated by the instance alpha
+    vec4 finalNamedCol = vec4(namedCol.rgb, namedCol.a * instanceColor.a);
 
-    // The named color's alpha is modulated by the instance alpha (e.g. for background opacity)
-    vec4 finalNamedCol = vec4(namedCol.rgb, namedCol.a * unpackedCol.a);
+    vColor = mix(instanceColor, finalNamedCol, float((flags & FLAG_NAMED_COLOR) != 0u));
 
-    vColor = mix(unpackedCol, finalNamedCol, float((flags & FLAG_NAMED_COLOR) != 0u));
-
-    const vec2[4] quad = vec2[4](vec2(0, 0), vec2(1, 0), vec2(1, 1), vec2(0, 1));
+    const vec2 quad[4] = vec2[4](vec2(0, 0), vec2(1, 0), vec2(1, 1), vec2(0, 1));
     vec2 corner = quad[gl_VertexID];
 
-    vTexCoord = (vec2(aUVRect.xy) + corner * vec2(aUVRect.zw)) / vec2(uFontTexSize);
+    GlyphMetrics metrics = uGlyphMetrics[glyphId % 512u];
+    vTexCoord = metrics.uvRect.xy + corner * metrics.uvRect.zw;
 
-    vec2 posPixels = vec2(aRect.xy) + corner * vec2(aRect.zw);
+    vec2 posPixels;
+    if (glyphId >= 256u) {
+        // Synthetic: packRest = offsetY (8), sizeW (10), sizeH (8), namedColorIndex (6)
+        int offsetY = int(aPackedRest << 24u) >> 24u;
+        int sizeW = int((aPackedRest >> 8u) & 0x3FFu);
+        int sizeH = int(aPackedRest << 6u)
+                    >> 24u; // sizeH starts at bit 18, length 8. 32 - 18 - 8 = 6 bits shift.
 
-    // Branchless italics
-    posPixels.x += (posPixels.y / 6.0) * float((flags & FLAG_ITALICS) != 0u);
+        posPixels = (vec2(offsetX, float(offsetY)) + corner * vec2(float(sizeW), float(sizeH)));
+    } else {
+        // Normal character: use UBO posRect + offsetX (cursorX).
+        vec4 posRect = metrics.posRect;
+        posPixels = (posRect.xy + vec2(offsetX, 0.0) + corner * posRect.zw);
+    }
 
-    // Branchless rotation
-    float rad = radians(float(aParams.x));
-    float s = sin(rad);
-    float c = cos(rad);
+    // Italics
+    if ((flags & FLAG_ITALICS) != 0u) {
+        posPixels.x += (posPixels.y / 6.0);
+    }
+
+    // Rotation
+    float s = sin(rotation);
+    float c = cos(rotation);
     posPixels = vec2(posPixels.x * c - posPixels.y * s, posPixels.x * s + posPixels.y * c);
 
-    vec4 pos = uMVP3D * vec4(aBase, 1); /* 3D transform */
+    vec4 ndcPos = uMVP3D * vec4(aBase, 1); /* 3D transform */
 
     // Clipping tests
-    bool isInvalid = any(greaterThan(abs(pos.xyz), vec3(1.5 * abs(pos.w)))) || (abs(pos.w) < 1e-3);
-    if (isInvalid) {
+    if (any(greaterThan(abs(ndcPos.xyz), vec3(1.5 * abs(ndcPos.w)))) || (abs(ndcPos.w) < 1e-3)) {
         gl_Position = ignored;
         return;
     }
 
-    // convert from clip space to normalized device coordinates (NDC)
-    pos /= pos.w;
+    ndcPos /= ndcPos.w;
 
-    pos.xy = addPerVertexOffset(pos.xy, posPixels);
+    // Convert NDC to physical pixels
+    vec2 viewportSize = max(vec2(uPhysViewport.zw), vec2(1.0));
+    vec2 viewportOffset = vec2(uPhysViewport.xy);
+    vec2 pixelPos = (ndcPos.xy * 0.5 + 0.5) * viewportSize + viewportOffset;
 
-    // Note: We're not using the built-in MVP matrix.
-    gl_Position = pos;
+    // Snap to pixels (anti-flicker)
+    pixelPos = floor(pixelPos + 0.5);
+
+    // Add per-glyph offset in pixels
+    pixelPos += posPixels;
+
+    // Convert back to NDC
+    ndcPos.xy = (pixelPos - viewportOffset) * 2.0 / viewportSize - 1.0;
+
+    gl_Position = ndcPos;
 }

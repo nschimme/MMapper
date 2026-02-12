@@ -31,19 +31,6 @@ static constexpr float CHAR_ARROW_LINE_WIDTH = 2.f;
 static constexpr float PATH_LINE_WIDTH = 0.1f;
 static constexpr float PATH_POINT_SIZE = 8.f;
 
-DistantObjectTransform DistantObjectTransform::construct(const glm::vec3 &pos,
-                                                         const MapScreen &mapScreen,
-                                                         const float marginPixels)
-{
-    assert(marginPixels > 0.f);
-    const glm::vec3 viewCenter = mapScreen.getCenter();
-    const auto delta = pos - viewCenter;
-    const float radians = std::atan2(delta.y, delta.x);
-    const auto hint = mapScreen.getProxyLocation(pos, marginPixels);
-    const float degrees = glm::degrees(radians);
-    return DistantObjectTransform{hint, degrees};
-}
-
 bool CharacterBatch::isVisible(const Coordinate &c, float margin) const
 {
     return m_mapScreen.isRoomVisible(c, margin);
@@ -65,23 +52,9 @@ void CharacterBatch::drawCharacter(const Coordinate &c, const Color color, bool 
     const bool isFar = m_scale <= settings.charBeaconScaleCutoff;
     const bool wantBeacons = settings.drawCharBeacons && isFar;
     if (!visible) {
-        static const bool useScreenSpacePlayerArrow = std::invoke([]() -> bool {
-            auto opt = utils::getEnvBool("MMAPPER_SCREEN_SPACE_ARROW");
-            return opt ? opt.value() : true;
-        });
-        const auto dot = DistantObjectTransform::construct(roomCenter, m_mapScreen, marginPixels);
-        // Player is distant
-        if (useScreenSpacePlayerArrow) {
-            gl.addScreenSpaceArrow(dot.offset, dot.rotationDegrees, color, fill);
-        } else {
-            gl.glPushMatrix();
-            gl.glTranslatef(dot.offset);
-            // NOTE: 180 degrees of additional rotation flips the arrow to point right instead of left.
-            gl.glRotateZ(dot.rotationDegrees + 180.f);
-            // NOTE: arrow is centered, so it doesn't need additional translation.
-            gl.drawArrow(fill, wantBeacons);
-            gl.glPopMatrix();
-        }
+        // Player is distant. We send the true room position and let the shader
+        // handle the clamping and rotation.
+        gl.addScreenSpaceArrow(roomCenter, 0.f, color, fill);
     }
 
     const bool differentLayer = layerDifference != 0;
@@ -278,16 +251,17 @@ void CharacterBatch::CharFakeGL::drawBox(const Coordinate &coord,
     } else {
         /* ignoring fill for now; that'll require a different icon */
 
-        const auto &color = m_color;
         const auto &m = m_stack.top().modelView;
-        const auto addTransformed = [this, &color, &m](const glm::vec2 &in_vert) -> void {
-            const auto tmp = m * glm::vec4(in_vert, 0.f, 1.f);
-            m_charRoomQuads.emplace_back(color, glm::vec3{in_vert, 0}, glm::vec3{tmp / tmp.w});
-        };
-        addTransformed(a);
-        addTransformed(b);
-        addTransformed(c);
-        addTransformed(d);
+
+        // Extract translation from matrix
+        const glm::vec3 base{m[3][0], m[3][1], m[3][2]};
+        // Extract scale
+        const float sx = glm::length(glm::vec3(m[0]));
+        const float sy = glm::length(glm::vec3(m[1]));
+        // Extract rotation around Z
+        const float rotation = glm::degrees(std::atan2(m[0][1], m[0][0]));
+
+        m_charRoomIcons.emplace_back(CharRoomIcon{base, rotation, glm::vec2(sx, sy), m_color});
 
         if (beacon) {
             drawQuadCommon(a, b, c, d, QuadOptsEnum::BEACON);
@@ -327,10 +301,29 @@ void CharacterBatch::CharFakeGL::reallyDrawCharacters(OpenGL &gl, const MapCanva
         gl.renderColoredQuads(m_charBeaconQuads, blended_noDepth.withCulling(CullingEnum::FRONT));
     }
 
-    if (!m_charRoomQuads.empty()) {
-        gl.renderColoredTexturedQuads(m_charRoomQuads,
-                                      blended_noDepth.withTexture0(
-                                          textures.char_room_sel->getArrayPosition().array));
+    if (!m_charRoomIcons.empty()) {
+        std::vector<IconMetrics> metrics(256);
+        for (size_t i = 0; i < 256; ++i) {
+            metrics[i].sizeAnchor = glm::vec4(1.0, 1.0, 0.0, 0.0); // full world quad
+            metrics[i].flags = 0;
+        }
+
+        const auto pos = textures.char_room_sel->getArrayPosition();
+        const auto idx = static_cast<size_t>(pos.position);
+
+        std::vector<IconInstanceData> iconBatch;
+        iconBatch.reserve(m_charRoomIcons.size());
+        for (const auto &inst : m_charRoomIcons) {
+            iconBatch.emplace_back(inst.base,
+                                   inst.color.getUint32(),
+                                   inst.scale.x,
+                                   inst.scale.y,
+                                   static_cast<uint16_t>(idx),
+                                   static_cast<int16_t>(inst.rotation));
+        }
+
+        gl.renderIcon3d(textures.char_room_sel_Array, iconBatch, metrics, gl.getDevicePixelRatio());
+        m_charRoomIcons.clear();
     }
 
     if (!m_charTris.empty()) {
@@ -342,17 +335,22 @@ void CharacterBatch::CharFakeGL::reallyDrawCharacters(OpenGL &gl, const MapCanva
                               blended_noDepth.withLineParams(LineParams{CHAR_ARROW_LINE_WIDTH}));
     }
 
-    if (!m_screenSpaceArrows.empty()) {
-        // FIXME: add an option to auto-scale to DPR.
-        const float dpr = gl.getDevicePixelRatio();
-        for (auto &v : m_screenSpaceArrows) {
-            v.offsetX = static_cast<int16_t>(std::lround(static_cast<float>(v.offsetX) * dpr));
-            v.offsetY = static_cast<int16_t>(std::lround(static_cast<float>(v.offsetY) * dpr));
-            v.sizeW = static_cast<int16_t>(std::lround(static_cast<float>(v.sizeW) * dpr));
-            v.sizeH = static_cast<int16_t>(std::lround(static_cast<float>(v.sizeH) * dpr));
+    if (!m_screenSpaceIcons.empty()) {
+        static std::vector<IconMetrics> iconMetrics;
+        if (iconMetrics.empty()) {
+            iconMetrics.assign(256, IconMetrics{});
+            for (size_t i = 0; i < 256; ++i) {
+                iconMetrics[i].sizeAnchor = glm::vec4(0.0, 0.0, -0.5, -0.5); // center
+                iconMetrics[i].flags = IconMetrics::FIXED_SIZE | IconMetrics::CLAMP_TO_EDGE
+                                       | IconMetrics::AUTO_ROTATE;
+            }
         }
-        gl.renderFont3d(textures.char_arrows, m_screenSpaceArrows);
-        m_screenSpaceArrows.clear();
+
+        gl.renderIcon3d(textures.char_arrows_Array,
+                        m_screenSpaceIcons,
+                        iconMetrics,
+                        gl.getDevicePixelRatio());
+        m_screenSpaceIcons.clear();
     }
 }
 
@@ -370,33 +368,17 @@ void CharacterBatch::CharFakeGL::reallyDrawPaths(OpenGL &gl)
 void CharacterBatch::CharFakeGL::addScreenSpaceArrow(const glm::vec3 &pos,
                                                      const float degrees,
                                                      const Color color,
-                                                     const bool fill)
+                                                     const bool /*fill*/)
 {
+    // iconIndex: 0 for the default arrow (the only one we use now)
+    const uint16_t iconIndex = 0;
+
     const float scale = MapScreen::DEFAULT_MARGIN_PIXELS;
+    const float sw = 2.f * scale;
+    const float sh = 2.f * scale;
 
-    const int16_t offsetX = static_cast<int16_t>(-scale);
-    const int16_t offsetY = static_cast<int16_t>(-scale);
-    const int16_t sizeW = static_cast<int16_t>(2.f * scale);
-    const int16_t sizeH = static_cast<int16_t>(2.f * scale);
-
-    // UVs for 256x256 texture
-    const int16_t uvX = fill ? 128 : 0;
-    const int16_t uvY = fill ? 128 : 0;
-    const int16_t uvW = 128;
-    const int16_t uvH = 128;
-
-    m_screenSpaceArrows.emplace_back(pos,
-                                     color.getUint32(),
-                                     offsetX,
-                                     offsetY,
-                                     sizeW,
-                                     sizeH,
-                                     uvX,
-                                     uvY,
-                                     uvW,
-                                     uvH,
-                                     static_cast<int16_t>(degrees),
-                                     static_cast<uint16_t>(0));
+    m_screenSpaceIcons
+        .emplace_back(pos, color.getUint32(), sw, sh, iconIndex, static_cast<int16_t>(degrees));
 }
 
 void MapCanvas::paintCharacters()

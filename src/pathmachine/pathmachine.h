@@ -2,13 +2,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
 
-#include <memory>
-#include <optional>
-#include <vector>
-
-#include <QObject>
-#include <QString>
-
 #include "../configuration/configuration.h"
 #include "../map/ChangeList.h"
 #include "../map/parseevent.h"
@@ -16,6 +9,13 @@
 #include "path.h"
 #include "pathparameters.h"
 #include "roomsignalhandler.h"
+
+#include <memory>
+#include <optional>
+#include <vector>
+
+#include <QObject>
+#include <QString>
 
 class Approved;
 class Coordinate;

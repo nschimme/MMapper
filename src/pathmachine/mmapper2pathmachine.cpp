@@ -5,10 +5,10 @@
 
 #include "mmapper2pathmachine.h"
 
-#include "../mapfrontend/mapfrontend.h"
 #include "../configuration/configuration.h"
 #include "../global/SendToUser.h"
 #include "../map/parseevent.h"
+#include "../mapfrontend/mapfrontend.h"
 #include "pathmachine.h"
 #include "pathparameters.h"
 

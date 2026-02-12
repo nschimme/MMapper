@@ -348,26 +348,27 @@ void MapCanvas::paintSelectedInfomarks()
                 batch.drawPoint(point);
             };
 
-            const auto drawSelectionPoints = [this, &drawPoint, &input](const InfomarkHandle &marker) {
-                const auto &pos1 = marker.getPosition1();
-                if (pos1.z != m_currentLayer) {
-                    return;
-                }
+            const auto drawSelectionPoints =
+                [this, &drawPoint, &input](const InfomarkHandle &marker) {
+                    const auto &pos1 = marker.getPosition1();
+                    if (pos1.z != m_currentLayer) {
+                        return;
+                    }
 
-                const auto color = (input.m_infoMarkSelection != nullptr
-                                    && input.m_infoMarkSelection->contains(marker.getId()))
-                                       ? Colors::yellow
-                                       : Colors::cyan;
+                    const auto color = (input.m_infoMarkSelection != nullptr
+                                        && input.m_infoMarkSelection->contains(marker.getId()))
+                                           ? Colors::yellow
+                                           : Colors::cyan;
 
-                drawPoint(pos1, color);
-                if (marker.getType() == InfomarkTypeEnum::TEXT) {
-                    return;
-                }
+                    drawPoint(pos1, color);
+                    if (marker.getType() == InfomarkTypeEnum::TEXT) {
+                        return;
+                    }
 
-                const Coordinate &pos2 = marker.getPosition2();
-                assert(pos2.z == m_currentLayer);
-                drawPoint(pos2, color);
-            };
+                    const Coordinate &pos2 = marker.getPosition2();
+                    assert(pos2.z == m_currentLayer);
+                    drawPoint(pos2, color);
+                };
 
             const auto &map = m_data.getCurrentMap();
             const InfomarkDb &db = map.getInfomarkDb();

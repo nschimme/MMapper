@@ -710,9 +710,11 @@ void MapCanvas::paintNearbyConnectionPoints()
 
     // FIXME: This doesn't show dots for red connections.
     if (input.m_connectionSelection != nullptr
-        && (input.m_connectionSelection->isFirstValid() || input.m_connectionSelection->isSecondValid())) {
-        const CD valid = input.m_connectionSelection->isFirstValid() ? input.m_connectionSelection->getFirst()
-                                                               : input.m_connectionSelection->getSecond();
+        && (input.m_connectionSelection->isFirstValid()
+            || input.m_connectionSelection->isSecondValid())) {
+        const CD valid = input.m_connectionSelection->isFirstValid()
+                             ? input.m_connectionSelection->getFirst()
+                             : input.m_connectionSelection->getSecond();
         const Coordinate &c = valid.room.getPosition();
         const glm::vec3 &pos = c.to_vec3();
         points.emplace_back(Colors::cyan, pos + getConnectionOffset(valid.direction));

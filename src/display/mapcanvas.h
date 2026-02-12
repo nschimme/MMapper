@@ -47,8 +47,7 @@ class QWheelEvent;
 class QWidget;
 class RoomSelFakeGL;
 
-class NODISCARD_QOBJECT MapCanvas final : public QOpenGLWindow,
-                                          public MapCanvasViewport
+class NODISCARD_QOBJECT MapCanvas final : public QOpenGLWindow, public MapCanvasViewport
 {
     Q_OBJECT
 
@@ -178,8 +177,8 @@ public:
     NODISCARD float getRawZoom() const { return m_scaleFactor.getRaw(); }
 
 public:
-    using MapCanvasViewport::width;
     using MapCanvasViewport::height;
+    using MapCanvasViewport::width;
 
 private:
     void onMovement();

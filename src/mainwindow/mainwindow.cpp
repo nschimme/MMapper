@@ -398,7 +398,10 @@ void MainWindow::wireConnections()
             &PathMachine::slot_releaseAllPaths);
 
     MapCanvas *const canvas = getMapCanvas();
-    connect(m_mapData, &MapFrontend::sig_clearingMap, m_mapWindow, &MapWindow::slot_clearAllSelections);
+    connect(m_mapData,
+            &MapFrontend::sig_clearingMap,
+            m_mapWindow,
+            &MapWindow::slot_clearAllSelections);
 
     connect(m_pathMachine,
             &Mmapper2PathMachine::sig_playerMoved,
@@ -466,7 +469,10 @@ void MainWindow::wireConnections()
             &MapWindow::sig_newInfomarkSelection,
             this,
             &MainWindow::slot_newInfomarkSelection);
-    connect(m_mapWindow, &MapWindow::sig_customContextMenuRequested, this, &MainWindow::slot_showContextMenu);
+    connect(m_mapWindow,
+            &MapWindow::sig_customContextMenuRequested,
+            this,
+            &MainWindow::slot_showContextMenu);
 
     // Group
     connect(m_groupManager, &Mmapper2Group::sig_log, this, &MainWindow::slot_log);

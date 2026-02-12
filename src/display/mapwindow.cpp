@@ -153,8 +153,14 @@ MapWindow::MapWindow(MapData &mapData, PrespammedPath &pp, Mmapper2Group &gm, QW
         connect(canvas, &MapCanvas::sig_setScrollBars, this, &MapWindow::sig_setScrollBars);
         connect(canvas, &MapCanvas::sig_selectionChanged, this, &MapWindow::sig_selectionChanged);
         connect(canvas, &MapCanvas::sig_newRoomSelection, this, &MapWindow::sig_newRoomSelection);
-        connect(canvas, &MapCanvas::sig_newConnectionSelection, this, &MapWindow::sig_newConnectionSelection);
-        connect(canvas, &MapCanvas::sig_newInfomarkSelection, this, &MapWindow::sig_newInfomarkSelection);
+        connect(canvas,
+                &MapCanvas::sig_newConnectionSelection,
+                this,
+                &MapWindow::sig_newConnectionSelection);
+        connect(canvas,
+                &MapCanvas::sig_newInfomarkSelection,
+                this,
+                &MapWindow::sig_newInfomarkSelection);
         connect(canvas, &MapCanvas::sig_setCurrentRoom, this, &MapWindow::sig_setCurrentRoom);
         connect(canvas, &MapCanvas::sig_zoomChanged, this, &MapWindow::sig_zoomChanged);
     }
@@ -385,8 +391,8 @@ void MapWindow::handleMousePress(QMouseEvent *const event)
     } else if (!m_mouseLeftPressed && m_mouseRightPressed) {
         if (m_canvasMouseMode == CanvasMouseModeEnum::MOVE && hasSel1()) {
             // Select the room under the cursor
-            slot_setRoomSelection(SigRoomSelection{RoomSelection::createSelection(
-                m_data.findAllRooms(getSel1().getCoordinate()))});
+            slot_setRoomSelection(SigRoomSelection{
+                RoomSelection::createSelection(m_data.findAllRooms(getSel1().getCoordinate()))});
 
             // Select infomarks under the cursor.
             slot_setInfomarkSelection(m_canvas->getInfomarkSelection(getSel1()));
@@ -425,22 +431,22 @@ void MapWindow::handleMousePress(QMouseEvent *const event)
     case CanvasMouseModeEnum::RAYPICK_ROOMS:
         if (hasLeftButton) {
             const auto xy = m_canvas->getMouseCoords(event);
-            const auto near = m_canvas->unproject_raw(glm::vec3{xy, 0.f});
-            const auto far = m_canvas->unproject_raw(glm::vec3{xy, 1.f});
+            const auto nearPos = m_canvas->unproject_raw(glm::vec3{xy, 0.f});
+            const auto farPos = m_canvas->unproject_raw(glm::vec3{xy, 1.f});
 
-            const auto hiz = static_cast<int>(std::floor(near.z));
-            const auto loz = static_cast<int>(std::ceil(far.z));
+            const auto hiz = static_cast<int>(std::floor(nearPos.z));
+            const auto loz = static_cast<int>(std::ceil(farPos.z));
             if (hiz <= loz) {
                 break;
             }
 
-            const auto inv_denom = 1.f / (far.z - near.z);
+            const auto inv_denom = 1.f / (farPos.z - nearPos.z);
 
             RoomIdSet tmpSel;
             for (int z = hiz; z >= loz; --z) {
-                const float t = (static_cast<float>(z) - near.z) * inv_denom;
+                const float t = (static_cast<float>(z) - nearPos.z) * inv_denom;
                 assert(isClamped(t, 0.f, 1.f));
-                const auto pos = glm::mix(near, far, t);
+                const auto pos = glm::mix(nearPos, farPos, t);
                 assert(static_cast<int>(std::lround(pos.z)) == z);
                 const Coordinate c2 = MouseSel{Coordinate2f{pos.x, pos.y}, z}.getCoordinate();
                 if (const auto r = m_data.findRoomHandle(c2)) {
@@ -859,9 +865,9 @@ void MapWindow::handleMouseMove(QMouseEvent *const event)
         break;
     case CanvasMouseModeEnum::MOVE:
         if (hasLeftButton && m_mouseLeftPressed && hasSel2() && hasBackup()) {
-            const Coordinate2i delta
-                = ((getSel2().pos - getBackup().pos) * static_cast<float>(MapCanvas::SCROLL_SCALE))
-                      .truncate();
+            const Coordinate2i delta = ((getSel2().pos - getBackup().pos)
+                                        * static_cast<float>(MapCanvas::SCROLL_SCALE))
+                                           .truncate();
             if (delta.x != 0 || delta.y != 0) {
                 // negated because dragging to right is scrolling to the left.
                 emit sig_mapMove(-delta.x, -delta.y);
@@ -887,7 +893,8 @@ void MapWindow::handleMouseMove(QMouseEvent *const event)
                 m_roomSelectionMove->pos = diff;
                 m_roomSelectionMove->wrongPlace = wrongPlace;
 
-                m_canvasContainer->setCursor(wrongPlace ? Qt::ForbiddenCursor : Qt::ClosedHandCursor);
+                m_canvasContainer->setCursor(wrongPlace ? Qt::ForbiddenCursor
+                                                        : Qt::ClosedHandCursor);
             } else {
                 m_selectedArea = true;
             }
@@ -1025,7 +1032,6 @@ void MapWindow::handleGesture(QGestureEvent *const event)
     m_canvas->update();
     event->accept();
 }
-
 
 void MapWindow::slot_createRoom()
 {

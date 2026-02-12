@@ -160,8 +160,9 @@ void MapCanvas::paintSelectedRoom(RoomSelFakeGL &gl, const RawRoom &room)
         gl.resetMatrix();
         const auto &relativeOffset = input.m_roomSelectionMove->pos;
         gl.glTranslatef(x + relativeOffset.x, y + relativeOffset.y, z);
-        gl.drawColoredQuad(input.m_roomSelectionMove->wrongPlace ? RoomSelFakeGL::SelTypeEnum::MoveBad
-                                                           : RoomSelFakeGL::SelTypeEnum::MoveGood);
+        gl.drawColoredQuad(input.m_roomSelectionMove->wrongPlace
+                               ? RoomSelFakeGL::SelTypeEnum::MoveBad
+                               : RoomSelFakeGL::SelTypeEnum::MoveGood);
     }
 }
 

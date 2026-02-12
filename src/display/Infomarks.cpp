@@ -289,44 +289,48 @@ void MapCanvas::drawInfomark(InfomarksBatch &batch,
 
 void MapCanvas::paintNewInfomarkSelection()
 {
-    if (!hasSel1() || !hasSel2()) {
+    const auto &input = getInputState();
+    if (!input.hasSel1() || !input.hasSel2()) {
         return;
     }
 
-    const auto pos1 = getSel1().pos.to_vec2();
-    const auto pos2 = getSel2().pos.to_vec2();
+    const auto pos1 = input.getSel1().pos.to_vec2();
+    const auto pos2 = input.getSel2().pos.to_vec2();
 
     // Mouse selected area
     auto &gl = getOpenGL();
     const auto layer = static_cast<float>(m_currentLayer);
 
     // Draw yellow guide when creating an infomark line/arrow
-    if (m_canvasMouseMode == CanvasMouseModeEnum::CREATE_INFOMARKS && m_selectedArea) {
+    if (input.m_canvasMouseMode == CanvasMouseModeEnum::CREATE_INFOMARKS && input.m_selectedArea) {
         const auto infomarksLineStyle = GLRenderState()
                                             .withColor(Color{Qt::yellow})
                                             .withLineParams(LineParams{INFOMARK_GUIDE_LINE_WIDTH});
-        const std::vector<glm::vec3> verts{glm::vec3{pos1, layer}, glm::vec3{pos2, layer}};
+        std::vector<glm::vec3> verts;
+        verts.push_back(glm::vec3(pos1.x, pos1.y, layer));
+        verts.push_back(glm::vec3(pos2.x, pos2.y, layer));
         gl.renderPlainLines(verts, infomarksLineStyle);
     }
 }
 
 void MapCanvas::paintSelectedInfomarks()
 {
-    if (m_infoMarkSelection == nullptr
-        && m_canvasMouseMode != CanvasMouseModeEnum::SELECT_INFOMARKS) {
+    const auto &input = getInputState();
+    if (input.m_infoMarkSelection == nullptr
+        && input.m_canvasMouseMode != CanvasMouseModeEnum::SELECT_INFOMARKS) {
         return;
     }
 
     InfomarksBatch batch{getOpenGL(), getGLFont()};
     {
         // draw selections
-        if (m_infoMarkSelection != nullptr) {
-            const InfomarkSelection &sel = deref(m_infoMarkSelection);
+        if (input.m_infoMarkSelection != nullptr) {
+            const InfomarkSelection &sel = deref(input.m_infoMarkSelection);
             sel.for_each([this, &batch](const InfomarkHandle &marker) {
                 drawInfomark(batch, marker, m_currentLayer, {}, Colors::red);
             });
-            if (hasInfomarkSelectionMove()) {
-                const glm::vec2 offset = m_infoMarkSelectionMove->pos.to_vec2();
+            if (input.hasInfomarkSelectionMove()) {
+                const glm::vec2 offset = input.m_infoMarkSelectionMove->pos.to_vec2();
                 sel.for_each([this, &batch, &offset](const InfomarkHandle &marker) {
                     drawInfomark(batch, marker, m_currentLayer, offset, Colors::yellow);
                 });
@@ -334,7 +338,7 @@ void MapCanvas::paintSelectedInfomarks()
         }
 
         // draw selection points
-        if (m_canvasMouseMode == CanvasMouseModeEnum::SELECT_INFOMARKS) {
+        if (input.m_canvasMouseMode == CanvasMouseModeEnum::SELECT_INFOMARKS) {
             const auto drawPoint = [&batch](const Coordinate &c, const Color color) {
                 batch.setColor(color);
                 batch.setOffset(glm::vec3{0});
@@ -344,14 +348,14 @@ void MapCanvas::paintSelectedInfomarks()
                 batch.drawPoint(point);
             };
 
-            const auto drawSelectionPoints = [this, &drawPoint](const InfomarkHandle &marker) {
+            const auto drawSelectionPoints = [this, &drawPoint, &input](const InfomarkHandle &marker) {
                 const auto &pos1 = marker.getPosition1();
                 if (pos1.z != m_currentLayer) {
                     return;
                 }
 
-                const auto color = (m_infoMarkSelection != nullptr
-                                    && m_infoMarkSelection->contains(marker.getId()))
+                const auto color = (input.m_infoMarkSelection != nullptr
+                                    && input.m_infoMarkSelection->contains(marker.getId()))
                                        ? Colors::yellow
                                        : Colors::cyan;
 

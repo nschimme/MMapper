@@ -237,7 +237,7 @@ MainWindow::MainWindow()
                                         deref(m_prespammedPath),
                                         deref(m_groupManager),
                                         deref(m_mumeClock),
-                                        deref(getCanvas()),
+                                        deref(getMapCanvas()),
                                         deref(m_gameObserver),
                                         this);
 
@@ -292,7 +292,8 @@ MainWindow::MainWindow()
     showScrollBarsAct->setChecked(getConfig().general.showScrollBars);
     slot_setShowScrollBars();
 
-    if constexpr (CURRENT_PLATFORM != PlatformEnum::Mac) {
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Mac) {
+    } else {
         showMenuBarAct->setChecked(getConfig().general.showMenuBar);
         slot_setShowMenuBar();
     }
@@ -378,7 +379,7 @@ void MainWindow::readSettings()
         raise();
 
         // Check if the window was moved to a screen with a different DPI
-        getCanvas()->screenChanged();
+        getMapCanvas()->screenChanged();
     }
 }
 
@@ -396,8 +397,8 @@ void MainWindow::wireConnections()
             m_pathMachine,
             &PathMachine::slot_releaseAllPaths);
 
-    MapCanvas *const canvas = getCanvas();
-    connect(m_mapData, &MapFrontend::sig_clearingMap, canvas, &MapCanvas::slot_clearAllSelections);
+    MapCanvas *const canvas = getMapCanvas();
+    connect(m_mapData, &MapFrontend::sig_clearingMap, m_mapWindow, &MapWindow::slot_clearAllSelections);
 
     connect(m_pathMachine,
             &Mmapper2PathMachine::sig_playerMoved,
@@ -429,7 +430,7 @@ void MainWindow::wireConnections()
     connect(m_prespammedPath, &PrespammedPath::sig_update, canvas, &MapCanvas::slot_requestUpdate);
 
     connect(m_mapData, &MapData::sig_log, this, &MainWindow::slot_log);
-    connect(canvas, &MapCanvas::sig_log, this, &MainWindow::slot_log);
+    connect(m_mapWindow, &MapWindow::sig_log, this, &MainWindow::slot_log);
 
     connect(m_mapData, &MapData::sig_onDataChanged, this, [this]() { this->updateMapModified(); });
 
@@ -437,8 +438,8 @@ void MainWindow::wireConnections()
     connect(zoomOutAct, &QAction::triggered, canvas, &MapCanvas::slot_zoomOut);
     connect(zoomResetAct, &QAction::triggered, canvas, &MapCanvas::slot_zoomReset);
 
-    connect(canvas, &MapCanvas::sig_newRoomSelection, this, &MainWindow::slot_newRoomSelection);
-    connect(canvas, &MapCanvas::sig_selectionChanged, this, [this]() {
+    connect(m_mapWindow, &MapWindow::sig_newRoomSelection, this, &MainWindow::slot_newRoomSelection);
+    connect(m_mapWindow, &MapWindow::sig_selectionChanged, this, [this]() {
         if (m_roomSelection != nullptr && m_roomSelection->size()) {
             auto anyRoomAtOffset = [this](const Coordinate &offset) -> bool {
                 const auto &sel = deref(m_roomSelection);
@@ -457,15 +458,15 @@ void MainWindow::wireConnections()
             mergeDownRoomSelectionAct->setEnabled(anyRoomAtOffset(Coordinate(0, 0, -1)));
         }
     });
-    connect(canvas,
-            &MapCanvas::sig_newConnectionSelection,
+    connect(m_mapWindow,
+            &MapWindow::sig_newConnectionSelection,
             this,
             &MainWindow::slot_newConnectionSelection);
-    connect(canvas,
-            &MapCanvas::sig_newInfomarkSelection,
+    connect(m_mapWindow,
+            &MapWindow::sig_newInfomarkSelection,
             this,
             &MainWindow::slot_newInfomarkSelection);
-    connect(canvas, &QWidget::customContextMenuRequested, this, &MainWindow::slot_showContextMenu);
+    connect(m_mapWindow, &MapWindow::sig_customContextMenuRequested, this, &MainWindow::slot_showContextMenu);
 
     // Group
     connect(m_groupManager, &Mmapper2Group::sig_log, this, &MainWindow::slot_log);
@@ -495,8 +496,8 @@ void MainWindow::wireConnections()
     // Find Room Dialog Connections
     connect(m_findRoomsDlg,
             &FindRoomsDlg::sig_newRoomSelection,
-            canvas,
-            &MapCanvas::slot_setRoomSelection);
+            m_mapWindow,
+            &MapWindow::slot_setRoomSelection);
     connect(m_findRoomsDlg,
             &FindRoomsDlg::sig_center,
             m_mapWindow,
@@ -1011,7 +1012,7 @@ void MainWindow::createActions()
     rebuildMeshesAct = new QAction(QIcon(":/icons/graphicscfg.png"), tr("&Rebuild World"), this);
     rebuildMeshesAct->setStatusTip(tr("Reconstruct the world mesh to fix graphical rendering bugs"));
     rebuildMeshesAct->setCheckable(false);
-    connect(rebuildMeshesAct, &QAction::triggered, getCanvas(), &MapCanvas::slot_rebuildMeshes);
+    connect(rebuildMeshesAct, &QAction::triggered, getMapCanvas(), &MapCanvas::slot_rebuildMeshes);
 }
 
 static void setConfigMapMode(const MapModeEnum mode)
@@ -1087,7 +1088,7 @@ void MainWindow::hideCanvas(const bool hide)
     // REVISIT: It seems that updates don't work if the canvas is hidden,
     // so we may want to save mapChanged() and other similar requests
     // and send them after we show the canvas.
-    if (MapCanvas *const canvas = getCanvas()) {
+    if (MapCanvas *const canvas = getMapCanvas()) {
         if (hide) {
             canvas->hide();
         } else {
@@ -1274,7 +1275,7 @@ void MainWindow::slot_showContextMenu(const QPoint &pos)
     mouseMenu->addAction(mouseMode.modeCreateConnectionAct);
     mouseMenu->addAction(mouseMode.modeCreateOnewayConnectionAct);
 
-    contextMenu->popup(getCanvas()->mapToGlobal(pos));
+    contextMenu->popup(m_mapWindow->getCanvas()->mapToGlobal(pos));
 }
 
 void MainWindow::slot_alwaysOnTop()
@@ -1313,7 +1314,7 @@ void MainWindow::slot_setShowMenuBar()
     m_dockDialogGroup->setMouseTracking(!showMenuBar);
     m_dockDialogLog->setMouseTracking(!showMenuBar);
     m_dockDialogRoom->setMouseTracking(!showMenuBar);
-    getCanvas()->setMouseTracking(!showMenuBar);
+    m_mapWindow->getCanvas()->setMouseTracking(!showMenuBar);
 
     if (showMenuBar) {
         menuBar()->show();
@@ -1322,14 +1323,14 @@ void MainWindow::slot_setShowMenuBar()
         m_dockDialogGroup->removeEventFilter(this);
         m_dockDialogLog->removeEventFilter(this);
         m_dockDialogRoom->removeEventFilter(this);
-        getCanvas()->removeEventFilter(this);
+        m_mapWindow->getCanvas()->removeEventFilter(this);
     } else {
         m_dockDialogAdventure->installEventFilter(this);
         m_dockDialogClient->installEventFilter(this);
         m_dockDialogGroup->installEventFilter(this);
         m_dockDialogLog->installEventFilter(this);
         m_dockDialogRoom->installEventFilter(this);
-        getCanvas()->installEventFilter(this);
+        m_mapWindow->getCanvas()->installEventFilter(this);
     }
 }
 
@@ -1515,7 +1516,7 @@ void MainWindow::closeEvent(QCloseEvent *const event)
 void MainWindow::showEvent(QShowEvent *const event)
 {
     // Check screen DPI each time MMapper's window is shown
-    getCanvas()->screenChanged();
+    getMapCanvas()->screenChanged();
 
     static std::once_flag flag;
     std::call_once(flag, [this]() {
@@ -1525,7 +1526,7 @@ void MainWindow::showEvent(QShowEvent *const event)
         connect(window()->windowHandle(), &QWindow::screenChanged, this, [this]() {
             MapWindow &window = deref(m_mapWindow);
             CanvasDisabler canvasDisabler{window};
-            MapCanvas &canvas = deref(getCanvas());
+            MapCanvas &canvas = deref(window.getMapCanvas());
             canvas.screenChanged();
         });
     });
@@ -1549,7 +1550,7 @@ void MainWindow::forceNewFile()
     }
 
     setCurrentFile("");
-    getCanvas()->slot_dataLoaded();
+    getMapCanvas()->slot_dataLoaded();
     m_groupWidget->slot_mapLoaded();
     m_descriptionWidget->updateRoom(RoomHandle{});
 
@@ -1674,7 +1675,7 @@ void MainWindow::setMapModified(bool modified)
 void MainWindow::updateMapModified()
 {
     setMapModified(m_mapData->isModified());
-    getCanvas()->update();
+    getMapCanvas()->update();
 }
 
 void MainWindow::percentageChanged(const uint32_t p)
@@ -1737,17 +1738,17 @@ void MainWindow::setCurrentFile(const QString &fileName)
 
 void MainWindow::slot_onLayerUp()
 {
-    getCanvas()->slot_layerUp();
+    getMapCanvas()->slot_layerUp();
 }
 
 void MainWindow::slot_onLayerDown()
 {
-    getCanvas()->slot_layerDown();
+    getMapCanvas()->slot_layerDown();
 }
 
 void MainWindow::slot_onLayerReset()
 {
-    getCanvas()->slot_layerReset();
+    getMapCanvas()->slot_layerReset();
 }
 
 void MainWindow::slot_onModeConnectionSelect()
@@ -1803,13 +1804,13 @@ void MainWindow::slot_onEditInfomarkSelection()
 
     auto *dlg = new InfomarksEditDlg(this);
     dlg->setAttribute(Qt::WA_DeleteOnClose);
-    dlg->setInfomarkSelection(m_infoMarkSelection, m_mapData, getCanvas());
+    dlg->setInfomarkSelection(m_infoMarkSelection, m_mapData, getMapCanvas());
     dlg->show();
 }
 
 void MainWindow::slot_onCreateRoom()
 {
-    deref(getCanvas()).slot_createRoom();
+    m_mapWindow->slot_createRoom();
 }
 
 void MainWindow::slot_onEditRoomSelection()
@@ -1826,7 +1827,7 @@ void MainWindow::slot_onEditRoomSelection()
     m_roomEditAttrDlg = std::make_unique<RoomEditAttrDlg>(this);
     {
         auto &roomEditDialog = deref(m_roomEditAttrDlg);
-        roomEditDialog.setRoomSelection(m_roomSelection, m_mapData, getCanvas());
+        roomEditDialog.setRoomSelection(m_roomSelection, m_mapData, getMapCanvas());
         roomEditDialog.show();
         connect(&roomEditDialog, &QDialog::finished, this, [this](MAYBE_UNUSED int result) {
             m_roomEditAttrDlg.reset();
@@ -1851,8 +1852,7 @@ void MainWindow::slot_onDeleteInfomarkSelection()
         }
     }
 
-    MapCanvas *const canvas = getCanvas();
-    canvas->slot_clearInfomarkSelection();
+    m_mapWindow->slot_clearInfomarkSelection();
 }
 
 void MainWindow::slot_onDeleteRoomSelection()
@@ -1864,7 +1864,7 @@ void MainWindow::slot_onDeleteRoomSelection()
     applyGroupAction([](const RawRoom &room) -> Change {
         return Change{room_change_types::RemoveRoom{room.getId()}};
     });
-    getCanvas()->slot_clearRoomSelection();
+    m_mapWindow->slot_clearRoomSelection();
 }
 
 void MainWindow::slot_onDeleteConnectionSelection()
@@ -1886,7 +1886,7 @@ void MainWindow::slot_onDeleteConnectionSelection()
     const RoomId &id1 = r1.getId();
     const RoomId &id2 = r2.getId();
 
-    getCanvas()->slot_clearConnectionSelection();
+    m_mapWindow->slot_clearConnectionSelection();
 
     // REVISIT: dir2?
     m_mapData->applySingleChange(Change{exit_change_types::ModifyExitConnection{
@@ -2064,22 +2064,22 @@ void MainWindow::keyReleaseEvent(QKeyEvent *event)
     QWidget::keyReleaseEvent(event);
 }
 
-MapCanvas *MainWindow::getCanvas() const
+MapCanvas *MainWindow::getMapCanvas() const
 {
-    return m_mapWindow->getCanvas();
+    return m_mapWindow->getMapCanvas();
 }
 
 void MainWindow::mapChanged() const
 {
-    if (MapCanvas *const canvas = getCanvas()) {
+    if (MapCanvas *const canvas = getMapCanvas()) {
         canvas->slot_mapChanged();
     }
 }
 
 void MainWindow::setCanvasMouseMode(const CanvasMouseModeEnum mode)
 {
-    if (MapCanvas *const canvas = getCanvas()) {
-        canvas->slot_setCanvasMouseMode(mode);
+    if (m_mapWindow != nullptr) {
+        m_mapWindow->slot_setCanvasMouseMode(mode);
     }
 }
 
@@ -2096,7 +2096,7 @@ void MainWindow::showStatusInternal(const QString &text, int duration)
 void MainWindow::onSuccessfulLoad(const MapLoadData &mapLoadData)
 {
     auto &mapData = deref(m_mapData);
-    auto &mapCanvas = deref(getCanvas());
+    auto &mapCanvas = deref(getMapCanvas());
     auto &groupWidget = deref(m_groupWidget);
     auto &pathMachine = deref(m_pathMachine);
 
@@ -2125,7 +2125,7 @@ void MainWindow::onSuccessfulLoad(const MapLoadData &mapLoadData)
 void MainWindow::onSuccessfulMerge(const Map &map)
 {
     auto &mapData = deref(m_mapData);
-    auto &mapCanvas = deref(getCanvas());
+    auto &mapCanvas = deref(getMapCanvas());
     auto &groupWidget = deref(m_groupWidget);
 
     mapData.setCurrentMap(map);

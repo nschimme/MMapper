@@ -20,13 +20,13 @@
 #include <unordered_map>
 
 #include <QOpenGLTexture>
-#include <QWidget>
 #include <QtGui/QMatrix4x4>
 #include <QtGui/QMouseEvent>
 #include <QtGui/qopengl.h>
 #include <QtGui>
 
 class ConnectionSelection;
+class QWindow;
 class MapData;
 class PrespammedPath;
 class InfomarkSelection;
@@ -100,7 +100,7 @@ public:
 struct NODISCARD MapCanvasViewport
 {
 private:
-    QWidget &m_sizeWidget;
+    QWindow &m_window;
 
 public:
     glm::mat4 m_viewProj{1.f};
@@ -109,18 +109,14 @@ public:
     int m_currentLayer = 0;
 
 public:
-    explicit MapCanvasViewport(QWidget &sizeWidget)
-        : m_sizeWidget{sizeWidget}
+    explicit MapCanvasViewport(QWindow &window)
+        : m_window{window}
     {}
 
 public:
-    NODISCARD auto width() const { return m_sizeWidget.width(); }
-    NODISCARD auto height() const { return m_sizeWidget.height(); }
-    NODISCARD Viewport getViewport() const
-    {
-        const auto &r = m_sizeWidget.rect();
-        return Viewport{glm::ivec2{r.x(), r.y()}, glm::ivec2{r.width(), r.height()}};
-    }
+    NODISCARD int width() const;
+    NODISCARD int height() const;
+    NODISCARD Viewport getViewport() const;
     NODISCARD float getTotalScaleFactor() const { return m_scaleFactor.getTotal(); }
 
 public:
@@ -185,7 +181,7 @@ struct NODISCARD MapCanvasInputState
     };
 
     std::optional<RoomSelMove> m_roomSelectionMove;
-    NODISCARD bool hasRoomSelectionMove() { return m_roomSelectionMove.has_value(); }
+    NODISCARD bool hasRoomSelectionMove() const { return m_roomSelectionMove.has_value(); }
 
     std::shared_ptr<InfomarkSelection> m_infoMarkSelection;
 
@@ -202,7 +198,7 @@ struct NODISCARD MapCanvasInputState
 
 public:
     explicit MapCanvasInputState(PrespammedPath &prespammedPath);
-    ~MapCanvasInputState();
+    virtual ~MapCanvasInputState();
 
 public:
     NODISCARD static MouseSel getMouseSel(const std::optional<MouseSel> &x)

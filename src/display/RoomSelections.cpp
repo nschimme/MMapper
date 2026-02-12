@@ -124,8 +124,9 @@ void MapCanvas::paintSelectedRoom(RoomSelFakeGL &gl, const RawRoom &room)
     // This fake GL uses resetMatrix() before this function.
     gl.resetMatrix();
 
+    auto &input = getInputState();
     const float marginPixels = MapScreen::DEFAULT_MARGIN_PIXELS;
-    const bool isMoving = hasRoomSelectionMove();
+    const bool isMoving = input.hasRoomSelectionMove();
 
     if (!isMoving && !m_mapScreen.isRoomVisible(roomPos, marginPixels / 2.f)) {
         const glm::vec3 roomCenter = roomPos.to_vec3() + glm::vec3{0.5f, 0.5f, 0.f};
@@ -157,22 +158,23 @@ void MapCanvas::paintSelectedRoom(RoomSelFakeGL &gl, const RawRoom &room)
 
     if (isMoving) {
         gl.resetMatrix();
-        const auto &relativeOffset = m_roomSelectionMove->pos;
+        const auto &relativeOffset = input.m_roomSelectionMove->pos;
         gl.glTranslatef(x + relativeOffset.x, y + relativeOffset.y, z);
-        gl.drawColoredQuad(m_roomSelectionMove->wrongPlace ? RoomSelFakeGL::SelTypeEnum::MoveBad
+        gl.drawColoredQuad(input.m_roomSelectionMove->wrongPlace ? RoomSelFakeGL::SelTypeEnum::MoveBad
                                                            : RoomSelFakeGL::SelTypeEnum::MoveGood);
     }
 }
 
 void MapCanvas::paintSelectedRooms()
 {
-    if (!m_roomSelection || m_roomSelection->empty()) {
+    auto &input = getInputState();
+    if (!input.m_roomSelection || input.m_roomSelection->empty()) {
         return;
     }
 
     RoomSelFakeGL gl;
 
-    for (const RoomId id : deref(m_roomSelection)) {
+    for (const RoomId id : deref(input.m_roomSelection)) {
         if (const auto room = m_data.findRoomHandle(id)) {
             gl.resetMatrix();
             paintSelectedRoom(gl, room.getRaw());

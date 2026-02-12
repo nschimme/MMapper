@@ -30,7 +30,7 @@
 #include <QColor>
 #include <QMatrix4x4>
 #include <QOpenGLDebugMessage>
-#include <QOpenGLWidget>
+#include <QOpenGLWindow>
 #include <QtCore>
 
 class CharacterBatch;
@@ -47,9 +47,8 @@ class QWheelEvent;
 class QWidget;
 class RoomSelFakeGL;
 
-class NODISCARD_QOBJECT MapCanvas final : public QOpenGLWidget,
-                                          private MapCanvasViewport,
-                                          private MapCanvasInputState
+class NODISCARD_QOBJECT MapCanvas final : public QOpenGLWindow,
+                                          public MapCanvasViewport
 {
     Q_OBJECT
 
@@ -139,28 +138,30 @@ private:
     Batches m_batches;
     MapCanvasTextures m_textures;
     MapData &m_data;
+    PrespammedPath &m_prespammedPath;
     Mmapper2Group &m_groupManager;
+    MapCanvasInputState *m_inputState = nullptr;
     Diff m_diff;
     FrameRateController m_frameRateController;
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
     Signal2Lifetime m_lifetime;
 
-    struct AltDragState
-    {
-        QPoint lastPos;
-        QCursor originalCursor;
-    };
-    std::optional<AltDragState> m_altDragState;
-
 public:
     explicit MapCanvas(MapData &mapData,
                        PrespammedPath &prespammedPath,
-                       Mmapper2Group &groupManager,
-                       QWidget *parent);
+                       Mmapper2Group &groupManager);
     ~MapCanvas() final;
 
 public:
     NODISCARD static MapCanvas *getPrimary();
+
+public:
+    void setInputState(MapCanvasInputState *inputState) { m_inputState = inputState; }
+    NODISCARD MapCanvasInputState &getInputState() { return deref(m_inputState); }
+    NODISCARD const MapCanvasInputState &getInputState() const { return deref(m_inputState); }
+
+    NODISCARD auto &getMapScreen() { return m_mapScreen; }
+    NODISCARD const auto &getMapScreen() const { return m_mapScreen; }
 
 private:
     NODISCARD inline auto &getOpenGL() { return m_opengl; }
@@ -168,9 +169,6 @@ private:
     void cleanupOpenGL();
 
 public:
-    NODISCARD QSize minimumSizeHint() const override;
-    NODISCARD QSize sizeHint() const override;
-
     using MapCanvasViewport::getTotalScaleFactor;
     void setZoom(float zoom)
     {
@@ -180,9 +178,8 @@ public:
     NODISCARD float getRawZoom() const { return m_scaleFactor.getRaw(); }
 
 public:
-    NODISCARD auto width() const { return QOpenGLWidget::width(); }
-    NODISCARD auto height() const { return QOpenGLWidget::height(); }
-    NODISCARD auto rect() const { return QOpenGLWidget::rect(); }
+    using MapCanvasViewport::width;
+    using MapCanvasViewport::height;
 
 private:
     void onMovement();
@@ -198,11 +195,6 @@ protected:
     void drawGroupCharacters(CharacterBatch &characterBatch);
 
     void resizeGL(int width, int height) override;
-    void mousePressEvent(QMouseEvent *event) override;
-    void mouseReleaseEvent(QMouseEvent *event) override;
-    void mouseMoveEvent(QMouseEvent *event) override;
-    void wheelEvent(QWheelEvent *event) override;
-    bool event(QEvent *e) override;
 
 private:
     void setAnimating(bool value);
@@ -216,6 +208,7 @@ private:
     void updateTextures();
     void updateMultisampling();
 
+public:
     NODISCARD std::shared_ptr<InfomarkSelection> getInfomarkSelection(const MouseSel &sel);
     NODISCARD static glm::mat4 getViewProj_old(const glm::vec2 &scrollPos,
                                                const glm::ivec2 &size,
@@ -264,19 +257,17 @@ public:
     void screenChanged();
     void selectionChanged();
     void graphicsSettingsChanged();
-    void zoomChanged() { emit sig_zoomChanged(getRawZoom()); }
+    void zoomChanged();
 
 public:
     void userPressedEscape(bool);
 
 private:
-    void log(const QString &msg) { emit sig_log("MapCanvas", msg); }
+    void log(const QString &msg);
 
 signals:
     void sig_onCenter(const glm::vec2 &worldCoord);
-    void sig_mapMove(int dx, int dy);
     void sig_setScrollBars(const Coordinate &min, const Coordinate &max);
-    void sig_continuousScroll(int, int);
 
     void sig_log(const QString &, const QString &);
 
@@ -291,8 +282,6 @@ signals:
 public slots:
     void slot_onForcedPositionChange();
     void slot_createRoom();
-
-    void slot_setCanvasMouseMode(CanvasMouseModeEnum mode);
 
     void slot_setScroll(const glm::vec2 &worldPos);
     // void setScroll(const glm::ivec2 &) = delete; // moc tries to call the wrong one if you define this

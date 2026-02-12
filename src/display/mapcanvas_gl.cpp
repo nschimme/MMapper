@@ -48,7 +48,7 @@
 
 #include <QMessageBox>
 #include <QMessageLogContext>
-#include <QOpenGLWidget>
+#include <QOpenGLWindow>
 #include <QtCore>
 #include <QtGui/qopengl.h>
 #include <QtGui>
@@ -96,15 +96,15 @@ void setShowPerfStats(const bool show)
 class NODISCARD MakeCurrentRaii final
 {
 private:
-    QOpenGLWidget &m_glWidget;
+    QOpenGLWindow &m_glWindow;
 
 public:
-    explicit MakeCurrentRaii(QOpenGLWidget &widget)
-        : m_glWidget{widget}
+    explicit MakeCurrentRaii(QOpenGLWindow &window)
+        : m_glWindow{window}
     {
-        m_glWidget.makeCurrent();
+        m_glWindow.makeCurrent();
     }
-    ~MakeCurrentRaii() { m_glWidget.doneCurrent(); }
+    ~MakeCurrentRaii() { m_glWindow.doneCurrent(); }
 
     DELETE_CTORS_AND_ASSIGN_OPS(MakeCurrentRaii);
 };
@@ -181,7 +181,7 @@ void MapCanvas::reportGLVersion()
         logMsg("Highest GLES:", mmqt::toQByteArrayUtf8(OpenGLConfig::getESVersionString()));
     }
 
-    logMsg("Display:", QString("%1 DPI").arg(QPaintDevice::devicePixelRatioF()).toUtf8());
+    logMsg("Display:", QString("%1 DPI").arg(devicePixelRatio()).toUtf8());
 }
 
 bool MapCanvas::isBlacklistedDriver()
@@ -215,7 +215,7 @@ void MapCanvas::initializeGL()
     } catch (const std::exception &) {
         hide();
         doneCurrent();
-        QMessageBox::critical(this,
+        QMessageBox::critical(nullptr,
                               "Unable to initialize OpenGL",
                               "Upgrade your video card drivers");
         if constexpr (CURRENT_PLATFORM == PlatformEnum::Windows) {
@@ -233,7 +233,7 @@ void MapCanvas::initializeGL()
     // because the logger purposely calls std::abort() when it receives an error.
     initLogger();
 
-    gl.initializeRenderer(static_cast<float>(QPaintDevice::devicePixelRatioF()));
+    gl.initializeRenderer(static_cast<float>(devicePixelRatio()));
     updateMultisampling();
 
     // REVISIT: should the font texture have the lowest ID?
@@ -859,7 +859,7 @@ void MapCanvas::paintGL()
     const auto &afterBatches = optAfterBatches.value();
     const auto afterPaint = Clock::now();
     const bool calledFinish = std::invoke([this]() -> bool {
-        if (auto *const ctxt = QOpenGLWidget::context()) {
+        if (auto *const ctxt = context()) {
             if (auto *const func = ctxt->functions()) {
                 func->glFinish();
                 return true;
@@ -950,22 +950,23 @@ void MapCanvas::paintGL()
 
 void MapCanvas::paintSelectionArea()
 {
-    if (!hasSel1() || !hasSel2()) {
+    auto &input = getInputState();
+    if (!input.hasSel1() || !input.hasSel2()) {
         return;
     }
 
-    const auto pos1 = getSel1().pos.to_vec2();
-    const auto pos2 = getSel2().pos.to_vec2();
+    const auto pos1 = input.getSel1().pos.to_vec2();
+    const auto pos2 = input.getSel2().pos.to_vec2();
 
     // Mouse selected area
     auto &gl = getOpenGL();
     const auto layer = static_cast<float>(m_currentLayer);
 
-    if (m_selectedArea) {
-        const glm::vec3 A{pos1, layer};
-        const glm::vec3 B{pos2.x, pos1.y, layer};
-        const glm::vec3 C{pos2, layer};
-        const glm::vec3 D{pos1.x, pos2.y, layer};
+    if (input.m_selectedArea) {
+        const glm::vec3 A(pos1.x, pos1.y, layer);
+        const glm::vec3 B(pos2.x, pos1.y, layer);
+        const glm::vec3 C(pos2.x, pos2.y, layer);
+        const glm::vec3 D(pos1.x, pos2.y, layer);
 
         // REVISIT: why a dark colored selection?
         const Color selBgColor = Colors::black.withAlpha(0.5f);

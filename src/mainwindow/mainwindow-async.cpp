@@ -774,7 +774,7 @@ void MainWindow::slot_merge()
             auto pStorage = getLoadOrMergeMapStorage(pc, source);
             connect(pStorage.get(), &AbstractMapStorage::sig_log, this, &MainWindow::slot_log);
 
-            getCanvas()->slot_clearAllSelections();
+            getMapCanvas()->slot_clearAllSelections();
             m_asyncTask.begin(std::make_unique<AsyncMerge>(std::move(pc),
                                                            *this,
                                                            source->getFileName(),

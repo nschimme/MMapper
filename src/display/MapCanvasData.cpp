@@ -12,6 +12,7 @@
 #include <glm/gtc/epsilon.hpp>
 
 #include <QPointF>
+#include <QWindow>
 
 const MMapper::Array<RoomTintEnum, NUM_ROOM_TINTS> &getAllRoomTints()
 {
@@ -25,6 +26,21 @@ MapCanvasInputState::MapCanvasInputState(PrespammedPath &prespammedPath)
 {}
 
 MapCanvasInputState::~MapCanvasInputState() = default;
+
+int MapCanvasViewport::width() const
+{
+    return m_window.width();
+}
+
+int MapCanvasViewport::height() const
+{
+    return m_window.height();
+}
+
+Viewport MapCanvasViewport::getViewport() const
+{
+    return Viewport{glm::ivec2{0, 0}, glm::ivec2{m_window.width(), m_window.height()}};
+}
 
 // world space to screen space (logical pixels)
 std::optional<glm::vec3> MapCanvasViewport::project(const glm::vec3 &v) const

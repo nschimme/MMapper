@@ -649,7 +649,8 @@ void ConnectionMeshes::render(const int thisLayer, const int focusedLayer) const
 
 void MapCanvas::paintNearbyConnectionPoints()
 {
-    const bool isSelection = m_canvasMouseMode == CanvasMouseModeEnum::SELECT_CONNECTIONS;
+    auto &input = getInputState();
+    const bool isSelection = input.m_canvasMouseMode == CanvasMouseModeEnum::SELECT_CONNECTIONS;
     using CD = ConnectionSelection::ConnectionDescriptor;
 
     static const auto allExits = std::invoke([]() -> ExitDirFlags {
@@ -708,20 +709,20 @@ void MapCanvas::paintNearbyConnectionPoints()
     };
 
     // FIXME: This doesn't show dots for red connections.
-    if (m_connectionSelection != nullptr
-        && (m_connectionSelection->isFirstValid() || m_connectionSelection->isSecondValid())) {
-        const CD valid = m_connectionSelection->isFirstValid() ? m_connectionSelection->getFirst()
-                                                               : m_connectionSelection->getSecond();
+    if (input.m_connectionSelection != nullptr
+        && (input.m_connectionSelection->isFirstValid() || input.m_connectionSelection->isSecondValid())) {
+        const CD valid = input.m_connectionSelection->isFirstValid() ? input.m_connectionSelection->getFirst()
+                                                               : input.m_connectionSelection->getSecond();
         const Coordinate &c = valid.room.getPosition();
         const glm::vec3 &pos = c.to_vec3();
         points.emplace_back(Colors::cyan, pos + getConnectionOffset(valid.direction));
 
         addPoints(MouseSel{Coordinate2f{pos.x, pos.y}, c.z}, valid);
-        addPoints(m_sel1, valid);
-        addPoints(m_sel2, valid);
+        addPoints(input.m_sel1, valid);
+        addPoints(input.m_sel2, valid);
     } else {
-        addPoints(m_sel1, std::nullopt);
-        addPoints(m_sel2, std::nullopt);
+        addPoints(input.m_sel1, std::nullopt);
+        addPoints(input.m_sel2, std::nullopt);
     }
 
     getOpenGL().renderPoints(points, GLRenderState().withPointSize(VALID_CONNECTION_POINT_SIZE));
@@ -729,25 +730,26 @@ void MapCanvas::paintNearbyConnectionPoints()
 
 void MapCanvas::paintSelectedConnection()
 {
-    if (isConnectionMode(m_canvasMouseMode)) {
+    auto &input = getInputState();
+    if (isConnectionMode(input.m_canvasMouseMode)) {
         paintNearbyConnectionPoints();
     }
 
-    if (m_connectionSelection == nullptr || !m_connectionSelection->isFirstValid()) {
+    if (input.m_connectionSelection == nullptr || !input.m_connectionSelection->isFirstValid()) {
         return;
     }
 
-    ConnectionSelection &sel = deref(m_connectionSelection);
+    ConnectionSelection &sel = deref(input.m_connectionSelection);
 
     const ConnectionSelection::ConnectionDescriptor &first = sel.getFirst();
     const auto pos1 = getPosition(first);
     // REVISIT: How about not dashed lines to the nearest possible connections
     // if the second isn't valid?
-    const auto optPos2 = std::invoke([this, &sel]() -> std::optional<glm::vec3> {
+    const auto optPos2 = std::invoke([this, &sel, &input]() -> std::optional<glm::vec3> {
         if (sel.isSecondValid()) {
             return getPosition(sel.getSecond());
-        } else if (hasSel2()) {
-            return getSel2().to_vec3();
+        } else if (input.hasSel2()) {
+            return input.getSel2().to_vec3();
         } else {
             return std::nullopt;
         }

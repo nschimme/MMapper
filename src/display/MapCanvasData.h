@@ -48,8 +48,6 @@ public:
 
 private:
     float m_scaleFactor = 1.f;
-    // pinch gesture
-    float m_pinchFactor = 1.f;
 
 private:
     NODISCARD static float clamp(float x)
@@ -63,21 +61,10 @@ public:
 
 public:
     NODISCARD float getRaw() const { return clamp(m_scaleFactor); }
-    NODISCARD float getTotal() const { return clamp(m_scaleFactor * m_pinchFactor); }
+    NODISCARD float getTotal() const { return clamp(m_scaleFactor); }
 
 public:
     void set(const float scale) { m_scaleFactor = clamp(scale); }
-    void setPinch(const float pinch)
-    {
-        // Don't bother to clamp this, since the total is clamped.
-        m_pinchFactor = pinch;
-    }
-    void endPinch()
-    {
-        const float total = getTotal();
-        m_scaleFactor = total;
-        m_pinchFactor = 1.f;
-    }
     void reset() { *this = ScaleFactor(); }
 
 public:

@@ -45,7 +45,7 @@ MapWindow::MapWindow(MapData &mapData, PrespammedPath &pp, Mmapper2Group &gm, QW
 
     m_gridLayout->addWidget(m_horizontalScrollBar, 1, 0, 1, 1);
 
-    m_canvas = new MapCanvas(mapData, pp, gm);
+    m_canvas = mmqt::makeQPointer<MapCanvas>(mapData, pp, gm);
     m_canvas->setMinimumSize(QSize(1280 / 4, 720 / 4));
     m_canvas->resize(QSize(1280, 720));
 
@@ -201,7 +201,7 @@ void MapWindow::slot_continuousScroll(const int hStep, const int input_vStep)
         if (scrollTimer->isActive()) {
             scrollTimer->stop();
         }
-        delete scrollTimer;
+        scrollTimer->deleteLater();
     }
 
     // start
@@ -231,8 +231,12 @@ void MapWindow::slot_graphicsSettingsChanged()
 
 void MapWindow::slot_centerOnWorldPos(const glm::vec2 &worldPos)
 {
+    const SignalBlocker block_horz{*m_horizontalScrollBar};
+    const SignalBlocker block_vert{*m_verticalScrollBar};
+
     const auto scrollPos = m_knownMapSize.worldToScroll(worldPos);
-    centerOnScrollPos(scrollPos);
+    m_horizontalScrollBar->setValue(scrollPos.x);
+    m_verticalScrollBar->setValue(scrollPos.y);
 }
 
 void MapWindow::centerOnScrollPos(const glm::ivec2 &scrollPos)

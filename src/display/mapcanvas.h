@@ -160,6 +160,10 @@ private:
     };
     std::optional<DragState> m_dragState;
 
+    float m_initialPinchDistance = 0.f;
+    float m_lastPinchFactor = 1.f;
+    float m_lastMagnification = 1.f;
+
 public:
     explicit MapCanvas(MapData &mapData,
                        PrespammedPath &prespammedPath,
@@ -235,6 +239,8 @@ private:
                                            int currentLayer);
     void setMvp(const glm::mat4 &viewProj);
     void setViewportAndMvp(int width, int height);
+
+    void zoomAt(float factor, const glm::vec2 &mousePos);
 
     NODISCARD BatchedInfomarksMeshes getInfomarksMeshes();
     void drawInfomark(InfomarksBatch &batch,

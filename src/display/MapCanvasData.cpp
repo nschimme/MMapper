@@ -11,7 +11,9 @@
 
 #include <glm/gtc/epsilon.hpp>
 
+#include <QNativeGestureEvent>
 #include <QPointF>
+#include <QTouchEvent>
 
 const MMapper::Array<RoomTintEnum, NUM_ROOM_TINTS> &getAllRoomTints()
 {
@@ -112,6 +114,23 @@ glm::vec2 MapCanvasViewport::getMouseCoords(const QInputEvent *const event) cons
         const auto x = static_cast<float>(wheel->position().x());
         const auto y = static_cast<float>(height() - wheel->position().y());
         return glm::vec2{x, y};
+    } else if (const auto *const gesture = dynamic_cast<const QNativeGestureEvent *>(event)) {
+        const auto x = static_cast<float>(gesture->position().x());
+        const auto y = static_cast<float>(height() - gesture->position().y());
+        return glm::vec2{x, y};
+    } else if (const auto *const touch = dynamic_cast<const QTouchEvent *>(event)) {
+        const auto &points = touch->points();
+        if (points.isEmpty()) {
+            throw std::invalid_argument("no touch points");
+        }
+        QPointF centroid(0, 0);
+        for (const auto &p : points) {
+            centroid += p.position();
+        }
+        centroid /= static_cast<qreal>(points.size());
+        const auto x = static_cast<float>(centroid.x());
+        const auto y = static_cast<float>(height() - centroid.y());
+        return glm::vec2{x, y};
     } else {
         throw std::invalid_argument("event");
     }
@@ -121,7 +140,16 @@ glm::vec2 MapCanvasViewport::getMouseCoords(const QInputEvent *const event) cons
 // output is the world space intersection with the current layer
 std::optional<glm::vec3> MapCanvasViewport::unproject(const QInputEvent *const event) const
 {
-    const auto xy = getMouseCoords(event);
+    try {
+        const auto xy = getMouseCoords(event);
+        return unproject(xy);
+    } catch (const std::invalid_argument &) {
+        return std::nullopt;
+    }
+}
+
+std::optional<glm::vec3> MapCanvasViewport::unproject(const glm::vec2 &xy) const
+{
     // We don't actually know the depth we're trying to unproject;
     // technically we're solving for a ray, so we should unproject
     // two different depths and find where the ray intersects the

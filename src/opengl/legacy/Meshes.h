@@ -366,23 +366,18 @@ private:
     }
 };
 
-template<typename ProgramType_>
 class NODISCARD FullScreenMesh final : public IRenderable
 {
-public:
-    using ProgramType = ProgramType_;
-    static_assert(std::is_base_of_v<AbstractShaderProgram, ProgramType>);
-
 protected:
     const SharedFunctions m_shared_functions;
     Functions &m_functions;
-    const std::shared_ptr<ProgramType_> m_shared_program;
-    ProgramType_ &m_program;
+    const std::shared_ptr<AbstractShaderProgram> m_shared_program;
+    AbstractShaderProgram &m_program;
     const SharedVao m_vao;
 
 public:
     explicit FullScreenMesh(SharedFunctions sharedFunctions,
-                            std::shared_ptr<ProgramType_> sharedProgram,
+                            std::shared_ptr<AbstractShaderProgram> sharedProgram,
                             SharedVao vao)
         : m_shared_functions{std::move(sharedFunctions)}
         , m_functions{deref(m_shared_functions)}

@@ -419,8 +419,10 @@ void Functions::renderFullScreenFade(const GLRenderState &state)
         auto sharedFuncs = shared_from_this();
         auto vao = getSharedVaos().get(SharedVaoEnum::EmptyVao);
         vao->emplace(sharedFuncs);
-        sharedMesh = std::make_shared<Legacy::FullScreenMesh<FullScreenShader>>(
-            sharedFuncs, getShaderPrograms().getFullScreenShader(), std::move(vao));
+        sharedMesh
+            = std::make_shared<Legacy::FullScreenMesh>(sharedFuncs,
+                                                       getShaderPrograms().getFullScreenShader(),
+                                                       std::move(vao));
     }
 
     sharedMesh->render(state.withDepthFunction(std::nullopt));
@@ -433,10 +435,9 @@ void Functions::renderPresentBlit(const GLuint textureId)
         auto sharedFuncs = shared_from_this();
         auto vao = getSharedVaos().get(SharedVaoEnum::EmptyVao);
         vao->emplace(sharedFuncs);
-        sharedMesh = std::make_shared<Legacy::FullScreenMesh<BlitShader>>(sharedFuncs,
-                                                                          getShaderPrograms()
-                                                                              .getBlitShader(),
-                                                                          std::move(vao));
+        sharedMesh = std::make_shared<Legacy::FullScreenMesh>(sharedFuncs,
+                                                              getShaderPrograms().getBlitShader(),
+                                                              std::move(vao));
     }
 
     const auto state = GLRenderState()

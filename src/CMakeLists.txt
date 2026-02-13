@@ -709,11 +709,11 @@ if(EMSCRIPTEN)
     add_dependencies(mmapper download_coi)
 
     # Patch and rename HTML to index.html
-    add_custom_command(
-        TARGET mmapper POST_BUILD
+    add_custom_target(patch_wasm_html ALL
         COMMAND ${CMAKE_COMMAND} -DOUTPUT_DIR="${CMAKE_CURRENT_BINARY_DIR}"
                                  -P "${CMAKE_SOURCE_DIR}/cmake/PatchWasmHtml.cmake"
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+        DEPENDS mmapper "${COI_JS}"
         COMMENT "Patching mmapper.html to index.html"
         VERBATIM
     )
@@ -724,9 +724,9 @@ if(EMSCRIPTEN)
         "${CMAKE_CURRENT_BINARY_DIR}/qtloader.js"
         "${CMAKE_CURRENT_BINARY_DIR}/qtlogo.svg"
         "${COI_JS}"
-        "${CMAKE_CURRENT_BINARY_DIR}/index.html"
         DESTINATION .
     )
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/index.html" DESTINATION . OPTIONAL)
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/mmapper.worker.js" DESTINATION . OPTIONAL)
 
 else()

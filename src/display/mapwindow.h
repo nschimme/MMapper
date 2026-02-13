@@ -37,16 +37,16 @@ class NODISCARD_QOBJECT MapWindow final : public QWidget
     Q_OBJECT
 
 protected:
-    std::unique_ptr<QTimer> scrollTimer;
+    QPointer<QTimer> scrollTimer;
     int m_verticalScrollStep = 0;
     int m_horizontalScrollStep = 0;
 
-    std::unique_ptr<QGridLayout> m_gridLayout;
-    std::unique_ptr<QScrollBar> m_horizontalScrollBar;
-    std::unique_ptr<QScrollBar> m_verticalScrollBar;
+    QPointer<QGridLayout> m_gridLayout;
+    QPointer<QScrollBar> m_horizontalScrollBar;
+    QPointer<QScrollBar> m_verticalScrollBar;
     QPointer<MapCanvas> m_canvas;
     QPointer<QWidget> m_canvasContainer;
-    std::unique_ptr<QLabel> m_splashLabel;
+    QPointer<QLabel> m_splashLabel;
 
 private:
     struct NODISCARD KnownMapSize final

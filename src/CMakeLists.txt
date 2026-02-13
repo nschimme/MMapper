@@ -710,8 +710,8 @@ if(EMSCRIPTEN)
 
     # Patch and rename HTML to index.html
     add_custom_target(patch_wasm_html ALL
-        COMMAND ${CMAKE_COMMAND} -DOUTPUT_DIR="${CMAKE_CURRENT_BINARY_DIR}"
-                                 -P "${CMAKE_SOURCE_DIR}/cmake/PatchWasmHtml.cmake"
+        COMMAND ${CMAKE_COMMAND} -DOUTPUT_DIR=${CMAKE_CURRENT_BINARY_DIR}
+                                 -P ${CMAKE_SOURCE_DIR}/cmake/PatchWasmHtml.cmake
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
         COMMENT "Patching mmapper.html to index.html"
         VERBATIM

@@ -1,23 +1,30 @@
 message(STATUS "PatchWasmHtml started")
+
+# Strip any literal quotes from the input directory
+string(REPLACE "\"" "" OUTPUT_DIR "${OUTPUT_DIR}")
+
 if(NOT OUTPUT_DIR)
     message(FATAL_ERROR "OUTPUT_DIR not set")
 endif()
 
-message(STATUS "Searching for any HTML files in ${OUTPUT_DIR}/..")
-file(GLOB_RECURSE ALL_HTML "${OUTPUT_DIR}/../*.html")
-foreach(HTML_FILE ${ALL_HTML})
-    message(STATUS "Found HTML: ${HTML_FILE}")
-endforeach()
-
 set(HTML_INPUT "${OUTPUT_DIR}/mmapper.html")
 set(HTML_OUTPUT "${OUTPUT_DIR}/index.html")
 
+message(STATUS "Checking for expected HTML at: ${HTML_INPUT}")
+
 if(NOT EXISTS "${HTML_INPUT}")
-    message(STATUS "mmapper.html not found at expected path: ${HTML_INPUT}")
+    message(STATUS "mmapper.html not found at expected path, searching recursively in ${OUTPUT_DIR}/..")
+    file(GLOB_RECURSE ALL_HTML "${OUTPUT_DIR}/../*.html")
+
     if(ALL_HTML)
+        foreach(HTML_FILE ${ALL_HTML})
+            message(STATUS "Found HTML file: ${HTML_FILE}")
+        endforeach()
         list(GET ALL_HTML 0 HTML_INPUT)
-        message(STATUS "Falling back to first found HTML: ${HTML_INPUT}")
+        message(STATUS "Falling back to: ${HTML_INPUT}")
     else()
+        message(STATUS "Listing all files in ${OUTPUT_DIR} and its parent to help debug:")
+        execute_process(COMMAND ls -R "${OUTPUT_DIR}/..")
         message(FATAL_ERROR "No HTML files found anywhere in build directory!")
     endif()
 endif()

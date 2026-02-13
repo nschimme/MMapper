@@ -400,10 +400,15 @@ void Functions::blitFboToDefault()
     }
 
     // screen is [-1,+1]^3.
-    static const std::vector<glm::vec3> fullScreenQuad = {glm::vec3{-1, -1, 0},
-                                                          glm::vec3{+1, -1, 0},
-                                                          glm::vec3{+1, +1, 0},
-                                                          glm::vec3{-1, +1, 0}};
+    // 2 triangles (6 vertices) for better compatibility (ES 3.0 / WebGL 2.0)
+    static const std::vector<glm::vec3> fullScreenTris = {
+        glm::vec3{-1, -1, 0},
+        glm::vec3{+1, -1, 0},
+        glm::vec3{+1, +1, 0},
+        glm::vec3{+1, +1, 0},
+        glm::vec3{-1, +1, 0},
+        glm::vec3{-1, -1, 0},
+    };
 
     const auto &prog = getShaderPrograms().getBlitShader();
 
@@ -426,8 +431,8 @@ void Functions::blitFboToDefault()
     setProjectionMatrix(glm::mat4(1.0f));
 
     renderImmediate<glm::vec3, Legacy::BlitMesh>(shared_from_this(),
-                                                 DrawModeEnum::QUADS,
-                                                 fullScreenQuad,
+                                                 DrawModeEnum::TRIANGLES,
+                                                 fullScreenTris,
                                                  prog,
                                                  state);
 

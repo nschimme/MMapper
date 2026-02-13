@@ -319,7 +319,6 @@ void Functions::cleanup()
     getSharedVbos().resetAll();
     getSharedVaos().resetAll();
     getTexLookup().clear();
-    m_staticMeshes.clear();
 }
 
 ShaderPrograms &Functions::getShaderPrograms()

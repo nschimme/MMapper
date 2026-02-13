@@ -135,7 +135,6 @@ private:
     std::unique_ptr<SharedVaos> m_sharedVaos;
     std::unique_ptr<TexLookup> m_texLookup;
     std::unique_ptr<FBO> m_fbo;
-    std::vector<std::shared_ptr<IRenderable>> m_staticMeshes;
 
 protected:
     explicit Functions(Badge<Functions>);
@@ -143,14 +142,6 @@ protected:
 public:
     virtual ~Functions();
     DELETE_CTORS_AND_ASSIGN_OPS(Functions);
-
-public:
-    // The purpose of this function is to safely manage the lifetime of reused meshes.
-    // Caller is expected to only keep a weak pointer to the mesh.
-    void addSharedMesh(Badge<OpenGL>, std::shared_ptr<IRenderable> mesh)
-    {
-        m_staticMeshes.emplace_back(std::move(mesh));
-    }
 
 public:
     NODISCARD float getDevicePixelRatio() const { return m_devicePixelRatio; }

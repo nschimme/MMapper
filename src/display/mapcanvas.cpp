@@ -322,13 +322,42 @@ void MapCanvas::touchEvent(QTouchEvent *const event)
         update();
         event->accept();
     } else {
-        m_initialPinchDistance = 0.f;
+        if (m_initialPinchDistance > 0.f) {
+            m_scaleFactor.endPinch();
+            zoomChanged();
+            m_initialPinchDistance = 0.f;
+        }
         QOpenGLWindow::touchEvent(event);
     }
 }
 
 bool MapCanvas::event(QEvent *const event)
 {
+    if (event->type() == QEvent::NativeGesture) {
+        auto *const nativeEvent = static_cast<QNativeGestureEvent *>(event);
+        if (nativeEvent->gestureType() == Qt::ZoomNativeGesture) {
+            const auto factor = static_cast<float>(nativeEvent->value());
+            if constexpr (CURRENT_PLATFORM == PlatformEnum::Mac) {
+                // On macOS, event->value() for ZoomNativeGesture is the magnification delta.
+                // It is 0 when the gesture starts, and then changes by the delta magnification.
+                if (factor != 0.f) {
+                    m_scaleFactor *= (1.f + factor);
+                    zoomChanged();
+                }
+            } else {
+                // On other platforms, it's typically the cumulative scale factor (1.0 at start).
+                if (std::abs(factor - 1.0f) < 1e-4f) {
+                    m_scaleFactor.endPinch();
+                }
+                m_scaleFactor.setPinch(factor);
+            }
+
+            update();
+            event->accept();
+            return true;
+        }
+    }
+
     return QOpenGLWindow::event(event);
 }
 

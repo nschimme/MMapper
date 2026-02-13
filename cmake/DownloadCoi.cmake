@@ -1,3 +1,6 @@
+# Strip any literal quotes from the input file path
+string(REPLACE "\"" "" OUTPUT_FILE "${OUTPUT_FILE}")
+
 if(NOT OUTPUT_FILE)
     message(FATAL_ERROR "OUTPUT_FILE not set")
 endif()

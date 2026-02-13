@@ -14,6 +14,27 @@
 
 namespace Legacy {
 
+class NODISCARD SharedMeshes final
+    : private EnumIndexedArray<std::shared_ptr<IRenderable>, SharedMeshEnum, NUM_SHARED_MESHES>
+{
+private:
+    using base = EnumIndexedArray<std::shared_ptr<IRenderable>, SharedMeshEnum, NUM_SHARED_MESHES>;
+
+public:
+    SharedMeshes() = default;
+
+public:
+    NODISCARD std::shared_ptr<IRenderable> &get(const SharedMeshEnum mesh)
+    {
+        return base::operator[](mesh);
+    }
+
+    void resetAll()
+    {
+        base::for_each([](auto &shared) { shared.reset(); });
+    }
+};
+
 // Uniform color
 template<typename VertexType_>
 class NODISCARD PlainMesh final : public SimpleMesh<VertexType_, UColorPlainShader>

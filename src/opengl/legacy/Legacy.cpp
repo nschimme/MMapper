@@ -283,6 +283,7 @@ Functions::Functions(Badge<Functions>)
     : m_shaderPrograms{std::make_unique<ShaderPrograms>(*this)}
     , m_staticVbos{std::make_unique<StaticVbos>()}
     , m_sharedVbos{std::make_unique<SharedVbos>()}
+    , m_sharedMeshes{std::make_unique<SharedMeshes>()}
     , m_texLookup{std::make_unique<TexLookup>()}
     , m_fbo{std::make_unique<FBO>()}
 {}
@@ -316,9 +317,8 @@ void Functions::cleanup()
     getShaderPrograms().resetAll();
     getStaticVbos().resetAll();
     getSharedVbos().resetAll();
+    getSharedMeshes().resetAll();
     getTexLookup().clear();
-    m_backgroundMesh.reset();
-    m_blitMesh.reset();
     m_staticMeshes.clear();
 }
 
@@ -333,6 +333,10 @@ StaticVbos &Functions::getStaticVbos()
 SharedVbos &Functions::getSharedVbos()
 {
     return deref(m_sharedVbos);
+}
+SharedMeshes &Functions::getSharedMeshes()
+{
+    return deref(m_sharedMeshes);
 }
 TexLookup &Functions::getTexLookup()
 {
@@ -405,22 +409,23 @@ void Functions::blitFboToDefault()
 
 void Functions::renderFullScreenFade(const GLRenderState &state)
 {
-    if (!m_backgroundMesh) {
+    auto &sharedMesh = getSharedMeshes().get(SharedMeshEnum::FullScreenFade);
+    if (!sharedMesh) {
         auto sharedFuncs = shared_from_this();
-        m_backgroundMesh = std::make_shared<Legacy::FullScreenMesh<FullScreenShader>>(
+        sharedMesh = std::make_shared<Legacy::FullScreenMesh<FullScreenShader>>(
             sharedFuncs, getShaderPrograms().getFullScreenShader());
     }
 
-    m_backgroundMesh->render(state.withDepthFunction(std::nullopt));
+    sharedMesh->render(state.withDepthFunction(std::nullopt));
 }
 
 void Functions::renderPresentBlit(const GLuint textureId)
 {
-    if (!m_blitMesh) {
+    auto &sharedMesh = getSharedMeshes().get(SharedMeshEnum::PresentBlit);
+    if (!sharedMesh) {
         auto sharedFuncs = shared_from_this();
-        m_blitMesh = std::make_shared<Legacy::FullScreenMesh<BlitShader>>(sharedFuncs,
-                                                                          getShaderPrograms()
-                                                                              .getBlitShader());
+        sharedMesh = std::make_shared<Legacy::FullScreenMesh<BlitShader>>(
+            sharedFuncs, getShaderPrograms().getBlitShader());
     }
 
     const auto state = GLRenderState()
@@ -431,7 +436,7 @@ void Functions::renderPresentBlit(const GLuint textureId)
     Base::glActiveTexture(GL_TEXTURE0);
     Base::glBindTexture(GL_TEXTURE_2D, textureId);
 
-    m_blitMesh->render(state);
+    sharedMesh->render(state);
 
     Base::glBindTexture(GL_TEXTURE_2D, 0);
 }

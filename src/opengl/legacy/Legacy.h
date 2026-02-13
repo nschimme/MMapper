@@ -27,6 +27,7 @@ namespace Legacy {
 
 class StaticVbos;
 class SharedVbos;
+class SharedMeshes;
 class VAO;
 class AbstractShaderProgram;
 struct ShaderPrograms;
@@ -42,6 +43,20 @@ enum class SharedVboEnum : uint8_t {
     XFOREACH_SHARED_VBO(X_ENUM)
 #undef X_ENUM
 };
+
+#define XFOREACH_SHARED_MESH(X) \
+    X(FullScreenFade) \
+    X(PresentBlit)
+
+enum class SharedMeshEnum : uint8_t {
+#define X_ENUM(element) element,
+    XFOREACH_SHARED_MESH(X_ENUM)
+#undef X_ENUM
+};
+
+#define X_COUNT_MESH(element) +1
+static constexpr size_t NUM_SHARED_MESHES = 0 XFOREACH_SHARED_MESH(X_COUNT_MESH);
+#undef X_COUNT_MESH
 
 #define X_COUNT(element, name, isUniform) +1
 static constexpr size_t NUM_SHARED_VBOS = 0 XFOREACH_SHARED_VBO(X_COUNT);
@@ -119,10 +134,9 @@ private:
     std::unique_ptr<ShaderPrograms> m_shaderPrograms;
     std::unique_ptr<StaticVbos> m_staticVbos;
     std::unique_ptr<SharedVbos> m_sharedVbos;
+    std::unique_ptr<SharedMeshes> m_sharedMeshes;
     std::unique_ptr<TexLookup> m_texLookup;
     std::unique_ptr<FBO> m_fbo;
-    std::shared_ptr<IRenderable> m_backgroundMesh;
-    std::shared_ptr<IRenderable> m_blitMesh;
     std::vector<std::shared_ptr<IRenderable>> m_staticMeshes;
 
 protected:
@@ -303,6 +317,8 @@ public:
     NODISCARD StaticVbos &getStaticVbos();
 
     NODISCARD SharedVbos &getSharedVbos();
+
+    NODISCARD SharedMeshes &getSharedMeshes();
 
     NODISCARD TexLookup &getTexLookup();
 

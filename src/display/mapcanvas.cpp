@@ -1207,3 +1207,4 @@ void MapCanvas::userPressedEscape(bool /*pressed*/)
         break;
     }
 }
+// Trigger CI retry

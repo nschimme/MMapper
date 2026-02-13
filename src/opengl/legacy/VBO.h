@@ -4,7 +4,6 @@
 
 #include "../../global/EnumIndexedArray.h"
 #include "Legacy.h"
-#include "VAO.h"
 
 #include <memory>
 #include <vector>
@@ -41,9 +40,6 @@ public:
 
 using SharedVbo = std::shared_ptr<VBO>;
 using WeakVbo = std::weak_ptr<VBO>;
-
-using SharedVao = std::shared_ptr<VAO>;
-using WeakVao = std::weak_ptr<VAO>;
 
 class NODISCARD StaticVbos final : private std::vector<SharedVbo>
 {
@@ -83,33 +79,6 @@ public:
     }
 
     void reset(const SharedVboEnum buffer) { base::operator[](buffer).reset(); }
-
-    void resetAll()
-    {
-        base::for_each([](auto &shared) { shared.reset(); });
-    }
-};
-
-class NODISCARD SharedVaos final
-    : private EnumIndexedArray<SharedVao, SharedVaoEnum, NUM_SHARED_VAOS>
-{
-private:
-    using base = EnumIndexedArray<SharedVao, SharedVaoEnum, NUM_SHARED_VAOS>;
-
-public:
-    SharedVaos() = default;
-
-public:
-    NODISCARD SharedVao get(const SharedVaoEnum vao)
-    {
-        SharedVao &shared = base::operator[](vao);
-        if (shared == nullptr) {
-            shared = std::make_shared<VAO>();
-        }
-        return shared;
-    }
-
-    void reset(const SharedVaoEnum vao) { base::operator[](vao).reset(); }
 
     void resetAll()
     {

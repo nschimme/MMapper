@@ -142,12 +142,12 @@ private:
     {}
 };
 
-struct NODISCARD FullScreenUColorShader final : public AbstractShaderProgram
+struct NODISCARD BackgroundShader final : public AbstractShaderProgram
 {
 public:
     using AbstractShaderProgram::AbstractShaderProgram;
 
-    ~FullScreenUColorShader() final;
+    ~BackgroundShader() final;
 
 private:
     void virt_setUniforms(const glm::mat4 & /*mvp*/, const GLRenderState::Uniforms &uniforms) final
@@ -175,7 +175,7 @@ private:
     std::shared_ptr<FontShader> m_font;
     std::shared_ptr<PointShader> m_point;
     std::shared_ptr<BlitShader> m_blit;
-    std::shared_ptr<FullScreenUColorShader> m_fullScreenUColor;
+    std::shared_ptr<BackgroundShader> m_background;
 
 public:
     explicit ShaderPrograms(Functions &functions)
@@ -207,7 +207,7 @@ public:
     NODISCARD const std::shared_ptr<FontShader> &getFontShader();
     NODISCARD const std::shared_ptr<PointShader> &getPointShader();
     NODISCARD const std::shared_ptr<BlitShader> &getBlitShader();
-    NODISCARD const std::shared_ptr<FullScreenUColorShader> &getFullScreenUColorShader();
+    NODISCARD const std::shared_ptr<BackgroundShader> &getBackgroundShader();
 
 public:
     void early_init();

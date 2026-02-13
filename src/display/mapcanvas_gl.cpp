@@ -48,7 +48,7 @@
 
 #include <QMessageBox>
 #include <QMessageLogContext>
-#include <QOpenGLWidget>
+#include <QOpenGLWindow>
 #include <QtCore>
 #include <QtGui/qopengl.h>
 #include <QtGui>
@@ -96,15 +96,15 @@ void setShowPerfStats(const bool show)
 class NODISCARD MakeCurrentRaii final
 {
 private:
-    QOpenGLWidget &m_glWidget;
+    QOpenGLWindow &m_glWindow;
 
 public:
-    explicit MakeCurrentRaii(QOpenGLWidget &widget)
-        : m_glWidget{widget}
+    explicit MakeCurrentRaii(QOpenGLWindow &window)
+        : m_glWindow{window}
     {
-        m_glWidget.makeCurrent();
+        m_glWindow.makeCurrent();
     }
-    ~MakeCurrentRaii() { m_glWidget.doneCurrent(); }
+    ~MakeCurrentRaii() { m_glWindow.doneCurrent(); }
 
     DELETE_CTORS_AND_ASSIGN_OPS(MakeCurrentRaii);
 };
@@ -215,7 +215,7 @@ void MapCanvas::initializeGL()
     } catch (const std::exception &) {
         hide();
         doneCurrent();
-        QMessageBox::critical(this,
+        QMessageBox::critical(nullptr,
                               "Unable to initialize OpenGL",
                               "Upgrade your video card drivers");
         if constexpr (CURRENT_PLATFORM == PlatformEnum::Windows) {
@@ -859,7 +859,7 @@ void MapCanvas::paintGL()
     const auto &afterBatches = optAfterBatches.value();
     const auto afterPaint = Clock::now();
     const bool calledFinish = std::invoke([this]() -> bool {
-        if (auto *const ctxt = QOpenGLWidget::context()) {
+        if (auto *const ctxt = QOpenGLWindow::context()) {
             if (auto *const func = ctxt->functions()) {
                 func->glFinish();
                 return true;

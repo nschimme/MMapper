@@ -713,10 +713,10 @@ if(EMSCRIPTEN)
         COMMAND ${CMAKE_COMMAND} -DOUTPUT_DIR="${CMAKE_CURRENT_BINARY_DIR}"
                                  -P "${CMAKE_SOURCE_DIR}/cmake/PatchWasmHtml.cmake"
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-        DEPENDS mmapper "${COI_JS}"
         COMMENT "Patching mmapper.html to index.html"
         VERBATIM
     )
+    add_dependencies(patch_wasm_html mmapper download_coi)
 
     install(FILES
         "${CMAKE_CURRENT_BINARY_DIR}/mmapper.js"

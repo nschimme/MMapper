@@ -681,6 +681,10 @@ set(mmapper_EXECUTABLE_ARGS
     ${mmapper_DATA}
 )
 if(EMSCRIPTEN)
+    if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+        set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/staging" CACHE PATH "WASM Staging Directory" FORCE)
+    endif()
+
     qt_add_executable(mmapper ${mmapper_EXECUTABLE_ARGS})
     target_link_options(mmapper PRIVATE
         -sFULL_ES3=1
@@ -691,6 +695,42 @@ if(EMSCRIPTEN)
         -Os
     )
     target_link_libraries(mmapper PUBLIC z)
+
+    # COI Service Worker
+    set(COI_JS "${CMAKE_CURRENT_BINARY_DIR}/coi-serviceworker.js")
+    add_custom_command(
+        OUTPUT "${COI_JS}"
+        COMMAND ${CMAKE_COMMAND} -DOUTPUT_FILE="${COI_JS}" -P "${CMAKE_SOURCE_DIR}/cmake/DownloadCoi.cmake"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+        COMMENT "Downloading coi-serviceworker.js"
+        VERBATIM
+    )
+
+    # Patch and rename HTML to index.html
+    set(WASM_HTML_OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/index.html")
+    add_custom_command(
+        OUTPUT "${WASM_HTML_OUTPUT}"
+        DEPENDS mmapper "${COI_JS}"
+        COMMAND ${CMAKE_COMMAND} -DHTML_INPUT="${CMAKE_CURRENT_BINARY_DIR}/mmapper.html"
+                                 -DHTML_OUTPUT="${WASM_HTML_OUTPUT}"
+                                 -P "${CMAKE_SOURCE_DIR}/cmake/PatchWasmHtml.cmake"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+        COMMENT "Patching mmapper.html to index.html"
+        VERBATIM
+    )
+    add_custom_target(mmapper_wasm_index ALL DEPENDS "${WASM_HTML_OUTPUT}")
+
+    install(FILES
+        "${CMAKE_CURRENT_BINARY_DIR}/mmapper.js"
+        "${CMAKE_CURRENT_BINARY_DIR}/mmapper.wasm"
+        "${CMAKE_CURRENT_BINARY_DIR}/qtloader.js"
+        "${CMAKE_CURRENT_BINARY_DIR}/qtlogo.svg"
+        "${COI_JS}"
+        "${WASM_HTML_OUTPUT}"
+        DESTINATION .
+    )
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/mmapper.worker.js" DESTINATION . OPTIONAL)
+
 else()
     add_executable(mmapper WIN32 MACOSX_BUNDLE ${mmapper_EXECUTABLE_ARGS})
 endif()
@@ -888,6 +928,21 @@ if(NOT TARGET_ARCHITECTURE)
 endif()
 message(STATUS "Packaging for target: ${CPACK_SYSTEM_NAME} ${TARGET_ARCHITECTURE} ${PACKAGE_TYPE_NORMALIZED}")
 set(CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_SYSTEM_NAME}-${TARGET_ARCHITECTURE}")
+if(EMSCRIPTEN)
+    set(CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-wasm")
+    set(CPACK_GENERATOR "ZIP")
+
+    set(WASM_ZIP_NAME "${CPACK_PACKAGE_FILE_NAME}.zip")
+    install(CODE "
+        if(NOT \"\$ENV{SKIP_ZIP}\")
+            message(STATUS \"Zipping WASM artifacts to ${CMAKE_BINARY_DIR}/${WASM_ZIP_NAME}...\")
+            execute_process(
+                COMMAND ${CMAKE_COMMAND} -E tar cfv \"${CMAKE_BINARY_DIR}/${WASM_ZIP_NAME}\" --format=zip .
+                WORKING_DIRECTORY \"${CMAKE_INSTALL_PREFIX}\"
+            )
+        endif()
+    ")
+endif()
 
 # Components:
 if(CMAKE_BUILD_TYPE_UPPER MATCHES "^(DEBUG|RELWITHDEBINFO)$")

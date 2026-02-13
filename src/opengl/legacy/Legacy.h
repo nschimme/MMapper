@@ -27,6 +27,7 @@ namespace Legacy {
 
 class StaticVbos;
 class SharedVbos;
+class AbstractShaderProgram;
 struct ShaderPrograms;
 struct PointSizeBinder;
 
@@ -453,5 +454,8 @@ public:
     void bindFbo();
     void releaseFbo();
     void blitFboToDefault();
+
+    void renderFullScreenQuad(const std::shared_ptr<AbstractShaderProgram> &prog,
+                              const GLRenderState &state);
 };
 } // namespace Legacy

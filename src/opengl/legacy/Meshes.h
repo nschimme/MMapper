@@ -14,12 +14,11 @@
 
 namespace Legacy {
 
-// Uniform color
-template<typename VertexType_>
-class NODISCARD PlainMesh final : public SimpleMesh<VertexType_, UColorPlainShader>
+template<typename VertexType_, typename ProgramType_>
+class NODISCARD PositionMesh : public SimpleMesh<VertexType_, ProgramType_>
 {
 public:
-    using Base = SimpleMesh<VertexType_, UColorPlainShader>;
+    using Base = SimpleMesh<VertexType_, ProgramType_>;
     using Base::Base;
 
 private:
@@ -27,10 +26,10 @@ private:
     {
         GLuint vertPos = INVALID_ATTRIB_LOCATION;
 
-        NODISCARD static Attribs getLocations(AbstractShaderProgram &fontShader)
+        NODISCARD static Attribs getLocations(AbstractShaderProgram &shader)
         {
             Attribs result;
-            result.vertPos = fontShader.getAttribLocation("aVert");
+            result.vertPos = shader.getAttribLocation("aVert");
             return result;
         }
     };
@@ -61,6 +60,15 @@ private:
         gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
         m_boundAttribs.reset();
     }
+};
+
+// Uniform color
+template<typename VertexType_>
+class NODISCARD PlainMesh final : public PositionMesh<VertexType_, UColorPlainShader>
+{
+public:
+    using Base = PositionMesh<VertexType_, UColorPlainShader>;
+    using Base::Base;
 };
 
 // Per-vertex color
@@ -346,51 +354,11 @@ private:
 };
 
 template<typename VertexType_>
-class NODISCARD BlitMesh final : public SimpleMesh<VertexType_, BlitShader>
+class NODISCARD BlitMesh final : public PositionMesh<VertexType_, BlitShader>
 {
 public:
-    using Base = SimpleMesh<VertexType_, BlitShader>;
+    using Base = PositionMesh<VertexType_, BlitShader>;
     using Base::Base;
-
-private:
-    struct NODISCARD Attribs final
-    {
-        GLuint vertPos = INVALID_ATTRIB_LOCATION;
-
-        NODISCARD static Attribs getLocations(AbstractShaderProgram &shader)
-        {
-            Attribs result;
-            result.vertPos = shader.getAttribLocation("aVert");
-            return result;
-        }
-    };
-
-    std::optional<Attribs> m_boundAttribs;
-
-    void virt_bind() override
-    {
-        static_assert(sizeof(std::declval<VertexType_>()) == 3 * sizeof(GLfloat));
-
-        Functions &gl = Base::m_functions;
-        const auto attribs = Attribs::getLocations(Base::m_program);
-        gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
-        gl.enableAttrib(attribs.vertPos, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
-        m_boundAttribs = attribs;
-    }
-
-    void virt_unbind() override
-    {
-        if (!m_boundAttribs) {
-            assert(false);
-            return;
-        }
-
-        auto &attribs = m_boundAttribs.value();
-        Functions &gl = Base::m_functions;
-        gl.glDisableVertexAttribArray(attribs.vertPos);
-        gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
-        m_boundAttribs.reset();
-    }
 };
 
 } // namespace Legacy

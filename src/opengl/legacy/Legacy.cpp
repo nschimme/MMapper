@@ -21,6 +21,7 @@
 #include <memory>
 #include <optional>
 #include <stdexcept>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -399,24 +400,6 @@ void Functions::blitFboToDefault()
         return;
     }
 
-    using MeshType = Legacy::BlitMesh<glm::vec3>;
-    static std::weak_ptr<MeshType> g_mesh;
-    auto sharedMesh = g_mesh.lock();
-    if (sharedMesh == nullptr) {
-        auto sharedFuncs = shared_from_this();
-        g_mesh = sharedMesh = std::make_shared<MeshType>(sharedFuncs,
-                                                         getShaderPrograms().getBlitShader());
-        m_staticMeshes.emplace_back(sharedMesh);
-
-        // screen is [-1,+1]^3.
-        static const std::vector<glm::vec3> fullScreenQuad = {glm::vec3{-1, -1, 0},
-                                                              glm::vec3{+1, -1, 0},
-                                                              glm::vec3{+1, +1, 0},
-                                                              glm::vec3{-1, +1, 0}};
-
-        sharedMesh->setStatic(DrawModeEnum::QUADS, fullScreenQuad);
-    }
-
     // Use a custom render state for the blit to ensure it's not affected by
     // global state like depth testing or blending.
     const auto state = GLRenderState()
@@ -427,14 +410,37 @@ void Functions::blitFboToDefault()
     Base::glActiveTexture(GL_TEXTURE0);
     Base::glBindTexture(GL_TEXTURE_2D, textureId);
 
-    const auto oldProj = getProjectionMatrix();
-    setProjectionMatrix(glm::mat4(1.0f));
-
-    sharedMesh->render(state);
-
-    setProjectionMatrix(oldProj);
+    renderFullScreenQuad(getShaderPrograms().getBlitShader(), state);
 
     Base::glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void Functions::renderFullScreenQuad(const std::shared_ptr<AbstractShaderProgram> &prog,
+                                     const GLRenderState &state)
+{
+    using MeshType = Legacy::PositionMesh<glm::vec3, AbstractShaderProgram>;
+    static std::unordered_map<AbstractShaderProgram *, std::weak_ptr<MeshType>> g_meshes;
+
+    auto &weakMesh = g_meshes[prog.get()];
+    auto sharedMesh = weakMesh.lock();
+    if (sharedMesh == nullptr) {
+        sharedMesh = std::make_shared<MeshType>(shared_from_this(), prog);
+        m_staticMeshes.emplace_back(sharedMesh);
+        weakMesh = sharedMesh;
+
+        // screen is [-1,+1]^3.
+        static const std::vector<glm::vec3> fullScreenQuad = {glm::vec3{-1, -1, 0},
+                                                              glm::vec3{+1, -1, 0},
+                                                              glm::vec3{+1, +1, 0},
+                                                              glm::vec3{-1, +1, 0}};
+
+        sharedMesh->setStatic(DrawModeEnum::QUADS, fullScreenQuad);
+    }
+
+    const auto oldProj = getProjectionMatrix();
+    setProjectionMatrix(glm::mat4(1.0f));
+    sharedMesh->render(state.withDepthFunction(std::nullopt));
+    setProjectionMatrix(oldProj);
 }
 
 } // namespace Legacy

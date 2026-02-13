@@ -29,7 +29,7 @@ class StaticVbos;
 class SharedVbos;
 class SharedVaos;
 class VAO;
-class AbstractShaderProgram;
+struct AbstractShaderProgram;
 struct ShaderPrograms;
 struct PointSizeBinder;
 

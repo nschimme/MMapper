@@ -19,8 +19,16 @@ jobs:
     steps:
     - uses: actions/checkout@v6
     - name: Run clang-format style check
-      uses: jidicula/clang-format-action@v4.16.0
-      with:
-        clang-format-version: '18'
-        check-path: ${{ matrix.path['check'] }}
-        exclude-regex: ${{ matrix.path['exclude'] }}
+      shell: bash
+      run: |
+        CHECK_PATH="${{ matrix.path['check'] }}"
+        EXCLUDE_REGEX="${{ matrix.path['exclude'] }}"
+        FILES=$(find "$CHECK_PATH" -type f \( -name "*.h" -o -name "*.H" -o -name "*.hpp" -o -name "*.hh" -o -name "*.h++" -o -name "*.hxx" -o -name "*.c" -o -name "*.C" -o -name "*.cpp" -o -name "*.cc" -o -name "*.c++" -o -name "*.cxx" -o -name "*.ino" -o -name "*.pde" -o -name "*.cu" -o -name "*.proto" \))
+        if [ -n "$EXCLUDE_REGEX" ] && [ "$EXCLUDE_REGEX" != "^$" ]; then
+          FILES=$(echo "$FILES" | grep -vE "$EXCLUDE_REGEX")
+        fi
+        if [ -n "$FILES" ]; then
+          echo "$FILES" | xargs -r clang-format-18 --dry-run --Werror
+        else
+          echo "No files found to check in $CHECK_PATH"
+        fi

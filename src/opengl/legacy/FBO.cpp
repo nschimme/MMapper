@@ -118,8 +118,8 @@ void FBO::blitToDefault()
             GLint samples = 0;
             QOpenGLContext::currentContext()->functions()->glGetIntegerv(GL_SAMPLES, &samples);
             if (samples > 0) {
-                MMLOG_WARN() << "Default framebuffer is multisampled (" << samples
-                             << " samples). Blitting to it will fail on WebGL2/GLES3.";
+                MMLOG_WARNING() << "Default framebuffer is multisampled (" << samples
+                                << " samples). Blitting to it will fail on WebGL2/GLES3.";
             }
             checkedDefaultSamples = true;
         }

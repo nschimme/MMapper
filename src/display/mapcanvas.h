@@ -154,6 +154,14 @@ private:
 
     float m_initialPinchDistance = 0.f;
 
+    struct DragState
+    {
+        glm::vec3 startWorldPos;
+        glm::vec2 startScroll;
+        glm::mat4 startViewProj;
+    };
+    std::optional<DragState> m_dragState;
+
 public:
     explicit MapCanvas(MapData &mapData,
                        PrespammedPath &prespammedPath,

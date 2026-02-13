@@ -497,6 +497,7 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
         if (hasLeftButton && hasSel1()) {
             setCursor(Qt::ClosedHandCursor);
             startMoving(m_sel1.value());
+            m_dragState.emplace(DragState{getSel1().to_vec3(), m_scroll, m_viewProj});
         }
         break;
 
@@ -719,13 +720,14 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
         infomarksChanged();
         break;
     case CanvasMouseModeEnum::MOVE:
-        if (hasLeftButton && m_mouseLeftPressed && hasSel2() && hasBackup()) {
-            const Coordinate2i delta
-                = ((getSel2().pos - getBackup().pos) * static_cast<float>(SCROLL_SCALE)).truncate();
-            if (delta.x != 0 || delta.y != 0) {
-                // negated because dragging to right is scrolling to the left.
-                emit sig_mapMove(-delta.x, -delta.y);
-                m_moveBackup = getUnprojectedMouseSel(event);
+        if (hasLeftButton && m_mouseLeftPressed && m_dragState.has_value()) {
+            const auto xy = getMouseCoords(event);
+            const glm::vec3 currWorldPos = unproject_clamped(xy, m_dragState->startViewProj);
+            const glm::vec2 delta = glm::vec2(currWorldPos - m_dragState->startWorldPos);
+
+            if (glm::length(delta) > 1e-6f) {
+                const glm::vec2 newWorldCenter = m_dragState->startScroll - delta;
+                emit sig_onCenter(newWorldCenter);
             }
         }
         break;
@@ -864,6 +866,7 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
 
     case CanvasMouseModeEnum::MOVE:
         stopMoving();
+        m_dragState.reset();
         setCursor(Qt::OpenHandCursor);
         if (m_mouseLeftPressed) {
             m_mouseLeftPressed = false;

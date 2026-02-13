@@ -125,7 +125,9 @@ public:
 public:
     NODISCARD std::optional<glm::vec3> project(const glm::vec3 &) const;
     NODISCARD glm::vec3 unproject_raw(const glm::vec3 &) const;
+    NODISCARD glm::vec3 unproject_raw(const glm::vec3 &, const glm::mat4 &) const;
     NODISCARD glm::vec3 unproject_clamped(const glm::vec2 &) const;
+    NODISCARD glm::vec3 unproject_clamped(const glm::vec2 &, const glm::mat4 &) const;
     NODISCARD std::optional<glm::vec3> unproject(const QInputEvent *event) const;
     NODISCARD std::optional<MouseSel> getUnprojectedMouseSel(const QInputEvent *event) const;
     NODISCARD glm::vec2 getMouseCoords(const QInputEvent *event) const;

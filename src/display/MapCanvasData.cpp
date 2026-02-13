@@ -58,6 +58,12 @@ std::optional<glm::vec3> MapCanvasViewport::project(const glm::vec3 &v) const
 // output: world coordinates.
 glm::vec3 MapCanvasViewport::unproject_raw(const glm::vec3 &mouse_depth) const
 {
+    return unproject_raw(mouse_depth, m_viewProj);
+}
+
+glm::vec3 MapCanvasViewport::unproject_raw(const glm::vec3 &mouse_depth,
+                                           const glm::mat4 &viewProj) const
+{
     const float depth = mouse_depth.z;
     assert(::isClamped(depth, 0.f, 1.f));
 
@@ -67,7 +73,7 @@ glm::vec3 MapCanvasViewport::unproject_raw(const glm::vec3 &mouse_depth) const
     const glm::vec3 screen{screen2d, depth};
     const auto ndc = screen * 2.f - 1.f;
 
-    const auto tmp = glm::inverse(m_viewProj) * glm::vec4(ndc, 1.f);
+    const auto tmp = glm::inverse(viewProj) * glm::vec4(ndc, 1.f);
     // clamp to avoid division by zero
     constexpr float limit = 1e-6f;
     const auto w = (std::abs(tmp.w) < limit) ? std::copysign(limit, tmp.w) : tmp.w;
@@ -80,11 +86,17 @@ glm::vec3 MapCanvasViewport::unproject_raw(const glm::vec3 &mouse_depth) const
 // because it could be
 glm::vec3 MapCanvasViewport::unproject_clamped(const glm::vec2 &mouse) const
 {
+    return unproject_clamped(mouse, m_viewProj);
+}
+
+glm::vec3 MapCanvasViewport::unproject_clamped(const glm::vec2 &mouse,
+                                               const glm::mat4 &viewProj) const
+{
     const auto flayer = static_cast<float>(m_currentLayer);
     const auto &x = mouse.x;
     const auto &y = mouse.y;
-    const auto a = unproject_raw(glm::vec3{x, y, 0.f}); // near
-    const auto b = unproject_raw(glm::vec3{x, y, 1.f}); // far
+    const auto a = unproject_raw(glm::vec3{x, y, 0.f}, viewProj); // near
+    const auto b = unproject_raw(glm::vec3{x, y, 1.f}, viewProj); // far
     const float t = (flayer - a.z) / (b.z - a.z);
     const auto result = glm::mix(a, b, std::clamp(t, 0.f, 1.f));
     return glm::vec3{glm::vec2{result}, flayer};

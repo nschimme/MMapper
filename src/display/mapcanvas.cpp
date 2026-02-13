@@ -696,6 +696,7 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
             if (delta.x != 0 || delta.y != 0) {
                 // negated because dragging to right is scrolling to the left.
                 emit sig_mapMove(-delta.x, -delta.y);
+                m_moveBackup = getUnprojectedMouseSel(event);
             }
         }
         break;

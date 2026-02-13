@@ -83,23 +83,39 @@ void FBO::release()
 
 void FBO::blitToDefault()
 {
-    if (!m_resolvedFbo) {
+    if (!m_resolvedFbo || !m_resolvedFbo->isValid()) {
         return; // Nothing to blit from
     }
 
+    const QSize size = m_resolvedFbo->size();
+    const QRect rect(QPoint(0, 0), size);
+
     // If we have a valid multisampling FBO, resolve it to the resolved FBO first.
     if (m_multisamplingFbo && m_multisamplingFbo->isValid()) {
-        // NOTE: For multisampled blits, the filter MUST be GL_NEAREST according to
-        // WebGL2 and GLES 3.0 specifications.
-        QOpenGLFramebufferObject::blitFramebuffer(m_resolvedFbo.get(),
-                                                  m_multisamplingFbo.get(),
-                                                  GL_COLOR_BUFFER_BIT,
-                                                  GL_NEAREST);
+        if (m_multisamplingFbo->size() != size) {
+            MMLOG_ERROR() << "FBO resolve failed: size mismatch (" << m_multisamplingFbo->width()
+                          << "x" << m_multisamplingFbo->height() << " vs " << size.width() << "x"
+                          << size.height() << ")";
+        } else {
+            // NOTE: For multisampled blits, the filter MUST be GL_NEAREST according to
+            // WebGL2 and GLES 3.0 specifications. Scaling is also NOT allowed.
+            QOpenGLFramebufferObject::blitFramebuffer(m_resolvedFbo.get(),
+                                                      rect,
+                                                      m_multisamplingFbo.get(),
+                                                      rect,
+                                                      GL_COLOR_BUFFER_BIT,
+                                                      GL_NEAREST);
+        }
     }
 
     // Now blit the (potentially resolved) FBO to the default framebuffer.
+    // We use GL_NEAREST for the final blit as well, and use the same rect to avoid scaling
+    // if possible. If the default framebuffer has a different size, scaling will occur
+    // (which is allowed here because m_resolvedFbo is NOT multisampled).
     QOpenGLFramebufferObject::blitFramebuffer(nullptr,
+                                              rect,
                                               m_resolvedFbo.get(),
+                                              rect,
                                               GL_COLOR_BUFFER_BIT,
                                               GL_NEAREST);
 }

@@ -205,6 +205,7 @@ NODISCARD QSurfaceFormat getOptimalFormat(std::optional<GLContextCheckResult> re
     QSurfaceFormat format;
     format.setRenderableType(QSurfaceFormat::OpenGL);
     format.setDepthBufferSize(24);
+    format.setSamples(0);
     if (result) {
         format.setVersion(result->version.major, result->version.minor);
         format.setProfile(result->isCore ? QSurfaceFormat::CoreProfile
@@ -282,6 +283,7 @@ OpenGLProber::ProbeResult probeOpenGLES()
         QSurfaceFormat format;
         format.setRenderableType(QSurfaceFormat::OpenGLES);
         format.setVersion(version.major, version.minor);
+        format.setSamples(0);
 
         QOpenGLContext context;
         context.setFormat(format);

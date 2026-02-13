@@ -17,6 +17,7 @@
 #include <QLabel>
 #include <QPixmap>
 #include <QScrollBar>
+#include <QToolTip>
 
 class QResizeEvent;
 
@@ -43,11 +44,13 @@ MapWindow::MapWindow(MapData &mapData, PrespammedPath &pp, Mmapper2Group &gm, QW
 
     m_gridLayout->addWidget(m_horizontalScrollBar.get(), 1, 0, 1, 1);
 
-    m_canvas = std::make_unique<MapCanvas>(mapData, pp, gm, this);
-    MapCanvas *const canvas = m_canvas.get();
+    m_canvas = new MapCanvas(mapData, pp, gm);
+    m_canvas->setMinimumSize(QSize(1280 / 4, 720 / 4));
+    m_canvas->resize(QSize(1280, 720));
 
-    m_gridLayout->addWidget(canvas, 0, 0, 1, 1);
-    setMinimumSize(canvas->minimumSizeHint());
+    m_canvasContainer = QWidget::createWindowContainer(m_canvas, this);
+    m_gridLayout->addWidget(m_canvasContainer, 0, 0, 1, 1);
+    setMinimumSize(m_canvas->minimumSize());
 
     // Splash setup
     auto createSplashPixmap = [](const QSize &targetLogicalSize, qreal dpr) -> QPixmap {
@@ -100,7 +103,7 @@ MapWindow::MapWindow(MapData &mapData, PrespammedPath &pp, Mmapper2Group &gm, QW
     {
         connect(m_horizontalScrollBar.get(),
                 &QScrollBar::valueChanged,
-                canvas,
+                m_canvas,
                 [this](const int x) -> void {
                     const float val = m_knownMapSize.scrollToWorld(glm::ivec2{x, 0}).x;
                     m_canvas->slot_setHorizontalScroll(val);
@@ -108,22 +111,23 @@ MapWindow::MapWindow(MapData &mapData, PrespammedPath &pp, Mmapper2Group &gm, QW
 
         connect(m_verticalScrollBar.get(),
                 &QScrollBar::valueChanged,
-                canvas,
+                m_canvas,
                 [this](const int y) -> void {
                     const float value = m_knownMapSize.scrollToWorld(glm::ivec2{0, y}).y;
                     m_canvas->slot_setVerticalScroll(value);
                 });
 
-        connect(this, &MapWindow::sig_setScroll, canvas, &MapCanvas::slot_setScroll);
+        connect(this, &MapWindow::sig_setScroll, m_canvas, &MapCanvas::slot_setScroll);
     }
 
     // from canvas to map window
     {
-        connect(canvas, &MapCanvas::sig_onCenter, this, &MapWindow::slot_centerOnWorldPos);
-        connect(canvas, &MapCanvas::sig_setScrollBars, this, &MapWindow::slot_setScrollBars);
-        connect(canvas, &MapCanvas::sig_continuousScroll, this, &MapWindow::slot_continuousScroll);
-        connect(canvas, &MapCanvas::sig_mapMove, this, &MapWindow::slot_mapMove);
-        connect(canvas, &MapCanvas::sig_zoomChanged, this, &MapWindow::slot_zoomChanged);
+        connect(m_canvas, &MapCanvas::sig_onCenter, this, &MapWindow::slot_centerOnWorldPos);
+        connect(m_canvas, &MapCanvas::sig_setScrollBars, this, &MapWindow::slot_setScrollBars);
+        connect(m_canvas, &MapCanvas::sig_continuousScroll, this, &MapWindow::slot_continuousScroll);
+        connect(m_canvas, &MapCanvas::sig_mapMove, this, &MapWindow::slot_mapMove);
+        connect(m_canvas, &MapCanvas::sig_zoomChanged, this, &MapWindow::slot_zoomChanged);
+        connect(m_canvas, &MapCanvas::sig_showTooltip, this, &MapWindow::slot_showTooltip);
     }
 }
 
@@ -269,7 +273,7 @@ void MapWindow::updateScrollBars()
 
 MapCanvas *MapWindow::getCanvas() const
 {
-    return m_canvas.get();
+    return m_canvas;
 }
 
 void MapWindow::setZoom(const float zoom)
@@ -280,6 +284,16 @@ void MapWindow::setZoom(const float zoom)
 float MapWindow::getZoom() const
 {
     return m_canvas->getRawZoom();
+}
+
+void MapWindow::slot_showTooltip(const QString &text, const QPoint &pos)
+{
+    QToolTip::showText(m_canvasContainer->mapToGlobal(pos), text, m_canvasContainer);
+}
+
+void MapWindow::setCanvasEnabled(bool enabled)
+{
+    m_canvasContainer->setEnabled(enabled);
 }
 
 glm::vec2 MapWindow::KnownMapSize::scrollToWorld(const glm::ivec2 &scrollPos) const

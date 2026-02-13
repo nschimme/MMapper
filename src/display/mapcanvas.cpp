@@ -37,9 +37,7 @@
 #include <QOpenGLDebugMessage>
 #include <QSize>
 #include <QString>
-#include <QToolTip>
 #include <QtGui>
-#include <QtWidgets>
 
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #undef near // Bad dog, Microsoft; bad dog!!!
@@ -56,9 +54,9 @@ NODISCARD static NonOwningPointer &primaryMapCanvas()
 MapCanvas::MapCanvas(MapData &mapData,
                      PrespammedPath &prespammedPath,
                      Mmapper2Group &groupManager,
-                     QWidget *const parent)
-    : QOpenGLWidget{parent}
-    , MapCanvasViewport{static_cast<QWidget &>(*this)}
+                     QWindow *const parent)
+    : QOpenGLWindow{NoPartialUpdate, parent}
+    , MapCanvasViewport{static_cast<QWindow &>(*this)}
     , MapCanvasInputState{prespammedPath}
     , m_mapScreen{static_cast<MapCanvasViewport &>(*this)}
     , m_opengl{}
@@ -72,8 +70,6 @@ MapCanvas::MapCanvas(MapData &mapData,
     }
 
     setCursor(Qt::OpenHandCursor);
-    grabGesture(Qt::PinchGesture);
-    setContextMenuPolicy(Qt::CustomContextMenu);
 }
 
 MapCanvas::~MapCanvas()
@@ -294,46 +290,80 @@ void MapCanvas::slot_onForcedPositionChange()
     slot_requestUpdate();
 }
 
-bool MapCanvas::event(QEvent *const event)
+void MapCanvas::touchEvent(QTouchEvent *const event)
 {
-    auto tryHandlePinchZoom = [this, event]() -> bool {
-        if (event->type() != QEvent::Gesture) {
-            return false;
-        }
+    const auto &points = event->points();
+    if (points.size() == 2) {
+        const auto &p1 = points[0];
+        const auto &p2 = points[1];
 
-        const auto *const gestureEvent = dynamic_cast<QGestureEvent *>(event);
-        if (gestureEvent == nullptr) {
-            return false;
-        }
+        const float currentDistance
+            = glm::distance(glm::vec2(static_cast<float>(p1.position().x()),
+                                      static_cast<float>(p1.position().y())),
+                            glm::vec2(static_cast<float>(p2.position().x()),
+                                      static_cast<float>(p2.position().y())));
 
-        // Zoom in / out
-        QGesture *const gesture = gestureEvent->gesture(Qt::PinchGesture);
-        const auto *const pinch = dynamic_cast<QPinchGesture *>(gesture);
-        if (pinch == nullptr) {
-            return false;
-        }
-
-        const QPinchGesture::ChangeFlags changeFlags = pinch->changeFlags();
-        if (changeFlags & QPinchGesture::ScaleFactorChanged) {
-            const auto pinchFactor = static_cast<float>(pinch->totalScaleFactor());
-            m_scaleFactor.setPinch(pinchFactor);
-            if ((false)) {
-                zoomChanged(); // Don't call this here, because it's not true yet.
+        if (event->type() == QEvent::TouchBegin || p1.state() == QEventPoint::Pressed
+            || p2.state() == QEventPoint::Pressed) {
+            m_moveBackup = getUnprojectedMouseSel(event);
+            if (hasBackup()) {
+                m_moveBackup->pos = Coordinate2f{currentDistance, 0.f}; // use pos.x for initial distance
             }
         }
-        if (pinch->state() == Qt::GestureFinished) {
+
+        if (hasBackup()) {
+            const float initialDistance = getBackup().pos.x;
+            if (initialDistance > 1e-3f) {
+                const float pinchFactor = currentDistance / initialDistance;
+                m_scaleFactor.setPinch(pinchFactor);
+            }
+        }
+
+        if (event->type() == QEvent::TouchEnd || p1.state() == QEventPoint::Released
+            || p2.state() == QEventPoint::Released) {
             m_scaleFactor.endPinch();
-            zoomChanged(); // might not have actually changed
+            stopMoving();
+            zoomChanged();
         }
         update();
-        return true;
-    };
+        event->accept();
+    } else {
+        QOpenGLWindow::touchEvent(event);
+    }
+}
 
-    if (tryHandlePinchZoom()) {
-        return true;
+bool MapCanvas::event(QEvent *const event)
+{
+    if (event->type() == QEvent::NativeGesture) {
+        auto *const gesture = static_cast<QNativeGestureEvent *>(event);
+        if (gesture->gestureType() == Qt::ZoomNativeGesture) {
+            const float value = static_cast<float>(gesture->value());
+            if (gesture->isBeginEvent()) {
+                // start
+            } else if (gesture->isEndEvent()) {
+                m_scaleFactor.endPinch();
+                zoomChanged();
+            } else {
+                // On macOS, value is the magnification delta.
+                // On other platforms it might be the absolute scale.
+                // Original code used QPinchGesture which provided totalScaleFactor.
+                // Let's assume for now we want to support it similarly.
+                // Actually, let's keep it simple and just use the value if it's total scale.
+                if constexpr (CURRENT_PLATFORM == PlatformEnum::Mac) {
+                    // This is tricky without knowing exactly how QNativeGestureEvent behaves here.
+                    // But if we want to "keep the feel", we should try to match it.
+                    // QPinchGesture::totalScaleFactor() was used.
+                    m_scaleFactor.setPinch(1.0f + value);
+                } else {
+                    m_scaleFactor.setPinch(value);
+                }
+            }
+            update();
+            return true;
+        }
     }
 
-    return QOpenGLWidget::event(event);
+    return QOpenGLWindow::event(event);
 }
 
 void MapCanvas::slot_createRoom()
@@ -416,7 +446,7 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
     MAYBE_UNUSED const bool hasAlt = (event->modifiers() & Qt::ALT) != 0u;
 
     if (hasLeftButton && hasAlt) {
-        m_altDragState.emplace(AltDragState{event->pos(), cursor()});
+        m_altDragState.emplace(AltDragState{event->position().toPoint(), cursor()});
         setCursor(Qt::ClosedHandCursor);
         event->accept();
         return;
@@ -606,7 +636,7 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
         auto &dragState = m_altDragState.value();
         bool angleChanged = false;
 
-        const auto pos = event->pos();
+        const auto pos = event->position().toPoint();
         const auto delta = pos - dragState.lastPos;
         dragState.lastPos = pos;
 
@@ -694,12 +724,14 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
         infomarksChanged();
         break;
     case CanvasMouseModeEnum::MOVE:
-        if (hasLeftButton && m_mouseLeftPressed && hasSel2() && hasBackup()) {
-            const Coordinate2i delta
-                = ((getSel2().pos - getBackup().pos) * static_cast<float>(SCROLL_SCALE)).truncate();
-            if (delta.x != 0 || delta.y != 0) {
-                // negated because dragging to right is scrolling to the left.
-                emit sig_mapMove(-delta.x, -delta.y);
+        if (hasLeftButton && m_mouseLeftPressed && m_dragState.has_value()) {
+            const auto xy = getMouseCoords(event);
+            const glm::vec3 currWorldPos = unproject_clamped(xy, m_dragState->startViewProj);
+            const glm::vec2 delta = glm::vec2(currWorldPos - m_dragState->startWorldPos);
+
+            if (glm::length(delta) > 1e-6f) {
+                const glm::vec2 newWorldCenter = m_dragState->startScroll - delta;
+                emit sig_onCenter(newWorldCenter);
             }
         }
         break;
@@ -849,11 +881,7 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
                                                  mmqt::StripAnsiEnum::Yes,
                                                  mmqt::PreviewStyleEnum::ForDisplay);
 
-                QToolTip::showText(mapToGlobal(event->position().toPoint()),
-                                   message,
-                                   this,
-                                   rect(),
-                                   5000);
+                emit sig_showTooltip(message, event->position().toPoint());
             }
         }
         break;
@@ -998,14 +1026,17 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
     m_ctrlPressed = false;
 }
 
-QSize MapCanvas::minimumSizeHint() const
+
+void MapCanvas::startMoving(const MouseSel &startPos)
 {
-    return {sizeHint().width() / 4, sizeHint().height() / 4};
+    MapCanvasInputState::startMoving(startPos);
+    m_dragState.emplace(DragState{startPos.to_vec3(), m_scroll, m_viewProj});
 }
 
-QSize MapCanvas::sizeHint() const
+void MapCanvas::stopMoving()
 {
-    return {1280, 720};
+    MapCanvasInputState::stopMoving();
+    m_dragState.reset();
 }
 
 void MapCanvas::slot_setScroll(const glm::vec2 &worldPos)

@@ -283,6 +283,7 @@ Functions::Functions(Badge<Functions>)
     : m_shaderPrograms{std::make_unique<ShaderPrograms>(*this)}
     , m_staticVbos{std::make_unique<StaticVbos>()}
     , m_sharedVbos{std::make_unique<SharedVbos>()}
+    , m_sharedVaos{std::make_unique<SharedVaos>()}
     , m_sharedMeshes{std::make_unique<SharedMeshes>()}
     , m_texLookup{std::make_unique<TexLookup>()}
     , m_fbo{std::make_unique<FBO>()}
@@ -317,9 +318,9 @@ void Functions::cleanup()
     getShaderPrograms().resetAll();
     getStaticVbos().resetAll();
     getSharedVbos().resetAll();
+    getSharedVaos().resetAll();
     getSharedMeshes().resetAll();
     getTexLookup().clear();
-    m_staticMeshes.clear();
 }
 
 ShaderPrograms &Functions::getShaderPrograms()
@@ -333,6 +334,10 @@ StaticVbos &Functions::getStaticVbos()
 SharedVbos &Functions::getSharedVbos()
 {
     return deref(m_sharedVbos);
+}
+SharedVaos &Functions::getSharedVaos()
+{
+    return deref(m_sharedVaos);
 }
 SharedMeshes &Functions::getSharedMeshes()
 {
@@ -412,8 +417,10 @@ void Functions::renderFullScreenFade(const GLRenderState &state)
     auto &sharedMesh = getSharedMeshes().get(SharedMeshEnum::FullScreenFade);
     if (!sharedMesh) {
         auto sharedFuncs = shared_from_this();
+        auto vao = getSharedVaos().get(SharedVaoEnum::EmptyVao);
+        vao->emplace(sharedFuncs);
         sharedMesh = std::make_shared<Legacy::FullScreenMesh<FullScreenShader>>(
-            sharedFuncs, getShaderPrograms().getFullScreenShader());
+            sharedFuncs, getShaderPrograms().getFullScreenShader(), std::move(vao));
     }
 
     sharedMesh->render(state.withDepthFunction(std::nullopt));
@@ -424,8 +431,12 @@ void Functions::renderPresentBlit(const GLuint textureId)
     auto &sharedMesh = getSharedMeshes().get(SharedMeshEnum::PresentBlit);
     if (!sharedMesh) {
         auto sharedFuncs = shared_from_this();
-        sharedMesh = std::make_shared<Legacy::FullScreenMesh<BlitShader>>(
-            sharedFuncs, getShaderPrograms().getBlitShader());
+        auto vao = getSharedVaos().get(SharedVaoEnum::EmptyVao);
+        vao->emplace(sharedFuncs);
+        sharedMesh = std::make_shared<Legacy::FullScreenMesh<BlitShader>>(sharedFuncs,
+                                                                          getShaderPrograms()
+                                                                              .getBlitShader(),
+                                                                          std::move(vao));
     }
 
     const auto state = GLRenderState()

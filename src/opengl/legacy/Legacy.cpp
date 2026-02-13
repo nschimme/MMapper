@@ -319,6 +319,7 @@ void Functions::cleanup()
     getTexLookup().clear();
     m_backgroundMesh.reset();
     m_blitMesh.reset();
+    m_staticMeshes.clear();
 }
 
 ShaderPrograms &Functions::getShaderPrograms()

@@ -14,11 +14,12 @@
 
 namespace Legacy {
 
-template<typename VertexType_, typename ProgramType_>
-class NODISCARD PositionMesh : public SimpleMesh<VertexType_, ProgramType_>
+// Uniform color
+template<typename VertexType_>
+class NODISCARD PlainMesh final : public SimpleMesh<VertexType_, UColorPlainShader>
 {
 public:
-    using Base = SimpleMesh<VertexType_, ProgramType_>;
+    using Base = SimpleMesh<VertexType_, UColorPlainShader>;
     using Base::Base;
 
 private:
@@ -60,15 +61,6 @@ private:
         gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
         m_boundAttribs.reset();
     }
-};
-
-// Uniform color
-template<typename VertexType_>
-class NODISCARD PlainMesh final : public PositionMesh<VertexType_, UColorPlainShader>
-{
-public:
-    using Base = PositionMesh<VertexType_, UColorPlainShader>;
-    using Base::Base;
 };
 
 // Per-vertex color
@@ -365,18 +357,18 @@ protected:
     Functions &m_functions;
     const std::shared_ptr<ProgramType_> m_shared_program;
     ProgramType_ &m_program;
-    const GLuint m_vao;
+    VAO m_vao;
 
 public:
     explicit FullScreenMesh(SharedFunctions sharedFunctions,
-                            std::shared_ptr<ProgramType_> sharedProgram,
-                            const GLuint vao)
+                            std::shared_ptr<ProgramType_> sharedProgram)
         : m_shared_functions{std::move(sharedFunctions)}
         , m_functions{deref(m_shared_functions)}
         , m_shared_program{std::move(sharedProgram)}
         , m_program{deref(m_shared_program)}
-        , m_vao{vao}
-    {}
+    {
+        m_vao.emplace(m_shared_functions);
+    }
 
     ~FullScreenMesh() override = default;
 
@@ -393,7 +385,7 @@ private:
         m_program.setUniforms(glm::mat4(1.0f), renderState.uniforms);
         RenderStateBinder renderStateBinder(m_functions, m_functions.getTexLookup(), renderState);
 
-        m_functions.glBindVertexArray(m_vao);
+        m_functions.glBindVertexArray(m_vao.get());
         m_functions.glDrawArrays(GL_TRIANGLES, 0, 3);
         m_functions.glBindVertexArray(0);
         m_functions.checkError();

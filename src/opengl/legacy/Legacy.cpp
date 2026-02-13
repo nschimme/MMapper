@@ -285,7 +285,6 @@ Functions::Functions(Badge<Functions>)
     , m_sharedVbos{std::make_unique<SharedVbos>()}
     , m_texLookup{std::make_unique<TexLookup>()}
     , m_fbo{std::make_unique<FBO>()}
-    , m_fullScreenVao{std::make_unique<VAO>()}
 {}
 
 Functions::~Functions()
@@ -320,9 +319,6 @@ void Functions::cleanup()
     getTexLookup().clear();
     m_backgroundMesh.reset();
     m_blitMesh.reset();
-    if (m_fullScreenVao) {
-        m_fullScreenVao->reset();
-    }
 }
 
 ShaderPrograms &Functions::getShaderPrograms()
@@ -406,16 +402,12 @@ void Functions::blitFboToDefault()
     }
 }
 
-void Functions::renderBackground(const GLRenderState &state)
+void Functions::renderFullScreenFade(const GLRenderState &state)
 {
     if (!m_backgroundMesh) {
         auto sharedFuncs = shared_from_this();
-        auto &vao = deref(m_fullScreenVao);
-        if (!vao) {
-            vao.emplace(sharedFuncs);
-        }
-        m_backgroundMesh = std::make_shared<Legacy::FullScreenMesh<BackgroundShader>>(
-            sharedFuncs, getShaderPrograms().getBackgroundShader(), vao.get());
+        m_backgroundMesh = std::make_shared<Legacy::FullScreenMesh<FullScreenShader>>(
+            sharedFuncs, getShaderPrograms().getFullScreenShader());
     }
 
     m_backgroundMesh->render(state.withDepthFunction(std::nullopt));
@@ -425,14 +417,9 @@ void Functions::renderPresentBlit(const GLuint textureId)
 {
     if (!m_blitMesh) {
         auto sharedFuncs = shared_from_this();
-        auto &vao = deref(m_fullScreenVao);
-        if (!vao) {
-            vao.emplace(sharedFuncs);
-        }
         m_blitMesh = std::make_shared<Legacy::FullScreenMesh<BlitShader>>(sharedFuncs,
                                                                           getShaderPrograms()
-                                                                              .getBlitShader(),
-                                                                          vao.get());
+                                                                              .getBlitShader());
     }
 
     const auto state = GLRenderState()

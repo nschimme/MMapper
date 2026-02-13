@@ -121,7 +121,6 @@ private:
     std::unique_ptr<SharedVbos> m_sharedVbos;
     std::unique_ptr<TexLookup> m_texLookup;
     std::unique_ptr<FBO> m_fbo;
-    std::unique_ptr<VAO> m_fullScreenVao;
     std::shared_ptr<IRenderable> m_backgroundMesh;
     std::shared_ptr<IRenderable> m_blitMesh;
 
@@ -449,7 +448,7 @@ public:
     void releaseFbo();
     void blitFboToDefault();
 
-    void renderBackground(const GLRenderState &state);
+    void renderFullScreenFade(const GLRenderState &state);
     void renderPresentBlit(GLuint textureId);
 };
 } // namespace Legacy

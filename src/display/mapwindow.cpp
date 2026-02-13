@@ -7,6 +7,7 @@
 #include "mapwindow.h"
 
 #include "../display/Filenames.h"
+#include "../global/MakeQPointer.h"
 #include "../global/SignalBlocker.h"
 #include "../global/Version.h"
 #include "mapcanvas.h"
@@ -17,37 +18,43 @@
 #include <QLabel>
 #include <QPixmap>
 #include <QScrollBar>
+#include <QToolTip>
 
 class QResizeEvent;
 
 MapWindow::MapWindow(MapData &mapData, PrespammedPath &pp, Mmapper2Group &gm, QWidget *const parent)
     : QWidget(parent)
 {
-    m_gridLayout = std::make_unique<QGridLayout>(this);
+    m_gridLayout = mmqt::makeQPointer<QGridLayout>(this);
     m_gridLayout->setSpacing(0);
     m_gridLayout->setContentsMargins(0, 0, 0, 0);
 
-    m_verticalScrollBar = std::make_unique<QScrollBar>(this);
+    m_verticalScrollBar = mmqt::makeQPointer<QScrollBar>(this);
     m_verticalScrollBar->setOrientation(Qt::Vertical);
     m_verticalScrollBar->setRange(0, 0);
     m_verticalScrollBar->hide();
     m_verticalScrollBar->setSingleStep(MapCanvas::SCROLL_SCALE);
 
-    m_gridLayout->addWidget(m_verticalScrollBar.get(), 0, 1, 1, 1);
+    m_gridLayout->addWidget(m_verticalScrollBar, 0, 1, 1, 1);
 
-    m_horizontalScrollBar = std::make_unique<QScrollBar>(this);
+    m_horizontalScrollBar = mmqt::makeQPointer<QScrollBar>(this);
     m_horizontalScrollBar->setOrientation(Qt::Horizontal);
     m_horizontalScrollBar->setRange(0, 0);
     m_horizontalScrollBar->hide();
     m_horizontalScrollBar->setSingleStep(MapCanvas::SCROLL_SCALE);
 
-    m_gridLayout->addWidget(m_horizontalScrollBar.get(), 1, 0, 1, 1);
+    m_gridLayout->addWidget(m_horizontalScrollBar, 1, 0, 1, 1);
 
-    m_canvas = std::make_unique<MapCanvas>(mapData, pp, gm, this);
-    MapCanvas *const canvas = m_canvas.get();
+    m_canvas = new MapCanvas(mapData, pp, gm);
+    m_canvas->setMinimumSize(QSize(1280 / 4, 720 / 4));
+    m_canvas->resize(QSize(1280, 720));
 
-    m_gridLayout->addWidget(canvas, 0, 0, 1, 1);
-    setMinimumSize(canvas->minimumSizeHint());
+    m_canvasContainer = QWidget::createWindowContainer(m_canvas, this);
+    assert(m_canvasContainer);
+    assert(m_canvasContainer->parent() == this);
+
+    m_gridLayout->addWidget(m_canvasContainer, 0, 0, 1, 1);
+    setMinimumSize(m_canvas->minimumSize());
 
     // Splash setup
     auto createSplashPixmap = [](const QSize &targetLogicalSize, qreal dpr) -> QPixmap {
@@ -89,41 +96,42 @@ MapWindow::MapWindow(MapData &mapData, PrespammedPath &pp, Mmapper2Group &gm, QW
     auto splashPixmap = createSplashPixmap(size(), devicePixelRatioF());
 
     // Now set pixmap with painted text
-    m_splashLabel = std::make_unique<QLabel>(this);
+    m_splashLabel = mmqt::makeQPointer<QLabel>(this);
     m_splashLabel->setPixmap(splashPixmap);
     m_splashLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     m_splashLabel->setGeometry(rect());
-    m_gridLayout->addWidget(m_splashLabel.get(), 0, 0, 1, 1, Qt::AlignCenter);
+    m_gridLayout->addWidget(m_splashLabel, 0, 0, 1, 1, Qt::AlignCenter);
     m_splashLabel->show();
 
     // from map window to canvas
     {
-        connect(m_horizontalScrollBar.get(),
+        connect(m_horizontalScrollBar,
                 &QScrollBar::valueChanged,
-                canvas,
+                m_canvas,
                 [this](const int x) -> void {
                     const float val = m_knownMapSize.scrollToWorld(glm::ivec2{x, 0}).x;
                     m_canvas->slot_setHorizontalScroll(val);
                 });
 
-        connect(m_verticalScrollBar.get(),
+        connect(m_verticalScrollBar,
                 &QScrollBar::valueChanged,
-                canvas,
+                m_canvas,
                 [this](const int y) -> void {
                     const float value = m_knownMapSize.scrollToWorld(glm::ivec2{0, y}).y;
                     m_canvas->slot_setVerticalScroll(value);
                 });
 
-        connect(this, &MapWindow::sig_setScroll, canvas, &MapCanvas::slot_setScroll);
+        connect(this, &MapWindow::sig_setScroll, m_canvas, &MapCanvas::slot_setScroll);
     }
 
     // from canvas to map window
     {
-        connect(canvas, &MapCanvas::sig_onCenter, this, &MapWindow::slot_centerOnWorldPos);
-        connect(canvas, &MapCanvas::sig_setScrollBars, this, &MapWindow::slot_setScrollBars);
-        connect(canvas, &MapCanvas::sig_continuousScroll, this, &MapWindow::slot_continuousScroll);
-        connect(canvas, &MapCanvas::sig_mapMove, this, &MapWindow::slot_mapMove);
-        connect(canvas, &MapCanvas::sig_zoomChanged, this, &MapWindow::slot_zoomChanged);
+        connect(m_canvas, &MapCanvas::sig_onCenter, this, &MapWindow::slot_centerOnWorldPos);
+        connect(m_canvas, &MapCanvas::sig_setScrollBars, this, &MapWindow::slot_setScrollBars);
+        connect(m_canvas, &MapCanvas::sig_continuousScroll, this, &MapWindow::slot_continuousScroll);
+        connect(m_canvas, &MapCanvas::sig_mapMove, this, &MapWindow::slot_mapMove);
+        connect(m_canvas, &MapCanvas::sig_zoomChanged, this, &MapWindow::slot_zoomChanged);
+        connect(m_canvas, &MapCanvas::sig_showTooltip, this, &MapWindow::slot_showTooltip);
     }
 }
 
@@ -131,7 +139,7 @@ void MapWindow::hideSplashImage()
 {
     if (m_splashLabel) {
         m_splashLabel->hide();
-        m_splashLabel.release();
+        m_splashLabel->deleteLater();
     }
 }
 
@@ -193,13 +201,13 @@ void MapWindow::slot_continuousScroll(const int hStep, const int input_vStep)
         if (scrollTimer->isActive()) {
             scrollTimer->stop();
         }
-        scrollTimer.reset();
+        scrollTimer->deleteLater();
     }
 
     // start
     if ((scrollTimer == nullptr) && (hStep != 0 || vStep != 0)) {
-        scrollTimer = std::make_unique<QTimer>(this);
-        connect(scrollTimer.get(), &QTimer::timeout, this, &MapWindow::slot_scrollTimerTimeout);
+        scrollTimer = mmqt::makeQPointer<QTimer>(this);
+        connect(scrollTimer, &QTimer::timeout, this, &MapWindow::slot_scrollTimerTimeout);
         scrollTimer->start(100);
     }
 }
@@ -223,8 +231,12 @@ void MapWindow::slot_graphicsSettingsChanged()
 
 void MapWindow::slot_centerOnWorldPos(const glm::vec2 &worldPos)
 {
+    const SignalBlocker block_horz{*m_horizontalScrollBar};
+    const SignalBlocker block_vert{*m_verticalScrollBar};
+
     const auto scrollPos = m_knownMapSize.worldToScroll(worldPos);
-    centerOnScrollPos(scrollPos);
+    m_horizontalScrollBar->setValue(scrollPos.x);
+    m_verticalScrollBar->setValue(scrollPos.y);
 }
 
 void MapWindow::centerOnScrollPos(const glm::ivec2 &scrollPos)
@@ -269,7 +281,7 @@ void MapWindow::updateScrollBars()
 
 MapCanvas *MapWindow::getCanvas() const
 {
-    return m_canvas.get();
+    return m_canvas;
 }
 
 void MapWindow::setZoom(const float zoom)
@@ -280,6 +292,16 @@ void MapWindow::setZoom(const float zoom)
 float MapWindow::getZoom() const
 {
     return m_canvas->getRawZoom();
+}
+
+void MapWindow::slot_showTooltip(const QString &text, const QPoint &pos)
+{
+    QToolTip::showText(m_canvasContainer->mapToGlobal(pos), text, m_canvasContainer);
+}
+
+void MapWindow::setCanvasEnabled(bool enabled)
+{
+    m_canvasContainer->setEnabled(enabled);
 }
 
 glm::vec2 MapWindow::KnownMapSize::scrollToWorld(const glm::ivec2 &scrollPos) const

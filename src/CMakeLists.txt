@@ -681,7 +681,27 @@ set(mmapper_EXECUTABLE_ARGS
     ${mmapper_DATA}
 )
 if(EMSCRIPTEN)
+    set(WASM_ZIP_NAME "mmapper-wasm.zip")
+
+    # Set staging install prefix if not already set
+    if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+        set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/staging" CACHE PATH "..." FORCE)
+    endif()
+
+    # COI Service Worker
+    set(COI_JS "${CMAKE_CURRENT_BINARY_DIR}/coi-serviceworker.js")
+    add_custom_command(
+        OUTPUT "${COI_JS}"
+        COMMAND ${CMAKE_COMMAND} -DOUTPUT_FILE="${COI_JS}" -P "${CMAKE_SOURCE_DIR}/cmake/DownloadCoi.cmake"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+        COMMENT "Downloading coi-serviceworker.js"
+        VERBATIM
+    )
+    add_custom_target(download_coi DEPENDS "${COI_JS}")
+
     qt_add_executable(mmapper ${mmapper_EXECUTABLE_ARGS})
+    add_dependencies(mmapper download_coi)
+
     target_link_options(mmapper PRIVATE
         -sFULL_ES3=1
         -sMAX_WEBGL_VERSION=2
@@ -691,6 +711,37 @@ if(EMSCRIPTEN)
         -Os
     )
     target_link_libraries(mmapper PUBLIC z)
+
+    # Patch and rename HTML to index.html
+    set(INDEX_HTML "${CMAKE_CURRENT_BINARY_DIR}/index.html")
+    add_custom_command(
+        OUTPUT "${INDEX_HTML}"
+        COMMAND ${CMAKE_COMMAND} -DOUTPUT_DIR="${CMAKE_CURRENT_BINARY_DIR}"
+                                 -P "${CMAKE_SOURCE_DIR}/cmake/PatchWasmHtml.cmake"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+        DEPENDS "${COI_JS}" mmapper
+        COMMENT "Patching mmapper.html to index.html"
+        VERBATIM
+    )
+    add_custom_target(patch_wasm_html ALL DEPENDS "${INDEX_HTML}")
+
+    # Installation and ZIP packaging for WASM
+    install(CODE "
+        file(GLOB _wasm_files
+            \"${CMAKE_CURRENT_BINARY_DIR}/*.js\"
+            \"${CMAKE_CURRENT_BINARY_DIR}/*.wasm\"
+            \"${CMAKE_CURRENT_BINARY_DIR}/*.html\"
+            \"${CMAKE_CURRENT_BINARY_DIR}/*.svg\"
+        )
+        if(_wasm_files)
+            file(INSTALL DESTINATION \"\${CMAKE_INSTALL_PREFIX}\" TYPE FILE FILES \${_wasm_files})
+        endif()
+
+        execute_process(
+            COMMAND \"${CMAKE_COMMAND}\" -E tar cfv \"${CMAKE_BINARY_DIR}/${WASM_ZIP_NAME}\" --format=zip .
+            WORKING_DIRECTORY \"\${CMAKE_INSTALL_PREFIX}\"
+        )
+    ")
 else()
     add_executable(mmapper WIN32 MACOSX_BUNDLE ${mmapper_EXECUTABLE_ARGS})
 endif()

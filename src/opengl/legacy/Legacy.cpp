@@ -392,7 +392,48 @@ void Functions::releaseFbo()
 
 void Functions::blitFboToDefault()
 {
-    getFBO().blitToDefault();
+    getFBO().resolve();
+
+    const GLuint textureId = getFBO().resolvedTextureId();
+    if (textureId == 0) {
+        return;
+    }
+
+    // screen is [-1,+1]^3.
+    static const std::vector<glm::vec3> fullScreenQuad = {glm::vec3{-1, -1, 0},
+                                                          glm::vec3{+1, -1, 0},
+                                                          glm::vec3{+1, +1, 0},
+                                                          glm::vec3{-1, +1, 0}};
+
+    const auto &prog = getShaderPrograms().getBlitShader();
+
+    // Use a custom render state for the blit to ensure it's not affected by
+    // global state like depth testing or blending.
+    const auto state = GLRenderState()
+                           .withBlend(BlendModeEnum::NONE)
+                           .withDepthFunction(std::nullopt)
+                           .withCulling(CullingEnum::DISABLED);
+
+    // We can't use renderImmediate easily because it wants a specific Mesh type
+    // and we don't want to add more boilerplate there.
+    // Instead, we manually bind the texture and use a custom render path if needed,
+    // or just use renderImmediate with BlitMesh.
+
+    Base::glActiveTexture(GL_TEXTURE0);
+    Base::glBindTexture(GL_TEXTURE_2D, textureId);
+
+    const auto oldProj = getProjectionMatrix();
+    setProjectionMatrix(glm::mat4(1.0f));
+
+    renderImmediate<glm::vec3, Legacy::BlitMesh>(shared_from_this(),
+                                                 DrawModeEnum::QUADS,
+                                                 fullScreenQuad,
+                                                 prog,
+                                                 state);
+
+    setProjectionMatrix(oldProj);
+
+    Base::glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 } // namespace Legacy

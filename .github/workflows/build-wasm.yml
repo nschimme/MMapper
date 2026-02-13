@@ -53,12 +53,6 @@ jobs:
           -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         cmake --build build
 
-    - name: Add coi-serviceworker.js
-      run: |
-        cd build/src
-        wget https://raw.githubusercontent.com/gzuidhof/coi-serviceworker/refs/heads/master/coi-serviceworker.js
-        perl -i.bak -pe 's#(<head>)#$1\n<script src="./coi-serviceworker.js"></script>#i' mmapper.html
-
     - name: Get Git tag description
       id: git_info
       run: |
@@ -70,17 +64,12 @@ jobs:
         echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
         echo "FILE=${FILE}" >> $GITHUB_OUTPUT
 
-    - name: Package
+    - name: Install and Package
       run: |
-        mkdir -p demo
-        cp build/src/mmapper.js demo/
-        cp build/src/mmapper.worker.js demo/
-        cp build/src/mmapper.wasm demo/
-        cp build/src/qtloader.js demo/
-        cp build/src/qtlogo.svg demo/
-        cp build/src/coi-serviceworker.js demo/
-        cp build/src/mmapper.html demo/index.html
-        zip -r ${{ steps.git_info.outputs.FILE }} demo
+        cmake --install build
+        # The zip is created by the install(CODE) block in src/CMakeLists.txt
+        # and its name should match or be close to the one expected here.
+        mv build/mmapper*wasm.zip ./${{ steps.git_info.outputs.FILE }}
 
     - name: Upload Package
       uses: actions/upload-artifact@v6

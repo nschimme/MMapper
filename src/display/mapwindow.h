@@ -43,7 +43,8 @@ protected:
     std::unique_ptr<QGridLayout> m_gridLayout;
     std::unique_ptr<QScrollBar> m_horizontalScrollBar;
     std::unique_ptr<QScrollBar> m_verticalScrollBar;
-    std::unique_ptr<MapCanvas> m_canvas;
+    MapCanvas *m_canvas;
+    QWidget *m_canvasContainer;
     std::unique_ptr<QLabel> m_splashLabel;
 
 private:
@@ -91,4 +92,7 @@ public slots:
     void slot_scrollTimerTimeout();
     void slot_graphicsSettingsChanged();
     void slot_zoomChanged(const float zoom) { emit sig_zoomChanged(zoom); }
+    void slot_showTooltip(const QString &text, const QPoint &pos);
+
+    void setCanvasEnabled(bool enabled);
 };

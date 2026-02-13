@@ -225,7 +225,9 @@ void MapCanvas::wheelEvent(QWheelEvent *const event)
             if (angleDelta != 0) {
                 const float factor = std::pow(ScaleFactor::ZOOM_STEP,
                                               static_cast<float>(angleDelta) / 120.0f);
-                zoomAt(factor, getMouseCoords(event));
+                if (const auto xy = getMouseCoords(event)) {
+                    zoomAt(factor, *xy);
+                }
             }
         }
         break;
@@ -269,7 +271,9 @@ void MapCanvas::touchEvent(QTouchEvent *const event)
             const float deltaFactor = currentPinchFactor / m_lastPinchFactor;
 
             if (std::abs(deltaFactor - 1.f) > 1e-6f) {
-                zoomAt(deltaFactor, getMouseCoords(event));
+                if (const auto xy = getMouseCoords(event)) {
+                    zoomAt(deltaFactor, *xy);
+                }
             }
             m_lastPinchFactor = currentPinchFactor;
         }
@@ -302,7 +306,9 @@ bool MapCanvas::event(QEvent *const event)
                 // since the last event.
                 const float deltaFactor = 1.f + value;
                 if (std::abs(value) > 1e-6f) {
-                    zoomAt(deltaFactor, getMouseCoords(inputEvent));
+                    if (const auto xy = getMouseCoords(inputEvent)) {
+                        zoomAt(deltaFactor, *xy);
+                    }
                 }
             } else {
                 // On other platforms, it's typically the cumulative scale factor (1.0 at start).
@@ -313,7 +319,9 @@ bool MapCanvas::event(QEvent *const event)
                 if (std::abs(m_lastMagnification) > 1e-6f) {
                     const float deltaFactor = value / m_lastMagnification;
                     if (std::abs(deltaFactor - 1.f) > 1e-6f) {
-                        zoomAt(deltaFactor, getMouseCoords(inputEvent));
+                        if (const auto xy = getMouseCoords(inputEvent)) {
+                            zoomAt(deltaFactor, *xy);
+                        }
                     }
                 }
                 m_lastMagnification = value;
@@ -413,7 +421,11 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
         return;
     }
 
-    const auto xy = getMouseCoords(event);
+    const auto optXy = getMouseCoords(event);
+    if (!optXy) {
+        return;
+    }
+    const auto xy = *optXy;
     if (m_canvasMouseMode == CanvasMouseModeEnum::MOVE) {
         const auto worldPos = unproject_clamped(xy);
         m_sel1 = m_sel2 = MouseSel{Coordinate2f{worldPos.x, worldPos.y}, m_currentLayer};
@@ -692,7 +704,11 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
         break;
     case CanvasMouseModeEnum::MOVE:
         if (hasLeftButton && m_mouseLeftPressed && m_dragState.has_value()) {
-            const auto xy = getMouseCoords(event);
+            const auto optXy = getMouseCoords(event);
+            if (!optXy) {
+                break;
+            }
+            const auto xy = *optXy;
             const glm::vec3 currWorldPos = unproject_clamped(xy, m_dragState->startViewProj);
             const glm::vec2 delta = glm::vec2(currWorldPos - m_dragState->startWorldPos);
 

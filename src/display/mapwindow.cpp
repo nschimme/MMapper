@@ -10,6 +10,7 @@
 #include "../global/MakeQPointer.h"
 #include "../global/SignalBlocker.h"
 #include "../global/Version.h"
+#include "../global/utils.h"
 #include "mapcanvas.h"
 
 #include <memory>
@@ -133,6 +134,9 @@ MapWindow::MapWindow(MapData &mapData, PrespammedPath &pp, Mmapper2Group &gm, QW
         connect(m_canvas, &MapCanvas::sig_zoomChanged, this, &MapWindow::slot_zoomChanged);
         connect(m_canvas, &MapCanvas::sig_showTooltip, this, &MapWindow::slot_showTooltip);
     }
+
+    scrollTimer = mmqt::makeQPointer<QTimer>(this);
+    connect(scrollTimer, &QTimer::timeout, this, &MapWindow::slot_scrollTimerTimeout);
 }
 
 void MapWindow::hideSplashImage()
@@ -146,7 +150,7 @@ void MapWindow::hideSplashImage()
 void MapWindow::keyPressEvent(QKeyEvent *const event)
 {
     if (event->key() == Qt::Key_Escape) {
-        m_canvas->userPressedEscape(true);
+        deref(m_canvas).userPressedEscape(true);
         return;
     }
     QWidget::keyPressEvent(event);
@@ -155,7 +159,7 @@ void MapWindow::keyPressEvent(QKeyEvent *const event)
 void MapWindow::keyReleaseEvent(QKeyEvent *const event)
 {
     if (event->key() == Qt::Key_Escape) {
-        m_canvas->userPressedEscape(false);
+        deref(m_canvas).userPressedEscape(false);
         return;
     }
     QWidget::keyReleaseEvent(event);
@@ -168,11 +172,11 @@ void MapWindow::slot_mapMove(const int dx, const int input_dy)
     // Y is negated because delta is in world space
     const int dy = -input_dy;
 
-    const SignalBlocker block_horz{*m_horizontalScrollBar};
-    const SignalBlocker block_vert{*m_verticalScrollBar};
+    const SignalBlocker block_horz{deref(m_horizontalScrollBar)};
+    const SignalBlocker block_vert{deref(m_verticalScrollBar)};
 
-    const int hValue = m_horizontalScrollBar->value() + dx;
-    const int vValue = m_verticalScrollBar->value() + dy;
+    const int hValue = deref(m_horizontalScrollBar).value() + dx;
+    const int vValue = deref(m_verticalScrollBar).value() + dy;
 
     const glm::ivec2 scrollPos{hValue, vValue};
     centerOnScrollPos(scrollPos);
@@ -197,28 +201,25 @@ void MapWindow::slot_continuousScroll(const int hStep, const int input_vStep)
     m_verticalScrollStep = vStep;
 
     // stop
-    if ((scrollTimer != nullptr) && hStep == 0 && vStep == 0) {
-        if (scrollTimer->isActive()) {
-            scrollTimer->stop();
+    if (hStep == 0 && vStep == 0) {
+        if (deref(scrollTimer).isActive()) {
+            deref(scrollTimer).stop();
         }
-        scrollTimer->deleteLater();
-    }
-
-    // start
-    if ((scrollTimer == nullptr) && (hStep != 0 || vStep != 0)) {
-        scrollTimer = mmqt::makeQPointer<QTimer>(this);
-        connect(scrollTimer, &QTimer::timeout, this, &MapWindow::slot_scrollTimerTimeout);
-        scrollTimer->start(100);
+    } else {
+        // start
+        if (!deref(scrollTimer).isActive()) {
+            deref(scrollTimer).start(100);
+        }
     }
 }
 
 void MapWindow::slot_scrollTimerTimeout()
 {
-    const SignalBlocker block_horz{*m_horizontalScrollBar};
-    const SignalBlocker block_vert{*m_verticalScrollBar};
+    const SignalBlocker block_horz{deref(m_horizontalScrollBar)};
+    const SignalBlocker block_vert{deref(m_verticalScrollBar)};
 
-    const int vValue = m_verticalScrollBar->value() + m_verticalScrollStep;
-    const int hValue = m_horizontalScrollBar->value() + m_horizontalScrollStep;
+    const int vValue = deref(m_verticalScrollBar).value() + m_verticalScrollStep;
+    const int hValue = deref(m_horizontalScrollBar).value() + m_horizontalScrollStep;
 
     const glm::ivec2 scrollPos{hValue, vValue};
     centerOnScrollPos(scrollPos);
@@ -226,23 +227,23 @@ void MapWindow::slot_scrollTimerTimeout()
 
 void MapWindow::slot_graphicsSettingsChanged()
 {
-    this->m_canvas->graphicsSettingsChanged();
+    deref(m_canvas).graphicsSettingsChanged();
 }
 
 void MapWindow::slot_centerOnWorldPos(const glm::vec2 &worldPos)
 {
-    const SignalBlocker block_horz{*m_horizontalScrollBar};
-    const SignalBlocker block_vert{*m_verticalScrollBar};
+    const SignalBlocker block_horz{deref(m_horizontalScrollBar)};
+    const SignalBlocker block_vert{deref(m_verticalScrollBar)};
 
     const auto scrollPos = m_knownMapSize.worldToScroll(worldPos);
-    m_horizontalScrollBar->setValue(scrollPos.x);
-    m_verticalScrollBar->setValue(scrollPos.y);
+    deref(m_horizontalScrollBar).setValue(scrollPos.x);
+    deref(m_verticalScrollBar).setValue(scrollPos.y);
 }
 
 void MapWindow::centerOnScrollPos(const glm::ivec2 &scrollPos)
 {
-    m_horizontalScrollBar->setValue(scrollPos.x);
-    m_verticalScrollBar->setValue(scrollPos.y);
+    deref(m_horizontalScrollBar).setValue(scrollPos.x);
+    deref(m_verticalScrollBar).setValue(scrollPos.y);
 
     const auto worldPos = m_knownMapSize.scrollToWorld(scrollPos);
     emit sig_setScroll(worldPos);
@@ -264,18 +265,18 @@ void MapWindow::updateScrollBars()
 {
     const auto dims = m_knownMapSize.size() * MapCanvas::SCROLL_SCALE;
     const auto showScrollBars = getConfig().general.showScrollBars;
-    m_horizontalScrollBar->setRange(0, dims.x);
+    deref(m_horizontalScrollBar).setRange(0, dims.x);
     if (dims.x > 0 && showScrollBars) {
-        m_horizontalScrollBar->show();
+        deref(m_horizontalScrollBar).show();
     } else {
-        m_horizontalScrollBar->hide();
+        deref(m_horizontalScrollBar).hide();
     }
 
-    m_verticalScrollBar->setRange(0, dims.y);
+    deref(m_verticalScrollBar).setRange(0, dims.y);
     if (dims.y > 0 && showScrollBars) {
-        m_verticalScrollBar->show();
+        deref(m_verticalScrollBar).show();
     } else {
-        m_verticalScrollBar->hide();
+        deref(m_verticalScrollBar).hide();
     }
 }
 
@@ -286,22 +287,26 @@ MapCanvas *MapWindow::getCanvas() const
 
 void MapWindow::setZoom(const float zoom)
 {
-    m_canvas->setZoom(zoom);
+    deref(m_canvas).setZoom(zoom);
 }
 
 float MapWindow::getZoom() const
 {
-    return m_canvas->getRawZoom();
+    return deref(m_canvas).getRawZoom();
 }
 
 void MapWindow::slot_showTooltip(const QString &text, const QPoint &pos)
 {
-    QToolTip::showText(m_canvasContainer->mapToGlobal(pos), text, m_canvasContainer);
+    QToolTip::showText(deref(m_canvasContainer).mapToGlobal(pos),
+                       text,
+                       m_canvasContainer,
+                       deref(m_canvasContainer).rect(),
+                       5000);
 }
 
 void MapWindow::setCanvasEnabled(bool enabled)
 {
-    m_canvasContainer->setEnabled(enabled);
+    deref(m_canvasContainer).setEnabled(enabled);
 }
 
 glm::vec2 MapWindow::KnownMapSize::scrollToWorld(const glm::ivec2 &scrollPos) const

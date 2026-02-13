@@ -418,7 +418,7 @@ void Functions::blitFboToDefault()
 void Functions::renderFullScreenQuad(const std::shared_ptr<AbstractShaderProgram> &prog,
                                      const GLRenderState &state)
 {
-    using MeshType = Legacy::PositionMesh<glm::vec3, AbstractShaderProgram>;
+    using MeshType = Legacy::FullScreenMesh<AbstractShaderProgram>;
     static std::unordered_map<AbstractShaderProgram *, std::weak_ptr<MeshType>> g_meshes;
 
     auto &weakMesh = g_meshes[prog.get()];
@@ -427,20 +427,9 @@ void Functions::renderFullScreenQuad(const std::shared_ptr<AbstractShaderProgram
         sharedMesh = std::make_shared<MeshType>(shared_from_this(), prog);
         m_staticMeshes.emplace_back(sharedMesh);
         weakMesh = sharedMesh;
-
-        // screen is [-1,+1]^3.
-        static const std::vector<glm::vec3> fullScreenQuad = {glm::vec3{-1, -1, 0},
-                                                              glm::vec3{+1, -1, 0},
-                                                              glm::vec3{+1, +1, 0},
-                                                              glm::vec3{-1, +1, 0}};
-
-        sharedMesh->setStatic(DrawModeEnum::QUADS, fullScreenQuad);
     }
 
-    const auto oldProj = getProjectionMatrix();
-    setProjectionMatrix(glm::mat4(1.0f));
     sharedMesh->render(state.withDepthFunction(std::nullopt));
-    setProjectionMatrix(oldProj);
 }
 
 } // namespace Legacy

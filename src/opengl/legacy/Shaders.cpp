@@ -37,6 +37,7 @@ RoomQuadTexShader::~RoomQuadTexShader() = default;
 FontShader::~FontShader() = default;
 PointShader::~PointShader() = default;
 BlitShader::~BlitShader() = default;
+FullScreenUColorShader::~FullScreenUColorShader() = default;
 
 void ShaderPrograms::early_init()
 {
@@ -50,6 +51,7 @@ void ShaderPrograms::early_init()
     std::ignore = getFontShader();
     std::ignore = getPointShader();
     std::ignore = getBlitShader();
+    std::ignore = getFullScreenUColorShader();
 }
 
 void ShaderPrograms::resetAll()
@@ -64,16 +66,23 @@ void ShaderPrograms::resetAll()
     m_font.reset();
     m_point.reset();
     m_blit.reset();
+    m_fullScreenUColor.reset();
 }
 
 // essentially a private member of ShaderPrograms
 template<typename T>
-NODISCARD static std::shared_ptr<T> loadSimpleShaderProgram(Functions &functions,
-                                                            const std::string &dir)
+NODISCARD static std::shared_ptr<T> loadSimpleShaderProgram(
+    Functions &functions,
+    const std::string &dir,
+    const std::optional<std::string> &vertOverride = std::nullopt)
 {
     static_assert(std::is_base_of_v<AbstractShaderProgram, T>);
 
-    const auto getSource = [&dir](const std::string &name) -> ShaderUtils::Source {
+    const auto getSource = [&dir, &vertOverride](const std::string &name) -> ShaderUtils::Source {
+        if (name == "vert.glsl" && vertOverride.has_value()) {
+            const auto fullPathName = ":/shaders/legacy/" + vertOverride.value();
+            return ShaderUtils::Source{fullPathName, readWholeResourceFile(fullPathName)};
+        }
         return ::readWholeShader(dir, name);
     };
 
@@ -133,6 +142,16 @@ const std::shared_ptr<PointShader> &ShaderPrograms::getPointShader()
 const std::shared_ptr<BlitShader> &ShaderPrograms::getBlitShader()
 {
     return getInitialized<BlitShader>(m_blit, getFunctions(), "blit");
+}
+
+const std::shared_ptr<FullScreenUColorShader> &ShaderPrograms::getFullScreenUColorShader()
+{
+    if (!m_fullScreenUColor) {
+        m_fullScreenUColor = loadSimpleShaderProgram<FullScreenUColorShader>(getFunctions(),
+                                                                             "fullscreen/ucolor",
+                                                                             "fullscreen/vert.glsl");
+    }
+    return m_fullScreenUColor;
 }
 
 } // namespace Legacy

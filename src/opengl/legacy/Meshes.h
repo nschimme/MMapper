@@ -353,12 +353,51 @@ private:
     }
 };
 
-template<typename VertexType_>
-class NODISCARD BlitMesh final : public PositionMesh<VertexType_, BlitShader>
+template<typename ProgramType_>
+class NODISCARD FullScreenMesh final : public IRenderable
 {
 public:
-    using Base = PositionMesh<VertexType_, BlitShader>;
-    using Base::Base;
+    using ProgramType = ProgramType_;
+    static_assert(std::is_base_of_v<AbstractShaderProgram, ProgramType>);
+
+protected:
+    const SharedFunctions m_shared_functions;
+    Functions &m_functions;
+    const std::shared_ptr<ProgramType_> m_shared_program;
+    ProgramType_ &m_program;
+    VAO m_vao;
+
+public:
+    explicit FullScreenMesh(SharedFunctions sharedFunctions,
+                            std::shared_ptr<ProgramType_> sharedProgram)
+        : m_shared_functions{std::move(sharedFunctions)}
+        , m_functions{deref(m_shared_functions)}
+        , m_shared_program{std::move(sharedProgram)}
+        , m_program{deref(m_shared_program)}
+    {
+        m_vao.emplace(m_shared_functions);
+    }
+
+    ~FullScreenMesh() override { virt_reset(); }
+
+private:
+    void virt_clear() final {}
+    void virt_reset() final { m_vao.reset(); }
+    NODISCARD bool virt_isEmpty() const final { return false; }
+
+    void virt_render(const GLRenderState &renderState) final
+    {
+        m_functions.checkError();
+
+        auto programUnbinder = m_program.bind();
+        m_program.setUniforms(glm::mat4(1.0f), renderState.uniforms);
+        RenderStateBinder renderStateBinder(m_functions, m_functions.getTexLookup(), renderState);
+
+        m_functions.glBindVertexArray(m_vao.get());
+        m_functions.glDrawArrays(GL_TRIANGLES, 0, 3);
+        m_functions.glBindVertexArray(0);
+        m_functions.checkError();
+    }
 };
 
 } // namespace Legacy

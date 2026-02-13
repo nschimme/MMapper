@@ -725,40 +725,22 @@ if(EMSCRIPTEN)
     )
     add_custom_target(patch_wasm_html ALL DEPENDS "${INDEX_HTML}")
 
-    # Installation rules for WASM
-    install(TARGETS mmapper
-        RUNTIME DESTINATION .
-        BUNDLE DESTINATION .
-        LIBRARY DESTINATION .
-    )
-
-    install(FILES
-        "${CMAKE_CURRENT_BINARY_DIR}/mmapper.js"
-        "${CMAKE_CURRENT_BINARY_DIR}/mmapper.wasm"
-        "${CMAKE_CURRENT_BINARY_DIR}/qtloader.js"
-        "${CMAKE_CURRENT_BINARY_DIR}/qtlogo.svg"
-        "${COI_JS}"
-        "${INDEX_HTML}"
-        DESTINATION .
-    )
-    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/mmapper.worker.js" DESTINATION . OPTIONAL)
-
-    # ZIP packaging as part of install
+    # Installation and ZIP packaging for WASM
     install(CODE "
-        if(NOT \"\$ENV{SKIP_ZIP}\")
-            file(GLOB WASM_FILES_TO_ZIP
-                RELATIVE \"\${CMAKE_INSTALL_PREFIX}\"
-                \"\${CMAKE_INSTALL_PREFIX}/*.js\"
-                \"\${CMAKE_INSTALL_PREFIX}/*.wasm\"
-                \"\${CMAKE_INSTALL_PREFIX}/*.html\"
-                \"\${CMAKE_INSTALL_PREFIX}/*.svg\"
-            )
-            message(STATUS \"Zipping WASM artifacts to \${CMAKE_BINARY_DIR}/${WASM_ZIP_NAME}...\")
-            execute_process(
-                COMMAND \${CMAKE_COMMAND} -E tar cfv \"\${CMAKE_BINARY_DIR}/${WASM_ZIP_NAME}\" --format=zip -- \${WASM_FILES_TO_ZIP}
-                WORKING_DIRECTORY \"\${CMAKE_INSTALL_PREFIX}\"
-            )
+        file(GLOB _wasm_files
+            \"${CMAKE_CURRENT_BINARY_DIR}/*.js\"
+            \"${CMAKE_CURRENT_BINARY_DIR}/*.wasm\"
+            \"${CMAKE_CURRENT_BINARY_DIR}/*.html\"
+            \"${CMAKE_CURRENT_BINARY_DIR}/*.svg\"
+        )
+        if(_wasm_files)
+            file(INSTALL DESTINATION \"\${CMAKE_INSTALL_PREFIX}\" TYPE FILE FILES \${_wasm_files})
         endif()
+
+        execute_process(
+            COMMAND \"${CMAKE_COMMAND}\" -E tar cfv \"${CMAKE_BINARY_DIR}/${WASM_ZIP_NAME}\" --format=zip .
+            WORKING_DIRECTORY \"\${CMAKE_INSTALL_PREFIX}\"
+        )
     ")
 else()
     add_executable(mmapper WIN32 MACOSX_BUNDLE ${mmapper_EXECUTABLE_ARGS})

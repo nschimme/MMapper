@@ -69,7 +69,7 @@ jobs:
         cmake --install build
         # The zip is created by the install(CODE) block in src/CMakeLists.txt
         # and its name should match or be close to the one expected here.
-        mv build/mmapper-*-wasm.zip ./${{ steps.git_info.outputs.FILE }}
+        mv build/mmapper*wasm.zip ./${{ steps.git_info.outputs.FILE }}
 
     - name: Upload Package
       uses: actions/upload-artifact@v6

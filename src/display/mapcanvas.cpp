@@ -413,7 +413,14 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
         return;
     }
 
-    m_sel1 = m_sel2 = getUnprojectedMouseSel(event);
+    const auto xy = getMouseCoords(event);
+    if (m_canvasMouseMode == CanvasMouseModeEnum::MOVE) {
+        const auto worldPos = unproject_clamped(xy);
+        m_sel1 = m_sel2 = MouseSel{Coordinate2f{worldPos.x, worldPos.y}, m_currentLayer};
+    } else {
+        m_sel1 = m_sel2 = getUnprojectedMouseSel(xy);
+    }
+
     m_mouseLeftPressed = hasLeftButton;
     m_mouseRightPressed = hasRightButton;
 
@@ -692,7 +699,9 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
 
             if (glm::length(delta) > 1e-6f) {
                 const glm::vec2 newWorldCenter = m_dragState->startScroll - delta;
+                m_scroll = newWorldCenter;
                 emit sig_onCenter(newWorldCenter);
+                update();
             }
         }
         break;
@@ -1083,7 +1092,9 @@ void MapCanvas::onMovement()
 {
     const Coordinate &pos = m_data.tryGetPosition().value_or(Coordinate{});
     m_currentLayer = pos.z;
-    emit sig_onCenter(pos.to_vec2() + glm::vec2{0.5f, 0.5f});
+    const glm::vec2 newScroll = pos.to_vec2() + glm::vec2{0.5f, 0.5f};
+    m_scroll = newScroll;
+    emit sig_onCenter(newScroll);
     update();
 }
 
@@ -1207,4 +1218,3 @@ void MapCanvas::userPressedEscape(bool /*pressed*/)
         break;
     }
 }
-// Trigger CI retry

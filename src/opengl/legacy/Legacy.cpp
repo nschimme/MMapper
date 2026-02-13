@@ -21,7 +21,6 @@
 #include <memory>
 #include <optional>
 #include <stdexcept>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -319,6 +318,8 @@ void Functions::cleanup()
     getStaticVbos().resetAll();
     getSharedVbos().resetAll();
     getTexLookup().clear();
+    m_backgroundMesh.reset();
+    m_blitMesh.reset();
     if (m_fullScreenVao) {
         m_fullScreenVao->reset();
     }
@@ -400,12 +401,40 @@ void Functions::blitFboToDefault()
     getFBO().resolve();
 
     const GLuint textureId = getFBO().resolvedTextureId();
-    if (textureId == 0) {
-        return;
+    if (textureId != 0) {
+        renderPresentBlit(textureId);
+    }
+}
+
+void Functions::renderBackground(const GLRenderState &state)
+{
+    if (!m_backgroundMesh) {
+        auto sharedFuncs = shared_from_this();
+        auto &vao = deref(m_fullScreenVao);
+        if (!vao) {
+            vao.emplace(sharedFuncs);
+        }
+        m_backgroundMesh = std::make_shared<Legacy::FullScreenMesh<BackgroundShader>>(
+            sharedFuncs, getShaderPrograms().getBackgroundShader(), vao.get());
     }
 
-    // Use a custom render state for the blit to ensure it's not affected by
-    // global state like depth testing or blending.
+    m_backgroundMesh->render(state.withDepthFunction(std::nullopt));
+}
+
+void Functions::renderPresentBlit(const GLuint textureId)
+{
+    if (!m_blitMesh) {
+        auto sharedFuncs = shared_from_this();
+        auto &vao = deref(m_fullScreenVao);
+        if (!vao) {
+            vao.emplace(sharedFuncs);
+        }
+        m_blitMesh = std::make_shared<Legacy::FullScreenMesh<BlitShader>>(sharedFuncs,
+                                                                          getShaderPrograms()
+                                                                              .getBlitShader(),
+                                                                          vao.get());
+    }
+
     const auto state = GLRenderState()
                            .withBlend(BlendModeEnum::NONE)
                            .withDepthFunction(std::nullopt)
@@ -414,32 +443,9 @@ void Functions::blitFboToDefault()
     Base::glActiveTexture(GL_TEXTURE0);
     Base::glBindTexture(GL_TEXTURE_2D, textureId);
 
-    renderFullScreenQuad(getShaderPrograms().getBlitShader(), state);
+    m_blitMesh->render(state);
 
     Base::glBindTexture(GL_TEXTURE_2D, 0);
-}
-
-void Functions::renderFullScreenQuad(const std::shared_ptr<AbstractShaderProgram> &prog,
-                                     const GLRenderState &state)
-{
-    using MeshType = Legacy::FullScreenMesh<AbstractShaderProgram>;
-    static std::unordered_map<AbstractShaderProgram *, std::weak_ptr<MeshType>> g_meshes;
-
-    auto sharedFuncs = shared_from_this();
-    auto &vao = deref(m_fullScreenVao);
-    if (!vao) {
-        vao.emplace(sharedFuncs);
-    }
-
-    auto &weakMesh = g_meshes[prog.get()];
-    auto sharedMesh = weakMesh.lock();
-    if (sharedMesh == nullptr) {
-        sharedMesh = std::make_shared<MeshType>(sharedFuncs, prog, vao.get());
-        m_staticMeshes.emplace_back(sharedMesh);
-        weakMesh = sharedMesh;
-    }
-
-    sharedMesh->render(state.withDepthFunction(std::nullopt));
 }
 
 } // namespace Legacy

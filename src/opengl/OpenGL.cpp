@@ -196,8 +196,7 @@ void OpenGL::renderColoredTextured(const DrawModeEnum type,
 
 void OpenGL::renderPlainFullScreenQuad(const GLRenderState &renderState)
 {
-    auto &funcs = getFunctions();
-    funcs.renderFullScreenQuad(funcs.getShaderPrograms().getBackgroundShader(), renderState);
+    getFunctions().renderBackground(renderState);
 }
 
 void OpenGL::cleanup()

@@ -122,7 +122,8 @@ private:
     std::unique_ptr<TexLookup> m_texLookup;
     std::unique_ptr<FBO> m_fbo;
     std::unique_ptr<VAO> m_fullScreenVao;
-    std::vector<std::shared_ptr<IRenderable>> m_staticMeshes;
+    std::shared_ptr<IRenderable> m_backgroundMesh;
+    std::shared_ptr<IRenderable> m_blitMesh;
 
 protected:
     explicit Functions(Badge<Functions>);
@@ -142,15 +143,6 @@ public:
             throw std::invalid_argument("devicePixelRatio");
         }
         m_devicePixelRatio = devicePixelRatio;
-    }
-
-public:
-    // The purpose of this function is to safely manage the lifetime of reused meshes
-    // like the full screen quad mesh. Caller is expected to only keep a weak pointer
-    // to the mesh. See OpenGL::renderPlainFullScreenQuad().
-    void addSharedMesh(Badge<OpenGL>, std::shared_ptr<IRenderable> mesh)
-    {
-        m_staticMeshes.emplace_back(std::move(mesh));
     }
 
 public:
@@ -457,7 +449,7 @@ public:
     void releaseFbo();
     void blitFboToDefault();
 
-    void renderFullScreenQuad(const std::shared_ptr<AbstractShaderProgram> &prog,
-                              const GLRenderState &state);
+    void renderBackground(const GLRenderState &state);
+    void renderPresentBlit(GLuint textureId);
 };
 } // namespace Legacy

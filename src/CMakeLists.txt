@@ -700,23 +700,24 @@ if(EMSCRIPTEN)
     set(COI_JS "${CMAKE_CURRENT_BINARY_DIR}/coi-serviceworker.js")
     add_custom_command(
         OUTPUT "${COI_JS}"
-        COMMAND ${CMAKE_COMMAND} -DOUTPUT_FILE="${COI_JS}" -P "${CMAKE_SOURCE_DIR}/cmake/DownloadCoi.cmake"
+        COMMAND ${CMAKE_COMMAND} -DOUTPUT_FILE=${COI_JS} -P ${CMAKE_SOURCE_DIR}/cmake/DownloadCoi.cmake
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
         COMMENT "Downloading coi-serviceworker.js"
         VERBATIM
     )
-    add_custom_target(download_coi DEPENDS "${COI_JS}")
-    add_dependencies(mmapper download_coi)
 
     # Patch and rename HTML to index.html
-    add_custom_target(patch_wasm_html ALL
+    set(INDEX_HTML "${CMAKE_CURRENT_BINARY_DIR}/index.html")
+    add_custom_command(
+        OUTPUT "${INDEX_HTML}"
         COMMAND ${CMAKE_COMMAND} -DOUTPUT_DIR=${CMAKE_CURRENT_BINARY_DIR}
                                  -P ${CMAKE_SOURCE_DIR}/cmake/PatchWasmHtml.cmake
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+        DEPENDS "${COI_JS}" mmapper
         COMMENT "Patching mmapper.html to index.html"
         VERBATIM
     )
-    add_dependencies(patch_wasm_html mmapper download_coi)
+    add_custom_target(patch_wasm_html ALL DEPENDS "${INDEX_HTML}")
 
     install(FILES
         "${CMAKE_CURRENT_BINARY_DIR}/mmapper.js"
@@ -724,9 +725,9 @@ if(EMSCRIPTEN)
         "${CMAKE_CURRENT_BINARY_DIR}/qtloader.js"
         "${CMAKE_CURRENT_BINARY_DIR}/qtlogo.svg"
         "${COI_JS}"
+        "${INDEX_HTML}"
         DESTINATION .
     )
-    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/index.html" DESTINATION . OPTIONAL)
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/mmapper.worker.js" DESTINATION . OPTIONAL)
 
 else()

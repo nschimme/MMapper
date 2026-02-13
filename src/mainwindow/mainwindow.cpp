@@ -465,7 +465,10 @@ void MainWindow::wireConnections()
             &MapCanvas::sig_newInfomarkSelection,
             this,
             &MainWindow::slot_newInfomarkSelection);
-    connect(canvas, &QWidget::customContextMenuRequested, this, &MainWindow::slot_showContextMenu);
+    connect(canvas,
+            &MapCanvas::sig_customContextMenuRequested,
+            this,
+            &MainWindow::slot_showContextMenu);
 
     // Group
     connect(m_groupManager, &Mmapper2Group::sig_log, this, &MainWindow::slot_log);
@@ -1313,7 +1316,6 @@ void MainWindow::slot_setShowMenuBar()
     m_dockDialogGroup->setMouseTracking(!showMenuBar);
     m_dockDialogLog->setMouseTracking(!showMenuBar);
     m_dockDialogRoom->setMouseTracking(!showMenuBar);
-    getCanvas()->setMouseTracking(!showMenuBar);
 
     if (showMenuBar) {
         menuBar()->show();
@@ -1322,14 +1324,12 @@ void MainWindow::slot_setShowMenuBar()
         m_dockDialogGroup->removeEventFilter(this);
         m_dockDialogLog->removeEventFilter(this);
         m_dockDialogRoom->removeEventFilter(this);
-        getCanvas()->removeEventFilter(this);
     } else {
         m_dockDialogAdventure->installEventFilter(this);
         m_dockDialogClient->installEventFilter(this);
         m_dockDialogGroup->installEventFilter(this);
         m_dockDialogLog->installEventFilter(this);
         m_dockDialogRoom->installEventFilter(this);
-        getCanvas()->installEventFilter(this);
     }
 }
 

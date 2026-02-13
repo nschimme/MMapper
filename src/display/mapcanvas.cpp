@@ -258,7 +258,7 @@ void MapCanvas::touchEvent(QTouchEvent *const event)
             m_lastPinchFactor = 1.f;
         }
 
-        if (m_initialPinchDistance > 0.f) {
+        if (m_initialPinchDistance > 1e-3f) {
             const float currentDistance
                 = glm::distance(glm::vec2(static_cast<float>(p1.position().x()),
                                           static_cast<float>(p1.position().y())),
@@ -266,12 +266,15 @@ void MapCanvas::touchEvent(QTouchEvent *const event)
                                           static_cast<float>(p2.position().y())));
             const float currentPinchFactor = currentDistance / m_initialPinchDistance;
             const float deltaFactor = currentPinchFactor / m_lastPinchFactor;
-            m_lastPinchFactor = currentPinchFactor;
 
-            zoomAt(deltaFactor, getMouseCoords(event));
+            if (std::abs(deltaFactor - 1.f) > 1e-6f) {
+                zoomAt(deltaFactor, getMouseCoords(event));
+            }
+            m_lastPinchFactor = currentPinchFactor;
         }
 
-        if (event->type() == QEvent::TouchEnd) {
+        if (event->type() == QEvent::TouchEnd || p1.state() == QEventPoint::Released
+            || p2.state() == QEventPoint::Released) {
             m_initialPinchDistance = 0.f;
             m_lastPinchFactor = 1.f;
         }
@@ -292,29 +295,25 @@ bool MapCanvas::event(QEvent *const event)
         if (nativeEvent->gestureType() == Qt::ZoomNativeGesture) {
             const auto value = static_cast<float>(nativeEvent->value());
             const auto *const inputEvent = static_cast<const QInputEvent *>(event);
+
             if constexpr (CURRENT_PLATFORM == PlatformEnum::Mac) {
-                // On macOS, event->value() for ZoomNativeGesture is the magnification delta.
-                // It is 0 when the gesture starts, and then changes by the delta magnification.
-                const float currentPinchFactor = 1.f + value;
-
-                if (nativeEvent->isBeginEvent()) {
-                    m_lastMagnification = 1.f;
-                }
-
-                const float deltaFactor = currentPinchFactor / m_lastMagnification;
-                if (deltaFactor != 1.f) {
+                // On macOS, event->value() for ZoomNativeGesture is the magnification delta
+                // since the last event.
+                const float deltaFactor = 1.f + value;
+                if (std::abs(value) > 1e-6f) {
                     zoomAt(deltaFactor, getMouseCoords(inputEvent));
                 }
-                m_lastMagnification = currentPinchFactor;
             } else {
                 // On other platforms, it's typically the cumulative scale factor (1.0 at start).
                 if (nativeEvent->isBeginEvent()) {
                     m_lastMagnification = 1.f;
                 }
 
-                const float deltaFactor = value / m_lastMagnification;
-                if (deltaFactor != 1.f) {
-                    zoomAt(deltaFactor, getMouseCoords(inputEvent));
+                if (std::abs(m_lastMagnification) > 1e-6f) {
+                    const float deltaFactor = value / m_lastMagnification;
+                    if (std::abs(deltaFactor - 1.f) > 1e-6f) {
+                        zoomAt(deltaFactor, getMouseCoords(inputEvent));
+                    }
                 }
                 m_lastMagnification = value;
             }
@@ -1024,11 +1023,16 @@ void MapCanvas::zoomAt(const float factor, const glm::vec2 &mousePos)
     if (optNewWorldPos) {
         const glm::vec2 delta = worldPos - glm::vec2(*optNewWorldPos);
         const glm::vec2 newScroll = oldScroll + delta;
+        m_scroll = newScroll;
         emit sig_onCenter(newScroll);
     } else {
         // Fallback: if we can't find the new world position, just stay where we were.
+        m_scroll = oldScroll;
         emit sig_onCenter(oldScroll);
     }
+
+    // Refresh the viewport matrix with the final scroll and zoom before painting.
+    setViewportAndMvp(width(), height());
     update();
 }
 

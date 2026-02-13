@@ -284,7 +284,6 @@ Functions::Functions(Badge<Functions>)
     , m_staticVbos{std::make_unique<StaticVbos>()}
     , m_sharedVbos{std::make_unique<SharedVbos>()}
     , m_sharedVaos{std::make_unique<SharedVaos>()}
-    , m_sharedMeshes{std::make_unique<SharedMeshes>()}
     , m_texLookup{std::make_unique<TexLookup>()}
     , m_fbo{std::make_unique<FBO>()}
 {}
@@ -319,8 +318,8 @@ void Functions::cleanup()
     getStaticVbos().resetAll();
     getSharedVbos().resetAll();
     getSharedVaos().resetAll();
-    getSharedMeshes().resetAll();
     getTexLookup().clear();
+    m_staticMeshes.clear();
 }
 
 ShaderPrograms &Functions::getShaderPrograms()
@@ -338,10 +337,6 @@ SharedVbos &Functions::getSharedVbos()
 SharedVaos &Functions::getSharedVaos()
 {
     return deref(m_sharedVaos);
-}
-SharedMeshes &Functions::getSharedMeshes()
-{
-    return deref(m_sharedMeshes);
 }
 TexLookup &Functions::getTexLookup()
 {
@@ -408,38 +403,18 @@ void Functions::blitFboToDefault()
 
     const GLuint textureId = getFBO().resolvedTextureId();
     if (textureId != 0) {
-        renderPresentBlit(textureId);
+        presentFbo(textureId);
     }
 }
 
 void Functions::renderFullScreenFade(const GLRenderState &state)
 {
-    auto &sharedMesh = getSharedMeshes().get(SharedMeshEnum::FullScreenFade);
-    if (!sharedMesh) {
-        auto sharedFuncs = shared_from_this();
-        auto vao = getSharedVaos().get(SharedVaoEnum::EmptyVao);
-        vao->emplace(sharedFuncs);
-        sharedMesh
-            = std::make_shared<Legacy::FullScreenMesh>(sharedFuncs,
-                                                       getShaderPrograms().getFullScreenShader(),
-                                                       std::move(vao));
-    }
-
-    sharedMesh->render(state.withDepthFunction(std::nullopt));
+    renderFullScreenTriangle(getShaderPrograms().getFullScreenShader(),
+                             state.withDepthFunction(std::nullopt));
 }
 
-void Functions::renderPresentBlit(const GLuint textureId)
+void Functions::presentFbo(const GLuint textureId)
 {
-    auto &sharedMesh = getSharedMeshes().get(SharedMeshEnum::PresentBlit);
-    if (!sharedMesh) {
-        auto sharedFuncs = shared_from_this();
-        auto vao = getSharedVaos().get(SharedVaoEnum::EmptyVao);
-        vao->emplace(sharedFuncs);
-        sharedMesh = std::make_shared<Legacy::FullScreenMesh>(sharedFuncs,
-                                                              getShaderPrograms().getBlitShader(),
-                                                              std::move(vao));
-    }
-
     const auto state = GLRenderState()
                            .withBlend(BlendModeEnum::NONE)
                            .withDepthFunction(std::nullopt)
@@ -448,9 +423,28 @@ void Functions::renderPresentBlit(const GLuint textureId)
     Base::glActiveTexture(GL_TEXTURE0);
     Base::glBindTexture(GL_TEXTURE_2D, textureId);
 
-    sharedMesh->render(state);
+    renderFullScreenTriangle(getShaderPrograms().getBlitShader(), state);
 
     Base::glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void Functions::renderFullScreenTriangle(const std::shared_ptr<AbstractShaderProgram> &prog,
+                                         const GLRenderState &state)
+{
+    checkError();
+
+    auto programUnbinder = prog->bind();
+    prog->setUniforms(glm::mat4(1.0f), state.uniforms);
+    RenderStateBinder renderStateBinder(*this, getTexLookup(), state);
+
+    auto vao = getSharedVaos().get(SharedVaoEnum::EmptyVao);
+    if (!*vao) {
+        vao->emplace(shared_from_this());
+    }
+    glBindVertexArray(vao->get());
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+    glBindVertexArray(0);
+    checkError();
 }
 
 } // namespace Legacy

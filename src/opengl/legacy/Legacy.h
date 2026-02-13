@@ -27,6 +27,7 @@ namespace Legacy {
 
 class StaticVbos;
 class SharedVbos;
+class VAO;
 class AbstractShaderProgram;
 struct ShaderPrograms;
 struct PointSizeBinder;
@@ -120,6 +121,7 @@ private:
     std::unique_ptr<SharedVbos> m_sharedVbos;
     std::unique_ptr<TexLookup> m_texLookup;
     std::unique_ptr<FBO> m_fbo;
+    std::unique_ptr<VAO> m_fullScreenVao;
     std::vector<std::shared_ptr<IRenderable>> m_staticMeshes;
 
 protected:

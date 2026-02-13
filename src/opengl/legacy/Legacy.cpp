@@ -286,6 +286,7 @@ Functions::Functions(Badge<Functions>)
     , m_sharedVbos{std::make_unique<SharedVbos>()}
     , m_texLookup{std::make_unique<TexLookup>()}
     , m_fbo{std::make_unique<FBO>()}
+    , m_fullScreenVao{std::make_unique<VAO>()}
 {}
 
 Functions::~Functions()
@@ -318,6 +319,9 @@ void Functions::cleanup()
     getStaticVbos().resetAll();
     getSharedVbos().resetAll();
     getTexLookup().clear();
+    if (m_fullScreenVao) {
+        m_fullScreenVao->reset();
+    }
 }
 
 ShaderPrograms &Functions::getShaderPrograms()
@@ -421,10 +425,16 @@ void Functions::renderFullScreenQuad(const std::shared_ptr<AbstractShaderProgram
     using MeshType = Legacy::FullScreenMesh<AbstractShaderProgram>;
     static std::unordered_map<AbstractShaderProgram *, std::weak_ptr<MeshType>> g_meshes;
 
+    auto sharedFuncs = shared_from_this();
+    auto &vao = deref(m_fullScreenVao);
+    if (!vao) {
+        vao.emplace(sharedFuncs);
+    }
+
     auto &weakMesh = g_meshes[prog.get()];
     auto sharedMesh = weakMesh.lock();
     if (sharedMesh == nullptr) {
-        sharedMesh = std::make_shared<MeshType>(shared_from_this(), prog);
+        sharedMesh = std::make_shared<MeshType>(sharedFuncs, prog, vao.get());
         m_staticMeshes.emplace_back(sharedMesh);
         weakMesh = sharedMesh;
     }

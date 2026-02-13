@@ -139,9 +139,7 @@ public:
 private:
     void virt_setUniforms(const glm::mat4 & /*mvp*/,
                           const GLRenderState::Uniforms & /*uniforms*/) final
-    {
-        setTexture("uTexture", 0);
-    }
+    {}
 };
 
 struct NODISCARD FullScreenUColorShader final : public AbstractShaderProgram

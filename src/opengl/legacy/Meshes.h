@@ -365,24 +365,24 @@ protected:
     Functions &m_functions;
     const std::shared_ptr<ProgramType_> m_shared_program;
     ProgramType_ &m_program;
-    VAO m_vao;
+    const GLuint m_vao;
 
 public:
     explicit FullScreenMesh(SharedFunctions sharedFunctions,
-                            std::shared_ptr<ProgramType_> sharedProgram)
+                            std::shared_ptr<ProgramType_> sharedProgram,
+                            const GLuint vao)
         : m_shared_functions{std::move(sharedFunctions)}
         , m_functions{deref(m_shared_functions)}
         , m_shared_program{std::move(sharedProgram)}
         , m_program{deref(m_shared_program)}
-    {
-        m_vao.emplace(m_shared_functions);
-    }
+        , m_vao{vao}
+    {}
 
-    ~FullScreenMesh() override { virt_reset(); }
+    ~FullScreenMesh() override = default;
 
 private:
     void virt_clear() final {}
-    void virt_reset() final { m_vao.reset(); }
+    void virt_reset() final {}
     NODISCARD bool virt_isEmpty() const final { return false; }
 
     void virt_render(const GLRenderState &renderState) final
@@ -393,7 +393,7 @@ private:
         m_program.setUniforms(glm::mat4(1.0f), renderState.uniforms);
         RenderStateBinder renderStateBinder(m_functions, m_functions.getTexLookup(), renderState);
 
-        m_functions.glBindVertexArray(m_vao.get());
+        m_functions.glBindVertexArray(m_vao);
         m_functions.glDrawArrays(GL_TRIANGLES, 0, 3);
         m_functions.glBindVertexArray(0);
         m_functions.checkError();

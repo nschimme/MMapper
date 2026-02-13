@@ -998,6 +998,10 @@ void MapCanvas::slot_setScroll(const glm::vec2 &worldPos)
 
 void MapCanvas::zoomAt(const float factor, const glm::vec2 &mousePos)
 {
+    if (std::abs(factor - 1.f) < 1e-6f) {
+        return;
+    }
+
     const auto optWorldPos = unproject(mousePos);
     if (!optWorldPos) {
         m_scaleFactor *= factor;
@@ -1023,9 +1027,18 @@ void MapCanvas::zoomAt(const float factor, const glm::vec2 &mousePos)
     const auto optNewWorldPos = unproject(mousePos);
     if (optNewWorldPos) {
         const glm::vec2 delta = worldPos - glm::vec2(*optNewWorldPos);
-        const glm::vec2 newScroll = oldScroll + delta;
-        m_scroll = newScroll;
-        emit sig_onCenter(newScroll);
+        // targetScroll would keep worldPos exactly under mousePos.
+        const glm::vec2 targetScroll = oldScroll + delta;
+
+        // Centering: move the viewport center partially towards worldPos.
+        // This implements "head towards that as the new center viewpoint".
+        // Centering factor is proportional to the log of the zoom factor.
+        // multiplier of 0.5 gives roughly 8% centering for one standard wheel step (1.175x).
+        float centering = std::abs(std::log(factor)) * 0.5f;
+        centering = std::clamp(centering, 0.f, 1.0f);
+
+        m_scroll = glm::mix(targetScroll, worldPos, centering);
+        emit sig_onCenter(m_scroll);
     } else {
         // Fallback: if we can't find the new world position, just stay where we were.
         m_scroll = oldScroll;
@@ -1074,7 +1087,8 @@ void MapCanvas::onMovement()
 {
     const Coordinate &pos = m_data.tryGetPosition().value_or(Coordinate{});
     m_currentLayer = pos.z;
-    emit sig_onCenter(pos.to_vec2() + glm::vec2{0.5f, 0.5f});
+    m_scroll = pos.to_vec2() + glm::vec2{0.5f, 0.5f};
+    emit sig_onCenter(m_scroll);
     update();
 }
 

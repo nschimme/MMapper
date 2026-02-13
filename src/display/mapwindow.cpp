@@ -228,7 +228,14 @@ void MapWindow::slot_graphicsSettingsChanged()
 void MapWindow::slot_centerOnWorldPos(const glm::vec2 &worldPos)
 {
     const auto scrollPos = m_knownMapSize.worldToScroll(worldPos);
-    centerOnScrollPos(scrollPos);
+
+    // Update the scrollbars without triggering signals back to the canvas.
+    // This prevents a rounding feedback loop that causes coordinate jitter.
+    const SignalBlocker block_horz{*m_horizontalScrollBar};
+    const SignalBlocker block_vert{*m_verticalScrollBar};
+
+    m_horizontalScrollBar->setValue(scrollPos.x);
+    m_verticalScrollBar->setValue(scrollPos.y);
 }
 
 void MapWindow::centerOnScrollPos(const glm::ivec2 &scrollPos)

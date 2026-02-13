@@ -36,8 +36,12 @@ jobs:
 
           # Attempt to download and deploy beta artifact
           if gh release download beta --pattern 'mmapper-*-wasm.zip' --clobber -O beta_artifact.zip; then
-            unzip -o beta_artifact.zip
-            mv demo docs/beta
+            mkdir -p docs/beta
+            unzip -o beta_artifact.zip -d docs/beta
+            if [ -d docs/beta/demo ]; then
+              mv docs/beta/demo/* docs/beta/
+              rmdir docs/beta/demo
+            fi
             BETA_DOWNLOADED=true
             echo "Beta artifact deployed to docs/beta."
           else
@@ -47,8 +51,12 @@ jobs:
           # Attempt to download and deploy stable artifact
           LATEST_TAG=$(gh release list --exclude-pre-releases --limit 1 --json tagName --jq '.[0].tagName')
           if [ -n "$LATEST_TAG" ] && gh release download "$LATEST_TAG" --pattern 'mmapper-*-wasm.zip' --clobber -O stable_artifact.zip; then
-            unzip -o stable_artifact.zip
-            mv demo docs/demo
+            mkdir -p docs/demo
+            unzip -o stable_artifact.zip -d docs/demo
+            if [ -d docs/demo/demo ]; then
+              mv docs/demo/demo/* docs/demo/
+              rmdir docs/demo/demo
+            fi
             STABLE_DOWNLOADED=true
             echo "Latest stable release artifact deployed to docs/demo."
           else

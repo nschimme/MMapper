@@ -681,7 +681,7 @@ set(mmapper_EXECUTABLE_ARGS
     ${mmapper_DATA}
 )
 if(EMSCRIPTEN)
-    set(WASM_ZIP_NAME "mmapper-wasm.zip")
+    set(WASM_ZIP_NAME "mmapper-${MMAPPER_VERSION_STRING}-wasm.zip")
 
     # Set staging install prefix if not already set
     if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
@@ -727,9 +727,9 @@ if(EMSCRIPTEN)
 
     # Installation rules for WASM
     install(TARGETS mmapper
-        RUNTIME DESTINATION demo
-        BUNDLE DESTINATION demo
-        LIBRARY DESTINATION demo
+        RUNTIME DESTINATION .
+        BUNDLE DESTINATION .
+        LIBRARY DESTINATION .
     )
 
     install(FILES
@@ -739,16 +739,27 @@ if(EMSCRIPTEN)
         "${CMAKE_CURRENT_BINARY_DIR}/qtlogo.svg"
         "${COI_JS}"
         "${INDEX_HTML}"
-        DESTINATION demo
+        DESTINATION .
     )
-    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/mmapper.worker.js" DESTINATION demo OPTIONAL)
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/mmapper.worker.js" DESTINATION . OPTIONAL)
 
     # ZIP packaging as part of install
     install(CODE "
         if(NOT \"\$ENV{SKIP_ZIP}\")
             message(STATUS \"Zipping WASM artifacts to ${CMAKE_BINARY_DIR}/${WASM_ZIP_NAME}...\")
+            set(WASM_FILES
+                mmapper.js
+                mmapper.wasm
+                qtloader.js
+                qtlogo.svg
+                coi-serviceworker.js
+                index.html
+            )
+            if(EXISTS \"${CMAKE_INSTALL_PREFIX}/mmapper.worker.js\")
+                list(APPEND WASM_FILES mmapper.worker.js)
+            endif()
             execute_process(
-                COMMAND ${CMAKE_COMMAND} -E tar cfv \"${CMAKE_BINARY_DIR}/${WASM_ZIP_NAME}\" --format=zip demo
+                COMMAND ${CMAKE_COMMAND} -E tar cfv "${CMAKE_BINARY_DIR}/${WASM_ZIP_NAME}" --format=zip -- \${WASM_FILES}
                 WORKING_DIRECTORY \"${CMAKE_INSTALL_PREFIX}\"
             )
         endif()

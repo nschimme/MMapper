@@ -399,18 +399,23 @@ void Functions::blitFboToDefault()
         return;
     }
 
-    // screen is [-1,+1]^3.
-    // 2 triangles (6 vertices) for better compatibility (ES 3.0 / WebGL 2.0)
-    static const std::vector<glm::vec3> fullScreenTris = {
-        glm::vec3{-1, -1, 0},
-        glm::vec3{+1, -1, 0},
-        glm::vec3{+1, +1, 0},
-        glm::vec3{+1, +1, 0},
-        glm::vec3{-1, +1, 0},
-        glm::vec3{-1, -1, 0},
-    };
+    using MeshType = Legacy::BlitMesh<glm::vec3>;
+    static std::weak_ptr<MeshType> g_mesh;
+    auto sharedMesh = g_mesh.lock();
+    if (sharedMesh == nullptr) {
+        auto sharedFuncs = shared_from_this();
+        g_mesh = sharedMesh = std::make_shared<MeshType>(sharedFuncs,
+                                                         getShaderPrograms().getBlitShader());
+        m_staticMeshes.emplace_back(sharedMesh);
 
-    const auto &prog = getShaderPrograms().getBlitShader();
+        // screen is [-1,+1]^3.
+        static const std::vector<glm::vec3> fullScreenQuad = {glm::vec3{-1, -1, 0},
+                                                              glm::vec3{+1, -1, 0},
+                                                              glm::vec3{+1, +1, 0},
+                                                              glm::vec3{-1, +1, 0}};
+
+        sharedMesh->setStatic(DrawModeEnum::QUADS, fullScreenQuad);
+    }
 
     // Use a custom render state for the blit to ensure it's not affected by
     // global state like depth testing or blending.
@@ -419,22 +424,13 @@ void Functions::blitFboToDefault()
                            .withDepthFunction(std::nullopt)
                            .withCulling(CullingEnum::DISABLED);
 
-    // We can't use renderImmediate easily because it wants a specific Mesh type
-    // and we don't want to add more boilerplate there.
-    // Instead, we manually bind the texture and use a custom render path if needed,
-    // or just use renderImmediate with BlitMesh.
-
     Base::glActiveTexture(GL_TEXTURE0);
     Base::glBindTexture(GL_TEXTURE_2D, textureId);
 
     const auto oldProj = getProjectionMatrix();
     setProjectionMatrix(glm::mat4(1.0f));
 
-    renderImmediate<glm::vec3, Legacy::BlitMesh>(shared_from_this(),
-                                                 DrawModeEnum::TRIANGLES,
-                                                 fullScreenTris,
-                                                 prog,
-                                                 state);
+    sharedMesh->render(state);
 
     setProjectionMatrix(oldProj);
 

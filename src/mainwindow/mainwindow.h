@@ -21,6 +21,8 @@
 #include <QDockWidget>
 #include <QFileDialog>
 #include <QMainWindow>
+#include <QMenu>
+#include <QPointer>
 #include <QProgressDialog>
 #include <QSize>
 #include <QString>
@@ -111,6 +113,8 @@ private:
 
     DescriptionWidget *m_descriptionWidget = nullptr;
     std::unique_ptr<HotkeyManager> m_hotkeyManager;
+
+    QPointer<QMenu> m_contextMenu;
 
     SharedRoomSelection m_roomSelection;
     std::shared_ptr<ConnectionSelection> m_connectionSelection;

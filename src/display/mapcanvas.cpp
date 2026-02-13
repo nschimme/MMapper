@@ -453,9 +453,8 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
             slot_setInfomarkSelection(getInfomarkSelection(getSel1()));
 
             selectionChanged();
-        } else {
-            emit sig_customContextMenuRequested(event->position().toPoint());
         }
+        emit sig_customContextMenuRequested(event->position().toPoint());
         m_mouseRightPressed = false;
         event->accept();
         return;

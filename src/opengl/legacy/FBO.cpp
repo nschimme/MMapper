@@ -89,10 +89,12 @@ void FBO::blitToDefault()
 
     // If we have a valid multisampling FBO, resolve it to the resolved FBO first.
     if (m_multisamplingFbo && m_multisamplingFbo->isValid()) {
+        // NOTE: For multisampled blits, the filter MUST be GL_NEAREST according to
+        // WebGL2 and GLES 3.0 specifications.
         QOpenGLFramebufferObject::blitFramebuffer(m_resolvedFbo.get(),
                                                   m_multisamplingFbo.get(),
                                                   GL_COLOR_BUFFER_BIT,
-                                                  GL_LINEAR);
+                                                  GL_NEAREST);
     }
 
     // Now blit the (potentially resolved) FBO to the default framebuffer.

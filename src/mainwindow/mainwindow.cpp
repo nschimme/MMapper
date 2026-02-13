@@ -465,7 +465,10 @@ void MainWindow::wireConnections()
             &MapCanvas::sig_newInfomarkSelection,
             this,
             &MainWindow::slot_newInfomarkSelection);
-    connect(canvas, &MapCanvas::sig_customContextMenuRequested, this, &MainWindow::slot_showContextMenu);
+    connect(canvas,
+            &MapCanvas::sig_customContextMenuRequested,
+            this,
+            &MainWindow::slot_showContextMenu);
 
     // Group
     connect(m_groupManager, &Mmapper2Group::sig_log, this, &MainWindow::slot_log);

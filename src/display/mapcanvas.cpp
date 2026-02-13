@@ -297,17 +297,18 @@ void MapCanvas::touchEvent(QTouchEvent *const event)
         const auto &p1 = points[0];
         const auto &p2 = points[1];
 
-        const float currentDistance
-            = glm::distance(glm::vec2(static_cast<float>(p1.position().x()),
-                                      static_cast<float>(p1.position().y())),
-                            glm::vec2(static_cast<float>(p2.position().x()),
-                                      static_cast<float>(p2.position().y())));
+        const float currentDistance = glm::distance(glm::vec2(static_cast<float>(p1.position().x()),
+                                                              static_cast<float>(p1.position().y())),
+                                                    glm::vec2(static_cast<float>(p2.position().x()),
+                                                              static_cast<float>(
+                                                                  p2.position().y())));
 
         if (event->type() == QEvent::TouchBegin || p1.state() == QEventPoint::Pressed
             || p2.state() == QEventPoint::Pressed) {
             m_moveBackup = getUnprojectedMouseSel(event);
             if (hasBackup()) {
-                m_moveBackup->pos = Coordinate2f{currentDistance, 0.f}; // use pos.x for initial distance
+                m_moveBackup->pos = Coordinate2f{currentDistance,
+                                                 0.f}; // use pos.x for initial distance
             }
         }
 
@@ -1025,7 +1026,6 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
     m_altPressed = false;
     m_ctrlPressed = false;
 }
-
 
 void MapCanvas::startMoving(const MouseSel &startPos)
 {

@@ -7,6 +7,7 @@
 #include "mapwindow.h"
 
 #include "../display/Filenames.h"
+#include "../global/MakeQPointer.h"
 #include "../global/SignalBlocker.h"
 #include "../global/Version.h"
 #include "mapcanvas.h"
@@ -49,6 +50,9 @@ MapWindow::MapWindow(MapData &mapData, PrespammedPath &pp, Mmapper2Group &gm, QW
     m_canvas->resize(QSize(1280, 720));
 
     m_canvasContainer = QWidget::createWindowContainer(m_canvas, this);
+    assert(m_canvasContainer);
+    assert(m_canvasContainer->parent() == this);
+
     m_gridLayout->addWidget(m_canvasContainer, 0, 0, 1, 1);
     setMinimumSize(m_canvas->minimumSize());
 

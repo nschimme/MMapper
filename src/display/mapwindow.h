@@ -13,6 +13,7 @@
 #include <QLabel>
 #include <QPixmap>
 #include <QPoint>
+#include <QPointer>
 #include <QSize>
 #include <QString>
 #include <QWidget>
@@ -43,8 +44,8 @@ protected:
     std::unique_ptr<QGridLayout> m_gridLayout;
     std::unique_ptr<QScrollBar> m_horizontalScrollBar;
     std::unique_ptr<QScrollBar> m_verticalScrollBar;
-    MapCanvas *m_canvas;
-    QWidget *m_canvasContainer;
+    QPointer<MapCanvas> m_canvas;
+    QPointer<QWidget> m_canvasContainer;
     std::unique_ptr<QLabel> m_splashLabel;
 
 private:

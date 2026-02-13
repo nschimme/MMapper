@@ -345,6 +345,54 @@ private:
     }
 };
 
+template<typename VertexType_>
+class NODISCARD BlitMesh final : public SimpleMesh<VertexType_, BlitShader>
+{
+public:
+    using Base = SimpleMesh<VertexType_, BlitShader>;
+    using Base::Base;
+
+private:
+    struct NODISCARD Attribs final
+    {
+        GLuint vertPos = INVALID_ATTRIB_LOCATION;
+
+        NODISCARD static Attribs getLocations(AbstractShaderProgram &shader)
+        {
+            Attribs result;
+            result.vertPos = shader.getAttribLocation("aVert");
+            return result;
+        }
+    };
+
+    std::optional<Attribs> m_boundAttribs;
+
+    void virt_bind() override
+    {
+        static_assert(sizeof(std::declval<VertexType_>()) == 3 * sizeof(GLfloat));
+
+        Functions &gl = Base::m_functions;
+        const auto attribs = Attribs::getLocations(Base::m_program);
+        gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
+        gl.enableAttrib(attribs.vertPos, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+        m_boundAttribs = attribs;
+    }
+
+    void virt_unbind() override
+    {
+        if (!m_boundAttribs) {
+            assert(false);
+            return;
+        }
+
+        auto &attribs = m_boundAttribs.value();
+        Functions &gl = Base::m_functions;
+        gl.glDisableVertexAttribArray(attribs.vertPos);
+        gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
+        m_boundAttribs.reset();
+    }
+};
+
 } // namespace Legacy
 
 #undef VOIDPTR_OFFSETOF

@@ -366,7 +366,8 @@ private:
     };
     NODISCARD ProgressDialogLifetime createNewProgressDialog(const QString &text, bool allow_cancel);
     void endProgressDialog();
-    NODISCARD MapCanvas *getCanvas() const;
+    NODISCARD MapCanvas *getMapCanvas() const;
+    NODISCARD QWidget *getCanvas() const;
     void mapChanged() const;
     void setCanvasMouseMode(CanvasMouseModeEnum mode);
     void setMapModified(bool);

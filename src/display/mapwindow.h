@@ -6,10 +6,12 @@
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
 #include "../map/coordinate.h"
+#include "MapCanvasData.h"
 #include "mapcanvas.h"
 
 #include <memory>
 
+#include <QGestureEvent>
 #include <QLabel>
 #include <QPixmap>
 #include <QPoint>
@@ -31,7 +33,7 @@ class QResizeEvent;
 class QScrollBar;
 class QTimer;
 
-class NODISCARD_QOBJECT MapWindow final : public QWidget
+class NODISCARD_QOBJECT MapWindow final : public QWidget, public MapCanvasInputState
 {
     Q_OBJECT
 
@@ -43,8 +45,18 @@ protected:
     std::unique_ptr<QGridLayout> m_gridLayout;
     std::unique_ptr<QScrollBar> m_horizontalScrollBar;
     std::unique_ptr<QScrollBar> m_verticalScrollBar;
-    std::unique_ptr<MapCanvas> m_canvas;
+    MapCanvas *m_canvas = nullptr;
+    QWidget *m_canvasContainer = nullptr;
     std::unique_ptr<QLabel> m_splashLabel;
+
+    struct AltDragState
+    {
+        QPoint lastPos;
+        QCursor originalCursor;
+    };
+    std::optional<AltDragState> m_altDragState;
+
+    MapData &m_data;
 
 private:
     struct NODISCARD KnownMapSize final
@@ -68,9 +80,22 @@ public:
     void keyReleaseEvent(QKeyEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
 
-    NODISCARD MapCanvas *getCanvas() const;
+    bool eventFilter(QObject *watched, QEvent *event) override;
+
+    NODISCARD MapCanvas *getMapCanvas() const;
+    NODISCARD QWidget *getCanvas() const { return m_canvasContainer; }
+
+private:
+    void handleMousePress(QMouseEvent *event);
+    void handleMouseRelease(QMouseEvent *event);
+    void handleMouseMove(QMouseEvent *event);
+    void handleWheel(QWheelEvent *event);
+    void handleGesture(QGestureEvent *event);
+
+    NODISCARD std::shared_ptr<InfomarkSelection> getInfomarkSelection(const MouseSel &sel);
 
 public:
+    void setMouseTracking(bool enable);
     void updateScrollBars();
     void setZoom(float zoom);
     NODISCARD float getZoom() const;
@@ -79,9 +104,27 @@ public:
 private:
     void centerOnScrollPos(const glm::ivec2 &scrollPos);
 
+public:
+    void zoomChanged();
+
 signals:
+    void sig_onCenter(const glm::vec2 &worldCoord);
+    void sig_mapMove(int dx, int dy);
+    void sig_setScrollBars(const Coordinate &min, const Coordinate &max);
+    void sig_continuousScroll(int, int);
+
+    void sig_log(const QString &, const QString &);
+
+    void sig_selectionChanged();
+    void sig_newRoomSelection(const SigRoomSelection &);
+    void sig_newConnectionSelection(ConnectionSelection *);
+    void sig_newInfomarkSelection(InfomarkSelection *);
+
+    void sig_setCurrentRoom(RoomId id, bool update);
+    void sig_zoomChanged(float);
+
     void sig_setScroll(const glm::vec2 &worldPos);
-    void sig_zoomChanged(float zoom);
+    void sig_customContextMenuRequested(const QPoint &pos);
 
 public slots:
     void slot_setScrollBars(const Coordinate &, const Coordinate &);
@@ -91,4 +134,17 @@ public slots:
     void slot_scrollTimerTimeout();
     void slot_graphicsSettingsChanged();
     void slot_zoomChanged(const float zoom) { emit sig_zoomChanged(zoom); }
+
+    void slot_setCanvasMouseMode(CanvasMouseModeEnum mode);
+
+    void slot_setRoomSelection(const SigRoomSelection &);
+    void slot_setConnectionSelection(const std::shared_ptr<ConnectionSelection> &);
+    void slot_setInfomarkSelection(const std::shared_ptr<InfomarkSelection> &);
+
+    void slot_clearRoomSelection();
+    void slot_clearConnectionSelection();
+    void slot_clearInfomarkSelection();
+    void slot_clearAllSelections();
+
+    void slot_createRoom();
 };

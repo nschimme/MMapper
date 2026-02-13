@@ -12,6 +12,7 @@
 #include <glm/gtc/epsilon.hpp>
 
 #include <QPointF>
+#include <QWindow>
 
 const MMapper::Array<RoomTintEnum, NUM_ROOM_TINTS> &getAllRoomTints()
 {
@@ -25,6 +26,21 @@ MapCanvasInputState::MapCanvasInputState(PrespammedPath &prespammedPath)
 {}
 
 MapCanvasInputState::~MapCanvasInputState() = default;
+
+int MapCanvasViewport::width() const
+{
+    return m_window.width();
+}
+
+int MapCanvasViewport::height() const
+{
+    return m_window.height();
+}
+
+Viewport MapCanvasViewport::getViewport() const
+{
+    return Viewport{glm::ivec2{0, 0}, glm::ivec2{m_window.width(), m_window.height()}};
+}
 
 // world space to screen space (logical pixels)
 std::optional<glm::vec3> MapCanvasViewport::project(const glm::vec3 &v) const
@@ -93,8 +109,8 @@ glm::vec3 MapCanvasViewport::unproject_clamped(const glm::vec2 &mouse) const
 glm::vec2 MapCanvasViewport::getMouseCoords(const QInputEvent *const event) const
 {
     if (const auto *const mouse = dynamic_cast<const QMouseEvent *>(event)) {
-        const auto x = static_cast<float>(mouse->pos().x());
-        const auto y = static_cast<float>(height() - mouse->pos().y());
+        const auto x = static_cast<float>(mouse->position().x());
+        const auto y = static_cast<float>(height() - mouse->position().y());
         return glm::vec2{x, y};
     } else if (const auto *const wheel = dynamic_cast<const QWheelEvent *>(event)) {
         const auto x = static_cast<float>(wheel->position().x());

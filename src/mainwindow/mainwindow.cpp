@@ -362,24 +362,26 @@ void MainWindow::readSettings()
     if (settings.firstRun) {
         if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
             adjustSize();
+            setGeometry(QStyle::alignedRect(Qt::LeftToRight,
+                                            Qt::AlignCenter,
+                                            size(),
+                                            qApp->primaryScreen()->availableGeometry()));
         }
-        setGeometry(QStyle::alignedRect(Qt::LeftToRight,
-                                        Qt::AlignCenter,
-                                        size(),
-                                        qApp->primaryScreen()->availableGeometry()));
-
     } else {
         if (!restoreState(settings.windowState)) {
             qWarning() << "Unable to restore toolbars and dockwidgets state";
         }
-        if (!restoreGeometry(settings.windowGeometry)) {
-            qWarning() << "Unable to restore window geometry";
+        if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
+            if (!restoreGeometry(settings.windowGeometry)) {
+                qWarning() << "Unable to restore window geometry";
+            }
         }
         raise();
 
         // Check if the window was moved to a screen with a different DPI
         getCanvas()->screenChanged();
     }
+    update();
 }
 
 void MainWindow::writeSettings()

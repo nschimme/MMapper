@@ -21,6 +21,7 @@
 #include "InfomarkSelection.h"
 #include "MapCanvasData.h"
 #include "MapCanvasRoomDrawer.h"
+#include "WeatherRenderer.h"
 #include "connectionselection.h"
 
 #include <array>
@@ -74,6 +75,8 @@ MapCanvas::MapCanvas(MapData &mapData,
     setCursor(Qt::OpenHandCursor);
     grabGesture(Qt::PinchGesture);
     setContextMenuPolicy(Qt::CustomContextMenu);
+
+    m_weatherRenderer = std::make_unique<WeatherRenderer>(*this, this);
 }
 
 MapCanvas::~MapCanvas()

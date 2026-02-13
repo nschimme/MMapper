@@ -163,9 +163,12 @@ public:
         }
     };
 
+enum class NODISCARD EffectIntensityEnum : int8_t { Off, Low, Medium, High };
+
     struct NODISCARD CanvasSettings final : public CanvasNamedColorOptions
     {
         NamedConfig<int> antialiasingSamples{"ANTIALIASING_SAMPLES", 0};
+        NamedConfig<EffectIntensityEnum> effectIntensity{"EFFECT_INTENSITY", EffectIntensityEnum::Medium};
         NamedConfig<bool> trilinearFiltering{"TRILINEAR_FILTERING", true};
         NamedConfig<bool> showMissingMapId{"SHOW_MISSING_MAPID", false};
         NamedConfig<bool> showUnsavedChanges{"SHOW_UNSAVED_CHANGES", false};

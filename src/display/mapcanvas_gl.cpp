@@ -236,6 +236,8 @@ void MapCanvas::initializeGL()
     gl.initializeRenderer(static_cast<float>(QPaintDevice::devicePixelRatioF()));
     updateMultisampling();
 
+    m_weatherRenderer->init(gl);
+
     // REVISIT: should the font texture have the lowest ID?
     initTextures();
     auto &font = getGLFont();
@@ -487,19 +489,6 @@ void MapCanvas::resizeGL(int width, int height)
     update();
 }
 
-void MapCanvas::setAnimating(bool value)
-{
-    if (m_frameRateController.animating == value) {
-        return;
-    }
-
-    m_frameRateController.animating = value;
-
-    if (m_frameRateController.animating) {
-        QTimer::singleShot(0, this, &MapCanvas::renderLoop);
-    }
-}
-
 void MapCanvas::renderLoop()
 {
     if (!m_frameRateController.animating) {
@@ -651,6 +640,10 @@ void MapCanvas::actuallyPaintGL()
     paintSelections();
     paintCharacters();
     paintDifferences();
+
+    if (m_weatherRenderer) {
+        m_weatherRenderer->render(gl);
+    }
 
     gl.releaseFbo();
     gl.blitFboToDefault();

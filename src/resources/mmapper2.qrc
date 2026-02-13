@@ -92,6 +92,9 @@
         <file>pixmaps/door-south.png</file>
         <file>pixmaps/door-up.png</file>
         <file>pixmaps/door-west.png</file>
+        <file>pixmaps/fog.png</file>
+        <file>pixmaps/clouds.png</file>
+        <file>pixmaps/snow.png</file>
         <file>pixmaps/exit-climb-down.png</file>
         <file>pixmaps/exit-climb-up.png</file>
         <file>pixmaps/exit-down.png</file>

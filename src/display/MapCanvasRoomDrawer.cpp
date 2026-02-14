@@ -1107,13 +1107,6 @@ void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) con
     }
 }
 
-NODISCARD const MMapper::Array<RoomTintEnum, NUM_ROOM_TINTS> &getAllRoomTints()
-{
-    static const MMapper::Array<RoomTintEnum, NUM_ROOM_TINTS> tints{RoomTintEnum::DARK,
-                                                                   RoomTintEnum::NO_SUNDEATH};
-    return tints;
-}
-
 // NOTE: All of the lamda captures are copied, including the texture data!
 FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
                                                      const std::shared_ptr<const FontMetrics> &font,

@@ -633,6 +633,51 @@ void MapCanvas::finishPendingMapBatches()
 
 void MapCanvas::actuallyPaintGL()
 {
+    // Update weather transitions
+    {
+        auto now = std::chrono::steady_clock::now();
+        if (m_weatherState.lastUpdateTime.time_since_epoch().count() == 0) {
+            m_weatherState.lastUpdateTime = now;
+        }
+        float dt = std::chrono::duration<float>(now - m_weatherState.lastUpdateTime).count();
+        m_weatherState.lastUpdateTime = now;
+
+        auto updateLevel = [dt](float &current, float target) {
+            const float transitionSpeed = 0.5f; // transition over 2 seconds
+            if (current < target) {
+                current = std::min(target, current + dt * transitionSpeed);
+            } else if (current > target) {
+                current = std::max(target, current - dt * transitionSpeed);
+            }
+        };
+
+        updateLevel(m_weatherState.rainIntensity, m_weatherState.targetRainIntensity);
+        updateLevel(m_weatherState.snowIntensity, m_weatherState.targetSnowIntensity);
+        updateLevel(m_weatherState.cloudsIntensity, m_weatherState.targetCloudsIntensity);
+        updateLevel(m_weatherState.fogIntensity, m_weatherState.targetFogIntensity);
+
+        if (m_weatherState.timeOfDayTransition < 1.0f) {
+            m_weatherState.timeOfDayTransition = std::min(1.0f, m_weatherState.timeOfDayTransition + dt * 0.2f); // 5 seconds transition
+        }
+
+        m_weatherState.animationTime += dt;
+
+        bool stillAnimating = (m_weatherState.rainIntensity != m_weatherState.targetRainIntensity) ||
+                              (m_weatherState.snowIntensity != m_weatherState.targetSnowIntensity) ||
+                              (m_weatherState.cloudsIntensity != m_weatherState.targetCloudsIntensity) ||
+                              (m_weatherState.fogIntensity != m_weatherState.targetFogIntensity) ||
+                              (m_weatherState.timeOfDayTransition < 1.0f);
+
+        // Rain/Snow/Clouds also need continuous animation for movement
+        if (m_weatherState.rainIntensity > 0.0f || m_weatherState.snowIntensity > 0.0f || m_weatherState.cloudsIntensity > 0.0f || m_weatherState.fogIntensity > 0.0f) {
+            stillAnimating = true;
+        }
+
+        if (stillAnimating) {
+            setAnimating(true);
+        }
+    }
+
     // DECL_TIMER(t, __FUNCTION__);
     setViewportAndMvp(width(), height());
 
@@ -652,6 +697,7 @@ void MapCanvas::actuallyPaintGL()
     paintSelections();
     paintCharacters();
     paintDifferences();
+    paintWeather();
 
     gl.releaseFbo();
     gl.blitFboToDefault();
@@ -758,6 +804,62 @@ void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current)
 
             return Diff::HighlightDiff{saved, current, getHighlights()};
         });
+}
+
+Color MapCanvas::calculateTimeOfDayColor() const
+{
+    auto getColor = [](MumeTimeEnum t) -> Color {
+        switch (t) {
+        case MumeTimeEnum::DAWN:
+            return Color(1.0f, 0.8f, 0.6f, 0.2f);
+        case MumeTimeEnum::DUSK:
+            return Color(0.6f, 0.4f, 0.8f, 0.3f);
+        case MumeTimeEnum::NIGHT:
+            return Color(0.1f, 0.1f, 0.3f, 0.5f);
+        case MumeTimeEnum::DAY:
+        default:
+            return Color(1.0f, 1.0f, 1.0f, 0.0f);
+        }
+    };
+
+    const glm::vec4 c1 = getColor(m_weatherState.oldTimeOfDay).getVec4();
+    const glm::vec4 c2 = getColor(m_weatherState.currentTimeOfDay).getVec4();
+    const float t = m_weatherState.timeOfDayTransition;
+
+    return Color(c1.r * (1.0f - t) + c2.r * t,
+                 c1.g * (1.0f - t) + c2.g * t,
+                 c1.b * (1.0f - t) + c2.b * t,
+                 c1.a * (1.0f - t) + c2.a * t);
+}
+
+void MapCanvas::paintWeather()
+{
+    const Color todColor = calculateTimeOfDayColor();
+    if (m_weatherState.rainIntensity <= 0.0f && m_weatherState.snowIntensity <= 0.0f
+        && m_weatherState.cloudsIntensity <= 0.0f && m_weatherState.fogIntensity <= 0.0f
+        && todColor.getAlpha() == 0) {
+        return;
+    }
+
+    auto &gl = getOpenGL();
+    auto &sharedFuncs = gl.getSharedFunctions(Badge<MapCanvas>{});
+    Legacy::Functions &funcs = deref(sharedFuncs);
+    auto &prog = deref(funcs.getShaderPrograms().getWeatherShader());
+
+    auto binder = prog.bind();
+
+    prog.setMatrix("uInvViewProj", glm::inverse(m_viewProj));
+    prog.setVec3("uPlayerPos", m_data.tryGetPosition().value_or(Coordinate{}).to_vec3());
+    prog.setViewport("uPhysViewport", funcs.getPhysicalViewport());
+    prog.setFloat("uTime", m_weatherState.animationTime);
+    prog.setFloat("uRainIntensity", m_weatherState.rainIntensity);
+    prog.setFloat("uSnowIntensity", m_weatherState.snowIntensity);
+    prog.setFloat("uCloudsIntensity", m_weatherState.cloudsIntensity);
+    prog.setFloat("uFogIntensity", m_weatherState.fogIntensity);
+    prog.setColor("uTimeOfDayColor", todColor);
+
+    const auto rs = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withDepthFunction(std::nullopt);
+    funcs.renderFullScreenTriangle(funcs.getShaderPrograms().getWeatherShader(), rs);
 }
 
 void MapCanvas::paintDifferences()

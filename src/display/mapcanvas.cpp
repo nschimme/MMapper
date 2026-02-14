@@ -18,6 +18,7 @@
 #include "../map/roomid.h"
 #include "../mapdata/mapdata.h"
 #include "../mapdata/roomselection.h"
+#include "../observer/gameobserver.h"
 #include "InfomarkSelection.h"
 #include "MapCanvasData.h"
 #include "MapCanvasRoomDrawer.h"
@@ -57,6 +58,7 @@ NODISCARD static NonOwningPointer &primaryMapCanvas()
 }
 
 MapCanvas::MapCanvas(MapData &mapData,
+                     GameObserver &observer,
                      PrespammedPath &prespammedPath,
                      Mmapper2Group &groupManager,
                      QWindow *const parent)
@@ -68,7 +70,42 @@ MapCanvas::MapCanvas(MapData &mapData,
     , m_glFont{m_opengl}
     , m_data{mapData}
     , m_groupManager{groupManager}
+    , m_observer{observer}
 {
+    m_weatherState.currentTimeOfDay = m_observer.getTimeOfDay();
+    m_weatherState.oldTimeOfDay = m_weatherState.currentTimeOfDay;
+
+    m_weatherState.targetRainIntensity = (m_observer.getWeather() == PromptWeatherEnum::RAIN) ? 0.5f : (m_observer.getWeather() == PromptWeatherEnum::HEAVY_RAIN) ? 1.0f : 0.0f;
+    m_weatherState.targetSnowIntensity = (m_observer.getWeather() == PromptWeatherEnum::SNOW) ? 1.0f : 0.0f;
+    m_weatherState.targetCloudsIntensity = (m_observer.getWeather() == PromptWeatherEnum::CLOUDS) ? 1.0f : 0.0f;
+    m_weatherState.targetFogIntensity = (m_observer.getFog() == PromptFogEnum::LIGHT_FOG) ? 0.3f : (m_observer.getFog() == PromptFogEnum::HEAVY_FOG) ? 0.8f : 0.0f;
+
+    m_weatherState.rainIntensity = m_weatherState.targetRainIntensity;
+    m_weatherState.snowIntensity = m_weatherState.targetSnowIntensity;
+    m_weatherState.cloudsIntensity = m_weatherState.targetCloudsIntensity;
+    m_weatherState.fogIntensity = m_weatherState.targetFogIntensity;
+
+    m_observer.sig2_weatherChanged.connect(m_lifetime, [this](PromptWeatherEnum weather) {
+        m_weatherState.targetRainIntensity = (weather == PromptWeatherEnum::RAIN) ? 0.5f : (weather == PromptWeatherEnum::HEAVY_RAIN) ? 1.0f : 0.0f;
+        m_weatherState.targetSnowIntensity = (weather == PromptWeatherEnum::SNOW) ? 1.0f : 0.0f;
+        m_weatherState.targetCloudsIntensity = (weather == PromptWeatherEnum::CLOUDS) ? 1.0f : 0.0f;
+        setAnimating(true);
+    });
+
+    m_observer.sig2_fogChanged.connect(m_lifetime, [this](PromptFogEnum fog) {
+        m_weatherState.targetFogIntensity = (fog == PromptFogEnum::LIGHT_FOG) ? 0.3f : (fog == PromptFogEnum::HEAVY_FOG) ? 0.8f : 0.0f;
+        setAnimating(true);
+    });
+
+    m_observer.sig2_timeOfDayChanged.connect(m_lifetime, [this](MumeTimeEnum time) {
+        if (m_weatherState.currentTimeOfDay != time) {
+            m_weatherState.oldTimeOfDay = m_weatherState.currentTimeOfDay;
+            m_weatherState.currentTimeOfDay = time;
+            m_weatherState.timeOfDayTransition = 0.0f;
+            setAnimating(true);
+        }
+    });
+
     NonOwningPointer &pmc = primaryMapCanvas();
     if (pmc == nullptr) {
         pmc = this;

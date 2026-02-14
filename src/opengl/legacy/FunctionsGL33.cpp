@@ -49,8 +49,18 @@ void FunctionsGL33::virt_enableProgramPointSize(const bool enable)
 #ifndef MMAPPER_NO_OPENGL
     if (enable) {
         Base::glEnable(GL_PROGRAM_POINT_SIZE);
+
+        // In Compatibility profile (common on Linux/Mesa), gl_PointCoord in the
+        // fragment shader is often only populated if GL_POINT_SPRITE is enabled.
+        if (OpenGLConfig::getIsCompat()) {
+            Base::glEnable(0x8861); // GL_POINT_SPRITE
+        }
     } else {
         Base::glDisable(GL_PROGRAM_POINT_SIZE);
+
+        if (OpenGLConfig::getIsCompat()) {
+            Base::glDisable(0x8861); // GL_POINT_SPRITE
+        }
     }
 #endif
 }

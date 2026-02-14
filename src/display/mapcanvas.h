@@ -163,11 +163,13 @@ private:
     float m_initialPinchDistance = 0.f;
     float m_lastPinchFactor = 1.f;
     float m_lastMagnification = 1.f;
+    QWidget *m_parentWidget = nullptr;
 
 public:
     explicit MapCanvas(MapData &mapData,
                        PrespammedPath &prespammedPath,
                        Mmapper2Group &groupManager,
+                       QWidget *parentWidget,
                        QWindow *parent = nullptr);
     ~MapCanvas() final;
 
@@ -241,6 +243,8 @@ private:
     void setViewportAndMvp(int width, int height);
 
     void zoomAt(float factor, const glm::vec2 &mousePos);
+    void handlePinchZoom(QTouchEvent *event);
+    void handleNativeZoom(QNativeGestureEvent *event);
 
     NODISCARD BatchedInfomarksMeshes getInfomarksMeshes();
     void drawInfomark(InfomarksBatch &batch,

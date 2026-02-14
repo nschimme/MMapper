@@ -16,10 +16,17 @@ uniform vec4 uTimeOfDayColor;
 out vec4 vFragmentColor;
 
 // Simple hash and noise functions
-float hash(float n) { return fract(sin(n) * 43758.5453123); }
-float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }
+float hash(float n)
+{
+    return fract(sin(n) * 43758.5453123);
+}
+float hash(vec2 p)
+{
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+}
 
-float noise(vec2 p) {
+float noise(vec2 p)
+{
     vec2 i = floor(p);
     vec2 f = fract(p);
     f = f * f * (3.0 - 2.0 * f);
@@ -30,7 +37,8 @@ float noise(vec2 p) {
     return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
 
-float fbm(vec2 p) {
+float fbm(vec2 p)
+{
     float v = 0.0;
     float a = 0.5;
     vec2 shift = vec2(100.0);

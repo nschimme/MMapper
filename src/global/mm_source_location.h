@@ -12,7 +12,7 @@
 #  endif
 #endif
 
-#if (__cplusplus >= 202000L && defined(MM_HAS_BUILTIN_SOURCE_LOCATION)) || (defined(_MSC_VER) && _MSC_VER >= 1928)
+#if (__cplusplus >= 202000L && defined(MM_HAS_BUILTIN_SOURCE_LOCATION)) || (defined(_MSVC_LANG) && _MSVC_LANG >= 202002L && _MSC_VER >= 1928)
 #include <source_location>
 namespace mm {
 using source_location = std::source_location;

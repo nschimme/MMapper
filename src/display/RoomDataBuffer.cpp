@@ -146,8 +146,9 @@ MegaRoomVert RoomDataBuffer::packRoom(const RoomHandle &room,
             color = NamedColorEnum::WALL_COLOR_BUG_WALL_DOOR;
         }
 
+        bool isExit = flags.isExit();
         uint32_t info = (type & 0xF) | (static_cast<uint32_t>(color) << 4) | (isFlow ? 0x1000u : 0u)
-                        | (isClimb ? 0x2000u : 0u);
+                        | (isClimb ? 0x2000u : 0u) | (isExit ? 0x4000u : 0u);
         v.wall_info[i / 2] |= (info << (16 * (i % 2)));
     }
 
@@ -193,13 +194,14 @@ void RoomDataBuffer::syncWithMap(const Map &map, const mctp::MapCanvasTexturesPr
 }
 
 void RoomDataBuffer::render(OpenGL &gl,
-                            const glm::mat4 & /*mvp*/,
+                            const glm::mat4 &mvp,
                             int currentLayer,
                             bool drawUpperLayersTextured,
                             const Color &timeOfDayColor)
 {
     if (m_capacity == 0)
         return;
+    std::ignore = mvp;
 
     auto &prog = deref(m_sharedFuncs).getShaderPrograms().getMegaRoomShader();
 

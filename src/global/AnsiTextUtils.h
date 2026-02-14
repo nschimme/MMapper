@@ -995,7 +995,11 @@ void foreachAnsi(const QStringView line, Callback &&callback)
     const auto len = line.size();
     qsizetype pos = 0;
     while (pos < len) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+        QRegularExpressionMatch m = weakAnsiRegex.matchView(line, pos);
+#else
         QRegularExpressionMatch m = weakAnsiRegex.match(line, pos);
+#endif
         if (!m.hasMatch()) {
             break;
         }

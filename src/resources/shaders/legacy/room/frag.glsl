@@ -66,27 +66,68 @@ void main() {
         color = mix(color, trailColor, trailColor.a);
     }
 
-    // Overlays (Mobs, Loads)
-    if (vMobFlags != 0u) {
-        // TODO: Map mob flags to overlay array index if needed
-        // For now assume mob overlay is at some index, or use the uOverlayArray
-        // In Textures.cpp, mob and load are combined into one array.
+    // Overlays (Loads)
+    for (int i = 0; i < 25; ++i) {
+        if ((vLoadFlags & (1u << uint(i))) != 0u) {
+            vec4 overlayColor = texture(uOverlayArray, vec3(vTexCoord, float(i)));
+            color = mix(color, overlayColor, overlayColor.a);
+        }
+    }
+
+    // Overlays (Mobs)
+    for (int i = 0; i < 19; ++i) {
+        if ((vMobFlags & (1u << uint(i))) != 0u) {
+            vec4 overlayColor = texture(uOverlayArray, vec3(vTexCoord, float(25 + i)));
+            color = mix(color, overlayColor, overlayColor.a);
+        }
+    }
+
+    // No Ride
+    if ((vFlags & 4u) != 0u) {
+        vec4 overlayColor = texture(uOverlayArray, vec3(vTexCoord, float(25 + 19)));
+        color = mix(color, overlayColor, overlayColor.a);
     }
 
     // Walls & Doors
-    for (int i=0; i<6; ++i) {
-        uint info = (vWallInfo[i/2] >> (16 * (i%2))) & 0xFFFFu;
+    for (int i = 0; i < 6; ++i) {
+        uint info = (vWallInfo[i / 2] >> (16 * (i % 2))) & 0xFFFFu;
         uint type = info & 0xFu;
         if (type == 0u) continue;
 
         vec4 wallTexColor = vec4(0.0);
         // type 1=SOLID, 2=DOTTED, 3=DOOR
-        if (type == 1u) wallTexColor = texture(uWallArray, vec3(vTexCoord, float(i < 4 ? i : (i - 4))));
-        else if (type == 2u) wallTexColor = texture(uDottedWallArray, vec3(vTexCoord, float(i < 4 ? i : (i - 4))));
-        else if (type == 3u) wallTexColor = texture(uDoorArray, vec3(vTexCoord, float(i)));
+        if (type == 1u)
+            wallTexColor = texture(uWallArray, vec3(vTexCoord, float(i < 4 ? i : (i - 4))));
+        else if (type == 2u)
+            wallTexColor = texture(uDottedWallArray, vec3(vTexCoord, float(i < 4 ? i : (i - 4))));
+        else if (type == 3u)
+            wallTexColor = texture(uDoorArray, vec3(vTexCoord, float(i)));
 
         vec4 wallColor = getWallColor(info);
         color = mix(color, wallTexColor * wallColor, wallTexColor.a * wallColor.a);
+    }
+
+    // Stream icons (Flow)
+    for (int i = 0; i < 6; ++i) {
+        uint info = (vWallInfo[i / 2] >> (16 * (i % 2))) & 0xFFFFu;
+        if ((info & 0x1000u) != 0u) {
+            vec4 streamIn = texture(uStreamInArray, vec3(vTexCoord, float(i)));
+            vec4 streamOut = texture(uStreamOutArray, vec3(vTexCoord, float(i)));
+            color = mix(color, streamIn, streamIn.a);
+            color = mix(color, streamOut, streamOut.a);
+        }
+    }
+
+    // Vertical exit icons (Up/Down)
+    for (int i = 4; i < 6; ++i) {
+        uint info = (vWallInfo[i / 2] >> (16 * (i % 2))) & 0xFFFFu;
+        bool isExit = (info & 0x4000u) != 0u;
+        bool isClimb = (info & 0x2000u) != 0u;
+        if (isExit || isClimb) {
+            uint iconIdx = (i == 4) ? (isClimb ? 1u : 3u) : (isClimb ? 0u : 2u);
+            vec4 iconColor = texture(uExitIconArray, vec3(vTexCoord, float(iconIdx)));
+            color = mix(color, iconColor, iconColor.a);
+        }
     }
 
     fragColor = color * fade;

@@ -143,6 +143,7 @@ private:
     Mmapper2Group &m_groupManager;
     Diff m_diff;
     std::unique_ptr<RoomDataBuffer> m_roomDataBuffer;
+    Color m_timeOfDayColor = Colors::white;
     FrameRateController m_frameRateController;
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
     Signal2Lifetime m_lifetime;
@@ -311,6 +312,11 @@ signals:
     void sig_dismissContextMenu();
 
 public slots:
+    void slot_setTimeOfDayColor(const Color &color)
+    {
+        m_timeOfDayColor = color;
+        update();
+    }
     void slot_onForcedPositionChange();
     void slot_createRoom();
 

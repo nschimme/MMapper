@@ -37,7 +37,7 @@ MegaRoomShader::~MegaRoomShader() = default;
 
 void MegaRoomShader::virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms)
 {
-    setMatrix("uMVP", mvp);
+    setMatrix("uViewProj", mvp);
     // samplers (fixed units)
     setTexture("uTerrainRoadArray", 0);
     setTexture("uTrailArray", 1);

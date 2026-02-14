@@ -74,6 +74,16 @@ struct NODISCARD RoomQuadTexVert final
     }
 };
 
+struct NODISCARD MegaRoomVert final
+{
+    glm::ivec3 pos;
+    uint32_t terrain_trail; // terrain: 16, trail: 16 (position in array)
+    uint32_t flags;         // active, tints, no_ride, etc.
+    uint32_t mob_flags;     // bitmask
+    uint32_t load_flags;    // bitmask
+    uint32_t wall_info[3];  // 6 exits * 16 bits
+};
+
 using ColoredTexVertVector = std::vector<ColoredTexVert>;
 
 struct NODISCARD ColorVert final

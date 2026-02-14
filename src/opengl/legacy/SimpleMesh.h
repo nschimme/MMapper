@@ -104,6 +104,15 @@ public:
         setCommon(mode, verts, BufferUsageEnum::STATIC_DRAW);
     }
 
+    void update(const GLintptr offset, const std::vector<VertexType_> &verts)
+    {
+        if (m_vbo) {
+            m_functions.updateVbo(m_vbo.get(),
+                                  offset * static_cast<GLintptr>(sizeof(VertexType_)),
+                                  verts);
+        }
+    }
+
 private:
     void setCommon(const DrawModeEnum mode,
                    const std::vector<VertexType_> &verts,

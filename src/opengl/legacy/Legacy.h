@@ -413,6 +413,17 @@ public:
         Base::glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
 
+    template<typename T>
+    void updateVbo(const GLuint vbo, const GLintptr offset, const std::vector<T> &batch)
+    {
+        if (batch.empty()) {
+            return;
+        }
+        Base::glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        Base::glBufferSubData(GL_ARRAY_BUFFER, offset, batch.size() * sizeof(T), batch.data());
+        Base::glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }
+
 public:
     NODISCARD UniqueMesh createPointBatch(const std::vector<ColorVert> &batch);
 

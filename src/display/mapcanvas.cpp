@@ -21,6 +21,7 @@
 #include "InfomarkSelection.h"
 #include "MapCanvasData.h"
 #include "MapCanvasRoomDrawer.h"
+#include "RoomDataBuffer.h"
 #include "connectionselection.h"
 
 #include <array>

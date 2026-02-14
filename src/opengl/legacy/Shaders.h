@@ -74,6 +74,17 @@ private:
     }
 };
 
+struct NODISCARD MegaRoomShader final : public AbstractShaderProgram
+{
+public:
+    using AbstractShaderProgram::AbstractShaderProgram;
+
+    ~MegaRoomShader() final;
+
+private:
+    void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final;
+};
+
 struct NODISCARD UColorTexturedShader final : public AbstractShaderProgram
 {
 public:
@@ -170,6 +181,7 @@ private:
 
 private:
     std::shared_ptr<RoomQuadTexShader> m_roomQuadTexShader;
+    std::shared_ptr<MegaRoomShader> m_megaRoomShader;
 
 private:
     std::shared_ptr<FontShader> m_font;
@@ -202,6 +214,7 @@ public:
 
 public:
     NODISCARD const std::shared_ptr<RoomQuadTexShader> &getRoomQuadTexShader();
+    NODISCARD const std::shared_ptr<MegaRoomShader> &getMegaRoomShader();
 
 public:
     NODISCARD const std::shared_ptr<FontShader> &getFontShader();

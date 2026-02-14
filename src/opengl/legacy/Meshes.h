@@ -63,6 +63,93 @@ private:
     }
 };
 
+template<typename VertexType_>
+class NODISCARD MegaRoomMesh final : public SimpleMesh<VertexType_, MegaRoomShader>
+{
+public:
+    using Base = SimpleMesh<VertexType_, MegaRoomShader>;
+    using Base::Base;
+
+private:
+    struct NODISCARD Attribs final
+    {
+        GLuint pos = INVALID_ATTRIB_LOCATION;
+        GLuint terrain_trail = INVALID_ATTRIB_LOCATION;
+        GLuint flags = INVALID_ATTRIB_LOCATION;
+        GLuint mob_flags = INVALID_ATTRIB_LOCATION;
+        GLuint load_flags = INVALID_ATTRIB_LOCATION;
+        GLuint wall_info0 = INVALID_ATTRIB_LOCATION;
+        GLuint wall_info1 = INVALID_ATTRIB_LOCATION;
+        GLuint wall_info2 = INVALID_ATTRIB_LOCATION;
+
+        NODISCARD static Attribs getLocations(MegaRoomShader &shader)
+        {
+            Attribs r;
+            r.pos = shader.getAttribLocation("aPos");
+            r.terrain_trail = shader.getAttribLocation("aTerrainTrail");
+            r.flags = shader.getAttribLocation("aFlags");
+            r.mob_flags = shader.getAttribLocation("aMobFlags");
+            r.load_flags = shader.getAttribLocation("aLoadFlags");
+            r.wall_info0 = shader.getAttribLocation("aWallInfo0");
+            r.wall_info1 = shader.getAttribLocation("aWallInfo1");
+            r.wall_info2 = shader.getAttribLocation("aWallInfo2");
+            return r;
+        }
+    };
+
+    std::optional<Attribs> m_boundAttribs;
+
+    void virt_bind() override
+    {
+        const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
+        Functions &gl = this->m_functions;
+        const auto attribs = Attribs::getLocations(this->m_program);
+        gl.glBindBuffer(GL_ARRAY_BUFFER, this->m_vbo.get());
+
+        gl.enableAttribI(attribs.pos, 3, GL_INT, vertSize, VPO(pos));
+        gl.enableAttribI(attribs.terrain_trail, 1, GL_UNSIGNED_INT, vertSize, VPO(terrain_trail));
+        gl.enableAttribI(attribs.flags, 1, GL_UNSIGNED_INT, vertSize, VPO(flags));
+        gl.enableAttribI(attribs.mob_flags, 1, GL_UNSIGNED_INT, vertSize, VPO(mob_flags));
+        gl.enableAttribI(attribs.load_flags, 1, GL_UNSIGNED_INT, vertSize, VPO(load_flags));
+        gl.enableAttribI(attribs.wall_info0, 1, GL_UNSIGNED_INT, vertSize, VPO(wall_info[0]));
+        gl.enableAttribI(attribs.wall_info1, 1, GL_UNSIGNED_INT, vertSize, VPO(wall_info[1]));
+        gl.enableAttribI(attribs.wall_info2, 1, GL_UNSIGNED_INT, vertSize, VPO(wall_info[2]));
+
+        // instancing
+        gl.glVertexAttribDivisor(attribs.pos, 1);
+        gl.glVertexAttribDivisor(attribs.terrain_trail, 1);
+        gl.glVertexAttribDivisor(attribs.flags, 1);
+        gl.glVertexAttribDivisor(attribs.mob_flags, 1);
+        gl.glVertexAttribDivisor(attribs.load_flags, 1);
+        gl.glVertexAttribDivisor(attribs.wall_info0, 1);
+        gl.glVertexAttribDivisor(attribs.wall_info1, 1);
+        gl.glVertexAttribDivisor(attribs.wall_info2, 1);
+
+        m_boundAttribs = attribs;
+    }
+
+    void virt_unbind() override
+    {
+        if (!m_boundAttribs) {
+            assert(false);
+            return;
+        }
+
+        auto &attribs = m_boundAttribs.value();
+        Functions &gl = this->m_functions;
+        gl.glDisableVertexAttribArray(attribs.pos);
+        gl.glDisableVertexAttribArray(attribs.terrain_trail);
+        gl.glDisableVertexAttribArray(attribs.flags);
+        gl.glDisableVertexAttribArray(attribs.mob_flags);
+        gl.glDisableVertexAttribArray(attribs.load_flags);
+        gl.glDisableVertexAttribArray(attribs.wall_info0);
+        gl.glDisableVertexAttribArray(attribs.wall_info1);
+        gl.glDisableVertexAttribArray(attribs.wall_info2);
+        gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
+        m_boundAttribs.reset();
+    }
+};
+
 // Per-vertex color
 // flat-shaded in MMapper, due to glShadeModel(GL_FLAT)
 template<typename VertexType_>

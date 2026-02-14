@@ -33,6 +33,25 @@ AColorTexturedShader::~AColorTexturedShader() = default;
 UColorTexturedShader::~UColorTexturedShader() = default;
 
 RoomQuadTexShader::~RoomQuadTexShader() = default;
+MegaRoomShader::~MegaRoomShader() = default;
+
+void MegaRoomShader::virt_setUniforms(const glm::mat4 &mvp,
+                                      const GLRenderState::Uniforms & /*uniforms*/)
+{
+    setMatrix("uMVP", mvp);
+    // samplers (fixed units)
+    setTexture("uTerrainRoadArray", 0);
+    setTexture("uTrailArray", 1);
+    setTexture("uOverlayArray", 2);
+    setTexture("uWallArray", 3);
+    setTexture("uDottedWallArray", 4);
+    setTexture("uDoorArray", 5);
+    setTexture("uStreamInArray", 6);
+    setTexture("uStreamOutArray", 7);
+    setTexture("uExitIconArray", 8);
+
+    // Note: uCurrentLayer and uDrawUpperLayersTextured are set manually by MapCanvas
+}
 
 FontShader::~FontShader() = default;
 PointShader::~PointShader() = default;
@@ -47,6 +66,7 @@ void ShaderPrograms::early_init()
     std::ignore = getTexturedUColorShader();
 
     std::ignore = getRoomQuadTexShader();
+    std::ignore = getMegaRoomShader();
 
     std::ignore = getFontShader();
     std::ignore = getPointShader();
@@ -62,6 +82,7 @@ void ShaderPrograms::resetAll()
     m_uTexturedShader.reset();
 
     m_roomQuadTexShader.reset();
+    m_megaRoomShader.reset();
 
     m_font.reset();
     m_point.reset();
@@ -116,6 +137,11 @@ const std::shared_ptr<AColorTexturedShader> &ShaderPrograms::getTexturedAColorSh
 const std::shared_ptr<RoomQuadTexShader> &ShaderPrograms::getRoomQuadTexShader()
 {
     return getInitialized<RoomQuadTexShader>(m_roomQuadTexShader, getFunctions(), "room/tex/acolor");
+}
+
+const std::shared_ptr<MegaRoomShader> &ShaderPrograms::getMegaRoomShader()
+{
+    return getInitialized<MegaRoomShader>(m_megaRoomShader, getFunctions(), "room/mega");
 }
 
 const std::shared_ptr<UColorTexturedShader> &ShaderPrograms::getTexturedUColorShader()

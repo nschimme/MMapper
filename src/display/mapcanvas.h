@@ -34,6 +34,7 @@
 #include <QtCore>
 
 class CharacterBatch;
+class RoomDataBuffer;
 class ConnectionSelection;
 class Coordinate;
 class InfomarkSelection;
@@ -141,6 +142,7 @@ private:
     MapData &m_data;
     Mmapper2Group &m_groupManager;
     Diff m_diff;
+    std::unique_ptr<RoomDataBuffer> m_roomDataBuffer;
     FrameRateController m_frameRateController;
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
     Signal2Lifetime m_lifetime;
@@ -256,6 +258,7 @@ private:
 
     void actuallyPaintGL();
     void paintMap();
+    void bindMegaRoomTextures();
     void renderMapBatches();
     void paintBatchedInfomarks();
     void paintSelections();

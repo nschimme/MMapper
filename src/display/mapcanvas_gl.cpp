@@ -23,6 +23,7 @@
 #include "MapCanvasConfig.h"
 #include "MapCanvasData.h"
 #include "MapCanvasRoomDrawer.h"
+#include "RoomDataBuffer.h"
 #include "Textures.h"
 #include "connectionselection.h"
 #include "mapcanvas.h"
@@ -119,6 +120,7 @@ void MapCanvas::cleanupOpenGL()
     // note: m_batchedMeshes co-owns textures created by MapCanvasData,
     // and it also owns the lifetime of some OpenGL objects (e.g. VBOs).
     m_batches.resetExistingMeshesAndIgnorePendingRemesh();
+    m_roomDataBuffer.reset();
     m_textures.destroyAll();
     getGLFont().cleanup();
     getOpenGL().cleanup();
@@ -243,6 +245,9 @@ void MapCanvas::initializeGL()
     font.setTextureId(allocateTextureId());
     font.init();
     updateTextures();
+
+    m_roomDataBuffer = std::make_unique<RoomDataBuffer>(
+        getOpenGL().getSharedFunctions(Badge<MapCanvas>{}));
 
     // compile all shaders
     {
@@ -533,6 +538,10 @@ void MapCanvas::updateBatches()
 
 void MapCanvas::updateMapBatches()
 {
+    if (m_roomDataBuffer) {
+        m_roomDataBuffer->syncWithMap(m_data.getCurrentMap(), mctp::getProxy(m_textures));
+    }
+
     RemeshCookie &remeshCookie = m_batches.remeshCookie;
     if (remeshCookie.isPending()) {
         return;
@@ -631,6 +640,19 @@ void MapCanvas::finishPendingMapBatches()
 #undef LOG
 }
 
+void MapCanvas::bindMegaRoomTextures()
+{
+    m_textures.terrain_Array->bind(0);
+    m_textures.trail_Array->bind(1);
+    m_textures.mob_Array->bind(2);
+    m_textures.wall_Array->bind(3);
+    m_textures.dotted_wall_Array->bind(4);
+    m_textures.door_Array->bind(5);
+    m_textures.stream_in_Array->bind(6);
+    m_textures.stream_out_Array->bind(7);
+    m_textures.exit_up_Array->bind(8);
+}
+
 void MapCanvas::actuallyPaintGL()
 {
     // DECL_TIMER(t, __FUNCTION__);
@@ -645,6 +667,14 @@ void MapCanvas::actuallyPaintGL()
     if (m_data.isEmpty()) {
         getGLFont().renderTextCentered("No map loaded");
         return;
+    }
+
+    if (m_roomDataBuffer) {
+        bindMegaRoomTextures();
+        m_roomDataBuffer->render(gl,
+                                 m_viewProj,
+                                 m_currentLayer,
+                                 getConfig().canvas.drawUpperLayersTextured);
     }
 
     paintMap();
@@ -1032,12 +1062,14 @@ void MapCanvas::renderMapBatches()
     BatchedMeshes &batchedMeshes = batches.batchedMeshes;
 
     const auto drawLayer =
-        [&batches, &batchedMeshes, wantExtraDetail, wantDoorNames](const int thisLayer,
-                                                                   const int currentLayer) {
-            const auto it_mesh = batchedMeshes.find(thisLayer);
-            if (it_mesh != batchedMeshes.end()) {
-                LayerMeshes &meshes = it_mesh->second;
-                meshes.render(thisLayer, currentLayer);
+        [this, &batches, &batchedMeshes, wantExtraDetail, wantDoorNames](const int thisLayer,
+                                                                         const int currentLayer) {
+            if (!m_roomDataBuffer) {
+                const auto it_mesh = batchedMeshes.find(thisLayer);
+                if (it_mesh != batchedMeshes.end()) {
+                    LayerMeshes &meshes = it_mesh->second;
+                    meshes.render(thisLayer, currentLayer);
+                }
             }
 
             if (wantExtraDetail) {

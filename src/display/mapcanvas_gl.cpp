@@ -665,12 +665,13 @@ void MapCanvas::actuallyPaintGL()
 
         m_weatherState.animationTime += dt;
 
-        bool stillAnimating = (m_weatherState.rainIntensity != m_weatherState.targetRainIntensity)
-                              || (m_weatherState.snowIntensity != m_weatherState.targetSnowIntensity)
-                              || (m_weatherState.cloudsIntensity
-                                  != m_weatherState.targetCloudsIntensity)
-                              || (m_weatherState.fogIntensity != m_weatherState.targetFogIntensity)
-                              || (m_weatherState.timeOfDayTransition < 1.0f);
+        bool stillAnimating
+            = !utils::equals(m_weatherState.rainIntensity, m_weatherState.targetRainIntensity)
+              || !utils::equals(m_weatherState.snowIntensity, m_weatherState.targetSnowIntensity)
+              || !utils::equals(m_weatherState.cloudsIntensity, m_weatherState.targetCloudsIntensity)
+              || !utils::equals(m_weatherState.fogIntensity, m_weatherState.targetFogIntensity)
+              || !utils::equals(m_weatherState.moonIntensity, m_weatherState.targetMoonIntensity)
+              || (m_weatherState.timeOfDayTransition < 1.0f);
 
         // Rain/Snow/Clouds also need continuous animation for movement
         if (m_weatherState.rainIntensity > 0.0f || m_weatherState.snowIntensity > 0.0f
@@ -827,6 +828,8 @@ Color MapCanvas::calculateTimeOfDayColor() const
             return Color(baseNight.getVec4() * (1.0f - moon) + moonNight.getVec4() * moon);
         }
         case MumeTimeEnum::DAY:
+            return Color(1.0f, 1.0f, 1.0f, 0.0f);
+        case MumeTimeEnum::UNKNOWN:
         default:
             return Color(1.0f, 1.0f, 1.0f, 0.0f);
         }

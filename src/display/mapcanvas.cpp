@@ -7,7 +7,6 @@
 #include "mapcanvas.h"
 
 #include "../configuration/configuration.h"
-#include "MapCanvasConfig.h"
 #include "../global/parserutils.h"
 #include "../global/progresscounter.h"
 #include "../global/utils.h"
@@ -20,6 +19,7 @@
 #include "../mapdata/mapdata.h"
 #include "../mapdata/roomselection.h"
 #include "InfomarkSelection.h"
+#include "MapCanvasConfig.h"
 #include "MapCanvasData.h"
 #include "MapCanvasRoomDrawer.h"
 #include "connectionselection.h"

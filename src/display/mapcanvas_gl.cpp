@@ -335,7 +335,6 @@ void MapCanvas::initLogger()
                              QOpenGLDebugMessage::AnySeverity);
 }
 
-
 void MapCanvas::setMvp(const glm::mat4 &viewProj)
 {
     auto &gl = getOpenGL();

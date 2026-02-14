@@ -237,9 +237,7 @@ public:
     NODISCARD MouseSel getBackup() const { return getMouseSel(m_moveBackup); }
 
 public:
-    void startMoving(const MouseSel &startPos,
-                     const glm::vec2 &scroll,
-                     const glm::mat4 &viewProj)
+    void startMoving(const MouseSel &startPos, const glm::vec2 &scroll, const glm::mat4 &viewProj)
     {
         m_moveBackup = startPos;
         m_dragState.emplace(DragState{startPos.to_vec3(), scroll, viewProj});

@@ -874,7 +874,16 @@ void MapCanvas::paintWeather()
 
     const auto rs
         = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withDepthFunction(std::nullopt);
-    funcs.renderFullScreenTriangle(funcs.getShaderPrograms().getWeatherShader(), rs);
+    Legacy::RenderStateBinder renderStateBinder(funcs, funcs.getTexLookup(), rs);
+
+    Legacy::SharedVao shared = funcs.getSharedVaos().get(Legacy::SharedVaoEnum::EmptyVao);
+    Legacy::VAO &vao = deref(shared);
+    if (!vao) {
+        vao.emplace(sharedFuncs);
+    }
+    funcs.glBindVertexArray(vao.get());
+    funcs.glDrawArrays(GL_TRIANGLES, 0, 3);
+    funcs.glBindVertexArray(0);
 }
 
 void MapCanvas::paintDifferences()

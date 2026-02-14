@@ -1,0 +1,1 @@
+#include "mapfrontend/MapHistory.h"

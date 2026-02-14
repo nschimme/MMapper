@@ -1,0 +1,1 @@
+#include "group/ColorGenerator.h"

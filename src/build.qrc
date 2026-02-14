@@ -1,0 +1,8 @@
+<!DOCTYPE RCC><RCC version="1.0">
+    <qresource>
+        <file alias="AUTHORS.txt">/app/AUTHORS.txt</file>
+        <file alias="LICENSE.GPL2">/app/COPYING.txt</file>
+        <file alias="icons/m.png">/app/src/resources/icons/m-beta.png</file>
+        <file alias="pixmaps/splash.png">/app/src/resources/pixmaps/splash-beta.png</file>
+    </qresource>
+</RCC>

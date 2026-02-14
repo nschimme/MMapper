@@ -675,7 +675,8 @@ void MapCanvas::actuallyPaintGL()
 
         // Rain/Snow/Clouds also need continuous animation for movement
         if (m_weatherState.rainIntensity > 0.0f || m_weatherState.snowIntensity > 0.0f
-            || m_weatherState.cloudsIntensity > 0.0f || m_weatherState.fogIntensity > 0.0f) {
+            || m_weatherState.cloudsIntensity > 0.0f || m_weatherState.fogIntensity > 0.0f
+            || m_weatherState.moonIntensity > 0.0f) {
             stillAnimating = true;
         }
 

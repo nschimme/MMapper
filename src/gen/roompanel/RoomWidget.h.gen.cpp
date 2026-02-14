@@ -1,0 +1,1 @@
+#include "roompanel/RoomWidget.h"

@@ -1,0 +1,1 @@
+#include "mapstorage/XmlMapStorage.h"

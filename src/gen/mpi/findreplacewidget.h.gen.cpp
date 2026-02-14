@@ -1,0 +1,1 @@
+#include "mpi/findreplacewidget.h"

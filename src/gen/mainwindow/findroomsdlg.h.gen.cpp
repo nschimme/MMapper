@@ -1,0 +1,1 @@
+#include "mainwindow/findroomsdlg.h"

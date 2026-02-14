@@ -54,6 +54,7 @@ NODISCARD static NonOwningPointer &primaryMapCanvas()
 MapCanvas::MapCanvas(MapData &mapData,
                      PrespammedPath &prespammedPath,
                      Mmapper2Group &groupManager,
+                     QWidget *const parentWidget,
                      QWindow *const parent)
     : QOpenGLWindow{NoPartialUpdate, parent}
     , MapCanvasViewport{static_cast<QWindow &>(*this)}
@@ -63,6 +64,7 @@ MapCanvas::MapCanvas(MapData &mapData,
     , m_glFont{m_opengl}
     , m_data{mapData}
     , m_groupManager{groupManager}
+    , m_parentWidget{parentWidget}
 {
     NonOwningPointer &pmc = primaryMapCanvas();
     if (pmc == nullptr) {
@@ -225,7 +227,10 @@ void MapCanvas::wheelEvent(QWheelEvent *const event)
             if (angleDelta != 0) {
                 const float factor = std::pow(ScaleFactor::ZOOM_STEP,
                                               static_cast<float>(angleDelta) / 120.0f);
-                zoomAt(factor, getMouseCoords(event));
+                const auto opt_xy = getMouseCoords(event);
+                if (opt_xy.has_value()) {
+                    zoomAt(factor, opt_xy.value());
+                }
             }
         }
         break;
@@ -247,38 +252,10 @@ void MapCanvas::touchEvent(QTouchEvent *const event)
 {
     const auto &points = event->points();
     if (points.size() == 2) {
-        const auto &p1 = points[0];
-        const auto &p2 = points[1];
-
-        if (event->type() == QEvent::TouchBegin || p1.state() == QEventPoint::Pressed
-            || p2.state() == QEventPoint::Pressed) {
-            m_initialPinchDistance = glm::distance(glm::vec2(static_cast<float>(p1.position().x()),
-                                                             static_cast<float>(p1.position().y())),
-                                                   glm::vec2(static_cast<float>(p2.position().x()),
-                                                             static_cast<float>(p2.position().y())));
-            m_lastPinchFactor = 1.f;
-        }
-
-        if (m_initialPinchDistance > 1e-3f) {
-            const float currentDistance
-                = glm::distance(glm::vec2(static_cast<float>(p1.position().x()),
-                                          static_cast<float>(p1.position().y())),
-                                glm::vec2(static_cast<float>(p2.position().x()),
-                                          static_cast<float>(p2.position().y())));
-            const float currentPinchFactor = currentDistance / m_initialPinchDistance;
-            const float deltaFactor = currentPinchFactor / m_lastPinchFactor;
-
-            if (std::abs(deltaFactor - 1.f) > 1e-6f) {
-                zoomAt(deltaFactor, getMouseCoords(event));
-            }
-            m_lastPinchFactor = currentPinchFactor;
-        }
-
-        if (event->type() == QEvent::TouchEnd || p1.state() == QEventPoint::Released
-            || p2.state() == QEventPoint::Released) {
-            m_initialPinchDistance = 0.f;
-            m_lastPinchFactor = 1.f;
-        }
+        handlePinchZoom(event);
+        event->accept();
+    } else if (points.size() > 2) {
+        // Explicitly ignore gestures with more than two touch points.
         event->accept();
     } else {
         if (m_initialPinchDistance > 0.f) {
@@ -302,7 +279,10 @@ bool MapCanvas::event(QEvent *const event)
                 // since the last event.
                 const float deltaFactor = 1.f + value;
                 if (std::abs(value) > 1e-6f) {
-                    zoomAt(deltaFactor, getMouseCoords(inputEvent));
+                    const auto opt_xy = getMouseCoords(inputEvent);
+                    if (opt_xy.has_value()) {
+                        zoomAt(deltaFactor, opt_xy.value());
+                    }
                 }
             } else {
                 // On other platforms, it's typically the cumulative scale factor (1.0 at start).
@@ -313,7 +293,10 @@ bool MapCanvas::event(QEvent *const event)
                 if (std::abs(m_lastMagnification) > 1e-6f) {
                     const float deltaFactor = value / m_lastMagnification;
                     if (std::abs(deltaFactor - 1.f) > 1e-6f) {
-                        zoomAt(deltaFactor, getMouseCoords(inputEvent));
+                        const auto opt_xy = getMouseCoords(inputEvent);
+                        if (opt_xy.has_value()) {
+                            zoomAt(deltaFactor, opt_xy.value());
+                        }
                     }
                 }
                 m_lastMagnification = value;
@@ -413,7 +396,13 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
         return;
     }
 
-    const auto xy = getMouseCoords(event);
+    const auto opt_xy = getMouseCoords(event);
+    if (!opt_xy.has_value()) {
+        event->accept();
+        return;
+    }
+    const auto xy = opt_xy.value();
+
     if (m_canvasMouseMode == CanvasMouseModeEnum::MOVE) {
         const auto worldPos = unproject_clamped(xy);
         m_sel1 = m_sel2 = MouseSel{Coordinate2f{worldPos.x, worldPos.y}, m_currentLayer};
@@ -475,7 +464,6 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
 
     case CanvasMouseModeEnum::RAYPICK_ROOMS:
         if (hasLeftButton) {
-            const auto xy = getMouseCoords(event);
             const auto near = unproject_raw(glm::vec3{xy, 0.f});
             const auto far = unproject_raw(glm::vec3{xy, 1.f});
 
@@ -693,15 +681,18 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
         break;
     case CanvasMouseModeEnum::MOVE:
         if (hasLeftButton && m_mouseLeftPressed && m_dragState.has_value()) {
-            const auto xy = getMouseCoords(event);
-            const glm::vec3 currWorldPos = unproject_clamped(xy, m_dragState->startViewProj);
-            const glm::vec2 delta = glm::vec2(currWorldPos - m_dragState->startWorldPos);
+            const auto opt_xy = getMouseCoords(event);
+            if (opt_xy.has_value()) {
+                const auto xy = opt_xy.value();
+                const glm::vec3 currWorldPos = unproject_clamped(xy, m_dragState->startViewProj);
+                const glm::vec2 delta = glm::vec2(currWorldPos - m_dragState->startWorldPos);
 
-            if (glm::length(delta) > 1e-6f) {
-                const glm::vec2 newWorldCenter = m_dragState->startScroll - delta;
-                m_scroll = newWorldCenter;
-                emit sig_onCenter(newWorldCenter);
-                update();
+                if (glm::length(delta) > 1e-6f) {
+                    const glm::vec2 newWorldCenter = m_dragState->startScroll - delta;
+                    m_scroll = newWorldCenter;
+                    emit sig_onCenter(newWorldCenter);
+                    update();
+                }
             }
         }
         break;
@@ -1047,6 +1038,79 @@ void MapCanvas::zoomAt(const float factor, const glm::vec2 &mousePos)
     // Refresh the viewport matrix with the final scroll and zoom before painting.
     setViewportAndMvp(width(), height());
     update();
+}
+
+void MapCanvas::handlePinchZoom(QTouchEvent *const event)
+{
+    const auto &points = event->points();
+    assert(points.size() == 2);
+
+    const auto &p1 = points[0];
+    const auto &p2 = points[1];
+
+    if (event->type() == QEvent::TouchBegin || p1.state() == QEventPoint::Pressed
+        || p2.state() == QEventPoint::Pressed) {
+        m_initialPinchDistance = glm::distance(glm::vec2(static_cast<float>(p1.position().x()),
+                                                         static_cast<float>(p1.position().y())),
+                                               glm::vec2(static_cast<float>(p2.position().x()),
+                                                         static_cast<float>(p2.position().y())));
+        m_lastPinchFactor = 1.f;
+    }
+
+    if (m_initialPinchDistance > 1e-3f) {
+        const float currentDistance = glm::distance(glm::vec2(static_cast<float>(p1.position().x()),
+                                                              static_cast<float>(p1.position().y())),
+                                                    glm::vec2(static_cast<float>(p2.position().x()),
+                                                              static_cast<float>(
+                                                                  p2.position().y())));
+        const float currentPinchFactor = currentDistance / m_initialPinchDistance;
+        const float deltaFactor = currentPinchFactor / m_lastPinchFactor;
+
+        if (std::abs(deltaFactor - 1.f) > 1e-6f) {
+            const auto opt_xy = getMouseCoords(event);
+            if (opt_xy.has_value()) {
+                zoomAt(deltaFactor, opt_xy.value());
+            }
+        }
+        m_lastPinchFactor = currentPinchFactor;
+    }
+
+    if (event->type() == QEvent::TouchEnd || p1.state() == QEventPoint::Released
+        || p2.state() == QEventPoint::Released) {
+        m_initialPinchDistance = 0.f;
+        m_lastPinchFactor = 1.f;
+    }
+}
+
+void MapCanvas::handleNativeZoom(QNativeGestureEvent *const event)
+{
+    const auto value = static_cast<float>(event->value());
+    const auto opt_xy = getMouseCoords(event);
+    if (!opt_xy.has_value()) {
+        return;
+    }
+
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Mac) {
+        // On macOS, event->value() for ZoomNativeGesture is the magnification delta
+        // since the last event.
+        const float deltaFactor = 1.f + value;
+        if (std::abs(value) > 1e-6f) {
+            zoomAt(deltaFactor, opt_xy.value());
+        }
+    } else {
+        // On other platforms, it's typically the cumulative scale factor (1.0 at start).
+        if (event->isBeginEvent()) {
+            m_lastMagnification = 1.f;
+        }
+
+        if (std::abs(m_lastMagnification) > 1e-6f) {
+            const float deltaFactor = value / m_lastMagnification;
+            if (std::abs(deltaFactor - 1.f) > 1e-6f) {
+                zoomAt(deltaFactor, opt_xy.value());
+            }
+        }
+        m_lastMagnification = value;
+    }
 }
 
 void MapCanvas::slot_setScroll(const glm::vec2 &worldPos)

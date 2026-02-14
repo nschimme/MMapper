@@ -11,6 +11,7 @@
 
 #include <glm/gtc/epsilon.hpp>
 
+#include <QDebug>
 #include <QNativeGestureEvent>
 #include <QPointF>
 #include <QTouchEvent>
@@ -104,7 +105,7 @@ glm::vec3 MapCanvasViewport::unproject_clamped(const glm::vec2 &mouse,
     return glm::vec3{glm::vec2{result}, flayer};
 }
 
-glm::vec2 MapCanvasViewport::getMouseCoords(const QInputEvent *const event) const
+std::optional<glm::vec2> MapCanvasViewport::getMouseCoords(const QInputEvent *const event) const
 {
     if (const auto *const mouse = dynamic_cast<const QMouseEvent *>(event)) {
         const auto x = static_cast<float>(mouse->position().x());
@@ -121,7 +122,7 @@ glm::vec2 MapCanvasViewport::getMouseCoords(const QInputEvent *const event) cons
     } else if (const auto *const touch = dynamic_cast<const QTouchEvent *>(event)) {
         const auto &points = touch->points();
         if (points.isEmpty()) {
-            throw std::invalid_argument("no touch points");
+            return std::nullopt;
         }
         QPointF centroid(0, 0);
         for (const auto &p : points) {
@@ -132,7 +133,9 @@ glm::vec2 MapCanvasViewport::getMouseCoords(const QInputEvent *const event) cons
         const auto y = static_cast<float>(height() - centroid.y());
         return glm::vec2{x, y};
     } else {
-        throw std::invalid_argument("event");
+        qWarning() << "getMouseCoords: unhandled event type" << event->type();
+        assert(false);
+        return std::nullopt;
     }
 }
 
@@ -140,12 +143,11 @@ glm::vec2 MapCanvasViewport::getMouseCoords(const QInputEvent *const event) cons
 // output is the world space intersection with the current layer
 std::optional<glm::vec3> MapCanvasViewport::unproject(const QInputEvent *const event) const
 {
-    try {
-        const auto xy = getMouseCoords(event);
-        return unproject(xy);
-    } catch (const std::invalid_argument &) {
+    const auto opt_xy = getMouseCoords(event);
+    if (!opt_xy.has_value()) {
         return std::nullopt;
     }
+    return unproject(opt_xy.value());
 }
 
 std::optional<glm::vec3> MapCanvasViewport::unproject(const glm::vec2 &xy) const
@@ -170,12 +172,11 @@ std::optional<glm::vec3> MapCanvasViewport::unproject(const glm::vec2 &xy) const
 
 std::optional<MouseSel> MapCanvasViewport::getUnprojectedMouseSel(const QInputEvent *const event) const
 {
-    try {
-        const auto xy = getMouseCoords(event);
-        return getUnprojectedMouseSel(xy);
-    } catch (const std::invalid_argument &) {
+    const auto opt_xy = getMouseCoords(event);
+    if (!opt_xy.has_value()) {
         return std::nullopt;
     }
+    return getUnprojectedMouseSel(opt_xy.value());
 }
 
 std::optional<MouseSel> MapCanvasViewport::getUnprojectedMouseSel(const glm::vec2 &xy) const

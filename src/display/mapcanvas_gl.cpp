@@ -215,7 +215,7 @@ void MapCanvas::initializeGL()
     } catch (const std::exception &) {
         hide();
         doneCurrent();
-        QMessageBox::critical(nullptr,
+        QMessageBox::critical(m_parentWidget,
                               "Unable to initialize OpenGL",
                               "Upgrade your video card drivers");
         if constexpr (CURRENT_PLATFORM == PlatformEnum::Windows) {
@@ -303,7 +303,7 @@ void MapCanvas::slot_onMessageLoggedDirect(const QOpenGLDebugMessage &message)
 
     qCritical() << message;
 
-    QMessageBox box;
+    QMessageBox box(m_parentWidget);
     box.setWindowTitle("Fatal OpenGL error");
     box.setText(message.message());
     box.exec();

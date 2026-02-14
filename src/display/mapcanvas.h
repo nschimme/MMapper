@@ -304,6 +304,7 @@ signals:
 
     void sig_showTooltip(const QString &text, const QPoint &pos);
     void sig_customContextMenuRequested(const QPoint &pos);
+    void sig_dismissContextMenu();
 
 public slots:
     void slot_onForcedPositionChange();

@@ -247,6 +247,10 @@ void MapCanvas::slot_onForcedPositionChange()
 
 void MapCanvas::touchEvent(QTouchEvent *const event)
 {
+    if (event->type() == QEvent::TouchBegin) {
+        emit sig_dismissContextMenu();
+    }
+
     const auto &points = event->points();
     if (points.size() == 2) {
         const auto &p1 = points[0];
@@ -409,6 +413,10 @@ std::shared_ptr<InfomarkSelection> MapCanvas::getInfomarkSelection(const MouseSe
 
 void MapCanvas::mousePressEvent(QMouseEvent *const event)
 {
+    if (event->button() != Qt::RightButton) {
+        emit sig_dismissContextMenu();
+    }
+
     const bool hasLeftButton = (event->buttons() & Qt::LeftButton) != 0u;
     const bool hasRightButton = (event->buttons() & Qt::RightButton) != 0u;
     const bool hasCtrl = (event->modifiers() & Qt::CTRL) != 0u;

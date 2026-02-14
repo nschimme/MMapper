@@ -469,6 +469,7 @@ void MainWindow::wireConnections()
             &MapCanvas::sig_customContextMenuRequested,
             this,
             &MainWindow::slot_showContextMenu);
+    connect(canvas, &MapCanvas::sig_dismissContextMenu, this, &MainWindow::slot_closeContextMenu);
 
     // Group
     connect(m_groupManager, &Mmapper2Group::sig_log, this, &MainWindow::slot_log);
@@ -1282,7 +1283,14 @@ void MainWindow::slot_showContextMenu(const QPoint &pos)
     mouseMenu->addAction(mouseMode.modeCreateConnectionAct);
     mouseMenu->addAction(mouseMode.modeCreateOnewayConnectionAct);
 
-    m_contextMenu->exec(getCanvas()->mapToGlobal(pos));
+    m_contextMenu->popup(getCanvas()->mapToGlobal(pos));
+}
+
+void MainWindow::slot_closeContextMenu()
+{
+    if (m_contextMenu) {
+        m_contextMenu->close();
+    }
 }
 
 void MainWindow::slot_alwaysOnTop()

@@ -442,6 +442,7 @@ public slots:
     void slot_newConnectionSelection(ConnectionSelection *);
     void slot_newInfomarkSelection(InfomarkSelection *);
     void slot_showContextMenu(const QPoint &);
+    void slot_closeContextMenu();
 
     void slot_onCheckForUpdate();
     void slot_voteForMUME();

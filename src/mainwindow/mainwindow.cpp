@@ -1282,7 +1282,7 @@ void MainWindow::slot_showContextMenu(const QPoint &pos)
     mouseMenu->addAction(mouseMode.modeCreateConnectionAct);
     mouseMenu->addAction(mouseMode.modeCreateOnewayConnectionAct);
 
-    m_contextMenu->popup(getCanvas()->mapToGlobal(pos));
+    m_contextMenu->exec(getCanvas()->mapToGlobal(pos));
 }
 
 void MainWindow::slot_alwaysOnTop()

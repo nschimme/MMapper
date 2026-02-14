@@ -1061,7 +1061,8 @@ void MapCanvas::handlePinchZoom(QTouchEvent *const event)
         const float currentDistance = glm::distance(glm::vec2(static_cast<float>(p1.position().x()),
                                                               static_cast<float>(p1.position().y())),
                                                     glm::vec2(static_cast<float>(p2.position().x()),
-                                                              static_cast<float>(p2.position().y())));
+                                                              static_cast<float>(
+                                                                  p2.position().y())));
         const float currentPinchFactor = currentDistance / m_initialPinchDistance;
         const float deltaFactor = currentPinchFactor / m_lastPinchFactor;
 

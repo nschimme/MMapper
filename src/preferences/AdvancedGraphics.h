@@ -10,6 +10,7 @@
 
 #include <QGroupBox>
 
+class QCheckBox;
 class SliderSpinboxButton;
 class NODISCARD_QOBJECT AdvancedGraphicsGroupBox final : public QObject
 {
@@ -20,6 +21,7 @@ private:
 
 private:
     QGroupBox *const m_groupBox;
+    QCheckBox *m_checkboxAllowExtreme = nullptr;
     using UniqueSsb = std::unique_ptr<SliderSpinboxButton>;
     std::vector<UniqueSsb> m_ssbs;
     // purposely unused; this variable exists as an RAII for the change monitors.

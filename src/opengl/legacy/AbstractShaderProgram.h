@@ -5,6 +5,8 @@
 #include "Legacy.h"
 #include "VBO.h"
 
+#include <string>
+
 namespace Legacy {
 
 static constexpr GLuint INVALID_ATTRIB_LOCATION = ~0u;

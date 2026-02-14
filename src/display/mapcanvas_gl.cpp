@@ -34,6 +34,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <functional>
+#include <future>
 #include <memory>
 #include <optional>
 #include <sstream>

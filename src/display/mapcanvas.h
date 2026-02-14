@@ -21,10 +21,12 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <future>
 #include <map>
 #include <memory>
 #include <optional>
 #include <set>
+#include <variant>
 #include <vector>
 
 #include <glm/glm.hpp>

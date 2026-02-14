@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2026 The MMapper Authors
 
-precision highp float;
-
 uniform mat4 uInvViewProj;
 uniform vec4 uPlayerPos;
 uniform ivec4 uPhysViewport;

@@ -63,46 +63,58 @@ void main()
     worldPos.z /= uZScale;
 
     float distToPlayer = distance(worldPos.xy, uPlayerPos.xy);
-    float localMask = smoothstep(11.0, 7.0, distToPlayer);
+    float localMask = smoothstep(12.0, 8.0, distToPlayer);
 
     vec4 weatherColor = vec4(0.0);
 
     // Fog: soft drifting noise
     if (uFogIntensity > 0.0) {
         float n = fbm(worldPos.xy * 0.15 + uTime * 0.1);
-        weatherColor += vec4(0.8, 0.8, 0.85, uFogIntensity * n * localMask * 0.8);
+        weatherColor = vec4(0.8, 0.8, 0.85, uFogIntensity * n * localMask * 0.6);
     }
 
     // Clouds: puffy high-contrast noise
     if (uCloudsIntensity > 0.0) {
-        float n = fbm(worldPos.xy * 0.08 - uTime * 0.05);
-        float puffy = smoothstep(0.4, 0.6, n);
-        weatherColor += vec4(0.9, 0.9, 1.0, uCloudsIntensity * puffy * localMask * 0.5);
+        float n = fbm(worldPos.xy * 0.06 - uTime * 0.03);
+        float puffy = smoothstep(0.45, 0.55, n);
+        vec4 clouds = vec4(0.9, 0.9, 1.0, uCloudsIntensity * puffy * localMask * 0.4);
+        weatherColor.rgb = mix(weatherColor.rgb, clouds.rgb, clouds.a);
+        weatherColor.a = max(weatherColor.a, clouds.a);
     }
 
-    // Rain: falling streaks
+    // Rain: thin falling streaks
     if (uRainIntensity > 0.0) {
-        vec2 gv = worldPos.xy * vec2(4.0, 1.0);
-        gv.y += uTime * 20.0;
-        vec2 id = floor(gv);
-        float h = hash(id.x);
-        gv.y += h * 10.0; // random vertical offset
-        float rain = step(0.98, hash(floor(gv)));
-        if (rain > 0.0) {
-            weatherColor += vec4(0.6, 0.6, 1.0, uRainIntensity * localMask * 0.5);
+        vec2 rv = worldPos.xy;
+        rv.x *= 12.0; // columns
+        float h = hash(floor(rv.x));
+        rv.y += uTime * (20.0 + h * 5.0);
+        rv.y += h * 10.0;
+
+        float r = hash(vec2(floor(rv.x), floor(rv.y * 0.15)));
+        if (r > 0.94) {
+            float streak = 1.0 - smoothstep(0.0, 0.15, abs(fract(rv.x) - 0.5));
+            vec4 rain = vec4(0.6, 0.6, 1.0, uRainIntensity * streak * localMask * 0.6);
+            weatherColor.rgb = mix(weatherColor.rgb, rain.rgb, rain.a);
+            weatherColor.a = max(weatherColor.a, rain.a);
         }
     }
 
     // Snow: falling flakes
     if (uSnowIntensity > 0.0) {
-        vec2 sv = worldPos.xy * 3.0;
-        sv.y += uTime * 3.0;
-        sv.x += sin(uTime + sv.y) * 0.5; // slight horizontal drift
+        vec2 sv = worldPos.xy * 4.0;
+        float h1 = hash(floor(sv.x));
+        sv.y += uTime * 2.0;
+        sv.y += h1 * 10.0;
+        sv.x += sin(uTime * 1.2 + h1 * 6.28) * 0.4;
+
         vec2 id = floor(sv);
         float h = hash(id);
-        if (h > 0.97) {
-            // Small bright flake
-            weatherColor += vec4(1.0, 1.0, 1.0, uSnowIntensity * localMask);
+        if (h > 0.96) {
+            float dist = distance(fract(sv), vec2(0.5));
+            float flake = 1.0 - smoothstep(0.1, 0.2, dist);
+            vec4 snow = vec4(1.0, 1.0, 1.1, uSnowIntensity * flake * localMask * 0.8);
+            weatherColor.rgb = mix(weatherColor.rgb, snow.rgb, snow.a);
+            weatherColor.a = max(weatherColor.a, snow.a);
         }
     }
 

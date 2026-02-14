@@ -826,8 +826,8 @@ Color MapCanvas::calculateTimeOfDayColor() const
         case MumeTimeEnum::NIGHT: {
             // Moonlight adjustment: more silvery/bright if moon is visible
             const float moon = m_weatherState.moonIntensity;
-            const Color baseNight(0.1f, 0.1f, 0.3f, 0.35f);
-            const Color moonNight(0.3f, 0.3f, 0.5f, 0.25f);
+            const Color baseNight(0.05f, 0.05f, 0.2f, 0.3f);
+            const Color moonNight(0.2f, 0.2f, 0.4f, 0.2f);
             return Color(baseNight.getVec4() * (1.0f - moon) + moonNight.getVec4() * moon);
         }
         case MumeTimeEnum::DAY:

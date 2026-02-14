@@ -42,7 +42,7 @@ public:
     // bit3-4 -> PromptFogEnum
     static constexpr uint32_t FOG_SHIFT = 3u;
     static constexpr const auto FOG_TYPE = 0b11u << FOG_SHIFT;
-    // bit5-9 -> PromptWeatherEnum
+    // bit5-7 -> PromptWeatherEnum
     static constexpr uint32_t WEATHER_SHIFT = 5u;
     static constexpr const auto WEATHER_TYPE = 0b111u << WEATHER_SHIFT;
 

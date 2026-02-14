@@ -682,6 +682,8 @@ void MapCanvas::actuallyPaintGL()
 
         if (stillAnimating) {
             setAnimating(true);
+        } else if (m_frameRateController.animating) {
+            qDebug() << "[Weather] Animation stopped";
         }
     }
 
@@ -855,6 +857,15 @@ void MapCanvas::paintWeather()
         return;
     }
 
+    static int logCounter = 0;
+    if (++logCounter % 100 == 0) {
+        const auto playerPos = m_data.tryGetPosition().value_or(Coordinate{}).to_vec3();
+        qDebug() << "[Weather] Painting: Rain" << m_weatherState.rainIntensity << "Snow"
+                 << m_weatherState.snowIntensity << "Clouds" << m_weatherState.cloudsIntensity
+                 << "Fog" << m_weatherState.fogIntensity << "ToD Alpha" << todColor.getAlpha()
+                 << "PlayerPos" << playerPos.x << playerPos.y << playerPos.z;
+    }
+
     auto &gl = getOpenGL();
     auto &sharedFuncs = gl.getSharedFunctions(Badge<MapCanvas>{});
     Legacy::Functions &funcs = deref(sharedFuncs);
@@ -864,6 +875,11 @@ void MapCanvas::paintWeather()
 
     prog.setMatrix("uInvViewProj", glm::inverse(m_viewProj));
     prog.setVec3("uPlayerPos", m_data.tryGetPosition().value_or(Coordinate{}).to_vec3());
+
+    const bool want3D = getConfig().canvas.advanced.use3D.get();
+    const float zScale = want3D ? getConfig().canvas.advanced.layerHeight.getFloat() : 7.0f;
+    prog.setFloat("uZScale", zScale);
+
     prog.setViewport("uPhysViewport", funcs.getPhysicalViewport());
     prog.setFloat("uTime", m_weatherState.animationTime);
     prog.setFloat("uRainIntensity", m_weatherState.rainIntensity);

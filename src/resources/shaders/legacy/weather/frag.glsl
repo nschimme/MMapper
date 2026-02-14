@@ -3,6 +3,7 @@
 
 uniform mat4 uInvViewProj;
 uniform vec4 uPlayerPos;
+uniform float uZScale;
 uniform ivec4 uPhysViewport;
 uniform float uTime;
 uniform float uRainIntensity;
@@ -50,10 +51,16 @@ float fbm(vec2 p)
 
 void main()
 {
-    // Reconstruct world position
+    // Reconstruct world position on the player's plane
     vec2 screenPos = (gl_FragCoord.xy / vec2(uPhysViewport.zw)) * 2.0 - 1.0;
-    vec4 worldPos4 = uInvViewProj * vec4(screenPos, 0.0, 1.0);
-    vec3 worldPos = worldPos4.xyz / worldPos4.w;
+    vec4 near4 = uInvViewProj * vec4(screenPos, -1.0, 1.0);
+    vec4 far4 = uInvViewProj * vec4(screenPos, 1.0, 1.0);
+    vec3 nearPos = near4.xyz / near4.w;
+    vec3 farPos = far4.xyz / far4.w;
+
+    float t = (uPlayerPos.z * uZScale - nearPos.z) / (farPos.z - nearPos.z);
+    vec3 worldPos = mix(nearPos, farPos, t);
+    worldPos.z /= uZScale;
 
     float distToPlayer = distance(worldPos.xy, uPlayerPos.xy);
     float localMask = smoothstep(12.0, 8.0, distToPlayer);

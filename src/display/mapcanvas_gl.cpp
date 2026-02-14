@@ -657,19 +657,23 @@ void MapCanvas::actuallyPaintGL()
         updateLevel(m_weatherState.fogIntensity, m_weatherState.targetFogIntensity);
 
         if (m_weatherState.timeOfDayTransition < 1.0f) {
-            m_weatherState.timeOfDayTransition = std::min(1.0f, m_weatherState.timeOfDayTransition + dt * 0.2f); // 5 seconds transition
+            m_weatherState.timeOfDayTransition = std::min(1.0f,
+                                                          m_weatherState.timeOfDayTransition
+                                                              + dt * 0.2f); // 5 seconds transition
         }
 
         m_weatherState.animationTime += dt;
 
-        bool stillAnimating = (m_weatherState.rainIntensity != m_weatherState.targetRainIntensity) ||
-                              (m_weatherState.snowIntensity != m_weatherState.targetSnowIntensity) ||
-                              (m_weatherState.cloudsIntensity != m_weatherState.targetCloudsIntensity) ||
-                              (m_weatherState.fogIntensity != m_weatherState.targetFogIntensity) ||
-                              (m_weatherState.timeOfDayTransition < 1.0f);
+        bool stillAnimating = (m_weatherState.rainIntensity != m_weatherState.targetRainIntensity)
+                              || (m_weatherState.snowIntensity != m_weatherState.targetSnowIntensity)
+                              || (m_weatherState.cloudsIntensity
+                                  != m_weatherState.targetCloudsIntensity)
+                              || (m_weatherState.fogIntensity != m_weatherState.targetFogIntensity)
+                              || (m_weatherState.timeOfDayTransition < 1.0f);
 
         // Rain/Snow/Clouds also need continuous animation for movement
-        if (m_weatherState.rainIntensity > 0.0f || m_weatherState.snowIntensity > 0.0f || m_weatherState.cloudsIntensity > 0.0f || m_weatherState.fogIntensity > 0.0f) {
+        if (m_weatherState.rainIntensity > 0.0f || m_weatherState.snowIntensity > 0.0f
+            || m_weatherState.cloudsIntensity > 0.0f || m_weatherState.fogIntensity > 0.0f) {
             stillAnimating = true;
         }
 
@@ -858,7 +862,8 @@ void MapCanvas::paintWeather()
     prog.setFloat("uFogIntensity", m_weatherState.fogIntensity);
     prog.setColor("uTimeOfDayColor", todColor);
 
-    const auto rs = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withDepthFunction(std::nullopt);
+    const auto rs
+        = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withDepthFunction(std::nullopt);
     funcs.renderFullScreenTriangle(funcs.getShaderPrograms().getWeatherShader(), rs);
 }
 

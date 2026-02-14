@@ -5,8 +5,10 @@
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
+#include "../clock/mumemoment.h"
 #include "../global/ChangeMonitor.h"
 #include "../global/Signal2.h"
+#include "../map/PromptFlags.h"
 #include "../mapdata/roomselection.h"
 #include "../opengl/Font.h"
 #include "../opengl/FontFormatFlags.h"
@@ -32,9 +34,6 @@
 #include <QOpenGLDebugMessage>
 #include <QOpenGLWindow>
 #include <QtCore>
-
-#include "../clock/mumemoment.h"
-#include "../map/PromptFlags.h"
 
 class CharacterBatch;
 class ConnectionSelection;

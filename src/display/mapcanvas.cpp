@@ -75,10 +75,19 @@ MapCanvas::MapCanvas(MapData &mapData,
     m_weatherState.currentTimeOfDay = m_observer.getTimeOfDay();
     m_weatherState.oldTimeOfDay = m_weatherState.currentTimeOfDay;
 
-    m_weatherState.targetRainIntensity = (m_observer.getWeather() == PromptWeatherEnum::RAIN) ? 0.5f : (m_observer.getWeather() == PromptWeatherEnum::HEAVY_RAIN) ? 1.0f : 0.0f;
-    m_weatherState.targetSnowIntensity = (m_observer.getWeather() == PromptWeatherEnum::SNOW) ? 1.0f : 0.0f;
-    m_weatherState.targetCloudsIntensity = (m_observer.getWeather() == PromptWeatherEnum::CLOUDS) ? 1.0f : 0.0f;
-    m_weatherState.targetFogIntensity = (m_observer.getFog() == PromptFogEnum::LIGHT_FOG) ? 0.3f : (m_observer.getFog() == PromptFogEnum::HEAVY_FOG) ? 0.8f : 0.0f;
+    m_weatherState.targetRainIntensity = (m_observer.getWeather() == PromptWeatherEnum::RAIN) ? 0.5f
+                                         : (m_observer.getWeather() == PromptWeatherEnum::HEAVY_RAIN)
+                                             ? 1.0f
+                                             : 0.0f;
+    m_weatherState.targetSnowIntensity = (m_observer.getWeather() == PromptWeatherEnum::SNOW)
+                                             ? 1.0f
+                                             : 0.0f;
+    m_weatherState.targetCloudsIntensity = (m_observer.getWeather() == PromptWeatherEnum::CLOUDS)
+                                               ? 1.0f
+                                               : 0.0f;
+    m_weatherState.targetFogIntensity = (m_observer.getFog() == PromptFogEnum::LIGHT_FOG)   ? 0.3f
+                                        : (m_observer.getFog() == PromptFogEnum::HEAVY_FOG) ? 0.8f
+                                                                                            : 0.0f;
 
     m_weatherState.rainIntensity = m_weatherState.targetRainIntensity;
     m_weatherState.snowIntensity = m_weatherState.targetSnowIntensity;
@@ -86,14 +95,18 @@ MapCanvas::MapCanvas(MapData &mapData,
     m_weatherState.fogIntensity = m_weatherState.targetFogIntensity;
 
     m_observer.sig2_weatherChanged.connect(m_lifetime, [this](PromptWeatherEnum weather) {
-        m_weatherState.targetRainIntensity = (weather == PromptWeatherEnum::RAIN) ? 0.5f : (weather == PromptWeatherEnum::HEAVY_RAIN) ? 1.0f : 0.0f;
+        m_weatherState.targetRainIntensity = (weather == PromptWeatherEnum::RAIN)         ? 0.5f
+                                             : (weather == PromptWeatherEnum::HEAVY_RAIN) ? 1.0f
+                                                                                          : 0.0f;
         m_weatherState.targetSnowIntensity = (weather == PromptWeatherEnum::SNOW) ? 1.0f : 0.0f;
         m_weatherState.targetCloudsIntensity = (weather == PromptWeatherEnum::CLOUDS) ? 1.0f : 0.0f;
         setAnimating(true);
     });
 
     m_observer.sig2_fogChanged.connect(m_lifetime, [this](PromptFogEnum fog) {
-        m_weatherState.targetFogIntensity = (fog == PromptFogEnum::LIGHT_FOG) ? 0.3f : (fog == PromptFogEnum::HEAVY_FOG) ? 0.8f : 0.0f;
+        m_weatherState.targetFogIntensity = (fog == PromptFogEnum::LIGHT_FOG)   ? 0.3f
+                                            : (fog == PromptFogEnum::HEAVY_FOG) ? 0.8f
+                                                                                : 0.0f;
         setAnimating(true);
     });
 

@@ -35,8 +35,7 @@ UColorTexturedShader::~UColorTexturedShader() = default;
 RoomQuadTexShader::~RoomQuadTexShader() = default;
 MegaRoomShader::~MegaRoomShader() = default;
 
-void MegaRoomShader::virt_setUniforms(const glm::mat4 &mvp,
-                                      const GLRenderState::Uniforms & /*uniforms*/)
+void MegaRoomShader::virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms)
 {
     setMatrix("uMVP", mvp);
     // samplers (fixed units)
@@ -49,6 +48,12 @@ void MegaRoomShader::virt_setUniforms(const glm::mat4 &mvp,
     setTexture("uStreamInArray", 6);
     setTexture("uStreamOutArray", 7);
     setTexture("uExitIconArray", 8);
+
+    if (uniforms.timeOfDayColor) {
+        setColor("uTimeOfDayColor", *uniforms.timeOfDayColor);
+    } else {
+        setColor("uTimeOfDayColor", Colors::white);
+    }
 
     // Note: uCurrentLayer and uDrawUpperLayersTextured are set manually by MapCanvas
 }

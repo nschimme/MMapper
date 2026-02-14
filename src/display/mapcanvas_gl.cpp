@@ -55,6 +55,12 @@
 #include <QtGui/qopengl.h>
 #include <QtGui>
 
+#if defined(_MSC_VER) || defined(__MINGW32__)
+#undef near // Bad dog, Microsoft; bad dog!!!
+#undef far  // Bad dog, Microsoft; bad dog!!!
+#undef constant
+#endif
+
 namespace MapCanvasConfig {
 
 void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
@@ -674,7 +680,8 @@ void MapCanvas::actuallyPaintGL()
         m_roomDataBuffer->render(gl,
                                  m_viewProj,
                                  m_currentLayer,
-                                 getConfig().canvas.drawUpperLayersTextured);
+                                 getConfig().canvas.drawUpperLayersTextured,
+                                 m_timeOfDayColor);
     }
 
     paintMap();

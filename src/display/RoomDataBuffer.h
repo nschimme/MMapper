@@ -32,7 +32,11 @@ public:
     ~RoomDataBuffer();
 
     void syncWithMap(const Map &map, const mctp::MapCanvasTexturesProxy &textures);
-    void render(OpenGL &gl, const glm::mat4 &mvp, int currentLayer, bool drawUpperLayersTextured);
+    void render(OpenGL &gl,
+                const glm::mat4 &mvp,
+                int currentLayer,
+                bool drawUpperLayersTextured,
+                const Color &timeOfDayColor);
 
 private:
     void resize(size_t newSize);

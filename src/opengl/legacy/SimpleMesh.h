@@ -104,12 +104,21 @@ public:
         setCommon(mode, verts, BufferUsageEnum::STATIC_DRAW);
     }
 
-    void update(const GLintptr offset, const std::vector<VertexType_> &verts)
+    void update(const qopengl_GLintptr offset, const std::vector<VertexType_> &verts)
     {
         if (m_vbo) {
             m_functions.updateVbo(m_vbo.get(),
-                                  offset * static_cast<GLintptr>(sizeof(VertexType_)),
+                                  offset * static_cast<qopengl_GLintptr>(sizeof(VertexType_)),
                                   verts);
+        }
+    }
+
+    void update(const qopengl_GLintptr offset, const qopengl_GLsizeiptr size, const void *data)
+    {
+        if (m_vbo) {
+            m_functions.glBindBuffer(GL_ARRAY_BUFFER, m_vbo.get());
+            m_functions.glBufferSubData(GL_ARRAY_BUFFER, offset, size, data);
+            m_functions.glBindBuffer(GL_ARRAY_BUFFER, 0);
         }
     }
 

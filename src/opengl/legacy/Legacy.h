@@ -414,7 +414,7 @@ public:
     }
 
     template<typename T>
-    void updateVbo(const GLuint vbo, const GLintptr offset, const std::vector<T> &batch)
+    void updateVbo(const GLuint vbo, const qopengl_GLintptr offset, const std::vector<T> &batch)
     {
         if (batch.empty()) {
             return;
@@ -422,7 +422,7 @@ public:
         Base::glBindBuffer(GL_ARRAY_BUFFER, vbo);
         Base::glBufferSubData(GL_ARRAY_BUFFER,
                               offset,
-                              static_cast<GLsizeiptr>(batch.size() * sizeof(T)),
+                              static_cast<qopengl_GLsizeiptr>(batch.size() * sizeof(T)),
                               batch.data());
         Base::glBindBuffer(GL_ARRAY_BUFFER, 0);
     }

@@ -233,6 +233,7 @@ struct NODISCARD GLRenderState final
         // glEnable(TEXTURE_2D), or glEnable(TEXTURE_3D)
         Textures textures;
         std::optional<float> pointSize;
+        std::optional<Color> timeOfDayColor;
     };
 
     Uniforms uniforms;
@@ -283,6 +284,13 @@ struct NODISCARD GLRenderState final
     {
         GLRenderState copy = *this;
         copy.uniforms.pointSize = size;
+        return copy;
+    }
+
+    NODISCARD GLRenderState withTimeOfDayColor(const Color color) const
+    {
+        GLRenderState copy = *this;
+        copy.uniforms.timeOfDayColor = color;
         return copy;
     }
 

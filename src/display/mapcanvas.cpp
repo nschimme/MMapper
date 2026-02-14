@@ -96,7 +96,8 @@ void MapCanvas::setMouseTracking(bool /*enable*/)
 {
     // QWindow does not have setMouseTracking(bool), it always tracks
     // mouse moves unless we use some platform-specific or lower-level
-    // way to disable it. For now, we just accept the call.
+    // way to disable it. For now, we just accept the call to maintain
+    // API compatibility with QWidget-based components.
 }
 
 void MapCanvas::slot_layerUp()

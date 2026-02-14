@@ -4,13 +4,18 @@
 
 #include "MapCanvasData.h"
 
+#include "../configuration/configuration.h"
 #include "../opengl/LineRendering.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <functional>
 #include <optional>
 
 #include <glm/gtc/epsilon.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include <QDebug>
 #include <QNativeGestureEvent>
@@ -188,6 +193,136 @@ std::optional<MouseSel> MapCanvasViewport::getUnprojectedMouseSel(const glm::vec
     }
     const glm::vec3 &v = opt_v.value();
     return MouseSel{Coordinate2f{v.x, v.y}, m_currentLayer};
+}
+
+namespace {
+NODISCARD float getPitchDegrees(const float zoomScale)
+{
+    const float degrees = getConfig().canvas.advanced.verticalAngle.getFloat();
+    if (!getConfig().canvas.advanced.autoTilt.get()) {
+        return degrees;
+    }
+
+    static_assert(ScaleFactor::MAX_VALUE >= 2.f);
+    return glm::smoothstep(0.5f, 2.f, zoomScale) * degrees;
+}
+} // namespace
+
+float MapCanvasViewport::getPitchDegrees() const
+{
+    return ::getPitchDegrees(getTotalScaleFactor());
+}
+
+glm::mat4 MapCanvasViewport::getViewProj_old(const glm::ivec2 &size) const
+{
+    constexpr float FIXED_VIEW_DISTANCE = 60.f;
+    constexpr float ROOM_Z_SCALE = 7.f;
+    constexpr auto baseSize = static_cast<float>(BASESIZE);
+
+    const float zoomScale = getTotalScaleFactor();
+    const float swp = zoomScale * baseSize / static_cast<float>(size.x);
+    const float shp = zoomScale * baseSize / static_cast<float>(size.y);
+
+    QMatrix4x4 proj;
+    proj.frustum(-0.5f, +0.5f, -0.5f, 0.5f, 5.f, 10000.f);
+    proj.scale(swp, shp, 1.f);
+    proj.translate(-m_scroll.x, -m_scroll.y, -FIXED_VIEW_DISTANCE);
+    proj.scale(1.f, 1.f, ROOM_Z_SCALE);
+
+    return glm::make_mat4(proj.constData());
+}
+
+glm::mat4 MapCanvasViewport::getViewProj(const glm::ivec2 &size) const
+{
+    static_assert(GLM_CONFIG_CLIP_CONTROL == GLM_CLIP_CONTROL_RH_NO);
+
+    const int width = size.x;
+    const int height = size.y;
+
+    const float aspect = static_cast<float>(width) / static_cast<float>(height);
+
+    const auto &advanced = getConfig().canvas.advanced;
+    const float fovDegrees = advanced.fov.getFloat();
+    const float zoomScale = getTotalScaleFactor();
+    const auto pitchRadians = glm::radians(::getPitchDegrees(zoomScale));
+    const auto yawRadians = glm::radians(advanced.horizontalAngle.getFloat());
+    const auto layerHeight = advanced.layerHeight.getFloat();
+
+    const auto pixelScale = std::invoke([aspect, fovDegrees, width]() -> float {
+        constexpr float HARDCODED_LOGICAL_PIXELS = 44.f;
+        const auto dummyProj = glm::perspective(glm::radians(fovDegrees), aspect, 1.f, 10.f);
+
+        const auto centerRoomProj = glm::inverse(dummyProj) * glm::vec4(0.f, 0.f, 0.f, 1.f);
+        const auto centerRoom = glm::vec3(centerRoomProj) / centerRoomProj.w;
+
+        // Use east instead of north, so that tilted perspective matches horizontally.
+        const auto oneRoomEast = dummyProj * glm::vec4(centerRoom + glm::vec3(1.f, 0.f, 0.f), 1.f);
+        const float clipDist = std::abs(oneRoomEast.x / oneRoomEast.w);
+        const float ndcDist = clipDist * 0.5f;
+
+        // width is in logical pixels
+        const float screenDist = ndcDist * static_cast<float>(width);
+        const auto pixels = std::abs(centerRoom.z) * screenDist;
+        return pixels / HARDCODED_LOGICAL_PIXELS;
+    });
+
+    const float ZSCALE = layerHeight;
+    const float camDistance = pixelScale / zoomScale;
+    const auto center = glm::vec3(m_scroll, static_cast<float>(m_currentLayer) * ZSCALE);
+
+    const auto rotateHorizontal = glm::mat3(
+        glm::rotate(glm::mat4(1), -yawRadians, glm::vec3(0, 0, 1)));
+
+    const auto forward = rotateHorizontal
+                         * glm::vec3(0.f, std::sin(pitchRadians), -std::cos(pitchRadians));
+    const auto right = rotateHorizontal * glm::vec3(1, 0, 0);
+    const auto up = glm::cross(right, glm::normalize(forward));
+
+    const auto eye = center - camDistance * forward;
+
+    const auto proj = glm::perspective(glm::radians(fovDegrees), aspect, 0.25f, 1024.f);
+    const auto view = glm::lookAt(eye, center, up);
+    const auto scaleZ = glm::scale(glm::mat4(1), glm::vec3(1.f, 1.f, ZSCALE));
+
+    return proj * view * scaleZ;
+}
+
+void MapCanvasViewport::updateViewProj(const bool want3D)
+{
+    const glm::ivec2 size{width(), height()};
+    m_viewProj = (!want3D) ? getViewProj_old(size) : getViewProj(size);
+}
+
+void MapCanvasViewport::zoomAt(const float factor, const glm::vec2 &mousePos, const bool want3D)
+{
+    const auto optWorldPos = unproject(mousePos);
+    if (!optWorldPos) {
+        m_scaleFactor *= factor;
+        updateViewProj(want3D);
+        return;
+    }
+
+    const glm::vec2 worldPos = glm::vec2(*optWorldPos);
+    const glm::vec2 oldScroll = m_scroll;
+
+    m_scaleFactor *= factor;
+    updateViewProj(want3D);
+
+    const auto optNewWorldPos = unproject(mousePos);
+    if (optNewWorldPos) {
+        const glm::vec2 delta = worldPos - glm::vec2(*optNewWorldPos);
+        m_scroll = oldScroll + delta;
+    } else {
+        m_scroll = oldScroll;
+    }
+
+    updateViewProj(want3D);
+}
+
+void MapCanvasViewport::centerOn(const Coordinate &pos)
+{
+    m_currentLayer = pos.z;
+    m_scroll = pos.to_vec2() + glm::vec2{0.5f, 0.5f};
 }
 
 MapScreen::MapScreen(const MapCanvasViewport &viewport)

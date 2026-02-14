@@ -19,6 +19,7 @@
 #include <optional>
 #include <unordered_map>
 
+#include <QCursor>
 #include <QOpenGLTexture>
 #include <QWindow>
 #include <QtGui/QMatrix4x4>
@@ -86,6 +87,10 @@ public:
 
 struct NODISCARD MapCanvasViewport
 {
+public:
+    static constexpr const int BASESIZE = 528;
+    static constexpr const int SCROLL_SCALE = 64;
+
 private:
     QWindow &m_window;
 
@@ -120,6 +125,22 @@ public:
     NODISCARD std::optional<MouseSel> getUnprojectedMouseSel(const QInputEvent *event) const;
     NODISCARD std::optional<MouseSel> getUnprojectedMouseSel(const glm::vec2 &xy) const;
     NODISCARD std::optional<glm::vec2> getMouseCoords(const QInputEvent *event) const;
+
+public:
+    void zoomAt(float factor, const glm::vec2 &mousePos, bool want3D);
+    void zoomIn() { m_scaleFactor.logStep(1); }
+    void zoomOut() { m_scaleFactor.logStep(-1); }
+    void zoomReset() { m_scaleFactor.set(1.f); }
+    void layerUp() { ++m_currentLayer; }
+    void layerDown() { --m_currentLayer; }
+    void layerReset() { m_currentLayer = 0; }
+    void centerOn(const Coordinate &pos);
+    void updateViewProj(bool want3D);
+
+protected:
+    NODISCARD float getPitchDegrees() const;
+    NODISCARD glm::mat4 getViewProj_old(const glm::ivec2 &size) const;
+    NODISCARD glm::mat4 getViewProj(const glm::ivec2 &size) const;
 };
 
 class NODISCARD MapScreen final
@@ -216,6 +237,36 @@ public:
     NODISCARD MouseSel getBackup() const { return getMouseSel(m_moveBackup); }
 
 public:
-    void startMoving(const MouseSel &startPos) { m_moveBackup = startPos; }
-    void stopMoving() { m_moveBackup.reset(); }
+    void startMoving(const MouseSel &startPos,
+                     const glm::vec2 &scroll,
+                     const glm::mat4 &viewProj)
+    {
+        m_moveBackup = startPos;
+        m_dragState.emplace(DragState{startPos.to_vec3(), scroll, viewProj});
+    }
+    void stopMoving()
+    {
+        m_moveBackup.reset();
+        m_dragState.reset();
+    }
+
+public:
+    struct NODISCARD AltDragState
+    {
+        QPoint lastPos;
+        QCursor originalCursor;
+    };
+    std::optional<AltDragState> m_altDragState;
+
+    struct NODISCARD DragState
+    {
+        glm::vec3 startWorldPos;
+        glm::vec2 startScroll;
+        glm::mat4 startViewProj;
+    };
+    std::optional<DragState> m_dragState;
+
+    float m_initialPinchDistance = 0.f;
+    float m_lastPinchFactor = 1.f;
+    float m_lastMagnification = 1.f;
 };

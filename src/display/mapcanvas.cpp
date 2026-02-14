@@ -7,6 +7,7 @@
 #include "mapcanvas.h"
 
 #include "../configuration/configuration.h"
+#include "MapCanvasConfig.h"
 #include "../global/parserutils.h"
 #include "../global/progresscounter.h"
 #include "../global/utils.h"
@@ -94,19 +95,19 @@ MapCanvas *MapCanvas::getPrimary()
 
 void MapCanvas::slot_layerUp()
 {
-    ++m_currentLayer;
+    MapCanvasViewport::layerUp();
     layerChanged();
 }
 
 void MapCanvas::slot_layerDown()
 {
-    --m_currentLayer;
+    MapCanvasViewport::layerDown();
     layerChanged();
 }
 
 void MapCanvas::slot_layerReset()
 {
-    m_currentLayer = 0;
+    MapCanvasViewport::layerReset();
     layerChanged();
 }
 
@@ -1035,54 +1036,20 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
 
 void MapCanvas::startMoving(const MouseSel &startPos)
 {
-    MapCanvasInputState::startMoving(startPos);
-    m_dragState.emplace(DragState{startPos.to_vec3(), m_scroll, m_viewProj});
+    MapCanvasInputState::startMoving(startPos, m_scroll, m_viewProj);
 }
 
 void MapCanvas::stopMoving()
 {
     MapCanvasInputState::stopMoving();
-    m_dragState.reset();
 }
 
 void MapCanvas::zoomAt(const float factor, const glm::vec2 &mousePos)
 {
-    const auto optWorldPos = unproject(mousePos);
-    if (!optWorldPos) {
-        m_scaleFactor *= factor;
-        zoomChanged();
-        update();
-        return;
-    }
-
-    const glm::vec2 worldPos = glm::vec2(*optWorldPos);
-
-    // Save current state
-    const glm::vec2 oldScroll = m_scroll;
-
-    // Apply zoom
-    m_scaleFactor *= factor;
+    const bool want3D = MapCanvasConfig::isIn3dMode();
+    MapCanvasViewport::zoomAt(factor, mousePos, want3D);
     zoomChanged();
-
-    // Calculate new scroll position to keep worldPos under mousePos.
-    // We update the viewport and MVP to the new zoom level temporarily
-    // to perform the unprojection.
-    setViewportAndMvp(width(), height());
-
-    const auto optNewWorldPos = unproject(mousePos);
-    if (optNewWorldPos) {
-        const glm::vec2 delta = worldPos - glm::vec2(*optNewWorldPos);
-        const glm::vec2 newScroll = oldScroll + delta;
-        m_scroll = newScroll;
-        emit sig_onCenter(newScroll);
-    } else {
-        // Fallback: if we can't find the new world position, just stay where we were.
-        m_scroll = oldScroll;
-        emit sig_onCenter(oldScroll);
-    }
-
-    // Refresh the viewport matrix with the final scroll and zoom before painting.
-    setViewportAndMvp(width(), height());
+    emit sig_onCenter(m_scroll);
     update();
 }
 
@@ -1106,21 +1073,21 @@ void MapCanvas::slot_setVerticalScroll(const float worldY)
 
 void MapCanvas::slot_zoomIn()
 {
-    m_scaleFactor.logStep(1);
+    MapCanvasViewport::zoomIn();
     zoomChanged();
     update();
 }
 
 void MapCanvas::slot_zoomOut()
 {
-    m_scaleFactor.logStep(-1);
+    MapCanvasViewport::zoomOut();
     zoomChanged();
     update();
 }
 
 void MapCanvas::slot_zoomReset()
 {
-    m_scaleFactor.set(1.f);
+    MapCanvasViewport::zoomReset();
     zoomChanged();
     update();
 }
@@ -1128,10 +1095,8 @@ void MapCanvas::slot_zoomReset()
 void MapCanvas::onMovement()
 {
     const Coordinate &pos = m_data.tryGetPosition().value_or(Coordinate{});
-    m_currentLayer = pos.z;
-    const glm::vec2 newScroll = pos.to_vec2() + glm::vec2{0.5f, 0.5f};
-    m_scroll = newScroll;
-    emit sig_onCenter(newScroll);
+    MapCanvasViewport::centerOn(pos);
+    emit sig_onCenter(m_scroll);
     update();
 }
 

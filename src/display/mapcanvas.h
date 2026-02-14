@@ -54,8 +54,8 @@ class NODISCARD_QOBJECT MapCanvas final : public QOpenGLWindow,
     Q_OBJECT
 
 public:
-    static constexpr const int BASESIZE = 528; // REVISIT: Why this size? 16*33 isn't special.
-    static constexpr const int SCROLL_SCALE = 64;
+    using MapCanvasViewport::BASESIZE;
+    using MapCanvasViewport::SCROLL_SCALE;
 
 private:
     struct NODISCARD FrameRateController final
@@ -145,25 +145,6 @@ private:
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
     Signal2Lifetime m_lifetime;
 
-    struct AltDragState
-    {
-        QPoint lastPos;
-        QCursor originalCursor;
-    };
-    std::optional<AltDragState> m_altDragState;
-
-    struct DragState
-    {
-        glm::vec3 startWorldPos;
-        glm::vec2 startScroll;
-        glm::mat4 startViewProj;
-    };
-    std::optional<DragState> m_dragState;
-
-    float m_initialPinchDistance = 0.f;
-    float m_lastPinchFactor = 1.f;
-    float m_lastMagnification = 1.f;
-
 public:
     explicit MapCanvas(MapData &mapData,
                        PrespammedPath &prespammedPath,
@@ -229,14 +210,7 @@ private:
     void updateMultisampling();
 
     NODISCARD std::shared_ptr<InfomarkSelection> getInfomarkSelection(const MouseSel &sel);
-    NODISCARD static glm::mat4 getViewProj_old(const glm::vec2 &scrollPos,
-                                               const glm::ivec2 &size,
-                                               float zoomScale,
-                                               int currentLayer);
-    NODISCARD static glm::mat4 getViewProj(const glm::vec2 &scrollPos,
-                                           const glm::ivec2 &size,
-                                           float zoomScale,
-                                           int currentLayer);
+
     void setMvp(const glm::mat4 &viewProj);
     void setViewportAndMvp(int width, int height);
 

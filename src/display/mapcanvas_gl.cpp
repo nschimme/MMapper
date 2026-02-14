@@ -46,6 +46,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <QApplication>
 #include <QMessageBox>
 #include <QMessageLogContext>
 #include <QOpenGLWindow>
@@ -215,7 +216,7 @@ void MapCanvas::initializeGL()
     } catch (const std::exception &) {
         hide();
         doneCurrent();
-        QMessageBox::critical(nullptr,
+        QMessageBox::critical(QApplication::activeWindow(),
                               "Unable to initialize OpenGL",
                               "Upgrade your video card drivers");
         if constexpr (CURRENT_PLATFORM == PlatformEnum::Windows) {

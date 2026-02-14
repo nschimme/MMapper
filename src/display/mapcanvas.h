@@ -241,6 +241,9 @@ private:
     void setViewportAndMvp(int width, int height);
 
     void zoomAt(float factor, const glm::vec2 &mousePos);
+    void handleZoomAtEvent(const QInputEvent *event, float deltaFactor);
+    void handlePinchZoom(QTouchEvent *event);
+    NODISCARD float calculateNativeZoomDelta(const QNativeGestureEvent *event);
 
     NODISCARD BatchedInfomarksMeshes getInfomarksMeshes();
     void drawInfomark(InfomarksBatch &batch,

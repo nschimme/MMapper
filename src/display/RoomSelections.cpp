@@ -124,12 +124,14 @@ void MapCanvas::paintSelectedRoom(RoomSelFakeGL &gl, const RawRoom &room)
     // This fake GL uses resetMatrix() before this function.
     gl.resetMatrix();
 
-    const float marginPixels = MapScreen::DEFAULT_MARGIN_PIXELS;
+    const float marginPixels = MapCanvasViewport::DEFAULT_MARGIN_PIXELS;
     const bool isMoving = hasRoomSelectionMove();
 
-    if (!isMoving && !m_mapScreen.isRoomVisible(roomPos, marginPixels / 2.f)) {
+    if (!isMoving && !isRoomVisible(roomPos, marginPixels / 2.f)) {
         const glm::vec3 roomCenter = roomPos.to_vec3() + glm::vec3{0.5f, 0.5f, 0.f};
-        const auto dot = DistantObjectTransform::construct(roomCenter, m_mapScreen, marginPixels);
+        const auto dot = DistantObjectTransform::construct(roomCenter,
+                                                           static_cast<MapCanvasViewport &>(*this),
+                                                           marginPixels);
         gl.glTranslatef(dot.offset.x, dot.offset.y, dot.offset.z);
         gl.glRotatef(dot.rotationDegrees, 0.f, 0.f, 1.f);
         const glm::vec2 iconCenter{0.5f, 0.5f};
@@ -137,7 +139,7 @@ void MapCanvas::paintSelectedRoom(RoomSelFakeGL &gl, const RawRoom &room)
 
         // Scale based upon distance
         const auto scaleFactor = std::invoke([this, roomCenter]() -> float {
-            const auto delta = roomCenter - m_mapScreen.getCenter();
+            const auto delta = roomCenter - getCenter();
             const auto distance = std::sqrt((delta.y * delta.y) + (delta.x * delta.x));
             // If we're too far away just scale down to 50% at most
             if (distance >= static_cast<float>(BASESIZE)) {

@@ -20,7 +20,7 @@
 
 #include <QColor>
 
-class MapScreen;
+struct MapCanvasViewport;
 class OpenGL;
 struct MapCanvasTextures;
 
@@ -41,7 +41,7 @@ public:
 public:
     // Caller must apply the correct translation and rotation.
     NODISCARD static DistantObjectTransform construct(const glm::vec3 &pos,
-                                                      const MapScreen &mapScreen,
+                                                      const MapCanvasViewport &viewport,
                                                       float marginPixels);
 };
 
@@ -184,14 +184,16 @@ private:
     };
 
 private:
-    const MapScreen &m_mapScreen;
+    const MapCanvasViewport &m_viewport;
     const int m_currentLayer;
     const float m_scale;
     CharFakeGL m_fakeGL;
 
 public:
-    explicit CharacterBatch(const MapScreen &mapScreen, const int currentLayer, const float scale)
-        : m_mapScreen(mapScreen)
+    explicit CharacterBatch(const MapCanvasViewport &viewport,
+                            const int currentLayer,
+                            const float scale)
+        : m_viewport(viewport)
         , m_currentLayer(currentLayer)
         , m_scale(scale)
     {}

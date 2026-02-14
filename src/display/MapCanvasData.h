@@ -19,6 +19,7 @@
 #include <optional>
 #include <unordered_map>
 
+#include <QCursor>
 #include <QOpenGLTexture>
 #include <QWindow>
 #include <QtGui/QMatrix4x4>
@@ -86,6 +87,10 @@ public:
 
 struct NODISCARD MapCanvasViewport
 {
+public:
+    static constexpr const int BASESIZE = 528;
+    static constexpr const int SCROLL_SCALE = 64;
+
 private:
     QWindow &m_window;
 
@@ -120,26 +125,42 @@ public:
     NODISCARD std::optional<MouseSel> getUnprojectedMouseSel(const QInputEvent *event) const;
     NODISCARD std::optional<MouseSel> getUnprojectedMouseSel(const glm::vec2 &xy) const;
     NODISCARD std::optional<glm::vec2> getMouseCoords(const QInputEvent *event) const;
-};
 
-class NODISCARD MapScreen final
-{
+public:
+    void zoomAt(float factor, const glm::vec2 &mousePos, bool want3D);
+    void zoomIn() { m_scaleFactor.logStep(1); }
+    void zoomOut() { m_scaleFactor.logStep(-1); }
+    void zoomReset() { m_scaleFactor.set(1.f); }
+    void layerUp() { ++m_currentLayer; }
+    void layerDown() { --m_currentLayer; }
+    void layerReset() { m_currentLayer = 0; }
+    void centerOn(const Coordinate &pos);
+    void updateViewProj(bool want3D);
+    NODISCARD std::pair<int, int> calculateContinuousScroll(const glm::vec2 &mousePos) const;
+    bool performPanning(const glm::vec2 &mousePos,
+                        const glm::vec3 &startWorldPos,
+                        const glm::vec2 &startScroll,
+                        const glm::mat4 &startViewProj);
+    bool applyRotationDelta(int dx, int dy);
+    NODISCARD std::vector<Coordinate> calculateRaypickCoordinates(const glm::vec2 &xy) const;
+    NODISCARD std::pair<Coordinate, Coordinate> calculateInfomarkProbeRange(
+        const MouseSel &sel) const;
+
+protected:
+    NODISCARD float getPitchDegrees() const;
+    NODISCARD glm::mat4 getViewProj_old(const glm::ivec2 &size) const;
+    NODISCARD glm::mat4 getViewProj(const glm::ivec2 &size) const;
+
 public:
     static constexpr const float DEFAULT_MARGIN_PIXELS = 24.f;
 
-private:
-    const MapCanvasViewport &m_viewport;
+public:
     enum class NODISCARD VisiblityResultEnum {
         INSIDE_MARGIN,
         ON_MARGIN,
         OUTSIDE_MARGIN,
         OFF_SCREEN
     };
-
-public:
-    explicit MapScreen(const MapCanvasViewport &);
-    ~MapScreen();
-    DELETE_CTORS_AND_ASSIGN_OPS(MapScreen);
 
 public:
     NODISCARD glm::vec3 getCenter() const;
@@ -152,6 +173,21 @@ private:
 
 struct NODISCARD MapCanvasInputState
 {
+public:
+    void updateButtonState(const QMouseEvent *event);
+    void updateModifierState(const QInputEvent *event);
+    NODISCARD std::optional<float> calculatePinchDelta(const QTouchEvent *event);
+    NODISCARD std::optional<float> calculateNativeZoomDelta(const QNativeGestureEvent *event);
+
+    void handleEscape();
+    void updateRoomSelectionArea();
+    NODISCARD std::shared_ptr<InfomarkSelection> getInfomarkSelectionAt(
+        const MouseSel &sel, const MapCanvasViewport &viewport) const;
+    void handleMoveModeRightClick(const MouseSel &sel, const MapCanvasViewport &viewport);
+    void handleRoomSelectionRelease();
+    NODISCARD std::optional<Coordinate> handleInfomarkSelectionRelease();
+
+public:
     CanvasMouseModeEnum m_canvasMouseMode = CanvasMouseModeEnum::MOVE;
 
     bool m_mouseRightPressed = false;
@@ -175,7 +211,7 @@ struct NODISCARD MapCanvasInputState
     };
 
     std::optional<RoomSelMove> m_roomSelectionMove;
-    NODISCARD bool hasRoomSelectionMove() { return m_roomSelectionMove.has_value(); }
+    NODISCARD bool hasRoomSelectionMove() const { return m_roomSelectionMove.has_value(); }
 
     std::shared_ptr<InfomarkSelection> m_infoMarkSelection;
 
@@ -188,10 +224,11 @@ struct NODISCARD MapCanvasInputState
 
     std::shared_ptr<ConnectionSelection> m_connectionSelection;
 
+    MapData &m_mapData;
     PrespammedPath &m_prespammedPath;
 
 public:
-    explicit MapCanvasInputState(PrespammedPath &prespammedPath);
+    explicit MapCanvasInputState(MapData &mapData, PrespammedPath &prespammedPath);
     ~MapCanvasInputState();
 
 public:
@@ -216,6 +253,34 @@ public:
     NODISCARD MouseSel getBackup() const { return getMouseSel(m_moveBackup); }
 
 public:
-    void startMoving(const MouseSel &startPos) { m_moveBackup = startPos; }
-    void stopMoving() { m_moveBackup.reset(); }
+    void startMoving(const MouseSel &startPos, const glm::vec2 &scroll, const glm::mat4 &viewProj)
+    {
+        m_moveBackup = startPos;
+        m_dragState.emplace(DragState{startPos.to_vec3(), scroll, viewProj});
+    }
+    void stopMoving()
+    {
+        m_moveBackup.reset();
+        m_dragState.reset();
+    }
+
+public:
+    struct NODISCARD AltDragState
+    {
+        QPoint lastPos;
+        QCursor originalCursor;
+    };
+    std::optional<AltDragState> m_altDragState;
+
+    struct NODISCARD DragState
+    {
+        glm::vec3 startWorldPos;
+        glm::vec2 startScroll;
+        glm::mat4 startViewProj;
+    };
+    std::optional<DragState> m_dragState;
+
+    float m_initialPinchDistance = 0.f;
+    float m_lastPinchFactor = 1.f;
+    float m_lastMagnification = 1.f;
 };

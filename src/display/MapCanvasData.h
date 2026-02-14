@@ -154,7 +154,7 @@ protected:
 public:
     static constexpr const float DEFAULT_MARGIN_PIXELS = 24.f;
 
-private:
+public:
     enum class NODISCARD VisiblityResultEnum {
         INSIDE_MARGIN,
         ON_MARGIN,
@@ -178,6 +178,14 @@ public:
     void updateModifierState(const QInputEvent *event);
     NODISCARD std::optional<float> calculatePinchDelta(const QTouchEvent *event);
     NODISCARD std::optional<float> calculateNativeZoomDelta(const QNativeGestureEvent *event);
+
+    void handleEscape();
+    void updateRoomSelectionArea();
+    NODISCARD std::shared_ptr<InfomarkSelection> getInfomarkSelectionAt(
+        const MouseSel &sel, const MapCanvasViewport &viewport) const;
+    void handleMoveModeRightClick(const MouseSel &sel, const MapCanvasViewport &viewport);
+    void handleRoomSelectionRelease();
+    NODISCARD std::optional<Coordinate> handleInfomarkSelectionRelease();
 
 public:
     CanvasMouseModeEnum m_canvasMouseMode = CanvasMouseModeEnum::MOVE;
@@ -203,7 +211,7 @@ public:
     };
 
     std::optional<RoomSelMove> m_roomSelectionMove;
-    NODISCARD bool hasRoomSelectionMove() { return m_roomSelectionMove.has_value(); }
+    NODISCARD bool hasRoomSelectionMove() const { return m_roomSelectionMove.has_value(); }
 
     std::shared_ptr<InfomarkSelection> m_infoMarkSelection;
 
@@ -216,10 +224,11 @@ public:
 
     std::shared_ptr<ConnectionSelection> m_connectionSelection;
 
+    MapData &m_mapData;
     PrespammedPath &m_prespammedPath;
 
 public:
-    explicit MapCanvasInputState(PrespammedPath &prespammedPath);
+    explicit MapCanvasInputState(MapData &mapData, PrespammedPath &prespammedPath);
     ~MapCanvasInputState();
 
 public:

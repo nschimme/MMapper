@@ -4,10 +4,14 @@
 
 #include "MapCanvasData.h"
 
+#undef near // Bad dog, Microsoft; bad dog!!!
+#undef far  // Bad dog, Microsoft; bad dog!!!
+
 #include "../configuration/configuration.h"
 #include "../global/ConfigConsts.h"
 #include "../map/infomark.h"
 #include "../opengl/LineRendering.h"
+#include "InfomarkSelection.h"
 
 #include <algorithm>
 #include <cassert>
@@ -31,8 +35,9 @@ const MMapper::Array<RoomTintEnum, NUM_ROOM_TINTS> &getAllRoomTints()
     return all_room_tints;
 }
 
-MapCanvasInputState::MapCanvasInputState(PrespammedPath &prespammedPath)
-    : m_prespammedPath{prespammedPath}
+MapCanvasInputState::MapCanvasInputState(MapData &mapData, PrespammedPath &prespammedPath)
+    : m_mapData{mapData}
+    , m_prespammedPath{prespammedPath}
 {}
 
 MapCanvasInputState::~MapCanvasInputState() = default;
@@ -116,6 +121,135 @@ std::optional<float> MapCanvasInputState::calculateNativeZoomDelta(
     return deltaFactor;
 }
 
+void MapCanvasInputState::handleEscape()
+{
+    switch (m_canvasMouseMode) {
+    case CanvasMouseModeEnum::NONE:
+    case CanvasMouseModeEnum::CREATE_ROOMS:
+        break;
+
+    case CanvasMouseModeEnum::CREATE_CONNECTIONS:
+    case CanvasMouseModeEnum::SELECT_CONNECTIONS:
+    case CanvasMouseModeEnum::CREATE_ONEWAY_CONNECTIONS:
+        m_connectionSelection = nullptr;
+        break;
+
+    case CanvasMouseModeEnum::RAYPICK_ROOMS:
+    case CanvasMouseModeEnum::SELECT_ROOMS:
+        m_selectedArea = false;
+        m_roomSelectionMove.reset();
+        m_roomSelection.reset();
+        break;
+
+    case CanvasMouseModeEnum::MOVE:
+        // special case for move: right click selects infomarks
+        FALLTHROUGH;
+    case CanvasMouseModeEnum::SELECT_INFOMARKS:
+    case CanvasMouseModeEnum::CREATE_INFOMARKS:
+        m_infoMarkSelectionMove.reset();
+        m_infoMarkSelection = nullptr;
+        break;
+    }
+}
+
+void MapCanvasInputState::updateRoomSelectionArea()
+{
+    if (hasSel1() && hasSel2()) {
+        const Coordinate &c1 = getSel1().getCoordinate();
+        const Coordinate &c2 = getSel2().getCoordinate();
+        if (m_roomSelection == nullptr) {
+            // add rooms to default selections
+            m_roomSelection = RoomSelection::createSelection(m_mapData.findAllRooms(c1, c2));
+        } else {
+            auto &sel = deref(m_roomSelection);
+            sel.removeMissing(m_mapData);
+            // add or remove rooms to/from default selection
+            const auto tmpSel = m_mapData.findAllRooms(c1, c2);
+            for (const RoomId key : tmpSel) {
+                if (sel.contains(key)) {
+                    sel.erase(key);
+                } else {
+                    sel.insert(key);
+                }
+            }
+        }
+    }
+}
+
+std::shared_ptr<InfomarkSelection> MapCanvasInputState::getInfomarkSelectionAt(
+    const MouseSel &sel, const MapCanvasViewport &viewport) const
+{
+    const auto [lo, hi] = viewport.calculateInfomarkProbeRange(sel);
+    return InfomarkSelection::alloc(m_mapData, lo, hi);
+}
+
+void MapCanvasInputState::handleMoveModeRightClick(const MouseSel &sel,
+                                                   const MapCanvasViewport &viewport)
+{
+    m_roomSelection = RoomSelection::createSelection(m_mapData.findAllRooms(sel.getCoordinate()));
+    m_infoMarkSelection = getInfomarkSelectionAt(sel, viewport);
+}
+
+void MapCanvasInputState::handleRoomSelectionRelease()
+{
+    if (m_roomSelectionMove.has_value()) {
+        const auto pos = m_roomSelectionMove->pos;
+        const bool wrongPlace = m_roomSelectionMove->wrongPlace;
+        m_roomSelectionMove.reset();
+        if (!wrongPlace && (m_roomSelection != nullptr)) {
+            const Coordinate moverel{pos, 0};
+            m_mapData.applySingleChange(
+                Change{room_change_types::MoveRelative2{m_roomSelection->getRoomIds(), moverel}});
+        }
+    } else {
+        if (hasSel1() && hasSel2()) {
+            const Coordinate &c1 = getSel1().getCoordinate();
+            const Coordinate &c2 = getSel2().getCoordinate();
+            if (m_roomSelection == nullptr) {
+                m_roomSelection = RoomSelection::createSelection(m_mapData.findAllRooms(c1, c2));
+            } else {
+                auto &sel = deref(m_roomSelection);
+                sel.removeMissing(m_mapData);
+                const auto tmpSel = m_mapData.findAllRooms(c1, c2);
+                for (const RoomId key : tmpSel) {
+                    if (sel.contains(key)) {
+                        sel.erase(key);
+                    } else {
+                        sel.insert(key);
+                    }
+                }
+            }
+        }
+    }
+    m_selectedArea = false;
+}
+
+std::optional<Coordinate> MapCanvasInputState::handleInfomarkSelectionRelease()
+{
+    if (hasInfomarkSelectionMove()) {
+        const auto pos_copy = m_infoMarkSelectionMove->pos;
+        m_infoMarkSelectionMove.reset();
+        if (m_infoMarkSelection != nullptr) {
+            const auto offset
+                = Coordinate{(pos_copy * static_cast<float>(INFOMARK_SCALE)).truncate(), 0};
+            const InfomarkSelection &sel = deref(m_infoMarkSelection);
+            sel.applyOffset(offset);
+            m_selectedArea = false;
+            return offset;
+        }
+    } else if (hasSel1() && hasSel2()) {
+        const auto c1 = getSel1().getScaledCoordinate(static_cast<float>(INFOMARK_SCALE));
+        const auto c2 = getSel2().getScaledCoordinate(static_cast<float>(INFOMARK_SCALE));
+        if (m_canvasMouseMode == CanvasMouseModeEnum::CREATE_INFOMARKS) {
+            m_infoMarkSelection = InfomarkSelection::allocEmpty(m_mapData, c1, c2);
+        } else {
+            m_infoMarkSelection = InfomarkSelection::alloc(m_mapData, c1, c2);
+        }
+    }
+    m_selectedArea = false;
+    return std::nullopt;
+}
+
 // world space to screen space (logical pixels)
 std::optional<glm::vec3> MapCanvasViewport::project(const glm::vec3 &v) const
 {
@@ -185,10 +319,10 @@ glm::vec3 MapCanvasViewport::unproject_clamped(const glm::vec2 &mouse,
     const auto flayer = static_cast<float>(m_currentLayer);
     const auto &x = mouse.x;
     const auto &y = mouse.y;
-    const auto a = unproject_raw(glm::vec3{x, y, 0.f}, viewProj); // near
-    const auto b = unproject_raw(glm::vec3{x, y, 1.f}, viewProj); // far
-    const float t = (flayer - a.z) / (b.z - a.z);
-    const auto result = glm::mix(a, b, std::clamp(t, 0.f, 1.f));
+    const auto nearPos = unproject_raw(glm::vec3{x, y, 0.f}, viewProj);
+    const auto farPos = unproject_raw(glm::vec3{x, y, 1.f}, viewProj);
+    const float t = (flayer - nearPos.z) / (farPos.z - nearPos.z);
+    const auto result = glm::mix(nearPos, farPos, std::clamp(t, 0.f, 1.f));
     return glm::vec3{glm::vec2{result}, flayer};
 }
 
@@ -244,9 +378,10 @@ std::optional<glm::vec3> MapCanvasViewport::unproject(const glm::vec2 &xy) const
     // two different depths and find where the ray intersects the
     // current layer.
 
-    const auto a = unproject_raw(glm::vec3{xy, 0.f}); // near
-    const auto b = unproject_raw(glm::vec3{xy, 1.f}); // far
-    const auto unclamped = (static_cast<float>(m_currentLayer) - a.z) / (b.z - a.z);
+    const auto nearPos = unproject_raw(glm::vec3{xy, 0.f});
+    const auto farPos = unproject_raw(glm::vec3{xy, 1.f});
+    const auto unclamped = (static_cast<float>(m_currentLayer) - nearPos.z)
+                           / (farPos.z - nearPos.z);
 
     if (!::isClamped(unclamped, 0.f - mmgl::PROJECTION_EPSILON, 1.f + mmgl::PROJECTION_EPSILON)) {
         return std::nullopt;
@@ -254,7 +389,7 @@ std::optional<glm::vec3> MapCanvasViewport::unproject(const glm::vec2 &xy) const
 
     // REVISIT: set the z value exactly to m_currentLayer?
     // (Note: caller ignores Z and uses integer value for current layer)
-    return glm::mix(a, b, glm::clamp(unclamped, 0.f, 1.f));
+    return glm::mix(nearPos, farPos, glm::clamp(unclamped, 0.f, 1.f));
 }
 
 std::optional<MouseSel> MapCanvasViewport::getUnprojectedMouseSel(const QInputEvent *const event) const
@@ -471,21 +606,21 @@ bool MapCanvasViewport::applyRotationDelta(const int dx, const int dy)
 
 std::vector<Coordinate> MapCanvasViewport::calculateRaypickCoordinates(const glm::vec2 &xy) const
 {
-    const auto near = unproject_raw(glm::vec3{xy, 0.f});
-    const auto far = unproject_raw(glm::vec3{xy, 1.f});
+    const auto nearPos = unproject_raw(glm::vec3{xy, 0.f});
+    const auto farPos = unproject_raw(glm::vec3{xy, 1.f});
 
-    const auto hiz = static_cast<int>(std::floor(near.z));
-    const auto loz = static_cast<int>(std::ceil(far.z));
+    const auto hiz = static_cast<int>(std::floor(nearPos.z));
+    const auto loz = static_cast<int>(std::ceil(farPos.z));
     if (hiz <= loz) {
         return {};
     }
 
-    const auto inv_denom = 1.f / (far.z - near.z);
+    const auto inv_denom = 1.f / (farPos.z - nearPos.z);
     std::vector<Coordinate> coords;
     for (int z = hiz; z >= loz; --z) {
-        const float t = (static_cast<float>(z) - near.z) * inv_denom;
+        const float t = (static_cast<float>(z) - nearPos.z) * inv_denom;
         if (::isClamped(t, 0.f, 1.f)) {
-            const auto pos = glm::mix(near, far, t);
+            const auto pos = glm::mix(nearPos, farPos, t);
             coords.emplace_back(MouseSel{Coordinate2f{pos.x, pos.y}, z}.getCoordinate());
         }
     }

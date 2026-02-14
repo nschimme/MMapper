@@ -9,7 +9,7 @@ out vec4 vFragmentColor;
 
 void main()
 {
-    if (dot(gl_PointCoord-0.5, gl_PointCoord-0.5) > 0.25) {
+    if (dot(gl_PointCoord - 0.5, gl_PointCoord - 0.5) > 0.25) {
         discard;
     }
     vFragmentColor = vColor * uColor;

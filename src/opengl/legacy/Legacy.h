@@ -420,7 +420,10 @@ public:
             return;
         }
         Base::glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        Base::glBufferSubData(GL_ARRAY_BUFFER, offset, batch.size() * sizeof(T), batch.data());
+        Base::glBufferSubData(GL_ARRAY_BUFFER,
+                              offset,
+                              static_cast<GLsizeiptr>(batch.size() * sizeof(T)),
+                              batch.data());
         Base::glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
 

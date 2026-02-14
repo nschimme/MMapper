@@ -202,7 +202,7 @@ MegaRoomVert RoomDataBuffer::packRoom(const RoomHandle &room,
     v.load_flags = room.getLoadFlags().asUint32();
 
     // Walls
-    for (int i = 0; i < 6; ++i) {
+    for (size_t i = 0; i < 6; ++i) {
         const ExitDirEnum dir = ALL_EXITS_NESWUD[i];
         const auto &exit = room.getExit(dir);
         const ExitFlags flags = exit.getExitFlags();

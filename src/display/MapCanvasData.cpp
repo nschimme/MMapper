@@ -6,11 +6,13 @@
 
 #include "../opengl/LineRendering.h"
 
+#include <cassert>
 #include <cmath>
 #include <optional>
 
 #include <glm/gtc/epsilon.hpp>
 
+#include <QDebug>
 #include <QNativeGestureEvent>
 #include <QPointF>
 #include <QTouchEvent>
@@ -132,6 +134,8 @@ std::optional<glm::vec2> MapCanvasViewport::getMouseCoords(const QInputEvent *co
         const auto y = static_cast<float>(height() - centroid.y());
         return glm::vec2{x, y};
     } else {
+        qWarning() << "MapCanvasViewport::getMouseCoords: unhandled event type" << event->type();
+        assert(false);
         return std::nullopt;
     }
 }

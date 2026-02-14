@@ -5,6 +5,8 @@
 #include "Legacy.h"
 #include "VBO.h"
 
+#include <string>
+
 namespace Legacy {
 
 static constexpr GLuint INVALID_ATTRIB_LOCATION = ~0u;
@@ -85,6 +87,8 @@ private:
 
 public:
     void setPointSize(float in_pointSize);
+    void setFloat(const char *name, float value);
+    void setVec3(const char *name, const glm::vec3 &v);
     void setColor(const char *name, Color color);
     void setMatrix(const char *name, const glm::mat4 &m);
     void setTexture(const char *name, int textureUnit);

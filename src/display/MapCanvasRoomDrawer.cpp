@@ -1115,65 +1115,57 @@ FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTextur
 {
     const auto visitRoomOptions = getVisitRoomOptions();
 
-    return std::async(std::launch::async,
-                      [textures, font, map, previousMap, chunkSize, visitRoomOptions]()
-                          -> SharedMapBatchFinisher {
-                          ThreadLocalNamedColorRaii tlRaii{visitRoomOptions.canvasColors,
-                                                           visitRoomOptions.colorSettings};
-                          DECL_TIMER(t, "[ASYNC] generateChunks");
+    return std::async(
+        std::launch::async,
+        [textures, font, map, previousMap, chunkSize, visitRoomOptions]() -> SharedMapBatchFinisher {
+            ThreadLocalNamedColorRaii tlRaii{visitRoomOptions.canvasColors,
+                                             visitRoomOptions.colorSettings};
+            DECL_TIMER(t, "[ASYNC] generateChunks");
 
-                          ProgressCounter dummyPc;
-                          map.checkConsistency(dummyPc);
+            ProgressCounter dummyPc;
+            map.checkConsistency(dummyPc);
 
-                          std::set<ChunkId> dirtyChunks;
-                          if (previousMap.has_value()) {
-                              const Map &prev = previousMap.value();
-                              Map::foreachChangedRoom(dummyPc, prev, map, [&](const RawRoom &room) {
-                                  dirtyChunks.insert(getChunkId(room.getPosition(), chunkSize));
-                                  // Mark chunks of connected rooms as dirty too
-                                  for (const ExitDirEnum dir : ALL_EXITS7) {
-                                      const auto &exit = room.getExit(dir);
-                                      for (const RoomId id : exit.getOutgoingSet()) {
-                                          if (const auto r2 = map.findRoomHandle(id))
-                                              dirtyChunks.insert(
-                                                  getChunkId(r2.getPosition(), chunkSize));
-                                      }
-                                      for (const RoomId id : exit.getIncomingSet()) {
-                                          if (const auto r2 = map.findRoomHandle(id))
-                                              dirtyChunks.insert(
-                                                  getChunkId(r2.getPosition(), chunkSize));
-                                      }
-                                  }
-                              });
-                          }
+            std::set<ChunkId> dirtyChunks;
+            if (previousMap.has_value()) {
+                const Map &prev = previousMap.value();
+                Map::foreachChangedRoom(dummyPc, prev, map, [&](const RawRoom &room) {
+                    dirtyChunks.insert(getChunkId(room.getPosition(), chunkSize));
+                    // Mark chunks of connected rooms as dirty too
+                    for (const ExitDirEnum dir : ALL_EXITS7) {
+                        const auto &exit = room.getExit(dir);
+                        for (const RoomId id : exit.getOutgoingSet()) {
+                            if (const auto r2 = map.findRoomHandle(id))
+                                dirtyChunks.insert(getChunkId(r2.getPosition(), chunkSize));
+                        }
+                        for (const RoomId id : exit.getIncomingSet()) {
+                            if (const auto r2 = map.findRoomHandle(id))
+                                dirtyChunks.insert(getChunkId(r2.getPosition(), chunkSize));
+                        }
+                    }
+                });
+            }
 
-                          const auto chunkToRooms = std::invoke([&map,
-                                                                 &dirtyChunks,
-                                                                 chunkSize]() -> std::map<ChunkId, RoomVector> {
-                              DECL_TIMER(t2, "[ASYNC] generateBatches.chunkToRooms");
-                              std::map<ChunkId, RoomVector> ctr;
-                              map.getRooms().for_each([&map, &ctr, &dirtyChunks, chunkSize](const RoomId id) {
-                                  const auto &r = map.getRoomHandle(id);
-                                  const auto cid = getChunkId(r.getPosition(), chunkSize);
-                                  if (dirtyChunks.empty() || dirtyChunks.count(cid)) {
-                                      auto &chunk = ctr[cid];
-                                      chunk.emplace_back(r);
-                                  }
-                              });
-                              return ctr;
-                          });
+            const auto chunkToRooms = std::invoke(
+                [&map, &dirtyChunks, chunkSize]() -> std::map<ChunkId, RoomVector> {
+                    DECL_TIMER(t2, "[ASYNC] generateBatches.chunkToRooms");
+                    std::map<ChunkId, RoomVector> ctr;
+                    map.getRooms().for_each([&map, &ctr, &dirtyChunks, chunkSize](const RoomId id) {
+                        const auto &r = map.getRoomHandle(id);
+                        const auto cid = getChunkId(r.getPosition(), chunkSize);
+                        if (dirtyChunks.empty() || dirtyChunks.count(cid)) {
+                            auto &chunk = ctr[cid];
+                            chunk.emplace_back(r);
+                        }
+                    });
+                    return ctr;
+                });
 
-                          auto result = std::make_shared<InternalData>();
-                          auto &data = deref(result);
-                          data.dirtyChunks = std::move(dirtyChunks);
-                          generateChunks(data,
-                                         deref(font),
-                                         chunkToRooms,
-                                         chunkSize,
-                                         textures,
-                                         visitRoomOptions);
-                          return SharedMapBatchFinisher{result};
-                      });
+            auto result = std::make_shared<InternalData>();
+            auto &data = deref(result);
+            data.dirtyChunks = std::move(dirtyChunks);
+            generateChunks(data, deref(font), chunkToRooms, chunkSize, textures, visitRoomOptions);
+            return SharedMapBatchFinisher{result};
+        });
 }
 
 void finish(const IMapBatchesFinisher &finisher,

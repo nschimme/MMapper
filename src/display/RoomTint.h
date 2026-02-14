@@ -3,6 +3,7 @@
 // Copyright (C) 2021 The MMapper Authors
 
 #include "../global/Array.h"
+
 #include <cstddef>
 
 enum class NODISCARD RoomTintEnum { DARK, NO_SUNDEATH };

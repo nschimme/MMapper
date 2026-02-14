@@ -32,21 +32,21 @@ static constexpr float PATH_LINE_WIDTH = 0.1f;
 static constexpr float PATH_POINT_SIZE = 8.f;
 
 DistantObjectTransform DistantObjectTransform::construct(const glm::vec3 &pos,
-                                                         const MapScreen &mapScreen,
+                                                         const MapCanvasViewport &viewport,
                                                          const float marginPixels)
 {
     assert(marginPixels > 0.f);
-    const glm::vec3 viewCenter = mapScreen.getCenter();
+    const glm::vec3 viewCenter = viewport.getCenter();
     const auto delta = pos - viewCenter;
     const float radians = std::atan2(delta.y, delta.x);
-    const auto hint = mapScreen.getProxyLocation(pos, marginPixels);
+    const auto hint = viewport.getProxyLocation(pos, marginPixels);
     const float degrees = glm::degrees(radians);
     return DistantObjectTransform{hint, degrees};
 }
 
 bool CharacterBatch::isVisible(const Coordinate &c, float margin) const
 {
-    return m_mapScreen.isRoomVisible(c, margin);
+    return m_viewport.isRoomVisible(c, margin);
 }
 
 void CharacterBatch::drawCharacter(const Coordinate &c, const Color color, bool fill)
@@ -60,7 +60,7 @@ void CharacterBatch::drawCharacter(const Coordinate &c, const Color color, bool 
     gl.setColor(color);
 
     // REVISIT: The margin probably needs to be modified for high-dpi.
-    const float marginPixels = MapScreen::DEFAULT_MARGIN_PIXELS;
+    const float marginPixels = MapCanvasViewport::DEFAULT_MARGIN_PIXELS;
     const bool visible = isVisible(c, marginPixels / 2.f);
     const bool isFar = m_scale <= settings.charBeaconScaleCutoff;
     const bool wantBeacons = settings.drawCharBeacons && isFar;
@@ -69,7 +69,7 @@ void CharacterBatch::drawCharacter(const Coordinate &c, const Color color, bool 
             auto opt = utils::getEnvBool("MMAPPER_SCREEN_SPACE_ARROW");
             return opt ? opt.value() : true;
         });
-        const auto dot = DistantObjectTransform::construct(roomCenter, m_mapScreen, marginPixels);
+        const auto dot = DistantObjectTransform::construct(roomCenter, m_viewport, marginPixels);
         // Player is distant
         if (useScreenSpacePlayerArrow) {
             gl.addScreenSpaceArrow(dot.offset, dot.rotationDegrees, color, fill);
@@ -376,7 +376,7 @@ void CharacterBatch::CharFakeGL::addScreenSpaceArrow(const glm::vec3 &pos,
         glm::vec2{0, 1},
     };
 
-    const float scale = MapScreen::DEFAULT_MARGIN_PIXELS;
+    const float scale = MapCanvasViewport::DEFAULT_MARGIN_PIXELS;
     const float radians = glm::radians(degrees);
     const glm::vec3 z{0, 0, 1};
     const glm::mat4 rotation = glm::rotate(glm::mat4(1), radians, z);
@@ -399,7 +399,9 @@ void MapCanvas::paintCharacters()
         return;
     }
 
-    CharacterBatch characterBatch{m_mapScreen, m_currentLayer, getTotalScaleFactor()};
+    CharacterBatch characterBatch{static_cast<MapCanvasViewport &>(*this),
+                                  m_currentLayer,
+                                  getTotalScaleFactor()};
 
     // IIFE to abuse return to avoid duplicate else branches
     std::invoke([this, &characterBatch]() -> void {

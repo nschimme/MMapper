@@ -136,31 +136,31 @@ public:
     void layerReset() { m_currentLayer = 0; }
     void centerOn(const Coordinate &pos);
     void updateViewProj(bool want3D);
+    NODISCARD std::pair<int, int> calculateContinuousScroll(const glm::vec2 &mousePos) const;
+    bool performPanning(const glm::vec2 &mousePos,
+                        const glm::vec3 &startWorldPos,
+                        const glm::vec2 &startScroll,
+                        const glm::mat4 &startViewProj);
+    bool applyRotationDelta(int dx, int dy);
+    NODISCARD std::vector<Coordinate> calculateRaypickCoordinates(const glm::vec2 &xy) const;
+    NODISCARD std::pair<Coordinate, Coordinate> calculateInfomarkProbeRange(
+        const MouseSel &sel) const;
 
 protected:
     NODISCARD float getPitchDegrees() const;
     NODISCARD glm::mat4 getViewProj_old(const glm::ivec2 &size) const;
     NODISCARD glm::mat4 getViewProj(const glm::ivec2 &size) const;
-};
 
-class NODISCARD MapScreen final
-{
 public:
     static constexpr const float DEFAULT_MARGIN_PIXELS = 24.f;
 
 private:
-    const MapCanvasViewport &m_viewport;
     enum class NODISCARD VisiblityResultEnum {
         INSIDE_MARGIN,
         ON_MARGIN,
         OUTSIDE_MARGIN,
         OFF_SCREEN
     };
-
-public:
-    explicit MapScreen(const MapCanvasViewport &);
-    ~MapScreen();
-    DELETE_CTORS_AND_ASSIGN_OPS(MapScreen);
 
 public:
     NODISCARD glm::vec3 getCenter() const;
@@ -173,6 +173,13 @@ private:
 
 struct NODISCARD MapCanvasInputState
 {
+public:
+    void updateButtonState(const QMouseEvent *event);
+    void updateModifierState(const QInputEvent *event);
+    NODISCARD std::optional<float> calculatePinchDelta(const QTouchEvent *event);
+    NODISCARD std::optional<float> calculateNativeZoomDelta(const QNativeGestureEvent *event);
+
+public:
     CanvasMouseModeEnum m_canvasMouseMode = CanvasMouseModeEnum::MOVE;
 
     bool m_mouseRightPressed = false;

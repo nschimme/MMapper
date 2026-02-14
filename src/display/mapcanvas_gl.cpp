@@ -816,7 +816,7 @@ void MapCanvas::paintGL()
                             static_cast<double>(zoom),
                             1.0 / static_cast<double>(zoom)));
 
-    const auto ctr = m_mapScreen.getCenter();
+    const auto ctr = getCenter();
     print(QString::asprintf("center: %.1f, %.1f, %.1f",
                             static_cast<double>(ctr.x),
                             static_cast<double>(ctr.y),

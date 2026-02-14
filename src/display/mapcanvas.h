@@ -133,7 +133,6 @@ private:
     };
 
 private:
-    MapScreen m_mapScreen;
     OpenGL m_opengl;
     GLFont m_glFont;
     Batches m_batches;

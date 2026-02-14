@@ -469,6 +469,7 @@ void MainWindow::wireConnections()
             &MapCanvas::sig_customContextMenuRequested,
             this,
             &MainWindow::slot_showContextMenu);
+    connect(canvas, &MapCanvas::sig_dismissContextMenu, this, &MainWindow::slot_closeContextMenu);
 
     // Group
     connect(m_groupManager, &Mmapper2Group::sig_log, this, &MainWindow::slot_log);
@@ -1232,41 +1233,46 @@ void MainWindow::setupMenuBar()
 
 void MainWindow::slot_showContextMenu(const QPoint &pos)
 {
-    auto *contextMenu = new QMenu(tr("Context menu"), this);
-    contextMenu->setAttribute(Qt::WA_DeleteOnClose);
+    if (m_contextMenu) {
+        m_contextMenu->close();
+        m_contextMenu->deleteLater();
+    }
+
+    m_contextMenu = new QMenu(tr("Context menu"), this);
+    m_contextMenu->setAttribute(Qt::WA_DeleteOnClose);
     if (m_connectionSelection != nullptr) {
         // Connections cannot be selected alongside rooms and infomarks
         // ^^^ Let's enforce that with a variant then?
-        contextMenu->addAction(deleteConnectionSelectionAct);
+        m_contextMenu->addAction(deleteConnectionSelectionAct);
 
     } else {
         // However, both rooms and infomarks can be selected at once
         if (m_roomSelection != nullptr) {
             if (m_roomSelection->empty()) {
-                contextMenu->addAction(createRoomAct);
+                m_contextMenu->addAction(createRoomAct);
             } else {
-                contextMenu->addAction(editRoomSelectionAct);
-                contextMenu->addAction(moveUpRoomSelectionAct);
-                contextMenu->addAction(moveDownRoomSelectionAct);
-                contextMenu->addAction(mergeUpRoomSelectionAct);
-                contextMenu->addAction(mergeDownRoomSelectionAct);
-                contextMenu->addAction(deleteRoomSelectionAct);
-                contextMenu->addAction(connectToNeighboursRoomSelectionAct);
-                contextMenu->addSeparator();
-                contextMenu->addAction(gotoRoomAct);
-                contextMenu->addAction(forceRoomAct);
+                m_contextMenu->addAction(editRoomSelectionAct);
+                m_contextMenu->addAction(moveUpRoomSelectionAct);
+                m_contextMenu->addAction(moveDownRoomSelectionAct);
+                m_contextMenu->addAction(mergeUpRoomSelectionAct);
+                m_contextMenu->addAction(mergeDownRoomSelectionAct);
+                m_contextMenu->addAction(deleteRoomSelectionAct);
+                m_contextMenu->addAction(connectToNeighboursRoomSelectionAct);
+                m_contextMenu->addSeparator();
+                m_contextMenu->addAction(gotoRoomAct);
+                m_contextMenu->addAction(forceRoomAct);
             }
         }
         if (m_infoMarkSelection != nullptr && !m_infoMarkSelection->empty()) {
             if (m_roomSelection != nullptr) {
-                contextMenu->addSeparator();
+                m_contextMenu->addSeparator();
             }
-            contextMenu->addAction(infomarkActions.editInfomarkAct);
-            contextMenu->addAction(infomarkActions.deleteInfomarkAct);
+            m_contextMenu->addAction(infomarkActions.editInfomarkAct);
+            m_contextMenu->addAction(infomarkActions.deleteInfomarkAct);
         }
     }
-    contextMenu->addSeparator();
-    QMenu *mouseMenu = contextMenu->addMenu(QIcon::fromTheme("input-mouse"), "Mouse Mode");
+    m_contextMenu->addSeparator();
+    QMenu *mouseMenu = m_contextMenu->addMenu(QIcon::fromTheme("input-mouse"), "Mouse Mode");
     mouseMenu->addAction(mouseMode.modeMoveSelectAct);
     mouseMenu->addAction(mouseMode.modeRoomRaypickAct);
     mouseMenu->addAction(mouseMode.modeRoomSelectAct);
@@ -1277,7 +1283,14 @@ void MainWindow::slot_showContextMenu(const QPoint &pos)
     mouseMenu->addAction(mouseMode.modeCreateConnectionAct);
     mouseMenu->addAction(mouseMode.modeCreateOnewayConnectionAct);
 
-    contextMenu->popup(getCanvas()->mapToGlobal(pos));
+    m_contextMenu->popup(getCanvas()->mapToGlobal(pos));
+}
+
+void MainWindow::slot_closeContextMenu()
+{
+    if (m_contextMenu) {
+        m_contextMenu->close();
+    }
 }
 
 void MainWindow::slot_alwaysOnTop()

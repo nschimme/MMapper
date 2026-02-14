@@ -247,6 +247,10 @@ void MapCanvas::slot_onForcedPositionChange()
 
 void MapCanvas::touchEvent(QTouchEvent *const event)
 {
+    if (event->type() == QEvent::TouchBegin) {
+        emit sig_dismissContextMenu();
+    }
+
     const auto &points = event->points();
     if (points.size() == 2) {
         const auto &p1 = points[0];
@@ -409,6 +413,10 @@ std::shared_ptr<InfomarkSelection> MapCanvas::getInfomarkSelection(const MouseSe
 
 void MapCanvas::mousePressEvent(QMouseEvent *const event)
 {
+    if (event->button() != Qt::RightButton) {
+        emit sig_dismissContextMenu();
+    }
+
     const bool hasLeftButton = (event->buttons() & Qt::LeftButton) != 0u;
     const bool hasRightButton = (event->buttons() & Qt::RightButton) != 0u;
     const bool hasCtrl = (event->modifiers() & Qt::CTRL) != 0u;
@@ -454,6 +462,7 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
 
             selectionChanged();
         }
+        emit sig_customContextMenuRequested(event->position().toPoint());
         m_mouseRightPressed = false;
         event->accept();
         return;
@@ -859,7 +868,8 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
             m_mouseLeftPressed = false;
         }
         // Display a room info tooltip if there was no mouse movement
-        if (hasSel1() && hasSel2() && getSel1().to_vec3() == getSel2().to_vec3()) {
+        if (event->button() == Qt::LeftButton && hasSel1() && hasSel2()
+            && getSel1().to_vec3() == getSel2().to_vec3()) {
             if (const auto room = m_data.findRoomHandle(getSel1().getCoordinate())) {
                 // Tooltip doesn't support ANSI, and there's no way to add formatted text.
                 auto message = mmqt::previewRoom(room,

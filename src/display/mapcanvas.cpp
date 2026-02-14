@@ -860,7 +860,8 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
             m_mouseLeftPressed = false;
         }
         // Display a room info tooltip if there was no mouse movement
-        if (hasSel1() && hasSel2() && getSel1().to_vec3() == getSel2().to_vec3()) {
+        if (event->button() == Qt::LeftButton && hasSel1() && hasSel2()
+            && getSel1().to_vec3() == getSel2().to_vec3()) {
             if (const auto room = m_data.findRoomHandle(getSel1().getCoordinate())) {
                 // Tooltip doesn't support ANSI, and there's no way to add formatted text.
                 auto message = mmqt::previewRoom(room,

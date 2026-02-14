@@ -1233,6 +1233,7 @@ void MainWindow::setupMenuBar()
 void MainWindow::slot_showContextMenu(const QPoint &pos)
 {
     if (m_contextMenu) {
+        m_contextMenu->close();
         m_contextMenu->deleteLater();
     }
 

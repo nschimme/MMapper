@@ -628,7 +628,7 @@ list(APPEND mmapper_SRCS "${CMAKE_CURRENT_BINARY_DIR}/Version.cpp")
 
 if(CHECK_ODR)
     message(STATUS "Will check headers for ODR violations (slow)")
-#ODR Violation Check
+    # ODR Violation Check
     file(GLOB_RECURSE mmapper_HDRS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.h)
     list(SORT mmapper_HDRS)
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/odr.cpp "// This generated file exists to help detect ODR violations.\n"
@@ -637,7 +637,7 @@ if(CHECK_ODR)
     foreach(header_path ${mmapper_HDRS})
         file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/odr.cpp "#include \"${header_path}\"\n")
     endforeach()
-#REVISIT : Find a way to avoid adding this to mmapper_SRCS ?
+    # REVISIT: Find a way to avoid adding this to mmapper_SRCS?
     list(APPEND mmapper_SRCS "${CMAKE_CURRENT_BINARY_DIR}/odr.cpp")
 endif()
 
@@ -650,7 +650,7 @@ if(CHECK_MISSING_INCLUDES)
         set_property(SOURCE ${FNAME} APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${header_path})
         set(FNAME "")
     endforeach()
-#REVISIT : Find a way to avoid adding this to mmapper_SRCS ?
+    # REVISIT: Find a way to avoid adding this to mmapper_SRCS?
     list(APPEND mmapper_SRCS ${DUMMY_FILES})
 endif()
 
@@ -673,7 +673,7 @@ message("mmapper_map_SRCS=[${mmapper_map_SRCS}]")
 add_library(mm_global STATIC ${mmapper_global_SRCS})
 add_library(mm_map STATIC ${mmapper_map_SRCS})
 
-#Build the executable
+# Build the executable
 set(mmapper_EXECUTABLE_ARGS
     ${mmapper_SRCS}
     ${mmapper_UIS}
@@ -704,7 +704,7 @@ target_link_libraries(mmapper PUBLIC
     Qt6::Network
     Qt6::OpenGL
     Qt6::OpenGLWidgets
-#note : link order matters on some platforms.include ${mm_libs } twice if you have a link failure.
+    # note: link order matters on some platforms. include ${mm_libs} twice if you have a link failure.
     ${mm_libs}
     ${CMAKE_THREAD_LIBS_INIT}
     coverage_config
@@ -743,18 +743,18 @@ target_include_directories(mm_global SYSTEM PUBLIC
         ${IMMER_INCLUDE_DIR}
         ${Qt6Core_INCLUDE_DIRS}
         ${Qt6Widgets_INCLUDE_DIRS}
-#${Qt6_Network_INCLUDE_DIRS }
-#${Qt6_OpenGL_INCLUDE_DIRS }
-#${Qt6OpenGLWidgets_INCLUDE_DIRS }
+        #${Qt6_Network_INCLUDE_DIRS}
+        #${Qt6_OpenGL_INCLUDE_DIRS}
+        #${Qt6OpenGLWidgets_INCLUDE_DIRS}
 )
 target_include_directories(mm_map SYSTEM PUBLIC
         ${GLM_INCLUDE_DIR}
         ${IMMER_INCLUDE_DIR}
         ${Qt6Core_INCLUDE_DIRS}
         ${Qt6Widgets_INCLUDE_DIRS}
-#${Qt6_Network_INCLUDE_DIRS }
-#${Qt6_OpenGL_INCLUDE_DIRS }
-#${Qt6OpenGLWidgets_INCLUDE_DIRS }
+        #${Qt6_Network_INCLUDE_DIRS}
+        #${Qt6_OpenGL_INCLUDE_DIRS}
+        #${Qt6OpenGLWidgets_INCLUDE_DIRS}
 )
 target_link_libraries(mm_global PUBLIC
     Qt6::Core
@@ -869,7 +869,7 @@ if(USE_IWYU)
     endif()
 endif()
 
-#Begin CPack Settings
+# Begin CPack Settings
 string(REGEX REPLACE "^v" "" CPACK_PACKAGE_VERSION "${MMAPPER_VERSION_STRING}")
 string(REGEX MATCH "^([0-9]+)\\.([0-9]+)\\.([0-9]+)-?([0-9]+)?.*$" _ "${CPACK_PACKAGE_VERSION}")
 set(CPACK_PACKAGE_VERSION_MAJOR ${CMAKE_MATCH_1})
@@ -893,34 +893,34 @@ endif()
 message(STATUS "Packaging for target: ${CPACK_SYSTEM_NAME} ${TARGET_ARCHITECTURE} ${PACKAGE_TYPE_NORMALIZED}")
 set(CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_SYSTEM_NAME}-${TARGET_ARCHITECTURE}")
 
-#Components:
+# Components:
 if(CMAKE_BUILD_TYPE_UPPER MATCHES "^(DEBUG|RELWITHDEBINFO)$")
     set(CPACK_STRIP_FILES FALSE)
 else()
     set(CPACK_STRIP_FILES TRUE)
 endif()
 
-#Linux Install Settings
+# Linux Install Settings
 if(UNIX AND NOT APPLE)
     set(SHARE_INSTALL_PREFIX
         "${CMAKE_INSTALL_PREFIX}/share"
         CACHE PATH "Base directory for files which go to share/"
     )
 
-#Install Executables
+    # Install Executables
     install(
         TARGETS mmapper
         RUNTIME DESTINATION bin
         COMPONENT applications
     )
 
-#Linux Desktop Integration
+    # Linux Desktop Integration
     install(FILES org.mume.MMapper.desktop
             DESTINATION share/applications
             COMPONENT desktopintegration
     )
 
-#Install icons
+    # Install icons
     foreach(RES 16 32 48 96 128 256)
         install(
             FILES resources/icons/hi${RES}-app-mmapper-${MMAPPER_BRAND_SUFFIX}.png
@@ -940,7 +940,7 @@ if(UNIX AND NOT APPLE)
     set(CPACK_GENERATOR "DEB") # Others: RPM, STGZ
     set(CPACK_SOURCE_GENERATOR "TGZ")
 
-#Debian
+    # Debian
     set(CPACK_DEBIAN_PACKAGE_MAINTAINER "nschimme@gmail.com")
     set(CPACK_DEBIAN_PACKAGE_NAME "mmapper")
     set(CPACK_DEBIAN_COMPRESSION_TYPE "xz")
@@ -959,7 +959,7 @@ if(UNIX AND NOT APPLE)
     endif()
 endif(UNIX AND NOT APPLE)
 
-#Windows Install Settings
+# Windows Install Settings
 if(WIN32)
     if(MMAPPER_IS_DEBUG)
         set(CMAKE_INSTALL_DEBUG_LIBRARIES TRUE)
@@ -968,14 +968,14 @@ if(WIN32)
     message(STATUS "System runtime libs: ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS}")
     set(CMAKE_WIN32_EXECUTABLE ON)
 
-#Install Executables
+    # Install Executables
     install(
         TARGETS mmapper RUNTIME
         DESTINATION .
         COMPONENT applications
     )
 
-#Debug symbols
+    # Debug symbols
     set(WINDEPLOYQT_STAGING ${CMAKE_CURRENT_BINARY_DIR}/bin)
     if(MSVC AND NOT CPACK_STRIP_FILES)
         add_custom_command(TARGET mmapper POST_BUILD
@@ -988,7 +988,7 @@ if(WIN32)
         )
     endif()
 
-#Bundle Library Files
+    # Bundle Library Files
     set(WINDEPLOYQT_ARGS ${WINDEPLOYQT_ARGS} --compiler-runtime --no-translations --no-system-d3d-compiler --no-opengl-sw --verbose 1)
     find_program(WINDEPLOYQT_APP windeployqt HINTS ${QTDIR} ENV QTDIR PATH_SUFFIXES .)
     message(" - windeployqt path: ${WINDEPLOYQT_APP}")
@@ -998,8 +998,7 @@ if(WIN32)
             POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E make_directory "${WINDEPLOYQT_STAGING}"
             COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:mmapper>" ${WINDEPLOYQT_STAGING}
-            COMMAND "${WINDEPLOYQT_APP}" ${
-    WINDEPLOYQT_ARGS} "${WINDEPLOYQT_STAGING}/mmapper.exe"
+            COMMAND "${WINDEPLOYQT_APP}" ${WINDEPLOYQT_ARGS} "${WINDEPLOYQT_STAGING}/mmapper.exe"
             WORKING_DIRECTORY "${WINDEPLOYQT_STAGING}"
             COMMENT "Finding the Qt framework dependencies"
             VERBATIM
@@ -1029,7 +1028,7 @@ if(WIN32)
                 ")
         endif()
 
-#Windows(NSIS) Settings
+        # Windows (NSIS) Settings
         set(CPACK_NSIS_EXECUTABLES_DIRECTORY ".")
         set(CPACK_NSIS_MENU_LINKS "mmapper.exe;MMapper")
         set(CPACK_NSIS_INSTALLED_ICON_NAME "mmapper.exe")
@@ -1055,24 +1054,24 @@ if(WIN32)
               Pop \$0
             ")
         if(WITH_DRMINGW)
-#Include shortcut to crash logs
+            # Include shortcut to crash logs
             set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "${CPACK_NSIS_EXTRA_INSTALL_COMMANDS}
                 CreateShortCut \\\"$SMPROGRAMS\\\\${CPACK_NSIS_DISPLAY_NAME}\\\\Crash Log.lnk\\\" \\\"$PROFILE\\\\AppData\\\\Local\\\\mmappercrash.log\\\"
                 ")
-#Delete shortcut and crash log
+            # Delete shortcut and crash log
             set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "${CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS}
                 Delete \\\"$SMPROGRAMS\\\\${CPACK_NSIS_DISPLAY_NAME}\\\\Crash Log.lnk\\\"
                 Delete \\\"$PROFILE\\\\AppData\\\\Local\\\\mmappercrash.log\\\"
                 ")
         endif()
-#NSIS always displays a license page
+        # NSIS always displays a license page
         set(CPACK_RESOURCE_FILE_LICENSE "${PROJECT_SOURCE_DIR}/COPYING.txt")
     elseif(PACKAGE_TYPE_NORMALIZED STREQUAL "AppX")
-#Windows AppX Settings
+        # Windows AppX Settings
         set(CPACK_GENERATOR "External")
         set(APPX_NAME "${PROJECT_NAME}")
 
-#Set AppX specific version variables and remove leading zeros
+        # Set AppX specific version variables and remove leading zeros
         string(REGEX REPLACE "^0*([0-9]+)$" "\\1" APPX_VERSION_MAJOR "${CPACK_PACKAGE_VERSION_MAJOR}")
         string(REGEX REPLACE "^0*([0-9]+)$" "\\1" APPX_VERSION_MINOR "${CPACK_PACKAGE_VERSION_MINOR}")
         string(REGEX REPLACE "^0*([0-9]+)$" "\\1" APPX_VERSION_PATCH "${CPACK_PACKAGE_VERSION_PATCH}")
@@ -1080,7 +1079,7 @@ if(WIN32)
         set(APPX_MANIFEST_VERSION "${APPX_VERSION_MAJOR}.${APPX_VERSION_MINOR}.${APPX_VERSION_PATCH}.0")
         set(APPX_VERSION "${APPX_VERSION_MAJOR}_${APPX_VERSION_MINOR}_${APPX_VERSION_PATCH}_${APPX_VERSION_REVISION}")
 
-#Install AppManifest and Assets
+        # Install AppManifest and Assets
         configure_file(
             "${PROJECT_SOURCE_DIR}/cmake/AppxManifest.xml.in"
             "${CMAKE_BINARY_DIR}/AppxManifest.xml"
@@ -1110,7 +1109,7 @@ if(WIN32)
             COMPONENT applications
         )
 
-#Set the AppX external script
+        # Set the AppX external script
         set(CPACK_EXTERNAL_ENABLE_STAGING TRUE)
         configure_file(
             "${PROJECT_SOURCE_DIR}/cmake/MakeAppX.cmake.in"
@@ -1121,7 +1120,7 @@ if(WIN32)
     endif()
 endif(WIN32)
 
-#Apple Install Settings
+# Apple Install Settings
 if(APPLE)
     if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
        set(CMAKE_INSTALL_PREFIX ${PROJECT_BINARY_DIR} CACHE PATH "Mac default path is pwd" FORCE)
@@ -1132,7 +1131,7 @@ if(APPLE)
     MACOSX_PACKAGE_LOCATION Resources)
     set_target_properties(mmapper PROPERTIES MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/MacOSXBundleInfo.plist.in )
 
-#Bundle the libraries with the binary
+    # Bundle the libraries with the binary
     find_program(MACDEPLOYQT_APP macdeployqt)
     message(" - macdeployqt path: ${MACDEPLOYQT_APP}")
     add_custom_command(
@@ -1144,7 +1143,7 @@ if(APPLE)
         VERBATIM
         )
 
-#Codesign the bundle without a personal certificate
+    # Codesign the bundle without a personal certificate
     find_program(CODESIGN_APP codesign)
     message(" - codesign path: ${CODESIGN_APP}")
     if(MMAPPER_IS_DEBUG)
@@ -1164,22 +1163,22 @@ if(APPLE)
         VERBATIM
         )
 
-#Install Executables
+    # Install Executables
     install(
         TARGETS mmapper RUNTIME BUNDLE
         DESTINATION .
         COMPONENT applications
     )
 
-#Package Settings
+    # Package Settings
     set(CPACK_GENERATOR "DragNDrop")
     set(CPACK_SOURCE_GENERATOR "TGZ")
     set(CPACK_DMG_FORMAT UDBZ)
 
-#Libraries are bundled directly
+    # Libraries are bundled directly
     set(CPACK_COMPONENT_LIBRARIES_HIDDEN TRUE)
 
-#Bundle Properties
+    # Bundle Properties
     set(MACOSX_BUNDLE_BUNDLE_NAME MMapper)
     set(MACOSX_BUNDLE_BUNDLE_VERSION ${MMAPPER_VERSION})
     set(MACOSX_BUNDLE_SHORT_VERSION_STRING ${MMAPPER_VERSION_STRING})
@@ -1189,27 +1188,27 @@ if(APPLE)
     set(MACOSX_BUNDLE_GUI_IDENTIFIER "org.mume.mmapper")
 endif(APPLE)
 
-#More General CPack Settings
+# More General CPack Settings
 set(CPACK_PACKAGE_NAME "${PROJECT_NAME}")
 set(CPACK_PACKAGE_VENDOR "Nils Schimmelmann")
 set(CPACK_PACKAGE_CONTACT "nschimme@gmail.com")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A mud mapper especially written for the mud MUME")
 set(CPACK_PACKAGE_INSTALL_DIRECTORY "MMapper")
 
-#Applications Component
+# Applications Component
 set(CPACK_COMPONENTS_ALL applications libraries)
 set(CPACK_COMPONENT_APPLICATIONS_DISPLAY_NAME "MMapper")
 set(CPACK_COMPONENT_APPLICATIONS_DESCRIPTION "A mud mapper especially written for the mud MUME")
 set(CPACK_COMPONENT_APPLICATIONS_REQUIRED TRUE)
 
-#Libraries Component
+# Libraries Component
 set(CPACK_COMPONENT_LIBRARIES_DISPLAY_NAME "Runtime Libraries")
 set(CPACK_COMPONENT_LIBRARIES_DESCRIPTION "Runtime libraries for running MMapper")
 set(CPACK_COMPONENT_LIBRARIES_REQUIRED TRUE)
 
 set(CPACK_INSTALL_CMAKE_PROJECTS "${CMAKE_CURRENT_BINARY_DIR};applications;ALL;/")
 
-#Source Package
+# Source Package
 set(CPACK_SOURCE_IGNORE_FILES
     "~$"
     "/\\\\.git/"

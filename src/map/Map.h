@@ -15,6 +15,7 @@
 #include "room.h"
 #include "roomid.h"
 
+#include <functional>
 #include <memory>
 #include <optional>
 #include <ostream>

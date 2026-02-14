@@ -3,6 +3,7 @@
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
 #include "MapCanvasRoomDrawer.h"
+#include "RoomTint.h"
 
 #include "../configuration/NamedConfig.h"
 #include "../configuration/configuration.h"
@@ -1104,6 +1105,13 @@ void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) con
             output.roomNameBatches[kv.first] = rnb.getMesh(font);
         }
     }
+}
+
+NODISCARD const MMapper::Array<RoomTintEnum, NUM_ROOM_TINTS> &getAllRoomTints()
+{
+    static const MMapper::Array<RoomTintEnum, NUM_ROOM_TINTS> tints{RoomTintEnum::DARK,
+                                                                   RoomTintEnum::NO_SUNDEATH};
+    return tints;
 }
 
 // NOTE: All of the lamda captures are copied, including the texture data!

@@ -302,7 +302,7 @@ void MumeXmlParser::parseGmcpCharVitals(const JsonObj &obj)
 
     promptFlags.setValid();
 
-    if (!obj.getNull("fog")) {
+    if (obj.getNull("fog")) {
         if (verbose_debugging && promptFlags.getFogType() != PromptFogEnum::NO_FOG) {
             qInfo().noquote() << "fog null";
         }
@@ -336,7 +336,7 @@ void MumeXmlParser::parseGmcpCharVitals(const JsonObj &obj)
         }
     }
 
-    if (!obj.getNull("weather")) {
+    if (obj.getNull("weather")) {
         if (verbose_debugging && promptFlags.getWeatherType() != PromptWeatherEnum::NICE) {
             qInfo().noquote() << "weather null";
         }

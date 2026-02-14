@@ -167,6 +167,23 @@ void MapWindow::keyReleaseEvent(QKeyEvent *const event)
 
 MapWindow::~MapWindow() = default;
 
+void MapWindow::setMouseTracking(bool enable)
+{
+    QWidget::setMouseTracking(enable);
+    if (m_canvasContainer) {
+        m_canvasContainer->setMouseTracking(enable);
+    }
+    if (m_canvas) {
+        m_canvas->setMouseTracking(enable);
+    }
+    if (m_horizontalScrollBar) {
+        m_horizontalScrollBar->setMouseTracking(enable);
+    }
+    if (m_verticalScrollBar) {
+        m_verticalScrollBar->setMouseTracking(enable);
+    }
+}
+
 void MapWindow::slot_mapMove(const int dx, const int input_dy)
 {
     auto &horz = deref(m_horizontalScrollBar);

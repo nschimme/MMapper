@@ -1322,11 +1322,13 @@ void MainWindow::slot_setShowMenuBar()
     setConfig().general.showMenuBar = showMenuBar;
     show();
 
-    m_dockDialogAdventure->setMouseTracking(!showMenuBar);
-    m_dockDialogClient->setMouseTracking(!showMenuBar);
-    m_dockDialogGroup->setMouseTracking(!showMenuBar);
-    m_dockDialogLog->setMouseTracking(!showMenuBar);
-    m_dockDialogRoom->setMouseTracking(!showMenuBar);
+    const bool track = !showMenuBar;
+    m_dockDialogAdventure->setMouseTracking(track);
+    m_dockDialogClient->setMouseTracking(track);
+    m_dockDialogGroup->setMouseTracking(track);
+    m_dockDialogLog->setMouseTracking(track);
+    m_dockDialogRoom->setMouseTracking(track);
+    m_mapWindow->setMouseTracking(track);
 
     if (showMenuBar) {
         menuBar()->show();
@@ -1335,12 +1337,16 @@ void MainWindow::slot_setShowMenuBar()
         m_dockDialogGroup->removeEventFilter(this);
         m_dockDialogLog->removeEventFilter(this);
         m_dockDialogRoom->removeEventFilter(this);
+        m_mapWindow->removeEventFilter(this);
+        m_mapWindow->getCanvas()->removeEventFilter(this);
     } else {
         m_dockDialogAdventure->installEventFilter(this);
         m_dockDialogClient->installEventFilter(this);
         m_dockDialogGroup->installEventFilter(this);
         m_dockDialogLog->installEventFilter(this);
         m_dockDialogRoom->installEventFilter(this);
+        m_mapWindow->installEventFilter(this);
+        m_mapWindow->getCanvas()->installEventFilter(this);
     }
 }
 

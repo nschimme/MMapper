@@ -181,6 +181,7 @@ private:
 
 public:
     using MapCanvasViewport::getTotalScaleFactor;
+    void setMouseTracking(bool enable);
     void setZoom(float zoom)
     {
         m_scaleFactor.set(zoom);

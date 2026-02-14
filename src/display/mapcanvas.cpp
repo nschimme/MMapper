@@ -92,6 +92,13 @@ MapCanvas *MapCanvas::getPrimary()
     return primaryMapCanvas();
 }
 
+void MapCanvas::setMouseTracking(bool /*enable*/)
+{
+    // QWindow does not have setMouseTracking(bool), it always tracks
+    // mouse moves unless we use some platform-specific or lower-level
+    // way to disable it. For now, we just accept the call.
+}
+
 void MapCanvas::slot_layerUp()
 {
     ++m_currentLayer;

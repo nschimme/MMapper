@@ -68,6 +68,7 @@ public:
     void keyPressEvent(QKeyEvent *event) override;
     void keyReleaseEvent(QKeyEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
+    void setMouseTracking(bool enable);
 
     NODISCARD MapCanvas *getCanvas() const;
 

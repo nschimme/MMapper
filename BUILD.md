@@ -11,7 +11,7 @@ Ensure the following tools are installed:
 - A C++17-compatible compiler (e.g., GCC, Clang, MSVC)
 - [CMake 3.20+](https://cmake.org/)
 - [Ninja](https://ninja-build.org/)
-- [Qt 6.2+](https://www.qt.io/) (6.5 recommended) with `QtWebSockets`
+- [Qt 6.4+](https://www.qt.io/) (6.5 recommended) with `QtWebSockets`
 
 ---
 

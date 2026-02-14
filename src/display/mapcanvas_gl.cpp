@@ -671,12 +671,11 @@ void MapCanvas::actuallyPaintGL()
               || !utils::equals(m_weatherState.cloudsIntensity, m_weatherState.targetCloudsIntensity)
               || !utils::equals(m_weatherState.fogIntensity, m_weatherState.targetFogIntensity)
               || !utils::equals(m_weatherState.moonIntensity, m_weatherState.targetMoonIntensity)
-              || (m_weatherState.timeOfDayTransition < 1.0f);
+              || !utils::equals(m_weatherState.timeOfDayTransition, 1.0f);
 
         // Rain/Snow/Clouds also need continuous animation for movement
         if (m_weatherState.rainIntensity > 0.0f || m_weatherState.snowIntensity > 0.0f
-            || m_weatherState.cloudsIntensity > 0.0f || m_weatherState.fogIntensity > 0.0f
-            || m_weatherState.moonIntensity > 0.0f) {
+            || m_weatherState.cloudsIntensity > 0.0f || m_weatherState.fogIntensity > 0.0f) {
             stillAnimating = true;
         }
 

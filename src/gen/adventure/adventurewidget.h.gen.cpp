@@ -1,1 +1,0 @@
-#include "adventure/adventurewidget.h"

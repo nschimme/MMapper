@@ -1,1 +1,0 @@
-#include "preferences/configdialog.h"

@@ -1,1 +1,0 @@
-#include "group/CGroupChar.h"

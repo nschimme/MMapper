@@ -96,38 +96,23 @@ NODISCARD static FontFormatFlags getFontFormatFlags(const InfomarkClassEnum info
 BatchedInfomarksMeshes MapCanvas::getInfomarksMeshes()
 {
     BatchedInfomarksMeshes result;
-    {
-        const auto &map = m_data.getCurrentMap();
-        const auto &db = map.getInfomarkDb();
-        db.getIdSet().for_each([&](const InfomarkId id) {
-            InfomarkHandle mark{db, id};
-            const int layer = mark.getPosition1().z;
-            const auto it = result.find(layer);
-            if (it == result.end()) {
-                std::ignore = result[layer]; // side effect: this creates the entry
-            }
-        });
-    }
-
-    if (result.size() >= 30) {
-        qWarning() << "Infomarks span" << result.size()
-                   << "layers. Consider using a different algorithm if this function is too slow.";
-    }
-
-    // WARNING: This is O(layers) * O(markers), which is okay as long
-    // as the number of layers with infomarks is small.
-    //
-    // If the performance gets too bad, count # in each layer,
-    // allocate vectors, fill the vectors, and then only visit
-    // each one once per layer.
+    const int chunkSize = getConfig().canvas.meshChunkSize.get();
     const auto &map = m_data.getCurrentMap();
     const auto &db = map.getInfomarkDb();
-    for (auto &it : result) {
-        const int layer = it.first;
+
+    std::map<ChunkId, std::vector<InfomarkId>> chunkToMarks;
+    db.getIdSet().for_each([&](const InfomarkId id) {
+        InfomarkHandle mark{db, id};
+        chunkToMarks[getChunkId(mark.getPosition1(), chunkSize)].push_back(id);
+    });
+
+    for (auto &it : chunkToMarks) {
+        const ChunkId &cid = it.first;
         InfomarksBatch batch{getOpenGL(), getGLFont()};
-        db.getIdSet().for_each(
-            [&](const InfomarkId id) { drawInfomark(batch, InfomarkHandle{db, id}, layer); });
-        it.second = batch.getMeshes();
+        for (const InfomarkId id : it.second) {
+            drawInfomark(batch, InfomarkHandle{db, id}, cid.z);
+        }
+        result[cid] = batch.getMeshes();
     }
 
     return result;
@@ -384,13 +369,11 @@ void MapCanvas::paintBatchedInfomarks()
     }
 
     BatchedInfomarksMeshes &map = m_batches.infomarksMeshes.value();
-    const auto it = map.find(static_cast<int>(m_currentLayer));
-    if (it == map.end()) {
-        return;
+    for (auto &kv : map) {
+        if (kv.first.z == m_currentLayer) {
+            kv.second.render();
+        }
     }
-
-    InfomarksMeshes &infomarksMeshes = it->second;
-    infomarksMeshes.render();
 }
 
 void MapCanvas::updateInfomarkBatches()

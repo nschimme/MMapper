@@ -177,7 +177,9 @@ struct NODISCARD Batches final
 NODISCARD FutureSharedMapBatchFinisher
 generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
                         const std::shared_ptr<const FontMetrics> &font,
-                        const Map &map);
+                        const Map &map,
+                        const std::optional<Map> &previousMap,
+                        int chunkSize);
 
 extern void finish(const IMapBatchesFinisher &finisher,
                    std::optional<MapBatches> &batches,

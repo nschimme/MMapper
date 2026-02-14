@@ -886,64 +886,58 @@ NODISCARD static LayerMeshesIntermediate generateLayerMeshes(
 struct NODISCARD InternalData final : public IMapBatchesFinisher
 {
 public:
-    std::unordered_map<int, LayerMeshesIntermediate> batchedMeshes;
+    std::set<ChunkId> dirtyChunks;
+    std::map<ChunkId, LayerMeshesIntermediate> batchedMeshes;
     BatchedConnections connectionDrawerBuffers;
-    std::unordered_map<int, RoomNameBatchIntermediate> roomNameBatches;
+    std::map<ChunkId, RoomNameBatchIntermediate> roomNameBatches;
+
+    const std::set<ChunkId> &getDirtyChunks() const final { return dirtyChunks; }
 
 private:
     void virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const final;
 };
 
-static void generateAllLayerMeshes(InternalData &internalData,
-                                   const FontMetrics &font,
-                                   const LayerToRooms &layerToRooms,
-                                   const mctp::MapCanvasTexturesProxy &textures,
-                                   const VisitRoomOptions &visitRoomOptions)
-
+static void generateChunks(InternalData &internalData,
+                           const FontMetrics &font,
+                           const std::map<ChunkId, RoomVector> &chunkToRooms,
+                           int chunkSize,
+                           const mctp::MapCanvasTexturesProxy &textures,
+                           const VisitRoomOptions &visitRoomOptions)
 {
-    // This feature has been removed, but it's passed to a lot of functions,
-    // so it would be annoying to have to add it back if we decide the feature was
-    // actually necessary.
-    const OptBounds bounds{};
-
-    DECL_TIMER(t, "generateAllLayerMeshes");
+    DECL_TIMER(t, "generateChunks");
     auto &batchedMeshes = internalData.batchedMeshes;
     auto &connectionDrawerBuffers = internalData.connectionDrawerBuffers;
     auto &roomNameBatches = internalData.roomNameBatches;
 
-    for (const auto &layer : layerToRooms) {
-        DECL_TIMER(t2, "generateAllLayerMeshes.loop");
-        const int thisLayer = layer.first;
-        auto &layerMeshes = batchedMeshes[thisLayer];
-        ConnectionDrawerBuffers &cdb = connectionDrawerBuffers[thisLayer];
+    for (const auto &entry : chunkToRooms) {
+        const ChunkId &cid = entry.first;
+        const auto &rooms = entry.second;
+
+        OptBounds bounds(Coordinate(cid.x * chunkSize, cid.y * chunkSize, cid.z),
+                         Coordinate((cid.x + 1) * chunkSize - 1,
+                                    (cid.y + 1) * chunkSize - 1,
+                                    cid.z));
+
+        auto &layerMeshes = batchedMeshes[cid];
+        ConnectionDrawerBuffers &cdb = connectionDrawerBuffers[cid];
         RoomNameBatch rnb;
-        const auto &rooms = layer.second;
 
         {
-            DECL_TIMER(t3, "generateAllLayerMeshes.loop.part2");
             layerMeshes = ::generateLayerMeshes(rooms, textures, bounds, visitRoomOptions);
         }
 
         {
-            DECL_TIMER(t4, "generateAllLayerMeshes.loop.part3");
-
-            // TODO: move everything in the same layer to the same internal struct?
             cdb.clear();
             rnb.clear();
 
-            ConnectionDrawer cd{cdb, rnb, thisLayer, bounds};
-            {
-                DECL_TIMER(t7, "generateAllLayerMeshes.loop.part3b");
-                // pass 2: add to buffers
-                for (const auto &room : rooms) {
-                    cd.drawRoomConnectionsAndDoors(room);
-                }
+            ConnectionDrawer cd{cdb, rnb, cid.z, bounds};
+            for (const auto &room : rooms) {
+                cd.drawRoomConnectionsAndDoors(room);
             }
         }
 
         {
-            DECL_TIMER(t8, "generateAllLayerMeshes.loop.part4");
-            roomNameBatches[thisLayer] = rnb.getIntermediate(font);
+            roomNameBatches[cid] = rnb.getIntermediate(font);
         }
     }
 }
@@ -1115,38 +1109,69 @@ void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) con
 // NOTE: All of the lamda captures are copied, including the texture data!
 FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
                                                      const std::shared_ptr<const FontMetrics> &font,
-                                                     const Map &map)
+                                                     const Map &map,
+                                                     const std::optional<Map> &previousMap,
+                                                     int chunkSize)
 {
     const auto visitRoomOptions = getVisitRoomOptions();
 
     return std::async(std::launch::async,
-                      [textures, font, map, visitRoomOptions]() -> SharedMapBatchFinisher {
+                      [textures, font, map, previousMap, chunkSize, visitRoomOptions]()
+                          -> SharedMapBatchFinisher {
                           ThreadLocalNamedColorRaii tlRaii{visitRoomOptions.canvasColors,
                                                            visitRoomOptions.colorSettings};
-                          DECL_TIMER(t, "[ASYNC] generateAllLayerMeshes");
+                          DECL_TIMER(t, "[ASYNC] generateChunks");
 
                           ProgressCounter dummyPc;
                           map.checkConsistency(dummyPc);
 
-                          const auto layerToRooms = std::invoke([map]() -> LayerToRooms {
-                              DECL_TIMER(t2, "[ASYNC] generateBatches.layerToRooms");
-                              LayerToRooms ltr;
-                              map.getRooms().for_each([&map, &ltr](const RoomId id) {
-                                  const auto &r = map.getRoomHandle(id);
-                                  const auto z = r.getPosition().z;
-                                  auto &layer = ltr[z];
-                                  layer.emplace_back(r);
+                          std::set<ChunkId> dirtyChunks;
+                          if (previousMap.has_value()) {
+                              const Map &prev = previousMap.value();
+                              Map::foreachChangedRoom(dummyPc, prev, map, [&](const RawRoom &room) {
+                                  dirtyChunks.insert(getChunkId(room.getPosition(), chunkSize));
+                                  // Mark chunks of connected rooms as dirty too
+                                  for (const ExitDirEnum dir : ALL_EXITS7) {
+                                      const auto &exit = room.getExit(dir);
+                                      for (const RoomId id : exit.getOutgoingSet()) {
+                                          if (const auto r2 = map.findRoomHandle(id))
+                                              dirtyChunks.insert(
+                                                  getChunkId(r2.getPosition(), chunkSize));
+                                      }
+                                      for (const RoomId id : exit.getIncomingSet()) {
+                                          if (const auto r2 = map.findRoomHandle(id))
+                                              dirtyChunks.insert(
+                                                  getChunkId(r2.getPosition(), chunkSize));
+                                      }
+                                  }
                               });
-                              return ltr;
+                          }
+
+                          const auto chunkToRooms = std::invoke([&map,
+                                                                 &dirtyChunks,
+                                                                 chunkSize]() -> std::map<ChunkId, RoomVector> {
+                              DECL_TIMER(t2, "[ASYNC] generateBatches.chunkToRooms");
+                              std::map<ChunkId, RoomVector> ctr;
+                              map.getRooms().for_each([&map, &ctr, &dirtyChunks, chunkSize](const RoomId id) {
+                                  const auto &r = map.getRoomHandle(id);
+                                  const auto cid = getChunkId(r.getPosition(), chunkSize);
+                                  if (dirtyChunks.empty() || dirtyChunks.count(cid)) {
+                                      auto &chunk = ctr[cid];
+                                      chunk.emplace_back(r);
+                                  }
+                              });
+                              return ctr;
                           });
 
                           auto result = std::make_shared<InternalData>();
                           auto &data = deref(result);
-                          generateAllLayerMeshes(data,
-                                                 deref(font),
-                                                 layerToRooms,
-                                                 textures,
-                                                 visitRoomOptions);
+                          data.dirtyChunks = std::move(dirtyChunks);
+                          generateChunks(data,
+                                         deref(font),
+                                         chunkToRooms,
+                                         chunkSize,
+                                         textures,
+                                         visitRoomOptions);
                           return SharedMapBatchFinisher{result};
                       });
 }

@@ -165,6 +165,7 @@ public:
 
     struct NODISCARD CanvasSettings final : public CanvasNamedColorOptions
     {
+        NamedConfig<int> meshChunkSize{"MESH_CHUNK_SIZE", 32};
         NamedConfig<int> antialiasingSamples{"ANTIALIASING_SAMPLES", 0};
         NamedConfig<bool> trilinearFiltering{"TRILINEAR_FILTERING", true};
         NamedConfig<bool> showMissingMapId{"SHOW_MISSING_MAPID", false};

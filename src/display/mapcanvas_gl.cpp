@@ -655,6 +655,7 @@ void MapCanvas::actuallyPaintGL()
         updateLevel(m_weatherState.snowIntensity, m_weatherState.targetSnowIntensity);
         updateLevel(m_weatherState.cloudsIntensity, m_weatherState.targetCloudsIntensity);
         updateLevel(m_weatherState.fogIntensity, m_weatherState.targetFogIntensity);
+        updateLevel(m_weatherState.moonIntensity, m_weatherState.targetMoonIntensity);
 
         if (m_weatherState.timeOfDayTransition < 1.0f) {
             m_weatherState.timeOfDayTransition = std::min(1.0f,
@@ -812,14 +813,19 @@ void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current)
 
 Color MapCanvas::calculateTimeOfDayColor() const
 {
-    auto getColor = [](MumeTimeEnum t) -> Color {
+    auto getColor = [this](MumeTimeEnum t) -> Color {
         switch (t) {
         case MumeTimeEnum::DAWN:
             return Color(1.0f, 0.8f, 0.6f, 0.2f);
         case MumeTimeEnum::DUSK:
             return Color(0.6f, 0.4f, 0.8f, 0.3f);
-        case MumeTimeEnum::NIGHT:
-            return Color(0.1f, 0.1f, 0.3f, 0.5f);
+        case MumeTimeEnum::NIGHT: {
+            // Moonlight adjustment: more silvery/bright if moon is visible
+            const float moon = m_weatherState.moonIntensity;
+            const Color baseNight(0.1f, 0.1f, 0.3f, 0.5f);
+            const Color moonNight(0.3f, 0.3f, 0.5f, 0.4f);
+            return Color(baseNight.getVec4() * (1.0f - moon) + moonNight.getVec4() * moon);
+        }
         case MumeTimeEnum::DAY:
         default:
             return Color(1.0f, 1.0f, 1.0f, 0.0f);

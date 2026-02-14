@@ -173,14 +173,17 @@ private:
         float snowIntensity = 0.0f;
         float cloudsIntensity = 0.0f;
         float fogIntensity = 0.0f;
+        float moonIntensity = 0.0f;
 
         float targetRainIntensity = 0.0f;
         float targetSnowIntensity = 0.0f;
         float targetCloudsIntensity = 0.0f;
         float targetFogIntensity = 0.0f;
+        float targetMoonIntensity = 0.0f;
 
         MumeTimeEnum oldTimeOfDay = MumeTimeEnum::DAY;
         MumeTimeEnum currentTimeOfDay = MumeTimeEnum::DAY;
+        MumeMoonVisibilityEnum moonVisibility = MumeMoonVisibilityEnum::UNKNOWN;
         float timeOfDayTransition = 1.0f;
         float animationTime = 0.0f;
 

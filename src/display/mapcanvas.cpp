@@ -88,11 +88,20 @@ MapCanvas::MapCanvas(MapData &mapData,
     m_weatherState.targetFogIntensity = (m_observer.getFog() == PromptFogEnum::LIGHT_FOG)   ? 0.3f
                                         : (m_observer.getFog() == PromptFogEnum::HEAVY_FOG) ? 0.8f
                                                                                             : 0.0f;
+    m_weatherState.moonVisibility = m_observer.getMoonVisibility();
+    m_weatherState.targetMoonIntensity = (m_weatherState.moonVisibility
+                                          == MumeMoonVisibilityEnum::BRIGHT)
+                                             ? 1.0f
+                                         : (m_weatherState.moonVisibility
+                                            == MumeMoonVisibilityEnum::DIM)
+                                             ? 0.5f
+                                             : 0.0f;
 
     m_weatherState.rainIntensity = m_weatherState.targetRainIntensity;
     m_weatherState.snowIntensity = m_weatherState.targetSnowIntensity;
     m_weatherState.cloudsIntensity = m_weatherState.targetCloudsIntensity;
     m_weatherState.fogIntensity = m_weatherState.targetFogIntensity;
+    m_weatherState.moonIntensity = m_weatherState.targetMoonIntensity;
 
     m_observer.sig2_weatherChanged.connect(m_lifetime, [this](PromptWeatherEnum weather) {
         m_weatherState.targetRainIntensity = (weather == PromptWeatherEnum::RAIN)         ? 0.5f
@@ -117,6 +126,14 @@ MapCanvas::MapCanvas(MapData &mapData,
             m_weatherState.timeOfDayTransition = 0.0f;
             setAnimating(true);
         }
+    });
+
+    m_observer.sig2_moonVisibilityChanged.connect(m_lifetime, [this](MumeMoonVisibilityEnum moon) {
+        m_weatherState.moonVisibility = moon;
+        m_weatherState.targetMoonIntensity = (moon == MumeMoonVisibilityEnum::BRIGHT) ? 1.0f
+                                             : (moon == MumeMoonVisibilityEnum::DIM)  ? 0.5f
+                                                                                      : 0.0f;
+        setAnimating(true);
     });
 
     NonOwningPointer &pmc = primaryMapCanvas();

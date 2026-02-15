@@ -937,6 +937,10 @@ void MapCanvas::paintWeather()
     prog.setColor("uTimeOfDayColor", todColor);
     prog.setViewport("uPhysViewport", funcs.getPhysicalViewport());
 
+    funcs.glActiveTexture(GL_TEXTURE1);
+    m_textures.weather_noise->bind();
+    prog.setTexture("uNoiseTexture", 1);
+
     const auto rs
         = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withDepthFunction(std::nullopt);
     Legacy::RenderStateBinder renderStateBinder(funcs, funcs.getTexLookup(), rs);
@@ -1365,15 +1369,17 @@ void MapCanvas::paintParticleRender()
     auto binder = partProg->bind();
 
     partProg->setMatrix("uViewProj", m_viewProj);
-    partProg->setVec4("uWeatherIntensities",
-                      glm::vec4(m_weatherState.rainIntensity, m_weatherState.snowIntensity, 0, 0));
+    partProg->setFloat("uRainIntensity", m_weatherState.rainIntensity);
+    partProg->setFloat("uSnowIntensity", m_weatherState.snowIntensity);
     partProg->setColor("uTimeOfDayColor", calculateTimeOfDayColor());
     partProg->setVec3("uPlayerPos", playerPos);
+    partProg->setFloat("uTime", m_weatherState.animationTime);
 
     funcs.enableProgramPointSize(true);
     funcs.glEnable(GL_BLEND);
     funcs.glBlendFunc(GL_SRC_ALPHA, GL_ONE);
     funcs.glDepthMask(GL_FALSE);
+    funcs.glEnable(GL_DEPTH_TEST);
 
     funcs.glBindVertexArray(m_particleVaos[static_cast<size_t>(m_particleFlip)]);
     funcs.glDrawArrays(GL_POINTS, 0, MAX_PARTICLES);
@@ -1381,5 +1387,6 @@ void MapCanvas::paintParticleRender()
 
     funcs.enableProgramPointSize(false);
     funcs.glDepthMask(GL_TRUE);
+    funcs.glDisable(GL_DEPTH_TEST);
     funcs.glDisable(GL_BLEND);
 }

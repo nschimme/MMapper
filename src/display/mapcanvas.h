@@ -34,9 +34,9 @@
 #include <QColor>
 #include <QMatrix4x4>
 #include <QOpenGLDebugMessage>
-#include <QOpenGLFramebufferObject>
 #include <QOpenGLWindow>
 #include <QtCore>
+#include <QtOpenGL/QOpenGLFramebufferObject>
 
 class CharacterBatch;
 class ConnectionSelection;
@@ -149,6 +149,12 @@ private:
     Diff m_diff;
     mutable std::optional<glm::mat4> m_invViewProj;
     std::unique_ptr<QOpenGLFramebufferObject> m_weatherNoiseFbo;
+
+    static constexpr const int MAX_PARTICLES = 10000;
+    std::array<GLuint, 2> m_particleVbos{0, 0};
+    std::array<GLuint, 2> m_particleVaos{0, 0};
+    int m_particleFlip = 0;
+
     FrameRateController m_frameRateController;
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
     Signal2Lifetime m_lifetime;
@@ -261,6 +267,10 @@ private:
     void initTextures();
     void updateTextures();
     void updateMultisampling();
+
+    void initParticles();
+    void paintParticleSimulation(float dt);
+    void paintParticleRender();
 
     NODISCARD std::shared_ptr<InfomarkSelection> getInfomarkSelection(const MouseSel &sel);
     NODISCARD static glm::mat4 getViewProj_old(const glm::vec2 &scrollPos,

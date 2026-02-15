@@ -229,7 +229,11 @@
         <file>shaders/legacy/fullscreen/frag.glsl</file>
         <file>shaders/legacy/fullscreen/vert.glsl</file>
         <file>shaders/legacy/weather/frag.glsl</file>
-        <file>shaders/legacy/weather/noise.frag.glsl</file>
         <file>shaders/legacy/weather/vert.glsl</file>
+        <file>shaders/legacy/weather/noise/frag.glsl</file>
+        <file>shaders/legacy/weather/noise/vert.glsl</file>
+        <file>shaders/legacy/weather/simulation/vert.glsl</file>
+        <file>shaders/legacy/weather/particle/vert.glsl</file>
+        <file>shaders/legacy/weather/particle/frag.glsl</file>
     </qresource>
 </RCC>

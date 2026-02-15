@@ -930,8 +930,6 @@ void MapCanvas::paintWeather()
     prog.setFloat("uZScale", zScale);
 
     prog.setFloat("uTime", m_weatherState.animationTime);
-    prog.setFloat("uRainIntensity", m_weatherState.rainIntensity);
-    prog.setFloat("uSnowIntensity", m_weatherState.snowIntensity);
     prog.setFloat("uCloudsIntensity", m_weatherState.cloudsIntensity);
     prog.setFloat("uFogIntensity", m_weatherState.fogIntensity);
     prog.setColor("uTimeOfDayColor", todColor);

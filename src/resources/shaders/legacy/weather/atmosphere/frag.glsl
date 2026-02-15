@@ -8,7 +8,6 @@ uniform vec4 uTimeOfDayColor;
 uniform sampler2D uNoiseTexture;
 
 in vec2 vWorldPos;
-in vec2 vTexCoord;
 out vec4 vFragmentColor;
 
 void main()

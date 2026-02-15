@@ -31,22 +31,12 @@ void ConnectionListenerTcpServer::incomingConnection(qintptr socketDescriptor)
     emit signal_incomingConnection(socketDescriptor);
 }
 
-ConnectionListener::ConnectionListener(MapData &md,
-                                       Mmapper2PathMachine &pm,
-                                       PrespammedPath &pp,
-                                       Mmapper2Group &gm,
-                                       MumeClock &mc,
-                                       MapCanvas &mca,
-                                       GameObserver &go,
-                                       QObject *const parent)
+#include "../global/MMapperCore.h"
+
+ConnectionListener::ConnectionListener(MMapperCore &core, MapCanvas &mca, QObject *const parent)
     : QObject(parent)
-    , m_mapData{md}
-    , m_pathMachine{pm}
-    , m_prespammedPath{pp}
-    , m_groupManager{gm}
-    , m_mumeClock{mc}
+    , m_core{core}
     , m_mapCanvas{mca}
-    , m_gameOberver{go}
 {}
 
 ConnectionListener::~ConnectionListener() = default;
@@ -102,15 +92,7 @@ void ConnectionListener::startClient(std::unique_ptr<AbstractSocket> socket)
 {
     if (m_proxy == nullptr) {
         log("New connection: accepted.");
-        m_proxy = Proxy::allocInit(m_mapData,
-                                   m_pathMachine,
-                                   m_prespammedPath,
-                                   m_groupManager,
-                                   m_mumeClock,
-                                   m_mapCanvas,
-                                   m_gameOberver,
-                                   std::move(socket),
-                                   *this);
+        m_proxy = Proxy::allocInit(m_core, m_mapCanvas, std::move(socket), *this);
     } else {
         log("New connection: rejected.");
         const auto msg = std::invoke([]() -> QByteArray {

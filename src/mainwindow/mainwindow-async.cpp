@@ -7,6 +7,7 @@
 #include "../display/mapwindow.h"
 #include "../global/AnsiOstream.h"
 #include "../global/AnsiTextUtils.h"
+#include "../global/MMapperCore.h"
 #include "../global/macros.h"
 #include "../global/utils.h"
 #include "../group/groupwidget.h"
@@ -385,7 +386,7 @@ protected:
     const SharedDevice pDevice;
 
     CanvasDisabler canvasDisabler;
-    ProgressDialogLifetime progressDlg;
+    MainWindow::ProgressDialogLifetime progressDlg;
     UniqueStorage pStorage;
 
     std::unique_ptr<ExtraBlockers> extraBlockers;
@@ -411,7 +412,7 @@ public:
         , progressDlg{mw.createNewProgressDialog(dialogText,
                                                  allow_cancel == CancelDispositionEnum::Allow)}
         , pStorage{std::move(ps)}
-        , extraBlockers{std::make_unique<ExtraBlockers>(mw, deref(mw.m_mapData))}
+        , extraBlockers{std::make_unique<ExtraBlockers>(mw, mw.core().mapData())}
     {
         if (!name.isEmpty() && !pStorage) {
             throw std::invalid_argument("ps");
@@ -572,7 +573,7 @@ public:
         , future{std::async(std::launch::async,
                             &AsyncMerge::background_merge,
                             this,
-                            std::ref(deref(mw.m_mapData)))}
+                            std::ref(mw.core().mapData()))}
     {}
     ~AsyncMerge() final;
 
@@ -651,7 +652,7 @@ private:
     NODISCARD Result background_save() const
     {
         AbstractMapStorage &storage = deref(pStorage);
-        const MapData &mapData = deref(mainWindow.m_mapData);
+        const MapData &mapData = mainWindow.core().mapData();
         return background::save(storage, mapData, mode);
     }
 
@@ -883,7 +884,7 @@ bool MainWindow::slot_checkMapConsistency()
     private:
         NODISCARD Result background_check()
         {
-            const MapData &mapData = deref(mainWindow.m_mapData);
+            const MapData &mapData = mainWindow.core().mapData();
             auto &pc = deref(progressCounter);
             mapData.getCurrentMap().checkConsistency(pc);
             return true;
@@ -945,7 +946,7 @@ bool MainWindow::slot_generateBaseMap()
             , future{std::async(std::launch::async,
                                 &AsyncGenerateBaseMap::background_generate_base_map,
                                 this,
-                                mainWindow.m_mapData->getCurrentRoomId())}
+                                mainWindow.core().mapData().getCurrentRoomId())}
         {}
         ~AsyncGenerateBaseMap() final = default;
 
@@ -954,7 +955,7 @@ bool MainWindow::slot_generateBaseMap()
         {
             using OptRoomId = std::optional<RoomId>;
             auto &pc = deref(progressCounter);
-            MapData &mapData = deref(mainWindow.m_mapData);
+            MapData &mapData = mainWindow.core().mapData();
             const auto oldMap = mapData.getCurrentMap();
 
             BaseMapData result;
@@ -1018,7 +1019,7 @@ bool MainWindow::slot_generateBaseMap()
         }
         void onSuccess(BaseMapData result)
         {
-            auto &mapData = deref(mainWindow.m_mapData);
+            auto &mapData = mainWindow.core().mapData();
 
             const auto oldMap = mapData.getCurrentMap();
             const auto pOldRoom = mapData.getCurrentRoomId();

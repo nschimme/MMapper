@@ -12,6 +12,7 @@
 #include "../mapdata/roomselection.h"
 #include "../mapstorage/MapDestination.h"
 #include "../mapstorage/MapSource.h"
+#include "IMapLoader.h"
 
 #include <memory>
 #include <optional>
@@ -74,11 +75,14 @@ class MapDestination;
 
 enum class NODISCARD AsyncTypeEnum : uint8_t { Load, Merge, Save };
 
-class NODISCARD_QOBJECT MainWindow final : public QMainWindow
+class MMapperCore;
+
+class NODISCARD_QOBJECT MainWindow final : public QMainWindow, public IMapLoader
 {
     Q_OBJECT
 
 private:
+    MMapperCore &m_core;
     MapWindow *m_mapWindow = nullptr;
     QTextBrowser *logWindow = nullptr;
 
@@ -89,30 +93,18 @@ private:
     QDockWidget *m_dockDialogAdventure = nullptr;
     QDockWidget *m_dockDialogDescription = nullptr;
 
-    std::unique_ptr<GameObserver> m_gameObserver;
-    AutoLogger *m_logger = nullptr;
-    ConnectionListener *m_listener = nullptr;
-    Mmapper2PathMachine *m_pathMachine = nullptr;
-    MapData *m_mapData = nullptr;
-    PrespammedPath *m_prespammedPath = nullptr;
-    MumeClock *m_mumeClock = nullptr;
-
     // Pandora Ported
     FindRoomsDlg *m_findRoomsDlg = nullptr;
-    Mmapper2Group *m_groupManager = nullptr;
     GroupWidget *m_groupWidget = nullptr;
 
     RoomWidget *m_roomWidget = nullptr;
-    RoomManager *m_roomManager = nullptr;
 
     ClientWidget *m_clientWidget = nullptr;
     UpdateDialog *m_updateDialog = nullptr;
 
-    AdventureTracker *m_adventureTracker = nullptr;
     AdventureWidget *m_adventureWidget = nullptr;
 
     DescriptionWidget *m_descriptionWidget = nullptr;
-    std::unique_ptr<HotkeyManager> m_hotkeyManager;
 
     QPointer<QMenu> m_contextMenu;
 
@@ -270,13 +262,13 @@ private:
     Signal2Lifetime m_lifetime;
 
 public:
-    explicit MainWindow();
+    explicit MainWindow(MMapperCore &core);
     ~MainWindow() final;
 
-    NODISCARD HotkeyManager &getHotkeyManager() const { return deref(m_hotkeyManager); }
+    NODISCARD MMapperCore &core() const { return m_core; }
 
     NODISCARD bool saveFile(const QString &fileName, SaveModeEnum mode, SaveFormatEnum format);
-    void loadFile(std::shared_ptr<MapSource> source);
+    void loadFile(std::shared_ptr<MapSource> source) override;
     void setCurrentFile(const QString &fileName);
     void percentageChanged(uint32_t);
 

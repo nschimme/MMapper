@@ -130,6 +130,8 @@ set(mmapper_SRCS
     global/JsonValue.cpp
     global/LineUtils.cpp
     global/LineUtils.h
+    global/MMapperCore.cpp
+    global/MMapperCore.h
     global/MakeQPointer.h
     global/MmQtHandle.h
     global/NamedColors.cpp
@@ -246,8 +248,14 @@ set(mmapper_SRCS
     mainwindow/mainwindow.h
     mainwindow/metatypes.cpp
     mainwindow/metatypes.h
+    mainwindow/QmlBridge.cpp
+    mainwindow/QmlBridge.h
+    mainwindow/QmlMainWindow.cpp
+    mainwindow/QmlMainWindow.h
     mainwindow/roomeditattrdlg.cpp
     mainwindow/roomeditattrdlg.h
+    mainwindow/WidgetProxyItem.cpp
+    mainwindow/WidgetProxyItem.h
     mainwindow/utils.cpp
     mainwindow/utils.h
     map/AbstractChangeVisitor.cpp
@@ -573,7 +581,7 @@ if(NOT EMSCRIPTEN)
     list(APPEND mmapper_SRCS mpi/remoteeditprocess.cpp mpi/remoteeditprocess.h)
 endif()
 
-qt_add_resources(mmapper_QRC resources/mmapper2.qrc)
+qt_add_resources(mmapper_QRC resources/mmapper2.qrc mainwindow/qml.qrc)
 
 if(MMAPPER_BETA)
     list(APPEND mmapper_RCS "resources/win32/beta.rc")
@@ -703,6 +711,8 @@ target_link_libraries(mmapper PUBLIC
     Qt6::Network
     Qt6::OpenGL
     Qt6::OpenGLWidgets
+    Qt6::Quick
+    Qt6::QuickWidgets
     # note: link order matters on some platforms. include ${mm_libs} twice if you have a link failure.
     ${mm_libs}
     ${CMAKE_THREAD_LIBS_INIT}
@@ -758,6 +768,7 @@ target_include_directories(mm_map SYSTEM PUBLIC
 target_link_libraries(mm_global PUBLIC
     Qt6::Core
     Qt6::Widgets
+    Qt6::Network
     coverage_config
 )
 target_link_libraries(mm_map PUBLIC

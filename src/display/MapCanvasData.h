@@ -92,6 +92,7 @@ private:
 public:
     glm::mat4 m_viewProj{1.f};
     glm::vec2 m_scroll{0.f};
+    glm::vec2 m_viewportOffset{0.f};
     ScaleFactor m_scaleFactor;
     int m_currentLayer = 0;
 

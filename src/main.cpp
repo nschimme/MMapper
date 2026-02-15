@@ -7,8 +7,11 @@
 #include "./configuration/configuration.h"
 #include "./display/Filenames.h"
 #include "./global/ConfigConsts.h"
+#include "./global/MMapperCore.h"
 #include "./global/WinSock.h"
 #include "./global/emojis.h"
+#include "./mainwindow/IMapLoader.h"
+#include "./mainwindow/QmlMainWindow.h"
 #include "./mainwindow/ThemeManager.h"
 #include "./mainwindow/mainwindow.h"
 #include "./opengl/OpenGLConfig.h"
@@ -43,7 +46,7 @@ static void tryInitDrMingw()
 #endif
 }
 
-NODISCARD static bool tryLoad(MainWindow &mw, const QDir &dir, const QString &input_filename)
+NODISCARD static bool tryLoad(IMapLoader &mw, const QDir &dir, const QString &input_filename)
 {
     const auto getAbsoluteFileName = [&dir, &input_filename]() -> std::optional<QString> {
         if (QFileInfo{input_filename}.isAbsolute()) {
@@ -78,7 +81,7 @@ NODISCARD static bool tryLoad(MainWindow &mw, const QDir &dir, const QString &in
     }
 }
 
-static void tryAutoLoadMap(MainWindow &mw)
+static void tryAutoLoadMap(IMapLoader &mw)
 {
     const auto &settings = getConfig().autoLoad;
     if (settings.autoLoadMap) {
@@ -142,8 +145,23 @@ int main(int argc, char **argv)
     }
 
     tryLoadEmojis(getResourceFilenameRaw("emojis", "short-codes.json"));
-    auto mw = std::make_unique<MainWindow>();
-    tryAutoLoadMap(*mw);
+    auto core = std::make_unique<MMapperCore>(&app);
+
+    std::unique_ptr<QWidget> mw;
+
+    QScreen *screen = QGuiApplication::primaryScreen();
+    if (screen && screen->availableGeometry().width() < 700) {
+        mw = std::make_unique<QmlMainWindow>(*core);
+    } else {
+        mw = std::make_unique<MainWindow>(*core);
+    }
+
+    mw->show();
+
+    if (auto *loader = dynamic_cast<IMapLoader *>(mw.get())) {
+        tryAutoLoadMap(*loader);
+    }
+
     const int ret = QApplication::exec();
     mw.reset();
     getConfig().write();

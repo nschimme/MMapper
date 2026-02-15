@@ -471,7 +471,9 @@ void MapCanvas::setViewportAndMvp(int width, int height)
     const float zoomScale = getTotalScaleFactor();
     const auto viewProj = (!want3D) ? getViewProj_old(m_scroll, size, zoomScale, m_currentLayer)
                                     : getViewProj(m_scroll, size, zoomScale, m_currentLayer);
-    setMvp(viewProj);
+
+    const auto shift = glm::translate(glm::mat4(1), glm::vec3(m_viewportOffset, 0.f));
+    setMvp(shift * viewProj);
 }
 
 void MapCanvas::resizeGL(int width, int height)

@@ -75,6 +75,7 @@ public:
 public:
     void setUniform1iv(GLint location, GLsizei count, const GLint *value);
     void setUniform1fv(GLint location, GLsizei count, const GLfloat *value);
+    void setUniform3fv(GLint location, GLsizei count, const GLfloat *value);
     void setUniform4fv(GLint location, GLsizei count, const GLfloat *value);
     void setUniform4iv(GLint location, GLsizei count, const GLint *value);
     void setUniformMatrix4fv(GLint location,
@@ -89,6 +90,7 @@ public:
     void setPointSize(float in_pointSize);
     void setFloat(const char *name, float value);
     void setVec3(const char *name, const glm::vec3 &v);
+    void setVec4(const char *name, const glm::vec4 &v);
     void setColor(const char *name, Color color);
     void setMatrix(const char *name, const glm::mat4 &m);
     void setTexture(const char *name, int textureUnit);

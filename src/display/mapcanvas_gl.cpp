@@ -466,6 +466,7 @@ void MapCanvas::setMvp(const glm::mat4 &viewProj)
 {
     auto &gl = getOpenGL();
     m_viewProj = viewProj;
+    m_invViewProj.reset();
     gl.setProjectionMatrix(m_viewProj);
 }
 
@@ -908,19 +909,22 @@ void MapCanvas::paintWeather()
 
     auto binder = prog.bind();
 
-    prog.setMatrix("uInvViewProj", glm::inverse(m_viewProj));
+    if (!m_invViewProj.has_value()) {
+        m_invViewProj = glm::inverse(m_viewProj);
+    }
+    prog.setMatrix("uInvViewProj", m_invViewProj.value());
     prog.setVec3("uPlayerPos", m_data.tryGetPosition().value_or(Coordinate{}).to_vec3());
 
     const bool want3D = getConfig().canvas.advanced.use3D.get();
     const float zScale = want3D ? getConfig().canvas.advanced.layerHeight.getFloat() : 7.0f;
     prog.setFloat("uZScale", zScale);
 
-    prog.setViewport("uPhysViewport", funcs.getPhysicalViewport());
     prog.setFloat("uTime", m_weatherState.animationTime);
-    prog.setFloat("uRainIntensity", m_weatherState.rainIntensity);
-    prog.setFloat("uSnowIntensity", m_weatherState.snowIntensity);
-    prog.setFloat("uCloudsIntensity", m_weatherState.cloudsIntensity);
-    prog.setFloat("uFogIntensity", m_weatherState.fogIntensity);
+    prog.setVec4("uWeatherIntensities",
+                 glm::vec4(m_weatherState.rainIntensity,
+                           m_weatherState.snowIntensity,
+                           m_weatherState.cloudsIntensity,
+                           m_weatherState.fogIntensity));
     prog.setColor("uTimeOfDayColor", todColor);
 
     const auto rs

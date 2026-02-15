@@ -24,12 +24,13 @@ void main()
 
     // Bounds check in world space centered on player
     // Spawning closer to the player's plane to match the "radius" feel
-    if (life <= 0.0 || distance(pos.xy, uPlayerPos.xy) > 12.0 || pos.z < uPlayerPos.z - 10.0
-        || pos.z > uPlayerPos.z + 18.0) {
+    // Increased vertical span slightly for better depth in 3D
+    if (life <= 0.0 || distance(pos.xy, uPlayerPos.xy) > 12.0 || pos.z < uPlayerPos.z - 15.0
+        || pos.z > uPlayerPos.z + 25.0) {
         float h = hash(float(gl_VertexID) * 1.234 + life + uDeltaTime);
         pos.x = uPlayerPos.x + (hash(h) * 24.0 - 12.0);
         pos.y = uPlayerPos.y + (hash(h + 1.0) * 24.0 - 12.0);
-        pos.z = uPlayerPos.z + 8.0 + hash(h + 2.0) * 8.0;
+        pos.z = uPlayerPos.z + 10.0 + hash(h + 2.0) * 15.0;
 
         float totalIntensity = uWeatherIntensities.x + uWeatherIntensities.y;
         if (totalIntensity > 0.01) {
@@ -41,17 +42,17 @@ void main()
 
         // World space velocities (rooms/sec)
         if (type < 0.5) {
-            // Rain: Increased horizontal slant for better 2D visibility
-            vel = vec3(20.0 + (hash(h + 4.0) - 0.5) * 8.0,
-                       15.0 + (hash(h + 5.0) - 0.5) * 6.0,
-                       -45.0 - hash(h + 6.0) * 10.0);
-            life = 1.0; // Fast fall
+            // Rain: Increased horizontal wind component to ensure slant in 2D top-down mode
+            vel = vec3(25.0 + (hash(h + 4.0) - 0.5) * 10.0,
+                       18.0 + (hash(h + 5.0) - 0.5) * 8.0,
+                       -45.0 - hash(h + 6.0) * 15.0);
+            life = 1.5; // Fast fall
         } else {
             // Snow: drifting more horizontally and slower fall
-            vel = vec3((hash(h + 4.0) - 0.5) * 10.0,
-                       (hash(h + 5.0) - 0.5) * 10.0,
-                       -6.0 - hash(h + 6.0) * 4.0);
-            life = 8.0;
+            vel = vec3((hash(h + 4.0) - 0.5) * 12.0,
+                       (hash(h + 5.0) - 0.5) * 12.0,
+                       -5.0 - hash(h + 6.0) * 5.0);
+            life = 10.0;
         }
     }
 

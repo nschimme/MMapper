@@ -1,5 +1,3 @@
-#include "../../../common/version.glsl"
-
 precision highp float;
 
 in vec2 vTexCoord;

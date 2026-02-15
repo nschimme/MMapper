@@ -1,5 +1,3 @@
-#include "../../../common/version.glsl"
-
 in ivec4 aVertTexCol; // xyz=pos, w=(colorId<<8 | tex_z)
 uniform mat4 uMVP;
 out vec2 vTexCoord;

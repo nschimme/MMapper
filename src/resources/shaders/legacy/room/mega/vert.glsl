@@ -1,5 +1,3 @@
-#include "../../common/version.glsl"
-
 in ivec3 aPos;
 in uint aTerrainTrail;
 in uint aFlags;

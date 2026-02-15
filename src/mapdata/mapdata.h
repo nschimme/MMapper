@@ -71,7 +71,9 @@ public:
 
     NODISCARD FutureSharedMapBatchFinisher
     generateBatches(const mctp::MapCanvasTexturesProxy &textures,
-                    const std::shared_ptr<const FontMetrics> &font);
+                    const std::shared_ptr<const FontMetrics> &font,
+                    const std::optional<Map> &previousMap,
+                    int chunkSize);
 
     // REVISIT: convert to template, or functionref after it compiles everywhere?
     void applyChangesToList(const RoomSelection &sel,

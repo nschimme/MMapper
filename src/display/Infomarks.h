@@ -7,10 +7,11 @@
 #include "../opengl/Font.h"
 #include "../opengl/FontFormatFlags.h"
 #include "../opengl/OpenGLTypes.h"
+#include "MapBatches.h"
 
 #include <cstddef>
+#include <map>
 #include <optional>
-#include <unordered_map>
 #include <vector>
 
 #include <glm/glm.hpp>
@@ -29,7 +30,7 @@ struct NODISCARD InfomarksMeshes final
     void render();
 };
 
-using BatchedInfomarksMeshes = std::unordered_map<int, InfomarksMeshes>;
+using BatchedInfomarksMeshes = std::map<ChunkId, InfomarksMeshes>;
 
 struct NODISCARD InfomarksBatch final
 {

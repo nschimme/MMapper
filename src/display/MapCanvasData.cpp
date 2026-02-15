@@ -17,13 +17,6 @@
 #include <QPointF>
 #include <QTouchEvent>
 
-const MMapper::Array<RoomTintEnum, NUM_ROOM_TINTS> &getAllRoomTints()
-{
-    static const MMapper::Array<RoomTintEnum, NUM_ROOM_TINTS>
-        all_room_tints{RoomTintEnum::DARK, RoomTintEnum::NO_SUNDEATH};
-    return all_room_tints;
-}
-
 MapCanvasInputState::MapCanvasInputState(PrespammedPath &prespammedPath)
     : m_prespammedPath{prespammedPath}
 {}

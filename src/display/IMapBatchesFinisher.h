@@ -3,9 +3,11 @@
 // Copyright (C) 2021 The MMapper Authors
 
 #include "../global/macros.h"
+#include "MapBatches.h"
 
 #include <future>
 #include <memory>
+#include <set>
 
 class GLFont;
 class OpenGL;
@@ -15,6 +17,8 @@ struct NODISCARD IMapBatchesFinisher
 {
 public:
     virtual ~IMapBatchesFinisher();
+
+    virtual const std::set<ChunkId> &getDirtyChunks() const = 0;
 
 private:
     virtual void virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const = 0;

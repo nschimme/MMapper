@@ -11,6 +11,7 @@
 #include "../opengl/OpenGL.h"
 #include "CanvasMouseModeEnum.h"
 #include "RoadIndex.h"
+#include "RoomTint.h"
 #include "connectionselection.h"
 #include "prespammedpath.h"
 
@@ -30,11 +31,6 @@ class ConnectionSelection;
 class MapData;
 class PrespammedPath;
 class InfomarkSelection;
-
-enum class NODISCARD RoomTintEnum { DARK, NO_SUNDEATH };
-static const size_t NUM_ROOM_TINTS = 2;
-NODISCARD extern const MMapper::Array<RoomTintEnum, NUM_ROOM_TINTS> &getAllRoomTints();
-#define ALL_ROOM_TINTS getAllRoomTints()
 
 struct NODISCARD ScaleFactor final
 {

@@ -68,6 +68,8 @@ set(mmapper_SRCS
     display/RoadIndex.cpp
     display/RoadIndex.h
     display/RoomSelections.cpp
+    display/RoomTint.cpp
+    display/RoomTint.h
     display/Textures.cpp
     display/Textures.h
     display/connectionselection.cpp

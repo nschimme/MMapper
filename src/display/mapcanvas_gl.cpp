@@ -550,8 +550,14 @@ void MapCanvas::updateMapBatches()
 
     auto getFuture = [this]() {
         MMLOG() << "[updateMapBatches] calling generateBatches";
+        std::optional<Map> previousMap;
+        if (m_batches.mapBatches.has_value()) {
+            previousMap = m_data.getSavedMap();
+        }
         return m_data.generateBatches(mctp::getProxy(m_textures),
-                                      getGLFont().getSharedFontMetrics());
+                                      getGLFont().getSharedFontMetrics(),
+                                      previousMap,
+                                      getConfig().canvas.meshChunkSize.get());
     };
 
     remeshCookie.set(getFuture());
@@ -580,10 +586,6 @@ void MapCanvas::finishPendingMapBatches()
         }
     }};
 
-    if (m_batches.next_mapBatches.has_value()) {
-        m_batches.mapBatches = std::exchange(m_batches.next_mapBatches, std::nullopt);
-    }
-
     RemeshCookie &remeshCookie = m_batches.remeshCookie;
     if (!remeshCookie.isPending() || !remeshCookie.isReady()) {
         return;
@@ -601,14 +603,36 @@ void MapCanvas::finishPendingMapBatches()
         }
 
         // REVISIT: should we pass a "fake" one and only swap to the correct one on success?
-        LOG() << "Clearing the map batches and call the finisher to create new ones";
+        LOG() << "Merging the map batches";
 
         DECL_TIMER(t, __FUNCTION__);
         const IMapBatchesFinisher &future = *pFuture;
-        std::optional<MapBatches> &opt_mapBatches = m_batches.next_mapBatches;
-        opt_mapBatches.reset();
-        finish(future, opt_mapBatches, getOpenGL(), getGLFont());
-        assert(opt_mapBatches.has_value());
+
+        if (!m_batches.mapBatches.has_value()) {
+            finish(future, m_batches.mapBatches, getOpenGL(), getGLFont());
+        } else {
+            MapBatches &existing = m_batches.mapBatches.value();
+            std::optional<MapBatches> next;
+            finish(future, next, getOpenGL(), getGLFont());
+            if (next.has_value()) {
+                const auto &dirtyChunks = future.getDirtyChunks();
+                for (const auto &cid : dirtyChunks) {
+                    existing.batchedMeshes.erase(cid);
+                    existing.connectionMeshes.erase(cid);
+                    existing.roomNameBatches.erase(cid);
+                }
+
+                for (auto &kv : next->batchedMeshes) {
+                    existing.batchedMeshes[kv.first] = std::move(kv.second);
+                }
+                for (auto &kv : next->connectionMeshes) {
+                    existing.connectionMeshes[kv.first] = std::move(kv.second);
+                }
+                for (auto &kv : next->roomNameBatches) {
+                    existing.roomNameBatches[kv.first] = std::move(kv.second);
+                }
+            }
+        }
         m_data.saveSnapshot();
 
     } catch (...) {
@@ -1031,37 +1055,6 @@ void MapCanvas::renderMapBatches()
 
     BatchedMeshes &batchedMeshes = batches.batchedMeshes;
 
-    const auto drawLayer =
-        [&batches, &batchedMeshes, wantExtraDetail, wantDoorNames](const int thisLayer,
-                                                                   const int currentLayer) {
-            const auto it_mesh = batchedMeshes.find(thisLayer);
-            if (it_mesh != batchedMeshes.end()) {
-                LayerMeshes &meshes = it_mesh->second;
-                meshes.render(thisLayer, currentLayer);
-            }
-
-            if (wantExtraDetail) {
-                BatchedConnectionMeshes &connectionMeshes = batches.connectionMeshes;
-                const auto it_conn = connectionMeshes.find(thisLayer);
-                if (it_conn != connectionMeshes.end()) {
-                    ConnectionMeshes &meshes = it_conn->second;
-                    meshes.render(thisLayer, currentLayer);
-                }
-
-                // NOTE: This can display room names in lower layers, but the text
-                // isn't currently drawn with an appropriate Z-offset, so it doesn't
-                // stay aligned to its actual layer when you switch view layers.
-                if (wantDoorNames && thisLayer == currentLayer) {
-                    BatchedRoomNames &roomNameBatches = batches.roomNameBatches;
-                    const auto it_name = roomNameBatches.find(thisLayer);
-                    if (it_name != roomNameBatches.end()) {
-                        auto &roomNameBatch = it_name->second;
-                        roomNameBatch.render(GLRenderState());
-                    }
-                }
-            }
-        };
-
     const auto fadeBackground = [&gl, &settings]() {
         auto bgColor = Color{settings.backgroundColor.getColor(), 0.5f};
 
@@ -1071,12 +1064,49 @@ void MapCanvas::renderMapBatches()
         gl.renderPlainFullScreenQuad(blendedWithBackground);
     };
 
-    for (const auto &layer : batchedMeshes) {
-        const int thisLayer = layer.first;
-        if (thisLayer == m_currentLayer) {
+    bool faded = false;
+    auto maybeFade = [&](int layer) {
+        if (!faded && layer >= m_currentLayer) {
             gl.clearDepth();
             fadeBackground();
+            faded = true;
         }
-        drawLayer(thisLayer, m_currentLayer);
+    };
+
+    if (batchedMeshes.empty()) {
+        maybeFade(m_currentLayer);
+    }
+
+    for (auto &kv : batchedMeshes) {
+        const ChunkId &cid = kv.first;
+        maybeFade(cid.z);
+
+        LayerMeshes &meshes = kv.second;
+        meshes.render(cid.z, m_currentLayer);
+
+        if (wantExtraDetail) {
+            BatchedConnectionMeshes &connectionMeshes = batches.connectionMeshes;
+            const auto it_conn = connectionMeshes.find(cid);
+            if (it_conn != connectionMeshes.end()) {
+                ConnectionMeshes &c_meshes = it_conn->second;
+                c_meshes.render(cid.z, m_currentLayer);
+            }
+
+            // NOTE: This can display room names in lower layers, but the text
+            // isn't currently drawn with an appropriate Z-offset, so it doesn't
+            // stay aligned to its actual layer when you switch view layers.
+            if (wantDoorNames && cid.z == m_currentLayer) {
+                BatchedRoomNames &roomNameBatches = batches.roomNameBatches;
+                const auto it_name = roomNameBatches.find(cid);
+                if (it_name != roomNameBatches.end()) {
+                    auto &roomNameBatch = it_name->second;
+                    roomNameBatch.render(GLRenderState());
+                }
+            }
+        }
+    }
+
+    if (!faded) {
+        maybeFade(m_currentLayer);
     }
 }

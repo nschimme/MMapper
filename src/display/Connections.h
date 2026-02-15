@@ -25,6 +25,7 @@
 class GLFont;
 class OpenGL;
 struct FontMetrics;
+struct ChunkId;
 
 struct NODISCARD RoomNameBatchIntermediate final
 {
@@ -65,7 +66,7 @@ public:
     NODISCARD RoomNameBatchIntermediate getIntermediate(const FontMetrics &font) const;
 };
 
-using BatchedRoomNames = std::unordered_map<int, UniqueMesh>;
+using BatchedRoomNames = std::map<ChunkId, UniqueMesh>;
 
 struct NODISCARD ConnectionDrawerColorBuffer final
 {
@@ -217,5 +218,5 @@ public:
                                  float dstZ);
 };
 
-using BatchedConnections = std::unordered_map<int, ConnectionDrawerBuffers>;
-using BatchedConnectionMeshes = std::unordered_map<int, ConnectionMeshes>;
+using BatchedConnections = std::map<ChunkId, ConnectionDrawerBuffers>;
+using BatchedConnectionMeshes = std::map<ChunkId, ConnectionMeshes>;

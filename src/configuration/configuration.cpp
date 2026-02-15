@@ -265,6 +265,7 @@ ConstString KEY_LINES_OF_PEEK_PREVIEW = "Lines of peek preview";
 ConstString KEY_LINES_OF_SCROLLBACK = "Lines of scrollback";
 ConstString KEY_PROXY_LOCAL_PORT = "Local port number";
 ConstString KEY_MAP_MODE = "Map Mode";
+ConstString KEY_MESH_CHUNK_SIZE = "Mesh chunk size";
 ConstString KEY_MAXIMUM_NUMBER_OF_PATHS = "maximum number of paths";
 ConstString KEY_MULTIPLE_CONNECTIONS_PENALTY = "multiple connections penalty";
 ConstString KEY_MUME_START_EPOCH = "Mume start epoch";
@@ -646,6 +647,7 @@ void Configuration::CanvasSettings::read(const QSettings &conf)
     connectionNormalColor = lookupColor(KEY_CONNECTION_NORMAL_COLOR, Colors::white.toHex());
     roomDarkColor = lookupColor(KEY_ROOM_DARK_COLOR, DEFAULT_DARK_COLOR);
     roomDarkLitColor = lookupColor(KEY_ROOM_DARK_LIT_COLOR, DEFAULT_NO_SUNDEATH_COLOR);
+    meshChunkSize.set(conf.value(KEY_MESH_CHUNK_SIZE, 32).toInt());
     antialiasingSamples.set(conf.value(KEY_NUMBER_OF_ANTI_ALIASING_SAMPLES, 0).toInt());
     trilinearFiltering.set(conf.value(KEY_USE_TRILINEAR_FILTERING, true).toBool());
     advanced.use3D.set(conf.value(KEY_3D_CANVAS, false).toBool());
@@ -834,6 +836,7 @@ void Configuration::CanvasSettings::write(QSettings &conf) const
     conf.setValue(KEY_ROOM_DARK_COLOR, getQColorName(roomDarkColor));
     conf.setValue(KEY_ROOM_DARK_LIT_COLOR, getQColorName(roomDarkLitColor));
     conf.setValue(KEY_CONNECTION_NORMAL_COLOR, getQColorName(connectionNormalColor));
+    conf.setValue(KEY_MESH_CHUNK_SIZE, meshChunkSize.get());
     conf.setValue(KEY_NUMBER_OF_ANTI_ALIASING_SAMPLES, antialiasingSamples.get());
     conf.setValue(KEY_USE_TRILINEAR_FILTERING, trilinearFiltering.get());
     conf.setValue(KEY_3D_CANVAS, advanced.use3D.get());

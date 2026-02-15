@@ -47,7 +47,8 @@ void MegaRoomShader::virt_setUniforms(const glm::mat4 &mvp, const GLRenderState:
     }
 
     setInt("uCurrentLayer", currentLayer);
-    setInt("uDrawLayer", drawLayer);
+    setInt("uMinZ", minZ);
+    setInt("uMaxZ", maxZ);
     setBool("uDrawUpperLayersTextured", drawUpperLayersTextured);
     setVec2("uMinBounds", minBounds);
     setVec2("uMaxBounds", maxBounds);

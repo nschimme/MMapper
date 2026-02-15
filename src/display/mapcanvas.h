@@ -117,6 +117,7 @@ private:
     GLFont m_glFont;
     Batches m_batches;
     MapCanvasTextures m_textures;
+    mutable std::optional<mctp::MapCanvasTexturesProxy> m_texturesProxy;
     MapData &m_data;
     Mmapper2Group &m_groupManager;
     Diff m_diff;
@@ -155,6 +156,7 @@ public:
 public:
     NODISCARD static MapCanvas *getPrimary();
     NODISCARD const MapCanvasTextures &getTextures() const { return m_textures; }
+    NODISCARD const mctp::MapCanvasTexturesProxy &getTexturesProxy() const;
 
 private:
     NODISCARD inline auto &getOpenGL() { return m_opengl; }

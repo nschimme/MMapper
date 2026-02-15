@@ -13,7 +13,8 @@ in uint aHighlight;
 
 uniform mat4 uViewProj;
 uniform int uCurrentLayer;
-uniform int uDrawLayer;
+uniform int uMinZ;
+uniform int uMaxZ;
 uniform vec2 uMinBounds;
 uniform vec2 uMaxBounds;
 
@@ -28,9 +29,9 @@ flat out uint vWallInfo[3];
 flat out uint vHighlight;
 
 void main() {
-    // Cull rooms outside the visible bounds or on different layers in the vertex shader
+    // Cull rooms outside the visible bounds or outside the visible Z range in the vertex shader
     // Setting position to a point outside the clip volume (-1..1 range)
-    if (aPos.z != uDrawLayer ||
+    if (aPos.z < uMinZ || aPos.z > uMaxZ ||
         float(aPos.x) < uMinBounds.x - 1.0 || float(aPos.x) > uMaxBounds.x + 1.0 ||
         float(aPos.y) < uMinBounds.y - 1.0 || float(aPos.y) > uMaxBounds.y + 1.0 ||
         (aFlags & 8u) == 0u) {

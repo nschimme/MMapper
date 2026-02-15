@@ -267,10 +267,14 @@ void RoomDataBuffer::syncWithMap(const Map &map,
     }
 
     // If drawUnmappedExits changed, we must repack everything
-    static bool lastDrawUnmapped = false;
-    if (drawUnmappedExits != lastDrawUnmapped) {
+    if (drawUnmappedExits != m_lastDrawUnmappedExits) {
         m_initialized = false;
-        lastDrawUnmapped = drawUnmappedExits;
+        m_lastDrawUnmappedExits = drawUnmappedExits;
+    }
+
+    if (m_initialized && m_lastMap.isSamePointer(map)) {
+        // Fast path: map hasn't changed.
+        return;
     }
 
     if (!m_initialized) {
@@ -314,32 +318,21 @@ void RoomDataBuffer::syncWithMap(const Map &map,
     m_lastMap = map;
 }
 
-void RoomDataBuffer::renderLayer(OpenGL &gl,
+void RoomDataBuffer::beginRender(OpenGL &gl,
                                  const glm::mat4 &mvp,
-                                 int z,
-                                 int currentLayer,
-                                 bool drawUpperLayersTextured,
                                  const Color &timeOfDayColor,
-                                 const glm::vec2 &minBounds,
-                                 const glm::vec2 &maxBounds)
+                                 const mctp::MapCanvasTexturesProxy &textures)
 {
     if (m_capacity == 0)
         return;
 
     auto &prog = deref(m_sharedFuncs).getShaderPrograms().getMegaRoomShader();
-    const auto &textures = mctp::getProxy(deref(MapCanvas::getPrimary()).getTextures());
 
     // Ensure the projection matrix is up to date in the GL functions
     // so SimpleMesh::virt_render can pick it up.
     gl.setProjectionMatrix(mvp);
 
-    prog->currentLayer = currentLayer;
-    prog->drawUpperLayersTextured = drawUpperLayersTextured;
-    prog->minBounds = minBounds;
-    prog->maxBounds = maxBounds;
-    prog->drawLayer = z;
-
-    // Texture IDs
+    // Constant texture IDs across all layers
     prog->uTerrainTex = textures.terrain[RoomTerrainEnum::UNDEFINED].array;
     prog->uTrailTex = textures.trail[RoadIndexMaskEnum::NONE].array;
     prog->uOverlayTex = textures.mob[RoomMobFlagEnum::RENT].array;
@@ -350,7 +343,7 @@ void RoomDataBuffer::renderLayer(OpenGL &gl,
     prog->uStreamOutTex = textures.stream_out[ExitDirEnum::NORTH].array;
     prog->uExitTex = textures.exit_up.array;
 
-    // Layer indices
+    // Constant layer indices
     for (uint32_t i = 0u; i < 4u; ++i) {
         prog->uWallLayers[i] = textures.wall[ALL_EXITS_NESWUD[static_cast<size_t>(i)]].position;
         prog->uDottedWallLayers[i] = textures.dotted_wall[ALL_EXITS_NESWUD[static_cast<size_t>(i)]].position;
@@ -365,7 +358,29 @@ void RoomDataBuffer::renderLayer(OpenGL &gl,
     prog->uExitLayers[2] = textures.exit_down.position;
     prog->uExitLayers[3] = textures.exit_up.position;
 
-    m_mesh->render(gl.getDefaultRenderState()
-                       .withBlend(BlendModeEnum::TRANSPARENCY)
-                       .withTimeOfDayColor(timeOfDayColor));
+    // Bind common state
+    m_lastRenderState = gl.getDefaultRenderState()
+                            .withBlend(BlendModeEnum::TRANSPARENCY)
+                            .withTimeOfDayColor(timeOfDayColor);
+}
+
+void RoomDataBuffer::renderLayers(int minZ,
+                                  int maxZ,
+                                  int currentLayer,
+                                  bool drawUpperLayersTextured,
+                                  const glm::vec2 &minBounds,
+                                  const glm::vec2 &maxBounds)
+{
+    if (m_capacity == 0)
+        return;
+
+    auto &prog = deref(m_sharedFuncs).getShaderPrograms().getMegaRoomShader();
+    prog->currentLayer = currentLayer;
+    prog->drawUpperLayersTextured = drawUpperLayersTextured;
+    prog->minBounds = minBounds;
+    prog->maxBounds = maxBounds;
+    prog->minZ = minZ;
+    prog->maxZ = maxZ;
+
+    m_mesh->render(m_lastRenderState);
 }

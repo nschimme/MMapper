@@ -81,7 +81,8 @@ public:
     ~MegaRoomShader() final;
 
     int currentLayer = 0;
-    int drawLayer = 0;
+    int minZ = 0;
+    int maxZ = 0;
     bool drawUpperLayersTextured = false;
     glm::vec2 minBounds = glm::vec2(-1e6f);
     glm::vec2 maxBounds = glm::vec2(1e6f);

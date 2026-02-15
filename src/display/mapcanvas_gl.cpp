@@ -546,7 +546,7 @@ void MapCanvas::updateMapBatches()
 {
     if (m_roomDataBuffer) {
         m_roomDataBuffer->syncWithMap(m_data.getCurrentMap(),
-                                      mctp::getProxy(m_textures),
+                                      getTexturesProxy(),
                                       getConfig().canvas.showUnmappedExits.get());
     }
 
@@ -567,8 +567,10 @@ void MapCanvas::updateMapBatches()
 
     auto getFuture = [this]() {
         MMLOG() << "[updateMapBatches] calling generateBatches";
-        return m_data.generateBatches(mctp::getProxy(m_textures),
-                                      getGLFont().getSharedFontMetrics());
+        const bool skipRooms = (m_roomDataBuffer != nullptr);
+        return m_data.generateBatches(getTexturesProxy(),
+                                      getGLFont().getSharedFontMetrics(),
+                                      skipRooms);
     };
 
     remeshCookie.set(getFuture());
@@ -1060,15 +1062,31 @@ void MapCanvas::renderMapBatches()
     BatchedMeshes &batchedMeshes = batches.batchedMeshes;
 
     const auto getBounds = [this]() {
-        const glm::vec3 bl = unproject_raw(glm::vec3(0, height(), 0));
-        const glm::vec3 br = unproject_raw(glm::vec3(width(), height(), 0));
-        const glm::vec3 tr = unproject_raw(glm::vec3(width(), 0, 0));
-        const glm::vec3 tl = unproject_raw(glm::vec3(0, 0, 0));
+        // Unproject screen corners at both near (0) and far (1) planes to get conservative world bounds
+        // This is necessary for perspective/tilted views where the visible area at different Z depths
+        // varies significantly.
+        // NOTE: We use the physical viewport size because unproject_raw expects physical coordinates.
+        const auto vp = this->m_opengl.getPhysicalViewport();
+        const float w = static_cast<float>(vp.size.x);
+        const float h = static_cast<float>(vp.size.y);
 
-        glm::vec2 minB = glm::min(glm::min(glm::vec2(bl), glm::vec2(br)),
-                                  glm::min(glm::vec2(tr), glm::vec2(tl)));
-        glm::vec2 maxB = glm::max(glm::max(glm::vec2(bl), glm::vec2(br)),
-                                  glm::max(glm::vec2(tr), glm::vec2(tl)));
+        const glm::vec3 corners[8] = {
+            unproject_raw(glm::vec3(0, h, 0)),
+            unproject_raw(glm::vec3(w, h, 0)),
+            unproject_raw(glm::vec3(w, 0, 0)),
+            unproject_raw(glm::vec3(0, 0, 0)),
+            unproject_raw(glm::vec3(0, h, 1)),
+            unproject_raw(glm::vec3(w, h, 1)),
+            unproject_raw(glm::vec3(w, 0, 1)),
+            unproject_raw(glm::vec3(0, 0, 1)),
+        };
+
+        glm::vec2 minB = glm::vec2(corners[0]);
+        glm::vec2 maxB = glm::vec2(corners[0]);
+        for (int i = 1; i < 8; ++i) {
+            minB = glm::min(minB, glm::vec2(corners[i]));
+            maxB = glm::max(maxB, glm::vec2(corners[i]));
+        }
         return std::make_pair(minB, maxB);
     };
 
@@ -1076,19 +1094,46 @@ void MapCanvas::renderMapBatches()
     const auto minB = bounds.first;
     const auto maxB = bounds.second;
 
+    const auto fadeBackground = [&gl, &settings]() {
+        auto bgColor = Color{settings.backgroundColor.getColor(), 0.5f};
+
+        const auto blendedWithBackground
+            = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withColor(bgColor);
+
+        gl.renderPlainFullScreenQuad(blendedWithBackground);
+    };
+
+    if (m_roomDataBuffer) {
+        m_roomDataBuffer->beginRender(getOpenGL(),
+                                      m_viewProj,
+                                      m_timeOfDayColor,
+                                      getTexturesProxy());
+
+        // Optimized room rendering: two passes to handle the background fade at currentLayer
+        // Pass 1: Layers below currentLayer
+        m_roomDataBuffer->renderLayers(-1000000,
+                                       m_currentLayer - 1,
+                                       m_currentLayer,
+                                       settings.drawUpperLayersTextured,
+                                       minB,
+                                       maxB);
+
+        gl.clearDepth();
+        fadeBackground();
+
+        // Pass 2: currentLayer and above
+        m_roomDataBuffer->renderLayers(m_currentLayer,
+                                       1000000,
+                                       m_currentLayer,
+                                       settings.drawUpperLayersTextured,
+                                       minB,
+                                       maxB);
+    }
+
     const auto drawLayer =
         [this, &batches, &batchedMeshes, wantExtraDetail, wantDoorNames, minB, maxB](const int thisLayer,
                                                                          const int currentLayer) {
-            if (m_roomDataBuffer) {
-                m_roomDataBuffer->renderLayer(getOpenGL(),
-                                              m_viewProj,
-                                              thisLayer,
-                                              currentLayer,
-                                              getConfig().canvas.drawUpperLayersTextured,
-                                              m_timeOfDayColor,
-                                              minB,
-                                              maxB);
-            } else {
+            if (!m_roomDataBuffer) {
                 const auto it_mesh = batchedMeshes.find(thisLayer);
                 if (it_mesh != batchedMeshes.end()) {
                     LayerMeshes &meshes = it_mesh->second;
@@ -1118,18 +1163,10 @@ void MapCanvas::renderMapBatches()
             }
         };
 
-    const auto fadeBackground = [&gl, &settings]() {
-        auto bgColor = Color{settings.backgroundColor.getColor(), 0.5f};
-
-        const auto blendedWithBackground
-            = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withColor(bgColor);
-
-        gl.renderPlainFullScreenQuad(blendedWithBackground);
-    };
-
+    // We still need to iterate over layers for connections and room names
     for (const auto &layer : batchedMeshes) {
         const int thisLayer = layer.first;
-        if (thisLayer == m_currentLayer) {
+        if (!m_roomDataBuffer && thisLayer == m_currentLayer) {
             gl.clearDepth();
             fadeBackground();
         }

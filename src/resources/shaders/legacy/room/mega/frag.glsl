@@ -86,7 +86,7 @@ void main() {
     o[7] = (vOverlays2 >> 24) & 0xFFu;
 
     for (int i = 0; i < 8; ++i) {
-        if (o[i] == 0xFFu) continue;
+        if (o[i] == 0xFFu) break;
         vec4 overlayColor = texture(uOverlayArray, vec3(vTexCoord, float(o[i])));
         color = mix(color, overlayColor, overlayColor.a);
     }

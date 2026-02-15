@@ -29,6 +29,8 @@ private:
     size_t m_capacity = 0;
     Map m_lastMap;
     bool m_initialized = false;
+    bool m_lastDrawUnmappedExits = false;
+    GLRenderState m_lastRenderState;
 
 public:
     explicit RoomDataBuffer(const Legacy::SharedFunctions &sharedFuncs);
@@ -36,14 +38,16 @@ public:
 
     void syncWithMap(const Map &map, const mctp::MapCanvasTexturesProxy &textures, bool drawUnmappedExits);
     void setHighlights(const std::unordered_map<RoomId, NamedColorEnum> &highlights);
-    void renderLayer(OpenGL &gl,
+    void beginRender(OpenGL &gl,
                      const glm::mat4 &mvp,
-                     int z,
-                     int currentLayer,
-                     bool drawUpperLayersTextured,
                      const Color &timeOfDayColor,
-                     const glm::vec2 &minBounds,
-                     const glm::vec2 &maxBounds);
+                     const mctp::MapCanvasTexturesProxy &textures);
+    void renderLayers(int minZ,
+                      int maxZ,
+                      int currentLayer,
+                      bool drawUpperLayersTextured,
+                      const glm::vec2 &minBounds,
+                      const glm::vec2 &maxBounds);
 
 private:
     void resize(size_t newSize);

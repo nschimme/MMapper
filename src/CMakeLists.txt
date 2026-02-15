@@ -752,7 +752,7 @@ target_include_directories(mm_global SYSTEM PUBLIC
         ${IMMER_INCLUDE_DIR}
         ${Qt6Core_INCLUDE_DIRS}
         ${Qt6Widgets_INCLUDE_DIRS}
-        #${Qt6_Network_INCLUDE_DIRS}
+        ${Qt6Network_INCLUDE_DIRS}
         #${Qt6_OpenGL_INCLUDE_DIRS}
         #${Qt6OpenGLWidgets_INCLUDE_DIRS}
 )
@@ -761,7 +761,7 @@ target_include_directories(mm_map SYSTEM PUBLIC
         ${IMMER_INCLUDE_DIR}
         ${Qt6Core_INCLUDE_DIRS}
         ${Qt6Widgets_INCLUDE_DIRS}
-        #${Qt6_Network_INCLUDE_DIRS}
+        ${Qt6Network_INCLUDE_DIRS}
         #${Qt6_OpenGL_INCLUDE_DIRS}
         #${Qt6OpenGLWidgets_INCLUDE_DIRS}
 )

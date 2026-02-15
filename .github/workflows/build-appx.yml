@@ -35,7 +35,7 @@ jobs:
         dir: 'C:\'
         arch: win64_msvc2019_64
         cache: true
-        modules: 'qtwebsockets'
+        modules: 'qtwebsockets,qtdeclarative'
 
     # Build
     - name: Build MMapper

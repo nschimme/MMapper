@@ -3,7 +3,7 @@
 
 #include "RoomTint.h"
 
-NODISCARD const MMapper::Array<RoomTintEnum, NUM_ROOM_TINTS> &getAllRoomTints()
+NODISCARD const MMapper::Array<RoomTintEnum, NUM_ROOM_TINTS> &getListOfRoomTints()
 {
     static const MMapper::Array<RoomTintEnum, NUM_ROOM_TINTS> tints{RoomTintEnum::DARK,
                                                                    RoomTintEnum::NO_SUNDEATH};

@@ -9,5 +9,5 @@
 enum class NODISCARD RoomTintEnum { DARK, NO_SUNDEATH };
 static const size_t NUM_ROOM_TINTS = 2;
 
-NODISCARD extern const MMapper::Array<RoomTintEnum, NUM_ROOM_TINTS> &getAllRoomTints();
-#define ALL_ROOM_TINTS getAllRoomTints()
+NODISCARD extern const MMapper::Array<RoomTintEnum, NUM_ROOM_TINTS> &getListOfRoomTints();
+#define ALL_ROOM_TINTS getListOfRoomTints()

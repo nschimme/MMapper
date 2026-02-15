@@ -43,10 +43,11 @@ void main() {
 
     vec4 color = vec4(0.0);
 
-    // Fading for layer (simplified without texture for now)
-    float fade = 1.0;
-    if (vLayerDepth > 0.0) fade = 0.5;
-    else if (vLayerDepth < 0.0) fade = 0.25;
+    // Layer color and fading logic
+    vec4 layerColor = vec4(1.0, 1.0, 1.0, 0.90); // Focused or below
+    if (vLayerDepth > 0.0) {
+        layerColor = vec4(0.70, 0.70, 0.70, 0.20); // Gray70, alpha 0.2
+    }
 
     // Terrain
     color = texture(uTerrainRoadArray, vec3(vTexCoord, float(vTerrainIdx)));
@@ -54,13 +55,13 @@ void main() {
     // Time of day / Light tint
     vec4 tint = uTimeOfDayColor;
     if ((vFlags & 1u) != 0u) {
-        // Dark room tint (NamedColorEnum::ROOM_DARK)
-        tint *= uColors[60]; // ROOM_DARK = 60
+        // Dark room tint (NamedColorEnum::ROOM_DARK = 12)
+        tint *= uColors[12];
     } else if ((vFlags & 2u) != 0u) {
-        // No sundeath tint (NamedColorEnum::ROOM_NO_SUNDEATH)
-        tint *= uColors[61]; // ROOM_NO_SUNDEATH = 61
+        // No sundeath tint (NamedColorEnum::ROOM_NO_SUNDEATH = 13)
+        tint *= uColors[13];
     }
-    color *= tint;
+    color *= tint * layerColor;
 
     // Trail
     if (vTrailIdx != 0xFFFFu) {
@@ -110,13 +111,15 @@ void main() {
     }
 
     // Stream icons (Flow)
+    // NamedColorEnum::STREAM = 14
+    vec4 streamTint = uColors[14] * layerColor;
     for (int i = 0; i < 6; ++i) {
         uint info = (vWallInfo[i / 2] >> (16 * (i % 2))) & 0xFFFFu;
         if ((info & 0x1000u) != 0u) {
             vec4 streamIn = texture(uStreamInArray, vec3(vTexCoord, float(i)));
             vec4 streamOut = texture(uStreamOutArray, vec3(vTexCoord, float(i)));
-            color = mix(color, streamIn, streamIn.a);
-            color = mix(color, streamOut, streamOut.a);
+            color = mix(color, streamIn * streamTint, streamIn.a * streamTint.a);
+            color = mix(color, streamOut * streamTint, streamOut.a * streamTint.a);
         }
     }
 
@@ -128,8 +131,21 @@ void main() {
         if (isExit || isClimb) {
             uint iconIdx = (i == 4) ? (isClimb ? 1u : 3u) : (isClimb ? 0u : 2u);
             vec4 iconColor = texture(uExitIconArray, vec3(vTexCoord, float(iconIdx)));
-            color = mix(color, iconColor, iconColor.a);
+            color = mix(color, iconColor * layerColor, iconColor.a * layerColor.a);
         }
+    }
+
+    // Layer-based overlay (darker/lighter)
+    if (vLayerDepth != 0.0) {
+        float baseAlpha = (vLayerDepth < 0.0) ? 0.5 : 0.1;
+        float alpha = clamp(baseAlpha + 0.03 * abs(vLayerDepth), 0.0, 1.0);
+        vec4 overlay;
+        if (vLayerDepth < 0.0 || !uDrawUpperLayersTextured) {
+            overlay = vec4(0.0, 0.0, 0.0, alpha); // Black
+        } else {
+            overlay = vec4(1.0, 1.0, 1.0, alpha); // White
+        }
+        color = mix(color, overlay, overlay.a);
     }
 
     // Highlights (Diff)
@@ -138,5 +154,5 @@ void main() {
         color = mix(color, hColor, hColor.a);
     }
 
-    fragColor = color * fade;
+    fragColor = color;
 }

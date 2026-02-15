@@ -34,6 +34,7 @@
 #include <QColor>
 #include <QMatrix4x4>
 #include <QOpenGLDebugMessage>
+#include <QOpenGLFramebufferObject>
 #include <QOpenGLWindow>
 #include <QtCore>
 
@@ -147,6 +148,7 @@ private:
     Mmapper2Group &m_groupManager;
     Diff m_diff;
     mutable std::optional<glm::mat4> m_invViewProj;
+    std::unique_ptr<QOpenGLFramebufferObject> m_weatherNoiseFbo;
     FrameRateController m_frameRateController;
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
     Signal2Lifetime m_lifetime;
@@ -301,6 +303,7 @@ private:
     void paintCharacters();
     void paintDifferences();
     void paintWeather();
+    void paintWeatherNoise();
     NODISCARD Color calculateTimeOfDayColor() const;
     void forceUpdateMeshes();
 

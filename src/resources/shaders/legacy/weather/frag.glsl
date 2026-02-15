@@ -5,8 +5,10 @@ uniform vec3 uPlayerPos;
 uniform float uTime;
 uniform vec4 uWeatherIntensities; // x: rain, y: snow, z: clouds, w: fog
 uniform vec4 uTimeOfDayColor;
+uniform sampler2D uNoiseTexture;
 
 in vec2 vWorldPos;
+in vec2 vTexCoord;
 out vec4 vFragmentColor;
 
 // Simple hash and noise functions
@@ -56,17 +58,21 @@ void main()
 
     vec4 weatherColor = vec4(0.0);
 
+    // Sample pre-calculated noise from Pass 1
+    // Noise map: R=fog, G=clouds
+    vec4 sampledNoise = texture(uNoiseTexture, vTexCoord);
+
     // Fog: soft drifting noise
     float fogInt = uWeatherIntensities.w;
     if (fogInt > 0.0) {
-        float n = fbm(worldPos * 0.15 + uTime * 0.1);
+        float n = sampledNoise.r;
         weatherColor = vec4(0.8, 0.8, 0.85, fogInt * n * localMask * 0.6);
     }
 
     // Clouds: puffy high-contrast noise
     float cloudsInt = uWeatherIntensities.z;
     if (cloudsInt > 0.0) {
-        float n = fbm(worldPos * 0.06 - uTime * 0.03);
+        float n = sampledNoise.g;
         // Puffier and sparser: higher threshold and sharper transition
         float puffy = smoothstep(0.52, 0.62, n);
         vec4 clouds = vec4(0.9, 0.9, 1.0, cloudsInt * puffy * localMask * 0.5);

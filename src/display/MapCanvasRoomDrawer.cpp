@@ -1004,7 +1004,7 @@ LayerMeshes LayerMeshesIntermediate::getLayerMeshes(OpenGL &gl) const
     return lm;
 }
 
-void LayerMeshes::render(const int thisLayer, const int focusedLayer)
+void LayerMeshes::render(const int thisLayer, const int focusedLayer, LayerRenderPass pass)
 {
     // Disable texturing for this layer. We want to draw
     // all of the squares in white (using layer boost quads),
@@ -1025,62 +1025,67 @@ void LayerMeshes::render(const int thisLayer, const int focusedLayer)
     const auto color = (thisLayer <= focusedLayer) ? Colors::white.withAlpha(0.90f)
                                                    : Colors::gray70.withAlpha(0.20f);
 
-    {
-        /* REVISIT: For the modern case, we could render each layer separately,
-         * and then only blend the layers that actually overlap. Doing that would
-         * give higher contrast for the base textures.
-         */
-        if (disableTextures) {
-            const auto layerWhite = Colors::white.withAlpha(0.20f);
-            layerBoost.render(less_blended.withColor(layerWhite));
-        } else {
-            terrain.render(less_blended.withColor(color));
-        }
-    }
-
-    // REVISIT: move trails to their own batch also colored by the tint?
-    for (const RoomTintEnum tint : ALL_ROOM_TINTS) {
-        static_assert(NUM_ROOM_TINTS == 2);
-        if (const UniqueMesh &mesh = tints[tint]) {
-            mesh.render(equal_multiplied);
-        }
-    }
-
-    if (!disableTextures) {
-        // streams go under everything else, including trails
+    if (pass == LayerRenderPass::Background) {
         {
-            const Color streamColor = XNamedColor{NamedColorEnum::STREAM}.getColor();
-            const auto combined = Color::multiplyAsVec4(streamColor, color);
-            streamIns.render(lequal_blended.withColor(combined));
-            streamOuts.render(lequal_blended.withColor(combined));
+            /* REVISIT: For the modern case, we could render each layer separately,
+             * and then only blend the layers that actually overlap. Doing that would
+             * give higher contrast for the base textures.
+             */
+            if (disableTextures) {
+                const auto layerWhite = Colors::white.withAlpha(0.20f);
+                layerBoost.render(less_blended.withColor(layerWhite));
+            } else {
+                terrain.render(less_blended.withColor(color));
+            }
         }
 
-        trails.render(equal_blended.withColor(color));
-        overlays.render(equal_blended.withColor(color));
-    }
+        // REVISIT: move trails to their own batch also colored by the tint?
+        for (const RoomTintEnum tint : ALL_ROOM_TINTS) {
+            static_assert(NUM_ROOM_TINTS == 2);
+            if (const UniqueMesh &mesh = tints[tint]) {
+                mesh.render(equal_multiplied);
+            }
+        }
 
-    // always
-    {
-        // doors and walls are considered lines, even though they're drawn with textures.
-        upDownExits.render(equal_blended.withColor(color));
+        if (!disableTextures) {
+            // streams go under everything else, including trails
+            {
+                const Color streamColor = XNamedColor{NamedColorEnum::STREAM}.getColor();
+                const auto combined = Color::multiplyAsVec4(streamColor, color);
+                streamIns.render(lequal_blended.withColor(combined));
+                streamOuts.render(lequal_blended.withColor(combined));
+            }
 
-        // Doors are drawn on top of the up-down exits
-        doors.render(lequal_blended.withColor(color));
-        // and walls are drawn on top of doors.
-        walls.render(lequal_blended.withColor(color));
-        dottedWalls.render(lequal_blended.withColor(color));
-    }
+            trails.render(equal_blended.withColor(color));
+        }
 
-    if (thisLayer != focusedLayer) {
-        // Darker when below, lighter when above
-        const auto baseAlpha = (thisLayer < focusedLayer) ? 0.5f : 0.1f;
-        const auto alpha
-            = glm::clamp(baseAlpha + 0.03f * static_cast<float>(std::abs(focusedLayer - thisLayer)),
-                         0.f,
-                         1.f);
-        const Color &baseColor = (thisLayer < focusedLayer || disableTextures) ? Colors::black
-                                                                               : Colors::white;
-        layerBoost.render(equal_blended.withColor(baseColor.withAlpha(alpha)));
+        // always
+        {
+            // doors and walls are considered lines, even though they're drawn with textures.
+            upDownExits.render(equal_blended.withColor(color));
+
+            // Doors are drawn on top of the up-down exits
+            doors.render(lequal_blended.withColor(color));
+            // and walls are drawn on top of doors.
+            walls.render(lequal_blended.withColor(color));
+            dottedWalls.render(lequal_blended.withColor(color));
+        }
+
+        if (thisLayer != focusedLayer) {
+            // Darker when below, lighter when above
+            const auto baseAlpha = (thisLayer < focusedLayer) ? 0.5f : 0.1f;
+            const auto alpha = glm::clamp(
+                baseAlpha + 0.03f * static_cast<float>(std::abs(focusedLayer - thisLayer)),
+                0.f,
+                1.f);
+            const Color &baseColor = (thisLayer < focusedLayer || disableTextures) ? Colors::black
+                                                                                   : Colors::white;
+            layerBoost.render(equal_blended.withColor(baseColor.withAlpha(alpha)));
+        }
+    } else if (pass == LayerRenderPass::Foreground) {
+        if (!disableTextures) {
+            overlays.render(equal_blended.withColor(color));
+        }
     }
 }
 

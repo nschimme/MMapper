@@ -88,7 +88,7 @@ private:
 public:
     void setPointSize(float in_pointSize);
     void setFloat(const char *name, float value);
-    void setVec3(const char *name, const glm::vec3 &v);
+    void setVec4(const char *name, const glm::vec4 &v);
     void setColor(const char *name, Color color);
     void setMatrix(const char *name, const glm::mat4 &m);
     void setTexture(const char *name, int textureUnit);

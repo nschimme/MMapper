@@ -150,10 +150,10 @@ void AbstractShaderProgram::setFloat(const char *const name, const float value)
     setUniform1fv(location, 1, &value);
 }
 
-void AbstractShaderProgram::setVec3(const char *const name, const glm::vec3 &v)
+void AbstractShaderProgram::setVec4(const char *const name, const glm::vec4 &v)
 {
     const auto location = getUniformLocation(name);
-    setUniform4fv(location, 1, glm::value_ptr(glm::vec4(v, 1.0f)));
+    setUniform4fv(location, 1, glm::value_ptr(v));
 }
 
 void AbstractShaderProgram::setColor(const char *const name, const Color color)

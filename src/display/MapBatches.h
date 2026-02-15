@@ -10,6 +10,8 @@
 template<typename T>
 using RoomTintArray = EnumIndexedArray<T, RoomTintEnum, NUM_ROOM_TINTS>;
 
+enum class LayerRenderPass { Background, Foreground };
+
 struct NODISCARD LayerMeshes final
 {
     UniqueMeshVector terrain;
@@ -29,7 +31,12 @@ struct NODISCARD LayerMeshes final
     DEFAULT_MOVES_DELETE_COPIES(LayerMeshes);
     ~LayerMeshes() = default;
 
-    void render(int thisLayer, int focusedLayer);
+    void render(int thisLayer, int focusedLayer, LayerRenderPass pass);
+    void render(int thisLayer, int focusedLayer)
+    {
+        render(thisLayer, focusedLayer, LayerRenderPass::Background);
+        render(thisLayer, focusedLayer, LayerRenderPass::Foreground);
+    }
     explicit operator bool() const { return isValid; }
 };
 

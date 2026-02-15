@@ -682,8 +682,8 @@ void MapCanvas::actuallyPaintGL()
 
         if (stillAnimating) {
             setAnimating(true);
-        } else if (m_frameRateController.animating) {
-            qDebug() << "[Weather] Animation stopped";
+        } else {
+            setAnimating(false);
         }
     }
 
@@ -701,12 +701,13 @@ void MapCanvas::actuallyPaintGL()
         return;
     }
 
-    paintMap();
+    paintMap(LayerRenderPass::Background);
+    paintDifferences();
+    paintWeather();
+    paintMap(LayerRenderPass::Foreground);
     paintBatchedInfomarks();
     paintSelections();
     paintCharacters();
-    paintDifferences();
-    paintWeather();
 
     gl.releaseFbo();
     gl.blitFboToDefault();
@@ -820,14 +821,14 @@ Color MapCanvas::calculateTimeOfDayColor() const
     auto getColor = [this](MumeTimeEnum t) -> Color {
         switch (t) {
         case MumeTimeEnum::DAWN:
-            return Color(1.0f, 0.8f, 0.6f, 0.2f);
+            return Color(1.0f, 0.8f, 0.6f, 0.1f);
         case MumeTimeEnum::DUSK:
-            return Color(0.6f, 0.4f, 0.8f, 0.3f);
+            return Color(0.6f, 0.4f, 0.8f, 0.15f);
         case MumeTimeEnum::NIGHT: {
             // Moonlight adjustment: more silvery/bright if moon is visible
             const float moon = m_weatherState.moonIntensity;
-            const Color baseNight(0.05f, 0.05f, 0.2f, 0.3f);
-            const Color moonNight(0.2f, 0.2f, 0.4f, 0.2f);
+            const Color baseNight(0.05f, 0.05f, 0.2f, 0.15f);
+            const Color moonNight(0.2f, 0.2f, 0.4f, 0.1f);
             return Color(baseNight.getVec4() * (1.0f - moon) + moonNight.getVec4() * moon);
         }
         case MumeTimeEnum::DAY:
@@ -874,7 +875,7 @@ void MapCanvas::paintWeather()
     auto binder = prog.bind();
 
     prog.setMatrix("uInvViewProj", glm::inverse(m_viewProj));
-    prog.setVec3("uPlayerPos", m_data.tryGetPosition().value_or(Coordinate{}).to_vec3());
+    prog.setVec4("uPlayerPos", glm::vec4(m_data.tryGetPosition().value_or(Coordinate{}).to_vec3(), 1.0f));
 
     const bool want3D = getConfig().canvas.advanced.use3D.get();
     const float zScale = want3D ? getConfig().canvas.advanced.layerHeight.getFloat() : 7.0f;
@@ -921,7 +922,7 @@ void MapCanvas::paintDifferences()
     }
 }
 
-void MapCanvas::paintMap()
+void MapCanvas::paintMap(LayerRenderPass pass)
 {
     const bool pending = m_batches.remeshCookie.isPending();
     if (pending) {
@@ -929,20 +930,22 @@ void MapCanvas::paintMap()
     }
 
     if (!m_batches.mapBatches.has_value()) {
-        const QString msg = pending ? "Please wait... the map isn't ready yet." : "Batch error";
-        getGLFont().renderTextCentered(msg);
-        if (!pending) {
-            // REVISIT: does this need a better fix?
-            // pending already scheduled an update, but now we realize we need an update.
-            update();
+        if (pass == LayerRenderPass::Background) {
+            const QString msg = pending ? "Please wait... the map isn't ready yet." : "Batch error";
+            getGLFont().renderTextCentered(msg);
+            if (!pending) {
+                // REVISIT: does this need a better fix?
+                // pending already scheduled an update, but now we realize we need an update.
+                update();
+            }
         }
         return;
     }
 
     // TODO: add a GUI indicator for pending update?
-    renderMapBatches();
+    renderMapBatches(pass);
 
-    if (pending) {
+    if (pending && pass == LayerRenderPass::Foreground) {
         if (m_batches.pendingUpdateFlashState.tick()) {
             const QString msg = "CAUTION: Async map update pending!";
             getGLFont().renderTextCentered(msg);
@@ -1153,7 +1156,7 @@ void MapCanvas::updateMultisampling()
     getOpenGL().configureFbo(wantMultisampling);
 }
 
-void MapCanvas::renderMapBatches()
+void MapCanvas::renderMapBatches(LayerRenderPass pass)
 {
     std::optional<MapBatches> &mapBatches = m_batches.mapBatches;
     if (!mapBatches.has_value()) {
@@ -1173,23 +1176,23 @@ void MapCanvas::renderMapBatches()
 
     BatchedMeshes &batchedMeshes = batches.batchedMeshes;
 
-    const auto drawLayer =
-        [&batches, &batchedMeshes, wantExtraDetail, wantDoorNames](const int thisLayer,
-                                                                   const int currentLayer) {
-            const auto it_mesh = batchedMeshes.find(thisLayer);
-            if (it_mesh != batchedMeshes.end()) {
-                LayerMeshes &meshes = it_mesh->second;
-                meshes.render(thisLayer, currentLayer);
-            }
+    const auto drawLayer = [&batches, &batchedMeshes, wantExtraDetail, wantDoorNames, pass](
+                               const int thisLayer, const int currentLayer) {
+        const auto it_mesh = batchedMeshes.find(thisLayer);
+        if (it_mesh != batchedMeshes.end()) {
+            LayerMeshes &meshes = it_mesh->second;
+            meshes.render(thisLayer, currentLayer, pass);
+        }
 
-            if (wantExtraDetail) {
+        if (wantExtraDetail) {
+            if (pass == LayerRenderPass::Background) {
                 BatchedConnectionMeshes &connectionMeshes = batches.connectionMeshes;
                 const auto it_conn = connectionMeshes.find(thisLayer);
                 if (it_conn != connectionMeshes.end()) {
                     ConnectionMeshes &meshes = it_conn->second;
                     meshes.render(thisLayer, currentLayer);
                 }
-
+            } else if (pass == LayerRenderPass::Foreground) {
                 // NOTE: This can display room names in lower layers, but the text
                 // isn't currently drawn with an appropriate Z-offset, so it doesn't
                 // stay aligned to its actual layer when you switch view layers.
@@ -1202,7 +1205,8 @@ void MapCanvas::renderMapBatches()
                     }
                 }
             }
-        };
+        }
+    };
 
     const auto fadeBackground = [&gl, &settings]() {
         auto bgColor = Color{settings.backgroundColor.getColor(), 0.5f};
@@ -1215,7 +1219,7 @@ void MapCanvas::renderMapBatches()
 
     for (const auto &layer : batchedMeshes) {
         const int thisLayer = layer.first;
-        if (thisLayer == m_currentLayer) {
+        if (pass == LayerRenderPass::Background && thisLayer == m_currentLayer) {
             gl.clearDepth();
             fadeBackground();
         }

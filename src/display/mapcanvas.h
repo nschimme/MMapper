@@ -286,8 +286,8 @@ private:
     void updateInfomarkBatches();
 
     void actuallyPaintGL();
-    void paintMap();
-    void renderMapBatches();
+    void paintMap(LayerRenderPass pass);
+    void renderMapBatches(LayerRenderPass pass);
     void paintBatchedInfomarks();
     void paintSelections();
     void paintSelectionArea();

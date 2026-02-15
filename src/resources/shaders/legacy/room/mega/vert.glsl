@@ -1,4 +1,5 @@
-#include "../../../common/version.glsl"
+precision highp float;
+precision highp int;
 
 in ivec3 aPos;
 in uint aTerrainTrail;

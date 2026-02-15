@@ -1,5 +1,3 @@
-#include "../../../common/version.glsl"
-
 precision highp float;
 precision highp int;
 

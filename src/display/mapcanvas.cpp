@@ -82,7 +82,11 @@ MapCanvas::MapCanvas(MapData &mapData,
     m_weatherState.targetSnowIntensity = (m_observer.getWeather() == PromptWeatherEnum::SNOW)
                                              ? 1.0f
                                              : 0.0f;
-    m_weatherState.targetCloudsIntensity = (m_observer.getWeather() == PromptWeatherEnum::CLOUDS)
+    const auto weather = m_observer.getWeather();
+    m_weatherState.targetCloudsIntensity = (weather == PromptWeatherEnum::CLOUDS
+                                            || weather == PromptWeatherEnum::RAIN
+                                            || weather == PromptWeatherEnum::HEAVY_RAIN
+                                            || weather == PromptWeatherEnum::SNOW)
                                                ? 1.0f
                                                : 0.0f;
     m_weatherState.targetFogIntensity = (m_observer.getFog() == PromptFogEnum::LIGHT_FOG)   ? 0.3f
@@ -108,7 +112,12 @@ MapCanvas::MapCanvas(MapData &mapData,
                                              : (weather == PromptWeatherEnum::HEAVY_RAIN) ? 1.0f
                                                                                           : 0.0f;
         m_weatherState.targetSnowIntensity = (weather == PromptWeatherEnum::SNOW) ? 1.0f : 0.0f;
-        m_weatherState.targetCloudsIntensity = (weather == PromptWeatherEnum::CLOUDS) ? 1.0f : 0.0f;
+        m_weatherState.targetCloudsIntensity = (weather == PromptWeatherEnum::CLOUDS
+                                                || weather == PromptWeatherEnum::RAIN
+                                                || weather == PromptWeatherEnum::HEAVY_RAIN
+                                                || weather == PromptWeatherEnum::SNOW)
+                                                   ? 1.0f
+                                                   : 0.0f;
         qDebug() << "[Weather] Weather changed to" << static_cast<int>(weather) << "Targets: Rain"
                  << m_weatherState.targetRainIntensity << "Snow"
                  << m_weatherState.targetSnowIntensity << "Clouds"

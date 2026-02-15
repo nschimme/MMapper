@@ -1296,13 +1296,19 @@ void MapCanvas::initParticles()
 
     std::vector<Particle> initialParticles(static_cast<size_t>(MAX_PARTICLES));
     for (size_t i = 0; i < static_cast<size_t>(MAX_PARTICLES); ++i) {
-        initialParticles[i].x = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f) * 120.0f;
-        initialParticles[i].y = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f) * 120.0f;
+        initialParticles[i].x = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f)
+                                * 120.0f;
+        initialParticles[i].y = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f)
+                                * 120.0f;
         initialParticles[i].z = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 100.0f;
-        initialParticles[i].vx = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f) * 2.0f;
-        initialParticles[i].vy = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f) * 2.0f;
-        initialParticles[i].vz = -20.0f - (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 10.0f;
-        initialParticles[i].life = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 4.0f;
+        initialParticles[i].vx = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f)
+                                 * 2.0f;
+        initialParticles[i].vy = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f)
+                                 * 2.0f;
+        initialParticles[i].vz = -20.0f
+                                 - (static_cast<float>(rand()) / static_cast<float>(RAND_MAX))
+                                       * 10.0f;
+        initialParticles[i].life = -1.0f; // Start dead
         initialParticles[i].type = (i < static_cast<size_t>(MAX_PARTICLES) / 2) ? 0.0f : 1.0f;
     }
 
@@ -1370,6 +1376,8 @@ void MapCanvas::paintParticleRender()
     partProg->setMatrix("uViewProj", m_viewProj);
     partProg->setFloat("uWeatherIntensity",
                        static_cast<float>(getConfig().canvas.weatherIntensity.get()) / 100.0f);
+    partProg->setVec4("uWeatherIntensities",
+                      glm::vec4(m_weatherState.rainIntensity, m_weatherState.snowIntensity, 0, 0));
     partProg->setColor("uTimeOfDayColor", calculateTimeOfDayColor());
 
     funcs.glEnable(GL_BLEND);

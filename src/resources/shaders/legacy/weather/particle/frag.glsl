@@ -1,4 +1,5 @@
 uniform float uWeatherIntensity;
+uniform vec4 uWeatherIntensities;
 uniform vec4 uTimeOfDayColor;
 in float vLife;
 in float vType;
@@ -25,7 +26,8 @@ void main()
         streak *= smoothstep(1.0, 0.7, abs(alongLine));
 
         // Original-like rain color: vec4(0.6, 0.6, 1.0, 0.6)
-        vFragmentColor = vec4(0.6, 0.6, 1.0, streak * 0.6 * uWeatherIntensity * darkBoost);
+        vFragmentColor = vec4(0.6, 0.6, 1.0,
+                              streak * 0.6 * uWeatherIntensity * uWeatherIntensities.x * darkBoost);
     } else {
         // Snow: soft circle
         float dist = length(p);
@@ -33,6 +35,7 @@ void main()
         float flake = 1.0 - smoothstep(0.3, 0.8, dist);
 
         // Original-like snow color: vec4(1.0, 1.0, 1.1, 0.8)
-        vFragmentColor = vec4(1.0, 1.0, 1.1, flake * 0.8 * uWeatherIntensity * darkBoost);
+        vFragmentColor = vec4(1.0, 1.0, 1.1,
+                              flake * 0.8 * uWeatherIntensity * uWeatherIntensities.y * darkBoost);
     }
 }

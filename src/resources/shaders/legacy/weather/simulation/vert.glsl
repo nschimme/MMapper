@@ -1,5 +1,4 @@
 uniform float uDeltaTime;
-uniform vec3 uPlayerPos;
 uniform vec4 uWeatherIntensities; // x: rain, y: snow
 
 layout(location = 0) in vec3 inPos;
@@ -16,40 +15,40 @@ float hash(float n) { return fract(sin(n) * 43758.5453123); }
 
 void main()
 {
+    // Simulate in screen space [-1.1, 1.1]
     vec3 pos = inPos + inVel * uDeltaTime;
     vec3 vel = inVel;
     float life = inLife - uDeltaTime;
     float type = inType;
 
-    // Bounds for respawning
-    if (life <= 0.0 || distance(pos.xy, uPlayerPos.xy) > 50.0 || pos.z < -10.0 || pos.z > 120.0) {
+    // Bounds check in screen space
+    if (life <= 0.0 || pos.y < -1.1 || pos.x < -1.1 || pos.x > 1.1) {
         float h = hash(float(gl_VertexID) * 1.234 + life + uDeltaTime);
-        pos.x = uPlayerPos.x + (hash(h) * 100.0 - 50.0);
-        pos.y = uPlayerPos.y + (hash(h + 1.0) * 100.0 - 50.0);
-        pos.z = 90.0 + hash(h + 2.0) * 20.0;
+        pos.x = hash(h) * 2.2 - 1.1;
+        pos.y = 1.1; // Spawn at top
+        pos.z = hash(h + 1.0); // Depth purely for variation
 
         float totalIntensity = uWeatherIntensities.x + uWeatherIntensities.y;
         if (totalIntensity > 0.01) {
              float pRain = uWeatherIntensities.x / totalIntensity;
-             type = step(pRain, hash(h + 3.0)); // 0 for rain, 1 for snow
+             type = step(pRain, hash(h + 2.0)); // 0 for rain, 1 for snow
         } else {
              life = -1.0;
         }
 
-        // Rain is fast and vertical, snow is slow and wafting
+        // Screen space velocities
         if (type < 0.5) {
-            vel = vec3(0.0, 0.0, -40.0 - hash(h + 4.0) * 10.0);
-            life = 3.0 + hash(h + 5.0) * 1.0;
+            vel = vec3(0.0, -2.0 - hash(h + 3.0) * 1.0, 0.0); // Falling fast
+            life = 2.0;
         } else {
-            vel = vec3((hash(h + 4.0) - 0.5) * 4.0, (hash(h + 5.0) - 0.5) * 4.0, -4.0 - hash(h + 6.0) * 2.0);
-            life = 15.0 + hash(h + 7.0) * 5.0;
+            vel = vec3((hash(h + 3.0) - 0.5) * 0.2, -0.4 - hash(h + 4.0) * 0.2, 0.0); // Falling slow
+            life = 10.0;
         }
     }
 
     // Snow swaying
     if (type > 0.5) {
-        pos.x += sin(pos.z * 0.15 + life * 0.5) * 0.08;
-        pos.y += cos(pos.z * 0.12 + life * 0.4) * 0.08;
+        pos.x += sin(life * 2.0 + float(gl_VertexID)) * 0.002;
     }
 
     outPos = pos;

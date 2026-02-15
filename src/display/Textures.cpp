@@ -22,11 +22,11 @@
 #include <QMessageLogContext>
 
 namespace {
-// Simple tiling Perlin noise implementation
-struct TilingPerlin
+// Simple tiling Value noise implementation to mimic original GLSL look
+struct TilingValueNoise
 {
     int p[512];
-    TilingPerlin()
+    TilingValueNoise()
     {
         static const int permutation[]
             = {151, 160, 137, 91,  90,  15,  131, 13,  201, 95,  96,  53,  194, 233, 7,   225, 140,
@@ -48,15 +48,8 @@ struct TilingPerlin
         for (int i = 0; i < 256; i++)
             p[256 + i] = p[i] = permutation[i];
     }
-    static float fade(float t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+    static float fade(float t) { return t * t * (3.0f - 2.0f * t); }
     static float lerp(float t, float a, float b) { return a + t * (b - a); }
-    static float grad(int hash, float x, float y)
-    {
-        int h = hash & 15;
-        float u = h < 8 ? x : y;
-        float v = h < 4 ? y : h == 12 || h == 14 ? x : 0;
-        return ((h & 1) == 0 ? u : -u) + ((h & 2) == 0 ? v : -v);
-    }
     float noise(float x, float y, int repeat)
     {
         int xi = static_cast<int>(std::floor(x)) % repeat;
@@ -74,36 +67,37 @@ struct TilingPerlin
         int next_xi = (xi + 1) % repeat;
         int next_yi = (yi + 1) % repeat;
 
-        int aa = p[p[xi] + yi];
-        int ab = p[p[xi] + next_yi];
-        int ba = p[p[next_xi] + yi];
-        int bb = p[p[next_xi] + next_yi];
+        float aa = static_cast<float>(p[p[xi] + yi]) / 255.0f;
+        float ab = static_cast<float>(p[p[xi] + next_yi]) / 255.0f;
+        float ba = static_cast<float>(p[p[next_xi] + yi]) / 255.0f;
+        float bb = static_cast<float>(p[p[next_xi] + next_yi]) / 255.0f;
 
-        return lerp(v,
-                    lerp(u, grad(aa, xf, yf), grad(ba, xf - 1, yf)),
-                    lerp(u, grad(ab, xf, yf - 1), grad(bb, xf - 1, yf - 1)));
+        return lerp(v, lerp(u, aa, ba), lerp(u, ab, bb));
     }
     float fbm(float x, float y, int repeat, int octaves)
     {
         float total = 0;
-        float frequency = 1;
-        float amplitude = 1;
-        float maxValue = 0;
+        float frequency = 1.0f;
+        float amplitude = 0.5f;
+        float shift = 100.0f;
         for (int i = 0; i < octaves; i++) {
-            total += noise(x * frequency, y * frequency, repeat * static_cast<int>(frequency))
+            total += noise(x * frequency,
+                           y * frequency,
+                           static_cast<int>(static_cast<float>(repeat) * frequency))
                      * amplitude;
-            maxValue += amplitude;
+            x += shift;
+            y += shift;
             amplitude *= 0.5f;
             frequency *= 2.0f;
         }
-        return (total / maxValue + 1.0f) * 0.5f; // Normalize to [0, 1]
+        return total;
     }
 };
 
 static QImage generateNoiseImage(int size)
 {
     QImage img(size, size, QImage::Format_RGBA8888);
-    TilingPerlin perlin;
+    TilingValueNoise perlin;
 
     for (int y = 0; y < size; ++y) {
         for (int x = 0; x < size; ++x) {

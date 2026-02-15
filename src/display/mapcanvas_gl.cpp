@@ -1072,7 +1072,9 @@ void MapCanvas::renderMapBatches()
         return std::make_pair(minB, maxB);
     };
 
-    const auto [minB, maxB] = getBounds();
+    const auto bounds = getBounds();
+    const auto minB = bounds.first;
+    const auto maxB = bounds.second;
 
     const auto drawLayer =
         [this, &batches, &batchedMeshes, wantExtraDetail, wantDoorNames, minB, maxB](const int thisLayer,

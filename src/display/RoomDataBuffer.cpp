@@ -117,11 +117,11 @@ MegaRoomVert RoomDataBuffer::packRoom(const RoomHandle &room,
     uint32_t o2 = 0xFFFFFFFFu;
     uint32_t oCount = 0;
     auto addOverlay = [&](int idx) {
-        if (oCount < 4) {
-            uint32_t shift = 8 * oCount;
+        if (oCount < 4u) {
+            const uint32_t shift = 8u * oCount;
             o1 = (o1 & ~(0xFFu << shift)) | (static_cast<uint32_t>(idx) << shift);
-        } else if (oCount < 8) {
-            uint32_t shift = 8 * (oCount - 4);
+        } else if (oCount < 8u) {
+            const uint32_t shift = 8u * (oCount - 4u);
             o2 = (o2 & ~(0xFFu << shift)) | (static_cast<uint32_t>(idx) << shift);
         }
         oCount++;
@@ -346,14 +346,14 @@ void RoomDataBuffer::renderLayer(OpenGL &gl,
     prog->uWhiteTex = textures.white_pixel.array;
 
     // Layer indices
-    for (size_t i = 0; i < 4; ++i) {
-        prog->uWallLayers[i] = textures.wall[ALL_EXITS_NESWUD[i]].position;
-        prog->uDottedWallLayers[i] = textures.dotted_wall[ALL_EXITS_NESWUD[i]].position;
+    for (uint32_t i = 0u; i < 4u; ++i) {
+        prog->uWallLayers[i] = textures.wall[ALL_EXITS_NESWUD[static_cast<size_t>(i)]].position;
+        prog->uDottedWallLayers[i] = textures.dotted_wall[ALL_EXITS_NESWUD[static_cast<size_t>(i)]].position;
     }
-    for (size_t i = 0; i < 6; ++i) {
-        prog->uDoorLayers[i] = textures.door[ALL_EXITS_NESWUD[i]].position;
-        prog->uStreamInLayers[i] = textures.stream_in[ALL_EXITS_NESWUD[i]].position;
-        prog->uStreamOutLayers[i] = textures.stream_out[ALL_EXITS_NESWUD[i]].position;
+    for (uint32_t i = 0u; i < 6u; ++i) {
+        prog->uDoorLayers[i] = textures.door[ALL_EXITS_NESWUD[static_cast<size_t>(i)]].position;
+        prog->uStreamInLayers[i] = textures.stream_in[ALL_EXITS_NESWUD[static_cast<size_t>(i)]].position;
+        prog->uStreamOutLayers[i] = textures.stream_out[ALL_EXITS_NESWUD[static_cast<size_t>(i)]].position;
     }
     prog->uExitLayers[0] = textures.exit_climb_down.position;
     prog->uExitLayers[1] = textures.exit_climb_up.position;

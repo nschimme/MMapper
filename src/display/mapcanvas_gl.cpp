@@ -930,20 +930,12 @@ void MapCanvas::paintWeather()
     prog.setFloat("uZScale", zScale);
 
     prog.setFloat("uTime", m_weatherState.animationTime);
-    prog.setVec4("uWeatherIntensities",
-                 glm::vec4(m_weatherState.rainIntensity,
-                           m_weatherState.snowIntensity,
-                           m_weatherState.cloudsIntensity,
-                           m_weatherState.fogIntensity));
+    prog.setFloat("uRainIntensity", m_weatherState.rainIntensity);
+    prog.setFloat("uSnowIntensity", m_weatherState.snowIntensity);
+    prog.setFloat("uCloudsIntensity", m_weatherState.cloudsIntensity);
+    prog.setFloat("uFogIntensity", m_weatherState.fogIntensity);
     prog.setColor("uTimeOfDayColor", todColor);
-
-    funcs.glActiveTexture(GL_TEXTURE1);
-    m_textures.weather_noise->bind();
-    prog.setTexture("uNoiseTexture", 1);
-
-    funcs.glActiveTexture(GL_TEXTURE2);
-    funcs.glBindTexture(GL_TEXTURE_2D, funcs.getFBO().resolvedDepthTextureId());
-    prog.setTexture("uDepthTexture", 2);
+    prog.setViewport("uPhysViewport", funcs.getPhysicalViewport());
 
     const auto rs
         = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withDepthFunction(std::nullopt);

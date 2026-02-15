@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2026 The MMapper Authors
+
 uniform vec4 uWeatherIntensities;
 uniform vec4 uTimeOfDayColor;
 in float vLife;
@@ -14,7 +17,7 @@ void main()
     float nearFade = smoothstep(1.0, 3.0, vDist);
     if (nearFade <= 0.0) discard;
 
-    float emissive = 1.0 + uTimeOfDayColor.a * 2.0;
+    float darkBoost = uTimeOfDayColor.a * 1.5;
     vec2 p = gl_PointCoord * 2.0 - 1.0;
 
     if (vType < 0.5) {
@@ -23,21 +26,20 @@ void main()
         vec2 dir = len > 0.0001 ? vVelScreen / len : vec2(0.0, 1.0);
         float distToLine = length(p - dot(p, dir) * dir);
 
-        float streak = 1.0 - smoothstep(0.0, 0.1, distToLine);
+        float streak = 1.0 - smoothstep(0.0, 0.15, distToLine);
         float alongLine = dot(p, dir);
         streak *= smoothstep(1.0, 0.7, abs(alongLine));
 
-        vFragmentColor = vec4(0.7, 0.7, 1.0,
-                              streak * 0.4 * uWeatherIntensities.x * nearFade);
+        float alpha = uWeatherIntensities.x * streak * nearFade * (0.6 + darkBoost);
+        vec3 color = vec3(0.6 + darkBoost, 0.6 + darkBoost, 1.0);
+        vFragmentColor = vec4(color, alpha);
     } else {
         // Snow: soft circle
         float dist = length(p);
-        float flake = 1.0 - smoothstep(0.4, 1.0, dist);
+        float flake = 1.0 - smoothstep(0.2, 0.6, dist);
 
-        vFragmentColor = vec4(1.0, 1.0, 1.1,
-                              flake * 0.6 * uWeatherIntensities.y * nearFade);
+        float alpha = uWeatherIntensities.y * flake * nearFade * (0.8 + darkBoost);
+        vec3 color = vec3(1.0 + darkBoost, 1.0 + darkBoost, 1.1 + darkBoost);
+        vFragmentColor = vec4(color, alpha);
     }
-
-    // Night visibility boost
-    vFragmentColor.rgb *= emissive;
 }

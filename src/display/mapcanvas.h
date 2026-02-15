@@ -188,6 +188,13 @@ public:
     }
     NODISCARD float getRawZoom() const { return m_scaleFactor.getRaw(); }
 
+    void setViewportOffset(const glm::vec2 &offset)
+    {
+        m_viewportOffset = offset;
+        update();
+    }
+    NODISCARD glm::vec2 getViewportOffset() const { return m_viewportOffset; }
+
 public:
     NODISCARD auto width() const { return QOpenGLWindow::width(); }
     NODISCARD auto height() const { return QOpenGLWindow::height(); }

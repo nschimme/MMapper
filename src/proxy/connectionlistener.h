@@ -45,6 +45,8 @@ signals:
 
 #include "AbstractSocket.h"
 
+class MMapperCore;
+
 class NODISCARD_QOBJECT ConnectionListener final : public QObject
 {
     Q_OBJECT
@@ -53,26 +55,14 @@ public:
     void startClient(std::unique_ptr<AbstractSocket> socket);
 
 private:
-    MapData &m_mapData;
-    Mmapper2PathMachine &m_pathMachine;
-    PrespammedPath &m_prespammedPath;
-    Mmapper2Group &m_groupManager;
-    MumeClock &m_mumeClock;
+    MMapperCore &m_core;
     MapCanvas &m_mapCanvas;
-    GameObserver &m_gameOberver;
     using ServerList = std::vector<QPointer<ConnectionListenerTcpServer>>;
     ServerList m_servers;
     QPointer<Proxy> m_proxy;
 
 public:
-    explicit ConnectionListener(MapData &,
-                                Mmapper2PathMachine &,
-                                PrespammedPath &,
-                                Mmapper2Group &,
-                                MumeClock &,
-                                MapCanvas &,
-                                GameObserver &,
-                                QObject *parent);
+    explicit ConnectionListener(MMapperCore &core, MapCanvas &mca, QObject *parent);
     ~ConnectionListener() final;
 
 public:

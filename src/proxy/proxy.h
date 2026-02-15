@@ -61,6 +61,8 @@ struct MumeSocketOutputs;
 struct ParserCommonData;
 struct UserTelnetOutputs;
 
+class MMapperCore;
+
 class NODISCARD_QOBJECT Proxy final : public QObject
 {
     Q_OBJECT
@@ -69,14 +71,8 @@ private:
     io::buffer<(1 << 13)> m_buffer;
     WeakHandleLifetime<Proxy> m_weakHandleLifetime{*this};
 
-    MapData &m_mapData;
-    Mmapper2PathMachine &m_pathMachine;
-    PrespammedPath &m_prespammedPath;
-    Mmapper2Group &m_groupManager;
-    MumeClock &m_mumeClock;
+    MMapperCore &m_core;
     MapCanvas &m_mapCanvas;
-    GameObserver &m_gameObserver;
-    MainWindow &m_mainWindow;
     std::unique_ptr<AbstractSocket> m_userSocket;
 
 private:
@@ -166,25 +162,15 @@ private:
     ServerStateEnum m_serverState = ServerStateEnum::Initialized;
 
 public:
-    NODISCARD static QPointer<Proxy> allocInit(MapData &,
-                                               Mmapper2PathMachine &,
-                                               PrespammedPath &,
-                                               Mmapper2Group &,
-                                               MumeClock &,
+    NODISCARD static QPointer<Proxy> allocInit(MMapperCore &,
                                                MapCanvas &,
-                                               GameObserver &,
                                                std::unique_ptr<AbstractSocket>,
                                                ConnectionListener &);
 
 public:
     explicit Proxy(Badge<Proxy>,
-                   MapData &,
-                   Mmapper2PathMachine &,
-                   PrespammedPath &,
-                   Mmapper2Group &,
-                   MumeClock &,
+                   MMapperCore &,
                    MapCanvas &,
-                   GameObserver &,
                    std::unique_ptr<AbstractSocket>,
                    ConnectionListener &);
     ~Proxy() final;
@@ -282,13 +268,13 @@ private:
 private:
     NODISCARD Pipeline &getPipeline() { return deref(m_pipeline); }
 
-    NODISCARD GameObserver &getGameObserver() { return m_gameObserver; }
-    NODISCARD MainWindow &getMainWindow() { return m_mainWindow; }
+    NODISCARD GameObserver &getGameObserver();
+    NODISCARD MMapperCore &getCore() { return m_core; }
     NODISCARD MapCanvas &getMapCanvas() { return m_mapCanvas; }
-    NODISCARD Mmapper2Group &getGroupManager() { return m_groupManager; }
-    NODISCARD MumeClock &getMumeClock() { return m_mumeClock; }
-    NODISCARD Mmapper2PathMachine &getPathMachine() { return m_pathMachine; }
-    NODISCARD PrespammedPath &getPrespam() { return m_prespammedPath; }
+    NODISCARD Mmapper2Group &getGroupManager();
+    NODISCARD MumeClock &getMumeClock();
+    NODISCARD Mmapper2PathMachine &getPathMachine();
+    NODISCARD PrespammedPath &getPrespam();
 
     NODISCARD MumeFallbackSocket &getMudSocket() { return deref(getPipeline().mud.mudSocket); }
     NODISCARD MudTelnet &getMudTelnet() { return deref(getPipeline().mud.mudTelnet); }

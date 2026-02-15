@@ -98,17 +98,19 @@ static void addApplicationFont()
     }
 }
 
+#include "../global/MMapperCore.h"
+
 MainWindow::~MainWindow()
 {
     forceNewFile();
     mmqt::rdisconnect(this);
     async_tasks::cleanup();
-    delete m_listener;
     destroyTopLevelWindows();
 }
 
-MainWindow::MainWindow()
+MainWindow::MainWindow(MMapperCore &core)
     : QMainWindow(nullptr, Qt::WindowFlags{})
+    , m_core(core)
     , m_asyncTask(this)
 {
     initTopLevelWindows();
@@ -118,25 +120,15 @@ MainWindow::MainWindow()
     addApplicationFont();
     registerMetatypes();
 
-    m_mapData = new MapData(this);
-    MapData &mapData = deref(m_mapData);
-
-    m_mapData->setObjectName("MapData");
     setCurrentFile("");
 
-    m_prespammedPath = new PrespammedPath(this);
-
-    m_groupManager = new Mmapper2Group(this);
-    m_groupManager->setObjectName("GroupManager");
-
-    m_mapWindow = new MapWindow(mapData, deref(m_prespammedPath), deref(m_groupManager), this);
+    m_mapWindow = new MapWindow(m_core.mapData(),
+                                m_core.prespammedPath(),
+                                m_core.groupManager(),
+                                this);
     setCentralWidget(m_mapWindow);
 
-    m_pathMachine = new Mmapper2PathMachine(mapData, this);
-    m_pathMachine->setObjectName("Mmapper2PathMachine");
-
-    m_gameObserver = std::make_unique<GameObserver>();
-    m_adventureTracker = new AdventureTracker(deref(m_gameObserver), this);
+    m_core.setMapCanvas(getCanvas());
 
     // View -> Side Panels -> Log Panel
     m_dockDialogLog = new QDockWidget(tr("Log Panel"), this);
@@ -154,7 +146,7 @@ MainWindow::MainWindow()
     m_dockDialogLog->hide();
 
     // View -> Side Panels -> Group Panel and Tools -> Group Manager
-    m_groupWidget = new GroupWidget(m_groupManager, m_mapData, this);
+    m_groupWidget = new GroupWidget(&m_core.groupManager(), &m_core.mapData(), this);
     m_dockDialogGroup = new QDockWidget(tr("Group Panel"), this);
     m_dockDialogGroup->setObjectName("DockWidgetGroup");
     m_dockDialogGroup->setAllowedAreas(Qt::TopDockWidgetArea | Qt::BottomDockWidgetArea);
@@ -165,12 +157,7 @@ MainWindow::MainWindow()
     connect(m_groupWidget, &GroupWidget::sig_center, m_mapWindow, &MapWindow::slot_centerOnWorldPos);
 
     // View -> Side Panels -> Room Panel (Mobs)
-    m_roomManager = new RoomManager(this);
-    m_roomManager->setObjectName("RoomManager");
-    deref(m_gameObserver).sig2_sentToUserGmcp.connect(m_lifetime, [this](const GmcpMessage &gmcp) {
-        deref(m_roomManager).slot_parseGmcpInput(gmcp);
-    });
-    m_roomWidget = new RoomWidget(deref(m_roomManager), this);
+    m_roomWidget = new RoomWidget(m_core.roomManager(), this);
     m_dockDialogRoom = new QDockWidget(tr("Room Panel"), this);
     m_dockDialogRoom->setObjectName("DockWidgetRoom");
     m_dockDialogRoom->setAllowedAreas(Qt::TopDockWidgetArea | Qt::BottomDockWidgetArea);
@@ -181,7 +168,7 @@ MainWindow::MainWindow()
     m_dockDialogRoom->hide();
 
     // Find Room Dialog
-    m_findRoomsDlg = new FindRoomsDlg(*m_mapData, this);
+    m_findRoomsDlg = new FindRoomsDlg(m_core.mapData(), this);
     m_findRoomsDlg->setObjectName("FindRoomsDlg");
 
     // View -> Side Panels -> Adventure Panel (Trophy XP, Achievements, Hints, etc)
@@ -192,15 +179,13 @@ MainWindow::MainWindow()
                                        | QDockWidget::DockWidgetFloatable
                                        | QDockWidget::DockWidgetMovable);
     addDockWidget(Qt::BottomDockWidgetArea, m_dockDialogAdventure);
-    m_adventureWidget = new AdventureWidget(deref(m_adventureTracker), this);
+    m_adventureWidget = new AdventureWidget(m_core.adventureTracker(), this);
     m_dockDialogAdventure->setWidget(m_adventureWidget);
     m_dockDialogAdventure->hide();
 
     // View -> Side Panels -> Description / Area Panel
     m_descriptionWidget = new DescriptionWidget(this);
     m_dockDialogDescription = new QDockWidget(tr("Description Panel"), this);
-
-    m_hotkeyManager = std::make_unique<HotkeyManager>();
     m_dockDialogDescription->setObjectName("DockWidgetDescription");
     m_dockDialogDescription->setAllowedAreas(Qt::AllDockWidgetAreas);
     m_dockDialogDescription->setFeatures(QDockWidget::DockWidgetMovable
@@ -209,40 +194,12 @@ MainWindow::MainWindow()
     addDockWidget(Qt::RightDockWidgetArea, m_dockDialogDescription);
     m_dockDialogDescription->setWidget(m_descriptionWidget);
 
-    m_mumeClock = new MumeClock(getConfig().mumeClock.startEpoch, deref(m_gameObserver), this);
     if constexpr (!NO_UPDATER) {
         m_updateDialog = new UpdateDialog(this);
     }
 
-    m_logger = new AutoLogger(this);
-
-    // TODO move this connect() wiring into AutoLogger::ctor ?
-    GameObserver &observer = deref(m_gameObserver);
-    observer.sig2_connected.connect(m_lifetime, [this]() {
-        //
-        deref(m_logger).slot_onConnected();
-    });
-    observer.sig2_toggledEchoMode.connect(m_lifetime, [this](bool echo) {
-        deref(m_logger).slot_shouldLog(echo);
-    });
-    observer.sig2_sentToMudString.connect(m_lifetime, [this](const QString &msg) {
-        deref(m_logger).slot_writeToLog(msg);
-    });
-    observer.sig2_sentToUserString.connect(m_lifetime, [this](const QString &msg) {
-        deref(m_logger).slot_writeToLog(msg);
-    });
-
-    m_listener = new ConnectionListener(deref(m_mapData),
-                                        deref(m_pathMachine),
-                                        deref(m_prespammedPath),
-                                        deref(m_groupManager),
-                                        deref(m_mumeClock),
-                                        deref(getCanvas()),
-                                        deref(m_gameObserver),
-                                        this);
-
     // View -> Side Panels -> Client Panel
-    m_clientWidget = new ClientWidget(deref(m_listener), deref(m_hotkeyManager), this);
+    m_clientWidget = new ClientWidget(*m_core.listener(), m_core.hotkeyManager(), this);
     m_clientWidget->setObjectName("InternalMudClientWidget");
     m_dockDialogClient = new QDockWidget("Client Panel", this);
     m_dockDialogClient->setObjectName("DockWidgetClient");
@@ -297,27 +254,21 @@ MainWindow::MainWindow()
         slot_setShowMenuBar();
     }
 
-    connect(m_mapData,
+    connect(&m_core.mapData(),
             &MapData::sig_checkMapConsistency,
             this,
             &MainWindow::slot_checkMapConsistency);
-    connect(m_mapData, &MapData::sig_generateBaseMap, this, &MainWindow::slot_generateBaseMap);
+    connect(&m_core.mapData(),
+            &MapData::sig_generateBaseMap,
+            this,
+            &MainWindow::slot_generateBaseMap);
 
     readSettings();
 }
 
 void MainWindow::startServices()
 {
-    try {
-        m_listener->listen();
-        slot_log("ConnectionListener",
-                 tr("Server bound on localhost to port: %1.").arg(getConfig().connection.localPort));
-    } catch (const std::exception &e) {
-        const QString errorMsg = QString(
-                                     "Unable to start the server (switching to offline mode): %1.")
-                                     .arg(QString::fromUtf8(e.what()));
-        QMessageBox::critical(this, tr("mmapper"), errorMsg);
-    }
+    m_core.startServices();
 
     if constexpr (!NO_UPDATER) {
         auto should_check_for_update = []() -> bool { return getConfig().general.checkForUpdate; };
@@ -391,47 +342,58 @@ void MainWindow::writeSettings()
 
 void MainWindow::wireConnections()
 {
-    connect(m_mapData,
+    connect(&m_core.mapData(),
             &MapFrontend::sig_clearingMap,
-            m_pathMachine,
+            &m_core.pathMachine(),
             &PathMachine::slot_releaseAllPaths);
 
     MapCanvas *const canvas = getCanvas();
-    connect(m_mapData, &MapFrontend::sig_clearingMap, canvas, &MapCanvas::slot_clearAllSelections);
+    connect(&m_core.mapData(),
+            &MapFrontend::sig_clearingMap,
+            canvas,
+            &MapCanvas::slot_clearAllSelections);
 
-    connect(m_pathMachine,
+    connect(&m_core.pathMachine(),
             &Mmapper2PathMachine::sig_playerMoved,
             canvas,
             &MapCanvas::slot_moveMarker);
 
-    connect(m_pathMachine,
+    connect(&m_core.pathMachine(),
             &Mmapper2PathMachine::sig_playerMoved,
             m_descriptionWidget,
             [this](const RoomId &id) {
-                if (const auto room = m_mapData->getRoomHandle(id)) {
+                if (const auto room = m_core.mapData().getRoomHandle(id)) {
                     m_descriptionWidget->updateRoom(room);
                 }
             });
 
-    connect(m_mapData, &MapData::sig_onPositionChange, this, [this]() {
-        m_pathMachine->onPositionChange(m_mapData->getCurrentRoomId());
-        m_descriptionWidget->updateRoom(m_mapData->getCurrentRoom());
+    connect(&m_core.mapData(), &MapData::sig_onPositionChange, this, [this]() {
+        m_core.pathMachine().onPositionChange(m_core.mapData().getCurrentRoomId());
+        m_descriptionWidget->updateRoom(m_core.mapData().getCurrentRoom());
     });
 
-    connect(m_mapData,
+    connect(&m_core.mapData(),
             &MapData::sig_onForcedPositionChange,
             canvas,
             &MapCanvas::slot_onForcedPositionChange);
 
     // moved to mapwindow
-    connect(m_mapData, &MapData::sig_mapSizeChanged, m_mapWindow, &MapWindow::slot_setScrollBars);
+    connect(&m_core.mapData(),
+            &MapData::sig_mapSizeChanged,
+            m_mapWindow,
+            &MapWindow::slot_setScrollBars);
 
-    connect(m_prespammedPath, &PrespammedPath::sig_update, canvas, &MapCanvas::slot_requestUpdate);
+    connect(&m_core.prespammedPath(),
+            &PrespammedPath::sig_update,
+            canvas,
+            &MapCanvas::slot_requestUpdate);
 
-    connect(m_mapData, &MapData::sig_log, this, &MainWindow::slot_log);
+    connect(&m_core, &MMapperCore::sig_log, this, &MainWindow::slot_log);
     connect(canvas, &MapCanvas::sig_log, this, &MainWindow::slot_log);
 
-    connect(m_mapData, &MapData::sig_onDataChanged, this, [this]() { this->updateMapModified(); });
+    connect(&m_core.mapData(), &MapData::sig_onDataChanged, this, [this]() {
+        this->updateMapModified();
+    });
 
     connect(zoomInAct, &QAction::triggered, canvas, &MapCanvas::slot_zoomIn);
     connect(zoomOutAct, &QAction::triggered, canvas, &MapCanvas::slot_zoomOut);
@@ -443,9 +405,9 @@ void MainWindow::wireConnections()
             auto anyRoomAtOffset = [this](const Coordinate &offset) -> bool {
                 const auto &sel = deref(m_roomSelection);
                 for (const RoomId id : sel) {
-                    const Coordinate here = m_mapData->getRoomHandle(id).getPosition();
+                    const Coordinate here = m_core.mapData().getRoomHandle(id).getPosition();
                     const Coordinate target = here + offset;
-                    if (m_mapData->findRoomHandle(target)) {
+                    if (m_core.mapData().findRoomHandle(target)) {
                         return true;
                     }
                 }
@@ -472,22 +434,21 @@ void MainWindow::wireConnections()
     connect(canvas, &MapCanvas::sig_dismissContextMenu, this, &MainWindow::slot_closeContextMenu);
 
     // Group
-    connect(m_groupManager, &Mmapper2Group::sig_log, this, &MainWindow::slot_log);
-    connect(m_groupManager,
+    connect(&m_core.groupManager(),
             &Mmapper2Group::sig_updateMapCanvas,
             canvas,
             &MapCanvas::slot_requestUpdate);
 
-    connect(m_mapData, &MapFrontend::sig_clearingMap, m_groupWidget, &GroupWidget::slot_mapUnloaded);
+    connect(&m_core.mapData(),
+            &MapFrontend::sig_clearingMap,
+            m_groupWidget,
+            &GroupWidget::slot_mapUnloaded);
 
-    connect(m_mumeClock, &MumeClock::sig_log, this, &MainWindow::slot_log);
-
-    connect(m_listener, &ConnectionListener::sig_log, this, &MainWindow::slot_log);
     connect(m_dockDialogClient,
             &QDockWidget::visibilityChanged,
             m_clientWidget,
             &ClientWidget::slot_onVisibilityChanged);
-    connect(m_listener, &ConnectionListener::sig_clientSuccessfullyConnected, this, [this]() {
+    connect(m_core.listener(), &ConnectionListener::sig_clientSuccessfullyConnected, this, [this]() {
         if (!m_clientWidget->isUsingClient()) {
             m_dockDialogClient->hide();
         }
@@ -589,15 +550,15 @@ void MainWindow::createActions()
     m_undoAction = new QAction(QIcon::fromTheme("edit-undo"), tr("&Undo"), this);
     m_undoAction->setShortcut(QKeySequence::Undo);
     m_undoAction->setStatusTip(tr("Undo the last action"));
-    connect(m_undoAction, &QAction::triggered, m_mapData, &MapData::slot_undo);
-    connect(m_mapData, &MapData::sig_undoAvailable, m_undoAction, &QAction::setEnabled);
+    connect(m_undoAction, &QAction::triggered, &m_core.mapData(), &MapData::slot_undo);
+    connect(&m_core.mapData(), &MapData::sig_undoAvailable, m_undoAction, &QAction::setEnabled);
     m_undoAction->setEnabled(false);
 
     m_redoAction = new QAction(QIcon::fromTheme("edit-redo"), tr("&Redo"), this);
     m_redoAction->setShortcut(QKeySequence::Redo);
     m_redoAction->setStatusTip(tr("Redo the last undone action"));
-    connect(m_redoAction, &QAction::triggered, m_mapData, &MapData::slot_redo);
-    connect(m_mapData, &MapData::sig_redoAvailable, m_redoAction, &QAction::setEnabled);
+    connect(m_redoAction, &QAction::triggered, &m_core.mapData(), &MapData::slot_redo);
+    connect(&m_core.mapData(), &MapData::sig_redoAvailable, m_redoAction, &QAction::setEnabled);
     m_redoAction->setEnabled(false);
 
     preferencesAct = new QAction(QIcon::fromTheme("preferences-desktop",
@@ -902,7 +863,7 @@ void MainWindow::createActions()
     releaseAllPathsAct->setCheckable(false);
     connect(releaseAllPathsAct,
             &QAction::triggered,
-            m_pathMachine,
+            &m_core.pathMachine(),
             &PathMachine::slot_releaseAllPaths);
 
     gotoRoomAct = new QAction(QIcon(":/icons/goto.png"), tr("Move to selected room"), this);
@@ -914,13 +875,13 @@ void MainWindow::createActions()
             return;
         }
 
-        auto &mapData = deref(m_mapData);
+        auto &mapData = m_core.mapData();
         auto &sel = deref(m_roomSelection);
         sel.removeMissing(mapData);
 
         if (m_roomSelection->size() == 1) {
             const RoomId id = m_roomSelection->getFirstRoomId();
-            m_mapData->setRoom(id);
+            m_core.mapData().setRoom(id);
         }
     });
 
@@ -1424,11 +1385,11 @@ void MainWindow::setupStatusBar()
 {
     showStatusForever(tr("Say friend and enter..."));
     statusBar()->insertPermanentWidget(0,
-                                       new MumeClockWidget(deref(m_gameObserver),
-                                                           deref(m_mumeClock),
+                                       new MumeClockWidget(m_core.gameObserver(),
+                                                           m_core.mumeClock(),
                                                            this));
 
-    XPStatusWidget *xpStatus = new XPStatusWidget(*m_adventureTracker, statusBar(), this);
+    XPStatusWidget *xpStatus = new XPStatusWidget(m_core.adventureTracker(), statusBar(), this);
     xpStatus->setToolTip("Click to toggle the Adventure Panel.");
 
     connect(xpStatus, &QPushButton::clicked, [this]() {
@@ -1437,7 +1398,10 @@ void MainWindow::setupStatusBar()
     statusBar()->insertPermanentWidget(0, xpStatus);
 
     QLabel *pathmachineStatus = new QLabel(statusBar());
-    connect(m_pathMachine, &Mmapper2PathMachine::sig_state, pathmachineStatus, &QLabel::setText);
+    connect(&m_core.pathMachine(),
+            &Mmapper2PathMachine::sig_state,
+            pathmachineStatus,
+            &QLabel::setText);
     statusBar()->insertPermanentWidget(0, pathmachineStatus);
 }
 
@@ -1453,7 +1417,7 @@ void MainWindow::slot_onPreferences()
             &MapWindow::slot_graphicsSettingsChanged);
     connect(m_configDialog.get(),
             &ConfigDialog::sig_groupSettingsChanged,
-            m_groupManager,
+            &m_core.groupManager(),
             &Mmapper2Group::slot_groupSettingsChanged);
     m_configDialog->show();
 }
@@ -1466,7 +1430,7 @@ void MainWindow::slot_newRoomSelection(const SigRoomSelection &rs)
     m_roomSelection = !isValidSelection ? nullptr : rs.getShared();
     selectedRoomActGroup->setEnabled(isValidSelection);
     gotoRoomAct->setEnabled(selSize == 1);
-    forceRoomAct->setEnabled(selSize == 1 && m_pathMachine->hasLastEvent());
+    forceRoomAct->setEnabled(selSize == 1 && m_core.pathMachine().hasLastEvent());
 
     if (isValidSelection) {
         const auto msg = QString("Selection: %1 room%2").arg(selSize).arg(basic_plural(selSize));
@@ -1559,7 +1523,7 @@ void MainWindow::slot_newFile()
 void MainWindow::forceNewFile()
 {
     {
-        auto &mapData = deref(m_mapData);
+        auto &mapData = m_core.mapData();
         mapData.clear();
         mapData.setFileName("", false);
         mapData.forcePosition(Coordinate{});
@@ -1618,7 +1582,7 @@ void MainWindow::slot_reload()
 {
     if (maybeSave()) {
         // make a copy of the filename, since it will be modified by loadFile().
-        const QString filename = m_mapData->getFileName();
+        const QString filename = m_core.mapData().getFileName();
         try {
             loadFile(MapSource::alloc(filename));
         } catch (const std::runtime_error &e) {
@@ -1690,7 +1654,7 @@ void MainWindow::setMapModified(bool modified)
 
 void MainWindow::updateMapModified()
 {
-    setMapModified(m_mapData->isModified());
+    setMapModified(m_core.mapData().isModified());
     getCanvas()->update();
 }
 
@@ -1735,7 +1699,7 @@ void MainWindow::setCurrentFile(const QString &fileName)
 {
     QFileInfo file(fileName);
     const auto shownName = fileName.isEmpty() ? "Untitled" : file.fileName();
-    const auto fileSuffix = ((m_mapData && m_mapData->isFileReadOnly())
+    const auto fileSuffix = (m_core.mapData().isFileReadOnly()
                              || (!fileName.isEmpty() && !file.isWritable()))
                                 ? " [read-only]"
                                 : "";
@@ -1820,7 +1784,7 @@ void MainWindow::slot_onEditInfomarkSelection()
 
     auto *dlg = new InfomarksEditDlg(this);
     dlg->setAttribute(Qt::WA_DeleteOnClose);
-    dlg->setInfomarkSelection(m_infoMarkSelection, m_mapData, getCanvas());
+    dlg->setInfomarkSelection(m_infoMarkSelection, &m_core.mapData(), getCanvas());
     dlg->show();
 }
 
@@ -1843,7 +1807,7 @@ void MainWindow::slot_onEditRoomSelection()
     m_roomEditAttrDlg = std::make_unique<RoomEditAttrDlg>(this);
     {
         auto &roomEditDialog = deref(m_roomEditAttrDlg);
-        roomEditDialog.setRoomSelection(m_roomSelection, m_mapData, getCanvas());
+        roomEditDialog.setRoomSelection(m_roomSelection, &m_core.mapData(), getCanvas());
         roomEditDialog.show();
         connect(&roomEditDialog, &QDialog::finished, this, [this](MAYBE_UNUSED int result) {
             m_roomEditAttrDlg.reset();
@@ -1864,7 +1828,7 @@ void MainWindow::slot_onDeleteInfomarkSelection()
             changes.add(Change{infomark_change_types::RemoveInfomark{id}});
         }
         if (!changes.empty()) {
-            m_mapData->applyChanges(changes);
+            m_core.mapData().applyChanges(changes);
         }
     }
 
@@ -1906,7 +1870,7 @@ void MainWindow::slot_onDeleteConnectionSelection()
     getCanvas()->slot_clearConnectionSelection();
 
     // REVISIT: dir2?
-    m_mapData->applySingleChange(Change{exit_change_types::ModifyExitConnection{
+    m_core.mapData().applySingleChange(Change{exit_change_types::ModifyExitConnection{
         ChangeTypeEnum::Remove, id1, dir1, id2, WaysEnum::TwoWay}});
 }
 
@@ -1978,7 +1942,7 @@ void MainWindow::slot_onConnectToNeighboursRoomSelection()
         return;
     }
 
-    auto &mapData = deref(m_mapData);
+    auto &mapData = m_core.mapData();
     auto &sel = deref(m_roomSelection);
     sel.removeMissing(mapData);
 
@@ -2002,14 +1966,14 @@ void MainWindow::slot_forceMapperToRoom()
         return;
     }
 
-    auto &mapData = deref(m_mapData);
+    auto &mapData = m_core.mapData();
     auto &sel = deref(m_roomSelection);
     sel.removeMissing(mapData);
 
     if (m_roomSelection->size() == 1) {
         const RoomId id = m_roomSelection->getFirstRoomId();
-        m_mapData->setRoom(id);
-        m_pathMachine->forceUpdate(id);
+        m_core.mapData().setRoom(id);
+        m_core.pathMachine().forceUpdate(id);
     }
 }
 
@@ -2102,7 +2066,7 @@ void MainWindow::setCanvasMouseMode(const CanvasMouseModeEnum mode)
 
 void MainWindow::applyGroupAction(const std::function<Change(const RawRoom &)> &getChange)
 {
-    m_mapData->applyChangesToList(deref(m_roomSelection), getChange);
+    m_core.mapData().applyChangesToList(deref(m_roomSelection), getChange);
 }
 
 void MainWindow::showStatusInternal(const QString &text, int duration)
@@ -2112,10 +2076,10 @@ void MainWindow::showStatusInternal(const QString &text, int duration)
 
 void MainWindow::onSuccessfulLoad(const MapLoadData &mapLoadData)
 {
-    auto &mapData = deref(m_mapData);
+    auto &mapData = m_core.mapData();
     auto &mapCanvas = deref(getCanvas());
     auto &groupWidget = deref(m_groupWidget);
-    auto &pathMachine = deref(m_pathMachine);
+    auto &pathMachine = m_core.pathMachine();
 
     mapData.setMapData(mapLoadData);
     mapData.checkSize();
@@ -2141,7 +2105,7 @@ void MainWindow::onSuccessfulLoad(const MapLoadData &mapLoadData)
 
 void MainWindow::onSuccessfulMerge(const Map &map)
 {
-    auto &mapData = deref(m_mapData);
+    auto &mapData = m_core.mapData();
     auto &mapCanvas = deref(getCanvas());
     auto &groupWidget = deref(m_groupWidget);
 
@@ -2163,7 +2127,7 @@ void MainWindow::onSuccessfulSave(const SaveModeEnum mode,
                                   const SaveFormatEnum format,
                                   const QString &fileName)
 {
-    auto &mapData = deref(m_mapData);
+    auto &mapData = m_core.mapData();
 
     if (mode == SaveModeEnum::FULL && format == SaveFormatEnum::MM2) {
         mapData.setFileName(fileName, !QFileInfo(fileName).isWritable());

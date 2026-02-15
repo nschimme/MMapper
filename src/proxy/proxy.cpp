@@ -13,6 +13,7 @@
 #include "../display/mapcanvas.h"
 #include "../display/prespammedpath.h"
 #include "../global/LineUtils.h"
+#include "../global/MMapperCore.h"
 #include "../global/MakeQPointer.h"
 #include "../global/SendToUser.h"
 #include "../global/Version.h"
@@ -57,16 +58,6 @@ const volatile bool g_prefixMessagesToUser = true;
 const volatile bool g_showVersionInWelcomeMessage = IS_DEBUG_BUILD;
 //
 constexpr const auto whiteOnCyan = getRawAnsi(AnsiColor16Enum::white, AnsiColor16Enum::cyan);
-
-NODISCARD MainWindow &getMainWindow(ConnectionListener &listener)
-{
-    // dynamic cast can fail
-    auto *const mw = dynamic_cast<MainWindow *>(listener.parent());
-    if (mw == nullptr) {
-        throw std::runtime_error("ConnectionListener's parent must be MainWindow");
-    }
-    return *mw;
-}
 
 } // namespace
 
@@ -130,42 +121,24 @@ Proxy::UserSocket::~UserSocket()
     disconnectFromHost();
 }
 
-QPointer<Proxy> Proxy::allocInit(MapData &md,
-                                 Mmapper2PathMachine &pm,
-                                 PrespammedPath &pp,
-                                 Mmapper2Group &gm,
-                                 MumeClock &mc,
+QPointer<Proxy> Proxy::allocInit(MMapperCore &core,
                                  MapCanvas &mca,
-                                 GameObserver &go,
                                  std::unique_ptr<AbstractSocket> userSocket,
                                  ConnectionListener &listener)
 {
-    auto proxy = makeQPointer<Proxy>(
-        Badge<Proxy>{}, md, pm, pp, gm, mc, mca, go, std::move(userSocket), listener);
+    auto proxy = makeQPointer<Proxy>(Badge<Proxy>{}, core, mca, std::move(userSocket), listener);
     deref(proxy).init();
     return proxy;
 }
 
 Proxy::Proxy(Badge<Proxy>,
-             MapData &md,
-             Mmapper2PathMachine &pm,
-             PrespammedPath &pp,
-             Mmapper2Group &gm,
-             MumeClock &mc,
+             MMapperCore &core,
              MapCanvas &mca,
-             GameObserver &go,
              std::unique_ptr<AbstractSocket> userSocket,
              ConnectionListener &listener)
     : QObject(&listener)
-    , m_mapData(md)
-    , m_pathMachine(pm)
-    , m_prespammedPath(pp)
-    , m_groupManager(gm)
-    , m_mumeClock(mc)
+    , m_core(core)
     , m_mapCanvas(mca)
-    , m_gameObserver(go)
-    // REVISIT: It would be better to just pass in the MainWindow directly.
-    , m_mainWindow{::getMainWindow(listener)}
     , m_userSocket{std::move(userSocket)}
 {
     //
@@ -296,7 +269,6 @@ void Proxy::allocMudSocket()
         NODISCARD RemoteEdit &getRemoteEdit() { return getProxy().getRemoteEdit(); }
         NODISCARD UserTelnet &getUserTelnet() { return getProxy().getUserTelnet(); }
         NODISCARD Mmapper2Group &getGroupManager() { return getProxy().getGroupManager(); }
-        NODISCARD MainWindow &getMainWindow() { return getProxy().getMainWindow(); }
         NODISCARD GameObserver &getGameObserver() { return getProxy().getGameObserver(); }
 
     private:
@@ -341,16 +313,9 @@ void Proxy::allocMudSocket()
             getMudTelnet().onAnalyzeMudStream(bytes);
         }
 
-        void virt_onLog(const QString &msg) final
-        {
-            // Historically this has said "Proxy", even though it's from the MudSocket;
-            // if we're going to do that, then we might as well just call getProxy().log().
-            if ((false)) {
-                getProxy().log(msg);
-            } else {
-                getMainWindow().slot_log("Proxy", msg);
-            }
-        }
+        void virt_onLog(const QString &msg) final { getProxy().log(msg); }
+
+        MainWindow &getMainWindow() { throw std::runtime_error("Deprecated: use core log"); }
     };
 
     auto &pipe = getPipeline();
@@ -563,7 +528,6 @@ void Proxy::allocParser()
         NODISCARD MudTelnet &getMudTelnet() { return getProxy().getMudTelnet(); }
         NODISCARD UserTelnet &getUserTelnet() { return getProxy().getUserTelnet(); }
         NODISCARD GameObserver &getGameObserver() { return getProxy().getGameObserver(); }
-        NODISCARD MainWindow &getMainWindow() { return getProxy().getMainWindow(); }
         NODISCARD MapCanvas &getMapCanvas() { return getProxy().getMapCanvas(); }
         NODISCARD Mmapper2PathMachine &getPathMachine() { return getProxy().getPathMachine(); }
         NODISCARD PrespammedPath &getPrespam() { return getProxy().getPrespam(); }
@@ -693,15 +657,23 @@ void Proxy::allocParser()
         void virt_onGraphicsSettingsChanged() final { getMapCanvas().graphicsSettingsChanged(); }
         void virt_onLog(const QString &mod, const QString &msg) final
         {
-            getMainWindow().slot_log(mod, msg);
+            emit m_proxy.m_core.sig_log(mod, msg);
         }
+
+        MainWindow &getMainWindow() { throw std::runtime_error("Deprecated: use core log"); }
         void virt_onNewRoomSelection(const SigRoomSelection &sel) final
         {
             getMapCanvas().slot_setRoomSelection(sel);
         }
 
         // (via user command)
-        void virt_onSetMode(const MapModeEnum mode) final { getMainWindow().slot_setMode(mode); }
+        void virt_onSetMode(const MapModeEnum mode) final
+        {
+            // TODO: implement setMode in MMapperCore if needed, or emit signal
+            emit m_proxy.m_core.sig_log("Proxy",
+                                        "Requested mode change: "
+                                            + QString::number(static_cast<int>(mode)));
+        }
     };
 
     auto &pipe = getPipeline();
@@ -718,25 +690,26 @@ void Proxy::allocParser()
 
     /* this duplication is ridiculous, but it's painful to tease these two apart
      * because compiling takes so long. */
-    pipe.mud.mudParser = std::make_unique<MumeXmlParser>(m_mapData,
-                                                         m_mumeClock,
+    pipe.mud.mudParser = std::make_unique<MumeXmlParser>(m_core.mapData(),
+                                                         m_core.mumeClock(),
                                                          deref(conn),
                                                          deref(gmcp),
-                                                         m_groupManager.getGroupManagerApi(),
-                                                         m_gameObserver,
-                                                         m_mainWindow.getHotkeyManager(),
+                                                         m_core.groupManager().getGroupManagerApi(),
+                                                         m_core.gameObserver(),
+                                                         m_core.hotkeyManager(),
                                                          this,
                                                          deref(out),
                                                          deref(parserCommon));
-    pipe.user.userParser = std::make_unique<AbstractParser>(m_mapData,
-                                                            m_mumeClock,
-                                                            deref(conn),
-                                                            deref(gmcp),
-                                                            m_groupManager.getGroupManagerApi(),
-                                                            m_mainWindow.getHotkeyManager(),
-                                                            this,
-                                                            deref(out),
-                                                            deref(parserCommon));
+    pipe.user.userParser
+        = std::make_unique<AbstractParser>(m_core.mapData(),
+                                           m_core.mumeClock(),
+                                           deref(conn),
+                                           deref(gmcp),
+                                           m_core.groupManager().getGroupManagerApi(),
+                                           m_core.hotkeyManager(),
+                                           this,
+                                           deref(out),
+                                           deref(parserCommon));
 
     /* The login credentials are fetched asynchronously because the OS will prompt the user for permission */
     pipe.mud.passwordConfig = std::make_unique<PasswordConfig>(this);
@@ -819,7 +792,7 @@ void Proxy::allocMpiFilter()
 void Proxy::allocRemoteEdit()
 {
     // Caution: RemoteEdit outlives the proxy, since it manages windows.
-    m_remoteEdit = mmqt::makeQPointer<RemoteEdit>(&m_mainWindow);
+    m_remoteEdit = &m_core.remoteEdit();
 
     struct NODISCARD LocalMpiFilterToMud final : public MpiFilterToMud
     {
@@ -859,7 +832,7 @@ void Proxy::init()
 {
     auto initMisc = [this]() {
         // TODO: convert these from Qt signals
-        QObject::connect(&m_mapData, &MapData::sig_onForcedPositionChange, this, [this]() {
+        QObject::connect(&m_core.mapData(), &MapData::sig_onForcedPositionChange, this, [this]() {
             getMudParser().onForcedPositionChange();
         });
     };
@@ -903,7 +876,7 @@ void Proxy::onMudConnected()
     log("Connection to server established ...");
 
     // Reset clock precision to its lowest level
-    m_mumeClock.setPrecision(MumeClockPrecisionEnum::UNSET);
+    m_core.mumeClock().setPrecision(MumeClockPrecisionEnum::UNSET);
 }
 
 void Proxy::onMudError(const QString &errorStr)
@@ -1179,10 +1152,31 @@ void Proxy::sendPromptToUser()
 
 void Proxy::log(const QString &msg)
 {
-    getMainWindow().slot_log("Proxy", msg);
+    emit m_core.sig_log("Proxy", msg);
 }
 
 RemoteEdit &Proxy::getRemoteEdit()
 {
     return deref(m_remoteEdit);
+}
+
+GameObserver &Proxy::getGameObserver()
+{
+    return m_core.gameObserver();
+}
+Mmapper2Group &Proxy::getGroupManager()
+{
+    return m_core.groupManager();
+}
+MumeClock &Proxy::getMumeClock()
+{
+    return m_core.mumeClock();
+}
+Mmapper2PathMachine &Proxy::getPathMachine()
+{
+    return m_core.pathMachine();
+}
+PrespammedPath &Proxy::getPrespam()
+{
+    return m_core.prespammedPath();
 }

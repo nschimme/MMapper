@@ -2,6 +2,7 @@
 // Copyright (C) 2024 The MMapper Authors
 
 #include "../configuration/configuration.h"
+#include "../global/MMapperCore.h"
 #include "../mapdata/mapdata.h"
 #include "../mapstorage/MapDestination.h"
 #include "mainwindow.h"
@@ -85,7 +86,7 @@ NODISCARD std::unique_ptr<QFileDialog> createDefaultSaveDialog(MainWindow &mainW
 
 bool MainWindow::maybeSave()
 {
-    auto &mapData = deref(m_mapData);
+    auto &mapData = m_core.mapData();
     if (!mapData.dataChanged()) {
         return true;
     }
@@ -111,10 +112,11 @@ bool MainWindow::maybeSave()
 
 bool MainWindow::slot_save()
 {
-    if (m_mapData->getFileName().isEmpty() || m_mapData->isFileReadOnly()) {
+    auto &mapData = m_core.mapData();
+    if (mapData.getFileName().isEmpty() || mapData.isFileReadOnly()) {
         return slot_saveAs();
     }
-    return saveFile(m_mapData->getFileName(), ::SaveModeEnum::FULL, ::SaveFormatEnum::MM2);
+    return saveFile(mapData.getFileName(), ::SaveModeEnum::FULL, ::SaveFormatEnum::MM2);
 }
 
 bool MainWindow::slot_saveAs()
@@ -123,7 +125,8 @@ bool MainWindow::slot_saveAs()
         return false;
     }
 
-    QString suggestedName = m_mapData->getFileName();
+    auto &mapData = m_core.mapData();
+    QString suggestedName = mapData.getFileName();
     const QFileInfo currentFile(suggestedName);
     if (currentFile.exists()) {
         suggestedName = (currentFile.suffix().contains("xml")
@@ -145,7 +148,8 @@ bool MainWindow::slot_saveAs()
 
 bool MainWindow::slot_exportBaseMap()
 {
-    const QString suggestedName = QFileInfo(m_mapData->getFileName()).baseName().append("-base.mm2");
+    const QString suggestedName
+        = QFileInfo(m_core.mapData().getFileName()).baseName().append("-base.mm2");
     QString fileName = suggestedName;
     if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
         const auto fileNames = getSaveFileNames(
@@ -161,7 +165,7 @@ bool MainWindow::slot_exportBaseMap()
 
 bool MainWindow::slot_exportMm2xmlMap()
 {
-    const QString suggestedName = QFileInfo(m_mapData->getFileName()).baseName().append(".xml");
+    const QString suggestedName = QFileInfo(m_core.mapData().getFileName()).baseName().append(".xml");
     QString fileName = suggestedName;
     if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
         const auto fileNames = getSaveFileNames(
@@ -195,7 +199,8 @@ bool MainWindow::slot_exportWebMap()
 
 bool MainWindow::slot_exportMmpMap()
 {
-    const QString suggestedName = QFileInfo(m_mapData->getFileName()).baseName().append("-mmp.xml");
+    const QString suggestedName
+        = QFileInfo(m_core.mapData().getFileName()).baseName().append("-mmp.xml");
     QString fileName = suggestedName;
     if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
         const auto fileNames = getSaveFileNames(

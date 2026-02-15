@@ -89,6 +89,12 @@ public:
     void setMatrix(const char *name, const glm::mat4 &m);
     void setTexture(const char *name, int textureUnit);
     void setViewport(const char *name, const Viewport &input_viewport);
+    void setInt(const char *name, int value);
+    void setBool(const char *name, bool value);
+    void setVec2(const char *name, const glm::vec2 &v);
+    void setVec3(const char *name, const glm::vec3 &v);
+    void setIntArray(const char *name, const int *values, size_t count);
+    void setFloatArray(const char *name, const float *values, size_t count);
 };
 
 } // namespace Legacy

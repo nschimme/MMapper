@@ -510,6 +510,26 @@ void MainWindow::wireConnections()
             &FindRoomsDlg::sig_editSelection,
             this,
             &MainWindow::slot_onEditRoomSelection);
+
+    deref(m_gameObserver).sig2_timeOfDayChanged.connect(m_lifetime, [this](MumeTimeEnum time) {
+        Color color = Colors::white;
+        switch (time) {
+        case MumeTimeEnum::NIGHT:
+            color = Color(0.4f, 0.4f, 0.7f, 1.0f);
+            break;
+        case MumeTimeEnum::DAWN:
+            color = Color(0.9f, 0.8f, 0.6f, 1.0f);
+            break;
+        case MumeTimeEnum::DUSK:
+            color = Color(0.7f, 0.5f, 0.8f, 1.0f);
+            break;
+        case MumeTimeEnum::DAY:
+        default:
+            color = Colors::white;
+            break;
+        }
+        getCanvas()->slot_setTimeOfDayColor(color);
+    });
 }
 
 void MainWindow::slot_log(const QString &mod, const QString &message)

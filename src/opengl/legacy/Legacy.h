@@ -183,6 +183,7 @@ public:
     using Base::glBlendFunc;
     using Base::glBlendFuncSeparate;
     using Base::glBufferData;
+    using Base::glBufferSubData;
     using Base::glClear;
     using Base::glClearColor;
     using Base::glCompileShader;
@@ -226,6 +227,8 @@ public:
     using Base::glTexSubImage3D;
     using Base::glUniform1fv;
     using Base::glUniform1iv;
+    using Base::glUniform2fv;
+    using Base::glUniform3fv;
     using Base::glUniform4fv;
     using Base::glUniform4iv;
     using Base::glUniformBlockBinding;
@@ -410,6 +413,20 @@ public:
     {
         Base::glBindBuffer(GL_ARRAY_BUFFER, vbo);
         Base::glBufferData(GL_ARRAY_BUFFER, 0, nullptr, Legacy::toGLenum(usage));
+        Base::glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }
+
+    template<typename T>
+    void updateVbo(const GLuint vbo, const qopengl_GLintptr offset, const std::vector<T> &batch)
+    {
+        if (batch.empty()) {
+            return;
+        }
+        Base::glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        Base::glBufferSubData(GL_ARRAY_BUFFER,
+                              offset,
+                              static_cast<qopengl_GLsizeiptr>(batch.size() * sizeof(T)),
+                              batch.data());
         Base::glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
 

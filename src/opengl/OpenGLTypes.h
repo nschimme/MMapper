@@ -74,6 +74,17 @@ struct NODISCARD RoomQuadTexVert final
     }
 };
 
+struct NODISCARD MegaRoomVert final
+{
+    glm::ivec3 pos;
+    uint32_t terrain_trail; // terrain: 16, trail: 16 (position in array)
+    uint32_t flags;         // active, tints, etc.
+    uint32_t overlays1;     // 4 indices (1 byte each)
+    uint32_t overlays2;     // 4 indices (1 byte each)
+    uint32_t wall_info[3];  // 6 exits * 16 bits
+    uint32_t highlight;     // NamedColorEnum
+};
+
 using ColoredTexVertVector = std::vector<ColoredTexVert>;
 
 struct NODISCARD ColorVert final
@@ -223,6 +234,7 @@ struct NODISCARD GLRenderState final
         // glEnable(TEXTURE_2D), or glEnable(TEXTURE_3D)
         Textures textures;
         std::optional<float> pointSize;
+        std::optional<Color> timeOfDayColor;
     };
 
     Uniforms uniforms;
@@ -273,6 +285,13 @@ struct NODISCARD GLRenderState final
     {
         GLRenderState copy = *this;
         copy.uniforms.pointSize = size;
+        return copy;
+    }
+
+    NODISCARD GLRenderState withTimeOfDayColor(const Color color) const
+    {
+        GLRenderState copy = *this;
+        copy.uniforms.timeOfDayColor = color;
         return copy;
     }
 

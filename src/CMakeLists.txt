@@ -65,6 +65,8 @@ set(mmapper_SRCS
     display/MapCanvasData.h
     display/MapCanvasRoomDrawer.cpp
     display/MapCanvasRoomDrawer.h
+    display/RoomDataBuffer.cpp
+    display/RoomDataBuffer.h
     display/RoadIndex.cpp
     display/RoadIndex.h
     display/RoomSelections.cpp

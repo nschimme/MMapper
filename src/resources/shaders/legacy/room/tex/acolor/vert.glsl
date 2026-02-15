@@ -1,26 +1,24 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2026 The MMapper Authors
-
+in ivec4 aVertTexCol; // xyz=pos, w=(colorId<<8 | tex_z)
 uniform mat4 uMVP;
-uniform NamedColorsBlock {
-    vec4 uNamedColors[MAX_NAMED_COLORS];
-};
+out vec2 vTexCoord;
+flat out uint vColorId;
+flat out uint vTexZ;
 
-layout(location = 0) in ivec4 aVertTexCol;
+void main() {
+    vec2 pos[4];
+    pos[0] = vec2(0.0, 0.0);
+    pos[1] = vec2(1.0, 0.0);
+    pos[2] = vec2(1.0, 1.0);
+    pos[3] = vec2(0.0, 1.0);
 
-out vec4 vColor;
-out vec3 vTexCoord;
+    vec2 p = pos[gl_VertexID % 4];
+    vTexCoord = p;
 
-void main()
-{
-    // ccw-order assumes it's a triangle fan (as opposed to a triangle strip)
-    const ivec3[4] ioffsets_ccw = ivec3[4](ivec3(0, 0, 0), ivec3(1, 0, 0), ivec3(1, 1, 0), ivec3(0, 1, 0));
-    ivec3 ioffset = ioffsets_ccw[gl_VertexID];
+    vec3 worldPos = vec3(float(aVertTexCol.x), float(aVertTexCol.y), float(aVertTexCol.z));
+    worldPos.xy += p;
 
-    int texZ = aVertTexCol.w & 0xFF;
-    int colorId = (aVertTexCol.w >> 8) % MAX_NAMED_COLORS;
+    gl_Position = uMVP * vec4(worldPos, 1.0);
 
-    vColor = uNamedColors[colorId];
-    vTexCoord = vec3(ioffset.xy, float(texZ));
-    gl_Position = uMVP * vec4(aVertTexCol.xyz + ioffset, 1.0);
+    vColorId = uint(aVertTexCol.w >> 8);
+    vTexZ = uint(aVertTexCol.w & 0xFF);
 }

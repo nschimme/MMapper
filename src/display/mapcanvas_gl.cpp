@@ -23,6 +23,7 @@
 #include "MapCanvasConfig.h"
 #include "MapCanvasData.h"
 #include "MapCanvasRoomDrawer.h"
+#include "RoomDataBuffer.h"
 #include "Textures.h"
 #include "connectionselection.h"
 #include "mapcanvas.h"
@@ -53,6 +54,12 @@
 #include <QtCore>
 #include <QtGui/qopengl.h>
 #include <QtGui>
+
+#if defined(_MSC_VER) || defined(__MINGW32__)
+#undef near // Bad dog, Microsoft; bad dog!!!
+#undef far  // Bad dog, Microsoft; bad dog!!!
+#undef constant
+#endif
 
 namespace MapCanvasConfig {
 
@@ -119,6 +126,7 @@ void MapCanvas::cleanupOpenGL()
     // note: m_batchedMeshes co-owns textures created by MapCanvasData,
     // and it also owns the lifetime of some OpenGL objects (e.g. VBOs).
     m_batches.resetExistingMeshesAndIgnorePendingRemesh();
+    m_roomDataBuffer.reset();
     m_textures.destroyAll();
     getGLFont().cleanup();
     getOpenGL().cleanup();
@@ -243,6 +251,9 @@ void MapCanvas::initializeGL()
     font.setTextureId(allocateTextureId());
     font.init();
     updateTextures();
+
+    m_roomDataBuffer = std::make_unique<RoomDataBuffer>(
+        getOpenGL().getSharedFunctions(Badge<MapCanvas>{}));
 
     // compile all shaders
     {
@@ -533,6 +544,12 @@ void MapCanvas::updateBatches()
 
 void MapCanvas::updateMapBatches()
 {
+    if (m_roomDataBuffer) {
+        m_roomDataBuffer->syncWithMap(m_data.getCurrentMap(),
+                                      mctp::getProxy(m_textures),
+                                      getConfig().canvas.showUnmappedExits.get());
+    }
+
     RemeshCookie &remeshCookie = m_batches.remeshCookie;
     if (remeshCookie.isPending()) {
         return;
@@ -646,6 +663,7 @@ void MapCanvas::actuallyPaintGL()
         getGLFont().renderTextCentered("No map loaded");
         return;
     }
+
 
     paintMap();
     paintBatchedInfomarks();
@@ -767,15 +785,25 @@ void MapCanvas::paintDifferences()
     const auto &current = m_data.getCurrentMap();
 
     diff.maybeAsyncUpdate(saved, current);
-    if (!diff.hasRelatedDiff(saved)) {
-        return;
-    }
 
-    auto &highlight = deref(diff.highlight);
-    auto &gl = getOpenGL();
-
-    if (auto &highlights = highlight.highlights; !highlights.empty()) {
-        highlights.render(gl, m_textures.room_highlight->getArrayPosition().array);
+    if (diff.highlight && m_roomDataBuffer) {
+        auto &highlightData = deref(diff.highlight).highlights;
+        if (highlightData.hasData()) {
+            // Convert vector of RoomQuadTexVert to unordered_map of RoomId -> NamedColorEnum
+            std::unordered_map<RoomId, NamedColorEnum> highlights;
+            for (const auto &v : highlightData.getData()) {
+                const auto pos = Coordinate{v.vertTexCol.x, v.vertTexCol.y, v.vertTexCol.z};
+                if (const auto r = current.findRoomHandle(pos)) {
+                    const uint8_t colorId = static_cast<uint8_t>(v.vertTexCol.w >> 8);
+                    highlights[r.getId()] = static_cast<NamedColorEnum>(colorId);
+                }
+            }
+            m_roomDataBuffer->setHighlights(highlights);
+            // Clear the data so we don't do this every frame
+            deref(diff.highlight).highlights = Diff::MaybeDataOrMesh{};
+        } else if (!highlightData.empty() && !highlightData.hasMesh()) {
+            // It has a mesh (old path)? We should avoid this if possible.
+        }
     }
 }
 
@@ -1031,13 +1059,41 @@ void MapCanvas::renderMapBatches()
 
     BatchedMeshes &batchedMeshes = batches.batchedMeshes;
 
+    const auto getBounds = [this]() {
+        const glm::vec3 bl = unproject_raw(glm::vec3(0, height(), 0));
+        const glm::vec3 br = unproject_raw(glm::vec3(width(), height(), 0));
+        const glm::vec3 tr = unproject_raw(glm::vec3(width(), 0, 0));
+        const glm::vec3 tl = unproject_raw(glm::vec3(0, 0, 0));
+
+        glm::vec2 minB = glm::min(glm::min(glm::vec2(bl), glm::vec2(br)),
+                                  glm::min(glm::vec2(tr), glm::vec2(tl)));
+        glm::vec2 maxB = glm::max(glm::max(glm::vec2(bl), glm::vec2(br)),
+                                  glm::max(glm::vec2(tr), glm::vec2(tl)));
+        return std::make_pair(minB, maxB);
+    };
+
+    const auto bounds = getBounds();
+    const auto minB = bounds.first;
+    const auto maxB = bounds.second;
+
     const auto drawLayer =
-        [&batches, &batchedMeshes, wantExtraDetail, wantDoorNames](const int thisLayer,
-                                                                   const int currentLayer) {
-            const auto it_mesh = batchedMeshes.find(thisLayer);
-            if (it_mesh != batchedMeshes.end()) {
-                LayerMeshes &meshes = it_mesh->second;
-                meshes.render(thisLayer, currentLayer);
+        [this, &batches, &batchedMeshes, wantExtraDetail, wantDoorNames, minB, maxB](const int thisLayer,
+                                                                         const int currentLayer) {
+            if (m_roomDataBuffer) {
+                m_roomDataBuffer->renderLayer(getOpenGL(),
+                                              m_viewProj,
+                                              thisLayer,
+                                              currentLayer,
+                                              getConfig().canvas.drawUpperLayersTextured,
+                                              m_timeOfDayColor,
+                                              minB,
+                                              maxB);
+            } else {
+                const auto it_mesh = batchedMeshes.find(thisLayer);
+                if (it_mesh != batchedMeshes.end()) {
+                    LayerMeshes &meshes = it_mesh->second;
+                    meshes.render(thisLayer, currentLayer);
+                }
             }
 
             if (wantExtraDetail) {

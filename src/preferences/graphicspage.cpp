@@ -85,6 +85,31 @@ GraphicsPage::GraphicsPage(QWidget *parent)
             this,
             &GraphicsPage::slot_drawUpperLayersTexturedStateChanged);
 
+    connect(ui->drawWeatherRain, &QCheckBox::stateChanged, this, [this](int /*unused*/) {
+        setConfig().canvas.drawWeatherRain.set(ui->drawWeatherRain->isChecked());
+        graphicsSettingsChanged();
+    });
+    connect(ui->drawWeatherSnow, &QCheckBox::stateChanged, this, [this](int /*unused*/) {
+        setConfig().canvas.drawWeatherSnow.set(ui->drawWeatherSnow->isChecked());
+        graphicsSettingsChanged();
+    });
+    connect(ui->drawWeatherClouds, &QCheckBox::stateChanged, this, [this](int /*unused*/) {
+        setConfig().canvas.drawWeatherClouds.set(ui->drawWeatherClouds->isChecked());
+        graphicsSettingsChanged();
+    });
+    connect(ui->drawWeatherFog, &QCheckBox::stateChanged, this, [this](int /*unused*/) {
+        setConfig().canvas.drawWeatherFog.set(ui->drawWeatherFog->isChecked());
+        graphicsSettingsChanged();
+    });
+    connect(ui->drawTimeOfDay, &QCheckBox::stateChanged, this, [this](int /*unused*/) {
+        setConfig().canvas.drawTimeOfDay.set(ui->drawTimeOfDay->isChecked());
+        graphicsSettingsChanged();
+    });
+    connect(ui->weatherIntensitySlider, &QSlider::valueChanged, this, [this](int value) {
+        setConfig().canvas.weatherIntensity.set(value);
+        graphicsSettingsChanged();
+    });
+
     connect(ui->resourceLineEdit, &QLineEdit::textChanged, this, [](const QString &text) {
         setConfig().canvas.resourcesDirectory = text;
     });
@@ -145,6 +170,13 @@ void GraphicsPage::slot_loadConfig()
     ui->drawNeedsUpdate->setChecked(settings.showMissingMapId.get());
     ui->drawNotMappedExits->setChecked(settings.showUnmappedExits.get());
     ui->drawDoorNames->setChecked(settings.drawDoorNames);
+
+    ui->drawWeatherRain->setChecked(settings.drawWeatherRain.get());
+    ui->drawWeatherSnow->setChecked(settings.drawWeatherSnow.get());
+    ui->drawWeatherClouds->setChecked(settings.drawWeatherClouds.get());
+    ui->drawWeatherFog->setChecked(settings.drawWeatherFog.get());
+    ui->drawTimeOfDay->setChecked(settings.drawTimeOfDay.get());
+    ui->weatherIntensitySlider->setValue(settings.weatherIntensity.get());
 
     ui->resourceLineEdit->setText(settings.resourcesDirectory);
 }

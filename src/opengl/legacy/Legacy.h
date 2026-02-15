@@ -178,11 +178,13 @@ public:
         assert(target == GL_UNIFORM_BUFFER);
         Base::glBindBufferBase(target, static_cast<GLuint>(block), buffer);
     }
+    using Base::glBeginTransformFeedback;
     using Base::glBindTexture;
     using Base::glBindVertexArray;
     using Base::glBlendFunc;
     using Base::glBlendFuncSeparate;
     using Base::glBufferData;
+    using Base::glBufferSubData;
     using Base::glClear;
     using Base::glClearColor;
     using Base::glCompileShader;
@@ -194,6 +196,7 @@ public:
     using Base::glDeleteShader;
     using Base::glDeleteVertexArrays;
     using Base::glDepthFunc;
+    using Base::glDepthMask;
     using Base::glDetachShader;
     using Base::glDisable;
     using Base::glDisableVertexAttribArray;
@@ -201,6 +204,7 @@ public:
     using Base::glDrawElementsInstanced;
     using Base::glEnable;
     using Base::glEnableVertexAttribArray;
+    using Base::glEndTransformFeedback;
     using Base::glGenBuffers;
     using Base::glGenerateMipmap;
     using Base::glGenVertexArrays;
@@ -224,8 +228,11 @@ public:
     using Base::glPixelStorei;
     using Base::glShaderSource;
     using Base::glTexSubImage3D;
+    using Base::glTransformFeedbackVaryings;
     using Base::glUniform1fv;
     using Base::glUniform1iv;
+    using Base::glUniform2fv;
+    using Base::glUniform3fv;
     using Base::glUniform4fv;
     using Base::glUniform4iv;
     using Base::glUniformBlockBinding;
@@ -312,12 +319,10 @@ public:
 
     NODISCARD FBO &getFBO();
 
-private:
-    friend PointSizeBinder;
+public:
     /// platform-specific (ES vs GL)
     void enableProgramPointSize(bool enable) { virt_enableProgramPointSize(enable); }
 
-public:
     /// platform-specific (ES vs GL)
     NODISCARD const char *getShaderVersion() const { return virt_getShaderVersion(); }
 

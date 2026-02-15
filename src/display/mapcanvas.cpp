@@ -82,7 +82,11 @@ MapCanvas::MapCanvas(MapData &mapData,
     m_weatherState.targetSnowIntensity = (m_observer.getWeather() == PromptWeatherEnum::SNOW)
                                              ? 1.0f
                                              : 0.0f;
-    m_weatherState.targetCloudsIntensity = (m_observer.getWeather() == PromptWeatherEnum::CLOUDS)
+    const auto initialWeather = m_observer.getWeather();
+    m_weatherState.targetCloudsIntensity = (initialWeather == PromptWeatherEnum::CLOUDS
+                                            || initialWeather == PromptWeatherEnum::RAIN
+                                            || initialWeather == PromptWeatherEnum::HEAVY_RAIN
+                                            || initialWeather == PromptWeatherEnum::SNOW)
                                                ? 1.0f
                                                : 0.0f;
     m_weatherState.targetFogIntensity = (m_observer.getFog() == PromptFogEnum::LIGHT_FOG)   ? 0.3f
@@ -108,9 +112,14 @@ MapCanvas::MapCanvas(MapData &mapData,
                                              : (weather == PromptWeatherEnum::HEAVY_RAIN) ? 1.0f
                                                                                           : 0.0f;
         m_weatherState.targetSnowIntensity = (weather == PromptWeatherEnum::SNOW) ? 1.0f : 0.0f;
-        m_weatherState.targetCloudsIntensity = (weather == PromptWeatherEnum::CLOUDS) ? 1.0f : 0.0f;
-        qDebug() << "[Weather] Weather changed to" << static_cast<int>(weather)
-                 << "Targets: Rain" << m_weatherState.targetRainIntensity << "Snow"
+        m_weatherState.targetCloudsIntensity = (weather == PromptWeatherEnum::CLOUDS
+                                                || weather == PromptWeatherEnum::RAIN
+                                                || weather == PromptWeatherEnum::HEAVY_RAIN
+                                                || weather == PromptWeatherEnum::SNOW)
+                                                   ? 1.0f
+                                                   : 0.0f;
+        qDebug() << "[Weather] Weather changed to" << static_cast<int>(weather) << "Targets: Rain"
+                 << m_weatherState.targetRainIntensity << "Snow"
                  << m_weatherState.targetSnowIntensity << "Clouds"
                  << m_weatherState.targetCloudsIntensity;
         setAnimating(true);
@@ -120,8 +129,8 @@ MapCanvas::MapCanvas(MapData &mapData,
         m_weatherState.targetFogIntensity = (fog == PromptFogEnum::LIGHT_FOG)   ? 0.3f
                                             : (fog == PromptFogEnum::HEAVY_FOG) ? 0.8f
                                                                                 : 0.0f;
-        qDebug() << "[Weather] Fog changed to" << static_cast<int>(fog) << "Target:"
-                 << m_weatherState.targetFogIntensity;
+        qDebug() << "[Weather] Fog changed to" << static_cast<int>(fog)
+                 << "Target:" << m_weatherState.targetFogIntensity;
         setAnimating(true);
     });
 
@@ -140,8 +149,8 @@ MapCanvas::MapCanvas(MapData &mapData,
         m_weatherState.targetMoonIntensity = (moon == MumeMoonVisibilityEnum::BRIGHT) ? 1.0f
                                              : (moon == MumeMoonVisibilityEnum::DIM)  ? 0.5f
                                                                                       : 0.0f;
-        qDebug() << "[Weather] Moon visibility changed to" << static_cast<int>(moon) << "Target:"
-                 << m_weatherState.targetMoonIntensity;
+        qDebug() << "[Weather] Moon visibility changed to" << static_cast<int>(moon)
+                 << "Target:" << m_weatherState.targetMoonIntensity;
         setAnimating(true);
     });
 

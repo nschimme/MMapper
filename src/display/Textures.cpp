@@ -21,6 +21,106 @@
 
 #include <QMessageLogContext>
 
+namespace {
+// Simple tiling Value noise implementation to mimic original GLSL look
+struct TilingValueNoise
+{
+    int p[512];
+    TilingValueNoise()
+    {
+        static const int permutation[]
+            = {151, 160, 137, 91,  90,  15,  131, 13,  201, 95,  96,  53,  194, 233, 7,   225, 140,
+               36,  103, 30,  69,  142, 8,   99,  37,  240, 21,  10,  23,  190, 6,   148, 247, 120,
+               234, 75,  0,   26,  197, 62,  94,  252, 219, 203, 117, 35,  11,  32,  57,  177, 33,
+               88,  237, 149, 56,  87,  174, 20,  125, 136, 171, 168, 68,  175, 74,  165, 71,  134,
+               139, 48,  27,  166, 77,  146, 158, 231, 83,  111, 229, 122, 60,  211, 133, 230, 220,
+               105, 92,  41,  55,  46,  245, 40,  244, 102, 143, 54,  65,  25,  63,  161, 1,   216,
+               80,  73,  209, 76,  132, 187, 208, 89,  18,  169, 200, 196, 135, 130, 116, 188, 159,
+               86,  164, 100, 109, 198, 173, 186, 3,   64,  52,  217, 226, 250, 124, 123, 5,   202,
+               38,  147, 118, 126, 255, 82,  85,  212, 207, 206, 59,  227, 47,  16,  58,  17,  182,
+               189, 28,  42,  223, 183, 170, 213, 119, 248, 152, 2,   44,  154, 163, 70,  221, 153,
+               101, 155, 167, 43,  167, 172, 9,   129, 22,  39,  253, 19,  98,  108, 110, 79,  113,
+               224, 232, 178, 185, 112, 104, 218, 246, 97,  228, 251, 34,  242, 193, 238, 210, 144,
+               12,  191, 179, 162, 241, 81,  51,  145, 235, 249, 14,  239, 107, 49,  192, 214, 31,
+               181, 199, 106, 157, 184, 84,  204, 176, 115, 121, 50,  45,  127, 4,   150, 254, 138,
+               236, 205, 93,  222, 114, 67,  29,  24,  72,  243, 141, 128, 195, 78,  66,  215, 61,
+               156, 180};
+        for (int i = 0; i < 256; i++)
+            p[256 + i] = p[i] = permutation[i];
+    }
+    static float fade(float t) { return t * t * (3.0f - 2.0f * t); }
+    static float lerp(float t, float a, float b) { return a + t * (b - a); }
+    float noise(float x, float y, int repeat)
+    {
+        int xi = static_cast<int>(std::floor(x)) % repeat;
+        int yi = static_cast<int>(std::floor(y)) % repeat;
+        if (xi < 0)
+            xi += repeat;
+        if (yi < 0)
+            yi += repeat;
+
+        float xf = x - std::floor(x);
+        float yf = y - std::floor(y);
+        float u = fade(xf);
+        float v = fade(yf);
+
+        int next_xi = (xi + 1) % repeat;
+        int next_yi = (yi + 1) % repeat;
+
+        float aa = static_cast<float>(p[p[xi] + yi]) / 255.0f;
+        float ab = static_cast<float>(p[p[xi] + next_yi]) / 255.0f;
+        float ba = static_cast<float>(p[p[next_xi] + yi]) / 255.0f;
+        float bb = static_cast<float>(p[p[next_xi] + next_yi]) / 255.0f;
+
+        return lerp(v, lerp(u, aa, ba), lerp(u, ab, bb));
+    }
+    float fbm(float x, float y, int repeat, int octaves)
+    {
+        float total = 0;
+        float frequency = 1.0f;
+        float amplitude = 0.5f;
+        float shift = 100.0f;
+        for (int i = 0; i < octaves; i++) {
+            total += noise(x * frequency,
+                           y * frequency,
+                           static_cast<int>(static_cast<float>(repeat) * frequency))
+                     * amplitude;
+            x += shift;
+            y += shift;
+            amplitude *= 0.5f;
+            frequency *= 2.0f;
+        }
+        return total;
+    }
+};
+
+static QImage generateNoiseImage(int size)
+{
+    QImage img(size, size, QImage::Format_RGBA8888);
+    TilingValueNoise perlin;
+
+    for (int y = 0; y < size; ++y) {
+        for (int x = 0; x < size; ++x) {
+            float fx = static_cast<float>(x) / static_cast<float>(size);
+            float fy = static_cast<float>(y) / static_cast<float>(size);
+
+            // Red channel for Fog: smoother, larger scale
+            float fog = perlin.fbm(fx * 4.0f, fy * 4.0f, 4, 4);
+            // Green channel for Clouds: smaller scale
+            float clouds = perlin.fbm(fx * 8.0f, fy * 8.0f, 8, 4);
+
+            img.setPixel(x,
+                         y,
+                         qRgba(static_cast<int>(fog * 255.0f),
+                               static_cast<int>(clouds * 255.0f),
+                               0,
+                               255));
+        }
+    }
+    return img;
+}
+} // namespace
+
 MMTextureId allocateTextureId()
 {
     ABORT_IF_NOT_ON_MAIN_THREAD();
@@ -328,6 +428,9 @@ void MapCanvas::initTextures()
     textures.room_sel_move_good = loadTexture(getPixmapFilenameRaw("room-sel-move-good.png"));
     // 256
     textures.room_highlight = loadTexture(getPixmapFilenameRaw("room-highlight.png"));
+
+    // weather noise texture
+    textures.weather_noise = MMTexture::alloc(std::vector<QImage>{generateNoiseImage(256)});
 
     auto assignId = [this](SharedMMTexture &pTex) -> MMTextureId {
         auto &tex = deref(pTex);

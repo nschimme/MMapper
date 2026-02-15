@@ -266,4 +266,52 @@ Program loadShaders(Functions &gl, const Source &vert, const Source &frag)
     return result_prog;
 }
 
+Program loadShadersWithFeedback(Functions &gl,
+                                const Source &vert,
+                                const Source &frag,
+                                const std::vector<const char *> &varyings)
+{
+    std::vector<GLuint> shaders;
+    if (vert) {
+        shaders.push_back(compileShader(gl, GL_VERTEX_SHADER, vert));
+    }
+    if (frag) {
+        shaders.push_back(compileShader(gl, GL_FRAGMENT_SHADER, frag));
+    }
+
+    const auto is_valid = [](GLuint s) -> bool { return s != 0; };
+    const auto numShaders = std::count_if(shaders.begin(), shaders.end(), is_valid);
+    if (numShaders == 0) {
+        std::abort();
+    }
+
+    Program result_prog;
+    result_prog.emplace(gl.shared_from_this());
+    const GLuint prog = result_prog.get();
+
+    for (const GLuint s : shaders) {
+        if (is_valid(s)) {
+            gl.glAttachShader(prog, s);
+        }
+    }
+
+    gl.glTransformFeedbackVaryings(prog,
+                                   static_cast<GLsizei>(varyings.size()),
+                                   varyings.data(),
+                                   GL_INTERLEAVED_ATTRIBS);
+
+    gl.glLinkProgram(prog);
+    checkProgramInfo(gl, prog);
+    gl.applyDefaultUniformBlockBindings(prog);
+
+    for (const GLuint s : shaders) {
+        if (is_valid(s)) {
+            gl.glDetachShader(prog, s);
+            gl.glDeleteShader(s);
+        }
+    }
+
+    return result_prog;
+}
+
 } // namespace ShaderUtils

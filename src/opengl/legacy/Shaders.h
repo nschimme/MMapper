@@ -156,6 +156,19 @@ private:
     }
 };
 
+struct NODISCARD WeatherShader final : public AbstractShaderProgram
+{
+public:
+    using AbstractShaderProgram::AbstractShaderProgram;
+
+    ~WeatherShader() final;
+
+private:
+    void virt_setUniforms(const glm::mat4 & /*mvp*/,
+                          const GLRenderState::Uniforms & /*uniforms*/) final
+    {}
+};
+
 /* owned by Functions */
 struct NODISCARD ShaderPrograms final
 {
@@ -176,6 +189,7 @@ private:
     std::shared_ptr<PointShader> m_point;
     std::shared_ptr<BlitShader> m_blit;
     std::shared_ptr<FullScreenShader> m_fullscreen;
+    std::shared_ptr<WeatherShader> m_weather;
 
 public:
     explicit ShaderPrograms(Functions &functions)
@@ -208,6 +222,7 @@ public:
     NODISCARD const std::shared_ptr<PointShader> &getPointShader();
     NODISCARD const std::shared_ptr<BlitShader> &getBlitShader();
     NODISCARD const std::shared_ptr<FullScreenShader> &getFullScreenShader();
+    NODISCARD const std::shared_ptr<WeatherShader> &getWeatherShader();
 
 public:
     void early_init();

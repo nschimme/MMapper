@@ -5,8 +5,10 @@
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
+#include "../clock/mumemoment.h"
 #include "../global/ChangeMonitor.h"
 #include "../global/Signal2.h"
+#include "../map/PromptFlags.h"
 #include "../mapdata/roomselection.h"
 #include "../opengl/Font.h"
 #include "../opengl/FontFormatFlags.h"
@@ -19,10 +21,12 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <future>
 #include <map>
 #include <memory>
 #include <optional>
 #include <set>
+#include <variant>
 #include <vector>
 
 #include <glm/glm.hpp>
@@ -36,6 +40,7 @@
 class CharacterBatch;
 class ConnectionSelection;
 class Coordinate;
+class GameObserver;
 class InfomarkSelection;
 class MapData;
 class Mmapper2Group;
@@ -164,8 +169,34 @@ private:
     float m_lastPinchFactor = 1.f;
     float m_lastMagnification = 1.f;
 
+    struct WeatherState
+    {
+        float rainIntensity = 0.0f;
+        float snowIntensity = 0.0f;
+        float cloudsIntensity = 0.0f;
+        float fogIntensity = 0.0f;
+        float moonIntensity = 0.0f;
+
+        float targetRainIntensity = 0.0f;
+        float targetSnowIntensity = 0.0f;
+        float targetCloudsIntensity = 0.0f;
+        float targetFogIntensity = 0.0f;
+        float targetMoonIntensity = 0.0f;
+
+        MumeTimeEnum oldTimeOfDay = MumeTimeEnum::DAY;
+        MumeTimeEnum currentTimeOfDay = MumeTimeEnum::DAY;
+        MumeMoonVisibilityEnum moonVisibility = MumeMoonVisibilityEnum::UNKNOWN;
+        float timeOfDayTransition = 1.0f;
+        float animationTime = 0.0f;
+
+        std::chrono::steady_clock::time_point lastUpdateTime;
+    } m_weatherState;
+
+    GameObserver &m_observer;
+
 public:
     explicit MapCanvas(MapData &mapData,
+                       GameObserver &observer,
                        PrespammedPath &prespammedPath,
                        Mmapper2Group &groupManager,
                        QWindow *parent = nullptr);
@@ -268,6 +299,8 @@ private:
     void paintSelectedInfomarks();
     void paintCharacters();
     void paintDifferences();
+    void paintWeather();
+    NODISCARD Color calculateTimeOfDayColor() const;
     void forceUpdateMeshes();
 
 public:

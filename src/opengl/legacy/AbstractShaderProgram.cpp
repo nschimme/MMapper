@@ -5,6 +5,8 @@
 
 #include "../../global/ConfigConsts.h"
 
+#include <cassert>
+
 namespace Legacy {
 
 AbstractShaderProgram::AbstractShaderProgram(std::string dirName,
@@ -140,6 +142,18 @@ void AbstractShaderProgram::setPointSize(const float in_pointSize)
         const float pointSize = in_pointSize * getDevicePixelRatio();
         setUniform1fv(location, 1, &pointSize);
     }
+}
+
+void AbstractShaderProgram::setFloat(const char *const name, const float value)
+{
+    const auto location = getUniformLocation(name);
+    setUniform1fv(location, 1, &value);
+}
+
+void AbstractShaderProgram::setVec3(const char *const name, const glm::vec3 &v)
+{
+    const auto location = getUniformLocation(name);
+    setUniform4fv(location, 1, glm::value_ptr(glm::vec4(v, 1.0f)));
 }
 
 void AbstractShaderProgram::setColor(const char *const name, const Color color)

@@ -38,6 +38,7 @@ FontShader::~FontShader() = default;
 PointShader::~PointShader() = default;
 BlitShader::~BlitShader() = default;
 FullScreenShader::~FullScreenShader() = default;
+WeatherShader::~WeatherShader() = default;
 
 void ShaderPrograms::early_init()
 {
@@ -52,6 +53,7 @@ void ShaderPrograms::early_init()
     std::ignore = getPointShader();
     std::ignore = getBlitShader();
     std::ignore = getFullScreenShader();
+    std::ignore = getWeatherShader();
 }
 
 void ShaderPrograms::resetAll()
@@ -67,6 +69,7 @@ void ShaderPrograms::resetAll()
     m_point.reset();
     m_blit.reset();
     m_fullscreen.reset();
+    m_weather.reset();
 }
 
 // essentially a private member of ShaderPrograms
@@ -141,6 +144,11 @@ const std::shared_ptr<BlitShader> &ShaderPrograms::getBlitShader()
 const std::shared_ptr<FullScreenShader> &ShaderPrograms::getFullScreenShader()
 {
     return getInitialized<FullScreenShader>(m_fullscreen, getFunctions(), "fullscreen");
+}
+
+const std::shared_ptr<WeatherShader> &ShaderPrograms::getWeatherShader()
+{
+    return getInitialized<WeatherShader>(m_weather, getFunctions(), "weather");
 }
 
 } // namespace Legacy

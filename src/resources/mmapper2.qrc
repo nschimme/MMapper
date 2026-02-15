@@ -228,5 +228,7 @@
         <file>shaders/legacy/blit/vert.glsl</file>
         <file>shaders/legacy/fullscreen/frag.glsl</file>
         <file>shaders/legacy/fullscreen/vert.glsl</file>
+        <file>shaders/legacy/weather/frag.glsl</file>
+        <file>shaders/legacy/weather/vert.glsl</file>
     </qresource>
 </RCC>

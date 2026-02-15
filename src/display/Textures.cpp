@@ -58,8 +58,8 @@ struct TilingPerlin
     }
     float noise(float x, float y, int repeat)
     {
-        int xi = (int)std::floor(x) % repeat;
-        int yi = (int)std::floor(y) % repeat;
+        int xi = static_cast<int>(std::floor(x)) % repeat;
+        int yi = static_cast<int>(std::floor(y)) % repeat;
         if (xi < 0)
             xi += repeat;
         if (yi < 0)
@@ -89,7 +89,8 @@ struct TilingPerlin
         float amplitude = 1;
         float maxValue = 0;
         for (int i = 0; i < octaves; i++) {
-            total += noise(x * frequency, y * frequency, repeat * (int)frequency) * amplitude;
+            total += noise(x * frequency, y * frequency, repeat * static_cast<int>(frequency))
+                     * amplitude;
             maxValue += amplitude;
             amplitude *= 0.5f;
             frequency *= 2.0f;
@@ -105,8 +106,8 @@ static QImage generateNoiseImage(int size)
 
     for (int y = 0; y < size; ++y) {
         for (int x = 0; x < size; ++x) {
-            float fx = (float)x / (float)size;
-            float fy = (float)y / (float)size;
+            float fx = static_cast<float>(x) / static_cast<float>(size);
+            float fy = static_cast<float>(y) / static_cast<float>(size);
 
             // Red channel for Fog: smoother, larger scale
             float fog = perlin.fbm(fx * 4.0f, fy * 4.0f, 4, 4);
@@ -114,7 +115,10 @@ static QImage generateNoiseImage(int size)
             float clouds = perlin.fbm(fx * 8.0f, fy * 8.0f, 8, 4);
 
             img.setPixel(x, y,
-                         qRgba((int)(fog * 255), (int)(clouds * 255), 0, 255));
+                         qRgba(static_cast<int>(fog * 255.0f),
+                               static_cast<int>(clouds * 255.0f),
+                               0,
+                               255));
         }
     }
     return img;

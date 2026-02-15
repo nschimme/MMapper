@@ -184,7 +184,7 @@ const std::shared_ptr<ParticleRenderShader> &ShaderPrograms::getParticleRenderSh
 
 const std::shared_ptr<WeatherShader> &ShaderPrograms::getWeatherShader()
 {
-    return getInitialized<WeatherShader>(m_weather, getFunctions(), "weather");
+    return getInitialized<WeatherShader>(m_weather, getFunctions(), "weather/atmosphere");
 }
 
 } // namespace Legacy

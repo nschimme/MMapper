@@ -941,6 +941,10 @@ void MapCanvas::paintWeather()
     m_textures.weather_noise->bind();
     prog.setTexture("uNoiseTexture", 1);
 
+    funcs.glActiveTexture(GL_TEXTURE2);
+    funcs.glBindTexture(GL_TEXTURE_2D, funcs.getFBO().resolvedDepthTextureId());
+    prog.setTexture("uDepthTexture", 2);
+
     const auto rs
         = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withDepthFunction(std::nullopt);
     Legacy::RenderStateBinder renderStateBinder(funcs, funcs.getTexLookup(), rs);
@@ -1341,8 +1345,6 @@ void MapCanvas::paintParticleSimulation(float dt)
     simProg->setFloat("uDeltaTime", dt);
     simProg->setFloat("uTime", m_weatherState.animationTime);
     simProg->setVec3("uPlayerPos", m_data.tryGetPosition().value_or(Coordinate{}).to_vec3());
-    simProg->setVec4("uWeatherIntensities",
-                     glm::vec4(m_weatherState.rainIntensity, m_weatherState.snowIntensity, 0, 0));
 
     funcs.glEnable(GL_RASTERIZER_DISCARD);
 

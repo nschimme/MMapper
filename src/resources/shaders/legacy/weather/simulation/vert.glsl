@@ -1,7 +1,6 @@
 uniform float uDeltaTime;
 uniform float uTime;
 uniform vec3 uPlayerPos;
-uniform vec4 uWeatherIntensities; // x: rain, y: snow
 
 layout(location = 0) in vec3 inPos;
 layout(location = 1) in vec3 inVel;

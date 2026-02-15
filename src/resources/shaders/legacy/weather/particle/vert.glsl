@@ -8,6 +8,7 @@ layout(location = 3) in float inType;
 
 out float vLife;
 out float vType;
+out float vDist;
 out vec2 vVelScreen;
 
 void main()
@@ -17,6 +18,7 @@ void main()
 
     vec4 clipPos = uViewProj * vec4(inPos, 1.0);
     gl_Position = clipPos;
+    vDist = clipPos.w;
 
     // Project velocity to screen space using player position as reference point
     // This ensures all particles share the same orientation (parallel streaks)

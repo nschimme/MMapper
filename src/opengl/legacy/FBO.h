@@ -18,7 +18,7 @@ class FBO final
 {
 public:
     FBO() = default;
-    ~FBO() = default;
+    ~FBO();
     DELETE_CTORS_AND_ASSIGN_OPS(FBO);
 
 public:
@@ -28,10 +28,12 @@ public:
     void resolve();
 
     NODISCARD GLuint resolvedTextureId() const;
+    NODISCARD GLuint resolvedDepthTextureId() const;
 
 private:
     std::unique_ptr<QOpenGLFramebufferObject> m_multisamplingFbo;
     std::unique_ptr<QOpenGLFramebufferObject> m_resolvedFbo;
+    GLuint m_resolvedDepthTexture{0};
 };
 
 } // namespace Legacy

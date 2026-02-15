@@ -319,12 +319,10 @@ public:
 
     NODISCARD FBO &getFBO();
 
-private:
-    friend PointSizeBinder;
+public:
     /// platform-specific (ES vs GL)
     void enableProgramPointSize(bool enable) { virt_enableProgramPointSize(enable); }
 
-public:
     /// platform-specific (ES vs GL)
     NODISCARD const char *getShaderVersion() const { return virt_getShaderVersion(); }
 

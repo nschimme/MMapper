@@ -82,11 +82,11 @@ MapCanvas::MapCanvas(MapData &mapData,
     m_weatherState.targetSnowIntensity = (m_observer.getWeather() == PromptWeatherEnum::SNOW)
                                              ? 1.0f
                                              : 0.0f;
-    const auto weather = m_observer.getWeather();
-    m_weatherState.targetCloudsIntensity = (weather == PromptWeatherEnum::CLOUDS
-                                            || weather == PromptWeatherEnum::RAIN
-                                            || weather == PromptWeatherEnum::HEAVY_RAIN
-                                            || weather == PromptWeatherEnum::SNOW)
+    const auto initialWeather = m_observer.getWeather();
+    m_weatherState.targetCloudsIntensity = (initialWeather == PromptWeatherEnum::CLOUDS
+                                            || initialWeather == PromptWeatherEnum::RAIN
+                                            || initialWeather == PromptWeatherEnum::HEAVY_RAIN
+                                            || initialWeather == PromptWeatherEnum::SNOW)
                                                ? 1.0f
                                                : 0.0f;
     m_weatherState.targetFogIntensity = (m_observer.getFog() == PromptFogEnum::LIGHT_FOG)   ? 0.3f

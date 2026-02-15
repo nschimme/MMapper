@@ -299,6 +299,8 @@ void RoomDataBuffer::syncWithMap(const Map &map,
         }
 
         // Deletions
+// m_lastMap is a Map object, which in MMapper is a lightweight wrapper around
+// an immutable World (using immer). Copying/Assignment is O(1).
         m_lastMap.getRooms().for_each([&](const RoomId id) {
             if (!map.findRoomHandle(id)) {
                 const uint32_t idx = id.asUint32();
@@ -313,7 +315,7 @@ void RoomDataBuffer::syncWithMap(const Map &map,
 }
 
 void RoomDataBuffer::renderLayer(OpenGL &gl,
-                                 const glm::mat4 & /*mvp*/,
+                                 const glm::mat4 &mvp,
                                  int z,
                                  int currentLayer,
                                  bool drawUpperLayersTextured,
@@ -326,6 +328,10 @@ void RoomDataBuffer::renderLayer(OpenGL &gl,
 
     auto &prog = deref(m_sharedFuncs).getShaderPrograms().getMegaRoomShader();
     const auto &textures = mctp::getProxy(deref(MapCanvas::getPrimary()).getTextures());
+
+    // Ensure the projection matrix is up to date in the GL functions
+    // so SimpleMesh::virt_render can pick it up.
+    gl.setProjectionMatrix(mvp);
 
     prog->currentLayer = currentLayer;
     prog->drawUpperLayersTextured = drawUpperLayersTextured;
@@ -343,7 +349,6 @@ void RoomDataBuffer::renderLayer(OpenGL &gl,
     prog->uStreamInTex = textures.stream_in[ExitDirEnum::NORTH].array;
     prog->uStreamOutTex = textures.stream_out[ExitDirEnum::NORTH].array;
     prog->uExitTex = textures.exit_up.array;
-    prog->uWhiteTex = textures.white_pixel.array;
 
     // Layer indices
     for (uint32_t i = 0u; i < 4u; ++i) {

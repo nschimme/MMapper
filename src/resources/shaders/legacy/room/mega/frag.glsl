@@ -24,7 +24,9 @@ uniform sampler2DArray uExitIconArray;
 uniform bool uDrawUpperLayersTextured;
 uniform vec4 uTimeOfDayColor;
 
-uniform vec4 uPalette[64];
+layout(std140) uniform NamedColorsBlock {
+    vec4 uColors[256];
+};
 
 uniform int uWallLayers[4];
 uniform int uDottedWallLayers[4];
@@ -37,7 +39,7 @@ out vec4 fragColor;
 
 vec4 getWallColor(uint info) {
     uint colorIdx = (info >> 3) & 0xFFu;
-    return uPalette[colorIdx];
+    return uColors[colorIdx];
 }
 
 void main() {
@@ -59,10 +61,10 @@ void main() {
     vec4 tint = uTimeOfDayColor;
     if ((vFlags & 1u) != 0u) {
         // Dark room tint (NamedColorEnum::ROOM_DARK = 12)
-        tint *= uPalette[12];
+        tint *= uColors[12];
     } else if ((vFlags & 2u) != 0u) {
         // No sundeath tint (NamedColorEnum::ROOM_NO_SUNDEATH = 13)
-        tint *= uPalette[13];
+        tint *= uColors[13];
     }
     color *= tint * layerColor;
 
@@ -110,7 +112,7 @@ void main() {
 
     // Stream icons (Flow)
     // NamedColorEnum::STREAM = 14
-    vec4 streamTint = uPalette[14] * layerColor;
+    vec4 streamTint = uColors[14] * layerColor;
     for (int i = 0; i < 6; ++i) {
         uint info = (vWallInfo[i / 2] >> (16 * (i % 2))) & 0xFFFFu;
         if ((info & 0x800u) != 0u) { // OutFlow
@@ -151,7 +153,7 @@ void main() {
 
     // Highlights (Diff)
     if (vHighlight != 0u) {
-        vec4 hColor = uPalette[vHighlight];
+        vec4 hColor = uColors[vHighlight];
         color = mix(color, hColor, hColor.a);
     }
 

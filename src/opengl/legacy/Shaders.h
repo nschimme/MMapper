@@ -68,7 +68,6 @@ private:
     {
         assert(uniforms.textures[0] != INVALID_MM_TEXTURE_ID);
 
-        setColor("uColor", uniforms.color);
         setMatrix("uMVP", mvp);
         setTexture("uTexture", 0);
     }
@@ -96,7 +95,6 @@ public:
     MMTextureId uStreamInTex;
     MMTextureId uStreamOutTex;
     MMTextureId uExitTex;
-    MMTextureId uWhiteTex;
 
     int uWallLayers[4]{};
     int uDottedWallLayers[4]{};

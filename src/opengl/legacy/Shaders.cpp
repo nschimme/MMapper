@@ -54,13 +54,6 @@ void MegaRoomShader::virt_setUniforms(const glm::mat4 &mvp, const GLRenderState:
 
     auto functions = m_functions.lock();
     if (functions) {
-        // Palette
-        const auto &colors = XNamedColor::getAllColorsAsVec4();
-        GLint loc = getUniformLocation("uPalette");
-        if (loc != INVALID_UNIFORM_LOCATION) {
-            functions->glUniform4fv(loc, static_cast<GLsizei>(colors.size()), glm::value_ptr(colors[0]));
-        }
-
         // Textures
         auto bind = [&](const char *name, int unit, MMTextureId id) {
             if (id) {
@@ -88,7 +81,7 @@ void MegaRoomShader::virt_setUniforms(const glm::mat4 &mvp, const GLRenderState:
         setIntArray("uDoorLayers", uDoorLayers, 6);
         setIntArray("uStreamInLayers", uStreamInLayers, 6);
         setIntArray("uStreamOutLayers", uStreamOutLayers, 6);
-        setIntArray("uExitIconLayers", uExitLayers, 4);
+        setIntArray("uExitLayers", uExitLayers, 4);
     }
 }
 

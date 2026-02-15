@@ -41,12 +41,17 @@ void main()
 
         // World space velocities (rooms/sec)
         if (type < 0.5) {
-            // Rain: Added horizontal component (slant) to look like original fullscreen shader
-            vel = vec3(5.0, 3.0, -30.0 - hash(h + 4.0) * 10.0);
-            life = 2.0;
+            // Rain: Increased horizontal component for better 2D visibility
+            vel = vec3(12.0 + (hash(h + 4.0) - 0.5) * 6.0,
+                       8.0 + (hash(h + 5.0) - 0.5) * 4.0,
+                       -40.0 - hash(h + 6.0) * 10.0);
+            life = 1.2; // Fast fall, short life
         } else {
-            vel = vec3((hash(h + 4.0) - 0.5) * 2.5, (hash(h + 5.0) - 0.5) * 2.5, -5.0 - hash(h + 6.0) * 5.0);
-            life = 10.0;
+            // Snow: drifting more horizontally
+            vel = vec3((hash(h + 4.0) - 0.5) * 8.0,
+                       (hash(h + 5.0) - 0.5) * 8.0,
+                       -8.0 - hash(h + 6.0) * 4.0);
+            life = 8.0;
         }
     }
 

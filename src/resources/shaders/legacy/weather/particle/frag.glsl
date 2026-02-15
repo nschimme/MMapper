@@ -20,15 +20,15 @@ void main()
         float distToLine = length(p - dot(p, dir) * dir);
 
         // Elongated streak: very thin horizontally relative to the 'dir'
-        float streak = 1.0 - smoothstep(0.0, 0.1, distToLine);
+        float streak = 1.0 - smoothstep(0.0, 0.05, distToLine);
 
         // Fade ends of the streak area (gl_PointCoord is square, we want a line)
         float alongLine = dot(p, dir);
-        streak *= smoothstep(1.0, 0.7, abs(alongLine));
+        streak *= smoothstep(1.0, 0.5, abs(alongLine));
 
         // Original-like rain color: vec4(0.6, 0.6, 1.0, 0.6)
         vFragmentColor = vec4(0.6, 0.6, 1.0,
-                              streak * 0.8 * uWeatherIntensity * uWeatherIntensities.x * darkBoost);
+                              streak * 0.7 * uWeatherIntensity * uWeatherIntensities.x * darkBoost);
     } else {
         // Snow: soft circle
         float dist = length(p);

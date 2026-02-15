@@ -22,8 +22,8 @@ void main()
     vVelScreen = (clipPosNext.xy / clipPosNext.w) - (clipPos.xy / clipPos.w);
 
     if (inType < 0.5) {
-        gl_PointSize = 20.0; // Rain streak area
+        gl_PointSize = 32.0; // Rain streak area - larger for longer streaks
     } else {
-        gl_PointSize = 8.0;  // Snow flake area
+        gl_PointSize = 10.0; // Snow flake area
     }
 }

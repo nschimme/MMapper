@@ -462,6 +462,7 @@ void MapCanvas::setViewportAndMvp(int width, int height)
     const bool want3D = getConfig().canvas.advanced.use3D.get();
 
     auto &gl = getOpenGL();
+    m_mapScreen.invalidateCache();
 
     gl.glViewport(0, 0, width, height);
     const auto size = getViewport().size;
@@ -534,24 +535,104 @@ void MapCanvas::updateBatches()
 void MapCanvas::updateMapBatches()
 {
     RemeshCookie &remeshCookie = m_batches.remeshCookie;
+
+    if (m_data.getNeedsMapUpdate()) {
+        m_data.clearNeedsMapUpdate();
+        auto dirty = m_data.getDirtyChunks();
+        m_data.clearDirtyChunks();
+        m_pendingDirtyChunks.insert(dirty.begin(), dirty.end());
+    }
+
+    // Step 1: Start grouping task if needed and no grouping is in progress
+    if (!m_batches.groupingFuture.has_value()) {
+        if (!m_pendingDirtyChunks.empty()) {
+            auto dirty = std::move(m_pendingDirtyChunks);
+            m_pendingDirtyChunks.clear();
+
+            auto map = m_data.getCurrentMap();
+            m_batches.groupingFuture = std::async(std::launch::async, [map, dirty = std::move(dirty)]() {
+                DECL_TIMER(t, "[ASYNC] Grouping rooms into chunks (O(N) pass)");
+                ChunkToLayerToRooms result;
+                map.getRooms().for_each([&map, &result, &dirty](const RoomId id) {
+                    const auto &r = map.getRoomHandle(id);
+                    const auto pos = r.getPosition();
+                    const ChunkId chunkId = ChunkId::fromCoordinate(pos);
+                    if (dirty.count(chunkId)) {
+                        result[chunkId][pos.z].emplace_back(r);
+                    }
+                });
+                return result;
+            });
+        } else if (!m_batches.mapBatches.has_value() && m_batches.pendingGroups.empty() && !remeshCookie.isPending()) {
+            // Force a full rebuild if we have nothing and no pending work
+            auto map = m_data.getCurrentMap();
+            m_batches.groupingFuture = std::async(std::launch::async, [map]() {
+                DECL_TIMER(t, "[ASYNC] Grouping rooms into chunks (O(N) pass - Full Rebuild)");
+                ChunkToLayerToRooms result;
+                map.getRooms().for_each([&map, &result](const RoomId id) {
+                    const auto &r = map.getRoomHandle(id);
+                    const auto pos = r.getPosition();
+                    const ChunkId chunkId = ChunkId::fromCoordinate(pos);
+                    result[chunkId][pos.z].emplace_back(r);
+                });
+                return result;
+            });
+        }
+    }
+
+    // Step 2: Check if grouping task is finished
+    if (m_batches.groupingFuture.has_value()) {
+        auto &future = *m_batches.groupingFuture;
+        if (future.wait_for(std::chrono::nanoseconds(0)) == std::future_status::ready) {
+            auto newGroups = future.get();
+            m_batches.groupingFuture.reset();
+            for (auto &entry : newGroups) {
+                m_batches.pendingGroups[entry.first] = std::move(entry.second);
+            }
+        }
+    }
+
+    // Step 3: Start meshing task if we have pending groups and no meshing is in progress
     if (remeshCookie.isPending()) {
         return;
     }
 
-    if (m_batches.mapBatches.has_value() && !m_data.getNeedsMapUpdate()) {
+    if (m_batches.pendingGroups.empty()) {
         return;
     }
 
-    if (m_data.getNeedsMapUpdate()) {
-        m_data.clearNeedsMapUpdate();
-        assert(!m_data.getNeedsMapUpdate());
-        MMLOG() << "[updateMapBatches] cleared 'needsUpdate' flag";
+    ChunkToLayerToRooms groupsToMesh;
+    // Priority 1: Visible dirty chunks
+    for (auto it = m_batches.pendingGroups.begin(); it != m_batches.pendingGroups.end();) {
+        if (m_mapScreen.isChunkVisible(it->first, m_currentLayer)) {
+            groupsToMesh[it->first] = std::move(it->second);
+            it = m_batches.pendingGroups.erase(it);
+        } else {
+            ++it;
+        }
     }
 
-    auto getFuture = [this]() {
-        MMLOG() << "[updateMapBatches] calling generateBatches";
+    // Priority 2: Limited background chunks
+    if (groupsToMesh.empty()) {
+        static constexpr size_t MAX_BACKGROUND_CHUNKS = 20;
+        auto it = m_batches.pendingGroups.begin();
+        for (size_t i = 0; i < MAX_BACKGROUND_CHUNKS && it != m_batches.pendingGroups.end(); ++i) {
+            groupsToMesh[it->first] = std::move(it->second);
+            it = m_batches.pendingGroups.erase(it);
+        }
+    }
+
+    if (groupsToMesh.empty()) {
+        return;
+    }
+
+    auto getFuture = [this, groupsToMesh = std::move(groupsToMesh)]() mutable {
+        MMLOG() << "[updateMapBatches] calling generateBatches for " << groupsToMesh.size()
+                << " chunks (O(M) pass)";
+
         return m_data.generateBatches(mctp::getProxy(m_textures),
-                                      getGLFont().getSharedFontMetrics());
+                                      getGLFont().getSharedFontMetrics(),
+                                      std::move(groupsToMesh));
     };
 
     remeshCookie.set(getFuture());
@@ -575,7 +656,7 @@ void MapCanvas::finishPendingMapBatches()
     static const std::string_view prefix = "[finishPendingMapBatches] ";
 
     MAYBE_UNUSED RAIICallback eventually{[this] {
-        if (!m_batches.isInProgress()) {
+        if (!m_batches.isInProgress() && m_pendingDirtyChunks.empty()) {
             setAnimating(false);
         }
     }};
@@ -609,6 +690,24 @@ void MapCanvas::finishPendingMapBatches()
         opt_mapBatches.reset();
         finish(future, opt_mapBatches, getOpenGL(), getGLFont());
         assert(opt_mapBatches.has_value());
+
+        // Merge existing chunks that were not rebuilt
+        if (m_batches.mapBatches.has_value()) {
+            for (auto &chunkEntry : m_batches.mapBatches->chunks) {
+                if (opt_mapBatches->chunks.find(chunkEntry.first) == opt_mapBatches->chunks.end()) {
+                    opt_mapBatches->chunks[chunkEntry.first] = std::move(chunkEntry.second);
+                }
+            }
+        }
+
+        // Ensure allLayers is up to date
+        opt_mapBatches->allLayers.clear();
+        for (const auto &chunkEntry : opt_mapBatches->chunks) {
+            for (const auto &layerEntry : chunkEntry.second.layers) {
+                opt_mapBatches->allLayers.insert(layerEntry.first);
+            }
+        }
+
         m_data.saveSnapshot();
 
     } catch (...) {
@@ -781,7 +880,8 @@ void MapCanvas::paintDifferences()
 
 void MapCanvas::paintMap()
 {
-    const bool pending = m_batches.remeshCookie.isPending();
+    const bool pending = m_batches.remeshCookie.isPending() || !m_pendingDirtyChunks.empty()
+                         || m_batches.groupingFuture.has_value() || !m_batches.pendingGroups.empty();
     if (pending) {
         setAnimating(true);
     }
@@ -1029,39 +1129,6 @@ void MapCanvas::renderMapBatches()
 
     auto &gl = getOpenGL();
 
-    BatchedMeshes &batchedMeshes = batches.batchedMeshes;
-
-    const auto drawLayer =
-        [&batches, &batchedMeshes, wantExtraDetail, wantDoorNames](const int thisLayer,
-                                                                   const int currentLayer) {
-            const auto it_mesh = batchedMeshes.find(thisLayer);
-            if (it_mesh != batchedMeshes.end()) {
-                LayerMeshes &meshes = it_mesh->second;
-                meshes.render(thisLayer, currentLayer);
-            }
-
-            if (wantExtraDetail) {
-                BatchedConnectionMeshes &connectionMeshes = batches.connectionMeshes;
-                const auto it_conn = connectionMeshes.find(thisLayer);
-                if (it_conn != connectionMeshes.end()) {
-                    ConnectionMeshes &meshes = it_conn->second;
-                    meshes.render(thisLayer, currentLayer);
-                }
-
-                // NOTE: This can display room names in lower layers, but the text
-                // isn't currently drawn with an appropriate Z-offset, so it doesn't
-                // stay aligned to its actual layer when you switch view layers.
-                if (wantDoorNames && thisLayer == currentLayer) {
-                    BatchedRoomNames &roomNameBatches = batches.roomNameBatches;
-                    const auto it_name = roomNameBatches.find(thisLayer);
-                    if (it_name != roomNameBatches.end()) {
-                        auto &roomNameBatch = it_name->second;
-                        roomNameBatch.render(GLRenderState());
-                    }
-                }
-            }
-        };
-
     const auto fadeBackground = [&gl, &settings]() {
         auto bgColor = Color{settings.backgroundColor.getColor(), 0.5f};
 
@@ -1071,12 +1138,57 @@ void MapCanvas::renderMapBatches()
         gl.renderPlainFullScreenQuad(blendedWithBackground);
     };
 
-    for (const auto &layer : batchedMeshes) {
-        const int thisLayer = layer.first;
+    for (const int thisLayer : batches.allLayers) {
         if (thisLayer == m_currentLayer) {
             gl.clearDepth();
             fadeBackground();
         }
-        drawLayer(thisLayer, m_currentLayer);
+
+        struct VisibleChunk
+        {
+            ChunkMeshes *meshes;
+            const LayerMeshes *layerMeshes;
+        };
+        std::vector<VisibleChunk> visibleInLayer;
+
+        for (auto &chunkEntry : batches.chunks) {
+            const ChunkId cid = chunkEntry.first;
+            auto it = chunkEntry.second.layers.find(thisLayer);
+            if (it != chunkEntry.second.layers.end()) {
+                if (m_mapScreen.isChunkVisible(cid, thisLayer)) {
+                    visibleInLayer.push_back({&chunkEntry.second, &it->second});
+                }
+            }
+        }
+
+        for (auto &vc : visibleInLayer) {
+            vc.layerMeshes->renderTerrain(thisLayer, m_currentLayer);
+        }
+        for (auto &vc : visibleInLayer) {
+            vc.layerMeshes->renderTints();
+        }
+        for (auto &vc : visibleInLayer) {
+            vc.layerMeshes->renderDetails(thisLayer, m_currentLayer);
+        }
+        for (auto &vc : visibleInLayer) {
+            vc.layerMeshes->renderWalls(thisLayer, m_currentLayer);
+        }
+
+        if (wantExtraDetail) {
+            for (auto &vc : visibleInLayer) {
+                const auto it = vc.meshes->connectionMeshes.find(thisLayer);
+                if (it != vc.meshes->connectionMeshes.end()) {
+                    it->second.render(thisLayer, m_currentLayer);
+                }
+            }
+            if (wantDoorNames && thisLayer == m_currentLayer) {
+                for (auto &vc : visibleInLayer) {
+                    const auto it = vc.meshes->roomNameBatches.find(thisLayer);
+                    if (it != vc.meshes->roomNameBatches.end()) {
+                        it->second.render(GLRenderState());
+                    }
+                }
+            }
+        }
     }
 }

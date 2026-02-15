@@ -140,6 +140,7 @@ private:
     MapCanvasTextures m_textures;
     MapData &m_data;
     Mmapper2Group &m_groupManager;
+    std::set<ChunkId> m_pendingDirtyChunks;
     Diff m_diff;
     FrameRateController m_frameRateController;
     std::unique_ptr<QOpenGLDebugLogger> m_logger;

@@ -196,6 +196,12 @@ MapScreen::MapScreen(const MapCanvasViewport &viewport)
 
 MapScreen::~MapScreen() = default;
 
+void MapScreen::invalidateCache() const
+{
+    m_cachedBounds.reset();
+    m_cachedBoundsLayer = -1;
+}
+
 glm::vec3 MapScreen::getCenter() const
 {
     const Viewport vp = m_viewport.getViewport();
@@ -205,10 +211,11 @@ glm::vec3 MapScreen::getCenter() const
 bool MapScreen::isRoomVisible(const Coordinate &c, const float marginPixels) const
 {
     const auto pos = c.to_vec3();
+    const float margin = std::max(1.f, marginPixels);
     for (int i = 0; i < 4; ++i) {
         const glm::vec3 offset{static_cast<float>(i & 1), static_cast<float>((i >> 1) & 1), 0.f};
         const auto corner = pos + offset;
-        switch (testVisibility(corner, marginPixels)) {
+        switch (testVisibility(corner, margin)) {
         case VisiblityResultEnum::INSIDE_MARGIN:
         case VisiblityResultEnum::ON_MARGIN:
             break;
@@ -220,6 +227,81 @@ bool MapScreen::isRoomVisible(const Coordinate &c, const float marginPixels) con
     }
 
     return true;
+}
+
+bool MapScreen::isChunkVisible(const ChunkId &cid, const int layer) const
+{
+    static constexpr int CS = ChunkId::SIZE;
+    const float xmin = static_cast<float>(cid.x * CS);
+    const float xmax = static_cast<float>((cid.x + 1) * CS);
+    const float ymin = static_cast<float>(cid.y * CS);
+    const float ymax = static_cast<float>((cid.y + 1) * CS);
+    const float flayer = static_cast<float>(layer);
+
+    // Quick AABB check against viewport bounds
+    const auto bounds = getViewportWorldBounds(layer);
+    if (xmax < bounds.xmin || xmin > bounds.xmax || ymax < bounds.ymin || ymin > bounds.ymax) {
+        return false;
+    }
+
+    // Since the viewport might be rotated or in 3D, we still need to check if corners
+    // are actually visible if they passed the AABB check.
+    for (const float x : {xmin, xmax}) {
+        for (const float y : {ymin, ymax}) {
+            if (testVisibility({x, y, flayer}, 1.f) != VisiblityResultEnum::OFF_SCREEN) {
+                return true;
+            }
+        }
+    }
+
+    // Also check if any screen corner is inside the chunk
+    const Viewport vp = m_viewport.getViewport();
+    for (const float vx : {0.f, static_cast<float>(vp.size.x)}) {
+        for (const float vy : {0.f, static_cast<float>(vp.size.y)}) {
+            const glm::vec2 mouse{vx + static_cast<float>(vp.offset.x),
+                                  vy + static_cast<float>(vp.offset.y)};
+            const glm::vec3 world = m_viewport.unproject_clamped(mouse);
+            if (world.x >= xmin && world.x <= xmax && world.y >= ymin && world.y <= ymax) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+MapScreen::ViewportWorldBounds MapScreen::getViewportWorldBounds(int layer) const
+{
+    if (m_cachedBounds.has_value() && m_cachedBoundsLayer == layer) {
+        return *m_cachedBounds;
+    }
+
+    const Viewport vp = m_viewport.getViewport();
+    float xmin = std::numeric_limits<float>::max();
+    float xmax = std::numeric_limits<float>::lowest();
+    float ymin = std::numeric_limits<float>::max();
+    float ymax = std::numeric_limits<float>::lowest();
+
+    const int savedLayer = m_viewport.m_currentLayer;
+    const_cast<MapCanvasViewport &>(m_viewport).m_currentLayer = layer;
+
+    for (const float vx : {0.f, static_cast<float>(vp.size.x)}) {
+        for (const float vy : {0.f, static_cast<float>(vp.size.y)}) {
+            const glm::vec2 mouse{vx + static_cast<float>(vp.offset.x),
+                                  vy + static_cast<float>(vp.offset.y)};
+            const glm::vec3 world = m_viewport.unproject_clamped(mouse);
+            xmin = std::min(xmin, world.x);
+            xmax = std::max(xmax, world.x);
+            ymin = std::min(ymin, world.y);
+            ymax = std::max(ymax, world.y);
+        }
+    }
+
+    const_cast<MapCanvasViewport &>(m_viewport).m_currentLayer = savedLayer;
+
+    m_cachedBounds = {xmin, xmax, ymin, ymax};
+    m_cachedBoundsLayer = layer;
+    return *m_cachedBounds;
 }
 
 // Purposely ignores the possibility of glClipPlane() and glDepthRange().

@@ -5,6 +5,7 @@
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
+#include "../display/ChunkMeshes.h"
 #include "../display/IMapBatchesFinisher.h"
 #include "../map/Changes.h"
 #include "../map/DoorFlags.h"
@@ -71,7 +72,13 @@ public:
 
     NODISCARD FutureSharedMapBatchFinisher
     generateBatches(const mctp::MapCanvasTexturesProxy &textures,
-                    const std::shared_ptr<const FontMetrics> &font);
+                    const std::shared_ptr<const FontMetrics> &font,
+                    std::set<ChunkId> dirtyChunks);
+
+    NODISCARD FutureSharedMapBatchFinisher
+    generateBatches(const mctp::MapCanvasTexturesProxy &textures,
+                    const std::shared_ptr<const FontMetrics> &font,
+                    ChunkToLayerToRooms pregroupedChunks);
 
     // REVISIT: convert to template, or functionref after it compiles everywhere?
     void applyChangesToList(const RoomSelection &sel,

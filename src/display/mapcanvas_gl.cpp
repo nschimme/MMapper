@@ -924,8 +924,16 @@ void MapCanvas::paintWeather()
 
     auto binder = prog.bind();
 
-    prog.setVec2("uScroll", m_scroll);
-    prog.setFloat("uZoomScale", getTotalScaleFactor());
+    if (!m_invViewProj.has_value()) {
+        m_invViewProj = glm::inverse(m_viewProj);
+    }
+    prog.setMatrix("uInvViewProj", m_invViewProj.value());
+    prog.setVec3("uPlayerPos", m_data.tryGetPosition().value_or(Coordinate{}).to_vec3());
+
+    const bool want3D = getConfig().canvas.advanced.use3D.get();
+    const float zScale = want3D ? getConfig().canvas.advanced.layerHeight.getFloat() : 7.0f;
+    prog.setFloat("uZScale", zScale);
+
     prog.setFloat("uTime", m_weatherState.animationTime);
     prog.setVec4("uWeatherIntensities",
                  glm::vec4(m_weatherState.rainIntensity,
@@ -1330,6 +1338,7 @@ void MapCanvas::paintParticleSimulation(float dt)
     auto binder = simProg->bind();
 
     simProg->setFloat("uDeltaTime", dt);
+    simProg->setVec3("uPlayerPos", m_data.tryGetPosition().value_or(Coordinate{}).to_vec3());
     simProg->setVec4("uWeatherIntensities",
                      glm::vec4(m_weatherState.rainIntensity, m_weatherState.snowIntensity, 0, 0));
 
@@ -1358,6 +1367,7 @@ void MapCanvas::paintParticleRender()
     auto &partProg = shaders.getParticleRenderShader();
     auto binder = partProg->bind();
 
+    partProg->setMatrix("uViewProj", m_viewProj);
     partProg->setFloat("uWeatherIntensity",
                        static_cast<float>(getConfig().canvas.weatherIntensity.get()) / 100.0f);
     partProg->setColor("uTimeOfDayColor", calculateTimeOfDayColor());

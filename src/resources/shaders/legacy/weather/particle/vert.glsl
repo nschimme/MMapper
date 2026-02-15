@@ -1,3 +1,5 @@
+uniform mat4 uViewProj;
+
 layout(location = 0) in vec3 inPos;
 layout(location = 1) in vec3 inVel;
 layout(location = 2) in float inLife;
@@ -12,14 +14,15 @@ void main()
     vLife = inLife;
     vType = inType;
 
-    // Position is already in screen space [-1, 1]
-    gl_Position = vec4(inPos.xy, 0.0, 1.0);
+    vec4 clipPos = uViewProj * vec4(inPos, 1.0);
+    gl_Position = clipPos;
 
-    // Velocity in screen space for orientation
-    vVelScreen = inVel.xy;
+    // Project velocity to screen space for rain orientation
+    vec4 clipPosNext = uViewProj * vec4(inPos + inVel * 0.05, 1.0);
+    vVelScreen = (clipPosNext.xy / clipPosNext.w) - (clipPos.xy / clipPos.w);
 
     if (inType < 0.5) {
-        gl_PointSize = 24.0; // Rain streak area
+        gl_PointSize = 20.0; // Rain streak area
     } else {
         gl_PointSize = 8.0;  // Snow flake area
     }

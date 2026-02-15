@@ -55,7 +55,8 @@ void MegaRoomShader::virt_setUniforms(const glm::mat4 &mvp, const GLRenderState:
         setColor("uTimeOfDayColor", Colors::white);
     }
 
-    // Note: uCurrentLayer and uDrawUpperLayersTextured are set manually by MapCanvas
+    setInt("uCurrentLayer", currentLayer);
+    setBool("uDrawUpperLayersTextured", drawUpperLayersTextured);
 }
 
 FontShader::~FontShader() = default;

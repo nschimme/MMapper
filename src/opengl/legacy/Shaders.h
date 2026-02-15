@@ -81,6 +81,9 @@ public:
 
     ~MegaRoomShader() final;
 
+    int currentLayer = 0;
+    bool drawUpperLayersTextured = false;
+
 private:
     void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final;
 };

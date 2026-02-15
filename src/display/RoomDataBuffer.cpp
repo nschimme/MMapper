@@ -245,11 +245,8 @@ void RoomDataBuffer::render(OpenGL &gl,
 
     auto &prog = deref(m_sharedFuncs).getShaderPrograms().getMegaRoomShader();
 
-    auto unbinder = prog->bind();
-
-    // Set extra uniforms
-    prog->setInt("uCurrentLayer", currentLayer);
-    prog->setBool("uDrawUpperLayersTextured", drawUpperLayersTextured);
+    prog->currentLayer = currentLayer;
+    prog->drawUpperLayersTextured = drawUpperLayersTextured;
 
     m_mesh->render(gl.getDefaultRenderState()
                        .withBlend(BlendModeEnum::TRANSPARENCY)

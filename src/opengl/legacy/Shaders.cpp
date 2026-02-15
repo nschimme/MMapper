@@ -3,6 +3,7 @@
 
 #include "Shaders.h"
 
+#include "../../display/Textures.h"
 #include "ShaderUtils.h"
 
 #include <memory>
@@ -33,6 +34,57 @@ AColorTexturedShader::~AColorTexturedShader() = default;
 UColorTexturedShader::~UColorTexturedShader() = default;
 
 RoomQuadTexShader::~RoomQuadTexShader() = default;
+MegaRoomShader::~MegaRoomShader() = default;
+
+void MegaRoomShader::virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms)
+{
+    setMatrix("uViewProj", mvp);
+
+    if (uniforms.timeOfDayColor.has_value()) {
+        setColor("uTimeOfDayColor", uniforms.timeOfDayColor.value());
+    } else {
+        setColor("uTimeOfDayColor", Colors::white);
+    }
+
+    setInt("uCurrentLayer", currentLayer);
+    setInt("uMinZ", minZ);
+    setInt("uMaxZ", maxZ);
+    setBool("uDrawUpperLayersTextured", drawUpperLayersTextured);
+    setVec2("uMinBounds", minBounds);
+    setVec2("uMaxBounds", maxBounds);
+
+    auto functions = m_functions.lock();
+    if (functions) {
+        // Textures
+        auto bind = [&](const char *name, int unit, MMTextureId id) {
+            if (id) {
+                const auto *texPtr = functions->getTexLookup().find(id);
+                if (texPtr && *texPtr) {
+                    (*texPtr)->bind(static_cast<GLuint>(unit));
+                    setTexture(name, unit);
+                }
+            }
+        };
+
+        bind("uTerrainRoadArray", 0, uTerrainTex);
+        bind("uTrailArray", 1, uTrailTex);
+        bind("uOverlayArray", 2, uOverlayTex);
+        bind("uWallArray", 3, uWallTex);
+        bind("uDottedWallArray", 4, uDottedWallTex);
+        bind("uDoorArray", 5, uDoorTex);
+        bind("uStreamInArray", 6, uStreamInTex);
+        bind("uStreamOutArray", 7, uStreamOutTex);
+        bind("uExitIconArray", 8, uExitTex);
+
+        // Layers
+        setIntArray("uWallLayers", uWallLayers, 4);
+        setIntArray("uDottedWallLayers", uDottedWallLayers, 4);
+        setIntArray("uDoorLayers", uDoorLayers, 6);
+        setIntArray("uStreamInLayers", uStreamInLayers, 6);
+        setIntArray("uStreamOutLayers", uStreamOutLayers, 6);
+        setIntArray("uExitLayers", uExitLayers, 4);
+    }
+}
 
 FontShader::~FontShader() = default;
 PointShader::~PointShader() = default;
@@ -47,6 +99,7 @@ void ShaderPrograms::early_init()
     std::ignore = getTexturedUColorShader();
 
     std::ignore = getRoomQuadTexShader();
+    std::ignore = getMegaRoomShader();
 
     std::ignore = getFontShader();
     std::ignore = getPointShader();
@@ -62,6 +115,7 @@ void ShaderPrograms::resetAll()
     m_uTexturedShader.reset();
 
     m_roomQuadTexShader.reset();
+    m_megaRoomShader.reset();
 
     m_font.reset();
     m_point.reset();
@@ -116,6 +170,11 @@ const std::shared_ptr<AColorTexturedShader> &ShaderPrograms::getTexturedAColorSh
 const std::shared_ptr<RoomQuadTexShader> &ShaderPrograms::getRoomQuadTexShader()
 {
     return getInitialized<RoomQuadTexShader>(m_roomQuadTexShader, getFunctions(), "room/tex/acolor");
+}
+
+const std::shared_ptr<MegaRoomShader> &ShaderPrograms::getMegaRoomShader()
+{
+    return getInitialized<MegaRoomShader>(m_megaRoomShader, getFunctions(), "room/mega");
 }
 
 const std::shared_ptr<UColorTexturedShader> &ShaderPrograms::getTexturedUColorShader()

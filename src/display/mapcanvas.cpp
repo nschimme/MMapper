@@ -21,6 +21,7 @@
 #include "InfomarkSelection.h"
 #include "MapCanvasData.h"
 #include "MapCanvasRoomDrawer.h"
+#include "RoomDataBuffer.h"
 #include "connectionselection.h"
 
 #include <array>
@@ -42,6 +43,7 @@
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #undef near // Bad dog, Microsoft; bad dog!!!
 #undef far  // Bad dog, Microsoft; bad dog!!!
+#undef constant
 #endif
 
 namespace {

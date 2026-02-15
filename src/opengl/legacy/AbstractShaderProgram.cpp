@@ -169,4 +169,45 @@ void AbstractShaderProgram::setViewport(const char *const name, const Viewport &
     setUniform4iv(location, 1, glm::value_ptr(viewport));
 }
 
+void AbstractShaderProgram::setInt(const char *const name, const int value)
+{
+    const GLint location = getUniformLocation(name);
+    setUniform1iv(location, 1, &value);
+}
+
+void AbstractShaderProgram::setBool(const char *const name, const bool value)
+{
+    const GLint location = getUniformLocation(name);
+    const GLint iValue = value ? 1 : 0;
+    setUniform1iv(location, 1, &iValue);
+}
+
+void AbstractShaderProgram::setVec2(const char *const name, const glm::vec2 &v)
+{
+    const GLint location = getUniformLocation(name);
+    auto functions = m_functions.lock();
+    deref(functions).glUniform2fv(location, 1, glm::value_ptr(v));
+}
+
+void AbstractShaderProgram::setVec3(const char *const name, const glm::vec3 &v)
+{
+    const GLint location = getUniformLocation(name);
+    auto functions = m_functions.lock();
+    deref(functions).glUniform3fv(location, 1, glm::value_ptr(v));
+}
+
+void AbstractShaderProgram::setIntArray(const char *const name, const int *const values, const size_t count)
+{
+    const GLint location = getUniformLocation(name);
+    auto functions = m_functions.lock();
+    deref(functions).glUniform1iv(location, static_cast<GLsizei>(count), values);
+}
+
+void AbstractShaderProgram::setFloatArray(const char *const name, const float *const values, const size_t count)
+{
+    const GLint location = getUniformLocation(name);
+    auto functions = m_functions.lock();
+    deref(functions).glUniform1fv(location, static_cast<GLsizei>(count), values);
+}
+
 } // namespace Legacy

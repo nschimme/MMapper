@@ -624,6 +624,14 @@ MapCanvasTexturesProxy getProxy(const MapCanvasTextures &mct)
 }
 } // namespace mctp
 
+const mctp::MapCanvasTexturesProxy &MapCanvas::getTexturesProxy() const
+{
+    if (!m_texturesProxy) {
+        m_texturesProxy = mctp::getProxy(m_textures);
+    }
+    return *m_texturesProxy;
+}
+
 void MapCanvas::updateTextures()
 {
     const bool wantTrilinear = getConfig().canvas.trilinearFiltering.get();
@@ -634,6 +642,8 @@ void MapCanvas::updateTextures()
             ::setTrilinear(arr, wantTrilinear);
         });
 
+    // reset cached proxy
+    m_texturesProxy.reset();
     // called to trigger an early error
-    std::ignore = mctp::getProxy(m_textures);
+    std::ignore = getTexturesProxy();
 }

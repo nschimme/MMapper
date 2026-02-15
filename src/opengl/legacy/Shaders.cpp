@@ -167,10 +167,10 @@ const std::shared_ptr<ParticleSimulationShader> &ShaderPrograms::getParticleSimu
                                                             getSource("vert.glsl"),
                                                             ShaderUtils::Source{},
                                                             varyings);
-        m_particleSimulation
-            = std::make_shared<ParticleSimulationShader>(dir,
-                                                         functions.shared_from_this(),
-                                                         std::move(program));
+        m_particleSimulation = std::make_shared<ParticleSimulationShader>(dir,
+                                                                          functions
+                                                                              .shared_from_this(),
+                                                                          std::move(program));
     }
     return m_particleSimulation;
 }

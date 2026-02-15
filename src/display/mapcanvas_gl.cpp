@@ -1281,13 +1281,13 @@ void MapCanvas::renderMapBatches()
     }
 }
 
+
 void MapCanvas::initParticles()
 {
     auto &sharedFuncs = getOpenGL().getSharedFunctions(Badge<MapCanvas>{});
     Legacy::Functions &funcs = deref(sharedFuncs);
 
-    struct Particle
-    {
+    struct Particle {
         float x, y, z;
         float vx, vy, vz;
         float life;
@@ -1296,20 +1296,13 @@ void MapCanvas::initParticles()
 
     std::vector<Particle> initialParticles(static_cast<size_t>(MAX_PARTICLES));
     for (size_t i = 0; i < static_cast<size_t>(MAX_PARTICLES); ++i) {
-        initialParticles[i].x = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f)
-                                * 100.0f;
-        initialParticles[i].y = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f)
-                                * 100.0f;
-        initialParticles[i].z = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 20.0f;
-        initialParticles[i].vx = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f)
-                                 * 2.0f;
-        initialParticles[i].vy = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f)
-                                 * 2.0f;
-        initialParticles[i].vz = -10.0f
-                                 - (static_cast<float>(rand()) / static_cast<float>(RAND_MAX))
-                                       * 5.0f;
-        initialParticles[i].life = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX))
-                                   * 3.0f;
+        initialParticles[i].x = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f) * 120.0f;
+        initialParticles[i].y = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f) * 120.0f;
+        initialParticles[i].z = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 100.0f;
+        initialParticles[i].vx = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f) * 2.0f;
+        initialParticles[i].vy = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f) * 2.0f;
+        initialParticles[i].vz = -20.0f - (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 10.0f;
+        initialParticles[i].life = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 4.0f;
         initialParticles[i].type = (i < static_cast<size_t>(MAX_PARTICLES) / 2) ? 0.0f : 1.0f;
     }
 
@@ -1319,34 +1312,16 @@ void MapCanvas::initParticles()
     for (size_t i = 0; i < 2; ++i) {
         funcs.glBindVertexArray(m_particleVaos[i]);
         funcs.glBindBuffer(GL_ARRAY_BUFFER, m_particleVbos[i]);
-        funcs.glBufferData(GL_ARRAY_BUFFER,
-                           static_cast<GLsizeiptr>(MAX_PARTICLES * sizeof(Particle)),
-                           initialParticles.data(),
-                           GL_STREAM_DRAW);
+        funcs.glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(MAX_PARTICLES * sizeof(Particle)), initialParticles.data(), GL_STREAM_DRAW);
 
         funcs.glEnableVertexAttribArray(0); // pos
         funcs.glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Particle), nullptr);
         funcs.glEnableVertexAttribArray(1); // vel
-        funcs.glVertexAttribPointer(1,
-                                    3,
-                                    GL_FLOAT,
-                                    GL_FALSE,
-                                    sizeof(Particle),
-                                    reinterpret_cast<void *>(3 * sizeof(float)));
+        funcs.glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Particle), reinterpret_cast<void *>(3 * sizeof(float)));
         funcs.glEnableVertexAttribArray(2); // life
-        funcs.glVertexAttribPointer(2,
-                                    1,
-                                    GL_FLOAT,
-                                    GL_FALSE,
-                                    sizeof(Particle),
-                                    reinterpret_cast<void *>(6 * sizeof(float)));
+        funcs.glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, sizeof(Particle), reinterpret_cast<void *>(6 * sizeof(float)));
         funcs.glEnableVertexAttribArray(3); // type
-        funcs.glVertexAttribPointer(3,
-                                    1,
-                                    GL_FLOAT,
-                                    GL_FALSE,
-                                    sizeof(Particle),
-                                    reinterpret_cast<void *>(7 * sizeof(float)));
+        funcs.glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, sizeof(Particle), reinterpret_cast<void *>(7 * sizeof(float)));
     }
 
     funcs.glBindVertexArray(0);
@@ -1364,15 +1339,12 @@ void MapCanvas::paintParticleSimulation(float dt)
 
     simProg->setFloat("uDeltaTime", dt);
     simProg->setVec3("uPlayerPos", m_data.tryGetPosition().value_or(Coordinate{}).to_vec3());
-    simProg->setVec4("uWeatherIntensities",
-                     glm::vec4(m_weatherState.rainIntensity, m_weatherState.snowIntensity, 0, 0));
+    simProg->setVec4("uWeatherIntensities", glm::vec4(m_weatherState.rainIntensity, m_weatherState.snowIntensity, 0, 0));
 
     funcs.glEnable(GL_RASTERIZER_DISCARD);
 
     funcs.glBindVertexArray(m_particleVaos[static_cast<size_t>(m_particleFlip)]);
-    funcs.glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER,
-                           0,
-                           m_particleVbos[static_cast<size_t>(1 - m_particleFlip)]);
+    funcs.glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, m_particleVbos[static_cast<size_t>(1 - m_particleFlip)]);
 
     funcs.glBeginTransformFeedback(GL_POINTS);
     funcs.glDrawArrays(GL_POINTS, 0, MAX_PARTICLES);
@@ -1395,8 +1367,7 @@ void MapCanvas::paintParticleRender()
     auto binder = partProg->bind();
 
     partProg->setMatrix("uViewProj", m_viewProj);
-    partProg->setFloat("uWeatherIntensity",
-                       static_cast<float>(getConfig().canvas.weatherIntensity.get()) / 100.0f);
+    partProg->setFloat("uWeatherIntensity", static_cast<float>(getConfig().canvas.weatherIntensity.get()) / 100.0f);
     partProg->setColor("uTimeOfDayColor", calculateTimeOfDayColor());
 
     funcs.glEnable(GL_BLEND);

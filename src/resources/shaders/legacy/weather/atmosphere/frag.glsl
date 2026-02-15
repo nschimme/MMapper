@@ -27,11 +27,11 @@ void main()
 
     // Fog scrolling
     vec2 fogUV = worldPos * 0.15 + uTime * 0.1;
-    float fogN = texture(uNoiseTexture, fogUV * 0.1).r; // Extra scale to match previous FBM feel
+    float fogN = texture(uNoiseTexture, fogUV * 0.05).r;
 
     // Cloud scrolling
     vec2 cloudUV = worldPos * 0.06 - uTime * 0.03;
-    float cloudN = texture(uNoiseTexture, cloudUV * 0.1).g;
+    float cloudN = texture(uNoiseTexture, cloudUV * 0.05).g;
 
     // Fog: soft drifting noise
     float fogInt = uWeatherIntensities.w;

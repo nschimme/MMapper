@@ -165,8 +165,7 @@ public:
 private:
     void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final
     {
-        setMatrix("uMVP", mvp);
-        setColor("uColor", uniforms.color);
+        setMatrix("uViewProj", mvp);
     }
 };
 

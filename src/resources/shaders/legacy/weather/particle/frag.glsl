@@ -2,26 +2,37 @@ uniform float uWeatherIntensity;
 uniform vec4 uTimeOfDayColor;
 in float vLife;
 in float vType;
+in vec2 vVelScreen;
 out vec4 vFragmentColor;
 
 void main()
 {
-    if (vLife <= 0.0)
-        discard;
+    if (vLife <= 0.0) discard;
 
-    // Boost visibility during dark hours
-    float darkBoost = 1.0 + uTimeOfDayColor.a * 2.0;
+    float darkBoost = 1.0 + uTimeOfDayColor.a * 1.5;
+    vec2 p = gl_PointCoord * 2.0 - 1.0;
 
-    vec4 color;
     if (vType < 0.5) {
-        // Rain: bluish/white thin streaks (points here)
-        color = vec4(0.8, 0.85, 1.0, 0.5 * uWeatherIntensity * darkBoost);
-    } else {
-        // Snow: white fluffy points
-        color = vec4(1.0, 1.0, 1.0, 0.8 * uWeatherIntensity * darkBoost);
-    }
+        // Rain: streak aligned with velocity
+        vec2 dir = normalize(vVelScreen);
+        float distToLine = length(p - dot(p, dir) * dir);
 
-    // Fade out based on life
-    float alpha = color.a * clamp(vLife * 2.0, 0.0, 1.0);
-    vFragmentColor = vec4(color.rgb, alpha);
+        // Elongated streak: very thin horizontally relative to the 'dir'
+        float streak = 1.0 - smoothstep(0.0, 0.1, distToLine);
+
+        // Fade ends of the streak area (gl_PointCoord is square, we want a line)
+        float alongLine = dot(p, dir);
+        streak *= smoothstep(1.0, 0.7, abs(alongLine));
+
+        // Original-like rain color: vec4(0.6, 0.6, 1.0, 0.6)
+        vFragmentColor = vec4(0.6, 0.6, 1.0, streak * 0.6 * uWeatherIntensity * darkBoost);
+    } else {
+        // Snow: soft circle
+        float dist = length(p);
+        // Original-like flake: 1.0 - smoothstep(0.1, 0.2, dist) but adjusted for PointSize
+        float flake = 1.0 - smoothstep(0.3, 0.8, dist);
+
+        // Original-like snow color: vec4(1.0, 1.0, 1.1, 0.8)
+        vFragmentColor = vec4(1.0, 1.0, 1.1, flake * 0.8 * uWeatherIntensity * darkBoost);
+    }
 }

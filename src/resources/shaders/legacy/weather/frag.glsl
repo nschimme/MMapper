@@ -65,6 +65,9 @@ void main()
     float distToPlayer = distance(worldPos.xy, uPlayerPos.xy);
     float localMask = smoothstep(12.0, 8.0, distToPlayer);
 
+    // Boost visibility during dark hours (dusk/night)
+    float darkBoost = uTimeOfDayColor.a * 1.5;
+
     vec4 weatherColor = vec4(0.0);
 
     // Fog: soft drifting noise
@@ -76,8 +79,9 @@ void main()
     // Clouds: puffy high-contrast noise
     if (uCloudsIntensity > 0.0) {
         float n = fbm(worldPos.xy * 0.06 - uTime * 0.03);
-        float puffy = smoothstep(0.45, 0.55, n);
-        vec4 clouds = vec4(0.9, 0.9, 1.0, uCloudsIntensity * puffy * localMask * 0.4);
+        // Puffier and sparser: higher threshold and sharper transition
+        float puffy = smoothstep(0.52, 0.62, n);
+        vec4 clouds = vec4(0.9, 0.9, 1.0, uCloudsIntensity * puffy * localMask * 0.5);
         weatherColor.rgb = mix(weatherColor.rgb, clouds.rgb, clouds.a);
         weatherColor.a = max(weatherColor.a, clouds.a);
     }
@@ -93,7 +97,9 @@ void main()
         float r = hash(vec2(floor(rv.x), floor(rv.y * 0.15)));
         if (r > 0.94) {
             float streak = 1.0 - smoothstep(0.0, 0.15, abs(fract(rv.x) - 0.5));
-            vec4 rain = vec4(0.6, 0.6, 1.0, uRainIntensity * streak * localMask * 0.6);
+            float alpha = uRainIntensity * streak * localMask * (0.6 + darkBoost);
+            vec3 color = vec3(0.6 + darkBoost, 0.6 + darkBoost, 1.0);
+            vec4 rain = vec4(color, alpha);
             weatherColor.rgb = mix(weatherColor.rgb, rain.rgb, rain.a);
             weatherColor.a = max(weatherColor.a, rain.a);
         }
@@ -112,7 +118,9 @@ void main()
         if (h > 0.96) {
             float dist = distance(fract(sv), vec2(0.5));
             float flake = 1.0 - smoothstep(0.1, 0.2, dist);
-            vec4 snow = vec4(1.0, 1.0, 1.1, uSnowIntensity * flake * localMask * 0.8);
+            float alpha = uSnowIntensity * flake * localMask * (0.8 + darkBoost);
+            vec3 color = vec3(1.0 + darkBoost, 1.0 + darkBoost, 1.1 + darkBoost);
+            vec4 snow = vec4(color, alpha);
             weatherColor.rgb = mix(weatherColor.rgb, snow.rgb, snow.a);
             weatherColor.a = max(weatherColor.a, snow.a);
         }

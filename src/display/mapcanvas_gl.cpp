@@ -280,6 +280,17 @@ void MapCanvas::initializeGL()
         this->updateTextures();
         this->update();
     });
+
+    auto weatherCallback = [this]() {
+        this->setAnimating(true);
+        this->update();
+    };
+    setConfig().canvas.drawWeatherRain.registerChangeCallback(m_lifetime, weatherCallback);
+    setConfig().canvas.drawWeatherSnow.registerChangeCallback(m_lifetime, weatherCallback);
+    setConfig().canvas.drawWeatherClouds.registerChangeCallback(m_lifetime, weatherCallback);
+    setConfig().canvas.drawWeatherFog.registerChangeCallback(m_lifetime, weatherCallback);
+    setConfig().canvas.drawTimeOfDay.registerChangeCallback(m_lifetime, weatherCallback);
+    setConfig().canvas.weatherIntensity.registerChangeCallback(m_lifetime, weatherCallback);
 }
 
 /* Direct means it is always called from the emitter's thread */
@@ -643,8 +654,24 @@ void MapCanvas::actuallyPaintGL()
         float dt = std::chrono::duration<float>(now - m_weatherState.lastUpdateTime).count();
         m_weatherState.lastUpdateTime = now;
 
-        auto updateLevel = [dt](float &current, float target) {
-            const float transitionSpeed = 0.5f; // transition over 2 seconds
+        const auto &canvas = getConfig().canvas;
+        const float globalIntensity = static_cast<float>(canvas.weatherIntensity.get()) / 100.0f;
+
+        const float targetRain = canvas.drawWeatherRain.get()
+                                     ? m_weatherState.targetRainIntensity * globalIntensity
+                                     : 0.0f;
+        const float targetSnow = canvas.drawWeatherSnow.get()
+                                     ? m_weatherState.targetSnowIntensity * globalIntensity
+                                     : 0.0f;
+        const float targetClouds = canvas.drawWeatherClouds.get()
+                                       ? m_weatherState.targetCloudsIntensity * globalIntensity
+                                       : 0.0f;
+        const float targetFog = canvas.drawWeatherFog.get()
+                                    ? m_weatherState.targetFogIntensity * globalIntensity
+                                    : 0.0f;
+        const float targetMoon = m_weatherState.targetMoonIntensity;
+
+        auto updateLevel = [dt](float &current, float target, float transitionSpeed) {
             if (current < target) {
                 current = std::min(target, current + dt * transitionSpeed);
             } else if (current > target) {
@@ -652,27 +679,30 @@ void MapCanvas::actuallyPaintGL()
             }
         };
 
-        updateLevel(m_weatherState.rainIntensity, m_weatherState.targetRainIntensity);
-        updateLevel(m_weatherState.snowIntensity, m_weatherState.targetSnowIntensity);
-        updateLevel(m_weatherState.cloudsIntensity, m_weatherState.targetCloudsIntensity);
-        updateLevel(m_weatherState.fogIntensity, m_weatherState.targetFogIntensity);
-        updateLevel(m_weatherState.moonIntensity, m_weatherState.targetMoonIntensity);
+        // Smoother (slower) transitions
+        const float weatherSpeed = 0.2f; // 5 seconds for full transition
+        const float todSpeed = 0.1f;     // 10 seconds for full transition
+
+        updateLevel(m_weatherState.rainIntensity, targetRain, weatherSpeed);
+        updateLevel(m_weatherState.snowIntensity, targetSnow, weatherSpeed);
+        updateLevel(m_weatherState.cloudsIntensity, targetClouds, weatherSpeed);
+        updateLevel(m_weatherState.fogIntensity, targetFog, weatherSpeed);
+        updateLevel(m_weatherState.moonIntensity, targetMoon, weatherSpeed);
 
         if (m_weatherState.timeOfDayTransition < 1.0f) {
             m_weatherState.timeOfDayTransition = std::min(1.0f,
                                                           m_weatherState.timeOfDayTransition
-                                                              + dt * 0.2f); // 5 seconds transition
+                                                              + dt * todSpeed);
         }
 
         m_weatherState.animationTime += dt;
 
-        bool stillAnimating
-            = !utils::equals(m_weatherState.rainIntensity, m_weatherState.targetRainIntensity)
-              || !utils::equals(m_weatherState.snowIntensity, m_weatherState.targetSnowIntensity)
-              || !utils::equals(m_weatherState.cloudsIntensity, m_weatherState.targetCloudsIntensity)
-              || !utils::equals(m_weatherState.fogIntensity, m_weatherState.targetFogIntensity)
-              || !utils::equals(m_weatherState.moonIntensity, m_weatherState.targetMoonIntensity)
-              || !utils::equals(m_weatherState.timeOfDayTransition, 1.0f);
+        bool stillAnimating = !utils::equals(m_weatherState.rainIntensity, targetRain)
+                              || !utils::equals(m_weatherState.snowIntensity, targetSnow)
+                              || !utils::equals(m_weatherState.cloudsIntensity, targetClouds)
+                              || !utils::equals(m_weatherState.fogIntensity, targetFog)
+                              || !utils::equals(m_weatherState.moonIntensity, targetMoon)
+                              || !utils::equals(m_weatherState.timeOfDayTransition, 1.0f);
 
         // Rain/Snow/Clouds also need continuous animation for movement
         if (m_weatherState.rainIntensity > 0.0f || m_weatherState.snowIntensity > 0.0f
@@ -817,6 +847,10 @@ void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current)
 
 Color MapCanvas::calculateTimeOfDayColor() const
 {
+    if (!getConfig().canvas.drawTimeOfDay.get()) {
+        return Color(1.0f, 1.0f, 1.0f, 0.0f);
+    }
+
     auto getColor = [this](MumeTimeEnum t) -> Color {
         switch (t) {
         case MumeTimeEnum::DAWN:

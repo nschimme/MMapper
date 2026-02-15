@@ -321,6 +321,67 @@
     </widget>
    </item>
    <item>
+    <widget class="QGroupBox" name="groupBox_Weather">
+     <property name="title">
+      <string>Weather &amp; Time of Day</string>
+     </property>
+     <layout class="QGridLayout" name="gridLayout_Weather">
+      <item row="0" column="0">
+       <widget class="QCheckBox" name="drawWeatherRain">
+        <property name="text">
+         <string>Draw rain</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QCheckBox" name="drawWeatherSnow">
+        <property name="text">
+         <string>Draw snow</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QCheckBox" name="drawWeatherClouds">
+        <property name="text">
+         <string>Draw clouds</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QCheckBox" name="drawWeatherFog">
+        <property name="text">
+         <string>Draw fog</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QCheckBox" name="drawTimeOfDay">
+        <property name="text">
+         <string>Draw time of day tint</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="labelWeatherIntensity">
+        <property name="text">
+         <string>Weather intensity:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QSlider" name="weatherIntensitySlider">
+        <property name="maximum">
+         <number>100</number>
+        </property>
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
     <widget class="QGroupBox" name="groupBox_Advanced">
      <property name="title">
       <string>Advanced Settings</string>

@@ -550,20 +550,22 @@ void MapCanvas::updateMapBatches()
             m_pendingDirtyChunks.clear();
 
             auto map = m_data.getCurrentMap();
-            m_batches.groupingFuture = std::async(std::launch::async, [map, dirty = std::move(dirty)]() {
-                DECL_TIMER(t, "[ASYNC] Grouping rooms into chunks (O(N) pass)");
-                ChunkToLayerToRooms result;
-                map.getRooms().for_each([&map, &result, &dirty](const RoomId id) {
-                    const auto &r = map.getRoomHandle(id);
-                    const auto pos = r.getPosition();
-                    const ChunkId chunkId = ChunkId::fromCoordinate(pos);
-                    if (dirty.count(chunkId)) {
-                        result[chunkId][pos.z].emplace_back(r);
-                    }
-                });
-                return result;
-            });
-        } else if (!m_batches.mapBatches.has_value() && m_batches.pendingGroups.empty() && !remeshCookie.isPending()) {
+            m_batches.groupingFuture
+                = std::async(std::launch::async, [map, dirty = std::move(dirty)]() {
+                      DECL_TIMER(t, "[ASYNC] Grouping rooms into chunks (O(N) pass)");
+                      ChunkToLayerToRooms result;
+                      map.getRooms().for_each([&map, &result, &dirty](const RoomId id) {
+                          const auto &r = map.getRoomHandle(id);
+                          const auto pos = r.getPosition();
+                          const ChunkId chunkId = ChunkId::fromCoordinate(pos);
+                          if (dirty.count(chunkId)) {
+                              result[chunkId][pos.z].emplace_back(r);
+                          }
+                      });
+                      return result;
+                  });
+        } else if (!m_batches.mapBatches.has_value() && m_batches.pendingGroups.empty()
+                   && !remeshCookie.isPending()) {
             // Force a full rebuild if we have nothing and no pending work
             auto map = m_data.getCurrentMap();
             m_batches.groupingFuture = std::async(std::launch::async, [map]() {
@@ -881,7 +883,8 @@ void MapCanvas::paintDifferences()
 void MapCanvas::paintMap()
 {
     const bool pending = m_batches.remeshCookie.isPending() || !m_pendingDirtyChunks.empty()
-                         || m_batches.groupingFuture.has_value() || !m_batches.pendingGroups.empty();
+                         || m_batches.groupingFuture.has_value()
+                         || !m_batches.pendingGroups.empty();
     if (pending) {
         setAnimating(true);
     }

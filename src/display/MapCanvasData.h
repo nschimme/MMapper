@@ -32,7 +32,6 @@ class MapData;
 class PrespammedPath;
 class InfomarkSelection;
 
-
 struct NODISCARD ScaleFactor final
 {
 public:

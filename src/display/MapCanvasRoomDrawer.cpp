@@ -1153,7 +1153,8 @@ FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTextur
 
     return std::async(
         std::launch::async,
-        [textures, font, map, visitRoomOptions, dirtyChunks = std::move(dirtyChunks)]() mutable -> SharedMapBatchFinisher {
+        [textures, font, map, visitRoomOptions, dirtyChunks = std::move(dirtyChunks)]() mutable
+        -> SharedMapBatchFinisher {
             ThreadLocalNamedColorRaii tlRaii{visitRoomOptions.canvasColors,
                                              visitRoomOptions.colorSettings};
             DECL_TIMER(t, "[ASYNC] generateDirtyChunks (O(N) pass)");
@@ -1169,28 +1170,25 @@ FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTextur
             ProgressCounter dummyPc;
             map.checkConsistency(dummyPc);
 
-            const auto chunkToLayerToRooms = std::invoke([&map, &dirtyChunks]() -> ChunkToLayerToRooms {
-                DECL_TIMER(t2, "[ASYNC] generateBatches.chunkToLayerToRooms");
-                ChunkToLayerToRooms result;
-                map.getRooms().for_each([&map, &result, &dirtyChunks](const RoomId id) {
-                    const auto &r = map.getRoomHandle(id);
-                    const auto pos = r.getPosition();
-                    const ChunkId chunkId = ChunkId::fromCoordinate(pos);
-                    if (dirtyChunks.count(chunkId)) {
-                        result[chunkId][pos.z].emplace_back(r);
-                    }
+            const auto chunkToLayerToRooms = std::invoke(
+                [&map, &dirtyChunks]() -> ChunkToLayerToRooms {
+                    DECL_TIMER(t2, "[ASYNC] generateBatches.chunkToLayerToRooms");
+                    ChunkToLayerToRooms result;
+                    map.getRooms().for_each([&map, &result, &dirtyChunks](const RoomId id) {
+                        const auto &r = map.getRoomHandle(id);
+                        const auto pos = r.getPosition();
+                        const ChunkId chunkId = ChunkId::fromCoordinate(pos);
+                        if (dirtyChunks.count(chunkId)) {
+                            result[chunkId][pos.z].emplace_back(r);
+                        }
+                    });
+                    return result;
                 });
-                return result;
-            });
 
             auto result = std::make_shared<InternalData>();
             auto &data = deref(result);
 
-            generateDirtyChunks(data,
-                                deref(font),
-                                chunkToLayerToRooms,
-                                textures,
-                                visitRoomOptions);
+            generateDirtyChunks(data, deref(font), chunkToLayerToRooms, textures, visitRoomOptions);
             return SharedMapBatchFinisher{result};
         });
 }
@@ -1202,26 +1200,30 @@ FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTextur
 {
     const auto visitRoomOptions = getVisitRoomOptions();
 
-    return std::async(
-        std::launch::async,
-        [textures, font, map, visitRoomOptions, pregroupedChunks = std::move(pregroupedChunks)]() mutable -> SharedMapBatchFinisher {
-            ThreadLocalNamedColorRaii tlRaii{visitRoomOptions.canvasColors,
-                                             visitRoomOptions.colorSettings};
-            DECL_TIMER(t, "[ASYNC] generateDirtyChunks (O(M) pass)");
+    return std::async(std::launch::async,
+                      [textures,
+                       font,
+                       map,
+                       visitRoomOptions,
+                       pregroupedChunks = std::move(
+                           pregroupedChunks)]() mutable -> SharedMapBatchFinisher {
+                          ThreadLocalNamedColorRaii tlRaii{visitRoomOptions.canvasColors,
+                                                           visitRoomOptions.colorSettings};
+                          DECL_TIMER(t, "[ASYNC] generateDirtyChunks (O(M) pass)");
 
-            ProgressCounter dummyPc;
-            map.checkConsistency(dummyPc);
+                          ProgressCounter dummyPc;
+                          map.checkConsistency(dummyPc);
 
-            auto result = std::make_shared<InternalData>();
-            auto &data = deref(result);
+                          auto result = std::make_shared<InternalData>();
+                          auto &data = deref(result);
 
-            generateDirtyChunks(data,
-                                deref(font),
-                                pregroupedChunks,
-                                textures,
-                                visitRoomOptions);
-            return SharedMapBatchFinisher{result};
-        });
+                          generateDirtyChunks(data,
+                                              deref(font),
+                                              pregroupedChunks,
+                                              textures,
+                                              visitRoomOptions);
+                          return SharedMapBatchFinisher{result};
+                      });
 }
 
 void finish(const IMapBatchesFinisher &finisher,

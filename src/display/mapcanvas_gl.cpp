@@ -1366,6 +1366,7 @@ void MapCanvas::paintParticleSimulation(float dt)
 
 void MapCanvas::paintParticleRender()
 {
+    const auto playerPos = m_data.tryGetPosition().value_or(Coordinate{}).to_vec3();
     auto &sharedFuncs = getOpenGL().getSharedFunctions(Badge<MapCanvas>{});
     Legacy::Functions &funcs = deref(sharedFuncs);
     auto &shaders = funcs.getShaderPrograms();
@@ -1379,6 +1380,7 @@ void MapCanvas::paintParticleRender()
     partProg->setVec4("uWeatherIntensities",
                       glm::vec4(m_weatherState.rainIntensity, m_weatherState.snowIntensity, 0, 0));
     partProg->setColor("uTimeOfDayColor", calculateTimeOfDayColor());
+    partProg->setVec3("uPlayerPos", playerPos);
 
     funcs.enableProgramPointSize(true);
     funcs.glEnable(GL_BLEND);

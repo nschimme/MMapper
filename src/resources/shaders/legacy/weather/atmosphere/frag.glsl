@@ -26,28 +26,29 @@ void main()
     // Sample pre-calculated tiling noise in world space
     // R: Fog noise, G: Cloud noise
 
-    // Fog scrolling - 2 octaves for billowing
-    vec2 fogUV1 = worldPos * 0.2 + uTime * 0.15;
-    vec2 fogUV2 = worldPos * 0.1 - uTime * 0.05;
-    float fogN = (texture(uNoiseTexture, fogUV1 * 0.05).r * 0.6) +
-                 (texture(uNoiseTexture, fogUV2 * 0.1).r * 0.4);
+    // Fog scrolling - 2 octaves for dynamic billowing
+    vec2 fogUV1 = worldPos * 0.1 + uTime * 0.1;
+    vec2 fogUV2 = worldPos * 0.05 - uTime * 0.03;
+    float fogN1 = texture(uNoiseTexture, fogUV1 * 0.05).r;
+    float fogN2 = texture(uNoiseTexture, fogUV2 * 0.08).r;
+    float fogN = mix(fogN1, fogN2, 0.5 + 0.5 * sin(uTime * 0.2));
 
     // Cloud scrolling
-    vec2 cloudUV = worldPos * 0.25 - uTime * 0.1;
-    float cloudN = texture(uNoiseTexture, cloudUV * 0.1).g;
+    vec2 cloudUV = worldPos * 0.15 - uTime * 0.05;
+    float cloudN = texture(uNoiseTexture, cloudUV * 0.08).g;
 
     // Fog: soft drifting noise
     float fogInt = uWeatherIntensities.w;
     if (fogInt > 0.0) {
-        weatherColor = vec4(0.8, 0.8, 0.85, fogInt * fogN * 0.9 * darkBoost * localMask);
+        weatherColor = vec4(0.8, 0.8, 0.85, fogInt * fogN * 0.8 * darkBoost * localMask);
     }
 
     // Clouds: puffy high-contrast noise
     float cloudsInt = uWeatherIntensities.z;
     if (cloudsInt > 0.0) {
         // Puffier and sparser: higher threshold and sharper transition
-        float puffy = smoothstep(0.55, 0.65, cloudN);
-        vec4 clouds = vec4(0.9, 0.9, 1.0, cloudsInt * puffy * 0.5 * darkBoost * localMask);
+        float puffy = smoothstep(0.58, 0.68, cloudN);
+        vec4 clouds = vec4(0.9, 0.9, 1.0, cloudsInt * puffy * 0.3 * darkBoost * localMask);
         weatherColor.rgb = mix(weatherColor.rgb, clouds.rgb, clouds.a);
         weatherColor.a = max(weatherColor.a, clouds.a);
     }

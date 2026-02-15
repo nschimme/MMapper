@@ -301,7 +301,6 @@ void MapCanvas::initializeGL()
     setConfig().canvas.drawWeatherClouds.registerChangeCallback(m_lifetime, weatherCallback);
     setConfig().canvas.drawWeatherFog.registerChangeCallback(m_lifetime, weatherCallback);
     setConfig().canvas.drawTimeOfDay.registerChangeCallback(m_lifetime, weatherCallback);
-    setConfig().canvas.weatherIntensity.registerChangeCallback(m_lifetime, weatherCallback);
 
     initParticles();
 }
@@ -669,20 +668,15 @@ void MapCanvas::actuallyPaintGL()
         m_weatherState.lastUpdateTime = now;
 
         const auto &canvas = getConfig().canvas;
-        const float globalIntensity = static_cast<float>(canvas.weatherIntensity.get()) / 100.0f;
 
-        const float targetRain = canvas.drawWeatherRain.get()
-                                     ? m_weatherState.targetRainIntensity * globalIntensity
-                                     : 0.0f;
-        const float targetSnow = canvas.drawWeatherSnow.get()
-                                     ? m_weatherState.targetSnowIntensity * globalIntensity
-                                     : 0.0f;
-        const float targetClouds = canvas.drawWeatherClouds.get()
-                                       ? m_weatherState.targetCloudsIntensity * globalIntensity
-                                       : 0.0f;
-        const float targetFog = canvas.drawWeatherFog.get()
-                                    ? m_weatherState.targetFogIntensity * globalIntensity
-                                    : 0.0f;
+        const float targetRain = m_weatherState.targetRainIntensity
+                                 * (static_cast<float>(canvas.drawWeatherRain.get()) / 100.0f);
+        const float targetSnow = m_weatherState.targetSnowIntensity
+                                 * (static_cast<float>(canvas.drawWeatherSnow.get()) / 100.0f);
+        const float targetClouds = m_weatherState.targetCloudsIntensity
+                                   * (static_cast<float>(canvas.drawWeatherClouds.get()) / 100.0f);
+        const float targetFog = m_weatherState.targetFogIntensity
+                                * (static_cast<float>(canvas.drawWeatherFog.get()) / 100.0f);
         const float targetMoon = m_weatherState.targetMoonIntensity;
 
         auto updateLevel = [dt](float &current, float target, float transitionSpeed) {
@@ -863,7 +857,8 @@ void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current)
 
 Color MapCanvas::calculateTimeOfDayColor() const
 {
-    if (!getConfig().canvas.drawTimeOfDay.get()) {
+    const float intensity = static_cast<float>(getConfig().canvas.drawTimeOfDay.get()) / 100.0f;
+    if (intensity <= 0.0f) {
         return Color(1.0f, 1.0f, 1.0f, 0.0f);
     }
 
@@ -896,7 +891,7 @@ Color MapCanvas::calculateTimeOfDayColor() const
     return Color(c1.r * (1.0f - t) + c2.r * t,
                  c1.g * (1.0f - t) + c2.g * t,
                  c1.b * (1.0f - t) + c2.b * t,
-                 c1.a * (1.0f - t) + c2.a * t);
+                 c1.a * (1.0f - t) + c2.a * t * intensity);
 }
 
 void MapCanvas::paintWeather()
@@ -1376,8 +1371,6 @@ void MapCanvas::paintParticleRender()
     auto binder = partProg->bind();
 
     partProg->setMatrix("uViewProj", m_viewProj);
-    partProg->setFloat("uWeatherIntensity",
-                       static_cast<float>(getConfig().canvas.weatherIntensity.get()) / 100.0f);
     partProg->setVec4("uWeatherIntensities",
                       glm::vec4(m_weatherState.rainIntensity, m_weatherState.snowIntensity, 0, 0));
     partProg->setColor("uTimeOfDayColor", calculateTimeOfDayColor());

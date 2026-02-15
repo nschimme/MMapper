@@ -304,7 +304,6 @@ ConstString KEY_DRAW_WEATHER_SNOW = "Draw weather snow";
 ConstString KEY_DRAW_WEATHER_CLOUDS = "Draw weather clouds";
 ConstString KEY_DRAW_WEATHER_FOG = "Draw weather fog";
 ConstString KEY_DRAW_TIME_OF_DAY = "Draw time of day";
-ConstString KEY_WEATHER_INTENSITY = "Weather intensity";
 
 void Settings::tryCopyOldSettings()
 {
@@ -661,12 +660,11 @@ void Configuration::CanvasSettings::read(const QSettings &conf)
     advanced.verticalAngle.set(conf.value(KEY_3D_VERTICAL_ANGLE, 450).toInt());
     advanced.horizontalAngle.set(conf.value(KEY_3D_HORIZONTAL_ANGLE, 0).toInt());
     advanced.layerHeight.set(conf.value(KEY_3D_LAYER_HEIGHT, 15).toInt());
-    drawWeatherRain.set(conf.value(KEY_DRAW_WEATHER_RAIN, true).toBool());
-    drawWeatherSnow.set(conf.value(KEY_DRAW_WEATHER_SNOW, true).toBool());
-    drawWeatherClouds.set(conf.value(KEY_DRAW_WEATHER_CLOUDS, true).toBool());
-    drawWeatherFog.set(conf.value(KEY_DRAW_WEATHER_FOG, true).toBool());
-    drawTimeOfDay.set(conf.value(KEY_DRAW_TIME_OF_DAY, true).toBool());
-    weatherIntensity.set(conf.value(KEY_WEATHER_INTENSITY, 100).toInt());
+    drawWeatherRain.set(conf.value(KEY_DRAW_WEATHER_RAIN, 100).toInt());
+    drawWeatherSnow.set(conf.value(KEY_DRAW_WEATHER_SNOW, 100).toInt());
+    drawWeatherClouds.set(conf.value(KEY_DRAW_WEATHER_CLOUDS, 100).toInt());
+    drawWeatherFog.set(conf.value(KEY_DRAW_WEATHER_FOG, 100).toInt());
+    drawTimeOfDay.set(conf.value(KEY_DRAW_TIME_OF_DAY, 100).toInt());
 }
 
 void Configuration::AccountSettings::read(const QSettings &conf)
@@ -860,7 +858,6 @@ void Configuration::CanvasSettings::write(QSettings &conf) const
     conf.setValue(KEY_DRAW_WEATHER_CLOUDS, drawWeatherClouds.get());
     conf.setValue(KEY_DRAW_WEATHER_FOG, drawWeatherFog.get());
     conf.setValue(KEY_DRAW_TIME_OF_DAY, drawTimeOfDay.get());
-    conf.setValue(KEY_WEATHER_INTENSITY, weatherIntensity.get());
 }
 
 void Configuration::AccountSettings::write(QSettings &conf) const

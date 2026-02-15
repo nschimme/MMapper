@@ -327,49 +327,82 @@
      </property>
      <layout class="QGridLayout" name="gridLayout_Weather">
       <item row="0" column="0">
-       <widget class="QCheckBox" name="drawWeatherRain">
+       <widget class="QLabel" name="labelRain">
         <property name="text">
-         <string>Draw rain</string>
+         <string>Rain intensity:</string>
         </property>
        </widget>
       </item>
       <item row="0" column="1">
-       <widget class="QCheckBox" name="drawWeatherSnow">
-        <property name="text">
-         <string>Draw snow</string>
+       <widget class="QSlider" name="rainIntensitySlider">
+        <property name="maximum">
+         <number>100</number>
+        </property>
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
         </property>
        </widget>
       </item>
       <item row="1" column="0">
-       <widget class="QCheckBox" name="drawWeatherClouds">
+       <widget class="QLabel" name="labelSnow">
         <property name="text">
-         <string>Draw clouds</string>
+         <string>Snow intensity:</string>
         </property>
        </widget>
       </item>
       <item row="1" column="1">
-       <widget class="QCheckBox" name="drawWeatherFog">
-        <property name="text">
-         <string>Draw fog</string>
+       <widget class="QSlider" name="snowIntensitySlider">
+        <property name="maximum">
+         <number>100</number>
+        </property>
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
         </property>
        </widget>
       </item>
       <item row="2" column="0">
-       <widget class="QCheckBox" name="drawTimeOfDay">
+       <widget class="QLabel" name="labelClouds">
         <property name="text">
-         <string>Draw time of day tint</string>
+         <string>Clouds intensity:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QSlider" name="cloudsIntensitySlider">
+        <property name="maximum">
+         <number>100</number>
+        </property>
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
         </property>
        </widget>
       </item>
       <item row="3" column="0">
-       <widget class="QLabel" name="labelWeatherIntensity">
+       <widget class="QLabel" name="labelFog">
         <property name="text">
-         <string>Weather intensity:</string>
+         <string>Fog intensity:</string>
         </property>
        </widget>
       </item>
       <item row="3" column="1">
-       <widget class="QSlider" name="weatherIntensitySlider">
+       <widget class="QSlider" name="fogIntensitySlider">
+        <property name="maximum">
+         <number>100</number>
+        </property>
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0">
+       <widget class="QLabel" name="labelToD">
+        <property name="text">
+         <string>Time of Day tint intensity:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1">
+       <widget class="QSlider" name="todIntensitySlider">
         <property name="maximum">
          <number>100</number>
         </property>

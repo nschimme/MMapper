@@ -85,28 +85,24 @@ GraphicsPage::GraphicsPage(QWidget *parent)
             this,
             &GraphicsPage::slot_drawUpperLayersTexturedStateChanged);
 
-    connect(ui->drawWeatherRain, &QCheckBox::stateChanged, this, [this](int /*unused*/) {
-        setConfig().canvas.drawWeatherRain.set(ui->drawWeatherRain->isChecked());
+    connect(ui->rainIntensitySlider, &QSlider::valueChanged, this, [this](int value) {
+        setConfig().canvas.drawWeatherRain.set(value);
         graphicsSettingsChanged();
     });
-    connect(ui->drawWeatherSnow, &QCheckBox::stateChanged, this, [this](int /*unused*/) {
-        setConfig().canvas.drawWeatherSnow.set(ui->drawWeatherSnow->isChecked());
+    connect(ui->snowIntensitySlider, &QSlider::valueChanged, this, [this](int value) {
+        setConfig().canvas.drawWeatherSnow.set(value);
         graphicsSettingsChanged();
     });
-    connect(ui->drawWeatherClouds, &QCheckBox::stateChanged, this, [this](int /*unused*/) {
-        setConfig().canvas.drawWeatherClouds.set(ui->drawWeatherClouds->isChecked());
+    connect(ui->cloudsIntensitySlider, &QSlider::valueChanged, this, [this](int value) {
+        setConfig().canvas.drawWeatherClouds.set(value);
         graphicsSettingsChanged();
     });
-    connect(ui->drawWeatherFog, &QCheckBox::stateChanged, this, [this](int /*unused*/) {
-        setConfig().canvas.drawWeatherFog.set(ui->drawWeatherFog->isChecked());
+    connect(ui->fogIntensitySlider, &QSlider::valueChanged, this, [this](int value) {
+        setConfig().canvas.drawWeatherFog.set(value);
         graphicsSettingsChanged();
     });
-    connect(ui->drawTimeOfDay, &QCheckBox::stateChanged, this, [this](int /*unused*/) {
-        setConfig().canvas.drawTimeOfDay.set(ui->drawTimeOfDay->isChecked());
-        graphicsSettingsChanged();
-    });
-    connect(ui->weatherIntensitySlider, &QSlider::valueChanged, this, [this](int value) {
-        setConfig().canvas.weatherIntensity.set(value);
+    connect(ui->todIntensitySlider, &QSlider::valueChanged, this, [this](int value) {
+        setConfig().canvas.drawTimeOfDay.set(value);
         graphicsSettingsChanged();
     });
 
@@ -171,12 +167,11 @@ void GraphicsPage::slot_loadConfig()
     ui->drawNotMappedExits->setChecked(settings.showUnmappedExits.get());
     ui->drawDoorNames->setChecked(settings.drawDoorNames);
 
-    ui->drawWeatherRain->setChecked(settings.drawWeatherRain.get());
-    ui->drawWeatherSnow->setChecked(settings.drawWeatherSnow.get());
-    ui->drawWeatherClouds->setChecked(settings.drawWeatherClouds.get());
-    ui->drawWeatherFog->setChecked(settings.drawWeatherFog.get());
-    ui->drawTimeOfDay->setChecked(settings.drawTimeOfDay.get());
-    ui->weatherIntensitySlider->setValue(settings.weatherIntensity.get());
+    ui->rainIntensitySlider->setValue(settings.drawWeatherRain.get());
+    ui->snowIntensitySlider->setValue(settings.drawWeatherSnow.get());
+    ui->cloudsIntensitySlider->setValue(settings.drawWeatherClouds.get());
+    ui->fogIntensitySlider->setValue(settings.drawWeatherFog.get());
+    ui->todIntensitySlider->setValue(settings.drawTimeOfDay.get());
 
     ui->resourceLineEdit->setText(settings.resourcesDirectory);
 }

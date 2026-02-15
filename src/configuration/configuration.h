@@ -170,12 +170,11 @@ public:
         NamedConfig<bool> showMissingMapId{"SHOW_MISSING_MAPID", false};
         NamedConfig<bool> showUnsavedChanges{"SHOW_UNSAVED_CHANGES", false};
         NamedConfig<bool> showUnmappedExits{"SHOW_UNMAPPED_EXITS", false};
-        NamedConfig<bool> drawWeatherRain{"DRAW_WEATHER_RAIN", true};
-        NamedConfig<bool> drawWeatherSnow{"DRAW_WEATHER_SNOW", true};
-        NamedConfig<bool> drawWeatherClouds{"DRAW_WEATHER_CLOUDS", true};
-        NamedConfig<bool> drawWeatherFog{"DRAW_WEATHER_FOG", true};
-        NamedConfig<bool> drawTimeOfDay{"DRAW_TIME_OF_DAY", true};
-        NamedConfig<int> weatherIntensity{"WEATHER_INTENSITY", 100};
+        NamedConfig<int> drawWeatherRain{"DRAW_WEATHER_RAIN", 100};
+        NamedConfig<int> drawWeatherSnow{"DRAW_WEATHER_SNOW", 100};
+        NamedConfig<int> drawWeatherClouds{"DRAW_WEATHER_CLOUDS", 100};
+        NamedConfig<int> drawWeatherFog{"DRAW_WEATHER_FOG", 100};
+        NamedConfig<int> drawTimeOfDay{"DRAW_TIME_OF_DAY", 100};
         bool drawUpperLayersTextured = false;
         bool drawDoorNames = false;
         bool softwareOpenGL = false;

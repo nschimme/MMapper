@@ -751,7 +751,6 @@ void MapCanvas::actuallyPaintGL()
     paintSelections();
     paintCharacters();
     paintDifferences();
-    paintWeatherNoise();
     paintWeather();
     paintParticleRender();
 
@@ -900,58 +899,6 @@ Color MapCanvas::calculateTimeOfDayColor() const
                  c1.a * (1.0f - t) + c2.a * t);
 }
 
-void MapCanvas::paintWeatherNoise()
-{
-    if (m_weatherState.cloudsIntensity <= 0.0f && m_weatherState.fogIntensity <= 0.0f) {
-        return;
-    }
-
-    if (!m_weatherNoiseFbo) {
-        m_weatherNoiseFbo = std::make_unique<QOpenGLFramebufferObject>(256, 256);
-    }
-
-    m_weatherNoiseFbo->bind();
-    auto &gl = getOpenGL();
-    auto &sharedFuncs = gl.getSharedFunctions(Badge<MapCanvas>{});
-    Legacy::Functions &funcs = deref(sharedFuncs);
-    auto &prog = deref(funcs.getShaderPrograms().getWeatherNoiseShader());
-
-    auto binder = prog.bind();
-
-    if (!m_invViewProj.has_value()) {
-        m_invViewProj = glm::inverse(m_viewProj);
-    }
-    prog.setMatrix("uInvViewProj", m_invViewProj.value());
-    prog.setVec3("uPlayerPos", m_data.tryGetPosition().value_or(Coordinate{}).to_vec3());
-
-    const bool want3D = getConfig().canvas.advanced.use3D.get();
-    const float zScale = want3D ? getConfig().canvas.advanced.layerHeight.getFloat() : 7.0f;
-    prog.setFloat("uZScale", zScale);
-
-    prog.setFloat("uTime", m_weatherState.animationTime);
-    prog.setVec4("uWeatherIntensities",
-                 glm::vec4(m_weatherState.rainIntensity,
-                           m_weatherState.snowIntensity,
-                           m_weatherState.cloudsIntensity,
-                           m_weatherState.fogIntensity));
-
-    funcs.glViewport(0, 0, 256, 256);
-
-    Legacy::SharedVao shared = funcs.getSharedVaos().get(Legacy::SharedVaoEnum::EmptyVao);
-    Legacy::VAO &vao = deref(shared);
-    if (!vao) {
-        vao.emplace(sharedFuncs);
-    }
-    funcs.glBindVertexArray(vao.get());
-    funcs.glDrawArrays(GL_TRIANGLES, 0, 3);
-    funcs.glBindVertexArray(0);
-
-    m_weatherNoiseFbo->release();
-
-    // Restore viewport
-    funcs.glViewport(0, 0, width(), height());
-}
-
 void MapCanvas::paintWeather()
 {
     const Color todColor = calculateTimeOfDayColor();
@@ -995,11 +942,9 @@ void MapCanvas::paintWeather()
                            m_weatherState.fogIntensity));
     prog.setColor("uTimeOfDayColor", todColor);
 
-    if (m_weatherNoiseFbo) {
-        funcs.glActiveTexture(GL_TEXTURE1);
-        funcs.glBindTexture(GL_TEXTURE_2D, m_weatherNoiseFbo->texture());
-        prog.setTexture("uNoiseTexture", 1);
-    }
+    funcs.glActiveTexture(GL_TEXTURE1);
+    m_textures.weather_noise->bind();
+    prog.setTexture("uNoiseTexture", 1);
 
     const auto rs
         = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withDepthFunction(std::nullopt);

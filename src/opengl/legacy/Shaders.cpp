@@ -38,7 +38,6 @@ FontShader::~FontShader() = default;
 PointShader::~PointShader() = default;
 BlitShader::~BlitShader() = default;
 FullScreenShader::~FullScreenShader() = default;
-WeatherNoiseShader::~WeatherNoiseShader() = default;
 ParticleSimulationShader::~ParticleSimulationShader() = default;
 ParticleRenderShader::~ParticleRenderShader() = default;
 WeatherShader::~WeatherShader() = default;
@@ -56,7 +55,6 @@ void ShaderPrograms::early_init()
     std::ignore = getPointShader();
     std::ignore = getBlitShader();
     std::ignore = getFullScreenShader();
-    std::ignore = getWeatherNoiseShader();
     std::ignore = getParticleSimulationShader();
     std::ignore = getParticleRenderShader();
     std::ignore = getWeatherShader();
@@ -75,7 +73,6 @@ void ShaderPrograms::resetAll()
     m_point.reset();
     m_blit.reset();
     m_fullscreen.reset();
-    m_weatherNoise.reset();
     m_particleSimulation.reset();
     m_particleRender.reset();
     m_weather.reset();
@@ -153,11 +150,6 @@ const std::shared_ptr<BlitShader> &ShaderPrograms::getBlitShader()
 const std::shared_ptr<FullScreenShader> &ShaderPrograms::getFullScreenShader()
 {
     return getInitialized<FullScreenShader>(m_fullscreen, getFunctions(), "fullscreen");
-}
-
-const std::shared_ptr<WeatherNoiseShader> &ShaderPrograms::getWeatherNoiseShader()
-{
-    return getInitialized<WeatherNoiseShader>(m_weatherNoise, getFunctions(), "weather/noise");
 }
 
 const std::shared_ptr<ParticleSimulationShader> &ShaderPrograms::getParticleSimulationShader()

@@ -184,19 +184,6 @@ private:
     }
 };
 
-struct NODISCARD WeatherNoiseShader final : public AbstractShaderProgram
-{
-public:
-    using AbstractShaderProgram::AbstractShaderProgram;
-
-    ~WeatherNoiseShader() final;
-
-private:
-    void virt_setUniforms(const glm::mat4 & /*mvp*/,
-                          const GLRenderState::Uniforms & /*uniforms*/) final
-    {}
-};
-
 struct NODISCARD WeatherShader final : public AbstractShaderProgram
 {
 public:
@@ -230,7 +217,6 @@ private:
     std::shared_ptr<PointShader> m_point;
     std::shared_ptr<BlitShader> m_blit;
     std::shared_ptr<FullScreenShader> m_fullscreen;
-    std::shared_ptr<WeatherNoiseShader> m_weatherNoise;
     std::shared_ptr<ParticleSimulationShader> m_particleSimulation;
     std::shared_ptr<ParticleRenderShader> m_particleRender;
     std::shared_ptr<WeatherShader> m_weather;
@@ -266,7 +252,6 @@ public:
     NODISCARD const std::shared_ptr<PointShader> &getPointShader();
     NODISCARD const std::shared_ptr<BlitShader> &getBlitShader();
     NODISCARD const std::shared_ptr<FullScreenShader> &getFullScreenShader();
-    NODISCARD const std::shared_ptr<WeatherNoiseShader> &getWeatherNoiseShader();
     NODISCARD const std::shared_ptr<ParticleSimulationShader> &getParticleSimulationShader();
     NODISCARD const std::shared_ptr<ParticleRenderShader> &getParticleRenderShader();
     NODISCARD const std::shared_ptr<WeatherShader> &getWeatherShader();

@@ -148,7 +148,6 @@ private:
     Mmapper2Group &m_groupManager;
     Diff m_diff;
     mutable std::optional<glm::mat4> m_invViewProj;
-    std::unique_ptr<QOpenGLFramebufferObject> m_weatherNoiseFbo;
 
     static constexpr const int MAX_PARTICLES = 10000;
     std::array<GLuint, 2> m_particleVbos{0, 0};
@@ -313,7 +312,6 @@ private:
     void paintCharacters();
     void paintDifferences();
     void paintWeather();
-    void paintWeatherNoise();
     NODISCARD Color calculateTimeOfDayColor() const;
     void forceUpdateMeshes();
 

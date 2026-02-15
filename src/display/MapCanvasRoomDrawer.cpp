@@ -1147,13 +1147,13 @@ void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) con
 FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
                                                      const std::shared_ptr<const FontMetrics> &font,
                                                      const Map &map,
-                                                     std::set<ChunkId> dirtyChunks)
+                                                     std::set<ChunkId> dirtyChunksInput)
 {
     const auto visitRoomOptions = getVisitRoomOptions();
 
     return std::async(
         std::launch::async,
-        [textures, font, map, visitRoomOptions, dirtyChunks = std::move(dirtyChunks)]() mutable
+        [textures, font, map, visitRoomOptions, dirtyChunks = std::move(dirtyChunksInput)]() mutable
         -> SharedMapBatchFinisher {
             ThreadLocalNamedColorRaii tlRaii{visitRoomOptions.canvasColors,
                                              visitRoomOptions.colorSettings};
@@ -1196,7 +1196,7 @@ FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTextur
 FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
                                                      const std::shared_ptr<const FontMetrics> &font,
                                                      const Map &map,
-                                                     ChunkToLayerToRooms pregroupedChunks)
+                                                     ChunkToLayerToRooms pregroupedChunksInput)
 {
     const auto visitRoomOptions = getVisitRoomOptions();
 
@@ -1206,7 +1206,7 @@ FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTextur
                        map,
                        visitRoomOptions,
                        pregroupedChunks = std::move(
-                           pregroupedChunks)]() mutable -> SharedMapBatchFinisher {
+                           pregroupedChunksInput)]() mutable -> SharedMapBatchFinisher {
                           ThreadLocalNamedColorRaii tlRaii{visitRoomOptions.canvasColors,
                                                            visitRoomOptions.colorSettings};
                           DECL_TIMER(t, "[ASYNC] generateDirtyChunks (O(M) pass)");

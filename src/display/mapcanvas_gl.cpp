@@ -546,12 +546,12 @@ void MapCanvas::updateMapBatches()
     // Step 1: Start grouping task if needed and no grouping is in progress
     if (!m_batches.groupingFuture.has_value()) {
         if (!m_pendingDirtyChunks.empty()) {
-            auto dirty = std::move(m_pendingDirtyChunks);
+            auto dirtyInput = std::move(m_pendingDirtyChunks);
             m_pendingDirtyChunks.clear();
 
             auto map = m_data.getCurrentMap();
             m_batches.groupingFuture
-                = std::async(std::launch::async, [map, dirty = std::move(dirty)]() {
+                = std::async(std::launch::async, [map, dirty = std::move(dirtyInput)]() {
                       DECL_TIMER(t, "[ASYNC] Grouping rooms into chunks (O(N) pass)");
                       ChunkToLayerToRooms result;
                       map.getRooms().for_each([&map, &result, &dirty](const RoomId id) {
@@ -603,11 +603,11 @@ void MapCanvas::updateMapBatches()
         return;
     }
 
-    ChunkToLayerToRooms groupsToMesh;
+    ChunkToLayerToRooms groupsToMeshLocal;
     // Priority 1: Visible dirty chunks
     for (auto it = m_batches.pendingGroups.begin(); it != m_batches.pendingGroups.end();) {
         if (m_mapScreen.isChunkVisible(it->first, m_currentLayer)) {
-            groupsToMesh[it->first] = std::move(it->second);
+            groupsToMeshLocal[it->first] = std::move(it->second);
             it = m_batches.pendingGroups.erase(it);
         } else {
             ++it;
@@ -615,20 +615,20 @@ void MapCanvas::updateMapBatches()
     }
 
     // Priority 2: Limited background chunks
-    if (groupsToMesh.empty()) {
+    if (groupsToMeshLocal.empty()) {
         static constexpr size_t MAX_BACKGROUND_CHUNKS = 20;
         auto it = m_batches.pendingGroups.begin();
         for (size_t i = 0; i < MAX_BACKGROUND_CHUNKS && it != m_batches.pendingGroups.end(); ++i) {
-            groupsToMesh[it->first] = std::move(it->second);
+            groupsToMeshLocal[it->first] = std::move(it->second);
             it = m_batches.pendingGroups.erase(it);
         }
     }
 
-    if (groupsToMesh.empty()) {
+    if (groupsToMeshLocal.empty()) {
         return;
     }
 
-    auto getFuture = [this, groupsToMesh = std::move(groupsToMesh)]() mutable {
+    auto getFuture = [this, groupsToMesh = std::move(groupsToMeshLocal)]() mutable {
         MMLOG() << "[updateMapBatches] calling generateBatches for " << groupsToMesh.size()
                 << " chunks (O(M) pass)";
 

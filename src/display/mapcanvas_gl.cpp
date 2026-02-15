@@ -648,19 +648,6 @@ void MapCanvas::finishPendingMapBatches()
 #undef LOG
 }
 
-void MapCanvas::bindMegaRoomTextures()
-{
-    m_textures.terrain_Array->bind(0);
-    m_textures.trail_Array->bind(1);
-    m_textures.mob_Array->bind(2);
-    m_textures.wall_Array->bind(3);
-    m_textures.dotted_wall_Array->bind(4);
-    m_textures.door_Array->bind(5);
-    m_textures.stream_in_Array->bind(6);
-    m_textures.stream_out_Array->bind(7);
-    m_textures.exit_up_Array->bind(8);
-}
-
 void MapCanvas::actuallyPaintGL()
 {
     // DECL_TIMER(t, __FUNCTION__);

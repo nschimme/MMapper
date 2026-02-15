@@ -11,6 +11,7 @@
 #include "Textures.h"
 
 #include <memory>
+#include <unordered_set>
 #include <vector>
 
 namespace Legacy {
@@ -24,6 +25,7 @@ private:
     Legacy::SharedFunctions m_sharedFuncs;
     std::unique_ptr<Legacy::MegaRoomMesh<MegaRoomVert>> m_mesh;
     std::vector<MegaRoomVert> m_cpuBuffer;
+    std::unordered_set<RoomId> m_activeHighlights;
     size_t m_capacity = 0;
     Map m_lastMap;
     bool m_initialized = false;

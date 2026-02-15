@@ -28,6 +28,13 @@ uniform vec4 uTimeOfDayColor;
 
 uniform vec4 uPalette[64];
 
+uniform int uWallLayers[4];
+uniform int uDottedWallLayers[4];
+uniform int uDoorLayers[6];
+uniform int uStreamInLayers[6];
+uniform int uStreamOutLayers[6];
+uniform int uExitLayers[4];
+
 out vec4 fragColor;
 
 vec4 getWallColor(uint info) {
@@ -93,11 +100,11 @@ void main() {
         vec4 wallTexColor = vec4(0.0);
         // type 1=SOLID, 2=DOTTED, 3=DOOR
         if (type == 1u)
-            wallTexColor = texture(uWallArray, vec3(vTexCoord, float(i)));
+            wallTexColor = texture(uWallArray, vec3(vTexCoord, float(uWallLayers[i])));
         else if (type == 2u)
-            wallTexColor = texture(uDottedWallArray, vec3(vTexCoord, float(i)));
+            wallTexColor = texture(uDottedWallArray, vec3(vTexCoord, float(uDottedWallLayers[i])));
         else if (type == 3u)
-            wallTexColor = texture(uDoorArray, vec3(vTexCoord, float(i)));
+            wallTexColor = texture(uDoorArray, vec3(vTexCoord, float(uDoorLayers[i])));
 
         vec4 wallColor = getWallColor(info);
         color = mix(color, wallTexColor * wallColor, wallTexColor.a * wallColor.a);
@@ -109,11 +116,11 @@ void main() {
     for (int i = 0; i < 6; ++i) {
         uint info = (vWallInfo[i / 2] >> (16 * (i % 2))) & 0xFFFFu;
         if ((info & 0x800u) != 0u) { // OutFlow
-            vec4 streamOut = texture(uStreamOutArray, vec3(vTexCoord, float(i)));
+            vec4 streamOut = texture(uStreamOutArray, vec3(vTexCoord, float(uStreamOutLayers[i])));
             color = mix(color, streamOut * streamTint, streamOut.a * streamTint.a);
         }
         if ((info & 0x4000u) != 0u) { // InFlow
-            vec4 streamIn = texture(uStreamInArray, vec3(vTexCoord, float(i)));
+            vec4 streamIn = texture(uStreamInArray, vec3(vTexCoord, float(uStreamInLayers[i])));
             color = mix(color, streamIn * streamTint, streamIn.a * streamTint.a);
         }
     }
@@ -124,8 +131,9 @@ void main() {
         bool isExit = (info & 0x2000u) != 0u;
         bool isClimb = (info & 0x1000u) != 0u;
         if (isExit || isClimb) {
-            uint iconIdx = (i == 4) ? (isClimb ? 1u : 3u) : (isClimb ? 0u : 2u);
-            vec4 iconColor = texture(uExitIconArray, vec3(vTexCoord, float(iconIdx)));
+            // uExitLayers: climb-down, climb-up, down, up
+            int iconIdx = (i == 4) ? (isClimb ? 1 : 3) : (isClimb ? 0 : 2);
+            vec4 iconColor = texture(uExitIconArray, vec3(vTexCoord, float(uExitLayers[iconIdx])));
             color = mix(color, iconColor * layerColor, iconColor.a * layerColor.a);
         }
     }

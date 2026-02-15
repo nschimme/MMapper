@@ -238,7 +238,6 @@ private:
 
     void actuallyPaintGL();
     void paintMap();
-    void bindMegaRoomTextures();
     void renderMapBatches();
     void paintBatchedInfomarks();
     void paintSelections();

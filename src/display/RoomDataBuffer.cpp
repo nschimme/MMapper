@@ -115,7 +115,7 @@ MegaRoomVert RoomDataBuffer::packRoom(const RoomHandle &room,
     // Overlays (up to 8)
     uint32_t o1 = 0xFFFFFFFFu;
     uint32_t o2 = 0xFFFFFFFFu;
-    int oCount = 0;
+    uint32_t oCount = 0;
     auto addOverlay = [&](int idx) {
         if (oCount < 4) {
             uint32_t shift = 8 * oCount;
@@ -213,20 +213,22 @@ void RoomDataBuffer::setHighlights(const std::unordered_map<RoomId, NamedColorEn
 
     std::vector<uint32_t> changedIndices;
 
-    // First, clear all existing highlights in the CPU buffer that are not in the new set
-    // We need to know which rooms WERE highlighted.
-    // Actually, we can just iterate over all rooms that currently HAVE a highlight.
-    for (uint32_t i = 0; i < m_capacity; ++i) {
-        if (m_cpuBuffer[i].highlight != static_cast<uint32_t>(NamedColorEnum::TRANSPARENT)) {
-            RoomId id{i};
-            if (highlights.find(id) == highlights.end()) {
-                m_cpuBuffer[i].highlight = static_cast<uint32_t>(NamedColorEnum::TRANSPARENT);
-                changedIndices.push_back(i);
+    // Clear old highlights that are not in the new set
+    for (auto it = m_activeHighlights.begin(); it != m_activeHighlights.end();) {
+        RoomId id = *it;
+        if (highlights.find(id) == highlights.end()) {
+            uint32_t idx = id.asUint32();
+            if (idx < m_capacity) {
+                m_cpuBuffer[idx].highlight = static_cast<uint32_t>(NamedColorEnum::TRANSPARENT);
+                changedIndices.push_back(idx);
             }
+            it = m_activeHighlights.erase(it);
+        } else {
+            ++it;
         }
     }
 
-    // Now add/update the new highlights
+    // Add/Update new highlights
     for (const auto &[id, color] : highlights) {
         const uint32_t idx = id.asUint32();
         if (idx < m_capacity) {
@@ -234,6 +236,7 @@ void RoomDataBuffer::setHighlights(const std::unordered_map<RoomId, NamedColorEn
             if (m_cpuBuffer[idx].highlight != colorVal) {
                 m_cpuBuffer[idx].highlight = colorVal;
                 changedIndices.push_back(idx);
+                m_activeHighlights.insert(id);
             }
         }
     }
@@ -272,6 +275,7 @@ void RoomDataBuffer::syncWithMap(const Map &map,
 
     if (!m_initialized) {
         m_cpuBuffer.assign(m_capacity, MegaRoomVert{});
+        m_activeHighlights.clear();
         map.getRooms().for_each([&](const RoomId id) {
             m_cpuBuffer[id.asUint32()] = packRoom(map.getRoomHandle(id), textures);
         });
@@ -299,6 +303,7 @@ void RoomDataBuffer::syncWithMap(const Map &map,
             if (!map.findRoomHandle(id)) {
                 const uint32_t idx = id.asUint32();
                 m_cpuBuffer[idx] = MegaRoomVert{};
+                m_activeHighlights.erase(id);
                 std::vector<MegaRoomVert> batch = {m_cpuBuffer[idx]};
                 m_mesh->update(static_cast<qopengl_GLintptr>(idx), batch);
             }
@@ -341,11 +346,11 @@ void RoomDataBuffer::renderLayer(OpenGL &gl,
     prog->uWhiteTex = textures.white_pixel.array;
 
     // Layer indices
-    for (int i = 0; i < 4; ++i) {
+    for (size_t i = 0; i < 4; ++i) {
         prog->uWallLayers[i] = textures.wall[ALL_EXITS_NESWUD[i]].position;
         prog->uDottedWallLayers[i] = textures.dotted_wall[ALL_EXITS_NESWUD[i]].position;
     }
-    for (int i = 0; i < 6; ++i) {
+    for (size_t i = 0; i < 6; ++i) {
         prog->uDoorLayers[i] = textures.door[ALL_EXITS_NESWUD[i]].position;
         prog->uStreamInLayers[i] = textures.stream_in[ALL_EXITS_NESWUD[i]].position;
         prog->uStreamOutLayers[i] = textures.stream_out[ALL_EXITS_NESWUD[i]].position;

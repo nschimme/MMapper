@@ -3,6 +3,7 @@
 
 #include "Shaders.h"
 
+#include "../../display/Textures.h"
 #include "ShaderUtils.h"
 
 #include <memory>
@@ -38,25 +39,57 @@ MegaRoomShader::~MegaRoomShader() = default;
 void MegaRoomShader::virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms)
 {
     setMatrix("uViewProj", mvp);
-    // samplers (fixed units)
-    setTexture("uTerrainRoadArray", 0);
-    setTexture("uTrailArray", 1);
-    setTexture("uOverlayArray", 2);
-    setTexture("uWallArray", 3);
-    setTexture("uDottedWallArray", 4);
-    setTexture("uDoorArray", 5);
-    setTexture("uStreamInArray", 6);
-    setTexture("uStreamOutArray", 7);
-    setTexture("uExitIconArray", 8);
 
-    if (uniforms.timeOfDayColor) {
-        setColor("uTimeOfDayColor", *uniforms.timeOfDayColor);
+    if (uniforms.timeOfDayColor.has_value()) {
+        setColor("uTimeOfDayColor", uniforms.timeOfDayColor.value());
     } else {
         setColor("uTimeOfDayColor", Colors::white);
     }
 
     setInt("uCurrentLayer", currentLayer);
+    setInt("uDrawLayer", drawLayer);
     setBool("uDrawUpperLayersTextured", drawUpperLayersTextured);
+    setVec2("uMinBounds", minBounds);
+    setVec2("uMaxBounds", maxBounds);
+
+    auto functions = m_functions.lock();
+    if (functions) {
+        // Palette
+        const auto &colors = XNamedColor::getAllColorsAsVec4();
+        GLint loc = getUniformLocation("uPalette");
+        if (loc != INVALID_UNIFORM_LOCATION) {
+            functions->glUniform4fv(loc, static_cast<GLsizei>(colors.size()), glm::value_ptr(colors[0]));
+        }
+
+        // Textures
+        auto bind = [&](const char *name, int unit, MMTextureId id) {
+            if (id) {
+                const auto *texPtr = functions->getTexLookup().find(id);
+                if (texPtr && *texPtr) {
+                    (*texPtr)->bind(static_cast<GLuint>(unit));
+                    setTexture(name, unit);
+                }
+            }
+        };
+
+        bind("uTerrainRoadArray", 0, uTerrainTex);
+        bind("uTrailArray", 1, uTrailTex);
+        bind("uOverlayArray", 2, uOverlayTex);
+        bind("uWallArray", 3, uWallTex);
+        bind("uDottedWallArray", 4, uDottedWallTex);
+        bind("uDoorArray", 5, uDoorTex);
+        bind("uStreamInArray", 6, uStreamInTex);
+        bind("uStreamOutArray", 7, uStreamOutTex);
+        bind("uExitIconArray", 8, uExitTex);
+
+        // Layers
+        setIntArray("uWallLayers", uWallLayers, 4);
+        setIntArray("uDottedWallLayers", uDottedWallLayers, 4);
+        setIntArray("uDoorLayers", uDoorLayers, 6);
+        setIntArray("uStreamInLayers", uStreamInLayers, 6);
+        setIntArray("uStreamOutLayers", uStreamOutLayers, 6);
+        setIntArray("uExitIconLayers", uExitLayers, 4);
+    }
 }
 
 FontShader::~FontShader() = default;

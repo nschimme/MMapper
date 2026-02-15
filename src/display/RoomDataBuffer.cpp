@@ -13,6 +13,7 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
+#include "../configuration/configuration.h"
 #include "../global/progresscounter.h"
 #include "../global/utils.h"
 #include "../map/Map.h"
@@ -26,6 +27,7 @@
 #include "../opengl/legacy/Shaders.h"
 #include "../opengl/legacy/SimpleMesh.h"
 #include "RoadIndex.h"
+#include "mapcanvas.h"
 
 enum class WallOrientationEnum { OrientationHorizontal, OrientationVertical };
 
@@ -81,6 +83,8 @@ MegaRoomVert RoomDataBuffer::packRoom(const RoomHandle &room,
     v.pos = room.getPosition().to_ivec3();
     v.highlight = static_cast<uint32_t>(NamedColorEnum::TRANSPARENT);
 
+    const bool drawUnmappedExits = getConfig().canvas.showUnmappedExits.get();
+
     // Terrain and Trail
     const auto roomTerrainType = room.getTerrainType();
     const RoadIndexMaskEnum roadIndex = getRoadIndex(room.getRaw());
@@ -106,15 +110,37 @@ MegaRoomVert RoomDataBuffer::packRoom(const RoomHandle &room,
         f |= 1u;
     if (room.getSundeathType() == RoomSundeathEnum::NO_SUNDEATH)
         f |= 2u;
-    if (room.getRidableType() == RoomRidableEnum::NOT_RIDABLE)
-        f |= 4u;
     v.flags = f;
 
-    // Overlays
-    v.mob_flags = room.getMobFlags().asUint32();
-    v.load_flags = room.getLoadFlags().asUint32();
+    // Overlays (up to 8)
+    uint32_t o1 = 0xFFFFFFFFu;
+    uint32_t o2 = 0xFFFFFFFFu;
+    int oCount = 0;
+    auto addOverlay = [&](int idx) {
+        if (oCount < 4) {
+            uint32_t shift = 8 * oCount;
+            o1 = (o1 & ~(0xFFu << shift)) | (static_cast<uint32_t>(idx) << shift);
+        } else if (oCount < 8) {
+            uint32_t shift = 8 * (oCount - 4);
+            o2 = (o2 & ~(0xFFu << shift)) | (static_cast<uint32_t>(idx) << shift);
+        }
+        oCount++;
+    };
+
+    room.getLoadFlags().for_each([&](const RoomLoadFlagEnum flag) {
+        addOverlay(textures.load[flag].position);
+    });
+    room.getMobFlags().for_each([&](const RoomMobFlagEnum flag) {
+        addOverlay(textures.mob[flag].position);
+    });
+    if (room.getRidableType() == RoomRidableEnum::NOT_RIDABLE) {
+        addOverlay(textures.no_ride.position);
+    }
+    v.overlays1 = o1;
+    v.overlays2 = o2;
 
     // Walls
+    const Map &map = room.getMap();
     for (uint32_t i = 0; i < 6u; ++i) {
         const ExitDirEnum dir = ALL_EXITS_NESWUD[static_cast<size_t>(i)];
         const auto &exit = room.getExit(dir);
@@ -122,34 +148,58 @@ MegaRoomVert RoomDataBuffer::packRoom(const RoomHandle &room,
 
         uint32_t type = 0; // None
         NamedColorEnum color = NamedColorEnum::TRANSPARENT;
-        bool isFlow = flags.isFlow();
+        bool isOutFlow = flags.isFlow();
         bool isClimb = flags.isClimb();
 
-        if (flags.isExit()) {
+        if (drawUnmappedExits && exit.exitIsUnmapped()) {
+            type = 2; // DOTTED
+            color = NamedColorEnum::WALL_COLOR_NOT_MAPPED;
+        } else if (flags.isExit()) {
             if (flags.isDoor()) {
                 type = 3; // DOOR
                 color = NamedColorEnum::WALL_COLOR_REGULAR_EXIT;
             } else {
-                const auto wallColor =
-                    (i < 4) ? getWallNamedColorCommon(flags, WallOrientationEnum::OrientationHorizontal)
-                            : getWallNamedColorCommon(flags, WallOrientationEnum::OrientationVertical);
+                const auto wallColor = (i < 4) ? getWallNamedColorCommon(flags, WallOrientationEnum::OrientationHorizontal)
+                                               : getWallNamedColorCommon(flags, WallOrientationEnum::OrientationVertical);
                 if (wallColor != NamedColorEnum::TRANSPARENT) {
                     type = 2; // DOTTED
                     color = wallColor;
-                } else {
-                    type = 1; // SOLID
-                    color = (i < 4) ? NamedColorEnum::WALL_COLOR_REGULAR_EXIT
-                                    : NamedColorEnum::VERTICAL_COLOR_REGULAR_EXIT;
                 }
             }
-        } else if (!exit.outIsEmpty()) {
-            type = 2; // DOTTED
-            color = NamedColorEnum::WALL_COLOR_BUG_WALL_DOOR;
+        } else {
+            // Not an exit -> Wall
+            if (!exit.outIsEmpty()) {
+                type = 2; // DOTTED BUG WALL
+                color = NamedColorEnum::WALL_COLOR_BUG_WALL_DOOR;
+            } else {
+                type = 1; // SOLID
+                color = (i < 4) ? NamedColorEnum::WALL_COLOR_REGULAR_EXIT
+                                : NamedColorEnum::VERTICAL_COLOR_REGULAR_EXIT;
+            }
+        }
+
+        // InFlow detection
+        bool isInFlow = false;
+        if (!exit.inIsEmpty()) {
+            for (const RoomId targetRoomId : exit.getIncomingSet()) {
+                const auto &targetRoom = map.getRoomHandle(targetRoomId);
+                for (const ExitDirEnum targetDir : ALL_EXITS_NESWUD) {
+                    const auto &targetExit = targetRoom.getExit(targetDir);
+                    if (targetExit.getExitFlags().isFlow() && targetExit.containsOut(room.getId())) {
+                        isInFlow = true;
+                        break;
+                    }
+                }
+                if (isInFlow)
+                    break;
+            }
         }
 
         bool isExit = flags.isExit();
-        uint32_t info = (type & 0xF) | (static_cast<uint32_t>(color) << 4) | (isFlow ? 0x1000u : 0u)
-                        | (isClimb ? 0x2000u : 0u) | (isExit ? 0x4000u : 0u);
+        uint32_t info = (type & 0x7) | (static_cast<uint32_t>(color) << 3) | (isOutFlow ? 0x800u : 0u)
+                        | (isClimb ? 0x1000u : 0u) | (isExit ? 0x2000u : 0u) | (isInFlow ? 0x4000u : 0u);
+        // info: bits 0-2 type, 3-10 color, 11 outFlow, 12 climb, 13 exit, 14 inFlow
+        // Fits in 15 bits.
         v.wall_info[i / 2] |= (info << (16 * (i % 2)));
     }
 
@@ -162,6 +212,21 @@ void RoomDataBuffer::setHighlights(const std::unordered_map<RoomId, NamedColorEn
         return;
 
     std::vector<uint32_t> changedIndices;
+
+    // First, clear all existing highlights in the CPU buffer that are not in the new set
+    // We need to know which rooms WERE highlighted.
+    // Actually, we can just iterate over all rooms that currently HAVE a highlight.
+    for (uint32_t i = 0; i < m_capacity; ++i) {
+        if (m_cpuBuffer[i].highlight != static_cast<uint32_t>(NamedColorEnum::TRANSPARENT)) {
+            RoomId id{i};
+            if (highlights.find(id) == highlights.end()) {
+                m_cpuBuffer[i].highlight = static_cast<uint32_t>(NamedColorEnum::TRANSPARENT);
+                changedIndices.push_back(i);
+            }
+        }
+    }
+
+    // Now add/update the new highlights
     for (const auto &[id, color] : highlights) {
         const uint32_t idx = id.asUint32();
         if (idx < m_capacity) {
@@ -188,12 +253,21 @@ void RoomDataBuffer::setHighlights(const std::unordered_map<RoomId, NamedColorEn
     }
 }
 
-void RoomDataBuffer::syncWithMap(const Map &map, const mctp::MapCanvasTexturesProxy &textures)
+void RoomDataBuffer::syncWithMap(const Map &map,
+                                 const mctp::MapCanvasTexturesProxy &textures,
+                                 bool drawUnmappedExits)
 {
     const size_t nextId = map.getWorld().getNextId().asUint32();
     if (nextId > m_capacity) {
         resize(nextId);
         m_initialized = false;
+    }
+
+    // If drawUnmappedExits changed, we must repack everything
+    static bool lastDrawUnmapped = false;
+    if (drawUnmappedExits != lastDrawUnmapped) {
+        m_initialized = false;
+        lastDrawUnmapped = drawUnmappedExits;
     }
 
     if (!m_initialized) {
@@ -233,20 +307,53 @@ void RoomDataBuffer::syncWithMap(const Map &map, const mctp::MapCanvasTexturesPr
     m_lastMap = map;
 }
 
-void RoomDataBuffer::render(OpenGL &gl,
-                            const glm::mat4 &mvp,
-                            int currentLayer,
-                            bool drawUpperLayersTextured,
-                            const Color &timeOfDayColor)
+void RoomDataBuffer::renderLayer(OpenGL &gl,
+                                 const glm::mat4 & /*mvp*/,
+                                 int z,
+                                 int currentLayer,
+                                 bool drawUpperLayersTextured,
+                                 const Color &timeOfDayColor,
+                                 const glm::vec2 &minBounds,
+                                 const glm::vec2 &maxBounds)
 {
     if (m_capacity == 0)
         return;
-    std::ignore = mvp;
 
     auto &prog = deref(m_sharedFuncs).getShaderPrograms().getMegaRoomShader();
+    const auto &textures = mctp::getProxy(deref(MapCanvas::getPrimary()).getTextures());
 
     prog->currentLayer = currentLayer;
     prog->drawUpperLayersTextured = drawUpperLayersTextured;
+    prog->minBounds = minBounds;
+    prog->maxBounds = maxBounds;
+    prog->drawLayer = z;
+
+    // Texture IDs
+    prog->uTerrainTex = textures.terrain[RoomTerrainEnum::UNDEFINED].array;
+    prog->uTrailTex = textures.trail[RoadIndexMaskEnum::NONE].array;
+    prog->uOverlayTex = textures.mob[RoomMobFlagEnum::RENT].array;
+    prog->uWallTex = textures.wall[ExitDirEnum::NORTH].array;
+    prog->uDottedWallTex = textures.dotted_wall[ExitDirEnum::NORTH].array;
+    prog->uDoorTex = textures.door[ExitDirEnum::NORTH].array;
+    prog->uStreamInTex = textures.stream_in[ExitDirEnum::NORTH].array;
+    prog->uStreamOutTex = textures.stream_out[ExitDirEnum::NORTH].array;
+    prog->uExitTex = textures.exit_up.array;
+    prog->uWhiteTex = textures.white_pixel.array;
+
+    // Layer indices
+    for (int i = 0; i < 4; ++i) {
+        prog->uWallLayers[i] = textures.wall[ALL_EXITS_NESWUD[i]].position;
+        prog->uDottedWallLayers[i] = textures.dotted_wall[ALL_EXITS_NESWUD[i]].position;
+    }
+    for (int i = 0; i < 6; ++i) {
+        prog->uDoorLayers[i] = textures.door[ALL_EXITS_NESWUD[i]].position;
+        prog->uStreamInLayers[i] = textures.stream_in[ALL_EXITS_NESWUD[i]].position;
+        prog->uStreamOutLayers[i] = textures.stream_out[ALL_EXITS_NESWUD[i]].position;
+    }
+    prog->uExitLayers[0] = textures.exit_climb_down.position;
+    prog->uExitLayers[1] = textures.exit_climb_up.position;
+    prog->uExitLayers[2] = textures.exit_down.position;
+    prog->uExitLayers[3] = textures.exit_up.position;
 
     m_mesh->render(gl.getDefaultRenderState()
                        .withBlend(BlendModeEnum::TRANSPARENCY)

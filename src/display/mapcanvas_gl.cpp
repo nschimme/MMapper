@@ -545,7 +545,9 @@ void MapCanvas::updateBatches()
 void MapCanvas::updateMapBatches()
 {
     if (m_roomDataBuffer) {
-        m_roomDataBuffer->syncWithMap(m_data.getCurrentMap(), mctp::getProxy(m_textures));
+        m_roomDataBuffer->syncWithMap(m_data.getCurrentMap(),
+                                      mctp::getProxy(m_textures),
+                                      getConfig().canvas.showUnmappedExits.get());
     }
 
     RemeshCookie &remeshCookie = m_batches.remeshCookie;
@@ -675,14 +677,6 @@ void MapCanvas::actuallyPaintGL()
         return;
     }
 
-    if (m_roomDataBuffer) {
-        bindMegaRoomTextures();
-        m_roomDataBuffer->render(gl,
-                                 m_viewProj,
-                                 m_currentLayer,
-                                 getConfig().canvas.drawUpperLayersTextured,
-                                 m_timeOfDayColor);
-    }
 
     paintMap();
     paintBatchedInfomarks();
@@ -1078,10 +1072,34 @@ void MapCanvas::renderMapBatches()
 
     BatchedMeshes &batchedMeshes = batches.batchedMeshes;
 
+    const auto getBounds = [this]() {
+        const glm::vec3 bl = unproject_raw(glm::vec3(0, height(), 0));
+        const glm::vec3 br = unproject_raw(glm::vec3(width(), height(), 0));
+        const glm::vec3 tr = unproject_raw(glm::vec3(width(), 0, 0));
+        const glm::vec3 tl = unproject_raw(glm::vec3(0, 0, 0));
+
+        glm::vec2 minB = glm::min(glm::min(glm::vec2(bl), glm::vec2(br)),
+                                  glm::min(glm::vec2(tr), glm::vec2(tl)));
+        glm::vec2 maxB = glm::max(glm::max(glm::vec2(bl), glm::vec2(br)),
+                                  glm::max(glm::vec2(tr), glm::vec2(tl)));
+        return std::make_pair(minB, maxB);
+    };
+
+    const auto [minB, maxB] = getBounds();
+
     const auto drawLayer =
-        [this, &batches, &batchedMeshes, wantExtraDetail, wantDoorNames](const int thisLayer,
+        [this, &batches, &batchedMeshes, wantExtraDetail, wantDoorNames, minB, maxB](const int thisLayer,
                                                                          const int currentLayer) {
-            if (!m_roomDataBuffer) {
+            if (m_roomDataBuffer) {
+                m_roomDataBuffer->renderLayer(getOpenGL(),
+                                              m_viewProj,
+                                              thisLayer,
+                                              currentLayer,
+                                              getConfig().canvas.drawUpperLayersTextured,
+                                              m_timeOfDayColor,
+                                              minB,
+                                              maxB);
+            } else {
                 const auto it_mesh = batchedMeshes.find(thisLayer);
                 if (it_mesh != batchedMeshes.end()) {
                     LayerMeshes &meshes = it_mesh->second;

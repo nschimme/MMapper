@@ -76,8 +76,8 @@ private:
         GLuint pos = INVALID_ATTRIB_LOCATION;
         GLuint terrain_trail = INVALID_ATTRIB_LOCATION;
         GLuint flags = INVALID_ATTRIB_LOCATION;
-        GLuint mob_flags = INVALID_ATTRIB_LOCATION;
-        GLuint load_flags = INVALID_ATTRIB_LOCATION;
+        GLuint overlays1 = INVALID_ATTRIB_LOCATION;
+        GLuint overlays2 = INVALID_ATTRIB_LOCATION;
         GLuint wall_info0 = INVALID_ATTRIB_LOCATION;
         GLuint wall_info1 = INVALID_ATTRIB_LOCATION;
         GLuint wall_info2 = INVALID_ATTRIB_LOCATION;
@@ -89,8 +89,8 @@ private:
             r.pos = shader.getAttribLocation("aPos");
             r.terrain_trail = shader.getAttribLocation("aTerrainTrail");
             r.flags = shader.getAttribLocation("aFlags");
-            r.mob_flags = shader.getAttribLocation("aMobFlags");
-            r.load_flags = shader.getAttribLocation("aLoadFlags");
+            r.overlays1 = shader.getAttribLocation("aOverlays1");
+            r.overlays2 = shader.getAttribLocation("aOverlays2");
             r.wall_info0 = shader.getAttribLocation("aWallInfo0");
             r.wall_info1 = shader.getAttribLocation("aWallInfo1");
             r.wall_info2 = shader.getAttribLocation("aWallInfo2");
@@ -111,8 +111,8 @@ private:
         gl.enableAttribI(attribs.pos, 3, GL_INT, vertSize, VPO(pos));
         gl.enableAttribI(attribs.terrain_trail, 1, GL_UNSIGNED_INT, vertSize, VPO(terrain_trail));
         gl.enableAttribI(attribs.flags, 1, GL_UNSIGNED_INT, vertSize, VPO(flags));
-        gl.enableAttribI(attribs.mob_flags, 1, GL_UNSIGNED_INT, vertSize, VPO(mob_flags));
-        gl.enableAttribI(attribs.load_flags, 1, GL_UNSIGNED_INT, vertSize, VPO(load_flags));
+        gl.enableAttribI(attribs.overlays1, 1, GL_UNSIGNED_INT, vertSize, VPO(overlays1));
+        gl.enableAttribI(attribs.overlays2, 1, GL_UNSIGNED_INT, vertSize, VPO(overlays2));
         gl.enableAttribI(attribs.wall_info0, 1, GL_UNSIGNED_INT, vertSize, VPO(wall_info[0]));
         gl.enableAttribI(attribs.wall_info1, 1, GL_UNSIGNED_INT, vertSize, VPO(wall_info[1]));
         gl.enableAttribI(attribs.wall_info2, 1, GL_UNSIGNED_INT, vertSize, VPO(wall_info[2]));
@@ -122,8 +122,8 @@ private:
         gl.glVertexAttribDivisor(attribs.pos, 1);
         gl.glVertexAttribDivisor(attribs.terrain_trail, 1);
         gl.glVertexAttribDivisor(attribs.flags, 1);
-        gl.glVertexAttribDivisor(attribs.mob_flags, 1);
-        gl.glVertexAttribDivisor(attribs.load_flags, 1);
+        gl.glVertexAttribDivisor(attribs.overlays1, 1);
+        gl.glVertexAttribDivisor(attribs.overlays2, 1);
         gl.glVertexAttribDivisor(attribs.wall_info0, 1);
         gl.glVertexAttribDivisor(attribs.wall_info1, 1);
         gl.glVertexAttribDivisor(attribs.wall_info2, 1);
@@ -144,8 +144,8 @@ private:
         gl.glDisableVertexAttribArray(attribs.pos);
         gl.glDisableVertexAttribArray(attribs.terrain_trail);
         gl.glDisableVertexAttribArray(attribs.flags);
-        gl.glDisableVertexAttribArray(attribs.mob_flags);
-        gl.glDisableVertexAttribArray(attribs.load_flags);
+        gl.glDisableVertexAttribArray(attribs.overlays1);
+        gl.glDisableVertexAttribArray(attribs.overlays2);
         gl.glDisableVertexAttribArray(attribs.wall_info0);
         gl.glDisableVertexAttribArray(attribs.wall_info1);
         gl.glDisableVertexAttribArray(attribs.wall_info2);

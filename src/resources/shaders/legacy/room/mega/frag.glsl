@@ -1,3 +1,5 @@
+#include "../../../common/version.glsl"
+
 precision highp float;
 precision highp int;
 
@@ -6,8 +8,8 @@ in float vLayerDepth;
 flat in uint vTerrainIdx;
 flat in uint vTrailIdx;
 flat in uint vFlags;
-flat in uint vMobFlags;
-flat in uint vLoadFlags;
+flat in uint vOverlays1;
+flat in uint vOverlays2;
 flat in uint vWallInfo[3];
 flat in uint vHighlight;
 
@@ -24,26 +26,22 @@ uniform sampler2DArray uExitIconArray;
 uniform bool uDrawUpperLayersTextured;
 uniform vec4 uTimeOfDayColor;
 
-layout(std140) uniform NamedColorsBlock {
-    vec4 uColors[256];
-};
+uniform vec4 uPalette[64];
 
 out vec4 fragColor;
 
 vec4 getWallColor(uint info) {
-    uint colorIdx = (info >> 4) & 0xFFu;
-    return uColors[colorIdx];
+    uint colorIdx = (info >> 3) & 0xFFu;
+    return uPalette[colorIdx];
 }
 
 void main() {
-    if ((vFlags & 8u) == 0u) discard;
-
-    float absDepth = abs(vLayerDepth);
-    if (absDepth > 1.0 && !uDrawUpperLayersTextured) discard;
+    // Note: discard check moved to vertex shader for performance,
+    // but kept here as safety for pixels.
 
     vec4 color = vec4(0.0);
 
-    // Layer color and fading logic
+    // Layer color logic
     vec4 layerColor = vec4(1.0, 1.0, 1.0, 0.90); // Focused or below
     if (vLayerDepth > 0.0) {
         layerColor = vec4(0.70, 0.70, 0.70, 0.20); // Gray70, alpha 0.2
@@ -56,10 +54,10 @@ void main() {
     vec4 tint = uTimeOfDayColor;
     if ((vFlags & 1u) != 0u) {
         // Dark room tint (NamedColorEnum::ROOM_DARK = 12)
-        tint *= uColors[12];
+        tint *= uPalette[12];
     } else if ((vFlags & 2u) != 0u) {
         // No sundeath tint (NamedColorEnum::ROOM_NO_SUNDEATH = 13)
-        tint *= uColors[13];
+        tint *= uPalette[13];
     }
     color *= tint * layerColor;
 
@@ -69,40 +67,35 @@ void main() {
         color = mix(color, trailColor, trailColor.a);
     }
 
-    // Overlays (Loads)
-    for (int i = 0; i < 25; ++i) {
-        if ((vLoadFlags & (1u << uint(i))) != 0u) {
-            vec4 overlayColor = texture(uOverlayArray, vec3(vTexCoord, float(i)));
-            color = mix(color, overlayColor, overlayColor.a);
-        }
-    }
+    // Overlays (Packed indices)
+    uint o[8];
+    o[0] = vOverlays1 & 0xFFu;
+    o[1] = (vOverlays1 >> 8) & 0xFFu;
+    o[2] = (vOverlays1 >> 16) & 0xFFu;
+    o[3] = (vOverlays1 >> 24) & 0xFFu;
+    o[4] = vOverlays2 & 0xFFu;
+    o[5] = (vOverlays2 >> 8) & 0xFFu;
+    o[6] = (vOverlays2 >> 16) & 0xFFu;
+    o[7] = (vOverlays2 >> 24) & 0xFFu;
 
-    // Overlays (Mobs)
-    for (int i = 0; i < 19; ++i) {
-        if ((vMobFlags & (1u << uint(i))) != 0u) {
-            vec4 overlayColor = texture(uOverlayArray, vec3(vTexCoord, float(25 + i)));
-            color = mix(color, overlayColor, overlayColor.a);
-        }
-    }
-
-    // No Ride
-    if ((vFlags & 4u) != 0u) {
-        vec4 overlayColor = texture(uOverlayArray, vec3(vTexCoord, float(25 + 19)));
+    for (int i = 0; i < 8; ++i) {
+        if (o[i] == 0xFFu) continue;
+        vec4 overlayColor = texture(uOverlayArray, vec3(vTexCoord, float(o[i])));
         color = mix(color, overlayColor, overlayColor.a);
     }
 
-    // Walls & Doors
-    for (int i = 0; i < 6; ++i) {
+    // Walls & Doors (NESW only: 0-3)
+    for (int i = 0; i < 4; ++i) {
         uint info = (vWallInfo[i / 2] >> (16 * (i % 2))) & 0xFFFFu;
-        uint type = info & 0xFu;
+        uint type = info & 0x7u;
         if (type == 0u) continue;
 
         vec4 wallTexColor = vec4(0.0);
         // type 1=SOLID, 2=DOTTED, 3=DOOR
         if (type == 1u)
-            wallTexColor = texture(uWallArray, vec3(vTexCoord, float(i < 4 ? i : (i - 4))));
+            wallTexColor = texture(uWallArray, vec3(vTexCoord, float(i)));
         else if (type == 2u)
-            wallTexColor = texture(uDottedWallArray, vec3(vTexCoord, float(i < 4 ? i : (i - 4))));
+            wallTexColor = texture(uDottedWallArray, vec3(vTexCoord, float(i)));
         else if (type == 3u)
             wallTexColor = texture(uDoorArray, vec3(vTexCoord, float(i)));
 
@@ -112,22 +105,24 @@ void main() {
 
     // Stream icons (Flow)
     // NamedColorEnum::STREAM = 14
-    vec4 streamTint = uColors[14] * layerColor;
+    vec4 streamTint = uPalette[14] * layerColor;
     for (int i = 0; i < 6; ++i) {
         uint info = (vWallInfo[i / 2] >> (16 * (i % 2))) & 0xFFFFu;
-        if ((info & 0x1000u) != 0u) {
-            vec4 streamIn = texture(uStreamInArray, vec3(vTexCoord, float(i)));
+        if ((info & 0x800u) != 0u) { // OutFlow
             vec4 streamOut = texture(uStreamOutArray, vec3(vTexCoord, float(i)));
-            color = mix(color, streamIn * streamTint, streamIn.a * streamTint.a);
             color = mix(color, streamOut * streamTint, streamOut.a * streamTint.a);
+        }
+        if ((info & 0x4000u) != 0u) { // InFlow
+            vec4 streamIn = texture(uStreamInArray, vec3(vTexCoord, float(i)));
+            color = mix(color, streamIn * streamTint, streamIn.a * streamTint.a);
         }
     }
 
     // Vertical exit icons (Up/Down)
     for (int i = 4; i < 6; ++i) {
         uint info = (vWallInfo[i / 2] >> (16 * (i % 2))) & 0xFFFFu;
-        bool isExit = (info & 0x4000u) != 0u;
-        bool isClimb = (info & 0x2000u) != 0u;
+        bool isExit = (info & 0x2000u) != 0u;
+        bool isClimb = (info & 0x1000u) != 0u;
         if (isExit || isClimb) {
             uint iconIdx = (i == 4) ? (isClimb ? 1u : 3u) : (isClimb ? 0u : 2u);
             vec4 iconColor = texture(uExitIconArray, vec3(vTexCoord, float(iconIdx)));
@@ -135,7 +130,7 @@ void main() {
         }
     }
 
-    // Layer-based overlay (darker/lighter)
+    // Layer-based depth overlay (darker/lighter)
     if (vLayerDepth != 0.0) {
         float baseAlpha = (vLayerDepth < 0.0) ? 0.5 : 0.1;
         float alpha = clamp(baseAlpha + 0.03 * abs(vLayerDepth), 0.0, 1.0);
@@ -150,7 +145,7 @@ void main() {
 
     // Highlights (Diff)
     if (vHighlight != 0u) {
-        vec4 hColor = uColors[vHighlight];
+        vec4 hColor = uPalette[vHighlight];
         color = mix(color, hColor, hColor.a);
     }
 

@@ -82,7 +82,28 @@ public:
     ~MegaRoomShader() final;
 
     int currentLayer = 0;
+    int drawLayer = 0;
     bool drawUpperLayersTextured = false;
+    glm::vec2 minBounds = glm::vec2(-1e6f);
+    glm::vec2 maxBounds = glm::vec2(1e6f);
+
+    MMTextureId uTerrainTex;
+    MMTextureId uTrailTex;
+    MMTextureId uOverlayTex;
+    MMTextureId uWallTex;
+    MMTextureId uDottedWallTex;
+    MMTextureId uDoorTex;
+    MMTextureId uStreamInTex;
+    MMTextureId uStreamOutTex;
+    MMTextureId uExitTex;
+    MMTextureId uWhiteTex;
+
+    int uWallLayers[4]{};
+    int uDottedWallLayers[4]{};
+    int uDoorLayers[6]{};
+    int uStreamInLayers[6]{};
+    int uStreamOutLayers[6]{};
+    int uExitLayers[4]{};
 
 private:
     void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final;

@@ -32,13 +32,16 @@ public:
     explicit RoomDataBuffer(const Legacy::SharedFunctions &sharedFuncs);
     ~RoomDataBuffer();
 
-    void syncWithMap(const Map &map, const mctp::MapCanvasTexturesProxy &textures);
+    void syncWithMap(const Map &map, const mctp::MapCanvasTexturesProxy &textures, bool drawUnmappedExits);
     void setHighlights(const std::unordered_map<RoomId, NamedColorEnum> &highlights);
-    void render(OpenGL &gl,
-                const glm::mat4 &mvp,
-                int currentLayer,
-                bool drawUpperLayersTextured,
-                const Color &timeOfDayColor);
+    void renderLayer(OpenGL &gl,
+                     const glm::mat4 &mvp,
+                     int z,
+                     int currentLayer,
+                     bool drawUpperLayersTextured,
+                     const Color &timeOfDayColor,
+                     const glm::vec2 &minBounds,
+                     const glm::vec2 &maxBounds);
 
 private:
     void resize(size_t newSize);

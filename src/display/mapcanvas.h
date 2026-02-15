@@ -154,6 +154,7 @@ public:
 
 public:
     NODISCARD static MapCanvas *getPrimary();
+    NODISCARD const MapCanvasTextures &getTextures() const { return m_textures; }
 
 private:
     NODISCARD inline auto &getOpenGL() { return m_opengl; }

@@ -23,13 +23,13 @@ void main()
     float type = inType;
 
     // Bounds check in world space centered on player
-    // Spawning in a 10 room radius around the player, relative to player's Z
-    if (life <= 0.0 || distance(pos.xy, uPlayerPos.xy) > 12.0 || pos.z < uPlayerPos.z - 20.0
-        || pos.z > uPlayerPos.z + 60.0) {
+    // Spawning closer to the player's plane to match the "radius" feel
+    if (life <= 0.0 || distance(pos.xy, uPlayerPos.xy) > 12.0 || pos.z < uPlayerPos.z - 10.0
+        || pos.z > uPlayerPos.z + 18.0) {
         float h = hash(float(gl_VertexID) * 1.234 + life + uDeltaTime);
         pos.x = uPlayerPos.x + (hash(h) * 24.0 - 12.0);
         pos.y = uPlayerPos.y + (hash(h + 1.0) * 24.0 - 12.0);
-        pos.z = uPlayerPos.z + 20.0 + hash(h + 2.0) * 30.0;
+        pos.z = uPlayerPos.z + 8.0 + hash(h + 2.0) * 8.0;
 
         float totalIntensity = uWeatherIntensities.x + uWeatherIntensities.y;
         if (totalIntensity > 0.01) {
@@ -41,11 +41,12 @@ void main()
 
         // World space velocities (rooms/sec)
         if (type < 0.5) {
-            vel = vec3(0.0, 0.0, -30.0 - hash(h + 4.0) * 10.0);
-            life = 4.0;
+            // Rain: Added horizontal component (slant) to look like original fullscreen shader
+            vel = vec3(5.0, 3.0, -30.0 - hash(h + 4.0) * 10.0);
+            life = 2.0;
         } else {
-            vel = vec3((hash(h + 4.0) - 0.5) * 2.0, (hash(h + 5.0) - 0.5) * 2.0, -5.0 - hash(h + 6.0) * 5.0);
-            life = 15.0;
+            vel = vec3((hash(h + 4.0) - 0.5) * 2.5, (hash(h + 5.0) - 0.5) * 2.5, -5.0 - hash(h + 6.0) * 5.0);
+            life = 10.0;
         }
     }
 

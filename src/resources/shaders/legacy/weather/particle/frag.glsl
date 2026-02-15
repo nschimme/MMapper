@@ -28,7 +28,7 @@ void main()
 
         // Original-like rain color: vec4(0.6, 0.6, 1.0, 0.6)
         vFragmentColor = vec4(0.6, 0.6, 1.0,
-                              streak * 0.6 * uWeatherIntensity * uWeatherIntensities.x * darkBoost);
+                              streak * 0.8 * uWeatherIntensity * uWeatherIntensities.x * darkBoost);
     } else {
         // Snow: soft circle
         float dist = length(p);
@@ -37,6 +37,6 @@ void main()
 
         // Original-like snow color: vec4(1.0, 1.0, 1.1, 0.8)
         vFragmentColor = vec4(1.0, 1.0, 1.1,
-                              flake * 0.8 * uWeatherIntensity * uWeatherIntensities.y * darkBoost);
+                              flake * 0.9 * uWeatherIntensity * uWeatherIntensities.y * darkBoost);
     }
 }

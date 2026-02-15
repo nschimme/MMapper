@@ -922,22 +922,31 @@ void MapCanvas::paintWeather()
     if (!m_invViewProj.has_value()) {
         m_invViewProj = glm::inverse(m_viewProj);
     }
-    prog.setMatrix("uInvViewProj", m_invViewProj.value());
-    prog.setVec3("uPlayerPos", m_data.tryGetPosition().value_or(Coordinate{}).to_vec3());
+    if (prog.hasUniform("uInvViewProj"))
+        prog.setMatrix("uInvViewProj", m_invViewProj.value());
+    if (prog.hasUniform("uPlayerPos"))
+        prog.setVec3("uPlayerPos", m_data.tryGetPosition().value_or(Coordinate{}).to_vec3());
 
     const bool want3D = getConfig().canvas.advanced.use3D.get();
     const float zScale = want3D ? getConfig().canvas.advanced.layerHeight.getFloat() : 7.0f;
-    prog.setFloat("uZScale", zScale);
+    if (prog.hasUniform("uZScale"))
+        prog.setFloat("uZScale", zScale);
 
-    prog.setFloat("uTime", m_weatherState.animationTime);
-    prog.setFloat("uCloudsIntensity", m_weatherState.cloudsIntensity);
-    prog.setFloat("uFogIntensity", m_weatherState.fogIntensity);
-    prog.setColor("uTimeOfDayColor", todColor);
-    prog.setViewport("uPhysViewport", funcs.getPhysicalViewport());
+    if (prog.hasUniform("uTime"))
+        prog.setFloat("uTime", m_weatherState.animationTime);
+    if (prog.hasUniform("uCloudsIntensity"))
+        prog.setFloat("uCloudsIntensity", m_weatherState.cloudsIntensity);
+    if (prog.hasUniform("uFogIntensity"))
+        prog.setFloat("uFogIntensity", m_weatherState.fogIntensity);
+    if (prog.hasUniform("uTimeOfDayColor"))
+        prog.setColor("uTimeOfDayColor", todColor);
+    if (prog.hasUniform("uPhysViewport"))
+        prog.setViewport("uPhysViewport", funcs.getPhysicalViewport());
 
     funcs.glActiveTexture(GL_TEXTURE1);
     m_textures.weather_noise->bind();
-    prog.setTexture("uNoiseTexture", 1);
+    if (prog.hasUniform("uNoiseTexture"))
+        prog.setTexture("uNoiseTexture", 1);
 
     const auto rs
         = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withDepthFunction(std::nullopt);
@@ -1336,9 +1345,12 @@ void MapCanvas::paintParticleSimulation(float dt)
     auto &simProg = shaders.getParticleSimulationShader();
     auto binder = simProg->bind();
 
-    simProg->setFloat("uDeltaTime", dt);
-    simProg->setFloat("uTime", m_weatherState.animationTime);
-    simProg->setVec3("uPlayerPos", m_data.tryGetPosition().value_or(Coordinate{}).to_vec3());
+    if (simProg->hasUniform("uDeltaTime"))
+        simProg->setFloat("uDeltaTime", dt);
+    if (simProg->hasUniform("uTime"))
+        simProg->setFloat("uTime", m_weatherState.animationTime);
+    if (simProg->hasUniform("uPlayerPos"))
+        simProg->setVec3("uPlayerPos", m_data.tryGetPosition().value_or(Coordinate{}).to_vec3());
 
     funcs.glEnable(GL_RASTERIZER_DISCARD);
 
@@ -1366,12 +1378,18 @@ void MapCanvas::paintParticleRender()
     auto &partProg = shaders.getParticleRenderShader();
     auto binder = partProg->bind();
 
-    partProg->setMatrix("uViewProj", m_viewProj);
-    partProg->setFloat("uRainIntensity", m_weatherState.rainIntensity);
-    partProg->setFloat("uSnowIntensity", m_weatherState.snowIntensity);
-    partProg->setColor("uTimeOfDayColor", calculateTimeOfDayColor());
-    partProg->setVec3("uPlayerPos", playerPos);
-    partProg->setFloat("uTime", m_weatherState.animationTime);
+    if (partProg->hasUniform("uViewProj"))
+        partProg->setMatrix("uViewProj", m_viewProj);
+    if (partProg->hasUniform("uRainIntensity"))
+        partProg->setFloat("uRainIntensity", m_weatherState.rainIntensity);
+    if (partProg->hasUniform("uSnowIntensity"))
+        partProg->setFloat("uSnowIntensity", m_weatherState.snowIntensity);
+    if (partProg->hasUniform("uTimeOfDayColor"))
+        partProg->setColor("uTimeOfDayColor", calculateTimeOfDayColor());
+    if (partProg->hasUniform("uPlayerPos"))
+        partProg->setVec3("uPlayerPos", playerPos);
+    if (partProg->hasUniform("uTime"))
+        partProg->setFloat("uTime", m_weatherState.animationTime);
 
     funcs.enableProgramPointSize(true);
     funcs.glEnable(GL_BLEND);

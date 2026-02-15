@@ -35,8 +35,8 @@ void main()
     float type = inType;
 
     if (life <= 0.0) {
-        // Initialize based on ID to create a stable grid/distribution
-        float h = hash11(float(gl_VertexID) * 0.123);
+        // Initialize based on ID and time to create a stable grid/distribution
+        float h = hash11(float(gl_VertexID) * 0.123 + uTime * 0.0001);
         type = step(0.5, hash11(h + 0.4));
 
         pos.x = (hash11(h + 0.1) - 0.5) * boxSize.x;

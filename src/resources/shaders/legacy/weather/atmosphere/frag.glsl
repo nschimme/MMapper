@@ -16,7 +16,7 @@ void main()
 
     // Soft distance mask to fade out weather far from the player
     float distToPlayer = distance(worldPos, uPlayerPos.xy);
-    float localMask = smoothstep(150.0, 100.0, distToPlayer);
+    float localMask = smoothstep(12.0, 10.0, distToPlayer);
 
     // Boost visibility during dark hours (dusk/night)
     float darkBoost = 1.0 + uTimeOfDayColor.a * 1.5;

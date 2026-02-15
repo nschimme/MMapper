@@ -15,7 +15,8 @@ void main()
 
     if (vType < 0.5) {
         // Rain: streak aligned with velocity
-        vec2 dir = normalize(vVelScreen);
+        float len = length(vVelScreen);
+        vec2 dir = len > 0.0001 ? vVelScreen / len : vec2(0.0, 1.0);
         float distToLine = length(p - dot(p, dir) * dir);
 
         // Elongated streak: very thin horizontally relative to the 'dir'

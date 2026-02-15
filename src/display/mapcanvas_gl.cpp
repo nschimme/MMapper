@@ -1380,6 +1380,7 @@ void MapCanvas::paintParticleRender()
                       glm::vec4(m_weatherState.rainIntensity, m_weatherState.snowIntensity, 0, 0));
     partProg->setColor("uTimeOfDayColor", calculateTimeOfDayColor());
 
+    funcs.enableProgramPointSize(true);
     funcs.glEnable(GL_BLEND);
     funcs.glBlendFunc(GL_SRC_ALPHA, GL_ONE);
     funcs.glDepthMask(GL_FALSE);
@@ -1388,6 +1389,7 @@ void MapCanvas::paintParticleRender()
     funcs.glDrawArrays(GL_POINTS, 0, MAX_PARTICLES);
     funcs.glBindVertexArray(0);
 
+    funcs.enableProgramPointSize(false);
     funcs.glDepthMask(GL_TRUE);
     funcs.glDisable(GL_BLEND);
 }

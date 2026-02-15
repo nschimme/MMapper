@@ -23,12 +23,13 @@ void main()
     float type = inType;
 
     // Bounds check in world space centered on player
-    // Spawning in a 100x100 rooms area around the player
-    if (life <= 0.0 || distance(pos.xy, uPlayerPos.xy) > 60.0 || pos.z < -20.0 || pos.z > 120.0) {
+    // Spawning in a 10 room radius around the player, relative to player's Z
+    if (life <= 0.0 || distance(pos.xy, uPlayerPos.xy) > 12.0 || pos.z < uPlayerPos.z - 20.0
+        || pos.z > uPlayerPos.z + 60.0) {
         float h = hash(float(gl_VertexID) * 1.234 + life + uDeltaTime);
-        pos.x = uPlayerPos.x + (hash(h) * 120.0 - 60.0);
-        pos.y = uPlayerPos.y + (hash(h + 1.0) * 120.0 - 60.0);
-        pos.z = 80.0 + hash(h + 2.0) * 20.0;
+        pos.x = uPlayerPos.x + (hash(h) * 24.0 - 12.0);
+        pos.y = uPlayerPos.y + (hash(h + 1.0) * 24.0 - 12.0);
+        pos.z = uPlayerPos.z + 20.0 + hash(h + 2.0) * 30.0;
 
         float totalIntensity = uWeatherIntensities.x + uWeatherIntensities.y;
         if (totalIntensity > 0.01) {

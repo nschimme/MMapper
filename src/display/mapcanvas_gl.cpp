@@ -1344,6 +1344,7 @@ void MapCanvas::paintParticleSimulation(float dt)
     auto binder = simProg->bind();
 
     simProg->setFloat("uDeltaTime", dt);
+    simProg->setFloat("uTime", m_weatherState.animationTime);
     simProg->setVec3("uPlayerPos", m_data.tryGetPosition().value_or(Coordinate{}).to_vec3());
     simProg->setVec4("uWeatherIntensities",
                      glm::vec4(m_weatherState.rainIntensity, m_weatherState.snowIntensity, 0, 0));

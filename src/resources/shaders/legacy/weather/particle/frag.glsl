@@ -32,11 +32,13 @@ void main()
     } else {
         // Snow: soft circle
         float dist = length(p);
-        // Original-like flake: 1.0 - smoothstep(0.1, 0.2, dist) but adjusted for PointSize
         float flake = 1.0 - smoothstep(0.3, 0.8, dist);
 
         // Original-like snow color: vec4(1.0, 1.0, 1.1, 0.8)
         vFragmentColor = vec4(1.0, 1.0, 1.1,
                               flake * 0.9 * uWeatherIntensity * uWeatherIntensities.y * darkBoost);
     }
+
+    // Fade out as it dies
+    vFragmentColor.a *= smoothstep(0.0, 0.2, vLife);
 }

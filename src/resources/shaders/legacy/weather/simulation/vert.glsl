@@ -1,4 +1,5 @@
 uniform float uDeltaTime;
+uniform float uTime;
 uniform vec3 uPlayerPos;
 uniform vec4 uWeatherIntensities; // x: rain, y: snow
 
@@ -12,7 +13,13 @@ out vec3 outVel;
 out float outLife;
 out float outType;
 
-float hash(float n) { return fract(sin(n) * 43758.5453123); }
+float hash11(float p)
+{
+    p = fract(p * .1031);
+    p *= p + 33.33;
+    p *= p + p;
+    return fract(p);
+}
 
 void main()
 {
@@ -23,42 +30,46 @@ void main()
     float type = inType;
 
     // Bounds check in world space centered on player
-    // Spawning closer to the player's plane to match the "radius" feel
-    // Increased vertical span slightly for better depth in 3D
-    if (life <= 0.0 || distance(pos.xy, uPlayerPos.xy) > 12.0 || pos.z < uPlayerPos.z - 15.0
-        || pos.z > uPlayerPos.z + 25.0) {
-        float h = hash(float(gl_VertexID) * 1.234 + life + uDeltaTime);
-        pos.x = uPlayerPos.x + (hash(h) * 24.0 - 12.0);
-        pos.y = uPlayerPos.y + (hash(h + 1.0) * 24.0 - 12.0);
-        pos.z = uPlayerPos.z + 10.0 + hash(h + 2.0) * 15.0;
+    if (life <= 0.0 || distance(pos.xy, uPlayerPos.xy) > 15.0 || pos.z < uPlayerPos.z - 15.0
+        || pos.z > uPlayerPos.z + 30.0) {
+        float h = hash11(float(gl_VertexID) * 0.123 + uTime * 0.01);
 
         float totalIntensity = uWeatherIntensities.x + uWeatherIntensities.y;
-        if (totalIntensity > 0.01) {
-             float pRain = uWeatherIntensities.x / totalIntensity;
-             type = step(pRain, hash(h + 3.0)); // 0 for rain, 1 for snow
-        } else {
-             life = -1.0;
-        }
+        float spawnProb = hash11(h + 0.543);
 
-        // World space velocities (rooms/sec)
-        if (type < 0.5) {
-            // Rain: Increased horizontal wind component to ensure slant in 2D top-down mode
-            vel = vec3(25.0 + (hash(h + 4.0) - 0.5) * 10.0,
-                       18.0 + (hash(h + 5.0) - 0.5) * 8.0,
-                       -45.0 - hash(h + 6.0) * 15.0);
-            life = 1.5; // Fast fall
+        if (spawnProb < totalIntensity) {
+            pos.x = uPlayerPos.x + (hash11(h + 0.1) * 30.0 - 15.0);
+            pos.y = uPlayerPos.y + (hash11(h + 0.2) * 30.0 - 15.0);
+            pos.z = uPlayerPos.z + 15.0 + hash11(h + 0.3) * 15.0;
+
+            float pRain = uWeatherIntensities.x / max(0.001, totalIntensity);
+            type = step(pRain, hash11(h + 0.4)); // 0 for rain, 1 for snow
+
+            // World space velocities (rooms/sec)
+            if (type < 0.5) {
+                // Rain: Significant horizontal wind component for 2D slant
+                vel = vec3(22.0 + (hash11(h + 0.5) - 0.5) * 8.0,
+                           15.0 + (hash11(h + 0.6) - 0.5) * 6.0,
+                           -40.0 - hash11(h + 0.7) * 10.0);
+                life = 2.0;
+            } else {
+                // Snow: Drifting
+                vel = vec3((hash11(h + 0.5) - 0.5) * 10.0,
+                           (hash11(h + 0.6) - 0.5) * 10.0,
+                           -4.0 - hash11(h + 0.7) * 4.0);
+                life = 12.0;
+            }
         } else {
-            // Snow: drifting more horizontally and slower fall
-            vel = vec3((hash(h + 4.0) - 0.5) * 12.0,
-                       (hash(h + 5.0) - 0.5) * 12.0,
-                       -5.0 - hash(h + 6.0) * 5.0);
-            life = 10.0;
+            life = -1.0; // Inactive
+            pos = uPlayerPos; // Keep near player for floating point stability
+            vel = vec3(0.0);
         }
     }
 
     // Snow swaying
-    if (type > 0.5) {
-        pos.x += sin(pos.z * 0.2 + life) * 0.05;
+    if (type > 0.5 && life > 0.0) {
+        pos.x += sin(uTime * 1.5 + pos.z * 0.5) * 0.02;
+        pos.y += cos(uTime * 1.2 + pos.x * 0.5) * 0.02;
     }
 
     outPos = pos;

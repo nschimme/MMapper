@@ -87,28 +87,6 @@ private:
                 return std::get<DiffQuadVector>(*this);
             }
             NODISCARD const UniqueMesh &getMesh() const { return std::get<UniqueMesh>(*this); }
-
-            void render(OpenGL &gl, const MMTextureId texId)
-            {
-                if (empty()) {
-                    assert(false);
-                    return;
-                }
-
-                if (hasData()) {
-                    *this = gl.createRoomQuadTexBatch(getData(), texId);
-                    assert(hasMesh());
-                    // REVISIT: rendering immediately after uploading the mesh may lag,
-                    // so consider delaying until the data is already on the GPU.
-                }
-
-                if (!hasMesh()) {
-                    assert(false);
-                    return;
-                }
-                auto &mesh = getMesh();
-                mesh.render(gl.getDefaultRenderState().withBlend(BlendModeEnum::TRANSPARENCY));
-            }
         };
 
         struct NODISCARD HighlightDiff final

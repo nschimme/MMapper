@@ -23,6 +23,7 @@ class RoomDataBuffer final
 private:
     Legacy::SharedFunctions m_sharedFuncs;
     std::unique_ptr<Legacy::MegaRoomMesh<MegaRoomVert>> m_mesh;
+    std::vector<MegaRoomVert> m_cpuBuffer;
     size_t m_capacity = 0;
     Map m_lastMap;
     bool m_initialized = false;
@@ -32,6 +33,7 @@ public:
     ~RoomDataBuffer();
 
     void syncWithMap(const Map &map, const mctp::MapCanvasTexturesProxy &textures);
+    void setHighlights(const std::unordered_map<RoomId, NamedColorEnum> &highlights);
     void render(OpenGL &gl,
                 const glm::mat4 &mvp,
                 int currentLayer,

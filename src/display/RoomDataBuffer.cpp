@@ -67,8 +67,8 @@ void RoomDataBuffer::resize(size_t newSize)
     if (newSize <= m_capacity)
         return;
     m_capacity = newSize;
-    std::vector<MegaRoomVert> empty(m_capacity);
-    m_mesh->setStatic(DrawModeEnum::INSTANCED_QUADS, empty);
+    m_cpuBuffer.resize(m_capacity);
+    m_mesh->setStatic(DrawModeEnum::INSTANCED_QUADS, m_cpuBuffer);
 }
 
 MegaRoomVert RoomDataBuffer::packRoom(const RoomHandle &room,
@@ -79,6 +79,7 @@ MegaRoomVert RoomDataBuffer::packRoom(const RoomHandle &room,
         return v;
 
     v.pos = room.getPosition().to_ivec3();
+    v.highlight = static_cast<uint32_t>(NamedColorEnum::TRANSPARENT);
 
     // Terrain and Trail
     const auto roomTerrainType = room.getTerrainType();
@@ -155,6 +156,38 @@ MegaRoomVert RoomDataBuffer::packRoom(const RoomHandle &room,
     return v;
 }
 
+void RoomDataBuffer::setHighlights(const std::unordered_map<RoomId, NamedColorEnum> &highlights)
+{
+    if (m_capacity == 0)
+        return;
+
+    std::vector<uint32_t> changedIndices;
+    for (const auto &[id, color] : highlights) {
+        const uint32_t idx = id.asUint32();
+        if (idx < m_capacity) {
+            const uint32_t colorVal = static_cast<uint32_t>(color);
+            if (m_cpuBuffer[idx].highlight != colorVal) {
+                m_cpuBuffer[idx].highlight = colorVal;
+                changedIndices.push_back(idx);
+            }
+        }
+    }
+
+    if (changedIndices.empty())
+        return;
+
+    // Optimization: if many changed, just update all?
+    if (changedIndices.size() > m_capacity / 2) {
+        m_mesh->update(0, m_cpuBuffer);
+    } else {
+        // Individual updates
+        for (const uint32_t idx : changedIndices) {
+            std::vector<MegaRoomVert> batch = {m_cpuBuffer[idx]};
+            m_mesh->update(static_cast<qopengl_GLintptr>(idx), batch);
+        }
+    }
+}
+
 void RoomDataBuffer::syncWithMap(const Map &map, const mctp::MapCanvasTexturesProxy &textures)
 {
     const size_t nextId = map.getWorld().getNextId().asUint32();
@@ -164,11 +197,11 @@ void RoomDataBuffer::syncWithMap(const Map &map, const mctp::MapCanvasTexturesPr
     }
 
     if (!m_initialized) {
-        std::vector<MegaRoomVert> all(m_capacity);
+        m_cpuBuffer.assign(m_capacity, MegaRoomVert{});
         map.getRooms().for_each([&](const RoomId id) {
-            all[id.asUint32()] = packRoom(map.getRoomHandle(id), textures);
+            m_cpuBuffer[id.asUint32()] = packRoom(map.getRoomHandle(id), textures);
         });
-        m_mesh->update(0, all);
+        m_mesh->update(0, m_cpuBuffer);
         m_initialized = true;
     } else {
         std::vector<RoomId> changed;
@@ -178,15 +211,22 @@ void RoomDataBuffer::syncWithMap(const Map &map, const mctp::MapCanvasTexturesPr
         });
 
         for (const auto id : changed) {
-            std::vector<MegaRoomVert> batch = {packRoom(map.getRoomHandle(id), textures)};
-            m_mesh->update(static_cast<qopengl_GLintptr>(id.asUint32()), batch);
+            const uint32_t idx = id.asUint32();
+            MegaRoomVert v = packRoom(map.getRoomHandle(id), textures);
+            // preserve highlight
+            v.highlight = m_cpuBuffer[idx].highlight;
+            m_cpuBuffer[idx] = v;
+            std::vector<MegaRoomVert> batch = {v};
+            m_mesh->update(static_cast<qopengl_GLintptr>(idx), batch);
         }
 
         // Deletions
         m_lastMap.getRooms().for_each([&](const RoomId id) {
             if (!map.findRoomHandle(id)) {
-                std::vector<MegaRoomVert> batch = {MegaRoomVert{}}; // clear it
-                m_mesh->update(static_cast<qopengl_GLintptr>(id.asUint32()), batch);
+                const uint32_t idx = id.asUint32();
+                m_cpuBuffer[idx] = MegaRoomVert{};
+                std::vector<MegaRoomVert> batch = {m_cpuBuffer[idx]};
+                m_mesh->update(static_cast<qopengl_GLintptr>(idx), batch);
             }
         });
     }

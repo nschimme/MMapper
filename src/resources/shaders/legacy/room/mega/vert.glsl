@@ -8,6 +8,7 @@ in uint aLoadFlags;
 in uint aWallInfo0;
 in uint aWallInfo1;
 in uint aWallInfo2;
+in uint aHighlight;
 
 uniform mat4 uViewProj;
 uniform int uCurrentLayer;
@@ -20,6 +21,7 @@ flat out uint vFlags;
 flat out uint vMobFlags;
 flat out uint vLoadFlags;
 flat out uint vWallInfo[3];
+flat out uint vHighlight;
 
 void main() {
     // Quad vertices: 0, 1, 2, 3 (Triangle Fan)
@@ -46,4 +48,5 @@ void main() {
     vWallInfo[0] = aWallInfo0;
     vWallInfo[1] = aWallInfo1;
     vWallInfo[2] = aWallInfo2;
+    vHighlight = aHighlight;
 }

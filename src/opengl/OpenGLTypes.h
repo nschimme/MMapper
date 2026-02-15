@@ -82,6 +82,7 @@ struct NODISCARD MegaRoomVert final
     uint32_t mob_flags;     // bitmask
     uint32_t load_flags;    // bitmask
     uint32_t wall_info[3];  // 6 exits * 16 bits
+    uint32_t highlight;     // NamedColorEnum
 };
 
 using ColoredTexVertVector = std::vector<ColoredTexVert>;

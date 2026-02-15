@@ -11,6 +11,7 @@ flat in uint vFlags;
 flat in uint vMobFlags;
 flat in uint vLoadFlags;
 flat in uint vWallInfo[3];
+flat in uint vHighlight;
 
 uniform sampler2DArray uTerrainRoadArray;
 uniform sampler2DArray uTrailArray;
@@ -55,8 +56,11 @@ void main() {
     // Time of day / Light tint
     vec4 tint = uTimeOfDayColor;
     if ((vFlags & 1u) != 0u) {
-        // Dark room tint
-        tint *= vec4(0.5, 0.5, 0.8, 1.0);
+        // Dark room tint (NamedColorEnum::ROOM_DARK)
+        tint *= uColors[60]; // ROOM_DARK = 60
+    } else if ((vFlags & 2u) != 0u) {
+        // No sundeath tint (NamedColorEnum::ROOM_NO_SUNDEATH)
+        tint *= uColors[61]; // ROOM_NO_SUNDEATH = 61
     }
     color *= tint;
 
@@ -128,6 +132,12 @@ void main() {
             vec4 iconColor = texture(uExitIconArray, vec3(vTexCoord, float(iconIdx)));
             color = mix(color, iconColor, iconColor.a);
         }
+    }
+
+    // Highlights (Diff)
+    if (vHighlight != 0u) {
+        vec4 hColor = uColors[vHighlight];
+        color = mix(color, hColor, hColor.a);
     }
 
     fragColor = color * fade;

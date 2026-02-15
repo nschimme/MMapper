@@ -804,15 +804,25 @@ void MapCanvas::paintDifferences()
     const auto &current = m_data.getCurrentMap();
 
     diff.maybeAsyncUpdate(saved, current);
-    if (!diff.hasRelatedDiff(saved)) {
-        return;
-    }
 
-    auto &highlight = deref(diff.highlight);
-    auto &gl = getOpenGL();
-
-    if (auto &highlights = highlight.highlights; !highlights.empty()) {
-        highlights.render(gl, m_textures.room_highlight->getArrayPosition().array);
+    if (diff.highlight && m_roomDataBuffer) {
+        auto &highlightData = deref(diff.highlight).highlights;
+        if (highlightData.hasData()) {
+            // Convert vector of RoomQuadTexVert to unordered_map of RoomId -> NamedColorEnum
+            std::unordered_map<RoomId, NamedColorEnum> highlights;
+            for (const auto &v : highlightData.getData()) {
+                const auto pos = Coordinate{v.vertTexCol.x, v.vertTexCol.y, v.vertTexCol.z};
+                if (const auto r = current.findRoomHandle(pos)) {
+                    const uint8_t colorId = static_cast<uint8_t>(v.vertTexCol.w >> 8);
+                    highlights[r.getId()] = static_cast<NamedColorEnum>(colorId);
+                }
+            }
+            m_roomDataBuffer->setHighlights(highlights);
+            // Clear the data so we don't do this every frame
+            deref(diff.highlight).highlights = Diff::MaybeDataOrMesh{};
+        } else if (!highlightData.empty() && !highlightData.hasMesh()) {
+            // It has a mesh (old path)? We should avoid this if possible.
+        }
     }
 }
 

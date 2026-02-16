@@ -187,6 +187,11 @@ private:
         float fogIntensity = 0.0f;
         float moonIntensity = 0.0f;
 
+        float gameRainIntensity = 0.0f;
+        float gameSnowIntensity = 0.0f;
+        float gameCloudsIntensity = 0.0f;
+        float gameFogIntensity = 0.0f;
+
         float targetRainIntensity = 0.0f;
         float targetSnowIntensity = 0.0f;
         float targetCloudsIntensity = 0.0f;

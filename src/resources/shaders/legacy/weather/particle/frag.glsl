@@ -7,7 +7,6 @@ in float vType;
 in float vLife;
 in vec2 vLocalCoord;
 in float vLocalMask;
-in vec2 vPos;
 
 uniform float uRainIntensity;
 uniform float uSnowIntensity;

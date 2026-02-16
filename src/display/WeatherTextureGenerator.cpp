@@ -32,9 +32,9 @@ inline float noise(float x, float y, int size)
     float fx = x - ix;
     float fy = y - iy;
 
-    // Quintic interpolation curve: f = f * f * (3.0 - 2.0 * f)
-    float sx = fx * fx * (3.0f - 2.0f * fx);
-    float sy = fy * fy * (3.0f - 2.0f * fy);
+    // Quintic interpolation curve: 6t^5 - 15t^4 + 10t^3
+    float sx = fx * fx * fx * (fx * (fx * 6.0f - 15.0f) + 10.0f);
+    float sy = fy * fy * fy * (fy * (fy * 6.0f - 15.0f) + 10.0f);
 
     auto get_hash = [&](float i, float j) {
         const float fsize = static_cast<float>(size);

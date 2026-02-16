@@ -12,16 +12,13 @@ uniform vec4 uPlayerPos;
 uniform float uZScale;
 uniform float uTime;
 
-out float vHash;
 out float vType;
 out float vLife;
 out vec2 vLocalCoord;
 out float vLocalMask;
-out vec2 vPos;
 
 void main()
 {
-    vHash = aHash;
     vType = aType;
     vLife = aLife;
     vLocalCoord = aQuadPos + 0.5;
@@ -37,7 +34,6 @@ void main()
         pos.x += sin(uTime * 1.2 + aHash * 6.28) * 0.4;
     }
 
-    vPos = pos;
     vec3 worldPos = vec3(pos + aQuadPos * size, uPlayerPos.z);
 
     float distToPlayer = distance(pos, uPlayerPos.xy);

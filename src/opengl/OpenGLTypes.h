@@ -25,6 +25,12 @@
 #include <QOpenGLTexture>
 #include <qopengl.h>
 
+struct NODISCARD Viewport final
+{
+    glm::ivec2 offset{};
+    glm::ivec2 size{};
+};
+
 struct NODISCARD TexVert final
 {
     glm::vec3 tex{};
@@ -226,6 +232,22 @@ struct NODISCARD GLRenderState final
         // glEnable(TEXTURE_2D), or glEnable(TEXTURE_3D)
         Textures textures;
         std::optional<float> pointSize;
+
+        // Weather
+        struct NODISCARD Weather final
+        {
+            glm::mat4 invViewProj{1.0f};
+            glm::vec3 playerPos{0.0f};
+            float zScale = 1.0f;
+            Viewport physViewport;
+            float time = 0.0f;
+            float rainIntensity = 0.0f;
+            float snowIntensity = 0.0f;
+            float cloudsIntensity = 0.0f;
+            float fogIntensity = 0.0f;
+            float deltaTime = 0.0f;
+            Color todColor;
+        } weather;
     };
 
     Uniforms uniforms;
@@ -397,12 +419,6 @@ public:
             mesh.render(rs);
         }
     }
-};
-
-struct NODISCARD Viewport final
-{
-    glm::ivec2 offset{};
-    glm::ivec2 size{};
 };
 
 static constexpr const size_t VERTS_PER_LINE = 2;

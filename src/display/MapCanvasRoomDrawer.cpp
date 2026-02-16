@@ -888,14 +888,13 @@ struct NODISCARD InternalData final : public IMapBatchesFinisher
 public:
     std::unordered_map<int, LayerMeshesIntermediate> batchedMeshes;
     BatchedConnections connectionDrawerBuffers;
-    std::unordered_map<int, RoomNameBatchIntermediate> roomNameBatches;
+    std::unordered_map<int, std::vector<GLText>> roomNameBatches;
 
 private:
-    void virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const final;
+    void virt_finish(MapBatches &output, OpenGL &gl) const final;
 };
 
 static void generateAllLayerMeshes(InternalData &internalData,
-                                   const FontMetrics &font,
                                    const LayerToRooms &layerToRooms,
                                    const mctp::MapCanvasTexturesProxy &textures,
                                    const VisitRoomOptions &visitRoomOptions)
@@ -943,7 +942,7 @@ static void generateAllLayerMeshes(InternalData &internalData,
 
         {
             DECL_TIMER(t8, "generateAllLayerMeshes.loop.part4");
-            roomNameBatches[thisLayer] = rnb.getIntermediate(font);
+            roomNameBatches[thisLayer] = rnb.getNames();
         }
     }
 }
@@ -1084,7 +1083,7 @@ void LayerMeshes::render(const int thisLayer, const int focusedLayer)
     }
 }
 
-void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const
+void InternalData::virt_finish(MapBatches &output, OpenGL &gl) const
 {
     DECL_TIMER(t, "InternalData::virt_finish");
 
@@ -1106,21 +1105,19 @@ void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) con
     {
         DECL_TIMER(t2, "InternalData::virt_finish roomNameBatches");
         for (const auto &kv : roomNameBatches) {
-            const RoomNameBatchIntermediate &rnb = kv.second;
-            output.roomNameBatches[kv.first] = rnb.getMesh(font);
+            output.roomNameBatches[kv.first] = kv.second;
         }
     }
 }
 
 // NOTE: All of the lamda captures are copied, including the texture data!
 FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
-                                                     const std::shared_ptr<const FontMetrics> &font,
                                                      const Map &map)
 {
     const auto visitRoomOptions = getVisitRoomOptions();
 
     return std::async(std::launch::async,
-                      [textures, font, map, visitRoomOptions]() -> SharedMapBatchFinisher {
+                      [textures, map, visitRoomOptions]() -> SharedMapBatchFinisher {
                           ThreadLocalNamedColorRaii tlRaii{visitRoomOptions.canvasColors,
                                                            visitRoomOptions.colorSettings};
                           DECL_TIMER(t, "[ASYNC] generateAllLayerMeshes");
@@ -1142,24 +1139,17 @@ FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTextur
 
                           auto result = std::make_shared<InternalData>();
                           auto &data = deref(result);
-                          generateAllLayerMeshes(data,
-                                                 deref(font),
-                                                 layerToRooms,
-                                                 textures,
-                                                 visitRoomOptions);
+                          generateAllLayerMeshes(data, layerToRooms, textures, visitRoomOptions);
                           return SharedMapBatchFinisher{result};
                       });
 }
 
-void finish(const IMapBatchesFinisher &finisher,
-            std::optional<MapBatches> &opt_batches,
-            OpenGL &gl,
-            GLFont &font)
+void finish(const IMapBatchesFinisher &finisher, std::optional<MapBatches> &opt_batches, OpenGL &gl)
 {
     MapBatches &batches = opt_batches.emplace();
 
     // Note: This will call InternalData::finish;
     // if necessary for claritiy, we could replace this with Pimpl to make it a direct call,
     // but that won't change the cost of the virtual call.
-    finisher.finish(batches, gl, font);
+    finisher.finish(batches, gl);
 }

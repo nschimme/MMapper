@@ -158,15 +158,8 @@ void AbstractShaderProgram::setMatrix(const char *const name, const glm::mat4 &m
 void AbstractShaderProgram::setTexture(const char *const name, const int textureUnit)
 {
     assert(textureUnit >= 0);
-    const GLint uFontTextureLoc = getUniformLocation(name);
-    setUniform1iv(uFontTextureLoc, 1, &textureUnit);
-}
-
-void AbstractShaderProgram::setViewport(const char *const name, const Viewport &input_viewport)
-{
-    const glm::ivec4 viewport{input_viewport.offset, input_viewport.size};
     const GLint location = getUniformLocation(name);
-    setUniform4iv(location, 1, glm::value_ptr(viewport));
+    setUniform1iv(location, 1, &textureUnit);
 }
 
 } // namespace Legacy

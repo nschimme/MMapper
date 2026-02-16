@@ -92,28 +92,6 @@ private:
     }
 };
 
-struct NODISCARD FontShader final : public AbstractShaderProgram
-{
-private:
-    using Base = AbstractShaderProgram;
-
-public:
-    using Base::AbstractShaderProgram;
-
-    ~FontShader() final;
-
-private:
-    void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final
-    {
-        assert(uniforms.textures[0] != INVALID_MM_TEXTURE_ID);
-        auto functions = Base::m_functions.lock();
-
-        setMatrix("uMVP3D", mvp);
-        setTexture("uFontTexture", 0);
-        setViewport("uPhysViewport", deref(functions).getPhysicalViewport());
-    }
-};
-
 struct NODISCARD PointShader final : public AbstractShaderProgram
 {
 public:
@@ -172,7 +150,6 @@ private:
     std::shared_ptr<RoomQuadTexShader> m_roomQuadTexShader;
 
 private:
-    std::shared_ptr<FontShader> m_font;
     std::shared_ptr<PointShader> m_point;
     std::shared_ptr<BlitShader> m_blit;
     std::shared_ptr<FullScreenShader> m_fullscreen;
@@ -204,7 +181,6 @@ public:
     NODISCARD const std::shared_ptr<RoomQuadTexShader> &getRoomQuadTexShader();
 
 public:
-    NODISCARD const std::shared_ptr<FontShader> &getFontShader();
     NODISCARD const std::shared_ptr<PointShader> &getPointShader();
     NODISCARD const std::shared_ptr<BlitShader> &getBlitShader();
     NODISCARD const std::shared_ptr<FullScreenShader> &getFullScreenShader();

@@ -120,7 +120,7 @@ public:
         return m_id;
     }
 
-    // only called by MapCanvas::initTextures() and GLFont::init();
+    // only called by MapCanvas::initTextures();
     // don't forget to call OpenGL::setTextureLookup(), too.
     void setId(const MMTextureId id)
     {

@@ -10,7 +10,6 @@
 #include "../map/infomark.h"
 #include "../map/room.h"
 #include "../map/roomid.h"
-#include "../opengl/Font.h"
 #include "Connections.h"
 #include "IMapBatchesFinisher.h"
 #include "Infomarks.h"
@@ -175,11 +174,8 @@ struct NODISCARD Batches final
 };
 
 NODISCARD FutureSharedMapBatchFinisher
-generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
-                        const std::shared_ptr<const FontMetrics> &font,
-                        const Map &map);
+generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures, const Map &map);
 
 extern void finish(const IMapBatchesFinisher &finisher,
                    std::optional<MapBatches> &batches,
-                   OpenGL &gl,
-                   GLFont &font);
+                   OpenGL &gl);

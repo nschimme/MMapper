@@ -392,8 +392,9 @@ set(mmapper_SRCS
     mpi/findreplacewidget.h
     observer/gameobserver.cpp
     observer/gameobserver.h
-    opengl/Font.cpp
-    opengl/Font.h
+    opengl/GLText.h
+    opengl/ImGuiRenderer.cpp
+    opengl/ImGuiRenderer.h
     opengl/OpenGLProber.cpp
     opengl/OpenGLProber.h
     opengl/FontFormatFlags.h
@@ -411,8 +412,6 @@ set(mmapper_SRCS
     opengl/legacy/Binders.h
     opengl/legacy/FBO.cpp
     opengl/legacy/FBO.h
-    opengl/legacy/FontMesh3d.cpp
-    opengl/legacy/FontMesh3d.h
     opengl/legacy/Legacy.cpp
     opengl/legacy/Legacy.h
     opengl/legacy/FunctionsGL33.cpp
@@ -669,6 +668,15 @@ message("mmapper_SRCS=[${mmapper_SRCS}]")
 message("mmapper_global_SRCS=[${mmapper_global_SRCS}]")
 message("mmapper_map_SRCS=[${mmapper_map_SRCS}]")
 
+add_library(imgui_lib STATIC ${IMGUI_SOURCES})
+if(MSVC)
+    target_compile_options(imgui_lib PRIVATE /w /FS)
+else()
+    target_compile_options(imgui_lib PRIVATE -w)
+endif()
+target_include_directories(imgui_lib PUBLIC ${IMGUI_INCLUDE_DIR} ${IMGUI_INCLUDE_DIR}/backends)
+target_link_libraries(imgui_lib PRIVATE Qt6::OpenGL)
+
 add_library(mm_global STATIC ${mmapper_global_SRCS})
 add_library(mm_map STATIC ${mmapper_map_SRCS})
 
@@ -707,6 +715,7 @@ target_link_libraries(mmapper PUBLIC
     ${mm_libs}
     ${CMAKE_THREAD_LIBS_INIT}
     coverage_config
+    imgui_lib
 )
 
 set_target_properties(
@@ -737,9 +746,12 @@ set_target_properties(
 
 target_include_directories(mmapper SYSTEM PUBLIC ${GLM_INCLUDE_DIR})
 target_include_directories(mmapper SYSTEM PUBLIC ${IMMER_INCLUDE_DIR})
+target_include_directories(mmapper SYSTEM PUBLIC ${IMGUI_INCLUDE_DIR} ${IMGUI_INCLUDE_DIR}/backends)
+
 target_include_directories(mm_global SYSTEM PUBLIC
         ${GLM_INCLUDE_DIR}
         ${IMMER_INCLUDE_DIR}
+        ${IMGUI_INCLUDE_DIR}
         ${Qt6Core_INCLUDE_DIRS}
         ${Qt6Widgets_INCLUDE_DIRS}
         #${Qt6_Network_INCLUDE_DIRS}
@@ -749,6 +761,7 @@ target_include_directories(mm_global SYSTEM PUBLIC
 target_include_directories(mm_map SYSTEM PUBLIC
         ${GLM_INCLUDE_DIR}
         ${IMMER_INCLUDE_DIR}
+        ${IMGUI_INCLUDE_DIR}
         ${Qt6Core_INCLUDE_DIRS}
         ${Qt6Widgets_INCLUDE_DIRS}
         #${Qt6_Network_INCLUDE_DIRS}
@@ -778,6 +791,7 @@ if(NOT IMMER_FOUND)
     add_dependencies(mm_map immer)
     add_dependencies(mm_global immer)
 endif()
+
 
 if(WIN32)
     target_link_libraries(mmapper PRIVATE ws2_32)

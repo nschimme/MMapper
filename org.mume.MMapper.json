@@ -52,6 +52,22 @@
             ]
         },
         {
+            "name": "imgui",
+            "buildsystem": "simple",
+            "sources": [
+                {
+                    "type": "git",
+                    "url": "https://github.com/ocornut/imgui.git",
+                    "tag": "v1.91.5"
+                }
+            ],
+            "build-commands": [
+                "mkdir -p /app/include/imgui/backends",
+                "cp *.h *.cpp /app/include/imgui/",
+                "cp backends/imgui_impl_opengl3* /app/include/imgui/backends/"
+            ]
+        },
+        {
             "name": "libsecret",
             "buildsystem": "meson",
             "config-opts": [

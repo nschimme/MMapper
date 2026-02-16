@@ -8,8 +8,8 @@
 #include "../global/ChangeMonitor.h"
 #include "../global/Signal2.h"
 #include "../mapdata/roomselection.h"
-#include "../opengl/Font.h"
 #include "../opengl/FontFormatFlags.h"
+#include "../opengl/ImGuiRenderer.h"
 #include "../opengl/OpenGL.h"
 #include "Infomarks.h"
 #include "MapCanvasData.h"
@@ -48,7 +48,7 @@ class QWidget;
 class RoomSelFakeGL;
 
 class NODISCARD_QOBJECT MapCanvas final : public QOpenGLWindow,
-                                          private MapCanvasViewport,
+                                          public MapCanvasViewport,
                                           private MapCanvasInputState
 {
     Q_OBJECT
@@ -135,7 +135,7 @@ private:
 private:
     MapScreen m_mapScreen;
     OpenGL m_opengl;
-    GLFont m_glFont;
+    ImGuiRenderer m_imguiRenderer;
     Batches m_batches;
     MapCanvasTextures m_textures;
     MapData &m_data;
@@ -176,7 +176,6 @@ public:
 
 private:
     NODISCARD inline auto &getOpenGL() { return m_opengl; }
-    NODISCARD inline auto &getGLFont() { return m_glFont; }
     void cleanupOpenGL();
 
 public:
@@ -213,6 +212,8 @@ protected:
     void mouseReleaseEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
+    void keyPressEvent(QKeyEvent *event) override;
+    void keyReleaseEvent(QKeyEvent *event) override;
     void touchEvent(QTouchEvent *event) override;
     bool event(QEvent *e) override;
 

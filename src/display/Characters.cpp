@@ -9,6 +9,7 @@
 #include "../map/roomid.h"
 #include "../mapdata/mapdata.h"
 #include "../mapdata/roomselection.h"
+#include "../opengl/ImGuiRenderer.h"
 #include "../opengl/LineRendering.h"
 #include "../opengl/OpenGL.h"
 #include "../opengl/OpenGLTypes.h"
@@ -316,7 +317,10 @@ void CharacterBatch::CharFakeGL::drawArrow(const bool fill, const bool beacon)
     drawQuadCommon(a, b, c, d, options);
 }
 
-void CharacterBatch::CharFakeGL::reallyDrawCharacters(OpenGL &gl, const MapCanvasTextures &textures)
+void CharacterBatch::CharFakeGL::reallyDrawCharacters(OpenGL &gl,
+                                                      const MapCanvasTextures &textures,
+                                                      MAYBE_UNUSED ImGuiRenderer &imgui,
+                                                      const MapCanvasViewport &viewport)
 {
     const auto blended_noDepth
         = GLRenderState().withDepthFunction(std::nullopt).withBlend(BlendModeEnum::TRANSPARENCY);
@@ -343,12 +347,53 @@ void CharacterBatch::CharFakeGL::reallyDrawCharacters(OpenGL &gl, const MapCanva
     }
 
     if (!m_screenSpaceArrows.empty()) {
-        // FIXME: add an option to auto-scale to DPR.
-        const float dpr = gl.getDevicePixelRatio();
-        for (auto &v : m_screenSpaceArrows) {
-            v.vert *= dpr;
+        const float height = static_cast<float>(viewport.height());
+
+        ImGui::SetNextWindowPos(ImVec2(0, 0));
+        ImGui::SetNextWindowSize(ImVec2(static_cast<float>(viewport.width()), height));
+        ImGui::Begin("##ScreenSpaceArrows",
+                     nullptr,
+                     ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground
+                         | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoSavedSettings);
+
+        ImDrawList *drawList = ImGui::GetWindowDrawList();
+        const auto tex = textures.char_arrows->get();
+        ImTextureID texID = static_cast<ImTextureID>(tex->textureId());
+
+        for (size_t i = 0; i < m_screenSpaceArrows.size(); i += 4) {
+            const auto &v0 = m_screenSpaceArrows[i];
+            auto optProjected = viewport.project(v0.base);
+            if (optProjected) {
+                ImVec2 center(optProjected->x, height - optProjected->y);
+                const glm::vec4 c = v0.color.getVec4();
+                ImU32 col = ImGui::ColorConvertFloat4ToU32(ImVec4(c.r, c.g, c.b, c.a));
+
+                ImVec2 p0(center.x + m_screenSpaceArrows[i].vert.x,
+                          center.y - m_screenSpaceArrows[i].vert.y);
+                ImVec2 p1(center.x + m_screenSpaceArrows[i + 1].vert.x,
+                          center.y - m_screenSpaceArrows[i + 1].vert.y);
+                ImVec2 p2(center.x + m_screenSpaceArrows[i + 2].vert.x,
+                          center.y - m_screenSpaceArrows[i + 2].vert.y);
+                ImVec2 p3(center.x + m_screenSpaceArrows[i + 3].vert.x,
+                          center.y - m_screenSpaceArrows[i + 3].vert.y);
+
+                drawList->AddImageQuad(texID,
+                                       p0,
+                                       p1,
+                                       p2,
+                                       p3,
+                                       ImVec2(m_screenSpaceArrows[i].tex.x,
+                                              1.0f - m_screenSpaceArrows[i].tex.y),
+                                       ImVec2(m_screenSpaceArrows[i + 1].tex.x,
+                                              1.0f - m_screenSpaceArrows[i + 1].tex.y),
+                                       ImVec2(m_screenSpaceArrows[i + 2].tex.x,
+                                              1.0f - m_screenSpaceArrows[i + 2].tex.y),
+                                       ImVec2(m_screenSpaceArrows[i + 3].tex.x,
+                                              1.0f - m_screenSpaceArrows[i + 3].tex.y),
+                                       col);
+            }
         }
-        gl.renderFont3d(textures.char_arrows, m_screenSpaceArrows);
+        ImGui::End();
         m_screenSpaceArrows.clear();
     }
 }
@@ -429,7 +474,7 @@ void MapCanvas::paintCharacters()
         drawGroupCharacters(characterBatch);
     });
 
-    characterBatch.reallyDraw(getOpenGL(), m_textures);
+    characterBatch.reallyDraw(getOpenGL(), m_textures, m_imguiRenderer, *this);
 }
 
 void MapCanvas::drawGroupCharacters(CharacterBatch &batch)

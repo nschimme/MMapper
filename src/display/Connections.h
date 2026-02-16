@@ -9,7 +9,7 @@
 #include "../map/RoomHandle.h"
 #include "../map/coordinate.h"
 #include "../map/roomid.h"
-#include "../opengl/Font.h"
+#include "../opengl/GLText.h"
 #include "../opengl/OpenGLTypes.h"
 
 #include <algorithm>
@@ -22,25 +22,7 @@
 
 #include <QString>
 
-class GLFont;
 class OpenGL;
-struct FontMetrics;
-
-struct NODISCARD RoomNameBatchIntermediate final
-{
-    std::vector<FontVert3d> verts;
-
-    NODISCARD UniqueMesh getMesh(GLFont &gl) const;
-    NODISCARD bool empty() const { return verts.empty(); }
-    void clear() { verts.clear(); }
-
-    template<typename T>
-    static void append(std::vector<T> &v, const std::vector<T> &other)
-    {
-        v.insert(v.end(), other.begin(), other.end());
-    }
-    void append(const std::vector<FontVert3d> &other) { append(verts, other); }
-};
 
 struct NODISCARD RoomNameBatch final
 {
@@ -61,11 +43,10 @@ public:
     void clear() { m_names.clear(); }
     NODISCARD bool empty() const { return m_names.empty(); }
 
-public:
-    NODISCARD RoomNameBatchIntermediate getIntermediate(const FontMetrics &font) const;
+    NODISCARD const std::vector<GLText> &getNames() const { return m_names; }
 };
 
-using BatchedRoomNames = std::unordered_map<int, UniqueMesh>;
+using BatchedRoomNames = std::unordered_map<int, std::vector<GLText>>;
 
 struct NODISCARD ConnectionDrawerColorBuffer final
 {

@@ -5,7 +5,6 @@
 #include "../global/RuleOf5.h"
 #include "../global/utils.h"
 #include "../map/coordinate.h"
-#include "../opengl/Font.h"
 #include "../opengl/OpenGLTypes.h"
 
 #include <cassert>
@@ -115,14 +114,20 @@ private:
         DELETE_CTORS_AND_ASSIGN_OPS(CharFakeGL);
 
     public:
-        void reallyDraw(OpenGL &gl, const MapCanvasTextures &textures)
+        void reallyDraw(OpenGL &gl,
+                        const MapCanvasTextures &textures,
+                        class ImGuiRenderer &imgui,
+                        const struct MapCanvasViewport &viewport)
         {
-            reallyDrawCharacters(gl, textures);
+            reallyDrawCharacters(gl, textures, imgui, viewport);
             reallyDrawPaths(gl);
         }
 
     private:
-        void reallyDrawCharacters(OpenGL &gl, const MapCanvasTextures &textures);
+        void reallyDrawCharacters(OpenGL &gl,
+                                  const MapCanvasTextures &textures,
+                                  class ImGuiRenderer &imgui,
+                                  const struct MapCanvasViewport &viewport);
         void reallyDrawPaths(OpenGL &gl);
 
     public:
@@ -214,8 +219,11 @@ public:
                             const Color color);
 
 public:
-    void reallyDraw(OpenGL &gl, const MapCanvasTextures &textures)
+    void reallyDraw(OpenGL &gl,
+                    const MapCanvasTextures &textures,
+                    class ImGuiRenderer &imgui,
+                    const struct MapCanvasViewport &viewport)
     {
-        m_fakeGL.reallyDraw(gl, textures);
+        m_fakeGL.reallyDraw(gl, textures, imgui, viewport);
     }
 };

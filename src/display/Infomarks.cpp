@@ -8,7 +8,6 @@
 #include "../map/coordinate.h"
 #include "../map/infomark.h"
 #include "../mapdata/mapdata.h"
-#include "../opengl/Font.h"
 #include "../opengl/FontFormatFlags.h"
 #include "../opengl/LineRendering.h"
 #include "../opengl/OpenGL.h"
@@ -124,7 +123,7 @@ BatchedInfomarksMeshes MapCanvas::getInfomarksMeshes()
     const auto &db = map.getInfomarkDb();
     for (auto &it : result) {
         const int layer = it.first;
-        InfomarksBatch batch{getOpenGL(), getGLFont()};
+        InfomarksBatch batch{getOpenGL()};
         db.getIdSet().for_each(
             [&](const InfomarkId id) { drawInfomark(batch, InfomarkHandle{db, id}, layer); });
         it.second = batch.getMeshes();
@@ -160,8 +159,7 @@ void InfomarksBatch::renderText(const glm::vec3 &pos,
                                 const FontFormatFlags fontFormatFlag,
                                 const int rotationAngle)
 {
-    assert(!m_text.locked);
-    m_text.text.emplace_back(pos, text, color, bgcolor, fontFormatFlag, rotationAngle);
+    m_text.emplace_back(pos, text, color, bgcolor, fontFormatFlag, rotationAngle);
 }
 
 InfomarksMeshes InfomarksBatch::getMeshes()
@@ -172,20 +170,16 @@ InfomarksMeshes InfomarksBatch::getMeshes()
     result.points = gl.createPointBatch(m_points);
     result.tris = gl.createColoredTriBatch(m_tris);
     result.quads = gl.createColoredQuadBatch(m_quads);
-
-    {
-        assert(!m_text.locked);
-        m_text.verts = m_font.getFontMeshIntermediate(m_text.text);
-        m_text.locked = true;
-    }
-    result.textMesh = m_font.getFontMesh(m_text.verts);
+    result.text = std::move(m_text);
 
     result.isValid = true;
 
     return result;
 }
 
-void InfomarksBatch::renderImmediate(const GLRenderState &state)
+void InfomarksBatch::renderImmediate(const GLRenderState &state,
+                                     ImGuiRenderer &imgui,
+                                     const MapCanvasViewport &viewport)
 {
     auto &gl = m_realGL;
 
@@ -195,15 +189,15 @@ void InfomarksBatch::renderImmediate(const GLRenderState &state)
     if (!m_quads.empty()) {
         gl.renderColoredQuads(m_quads, state);
     }
-    if (!m_text.text.empty()) {
-        m_font.render3dTextImmediate(m_text.text);
+    if (!m_text.empty()) {
+        imgui.draw3dText(viewport, m_text);
     }
     if (!m_points.empty()) {
         gl.renderPoints(m_points, state.withPointSize(INFOMARK_POINT_SIZE));
     }
 }
 
-void InfomarksMeshes::render()
+void InfomarksMeshes::render(ImGuiRenderer &imgui, const MapCanvasViewport &viewport)
 {
     if (!isValid) {
         return;
@@ -215,7 +209,7 @@ void InfomarksMeshes::render()
     points.render(common_state.withPointSize(INFOMARK_POINT_SIZE));
     tris.render(common_state);
     quads.render(common_state);
-    textMesh.render(common_state);
+    imgui.draw3dText(viewport, text);
 }
 
 void MapCanvas::drawInfomark(InfomarksBatch &batch,
@@ -317,7 +311,7 @@ void MapCanvas::paintSelectedInfomarks()
         return;
     }
 
-    InfomarksBatch batch{getOpenGL(), getGLFont()};
+    InfomarksBatch batch{getOpenGL()};
     {
         // draw selections
         if (m_infoMarkSelection != nullptr) {
@@ -373,7 +367,7 @@ void MapCanvas::paintSelectedInfomarks()
             });
         }
     }
-    batch.renderImmediate(GLRenderState());
+    batch.renderImmediate(GLRenderState(), m_imguiRenderer, *this);
 }
 
 void MapCanvas::paintBatchedInfomarks()
@@ -390,7 +384,7 @@ void MapCanvas::paintBatchedInfomarks()
     }
 
     InfomarksMeshes &infomarksMeshes = it->second;
-    infomarksMeshes.render();
+    infomarksMeshes.render(m_imguiRenderer, *this);
 }
 
 void MapCanvas::updateInfomarkBatches()

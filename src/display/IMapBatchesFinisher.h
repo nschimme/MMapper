@@ -7,7 +7,6 @@
 #include <future>
 #include <memory>
 
-class GLFont;
 class OpenGL;
 struct MapBatches;
 
@@ -17,13 +16,10 @@ public:
     virtual ~IMapBatchesFinisher();
 
 private:
-    virtual void virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const = 0;
+    virtual void virt_finish(MapBatches &output, OpenGL &gl) const = 0;
 
 public:
-    void finish(MapBatches &output, OpenGL &gl, GLFont &font) const
-    {
-        virt_finish(output, gl, font);
-    }
+    void finish(MapBatches &output, OpenGL &gl) const { virt_finish(output, gl); }
 };
 
 struct NODISCARD SharedMapBatchFinisher final : public std::shared_ptr<const IMapBatchesFinisher>

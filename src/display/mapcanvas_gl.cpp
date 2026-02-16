@@ -12,7 +12,6 @@
 #include "../global/utils.h"
 #include "../map/coordinate.h"
 #include "../mapdata/mapdata.h"
-#include "../opengl/Font.h"
 #include "../opengl/FontFormatFlags.h"
 #include "../opengl/OpenGL.h"
 #include "../opengl/OpenGLConfig.h"
@@ -120,7 +119,6 @@ void MapCanvas::cleanupOpenGL()
     // and it also owns the lifetime of some OpenGL objects (e.g. VBOs).
     m_batches.resetExistingMeshesAndIgnorePendingRemesh();
     m_textures.destroyAll();
-    getGLFont().cleanup();
     getOpenGL().cleanup();
     m_logger.reset();
 }
@@ -237,11 +235,8 @@ void MapCanvas::initializeGL()
     gl.initializeRenderer(static_cast<float>(QPaintDevice::devicePixelRatioF()));
     updateMultisampling();
 
-    // REVISIT: should the font texture have the lowest ID?
     initTextures();
-    auto &font = getGLFont();
-    font.setTextureId(allocateTextureId());
-    font.init();
+    m_imguiRenderer.initialize();
     updateTextures();
 
     // compile all shaders
@@ -550,8 +545,7 @@ void MapCanvas::updateMapBatches()
 
     auto getFuture = [this]() {
         MMLOG() << "[updateMapBatches] calling generateBatches";
-        return m_data.generateBatches(mctp::getProxy(m_textures),
-                                      getGLFont().getSharedFontMetrics());
+        return m_data.generateBatches(mctp::getProxy(m_textures));
     };
 
     remeshCookie.set(getFuture());
@@ -607,7 +601,7 @@ void MapCanvas::finishPendingMapBatches()
         const IMapBatchesFinisher &future = *pFuture;
         std::optional<MapBatches> &opt_mapBatches = m_batches.next_mapBatches;
         opt_mapBatches.reset();
-        finish(future, opt_mapBatches, getOpenGL(), getGLFont());
+        finish(future, opt_mapBatches, getOpenGL());
         assert(opt_mapBatches.has_value());
         m_data.saveSnapshot();
 
@@ -643,7 +637,15 @@ void MapCanvas::actuallyPaintGL()
     gl.clear(Color{getConfig().canvas.backgroundColor});
 
     if (m_data.isEmpty()) {
-        getGLFont().renderTextCentered("No map loaded");
+        m_imguiRenderer.draw2dText(
+            {GLText{glm::vec3{static_cast<float>(width()) * 0.5f * getOpenGL().getDevicePixelRatio(),
+                              static_cast<float>(height()) * 0.5f
+                                  * getOpenGL().getDevicePixelRatio(),
+                              0.f},
+                    "No map loaded",
+                    Colors::white,
+                    std::nullopt,
+                    FontFormatFlags{FontFormatFlagEnum::HALIGN_CENTER}}});
         return;
     }
 
@@ -788,7 +790,15 @@ void MapCanvas::paintMap()
 
     if (!m_batches.mapBatches.has_value()) {
         const QString msg = pending ? "Please wait... the map isn't ready yet." : "Batch error";
-        getGLFont().renderTextCentered(msg);
+        m_imguiRenderer.draw2dText(
+            {GLText{glm::vec3{static_cast<float>(width()) * 0.5f * getOpenGL().getDevicePixelRatio(),
+                              static_cast<float>(height()) * 0.5f
+                                  * getOpenGL().getDevicePixelRatio(),
+                              0.f},
+                    msg.toStdString(),
+                    Colors::white,
+                    std::nullopt,
+                    FontFormatFlags{FontFormatFlagEnum::HALIGN_CENTER}}});
         if (!pending) {
             // REVISIT: does this need a better fix?
             // pending already scheduled an update, but now we realize we need an update.
@@ -803,7 +813,15 @@ void MapCanvas::paintMap()
     if (pending) {
         if (m_batches.pendingUpdateFlashState.tick()) {
             const QString msg = "CAUTION: Async map update pending!";
-            getGLFont().renderTextCentered(msg);
+            m_imguiRenderer.draw2dText({GLText{glm::vec3{static_cast<float>(width()) * 0.5f
+                                                             * getOpenGL().getDevicePixelRatio(),
+                                                         static_cast<float>(height()) * 0.1f
+                                                             * getOpenGL().getDevicePixelRatio(),
+                                                         0.f},
+                                               msg.toStdString(),
+                                               Colors::red,
+                                               std::nullopt,
+                                               FontFormatFlags{FontFormatFlagEnum::HALIGN_CENTER}}});
         }
     }
 }
@@ -831,6 +849,8 @@ void MapCanvas::paintGL()
     }
 
     {
+        m_imguiRenderer.newFrame();
+
         if (showPerfStats) {
             optAfterTextures = Clock::now();
         }
@@ -879,19 +899,18 @@ void MapCanvas::paintGL()
     const auto h = height();
     const auto dpr = getOpenGL().getDevicePixelRatio();
 
-    auto &font = getGLFont();
     std::vector<GLText> text;
 
-    const auto lineHeight = font.getFontHeight();
-    const float rightMargin = float(w) * dpr
-                              - static_cast<float>(font.getGlyphAdvance('e').value_or(5));
+    // Use a reasonable default line height for performance stats
+    const float lineHeight = 18.0f * dpr;
+    const float rightMargin = static_cast<float>(w) * dpr - 10.0f * dpr;
 
     // x and y are in physical (device) pixels
     // TODO: change API to use logical pixels.
     auto y = lineHeight;
     const auto print = [lineHeight, rightMargin, &text, &y](const QString &msg) {
         text.emplace_back(glm::vec3(rightMargin, y, 0),
-                          mmqt::toStdStringLatin1(msg), // GL font is latin1
+                          msg.toStdString(),
                           Colors::white,
                           Colors::black.withAlpha(0.4f),
                           FontFormatFlags{FontFormatFlagEnum::HALIGN_RIGHT});
@@ -946,7 +965,9 @@ void MapCanvas::paintGL()
                             static_cast<double>(ctr.y),
                             static_cast<double>(ctr.z)));
 
-    font.render2dTextImmediate(text);
+    m_imguiRenderer.draw2dText(text);
+
+    m_imguiRenderer.render();
 }
 
 void MapCanvas::paintSelectionArea()
@@ -1032,8 +1053,8 @@ void MapCanvas::renderMapBatches()
     BatchedMeshes &batchedMeshes = batches.batchedMeshes;
 
     const auto drawLayer =
-        [&batches, &batchedMeshes, wantExtraDetail, wantDoorNames](const int thisLayer,
-                                                                   const int currentLayer) {
+        [this, &batches, &batchedMeshes, wantExtraDetail, wantDoorNames](const int thisLayer,
+                                                                         const int currentLayer) {
             const auto it_mesh = batchedMeshes.find(thisLayer);
             if (it_mesh != batchedMeshes.end()) {
                 LayerMeshes &meshes = it_mesh->second;
@@ -1055,8 +1076,8 @@ void MapCanvas::renderMapBatches()
                     BatchedRoomNames &roomNameBatches = batches.roomNameBatches;
                     const auto it_name = roomNameBatches.find(thisLayer);
                     if (it_name != roomNameBatches.end()) {
-                        auto &roomNameBatch = it_name->second;
-                        roomNameBatch.render(GLRenderState());
+                        const std::vector<GLText> &names = it_name->second;
+                        m_imguiRenderer.draw3dText(*this, names);
                     }
                 }
             }

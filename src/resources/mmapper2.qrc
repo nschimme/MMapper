@@ -6,12 +6,10 @@
         <file>LICENSE.OPENSSL</file>
         <file>LICENSE.QTKEYCHAIN</file>
         <file>emojis/short-codes.json</file>
-        <file>fonts/Cantarell18.fnt</file>
-        <file>fonts/Cantarell18_0.png</file>
-        <file>fonts/Cantarell27.fnt</file>
-        <file>fonts/Cantarell27_0.png</file>
-        <file>fonts/Cantarell36.fnt</file>
-        <file>fonts/Cantarell36_0.png</file>
+        <file>fonts/Cantarell-Regular.ttf</file>
+        <file>fonts/Cantarell-Italic.ttf</file>
+        <file>fonts/Cantarell-Bold.ttf</file>
+        <file>fonts/Cantarell-BoldItalic.ttf</file>
         <file>fonts/DejaVuSansMono.ttf</file>
         <file>fonts/LICENSE</file>
         <file>icons/affect-bashed.png</file>
@@ -210,8 +208,6 @@
         <file>pixmaps/wall-north.png</file>
         <file>pixmaps/wall-south.png</file>
         <file>pixmaps/wall-west.png</file>
-        <file>shaders/legacy/font/frag.glsl</file>
-        <file>shaders/legacy/font/vert.glsl</file>
         <file>shaders/legacy/room/tex/acolor/frag.glsl</file>
         <file>shaders/legacy/room/tex/acolor/vert.glsl</file>
         <file>shaders/legacy/plain/acolor/frag.glsl</file>

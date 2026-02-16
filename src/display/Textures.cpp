@@ -9,6 +9,7 @@
 #include "../opengl/OpenGLTypes.h"
 #include "Filenames.h"
 #include "RoadIndex.h"
+#include "WeatherTextureGenerator.h"
 #include "mapcanvas.h"
 
 #include <array>
@@ -310,6 +311,21 @@ void MapCanvas::initTextures()
         QImage whitePixel(1, 1, QImage::Format_RGBA8888);
         whitePixel.fill(Qt::white);
         textures.white_pixel = MMTexture::alloc(std::vector<QImage>{whitePixel});
+    }
+
+    {
+        // 256x256 noise texture with full mip chain
+        QImage noiseImage = WeatherTextureGenerator::generateNoiseTexture(256);
+        std::vector<QImage> mips;
+        mips.push_back(noiseImage);
+        for (int s = 128; s >= 1; s /= 2) {
+            mips.push_back(
+                mips.back().scaled(s, s, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+        }
+        textures.weather_noise = MMTexture::alloc(std::move(mips));
+        textures.weather_noise->get()->setWrapMode(QOpenGLTexture::WrapMode::Repeat);
+        textures.weather_noise->get()->setMinMagFilters(QOpenGLTexture::Filter::LinearMipMapLinear,
+                                                        QOpenGLTexture::Filter::Linear);
     }
 
     // char images are 256

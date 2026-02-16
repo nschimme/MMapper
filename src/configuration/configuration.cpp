@@ -293,6 +293,11 @@ ConstString KEY_THEME = "Theme";
 ConstString KEY_TLS_ENCRYPTION = "TLS encryption";
 ConstString KEY_USE_INTERNAL_EDITOR = "Use internal editor";
 ConstString KEY_USE_TRILINEAR_FILTERING = "Use trilinear filtering";
+ConstString KEY_WEATHER_CLOUDS_INTENSITY = "weather.cloudsIntensity";
+ConstString KEY_WEATHER_FOG_INTENSITY = "weather.fogIntensity";
+ConstString KEY_WEATHER_RAIN_INTENSITY = "weather.rainIntensity";
+ConstString KEY_WEATHER_SNOW_INTENSITY = "weather.snowIntensity";
+ConstString KEY_WEATHER_TOD_INTENSITY = "weather.todIntensity";
 ConstString KEY_WINDOW_GEOMETRY = "Window Geometry";
 ConstString KEY_WINDOW_STATE = "Window State";
 ConstString KEY_BELL_AUDIBLE = "Bell audible";
@@ -655,6 +660,18 @@ void Configuration::CanvasSettings::read(const QSettings &conf)
     advanced.verticalAngle.set(conf.value(KEY_3D_VERTICAL_ANGLE, 450).toInt());
     advanced.horizontalAngle.set(conf.value(KEY_3D_HORIZONTAL_ANGLE, 0).toInt());
     advanced.layerHeight.set(conf.value(KEY_3D_LAYER_HEIGHT, 15).toInt());
+
+    weatherCloudsIntensity.set(conf.value(KEY_WEATHER_CLOUDS_INTENSITY, 50).toInt());
+    weatherFogIntensity.set(conf.value(KEY_WEATHER_FOG_INTENSITY, 50).toInt());
+    weatherRainIntensity.set(conf.value(KEY_WEATHER_RAIN_INTENSITY, 50).toInt());
+    weatherSnowIntensity.set(conf.value(KEY_WEATHER_SNOW_INTENSITY, 50).toInt());
+    weatherToDIntensity.set(conf.value(KEY_WEATHER_TOD_INTENSITY, 50).toInt());
+
+    weatherCloudsIntensity.clamp(0, 100);
+    weatherFogIntensity.clamp(0, 100);
+    weatherRainIntensity.clamp(0, 100);
+    weatherSnowIntensity.clamp(0, 100);
+    weatherToDIntensity.clamp(0, 100);
 }
 
 void Configuration::AccountSettings::read(const QSettings &conf)
@@ -843,6 +860,12 @@ void Configuration::CanvasSettings::write(QSettings &conf) const
     conf.setValue(KEY_3D_VERTICAL_ANGLE, advanced.verticalAngle.get());
     conf.setValue(KEY_3D_HORIZONTAL_ANGLE, advanced.horizontalAngle.get());
     conf.setValue(KEY_3D_LAYER_HEIGHT, advanced.layerHeight.get());
+
+    conf.setValue(KEY_WEATHER_CLOUDS_INTENSITY, weatherCloudsIntensity.get());
+    conf.setValue(KEY_WEATHER_FOG_INTENSITY, weatherFogIntensity.get());
+    conf.setValue(KEY_WEATHER_RAIN_INTENSITY, weatherRainIntensity.get());
+    conf.setValue(KEY_WEATHER_SNOW_INTENSITY, weatherSnowIntensity.get());
+    conf.setValue(KEY_WEATHER_TOD_INTENSITY, weatherToDIntensity.get());
 }
 
 void Configuration::AccountSettings::write(QSettings &conf) const

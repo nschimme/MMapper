@@ -5,6 +5,8 @@
 #include "Legacy.h"
 #include "VBO.h"
 
+#include <string>
+
 namespace Legacy {
 
 static constexpr GLuint INVALID_ATTRIB_LOCATION = ~0u;
@@ -37,18 +39,35 @@ public:
 
     public:
         ProgramUnbinder() = delete;
-        DEFAULT_MOVES_DELETE_COPIES(ProgramUnbinder);
+        ProgramUnbinder(const ProgramUnbinder &) = delete;
+        ProgramUnbinder &operator=(const ProgramUnbinder &) = delete;
 
-    public:
-        explicit ProgramUnbinder(AbstractShaderProgram &self)
-            : m_self{&self}
+        ProgramUnbinder(ProgramUnbinder &&other) noexcept
+            : m_self(std::exchange(other.m_self, nullptr))
         {}
+
+        ProgramUnbinder &operator=(ProgramUnbinder &&other) noexcept
+        {
+            if (this != &other) {
+                if (m_self) {
+                    m_self->unbind();
+                }
+                m_self = std::exchange(other.m_self, nullptr);
+            }
+            return *this;
+        }
+
         ~ProgramUnbinder()
         {
             if (m_self) {
                 m_self->unbind();
             }
         }
+
+    public:
+        explicit ProgramUnbinder(AbstractShaderProgram &self)
+            : m_self{&self}
+        {}
     };
 
     NODISCARD ProgramUnbinder bind();
@@ -73,6 +92,8 @@ public:
 public:
     void setUniform1iv(GLint location, GLsizei count, const GLint *value);
     void setUniform1fv(GLint location, GLsizei count, const GLfloat *value);
+    void setUniform2fv(GLint location, GLsizei count, const GLfloat *value);
+    void setUniform3fv(GLint location, GLsizei count, const GLfloat *value);
     void setUniform4fv(GLint location, GLsizei count, const GLfloat *value);
     void setUniform4iv(GLint location, GLsizei count, const GLint *value);
     void setUniformMatrix4fv(GLint location,
@@ -85,6 +106,10 @@ private:
 
 public:
     void setPointSize(float in_pointSize);
+    void setFloat(const char *name, float value);
+    void setVec2(const char *name, const glm::vec2 &v);
+    void setVec3(const char *name, const glm::vec3 &v);
+    void setVec4(const char *name, const glm::vec4 &v);
     void setColor(const char *name, Color color);
     void setMatrix(const char *name, const glm::mat4 &m);
     void setTexture(const char *name, int textureUnit);

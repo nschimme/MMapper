@@ -180,6 +180,7 @@ public:
     }
     using Base::glBindTexture;
     using Base::glBindVertexArray;
+    using Base::glBlendEquationSeparate;
     using Base::glBlendFunc;
     using Base::glBlendFuncSeparate;
     using Base::glBufferData;
@@ -192,17 +193,20 @@ public:
     using Base::glDeleteBuffers;
     using Base::glDeleteProgram;
     using Base::glDeleteShader;
+    using Base::glDeleteTransformFeedbacks;
     using Base::glDeleteVertexArrays;
     using Base::glDepthFunc;
     using Base::glDetachShader;
     using Base::glDisable;
     using Base::glDisableVertexAttribArray;
     using Base::glDrawArrays;
+    using Base::glDrawArraysInstanced;
     using Base::glDrawElementsInstanced;
     using Base::glEnable;
     using Base::glEnableVertexAttribArray;
     using Base::glGenBuffers;
     using Base::glGenerateMipmap;
+    using Base::glGenTransformFeedbacks;
     using Base::glGenVertexArrays;
     using Base::glGetAttribLocation;
     using Base::glGetIntegerv;
@@ -223,9 +227,17 @@ public:
     using Base::glLinkProgram;
     using Base::glPixelStorei;
     using Base::glShaderSource;
+
+    using Base::glBeginTransformFeedback;
+    using Base::glBindTransformFeedback;
+    using Base::glEndTransformFeedback;
+    using Base::glTransformFeedbackVaryings;
+
     using Base::glTexSubImage3D;
     using Base::glUniform1fv;
     using Base::glUniform1iv;
+    using Base::glUniform2fv;
+    using Base::glUniform3fv;
     using Base::glUniform4fv;
     using Base::glUniform4iv;
     using Base::glUniformBlockBinding;

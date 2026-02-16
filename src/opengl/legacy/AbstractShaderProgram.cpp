@@ -5,6 +5,8 @@
 
 #include "../../global/ConfigConsts.h"
 
+#include <cassert>
+
 namespace Legacy {
 
 AbstractShaderProgram::AbstractShaderProgram(std::string dirName,
@@ -13,6 +15,7 @@ AbstractShaderProgram::AbstractShaderProgram(std::string dirName,
     : m_dirName{std::move(dirName)}
     , m_functions{functions} // conversion to weak ptr
     , m_program{std::move(program)}
+    , m_isBound{false}
 {}
 
 AbstractShaderProgram::~AbstractShaderProgram()
@@ -99,6 +102,24 @@ void AbstractShaderProgram::setUniform1fv(const GLint location,
     deref(functions).glUniform1fv(location, count, value);
 }
 
+void AbstractShaderProgram::setUniform2fv(const GLint location,
+                                          const GLsizei count,
+                                          const GLfloat *const value)
+{
+    assert(m_isBound);
+    auto functions = m_functions.lock();
+    deref(functions).glUniform2fv(location, count, value);
+}
+
+void AbstractShaderProgram::setUniform3fv(const GLint location,
+                                          const GLsizei count,
+                                          const GLfloat *const value)
+{
+    assert(m_isBound);
+    auto functions = m_functions.lock();
+    deref(functions).glUniform3fv(location, count, value);
+}
+
 void AbstractShaderProgram::setUniform4fv(const GLint location,
                                           const GLsizei count,
                                           const GLfloat *const value)
@@ -140,6 +161,30 @@ void AbstractShaderProgram::setPointSize(const float in_pointSize)
         const float pointSize = in_pointSize * getDevicePixelRatio();
         setUniform1fv(location, 1, &pointSize);
     }
+}
+
+void AbstractShaderProgram::setFloat(const char *const name, const float value)
+{
+    const auto location = getUniformLocation(name);
+    setUniform1fv(location, 1, &value);
+}
+
+void AbstractShaderProgram::setVec2(const char *const name, const glm::vec2 &v)
+{
+    const auto location = getUniformLocation(name);
+    setUniform2fv(location, 1, glm::value_ptr(v));
+}
+
+void AbstractShaderProgram::setVec3(const char *const name, const glm::vec3 &v)
+{
+    const auto location = getUniformLocation(name);
+    setUniform3fv(location, 1, glm::value_ptr(v));
+}
+
+void AbstractShaderProgram::setVec4(const char *const name, const glm::vec4 &v)
+{
+    const auto location = getUniformLocation(name);
+    setUniform4fv(location, 1, glm::value_ptr(v));
 }
 
 void AbstractShaderProgram::setColor(const char *const name, const Color color)

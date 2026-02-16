@@ -25,6 +25,12 @@
 #include <QOpenGLTexture>
 #include <qopengl.h>
 
+struct NODISCARD Viewport final
+{
+    glm::ivec2 offset{};
+    glm::ivec2 size{};
+};
+
 struct NODISCARD TexVert final
 {
     glm::vec3 tex{};
@@ -153,6 +159,9 @@ enum class NODISCARD BlendModeEnum {
     /* This mode allows you to multiply by the painted color, in the range [0,1].
      * glEnable(GL_BLEND); glBlendFuncSeparate(GL_ZERO, GL_SRC_COLOR, GL_ZERO, GL_ONE); */
     MODULATE,
+    /* This mode uses MAX for alpha blending, useful for weather effects.
+     * glBlendEquationSeparate(GL_FUNC_ADD, GL_MAX); */
+    MAX_ALPHA,
 };
 
 enum class NODISCARD CullingEnum {
@@ -223,6 +232,22 @@ struct NODISCARD GLRenderState final
         // glEnable(TEXTURE_2D), or glEnable(TEXTURE_3D)
         Textures textures;
         std::optional<float> pointSize;
+
+        // Weather
+        struct NODISCARD Weather final
+        {
+            glm::mat4 invViewProj{1.0f};
+            glm::vec3 playerPos{0.0f};
+            float zScale = 1.0f;
+            Viewport physViewport;
+            float time = 0.0f;
+            float rainIntensity = 0.0f;
+            float snowIntensity = 0.0f;
+            float cloudsIntensity = 0.0f;
+            float fogIntensity = 0.0f;
+            float deltaTime = 0.0f;
+            Color todColor;
+        } weather;
     };
 
     Uniforms uniforms;
@@ -394,12 +419,6 @@ public:
             mesh.render(rs);
         }
     }
-};
-
-struct NODISCARD Viewport final
-{
-    glm::ivec2 offset{};
-    glm::ivec2 size{};
 };
 
 static constexpr const size_t VERTS_PER_LINE = 2;

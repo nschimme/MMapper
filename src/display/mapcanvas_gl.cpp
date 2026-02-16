@@ -650,17 +650,14 @@ void MapCanvas::actuallyPaintGL()
 
         m_weatherRenderer->update(dt);
 
-        bool stillAnimating = !utils::equals(ws.rainIntensity, ws.targetRainIntensity)
-                              || !utils::equals(ws.snowIntensity, ws.targetSnowIntensity)
-                              || !utils::equals(ws.cloudsIntensity, ws.targetCloudsIntensity)
-                              || !utils::equals(ws.fogIntensity, ws.targetFogIntensity)
-                              || !utils::equals(ws.todIntensity, ws.targetToDIntensity)
-                              || !utils::equals(ws.moonIntensity, ws.targetMoonIntensity)
-                              || !utils::equals(ws.timeOfDayTransition, 1.0f);
+        bool stillAnimating = (ws.animationTime - ws.weatherTransitionStartTime < 2.0f)
+                              || (ws.animationTime - ws.todTransitionStartTime < 2.0f);
 
         // Rain/Snow/Clouds also need continuous animation for movement
-        if (ws.rainIntensity > 0.0f || ws.snowIntensity > 0.0f || ws.cloudsIntensity > 0.0f
-            || ws.fogIntensity > 0.0f) {
+        if (ws.targetRainIntensity > 0.0f || ws.targetSnowIntensity > 0.0f
+            || ws.targetCloudsIntensity > 0.0f || ws.targetFogIntensity > 0.0f
+            || ws.rainIntensityStart > 0.0f || ws.snowIntensityStart > 0.0f
+            || ws.cloudsIntensityStart > 0.0f || ws.fogIntensityStart > 0.0f) {
             stillAnimating = true;
         }
 

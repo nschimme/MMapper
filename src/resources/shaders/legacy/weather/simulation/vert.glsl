@@ -9,9 +9,12 @@ layout(std140) uniform WeatherBlock
     mat4 uViewProj;
     mat4 uInvViewProj;
     vec4 uPlayerPos; // xyz, w=zScale
-    vec4 uWeatherIntensities; // x=rain, y=snow, z=clouds, w=fog
-    vec4 uTimeOfDayColor;
-    vec4 uTimeAndDelta; // x=time, y=deltaTime
+    vec4 uIntensitiesStart;
+    vec4 uIntensitiesTarget;
+    vec4 uToDColorStart;
+    vec4 uToDColorTarget;
+    vec4 uTransitionStart; // x=weather, y=tod
+    vec4 uTimeAndDelta;    // x=time, y=deltaTime
 };
 
 out vec2 vPos;
@@ -25,6 +28,14 @@ float hash21(vec2 p)
 float rand(float n)
 {
     return fract(sin(n) * 43758.5453123);
+}
+
+float get_intensity(int idx)
+{
+    float uTime = uTimeAndDelta.x;
+    float t = clamp((uTime - uTransitionStart.x) / 2.0, 0.0, 1.0);
+    float s = smoothstep(0.0, 1.0, t);
+    return mix(uIntensitiesStart[idx], uIntensitiesTarget[idx], s);
 }
 
 void main()
@@ -41,13 +52,13 @@ void main()
     float uDeltaTime = uTimeAndDelta.y;
 
     if (type == 0.0) { // Rain
-        float rainIntensity = uWeatherIntensities.x;
+        float rainIntensity = get_intensity(0);
         // Speed increases with intensity: 15.0 at low, 25.0 at heavy (1.0), 35.0 at boosted (2.0)
         speed = (15.0 + rainIntensity * 10.0) + hash * 5.0;
         decay = 0.5 + hash * 0.5;
         pos.y -= uDeltaTime * speed;
     } else { // Snow
-        float snowIntensity = uWeatherIntensities.y;
+        float snowIntensity = get_intensity(1);
         // Snow speed: 1.5 at low, 3.0 at heavy (1.0)
         speed = (1.5 + snowIntensity * 1.5) + hash * 1.0;
         decay = 0.2 + hash * 0.3;

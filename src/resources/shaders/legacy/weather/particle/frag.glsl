@@ -8,9 +8,12 @@ layout(std140) uniform WeatherBlock
     mat4 uViewProj;
     mat4 uInvViewProj;
     vec4 uPlayerPos; // xyz, w=zScale
-    vec4 uWeatherIntensities; // x=rain, y=snow, z=clouds, w=fog
-    vec4 uTimeOfDayColor;
-    vec4 uTimeAndDelta; // x=time, y=deltaTime
+    vec4 uIntensitiesStart;
+    vec4 uIntensitiesTarget;
+    vec4 uToDColorStart;
+    vec4 uToDColorTarget;
+    vec4 uTransitionStart; // x=weather, y=tod
+    vec4 uTimeAndDelta;    // x=time, y=deltaTime
 };
 
 in float vType;
@@ -20,10 +23,27 @@ in float vLocalMask;
 
 out vec4 vFragmentColor;
 
+float get_intensity(int idx)
+{
+    float uTime = uTimeAndDelta.x;
+    float t = clamp((uTime - uTransitionStart.x) / 2.0, 0.0, 1.0);
+    float s = smoothstep(0.0, 1.0, t);
+    return mix(uIntensitiesStart[idx], uIntensitiesTarget[idx], s);
+}
+
+vec4 get_tod_color()
+{
+    float uTime = uTimeAndDelta.x;
+    float t = clamp((uTime - uTransitionStart.y) / 2.0, 0.0, 1.0);
+    float s = smoothstep(0.0, 1.0, t);
+    return mix(uToDColorStart, uToDColorTarget, s);
+}
+
 void main()
 {
-    float uRainIntensity = uWeatherIntensities.x;
-    float uSnowIntensity = uWeatherIntensities.y;
+    float uRainIntensity = get_intensity(0);
+    float uSnowIntensity = get_intensity(1);
+    vec4 uTimeOfDayColor = get_tod_color();
 
     vec4 pColor;
     float lifeFade = smoothstep(0.0, 0.15, vLife) * smoothstep(1.0, 0.85, vLife);

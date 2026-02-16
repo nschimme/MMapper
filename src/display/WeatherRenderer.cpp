@@ -17,18 +17,158 @@
 #include <algorithm>
 #include <random>
 
-WeatherRenderer::WeatherRenderer(OpenGL &gl, MapData &data, const MapCanvasTextures &textures)
+WeatherRenderer::WeatherRenderer(OpenGL &gl,
+                                 MapData &data,
+                                 const MapCanvasTextures &textures,
+                                 GameObserver &observer)
     : m_gl{gl}
     , m_data{data}
     , m_textures{textures}
-{}
+    , m_observer{observer}
+{
+    const auto &settings = getConfig().canvas;
+    m_state.currentTimeOfDay = m_observer.getTimeOfDay();
+    m_state.oldTimeOfDay = m_state.currentTimeOfDay;
+
+    m_state.gameRainIntensity = (m_observer.getWeather() == PromptWeatherEnum::RAIN)         ? 0.5f
+                                : (m_observer.getWeather() == PromptWeatherEnum::HEAVY_RAIN) ? 1.0f
+                                                                                             : 0.0f;
+    m_state.gameSnowIntensity = (m_observer.getWeather() == PromptWeatherEnum::SNOW) ? 1.0f : 0.0f;
+    m_state.gameCloudsIntensity = (m_observer.getWeather() == PromptWeatherEnum::CLOUDS) ? 1.0f
+                                                                                         : 0.0f;
+    m_state.gameFogIntensity = (m_observer.getFog() == PromptFogEnum::LIGHT_FOG)   ? 0.3f
+                               : (m_observer.getFog() == PromptFogEnum::HEAVY_FOG) ? 0.8f
+                                                                                   : 0.0f;
+    m_state.moonVisibility = m_observer.getMoonVisibility();
+    m_state.targetMoonIntensity = (m_state.moonVisibility == MumeMoonVisibilityEnum::BRIGHT) ? 1.0f
+                                  : (m_state.moonVisibility == MumeMoonVisibilityEnum::DIM)  ? 0.5f
+                                                                                             : 0.0f;
+
+    m_state.targetRainIntensity = m_state.gameRainIntensity
+                                  * (static_cast<float>(settings.weatherRainIntensity.get())
+                                     / 50.0f);
+    m_state.targetSnowIntensity = m_state.gameSnowIntensity
+                                  * (static_cast<float>(settings.weatherSnowIntensity.get())
+                                     / 50.0f);
+    m_state.targetCloudsIntensity = m_state.gameCloudsIntensity
+                                    * (static_cast<float>(settings.weatherCloudsIntensity.get())
+                                       / 50.0f);
+    m_state.targetFogIntensity = m_state.gameFogIntensity
+                                 * (static_cast<float>(settings.weatherFogIntensity.get()) / 50.0f);
+    m_state.targetToDIntensity = static_cast<float>(settings.weatherToDIntensity.get()) / 100.0f;
+
+    m_state.rainIntensityStart = m_state.targetRainIntensity;
+    m_state.snowIntensityStart = m_state.targetSnowIntensity;
+    m_state.cloudsIntensityStart = m_state.targetCloudsIntensity;
+    m_state.fogIntensityStart = m_state.targetFogIntensity;
+    m_state.moonIntensityStart = m_state.targetMoonIntensity;
+
+    auto lerp = [](float a, float b, float t) { return a + (b - a) * t; };
+
+    m_observer.sig2_weatherChanged.connect(m_lifetime, [this, lerp](PromptWeatherEnum weather) {
+        float t = std::clamp((m_state.animationTime - m_state.weatherTransitionStartTime) / 2.0f,
+                             0.0f,
+                             1.0f);
+        m_state.rainIntensityStart = lerp(m_state.rainIntensityStart,
+                                          m_state.targetRainIntensity,
+                                          t);
+        m_state.snowIntensityStart = lerp(m_state.snowIntensityStart,
+                                          m_state.targetSnowIntensity,
+                                          t);
+        m_state.cloudsIntensityStart = lerp(m_state.cloudsIntensityStart,
+                                            m_state.targetCloudsIntensity,
+                                            t);
+        m_state.fogIntensityStart = lerp(m_state.fogIntensityStart, m_state.targetFogIntensity, t);
+        m_state.moonIntensityStart = lerp(m_state.moonIntensityStart,
+                                          m_state.targetMoonIntensity,
+                                          t);
+
+        const auto &settings = getConfig().canvas;
+        m_state.gameRainIntensity = (weather == PromptWeatherEnum::RAIN)         ? 0.5f
+                                    : (weather == PromptWeatherEnum::HEAVY_RAIN) ? 1.0f
+                                                                                 : 0.0f;
+        m_state.gameSnowIntensity = (weather == PromptWeatherEnum::SNOW) ? 1.0f : 0.0f;
+        m_state.gameCloudsIntensity = (weather == PromptWeatherEnum::CLOUDS) ? 1.0f : 0.0f;
+
+        m_state.targetRainIntensity = m_state.gameRainIntensity
+                                      * (static_cast<float>(settings.weatherRainIntensity.get())
+                                         / 50.0f);
+        m_state.targetSnowIntensity = m_state.gameSnowIntensity
+                                      * (static_cast<float>(settings.weatherSnowIntensity.get())
+                                         / 50.0f);
+        m_state.targetCloudsIntensity = m_state.gameCloudsIntensity
+                                        * (static_cast<float>(settings.weatherCloudsIntensity.get())
+                                           / 50.0f);
+
+        m_state.weatherTransitionStartTime = m_state.animationTime;
+    });
+
+    m_observer.sig2_fogChanged.connect(m_lifetime, [this, lerp](PromptFogEnum fog) {
+        float t = std::clamp((m_state.animationTime - m_state.weatherTransitionStartTime) / 2.0f,
+                             0.0f,
+                             1.0f);
+        m_state.rainIntensityStart = lerp(m_state.rainIntensityStart,
+                                          m_state.targetRainIntensity,
+                                          t);
+        m_state.snowIntensityStart = lerp(m_state.snowIntensityStart,
+                                          m_state.targetSnowIntensity,
+                                          t);
+        m_state.cloudsIntensityStart = lerp(m_state.cloudsIntensityStart,
+                                            m_state.targetCloudsIntensity,
+                                            t);
+        m_state.fogIntensityStart = lerp(m_state.fogIntensityStart, m_state.targetFogIntensity, t);
+        m_state.moonIntensityStart = lerp(m_state.moonIntensityStart,
+                                          m_state.targetMoonIntensity,
+                                          t);
+
+        const auto &settings = getConfig().canvas;
+        m_state.gameFogIntensity = (fog == PromptFogEnum::LIGHT_FOG)   ? 0.3f
+                                   : (fog == PromptFogEnum::HEAVY_FOG) ? 0.8f
+                                                                       : 0.0f;
+        m_state.targetFogIntensity = m_state.gameFogIntensity
+                                     * (static_cast<float>(settings.weatherFogIntensity.get())
+                                        / 50.0f);
+
+        m_state.weatherTransitionStartTime = m_state.animationTime;
+    });
+
+    m_observer.sig2_timeOfDayChanged.connect(m_lifetime, [this](MumeTimeEnum time) {
+        if (m_state.currentTimeOfDay != time) {
+            m_state.oldTimeOfDay = m_state.currentTimeOfDay;
+            m_state.currentTimeOfDay = time;
+            m_state.todTransitionStartTime = m_state.animationTime;
+        }
+    });
+
+    m_observer.sig2_moonVisibilityChanged.connect(m_lifetime, [this, lerp](MumeMoonVisibilityEnum moon) {
+        float t = std::clamp((m_state.animationTime - m_state.weatherTransitionStartTime) / 2.0f,
+                             0.0f,
+                             1.0f);
+        m_state.rainIntensityStart = lerp(m_state.rainIntensityStart,
+                                          m_state.targetRainIntensity,
+                                          t);
+        m_state.snowIntensityStart = lerp(m_state.snowIntensityStart,
+                                          m_state.targetSnowIntensity,
+                                          t);
+        m_state.cloudsIntensityStart = lerp(m_state.cloudsIntensityStart,
+                                            m_state.targetCloudsIntensity,
+                                            t);
+        m_state.fogIntensityStart = lerp(m_state.fogIntensityStart, m_state.targetFogIntensity, t);
+        m_state.moonIntensityStart = lerp(m_state.moonIntensityStart,
+                                          m_state.targetMoonIntensity,
+                                          t);
+
+        m_state.moonVisibility = moon;
+        m_state.targetMoonIntensity = (moon == MumeMoonVisibilityEnum::BRIGHT) ? 1.0f
+                                      : (moon == MumeMoonVisibilityEnum::DIM)  ? 0.5f
+                                                                               : 0.0f;
+        m_state.weatherTransitionStartTime = m_state.animationTime;
+    });
+}
 
 WeatherRenderer::~WeatherRenderer() = default;
 
-void WeatherRenderer::init()
-{
-    // Transition logic moved from MapCanvas constructor
-}
+void WeatherRenderer::init() {}
 
 void WeatherRenderer::update(float dt)
 {
@@ -48,29 +188,6 @@ void WeatherRenderer::update(float dt)
     m_state.targetToDIntensity = static_cast<float>(settings.weatherToDIntensity.get()) / 100.0f;
 
     m_state.lastDt = dt;
-
-    auto updateLevel = [dt](float &current, float target) {
-        const float transitionSpeed = 0.5f; // transition over 2 seconds
-        if (current < target) {
-            current = std::min(target, current + dt * transitionSpeed);
-        } else if (current > target) {
-            current = std::max(target, current - dt * transitionSpeed);
-        }
-    };
-
-    updateLevel(m_state.rainIntensity, m_state.targetRainIntensity);
-    updateLevel(m_state.snowIntensity, m_state.targetSnowIntensity);
-    updateLevel(m_state.cloudsIntensity, m_state.targetCloudsIntensity);
-    updateLevel(m_state.fogIntensity, m_state.targetFogIntensity);
-    updateLevel(m_state.todIntensity, m_state.targetToDIntensity);
-    updateLevel(m_state.moonIntensity, m_state.targetMoonIntensity);
-
-    if (m_state.timeOfDayTransition < 1.0f) {
-        m_state.timeOfDayTransition = std::min(1.0f,
-                                               m_state.timeOfDayTransition
-                                                   + dt * 0.5f); // 2 seconds transition
-    }
-
     m_state.animationTime += dt;
 }
 
@@ -82,7 +199,6 @@ void WeatherRenderer::initParticles()
     auto &funcs = deref(m_gl.getSharedFunctions(Badge<WeatherRenderer>{}));
 
     // Reduced particle count: 4096 rain + 1024 snow = 5120 total.
-    // We only store 3 floats per particle: x, y, life. Hash and type are derived in shaders.
     m_state.numParticles = 5120;
     std::vector<float> data;
     data.reserve(m_state.numParticles * 3);
@@ -229,52 +345,8 @@ void WeatherRenderer::initParticles()
     m_state.initialized = true;
 }
 
-Color WeatherRenderer::calculateTimeOfDayColor() const
+void WeatherRenderer::updateUbo(const glm::mat4 &viewProj)
 {
-    auto getColor = [this](MumeTimeEnum t) -> Color {
-        switch (t) {
-        case MumeTimeEnum::DAWN:
-            return Color(0.6f, 0.55f, 0.5f, 0.1f);
-
-        case MumeTimeEnum::DUSK:
-            return Color(0.3f, 0.3f, 0.45f, 0.15f);
-
-        case MumeTimeEnum::NIGHT: {
-            const float moon = m_state.moonIntensity;
-            const Color baseNight(0.05f, 0.05f, 0.2f, 0.3f);
-            const Color moonNight(0.2f, 0.2f, 0.4f, 0.2f);
-            return Color(baseNight.getVec4() * (1.0f - moon) + moonNight.getVec4() * moon);
-        }
-
-        case MumeTimeEnum::DAY:
-        case MumeTimeEnum::UNKNOWN:
-        default:
-            return Color(1.0f, 1.0f, 1.0f, 0.0f);
-        }
-    };
-
-    const glm::vec4 c1 = getColor(m_state.oldTimeOfDay).getVec4();
-    const glm::vec4 c2 = getColor(m_state.currentTimeOfDay).getVec4();
-    const float t = m_state.timeOfDayTransition;
-
-    return Color(c1.r * (1.0f - t) + c2.r * t,
-                 c1.g * (1.0f - t) + c2.g * t,
-                 c1.b * (1.0f - t) + c2.b * t,
-                 (c1.a * (1.0f - t) + c2.a * t) * (m_state.todIntensity * 2.0f));
-}
-
-void WeatherRenderer::renderParticles(const glm::mat4 &viewProj)
-{
-    const bool hasParticles = m_state.rainIntensity > 0.0f || m_state.snowIntensity > 0.0f
-                              || m_state.targetRainIntensity > 0.0f
-                              || m_state.targetSnowIntensity > 0.0f;
-
-    if (!hasParticles) {
-        return;
-    }
-
-    initParticles();
-
     auto &sharedFuncs = m_gl.getSharedFunctions(Badge<WeatherRenderer>{});
     Legacy::Functions &funcs = deref(sharedFuncs);
 
@@ -287,11 +359,43 @@ void WeatherRenderer::renderParticles(const glm::mat4 &viewProj)
     w.viewProj = viewProj;
     w.invViewProj = glm::inverse(viewProj);
     w.playerPos = glm::vec4(playerPos, zScale);
-    w.intensities = glm::vec4(m_state.rainIntensity,
-                              m_state.snowIntensity,
-                              m_state.cloudsIntensity,
-                              m_state.fogIntensity);
-    w.todColor = calculateTimeOfDayColor().getVec4();
+    w.intensitiesStart = glm::vec4(m_state.rainIntensityStart,
+                                   m_state.snowIntensityStart,
+                                   m_state.cloudsIntensityStart,
+                                   m_state.fogIntensityStart);
+    w.intensitiesTarget = glm::vec4(m_state.targetRainIntensity,
+                                    m_state.targetSnowIntensity,
+                                    m_state.targetCloudsIntensity,
+                                    m_state.targetFogIntensity);
+
+    auto getColor = [this](MumeTimeEnum t) -> glm::vec4 {
+        switch (t) {
+        case MumeTimeEnum::DAWN:
+            return glm::vec4(0.6f, 0.55f, 0.5f, 0.1f);
+        case MumeTimeEnum::DUSK:
+            return glm::vec4(0.3f, 0.3f, 0.45f, 0.15f);
+        case MumeTimeEnum::NIGHT: {
+            const float moon = m_state.targetMoonIntensity;
+            const glm::vec4 baseNight(0.05f, 0.05f, 0.2f, 0.3f);
+            const glm::vec4 moonNight(0.2f, 0.2f, 0.4f, 0.2f);
+            return baseNight * (1.0f - moon) + moonNight * moon;
+        }
+        case MumeTimeEnum::DAY:
+        case MumeTimeEnum::UNKNOWN:
+        default:
+            return glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+        }
+    };
+
+    w.todColorStart = getColor(m_state.oldTimeOfDay);
+    w.todColorTarget = getColor(m_state.currentTimeOfDay);
+    w.todColorStart.a *= (m_state.targetToDIntensity * 2.0f);
+    w.todColorTarget.a *= (m_state.targetToDIntensity * 2.0f);
+
+    w.transitionStart = glm::vec4(m_state.weatherTransitionStartTime,
+                                  m_state.todTransitionStartTime,
+                                  0.0f,
+                                  0.0f);
     w.timeInfo = glm::vec4(m_state.animationTime, m_state.lastDt, 0.0f, 0.0f);
 
     using namespace Legacy;
@@ -305,11 +409,28 @@ void WeatherRenderer::renderParticles(const glm::mat4 &viewProj)
                                std::vector<GLRenderState::Uniforms::Weather>{w},
                                BufferUsageEnum::DYNAMIC_DRAW);
     funcs.glBindBufferBase(GL_UNIFORM_BUFFER, buffer, vboUbo.get());
+}
+
+void WeatherRenderer::renderParticles(const glm::mat4 &viewProj)
+{
+    const float rainMax = std::max(m_state.rainIntensityStart, m_state.targetRainIntensity);
+    const float snowMax = std::max(m_state.snowIntensityStart, m_state.targetSnowIntensity);
+
+    if (rainMax <= 0.0f && snowMax <= 0.0f) {
+        return;
+    }
+
+    initParticles();
+    updateUbo(viewProj);
+
+    auto &sharedFuncs = m_gl.getSharedFunctions(Badge<WeatherRenderer>{});
+    Legacy::Functions &funcs = deref(sharedFuncs);
+
+    GLRenderState::Uniforms uniforms; // Note: UBO already updated, but AbstractShaderProgram needs this for other things?
+    // Actually setUniforms(viewProj, uniforms) will call virt_setUniforms which does nothing for weather right now.
 
     // Pass 1: Simulation
     {
-        const float rainMax = std::max(m_state.rainIntensity, m_state.targetRainIntensity);
-        const float snowMax = std::max(m_state.snowIntensity, m_state.targetSnowIntensity);
         const GLsizei simRainCount = static_cast<GLsizei>(std::ceil(rainMax * 2048.0f));
         const GLsizei simSnowCount = static_cast<GLsizei>(std::ceil(snowMax * 512.0f));
 
@@ -318,17 +439,20 @@ void WeatherRenderer::renderParticles(const glm::mat4 &viewProj)
             auto binder = prog.bind();
             prog.setUniforms(viewProj, uniforms);
 
-            const SharedVaoEnum simVaos[] = {SharedVaoEnum::WeatherSimulation0,
-                                             SharedVaoEnum::WeatherSimulation1};
-            const SharedVboEnum pVbos[] = {SharedVboEnum::WeatherParticles0,
-                                           SharedVboEnum::WeatherParticles1};
+            const Legacy::SharedVaoEnum simVaos[] = {Legacy::SharedVaoEnum::WeatherSimulation0,
+                                                     Legacy::SharedVaoEnum::WeatherSimulation1};
+            const Legacy::SharedVboEnum pVbos[] = {Legacy::SharedVboEnum::WeatherParticles0,
+                                                   Legacy::SharedVboEnum::WeatherParticles1};
 
             funcs.glEnable(GL_RASTERIZER_DISCARD);
             funcs.glBindVertexArray(funcs.getSharedVaos().get(simVaos[m_state.currentBuffer])->get());
             funcs.glBindTransformFeedback(GL_TRANSFORM_FEEDBACK,
-                                          funcs.getSharedTfs().get(SharedTfEnum::WeatherSimulation)->get());
+                                          funcs.getSharedTfs()
+                                              .get(Legacy::SharedTfEnum::WeatherSimulation)
+                                              ->get());
 
-            const GLuint outputVbo = funcs.getSharedVbos().get(pVbos[1 - m_state.currentBuffer])->get();
+            const GLuint outputVbo
+                = funcs.getSharedVbos().get(pVbos[1 - m_state.currentBuffer])->get();
 
             // Simulate Rain
             if (simRainCount > 0) {
@@ -342,7 +466,11 @@ void WeatherRenderer::renderParticles(const glm::mat4 &viewProj)
             if (simSnowCount > 0) {
                 const GLintptr snowOffset = 4096 * 3 * sizeof(float);
                 const GLsizeiptr snowSize = 1024 * 3 * sizeof(float);
-                funcs.glBindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER, 0, outputVbo, snowOffset, snowSize);
+                funcs.glBindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER,
+                                        0,
+                                        outputVbo,
+                                        snowOffset,
+                                        snowSize);
                 funcs.glBeginTransformFeedback(GL_POINTS);
                 funcs.glDrawArrays(GL_POINTS, 4096, simSnowCount);
                 funcs.glEndTransformFeedback();
@@ -357,23 +485,24 @@ void WeatherRenderer::renderParticles(const glm::mat4 &viewProj)
     }
 
     // Pass 3: Particles
-    if (m_state.rainIntensity > 0.0f || m_state.snowIntensity > 0.0f) {
+    {
         auto &prog = deref(funcs.getShaderPrograms().getParticleRenderShader());
         auto binder = prog.bind();
         prog.setUniforms(viewProj, uniforms);
 
-        const auto rs
-            = GLRenderState().withBlend(BlendModeEnum::MAX_ALPHA).withDepthFunction(std::nullopt);
+        const auto rs = GLRenderState()
+                            .withBlend(BlendModeEnum::MAX_ALPHA)
+                            .withDepthFunction(std::nullopt);
         Legacy::RenderStateBinder renderStateBinder(funcs, funcs.getTexLookup(), rs);
 
-        using namespace Legacy;
-        const SharedVaoEnum rainVaos[] = {SharedVaoEnum::WeatherRenderRain0,
-                                          SharedVaoEnum::WeatherRenderRain1};
-        const SharedVaoEnum snowVaos[] = {SharedVaoEnum::WeatherRenderSnow0,
-                                          SharedVaoEnum::WeatherRenderSnow1};
+        const Legacy::SharedVaoEnum rainVaos[] = {Legacy::SharedVaoEnum::WeatherRenderRain0,
+                                                  Legacy::SharedVaoEnum::WeatherRenderRain1};
+        const Legacy::SharedVaoEnum snowVaos[] = {Legacy::SharedVaoEnum::WeatherRenderSnow0,
+                                                  Legacy::SharedVaoEnum::WeatherRenderSnow1};
 
         // Rain
-        const GLsizei rainCount = std::min(4096, static_cast<GLsizei>(std::ceil(m_state.rainIntensity * 2048.0f)));
+        const GLsizei rainCount = std::min(4096,
+                                           static_cast<GLsizei>(std::ceil(rainMax * 2048.0f)));
         if (rainCount > 0) {
             prog.setFloat("uType", 0.0f);
             prog.setInt("uInstanceOffset", 0);
@@ -382,7 +511,8 @@ void WeatherRenderer::renderParticles(const glm::mat4 &viewProj)
         }
 
         // Snow
-        const GLsizei snowCount = std::min(1024, static_cast<GLsizei>(std::ceil(m_state.snowIntensity * 512.0f)));
+        const GLsizei snowCount = std::min(1024,
+                                           static_cast<GLsizei>(std::ceil(snowMax * 512.0f)));
         if (snowCount > 0) {
             prog.setFloat("uType", 1.0f);
             prog.setInt("uInstanceOffset", 4096);
@@ -396,40 +526,20 @@ void WeatherRenderer::renderParticles(const glm::mat4 &viewProj)
 
 void WeatherRenderer::renderAtmosphere(const glm::mat4 &viewProj)
 {
-    const Color todColor = calculateTimeOfDayColor();
-    const bool hasAtmosphere = m_state.cloudsIntensity > 0.0f || m_state.fogIntensity > 0.0f;
+    const float cloudMax = std::max(m_state.cloudsIntensityStart, m_state.targetCloudsIntensity);
+    const float fogMax = std::max(m_state.fogIntensityStart, m_state.targetFogIntensity);
 
-    if (!hasAtmosphere && todColor.getAlpha() == 0) {
+    if (cloudMax <= 0.0f && fogMax <= 0.0f && m_state.currentTimeOfDay == MumeTimeEnum::DAY
+        && m_state.oldTimeOfDay == MumeTimeEnum::DAY) {
         return;
     }
+
+    updateUbo(viewProj);
 
     auto &sharedFuncs = m_gl.getSharedFunctions(Badge<WeatherRenderer>{});
     Legacy::Functions &funcs = deref(sharedFuncs);
 
-    const auto playerPos = m_data.tryGetPosition().value_or(Coordinate{}).to_vec3();
-    const bool want3D = getConfig().canvas.advanced.use3D.get();
-    const float zScale = want3D ? getConfig().canvas.advanced.layerHeight.getFloat() : 7.0f;
-
     GLRenderState::Uniforms uniforms;
-    auto &w = uniforms.weather;
-    w.viewProj = viewProj;
-    w.invViewProj = glm::inverse(viewProj);
-    w.playerPos = glm::vec4(playerPos, zScale);
-    w.intensities = glm::vec4(m_state.rainIntensity,
-                              m_state.snowIntensity,
-                              m_state.cloudsIntensity,
-                              m_state.fogIntensity);
-    w.todColor = todColor.getVec4();
-    w.timeInfo = glm::vec4(m_state.animationTime, m_state.lastDt, 0.0f, 0.0f);
-
-    using namespace Legacy;
-    const auto buffer = SharedVboEnum::WeatherBlock;
-    auto sharedVbo = funcs.getSharedVbos().get(buffer);
-    VBO &vboUbo = deref(sharedVbo);
-    std::ignore = funcs.setUbo(vboUbo.get(),
-                               std::vector<GLRenderState::Uniforms::Weather>{w},
-                               BufferUsageEnum::DYNAMIC_DRAW);
-    funcs.glBindBufferBase(GL_UNIFORM_BUFFER, buffer, vboUbo.get());
 
     // Atmosphere
     {

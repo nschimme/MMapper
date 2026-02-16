@@ -10,9 +10,12 @@ layout(std140) uniform WeatherBlock
     mat4 uViewProj;
     mat4 uInvViewProj;
     vec4 uPlayerPos; // xyz, w=zScale
-    vec4 uWeatherIntensities; // x=rain, y=snow, z=clouds, w=fog
-    vec4 uTimeOfDayColor;
-    vec4 uTimeAndDelta; // x=time, y=deltaTime
+    vec4 uIntensitiesStart;
+    vec4 uIntensitiesTarget;
+    vec4 uToDColorStart;
+    vec4 uToDColorTarget;
+    vec4 uTransitionStart; // x=weather, y=tod
+    vec4 uTimeAndDelta;    // x=time, y=deltaTime
 };
 
 uniform float uType;
@@ -26,6 +29,14 @@ out float vLocalMask;
 float rand(float n)
 {
     return fract(sin(n) * 43758.5453123);
+}
+
+float get_intensity(int idx)
+{
+    float uTime = uTimeAndDelta.x;
+    float t = clamp((uTime - uTransitionStart.x) / 2.0, 0.0, 1.0);
+    float s = smoothstep(0.0, 1.0, t);
+    return mix(uIntensitiesStart[idx], uIntensitiesTarget[idx], s);
 }
 
 void main()
@@ -43,7 +54,7 @@ void main()
     vec2 pos = aParticlePos;
 
     if (vType == 0.0) { // Rain
-        float rainIntensity = uWeatherIntensities.x;
+        float rainIntensity = get_intensity(0);
         // Streak length increases with intensity
         size = vec2(1.0 / 12.0, 1.0 / (0.25 - clamp(rainIntensity, 0.0, 2.0) * 0.1));
     } else { // Snow

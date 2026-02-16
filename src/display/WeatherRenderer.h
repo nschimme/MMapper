@@ -3,9 +3,11 @@
 // Copyright (C) 2026 The MMapper Authors
 
 #include "../clock/mumemoment.h"
+#include "../global/ChangeMonitor.h"
 #include "../global/ConfigEnums.h"
 #include "../global/RuleOf5.h"
 #include "../map/PromptFlags.h"
+#include "../observer/gameobserver.h"
 #include "../opengl/OpenGL.h"
 #include "../opengl/OpenGLTypes.h"
 #include "Textures.h"
@@ -24,16 +26,11 @@ public:
         uint32_t numParticles = 0;
         bool initialized = false;
 
-        float rainIntensity = 0.0f;
-        float snowIntensity = 0.0f;
-        float cloudsIntensity = 0.0f;
-        float fogIntensity = 0.0f;
-        float moonIntensity = 0.0f;
-
-        float gameRainIntensity = 0.0f;
-        float gameSnowIntensity = 0.0f;
-        float gameCloudsIntensity = 0.0f;
-        float gameFogIntensity = 0.0f;
+        float rainIntensityStart = 0.0f;
+        float snowIntensityStart = 0.0f;
+        float cloudsIntensityStart = 0.0f;
+        float fogIntensityStart = 0.0f;
+        float moonIntensityStart = 0.0f;
 
         float targetRainIntensity = 0.0f;
         float targetSnowIntensity = 0.0f;
@@ -41,12 +38,20 @@ public:
         float targetFogIntensity = 0.0f;
         float targetMoonIntensity = 0.0f;
 
+        float gameRainIntensity = 0.0f;
+        float gameSnowIntensity = 0.0f;
+        float gameCloudsIntensity = 0.0f;
+        float gameFogIntensity = 0.0f;
+
         MumeTimeEnum oldTimeOfDay = MumeTimeEnum::DAY;
         MumeTimeEnum currentTimeOfDay = MumeTimeEnum::DAY;
         MumeMoonVisibilityEnum moonVisibility = MumeMoonVisibilityEnum::UNKNOWN;
-        float todIntensity = 0.0f;
+
+        float todIntensityStart = 0.0f;
         float targetToDIntensity = 0.0f;
-        float timeOfDayTransition = 1.0f;
+
+        float weatherTransitionStartTime = -2.0f;
+        float todTransitionStartTime = -2.0f;
 
         float animationTime = 0.0f;
         float lastDt = 0.0f;
@@ -58,10 +63,15 @@ private:
     OpenGL &m_gl;
     MapData &m_data;
     const MapCanvasTextures &m_textures;
+    GameObserver &m_observer;
+    ChangeMonitor::Lifetime m_lifetime;
     State m_state;
 
 public:
-    explicit WeatherRenderer(OpenGL &gl, MapData &data, const MapCanvasTextures &textures);
+    explicit WeatherRenderer(OpenGL &gl,
+                             MapData &data,
+                             const MapCanvasTextures &textures,
+                             GameObserver &observer);
     ~WeatherRenderer();
 
     DELETE_CTORS_AND_ASSIGN_OPS(WeatherRenderer);
@@ -77,5 +87,5 @@ public:
 
 private:
     void initParticles();
-    NODISCARD Color calculateTimeOfDayColor() const;
+    void updateUbo(const glm::mat4 &viewProj);
 };

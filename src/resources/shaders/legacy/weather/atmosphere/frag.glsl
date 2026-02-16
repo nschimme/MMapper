@@ -8,15 +8,34 @@ layout(std140) uniform WeatherBlock
     mat4 uViewProj;
     mat4 uInvViewProj;
     vec4 uPlayerPos; // xyz, w=zScale
-    vec4 uWeatherIntensities; // x=rain, y=snow, z=clouds, w=fog
-    vec4 uTimeOfDayColor;
-    vec4 uTimeAndDelta; // x=time, y=deltaTime
+    vec4 uIntensitiesStart;
+    vec4 uIntensitiesTarget;
+    vec4 uToDColorStart;
+    vec4 uToDColorTarget;
+    vec4 uTransitionStart; // x=weather, y=tod
+    vec4 uTimeAndDelta;    // x=time, y=deltaTime
 };
 
 uniform sampler2D uNoiseTex;
 
 in vec2 vNDC;
 out vec4 vFragmentColor;
+
+float get_intensity(int idx)
+{
+    float uTime = uTimeAndDelta.x;
+    float t = clamp((uTime - uTransitionStart.x) / 2.0, 0.0, 1.0);
+    float s = smoothstep(0.0, 1.0, t);
+    return mix(uIntensitiesStart[idx], uIntensitiesTarget[idx], s);
+}
+
+vec4 get_tod_color()
+{
+    float uTime = uTimeAndDelta.x;
+    float t = clamp((uTime - uTransitionStart.y) / 2.0, 0.0, 1.0);
+    float s = smoothstep(0.0, 1.0, t);
+    return mix(uToDColorStart, uToDColorTarget, s);
+}
 
 float get_noise(vec2 p)
 {
@@ -55,8 +74,9 @@ void main()
     vec4 weatherColor = vec4(0.0);
 
     float uTime = uTimeAndDelta.x;
-    float uCloudsIntensity = uWeatherIntensities.z;
-    float uFogIntensity = uWeatherIntensities.w;
+    float uCloudsIntensity = get_intensity(2);
+    float uFogIntensity = get_intensity(3);
+    vec4 uTimeOfDayColor = get_tod_color();
 
     // Fog: soft drifting noise
     if (uFogIntensity > 0.0) {

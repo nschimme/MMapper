@@ -1,17 +1,22 @@
-find_path(IMGUI_HEADER imgui.h PATHS /app/include/imgui /usr/include/imgui)
+find_path(IMGUI_SEARCH_DIR imgui/imgui.h PATHS /app/include /usr/include)
 
-if(IMGUI_HEADER)
-    message(STATUS "Found imgui headers: ${IMGUI_HEADER}")
-    set(IMGUI_INCLUDE_DIR "${IMGUI_HEADER}" PARENT_SCOPE)
+if(IMGUI_SEARCH_DIR)
+    message(STATUS "Found imgui headers in: ${IMGUI_SEARCH_DIR}")
+    set(IMGUI_DIR "${IMGUI_SEARCH_DIR}/imgui")
     set(IMGUI_SOURCES
-        "${IMGUI_HEADER}/imgui.cpp"
-        "${IMGUI_HEADER}/imgui_draw.cpp"
-        "${IMGUI_HEADER}/imgui_tables.cpp"
-        "${IMGUI_HEADER}/imgui_widgets.cpp"
-        "${IMGUI_HEADER}/backends/imgui_impl_opengl3.cpp"
+        "${IMGUI_DIR}/imgui.cpp"
+        "${IMGUI_DIR}/imgui_draw.cpp"
+        "${IMGUI_DIR}/imgui_tables.cpp"
+        "${IMGUI_DIR}/imgui_widgets.cpp"
+        "${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp"
         PARENT_SCOPE
     )
+    set(IMGUI_INCLUDE_DIR "${IMGUI_DIR}" PARENT_SCOPE)
     set(IMGUI_FOUND true PARENT_SCOPE)
+
+    add_library(imgui_interface INTERFACE)
+    target_include_directories(imgui_interface INTERFACE "${IMGUI_DIR}" "${IMGUI_DIR}/backends")
+    add_library(imgui::imgui ALIAS imgui_interface)
 else()
     message(STATUS "ImGui NOT found; downloading from local source tree")
     include(FetchContent)
@@ -37,13 +42,8 @@ else()
         "${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp"
         PARENT_SCOPE
     )
-endif()
 
-# Define an interface target for MMapper to use
-add_library(imgui_interface INTERFACE)
-if(IMGUI_HEADER)
-    target_include_directories(imgui_interface INTERFACE "${IMGUI_HEADER}" "${IMGUI_HEADER}/backends")
-else()
+    add_library(imgui_interface INTERFACE)
     target_include_directories(imgui_interface INTERFACE "${imgui_SOURCE_DIR}" "${imgui_SOURCE_DIR}/backends")
+    add_library(imgui::imgui ALIAS imgui_interface)
 endif()
-add_library(imgui::imgui ALIAS imgui_interface)

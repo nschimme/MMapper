@@ -658,8 +658,8 @@ void MapCanvas::actuallyPaintGL()
                                                / 100.0f;
         m_weatherState.targetFogIntensity = static_cast<float>(settings.weatherFogIntensity.get())
                                             / 100.0f;
-        m_weatherState.targetMoonIntensity = static_cast<float>(settings.weatherToDIntensity.get())
-                                             / 100.0f;
+        m_weatherState.targetToDIntensity = static_cast<float>(settings.weatherToDIntensity.get())
+                                            / 100.0f;
 
         auto now = std::chrono::steady_clock::now();
         if (m_weatherState.lastUpdateTime.time_since_epoch().count() == 0) {
@@ -682,6 +682,7 @@ void MapCanvas::actuallyPaintGL()
         updateLevel(m_weatherState.snowIntensity, m_weatherState.targetSnowIntensity);
         updateLevel(m_weatherState.cloudsIntensity, m_weatherState.targetCloudsIntensity);
         updateLevel(m_weatherState.fogIntensity, m_weatherState.targetFogIntensity);
+        updateLevel(m_weatherState.todIntensity, m_weatherState.targetToDIntensity);
         updateLevel(m_weatherState.moonIntensity, m_weatherState.targetMoonIntensity);
 
         if (m_weatherState.timeOfDayTransition < 1.0f) {
@@ -846,15 +847,15 @@ Color MapCanvas::calculateTimeOfDayColor() const
     auto getColor = [this](MumeTimeEnum t) -> Color {
         switch (t) {
         case MumeTimeEnum::DAWN:
-            return Color(0.6f, 0.55f, 0.5f, 0.1f);
+            return Color(0.6f, 0.55f, 0.5f, 0.2f);
 
         case MumeTimeEnum::DUSK:
-            return Color(0.3f, 0.3f, 0.45f, 0.15f);
+            return Color(0.3f, 0.3f, 0.45f, 0.3f);
 
         case MumeTimeEnum::NIGHT: {
             const float moon = m_weatherState.moonIntensity;
-            const Color baseNight(0.05f, 0.05f, 0.2f, 0.3f);
-            const Color moonNight(0.2f, 0.2f, 0.4f, 0.2f);
+            const Color baseNight(0.05f, 0.05f, 0.2f, 0.6f);
+            const Color moonNight(0.2f, 0.2f, 0.4f, 0.4f);
             return Color(baseNight.getVec4() * (1.0f - moon) + moonNight.getVec4() * moon);
         }
 
@@ -872,7 +873,7 @@ Color MapCanvas::calculateTimeOfDayColor() const
     return Color(c1.r * (1.0f - t) + c2.r * t,
                  c1.g * (1.0f - t) + c2.g * t,
                  c1.b * (1.0f - t) + c2.b * t,
-                 c1.a * (1.0f - t) + c2.a * t);
+                 (c1.a * (1.0f - t) + c2.a * t) * m_weatherState.todIntensity);
 }
 
 void MapCanvas::initWeatherParticles()

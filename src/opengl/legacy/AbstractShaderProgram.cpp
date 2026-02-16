@@ -15,6 +15,7 @@ AbstractShaderProgram::AbstractShaderProgram(std::string dirName,
     : m_dirName{std::move(dirName)}
     , m_functions{functions} // conversion to weak ptr
     , m_program{std::move(program)}
+    , m_isBound{false}
 {}
 
 AbstractShaderProgram::~AbstractShaderProgram()

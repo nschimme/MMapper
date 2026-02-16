@@ -188,7 +188,7 @@ public:
         NamedConfig<int> weatherFogIntensity{"WEATHER_FOG_INTENSITY", 50};
         NamedConfig<int> weatherRainIntensity{"WEATHER_RAIN_INTENSITY", 50};
         NamedConfig<int> weatherSnowIntensity{"WEATHER_SNOW_INTENSITY", 50};
-        NamedConfig<int> weatherToDIntensity{"WEATHER_TOD_INTENSITY", 100};
+        NamedConfig<int> weatherToDIntensity{"WEATHER_TOD_INTENSITY", 50};
 
         struct NODISCARD Advanced final
         {

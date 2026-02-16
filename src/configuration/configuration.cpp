@@ -665,7 +665,13 @@ void Configuration::CanvasSettings::read(const QSettings &conf)
     weatherFogIntensity.set(conf.value(KEY_WEATHER_FOG_INTENSITY, 50).toInt());
     weatherRainIntensity.set(conf.value(KEY_WEATHER_RAIN_INTENSITY, 50).toInt());
     weatherSnowIntensity.set(conf.value(KEY_WEATHER_SNOW_INTENSITY, 50).toInt());
-    weatherToDIntensity.set(conf.value(KEY_WEATHER_TOD_INTENSITY, 100).toInt());
+    weatherToDIntensity.set(conf.value(KEY_WEATHER_TOD_INTENSITY, 50).toInt());
+
+    weatherCloudsIntensity.clamp(0, 100);
+    weatherFogIntensity.clamp(0, 100);
+    weatherRainIntensity.clamp(0, 100);
+    weatherSnowIntensity.clamp(0, 100);
+    weatherToDIntensity.clamp(0, 100);
 }
 
 void Configuration::AccountSettings::read(const QSettings &conf)

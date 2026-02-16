@@ -4,7 +4,7 @@
 precision highp float;
 
 uniform mat4 uInvViewProj;
-uniform vec4 uPlayerPos;
+uniform vec3 uPlayerPos;
 uniform float uZScale;
 uniform ivec4 uPhysViewport;
 uniform float uTime;

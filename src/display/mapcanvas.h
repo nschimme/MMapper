@@ -196,6 +196,8 @@ private:
         MumeTimeEnum oldTimeOfDay = MumeTimeEnum::DAY;
         MumeTimeEnum currentTimeOfDay = MumeTimeEnum::DAY;
         MumeMoonVisibilityEnum moonVisibility = MumeMoonVisibilityEnum::UNKNOWN;
+        float todIntensity = 0.0f;
+        float targetToDIntensity = 0.0f;
         float timeOfDayTransition = 1.0f;
         float animationTime = 0.0f;
         float lastDt = 0.0f;

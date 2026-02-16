@@ -34,7 +34,6 @@ UColorTexturedShader::~UColorTexturedShader() = default;
 
 RoomQuadTexShader::~RoomQuadTexShader() = default;
 
-FontShader::~FontShader() = default;
 PointShader::~PointShader() = default;
 BlitShader::~BlitShader() = default;
 FullScreenShader::~FullScreenShader() = default;
@@ -48,7 +47,6 @@ void ShaderPrograms::early_init()
 
     std::ignore = getRoomQuadTexShader();
 
-    std::ignore = getFontShader();
     std::ignore = getPointShader();
     std::ignore = getBlitShader();
     std::ignore = getFullScreenShader();
@@ -63,7 +61,6 @@ void ShaderPrograms::resetAll()
 
     m_roomQuadTexShader.reset();
 
-    m_font.reset();
     m_point.reset();
     m_blit.reset();
     m_fullscreen.reset();
@@ -121,11 +118,6 @@ const std::shared_ptr<RoomQuadTexShader> &ShaderPrograms::getRoomQuadTexShader()
 const std::shared_ptr<UColorTexturedShader> &ShaderPrograms::getTexturedUColorShader()
 {
     return getInitialized<UColorTexturedShader>(m_uTexturedShader, getFunctions(), "tex/ucolor");
-}
-
-const std::shared_ptr<FontShader> &ShaderPrograms::getFontShader()
-{
-    return getInitialized<FontShader>(m_font, getFunctions(), "font");
 }
 
 const std::shared_ptr<PointShader> &ShaderPrograms::getPointShader()

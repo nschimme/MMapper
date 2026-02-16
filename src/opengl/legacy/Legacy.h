@@ -431,11 +431,6 @@ public:
                                                 MMTextureId texture);
 
 public:
-    NODISCARD UniqueMesh createFontMesh(const SharedMMTexture &texture,
-                                        DrawModeEnum mode,
-                                        const std::vector<FontVert3d> &batch);
-
-public:
     void renderPoints(const std::vector<ColorVert> &verts, const GLRenderState &state);
 
     void renderPlain(DrawModeEnum mode,
@@ -450,7 +445,6 @@ public:
     void renderColoredTextured(DrawModeEnum mode,
                                const std::vector<ColoredTexVert> &verts,
                                const GLRenderState &state);
-    void renderFont3d(const SharedMMTexture &texture, const std::vector<FontVert3d> &verts);
 
 public:
     void renderFullScreenTriangle(const std::shared_ptr<AbstractShaderProgram> &prog,

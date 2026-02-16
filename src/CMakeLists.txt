@@ -392,8 +392,9 @@ set(mmapper_SRCS
     mpi/findreplacewidget.h
     observer/gameobserver.cpp
     observer/gameobserver.h
-    opengl/Font.cpp
-    opengl/Font.h
+    opengl/GLText.h
+    opengl/ImGuiRenderer.cpp
+    opengl/ImGuiRenderer.h
     opengl/OpenGLProber.cpp
     opengl/OpenGLProber.h
     opengl/FontFormatFlags.h
@@ -411,8 +412,6 @@ set(mmapper_SRCS
     opengl/legacy/Binders.h
     opengl/legacy/FBO.cpp
     opengl/legacy/FBO.h
-    opengl/legacy/FontMesh3d.cpp
-    opengl/legacy/FontMesh3d.h
     opengl/legacy/Legacy.cpp
     opengl/legacy/Legacy.h
     opengl/legacy/FunctionsGL33.cpp
@@ -707,6 +706,7 @@ target_link_libraries(mmapper PUBLIC
     ${mm_libs}
     ${CMAKE_THREAD_LIBS_INIT}
     coverage_config
+    ${IMGUI_LIBRARIES}
 )
 
 set_target_properties(
@@ -737,9 +737,12 @@ set_target_properties(
 
 target_include_directories(mmapper SYSTEM PUBLIC ${GLM_INCLUDE_DIR})
 target_include_directories(mmapper SYSTEM PUBLIC ${IMMER_INCLUDE_DIR})
+target_include_directories(mmapper SYSTEM PUBLIC ${IMGUI_INCLUDE_DIR} ${IMGUI_INCLUDE_DIR}/backends)
+
 target_include_directories(mm_global SYSTEM PUBLIC
         ${GLM_INCLUDE_DIR}
         ${IMMER_INCLUDE_DIR}
+        ${IMGUI_INCLUDE_DIR}
         ${Qt6Core_INCLUDE_DIRS}
         ${Qt6Widgets_INCLUDE_DIRS}
         #${Qt6_Network_INCLUDE_DIRS}
@@ -749,6 +752,7 @@ target_include_directories(mm_global SYSTEM PUBLIC
 target_include_directories(mm_map SYSTEM PUBLIC
         ${GLM_INCLUDE_DIR}
         ${IMMER_INCLUDE_DIR}
+        ${IMGUI_INCLUDE_DIR}
         ${Qt6Core_INCLUDE_DIRS}
         ${Qt6Widgets_INCLUDE_DIRS}
         #${Qt6_Network_INCLUDE_DIRS}
@@ -777,6 +781,12 @@ if(NOT IMMER_FOUND)
     add_dependencies(mmapper immer)
     add_dependencies(mm_map immer)
     add_dependencies(mm_global immer)
+endif()
+
+if(NOT IMGUI_FOUND)
+    add_dependencies(mmapper imgui)
+    add_dependencies(mm_map imgui)
+    add_dependencies(mm_global imgui)
 endif()
 
 if(WIN32)

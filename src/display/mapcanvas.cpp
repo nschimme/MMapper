@@ -65,7 +65,7 @@ MapCanvas::MapCanvas(MapData &mapData,
     , MapCanvasInputState{prespammedPath}
     , m_mapScreen{static_cast<MapCanvasViewport &>(*this)}
     , m_opengl{}
-    , m_glFont{m_opengl}
+    , m_imguiRenderer{this}
     , m_data{mapData}
     , m_groupManager{groupManager}
 {
@@ -204,8 +204,27 @@ NODISCARD static uint32_t operator&(const Qt::KeyboardModifiers left, const Qt::
     return static_cast<uint32_t>(left) & static_cast<uint32_t>(right);
 }
 
+void MapCanvas::keyPressEvent(QKeyEvent *const event)
+{
+    if (m_imguiRenderer.handleKeyEvent(event)) {
+        return;
+    }
+    QOpenGLWindow::keyPressEvent(event);
+}
+
+void MapCanvas::keyReleaseEvent(QKeyEvent *const event)
+{
+    if (m_imguiRenderer.handleKeyEvent(event)) {
+        return;
+    }
+    QOpenGLWindow::keyReleaseEvent(event);
+}
+
 void MapCanvas::wheelEvent(QWheelEvent *const event)
 {
+    if (m_imguiRenderer.handleWheelEvent(event)) {
+        return;
+    }
     const bool hasCtrl = (event->modifiers() & Qt::CTRL) != 0u;
 
     switch (m_canvasMouseMode) {
@@ -417,6 +436,9 @@ std::shared_ptr<InfomarkSelection> MapCanvas::getInfomarkSelection(const MouseSe
 
 void MapCanvas::mousePressEvent(QMouseEvent *const event)
 {
+    if (m_imguiRenderer.handleMouseEvent(event)) {
+        return;
+    }
     if (event->button() != Qt::RightButton) {
         emit sig_dismissContextMenu();
     }
@@ -615,6 +637,9 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
 
 void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
 {
+    if (m_imguiRenderer.handleMouseEvent(event)) {
+        return;
+    }
     const auto optXy = getMouseCoords(event);
     if (!optXy) {
         return;
@@ -800,6 +825,9 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
 
 void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
 {
+    if (m_imguiRenderer.handleMouseEvent(event)) {
+        return;
+    }
     const auto optXy = getMouseCoords(event);
     if (!optXy) {
         return;
@@ -1203,9 +1231,7 @@ void MapCanvas::screenChanged()
         m_batches.resetExistingMeshesButKeepPendingRemesh();
 
         gl.setDevicePixelRatio(newDpi);
-        auto &font = getGLFont();
-        font.cleanup();
-        font.init();
+        m_imguiRenderer.updateDPI();
 
         update();
     }

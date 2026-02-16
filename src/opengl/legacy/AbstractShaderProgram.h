@@ -88,7 +88,6 @@ public:
     void setColor(const char *name, Color color);
     void setMatrix(const char *name, const glm::mat4 &m);
     void setTexture(const char *name, int textureUnit);
-    void setViewport(const char *name, const Viewport &input_viewport);
 };
 
 } // namespace Legacy

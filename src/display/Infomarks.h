@@ -4,8 +4,8 @@
 
 #include "../global/Color.h"
 #include "../global/utils.h"
-#include "../opengl/Font.h"
 #include "../opengl/FontFormatFlags.h"
+#include "../opengl/GLText.h"
 #include "../opengl/OpenGLTypes.h"
 
 #include <cstddef>
@@ -24,9 +24,9 @@ struct NODISCARD InfomarksMeshes final
     UniqueMesh points;
     UniqueMesh tris;
     UniqueMesh quads;
-    UniqueMesh textMesh;
+    std::vector<GLText> text;
     bool isValid = false;
-    void render();
+    void render(class ImGuiRenderer &imgui, const struct MapCanvasViewport &viewport);
 };
 
 using BatchedInfomarksMeshes = std::unordered_map<int, InfomarksMeshes>;
@@ -35,7 +35,6 @@ struct NODISCARD InfomarksBatch final
 {
 private:
     OpenGL &m_realGL;
-    GLFont &m_font;
     glm::vec3 m_offset{0};
     Color m_color;
 
@@ -43,20 +42,11 @@ private:
     std::vector<ColorVert> m_tris;
     std::vector<ColorVert> m_quads;
 
-    // REVISIT: This is ill-advised and may contain bugs.
-    struct NODISCARD Text final
-    {
-        std::vector<GLText> text;
-        std::vector<FontVert3d> verts;
-        bool locked = false;
-    };
-
-    Text m_text;
+    std::vector<GLText> m_text;
 
 public:
-    explicit InfomarksBatch(OpenGL &gl, GLFont &font)
+    explicit InfomarksBatch(OpenGL &gl)
         : m_realGL{gl}
-        , m_font{font}
     {}
 
     void setColor(const Color color) { m_color = color; }
@@ -77,5 +67,7 @@ public:
                     int rotationAngle);
 
     NODISCARD InfomarksMeshes getMeshes();
-    void renderImmediate(const GLRenderState &state);
+    void renderImmediate(const GLRenderState &state,
+                         class ImGuiRenderer &imgui,
+                         const struct MapCanvasViewport &viewport);
 };

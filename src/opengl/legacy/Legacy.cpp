@@ -8,7 +8,6 @@
 #include "../OpenGLTypes.h"
 #include "AbstractShaderProgram.h"
 #include "Binders.h"
-#include "FontMesh3d.h"
 #include "Meshes.h"
 #include "ShaderUtils.h"
 #include "Shaders.h"
@@ -251,32 +250,6 @@ void Functions::renderColoredTextured(const DrawModeEnum mode,
                                                                  verts,
                                                                  prog,
                                                                  state);
-}
-
-void Functions::renderFont3d(const SharedMMTexture &texture, const std::vector<FontVert3d> &verts)
-
-{
-    const auto state = GLRenderState()
-                           .withBlend(BlendModeEnum::TRANSPARENCY)
-                           .withDepthFunction(std::nullopt)
-                           .withTexture0(texture->getId());
-
-    const auto &prog = getShaderPrograms().getFontShader();
-    renderImmediate<FontVert3d, Legacy::SimpleFont3dMesh>(shared_from_this(),
-                                                          DrawModeEnum::QUADS,
-                                                          verts,
-                                                          prog,
-                                                          state);
-}
-
-UniqueMesh Functions::createFontMesh(const SharedMMTexture &texture,
-                                     const DrawModeEnum mode,
-                                     const std::vector<FontVert3d> &batch)
-{
-    assert(static_cast<size_t>(mode) >= VERTS_PER_TRI);
-    const auto &prog = getShaderPrograms().getFontShader();
-    return UniqueMesh{
-        std::make_unique<Legacy::FontMesh3d>(shared_from_this(), prog, texture, mode, batch)};
 }
 
 Functions::Functions(Badge<Functions>)

@@ -189,6 +189,7 @@ public:
     using Base::glAttachShader;
     using Base::glBindBuffer;
     using Base::glBindBufferBase;
+    using Base::glBindBufferRange;
 
     /**
      * @brief Binds a buffer to a uniform block binding point.

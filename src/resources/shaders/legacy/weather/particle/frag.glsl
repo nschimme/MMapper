@@ -30,13 +30,15 @@ void main()
 
     if (vType == 0.0) { // Rain
         float streak = 1.0 - smoothstep(0.0, 0.15, abs(vLocalCoord.x - 0.5));
-        pColor = vec4(0.6, 0.6, 1.0, uRainIntensity * streak * vLocalMask * 0.6 * lifeFade);
+        float rainAlpha = mix(0.4, 0.7, clamp(uRainIntensity, 0.0, 1.0));
+        pColor = vec4(0.6, 0.6, 1.0, uRainIntensity * streak * vLocalMask * rainAlpha * lifeFade);
         // Emissive boost at night
         pColor.rgb += uTimeOfDayColor.a * 0.2;
     } else { // Snow
         float dist = distance(vLocalCoord, vec2(0.5));
         float flake = 1.0 - smoothstep(0.1, 0.2, dist);
-        pColor = vec4(1.0, 1.0, 1.1, uSnowIntensity * flake * vLocalMask * 0.8 * lifeFade);
+        float snowAlpha = mix(0.6, 0.9, clamp(uSnowIntensity, 0.0, 1.0));
+        pColor = vec4(1.0, 1.0, 1.1, uSnowIntensity * flake * vLocalMask * snowAlpha * lifeFade);
         // Emissive boost at night
         pColor.rgb += uTimeOfDayColor.a * 0.3;
 

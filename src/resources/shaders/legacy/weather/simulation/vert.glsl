@@ -41,15 +41,19 @@ void main()
     float uDeltaTime = uTimeAndDelta.y;
 
     if (type == 0.0) { // Rain
-        speed = 20.0 + hash * 5.0;
+        float rainIntensity = uWeatherIntensities.x;
+        // Speed increases with intensity: 15.0 at low, 25.0 at heavy (1.0), 35.0 at boosted (2.0)
+        speed = (15.0 + rainIntensity * 10.0) + hash * 5.0;
         decay = 0.5 + hash * 0.5;
         pos.y -= uDeltaTime * speed;
     } else { // Snow
-        speed = 2.0 + hash * 1.0;
+        float snowIntensity = uWeatherIntensities.y;
+        // Snow speed: 1.5 at low, 3.0 at heavy (1.0)
+        speed = (1.5 + snowIntensity * 1.5) + hash * 1.0;
         decay = 0.2 + hash * 0.3;
         pos.y -= uDeltaTime * speed;
-        // Horizontal swaying
-        pos.x += sin(uTime * 1.2 + hash * 6.28) * 0.01;
+        // Horizontal swaying increases with intensity
+        pos.x += sin(uTime * 1.2 + hash * 6.28) * (0.005 + snowIntensity * 0.01);
     }
 
     life -= uDeltaTime * decay;

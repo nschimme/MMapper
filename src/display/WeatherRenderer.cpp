@@ -308,30 +308,50 @@ void WeatherRenderer::render(const glm::mat4 &viewProj)
 
     // Pass 1: Simulation
     {
-        auto &prog = deref(funcs.getShaderPrograms().getParticleSimulationShader());
-        auto binder = prog.bind();
-        prog.setUniforms(viewProj, uniforms);
+        const float rainMax = std::max(m_state.rainIntensity, m_state.targetRainIntensity);
+        const float snowMax = std::max(m_state.snowIntensity, m_state.targetSnowIntensity);
+        const GLsizei simRainCount = static_cast<GLsizei>(std::ceil(rainMax * 2048.0f));
+        const GLsizei simSnowCount = static_cast<GLsizei>(std::ceil(snowMax * 512.0f));
 
-        const SharedVaoEnum simVaos[] = {SharedVaoEnum::WeatherSimulation0,
-                                         SharedVaoEnum::WeatherSimulation1};
-        const SharedVboEnum pVbos[] = {SharedVboEnum::WeatherParticles0,
-                                       SharedVboEnum::WeatherParticles1};
+        if (simRainCount > 0 || simSnowCount > 0) {
+            auto &prog = deref(funcs.getShaderPrograms().getParticleSimulationShader());
+            auto binder = prog.bind();
+            prog.setUniforms(viewProj, uniforms);
 
-        funcs.glEnable(GL_RASTERIZER_DISCARD);
-        funcs.glBindVertexArray(funcs.getSharedVaos().get(simVaos[m_state.currentBuffer])->get());
-        funcs.glBindTransformFeedback(GL_TRANSFORM_FEEDBACK,
-                                      funcs.getSharedTfs().get(SharedTfEnum::WeatherSimulation)->get());
-        funcs.glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER,
-                               0,
-                               funcs.getSharedVbos().get(pVbos[1 - m_state.currentBuffer])->get());
+            const SharedVaoEnum simVaos[] = {SharedVaoEnum::WeatherSimulation0,
+                                             SharedVaoEnum::WeatherSimulation1};
+            const SharedVboEnum pVbos[] = {SharedVboEnum::WeatherParticles0,
+                                           SharedVboEnum::WeatherParticles1};
 
-        funcs.glBeginTransformFeedback(GL_POINTS);
-        funcs.glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(m_state.numParticles));
-        funcs.glEndTransformFeedback();
+            funcs.glEnable(GL_RASTERIZER_DISCARD);
+            funcs.glBindVertexArray(funcs.getSharedVaos().get(simVaos[m_state.currentBuffer])->get());
+            funcs.glBindTransformFeedback(GL_TRANSFORM_FEEDBACK,
+                                          funcs.getSharedTfs().get(SharedTfEnum::WeatherSimulation)->get());
 
-        funcs.glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, 0);
-        funcs.glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, 0);
-        funcs.glDisable(GL_RASTERIZER_DISCARD);
+            const GLuint outputVbo = funcs.getSharedVbos().get(pVbos[1 - m_state.currentBuffer])->get();
+
+            // Simulate Rain
+            if (simRainCount > 0) {
+                funcs.glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, outputVbo);
+                funcs.glBeginTransformFeedback(GL_POINTS);
+                funcs.glDrawArrays(GL_POINTS, 0, simRainCount);
+                funcs.glEndTransformFeedback();
+            }
+
+            // Simulate Snow
+            if (simSnowCount > 0) {
+                const GLintptr snowOffset = 4096 * 3 * sizeof(float);
+                const GLsizeiptr snowSize = 1024 * 3 * sizeof(float);
+                funcs.glBindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER, 0, outputVbo, snowOffset, snowSize);
+                funcs.glBeginTransformFeedback(GL_POINTS);
+                funcs.glDrawArrays(GL_POINTS, 4096, simSnowCount);
+                funcs.glEndTransformFeedback();
+            }
+
+            funcs.glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, 0);
+            funcs.glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, 0);
+            funcs.glDisable(GL_RASTERIZER_DISCARD);
+        }
 
         m_state.currentBuffer = 1 - m_state.currentBuffer;
     }
@@ -375,7 +395,7 @@ void WeatherRenderer::render(const glm::mat4 &viewProj)
                                           SharedVaoEnum::WeatherRenderSnow1};
 
         // Rain
-        const GLsizei rainCount = std::min(4096, static_cast<int>(m_state.rainIntensity * 2048.0f));
+        const GLsizei rainCount = std::min(4096, static_cast<GLsizei>(std::ceil(m_state.rainIntensity * 2048.0f)));
         if (rainCount > 0) {
             prog.setFloat("uType", 0.0f);
             prog.setInt("uInstanceOffset", 0);
@@ -384,7 +404,7 @@ void WeatherRenderer::render(const glm::mat4 &viewProj)
         }
 
         // Snow
-        const GLsizei snowCount = std::min(1024, static_cast<int>(m_state.snowIntensity * 512.0f));
+        const GLsizei snowCount = std::min(1024, static_cast<GLsizei>(std::ceil(m_state.snowIntensity * 512.0f)));
         if (snowCount > 0) {
             prog.setFloat("uType", 1.0f);
             prog.setInt("uInstanceOffset", 4096);

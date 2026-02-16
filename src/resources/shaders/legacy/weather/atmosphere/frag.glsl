@@ -52,7 +52,9 @@ void main()
     // Fog: soft drifting noise
     if (uFogIntensity > 0.0) {
         float n = fbm(worldPos.xy * 0.15 + uTime * 0.1);
-        weatherColor = vec4(0.8, 0.8, 0.85, uFogIntensity * n * localMask * 0.6);
+        // Density increases non-linearly with intensity
+        float density = 0.4 + uFogIntensity * 0.4;
+        weatherColor = vec4(0.8, 0.8, 0.85, uFogIntensity * n * localMask * density);
         // Emissive boost at night
         weatherColor.rgb += uTimeOfDayColor.a * 0.15;
     }
@@ -61,7 +63,9 @@ void main()
     if (uCloudsIntensity > 0.0) {
         float n = fbm(worldPos.xy * 0.06 - uTime * 0.03);
         float puffy = smoothstep(0.45, 0.55, n);
-        vec4 clouds = vec4(0.9, 0.9, 1.0, uCloudsIntensity * puffy * localMask * 0.4);
+        // Clouds get darker and more "stormy" as intensity increases
+        float storminess = 1.0 - uCloudsIntensity * 0.4;
+        vec4 clouds = vec4(0.9 * storminess, 0.9 * storminess, 1.0 * storminess, uCloudsIntensity * puffy * localMask * 0.5);
         // Emissive boost at night
         clouds.rgb += uTimeOfDayColor.a * 0.1;
         weatherColor.rgb = mix(weatherColor.rgb, clouds.rgb, clouds.a);

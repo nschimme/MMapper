@@ -40,6 +40,11 @@ void main()
     gl_Position = clipPos;
     vDist = clipPos.w;
 
+    // Do not show rain/snow below the player's layer
+    if (pos.z < uPlayerPos.z - 0.1) {
+        gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+    }
+
     // Project velocity for rain streaks. Use w=0 for direction-only projection to stay stable during zoom.
     vec4 clipVel = uViewProj * vec4(inVel, 0.0);
     vVelScreen = clipVel.xy;

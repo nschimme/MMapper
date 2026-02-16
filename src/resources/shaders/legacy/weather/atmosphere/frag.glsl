@@ -37,13 +37,20 @@ void main()
     float distToPlayer = distance(worldPos.xy, uPlayerPos.xy);
     float localMask = smoothstep(12.0, 8.0, distToPlayer);
 
+    // Do not show weather on geometry below the player's layer
+    float zDiff = worldPos.z - uPlayerPos.z;
+    if (zDiff < -0.1) {
+        localMask *= smoothstep(-1.0, -0.1, zDiff);
+    }
+
     vec4 weatherAccum = vec4(0.0);
+    float darkBoost = uTimeOfDayColor.a * 1.5;
 
     // Fog: based on actual world position depth
     if (uFogIntensity > 0.01) {
         vec2 uv = worldPos.xy * 0.15 + uTime * 0.1;
         float n = texture(uNoiseTexture, uv * 0.05).r;
-        vec4 fogColor = vec4(0.8, 0.8, 0.85, uFogIntensity * n * localMask * 0.6);
+        vec4 fogColor = vec4(0.8 + darkBoost, 0.8 + darkBoost, 0.85 + darkBoost, uFogIntensity * n * localMask * 0.7);
         weatherAccum = fogColor;
     }
 
@@ -52,7 +59,9 @@ void main()
         vec2 uv = playerPlanePos.xy * 0.06 - uTime * 0.03;
         float n = texture(uNoiseTexture, uv * 0.05).g;
         float puffy = smoothstep(0.45, 0.65, n);
-        vec4 clouds = vec4(0.95, 0.95, 1.0, uCloudsIntensity * puffy * localMask * 0.8);
+        vec4 clouds = vec4(0.95 + darkBoost, 0.95 + darkBoost, 1.0 + darkBoost, uCloudsIntensity * puffy * localMask * 0.8);
+
+        // Blend clouds into fog
         weatherAccum.rgb = mix(weatherAccum.rgb, clouds.rgb, clouds.a);
         weatherAccum.a = max(weatherAccum.a, clouds.a);
     }
@@ -61,13 +70,15 @@ void main()
     vec3 todTint = uTimeOfDayColor.rgb;
     float todAlpha = uTimeOfDayColor.a;
 
-    vec4 result = vec4(todTint, todAlpha);
-
-    // Blend weather on top of ToD
-    if (weatherAccum.a > 0.0) {
-        result.rgb = mix(result.rgb, weatherAccum.rgb, weatherAccum.a);
-        result.a = max(result.a, weatherAccum.a);
+    // Sequential blending math (Overlaid):
+    // Standard alpha blending result of (background blended with TOD) then (result blended with Weather)
+    float outAlpha = todAlpha + weatherAccum.a - todAlpha * weatherAccum.a;
+    vec3 outColor;
+    if (outAlpha > 0.001) {
+        outColor = (todTint * todAlpha * (1.0 - weatherAccum.a) + weatherAccum.rgb * weatherAccum.a) / outAlpha;
+    } else {
+        outColor = todTint;
     }
 
-    vFragmentColor = result;
+    vFragmentColor = vec4(outColor, outAlpha);
 }

@@ -70,9 +70,10 @@ AudioManager::AudioManager(GameObserver &observer, QObject *parent)
     const auto &resourcesDir = getConfig().canvas.resourcesDirectory;
     m_watcher.addPath(resourcesDir + "/music");
     m_watcher.addPath(resourcesDir + "/sounds");
-    connect(&m_watcher, &QFileSystemWatcher::directoryChanged, this, [this](const QString & /*path*/) {
-        scanDirectories();
-    });
+    connect(&m_watcher,
+            &QFileSystemWatcher::directoryChanged,
+            this,
+            [this](const QString & /*path*/) { scanDirectories(); });
 #endif
 
     m_observer.sig2_areaChanged.connect(m_lifetime,

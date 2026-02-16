@@ -49,6 +49,7 @@ parts:
       - -DCMAKE_BUILD_TYPE=Release
       - -DWITH_UPDATER=OFF
       - -DWITH_WEBSOCKET=ON
+      - -DWITH_AUDIO=ON
       - -DWITH_QTKEYCHAIN=ON
       - -DUSE_MOLD=ON
       - -DCMAKE_INSTALL_SYSCONFDIR=/etc
@@ -70,7 +71,6 @@ parts:
       - libssl3t64
       - zlib1g
       - libqt6multimedia6
-      - libqt6multimediaquick6
     override-pull: |
       craftctl default
       craftctl set version=$(git describe --tags --always --long --exclude beta | sed 's/^v//')

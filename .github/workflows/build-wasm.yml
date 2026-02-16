@@ -47,6 +47,7 @@ jobs:
           -DWITH_OPENSSL=OFF \
           -DWITH_TESTS=OFF \
           -DWITH_WEBSOCKET=ON \
+          -DWITH_AUDIO=ON \
           -DWITH_UPDATER=OFF \
           -DCMAKE_BUILD_TYPE=Release \
           -DPACKAGE_TYPE=Wasm \

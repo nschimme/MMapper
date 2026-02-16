@@ -626,6 +626,7 @@ add_feature_info("WITH_WEBSOCKET" WITH_WEBSOCKET "bypass firewalls and connect o
 add_feature_info("WITH_QTKEYCHAIN" WITH_QTKEYCHAIN "account credentials encryption and auto-login")
 add_feature_info("WITH_MAP" WITH_MAP "include default map as a resource")
 add_feature_info("WITH_IMAGES" WITH_IMAGES "include default images as a resource")
+add_feature_info("WITH_AUDIO" WITH_AUDIO "audio support for music and sounds")
 add_feature_info("WITH_TESTS" WITH_TESTS "compile unit tests")
 add_feature_info("USE_TIDY" USE_TIDY "")
 add_feature_info("USE_IWYU" USE_IWYU "")

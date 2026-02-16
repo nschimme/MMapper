@@ -716,6 +716,10 @@ target_link_libraries(mmapper PUBLIC
     coverage_config
 )
 
+if(WITH_AUDIO)
+    target_link_libraries(mmapper PUBLIC Qt6::Multimedia)
+endif()
+
 set_target_properties(
   mmapper PROPERTIES
   CXX_STANDARD 17

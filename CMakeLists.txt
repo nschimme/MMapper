@@ -59,6 +59,14 @@ if(WITH_WEBSOCKET)
 endif()
 find_package(Qt6 COMPONENTS ${MMAPPER_QT_COMPONENTS} REQUIRED)
 
+find_package(Qt6 COMPONENTS Multimedia QUIET)
+if(Qt6Multimedia_FOUND)
+    message(STATUS "Qt6 Multimedia found. Enabling audio features.")
+    add_compile_definitions(MMAPPER_WITH_MULTIMEDIA)
+else()
+    message(STATUS "Qt6 Multimedia NOT found. Audio features will be disabled.")
+endif()
+
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 

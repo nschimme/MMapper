@@ -10,6 +10,8 @@ set(mmapper_SRCS
     adventure/lineparsers.h
     adventure/xpstatuswidget.cpp
     adventure/xpstatuswidget.h
+    audio/AudioManager.cpp
+    audio/AudioManager.h
     client/ClientTelnet.cpp
     client/ClientTelnet.h
     client/ClientWidget.cpp
@@ -483,6 +485,8 @@ set(mmapper_SRCS
     preferences/AdvancedGraphics.cpp
     preferences/AdvancedGraphics.h
     preferences/AnsiColorDialog.cpp
+    preferences/audiopage.cpp
+    preferences/audiopage.h
     preferences/AnsiColorDialog.h
     preferences/ansicombo.cpp
     preferences/ansicombo.h
@@ -604,6 +608,7 @@ set(mmapper_UIS
     mainwindow/findroomsdlg.ui
     mainwindow/roomeditattrdlg.ui
     preferences/AnsiColorDialog.ui
+    preferences/audiopage.ui
     preferences/autologpage.ui
     preferences/configdialog.ui
     preferences/clientpage.ui
@@ -705,6 +710,7 @@ target_link_libraries(mmapper PUBLIC
     Qt6::Network
     Qt6::OpenGL
     Qt6::OpenGLWidgets
+    $<$<BOOL:${Qt6Multimedia_FOUND}>:Qt6::Multimedia>
     # note: link order matters on some platforms. include ${mm_libs} twice if you have a link failure.
     ${mm_libs}
     ${CMAKE_THREAD_LIBS_INIT}

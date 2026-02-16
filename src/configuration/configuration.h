@@ -350,6 +350,17 @@ public:
         SUBGROUP();
     } adventurePanel;
 
+    struct NODISCARD AudioSettings final
+    {
+        int musicVolume = 50;
+        int soundVolume = 50;
+        bool musicEnabled = true;
+        bool soundsEnabled = true;
+
+    private:
+        SUBGROUP();
+    } audio;
+
     struct NODISCARD IntegratedMudClientSettings final
     {
         QString font;

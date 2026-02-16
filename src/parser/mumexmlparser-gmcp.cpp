@@ -356,6 +356,26 @@ void MumeXmlParser::parseGmcpCharVitals(const JsonObj &obj)
         }
     }
     m_observer.observeWeather(promptFlags.getWeatherType());
+
+    if (auto position = obj.getString("position")) {
+        CharacterPositionEnum pos = CharacterPositionEnum::UNDEFINED;
+        if (position == "standing") {
+            pos = CharacterPositionEnum::STANDING;
+        } else if (position == "sitting") {
+            pos = CharacterPositionEnum::SITTING;
+        } else if (position == "resting") {
+            pos = CharacterPositionEnum::RESTING;
+        } else if (position == "sleeping") {
+            pos = CharacterPositionEnum::SLEEPING;
+        } else if (position == "fighting") {
+            pos = CharacterPositionEnum::FIGHTING;
+        } else if (position == "incapacitated") {
+            pos = CharacterPositionEnum::INCAPACITATED;
+        } else if (position == "dead") {
+            pos = CharacterPositionEnum::DEAD;
+        }
+        m_observer.observePosition(pos);
+    }
 }
 
 void MumeXmlParser::parseGmcpEventMoved(const JsonObj &obj)
@@ -383,6 +403,10 @@ void MumeXmlParser::parseGmcpRoomInfo(const JsonObj &obj)
     m_commonData.connectedRoomFlags = misc.connectedRoomFlags;
     m_commonData.roomExits = misc.exits;
     m_commonData.exitIds = misc.exitIds;
+
+    if (m_commonData.roomArea) {
+        m_observer.observeArea(m_commonData.roomArea.value());
+    }
 
     m_eventReady = true;
 }

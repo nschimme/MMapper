@@ -690,9 +690,12 @@ void MapCanvas::actuallyPaintGL()
     paintSelections();
     paintCharacters();
     paintDifferences();
-    m_weatherRenderer->render(m_viewProj);
+    m_weatherRenderer->renderParticles(m_viewProj);
+    m_weatherRenderer->renderAtmosphere(m_viewProj);
 
     gl.releaseFbo();
+    gl.resolveFbo();
+
     gl.blitFboToDefault();
 }
 

@@ -11,7 +11,7 @@ layout(std140) uniform WeatherBlock
     vec4 uTimeAndDelta; // x=time, y=deltaTime
 };
 
-out vec3 vWorldPos;
+out vec2 vNDC;
 
 void main()
 {
@@ -19,16 +19,6 @@ void main()
     // 0: (-1, -1), 1: (3, -1), 2: (-1, 3)
     float x = -1.0 + float((gl_VertexID & 1) << 2);
     float y = -1.0 + float((gl_VertexID & 2) << 1);
+    vNDC = vec2(x, y);
     gl_Position = vec4(x, y, 0.0, 1.0);
-
-    // Unproject to world space at the player's Z layer
-    vec4 near4 = uInvViewProj * vec4(x, y, -1.0, 1.0);
-    vec4 far4 = uInvViewProj * vec4(x, y, 1.0, 1.0);
-    vec3 nearPos = near4.xyz / near4.w;
-    vec3 farPos = far4.xyz / far4.w;
-
-    float uZScale = uPlayerPos.w;
-    float t = (uPlayerPos.z * uZScale - nearPos.z) / (farPos.z - nearPos.z);
-    vWorldPos = mix(nearPos, farPos, t);
-    vWorldPos.z /= uZScale;
 }

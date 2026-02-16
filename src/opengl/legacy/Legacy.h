@@ -503,6 +503,7 @@ public:
     void configureFbo(int samples);
     void bindFbo();
     void releaseFbo();
+    void resolveFbo();
     void blitFboToDefault();
 };
 } // namespace Legacy

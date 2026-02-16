@@ -67,7 +67,8 @@ public:
 
 public:
     void init();
-    void render(const glm::mat4 &viewProj);
+    void renderParticles(const glm::mat4 &viewProj);
+    void renderAtmosphere(const glm::mat4 &viewProj);
     void update(float dt);
 
     NODISCARD State &getState() { return m_state; }

@@ -15,7 +15,7 @@ layout(std140) uniform WeatherBlock
 
 uniform sampler2D uNoiseTex;
 
-in vec3 vWorldPos;
+in vec2 vNDC;
 out vec4 vFragmentColor;
 
 float get_noise(vec2 p)
@@ -38,7 +38,16 @@ float fbm(vec2 p)
 
 void main()
 {
-    vec3 worldPos = vWorldPos;
+    // Unproject NDC to world space on the player's Z plane
+    vec4 near4 = uInvViewProj * vec4(vNDC, -1.0, 1.0);
+    vec4 far4 = uInvViewProj * vec4(vNDC, 1.0, 1.0);
+    vec3 nearPos = near4.xyz / near4.w;
+    vec3 farPos = far4.xyz / far4.w;
+
+    float uZScale = uPlayerPos.w;
+    float t = (uPlayerPos.z * uZScale - nearPos.z) / (farPos.z - nearPos.z);
+    vec3 worldPos = mix(nearPos, farPos, t);
+    worldPos.z /= uZScale;
 
     float distToPlayer = distance(worldPos.xy, uPlayerPos.xy);
     float localMask = smoothstep(12.0, 8.0, distToPlayer);

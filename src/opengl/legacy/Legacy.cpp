@@ -403,6 +403,11 @@ void Functions::releaseFbo()
     getFBO().release();
 }
 
+void Functions::resolveFbo()
+{
+    getFBO().resolve();
+}
+
 void Functions::blitFboToDefault()
 {
     getFBO().resolve();

@@ -263,13 +263,13 @@ Color WeatherRenderer::calculateTimeOfDayColor() const
                  (c1.a * (1.0f - t) + c2.a * t) * (m_state.todIntensity * 2.0f));
 }
 
-void WeatherRenderer::render(const glm::mat4 &viewProj)
+void WeatherRenderer::renderParticles(const glm::mat4 &viewProj)
 {
-    const Color todColor = calculateTimeOfDayColor();
-    const bool hasWeather = m_state.rainIntensity > 0.0f || m_state.snowIntensity > 0.0f
-                            || m_state.cloudsIntensity > 0.0f || m_state.fogIntensity > 0.0f;
+    const bool hasParticles = m_state.rainIntensity > 0.0f || m_state.snowIntensity > 0.0f
+                              || m_state.targetRainIntensity > 0.0f
+                              || m_state.targetSnowIntensity > 0.0f;
 
-    if (!hasWeather && todColor.getAlpha() == 0) {
+    if (!hasParticles) {
         return;
     }
 
@@ -291,7 +291,7 @@ void WeatherRenderer::render(const glm::mat4 &viewProj)
                               m_state.snowIntensity,
                               m_state.cloudsIntensity,
                               m_state.fogIntensity);
-    w.todColor = todColor.getVec4();
+    w.todColor = calculateTimeOfDayColor().getVec4();
     w.timeInfo = glm::vec4(m_state.animationTime, m_state.lastDt, 0.0f, 0.0f);
 
     using namespace Legacy;
@@ -356,28 +356,6 @@ void WeatherRenderer::render(const glm::mat4 &viewProj)
         m_state.currentBuffer = 1 - m_state.currentBuffer;
     }
 
-    // Pass 2: Atmosphere
-    {
-        auto &prog = deref(funcs.getShaderPrograms().getAtmosphereShader());
-        auto binder = prog.bind();
-        prog.setUniforms(viewProj, uniforms);
-
-        const auto rs = GLRenderState()
-                            .withBlend(BlendModeEnum::TRANSPARENCY)
-                            .withDepthFunction(std::nullopt)
-                            .withTexture0(m_textures.weather_noise->getId());
-        Legacy::RenderStateBinder renderStateBinder(funcs, funcs.getTexLookup(), rs);
-
-        Legacy::SharedVao shared = funcs.getSharedVaos().get(Legacy::SharedVaoEnum::EmptyVao);
-        Legacy::VAO &vao = deref(shared);
-        if (!vao) {
-            vao.emplace(sharedFuncs);
-        }
-        funcs.glBindVertexArray(vao.get());
-        funcs.glDrawArrays(GL_TRIANGLES, 0, 3);
-        funcs.glBindVertexArray(0);
-    }
-
     // Pass 3: Particles
     if (m_state.rainIntensity > 0.0f || m_state.snowIntensity > 0.0f) {
         auto &prog = deref(funcs.getShaderPrograms().getParticleRenderShader());
@@ -412,6 +390,66 @@ void WeatherRenderer::render(const glm::mat4 &viewProj)
             funcs.glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, snowCount);
         }
 
+        funcs.glBindVertexArray(0);
+    }
+}
+
+void WeatherRenderer::renderAtmosphere(const glm::mat4 &viewProj)
+{
+    const Color todColor = calculateTimeOfDayColor();
+    const bool hasAtmosphere = m_state.cloudsIntensity > 0.0f || m_state.fogIntensity > 0.0f;
+
+    if (!hasAtmosphere && todColor.getAlpha() == 0) {
+        return;
+    }
+
+    auto &sharedFuncs = m_gl.getSharedFunctions(Badge<WeatherRenderer>{});
+    Legacy::Functions &funcs = deref(sharedFuncs);
+
+    const auto playerPos = m_data.tryGetPosition().value_or(Coordinate{}).to_vec3();
+    const bool want3D = getConfig().canvas.advanced.use3D.get();
+    const float zScale = want3D ? getConfig().canvas.advanced.layerHeight.getFloat() : 7.0f;
+
+    GLRenderState::Uniforms uniforms;
+    auto &w = uniforms.weather;
+    w.viewProj = viewProj;
+    w.invViewProj = glm::inverse(viewProj);
+    w.playerPos = glm::vec4(playerPos, zScale);
+    w.intensities = glm::vec4(m_state.rainIntensity,
+                              m_state.snowIntensity,
+                              m_state.cloudsIntensity,
+                              m_state.fogIntensity);
+    w.todColor = todColor.getVec4();
+    w.timeInfo = glm::vec4(m_state.animationTime, m_state.lastDt, 0.0f, 0.0f);
+
+    using namespace Legacy;
+    const auto buffer = SharedVboEnum::WeatherBlock;
+    auto sharedVbo = funcs.getSharedVbos().get(buffer);
+    VBO &vboUbo = deref(sharedVbo);
+    std::ignore = funcs.setUbo(vboUbo.get(),
+                               std::vector<GLRenderState::Uniforms::Weather>{w},
+                               BufferUsageEnum::DYNAMIC_DRAW);
+    funcs.glBindBufferBase(GL_UNIFORM_BUFFER, buffer, vboUbo.get());
+
+    // Atmosphere
+    {
+        auto &prog = deref(funcs.getShaderPrograms().getAtmosphereShader());
+        auto binder = prog.bind();
+        prog.setUniforms(viewProj, uniforms);
+
+        const auto rs = GLRenderState()
+                            .withBlend(BlendModeEnum::TRANSPARENCY)
+                            .withDepthFunction(std::nullopt)
+                            .withTexture0(m_textures.weather_noise->getId());
+        Legacy::RenderStateBinder renderStateBinder(funcs, funcs.getTexLookup(), rs);
+
+        Legacy::SharedVao shared = funcs.getSharedVaos().get(Legacy::SharedVaoEnum::EmptyVao);
+        Legacy::VAO &vao = deref(shared);
+        if (!vao) {
+            vao.emplace(sharedFuncs);
+        }
+        funcs.glBindVertexArray(vao.get());
+        funcs.glDrawArrays(GL_TRIANGLES, 0, 3);
         funcs.glBindVertexArray(0);
     }
 }

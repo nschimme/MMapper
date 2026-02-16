@@ -82,6 +82,11 @@ void OpenGL::releaseFbo()
     getFunctions().releaseFbo();
 }
 
+void OpenGL::resolveFbo()
+{
+    getFunctions().resolveFbo();
+}
+
 void OpenGL::blitFboToDefault()
 {
     getFunctions().blitFboToDefault();

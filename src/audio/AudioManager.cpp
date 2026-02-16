@@ -24,77 +24,87 @@ AudioManager::AudioManager(GameObserver &observer, QObject *parent)
     , m_observer(observer)
 {
 #ifndef MMAPPER_NO_AUDIO
-    m_music.player = new QMediaPlayer(this);
-    m_music.audioOutput = new QAudioOutput(this);
-    m_music.player->setAudioOutput(m_music.audioOutput);
-    m_music.player->setLoops(QMediaPlayer::Infinite);
+    for (int i = 0; i < 2; ++i) {
+        m_music.channels[i].player = new QMediaPlayer(this);
+        m_music.channels[i].audioOutput = new QAudioOutput(this);
+        m_music.channels[i].player->setAudioOutput(m_music.channels[i].audioOutput);
+        m_music.channels[i].player->setLoops(QMediaPlayer::Infinite);
 
-    connect(m_music.player,
-            &QMediaPlayer::mediaStatusChanged,
-            this,
-            [this](QMediaPlayer::MediaStatus status) {
-                if (status == QMediaPlayer::LoadedMedia || status == QMediaPlayer::BufferedMedia
-                    || status == QMediaPlayer::BufferingMedia) {
-                    applyPendingPosition();
-                }
-            });
+        connect(m_music.channels[i].player,
+                &QMediaPlayer::mediaStatusChanged,
+                this,
+                [this, i](QMediaPlayer::MediaStatus status) {
+                    if (status == QMediaPlayer::LoadedMedia || status == QMediaPlayer::BufferedMedia
+                        || status == QMediaPlayer::BufferingMedia) {
+                        applyPendingPosition(i);
+                    }
+                });
 
-    connect(m_music.player, &QMediaPlayer::seekableChanged, this, [this](bool seekable) {
-        if (seekable) {
-            applyPendingPosition();
-        }
-    });
+        connect(m_music.channels[i].player,
+                &QMediaPlayer::seekableChanged,
+                this,
+                [this, i](bool seekable) {
+                    if (seekable) {
+                        applyPendingPosition(i);
+                    }
+                });
+    }
+
+    m_fade.step = static_cast<float>(FadeState::FADE_INTERVAL_MS)
+                  / FadeState::CROSSFADE_DURATION_MS;
 
     m_fade.timer = new QTimer(this);
-    m_fade.timer->setInterval(100);
+    m_fade.timer->setInterval(FadeState::FADE_INTERVAL_MS);
     connect(m_fade.timer, &QTimer::timeout, this, [this]() {
-        float currentVol = m_music.audioOutput->volume();
-        float target = static_cast<float>(getConfig().audio.musicVolume) / 100.0f;
+        bool changed = false;
+        for (int i = 0; i < 2; ++i) {
+            float target = 0.0f;
+            if (!m_fade.fadingToSilence && i == m_music.activeChannel) {
+                target = 1.0f;
+            }
 
-        if (m_fade.isFadingOut) {
-            currentVol -= m_fade.step;
-            if (currentVol <= 0.0f) {
-                currentVol = 0.0f;
-                m_fade.timer->stop();
+            if (m_music.channels[i].fadeVolume < target) {
+                m_music.channels[i].fadeVolume = std::min(target,
+                                                          m_music.channels[i].fadeVolume
+                                                              + m_fade.step);
+                changed = true;
+            } else if (m_music.channels[i].fadeVolume > target) {
+                m_music.channels[i].fadeVolume = std::max(target,
+                                                          m_music.channels[i].fadeVolume
+                                                              - m_fade.step);
+                changed = true;
+            }
+            updateChannelVolume(i);
+        }
 
-                if (!m_music.currentFile.isEmpty()
-                    && m_music.player->playbackState() == QMediaPlayer::PlayingState) {
-                    m_music.cachedPositions.insert(m_music.currentFile,
-                                                   new qint64(m_music.player->position()));
-                }
-
-                m_music.player->stop();
-                if (!m_music.pendingFile.isEmpty()) {
-                    m_music.currentFile = m_music.pendingFile;
-                    m_music.pendingFile.clear();
-
-                    if (qint64 *pos = m_music.cachedPositions.object(m_music.currentFile)) {
-                        m_music.pendingPosition = *pos;
-                    } else {
-                        m_music.pendingPosition = -1;
+        if (!changed) {
+            m_fade.timer->stop();
+            int inactive = (m_music.activeChannel + 1) % 2;
+            if (m_music.channels[inactive].fadeVolume <= 0.0f) {
+                if (!m_music.channels[inactive].file.isEmpty()) {
+                    if (m_music.channels[inactive].player->playbackState()
+                        == QMediaPlayer::PlayingState) {
+                        m_music.cachedPositions
+                            .insert(m_music.channels[inactive].file,
+                                    new qint64(m_music.channels[inactive].player->position()));
                     }
-
-                    if (m_music.currentFile.startsWith(":")) {
-                        m_music.player->setSource(QUrl("qrc" + m_music.currentFile));
-                    } else {
-                        m_music.player->setSource(QUrl::fromLocalFile(m_music.currentFile));
-                    }
-
-                    if (getConfig().audio.musicVolume > 0) {
-                        m_music.player->play();
-                        applyPendingPosition();
-                        startFadeIn();
-                    }
+                    m_music.channels[inactive].player->stop();
+                    m_music.channels[inactive].file.clear();
                 }
             }
-        } else {
-            currentVol += m_fade.step;
-            if (currentVol >= target) {
-                currentVol = target;
-                m_fade.timer->stop();
+            if (m_fade.fadingToSilence
+                && m_music.channels[m_music.activeChannel].fadeVolume <= 0.0f) {
+                if (m_music.channels[m_music.activeChannel].player->playbackState()
+                    == QMediaPlayer::PlayingState) {
+                    m_music.cachedPositions
+                        .insert(m_music.channels[m_music.activeChannel].file,
+                                new qint64(
+                                    m_music.channels[m_music.activeChannel].player->position()));
+                }
+                m_music.channels[m_music.activeChannel].player->stop();
+                m_music.channels[m_music.activeChannel].file.clear();
             }
         }
-        m_music.audioOutput->setVolume(currentVol);
     });
 
     scanDirectories();
@@ -121,7 +131,9 @@ AudioManager::AudioManager(GameObserver &observer, QObject *parent)
 AudioManager::~AudioManager()
 {
 #ifndef MMAPPER_NO_AUDIO
-    m_music.player->stop();
+    for (int i = 0; i < 2; ++i) {
+        m_music.channels[i].player->stop();
+    }
 #endif
 }
 
@@ -129,8 +141,7 @@ void AudioManager::onAreaChanged(const RoomArea &area)
 {
 #ifndef MMAPPER_NO_AUDIO
     if (area.isEmpty()) {
-        m_music.pendingFile.clear();
-        startFadeOut();
+        startFade(true);
         return;
     }
 
@@ -141,32 +152,53 @@ void AudioManager::onAreaChanged(const RoomArea &area)
     QString musicFile = findAudioFile("music", name);
 
     if (musicFile.isEmpty()) {
-        startFadeOut();
+        startFade(true);
         return;
     }
 
-    if (musicFile == m_music.currentFile) {
-        if (m_fade.isFadingOut) {
-            m_music.pendingFile.clear();
-            startFadeIn();
-        } else if (m_music.player->playbackState() == QMediaPlayer::StoppedState
-                   && getConfig().audio.musicVolume > 0) {
-            if (qint64 *pos = m_music.cachedPositions.object(m_music.currentFile)) {
-                m_music.pendingPosition = *pos;
-            }
-            m_music.player->play();
-            applyPendingPosition();
-            startFadeIn();
-        }
+    if (musicFile == m_music.channels[m_music.activeChannel].file) {
+        startFade(false);
         return;
     }
 
-    if (musicFile == m_music.pendingFile) {
+    int inactiveChannel = (m_music.activeChannel + 1) % 2;
+    if (musicFile == m_music.channels[inactiveChannel].file) {
+        m_music.activeChannel = inactiveChannel;
+        startFade(false);
         return;
     }
 
-    m_music.pendingFile = musicFile;
-    startFadeOut();
+    // New file: start crossfade
+    // 1. Save current active channel position
+    auto &active = m_music.channels[m_music.activeChannel];
+    if (!active.file.isEmpty() && active.player->playbackState() == QMediaPlayer::PlayingState) {
+        m_music.cachedPositions.insert(active.file, new qint64(active.player->position()));
+    }
+
+    // 2. Prepare inactive channel
+    m_music.activeChannel = inactiveChannel;
+    auto &newActive = m_music.channels[m_music.activeChannel];
+    newActive.file = musicFile;
+    newActive.fadeVolume = 0.0f;
+
+    if (qint64 *pos = m_music.cachedPositions.object(newActive.file)) {
+        newActive.pendingPosition = *pos;
+    } else {
+        newActive.pendingPosition = -1;
+    }
+
+    if (newActive.file.startsWith(":")) {
+        newActive.player->setSource(QUrl("qrc" + newActive.file));
+    } else {
+        newActive.player->setSource(QUrl::fromLocalFile(newActive.file));
+    }
+
+    if (getConfig().audio.musicVolume > 0) {
+        newActive.player->play();
+        applyPendingPosition(m_music.activeChannel);
+    }
+
+    startFade(false);
 #else
     Q_UNUSED(area);
 #endif
@@ -187,36 +219,43 @@ void AudioManager::onPositionChanged(CharacterPositionEnum position)
 void AudioManager::updateVolumes()
 {
 #ifndef MMAPPER_NO_AUDIO
-    if (!m_fade.isFadingOut && (m_fade.timer == nullptr || !m_fade.timer->isActive())) {
-        float vol = static_cast<float>(getConfig().audio.musicVolume) / 100.0f;
-        m_music.audioOutput->setVolume(vol);
-        if (vol > 0 && m_music.player->playbackState() == QMediaPlayer::StoppedState
-            && !m_music.currentFile.isEmpty()) {
-            if (qint64 *pos = m_music.cachedPositions.object(m_music.currentFile)) {
-                m_music.pendingPosition = *pos;
-            } else {
-                m_music.pendingPosition = -1;
-            }
-            m_music.player->play();
-            applyPendingPosition();
-        } else if (vol <= 0 && m_music.player->playbackState() == QMediaPlayer::PlayingState) {
-            if (!m_music.currentFile.isEmpty()) {
-                m_music.cachedPositions.insert(m_music.currentFile,
-                                               new qint64(m_music.player->position()));
-            }
-            m_music.player->stop();
+    for (int i = 0; i < 2; ++i) {
+        updateChannelVolume(i);
+    }
+
+    float masterVol = static_cast<float>(getConfig().audio.musicVolume) / 100.0f;
+    auto &active = m_music.channels[m_music.activeChannel];
+    if (masterVol > 0 && active.player->playbackState() == QMediaPlayer::StoppedState
+        && !active.file.isEmpty()) {
+        if (qint64 *pos = m_music.cachedPositions.object(active.file)) {
+            active.pendingPosition = *pos;
         }
+        active.player->play();
+        applyPendingPosition(m_music.activeChannel);
+    } else if (masterVol <= 0 && active.player->playbackState() == QMediaPlayer::PlayingState) {
+        if (!active.file.isEmpty()) {
+            m_music.cachedPositions.insert(active.file, new qint64(active.player->position()));
+        }
+        active.player->stop();
     }
 #endif
 }
 
 #ifndef MMAPPER_NO_AUDIO
-void AudioManager::applyPendingPosition()
+void AudioManager::applyPendingPosition(int channelIndex)
 {
-    if (m_music.pendingPosition != -1 && m_music.player->isSeekable()) {
-        m_music.player->setPosition(m_music.pendingPosition);
-        m_music.pendingPosition = -1;
+    auto &ch = m_music.channels[channelIndex];
+    if (ch.pendingPosition != -1 && ch.player->isSeekable()) {
+        ch.player->setPosition(ch.pendingPosition);
+        ch.pendingPosition = -1;
     }
+}
+
+void AudioManager::updateChannelVolume(int channelIndex)
+{
+    float masterVol = static_cast<float>(getConfig().audio.musicVolume) / 100.0f;
+    m_music.channels[channelIndex].audioOutput->setVolume(
+        masterVol * m_music.channels[channelIndex].fadeVolume);
 }
 #endif
 
@@ -227,8 +266,10 @@ void AudioManager::playMusic(const QString &areaName)
     if (musicFile.isEmpty())
         return;
 
-    m_music.pendingFile = musicFile;
-    startFadeOut();
+    // Use onAreaChanged logic via a dummy RoomArea or similar if needed,
+    // but here we can just do the crossfade logic.
+    // Actually, onAreaChanged handles it well.
+    onAreaChanged(RoomArea(areaName.toStdString()));
 #else
     Q_UNUSED(areaName);
 #endif
@@ -335,20 +376,10 @@ void AudioManager::scanDirectories()
     qInfo() << "Scanned audio directories. Found" << m_resources.availableFiles.size() << "files.";
 }
 
-void AudioManager::startFadeOut()
+void AudioManager::startFade(bool toSilence)
 {
 #ifndef MMAPPER_NO_AUDIO
-    m_fade.isFadingOut = true;
-    if (m_fade.timer && !m_fade.timer->isActive()) {
-        m_fade.timer->start();
-    }
-#endif
-}
-
-void AudioManager::startFadeIn()
-{
-#ifndef MMAPPER_NO_AUDIO
-    m_fade.isFadingOut = false;
+    m_fade.fadingToSilence = toSilence;
     if (m_fade.timer && !m_fade.timer->isActive()) {
         m_fade.timer->start();
     }

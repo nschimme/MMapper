@@ -24,14 +24,20 @@ class NODISCARD_QOBJECT AudioManager final : public QObject
 
 private:
 #ifndef MMAPPER_NO_AUDIO
-    struct MusicState
+    struct MusicChannel
     {
         QMediaPlayer *player = nullptr;
         QAudioOutput *audioOutput = nullptr;
-        QString currentFile;
-        QString pendingFile;
-        QCache<QString, qint64> cachedPositions;
+        QString file;
         qint64 pendingPosition = -1;
+        float fadeVolume = 0.0f;
+    };
+
+    struct MusicState
+    {
+        MusicChannel channels[2];
+        int activeChannel = 0;
+        QCache<QString, qint64> cachedPositions;
 
         MusicState() { cachedPositions.setMaxCost(10); }
     } m_music;
@@ -41,7 +47,9 @@ private:
     {
         QTimer *timer = nullptr;
         float step = 0.05f;
-        bool isFadingOut = false;
+        bool fadingToSilence = false;
+        static constexpr int CROSSFADE_DURATION_MS = 2000;
+        static constexpr int FADE_INTERVAL_MS = 100;
     } m_fade;
 
     struct ResourceState
@@ -70,9 +78,9 @@ private:
     QString findAudioFile(const QString &subDir, const QString &name);
     void scanDirectories();
 
-    void startFadeOut();
-    void startFadeIn();
+    void startFade(bool toSilence);
 #ifndef MMAPPER_NO_AUDIO
-    void applyPendingPosition();
+    void applyPendingPosition(int channelIndex);
+    void updateChannelVolume(int channelIndex);
 #endif
 };

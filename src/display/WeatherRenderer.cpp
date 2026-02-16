@@ -5,6 +5,7 @@
 
 #include "../configuration/configuration.h"
 #include "../global/Badge.h"
+#include "../global/random.h"
 #include "../global/utils.h"
 #include "../map/coordinate.h"
 #include "../mapdata/mapdata.h"
@@ -32,6 +33,11 @@ T my_lerp(T a, T b, float t)
 {
     return a + t * (b - a);
 }
+
+float get_random_float()
+{
+    return static_cast<float>(getRandom(1000000)) / 1000000.0f;
+}
 } // namespace
 
 WeatherRenderer::WeatherRenderer(OpenGL &gl,
@@ -57,6 +63,8 @@ WeatherRenderer::WeatherRenderer(OpenGL &gl,
         m_state.gameFogIntensity = 0.0f;
 
         switch (w) {
+        case PromptWeatherEnum::NICE:
+            break;
         case PromptWeatherEnum::CLOUDS:
             m_state.gameCloudsIntensity = 0.5f;
             break;
@@ -72,18 +80,16 @@ WeatherRenderer::WeatherRenderer(OpenGL &gl,
             m_state.gameCloudsIntensity = 0.8f;
             m_state.gameSnowIntensity = 0.8f;
             break;
-        default:
-            break;
         }
 
         switch (f) {
+        case PromptFogEnum::NO_FOG:
+            break;
         case PromptFogEnum::LIGHT_FOG:
             m_state.gameFogIntensity = 0.5f;
             break;
         case PromptFogEnum::HEAVY_FOG:
             m_state.gameFogIntensity = 1.0f;
-            break;
-        default:
             break;
         }
     };
@@ -221,19 +227,27 @@ void WeatherRenderer::initParticles()
     auto gl_funcs = m_gl.getSharedFunctions(Badge<WeatherRenderer>{});
     auto &funcs = *gl_funcs;
 
+    auto tf = funcs.getSharedTfs().get(Legacy::SharedTfEnum::WeatherSimulation);
+    if (!*tf) {
+        tf->emplace(gl_funcs);
+    }
+
     const auto buffer0 = Legacy::SharedVboEnum::WeatherParticles0;
     const auto buffer1 = Legacy::SharedVboEnum::WeatherParticles1;
 
     const size_t totalParticles = 5120; // 4096 rain + 1024 snow
     std::vector<float> initialData(totalParticles * 3, 0.0f);
     for (size_t i = 0; i < totalParticles; ++i) {
-        initialData[i * 3 + 0] = static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 40.0f - 20.0f;
-        initialData[i * 3 + 1] = static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 40.0f - 20.0f;
-        initialData[i * 3 + 2] = static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 1.0f;
+        initialData[i * 3 + 0] = get_random_float() * 40.0f - 20.0f;
+        initialData[i * 3 + 1] = get_random_float() * 40.0f - 20.0f;
+        initialData[i * 3 + 2] = get_random_float() * 1.0f;
     }
 
     auto vbo0 = funcs.getSharedVbos().get(buffer0);
     auto vbo1 = funcs.getSharedVbos().get(buffer1);
+
+    if (!*vbo0) vbo0->emplace(gl_funcs);
+    if (!*vbo1) vbo1->emplace(gl_funcs);
 
     funcs.glBindBuffer(GL_ARRAY_BUFFER, vbo0->get());
     funcs.glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(initialData.size() * sizeof(float)), initialData.data(), GL_STREAM_DRAW);
@@ -243,13 +257,16 @@ void WeatherRenderer::initParticles()
 
     // Initialize VAOs
     auto vaoSim0 = funcs.getSharedVaos().get(Legacy::SharedVaoEnum::WeatherSimulation0);
+    if (!*vaoSim0) vaoSim0->emplace(gl_funcs);
     funcs.glBindVertexArray(vaoSim0->get());
+    funcs.glBindBuffer(GL_ARRAY_BUFFER, vbo0->get());
     funcs.glEnableVertexAttribArray(0);
     funcs.glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
     funcs.glEnableVertexAttribArray(1);
     funcs.glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, 3 * sizeof(float), reinterpret_cast<void *>(2 * sizeof(float)));
 
     auto vaoSim1 = funcs.getSharedVaos().get(Legacy::SharedVaoEnum::WeatherSimulation1);
+    if (!*vaoSim1) vaoSim1->emplace(gl_funcs);
     funcs.glBindVertexArray(vaoSim1->get());
     funcs.glBindBuffer(GL_ARRAY_BUFFER, vbo1->get());
     funcs.glEnableVertexAttribArray(0);
@@ -259,7 +276,10 @@ void WeatherRenderer::initParticles()
 
     auto setupRenderVao = [&](Legacy::SharedVaoEnum vaoEnum, Legacy::SharedVboEnum vboEnum, size_t offset) {
         auto vao = funcs.getSharedVaos().get(vaoEnum);
+        if (!*vao) vao->emplace(gl_funcs);
         auto vbo = funcs.getSharedVbos().get(vboEnum);
+        if (!*vbo) vbo->emplace(gl_funcs);
+
         funcs.glBindVertexArray(vao->get());
         funcs.glBindBuffer(GL_ARRAY_BUFFER, vbo->get());
         funcs.glEnableVertexAttribArray(0);
@@ -312,7 +332,7 @@ void WeatherRenderer::update(float dt)
 
 void WeatherRenderer::updateUbo(const glm::mat4 &viewProj)
 {
-    if (m_state.lastUboUploadTime == m_state.animationTime) {
+    if (utils::isSameFloat(m_state.lastUboUploadTime, m_state.animationTime)) {
         return;
     }
 
@@ -320,6 +340,7 @@ void WeatherRenderer::updateUbo(const glm::mat4 &viewProj)
     auto &funcs = *gl_funcs;
     const auto buffer = Legacy::SharedVboEnum::WeatherBlock;
     const auto vboUbo = funcs.getSharedVbos().get(buffer);
+    if (!*vboUbo) vboUbo->emplace(gl_funcs);
 
     GLRenderState::Uniforms::Weather w;
     w.viewProj = viewProj;
@@ -337,6 +358,9 @@ void WeatherRenderer::updateUbo(const glm::mat4 &viewProj)
     auto getToDColor = [this](MumeTimeEnum tod, float moonIntensity, float todIntensity) {
         glm::vec4 color = glm::vec4(0.0f);
         switch (tod) {
+        case MumeTimeEnum::UNKNOWN:
+        case MumeTimeEnum::DAY:
+            break;
         case MumeTimeEnum::NIGHT:
             color = glm::vec4(0.05f, 0.05f, 0.2f, 0.6f + 0.2f * moonIntensity);
             break;
@@ -346,10 +370,8 @@ void WeatherRenderer::updateUbo(const glm::mat4 &viewProj)
         case MumeTimeEnum::DUSK:
             color = glm::vec4(0.3f, 0.2f, 0.4f, 0.4f);
             break;
-        default:
-            break;
         }
-        color.a *= (todIntensity * 2.0f); // default 50% slider -> todIntensity=1.0 -> same as old behavior
+        color.a *= todIntensity; // default 50% slider -> todIntensity=1.0 -> same as old behavior
         return color;
     };
 
@@ -384,6 +406,7 @@ void WeatherRenderer::renderParticles(const glm::mat4 &viewProj)
     const auto bufferOut = (m_state.currentBuffer == 0) ? Legacy::SharedVboEnum::WeatherParticles1
                                                         : Legacy::SharedVboEnum::WeatherParticles0;
     const auto vboOut = funcs.getSharedVbos().get(bufferOut);
+    if (!*vboOut) vboOut->emplace(gl_funcs);
 
     GLRenderState::Uniforms uniforms;
 
@@ -461,7 +484,9 @@ void WeatherRenderer::renderAtmosphere(const glm::mat4 &viewProj)
     GLRenderState::Uniforms uniforms;
     prog.setUniforms(viewProj, uniforms);
 
-    funcs.glBindVertexArray(funcs.getSharedVaos().get(Legacy::SharedVaoEnum::EmptyVao)->get());
+    auto emptyVao = funcs.getSharedVaos().get(Legacy::SharedVaoEnum::EmptyVao);
+    if (!*emptyVao) emptyVao->emplace(gl_funcs);
+    funcs.glBindVertexArray(emptyVao->get());
 
     funcs.glActiveTexture(GL_TEXTURE0);
     funcs.glBindTexture(GL_TEXTURE_2D, m_textures.weather_noise->get()->textureId());

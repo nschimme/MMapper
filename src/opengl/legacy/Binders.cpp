@@ -186,4 +186,30 @@ RenderStateBinder::RenderStateBinder(Functions &functions,
     , m_texturesBinder{texLookup, renderState.uniforms.textures}
 {}
 
+VAOBinder::VAOBinder(Functions &functions, const GLuint vao)
+    : m_functions{functions}
+{
+    m_functions.glBindVertexArray(vao);
+}
+
+VAOBinder::~VAOBinder()
+{
+    m_functions.glBindVertexArray(0);
+}
+
+TransformFeedbackBinder::TransformFeedbackBinder(Functions &functions,
+                                                 const GLuint tf,
+                                                 const GLenum primitiveMode)
+    : m_functions{functions}
+{
+    m_functions.glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, tf);
+    m_functions.glBeginTransformFeedback(primitiveMode);
+}
+
+TransformFeedbackBinder::~TransformFeedbackBinder()
+{
+    m_functions.glEndTransformFeedback();
+    m_functions.glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, 0);
+}
+
 } // namespace Legacy

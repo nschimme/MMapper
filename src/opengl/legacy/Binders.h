@@ -108,4 +108,26 @@ public:
     DTOR(RenderStateBinder) = default;
 };
 
+struct NODISCARD VAOBinder final
+{
+private:
+    Functions &m_functions;
+
+public:
+    explicit VAOBinder(Functions &functions, GLuint vao);
+    ~VAOBinder();
+    DELETE_CTORS_AND_ASSIGN_OPS(VAOBinder);
+};
+
+struct NODISCARD TransformFeedbackBinder final
+{
+private:
+    Functions &m_functions;
+
+public:
+    explicit TransformFeedbackBinder(Functions &functions, GLuint tf, GLenum primitiveMode);
+    ~TransformFeedbackBinder();
+    DELETE_CTORS_AND_ASSIGN_OPS(TransformFeedbackBinder);
+};
+
 } // namespace Legacy

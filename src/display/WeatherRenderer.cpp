@@ -11,6 +11,7 @@
 #include "../mapdata/mapdata.h"
 #include "../opengl/OpenGL.h"
 #include "../opengl/OpenGLTypes.h"
+#include "../opengl/legacy/Binders.h"
 #include "../opengl/legacy/Legacy.h"
 #include "../opengl/legacy/Shaders.h"
 #include "../opengl/legacy/TF.h"
@@ -168,6 +169,7 @@ WeatherRenderer::WeatherRenderer(OpenGL &gl,
 
         m_state.oldTimeOfDay = m_state.currentTimeOfDay;
         m_state.currentTimeOfDay = tod;
+        m_state.targetToDIntensity = (tod == MumeTimeEnum::DAY) ? 0.0f : 1.0f;
         m_state.todTransitionStartTime = m_state.animationTime;
         m_setAnimating(true);
     });
@@ -408,33 +410,35 @@ void WeatherRenderer::renderParticles(const glm::mat4 &viewProj)
     const auto vboOut = funcs.getSharedVbos().get(bufferOut);
     if (!*vboOut) vboOut->emplace(gl_funcs);
 
-    GLRenderState::Uniforms uniforms;
+    const auto rs = m_gl.getDefaultRenderState().withBlend(BlendModeEnum::MAX_ALPHA);
+    Legacy::RenderStateBinder rsBinder(funcs, funcs.getTexLookup(), rs);
 
     // Pass 1: Simulation
     {
         auto &prog = deref(funcs.getShaderPrograms().getParticleSimulationShader());
         auto binder = prog.bind();
+        GLRenderState::Uniforms uniforms;
         prog.setUniforms(viewProj, uniforms);
 
         auto vaoEnum = (m_state.currentBuffer == 0) ? Legacy::SharedVaoEnum::WeatherSimulation0
                                                      : Legacy::SharedVaoEnum::WeatherSimulation1;
-        funcs.glBindVertexArray(funcs.getSharedVaos().get(vaoEnum)->get());
+        auto vao = funcs.getSharedVaos().get(vaoEnum);
+        if (!*vao) vao->emplace(gl_funcs);
+        Legacy::VAOBinder vaoBinder(funcs, vao->get());
 
         auto tf = funcs.getSharedTfs().get(Legacy::SharedTfEnum::WeatherSimulation);
-        funcs.glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, tf->get());
+        if (!*tf) tf->emplace(gl_funcs);
         funcs.glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, vboOut->get());
+        Legacy::TransformFeedbackBinder tfBinder(funcs, tf->get(), GL_POINTS);
 
-        funcs.glBeginTransformFeedback(GL_POINTS);
         funcs.glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(m_state.numParticles));
-        funcs.glEndTransformFeedback();
-
-        funcs.glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, 0);
     }
 
     // Pass 2: Rendering
     {
         auto &prog = deref(funcs.getShaderPrograms().getParticleRenderShader());
         auto binder = prog.bind();
+        GLRenderState::Uniforms uniforms;
         prog.setUniforms(viewProj, uniforms);
 
         // Rain
@@ -442,7 +446,9 @@ void WeatherRenderer::renderParticles(const glm::mat4 &viewProj)
         if (rainCount > 0) {
             auto vaoRainEnum = (m_state.currentBuffer == 0) ? Legacy::SharedVaoEnum::WeatherRenderRain1
                                                              : Legacy::SharedVaoEnum::WeatherRenderRain0;
-            funcs.glBindVertexArray(funcs.getSharedVaos().get(vaoRainEnum)->get());
+            auto vao = funcs.getSharedVaos().get(vaoRainEnum);
+            if (!*vao) vao->emplace(gl_funcs);
+            Legacy::VAOBinder vaoBinder(funcs, vao->get());
             prog.setFloat("uType", 0.0f);
             prog.setInt("uInstanceOffset", 0);
             funcs.glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, rainCount);
@@ -453,14 +459,15 @@ void WeatherRenderer::renderParticles(const glm::mat4 &viewProj)
         if (snowCount > 0) {
             auto vaoSnowEnum = (m_state.currentBuffer == 0) ? Legacy::SharedVaoEnum::WeatherRenderSnow1
                                                              : Legacy::SharedVaoEnum::WeatherRenderSnow0;
-            funcs.glBindVertexArray(funcs.getSharedVaos().get(vaoSnowEnum)->get());
+            auto vao = funcs.getSharedVaos().get(vaoSnowEnum);
+            if (!*vao) vao->emplace(gl_funcs);
+            Legacy::VAOBinder vaoBinder(funcs, vao->get());
             prog.setFloat("uType", 1.0f);
             prog.setInt("uInstanceOffset", 4096);
             funcs.glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, snowCount);
         }
     }
 
-    funcs.glBindVertexArray(0);
     m_state.currentBuffer = 1 - m_state.currentBuffer;
 }
 
@@ -481,17 +488,19 @@ void WeatherRenderer::renderAtmosphere(const glm::mat4 &viewProj)
     auto &prog = deref(funcs.getShaderPrograms().getAtmosphereShader());
     auto binder = prog.bind();
 
+    const auto rs = m_gl.getDefaultRenderState().withBlend(BlendModeEnum::TRANSPARENCY);
+    Legacy::RenderStateBinder rsBinder(funcs, funcs.getTexLookup(), rs);
+
     GLRenderState::Uniforms uniforms;
     prog.setUniforms(viewProj, uniforms);
 
     auto emptyVao = funcs.getSharedVaos().get(Legacy::SharedVaoEnum::EmptyVao);
     if (!*emptyVao) emptyVao->emplace(gl_funcs);
-    funcs.glBindVertexArray(emptyVao->get());
+    Legacy::VAOBinder vaoBinder(funcs, emptyVao->get());
 
     funcs.glActiveTexture(GL_TEXTURE0);
     funcs.glBindTexture(GL_TEXTURE_2D, m_textures.weather_noise->get()->textureId());
     prog.setInt("uNoiseTex", 0);
 
     funcs.glDrawArrays(GL_TRIANGLES, 0, 3);
-    funcs.glBindVertexArray(0);
 }

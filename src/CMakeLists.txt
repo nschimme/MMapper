@@ -668,6 +668,15 @@ message("mmapper_SRCS=[${mmapper_SRCS}]")
 message("mmapper_global_SRCS=[${mmapper_global_SRCS}]")
 message("mmapper_map_SRCS=[${mmapper_map_SRCS}]")
 
+add_library(imgui_lib STATIC ${IMGUI_SOURCES})
+if(MSVC)
+    target_compile_options(imgui_lib PRIVATE /w /FS)
+else()
+    target_compile_options(imgui_lib PRIVATE -w)
+endif()
+target_include_directories(imgui_lib PUBLIC ${IMGUI_INCLUDE_DIR} ${IMGUI_INCLUDE_DIR}/backends)
+target_link_libraries(imgui_lib PRIVATE Qt6::OpenGL)
+
 add_library(mm_global STATIC ${mmapper_global_SRCS})
 add_library(mm_map STATIC ${mmapper_map_SRCS})
 
@@ -706,7 +715,7 @@ target_link_libraries(mmapper PUBLIC
     ${mm_libs}
     ${CMAKE_THREAD_LIBS_INIT}
     coverage_config
-    ${IMGUI_LIBRARIES}
+    imgui_lib
 )
 
 set_target_properties(
@@ -783,11 +792,6 @@ if(NOT IMMER_FOUND)
     add_dependencies(mm_global immer)
 endif()
 
-if(NOT IMGUI_FOUND)
-    add_dependencies(mmapper imgui)
-    add_dependencies(mm_map imgui)
-    add_dependencies(mm_global imgui)
-endif()
 
 if(WIN32)
     target_link_libraries(mmapper PRIVATE ws2_32)

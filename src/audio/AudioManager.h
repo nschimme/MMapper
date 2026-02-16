@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include <QCache>
 #include <QFileSystemWatcher>
 #include <QMap>
 #include <QObject>
@@ -53,6 +54,10 @@ private:
 
     QString m_currentMusicFile;
     QString m_pendingMusicFile;
+#ifndef MMAPPER_NO_AUDIO
+    QCache<QString, qint64> m_cachedPositions;
+    qint64 m_pendingPosition = -1;
+#endif
     float m_fadeStep = 0.05f;
     bool m_isFadingOut = false;
 

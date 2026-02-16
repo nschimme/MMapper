@@ -22,10 +22,19 @@ AudioManager::AudioManager(GameObserver &observer, QObject *parent)
     , m_observer(observer)
 {
 #ifndef MMAPPER_NO_AUDIO
+    m_cachedPositions.setMaxCost(5);
+
     m_player = new QMediaPlayer(this);
     m_audioOutput = new QAudioOutput(this);
     m_player->setAudioOutput(m_audioOutput);
     m_player->setLoops(QMediaPlayer::Infinite);
+
+    connect(m_player, &QMediaPlayer::mediaStatusChanged, this, [this](QMediaPlayer::MediaStatus status) {
+        if (status == QMediaPlayer::LoadedMedia && m_pendingPosition != -1) {
+            m_player->setPosition(m_pendingPosition);
+            m_pendingPosition = -1;
+        }
+    });
 
     m_fadeTimer = new QTimer(this);
     m_fadeTimer->setInterval(100);
@@ -38,15 +47,29 @@ AudioManager::AudioManager(GameObserver &observer, QObject *parent)
             if (currentVol <= 0.0f) {
                 currentVol = 0.0f;
                 m_fadeTimer->stop();
+
+                if (!m_currentMusicFile.isEmpty()
+                    && m_player->playbackState() == QMediaPlayer::PlayingState) {
+                    m_cachedPositions.insert(m_currentMusicFile, new qint64(m_player->position()));
+                }
+
                 m_player->stop();
                 if (!m_pendingMusicFile.isEmpty()) {
                     m_currentMusicFile = m_pendingMusicFile;
                     m_pendingMusicFile.clear();
+
+                    if (qint64 *pos = m_cachedPositions.object(m_currentMusicFile)) {
+                        m_pendingPosition = *pos;
+                    } else {
+                        m_pendingPosition = -1;
+                    }
+
                     if (m_currentMusicFile.startsWith(":")) {
                         m_player->setSource(QUrl("qrc" + m_currentMusicFile));
                     } else {
                         m_player->setSource(QUrl::fromLocalFile(m_currentMusicFile));
                     }
+
                     if (getConfig().audio.musicVolume > 0) {
                         m_player->play();
                         startFadeIn();
@@ -138,8 +161,14 @@ void AudioManager::updateVolumes()
         m_audioOutput->setVolume(vol);
         if (vol > 0 && m_player->playbackState() == QMediaPlayer::StoppedState
             && !m_currentMusicFile.isEmpty()) {
+            if (qint64 *pos = m_cachedPositions.object(m_currentMusicFile)) {
+                m_player->setPosition(*pos);
+            }
             m_player->play();
         } else if (vol <= 0 && m_player->playbackState() == QMediaPlayer::PlayingState) {
+            if (!m_currentMusicFile.isEmpty()) {
+                m_cachedPositions.insert(m_currentMusicFile, new qint64(m_player->position()));
+            }
             m_player->stop();
         }
     }

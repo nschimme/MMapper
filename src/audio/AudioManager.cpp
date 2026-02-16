@@ -33,11 +33,20 @@ AudioManager::AudioManager(GameObserver &observer, QObject *parent)
             &QMediaPlayer::mediaStatusChanged,
             this,
             [this](QMediaPlayer::MediaStatus status) {
-                if (status == QMediaPlayer::LoadedMedia && m_pendingPosition != -1) {
+                if (m_pendingPosition != -1
+                    && (status == QMediaPlayer::LoadedMedia || status == QMediaPlayer::BufferedMedia
+                        || status == QMediaPlayer::BufferingMedia)) {
                     m_player->setPosition(m_pendingPosition);
                     m_pendingPosition = -1;
                 }
             });
+
+    connect(m_player, &QMediaPlayer::seekableChanged, this, [this](bool seekable) {
+        if (seekable && m_pendingPosition != -1) {
+            m_player->setPosition(m_pendingPosition);
+            m_pendingPosition = -1;
+        }
+    });
 
     m_fadeTimer = new QTimer(this);
     m_fadeTimer->setInterval(100);
@@ -137,6 +146,21 @@ void AudioManager::onAreaChanged(const RoomArea &area)
     }
 
     if (musicFile == m_currentMusicFile) {
+        if (m_isFadingOut) {
+            m_pendingMusicFile.clear();
+            startFadeIn();
+        } else if (m_player->playbackState() == QMediaPlayer::StoppedState
+                   && getConfig().audio.musicVolume > 0) {
+            if (qint64 *pos = m_cachedPositions.object(m_currentMusicFile)) {
+                m_pendingPosition = *pos;
+            }
+            m_player->play();
+            startFadeIn();
+        }
+        return;
+    }
+
+    if (musicFile == m_pendingMusicFile) {
         return;
     }
 
@@ -165,7 +189,10 @@ void AudioManager::updateVolumes()
         if (vol > 0 && m_player->playbackState() == QMediaPlayer::StoppedState
             && !m_currentMusicFile.isEmpty()) {
             if (qint64 *pos = m_cachedPositions.object(m_currentMusicFile)) {
+                m_pendingPosition = *pos;
                 m_player->setPosition(*pos);
+            } else {
+                m_pendingPosition = -1;
             }
             m_player->play();
         } else if (vol <= 0 && m_player->playbackState() == QMediaPlayer::PlayingState) {

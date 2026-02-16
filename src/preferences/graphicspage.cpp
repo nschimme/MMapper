@@ -85,6 +85,56 @@ GraphicsPage::GraphicsPage(QWidget *parent)
             this,
             &GraphicsPage::slot_drawUpperLayersTexturedStateChanged);
 
+    connect(ui->weatherCloudsCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
+        setConfig().canvas.weatherClouds.set(checked);
+        ui->weatherCloudsSlider->setEnabled(checked);
+        graphicsSettingsChanged();
+    });
+    connect(ui->weatherCloudsSlider, &QSlider::valueChanged, this, [this](int value) {
+        setConfig().canvas.weatherCloudsIntensity.set(value);
+        graphicsSettingsChanged();
+    });
+
+    connect(ui->weatherFogCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
+        setConfig().canvas.weatherFog.set(checked);
+        ui->weatherFogSlider->setEnabled(checked);
+        graphicsSettingsChanged();
+    });
+    connect(ui->weatherFogSlider, &QSlider::valueChanged, this, [this](int value) {
+        setConfig().canvas.weatherFogIntensity.set(value);
+        graphicsSettingsChanged();
+    });
+
+    connect(ui->weatherRainCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
+        setConfig().canvas.weatherRain.set(checked);
+        ui->weatherRainSlider->setEnabled(checked);
+        graphicsSettingsChanged();
+    });
+    connect(ui->weatherRainSlider, &QSlider::valueChanged, this, [this](int value) {
+        setConfig().canvas.weatherRainIntensity.set(value);
+        graphicsSettingsChanged();
+    });
+
+    connect(ui->weatherSnowCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
+        setConfig().canvas.weatherSnow.set(checked);
+        ui->weatherSnowSlider->setEnabled(checked);
+        graphicsSettingsChanged();
+    });
+    connect(ui->weatherSnowSlider, &QSlider::valueChanged, this, [this](int value) {
+        setConfig().canvas.weatherSnowIntensity.set(value);
+        graphicsSettingsChanged();
+    });
+
+    connect(ui->weatherToDCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
+        setConfig().canvas.weatherToD.set(checked);
+        ui->weatherToDSlider->setEnabled(checked);
+        graphicsSettingsChanged();
+    });
+    connect(ui->weatherToDSlider, &QSlider::valueChanged, this, [this](int value) {
+        setConfig().canvas.weatherToDIntensity.set(value);
+        graphicsSettingsChanged();
+    });
+
     connect(ui->resourceLineEdit, &QLineEdit::textChanged, this, [](const QString &text) {
         setConfig().canvas.resourcesDirectory = text;
     });
@@ -145,6 +195,26 @@ void GraphicsPage::slot_loadConfig()
     ui->drawNeedsUpdate->setChecked(settings.showMissingMapId.get());
     ui->drawNotMappedExits->setChecked(settings.showUnmappedExits.get());
     ui->drawDoorNames->setChecked(settings.drawDoorNames);
+
+    ui->weatherCloudsCheckBox->setChecked(settings.weatherClouds.get());
+    ui->weatherCloudsSlider->setValue(settings.weatherCloudsIntensity.get());
+    ui->weatherCloudsSlider->setEnabled(settings.weatherClouds.get());
+
+    ui->weatherFogCheckBox->setChecked(settings.weatherFog.get());
+    ui->weatherFogSlider->setValue(settings.weatherFogIntensity.get());
+    ui->weatherFogSlider->setEnabled(settings.weatherFog.get());
+
+    ui->weatherRainCheckBox->setChecked(settings.weatherRain.get());
+    ui->weatherRainSlider->setValue(settings.weatherRainIntensity.get());
+    ui->weatherRainSlider->setEnabled(settings.weatherRain.get());
+
+    ui->weatherSnowCheckBox->setChecked(settings.weatherSnow.get());
+    ui->weatherSnowSlider->setValue(settings.weatherSnowIntensity.get());
+    ui->weatherSnowSlider->setEnabled(settings.weatherSnow.get());
+
+    ui->weatherToDCheckBox->setChecked(settings.weatherToD.get());
+    ui->weatherToDSlider->setValue(settings.weatherToDIntensity.get());
+    ui->weatherToDSlider->setEnabled(settings.weatherToD.get());
 
     ui->resourceLineEdit->setText(settings.resourcesDirectory);
 }

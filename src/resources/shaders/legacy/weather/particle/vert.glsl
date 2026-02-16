@@ -5,6 +5,7 @@ layout(location = 0) in vec2 aQuadPos; // (-0.5, -0.5) to (0.5, 0.5)
 layout(location = 1) in vec2 aParticlePos;
 layout(location = 2) in float aHash;
 layout(location = 3) in float aType;
+layout(location = 4) in float aLife;
 
 uniform mat4 uViewProj;
 uniform vec4 uPlayerPos;
@@ -13,6 +14,7 @@ uniform float uTime;
 
 out float vHash;
 out float vType;
+out float vLife;
 out vec2 vLocalCoord;
 out float vLocalMask;
 out vec2 vPos;
@@ -21,6 +23,7 @@ void main()
 {
     vHash = aHash;
     vType = aType;
+    vLife = aLife;
     vLocalCoord = aQuadPos + 0.5;
 
     vec2 size;
@@ -30,7 +33,7 @@ void main()
         size = vec2(1.0 / 12.0, 1.0 / 0.15);
     } else { // Snow
         size = vec2(1.0 / 4.0, 1.0 / 4.0);
-        // Apply sinusoidal swaying to match original better
+        // Apply sinusoidal swaying to match simulation better
         pos.x += sin(uTime * 1.2 + aHash * 6.28) * 0.4;
     }
 

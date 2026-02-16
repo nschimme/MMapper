@@ -173,7 +173,8 @@ private:
     {
         GLuint particleVbos[2] = {0, 0};
         GLuint simulationVaos[2] = {0, 0};
-        GLuint renderVaos[2] = {0, 0};
+        GLuint renderVaosRain[2] = {0, 0};
+        GLuint renderVaosSnow[2] = {0, 0};
         GLuint quadVbo = 0;
         GLuint transformFeedback = 0;
         uint32_t currentBuffer = 0;

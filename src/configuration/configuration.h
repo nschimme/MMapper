@@ -184,6 +184,17 @@ public:
 
         MMapper::Array<int, 3> mapRadius{100, 100, 100};
 
+        NamedConfig<bool> weatherClouds{"WEATHER_CLOUDS", true};
+        NamedConfig<int> weatherCloudsIntensity{"WEATHER_CLOUDS_INTENSITY", 50};
+        NamedConfig<bool> weatherFog{"WEATHER_FOG", true};
+        NamedConfig<int> weatherFogIntensity{"WEATHER_FOG_INTENSITY", 50};
+        NamedConfig<bool> weatherRain{"WEATHER_RAIN", true};
+        NamedConfig<int> weatherRainIntensity{"WEATHER_RAIN_INTENSITY", 50};
+        NamedConfig<bool> weatherSnow{"WEATHER_SNOW", true};
+        NamedConfig<int> weatherSnowIntensity{"WEATHER_SNOW_INTENSITY", 50};
+        NamedConfig<bool> weatherToD{"WEATHER_TOD", true};
+        NamedConfig<int> weatherToDIntensity{"WEATHER_TOD_INTENSITY", 100};
+
         struct NODISCARD Advanced final
         {
             NamedConfig<bool> use3D{"MMAPPER_3D", true};

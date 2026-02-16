@@ -1147,23 +1147,26 @@ void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) con
 FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
                                                      const std::shared_ptr<const FontMetrics> &font,
                                                      const Map &map,
-                                                     std::set<ChunkId> dirtyChunksInput)
+                                                     std::set<ChunkId> dirtyChunks_param)
 {
     const auto visitRoomOptions = getVisitRoomOptions();
 
     return std::async(
         std::launch::async,
-        [textures, font, map, visitRoomOptions, dirtyChunks = std::move(dirtyChunksInput)]() mutable
-        -> SharedMapBatchFinisher {
+        [textures,
+         font,
+         map,
+         visitRoomOptions,
+         dirtyChunks_captured = std::move(dirtyChunks_param)]() mutable -> SharedMapBatchFinisher {
             ThreadLocalNamedColorRaii tlRaii{visitRoomOptions.canvasColors,
                                              visitRoomOptions.colorSettings};
             DECL_TIMER(t, "[ASYNC] generateDirtyChunks (O(N) pass)");
 
-            if (dirtyChunks.empty()) {
+            if (dirtyChunks_captured.empty()) {
                 // Rebuild everything
                 map.getRooms().for_each([&](const RoomId id) {
                     const auto &r = map.getRoomHandle(id);
-                    dirtyChunks.insert(ChunkId::fromCoordinate(r.getPosition()));
+                    dirtyChunks_captured.insert(ChunkId::fromCoordinate(r.getPosition()));
                 });
             }
 
@@ -1171,14 +1174,14 @@ FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTextur
             map.checkConsistency(dummyPc);
 
             const auto chunkToLayerToRooms = std::invoke(
-                [&map, &dirtyChunks]() -> ChunkToLayerToRooms {
+                [&map, &dirtyChunks_captured]() -> ChunkToLayerToRooms {
                     DECL_TIMER(t2, "[ASYNC] generateBatches.chunkToLayerToRooms");
                     ChunkToLayerToRooms result;
-                    map.getRooms().for_each([&map, &result, &dirtyChunks](const RoomId id) {
+                    map.getRooms().for_each([&map, &result, &dirtyChunks_captured](const RoomId id) {
                         const auto &r = map.getRoomHandle(id);
                         const auto pos = r.getPosition();
                         const ChunkId chunkId = ChunkId::fromCoordinate(pos);
-                        if (dirtyChunks.count(chunkId)) {
+                        if (dirtyChunks_captured.count(chunkId)) {
                             result[chunkId][pos.z].emplace_back(r);
                         }
                     });
@@ -1196,7 +1199,7 @@ FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTextur
 FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
                                                      const std::shared_ptr<const FontMetrics> &font,
                                                      const Map &map,
-                                                     ChunkToLayerToRooms pregroupedChunksInput)
+                                                     ChunkToLayerToRooms pregroupedChunks_param)
 {
     const auto visitRoomOptions = getVisitRoomOptions();
 
@@ -1205,8 +1208,8 @@ FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTextur
                        font,
                        map,
                        visitRoomOptions,
-                       pregroupedChunks = std::move(
-                           pregroupedChunksInput)]() mutable -> SharedMapBatchFinisher {
+                       pregroupedChunks_captured = std::move(
+                           pregroupedChunks_param)]() mutable -> SharedMapBatchFinisher {
                           ThreadLocalNamedColorRaii tlRaii{visitRoomOptions.canvasColors,
                                                            visitRoomOptions.colorSettings};
                           DECL_TIMER(t, "[ASYNC] generateDirtyChunks (O(M) pass)");
@@ -1219,7 +1222,7 @@ FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTextur
 
                           generateDirtyChunks(data,
                                               deref(font),
-                                              pregroupedChunks,
+                                              pregroupedChunks_captured,
                                               textures,
                                               visitRoomOptions);
                           return SharedMapBatchFinisher{result};

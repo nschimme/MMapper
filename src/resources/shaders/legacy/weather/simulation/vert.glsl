@@ -35,8 +35,8 @@ void main()
     float type = inType;
 
     if (life <= 0.0) {
-        // Initialize based on ID and time to create a stable grid/distribution
-        float h = hash11(float(gl_VertexID) * 0.123 + uTime * 0.0001);
+        // Initialize based on ID to create a stable but varied distribution
+        float h = hash11(float(gl_VertexID) * 1.123);
         type = step(0.5, hash11(h + 0.4));
 
         pos.x = (hash11(h + 0.1) - 0.5) * boxSize.x;
@@ -45,18 +45,19 @@ void main()
         pos += uPlayerPos;
 
         if (type < 0.5) { // Rain
-             float col = floor(pos.x * 12.0);
-             float h_col = hash11(col);
-             float speed = 20.0 + h_col * 5.0;
-             vel = vec3(0.0, 0.0, -speed);
+             float h_speed = hash11(h + 0.5);
+             float speed = 25.0 + h_speed * 10.0;
+             vel = vec3(0.0, -speed, -speed * 0.1);
         } else { // Snow
-             vel = vec3(0.0, 0.0, -2.0);
+             float h_speed = hash11(h + 0.5);
+             vel = vec3(0.0, -2.0 - h_speed, -0.5);
         }
-        life = 10.0;
+        life = 5.0 + hash11(h + 0.6) * 5.0;
     }
 
     // Physics
     pos += vel * uDeltaTime;
+    life -= uDeltaTime;
 
     // Toroidal Wrap
     vec3 relPos = pos - uPlayerPos;

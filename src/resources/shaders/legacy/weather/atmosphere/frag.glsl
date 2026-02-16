@@ -10,28 +10,36 @@ uniform float uCloudsIntensity;
 uniform float uFogIntensity;
 uniform vec4 uTimeOfDayColor;
 uniform sampler2D uNoiseTexture;
+uniform sampler2D uDepthTexture;
+
+in vec3 vNearPos;
+in vec3 vFarPos;
 
 out vec4 vFragmentColor;
 
 void main()
 {
-    // Reconstruct world position on the player's plane
-    vec2 screenPos = (gl_FragCoord.xy / vec2(uPhysViewport.zw)) * 2.0 - 1.0;
-    vec4 near4 = uInvViewProj * vec4(screenPos, -1.0, 1.0);
-    vec4 far4 = uInvViewProj * vec4(screenPos, 1.0, 1.0);
-    vec3 nearPos = near4.xyz / near4.w;
-    vec3 farPos = far4.xyz / far4.w;
+    vec2 screenUV = gl_FragCoord.xy / vec2(uPhysViewport.zw);
+    float depth = texture(uDepthTexture, screenUV).r;
 
-    float t = (uPlayerPos.z * uZScale - nearPos.z) / (farPos.z - nearPos.z);
-    vec3 worldPos = mix(nearPos, farPos, t);
+    // Reconstruct world position of the room pixel
+    vec2 screenPos = screenUV * 2.0 - 1.0;
+    vec4 clipPos = vec4(screenPos, depth * 2.0 - 1.0, 1.0);
+    vec4 worldPos4 = uInvViewProj * clipPos;
+    vec3 worldPos = worldPos4.xyz / worldPos4.w;
     worldPos.z /= uZScale;
+
+    // Intersection with player plane for clouds/fog drift context
+    float t_player = (uPlayerPos.z * uZScale - vNearPos.z) / (vFarPos.z - vNearPos.z);
+    vec3 playerPlanePos = mix(vNearPos, vFarPos, t_player);
+    playerPlanePos.z /= uZScale;
 
     float distToPlayer = distance(worldPos.xy, uPlayerPos.xy);
     float localMask = smoothstep(12.0, 8.0, distToPlayer);
 
     vec4 weatherAccum = vec4(0.0);
 
-    // Fog: soft drifting noise (R channel)
+    // Fog: based on actual world position depth
     if (uFogIntensity > 0.01) {
         vec2 uv = worldPos.xy * 0.15 + uTime * 0.1;
         float n = texture(uNoiseTexture, uv * 0.05).r;
@@ -39,13 +47,12 @@ void main()
         weatherAccum = fogColor;
     }
 
-    // Clouds: puffy high-contrast noise (G channel)
+    // Clouds: puffy high-contrast noise (G channel) on player plane
     if (uCloudsIntensity > 0.01) {
-        vec2 uv = worldPos.xy * 0.06 - uTime * 0.03;
+        vec2 uv = playerPlanePos.xy * 0.06 - uTime * 0.03;
         float n = texture(uNoiseTexture, uv * 0.05).g;
-        // Puffier and sparser: higher threshold and sharper transition
-        float puffy = smoothstep(0.52, 0.62, n);
-        vec4 clouds = vec4(0.9, 0.9, 1.0, uCloudsIntensity * puffy * localMask * 0.5);
+        float puffy = smoothstep(0.45, 0.65, n);
+        vec4 clouds = vec4(0.95, 0.95, 1.0, uCloudsIntensity * puffy * localMask * 0.8);
         weatherAccum.rgb = mix(weatherAccum.rgb, clouds.rgb, clouds.a);
         weatherAccum.a = max(weatherAccum.a, clouds.a);
     }

@@ -106,6 +106,32 @@ GraphicsPage::GraphicsPage(QWidget *parent)
         graphicsSettingsChanged();
     });
 
+    connect(ui->rainCheckBox, &QCheckBox::stateChanged, this, [this](int /*unused*/) {
+        setConfig().canvas.enableWeatherRain.set(ui->rainCheckBox->isChecked());
+        ui->rainIntensitySlider->setEnabled(ui->rainCheckBox->isChecked());
+        graphicsSettingsChanged();
+    });
+    connect(ui->snowCheckBox, &QCheckBox::stateChanged, this, [this](int /*unused*/) {
+        setConfig().canvas.enableWeatherSnow.set(ui->snowCheckBox->isChecked());
+        ui->snowIntensitySlider->setEnabled(ui->snowCheckBox->isChecked());
+        graphicsSettingsChanged();
+    });
+    connect(ui->cloudsCheckBox, &QCheckBox::stateChanged, this, [this](int /*unused*/) {
+        setConfig().canvas.enableWeatherClouds.set(ui->cloudsCheckBox->isChecked());
+        ui->cloudsIntensitySlider->setEnabled(ui->cloudsCheckBox->isChecked());
+        graphicsSettingsChanged();
+    });
+    connect(ui->fogCheckBox, &QCheckBox::stateChanged, this, [this](int /*unused*/) {
+        setConfig().canvas.enableWeatherFog.set(ui->fogCheckBox->isChecked());
+        ui->fogIntensitySlider->setEnabled(ui->fogCheckBox->isChecked());
+        graphicsSettingsChanged();
+    });
+    connect(ui->todCheckBox, &QCheckBox::stateChanged, this, [this](int /*unused*/) {
+        setConfig().canvas.enableTimeOfDay.set(ui->todCheckBox->isChecked());
+        ui->todIntensitySlider->setEnabled(ui->todCheckBox->isChecked());
+        graphicsSettingsChanged();
+    });
+
     connect(ui->resourceLineEdit, &QLineEdit::textChanged, this, [](const QString &text) {
         setConfig().canvas.resourcesDirectory = text;
     });
@@ -172,6 +198,18 @@ void GraphicsPage::slot_loadConfig()
     ui->cloudsIntensitySlider->setValue(settings.drawWeatherClouds.get());
     ui->fogIntensitySlider->setValue(settings.drawWeatherFog.get());
     ui->todIntensitySlider->setValue(settings.drawTimeOfDay.get());
+
+    ui->rainCheckBox->setChecked(settings.enableWeatherRain.get());
+    ui->snowCheckBox->setChecked(settings.enableWeatherSnow.get());
+    ui->cloudsCheckBox->setChecked(settings.enableWeatherClouds.get());
+    ui->fogCheckBox->setChecked(settings.enableWeatherFog.get());
+    ui->todCheckBox->setChecked(settings.enableTimeOfDay.get());
+
+    ui->rainIntensitySlider->setEnabled(settings.enableWeatherRain.get());
+    ui->snowIntensitySlider->setEnabled(settings.enableWeatherSnow.get());
+    ui->cloudsIntensitySlider->setEnabled(settings.enableWeatherClouds.get());
+    ui->fogIntensitySlider->setEnabled(settings.enableWeatherFog.get());
+    ui->todIntensitySlider->setEnabled(settings.enableTimeOfDay.get());
 
     ui->resourceLineEdit->setText(settings.resourcesDirectory);
 }

@@ -304,6 +304,11 @@ ConstString KEY_DRAW_WEATHER_SNOW = "Draw weather snow";
 ConstString KEY_DRAW_WEATHER_CLOUDS = "Draw weather clouds";
 ConstString KEY_DRAW_WEATHER_FOG = "Draw weather fog";
 ConstString KEY_DRAW_TIME_OF_DAY = "Draw time of day";
+ConstString KEY_ENABLE_WEATHER_RAIN = "Enable weather rain";
+ConstString KEY_ENABLE_WEATHER_SNOW = "Enable weather snow";
+ConstString KEY_ENABLE_WEATHER_CLOUDS = "Enable weather clouds";
+ConstString KEY_ENABLE_WEATHER_FOG = "Enable weather fog";
+ConstString KEY_ENABLE_TIME_OF_DAY = "Enable time of day";
 
 void Settings::tryCopyOldSettings()
 {
@@ -665,6 +670,11 @@ void Configuration::CanvasSettings::read(const QSettings &conf)
     drawWeatherClouds.set(conf.value(KEY_DRAW_WEATHER_CLOUDS, 100).toInt());
     drawWeatherFog.set(conf.value(KEY_DRAW_WEATHER_FOG, 100).toInt());
     drawTimeOfDay.set(conf.value(KEY_DRAW_TIME_OF_DAY, 100).toInt());
+    enableWeatherRain.set(conf.value(KEY_ENABLE_WEATHER_RAIN, true).toBool());
+    enableWeatherSnow.set(conf.value(KEY_ENABLE_WEATHER_SNOW, true).toBool());
+    enableWeatherClouds.set(conf.value(KEY_ENABLE_WEATHER_CLOUDS, true).toBool());
+    enableWeatherFog.set(conf.value(KEY_ENABLE_WEATHER_FOG, true).toBool());
+    enableTimeOfDay.set(conf.value(KEY_ENABLE_TIME_OF_DAY, true).toBool());
 }
 
 void Configuration::AccountSettings::read(const QSettings &conf)
@@ -858,6 +868,11 @@ void Configuration::CanvasSettings::write(QSettings &conf) const
     conf.setValue(KEY_DRAW_WEATHER_CLOUDS, drawWeatherClouds.get());
     conf.setValue(KEY_DRAW_WEATHER_FOG, drawWeatherFog.get());
     conf.setValue(KEY_DRAW_TIME_OF_DAY, drawTimeOfDay.get());
+    conf.setValue(KEY_ENABLE_WEATHER_RAIN, enableWeatherRain.get());
+    conf.setValue(KEY_ENABLE_WEATHER_SNOW, enableWeatherSnow.get());
+    conf.setValue(KEY_ENABLE_WEATHER_CLOUDS, enableWeatherClouds.get());
+    conf.setValue(KEY_ENABLE_WEATHER_FOG, enableWeatherFog.get());
+    conf.setValue(KEY_ENABLE_TIME_OF_DAY, enableTimeOfDay.get());
 }
 
 void Configuration::AccountSettings::write(QSettings &conf) const

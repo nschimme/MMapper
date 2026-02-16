@@ -669,14 +669,23 @@ void MapCanvas::actuallyPaintGL()
 
         const auto &canvas = getConfig().canvas;
 
-        const float targetRain = m_weatherState.targetRainIntensity
-                                 * (static_cast<float>(canvas.drawWeatherRain.get()) / 100.0f);
-        const float targetSnow = m_weatherState.targetSnowIntensity
-                                 * (static_cast<float>(canvas.drawWeatherSnow.get()) / 100.0f);
-        const float targetClouds = m_weatherState.targetCloudsIntensity
-                                   * (static_cast<float>(canvas.drawWeatherClouds.get()) / 100.0f);
-        const float targetFog = m_weatherState.targetFogIntensity
-                                * (static_cast<float>(canvas.drawWeatherFog.get()) / 100.0f);
+        const float targetRain = canvas.enableWeatherRain.get()
+                                     ? m_weatherState.targetRainIntensity
+                                           * (static_cast<float>(canvas.drawWeatherRain.get()) / 100.0f)
+                                     : 0.0f;
+        const float targetSnow = canvas.enableWeatherSnow.get()
+                                     ? m_weatherState.targetSnowIntensity
+                                           * (static_cast<float>(canvas.drawWeatherSnow.get()) / 100.0f)
+                                     : 0.0f;
+        const float targetClouds = canvas.enableWeatherClouds.get()
+                                       ? m_weatherState.targetCloudsIntensity
+                                             * (static_cast<float>(canvas.drawWeatherClouds.get())
+                                                / 100.0f)
+                                       : 0.0f;
+        const float targetFog = canvas.enableWeatherFog.get()
+                                    ? m_weatherState.targetFogIntensity
+                                          * (static_cast<float>(canvas.drawWeatherFog.get()) / 100.0f)
+                                    : 0.0f;
         const float targetMoon = m_weatherState.targetMoonIntensity;
 
         auto updateLevel = [dt](float &current, float target, float transitionSpeed) {
@@ -688,8 +697,8 @@ void MapCanvas::actuallyPaintGL()
         };
 
         // Smoother (slower) transitions
-        const float weatherSpeed = 0.2f; // 5 seconds for full transition
-        const float todSpeed = 0.1f;     // 10 seconds for full transition
+        const float weatherSpeed = 0.1f; // 10 seconds for full transition
+        const float todSpeed = 0.05f;    // 20 seconds for full transition
 
         updateLevel(m_weatherState.rainIntensity, targetRain, weatherSpeed);
         updateLevel(m_weatherState.snowIntensity, targetSnow, weatherSpeed);
@@ -857,7 +866,10 @@ void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current)
 
 Color MapCanvas::calculateTimeOfDayColor() const
 {
-    const float intensity = static_cast<float>(getConfig().canvas.drawTimeOfDay.get()) / 100.0f;
+    const auto &canvas = getConfig().canvas;
+    const float intensity = canvas.enableTimeOfDay.get()
+                                ? static_cast<float>(canvas.drawTimeOfDay.get()) / 100.0f
+                                : 0.0f;
     if (intensity <= 0.0f) {
         return Color(1.0f, 1.0f, 1.0f, 0.0f);
     }
@@ -886,12 +898,13 @@ Color MapCanvas::calculateTimeOfDayColor() const
 
     const glm::vec4 c1 = getColor(m_weatherState.oldTimeOfDay).getVec4();
     const glm::vec4 c2 = getColor(m_weatherState.currentTimeOfDay).getVec4();
-    const float t = m_weatherState.timeOfDayTransition;
+    const float t_raw = m_weatherState.timeOfDayTransition;
+    const float t = t_raw * t_raw * (3.0f - 2.0f * t_raw); // Smoothstep for natural transition
 
     return Color(c1.r * (1.0f - t) + c2.r * t,
                  c1.g * (1.0f - t) + c2.g * t,
                  c1.b * (1.0f - t) + c2.b * t,
-                 c1.a * (1.0f - t) + c2.a * t * intensity);
+                 (c1.a * (1.0f - t) + c2.a * t) * intensity);
 }
 
 void MapCanvas::paintWeather()
@@ -947,6 +960,11 @@ void MapCanvas::paintWeather()
     m_textures.weather_noise->bind();
     if (prog.hasUniform("uNoiseTexture"))
         prog.setTexture("uNoiseTexture", 1);
+
+    funcs.glActiveTexture(GL_TEXTURE2);
+    funcs.glBindTexture(GL_TEXTURE_2D, funcs.getFBO().resolvedDepthTextureId());
+    if (prog.hasUniform("uDepthTexture"))
+        prog.setTexture("uDepthTexture", 2);
 
     const auto rs
         = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withDepthFunction(std::nullopt);

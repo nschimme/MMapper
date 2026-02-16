@@ -175,6 +175,12 @@ public:
         NamedConfig<int> drawWeatherClouds{"DRAW_WEATHER_CLOUDS", 100};
         NamedConfig<int> drawWeatherFog{"DRAW_WEATHER_FOG", 100};
         NamedConfig<int> drawTimeOfDay{"DRAW_TIME_OF_DAY", 100};
+
+        NamedConfig<bool> enableWeatherRain{"ENABLE_WEATHER_RAIN", true};
+        NamedConfig<bool> enableWeatherSnow{"ENABLE_WEATHER_SNOW", true};
+        NamedConfig<bool> enableWeatherClouds{"ENABLE_WEATHER_CLOUDS", true};
+        NamedConfig<bool> enableWeatherFog{"ENABLE_WEATHER_FOG", true};
+        NamedConfig<bool> enableTimeOfDay{"ENABLE_TIME_OF_DAY", true};
         bool drawUpperLayersTextured = false;
         bool drawDoorNames = false;
         bool softwareOpenGL = false;

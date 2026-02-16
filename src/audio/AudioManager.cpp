@@ -4,6 +4,7 @@
 #include "AudioManager.h"
 
 #include "../configuration/configuration.h"
+#include "../global/Charset.h"
 #ifdef WITH_AUDIO
 #include <QAudioOutput>
 #include <QMediaPlayer>

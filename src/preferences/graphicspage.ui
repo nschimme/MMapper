@@ -327,9 +327,9 @@
      </property>
      <layout class="QGridLayout" name="gridLayout_Weather">
       <item row="0" column="0">
-       <widget class="QCheckBox" name="weatherCloudsCheckBox">
+       <widget class="QLabel" name="weatherCloudsLabel">
         <property name="text">
-         <string>Clouds</string>
+         <string>Clouds Intensity:</string>
         </property>
        </widget>
       </item>
@@ -344,9 +344,9 @@
        </widget>
       </item>
       <item row="1" column="0">
-       <widget class="QCheckBox" name="weatherFogCheckBox">
+       <widget class="QLabel" name="weatherFogLabel">
         <property name="text">
-         <string>Fog</string>
+         <string>Fog Intensity:</string>
         </property>
        </widget>
       </item>
@@ -361,9 +361,9 @@
        </widget>
       </item>
       <item row="2" column="0">
-       <widget class="QCheckBox" name="weatherRainCheckBox">
+       <widget class="QLabel" name="weatherRainLabel">
         <property name="text">
-         <string>Rain</string>
+         <string>Rain Intensity:</string>
         </property>
        </widget>
       </item>
@@ -378,9 +378,9 @@
        </widget>
       </item>
       <item row="3" column="0">
-       <widget class="QCheckBox" name="weatherSnowCheckBox">
+       <widget class="QLabel" name="weatherSnowLabel">
         <property name="text">
-         <string>Snow</string>
+         <string>Snow Intensity:</string>
         </property>
        </widget>
       </item>
@@ -395,9 +395,9 @@
        </widget>
       </item>
       <item row="4" column="0">
-       <widget class="QCheckBox" name="weatherToDCheckBox">
+       <widget class="QLabel" name="weatherToDLabel">
         <property name="text">
-         <string>Time of Day</string>
+         <string>Time of Day Intensity:</string>
         </property>
        </widget>
       </item>

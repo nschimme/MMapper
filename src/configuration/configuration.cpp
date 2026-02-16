@@ -293,15 +293,10 @@ ConstString KEY_THEME = "Theme";
 ConstString KEY_TLS_ENCRYPTION = "TLS encryption";
 ConstString KEY_USE_INTERNAL_EDITOR = "Use internal editor";
 ConstString KEY_USE_TRILINEAR_FILTERING = "Use trilinear filtering";
-ConstString KEY_WEATHER_CLOUDS = "weather.clouds";
 ConstString KEY_WEATHER_CLOUDS_INTENSITY = "weather.cloudsIntensity";
-ConstString KEY_WEATHER_FOG = "weather.fog";
 ConstString KEY_WEATHER_FOG_INTENSITY = "weather.fogIntensity";
-ConstString KEY_WEATHER_RAIN = "weather.rain";
 ConstString KEY_WEATHER_RAIN_INTENSITY = "weather.rainIntensity";
-ConstString KEY_WEATHER_SNOW = "weather.snow";
 ConstString KEY_WEATHER_SNOW_INTENSITY = "weather.snowIntensity";
-ConstString KEY_WEATHER_TOD = "weather.tod";
 ConstString KEY_WEATHER_TOD_INTENSITY = "weather.todIntensity";
 ConstString KEY_WINDOW_GEOMETRY = "Window Geometry";
 ConstString KEY_WINDOW_STATE = "Window State";
@@ -666,15 +661,10 @@ void Configuration::CanvasSettings::read(const QSettings &conf)
     advanced.horizontalAngle.set(conf.value(KEY_3D_HORIZONTAL_ANGLE, 0).toInt());
     advanced.layerHeight.set(conf.value(KEY_3D_LAYER_HEIGHT, 15).toInt());
 
-    weatherClouds.set(conf.value(KEY_WEATHER_CLOUDS, true).toBool());
     weatherCloudsIntensity.set(conf.value(KEY_WEATHER_CLOUDS_INTENSITY, 50).toInt());
-    weatherFog.set(conf.value(KEY_WEATHER_FOG, true).toBool());
     weatherFogIntensity.set(conf.value(KEY_WEATHER_FOG_INTENSITY, 50).toInt());
-    weatherRain.set(conf.value(KEY_WEATHER_RAIN, true).toBool());
     weatherRainIntensity.set(conf.value(KEY_WEATHER_RAIN_INTENSITY, 50).toInt());
-    weatherSnow.set(conf.value(KEY_WEATHER_SNOW, true).toBool());
     weatherSnowIntensity.set(conf.value(KEY_WEATHER_SNOW_INTENSITY, 50).toInt());
-    weatherToD.set(conf.value(KEY_WEATHER_TOD, true).toBool());
     weatherToDIntensity.set(conf.value(KEY_WEATHER_TOD_INTENSITY, 100).toInt());
 }
 
@@ -865,15 +855,10 @@ void Configuration::CanvasSettings::write(QSettings &conf) const
     conf.setValue(KEY_3D_HORIZONTAL_ANGLE, advanced.horizontalAngle.get());
     conf.setValue(KEY_3D_LAYER_HEIGHT, advanced.layerHeight.get());
 
-    conf.setValue(KEY_WEATHER_CLOUDS, weatherClouds.get());
     conf.setValue(KEY_WEATHER_CLOUDS_INTENSITY, weatherCloudsIntensity.get());
-    conf.setValue(KEY_WEATHER_FOG, weatherFog.get());
     conf.setValue(KEY_WEATHER_FOG_INTENSITY, weatherFogIntensity.get());
-    conf.setValue(KEY_WEATHER_RAIN, weatherRain.get());
     conf.setValue(KEY_WEATHER_RAIN_INTENSITY, weatherRainIntensity.get());
-    conf.setValue(KEY_WEATHER_SNOW, weatherSnow.get());
     conf.setValue(KEY_WEATHER_SNOW_INTENSITY, weatherSnowIntensity.get());
-    conf.setValue(KEY_WEATHER_TOD, weatherToD.get());
     conf.setValue(KEY_WEATHER_TOD_INTENSITY, weatherToDIntensity.get());
 }
 

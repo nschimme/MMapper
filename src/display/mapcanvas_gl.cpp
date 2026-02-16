@@ -649,31 +649,17 @@ void MapCanvas::actuallyPaintGL()
     // Update weather transitions from configuration
     {
         const auto &settings = getConfig().canvas;
-        m_weatherState.targetRainIntensity = settings.weatherRain.get()
-                                                 ? static_cast<float>(
-                                                       settings.weatherRainIntensity.get())
-                                                       / 100.0f
-                                                 : 0.0f;
-        m_weatherState.targetSnowIntensity = settings.weatherSnow.get()
-                                                 ? static_cast<float>(
-                                                       settings.weatherSnowIntensity.get())
-                                                       / 100.0f
-                                                 : 0.0f;
-        m_weatherState.targetCloudsIntensity = settings.weatherClouds.get()
-                                                   ? static_cast<float>(
-                                                         settings.weatherCloudsIntensity.get())
-                                                         / 100.0f
-                                                   : 0.0f;
-        m_weatherState.targetFogIntensity = settings.weatherFog.get()
-                                                ? static_cast<float>(
-                                                      settings.weatherFogIntensity.get())
-                                                      / 100.0f
-                                                : 0.0f;
-        m_weatherState.targetMoonIntensity = settings.weatherToD.get()
-                                                 ? static_cast<float>(
-                                                       settings.weatherToDIntensity.get())
-                                                       / 100.0f
-                                                 : 0.0f;
+        m_weatherState.targetRainIntensity = static_cast<float>(settings.weatherRainIntensity.get())
+                                             / 100.0f;
+        m_weatherState.targetSnowIntensity = static_cast<float>(settings.weatherSnowIntensity.get())
+                                             / 100.0f;
+        m_weatherState.targetCloudsIntensity = static_cast<float>(
+                                                   settings.weatherCloudsIntensity.get())
+                                               / 100.0f;
+        m_weatherState.targetFogIntensity = static_cast<float>(settings.weatherFogIntensity.get())
+                                            / 100.0f;
+        m_weatherState.targetMoonIntensity = static_cast<float>(settings.weatherToDIntensity.get())
+                                             / 100.0f;
 
         auto now = std::chrono::steady_clock::now();
         if (m_weatherState.lastUpdateTime.time_since_epoch().count() == 0) {

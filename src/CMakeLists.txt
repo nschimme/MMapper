@@ -10,8 +10,14 @@ set(mmapper_SRCS
     adventure/lineparsers.h
     adventure/xpstatuswidget.cpp
     adventure/xpstatuswidget.h
+    audio/AudioLibrary.cpp
     audio/AudioManager.cpp
+    audio/MusicManager.cpp
+    audio/SfxManager.cpp
+    audio/AudioLibrary.h
     audio/AudioManager.h
+    audio/MusicManager.h
+    audio/SfxManager.h
     client/ClientTelnet.cpp
     client/ClientTelnet.h
     client/ClientWidget.cpp

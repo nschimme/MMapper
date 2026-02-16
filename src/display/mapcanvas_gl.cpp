@@ -638,7 +638,7 @@ void MapCanvas::finishPendingMapBatches()
 
 void MapCanvas::actuallyPaintGL()
 {
-    // Update weather transitions from configuration
+    // Update weather
     {
         auto &ws = m_weatherRenderer->getState();
         auto now = std::chrono::steady_clock::now();
@@ -649,23 +649,6 @@ void MapCanvas::actuallyPaintGL()
         ws.lastUpdateTime = now;
 
         m_weatherRenderer->update(dt);
-
-        bool stillAnimating = (ws.animationTime - ws.weatherTransitionStartTime < 2.0f)
-                              || (ws.animationTime - ws.todTransitionStartTime < 2.0f);
-
-        // Rain/Snow/Clouds also need continuous animation for movement
-        if (ws.targetRainIntensity > 0.0f || ws.targetSnowIntensity > 0.0f
-            || ws.targetCloudsIntensity > 0.0f || ws.targetFogIntensity > 0.0f
-            || ws.rainIntensityStart > 0.0f || ws.snowIntensityStart > 0.0f
-            || ws.cloudsIntensityStart > 0.0f || ws.fogIntensityStart > 0.0f) {
-            stillAnimating = true;
-        }
-
-        if (stillAnimating) {
-            setAnimating(true);
-        } else {
-            setAnimating(false);
-        }
     }
 
     // DECL_TIMER(t, __FUNCTION__);

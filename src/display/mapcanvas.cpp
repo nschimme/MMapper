@@ -70,7 +70,13 @@ MapCanvas::MapCanvas(MapData &mapData,
     , m_glFont{m_opengl}
     , m_data{mapData}
     , m_groupManager{groupManager}
-    , m_weatherRenderer{std::make_unique<WeatherRenderer>(m_opengl, m_data, m_textures, observer)}
+    , m_weatherRenderer{std::make_unique<WeatherRenderer>(m_opengl,
+                                                          m_data,
+                                                          m_textures,
+                                                          observer,
+                                                          [this](bool animating) {
+                                                              setAnimating(animating);
+                                                          })}
     , m_observer{observer}
 {
     NonOwningPointer &pmc = primaryMapCanvas();

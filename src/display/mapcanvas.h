@@ -279,8 +279,6 @@ private:
     void paintSelectedInfomarks();
     void paintCharacters();
     void paintDifferences();
-    void paintWeather();
-    void initWeatherParticles();
     NODISCARD Color calculateTimeOfDayColor() const;
     void forceUpdateMeshes();
 

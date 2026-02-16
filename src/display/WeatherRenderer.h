@@ -10,9 +10,11 @@
 #include "../observer/gameobserver.h"
 #include "../opengl/OpenGL.h"
 #include "../opengl/OpenGLTypes.h"
+#include "../opengl/legacy/Legacy.h"
 #include "Textures.h"
 
 #include <chrono>
+#include <functional>
 #include <memory>
 
 class MapData;
@@ -30,12 +32,14 @@ public:
         float snowIntensityStart = 0.0f;
         float cloudsIntensityStart = 0.0f;
         float fogIntensityStart = 0.0f;
+        float todIntensityStart = 0.0f;
         float moonIntensityStart = 0.0f;
 
         float targetRainIntensity = 0.0f;
         float targetSnowIntensity = 0.0f;
         float targetCloudsIntensity = 0.0f;
         float targetFogIntensity = 0.0f;
+        float targetToDIntensity = 0.0f;
         float targetMoonIntensity = 0.0f;
 
         float gameRainIntensity = 0.0f;
@@ -47,14 +51,12 @@ public:
         MumeTimeEnum currentTimeOfDay = MumeTimeEnum::DAY;
         MumeMoonVisibilityEnum moonVisibility = MumeMoonVisibilityEnum::UNKNOWN;
 
-        float todIntensityStart = 0.0f;
-        float targetToDIntensity = 0.0f;
-
         float weatherTransitionStartTime = -2.0f;
         float todTransitionStartTime = -2.0f;
 
         float animationTime = 0.0f;
         float lastDt = 0.0f;
+        float lastUboUploadTime = -1.0f;
 
         std::chrono::steady_clock::time_point lastUpdateTime;
     };
@@ -65,13 +67,15 @@ private:
     const MapCanvasTextures &m_textures;
     GameObserver &m_observer;
     ChangeMonitor::Lifetime m_lifetime;
+    std::function<void(bool)> m_setAnimating;
     State m_state;
 
 public:
     explicit WeatherRenderer(OpenGL &gl,
                              MapData &data,
                              const MapCanvasTextures &textures,
-                             GameObserver &observer);
+                             GameObserver &observer,
+                             std::function<void(bool)> setAnimating);
     ~WeatherRenderer();
 
     DELETE_CTORS_AND_ASSIGN_OPS(WeatherRenderer);

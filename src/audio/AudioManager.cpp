@@ -2,22 +2,25 @@
 // Copyright (C) 2025 The MMapper Authors
 
 #include "AudioManager.h"
+
 #include "../configuration/configuration.h"
-#ifdef MMAPPER_WITH_MULTIMEDIA
-#include <QMediaPlayer>
+#ifdef WITH_AUDIO
 #include <QAudioOutput>
+#include <QMediaPlayer>
 #include <QSoundEffect>
 #endif
-#include <QTimer>
-#include <QDir>
-#include <QUrl>
 #include <QDebug>
+#include <QDir>
+#include <QDirIterator>
+#include <QRegularExpression>
+#include <QTimer>
+#include <QUrl>
 
 AudioManager::AudioManager(GameObserver &observer, QObject *parent)
     : QObject(parent)
     , m_observer(observer)
 {
-#ifdef MMAPPER_WITH_MULTIMEDIA
+#ifdef WITH_AUDIO
     m_player = new QMediaPlayer(this);
     m_audioOutput = new QAudioOutput(this);
     m_player->setAudioOutput(m_audioOutput);
@@ -61,21 +64,30 @@ AudioManager::AudioManager(GameObserver &observer, QObject *parent)
         }
         m_audioOutput->setVolume(currentVol);
     });
+
+    scanDirectories();
+
+    const auto &resourcesDir = getConfig().canvas.resourcesDirectory;
+    m_watcher.addPath(resourcesDir + "/music");
+    m_watcher.addPath(resourcesDir + "/sounds");
+    connect(&m_watcher, &QFileSystemWatcher::directoryChanged, this, [this](const QString & /*path*/) {
+        scanDirectories();
+    });
 #endif
 
-    m_observer.sig2_areaChanged.connect(m_lifetime, [this](const RoomArea &area) {
-        onAreaChanged(area);
-    });
+    m_observer.sig2_areaChanged.connect(m_lifetime,
+                                        [this](const RoomArea &area) { onAreaChanged(area); });
     m_observer.sig2_gainedLevel.connect(m_lifetime, [this]() { onGainedLevel(); });
-    m_observer.sig2_positionChanged.connect(m_lifetime,
-                                            [this](CharacterPositionEnum pos) { onPositionChanged(pos); });
+    m_observer.sig2_positionChanged.connect(m_lifetime, [this](CharacterPositionEnum pos) {
+        onPositionChanged(pos);
+    });
 
     updateVolumes();
 }
 
 AudioManager::~AudioManager()
 {
-#ifdef MMAPPER_WITH_MULTIMEDIA
+#ifdef WITH_AUDIO
     m_player->stop();
 #endif
 }
@@ -88,15 +100,20 @@ void AudioManager::onAreaChanged(const RoomArea &area)
         return;
     }
 
-    QString areaName = area.toQString();
-    QString musicFile = findAudioFile("music", areaName);
+    static const QRegularExpression regex("^the\\s+");
+    QString name = area.toQString().toLower().remove(regex).replace(' ', '-');
+    mmqt::toAsciiInPlace(name);
+
+    QString musicFile = findAudioFile("music", name);
 
     if (musicFile.isEmpty()) {
         startFadeOut();
         return;
     }
 
-    if (musicFile == m_currentMusicFile) return;
+    if (musicFile == m_currentMusicFile) {
+        return;
+    }
 
     m_pendingMusicFile = musicFile;
     startFadeOut();
@@ -116,7 +133,7 @@ void AudioManager::onPositionChanged(CharacterPositionEnum position)
 
 void AudioManager::updateVolumes()
 {
-#ifdef MMAPPER_WITH_MULTIMEDIA
+#ifdef WITH_AUDIO
     if (!m_isFadingOut && (m_fadeTimer == nullptr || !m_fadeTimer->isActive())) {
         float vol = getConfig().audio.musicEnabled
                         ? static_cast<float>(getConfig().audio.musicVolume) / 100.0f
@@ -129,7 +146,8 @@ void AudioManager::updateVolumes()
 void AudioManager::playMusic(const QString &areaName)
 {
     QString musicFile = findAudioFile("music", areaName);
-    if (musicFile.isEmpty()) return;
+    if (musicFile.isEmpty())
+        return;
 
     m_pendingMusicFile = musicFile;
     startFadeOut();
@@ -137,12 +155,13 @@ void AudioManager::playMusic(const QString &areaName)
 
 void AudioManager::playSound(const QString &soundName)
 {
-#ifdef MMAPPER_WITH_MULTIMEDIA
+#ifdef WITH_AUDIO
     if (!getConfig().audio.soundsEnabled) {
         return;
     }
 
-    QString soundFile = findAudioFile("sounds", soundName);
+    QString name = soundName.toLower().replace(' ', '-');
+    QString soundFile = findAudioFile("sounds", name);
     if (soundFile.isEmpty()) {
         return;
     }
@@ -174,39 +193,71 @@ void AudioManager::playSound(const QString &soundName)
 
 QString AudioManager::findAudioFile(const QString &subDir, const QString &name)
 {
-    QStringList extensions = {"mp3", "wav", "ogg", "m4a"};
-    QString resourcesDir = getConfig().canvas.resourcesDirectory;
-
-    // 1. Try disk
-    QDir dir(resourcesDir + "/" + subDir);
-    for (const auto &ext : extensions) {
-        QString fileName = name + "." + ext;
-        if (dir.exists(fileName)) {
-            return dir.absoluteFilePath(fileName);
-        }
-        // Try underscore version
-        QString underscoreName = QString(name).replace(" ", "_");
-        if (dir.exists(underscoreName + "." + ext)) {
-            return dir.absoluteFilePath(underscoreName + "." + ext);
-        }
+    QString key = subDir + "/" + name;
+    auto it = m_availableFiles.find(key);
+    if (it != m_availableFiles.end()) {
+        return it.value();
     }
-
-    // 2. Try QRC fallback
-    for (const auto &ext : extensions) {
-        QString qrcPath = QString(":/%1/%2.%3").arg(subDir, name, ext);
-        if (QFile::exists(qrcPath)) return qrcPath;
-
-        QString underscoreName = QString(name).replace(" ", "_");
-        qrcPath = QString(":/%1/%2.%3").arg(subDir, underscoreName, ext);
-        if (QFile::exists(qrcPath)) return qrcPath;
-    }
-
     return "";
+}
+
+void AudioManager::scanDirectories()
+{
+    m_availableFiles.clear();
+    QStringList extensions = {"mp3", "wav", "ogg", "m4a"};
+
+    auto scanPath = [&](const QString &path) {
+        QDirIterator it(path, QDir::Files, QDirIterator::Subdirectories);
+        while (it.hasNext()) {
+            QFileInfo fileInfo(it.next());
+            QString suffix = fileInfo.suffix().toLower();
+
+            if (extensions.contains(suffix)) {
+                QString filePath = fileInfo.filePath();
+                auto dotIndex = filePath.lastIndexOf('.');
+                if (dotIndex == -1) {
+                    continue;
+                }
+
+                const bool isQrc = filePath.startsWith(":/");
+                QString baseName;
+                if (isQrc) {
+                    baseName = filePath.left(dotIndex).mid(2); // remove :/
+                } else {
+                    QString resourcesPath = getConfig().canvas.resourcesDirectory;
+                    if (!filePath.startsWith(resourcesPath)) {
+                        continue;
+                    }
+                    baseName = filePath.mid(resourcesPath.length())
+                                   .left(dotIndex - resourcesPath.length());
+                    if (baseName.startsWith("/")) {
+                        baseName = baseName.mid(1);
+                    }
+                }
+
+                if (baseName.isEmpty()) {
+                    continue;
+                }
+
+                m_availableFiles.insert(baseName, filePath);
+            }
+        }
+    };
+
+    // Scan QRC first then disk to prioritize disk
+    scanPath(":/music");
+    scanPath(":/sounds");
+
+    const auto &resourcesDir = getConfig().canvas.resourcesDirectory;
+    scanPath(resourcesDir + "/music");
+    scanPath(resourcesDir + "/sounds");
+
+    qInfo() << "Scanned audio directories. Found" << m_availableFiles.size() << "files.";
 }
 
 void AudioManager::startFadeOut()
 {
-#ifdef MMAPPER_WITH_MULTIMEDIA
+#ifdef WITH_AUDIO
     m_isFadingOut = true;
     if (m_fadeTimer && !m_fadeTimer->isActive()) {
         m_fadeTimer->start();
@@ -216,7 +267,7 @@ void AudioManager::startFadeOut()
 
 void AudioManager::startFadeIn()
 {
-#ifdef MMAPPER_WITH_MULTIMEDIA
+#ifdef WITH_AUDIO
     m_isFadingOut = false;
     if (m_fadeTimer && !m_fadeTimer->isActive()) {
         m_fadeTimer->start();

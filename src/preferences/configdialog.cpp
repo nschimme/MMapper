@@ -72,7 +72,10 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     connect(this, &ConfigDialog::sig_loadConfig, clientPage, &ClientPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, autoLogPage, &AutoLogPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, audioPage, &AudioPage::slot_loadConfig);
-    connect(audioPage, &AudioPage::sig_audioSettingsChanged, this, &ConfigDialog::sig_audioSettingsChanged);
+    connect(audioPage,
+            &AudioPage::sig_audioSettingsChanged,
+            this,
+            &ConfigDialog::sig_audioSettingsChanged);
     connect(this, &ConfigDialog::sig_loadConfig, groupPage, &GroupPage::slot_loadConfig);
     connect(groupPage,
             &GroupPage::sig_groupSettingsChanged,

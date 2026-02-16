@@ -3,11 +3,15 @@
 // Copyright (C) 2025 The MMapper Authors
 
 #include "../observer/gameobserver.h"
-#include <QObject>
-#include <QString>
+
 #include <memory>
 
-#ifdef MMAPPER_WITH_MULTIMEDIA
+#include <QFileSystemWatcher>
+#include <QMap>
+#include <QObject>
+#include <QString>
+
+#ifdef WITH_AUDIO
 class QMediaPlayer;
 class QAudioOutput;
 #endif
@@ -32,17 +36,20 @@ private:
     void playMusic(const QString &areaName);
     void playSound(const QString &soundName);
     QString findAudioFile(const QString &subDir, const QString &name);
+    void scanDirectories();
 
     void startFadeOut();
     void startFadeIn();
 
 private:
     GameObserver &m_observer;
-#ifdef MMAPPER_WITH_MULTIMEDIA
+#ifdef WITH_AUDIO
     QMediaPlayer *m_player = nullptr;
     QAudioOutput *m_audioOutput = nullptr;
 #endif
     QTimer *m_fadeTimer = nullptr;
+    QFileSystemWatcher m_watcher;
+    QMap<QString, QString> m_availableFiles;
 
     QString m_currentMusicFile;
     QString m_pendingMusicFile;

@@ -6,7 +6,7 @@
 
 #include <QWidget>
 
-#ifndef MMAPPER_WITH_MULTIMEDIA
+#ifndef WITH_AUDIO
 class QLabel;
 #endif
 

@@ -2,9 +2,10 @@
 // Copyright (C) 2025 The MMapper Authors
 
 #include "audiopage.h"
-#include "ui_audiopage.h"
+
 #include "../configuration/configuration.h"
-#ifndef MMAPPER_WITH_MULTIMEDIA
+#include "ui_audiopage.h"
+#ifndef WITH_AUDIO
 #include <QLabel>
 #include <QVBoxLayout>
 #endif
@@ -15,14 +16,17 @@ AudioPage::AudioPage(QWidget *parent)
 {
     ui->setupUi(this);
 
-#ifdef MMAPPER_WITH_MULTIMEDIA
+#ifdef WITH_AUDIO
     slot_loadConfig();
 
     connect(ui->musicEnabledCheckBox,
             &QCheckBox::stateChanged,
             this,
             &AudioPage::slot_musicEnabledChanged);
-    connect(ui->musicVolumeSlider, &QSlider::valueChanged, this, &AudioPage::slot_musicVolumeChanged);
+    connect(ui->musicVolumeSlider,
+            &QSlider::valueChanged,
+            this,
+            &AudioPage::slot_musicVolumeChanged);
     connect(ui->soundsEnabledCheckBox,
             &QCheckBox::stateChanged,
             this,
@@ -35,8 +39,7 @@ AudioPage::AudioPage(QWidget *parent)
     ui->musicGroupBox->setEnabled(false);
     ui->soundsGroupBox->setEnabled(false);
     auto *label = new QLabel(
-        tr("Audio features are disabled because Qt6 Multimedia was not found during build."),
-        this);
+        tr("Audio features are disabled because Qt6 Multimedia was not found during build."), this);
     label->setWordWrap(true);
     ui->verticalLayout->insertWidget(0, label);
 #endif

@@ -1398,10 +1398,6 @@ void MapCanvas::paintParticleRender()
 
     if (partProg->hasUniform("uViewProj"))
         partProg->setMatrix("uViewProj", m_viewProj);
-    if (partProg->hasUniform("uRainIntensity"))
-        partProg->setFloat("uRainIntensity", m_weatherState.rainIntensity);
-    if (partProg->hasUniform("uSnowIntensity"))
-        partProg->setFloat("uSnowIntensity", m_weatherState.snowIntensity);
     if (partProg->hasUniform("uTimeOfDayColor"))
         partProg->setColor("uTimeOfDayColor", calculateTimeOfDayColor());
     if (partProg->hasUniform("uPlayerPos"))
@@ -1416,7 +1412,14 @@ void MapCanvas::paintParticleRender()
     funcs.glEnable(GL_DEPTH_TEST);
 
     funcs.glBindVertexArray(m_particleVaos[static_cast<size_t>(m_particleFlip)]);
-    funcs.glDrawArrays(GL_POINTS, 0, MAX_PARTICLES);
+    const int rainCount = static_cast<int>((MAX_PARTICLES / 2) * m_weatherState.rainIntensity);
+    if (rainCount > 0) {
+        funcs.glDrawArrays(GL_POINTS, 0, rainCount);
+    }
+    const int snowCount = static_cast<int>((MAX_PARTICLES / 2) * m_weatherState.snowIntensity);
+    if (snowCount > 0) {
+        funcs.glDrawArrays(GL_POINTS, MAX_PARTICLES / 2, snowCount);
+    }
     funcs.glBindVertexArray(0);
 
     funcs.enableProgramPointSize(false);

@@ -81,10 +81,11 @@ void WeatherRenderer::initParticles()
     }
     auto &funcs = deref(m_gl.getSharedFunctions(Badge<WeatherRenderer>{}));
 
-    // We use 8192 rain and 2048 snow particles to allow for 2x intensity (setting 100/50)
-    m_state.numParticles = 10240;
+    // Reduced particle count: 4096 rain + 1024 snow = 5120 total.
+    // We only store 3 floats per particle: x, y, life. Hash and type are derived in shaders.
+    m_state.numParticles = 5120;
     std::vector<float> data;
-    data.reserve(m_state.numParticles * 5);
+    data.reserve(m_state.numParticles * 3);
 
     std::mt19937 gen(42);
     std::uniform_real_distribution<float> dis(0.0, 1.0);
@@ -92,18 +93,14 @@ void WeatherRenderer::initParticles()
 
     const auto playerPos = m_data.tryGetPosition().value_or(Coordinate{}).to_vec3();
 
-    for (uint32_t i = 0; i < 8192; ++i) { // Rain
+    for (uint32_t i = 0; i < 4096; ++i) { // Rain
         data.push_back(playerPos.x + posDis(gen));
         data.push_back(playerPos.y + posDis(gen));
-        data.push_back(dis(gen)); // hash
-        data.push_back(0.0f);     // type (Rain)
         data.push_back(dis(gen)); // life
     }
-    for (uint32_t i = 0; i < 2048; ++i) { // Snow
+    for (uint32_t i = 0; i < 1024; ++i) { // Snow
         data.push_back(playerPos.x + posDis(gen));
         data.push_back(playerPos.y + posDis(gen));
-        data.push_back(dis(gen)); // hash
-        data.push_back(1.0f);     // type (Snow)
         data.push_back(dis(gen)); // life
     }
 
@@ -159,28 +156,14 @@ void WeatherRenderer::initParticles()
         funcs.glBindVertexArray(getVao(simVaos[i]));
         funcs.glBindBuffer(GL_ARRAY_BUFFER, pVbos[i]);
         funcs.glEnableVertexAttribArray(0); // pos
-        funcs.glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), nullptr);
-        funcs.glEnableVertexAttribArray(1); // hash
+        funcs.glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
+        funcs.glEnableVertexAttribArray(1); // life
         funcs.glVertexAttribPointer(1,
                                     1,
                                     GL_FLOAT,
                                     GL_FALSE,
-                                    5 * sizeof(float),
+                                    3 * sizeof(float),
                                     reinterpret_cast<void *>(2 * sizeof(float)));
-        funcs.glEnableVertexAttribArray(2); // type
-        funcs.glVertexAttribPointer(2,
-                                    1,
-                                    GL_FLOAT,
-                                    GL_FALSE,
-                                    5 * sizeof(float),
-                                    reinterpret_cast<void *>(3 * sizeof(float)));
-        funcs.glEnableVertexAttribArray(3); // life
-        funcs.glVertexAttribPointer(3,
-                                    1,
-                                    GL_FLOAT,
-                                    GL_FALSE,
-                                    5 * sizeof(float),
-                                    reinterpret_cast<void *>(4 * sizeof(float)));
     }
 
     // Quad for rendering
@@ -203,35 +186,17 @@ void WeatherRenderer::initParticles()
 
         funcs.glBindBuffer(GL_ARRAY_BUFFER, pVbos[i]);
         funcs.glEnableVertexAttribArray(1); // aParticlePos
-        funcs.glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), nullptr);
+        funcs.glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
         funcs.glVertexAttribDivisor(1, 1);
 
-        funcs.glEnableVertexAttribArray(2); // aHash
+        funcs.glEnableVertexAttribArray(2); // aLife
         funcs.glVertexAttribPointer(2,
                                     1,
                                     GL_FLOAT,
                                     GL_FALSE,
-                                    5 * sizeof(float),
+                                    3 * sizeof(float),
                                     reinterpret_cast<void *>(2 * sizeof(float)));
         funcs.glVertexAttribDivisor(2, 1);
-
-        funcs.glEnableVertexAttribArray(3); // aType
-        funcs.glVertexAttribPointer(3,
-                                    1,
-                                    GL_FLOAT,
-                                    GL_FALSE,
-                                    5 * sizeof(float),
-                                    reinterpret_cast<void *>(3 * sizeof(float)));
-        funcs.glVertexAttribDivisor(3, 1);
-
-        funcs.glEnableVertexAttribArray(4); // aLife
-        funcs.glVertexAttribPointer(4,
-                                    1,
-                                    GL_FLOAT,
-                                    GL_FALSE,
-                                    5 * sizeof(float),
-                                    reinterpret_cast<void *>(4 * sizeof(float)));
-        funcs.glVertexAttribDivisor(4, 1);
 
         // Snow VAO
         funcs.glBindVertexArray(getVao(snowVaos[i]));
@@ -246,36 +211,18 @@ void WeatherRenderer::initParticles()
                                     2,
                                     GL_FLOAT,
                                     GL_FALSE,
-                                    5 * sizeof(float),
-                                    reinterpret_cast<void *>(8192 * 5 * sizeof(float))); // Offset to snow
+                                    3 * sizeof(float),
+                                    reinterpret_cast<void *>(4096 * 3 * sizeof(float))); // Offset to snow
         funcs.glVertexAttribDivisor(1, 1);
 
-        funcs.glEnableVertexAttribArray(2); // aHash
+        funcs.glEnableVertexAttribArray(2); // aLife
         funcs.glVertexAttribPointer(2,
                                     1,
                                     GL_FLOAT,
                                     GL_FALSE,
-                                    5 * sizeof(float),
-                                    reinterpret_cast<void *>((8192 * 5 + 2) * sizeof(float)));
+                                    3 * sizeof(float),
+                                    reinterpret_cast<void *>((4096 * 3 + 2) * sizeof(float)));
         funcs.glVertexAttribDivisor(2, 1);
-
-        funcs.glEnableVertexAttribArray(3); // aType
-        funcs.glVertexAttribPointer(3,
-                                    1,
-                                    GL_FLOAT,
-                                    GL_FALSE,
-                                    5 * sizeof(float),
-                                    reinterpret_cast<void *>((8192 * 5 + 3) * sizeof(float)));
-        funcs.glVertexAttribDivisor(3, 1);
-
-        funcs.glEnableVertexAttribArray(4); // aLife
-        funcs.glVertexAttribPointer(4,
-                                    1,
-                                    GL_FLOAT,
-                                    GL_FALSE,
-                                    5 * sizeof(float),
-                                    reinterpret_cast<void *>((8192 * 5 + 4) * sizeof(float)));
-        funcs.glVertexAttribDivisor(4, 1);
     }
 
     funcs.glBindVertexArray(0);
@@ -345,11 +292,6 @@ void WeatherRenderer::render(const glm::mat4 &viewProj)
                               m_state.cloudsIntensity,
                               m_state.fogIntensity);
     w.todColor = todColor.getVec4();
-    const Viewport vp = funcs.getPhysicalViewport();
-    w.viewport = glm::vec4(static_cast<float>(vp.offset.x),
-                           static_cast<float>(vp.offset.y),
-                           static_cast<float>(vp.size.x),
-                           static_cast<float>(vp.size.y));
     w.timeInfo = glm::vec4(m_state.animationTime, m_state.lastDt, 0.0f, 0.0f);
 
     using namespace Legacy;
@@ -433,15 +375,19 @@ void WeatherRenderer::render(const glm::mat4 &viewProj)
                                           SharedVaoEnum::WeatherRenderSnow1};
 
         // Rain
-        const GLsizei rainCount = std::min(8192, static_cast<int>(m_state.rainIntensity * 4096.0f));
+        const GLsizei rainCount = std::min(4096, static_cast<int>(m_state.rainIntensity * 2048.0f));
         if (rainCount > 0) {
+            prog.setFloat("uType", 0.0f);
+            prog.setInt("uInstanceOffset", 0);
             funcs.glBindVertexArray(funcs.getSharedVaos().get(rainVaos[m_state.currentBuffer])->get());
             funcs.glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, rainCount);
         }
 
         // Snow
-        const GLsizei snowCount = std::min(2048, static_cast<int>(m_state.snowIntensity * 1024.0f));
+        const GLsizei snowCount = std::min(1024, static_cast<int>(m_state.snowIntensity * 512.0f));
         if (snowCount > 0) {
+            prog.setFloat("uType", 1.0f);
+            prog.setInt("uInstanceOffset", 4096);
             funcs.glBindVertexArray(funcs.getSharedVaos().get(snowVaos[m_state.currentBuffer])->get());
             funcs.glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, snowCount);
         }

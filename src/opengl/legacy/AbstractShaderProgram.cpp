@@ -183,6 +183,12 @@ void AbstractShaderProgram::setFloat(const char *const name, const float value)
     setUniform1fv(location, 1, &value);
 }
 
+void AbstractShaderProgram::setInt(const char *const name, const int value)
+{
+    const auto location = getUniformLocation(name);
+    setUniform1iv(location, 1, &value);
+}
+
 void AbstractShaderProgram::setVec2(const char *const name, const glm::vec2 &v)
 {
     const auto location = getUniformLocation(name);

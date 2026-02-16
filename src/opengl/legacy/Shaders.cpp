@@ -177,7 +177,7 @@ const std::shared_ptr<ParticleSimulationShader> &ShaderPrograms::getParticleSimu
             return ShaderUtils::Source{fullPathName, src};
         };
 
-        std::vector<const char *> varyings = {"vPos", "vHash", "vType", "vLife"};
+        std::vector<const char *> varyings = {"vPos", "vLife"};
         auto program = ShaderUtils::loadTransformFeedbackShaders(funcs,
                                                                  getSource("vert.glsl"),
                                                                  getSource("frag.glsl"),

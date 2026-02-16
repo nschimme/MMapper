@@ -10,7 +10,6 @@ layout(std140) uniform WeatherBlock
     vec4 uPlayerPos; // xyz, w=zScale
     vec4 uWeatherIntensities; // x=rain, y=snow, z=clouds, w=fog
     vec4 uTimeOfDayColor;
-    vec4 uViewport; // xy=offset, zw=size
     vec4 uTimeAndDelta; // x=time, y=deltaTime
 };
 

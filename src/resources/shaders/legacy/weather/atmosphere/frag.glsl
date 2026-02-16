@@ -55,6 +55,8 @@ void main()
     if (uFogIntensity > 0.0) {
         float n = fbm(worldPos.xy * 0.15 + uTime * 0.1);
         weatherColor = vec4(0.8, 0.8, 0.85, uFogIntensity * n * localMask * 0.6);
+        // Emissive boost at night
+        weatherColor.rgb += uTimeOfDayColor.a * 0.15;
     }
 
     // Clouds: puffy high-contrast noise
@@ -62,6 +64,8 @@ void main()
         float n = fbm(worldPos.xy * 0.06 - uTime * 0.03);
         float puffy = smoothstep(0.45, 0.55, n);
         vec4 clouds = vec4(0.9, 0.9, 1.0, uCloudsIntensity * puffy * localMask * 0.4);
+        // Emissive boost at night
+        clouds.rgb += uTimeOfDayColor.a * 0.1;
         weatherColor.rgb = mix(weatherColor.rgb, clouds.rgb, clouds.a);
         weatherColor.a = max(weatherColor.a, clouds.a);
     }
@@ -72,10 +76,16 @@ void main()
 
     vec4 result = vec4(todTint, todAlpha);
 
-    // Blend weather on top of ToD
+    // Blend weather on top of ToD without tinting it
     if (weatherColor.a > 0.0) {
-        result.rgb = mix(result.rgb, weatherColor.rgb, weatherColor.a);
-        result.a = max(result.a, weatherColor.a);
+        float Ta = todAlpha;
+        float Wa = weatherColor.a;
+        // combinedAlpha = Ta + Wa - Ta * Wa;
+        float combinedAlpha = 1.0 - (1.0 - Ta) * (1.0 - Wa);
+        result.a = combinedAlpha;
+        // result.rgb = (T * Ta * (1 - Wa) + W * Wa) / result.a
+        result.rgb = (todTint * Ta * (1.0 - Wa) + weatherColor.rgb * Wa)
+                     / max(combinedAlpha, 0.001);
     }
 
     vFragmentColor = result;

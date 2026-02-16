@@ -1054,6 +1054,7 @@ void MapCanvas::paintWeather()
         prog.setMatrix("uViewProj", m_viewProj);
         prog.setVec4("uPlayerPos", glm::vec4(playerPos, 1.0f));
         prog.setFloat("uZScale", zScale);
+        prog.setFloat("uTime", m_weatherState.animationTime);
         prog.setFloat("uRainIntensity", m_weatherState.rainIntensity);
         prog.setFloat("uSnowIntensity", m_weatherState.snowIntensity);
         prog.setVec4("uTimeOfDayColor", todColor.getVec4());

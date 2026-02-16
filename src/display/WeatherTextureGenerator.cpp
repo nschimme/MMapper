@@ -39,11 +39,11 @@ inline float noise(float x, float y, int size)
     auto get_hash = [&](float i, float j) {
         const float fsize = static_cast<float>(size);
         float wi = std::fmod(i, fsize);
-        if (wi < 0) {
+        if (wi < 0.0f) {
             wi += fsize;
         }
         float wj = std::fmod(j, fsize);
-        if (wj < 0) {
+        if (wj < 0.0f) {
             wj += fsize;
         }
         return hash(wi, wj);

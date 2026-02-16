@@ -9,11 +9,13 @@ layout(location = 3) in float aType;
 uniform mat4 uViewProj;
 uniform vec4 uPlayerPos;
 uniform float uZScale;
+uniform float uTime;
 
 out float vHash;
 out float vType;
 out vec2 vLocalCoord;
 out float vLocalMask;
+out vec2 vPos;
 
 void main()
 {
@@ -22,15 +24,20 @@ void main()
     vLocalCoord = aQuadPos + 0.5;
 
     vec2 size;
+    vec2 pos = aParticlePos;
+
     if (aType == 0.0) { // Rain
         size = vec2(1.0 / 12.0, 1.0 / 0.15);
     } else { // Snow
         size = vec2(1.0 / 4.0, 1.0 / 4.0);
+        // Apply sinusoidal swaying to match original better
+        pos.x += sin(uTime * 1.2 + aHash * 6.28) * 0.4;
     }
 
-    vec3 worldPos = vec3(aParticlePos + aQuadPos * size, uPlayerPos.z);
+    vPos = pos;
+    vec3 worldPos = vec3(pos + aQuadPos * size, uPlayerPos.z);
 
-    float distToPlayer = distance(aParticlePos, uPlayerPos.xy);
+    float distToPlayer = distance(pos, uPlayerPos.xy);
     vLocalMask = smoothstep(12.0, 8.0, distToPlayer);
 
     gl_Position = uViewProj * vec4(worldPos.x, worldPos.y, worldPos.z * uZScale, 1.0);

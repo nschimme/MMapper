@@ -319,7 +319,8 @@ void MapCanvas::initTextures()
         std::vector<QImage> mips;
         mips.push_back(noiseImage);
         for (int s = 128; s >= 1; s /= 2) {
-            mips.push_back(mips.back().scaled(s, s, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+            mips.push_back(
+                mips.back().scaled(s, s, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
         }
         textures.weather_noise = MMTexture::alloc(std::move(mips));
         textures.weather_noise->get()->setWrapMode(QOpenGLTexture::WrapMode::Repeat);

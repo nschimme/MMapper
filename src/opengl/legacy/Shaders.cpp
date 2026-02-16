@@ -170,8 +170,9 @@ const std::shared_ptr<ParticleSimulationShader> &ShaderPrograms::getParticleSimu
         auto program = ShaderUtils::loadTransformFeedbackShaders(funcs,
                                                                  getSource("vert.glsl"),
                                                                  varyings);
-        m_particleSimulation = std::make_shared<ParticleSimulationShader>(
-            "weather/simulation", funcs.shared_from_this(), std::move(program));
+        m_particleSimulation = std::make_shared<ParticleSimulationShader>("weather/simulation",
+                                                                          funcs.shared_from_this(),
+                                                                          std::move(program));
     }
     return m_particleSimulation;
 }

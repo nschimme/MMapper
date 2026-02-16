@@ -29,7 +29,6 @@
 
 #include <algorithm>
 #include <array>
-#include <random>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -38,6 +37,7 @@
 #include <future>
 #include <memory>
 #include <optional>
+#include <random>
 #include <sstream>
 #include <stdexcept>
 #include <unordered_map>
@@ -969,7 +969,8 @@ void MapCanvas::initWeatherParticles()
 void MapCanvas::paintWeather()
 {
     const Color todColor = calculateTimeOfDayColor();
-    const bool hasWeather = m_weatherState.rainIntensity > 0.0f || m_weatherState.snowIntensity > 0.0f
+    const bool hasWeather = m_weatherState.rainIntensity > 0.0f
+                            || m_weatherState.snowIntensity > 0.0f
                             || m_weatherState.cloudsIntensity > 0.0f
                             || m_weatherState.fogIntensity > 0.0f;
 

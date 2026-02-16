@@ -3,26 +3,30 @@
 
 #include "WeatherTextureGenerator.h"
 
-#include <cmath>
 #include <algorithm>
+#include <cmath>
 
 namespace WeatherTextureGenerator {
 
-inline float fract(float x) {
+inline float fract(float x)
+{
     return x - std::floor(x);
 }
 
-inline float lerp(float a, float b, float t) {
+inline float lerp(float a, float b, float t)
+{
     return a + t * (b - a);
 }
 
-inline float hash(float x, float y) {
+inline float hash(float x, float y)
+{
     // Exact match for GLSL: fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123)
     float dot = x * 127.1f + y * 311.7f;
     return fract(std::sin(dot) * 43758.5453123f);
 }
 
-inline float noise(float x, float y, int size) {
+inline float noise(float x, float y, int size)
+{
     float ix = std::floor(x);
     float iy = std::floor(y);
     float fx = x - ix;
@@ -33,10 +37,15 @@ inline float noise(float x, float y, int size) {
     float sy = fy * fy * (3.0f - 2.0f * fy);
 
     auto get_hash = [&](float i, float j) {
-        float wi = std::fmod(i, (float)size);
-        if (wi < 0) wi += size;
-        float wj = std::fmod(j, (float)size);
-        if (wj < 0) wj += size;
+        const float fsize = static_cast<float>(size);
+        float wi = std::fmod(i, fsize);
+        if (wi < 0) {
+            wi += fsize;
+        }
+        float wj = std::fmod(j, fsize);
+        if (wj < 0) {
+            wj += fsize;
+        }
         return hash(wi, wj);
     };
 
@@ -48,12 +57,13 @@ inline float noise(float x, float y, int size) {
     return lerp(lerp(a, b, sx), lerp(c, d, sx), sy);
 }
 
-QImage generateNoiseTexture(int size) {
+QImage generateNoiseTexture(int size)
+{
     QImage img(size, size, QImage::Format_RGBA8888);
     for (int y = 0; y < size; ++y) {
         for (int x = 0; x < size; ++x) {
-            float v = noise((float)x, (float)y, size);
-            int val = std::clamp((int)(v * 255.0f), 0, 255);
+            float v = noise(static_cast<float>(x), static_cast<float>(y), size);
+            int val = std::clamp(static_cast<int>(v * 255.0f), 0, 255);
             img.setPixelColor(x, y, QColor(val, val, val, 255));
         }
     }

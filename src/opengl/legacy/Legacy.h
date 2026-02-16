@@ -193,11 +193,11 @@ public:
     using Base::glDeleteBuffers;
     using Base::glDeleteProgram;
     using Base::glDeleteShader;
+    using Base::glDeleteTransformFeedbacks;
     using Base::glDeleteVertexArrays;
     using Base::glDepthFunc;
     using Base::glDetachShader;
     using Base::glDisable;
-    using Base::glDeleteTransformFeedbacks;
     using Base::glDisableVertexAttribArray;
     using Base::glDrawArrays;
     using Base::glDrawArraysInstanced;

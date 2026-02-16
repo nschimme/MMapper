@@ -29,12 +29,15 @@ AudioManager::AudioManager(GameObserver &observer, QObject *parent)
     m_player->setAudioOutput(m_audioOutput);
     m_player->setLoops(QMediaPlayer::Infinite);
 
-    connect(m_player, &QMediaPlayer::mediaStatusChanged, this, [this](QMediaPlayer::MediaStatus status) {
-        if (status == QMediaPlayer::LoadedMedia && m_pendingPosition != -1) {
-            m_player->setPosition(m_pendingPosition);
-            m_pendingPosition = -1;
-        }
-    });
+    connect(m_player,
+            &QMediaPlayer::mediaStatusChanged,
+            this,
+            [this](QMediaPlayer::MediaStatus status) {
+                if (status == QMediaPlayer::LoadedMedia && m_pendingPosition != -1) {
+                    m_player->setPosition(m_pendingPosition);
+                    m_pendingPosition = -1;
+                }
+            });
 
     m_fadeTimer = new QTimer(this);
     m_fadeTimer->setInterval(100);

@@ -12,6 +12,7 @@
 #include "Meshes.h"
 #include "ShaderUtils.h"
 #include "Shaders.h"
+#include "TF.h"
 #include "SimpleMesh.h"
 #include "VBO.h"
 
@@ -284,6 +285,7 @@ Functions::Functions(Badge<Functions>)
     , m_staticVbos{std::make_unique<StaticVbos>()}
     , m_sharedVbos{std::make_unique<SharedVbos>()}
     , m_sharedVaos{std::make_unique<SharedVaos>()}
+    , m_sharedTfs{std::make_unique<SharedTransformFeedbacks>()}
     , m_texLookup{std::make_unique<TexLookup>()}
     , m_fbo{std::make_unique<FBO>()}
 {}
@@ -318,6 +320,7 @@ void Functions::cleanup()
     getStaticVbos().resetAll();
     getSharedVbos().resetAll();
     getSharedVaos().resetAll();
+    getSharedTfs().resetAll();
     getTexLookup().clear();
 }
 
@@ -336,6 +339,10 @@ SharedVbos &Functions::getSharedVbos()
 SharedVaos &Functions::getSharedVaos()
 {
     return deref(m_sharedVaos);
+}
+SharedTransformFeedbacks &Functions::getSharedTfs()
+{
+    return deref(m_sharedTfs);
 }
 TexLookup &Functions::getTexLookup()
 {

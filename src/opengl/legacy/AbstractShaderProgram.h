@@ -35,39 +35,17 @@ public:
     class NODISCARD ProgramUnbinder final
     {
     private:
-        AbstractShaderProgram *m_self = nullptr;
+        AbstractShaderProgram &m_self;
 
     public:
         ProgramUnbinder() = delete;
-        ProgramUnbinder(const ProgramUnbinder &) = delete;
-        ProgramUnbinder &operator=(const ProgramUnbinder &) = delete;
-
-        ProgramUnbinder(ProgramUnbinder &&other) noexcept
-            : m_self(std::exchange(other.m_self, nullptr))
-        {}
-
-        ProgramUnbinder &operator=(ProgramUnbinder &&other) noexcept
-        {
-            if (this != &other) {
-                if (m_self) {
-                    m_self->unbind();
-                }
-                m_self = std::exchange(other.m_self, nullptr);
-            }
-            return *this;
-        }
-
-        ~ProgramUnbinder()
-        {
-            if (m_self) {
-                m_self->unbind();
-            }
-        }
+        DELETE_CTORS_AND_ASSIGN_OPS(ProgramUnbinder);
 
     public:
         explicit ProgramUnbinder(AbstractShaderProgram &self)
-            : m_self{&self}
+            : m_self{self}
         {}
+        ~ProgramUnbinder() { m_self.unbind(); }
     };
 
     NODISCARD ProgramUnbinder bind();

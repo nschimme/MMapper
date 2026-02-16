@@ -17,6 +17,7 @@
 #include "MapCanvasData.h"
 #include "MapCanvasRoomDrawer.h"
 #include "Textures.h"
+#include "WeatherRenderer.h"
 
 #include <array>
 #include <cstddef>
@@ -169,46 +170,7 @@ private:
     float m_lastPinchFactor = 1.f;
     float m_lastMagnification = 1.f;
 
-    struct WeatherState
-    {
-        GLuint particleVbos[2] = {0, 0};
-        GLuint simulationVaos[2] = {0, 0};
-        GLuint renderVaosRain[2] = {0, 0};
-        GLuint renderVaosSnow[2] = {0, 0};
-        GLuint quadVbo = 0;
-        GLuint transformFeedback = 0;
-        uint32_t currentBuffer = 0;
-        uint32_t numParticles = 0;
-        bool initialized = false;
-
-        float rainIntensity = 0.0f;
-        float snowIntensity = 0.0f;
-        float cloudsIntensity = 0.0f;
-        float fogIntensity = 0.0f;
-        float moonIntensity = 0.0f;
-
-        float gameRainIntensity = 0.0f;
-        float gameSnowIntensity = 0.0f;
-        float gameCloudsIntensity = 0.0f;
-        float gameFogIntensity = 0.0f;
-
-        float targetRainIntensity = 0.0f;
-        float targetSnowIntensity = 0.0f;
-        float targetCloudsIntensity = 0.0f;
-        float targetFogIntensity = 0.0f;
-        float targetMoonIntensity = 0.0f;
-
-        MumeTimeEnum oldTimeOfDay = MumeTimeEnum::DAY;
-        MumeTimeEnum currentTimeOfDay = MumeTimeEnum::DAY;
-        MumeMoonVisibilityEnum moonVisibility = MumeMoonVisibilityEnum::UNKNOWN;
-        float todIntensity = 0.0f;
-        float targetToDIntensity = 0.0f;
-        float timeOfDayTransition = 1.0f;
-        float animationTime = 0.0f;
-        float lastDt = 0.0f;
-
-        std::chrono::steady_clock::time_point lastUpdateTime;
-    } m_weatherState;
+    std::unique_ptr<WeatherRenderer> m_weatherRenderer;
 
     GameObserver &m_observer;
 

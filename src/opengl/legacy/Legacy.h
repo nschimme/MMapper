@@ -28,6 +28,7 @@ namespace Legacy {
 class StaticVbos;
 class SharedVbos;
 class SharedVaos;
+class SharedTransformFeedbacks;
 class VAO;
 struct AbstractShaderProgram;
 struct ShaderPrograms;
@@ -36,7 +37,10 @@ struct PointSizeBinder;
 // X(EnumName, GL_String_Name, IsUniform)
 #define XFOREACH_SHARED_VBO(X) \
     X(NamedColorsBlock, "NamedColorsBlock", true) \
-    X(InstancedQuadIbo, nullptr, false)
+    X(InstancedQuadIbo, nullptr, false) \
+    X(WeatherParticles0, nullptr, false) \
+    X(WeatherParticles1, nullptr, false) \
+    X(WeatherQuad, nullptr, false)
 
 enum class SharedVboEnum : uint8_t {
 #define X_ENUM(element, name, isUniform) element,
@@ -44,7 +48,14 @@ enum class SharedVboEnum : uint8_t {
 #undef X_ENUM
 };
 
-#define XFOREACH_SHARED_VAO(X) X(EmptyVao)
+#define XFOREACH_SHARED_VAO(X) \
+    X(EmptyVao) \
+    X(WeatherSimulation0) \
+    X(WeatherSimulation1) \
+    X(WeatherRenderRain0) \
+    X(WeatherRenderRain1) \
+    X(WeatherRenderSnow0) \
+    X(WeatherRenderSnow1)
 
 enum class SharedVaoEnum : uint8_t {
 #define X_ENUM(element) element,
@@ -52,13 +63,25 @@ enum class SharedVaoEnum : uint8_t {
 #undef X_ENUM
 };
 
+#define XFOREACH_SHARED_TF(X) X(WeatherSimulation)
+
+enum class SharedTfEnum : uint8_t {
+#define X_ENUM(element) element,
+    XFOREACH_SHARED_TF(X_ENUM)
+#undef X_ENUM
+};
+
 #define X_COUNT_VAO(element) +1
 static constexpr size_t NUM_SHARED_VAOS = 0 XFOREACH_SHARED_VAO(X_COUNT_VAO);
 #undef X_COUNT_VAO
 
-#define X_COUNT(element, name, isUniform) +1
-static constexpr size_t NUM_SHARED_VBOS = 0 XFOREACH_SHARED_VBO(X_COUNT);
-#undef X_COUNT
+#define X_COUNT_VBO(element, name, isUniform) +1
+static constexpr size_t NUM_SHARED_VBOS = 0 XFOREACH_SHARED_VBO(X_COUNT_VBO);
+#undef X_COUNT_VBO
+
+#define X_COUNT_TF(element) +1
+static constexpr size_t NUM_SHARED_TFS = 0 XFOREACH_SHARED_TF(X_COUNT_TF);
+#undef X_COUNT_TF
 
 NODISCARD static inline GLenum toGLenum(const BufferUsageEnum usage)
 {
@@ -133,6 +156,7 @@ private:
     std::unique_ptr<StaticVbos> m_staticVbos;
     std::unique_ptr<SharedVbos> m_sharedVbos;
     std::unique_ptr<SharedVaos> m_sharedVaos;
+    std::unique_ptr<SharedTransformFeedbacks> m_sharedTfs;
     std::unique_ptr<TexLookup> m_texLookup;
     std::unique_ptr<FBO> m_fbo;
 
@@ -319,6 +343,8 @@ public:
     NODISCARD SharedVbos &getSharedVbos();
 
     NODISCARD SharedVaos &getSharedVaos();
+
+    NODISCARD SharedTransformFeedbacks &getSharedTfs();
 
     NODISCARD TexLookup &getTexLookup();
 

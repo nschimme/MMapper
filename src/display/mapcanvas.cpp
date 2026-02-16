@@ -70,77 +70,74 @@ MapCanvas::MapCanvas(MapData &mapData,
     , m_glFont{m_opengl}
     , m_data{mapData}
     , m_groupManager{groupManager}
+    , m_weatherRenderer{std::make_unique<WeatherRenderer>(m_opengl, m_data, m_textures)}
     , m_observer{observer}
 {
-    m_weatherState.currentTimeOfDay = m_observer.getTimeOfDay();
-    m_weatherState.oldTimeOfDay = m_weatherState.currentTimeOfDay;
+    auto &ws = m_weatherRenderer->getState();
+    ws.currentTimeOfDay = m_observer.getTimeOfDay();
+    ws.oldTimeOfDay = ws.currentTimeOfDay;
 
-    m_weatherState.gameRainIntensity = (m_observer.getWeather() == PromptWeatherEnum::RAIN) ? 0.5f
-                                       : (m_observer.getWeather() == PromptWeatherEnum::HEAVY_RAIN)
-                                           ? 1.0f
-                                           : 0.0f;
-    m_weatherState.gameSnowIntensity = (m_observer.getWeather() == PromptWeatherEnum::SNOW) ? 1.0f
-                                                                                            : 0.0f;
-    m_weatherState.gameCloudsIntensity = (m_observer.getWeather() == PromptWeatherEnum::CLOUDS)
-                                             ? 1.0f
-                                             : 0.0f;
-    m_weatherState.gameFogIntensity = (m_observer.getFog() == PromptFogEnum::LIGHT_FOG)   ? 0.3f
-                                      : (m_observer.getFog() == PromptFogEnum::HEAVY_FOG) ? 0.8f
-                                                                                          : 0.0f;
-    m_weatherState.moonVisibility = m_observer.getMoonVisibility();
-    m_weatherState.targetMoonIntensity = (m_weatherState.moonVisibility
-                                          == MumeMoonVisibilityEnum::BRIGHT)
-                                             ? 1.0f
-                                         : (m_weatherState.moonVisibility
-                                            == MumeMoonVisibilityEnum::DIM)
-                                             ? 0.5f
-                                             : 0.0f;
+    ws.gameRainIntensity = (m_observer.getWeather() == PromptWeatherEnum::RAIN)         ? 0.5f
+                           : (m_observer.getWeather() == PromptWeatherEnum::HEAVY_RAIN) ? 1.0f
+                                                                                        : 0.0f;
+    ws.gameSnowIntensity = (m_observer.getWeather() == PromptWeatherEnum::SNOW) ? 1.0f : 0.0f;
+    ws.gameCloudsIntensity = (m_observer.getWeather() == PromptWeatherEnum::CLOUDS) ? 1.0f : 0.0f;
+    ws.gameFogIntensity = (m_observer.getFog() == PromptFogEnum::LIGHT_FOG)   ? 0.3f
+                          : (m_observer.getFog() == PromptFogEnum::HEAVY_FOG) ? 0.8f
+                                                                              : 0.0f;
+    ws.moonVisibility = m_observer.getMoonVisibility();
+    ws.targetMoonIntensity = (ws.moonVisibility == MumeMoonVisibilityEnum::BRIGHT) ? 1.0f
+                             : (ws.moonVisibility == MumeMoonVisibilityEnum::DIM)  ? 0.5f
+                                                                                   : 0.0f;
 
-    m_weatherState.rainIntensity = m_weatherState.targetRainIntensity;
-    m_weatherState.snowIntensity = m_weatherState.targetSnowIntensity;
-    m_weatherState.cloudsIntensity = m_weatherState.targetCloudsIntensity;
-    m_weatherState.fogIntensity = m_weatherState.targetFogIntensity;
-    m_weatherState.moonIntensity = m_weatherState.targetMoonIntensity;
+    ws.rainIntensity = ws.targetRainIntensity;
+    ws.snowIntensity = ws.targetSnowIntensity;
+    ws.cloudsIntensity = ws.targetCloudsIntensity;
+    ws.fogIntensity = ws.targetFogIntensity;
+    ws.moonIntensity = ws.targetMoonIntensity;
 
     m_observer.sig2_weatherChanged.connect(m_lifetime, [this](PromptWeatherEnum weather) {
-        m_weatherState.gameRainIntensity = (weather == PromptWeatherEnum::RAIN)         ? 0.5f
-                                           : (weather == PromptWeatherEnum::HEAVY_RAIN) ? 1.0f
-                                                                                        : 0.0f;
-        m_weatherState.gameSnowIntensity = (weather == PromptWeatherEnum::SNOW) ? 1.0f : 0.0f;
-        m_weatherState.gameCloudsIntensity = (weather == PromptWeatherEnum::CLOUDS) ? 1.0f : 0.0f;
+        auto &ws = m_weatherRenderer->getState();
+        ws.gameRainIntensity = (weather == PromptWeatherEnum::RAIN)         ? 0.5f
+                               : (weather == PromptWeatherEnum::HEAVY_RAIN) ? 1.0f
+                                                                            : 0.0f;
+        ws.gameSnowIntensity = (weather == PromptWeatherEnum::SNOW) ? 1.0f : 0.0f;
+        ws.gameCloudsIntensity = (weather == PromptWeatherEnum::CLOUDS) ? 1.0f : 0.0f;
         qDebug() << "[Weather] Weather changed to" << static_cast<int>(weather)
-                 << "Game intensities: Rain" << m_weatherState.gameRainIntensity << "Snow"
-                 << m_weatherState.gameSnowIntensity << "Clouds"
-                 << m_weatherState.gameCloudsIntensity;
+                 << "Game intensities: Rain" << ws.gameRainIntensity << "Snow"
+                 << ws.gameSnowIntensity << "Clouds" << ws.gameCloudsIntensity;
         setAnimating(true);
     });
 
     m_observer.sig2_fogChanged.connect(m_lifetime, [this](PromptFogEnum fog) {
-        m_weatherState.gameFogIntensity = (fog == PromptFogEnum::LIGHT_FOG)   ? 0.3f
-                                          : (fog == PromptFogEnum::HEAVY_FOG) ? 0.8f
-                                                                              : 0.0f;
+        auto &ws = m_weatherRenderer->getState();
+        ws.gameFogIntensity = (fog == PromptFogEnum::LIGHT_FOG)   ? 0.3f
+                              : (fog == PromptFogEnum::HEAVY_FOG) ? 0.8f
+                                                                  : 0.0f;
         qDebug() << "[Weather] Fog changed to" << static_cast<int>(fog)
-                 << "Game intensity:" << m_weatherState.gameFogIntensity;
+                 << "Game intensity:" << ws.gameFogIntensity;
         setAnimating(true);
     });
 
     m_observer.sig2_timeOfDayChanged.connect(m_lifetime, [this](MumeTimeEnum time) {
-        if (m_weatherState.currentTimeOfDay != time) {
-            m_weatherState.oldTimeOfDay = m_weatherState.currentTimeOfDay;
-            m_weatherState.currentTimeOfDay = time;
-            m_weatherState.timeOfDayTransition = 0.0f;
+        auto &ws = m_weatherRenderer->getState();
+        if (ws.currentTimeOfDay != time) {
+            ws.oldTimeOfDay = ws.currentTimeOfDay;
+            ws.currentTimeOfDay = time;
+            ws.timeOfDayTransition = 0.0f;
             qDebug() << "[Weather] Time of day changed to" << static_cast<int>(time);
             setAnimating(true);
         }
     });
 
     m_observer.sig2_moonVisibilityChanged.connect(m_lifetime, [this](MumeMoonVisibilityEnum moon) {
-        m_weatherState.moonVisibility = moon;
-        m_weatherState.targetMoonIntensity = (moon == MumeMoonVisibilityEnum::BRIGHT) ? 1.0f
-                                             : (moon == MumeMoonVisibilityEnum::DIM)  ? 0.5f
-                                                                                      : 0.0f;
+        auto &ws = m_weatherRenderer->getState();
+        ws.moonVisibility = moon;
+        ws.targetMoonIntensity = (moon == MumeMoonVisibilityEnum::BRIGHT) ? 1.0f
+                                 : (moon == MumeMoonVisibilityEnum::DIM)  ? 0.5f
+                                                                          : 0.0f;
         qDebug() << "[Weather] Moon visibility changed to" << static_cast<int>(moon)
-                 << "Target:" << m_weatherState.targetMoonIntensity;
+                 << "Target:" << ws.targetMoonIntensity;
         setAnimating(true);
     });
 

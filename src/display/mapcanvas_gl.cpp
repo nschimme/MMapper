@@ -18,6 +18,9 @@
 #include "../opengl/OpenGLConfig.h"
 #include "../opengl/OpenGLTypes.h"
 #include "../opengl/legacy/Meshes.h"
+#include "../opengl/legacy/TF.h"
+#include "../opengl/legacy/VAO.h"
+#include "../opengl/legacy/VBO.h"
 #include "../src/global/SendToUser.h"
 #include "Connections.h"
 #include "MapCanvasConfig.h"
@@ -117,17 +120,6 @@ void MapCanvas::cleanupOpenGL()
     // Make sure the context is current and then explicitly
     // destroy all underlying OpenGL resources.
     MakeCurrentRaii makeCurrentRaii{*this};
-
-    if (m_weatherState.initialized) {
-        auto &funcs = deref(getOpenGL().getSharedFunctions(Badge<MapCanvas>{}));
-        funcs.glDeleteBuffers(2, m_weatherState.particleVbos);
-        funcs.glDeleteBuffers(1, &m_weatherState.quadVbo);
-        funcs.glDeleteVertexArrays(2, m_weatherState.simulationVaos);
-        funcs.glDeleteVertexArrays(2, m_weatherState.renderVaosRain);
-        funcs.glDeleteVertexArrays(2, m_weatherState.renderVaosSnow);
-        funcs.glDeleteTransformFeedbacks(1, &m_weatherState.transformFeedback);
-        m_weatherState.initialized = false;
-    }
 
     // note: m_batchedMeshes co-owns textures created by MapCanvasData,
     // and it also owns the lifetime of some OpenGL objects (e.g. VBOs).
@@ -648,69 +640,27 @@ void MapCanvas::actuallyPaintGL()
 {
     // Update weather transitions from configuration
     {
-        const auto &settings = getConfig().canvas;
-        // User setting 50 is the default (100% of game intensity)
-        m_weatherState.targetRainIntensity = m_weatherState.gameRainIntensity
-                                             * (static_cast<float>(
-                                                    settings.weatherRainIntensity.get())
-                                                / 50.0f);
-        m_weatherState.targetSnowIntensity = m_weatherState.gameSnowIntensity
-                                             * (static_cast<float>(
-                                                    settings.weatherSnowIntensity.get())
-                                                / 50.0f);
-        m_weatherState.targetCloudsIntensity = m_weatherState.gameCloudsIntensity
-                                               * (static_cast<float>(
-                                                      settings.weatherCloudsIntensity.get())
-                                                  / 50.0f);
-        m_weatherState.targetFogIntensity = m_weatherState.gameFogIntensity
-                                            * (static_cast<float>(settings.weatherFogIntensity.get())
-                                               / 50.0f);
-        m_weatherState.targetToDIntensity = static_cast<float>(settings.weatherToDIntensity.get())
-                                            / 100.0f;
-
+        auto &ws = m_weatherRenderer->getState();
         auto now = std::chrono::steady_clock::now();
-        if (m_weatherState.lastUpdateTime.time_since_epoch().count() == 0) {
-            m_weatherState.lastUpdateTime = now;
+        if (ws.lastUpdateTime.time_since_epoch().count() == 0) {
+            ws.lastUpdateTime = now;
         }
-        float dt = std::chrono::duration<float>(now - m_weatherState.lastUpdateTime).count();
-        m_weatherState.lastUpdateTime = now;
-        m_weatherState.lastDt = dt;
+        float dt = std::chrono::duration<float>(now - ws.lastUpdateTime).count();
+        ws.lastUpdateTime = now;
 
-        auto updateLevel = [dt](float &current, float target) {
-            const float transitionSpeed = 0.2f; // transition over 5 seconds
-            if (current < target) {
-                current = std::min(target, current + dt * transitionSpeed);
-            } else if (current > target) {
-                current = std::max(target, current - dt * transitionSpeed);
-            }
-        };
+        m_weatherRenderer->update(dt);
 
-        updateLevel(m_weatherState.rainIntensity, m_weatherState.targetRainIntensity);
-        updateLevel(m_weatherState.snowIntensity, m_weatherState.targetSnowIntensity);
-        updateLevel(m_weatherState.cloudsIntensity, m_weatherState.targetCloudsIntensity);
-        updateLevel(m_weatherState.fogIntensity, m_weatherState.targetFogIntensity);
-        updateLevel(m_weatherState.todIntensity, m_weatherState.targetToDIntensity);
-        updateLevel(m_weatherState.moonIntensity, m_weatherState.targetMoonIntensity);
-
-        if (m_weatherState.timeOfDayTransition < 1.0f) {
-            m_weatherState.timeOfDayTransition = std::min(1.0f,
-                                                          m_weatherState.timeOfDayTransition
-                                                              + dt * 0.2f); // 5 seconds transition
-        }
-
-        m_weatherState.animationTime += dt;
-
-        bool stillAnimating
-            = !utils::equals(m_weatherState.rainIntensity, m_weatherState.targetRainIntensity)
-              || !utils::equals(m_weatherState.snowIntensity, m_weatherState.targetSnowIntensity)
-              || !utils::equals(m_weatherState.cloudsIntensity, m_weatherState.targetCloudsIntensity)
-              || !utils::equals(m_weatherState.fogIntensity, m_weatherState.targetFogIntensity)
-              || !utils::equals(m_weatherState.moonIntensity, m_weatherState.targetMoonIntensity)
-              || !utils::equals(m_weatherState.timeOfDayTransition, 1.0f);
+        bool stillAnimating = !utils::equals(ws.rainIntensity, ws.targetRainIntensity)
+                              || !utils::equals(ws.snowIntensity, ws.targetSnowIntensity)
+                              || !utils::equals(ws.cloudsIntensity, ws.targetCloudsIntensity)
+                              || !utils::equals(ws.fogIntensity, ws.targetFogIntensity)
+                              || !utils::equals(ws.todIntensity, ws.targetToDIntensity)
+                              || !utils::equals(ws.moonIntensity, ws.targetMoonIntensity)
+                              || !utils::equals(ws.timeOfDayTransition, 1.0f);
 
         // Rain/Snow/Clouds also need continuous animation for movement
-        if (m_weatherState.rainIntensity > 0.0f || m_weatherState.snowIntensity > 0.0f
-            || m_weatherState.cloudsIntensity > 0.0f || m_weatherState.fogIntensity > 0.0f) {
+        if (ws.rainIntensity > 0.0f || ws.snowIntensity > 0.0f || ws.cloudsIntensity > 0.0f
+            || ws.fogIntensity > 0.0f) {
             stillAnimating = true;
         }
 
@@ -740,7 +690,7 @@ void MapCanvas::actuallyPaintGL()
     paintSelections();
     paintCharacters();
     paintDifferences();
-    paintWeather();
+    m_weatherRenderer->render(m_viewProj);
 
     gl.releaseFbo();
     gl.blitFboToDefault();
@@ -849,327 +799,6 @@ void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current)
         });
 }
 
-Color MapCanvas::calculateTimeOfDayColor() const
-{
-    auto getColor = [this](MumeTimeEnum t) -> Color {
-        switch (t) {
-        case MumeTimeEnum::DAWN:
-            return Color(0.6f, 0.55f, 0.5f, 0.1f);
-
-        case MumeTimeEnum::DUSK:
-            return Color(0.3f, 0.3f, 0.45f, 0.15f);
-
-        case MumeTimeEnum::NIGHT: {
-            const float moon = m_weatherState.moonIntensity;
-            const Color baseNight(0.05f, 0.05f, 0.2f, 0.3f);
-            const Color moonNight(0.2f, 0.2f, 0.4f, 0.2f);
-            return Color(baseNight.getVec4() * (1.0f - moon) + moonNight.getVec4() * moon);
-        }
-
-        case MumeTimeEnum::DAY:
-        case MumeTimeEnum::UNKNOWN:
-        default:
-            return Color(1.0f, 1.0f, 1.0f, 0.0f);
-        }
-    };
-
-    const glm::vec4 c1 = getColor(m_weatherState.oldTimeOfDay).getVec4();
-    const glm::vec4 c2 = getColor(m_weatherState.currentTimeOfDay).getVec4();
-    const float t = m_weatherState.timeOfDayTransition;
-
-    return Color(c1.r * (1.0f - t) + c2.r * t,
-                 c1.g * (1.0f - t) + c2.g * t,
-                 c1.b * (1.0f - t) + c2.b * t,
-                 (c1.a * (1.0f - t) + c2.a * t) * (m_weatherState.todIntensity * 2.0f));
-}
-
-void MapCanvas::initWeatherParticles()
-{
-    if (m_weatherState.initialized) {
-        return;
-    }
-    auto &funcs = deref(getOpenGL().getSharedFunctions(Badge<MapCanvas>{}));
-
-    // We use 8192 rain and 2048 snow particles to allow for 2x intensity (setting 100/50)
-    m_weatherState.numParticles = 10240;
-    std::vector<float> data;
-    data.reserve(m_weatherState.numParticles * 5);
-
-    std::mt19937 gen(42);
-    std::uniform_real_distribution<float> dis(0.0, 1.0);
-    std::uniform_real_distribution<float> posDis(-20.0, 20.0);
-
-    const auto playerPos = m_data.tryGetPosition().value_or(Coordinate{}).to_vec3();
-
-    for (uint32_t i = 0; i < 8192; ++i) { // Rain
-        data.push_back(playerPos.x + posDis(gen));
-        data.push_back(playerPos.y + posDis(gen));
-        data.push_back(dis(gen)); // hash
-        data.push_back(0.0f);     // type (Rain)
-        data.push_back(dis(gen)); // life
-    }
-    for (uint32_t i = 0; i < 2048; ++i) { // Snow
-        data.push_back(playerPos.x + posDis(gen));
-        data.push_back(playerPos.y + posDis(gen));
-        data.push_back(dis(gen)); // hash
-        data.push_back(1.0f);     // type (Snow)
-        data.push_back(dis(gen)); // life
-    }
-
-    funcs.glGenBuffers(2, m_weatherState.particleVbos);
-    for (int i = 0; i < 2; ++i) {
-        funcs.glBindBuffer(GL_ARRAY_BUFFER, m_weatherState.particleVbos[i]);
-        funcs.glBufferData(GL_ARRAY_BUFFER,
-                           static_cast<GLsizeiptr>(data.size() * sizeof(float)),
-                           data.data(),
-                           GL_DYNAMIC_DRAW);
-    }
-
-    funcs.glGenTransformFeedbacks(1, &m_weatherState.transformFeedback);
-
-    funcs.glGenVertexArrays(2, m_weatherState.simulationVaos);
-    for (int i = 0; i < 2; ++i) {
-        funcs.glBindVertexArray(m_weatherState.simulationVaos[i]);
-        funcs.glBindBuffer(GL_ARRAY_BUFFER, m_weatherState.particleVbos[i]);
-        funcs.glEnableVertexAttribArray(0); // pos
-        funcs.glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), nullptr);
-        funcs.glEnableVertexAttribArray(1); // hash
-        funcs.glVertexAttribPointer(1,
-                                    1,
-                                    GL_FLOAT,
-                                    GL_FALSE,
-                                    5 * sizeof(float),
-                                    reinterpret_cast<void *>(2 * sizeof(float)));
-        funcs.glEnableVertexAttribArray(2); // type
-        funcs.glVertexAttribPointer(2,
-                                    1,
-                                    GL_FLOAT,
-                                    GL_FALSE,
-                                    5 * sizeof(float),
-                                    reinterpret_cast<void *>(3 * sizeof(float)));
-        funcs.glEnableVertexAttribArray(3); // life
-        funcs.glVertexAttribPointer(3,
-                                    1,
-                                    GL_FLOAT,
-                                    GL_FALSE,
-                                    5 * sizeof(float),
-                                    reinterpret_cast<void *>(4 * sizeof(float)));
-    }
-
-    // Quad for rendering
-    float quad[] = {-0.5f, -0.5f, 0.5f, -0.5f, -0.5f, 0.5f, 0.5f, 0.5f};
-    funcs.glGenBuffers(1, &m_weatherState.quadVbo);
-    funcs.glBindBuffer(GL_ARRAY_BUFFER, m_weatherState.quadVbo);
-    funcs.glBufferData(GL_ARRAY_BUFFER, sizeof(quad), quad, GL_STATIC_DRAW);
-
-    funcs.glGenVertexArrays(2, m_weatherState.renderVaosRain);
-    funcs.glGenVertexArrays(2, m_weatherState.renderVaosSnow);
-    for (int i = 0; i < 2; ++i) {
-        // Rain VAO
-        funcs.glBindVertexArray(m_weatherState.renderVaosRain[i]);
-
-        funcs.glBindBuffer(GL_ARRAY_BUFFER, m_weatherState.quadVbo);
-        funcs.glEnableVertexAttribArray(0); // aQuadPos
-        funcs.glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), nullptr);
-
-        funcs.glBindBuffer(GL_ARRAY_BUFFER, m_weatherState.particleVbos[i]);
-        funcs.glEnableVertexAttribArray(1); // aParticlePos
-        funcs.glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), nullptr);
-        funcs.glVertexAttribDivisor(1, 1);
-
-        funcs.glEnableVertexAttribArray(2); // aHash
-        funcs.glVertexAttribPointer(2,
-                                    1,
-                                    GL_FLOAT,
-                                    GL_FALSE,
-                                    5 * sizeof(float),
-                                    reinterpret_cast<void *>(2 * sizeof(float)));
-        funcs.glVertexAttribDivisor(2, 1);
-
-        funcs.glEnableVertexAttribArray(3); // aType
-        funcs.glVertexAttribPointer(3,
-                                    1,
-                                    GL_FLOAT,
-                                    GL_FALSE,
-                                    5 * sizeof(float),
-                                    reinterpret_cast<void *>(3 * sizeof(float)));
-        funcs.glVertexAttribDivisor(3, 1);
-
-        funcs.glEnableVertexAttribArray(4); // aLife
-        funcs.glVertexAttribPointer(4,
-                                    1,
-                                    GL_FLOAT,
-                                    GL_FALSE,
-                                    5 * sizeof(float),
-                                    reinterpret_cast<void *>(4 * sizeof(float)));
-        funcs.glVertexAttribDivisor(4, 1);
-
-        // Snow VAO
-        funcs.glBindVertexArray(m_weatherState.renderVaosSnow[i]);
-
-        funcs.glBindBuffer(GL_ARRAY_BUFFER, m_weatherState.quadVbo);
-        funcs.glEnableVertexAttribArray(0); // aQuadPos
-        funcs.glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), nullptr);
-
-        funcs.glBindBuffer(GL_ARRAY_BUFFER, m_weatherState.particleVbos[i]);
-        funcs.glEnableVertexAttribArray(1); // aParticlePos
-        funcs.glVertexAttribPointer(1,
-                                    2,
-                                    GL_FLOAT,
-                                    GL_FALSE,
-                                    5 * sizeof(float),
-                                    reinterpret_cast<void *>(8192 * 5
-                                                             * sizeof(float))); // Offset to snow
-        funcs.glVertexAttribDivisor(1, 1);
-
-        funcs.glEnableVertexAttribArray(2); // aHash
-        funcs.glVertexAttribPointer(2,
-                                    1,
-                                    GL_FLOAT,
-                                    GL_FALSE,
-                                    5 * sizeof(float),
-                                    reinterpret_cast<void *>((8192 * 5 + 2) * sizeof(float)));
-        funcs.glVertexAttribDivisor(2, 1);
-
-        funcs.glEnableVertexAttribArray(3); // aType
-        funcs.glVertexAttribPointer(3,
-                                    1,
-                                    GL_FLOAT,
-                                    GL_FALSE,
-                                    5 * sizeof(float),
-                                    reinterpret_cast<void *>((8192 * 5 + 3) * sizeof(float)));
-        funcs.glVertexAttribDivisor(3, 1);
-
-        funcs.glEnableVertexAttribArray(4); // aLife
-        funcs.glVertexAttribPointer(4,
-                                    1,
-                                    GL_FLOAT,
-                                    GL_FALSE,
-                                    5 * sizeof(float),
-                                    reinterpret_cast<void *>((8192 * 5 + 4) * sizeof(float)));
-        funcs.glVertexAttribDivisor(4, 1);
-    }
-
-    funcs.glBindVertexArray(0);
-    m_weatherState.initialized = true;
-}
-
-void MapCanvas::paintWeather()
-{
-    const Color todColor = calculateTimeOfDayColor();
-    const bool hasWeather = m_weatherState.rainIntensity > 0.0f
-                            || m_weatherState.snowIntensity > 0.0f
-                            || m_weatherState.cloudsIntensity > 0.0f
-                            || m_weatherState.fogIntensity > 0.0f;
-
-    if (!hasWeather && todColor.getAlpha() == 0) {
-        return;
-    }
-
-    initWeatherParticles();
-
-    auto &gl = getOpenGL();
-    auto &sharedFuncs = gl.getSharedFunctions(Badge<MapCanvas>{});
-    Legacy::Functions &funcs = deref(sharedFuncs);
-
-    const auto playerPos = m_data.tryGetPosition().value_or(Coordinate{}).to_vec3();
-    const bool want3D = getConfig().canvas.advanced.use3D.get();
-    const float zScale = want3D ? getConfig().canvas.advanced.layerHeight.getFloat() : 7.0f;
-
-    GLRenderState::Uniforms uniforms;
-    uniforms.weather.invViewProj = glm::inverse(m_viewProj);
-    uniforms.weather.playerPos = playerPos;
-    uniforms.weather.zScale = zScale;
-    uniforms.weather.physViewport = funcs.getPhysicalViewport();
-    uniforms.weather.time = m_weatherState.animationTime;
-    uniforms.weather.rainIntensity = m_weatherState.rainIntensity;
-    uniforms.weather.snowIntensity = m_weatherState.snowIntensity;
-    uniforms.weather.cloudsIntensity = m_weatherState.cloudsIntensity;
-    uniforms.weather.fogIntensity = m_weatherState.fogIntensity;
-    uniforms.weather.deltaTime = m_weatherState.lastDt;
-    uniforms.weather.todColor = todColor;
-
-    // Pass 1: Simulation
-    {
-        auto &prog = deref(funcs.getShaderPrograms().getParticleSimulationShader());
-        auto binder = prog.bind();
-        prog.setUniforms(m_viewProj, uniforms);
-
-        funcs.glEnable(GL_RASTERIZER_DISCARD);
-        funcs.glBindVertexArray(m_weatherState.simulationVaos[m_weatherState.currentBuffer]);
-        funcs.glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, m_weatherState.transformFeedback);
-        funcs.glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER,
-                               0,
-                               m_weatherState.particleVbos[1 - m_weatherState.currentBuffer]);
-
-        funcs.glBeginTransformFeedback(GL_POINTS);
-        funcs.glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(m_weatherState.numParticles));
-        funcs.glEndTransformFeedback();
-
-        funcs.glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, 0);
-        funcs.glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, 0);
-        funcs.glDisable(GL_RASTERIZER_DISCARD);
-
-        m_weatherState.currentBuffer = 1 - m_weatherState.currentBuffer;
-    }
-
-    // Pass 2: Atmosphere
-    {
-        auto &prog = deref(funcs.getShaderPrograms().getAtmosphereShader());
-        auto binder = prog.bind();
-        prog.setUniforms(m_viewProj, uniforms);
-
-        funcs.glActiveTexture(GL_TEXTURE0);
-        m_textures.weather_noise->bind();
-
-        const auto rs
-            = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withDepthFunction(std::nullopt);
-        Legacy::RenderStateBinder renderStateBinder(funcs, funcs.getTexLookup(), rs);
-
-        Legacy::SharedVao shared = funcs.getSharedVaos().get(Legacy::SharedVaoEnum::EmptyVao);
-        Legacy::VAO &vao = deref(shared);
-        if (!vao) {
-            vao.emplace(sharedFuncs);
-        }
-        funcs.glBindVertexArray(vao.get());
-        funcs.glDrawArrays(GL_TRIANGLES, 0, 3);
-        funcs.glBindVertexArray(0);
-    }
-
-    // Pass 3: Particles
-    if (m_weatherState.rainIntensity > 0.0f || m_weatherState.snowIntensity > 0.0f) {
-        auto &prog = deref(funcs.getShaderPrograms().getParticleRenderShader());
-        auto binder = prog.bind();
-        // Base uniforms will be overridden locally for count-based intensity
-        prog.setUniforms(m_viewProj, uniforms);
-
-        const auto rs
-            = GLRenderState().withBlend(BlendModeEnum::MAX_ALPHA).withDepthFunction(std::nullopt);
-        Legacy::RenderStateBinder renderStateBinder(funcs, funcs.getTexLookup(), rs);
-
-        // Rain
-        const GLsizei rainCount = std::min(8192,
-                                           static_cast<int>(m_weatherState.rainIntensity * 4096.0f));
-        if (rainCount > 0) {
-            prog.setFloat("uRainIntensity", 1.0f); // Intensity already factored into count
-            prog.setFloat("uSnowIntensity", 0.0f);
-            funcs.glBindVertexArray(m_weatherState.renderVaosRain[m_weatherState.currentBuffer]);
-            funcs.glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, rainCount);
-        }
-
-        // Snow
-        const GLsizei snowCount = std::min(2048,
-                                           static_cast<int>(m_weatherState.snowIntensity * 1024.0f));
-        if (snowCount > 0) {
-            prog.setFloat("uRainIntensity", 0.0f);
-            prog.setFloat("uSnowIntensity", 1.0f); // Intensity now controlled by count
-            funcs.glBindVertexArray(m_weatherState.renderVaosSnow[m_weatherState.currentBuffer]);
-            funcs.glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, snowCount);
-        }
-
-        funcs.glBindVertexArray(0);
-    }
-}
 
 void MapCanvas::paintDifferences()
 {

@@ -70,6 +70,8 @@ set(mmapper_SRCS
     display/RoomSelections.cpp
     display/Textures.cpp
     display/Textures.h
+    display/WeatherRenderer.cpp
+    display/WeatherRenderer.h
     display/WeatherTextureGenerator.cpp
     display/WeatherTextureGenerator.h
     display/connectionselection.cpp
@@ -429,6 +431,8 @@ set(mmapper_SRCS
     opengl/legacy/Shaders.h
     opengl/legacy/SimpleMesh.cpp
     opengl/legacy/SimpleMesh.h
+    opengl/legacy/TF.cpp
+    opengl/legacy/TF.h
     opengl/legacy/VAO.cpp
     opengl/legacy/VAO.h
     opengl/legacy/VBO.cpp

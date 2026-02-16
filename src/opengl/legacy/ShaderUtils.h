@@ -31,6 +31,7 @@ NODISCARD Program loadShaders(Functions &gl, const Source &vert, const Source &f
 
 NODISCARD Program loadTransformFeedbackShaders(Functions &gl,
                                                const Source &vert,
+                                               const Source &frag,
                                                const std::vector<const char *> &varyings);
 
 } // namespace ShaderUtils

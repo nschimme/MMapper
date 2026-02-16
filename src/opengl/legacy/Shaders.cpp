@@ -38,6 +38,8 @@ FontShader::~FontShader() = default;
 PointShader::~PointShader() = default;
 BlitShader::~BlitShader() = default;
 FullScreenShader::~FullScreenShader() = default;
+ParticleSimulationShader::~ParticleSimulationShader() = default;
+ParticleRenderShader::~ParticleRenderShader() = default;
 WeatherShader::~WeatherShader() = default;
 
 void ShaderPrograms::early_init()
@@ -53,6 +55,8 @@ void ShaderPrograms::early_init()
     std::ignore = getPointShader();
     std::ignore = getBlitShader();
     std::ignore = getFullScreenShader();
+    std::ignore = getParticleSimulationShader();
+    std::ignore = getParticleRenderShader();
     std::ignore = getWeatherShader();
 }
 
@@ -69,6 +73,8 @@ void ShaderPrograms::resetAll()
     m_point.reset();
     m_blit.reset();
     m_fullscreen.reset();
+    m_particleSimulation.reset();
+    m_particleRender.reset();
     m_weather.reset();
 }
 
@@ -146,9 +152,39 @@ const std::shared_ptr<FullScreenShader> &ShaderPrograms::getFullScreenShader()
     return getInitialized<FullScreenShader>(m_fullscreen, getFunctions(), "fullscreen");
 }
 
+const std::shared_ptr<ParticleSimulationShader> &ShaderPrograms::getParticleSimulationShader()
+{
+    if (!m_particleSimulation) {
+        const std::string dir = "weather/simulation";
+        auto &functions = getFunctions();
+        const auto getSource = [&dir](const std::string &name) -> ShaderUtils::Source {
+            const auto fullPathName = ":/shaders/legacy/" + dir + "/" + name;
+            return ShaderUtils::Source{fullPathName, readWholeResourceFile(fullPathName)};
+        };
+
+        std::vector<const char *> varyings = {"outPos", "outVel", "outLife", "outType"};
+        auto program = ShaderUtils::loadShadersWithFeedback(functions,
+                                                            getSource("vert.glsl"),
+                                                            ShaderUtils::Source{},
+                                                            varyings);
+        m_particleSimulation = std::make_shared<ParticleSimulationShader>(dir,
+                                                                          functions
+                                                                              .shared_from_this(),
+                                                                          std::move(program));
+    }
+    return m_particleSimulation;
+}
+
+const std::shared_ptr<ParticleRenderShader> &ShaderPrograms::getParticleRenderShader()
+{
+    return getInitialized<ParticleRenderShader>(m_particleRender,
+                                                getFunctions(),
+                                                "weather/particle");
+}
+
 const std::shared_ptr<WeatherShader> &ShaderPrograms::getWeatherShader()
 {
-    return getInitialized<WeatherShader>(m_weather, getFunctions(), "weather");
+    return getInitialized<WeatherShader>(m_weather, getFunctions(), "weather/atmosphere");
 }
 
 } // namespace Legacy

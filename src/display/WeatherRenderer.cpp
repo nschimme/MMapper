@@ -50,7 +50,7 @@ void WeatherRenderer::update(float dt)
     m_state.lastDt = dt;
 
     auto updateLevel = [dt](float &current, float target) {
-        const float transitionSpeed = 0.2f; // transition over 5 seconds
+        const float transitionSpeed = 0.5f; // transition over 2 seconds
         if (current < target) {
             current = std::min(target, current + dt * transitionSpeed);
         } else if (current > target) {
@@ -68,7 +68,7 @@ void WeatherRenderer::update(float dt)
     if (m_state.timeOfDayTransition < 1.0f) {
         m_state.timeOfDayTransition = std::min(1.0f,
                                                m_state.timeOfDayTransition
-                                                   + dt * 0.2f); // 5 seconds transition
+                                                   + dt * 0.5f); // 2 seconds transition
     }
 
     m_state.animationTime += dt;

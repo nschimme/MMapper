@@ -314,11 +314,16 @@ void MapCanvas::initTextures()
     }
 
     {
-        // 256x256 noise texture
+        // 256x256 noise texture with full mip chain
         QImage noiseImage = WeatherTextureGenerator::generateNoiseTexture(256);
-        textures.weather_noise = MMTexture::alloc(std::vector<QImage>{noiseImage});
+        std::vector<QImage> mips;
+        mips.push_back(noiseImage);
+        for (int s = 128; s >= 1; s /= 2) {
+            mips.push_back(mips.back().scaled(s, s, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+        }
+        textures.weather_noise = MMTexture::alloc(std::move(mips));
         textures.weather_noise->get()->setWrapMode(QOpenGLTexture::WrapMode::Repeat);
-        textures.weather_noise->get()->setMinMagFilters(QOpenGLTexture::Filter::Linear,
+        textures.weather_noise->get()->setMinMagFilters(QOpenGLTexture::Filter::LinearMipMapLinear,
                                                         QOpenGLTexture::Filter::Linear);
     }
 

@@ -180,8 +180,7 @@ using TextureArrayNESWUD = EnumIndexedArray<SharedMMTexture, ExitDirEnum, NUM_EX
     X(SharedMMTexture, room_sel_move_bad) \
     X(SharedMMTexture, room_sel_move_good) \
     X(SharedMMTexture, room_highlight) \
-    X(SharedMMTexture, white_pixel) \
-    X(SharedMMTexture, weather_noise)
+    X(SharedMMTexture, white_pixel)
 
 struct NODISCARD MapCanvasTextures final
 {
@@ -191,6 +190,8 @@ struct NODISCARD MapCanvasTextures final
 #define X_DECL(_Type, _Name) SharedMMTexture _Name##_Array;
     XFOREACH_MAPCANVAS_TEXTURES(X_DECL)
 #undef X_DECL
+
+    SharedMMTexture weather_noise;
 
 private:
     template<typename Callback>
@@ -212,6 +213,7 @@ public:
 #define X_EACH(_Type, _Name) apply_callback(_Name, callback);
         XFOREACH_MAPCANVAS_TEXTURES(X_EACH)
 #undef X_EACH
+        apply_callback(weather_noise, callback);
     }
     template<typename Callback>
     void for_each_array(Callback &&callback)

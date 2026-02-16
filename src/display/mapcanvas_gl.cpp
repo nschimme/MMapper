@@ -29,6 +29,7 @@
 
 #include <algorithm>
 #include <array>
+#include <random>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -116,6 +117,16 @@ void MapCanvas::cleanupOpenGL()
     // Make sure the context is current and then explicitly
     // destroy all underlying OpenGL resources.
     MakeCurrentRaii makeCurrentRaii{*this};
+
+    if (m_weatherState.initialized) {
+        auto &funcs = deref(getOpenGL().getSharedFunctions(Badge<MapCanvas>{}));
+        funcs.glDeleteBuffers(2, m_weatherState.particleVbos);
+        funcs.glDeleteBuffers(1, &m_weatherState.quadVbo);
+        funcs.glDeleteVertexArrays(2, m_weatherState.simulationVaos);
+        funcs.glDeleteVertexArrays(2, m_weatherState.renderVaos);
+        funcs.glDeleteTransformFeedbacks(1, &m_weatherState.transformFeedback);
+        m_weatherState.initialized = false;
+    }
 
     // note: m_batchedMeshes co-owns textures created by MapCanvasData,
     // and it also owns the lifetime of some OpenGL objects (e.g. VBOs).
@@ -642,6 +653,7 @@ void MapCanvas::actuallyPaintGL()
         }
         float dt = std::chrono::duration<float>(now - m_weatherState.lastUpdateTime).count();
         m_weatherState.lastUpdateTime = now;
+        m_weatherState.lastDt = dt;
 
         auto updateLevel = [dt](float &current, float target) {
             const float transitionSpeed = 0.5f; // transition over 2 seconds
@@ -849,58 +861,213 @@ Color MapCanvas::calculateTimeOfDayColor() const
                  c1.a * (1.0f - t) + c2.a * t);
 }
 
+void MapCanvas::initWeatherParticles()
+{
+    if (m_weatherState.initialized) {
+        return;
+    }
+    auto &funcs = deref(getOpenGL().getSharedFunctions(Badge<MapCanvas>{}));
+
+    m_weatherState.numParticles = 5120;
+    std::vector<float> data;
+    data.reserve(m_weatherState.numParticles * 4);
+
+    std::mt19937 gen(42);
+    std::uniform_real_distribution<float> dis(0.0, 1.0);
+    std::uniform_real_distribution<float> posDis(-20.0, 20.0);
+
+    const auto playerPos = m_data.tryGetPosition().value_or(Coordinate{}).to_vec3();
+
+    for (uint32_t i = 0; i < 4096; ++i) { // Rain
+        data.push_back(playerPos.x + posDis(gen));
+        data.push_back(playerPos.y + posDis(gen));
+        data.push_back(dis(gen)); // hash
+        data.push_back(0.0f);     // type (Rain)
+    }
+    for (uint32_t i = 0; i < 1024; ++i) { // Snow
+        data.push_back(playerPos.x + posDis(gen));
+        data.push_back(playerPos.y + posDis(gen));
+        data.push_back(dis(gen)); // hash
+        data.push_back(1.0f);     // type (Snow)
+    }
+
+    funcs.glGenBuffers(2, m_weatherState.particleVbos);
+    for (int i = 0; i < 2; ++i) {
+        funcs.glBindBuffer(GL_ARRAY_BUFFER, m_weatherState.particleVbos[i]);
+        funcs.glBufferData(GL_ARRAY_BUFFER,
+                           static_cast<GLsizeiptr>(data.size() * sizeof(float)),
+                           data.data(),
+                           GL_DYNAMIC_DRAW);
+    }
+
+    funcs.glGenTransformFeedbacks(1, &m_weatherState.transformFeedback);
+
+    funcs.glGenVertexArrays(2, m_weatherState.simulationVaos);
+    for (int i = 0; i < 2; ++i) {
+        funcs.glBindVertexArray(m_weatherState.simulationVaos[i]);
+        funcs.glBindBuffer(GL_ARRAY_BUFFER, m_weatherState.particleVbos[i]);
+        funcs.glEnableVertexAttribArray(0); // pos
+        funcs.glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), nullptr);
+        funcs.glEnableVertexAttribArray(1); // hash
+        funcs.glVertexAttribPointer(1,
+                                    1,
+                                    GL_FLOAT,
+                                    GL_FALSE,
+                                    4 * sizeof(float),
+                                    reinterpret_cast<void *>(2 * sizeof(float)));
+        funcs.glEnableVertexAttribArray(2); // type
+        funcs.glVertexAttribPointer(2,
+                                    1,
+                                    GL_FLOAT,
+                                    GL_FALSE,
+                                    4 * sizeof(float),
+                                    reinterpret_cast<void *>(3 * sizeof(float)));
+    }
+
+    // Quad for rendering
+    float quad[] = {-0.5f, -0.5f, 0.5f, -0.5f, -0.5f, 0.5f, 0.5f, 0.5f};
+    funcs.glGenBuffers(1, &m_weatherState.quadVbo);
+    funcs.glBindBuffer(GL_ARRAY_BUFFER, m_weatherState.quadVbo);
+    funcs.glBufferData(GL_ARRAY_BUFFER, sizeof(quad), quad, GL_STATIC_DRAW);
+
+    funcs.glGenVertexArrays(2, m_weatherState.renderVaos);
+    for (int i = 0; i < 2; ++i) {
+        funcs.glBindVertexArray(m_weatherState.renderVaos[i]);
+
+        funcs.glBindBuffer(GL_ARRAY_BUFFER, m_weatherState.quadVbo);
+        funcs.glEnableVertexAttribArray(0); // aQuadPos
+        funcs.glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), nullptr);
+
+        funcs.glBindBuffer(GL_ARRAY_BUFFER, m_weatherState.particleVbos[i]);
+        funcs.glEnableVertexAttribArray(1); // aParticlePos
+        funcs.glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), nullptr);
+        funcs.glVertexAttribDivisor(1, 1);
+
+        funcs.glEnableVertexAttribArray(2); // aHash
+        funcs.glVertexAttribPointer(2,
+                                    1,
+                                    GL_FLOAT,
+                                    GL_FALSE,
+                                    4 * sizeof(float),
+                                    reinterpret_cast<void *>(2 * sizeof(float)));
+        funcs.glVertexAttribDivisor(2, 1);
+
+        funcs.glEnableVertexAttribArray(3); // aType
+        funcs.glVertexAttribPointer(3,
+                                    1,
+                                    GL_FLOAT,
+                                    GL_FALSE,
+                                    4 * sizeof(float),
+                                    reinterpret_cast<void *>(3 * sizeof(float)));
+        funcs.glVertexAttribDivisor(3, 1);
+    }
+
+    funcs.glBindVertexArray(0);
+    m_weatherState.initialized = true;
+}
+
 void MapCanvas::paintWeather()
 {
     const Color todColor = calculateTimeOfDayColor();
-    if (m_weatherState.rainIntensity <= 0.0f && m_weatherState.snowIntensity <= 0.0f
-        && m_weatherState.cloudsIntensity <= 0.0f && m_weatherState.fogIntensity <= 0.0f
-        && todColor.getAlpha() == 0) {
+    const bool hasWeather = m_weatherState.rainIntensity > 0.0f || m_weatherState.snowIntensity > 0.0f
+                            || m_weatherState.cloudsIntensity > 0.0f
+                            || m_weatherState.fogIntensity > 0.0f;
+
+    if (!hasWeather && todColor.getAlpha() == 0) {
         return;
     }
 
-    static int logCounter = 0;
-    if (++logCounter % 100 == 0) {
-        const auto playerPos = m_data.tryGetPosition().value_or(Coordinate{}).to_vec3();
-        qDebug() << "[Weather] Painting: Rain" << m_weatherState.rainIntensity << "Snow"
-                 << m_weatherState.snowIntensity << "Clouds" << m_weatherState.cloudsIntensity
-                 << "Fog" << m_weatherState.fogIntensity << "ToD Alpha" << todColor.getAlpha()
-                 << "PlayerPos" << playerPos.x << playerPos.y << playerPos.z;
-    }
+    initWeatherParticles();
 
     auto &gl = getOpenGL();
     auto &sharedFuncs = gl.getSharedFunctions(Badge<MapCanvas>{});
     Legacy::Functions &funcs = deref(sharedFuncs);
-    auto &prog = deref(funcs.getShaderPrograms().getWeatherShader());
 
-    auto binder = prog.bind();
-
-    prog.setMatrix("uInvViewProj", glm::inverse(m_viewProj));
-    prog.setVec3("uPlayerPos", m_data.tryGetPosition().value_or(Coordinate{}).to_vec3());
-
+    const auto playerPos = m_data.tryGetPosition().value_or(Coordinate{}).to_vec3();
     const bool want3D = getConfig().canvas.advanced.use3D.get();
     const float zScale = want3D ? getConfig().canvas.advanced.layerHeight.getFloat() : 7.0f;
-    prog.setFloat("uZScale", zScale);
 
-    prog.setViewport("uPhysViewport", funcs.getPhysicalViewport());
-    prog.setFloat("uTime", m_weatherState.animationTime);
-    prog.setFloat("uRainIntensity", m_weatherState.rainIntensity);
-    prog.setFloat("uSnowIntensity", m_weatherState.snowIntensity);
-    prog.setFloat("uCloudsIntensity", m_weatherState.cloudsIntensity);
-    prog.setFloat("uFogIntensity", m_weatherState.fogIntensity);
-    prog.setColor("uTimeOfDayColor", todColor);
+    // Pass 1: Simulation
+    {
+        auto &prog = deref(funcs.getShaderPrograms().getParticleSimulationShader());
+        auto binder = prog.bind();
 
-    const auto rs
-        = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withDepthFunction(std::nullopt);
-    Legacy::RenderStateBinder renderStateBinder(funcs, funcs.getTexLookup(), rs);
+        prog.setFloat("uDeltaTime", m_weatherState.lastDt);
+        prog.setVec2("uPlayerPos", glm::vec2(playerPos.x, playerPos.y));
 
-    Legacy::SharedVao shared = funcs.getSharedVaos().get(Legacy::SharedVaoEnum::EmptyVao);
-    Legacy::VAO &vao = deref(shared);
-    if (!vao) {
-        vao.emplace(sharedFuncs);
+        funcs.glEnable(GL_RASTERIZER_DISCARD);
+        funcs.glBindVertexArray(m_weatherState.simulationVaos[m_weatherState.currentBuffer]);
+        funcs.glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, m_weatherState.transformFeedback);
+        funcs.glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER,
+                               0,
+                               m_weatherState.particleVbos[1 - m_weatherState.currentBuffer]);
+
+        funcs.glBeginTransformFeedback(GL_POINTS);
+        funcs.glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(m_weatherState.numParticles));
+        funcs.glEndTransformFeedback();
+
+        funcs.glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, 0);
+        funcs.glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, 0);
+        funcs.glDisable(GL_RASTERIZER_DISCARD);
+
+        m_weatherState.currentBuffer = 1 - m_weatherState.currentBuffer;
     }
-    funcs.glBindVertexArray(vao.get());
-    funcs.glDrawArrays(GL_TRIANGLES, 0, 3);
-    funcs.glBindVertexArray(0);
+
+    // Pass 2: Atmosphere
+    {
+        auto &prog = deref(funcs.getShaderPrograms().getAtmosphereShader());
+        auto binder = prog.bind();
+
+        prog.setMatrix("uInvViewProj", glm::inverse(m_viewProj));
+        prog.setVec3("uPlayerPos", playerPos);
+        prog.setFloat("uZScale", zScale);
+        prog.setViewport("uPhysViewport", funcs.getPhysicalViewport());
+        prog.setFloat("uTime", m_weatherState.animationTime);
+        prog.setFloat("uCloudsIntensity", m_weatherState.cloudsIntensity);
+        prog.setFloat("uFogIntensity", m_weatherState.fogIntensity);
+        prog.setColor("uTimeOfDayColor", todColor);
+
+        funcs.glActiveTexture(GL_TEXTURE0);
+        m_textures.weather_noise->bind();
+        prog.setTexture("uNoiseTex", 0);
+
+        const auto rs
+            = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withDepthFunction(std::nullopt);
+        Legacy::RenderStateBinder renderStateBinder(funcs, funcs.getTexLookup(), rs);
+
+        Legacy::SharedVao shared = funcs.getSharedVaos().get(Legacy::SharedVaoEnum::EmptyVao);
+        Legacy::VAO &vao = deref(shared);
+        if (!vao) {
+            vao.emplace(sharedFuncs);
+        }
+        funcs.glBindVertexArray(vao.get());
+        funcs.glDrawArrays(GL_TRIANGLES, 0, 3);
+        funcs.glBindVertexArray(0);
+    }
+
+    // Pass 3: Particles
+    if (m_weatherState.rainIntensity > 0.0f || m_weatherState.snowIntensity > 0.0f) {
+        auto &prog = deref(funcs.getShaderPrograms().getParticleRenderShader());
+        auto binder = prog.bind();
+
+        prog.setMatrix("uViewProj", m_viewProj);
+        prog.setVec4("uPlayerPos", glm::vec4(playerPos, 1.0f));
+        prog.setFloat("uZScale", zScale);
+        prog.setFloat("uRainIntensity", m_weatherState.rainIntensity);
+        prog.setFloat("uSnowIntensity", m_weatherState.snowIntensity);
+        prog.setVec4("uTimeOfDayColor", todColor.getVec4());
+
+        const auto rs
+            = GLRenderState().withBlend(BlendModeEnum::MAX_ALPHA).withDepthFunction(std::nullopt);
+        Legacy::RenderStateBinder renderStateBinder(funcs, funcs.getTexLookup(), rs);
+
+        funcs.glBindVertexArray(m_weatherState.renderVaos[m_weatherState.currentBuffer]);
+        funcs.glDrawArraysInstanced(GL_TRIANGLE_STRIP,
+                                    0,
+                                    4,
+                                    static_cast<GLsizei>(m_weatherState.numParticles));
+        funcs.glBindVertexArray(0);
+    }
 }
 
 void MapCanvas::paintDifferences()

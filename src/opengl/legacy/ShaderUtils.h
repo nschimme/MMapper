@@ -29,4 +29,8 @@ struct NODISCARD Source final
 
 NODISCARD Program loadShaders(Functions &gl, const Source &vert, const Source &frag);
 
+NODISCARD Program loadTransformFeedbackShaders(Functions &gl,
+                                               const Source &vert,
+                                               const std::vector<const char *> &varyings);
+
 } // namespace ShaderUtils

@@ -171,6 +171,15 @@ private:
 
     struct WeatherState
     {
+        GLuint particleVbos[2] = {0, 0};
+        GLuint simulationVaos[2] = {0, 0};
+        GLuint renderVaos[2] = {0, 0};
+        GLuint quadVbo = 0;
+        GLuint transformFeedback = 0;
+        uint32_t currentBuffer = 0;
+        uint32_t numParticles = 0;
+        bool initialized = false;
+
         float rainIntensity = 0.0f;
         float snowIntensity = 0.0f;
         float cloudsIntensity = 0.0f;
@@ -188,6 +197,7 @@ private:
         MumeMoonVisibilityEnum moonVisibility = MumeMoonVisibilityEnum::UNKNOWN;
         float timeOfDayTransition = 1.0f;
         float animationTime = 0.0f;
+        float lastDt = 0.0f;
 
         std::chrono::steady_clock::time_point lastUpdateTime;
     } m_weatherState;
@@ -300,6 +310,7 @@ private:
     void paintCharacters();
     void paintDifferences();
     void paintWeather();
+    void initWeatherParticles();
     NODISCARD Color calculateTimeOfDayColor() const;
     void forceUpdateMeshes();
 

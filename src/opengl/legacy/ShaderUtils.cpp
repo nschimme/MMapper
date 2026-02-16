@@ -266,4 +266,31 @@ Program loadShaders(Functions &gl, const Source &vert, const Source &frag)
     return result_prog;
 }
 
+Program loadTransformFeedbackShaders(Functions &gl,
+                                     const Source &vert,
+                                     const std::vector<const char *> &varyings)
+{
+    GLuint shader = compileShader(gl, GL_VERTEX_SHADER, vert);
+
+    Program result_prog;
+    result_prog.emplace(gl.shared_from_this());
+    const GLuint prog = result_prog.get();
+
+    gl.glAttachShader(prog, shader);
+
+    gl.glTransformFeedbackVaryings(prog,
+                                   static_cast<GLsizei>(varyings.size()),
+                                   varyings.data(),
+                                   GL_INTERLEAVED_ATTRIBS);
+
+    gl.glLinkProgram(prog);
+    checkProgramInfo(gl, prog);
+    gl.applyDefaultUniformBlockBindings(prog);
+
+    gl.glDetachShader(prog, shader);
+    gl.glDeleteShader(shader);
+
+    return result_prog;
+}
+
 } // namespace ShaderUtils

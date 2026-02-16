@@ -153,6 +153,9 @@ enum class NODISCARD BlendModeEnum {
     /* This mode allows you to multiply by the painted color, in the range [0,1].
      * glEnable(GL_BLEND); glBlendFuncSeparate(GL_ZERO, GL_SRC_COLOR, GL_ZERO, GL_ONE); */
     MODULATE,
+    /* This mode uses MAX for alpha blending, useful for weather effects.
+     * glBlendEquationSeparate(GL_FUNC_ADD, GL_MAX); */
+    MAX_ALPHA,
 };
 
 enum class NODISCARD CullingEnum {

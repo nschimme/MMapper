@@ -1,0 +1,63 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2026 The MMapper Authors
+
+#include "WeatherTextureGenerator.h"
+
+#include <cmath>
+#include <algorithm>
+
+namespace WeatherTextureGenerator {
+
+inline float fract(float x) {
+    return x - std::floor(x);
+}
+
+inline float lerp(float a, float b, float t) {
+    return a + t * (b - a);
+}
+
+inline float hash(float x, float y) {
+    // Exact match for GLSL: fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123)
+    float dot = x * 127.1f + y * 311.7f;
+    return fract(std::sin(dot) * 43758.5453123f);
+}
+
+inline float noise(float x, float y, int size) {
+    float ix = std::floor(x);
+    float iy = std::floor(y);
+    float fx = x - ix;
+    float fy = y - iy;
+
+    // Quintic interpolation curve: f = f * f * (3.0 - 2.0 * f)
+    float sx = fx * fx * (3.0f - 2.0f * fx);
+    float sy = fy * fy * (3.0f - 2.0f * fy);
+
+    auto get_hash = [&](float i, float j) {
+        float wi = std::fmod(i, (float)size);
+        if (wi < 0) wi += size;
+        float wj = std::fmod(j, (float)size);
+        if (wj < 0) wj += size;
+        return hash(wi, wj);
+    };
+
+    float a = get_hash(ix, iy);
+    float b = get_hash(ix + 1.0f, iy);
+    float c = get_hash(ix, iy + 1.0f);
+    float d = get_hash(ix + 1.0f, iy + 1.0f);
+
+    return lerp(lerp(a, b, sx), lerp(c, d, sx), sy);
+}
+
+QImage generateNoiseTexture(int size) {
+    QImage img(size, size, QImage::Format_RGBA8888);
+    for (int y = 0; y < size; ++y) {
+        for (int x = 0; x < size; ++x) {
+            float v = noise((float)x, (float)y, size);
+            int val = std::clamp((int)(v * 255.0f), 0, 255);
+            img.setPixelColor(x, y, QColor(val, val, val, 255));
+        }
+    }
+    return img;
+}
+
+} // namespace WeatherTextureGenerator

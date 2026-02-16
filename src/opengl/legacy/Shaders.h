@@ -164,17 +164,9 @@ public:
     ~AtmosphereShader() final;
 
 private:
-    void virt_setUniforms(const glm::mat4 & /*mvp*/, const GLRenderState::Uniforms &uniforms) final
+    void virt_setUniforms(const glm::mat4 & /*mvp*/,
+                          const GLRenderState::Uniforms & /*uniforms*/) final
     {
-        const auto &w = uniforms.weather;
-        setMatrix("uInvViewProj", w.invViewProj);
-        setVec3("uPlayerPos", w.playerPos);
-        setFloat("uZScale", w.zScale);
-        setViewport("uPhysViewport", w.physViewport);
-        setFloat("uTime", w.time);
-        setFloat("uCloudsIntensity", w.cloudsIntensity);
-        setFloat("uFogIntensity", w.fogIntensity);
-        setColor("uTimeOfDayColor", w.todColor);
         setTexture("uNoiseTex", 0);
     }
 };
@@ -187,13 +179,9 @@ public:
     ~ParticleSimulationShader() final;
 
 private:
-    void virt_setUniforms(const glm::mat4 & /*mvp*/, const GLRenderState::Uniforms &uniforms) final
-    {
-        const auto &w = uniforms.weather;
-        setFloat("uDeltaTime", w.deltaTime);
-        setVec2("uPlayerPos", glm::vec2(w.playerPos.x, w.playerPos.y));
-        setFloat("uTime", w.time);
-    }
+    void virt_setUniforms(const glm::mat4 & /*mvp*/,
+                          const GLRenderState::Uniforms & /*uniforms*/) final
+    {}
 };
 
 struct NODISCARD ParticleRenderShader final : public AbstractShaderProgram
@@ -204,17 +192,9 @@ public:
     ~ParticleRenderShader() final;
 
 private:
-    void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final
-    {
-        const auto &w = uniforms.weather;
-        setMatrix("uViewProj", mvp);
-        setVec4("uPlayerPos", glm::vec4(w.playerPos, 1.0f));
-        setFloat("uZScale", w.zScale);
-        setFloat("uTime", w.time);
-        setFloat("uRainIntensity", w.rainIntensity);
-        setFloat("uSnowIntensity", w.snowIntensity);
-        setVec4("uTimeOfDayColor", w.todColor.getVec4());
-    }
+    void virt_setUniforms(const glm::mat4 & /*mvp*/,
+                          const GLRenderState::Uniforms & /*uniforms*/) final
+    {}
 };
 
 /* owned by Functions */

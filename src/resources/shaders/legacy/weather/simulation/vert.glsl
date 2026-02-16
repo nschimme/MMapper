@@ -6,9 +6,16 @@ layout(location = 1) in float aHash;
 layout(location = 2) in float aType;
 layout(location = 3) in float aLife;
 
-uniform float uDeltaTime;
-uniform vec2 uPlayerPos;
-uniform float uTime;
+layout(std140) uniform WeatherBlock
+{
+    mat4 uViewProj;
+    mat4 uInvViewProj;
+    vec4 uPlayerPos; // xyz, w=zScale
+    vec4 uWeatherIntensities; // x=rain, y=snow, z=clouds, w=fog
+    vec4 uTimeOfDayColor;
+    vec4 uViewport; // xy=offset, zw=size
+    vec4 uTimeAndDelta; // x=time, y=deltaTime
+};
 
 out vec2 vPos;
 out float vHash;
@@ -34,6 +41,9 @@ void main()
 
     float speed;
     float decay;
+    float uTime = uTimeAndDelta.x;
+    float uDeltaTime = uTimeAndDelta.y;
+
     if (aType == 0.0) { // Rain
         speed = 20.0 + aHash * 5.0;
         decay = 0.5 + aHash * 0.5;
@@ -62,10 +72,10 @@ void main()
         // We use a mix of uTime and aHash for randomness
         float r1 = rand(aHash + uTime);
         float r2 = rand(r1 + 1.234);
-        pos = uPlayerPos + vec2(r1 * 40.0 - 20.0, r2 * 40.0 - 20.0);
+        pos = uPlayerPos.xy + vec2(r1 * 40.0 - 20.0, r2 * 40.0 - 20.0);
     } else {
         // Toroidal wrap around player in a 40x40 box
-        vec2 rel = pos - uPlayerPos;
+        vec2 rel = pos - uPlayerPos.xy;
         if (rel.x < -20.0)
             pos.x += 40.0;
         else if (rel.x > 20.0)

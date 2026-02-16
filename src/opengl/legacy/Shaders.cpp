@@ -161,9 +161,20 @@ const std::shared_ptr<ParticleSimulationShader> &ShaderPrograms::getParticleSimu
 {
     if (!m_particleSimulation) {
         Functions &funcs = getFunctions();
-        const auto getSource = [](const std::string &path) -> ShaderUtils::Source {
+        const auto getSource = [&funcs](const std::string &path) -> ShaderUtils::Source {
             const auto fullPathName = ":/shaders/legacy/weather/simulation/" + path;
-            return ShaderUtils::Source{fullPathName, readWholeResourceFile(fullPathName)};
+            std::string src;
+            try {
+                src = ::readWholeResourceFile(fullPathName);
+            } catch (...) {
+                // Fallback for frag.glsl if file missing, as some drivers require it
+                if (path == "frag.glsl") {
+                    src = std::string(funcs.getShaderVersion()) + "\nprecision mediump float;\nvoid main() {}\n";
+                } else {
+                    throw;
+                }
+            }
+            return ShaderUtils::Source{fullPathName, src};
         };
 
         std::vector<const char *> varyings = {"vPos", "vHash", "vType", "vLife"};

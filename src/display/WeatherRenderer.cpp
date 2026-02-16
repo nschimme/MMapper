@@ -336,17 +336,33 @@ void WeatherRenderer::render(const glm::mat4 &viewProj)
     const float zScale = want3D ? getConfig().canvas.advanced.layerHeight.getFloat() : 7.0f;
 
     GLRenderState::Uniforms uniforms;
-    uniforms.weather.invViewProj = glm::inverse(viewProj);
-    uniforms.weather.playerPos = playerPos;
-    uniforms.weather.zScale = zScale;
-    uniforms.weather.physViewport = funcs.getPhysicalViewport();
-    uniforms.weather.time = m_state.animationTime;
-    uniforms.weather.rainIntensity = m_state.rainIntensity;
-    uniforms.weather.snowIntensity = m_state.snowIntensity;
-    uniforms.weather.cloudsIntensity = m_state.cloudsIntensity;
-    uniforms.weather.fogIntensity = m_state.fogIntensity;
-    uniforms.weather.deltaTime = m_state.lastDt;
-    uniforms.weather.todColor = todColor;
+    auto &w = uniforms.weather;
+    w.viewProj = viewProj;
+    w.invViewProj = glm::inverse(viewProj);
+    w.playerPos = glm::vec4(playerPos, zScale);
+    w.intensities = glm::vec4(m_state.rainIntensity,
+                              m_state.snowIntensity,
+                              m_state.cloudsIntensity,
+                              m_state.fogIntensity);
+    w.todColor = todColor.getVec4();
+    const Viewport vp = funcs.getPhysicalViewport();
+    w.viewport = glm::vec4(static_cast<float>(vp.offset.x),
+                           static_cast<float>(vp.offset.y),
+                           static_cast<float>(vp.size.x),
+                           static_cast<float>(vp.size.y));
+    w.timeInfo = glm::vec4(m_state.animationTime, m_state.lastDt, 0.0f, 0.0f);
+
+    using namespace Legacy;
+    const auto buffer = SharedVboEnum::WeatherBlock;
+    const auto sharedUbo = funcs.getSharedVbos().get(buffer);
+    VBO &vboUbo = deref(sharedUbo);
+    if (!vboUbo) {
+        vboUbo.emplace(sharedFuncs);
+    }
+    std::ignore = funcs.setUbo(vboUbo.get(),
+                               std::vector<GLRenderState::Uniforms::Weather>{w},
+                               BufferUsageEnum::DYNAMIC_DRAW);
+    funcs.glBindBufferBase(GL_UNIFORM_BUFFER, buffer, vboUbo.get());
 
     // Pass 1: Simulation
     {
@@ -354,7 +370,6 @@ void WeatherRenderer::render(const glm::mat4 &viewProj)
         auto binder = prog.bind();
         prog.setUniforms(viewProj, uniforms);
 
-        using namespace Legacy;
         const SharedVaoEnum simVaos[] = {SharedVaoEnum::WeatherSimulation0,
                                          SharedVaoEnum::WeatherSimulation1};
         const SharedVboEnum pVbos[] = {SharedVboEnum::WeatherParticles0,
@@ -420,8 +435,6 @@ void WeatherRenderer::render(const glm::mat4 &viewProj)
         // Rain
         const GLsizei rainCount = std::min(8192, static_cast<int>(m_state.rainIntensity * 4096.0f));
         if (rainCount > 0) {
-            prog.setFloat("uRainIntensity", 1.0f);
-            prog.setFloat("uSnowIntensity", 0.0f);
             funcs.glBindVertexArray(funcs.getSharedVaos().get(rainVaos[m_state.currentBuffer])->get());
             funcs.glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, rainCount);
         }
@@ -429,8 +442,6 @@ void WeatherRenderer::render(const glm::mat4 &viewProj)
         // Snow
         const GLsizei snowCount = std::min(2048, static_cast<int>(m_state.snowIntensity * 1024.0f));
         if (snowCount > 0) {
-            prog.setFloat("uRainIntensity", 0.0f);
-            prog.setFloat("uSnowIntensity", 1.0f);
             funcs.glBindVertexArray(funcs.getSharedVaos().get(snowVaos[m_state.currentBuffer])->get());
             funcs.glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, snowCount);
         }

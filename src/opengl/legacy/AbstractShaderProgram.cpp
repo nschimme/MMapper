@@ -57,12 +57,19 @@ GLuint AbstractShaderProgram::getAttribLocation(const char *const name) const
 {
     assert(name != nullptr);
     assert(m_isBound);
+
+    auto it = m_attribCache.find(name);
+    if (it != m_attribCache.end()) {
+        return it->second;
+    }
+
     auto functions = m_functions.lock();
     const auto tmp = deref(functions).glGetAttribLocation(getProgram(), name);
     // Reason for making the cast here: glGetAttribLocation uses signed GLint,
     // but glVertexAttribXXX() uses unsigned GLuint.
     const auto result = static_cast<GLuint>(tmp);
     assert(result != INVALID_ATTRIB_LOCATION);
+    m_attribCache[name] = result;
     return result;
 }
 
@@ -70,9 +77,16 @@ GLint AbstractShaderProgram::getUniformLocation(const char *const name) const
 {
     assert(name != nullptr);
     assert(m_isBound);
+
+    auto it = m_uniformCache.find(name);
+    if (it != m_uniformCache.end()) {
+        return it->second;
+    }
+
     auto functions = m_functions.lock();
     const auto result = deref(functions).glGetUniformLocation(getProgram(), name);
     assert(result != INVALID_UNIFORM_LOCATION);
+    m_uniformCache[name] = result;
     return result;
 }
 

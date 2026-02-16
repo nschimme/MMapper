@@ -37,6 +37,7 @@ struct PointSizeBinder;
 // X(EnumName, GL_String_Name, IsUniform)
 #define XFOREACH_SHARED_VBO(X) \
     X(NamedColorsBlock, "NamedColorsBlock", true) \
+    X(WeatherBlock, "WeatherBlock", true) \
     X(InstancedQuadIbo, nullptr, false) \
     X(WeatherParticles0, nullptr, false) \
     X(WeatherParticles1, nullptr, false) \

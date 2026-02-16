@@ -3,14 +3,17 @@
 
 precision highp float;
 
-uniform mat4 uInvViewProj;
-uniform vec3 uPlayerPos;
-uniform float uZScale;
-uniform ivec4 uPhysViewport;
-uniform float uTime;
-uniform float uCloudsIntensity;
-uniform float uFogIntensity;
-uniform vec4 uTimeOfDayColor;
+layout(std140) uniform WeatherBlock
+{
+    mat4 uViewProj;
+    mat4 uInvViewProj;
+    vec4 uPlayerPos; // xyz, w=zScale
+    vec4 uWeatherIntensities; // x=rain, y=snow, z=clouds, w=fog
+    vec4 uTimeOfDayColor;
+    vec4 uViewport; // xy=offset, zw=size
+    vec4 uTimeAndDelta; // x=time, y=deltaTime
+};
+
 uniform sampler2D uNoiseTex;
 
 out vec4 vFragmentColor;
@@ -36,12 +39,13 @@ float fbm(vec2 p)
 void main()
 {
     // Reconstruct world position on the player's plane
-    vec2 screenPos = (gl_FragCoord.xy / vec2(uPhysViewport.zw)) * 2.0 - 1.0;
+    vec2 screenPos = (gl_FragCoord.xy / vec2(uViewport.zw)) * 2.0 - 1.0;
     vec4 near4 = uInvViewProj * vec4(screenPos, -1.0, 1.0);
     vec4 far4 = uInvViewProj * vec4(screenPos, 1.0, 1.0);
     vec3 nearPos = near4.xyz / near4.w;
     vec3 farPos = far4.xyz / far4.w;
 
+    float uZScale = uPlayerPos.w;
     float t = (uPlayerPos.z * uZScale - nearPos.z) / (farPos.z - nearPos.z);
     vec3 worldPos = mix(nearPos, farPos, t);
     worldPos.z /= uZScale;
@@ -50,6 +54,10 @@ void main()
     float localMask = smoothstep(12.0, 8.0, distToPlayer);
 
     vec4 weatherColor = vec4(0.0);
+
+    float uTime = uTimeAndDelta.x;
+    float uCloudsIntensity = uWeatherIntensities.z;
+    float uFogIntensity = uWeatherIntensities.w;
 
     // Fog: soft drifting noise
     if (uFogIntensity > 0.0) {

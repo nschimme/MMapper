@@ -6,6 +6,7 @@
 #include "VBO.h"
 
 #include <string>
+#include <unordered_map>
 
 namespace Legacy {
 
@@ -19,6 +20,8 @@ protected:
     WeakFunctions m_functions;
     Program m_program;
     bool m_isBound = false;
+    mutable std::unordered_map<std::string, GLint> m_uniformCache;
+    mutable std::unordered_map<std::string, GLuint> m_attribCache;
 
 public:
     AbstractShaderProgram() = delete;

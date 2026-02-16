@@ -3,19 +3,29 @@
 
 precision highp float;
 
+layout(std140) uniform WeatherBlock
+{
+    mat4 uViewProj;
+    mat4 uInvViewProj;
+    vec4 uPlayerPos; // xyz, w=zScale
+    vec4 uWeatherIntensities; // x=rain, y=snow, z=clouds, w=fog
+    vec4 uTimeOfDayColor;
+    vec4 uViewport; // xy=offset, zw=size
+    vec4 uTimeAndDelta; // x=time, y=deltaTime
+};
+
 in float vType;
 in float vLife;
 in vec2 vLocalCoord;
 in float vLocalMask;
 
-uniform float uRainIntensity;
-uniform float uSnowIntensity;
-uniform vec4 uTimeOfDayColor;
-
 out vec4 vFragmentColor;
 
 void main()
 {
+    float uRainIntensity = uWeatherIntensities.x;
+    float uSnowIntensity = uWeatherIntensities.y;
+
     vec4 pColor;
     float lifeFade = smoothstep(0.0, 0.15, vLife) * smoothstep(1.0, 0.85, vLife);
 

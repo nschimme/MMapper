@@ -233,20 +233,16 @@ struct NODISCARD GLRenderState final
         Textures textures;
         std::optional<float> pointSize;
 
-        // Weather
+        // Weather (must match std140 layout in shaders)
         struct NODISCARD Weather final
         {
-            glm::mat4 invViewProj{1.0f};
-            glm::vec3 playerPos{0.0f};
-            float zScale = 1.0f;
-            Viewport physViewport;
-            float time = 0.0f;
-            float rainIntensity = 0.0f;
-            float snowIntensity = 0.0f;
-            float cloudsIntensity = 0.0f;
-            float fogIntensity = 0.0f;
-            float deltaTime = 0.0f;
-            Color todColor;
+            glm::mat4 viewProj{1.0f};      // 0-63
+            glm::mat4 invViewProj{1.0f};   // 64-127
+            glm::vec4 playerPos{0.0f};     // 128-143 (xyz, w=zScale)
+            glm::vec4 intensities{0.0f};   // 144-159 (x=rain, y=snow, z=clouds, w=fog)
+            glm::vec4 todColor{0.0f};      // 160-175
+            glm::vec4 viewport{0.0f};      // 176-191 (xy=offset, zw=size)
+            glm::vec4 timeInfo{0.0f};      // 192-207 (x=time, y=deltaTime, zw=unused)
         } weather;
     };
 

@@ -7,10 +7,16 @@ layout(location = 2) in float aHash;
 layout(location = 3) in float aType;
 layout(location = 4) in float aLife;
 
-uniform mat4 uViewProj;
-uniform vec4 uPlayerPos;
-uniform float uZScale;
-uniform float uTime;
+layout(std140) uniform WeatherBlock
+{
+    mat4 uViewProj;
+    mat4 uInvViewProj;
+    vec4 uPlayerPos; // xyz, w=zScale
+    vec4 uWeatherIntensities; // x=rain, y=snow, z=clouds, w=fog
+    vec4 uTimeOfDayColor;
+    vec4 uViewport; // xy=offset, zw=size
+    vec4 uTimeAndDelta; // x=time, y=deltaTime
+};
 
 out float vType;
 out float vLife;
@@ -19,6 +25,9 @@ out float vLocalMask;
 
 void main()
 {
+    float uTime = uTimeAndDelta.x;
+    float uZScale = uPlayerPos.w;
+
     vType = aType;
     vLife = aLife;
     vLocalCoord = aQuadPos + 0.5;

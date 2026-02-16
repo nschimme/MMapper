@@ -117,6 +117,10 @@ NODISCARD constexpr bool isClamped(T x, T lo, T hi)
 
 namespace utils {
 NODISCARD int round_ftoi(float f);
+NODISCARD inline int floor_div(int n, int d)
+{
+    return (n < 0) ? (n + 1) / d - 1 : n / d;
+}
 } // namespace utils
 
 template<typename Base, typename Derived>

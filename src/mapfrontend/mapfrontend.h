@@ -41,6 +41,7 @@ private:
     MapState m_saved;
     MapState m_current;
     MapState m_snapshot;
+    std::set<ChunkId> m_dirtyChunks;
 
 private:
     void emitUndoRedoAvailability();
@@ -98,6 +99,8 @@ public:
 
 public:
     NODISCARD Map getCurrentMap() const { return m_current.map; }
+    NODISCARD const std::set<ChunkId> &getDirtyChunks() const { return m_dirtyChunks; }
+    void clearDirtyChunks() { m_dirtyChunks.clear(); }
     NODISCARD Map getSavedMap() const { return m_saved.map; }
 
 public:

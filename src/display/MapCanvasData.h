@@ -5,6 +5,7 @@
 
 #include "../global/EnumIndexedArray.h"
 #include "../map/ExitDirection.h"
+#include "../map/RoomTint.h"
 #include "../map/mmapper2room.h"
 #include "../mapdata/mapdata.h"
 #include "../mapdata/roomselection.h"
@@ -30,11 +31,6 @@ class ConnectionSelection;
 class MapData;
 class PrespammedPath;
 class InfomarkSelection;
-
-enum class NODISCARD RoomTintEnum { DARK, NO_SUNDEATH };
-static const size_t NUM_ROOM_TINTS = 2;
-NODISCARD extern const MMapper::Array<RoomTintEnum, NUM_ROOM_TINTS> &getAllRoomTints();
-#define ALL_ROOM_TINTS getAllRoomTints()
 
 struct NODISCARD ScaleFactor final
 {
@@ -136,18 +132,28 @@ private:
         OFF_SCREEN
     };
 
+    struct ViewportWorldBounds
+    {
+        float xmin, xmax, ymin, ymax;
+    };
+    mutable std::optional<ViewportWorldBounds> m_cachedBounds;
+    mutable int m_cachedBoundsLayer = -1;
+
 public:
     explicit MapScreen(const MapCanvasViewport &);
     ~MapScreen();
     DELETE_CTORS_AND_ASSIGN_OPS(MapScreen);
 
 public:
+    void invalidateCache() const;
     NODISCARD glm::vec3 getCenter() const;
     NODISCARD bool isRoomVisible(const Coordinate &c, float margin) const;
+    NODISCARD bool isChunkVisible(const ChunkId &cid, int layer) const;
     NODISCARD glm::vec3 getProxyLocation(const glm::vec3 &pos, float margin) const;
 
 private:
     NODISCARD VisiblityResultEnum testVisibility(const glm::vec3 &input_pos, float margin) const;
+    NODISCARD ViewportWorldBounds getViewportWorldBounds(int layer) const;
 };
 
 struct NODISCARD MapCanvasInputState

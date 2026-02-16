@@ -388,9 +388,9 @@ public:
         : m_meshes{std::move(meshes)}
     {}
 
-    void render(const GLRenderState &rs)
+    void render(const GLRenderState &rs) const
     {
-        for (auto &mesh : m_meshes) {
+        for (const auto &mesh : m_meshes) {
             mesh.render(rs);
         }
     }

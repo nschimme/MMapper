@@ -22,6 +22,37 @@ class NODISCARD_QOBJECT AudioManager final : public QObject
 {
     Q_OBJECT
 
+private:
+#ifndef MMAPPER_NO_AUDIO
+    struct MusicState
+    {
+        QMediaPlayer *player = nullptr;
+        QAudioOutput *audioOutput = nullptr;
+        QString currentFile;
+        QString pendingFile;
+        QCache<QString, qint64> cachedPositions;
+        qint64 pendingPosition = -1;
+
+        MusicState() { cachedPositions.setMaxCost(10); }
+    } m_music;
+#endif
+
+    struct FadeState
+    {
+        QTimer *timer = nullptr;
+        float step = 0.05f;
+        bool isFadingOut = false;
+    } m_fade;
+
+    struct ResourceState
+    {
+        QFileSystemWatcher watcher;
+        QMap<QString, QString> availableFiles;
+    } m_resources;
+
+    GameObserver &m_observer;
+    Signal2Lifetime m_lifetime;
+
 public:
     explicit AudioManager(GameObserver &observer, QObject *parent = nullptr);
     ~AudioManager() override;
@@ -41,25 +72,7 @@ private:
 
     void startFadeOut();
     void startFadeIn();
-
-private:
-    GameObserver &m_observer;
 #ifndef MMAPPER_NO_AUDIO
-    QMediaPlayer *m_player = nullptr;
-    QAudioOutput *m_audioOutput = nullptr;
+    void applyPendingPosition();
 #endif
-    QTimer *m_fadeTimer = nullptr;
-    QFileSystemWatcher m_watcher;
-    QMap<QString, QString> m_availableFiles;
-
-    QString m_currentMusicFile;
-    QString m_pendingMusicFile;
-#ifndef MMAPPER_NO_AUDIO
-    QCache<QString, qint64> m_cachedPositions;
-    qint64 m_pendingPosition = -1;
-#endif
-    float m_fadeStep = 0.05f;
-    bool m_isFadingOut = false;
-
-    Signal2Lifetime m_lifetime;
 };

@@ -5,6 +5,8 @@
 
 #include "../configuration/configuration.h"
 #include "../global/Charset.h"
+#include "../map/mmapper2room.h"
+
 #ifndef MMAPPER_NO_AUDIO
 #include <QAudioOutput>
 #include <QMediaPlayer>
@@ -22,88 +24,85 @@ AudioManager::AudioManager(GameObserver &observer, QObject *parent)
     , m_observer(observer)
 {
 #ifndef MMAPPER_NO_AUDIO
-    m_cachedPositions.setMaxCost(5);
+    m_music.player = new QMediaPlayer(this);
+    m_music.audioOutput = new QAudioOutput(this);
+    m_music.player->setAudioOutput(m_music.audioOutput);
+    m_music.player->setLoops(QMediaPlayer::Infinite);
 
-    m_player = new QMediaPlayer(this);
-    m_audioOutput = new QAudioOutput(this);
-    m_player->setAudioOutput(m_audioOutput);
-    m_player->setLoops(QMediaPlayer::Infinite);
-
-    connect(m_player,
+    connect(m_music.player,
             &QMediaPlayer::mediaStatusChanged,
             this,
             [this](QMediaPlayer::MediaStatus status) {
-                if (m_pendingPosition != -1
-                    && (status == QMediaPlayer::LoadedMedia || status == QMediaPlayer::BufferedMedia
-                        || status == QMediaPlayer::BufferingMedia)) {
-                    m_player->setPosition(m_pendingPosition);
-                    m_pendingPosition = -1;
+                if (status == QMediaPlayer::LoadedMedia || status == QMediaPlayer::BufferedMedia
+                    || status == QMediaPlayer::BufferingMedia) {
+                    applyPendingPosition();
                 }
             });
 
-    connect(m_player, &QMediaPlayer::seekableChanged, this, [this](bool seekable) {
-        if (seekable && m_pendingPosition != -1) {
-            m_player->setPosition(m_pendingPosition);
-            m_pendingPosition = -1;
+    connect(m_music.player, &QMediaPlayer::seekableChanged, this, [this](bool seekable) {
+        if (seekable) {
+            applyPendingPosition();
         }
     });
 
-    m_fadeTimer = new QTimer(this);
-    m_fadeTimer->setInterval(100);
-    connect(m_fadeTimer, &QTimer::timeout, this, [this]() {
-        float currentVol = m_audioOutput->volume();
+    m_fade.timer = new QTimer(this);
+    m_fade.timer->setInterval(100);
+    connect(m_fade.timer, &QTimer::timeout, this, [this]() {
+        float currentVol = m_music.audioOutput->volume();
         float target = static_cast<float>(getConfig().audio.musicVolume) / 100.0f;
 
-        if (m_isFadingOut) {
-            currentVol -= m_fadeStep;
+        if (m_fade.isFadingOut) {
+            currentVol -= m_fade.step;
             if (currentVol <= 0.0f) {
                 currentVol = 0.0f;
-                m_fadeTimer->stop();
+                m_fade.timer->stop();
 
-                if (!m_currentMusicFile.isEmpty()
-                    && m_player->playbackState() == QMediaPlayer::PlayingState) {
-                    m_cachedPositions.insert(m_currentMusicFile, new qint64(m_player->position()));
+                if (!m_music.currentFile.isEmpty()
+                    && m_music.player->playbackState() == QMediaPlayer::PlayingState) {
+                    m_music.cachedPositions.insert(m_music.currentFile,
+                                                   new qint64(m_music.player->position()));
                 }
 
-                m_player->stop();
-                if (!m_pendingMusicFile.isEmpty()) {
-                    m_currentMusicFile = m_pendingMusicFile;
-                    m_pendingMusicFile.clear();
+                m_music.player->stop();
+                if (!m_music.pendingFile.isEmpty()) {
+                    m_music.currentFile = m_music.pendingFile;
+                    m_music.pendingFile.clear();
 
-                    if (qint64 *pos = m_cachedPositions.object(m_currentMusicFile)) {
-                        m_pendingPosition = *pos;
+                    if (qint64 *pos = m_music.cachedPositions.object(m_music.currentFile)) {
+                        m_music.pendingPosition = *pos;
                     } else {
-                        m_pendingPosition = -1;
+                        m_music.pendingPosition = -1;
                     }
 
-                    if (m_currentMusicFile.startsWith(":")) {
-                        m_player->setSource(QUrl("qrc" + m_currentMusicFile));
+                    if (m_music.currentFile.startsWith(":")) {
+                        m_music.player->setSource(QUrl("qrc" + m_music.currentFile));
                     } else {
-                        m_player->setSource(QUrl::fromLocalFile(m_currentMusicFile));
+                        m_music.player->setSource(QUrl::fromLocalFile(m_music.currentFile));
                     }
 
                     if (getConfig().audio.musicVolume > 0) {
-                        m_player->play();
+                        m_music.player->play();
+                        applyPendingPosition();
                         startFadeIn();
                     }
                 }
             }
         } else {
-            currentVol += m_fadeStep;
+            currentVol += m_fade.step;
             if (currentVol >= target) {
                 currentVol = target;
-                m_fadeTimer->stop();
+                m_fade.timer->stop();
             }
         }
-        m_audioOutput->setVolume(currentVol);
+        m_music.audioOutput->setVolume(currentVol);
     });
 
     scanDirectories();
 
     const auto &resourcesDir = getConfig().canvas.resourcesDirectory;
-    m_watcher.addPath(resourcesDir + "/music");
-    m_watcher.addPath(resourcesDir + "/sounds");
-    connect(&m_watcher,
+    m_resources.watcher.addPath(resourcesDir + "/music");
+    m_resources.watcher.addPath(resourcesDir + "/sounds");
+    connect(&m_resources.watcher,
             &QFileSystemWatcher::directoryChanged,
             this,
             [this](const QString & /*path*/) { scanDirectories(); });
@@ -122,14 +121,15 @@ AudioManager::AudioManager(GameObserver &observer, QObject *parent)
 AudioManager::~AudioManager()
 {
 #ifndef MMAPPER_NO_AUDIO
-    m_player->stop();
+    m_music.player->stop();
 #endif
 }
 
 void AudioManager::onAreaChanged(const RoomArea &area)
 {
+#ifndef MMAPPER_NO_AUDIO
     if (area.isEmpty()) {
-        m_pendingMusicFile.clear();
+        m_music.pendingFile.clear();
         startFadeOut();
         return;
     }
@@ -145,27 +145,31 @@ void AudioManager::onAreaChanged(const RoomArea &area)
         return;
     }
 
-    if (musicFile == m_currentMusicFile) {
-        if (m_isFadingOut) {
-            m_pendingMusicFile.clear();
+    if (musicFile == m_music.currentFile) {
+        if (m_fade.isFadingOut) {
+            m_music.pendingFile.clear();
             startFadeIn();
-        } else if (m_player->playbackState() == QMediaPlayer::StoppedState
+        } else if (m_music.player->playbackState() == QMediaPlayer::StoppedState
                    && getConfig().audio.musicVolume > 0) {
-            if (qint64 *pos = m_cachedPositions.object(m_currentMusicFile)) {
-                m_pendingPosition = *pos;
+            if (qint64 *pos = m_music.cachedPositions.object(m_music.currentFile)) {
+                m_music.pendingPosition = *pos;
             }
-            m_player->play();
+            m_music.player->play();
+            applyPendingPosition();
             startFadeIn();
         }
         return;
     }
 
-    if (musicFile == m_pendingMusicFile) {
+    if (musicFile == m_music.pendingFile) {
         return;
     }
 
-    m_pendingMusicFile = musicFile;
+    m_music.pendingFile = musicFile;
     startFadeOut();
+#else
+    Q_UNUSED(area);
+#endif
 }
 
 void AudioManager::onGainedLevel()
@@ -183,36 +187,51 @@ void AudioManager::onPositionChanged(CharacterPositionEnum position)
 void AudioManager::updateVolumes()
 {
 #ifndef MMAPPER_NO_AUDIO
-    if (!m_isFadingOut && (m_fadeTimer == nullptr || !m_fadeTimer->isActive())) {
+    if (!m_fade.isFadingOut && (m_fade.timer == nullptr || !m_fade.timer->isActive())) {
         float vol = static_cast<float>(getConfig().audio.musicVolume) / 100.0f;
-        m_audioOutput->setVolume(vol);
-        if (vol > 0 && m_player->playbackState() == QMediaPlayer::StoppedState
-            && !m_currentMusicFile.isEmpty()) {
-            if (qint64 *pos = m_cachedPositions.object(m_currentMusicFile)) {
-                m_pendingPosition = *pos;
-                m_player->setPosition(*pos);
+        m_music.audioOutput->setVolume(vol);
+        if (vol > 0 && m_music.player->playbackState() == QMediaPlayer::StoppedState
+            && !m_music.currentFile.isEmpty()) {
+            if (qint64 *pos = m_music.cachedPositions.object(m_music.currentFile)) {
+                m_music.pendingPosition = *pos;
             } else {
-                m_pendingPosition = -1;
+                m_music.pendingPosition = -1;
             }
-            m_player->play();
-        } else if (vol <= 0 && m_player->playbackState() == QMediaPlayer::PlayingState) {
-            if (!m_currentMusicFile.isEmpty()) {
-                m_cachedPositions.insert(m_currentMusicFile, new qint64(m_player->position()));
+            m_music.player->play();
+            applyPendingPosition();
+        } else if (vol <= 0 && m_music.player->playbackState() == QMediaPlayer::PlayingState) {
+            if (!m_music.currentFile.isEmpty()) {
+                m_music.cachedPositions.insert(m_music.currentFile,
+                                               new qint64(m_music.player->position()));
             }
-            m_player->stop();
+            m_music.player->stop();
         }
     }
 #endif
 }
 
+#ifndef MMAPPER_NO_AUDIO
+void AudioManager::applyPendingPosition()
+{
+    if (m_music.pendingPosition != -1 && m_music.player->isSeekable()) {
+        m_music.player->setPosition(m_music.pendingPosition);
+        m_music.pendingPosition = -1;
+    }
+}
+#endif
+
 void AudioManager::playMusic(const QString &areaName)
 {
+#ifndef MMAPPER_NO_AUDIO
     QString musicFile = findAudioFile("music", areaName);
     if (musicFile.isEmpty())
         return;
 
-    m_pendingMusicFile = musicFile;
+    m_music.pendingFile = musicFile;
     startFadeOut();
+#else
+    Q_UNUSED(areaName);
+#endif
 }
 
 void AudioManager::playSound(const QString &soundName)
@@ -255,8 +274,8 @@ void AudioManager::playSound(const QString &soundName)
 QString AudioManager::findAudioFile(const QString &subDir, const QString &name)
 {
     QString key = subDir + "/" + name;
-    auto it = m_availableFiles.find(key);
-    if (it != m_availableFiles.end()) {
+    auto it = m_resources.availableFiles.find(key);
+    if (it != m_resources.availableFiles.end()) {
         return it.value();
     }
     return "";
@@ -264,7 +283,7 @@ QString AudioManager::findAudioFile(const QString &subDir, const QString &name)
 
 void AudioManager::scanDirectories()
 {
-    m_availableFiles.clear();
+    m_resources.availableFiles.clear();
     QStringList extensions = {"mp3", "wav", "ogg", "m4a"};
 
     auto scanPath = [&](const QString &path) {
@@ -300,7 +319,7 @@ void AudioManager::scanDirectories()
                     continue;
                 }
 
-                m_availableFiles.insert(baseName, filePath);
+                m_resources.availableFiles.insert(baseName, filePath);
             }
         }
     };
@@ -313,15 +332,15 @@ void AudioManager::scanDirectories()
     scanPath(resourcesDir + "/music");
     scanPath(resourcesDir + "/sounds");
 
-    qInfo() << "Scanned audio directories. Found" << m_availableFiles.size() << "files.";
+    qInfo() << "Scanned audio directories. Found" << m_resources.availableFiles.size() << "files.";
 }
 
 void AudioManager::startFadeOut()
 {
 #ifndef MMAPPER_NO_AUDIO
-    m_isFadingOut = true;
-    if (m_fadeTimer && !m_fadeTimer->isActive()) {
-        m_fadeTimer->start();
+    m_fade.isFadingOut = true;
+    if (m_fade.timer && !m_fade.timer->isActive()) {
+        m_fade.timer->start();
     }
 #endif
 }
@@ -329,9 +348,9 @@ void AudioManager::startFadeOut()
 void AudioManager::startFadeIn()
 {
 #ifndef MMAPPER_NO_AUDIO
-    m_isFadingOut = false;
-    if (m_fadeTimer && !m_fadeTimer->isActive()) {
-        m_fadeTimer->start();
+    m_fade.isFadingOut = false;
+    if (m_fade.timer && !m_fade.timer->isActive()) {
+        m_fade.timer->start();
     }
 #endif
 }

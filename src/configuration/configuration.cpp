@@ -779,8 +779,6 @@ void Configuration::AudioSettings::read(const QSettings &conf)
 {
     musicVolume = std::clamp(conf.value(KEY_MUSIC_VOLUME, 50).toInt(), 0, 100);
     soundVolume = std::clamp(conf.value(KEY_SOUND_VOLUME, 50).toInt(), 0, 100);
-    musicEnabled = conf.value(KEY_MUSIC_ENABLED, true).toBool();
-    soundsEnabled = conf.value(KEY_SOUNDS_ENABLED, true).toBool();
 }
 
 void Configuration::IntegratedMudClientSettings::read(const QSettings &conf)
@@ -965,8 +963,6 @@ void Configuration::AudioSettings::write(QSettings &conf) const
 {
     conf.setValue(KEY_MUSIC_VOLUME, musicVolume);
     conf.setValue(KEY_SOUND_VOLUME, soundVolume);
-    conf.setValue(KEY_MUSIC_ENABLED, musicEnabled);
-    conf.setValue(KEY_SOUNDS_ENABLED, soundsEnabled);
 }
 
 void Configuration::IntegratedMudClientSettings::write(QSettings &conf) const

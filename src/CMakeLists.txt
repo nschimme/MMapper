@@ -484,9 +484,9 @@ set(mmapper_SRCS
     pathmachine/syncing.h
     preferences/AdvancedGraphics.cpp
     preferences/AdvancedGraphics.h
-    preferences/AnsiColorDialog.cpp
     preferences/audiopage.cpp
     preferences/audiopage.h
+    preferences/AnsiColorDialog.cpp
     preferences/AnsiColorDialog.h
     preferences/ansicombo.cpp
     preferences/ansicombo.h
@@ -710,7 +710,6 @@ target_link_libraries(mmapper PUBLIC
     Qt6::Network
     Qt6::OpenGL
     Qt6::OpenGLWidgets
-    $<$<BOOL:${Qt6Multimedia_FOUND}>:Qt6::Multimedia>
     # note: link order matters on some platforms. include ${mm_libs} twice if you have a link failure.
     ${mm_libs}
     ${CMAKE_THREAD_LIBS_INIT}
@@ -875,38 +874,6 @@ if(USE_IWYU)
         )
     endif()
 endif()
-
-# Begin CPack Settings
-string(REGEX REPLACE "^v" "" CPACK_PACKAGE_VERSION "${MMAPPER_VERSION_STRING}")
-string(REGEX MATCH "^([0-9]+)\\.([0-9]+)\\.([0-9]+)-?([0-9]+)?.*$" _ "${CPACK_PACKAGE_VERSION}")
-set(CPACK_PACKAGE_VERSION_MAJOR ${CMAKE_MATCH_1})
-set(CPACK_PACKAGE_VERSION_MINOR ${CMAKE_MATCH_2})
-set(CPACK_PACKAGE_VERSION_PATCH ${CMAKE_MATCH_3})
-set(CPACK_PACKAGE_VERSION_TWEAK ${CMAKE_MATCH_4})
-if(NOT CPACK_PACKAGE_VERSION_TWEAK)
-    set(CPACK_PACKAGE_VERSION_TWEAK 0)
-endif()
-
-string(REGEX REPLACE "Darwin" "Mac" CPACK_SYSTEM_NAME ${CMAKE_SYSTEM_NAME})
-set(CPACK_SOURCE_PACKAGE_FILE_NAME "${PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-source")
-set(CPACK_PACKAGE_CHECKSUM "SHA256")
-if(NOT TARGET_ARCHITECTURE)
-    if(WIN32)
-        set(TARGET_ARCHITECTURE "x64")
-    else()
-        set(TARGET_ARCHITECTURE "${CMAKE_SYSTEM_PROCESSOR}")
-    endif()
-endif()
-message(STATUS "Packaging for target: ${CPACK_SYSTEM_NAME} ${TARGET_ARCHITECTURE} ${PACKAGE_TYPE_NORMALIZED}")
-set(CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_SYSTEM_NAME}-${TARGET_ARCHITECTURE}")
-
-# Components:
-if(CMAKE_BUILD_TYPE_UPPER MATCHES "^(DEBUG|RELWITHDEBINFO)$")
-    set(CPACK_STRIP_FILES FALSE)
-else()
-    set(CPACK_STRIP_FILES TRUE)
-endif()
-
 # Linux Install Settings
 if(UNIX AND NOT APPLE)
     set(SHARE_INSTALL_PREFIX
@@ -943,30 +910,6 @@ if(UNIX AND NOT APPLE)
         COMPONENT desktopintegration
         RENAME org.mume.MMapper.png
     )
-
-    set(CPACK_GENERATOR "DEB") # Others: RPM, STGZ
-    set(CPACK_SOURCE_GENERATOR "TGZ")
-
-    # Debian
-    set(CPACK_DEBIAN_PACKAGE_MAINTAINER "nschimme@gmail.com")
-    set(CPACK_DEBIAN_PACKAGE_NAME "mmapper")
-    set(CPACK_DEBIAN_COMPRESSION_TYPE "xz")
-    set(CPACK_DEBIAN_PACKAGE_DEPENDS "libqt6core6 (>= 6.4.0), libqt6gui6 (>= 6.4.0), libqt6opengl6 (>= 6.4.0), libqt6network6 (>= 6.4.0)")
-    if(WITH_AUDIO)
-        set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libqt6multimedia6 (>= 6.4.0)")
-    endif()
-    if(WITH_ZLIB)
-        set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, zlib1g")
-    endif()
-    if(WITH_OPENSSL)
-        set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libssl3t64")
-    endif()
-    if(WITH_WEBSOCKET)
-        set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libqt6websockets6 (>= 6.4.0)")
-    endif()
-    if(WITH_QTKEYCHAIN)
-        set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libqt6keychain1")
-    endif()
 endif(UNIX AND NOT APPLE)
 
 # Windows Install Settings
@@ -987,7 +930,7 @@ if(WIN32)
 
     # Debug symbols
     set(WINDEPLOYQT_STAGING ${CMAKE_CURRENT_BINARY_DIR}/bin)
-    if(MSVC AND NOT CPACK_STRIP_FILES)
+    if(MSVC)
         add_custom_command(TARGET mmapper POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E make_directory "${WINDEPLOYQT_STAGING}"
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -1021,73 +964,18 @@ if(WIN32)
         PATTERN "*.exe" EXCLUDE
     )
 
-    set(CPACK_SOURCE_GENERATOR "ZIP")
+    if(MSVC AND NOT MMAPPER_IS_DEBUG)
+        install(FILES
+            "${WINDEPLOYQT_STAGING}/vc_redist.x64.exe"
+            DESTINATION .
+            COMPONENT libraries
+        )
+    endif()
 
     if(PACKAGE_TYPE_NORMALIZED STREQUAL "Nsis")
-        set(CPACK_GENERATOR "NSIS")
-
-        if(MSVC AND NOT MMAPPER_IS_DEBUG)
-            install(FILES
-                "${WINDEPLOYQT_STAGING}/vc_redist.x64.exe"
-                DESTINATION .
-                COMPONENT libraries
-            )
-            set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "${CPACK_NSIS_EXTRA_INSTALL_COMMANDS}
-                ExecWait '\\$INSTDIR\\\\vc_redist.x64.exe /q /norestart'
-                Delete '\\$INSTDIR\\\\vc_redist.x64.exe'
-                ")
-        endif()
-
-        # Windows (NSIS) Settings
-        set(CPACK_NSIS_EXECUTABLES_DIRECTORY ".")
-        set(CPACK_NSIS_MENU_LINKS "mmapper.exe;MMapper")
-        set(CPACK_NSIS_INSTALLED_ICON_NAME "mmapper.exe")
-        set(CPACK_NSIS_HELP_LINK "http://github.com/mume/mmapper")
-        set(CPACK_NSIS_MUI_ICON "${CMAKE_CURRENT_SOURCE_DIR}/resources/win32\\\\m-${MMAPPER_BRAND_SUFFIX}.ico")
-        set(CPACK_NSIS_MUI_UNIICON "${CMAKE_CURRENT_SOURCE_DIR}/resources/win32\\\\m-${MMAPPER_BRAND_SUFFIX}.ico")
-        set(CPACK_PACKAGE_ICON "${CMAKE_CURRENT_SOURCE_DIR}/resources/icons\\\\m-${MMAPPER_BRAND_SUFFIX}.png")
-        set(CPACK_NSIS_INSTALLED_ICON_NAME "${CMAKE_CURRENT_SOURCE_DIR}/resources/win32\\\\m-${MMAPPER_BRAND_SUFFIX}.ico")
-        set(CPACK_NSIS_COMPRESSOR "/SOLID lzma")
-        set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL "ON")
-        set(CPACK_NSIS_MUI_FINISHPAGE_RUN "mmapper.exe")
-        set(CPACK_NSIS_MANIFEST_DPI_AWARE "ON")
-        set(CPACK_NSIS_DISPLAY_NAME "MUME Mapper (x64)")
-        set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "${CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS}
-            Push \$0
-            mmapper_check:
-              ExecWait 'cmd /C tasklist /FI \\\"IMAGENAME eq mmapper.exe\\\" | findstr /I \\\"mmapper.exe\\\" >nul' \$0
-              StrCmp \$0 0 mmapper_found mmapper_done
-            mmapper_found:
-              MessageBox MB_OKCANCEL|MB_ICONQUESTION \\\"MMapper is running. Please close it to continue.\\\" IDOK mmapper_check
-              Abort
-            mmapper_done:
-              Pop \$0
-            ")
-        if(WITH_DRMINGW)
-            # Include shortcut to crash logs
-            set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "${CPACK_NSIS_EXTRA_INSTALL_COMMANDS}
-                CreateShortCut \\\"$SMPROGRAMS\\\\${CPACK_NSIS_DISPLAY_NAME}\\\\Crash Log.lnk\\\" \\\"$PROFILE\\\\AppData\\\\Local\\\\mmappercrash.log\\\"
-                ")
-            # Delete shortcut and crash log
-            set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "${CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS}
-                Delete \\\"$SMPROGRAMS\\\\${CPACK_NSIS_DISPLAY_NAME}\\\\Crash Log.lnk\\\"
-                Delete \\\"$PROFILE\\\\AppData\\\\Local\\\\mmappercrash.log\\\"
-                ")
-        endif()
-        # NSIS always displays a license page
-        set(CPACK_RESOURCE_FILE_LICENSE "${PROJECT_SOURCE_DIR}/COPYING.txt")
+        # Nothing special to install for NSIS that isn't handled by CPACK_
     elseif(PACKAGE_TYPE_NORMALIZED STREQUAL "AppX")
         # Windows AppX Settings
-        set(CPACK_GENERATOR "External")
-        set(APPX_NAME "${PROJECT_NAME}")
-
-        # Set AppX specific version variables and remove leading zeros
-        string(REGEX REPLACE "^0*([0-9]+)$" "\\1" APPX_VERSION_MAJOR "${CPACK_PACKAGE_VERSION_MAJOR}")
-        string(REGEX REPLACE "^0*([0-9]+)$" "\\1" APPX_VERSION_MINOR "${CPACK_PACKAGE_VERSION_MINOR}")
-        string(REGEX REPLACE "^0*([0-9]+)$" "\\1" APPX_VERSION_PATCH "${CPACK_PACKAGE_VERSION_PATCH}")
-        string(REGEX REPLACE "^0*([0-9]+)$" "\\1" APPX_VERSION_REVISION "${CPACK_PACKAGE_VERSION_TWEAK}")
-        set(APPX_MANIFEST_VERSION "${APPX_VERSION_MAJOR}.${APPX_VERSION_MINOR}.${APPX_VERSION_PATCH}.0")
-        set(APPX_VERSION "${APPX_VERSION_MAJOR}_${APPX_VERSION_MINOR}_${APPX_VERSION_PATCH}_${APPX_VERSION_REVISION}")
 
         # Install AppManifest and Assets
         configure_file(
@@ -1120,13 +1008,11 @@ if(WIN32)
         )
 
         # Set the AppX external script
-        set(CPACK_EXTERNAL_ENABLE_STAGING TRUE)
         configure_file(
             "${PROJECT_SOURCE_DIR}/cmake/MakeAppX.cmake.in"
             "${CMAKE_BINARY_DIR}/MakeAppX.cmake"
             @ONLY
         )
-        set(CPACK_EXTERNAL_PACKAGE_SCRIPT "${CMAKE_BINARY_DIR}/MakeAppX.cmake")
     endif()
 endif(WIN32)
 
@@ -1179,50 +1065,4 @@ if(APPLE)
         DESTINATION .
         COMPONENT applications
     )
-
-    # Package Settings
-    set(CPACK_GENERATOR "DragNDrop")
-    set(CPACK_SOURCE_GENERATOR "TGZ")
-    set(CPACK_DMG_FORMAT UDBZ)
-
-    # Libraries are bundled directly
-    set(CPACK_COMPONENT_LIBRARIES_HIDDEN TRUE)
-
-    # Bundle Properties
-    set(MACOSX_BUNDLE_BUNDLE_NAME MMapper)
-    set(MACOSX_BUNDLE_BUNDLE_VERSION ${MMAPPER_VERSION})
-    set(MACOSX_BUNDLE_SHORT_VERSION_STRING ${MMAPPER_VERSION_STRING})
-    set(MACOSX_BUNDLE_LONG_VERSION_STRING "Version ${MMAPPER_VERSION_STRING}")
-    set(MACOSX_BUNDLE_ICON_FILE m-${MMAPPER_BRAND_SUFFIX}.icns)
-    set(MACOSX_BUNDLE_COPYRIGHT "Copyright (c) 2019 The MMapper Team")
-    set(MACOSX_BUNDLE_GUI_IDENTIFIER "org.mume.mmapper")
 endif(APPLE)
-
-# More General CPack Settings
-set(CPACK_PACKAGE_NAME "${PROJECT_NAME}")
-set(CPACK_PACKAGE_VENDOR "Nils Schimmelmann")
-set(CPACK_PACKAGE_CONTACT "nschimme@gmail.com")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A mud mapper especially written for the mud MUME")
-set(CPACK_PACKAGE_INSTALL_DIRECTORY "MMapper")
-
-# Applications Component
-set(CPACK_COMPONENTS_ALL applications libraries)
-set(CPACK_COMPONENT_APPLICATIONS_DISPLAY_NAME "MMapper")
-set(CPACK_COMPONENT_APPLICATIONS_DESCRIPTION "A mud mapper especially written for the mud MUME")
-set(CPACK_COMPONENT_APPLICATIONS_REQUIRED TRUE)
-
-# Libraries Component
-set(CPACK_COMPONENT_LIBRARIES_DISPLAY_NAME "Runtime Libraries")
-set(CPACK_COMPONENT_LIBRARIES_DESCRIPTION "Runtime libraries for running MMapper")
-set(CPACK_COMPONENT_LIBRARIES_REQUIRED TRUE)
-
-set(CPACK_INSTALL_CMAKE_PROJECTS "${CMAKE_CURRENT_BINARY_DIR};applications;ALL;/")
-
-# Source Package
-set(CPACK_SOURCE_IGNORE_FILES
-    "~$"
-    "/\\\\.git/"
-    "/build/"
-    "/winbuild/"
-)
-include(CPack)

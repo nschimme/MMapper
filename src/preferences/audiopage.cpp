@@ -5,32 +5,19 @@
 
 #include "../configuration/configuration.h"
 #include "ui_audiopage.h"
-#ifndef WITH_AUDIO
-#include <QLabel>
-#include <QVBoxLayout>
-#endif
-
 AudioPage::AudioPage(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::AudioPage)
 {
     ui->setupUi(this);
 
-#ifdef WITH_AUDIO
     slot_loadConfig();
 
-    connect(ui->musicEnabledCheckBox,
-            &QCheckBox::stateChanged,
-            this,
-            &AudioPage::slot_musicEnabledChanged);
+#ifndef MMAPPER_NO_AUDIO
     connect(ui->musicVolumeSlider,
             &QSlider::valueChanged,
             this,
             &AudioPage::slot_musicVolumeChanged);
-    connect(ui->soundsEnabledCheckBox,
-            &QCheckBox::stateChanged,
-            this,
-            &AudioPage::slot_soundsEnabledChanged);
     connect(ui->soundsVolumeSlider,
             &QSlider::valueChanged,
             this,
@@ -38,10 +25,8 @@ AudioPage::AudioPage(QWidget *parent)
 #else
     ui->musicGroupBox->setEnabled(false);
     ui->soundsGroupBox->setEnabled(false);
-    auto *label = new QLabel(
-        tr("Audio features are disabled because Qt6 Multimedia was not found during build."), this);
-    label->setWordWrap(true);
-    ui->verticalLayout->insertWidget(0, label);
+    ui->musicVolumeSlider->setEnabled(false);
+    ui->soundsVolumeSlider->setEnabled(false);
 #endif
 }
 
@@ -53,27 +38,13 @@ AudioPage::~AudioPage()
 void AudioPage::slot_loadConfig()
 {
     const auto &settings = getConfig().audio;
-    ui->musicEnabledCheckBox->setChecked(settings.musicEnabled);
     ui->musicVolumeSlider->setValue(settings.musicVolume);
-    ui->soundsEnabledCheckBox->setChecked(settings.soundsEnabled);
     ui->soundsVolumeSlider->setValue(settings.soundVolume);
-}
-
-void AudioPage::slot_musicEnabledChanged(int state)
-{
-    setConfig().audio.musicEnabled = (state == Qt::Checked);
-    emit sig_audioSettingsChanged();
 }
 
 void AudioPage::slot_musicVolumeChanged(int value)
 {
     setConfig().audio.musicVolume = value;
-    emit sig_audioSettingsChanged();
-}
-
-void AudioPage::slot_soundsEnabledChanged(int state)
-{
-    setConfig().audio.soundsEnabled = (state == Qt::Checked);
     emit sig_audioSettingsChanged();
 }
 

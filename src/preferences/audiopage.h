@@ -6,10 +6,6 @@
 
 #include <QWidget>
 
-#ifndef WITH_AUDIO
-class QLabel;
-#endif
-
 namespace Ui {
 class AudioPage;
 }
@@ -27,9 +23,7 @@ public:
 
 public slots:
     void slot_loadConfig();
-    void slot_musicEnabledChanged(int);
     void slot_musicVolumeChanged(int);
-    void slot_soundsEnabledChanged(int);
     void slot_soundsVolumeChanged(int);
 
 signals:

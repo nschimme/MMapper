@@ -64,11 +64,14 @@ if(WITH_AUDIO)
     find_package(Qt6 COMPONENTS Multimedia QUIET)
     if(Qt6Multimedia_FOUND)
         message(STATUS "Qt6 Multimedia found. Enabling audio features.")
-        add_compile_definitions(WITH_AUDIO)
     else()
         message(STATUS "Qt6 Multimedia NOT found. Audio features will be disabled.")
         set(WITH_AUDIO OFF)
     endif()
+endif()
+
+if(NOT WITH_AUDIO)
+    add_compile_definitions(MMAPPER_NO_AUDIO)
 endif()
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
@@ -248,6 +251,12 @@ endif()
 if(NOT MMAPPER_VERSION_STRING)
     set(MMAPPER_VERSION_STRING "v${MMAPPER_VERSION}")
     set(MMAPPER_BETA "false")
+endif()
+
+if(MMAPPER_BETA)
+    set(MMAPPER_BRAND_SUFFIX "beta")
+else()
+    set(MMAPPER_BRAND_SUFFIX "release")
 endif()
 if(NOT GIT_BRANCH)
     set(GIT_BRANCH "unknown")
@@ -504,12 +513,107 @@ if(NOT WITH_UPDATER)
     add_definitions(/DMMAPPER_NO_UPDATER)
 endif()
 
+string(REGEX REPLACE "^v" "" CPACK_PACKAGE_VERSION "${MMAPPER_VERSION_STRING}")
+string(REGEX MATCH "^([0-9]+)\\.([0-9]+)\\.([0-9]+)-?([0-9]+)?.*$" _ "${CPACK_PACKAGE_VERSION}")
+set(CPACK_PACKAGE_VERSION_MAJOR ${CMAKE_MATCH_1})
+set(CPACK_PACKAGE_VERSION_MINOR ${CMAKE_MATCH_2})
+set(CPACK_PACKAGE_VERSION_PATCH ${CMAKE_MATCH_3})
+set(CPACK_PACKAGE_VERSION_TWEAK ${CMAKE_MATCH_4})
+if(NOT CPACK_PACKAGE_VERSION_TWEAK)
+    set(CPACK_PACKAGE_VERSION_TWEAK 0)
+endif()
+
+string(REGEX REPLACE "Darwin" "Mac" CPACK_SYSTEM_NAME ${CMAKE_SYSTEM_NAME})
+set(CPACK_SOURCE_PACKAGE_FILE_NAME "${PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-source")
+set(CPACK_PACKAGE_CHECKSUM "SHA256")
+if(NOT TARGET_ARCHITECTURE)
+    if(WIN32)
+        set(TARGET_ARCHITECTURE "x64")
+    else()
+        set(TARGET_ARCHITECTURE "${CMAKE_SYSTEM_PROCESSOR}")
+    endif()
+endif()
+set(CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_SYSTEM_NAME}-${TARGET_ARCHITECTURE}")
+
+# Components:
+if(CMAKE_BUILD_TYPE_UPPER MATCHES "^(DEBUG|RELWITHDEBINFO)$")
+    set(CPACK_STRIP_FILES FALSE)
+else()
+    set(CPACK_STRIP_FILES TRUE)
+endif()
+
+if(UNIX AND NOT APPLE)
+    set(CPACK_DEBIAN_PACKAGE_DEPENDS "libqt6core6 (>= 6.4.0), libqt6gui6 (>= 6.4.0), libqt6opengl6 (>= 6.4.0), libqt6network6 (>= 6.4.0)")
+    if(WITH_AUDIO)
+        set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libqt6multimedia6 (>= 6.4.0)")
+    endif()
+    if(WITH_ZLIB)
+        set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, zlib1g")
+    endif()
+    if(WITH_OPENSSL)
+        set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libssl3t64")
+    endif()
+    if(WITH_WEBSOCKET)
+        set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libqt6websockets6 (>= 6.4.0)")
+    endif()
+    if(WITH_QTKEYCHAIN)
+        set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libqt6keychain1")
+    endif()
+endif()
+
 add_subdirectory(src)
 add_subdirectory(appdata)
 if(WITH_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif()
+
+# CPack configuration
+set(CPACK_PACKAGE_NAME "${PROJECT_NAME}")
+set(CPACK_PACKAGE_VENDOR "Nils Schimmelmann")
+set(CPACK_PACKAGE_CONTACT "nschimme@gmail.com")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A mud mapper especially written for the mud MUME")
+set(CPACK_PACKAGE_INSTALL_DIRECTORY "MMapper")
+
+# Applications Component
+set(CPACK_COMPONENTS_ALL applications libraries)
+set(CPACK_COMPONENT_APPLICATIONS_DISPLAY_NAME "MMapper")
+set(CPACK_COMPONENT_APPLICATIONS_DESCRIPTION "A mud mapper especially written for the mud MUME")
+set(CPACK_COMPONENT_APPLICATIONS_REQUIRED TRUE)
+
+# Libraries Component
+set(CPACK_COMPONENT_LIBRARIES_DISPLAY_NAME "Runtime Libraries")
+set(CPACK_COMPONENT_LIBRARIES_DESCRIPTION "Runtime libraries for running MMapper")
+set(CPACK_COMPONENT_LIBRARIES_REQUIRED TRUE)
+
+set(CPACK_INSTALL_CMAKE_PROJECTS "${CMAKE_BINARY_DIR}/src;applications;ALL;/")
+
+# Source Package
+set(CPACK_SOURCE_IGNORE_FILES
+    "~$"
+    "/\\\\.git/"
+    "/build/"
+    "/winbuild/"
+)
+
+if(APPLE)
+    set(CPACK_GENERATOR "DragNDrop")
+    set(CPACK_SOURCE_GENERATOR "TGZ")
+    set(CPACK_DMG_FORMAT UDBZ)
+    set(CPACK_COMPONENT_LIBRARIES_HIDDEN TRUE)
+elseif(WIN32)
+    set(CPACK_SOURCE_GENERATOR "ZIP")
+    if(PACKAGE_TYPE_NORMALIZED STREQUAL "Nsis")
+        set(CPACK_GENERATOR "NSIS")
+    elseif(PACKAGE_TYPE_NORMALIZED STREQUAL "AppX")
+        set(CPACK_GENERATOR "External")
+    endif()
+elseif(UNIX)
+    set(CPACK_GENERATOR "DEB")
+    set(CPACK_SOURCE_GENERATOR "TGZ")
+endif()
+
+include(CPack)
 
 message("") # blank line
 include(FeatureSummary)

@@ -5,7 +5,7 @@
 
 #include "../configuration/configuration.h"
 #include "../global/Charset.h"
-#ifdef WITH_AUDIO
+#ifndef MMAPPER_NO_AUDIO
 #include <QAudioOutput>
 #include <QMediaPlayer>
 #include <QSoundEffect>
@@ -21,7 +21,7 @@ AudioManager::AudioManager(GameObserver &observer, QObject *parent)
     : QObject(parent)
     , m_observer(observer)
 {
-#ifdef WITH_AUDIO
+#ifndef MMAPPER_NO_AUDIO
     m_player = new QMediaPlayer(this);
     m_audioOutput = new QAudioOutput(this);
     m_player->setAudioOutput(m_audioOutput);
@@ -32,9 +32,6 @@ AudioManager::AudioManager(GameObserver &observer, QObject *parent)
     connect(m_fadeTimer, &QTimer::timeout, this, [this]() {
         float currentVol = m_audioOutput->volume();
         float target = static_cast<float>(getConfig().audio.musicVolume) / 100.0f;
-        if (!getConfig().audio.musicEnabled) {
-            target = 0.0f;
-        }
 
         if (m_isFadingOut) {
             currentVol -= m_fadeStep;
@@ -50,7 +47,7 @@ AudioManager::AudioManager(GameObserver &observer, QObject *parent)
                     } else {
                         m_player->setSource(QUrl::fromLocalFile(m_currentMusicFile));
                     }
-                    if (getConfig().audio.musicEnabled) {
+                    if (getConfig().audio.musicVolume > 0) {
                         m_player->play();
                         startFadeIn();
                     }
@@ -89,7 +86,7 @@ AudioManager::AudioManager(GameObserver &observer, QObject *parent)
 
 AudioManager::~AudioManager()
 {
-#ifdef WITH_AUDIO
+#ifndef MMAPPER_NO_AUDIO
     m_player->stop();
 #endif
 }
@@ -135,12 +132,16 @@ void AudioManager::onPositionChanged(CharacterPositionEnum position)
 
 void AudioManager::updateVolumes()
 {
-#ifdef WITH_AUDIO
+#ifndef MMAPPER_NO_AUDIO
     if (!m_isFadingOut && (m_fadeTimer == nullptr || !m_fadeTimer->isActive())) {
-        float vol = getConfig().audio.musicEnabled
-                        ? static_cast<float>(getConfig().audio.musicVolume) / 100.0f
-                        : 0.0f;
+        float vol = static_cast<float>(getConfig().audio.musicVolume) / 100.0f;
         m_audioOutput->setVolume(vol);
+        if (vol > 0 && m_player->playbackState() == QMediaPlayer::StoppedState
+            && !m_currentMusicFile.isEmpty()) {
+            m_player->play();
+        } else if (vol <= 0 && m_player->playbackState() == QMediaPlayer::PlayingState) {
+            m_player->stop();
+        }
     }
 #endif
 }
@@ -157,8 +158,9 @@ void AudioManager::playMusic(const QString &areaName)
 
 void AudioManager::playSound(const QString &soundName)
 {
-#ifdef WITH_AUDIO
-    if (!getConfig().audio.soundsEnabled) {
+    Q_UNUSED(soundName);
+#ifndef MMAPPER_NO_AUDIO
+    if (getConfig().audio.soundVolume <= 0) {
         return;
     }
 
@@ -188,8 +190,6 @@ void AudioManager::playSound(const QString &soundName)
             effect->deleteLater();
         }
     });
-#else
-    Q_UNUSED(soundName);
 #endif
 }
 
@@ -259,7 +259,7 @@ void AudioManager::scanDirectories()
 
 void AudioManager::startFadeOut()
 {
-#ifdef WITH_AUDIO
+#ifndef MMAPPER_NO_AUDIO
     m_isFadingOut = true;
     if (m_fadeTimer && !m_fadeTimer->isActive()) {
         m_fadeTimer->start();
@@ -269,7 +269,7 @@ void AudioManager::startFadeOut()
 
 void AudioManager::startFadeIn()
 {
-#ifdef WITH_AUDIO
+#ifndef MMAPPER_NO_AUDIO
     m_isFadingOut = false;
     if (m_fadeTimer && !m_fadeTimer->isActive()) {
         m_fadeTimer->start();

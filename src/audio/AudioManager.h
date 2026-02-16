@@ -11,7 +11,7 @@
 #include <QObject>
 #include <QString>
 
-#ifdef WITH_AUDIO
+#ifndef MMAPPER_NO_AUDIO
 class QMediaPlayer;
 class QAudioOutput;
 #endif
@@ -43,7 +43,7 @@ private:
 
 private:
     GameObserver &m_observer;
-#ifdef WITH_AUDIO
+#ifndef MMAPPER_NO_AUDIO
     QMediaPlayer *m_player = nullptr;
     QAudioOutput *m_audioOutput = nullptr;
 #endif

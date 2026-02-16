@@ -354,8 +354,6 @@ public:
     {
         int musicVolume = 50;
         int soundVolume = 50;
-        bool musicEnabled = true;
-        bool soundsEnabled = true;
 
     private:
         SUBGROUP();

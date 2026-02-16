@@ -5,7 +5,9 @@
 
 #include "../clock/mumemoment.h"
 #include "../global/Signal2.h"
+#include "../group/mmapper2character.h"
 #include "../map/PromptFlags.h"
+#include "../map/mmapper2room.h"
 #include "../proxy/GmcpMessage.h"
 
 class NODISCARD GameObserver final
@@ -27,6 +29,10 @@ public:
     Signal2<PromptFogEnum> sig2_fogChanged;
     Signal2<MumeMoment> sig2_tick;
 
+    Signal2<RoomArea> sig2_areaChanged;
+    Signal2<> sig2_gainedLevel;
+    Signal2<CharacterPositionEnum> sig2_positionChanged;
+
 private:
     MumeTimeEnum m_timeOfDay = MumeTimeEnum::UNKNOWN;
     MumeMoonPhaseEnum m_moonPhase = MumeMoonPhaseEnum::UNKNOWN;
@@ -34,6 +40,8 @@ private:
     MumeSeasonEnum m_season = MumeSeasonEnum::UNKNOWN;
     PromptWeatherEnum m_weather = PromptWeatherEnum::NICE;
     PromptFogEnum m_fog = PromptFogEnum::NO_FOG;
+    RoomArea m_area;
+    CharacterPositionEnum m_position = CharacterPositionEnum::UNDEFINED;
 
 public:
     void observeConnected();
@@ -49,6 +57,10 @@ public:
     void observeWeather(PromptWeatherEnum weather);
     void observeFog(PromptFogEnum fog);
     void observeTick(const MumeMoment &moment) { sig2_tick.invoke(moment); }
+
+    void observeArea(const RoomArea &area);
+    void observeGainedLevel() { sig2_gainedLevel.invoke(); }
+    void observePosition(CharacterPositionEnum position);
 
 public:
     MumeTimeEnum getTimeOfDay() const { return m_timeOfDay; }

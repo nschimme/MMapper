@@ -82,3 +82,19 @@ void GameObserver::observeSeason(MumeSeasonEnum season)
         sig2_seasonChanged.invoke(m_season);
     }
 }
+
+void GameObserver::observeArea(const RoomArea &area)
+{
+    if (m_area != area) {
+        m_area = area;
+        sig2_areaChanged.invoke(m_area);
+    }
+}
+
+void GameObserver::observePosition(CharacterPositionEnum position)
+{
+    if (m_position != position) {
+        m_position = position;
+        sig2_positionChanged.invoke(m_position);
+    }
+}

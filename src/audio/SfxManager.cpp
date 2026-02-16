@@ -3,59 +3,67 @@
 
 #include "SfxManager.h"
 
-#include "../configuration/configuration.h"
 #include "AudioLibrary.h"
+#include "../configuration/configuration.h"
 
 #ifndef MMAPPER_NO_AUDIO
 #include <QSoundEffect>
-#include <QUrl>
 #endif
+#include <QUrl>
+#include <algorithm>
 
 SfxManager::SfxManager(const AudioLibrary &library, QObject *parent)
     : QObject(parent)
     , m_library(library)
-{}
+{
+}
 
-void SfxManager::playSound(const QString &soundName)
+SfxManager::~SfxManager() = default;
+
+void SfxManager::playSound([[maybe_unused]] const QString &soundName)
 {
 #ifndef MMAPPER_NO_AUDIO
-    if (getConfig().audio.soundVolume <= 0) {
+    if (!getConfig().audio.enabled || !getConfig().audio.soundEffectsEnabled) {
         return;
     }
 
-    QString name = soundName.toLower().replace(' ', '-');
-    QString soundFile = m_library.findAudioFile("sounds", name);
-    if (soundFile.isEmpty()) {
+    QString path = m_library.findAudioFile("sounds", soundName);
+    if (path.isEmpty()) {
         return;
     }
 
-    QSoundEffect *effect = new QSoundEffect(this);
-    if (soundFile.startsWith(":")) {
-        effect->setSource(QUrl("qrc" + soundFile));
+    // Clean up finished effects first
+    m_activeEffects.erase(
+        std::remove_if(m_activeEffects.begin(), m_activeEffects.end(),
+                       [](const auto &e) { return !e->isPlaying() && e->status() != QSoundEffect::Loading; }),
+        m_activeEffects.end());
+
+    auto effect = std::make_unique<QSoundEffect>();
+    if (path.startsWith(":/")) {
+        effect->setSource(QUrl(QStringLiteral("qrc") + path));
     } else {
-        effect->setSource(QUrl::fromLocalFile(soundFile));
+        effect->setSource(QUrl::fromLocalFile(path));
     }
-    effect->setVolume(static_cast<float>(getConfig().audio.soundVolume) / 100.0f);
 
-    connect(effect, &QSoundEffect::loadedChanged, this, [effect]() {
-        if (effect->isLoaded()) {
-            effect->play();
-        }
-    });
+    effect->setVolume(getConfig().audio.soundEffectsVolume / 100.0f);
+    effect->play();
 
-    // Cleanup when done
-    connect(effect, &QSoundEffect::playingChanged, this, [effect]() {
-        if (!effect->isPlaying()) {
-            effect->deleteLater();
-        }
-    });
-#else
-    Q_UNUSED(soundName);
+    m_activeEffects.emplace_back(std::move(effect));
 #endif
 }
 
 void SfxManager::updateVolume()
 {
-    // Individual sound effects are updated at play time,
-    // but we could track active ones if needed.
+#ifndef MMAPPER_NO_AUDIO
+    // Clean up finished effects
+    m_activeEffects.erase(
+        std::remove_if(m_activeEffects.begin(), m_activeEffects.end(),
+                       [](const auto &e) { return !e->isPlaying() && e->status() != QSoundEffect::Loading; }),
+        m_activeEffects.end());
+
+    float volume = getConfig().audio.soundEffectsVolume / 100.0f;
+    for (auto &effect : m_activeEffects) {
+        effect->setVolume(volume);
+    }
+#endif
 }

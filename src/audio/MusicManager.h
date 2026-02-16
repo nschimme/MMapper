@@ -19,6 +19,7 @@ class MusicManager final : public QObject
 
 private:
     const AudioLibrary &m_library;
+
 #ifndef MMAPPER_NO_AUDIO
     struct MusicChannel
     {
@@ -28,10 +29,6 @@ private:
         qint64 pendingPosition = -1;
         float fadeVolume = 0.0f;
     };
-
-    void applyPendingPosition(int channelIndex);
-    void updateChannelVolume(int channelIndex);
-    void startFade(bool toSilence);
 
     MusicChannel m_channels[2];
     int m_activeChannel = 0;
@@ -52,4 +49,11 @@ public:
     void playMusic(const QString &musicFile);
     void stopMusic();
     void updateVolumes();
+
+private:
+#ifndef MMAPPER_NO_AUDIO
+    void applyPendingPosition(int channelIndex);
+    void updateChannelVolume(int channelIndex);
+    void startFade(bool toSilence);
+#endif
 };

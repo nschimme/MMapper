@@ -11,6 +11,7 @@
 #include <QDebug>
 #include <QDir>
 #include <QDirIterator>
+#include <QtGlobal>
 
 AudioLibrary::AudioLibrary(QObject *parent)
     : QObject(parent)
@@ -43,7 +44,9 @@ void AudioLibrary::scanDirectories()
 #ifndef MMAPPER_NO_AUDIO
     QMediaFormat format;
     for (auto f : format.supportedFileFormats(QMediaFormat::Decode)) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
         extensions.append(format.fileExtensions(f));
+#endif
     }
 #endif
 

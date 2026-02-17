@@ -7,6 +7,7 @@
         "--share=network",
         "--socket=wayland",
         "--socket=fallback-x11",
+        "--socket=pulseaudio",
         "--share=ipc",
         "--device=dri",
         "--filesystem=xdg-documents"

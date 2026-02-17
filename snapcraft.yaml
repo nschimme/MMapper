@@ -27,6 +27,7 @@ apps:
     extensions:
       - kde-neon-6
     plugs:
+      - audio-playback
       - home
       - network
       - network-bind
@@ -71,6 +72,7 @@ parts:
       - libssl3t64
       - zlib1g
       - libqt6multimedia6
+      - libqt6multimedia6-plugins
     override-pull: |
       craftctl default
       craftctl set version=$(git describe --tags --always --long --exclude beta | sed 's/^v//')

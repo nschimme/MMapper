@@ -5,9 +5,7 @@
 
 #include "../clock/mumemoment.h"
 #include "../global/Signal2.h"
-#include "../group/mmapper2character.h"
 #include "../map/PromptFlags.h"
-#include "../map/mmapper2room.h"
 #include "../proxy/GmcpMessage.h"
 
 class NODISCARD GameObserver final
@@ -38,8 +36,6 @@ private:
     MumeSeasonEnum m_season = MumeSeasonEnum::UNKNOWN;
     PromptWeatherEnum m_weather = PromptWeatherEnum::NICE;
     PromptFogEnum m_fog = PromptFogEnum::NO_FOG;
-    RoomArea m_area;
-    CharacterPositionEnum m_position = CharacterPositionEnum::UNDEFINED;
 
 public:
     void observeConnected();

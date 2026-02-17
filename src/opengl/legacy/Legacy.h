@@ -40,8 +40,7 @@ struct PointSizeBinder;
     X(WeatherBlock, "WeatherBlock", true) \
     X(InstancedQuadIbo, nullptr, false) \
     X(WeatherParticles0, nullptr, false) \
-    X(WeatherParticles1, nullptr, false) \
-    X(WeatherQuad, nullptr, false)
+    X(WeatherParticles1, nullptr, false)
 
 enum class SharedVboEnum : uint8_t {
 #define X_ENUM(element, name, isUniform) element,

@@ -50,6 +50,9 @@ public:
     void stopMusic();
     void updateVolumes();
 
+public slots:
+    void slot_onMediaChanged();
+
 private:
 #ifndef MMAPPER_NO_AUDIO
     void applyPendingPosition(int channelIndex);

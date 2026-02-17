@@ -1462,7 +1462,7 @@ void MainWindow::slot_onPreferences()
     connect(m_configDialog.get(),
             &ConfigDialog::sig_audioSettingsChanged,
             m_audioManager,
-            &AudioManager::updateVolumes);
+            &AudioManager::slot_updateVolumes);
     m_configDialog->show();
 }
 

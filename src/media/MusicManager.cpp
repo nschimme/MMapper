@@ -191,6 +191,18 @@ void MusicManager::updateVolumes()
 #endif
 }
 
+void MusicManager::slot_onMediaChanged()
+{
+#ifndef MMAPPER_NO_AUDIO
+    m_cachedPositions.clear();
+    QString currentFile = m_channels[m_activeChannel].file;
+    if (!currentFile.isEmpty()) {
+        m_channels[m_activeChannel].file.clear();
+        playMusic(currentFile);
+    }
+#endif
+}
+
 #ifndef MMAPPER_NO_AUDIO
 void MusicManager::applyPendingPosition(int channelIndex)
 {

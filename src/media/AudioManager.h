@@ -28,9 +28,9 @@ public:
     ~AudioManager() override;
 
 public slots:
-    void onAreaChanged(const RoomArea &area);
-    void onGainedLevel();
-    void onPositionChanged(CharacterPositionEnum position);
+    void slot_onAreaChanged(const RoomArea &area);
+    void slot_onGainedLevel();
+    void slot_onPositionChanged(CharacterPositionEnum position);
 
-    void updateVolumes();
+    void slot_updateVolumes();
 };

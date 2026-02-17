@@ -20,18 +20,20 @@ AudioManager::AudioManager(MediaLibrary &library, GameObserver &observer, QObjec
     m_sfx = new SfxManager(m_library, this);
 
     m_observer.sig2_areaChanged.connect(m_lifetime,
-                                        [this](const RoomArea &area) { onAreaChanged(area); });
-    m_observer.sig2_gainedLevel.connect(m_lifetime, [this]() { onGainedLevel(); });
+                                        [this](const RoomArea &area) { slot_onAreaChanged(area); });
+    m_observer.sig2_gainedLevel.connect(m_lifetime, [this]() { slot_onGainedLevel(); });
     m_observer.sig2_positionChanged.connect(m_lifetime, [this](CharacterPositionEnum pos) {
-        onPositionChanged(pos);
+        slot_onPositionChanged(pos);
     });
 
-    updateVolumes();
+    connect(&m_library, &MediaLibrary::sig_mediaChanged, m_music, &MusicManager::slot_onMediaChanged);
+
+    slot_updateVolumes();
 }
 
 AudioManager::~AudioManager() = default;
 
-void AudioManager::onAreaChanged(const RoomArea &area)
+void AudioManager::slot_onAreaChanged(const RoomArea &area)
 {
     if (area.isEmpty()) {
         m_music->stopMusic();
@@ -46,19 +48,19 @@ void AudioManager::onAreaChanged(const RoomArea &area)
     m_music->playMusic(musicFile);
 }
 
-void AudioManager::onGainedLevel()
+void AudioManager::slot_onGainedLevel()
 {
     m_sfx->playSound("level_up");
 }
 
-void AudioManager::onPositionChanged(CharacterPositionEnum position)
+void AudioManager::slot_onPositionChanged(CharacterPositionEnum position)
 {
     if (position == CharacterPositionEnum::FIGHTING) {
         m_sfx->playSound("combat_start");
     }
 }
 
-void AudioManager::updateVolumes()
+void AudioManager::slot_updateVolumes()
 {
     m_music->updateVolumes();
     m_sfx->updateVolume();

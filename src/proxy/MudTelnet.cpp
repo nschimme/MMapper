@@ -35,42 +35,41 @@
 namespace { // anonymous
 
 #ifdef Q_OS_WASM
-// clang-format off
 EM_JS(char *, get_browser_os_js, (), {
     var ua = navigator.userAgent;
     var os = "unknown";
-    if (ua.indexOf("Win") !== -1) {
+    if (ua.indexOf("Win") != -1) {
         os = "Windows";
-    } else if (ua.indexOf("Android") !== -1) {
+    } else if (ua.indexOf("Android") != -1) {
         os = "Android";
-    } else if (ua.indexOf("Linux") !== -1) {
+    } else if (ua.indexOf("Linux") != -1) {
         os = "Linux";
-    } else if (ua.indexOf("iPhone") !== -1 || ua.indexOf("iPad") !== -1 || ua.indexOf("iPod") !== -1) {
+    } else if (ua.indexOf("iPhone") != -1 || ua.indexOf("iPad") != -1 || ua.indexOf("iPod") != -1) {
         os = "iOS";
-    } else if (ua.indexOf("Mac") !== -1) {
+    } else if (ua.indexOf("Mac") != -1) {
         os = "macOS";
     }
 
     var browser = "unknown";
-    if (ua.indexOf("Firefox") !== -1) {
+    if (ua.indexOf("Firefox") != -1) {
         browser = "Firefox";
-    } else if (ua.indexOf("SamsungBrowser") !== -1) {
+    } else if (ua.indexOf("SamsungBrowser") != -1) {
         browser = "Samsung";
-    } else if (ua.indexOf("Opera") !== -1 || ua.indexOf("OPR") !== -1) {
+    } else if (ua.indexOf("Opera") != -1 || ua.indexOf("OPR") != -1) {
         browser = "Opera";
-    } else if (ua.indexOf("Edge") !== -1 || ua.indexOf("Edg") !== -1) {
+    } else if (ua.indexOf("Edge") != -1 || ua.indexOf("Edg") != -1) {
         browser = "Edge";
-    } else if (ua.indexOf("Chrome") !== -1) {
+    } else if (ua.indexOf("Chrome") != -1) {
         browser = "Chrome";
-    } else if (ua.indexOf("Safari") !== -1) {
+    } else if (ua.indexOf("Safari") != -1) {
         browser = "Safari";
     }
 
-    var os_display = os === "unknown" ? "Unknown" : os;
-    var browser_display = browser === "unknown" ? "Unknown" : browser;
+    var os_display = os == "unknown" ? "Unknown" : os;
+    var browser_display = browser == "unknown" ? "Unknown" : browser;
 
     var result = "unknown";
-    if (os !== "unknown" || browser !== "unknown") {
+    if (os != "unknown" || browser != "unknown") {
         result = os_display + browser_display;
     }
 
@@ -79,7 +78,6 @@ EM_JS(char *, get_browser_os_js, (), {
     stringToUTF8(result, stringOnWasmHeap, lengthBytes);
     return stringOnWasmHeap;
 });
-// clang-format on
 #endif
 
 constexpr const auto GAME_YEAR = "GAME YEAR";

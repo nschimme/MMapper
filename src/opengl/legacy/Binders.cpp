@@ -186,10 +186,10 @@ RenderStateBinder::RenderStateBinder(Functions &functions,
     , m_texturesBinder{texLookup, renderState.uniforms.textures}
 {}
 
-VAOBinder::VAOBinder(Functions &functions, const GLuint vao)
+VAOBinder::VAOBinder(Functions &functions, const SharedVao &vao)
     : m_functions{functions}
 {
-    m_functions.glBindVertexArray(vao);
+    m_functions.glBindVertexArray(deref(vao).get());
 }
 
 VAOBinder::~VAOBinder()
@@ -198,11 +198,11 @@ VAOBinder::~VAOBinder()
 }
 
 TransformFeedbackBinder::TransformFeedbackBinder(Functions &functions,
-                                                 const GLuint tf,
+                                                 const SharedTf &tf,
                                                  const GLenum primitiveMode)
     : m_functions{functions}
 {
-    m_functions.glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, tf);
+    m_functions.glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, deref(tf).get());
     m_functions.glBeginTransformFeedback(primitiveMode);
 }
 

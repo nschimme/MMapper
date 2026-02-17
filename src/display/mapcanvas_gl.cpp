@@ -657,9 +657,6 @@ void MapCanvas::actuallyPaintGL()
     auto &gl = getOpenGL();
     gl.bindNamedColorsBuffer();
 
-    gl.bindFbo();
-    gl.clear(Color{getConfig().canvas.backgroundColor});
-
     if (m_data.isEmpty()) {
         getGLFont().renderTextCentered("No map loaded");
         return;
@@ -672,11 +669,6 @@ void MapCanvas::actuallyPaintGL()
     paintDifferences();
     m_weatherRenderer->renderParticles(m_viewProj);
     m_weatherRenderer->renderAtmosphere(m_viewProj);
-
-    gl.releaseFbo();
-    gl.resolveFbo();
-
-    gl.blitFboToDefault();
 }
 
 NODISCARD bool MapCanvas::Diff::isUpToDate(const Map &saved, const Map &current) const

@@ -424,12 +424,12 @@ void WeatherRenderer::renderParticles(const glm::mat4 &viewProj)
                                                      : Legacy::SharedVaoEnum::WeatherSimulation1;
         auto vao = funcs.getSharedVaos().get(vaoEnum);
         if (!*vao) vao->emplace(gl_funcs);
-        Legacy::VAOBinder vaoBinder(funcs, vao->get());
+        Legacy::VAOBinder vaoBinder(funcs, vao);
 
         auto tf = funcs.getSharedTfs().get(Legacy::SharedTfEnum::WeatherSimulation);
         if (!*tf) tf->emplace(gl_funcs);
         funcs.glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, vboOut->get());
-        Legacy::TransformFeedbackBinder tfBinder(funcs, tf->get(), GL_POINTS);
+        Legacy::TransformFeedbackBinder tfBinder(funcs, tf, GL_POINTS);
 
         funcs.glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(m_state.numParticles));
     }
@@ -448,7 +448,7 @@ void WeatherRenderer::renderParticles(const glm::mat4 &viewProj)
                                                              : Legacy::SharedVaoEnum::WeatherRenderRain0;
             auto vao = funcs.getSharedVaos().get(vaoRainEnum);
             if (!*vao) vao->emplace(gl_funcs);
-            Legacy::VAOBinder vaoBinder(funcs, vao->get());
+            Legacy::VAOBinder vaoBinder(funcs, vao);
             prog.setFloat("uType", 0.0f);
             prog.setInt("uInstanceOffset", 0);
             funcs.glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, rainCount);
@@ -461,7 +461,7 @@ void WeatherRenderer::renderParticles(const glm::mat4 &viewProj)
                                                              : Legacy::SharedVaoEnum::WeatherRenderSnow0;
             auto vao = funcs.getSharedVaos().get(vaoSnowEnum);
             if (!*vao) vao->emplace(gl_funcs);
-            Legacy::VAOBinder vaoBinder(funcs, vao->get());
+            Legacy::VAOBinder vaoBinder(funcs, vao);
             prog.setFloat("uType", 1.0f);
             prog.setInt("uInstanceOffset", 4096);
             funcs.glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, snowCount);
@@ -496,7 +496,7 @@ void WeatherRenderer::renderAtmosphere(const glm::mat4 &viewProj)
 
     auto emptyVao = funcs.getSharedVaos().get(Legacy::SharedVaoEnum::EmptyVao);
     if (!*emptyVao) emptyVao->emplace(gl_funcs);
-    Legacy::VAOBinder vaoBinder(funcs, emptyVao->get());
+    Legacy::VAOBinder vaoBinder(funcs, emptyVao);
 
     funcs.glActiveTexture(GL_TEXTURE0);
     funcs.glBindTexture(GL_TEXTURE_2D, m_textures.weather_noise->get()->textureId());

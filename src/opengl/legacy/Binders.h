@@ -4,6 +4,8 @@
 
 #include "../../global/utils.h"
 #include "Legacy.h"
+#include "TF.h"
+#include "VAO.h"
 
 #include <optional>
 
@@ -114,7 +116,7 @@ private:
     Functions &m_functions;
 
 public:
-    explicit VAOBinder(Functions &functions, GLuint vao);
+    explicit VAOBinder(Functions &functions, const SharedVao &vao);
     ~VAOBinder();
     DELETE_CTORS_AND_ASSIGN_OPS(VAOBinder);
 };
@@ -125,7 +127,7 @@ private:
     Functions &m_functions;
 
 public:
-    explicit TransformFeedbackBinder(Functions &functions, GLuint tf, GLenum primitiveMode);
+    explicit TransformFeedbackBinder(Functions &functions, const SharedTf &tf, GLenum primitiveMode);
     ~TransformFeedbackBinder();
     DELETE_CTORS_AND_ASSIGN_OPS(TransformFeedbackBinder);
 };

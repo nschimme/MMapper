@@ -3,6 +3,7 @@
 
 #include "TestCTimers.h"
 
+#include "../src/global/TextUtils.h"
 #include "../src/timers/CTimers.h"
 
 #include <tuple>
@@ -19,17 +20,17 @@ void TestCTimers::testAddRemoveTimer()
     QString timerName = "TestTimer";
     QString timerDesc = "Test Description";
 
-    timers.addTimer(timerName.toStdString(), timerDesc.toStdString());
+    timers.addTimer(mmqt::toStdStringUtf8(timerName), mmqt::toStdStringUtf8(timerDesc));
 
     // Verify the added timer is present
-    QString timersList = QString::fromStdString(timers.getTimers());
+    QString timersList = mmqt::toQStringUtf8(timers.getTimers());
     QVERIFY(timersList.contains(timerName));
     QVERIFY(timersList.contains(timerDesc));
 
-    QVERIFY(timers.removeTimer(timerName.toStdString()));
+    QVERIFY(timers.removeTimer(mmqt::toStdStringUtf8(timerName)));
 
     // Verify the timer is removed
-    timersList = QString::fromStdString(timers.getTimers());
+    timersList = mmqt::toQStringUtf8(timers.getTimers());
     QVERIFY(!timersList.contains(timerName));
 }
 
@@ -40,17 +41,17 @@ void TestCTimers::testAddRemoveCountdown()
     QString countdownDesc = "Test Countdown Description";
     int64_t countdownTimeMs = 10000; // 10 seconds
 
-    timers.addCountdown(countdownName.toStdString(), countdownDesc.toStdString(), countdownTimeMs);
+    timers.addCountdown(mmqt::toStdStringUtf8(countdownName), mmqt::toStdStringUtf8(countdownDesc), countdownTimeMs);
 
     // Verify the added countdown is added
-    QString countdownsList = QString::fromStdString(timers.getCountdowns());
+    QString countdownsList = mmqt::toQStringUtf8(timers.getCountdowns());
     QVERIFY(countdownsList.contains(countdownName));
     QVERIFY(countdownsList.contains(countdownDesc));
 
-    QVERIFY(timers.removeCountdown(countdownName.toStdString()));
+    QVERIFY(timers.removeCountdown(mmqt::toStdStringUtf8(countdownName)));
 
     // Verify the countdown is removed
-    countdownsList = QString::fromStdString(timers.getCountdowns());
+    countdownsList = mmqt::toQStringUtf8(timers.getCountdowns());
     QVERIFY(!countdownsList.contains(countdownName));
 }
 
@@ -60,12 +61,12 @@ void TestCTimers::testElapsedTime()
     QString timerName = "ElapsedTimeTestTimer";
     QString timerDesc = "Elapsed Time Test Description";
 
-    timers.addTimer(timerName.toStdString(), timerDesc.toStdString());
+    timers.addTimer(mmqt::toStdStringUtf8(timerName), mmqt::toStdStringUtf8(timerDesc));
 
-    QString timersList = QString::fromStdString(timers.getTimers());
+    QString timersList = mmqt::toQStringUtf8(timers.getTimers());
     QVERIFY(timersList.contains("up for - 0:00"));
 
-    std::ignore = timers.removeTimer(timerName.toStdString());
+    std::ignore = timers.removeTimer(mmqt::toStdStringUtf8(timerName));
 }
 
 void TestCTimers::testCountdownCompletion()
@@ -75,8 +76,8 @@ void TestCTimers::testCountdownCompletion()
     QString countdownDesc = "Countdown Completion Test";
     int64_t countdownTimeMs = 10000; // 10 seconds
 
-    timers.addCountdown(countdownName.toStdString(), countdownDesc.toStdString(), countdownTimeMs);
-    QString countdownsListBefore = QString::fromStdString(timers.getCountdowns());
+    timers.addCountdown(mmqt::toStdStringUtf8(countdownName), mmqt::toStdStringUtf8(countdownDesc), countdownTimeMs);
+    QString countdownsListBefore = mmqt::toQStringUtf8(timers.getCountdowns());
     QVERIFY(countdownsListBefore.contains(countdownName)); // Verify the added countdown is present
 }
 
@@ -94,8 +95,8 @@ void TestCTimers::testClearFunctionality()
     timers.clear();
 
     // Verify all timers and countdowns are cleared
-    QVERIFY(QString::fromStdString(timers.getTimers()).isEmpty());
-    QVERIFY(QString::fromStdString(timers.getCountdowns()).isEmpty());
+    QVERIFY(mmqt::toQStringUtf8(timers.getTimers()).isEmpty());
+    QVERIFY(mmqt::toQStringUtf8(timers.getCountdowns()).isEmpty());
 }
 
 void TestCTimers::testMultipleTimersAndCountdowns()
@@ -111,16 +112,16 @@ void TestCTimers::testMultipleTimersAndCountdowns()
     timers.addCountdown("Countdown2", "Description2", 10000);
 
     // Verify timers and countdowns are added
-    QVERIFY(!QString::fromStdString(timers.getTimers()).isEmpty());
-    QVERIFY(!QString::fromStdString(timers.getCountdowns()).isEmpty());
+    QVERIFY(!mmqt::toQStringUtf8(timers.getTimers()).isEmpty());
+    QVERIFY(!mmqt::toQStringUtf8(timers.getCountdowns()).isEmpty());
 
     // Remove a timer and a countdown
     QVERIFY(timers.removeTimer("Timer1"));
     QVERIFY(timers.removeCountdown("Countdown1"));
 
     // Verify removal
-    QString timersList = QString::fromStdString(timers.getTimers());
-    QString countdownsList = QString::fromStdString(timers.getCountdowns());
+    QString timersList = mmqt::toQStringUtf8(timers.getTimers());
+    QString countdownsList = mmqt::toQStringUtf8(timers.getCountdowns());
     QVERIFY(!timersList.contains("Timer1"));
     QVERIFY(!countdownsList.contains("Countdown1"));
 }

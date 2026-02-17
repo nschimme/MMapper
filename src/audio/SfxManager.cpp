@@ -10,7 +10,6 @@
 #include <QSoundEffect>
 #endif
 #include <QUrl>
-#include <algorithm>
 
 SfxManager::SfxManager(const AudioLibrary &library, QObject *parent)
     : QObject(parent)
@@ -18,51 +17,40 @@ SfxManager::SfxManager(const AudioLibrary &library, QObject *parent)
 {
 }
 
-SfxManager::~SfxManager() = default;
-
 void SfxManager::playSound([[maybe_unused]] const QString &soundName)
 {
 #ifndef MMAPPER_NO_AUDIO
-    if (!getConfig().audio.enabled || !getConfig().audio.soundEffectsEnabled) {
-        return;
-    }
-
     QString path = m_library.findAudioFile("sounds", soundName);
     if (path.isEmpty()) {
         return;
     }
 
-    // Clean up finished effects first
-    m_activeEffects.erase(
-        std::remove_if(m_activeEffects.begin(), m_activeEffects.end(),
-                       [](const auto &e) { return !e->isPlaying() && e->status() != QSoundEffect::Loading; }),
-        m_activeEffects.end());
-
-    auto effect = std::make_unique<QSoundEffect>();
+    auto *effect = new QSoundEffect(this);
     if (path.startsWith(":/")) {
         effect->setSource(QUrl(QStringLiteral("qrc") + path));
     } else {
         effect->setSource(QUrl::fromLocalFile(path));
     }
 
-    effect->setVolume(getConfig().audio.soundEffectsVolume / 100.0f);
-    effect->play();
+    effect->setVolume(getConfig().audio.soundVolume / 100.0f);
 
-    m_activeEffects.emplace_back(std::move(effect));
+    connect(effect, &QSoundEffect::playingChanged, this, [this, effect]() {
+        if (!effect->isPlaying()) {
+            m_activeEffects.remove(effect);
+            effect->deleteLater();
+        }
+    });
+
+    m_activeEffects.insert(effect);
+    effect->play();
 #endif
 }
 
 void SfxManager::updateVolume()
 {
 #ifndef MMAPPER_NO_AUDIO
-    // Clean up finished effects
-    m_activeEffects.erase(
-        std::remove_if(m_activeEffects.begin(), m_activeEffects.end(),
-                       [](const auto &e) { return !e->isPlaying() && e->status() != QSoundEffect::Loading; }),
-        m_activeEffects.end());
-
-    float volume = getConfig().audio.soundEffectsVolume / 100.0f;
-    for (auto &effect : m_activeEffects) {
+    float volume = getConfig().audio.soundVolume / 100.0f;
+    for (auto *effect : m_activeEffects) {
         effect->setVolume(volume);
     }
 #endif

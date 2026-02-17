@@ -6,6 +6,7 @@
 #include "../src/client/Hotkey.h"
 #include "../src/client/HotkeyManager.h"
 #include "../src/configuration/configuration.h"
+#include "../src/global/TextUtils.h"
 
 #include <QCoreApplication>
 #include <QSettings>
@@ -24,9 +25,9 @@ void TestHotkeyManager::checkHk(const HotkeyManager &manager,
 {
     auto actual = manager.getCommand(hk).value_or("");
     if (actual != expected) {
-        qDebug() << "Failure for key:" << QString::fromStdString(hk.to_string())
-                 << "Expected:" << QString::fromStdString(std::string(expected))
-                 << "Actual:" << QString::fromStdString(actual);
+        qDebug() << "Failure for key:" << mmqt::toQStringUtf8(hk.to_string())
+                 << "Expected:" << mmqt::toQStringUtf8(std::string(expected))
+                 << "Actual:" << mmqt::toQStringUtf8(actual);
     }
     QCOMPARE(actual, std::string(expected));
 }
@@ -97,10 +98,10 @@ void TestHotkeyManager::importExportRoundTripTest()
     QCOMPARE(static_cast<int>(manager.getAllHotkeys().size()), 4);
 
     // Verify serialization
-    QCOMPARE(QString::fromStdString(Hotkey{"F1"}.to_string()), QString("F1"));
-    QCOMPARE(QString::fromStdString(Hotkey{"CTRL+F2"}.to_string()), QString("CTRL+F2"));
-    QCOMPARE(QString::fromStdString(Hotkey{"SHIFT+ALT+F3"}.to_string()), QString("SHIFT+ALT+F3"));
-    QCOMPARE(QString::fromStdString(Hotkey{"NUMPAD8"}.to_string()), QString("NUMPAD8"));
+    QCOMPARE(mmqt::toQStringUtf8(Hotkey{"F1"}.to_string()), QString("F1"));
+    QCOMPARE(mmqt::toQStringUtf8(Hotkey{"CTRL+F2"}.to_string()), QString("CTRL+F2"));
+    QCOMPARE(mmqt::toQStringUtf8(Hotkey{"SHIFT+ALT+F3"}.to_string()), QString("SHIFT+ALT+F3"));
+    QCOMPARE(mmqt::toQStringUtf8(Hotkey{"NUMPAD8"}.to_string()), QString("NUMPAD8"));
 }
 
 void TestHotkeyManager::importEdgeCasesTest()

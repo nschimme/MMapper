@@ -3,9 +3,8 @@
 // Copyright (C) 2025 The MMapper Authors
 
 #include <QObject>
+#include <QSet>
 #include <QString>
-#include <memory>
-#include <vector>
 
 class AudioLibrary;
 #ifndef MMAPPER_NO_AUDIO
@@ -18,13 +17,12 @@ class SfxManager final : public QObject
 
 private:
 #ifndef MMAPPER_NO_AUDIO
-    std::vector<std::unique_ptr<QSoundEffect>> m_activeEffects;
+    QSet<QSoundEffect *> m_activeEffects;
 #endif
     const AudioLibrary &m_library;
 
 public:
     explicit SfxManager(const AudioLibrary &library, QObject *parent = nullptr);
-    ~SfxManager() override;
 
     void playSound(const QString &soundName);
     void updateVolume();

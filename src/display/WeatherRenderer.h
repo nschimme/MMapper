@@ -50,6 +50,7 @@ public:
         float gameSnowIntensity = 0.0f;
         float gameCloudsIntensity = 0.0f;
         float gameFogIntensity = 0.0f;
+        float gameToDIntensity = 0.0f;
 
         MumeTimeEnum oldTimeOfDay = MumeTimeEnum::DAY;
         MumeTimeEnum currentTimeOfDay = MumeTimeEnum::DAY;

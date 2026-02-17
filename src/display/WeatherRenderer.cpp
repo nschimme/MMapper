@@ -104,29 +104,31 @@ WeatherRenderer::WeatherRenderer(OpenGL &gl,
     m_state.targetMoonIntensity = (m_state.moonVisibility == MumeMoonVisibilityEnum::BRIGHT) ? 1.0f
                                                                                             : 0.0f;
 
+    m_state.currentTimeOfDay = m_observer.getTimeOfDay();
+    m_state.oldTimeOfDay = m_state.currentTimeOfDay;
+    m_state.gameToDIntensity = (m_state.currentTimeOfDay == MumeTimeEnum::DAY) ? 0.0f : 1.0f;
+
     auto updateTargets = [this, &canvasSettings]() {
         m_state.targetRainIntensity = m_state.gameRainIntensity
-                                      * (static_cast<float>(canvasSettings.weatherRainIntensity.get())
+                                      * (static_cast<float>(canvasSettings.weatherPrecipitationIntensity.get())
                                          / 50.0f);
         m_state.targetSnowIntensity = m_state.gameSnowIntensity
-                                      * (static_cast<float>(canvasSettings.weatherSnowIntensity.get())
+                                      * (static_cast<float>(canvasSettings.weatherPrecipitationIntensity.get())
                                          / 50.0f);
         m_state.targetCloudsIntensity = m_state.gameCloudsIntensity
-                                        * (static_cast<float>(canvasSettings.weatherCloudsIntensity.get())
+                                        * (static_cast<float>(canvasSettings.weatherAtmosphereIntensity.get())
                                            / 50.0f);
         m_state.targetFogIntensity = m_state.gameFogIntensity
-                                     * (static_cast<float>(canvasSettings.weatherFogIntensity.get())
+                                     * (static_cast<float>(canvasSettings.weatherAtmosphereIntensity.get())
                                         / 50.0f);
-        m_state.targetToDIntensity = (static_cast<float>(canvasSettings.weatherToDIntensity.get())
-                                      / 50.0f);
+        m_state.targetToDIntensity = m_state.gameToDIntensity
+                                     * (static_cast<float>(canvasSettings.weatherToDIntensity.get())
+                                        / 50.0f);
     };
 
     updateTargets();
 
-    m_state.currentTimeOfDay = m_observer.getTimeOfDay();
-    m_state.oldTimeOfDay = m_state.currentTimeOfDay;
     m_state.todIntensityStart = m_state.targetToDIntensity;
-
     m_state.rainIntensityStart = m_state.targetRainIntensity;
     m_state.snowIntensityStart = m_state.targetSnowIntensity;
     m_state.cloudsIntensityStart = m_state.targetCloudsIntensity;
@@ -162,7 +164,7 @@ WeatherRenderer::WeatherRenderer(OpenGL &gl,
             m_setAnimating(true);
         });
 
-    m_observer.sig2_timeOfDayChanged.connect(m_lifetime, [this](MumeTimeEnum tod) {
+    m_observer.sig2_timeOfDayChanged.connect(m_lifetime, [this, updateTargets](MumeTimeEnum tod) {
         if (tod == m_state.currentTimeOfDay) {
             return;
         }
@@ -174,7 +176,8 @@ WeatherRenderer::WeatherRenderer(OpenGL &gl,
 
         m_state.oldTimeOfDay = m_state.currentTimeOfDay;
         m_state.currentTimeOfDay = tod;
-        m_state.targetToDIntensity = (tod == MumeTimeEnum::DAY) ? 0.0f : 1.0f;
+        m_state.gameToDIntensity = (tod == MumeTimeEnum::DAY) ? 0.0f : 1.0f;
+        updateTargets();
         m_state.todTransitionStartTime = m_state.animationTime;
         m_setAnimating(true);
     });
@@ -211,10 +214,8 @@ WeatherRenderer::WeatherRenderer(OpenGL &gl,
         m_setAnimating(true);
     };
 
-    canvasSettings.weatherRainIntensity.registerChangeCallback(m_lifetime, onSettingChanged);
-    canvasSettings.weatherSnowIntensity.registerChangeCallback(m_lifetime, onSettingChanged);
-    canvasSettings.weatherCloudsIntensity.registerChangeCallback(m_lifetime, onSettingChanged);
-    canvasSettings.weatherFogIntensity.registerChangeCallback(m_lifetime, onSettingChanged);
+    canvasSettings.weatherPrecipitationIntensity.registerChangeCallback(m_lifetime, onSettingChanged);
+    canvasSettings.weatherAtmosphereIntensity.registerChangeCallback(m_lifetime, onSettingChanged);
     canvasSettings.weatherToDIntensity.registerChangeCallback(m_lifetime, onToDSettingChanged);
 }
 
@@ -238,20 +239,29 @@ void WeatherRenderer::update(float dt)
 {
     const auto &canvasSettings = getConfig().canvas;
     m_state.targetRainIntensity = m_state.gameRainIntensity
-                                  * (static_cast<float>(canvasSettings.weatherRainIntensity.get()) / 50.0f);
+                                  * (static_cast<float>(canvasSettings.weatherPrecipitationIntensity.get()) / 50.0f);
     m_state.targetSnowIntensity = m_state.gameSnowIntensity
-                                  * (static_cast<float>(canvasSettings.weatherSnowIntensity.get()) / 50.0f);
+                                  * (static_cast<float>(canvasSettings.weatherPrecipitationIntensity.get()) / 50.0f);
     m_state.targetCloudsIntensity = m_state.gameCloudsIntensity
-                                    * (static_cast<float>(canvasSettings.weatherCloudsIntensity.get()) / 50.0f);
+                                    * (static_cast<float>(canvasSettings.weatherAtmosphereIntensity.get()) / 50.0f);
     m_state.targetFogIntensity = m_state.gameFogIntensity
-                                 * (static_cast<float>(canvasSettings.weatherFogIntensity.get()) / 50.0f);
-    m_state.targetToDIntensity = (static_cast<float>(canvasSettings.weatherToDIntensity.get()) / 50.0f);
+                                 * (static_cast<float>(canvasSettings.weatherAtmosphereIntensity.get()) / 50.0f);
+    m_state.targetToDIntensity = m_state.gameToDIntensity
+                                 * (static_cast<float>(canvasSettings.weatherToDIntensity.get()) / 50.0f);
 
     m_state.lastDt = dt;
     m_state.animationTime += dt;
 
-    bool transitioning = (m_state.animationTime - m_state.weatherTransitionStartTime < TRANSITION_DURATION)
-                         || (m_state.animationTime - m_state.todTransitionStartTime < TRANSITION_DURATION);
+    bool weatherTransitioning = (m_state.animationTime - m_state.weatherTransitionStartTime < TRANSITION_DURATION);
+    bool todTransitioning = (m_state.animationTime - m_state.todTransitionStartTime < TRANSITION_DURATION);
+
+    if (!todTransitioning && m_state.oldTimeOfDay != m_state.currentTimeOfDay) {
+        m_state.oldTimeOfDay = m_state.currentTimeOfDay;
+        m_state.todIntensityStart = m_state.targetToDIntensity;
+        m_state.moonIntensityStart = m_state.targetMoonIntensity;
+    }
+
+    bool transitioning = weatherTransitioning || todTransitioning;
 
     // We only need to animate if a transition is active OR weather effects that move (rain, snow, clouds, fog) are present.
     // Static Time of Day tinting does not require continuous animation.

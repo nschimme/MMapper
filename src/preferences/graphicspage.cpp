@@ -85,23 +85,13 @@ GraphicsPage::GraphicsPage(QWidget *parent)
             this,
             &GraphicsPage::slot_drawUpperLayersTexturedStateChanged);
 
-    connect(ui->weatherCloudsSlider, &QSlider::valueChanged, this, [this](int value) {
-        setConfig().canvas.weatherCloudsIntensity.set(value);
+    connect(ui->weatherAtmosphereSlider, &QSlider::valueChanged, this, [this](int value) {
+        setConfig().canvas.weatherAtmosphereIntensity.set(value);
         graphicsSettingsChanged();
     });
 
-    connect(ui->weatherFogSlider, &QSlider::valueChanged, this, [this](int value) {
-        setConfig().canvas.weatherFogIntensity.set(value);
-        graphicsSettingsChanged();
-    });
-
-    connect(ui->weatherRainSlider, &QSlider::valueChanged, this, [this](int value) {
-        setConfig().canvas.weatherRainIntensity.set(value);
-        graphicsSettingsChanged();
-    });
-
-    connect(ui->weatherSnowSlider, &QSlider::valueChanged, this, [this](int value) {
-        setConfig().canvas.weatherSnowIntensity.set(value);
+    connect(ui->weatherPrecipitationSlider, &QSlider::valueChanged, this, [this](int value) {
+        setConfig().canvas.weatherPrecipitationIntensity.set(value);
         graphicsSettingsChanged();
     });
 
@@ -171,10 +161,8 @@ void GraphicsPage::slot_loadConfig()
     ui->drawNotMappedExits->setChecked(settings.showUnmappedExits.get());
     ui->drawDoorNames->setChecked(settings.drawDoorNames);
 
-    ui->weatherCloudsSlider->setValue(settings.weatherCloudsIntensity.get());
-    ui->weatherFogSlider->setValue(settings.weatherFogIntensity.get());
-    ui->weatherRainSlider->setValue(settings.weatherRainIntensity.get());
-    ui->weatherSnowSlider->setValue(settings.weatherSnowIntensity.get());
+    ui->weatherAtmosphereSlider->setValue(settings.weatherAtmosphereIntensity.get());
+    ui->weatherPrecipitationSlider->setValue(settings.weatherPrecipitationIntensity.get());
     ui->weatherToDSlider->setValue(settings.weatherToDIntensity.get());
 
     ui->resourceLineEdit->setText(settings.resourcesDirectory);

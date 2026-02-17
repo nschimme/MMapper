@@ -59,8 +59,8 @@ void main()
         pos.y -= uDeltaTime * speed;
     } else { // Snow
         float snowIntensity = get_intensity(1);
-        // Snow speed: 1.5 at low, 3.0 at heavy (1.0)
-        speed = (1.5 + snowIntensity * 1.5) + hash * 1.0;
+        // Snow speed: 0.75 at low, 1.5 at heavy (1.0)
+        speed = (0.75 + snowIntensity * 0.75) + hash * 0.5;
         decay = 0.2 + hash * 0.3;
         pos.y -= uDeltaTime * speed;
         // Horizontal swaying increases with intensity

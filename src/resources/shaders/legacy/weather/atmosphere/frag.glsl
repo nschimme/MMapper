@@ -63,10 +63,11 @@ void main()
     vec3 nearPos = near4.xyz / near4.w;
     vec3 farPos = far4.xyz / far4.w;
 
-    float uZScale = uPlayerPos.w;
-    float t = (uPlayerPos.z * uZScale - nearPos.z) / (farPos.z - nearPos.z);
+    // Geostabilize clouds by projecting onto a fixed world plane (Z=0).
+    // This ensures cloud patterns are pinned to the map's grid and do not "jump"
+    // when the player moves between different Z-layers (e.g. entering/leaving a room).
+    float t = (0.0 - nearPos.z) / (farPos.z - nearPos.z);
     vec3 worldPos = mix(nearPos, farPos, t);
-    worldPos.z /= uZScale;
 
     float distToPlayer = distance(worldPos.xy, uPlayerPos.xy);
     float localMask = smoothstep(12.0, 8.0, distToPlayer);

@@ -28,14 +28,14 @@
 #include <QSysInfo>
 
 #ifdef Q_OS_WASM
-#include <emscripten.h>
-
 #include <cstdlib>
+#include <emscripten.h>
 #endif
 
 namespace { // anonymous
 
 #ifdef Q_OS_WASM
+// clang-format off
 EM_JS(char *, get_browser_os_js, (), {
     var ua = navigator.userAgent;
     var os = "unknown";
@@ -79,6 +79,7 @@ EM_JS(char *, get_browser_os_js, (), {
     stringToUTF8(result, stringOnWasmHeap, lengthBytes);
     return stringOnWasmHeap;
 });
+// clang-format on
 #endif
 
 constexpr const auto GAME_YEAR = "GAME YEAR";

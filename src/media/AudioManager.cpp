@@ -26,7 +26,10 @@ AudioManager::AudioManager(MediaLibrary &library, GameObserver &observer, QObjec
         slot_onPositionChanged(pos);
     });
 
-    connect(&m_library, &MediaLibrary::sig_mediaChanged, m_music, &MusicManager::slot_onMediaChanged);
+    connect(&m_library,
+            &MediaLibrary::sig_mediaChanged,
+            m_music,
+            &MusicManager::slot_onMediaChanged);
 
     slot_updateVolumes();
 }

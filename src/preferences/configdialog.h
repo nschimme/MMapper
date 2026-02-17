@@ -40,6 +40,7 @@ private:
     void createIcons();
 
 signals:
+    void sig_audioSettingsChanged();
     void sig_graphicsSettingsChanged();
     void sig_groupSettingsChanged();
     void sig_loadConfig();

@@ -10,6 +10,16 @@ set(mmapper_SRCS
     adventure/lineparsers.h
     adventure/xpstatuswidget.cpp
     adventure/xpstatuswidget.h
+    media/AudioManager.cpp
+    media/AudioManager.h
+    media/DescriptionWidget.cpp
+    media/DescriptionWidget.h
+    media/MediaLibrary.cpp
+    media/MediaLibrary.h
+    media/MusicManager.cpp
+    media/MusicManager.h
+    media/SfxManager.cpp
+    media/SfxManager.h
     client/ClientTelnet.cpp
     client/ClientTelnet.h
     client/ClientWidget.cpp
@@ -226,8 +236,6 @@ set(mmapper_SRCS
     group/mmapper2group.h
     logger/autologger.cpp
     logger/autologger.h
-    mainwindow/DescriptionWidget.cpp
-    mainwindow/DescriptionWidget.h
     mainwindow/MapZoomSlider.cpp
     mainwindow/MapZoomSlider.h
     mainwindow/UpdateDialog.cpp
@@ -480,6 +488,8 @@ set(mmapper_SRCS
     pathmachine/syncing.h
     preferences/AdvancedGraphics.cpp
     preferences/AdvancedGraphics.h
+    preferences/audiopage.cpp
+    preferences/audiopage.h
     preferences/AnsiColorDialog.cpp
     preferences/AnsiColorDialog.h
     preferences/ansicombo.cpp
@@ -602,6 +612,7 @@ set(mmapper_UIS
     mainwindow/findroomsdlg.ui
     mainwindow/roomeditattrdlg.ui
     preferences/AnsiColorDialog.ui
+    preferences/audiopage.ui
     preferences/autologpage.ui
     preferences/configdialog.ui
     preferences/clientpage.ui
@@ -708,6 +719,10 @@ target_link_libraries(mmapper PUBLIC
     ${CMAKE_THREAD_LIBS_INIT}
     coverage_config
 )
+
+if(WITH_AUDIO)
+    target_link_libraries(mmapper PUBLIC Qt6::Multimedia)
+endif()
 
 set_target_properties(
   mmapper PROPERTIES
@@ -956,6 +971,9 @@ if(UNIX AND NOT APPLE)
     if(WITH_QTKEYCHAIN)
         set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libqt6keychain1")
     endif()
+    if(WITH_AUDIO)
+        set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libqt6multimedia6 (>= 6.4.0)")
+    endif()
 endif(UNIX AND NOT APPLE)
 
 # Windows Install Settings
@@ -1136,7 +1154,7 @@ if(APPLE)
     add_custom_command(
         TARGET mmapper
         POST_BUILD
-        COMMAND ${MACDEPLOYQT_APP} ${CMAKE_CURRENT_BINARY_DIR}/mmapper.app -libpath ${QTKEYCHAIN_LIBRARY_DIR}
+        COMMAND ${MACDEPLOYQT_APP} ${CMAKE_CURRENT_BINARY_DIR}/mmapper.app -libpath ${QTKEYCHAIN_LIBRARY_DIR} -verbose=2
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         COMMENT "Deploying the Qt Framework onto the bundle"
         VERBATIM

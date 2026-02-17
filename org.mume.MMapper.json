@@ -7,6 +7,7 @@
         "--share=network",
         "--socket=wayland",
         "--socket=fallback-x11",
+        "--socket=pulseaudio",
         "--share=ipc",
         "--device=dri",
         "--filesystem=xdg-documents"
@@ -139,6 +140,7 @@
                 "-DWITH_QTKEYCHAIN=ON",
                 "-DWITH_MAP=/app/arda.xml",
                 "-DWITH_IMAGES=/app/images/",
+                "-DWITH_AUDIO=ON",
                 "-DWITH_TESTS=OFF",
                 "-DWITH_UPDATER=ON",
                 "-DPACKAGE_TYPE=Flatpak"

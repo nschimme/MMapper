@@ -258,23 +258,27 @@ void WeatherRenderer::initParticles()
     funcs.glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     // Initialize VAOs
-    auto vaoSim0 = funcs.getSharedVaos().get(Legacy::SharedVaoEnum::WeatherSimulation0);
-    if (!*vaoSim0) vaoSim0->emplace(gl_funcs);
-    funcs.glBindVertexArray(vaoSim0->get());
-    funcs.glBindBuffer(GL_ARRAY_BUFFER, vbo0->get());
-    funcs.glEnableVertexAttribArray(0);
-    funcs.glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
-    funcs.glEnableVertexAttribArray(1);
-    funcs.glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, 3 * sizeof(float), reinterpret_cast<void *>(2 * sizeof(float)));
+    {
+        auto vaoSim0 = funcs.getSharedVaos().get(Legacy::SharedVaoEnum::WeatherSimulation0);
+        if (!*vaoSim0) vaoSim0->emplace(gl_funcs);
+        Legacy::VAOBinder binder(funcs, vaoSim0);
+        funcs.glBindBuffer(GL_ARRAY_BUFFER, vbo0->get());
+        funcs.glEnableVertexAttribArray(0);
+        funcs.glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
+        funcs.glEnableVertexAttribArray(1);
+        funcs.glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, 3 * sizeof(float), reinterpret_cast<void *>(2 * sizeof(float)));
+    }
 
-    auto vaoSim1 = funcs.getSharedVaos().get(Legacy::SharedVaoEnum::WeatherSimulation1);
-    if (!*vaoSim1) vaoSim1->emplace(gl_funcs);
-    funcs.glBindVertexArray(vaoSim1->get());
-    funcs.glBindBuffer(GL_ARRAY_BUFFER, vbo1->get());
-    funcs.glEnableVertexAttribArray(0);
-    funcs.glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
-    funcs.glEnableVertexAttribArray(1);
-    funcs.glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, 3 * sizeof(float), reinterpret_cast<void *>(2 * sizeof(float)));
+    {
+        auto vaoSim1 = funcs.getSharedVaos().get(Legacy::SharedVaoEnum::WeatherSimulation1);
+        if (!*vaoSim1) vaoSim1->emplace(gl_funcs);
+        Legacy::VAOBinder binder(funcs, vaoSim1);
+        funcs.glBindBuffer(GL_ARRAY_BUFFER, vbo1->get());
+        funcs.glEnableVertexAttribArray(0);
+        funcs.glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
+        funcs.glEnableVertexAttribArray(1);
+        funcs.glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, 3 * sizeof(float), reinterpret_cast<void *>(2 * sizeof(float)));
+    }
 
     auto setupRenderVao = [&](Legacy::SharedVaoEnum vaoEnum, Legacy::SharedVboEnum vboEnum, size_t offset) {
         auto vao = funcs.getSharedVaos().get(vaoEnum);
@@ -282,7 +286,7 @@ void WeatherRenderer::initParticles()
         auto vbo = funcs.getSharedVbos().get(vboEnum);
         if (!*vbo) vbo->emplace(gl_funcs);
 
-        funcs.glBindVertexArray(vao->get());
+        Legacy::VAOBinder binder(funcs, vao);
         funcs.glBindBuffer(GL_ARRAY_BUFFER, vbo->get());
         funcs.glEnableVertexAttribArray(0);
         funcs.glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(float), reinterpret_cast<void *>(offset));
@@ -297,7 +301,6 @@ void WeatherRenderer::initParticles()
     setupRenderVao(Legacy::SharedVaoEnum::WeatherRenderSnow0, buffer0, 4096 * 3 * sizeof(float));
     setupRenderVao(Legacy::SharedVaoEnum::WeatherRenderSnow1, buffer1, 4096 * 3 * sizeof(float));
 
-    funcs.glBindVertexArray(0);
     funcs.glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     m_state.numParticles = static_cast<uint32_t>(totalParticles);

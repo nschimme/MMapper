@@ -54,6 +54,7 @@ void main()
     vec4 todStart = uNamedColors[uToDIndices.x];
     vec4 todTarget = uNamedColors[uToDIndices.y];
     vec4 uTimeOfDayColor = mix(todStart, todTarget, uTimes.z);
+    uTimeOfDayColor.a *= uTimes.w;
 
     // Start with Time of Day tint
     vec3 todTint = uTimeOfDayColor.rgb;

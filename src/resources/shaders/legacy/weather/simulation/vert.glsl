@@ -40,11 +40,11 @@ void main()
 
     // Rain physics
     float rainSpeed = (15.0 + pIntensity * 10.0) + hash * 5.0;
-    float rainDecay = 0.5 + hash * 0.5;
+    float rainDecay = 0.35 + hash * 0.15;
 
     // Snow physics
     float snowSpeed = (0.75 + pIntensity * 0.75) + hash * 0.5;
-    float snowDecay = 0.2 + hash * 0.3;
+    float snowDecay = 0.015 + hash * 0.01;
 
     // Interpolate physics based on pType
     float speed = mix(rainSpeed, snowSpeed, pType);
@@ -59,8 +59,8 @@ void main()
 
     // Spatial fading
     float hole = hash21(floor(pos.xy * 4.0));
-    if (hole < 0.04) {
-        life -= uDeltaTime * 10.0; // Expire quickly
+    if (hole < 0.02) {
+        life -= uDeltaTime * 2.0; // Expire quickly but not instantly
     }
 
     if (life <= 0.0) {

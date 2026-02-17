@@ -325,7 +325,8 @@ void WeatherRenderer::updateUbo(const glm::mat4 &viewProj)
 
     float t_tod = std::clamp((m_state.animationTime - m_state.todTransitionStartTime) / TRANSITION_DURATION,
                              0.0f, 1.0f);
-    w.times = glm::vec4(m_state.animationTime, m_state.lastDt, t_tod, 0.0f);
+    float currentToDIntensity = my_lerp(m_state.todIntensityStart, m_state.targetToDIntensity, t_tod);
+    w.times = glm::vec4(m_state.animationTime, m_state.lastDt, t_tod, currentToDIntensity);
 
     funcs.glBindBuffer(GL_UNIFORM_BUFFER, vboUbo->get());
     funcs.glBufferData(GL_UNIFORM_BUFFER, sizeof(w), &w, GL_DYNAMIC_DRAW);

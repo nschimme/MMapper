@@ -276,7 +276,6 @@ void WeatherRenderer::updateUbo(const glm::mat4 &viewProj)
 
     GLRenderState::Uniforms::Weather w;
     w.viewProj = viewProj;
-    w.invViewProj = glm::inverse(viewProj);
 
     const auto playerPosCoord = m_data.tryGetPosition().value_or(Coordinate{0, 0, 0});
     w.playerPos = glm::vec4(static_cast<float>(playerPosCoord.x), static_cast<float>(playerPosCoord.y),
@@ -294,7 +293,7 @@ void WeatherRenderer::updateUbo(const glm::mat4 &viewProj)
         case MumeTimeEnum::DAY:
             break;
         case MumeTimeEnum::NIGHT:
-            color = glm::vec4(0.05f, 0.05f, 0.2f, 0.6f + 0.2f * moonIntensity);
+            color = glm::vec4(0.05f, 0.05f, 0.2f, 0.35f - 0.15f * moonIntensity);
             break;
         case MumeTimeEnum::DAWN:
             color = glm::vec4(0.4f, 0.3f, 0.2f, 0.1f);
@@ -303,15 +302,15 @@ void WeatherRenderer::updateUbo(const glm::mat4 &viewProj)
             color = glm::vec4(0.3f, 0.2f, 0.4f, 0.2f);
             break;
         }
-        color.a *= todIntensity; // default 50% slider -> todIntensity=1.0
+        color.a *= todIntensity;
         return color;
     };
 
     w.todColorStart = getToDColor(m_state.oldTimeOfDay, m_state.moonIntensityStart, m_state.todIntensityStart);
     w.todColorTarget = getToDColor(m_state.currentTimeOfDay, m_state.targetMoonIntensity, m_state.targetToDIntensity);
 
-    w.transitionStart = glm::vec4(m_state.weatherTransitionStartTime, m_state.todTransitionStartTime, 0.0f, 0.0f);
-    w.timeInfo = glm::vec4(m_state.animationTime, m_state.lastDt, 0.0f, 0.0f);
+    w.times = glm::vec4(m_state.weatherTransitionStartTime, m_state.todTransitionStartTime,
+                        m_state.animationTime, m_state.lastDt);
 
     funcs.glBindBuffer(GL_UNIFORM_BUFFER, vboUbo->get());
     funcs.glBufferData(GL_UNIFORM_BUFFER, sizeof(w), &w, GL_DYNAMIC_DRAW);

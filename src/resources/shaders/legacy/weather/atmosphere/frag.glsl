@@ -6,33 +6,32 @@ precision highp float;
 layout(std140) uniform WeatherBlock
 {
     mat4 uViewProj;
-    mat4 uInvViewProj;
     vec4 uPlayerPos; // xyz, w=zScale
     vec4 uIntensitiesStart;
     vec4 uIntensitiesTarget;
     vec4 uToDColorStart;
     vec4 uToDColorTarget;
-    vec4 uTransitionStart; // x=weather, y=tod
-    vec4 uTimeAndDelta;    // x=time, y=deltaTime
+    vec4 uTimes; // x=weatherStart, y=todStart, z=time, w=delta
 };
 
 uniform sampler2D uNoiseTex;
 
 in vec2 vNDC;
+in vec3 vWorldPos;
 out vec4 vFragmentColor;
 
 float get_intensity(int idx)
 {
-    float uTime = uTimeAndDelta.x;
-    float t = clamp((uTime - uTransitionStart.x) / 2.0, 0.0, 1.0);
+    float uTime = uTimes.z;
+    float t = clamp((uTime - uTimes.x) / 2.0, 0.0, 1.0);
     float s = smoothstep(0.0, 1.0, t);
     return mix(uIntensitiesStart[idx], uIntensitiesTarget[idx], s);
 }
 
 vec4 get_tod_color()
 {
-    float uTime = uTimeAndDelta.x;
-    float t = clamp((uTime - uTransitionStart.y) / 2.0, 0.0, 1.0);
+    float uTime = uTimes.z;
+    float t = clamp((uTime - uTimes.y) / 2.0, 0.0, 1.0);
     float s = smoothstep(0.0, 1.0, t);
     return mix(uToDColorStart, uToDColorTarget, s);
 }
@@ -57,22 +56,11 @@ float fbm(vec2 p)
 
 void main()
 {
-    // Unproject NDC to world space on the player's Z plane
-    vec4 near4 = uInvViewProj * vec4(vNDC, -1.0, 1.0);
-    vec4 far4 = uInvViewProj * vec4(vNDC, 1.0, 1.0);
-    vec3 nearPos = near4.xyz / near4.w;
-    vec3 farPos = far4.xyz / far4.w;
-
-    // Geostabilize clouds by projecting onto a fixed world plane (Z=0).
-    // This ensures cloud patterns are pinned to the map's grid and do not "jump"
-    // when the player moves between different Z-layers (e.g. entering/leaving a room).
-    float t = (0.0 - nearPos.z) / (farPos.z - nearPos.z);
-    vec3 worldPos = mix(nearPos, farPos, t);
-
+    vec3 worldPos = vWorldPos;
     float distToPlayer = distance(worldPos.xy, uPlayerPos.xy);
     float localMask = smoothstep(12.0, 8.0, distToPlayer);
 
-    float uTime = uTimeAndDelta.x;
+    float uTime = uTimes.z;
     float uCloudsIntensity = get_intensity(2);
     float uFogIntensity = get_intensity(3);
     vec4 uTimeOfDayColor = get_tod_color();

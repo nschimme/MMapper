@@ -7,14 +7,12 @@ layout(location = 1) in float aLife;
 layout(std140) uniform WeatherBlock
 {
     mat4 uViewProj;
-    mat4 uInvViewProj;
     vec4 uPlayerPos; // xyz, w=zScale
     vec4 uIntensitiesStart;
     vec4 uIntensitiesTarget;
     vec4 uToDColorStart;
     vec4 uToDColorTarget;
-    vec4 uTransitionStart; // x=weather, y=tod
-    vec4 uTimeAndDelta;    // x=time, y=deltaTime
+    vec4 uTimes; // x=weatherStart, y=todStart, z=time, w=delta
 };
 
 out vec2 vPos;
@@ -32,8 +30,8 @@ float rand(float n)
 
 float get_intensity(int idx)
 {
-    float uTime = uTimeAndDelta.x;
-    float t = clamp((uTime - uTransitionStart.x) / 2.0, 0.0, 1.0);
+    float uTime = uTimes.z;
+    float t = clamp((uTime - uTimes.x) / 2.0, 0.0, 1.0);
     float s = smoothstep(0.0, 1.0, t);
     return mix(uIntensitiesStart[idx], uIntensitiesTarget[idx], s);
 }
@@ -48,8 +46,8 @@ void main()
 
     float speed;
     float decay;
-    float uTime = uTimeAndDelta.x;
-    float uDeltaTime = uTimeAndDelta.y;
+    float uTime = uTimes.z;
+    float uDeltaTime = uTimes.w;
 
     if (type == 0.0) { // Rain
         float rainIntensity = get_intensity(0);
@@ -69,21 +67,19 @@ void main()
 
     life -= uDeltaTime * decay;
 
-    // Spatial fading for snow: expire if in a "hole"
-    if (type == 1.0) {
-        float hole = hash21(floor(pos.xy * 4.0));
-        if (hole < 0.04) {
-            life -= uDeltaTime * 10.0; // Expire quickly
-        }
+    // Spatial fading: expire if in a "hole"
+    float hole = hash21(floor(pos.xy * 4.0));
+    if (hole < 0.04) {
+        life -= uDeltaTime * 10.0; // Expire quickly
     }
 
     if (life <= 0.0) {
         life = 1.0;
-        // Respawn at a random offset from player
-        // We use a mix of uTime and aHash for randomness
+        // Respawn at the top of the simulation volume (40x40 box around player)
+        // We randomize X position but keep Y at the top (+20.0)
         float r1 = rand(hash + uTime);
-        float r2 = rand(r1 + 1.234);
-        pos = uPlayerPos.xy + vec2(r1 * 40.0 - 20.0, r2 * 40.0 - 20.0);
+        pos.x = uPlayerPos.x + (r1 * 40.0 - 20.0);
+        pos.y = uPlayerPos.y + 20.0;
     } else {
         // Toroidal wrap around player in a 40x40 box
         vec2 rel = pos - uPlayerPos.xy;

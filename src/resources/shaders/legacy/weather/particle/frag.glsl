@@ -6,14 +6,12 @@ precision highp float;
 layout(std140) uniform WeatherBlock
 {
     mat4 uViewProj;
-    mat4 uInvViewProj;
     vec4 uPlayerPos; // xyz, w=zScale
     vec4 uIntensitiesStart;
     vec4 uIntensitiesTarget;
     vec4 uToDColorStart;
     vec4 uToDColorTarget;
-    vec4 uTransitionStart; // x=weather, y=tod
-    vec4 uTimeAndDelta;    // x=time, y=deltaTime
+    vec4 uTimes; // x=weatherStart, y=todStart, z=time, w=delta
 };
 
 in float vType;
@@ -25,16 +23,16 @@ out vec4 vFragmentColor;
 
 float get_intensity(int idx)
 {
-    float uTime = uTimeAndDelta.x;
-    float t = clamp((uTime - uTransitionStart.x) / 2.0, 0.0, 1.0);
+    float uTime = uTimes.z;
+    float t = clamp((uTime - uTimes.x) / 2.0, 0.0, 1.0);
     float s = smoothstep(0.0, 1.0, t);
     return mix(uIntensitiesStart[idx], uIntensitiesTarget[idx], s);
 }
 
 vec4 get_tod_color()
 {
-    float uTime = uTimeAndDelta.x;
-    float t = clamp((uTime - uTransitionStart.y) / 2.0, 0.0, 1.0);
+    float uTime = uTimes.z;
+    float t = clamp((uTime - uTimes.y) / 2.0, 0.0, 1.0);
     float s = smoothstep(0.0, 1.0, t);
     return mix(uToDColorStart, uToDColorTarget, s);
 }
@@ -61,8 +59,6 @@ void main()
         pColor = vec4(1.0, 1.0, 1.1, uSnowIntensity * flake * vLocalMask * snowAlpha * lifeFade);
         // Emissive boost at night
         pColor.rgb += uTimeOfDayColor.a * 0.3;
-
-        // Spatial fading is now handled in simulation (vLife will be small in holes)
     }
 
     if (pColor.a <= 0.0) {

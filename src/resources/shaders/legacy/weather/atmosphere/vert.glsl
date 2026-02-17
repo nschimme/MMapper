@@ -1,7 +1,21 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2026 The MMapper Authors
 
+layout(std140) uniform WeatherBlock
+{
+    mat4 uViewProj;
+    vec4 uPlayerPos; // xyz, w=zScale
+    vec4 uIntensitiesStart;
+    vec4 uIntensitiesTarget;
+    vec4 uToDColorStart;
+    vec4 uToDColorTarget;
+    vec4 uTimes; // x=weatherStart, y=todStart, z=time, w=delta
+};
+
+uniform mat4 uInvViewProj;
+
 out vec2 vNDC;
+out vec3 vWorldPos;
 
 void main()
 {
@@ -14,5 +28,15 @@ void main()
         float((gl_VertexID & 2)) * 2.0 - 1.0
     );
     vNDC = pos;
+
+    // Unproject to Z=0 world plane for geostabilization
+    vec4 near4 = uInvViewProj * vec4(pos, -1.0, 1.0);
+    vec4 far4 = uInvViewProj * vec4(pos, 1.0, 1.0);
+    vec3 nearPos = near4.xyz / near4.w;
+    vec3 farPos = far4.xyz / far4.w;
+
+    float t = (0.0 - nearPos.z) / (farPos.z - nearPos.z);
+    vWorldPos = mix(nearPos, farPos, t);
+
     gl_Position = vec4(pos, 0.0, 1.0);
 }

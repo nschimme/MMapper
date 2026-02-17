@@ -40,6 +40,7 @@ void WeatherAtmosphereMesh::virt_render(const GLRenderState &renderState)
 
     const glm::mat4 mvp = m_functions.getProjectionMatrix();
     prog.setUniforms(mvp, renderState.uniforms);
+    prog.setMatrix("uInvViewProj", glm::inverse(mvp));
 
     auto emptyVao = m_functions.getSharedVaos().get(SharedVaoEnum::EmptyVao);
     if (!*emptyVao) {

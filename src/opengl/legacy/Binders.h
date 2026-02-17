@@ -6,6 +6,7 @@
 #include "Legacy.h"
 #include "TF.h"
 #include "VAO.h"
+#include "VBO.h"
 
 #include <optional>
 
@@ -130,6 +131,17 @@ public:
     explicit TransformFeedbackBinder(Functions &functions, const SharedTf &tf, GLenum primitiveMode);
     ~TransformFeedbackBinder();
     DELETE_CTORS_AND_ASSIGN_OPS(TransformFeedbackBinder);
+};
+
+struct NODISCARD VBOBinder final
+{
+private:
+    Functions &m_functions;
+
+public:
+    explicit VBOBinder(Functions &functions, const SharedVbo &vbo);
+    ~VBOBinder();
+    DELETE_CTORS_AND_ASSIGN_OPS(VBOBinder);
 };
 
 } // namespace Legacy

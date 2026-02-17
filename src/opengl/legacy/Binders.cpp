@@ -212,4 +212,15 @@ TransformFeedbackBinder::~TransformFeedbackBinder()
     m_functions.glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, 0);
 }
 
+VBOBinder::VBOBinder(Functions &functions, const SharedVbo &vbo)
+    : m_functions{functions}
+{
+    m_functions.glBindBuffer(GL_ARRAY_BUFFER, deref(vbo).get());
+}
+
+VBOBinder::~VBOBinder()
+{
+    m_functions.glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
 } // namespace Legacy

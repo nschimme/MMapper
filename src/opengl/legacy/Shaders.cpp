@@ -4,6 +4,7 @@
 #include "Shaders.h"
 
 #include "ShaderUtils.h"
+#include "../../global/TextUtils.h"
 
 #include <memory>
 
@@ -16,7 +17,7 @@ NODISCARD static std::string readWholeResourceFile(const std::string &fullPath)
         throw std::runtime_error("error opening file");
     }
     QTextStream in(&f);
-    return in.readAll().toUtf8().toStdString();
+    return mmqt::toStdStringUtf8(in.readAll());
 }
 
 NODISCARD static ShaderUtils::Source readWholeShader(const std::string &dir, const std::string &name)

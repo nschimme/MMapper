@@ -10,6 +10,14 @@ set(mmapper_SRCS
     adventure/lineparsers.h
     adventure/xpstatuswidget.cpp
     adventure/xpstatuswidget.h
+    audio/AudioLibrary.cpp
+    audio/AudioManager.cpp
+    audio/MusicManager.cpp
+    audio/SfxManager.cpp
+    audio/AudioLibrary.h
+    audio/AudioManager.h
+    audio/MusicManager.h
+    audio/SfxManager.h
     client/ClientTelnet.cpp
     client/ClientTelnet.h
     client/ClientWidget.cpp
@@ -480,6 +488,8 @@ set(mmapper_SRCS
     pathmachine/syncing.h
     preferences/AdvancedGraphics.cpp
     preferences/AdvancedGraphics.h
+    preferences/audiopage.cpp
+    preferences/audiopage.h
     preferences/AnsiColorDialog.cpp
     preferences/AnsiColorDialog.h
     preferences/ansicombo.cpp
@@ -602,6 +612,7 @@ set(mmapper_UIS
     mainwindow/findroomsdlg.ui
     mainwindow/roomeditattrdlg.ui
     preferences/AnsiColorDialog.ui
+    preferences/audiopage.ui
     preferences/autologpage.ui
     preferences/configdialog.ui
     preferences/clientpage.ui
@@ -708,6 +719,10 @@ target_link_libraries(mmapper PUBLIC
     ${CMAKE_THREAD_LIBS_INIT}
     coverage_config
 )
+
+if(WITH_AUDIO)
+    target_link_libraries(mmapper PUBLIC Qt6::Multimedia)
+endif()
 
 set_target_properties(
   mmapper PROPERTIES
@@ -955,6 +970,9 @@ if(UNIX AND NOT APPLE)
     endif()
     if(WITH_QTKEYCHAIN)
         set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libqt6keychain1")
+    endif()
+    if(WITH_AUDIO)
+        set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libqt6multimedia6 (>= 6.4.0)")
     endif()
 endif(UNIX AND NOT APPLE)
 

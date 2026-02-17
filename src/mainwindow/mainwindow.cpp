@@ -9,6 +9,7 @@
 #include "../adventure/adventuretracker.h"
 #include "../adventure/adventurewidget.h"
 #include "../adventure/xpstatuswidget.h"
+#include "../audio/AudioManager.h"
 #include "../client/ClientWidget.h"
 #include "../client/HotkeyManager.h"
 #include "../clock/mumeclock.h"
@@ -137,6 +138,7 @@ MainWindow::MainWindow()
 
     m_gameObserver = std::make_unique<GameObserver>();
     m_adventureTracker = new AdventureTracker(deref(m_gameObserver), this);
+    m_audioManager = new AudioManager(deref(m_gameObserver), this);
 
     // View -> Side Panels -> Log Panel
     m_dockDialogLog = new QDockWidget(tr("Log Panel"), this);
@@ -1455,6 +1457,10 @@ void MainWindow::slot_onPreferences()
             &ConfigDialog::sig_groupSettingsChanged,
             m_groupManager,
             &Mmapper2Group::slot_groupSettingsChanged);
+    connect(m_configDialog.get(),
+            &ConfigDialog::sig_audioSettingsChanged,
+            m_audioManager,
+            &AudioManager::updateVolumes);
     m_configDialog->show();
 }
 

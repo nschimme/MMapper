@@ -7,7 +7,6 @@
 
 #ifndef MMAPPER_NO_AUDIO
 #include <QMediaFormat>
-#include <QMimeDatabase>
 #include <QMimeType>
 #endif
 #include <QDebug>
@@ -45,17 +44,14 @@ void AudioLibrary::scanDirectories()
 
 #ifndef MMAPPER_NO_AUDIO
     QMediaFormat format;
-    QMimeDatabase db;
     for (auto f : format.supportedFileFormats(QMediaFormat::Decode)) {
-        QString mimeName = QMediaFormat::mimeTypeForFileFormat(f);
-        if (mimeName.startsWith(u"audio/") || mimeName.startsWith(u"video/")) {
-            QMimeType mime = db.mimeTypeForName(mimeName);
-            if (mime.isValid()) {
-                for (const QString &suffix : mime.suffixes()) {
-                    QString s = suffix.toLower();
-                    if (!extensions.contains(s)) {
-                        extensions.append(s);
-                    }
+        QMediaFormat info(f);
+        QMimeType mime = info.mimeType();
+        if (mime.isValid() && (mime.name().startsWith(u"audio/") || mime.name().startsWith(u"video/"))) {
+            for (const QString &suffix : mime.suffixes()) {
+                QString s = suffix.toLower();
+                if (!extensions.contains(s)) {
+                    extensions.append(s);
                 }
             }
         }

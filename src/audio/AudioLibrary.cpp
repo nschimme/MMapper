@@ -47,7 +47,7 @@ void AudioLibrary::scanDirectories()
     for (auto f : format.supportedFileFormats(QMediaFormat::Decode)) {
         QMediaFormat info(f);
         QMimeType mime = info.mimeType();
-        if (mime.isValid() && (mime.name().startsWith(u"audio/") || mime.name().startsWith(u"video/"))) {
+        if (mime.isValid() && mime.name().startsWith(u"audio/")) {
             for (const QString &suffix : mime.suffixes()) {
                 QString s = suffix.toLower();
                 if (!extensions.contains(s)) {

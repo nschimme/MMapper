@@ -60,7 +60,7 @@ jobs:
     - if: runner.os == 'macOS'
       name: Install Packages for Mac
       run: |
-        echo "MMAPPER_CMAKE_EXTRA=-DCMAKE_PREFIX_PATH=$env:QT_ROOT_DIR -DPACKAGE_TYPE=Dmg" >> $GITHUB_ENV
+        echo "MMAPPER_CMAKE_EXTRA=-DCMAKE_PREFIX_PATH=$QT_ROOT_DIR -DPACKAGE_TYPE=Dmg" >> $GITHUB_ENV
 
     # Install Dependencies (Windows)
     - if: runner.os == 'Windows'

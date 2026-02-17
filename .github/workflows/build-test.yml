@@ -90,7 +90,7 @@ jobs:
       name: Install Packages for Mac
       run: |
         brew install lcov
-        echo "MMAPPER_CMAKE_EXTRA=-DCMAKE_PREFIX_PATH=$env:QT_ROOT_DIR -DUSE_CODE_COVERAGE=true -DPACKAGE_TYPE=Dmg" >> $GITHUB_ENV
+        echo "MMAPPER_CMAKE_EXTRA=-DCMAKE_PREFIX_PATH=$QT_ROOT_DIR -DUSE_CODE_COVERAGE=true -DPACKAGE_TYPE=Dmg" >> $GITHUB_ENV
         echo "COVERAGE=false" >> $GITHUB_ENV
 
       #

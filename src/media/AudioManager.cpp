@@ -5,19 +5,19 @@
 
 #include "../global/Charset.h"
 #include "../map/mmapper2room.h"
-#include "AudioLibrary.h"
+#include "MediaLibrary.h"
 #include "MusicManager.h"
 #include "SfxManager.h"
 
 #include <QRegularExpression>
 
-AudioManager::AudioManager(GameObserver &observer, QObject *const parent)
+AudioManager::AudioManager(MediaLibrary &library, GameObserver &observer, QObject *const parent)
     : QObject(parent)
+    , m_library(library)
     , m_observer(observer)
 {
-    m_library = new AudioLibrary(this);
-    m_music = new MusicManager(*m_library, this);
-    m_sfx = new SfxManager(*m_library, this);
+    m_music = new MusicManager(m_library, this);
+    m_sfx = new SfxManager(m_library, this);
 
     m_observer.sig2_areaChanged.connect(m_lifetime,
                                         [this](const RoomArea &area) { onAreaChanged(area); });
@@ -42,7 +42,7 @@ void AudioManager::onAreaChanged(const RoomArea &area)
     QString name = area.toQString().toLower().remove(regex).replace(' ', '-');
     mmqt::toAsciiInPlace(name);
 
-    QString musicFile = m_library->findAudioFile("music", name);
+    QString musicFile = m_library.findAudio("areas", name);
     m_music->playMusic(musicFile);
 }
 

@@ -7,7 +7,7 @@
 
 #include <QObject>
 
-class AudioLibrary;
+class MediaLibrary;
 class MusicManager;
 class SfxManager;
 
@@ -16,7 +16,7 @@ class NODISCARD_QOBJECT AudioManager final : public QObject
     Q_OBJECT
 
 private:
-    AudioLibrary *m_library = nullptr;
+    MediaLibrary &m_library;
     MusicManager *m_music = nullptr;
     SfxManager *m_sfx = nullptr;
 
@@ -24,7 +24,7 @@ private:
     Signal2Lifetime m_lifetime;
 
 public:
-    explicit AudioManager(GameObserver &observer, QObject *parent = nullptr);
+    explicit AudioManager(MediaLibrary &library, GameObserver &observer, QObject *parent = nullptr);
     ~AudioManager() override;
 
 public slots:

@@ -4,7 +4,7 @@
 #include "MusicManager.h"
 
 #include "../configuration/configuration.h"
-#include "AudioLibrary.h"
+#include "MediaLibrary.h"
 
 #ifndef MMAPPER_NO_AUDIO
 #include <QAudioOutput>
@@ -14,7 +14,7 @@
 
 #include <QTimer>
 
-MusicManager::MusicManager(const AudioLibrary &library, QObject *const parent)
+MusicManager::MusicManager(const MediaLibrary &library, QObject *const parent)
     : QObject(parent)
     , m_library(library)
 {

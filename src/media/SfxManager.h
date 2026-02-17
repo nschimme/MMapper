@@ -8,7 +8,7 @@
 #include <QSet>
 #include <QString>
 
-class AudioLibrary;
+class MediaLibrary;
 class QSoundEffect;
 
 class NODISCARD_QOBJECT SfxManager final : public QObject
@@ -19,10 +19,10 @@ private:
 #ifndef MMAPPER_NO_AUDIO
     QSet<QSoundEffect *> m_activeEffects;
 #endif
-    const AudioLibrary &m_library;
+    const MediaLibrary &m_library;
 
 public:
-    explicit SfxManager(const AudioLibrary &library, QObject *parent = nullptr);
+    explicit SfxManager(const MediaLibrary &library, QObject *parent = nullptr);
 
     void playSound(const QString &soundName);
     void updateVolume();

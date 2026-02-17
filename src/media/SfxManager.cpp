@@ -4,7 +4,7 @@
 #include "SfxManager.h"
 
 #include "../configuration/configuration.h"
-#include "AudioLibrary.h"
+#include "MediaLibrary.h"
 
 #ifndef MMAPPER_NO_AUDIO
 #include <QSoundEffect>
@@ -12,7 +12,7 @@
 
 #include <QUrl>
 
-SfxManager::SfxManager(const AudioLibrary &library, QObject *const parent)
+SfxManager::SfxManager(const MediaLibrary &library, QObject *const parent)
     : QObject(parent)
     , m_library(library)
 {}
@@ -20,7 +20,7 @@ SfxManager::SfxManager(const AudioLibrary &library, QObject *const parent)
 void SfxManager::playSound(MAYBE_UNUSED const QString &soundName)
 {
 #ifndef MMAPPER_NO_AUDIO
-    QString path = m_library.findAudioFile("sounds", soundName);
+    QString path = m_library.findAudio("sounds", soundName);
     if (path.isEmpty()) {
         return;
     }

@@ -9,7 +9,6 @@
 #include "../adventure/adventuretracker.h"
 #include "../adventure/adventurewidget.h"
 #include "../adventure/xpstatuswidget.h"
-#include "../audio/AudioManager.h"
 #include "../client/ClientWidget.h"
 #include "../client/HotkeyManager.h"
 #include "../clock/mumeclock.h"
@@ -30,8 +29,10 @@
 #include "../proxy/connectionlistener.h"
 #include "../roompanel/RoomManager.h"
 #include "../roompanel/RoomWidget.h"
+#include "../media/AudioManager.h"
+#include "../media/DescriptionWidget.h"
+#include "../media/MediaLibrary.h"
 #include "../viewers/TopLevelWindows.h"
-#include "DescriptionWidget.h"
 #include "MapZoomSlider.h"
 #include "UpdateDialog.h"
 #include "aboutdialog.h"
@@ -137,8 +138,9 @@ MainWindow::MainWindow()
     m_pathMachine->setObjectName("Mmapper2PathMachine");
 
     m_gameObserver = std::make_unique<GameObserver>();
+    m_mediaLibrary = new MediaLibrary(this);
     m_adventureTracker = new AdventureTracker(deref(m_gameObserver), this);
-    m_audioManager = new AudioManager(deref(m_gameObserver), this);
+    m_audioManager = new AudioManager(deref(m_mediaLibrary), deref(m_gameObserver), this);
 
     // View -> Side Panels -> Log Panel
     m_dockDialogLog = new QDockWidget(tr("Log Panel"), this);
@@ -199,7 +201,7 @@ MainWindow::MainWindow()
     m_dockDialogAdventure->hide();
 
     // View -> Side Panels -> Description / Area Panel
-    m_descriptionWidget = new DescriptionWidget(this);
+    m_descriptionWidget = new DescriptionWidget(deref(m_mediaLibrary), this);
     m_dockDialogDescription = new QDockWidget(tr("Description Panel"), this);
 
     m_hotkeyManager = std::make_unique<HotkeyManager>();

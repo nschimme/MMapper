@@ -11,14 +11,14 @@
 class QMediaPlayer;
 class QAudioOutput;
 class QTimer;
-class AudioLibrary;
+class MediaLibrary;
 
 class NODISCARD_QOBJECT MusicManager final : public QObject
 {
     Q_OBJECT
 
 private:
-    const AudioLibrary &m_library;
+    const MediaLibrary &m_library;
 
 #ifndef MMAPPER_NO_AUDIO
     struct MusicChannel
@@ -43,7 +43,7 @@ private:
 #endif
 
 public:
-    explicit MusicManager(const AudioLibrary &library, QObject *parent = nullptr);
+    explicit MusicManager(const MediaLibrary &library, QObject *parent = nullptr);
     ~MusicManager() override;
 
     void playMusic(const QString &musicFile);

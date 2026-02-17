@@ -10,14 +10,16 @@ set(mmapper_SRCS
     adventure/lineparsers.h
     adventure/xpstatuswidget.cpp
     adventure/xpstatuswidget.h
-    audio/AudioLibrary.cpp
-    audio/AudioManager.cpp
-    audio/MusicManager.cpp
-    audio/SfxManager.cpp
-    audio/AudioLibrary.h
-    audio/AudioManager.h
-    audio/MusicManager.h
-    audio/SfxManager.h
+    media/AudioManager.cpp
+    media/AudioManager.h
+    media/DescriptionWidget.cpp
+    media/DescriptionWidget.h
+    media/MediaLibrary.cpp
+    media/MediaLibrary.h
+    media/MusicManager.cpp
+    media/MusicManager.h
+    media/SfxManager.cpp
+    media/SfxManager.h
     client/ClientTelnet.cpp
     client/ClientTelnet.h
     client/ClientWidget.cpp
@@ -234,8 +236,6 @@ set(mmapper_SRCS
     group/mmapper2group.h
     logger/autologger.cpp
     logger/autologger.h
-    mainwindow/DescriptionWidget.cpp
-    mainwindow/DescriptionWidget.h
     mainwindow/MapZoomSlider.cpp
     mainwindow/MapZoomSlider.h
     mainwindow/UpdateDialog.cpp

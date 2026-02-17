@@ -46,7 +46,6 @@ void WeatherAtmosphereMesh::virt_render(const GLRenderState &renderState)
 
     const glm::mat4 mvp = m_functions.getProjectionMatrix();
     prog.setUniforms(mvp, renderState.uniforms);
-    prog.setMatrix("uInvViewProj", glm::inverse(mvp));
 
     auto emptyVao = m_functions.getSharedVaos().get(SharedVaoEnum::EmptyVao);
     if (!*emptyVao) {
@@ -57,7 +56,7 @@ void WeatherAtmosphereMesh::virt_render(const GLRenderState &renderState)
     // Texture unit 0 should be bound by RenderStateBinder if withTexture0 was used
     prog.setInt("uNoiseTex", 0);
 
-    m_functions.glDrawArrays(GL_TRIANGLES, 0, 3);
+    m_functions.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
 // WeatherSimulationMesh
@@ -86,7 +85,7 @@ void WeatherSimulationMesh::init()
     const auto buffer0 = SharedVboEnum::WeatherParticles0;
     const auto buffer1 = SharedVboEnum::WeatherParticles1;
 
-    const size_t totalParticles = 4096;
+    const size_t totalParticles = 2048;
     std::vector<float> initialData(totalParticles * 3, 0.0f);
     for (size_t i = 0; i < totalParticles; ++i) {
         initialData[i * 3 + 0] = get_random_float() * 40.0f - 20.0f;
@@ -229,7 +228,7 @@ void WeatherParticleMesh::virt_render(const GLRenderState &renderState)
     const glm::mat4 mvp = m_functions.getProjectionMatrix();
     prog.setUniforms(mvp, renderState.uniforms);
 
-    const GLsizei count = std::min(4096, static_cast<GLsizei>(std::ceil(precipMax * 4096.0f)));
+    const GLsizei count = std::min(2048, static_cast<GLsizei>(std::ceil(precipMax * 2048.0f)));
     if (count > 0) {
         auto vaoEnum = (state.currentBuffer == 0) ? SharedVaoEnum::WeatherRender0
                                                    : SharedVaoEnum::WeatherRender1;

@@ -239,8 +239,8 @@ struct NODISCARD GLRenderState final
             glm::mat4 viewProj{1.0f};    // 0-63
             glm::vec4 playerPos{0.0f};   // 64-79 (xyz, w=zScale)
             glm::vec4 intensities{0.0f}; // 80-95 (precip, clouds, fog, type)
-            glm::ivec4 todIndices{0};    // 96-111 (x=start, y=target, zw=unused)
-            glm::vec4 times{0.0f};       // 112-127 (x=time, y=delta, z=todLerp, w=unused)
+            glm::vec4 times{0.0f};       // 96-111 (x=time, y=delta, z=todLerp, w=todIntensity)
+            glm::ivec4 todIndices{0};    // 112-127 (x=start, y=target, zw=unused)
         } weather;
     };
 

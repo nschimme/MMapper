@@ -13,13 +13,12 @@ layout(std140) uniform WeatherBlock
     mat4 uViewProj;
     vec4 uPlayerPos;   // xyz, w=zScale
     vec4 uIntensities; // precip, clouds, fog, type
+    vec4 uTimes;       // x=time, y=delta, z=todLerp, w=todIntensity
     ivec4 uToDIndices; // x=start, y=target
-    vec4 uTimes;       // x=time, y=delta, z=todLerp
 };
 
 uniform sampler2D uNoiseTex;
 
-in vec2 vNDC;
 in vec3 vWorldPos;
 out vec4 vFragmentColor;
 
@@ -44,6 +43,7 @@ float fbm(vec2 p)
 void main()
 {
     vec3 worldPos = vWorldPos;
+
     float distToPlayer = distance(worldPos.xy, uPlayerPos.xy);
     float localMask = smoothstep(12.0, 8.0, distToPlayer);
 

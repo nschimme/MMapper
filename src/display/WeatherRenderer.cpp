@@ -370,6 +370,8 @@ void WeatherRenderer::renderAtmosphere(const glm::mat4 &/*viewProj*/)
         return;
     }
 
-    const auto rs = m_gl.getDefaultRenderState().withBlend(BlendModeEnum::TRANSPARENCY);
+    const auto rs = m_gl.getDefaultRenderState()
+                        .withBlend(BlendModeEnum::TRANSPARENCY)
+                        .withDepthFunction(std::nullopt);
     m_atmosphere.render(rs);
 }

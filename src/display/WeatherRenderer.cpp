@@ -298,6 +298,7 @@ void WeatherRenderer::initParticles()
     setupRenderVao(Legacy::SharedVaoEnum::WeatherRenderSnow1, buffer1, 4096 * 3 * sizeof(float));
 
     funcs.glBindVertexArray(0);
+    funcs.glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     m_state.numParticles = static_cast<uint32_t>(totalParticles);
     m_state.initialized = true;
@@ -327,9 +328,7 @@ void WeatherRenderer::update(float dt)
                       || m_state.rainIntensityStart > 0.0f || m_state.snowIntensityStart > 0.0f
                       || m_state.cloudsIntensityStart > 0.0f || m_state.fogIntensityStart > 0.0f;
 
-    bool hasToD = m_state.currentTimeOfDay != MumeTimeEnum::DAY || m_state.oldTimeOfDay != MumeTimeEnum::DAY;
-
-    m_setAnimating(transitioning || hasWeather || hasToD);
+    m_setAnimating(transitioning || hasWeather);
 }
 
 void WeatherRenderer::updateUbo(const glm::mat4 &viewProj)
@@ -428,10 +427,15 @@ void WeatherRenderer::renderParticles(const glm::mat4 &viewProj)
 
         auto tf = funcs.getSharedTfs().get(Legacy::SharedTfEnum::WeatherSimulation);
         if (!*tf) tf->emplace(gl_funcs);
-        funcs.glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, vboOut->get());
-        Legacy::TransformFeedbackBinder tfBinder(funcs, tf, GL_POINTS);
 
-        funcs.glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(m_state.numParticles));
+        funcs.glEnable(GL_RASTERIZER_DISCARD);
+        funcs.glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, tf->get());
+        funcs.glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, vboOut->get());
+        {
+            Legacy::TransformFeedbackBinder tfBinder(funcs, tf, GL_POINTS);
+            funcs.glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(m_state.numParticles));
+        }
+        funcs.glDisable(GL_RASTERIZER_DISCARD);
     }
 
     // Pass 2: Rendering
@@ -503,4 +507,6 @@ void WeatherRenderer::renderAtmosphere(const glm::mat4 &viewProj)
     prog.setInt("uNoiseTex", 0);
 
     funcs.glDrawArrays(GL_TRIANGLES, 0, 3);
+
+    funcs.glBindTexture(GL_TEXTURE_2D, 0);
 }

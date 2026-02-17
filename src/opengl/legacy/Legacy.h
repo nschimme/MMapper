@@ -28,6 +28,7 @@ namespace Legacy {
 class StaticVbos;
 class SharedVbos;
 class SharedVaos;
+class SharedTransformFeedbacks;
 class VAO;
 struct AbstractShaderProgram;
 struct ShaderPrograms;
@@ -36,7 +37,10 @@ struct PointSizeBinder;
 // X(EnumName, GL_String_Name, IsUniform)
 #define XFOREACH_SHARED_VBO(X) \
     X(NamedColorsBlock, "NamedColorsBlock", true) \
-    X(InstancedQuadIbo, nullptr, false)
+    X(WeatherBlock, "WeatherBlock", true) \
+    X(InstancedQuadIbo, nullptr, false) \
+    X(WeatherParticles0, nullptr, false) \
+    X(WeatherParticles1, nullptr, false)
 
 enum class SharedVboEnum : uint8_t {
 #define X_ENUM(element, name, isUniform) element,
@@ -44,7 +48,12 @@ enum class SharedVboEnum : uint8_t {
 #undef X_ENUM
 };
 
-#define XFOREACH_SHARED_VAO(X) X(EmptyVao)
+#define XFOREACH_SHARED_VAO(X) \
+    X(EmptyVao) \
+    X(WeatherSimulation0) \
+    X(WeatherSimulation1) \
+    X(WeatherRender0) \
+    X(WeatherRender1)
 
 enum class SharedVaoEnum : uint8_t {
 #define X_ENUM(element) element,
@@ -52,13 +61,25 @@ enum class SharedVaoEnum : uint8_t {
 #undef X_ENUM
 };
 
+#define XFOREACH_SHARED_TF(X) X(WeatherSimulation)
+
+enum class SharedTfEnum : uint8_t {
+#define X_ENUM(element) element,
+    XFOREACH_SHARED_TF(X_ENUM)
+#undef X_ENUM
+};
+
 #define X_COUNT_VAO(element) +1
 static constexpr size_t NUM_SHARED_VAOS = 0 XFOREACH_SHARED_VAO(X_COUNT_VAO);
 #undef X_COUNT_VAO
 
-#define X_COUNT(element, name, isUniform) +1
-static constexpr size_t NUM_SHARED_VBOS = 0 XFOREACH_SHARED_VBO(X_COUNT);
-#undef X_COUNT
+#define X_COUNT_VBO(element, name, isUniform) +1
+static constexpr size_t NUM_SHARED_VBOS = 0 XFOREACH_SHARED_VBO(X_COUNT_VBO);
+#undef X_COUNT_VBO
+
+#define X_COUNT_TF(element) +1
+static constexpr size_t NUM_SHARED_TFS = 0 XFOREACH_SHARED_TF(X_COUNT_TF);
+#undef X_COUNT_TF
 
 NODISCARD static inline GLenum toGLenum(const BufferUsageEnum usage)
 {
@@ -133,6 +154,7 @@ private:
     std::unique_ptr<StaticVbos> m_staticVbos;
     std::unique_ptr<SharedVbos> m_sharedVbos;
     std::unique_ptr<SharedVaos> m_sharedVaos;
+    std::unique_ptr<SharedTransformFeedbacks> m_sharedTfs;
     std::unique_ptr<TexLookup> m_texLookup;
     std::unique_ptr<FBO> m_fbo;
 
@@ -164,6 +186,7 @@ public:
     using Base::glAttachShader;
     using Base::glBindBuffer;
     using Base::glBindBufferBase;
+    using Base::glBindBufferRange;
 
     /**
      * @brief Binds a buffer to a uniform block binding point.
@@ -180,6 +203,7 @@ public:
     }
     using Base::glBindTexture;
     using Base::glBindVertexArray;
+    using Base::glBlendEquationSeparate;
     using Base::glBlendFunc;
     using Base::glBlendFuncSeparate;
     using Base::glBufferData;
@@ -192,17 +216,20 @@ public:
     using Base::glDeleteBuffers;
     using Base::glDeleteProgram;
     using Base::glDeleteShader;
+    using Base::glDeleteTransformFeedbacks;
     using Base::glDeleteVertexArrays;
     using Base::glDepthFunc;
     using Base::glDetachShader;
     using Base::glDisable;
     using Base::glDisableVertexAttribArray;
     using Base::glDrawArrays;
+    using Base::glDrawArraysInstanced;
     using Base::glDrawElementsInstanced;
     using Base::glEnable;
     using Base::glEnableVertexAttribArray;
     using Base::glGenBuffers;
     using Base::glGenerateMipmap;
+    using Base::glGenTransformFeedbacks;
     using Base::glGenVertexArrays;
     using Base::glGetAttribLocation;
     using Base::glGetIntegerv;
@@ -223,9 +250,17 @@ public:
     using Base::glLinkProgram;
     using Base::glPixelStorei;
     using Base::glShaderSource;
+
+    using Base::glBeginTransformFeedback;
+    using Base::glBindTransformFeedback;
+    using Base::glEndTransformFeedback;
+    using Base::glTransformFeedbackVaryings;
+
     using Base::glTexSubImage3D;
     using Base::glUniform1fv;
     using Base::glUniform1iv;
+    using Base::glUniform2fv;
+    using Base::glUniform3fv;
     using Base::glUniform4fv;
     using Base::glUniform4iv;
     using Base::glUniformBlockBinding;
@@ -307,6 +342,8 @@ public:
     NODISCARD SharedVbos &getSharedVbos();
 
     NODISCARD SharedVaos &getSharedVaos();
+
+    NODISCARD SharedTransformFeedbacks &getSharedTfs();
 
     NODISCARD TexLookup &getTexLookup();
 
@@ -463,6 +500,7 @@ public:
     void configureFbo(int samples);
     void bindFbo();
     void releaseFbo();
+    void resolveFbo();
     void blitFboToDefault();
 };
 } // namespace Legacy

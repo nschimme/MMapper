@@ -15,7 +15,7 @@ class NODISCARD NamedConfig final
 {
 private:
     std::string m_name;
-    ChangeMonitor m_changeMonitor;
+    mutable ChangeMonitor m_changeMonitor;
     T m_value = 0;
     bool m_notifying = false;
 
@@ -79,7 +79,7 @@ public:
 
 public:
     void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                ChangeMonitor::Function callback)
+                                ChangeMonitor::Function callback) const
     {
         return m_changeMonitor.registerChangeCallback(lifetime, std::move(callback));
     }

@@ -191,6 +191,8 @@ struct NODISCARD MapCanvasTextures final
     XFOREACH_MAPCANVAS_TEXTURES(X_DECL)
 #undef X_DECL
 
+    SharedMMTexture weather_noise;
+
 private:
     template<typename Callback>
     static void apply_callback(SharedMMTexture &tex, Callback &&callback)
@@ -211,6 +213,7 @@ public:
 #define X_EACH(_Type, _Name) apply_callback(_Name, callback);
         XFOREACH_MAPCANVAS_TEXTURES(X_EACH)
 #undef X_EACH
+        apply_callback(weather_noise, callback);
     }
     template<typename Callback>
     void for_each_array(Callback &&callback)

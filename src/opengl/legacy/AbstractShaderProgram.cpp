@@ -15,6 +15,7 @@ AbstractShaderProgram::AbstractShaderProgram(std::string dirName,
     : m_dirName{std::move(dirName)}
     , m_functions{functions} // conversion to weak ptr
     , m_program{std::move(program)}
+    , m_isBound{false}
 {}
 
 AbstractShaderProgram::~AbstractShaderProgram()
@@ -56,12 +57,19 @@ GLuint AbstractShaderProgram::getAttribLocation(const char *const name) const
 {
     assert(name != nullptr);
     assert(m_isBound);
+
+    auto it = m_attribCache.find(name);
+    if (it != m_attribCache.end()) {
+        return it->second;
+    }
+
     auto functions = m_functions.lock();
     const auto tmp = deref(functions).glGetAttribLocation(getProgram(), name);
     // Reason for making the cast here: glGetAttribLocation uses signed GLint,
     // but glVertexAttribXXX() uses unsigned GLuint.
     const auto result = static_cast<GLuint>(tmp);
     assert(result != INVALID_ATTRIB_LOCATION);
+    m_attribCache[name] = result;
     return result;
 }
 
@@ -69,9 +77,16 @@ GLint AbstractShaderProgram::getUniformLocation(const char *const name) const
 {
     assert(name != nullptr);
     assert(m_isBound);
+
+    auto it = m_uniformCache.find(name);
+    if (it != m_uniformCache.end()) {
+        return it->second;
+    }
+
     auto functions = m_functions.lock();
     const auto result = deref(functions).glGetUniformLocation(getProgram(), name);
     assert(result != INVALID_UNIFORM_LOCATION);
+    m_uniformCache[name] = result;
     return result;
 }
 
@@ -99,6 +114,24 @@ void AbstractShaderProgram::setUniform1fv(const GLint location,
     assert(m_isBound);
     auto functions = m_functions.lock();
     deref(functions).glUniform1fv(location, count, value);
+}
+
+void AbstractShaderProgram::setUniform2fv(const GLint location,
+                                          const GLsizei count,
+                                          const GLfloat *const value)
+{
+    assert(m_isBound);
+    auto functions = m_functions.lock();
+    deref(functions).glUniform2fv(location, count, value);
+}
+
+void AbstractShaderProgram::setUniform3fv(const GLint location,
+                                          const GLsizei count,
+                                          const GLfloat *const value)
+{
+    assert(m_isBound);
+    auto functions = m_functions.lock();
+    deref(functions).glUniform3fv(location, count, value);
 }
 
 void AbstractShaderProgram::setUniform4fv(const GLint location,
@@ -150,10 +183,28 @@ void AbstractShaderProgram::setFloat(const char *const name, const float value)
     setUniform1fv(location, 1, &value);
 }
 
+void AbstractShaderProgram::setInt(const char *const name, const int value)
+{
+    const auto location = getUniformLocation(name);
+    setUniform1iv(location, 1, &value);
+}
+
+void AbstractShaderProgram::setVec2(const char *const name, const glm::vec2 &v)
+{
+    const auto location = getUniformLocation(name);
+    setUniform2fv(location, 1, glm::value_ptr(v));
+}
+
 void AbstractShaderProgram::setVec3(const char *const name, const glm::vec3 &v)
 {
     const auto location = getUniformLocation(name);
-    setUniform4fv(location, 1, glm::value_ptr(glm::vec4(v, 1.0f)));
+    setUniform3fv(location, 1, glm::value_ptr(v));
+}
+
+void AbstractShaderProgram::setVec4(const char *const name, const glm::vec4 &v)
+{
+    const auto location = getUniformLocation(name);
+    setUniform4fv(location, 1, glm::value_ptr(v));
 }
 
 void AbstractShaderProgram::setColor(const char *const name, const Color color)

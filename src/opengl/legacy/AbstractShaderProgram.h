@@ -6,6 +6,7 @@
 #include "VBO.h"
 
 #include <string>
+#include <unordered_map>
 
 namespace Legacy {
 
@@ -19,6 +20,8 @@ protected:
     WeakFunctions m_functions;
     Program m_program;
     bool m_isBound = false;
+    mutable std::unordered_map<std::string, GLint> m_uniformCache;
+    mutable std::unordered_map<std::string, GLuint> m_attribCache;
 
 public:
     AbstractShaderProgram() = delete;
@@ -35,22 +38,17 @@ public:
     class NODISCARD ProgramUnbinder final
     {
     private:
-        AbstractShaderProgram *m_self = nullptr;
+        AbstractShaderProgram &m_self;
 
     public:
         ProgramUnbinder() = delete;
-        DEFAULT_MOVES_DELETE_COPIES(ProgramUnbinder);
+        DELETE_CTORS_AND_ASSIGN_OPS(ProgramUnbinder);
 
     public:
         explicit ProgramUnbinder(AbstractShaderProgram &self)
-            : m_self{&self}
+            : m_self{self}
         {}
-        ~ProgramUnbinder()
-        {
-            if (m_self) {
-                m_self->unbind();
-            }
-        }
+        ~ProgramUnbinder() { m_self.unbind(); }
     };
 
     NODISCARD ProgramUnbinder bind();
@@ -75,6 +73,8 @@ public:
 public:
     void setUniform1iv(GLint location, GLsizei count, const GLint *value);
     void setUniform1fv(GLint location, GLsizei count, const GLfloat *value);
+    void setUniform2fv(GLint location, GLsizei count, const GLfloat *value);
+    void setUniform3fv(GLint location, GLsizei count, const GLfloat *value);
     void setUniform4fv(GLint location, GLsizei count, const GLfloat *value);
     void setUniform4iv(GLint location, GLsizei count, const GLint *value);
     void setUniformMatrix4fv(GLint location,
@@ -88,7 +88,10 @@ private:
 public:
     void setPointSize(float in_pointSize);
     void setFloat(const char *name, float value);
+    void setInt(const char *name, int value);
+    void setVec2(const char *name, const glm::vec2 &v);
     void setVec3(const char *name, const glm::vec3 &v);
+    void setVec4(const char *name, const glm::vec4 &v);
     void setColor(const char *name, Color color);
     void setMatrix(const char *name, const glm::mat4 &m);
     void setTexture(const char *name, int textureUnit);

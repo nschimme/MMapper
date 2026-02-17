@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2026 The MMapper Authors
+
+layout(std140) uniform WeatherBlock
+{
+    mat4 uViewProj;
+    vec4 uPlayerPos;   // xyz, w=zScale
+    vec4 uIntensities; // precip, clouds, fog, type
+    vec4 uTimes;       // x=time, y=delta, z=todLerp, w=todIntensity
+    ivec4 uToDIndices; // x=start, y=target
+};
+
+out vec3 vWorldPos;
+
+void main()
+{
+    // Quad vertices 0..3 for TRIANGLE_STRIP
+    // 0: (-1, -1), 1: (1, -1), 2: (-1, 1), 3: (1, 1)
+    vec2 offset = vec2(float(gl_VertexID & 1) * 2.0 - 1.0, float((gl_VertexID >> 1) & 1) * 2.0 - 1.0);
+
+    // Large enough to cover the 12-unit radius mask (30x30 units)
+    vec2 worldXY = uPlayerPos.xy + offset * 15.0;
+    vWorldPos = vec3(worldXY, uPlayerPos.z);
+
+    // Project to screen space
+    gl_Position = uViewProj * vec4(vWorldPos.x, vWorldPos.y, vWorldPos.z * uPlayerPos.w, 1.0);
+}

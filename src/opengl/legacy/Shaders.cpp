@@ -4,6 +4,7 @@
 #include "Shaders.h"
 
 #include "ShaderUtils.h"
+#include "../../global/TextUtils.h"
 
 #include <memory>
 
@@ -16,7 +17,7 @@ NODISCARD static std::string readWholeResourceFile(const std::string &fullPath)
         throw std::runtime_error("error opening file");
     }
     QTextStream in(&f);
-    return in.readAll().toUtf8().toStdString();
+    return mmqt::toStdStringUtf8(in.readAll());
 }
 
 NODISCARD static ShaderUtils::Source readWholeShader(const std::string &dir, const std::string &name)
@@ -38,7 +39,9 @@ FontShader::~FontShader() = default;
 PointShader::~PointShader() = default;
 BlitShader::~BlitShader() = default;
 FullScreenShader::~FullScreenShader() = default;
-WeatherShader::~WeatherShader() = default;
+AtmosphereShader::~AtmosphereShader() = default;
+ParticleSimulationShader::~ParticleSimulationShader() = default;
+ParticleRenderShader::~ParticleRenderShader() = default;
 
 void ShaderPrograms::early_init()
 {
@@ -53,7 +56,9 @@ void ShaderPrograms::early_init()
     std::ignore = getPointShader();
     std::ignore = getBlitShader();
     std::ignore = getFullScreenShader();
-    std::ignore = getWeatherShader();
+    std::ignore = getAtmosphereShader();
+    std::ignore = getParticleSimulationShader();
+    std::ignore = getParticleRenderShader();
 }
 
 void ShaderPrograms::resetAll()
@@ -69,7 +74,9 @@ void ShaderPrograms::resetAll()
     m_point.reset();
     m_blit.reset();
     m_fullscreen.reset();
-    m_weather.reset();
+    m_atmosphere.reset();
+    m_particleSimulation.reset();
+    m_particleRender.reset();
 }
 
 // essentially a private member of ShaderPrograms
@@ -146,9 +153,48 @@ const std::shared_ptr<FullScreenShader> &ShaderPrograms::getFullScreenShader()
     return getInitialized<FullScreenShader>(m_fullscreen, getFunctions(), "fullscreen");
 }
 
-const std::shared_ptr<WeatherShader> &ShaderPrograms::getWeatherShader()
+const std::shared_ptr<AtmosphereShader> &ShaderPrograms::getAtmosphereShader()
 {
-    return getInitialized<WeatherShader>(m_weather, getFunctions(), "weather");
+    return getInitialized<AtmosphereShader>(m_atmosphere, getFunctions(), "weather/atmosphere");
+}
+
+const std::shared_ptr<ParticleSimulationShader> &ShaderPrograms::getParticleSimulationShader()
+{
+    if (!m_particleSimulation) {
+        Functions &funcs = getFunctions();
+        const auto getSource = [&funcs](const std::string &path) -> ShaderUtils::Source {
+            const auto fullPathName = ":/shaders/legacy/weather/simulation/" + path;
+            std::string src;
+            try {
+                src = ::readWholeResourceFile(fullPathName);
+            } catch (...) {
+                // Fallback for frag.glsl if file missing, as some drivers require it
+                if (path == "frag.glsl") {
+                    src = std::string(funcs.getShaderVersion()) + "\nprecision mediump float;\nvoid main() {}\n";
+                } else {
+                    throw;
+                }
+            }
+            return ShaderUtils::Source{fullPathName, src};
+        };
+
+        std::vector<const char *> varyings = {"vPos", "vLife"};
+        auto program = ShaderUtils::loadTransformFeedbackShaders(funcs,
+                                                                 getSource("vert.glsl"),
+                                                                 getSource("frag.glsl"),
+                                                                 varyings);
+        m_particleSimulation = std::make_shared<ParticleSimulationShader>("weather/simulation",
+                                                                          funcs.shared_from_this(),
+                                                                          std::move(program));
+    }
+    return m_particleSimulation;
+}
+
+const std::shared_ptr<ParticleRenderShader> &ShaderPrograms::getParticleRenderShader()
+{
+    return getInitialized<ParticleRenderShader>(m_particleRender,
+                                                getFunctions(),
+                                                "weather/particle");
 }
 
 } // namespace Legacy

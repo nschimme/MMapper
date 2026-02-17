@@ -53,7 +53,7 @@ DescriptionWidget::DescriptionWidget(MediaLibrary &library, QWidget *const paren
     font.fromString(getConfig().integratedClient.font);
     m_textEdit->setFont(font);
 
-    connect(&m_library, &MediaLibrary::mediaChanged, this, [this]() {
+    connect(&m_library, &MediaLibrary::sig_mediaChanged, this, [this]() {
         m_imageCache.clear();
         updateBackground();
     });

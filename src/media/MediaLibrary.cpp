@@ -64,7 +64,7 @@ MediaLibrary::MediaLibrary(QObject *const parent)
 
     connect(&m_watcher, &QFileSystemWatcher::directoryChanged, this, [this](const QString &) {
         scanDirectories();
-        emit mediaChanged();
+        emit sig_mediaChanged();
     });
 }
 

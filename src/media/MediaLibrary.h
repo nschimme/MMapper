@@ -29,7 +29,7 @@ public:
     QString findImage(const QString &subDir, const QString &name) const;
 
 signals:
-    void mediaChanged();
+    void sig_mediaChanged();
 
 private:
     void scanDirectories();

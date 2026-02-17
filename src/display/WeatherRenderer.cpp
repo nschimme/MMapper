@@ -217,89 +217,16 @@ WeatherRenderer::~WeatherRenderer() = default;
 
 void WeatherRenderer::init()
 {
-    initParticles();
-}
-
-void WeatherRenderer::initParticles()
-{
-    if (m_state.initialized) {
-        return;
+    if (!m_simulation || !m_particles || !m_atmosphere) {
+        auto funcs = m_gl.getSharedFunctions(Badge<WeatherRenderer>{});
+        m_simulation = UniqueMesh(
+            std::make_unique<Legacy::WeatherSimulationMesh>(funcs, *this));
+        m_particles = UniqueMesh(
+            std::make_unique<Legacy::WeatherParticleMesh>(funcs, *this));
+        m_atmosphere = UniqueMesh(std::make_unique<TexturedRenderable>(
+            m_textures.weather_noise->getId(),
+            std::make_unique<Legacy::WeatherAtmosphereMesh>(funcs)));
     }
-
-    auto gl_funcs = m_gl.getSharedFunctions(Badge<WeatherRenderer>{});
-    auto &funcs = *gl_funcs;
-
-    auto tf = funcs.getSharedTfs().get(Legacy::SharedTfEnum::WeatherSimulation);
-    if (!*tf) {
-        tf->emplace(gl_funcs);
-    }
-
-    const auto buffer0 = Legacy::SharedVboEnum::WeatherParticles0;
-    const auto buffer1 = Legacy::SharedVboEnum::WeatherParticles1;
-
-    const size_t totalParticles = 5120; // 4096 rain + 1024 snow
-    std::vector<float> initialData(totalParticles * 3, 0.0f);
-    for (size_t i = 0; i < totalParticles; ++i) {
-        initialData[i * 3 + 0] = get_random_float() * 40.0f - 20.0f;
-        initialData[i * 3 + 1] = get_random_float() * 40.0f - 20.0f;
-        initialData[i * 3 + 2] = get_random_float() * 1.0f;
-    }
-
-    auto vbo0 = funcs.getSharedVbos().get(buffer0);
-    auto vbo1 = funcs.getSharedVbos().get(buffer1);
-
-    if (!*vbo0) vbo0->emplace(gl_funcs);
-    if (!*vbo1) vbo1->emplace(gl_funcs);
-
-    {
-        Legacy::VBOBinder binder(funcs, vbo0);
-        funcs.glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(initialData.size() * sizeof(float)), initialData.data(), GL_STREAM_DRAW);
-    }
-    {
-        Legacy::VBOBinder binder(funcs, vbo1);
-        funcs.glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(initialData.size() * sizeof(float)), initialData.data(), GL_STREAM_DRAW);
-    }
-
-    // Initialize VAOs
-    {
-        auto vaoSim0 = funcs.getSharedVaos().get(Legacy::SharedVaoEnum::WeatherSimulation0);
-        if (!*vaoSim0) vaoSim0->emplace(gl_funcs);
-        Legacy::VAOBinder vaoBinder(funcs, vaoSim0);
-        Legacy::VBOBinder vboBinder(funcs, vbo0);
-        funcs.enableAttrib(0, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
-        funcs.enableAttrib(1, 1, GL_FLOAT, GL_FALSE, 3 * sizeof(float), reinterpret_cast<void *>(2 * sizeof(float)));
-    }
-
-    {
-        auto vaoSim1 = funcs.getSharedVaos().get(Legacy::SharedVaoEnum::WeatherSimulation1);
-        if (!*vaoSim1) vaoSim1->emplace(gl_funcs);
-        Legacy::VAOBinder vaoBinder(funcs, vaoSim1);
-        Legacy::VBOBinder vboBinder(funcs, vbo1);
-        funcs.enableAttrib(0, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
-        funcs.enableAttrib(1, 1, GL_FLOAT, GL_FALSE, 3 * sizeof(float), reinterpret_cast<void *>(2 * sizeof(float)));
-    }
-
-    auto setupRenderVao = [&](Legacy::SharedVaoEnum vaoEnum, Legacy::SharedVboEnum vboEnum, size_t offset) {
-        auto vao = funcs.getSharedVaos().get(vaoEnum);
-        if (!*vao) vao->emplace(gl_funcs);
-        auto vbo = funcs.getSharedVbos().get(vboEnum);
-        if (!*vbo) vbo->emplace(gl_funcs);
-
-        Legacy::VAOBinder vaoBinder(funcs, vao);
-        Legacy::VBOBinder vboBinder(funcs, vbo);
-        funcs.enableAttrib(0, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(float), reinterpret_cast<void *>(offset));
-        funcs.glVertexAttribDivisor(0, 1);
-        funcs.enableAttrib(1, 1, GL_FLOAT, GL_FALSE, 3 * sizeof(float), reinterpret_cast<void *>(offset + 2 * sizeof(float)));
-        funcs.glVertexAttribDivisor(1, 1);
-    };
-
-    setupRenderVao(Legacy::SharedVaoEnum::WeatherRenderRain0, buffer0, 0);
-    setupRenderVao(Legacy::SharedVaoEnum::WeatherRenderRain1, buffer1, 0);
-    setupRenderVao(Legacy::SharedVaoEnum::WeatherRenderSnow0, buffer0, 4096 * 3 * sizeof(float));
-    setupRenderVao(Legacy::SharedVaoEnum::WeatherRenderSnow1, buffer1, 4096 * 3 * sizeof(float));
-
-    m_state.numParticles = static_cast<uint32_t>(totalParticles);
-    m_state.initialized = true;
 }
 
 void WeatherRenderer::update(float dt)
@@ -321,25 +248,31 @@ void WeatherRenderer::update(float dt)
     bool transitioning = (m_state.animationTime - m_state.weatherTransitionStartTime < TRANSITION_DURATION)
                          || (m_state.animationTime - m_state.todTransitionStartTime < TRANSITION_DURATION);
 
-    bool hasWeather = m_state.targetRainIntensity > 0.0f || m_state.targetSnowIntensity > 0.0f
-                      || m_state.targetCloudsIntensity > 0.0f || m_state.targetFogIntensity > 0.0f
-                      || m_state.rainIntensityStart > 0.0f || m_state.snowIntensityStart > 0.0f
-                      || m_state.cloudsIntensityStart > 0.0f || m_state.fogIntensityStart > 0.0f;
+    // We only need to animate if a transition is active OR weather effects that move (rain, snow, clouds, fog) are present.
+    // Static Time of Day tinting does not require continuous animation.
+    bool hasActiveWeather = m_state.targetRainIntensity > 0.0f || m_state.targetSnowIntensity > 0.0f
+                            || m_state.targetCloudsIntensity > 0.0f || m_state.targetFogIntensity > 0.0f
+                            || m_state.rainIntensityStart > 0.0f || m_state.snowIntensityStart > 0.0f
+                            || m_state.cloudsIntensityStart > 0.0f || m_state.fogIntensityStart > 0.0f;
 
-    m_setAnimating(transitioning || hasWeather);
+    m_setAnimating(transitioning || hasActiveWeather);
+}
+
+void WeatherRenderer::prepare(const glm::mat4 &viewProj)
+{
+    init();
+    updateUbo(viewProj);
 }
 
 void WeatherRenderer::updateUbo(const glm::mat4 &viewProj)
 {
-    if (utils::isSameFloat(m_state.lastUboUploadTime, m_state.animationTime)) {
-        return;
-    }
-
     auto gl_funcs = m_gl.getSharedFunctions(Badge<WeatherRenderer>{});
     auto &funcs = *gl_funcs;
     const auto buffer = Legacy::SharedVboEnum::WeatherBlock;
     const auto vboUbo = funcs.getSharedVbos().get(buffer);
-    if (!*vboUbo) vboUbo->emplace(gl_funcs);
+    if (!*vboUbo) {
+        vboUbo->emplace(gl_funcs);
+    }
 
     GLRenderState::Uniforms::Weather w;
     w.viewProj = viewProj;
@@ -364,13 +297,13 @@ void WeatherRenderer::updateUbo(const glm::mat4 &viewProj)
             color = glm::vec4(0.05f, 0.05f, 0.2f, 0.6f + 0.2f * moonIntensity);
             break;
         case MumeTimeEnum::DAWN:
-            color = glm::vec4(0.4f, 0.3f, 0.2f, 0.3f);
+            color = glm::vec4(0.4f, 0.3f, 0.2f, 0.1f);
             break;
         case MumeTimeEnum::DUSK:
-            color = glm::vec4(0.3f, 0.2f, 0.4f, 0.4f);
+            color = glm::vec4(0.3f, 0.2f, 0.4f, 0.2f);
             break;
         }
-        color.a *= todIntensity; // default 50% slider -> todIntensity=1.0 -> same as old behavior
+        color.a *= todIntensity; // default 50% slider -> todIntensity=1.0
         return color;
     };
 
@@ -387,7 +320,7 @@ void WeatherRenderer::updateUbo(const glm::mat4 &viewProj)
     m_state.lastUboUploadTime = m_state.animationTime;
 }
 
-void WeatherRenderer::renderParticles(const glm::mat4 &viewProj)
+void WeatherRenderer::renderParticles(const glm::mat4 &/*viewProj*/)
 {
     const float rainMax = std::max(m_state.rainIntensityStart, m_state.targetRainIntensity);
     const float snowMax = std::max(m_state.snowIntensityStart, m_state.targetSnowIntensity);
@@ -396,84 +329,13 @@ void WeatherRenderer::renderParticles(const glm::mat4 &viewProj)
         return;
     }
 
-    initParticles();
-    updateUbo(viewProj);
-
-    auto gl_funcs = m_gl.getSharedFunctions(Badge<WeatherRenderer>{});
-    auto &funcs = *gl_funcs;
-
-    const auto bufferOut = (m_state.currentBuffer == 0) ? Legacy::SharedVboEnum::WeatherParticles1
-                                                        : Legacy::SharedVboEnum::WeatherParticles0;
-    const auto vboOut = funcs.getSharedVbos().get(bufferOut);
-    if (!*vboOut) vboOut->emplace(gl_funcs);
-
     const auto rs = m_gl.getDefaultRenderState().withBlend(BlendModeEnum::MAX_ALPHA);
-    Legacy::RenderStateBinder rsBinder(funcs, funcs.getTexLookup(), rs);
 
-    // Pass 1: Simulation
-    {
-        auto &prog = deref(funcs.getShaderPrograms().getParticleSimulationShader());
-        auto binder = prog.bind();
-        GLRenderState::Uniforms uniforms;
-        prog.setUniforms(viewProj, uniforms);
-
-        auto vaoEnum = (m_state.currentBuffer == 0) ? Legacy::SharedVaoEnum::WeatherSimulation0
-                                                     : Legacy::SharedVaoEnum::WeatherSimulation1;
-        auto vao = funcs.getSharedVaos().get(vaoEnum);
-        if (!*vao) vao->emplace(gl_funcs);
-        Legacy::VAOBinder vaoBinder(funcs, vao);
-
-        auto tf = funcs.getSharedTfs().get(Legacy::SharedTfEnum::WeatherSimulation);
-        if (!*tf) tf->emplace(gl_funcs);
-
-        funcs.glEnable(GL_RASTERIZER_DISCARD);
-        funcs.glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, tf->get());
-        funcs.glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, vboOut->get());
-        {
-            Legacy::TransformFeedbackBinder tfBinder(funcs, tf, GL_POINTS);
-            funcs.glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(m_state.numParticles));
-        }
-        funcs.glDisable(GL_RASTERIZER_DISCARD);
-    }
-
-    // Pass 2: Rendering
-    {
-        auto &prog = deref(funcs.getShaderPrograms().getParticleRenderShader());
-        auto binder = prog.bind();
-        GLRenderState::Uniforms uniforms;
-        prog.setUniforms(viewProj, uniforms);
-
-        // Rain
-        const GLsizei rainCount = std::min(4096, static_cast<GLsizei>(std::ceil(rainMax * 2048.0f)));
-        if (rainCount > 0) {
-            auto vaoRainEnum = (m_state.currentBuffer == 0) ? Legacy::SharedVaoEnum::WeatherRenderRain1
-                                                             : Legacy::SharedVaoEnum::WeatherRenderRain0;
-            auto vao = funcs.getSharedVaos().get(vaoRainEnum);
-            if (!*vao) vao->emplace(gl_funcs);
-            Legacy::VAOBinder vaoBinder(funcs, vao);
-            prog.setFloat("uType", 0.0f);
-            prog.setInt("uInstanceOffset", 0);
-            funcs.glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, rainCount);
-        }
-
-        // Snow
-        const GLsizei snowCount = std::min(1024, static_cast<GLsizei>(std::ceil(snowMax * 1024.0f)));
-        if (snowCount > 0) {
-            auto vaoSnowEnum = (m_state.currentBuffer == 0) ? Legacy::SharedVaoEnum::WeatherRenderSnow1
-                                                             : Legacy::SharedVaoEnum::WeatherRenderSnow0;
-            auto vao = funcs.getSharedVaos().get(vaoSnowEnum);
-            if (!*vao) vao->emplace(gl_funcs);
-            Legacy::VAOBinder vaoBinder(funcs, vao);
-            prog.setFloat("uType", 1.0f);
-            prog.setInt("uInstanceOffset", 4096);
-            funcs.glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, snowCount);
-        }
-    }
-
-    m_state.currentBuffer = 1 - m_state.currentBuffer;
+    m_simulation.render(rs);
+    m_particles.render(rs);
 }
 
-void WeatherRenderer::renderAtmosphere(const glm::mat4 &viewProj)
+void WeatherRenderer::renderAtmosphere(const glm::mat4 &/*viewProj*/)
 {
     const float cloudMax = std::max(m_state.cloudsIntensityStart, m_state.targetCloudsIntensity);
     const float fogMax = std::max(m_state.fogIntensityStart, m_state.targetFogIntensity);
@@ -483,26 +345,6 @@ void WeatherRenderer::renderAtmosphere(const glm::mat4 &viewProj)
         return;
     }
 
-    updateUbo(viewProj);
-
-    auto gl_funcs = m_gl.getSharedFunctions(Badge<WeatherRenderer>{});
-    auto &funcs = *gl_funcs;
-    auto &prog = deref(funcs.getShaderPrograms().getAtmosphereShader());
-    auto binder = prog.bind();
-
-    const auto rs = m_gl.getDefaultRenderState()
-                        .withBlend(BlendModeEnum::TRANSPARENCY)
-                        .withTexture0(m_textures.weather_noise->getId());
-    Legacy::RenderStateBinder rsBinder(funcs, funcs.getTexLookup(), rs);
-
-    GLRenderState::Uniforms uniforms;
-    prog.setUniforms(viewProj, uniforms);
-
-    auto emptyVao = funcs.getSharedVaos().get(Legacy::SharedVaoEnum::EmptyVao);
-    if (!*emptyVao) emptyVao->emplace(gl_funcs);
-    Legacy::VAOBinder vaoBinder(funcs, emptyVao);
-
-    prog.setInt("uNoiseTex", 0);
-
-    funcs.glDrawArrays(GL_TRIANGLES, 0, 3);
+    const auto rs = m_gl.getDefaultRenderState().withBlend(BlendModeEnum::TRANSPARENCY);
+    m_atmosphere.render(rs);
 }

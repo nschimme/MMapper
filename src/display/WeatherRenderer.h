@@ -12,6 +12,7 @@
 #include "../opengl/OpenGLTypes.h"
 #include "../opengl/legacy/Legacy.h"
 #include "Textures.h"
+#include "WeatherRenderables.h"
 
 #include <chrono>
 #include <functional>
@@ -69,6 +70,9 @@ private:
     ChangeMonitor::Lifetime m_lifetime;
     std::function<void(bool)> m_setAnimating;
     State m_state;
+    UniqueMesh m_simulation;
+    UniqueMesh m_particles;
+    UniqueMesh m_atmosphere;
 
 public:
     explicit WeatherRenderer(OpenGL &gl,
@@ -82,6 +86,7 @@ public:
 
 public:
     void init();
+    void prepare(const glm::mat4 &viewProj);
     void renderParticles(const glm::mat4 &viewProj);
     void renderAtmosphere(const glm::mat4 &viewProj);
     void update(float dt);
@@ -90,6 +95,5 @@ public:
     NODISCARD const State &getState() const { return m_state; }
 
 private:
-    void initParticles();
     void updateUbo(const glm::mat4 &viewProj);
 };

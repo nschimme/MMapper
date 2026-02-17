@@ -70,6 +70,8 @@ set(mmapper_SRCS
     display/RoomSelections.cpp
     display/Textures.cpp
     display/Textures.h
+    display/WeatherRenderables.cpp
+    display/WeatherRenderables.h
     display/WeatherRenderer.cpp
     display/WeatherRenderer.h
     display/WeatherTextureGenerator.cpp

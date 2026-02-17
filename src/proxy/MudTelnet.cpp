@@ -27,12 +27,40 @@
 #include <QOperatingSystemVersion>
 #include <QSysInfo>
 
+#ifdef Q_OS_WASM
+#include <cstdlib>
+#include <emscripten.h>
+#endif
+
 namespace { // anonymous
 
 constexpr const auto GAME_YEAR = "GAME YEAR";
 constexpr const auto GAME_MONTH = "GAME MONTH";
 constexpr const auto GAME_DAY = "GAME DAY";
 constexpr const auto GAME_HOUR = "GAME HOUR";
+
+#ifdef Q_OS_WASM
+EM_JS(char *, get_browser_os_js, (), {
+    const ua = navigator.userAgent;
+
+    const os = / Win /.test(ua) ? "Windows" : / Android /.test(ua)            ? "Android"
+                                          : / Linux /.test(ua)                ? "Linux"
+                                          : / iPhone | iPad | iPod /.test(ua) ? "iOS"
+                                          : / Mac /.test(ua)                  ? "macOS"
+                                                                              : "Unknown";
+
+    const br = / Firefox /.test(ua) ? "Firefox" : / SamsungBrowser /.test(ua) ? "Samsung"
+                                              : / Opera | OPR /.test(ua)      ? "Opera"
+                                              : / Edge | Edg /.test(ua)       ? "Edge"
+                                              : / Chrome /.test(ua)           ? "Chrome"
+                                              : / Safari /.test(ua)           ? "Safari"
+                                                                              : "Unknown";
+
+    const res = (os == = "Unknown" &&br == = "Unknown") ? "Unknown" : (os + br);
+
+    return stringToNewUTF8(res);
+});
+#endif
 
 NODISCARD std::optional<std::string> getMajorMinor()
 {
@@ -66,10 +94,17 @@ NODISCARD std::string getOsName()
 
 NODISCARD std::string getOs()
 {
+#ifdef Q_OS_WASM
+    char *jsStr = get_browser_os_js();
+    const std::string result(jsStr);
+    std::free(jsStr);
+    return result;
+#else
     if (auto ver = getMajorMinor()) {
         return getOsName() + ver.value();
     }
     return getOsName();
+#endif
 }
 
 NODISCARD std::string getPackage()

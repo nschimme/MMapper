@@ -7,18 +7,12 @@ layout(location = 1) in float aLife;
 layout(std140) uniform WeatherBlock
 {
     mat4 uViewProj;
-    vec4 uPlayerPos; // xyz, w=zScale
-    vec4 uIntensitiesStart;
-    vec4 uIntensitiesTarget;
-    vec4 uToDColorStart;
-    vec4 uToDColorTarget;
-    vec4 uTimes; // x=weatherStart, y=todStart, z=time, w=delta
+    vec4 uPlayerPos;   // xyz, w=zScale
+    vec4 uIntensities; // precip, clouds, fog, type
+    ivec4 uToDIndices; // x=start, y=target
+    vec4 uTimes;       // x=time, y=delta, z=todLerp
 };
 
-uniform float uType;
-uniform int uInstanceOffset;
-
-out float vType;
 out float vLife;
 out vec2 vLocalCoord;
 out float vLocalMask;
@@ -28,40 +22,31 @@ float rand(float n)
     return fract(sin(n) * 43758.5453123);
 }
 
-float get_intensity(int idx)
-{
-    float uTime = uTimes.z;
-    float t = clamp((uTime - uTimes.x) / 2.0, 0.0, 1.0);
-    float s = smoothstep(0.0, 1.0, t);
-    return mix(uIntensitiesStart[idx], uIntensitiesTarget[idx], s);
-}
-
 void main()
 {
-    float uTime = uTimes.z;
+    float uTime = uTimes.x;
     float uZScale = uPlayerPos.w;
+    float pIntensity = uIntensities.x;
+    float pType = uIntensities.w;
 
-    // Instance ID + Offset for unique hashing
-    float hash = rand(float(gl_InstanceID + uInstanceOffset));
+    float hash = rand(float(gl_InstanceID));
 
-    // Generate quad position from gl_VertexID (0..3) for GL_TRIANGLE_STRIP
-    // 0: (-0.5, -0.5), 1: (0.5, -0.5), 2: (-0.5, 0.5), 3: (0.5, 0.5)
+    // Generate quad position from gl_VertexID (0..3)
     vec2 quadPos = vec2(float(gl_VertexID & 1) - 0.5, float((gl_VertexID >> 1) & 1) - 0.5);
 
-    vType = uType;
     vLife = aLife;
     vLocalCoord = quadPos + 0.5;
 
-    vec2 size;
+    // Rain size
+    vec2 rainSize = vec2(1.0 / 12.0, 1.0 / (0.25 - clamp(pIntensity, 0.0, 2.0) * 0.1));
+    // Snow size
+    vec2 snowSize = vec2(1.0 / 4.0, 1.0 / 4.0);
+
+    vec2 size = mix(rainSize, snowSize, pType);
     vec2 pos = aParticlePos;
 
-    if (vType == 0.0) { // Rain
-        float rainIntensity = get_intensity(0);
-        size = vec2(1.0 / 12.0, 1.0 / (0.25 - clamp(rainIntensity, 0.0, 2.0) * 0.1));
-    } else { // Snow
-        size = vec2(1.0 / 4.0, 1.0 / 4.0);
-        pos.x += sin(uTime * 1.2 + hash * 6.28) * 0.4;
-    }
+    // Extra swaying for snow visuals
+    pos.x += sin(uTime * 1.2 + hash * 6.28) * 0.4 * pType;
 
     vec3 worldPos = vec3(pos + quadPos * size, uPlayerPos.z);
 

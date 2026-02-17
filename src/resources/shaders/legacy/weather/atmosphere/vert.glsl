@@ -4,12 +4,10 @@
 layout(std140) uniform WeatherBlock
 {
     mat4 uViewProj;
-    vec4 uPlayerPos; // xyz, w=zScale
-    vec4 uIntensitiesStart;
-    vec4 uIntensitiesTarget;
-    vec4 uToDColorStart;
-    vec4 uToDColorTarget;
-    vec4 uTimes; // x=weatherStart, y=todStart, z=time, w=delta
+    vec4 uPlayerPos;   // xyz, w=zScale
+    vec4 uIntensities; // precip, clouds, fog, type
+    ivec4 uToDIndices; // x=start, y=target
+    vec4 uTimes;       // x=time, y=delta, z=todLerp
 };
 
 uniform mat4 uInvViewProj;

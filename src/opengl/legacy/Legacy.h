@@ -52,10 +52,8 @@ enum class SharedVboEnum : uint8_t {
     X(EmptyVao) \
     X(WeatherSimulation0) \
     X(WeatherSimulation1) \
-    X(WeatherRenderRain0) \
-    X(WeatherRenderRain1) \
-    X(WeatherRenderSnow0) \
-    X(WeatherRenderSnow1)
+    X(WeatherRender0) \
+    X(WeatherRender1)
 
 enum class SharedVaoEnum : uint8_t {
 #define X_ENUM(element) element,

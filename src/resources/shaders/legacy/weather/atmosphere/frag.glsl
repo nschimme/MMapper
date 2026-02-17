@@ -3,15 +3,18 @@
 
 precision highp float;
 
+layout(std140) uniform NamedColorsBlock
+{
+    vec4 uNamedColors[32];
+};
+
 layout(std140) uniform WeatherBlock
 {
     mat4 uViewProj;
-    vec4 uPlayerPos; // xyz, w=zScale
-    vec4 uIntensitiesStart;
-    vec4 uIntensitiesTarget;
-    vec4 uToDColorStart;
-    vec4 uToDColorTarget;
-    vec4 uTimes; // x=weatherStart, y=todStart, z=time, w=delta
+    vec4 uPlayerPos;   // xyz, w=zScale
+    vec4 uIntensities; // precip, clouds, fog, type
+    ivec4 uToDIndices; // x=start, y=target
+    vec4 uTimes;       // x=time, y=delta, z=todLerp
 };
 
 uniform sampler2D uNoiseTex;
@@ -19,22 +22,6 @@ uniform sampler2D uNoiseTex;
 in vec2 vNDC;
 in vec3 vWorldPos;
 out vec4 vFragmentColor;
-
-float get_intensity(int idx)
-{
-    float uTime = uTimes.z;
-    float t = clamp((uTime - uTimes.x) / 2.0, 0.0, 1.0);
-    float s = smoothstep(0.0, 1.0, t);
-    return mix(uIntensitiesStart[idx], uIntensitiesTarget[idx], s);
-}
-
-vec4 get_tod_color()
-{
-    float uTime = uTimes.z;
-    float t = clamp((uTime - uTimes.y) / 2.0, 0.0, 1.0);
-    float s = smoothstep(0.0, 1.0, t);
-    return mix(uToDColorStart, uToDColorTarget, s);
-}
 
 float get_noise(vec2 p)
 {
@@ -60,10 +47,13 @@ void main()
     float distToPlayer = distance(worldPos.xy, uPlayerPos.xy);
     float localMask = smoothstep(12.0, 8.0, distToPlayer);
 
-    float uTime = uTimes.z;
-    float uCloudsIntensity = get_intensity(2);
-    float uFogIntensity = get_intensity(3);
-    vec4 uTimeOfDayColor = get_tod_color();
+    float uTime = uTimes.x;
+    float uCloudsIntensity = uIntensities[1];
+    float uFogIntensity = uIntensities[2];
+
+    vec4 todStart = uNamedColors[uToDIndices.x];
+    vec4 todTarget = uNamedColors[uToDIndices.y];
+    vec4 uTimeOfDayColor = mix(todStart, todTarget, uTimes.z);
 
     // Start with Time of Day tint
     vec3 todTint = uTimeOfDayColor.rgb;

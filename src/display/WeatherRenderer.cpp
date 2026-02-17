@@ -72,14 +72,17 @@ WeatherRenderer::WeatherRenderer(OpenGL &gl,
         case PromptWeatherEnum::RAIN:
             m_state.gameCloudsIntensity = 0.8f;
             m_state.gameRainIntensity = 0.5f;
+            m_state.targetPrecipitationType = 0.0f;
             break;
         case PromptWeatherEnum::HEAVY_RAIN:
             m_state.gameCloudsIntensity = 1.0f;
             m_state.gameRainIntensity = 1.0f;
+            m_state.targetPrecipitationType = 0.0f;
             break;
         case PromptWeatherEnum::SNOW:
             m_state.gameCloudsIntensity = 0.8f;
             m_state.gameSnowIntensity = 0.8f;
+            m_state.targetPrecipitationType = 1.0f;
             break;
         }
 
@@ -128,6 +131,7 @@ WeatherRenderer::WeatherRenderer(OpenGL &gl,
     m_state.snowIntensityStart = m_state.targetSnowIntensity;
     m_state.cloudsIntensityStart = m_state.targetCloudsIntensity;
     m_state.fogIntensityStart = m_state.targetFogIntensity;
+    m_state.precipitationTypeStart = m_state.targetPrecipitationType;
     m_state.moonIntensityStart = m_state.targetMoonIntensity;
 
     auto lerpCurrentIntensities = [this]() {
@@ -137,6 +141,7 @@ WeatherRenderer::WeatherRenderer(OpenGL &gl,
         m_state.snowIntensityStart = my_lerp(m_state.snowIntensityStart, m_state.targetSnowIntensity, factor);
         m_state.cloudsIntensityStart = my_lerp(m_state.cloudsIntensityStart, m_state.targetCloudsIntensity, factor);
         m_state.fogIntensityStart = my_lerp(m_state.fogIntensityStart, m_state.targetFogIntensity, factor);
+        m_state.precipitationTypeStart = my_lerp(m_state.precipitationTypeStart, m_state.targetPrecipitationType, factor);
     };
 
     m_observer.sig2_weatherChanged.connect(
@@ -281,36 +286,46 @@ void WeatherRenderer::updateUbo(const glm::mat4 &viewProj)
     w.playerPos = glm::vec4(static_cast<float>(playerPosCoord.x), static_cast<float>(playerPosCoord.y),
                             static_cast<float>(playerPosCoord.z), ROOM_Z_SCALE);
 
-    w.intensitiesStart = glm::vec4(m_state.rainIntensityStart, m_state.snowIntensityStart,
-                                   m_state.cloudsIntensityStart, m_state.fogIntensityStart);
-    w.intensitiesTarget = glm::vec4(m_state.targetRainIntensity, m_state.targetSnowIntensity,
-                                    m_state.targetCloudsIntensity, m_state.targetFogIntensity);
-
-    auto getToDColor = [this](MumeTimeEnum tod, float moonIntensity, float todIntensity) {
-        glm::vec4 color = glm::vec4(0.0f);
-        switch (tod) {
-        case MumeTimeEnum::UNKNOWN:
-        case MumeTimeEnum::DAY:
-            break;
-        case MumeTimeEnum::NIGHT:
-            color = glm::vec4(0.05f, 0.05f, 0.2f, 0.35f - 0.15f * moonIntensity);
-            break;
-        case MumeTimeEnum::DAWN:
-            color = glm::vec4(0.4f, 0.3f, 0.2f, 0.1f);
-            break;
-        case MumeTimeEnum::DUSK:
-            color = glm::vec4(0.3f, 0.2f, 0.4f, 0.2f);
-            break;
-        }
-        color.a *= todIntensity;
-        return color;
+    auto getIntensity = [&](float start, float target, float startTime) {
+        float t = std::clamp((m_state.animationTime - startTime) / TRANSITION_DURATION, 0.0f, 1.0f);
+        return my_lerp(start, target, t);
     };
 
-    w.todColorStart = getToDColor(m_state.oldTimeOfDay, m_state.moonIntensityStart, m_state.todIntensityStart);
-    w.todColorTarget = getToDColor(m_state.currentTimeOfDay, m_state.targetMoonIntensity, m_state.targetToDIntensity);
+    float rain = getIntensity(m_state.rainIntensityStart, m_state.targetRainIntensity,
+                              m_state.weatherTransitionStartTime);
+    float snow = getIntensity(m_state.snowIntensityStart, m_state.targetSnowIntensity,
+                              m_state.weatherTransitionStartTime);
+    float clouds = getIntensity(m_state.cloudsIntensityStart, m_state.targetCloudsIntensity,
+                                m_state.weatherTransitionStartTime);
+    float fog = getIntensity(m_state.fogIntensityStart, m_state.targetFogIntensity,
+                             m_state.weatherTransitionStartTime);
+    float pType = getIntensity(m_state.precipitationTypeStart, m_state.targetPrecipitationType,
+                               m_state.weatherTransitionStartTime);
 
-    w.times = glm::vec4(m_state.weatherTransitionStartTime, m_state.todTransitionStartTime,
-                        m_state.animationTime, m_state.lastDt);
+    // precipitationIntensity is max(rain, snow)
+    w.intensities = glm::vec4(std::max(rain, snow), clouds, fog, pType);
+
+    auto toNamedColor = [](MumeTimeEnum tod) {
+        switch (tod) {
+        case MumeTimeEnum::DAY:
+            return NamedColorEnum::TRANSPARENT;
+        case MumeTimeEnum::NIGHT:
+            return NamedColorEnum::WEATHER_NIGHT;
+        case MumeTimeEnum::DAWN:
+            return NamedColorEnum::WEATHER_DAWN;
+        case MumeTimeEnum::DUSK:
+            return NamedColorEnum::WEATHER_DUSK;
+        default:
+            return NamedColorEnum::TRANSPARENT;
+        }
+    };
+
+    w.todIndices.x = static_cast<int>(toNamedColor(m_state.oldTimeOfDay));
+    w.todIndices.y = static_cast<int>(toNamedColor(m_state.currentTimeOfDay));
+
+    float t_tod = std::clamp((m_state.animationTime - m_state.todTransitionStartTime) / TRANSITION_DURATION,
+                             0.0f, 1.0f);
+    w.times = glm::vec4(m_state.animationTime, m_state.lastDt, t_tod, 0.0f);
 
     funcs.glBindBuffer(GL_UNIFORM_BUFFER, vboUbo->get());
     funcs.glBufferData(GL_UNIFORM_BUFFER, sizeof(w), &w, GL_DYNAMIC_DRAW);

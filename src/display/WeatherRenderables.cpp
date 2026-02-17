@@ -18,6 +18,12 @@ float get_random_float()
 {
     return static_cast<float>(getRandom(1000000)) / 1000000.0f;
 }
+
+template<typename T>
+T my_lerp(T a, T b, float t)
+{
+    return a + t * (b - a);
+}
 } // namespace
 
 namespace Legacy {
@@ -80,7 +86,7 @@ void WeatherSimulationMesh::init()
     const auto buffer0 = SharedVboEnum::WeatherParticles0;
     const auto buffer1 = SharedVboEnum::WeatherParticles1;
 
-    const size_t totalParticles = 5120; // 4096 rain + 1024 snow
+    const size_t totalParticles = 4096;
     std::vector<float> initialData(totalParticles * 3, 0.0f);
     for (size_t i = 0; i < totalParticles; ++i) {
         initialData[i * 3 + 0] = get_random_float() * 40.0f - 20.0f;
@@ -126,7 +132,7 @@ void WeatherSimulationMesh::init()
         m_functions.glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
 
-    auto setupRenderVao = [&](SharedVaoEnum vaoEnum, SharedVboEnum vboEnum, size_t offset) {
+    auto setupRenderVao = [&](SharedVaoEnum vaoEnum, SharedVboEnum vboEnum) {
         auto vao = m_functions.getSharedVaos().get(vaoEnum);
         if (!*vao) vao->emplace(m_shared_functions);
         auto vbo = m_functions.getSharedVbos().get(vboEnum);
@@ -134,17 +140,15 @@ void WeatherSimulationMesh::init()
 
         VAOBinder vaoBinder(m_functions, vao);
         m_functions.glBindBuffer(GL_ARRAY_BUFFER, vbo->get());
-        m_functions.enableAttrib(0, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(float), reinterpret_cast<void *>(offset));
+        m_functions.enableAttrib(0, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
         m_functions.glVertexAttribDivisor(0, 1);
-        m_functions.enableAttrib(1, 1, GL_FLOAT, GL_FALSE, 3 * sizeof(float), reinterpret_cast<void *>(offset + 2 * sizeof(float)));
+        m_functions.enableAttrib(1, 1, GL_FLOAT, GL_FALSE, 3 * sizeof(float), reinterpret_cast<void *>(2 * sizeof(float)));
         m_functions.glVertexAttribDivisor(1, 1);
         m_functions.glBindBuffer(GL_ARRAY_BUFFER, 0);
     };
 
-    setupRenderVao(SharedVaoEnum::WeatherRenderRain0, buffer0, 0);
-    setupRenderVao(SharedVaoEnum::WeatherRenderRain1, buffer1, 0);
-    setupRenderVao(SharedVaoEnum::WeatherRenderSnow0, buffer0, 4096 * 3 * sizeof(float));
-    setupRenderVao(SharedVaoEnum::WeatherRenderSnow1, buffer1, 4096 * 3 * sizeof(float));
+    setupRenderVao(SharedVaoEnum::WeatherRender0, buffer0);
+    setupRenderVao(SharedVaoEnum::WeatherRender1, buffer1);
 
     state.numParticles = static_cast<uint32_t>(totalParticles);
     state.initialized = true;
@@ -208,8 +212,14 @@ WeatherParticleMesh::~WeatherParticleMesh() = default;
 void WeatherParticleMesh::virt_render(const GLRenderState &renderState)
 {
     auto &state = m_renderer.getState();
-    const float rainMax = std::max(state.rainIntensityStart, state.targetRainIntensity);
-    const float snowMax = std::max(state.snowIntensityStart, state.targetSnowIntensity);
+    float t = std::clamp((state.animationTime - state.weatherTransitionStartTime) / 2.0f, 0.0f, 1.0f);
+    float rain = my_lerp(state.rainIntensityStart, state.targetRainIntensity, t);
+    float snow = my_lerp(state.snowIntensityStart, state.targetSnowIntensity, t);
+
+    const float precipMax = std::max(rain, snow);
+    if (precipMax <= 0.0f) {
+        return;
+    }
 
     auto &prog = deref(m_functions.getShaderPrograms().getParticleRenderShader());
     auto binder = prog.bind();
@@ -219,34 +229,16 @@ void WeatherParticleMesh::virt_render(const GLRenderState &renderState)
     const glm::mat4 mvp = m_functions.getProjectionMatrix();
     prog.setUniforms(mvp, renderState.uniforms);
 
-    // Rain
-    const GLsizei rainCount = std::min(4096, static_cast<GLsizei>(std::ceil(rainMax * 2048.0f)));
-    if (rainCount > 0) {
-        auto vaoRainEnum = (state.currentBuffer == 0) ? SharedVaoEnum::WeatherRenderRain0
-                                                       : SharedVaoEnum::WeatherRenderRain1;
-        auto vao = m_functions.getSharedVaos().get(vaoRainEnum);
+    const GLsizei count = std::min(4096, static_cast<GLsizei>(std::ceil(precipMax * 4096.0f)));
+    if (count > 0) {
+        auto vaoEnum = (state.currentBuffer == 0) ? SharedVaoEnum::WeatherRender0
+                                                   : SharedVaoEnum::WeatherRender1;
+        auto vao = m_functions.getSharedVaos().get(vaoEnum);
         if (!*vao) {
             vao->emplace(m_shared_functions);
         }
         VAOBinder vaoBinder(m_functions, vao);
-        prog.setFloat("uType", 0.0f);
-        prog.setInt("uInstanceOffset", 0);
-        m_functions.glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, rainCount);
-    }
-
-    // Snow
-    const GLsizei snowCount = std::min(1024, static_cast<GLsizei>(std::ceil(snowMax * 1024.0f)));
-    if (snowCount > 0) {
-        auto vaoSnowEnum = (state.currentBuffer == 0) ? SharedVaoEnum::WeatherRenderSnow0
-                                                       : SharedVaoEnum::WeatherRenderSnow1;
-        auto vao = m_functions.getSharedVaos().get(vaoSnowEnum);
-        if (!*vao) {
-            vao->emplace(m_shared_functions);
-        }
-        VAOBinder vaoBinder(m_functions, vao);
-        prog.setFloat("uType", 1.0f);
-        prog.setInt("uInstanceOffset", 4096);
-        m_functions.glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, snowCount);
+        m_functions.glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, count);
     }
 }
 

@@ -43,6 +43,9 @@ public:
         float targetToDIntensity = 0.0f;
         float targetMoonIntensity = 0.0f;
 
+        float precipitationTypeStart = 0.0f;
+        float targetPrecipitationType = 0.0f;
+
         float gameRainIntensity = 0.0f;
         float gameSnowIntensity = 0.0f;
         float gameCloudsIntensity = 0.0f;

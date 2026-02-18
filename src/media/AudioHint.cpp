@@ -4,7 +4,7 @@
 #include "AudioHint.h"
 
 #include "../configuration/configuration.h"
-#include "../media/AudioManager.h"
+#include "AudioManager.h"
 
 #include <QIcon>
 #include <QLabel>

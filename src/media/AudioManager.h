@@ -23,9 +23,6 @@ private:
     GameObserver &m_observer;
     Signal2Lifetime m_lifetime;
 
-    int m_lastMusicVol = 0;
-    int m_lastSoundVol = 0;
-
 public:
     explicit AudioManager(MediaLibrary &library, GameObserver &observer, QObject *parent = nullptr);
     ~AudioManager() override;

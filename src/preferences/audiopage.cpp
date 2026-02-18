@@ -5,6 +5,7 @@
 
 #include "../configuration/configuration.h"
 #include "ui_audiopage.h"
+
 AudioPage::AudioPage(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::AudioPage)

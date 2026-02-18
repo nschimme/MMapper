@@ -10,6 +10,8 @@ set(mmapper_SRCS
     adventure/lineparsers.h
     adventure/xpstatuswidget.cpp
     adventure/xpstatuswidget.h
+    media/AudioHint.cpp
+    media/AudioHint.h
     media/AudioManager.cpp
     media/AudioManager.h
     media/DescriptionWidget.cpp
@@ -256,8 +258,6 @@ set(mmapper_SRCS
     mainwindow/infomarkseditdlg.h
     mainwindow/mainwindow-async.cpp
     mainwindow/mainwindow-saveslots.cpp
-    mainwindow/AudioHint.cpp
-    mainwindow/AudioHint.h
     mainwindow/mainwindow.cpp
     mainwindow/mainwindow.h
     mainwindow/metatypes.cpp

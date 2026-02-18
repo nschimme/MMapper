@@ -26,9 +26,6 @@ AudioManager::AudioManager(MediaLibrary &library, GameObserver &observer, QObjec
             m_music,
             &MusicManager::slot_onMediaChanged);
 
-    m_lastMusicVol = getConfig().audio.musicVolume;
-    m_lastSoundVol = getConfig().audio.soundVolume;
-
     slot_updateVolumes();
 }
 
@@ -69,13 +66,9 @@ void AudioManager::slot_updateVolumes()
     const int currentMusicVol = getConfig().audio.musicVolume;
     const int currentSoundVol = getConfig().audio.soundVolume;
 
-    if ((m_lastMusicVol == 0 && currentMusicVol > 0)
-        || (m_lastSoundVol == 0 && currentSoundVol > 0)) {
+    if (!getConfig().audio.audioHintShown && (currentMusicVol > 0 || currentSoundVol > 0)) {
         unblockAudio();
     }
-
-    m_lastMusicVol = currentMusicVol;
-    m_lastSoundVol = currentSoundVol;
 
     m_music->updateVolumes();
     m_sfx->updateVolume();

@@ -33,7 +33,7 @@
 #include "../roompanel/RoomManager.h"
 #include "../roompanel/RoomWidget.h"
 #include "../viewers/TopLevelWindows.h"
-#include "AudioHint.h"
+#include "../media/AudioHint.h"
 #include "MapZoomSlider.h"
 #include "UpdateDialog.h"
 #include "aboutdialog.h"

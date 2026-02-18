@@ -302,7 +302,15 @@ void WeatherRenderer::update(float dt)
     bool timeOfDayTransitioning = (m_state.animationTime - m_state.timeOfDayTransitionStartTime
                                    < TRANSITION_DURATION);
 
-    if (!timeOfDayTransitioning && m_state.oldTimeOfDay != m_state.currentTimeOfDay) {
+    if (!weatherTransitioning) {
+        m_state.rainIntensityStart = m_state.targetRainIntensity;
+        m_state.snowIntensityStart = m_state.targetSnowIntensity;
+        m_state.cloudsIntensityStart = m_state.targetCloudsIntensity;
+        m_state.fogIntensityStart = m_state.targetFogIntensity;
+        m_state.precipitationTypeStart = m_state.targetPrecipitationType;
+    }
+
+    if (!timeOfDayTransitioning) {
         m_state.oldTimeOfDay = m_state.currentTimeOfDay;
         m_state.timeOfDayIntensityStart = m_state.targetTimeOfDayIntensity;
         m_state.moonIntensityStart = m_state.targetMoonIntensity;

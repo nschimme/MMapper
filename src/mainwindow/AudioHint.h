@@ -4,13 +4,14 @@
 
 #include "../global/macros.h"
 
+#include <QObject>
 #include <QWidget>
 
 class AudioManager;
 class QPushButton;
 class QLabel;
 
-class NODISCARD_QOBJECT AudioHint final : public QWidget
+class AudioHint final : public QWidget
 {
     Q_OBJECT
 

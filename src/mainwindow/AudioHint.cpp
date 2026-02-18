@@ -4,9 +4,8 @@
 #include "AudioHint.h"
 
 #include "../configuration/configuration.h"
-#include "AudioManager.h"
+#include "../media/AudioManager.h"
 
-#include <QApplication>
 #include <QIcon>
 #include <QLabel>
 #include <QPainter>
@@ -82,6 +81,8 @@ AudioHint::AudioHint(AudioManager &audioManager, QWidget *parent)
 
     m_container->setFixedSize(300, 250);
     updatePosition();
+
+    connect(&m_audioManager, &AudioManager::sig_audioUnblocked, this, &AudioHint::close);
 }
 
 AudioHint::~AudioHint() = default;

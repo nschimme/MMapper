@@ -56,7 +56,11 @@ void AudioManager::playSound(const QString &soundName)
 
 void AudioManager::unblockAudio()
 {
+    if (getConfig().audio.audioHintShown) {
+        return;
+    }
     setConfig().audio.audioHintShown = true;
+    emit sig_audioUnblocked();
     playSound("level-up");
 }
 

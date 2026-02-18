@@ -35,6 +35,9 @@ public:
     void playSound(const QString &soundName);
     void unblockAudio();
 
+signals:
+    void sig_audioUnblocked();
+
 public slots:
     void slot_updateVolumes();
 };

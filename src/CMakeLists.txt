@@ -256,6 +256,8 @@ set(mmapper_SRCS
     mainwindow/infomarkseditdlg.h
     mainwindow/mainwindow-async.cpp
     mainwindow/mainwindow-saveslots.cpp
+    mainwindow/AudioHint.cpp
+    mainwindow/AudioHint.h
     mainwindow/mainwindow.cpp
     mainwindow/mainwindow.h
     mainwindow/metatypes.cpp

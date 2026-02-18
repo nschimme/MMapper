@@ -127,7 +127,7 @@ WeatherRenderer::WeatherRenderer(OpenGL &gl,
                                         / 50.0f);
         m_state.targetTimeOfDayIntensity = m_state.gameTimeOfDayIntensity
                                            * (static_cast<float>(
-                                                  canvasSettings.weatherToDIntensity.get())
+                                                  canvasSettings.weatherTimeOfDayIntensity.get())
                                               / 50.0f);
     };
 
@@ -250,7 +250,8 @@ WeatherRenderer::WeatherRenderer(OpenGL &gl,
     canvasSettings.weatherPrecipitationIntensity.registerChangeCallback(m_lifetime,
                                                                         onSettingChanged);
     canvasSettings.weatherAtmosphereIntensity.registerChangeCallback(m_lifetime, onSettingChanged);
-    canvasSettings.weatherToDIntensity.registerChangeCallback(m_lifetime, onTimeOfDaySettingChanged);
+    canvasSettings.weatherTimeOfDayIntensity.registerChangeCallback(m_lifetime,
+                                                                    onTimeOfDaySettingChanged);
 }
 
 WeatherRenderer::~WeatherRenderer() = default;
@@ -290,7 +291,7 @@ void WeatherRenderer::update(float dt)
                                     / 50.0f);
     m_state.targetTimeOfDayIntensity = m_state.gameTimeOfDayIntensity
                                        * (static_cast<float>(
-                                              canvasSettings.weatherToDIntensity.get())
+                                              canvasSettings.weatherTimeOfDayIntensity.get())
                                           / 50.0f);
 
     m_state.lastDt = dt;
@@ -435,7 +436,7 @@ void WeatherRenderer::renderAtmosphere(const glm::mat4 & /*viewProj*/)
                         .withBlend(BlendModeEnum::TRANSPARENCY)
                         .withDepthFunction(std::nullopt);
 
-    // 1. Render ToD Overlay (Full Screen)
+    // 1. Render TimeOfDay Overlay (Full Screen)
     if (m_state.currentTimeOfDay != MumeTimeEnum::DAY || m_state.oldTimeOfDay != MumeTimeEnum::DAY
         || m_state.timeOfDayIntensityStart > 0.0f || m_state.targetTimeOfDayIntensity > 0.0f) {
         m_timeOfDay.render(rs);

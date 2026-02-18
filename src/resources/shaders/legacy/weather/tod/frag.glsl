@@ -31,13 +31,13 @@ void main()
     float uTimeOfDayStartTime = uConfig.y;
     float uTransitionDuration = uConfig.z;
 
-    vec4 todStart = uNamedColors[int(uTimeOfDayIndices.x)];
-    vec4 todTarget = uNamedColors[int(uTimeOfDayIndices.y)];
+    vec4 timeOfDayStart = uNamedColors[int(uTimeOfDayIndices.x)];
+    vec4 timeOfDayTarget = uNamedColors[int(uTimeOfDayIndices.y)];
 
     float timeOfDayLerp = clamp((uCurrentTime - uTimeOfDayStartTime) / uTransitionDuration, 0.0, 1.0);
     float currentTimeOfDayIntensity = mix(uTimeOfDayIndices.z, uTimeOfDayIndices.w, timeOfDayLerp);
 
-    vec4 uTimeOfDayColor = mix(todStart, todTarget, timeOfDayLerp);
+    vec4 uTimeOfDayColor = mix(timeOfDayStart, timeOfDayTarget, timeOfDayLerp);
     uTimeOfDayColor.a *= currentTimeOfDayIntensity;
 
     vFragmentColor = uTimeOfDayColor;

@@ -374,7 +374,7 @@ void WeatherRenderer::updateUbo(const glm::mat4 &viewProj)
     }
 
     GLRenderState::Uniforms::Weather::Frame f;
-    f.time = glm::vec2(m_state.animationTime, m_state.lastDt);
+    f.time = glm::vec4(m_state.animationTime, m_state.lastDt, 0.0f, 0.0f);
 
     funcs.glBindBuffer(GL_UNIFORM_BUFFER, vboFrame->get());
     funcs.glBufferData(GL_UNIFORM_BUFFER, sizeof(f), &f, GL_DYNAMIC_DRAW);

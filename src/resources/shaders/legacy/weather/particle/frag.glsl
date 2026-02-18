@@ -20,7 +20,7 @@ layout(std140) uniform WeatherBlock
 
 layout(std140) uniform TimeBlock
 {
-    vec2 uTime; // x=time, y=delta
+    vec4 uTime; // x=time, y=delta, zw=unused
 };
 
 in float vLife;

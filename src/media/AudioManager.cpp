@@ -3,6 +3,7 @@
 
 #include "AudioManager.h"
 
+#include "../configuration/configuration.h"
 #include "../global/Charset.h"
 #include "../map/mmapper2room.h"
 #include "MediaLibrary.h"
@@ -25,6 +26,9 @@ AudioManager::AudioManager(MediaLibrary &library, GameObserver &observer, QObjec
             m_music,
             &MusicManager::slot_onMediaChanged);
 
+    m_lastMusicVol = getConfig().audio.musicVolume;
+    m_lastSoundVol = getConfig().audio.soundVolume;
+
     slot_updateVolumes();
 }
 
@@ -45,8 +49,29 @@ void AudioManager::onAreaChanged(const RoomArea &area)
     m_music->playMusic(musicFile);
 }
 
+void AudioManager::playSound(const QString &soundName)
+{
+    m_sfx->playSound(soundName);
+}
+
+void AudioManager::unblockAudio()
+{
+    setConfig().audio.audioHintShown = true;
+    playSound("level-up");
+}
+
 void AudioManager::slot_updateVolumes()
 {
+    const int currentMusicVol = getConfig().audio.musicVolume;
+    const int currentSoundVol = getConfig().audio.soundVolume;
+
+    if ((m_lastMusicVol == 0 && currentMusicVol > 0) || (m_lastSoundVol == 0 && currentSoundVol > 0)) {
+        unblockAudio();
+    }
+
+    m_lastMusicVol = currentMusicVol;
+    m_lastSoundVol = currentSoundVol;
+
     m_music->updateVolumes();
     m_sfx->updateVolume();
 }

@@ -352,6 +352,7 @@ public:
     {
         int musicVolume = 50;
         int soundVolume = 50;
+        bool audioHintShown = false;
 
     private:
         SUBGROUP();

@@ -24,6 +24,7 @@
 #include "../global/window_utils.h"
 #include "../group/groupwidget.h"
 #include "../logger/autologger.h"
+#include "../media/AudioHint.h"
 #include "../media/AudioManager.h"
 #include "../media/DescriptionWidget.h"
 #include "../media/MediaLibrary.h"
@@ -1553,6 +1554,18 @@ void MainWindow::showEvent(QShowEvent *const event)
     std::call_once(flag, [this]() {
         // Start services on startup
         startServices();
+
+        bool shouldShowHint = !getConfig().audio.audioHintShown;
+#ifdef Q_OS_WASM
+        if (getConfig().audio.musicVolume == 0 && getConfig().audio.soundVolume == 0
+            && !getConfig().general.firstRun) {
+            shouldShowHint = false;
+        }
+#endif
+        if (shouldShowHint) {
+            auto *hint = new AudioHint(deref(m_audioManager), this);
+            hint->show();
+        }
 
         connect(window()->windowHandle(), &QWindow::screenChanged, this, [this]() {
             MapWindow &window = deref(m_mapWindow);

@@ -9,14 +9,6 @@
 void AnimationManager::init(UboManager &uboManager)
 {
     m_uboManager = &uboManager;
-    m_uboManager->registerUbo(Legacy::SharedVboEnum::TimeBlock, [this](Legacy::Functions &gl_funcs) {
-        GLRenderState::Uniforms::Weather::Frame f;
-        f.time = glm::vec4(m_animationTime, m_lastFrameDeltaTime, 0.0f, 0.0f);
-        const auto shared = gl_funcs.getSharedVbos().get(Legacy::SharedVboEnum::TimeBlock);
-        std::ignore = gl_funcs.setUbo(shared->get(),
-                                      std::vector<GLRenderState::Uniforms::Weather::Frame>{f},
-                                      BufferUsageEnum::DYNAMIC_DRAW);
-    });
 }
 
 void AnimationManager::registerCallback(const Signal2Lifetime &lifetime, AnimationCallback callback)
@@ -53,7 +45,17 @@ void AnimationManager::update()
     m_animationTime += m_lastFrameDeltaTime;
     m_lastUpdateTime = now;
 
+    // Refresh internal struct for UBO
+    m_frameData.time = glm::vec4(m_animationTime, m_lastFrameDeltaTime, 0.0f, 0.0f);
+
     if (m_uboManager) {
         m_uboManager->invalidate(Legacy::SharedVboEnum::TimeBlock);
+    }
+}
+
+void AnimationManager::updateAndBind(Legacy::Functions &gl)
+{
+    if (m_uboManager) {
+        m_uboManager->updateAndBind(gl, Legacy::SharedVboEnum::TimeBlock, m_frameData);
     }
 }

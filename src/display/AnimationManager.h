@@ -4,6 +4,7 @@
 
 #include "../global/RuleOf5.h"
 #include "../global/Signal2.h"
+#include "../opengl/OpenGLTypes.h"
 #include "../opengl/UboManager.h"
 
 #include <chrono>
@@ -30,6 +31,11 @@ public:
      */
     void update();
 
+    /**
+     * @brief Ensures the global TimeBlock UBO is up-to-date and bound.
+     */
+    void updateAndBind(Legacy::Functions &gl);
+
     void setAnimating(bool value) { m_animating = value; }
     NODISCARD bool getAnimating() const { return m_animating; }
 
@@ -50,4 +56,6 @@ private:
     float m_animationTime = 0.0f;
     float m_lastFrameDeltaTime = 0.0f;
     UboManager *m_uboManager = nullptr;
+
+    GLRenderState::Uniforms::Weather::Frame m_frameData;
 };

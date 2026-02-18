@@ -93,18 +93,6 @@ WeatherRenderer::WeatherRenderer(OpenGL &gl,
 {
     m_animationManager.registerCallback(m_lifetime, [this]() { return isAnimating(); });
 
-    m_gl.getUboManager()
-        .registerUbo(Legacy::SharedVboEnum::WeatherBlock, [this](Legacy::Functions &gl_funcs) {
-            if (!m_staticUboData) {
-                return;
-            }
-            const auto shared = gl_funcs.getSharedVbos().get(Legacy::SharedVboEnum::WeatherBlock);
-            std::ignore = gl_funcs.setUbo(shared->get(),
-                                          std::vector<GLRenderState::Uniforms::Weather::Static>{
-                                              *m_staticUboData},
-                                          BufferUsageEnum::DYNAMIC_DRAW);
-        });
-
     const auto &canvasSettings = getConfig().canvas;
 
     auto updateFromGame = [this]() {
@@ -474,7 +462,7 @@ void WeatherRenderer::prepare(const glm::mat4 &viewProj)
     }
 
     auto &funcs = deref(m_gl.getSharedFunctions(Badge<WeatherRenderer>{}));
-    m_gl.getUboManager().updateAndBind(funcs, Legacy::SharedVboEnum::WeatherBlock);
+    m_gl.getUboManager().updateAndBind(funcs, Legacy::SharedVboEnum::WeatherBlock, *m_staticUboData);
 
     m_lastUboUploadTime = m_animationManager.getAnimationTime();
 }

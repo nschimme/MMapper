@@ -221,12 +221,6 @@ void OpenGL::initializeRenderer(const float devicePixelRatio)
 {
     setDevicePixelRatio(devicePixelRatio);
 
-    m_uboManager.registerUbo(Legacy::SharedVboEnum::NamedColorsBlock, [](Legacy::Functions &gl) {
-        const auto &vec4_colors = XNamedColor::getAllColorsAsVec4();
-        const auto shared = gl.getSharedVbos().get(Legacy::SharedVboEnum::NamedColorsBlock);
-        std::ignore = gl.setUbo(shared->get(), vec4_colors, BufferUsageEnum::DYNAMIC_DRAW);
-    });
-
     // REVISIT: Move this somewhere else?
     GLint maxSamples = 0;
     getFunctions().glGetIntegerv(GL_MAX_SAMPLES, &maxSamples);

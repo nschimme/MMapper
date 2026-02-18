@@ -649,8 +649,11 @@ void MapCanvas::actuallyPaintGL()
     setViewportAndMvp(width(), height());
 
     auto &gl = getOpenGL();
-    gl.getUboManager().updateAndBind(deref(gl.getSharedFunctions(Badge<MapCanvas>{})),
-                                     Legacy::SharedVboEnum::NamedColorsBlock);
+    auto &funcs = deref(gl.getSharedFunctions(Badge<MapCanvas>{}));
+
+    gl.getUboManager().updateAndBind(funcs,
+                                     Legacy::SharedVboEnum::NamedColorsBlock,
+                                     XNamedColor::getAllColorsAsVec4());
 
     gl.bindFbo();
     gl.clear(Color{getConfig().canvas.backgroundColor});
@@ -667,9 +670,7 @@ void MapCanvas::actuallyPaintGL()
     paintDifferences();
 
     m_weatherRenderer->prepare(m_viewProj);
-
-    auto &funcs = deref(gl.getSharedFunctions(Badge<MapCanvas>{}));
-    gl.getUboManager().updateAndBind(funcs, Legacy::SharedVboEnum::TimeBlock);
+    m_animationManager.updateAndBind(funcs);
 
     m_weatherRenderer->render(m_opengl.getDefaultRenderState());
 

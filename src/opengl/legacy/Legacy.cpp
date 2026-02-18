@@ -14,6 +14,7 @@
 #include "Shaders.h"
 #include "SimpleMesh.h"
 #include "TFO.h"
+#include "VAO.h"
 #include "VBO.h"
 
 #include <cassert>
@@ -50,6 +51,37 @@ const char *Functions::getUniformBlockName(const SharedVboEnum block)
 #undef X_CASE
     }
     return nullptr;
+}
+
+void Functions::glBindBuffer(const GLenum target, const VBO &vbo)
+{
+    Base::glBindBuffer(target, vbo.get());
+}
+
+void Functions::glBindBufferBase(const GLenum target, const SharedVboEnum block, const GLuint buffer)
+{
+    assert(target == GL_UNIFORM_BUFFER);
+    Base::glBindBufferBase(target, static_cast<GLuint>(block), buffer);
+}
+
+void Functions::glBindBufferBase(const GLenum target, const SharedVboEnum block, const VBO &vbo)
+{
+    glBindBufferBase(target, block, vbo.get());
+}
+
+void Functions::glBindVertexArray(const VAO &vao)
+{
+    Base::glBindVertexArray(vao.get());
+}
+
+void Functions::glUniformBlockBinding(const GLuint program, const SharedVboEnum block)
+{
+    virt_glUniformBlockBinding(program, block);
+}
+
+void Functions::glUniformBlockBinding(const Program &program, const SharedVboEnum block)
+{
+    glUniformBlockBinding(program.get(), block);
 }
 
 void Functions::virt_glUniformBlockBinding(const GLuint program, const SharedVboEnum block)

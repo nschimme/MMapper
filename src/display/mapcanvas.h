@@ -13,6 +13,7 @@
 #include "../opengl/Font.h"
 #include "../opengl/FontFormatFlags.h"
 #include "../opengl/OpenGL.h"
+#include "AnimationManager.h"
 #include "Infomarks.h"
 #include "MapCanvasData.h"
 #include "MapCanvasRoomDrawer.h"
@@ -64,12 +65,6 @@ public:
     static constexpr const int SCROLL_SCALE = 64;
 
 private:
-    struct NODISCARD FrameRateController final
-    {
-        std::chrono::steady_clock::time_point lastFrameTime;
-        bool animating = false;
-    };
-
     struct NODISCARD Diff final
     {
         using DiffQuadVector = std::vector<RoomQuadTexVert>;
@@ -147,7 +142,7 @@ private:
     MapData &m_data;
     Mmapper2Group &m_groupManager;
     Diff m_diff;
-    FrameRateController m_frameRateController;
+    AnimationManager m_animationManager;
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
     Signal2Lifetime m_lifetime;
 

@@ -11,11 +11,11 @@
 #include "../opengl/OpenGL.h"
 #include "../opengl/OpenGLTypes.h"
 #include "../opengl/legacy/Legacy.h"
-#include "../opengl/legacy/WeatherMesh.h"
+#include "../opengl/legacy/WeatherMeshes.h"
+#include "AnimationManager.h"
 #include "Textures.h"
 
 #include <chrono>
-#include <functional>
 #include <memory>
 
 #include <QMetaObject>
@@ -24,50 +24,6 @@ class MapData;
 
 class NODISCARD WeatherRenderer final
 {
-public:
-    struct State
-    {
-        uint32_t currentBuffer = 0;
-        uint32_t numParticles = 0;
-        bool initialized = false;
-
-        float rainIntensityStart = 0.0f;
-        float snowIntensityStart = 0.0f;
-        float cloudsIntensityStart = 0.0f;
-        float fogIntensityStart = 0.0f;
-        float timeOfDayIntensityStart = 0.0f;
-        float moonIntensityStart = 0.0f;
-
-        float targetRainIntensity = 0.0f;
-        float targetSnowIntensity = 0.0f;
-        float targetCloudsIntensity = 0.0f;
-        float targetFogIntensity = 0.0f;
-        float targetTimeOfDayIntensity = 0.0f;
-        float targetMoonIntensity = 0.0f;
-
-        float precipitationTypeStart = 0.0f;
-        float targetPrecipitationType = 0.0f;
-
-        float gameRainIntensity = 0.0f;
-        float gameSnowIntensity = 0.0f;
-        float gameCloudsIntensity = 0.0f;
-        float gameFogIntensity = 0.0f;
-        float gameTimeOfDayIntensity = 0.0f;
-
-        MumeTimeEnum oldTimeOfDay = MumeTimeEnum::DAY;
-        MumeTimeEnum currentTimeOfDay = MumeTimeEnum::DAY;
-        MumeMoonVisibilityEnum moonVisibility = MumeMoonVisibilityEnum::UNKNOWN;
-
-        float weatherTransitionStartTime = -2.0f;
-        float timeOfDayTransitionStartTime = -2.0f;
-
-        float animationTime = 0.0f;
-        float lastDt = 0.0f;
-        float lastUboUploadTime = -1.0f;
-
-        std::chrono::steady_clock::time_point lastUpdateTime;
-    };
-
 private:
     OpenGL &m_gl;
     MapData &m_data;
@@ -76,39 +32,80 @@ private:
     ChangeMonitor::Lifetime m_lifetime;
     QMetaObject::Connection m_posConn;
     QMetaObject::Connection m_forcedPosConn;
-    std::function<void(bool)> m_setAnimating;
-    State m_state;
-    UniqueMesh m_simulation;
-    UniqueMesh m_particles;
+
+    // Weather State
+    float m_rainIntensityStart = 0.0f;
+    float m_snowIntensityStart = 0.0f;
+    float m_cloudsIntensityStart = 0.0f;
+    float m_fogIntensityStart = 0.0f;
+    float m_timeOfDayIntensityStart = 0.0f;
+    float m_moonIntensityStart = 0.0f;
+
+    float m_currentRainIntensity = 0.0f;
+    float m_currentSnowIntensity = 0.0f;
+    float m_currentCloudsIntensity = 0.0f;
+    float m_currentFogIntensity = 0.0f;
+    float m_currentTimeOfDayIntensity = 0.0f;
+
+    float m_targetRainIntensity = 0.0f;
+    float m_targetSnowIntensity = 0.0f;
+    float m_targetCloudsIntensity = 0.0f;
+    float m_targetFogIntensity = 0.0f;
+    float m_targetTimeOfDayIntensity = 0.0f;
+    float m_targetMoonIntensity = 0.0f;
+
+    float m_precipitationTypeStart = 0.0f;
+    float m_targetPrecipitationType = 0.0f;
+
+    float m_gameRainIntensity = 0.0f;
+    float m_gameSnowIntensity = 0.0f;
+    float m_gameCloudsIntensity = 0.0f;
+    float m_gameFogIntensity = 0.0f;
+    float m_gameTimeOfDayIntensity = 0.0f;
+
+    MumeTimeEnum m_oldTimeOfDay = MumeTimeEnum::DAY;
+    MumeTimeEnum m_currentTimeOfDay = MumeTimeEnum::DAY;
+    MumeMoonVisibilityEnum m_moonVisibility = MumeMoonVisibilityEnum::UNKNOWN;
+
+    float m_weatherTransitionStartTime = -2.0f;
+    float m_timeOfDayTransitionStartTime = -2.0f;
+
+    float m_animationTime = 0.0f;
+    float m_lastUboUploadTime = -1.0f;
+
+    std::optional<GLRenderState::Uniforms::Weather::Static> m_staticUboData;
+    glm::mat4 m_lastViewProj{0.0f};
+
+    // Meshes
+    std::unique_ptr<Legacy::WeatherSimulationMesh> m_simulation;
+    std::unique_ptr<Legacy::WeatherParticleMesh> m_particles;
     UniqueMesh m_atmosphere;
     UniqueMesh m_timeOfDay;
-    std::optional<GLRenderState::Uniforms::Weather::Static> m_staticWeather;
-    glm::mat4 m_lastViewProj{0.0f};
+
+public:
+    Signal2<> sig_requestUpdate;
 
 public:
     explicit WeatherRenderer(OpenGL &gl,
                              MapData &data,
                              const MapCanvasTextures &textures,
                              GameObserver &observer,
-                             std::function<void(bool)> setAnimating);
+                             AnimationManager &animationManager);
     ~WeatherRenderer();
 
     DELETE_CTORS_AND_ASSIGN_OPS(WeatherRenderer);
 
 public:
-    void init();
     void prepare(const glm::mat4 &viewProj);
-    void renderParticles(const glm::mat4 &viewProj);
-    void renderAtmosphere(const glm::mat4 &viewProj);
     void update(float dt);
+    NODISCARD bool isAnimating() const;
 
-    NODISCARD State &getState() { return m_state; }
-    NODISCARD const State &getState() const { return m_state; }
+    void render(const GLRenderState &rs);
 
 public:
     static QImage generateNoiseTexture(int size);
 
 private:
-    void updateUbo(const glm::mat4 &viewProj);
+    void initMeshes();
     void invalidateStatic();
 };

@@ -240,6 +240,7 @@ void MapCanvas::initializeGL()
     initLogger();
 
     gl.initializeRenderer(static_cast<float>(QPaintDevice::devicePixelRatioF()));
+    m_animationManager.init(gl.getUboManager());
     updateMultisampling();
 
     // REVISIT: should the font texture have the lowest ID?
@@ -495,20 +496,22 @@ void MapCanvas::resizeGL(int width, int height)
 
 void MapCanvas::setAnimating(bool value)
 {
-    if (m_frameRateController.animating == value) {
+    if (m_animationManager.getAnimating() == value) {
         return;
     }
 
-    m_frameRateController.animating = value;
+    m_animationManager.setAnimating(value);
 
-    if (m_frameRateController.animating) {
+    if (m_animationManager.getAnimating()) {
         QTimer::singleShot(0, this, &MapCanvas::renderLoop);
     }
 }
 
 void MapCanvas::renderLoop()
 {
-    if (!m_frameRateController.animating) {
+    const bool shouldAnimate = m_animationManager.getAnimating() || m_animationManager.isAnimating();
+    if (!shouldAnimate) {
+        m_animationManager.setAnimating(false);
         return;
     }
 
@@ -527,7 +530,7 @@ void MapCanvas::renderLoop()
 
     QTimer::singleShot(delay.count(), this, &MapCanvas::renderLoop);
 
-    m_frameRateController.lastFrameTime = now;
+    m_animationManager.setLastFrameTime(now);
 }
 
 void MapCanvas::updateBatches()
@@ -638,16 +641,14 @@ void MapCanvas::finishPendingMapBatches()
 
 void MapCanvas::actuallyPaintGL()
 {
-    // Update weather
+    // Update animation state and weather
     {
-        auto &ws = m_weatherRenderer->getState();
         auto now = std::chrono::steady_clock::now();
-        if (ws.lastUpdateTime.time_since_epoch().count() == 0) {
-            ws.lastUpdateTime = now;
-        }
-        float dt = std::chrono::duration<float>(now - ws.lastUpdateTime).count();
-        ws.lastUpdateTime = now;
+        const auto lastTime = m_animationManager.getLastFrameTime();
+        const auto elapsed = (lastTime.time_since_epoch().count() == 0) ? std::chrono::milliseconds(0) : (now - lastTime);
+        float dt = std::chrono::duration<float>(elapsed).count();
 
+        m_animationManager.update(dt);
         m_weatherRenderer->update(dt);
     }
 
@@ -655,7 +656,8 @@ void MapCanvas::actuallyPaintGL()
     setViewportAndMvp(width(), height());
 
     auto &gl = getOpenGL();
-    gl.bindNamedColorsBuffer();
+    gl.getUboManager().updateAndBind(deref(gl.getSharedFunctions(Badge<MapCanvas>{})),
+                                     Legacy::SharedVboEnum::NamedColorsBlock);
 
     gl.bindFbo();
     gl.clear(Color{getConfig().canvas.backgroundColor});
@@ -672,8 +674,11 @@ void MapCanvas::actuallyPaintGL()
     paintDifferences();
 
     m_weatherRenderer->prepare(m_viewProj);
-    m_weatherRenderer->renderParticles(m_viewProj);
-    m_weatherRenderer->renderAtmosphere(m_viewProj);
+
+    auto &funcs = deref(gl.getSharedFunctions(Badge<MapCanvas>{}));
+    gl.getUboManager().updateAndBind(funcs, Legacy::SharedVboEnum::TimeBlock);
+
+    m_weatherRenderer->render(m_opengl.getDefaultRenderState());
 
     gl.releaseFbo();
     gl.blitFboToDefault();
@@ -804,9 +809,6 @@ void MapCanvas::paintDifferences()
 void MapCanvas::paintMap()
 {
     const bool pending = m_batches.remeshCookie.isPending();
-    if (pending) {
-        setAnimating(true);
-    }
 
     if (!m_batches.mapBatches.has_value()) {
         const QString msg = pending ? "Please wait... the map isn't ready yet." : "Batch error";
@@ -871,6 +873,10 @@ void MapCanvas::paintGL()
         }
 
         actuallyPaintGL();
+
+    if (m_animationManager.isAnimating()) {
+        setAnimating(true);
+    }
     }
 
     if (!showPerfStats) {

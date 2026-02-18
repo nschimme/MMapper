@@ -80,6 +80,8 @@ set(mmapper_SRCS
     display/RoomSelections.cpp
     display/Textures.cpp
     display/Textures.h
+    display/AnimationManager.cpp
+    display/AnimationManager.h
     display/Weather.cpp
     display/Weather.h
     display/connectionselection.cpp
@@ -411,6 +413,8 @@ set(mmapper_SRCS
     opengl/LineRendering.h
     opengl/OpenGL.cpp
     opengl/OpenGL.h
+    opengl/UboManager.cpp
+    opengl/UboManager.h
     opengl/OpenGLConfig.cpp
     opengl/OpenGLConfig.h
     opengl/OpenGLTypes.cpp
@@ -443,8 +447,8 @@ set(mmapper_SRCS
     opengl/legacy/VAO.h
     opengl/legacy/VBO.cpp
     opengl/legacy/VBO.h
-    opengl/legacy/WeatherMesh.cpp
-    opengl/legacy/WeatherMesh.h
+    opengl/legacy/WeatherMeshes.cpp
+    opengl/legacy/WeatherMeshes.h
     parser/Abbrev.cpp
     parser/Abbrev.h
     parser/AbstractParser-Actions.cpp

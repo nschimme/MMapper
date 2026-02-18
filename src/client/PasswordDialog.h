@@ -16,7 +16,7 @@ public:
     explicit PasswordDialog(InputWidgetOutputs &outputs, QWidget *parent = nullptr);
 
 protected:
-    NODISCARD bool focusNextPrevChild(bool next) override;
+    void showEvent(QShowEvent *event) override;
 
 private slots:
     void accept() override;

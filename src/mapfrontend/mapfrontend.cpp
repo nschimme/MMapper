@@ -59,6 +59,7 @@ void MapFrontend::scheduleAction(const Change &change)
 
 void MapFrontend::revert()
 {
+    finalizeHistoryGroup();
     if (!m_current.map.empty() || m_history.isUndoAvailable()) {
         m_history.recordChange(m_current.map);
     }
@@ -69,6 +70,7 @@ void MapFrontend::revert()
 
 void MapFrontend::clear()
 {
+    finalizeHistoryGroup();
     if (!m_current.map.empty() || m_history.isUndoAvailable()) {
         qInfo() << "recorded change";
         m_history.recordChange(m_current.map);
@@ -100,31 +102,33 @@ bool MapFrontend::hasTemporaryRoom(const RoomId id) const
     return false;
 }
 
-bool MapFrontend::tryRemoveTemporary(const RoomId id)
+bool MapFrontend::tryRemoveTemporary(const RoomId id, bool grouped)
 {
     if (hasTemporaryRoom(id)) {
-        return applySingleChange(Change{room_change_types::RemoveRoom{id}});
+        return applySingleChange(Change{room_change_types::RemoveRoom{id}}, grouped);
     }
     return false;
 }
 
-bool MapFrontend::tryMakePermanent(const RoomId id)
+bool MapFrontend::tryMakePermanent(const RoomId id, bool grouped)
 {
     if (hasTemporaryRoom(id)) {
-        return applySingleChange(Change{room_change_types::MakePermanent{id}});
+        return applySingleChange(Change{room_change_types::MakePermanent{id}}, grouped);
     }
     return false;
 }
 
 void MapFrontend::slot_createRoom(const SigParseEvent &sigParseEvent,
-                                  const Coordinate &expectedPosition)
+                                  const Coordinate &expectedPosition,
+                                  bool grouped)
 {
     const ParseEvent &event = sigParseEvent.deref();
 
     MMLOG() << "[mapfrontend] Adding new room from parseEvent";
 
-    const bool success = applySingleChange(
-        Change{room_change_types::AddRoom2{expectedPosition, event}});
+    const bool success = applySingleChange(Change{room_change_types::AddRoom2{expectedPosition,
+                                                                              event}},
+                                           grouped);
 
     if (success) {
         MMLOG() << "[mapfrontend] Added new room.";
@@ -230,15 +234,45 @@ void MapFrontend::setCurrentMap(const MapApplyResult &result)
 
 void MapFrontend::setCurrentMap(Map map)
 {
+    finalizeHistoryGroup();
     // Always update everything when the map is changed like this.
     setCurrentMap(MapApplyResult{std::move(map)});
     m_history.clearAll();
     emitUndoRedoAvailability();
 }
 
+void MapFrontend::beginHistoryGroup()
+{
+    if (m_historyGroupCount++ == 0) {
+        m_historyGroupBase = m_current.map;
+    }
+}
+
+void MapFrontend::endHistoryGroup()
+{
+    assert(m_historyGroupCount > 0);
+    if (--m_historyGroupCount == 0) {
+        if (m_current.map != m_historyGroupBase) {
+            m_history.recordChange(m_historyGroupBase);
+        }
+        m_historyGroupBase = Map{};
+    }
+}
+
+void MapFrontend::finalizeHistoryGroup()
+{
+    if (m_historyGroupCount > 0) {
+        if (m_current.map != m_historyGroupBase) {
+            m_history.recordChange(m_historyGroupBase);
+        }
+        m_historyGroupBase = m_current.map;
+    }
+}
+
 bool MapFrontend::applyChangesInternal(
     ProgressCounter &pc,
-    const std::function<MapApplyResult(Map &, ProgressCounter &)> &applyFunction)
+    const std::function<MapApplyResult(Map &, ProgressCounter &)> &applyFunction,
+    bool grouped)
 {
     Map previous = m_current.map;
 
@@ -253,7 +287,15 @@ bool MapFrontend::applyChangesInternal(
 
     setCurrentMap(result);
     if (m_current.map != previous) {
-        m_history.recordChange(previous);
+        if (grouped && m_historyGroupCount > 0) {
+            // No history record yet, it's part of a group.
+        } else {
+            finalizeHistoryGroup();
+            m_history.recordChange(previous);
+            if (m_historyGroupCount > 0) {
+                m_historyGroupBase = m_current.map;
+            }
+        }
     } else {
         m_history.redo_stack.clear();
     }
@@ -261,40 +303,42 @@ bool MapFrontend::applyChangesInternal(
     return true;
 }
 
-bool MapFrontend::applySingleChange(ProgressCounter &pc, const Change &change)
+bool MapFrontend::applySingleChange(ProgressCounter &pc, const Change &change, bool grouped)
 {
     if (IS_DEBUG_BUILD) {
         auto &&log = MMLOG();
         log << "[MapFrontend::applySingleChange] ";
         getCurrentMap().printChange(log, change);
     }
-    return applyChangesInternal(pc, [&](Map &map, ProgressCounter &counter) {
-        return map.applySingleChange(counter, change);
-    });
+    return applyChangesInternal(
+        pc,
+        [&](Map &map, ProgressCounter &counter) { return map.applySingleChange(counter, change); },
+        grouped);
 }
 
-bool MapFrontend::applySingleChange(const Change &change)
+bool MapFrontend::applySingleChange(const Change &change, bool grouped)
 {
     ProgressCounter dummyPc;
-    return applySingleChange(dummyPc, change);
+    return applySingleChange(dummyPc, change, grouped);
 }
 
-bool MapFrontend::applyChanges(ProgressCounter &pc, const ChangeList &changes)
+bool MapFrontend::applyChanges(ProgressCounter &pc, const ChangeList &changes, bool grouped)
 {
     if (IS_DEBUG_BUILD) {
         auto &&log = MMLOG();
         log << "[MapFrontend::applyChanges] ";
         getCurrentMap().printChanges(log, changes.getChanges(), "\n");
     }
-    return applyChangesInternal(pc, [&](Map &map, ProgressCounter &counter) {
-        return map.apply(counter, changes);
-    });
+    return applyChangesInternal(
+        pc,
+        [&](Map &map, ProgressCounter &counter) { return map.apply(counter, changes); },
+        grouped);
 }
 
-bool MapFrontend::applyChanges(const ChangeList &changes)
+bool MapFrontend::applyChanges(const ChangeList &changes, bool grouped)
 {
     ProgressCounter dummyPc;
-    return applyChanges(dummyPc, changes);
+    return applyChanges(dummyPc, changes, grouped);
 }
 
 void MapFrontend::emitUndoRedoAvailability()
@@ -305,6 +349,7 @@ void MapFrontend::emitUndoRedoAvailability()
 
 void MapFrontend::slot_undo()
 {
+    finalizeHistoryGroup();
     if (std::optional<Map> optMap = m_history.undo(m_current.map)) {
         setCurrentMap(MapApplyResult{std::move(*optMap)});
     }
@@ -313,6 +358,7 @@ void MapFrontend::slot_undo()
 
 void MapFrontend::slot_redo()
 {
+    finalizeHistoryGroup();
     if (std::optional<Map> optMap = m_history.redo(m_current.map)) {
         setCurrentMap(MapApplyResult{std::move(*optMap)});
     }

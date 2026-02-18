@@ -21,9 +21,9 @@ Approved::~Approved()
     if (m_matchedRoom) {
         const RoomId id = m_matchedRoom.getId();
         if (m_moreThanOne) {
-            std::ignore = m_map.tryRemoveTemporary(id);
+            std::ignore = m_map.tryRemoveTemporary(id, true);
         } else {
-            std::ignore = m_map.tryMakePermanent(id);
+            std::ignore = m_map.tryMakePermanent(id, true);
         }
     }
 }
@@ -45,7 +45,7 @@ void Approved::virt_receiveRoom(const RoomHandle &perhaps)
     });
 
     if (cmp == ComparisonResultEnum::DIFFERENT) {
-        std::ignore = m_map.tryRemoveTemporary(id);
+        std::ignore = m_map.tryRemoveTemporary(id, true);
         return;
     }
 
@@ -54,7 +54,7 @@ void Approved::virt_receiveRoom(const RoomHandle &perhaps)
         if (m_matchedRoom.getId() != id) {
             m_moreThanOne = true;
         }
-        std::ignore = m_map.tryRemoveTemporary(id);
+        std::ignore = m_map.tryRemoveTemporary(id, true);
         return;
     }
 
@@ -94,7 +94,7 @@ void Approved::releaseMatch()
 {
     // Release the current candidate in order to receive additional candidates
     if (m_matchedRoom) {
-        std::ignore = m_map.tryRemoveTemporary(m_matchedRoom.getId());
+        std::ignore = m_map.tryRemoveTemporary(m_matchedRoom.getId(), true);
     }
     m_update = false;
     m_matchedRoom.reset();

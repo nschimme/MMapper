@@ -26,7 +26,7 @@ void Crossover::virt_receiveRoom(const RoomHandle &room)
 {
     auto &shortPaths = deref(m_shortPaths);
     if (shortPaths.empty()) {
-        std::ignore = m_map.tryRemoveTemporary(room.getId());
+        std::ignore = m_map.tryRemoveTemporary(room.getId(), true);
     }
 
     for (auto &shortPath : shortPaths) {

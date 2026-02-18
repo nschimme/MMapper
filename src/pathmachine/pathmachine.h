@@ -1,9 +1,6 @@
 #pragma once
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
-// Author: Ulf Hermann <ulfonk_mennhar@gmx.de> (Alve)
-// Author: Marek Krejza <krejza@gmail.com> (Caligor)
-// Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
 #include "../configuration/configuration.h"
 #include "../map/ChangeList.h"
@@ -15,17 +12,17 @@
 
 #include <memory>
 #include <optional>
+#include <vector>
 
+#include <QObject>
 #include <QString>
-#include <QtCore>
 
 class Approved;
 class Coordinate;
+class HistoryGroup;
 class MapFrontend;
 class QEvent;
-class QObject;
 class PathProcessor;
-struct RoomId;
 
 enum class NODISCARD PathStateEnum : uint8_t { APPROVED = 0, EXPERIMENTING = 1, SYNCING = 2 };
 
@@ -56,6 +53,7 @@ private:
     std::optional<RoomId> m_pathRoot;
     std::optional<RoomId> m_mostLikelyRoom;
     PathStateEnum m_state = PathStateEnum::SYNCING;
+    std::unique_ptr<HistoryGroup> m_sessionGroup;
 
 public:
     void onPositionChange(std::optional<RoomId> optId)
@@ -67,6 +65,7 @@ public:
 
 public:
     void onMapLoaded();
+    ~PathMachine() override;
 
 protected:
     explicit PathMachine(MapFrontend &map, QObject *parent);
@@ -77,6 +76,7 @@ protected:
 private:
     void scheduleAction(const ChangeList &action);
     void forcePositionChange(RoomId id, bool update);
+    void updateHistoryGroup();
 
 private:
     void experimenting(const SigParseEvent &sigParseEvent, ChangeList &changes);

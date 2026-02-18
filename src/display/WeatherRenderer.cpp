@@ -98,6 +98,9 @@ WeatherRenderer::WeatherRenderer(OpenGL &gl,
     m_state.oldTimeOfDay = m_state.currentTimeOfDay;
     m_state.gameTimeOfDayIntensity = (m_state.currentTimeOfDay == MumeTimeEnum::DAY) ? 0.0f : 1.0f;
 
+    m_state.isArtificialLight = m_observer.getArtificialLight();
+    m_state.targetArtificialLightIntensity = m_state.isArtificialLight ? 1.0f : 0.0f;
+
     auto updateTargets = [this, &canvasSettings]() {
         m_state.targetRainIntensity = m_state.gameRainIntensity
                                       * (static_cast<float>(
@@ -130,6 +133,7 @@ WeatherRenderer::WeatherRenderer(OpenGL &gl,
     m_state.fogIntensityStart = m_state.targetFogIntensity;
     m_state.precipitationTypeStart = m_state.targetPrecipitationType;
     m_state.moonIntensityStart = m_state.targetMoonIntensity;
+    m_state.artificialLightIntensityStart = m_state.targetArtificialLightIntensity;
 
     auto lerpCurrentIntensities = [this]() {
         float t = (m_state.animationTime - m_state.weatherTransitionStartTime)
@@ -221,6 +225,26 @@ WeatherRenderer::WeatherRenderer(OpenGL &gl,
             invalidateStatic();
             m_setAnimating(true);
         });
+
+    m_observer.sig2_artificialLightChanged.connect(m_lifetime, [this](bool isArtificial) {
+        if (isArtificial == m_state.isArtificialLight) {
+            return;
+        }
+
+        float t = (m_state.animationTime - m_state.timeOfDayTransitionStartTime)
+                  / TRANSITION_DURATION;
+        float factor = std::clamp(t, 0.0f, 1.0f);
+        m_state.artificialLightIntensityStart = my_lerp(m_state.artificialLightIntensityStart,
+                                                         m_state.targetArtificialLightIntensity,
+                                                         factor);
+
+        m_state.isArtificialLight = isArtificial;
+        m_state.targetArtificialLightIntensity = isArtificial ? 1.0f : 0.0f;
+
+        m_state.timeOfDayTransitionStartTime = m_state.animationTime;
+        invalidateStatic();
+        m_setAnimating(true);
+    });
 
     auto onSettingChanged = [this, lerpCurrentIntensities, updateTargets]() {
         lerpCurrentIntensities();
@@ -333,10 +357,14 @@ void WeatherRenderer::update(float dt)
     if (!timeOfDayTransitioning
         && (m_state.oldTimeOfDay != m_state.currentTimeOfDay
             || std::abs(m_state.timeOfDayIntensityStart - m_state.targetTimeOfDayIntensity) > 1e-5f
-            || std::abs(m_state.moonIntensityStart - m_state.targetMoonIntensity) > 1e-5f)) {
+            || std::abs(m_state.moonIntensityStart - m_state.targetMoonIntensity) > 1e-5f
+            || std::abs(m_state.artificialLightIntensityStart
+                        - m_state.targetArtificialLightIntensity)
+                   > 1e-5f)) {
         m_state.oldTimeOfDay = m_state.currentTimeOfDay;
         m_state.timeOfDayIntensityStart = m_state.targetTimeOfDayIntensity;
         m_state.moonIntensityStart = m_state.targetMoonIntensity;
+        m_state.artificialLightIntensityStart = m_state.targetArtificialLightIntensity;
         invalidateStatic();
     }
 
@@ -344,6 +372,7 @@ void WeatherRenderer::update(float dt)
 
     // We only need to animate if a transition is active OR weather effects that move (rain, snow, clouds, fog) are present.
     // Static Time of Day tinting does not require continuous animation.
+    // Flickering artificial light DOES require continuous animation.
     bool hasActiveWeather = m_state.targetRainIntensity > 0.0f || m_state.targetSnowIntensity > 0.0f
                             || m_state.targetCloudsIntensity > 0.0f
                             || m_state.targetFogIntensity > 0.0f
@@ -352,7 +381,10 @@ void WeatherRenderer::update(float dt)
                             || m_state.cloudsIntensityStart > 0.0f
                             || m_state.fogIntensityStart > 0.0f;
 
-    m_setAnimating(transitioning || hasActiveWeather);
+    bool hasFlicker = m_state.targetArtificialLightIntensity > 0.0f
+                      || m_state.artificialLightIntensityStart > 0.0f;
+
+    m_setAnimating(transitioning || hasActiveWeather || hasFlicker);
 }
 
 void WeatherRenderer::prepare(const glm::mat4 &viewProj)
@@ -431,6 +463,15 @@ void WeatherRenderer::updateUbo(const glm::mat4 &viewProj)
         s.config.x = m_state.weatherTransitionStartTime;
         s.config.y = m_state.timeOfDayTransitionStartTime;
         s.config.z = TRANSITION_DURATION;
+        s.config.w = 0.0f;
+
+        s.torch.x = m_state.artificialLightIntensityStart;
+        s.torch.y = m_state.targetArtificialLightIntensity;
+        s.torch.z = static_cast<float>(NamedColorEnum::WEATHER_TORCH);
+
+        const auto room = m_data.findRoomHandle(playerPosCoord);
+        const bool isRoomDark = (room.exists() && room.getLightType() == RoomLightEnum::DARK);
+        s.torch.w = isRoomDark ? 1.0f : 0.0f;
 
         funcs.glBindBuffer(GL_UNIFORM_BUFFER, vboStatic->get());
         funcs.glBufferData(GL_UNIFORM_BUFFER, sizeof(s), &s, GL_DYNAMIC_DRAW);

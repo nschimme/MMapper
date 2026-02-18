@@ -42,7 +42,8 @@
     X(WALL_COLOR_SPECIAL, "wall-special") \
     X(WEATHER_DAWN, "weather-dawn") \
     X(WEATHER_DUSK, "weather-dusk") \
-    X(WEATHER_NIGHT, "weather-night")
+    X(WEATHER_NIGHT, "weather-night") \
+    X(WEATHER_TORCH, "weather-torch")
 
 #define X_DECL(_id, _name) _id,
 enum class NODISCARD NamedColorEnum : uint8_t { DEFAULT = 0, XFOREACH_NAMED_COLOR_OPTIONS(X_DECL) };

@@ -37,6 +37,7 @@ public:
         float fogIntensityStart = 0.0f;
         float timeOfDayIntensityStart = 0.0f;
         float moonIntensityStart = 0.0f;
+        float artificialLightIntensityStart = 0.0f;
 
         float targetRainIntensity = 0.0f;
         float targetSnowIntensity = 0.0f;
@@ -44,6 +45,7 @@ public:
         float targetFogIntensity = 0.0f;
         float targetTimeOfDayIntensity = 0.0f;
         float targetMoonIntensity = 0.0f;
+        float targetArtificialLightIntensity = 0.0f;
 
         float precipitationTypeStart = 0.0f;
         float targetPrecipitationType = 0.0f;
@@ -57,6 +59,7 @@ public:
         MumeTimeEnum oldTimeOfDay = MumeTimeEnum::DAY;
         MumeTimeEnum currentTimeOfDay = MumeTimeEnum::DAY;
         MumeMoonVisibilityEnum moonVisibility = MumeMoonVisibilityEnum::UNKNOWN;
+        bool isArtificialLight = false;
 
         float weatherTransitionStartTime = -2.0f;
         float timeOfDayTransitionStartTime = -2.0f;

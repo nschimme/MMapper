@@ -9,6 +9,7 @@ layout(std140) uniform WeatherBlock
     vec4 uTargets;          // precip_target, clouds_target, fog_target, type_target
     vec4 uTimeOfDayIndices; // x=startIdx, y=targetIdx, z=timeOfDayIntensityStart, w=timeOfDayIntensityTarget
     vec4 uConfig;           // x=weatherStartTime, y=timeOfDayStartTime, z=duration, w=unused
+    vec4 uTorch;            // x=startIntensity, y=targetIntensity, z=colorIdx, w=unused
 };
 
 out vec3 vWorldPos;

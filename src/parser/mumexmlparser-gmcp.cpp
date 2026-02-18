@@ -336,6 +336,7 @@ void MumeXmlParser::parseGmcpCharVitals(const JsonObj &obj)
             qWarning().noquote() << "prompt has unknown light flag:" << *light;
         }
     }
+    m_observer.observeArtificialLight(promptFlags.isArtificial());
 
     if (auto weather = obj.getString("weather")) {
         if (verbose_debugging) {

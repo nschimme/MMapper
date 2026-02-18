@@ -51,6 +51,14 @@ void GameObserver::observeFog(const PromptFogEnum fog)
     }
 }
 
+void GameObserver::observeArtificialLight(const bool artificialLight)
+{
+    if (m_artificialLight != artificialLight) {
+        m_artificialLight = artificialLight;
+        sig2_artificialLightChanged.invoke(m_artificialLight);
+    }
+}
+
 void GameObserver::observeTimeOfDay(MumeTimeEnum timeOfDay)
 {
     if (m_timeOfDay != timeOfDay) {

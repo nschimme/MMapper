@@ -249,6 +249,8 @@ struct NODISCARD GLRenderState final
                     0.0f}; // 112-127 (x=startIdx, y=targetIdx, z=timeOfDayIntensityStart, w=timeOfDayIntensityTarget)
                 glm::vec4 config{
                     0.0f}; // 128-143 (x=weatherStartTime, y=timeOfDayStartTime, z=duration, w=unused)
+                glm::vec4 torch{
+                    0.0f}; // 144-159 (x=startIntensity, y=targetIntensity, z=colorIdx, w=unused)
             } data;
 
             // TimeBlock (Binding 2)

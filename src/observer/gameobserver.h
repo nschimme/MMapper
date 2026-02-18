@@ -25,6 +25,7 @@ public:
     Signal2<MumeSeasonEnum> sig2_seasonChanged;
     Signal2<PromptWeatherEnum> sig2_weatherChanged;
     Signal2<PromptFogEnum> sig2_fogChanged;
+    Signal2<bool> sig2_artificialLightChanged;
     Signal2<MumeMoment> sig2_tick;
 
     Signal2<> sig2_gainedLevel;
@@ -36,6 +37,7 @@ private:
     MumeSeasonEnum m_season = MumeSeasonEnum::UNKNOWN;
     PromptWeatherEnum m_weather = PromptWeatherEnum::NICE;
     PromptFogEnum m_fog = PromptFogEnum::NO_FOG;
+    bool m_artificialLight = false;
 
 public:
     void observeConnected();
@@ -50,6 +52,7 @@ public:
     void observeSeason(MumeSeasonEnum season);
     void observeWeather(PromptWeatherEnum weather);
     void observeFog(PromptFogEnum fog);
+    void observeArtificialLight(bool artificialLight);
     void observeTick(const MumeMoment &moment) { sig2_tick.invoke(moment); }
 
     void observeGainedLevel() { sig2_gainedLevel.invoke(); }
@@ -61,4 +64,5 @@ public:
     MumeSeasonEnum getSeason() const { return m_season; }
     PromptWeatherEnum getWeather() const { return m_weather; }
     PromptFogEnum getFog() const { return m_fog; }
+    bool getArtificialLight() const { return m_artificialLight; }
 };

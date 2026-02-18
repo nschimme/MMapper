@@ -7,26 +7,26 @@
 
 namespace Legacy {
 
-void TF::emplace(const SharedFunctions &sharedFunctions)
+void TFO::emplace(const SharedFunctions &sharedFunctions)
 {
     reset();
     m_weakFunctions = sharedFunctions;
-    sharedFunctions->glGenTransformFeedbacks(1, &m_tf);
+    sharedFunctions->glGenTransformFeedbacks(1, &m_tfo);
 }
 
-void TF::reset()
+void TFO::reset()
 {
-    if (m_tf != INVALID_TFID) {
+    if (m_tfo != INVALID_TFO) {
         if (auto shared = m_weakFunctions.lock()) {
-            shared->glDeleteTransformFeedbacks(1, &m_tf);
+            shared->glDeleteTransformFeedbacks(1, &m_tfo);
         }
-        m_tf = INVALID_TFID;
+        m_tfo = INVALID_TFO;
     }
 }
 
-GLuint TF::get() const
+GLuint TFO::get() const
 {
-    return m_tf;
+    return m_tfo;
 }
 
 } // namespace Legacy

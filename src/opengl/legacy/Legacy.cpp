@@ -285,7 +285,7 @@ Functions::Functions(Badge<Functions>)
     , m_staticVbos{std::make_unique<StaticVbos>()}
     , m_sharedVbos{std::make_unique<SharedVbos>()}
     , m_sharedVaos{std::make_unique<SharedVaos>()}
-    , m_sharedTfs{std::make_unique<SharedTransformFeedbacks>()}
+    , m_sharedTfos{std::make_unique<SharedTfos>()}
     , m_texLookup{std::make_unique<TexLookup>()}
     , m_fbo{std::make_unique<FBO>()}
 {}
@@ -320,7 +320,7 @@ void Functions::cleanup()
     getStaticVbos().resetAll();
     getSharedVbos().resetAll();
     getSharedVaos().resetAll();
-    getSharedTfs().resetAll();
+    getSharedTfos().resetAll();
     getTexLookup().clear();
 }
 
@@ -340,9 +340,9 @@ SharedVaos &Functions::getSharedVaos()
 {
     return deref(m_sharedVaos);
 }
-SharedTransformFeedbacks &Functions::getSharedTfs()
+SharedTfos &Functions::getSharedTfos()
 {
-    return deref(m_sharedTfs);
+    return deref(m_sharedTfos);
 }
 TexLookup &Functions::getTexLookup()
 {

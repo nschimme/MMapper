@@ -198,7 +198,7 @@ VAOBinder::~VAOBinder()
 }
 
 TransformFeedbackBinder::TransformFeedbackBinder(Functions &functions,
-                                                 const SharedTf &tf,
+                                                 const SharedTfo &tf,
                                                  const GLenum primitiveMode)
     : m_functions{functions}
 {

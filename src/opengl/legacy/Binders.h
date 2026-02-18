@@ -128,7 +128,9 @@ private:
     Functions &m_functions;
 
 public:
-    explicit TransformFeedbackBinder(Functions &functions, const SharedTf &tf, GLenum primitiveMode);
+    explicit TransformFeedbackBinder(Functions &functions,
+                                     const SharedTfo &tf,
+                                     GLenum primitiveMode);
     ~TransformFeedbackBinder();
     DELETE_CTORS_AND_ASSIGN_OPS(TransformFeedbackBinder);
 };

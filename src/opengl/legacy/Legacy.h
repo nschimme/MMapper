@@ -28,7 +28,7 @@ namespace Legacy {
 class StaticVbos;
 class SharedVbos;
 class SharedVaos;
-class SharedTransformFeedbacks;
+class SharedTfos;
 class VAO;
 struct AbstractShaderProgram;
 struct ShaderPrograms;
@@ -156,7 +156,7 @@ private:
     std::unique_ptr<StaticVbos> m_staticVbos;
     std::unique_ptr<SharedVbos> m_sharedVbos;
     std::unique_ptr<SharedVaos> m_sharedVaos;
-    std::unique_ptr<SharedTransformFeedbacks> m_sharedTfs;
+    std::unique_ptr<SharedTfos> m_sharedTfos;
     std::unique_ptr<TexLookup> m_texLookup;
     std::unique_ptr<FBO> m_fbo;
 
@@ -345,7 +345,7 @@ public:
 
     NODISCARD SharedVaos &getSharedVaos();
 
-    NODISCARD SharedTransformFeedbacks &getSharedTfs();
+    NODISCARD SharedTfos &getSharedTfos();
 
     NODISCARD TexLookup &getTexLookup();
 

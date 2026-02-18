@@ -105,7 +105,7 @@ void WeatherSimulationMesh::init()
         return;
     }
 
-    auto tf = m_functions.getSharedTfs().get(SharedTfEnum::WeatherSimulation);
+    auto tf = m_functions.getSharedTfos().get(SharedTfEnum::WeatherSimulation);
     if (!*tf) {
         tf->emplace(m_shared_functions);
     }
@@ -234,7 +234,7 @@ void WeatherSimulationMesh::virt_render(const GLRenderState &renderState)
     }
     VAOBinder vaoBinder(m_functions, vao);
 
-    auto tf = m_functions.getSharedTfs().get(SharedTfEnum::WeatherSimulation);
+    auto tf = m_functions.getSharedTfos().get(SharedTfEnum::WeatherSimulation);
     if (!*tf) {
         tf->emplace(m_shared_functions);
     }

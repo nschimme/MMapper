@@ -65,7 +65,8 @@ void AudioManager::slot_updateVolumes()
     const int currentMusicVol = getConfig().audio.musicVolume;
     const int currentSoundVol = getConfig().audio.soundVolume;
 
-    if ((m_lastMusicVol == 0 && currentMusicVol > 0) || (m_lastSoundVol == 0 && currentSoundVol > 0)) {
+    if ((m_lastMusicVol == 0 && currentMusicVol > 0)
+        || (m_lastSoundVol == 0 && currentSoundVol > 0)) {
         unblockAudio();
     }
 

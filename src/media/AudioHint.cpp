@@ -2,15 +2,16 @@
 // Copyright (C) 2026 The MMapper Authors
 
 #include "AudioHint.h"
-#include "AudioManager.h"
-#include "../configuration/configuration.h"
 
-#include <QVBoxLayout>
-#include <QLabel>
-#include <QPushButton>
-#include <QPainter>
-#include <QIcon>
+#include "../configuration/configuration.h"
+#include "AudioManager.h"
+
 #include <QApplication>
+#include <QIcon>
+#include <QLabel>
+#include <QPainter>
+#include <QPushButton>
+#include <QVBoxLayout>
 
 AudioHint::AudioHint(AudioManager &audioManager, QWidget *parent)
     : QWidget(parent)
@@ -21,17 +22,15 @@ AudioHint::AudioHint(AudioManager &audioManager, QWidget *parent)
 
     m_container = new QWidget(this);
     m_container->setObjectName("hintContainer");
-    m_container->setStyleSheet(
-        "QWidget#hintContainer {"
-        "  background-color: #333333;"
-        "  border: 2px solid #555555;"
-        "  border-radius: 10px;"
-        "}"
-        "QLabel {"
-        "  color: white;"
-        "  font-size: 14px;"
-        "}"
-    );
+    m_container->setStyleSheet("QWidget#hintContainer {"
+                               "  background-color: #333333;"
+                               "  border: 2px solid #555555;"
+                               "  border-radius: 10px;"
+                               "}"
+                               "QLabel {"
+                               "  color: white;"
+                               "  font-size: 14px;"
+                               "}");
 
     QVBoxLayout *layout = new QVBoxLayout(m_container);
     layout->setContentsMargins(20, 20, 20, 20);
@@ -50,24 +49,23 @@ AudioHint::AudioHint(AudioManager &audioManager, QWidget *parent)
     if (isMuted) {
         m_textLabel->setText(tr("Experience MMapper with immersive music and sound effects!"));
     } else {
-        m_textLabel->setText(tr("Browser limitations require a user interaction to enable audio playback."));
+        m_textLabel->setText(
+            tr("Browser limitations require a user interaction to enable audio playback."));
     }
     layout->addWidget(m_textLabel);
 
     m_button = new QPushButton(isMuted ? tr("Enable Audio") : tr("Unlock Audio"), m_container);
     m_button->setMinimumHeight(40);
-    m_button->setStyleSheet(
-        "QPushButton {"
-        "  background-color: #4a90e2;"
-        "  color: white;"
-        "  border-radius: 5px;"
-        "  font-weight: bold;"
-        "  font-size: 14px;"
-        "}"
-        "QPushButton:hover {"
-        "  background-color: #357abd;"
-        "}"
-    );
+    m_button->setStyleSheet("QPushButton {"
+                            "  background-color: #4a90e2;"
+                            "  color: white;"
+                            "  border-radius: 5px;"
+                            "  font-weight: bold;"
+                            "  font-size: 14px;"
+                            "}"
+                            "QPushButton:hover {"
+                            "  background-color: #357abd;"
+                            "}");
     layout->addWidget(m_button);
 
     connect(m_button, &QPushButton::clicked, this, [this, isMuted]() {
@@ -104,6 +102,6 @@ void AudioHint::updatePosition()
     if (parentWidget()) {
         setGeometry(parentWidget()->rect());
         m_container->move((width() - m_container->width()) / 2,
-                         (height() - m_container->height()) / 2);
+                          (height() - m_container->height()) / 2);
     }
 }

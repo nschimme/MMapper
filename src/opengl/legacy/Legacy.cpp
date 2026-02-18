@@ -12,8 +12,8 @@
 #include "Meshes.h"
 #include "ShaderUtils.h"
 #include "Shaders.h"
-#include "TF.h"
 #include "SimpleMesh.h"
+#include "TF.h"
 #include "VBO.h"
 
 #include <cassert>
@@ -401,11 +401,6 @@ void Functions::bindFbo()
 void Functions::releaseFbo()
 {
     getFBO().release();
-}
-
-void Functions::resolveFbo()
-{
-    getFBO().resolve();
 }
 
 void Functions::blitFboToDefault()

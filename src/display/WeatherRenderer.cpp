@@ -5,17 +5,11 @@
 
 #include "../configuration/configuration.h"
 #include "../global/Badge.h"
-#include "../global/random.h"
-#include "../global/utils.h"
 #include "../map/coordinate.h"
 #include "../mapdata/mapdata.h"
 #include "../opengl/OpenGL.h"
 #include "../opengl/OpenGLTypes.h"
-#include "../opengl/legacy/Binders.h"
 #include "../opengl/legacy/Legacy.h"
-#include "../opengl/legacy/Shaders.h"
-#include "../opengl/legacy/TF.h"
-#include "../opengl/legacy/VAO.h"
 #include "../opengl/legacy/VBO.h"
 #include "Textures.h"
 
@@ -180,29 +174,30 @@ WeatherRenderer::WeatherRenderer(OpenGL &gl,
                      m_setAnimating(true);
                  });
 
-    m_observer.sig2_timeOfDayChanged.connect(m_lifetime, [this, updateTargets](MumeTimeEnum timeOfDay) {
-        if (timeOfDay == m_state.currentTimeOfDay) {
-            return;
-        }
+    m_observer.sig2_timeOfDayChanged
+        .connect(m_lifetime, [this, updateTargets](MumeTimeEnum timeOfDay) {
+            if (timeOfDay == m_state.currentTimeOfDay) {
+                return;
+            }
 
-        float t = (m_state.animationTime - m_state.timeOfDayTransitionStartTime)
-                  / TRANSITION_DURATION;
-        float factor = std::clamp(t, 0.0f, 1.0f);
-        m_state.timeOfDayIntensityStart = my_lerp(m_state.timeOfDayIntensityStart,
-                                                  m_state.targetTimeOfDayIntensity,
-                                                  factor);
-        m_state.moonIntensityStart = my_lerp(m_state.moonIntensityStart,
-                                             m_state.targetMoonIntensity,
-                                             factor);
+            float t = (m_state.animationTime - m_state.timeOfDayTransitionStartTime)
+                      / TRANSITION_DURATION;
+            float factor = std::clamp(t, 0.0f, 1.0f);
+            m_state.timeOfDayIntensityStart = my_lerp(m_state.timeOfDayIntensityStart,
+                                                      m_state.targetTimeOfDayIntensity,
+                                                      factor);
+            m_state.moonIntensityStart = my_lerp(m_state.moonIntensityStart,
+                                                 m_state.targetMoonIntensity,
+                                                 factor);
 
-        m_state.oldTimeOfDay = m_state.currentTimeOfDay;
-        m_state.currentTimeOfDay = timeOfDay;
-        m_state.gameTimeOfDayIntensity = (timeOfDay == MumeTimeEnum::DAY) ? 0.0f : 1.0f;
-        updateTargets();
-        m_state.timeOfDayTransitionStartTime = m_state.animationTime;
-        invalidateStatic();
-        m_setAnimating(true);
-    });
+            m_state.oldTimeOfDay = m_state.currentTimeOfDay;
+            m_state.currentTimeOfDay = timeOfDay;
+            m_state.gameTimeOfDayIntensity = (timeOfDay == MumeTimeEnum::DAY) ? 0.0f : 1.0f;
+            updateTargets();
+            m_state.timeOfDayTransitionStartTime = m_state.animationTime;
+            invalidateStatic();
+            m_setAnimating(true);
+        });
 
     m_observer.sig2_moonVisibilityChanged
         .connect(m_lifetime, [this](MumeMoonVisibilityEnum visibility) {
@@ -249,11 +244,12 @@ WeatherRenderer::WeatherRenderer(OpenGL &gl,
         m_setAnimating(true);
     };
 
-    canvasSettings.weatherPrecipitationIntensity.registerChangeCallback(m_lifetime,
-                                                                        onSettingChanged);
-    canvasSettings.weatherAtmosphereIntensity.registerChangeCallback(m_lifetime, onSettingChanged);
-    canvasSettings.weatherTimeOfDayIntensity.registerChangeCallback(m_lifetime,
-                                                                    onTimeOfDaySettingChanged);
+    setConfig().canvas.weatherPrecipitationIntensity.registerChangeCallback(m_lifetime,
+                                                                            onSettingChanged);
+    setConfig().canvas.weatherAtmosphereIntensity.registerChangeCallback(m_lifetime,
+                                                                         onSettingChanged);
+    setConfig().canvas.weatherTimeOfDayIntensity.registerChangeCallback(m_lifetime,
+                                                                        onTimeOfDaySettingChanged);
 
     m_posConn = QObject::connect(&m_data, &MapData::sig_onPositionChange, [this]() {
         invalidateStatic();
@@ -281,7 +277,7 @@ void WeatherRenderer::init()
         m_simulation = UniqueMesh(std::make_unique<Legacy::WeatherSimulationMesh>(funcs, *this));
         m_particles = UniqueMesh(std::make_unique<Legacy::WeatherParticleMesh>(funcs, *this));
         m_atmosphere = UniqueMesh(
-            std::make_unique<TexturedRenderable>(m_textures.weather_noise->getId(),
+            std::make_unique<TexturedRenderable>(m_textures.noise->getId(),
                                                  std::make_unique<Legacy::WeatherAtmosphereMesh>(
                                                      funcs)));
         m_timeOfDay = UniqueMesh(std::make_unique<Legacy::WeatherTimeOfDayMesh>(funcs));
@@ -325,8 +321,7 @@ void WeatherRenderer::update(float dt)
             || std::abs(m_state.snowIntensityStart - m_state.targetSnowIntensity) > 1e-5f
             || std::abs(m_state.cloudsIntensityStart - m_state.targetCloudsIntensity) > 1e-5f
             || std::abs(m_state.fogIntensityStart - m_state.targetFogIntensity) > 1e-5f
-            || std::abs(m_state.precipitationTypeStart - m_state.targetPrecipitationType)
-                   > 1e-5f)) {
+            || std::abs(m_state.precipitationTypeStart - m_state.targetPrecipitationType) > 1e-5f)) {
         m_state.rainIntensityStart = m_state.targetRainIntensity;
         m_state.snowIntensityStart = m_state.targetSnowIntensity;
         m_state.cloudsIntensityStart = m_state.targetCloudsIntensity;

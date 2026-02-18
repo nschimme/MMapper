@@ -322,10 +322,10 @@ void MapCanvas::initTextures()
             mips.push_back(
                 mips.back().scaled(s, s, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
         }
-        textures.weather_noise = MMTexture::alloc(std::move(mips));
-        textures.weather_noise->get()->setWrapMode(QOpenGLTexture::WrapMode::Repeat);
-        textures.weather_noise->get()->setMinMagFilters(QOpenGLTexture::Filter::LinearMipMapLinear,
-                                                        QOpenGLTexture::Filter::Linear);
+        textures.noise = MMTexture::alloc(std::move(mips));
+        textures.noise->get()->setWrapMode(QOpenGLTexture::WrapMode::Repeat);
+        textures.noise->get()->setMinMagFilters(QOpenGLTexture::Filter::LinearMipMapLinear,
+                                                QOpenGLTexture::Filter::Linear);
     }
 
     // char images are 256

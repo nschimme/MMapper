@@ -14,11 +14,11 @@
 #include "Textures.h"
 #include "WeatherRenderables.h"
 
-#include <QMetaObject>
-
 #include <chrono>
 #include <functional>
 #include <memory>
+
+#include <QMetaObject>
 
 class MapData;
 

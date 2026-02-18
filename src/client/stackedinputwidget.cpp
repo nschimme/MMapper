@@ -149,6 +149,7 @@ void StackedInputWidget::gotPasswordInput(const QString &input)
 {
     getOutput().sendUserInput(input + "\n");
     displayInputMessage("******");
+    setFocus();
 }
 
 void StackedInputWidget::displayInputMessage(const QString &input)

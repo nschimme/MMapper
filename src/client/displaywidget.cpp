@@ -8,6 +8,7 @@
 #include "../global/AnsiTextUtils.h"
 
 #include <QApplication>
+#include <QDesktopServices>
 #include <QMessageLogContext>
 #include <QRegularExpression>
 #include <QScrollBar>
@@ -94,8 +95,12 @@ DisplayWidget::DisplayWidget(QWidget *const parent)
     });
     setDocumentTitle("MMapper Mud Client");
     setTextInteractionFlags(Qt::TextBrowserInteraction);
-    setOpenExternalLinks(true);
+    setOpenExternalLinks(false);
     setTabChangesFocus(false);
+
+    connect(this, &DisplayWidget::anchorClicked, this, [](const QUrl &url) {
+        QDesktopServices::openUrl(url);
+    });
 
     // REVISIT: Is this necessary to do in both places?
     document()->setUndoRedoEnabled(false);

@@ -8,6 +8,7 @@
 #include "../global/ConfigEnums.h"
 #include "../global/Version.h"
 
+#include <QDesktopServices>
 #include <QString>
 #include <QtConfig>
 #include <QtGui>
@@ -50,6 +51,14 @@ AboutDialog::AboutDialog(QWidget *const parent)
     setWindowIcon(QIcon(":/icons/m.png"));
     setupUi(this);
     setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
+
+    aboutText->setOpenExternalLinks(false);
+    connect(aboutText, &QLabel::linkActivated, this, [](const QString &link) {
+        QDesktopServices::openUrl(QUrl(link));
+    });
+    connect(authorsView, &QTextBrowser::anchorClicked, this, [](const QUrl &url) {
+        QDesktopServices::openUrl(url);
+    });
 
     /* About tab */
     pixmapLabel->setPixmap(QPixmap(":/pixmaps/splash.png"));

@@ -361,14 +361,14 @@
        </widget>
       </item>
       <item row="2" column="0">
-       <widget class="QLabel" name="weatherToDLabel">
+       <widget class="QLabel" name="weatherTimeOfDayLabel">
         <property name="text">
          <string>Time of Day Intensity:</string>
         </property>
        </widget>
       </item>
       <item row="2" column="1">
-       <widget class="QSlider" name="weatherToDSlider">
+       <widget class="QSlider" name="weatherTimeOfDaySlider">
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
         </property>

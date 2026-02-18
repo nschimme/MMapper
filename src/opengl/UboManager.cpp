@@ -2,6 +2,7 @@
 // Copyright (C) 2026 The MMapper Authors
 
 #include "UboManager.h"
+
 #include "legacy/Legacy.h"
 #include "legacy/VBO.h"
 

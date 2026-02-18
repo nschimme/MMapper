@@ -2,6 +2,7 @@
 // Copyright (C) 2026 The MMapper Authors
 
 #include "AnimationManager.h"
+
 #include "../opengl/legacy/Legacy.h"
 #include "../opengl/legacy/VBO.h"
 

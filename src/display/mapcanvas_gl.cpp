@@ -509,7 +509,8 @@ void MapCanvas::setAnimating(bool value)
 
 void MapCanvas::renderLoop()
 {
-    const bool shouldAnimate = m_animationManager.getAnimating() || m_animationManager.isAnimating();
+    const bool shouldAnimate = m_animationManager.getAnimating()
+                               || m_animationManager.isAnimating();
     if (!shouldAnimate) {
         m_animationManager.setAnimating(false);
         return;
@@ -645,7 +646,9 @@ void MapCanvas::actuallyPaintGL()
     {
         auto now = std::chrono::steady_clock::now();
         const auto lastTime = m_animationManager.getLastFrameTime();
-        const auto elapsed = (lastTime.time_since_epoch().count() == 0) ? std::chrono::milliseconds(0) : (now - lastTime);
+        const auto elapsed = (lastTime.time_since_epoch().count() == 0)
+                                 ? std::chrono::milliseconds(0)
+                                 : (now - lastTime);
         float dt = std::chrono::duration<float>(elapsed).count();
 
         m_animationManager.update(dt);
@@ -874,9 +877,9 @@ void MapCanvas::paintGL()
 
         actuallyPaintGL();
 
-    if (m_animationManager.isAnimating()) {
-        setAnimating(true);
-    }
+        if (m_animationManager.isAnimating()) {
+            setAnimating(true);
+        }
     }
 
     if (!showPerfStats) {

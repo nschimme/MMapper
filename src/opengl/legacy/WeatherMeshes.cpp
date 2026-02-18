@@ -2,6 +2,7 @@
 // Copyright (C) 2026 The MMapper Authors
 
 #include "WeatherMeshes.h"
+
 #include "../../display/Textures.h"
 #include "../../global/random.h"
 #include "Binders.h"
@@ -39,9 +40,7 @@ void WeatherSimulationMesh::init()
         return;
     }
 
-    auto get_random_float = []() {
-        return static_cast<float>(getRandom(1000000)) / 1000000.0f;
-    };
+    auto get_random_float = []() { return static_cast<float>(getRandom(1000000)) / 1000000.0f; };
 
     std::vector<float> initialData(m_numParticles * 3, 0.0f);
     for (size_t i = 0; i < m_numParticles; ++i) {

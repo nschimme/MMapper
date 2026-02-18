@@ -4,12 +4,12 @@
 
 #include "../OpenGL.h"
 #include "../OpenGLTypes.h"
+#include "Binders.h"
 #include "Legacy.h"
+#include "Shaders.h"
+#include "TFO.h"
 #include "VAO.h"
 #include "VBO.h"
-#include "TFO.h"
-#include "Shaders.h"
-#include "Binders.h"
 
 namespace Legacy {
 

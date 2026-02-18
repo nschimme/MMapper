@@ -14,10 +14,7 @@
 #include <glm/glm.hpp>
 
 namespace {
-float get_random_float()
-{
-    return static_cast<float>(getRandom(1000000)) / 1000000.0f;
-}
+
 
 template<typename T>
 T my_lerp(T a, T b, float t)
@@ -113,6 +110,11 @@ void WeatherSimulationMesh::init()
     const auto buffer0 = SharedVboEnum::WeatherParticles0;
     const auto buffer1 = SharedVboEnum::WeatherParticles1;
 
+    auto get_random_float = [](){
+        return static_cast<float>(getRandom(1000000)) / 1000000.0f;
+    };
+
+    // TODO: Make this a constant
     const size_t totalParticles = 1024;
     std::vector<float> initialData(totalParticles * 3, 0.0f);
     for (size_t i = 0; i < totalParticles; ++i) {

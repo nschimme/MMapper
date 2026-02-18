@@ -3,13 +3,13 @@
 
 #include "WeatherRenderables.h"
 
+#include "../global/random.h"
 #include "../opengl/legacy/Binders.h"
 #include "../opengl/legacy/Shaders.h"
 #include "../opengl/legacy/TF.h"
 #include "../opengl/legacy/VAO.h"
 #include "../opengl/legacy/VBO.h"
 #include "WeatherRenderer.h"
-#include "../global/random.h"
 
 #include <glm/glm.hpp>
 
@@ -59,6 +59,34 @@ void WeatherAtmosphereMesh::virt_render(const GLRenderState &renderState)
     m_functions.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
+// WeatherTimeOfDayMesh
+
+WeatherTimeOfDayMesh::WeatherTimeOfDayMesh(SharedFunctions shared_functions)
+    : m_shared_functions(std::move(shared_functions))
+    , m_functions(deref(m_shared_functions))
+{}
+
+WeatherTimeOfDayMesh::~WeatherTimeOfDayMesh() = default;
+
+void WeatherTimeOfDayMesh::virt_render(const GLRenderState &renderState)
+{
+    auto &prog = deref(m_functions.getShaderPrograms().getTimeOfDayShader());
+    auto binder = prog.bind();
+
+    RenderStateBinder rsBinder(m_functions, m_functions.getTexLookup(), renderState);
+
+    const glm::mat4 mvp = m_functions.getProjectionMatrix();
+    prog.setUniforms(mvp, renderState.uniforms);
+
+    auto vao = m_functions.getSharedVaos().get(SharedVaoEnum::WeatherTimeOfDay);
+    if (!*vao) {
+        vao->emplace(m_shared_functions);
+    }
+    VAOBinder vaoBinder(m_functions, vao);
+
+    m_functions.glDrawArrays(GL_TRIANGLES, 0, 3);
+}
+
 // WeatherSimulationMesh
 
 WeatherSimulationMesh::WeatherSimulationMesh(SharedFunctions shared_functions,
@@ -85,63 +113,90 @@ void WeatherSimulationMesh::init()
     const auto buffer0 = SharedVboEnum::WeatherParticles0;
     const auto buffer1 = SharedVboEnum::WeatherParticles1;
 
-    const size_t totalParticles = 2048;
+    const size_t totalParticles = 1024;
     std::vector<float> initialData(totalParticles * 3, 0.0f);
     for (size_t i = 0; i < totalParticles; ++i) {
-        initialData[i * 3 + 0] = get_random_float() * 40.0f - 20.0f;
-        initialData[i * 3 + 1] = get_random_float() * 40.0f - 20.0f;
+        initialData[i * 3 + 0] = get_random_float() * 28.0f - 14.0f;
+        initialData[i * 3 + 1] = get_random_float() * 28.0f - 14.0f;
         initialData[i * 3 + 2] = get_random_float() * 1.0f;
     }
 
     auto vbo0 = m_functions.getSharedVbos().get(buffer0);
     auto vbo1 = m_functions.getSharedVbos().get(buffer1);
 
-    if (!*vbo0) vbo0->emplace(m_shared_functions);
-    if (!*vbo1) vbo1->emplace(m_shared_functions);
+    if (!*vbo0)
+        vbo0->emplace(m_shared_functions);
+    if (!*vbo1)
+        vbo1->emplace(m_shared_functions);
 
     {
         m_functions.glBindBuffer(GL_ARRAY_BUFFER, vbo0->get());
-        m_functions.glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(initialData.size() * sizeof(float)), initialData.data(), GL_STREAM_DRAW);
+        m_functions.glBufferData(GL_ARRAY_BUFFER,
+                                 static_cast<GLsizeiptr>(initialData.size() * sizeof(float)),
+                                 initialData.data(),
+                                 GL_STREAM_DRAW);
         m_functions.glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
     {
         m_functions.glBindBuffer(GL_ARRAY_BUFFER, vbo1->get());
-        m_functions.glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(initialData.size() * sizeof(float)), initialData.data(), GL_STREAM_DRAW);
+        m_functions.glBufferData(GL_ARRAY_BUFFER,
+                                 static_cast<GLsizeiptr>(initialData.size() * sizeof(float)),
+                                 initialData.data(),
+                                 GL_STREAM_DRAW);
         m_functions.glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
 
     // Initialize VAOs
     {
         auto vaoSim0 = m_functions.getSharedVaos().get(SharedVaoEnum::WeatherSimulation0);
-        if (!*vaoSim0) vaoSim0->emplace(m_shared_functions);
+        if (!*vaoSim0)
+            vaoSim0->emplace(m_shared_functions);
         VAOBinder vaoBinder(m_functions, vaoSim0);
         m_functions.glBindBuffer(GL_ARRAY_BUFFER, vbo0->get());
         m_functions.enableAttrib(0, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
-        m_functions.enableAttrib(1, 1, GL_FLOAT, GL_FALSE, 3 * sizeof(float), reinterpret_cast<void *>(2 * sizeof(float)));
+        m_functions.enableAttrib(1,
+                                 1,
+                                 GL_FLOAT,
+                                 GL_FALSE,
+                                 3 * sizeof(float),
+                                 reinterpret_cast<void *>(2 * sizeof(float)));
         m_functions.glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
 
     {
         auto vaoSim1 = m_functions.getSharedVaos().get(SharedVaoEnum::WeatherSimulation1);
-        if (!*vaoSim1) vaoSim1->emplace(m_shared_functions);
+        if (!*vaoSim1)
+            vaoSim1->emplace(m_shared_functions);
         VAOBinder vaoBinder(m_functions, vaoSim1);
         m_functions.glBindBuffer(GL_ARRAY_BUFFER, vbo1->get());
         m_functions.enableAttrib(0, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
-        m_functions.enableAttrib(1, 1, GL_FLOAT, GL_FALSE, 3 * sizeof(float), reinterpret_cast<void *>(2 * sizeof(float)));
+        m_functions.enableAttrib(1,
+                                 1,
+                                 GL_FLOAT,
+                                 GL_FALSE,
+                                 3 * sizeof(float),
+                                 reinterpret_cast<void *>(2 * sizeof(float)));
         m_functions.glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
 
     auto setupRenderVao = [&](SharedVaoEnum vaoEnum, SharedVboEnum vboEnum) {
         auto vao = m_functions.getSharedVaos().get(vaoEnum);
-        if (!*vao) vao->emplace(m_shared_functions);
+        if (!*vao)
+            vao->emplace(m_shared_functions);
         auto vbo = m_functions.getSharedVbos().get(vboEnum);
-        if (!*vbo) vbo->emplace(m_shared_functions);
+        if (!*vbo)
+            vbo->emplace(m_shared_functions);
 
         VAOBinder vaoBinder(m_functions, vao);
         m_functions.glBindBuffer(GL_ARRAY_BUFFER, vbo->get());
         m_functions.enableAttrib(0, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
         m_functions.glVertexAttribDivisor(0, 1);
-        m_functions.enableAttrib(1, 1, GL_FLOAT, GL_FALSE, 3 * sizeof(float), reinterpret_cast<void *>(2 * sizeof(float)));
+        m_functions.enableAttrib(1,
+                                 1,
+                                 GL_FLOAT,
+                                 GL_FALSE,
+                                 3 * sizeof(float),
+                                 reinterpret_cast<void *>(2 * sizeof(float)));
         m_functions.glVertexAttribDivisor(1, 1);
         m_functions.glBindBuffer(GL_ARRAY_BUFFER, 0);
     };
@@ -172,7 +227,7 @@ void WeatherSimulationMesh::virt_render(const GLRenderState &renderState)
     }
 
     auto vaoEnum = (state.currentBuffer == 0) ? SharedVaoEnum::WeatherSimulation0
-                                               : SharedVaoEnum::WeatherSimulation1;
+                                              : SharedVaoEnum::WeatherSimulation1;
     auto vao = m_functions.getSharedVaos().get(vaoEnum);
     if (!*vao) {
         vao->emplace(m_shared_functions);
@@ -199,8 +254,7 @@ void WeatherSimulationMesh::virt_render(const GLRenderState &renderState)
 
 // WeatherParticleMesh
 
-WeatherParticleMesh::WeatherParticleMesh(SharedFunctions shared_functions,
-                                         WeatherRenderer &renderer)
+WeatherParticleMesh::WeatherParticleMesh(SharedFunctions shared_functions, WeatherRenderer &renderer)
     : m_shared_functions(std::move(shared_functions))
     , m_functions(deref(m_shared_functions))
     , m_renderer(renderer)
@@ -211,7 +265,9 @@ WeatherParticleMesh::~WeatherParticleMesh() = default;
 void WeatherParticleMesh::virt_render(const GLRenderState &renderState)
 {
     auto &state = m_renderer.getState();
-    float t = std::clamp((state.animationTime - state.weatherTransitionStartTime) / 2.0f, 0.0f, 1.0f);
+    float t = std::clamp((state.animationTime - state.weatherTransitionStartTime) / 2.0f,
+                         0.0f,
+                         1.0f);
     float rain = my_lerp(state.rainIntensityStart, state.targetRainIntensity, t);
     float snow = my_lerp(state.snowIntensityStart, state.targetSnowIntensity, t);
 
@@ -228,10 +284,10 @@ void WeatherParticleMesh::virt_render(const GLRenderState &renderState)
     const glm::mat4 mvp = m_functions.getProjectionMatrix();
     prog.setUniforms(mvp, renderState.uniforms);
 
-    const GLsizei count = std::min(2048, static_cast<GLsizei>(std::ceil(precipMax * 2048.0f)));
+    const GLsizei count = std::min(1024, static_cast<GLsizei>(std::ceil(precipMax * 1024.0f)));
     if (count > 0) {
         auto vaoEnum = (state.currentBuffer == 0) ? SharedVaoEnum::WeatherRender0
-                                                   : SharedVaoEnum::WeatherRender1;
+                                                  : SharedVaoEnum::WeatherRender1;
         auto vao = m_functions.getSharedVaos().get(vaoEnum);
         if (!*vao) {
             vao->emplace(m_shared_functions);

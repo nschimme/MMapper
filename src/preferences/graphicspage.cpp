@@ -95,8 +95,8 @@ GraphicsPage::GraphicsPage(QWidget *parent)
         graphicsSettingsChanged();
     });
 
-    connect(ui->weatherToDSlider, &QSlider::valueChanged, this, [this](int value) {
-        setConfig().canvas.weatherToDIntensity.set(value);
+    connect(ui->weatherTimeOfDaySlider, &QSlider::valueChanged, this, [this](int value) {
+        setConfig().canvas.weatherTimeOfDayIntensity.set(value);
         graphicsSettingsChanged();
     });
 
@@ -163,7 +163,7 @@ void GraphicsPage::slot_loadConfig()
 
     ui->weatherAtmosphereSlider->setValue(settings.weatherAtmosphereIntensity.get());
     ui->weatherPrecipitationSlider->setValue(settings.weatherPrecipitationIntensity.get());
-    ui->weatherToDSlider->setValue(settings.weatherToDIntensity.get());
+    ui->weatherTimeOfDaySlider->setValue(settings.weatherTimeOfDayIntensity.get());
 
     ui->resourceLineEdit->setText(settings.resourcesDirectory);
 }

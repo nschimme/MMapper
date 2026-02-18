@@ -236,11 +236,26 @@ struct NODISCARD GLRenderState final
         // Weather (must match std140 layout in shaders)
         struct NODISCARD Weather final
         {
-            glm::mat4 viewProj{1.0f};    // 0-63
-            glm::vec4 playerPos{0.0f};   // 64-79 (xyz, w=zScale)
-            glm::vec4 intensities{0.0f}; // 80-95 (precip, clouds, fog, type)
-            glm::vec4 times{0.0f};       // 96-111 (x=time, y=delta, z=todLerp, w=todIntensity)
-            glm::ivec4 todIndices{0};    // 112-127 (x=start, y=target, zw=unused)
+            // WeatherBlock (Binding 1)
+            struct NODISCARD Static final
+            {
+                glm::mat4 viewProj{1.0f};  // 0-63
+                glm::vec4 playerPos{0.0f}; // 64-79 (xyz, w=zScale)
+                glm::vec4 intensities{
+                    0.0f}; // 80-95 (precip_start, clouds_start, fog_start, type_start)
+                glm::vec4 targets{
+                    0.0f}; // 96-111 (precip_target, clouds_target, fog_target, type_target)
+                glm::vec4 timeOfDayIndices{
+                    0.0f}; // 112-127 (x=startIdx, y=targetIdx, z=timeOfDayIntensityStart, w=timeOfDayIntensityTarget)
+                glm::vec4 config{
+                    0.0f}; // 128-143 (x=weatherStartTime, y=timeOfDayStartTime, z=duration, w=unused)
+            } data;
+
+            // TimeBlock (Binding 2)
+            struct NODISCARD Frame final
+            {
+                glm::vec2 time{0.0f}; // 0-7 (x=time, y=delta)
+            } frame;
         } weather;
     };
 

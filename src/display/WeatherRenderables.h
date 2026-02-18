@@ -29,6 +29,23 @@ private:
     void virt_render(const GLRenderState &renderState) override;
 };
 
+class NODISCARD WeatherTimeOfDayMesh final : public IRenderable
+{
+private:
+    const SharedFunctions m_shared_functions;
+    Functions &m_functions;
+
+public:
+    explicit WeatherTimeOfDayMesh(SharedFunctions shared_functions);
+    ~WeatherTimeOfDayMesh() override;
+
+private:
+    void virt_clear() override {}
+    void virt_reset() override {}
+    NODISCARD bool virt_isEmpty() const override { return false; }
+    void virt_render(const GLRenderState &renderState) override;
+};
+
 class NODISCARD WeatherSimulationMesh final : public IRenderable
 {
 private:

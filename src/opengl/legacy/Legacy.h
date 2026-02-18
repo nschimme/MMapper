@@ -38,6 +38,7 @@ struct PointSizeBinder;
 #define XFOREACH_SHARED_VBO(X) \
     X(NamedColorsBlock, "NamedColorsBlock", true) \
     X(WeatherBlock, "WeatherBlock", true) \
+    X(TimeBlock, "TimeBlock", true) \
     X(InstancedQuadIbo, nullptr, false) \
     X(WeatherParticles0, nullptr, false) \
     X(WeatherParticles1, nullptr, false)
@@ -50,6 +51,7 @@ enum class SharedVboEnum : uint8_t {
 
 #define XFOREACH_SHARED_VAO(X) \
     X(EmptyVao) \
+    X(WeatherTimeOfDay) \
     X(WeatherSimulation0) \
     X(WeatherSimulation1) \
     X(WeatherRender0) \

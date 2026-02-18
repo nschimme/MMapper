@@ -3,8 +3,8 @@
 
 #include "Shaders.h"
 
-#include "ShaderUtils.h"
 #include "../../global/TextUtils.h"
+#include "ShaderUtils.h"
 
 #include <memory>
 
@@ -40,6 +40,7 @@ PointShader::~PointShader() = default;
 BlitShader::~BlitShader() = default;
 FullScreenShader::~FullScreenShader() = default;
 AtmosphereShader::~AtmosphereShader() = default;
+TimeOfDayShader::~TimeOfDayShader() = default;
 ParticleSimulationShader::~ParticleSimulationShader() = default;
 ParticleRenderShader::~ParticleRenderShader() = default;
 
@@ -57,6 +58,7 @@ void ShaderPrograms::early_init()
     std::ignore = getBlitShader();
     std::ignore = getFullScreenShader();
     std::ignore = getAtmosphereShader();
+    std::ignore = getTimeOfDayShader();
     std::ignore = getParticleSimulationShader();
     std::ignore = getParticleRenderShader();
 }
@@ -75,6 +77,7 @@ void ShaderPrograms::resetAll()
     m_blit.reset();
     m_fullscreen.reset();
     m_atmosphere.reset();
+    m_timeOfDay.reset();
     m_particleSimulation.reset();
     m_particleRender.reset();
 }
@@ -158,6 +161,11 @@ const std::shared_ptr<AtmosphereShader> &ShaderPrograms::getAtmosphereShader()
     return getInitialized<AtmosphereShader>(m_atmosphere, getFunctions(), "weather/atmosphere");
 }
 
+const std::shared_ptr<TimeOfDayShader> &ShaderPrograms::getTimeOfDayShader()
+{
+    return getInitialized<TimeOfDayShader>(m_timeOfDay, getFunctions(), "weather/timeofday");
+}
+
 const std::shared_ptr<ParticleSimulationShader> &ShaderPrograms::getParticleSimulationShader()
 {
     if (!m_particleSimulation) {
@@ -170,7 +178,8 @@ const std::shared_ptr<ParticleSimulationShader> &ShaderPrograms::getParticleSimu
             } catch (...) {
                 // Fallback for frag.glsl if file missing, as some drivers require it
                 if (path == "frag.glsl") {
-                    src = std::string(funcs.getShaderVersion()) + "\nprecision mediump float;\nvoid main() {}\n";
+                    src = std::string(funcs.getShaderVersion())
+                          + "\nprecision mediump float;\nvoid main() {}\n";
                 } else {
                     throw;
                 }

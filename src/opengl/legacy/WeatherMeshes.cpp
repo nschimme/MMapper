@@ -19,6 +19,8 @@ void WeatherAtmosphereMesh::virt_render(const GLRenderState &renderState)
     WeatherFullScreenMesh::virt_render(renderState);
 }
 
+WeatherTimeOfDayMesh::~WeatherTimeOfDayMesh() = default;
+
 WeatherSimulationMesh::WeatherSimulationMesh(SharedFunctions shared_functions,
                                              std::shared_ptr<ParticleSimulationShader> program)
     : m_shared_functions(std::move(shared_functions))

@@ -11,7 +11,7 @@ void AnimationManager::init(UboManager &uboManager)
     m_uboManager = &uboManager;
     m_uboManager->registerUbo(Legacy::SharedVboEnum::TimeBlock, [this](Legacy::Functions &gl_funcs) {
         GLRenderState::Uniforms::Weather::Frame f;
-        f.time = glm::vec4(m_animationTime, m_lastDt, 0.0f, 0.0f);
+        f.time = glm::vec4(m_animationTime, m_lastFrameDeltaTime, 0.0f, 0.0f);
         const auto shared = gl_funcs.getSharedVbos().get(Legacy::SharedVboEnum::TimeBlock);
         std::ignore = gl_funcs.setUbo(shared->get(),
                                       std::vector<GLRenderState::Uniforms::Weather::Frame>{f},
@@ -49,8 +49,8 @@ void AnimationManager::update()
     }
 
     auto elapsed = now - m_lastUpdateTime;
-    m_lastDt = std::chrono::duration<float>(elapsed).count();
-    m_animationTime += m_lastDt;
+    m_lastFrameDeltaTime = std::chrono::duration<float>(elapsed).count();
+    m_animationTime += m_lastFrameDeltaTime;
     m_lastUpdateTime = now;
 
     if (m_uboManager) {

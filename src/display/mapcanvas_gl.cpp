@@ -516,10 +516,21 @@ void MapCanvas::renderLoop()
         return;
     }
 
-    update();
+    // MMapper defaults to 20 FPS for background animations to save CPU/battery.
+    // When the user interacts (e.g. dragging), Qt's event loop will trigger higher framerates.
+    static constexpr int TARGET_FRAMES_PER_SECOND = 20;
+    auto targetFrameTime = std::chrono::milliseconds(1000 / TARGET_FRAMES_PER_SECOND);
 
-    // Target ~60 FPS
-    QTimer::singleShot(16, this, &MapCanvas::renderLoop);
+    auto now = std::chrono::steady_clock::now();
+    update();
+    auto afterPaint = std::chrono::steady_clock::now();
+
+    // Render the next frame at the appropriate time or now if we're behind
+    auto timeSinceLastFrame = std::chrono::duration_cast<std::chrono::milliseconds>(afterPaint
+                                                                                    - now);
+    auto delay = std::max(targetFrameTime - timeSinceLastFrame, std::chrono::milliseconds::zero());
+
+    QTimer::singleShot(delay.count(), this, &MapCanvas::renderLoop);
 }
 
 void MapCanvas::updateBatches()
@@ -632,7 +643,7 @@ void MapCanvas::actuallyPaintGL()
 {
     // Update animation state and weather
     m_animationManager.update();
-    m_weatherRenderer->update(m_animationManager.getLastDt());
+    m_weatherRenderer->update(m_animationManager.getLastFrameDeltaTime());
 
     // DECL_TIMER(t, __FUNCTION__);
     setViewportAndMvp(width(), height());

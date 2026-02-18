@@ -343,7 +343,7 @@ void WeatherRenderer::initMeshes()
     }
 }
 
-void WeatherRenderer::update(float /*dt*/)
+void WeatherRenderer::update(float /*frameDeltaTime*/)
 {
     const auto &canvasSettings = getConfig().canvas;
     m_targetRainIntensity = m_gameRainIntensity

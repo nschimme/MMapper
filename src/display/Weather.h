@@ -97,7 +97,7 @@ public:
 
 public:
     void prepare(const glm::mat4 &viewProj);
-    void update(float dt);
+    void update(float frameDeltaTime);
     NODISCARD bool isAnimating() const;
 
     void render(const GLRenderState &rs);

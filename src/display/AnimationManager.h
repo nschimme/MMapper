@@ -34,7 +34,7 @@ public:
     NODISCARD bool getAnimating() const { return m_animating; }
 
     NODISCARD float getAnimationTime() const { return m_animationTime; }
-    NODISCARD float getLastDt() const { return m_lastDt; }
+    NODISCARD float getLastFrameDeltaTime() const { return m_lastFrameDeltaTime; }
 
 private:
     struct Entry
@@ -48,6 +48,6 @@ private:
     bool m_animating = false;
 
     float m_animationTime = 0.0f;
-    float m_lastDt = 0.0f;
+    float m_lastFrameDeltaTime = 0.0f;
     UboManager *m_uboManager = nullptr;
 };

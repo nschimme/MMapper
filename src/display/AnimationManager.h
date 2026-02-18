@@ -42,8 +42,6 @@ public:
     NODISCARD float getAnimationTime() const { return m_animationTime; }
     NODISCARD float getLastFrameDeltaTime() const { return m_lastFrameDeltaTime; }
 
-    static constexpr float TARGET_FRAME_TIME = 1.0f / 20.0f;
-
 private:
     struct Entry
     {

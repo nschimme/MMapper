@@ -354,6 +354,11 @@ void MumeXmlParser::parseGmcpCharVitals(const JsonObj &obj)
         } else {
             qWarning().noquote() << "prompt has unknown weather flag:" << *weather;
         }
+    } else if (!obj.getNull("weather")) {
+        if (verbose_debugging) {
+            qInfo().noquote() << "weather null";
+        }
+        promptFlags.setWeatherType(PromptWeatherEnum::NICE);
     }
     m_observer.observeWeather(promptFlags.getWeatherType());
 }

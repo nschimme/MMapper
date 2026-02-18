@@ -41,6 +41,7 @@ BlitShader::~BlitShader() = default;
 FullScreenShader::~FullScreenShader() = default;
 AtmosphereShader::~AtmosphereShader() = default;
 TimeOfDayShader::~TimeOfDayShader() = default;
+TorchShader::~TorchShader() = default;
 ParticleSimulationShader::~ParticleSimulationShader() = default;
 ParticleRenderShader::~ParticleRenderShader() = default;
 
@@ -59,6 +60,7 @@ void ShaderPrograms::early_init()
     std::ignore = getFullScreenShader();
     std::ignore = getAtmosphereShader();
     std::ignore = getTimeOfDayShader();
+    std::ignore = getTorchShader();
     std::ignore = getParticleSimulationShader();
     std::ignore = getParticleRenderShader();
 }
@@ -78,6 +80,7 @@ void ShaderPrograms::resetAll()
     m_fullscreen.reset();
     m_atmosphere.reset();
     m_timeOfDay.reset();
+    m_torch.reset();
     m_particleSimulation.reset();
     m_particleRender.reset();
 }
@@ -164,6 +167,11 @@ const std::shared_ptr<AtmosphereShader> &ShaderPrograms::getAtmosphereShader()
 const std::shared_ptr<TimeOfDayShader> &ShaderPrograms::getTimeOfDayShader()
 {
     return getInitialized<TimeOfDayShader>(m_timeOfDay, getFunctions(), "weather/timeofday");
+}
+
+const std::shared_ptr<TorchShader> &ShaderPrograms::getTorchShader()
+{
+    return getInitialized<TorchShader>(m_torch, getFunctions(), "weather/torch");
 }
 
 const std::shared_ptr<ParticleSimulationShader> &ShaderPrograms::getParticleSimulationShader()

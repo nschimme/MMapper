@@ -236,6 +236,8 @@
         <file>shaders/legacy/weather/simulation/vert.glsl</file>
         <file>shaders/legacy/weather/timeofday/frag.glsl</file>
         <file>shaders/legacy/weather/timeofday/vert.glsl</file>
+        <file>shaders/legacy/weather/torch/frag.glsl</file>
+        <file>shaders/legacy/weather/torch/vert.glsl</file>
         <file>sounds/level-up.mp3</file>
     </qresource>
 </RCC>

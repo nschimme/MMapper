@@ -296,7 +296,7 @@ void WeatherRenderer::invalidateStatic()
 
 void WeatherRenderer::init()
 {
-    if (!m_simulation || !m_particles || !m_atmosphere || !m_timeOfDay) {
+    if (!m_simulation || !m_particles || !m_atmosphere || !m_timeOfDay || !m_torch) {
         auto funcs = m_gl.getSharedFunctions(Badge<WeatherRenderer>{});
         m_simulation = UniqueMesh(std::make_unique<Legacy::WeatherSimulationMesh>(funcs, *this));
         m_particles = UniqueMesh(std::make_unique<Legacy::WeatherParticleMesh>(funcs, *this));
@@ -305,6 +305,7 @@ void WeatherRenderer::init()
                                                  std::make_unique<Legacy::WeatherAtmosphereMesh>(
                                                      funcs)));
         m_timeOfDay = UniqueMesh(std::make_unique<Legacy::WeatherTimeOfDayMesh>(funcs));
+        m_torch = UniqueMesh(std::make_unique<Legacy::WeatherTorchMesh>(funcs));
     }
 }
 
@@ -515,7 +516,13 @@ void WeatherRenderer::renderAtmosphere(const glm::mat4 & /*viewProj*/)
         m_timeOfDay.render(rs);
     }
 
-    // 2. Render Atmosphere Overlay (Fog/Clouds)
+    // 2. Render Torch Effect (Localized Quad)
+    if (m_state.targetArtificialLightIntensity > 0.0f
+        || m_state.artificialLightIntensityStart > 0.0f) {
+        m_torch.render(rs);
+    }
+
+    // 3. Render Atmosphere Overlay (Fog/Clouds)
     const float cloudMax = std::max(m_state.cloudsIntensityStart, m_state.targetCloudsIntensity);
     const float fogMax = std::max(m_state.fogIntensityStart, m_state.targetFogIntensity);
 

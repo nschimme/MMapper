@@ -37,14 +37,13 @@ class NODISCARD PromptFlagsType final
 public:
     static constexpr const auto LIT_ROOM = 1u;
     static constexpr const auto DARK_ROOM = 1u << 1;
-    static constexpr const auto ARTIFICIAL_ROOM = 1u << 2;
-    static constexpr const auto LIGHT_MASK = LIT_ROOM | DARK_ROOM | ARTIFICIAL_ROOM;
-    static constexpr const auto PROMPT_FLAGS_VALID = 1u << 3;
-    // bit4-5 -> PromptFogEnum
-    static constexpr uint32_t FOG_SHIFT = 4u;
+    static constexpr const auto LIGHT_MASK = LIT_ROOM | DARK_ROOM;
+    static constexpr const auto PROMPT_FLAGS_VALID = 1u << 2;
+    // bit3-4 -> PromptFogEnum
+    static constexpr uint32_t FOG_SHIFT = 3u;
     static constexpr const auto FOG_TYPE = 0b11u << FOG_SHIFT;
-    // bit6-10 -> PromptWeatherEnum
-    static constexpr uint32_t WEATHER_SHIFT = 6u;
+    // bit5-9 -> PromptWeatherEnum
+    static constexpr uint32_t WEATHER_SHIFT = 5u;
     static constexpr const auto WEATHER_TYPE = 0b111u << WEATHER_SHIFT;
 
 private:
@@ -118,12 +117,10 @@ public:
         m_flags = static_cast<flags_type>(m_flags & ~LIGHT_MASK);
         m_flags = static_cast<flags_type>(m_flags | (DARK_ROOM & LIGHT_MASK));
     }
-    NODISCARD bool isArtificial() const { return (m_flags & ARTIFICIAL_ROOM) != 0; }
     void setArtificial()
     {
         using flags_type = decltype(m_flags);
         m_flags = static_cast<flags_type>(m_flags & ~LIGHT_MASK);
-        m_flags = static_cast<flags_type>(m_flags | (ARTIFICIAL_ROOM & LIGHT_MASK));
     }
 
 public:

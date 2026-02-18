@@ -87,6 +87,34 @@ void WeatherTimeOfDayMesh::virt_render(const GLRenderState &renderState)
     m_functions.glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
+// WeatherTorchMesh
+
+WeatherTorchMesh::WeatherTorchMesh(SharedFunctions shared_functions)
+    : m_shared_functions(std::move(shared_functions))
+    , m_functions(deref(m_shared_functions))
+{}
+
+WeatherTorchMesh::~WeatherTorchMesh() = default;
+
+void WeatherTorchMesh::virt_render(const GLRenderState &renderState)
+{
+    auto &prog = deref(m_functions.getShaderPrograms().getTorchShader());
+    auto binder = prog.bind();
+
+    RenderStateBinder rsBinder(m_functions, m_functions.getTexLookup(), renderState);
+
+    const glm::mat4 mvp = m_functions.getProjectionMatrix();
+    prog.setUniforms(mvp, renderState.uniforms);
+
+    auto emptyVao = m_functions.getSharedVaos().get(SharedVaoEnum::EmptyVao);
+    if (!*emptyVao) {
+        emptyVao->emplace(m_shared_functions);
+    }
+    VAOBinder vaoBinder(m_functions, emptyVao);
+
+    m_functions.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+}
+
 // WeatherSimulationMesh
 
 WeatherSimulationMesh::WeatherSimulationMesh(SharedFunctions shared_functions,

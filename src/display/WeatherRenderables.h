@@ -65,6 +65,23 @@ private:
     void virt_render(const GLRenderState &renderState) override;
 };
 
+class NODISCARD WeatherTorchMesh final : public IRenderable
+{
+private:
+    const SharedFunctions m_shared_functions;
+    Functions &m_functions;
+
+public:
+    explicit WeatherTorchMesh(SharedFunctions shared_functions);
+    ~WeatherTorchMesh() override;
+
+private:
+    void virt_clear() override {}
+    void virt_reset() override {}
+    NODISCARD bool virt_isEmpty() const override { return false; }
+    void virt_render(const GLRenderState &renderState) override;
+};
+
 class NODISCARD WeatherParticleMesh final : public IRenderable
 {
 private:

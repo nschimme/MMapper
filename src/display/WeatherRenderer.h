@@ -85,6 +85,7 @@ private:
     UniqueMesh m_particles;
     UniqueMesh m_atmosphere;
     UniqueMesh m_timeOfDay;
+    UniqueMesh m_torch;
     std::optional<GLRenderState::Uniforms::Weather::Static> m_staticWeather;
     glm::mat4 m_lastViewProj{0.0f};
 

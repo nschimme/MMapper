@@ -8,6 +8,7 @@
 #include "../global/AnsiTextUtils.h"
 
 #include <QApplication>
+#include <QDesktopServices>
 #include <QMessageLogContext>
 #include <QRegularExpression>
 #include <QScrollBar>
@@ -94,8 +95,12 @@ DisplayWidget::DisplayWidget(QWidget *const parent)
     });
     setDocumentTitle("MMapper Mud Client");
     setTextInteractionFlags(Qt::TextBrowserInteraction);
-    setOpenExternalLinks(true);
+    setOpenExternalLinks(false);
     setTabChangesFocus(false);
+
+    connect(this, &DisplayWidget::anchorClicked, this, [](const QUrl &url) {
+        QDesktopServices::openUrl(url);
+    });
 
     // REVISIT: Is this necessary to do in both places?
     document()->setUndoRedoEnabled(false);
@@ -322,7 +327,7 @@ void AnsiTextHelper::displayText(const QStringView input_str)
                 // TODO: override the document's CSS for URLs
                 const auto link
                     = QString(
-                          R"(<a href="%1" style="color: cyan; background-color: #003333; font-weight: normal;">%2</a>)")
+                          R"(<a href="%1" target="_blank" style="color: cyan; background-color: #003333; font-weight: normal;">%2</a>)")
                           .arg(QString::fromUtf8(QUrl::fromUserInput(s).toEncoded()),
                                s.toHtmlEscaped());
 

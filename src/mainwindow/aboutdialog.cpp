@@ -8,6 +8,7 @@
 #include "../global/ConfigEnums.h"
 #include "../global/Version.h"
 
+#include <QDesktopServices>
 #include <QString>
 #include <QtConfig>
 #include <QtGui>
@@ -50,6 +51,14 @@ AboutDialog::AboutDialog(QWidget *const parent)
     setWindowIcon(QIcon(":/icons/m.png"));
     setupUi(this);
     setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
+
+    aboutText->setOpenExternalLinks(false);
+    connect(aboutText, &QLabel::linkActivated, this, [](const QString &link) {
+        QDesktopServices::openUrl(QUrl(link));
+    });
+    connect(authorsView, &QTextBrowser::anchorClicked, this, [](const QUrl &url) {
+        QDesktopServices::openUrl(url);
+    });
 
     /* About tab */
     pixmapLabel->setPixmap(QPixmap(":/pixmaps/splash.png"));
@@ -124,7 +133,7 @@ AboutDialog::AboutDialog(QWidget *const parent)
     licenses.append({"GLM License",
                      "<p>"
                      "This product contains code from the "
-                     "<a href=\"https://glm.g-truc.net/\">OpenGL Mathematics (GLM)</a>"
+                     "<a href=\"https://glm.g-truc.net/\" target=\"_blank\">OpenGL Mathematics (GLM)</a>"
                      " project."
                      "</p>",
                      ":/LICENSE.GLM"});
@@ -132,7 +141,7 @@ AboutDialog::AboutDialog(QWidget *const parent)
     licenses.append({"QtKeychain License",
                      "<p>"
                      "This product contains code from the "
-                     "<a href=\"https://github.com/frankosterfeld/qtkeychain\">QtKeychain</a>"
+                     "<a href=\"https://github.com/frankosterfeld/qtkeychain\" target=\"_blank\">QtKeychain</a>"
                      " project."
                      "</p>",
                      ":/LICENSE.QTKEYCHAIN"});
@@ -140,14 +149,14 @@ AboutDialog::AboutDialog(QWidget *const parent)
     licenses.append({"OpenSSL License",
                      "<p>"
                      "Some versions of this product contains code from the "
-                     "<a href=\"https://www.openssl.org/\">OpenSSL toolkit</a>."
+                     "<a href=\"https://www.openssl.org/\" target=\"_blank\">OpenSSL toolkit</a>."
                      "</p>",
                      ":/LICENSE.OPENSSL"});
 
     licenses.append({"Boost Software License 1.0",
                      "<p>"
                      "This product contains code from the "
-                     "<a href=\"https://github.com/arximboldi/immer\">immer</a>"
+                     "<a href=\"https://github.com/arximboldi/immer\" target=\"_blank\">immer</a>"
                      " project."
                      "</p>",
                      ":/LICENSE.BOOST"});
@@ -157,7 +166,7 @@ AboutDialog::AboutDialog(QWidget *const parent)
                          "<p>"
                          "Some versions of this product contains code from the "
                          "following LGPLed libraries: "
-                         "<a href=\"https://github.com/jrfonseca/drmingw\">DrMingW</a>"
+                         "<a href=\"https://github.com/jrfonseca/drmingw\" target=\"_blank\">DrMingW</a>"
                          "</p>",
                          ":/LICENSE.LGPL"});
     }

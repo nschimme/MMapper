@@ -101,9 +101,8 @@ UpdateDialog::UpdateDialog(QWidget *const parent)
     m_buttonBox->button(QDialogButtonBox::Ok)->setText(tr("&Upgrade"));
     connect(m_buttonBox, &QDialogButtonBox::accepted, this, &UpdateDialog::accepted);
     connect(m_buttonBox, &QDialogButtonBox::accepted, this, [this]() {
-        if (QDesktopServices::openUrl(m_downloadUrl)) {
-            close();
-        }
+        QDesktopServices::openUrl(m_downloadUrl);
+        close();
     });
     connect(m_buttonBox, &QDialogButtonBox::rejected, this, &UpdateDialog::reject);
 

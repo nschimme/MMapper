@@ -25,6 +25,12 @@
 #include <QOpenGLTexture>
 #include <qopengl.h>
 
+struct NODISCARD Viewport final
+{
+    glm::ivec2 offset{};
+    glm::ivec2 size{};
+};
+
 struct NODISCARD TexVert final
 {
     glm::vec3 tex{};
@@ -153,6 +159,9 @@ enum class NODISCARD BlendModeEnum {
     /* This mode allows you to multiply by the painted color, in the range [0,1].
      * glEnable(GL_BLEND); glBlendFuncSeparate(GL_ZERO, GL_SRC_COLOR, GL_ZERO, GL_ONE); */
     MODULATE,
+    /* This mode uses MAX for alpha blending, useful for weather effects.
+     * glBlendEquationSeparate(GL_FUNC_ADD, GL_MAX); */
+    MAX_ALPHA,
 };
 
 enum class NODISCARD CullingEnum {
@@ -223,6 +232,31 @@ struct NODISCARD GLRenderState final
         // glEnable(TEXTURE_2D), or glEnable(TEXTURE_3D)
         Textures textures;
         std::optional<float> pointSize;
+
+        // Weather (must match std140 layout in shaders)
+        struct NODISCARD Weather final
+        {
+            // WeatherBlock (Binding 1)
+            struct NODISCARD Static final
+            {
+                glm::mat4 viewProj{1.0f};  // 0-63
+                glm::vec4 playerPos{0.0f}; // 64-79 (xyz, w=zScale)
+                glm::vec4 intensities{
+                    0.0f}; // 80-95 (precip_start, clouds_start, fog_start, type_start)
+                glm::vec4 targets{
+                    0.0f}; // 96-111 (precip_target, clouds_target, fog_target, type_target)
+                glm::vec4 timeOfDayIndices{
+                    0.0f}; // 112-127 (x=startIdx, y=targetIdx, z=timeOfDayIntensityStart, w=timeOfDayIntensityTarget)
+                glm::vec4 config{
+                    0.0f}; // 128-143 (x=weatherStartTime, y=timeOfDayStartTime, z=duration, w=unused)
+            } data;
+
+            // TimeBlock (Binding 2)
+            struct NODISCARD Frame final
+            {
+                glm::vec2 time{0.0f}; // 0-7 (x=time, y=delta)
+            } frame;
+        } weather;
     };
 
     Uniforms uniforms;
@@ -394,12 +428,6 @@ public:
             mesh.render(rs);
         }
     }
-};
-
-struct NODISCARD Viewport final
-{
-    glm::ivec2 offset{};
-    glm::ivec2 size{};
 };
 
 static constexpr const size_t VERTS_PER_LINE = 2;

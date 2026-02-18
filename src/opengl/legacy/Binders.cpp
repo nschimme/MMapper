@@ -25,6 +25,11 @@ BlendBinder::BlendBinder(Functions &functions, const BlendModeEnum blend)
         m_functions.glEnable(GL_BLEND);
         m_functions.glBlendFuncSeparate(GL_ZERO, GL_SRC_COLOR, GL_ZERO, GL_ONE);
         break;
+    case BlendModeEnum::MAX_ALPHA:
+        m_functions.glEnable(GL_BLEND);
+        m_functions.glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
+        m_functions.glBlendEquationSeparate(GL_FUNC_ADD, GL_MAX);
+        break;
     }
 }
 
@@ -36,6 +41,10 @@ BlendBinder::~BlendBinder()
         break;
     case BlendModeEnum::MODULATE:
         m_functions.glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        break;
+    case BlendModeEnum::MAX_ALPHA:
+        m_functions.glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        m_functions.glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
         break;
     }
     m_functions.glDisable(GL_BLEND);
@@ -176,5 +185,42 @@ RenderStateBinder::RenderStateBinder(Functions &functions,
     , m_pointSizeBinder{functions, renderState.uniforms.pointSize}
     , m_texturesBinder{texLookup, renderState.uniforms.textures}
 {}
+
+VAOBinder::VAOBinder(Functions &functions, const SharedVao &vao)
+    : m_functions{functions}
+{
+    m_functions.glBindVertexArray(deref(vao).get());
+}
+
+VAOBinder::~VAOBinder()
+{
+    m_functions.glBindVertexArray(0);
+}
+
+TransformFeedbackBinder::TransformFeedbackBinder(Functions &functions,
+                                                 const SharedTf &tf,
+                                                 const GLenum primitiveMode)
+    : m_functions{functions}
+{
+    m_functions.glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, deref(tf).get());
+    m_functions.glBeginTransformFeedback(primitiveMode);
+}
+
+TransformFeedbackBinder::~TransformFeedbackBinder()
+{
+    m_functions.glEndTransformFeedback();
+    m_functions.glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, 0);
+}
+
+VBOBinder::VBOBinder(Functions &functions, const SharedVbo &vbo)
+    : m_functions{functions}
+{
+    m_functions.glBindBuffer(GL_ARRAY_BUFFER, deref(vbo).get());
+}
+
+VBOBinder::~VBOBinder()
+{
+    m_functions.glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
 
 } // namespace Legacy

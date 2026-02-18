@@ -85,6 +85,21 @@ GraphicsPage::GraphicsPage(QWidget *parent)
             this,
             &GraphicsPage::slot_drawUpperLayersTexturedStateChanged);
 
+    connect(ui->weatherAtmosphereSlider, &QSlider::valueChanged, this, [this](int value) {
+        setConfig().canvas.weatherAtmosphereIntensity.set(value);
+        graphicsSettingsChanged();
+    });
+
+    connect(ui->weatherPrecipitationSlider, &QSlider::valueChanged, this, [this](int value) {
+        setConfig().canvas.weatherPrecipitationIntensity.set(value);
+        graphicsSettingsChanged();
+    });
+
+    connect(ui->weatherTimeOfDaySlider, &QSlider::valueChanged, this, [this](int value) {
+        setConfig().canvas.weatherTimeOfDayIntensity.set(value);
+        graphicsSettingsChanged();
+    });
+
     connect(ui->resourceLineEdit, &QLineEdit::textChanged, this, [](const QString &text) {
         setConfig().canvas.resourcesDirectory = text;
     });
@@ -145,6 +160,10 @@ void GraphicsPage::slot_loadConfig()
     ui->drawNeedsUpdate->setChecked(settings.showMissingMapId.get());
     ui->drawNotMappedExits->setChecked(settings.showUnmappedExits.get());
     ui->drawDoorNames->setChecked(settings.drawDoorNames);
+
+    ui->weatherAtmosphereSlider->setValue(settings.weatherAtmosphereIntensity.get());
+    ui->weatherPrecipitationSlider->setValue(settings.weatherPrecipitationIntensity.get());
+    ui->weatherTimeOfDaySlider->setValue(settings.weatherTimeOfDayIntensity.get());
 
     ui->resourceLineEdit->setText(settings.resourcesDirectory);
 }

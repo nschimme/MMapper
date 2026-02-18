@@ -4,6 +4,9 @@
 
 #include "../../global/utils.h"
 #include "Legacy.h"
+#include "TF.h"
+#include "VAO.h"
+#include "VBO.h"
 
 #include <optional>
 
@@ -106,6 +109,39 @@ public:
                                const GLRenderState &renderState);
     DELETE_CTORS_AND_ASSIGN_OPS(RenderStateBinder);
     DTOR(RenderStateBinder) = default;
+};
+
+struct NODISCARD VAOBinder final
+{
+private:
+    Functions &m_functions;
+
+public:
+    explicit VAOBinder(Functions &functions, const SharedVao &vao);
+    ~VAOBinder();
+    DELETE_CTORS_AND_ASSIGN_OPS(VAOBinder);
+};
+
+struct NODISCARD TransformFeedbackBinder final
+{
+private:
+    Functions &m_functions;
+
+public:
+    explicit TransformFeedbackBinder(Functions &functions, const SharedTf &tf, GLenum primitiveMode);
+    ~TransformFeedbackBinder();
+    DELETE_CTORS_AND_ASSIGN_OPS(TransformFeedbackBinder);
+};
+
+struct NODISCARD VBOBinder final
+{
+private:
+    Functions &m_functions;
+
+public:
+    explicit VBOBinder(Functions &functions, const SharedVbo &vbo);
+    ~VBOBinder();
+    DELETE_CTORS_AND_ASSIGN_OPS(VBOBinder);
 };
 
 } // namespace Legacy

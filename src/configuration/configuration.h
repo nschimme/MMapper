@@ -184,6 +184,10 @@ public:
 
         MMapper::Array<int, 3> mapRadius{100, 100, 100};
 
+        NamedConfig<int> weatherAtmosphereIntensity{"WEATHER_ATMOSPHERE_INTENSITY", 50};
+        NamedConfig<int> weatherPrecipitationIntensity{"WEATHER_PRECIPITATION_INTENSITY", 50};
+        NamedConfig<int> weatherTimeOfDayIntensity{"WEATHER_TIME_OF_DAY_INTENSITY", 50};
+
         struct NODISCARD Advanced final
         {
             NamedConfig<bool> use3D{"MMAPPER_3D", true};

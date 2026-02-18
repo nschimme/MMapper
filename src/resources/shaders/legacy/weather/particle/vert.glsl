@@ -1,0 +1,70 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2026 The MMapper Authors
+
+layout(location = 0) in vec2 aParticlePos;
+layout(location = 1) in float aLife;
+
+layout(std140) uniform WeatherBlock
+{
+    mat4 uViewProj;
+    vec4 uPlayerPos;        // xyz, w=zScale
+    vec4 uIntensities;      // precip_start, clouds_start, fog_start, type_start
+    vec4 uTargets;          // precip_target, clouds_target, fog_target, type_target
+    vec4 uTimeOfDayIndices; // x=startIdx, y=targetIdx, z=timeOfDayIntensityStart, w=timeOfDayIntensityTarget
+    vec4 uConfig;           // x=weatherStartTime, y=timeOfDayStartTime, z=duration, w=unused
+};
+
+layout(std140) uniform TimeBlock
+{
+    vec2 uTime; // x=time, y=delta
+};
+
+uniform float uType;
+uniform int uInstanceOffset;
+
+out float vLife;
+out vec2 vLocalCoord;
+out float vLocalMask;
+
+float rand(float n)
+{
+    return fract(sin(n) * 43758.5453123);
+}
+
+void main()
+{
+    float uCurrentTime = uTime.x;
+    float uZScale = uPlayerPos.w;
+    float uWeatherStartTime = uConfig.x;
+    float uTransitionDuration = uConfig.z;
+
+    float weatherLerp = clamp((uCurrentTime - uWeatherStartTime) / uTransitionDuration, 0.0, 1.0);
+    float pIntensity = mix(uIntensities.x, uTargets.x, weatherLerp);
+    float pType = mix(uIntensities.w, uTargets.w, weatherLerp);
+
+    float hash = rand(float(gl_InstanceID));
+
+    // Generate quad position from gl_VertexID (0..3)
+    vec2 quadPos = vec2(float(gl_VertexID & 1) - 0.5, float((gl_VertexID >> 1) & 1) - 0.5);
+
+    vLife = aLife;
+    vLocalCoord = quadPos + 0.5;
+
+    // Rain size
+    vec2 rainSize = vec2(1.0 / 12.0, 1.0 / (0.25 - clamp(pIntensity, 0.0, 2.0) * 0.1));
+    // Snow size
+    vec2 snowSize = vec2(1.0 / 4.0, 1.0 / 4.0);
+
+    vec2 size = mix(rainSize, snowSize, pType);
+    vec2 pos = aParticlePos;
+
+    // Extra swaying for snow visuals
+    pos.x += sin(uCurrentTime * 1.2 + hash * 6.28) * 0.4 * pType;
+
+    vec3 worldPos = vec3(pos + quadPos * size, uPlayerPos.z);
+
+    float distToPlayer = distance(pos, uPlayerPos.xy);
+    vLocalMask = smoothstep(12.0, 8.0, distToPlayer);
+
+    gl_Position = uViewProj * vec4(worldPos.x, worldPos.y, worldPos.z * uZScale, 1.0);
+}

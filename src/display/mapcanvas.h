@@ -5,8 +5,10 @@
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
+#include "../clock/mumemoment.h"
 #include "../global/ChangeMonitor.h"
 #include "../global/Signal2.h"
+#include "../map/PromptFlags.h"
 #include "../mapdata/roomselection.h"
 #include "../opengl/Font.h"
 #include "../opengl/FontFormatFlags.h"
@@ -15,14 +17,17 @@
 #include "MapCanvasData.h"
 #include "MapCanvasRoomDrawer.h"
 #include "Textures.h"
+#include "WeatherRenderer.h"
 
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <future>
 #include <map>
 #include <memory>
 #include <optional>
 #include <set>
+#include <variant>
 #include <vector>
 
 #include <glm/glm.hpp>
@@ -36,6 +41,7 @@
 class CharacterBatch;
 class ConnectionSelection;
 class Coordinate;
+class GameObserver;
 class InfomarkSelection;
 class MapData;
 class Mmapper2Group;
@@ -164,8 +170,13 @@ private:
     float m_lastPinchFactor = 1.f;
     float m_lastMagnification = 1.f;
 
+    std::unique_ptr<WeatherRenderer> m_weatherRenderer;
+
+    GameObserver &m_observer;
+
 public:
     explicit MapCanvas(MapData &mapData,
+                       GameObserver &observer,
                        PrespammedPath &prespammedPath,
                        Mmapper2Group &groupManager,
                        QWindow *parent = nullptr);
@@ -268,6 +279,7 @@ private:
     void paintSelectedInfomarks();
     void paintCharacters();
     void paintDifferences();
+    NODISCARD Color calculateTimeOfDayColor() const;
     void forceUpdateMeshes();
 
 public:

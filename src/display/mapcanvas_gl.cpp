@@ -18,6 +18,9 @@
 #include "../opengl/OpenGLConfig.h"
 #include "../opengl/OpenGLTypes.h"
 #include "../opengl/legacy/Meshes.h"
+#include "../opengl/legacy/TF.h"
+#include "../opengl/legacy/VAO.h"
+#include "../opengl/legacy/VBO.h"
 #include "../src/global/SendToUser.h"
 #include "Connections.h"
 #include "MapCanvasConfig.h"
@@ -34,8 +37,10 @@
 #include <cstdint>
 #include <cstdlib>
 #include <functional>
+#include <future>
 #include <memory>
 #include <optional>
+#include <random>
 #include <sstream>
 #include <stdexcept>
 #include <unordered_map>
@@ -633,6 +638,19 @@ void MapCanvas::finishPendingMapBatches()
 
 void MapCanvas::actuallyPaintGL()
 {
+    // Update weather
+    {
+        auto &ws = m_weatherRenderer->getState();
+        auto now = std::chrono::steady_clock::now();
+        if (ws.lastUpdateTime.time_since_epoch().count() == 0) {
+            ws.lastUpdateTime = now;
+        }
+        float dt = std::chrono::duration<float>(now - ws.lastUpdateTime).count();
+        ws.lastUpdateTime = now;
+
+        m_weatherRenderer->update(dt);
+    }
+
     // DECL_TIMER(t, __FUNCTION__);
     setViewportAndMvp(width(), height());
 
@@ -652,6 +670,10 @@ void MapCanvas::actuallyPaintGL()
     paintSelections();
     paintCharacters();
     paintDifferences();
+
+    m_weatherRenderer->prepare(m_viewProj);
+    m_weatherRenderer->renderParticles(m_viewProj);
+    m_weatherRenderer->renderAtmosphere(m_viewProj);
 
     gl.releaseFbo();
     gl.blitFboToDefault();

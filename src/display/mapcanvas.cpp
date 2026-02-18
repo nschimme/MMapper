@@ -18,6 +18,7 @@
 #include "../map/roomid.h"
 #include "../mapdata/mapdata.h"
 #include "../mapdata/roomselection.h"
+#include "../observer/gameobserver.h"
 #include "InfomarkSelection.h"
 #include "MapCanvasData.h"
 #include "MapCanvasRoomDrawer.h"
@@ -57,6 +58,7 @@ NODISCARD static NonOwningPointer &primaryMapCanvas()
 }
 
 MapCanvas::MapCanvas(MapData &mapData,
+                     GameObserver &observer,
                      PrespammedPath &prespammedPath,
                      Mmapper2Group &groupManager,
                      QWindow *const parent)
@@ -68,6 +70,14 @@ MapCanvas::MapCanvas(MapData &mapData,
     , m_glFont{m_opengl}
     , m_data{mapData}
     , m_groupManager{groupManager}
+    , m_weatherRenderer{std::make_unique<WeatherRenderer>(m_opengl,
+                                                          m_data,
+                                                          m_textures,
+                                                          observer,
+                                                          [this](bool animating) {
+                                                              setAnimating(animating);
+                                                          })}
+    , m_observer{observer}
 {
     NonOwningPointer &pmc = primaryMapCanvas();
     if (pmc == nullptr) {

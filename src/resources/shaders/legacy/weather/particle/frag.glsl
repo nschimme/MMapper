@@ -11,16 +11,16 @@ layout(std140) uniform NamedColorsBlock
 layout(std140) uniform WeatherBlock
 {
     mat4 uViewProj;
-    vec4 uPlayerPos;   // xyz, w=zScale
-    vec4 uIntensities; // precip_start, clouds_start, fog_start, type_start
-    vec4 uTargets;     // precip_target, clouds_target, fog_target, type_target
+    vec4 uPlayerPos;        // xyz, w=zScale
+    vec4 uIntensities;      // precip_start, clouds_start, fog_start, type_start
+    vec4 uTargets;          // precip_target, clouds_target, fog_target, type_target
     vec4 uTimeOfDayIndices; // x=startIdx, y=targetIdx, z=todIntStart, w=todIntTarget
-    vec4 uConfig;      // x=weatherStartTime, y=timeOfDayStartTime, z=duration, w=unused
+    vec4 uConfig;           // x=weatherStartTime, y=timeOfDayStartTime, z=duration, w=unused
 };
 
 layout(std140) uniform TimeBlock
 {
-    vec2 uTime;   // x=time, y=delta
+    vec2 uTime; // x=time, y=delta
 };
 
 in float vLife;
@@ -40,7 +40,9 @@ void main()
     float pIntensity = mix(uIntensities.x, uTargets.x, weatherLerp);
     float pType = mix(uIntensities.w, uTargets.w, weatherLerp);
 
-    float timeOfDayLerp = clamp((uCurrentTime - uTimeOfDayStartTime) / uTransitionDuration, 0.0, 1.0);
+    float timeOfDayLerp = clamp((uCurrentTime - uTimeOfDayStartTime) / uTransitionDuration,
+                                0.0,
+                                1.0);
     float currentTimeOfDayIntensity = mix(uTimeOfDayIndices.z, uTimeOfDayIndices.w, timeOfDayLerp);
     vec4 timeOfDayStart = uNamedColors[int(uTimeOfDayIndices.x)];
     vec4 timeOfDayTarget = uNamedColors[int(uTimeOfDayIndices.y)];

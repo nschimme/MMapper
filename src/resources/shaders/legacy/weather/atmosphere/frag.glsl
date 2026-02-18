@@ -11,16 +11,16 @@ layout(std140) uniform NamedColorsBlock
 layout(std140) uniform WeatherBlock
 {
     mat4 uViewProj;
-    vec4 uPlayerPos;   // xyz, w=zScale
-    vec4 uIntensities; // precip_start, clouds_start, fog_start, type_start
-    vec4 uTargets;     // precip_target, clouds_target, fog_target, type_target
+    vec4 uPlayerPos;        // xyz, w=zScale
+    vec4 uIntensities;      // precip_start, clouds_start, fog_start, type_start
+    vec4 uTargets;          // precip_target, clouds_target, fog_target, type_target
     vec4 uTimeOfDayIndices; // x=startIdx, y=targetIdx, z=todIntStart, w=todIntTarget
-    vec4 uConfig;      // x=weatherStartTime, y=timeOfDayStartTime, z=duration, w=unused
+    vec4 uConfig;           // x=weatherStartTime, y=timeOfDayStartTime, z=duration, w=unused
 };
 
 layout(std140) uniform TimeBlock
 {
-    vec2 uTime;   // x=time, y=delta
+    vec2 uTime; // x=time, y=delta
 };
 
 uniform sampler2D uNoiseTex;
@@ -62,7 +62,9 @@ void main()
     float uCloudsIntensity = mix(uIntensities[1], uTargets[1], weatherLerp);
     float uFogIntensity = mix(uIntensities[2], uTargets[2], weatherLerp);
 
-    float timeOfDayLerp = clamp((uCurrentTime - uTimeOfDayStartTime) / uTransitionDuration, 0.0, 1.0);
+    float timeOfDayLerp = clamp((uCurrentTime - uTimeOfDayStartTime) / uTransitionDuration,
+                                0.0,
+                                1.0);
     float currentTimeOfDayIntensity = mix(uTimeOfDayIndices.z, uTimeOfDayIndices.w, timeOfDayLerp);
     vec4 timeOfDayStart = uNamedColors[int(uTimeOfDayIndices.x)];
     vec4 timeOfDayTarget = uNamedColors[int(uTimeOfDayIndices.y)];
@@ -83,7 +85,8 @@ void main()
 
         // Blend fog over result
         float combinedAlpha = 1.0 - (1.0 - result.a) * (1.0 - fog.a);
-        result.rgb = (result.rgb * result.a * (1.0 - fog.a) + fog.rgb * fog.a) / max(combinedAlpha, 0.001);
+        result.rgb = (result.rgb * result.a * (1.0 - fog.a) + fog.rgb * fog.a)
+                     / max(combinedAlpha, 0.001);
         result.a = combinedAlpha;
     }
 
@@ -93,13 +96,17 @@ void main()
         float puffy = smoothstep(0.45, 0.55, n);
         // Clouds get darker and more "stormy" as intensity increases
         float storminess = 1.0 - uCloudsIntensity * 0.4;
-        vec4 clouds = vec4(0.9 * storminess, 0.9 * storminess, 1.0 * storminess, uCloudsIntensity * puffy * localMask * 0.5);
+        vec4 clouds = vec4(0.9 * storminess,
+                           0.9 * storminess,
+                           1.0 * storminess,
+                           uCloudsIntensity * puffy * localMask * 0.5);
         // Emissive boost at night
         clouds.rgb += uTimeOfDayColor.a * 0.1;
 
         // Blend clouds over result
         float combinedAlpha = 1.0 - (1.0 - result.a) * (1.0 - clouds.a);
-        result.rgb = (result.rgb * result.a * (1.0 - clouds.a) + clouds.rgb * clouds.a) / max(combinedAlpha, 0.001);
+        result.rgb = (result.rgb * result.a * (1.0 - clouds.a) + clouds.rgb * clouds.a)
+                     / max(combinedAlpha, 0.001);
         result.a = combinedAlpha;
     }
 

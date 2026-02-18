@@ -787,7 +787,6 @@ void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current)
         });
 }
 
-
 void MapCanvas::paintDifferences()
 {
     auto &diff = m_diff;

@@ -43,11 +43,24 @@ void AnimationManager::update()
 
     auto elapsed = now - m_lastUpdateTime;
     float dt = std::chrono::duration<float>(elapsed).count();
+    m_lastUpdateTime = now;
+
+    // Advance global time smoothly
+    m_animationTime += dt;
+    m_simulationAccumulator += dt;
 
     // Cap the delta to avoid huge jumps after long pauses.
-    m_lastFrameDeltaTime = std::min(dt, 0.1f);
-    m_animationTime += m_lastFrameDeltaTime;
-    m_lastUpdateTime = now;
+    // Also ensures we don't try to simulate more than 0.1s at once.
+    const float simStep = std::min(m_simulationAccumulator, 0.1f);
+
+    // Throttle simulation to 60 FPS (approx 16.6ms)
+    // If we're redrawing slower than 60 FPS (e.g. at the background 20 FPS), we simulate every frame.
+    if (simStep >= 0.0166f) {
+        m_lastFrameDeltaTime = simStep;
+        m_simulationAccumulator -= simStep;
+    } else {
+        m_lastFrameDeltaTime = 0.0f;
+    }
 
     // Refresh internal struct for UBO
     m_frameData.time = glm::vec4(m_animationTime, m_lastFrameDeltaTime, 0.0f, 0.0f);

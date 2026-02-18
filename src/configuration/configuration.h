@@ -186,7 +186,7 @@ public:
 
         NamedConfig<int> weatherAtmosphereIntensity{"WEATHER_ATMOSPHERE_INTENSITY", 50};
         NamedConfig<int> weatherPrecipitationIntensity{"WEATHER_PRECIPITATION_INTENSITY", 50};
-        NamedConfig<int> weatherTimeOfDayIntensity{"WEATHER_TOD_INTENSITY", 50};
+        NamedConfig<int> weatherTimeOfDayIntensity{"WEATHER_TIME_OF_DAY_INTENSITY", 50};
 
         struct NODISCARD Advanced final
         {

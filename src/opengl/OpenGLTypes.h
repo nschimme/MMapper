@@ -246,7 +246,7 @@ struct NODISCARD GLRenderState final
                 glm::vec4 targets{
                     0.0f}; // 96-111 (precip_target, clouds_target, fog_target, type_target)
                 glm::vec4 timeOfDayIndices{
-                    0.0f}; // 112-127 (x=startIdx, y=targetIdx, z=todIntStart, w=todIntTarget)
+                    0.0f}; // 112-127 (x=startIdx, y=targetIdx, z=timeOfDayIntensityStart, w=timeOfDayIntensityTarget)
                 glm::vec4 config{
                     0.0f}; // 128-143 (x=weatherStartTime, y=timeOfDayStartTime, z=duration, w=unused)
             } data;

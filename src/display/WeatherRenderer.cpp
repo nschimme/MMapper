@@ -184,8 +184,8 @@ WeatherRenderer::WeatherRenderer(OpenGL &gl,
                      m_setAnimating(true);
                  });
 
-    m_observer.sig2_timeOfDayChanged.connect(m_lifetime, [this, updateTargets](MumeTimeEnum tod) {
-        if (tod == m_state.currentTimeOfDay) {
+    m_observer.sig2_timeOfDayChanged.connect(m_lifetime, [this, updateTargets](MumeTimeEnum timeOfDay) {
+        if (timeOfDay == m_state.currentTimeOfDay) {
             return;
         }
 
@@ -200,8 +200,8 @@ WeatherRenderer::WeatherRenderer(OpenGL &gl,
                                              factor);
 
         m_state.oldTimeOfDay = m_state.currentTimeOfDay;
-        m_state.currentTimeOfDay = tod;
-        m_state.gameTimeOfDayIntensity = (tod == MumeTimeEnum::DAY) ? 0.0f : 1.0f;
+        m_state.currentTimeOfDay = timeOfDay;
+        m_state.gameTimeOfDayIntensity = (timeOfDay == MumeTimeEnum::DAY) ? 0.0f : 1.0f;
         updateTargets();
         m_state.timeOfDayTransitionStartTime = m_state.animationTime;
         invalidateStatic();
@@ -407,8 +407,8 @@ void WeatherRenderer::updateUbo(const glm::mat4 &viewProj)
                               m_state.targetFogIntensity,
                               m_state.targetPrecipitationType);
 
-        auto toNamedColorIdx = [](MumeTimeEnum tod) -> float {
-            switch (tod) {
+        auto toNamedColorIdx = [](MumeTimeEnum timeOfDay) -> float {
+            switch (timeOfDay) {
             case MumeTimeEnum::DAY:
                 return static_cast<float>(NamedColorEnum::TRANSPARENT);
             case MumeTimeEnum::NIGHT:

@@ -17,7 +17,7 @@
 #include "MapCanvasData.h"
 #include "MapCanvasRoomDrawer.h"
 #include "Textures.h"
-#include "WeatherRenderer.h"
+#include "Weather.h"
 
 #include <array>
 #include <cstddef>

@@ -11,8 +11,8 @@
 #include "../opengl/OpenGL.h"
 #include "../opengl/OpenGLTypes.h"
 #include "../opengl/legacy/Legacy.h"
+#include "../opengl/legacy/WeatherMesh.h"
 #include "Textures.h"
-#include "WeatherRenderables.h"
 
 #include <chrono>
 #include <functional>
@@ -104,6 +104,9 @@ public:
 
     NODISCARD State &getState() { return m_state; }
     NODISCARD const State &getState() const { return m_state; }
+
+public:
+    static QImage generateNoiseTexture(int size);
 
 private:
     void updateUbo(const glm::mat4 &viewProj);

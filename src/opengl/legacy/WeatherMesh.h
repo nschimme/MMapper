@@ -2,11 +2,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2026 The MMapper Authors
 
-#include "../opengl/OpenGL.h"
-#include "../opengl/OpenGLTypes.h"
-#include "../opengl/legacy/Legacy.h"
-
-#include <memory>
+#include "../OpenGL.h"
+#include "../OpenGLTypes.h"
+#include "Legacy.h"
 
 class WeatherRenderer;
 

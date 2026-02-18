@@ -18,7 +18,7 @@
 #include "../opengl/OpenGLConfig.h"
 #include "../opengl/OpenGLTypes.h"
 #include "../opengl/legacy/Meshes.h"
-#include "../opengl/legacy/TF.h"
+#include "../opengl/legacy/TFO.h"
 #include "../opengl/legacy/VAO.h"
 #include "../opengl/legacy/VBO.h"
 #include "../src/global/SendToUser.h"

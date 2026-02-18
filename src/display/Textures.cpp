@@ -9,7 +9,7 @@
 #include "../opengl/OpenGLTypes.h"
 #include "Filenames.h"
 #include "RoadIndex.h"
-#include "WeatherTextureGenerator.h"
+#include "Weather.h"
 #include "mapcanvas.h"
 
 #include <array>
@@ -315,7 +315,7 @@ void MapCanvas::initTextures()
 
     {
         // 256x256 noise texture with full mip chain
-        QImage noiseImage = WeatherTextureGenerator::generateNoiseTexture(256);
+        QImage noiseImage = WeatherRenderer::generateNoiseTexture(256);
         std::vector<QImage> mips;
         mips.push_back(noiseImage);
         for (int s = 128; s >= 1; s /= 2) {

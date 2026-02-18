@@ -13,7 +13,7 @@
 #include "ShaderUtils.h"
 #include "Shaders.h"
 #include "SimpleMesh.h"
-#include "TF.h"
+#include "TFO.h"
 #include "VBO.h"
 
 #include <cassert>

@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2026 The MMapper Authors
 
-#include "WeatherRenderables.h"
+#include "WeatherMesh.h"
 
-#include "../global/random.h"
-#include "../opengl/legacy/Binders.h"
-#include "../opengl/legacy/Shaders.h"
-#include "../opengl/legacy/TF.h"
-#include "../opengl/legacy/VAO.h"
-#include "../opengl/legacy/VBO.h"
-#include "WeatherRenderer.h"
+#include "../../display/Weather.h"
+#include "../../global/random.h"
+#include "Binders.h"
+#include "Shaders.h"
+#include "TFO.h"
+#include "VAO.h"
+#include "VBO.h"
 
 #include <glm/glm.hpp>
 

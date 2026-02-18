@@ -130,21 +130,23 @@ AboutDialog::AboutDialog(QWidget *const parent)
                      "</p>",
                      ":/fonts/LICENSE"});
 
-    licenses.append({"GLM License",
-                     "<p>"
-                     "This product contains code from the "
-                     "<a href=\"https://glm.g-truc.net/\" target=\"_blank\">OpenGL Mathematics (GLM)</a>"
-                     " project."
-                     "</p>",
-                     ":/LICENSE.GLM"});
+    licenses.append(
+        {"GLM License",
+         "<p>"
+         "This product contains code from the "
+         "<a href=\"https://glm.g-truc.net/\" target=\"_blank\">OpenGL Mathematics (GLM)</a>"
+         " project."
+         "</p>",
+         ":/LICENSE.GLM"});
 
-    licenses.append({"QtKeychain License",
-                     "<p>"
-                     "This product contains code from the "
-                     "<a href=\"https://github.com/frankosterfeld/qtkeychain\" target=\"_blank\">QtKeychain</a>"
-                     " project."
-                     "</p>",
-                     ":/LICENSE.QTKEYCHAIN"});
+    licenses.append(
+        {"QtKeychain License",
+         "<p>"
+         "This product contains code from the "
+         "<a href=\"https://github.com/frankosterfeld/qtkeychain\" target=\"_blank\">QtKeychain</a>"
+         " project."
+         "</p>",
+         ":/LICENSE.QTKEYCHAIN"});
 
     licenses.append({"OpenSSL License",
                      "<p>"
@@ -162,13 +164,14 @@ AboutDialog::AboutDialog(QWidget *const parent)
                      ":/LICENSE.BOOST"});
 
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Windows) {
-        licenses.append({"GNU Lesser General Public License 2.1",
-                         "<p>"
-                         "Some versions of this product contains code from the "
-                         "following LGPLed libraries: "
-                         "<a href=\"https://github.com/jrfonseca/drmingw\" target=\"_blank\">DrMingW</a>"
-                         "</p>",
-                         ":/LICENSE.LGPL"});
+        licenses.append(
+            {"GNU Lesser General Public License 2.1",
+             "<p>"
+             "Some versions of this product contains code from the "
+             "following LGPLed libraries: "
+             "<a href=\"https://github.com/jrfonseca/drmingw\" target=\"_blank\">DrMingW</a>"
+             "</p>",
+             ":/LICENSE.LGPL"});
     }
 
     for (const auto &license : licenses) {

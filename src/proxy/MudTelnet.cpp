@@ -40,26 +40,28 @@ constexpr const auto GAME_DAY = "GAME DAY";
 constexpr const auto GAME_HOUR = "GAME HOUR";
 
 #ifdef Q_OS_WASM
+// clang-format off
 EM_JS(char *, get_browser_os_js, (), {
     const ua = navigator.userAgent;
 
-    const os = / Win /.test(ua) ? "Windows" : / Android /.test(ua)            ? "Android"
-                                          : / Linux /.test(ua)                ? "Linux"
-                                          : / iPhone | iPad | iPod /.test(ua) ? "iOS"
-                                          : / Mac /.test(ua)                  ? "macOS"
-                                                                              : "Unknown";
+    const os = /Win/.test(ua) ? "Windows" :
+               /Android/.test(ua) ? "Android" :
+               /Linux/.test(ua) ? "Linux" :
+               /iPhone|iPad|iPod/.test(ua) ? "iOS" :
+               /Mac/.test(ua) ? "macOS" : "Unknown";
 
-    const br = / Firefox /.test(ua) ? "Firefox" : / SamsungBrowser /.test(ua) ? "Samsung"
-                                              : / Opera | OPR /.test(ua)      ? "Opera"
-                                              : / Edge | Edg /.test(ua)       ? "Edge"
-                                              : / Chrome /.test(ua)           ? "Chrome"
-                                              : / Safari /.test(ua)           ? "Safari"
-                                                                              : "Unknown";
+    const br = /Firefox/.test(ua) ? "Firefox" :
+               /SamsungBrowser/.test(ua) ? "Samsung" :
+               /Opera|OPR/.test(ua) ? "Opera" :
+               /Edge|Edg/.test(ua) ? "Edge" :
+               /Chrome/.test(ua) ? "Chrome" :
+               /Safari/.test(ua) ? "Safari" : "Unknown";
 
-    const res = (os == = "Unknown" &&br == = "Unknown") ? "Unknown" : (os + br);
+    const res = (os === "Unknown" && br === "Unknown") ? "unknown" : (os + br);
 
     return stringToNewUTF8(res);
 });
+// clang-format on
 #endif
 
 NODISCARD std::optional<std::string> getMajorMinor()

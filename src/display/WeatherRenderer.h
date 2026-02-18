@@ -14,6 +14,8 @@
 #include "Textures.h"
 #include "WeatherRenderables.h"
 
+#include <QMetaObject>
+
 #include <chrono>
 #include <functional>
 #include <memory>
@@ -72,6 +74,8 @@ private:
     const MapCanvasTextures &m_textures;
     GameObserver &m_observer;
     ChangeMonitor::Lifetime m_lifetime;
+    QMetaObject::Connection m_posConn;
+    QMetaObject::Connection m_forcedPosConn;
     std::function<void(bool)> m_setAnimating;
     State m_state;
     UniqueMesh m_simulation;

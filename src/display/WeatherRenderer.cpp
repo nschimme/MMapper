@@ -35,10 +35,6 @@ T my_lerp(T a, T b, float t)
     return a + t * (b - a);
 }
 
-float get_random_float()
-{
-    return static_cast<float>(getRandom(1000000)) / 1000000.0f;
-}
 } // namespace
 
 WeatherRenderer::WeatherRenderer(OpenGL &gl,
@@ -259,11 +255,19 @@ WeatherRenderer::WeatherRenderer(OpenGL &gl,
     canvasSettings.weatherTimeOfDayIntensity.registerChangeCallback(m_lifetime,
                                                                     onTimeOfDaySettingChanged);
 
-    m_data.sig_onPositionChange.connect(m_lifetime, [this]() { invalidateStatic(); });
-    m_data.sig_onForcedPositionChange.connect(m_lifetime, [this]() { invalidateStatic(); });
+    m_posConn = QObject::connect(&m_data, &MapData::sig_onPositionChange, [this]() {
+        invalidateStatic();
+    });
+    m_forcedPosConn = QObject::connect(&m_data, &MapData::sig_onForcedPositionChange, [this]() {
+        invalidateStatic();
+    });
 }
 
-WeatherRenderer::~WeatherRenderer() = default;
+WeatherRenderer::~WeatherRenderer()
+{
+    QObject::disconnect(m_posConn);
+    QObject::disconnect(m_forcedPosConn);
+}
 
 void WeatherRenderer::invalidateStatic()
 {
@@ -317,11 +321,12 @@ void WeatherRenderer::update(float dt)
                                    < TRANSITION_DURATION);
 
     if (!weatherTransitioning
-        && (m_state.rainIntensityStart != m_state.targetRainIntensity
-            || m_state.snowIntensityStart != m_state.targetSnowIntensity
-            || m_state.cloudsIntensityStart != m_state.targetCloudsIntensity
-            || m_state.fogIntensityStart != m_state.targetFogIntensity
-            || m_state.precipitationTypeStart != m_state.targetPrecipitationType)) {
+        && (std::abs(m_state.rainIntensityStart - m_state.targetRainIntensity) > 1e-5f
+            || std::abs(m_state.snowIntensityStart - m_state.targetSnowIntensity) > 1e-5f
+            || std::abs(m_state.cloudsIntensityStart - m_state.targetCloudsIntensity) > 1e-5f
+            || std::abs(m_state.fogIntensityStart - m_state.targetFogIntensity) > 1e-5f
+            || std::abs(m_state.precipitationTypeStart - m_state.targetPrecipitationType)
+                   > 1e-5f)) {
         m_state.rainIntensityStart = m_state.targetRainIntensity;
         m_state.snowIntensityStart = m_state.targetSnowIntensity;
         m_state.cloudsIntensityStart = m_state.targetCloudsIntensity;
@@ -332,8 +337,8 @@ void WeatherRenderer::update(float dt)
 
     if (!timeOfDayTransitioning
         && (m_state.oldTimeOfDay != m_state.currentTimeOfDay
-            || m_state.timeOfDayIntensityStart != m_state.targetTimeOfDayIntensity
-            || m_state.moonIntensityStart != m_state.targetMoonIntensity)) {
+            || std::abs(m_state.timeOfDayIntensityStart - m_state.targetTimeOfDayIntensity) > 1e-5f
+            || std::abs(m_state.moonIntensityStart - m_state.targetMoonIntensity) > 1e-5f)) {
         m_state.oldTimeOfDay = m_state.currentTimeOfDay;
         m_state.timeOfDayIntensityStart = m_state.targetTimeOfDayIntensity;
         m_state.moonIntensityStart = m_state.targetMoonIntensity;
@@ -417,9 +422,10 @@ void WeatherRenderer::updateUbo(const glm::mat4 &viewProj)
                 return static_cast<float>(NamedColorEnum::WEATHER_DAWN);
             case MumeTimeEnum::DUSK:
                 return static_cast<float>(NamedColorEnum::WEATHER_DUSK);
-            default:
+            case MumeTimeEnum::UNKNOWN:
                 return static_cast<float>(NamedColorEnum::TRANSPARENT);
             }
+            return static_cast<float>(NamedColorEnum::TRANSPARENT);
         };
 
         s.timeOfDayIndices.x = toNamedColorIdx(m_state.oldTimeOfDay);

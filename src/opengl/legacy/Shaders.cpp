@@ -163,7 +163,7 @@ const std::shared_ptr<AtmosphereShader> &ShaderPrograms::getAtmosphereShader()
 
 const std::shared_ptr<TimeOfDayShader> &ShaderPrograms::getTimeOfDayShader()
 {
-    return getInitialized<TimeOfDayShader>(m_timeOfDay, getFunctions(), "weather/tod");
+    return getInitialized<TimeOfDayShader>(m_timeOfDay, getFunctions(), "weather/timeofday");
 }
 
 const std::shared_ptr<ParticleSimulationShader> &ShaderPrograms::getParticleSimulationShader()

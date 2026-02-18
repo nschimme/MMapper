@@ -78,6 +78,8 @@ private:
     UniqueMesh m_particles;
     UniqueMesh m_atmosphere;
     UniqueMesh m_timeOfDay;
+    std::optional<GLRenderState::Uniforms::Weather::Static> m_staticWeather;
+    glm::mat4 m_lastViewProj{0.0f};
 
 public:
     explicit WeatherRenderer(OpenGL &gl,
@@ -101,4 +103,5 @@ public:
 
 private:
     void updateUbo(const glm::mat4 &viewProj);
+    void invalidateStatic();
 };

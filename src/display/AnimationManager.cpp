@@ -38,12 +38,23 @@ void AnimationManager::update()
     auto now = std::chrono::steady_clock::now();
     if (m_lastUpdateTime.time_since_epoch().count() == 0) {
         m_lastUpdateTime = now;
+        return;
     }
 
     auto elapsed = now - m_lastUpdateTime;
-    m_lastFrameDeltaTime = std::chrono::duration<float>(elapsed).count();
-    m_animationTime += m_lastFrameDeltaTime;
-    m_lastUpdateTime = now;
+    float dt = std::chrono::duration<float>(elapsed).count();
+
+    if (dt < TARGET_FRAME_TIME) {
+        // Observe the target frame rate for animations by not advancing if called too frequently
+        // (e.g. during frequent UI updates from dragging/scrolling).
+        m_lastFrameDeltaTime = 0.0f;
+    } else {
+        // Advance clock and update the anchor.
+        // Cap the delta to avoid huge jumps after long pauses.
+        m_lastFrameDeltaTime = std::min(dt, TARGET_FRAME_TIME * 2.0f);
+        m_animationTime += m_lastFrameDeltaTime;
+        m_lastUpdateTime = now;
+    }
 
     // Refresh internal struct for UBO
     m_frameData.time = glm::vec4(m_animationTime, m_lastFrameDeltaTime, 0.0f, 0.0f);

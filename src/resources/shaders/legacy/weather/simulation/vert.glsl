@@ -7,9 +7,9 @@ layout(location = 1) in float aLife;
 layout(std140) uniform WeatherBlock
 {
     mat4 uViewProj;
-    vec4 uPlayerPos;        // xyz, w=zScale
-    vec4 uIntensities;      // precip_start, clouds_start, fog_start, type_start
-    vec4 uTargets;          // precip_target, clouds_target, fog_target, type_target
+    vec4 uPlayerPos;   // xyz, w=zScale
+    vec4 uIntensities; // precip_start, clouds_start, fog_start, type_start
+    vec4 uTargets;     // precip_target, clouds_target, fog_target, type_target
     vec4 uTimeOfDayIndices; // x=startIdx, y=targetIdx, z=timeOfDayIntensityStart, w=timeOfDayIntensityTarget
     vec4 uConfig;           // x=weatherStartTime, y=timeOfDayStartTime, z=duration, w=unused
 };
@@ -62,7 +62,7 @@ void main()
     pos.y -= uDeltaTime * speed;
 
     // Horizontal swaying (only for snow)
-    pos.x += sin(uCurrentTime * 1.2 + hash * 6.28) * (0.005 + pIntensity * 0.01) * pType;
+    pos.x += sin(uCurrentTime * 1.2 + hash * 6.28) * (0.1 + pIntensity * 0.2) * pType * uDeltaTime;
 
     life -= uDeltaTime * decay;
 

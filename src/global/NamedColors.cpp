@@ -66,8 +66,7 @@ public:
                                Color(76, 51, 102, 51)); // 0.3, 0.2, 0.4, 0.2
         std::ignore = setColor(NamedColorEnum::WEATHER_NIGHT,
                                Color(13, 13, 51, 89)); // 0.05, 0.05, 0.2, 0.35
-        std::ignore = setColor(NamedColorEnum::WEATHER_TORCH,
-                               Color(255, 150, 50, 180));
+        std::ignore = setColor(NamedColorEnum::WEATHER_TORCH, Color(255, 150, 50, 180));
     }
 
 public:

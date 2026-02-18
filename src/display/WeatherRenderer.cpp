@@ -235,8 +235,8 @@ WeatherRenderer::WeatherRenderer(OpenGL &gl,
                   / TRANSITION_DURATION;
         float factor = std::clamp(t, 0.0f, 1.0f);
         m_state.artificialLightIntensityStart = my_lerp(m_state.artificialLightIntensityStart,
-                                                         m_state.targetArtificialLightIntensity,
-                                                         factor);
+                                                        m_state.targetArtificialLightIntensity,
+                                                        factor);
 
         m_state.isArtificialLight = isArtificial;
         m_state.targetArtificialLightIntensity = isArtificial ? 1.0f : 0.0f;

@@ -254,7 +254,7 @@ struct NODISCARD GLRenderState final
             // TimeBlock (Binding 2)
             struct NODISCARD Frame final
             {
-                glm::vec2 time{0.0f}; // 0-7 (x=time, y=delta)
+                glm::vec4 time{0.0f}; // 0-15 (x=time, y=delta, zw=unused)
             } frame;
         } weather;
     };

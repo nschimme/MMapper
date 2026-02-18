@@ -38,11 +38,14 @@ void SfxManager::playSound(MAYBE_UNUSED const QString &soundName)
     } else {
         effect->setSource(QUrl::fromLocalFile(path));
     }
-    connect(effect, &QMediaPlayer::playingChanged, this, [effect]() {
-        if (!effect->isPlaying()) {
-            effect->deleteLater();
-        }
-    });
+    connect(effect,
+            &QMediaPlayer::playbackStateChanged,
+            this,
+            [effect](QMediaPlayer::PlaybackState state) {
+                if (state != QMediaPlayer::PlaybackState::PlayingState) {
+                    effect->deleteLater();
+                }
+            });
 
     effect->play();
 #endif

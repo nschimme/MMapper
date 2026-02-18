@@ -462,7 +462,13 @@ void WeatherRenderer::prepare(const glm::mat4 &viewProj)
     }
 
     auto &funcs = deref(m_gl.getSharedFunctions(Badge<WeatherRenderer>{}));
-    m_gl.getUboManager().updateAndBind(funcs, Legacy::SharedVboEnum::WeatherBlock, *m_staticUboData);
+    auto &uboManager = m_gl.getUboManager();
+
+    if (uboManager.isInvalid(Legacy::SharedVboEnum::WeatherBlock)) {
+        uboManager.update(funcs, Legacy::SharedVboEnum::WeatherBlock, *m_staticUboData);
+    } else {
+        uboManager.bind(funcs, Legacy::SharedVboEnum::WeatherBlock);
+    }
 
     m_lastUboUploadTime = m_animationManager.getAnimationTime();
 }

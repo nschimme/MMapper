@@ -651,9 +651,13 @@ void MapCanvas::actuallyPaintGL()
     auto &gl = getOpenGL();
     auto &funcs = deref(gl.getSharedFunctions(Badge<MapCanvas>{}));
 
-    gl.getUboManager().updateAndBind(funcs,
-                                     Legacy::SharedVboEnum::NamedColorsBlock,
-                                     XNamedColor::getAllColorsAsVec4());
+    if (gl.getUboManager().isInvalid(Legacy::SharedVboEnum::NamedColorsBlock)) {
+        gl.getUboManager().update(funcs,
+                                  Legacy::SharedVboEnum::NamedColorsBlock,
+                                  XNamedColor::getAllColorsAsVec4());
+    } else {
+        gl.getUboManager().bind(funcs, Legacy::SharedVboEnum::NamedColorsBlock);
+    }
 
     gl.bindFbo();
     gl.clear(Color{getConfig().canvas.backgroundColor});

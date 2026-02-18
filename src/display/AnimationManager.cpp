@@ -56,6 +56,7 @@ void AnimationManager::update()
 void AnimationManager::updateAndBind(Legacy::Functions &gl)
 {
     if (m_uboManager) {
-        m_uboManager->updateAndBind(gl, Legacy::SharedVboEnum::TimeBlock, m_frameData);
+        // Time always changes, so we always update
+        m_uboManager->update(gl, Legacy::SharedVboEnum::TimeBlock, m_frameData);
     }
 }

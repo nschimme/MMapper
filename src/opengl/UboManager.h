@@ -35,12 +35,46 @@ public:
     void invalidateAll() { m_validBlocks.clear(); }
 
     /**
-     * @brief Ensures the UBO is up-to-date on the GPU and binds it to its assigned point.
-     *
-     * If the block is not in the valid set, the provided data is uploaded to the GPU.
+     * @brief Checks if a UBO block has ever been created/initialized.
+     */
+    bool hasVbo(Legacy::Functions &gl, Legacy::SharedVboEnum block) const
+    {
+        return gl.getSharedVbos().get(block)->get() != 0;
+    }
+
+    /**
+     * @brief Checks if a UBO block is currently dirty/invalid.
+     */
+    bool isInvalid(Legacy::SharedVboEnum block) const
+    {
+        return m_validBlocks.find(block) == m_validBlocks.end();
+    }
+
+    /**
+     * @brief Uploads data to the UBO and marks it as valid.
+     * Also binds it to its assigned point.
      */
     template<typename T>
-    void updateAndBind(Legacy::Functions &gl, Legacy::SharedVboEnum block, const T &data)
+    void update(Legacy::Functions &gl, Legacy::SharedVboEnum block, const T &data)
+    {
+        const auto sharedVbo = gl.getSharedVbos().get(block);
+        Legacy::VBO &vbo = deref(sharedVbo);
+
+        if (!vbo) {
+            vbo.emplace(gl.shared_from_this());
+        }
+
+        upload_internal(gl, vbo.get(), data);
+        m_validBlocks.insert(block);
+
+        gl.glBindBufferBase(GL_UNIFORM_BUFFER, block, vbo.get());
+    }
+
+    /**
+     * @brief Binds the UBO to its assigned point.
+     * Use this when you know the UBO is already valid.
+     */
+    void bind(Legacy::Functions &gl, Legacy::SharedVboEnum block)
     {
         const auto sharedVbo = gl.getSharedVbos().get(block);
         Legacy::VBO &vbo = deref(sharedVbo);
@@ -48,11 +82,6 @@ public:
         if (!vbo) {
             vbo.emplace(gl.shared_from_this());
             m_validBlocks.erase(block);
-        }
-
-        if (m_validBlocks.find(block) == m_validBlocks.end()) {
-            upload_internal(gl, vbo.get(), data);
-            m_validBlocks.insert(block);
         }
 
         gl.glBindBufferBase(GL_UNIFORM_BUFFER, block, vbo.get());

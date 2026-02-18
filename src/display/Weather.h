@@ -29,6 +29,7 @@ private:
     MapData &m_data;
     const MapCanvasTextures &m_textures;
     GameObserver &m_observer;
+    AnimationManager &m_animationManager;
     ChangeMonitor::Lifetime m_lifetime;
     QMetaObject::Connection m_posConn;
     QMetaObject::Connection m_forcedPosConn;
@@ -70,7 +71,6 @@ private:
     float m_weatherTransitionStartTime = -2.0f;
     float m_timeOfDayTransitionStartTime = -2.0f;
 
-    float m_animationTime = 0.0f;
     float m_lastUboUploadTime = -1.0f;
 
     std::optional<GLRenderState::Uniforms::Weather::Static> m_staticUboData;

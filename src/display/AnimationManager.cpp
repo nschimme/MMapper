@@ -41,10 +41,18 @@ bool AnimationManager::isAnimating() const
     return anyAnimating;
 }
 
-void AnimationManager::update(float dt)
+void AnimationManager::update()
 {
-    m_lastDt = dt;
-    m_animationTime += dt;
+    auto now = std::chrono::steady_clock::now();
+    if (m_lastUpdateTime.time_since_epoch().count() == 0) {
+        m_lastUpdateTime = now;
+    }
+
+    auto elapsed = now - m_lastUpdateTime;
+    m_lastDt = std::chrono::duration<float>(elapsed).count();
+    m_animationTime += m_lastDt;
+    m_lastUpdateTime = now;
+
     if (m_uboManager) {
         m_uboManager->invalidate(Legacy::SharedVboEnum::TimeBlock);
     }

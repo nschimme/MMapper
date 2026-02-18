@@ -96,6 +96,8 @@ class NODISCARD WeatherTimeOfDayMesh final : public WeatherFullScreenMesh<TimeOf
 public:
     using WeatherFullScreenMesh::WeatherFullScreenMesh;
     ~WeatherTimeOfDayMesh() override;
+
+    void virt_render(const GLRenderState &renderState) override;
 };
 
 class NODISCARD WeatherSimulationMesh final : public IRenderable

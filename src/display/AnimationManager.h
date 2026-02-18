@@ -24,16 +24,14 @@ public:
     void registerCallback(const Signal2Lifetime &lifetime, AnimationCallback callback);
     NODISCARD bool isAnimating() const;
 
-    void update(float dt);
+    /**
+     * @brief Advance the global animation clock.
+     * Calculates the delta time since the last call to update().
+     */
+    void update();
 
     void setAnimating(bool value) { m_animating = value; }
     NODISCARD bool getAnimating() const { return m_animating; }
-
-    void setLastFrameTime(std::chrono::steady_clock::time_point time) { m_lastFrameTime = time; }
-    NODISCARD std::chrono::steady_clock::time_point getLastFrameTime() const
-    {
-        return m_lastFrameTime;
-    }
 
     NODISCARD float getAnimationTime() const { return m_animationTime; }
     NODISCARD float getLastDt() const { return m_lastDt; }
@@ -45,7 +43,8 @@ private:
         AnimationCallback callback;
     };
     mutable std::vector<Entry> m_callbacks;
-    std::chrono::steady_clock::time_point m_lastFrameTime;
+
+    std::chrono::steady_clock::time_point m_lastUpdateTime;
     bool m_animating = false;
 
     float m_animationTime = 0.0f;

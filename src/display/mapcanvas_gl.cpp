@@ -516,22 +516,10 @@ void MapCanvas::renderLoop()
         return;
     }
 
-    // REVISIT: Make this configurable later when its not just used for the remesh flash
-    static constexpr int TARGET_FRAMES_PER_SECOND = 20;
-    auto targetFrameTime = std::chrono::milliseconds(1000 / TARGET_FRAMES_PER_SECOND);
-
-    auto now = std::chrono::steady_clock::now();
     update();
-    auto afterPaint = std::chrono::steady_clock::now();
 
-    // Render the next frame at the appropriate time or now if we're behind
-    auto timeSinceLastFrame = std::chrono::duration_cast<std::chrono::milliseconds>(afterPaint
-                                                                                    - now);
-    auto delay = std::max(targetFrameTime - timeSinceLastFrame, std::chrono::milliseconds::zero());
-
-    QTimer::singleShot(delay.count(), this, &MapCanvas::renderLoop);
-
-    m_animationManager.setLastFrameTime(now);
+    // Target ~60 FPS
+    QTimer::singleShot(16, this, &MapCanvas::renderLoop);
 }
 
 void MapCanvas::updateBatches()
@@ -643,17 +631,8 @@ void MapCanvas::finishPendingMapBatches()
 void MapCanvas::actuallyPaintGL()
 {
     // Update animation state and weather
-    {
-        auto now = std::chrono::steady_clock::now();
-        const auto lastTime = m_animationManager.getLastFrameTime();
-        const auto elapsed = (lastTime.time_since_epoch().count() == 0)
-                                 ? std::chrono::milliseconds(0)
-                                 : (now - lastTime);
-        float dt = std::chrono::duration<float>(elapsed).count();
-
-        m_animationManager.update(dt);
-        m_weatherRenderer->update(dt);
-    }
+    m_animationManager.update();
+    m_weatherRenderer->update(m_animationManager.getLastDt());
 
     // DECL_TIMER(t, __FUNCTION__);
     setViewportAndMvp(width(), height());

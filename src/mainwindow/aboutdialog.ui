@@ -149,7 +149,7 @@
         <number>10</number>
        </property>
        <item>
-        <widget class="QTextBrowser" name="authorsView">
+        <widget class="NoNavTextBrowser" name="authorsView">
          <property name="openExternalLinks">
           <bool>false</bool>
          </property>
@@ -209,6 +209,13 @@
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>NoNavTextBrowser</class>
+   <extends>QTextBrowser</extends>
+   <header>mainwindow/NoNavTextBrowser.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections>
   <connection>

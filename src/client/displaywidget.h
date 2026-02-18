@@ -133,6 +133,9 @@ public:
     NODISCARD QSize sizeHint() const override;
 
 protected:
+    void doSetSource(const QUrl &name,
+                     QTextDocument::ResourceType type = QTextDocument::UnknownResource) override
+    {}
     void resizeEvent(QResizeEvent *event) override;
     void keyPressEvent(QKeyEvent *event) override;
 

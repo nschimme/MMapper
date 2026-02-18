@@ -7,13 +7,13 @@
 #include "../configuration/configuration.h"
 #include "../global/ConfigConsts-Computed.h"
 #include "../global/RAII.h"
+#include "../global/UrlUtils.h"
 #include "../global/Version.h"
 
 #include <algorithm>
 #include <array>
 #include <utility>
 
-#include <QDesktopServices>
 #include <QGridLayout>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -101,7 +101,7 @@ UpdateDialog::UpdateDialog(QWidget *const parent)
     m_buttonBox->button(QDialogButtonBox::Ok)->setText(tr("&Upgrade"));
     connect(m_buttonBox, &QDialogButtonBox::accepted, this, &UpdateDialog::accepted);
     connect(m_buttonBox, &QDialogButtonBox::accepted, this, [this]() {
-        QDesktopServices::openUrl(m_downloadUrl);
+        mmqt::openUrl(m_downloadUrl);
         close();
     });
     connect(m_buttonBox, &QDialogButtonBox::rejected, this, &UpdateDialog::reject);

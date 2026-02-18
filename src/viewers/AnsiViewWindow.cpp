@@ -4,13 +4,14 @@
 #include "AnsiViewWindow.h"
 
 #include "../client/displaywidget.h"
+#include "../global/UrlUtils.h"
 #include "../global/macros.h"
 #include "../global/utils.h"
 #include "../global/window_utils.h"
+#include "../mainwindow/NoNavTextBrowser.h"
 
 #include <tuple>
 
-#include <QDesktopServices>
 #include <QDialog>
 #include <QStyle>
 #include <QTextBrowser>
@@ -19,7 +20,7 @@
 AnsiViewWindow::AnsiViewWindow(const QString &program,
                                const QString &title,
                                const std::string_view message)
-    : m_view{std::make_unique<QTextBrowser>(this)}
+    : m_view{std::make_unique<NoNavTextBrowser>(this)}
 {
     setWindowFlags(windowFlags() & ~Qt::WindowStaysOnTopHint);
     setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
@@ -31,12 +32,7 @@ AnsiViewWindow::AnsiViewWindow(const QString &program,
 
     auto &view = deref(m_view);
     setAnsiText(&view, message);
-    view.setOpenExternalLinks(false);
     view.setTextInteractionFlags(Qt::TextBrowserInteraction);
-
-    connect(&view, &QTextBrowser::anchorClicked, this, [](const QUrl &url) {
-        QDesktopServices::openUrl(url);
-    });
 
     // REVISIT: Restore geometry from config?
     setGeometry(QStyle::alignedRect(Qt::LeftToRight,

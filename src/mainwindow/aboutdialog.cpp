@@ -6,9 +6,9 @@
 
 #include "../global/ConfigConsts-Computed.h"
 #include "../global/ConfigEnums.h"
+#include "../global/UrlUtils.h"
 #include "../global/Version.h"
 
-#include <QDesktopServices>
 #include <QString>
 #include <QtConfig>
 #include <QtGui>
@@ -54,10 +54,7 @@ AboutDialog::AboutDialog(QWidget *const parent)
 
     aboutText->setOpenExternalLinks(false);
     connect(aboutText, &QLabel::linkActivated, this, [](const QString &link) {
-        QDesktopServices::openUrl(QUrl(link));
-    });
-    connect(authorsView, &QTextBrowser::anchorClicked, this, [](const QUrl &url) {
-        QDesktopServices::openUrl(url);
+        mmqt::openUrl(QUrl(link));
     });
 
     /* About tab */

@@ -181,6 +181,8 @@ set(mmapper_SRCS
     global/TextUtils.h
     global/Timer.cpp
     global/Timer.h
+    global/UrlUtils.cpp
+    global/UrlUtils.h
     global/Version.h
     global/WeakHandle.cpp
     global/WeakHandle.h
@@ -244,6 +246,7 @@ set(mmapper_SRCS
     logger/autologger.h
     mainwindow/MapZoomSlider.cpp
     mainwindow/MapZoomSlider.h
+    mainwindow/NoNavTextBrowser.h
     mainwindow/UpdateDialog.cpp
     mainwindow/UpdateDialog.h
     mainwindow/ThemeManager.cpp

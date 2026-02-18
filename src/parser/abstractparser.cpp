@@ -12,6 +12,7 @@
 #include "../global/RAII.h"
 #include "../global/StringView.h"
 #include "../global/TextUtils.h"
+#include "../global/UrlUtils.h"
 #include "../global/logging.h"
 #include "../global/parserutils.h"
 #include "../global/progresscounter.h"
@@ -47,7 +48,6 @@
 #include <utility>
 #include <vector>
 
-#include <QDesktopServices>
 #include <QMessageLogContext>
 #include <QObject>
 #include <QVariant>
@@ -547,7 +547,7 @@ void AbstractParser::doDisconnectFromHost()
 
 void AbstractParser::openVoteURL()
 {
-    QDesktopServices::openUrl(QUrl(
+    mmqt::openUrl(QUrl(
         "https://www.mudconnect.com/cgi-bin/search.cgi?mode=mud_listing&mud=MUME+-+Multi+Users+In+Middle+Earth"));
     sendToUser(SendToUserSourceEnum::FromMMapper, "Thank you kindly for voting!\n");
 }

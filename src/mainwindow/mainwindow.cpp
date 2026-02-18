@@ -20,6 +20,7 @@
 #include "../global/AsyncTasks.h"
 #include "../global/SendToUser.h"
 #include "../global/SignalBlocker.h"
+#include "../global/UrlUtils.h"
 #include "../global/Version.h"
 #include "../global/window_utils.h"
 #include "../group/groupwidget.h"
@@ -2045,38 +2046,38 @@ void MainWindow::slot_onCheckForUpdate()
 
 void MainWindow::slot_voteForMUME()
 {
-    QDesktopServices::openUrl(QUrl(
+    mmqt::openUrl(QUrl(
         "https://www.mudconnect.com/cgi-bin/search.cgi?mode=mud_listing&mud=MUME+-+Multi+Users+In+Middle+Earth"));
 }
 
 void MainWindow::slot_openMumeWebsite()
 {
-    QDesktopServices::openUrl(QUrl("https://mume.org/"));
+    mmqt::openUrl(QUrl("https://mume.org/"));
 }
 
 void MainWindow::slot_openMumeForum()
 {
-    QDesktopServices::openUrl(QUrl("https://mume.org/forum/"));
+    mmqt::openUrl(QUrl("https://mume.org/forum/"));
 }
 
 void MainWindow::slot_openMumeWiki()
 {
-    QDesktopServices::openUrl(QUrl("https://mume.org/wiki/"));
+    mmqt::openUrl(QUrl("https://mume.org/wiki/"));
 }
 
 void MainWindow::slot_openSettingUpMmapper()
 {
-    QDesktopServices::openUrl(QUrl("https://github.com/MUME/MMapper/wiki/Troubleshooting"));
+    mmqt::openUrl(QUrl("https://github.com/MUME/MMapper/wiki/Troubleshooting"));
 }
 
 void MainWindow::onReportIssueTriggered()
 {
-    QDesktopServices::openUrl(QUrl("https://github.com/MUME/MMapper/issues"));
+    mmqt::openUrl(QUrl("https://github.com/MUME/MMapper/issues"));
 }
 
 void MainWindow::slot_openNewbieHelp()
 {
-    QDesktopServices::openUrl(QUrl("https://mume.org/newbie.php"));
+    mmqt::openUrl(QUrl("https://mume.org/newbie.php"));
 }
 
 void MainWindow::keyPressEvent(QKeyEvent *event)

@@ -7,6 +7,7 @@
 #include "../global/ChangeMonitor.h"
 #include "../global/ConfigConsts.h"
 #include "../global/RuleOf5.h"
+#include "../global/UrlUtils.h"
 #include "../global/logging.h"
 #include "../global/progresscounter.h"
 #include "../global/utils.h"
@@ -226,8 +227,7 @@ void MapCanvas::initializeGL()
                               "Upgrade your video card drivers");
         if constexpr (CURRENT_PLATFORM == PlatformEnum::Windows) {
             // Link to Microsoft OpenGL Compatibility Pack
-            QDesktopServices::openUrl(
-                QUrl(QStringLiteral("ms-windows-store://pdp/?productid=9nqpsl29bfff")));
+            mmqt::openUrl(QUrl(QStringLiteral("ms-windows-store://pdp/?productid=9nqpsl29bfff")));
         }
         return;
     }

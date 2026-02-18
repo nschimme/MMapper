@@ -171,6 +171,19 @@ private:
     }
 };
 
+struct NODISCARD TimeOfDayShader final : public AbstractShaderProgram
+{
+public:
+    using AbstractShaderProgram::AbstractShaderProgram;
+
+    ~TimeOfDayShader() final;
+
+private:
+    void virt_setUniforms(const glm::mat4 & /*mvp*/,
+                          const GLRenderState::Uniforms & /*uniforms*/) final
+    {}
+};
+
 struct NODISCARD ParticleSimulationShader final : public AbstractShaderProgram
 {
 public:
@@ -218,6 +231,7 @@ private:
     std::shared_ptr<BlitShader> m_blit;
     std::shared_ptr<FullScreenShader> m_fullscreen;
     std::shared_ptr<AtmosphereShader> m_atmosphere;
+    std::shared_ptr<TimeOfDayShader> m_timeOfDay;
     std::shared_ptr<ParticleSimulationShader> m_particleSimulation;
     std::shared_ptr<ParticleRenderShader> m_particleRender;
 
@@ -253,6 +267,7 @@ public:
     NODISCARD const std::shared_ptr<BlitShader> &getBlitShader();
     NODISCARD const std::shared_ptr<FullScreenShader> &getFullScreenShader();
     NODISCARD const std::shared_ptr<AtmosphereShader> &getAtmosphereShader();
+    NODISCARD const std::shared_ptr<TimeOfDayShader> &getTimeOfDayShader();
     NODISCARD const std::shared_ptr<ParticleSimulationShader> &getParticleSimulationShader();
     NODISCARD const std::shared_ptr<ParticleRenderShader> &getParticleRenderShader();
 

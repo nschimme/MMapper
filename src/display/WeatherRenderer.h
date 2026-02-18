@@ -33,14 +33,14 @@ public:
         float snowIntensityStart = 0.0f;
         float cloudsIntensityStart = 0.0f;
         float fogIntensityStart = 0.0f;
-        float todIntensityStart = 0.0f;
+        float timeOfDayIntensityStart = 0.0f;
         float moonIntensityStart = 0.0f;
 
         float targetRainIntensity = 0.0f;
         float targetSnowIntensity = 0.0f;
         float targetCloudsIntensity = 0.0f;
         float targetFogIntensity = 0.0f;
-        float targetToDIntensity = 0.0f;
+        float targetTimeOfDayIntensity = 0.0f;
         float targetMoonIntensity = 0.0f;
 
         float precipitationTypeStart = 0.0f;
@@ -50,14 +50,14 @@ public:
         float gameSnowIntensity = 0.0f;
         float gameCloudsIntensity = 0.0f;
         float gameFogIntensity = 0.0f;
-        float gameToDIntensity = 0.0f;
+        float gameTimeOfDayIntensity = 0.0f;
 
         MumeTimeEnum oldTimeOfDay = MumeTimeEnum::DAY;
         MumeTimeEnum currentTimeOfDay = MumeTimeEnum::DAY;
         MumeMoonVisibilityEnum moonVisibility = MumeMoonVisibilityEnum::UNKNOWN;
 
         float weatherTransitionStartTime = -2.0f;
-        float todTransitionStartTime = -2.0f;
+        float timeOfDayTransitionStartTime = -2.0f;
 
         float animationTime = 0.0f;
         float lastDt = 0.0f;
@@ -77,6 +77,7 @@ private:
     UniqueMesh m_simulation;
     UniqueMesh m_particles;
     UniqueMesh m_atmosphere;
+    UniqueMesh m_timeOfDay;
 
 public:
     explicit WeatherRenderer(OpenGL &gl,

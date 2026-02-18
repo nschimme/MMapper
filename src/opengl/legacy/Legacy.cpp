@@ -12,8 +12,8 @@
 #include "Meshes.h"
 #include "ShaderUtils.h"
 #include "Shaders.h"
-#include "TF.h"
 #include "SimpleMesh.h"
+#include "TF.h"
 #include "VBO.h"
 
 #include <cassert>

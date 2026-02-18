@@ -8,9 +8,15 @@ layout(std140) uniform WeatherBlock
 {
     mat4 uViewProj;
     vec4 uPlayerPos;   // xyz, w=zScale
-    vec4 uIntensities; // precip, clouds, fog, type
-    vec4 uTimes;       // x=time, y=delta, z=todLerp, w=todIntensity
-    ivec4 uToDIndices; // x=start, y=target
+    vec4 uIntensities; // precip_start, clouds_start, fog_start, type_start
+    vec4 uTargets;     // precip_target, clouds_target, fog_target, type_target
+    vec4 uTimeOfDayIndices; // x=startIdx, y=targetIdx, z=todIntStart, w=todIntTarget
+    vec4 uConfig;      // x=weatherStartTime, y=timeOfDayStartTime, z=duration, w=unused
+};
+
+layout(std140) uniform TimeBlock
+{
+    vec2 uTime;   // x=time, y=delta
 };
 
 out vec2 vPos;
@@ -29,14 +35,17 @@ float rand(float n)
 void main()
 {
     float hash = rand(float(gl_VertexID));
-    float pIntensity = uIntensities.x;
-    float pType = uIntensities.w; // 0=rain, 1=snow
+    float uCurrentTime = uTime.x;
+    float uDeltaTime = uTime.y;
+    float uWeatherStartTime = uConfig.x;
+    float uTransitionDuration = uConfig.z;
+
+    float weatherLerp = clamp((uCurrentTime - uWeatherStartTime) / uTransitionDuration, 0.0, 1.0);
+    float pIntensity = mix(uIntensities.x, uTargets.x, weatherLerp);
+    float pType = mix(uIntensities.w, uTargets.w, weatherLerp); // 0=rain, 1=snow
 
     vec2 pos = aPos;
     float life = aLife;
-
-    float uTime = uTimes.x;
-    float uDeltaTime = uTimes.y;
 
     // Rain physics
     float rainSpeed = (15.0 + pIntensity * 10.0) + hash * 5.0;
@@ -53,7 +62,7 @@ void main()
     pos.y -= uDeltaTime * speed;
 
     // Horizontal swaying (only for snow)
-    pos.x += sin(uTime * 1.2 + hash * 6.28) * (0.005 + pIntensity * 0.01) * pType;
+    pos.x += sin(uCurrentTime * 1.2 + hash * 6.28) * (0.005 + pIntensity * 0.01) * pType;
 
     life -= uDeltaTime * decay;
 
@@ -66,21 +75,21 @@ void main()
     if (life <= 0.0) {
         life = 1.0;
         // Respawn at the top
-        float r1 = rand(hash + uTime);
-        pos.x = uPlayerPos.x + (r1 * 40.0 - 20.0);
-        pos.y = uPlayerPos.y + 20.0;
+        float r1 = rand(hash + uCurrentTime);
+        pos.x = uPlayerPos.x + (r1 * 28.0 - 14.0);
+        pos.y = uPlayerPos.y + 14.0;
     } else {
-        // Toroidal wrap around player
+        // Toroidal wrap around player (28.0x28.0 area)
         vec2 rel = pos - uPlayerPos.xy;
-        if (rel.x < -20.0)
-            pos.x += 40.0;
-        else if (rel.x > 20.0)
-            pos.x -= 40.0;
+        if (rel.x < -14.0)
+            pos.x += 28.0;
+        else if (rel.x > 14.0)
+            pos.x -= 28.0;
 
-        if (rel.y < -20.0)
-            pos.y += 40.0;
-        else if (rel.y > 20.0)
-            pos.y -= 40.0;
+        if (rel.y < -14.0)
+            pos.y += 28.0;
+        else if (rel.y > 14.0)
+            pos.y -= 28.0;
     }
 
     vPos = pos;

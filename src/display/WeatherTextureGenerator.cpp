@@ -3,10 +3,10 @@
 
 #include "WeatherTextureGenerator.h"
 
-#include <QColor>
-
 #include <algorithm>
 #include <cmath>
+
+#include <QColor>
 
 namespace WeatherTextureGenerator {
 

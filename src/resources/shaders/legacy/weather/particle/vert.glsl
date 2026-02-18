@@ -8,9 +8,15 @@ layout(std140) uniform WeatherBlock
 {
     mat4 uViewProj;
     vec4 uPlayerPos;   // xyz, w=zScale
-    vec4 uIntensities; // precip, clouds, fog, type
-    vec4 uTimes;       // x=time, y=delta, z=todLerp, w=todIntensity
-    ivec4 uToDIndices; // x=start, y=target
+    vec4 uIntensities; // precip_start, clouds_start, fog_start, type_start
+    vec4 uTargets;     // precip_target, clouds_target, fog_target, type_target
+    vec4 uTimeOfDayIndices; // x=startIdx, y=targetIdx, z=todIntStart, w=todIntTarget
+    vec4 uConfig;      // x=weatherStartTime, y=timeOfDayStartTime, z=duration, w=unused
+};
+
+layout(std140) uniform TimeBlock
+{
+    vec2 uTime;   // x=time, y=delta
 };
 
 uniform float uType;
@@ -27,10 +33,14 @@ float rand(float n)
 
 void main()
 {
-    float uTime = uTimes.x;
+    float uCurrentTime = uTime.x;
     float uZScale = uPlayerPos.w;
-    float pIntensity = uIntensities.x;
-    float pType = uIntensities.w;
+    float uWeatherStartTime = uConfig.x;
+    float uTransitionDuration = uConfig.z;
+
+    float weatherLerp = clamp((uCurrentTime - uWeatherStartTime) / uTransitionDuration, 0.0, 1.0);
+    float pIntensity = mix(uIntensities.x, uTargets.x, weatherLerp);
+    float pType = mix(uIntensities.w, uTargets.w, weatherLerp);
 
     float hash = rand(float(gl_InstanceID));
 
@@ -49,7 +59,7 @@ void main()
     vec2 pos = aParticlePos;
 
     // Extra swaying for snow visuals
-    pos.x += sin(uTime * 1.2 + hash * 6.28) * 0.4 * pType;
+    pos.x += sin(uCurrentTime * 1.2 + hash * 6.28) * 0.4 * pType;
 
     vec3 worldPos = vec3(pos + quadPos * size, uPlayerPos.z);
 

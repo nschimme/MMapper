@@ -327,7 +327,7 @@ void AnsiTextHelper::displayText(const QStringView input_str)
                 // TODO: override the document's CSS for URLs
                 const auto link
                     = QString(
-                          R"(<a href="%1" target="_blank" style="color: cyan; background-color: #003333; font-weight: normal;">%2</a>)")
+                          R"(<a href="%1" style="color: cyan; background-color: #003333; font-weight: normal;">%2</a>)")
                           .arg(QString::fromUtf8(QUrl::fromUserInput(s).toEncoded()),
                                s.toHtmlEscaped());
 

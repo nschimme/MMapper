@@ -130,48 +130,45 @@ AboutDialog::AboutDialog(QWidget *const parent)
                      "</p>",
                      ":/fonts/LICENSE"});
 
-    licenses.append(
-        {"GLM License",
-         "<p>"
-         "This product contains code from the "
-         "<a href=\"https://glm.g-truc.net/\" target=\"_blank\">OpenGL Mathematics (GLM)</a>"
-         " project."
-         "</p>",
-         ":/LICENSE.GLM"});
+    licenses.append({"GLM License",
+                     "<p>"
+                     "This product contains code from the "
+                     "<a href=\"https://glm.g-truc.net/\">OpenGL Mathematics (GLM)</a>"
+                     " project."
+                     "</p>",
+                     ":/LICENSE.GLM"});
 
-    licenses.append(
-        {"QtKeychain License",
-         "<p>"
-         "This product contains code from the "
-         "<a href=\"https://github.com/frankosterfeld/qtkeychain\" target=\"_blank\">QtKeychain</a>"
-         " project."
-         "</p>",
-         ":/LICENSE.QTKEYCHAIN"});
+    licenses.append({"QtKeychain License",
+                     "<p>"
+                     "This product contains code from the "
+                     "<a href=\"https://github.com/frankosterfeld/qtkeychain\">QtKeychain</a>"
+                     " project."
+                     "</p>",
+                     ":/LICENSE.QTKEYCHAIN"});
 
     licenses.append({"OpenSSL License",
                      "<p>"
                      "Some versions of this product contains code from the "
-                     "<a href=\"https://www.openssl.org/\" target=\"_blank\">OpenSSL toolkit</a>."
+                     "<a href=\"https://www.openssl.org/\">OpenSSL toolkit</a>."
                      "</p>",
                      ":/LICENSE.OPENSSL"});
 
     licenses.append({"Boost Software License 1.0",
                      "<p>"
                      "This product contains code from the "
-                     "<a href=\"https://github.com/arximboldi/immer\" target=\"_blank\">immer</a>"
+                     "<a href=\"https://github.com/arximboldi/immer\">immer</a>"
                      " project."
                      "</p>",
                      ":/LICENSE.BOOST"});
 
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Windows) {
-        licenses.append(
-            {"GNU Lesser General Public License 2.1",
-             "<p>"
-             "Some versions of this product contains code from the "
-             "following LGPLed libraries: "
-             "<a href=\"https://github.com/jrfonseca/drmingw\" target=\"_blank\">DrMingW</a>"
-             "</p>",
-             ":/LICENSE.LGPL"});
+        licenses.append({"GNU Lesser General Public License 2.1",
+                         "<p>"
+                         "Some versions of this product contains code from the "
+                         "following LGPLed libraries: "
+                         "<a href=\"https://github.com/jrfonseca/drmingw\">DrMingW</a>"
+                         "</p>",
+                         ":/LICENSE.LGPL"});
     }
 
     for (const auto &license : licenses) {

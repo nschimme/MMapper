@@ -421,6 +421,8 @@ set(mmapper_SRCS
     opengl/OpenGLTypes.h
     opengl/legacy/AbstractShaderProgram.cpp
     opengl/legacy/AbstractShaderProgram.h
+    opengl/legacy/AttributeLessMeshes.cpp
+    opengl/legacy/AttributeLessMeshes.h
     opengl/legacy/Binders.cpp
     opengl/legacy/Binders.h
     opengl/legacy/FBO.cpp

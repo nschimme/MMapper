@@ -4,6 +4,7 @@
 #include "WeatherMeshes.h"
 
 #include "../../global/random.h"
+#include "AttributeLessMeshes.h"
 #include "Binders.h"
 
 namespace Legacy {
@@ -14,6 +15,23 @@ AtmosphereMesh::AtmosphereMesh(SharedFunctions sharedFunctions,
 {}
 
 AtmosphereMesh::~AtmosphereMesh() = default;
+
+void AtmosphereMesh::virt_render(const GLRenderState &renderState)
+{
+    if (isEmpty()) {
+        return;
+    }
+
+    auto binder = m_program.bind();
+    const glm::mat4 mvp = m_functions.getProjectionMatrix();
+    m_program.setUniforms(mvp, renderState.uniforms);
+
+    RenderStateBinder rsBinder(m_functions, m_functions.getTexLookup(), renderState);
+
+    m_functions.glBindVertexArray(m_vao);
+    m_functions.glDrawArrays(m_mode, 0, m_numVerts);
+    m_functions.glBindVertexArray(0);
+}
 
 TimeOfDayMesh::~TimeOfDayMesh() = default;
 

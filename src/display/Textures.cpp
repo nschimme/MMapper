@@ -314,17 +314,11 @@ void MapCanvas::initTextures()
     }
 
     {
-        // 256x256 noise texture with full mip chain
+        // 256x256 noise texture. Mipmaps are not needed for fuzzy atmosphere effects.
         QImage noiseImage = WeatherRenderer::generateNoiseTexture(256);
-        std::vector<QImage> mips;
-        mips.push_back(noiseImage);
-        for (int s = 128; s >= 1; s /= 2) {
-            mips.push_back(
-                mips.back().scaled(s, s, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
-        }
-        textures.noise = MMTexture::alloc(std::move(mips));
+        textures.noise = MMTexture::alloc(std::vector<QImage>{noiseImage});
         textures.noise->get()->setWrapMode(QOpenGLTexture::WrapMode::Repeat);
-        textures.noise->get()->setMinMagFilters(QOpenGLTexture::Filter::LinearMipMapLinear,
+        textures.noise->get()->setMinMagFilters(QOpenGLTexture::Filter::Linear,
                                                 QOpenGLTexture::Filter::Linear);
     }
 

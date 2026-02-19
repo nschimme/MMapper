@@ -4,6 +4,7 @@
 
 #include "../OpenGL.h"
 #include "../OpenGLTypes.h"
+#include "AttributeLessMeshes.h"
 #include "Binders.h"
 #include "Legacy.h"
 #include "Shaders.h"
@@ -13,67 +14,15 @@
 
 namespace Legacy {
 
-/**
- * @brief Base class for meshes that draw using gl_VertexID (no vertex attributes).
- */
-template<typename ProgramType_>
-class NODISCARD FullScreenMesh : public IRenderable
-{
-protected:
-    const SharedFunctions m_shared_functions;
-    Functions &m_functions;
-    const std::shared_ptr<ProgramType_> m_shared_program;
-    ProgramType_ &m_program;
-    VAO m_vao;
-    const GLenum m_mode;
-    const GLsizei m_numVerts;
-
-public:
-    explicit FullScreenMesh(SharedFunctions sharedFunctions,
-                            std::shared_ptr<ProgramType_> sharedProgram,
-                            GLenum mode = GL_TRIANGLES,
-                            GLsizei numVerts = 3)
-        : m_shared_functions{std::move(sharedFunctions)}
-        , m_functions{deref(m_shared_functions)}
-        , m_shared_program{std::move(sharedProgram)}
-        , m_program{deref(m_shared_program)}
-        , m_mode(mode)
-        , m_numVerts(numVerts)
-    {
-        m_vao.emplace(m_shared_functions);
-    }
-
-    ~FullScreenMesh() override { reset(); }
-
-protected:
-    void virt_clear() final {}
-    void virt_reset() final { m_vao.reset(); }
-    NODISCARD bool virt_isEmpty() const final { return !m_vao; }
-
-    void virt_render(const GLRenderState &renderState) override
-    {
-        if (isEmpty()) {
-            return;
-        }
-
-        auto binder = m_program.bind();
-        const glm::mat4 mvp = m_functions.getProjectionMatrix();
-        m_program.setUniforms(mvp, renderState.uniforms);
-
-        RenderStateBinder rsBinder(m_functions, m_functions.getTexLookup(), renderState);
-
-        m_functions.glBindVertexArray(m_vao);
-        m_functions.glDrawArrays(m_mode, 0, m_numVerts);
-        m_functions.glBindVertexArray(0);
-    }
-};
-
 class NODISCARD AtmosphereMesh final : public FullScreenMesh<AtmosphereShader>
 {
 public:
     explicit AtmosphereMesh(SharedFunctions sharedFunctions,
                             std::shared_ptr<AtmosphereShader> program);
     ~AtmosphereMesh() override;
+
+protected:
+    void virt_render(const GLRenderState &renderState) override;
 };
 
 class NODISCARD TimeOfDayMesh final : public FullScreenMesh<TimeOfDayShader>

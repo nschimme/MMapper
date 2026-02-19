@@ -26,7 +26,17 @@ AudioManager::AudioManager(MediaLibrary &library, GameObserver &observer, QObjec
             m_music,
             &MusicManager::slot_onMediaChanged);
 
-    getConfig().audio.registerChangeCallback(m_lifetime, [this]() { slot_updateVolumes(); });
+    m_lastSoundVolume = getConfig().audio.getSoundVolume();
+    getConfig().audio.registerChangeCallback(m_lifetime, [this]() {
+        if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+            int currentVolume = getConfig().audio.getSoundVolume();
+            if (m_lastSoundVolume == 0 && currentVolume > 0) {
+                unblockAudio();
+            }
+            m_lastSoundVolume = currentVolume;
+        }
+        slot_updateVolumes();
+    });
 
     slot_updateVolumes();
 }

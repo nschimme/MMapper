@@ -19,7 +19,7 @@ SfxManager::SfxManager(const MediaLibrary &library, QObject *const parent)
 {
 #ifndef MMAPPER_NO_AUDIO
     m_output = new QAudioOutput(this);
-    m_output->setVolume(static_cast<float>(getConfig().audio.soundVolume) / 100.0f);
+    m_output->setVolume(static_cast<float>(getConfig().audio.getSoundVolume()) / 100.0f);
 #endif
 }
 

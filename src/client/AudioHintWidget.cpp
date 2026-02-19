@@ -26,22 +26,13 @@ AudioHintWidget::AudioHintWidget(AudioManager &audioManager, QWidget *parent)
     layout->addWidget(m_iconLabel);
 
     m_textLabel = new QLabel(tr("Play with audio?"), this);
-    m_textLabel->setStyleSheet("font-weight: bold; color: white;");
     layout->addWidget(m_textLabel);
 
     m_yesButton = new QPushButton(tr("Yes"), this);
-    m_yesButton->setFixedWidth(50);
-    m_yesButton->setCursor(Qt::PointingHandCursor);
-    m_yesButton->setStyleSheet("QPushButton { background-color: #4a90e2; color: white; border: "
-                               "none; border-radius: 3px; padding: 2px; }"
-                               "QPushButton:hover { background-color: #357abd; }");
+    m_yesButton->setFixedWidth(60);
 
     m_noButton = new QPushButton(tr("No"), this);
-    m_noButton->setFixedWidth(50);
-    m_noButton->setCursor(Qt::PointingHandCursor);
-    m_noButton->setStyleSheet("QPushButton { background-color: #666; color: white; border: none; "
-                              "border-radius: 3px; padding: 2px; }"
-                              "QPushButton:hover { background-color: #555; }");
+    m_noButton->setFixedWidth(60);
 
     layout->addWidget(m_yesButton);
     layout->addWidget(m_noButton);
@@ -58,9 +49,6 @@ AudioHintWidget::AudioHintWidget(AudioManager &audioManager, QWidget *parent)
         setConfig().audio.setSoundVolume(0);
         this->hide();
     });
-
-    setStyleSheet("background-color: #333; border-bottom: 1px solid #555;");
-    setFixedHeight(30);
 
     connect(&m_audioManager, &AudioManager::sig_audioUnblocked, this, &AudioHintWidget::hide);
 

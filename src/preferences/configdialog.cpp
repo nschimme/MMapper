@@ -138,7 +138,7 @@ void ConfigDialog::createIcons()
     addItem(":/icons/terminal.png", tr("Integrated\nMud Client"));
     addItem(":/icons/group-recolor.png", tr("Group Panel"));
     addItem(":/icons/autologgercfg.png", tr("Auto\nLogger"));
-    addItem(":/icons/preferences.png", tr("Audio"));
+    addItem(":/icons/audio.png", tr("Audio"));
     addItem(":/icons/mumeprotocolcfg.png", tr("Mume\nProtocol"));
     addItem(":/icons/pathmachinecfg.png", tr("Path\nMachine"));
 }

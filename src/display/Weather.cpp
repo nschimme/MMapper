@@ -407,8 +407,8 @@ WeatherRenderer::WeatherRenderer(OpenGL &gl,
     m_gl.getUboManager().registerRebuildFunction(
         Legacy::SharedVboEnum::WeatherBlock, [this](Legacy::Functions &glFuncs) {
             const auto playerPosCoord = m_data.tryGetPosition().value_or(Coordinate{0, 0, 0});
-            auto data = m_system->getStaticUboData(m_lastViewProj, playerPosCoord);
-            m_gl.getUboManager().update(glFuncs, Legacy::SharedVboEnum::WeatherBlock, data);
+            auto uboData = m_system->getStaticUboData(m_lastViewProj, playerPosCoord);
+            m_gl.getUboManager().update(glFuncs, Legacy::SharedVboEnum::WeatherBlock, uboData);
         });
 }
 

@@ -667,8 +667,7 @@ if(CHECK_MISSING_INCLUDES)
     message(STATUS "Will check headers for missing includes (slow)")
     foreach(header_path ${mmapper_HDRS})
         set(FNAME "${CMAKE_CURRENT_BINARY_DIR}/gen/${header_path}.gen.cpp")
-        file(WRITE ${
-    FNAME} "#include \"${header_path}\"\n")
+        file(WRITE ${FNAME} "#include \"${header_path}\"\n")
         list(APPEND DUMMY_FILES ${FNAME})
         set_property(SOURCE ${FNAME} APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${header_path})
         set(FNAME "")
@@ -1019,8 +1018,7 @@ if(WIN32)
     endif()
 
 #Bundle Library Files
-    set(WINDEPLOYQT_ARGS ${
-    WINDEPLOYQT_ARGS} --compiler-runtime --no-translations --no-system-d3d-compiler --no-opengl-sw --verbose 1)
+    set(WINDEPLOYQT_ARGS ${WINDEPLOYQT_ARGS} --compiler-runtime --no-translations --no-system-d3d-compiler --no-opengl-sw --verbose 1)
     find_program(WINDEPLOYQT_APP windeployqt HINTS ${QTDIR} ENV QTDIR PATH_SUFFIXES .)
     message(" - windeployqt path: ${WINDEPLOYQT_APP}")
     message(" - windeployqt args: ${WINDEPLOYQT_ARGS}")
@@ -1029,8 +1027,7 @@ if(WIN32)
             POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E make_directory "${WINDEPLOYQT_STAGING}"
             COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:mmapper>" ${WINDEPLOYQT_STAGING}
-            COMMAND "${WINDEPLOYQT_APP}" ${
-    WINDEPLOYQT_ARGS} "${WINDEPLOYQT_STAGING}/mmapper.exe"
+            COMMAND "${WINDEPLOYQT_APP}" ${WINDEPLOYQT_ARGS} "${WINDEPLOYQT_STAGING}/mmapper.exe"
             WORKING_DIRECTORY "${WINDEPLOYQT_STAGING}"
             COMMENT "Finding the Qt framework dependencies"
             VERBATIM
@@ -1188,10 +1185,8 @@ if(APPLE)
     add_custom_command(
         TARGET mmapper
         POST_BUILD
-        COMMAND ${
-    CODESIGN_APP} --remove-signature ${CMAKE_CURRENT_BINARY_DIR}/mmapper.app
-        COMMAND ${
-    CODESIGN_APP} --deep -f -s - ${CMAKE_CURRENT_BINARY_DIR}/mmapper.app -o runtime --entitlements ${ENTITLEMENTS_FILE}
+        COMMAND ${CODESIGN_APP} --remove-signature ${CMAKE_CURRENT_BINARY_DIR}/mmapper.app
+        COMMAND ${CODESIGN_APP} --deep -f -s - ${CMAKE_CURRENT_BINARY_DIR}/mmapper.app -o runtime --entitlements ${ENTITLEMENTS_FILE}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         COMMENT "Code signing the bundle"
         VERBATIM

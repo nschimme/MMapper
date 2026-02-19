@@ -24,7 +24,6 @@
 #include "../global/window_utils.h"
 #include "../group/groupwidget.h"
 #include "../logger/autologger.h"
-#include "../media/AudioHint.h"
 #include "../media/AudioManager.h"
 #include "../media/DescriptionWidget.h"
 #include "../media/MediaLibrary.h"
@@ -252,7 +251,10 @@ MainWindow::MainWindow()
                                         this);
 
     // View -> Side Panels -> Client Panel
-    m_clientWidget = new ClientWidget(deref(m_listener), deref(m_hotkeyManager), this);
+    m_clientWidget = new ClientWidget(deref(m_listener),
+                                      deref(m_hotkeyManager),
+                                      m_audioManager,
+                                      this);
     m_clientWidget->setObjectName("InternalMudClientWidget");
     m_dockDialogClient = new QDockWidget("Client Panel", this);
     m_dockDialogClient->setObjectName("DockWidgetClient");
@@ -1554,18 +1556,6 @@ void MainWindow::showEvent(QShowEvent *const event)
     std::call_once(flag, [this]() {
         // Start services on startup
         startServices();
-
-        bool shouldShowHint = !getConfig().audio.audioHintShown;
-#ifdef Q_OS_WASM
-        if (getConfig().audio.musicVolume == 0 && getConfig().audio.soundVolume == 0
-            && !getConfig().general.firstRun) {
-            shouldShowHint = false;
-        }
-#endif
-        if (shouldShowHint) {
-            auto *hint = new AudioHint(deref(m_audioManager), this);
-            hint->show();
-        }
 
         connect(window()->windowHandle(), &QWindow::screenChanged, this, [this]() {
             MapWindow &window = deref(m_mapWindow);

@@ -6,6 +6,8 @@
 
 #include "../configuration/configuration.h"
 #include "../global/AnsiOstream.h"
+#include "../media/AudioHint.h"
+#include "../media/AudioManager.h"
 #include "../proxy/connectionlistener.h"
 #include "ClientTelnet.h"
 #include "HotkeyManager.h"
@@ -24,10 +26,12 @@
 
 ClientWidget::ClientWidget(ConnectionListener &listener,
                            HotkeyManager &hotkeyManager,
+                           AudioManager *audioManager,
                            QWidget *const parent)
     : QWidget(parent)
     , m_listener{listener}
     , m_hotkeyManager{hotkeyManager}
+    , m_audioManager{audioManager}
 {
     setWindowTitle("MMapper Client");
 
@@ -69,6 +73,31 @@ void ClientWidget::initPipeline()
 {
     m_pipeline.objs.ui = std::make_unique<Ui::ClientWidget>();
     getUi().setupUi(this); // creates stacked input and display
+
+#ifdef Q_OS_WASM
+    if (m_audioManager) {
+        auto *audioHint = new AudioHint(*m_audioManager, this);
+        // Insert it in the vertical layout above the parent widget (which contains the pages)
+        // Actually the splitter is inside the clientPage widget.
+        // The main layout of ClientWidget has 'parent' (QStackedWidget).
+        // If we want it above the input fields, it should be in the 'clientPage' (QSplitter).
+        // But we want it above the input fields specifically.
+
+        QVBoxLayout *inputLayout = new QVBoxLayout();
+        inputLayout->setContentsMargins(0, 0, 0, 0);
+        inputLayout->setSpacing(0);
+
+        // We need to replace the input widget in the splitter with a container that has the hint and the input.
+        int inputIndex = getUi().clientPage->indexOf(getUi().input);
+        if (inputIndex != -1) {
+            QWidget *inputContainer = new QWidget(getUi().clientPage);
+            inputContainer->setLayout(inputLayout);
+            inputLayout->addWidget(audioHint);
+            inputLayout->addWidget(getUi().input);
+            getUi().clientPage->insertWidget(inputIndex, inputContainer);
+        }
+    }
+#endif
 
     initStackedInputWidget();
     initDisplayWidget();

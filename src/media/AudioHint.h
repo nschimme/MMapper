@@ -16,19 +16,13 @@ class AudioHint final : public QWidget
     Q_OBJECT
 
 public:
-    explicit AudioHint(AudioManager &audioManager, QWidget *parent);
+    explicit AudioHint(AudioManager &audioManager, QWidget *parent = nullptr);
     ~AudioHint() override;
-
-protected:
-    void paintEvent(QPaintEvent *event) override;
-    void resizeEvent(QResizeEvent *event) override;
 
 private:
     AudioManager &m_audioManager;
-    QWidget *m_container;
     QLabel *m_iconLabel;
     QLabel *m_textLabel;
-    QPushButton *m_button;
-
-    void updatePosition();
+    QPushButton *m_yesButton;
+    QPushButton *m_noButton;
 };

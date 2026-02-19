@@ -770,8 +770,8 @@ void Configuration::AdventurePanelSettings::read(const QSettings &conf)
 
 void Configuration::AudioSettings::read(const QSettings &conf)
 {
-    musicVolume = std::clamp(conf.value(KEY_MUSIC_VOLUME, 0).toInt(), 0, 100);
-    soundVolume = std::clamp(conf.value(KEY_SOUND_VOLUME, 0).toInt(), 0, 100);
+    musicVolume = std::clamp(conf.value(KEY_MUSIC_VOLUME, 50).toInt(), 0, 100);
+    soundVolume = std::clamp(conf.value(KEY_SOUND_VOLUME, 50).toInt(), 0, 100);
     audioHintShown = conf.value(KEY_AUDIO_HINT_SHOWN, false).toBool();
 
 #ifdef Q_OS_WASM

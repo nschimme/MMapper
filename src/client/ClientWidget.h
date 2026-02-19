@@ -30,6 +30,8 @@ namespace Ui {
 class ClientWidget;
 }
 
+class AudioManager;
+
 class NODISCARD_QOBJECT ClientWidget final : public QWidget
 {
     Q_OBJECT
@@ -58,10 +60,12 @@ private:
     Pipeline m_pipeline;
     ConnectionListener &m_listener;
     HotkeyManager &m_hotkeyManager;
+    AudioManager *m_audioManager = nullptr;
 
 public:
     explicit ClientWidget(ConnectionListener &listener,
                           HotkeyManager &hotkeyManager,
+                          AudioManager *audioManager,
                           QWidget *parent);
     ~ClientWidget() final;
 

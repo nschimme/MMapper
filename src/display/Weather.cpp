@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2026 The MMapper Authors
+// Copyright (C) 2025 The MMapper Authors
 
 #include "Weather.h"
 
@@ -114,14 +114,13 @@ WeatherSystem::WeatherSystem(GameObserver &observer, AnimationManager &animation
                                            factor);
     };
 
-    m_observer.sig2_weatherChanged
-        .connect(m_lifetime, [this, lerpCurrentIntensities](PromptWeatherEnum) {
-            lerpCurrentIntensities();
-            updateFromGame();
-            updateTargets();
-            m_weatherTransitionStartTime = m_animationManager.getAnimationTime();
-            sig_stateInvalidated.invoke();
-        });
+    m_observer.sig2_weatherChanged.connect(m_lifetime, [this, lerpCurrentIntensities](PromptWeatherEnum) {
+        lerpCurrentIntensities();
+        updateFromGame();
+        updateTargets();
+        m_weatherTransitionStartTime = m_animationManager.getAnimationTime();
+        sig_stateInvalidated.invoke();
+    });
 
     m_observer.sig2_fogChanged.connect(m_lifetime, [this, lerpCurrentIntensities](PromptFogEnum) {
         lerpCurrentIntensities();
@@ -152,24 +151,23 @@ WeatherSystem::WeatherSystem(GameObserver &observer, AnimationManager &animation
         sig_stateInvalidated.invoke();
     });
 
-    m_observer.sig2_moonVisibilityChanged
-        .connect(m_lifetime, [this](MumeMoonVisibilityEnum visibility) {
-            if (visibility == m_moonVisibility) {
-                return;
-            }
-            float t = (m_animationManager.getAnimationTime() - m_timeOfDayTransitionStartTime)
-                      / TRANSITION_DURATION;
-            float factor = std::clamp(t, 0.0f, 1.0f);
-            m_moonIntensityStart = my_lerp(m_moonIntensityStart, m_targetMoonIntensity, factor);
-            m_timeOfDayIntensityStart = my_lerp(m_timeOfDayIntensityStart,
-                                                m_targetTimeOfDayIntensity,
-                                                factor);
+    m_observer.sig2_moonVisibilityChanged.connect(m_lifetime, [this](MumeMoonVisibilityEnum visibility) {
+        if (visibility == m_moonVisibility) {
+            return;
+        }
+        float t = (m_animationManager.getAnimationTime() - m_timeOfDayTransitionStartTime)
+                  / TRANSITION_DURATION;
+        float factor = std::clamp(t, 0.0f, 1.0f);
+        m_moonIntensityStart = my_lerp(m_moonIntensityStart, m_targetMoonIntensity, factor);
+        m_timeOfDayIntensityStart = my_lerp(m_timeOfDayIntensityStart,
+                                            m_targetTimeOfDayIntensity,
+                                            factor);
 
-            m_moonVisibility = visibility;
-            m_targetMoonIntensity = (visibility == MumeMoonVisibilityEnum::BRIGHT) ? 1.0f : 0.0f;
-            m_timeOfDayTransitionStartTime = m_animationManager.getAnimationTime();
-            sig_stateInvalidated.invoke();
-        });
+        m_moonVisibility = visibility;
+        m_targetMoonIntensity = (visibility == MumeMoonVisibilityEnum::BRIGHT) ? 1.0f : 0.0f;
+        m_timeOfDayTransitionStartTime = m_animationManager.getAnimationTime();
+        sig_stateInvalidated.invoke();
+    });
 
     auto onSettingChanged = [this, lerpCurrentIntensities]() {
         lerpCurrentIntensities();
@@ -327,8 +325,8 @@ bool WeatherSystem::isAnimating() const
     return transitioning || hasActiveWeather;
 }
 
-GLRenderState::Uniforms::Weather::Static WeatherSystem::getStaticUboData(
-    const glm::mat4 &viewProj, const Coordinate &playerPosCoord) const
+GLRenderState::Uniforms::Weather::Static WeatherSystem::getStaticUboData(const glm::mat4 &viewProj,
+                                                                         const Coordinate &playerPosCoord) const
 {
     GLRenderState::Uniforms::Weather::Static ubo;
     ubo.viewProj = viewProj;
@@ -377,12 +375,12 @@ GLRenderState::Uniforms::Weather::Static WeatherSystem::getStaticUboData(
 }
 
 WeatherRenderer::WeatherRenderer(OpenGL &gl,
-                                 MapData &data,
+                                 MapData &mapData,
                                  const MapCanvasTextures &textures,
                                  GameObserver &observer,
                                  AnimationManager &animationManager)
     : m_gl(gl)
-    , m_data(data)
+    , m_data(mapData)
     , m_textures(textures)
     , m_system(std::make_unique<WeatherSystem>(observer, animationManager))
     , m_animationManager(animationManager)
@@ -404,12 +402,11 @@ WeatherRenderer::WeatherRenderer(OpenGL &gl,
         sig_requestUpdate.invoke();
     });
 
-    m_gl.getUboManager().registerRebuildFunction(
-        Legacy::SharedVboEnum::WeatherBlock, [this](Legacy::Functions &glFuncs) {
-            const auto playerPosCoord = m_data.tryGetPosition().value_or(Coordinate{0, 0, 0});
-            auto uboData = m_system->getStaticUboData(m_lastViewProj, playerPosCoord);
-            m_gl.getUboManager().update(glFuncs, Legacy::SharedVboEnum::WeatherBlock, uboData);
-        });
+    m_gl.getUboManager().registerRebuildFunction(Legacy::SharedVboEnum::WeatherBlock, [this](Legacy::Functions &glFuncs) {
+        const auto playerPosCoord = m_data.tryGetPosition().value_or(Coordinate{0, 0, 0});
+        auto weatherUboData = m_system->getStaticUboData(m_lastViewProj, playerPosCoord);
+        m_gl.getUboManager().update(glFuncs, Legacy::SharedVboEnum::WeatherBlock, weatherUboData);
+    });
 }
 
 WeatherRenderer::~WeatherRenderer()
@@ -431,14 +428,16 @@ void WeatherRenderer::initMeshes()
 
         m_simulation = std::make_unique<Legacy::ParticleSimulationMesh>(
             funcs, shaderPrograms.getParticleSimulationShader());
-        m_particles
-            = std::make_unique<Legacy::ParticleRenderMesh>(funcs,
-                                                           shaderPrograms.getParticleRenderShader(),
-                                                           *m_simulation);
+        m_particles = std::make_unique<Legacy::ParticleRenderMesh>(funcs,
+                                                                  shaderPrograms
+                                                                      .getParticleRenderShader(),
+                                                                  *m_simulation);
         m_atmosphere = UniqueMesh(
-            std::make_unique<Legacy::AtmosphereMesh>(funcs, shaderPrograms.getAtmosphereShader()));
+            std::make_unique<Legacy::AtmosphereMesh>(funcs,
+                                                    shaderPrograms.getAtmosphereShader()));
         m_timeOfDay = UniqueMesh(
-            std::make_unique<Legacy::TimeOfDayMesh>(funcs, shaderPrograms.getTimeOfDayShader()));
+            std::make_unique<Legacy::TimeOfDayMesh>(funcs,
+                                                   shaderPrograms.getTimeOfDayShader()));
     }
 }
 
@@ -480,8 +479,7 @@ void WeatherRenderer::render(const GLRenderState &rs)
                                   .withDepthFunction(std::nullopt);
 
     // TimeOfDay
-    if (m_system->getCurrentTimeOfDay() != MumeTimeEnum::DAY
-        || m_system->getOldTimeOfDay() != MumeTimeEnum::DAY
+    if (m_system->getCurrentTimeOfDay() != MumeTimeEnum::DAY || m_system->getOldTimeOfDay() != MumeTimeEnum::DAY
         || m_system->getCurrentTimeOfDayIntensity() > 0.0f) {
         if (m_timeOfDay) {
             m_timeOfDay.render(atmosphereRs);

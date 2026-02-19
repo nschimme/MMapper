@@ -131,7 +131,7 @@ public:
 
 public:
     explicit WeatherRenderer(OpenGL &gl,
-                             MapData &data,
+                             MapData &mapData,
                              const MapCanvasTextures &textures,
                              GameObserver &observer,
                              AnimationManager &animationManager);

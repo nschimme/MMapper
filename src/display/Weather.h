@@ -22,17 +22,16 @@
 
 class MapData;
 
-class NODISCARD WeatherRenderer final
+/**
+ * @brief Manages the logic and state of the weather system.
+ * Tracks game weather signals, handles transitions, and provides data for UBOs.
+ */
+class NODISCARD WeatherSystem final
 {
 private:
-    OpenGL &m_gl;
-    MapData &m_data;
-    const MapCanvasTextures &m_textures;
     GameObserver &m_observer;
     AnimationManager &m_animationManager;
     ChangeMonitor::Lifetime m_lifetime;
-    QMetaObject::Connection m_posConn;
-    QMetaObject::Connection m_forcedPosConn;
 
     // Weather State
     float m_rainIntensityStart = 0.0f;
@@ -71,14 +70,59 @@ private:
     float m_weatherTransitionStartTime = -2.0f;
     float m_timeOfDayTransitionStartTime = -2.0f;
 
-    float m_lastUboUploadTime = -1.0f;
+    Signal2Lifetime m_signalLifetime;
 
-    std::optional<GLRenderState::Uniforms::Weather::Static> m_staticUboData;
+public:
+    Signal2<> sig_stateInvalidated;
+
+public:
+    explicit WeatherSystem(GameObserver &observer, AnimationManager &animationManager);
+    ~WeatherSystem();
+    DELETE_CTORS_AND_ASSIGN_OPS(WeatherSystem);
+
+public:
+    void update();
+    NODISCARD bool isAnimating() const;
+
+    NODISCARD GLRenderState::Uniforms::Weather::Static getStaticUboData(
+        const glm::mat4 &viewProj, const Coordinate &playerPos) const;
+
+    // Getters for rendering
+    NODISCARD float getCurrentRainIntensity() const { return m_currentRainIntensity; }
+    NODISCARD float getCurrentSnowIntensity() const { return m_currentSnowIntensity; }
+    NODISCARD float getCurrentCloudsIntensity() const { return m_currentCloudsIntensity; }
+    NODISCARD float getCurrentFogIntensity() const { return m_currentFogIntensity; }
+    NODISCARD float getCurrentTimeOfDayIntensity() const { return m_currentTimeOfDayIntensity; }
+    NODISCARD MumeTimeEnum getCurrentTimeOfDay() const { return m_currentTimeOfDay; }
+    NODISCARD MumeTimeEnum getOldTimeOfDay() const { return m_oldTimeOfDay; }
+
+    NODISCARD const Signal2Lifetime &getSignalLifetime() const { return m_signalLifetime; }
+
+private:
+    void updateTargets();
+    void updateFromGame();
+};
+
+/**
+ * @brief Facade that coordinates WeatherSystem, WeatherMeshes, and UboManager.
+ */
+class NODISCARD WeatherRenderer final
+{
+private:
+    OpenGL &m_gl;
+    MapData &m_data;
+    const MapCanvasTextures &m_textures;
+    std::unique_ptr<WeatherSystem> m_system;
+    AnimationManager &m_animationManager;
+
+    QMetaObject::Connection m_posConn;
+    QMetaObject::Connection m_forcedPosConn;
+
     glm::mat4 m_lastViewProj{0.0f};
 
     // Meshes
-    std::unique_ptr<Legacy::WeatherSimulationMesh> m_simulation;
-    std::unique_ptr<Legacy::WeatherParticleMesh> m_particles;
+    std::unique_ptr<Legacy::ParticleSimulationMesh> m_simulation;
+    std::unique_ptr<Legacy::ParticleRenderMesh> m_particles;
     UniqueMesh m_atmosphere;
     UniqueMesh m_timeOfDay;
 
@@ -98,8 +142,6 @@ public:
 public:
     void prepare(const glm::mat4 &viewProj);
     void update(float frameDeltaTime);
-    NODISCARD bool isAnimating() const;
-
     void render(const GLRenderState &rs);
 
 public:

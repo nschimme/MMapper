@@ -13,13 +13,11 @@
 
 namespace Legacy {
 
-class WeatherRenderer;
-
 /**
- * @brief Base class for meshes that draw a full-screen triangle using gl_VertexID.
+ * @brief Base class for meshes that draw using gl_VertexID (no vertex attributes).
  */
 template<typename ProgramType_>
-class NODISCARD WeatherFullScreenMesh : public IRenderable
+class NODISCARD FullScreenMesh : public IRenderable
 {
 protected:
     const SharedFunctions m_shared_functions;
@@ -31,10 +29,10 @@ protected:
     const GLsizei m_numVerts;
 
 public:
-    explicit WeatherFullScreenMesh(SharedFunctions sharedFunctions,
-                                   std::shared_ptr<ProgramType_> sharedProgram,
-                                   GLenum mode = GL_TRIANGLES,
-                                   GLsizei numVerts = 3)
+    explicit FullScreenMesh(SharedFunctions sharedFunctions,
+                            std::shared_ptr<ProgramType_> sharedProgram,
+                            GLenum mode = GL_TRIANGLES,
+                            GLsizei numVerts = 3)
         : m_shared_functions{std::move(sharedFunctions)}
         , m_functions{deref(m_shared_functions)}
         , m_shared_program{std::move(sharedProgram)}
@@ -45,7 +43,7 @@ public:
         m_vao.emplace(m_shared_functions);
     }
 
-    ~WeatherFullScreenMesh() override { reset(); }
+    ~FullScreenMesh() override { reset(); }
 
 protected:
     void virt_clear() final {}
@@ -70,37 +68,22 @@ protected:
     }
 };
 
-class NODISCARD WeatherAtmosphereMesh final : public WeatherFullScreenMesh<AtmosphereShader>
-{
-private:
-    SharedMMTexture m_noiseTexture;
-
-public:
-    explicit WeatherAtmosphereMesh(SharedFunctions sharedFunctions,
-                                   std::shared_ptr<AtmosphereShader> program,
-                                   SharedMMTexture noiseTexture)
-        : WeatherFullScreenMesh(std::move(sharedFunctions), std::move(program), GL_TRIANGLE_STRIP, 4)
-        , m_noiseTexture(std::move(noiseTexture))
-    {}
-
-private:
-    NODISCARD bool virt_modifiesRenderState() const override { return true; }
-    NODISCARD GLRenderState virt_modifyRenderState(const GLRenderState &input) const override;
-
-public:
-    void virt_render(const GLRenderState &renderState) override;
-};
-
-class NODISCARD WeatherTimeOfDayMesh final : public WeatherFullScreenMesh<TimeOfDayShader>
+class NODISCARD AtmosphereMesh final : public FullScreenMesh<AtmosphereShader>
 {
 public:
-    using WeatherFullScreenMesh::WeatherFullScreenMesh;
-    ~WeatherTimeOfDayMesh() override;
-
-    void virt_render(const GLRenderState &renderState) override;
+    explicit AtmosphereMesh(SharedFunctions sharedFunctions,
+                            std::shared_ptr<AtmosphereShader> program);
+    ~AtmosphereMesh() override;
 };
 
-class NODISCARD WeatherSimulationMesh final : public IRenderable
+class NODISCARD TimeOfDayMesh final : public FullScreenMesh<TimeOfDayShader>
+{
+public:
+    using FullScreenMesh::FullScreenMesh;
+    ~TimeOfDayMesh() override;
+};
+
+class NODISCARD ParticleSimulationMesh final : public IRenderable
 {
 private:
     const SharedFunctions m_shared_functions;
@@ -109,16 +92,16 @@ private:
 
     TFO m_tfo;
     VBO m_vbos[2];
-    VAO m_vaos[2]; // VAOs for simulation (reading from VBOs)
+    VAO m_vaos[2];
 
     uint32_t m_currentBuffer = 0;
     uint32_t m_numParticles = 1024;
     bool m_initialized = false;
 
 public:
-    explicit WeatherSimulationMesh(SharedFunctions shared_functions,
-                                   std::shared_ptr<ParticleSimulationShader> program);
-    ~WeatherSimulationMesh() override;
+    explicit ParticleSimulationMesh(SharedFunctions shared_functions,
+                                    std::shared_ptr<ParticleSimulationShader> program);
+    ~ParticleSimulationMesh() override;
 
 private:
     void init();
@@ -133,24 +116,21 @@ public:
     NODISCARD const VBO &getParticleVbo(uint32_t index) const { return m_vbos[index]; }
 };
 
-class NODISCARD WeatherParticleMesh final : public IRenderable
+class NODISCARD ParticleRenderMesh final : public IRenderable
 {
 private:
     const SharedFunctions m_shared_functions;
     Functions &m_functions;
     const std::shared_ptr<ParticleRenderShader> m_program;
-    const WeatherSimulationMesh &m_simulation;
+    const ParticleSimulationMesh &m_simulation;
 
-    VAO m_vaos[2]; // VAOs for rendering (reading from VBOs with instancing)
-
-public:
-    explicit WeatherParticleMesh(SharedFunctions shared_functions,
-                                 std::shared_ptr<ParticleRenderShader> program,
-                                 const WeatherSimulationMesh &simulation);
-    ~WeatherParticleMesh() override;
+    VAO m_vaos[2];
 
 public:
-    void render(const GLRenderState &renderState, float rain, float snow);
+    explicit ParticleRenderMesh(SharedFunctions shared_functions,
+                                std::shared_ptr<ParticleRenderShader> program,
+                                const ParticleSimulationMesh &simulation);
+    ~ParticleRenderMesh() override;
 
 private:
     void init();

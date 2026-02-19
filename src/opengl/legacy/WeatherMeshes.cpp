@@ -3,31 +3,22 @@
 
 #include "WeatherMeshes.h"
 
-#include "../../display/Textures.h"
 #include "../../global/random.h"
 #include "Binders.h"
 
 namespace Legacy {
 
-GLRenderState WeatherAtmosphereMesh::virt_modifyRenderState(const GLRenderState &input) const
-{
-    return input.withTexture0(m_noiseTexture->getId());
-}
+AtmosphereMesh::AtmosphereMesh(SharedFunctions sharedFunctions,
+                               std::shared_ptr<AtmosphereShader> program)
+    : FullScreenMesh(std::move(sharedFunctions), std::move(program), GL_TRIANGLE_STRIP, 4)
+{}
 
-void WeatherAtmosphereMesh::virt_render(const GLRenderState &renderState)
-{
-    WeatherFullScreenMesh<AtmosphereShader>::virt_render(renderState);
-}
+AtmosphereMesh::~AtmosphereMesh() = default;
 
-WeatherTimeOfDayMesh::~WeatherTimeOfDayMesh() {}
+TimeOfDayMesh::~TimeOfDayMesh() = default;
 
-void WeatherTimeOfDayMesh::virt_render(const GLRenderState &renderState)
-{
-    WeatherFullScreenMesh<TimeOfDayShader>::virt_render(renderState);
-}
-
-WeatherSimulationMesh::WeatherSimulationMesh(SharedFunctions shared_functions,
-                                             std::shared_ptr<ParticleSimulationShader> program)
+ParticleSimulationMesh::ParticleSimulationMesh(SharedFunctions shared_functions,
+                                               std::shared_ptr<ParticleSimulationShader> program)
     : m_shared_functions(std::move(shared_functions))
     , m_functions(deref(m_shared_functions))
     , m_program(std::move(program))
@@ -39,9 +30,9 @@ WeatherSimulationMesh::WeatherSimulationMesh(SharedFunctions shared_functions,
     }
 }
 
-WeatherSimulationMesh::~WeatherSimulationMesh() = default;
+ParticleSimulationMesh::~ParticleSimulationMesh() = default;
 
-void WeatherSimulationMesh::init()
+void ParticleSimulationMesh::init()
 {
     if (m_initialized) {
         return;
@@ -78,7 +69,7 @@ void WeatherSimulationMesh::init()
     m_initialized = true;
 }
 
-void WeatherSimulationMesh::virt_reset()
+void ParticleSimulationMesh::virt_reset()
 {
     m_tfo.reset();
     for (int i = 0; i < 2; ++i) {
@@ -88,7 +79,7 @@ void WeatherSimulationMesh::virt_reset()
     m_initialized = false;
 }
 
-void WeatherSimulationMesh::virt_render(const GLRenderState &renderState)
+void ParticleSimulationMesh::virt_render(const GLRenderState &renderState)
 {
     init();
 
@@ -104,7 +95,6 @@ void WeatherSimulationMesh::virt_render(const GLRenderState &renderState)
     m_functions.glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, m_vbos[bufferOut].get());
 
     {
-        // Direct GL calls since we don't have a SharedTfo
         m_functions.glBeginTransformFeedback(GL_POINTS);
         m_functions.glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(m_numParticles));
         m_functions.glEndTransformFeedback();
@@ -117,9 +107,9 @@ void WeatherSimulationMesh::virt_render(const GLRenderState &renderState)
     m_currentBuffer = bufferOut;
 }
 
-WeatherParticleMesh::WeatherParticleMesh(SharedFunctions shared_functions,
-                                         std::shared_ptr<ParticleRenderShader> program,
-                                         const WeatherSimulationMesh &simulation)
+ParticleRenderMesh::ParticleRenderMesh(SharedFunctions shared_functions,
+                                       std::shared_ptr<ParticleRenderShader> program,
+                                       const ParticleSimulationMesh &simulation)
     : m_shared_functions(std::move(shared_functions))
     , m_functions(deref(m_shared_functions))
     , m_program(std::move(program))
@@ -130,27 +120,24 @@ WeatherParticleMesh::WeatherParticleMesh(SharedFunctions shared_functions,
     }
 }
 
-WeatherParticleMesh::~WeatherParticleMesh() = default;
+ParticleRenderMesh::~ParticleRenderMesh() = default;
 
-void WeatherParticleMesh::init()
-{
-    // Attributes are re-bound every frame to ensure they point to correct VBOs from simulation
-}
+void ParticleRenderMesh::init() {}
 
-void WeatherParticleMesh::virt_reset()
+void ParticleRenderMesh::virt_reset()
 {
     for (int i = 0; i < 2; ++i) {
         m_vaos[i].reset();
     }
 }
 
-void WeatherParticleMesh::render(const GLRenderState &renderState, float rain, float snow)
+void ParticleRenderMesh::virt_render(const GLRenderState &renderState)
 {
-    const float precipMax = std::max(rain, snow);
-    const GLsizei count = std::min(1024, static_cast<GLsizei>(std::ceil(precipMax * 1024.0f)));
-    if (count <= 0) {
-        return;
-    }
+    // The particle count is determined by the max intensity in the UBO.
+    // However, since we don't have direct access to the UBO data here without re-parsing,
+    // we use a reasonable maximum and let the shader discard if necessary,
+    // or just draw the full 1024 as it's small enough.
+    const GLsizei count = static_cast<GLsizei>(m_simulation.getNumParticles());
 
     auto binder = m_program->bind();
     const glm::mat4 mvp = m_functions.getProjectionMatrix();
@@ -177,11 +164,6 @@ void WeatherParticleMesh::render(const GLRenderState &renderState, float rain, f
 
     m_functions.glBindVertexArray(0);
     m_functions.glBindBuffer(GL_ARRAY_BUFFER, 0);
-}
-
-void WeatherParticleMesh::virt_render(const GLRenderState & /*renderState*/)
-{
-    assert(false); // Use the other render overload
 }
 
 } // namespace Legacy

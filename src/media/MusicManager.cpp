@@ -148,7 +148,7 @@ void MusicManager::playMusic(const QString &musicFile)
         newActive.player->setSource(QUrl::fromLocalFile(newActive.file));
     }
 
-    if (getConfig().audio.musicVolume > 0) {
+    if (getConfig().audio.getMusicVolume() > 0) {
         newActive.player->play();
         applyPendingPosition(m_activeChannel);
     }
@@ -173,7 +173,7 @@ void MusicManager::updateVolumes()
         updateChannelVolume(i);
     }
 
-    float masterVol = static_cast<float>(getConfig().audio.musicVolume) / 100.0f;
+    float masterVol = static_cast<float>(getConfig().audio.getMusicVolume()) / 100.0f;
     auto &active = m_channels[m_activeChannel];
     if (masterVol > 0 && active.player->playbackState() == QMediaPlayer::StoppedState
         && !active.file.isEmpty()) {
@@ -215,7 +215,7 @@ void MusicManager::applyPendingPosition(int channelIndex)
 
 void MusicManager::updateChannelVolume(int channelIndex)
 {
-    float masterVol = static_cast<float>(getConfig().audio.musicVolume) / 100.0f;
+    float masterVol = static_cast<float>(getConfig().audio.getMusicVolume()) / 100.0f;
     m_channels[channelIndex].audioOutput->setVolume(masterVol * m_channels[channelIndex].fadeVolume);
 }
 

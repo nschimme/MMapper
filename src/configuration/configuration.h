@@ -67,7 +67,7 @@ public:
         }
 
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                    const ChangeMonitor::Function &callback)
+                                    const ChangeMonitor::Function &callback) const
         {
             return m_changeMonitor.registerChangeCallback(lifetime, callback);
         }
@@ -339,7 +339,7 @@ public:
         }
 
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                    const ChangeMonitor::Function &callback)
+                                    const ChangeMonitor::Function &callback) const
         {
             return m_changeMonitor.registerChangeCallback(lifetime, callback);
         }
@@ -350,9 +350,36 @@ public:
 
     struct NODISCARD AudioSettings final
     {
-        int musicVolume = 50;
-        int soundVolume = 50;
-        bool audioHintShown = false;
+    private:
+        ChangeMonitor m_changeMonitor;
+        int m_musicVolume = 50;
+        int m_soundVolume = 50;
+
+    public:
+        explicit AudioSettings() = default;
+        ~AudioSettings() = default;
+        DELETE_CTORS_AND_ASSIGN_OPS(AudioSettings);
+
+    public:
+        NODISCARD int getMusicVolume() const { return m_musicVolume; }
+        void setMusicVolume(const int volume)
+        {
+            m_musicVolume = volume;
+            m_changeMonitor.notifyAll();
+        }
+
+        NODISCARD int getSoundVolume() const { return m_soundVolume; }
+        void setSoundVolume(const int volume)
+        {
+            m_soundVolume = volume;
+            m_changeMonitor.notifyAll();
+        }
+
+        void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                    const ChangeMonitor::Function &callback) const
+        {
+            return m_changeMonitor.registerChangeCallback(lifetime, callback);
+        }
 
     private:
         SUBGROUP();

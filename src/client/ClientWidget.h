@@ -60,12 +60,12 @@ private:
     Pipeline m_pipeline;
     ConnectionListener &m_listener;
     HotkeyManager &m_hotkeyManager;
-    AudioManager *m_audioManager = nullptr;
+    AudioManager &m_audioManager;
 
 public:
     explicit ClientWidget(ConnectionListener &listener,
                           HotkeyManager &hotkeyManager,
-                          AudioManager *audioManager,
+                          AudioManager &audioManager,
                           QWidget *parent);
     ~ClientWidget() final;
 

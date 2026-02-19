@@ -268,7 +268,6 @@ ConstString KEY_PROXY_LOCAL_PORT = "Local port number";
 ConstString KEY_MAP_MODE = "Map Mode";
 ConstString KEY_MUSIC_VOLUME = "Music volume";
 ConstString KEY_SOUND_VOLUME = "Sound volume";
-ConstString KEY_AUDIO_HINT_SHOWN = "audio.hintShown";
 ConstString KEY_MAXIMUM_NUMBER_OF_PATHS = "maximum number of paths";
 ConstString KEY_MULTIPLE_CONNECTIONS_PENALTY = "multiple connections penalty";
 ConstString KEY_MUME_START_EPOCH = "Mume start epoch";
@@ -770,15 +769,8 @@ void Configuration::AdventurePanelSettings::read(const QSettings &conf)
 
 void Configuration::AudioSettings::read(const QSettings &conf)
 {
-    musicVolume = std::clamp(conf.value(KEY_MUSIC_VOLUME, 50).toInt(), 0, 100);
-    soundVolume = std::clamp(conf.value(KEY_SOUND_VOLUME, 50).toInt(), 0, 100);
-    audioHintShown = conf.value(KEY_AUDIO_HINT_SHOWN, false).toBool();
-
-#ifdef Q_OS_WASM
-    // On WASM, we use audioHintShown as a session-level flag to know if we've unlocked audio.
-    // Therefore, we reset it to false every time the application starts.
-    audioHintShown = false;
-#endif
+    m_musicVolume = std::clamp(conf.value(KEY_MUSIC_VOLUME, 50).toInt(), 0, 100);
+    m_soundVolume = std::clamp(conf.value(KEY_SOUND_VOLUME, 50).toInt(), 0, 100);
 }
 
 void Configuration::IntegratedMudClientSettings::read(const QSettings &conf)
@@ -959,12 +951,8 @@ void Configuration::AdventurePanelSettings::write(QSettings &conf) const
 
 void Configuration::AudioSettings::write(QSettings &conf) const
 {
-    conf.setValue(KEY_MUSIC_VOLUME, musicVolume);
-    conf.setValue(KEY_SOUND_VOLUME, soundVolume);
-
-#ifndef Q_OS_WASM
-    conf.setValue(KEY_AUDIO_HINT_SHOWN, audioHintShown);
-#endif
+    conf.setValue(KEY_MUSIC_VOLUME, m_musicVolume);
+    conf.setValue(KEY_SOUND_VOLUME, m_soundVolume);
 }
 
 void Configuration::IntegratedMudClientSettings::write(QSettings &conf) const

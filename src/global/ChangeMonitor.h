@@ -12,10 +12,10 @@ public:
     using Sig = ::Signal2<>;
     using Function = Sig::Function;
     using Lifetime = Signal2Lifetime;
-    Sig m_sig;
+    mutable Sig m_sig;
 
 public:
-    void registerChangeCallback(const Lifetime &lifetime, Function callback)
+    void registerChangeCallback(const Lifetime &lifetime, Function callback) const
     {
         return m_sig.connect(lifetime, std::move(callback));
     }

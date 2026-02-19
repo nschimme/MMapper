@@ -26,6 +26,8 @@ AudioManager::AudioManager(MediaLibrary &library, GameObserver &observer, QObjec
             m_music,
             &MusicManager::slot_onMediaChanged);
 
+    getConfig().audio.registerChangeCallback(m_lifetime, [this]() { slot_updateVolumes(); });
+
     slot_updateVolumes();
 }
 
@@ -53,23 +55,12 @@ void AudioManager::playSound(const QString &soundName)
 
 void AudioManager::unblockAudio()
 {
-    if (getConfig().audio.audioHintShown) {
-        return;
-    }
-    setConfig().audio.audioHintShown = true;
     emit sig_audioUnblocked();
     playSound("level-up");
 }
 
 void AudioManager::slot_updateVolumes()
 {
-    const int currentMusicVol = getConfig().audio.musicVolume;
-    const int currentSoundVol = getConfig().audio.soundVolume;
-
-    if (!getConfig().audio.audioHintShown && (currentMusicVol > 0 || currentSoundVol > 0)) {
-        unblockAudio();
-    }
-
     m_music->updateVolumes();
     m_sfx->updateVolume();
 }

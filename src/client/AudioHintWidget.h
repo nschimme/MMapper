@@ -11,13 +11,13 @@ class AudioManager;
 class QPushButton;
 class QLabel;
 
-class AudioHint final : public QWidget
+class AudioHintWidget final : public QWidget
 {
     Q_OBJECT
 
 public:
-    explicit AudioHint(AudioManager &audioManager, QWidget *parent = nullptr);
-    ~AudioHint() override;
+    explicit AudioHintWidget(AudioManager &audioManager, QWidget *parent = nullptr);
+    ~AudioHintWidget() override;
 
 private:
     AudioManager &m_audioManager;

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2026 The MMapper Authors
 
-#include "AudioHint.h"
+#include "AudioHintWidget.h"
 
 #include "../configuration/configuration.h"
-#include "AudioManager.h"
+#include "../media/AudioManager.h"
 
 #include <QHBoxLayout>
 #include <QIcon>
@@ -13,7 +13,7 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
-AudioHint::AudioHint(AudioManager &audioManager, QWidget *parent)
+AudioHintWidget::AudioHintWidget(AudioManager &audioManager, QWidget *parent)
     : QWidget(parent)
     , m_audioManager(audioManager)
 {
@@ -31,12 +31,14 @@ AudioHint::AudioHint(AudioManager &audioManager, QWidget *parent)
 
     m_yesButton = new QPushButton(tr("Yes"), this);
     m_yesButton->setFixedWidth(50);
+    m_yesButton->setCursor(Qt::PointingHandCursor);
     m_yesButton->setStyleSheet("QPushButton { background-color: #4a90e2; color: white; border: "
                                "none; border-radius: 3px; padding: 2px; }"
                                "QPushButton:hover { background-color: #357abd; }");
 
     m_noButton = new QPushButton(tr("No"), this);
     m_noButton->setFixedWidth(50);
+    m_noButton->setCursor(Qt::PointingHandCursor);
     m_noButton->setStyleSheet("QPushButton { background-color: #666; color: white; border: none; "
                               "border-radius: 3px; padding: 2px; }"
                               "QPushButton:hover { background-color: #555; }");
@@ -52,20 +54,18 @@ AudioHint::AudioHint(AudioManager &audioManager, QWidget *parent)
 
     connect(m_noButton, &QPushButton::clicked, this, [this]() {
         // Set volumes to 0 if they choose "No"
-        setConfig().audio.musicVolume = 0;
-        setConfig().audio.soundVolume = 0;
-        m_audioManager.slot_updateVolumes();
-        setConfig().audio.audioHintShown = true;
+        setConfig().audio.setMusicVolume(0);
+        setConfig().audio.setSoundVolume(0);
         this->hide();
     });
 
     setStyleSheet("background-color: #333; border-bottom: 1px solid #555;");
     setFixedHeight(30);
 
-    connect(&m_audioManager, &AudioManager::sig_audioUnblocked, this, &AudioHint::hide);
+    connect(&m_audioManager, &AudioManager::sig_audioUnblocked, this, &AudioHintWidget::hide);
 
-    // Initial visibility check
-    setVisible(!getConfig().audio.audioHintShown);
+    // Hint is always shown on startup/creation for Wasm as per request
+    setVisible(true);
 }
 
-AudioHint::~AudioHint() = default;
+AudioHintWidget::~AudioHintWidget() = default;

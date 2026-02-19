@@ -54,6 +54,6 @@ void SfxManager::playSound(MAYBE_UNUSED const QString &soundName)
 void SfxManager::updateVolume()
 {
 #ifndef MMAPPER_NO_AUDIO
-    m_output->setVolume(static_cast<float>(getConfig().audio.soundVolume) / 100.0f);
+    m_output->setVolume(static_cast<float>(getConfig().audio.getSoundVolume()) / 100.0f);
 #endif
 }

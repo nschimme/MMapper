@@ -253,7 +253,7 @@ MainWindow::MainWindow()
     // View -> Side Panels -> Client Panel
     m_clientWidget = new ClientWidget(deref(m_listener),
                                       deref(m_hotkeyManager),
-                                      m_audioManager,
+                                      deref(m_audioManager),
                                       this);
     m_clientWidget->setObjectName("InternalMudClientWidget");
     m_dockDialogClient = new QDockWidget("Client Panel", this);

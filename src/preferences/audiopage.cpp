@@ -39,18 +39,18 @@ AudioPage::~AudioPage()
 void AudioPage::slot_loadConfig()
 {
     const auto &settings = getConfig().audio;
-    ui->musicVolumeSlider->setValue(settings.musicVolume);
-    ui->soundsVolumeSlider->setValue(settings.soundVolume);
+    ui->musicVolumeSlider->setValue(settings.getMusicVolume());
+    ui->soundsVolumeSlider->setValue(settings.getSoundVolume());
 }
 
 void AudioPage::slot_musicVolumeChanged(int value)
 {
-    setConfig().audio.musicVolume = value;
+    setConfig().audio.setMusicVolume(value);
     emit sig_audioSettingsChanged();
 }
 
 void AudioPage::slot_soundsVolumeChanged(int value)
 {
-    setConfig().audio.soundVolume = value;
+    setConfig().audio.setSoundVolume(value);
     emit sig_audioSettingsChanged();
 }

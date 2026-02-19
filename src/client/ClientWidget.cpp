@@ -6,9 +6,10 @@
 
 #include "../configuration/configuration.h"
 #include "../global/AnsiOstream.h"
-#include "../media/AudioHint.h"
+#include "../global/ConfigConsts-Computed.h"
 #include "../media/AudioManager.h"
 #include "../proxy/connectionlistener.h"
+#include "AudioHintWidget.h"
 #include "ClientTelnet.h"
 #include "HotkeyManager.h"
 #include "PreviewWidget.h"
@@ -26,7 +27,7 @@
 
 ClientWidget::ClientWidget(ConnectionListener &listener,
                            HotkeyManager &hotkeyManager,
-                           AudioManager *audioManager,
+                           AudioManager &audioManager,
                            QWidget *const parent)
     : QWidget(parent)
     , m_listener{listener}
@@ -74,30 +75,25 @@ void ClientWidget::initPipeline()
     m_pipeline.objs.ui = std::make_unique<Ui::ClientWidget>();
     getUi().setupUi(this); // creates stacked input and display
 
-#ifdef Q_OS_WASM
-    if (m_audioManager) {
-        auto *audioHint = new AudioHint(*m_audioManager, this);
-        // Insert it in the vertical layout above the parent widget (which contains the pages)
-        // Actually the splitter is inside the clientPage widget.
-        // The main layout of ClientWidget has 'parent' (QStackedWidget).
-        // If we want it above the input fields, it should be in the 'clientPage' (QSplitter).
-        // But we want it above the input fields specifically.
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+        auto *audioHint = new AudioHintWidget(m_audioManager, this);
 
-        QVBoxLayout *inputLayout = new QVBoxLayout();
-        inputLayout->setContentsMargins(0, 0, 0, 0);
-        inputLayout->setSpacing(0);
+        QWidget *topContainer = new QWidget(getUi().clientPage);
+        QVBoxLayout *topLayout = new QVBoxLayout(topContainer);
+        topLayout->setContentsMargins(0, 0, 0, 0);
+        topLayout->setSpacing(0);
 
-        // We need to replace the input widget in the splitter with a container that has the hint and the input.
-        int inputIndex = getUi().clientPage->indexOf(getUi().input);
-        if (inputIndex != -1) {
-            QWidget *inputContainer = new QWidget(getUi().clientPage);
-            inputContainer->setLayout(inputLayout);
-            inputLayout->addWidget(audioHint);
-            inputLayout->addWidget(getUi().input);
-            getUi().clientPage->insertWidget(inputIndex, inputContainer);
-        }
+        // Output area remains resizable (display vs preview)
+        QSplitter *outputSplitter = new QSplitter(Qt::Vertical, topContainer);
+        outputSplitter->addWidget(getUi().display);
+        outputSplitter->addWidget(getUi().preview);
+
+        topLayout->addWidget(outputSplitter);
+        topLayout->addWidget(audioHint);
+
+        // Insert the grouped top section into the main splitter
+        getUi().clientPage->insertWidget(0, topContainer);
     }
-#endif
 
     initStackedInputWidget();
     initDisplayWidget();

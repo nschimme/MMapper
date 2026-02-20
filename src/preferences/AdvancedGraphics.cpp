@@ -80,15 +80,7 @@ public:
 template<int Digits>
 FpSpinBox<Digits>::~FpSpinBox() = default;
 
-class SliderSpinboxButtonBase
-{
-public:
-    virtual ~SliderSpinboxButtonBase();
-    virtual void setEnabled(bool enabled) = 0;
-    virtual void forcedUpdate() = 0;
-};
-
-SliderSpinboxButtonBase::~SliderSpinboxButtonBase() = default;
+SliderSpinboxButtonBase::~SliderSpinboxButtonBase() {}
 
 template<int Digits>
 class NODISCARD SliderSpinboxButton final : public SliderSpinboxButtonBase
@@ -148,7 +140,7 @@ public:
         horizontal.addWidget(&m_reset);
         vbox.addLayout(&horizontal, 0);
     }
-    ~SliderSpinboxButton() override = default;
+    ~SliderSpinboxButton() override {}
 
     void setEnabled(bool enabled) override
     {

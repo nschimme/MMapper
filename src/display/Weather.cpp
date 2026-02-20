@@ -317,7 +317,8 @@ void WeatherSystem::update()
 bool WeatherSystem::isAnimating() const
 {
     const bool activePrecipitation = m_currentRainIntensity > 0.0f || m_currentSnowIntensity > 0.0f;
-    return isTransitioning() || activePrecipitation;
+    const bool activeAtmosphere = m_currentCloudsIntensity > 0.0f || m_currentFogIntensity > 0.0f;
+    return isTransitioning() || activePrecipitation || activeAtmosphere;
 }
 
 bool WeatherSystem::isTransitioning() const

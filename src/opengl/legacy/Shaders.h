@@ -164,7 +164,8 @@ public:
     ~AtmosphereShader() final;
 
 private:
-    void virt_setUniforms(const glm::mat4 & /*mvp*/, const GLRenderState::Uniforms & /*uniforms*/) final
+    void virt_setUniforms(const glm::mat4 & /*mvp*/,
+                          const GLRenderState::Uniforms & /*uniforms*/) final
     {
         setTexture("uTexture", 0);
     }

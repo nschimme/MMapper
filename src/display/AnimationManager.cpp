@@ -9,6 +9,12 @@
 void AnimationManager::init(UboManager &uboManager)
 {
     m_uboManager = &uboManager;
+    m_uboManager->registerRebuildFunction(Legacy::SharedVboEnum::TimeBlock,
+                                          [this](Legacy::Functions &gl) {
+                                              m_uboManager->update(gl,
+                                                                   Legacy::SharedVboEnum::TimeBlock,
+                                                                   m_frameData);
+                                          });
 }
 
 void AnimationManager::registerCallback(const Signal2Lifetime &lifetime, AnimationCallback callback)
@@ -57,14 +63,5 @@ void AnimationManager::update()
 
     if (m_uboManager) {
         m_uboManager->invalidate(Legacy::SharedVboEnum::TimeBlock);
-    }
-}
-
-void AnimationManager::updateAndBind(Legacy::Functions &gl)
-{
-    if (m_uboManager) {
-        // Time always changes, so we always update
-        m_uboManager->update(gl, Legacy::SharedVboEnum::TimeBlock, m_frameData);
-        m_uboManager->bind(gl, Legacy::SharedVboEnum::TimeBlock);
     }
 }

@@ -3,13 +3,14 @@
 // Copyright (C) 2026 The MMapper Authors
 
 #include "../global/RuleOf5.h"
+#include "../global/utils.h"
 #include "legacy/Legacy.h"
 #include "legacy/VBO.h"
 
+#include <array>
+#include <bitset>
 #include <cassert>
 #include <functional>
-#include <map>
-#include <set>
 #include <type_traits>
 #include <vector>
 
@@ -17,42 +18,38 @@
  * @brief Central manager for Uniform Buffer Objects (UBOs).
  *
  * Tracks which UBOs are currently valid on the GPU and coordinates their updates.
- * Follows a "Batch" like pattern: if a UBO is dirty, it is removed from the
- * valid set, and then regenerated/uploaded on the next bind request.
+ * Follows a lazy rebuild pattern: UBOs are only updated when a bind() is requested
+ * and the block is marked as dirty.
  */
 class UboManager final
 {
 public:
     using RebuildFunction = std::function<void(Legacy::Functions &gl)>;
 
-    UboManager() = default;
+    UboManager()
+    {
+        m_dirtyBlocks.set(); // All blocks are dirty initially
+        m_boundBuffers.fill(0);
+    }
     DELETE_CTORS_AND_ASSIGN_OPS(UboManager);
 
 public:
     /**
-     * @brief Marks a UBO block as dirty by removing it from the valid set.
+     * @brief Marks a UBO block as dirty.
      */
-    void invalidate(Legacy::SharedVboEnum block) { m_validBlocks.erase(block); }
+    void invalidate(Legacy::SharedVboEnum block) { m_dirtyBlocks.set(static_cast<size_t>(block)); }
 
     /**
      * @brief Marks all UBO blocks as dirty.
      */
-    void invalidateAll() { m_validBlocks.clear(); }
+    void invalidateAll() { m_dirtyBlocks.set(); }
 
     /**
      * @brief Registers a function that can rebuild the UBO data.
      */
     void registerRebuildFunction(Legacy::SharedVboEnum block, RebuildFunction func)
     {
-        m_rebuildFunctions[block] = std::move(func);
-    }
-
-    /**
-     * @brief Checks if a UBO block has ever been created/initialized.
-     */
-    bool hasVbo(Legacy::Functions &gl, Legacy::SharedVboEnum block) const
-    {
-        return gl.getSharedVbos().get(block)->get() != 0;
+        m_rebuildFunctions[static_cast<size_t>(block)] = std::move(func);
     }
 
     /**
@@ -60,7 +57,7 @@ public:
      */
     bool isInvalid(Legacy::SharedVboEnum block) const
     {
-        return m_validBlocks.find(block) == m_validBlocks.end();
+        return m_dirtyBlocks.test(static_cast<size_t>(block));
     }
 
     /**
@@ -69,9 +66,9 @@ public:
     void updateIfInvalid(Legacy::Functions &gl, Legacy::SharedVboEnum block)
     {
         if (isInvalid(block)) {
-            const auto it = m_rebuildFunctions.find(block);
-            if (it != m_rebuildFunctions.end()) {
-                it->second(gl);
+            const auto &func = m_rebuildFunctions[static_cast<size_t>(block)];
+            if (func) {
+                func(gl);
                 // The rebuild function is expected to call update() which marks it valid.
                 assert(!isInvalid(block));
             }
@@ -93,14 +90,13 @@ public:
         }
 
         upload_internal(gl, vbo.get(), data);
-        m_validBlocks.insert(block);
+        m_dirtyBlocks.reset(static_cast<size_t>(block));
 
-        gl.glBindBufferBase(GL_UNIFORM_BUFFER, block, vbo.get());
+        bind_internal(gl, block, vbo.get());
     }
 
     /**
      * @brief Binds the UBO to its assigned point.
-     * Use this when you know the UBO is already valid.
      * If invalid and a rebuild function is registered, it will be updated first.
      */
     void bind(Legacy::Functions &gl, Legacy::SharedVboEnum block)
@@ -112,29 +108,33 @@ public:
 
         if (!vbo) {
             vbo.emplace(gl.shared_from_this());
-            // If we don't have a rebuild function, we just bind an empty/garbage buffer
-            // and keep it invalid so it can be updated later.
-            m_validBlocks.erase(block);
         }
 
-        gl.glBindBufferBase(GL_UNIFORM_BUFFER, block, vbo.get());
+        bind_internal(gl, block, vbo.get());
     }
 
 private:
-    template<typename T>
-    void upload_internal(Legacy::Functions &gl, GLuint vbo, const std::vector<T> &data)
-    {
-        std::ignore = gl.setUbo(vbo, data, BufferUsageEnum::DYNAMIC_DRAW);
-    }
-
     template<typename T>
     void upload_internal(Legacy::Functions &gl, GLuint vbo, const T &data)
     {
-        // Special case for types that are not vectors - wrap them in a vector for setUbo
-        std::ignore = gl.setUbo(vbo, std::vector<T>{data}, BufferUsageEnum::DYNAMIC_DRAW);
+        if constexpr (utils::is_vector_v<T>) {
+            std::ignore = gl.setUbo(vbo, data, BufferUsageEnum::DYNAMIC_DRAW);
+        } else {
+            gl.setUboSingle(vbo, data, BufferUsageEnum::DYNAMIC_DRAW);
+        }
+    }
+
+    void bind_internal(Legacy::Functions &gl, Legacy::SharedVboEnum block, GLuint buffer)
+    {
+        const size_t index = static_cast<size_t>(block);
+        if (m_boundBuffers[index] != buffer) {
+            gl.glBindBufferBase(GL_UNIFORM_BUFFER, block, buffer);
+            m_boundBuffers[index] = buffer;
+        }
     }
 
 private:
-    std::set<Legacy::SharedVboEnum> m_validBlocks;
-    std::map<Legacy::SharedVboEnum, RebuildFunction> m_rebuildFunctions;
+    std::bitset<Legacy::NUM_SHARED_VBOS> m_dirtyBlocks;
+    std::array<RebuildFunction, Legacy::NUM_SHARED_VBOS> m_rebuildFunctions;
+    std::array<GLuint, Legacy::NUM_SHARED_VBOS> m_boundBuffers;
 };

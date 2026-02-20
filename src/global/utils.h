@@ -393,6 +393,17 @@ NODISCARD static inline auto find_min_computed(const Container &container, Callb
 template<typename T>
 using remove_cvref_t = std::remove_cv_t<std::remove_reference_t<T>>;
 
+template<typename T>
+struct is_vector : std::false_type
+{};
+
+template<typename T, typename A>
+struct is_vector<std::vector<T, A>> : std::true_type
+{};
+
+template<typename T>
+static inline constexpr bool is_vector_v = is_vector<T>::value;
+
 template<typename T, typename... Ts>
 struct are_distinct : std::conjunction<std::negation<std::is_same<T, Ts>>..., are_distinct<Ts...>>
 {};

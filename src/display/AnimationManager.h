@@ -31,11 +31,6 @@ public:
      */
     void update();
 
-    /**
-     * @brief Ensures the global TimeBlock UBO is up-to-date and bound.
-     */
-    void updateAndBind(Legacy::Functions &gl);
-
     void setAnimating(bool value) { m_animating = value; }
     NODISCARD bool getAnimating() const { return m_animating; }
 

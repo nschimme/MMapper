@@ -241,6 +241,14 @@ void MapCanvas::initializeGL()
 
     gl.initializeRenderer(static_cast<float>(QPaintDevice::devicePixelRatioF()));
     m_animationManager.init(gl.getUboManager());
+
+    gl.getUboManager().registerRebuildFunction(
+        Legacy::SharedVboEnum::NamedColorsBlock, [&gl](Legacy::Functions &funcs) {
+            gl.getUboManager().update(funcs,
+                                      Legacy::SharedVboEnum::NamedColorsBlock,
+                                      XNamedColor::getAllColorsAsVec4());
+        });
+
     updateMultisampling();
 
     // REVISIT: should the font texture have the lowest ID?
@@ -661,13 +669,7 @@ void MapCanvas::actuallyPaintGL()
     auto &gl = getOpenGL();
     auto &funcs = deref(gl.getSharedFunctions(Badge<MapCanvas>{}));
 
-    if (gl.getUboManager().isInvalid(Legacy::SharedVboEnum::NamedColorsBlock)) {
-        gl.getUboManager().update(funcs,
-                                  Legacy::SharedVboEnum::NamedColorsBlock,
-                                  XNamedColor::getAllColorsAsVec4());
-    } else {
-        gl.getUboManager().bind(funcs, Legacy::SharedVboEnum::NamedColorsBlock);
-    }
+    gl.getUboManager().bind(funcs, Legacy::SharedVboEnum::NamedColorsBlock);
 
     gl.bindFbo();
     gl.clear(Color{getConfig().canvas.backgroundColor});
@@ -685,7 +687,7 @@ void MapCanvas::actuallyPaintGL()
 
     const auto playerPos = m_data.tryGetPosition().value_or(Coordinate{0, 0, 0});
     m_weatherRenderer->prepare(m_viewProj, playerPos);
-    m_animationManager.updateAndBind(funcs);
+    gl.getUboManager().bind(funcs, Legacy::SharedVboEnum::TimeBlock);
 
     m_weatherRenderer->render(m_opengl.getDefaultRenderState());
 

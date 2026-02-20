@@ -437,6 +437,16 @@ public:
         return setVbo_internal(GL_UNIFORM_BUFFER, ubo, batch, usage);
     }
 
+    template<typename T>
+    void setUboSingle(const GLuint ubo,
+                      const T &data,
+                      const BufferUsageEnum usage = BufferUsageEnum::DYNAMIC_DRAW)
+    {
+        Base::glBindBuffer(GL_UNIFORM_BUFFER, ubo);
+        Base::glBufferData(GL_UNIFORM_BUFFER, sizeof(T), &data, Legacy::toGLenum(usage));
+        Base::glBindBuffer(GL_UNIFORM_BUFFER, 0);
+    }
+
     void clearVbo(const GLuint vbo, const BufferUsageEnum usage = BufferUsageEnum::DYNAMIC_DRAW)
     {
         Base::glBindBuffer(GL_ARRAY_BUFFER, vbo);

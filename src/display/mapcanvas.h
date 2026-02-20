@@ -21,6 +21,7 @@
 #include "Weather.h"
 
 #include <array>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <future>
@@ -166,6 +167,9 @@ private:
     float m_lastMagnification = 1.f;
 
     std::unique_ptr<WeatherRenderer> m_weatherRenderer;
+
+    std::chrono::steady_clock::time_point m_lastPaintTime;
+    QTimer m_throttleTimer;
 
     GameObserver &m_observer;
 

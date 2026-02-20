@@ -519,18 +519,22 @@ void MapCanvas::renderLoop()
     // MMapper defaults to 60 FPS for background animations to save CPU/battery.
     // When the user interacts (e.g. dragging), Qt's event loop will trigger higher framerates.
     const int targetFps = getConfig().canvas.advanced.maximumFps.get();
-    auto targetFrameTime = std::chrono::milliseconds(1000 / std::max(1, targetFps));
+    const auto targetFrameTime = std::chrono::nanoseconds(1000000000LL / std::max(1, targetFps));
 
-    auto now = std::chrono::steady_clock::now();
     update();
-    auto afterPaint = std::chrono::steady_clock::now();
 
-    // Render the next frame at the appropriate time or now if we're behind
-    auto timeSinceLastFrame = std::chrono::duration_cast<std::chrono::milliseconds>(afterPaint
-                                                                                    - now);
-    auto delay = std::max(targetFrameTime - timeSinceLastFrame, std::chrono::milliseconds::zero());
+    // Render the next frame at the appropriate time relative to the last successful paint.
+    // If the paint was throttled, m_lastPaintTime will be old, resulting in a short delay.
+    // However, paintGL's m_throttleTimer also handles rescheduling, ensuring we don't
+    // busy-wait.
+    auto now = std::chrono::steady_clock::now();
+    auto timeSinceLastPaint = std::chrono::duration_cast<std::chrono::nanoseconds>(
+        now - m_lastPaintTime);
+    auto delay = std::max(targetFrameTime - timeSinceLastPaint, std::chrono::nanoseconds::zero());
 
-    QTimer::singleShot(delay.count(), this, &MapCanvas::renderLoop);
+    QTimer::singleShot(std::chrono::duration_cast<std::chrono::milliseconds>(delay).count(),
+                       this,
+                       &MapCanvas::renderLoop);
 }
 
 void MapCanvas::updateBatches()
@@ -840,6 +844,24 @@ void MapCanvas::paintSelections()
 
 void MapCanvas::paintGL()
 {
+    const int targetFps = getConfig().canvas.advanced.maximumFps.get();
+    const auto minFrameTime = std::chrono::nanoseconds(1000000000LL / std::max(1, targetFps));
+
+    auto now = std::chrono::steady_clock::now();
+    if (m_lastPaintTime.time_since_epoch().count() != 0) {
+        auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(now - m_lastPaintTime);
+        if (elapsed < minFrameTime) {
+            if (!m_throttleTimer.isActive()) {
+                auto remaining = minFrameTime - elapsed;
+                m_throttleTimer.start(
+                    std::chrono::duration_cast<std::chrono::milliseconds>(remaining));
+            }
+            return;
+        }
+    }
+    m_lastPaintTime = now;
+    m_throttleTimer.stop();
+
     static thread_local double longestBatchMs = 0.0;
 
     const bool showPerfStats = MapCanvasConfig::getShowPerfStats();

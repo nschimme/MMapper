@@ -80,6 +80,9 @@ MapCanvas::MapCanvas(MapData &mapData,
     m_animationManager.registerCallback(m_lifetime,
                                         [this]() { return m_batches.remeshCookie.isPending(); });
     m_weatherRenderer->sig_requestUpdate.connect(m_lifetime, [this]() { update(); });
+
+    m_throttleTimer.setSingleShot(true);
+    connect(&m_throttleTimer, &QTimer::timeout, this, [this]() { update(); });
     NonOwningPointer &pmc = primaryMapCanvas();
     if (pmc == nullptr) {
         pmc = this;

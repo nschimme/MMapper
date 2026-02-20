@@ -507,3 +507,5 @@ public:
     void blitFboToDefault();
 };
 } // namespace Legacy
+
+DEFINE_ENUM_COUNT(Legacy::SharedVboEnum, Legacy::NUM_SHARED_VBOS)

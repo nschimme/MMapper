@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2026 The MMapper Authors
 
+#include "../global/EnumIndexedArray.h"
 #include "../global/RuleOf5.h"
 #include "../global/utils.h"
 #include "legacy/Legacy.h"
 #include "legacy/VBO.h"
 
-#include <array>
 #include <bitset>
 #include <cassert>
 #include <functional>
@@ -29,7 +29,7 @@ public:
     UboManager()
     {
         m_dirtyBlocks.set(); // All blocks are dirty initially
-        m_boundBuffers.fill(0);
+        m_boundBuffers.for_each([](GLuint &v) { v = 0; });
     }
     DELETE_CTORS_AND_ASSIGN_OPS(UboManager);
 
@@ -49,7 +49,7 @@ public:
      */
     void registerRebuildFunction(Legacy::SharedVboEnum block, RebuildFunction func)
     {
-        m_rebuildFunctions[static_cast<size_t>(block)] = std::move(func);
+        m_rebuildFunctions[block] = std::move(func);
     }
 
     /**
@@ -66,7 +66,7 @@ public:
     void updateIfInvalid(Legacy::Functions &gl, Legacy::SharedVboEnum block)
     {
         if (isInvalid(block)) {
-            const auto &func = m_rebuildFunctions[static_cast<size_t>(block)];
+            const auto &func = m_rebuildFunctions[block];
             if (func) {
                 func(gl);
                 // The rebuild function is expected to call update() which marks it valid.
@@ -126,15 +126,14 @@ private:
 
     void bind_internal(Legacy::Functions &gl, Legacy::SharedVboEnum block, GLuint buffer)
     {
-        const size_t index = static_cast<size_t>(block);
-        if (m_boundBuffers[index] != buffer) {
+        if (m_boundBuffers[block] != buffer) {
             gl.glBindBufferBase(GL_UNIFORM_BUFFER, block, buffer);
-            m_boundBuffers[index] = buffer;
+            m_boundBuffers[block] = buffer;
         }
     }
 
 private:
     std::bitset<Legacy::NUM_SHARED_VBOS> m_dirtyBlocks;
-    std::array<RebuildFunction, Legacy::NUM_SHARED_VBOS> m_rebuildFunctions;
-    std::array<GLuint, Legacy::NUM_SHARED_VBOS> m_boundBuffers;
+    EnumIndexedArray<RebuildFunction, Legacy::SharedVboEnum> m_rebuildFunctions;
+    EnumIndexedArray<GLuint, Legacy::SharedVboEnum> m_boundBuffers;
 };

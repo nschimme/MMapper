@@ -23,13 +23,14 @@
 #include <QVector>
 #include <QWidget>
 
+template<int Digits>
 class NODISCARD FpSlider final : public QSlider
 {
 private:
-    FixedPoint<1> &m_fp;
+    FixedPoint<Digits> &m_fp;
 
 public:
-    explicit FpSlider(FixedPoint<1> &fp)
+    explicit FpSlider(FixedPoint<Digits> &fp)
         : QSlider(Qt::Orientation::Horizontal)
         , m_fp{fp}
     {
@@ -39,20 +40,22 @@ public:
     ~FpSlider() final;
 };
 
-FpSlider::~FpSlider() = default;
+template<int Digits>
+FpSlider<Digits>::~FpSlider() = default;
 
+template<int Digits>
 class NODISCARD FpSpinBox final : public QDoubleSpinBox
 {
 private:
-    using FP = FixedPoint<1>;
+    using FP = FixedPoint<Digits>;
     FP &m_fp;
 
 public:
-    explicit FpSpinBox(FixedPoint<1> &fp)
+    explicit FpSpinBox(FixedPoint<Digits> &fp)
         : QDoubleSpinBox()
         , m_fp{fp}
     {
-        const double fraction = std::pow(10.0, -FP::digits);
+        const double fraction = std::pow(10.0, -static_cast<double>(FP::digits));
         setRange(static_cast<double>(m_fp.min) * fraction, static_cast<double>(m_fp.max) * fraction);
         setValue(m_fp.getDouble());
         setDecimals(FP::digits);
@@ -63,26 +66,31 @@ public:
 public:
     NODISCARD int getIntValue() const
     {
-        return static_cast<int>(std::lround(std::clamp(value() * std::pow(10.0, FP::digits),
-                                                       static_cast<double>(m_fp.min),
-                                                       static_cast<double>(m_fp.max))));
+        return static_cast<int>(
+            std::lround(std::clamp(value() * std::pow(10.0, static_cast<double>(FP::digits)),
+                                   static_cast<double>(m_fp.min),
+                                   static_cast<double>(m_fp.max))));
     }
     void setIntValue(int value)
     {
-        setValue(static_cast<double>(value) * std::pow(10.0, -FP::digits));
+        setValue(static_cast<double>(value) * std::pow(10.0, -static_cast<double>(FP::digits)));
     }
 };
 
-FpSpinBox::~FpSpinBox() = default;
+template<int Digits>
+FpSpinBox<Digits>::~FpSpinBox() = default;
 
-class NODISCARD SliderSpinboxButton final
+SliderSpinboxButtonBase::~SliderSpinboxButtonBase() {}
+
+template<int Digits>
+class NODISCARD SliderSpinboxButton final : public SliderSpinboxButtonBase
 {
 private:
-    using FP = FixedPoint<1>;
+    using FP = FixedPoint<Digits>;
     AdvancedGraphicsGroupBox &m_group;
     FP &m_fp;
-    FpSlider m_slider;
-    FpSpinBox m_spin;
+    FpSlider<Digits> m_slider;
+    FpSpinBox<Digits> m_spin;
     QPushButton m_reset;
     QHBoxLayout m_horizontal;
     QVector<QWidget *> m_blockable;
@@ -108,7 +116,7 @@ public:
         });
 
         QObject::connect(&m_spin,
-                         QOverload<double>::of(&FpSpinBox::valueChanged),
+                         QOverload<double>::of(&FpSpinBox<Digits>::valueChanged),
                          &group,
                          [this](double /*value*/) {
                              const SignalBlocker block_slider{m_slider};
@@ -132,16 +140,16 @@ public:
         horizontal.addWidget(&m_reset);
         vbox.addLayout(&horizontal, 0);
     }
-    ~SliderSpinboxButton() = default;
+    ~SliderSpinboxButton() override {}
 
-    void setEnabled(bool enabled)
+    void setEnabled(bool enabled) override
     {
         this->m_slider.setEnabled(enabled);
         this->m_spin.setEnabled(enabled);
         this->m_reset.setEnabled(enabled);
     }
 
-    void forcedUpdate()
+    void forcedUpdate() override
     {
         const SignalBlocker block_slider{m_slider};
         const SignalBlocker block_spin{m_spin};
@@ -171,11 +179,11 @@ AdvancedGraphicsGroupBox::AdvancedGraphicsGroupBox(QGroupBox &groupBox)
 {
     auto *vertical = new QVBoxLayout(m_groupBox);
 
-    using FP = FixedPoint<1>;
-
-    auto makeSsb = [this, vertical](const QString name, FP &fp) {
+    auto makeSsb = [this, vertical](const QString &name, auto &fp) {
+        using FP = std::remove_reference_t<decltype(fp)>;
         addLine(*vertical);
-        m_ssbs.emplace_back(std::make_unique<SliderSpinboxButton>(*this, *vertical, name, fp));
+        m_ssbs.emplace_back(
+            std::make_unique<SliderSpinboxButton<FP::digits>>(*this, *vertical, name, fp));
     };
 
     auto *const checkboxDiag = new QCheckBox("Show Performance Stats");
@@ -198,6 +206,7 @@ AdvancedGraphicsGroupBox::AdvancedGraphicsGroupBox(QGroupBox &groupBox)
         makeSsb("Vertical Angle (pitch up from straight down)", advanced.verticalAngle);
         makeSsb("Horizontal Angle (yaw)", advanced.horizontalAngle);
         makeSsb("Layer height (in rooms)", advanced.layerHeight);
+        makeSsb("Maximum FPS", advanced.maximumFps);
     }
 
     enableSsbs(is3dAtInit);

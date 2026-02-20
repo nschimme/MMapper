@@ -240,6 +240,7 @@ void MapCanvas::initializeGL()
     initLogger();
 
     gl.initializeRenderer(static_cast<float>(QPaintDevice::devicePixelRatioF()));
+    m_animationManager.init(gl.getUboManager());
     updateMultisampling();
 
     // REVISIT: should the font texture have the lowest ID?
@@ -495,39 +496,51 @@ void MapCanvas::resizeGL(int width, int height)
 
 void MapCanvas::setAnimating(bool value)
 {
-    if (m_frameRateController.animating == value) {
+    if (m_animationManager.getAnimating() == value) {
         return;
     }
 
-    m_frameRateController.animating = value;
+    m_animationManager.setAnimating(value);
 
-    if (m_frameRateController.animating) {
+    if (m_animationManager.getAnimating()) {
+        m_lastLoopTime = {}; // Ensure immediate first iteration
         QTimer::singleShot(0, this, &MapCanvas::renderLoop);
     }
 }
 
 void MapCanvas::renderLoop()
 {
-    if (!m_frameRateController.animating) {
+    if (!m_animationManager.getAnimating()) {
         return;
     }
 
-    // REVISIT: Make this configurable later when its not just used for the remesh flash
-    static constexpr int TARGET_FRAMES_PER_SECOND = 20;
-    auto targetFrameTime = std::chrono::milliseconds(1000 / TARGET_FRAMES_PER_SECOND);
+    if (!m_animationManager.isAnimating()) {
+        m_animationManager.setAnimating(false);
+        return;
+    }
+
+    // MMapper defaults to 60 FPS for background animations to save CPU/battery.
+    // When the user interacts (e.g. dragging), Qt's event loop will trigger higher framerates.
+    const int targetFps = getConfig().canvas.advanced.maximumFps.get();
+    const auto targetFrameTime = std::chrono::nanoseconds(1000000000LL / std::max(1, targetFps));
 
     auto now = std::chrono::steady_clock::now();
+    auto elapsed = now - m_lastLoopTime;
+
+    if (m_lastLoopTime.time_since_epoch().count() != 0 && elapsed < targetFrameTime) {
+        auto delay = targetFrameTime - elapsed;
+        QTimer::singleShot(std::chrono::duration_cast<std::chrono::milliseconds>(delay).count(),
+                           this,
+                           &MapCanvas::renderLoop);
+        return;
+    }
+
+    m_lastLoopTime = now;
     update();
-    auto afterPaint = std::chrono::steady_clock::now();
 
-    // Render the next frame at the appropriate time or now if we're behind
-    auto timeSinceLastFrame = std::chrono::duration_cast<std::chrono::milliseconds>(afterPaint
-                                                                                    - now);
-    auto delay = std::max(targetFrameTime - timeSinceLastFrame, std::chrono::milliseconds::zero());
-
-    QTimer::singleShot(delay.count(), this, &MapCanvas::renderLoop);
-
-    m_frameRateController.lastFrameTime = now;
+    QTimer::singleShot(std::chrono::duration_cast<std::chrono::milliseconds>(targetFrameTime).count(),
+                       this,
+                       &MapCanvas::renderLoop);
 }
 
 void MapCanvas::updateBatches()
@@ -638,24 +651,23 @@ void MapCanvas::finishPendingMapBatches()
 
 void MapCanvas::actuallyPaintGL()
 {
-    // Update weather
-    {
-        auto &ws = m_weatherRenderer->getState();
-        auto now = std::chrono::steady_clock::now();
-        if (ws.lastUpdateTime.time_since_epoch().count() == 0) {
-            ws.lastUpdateTime = now;
-        }
-        float dt = std::chrono::duration<float>(now - ws.lastUpdateTime).count();
-        ws.lastUpdateTime = now;
-
-        m_weatherRenderer->update(dt);
-    }
+    // Update animation state and weather
+    m_animationManager.update();
+    m_weatherRenderer->update(m_animationManager.getLastFrameDeltaTime());
 
     // DECL_TIMER(t, __FUNCTION__);
     setViewportAndMvp(width(), height());
 
     auto &gl = getOpenGL();
-    gl.bindNamedColorsBuffer();
+    auto &funcs = deref(gl.getSharedFunctions(Badge<MapCanvas>{}));
+
+    if (gl.getUboManager().isInvalid(Legacy::SharedVboEnum::NamedColorsBlock)) {
+        gl.getUboManager().update(funcs,
+                                  Legacy::SharedVboEnum::NamedColorsBlock,
+                                  XNamedColor::getAllColorsAsVec4());
+    } else {
+        gl.getUboManager().bind(funcs, Legacy::SharedVboEnum::NamedColorsBlock);
+    }
 
     gl.bindFbo();
     gl.clear(Color{getConfig().canvas.backgroundColor});
@@ -671,9 +683,11 @@ void MapCanvas::actuallyPaintGL()
     paintCharacters();
     paintDifferences();
 
-    m_weatherRenderer->prepare(m_viewProj);
-    m_weatherRenderer->renderParticles(m_viewProj);
-    m_weatherRenderer->renderAtmosphere(m_viewProj);
+    const auto playerPos = m_data.tryGetPosition().value_or(Coordinate{0, 0, 0});
+    m_weatherRenderer->prepare(m_viewProj, playerPos);
+    m_animationManager.updateAndBind(funcs);
+
+    m_weatherRenderer->render(m_opengl.getDefaultRenderState());
 
     gl.releaseFbo();
     gl.blitFboToDefault();
@@ -804,9 +818,6 @@ void MapCanvas::paintDifferences()
 void MapCanvas::paintMap()
 {
     const bool pending = m_batches.remeshCookie.isPending();
-    if (pending) {
-        setAnimating(true);
-    }
 
     if (!m_batches.mapBatches.has_value()) {
         const QString msg = pending ? "Please wait... the map isn't ready yet." : "Batch error";
@@ -840,6 +851,24 @@ void MapCanvas::paintSelections()
 
 void MapCanvas::paintGL()
 {
+    const int targetFps = getConfig().canvas.advanced.maximumFps.get();
+    const auto minFrameTime = std::chrono::nanoseconds(1000000000LL / std::max(1, targetFps));
+
+    auto now = std::chrono::steady_clock::now();
+    if (m_lastPaintTime.time_since_epoch().count() != 0) {
+        auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(now - m_lastPaintTime);
+        if (elapsed < minFrameTime) {
+            if (!m_throttleTimer.isActive()) {
+                auto remaining = minFrameTime - elapsed;
+                m_throttleTimer.start(
+                    std::chrono::duration_cast<std::chrono::milliseconds>(remaining));
+            }
+            return;
+        }
+    }
+    m_lastPaintTime = now;
+    m_throttleTimer.stop();
+
     static thread_local double longestBatchMs = 0.0;
 
     const bool showPerfStats = MapCanvasConfig::getShowPerfStats();
@@ -871,6 +900,10 @@ void MapCanvas::paintGL()
         }
 
         actuallyPaintGL();
+
+        if (m_animationManager.isAnimating()) {
+            setAnimating(true);
+        }
     }
 
     if (!showPerfStats) {

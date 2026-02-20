@@ -13,6 +13,7 @@
 #include "../opengl/Font.h"
 #include "../opengl/FontFormatFlags.h"
 #include "../opengl/OpenGL.h"
+#include "AnimationManager.h"
 #include "Infomarks.h"
 #include "MapCanvasData.h"
 #include "MapCanvasRoomDrawer.h"
@@ -20,6 +21,7 @@
 #include "Weather.h"
 
 #include <array>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <future>
@@ -64,12 +66,6 @@ public:
     static constexpr const int SCROLL_SCALE = 64;
 
 private:
-    struct NODISCARD FrameRateController final
-    {
-        std::chrono::steady_clock::time_point lastFrameTime;
-        bool animating = false;
-    };
-
     struct NODISCARD Diff final
     {
         using DiffQuadVector = std::vector<RoomQuadTexVert>;
@@ -147,7 +143,7 @@ private:
     MapData &m_data;
     Mmapper2Group &m_groupManager;
     Diff m_diff;
-    FrameRateController m_frameRateController;
+    AnimationManager m_animationManager;
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
     Signal2Lifetime m_lifetime;
 
@@ -171,6 +167,10 @@ private:
     float m_lastMagnification = 1.f;
 
     std::unique_ptr<WeatherRenderer> m_weatherRenderer;
+
+    std::chrono::steady_clock::time_point m_lastPaintTime;
+    std::chrono::steady_clock::time_point m_lastLoopTime;
+    QTimer m_throttleTimer;
 
     GameObserver &m_observer;
 

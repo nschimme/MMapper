@@ -23,14 +23,14 @@ layout(std140) uniform TimeBlock
     vec4 uTime; // x=time, y=delta, zw=unused
 };
 
-uniform sampler2D uNoiseTex;
+uniform sampler2D uTexture;
 
 in vec3 vWorldPos;
 out vec4 vFragmentColor;
 
 float get_noise(vec2 p)
 {
-    return texture(uNoiseTex, p / 256.0).r;
+    return texture(uTexture, p / 256.0).r;
 }
 
 float fbm(vec2 p)

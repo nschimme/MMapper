@@ -29,7 +29,9 @@ class StaticVbos;
 class SharedVbos;
 class SharedVaos;
 class SharedTfos;
+class VBO;
 class VAO;
+class Program;
 struct AbstractShaderProgram;
 struct ShaderPrograms;
 struct PointSizeBinder;
@@ -39,9 +41,7 @@ struct PointSizeBinder;
     X(NamedColorsBlock, "NamedColorsBlock", true) \
     X(WeatherBlock, "WeatherBlock", true) \
     X(TimeBlock, "TimeBlock", true) \
-    X(InstancedQuadIbo, nullptr, false) \
-    X(WeatherParticles0, nullptr, false) \
-    X(WeatherParticles1, nullptr, false)
+    X(InstancedQuadIbo, nullptr, false)
 
 enum class SharedVboEnum : uint8_t {
 #define X_ENUM(element, name, isUniform) element,
@@ -49,13 +49,7 @@ enum class SharedVboEnum : uint8_t {
 #undef X_ENUM
 };
 
-#define XFOREACH_SHARED_VAO(X) \
-    X(EmptyVao) \
-    X(WeatherTimeOfDay) \
-    X(WeatherSimulation0) \
-    X(WeatherSimulation1) \
-    X(WeatherRender0) \
-    X(WeatherRender1)
+#define XFOREACH_SHARED_VAO(X) X(EmptyVao)
 
 enum class SharedVaoEnum : uint8_t {
 #define X_ENUM(element) element,
@@ -63,7 +57,7 @@ enum class SharedVaoEnum : uint8_t {
 #undef X_ENUM
 };
 
-#define XFOREACH_SHARED_TF(X) X(WeatherSimulation)
+#define XFOREACH_SHARED_TF(X)
 
 enum class SharedTfEnum : uint8_t {
 #define X_ENUM(element) element,
@@ -187,6 +181,8 @@ public:
     using Base::glActiveTexture;
     using Base::glAttachShader;
     using Base::glBindBuffer;
+    void glBindBuffer(const GLenum target, const VBO &vbo);
+
     using Base::glBindBufferBase;
     using Base::glBindBufferRange;
 
@@ -198,13 +194,11 @@ public:
      *
      * Note: This uses the enum value as the fixed binding point.
      */
-    void glBindBufferBase(const GLenum target, const SharedVboEnum block, const GLuint buffer)
-    {
-        assert(target == GL_UNIFORM_BUFFER);
-        Base::glBindBufferBase(target, static_cast<GLuint>(block), buffer);
-    }
+    void glBindBufferBase(const GLenum target, const SharedVboEnum block, const GLuint buffer);
+    void glBindBufferBase(const GLenum target, const SharedVboEnum block, const VBO &vbo);
     using Base::glBindTexture;
     using Base::glBindVertexArray;
+    void glBindVertexArray(const VAO &vao);
     using Base::glBlendEquationSeparate;
     using Base::glBlendFunc;
     using Base::glBlendFuncSeparate;
@@ -274,10 +268,8 @@ public:
      *
      * Note: This uses the enum value as the fixed binding point.
      */
-    void glUniformBlockBinding(const GLuint program, const SharedVboEnum block)
-    {
-        virt_glUniformBlockBinding(program, block);
-    }
+    void glUniformBlockBinding(const GLuint program, const SharedVboEnum block);
+    void glUniformBlockBinding(const Program &program, const SharedVboEnum block);
 
     /**
      * @brief Automatically assigns fixed binding points to all known uniform blocks.

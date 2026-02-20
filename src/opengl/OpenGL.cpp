@@ -211,24 +211,10 @@ GLRenderState OpenGL::getDefaultRenderState()
     return GLRenderState{};
 }
 
-void OpenGL::bindNamedColorsBuffer()
-{
-    auto &gl = getFunctions();
-    const auto buffer = Legacy::SharedVboEnum::NamedColorsBlock;
-    const auto shared = gl.getSharedVbos().get(buffer);
-    Legacy::VBO &vbo = deref(shared);
-    if (!vbo) {
-        vbo.emplace(gl.shared_from_this());
-        // the shader is declared vec4, so the data has to be 4 floats per entry.
-        const auto &vec4_colors = XNamedColor::getAllColorsAsVec4();
-        std::ignore = gl.setUbo(vbo.get(), vec4_colors, BufferUsageEnum::DYNAMIC_DRAW);
-    }
-    gl.glBindBufferBase(GL_UNIFORM_BUFFER, buffer, vbo.get());
-}
-
 void OpenGL::resetNamedColorsBuffer()
 {
     getFunctions().getSharedVbos().reset(Legacy::SharedVboEnum::NamedColorsBlock);
+    m_uboManager.invalidate(Legacy::SharedVboEnum::NamedColorsBlock);
 }
 
 void OpenGL::initializeRenderer(const float devicePixelRatio)
@@ -332,9 +318,8 @@ void OpenGL::initArrayFromImages(const SharedMMTexture &array,
         const auto &layer = input[z];
         const auto numLevels = layer.size();
         assert(numLevels > 0);
-        const auto ipow2 = 1 << (numLevels - 1);
-        assert(ipow2 == layer.front().width());
-        assert(ipow2 == layer.front().height());
+        assert(layer.front().width() == qtex.width());
+        assert(layer.front().height() == qtex.height());
 
         for (size_t level_num = 0; level_num < numLevels; ++level_num) {
             const QImage image = layer[level_num].convertToFormat(QImage::Format_RGBA8888);

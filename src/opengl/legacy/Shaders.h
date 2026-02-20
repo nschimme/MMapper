@@ -167,7 +167,7 @@ private:
     void virt_setUniforms(const glm::mat4 & /*mvp*/,
                           const GLRenderState::Uniforms & /*uniforms*/) final
     {
-        setTexture("uNoiseTex", 0);
+        setTexture("uTexture", 0);
     }
 };
 

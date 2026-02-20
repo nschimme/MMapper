@@ -6,7 +6,7 @@
 #include "../global/Badge.h"
 #include "../global/utils.h"
 #include "OpenGLTypes.h"
-#include "SharedBufferManager.h"
+#include "UboManager.h"
 
 #include <memory>
 #include <vector>
@@ -29,7 +29,7 @@ class NODISCARD OpenGL final
 {
 private:
     std::shared_ptr<Legacy::Functions> m_opengl;
-    Legacy::SharedBufferManager m_bufferManager;
+    Legacy::UboManager m_uboManager;
     bool m_rendererInitialized = false;
 
 private:
@@ -177,7 +177,7 @@ public:
     void resetNamedColorsBuffer();
     void setTextureLookup(MMTextureId, SharedMMTexture);
 
-    NODISCARD Legacy::SharedBufferManager &getSharedBufferManager() { return m_bufferManager; }
+    NODISCARD Legacy::UboManager &getUboManager() { return m_uboManager; }
 
 public:
     void initArrayFromFiles(const SharedMMTexture &array, const std::vector<QString> &input);

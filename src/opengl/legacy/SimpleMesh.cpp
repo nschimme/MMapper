@@ -4,14 +4,9 @@
 #include "SimpleMesh.h"
 
 #include "../../global/ConfigConsts.h"
-#include "../SharedBufferManager.h"
 
-void Legacy::drawRoomQuad(Functions &gl, const GLsizei numVerts)
+void Legacy::drawRoomQuad(Functions &gl, const GLsizei numInstances)
 {
-    static constexpr size_t NUM_ELEMENTS = 4;
-    gl.getSharedBufferManager().bind(gl, SharedVboEnum::InstancedQuadIbo);
-
-    gl.glDrawElementsInstanced(GL_TRIANGLE_FAN, NUM_ELEMENTS, GL_UNSIGNED_BYTE, nullptr, numVerts);
-
-    gl.glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    // The shader uses gl_VertexID to generate quad vertices [0..3]
+    gl.glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, 4, numInstances);
 }

@@ -5,7 +5,7 @@
 #include "../global/RuleOf5.h"
 #include "../global/Signal2.h"
 #include "../opengl/OpenGLTypes.h"
-#include "../opengl/SharedBufferManager.h"
+#include "../opengl/UboManager.h"
 
 #include <chrono>
 #include <functional>
@@ -21,7 +21,7 @@ public:
     DELETE_CTORS_AND_ASSIGN_OPS(AnimationManager);
 
 public:
-    void init(Legacy::SharedBufferManager &uboManager);
+    void init(Legacy::UboManager &uboManager);
     void registerCallback(const Signal2Lifetime &lifetime, AnimationCallback callback);
     NODISCARD bool isAnimating() const;
 
@@ -50,7 +50,7 @@ private:
 
     float m_animationTime = 0.0f;
     float m_lastFrameDeltaTime = 0.0f;
-    Legacy::SharedBufferManager *m_bufferManager = nullptr;
+    Legacy::UboManager *m_uboManager = nullptr;
 
     GLRenderState::Uniforms::Weather::Frame m_frameData;
 };

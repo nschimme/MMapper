@@ -17,28 +17,28 @@
 namespace Legacy {
 
 /**
- * @brief Central manager for shared Buffer Objects (UBOs, IBOs, etc.).
+ * @brief Central manager for Uniform Buffer Objects (UBOs).
  *
- * Tracks which buffers are currently valid on the GPU and coordinates their updates.
- * Follows a lazy rebuild pattern: Buffers are only updated when a bind() is requested
+ * Tracks which UBOs are currently valid on the GPU and coordinates their updates.
+ * Follows a lazy rebuild pattern: UBOs are only updated when a bind() is requested
  * and the block is marked as dirty (represented by std::nullopt in the bound buffer tracker).
  */
-class SharedBufferManager final
+class UboManager final
 {
 public:
     using RebuildFunction = std::function<void(Legacy::Functions &gl)>;
 
-    SharedBufferManager() { invalidateAll(); }
-    DELETE_CTORS_AND_ASSIGN_OPS(SharedBufferManager);
+    UboManager() { invalidateAll(); }
+    DELETE_CTORS_AND_ASSIGN_OPS(UboManager);
 
 public:
     /**
-     * @brief Marks a buffer block as dirty by resetting its bound state.
+     * @brief Marks a UBO block as dirty by resetting its bound state.
      */
     void invalidate(Legacy::SharedVboEnum block) { m_boundBuffers[block] = std::nullopt; }
 
     /**
-     * @brief Marks all buffer blocks as dirty.
+     * @brief Marks all UBO blocks as dirty.
      */
     void invalidateAll()
     {
@@ -46,7 +46,7 @@ public:
     }
 
     /**
-     * @brief Registers a function that can rebuild the buffer data.
+     * @brief Registers a function that can rebuild the UBO data.
      */
     void registerRebuildFunction(Legacy::SharedVboEnum block, RebuildFunction func)
     {
@@ -54,12 +54,12 @@ public:
     }
 
     /**
-     * @brief Checks if a buffer block is currently dirty/invalid.
+     * @brief Checks if a UBO block is currently dirty/invalid.
      */
     bool isInvalid(Legacy::SharedVboEnum block) const { return !m_boundBuffers[block].has_value(); }
 
     /**
-     * @brief Rebuilds the buffer if it's invalid using the registered rebuild function.
+     * @brief Rebuilds the UBO if it's invalid using the registered rebuild function.
      */
     void updateIfInvalid(Legacy::Functions &gl, Legacy::SharedVboEnum block)
     {
@@ -74,8 +74,8 @@ public:
     }
 
     /**
-     * @brief Uploads data to the buffer and marks it as valid.
-     * Also binds it to its assigned point or target.
+     * @brief Uploads data to the UBO and marks it as valid.
+     * Also binds it to its assigned point.
      */
     template<typename T>
     void update(Legacy::Functions &gl, Legacy::SharedVboEnum block, const T &data)
@@ -87,13 +87,13 @@ public:
             vbo.emplace(gl.shared_from_this());
         }
 
-        gl.setSharedBuffer(block, vbo.get(), data);
+        static_cast<void>(gl.setUbo(vbo.get(), data, BufferUsageEnum::DYNAMIC_DRAW));
 
         bind_internal(gl, block, vbo.get());
     }
 
     /**
-     * @brief Binds the buffer to its assigned point or target.
+     * @brief Binds the UBO to its assigned point.
      * If invalid and a rebuild function is registered, it will be updated first.
      */
     void bind(Legacy::Functions &gl, Legacy::SharedVboEnum block)
@@ -115,12 +115,7 @@ private:
     {
         auto &bound = m_boundBuffers[block];
         if (!bound.has_value() || bound.value() != buffer) {
-            const GLenum target = Legacy::getTarget(block);
-            if (target == GL_UNIFORM_BUFFER) {
-                gl.glBindBufferBase(target, block, buffer);
-            } else {
-                gl.glBindBuffer(target, buffer);
-            }
+            gl.glBindBufferBase(GL_UNIFORM_BUFFER, static_cast<GLuint>(block), buffer);
             bound = buffer;
         }
     }

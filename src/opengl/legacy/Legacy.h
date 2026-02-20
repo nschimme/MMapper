@@ -29,7 +29,7 @@ class StaticVbos;
 class SharedVbos;
 class SharedVaos;
 class SharedTfos;
-class SharedBufferManager;
+class UboManager;
 class VBO;
 class VAO;
 class Program;
@@ -37,15 +37,14 @@ struct AbstractShaderProgram;
 struct ShaderPrograms;
 struct PointSizeBinder;
 
-// X(EnumName, GL_String_Name, Target)
+// X(EnumName, GL_String_Name)
 #define XFOREACH_SHARED_VBO(X) \
-    X(NamedColorsBlock, "NamedColorsBlock", GL_UNIFORM_BUFFER) \
-    X(WeatherBlock, "WeatherBlock", GL_UNIFORM_BUFFER) \
-    X(TimeBlock, "TimeBlock", GL_UNIFORM_BUFFER) \
-    X(InstancedQuadIbo, nullptr, GL_ELEMENT_ARRAY_BUFFER)
+    X(NamedColorsBlock, "NamedColorsBlock") \
+    X(WeatherBlock, "WeatherBlock") \
+    X(TimeBlock, "TimeBlock")
 
 enum class SharedVboEnum : uint8_t {
-#define X_ENUM(element, name, target) element,
+#define X_ENUM(element, name) element,
     XFOREACH_SHARED_VBO(X_ENUM)
 #undef X_ENUM
 };
@@ -70,26 +69,9 @@ enum class SharedTfEnum : uint8_t {
 static constexpr size_t NUM_SHARED_VAOS = 0 XFOREACH_SHARED_VAO(X_COUNT_VAO);
 #undef X_COUNT_VAO
 
-#define X_COUNT_VBO(element, name, target) +1
+#define X_COUNT_VBO(element, name) +1
 static constexpr size_t NUM_SHARED_VBOS = 0 XFOREACH_SHARED_VBO(X_COUNT_VBO);
 #undef X_COUNT_VBO
-
-NODISCARD static inline constexpr GLenum getTarget(const SharedVboEnum block)
-{
-    switch (block) {
-#define X_CASE(EnumName, StringName, Target) \
-    case SharedVboEnum::EnumName: \
-        return Target;
-        XFOREACH_SHARED_VBO(X_CASE)
-#undef X_CASE
-    }
-    std::abort();
-}
-
-NODISCARD static inline constexpr bool isUniform(const SharedVboEnum block)
-{
-    return getTarget(block) == GL_UNIFORM_BUFFER;
-}
 
 #define X_COUNT_TF(element) +1
 static constexpr size_t NUM_SHARED_TFS = 0 XFOREACH_SHARED_TF(X_COUNT_TF);
@@ -171,7 +153,7 @@ private:
     std::unique_ptr<SharedTfos> m_sharedTfos;
     std::unique_ptr<TexLookup> m_texLookup;
     std::unique_ptr<FBO> m_fbo;
-    SharedBufferManager *m_sharedBufferManager = nullptr;
+    UboManager *m_uboManager = nullptr;
 
 protected:
     explicit Functions(Badge<Functions>);
@@ -362,8 +344,8 @@ public:
 
     NODISCARD FBO &getFBO();
 
-    void setSharedBufferManager(SharedBufferManager *manager) { m_sharedBufferManager = manager; }
-    NODISCARD SharedBufferManager &getSharedBufferManager() { return deref(m_sharedBufferManager); }
+    void setUboManager(UboManager *manager) { m_uboManager = manager; }
+    NODISCARD UboManager &getUboManager() { return deref(m_uboManager); }
 
 private:
     friend PointSizeBinder;
@@ -467,23 +449,6 @@ public:
         Base::glBindBuffer(GL_UNIFORM_BUFFER, ubo);
         Base::glBufferData(GL_UNIFORM_BUFFER, sizeof(T), &data, Legacy::toGLenum(usage));
         Base::glBindBuffer(GL_UNIFORM_BUFFER, 0);
-    }
-
-    template<typename T>
-    void setSharedBuffer(const SharedVboEnum block, const GLuint vbo, const std::vector<T> &batch)
-    {
-        if (getTarget(block) == GL_ELEMENT_ARRAY_BUFFER) {
-            static_cast<void>(setIbo(vbo, batch));
-        } else {
-            static_cast<void>(setUbo(vbo, batch));
-        }
-    }
-
-    template<typename T>
-    void setSharedBuffer(const SharedVboEnum block, const GLuint vbo, const T &data)
-    {
-        assert(getTarget(block) != GL_ELEMENT_ARRAY_BUFFER);
-        setUbo(vbo, data);
     }
 
     void clearVbo(const GLuint vbo, const BufferUsageEnum usage = BufferUsageEnum::DYNAMIC_DRAW)

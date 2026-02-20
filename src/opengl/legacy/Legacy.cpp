@@ -41,7 +41,7 @@ namespace Legacy {
 const char *Functions::getUniformBlockName(const SharedVboEnum block)
 {
     switch (block) {
-#define X_CASE(EnumName, StringName, Target) \
+#define X_CASE(EnumName, StringName) \
     case SharedVboEnum::EnumName: \
         return StringName;
         XFOREACH_SHARED_VBO(X_CASE)
@@ -95,10 +95,7 @@ void Functions::virt_glUniformBlockBinding(const GLuint program, const SharedVbo
 
 void Functions::applyDefaultUniformBlockBindings(const GLuint program)
 {
-#define X_BIND(EnumName, StringName, Target) \
-    if (Target == GL_UNIFORM_BUFFER) { \
-        virt_glUniformBlockBinding(program, SharedVboEnum::EnumName); \
-    }
+#define X_BIND(EnumName, StringName) virt_glUniformBlockBinding(program, SharedVboEnum::EnumName);
     XFOREACH_SHARED_VBO(X_BIND)
 #undef X_BIND
 }

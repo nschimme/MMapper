@@ -399,13 +399,13 @@ WeatherRenderer::WeatherRenderer(OpenGL &gl,
         sig_requestUpdate.invoke();
     });
 
-    m_gl.getSharedBufferManager().registerRebuildFunction(
+    m_gl.getUboManager().registerRebuildFunction(
         Legacy::SharedVboEnum::WeatherBlock, [this](Legacy::Functions &glFuncs) {
             const auto playerPosCoord = m_data.tryGetPosition().value_or(Coordinate{0, 0, 0});
             auto weatherUboData = m_system->getStaticUboData(m_lastViewProj, playerPosCoord);
-            m_gl.getSharedBufferManager().update(glFuncs,
-                                                 Legacy::SharedVboEnum::WeatherBlock,
-                                                 weatherUboData);
+            m_gl.getUboManager().update(glFuncs,
+                                        Legacy::SharedVboEnum::WeatherBlock,
+                                        weatherUboData);
         });
 }
 
@@ -413,7 +413,7 @@ WeatherRenderer::~WeatherRenderer() = default;
 
 void WeatherRenderer::invalidateStatic()
 {
-    m_gl.getSharedBufferManager().invalidate(Legacy::SharedVboEnum::WeatherBlock);
+    m_gl.getUboManager().invalidate(Legacy::SharedVboEnum::WeatherBlock);
 }
 
 void WeatherRenderer::initMeshes()
@@ -451,7 +451,7 @@ void WeatherRenderer::prepare(const glm::mat4 &viewProj, const Coordinate &playe
     }
 
     auto &funcs = deref(m_gl.getSharedFunctions(Badge<WeatherRenderer>{}));
-    m_gl.getSharedBufferManager().bind(funcs, Legacy::SharedVboEnum::WeatherBlock);
+    m_gl.getUboManager().bind(funcs, Legacy::SharedVboEnum::WeatherBlock);
 }
 
 void WeatherRenderer::render(const GLRenderState &rs)

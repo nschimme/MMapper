@@ -214,19 +214,13 @@ GLRenderState OpenGL::getDefaultRenderState()
 void OpenGL::resetNamedColorsBuffer()
 {
     getFunctions().getSharedVbos().reset(Legacy::SharedVboEnum::NamedColorsBlock);
-    m_bufferManager.invalidate(Legacy::SharedVboEnum::NamedColorsBlock);
+    m_uboManager.invalidate(Legacy::SharedVboEnum::NamedColorsBlock);
 }
 
 void OpenGL::initializeRenderer(const float devicePixelRatio)
 {
     setDevicePixelRatio(devicePixelRatio);
-    getFunctions().setSharedBufferManager(&m_bufferManager);
-
-    m_bufferManager
-        .registerRebuildFunction(Legacy::SharedVboEnum::InstancedQuadIbo, [](Legacy::Functions &gl) {
-            const std::vector<uint8_t> indices{0, 1, 2, 3};
-            gl.getSharedBufferManager().update(gl, Legacy::SharedVboEnum::InstancedQuadIbo, indices);
-        });
+    getFunctions().setUboManager(&m_uboManager);
 
     // REVISIT: Move this somewhere else?
     GLint maxSamples = 0;

@@ -413,7 +413,6 @@ set(mmapper_SRCS
     opengl/LineRendering.h
     opengl/OpenGL.cpp
     opengl/OpenGL.h
-    opengl/UboManager.cpp
     opengl/UboManager.h
     opengl/OpenGLConfig.cpp
     opengl/OpenGLConfig.h

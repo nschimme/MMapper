@@ -21,7 +21,7 @@ public:
     DELETE_CTORS_AND_ASSIGN_OPS(AnimationManager);
 
 public:
-    void init(UboManager &uboManager);
+    void init(Legacy::UboManager &uboManager);
     void registerCallback(const Signal2Lifetime &lifetime, AnimationCallback callback);
     NODISCARD bool isAnimating() const;
 
@@ -30,11 +30,6 @@ public:
      * Calculates the delta time since the last call to update().
      */
     void update();
-
-    /**
-     * @brief Ensures the global TimeBlock UBO is up-to-date and bound.
-     */
-    void updateAndBind(Legacy::Functions &gl);
 
     void setAnimating(bool value) { m_animating = value; }
     NODISCARD bool getAnimating() const { return m_animating; }
@@ -55,7 +50,7 @@ private:
 
     float m_animationTime = 0.0f;
     float m_lastFrameDeltaTime = 0.0f;
-    UboManager *m_uboManager = nullptr;
+    Legacy::UboManager *m_uboManager = nullptr;
 
     GLRenderState::Uniforms::Weather::Frame m_frameData;
 };

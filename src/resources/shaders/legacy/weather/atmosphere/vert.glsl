@@ -1,14 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2026 The MMapper Authors
 
-layout(std140) uniform WeatherBlock
+layout(std140) uniform CameraBlock
 {
     mat4 uViewProj;
     vec4 uPlayerPos;        // xyz, w=zScale
-    vec4 uIntensities;      // precip_start, clouds_start, fog_start, type_start
-    vec4 uTargets;          // precip_target, clouds_target, fog_target, type_target
-    vec4 uTimeOfDayIndices; // x=startIdx, y=targetIdx, z=timeOfDayIntensityStart, w=timeOfDayIntensityTarget
-    vec4 uConfig;           // x=weatherStartTime, y=timeOfDayStartTime, z=duration, w=unused
 };
 
 out vec3 vWorldPos;

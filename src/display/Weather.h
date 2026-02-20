@@ -85,8 +85,10 @@ public:
     NODISCARD bool isAnimating() const;
     NODISCARD bool isTransitioning() const;
 
-    NODISCARD GLRenderState::Uniforms::Weather::Static getStaticUboData(
+    NODISCARD GLRenderState::Uniforms::Weather::Camera getCameraData(
         const glm::mat4 &viewProj, const Coordinate &playerPos) const;
+
+    void populateWeatherParams(GLRenderState::Uniforms::Weather::Params &params) const;
 
     // Getters for rendering
     NODISCARD float getCurrentRainIntensity() const { return m_currentRainIntensity; }
@@ -148,5 +150,6 @@ public:
 
 private:
     void initMeshes();
-    void invalidateStatic();
+    void invalidateCamera();
+    void invalidateWeather();
 };

@@ -29,7 +29,7 @@ class NODISCARD OpenGL final
 {
 private:
     std::shared_ptr<Legacy::Functions> m_opengl;
-    UboManager m_uboManager;
+    Legacy::UboManager m_uboManager;
     bool m_rendererInitialized = false;
 
 private:
@@ -177,7 +177,7 @@ public:
     void resetNamedColorsBuffer();
     void setTextureLookup(MMTextureId, SharedMMTexture);
 
-    NODISCARD UboManager &getUboManager() { return m_uboManager; }
+    NODISCARD Legacy::UboManager &getUboManager() { return m_uboManager; }
 
 public:
     void initArrayFromFiles(const SharedMMTexture &array, const std::vector<QString> &input);

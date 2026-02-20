@@ -233,25 +233,26 @@ struct NODISCARD GLRenderState final
         Textures textures;
         std::optional<float> pointSize;
 
-        // Weather (must match std140 layout in shaders)
+        // Weather
         struct NODISCARD Weather final
         {
-            // WeatherBlock (Binding 1)
-            struct NODISCARD Static final
+            // CameraBlock (Binding 1, must match std140 layout in shaders)
+            struct NODISCARD Camera final
             {
                 glm::mat4 viewProj{1.0f};  // 0-63
                 glm::vec4 playerPos{0.0f}; // 64-79 (xyz, w=zScale)
-                glm::vec4 intensities{
-                    0.0f}; // 80-95 (precip_start, clouds_start, fog_start, type_start)
-                glm::vec4 targets{
-                    0.0f}; // 96-111 (precip_target, clouds_target, fog_target, type_target)
-                glm::vec4 timeOfDayIndices{
-                    0.0f}; // 112-127 (x=startIdx, y=targetIdx, z=timeOfDayIntensityStart, w=timeOfDayIntensityTarget)
-                glm::vec4 config{
-                    0.0f}; // 128-143 (x=weatherStartTime, y=timeOfDayStartTime, z=duration, w=unused)
-            } data;
+            } camera;
 
-            // TimeBlock (Binding 2)
+            // WeatherBlock (Binding 3, must match std140 layout in shaders)
+            struct NODISCARD Params final
+            {
+                glm::vec4 intensities{0.0f};      // 0-15
+                glm::vec4 targets{0.0f};          // 16-31
+                glm::vec4 timeOfDayIndices{0.0f}; // 32-47
+                glm::vec4 config{0.0f};           // 48-63
+            } params;
+
+            // TimeBlock (Binding 2, must match std140 layout in shaders)
             struct NODISCARD Frame final
             {
                 glm::vec4 time{0.0f}; // 0-15 (x=time, y=delta, zw=unused)

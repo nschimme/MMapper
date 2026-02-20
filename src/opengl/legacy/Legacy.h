@@ -29,6 +29,7 @@ class StaticVbos;
 class SharedVbos;
 class SharedVaos;
 class SharedTfos;
+class UboManager;
 class VBO;
 class VAO;
 class Program;
@@ -36,15 +37,15 @@ struct AbstractShaderProgram;
 struct ShaderPrograms;
 struct PointSizeBinder;
 
-// X(EnumName, GL_String_Name, IsUniform)
+// X(EnumName, GL_String_Name)
 #define XFOREACH_SHARED_VBO(X) \
-    X(NamedColorsBlock, "NamedColorsBlock", true) \
-    X(WeatherBlock, "WeatherBlock", true) \
-    X(TimeBlock, "TimeBlock", true) \
-    X(InstancedQuadIbo, nullptr, false)
+    X(NamedColorsBlock, "NamedColorsBlock") \
+    X(CameraBlock, "CameraBlock") \
+    X(TimeBlock, "TimeBlock") \
+    X(WeatherBlock, "WeatherBlock")
 
 enum class SharedVboEnum : uint8_t {
-#define X_ENUM(element, name, isUniform) element,
+#define X_ENUM(element, name) element,
     XFOREACH_SHARED_VBO(X_ENUM)
 #undef X_ENUM
 };
@@ -69,7 +70,7 @@ enum class SharedTfEnum : uint8_t {
 static constexpr size_t NUM_SHARED_VAOS = 0 XFOREACH_SHARED_VAO(X_COUNT_VAO);
 #undef X_COUNT_VAO
 
-#define X_COUNT_VBO(element, name, isUniform) +1
+#define X_COUNT_VBO(element, name) +1
 static constexpr size_t NUM_SHARED_VBOS = 0 XFOREACH_SHARED_VBO(X_COUNT_VBO);
 #undef X_COUNT_VBO
 
@@ -153,6 +154,7 @@ private:
     std::unique_ptr<SharedTfos> m_sharedTfos;
     std::unique_ptr<TexLookup> m_texLookup;
     std::unique_ptr<FBO> m_fbo;
+    UboManager *m_uboManager = nullptr;
 
 protected:
     explicit Functions(Badge<Functions>);
@@ -343,6 +345,9 @@ public:
 
     NODISCARD FBO &getFBO();
 
+    void setUboManager(UboManager *manager) { m_uboManager = manager; }
+    NODISCARD UboManager &getUboManager() { return deref(m_uboManager); }
+
 private:
     friend PointSizeBinder;
     /// platform-specific (ES vs GL)
@@ -437,6 +442,16 @@ public:
         return setVbo_internal(GL_UNIFORM_BUFFER, ubo, batch, usage);
     }
 
+    template<typename T>
+    void setUboSingle(const GLuint ubo,
+                      const T &data,
+                      const BufferUsageEnum usage = BufferUsageEnum::DYNAMIC_DRAW)
+    {
+        Base::glBindBuffer(GL_UNIFORM_BUFFER, ubo);
+        Base::glBufferData(GL_UNIFORM_BUFFER, sizeof(T), &data, Legacy::toGLenum(usage));
+        Base::glBindBuffer(GL_UNIFORM_BUFFER, 0);
+    }
+
     void clearVbo(const GLuint vbo, const BufferUsageEnum usage = BufferUsageEnum::DYNAMIC_DRAW)
     {
         Base::glBindBuffer(GL_ARRAY_BUFFER, vbo);
@@ -497,3 +512,5 @@ public:
     void blitFboToDefault();
 };
 } // namespace Legacy
+
+DEFINE_ENUM_COUNT(Legacy::SharedVboEnum, Legacy::NUM_SHARED_VBOS)

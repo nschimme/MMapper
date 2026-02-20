@@ -438,9 +438,9 @@ public:
     }
 
     template<typename T>
-    void setUboSingle(const GLuint ubo,
-                      const T &data,
-                      const BufferUsageEnum usage = BufferUsageEnum::DYNAMIC_DRAW)
+    void setUbo(const GLuint ubo,
+                const T &data,
+                const BufferUsageEnum usage = BufferUsageEnum::DYNAMIC_DRAW)
     {
         Base::glBindBuffer(GL_UNIFORM_BUFFER, ubo);
         Base::glBufferData(GL_UNIFORM_BUFFER, sizeof(T), &data, Legacy::toGLenum(usage));

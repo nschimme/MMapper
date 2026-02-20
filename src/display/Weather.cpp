@@ -273,33 +273,6 @@ void WeatherSystem::update()
 
     const float animTime = m_animationManager.getAnimationTime();
 
-    bool weatherTransitioning = (animTime - m_weatherTransitionStartTime < TRANSITION_DURATION);
-    bool timeOfDayTransitioning = (animTime - m_timeOfDayTransitionStartTime < TRANSITION_DURATION);
-
-    if (!weatherTransitioning
-        && (std::abs(m_rainIntensityStart - m_targetRainIntensity) > 1e-5f
-            || std::abs(m_snowIntensityStart - m_targetSnowIntensity) > 1e-5f
-            || std::abs(m_cloudsIntensityStart - m_targetCloudsIntensity) > 1e-5f
-            || std::abs(m_fogIntensityStart - m_targetFogIntensity) > 1e-5f
-            || std::abs(m_precipitationTypeStart - m_targetPrecipitationType) > 1e-5f)) {
-        m_rainIntensityStart = m_targetRainIntensity;
-        m_snowIntensityStart = m_targetSnowIntensity;
-        m_cloudsIntensityStart = m_targetCloudsIntensity;
-        m_fogIntensityStart = m_targetFogIntensity;
-        m_precipitationTypeStart = m_targetPrecipitationType;
-        sig_stateInvalidated.invoke();
-    }
-
-    if (!timeOfDayTransitioning
-        && (m_oldTimeOfDay != m_currentTimeOfDay
-            || std::abs(m_timeOfDayIntensityStart - m_targetTimeOfDayIntensity) > 1e-5f
-            || std::abs(m_moonIntensityStart - m_targetMoonIntensity) > 1e-5f)) {
-        m_oldTimeOfDay = m_currentTimeOfDay;
-        m_timeOfDayIntensityStart = m_targetTimeOfDayIntensity;
-        m_moonIntensityStart = m_targetMoonIntensity;
-        sig_stateInvalidated.invoke();
-    }
-
     float wt = std::clamp((animTime - m_weatherTransitionStartTime) / TRANSITION_DURATION,
                           0.0f,
                           1.0f);

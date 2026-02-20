@@ -331,26 +331,29 @@ bool WeatherSystem::isTransitioning() const
     return weatherTransitioning || timeOfDayTransitioning;
 }
 
-GLRenderState::Uniforms::Weather::Static WeatherSystem::getStaticUboData(
+GLRenderState::Uniforms::Weather::Camera WeatherSystem::getCameraData(
     const glm::mat4 &viewProj, const Coordinate &playerPosCoord) const
 {
-    GLRenderState::Uniforms::Weather::Static ubo;
-    ubo.viewProj = viewProj;
+    GLRenderState::Uniforms::Weather::Camera camera;
+    camera.viewProj = viewProj;
+    camera.playerPos = glm::vec4(static_cast<float>(playerPosCoord.x),
+                                 static_cast<float>(playerPosCoord.y),
+                                 static_cast<float>(playerPosCoord.z),
+                                 ROOM_Z_SCALE);
+    return camera;
+}
 
-    ubo.playerPos = glm::vec4(static_cast<float>(playerPosCoord.x),
-                              static_cast<float>(playerPosCoord.y),
-                              static_cast<float>(playerPosCoord.z),
-                              ROOM_Z_SCALE);
+void WeatherSystem::populateWeatherParams(GLRenderState::Uniforms::Weather &weather) const
+{
+    weather.intensities = glm::vec4(std::max(m_rainIntensityStart, m_snowIntensityStart),
+                                    m_cloudsIntensityStart,
+                                    m_fogIntensityStart,
+                                    m_precipitationTypeStart);
 
-    ubo.intensities = glm::vec4(std::max(m_rainIntensityStart, m_snowIntensityStart),
-                                m_cloudsIntensityStart,
-                                m_fogIntensityStart,
-                                m_precipitationTypeStart);
-
-    ubo.targets = glm::vec4(std::max(m_targetRainIntensity, m_targetSnowIntensity),
-                            m_targetCloudsIntensity,
-                            m_targetFogIntensity,
-                            m_targetPrecipitationType);
+    weather.targets = glm::vec4(std::max(m_targetRainIntensity, m_targetSnowIntensity),
+                                m_targetCloudsIntensity,
+                                m_targetFogIntensity,
+                                m_targetPrecipitationType);
 
     auto toNamedColorIdx = [](MumeTimeEnum timeOfDay) -> float {
         switch (timeOfDay) {
@@ -368,16 +371,14 @@ GLRenderState::Uniforms::Weather::Static WeatherSystem::getStaticUboData(
         return static_cast<float>(NamedColorEnum::TRANSPARENT);
     };
 
-    ubo.timeOfDayIndices.x = toNamedColorIdx(m_oldTimeOfDay);
-    ubo.timeOfDayIndices.y = toNamedColorIdx(m_currentTimeOfDay);
-    ubo.timeOfDayIndices.z = m_timeOfDayIntensityStart;
-    ubo.timeOfDayIndices.w = m_targetTimeOfDayIntensity;
+    weather.timeOfDayIndices.x = toNamedColorIdx(m_oldTimeOfDay);
+    weather.timeOfDayIndices.y = toNamedColorIdx(m_currentTimeOfDay);
+    weather.timeOfDayIndices.z = m_timeOfDayIntensityStart;
+    weather.timeOfDayIndices.w = m_targetTimeOfDayIntensity;
 
-    ubo.config.x = m_weatherTransitionStartTime;
-    ubo.config.y = m_timeOfDayTransitionStartTime;
-    ubo.config.z = TRANSITION_DURATION;
-
-    return ubo;
+    weather.config.x = m_weatherTransitionStartTime;
+    weather.config.y = m_timeOfDayTransitionStartTime;
+    weather.config.z = TRANSITION_DURATION;
 }
 
 WeatherRenderer::WeatherRenderer(OpenGL &gl,
@@ -400,12 +401,10 @@ WeatherRenderer::WeatherRenderer(OpenGL &gl,
     });
 
     m_gl.getUboManager().registerRebuildFunction(
-        Legacy::SharedVboEnum::WeatherBlock, [this](Legacy::Functions &glFuncs) {
+        Legacy::SharedVboEnum::CameraBlock, [this](Legacy::Functions &glFuncs) {
             const auto playerPosCoord = m_data.tryGetPosition().value_or(Coordinate{0, 0, 0});
-            auto weatherUboData = m_system->getStaticUboData(m_lastViewProj, playerPosCoord);
-            m_gl.getUboManager().update(glFuncs,
-                                        Legacy::SharedVboEnum::WeatherBlock,
-                                        weatherUboData);
+            auto cameraData = m_system->getCameraData(m_lastViewProj, playerPosCoord);
+            m_gl.getUboManager().update(glFuncs, Legacy::SharedVboEnum::CameraBlock, cameraData);
         });
 }
 
@@ -413,7 +412,7 @@ WeatherRenderer::~WeatherRenderer() = default;
 
 void WeatherRenderer::invalidateStatic()
 {
-    m_gl.getUboManager().invalidate(Legacy::SharedVboEnum::WeatherBlock);
+    m_gl.getUboManager().invalidate(Legacy::SharedVboEnum::CameraBlock);
 }
 
 void WeatherRenderer::initMeshes()
@@ -444,23 +443,27 @@ void WeatherRenderer::prepare(const glm::mat4 &viewProj, const Coordinate &playe
 {
     initMeshes();
 
-    if (viewProj != m_lastViewProj || playerPos != m_lastPlayerPos || m_system->isTransitioning()) {
+    if (viewProj != m_lastViewProj || playerPos != m_lastPlayerPos) {
         m_lastViewProj = viewProj;
         m_lastPlayerPos = playerPos;
         invalidateStatic();
     }
 
     auto &funcs = deref(m_gl.getSharedFunctions(Badge<WeatherRenderer>{}));
-    m_gl.getUboManager().bind(funcs, Legacy::SharedVboEnum::WeatherBlock);
+    m_gl.getUboManager().bind(funcs, Legacy::SharedVboEnum::CameraBlock);
 }
 
 void WeatherRenderer::render(const GLRenderState &rs)
 {
+    // Populate weather uniforms
+    GLRenderState weatherRs = rs;
+    m_system->populateWeatherParams(weatherRs.uniforms.weather);
+
     // 1. Render Particles (Simulation + Rendering)
     const float rainMax = m_system->getCurrentRainIntensity();
     const float snowMax = m_system->getCurrentSnowIntensity();
     if (rainMax > 0.0f || snowMax > 0.0f) {
-        const auto particleRs = rs.withBlend(BlendModeEnum::MAX_ALPHA);
+        const auto particleRs = weatherRs.withBlend(BlendModeEnum::MAX_ALPHA);
         if (m_simulation) {
             m_simulation->render(particleRs);
         }
@@ -470,7 +473,7 @@ void WeatherRenderer::render(const GLRenderState &rs)
     }
 
     // 2. Render Atmosphere (TimeOfDay + Atmosphere)
-    const auto atmosphereRs = rs.withBlend(BlendModeEnum::TRANSPARENCY)
+    const auto atmosphereRs = weatherRs.withBlend(BlendModeEnum::TRANSPARENCY)
                                   .withDepthFunction(std::nullopt);
 
     // TimeOfDay

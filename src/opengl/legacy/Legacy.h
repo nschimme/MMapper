@@ -40,7 +40,7 @@ struct PointSizeBinder;
 // X(EnumName, GL_String_Name)
 #define XFOREACH_SHARED_VBO(X) \
     X(NamedColorsBlock, "NamedColorsBlock") \
-    X(WeatherBlock, "WeatherBlock") \
+    X(CameraBlock, "CameraBlock") \
     X(TimeBlock, "TimeBlock")
 
 enum class SharedVboEnum : uint8_t {

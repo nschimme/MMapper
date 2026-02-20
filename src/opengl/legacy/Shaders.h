@@ -164,10 +164,13 @@ public:
     ~AtmosphereShader() final;
 
 private:
-    void virt_setUniforms(const glm::mat4 & /*mvp*/,
-                          const GLRenderState::Uniforms & /*uniforms*/) final
+    void virt_setUniforms(const glm::mat4 & /*mvp*/, const GLRenderState::Uniforms &uniforms) final
     {
         setTexture("uTexture", 0);
+        setVec4("uIntensities", uniforms.weather.intensities);
+        setVec4("uTargets", uniforms.weather.targets);
+        setVec4("uTimeOfDayIndices", uniforms.weather.timeOfDayIndices);
+        setVec4("uConfig", uniforms.weather.config);
     }
 };
 
@@ -179,9 +182,11 @@ public:
     ~TimeOfDayShader() final;
 
 private:
-    void virt_setUniforms(const glm::mat4 & /*mvp*/,
-                          const GLRenderState::Uniforms & /*uniforms*/) final
-    {}
+    void virt_setUniforms(const glm::mat4 & /*mvp*/, const GLRenderState::Uniforms &uniforms) final
+    {
+        setVec4("uTimeOfDayIndices", uniforms.weather.timeOfDayIndices);
+        setVec4("uConfig", uniforms.weather.config);
+    }
 };
 
 struct NODISCARD ParticleSimulationShader final : public AbstractShaderProgram
@@ -192,9 +197,12 @@ public:
     ~ParticleSimulationShader() final;
 
 private:
-    void virt_setUniforms(const glm::mat4 & /*mvp*/,
-                          const GLRenderState::Uniforms & /*uniforms*/) final
-    {}
+    void virt_setUniforms(const glm::mat4 & /*mvp*/, const GLRenderState::Uniforms &uniforms) final
+    {
+        setVec4("uIntensities", uniforms.weather.intensities);
+        setVec4("uTargets", uniforms.weather.targets);
+        setVec4("uConfig", uniforms.weather.config);
+    }
 };
 
 struct NODISCARD ParticleRenderShader final : public AbstractShaderProgram
@@ -205,9 +213,12 @@ public:
     ~ParticleRenderShader() final;
 
 private:
-    void virt_setUniforms(const glm::mat4 & /*mvp*/,
-                          const GLRenderState::Uniforms & /*uniforms*/) final
-    {}
+    void virt_setUniforms(const glm::mat4 & /*mvp*/, const GLRenderState::Uniforms &uniforms) final
+    {
+        setVec4("uIntensities", uniforms.weather.intensities);
+        setVec4("uTargets", uniforms.weather.targets);
+        setVec4("uConfig", uniforms.weather.config);
+    }
 };
 
 /* owned by Functions */

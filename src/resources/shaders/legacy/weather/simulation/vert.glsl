@@ -4,20 +4,20 @@
 layout(location = 0) in vec2 aPos;
 layout(location = 1) in float aLife;
 
-layout(std140) uniform WeatherBlock
+layout(std140) uniform CameraBlock
 {
     mat4 uViewProj;
     vec4 uPlayerPos;   // xyz, w=zScale
-    vec4 uIntensities; // precip_start, clouds_start, fog_start, type_start
-    vec4 uTargets;     // precip_target, clouds_target, fog_target, type_target
-    vec4 uTimeOfDayIndices; // x=startIdx, y=targetIdx, z=timeOfDayIntensityStart, w=timeOfDayIntensityTarget
-    vec4 uConfig;           // x=weatherStartTime, y=timeOfDayStartTime, z=duration, w=unused
 };
 
 layout(std140) uniform TimeBlock
 {
     vec4 uTime; // x=time, y=delta, zw=unused
 };
+
+uniform vec4 uIntensities;      // precip_start, clouds_start, fog_start, type_start
+uniform vec4 uTargets;          // precip_target, clouds_target, fog_target, type_target
+uniform vec4 uConfig;           // x=weatherStartTime, y=timeOfDayStartTime, z=duration, w=unused
 
 out vec2 vPos;
 out float vLife;

@@ -55,7 +55,6 @@ private:
 
     float m_animationTime = 0.0f;
     float m_lastFrameDeltaTime = 0.0f;
-    float m_simulationAccumulator = 0.0f;
     UboManager *m_uboManager = nullptr;
 
     GLRenderState::Uniforms::Weather::Frame m_frameData;

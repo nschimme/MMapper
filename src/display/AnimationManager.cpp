@@ -47,20 +47,10 @@ void AnimationManager::update()
 
     // Advance global time smoothly
     m_animationTime += dt;
-    m_simulationAccumulator += dt;
 
-    // Cap the delta to avoid huge jumps after long pauses.
-    // Also ensures we don't try to simulate more than 0.1s at once.
-    const float simStep = std::min(m_simulationAccumulator, 0.1f);
-
-    // Throttle simulation to 60 FPS (approx 16.6ms)
-    // If we're redrawing slower than 60 FPS (e.g. at the background 20 FPS), we simulate every frame.
-    if (simStep >= 0.0166f) {
-        m_lastFrameDeltaTime = simStep;
-        m_simulationAccumulator -= simStep;
-    } else {
-        m_lastFrameDeltaTime = 0.0f;
-    }
+    // Use raw dt for simulation to match map movement during dragging and avoid quantization jitter.
+    // Cap at 0.1s to avoid huge jumps after window focus loss or lag.
+    m_lastFrameDeltaTime = std::min(dt, 0.1f);
 
     // Refresh internal struct for UBO
     m_frameData.time = glm::vec4(m_animationTime, m_lastFrameDeltaTime, 0.0f, 0.0f);
@@ -75,5 +65,6 @@ void AnimationManager::updateAndBind(Legacy::Functions &gl)
     if (m_uboManager) {
         // Time always changes, so we always update
         m_uboManager->update(gl, Legacy::SharedVboEnum::TimeBlock, m_frameData);
+        m_uboManager->bind(gl, Legacy::SharedVboEnum::TimeBlock);
     }
 }

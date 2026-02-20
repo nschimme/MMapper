@@ -321,10 +321,9 @@ bool WeatherSystem::isAnimating() const
     bool timeOfDayTransitioning = (animTime - m_timeOfDayTransitionStartTime < TRANSITION_DURATION);
     bool transitioning = weatherTransitioning || timeOfDayTransitioning;
 
-    bool hasActiveWeather = m_currentRainIntensity > 0.0f || m_currentSnowIntensity > 0.0f
-                            || m_currentCloudsIntensity > 0.0f || m_currentFogIntensity > 0.0f;
+    bool hasActivePrecipitation = m_currentRainIntensity > 0.0f || m_currentSnowIntensity > 0.0f;
 
-    return transitioning || hasActiveWeather;
+    return transitioning || hasActivePrecipitation;
 }
 
 GLRenderState::Uniforms::Weather::Static WeatherSystem::getStaticUboData(

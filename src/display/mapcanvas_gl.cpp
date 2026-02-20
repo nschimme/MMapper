@@ -503,15 +503,18 @@ void MapCanvas::setAnimating(bool value)
     m_animationManager.setAnimating(value);
 
     if (m_animationManager.getAnimating()) {
+        m_lastLoopTime = {}; // Ensure immediate first iteration
         QTimer::singleShot(0, this, &MapCanvas::renderLoop);
     }
 }
 
 void MapCanvas::renderLoop()
 {
-    const bool shouldAnimate = m_animationManager.getAnimating()
-                               || m_animationManager.isAnimating();
-    if (!shouldAnimate) {
+    if (!m_animationManager.getAnimating()) {
+        return;
+    }
+
+    if (!m_animationManager.isAnimating()) {
         m_animationManager.setAnimating(false);
         return;
     }
@@ -521,18 +524,21 @@ void MapCanvas::renderLoop()
     const int targetFps = getConfig().canvas.advanced.maximumFps.get();
     const auto targetFrameTime = std::chrono::nanoseconds(1000000000LL / std::max(1, targetFps));
 
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed = now - m_lastLoopTime;
+
+    if (m_lastLoopTime.time_since_epoch().count() != 0 && elapsed < targetFrameTime) {
+        auto delay = targetFrameTime - elapsed;
+        QTimer::singleShot(std::chrono::duration_cast<std::chrono::milliseconds>(delay).count(),
+                           this,
+                           &MapCanvas::renderLoop);
+        return;
+    }
+
+    m_lastLoopTime = now;
     update();
 
-    // Render the next frame at the appropriate time relative to the last successful paint.
-    // If the paint was throttled, m_lastPaintTime will be old, resulting in a short delay.
-    // However, paintGL's m_throttleTimer also handles rescheduling, ensuring we don't
-    // busy-wait.
-    auto now = std::chrono::steady_clock::now();
-    auto timeSinceLastPaint = std::chrono::duration_cast<std::chrono::nanoseconds>(
-        now - m_lastPaintTime);
-    auto delay = std::max(targetFrameTime - timeSinceLastPaint, std::chrono::nanoseconds::zero());
-
-    QTimer::singleShot(std::chrono::duration_cast<std::chrono::milliseconds>(delay).count(),
+    QTimer::singleShot(std::chrono::duration_cast<std::chrono::milliseconds>(targetFrameTime).count(),
                        this,
                        &MapCanvas::renderLoop);
 }

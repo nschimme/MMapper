@@ -169,6 +169,7 @@ private:
     std::unique_ptr<WeatherRenderer> m_weatherRenderer;
 
     std::chrono::steady_clock::time_point m_lastPaintTime;
+    std::chrono::steady_clock::time_point m_lastLoopTime;
     QTimer m_throttleTimer;
 
     GameObserver &m_observer;

@@ -52,8 +52,10 @@ MMTexture::MMTexture(Badge<MMTexture>, const QString &name)
     tex.setMinMagFilters(QOpenGLTexture::Filter::LinearMipMapLinear, QOpenGLTexture::Filter::Linear);
 }
 
-MMTexture::MMTexture(Badge<MMTexture>, std::vector<QImage> images)
+MMTexture::MMTexture(Badge<MMTexture>, std::vector<QImage> images, bool forbidUpdates)
     : m_qt_texture{QOpenGLTexture::Target2D}
+    , m_id{INVALID_MM_TEXTURE_ID}
+    , m_forbidUpdates{forbidUpdates}
     , m_sourceData{std::make_unique<SourceData>(std::move(images))}
 {
     if (m_sourceData->m_images.empty()) {
@@ -315,26 +317,11 @@ void MapCanvas::initTextures()
 
     {
         // 256x256 noise texture. Mipmaps are not needed for fuzzy atmosphere effects.
-        // We use the same pattern as the Font texture to explicitly disable mipmaps
-        // and prevent updates from global settings.
         QImage noiseImage = WeatherRenderer::generateNoiseTexture(256);
-        textures.noise = MMTexture::alloc(
-            QOpenGLTexture::Target2D,
-            [noiseImage](QOpenGLTexture &tex) -> void {
-                const QImage converted = noiseImage.convertToFormat(QImage::Format_RGBA8888);
-                tex.setFormat(QOpenGLTexture::TextureFormat::RGBA8_UNorm);
-                tex.setMinMagFilters(QOpenGLTexture::Filter::Linear, QOpenGLTexture::Filter::Linear);
-                tex.setAutoMipMapGenerationEnabled(false);
-                tex.setMipLevels(1);
-                tex.setSize(converted.width(), converted.height());
-                tex.allocateStorage();
-                tex.setData(0,
-                            QOpenGLTexture::PixelFormat::RGBA,
-                            QOpenGLTexture::PixelType::UInt8,
-                            converted.constBits());
-                tex.setWrapMode(QOpenGLTexture::WrapMode::Repeat);
-            },
-            true);
+        textures.noise = MMTexture::alloc(std::vector<QImage>{noiseImage}, true);
+        textures.noise->get()->setMinMagFilters(QOpenGLTexture::Filter::Linear,
+                                                QOpenGLTexture::Filter::Linear);
+        textures.noise->get()->setWrapMode(QOpenGLTexture::WrapMode::Repeat);
     }
 
     // char images are 256

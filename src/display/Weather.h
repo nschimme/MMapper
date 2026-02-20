@@ -105,7 +105,7 @@ private:
 };
 
 /**
- * @brief Facade that coordinates WeatherSystem, WeatherMeshes, and UboManager.
+ * @brief Facade that coordinates WeatherSystem, WeatherMeshes, and SharedBufferManager.
  */
 class NODISCARD WeatherRenderer final
 {

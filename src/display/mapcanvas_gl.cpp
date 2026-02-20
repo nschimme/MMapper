@@ -240,13 +240,13 @@ void MapCanvas::initializeGL()
     initLogger();
 
     gl.initializeRenderer(static_cast<float>(QPaintDevice::devicePixelRatioF()));
-    m_animationManager.init(gl.getUboManager());
+    m_animationManager.init(gl.getSharedBufferManager());
 
-    gl.getUboManager().registerRebuildFunction(
+    gl.getSharedBufferManager().registerRebuildFunction(
         Legacy::SharedVboEnum::NamedColorsBlock, [&gl](Legacy::Functions &funcs) {
-            gl.getUboManager().update(funcs,
-                                      Legacy::SharedVboEnum::NamedColorsBlock,
-                                      XNamedColor::getAllColorsAsVec4());
+            gl.getSharedBufferManager().update(funcs,
+                                               Legacy::SharedVboEnum::NamedColorsBlock,
+                                               XNamedColor::getAllColorsAsVec4());
         });
 
     updateMultisampling();
@@ -669,7 +669,7 @@ void MapCanvas::actuallyPaintGL()
     auto &gl = getOpenGL();
     auto &funcs = deref(gl.getSharedFunctions(Badge<MapCanvas>{}));
 
-    gl.getUboManager().bind(funcs, Legacy::SharedVboEnum::NamedColorsBlock);
+    gl.getSharedBufferManager().bind(funcs, Legacy::SharedVboEnum::NamedColorsBlock);
 
     gl.bindFbo();
     gl.clear(Color{getConfig().canvas.backgroundColor});
@@ -687,7 +687,7 @@ void MapCanvas::actuallyPaintGL()
 
     const auto playerPos = m_data.tryGetPosition().value_or(Coordinate{0, 0, 0});
     m_weatherRenderer->prepare(m_viewProj, playerPos);
-    gl.getUboManager().bind(funcs, Legacy::SharedVboEnum::TimeBlock);
+    gl.getSharedBufferManager().bind(funcs, Legacy::SharedVboEnum::TimeBlock);
 
     m_weatherRenderer->render(m_opengl.getDefaultRenderState());
 

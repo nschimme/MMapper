@@ -6,15 +6,13 @@
 #include "../opengl/legacy/Legacy.h"
 #include "../opengl/legacy/VBO.h"
 
-void AnimationManager::init(UboManager &uboManager)
+void AnimationManager::init(Legacy::SharedBufferManager &bufferManager)
 {
-    m_uboManager = &uboManager;
-    m_uboManager->registerRebuildFunction(Legacy::SharedVboEnum::TimeBlock,
-                                          [this](Legacy::Functions &gl) {
-                                              m_uboManager->update(gl,
-                                                                   Legacy::SharedVboEnum::TimeBlock,
-                                                                   m_frameData);
-                                          });
+    m_bufferManager = &bufferManager;
+    m_bufferManager
+        ->registerRebuildFunction(Legacy::SharedVboEnum::TimeBlock, [this](Legacy::Functions &gl) {
+            m_bufferManager->update(gl, Legacy::SharedVboEnum::TimeBlock, m_frameData);
+        });
 }
 
 void AnimationManager::registerCallback(const Signal2Lifetime &lifetime, AnimationCallback callback)
@@ -61,7 +59,7 @@ void AnimationManager::update()
     // Refresh internal struct for UBO
     m_frameData.time = glm::vec4(m_animationTime, m_lastFrameDeltaTime, 0.0f, 0.0f);
 
-    if (m_uboManager) {
-        m_uboManager->invalidate(Legacy::SharedVboEnum::TimeBlock);
+    if (m_bufferManager) {
+        m_bufferManager->invalidate(Legacy::SharedVboEnum::TimeBlock);
     }
 }

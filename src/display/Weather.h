@@ -83,6 +83,7 @@ public:
 public:
     void update();
     NODISCARD bool isAnimating() const;
+    NODISCARD bool isTransitioning() const;
 
     NODISCARD GLRenderState::Uniforms::Weather::Static getStaticUboData(
         const glm::mat4 &viewProj, const Coordinate &playerPos) const;
@@ -115,10 +116,8 @@ private:
     std::unique_ptr<WeatherSystem> m_system;
     AnimationManager &m_animationManager;
 
-    QMetaObject::Connection m_posConn;
-    QMetaObject::Connection m_forcedPosConn;
-
     glm::mat4 m_lastViewProj{0.0f};
+    Coordinate m_lastPlayerPos;
 
     // Meshes
     std::unique_ptr<Legacy::ParticleSimulationMesh> m_simulation;
@@ -140,7 +139,7 @@ public:
     DELETE_CTORS_AND_ASSIGN_OPS(WeatherRenderer);
 
 public:
-    void prepare(const glm::mat4 &viewProj);
+    void prepare(const glm::mat4 &viewProj, const Coordinate &playerPos);
     void update(float frameDeltaTime);
     void render(const GLRenderState &rs);
 

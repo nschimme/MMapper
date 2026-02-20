@@ -316,14 +316,18 @@ void WeatherSystem::update()
 
 bool WeatherSystem::isAnimating() const
 {
+    const bool activePrecipitation = m_currentRainIntensity > 0.0f || m_currentSnowIntensity > 0.0f;
+    return isTransitioning() || activePrecipitation;
+}
+
+bool WeatherSystem::isTransitioning() const
+{
     const float animTime = m_animationManager.getAnimationTime();
-    bool weatherTransitioning = (animTime - m_weatherTransitionStartTime < TRANSITION_DURATION);
-    bool timeOfDayTransitioning = (animTime - m_timeOfDayTransitionStartTime < TRANSITION_DURATION);
-    bool transitioning = weatherTransitioning || timeOfDayTransitioning;
-
-    bool hasActivePrecipitation = m_currentRainIntensity > 0.0f || m_currentSnowIntensity > 0.0f;
-
-    return transitioning || hasActivePrecipitation;
+    const bool weatherTransitioning = (animTime - m_weatherTransitionStartTime
+                                       < TRANSITION_DURATION);
+    const bool timeOfDayTransitioning = (animTime - m_timeOfDayTransitionStartTime
+                                         < TRANSITION_DURATION);
+    return weatherTransitioning || timeOfDayTransitioning;
 }
 
 GLRenderState::Uniforms::Weather::Static WeatherSystem::getStaticUboData(
@@ -394,15 +398,6 @@ WeatherRenderer::WeatherRenderer(OpenGL &gl,
         sig_requestUpdate.invoke();
     });
 
-    m_posConn = QObject::connect(&m_data, &MapData::sig_onPositionChange, [this]() {
-        invalidateStatic();
-        sig_requestUpdate.invoke();
-    });
-    m_forcedPosConn = QObject::connect(&m_data, &MapData::sig_onForcedPositionChange, [this]() {
-        invalidateStatic();
-        sig_requestUpdate.invoke();
-    });
-
     m_gl.getUboManager().registerRebuildFunction(
         Legacy::SharedVboEnum::WeatherBlock, [this](Legacy::Functions &glFuncs) {
             const auto playerPosCoord = m_data.tryGetPosition().value_or(Coordinate{0, 0, 0});
@@ -413,11 +408,7 @@ WeatherRenderer::WeatherRenderer(OpenGL &gl,
         });
 }
 
-WeatherRenderer::~WeatherRenderer()
-{
-    QObject::disconnect(m_posConn);
-    QObject::disconnect(m_forcedPosConn);
-}
+WeatherRenderer::~WeatherRenderer() = default;
 
 void WeatherRenderer::invalidateStatic()
 {
@@ -448,12 +439,13 @@ void WeatherRenderer::update(float /*frameDeltaTime*/)
     m_system->update();
 }
 
-void WeatherRenderer::prepare(const glm::mat4 &viewProj)
+void WeatherRenderer::prepare(const glm::mat4 &viewProj, const Coordinate &playerPos)
 {
     initMeshes();
 
-    if (viewProj != m_lastViewProj) {
+    if (viewProj != m_lastViewProj || playerPos != m_lastPlayerPos || m_system->isTransitioning()) {
         m_lastViewProj = viewProj;
+        m_lastPlayerPos = playerPos;
         invalidateStatic();
     }
 

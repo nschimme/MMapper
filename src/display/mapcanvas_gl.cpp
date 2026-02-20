@@ -683,7 +683,8 @@ void MapCanvas::actuallyPaintGL()
     paintCharacters();
     paintDifferences();
 
-    m_weatherRenderer->prepare(m_viewProj);
+    const auto playerPos = m_data.tryGetPosition().value_or(Coordinate{0, 0, 0});
+    m_weatherRenderer->prepare(m_viewProj, playerPos);
     m_animationManager.updateAndBind(funcs);
 
     m_weatherRenderer->render(m_opengl.getDefaultRenderState());

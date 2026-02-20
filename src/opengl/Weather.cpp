@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2025 The MMapper Authors
+// Copyright (C) 2026 The MMapper Authors
 
 #include "Weather.h"
 
 #include "../configuration/configuration.h"
+#include "../display/AnimationManager.h"
+#include "../display/Textures.h"
 #include "../global/Badge.h"
 #include "../map/coordinate.h"
 #include "../mapdata/mapdata.h"
-#include "../opengl/OpenGL.h"
-#include "../opengl/OpenGLTypes.h"
-#include "../opengl/legacy/Legacy.h"
-#include "../opengl/legacy/VBO.h"
-#include "Textures.h"
+#include "OpenGL.h"
+#include "OpenGLTypes.h"
+#include "legacy/Legacy.h"
+#include "legacy/VBO.h"
 
 #include <algorithm>
 #include <cmath>
@@ -78,9 +79,16 @@ inline float noise(float x, float y, int size)
 
 } // namespace
 
-WeatherSystem::WeatherSystem(GameObserver &observer, AnimationManager &animationManager)
-    : m_observer(observer)
+GLWeather::GLWeather(OpenGL &gl,
+                     MapData &mapData,
+                     const MapCanvasTextures &textures,
+                     GameObserver &observer,
+                     AnimationManager &animationManager)
+    : m_gl(gl)
+    , m_data(mapData)
+    , m_textures(textures)
     , m_animationManager(animationManager)
+    , m_observer(observer)
 {
     updateFromGame();
 
@@ -120,7 +128,8 @@ WeatherSystem::WeatherSystem(GameObserver &observer, AnimationManager &animation
             updateFromGame();
             updateTargets();
             m_weatherTransitionStartTime = m_animationManager.getAnimationTime();
-            sig_stateInvalidated.invoke();
+            invalidateWeather();
+            sig_requestUpdate.invoke();
         });
 
     m_observer.sig2_fogChanged.connect(m_lifetime, [this, lerpCurrentIntensities](PromptFogEnum) {
@@ -128,7 +137,8 @@ WeatherSystem::WeatherSystem(GameObserver &observer, AnimationManager &animation
         updateFromGame();
         updateTargets();
         m_weatherTransitionStartTime = m_animationManager.getAnimationTime();
-        sig_stateInvalidated.invoke();
+        invalidateWeather();
+        sig_requestUpdate.invoke();
     });
 
     m_observer.sig2_timeOfDayChanged.connect(m_lifetime, [this](MumeTimeEnum timeOfDay) {
@@ -149,7 +159,8 @@ WeatherSystem::WeatherSystem(GameObserver &observer, AnimationManager &animation
         m_gameTimeOfDayIntensity = (timeOfDay == MumeTimeEnum::DAY) ? 0.0f : 1.0f;
         updateTargets();
         m_timeOfDayTransitionStartTime = m_animationManager.getAnimationTime();
-        sig_stateInvalidated.invoke();
+        invalidateWeather();
+        sig_requestUpdate.invoke();
     });
 
     m_observer.sig2_moonVisibilityChanged
@@ -168,14 +179,16 @@ WeatherSystem::WeatherSystem(GameObserver &observer, AnimationManager &animation
             m_moonVisibility = visibility;
             m_targetMoonIntensity = (visibility == MumeMoonVisibilityEnum::BRIGHT) ? 1.0f : 0.0f;
             m_timeOfDayTransitionStartTime = m_animationManager.getAnimationTime();
-            sig_stateInvalidated.invoke();
+            invalidateWeather();
+            sig_requestUpdate.invoke();
         });
 
     auto onSettingChanged = [this, lerpCurrentIntensities]() {
         lerpCurrentIntensities();
         updateTargets();
         m_weatherTransitionStartTime = m_animationManager.getAnimationTime();
-        sig_stateInvalidated.invoke();
+        invalidateWeather();
+        sig_requestUpdate.invoke();
     };
 
     auto onTimeOfDaySettingChanged = [this]() {
@@ -188,7 +201,8 @@ WeatherSystem::WeatherSystem(GameObserver &observer, AnimationManager &animation
 
         updateTargets();
         m_timeOfDayTransitionStartTime = m_animationManager.getAnimationTime();
-        sig_stateInvalidated.invoke();
+        invalidateWeather();
+        sig_requestUpdate.invoke();
     };
 
     setConfig().canvas.weatherPrecipitationIntensity.registerChangeCallback(m_lifetime,
@@ -197,11 +211,27 @@ WeatherSystem::WeatherSystem(GameObserver &observer, AnimationManager &animation
                                                                          onSettingChanged);
     setConfig().canvas.weatherTimeOfDayIntensity.registerChangeCallback(m_lifetime,
                                                                         onTimeOfDaySettingChanged);
+
+    m_animationManager.registerCallback(m_signalLifetime, [this]() { return isAnimating(); });
+
+    m_gl.getUboManager().registerRebuildFunction(
+        Legacy::SharedVboEnum::CameraBlock, [this](Legacy::Functions &glFuncs) {
+            const auto playerPosCoord = m_data.tryGetPosition().value_or(Coordinate{0, 0, 0});
+            auto cameraData = getCameraData(m_lastViewProj, playerPosCoord);
+            m_gl.getUboManager().update(glFuncs, Legacy::SharedVboEnum::CameraBlock, cameraData);
+        });
+
+    m_gl.getUboManager().registerRebuildFunction(
+        Legacy::SharedVboEnum::WeatherBlock, [this](Legacy::Functions &glFuncs) {
+            GLRenderState::Uniforms::Weather::Params params;
+            populateWeatherParams(params);
+            m_gl.getUboManager().update(glFuncs, Legacy::SharedVboEnum::WeatherBlock, params);
+        });
 }
 
-WeatherSystem::~WeatherSystem() = default;
+GLWeather::~GLWeather() = default;
 
-void WeatherSystem::updateFromGame()
+void GLWeather::updateFromGame()
 {
     auto w = m_observer.getWeather();
     auto f = m_observer.getFog();
@@ -246,7 +276,7 @@ void WeatherSystem::updateFromGame()
     }
 }
 
-void WeatherSystem::updateTargets()
+void GLWeather::updateTargets()
 {
     const auto &canvasSettings = getConfig().canvas;
     m_targetRainIntensity = m_gameRainIntensity
@@ -267,7 +297,7 @@ void WeatherSystem::updateTargets()
                                     / 50.0f);
 }
 
-void WeatherSystem::update()
+void GLWeather::update()
 {
     updateTargets();
 
@@ -287,14 +317,14 @@ void WeatherSystem::update()
     m_currentTimeOfDayIntensity = my_lerp(m_timeOfDayIntensityStart, m_targetTimeOfDayIntensity, tt);
 }
 
-bool WeatherSystem::isAnimating() const
+bool GLWeather::isAnimating() const
 {
     const bool activePrecipitation = m_currentRainIntensity > 0.0f || m_currentSnowIntensity > 0.0f;
     const bool activeAtmosphere = m_currentCloudsIntensity > 0.0f || m_currentFogIntensity > 0.0f;
     return isTransitioning() || activePrecipitation || activeAtmosphere;
 }
 
-bool WeatherSystem::isTransitioning() const
+bool GLWeather::isTransitioning() const
 {
     const float animTime = m_animationManager.getAnimationTime();
     const bool weatherTransitioning = (animTime - m_weatherTransitionStartTime
@@ -304,7 +334,7 @@ bool WeatherSystem::isTransitioning() const
     return weatherTransitioning || timeOfDayTransitioning;
 }
 
-GLRenderState::Uniforms::Weather::Camera WeatherSystem::getCameraData(
+GLRenderState::Uniforms::Weather::Camera GLWeather::getCameraData(
     const glm::mat4 &viewProj, const Coordinate &playerPosCoord) const
 {
     GLRenderState::Uniforms::Weather::Camera camera;
@@ -316,7 +346,7 @@ GLRenderState::Uniforms::Weather::Camera WeatherSystem::getCameraData(
     return camera;
 }
 
-void WeatherSystem::populateWeatherParams(GLRenderState::Uniforms::Weather::Params &params) const
+void GLWeather::populateWeatherParams(GLRenderState::Uniforms::Weather::Params &params) const
 {
     params.intensities = glm::vec4(std::max(m_rainIntensityStart, m_snowIntensityStart),
                                    m_cloudsIntensityStart,
@@ -354,56 +384,20 @@ void WeatherSystem::populateWeatherParams(GLRenderState::Uniforms::Weather::Para
     params.config.z = TRANSITION_DURATION;
 }
 
-WeatherRenderer::WeatherRenderer(OpenGL &gl,
-                                 MapData &mapData,
-                                 const MapCanvasTextures &textures,
-                                 GameObserver &observer,
-                                 AnimationManager &animationManager)
-    : m_gl(gl)
-    , m_data(mapData)
-    , m_textures(textures)
-    , m_system(std::make_unique<WeatherSystem>(observer, animationManager))
-    , m_animationManager(animationManager)
-{
-    m_animationManager.registerCallback(m_system->getSignalLifetime(),
-                                        [this]() { return m_system->isAnimating(); });
-
-    m_system->sig_stateInvalidated.connect(m_system->getSignalLifetime(), [this]() {
-        invalidateWeather();
-        sig_requestUpdate.invoke();
-    });
-
-    m_gl.getUboManager().registerRebuildFunction(
-        Legacy::SharedVboEnum::CameraBlock, [this](Legacy::Functions &glFuncs) {
-            const auto playerPosCoord = m_data.tryGetPosition().value_or(Coordinate{0, 0, 0});
-            auto cameraData = m_system->getCameraData(m_lastViewProj, playerPosCoord);
-            m_gl.getUboManager().update(glFuncs, Legacy::SharedVboEnum::CameraBlock, cameraData);
-        });
-
-    m_gl.getUboManager().registerRebuildFunction(
-        Legacy::SharedVboEnum::WeatherBlock, [this](Legacy::Functions &glFuncs) {
-            GLRenderState::Uniforms::Weather::Params params;
-            m_system->populateWeatherParams(params);
-            m_gl.getUboManager().update(glFuncs, Legacy::SharedVboEnum::WeatherBlock, params);
-        });
-}
-
-WeatherRenderer::~WeatherRenderer() = default;
-
-void WeatherRenderer::invalidateCamera()
+void GLWeather::invalidateCamera()
 {
     m_gl.getUboManager().invalidate(Legacy::SharedVboEnum::CameraBlock);
 }
 
-void WeatherRenderer::invalidateWeather()
+void GLWeather::invalidateWeather()
 {
     m_gl.getUboManager().invalidate(Legacy::SharedVboEnum::WeatherBlock);
 }
 
-void WeatherRenderer::initMeshes()
+void GLWeather::initMeshes()
 {
     if (!m_simulation) {
-        auto funcs = m_gl.getSharedFunctions(Badge<WeatherRenderer>{});
+        auto funcs = m_gl.getSharedFunctions(Badge<GLWeather>{});
         auto &shaderPrograms = funcs->getShaderPrograms();
 
         m_simulation = std::make_unique<Legacy::ParticleSimulationMesh>(
@@ -419,12 +413,7 @@ void WeatherRenderer::initMeshes()
     }
 }
 
-void WeatherRenderer::update(float /*frameDeltaTime*/)
-{
-    m_system->update();
-}
-
-void WeatherRenderer::prepare(const glm::mat4 &viewProj, const Coordinate &playerPos)
+void GLWeather::prepare(const glm::mat4 &viewProj, const Coordinate &playerPos)
 {
     initMeshes();
 
@@ -434,16 +423,16 @@ void WeatherRenderer::prepare(const glm::mat4 &viewProj, const Coordinate &playe
         invalidateCamera();
     }
 
-    auto &funcs = deref(m_gl.getSharedFunctions(Badge<WeatherRenderer>{}));
+    auto &funcs = deref(m_gl.getSharedFunctions(Badge<GLWeather>{}));
     m_gl.getUboManager().bind(funcs, Legacy::SharedVboEnum::CameraBlock);
     m_gl.getUboManager().bind(funcs, Legacy::SharedVboEnum::WeatherBlock);
 }
 
-void WeatherRenderer::render(const GLRenderState &rs)
+void GLWeather::render(const GLRenderState &rs)
 {
     // 1. Render Particles (Simulation + Rendering)
-    const float rainMax = m_system->getCurrentRainIntensity();
-    const float snowMax = m_system->getCurrentSnowIntensity();
+    const float rainMax = m_currentRainIntensity;
+    const float snowMax = m_currentSnowIntensity;
     if (rainMax > 0.0f || snowMax > 0.0f) {
         const auto particleRs = rs.withBlend(BlendModeEnum::MAX_ALPHA);
         if (m_simulation) {
@@ -459,23 +448,22 @@ void WeatherRenderer::render(const GLRenderState &rs)
                                   .withDepthFunction(std::nullopt);
 
     // TimeOfDay
-    if (m_system->getCurrentTimeOfDay() != MumeTimeEnum::DAY
-        || m_system->getOldTimeOfDay() != MumeTimeEnum::DAY
-        || m_system->getCurrentTimeOfDayIntensity() > 0.0f) {
+    if (m_currentTimeOfDay != MumeTimeEnum::DAY || m_oldTimeOfDay != MumeTimeEnum::DAY
+        || m_currentTimeOfDayIntensity > 0.0f) {
         if (m_timeOfDay) {
             m_timeOfDay.render(atmosphereRs);
         }
     }
 
     // Atmosphere
-    const float cloudMax = m_system->getCurrentCloudsIntensity();
-    const float fogMax = m_system->getCurrentFogIntensity();
+    const float cloudMax = m_currentCloudsIntensity;
+    const float fogMax = m_currentFogIntensity;
     if ((cloudMax > 0.0f || fogMax > 0.0f) && m_atmosphere) {
         m_atmosphere.render(atmosphereRs.withTexture0(m_textures.noise->getId()));
     }
 }
 
-QImage WeatherRenderer::generateNoiseTexture(int size)
+QImage GLWeather::generateNoiseTexture(int size)
 {
     QImage img(size, size, QImage::Format_RGBA8888);
     for (int y = 0; y < size; ++y) {

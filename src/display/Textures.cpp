@@ -7,9 +7,9 @@
 #include "../global/thread_utils.h"
 #include "../global/utils.h"
 #include "../opengl/OpenGLTypes.h"
+#include "../opengl/Weather.h"
 #include "Filenames.h"
 #include "RoadIndex.h"
-#include "Weather.h"
 #include "mapcanvas.h"
 
 #include <array>
@@ -317,7 +317,7 @@ void MapCanvas::initTextures()
 
     {
         // 256x256 noise texture. Mipmaps are not needed for fuzzy atmosphere effects.
-        QImage noiseImage = WeatherRenderer::generateNoiseTexture(256);
+        QImage noiseImage = GLWeather::generateNoiseTexture(256);
         textures.noise = MMTexture::alloc(std::vector<QImage>{noiseImage}, true);
         textures.noise->get()->setMinMagFilters(QOpenGLTexture::Filter::Linear,
                                                 QOpenGLTexture::Filter::Linear);

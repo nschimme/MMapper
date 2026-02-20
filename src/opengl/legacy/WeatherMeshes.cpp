@@ -60,28 +60,35 @@ void ParticleSimulationMesh::init()
 
     auto get_random_float = []() { return static_cast<float>(getRandom(1000000)) / 1000000.0f; };
 
-    std::vector<float> initialData(m_numParticles * 3, 0.0f);
+    std::vector<WeatherParticleVert> initialData;
+    initialData.reserve(m_numParticles);
     for (size_t i = 0; i < m_numParticles; ++i) {
-        initialData[i * 3 + 0] = get_random_float() * 28.0f - 14.0f;
-        initialData[i * 3 + 1] = get_random_float() * 28.0f - 14.0f;
-        initialData[i * 3 + 2] = get_random_float() * 1.0f;
+        initialData.emplace_back(glm::vec2(get_random_float() * 28.0f - 14.0f,
+                                           get_random_float() * 28.0f - 14.0f),
+                                 get_random_float());
     }
 
     for (int i = 0; i < 2; ++i) {
         m_functions.glBindBuffer(GL_ARRAY_BUFFER, m_vbos[i].get());
         m_functions.glBufferData(GL_ARRAY_BUFFER,
-                                 static_cast<GLsizeiptr>(initialData.size() * sizeof(float)),
+                                 static_cast<GLsizeiptr>(initialData.size()
+                                                         * sizeof(WeatherParticleVert)),
                                  initialData.data(),
                                  GL_STREAM_DRAW);
 
         m_functions.glBindVertexArray(m_vaos[i].get());
-        m_functions.enableAttrib(0, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
+        m_functions.enableAttrib(0,
+                                 2,
+                                 GL_FLOAT,
+                                 GL_FALSE,
+                                 sizeof(WeatherParticleVert),
+                                 reinterpret_cast<void *>(offsetof(WeatherParticleVert, pos)));
         m_functions.enableAttrib(1,
                                  1,
                                  GL_FLOAT,
                                  GL_FALSE,
-                                 3 * sizeof(float),
-                                 reinterpret_cast<void *>(2 * sizeof(float)));
+                                 sizeof(WeatherParticleVert),
+                                 reinterpret_cast<void *>(offsetof(WeatherParticleVert, life)));
         m_functions.glBindVertexArray(0);
         m_functions.glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
@@ -170,14 +177,19 @@ void ParticleRenderMesh::virt_render(const GLRenderState &renderState)
     m_functions.glBindVertexArray(m_vaos[bufferIdx]);
 
     m_functions.glBindBuffer(GL_ARRAY_BUFFER, m_simulation.getParticleVbo(bufferIdx));
-    m_functions.enableAttrib(0, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
+    m_functions.enableAttrib(0,
+                             2,
+                             GL_FLOAT,
+                             GL_FALSE,
+                             sizeof(WeatherParticleVert),
+                             reinterpret_cast<void *>(offsetof(WeatherParticleVert, pos)));
     m_functions.glVertexAttribDivisor(0, 1);
     m_functions.enableAttrib(1,
                              1,
                              GL_FLOAT,
                              GL_FALSE,
-                             3 * sizeof(float),
-                             reinterpret_cast<void *>(2 * sizeof(float)));
+                             sizeof(WeatherParticleVert),
+                             reinterpret_cast<void *>(offsetof(WeatherParticleVert, life)));
     m_functions.glVertexAttribDivisor(1, 1);
 
     m_functions.glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, count);

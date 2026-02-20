@@ -19,7 +19,7 @@
  *
  * Tracks which UBOs are currently valid on the GPU and coordinates their updates.
  * Follows a lazy rebuild pattern: UBOs are only updated when a bind() is requested
- * and the block is marked as dirty.
+ * and the block is marked as dirty (represented by std::nullopt in the bound buffer tracker).
  */
 class UboManager final
 {
@@ -31,16 +31,16 @@ public:
 
 public:
     /**
-     * @brief Marks a UBO block as dirty.
+     * @brief Marks a UBO block as dirty by resetting its bound state.
      */
-    void invalidate(Legacy::SharedVboEnum block) { m_dirtyBlocks[block] = true; }
+    void invalidate(Legacy::SharedVboEnum block) { m_boundBuffers[block] = std::nullopt; }
 
     /**
      * @brief Marks all UBO blocks as dirty.
      */
     void invalidateAll()
     {
-        m_dirtyBlocks.for_each([](bool &dirty) { dirty = true; });
+        m_boundBuffers.for_each([](std::optional<GLuint> &v) { v = std::nullopt; });
     }
 
     /**
@@ -54,7 +54,7 @@ public:
     /**
      * @brief Checks if a UBO block is currently dirty/invalid.
      */
-    bool isInvalid(Legacy::SharedVboEnum block) const { return m_dirtyBlocks[block]; }
+    bool isInvalid(Legacy::SharedVboEnum block) const { return !m_boundBuffers[block].has_value(); }
 
     /**
      * @brief Rebuilds the UBO if it's invalid using the registered rebuild function.
@@ -86,7 +86,6 @@ public:
         }
 
         static_cast<void>(gl.setUbo(vbo.get(), data, BufferUsageEnum::DYNAMIC_DRAW));
-        m_dirtyBlocks[block] = false;
 
         bind_internal(gl, block, vbo.get());
     }
@@ -120,7 +119,6 @@ private:
     }
 
 private:
-    EnumIndexedArray<bool, Legacy::SharedVboEnum> m_dirtyBlocks;
     EnumIndexedArray<RebuildFunction, Legacy::SharedVboEnum> m_rebuildFunctions;
     EnumIndexedArray<std::optional<GLuint>, Legacy::SharedVboEnum> m_boundBuffers;
 };

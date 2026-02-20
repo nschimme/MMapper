@@ -516,10 +516,10 @@ void MapCanvas::renderLoop()
         return;
     }
 
-    // MMapper defaults to 20 FPS for background animations to save CPU/battery.
+    // MMapper defaults to 60 FPS for background animations to save CPU/battery.
     // When the user interacts (e.g. dragging), Qt's event loop will trigger higher framerates.
-    static constexpr int TARGET_FRAMES_PER_SECOND = 20;
-    auto targetFrameTime = std::chrono::milliseconds(1000 / TARGET_FRAMES_PER_SECOND);
+    const int targetFps = getConfig().canvas.advanced.maximumFps.get();
+    auto targetFrameTime = std::chrono::milliseconds(1000 / std::max(1, targetFps));
 
     auto now = std::chrono::steady_clock::now();
     update();

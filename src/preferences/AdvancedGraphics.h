@@ -10,17 +10,18 @@
 
 #include <QGroupBox>
 
-class SliderSpinboxButton;
+class SliderSpinboxButtonBase;
 class NODISCARD_QOBJECT AdvancedGraphicsGroupBox final : public QObject
 {
     Q_OBJECT
 
 private:
-    friend SliderSpinboxButton;
+    template<int Digits>
+    friend class SliderSpinboxButton;
 
 private:
     QGroupBox *const m_groupBox;
-    using UniqueSsb = std::unique_ptr<SliderSpinboxButton>;
+    using UniqueSsb = std::unique_ptr<SliderSpinboxButtonBase>;
     std::vector<UniqueSsb> m_ssbs;
     // purposely unused; this variable exists as an RAII for the change monitors.
     Signal2Lifetime m_lifetime;

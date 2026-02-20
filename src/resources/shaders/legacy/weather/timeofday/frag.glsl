@@ -13,8 +13,13 @@ layout(std140) uniform TimeBlock
     vec4 uTime; // x=time, y=delta, zw=unused
 };
 
-uniform vec4 uTimeOfDayIndices; // x=startIdx, y=targetIdx, z=timeOfDayIntensityStart, w=timeOfDayIntensityTarget
-uniform vec4 uConfig;           // x=weatherStartTime, y=timeOfDayStartTime, z=duration, w=unused
+layout(std140) uniform WeatherBlock
+{
+    vec4 uIntensities;      // precip_start, clouds_start, fog_start, type_start
+    vec4 uTargets;          // precip_target, clouds_target, fog_target, type_target
+    vec4 uTimeOfDayIndices; // x=startIdx, y=targetIdx, z=timeOfDayIntensityStart, w=timeOfDayIntensityTarget
+    vec4 uConfig;           // x=weatherStartTime, y=timeOfDayStartTime, z=duration, w=unused
+};
 
 out vec4 vFragmentColor;
 

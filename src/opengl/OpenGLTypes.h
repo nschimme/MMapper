@@ -243,11 +243,14 @@ struct NODISCARD GLRenderState final
                 glm::vec4 playerPos{0.0f}; // 64-79 (xyz, w=zScale)
             } camera;
 
-            // Weather parameters (standard uniforms)
-            glm::vec4 intensities{0.0f};
-            glm::vec4 targets{0.0f};
-            glm::vec4 timeOfDayIndices{0.0f};
-            glm::vec4 config{0.0f};
+            // WeatherBlock (Binding 3, must match std140 layout in shaders)
+            struct NODISCARD Params final
+            {
+                glm::vec4 intensities{0.0f};      // 0-15
+                glm::vec4 targets{0.0f};          // 16-31
+                glm::vec4 timeOfDayIndices{0.0f}; // 32-47
+                glm::vec4 config{0.0f};           // 48-63
+            } params;
 
             // TimeBlock (Binding 2, must match std140 layout in shaders)
             struct NODISCARD Frame final

@@ -61,7 +61,7 @@ void AnimationManager::update()
     // Refresh internal struct for UBO
     m_frameData.time = glm::vec4(m_animationTime, m_lastFrameDeltaTime, 0.0f, 0.0f);
 
-    if (m_uboManager) {
+    if (m_uboManager && m_lastFrameDeltaTime > 0.0f) {
         m_uboManager->invalidate(Legacy::SharedVboEnum::TimeBlock);
     }
 }

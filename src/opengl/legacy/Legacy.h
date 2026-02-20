@@ -41,7 +41,8 @@ struct PointSizeBinder;
 #define XFOREACH_SHARED_VBO(X) \
     X(NamedColorsBlock, "NamedColorsBlock") \
     X(CameraBlock, "CameraBlock") \
-    X(TimeBlock, "TimeBlock")
+    X(TimeBlock, "TimeBlock") \
+    X(WeatherBlock, "WeatherBlock")
 
 enum class SharedVboEnum : uint8_t {
 #define X_ENUM(element, name) element,
@@ -442,9 +443,9 @@ public:
     }
 
     template<typename T>
-    void setUbo(const GLuint ubo,
-                const T &data,
-                const BufferUsageEnum usage = BufferUsageEnum::DYNAMIC_DRAW)
+    void setUboSingle(const GLuint ubo,
+                      const T &data,
+                      const BufferUsageEnum usage = BufferUsageEnum::DYNAMIC_DRAW)
     {
         Base::glBindBuffer(GL_UNIFORM_BUFFER, ubo);
         Base::glBufferData(GL_UNIFORM_BUFFER, sizeof(T), &data, Legacy::toGLenum(usage));

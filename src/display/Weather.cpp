@@ -343,17 +343,17 @@ GLRenderState::Uniforms::Weather::Camera WeatherSystem::getCameraData(
     return camera;
 }
 
-void WeatherSystem::populateWeatherParams(GLRenderState::Uniforms::Weather &weather) const
+void WeatherSystem::populateWeatherParams(GLRenderState::Uniforms::Weather::Params &params) const
 {
-    weather.intensities = glm::vec4(std::max(m_rainIntensityStart, m_snowIntensityStart),
-                                    m_cloudsIntensityStart,
-                                    m_fogIntensityStart,
-                                    m_precipitationTypeStart);
+    params.intensities = glm::vec4(std::max(m_rainIntensityStart, m_snowIntensityStart),
+                                   m_cloudsIntensityStart,
+                                   m_fogIntensityStart,
+                                   m_precipitationTypeStart);
 
-    weather.targets = glm::vec4(std::max(m_targetRainIntensity, m_targetSnowIntensity),
-                                m_targetCloudsIntensity,
-                                m_targetFogIntensity,
-                                m_targetPrecipitationType);
+    params.targets = glm::vec4(std::max(m_targetRainIntensity, m_targetSnowIntensity),
+                               m_targetCloudsIntensity,
+                               m_targetFogIntensity,
+                               m_targetPrecipitationType);
 
     auto toNamedColorIdx = [](MumeTimeEnum timeOfDay) -> float {
         switch (timeOfDay) {
@@ -371,14 +371,14 @@ void WeatherSystem::populateWeatherParams(GLRenderState::Uniforms::Weather &weat
         return static_cast<float>(NamedColorEnum::TRANSPARENT);
     };
 
-    weather.timeOfDayIndices.x = toNamedColorIdx(m_oldTimeOfDay);
-    weather.timeOfDayIndices.y = toNamedColorIdx(m_currentTimeOfDay);
-    weather.timeOfDayIndices.z = m_timeOfDayIntensityStart;
-    weather.timeOfDayIndices.w = m_targetTimeOfDayIntensity;
+    params.timeOfDayIndices.x = toNamedColorIdx(m_oldTimeOfDay);
+    params.timeOfDayIndices.y = toNamedColorIdx(m_currentTimeOfDay);
+    params.timeOfDayIndices.z = m_timeOfDayIntensityStart;
+    params.timeOfDayIndices.w = m_targetTimeOfDayIntensity;
 
-    weather.config.x = m_weatherTransitionStartTime;
-    weather.config.y = m_timeOfDayTransitionStartTime;
-    weather.config.z = TRANSITION_DURATION;
+    params.config.x = m_weatherTransitionStartTime;
+    params.config.y = m_timeOfDayTransitionStartTime;
+    params.config.z = TRANSITION_DURATION;
 }
 
 WeatherRenderer::WeatherRenderer(OpenGL &gl,
@@ -396,7 +396,7 @@ WeatherRenderer::WeatherRenderer(OpenGL &gl,
                                         [this]() { return m_system->isAnimating(); });
 
     m_system->sig_stateInvalidated.connect(m_system->getSignalLifetime(), [this]() {
-        invalidateStatic();
+        invalidateWeather();
         sig_requestUpdate.invoke();
     });
 
@@ -406,13 +406,25 @@ WeatherRenderer::WeatherRenderer(OpenGL &gl,
             auto cameraData = m_system->getCameraData(m_lastViewProj, playerPosCoord);
             m_gl.getUboManager().update(glFuncs, Legacy::SharedVboEnum::CameraBlock, cameraData);
         });
+
+    m_gl.getUboManager().registerRebuildFunction(
+        Legacy::SharedVboEnum::WeatherBlock, [this](Legacy::Functions &glFuncs) {
+            GLRenderState::Uniforms::Weather::Params params;
+            m_system->populateWeatherParams(params);
+            m_gl.getUboManager().update(glFuncs, Legacy::SharedVboEnum::WeatherBlock, params);
+        });
 }
 
 WeatherRenderer::~WeatherRenderer() = default;
 
-void WeatherRenderer::invalidateStatic()
+void WeatherRenderer::invalidateCamera()
 {
     m_gl.getUboManager().invalidate(Legacy::SharedVboEnum::CameraBlock);
+}
+
+void WeatherRenderer::invalidateWeather()
+{
+    m_gl.getUboManager().invalidate(Legacy::SharedVboEnum::WeatherBlock);
 }
 
 void WeatherRenderer::initMeshes()
@@ -446,24 +458,21 @@ void WeatherRenderer::prepare(const glm::mat4 &viewProj, const Coordinate &playe
     if (viewProj != m_lastViewProj || playerPos != m_lastPlayerPos) {
         m_lastViewProj = viewProj;
         m_lastPlayerPos = playerPos;
-        invalidateStatic();
+        invalidateCamera();
     }
 
     auto &funcs = deref(m_gl.getSharedFunctions(Badge<WeatherRenderer>{}));
     m_gl.getUboManager().bind(funcs, Legacy::SharedVboEnum::CameraBlock);
+    m_gl.getUboManager().bind(funcs, Legacy::SharedVboEnum::WeatherBlock);
 }
 
 void WeatherRenderer::render(const GLRenderState &rs)
 {
-    // Populate weather uniforms
-    GLRenderState weatherRs = rs;
-    m_system->populateWeatherParams(weatherRs.uniforms.weather);
-
     // 1. Render Particles (Simulation + Rendering)
     const float rainMax = m_system->getCurrentRainIntensity();
     const float snowMax = m_system->getCurrentSnowIntensity();
     if (rainMax > 0.0f || snowMax > 0.0f) {
-        const auto particleRs = weatherRs.withBlend(BlendModeEnum::MAX_ALPHA);
+        const auto particleRs = rs.withBlend(BlendModeEnum::MAX_ALPHA);
         if (m_simulation) {
             m_simulation->render(particleRs);
         }
@@ -473,7 +482,7 @@ void WeatherRenderer::render(const GLRenderState &rs)
     }
 
     // 2. Render Atmosphere (TimeOfDay + Atmosphere)
-    const auto atmosphereRs = weatherRs.withBlend(BlendModeEnum::TRANSPARENCY)
+    const auto atmosphereRs = rs.withBlend(BlendModeEnum::TRANSPARENCY)
                                   .withDepthFunction(std::nullopt);
 
     // TimeOfDay

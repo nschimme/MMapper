@@ -87,7 +87,11 @@ public:
             vbo.emplace(gl.shared_from_this());
         }
 
-        static_cast<void>(gl.setUbo(vbo.get(), data, BufferUsageEnum::DYNAMIC_DRAW));
+        if constexpr (utils::is_vector_v<T>) {
+            static_cast<void>(gl.setUbo(vbo.get(), data, BufferUsageEnum::DYNAMIC_DRAW));
+        } else {
+            gl.setUboSingle(vbo.get(), data, BufferUsageEnum::DYNAMIC_DRAW);
+        }
 
         bind_internal(gl, block, vbo.get());
     }

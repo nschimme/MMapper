@@ -18,17 +18,19 @@ AtmosphereMesh::~AtmosphereMesh() = default;
 
 void AtmosphereMesh::virt_render(const GLRenderState &renderState)
 {
-    if (isEmpty()) {
-        return;
-    }
-
     auto binder = m_program.bind();
     const glm::mat4 mvp = m_functions.getProjectionMatrix();
     m_program.setUniforms(mvp, renderState.uniforms);
 
     RenderStateBinder rsBinder(m_functions, m_functions.getTexLookup(), renderState);
 
-    m_functions.glBindVertexArray(m_vao);
+    SharedVao shared = m_functions.getSharedVaos().get(SharedVaoEnum::EmptyVao);
+    VAO &vao = deref(shared);
+    if (!vao) {
+        vao.emplace(m_shared_functions);
+    }
+
+    m_functions.glBindVertexArray(vao);
     m_functions.glDrawArrays(m_mode, 0, m_numVerts);
     m_functions.glBindVertexArray(0);
 }

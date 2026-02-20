@@ -23,7 +23,6 @@ protected:
     Functions &m_functions;
     const std::shared_ptr<ProgramType_> m_shared_program;
     ProgramType_ &m_program;
-    VAO m_vao;
     const GLenum m_mode;
     const GLsizei m_numVerts;
 
@@ -38,23 +37,17 @@ public:
         , m_program{deref(m_shared_program)}
         , m_mode(mode)
         , m_numVerts(numVerts)
-    {
-        m_vao.emplace(m_shared_functions);
-    }
+    {}
 
-    ~FullScreenMesh() override { reset(); }
+    ~FullScreenMesh() override = default;
 
 protected:
     void virt_clear() final {}
-    void virt_reset() final { m_vao.reset(); }
-    NODISCARD bool virt_isEmpty() const final { return !m_vao; }
+    void virt_reset() final {}
+    NODISCARD bool virt_isEmpty() const final { return false; }
 
     void virt_render(const GLRenderState &renderState) override
     {
-        if (isEmpty()) {
-            return;
-        }
-
         auto binder = m_program.bind();
         // Attribute-less meshes usually don't use MVP, or use identity.
         // We pass identity as a default, but sub-classes can override.
@@ -63,7 +56,13 @@ protected:
 
         RenderStateBinder rsBinder(m_functions, m_functions.getTexLookup(), renderState);
 
-        m_functions.glBindVertexArray(m_vao);
+        SharedVao shared = m_functions.getSharedVaos().get(SharedVaoEnum::EmptyVao);
+        VAO &vao = deref(shared);
+        if (!vao) {
+            vao.emplace(m_shared_functions);
+        }
+
+        m_functions.glBindVertexArray(vao);
         m_functions.glDrawArrays(m_mode, 0, m_numVerts);
         m_functions.glBindVertexArray(0);
     }

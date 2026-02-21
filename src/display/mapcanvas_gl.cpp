@@ -661,7 +661,7 @@ void MapCanvas::actuallyPaintGL()
 {
     // Update animation state and weather
     m_animationManager.update();
-    m_weatherRenderer->update(m_animationManager.getLastFrameDeltaTime());
+    m_weather->update();
 
     // DECL_TIMER(t, __FUNCTION__);
     setViewportAndMvp(width(), height());
@@ -686,10 +686,10 @@ void MapCanvas::actuallyPaintGL()
     paintDifferences();
 
     const auto playerPos = m_data.tryGetPosition().value_or(Coordinate{0, 0, 0});
-    m_weatherRenderer->prepare(m_viewProj, playerPos);
+    m_weather->prepare(m_viewProj, playerPos);
     gl.getUboManager().bind(funcs, Legacy::SharedVboEnum::TimeBlock);
 
-    m_weatherRenderer->render(m_opengl.getDefaultRenderState());
+    m_weather->render(m_opengl.getDefaultRenderState());
 
     gl.releaseFbo();
     gl.blitFboToDefault();

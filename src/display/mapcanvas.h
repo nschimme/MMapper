@@ -13,12 +13,12 @@
 #include "../opengl/Font.h"
 #include "../opengl/FontFormatFlags.h"
 #include "../opengl/OpenGL.h"
+#include "../opengl/Weather.h"
 #include "AnimationManager.h"
 #include "Infomarks.h"
 #include "MapCanvasData.h"
 #include "MapCanvasRoomDrawer.h"
 #include "Textures.h"
-#include "Weather.h"
 
 #include <array>
 #include <chrono>
@@ -136,6 +136,7 @@ private:
 
 private:
     MapScreen m_mapScreen;
+    GameObserver &m_observer;
     OpenGL m_opengl;
     GLFont m_glFont;
     Batches m_batches;
@@ -166,13 +167,11 @@ private:
     float m_lastPinchFactor = 1.f;
     float m_lastMagnification = 1.f;
 
-    std::unique_ptr<WeatherRenderer> m_weatherRenderer;
+    std::unique_ptr<GLWeather> m_weather;
 
     std::chrono::steady_clock::time_point m_lastPaintTime;
     std::chrono::steady_clock::time_point m_lastLoopTime;
     QTimer m_throttleTimer;
-
-    GameObserver &m_observer;
 
 public:
     explicit MapCanvas(MapData &mapData,

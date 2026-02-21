@@ -82,8 +82,6 @@ set(mmapper_SRCS
     display/Textures.h
     display/AnimationManager.cpp
     display/AnimationManager.h
-    display/Weather.cpp
-    display/Weather.h
     display/connectionselection.cpp
     display/connectionselection.h
     display/mapcanvas.cpp
@@ -414,6 +412,8 @@ set(mmapper_SRCS
     opengl/OpenGL.cpp
     opengl/OpenGL.h
     opengl/UboManager.h
+    opengl/Weather.cpp
+    opengl/Weather.h
     opengl/OpenGLConfig.cpp
     opengl/OpenGLConfig.h
     opengl/OpenGLTypes.cpp

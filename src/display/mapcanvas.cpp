@@ -66,20 +66,17 @@ MapCanvas::MapCanvas(MapData &mapData,
     , MapCanvasViewport{static_cast<QWindow &>(*this)}
     , MapCanvasInputState{prespammedPath}
     , m_mapScreen{static_cast<MapCanvasViewport &>(*this)}
+    , m_observer{observer}
     , m_opengl{}
     , m_glFont{m_opengl}
     , m_data{mapData}
     , m_groupManager{groupManager}
-    , m_weatherRenderer{std::make_unique<WeatherRenderer>(m_opengl,
-                                                          m_data,
-                                                          m_textures,
-                                                          observer,
-                                                          m_animationManager)}
-    , m_observer{observer}
+    , m_weather{
+          std::make_unique<GLWeather>(m_opengl, m_data, m_textures, observer, m_animationManager)}
 {
     m_animationManager.registerCallback(m_lifetime,
                                         [this]() { return m_batches.remeshCookie.isPending(); });
-    m_weatherRenderer->sig_requestUpdate.connect(m_lifetime, [this]() { update(); });
+    m_weather->sig_requestUpdate.connect(m_lifetime, [this]() { update(); });
 
     m_throttleTimer.setSingleShot(true);
     connect(&m_throttleTimer, &QTimer::timeout, this, [this]() { update(); });

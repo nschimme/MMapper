@@ -93,6 +93,17 @@ struct NODISCARD ColorVert final
     {}
 };
 
+struct NODISCARD WeatherParticleVert final
+{
+    glm::vec2 pos{};
+    float life = 0.0f;
+
+    explicit WeatherParticleVert(const glm::vec2 &pos_, const float life_)
+        : pos{pos_}
+        , life{life_}
+    {}
+};
+
 // Similar to ColoredTexVert, except it has a base position in world coordinates.
 // the font's vertex shader transforms the world position to screen space,
 // rounds to integer pixel offset, and then adds the vertex position in screen space.

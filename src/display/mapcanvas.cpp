@@ -71,11 +71,8 @@ MapCanvas::MapCanvas(MapData &mapData,
     , m_glFont{m_opengl}
     , m_data{mapData}
     , m_groupManager{groupManager}
-    , m_weather{std::make_unique<GLWeather>(m_opengl,
-                                            m_data,
-                                            m_textures,
-                                            observer,
-                                            m_animationManager)}
+    , m_weather{
+          std::make_unique<GLWeather>(m_opengl, m_data, m_textures, observer, m_animationManager)}
 {
     m_animationManager.registerCallback(m_lifetime,
                                         [this]() { return m_batches.remeshCookie.isPending(); });

@@ -66,6 +66,7 @@ MapCanvas::MapCanvas(MapData &mapData,
     , MapCanvasViewport{static_cast<QWindow &>(*this)}
     , MapCanvasInputState{prespammedPath}
     , m_mapScreen{static_cast<MapCanvasViewport &>(*this)}
+    , m_observer{observer}
     , m_opengl{}
     , m_glFont{m_opengl}
     , m_data{mapData}
@@ -73,9 +74,8 @@ MapCanvas::MapCanvas(MapData &mapData,
     , m_weather{std::make_unique<GLWeather>(m_opengl,
                                             m_data,
                                             m_textures,
-                                            m_observer,
+                                            observer,
                                             m_animationManager)}
-    , m_observer{observer}
 {
     m_animationManager.registerCallback(m_lifetime,
                                         [this]() { return m_batches.remeshCookie.isPending(); });

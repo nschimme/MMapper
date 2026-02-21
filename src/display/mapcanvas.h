@@ -136,6 +136,7 @@ private:
 
 private:
     MapScreen m_mapScreen;
+    GameObserver &m_observer;
     OpenGL m_opengl;
     GLFont m_glFont;
     Batches m_batches;
@@ -171,8 +172,6 @@ private:
     std::chrono::steady_clock::time_point m_lastPaintTime;
     std::chrono::steady_clock::time_point m_lastLoopTime;
     QTimer m_throttleTimer;
-
-    GameObserver &m_observer;
 
 public:
     explicit MapCanvas(MapData &mapData,

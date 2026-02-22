@@ -90,9 +90,7 @@ FindRoomsDlg::FindRoomsDlg(MapData &md, QWidget *const parent)
         emit sig_editSelection();
     });
 
-    setFocus();
     label->setFocusProxy(lineEdit);
-    lineEdit->setFocus();
 
     readSettings();
 }

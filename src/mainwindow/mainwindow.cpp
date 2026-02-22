@@ -1451,16 +1451,20 @@ void MainWindow::slot_onPreferences()
 {
     if (m_configDialog == nullptr) {
         m_configDialog = std::make_unique<ConfigDialog>(this);
+
+        connect(m_configDialog.get(),
+                &ConfigDialog::sig_graphicsSettingsChanged,
+                m_mapWindow,
+                &MapWindow::slot_graphicsSettingsChanged);
+        connect(m_configDialog.get(),
+                &ConfigDialog::sig_groupSettingsChanged,
+                m_groupManager,
+                &Mmapper2Group::slot_groupSettingsChanged);
+        connect(m_configDialog.get(), &QDialog::finished, this, [this](MAYBE_UNUSED int result) {
+            m_configDialog.reset();
+        });
     }
 
-    connect(m_configDialog.get(),
-            &ConfigDialog::sig_graphicsSettingsChanged,
-            m_mapWindow,
-            &MapWindow::slot_graphicsSettingsChanged);
-    connect(m_configDialog.get(),
-            &ConfigDialog::sig_groupSettingsChanged,
-            m_groupManager,
-            &Mmapper2Group::slot_groupSettingsChanged);
     m_configDialog->show();
 }
 

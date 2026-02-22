@@ -35,6 +35,8 @@ FindRoomsDlg::FindRoomsDlg(MapData &md, QWidget *const parent)
     selectButton->setEnabled(false);
     editButton->setEnabled(false);
 
+    findButton->setDefault(true);
+
     connect(lineEdit, &QLineEdit::textChanged, this, &FindRoomsDlg::slot_enableFindButton);
     connect(findButton, &QAbstractButton::clicked, this, &FindRoomsDlg::slot_findClicked);
     connect(closeButton, &QAbstractButton::clicked, this, &QWidget::close);
@@ -98,6 +100,12 @@ FindRoomsDlg::FindRoomsDlg(MapData &md, QWidget *const parent)
 FindRoomsDlg::~FindRoomsDlg()
 {
     resultTable->clear();
+}
+
+void FindRoomsDlg::showEvent(QShowEvent *const event)
+{
+    QDialog::showEvent(event);
+    lineEdit->setFocus();
 }
 
 void FindRoomsDlg::readSettings()

@@ -711,6 +711,7 @@ RemoteEditWidget::RemoteEditWidget(const bool editSession,
     mainLayout->addWidget(m_textEdit.get(), 1);
 
     m_statusBar = new QStatusBar(this);
+    setAttribute(Qt::WA_DeleteOnClose);
     mainLayout->addWidget(m_statusBar);
 
     addStatusBar(m_textEdit.get());
@@ -1463,8 +1464,13 @@ QSize RemoteEditWidget::sizeHint() const
 
 void RemoteEditWidget::closeEvent(QCloseEvent *event)
 {
+    if (m_submitted) {
+        event->accept();
+        return;
+    }
+
     if (m_editSession) {
-        if (m_submitted || slot_maybeCancel()) {
+        if (slot_maybeCancel()) {
             event->accept();
         } else {
             event->ignore();

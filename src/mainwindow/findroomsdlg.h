@@ -48,6 +48,7 @@ public:
     explicit FindRoomsDlg(MapData &, QWidget *parent);
     ~FindRoomsDlg() final;
 
+    void showEvent(QShowEvent *event) override;
     void readSettings();
     void writeSettings();
 

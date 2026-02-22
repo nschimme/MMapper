@@ -245,6 +245,8 @@ void MapWindow::slot_centerOnWorldPos(const glm::vec2 &worldPos)
     const auto scrollPos = m_knownMapSize.worldToScroll(worldPos);
     horz.setValue(scrollPos.x);
     vert.setValue(scrollPos.y);
+
+    emit sig_setScroll(worldPos);
 }
 
 void MapWindow::centerOnScrollPos(const glm::ivec2 &scrollPos)

@@ -188,6 +188,10 @@ MainWindow::MainWindow()
     m_findRoomsDlg = new FindRoomsDlg(*m_mapData, this);
     m_findRoomsDlg->setObjectName("FindRoomsDlg");
 
+    // Config Dialog
+    m_configDialog = new ConfigDialog(this);
+    m_configDialog->setObjectName("ConfigDialog");
+
     // View -> Side Panels -> Adventure Panel (Trophy XP, Achievements, Hints, etc)
     m_dockDialogAdventure = new QDockWidget(tr("Adventure Panel"), this);
     m_dockDialogAdventure->setObjectName("DockWidgetGameConsole");
@@ -516,6 +520,16 @@ void MainWindow::wireConnections()
             &FindRoomsDlg::sig_editSelection,
             this,
             &MainWindow::slot_onEditRoomSelection);
+
+    // Config Dialog Connections
+    connect(m_configDialog,
+            &ConfigDialog::sig_graphicsSettingsChanged,
+            m_mapWindow,
+            &MapWindow::slot_graphicsSettingsChanged);
+    connect(m_configDialog,
+            &ConfigDialog::sig_groupSettingsChanged,
+            m_groupManager,
+            &Mmapper2Group::slot_groupSettingsChanged);
 }
 
 void MainWindow::slot_log(const QString &mod, const QString &message)
@@ -1449,23 +1463,9 @@ void MainWindow::setupStatusBar()
 
 void MainWindow::slot_onPreferences()
 {
-    if (m_configDialog == nullptr) {
-        m_configDialog = std::make_unique<ConfigDialog>(this);
-
-        connect(m_configDialog.get(),
-                &ConfigDialog::sig_graphicsSettingsChanged,
-                m_mapWindow,
-                &MapWindow::slot_graphicsSettingsChanged);
-        connect(m_configDialog.get(),
-                &ConfigDialog::sig_groupSettingsChanged,
-                m_groupManager,
-                &Mmapper2Group::slot_groupSettingsChanged);
-        connect(m_configDialog.get(), &QDialog::finished, this, [this](MAYBE_UNUSED int result) {
-            m_configDialog.reset();
-        });
-    }
-
     m_configDialog->show();
+    m_configDialog->raise();
+    m_configDialog->activateWindow();
 }
 
 void MainWindow::slot_newRoomSelection(const SigRoomSelection &rs)

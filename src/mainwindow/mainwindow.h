@@ -239,7 +239,7 @@ private:
     QAction *releaseAllPathsAct = nullptr;
     QAction *rebuildMeshesAct = nullptr;
 
-    std::unique_ptr<ConfigDialog> m_configDialog;
+    ConfigDialog *m_configDialog = nullptr;
 
     struct AsyncBase;
     struct AsyncHelper;

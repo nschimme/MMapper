@@ -101,6 +101,8 @@ void ConfigDialog::closeEvent(QCloseEvent *const event)
 
 void ConfigDialog::showEvent(QShowEvent *const event)
 {
+    QDialog::showEvent(event);
+
     // Populate the preference pages from config each time the widget is shown
     emit sig_loadConfig();
 
@@ -108,6 +110,8 @@ void ConfigDialog::showEvent(QShowEvent *const event)
     auto pos = parentWidget()->pos();
     pos.setX(pos.x() + (parentWidget()->width() / 2) - (width() / 2));
     move(pos);
+
+    ui->contentsWidget->setFocus();
 
     event->accept();
 }

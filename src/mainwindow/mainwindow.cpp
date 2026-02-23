@@ -1466,6 +1466,8 @@ void MainWindow::slot_onPreferences()
     }
 
     m_configDialog->show();
+    m_configDialog->raise();
+    m_configDialog->activateWindow();
 }
 
 void MainWindow::slot_newRoomSelection(const SigRoomSelection &rs)

@@ -65,7 +65,7 @@ struct NODISCARD Measurements final
         }
     }
 
-    int getWinner() const
+    NODISCARD int getWinner() const
     {
         int winner = 0;
         int maxCount = 0;
@@ -85,8 +85,9 @@ struct NODISCARD Measurements final
            << groupName << "' (distribution: ";
         bool first = true;
         for (auto const &[size, count] : counts) {
-            if (!first)
+            if (!first) {
                 os << ", ";
+            }
             os << size << "x" << size << ":" << count;
             first = false;
         }
@@ -412,12 +413,10 @@ void MapCanvas::initTextures()
     };
 
     Measurements global_m;
-    {
-        textures.for_each([&assignId, &global_m](SharedMMTexture &pTex) {
-            MAYBE_UNUSED auto ignored = assignId(pTex);
-            global_m.add(pTex);
-        });
-    }
+    textures.for_each([&assignId, &global_m](SharedMMTexture &pTex) {
+        MAYBE_UNUSED auto ignored = assignId(pTex);
+        global_m.add(pTex);
+    });
 
     {
         auto maybeCreateArray2 = [&assignId, &opengl](const std::string_view groupName,

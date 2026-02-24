@@ -398,15 +398,15 @@ void MapCanvas::initTextures()
                 counts[nearest]++;
 
                 if (w != h) {
-                    MMLOG_WARNING() << "[Textures] Warning: Image '"
-                                    << mmqt::toStdStringUtf8(x->getName()) << "' is not square ("
-                                    << w << "x" << h << ").";
+                    MMLOG_WARNING()
+                        << "[Textures] Warning: Image '" << mmqt::toStdStringUtf8(x->getName())
+                        << "' is not square (" << w << "x" << h << ").";
                 }
                 if (!utils::isPowerOfTwo(static_cast<uint32_t>(w))
                     || !utils::isPowerOfTwo(static_cast<uint32_t>(h))) {
-                    MMLOG_WARNING() << "[Textures] Warning: Image '"
-                                    << mmqt::toStdStringUtf8(x->getName())
-                                    << "' is not a power of two (" << w << "x" << h << ").";
+                    MMLOG_WARNING()
+                        << "[Textures] Warning: Image '" << mmqt::toStdStringUtf8(x->getName())
+                        << "' is not a power of two (" << w << "x" << h << ").";
                 }
             }
 

@@ -422,7 +422,7 @@ NODISCARD static inline auto find_min_computed(const Container &container, Callb
                                          end,
                                          [&callback](const auto &a, const auto &b) -> bool {
                                              return callback(a) < callback(b);
-                                             });
+                                         });
         return OptResult{callback(*it)};
     }
 }

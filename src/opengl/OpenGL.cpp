@@ -281,30 +281,6 @@ void OpenGL::setTextureLookup(const MMTextureId id, SharedMMTexture tex)
     getFunctions().getTexLookup().set(id, std::move(tex));
 }
 
-void OpenGL::uploadArrayLayer(const SharedMMTexture &array, int layer, const QImage &image)
-{
-    auto &gl = getFunctions();
-    MMTexture &tex = deref(array);
-    QOpenGLTexture &qtex = deref(tex.get());
-
-    gl.glActiveTexture(GL_TEXTURE0);
-    gl.glBindTexture(GL_TEXTURE_2D_ARRAY, qtex.textureId());
-
-    gl.glTexSubImage3D(GL_TEXTURE_2D_ARRAY,
-                       0,
-                       0,
-                       0,
-                       layer,
-                       image.width(),
-                       image.height(),
-                       1,
-                       GL_RGBA,
-                       GL_UNSIGNED_BYTE,
-                       image.constBits());
-
-    gl.glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
-}
-
 void OpenGL::uploadArrayLayer(const SharedMMTexture &array,
                               int layer,
                               const std::vector<QImage> &images)

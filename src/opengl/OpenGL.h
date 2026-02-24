@@ -172,7 +172,6 @@ public:
     void setTextureLookup(MMTextureId, SharedMMTexture);
 
 public:
-    void uploadArrayLayer(const SharedMMTexture &array, int layer, const QImage &image);
     void uploadArrayLayer(const SharedMMTexture &array,
                           int layer,
                           const std::vector<QImage> &images);

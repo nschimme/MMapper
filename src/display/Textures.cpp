@@ -477,7 +477,7 @@ void MapCanvas::initTextures()
                                              Qt::IgnoreAspectRatio,
                                              Qt::SmoothTransformation);
                     }
-                    opengl.uploadArrayLayer(pArrayTex, pos, image);
+                    opengl.uploadArrayLayer(pArrayTex, pos, {image});
                 } else {
                     auto images = x->getImages();
                     for (size_t level = 0; level < images.size(); ++level) {

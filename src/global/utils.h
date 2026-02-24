@@ -69,6 +69,44 @@ NODISCARD constexpr bool isPowerOfTwo(const T x) noexcept
 }
 
 template<typename T>
+NODISCARD constexpr T nextPowerOfTwo(T x) noexcept
+{
+    static_assert(std::is_integral_v<T> && std::is_unsigned_v<T>);
+    if (x <= 1) {
+        return 1;
+    }
+    --x;
+    x |= x >> 1;
+    x |= x >> 2;
+    x |= x >> 4;
+    if constexpr (sizeof(T) >= 2) {
+        x |= x >> 8;
+    }
+    if constexpr (sizeof(T) >= 4) {
+        x |= x >> 16;
+    }
+    if constexpr (sizeof(T) >= 8) {
+        x |= x >> 32;
+    }
+    return ++x;
+}
+
+template<typename T>
+NODISCARD constexpr T nearestPowerOfTwo(T x) noexcept
+{
+    static_assert(std::is_integral_v<T> && std::is_unsigned_v<T>);
+    if (x <= 1) {
+        return 1;
+    }
+    const T next = nextPowerOfTwo(x);
+    const T prev = next >> 1;
+    if (x - prev < next - x) {
+        return prev;
+    }
+    return next;
+}
+
+template<typename T>
 NODISCARD constexpr bool isAtLeastTwoBits(const T x) noexcept
 {
     static_assert(details::isBitMask<T>());

@@ -423,31 +423,19 @@ void MapCanvas::initTextures()
             int maxHeight = winner;
 
             auto &first = deref(pFirst);
-            std::vector<QString> fileInputs;
-            std::vector<std::vector<QImage>> imageInputs;
+            bool useImages = true;
             int maxMipLevel = 0;
 
             for (const auto &x : thing) {
                 if (!x->getName().isEmpty()) {
-                    fileInputs.emplace_back(x->getName());
+                    useImages = false;
                 } else {
-                    const auto &images = x->getImages();
-                    imageInputs.emplace_back(images);
-                    maxMipLevel = std::max(maxMipLevel, static_cast<int>(images.size()));
+                    maxMipLevel = std::max(maxMipLevel, static_cast<int>(x->getImages().size()));
                 }
             }
 
-            const bool useImages = fileInputs.empty();
-            if (!useImages) {
-                assert(imageInputs.empty());
-            }
-            const auto numLayers = useImages ? imageInputs.size() : fileInputs.size();
-            if (useImages) {
-                assert(first.mipLevels() == maxMipLevel);
-            }
-
             auto init2dTextureArray =
-                [useImages, numLayers, maxWidth, maxHeight, maxMipLevel, &first](
+                [useImages, thing_size = thing.size(), maxWidth, maxHeight, maxMipLevel, &first](
                     QOpenGLTexture &tex) {
                     using Dir = QOpenGLTexture::CoordinateDirection;
                     tex.setWrapMode(Dir::DirectionS, first.wrapMode(Dir::DirectionS));
@@ -456,7 +444,7 @@ void MapCanvas::initTextures()
                     tex.setAutoMipMapGenerationEnabled(false);
                     tex.create();
                     tex.setSize(maxWidth, maxHeight, 1);
-                    tex.setLayers(static_cast<int>(numLayers));
+                    tex.setLayers(static_cast<int>(thing_size));
                     tex.setMipLevels(useImages ? maxMipLevel : tex.maximumMipLevels());
                     tex.setFormat(first.format());
                     tex.allocateStorage(QOpenGLTexture::PixelFormat::RGBA,
@@ -468,19 +456,55 @@ void MapCanvas::initTextures()
                 pArrayTex = MMTexture::alloc(QOpenGLTexture::Target2DArray,
                                              init2dTextureArray,
                                              forbidUpdates);
-                if (useImages) {
-                    opengl.initArrayFromImages(pArrayTex, imageInputs);
-                } else {
-                    opengl.initArrayFromFiles(pArrayTex, fileInputs);
-                }
                 assert(pArrayTex->canBeUpdated() == !forbidUpdates);
             }
             const auto id = assignId(pArrayTex);
 
             int pos = 0;
             for (const SharedMMTexture &x : thing) {
+                if (!x->getName().isEmpty()) {
+                    QImage image = QImage{x->getName()}.mirrored().convertToFormat(
+                        QImage::Format_RGBA8888);
+                    if (image.width() != maxWidth || image.height() != maxHeight) {
+                        MMLOG_WARNING()
+                            << "[Textures] Warning: Image '" << mmqt::toStdStringUtf8(x->getName())
+                            << "' has dimensions " << image.width() << "x" << image.height()
+                            << ", but the array expects " << maxWidth << "x" << maxHeight
+                            << ". Resizing.";
+
+                        image = image.scaled(maxWidth,
+                                             maxHeight,
+                                             Qt::IgnoreAspectRatio,
+                                             Qt::SmoothTransformation);
+                    }
+                    opengl.uploadArrayLayer(pArrayTex, pos, image);
+                } else {
+                    auto images = x->getImages();
+                    for (size_t level = 0; level < images.size(); ++level) {
+                        const int targetW = std::max(1, maxWidth >> level);
+                        const int targetH = std::max(1, maxHeight >> level);
+                        if (images[level].width() != targetW || images[level].height() != targetH) {
+                            MMLOG_WARNING() << "[Textures] Warning: Image in manual mipmap '"
+                                            << mmqt::toStdStringUtf8(x->getName()) << "' (layer "
+                                            << pos << ", level " << level << ") has dimensions "
+                                            << images[level].width() << "x"
+                                            << images[level].height() << ", but the array expects "
+                                            << targetW << "x" << targetH << ". Resizing.";
+
+                            images[level] = images[level].scaled(targetW,
+                                                                 targetH,
+                                                                 Qt::IgnoreAspectRatio,
+                                                                 Qt::SmoothTransformation);
+                        }
+                    }
+                    opengl.uploadArrayLayer(pArrayTex, pos, images);
+                }
                 x->setArrayPosition(MMTexArrayPosition{id, pos});
                 pos += 1;
+            }
+
+            if (!useImages) {
+                opengl.generateMipmaps(pArrayTex);
             }
         };
 

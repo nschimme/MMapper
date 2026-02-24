@@ -281,7 +281,7 @@ void OpenGL::setTextureLookup(const MMTextureId id, SharedMMTexture tex)
     getFunctions().getTexLookup().set(id, std::move(tex));
 }
 
-void OpenGL::initArrayFromFiles(const SharedMMTexture &array, const std::vector<QString> &input)
+void OpenGL::uploadArrayLayer(const SharedMMTexture &array, int layer, const QImage &image)
 {
     auto &gl = getFunctions();
     MMTexture &tex = deref(array);
@@ -290,26 +290,39 @@ void OpenGL::initArrayFromFiles(const SharedMMTexture &array, const std::vector<
     gl.glActiveTexture(GL_TEXTURE0);
     gl.glBindTexture(GL_TEXTURE_2D_ARRAY, qtex.textureId());
 
-    const auto numLayers = static_cast<GLsizei>(input.size());
-    for (GLsizei i = 0; i < numLayers; ++i) {
-        const QString &filename = input[static_cast<size_t>(i)];
-        QImage image = QImage{filename}.mirrored().convertToFormat(QImage::Format_RGBA8888);
-        if (image.width() != qtex.width() || image.height() != qtex.height()) {
-            MMLOG_WARNING() << "[Textures] Warning: Image '" << mmqt::toStdStringUtf8(filename)
-                            << "' has dimensions " << image.width() << "x" << image.height()
-                            << ", but the array expects " << qtex.width() << "x" << qtex.height()
-                            << ". Resizing.";
+    gl.glTexSubImage3D(GL_TEXTURE_2D_ARRAY,
+                       0,
+                       0,
+                       0,
+                       layer,
+                       image.width(),
+                       image.height(),
+                       1,
+                       GL_RGBA,
+                       GL_UNSIGNED_BYTE,
+                       image.constBits());
 
-            image = image.scaled(qtex.width(),
-                                 qtex.height(),
-                                 Qt::IgnoreAspectRatio,
-                                 Qt::SmoothTransformation);
-        }
+    gl.glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+}
+
+void OpenGL::uploadArrayLayer(const SharedMMTexture &array,
+                              int layer,
+                              const std::vector<QImage> &images)
+{
+    auto &gl = getFunctions();
+    MMTexture &tex = deref(array);
+    QOpenGLTexture &qtex = deref(tex.get());
+
+    gl.glActiveTexture(GL_TEXTURE0);
+    gl.glBindTexture(GL_TEXTURE_2D_ARRAY, qtex.textureId());
+
+    for (size_t level_num = 0; level_num < images.size(); ++level_num) {
+        const QImage &image = images[level_num];
         gl.glTexSubImage3D(GL_TEXTURE_2D_ARRAY,
+                           static_cast<GLint>(level_num),
                            0,
                            0,
-                           0,
-                           i,
+                           layer,
                            image.width(),
                            image.height(),
                            1,
@@ -318,12 +331,10 @@ void OpenGL::initArrayFromFiles(const SharedMMTexture &array, const std::vector<
                            image.constBits());
     }
 
-    gl.glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
     gl.glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
 }
 
-void OpenGL::initArrayFromImages(const SharedMMTexture &array,
-                                 const std::vector<std::vector<QImage>> &input)
+void OpenGL::generateMipmaps(const SharedMMTexture &array)
 {
     auto &gl = getFunctions();
     MMTexture &tex = deref(array);
@@ -331,43 +342,6 @@ void OpenGL::initArrayFromImages(const SharedMMTexture &array,
 
     gl.glActiveTexture(GL_TEXTURE0);
     gl.glBindTexture(GL_TEXTURE_2D_ARRAY, qtex.textureId());
-
-    const auto numImages = input.size();
-    for (size_t z = 0; z < numImages; ++z) {
-        const auto &layer = input[z];
-        const auto numLevels = layer.size();
-        assert(numLevels > 0);
-
-        for (size_t level_num = 0; level_num < numLevels; ++level_num) {
-            QImage image = layer[level_num].convertToFormat(QImage::Format_RGBA8888);
-            const int targetW = std::max(1, qtex.width() >> level_num);
-            const int targetH = std::max(1, qtex.height() >> level_num);
-
-            if (image.width() != targetW || image.height() != targetH) {
-                MMLOG_WARNING() << "[Textures] Warning: Image in manual mipmap (layer " << z
-                                << ", level " << level_num << ") has dimensions " << image.width()
-                                << "x" << image.height() << ", but the array expects " << targetW
-                                << "x" << targetH << ". Resizing.";
-
-                image = image.scaled(targetW,
-                                     targetH,
-                                     Qt::IgnoreAspectRatio,
-                                     Qt::SmoothTransformation);
-            }
-
-            gl.glTexSubImage3D(GL_TEXTURE_2D_ARRAY,
-                               static_cast<GLint>(level_num),
-                               0,
-                               0,
-                               static_cast<GLint>(z),
-                               image.width(),
-                               image.height(),
-                               1,
-                               GL_RGBA,
-                               GL_UNSIGNED_BYTE,
-                               image.constBits());
-        }
-    }
-
+    gl.glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
     gl.glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
 }

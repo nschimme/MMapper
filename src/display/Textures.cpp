@@ -386,18 +386,6 @@ void MapCanvas::initTextures()
                 if (!isProgrammatic) {
                     all_programmatic = false;
                 }
-
-                if (w != h) {
-                    MMLOG_WARNING()
-                        << "[Textures] Warning: Image '" << mmqt::toStdStringUtf8(pTex->getName())
-                        << "' is not square (" << w << "x" << h << ").";
-                }
-                if (!utils::isPowerOfTwo(static_cast<uint32_t>(w))
-                    || !utils::isPowerOfTwo(static_cast<uint32_t>(h))) {
-                    MMLOG_WARNING()
-                        << "[Textures] Warning: Image '" << mmqt::toStdStringUtf8(pTex->getName())
-                        << "' is not a power of two (" << w << "x" << h << ").";
-                }
             }
 
             int getWinner() const
@@ -413,11 +401,11 @@ void MapCanvas::initTextures()
                 return winner;
             }
 
-            void logPicking(const int winner) const
+            void logPicking(const std::string_view groupName, const int winner) const
             {
                 auto &&os = MMLOG();
-                os << "[initTextures] Picking " << winner << "x" << winner
-                   << " for array group (distribution: ";
+                os << "[initTextures] Picking " << winner << "x" << winner << " for array group '"
+                   << groupName << "' (distribution: ";
                 bool first = true;
                 for (auto const &[size, count] : counts) {
                     if (!first)
@@ -435,17 +423,32 @@ void MapCanvas::initTextures()
             return m2;
         });
 
-        auto maybeCreateArray2 = [&assignId, &opengl](const auto &thing,
+        auto maybeCreateArray2 = [&assignId, &opengl](const std::string_view groupName,
+                                                      const auto &thing,
                                                       SharedMMTexture &pArrayTex) {
             Measurements group_m;
             for (const SharedMMTexture &x : thing) {
                 group_m.add(x);
+
+                const int w = x->get()->width();
+                const int h = x->get()->height();
+                if (w != h) {
+                    MMLOG_WARNING() << "[Textures] Warning in group '" << groupName << "': Image '"
+                                    << mmqt::toStdStringUtf8(x->getName()) << "' is not square ("
+                                    << w << "x" << h << ").";
+                }
+                if (!utils::isPowerOfTwo(static_cast<uint32_t>(w))
+                    || !utils::isPowerOfTwo(static_cast<uint32_t>(h))) {
+                    MMLOG_WARNING() << "[Textures] Warning in group '" << groupName << "': Image '"
+                                    << mmqt::toStdStringUtf8(x->getName())
+                                    << "' is not a power of two (" << w << "x" << h << ").";
+                }
             }
 
             const int targetWidth = group_m.getWinner();
             const int targetHeight = targetWidth;
 
-            group_m.logPicking(targetWidth);
+            group_m.logPicking(groupName, targetWidth);
 
             auto &first = deref(thing.front()->get());
             const bool all_programmatic = group_m.all_programmatic;
@@ -486,10 +489,10 @@ void MapCanvas::initTextures()
                         QImage::Format_RGBA8888);
                     if (image.width() != targetWidth || image.height() != targetHeight) {
                         MMLOG_WARNING()
-                            << "[Textures] Warning: Image '" << mmqt::toStdStringUtf8(x->getName())
-                            << "' has dimensions " << image.width() << "x" << image.height()
-                            << ", but the array expects " << targetWidth << "x" << targetHeight
-                            << ". Resizing.";
+                            << "[Textures] Warning in group '" << groupName << "': Image '"
+                            << mmqt::toStdStringUtf8(x->getName()) << "' has dimensions "
+                            << image.width() << "x" << image.height() << ", but the array expects "
+                            << targetWidth << "x" << targetHeight << ". Resizing.";
 
                         image = image.scaled(targetWidth,
                                              targetHeight,
@@ -523,33 +526,37 @@ void MapCanvas::initTextures()
             }
         };
 
-        auto initGroup = [&](auto &&...sources) {
+        auto initGroup = [&](const std::string_view groupName, auto &&...sources) {
             SharedMMTexture pArrayTex;
             auto thing = combine(std::forward<decltype(sources)>(sources)...);
-            maybeCreateArray2(thing, pArrayTex);
+            maybeCreateArray2(groupName, thing, pArrayTex);
             return pArrayTex;
         };
 
         textures.load_Array = textures.mob_Array = textures.no_ride_Array
-            = initGroup(textures.load, textures.mob, textures.no_ride);
+            = initGroup("load+mob+no_ride", textures.load, textures.mob, textures.no_ride);
 
-        textures.terrain_Array = textures.road_Array = initGroup(textures.terrain, textures.road);
+        textures.terrain_Array = textures.road_Array = initGroup("terrain+road",
+                                                                 textures.terrain,
+                                                                 textures.road);
 
-        textures.white_pixel_Array = initGroup(textures.white_pixel);
+        textures.white_pixel_Array = initGroup("white_pixel", textures.white_pixel);
 
         textures.exit_climb_down_Array = textures.exit_climb_up_Array = textures.exit_down_Array
-            = textures.exit_up_Array = initGroup(textures.exit_climb_down,
+            = textures.exit_up_Array = initGroup("exits",
+                                                 textures.exit_climb_down,
                                                  textures.exit_climb_up,
                                                  textures.exit_down,
                                                  textures.exit_up);
 
-        auto maybeCreateArray = [&](auto &thing, SharedMMTexture &pArrayTex) {
-            if (pArrayTex)
-                return;
-            pArrayTex = initGroup(thing);
-        };
+        auto maybeCreateArray =
+            [&](const std::string_view groupName, auto &thing, SharedMMTexture &pArrayTex) {
+                if (pArrayTex)
+                    return;
+                pArrayTex = initGroup(groupName, thing);
+            };
 
-#define XTEX(_TYPE, _NAME) maybeCreateArray(textures._NAME, textures._NAME##_Array);
+#define XTEX(_TYPE, _NAME) maybeCreateArray(#_NAME, textures._NAME, textures._NAME##_Array);
         XFOREACH_MAPCANVAS_TEXTURES(XTEX)
 #undef XTEX
 

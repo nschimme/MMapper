@@ -71,19 +71,25 @@ struct NODISCARD Measurements final
         counts[nearest]++;
 
         const std::string name = mmqt::toStdStringUtf8(tex.getName());
+        const std::string displayName = name.empty() ? "<anonymous>" : name;
         if (w != h) {
-            MMLOG_WARNING() << "[Textures] Warning in group '" << groupName << "': Image '" << name
-                            << "' is not square (" << w << "x" << h << ").";
+            MMLOG_WARNING() << "[Textures] Warning in group '" << groupName << "': Image '"
+                            << displayName << "' is not square (" << w << "x" << h << ").";
             if (useImages) {
-                throw std::runtime_error("image must be square");
+                throw std::runtime_error(
+                    "In group '" + std::string(groupName) + "': programmatic image '" + displayName
+                    + "' must be square (" + std::to_string(w) + "x" + std::to_string(h) + ")");
             }
         }
         if (!utils::isPowerOfTwo(static_cast<uint32_t>(w))
             || !utils::isPowerOfTwo(static_cast<uint32_t>(h))) {
-            MMLOG_WARNING() << "[Textures] Warning in group '" << groupName << "': Image '" << name
-                            << "' is not a power of two (" << w << "x" << h << ").";
+            MMLOG_WARNING() << "[Textures] Warning in group '" << groupName << "': Image '"
+                            << displayName << "' is not a power of two (" << w << "x" << h << ").";
             if (useImages) {
-                throw std::runtime_error("image size must be a power of two");
+                throw std::runtime_error("In group '" + std::string(groupName)
+                                         + "': programmatic image '" + displayName
+                                         + "' size must be a power of two (" + std::to_string(w)
+                                         + "x" + std::to_string(h) + ")");
             }
         }
     }
@@ -508,7 +514,14 @@ void MapCanvas::initTextures()
                         const int tw = std::max(1, targetWidth >> level);
                         const int th = std::max(1, targetHeight >> level);
                         if (images[level].width() != tw || images[level].height() != th) {
-                            throw std::runtime_error("oops");
+                            const std::string name = mmqt::toStdStringUtf8(x->getName());
+                            const std::string displayName = name.empty() ? "<anonymous>" : name;
+                            std::ostringstream oss;
+                            oss << "In group '" << groupName << "': programmatic image '"
+                                << displayName << "' (layer " << pos << ", level " << level
+                                << ") has dimensions " << images[level].width() << "x"
+                                << images[level].height() << ", but expected " << tw << "x" << th;
+                            throw std::runtime_error(oss.str());
                         }
                         images[level] = images[level].convertToFormat(QImage::Format_RGBA8888);
                     }

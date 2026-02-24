@@ -265,10 +265,14 @@ NODISCARD static std::vector<QImage> createDottedWallImages(const ExitDirEnum di
 }
 
 template<typename Type>
-static void appendAll(std::vector<SharedMMTexture> &v, Type &&things)
+static void appendAll(std::vector<SharedMMTexture> &v, Type &&thing)
 {
-    for (const SharedMMTexture &t : things)
-        v.emplace_back(t);
+    if constexpr (std::is_same_v<std::decay_t<Type>, SharedMMTexture>) {
+        v.emplace_back(std::forward<Type>(thing));
+    } else {
+        for (const SharedMMTexture &t : thing)
+            v.emplace_back(t);
+    }
 }
 
 template<typename... Types>
@@ -455,51 +459,30 @@ void MapCanvas::initTextures()
             }
         };
 
-        {
-            using One = std::array<SharedMMTexture, 1>;
-            One no_ride{textures.no_ride};
+        auto initGroup = [&](auto &&...sources) {
             SharedMMTexture pArrayTex;
-            auto thing = combine(textures.load, textures.mob, no_ride);
+            auto thing = combine(std::forward<decltype(sources)>(sources)...);
             maybeCreateArray2(thing, pArrayTex);
-            textures.load_Array = textures.mob_Array = textures.no_ride_Array = pArrayTex;
-        }
+            return pArrayTex;
+        };
 
-        {
-            SharedMMTexture pArrayTex;
-            auto thing = combine(textures.terrain, textures.road);
-            maybeCreateArray2(thing, pArrayTex);
-            textures.terrain_Array = textures.road_Array = pArrayTex;
-        }
+        textures.load_Array = textures.mob_Array = textures.no_ride_Array =
+            initGroup(textures.load, textures.mob, textures.no_ride);
 
-        {
-            SharedMMTexture pArrayTex;
-            std::vector<SharedMMTexture> pixels{textures.white_pixel};
-            maybeCreateArray2(pixels, pArrayTex);
-            textures.white_pixel_Array = pArrayTex;
-        }
+        textures.terrain_Array = textures.road_Array = initGroup(textures.terrain, textures.road);
 
-        {
-            using Four = std::array<SharedMMTexture, 4>;
-            Four exits{textures.exit_climb_down,
-                       textures.exit_climb_up,
-                       textures.exit_down,
-                       textures.exit_up};
-            SharedMMTexture pArrayTex;
-            maybeCreateArray2(exits, pArrayTex);
-            textures.exit_climb_down_Array = textures.exit_climb_up_Array = textures.exit_down_Array
-                = textures.exit_up_Array = pArrayTex;
-        }
+        textures.white_pixel_Array = initGroup(textures.white_pixel);
 
-        auto maybeCreateArray = [&maybeCreateArray2](auto &thing, SharedMMTexture &pArrayTex) {
+        textures.exit_climb_down_Array = textures.exit_climb_up_Array = textures.exit_down_Array
+            = textures.exit_up_Array = initGroup(textures.exit_climb_down,
+                                                 textures.exit_climb_up,
+                                                 textures.exit_down,
+                                                 textures.exit_up);
+
+        auto maybeCreateArray = [&](auto &thing, SharedMMTexture &pArrayTex) {
             if (pArrayTex)
                 return;
-            if constexpr (std::is_same_v<std::decay_t<decltype(thing)>, SharedMMTexture>) {
-                using JustOne = std::array<SharedMMTexture, 1>;
-                JustOne justOne{thing};
-                maybeCreateArray2(justOne, pArrayTex);
-            } else {
-                maybeCreateArray2(thing, pArrayTex);
-            }
+            pArrayTex = initGroup(thing);
         };
 
 #define XTEX(_TYPE, _NAME) maybeCreateArray(textures._NAME, textures._NAME##_Array);

@@ -6,6 +6,7 @@
 
 #include "../display/Textures.h"
 #include "../global/ConfigConsts.h"
+#include "../global/TextUtils.h"
 #include "../global/logging.h"
 #include "./legacy/FunctionsES30.h"
 #include "./legacy/FunctionsGL33.h"
@@ -294,9 +295,10 @@ void OpenGL::initArrayFromFiles(const SharedMMTexture &array, const std::vector<
         const QString &filename = input[static_cast<size_t>(i)];
         QImage image = QImage{filename}.mirrored().convertToFormat(QImage::Format_RGBA8888);
         if (image.width() != qtex.width() || image.height() != qtex.height()) {
-            MMLOG_WARNING() << "[Textures] Warning: Image '" << filename << "' has dimensions "
-                            << image.width() << "x" << image.height() << ", but the array expects "
-                            << qtex.width() << "x" << qtex.height() << ". Resizing.";
+            MMLOG_WARNING() << "[Textures] Warning: Image '" << mmqt::toStdStringUtf8(filename)
+                            << "' has dimensions " << image.width() << "x" << image.height()
+                            << ", but the array expects " << qtex.width() << "x" << qtex.height()
+                            << ". Resizing.";
 
             image = image.scaled(qtex.width(),
                                  qtex.height(),

@@ -7,6 +7,7 @@
 #include "MediaLibrary.h"
 
 #ifndef MMAPPER_NO_AUDIO
+#include <QAudioDevice>
 #include <QAudioOutput>
 #include <QMediaPlayer>
 #endif
@@ -62,3 +63,12 @@ void SfxManager::updateVolume()
     m_output->setVolume(static_cast<float>(getConfig().audio.getSoundVolume()) / 100.0f);
 #endif
 }
+
+#ifndef MMAPPER_NO_AUDIO
+void SfxManager::updateOutputDevice(const QAudioDevice &device)
+{
+    if (m_output->device() != device) {
+        m_output->setDevice(device);
+    }
+}
+#endif

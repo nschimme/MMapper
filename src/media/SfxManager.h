@@ -8,6 +8,10 @@
 #include <QSet>
 #include <QString>
 
+#ifndef MMAPPER_NO_AUDIO
+#include <QAudioDevice>
+#endif
+
 class MediaLibrary;
 class QAudioOutput;
 
@@ -26,4 +30,7 @@ public:
 
     void playSound(const QString &soundName);
     void updateVolume();
+#ifndef MMAPPER_NO_AUDIO
+    void updateOutputDevice(const QAudioDevice &device);
+#endif
 };

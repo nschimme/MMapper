@@ -7,6 +7,7 @@
 #include "MediaLibrary.h"
 
 #ifndef MMAPPER_NO_AUDIO
+#include <QAudioDevice>
 #include <QAudioOutput>
 #include <QMediaPlayer>
 #include <QUrl>
@@ -209,6 +210,15 @@ void MusicManager::slot_onMediaChanged()
 }
 
 #ifndef MMAPPER_NO_AUDIO
+void MusicManager::updateOutputDevice(const QAudioDevice &device)
+{
+    for (int i = 0; i < 2; ++i) {
+        if (m_channels[i].audioOutput->device() != device) {
+            m_channels[i].audioOutput->setDevice(device);
+        }
+    }
+}
+
 void MusicManager::applyPendingPosition(int channelIndex)
 {
     auto &ch = m_channels[channelIndex];

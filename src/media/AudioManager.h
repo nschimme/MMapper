@@ -33,4 +33,5 @@ public:
 
 private:
     void updateVolumes();
+    void updateOutputDevices();
 };

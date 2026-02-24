@@ -18,6 +18,7 @@
 #include <optional>
 #include <sstream>
 #include <stdexcept>
+#include <string_view>
 #include <tuple>
 #include <type_traits>
 #include <vector>
@@ -57,13 +58,13 @@ struct NODISCARD Measurements final
         max_input_h = std::max(max_input_h, h);
         total_layers += 1;
 
-        const bool is_file = !tex.getName().isEmpty();
-        if (is_file) {
-            has_file = true;
-        } else {
+        const bool useImages = tex.getName().isEmpty();
+        if (useImages) {
             has_programmatic = true;
             const int numImages = static_cast<int>(pTex->getImages().size());
             max_manual_mip_levels = std::max(max_manual_mip_levels, numImages);
+        } else {
+            has_file = true;
         }
 
         const int nearest = static_cast<int>(utils::nearestPowerOfTwo(static_cast<uint32_t>(s)));
@@ -73,7 +74,7 @@ struct NODISCARD Measurements final
         if (w != h) {
             MMLOG_WARNING() << "[Textures] Warning in group '" << groupName << "': Image '" << name
                             << "' is not square (" << w << "x" << h << ").";
-            if (!is_file) {
+            if (useImages) {
                 throw std::runtime_error("image must be square");
             }
         }
@@ -81,7 +82,7 @@ struct NODISCARD Measurements final
             || !utils::isPowerOfTwo(static_cast<uint32_t>(h))) {
             MMLOG_WARNING() << "[Textures] Warning in group '" << groupName << "': Image '" << name
                             << "' is not a power of two (" << w << "x" << h << ").";
-            if (!is_file) {
+            if (useImages) {
                 throw std::runtime_error("image size must be a power of two");
             }
         }
@@ -472,7 +473,7 @@ void MapCanvas::initTextures()
             const int manualMipLevels = group_m.max_manual_mip_levels;
 
             auto init2dTextureArray = [isProgrammaticOnly,
-                                       thing_size = thing.size(),
+                                       numLayers = static_cast<int>(thing.size()),
                                        targetWidth,
                                        targetHeight,
                                        manualMipLevels,
@@ -484,7 +485,7 @@ void MapCanvas::initTextures()
                 tex.setAutoMipMapGenerationEnabled(false);
                 tex.create();
                 tex.setSize(targetWidth, targetHeight, 1);
-                tex.setLayers(static_cast<int>(thing_size));
+                tex.setLayers(numLayers);
                 tex.setMipLevels(isProgrammaticOnly ? manualMipLevels : tex.maximumMipLevels());
                 tex.setFormat(first.format());
                 tex.allocateStorage(QOpenGLTexture::PixelFormat::RGBA,
@@ -500,8 +501,19 @@ void MapCanvas::initTextures()
 
             int pos = 0;
             for (const SharedMMTexture &x : thing) {
-                const bool is_file = !x->getName().isEmpty();
-                if (is_file) {
+                const bool useImages = x->getName().isEmpty();
+                if (useImages) {
+                    auto images = x->getImages();
+                    for (size_t level = 0; level < images.size(); ++level) {
+                        const int tw = std::max(1, targetWidth >> level);
+                        const int th = std::max(1, targetHeight >> level);
+                        if (images[level].width() != tw || images[level].height() != th) {
+                            throw std::runtime_error("oops");
+                        }
+                        images[level] = images[level].convertToFormat(QImage::Format_RGBA8888);
+                    }
+                    opengl.uploadArrayLayer(pArrayTex, pos, images);
+                } else {
                     QImage image = QImage{x->getName()}.mirrored().convertToFormat(
                         QImage::Format_RGBA8888);
                     if (image.width() != targetWidth || image.height() != targetHeight) {
@@ -517,17 +529,6 @@ void MapCanvas::initTextures()
                                              Qt::SmoothTransformation);
                     }
                     opengl.uploadArrayLayer(pArrayTex, pos, {image});
-                } else {
-                    auto images = x->getImages();
-                    for (size_t level = 0; level < images.size(); ++level) {
-                        const int tw = std::max(1, targetWidth >> level);
-                        const int th = std::max(1, targetHeight >> level);
-                        if (images[level].width() != tw || images[level].height() != th) {
-                            throw std::runtime_error("oops");
-                        }
-                        images[level] = images[level].convertToFormat(QImage::Format_RGBA8888);
-                    }
-                    opengl.uploadArrayLayer(pArrayTex, pos, images);
                 }
                 x->setArrayPosition(MMTexArrayPosition{id, pos});
                 pos += 1;

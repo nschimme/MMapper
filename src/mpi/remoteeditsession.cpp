@@ -6,23 +6,26 @@
 
 #include "../global/utils.h"
 #include "remoteedit.h"
-#include "remoteeditprocess.h"
 #include "remoteeditwidget.h"
+
+#ifndef Q_OS_WASM
+#include "remoteeditprocess.h"
+#endif
 
 #include <cassert>
 
 #include <QMessageLogContext>
 #include <QObject>
-#include <QScopedPointer>
+#include <QPointer>
 #include <QString>
 
 RemoteEditSession::RemoteEditSession(const RemoteInternalId internalId,
                                      const RemoteSessionId sessionId,
                                      RemoteEdit *const remoteEdit)
     : QObject(remoteEdit)
+    , m_manager(remoteEdit)
     , m_internalId(internalId)
     , m_sessionId(sessionId)
-    , m_manager(remoteEdit)
 {
     assert(m_manager != nullptr);
 }
@@ -59,11 +62,12 @@ RemoteEditInternalSession::~RemoteEditInternalSession()
 {
     qDebug() << "Destructed RemoteEditInternalSession" << getInternalId().asUint32()
              << getSessionId().asInt32();
-    if (auto notLeaked = m_widget.take()) {
-        notLeaked->deleteLater();
+    if (auto *const p = m_widget.get()) {
+        p->close();
     }
 }
 
+#ifndef Q_OS_WASM
 RemoteEditExternalSession::RemoteEditExternalSession(const RemoteInternalId internalId,
                                                      const RemoteSessionId sessionId,
                                                      const QString &title,
@@ -81,7 +85,8 @@ RemoteEditExternalSession::~RemoteEditExternalSession()
 {
     qDebug() << "Destructed RemoteEditExternalSession" << getInternalId().asUint32()
              << getSessionId().asInt32();
-    if (auto notLeaked = m_process.take()) {
-        notLeaked->deleteLater();
+    if (auto *const p = m_process.get()) {
+        p->deleteLater();
     }
 }
+#endif

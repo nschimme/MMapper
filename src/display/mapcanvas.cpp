@@ -6,15 +6,6 @@
 
 #include "mapcanvas.h"
 
-// Single block of necessary includes
-#include <glm/vec3.hpp>
-#include <glm/vec4.hpp>
-#include <glm/geometric.hpp> // For glm::dot
-#include <array>             // For std::array
-#include "MapCanvasRoomDrawer.h" // For ::getRoomAreaHash
-#include <stdexcept>             // For std::runtime_error
-#include <QDebug>                // For qWarning, qDebug
-
 #include "../configuration/configuration.h"
 #include "../global/parserutils.h"
 #include "../global/progresscounter.h"
@@ -25,57 +16,38 @@
 #include "../map/infomark.h"
 #include "../map/room.h"
 #include "../map/roomid.h"
-#include "../map/World.h"       // Added for World
-#include "../map/SpatialDb.h"    // Added for SpatialDb
 #include "../mapdata/mapdata.h"
 #include "../mapdata/roomselection.h"
-#include "InfoMarkSelection.h"
+#include "InfomarkSelection.h"
 #include "MapCanvasData.h"
-// MapCanvasRoomDrawer.h is already included above
+#include "MapCanvasRoomDrawer.h"
 #include "connectionselection.h"
 
-// Standard library includes that were duplicated before are fine if included once
-#include <algorithm> // For std::min/max
-#include <chrono>    // For performance logging, std::chrono::seconds
-#include <cmath>     // For std::floor, std::ceil
+#include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <set>       // For std::set
-// <stdexcept> is already included above
-#include <utility>   // For std::pair
+#include <stdexcept>
+#include <utility>
 #include <vector>
 
-// Qt includes
 #include <QGestureEvent>
 #include <QMessageLogContext>
 #include <QOpenGLDebugMessage>
 #include <QSize>
 #include <QString>
-#include <QToolTip>
 #include <QtGui>
-#include <QtWidgets>
 
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #undef near // Bad dog, Microsoft; bad dog!!!
 #undef far  // Bad dog, Microsoft; bad dog!!!
 #endif
 
-namespace VisibilityHelpers {
-    static bool isRoomAABBVisible(const glm::vec3& roomMin, const glm::vec3& roomMax, const std::array<glm::vec4, 6>& frustumPlanes) {
-        for (size_t i = 0; i < 6; ++i) {
-            const glm::vec4& plane = frustumPlanes[i];
-            glm::vec3 pVertex = roomMin;
-            if (plane.x > 0.0f) pVertex.x = roomMax.x;
-            if (plane.y > 0.0f) pVertex.y = roomMax.y;
-            if (plane.z > 0.0f) pVertex.z = roomMax.z;
-            if (glm::dot(glm::vec3(plane.x, plane.y, plane.z), pVertex) + plane.w < 0.0f) {
-                return false;
-            }
-        }
-        return true;
-    }
-} // namespace VisibilityHelpers
+namespace {
+constexpr float GESTURE_EPSILON = 1e-6f;
+constexpr float PINCH_DISTANCE_THRESHOLD = 1e-3f;
+} // namespace
 
 using NonOwningPointer = MapCanvas *;
 NODISCARD static NonOwningPointer &primaryMapCanvas()
@@ -87,9 +59,9 @@ NODISCARD static NonOwningPointer &primaryMapCanvas()
 MapCanvas::MapCanvas(MapData &mapData,
                      PrespammedPath &prespammedPath,
                      Mmapper2Group &groupManager,
-                     QWidget *const parent)
-    : QOpenGLWidget{parent}
-    , MapCanvasViewport{static_cast<QWidget &>(*this)}
+                     QWindow *const parent)
+    : QOpenGLWindow{NoPartialUpdate, parent}
+    , MapCanvasViewport{static_cast<QWindow &>(*this)}
     , MapCanvasInputState{prespammedPath}
     , m_mapScreen{static_cast<MapCanvasViewport &>(*this)}
     , m_opengl{}
@@ -102,9 +74,7 @@ MapCanvas::MapCanvas(MapData &mapData,
         pmc = this;
     }
 
-    this->QWidget::setCursor(Qt::OpenHandCursor);
-    this->QWidget::grabGesture(Qt::PinchGesture);
-    this->QWidget::setContextMenuPolicy(Qt::CustomContextMenu);
+    setCursor(Qt::OpenHandCursor);
 }
 
 MapCanvas::~MapCanvas()
@@ -154,7 +124,7 @@ void MapCanvas::slot_setCanvasMouseMode(const CanvasMouseModeEnum mode)
 
     switch (mode) {
     case CanvasMouseModeEnum::MOVE:
-        this->QWidget::setCursor(Qt::OpenHandCursor);
+        setCursor(Qt::OpenHandCursor);
         break;
 
     default:
@@ -162,7 +132,7 @@ void MapCanvas::slot_setCanvasMouseMode(const CanvasMouseModeEnum mode)
     case CanvasMouseModeEnum::RAYPICK_ROOMS:
     case CanvasMouseModeEnum::SELECT_CONNECTIONS:
     case CanvasMouseModeEnum::CREATE_INFOMARKS:
-        this->QWidget::setCursor(Qt::CrossCursor);
+        setCursor(Qt::CrossCursor);
         break;
 
     case CanvasMouseModeEnum::SELECT_ROOMS:
@@ -170,7 +140,7 @@ void MapCanvas::slot_setCanvasMouseMode(const CanvasMouseModeEnum mode)
     case CanvasMouseModeEnum::CREATE_CONNECTIONS:
     case CanvasMouseModeEnum::CREATE_ONEWAY_CONNECTIONS:
     case CanvasMouseModeEnum::SELECT_INFOMARKS:
-        this->QWidget::setCursor(Qt::ArrowCursor);
+        setCursor(Qt::ArrowCursor);
         break;
     }
 
@@ -212,7 +182,7 @@ void MapCanvas::slot_setConnectionSelection(const std::shared_ptr<ConnectionSele
     selectionChanged();
 }
 
-void MapCanvas::slot_setInfoMarkSelection(const std::shared_ptr<InfoMarkSelection> &selection)
+void MapCanvas::slot_setInfomarkSelection(const std::shared_ptr<InfomarkSelection> &selection)
 {
     if (m_canvasMouseMode == CanvasMouseModeEnum::CREATE_INFOMARKS) {
         m_infoMarkSelection = selection;
@@ -225,7 +195,7 @@ void MapCanvas::slot_setInfoMarkSelection(const std::shared_ptr<InfoMarkSelectio
         m_infoMarkSelection = selection;
     }
 
-    emit sig_newInfoMarkSelection(m_infoMarkSelection.get());
+    emit sig_newInfomarkSelection(m_infoMarkSelection.get());
     selectionChanged();
 }
 
@@ -255,59 +225,14 @@ void MapCanvas::wheelEvent(QWheelEvent *const event)
                 slot_layerUp();
             }
         } else {
-            const auto zoomAndMaybeRecenter = [this, event](const int numSteps) -> bool {
-                assert(numSteps != 0);
-                const auto optCenter = getUnprojectedMouseSel(event);
-
-                // NOTE: Do a regular zoom if the projection failed.
-                if (!optCenter) {
-                    m_scaleFactor.logStep(numSteps);
-                    return false; // failed to recenter
-                }
-
-                // Our goal is to keep the point under the mouse constant,
-                // so we'll do the usual trick: translate to the origin,
-                // scale/rotate, then translate back. However, the amount
-                // we translate will differ because zoom changes our height.
-                const auto newCenter = optCenter->to_vec3();
-                const auto oldCenter = m_mapScreen.getCenter();
-
-                // 1. recenter to mouse location
-
-                const auto delta1 = glm::ivec2(glm::vec2(newCenter - oldCenter)
-                                               * static_cast<float>(SCROLL_SCALE));
-
-                emit sig_mapMove(delta1.x, delta1.y);
-
-                // 2. zoom in
-                m_scaleFactor.logStep(numSteps);
-
-                // 3. adjust viewport for new projection
-                setViewportAndMvp(this->QOpenGLWidget::width(), this->QOpenGLWidget::height());
-
-                // 4. subtract the offset to same mouse coordinate;
-                // This probably shouldn't ever fail, but let's make it conditional
-                // (worst case: we're left centered on what we clicked on,
-                // which will create infuriating overshoots if it ever happens)
-                if (const auto &optCenter2 = getUnprojectedMouseSel(event)) {
-                    const auto delta2 = glm::ivec2(glm::vec2(optCenter2->to_vec3() - newCenter)
-                                                   * static_cast<float>(SCROLL_SCALE));
-
-                    emit sig_mapMove(-delta2.x, -delta2.y);
-
-                    // NOTE: caller is expected to call resizeGL() after this function,
-                    // so we don't have to update the viewport.
-                }
-
-                return true;
-            };
-
             // Change the zoom level
-            const int numSteps = event->angleDelta().y() / 120;
-            if (numSteps != 0) {
-                zoomAndMaybeRecenter(numSteps);
-                zoomChanged();
-                resizeGL();
+            const int angleDelta = event->angleDelta().y();
+            if (angleDelta != 0) {
+                const float factor = std::pow(ScaleFactor::ZOOM_STEP,
+                                              static_cast<float>(angleDelta) / 120.0f);
+                if (const auto xy = getMouseCoords(event)) {
+                    zoomAt(factor, *xy);
+                }
             }
         }
         break;
@@ -325,46 +250,97 @@ void MapCanvas::slot_onForcedPositionChange()
     slot_requestUpdate();
 }
 
-bool MapCanvas::event(QEvent *const event)
+void MapCanvas::touchEvent(QTouchEvent *const event)
 {
-    auto tryHandlePinchZoom = [this, event]() -> bool {
-        if (event->type() != QEvent::Gesture) {
-            return false;
-        }
-
-        const auto *const gestureEvent = dynamic_cast<QGestureEvent *>(event);
-        if (gestureEvent == nullptr) {
-            return false;
-        }
-
-        // Zoom in / out
-        QGesture *const gesture = gestureEvent->gesture(Qt::PinchGesture);
-        const auto *const pinch = dynamic_cast<QPinchGesture *>(gesture);
-        if (pinch == nullptr) {
-            return false;
-        }
-
-        const QPinchGesture::ChangeFlags changeFlags = pinch->changeFlags();
-        if (changeFlags & QPinchGesture::ScaleFactorChanged) {
-            const auto pinchFactor = static_cast<float>(pinch->totalScaleFactor());
-            m_scaleFactor.setPinch(pinchFactor);
-            if ((false)) {
-                zoomChanged(); // Don't call this here, because it's not true yet.
-            }
-        }
-        if (pinch->state() == Qt::GestureFinished) {
-            m_scaleFactor.endPinch();
-            zoomChanged(); // might not have actualy changed
-        }
-        resizeGL();
-        return true;
-    };
-
-    if (tryHandlePinchZoom()) {
-        return true;
+    if (event->type() == QEvent::TouchBegin) {
+        emit sig_dismissContextMenu();
     }
 
-    return QOpenGLWidget::event(event);
+    const auto &points = event->points();
+    if (points.size() == 2) {
+        const auto &p1 = points[0];
+        const auto &p2 = points[1];
+
+        if (event->type() == QEvent::TouchBegin || p1.state() == QEventPoint::Pressed
+            || p2.state() == QEventPoint::Pressed) {
+            m_initialPinchDistance = glm::distance(glm::vec2(static_cast<float>(p1.position().x()),
+                                                             static_cast<float>(p1.position().y())),
+                                                   glm::vec2(static_cast<float>(p2.position().x()),
+                                                             static_cast<float>(p2.position().y())));
+            m_lastPinchFactor = 1.f;
+        }
+
+        if (m_initialPinchDistance > PINCH_DISTANCE_THRESHOLD) {
+            const float currentDistance
+                = glm::distance(glm::vec2(static_cast<float>(p1.position().x()),
+                                          static_cast<float>(p1.position().y())),
+                                glm::vec2(static_cast<float>(p2.position().x()),
+                                          static_cast<float>(p2.position().y())));
+            const float currentPinchFactor = currentDistance / m_initialPinchDistance;
+            const float deltaFactor = currentPinchFactor / m_lastPinchFactor;
+
+            handleZoomAtEvent(event, deltaFactor);
+            m_lastPinchFactor = currentPinchFactor;
+        }
+
+        if (event->type() == QEvent::TouchEnd || p1.state() == QEventPoint::Released
+            || p2.state() == QEventPoint::Released) {
+            m_initialPinchDistance = 0.f;
+            m_lastPinchFactor = 1.f;
+        }
+        event->accept();
+    } else {
+        if (points.size() > 2) {
+            // Explicitly ignore more than 2 touch points for pinch zoom.
+            qDebug() << "MapCanvas::touchEvent: ignoring" << points.size() << "touch points";
+        }
+
+        if (m_initialPinchDistance > 0.f) {
+            m_initialPinchDistance = 0.f;
+            m_lastPinchFactor = 1.f;
+        }
+        QOpenGLWindow::touchEvent(event);
+    }
+}
+
+void MapCanvas::handleZoomAtEvent(const QInputEvent *const event, const float deltaFactor)
+{
+    if (std::abs(deltaFactor - 1.f) > GESTURE_EPSILON) {
+        if (const auto xy = getMouseCoords(event)) {
+            zoomAt(deltaFactor, *xy);
+        }
+    }
+}
+
+bool MapCanvas::event(QEvent *const event)
+{
+    if (event->type() == QEvent::NativeGesture) {
+        auto *const nativeEvent = static_cast<QNativeGestureEvent *>(event);
+        if (nativeEvent->gestureType() == Qt::ZoomNativeGesture) {
+            const auto value = static_cast<float>(nativeEvent->value());
+            float deltaFactor = 1.f;
+            if constexpr (CURRENT_PLATFORM == PlatformEnum::Mac) {
+                // On macOS, event->value() for ZoomNativeGesture is the magnification delta
+                // since the last event.
+                deltaFactor += value;
+            } else {
+                // On other platforms, it's typically the cumulative scale factor (1.0 at start).
+                if (nativeEvent->isBeginEvent()) {
+                    m_lastMagnification = 1.f;
+                }
+
+                if (std::abs(m_lastMagnification) > GESTURE_EPSILON) {
+                    deltaFactor = value / m_lastMagnification;
+                }
+                m_lastMagnification = value;
+            }
+            handleZoomAtEvent(nativeEvent, deltaFactor);
+            event->accept();
+            return true;
+        }
+    }
+
+    return QOpenGLWindow::event(event);
 }
 
 void MapCanvas::slot_createRoom()
@@ -385,8 +361,8 @@ void MapCanvas::slot_createRoom()
     }
 }
 
-// REVISIT: This function doesn't need to return a shared ptr. Consider refactoring InfoMarkSelection?
-std::shared_ptr<InfoMarkSelection> MapCanvas::getInfoMarkSelection(const MouseSel &sel)
+// REVISIT: This function doesn't need to return a shared ptr. Consider refactoring InfomarkSelection?
+std::shared_ptr<InfomarkSelection> MapCanvas::getInfomarkSelection(const MouseSel &sel)
 {
     static constexpr float CLICK_RADIUS = 10.f;
 
@@ -403,7 +379,7 @@ std::shared_ptr<InfoMarkSelection> MapCanvas::getInfoMarkSelection(const MouseSe
         const auto pos = sel.getScaledCoordinate(INFOMARK_SCALE);
         const auto lo = pos + Coordinate{-INFOMARK_CLICK_RADIUS, -INFOMARK_CLICK_RADIUS, 0};
         const auto hi = pos + Coordinate{+INFOMARK_CLICK_RADIUS, +INFOMARK_CLICK_RADIUS, 0};
-        return InfoMarkSelection::alloc(m_data, lo, hi);
+        return InfomarkSelection::alloc(m_data, lo, hi);
     }
 
     const glm::vec2 clickPoint = glm::vec2{optClickPoint.value()};
@@ -436,17 +412,39 @@ std::shared_ptr<InfoMarkSelection> MapCanvas::getInfoMarkSelection(const MouseSe
     const auto hi = getScaled(maxCoord);
     const auto lo = getScaled(minCoord);
 
-    return InfoMarkSelection::alloc(m_data, lo, hi);
+    return InfomarkSelection::alloc(m_data, lo, hi);
 }
 
 void MapCanvas::mousePressEvent(QMouseEvent *const event)
 {
+    if (event->button() != Qt::RightButton) {
+        emit sig_dismissContextMenu();
+    }
+
     const bool hasLeftButton = (event->buttons() & Qt::LeftButton) != 0u;
     const bool hasRightButton = (event->buttons() & Qt::RightButton) != 0u;
     const bool hasCtrl = (event->modifiers() & Qt::CTRL) != 0u;
     MAYBE_UNUSED const bool hasAlt = (event->modifiers() & Qt::ALT) != 0u;
 
-    m_sel1 = m_sel2 = getUnprojectedMouseSel(event);
+    if (hasLeftButton && hasAlt) {
+        m_altDragState.emplace(AltDragState{event->position().toPoint(), cursor()});
+        setCursor(Qt::ClosedHandCursor);
+        event->accept();
+        return;
+    }
+
+    const auto optXy = getMouseCoords(event);
+    if (!optXy) {
+        return;
+    }
+    const auto xy = *optXy;
+    if (m_canvasMouseMode == CanvasMouseModeEnum::MOVE) {
+        const auto worldPos = unproject_clamped(xy);
+        m_sel1 = m_sel2 = MouseSel{Coordinate2f{worldPos.x, worldPos.y}, m_currentLayer};
+    } else {
+        m_sel1 = m_sel2 = getUnprojectedMouseSel(xy);
+    }
+
     m_mouseLeftPressed = hasLeftButton;
     m_mouseRightPressed = hasRightButton;
 
@@ -464,10 +462,11 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
             slot_setRoomSelection(SigRoomSelection{m_roomSelection});
 
             // Select infomarks under the cursor.
-            slot_setInfoMarkSelection(getInfoMarkSelection(getSel1()));
+            slot_setInfomarkSelection(getInfomarkSelection(getSel1()));
 
             selectionChanged();
         }
+        emit sig_customContextMenuRequested(event->position().toPoint());
         m_mouseRightPressed = false;
         event->accept();
         return;
@@ -480,7 +479,7 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
     case CanvasMouseModeEnum::SELECT_INFOMARKS:
         // Select infomarks
         if (hasLeftButton && hasSel1()) {
-            auto tmpSel = getInfoMarkSelection(getSel1());
+            auto tmpSel = getInfomarkSelection(getSel1());
             if (m_infoMarkSelection != nullptr && !tmpSel->empty()
                 && m_infoMarkSelection->contains(tmpSel->front().getId())) {
                 m_infoMarkSelectionMove.reset();   // dtor, if necessary
@@ -494,14 +493,13 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
         break;
     case CanvasMouseModeEnum::MOVE:
         if (hasLeftButton && hasSel1()) {
-            this->QWidget::setCursor(Qt::ClosedHandCursor);
+            setCursor(Qt::ClosedHandCursor);
             startMoving(m_sel1.value());
         }
         break;
 
     case CanvasMouseModeEnum::RAYPICK_ROOMS:
         if (hasLeftButton) {
-            const auto xy = getMouseCoords(event);
             const auto near = unproject_raw(glm::vec3{xy, 0.f});
             const auto far = unproject_raw(glm::vec3{xy, 1.f});
 
@@ -617,14 +615,66 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
 
 void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
 {
+    const auto optXy = getMouseCoords(event);
+    if (!optXy) {
+        return;
+    }
+    const auto xy = *optXy;
+
+    if (m_altDragState.has_value()) {
+        // The user released the Alt key mid-drag.
+        if (!((event->modifiers() & Qt::ALT) != 0u)) {
+            setCursor(m_altDragState->originalCursor);
+            m_altDragState.reset();
+            // Don't accept the event; let the underlying widgets handle it.
+            return;
+        }
+
+        auto &conf = setConfig().canvas.advanced;
+        auto &dragState = m_altDragState.value();
+        bool angleChanged = false;
+
+        const auto pos = event->position().toPoint();
+        const auto delta = pos - dragState.lastPos;
+        dragState.lastPos = pos;
+
+        // Camera rotation sensitivity: 3 degree per pixel
+        constexpr float SENSITIVITY = 0.3f;
+
+        // Horizontal movement adjusts yaw (horizontalAngle)
+        const int dx = delta.x();
+        if (dx != 0) {
+            conf.horizontalAngle.set(conf.horizontalAngle.get()
+                                     + static_cast<int>(static_cast<float>(dx) * SENSITIVITY));
+            angleChanged = true;
+        }
+
+        // Vertical movement adjusts pitch (verticalAngle), if auto-tilt is off
+        if (!conf.autoTilt.get()) {
+            const int dy = delta.y();
+            if (dy != 0) {
+                // Negated to match intuitive up/down dragging
+                conf.verticalAngle.set(conf.verticalAngle.get()
+                                       + static_cast<int>(static_cast<float>(-dy) * SENSITIVITY));
+                angleChanged = true;
+            }
+        }
+
+        if (angleChanged) {
+            graphicsSettingsChanged();
+        }
+        event->accept();
+        return;
+    }
+
     const bool hasLeftButton = (event->buttons() & Qt::LeftButton) != 0u;
 
     if (m_canvasMouseMode != CanvasMouseModeEnum::MOVE) {
         // NOTE: Y is opposite of what you might expect here.
-        const int vScroll = [this, event]() -> int {
-            const int h = this->QOpenGLWidget::height();
+        const int vScroll = std::invoke([this, &xy]() -> int {
+            const int h = height();
             const int MARGIN = std::min(100, h / 4);
-            const int y = event->pos().y();
+            const auto y = static_cast<int>(static_cast<float>(h) - xy.y);
             if (y < MARGIN) {
                 return SCROLL_SCALE;
             } else if (y > h - MARGIN) {
@@ -632,11 +682,11 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
             } else {
                 return 0;
             }
-        }();
-        const int hScroll = [this, event]() -> int {
-            const int w = this->QOpenGLWidget::width();
+        });
+        const int hScroll = std::invoke([this, &xy]() -> int {
+            const int w = width();
             const int MARGIN = std::min(100, w / 4);
-            const int x = event->pos().x();
+            const auto x = static_cast<int>(xy.x);
             if (x < MARGIN) {
                 return -SCROLL_SCALE;
             } else if (x > w - MARGIN) {
@@ -644,19 +694,19 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
             } else {
                 return 0;
             }
-        }();
+        });
 
         emit sig_continuousScroll(hScroll, vScroll);
     }
 
-    m_sel2 = getUnprojectedMouseSel(event);
+    m_sel2 = getUnprojectedMouseSel(xy);
 
     switch (m_canvasMouseMode) {
     case CanvasMouseModeEnum::SELECT_INFOMARKS:
         if (hasLeftButton && hasSel1() && hasSel2()) {
-            if (hasInfoMarkSelectionMove()) {
+            if (hasInfomarkSelectionMove()) {
                 m_infoMarkSelectionMove->pos = getSel2().pos - getSel1().pos;
-                this->QWidget::setCursor(Qt::ClosedHandCursor);
+                setCursor(Qt::ClosedHandCursor);
 
             } else {
                 m_selectedArea = true;
@@ -672,12 +722,15 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
         infomarksChanged();
         break;
     case CanvasMouseModeEnum::MOVE:
-        if (hasLeftButton && m_mouseLeftPressed && hasSel2() && hasBackup()) {
-            const Coordinate2i delta
-                = ((getSel2().pos - getBackup().pos) * static_cast<float>(SCROLL_SCALE)).truncate();
-            if (delta.x != 0 || delta.y != 0) {
-                // negated because dragging to right is scrolling to the left.
-                emit sig_mapMove(-delta.x, -delta.y);
+        if (hasLeftButton && m_mouseLeftPressed && m_dragState.has_value()) {
+            const glm::vec3 currWorldPos = unproject_clamped(xy, m_dragState->startViewProj);
+            const glm::vec2 delta = glm::vec2(currWorldPos - m_dragState->startWorldPos);
+
+            if (glm::length(delta) > GESTURE_EPSILON) {
+                const glm::vec2 newWorldCenter = m_dragState->startScroll - delta;
+                m_scroll = newWorldCenter;
+                emit sig_onCenter(newWorldCenter);
+                update();
             }
         }
         break;
@@ -699,7 +752,7 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
                 m_roomSelectionMove->pos = diff;
                 m_roomSelectionMove->wrongPlace = wrongPlace;
 
-                this->QWidget::setCursor(wrongPlace ? Qt::ForbiddenCursor : Qt::ClosedHandCursor);
+                setCursor(wrongPlace ? Qt::ForbiddenCursor : Qt::ClosedHandCursor);
             } else {
                 m_selectedArea = true;
             }
@@ -747,8 +800,21 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
 
 void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
 {
+    const auto optXy = getMouseCoords(event);
+    if (!optXy) {
+        return;
+    }
+    const auto xy = *optXy;
+
+    if (m_altDragState.has_value()) {
+        setCursor(m_altDragState->originalCursor);
+        m_altDragState.reset();
+        event->accept();
+        return;
+    }
+
     emit sig_continuousScroll(0, 0);
-    m_sel2 = getUnprojectedMouseSel(event);
+    m_sel2 = getUnprojectedMouseSel(xy);
 
     if (m_mouseRightPressed) {
         m_mouseRightPressed = false;
@@ -756,17 +822,17 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
 
     switch (m_canvasMouseMode) {
     case CanvasMouseModeEnum::SELECT_INFOMARKS:
-        this->QWidget::setCursor(Qt::ArrowCursor);
+        setCursor(Qt::ArrowCursor);
         if (m_mouseLeftPressed) {
             m_mouseLeftPressed = false;
-            if (hasInfoMarkSelectionMove()) {
+            if (hasInfomarkSelectionMove()) {
                 const auto pos_copy = m_infoMarkSelectionMove->pos;
                 m_infoMarkSelectionMove.reset();
                 if (m_infoMarkSelection != nullptr) {
                     const auto offset = Coordinate{(pos_copy * INFOMARK_SCALE).truncate(), 0};
 
                     // Update infomark location
-                    const InfoMarkSelection &sel = deref(m_infoMarkSelection);
+                    const InfomarkSelection &sel = deref(m_infoMarkSelection);
                     sel.applyOffset(offset);
                     infomarksChanged();
                 }
@@ -774,7 +840,7 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
                 // Add infomarks to selection
                 const auto c1 = getSel1().getScaledCoordinate(INFOMARK_SCALE);
                 const auto c2 = getSel2().getScaledCoordinate(INFOMARK_SCALE);
-                auto tmpSel = InfoMarkSelection::alloc(m_data, c1, c2);
+                auto tmpSel = InfomarkSelection::alloc(m_data, c1, c2);
                 if (tmpSel && tmpSel->size() == 1) {
                     const InfomarkHandle &firstMark = tmpSel->front();
                     const Coordinate &pos = firstMark.getPosition1();
@@ -785,7 +851,7 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
                                         .arg(pos.z);
                     log(ctemp);
                 }
-                slot_setInfoMarkSelection(tmpSel);
+                slot_setInfomarkSelection(tmpSel);
             }
             m_selectedArea = false;
         }
@@ -800,27 +866,29 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
             // REVISIT: this previously searched for all the marks in c1, c2,
             // and then immediately cleared the selection.
             // Why??? Now it just allocates an empty selection.
-            auto tmpSel = InfoMarkSelection::allocEmpty(m_data, c1, c2);
-            slot_setInfoMarkSelection(tmpSel);
+            auto tmpSel = InfomarkSelection::allocEmpty(m_data, c1, c2);
+            slot_setInfomarkSelection(tmpSel);
         }
         infomarksChanged();
         break;
 
     case CanvasMouseModeEnum::MOVE:
         stopMoving();
-        this->QWidget::setCursor(Qt::OpenHandCursor);
+        setCursor(Qt::OpenHandCursor);
         if (m_mouseLeftPressed) {
             m_mouseLeftPressed = false;
         }
         // Display a room info tooltip if there was no mouse movement
-        if (hasSel1() && hasSel2() && getSel1().to_vec3() == getSel2().to_vec3()) {
+        if (event->button() == Qt::LeftButton && hasSel1() && hasSel2()
+            && getSel1().to_vec3() == getSel2().to_vec3()) {
             if (const auto room = m_data.findRoomHandle(getSel1().getCoordinate())) {
                 // Tooltip doesn't support ANSI, and there's no way to add formatted text.
                 auto message = mmqt::previewRoom(room,
                                                  mmqt::StripAnsiEnum::Yes,
                                                  mmqt::PreviewStyleEnum::ForDisplay);
 
-                QToolTip::showText(this->QWidget::mapToGlobal(event->pos()), message, this, this->QWidget::rect(), 5000);
+                const auto pos = event->position().toPoint();
+                emit sig_showTooltip(message, pos);
             }
         }
         break;
@@ -829,7 +897,7 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
         break;
 
     case CanvasMouseModeEnum::SELECT_ROOMS:
-        this->QWidget::setCursor(Qt::ArrowCursor);
+        setCursor(Qt::ArrowCursor);
 
         // This seems very unusual.
         if (m_ctrlPressed && m_altPressed) {
@@ -965,61 +1033,106 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
     m_ctrlPressed = false;
 }
 
-QSize MapCanvas::minimumSizeHint() const
+void MapCanvas::startMoving(const MouseSel &startPos)
 {
-    return {BASESIZE / 2, BASESIZE / 2};
+    MapCanvasInputState::startMoving(startPos);
+    m_dragState.emplace(DragState{startPos.to_vec3(), m_scroll, m_viewProj});
 }
 
-QSize MapCanvas::sizeHint() const
+void MapCanvas::stopMoving()
 {
-    return {BASESIZE, BASESIZE};
+    MapCanvasInputState::stopMoving();
+    m_dragState.reset();
+}
+
+void MapCanvas::zoomAt(const float factor, const glm::vec2 &mousePos)
+{
+    const auto optWorldPos = unproject(mousePos);
+    if (!optWorldPos) {
+        m_scaleFactor *= factor;
+        zoomChanged();
+        update();
+        return;
+    }
+
+    const glm::vec2 worldPos = glm::vec2(*optWorldPos);
+
+    // Save current state
+    const glm::vec2 oldScroll = m_scroll;
+
+    // Apply zoom
+    m_scaleFactor *= factor;
+    zoomChanged();
+
+    // Calculate new scroll position to keep worldPos under mousePos.
+    // We update the viewport and MVP to the new zoom level temporarily
+    // to perform the unprojection.
+    setViewportAndMvp(width(), height());
+
+    const auto optNewWorldPos = unproject(mousePos);
+    if (optNewWorldPos) {
+        const glm::vec2 delta = worldPos - glm::vec2(*optNewWorldPos);
+        const glm::vec2 newScroll = oldScroll + delta;
+        m_scroll = newScroll;
+        emit sig_onCenter(newScroll);
+    } else {
+        // Fallback: if we can't find the new world position, just stay where we were.
+        m_scroll = oldScroll;
+        emit sig_onCenter(oldScroll);
+    }
+
+    // Refresh the viewport matrix with the final scroll and zoom before painting.
+    setViewportAndMvp(width(), height());
+    update();
 }
 
 void MapCanvas::slot_setScroll(const glm::vec2 &worldPos)
 {
     m_scroll = worldPos;
-    resizeGL();
+    update();
 }
 
 void MapCanvas::slot_setHorizontalScroll(const float worldX)
 {
     m_scroll.x = worldX;
-    resizeGL();
+    update();
 }
 
 void MapCanvas::slot_setVerticalScroll(const float worldY)
 {
     m_scroll.y = worldY;
-    resizeGL();
+    update();
 }
 
 void MapCanvas::slot_zoomIn()
 {
     m_scaleFactor.logStep(1);
     zoomChanged();
-    resizeGL();
+    update();
 }
 
 void MapCanvas::slot_zoomOut()
 {
     m_scaleFactor.logStep(-1);
     zoomChanged();
-    resizeGL();
+    update();
 }
 
 void MapCanvas::slot_zoomReset()
 {
     m_scaleFactor.set(1.f);
     zoomChanged();
-    resizeGL();
+    update();
 }
 
 void MapCanvas::onMovement()
 {
     const Coordinate &pos = m_data.tryGetPosition().value_or(Coordinate{});
     m_currentLayer = pos.z;
-    emit sig_onCenter(pos.to_vec2() + glm::vec2{0.5f, 0.5f});
-    this->QWidget::update();
+    const glm::vec2 newScroll = pos.to_vec2() + glm::vec2{0.5f, 0.5f};
+    m_scroll = newScroll;
+    emit sig_onCenter(newScroll);
+    update();
 }
 
 void MapCanvas::slot_dataLoaded()
@@ -1033,428 +1146,27 @@ void MapCanvas::slot_dataLoaded()
 
 void MapCanvas::slot_moveMarker(const RoomId id)
 {
+    assert(id != INVALID_ROOMID);
     m_data.setRoom(id);
     onMovement();
-}
-
-void MapCanvas::launchVisibilityUpdateTask(bool isHighPriority /*= false*/) {
-    std::lock_guard<std::mutex> lock(m_visibilityMutex);
-
-    if (m_visibilityTaskFuture.valid() &&
-        m_visibilityTaskFuture.wait_for(std::chrono::seconds(0)) == std::future_status::timeout) {
-        m_newVisibilityRequestPending = true;
-        // TODO: If isHighPriority, consider if we need to signal an existing low-priority task to cancel.
-        // For now, just setting the pending flag is fine, the running task will complete.
-        return;
-    }
-
-    m_newVisibilityRequestPending = false;
-
-    // Parameter population and std::async call
-    const MapData* mapDataPtr = &m_data;
-    const World* worldPtr = nullptr;
-    if (!m_data.isEmpty()) { // Corrected condition
-        worldPtr = &m_data.getCurrentMap().getWorld();
-    }
-
-    if (!worldPtr || (mapDataPtr == nullptr || mapDataPtr->isEmpty())) {
-        qWarning() << "MapCanvas::launchVisibilityUpdateTask: Cannot launch, map is empty or world not available.";
-        return;
-    }
-
-    VisibilityTaskParams params;
-    params.currentLayer = m_currentLayer;
-    params.viewPortWidth = static_cast<float>(this->QOpenGLWidget::width());
-    params.viewPortHeight = static_cast<float>(this->QOpenGLWidget::height());
-    params.viewProjMatrix = m_viewProj;
-    params.frustumPlanes = getFrustumPlanes();
-    params.isHighPriorityRequest = isHighPriority;
-
-    glm::vec3 worldTopLeftRaw = this->unproject_clamped(glm::vec2(0.0f, params.viewPortHeight));
-    glm::vec3 worldTopRightRaw = this->unproject_clamped(glm::vec2(params.viewPortWidth, params.viewPortHeight));
-    glm::vec3 worldBottomLeftRaw = this->unproject_clamped(glm::vec2(0.0f, 0.0f));
-    glm::vec3 worldBottomRightRaw = this->unproject_clamped(glm::vec2(params.viewPortWidth, 0.0f));
-
-    params.vpWorldMinX = std::min({worldTopLeftRaw.x, worldTopRightRaw.x, worldBottomLeftRaw.x, worldBottomRightRaw.x});
-    params.vpWorldMaxX = std::max({worldTopLeftRaw.x, worldTopRightRaw.x, worldBottomLeftRaw.x, worldBottomRightRaw.x});
-    params.vpWorldMinY = std::min({worldTopLeftRaw.y, worldTopRightRaw.y, worldBottomLeftRaw.y, worldBottomRightRaw.y});
-    params.vpWorldMaxY = std::max({worldTopLeftRaw.y, worldTopRightRaw.y, worldBottomLeftRaw.y, worldBottomRightRaw.y});
-
-    params.mapDataPtr = mapDataPtr;
-    params.worldPtr = worldPtr;
-
-    if (m_batches.mapBatches.has_value()) {
-        const auto& currentBatchedMeshes = m_batches.mapBatches->batchedMeshes;
-        for (const auto& layerPair : currentBatchedMeshes) {
-            int layerId = layerPair.first;
-            for (const auto& chunkPair : layerPair.second) {
-                if (chunkPair.second) { // LayerMeshes::operator bool()
-                    params.existingValidMeshChunks.insert({layerId, chunkPair.first});
-                }
-            }
-        }
-    }
-
-    qDebug() << "MapCanvas::launchVisibilityUpdateTask: Launching actual async task.";
-    m_visibilityTaskFuture = std::async<VisibilityTaskResult>(std::launch::async,
-        [params] () -> VisibilityTaskResult {
-            VisibilityTaskResult result;
-            result.originatedFromHighPriorityRequest = params.isHighPriorityRequest;
-            result.success = false; // Default to false, set true on successful completion
-
-            try {
-                if (!params.mapDataPtr || !params.worldPtr) {
-                    throw std::runtime_error("MapData or World pointer is null in async task.");
-                }
-
-                const Map& currentMap = params.mapDataPtr->getCurrentMap();
-                if (currentMap.empty()) {
-                    result.success = true; // Technically success, but no data
-                    return result;
-                }
-                const SpatialDb& spatialDb = params.worldPtr->getSpatialDb();
-
-                std::vector<RoomId> potentiallyVisibleRoomIds = spatialDb.getRoomsInViewport(
-                    params.currentLayer, params.vpWorldMinX, params.vpWorldMinY, params.vpWorldMaxX, params.vpWorldMaxY
-                );
-
-                for (RoomId roomId : potentiallyVisibleRoomIds) {
-                    RoomHandle room = currentMap.getRoomHandle(roomId);
-                    if (!room.exists()) continue;
-
-                    glm::vec3 roomMin = room.getPosition().to_vec3();
-                    glm::vec3 roomMax = roomMin + glm::vec3(1.0f, 1.0f, 0.0f);
-
-                    if (VisibilityHelpers::isRoomAABBVisible(roomMin, roomMax, params.frustumPlanes)) {
-                        RoomAreaHash areaHash = ::getRoomAreaHash(room);
-                        result.visibleChunksCalculated[params.currentLayer].insert(areaHash);
-                    }
-                }
-
-                for (const auto& layerChunksPair : result.visibleChunksCalculated) {
-                    const int layerId = layerChunksPair.first;
-                    const std::set<RoomAreaHash>& visibleChunkIdsOnLayer = layerChunksPair.second;
-
-                    for (const RoomAreaHash roomAreaHash : visibleChunkIdsOnLayer) {
-                        std::pair<int, RoomAreaHash> chunkKey = {layerId, roomAreaHash};
-                        if (params.existingValidMeshChunks.find(chunkKey) == params.existingValidMeshChunks.end()) {
-                            result.chunksToRequestGenerated.push_back(chunkKey);
-                        }
-                    }
-                }
-                result.success = true; // Mark as successful if all steps complete
-            } catch (const std::exception& e) {
-                qWarning() << "Exception in async visibility task: " << e.what();
-                // result.success remains false
-            } catch (...) {
-                qWarning() << "Unknown exception in async visibility task.";
-                // result.success remains false
-            }
-            return result;
-        }
-    );
-}
-
-void MapCanvas::checkAndProcessVisibilityResult() {
-    if (!m_visibilityTaskFuture.valid()) {
-        return;
-    }
-
-    std::future_status status;
-    // Check without blocking initially, using a lock only when we are about to modify shared state (the future itself)
-    status = m_visibilityTaskFuture.wait_for(std::chrono::seconds(0));
-
-    if (status == std::future_status::ready) {
-        VisibilityTaskResult result;
-        bool processResult = false;
-        { // Scope for lock_guard
-            std::lock_guard<std::mutex> lock(m_visibilityMutex);
-            // Re-check status under lock to handle race conditions.
-            if (m_visibilityTaskFuture.valid() &&
-                m_visibilityTaskFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
-                try {
-                    result = m_visibilityTaskFuture.get(); // Can throw if task threw exception
-                } catch (const std::exception& e) {
-                    qWarning() << "Exception caught from visibility task: " << e.what();
-                    result.success = false; // Ensure result indicates failure
-                }
-                m_visibilityTaskFuture = {}; // Invalidate the future
-                processResult = true;
-            }
-        } // Lock released here
-
-        if (processResult) {
-            if (result.success) {
-                m_visibleChunks = result.visibleChunksCalculated;
-
-                if (result.originatedFromHighPriorityRequest) {
-                    // This was a forced update (e.g., from forceUpdateMeshes)
-                    // We need to request remeshing for ALL currently visible chunks.
-                    std::vector<std::pair<int, RoomAreaHash>> allCurrentlyVisibleChunks;
-                    for (const auto& layerPair : result.visibleChunksCalculated) {
-                        for (const RoomAreaHash& areaHash : layerPair.second) {
-                            allCurrentlyVisibleChunks.push_back({layerPair.first, areaHash});
-                        }
-                    }
-
-                    if (!allCurrentlyVisibleChunks.empty()) {
-                        m_pendingChunkGenerations.clear();
-                        for(const auto& chunkKey : allCurrentlyVisibleChunks) {
-                            m_pendingChunkGenerations.insert(chunkKey);
-                        }
-
-                        qDebug() << "Force update: Requesting remesh for all" << allCurrentlyVisibleChunks.size() << "visible chunks.";
-                        m_batches.remeshCookie.set(
-                            m_data.generateSpecificChunkBatches(mctp::getProxy(m_textures), allCurrentlyVisibleChunks)
-                        );
-                    } else {
-                         if (m_batches.remeshCookie.isPending()) {
-                            m_batches.ignorePendingRemesh();
-                            m_batches.remeshCookie = {};
-                         }
-                    }
-                } else {
-                    // This was a regular, non-forced update. Only request newly missing chunks.
-                    if (!result.chunksToRequestGenerated.empty()) {
-                        bool canSetNewCookie = true;
-                        if (m_batches.remeshCookie.isPending()) {
-                            qDebug() << "Async visibility result: Chunks to request, but remesh cookie already pending for other task.";
-                            canSetNewCookie = false;
-                        }
-
-                        if (canSetNewCookie) {
-                            std::vector<std::pair<int, RoomAreaHash>> finalChunksToRequest;
-                            for(const auto& chunkKey : result.chunksToRequestGenerated) {
-                                 if (m_pendingChunkGenerations.find(chunkKey) == m_pendingChunkGenerations.end()) {
-                                    m_pendingChunkGenerations.insert(chunkKey);
-                                    finalChunksToRequest.push_back(chunkKey);
-                                 } else {
-                                    qDebug() << "Chunk" << chunkKey.first << chunkKey.second << "was already in m_pendingChunkGenerations.";
-                                 }
-                            }
-                            if (!finalChunksToRequest.empty()){
-                                 m_batches.remeshCookie.set(
-                                    m_data.generateSpecificChunkBatches(mctp::getProxy(m_textures), finalChunksToRequest)
-                                 );
-                            }
-                        }
-                    }
-                }
-                this->QWidget::update();
-            } else {
-                qWarning() << "Async visibility update task failed.";
-            }
-            // If m_newVisibilityRequestPending was true, the next call to paintGL or another trigger
-            // will call launchVisibilityUpdateTask again.
-            if(m_newVisibilityRequestPending) { // Check if a new request came in while processing
-                launchVisibilityUpdateTask(); // Launch it now that the previous one is processed
-            }
-        }
-    }
 }
 
 void MapCanvas::infomarksChanged()
 {
     m_batches.infomarksMeshes.reset();
-    this->QWidget::update();
+    update();
 }
 
 void MapCanvas::layerChanged()
 {
-    // updateVisibleChunks(); // Replaced by async task
-    // requestMissingChunks(); // Replaced by async task
-    launchVisibilityUpdateTask();
-    this->QWidget::update();
+    update();
 }
-
-void MapCanvas::requestMissingChunks() {
-    // This method's core logic (decision making and action) has been moved
-    // to the asynchronous task and its result handler (checkAndProcessVisibilityResult).
-    qDebug() << "Legacy MapCanvas::requestMissingChunks() was called. All primary triggers should now use the new async visibility flow.";
-}
-#endif // Old requestMissingChunks logic
-
-#if 0 // Old requestMissingChunks logic, kept for reference during refactor, can be deleted later - THIS LINE IS REDUNDANT AND WILL BE REMOVED BY NOT INCLUDING IT IN REPLACE
-    if (m_batches.remeshCookie.isPending()) {
-        // A remesh operation is already in progress, which will generate all visible chunks.
-        // Or, if it was a specific chunk request, we wait for it to complete.
-        return;
-    }
-
-    std::vector<std::pair<int, RoomAreaHash>> chunksToRequestNow;
-
-    for (const auto& layerChunksPair : m_visibleChunks) {
-        const int layerId = layerChunksPair.first;
-        const std::set<RoomAreaHash>& visibleChunkIds = layerChunksPair.second;
-
-        // Check existing batches
-        const MapBatches* currentMapBatchesPtr = nullptr;
-        if (m_batches.mapBatches.has_value()) {
-            currentMapBatchesPtr = &(*m_batches.mapBatches);
-        }
-
-        // Use a const iterator type that's compatible whether currentMapBatchesPtr is null or not.
-        // Or, handle the null case more explicitly before trying to use mapBatchesLayerIt.
-        auto mapBatchesLayerIt = currentMapBatchesPtr ?
-                                 currentMapBatchesPtr->batchedMeshes.find(layerId) :
-                                 (currentMapBatchesPtr ? currentMapBatchesPtr->batchedMeshes.end() : decltype(currentMapBatchesPtr->batchedMeshes.end()){});
-
-
-        for (const RoomAreaHash roomAreaHash : visibleChunkIds) {
-            bool isMissingOrInvalid = true; // Assume missing unless found and valid
-            if (currentMapBatchesPtr && mapBatchesLayerIt != currentMapBatchesPtr->batchedMeshes.end()) {
-                const ChunkedLayerMeshes& chunkedLayerMeshes = mapBatchesLayerIt->second;
-                auto chunkIt = chunkedLayerMeshes.find(roomAreaHash);
-                if (chunkIt != chunkedLayerMeshes.end()) {
-                    // Chunk exists, check if its LayerMeshes is valid
-                    if (chunkIt->second) { // LayerMeshes::operator bool()
-                        isMissingOrInvalid = false;
-                    }
-                }
-            }
-
-            if (isMissingOrInvalid) {
-                std::pair<int, RoomAreaHash> chunkKey = {layerId, roomAreaHash};
-                // Only add to request if not already pending
-                if (m_pendingChunkGenerations.find(chunkKey) == m_pendingChunkGenerations.end()) {
-                    chunksToRequestNow.push_back(chunkKey);
-                }
-            }
-        }
-    }
-
-    if (!chunksToRequestNow.empty()) {
-        for(const auto& chunkKey : chunksToRequestNow) {
-            m_pendingChunkGenerations.insert(chunkKey);
-        }
-        // Instead of forceUpdateMeshes(), call generateSpecificChunkBatches
-        // m_data is a MapData&
-        // m_textures is a MapCanvasTextures
-        // mctp::getProxy should be available from Textures.h (included via mapcanvas.h)
-        m_batches.remeshCookie.set(
-            m_data.generateSpecificChunkBatches(mctp::getProxy(m_textures), chunksToRequestNow)
-        );
-        // No need to call update() here explicitly, as the renderLoop will check the cookie.
-    }
-}
-
-std::optional<glm::vec3> MapCanvas::getUnprojectedScreenPos(const glm::vec2& screenPos) const {
-    // unproject_clamped is a member of MapCanvasViewport, which MapCanvas inherits from.
-    return this->unproject_clamped(screenPos);
-}
-
-void MapCanvas::updateVisibleChunks() {
-    // This method's core logic has been moved to an asynchronous task
-    // triggered by launchVisibilityUpdateTask().
-    // Calling launchVisibilityUpdateTask() here could be an option if this method
-    // is still hit by an unexpected call path, but ideally all call sites were updated.
-    qDebug() << "Legacy MapCanvas::updateVisibleChunks() was called. All primary triggers should now use launchVisibilityUpdateTask().";
-}
-
-#if 0 // Old updateVisibleChunks logic, kept for reference during refactor, can be deleted later
-    auto start_time = std::chrono::high_resolution_clock::now();
-    m_visibleChunks.clear();
-
-    // 1. Get current Map and World
-    const Map& currentMap = m_data.getCurrentMap();
-    if (currentMap.empty()) {
-       auto end_time_early = std::chrono::high_resolution_clock::now();
-       auto duration_early = std::chrono::duration_cast<std::chrono::microseconds>(end_time_early - start_time);
-       qDebug() << "updateVisibleChunks execution time (empty map):" << duration_early.count() << "microseconds";
-       return;
-    }
-    const World& world = currentMap.getWorld();
-    const SpatialDb& spatialDb = world.getSpatialDb();
-
-    // 2. Determine viewport world coordinates
-    float viewPortWidth = static_cast<float>(width());
-    float viewPortHeight = static_cast<float>(height());
-
-    // m_mapScreen is a MapScreen object, which inherits from MapCanvasViewport
-    // MapCanvasViewport has unproject_clamped
-    glm::vec3 worldTopLeftRaw = this->unproject_clamped(glm::vec2(0.0f, viewPortHeight));
-    glm::vec3 worldTopRightRaw = this->unproject_clamped(glm::vec2(viewPortWidth, viewPortHeight));
-    glm::vec3 worldBottomLeftRaw = this->unproject_clamped(glm::vec2(0.0f, 0.0f));
-    glm::vec3 worldBottomRightRaw = this->unproject_clamped(glm::vec2(viewPortWidth, 0.0f));
-
-    float worldMinX = std::min({worldTopLeftRaw.x, worldTopRightRaw.x, worldBottomLeftRaw.x, worldBottomRightRaw.x});
-    float worldMaxX = std::max({worldTopLeftRaw.x, worldTopRightRaw.x, worldBottomLeftRaw.x, worldBottomRightRaw.x});
-    float worldMinY = std::min({worldTopLeftRaw.y, worldTopRightRaw.y, worldBottomLeftRaw.y, worldBottomRightRaw.y});
-    float worldMaxY = std::max({worldTopLeftRaw.y, worldTopRightRaw.y, worldBottomLeftRaw.y, worldBottomRightRaw.y});
-
-    // 3. Query SpatialDb
-    std::vector<RoomId> potentiallyVisibleRoomIds = spatialDb.getRoomsInViewport(
-        m_currentLayer, worldMinX, worldMinY, worldMaxX, worldMaxY
-    );
-
-    // 4. Process potentially visible rooms
-    const float marginPixels = 20.0f; // Or some other configured/appropriate margin
-
-    for (RoomId roomId : potentiallyVisibleRoomIds) {
-        RoomHandle room = currentMap.getRoomHandle(roomId);
-        if (!room.exists()) {
-            continue;
-        }
-        // The query to spatialDb was already for m_currentLayer, so no need to check room.getPosition().z again.
-        // However, if getRoomsInViewport returned rooms from other layers, a check would be needed:
-        // if (room.getPosition().z != m_currentLayer) continue;
-
-
-        if (m_mapScreen.isRoomVisible(room.getPosition(), marginPixels)) {
-            RoomAreaHash areaHash = getRoomAreaHash(room);
-            m_visibleChunks[m_currentLayer].insert(areaHash); // m_currentLayer is correct here
-        }
-    }
-
-    auto end_time = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
-    qDebug() << "updateVisibleChunks execution time:" << duration.count() << "microseconds";
-#endif
-}
-// The redundant #endif that was here (and its misleading comment) is removed.
 
 void MapCanvas::forceUpdateMeshes()
 {
-    // If a specific chunk generation is already in progress, let it complete.
-    // Starting another one (even a "full visible" one) could lead to conflicts
-    // or overwrite the existing remesh cookie too soon.
-    if (m_batches.remeshCookie.isPending()) {
-        // Optionally, we could queue this forced update or simply rely
-        // on the current pending operation to refresh relevant data.
-        // For now, just returning seems safest to avoid complex queueing.
-        // The user might see a slight delay if they trigger this while another load is happening.
-        update(); // Still call update to ensure a repaint is scheduled after the current op.
-        return;
-    }
-
-    // updateVisibleChunks(); // Determine what's currently visible // Replaced by async task
-    launchVisibilityUpdateTask(true); // High priority as it's a forced update
-
-    std::vector<std::pair<int, RoomAreaHash>> allVisibleChunks;
-    for (const auto& layerChunksPair : m_visibleChunks) { // This will use potentially stale m_visibleChunks until async result is processed
-        for (const RoomAreaHash roomAreaHash : layerChunksPair.second) {
-            allVisibleChunks.push_back({layerChunksPair.first, roomAreaHash});
-        }
-    }
-
-    if (!allVisibleChunks.empty()) {
-        // It's important to mark these as pending *before* starting the async operation,
-        // to prevent requestMissingChunks from trying to add them again if it runs
-        // between forceUpdateMeshes starting and the cookie becoming pending.
-        for(const auto& chunkKey : allVisibleChunks) {
-            m_pendingChunkGenerations.insert(chunkKey);
-        }
-        m_batches.remeshCookie.set(
-            m_data.generateSpecificChunkBatches(mctp::getProxy(m_textures), allVisibleChunks)
-        );
-    }
-
-    // Resetting diffs might still be appropriate if a "forced" update implies
-    // that underlying map data (not just view) might have changed in a way
-    // that requires re-evaluating differences.
+    m_batches.resetExistingMeshesAndIgnorePendingRemesh();
     m_diff.resetExistingMeshesAndIgnorePendingRemesh();
-
-    this->QWidget::update(); // Schedule a repaint
+    update();
 }
 
 void MapCanvas::slot_mapChanged()
@@ -1464,12 +1176,12 @@ void MapCanvas::slot_mapChanged()
     if ((false)) {
         m_batches.mapBatches.reset();
     }
-    this->QWidget::update();
+    update();
 }
 
 void MapCanvas::slot_requestUpdate()
 {
-    this->QWidget::update();
+    update();
 }
 
 void MapCanvas::screenChanged()
@@ -1495,19 +1207,20 @@ void MapCanvas::screenChanged()
         font.cleanup();
         font.init();
 
-        forceUpdateMeshes(); // Changed from update() to forceUpdateMeshes()
+        update();
     }
 }
 
 void MapCanvas::selectionChanged()
 {
-    this->QWidget::update();
+    update();
     emit sig_selectionChanged();
 }
 
 void MapCanvas::graphicsSettingsChanged()
 {
-    this->QWidget::update();
+    m_opengl.resetNamedColorsBuffer();
+    update();
 }
 
 void MapCanvas::userPressedEscape(bool /*pressed*/)
@@ -1538,9 +1251,7 @@ void MapCanvas::userPressedEscape(bool /*pressed*/)
     case CanvasMouseModeEnum::SELECT_INFOMARKS:
     case CanvasMouseModeEnum::CREATE_INFOMARKS:
         m_infoMarkSelectionMove.reset();
-        slot_clearInfoMarkSelection(); // calls selectionChanged();
+        slot_clearInfomarkSelection(); // calls selectionChanged();
         break;
     }
 }
-
-[end of src/display/mapcanvas.cpp]

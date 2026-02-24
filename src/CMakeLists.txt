@@ -10,6 +10,18 @@ set(mmapper_SRCS
     adventure/lineparsers.h
     adventure/xpstatuswidget.cpp
     adventure/xpstatuswidget.h
+    client/AudioHintWidget.cpp
+    client/AudioHintWidget.h
+    media/AudioManager.cpp
+    media/AudioManager.h
+    media/DescriptionWidget.cpp
+    media/DescriptionWidget.h
+    media/MediaLibrary.cpp
+    media/MediaLibrary.h
+    media/MusicManager.cpp
+    media/MusicManager.h
+    media/SfxManager.cpp
+    media/SfxManager.h
     client/ClientTelnet.cpp
     client/ClientTelnet.h
     client/ClientWidget.cpp
@@ -22,6 +34,10 @@ set(mmapper_SRCS
     client/inputwidget.h
     client/stackedinputwidget.cpp
     client/stackedinputwidget.h
+    client/Hotkey.cpp
+    client/Hotkey.h
+    client/HotkeyManager.cpp
+    client/HotkeyManager.h
     client/PasswordDialog.cpp
     client/PasswordDialog.h
     client/PreviewWidget.cpp
@@ -32,6 +48,8 @@ set(mmapper_SRCS
     clock/mumeclockwidget.h
     clock/mumemoment.cpp
     clock/mumemoment.h
+    configuration/GroupConfig.cpp
+    configuration/GroupConfig.h
     configuration/NamedConfig.h
     configuration/PasswordConfig.cpp
     configuration/PasswordConfig.h
@@ -48,8 +66,8 @@ set(mmapper_SRCS
     display/Filenames.h
     display/IMapBatchesFinisher.cpp
     display/IMapBatchesFinisher.h
-    display/InfoMarkSelection.cpp
-    display/InfoMarkSelection.h
+    display/InfomarkSelection.cpp
+    display/InfomarkSelection.h
     display/Infomarks.cpp
     display/Infomarks.h
     display/MapBatches.cpp
@@ -108,6 +126,11 @@ set(mmapper_SRCS
     global/Flags.h
     global/HideQDebug.cpp
     global/HideQDebug.h
+    global/ImmIndexedVector.h
+    global/ImmIndexedVectorWithDefault.h
+    global/ImmOrderedSet.h
+    global/ImmUnorderedMap.h
+    global/ImmUnorderedSet.h
     global/IndexedVector.h
     global/IndexedVectorWithDefault.cpp
     global/IndexedVectorWithDefault.h
@@ -215,12 +238,12 @@ set(mmapper_SRCS
     group/mmapper2group.h
     logger/autologger.cpp
     logger/autologger.h
-    mainwindow/DescriptionWidget.cpp
-    mainwindow/DescriptionWidget.h
     mainwindow/MapZoomSlider.cpp
     mainwindow/MapZoomSlider.h
     mainwindow/UpdateDialog.cpp
     mainwindow/UpdateDialog.h
+    mainwindow/ThemeManager.cpp
+    mainwindow/ThemeManager.h
     mainwindow/aboutdialog.cpp
     mainwindow/aboutdialog.h
     mainwindow/findroomsdlg.cpp
@@ -295,8 +318,6 @@ set(mmapper_SRCS
     map/RoomHandle.h
     map/RoomIdSet.cpp
     map/RoomIdSet.h
-    map/RoomRecipient.cpp
-    map/RoomRecipient.h
     map/RoomRevert.cpp
     map/RoomRevert.h
     map/ServerIdMap.cpp
@@ -312,8 +333,6 @@ set(mmapper_SRCS
     map/WorldAreaMap.h
     map/WorldBuilder.cpp
     map/WorldBuilder.h
-    map/Quadtree.cpp
-    map/Quadtree.h
     map/coordinate.cpp
     map/coordinate.h
     map/enums.cpp
@@ -345,8 +364,14 @@ set(mmapper_SRCS
     mapdata/roomselection.h
     mapdata/shortestpath.cpp
     mapdata/shortestpath.h
+    mapfrontend/MapHistory.cpp
+    mapfrontend/MapHistory.h
     mapfrontend/mapfrontend.cpp
     mapfrontend/mapfrontend.h
+    mapstorage/MapDestination.cpp
+    mapstorage/MapDestination.h
+    mapstorage/MapSource.cpp
+    mapstorage/MapSource.h
     mapstorage/MmpMapStorage.cpp
     mapstorage/MmpMapStorage.h
     mapstorage/PandoraMapStorage.cpp
@@ -367,29 +392,43 @@ set(mmapper_SRCS
     mpi/mpifilter.h
     mpi/remoteedit.cpp
     mpi/remoteedit.h
-    mpi/remoteeditprocess.cpp
-    mpi/remoteeditprocess.h
     mpi/remoteeditsession.cpp
     mpi/remoteeditsession.h
     mpi/remoteeditwidget.cpp
     mpi/remoteeditwidget.h
+    mpi/gotowidget.cpp
+    mpi/gotowidget.h
+    mpi/findreplacewidget.cpp
+    mpi/findreplacewidget.h
     observer/gameobserver.cpp
     observer/gameobserver.h
     opengl/Font.cpp
     opengl/Font.h
+    opengl/OpenGLProber.cpp
+    opengl/OpenGLProber.h
     opengl/FontFormatFlags.h
+    opengl/LineRendering.cpp
+    opengl/LineRendering.h
     opengl/OpenGL.cpp
     opengl/OpenGL.h
+    opengl/OpenGLConfig.cpp
+    opengl/OpenGLConfig.h
     opengl/OpenGLTypes.cpp
     opengl/OpenGLTypes.h
     opengl/legacy/AbstractShaderProgram.cpp
     opengl/legacy/AbstractShaderProgram.h
     opengl/legacy/Binders.cpp
     opengl/legacy/Binders.h
+    opengl/legacy/FBO.cpp
+    opengl/legacy/FBO.h
     opengl/legacy/FontMesh3d.cpp
     opengl/legacy/FontMesh3d.h
     opengl/legacy/Legacy.cpp
     opengl/legacy/Legacy.h
+    opengl/legacy/FunctionsGL33.cpp
+    opengl/legacy/FunctionsGL33.h
+    opengl/legacy/FunctionsES30.cpp
+    opengl/legacy/FunctionsES30.h
     opengl/legacy/Meshes.cpp
     opengl/legacy/Meshes.h
     opengl/legacy/ShaderUtils.cpp
@@ -398,9 +437,10 @@ set(mmapper_SRCS
     opengl/legacy/Shaders.h
     opengl/legacy/SimpleMesh.cpp
     opengl/legacy/SimpleMesh.h
+    opengl/legacy/VAO.cpp
+    opengl/legacy/VAO.h
     opengl/legacy/VBO.cpp
     opengl/legacy/VBO.h
-    opengl/legacy/impl_gl20.cpp
     parser/Abbrev.cpp
     parser/Abbrev.h
     parser/AbstractParser-Actions.cpp
@@ -408,6 +448,7 @@ set(mmapper_SRCS
     parser/AbstractParser-Commands.h
     parser/AbstractParser-Config.cpp
     parser/AbstractParser-Group.cpp
+    parser/AbstractParser-Hotkey.cpp
     parser/AbstractParser-Mark.cpp
     parser/AbstractParser-Room.cpp
     parser/AbstractParser-Timer.cpp
@@ -441,12 +482,16 @@ set(mmapper_SRCS
     pathmachine/pathmachine.cpp
     pathmachine/pathmachine.h
     pathmachine/pathparameters.h
+    pathmachine/pathprocessor.cpp
+    pathmachine/pathprocessor.h
     pathmachine/roomsignalhandler.cpp
     pathmachine/roomsignalhandler.h
     pathmachine/syncing.cpp
     pathmachine/syncing.h
     preferences/AdvancedGraphics.cpp
     preferences/AdvancedGraphics.h
+    preferences/audiopage.cpp
+    preferences/audiopage.h
     preferences/AnsiColorDialog.cpp
     preferences/AnsiColorDialog.h
     preferences/ansicombo.cpp
@@ -461,12 +506,15 @@ set(mmapper_SRCS
     preferences/generalpage.h
     preferences/graphicspage.cpp
     preferences/graphicspage.h
+    preferences/grouppage.cpp
+    preferences/grouppage.h
     preferences/mumeprotocolpage.cpp
     preferences/mumeprotocolpage.h
     preferences/parserpage.cpp
     preferences/parserpage.h
     preferences/pathmachinepage.cpp
     preferences/pathmachinepage.h
+    proxy/AbstractSocket.h
     proxy/AbstractTelnet.cpp
     proxy/AbstractTelnet.h
     proxy/GmcpMessage.cpp
@@ -479,10 +527,14 @@ set(mmapper_SRCS
     proxy/MudTelnet.h
     proxy/ProxyParserApi.cpp
     proxy/ProxyParserApi.h
+    proxy/TcpSocket.cpp
+    proxy/TcpSocket.h
     proxy/TextCodec.cpp
     proxy/TextCodec.h
     proxy/UserTelnet.cpp
     proxy/UserTelnet.h
+    proxy/VirtualSocket.cpp
+    proxy/VirtualSocket.h
     proxy/connectionlistener.cpp
     proxy/connectionlistener.h
     proxy/mumesocket.cpp
@@ -529,17 +581,21 @@ set(mmapper_SRCS
     viewers/TopLevelWindows.h
 )
 
+if(NOT EMSCRIPTEN)
+    list(APPEND mmapper_SRCS mpi/remoteeditprocess.cpp mpi/remoteeditprocess.h)
+endif()
+
 qt_add_resources(mmapper_QRC resources/mmapper2.qrc)
 
 if(MMAPPER_BETA)
-    qt_add_resources(mmapper_QRC "resources/beta.qrc")
     list(APPEND mmapper_RCS "resources/win32/beta.rc")
     set(MMAPPER_BRAND_SUFFIX "beta")
 else()
-    qt_add_resources(mmapper_QRC "resources/release.qrc")
     list(APPEND mmapper_RCS "resources/win32/release.rc")
     set(MMAPPER_BRAND_SUFFIX "release")
 endif()
+configure_file(resources/build.qrc.in ${CMAKE_CURRENT_BINARY_DIR}/build.qrc)
+qt_add_resources(mmapper_QRC ${CMAKE_CURRENT_BINARY_DIR}/build.qrc)
 list(APPEND mmapper_RCS "resources/macosx/m-${MMAPPER_BRAND_SUFFIX}.icns")
 
 if(WITH_MAP)
@@ -550,6 +606,10 @@ if(WITH_IMAGES)
     qt_add_resources(mmapper_QRC "${CMAKE_BINARY_DIR}/images/images.qrc")
 endif()
 
+if(WITH_AUDIO)
+    qt_add_resources(mmapper_QRC "${CMAKE_BINARY_DIR}/audio/audio.qrc")
+endif()
+
 set(mmapper_UIS
     client/ClientWidget.ui
     clock/mumeclockwidget.ui
@@ -558,11 +618,13 @@ set(mmapper_UIS
     mainwindow/findroomsdlg.ui
     mainwindow/roomeditattrdlg.ui
     preferences/AnsiColorDialog.ui
+    preferences/audiopage.ui
     preferences/autologpage.ui
     preferences/configdialog.ui
     preferences/clientpage.ui
     preferences/generalpage.ui
     preferences/graphicspage.ui
+    preferences/grouppage.ui
     preferences/mumeprotocolpage.ui
     preferences/parserpage.ui
     preferences/pathmachinepage.ui
@@ -628,25 +690,45 @@ add_library(mm_global STATIC ${mmapper_global_SRCS})
 add_library(mm_map STATIC ${mmapper_map_SRCS})
 
 # Build the executable
-add_executable(mmapper WIN32 MACOSX_BUNDLE
+set(mmapper_EXECUTABLE_ARGS
     ${mmapper_SRCS}
     ${mmapper_UIS}
     ${mmapper_RCS}
     ${mmapper_QRC}
     ${mmapper_DATA}
 )
+if(EMSCRIPTEN)
+    qt_add_executable(mmapper ${mmapper_EXECUTABLE_ARGS})
+    target_link_options(mmapper PRIVATE
+        -sFULL_ES3=1
+        -sMAX_WEBGL_VERSION=2
+        -sMIN_WEBGL_VERSION=2
+        -sASSERTIONS
+        -sASYNCIFY
+        -Os
+    )
+    target_link_libraries(mmapper PUBLIC z)
+else()
+    add_executable(mmapper WIN32 MACOSX_BUNDLE ${mmapper_EXECUTABLE_ARGS})
+endif()
 
 set(mm_libs mm_map mm_global)
 
 target_link_libraries(mmapper PUBLIC
-    Qt5::Core
-    Qt5::Widgets
-    Qt5::Network
-    Qt5::OpenGL
+    Qt6::Core
+    Qt6::Widgets
+    Qt6::Network
+    Qt6::OpenGL
+    Qt6::OpenGLWidgets
     # note: link order matters on some platforms. include ${mm_libs} twice if you have a link failure.
     ${mm_libs}
     ${CMAKE_THREAD_LIBS_INIT}
+    coverage_config
 )
+
+if(WITH_AUDIO)
+    target_link_libraries(mmapper PUBLIC Qt6::Multimedia)
+endif()
 
 set_target_properties(
   mmapper PROPERTIES
@@ -675,27 +757,34 @@ set_target_properties(
 )
 
 target_include_directories(mmapper SYSTEM PUBLIC ${GLM_INCLUDE_DIR})
+target_include_directories(mmapper SYSTEM PUBLIC ${IMMER_INCLUDE_DIR})
 target_include_directories(mm_global SYSTEM PUBLIC
         ${GLM_INCLUDE_DIR}
-        ${Qt5Core_INCLUDE_DIRS}
-        ${Qt5Widgets_INCLUDE_DIRS}
-        #${Qt5_Network_INCLUDE_DIRS}
-        #${Qt5_OpenGL_INCLUDE_DIRS}
+        ${IMMER_INCLUDE_DIR}
+        ${Qt6Core_INCLUDE_DIRS}
+        ${Qt6Widgets_INCLUDE_DIRS}
+        #${Qt6_Network_INCLUDE_DIRS}
+        #${Qt6_OpenGL_INCLUDE_DIRS}
+        #${Qt6OpenGLWidgets_INCLUDE_DIRS}
 )
 target_include_directories(mm_map SYSTEM PUBLIC
         ${GLM_INCLUDE_DIR}
-        ${Qt5Core_INCLUDE_DIRS}
-        ${Qt5Widgets_INCLUDE_DIRS}
-        #${Qt5_Network_INCLUDE_DIRS}
-        #${Qt5_OpenGL_INCLUDE_DIRS}
+        ${IMMER_INCLUDE_DIR}
+        ${Qt6Core_INCLUDE_DIRS}
+        ${Qt6Widgets_INCLUDE_DIRS}
+        #${Qt6_Network_INCLUDE_DIRS}
+        #${Qt6_OpenGL_INCLUDE_DIRS}
+        #${Qt6OpenGLWidgets_INCLUDE_DIRS}
 )
 target_link_libraries(mm_global PUBLIC
-    Qt5::Core
-    Qt5::Widgets
+    Qt6::Core
+    Qt6::Widgets
+    coverage_config
 )
 target_link_libraries(mm_map PUBLIC
-    Qt5::Core
-    Qt5::Widgets
+    Qt6::Core
+    Qt6::Widgets
+    coverage_config
 )
 add_dependencies(mmapper mm_global mm_map)
 add_dependencies(mm_map mm_global)
@@ -705,9 +794,14 @@ if(NOT GLM_FOUND)
     add_dependencies(mm_map glm)
     add_dependencies(mm_global glm)
 endif()
+if(NOT IMMER_FOUND)
+    add_dependencies(mmapper immer)
+    add_dependencies(mm_map immer)
+    add_dependencies(mm_global immer)
+endif()
 
 if(WIN32)
-    target_link_libraries(mmapper PUBLIC ws2_32)
+    target_link_libraries(mmapper PRIVATE ws2_32)
 endif()
 
 if(WITH_MAP)
@@ -718,7 +812,11 @@ if(WITH_IMAGES)
     add_dependencies(mmapper images_qrc)
 endif()
 
-if(WITH_ZLIB)
+if(WITH_AUDIO)
+    add_dependencies(mmapper audio_qrc)
+endif()
+
+if(WITH_ZLIB AND NOT EMSCRIPTEN)
     target_include_directories(mmapper SYSTEM PUBLIC ${ZLIB_INCLUDE_DIRS})
     target_include_directories(mm_global SYSTEM PUBLIC ${ZLIB_INCLUDE_DIRS})
     target_link_libraries(mmapper PUBLIC ${ZLIB_LIBRARIES})
@@ -738,7 +836,7 @@ if(WITH_OPENSSL)
 endif()
 
 if(WITH_WEBSOCKET)
-    target_link_libraries(mmapper PUBLIC Qt5::WebSockets)
+    target_link_libraries(mmapper PUBLIC Qt6::WebSockets)
 endif()
 
 if(WITH_QTKEYCHAIN)
@@ -795,38 +893,36 @@ if(USE_IWYU)
     endif()
 endif()
 
-
 # Begin CPack Settings
-if(GIT_TAG_NAME)
-    string(REGEX REPLACE "v(.*)" "\\1" CPACK_PACKAGE_VERSION ${GIT_TAG_NAME})
-elseif(GIT_TAG_COMMIT_HASH)
-    string(REGEX REPLACE "v(.*)" "\\1" CPACK_PACKAGE_VERSION ${GIT_TAG_COMMIT_HASH})
-else()
-    set(CPACK_PACKAGE_VERSION ${MMAPPER_VERSION})
+string(REGEX REPLACE "^v" "" CPACK_PACKAGE_VERSION "${MMAPPER_VERSION_STRING}")
+string(REGEX MATCH "^([0-9]+)\\.([0-9]+)\\.([0-9]+)-?([0-9]+)?.*$" _ "${CPACK_PACKAGE_VERSION}")
+set(CPACK_PACKAGE_VERSION_MAJOR ${CMAKE_MATCH_1})
+set(CPACK_PACKAGE_VERSION_MINOR ${CMAKE_MATCH_2})
+set(CPACK_PACKAGE_VERSION_PATCH ${CMAKE_MATCH_3})
+set(CPACK_PACKAGE_VERSION_TWEAK ${CMAKE_MATCH_4})
+if(NOT CPACK_PACKAGE_VERSION_TWEAK)
+    set(CPACK_PACKAGE_VERSION_TWEAK 0)
 endif()
-string(REGEX REPLACE "[.-]" " " VERSION_NUMBERS ${MMAPPER_VERSION})
-separate_arguments(VERSION_NUMBERS)
-list(GET VERSION_NUMBERS 0 CPACK_PACKAGE_VERSION_MAJOR)
-list(REMOVE_AT VERSION_NUMBERS 0)
-list(GET VERSION_NUMBERS 0 CPACK_PACKAGE_VERSION_MINOR)
-list(REMOVE_AT VERSION_NUMBERS 0)
-list(GET VERSION_NUMBERS 0 CPACK_PACKAGE_VERSION_PATCH)
+
 string(REGEX REPLACE "Darwin" "Mac" CPACK_SYSTEM_NAME ${CMAKE_SYSTEM_NAME})
 set(CPACK_SOURCE_PACKAGE_FILE_NAME "${PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-source")
 set(CPACK_PACKAGE_CHECKSUM "SHA256")
 if(NOT TARGET_ARCHITECTURE)
     if(WIN32)
-        if("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
-            set(TARGET_ARCHITECTURE "x64")
-        else()
-            set(TARGET_ARCHITECTURE "x86")
-        endif()
+        set(TARGET_ARCHITECTURE "x64")
     else()
         set(TARGET_ARCHITECTURE "${CMAKE_SYSTEM_PROCESSOR}")
     endif()
 endif()
-message(STATUS "Packaging for target: ${CPACK_SYSTEM_NAME} ${TARGET_ARCHITECTURE}")
+message(STATUS "Packaging for target: ${CPACK_SYSTEM_NAME} ${TARGET_ARCHITECTURE} ${PACKAGE_TYPE_NORMALIZED}")
 set(CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_SYSTEM_NAME}-${TARGET_ARCHITECTURE}")
+
+# Components:
+if(CMAKE_BUILD_TYPE_UPPER MATCHES "^(DEBUG|RELWITHDEBINFO)$")
+    set(CPACK_STRIP_FILES FALSE)
+else()
+    set(CPACK_STRIP_FILES TRUE)
+endif()
 
 # Linux Install Settings
 if(UNIX AND NOT APPLE)
@@ -872,104 +968,183 @@ if(UNIX AND NOT APPLE)
     set(CPACK_DEBIAN_PACKAGE_MAINTAINER "nschimme@gmail.com")
     set(CPACK_DEBIAN_PACKAGE_NAME "mmapper")
     set(CPACK_DEBIAN_COMPRESSION_TYPE "xz")
-    set(CPACK_DEBIAN_PACKAGE_DEPENDS "libqt5core5a (>= 5.15.0), libqt5gui5 (>= 5.15.0), libqt5opengl5 (>= 5.15.0), libqt5network5 (>= 5.15.0)")
+    set(CPACK_DEBIAN_PACKAGE_DEPENDS "libqt6core6 (>= 6.4.0), libqt6gui6 (>= 6.4.0), libqt6opengl6 (>= 6.4.0), libqt6network6 (>= 6.4.0)")
     if(WITH_ZLIB)
         set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, zlib1g")
     endif()
     if(WITH_OPENSSL)
-        if (OPENSSL_VERSION VERSION_LESS 3.0.0)
-            set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libssl1.1")
-        else()
-            set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libssl3")
-        endif()
+        set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libssl3t64")
     endif()
     if(WITH_WEBSOCKET)
-        set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libqt5websockets5 (>= 5.15.0)")
+        set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libqt6websockets6 (>= 6.4.0)")
     endif()
     if(WITH_QTKEYCHAIN)
-        set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libqt5keychain1")
+        set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libqt6keychain1")
+    endif()
+    if(WITH_AUDIO)
+        set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libqt6multimedia6 (>= 6.4.0)")
     endif()
 endif(UNIX AND NOT APPLE)
 
 # Windows Install Settings
 if(WIN32)
+    if(MMAPPER_IS_DEBUG)
+        set(CMAKE_INSTALL_DEBUG_LIBRARIES TRUE)
+    endif()
     include(InstallRequiredSystemLibraries)
+    message(STATUS "System runtime libs: ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS}")
     set(CMAKE_WIN32_EXECUTABLE ON)
 
     # Install Executables
     install(
         TARGETS mmapper RUNTIME
-        DESTINATION bin
+        DESTINATION .
         COMPONENT applications
     )
 
+    # Debug symbols
+    set(WINDEPLOYQT_STAGING ${CMAKE_CURRENT_BINARY_DIR}/bin)
+    if(MSVC AND NOT CPACK_STRIP_FILES)
+        add_custom_command(TARGET mmapper POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E make_directory "${WINDEPLOYQT_STAGING}"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    "$<TARGET_FILE_DIR:mmapper>/mmapper.pdb"
+                    "${WINDEPLOYQT_STAGING}/mmapper.pdb"
+            COMMENT "Copy debug symbols"
+            VERBATIM
+        )
+    endif()
+
     # Bundle Library Files
-    set(WINDEPLOYQT_ARGS ${WINDEPLOYQT_ARGS} --dir ${CMAKE_CURRENT_BINARY_DIR}/bin --compiler-runtime --no-angle)
-    find_program(WINDEPLOYQT_APP windeployqt HINTS ${QTDIR} ENV QTDIR PATH_SUFFIXES bin)
+    set(WINDEPLOYQT_ARGS ${WINDEPLOYQT_ARGS} --compiler-runtime --no-translations --no-system-d3d-compiler --no-opengl-sw --verbose 1)
+    find_program(WINDEPLOYQT_APP windeployqt HINTS ${QTDIR} ENV QTDIR PATH_SUFFIXES .)
     message(" - windeployqt path: ${WINDEPLOYQT_APP}")
     message(" - windeployqt args: ${WINDEPLOYQT_ARGS}")
     add_custom_command(
             TARGET mmapper
             POST_BUILD
-            COMMAND ${WINDEPLOYQT_APP} ${WINDEPLOYQT_ARGS} ${CMAKE_CURRENT_BINARY_DIR}/mmapper.exe
-            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+            COMMAND ${CMAKE_COMMAND} -E make_directory "${WINDEPLOYQT_STAGING}"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:mmapper>" ${WINDEPLOYQT_STAGING}
+            COMMAND "${WINDEPLOYQT_APP}" ${WINDEPLOYQT_ARGS} "${WINDEPLOYQT_STAGING}/mmapper.exe"
+            WORKING_DIRECTORY "${WINDEPLOYQT_STAGING}"
             COMMENT "Finding the Qt framework dependencies"
+            VERBATIM
     )
     install(DIRECTORY
-        ${CMAKE_CURRENT_BINARY_DIR}/bin
+        "${WINDEPLOYQT_STAGING}/"
         DESTINATION .
         COMPONENT libraries
+        USE_SOURCE_PERMISSIONS
+        PATTERN "*.exe" EXCLUDE
     )
-    if(MSVC AND MSVC_REDIST)
-        get_filename_component(vcredist_name "${MSVC_REDIST}" NAME)
-        install(FILES ${MSVC_REDIST} DESTINATION bin COMPONENT libraries)
-        set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "${CPACK_NSIS_EXTRA_INSTALL_COMMANDS}
-            ExecWait '\\$INSTDIR\\\\bin\\\\${vcredist_name}'
-            ")
-    endif()
 
-    # ZIP requires 7-zip
-    set(CPACK_GENERATOR "NSIS")
     set(CPACK_SOURCE_GENERATOR "ZIP")
 
-    # Windows (NSIS) Settings
-    set(CPACK_NSIS_EXECUTABLES_DIRECTORY "bin")
-    set(CPACK_NSIS_MENU_LINKS "bin/mmapper.exe;MMapper")
-    set(CPACK_NSIS_INSTALLED_ICON_NAME "mmapper.exe")
-    set(CPACK_NSIS_HELP_LINK "http://github.com/mume/mmapper")
-    set(CPACK_NSIS_MUI_ICON "${CMAKE_CURRENT_SOURCE_DIR}/resources/win32\\\\m-${MMAPPER_BRAND_SUFFIX}.ico")
-    set(CPACK_NSIS_MUI_UNIICON "${CMAKE_CURRENT_SOURCE_DIR}/resources/win32\\\\m-${MMAPPER_BRAND_SUFFIX}.ico")
-    set(CPACK_PACKAGE_ICON "${CMAKE_CURRENT_SOURCE_DIR}/resources/icons\\\\m-${MMAPPER_BRAND_SUFFIX}.png")
-    set(CPACK_NSIS_INSTALLED_ICON_NAME "${CMAKE_CURRENT_SOURCE_DIR}/resources/win32\\\\m-${MMAPPER_BRAND_SUFFIX}.ico")
-    set(CPACK_NSIS_COMPRESSOR "/SOLID lzma")
-    set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL "ON")
-    set(CPACK_NSIS_MUI_FINISHPAGE_RUN "mmapper.exe")
-    set(CPACK_NSIS_MANIFEST_DPI_AWARE "ON")
-    set(CPACK_NSIS_DISPLAY_NAME "MUME Mapper (x64)")
-    set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "${CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS}
-        Push \$0
-        mmapper_check:
-          ExecWait 'cmd /C tasklist /FI \\\"IMAGENAME eq mmapper.exe\\\" | findstr /I \\\"mmapper.exe\\\" >nul' \$0
-          StrCmp \$0 0 mmapper_found mmapper_done
-        mmapper_found:
-          MessageBox MB_OKCANCEL|MB_ICONQUESTION \\\"MMapper is running. Please close it to continue.\\\" IDOK mmapper_check
-          Abort
-        mmapper_done:
-          Pop \$0
-        ")
-    if(WITH_DRMINGW)
-        # Include shortcut to crash logs
-        set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "${CPACK_NSIS_EXTRA_INSTALL_COMMANDS}
-            CreateShortCut \\\"$SMPROGRAMS\\\\${CPACK_NSIS_DISPLAY_NAME}\\\\Crash Log.lnk\\\" \\\"$PROFILE\\\\AppData\\\\Local\\\\mmappercrash.log\\\"
-            ")
-        # Delete shortcut and crash log
+    if(PACKAGE_TYPE_NORMALIZED STREQUAL "Nsis")
+        set(CPACK_GENERATOR "NSIS")
+
+        if(MSVC AND NOT MMAPPER_IS_DEBUG)
+            install(FILES
+                "${WINDEPLOYQT_STAGING}/vc_redist.x64.exe"
+                DESTINATION .
+                COMPONENT libraries
+            )
+            set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "${CPACK_NSIS_EXTRA_INSTALL_COMMANDS}
+                ExecWait '\\$INSTDIR\\\\vc_redist.x64.exe /q /norestart'
+                Delete '\\$INSTDIR\\\\vc_redist.x64.exe'
+                ")
+        endif()
+
+        # Windows (NSIS) Settings
+        set(CPACK_NSIS_EXECUTABLES_DIRECTORY ".")
+        set(CPACK_NSIS_MENU_LINKS "mmapper.exe;MMapper")
+        set(CPACK_NSIS_INSTALLED_ICON_NAME "mmapper.exe")
+        set(CPACK_NSIS_HELP_LINK "http://github.com/mume/mmapper")
+        set(CPACK_NSIS_MUI_ICON "${CMAKE_CURRENT_SOURCE_DIR}/resources/win32\\\\m-${MMAPPER_BRAND_SUFFIX}.ico")
+        set(CPACK_NSIS_MUI_UNIICON "${CMAKE_CURRENT_SOURCE_DIR}/resources/win32\\\\m-${MMAPPER_BRAND_SUFFIX}.ico")
+        set(CPACK_PACKAGE_ICON "${CMAKE_CURRENT_SOURCE_DIR}/resources/icons\\\\m-${MMAPPER_BRAND_SUFFIX}.png")
+        set(CPACK_NSIS_INSTALLED_ICON_NAME "${CMAKE_CURRENT_SOURCE_DIR}/resources/win32\\\\m-${MMAPPER_BRAND_SUFFIX}.ico")
+        set(CPACK_NSIS_COMPRESSOR "/SOLID lzma")
+        set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL "ON")
+        set(CPACK_NSIS_MUI_FINISHPAGE_RUN "mmapper.exe")
+        set(CPACK_NSIS_MANIFEST_DPI_AWARE "ON")
+        set(CPACK_NSIS_DISPLAY_NAME "MUME Mapper (x64)")
         set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "${CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS}
-            Delete \\\"$SMPROGRAMS\\\\${CPACK_NSIS_DISPLAY_NAME}\\\\Crash Log.lnk\\\"
-            Delete \\\"$PROFILE\\\\AppData\\\\Local\\\\mmappercrash.log\\\"
+            Push \$0
+            mmapper_check:
+              ExecWait 'cmd /C tasklist /FI \\\"IMAGENAME eq mmapper.exe\\\" | findstr /I \\\"mmapper.exe\\\" >nul' \$0
+              StrCmp \$0 0 mmapper_found mmapper_done
+            mmapper_found:
+              MessageBox MB_OKCANCEL|MB_ICONQUESTION \\\"MMapper is running. Please close it to continue.\\\" IDOK mmapper_check
+              Abort
+            mmapper_done:
+              Pop \$0
             ")
+        if(WITH_DRMINGW)
+            # Include shortcut to crash logs
+            set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "${CPACK_NSIS_EXTRA_INSTALL_COMMANDS}
+                CreateShortCut \\\"$SMPROGRAMS\\\\${CPACK_NSIS_DISPLAY_NAME}\\\\Crash Log.lnk\\\" \\\"$PROFILE\\\\AppData\\\\Local\\\\mmappercrash.log\\\"
+                ")
+            # Delete shortcut and crash log
+            set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "${CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS}
+                Delete \\\"$SMPROGRAMS\\\\${CPACK_NSIS_DISPLAY_NAME}\\\\Crash Log.lnk\\\"
+                Delete \\\"$PROFILE\\\\AppData\\\\Local\\\\mmappercrash.log\\\"
+                ")
+        endif()
+        # NSIS always displays a license page
+        set(CPACK_RESOURCE_FILE_LICENSE "${PROJECT_SOURCE_DIR}/COPYING.txt")
+    elseif(PACKAGE_TYPE_NORMALIZED STREQUAL "AppX")
+        # Windows AppX Settings
+        set(CPACK_GENERATOR "External")
+        set(APPX_NAME "${PROJECT_NAME}")
+
+        # Set AppX specific version variables and remove leading zeros
+        string(REGEX REPLACE "^0*([0-9]+)$" "\\1" APPX_VERSION_MAJOR "${CPACK_PACKAGE_VERSION_MAJOR}")
+        string(REGEX REPLACE "^0*([0-9]+)$" "\\1" APPX_VERSION_MINOR "${CPACK_PACKAGE_VERSION_MINOR}")
+        string(REGEX REPLACE "^0*([0-9]+)$" "\\1" APPX_VERSION_PATCH "${CPACK_PACKAGE_VERSION_PATCH}")
+        string(REGEX REPLACE "^0*([0-9]+)$" "\\1" APPX_VERSION_REVISION "${CPACK_PACKAGE_VERSION_TWEAK}")
+        set(APPX_MANIFEST_VERSION "${APPX_VERSION_MAJOR}.${APPX_VERSION_MINOR}.${APPX_VERSION_PATCH}.0")
+        set(APPX_VERSION "${APPX_VERSION_MAJOR}_${APPX_VERSION_MINOR}_${APPX_VERSION_PATCH}_${APPX_VERSION_REVISION}")
+
+        # Install AppManifest and Assets
+        configure_file(
+            "${PROJECT_SOURCE_DIR}/cmake/AppxManifest.xml.in"
+            "${CMAKE_BINARY_DIR}/AppxManifest.xml"
+            @ONLY
+        )
+        install(
+            FILES "${CMAKE_BINARY_DIR}/AppxManifest.xml"
+            DESTINATION .
+            COMPONENT applications
+        )
+        install(
+            FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/hi150-app-mmapper-release.png"
+            DESTINATION "Assets"
+            RENAME "Square150x150Logo.png"
+            COMPONENT applications
+        )
+        install(
+            FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/hi44-app-mmapper-release.png"
+            DESTINATION "Assets"
+            RENAME "Square44x44Logo.png"
+            COMPONENT applications
+        )
+        install(
+            FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/hi50-app-mmapper-release.png"
+            DESTINATION "Assets"
+            RENAME "StoreLogo.png"
+            COMPONENT applications
+        )
+
+        # Set the AppX external script
+        set(CPACK_EXTERNAL_ENABLE_STAGING TRUE)
+        configure_file(
+            "${PROJECT_SOURCE_DIR}/cmake/MakeAppX.cmake.in"
+            "${CMAKE_BINARY_DIR}/MakeAppX.cmake"
+            @ONLY
+        )
+        set(CPACK_EXTERNAL_PACKAGE_SCRIPT "${CMAKE_BINARY_DIR}/MakeAppX.cmake")
     endif()
-    # NSIS always displays a license page
-    set(CPACK_RESOURCE_FILE_LICENSE "${PROJECT_SOURCE_DIR}/src/resources/LICENSE.GPL2")
 endif(WIN32)
 
 # Apple Install Settings
@@ -989,21 +1164,30 @@ if(APPLE)
     add_custom_command(
         TARGET mmapper
         POST_BUILD
-        COMMAND ${MACDEPLOYQT_APP} ${CMAKE_CURRENT_BINARY_DIR}/mmapper.app -libpath ${QTKEYCHAIN_LIBRARY_DIR}
+        COMMAND ${MACDEPLOYQT_APP} ${CMAKE_CURRENT_BINARY_DIR}/mmapper.app -libpath ${QTKEYCHAIN_LIBRARY_DIR} -verbose=2
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         COMMENT "Deploying the Qt Framework onto the bundle"
+        VERBATIM
         )
 
     # Codesign the bundle without a personal certificate
     find_program(CODESIGN_APP codesign)
     message(" - codesign path: ${CODESIGN_APP}")
+    if(MMAPPER_IS_DEBUG)
+      set(ENTITLEMENTS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/entitlements.debug.plist")
+      message(" - entitlements file: ${ENTITLEMENTS_FILE}")
+    else()
+      set(ENTITLEMENTS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/entitlements.plist")
+      message(" - entitlements file: ${ENTITLEMENTS_FILE}")
+    endif()
     add_custom_command(
         TARGET mmapper
         POST_BUILD
         COMMAND ${CODESIGN_APP} --remove-signature ${CMAKE_CURRENT_BINARY_DIR}/mmapper.app
-        COMMAND ${CODESIGN_APP} --deep -f -s - ${CMAKE_CURRENT_BINARY_DIR}/mmapper.app -o runtime --entitlements ${CMAKE_CURRENT_SOURCE_DIR}/entitlements.plist
+        COMMAND ${CODESIGN_APP} --deep -f -s - ${CMAKE_CURRENT_BINARY_DIR}/mmapper.app -o runtime --entitlements ${ENTITLEMENTS_FILE}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         COMMENT "Code signing the bundle"
+        VERBATIM
         )
 
     # Install Executables
@@ -1038,12 +1222,6 @@ set(CPACK_PACKAGE_CONTACT "nschimme@gmail.com")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A mud mapper especially written for the mud MUME")
 set(CPACK_PACKAGE_INSTALL_DIRECTORY "MMapper")
 
-# Components:
-if(CMAKE_BUILD_TYPE_UPPER MATCHES "^(DEBUG|RELWITHDEBINFO)$")
-    set(CPACK_STRIP_FILES FALSE)
-else()
-    set(CPACK_STRIP_FILES TRUE)
-endif()
 # Applications Component
 set(CPACK_COMPONENTS_ALL applications libraries)
 set(CPACK_COMPONENT_APPLICATIONS_DISPLAY_NAME "MMapper")

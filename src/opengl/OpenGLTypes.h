@@ -4,7 +4,9 @@
 
 #include "../global/Array.h"
 #include "../global/Color.h"
+#include "../global/ConfigConsts.h"
 #include "../global/IndexedVector.h"
+#include "../global/NamedColors.h"
 #include "../global/TaggedInt.h"
 #include "../global/hash.h"
 #include "../global/utils.h"
@@ -20,14 +22,15 @@
 #include <glm/glm.hpp>
 
 #include <QDebug>
+#include <QOpenGLTexture>
 #include <qopengl.h>
 
 struct NODISCARD TexVert final
 {
-    glm::vec2 tex;
-    glm::vec3 vert;
+    glm::vec3 tex{};
+    glm::vec3 vert{};
 
-    explicit TexVert(const glm::vec2 &tex_, const glm::vec3 &vert_)
+    explicit TexVert(const glm::vec3 &tex_, const glm::vec3 &vert_)
         : tex{tex_}
         , vert{vert_}
     {}
@@ -38,22 +41,47 @@ using TexVertVector = std::vector<TexVert>;
 struct NODISCARD ColoredTexVert final
 {
     Color color;
-    glm::vec2 tex;
-    glm::vec3 vert;
+    glm::vec3 tex{};
+    glm::vec3 vert{};
 
-    explicit ColoredTexVert(const Color &color_, const glm::vec2 &tex_, const glm::vec3 &vert_)
+    explicit ColoredTexVert(const Color color_, const glm::vec3 &tex_, const glm::vec3 &vert_)
         : color{color_}
         , tex{tex_}
         , vert{vert_}
     {}
 };
 
+struct NODISCARD RoomQuadTexVert final
+{
+    // xyz = room coord, w = (colorId << 8 | tex_z)
+    // - colorId: packed into bits 8-15 (must be < MAX_NAMED_COLORS)
+    // - tex_z:   packed into bits 0-7  (must be < 256)
+    glm::ivec4 vertTexCol{};
+
+    explicit RoomQuadTexVert(const glm::ivec3 &vert, const int tex_z)
+        : RoomQuadTexVert{vert, tex_z, NamedColorEnum::DEFAULT}
+    {}
+
+    explicit RoomQuadTexVert(const glm::ivec3 &vert, const int tex_z, const NamedColorEnum color)
+        : vertTexCol{vert, (static_cast<uint8_t>(color) << 8) | tex_z}
+    {
+        if (IS_DEBUG_BUILD) {
+            constexpr auto max_texture_layers = 256;
+            const auto c = static_cast<uint8_t>(color);
+            assert(c == std::clamp<uint8_t>(c, 0, NUM_NAMED_COLORS - 1));
+            assert(tex_z == std::clamp(tex_z, 0, max_texture_layers - 1));
+        }
+    }
+};
+
+using ColoredTexVertVector = std::vector<ColoredTexVert>;
+
 struct NODISCARD ColorVert final
 {
     Color color;
-    glm::vec3 vert;
+    glm::vec3 vert{};
 
-    explicit ColorVert(const Color &color_, const glm::vec3 &vert_)
+    explicit ColorVert(const Color color_, const glm::vec3 &vert_)
         : color{color_}
         , vert{vert_}
     {}
@@ -67,13 +95,13 @@ struct NODISCARD ColorVert final
 // model-view-projection matrix and the output viewport.
 struct NODISCARD FontVert3d final
 {
-    glm::vec3 base; // world space
+    glm::vec3 base{}; // world space
     Color color;
-    glm::vec2 tex;
-    glm::vec2 vert; // screen space
+    glm::vec2 tex{};
+    glm::vec2 vert{}; // screen space
 
     explicit FontVert3d(const glm::vec3 &base_,
-                        const Color &color_,
+                        const Color color_,
                         const glm::vec2 &tex_,
                         const glm::vec2 &vert_)
         : base{base_}
@@ -83,7 +111,14 @@ struct NODISCARD FontVert3d final
     {}
 };
 
-enum class NODISCARD DrawModeEnum { INVALID = 0, POINTS = 1, LINES = 2, TRIANGLES = 3, QUADS = 4 };
+enum class NODISCARD DrawModeEnum {
+    INVALID = 0,
+    POINTS = 1,
+    LINES = 2,
+    TRIANGLES = 3,
+    QUADS = 4,
+    INSTANCED_QUADS = 5
+};
 
 struct NODISCARD LineParams final
 {
@@ -199,7 +234,7 @@ struct NODISCARD GLRenderState final
         return copy;
     }
 
-    NODISCARD GLRenderState withColor(const Color &new_color) const
+    NODISCARD GLRenderState withColor(const Color new_color) const
     {
         GLRenderState copy = *this;
         copy.uniforms.color = new_color;
@@ -333,25 +368,13 @@ public:
     explicit UniqueMesh(std::unique_ptr<IRenderable> mesh)
         : m_mesh{std::move(mesh)}
     {
-        // Assuming deref might require a valid pointer.
-        // If m_mesh is null here, deref could lead to issues.
-        // A common pattern is to assert(m_mesh) if a non-null mesh is expected.
-        if (m_mesh) {
-            std::ignore = deref(m_mesh);
-        }
+        std::ignore = deref(m_mesh);
     }
     ~UniqueMesh() = default;
     DEFAULT_MOVES_DELETE_COPIES(UniqueMesh);
 
-    void render(const GLRenderState &rs) const {
-        // Only render if the mesh pointer is valid
-        if (m_mesh) {
-            deref(m_mesh).render(rs);
-        }
-    }
-
-    // New method
-    NODISCARD bool isValid() const { return m_mesh != nullptr; }
+    void render(const GLRenderState &rs) const { deref(m_mesh).render(rs); }
+    NODISCARD explicit operator bool() const { return m_mesh != nullptr; }
 };
 
 struct NODISCARD UniqueMeshVector final
@@ -373,10 +396,10 @@ public:
     }
 };
 
-struct NODISCARD Viewport
+struct NODISCARD Viewport final
 {
-    glm::ivec2 offset;
-    glm::ivec2 size;
+    glm::ivec2 offset{};
+    glm::ivec2 size{};
 };
 
 static constexpr const size_t VERTS_PER_LINE = 2;

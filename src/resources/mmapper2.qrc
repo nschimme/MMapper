@@ -1,7 +1,7 @@
 <!DOCTYPE RCC><RCC version="1.0">
     <qresource>
+        <file>LICENSE.BOOST</file>
         <file>LICENSE.GLM</file>
-        <file>LICENSE.GPL2</file>
         <file>LICENSE.LGPL</file>
         <file>LICENSE.OPENSSL</file>
         <file>LICENSE.QTKEYCHAIN</file>
@@ -21,6 +21,7 @@
         <file>icons/affect-ride.png</file>
         <file>icons/affect-waiting.png</file>
         <file>icons/affect-wound.png</file>
+        <file>icons/audiocfg.png</file>
         <file>icons/affect-sanctuary.png</file>
         <file>icons/affect-slept.png</file>
         <file>icons/affect-snared.png</file>
@@ -158,12 +159,11 @@
         <file>pixmaps/road-s.png</file>
         <file>pixmaps/road-sw.png</file>
         <file>pixmaps/road-w.png</file>
+        <file>pixmaps/room-highlight.png</file>
         <file>pixmaps/room-sel-distant.png</file>
         <file>pixmaps/room-sel-move-bad.png</file>
         <file>pixmaps/room-sel-move-good.png</file>
         <file>pixmaps/room-sel.png</file>
-        <file>pixmaps/room-modified.png</file>
-        <file>pixmaps/room-needs-update.png</file>
         <file>pixmaps/stream-in-down.png</file>
         <file>pixmaps/stream-in-east.png</file>
         <file>pixmaps/stream-in-north.png</file>
@@ -213,6 +213,8 @@
         <file>pixmaps/wall-west.png</file>
         <file>shaders/legacy/font/frag.glsl</file>
         <file>shaders/legacy/font/vert.glsl</file>
+        <file>shaders/legacy/room/tex/acolor/frag.glsl</file>
+        <file>shaders/legacy/room/tex/acolor/vert.glsl</file>
         <file>shaders/legacy/plain/acolor/frag.glsl</file>
         <file>shaders/legacy/plain/acolor/vert.glsl</file>
         <file>shaders/legacy/plain/ucolor/frag.glsl</file>
@@ -223,5 +225,9 @@
         <file>shaders/legacy/tex/acolor/vert.glsl</file>
         <file>shaders/legacy/tex/ucolor/frag.glsl</file>
         <file>shaders/legacy/tex/ucolor/vert.glsl</file>
+        <file>shaders/legacy/blit/frag.glsl</file>
+        <file>shaders/legacy/blit/vert.glsl</file>
+        <file>shaders/legacy/fullscreen/frag.glsl</file>
+        <file>shaders/legacy/fullscreen/vert.glsl</file>
     </qresource>
 </RCC>

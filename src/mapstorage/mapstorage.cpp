@@ -27,26 +27,30 @@
 #include <QtWidgets>
 
 namespace { // anonymous
+
+constexpr auto MMAPPER_MAGIC = static_cast<int32_t>(0xFFB2AF01u);
+static_assert(MMAPPER_MAGIC == -5067007);
+
 namespace schema {
 
-constexpr const int v2_0_0_initial = 17;          // Initial schema (Apr 2006)
-constexpr const int v2_0_2_ridable = 24;          // Ridable flag (Oct 2006)
-constexpr const int v2_0_4_zlib = 25;             // zlib compression (Jun 2009)
-constexpr const int v2_3_7_doorFlagsNomatch = 32; // 16-bit DoorFlags, NoMatch (Dec 2016)
-constexpr const int v2_4_0_largerFlags
+constexpr const uint32_t v2_0_0_initial = 17;          // Initial schema (Apr 2006)
+constexpr const uint32_t v2_0_2_ridable = 24;          // Ridable flag (Oct 2006)
+constexpr const uint32_t v2_0_4_zlib = 25;             // zlib compression (Jun 2009)
+constexpr const uint32_t v2_3_7_doorFlagsNomatch = 32; // 16-bit DoorFlags, NoMatch (Dec 2016)
+constexpr const uint32_t v2_4_0_largerFlags
     = 33; // 16-bit Exits, 32-bit Mob/Load Flags, SunDeath (Dec 2017)
-constexpr const int v2_4_3_qCompress = 34;      // qCompress (Jan 2018)
-constexpr const int v2_5_1_discardNoMatch = 35; // discard previous NoMatch flags (Aug 2018)
+constexpr const uint32_t v2_4_3_qCompress = 34;      // qCompress (Jan 2018)
+constexpr const uint32_t v2_5_1_discardNoMatch = 35; // discard previous NoMatch flags (Aug 2018)
 
 // starting in 2019, versions are date based: v${YY}_${MM}_${rev}.
-constexpr const int v19_10_0_newCoords = 36;      // switches to new coordinate system
-constexpr const int v25_02_0_noInboundLinks = 38; // stops loading and saving inbound links
-constexpr const int v25_02_1_removeUpToDate = 39; // removes upToDate
-constexpr const int v25_02_2_serverId = 40;       // adds server_id
-constexpr const int v25_02_3_deathFlag = 41;      // replaces death terrain with room flag
-constexpr const int v25_02_4_area = 42;           // adds area
+constexpr const uint32_t v19_10_0_newCoords = 36;      // switches to new coordinate system
+constexpr const uint32_t v25_04_0_noInboundLinks = 38; // stops loading and saving inbound links
+constexpr const uint32_t v25_04_1_removeUpToDate = 39; // removes upToDate
+constexpr const uint32_t v25_04_2_serverId = 40;       // adds server_id
+constexpr const uint32_t v25_04_3_deathFlag = 41;      // replaces death terrain with room flag
+constexpr const uint32_t v25_05_0_area = 42;           // adds area
 
-constexpr const int CURRENT = v25_02_4_area;
+constexpr const uint32_t CURRENT = v25_05_0_area;
 
 } // namespace schema
 
@@ -73,7 +77,7 @@ NODISCARD Coordinate transformRoomOnLoad(const uint32_t version, Coordinate c)
     return c;
 }
 
-void transformInfomarkOnLoad(const uint32_t version, InfoMarkFields &mark)
+void transformInfomarkOnLoad(const uint32_t version, RawInfomark &mark)
 {
     if (version >= schema::v19_10_0_newCoords) {
         return;
@@ -90,15 +94,15 @@ void transformInfomarkOnLoad(const uint32_t version, InfoMarkFields &mark)
     mark.setPosition2(mark.getPosition2() + halfRoomOffset);
 
     switch (mark.getType()) {
-    case InfoMarkTypeEnum::TEXT: {
+    case InfomarkTypeEnum::TEXT: {
         const Coordinate textOffset{TENTH, 3 * TENTH, 0};
         mark.setPosition1(mark.getPosition1() + textOffset);
         mark.setPosition2(mark.getPosition2() + textOffset);
         break;
     }
-    case InfoMarkTypeEnum::LINE:
+    case InfomarkTypeEnum::LINE:
         break;
-    case InfoMarkTypeEnum::ARROW: {
+    case InfomarkTypeEnum::ARROW: {
         const Coordinate offset1{0, TWENTIETH, 0};
         const Coordinate offset2{TENTH, TENTH, 0};
         mark.setPosition1(mark.getPosition1() + offset1);
@@ -207,7 +211,32 @@ public:
     }
 };
 
+NODISCARD std::optional<MM2FileVersion> getMM2FileVersion(LoadRoomHelper &helper)
+{
+    if (helper.read_i32() != MMAPPER_MAGIC) {
+        return std::nullopt;
+    }
+
+    const auto version = helper.read_u32();
+    using R = MM2FileVersion::Relative;
+    const R relative = (version == schema::CURRENT)
+                           ? R::Current
+                           : ((version < schema::CURRENT) ? R::Older : R::Newer);
+    return MM2FileVersion{version, relative};
+}
+
 } // namespace
+
+NODISCARD std::optional<MM2FileVersion> getMM2FileVersion(QIODevice &file)
+{
+    try {
+        QDataStream stream(&file);
+        auto helper = LoadRoomHelper{stream};
+        return getMM2FileVersion(helper);
+    } catch (...) {
+        return std::nullopt;
+    }
+}
 
 MapStorage::MapStorage(const AbstractMapStorage::Data &data, QObject *parent)
     : AbstractMapStorage{data, parent}
@@ -219,19 +248,19 @@ ExternalRawRoom MapStorage::loadRoom(QDataStream &stream, const uint32_t version
     LoadRoomHelper helper{stream};
     ExternalRawRoom room;
     room.status = RoomStatusEnum::Permanent;
-    if (version >= schema::v25_02_4_area) {
+    if (version >= schema::v25_05_0_area) {
         room.setArea(mmqt::makeRoomArea(helper.read_string()));
     }
     room.setName(mmqt::makeRoomName(helper.read_string()));
     room.setDescription(mmqt::makeRoomDesc(helper.read_string()));
     room.setContents(mmqt::makeRoomContents(helper.read_string()));
     room.setId(ExternalRoomId{helper.read_u32()});
-    if (version >= schema::v25_02_2_serverId) {
+    if (version >= schema::v25_04_2_serverId) {
         room.setServerId(ServerRoomId{helper.read_u32()});
     }
     room.setNote(mmqt::makeRoomNote(helper.read_string()));
     bool addDeathLoadFlag = false;
-    if (version >= schema::v25_02_3_deathFlag) {
+    if (version >= schema::v25_04_3_deathFlag) {
         room.setTerrainType(toEnum<RoomTerrainEnum>(helper.read_u8()));
     } else {
         const auto terrainType = helper.read_u8();
@@ -257,7 +286,7 @@ ExternalRawRoom MapStorage::loadRoom(QDataStream &stream, const uint32_t version
     if (addDeathLoadFlag) {
         room.addLoadFlags(RoomLoadFlagEnum::DEATHTRAP);
     }
-    if (version < schema::v25_02_1_removeUpToDate) {
+    if (version < schema::v25_04_1_removeUpToDate) {
         /*roomUpdated*/ std::ignore = helper.read_u8();
     }
 
@@ -293,7 +322,7 @@ void MapStorage::loadExits(ExternalRawRoom &room, QDataStream &stream, const uin
 
         e.setDoorName(mmqt::makeDoorName(helper.read_string()));
 
-        if (version < schema::v25_02_0_noInboundLinks) {
+        if (version < schema::v25_04_0_noInboundLinks) {
             // Inbound links will be converted to the new data format.
             for (uint32_t connection = helper.read_u32(); connection != UINT_MAX;
                  connection = helper.read_u32()) {
@@ -323,8 +352,7 @@ std::optional<RawMapLoadData> MapStorage::virt_loadData()
     RawMapLoadData result;
     result.filename = fileName;
     result.readonly = !QFileInfo(fileName).isWritable();
-    auto &markerData = result.markerData.emplace();
-    auto &markers = markerData.markers;
+    auto &markers = result.markers;
 
     {
         log("Loading data ...");
@@ -332,18 +360,18 @@ std::optional<RawMapLoadData> MapStorage::virt_loadData()
         auto &progressCounter = getProgressCounter();
         progressCounter.reset();
 
-        QDataStream stream{getFile()};
+        QDataStream stream{&getDevice()};
         auto helper = LoadRoomHelper{stream};
 
         // Read the version and magic
-        static constexpr const auto MMAPPER_MAGIC = static_cast<int32_t>(0xFFB2AF01u);
-        if (helper.read_i32() != MMAPPER_MAGIC) {
+        const auto opt_ver = getMM2FileVersion(helper);
+        if (!opt_ver.has_value()) {
             return std::nullopt;
         }
 
-        const auto version = helper.read_u32();
+        const auto version = opt_ver.value().version;
 
-        const bool supported = [version]() -> bool {
+        const bool supported = std::invoke([version]() -> bool {
             switch (version) {
             case schema::v2_0_0_initial:
             case schema::v2_0_2_ridable:
@@ -353,17 +381,17 @@ std::optional<RawMapLoadData> MapStorage::virt_loadData()
             case schema::v2_4_3_qCompress:
             case schema::v2_5_1_discardNoMatch:
             case schema::v19_10_0_newCoords:
-            case schema::v25_02_0_noInboundLinks:
-            case schema::v25_02_1_removeUpToDate:
-            case schema::v25_02_2_serverId:
-            case schema::v25_02_3_deathFlag:
-            case schema::v25_02_4_area:
+            case schema::v25_04_0_noInboundLinks:
+            case schema::v25_04_1_removeUpToDate:
+            case schema::v25_04_2_serverId:
+            case schema::v25_04_3_deathFlag:
+            case schema::v25_05_0_area:
                 return true;
             default:
                 break;
             }
             return false;
-        }();
+        });
 
         if (!supported) {
             const bool isNewer = version >= schema::CURRENT;
@@ -463,9 +491,9 @@ std::optional<RawMapLoadData> MapStorage::virt_loadData()
     return result;
 }
 
-InfoMarkFields MapStorage::loadMark(QDataStream &stream, const uint32_t version)
+RawInfomark MapStorage::loadMark(QDataStream &stream, const uint32_t version)
 {
-    InfoMarkFields mark;
+    RawInfomark mark;
     auto helper = LoadRoomHelper{stream};
 
     if (version < schema::v19_10_0_newCoords) {
@@ -473,7 +501,7 @@ InfoMarkFields MapStorage::loadMark(QDataStream &stream, const uint32_t version)
         std::ignore = helper.read_string(); /* value ignored; called for side effect */
     }
 
-    mark.setText(mmqt::makeInfoMarkText(helper.read_string()));
+    mark.setText(mmqt::makeInfomarkText(helper.read_string()));
 
     if (version < schema::v19_10_0_newCoords) {
         // was timestamp
@@ -484,9 +512,9 @@ InfoMarkFields MapStorage::loadMark(QDataStream &stream, const uint32_t version)
         if (value >= NUM_INFOMARK_TYPES) {
             static std::once_flag flag;
             std::call_once(flag, []() { qWarning() << "Detected out of bounds info mark type!"; });
-            return InfoMarkTypeEnum::TEXT;
+            return InfomarkTypeEnum::TEXT;
         }
-        return static_cast<InfoMarkTypeEnum>(value);
+        return static_cast<InfomarkTypeEnum>(value);
     }(helper.read_u8());
     mark.setType(type);
 
@@ -496,9 +524,9 @@ InfoMarkFields MapStorage::loadMark(QDataStream &stream, const uint32_t version)
                 static std::once_flag flag;
                 std::call_once(flag,
                                []() { qWarning() << "Detected out of bounds info mark class!"; });
-                return InfoMarkClassEnum::GENERIC;
+                return InfomarkClassEnum::GENERIC;
             }
-            return static_cast<InfoMarkClassEnum>(value);
+            return static_cast<InfomarkClassEnum>(value);
         }(helper.read_u8());
         mark.setClass(clazz);
         if (version < schema::v19_10_0_newCoords) {
@@ -513,12 +541,12 @@ InfoMarkFields MapStorage::loadMark(QDataStream &stream, const uint32_t version)
 
     transformInfomarkOnLoad(version, mark);
 
-    if (mark.getType() != InfoMarkTypeEnum::TEXT && !mark.getText().isEmpty()) {
-        mark.setText(InfoMarkText{});
+    if (mark.getType() != InfomarkTypeEnum::TEXT && !mark.getText().isEmpty()) {
+        mark.setText(InfomarkText{});
     }
     // REVISIT: Just discard empty text markers?
-    else if (mark.getType() == InfoMarkTypeEnum::TEXT && mark.getText().isEmpty()) {
-        mark.setText(InfoMarkText{"New Marker"});
+    else if (mark.getType() == InfomarkTypeEnum::TEXT && mark.getText().isEmpty()) {
+        mark.setText(InfomarkText{"New Marker"});
     }
 
     return mark;
@@ -561,17 +589,14 @@ void MapStorage::saveExits(const ExternalRawRoom &room, QDataStream &stream)
     }
 }
 
-bool MapStorage::virt_saveData(const RawMapData &mapData)
+bool MapStorage::virt_saveData(const MapLoadData &mapData)
 {
     auto &progressCounter = getProgressCounter();
     log("Writing data to file ...");
 
     const auto &map = mapData.mapPair.modified;
-    const RawMarkerData noMarkers;
-    const RawMarkerData &markerList = mapData.markerData.has_value() ? mapData.markerData.value()
-                                                                     : noMarkers;
 
-    QDataStream fileStream(getFile());
+    QDataStream fileStream(&getDevice());
     fileStream.setVersion(QDataStream::Qt_4_8);
 
     // Collect the room and marker lists. The room list can't be acquired
@@ -581,15 +606,15 @@ bool MapStorage::virt_saveData(const RawMapData &mapData)
     roomList.reserve(map.getRoomsCount());
 
     progressCounter.setNewTask(ProgressMsg{"scanning rooms"}, map.getRooms().size());
-    for (const RoomId id : map.getRooms()) {
+    map.getRooms().for_each([&](const RoomId id) {
         const auto &room = map.getRoomHandle(id);
         if (!room.isTemporary()) {
             roomList.push_back(room);
         }
-    }
+    });
 
     auto roomsCount = static_cast<uint32_t>(roomList.size());
-    const auto marksCount = static_cast<uint32_t>(markerList.size());
+    const auto marksCount = static_cast<uint32_t>(map.getMarksCount());
 
     // Write a header with a "magic number" and a version
     fileStream << static_cast<uint32_t>(0xFFB2AF01);
@@ -617,10 +642,11 @@ bool MapStorage::virt_saveData(const RawMapData &mapData)
 
     // save items
     progressCounter.setNewTask(ProgressMsg{"saving markers"}, marksCount);
-    for (const auto &mark : markerList.markers) {
-        saveMark(mark, stream);
+    auto &db = map.getInfomarkDb();
+    db.getIdSet().for_each([&](const InfomarkId id) {
+        saveMark(db.getRawCopy(id), stream);
         progressCounter.step();
-    }
+    });
 
     buffer.close();
 
@@ -638,7 +664,7 @@ bool MapStorage::virt_saveData(const RawMapData &mapData)
                 .arg(QString::number(compressionRatio, 'f', 1)));
 
         // TODO: add progress counter
-        fileStream.writeRawData(compressedData.data(), compressedData.size());
+        fileStream.writeRawData(compressedData.data(), static_cast<int>(compressedData.size()));
     }
 
     log("Writing data finished.");
@@ -646,11 +672,11 @@ bool MapStorage::virt_saveData(const RawMapData &mapData)
     return true;
 }
 
-void MapStorage::saveMark(const InfoMarkFields &mark, QDataStream &stream)
+void MapStorage::saveMark(const RawInfomark &mark, QDataStream &stream)
 {
     // REVISIT: save type first, and then avoid saving fields that aren't necessary?
-    const InfoMarkTypeEnum type = mark.getType();
-    stream << QString((type == InfoMarkTypeEnum::TEXT) ? mark.getText().toQString() : "");
+    const InfomarkTypeEnum type = mark.getType();
+    stream << QString((type == InfomarkTypeEnum::TEXT) ? mark.getText().toQString() : "");
     stream << static_cast<uint8_t>(type);
     stream << static_cast<uint8_t>(mark.getClass());
     // REVISIT: round to 45 degrees?

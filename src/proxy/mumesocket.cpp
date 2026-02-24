@@ -7,8 +7,8 @@
 #include "mumesocket.h"
 
 #include "../configuration/configuration.h"
+#include "../global/ConfigConsts-Computed.h"
 #include "../global/Consts.h"
-#include "../global/MakeQPointer.h"
 #include "../global/io.h"
 
 #include <tuple>
@@ -17,13 +17,25 @@
 #include <QLocale>
 #include <QMessageLogContext>
 #include <QSslConfiguration>
-#include <QSslSocket>
 #include <QString>
 
 static constexpr int PING_MILLIS = 45000;
 static constexpr int TIMEOUT_MILLIS = 5000;
 static constexpr auto ENCRYPTION_WARNING = "ENCRYPTION WARNING";
 static constexpr auto CONNECTION_WARNING = "Warning";
+
+namespace {
+
+bool supportsSsl()
+{
+#ifdef Q_OS_WASM
+    return false;
+#else
+    return QSslSocket::supportsSsl();
+#endif
+}
+
+} // namespace
 
 MumeSocketOutputs::~MumeSocketOutputs() = default;
 
@@ -107,16 +119,19 @@ void MumeFallbackSocket::disconnectFromHost()
     m_state = SocketTypeEnum::SSL;
 }
 
-void MumeFallbackSocket::connectToHost()
+void MumeFallbackSocket::advanceSocketType()
 {
-    stopTimer();
-    if (m_state == SocketTypeEnum::SSL && !QSslSocket::supportsSsl()) {
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
         m_state = SocketTypeEnum::WEBSOCKET;
+        return;
+    }
+    if (m_state == SocketTypeEnum::SSL && !supportsSsl()) {
+        m_state = NO_WEBSOCKET ? SocketTypeEnum::INSECURE : SocketTypeEnum::WEBSOCKET;
     }
     if (m_state == SocketTypeEnum::WEBSOCKET && NO_WEBSOCKET) {
         m_state = SocketTypeEnum::INSECURE;
     }
-    if (m_state == SocketTypeEnum::INSECURE && (QSslSocket::supportsSsl() || !NO_WEBSOCKET)
+    if (m_state == SocketTypeEnum::INSECURE && (supportsSsl() || !NO_WEBSOCKET)
         && getConfig().connection.tlsEncryption) {
         // Request user to disable encryption
         m_outputs.onSocketError("Attempt was rejected because insecure connections are"
@@ -125,21 +140,30 @@ void MumeFallbackSocket::connectToHost()
         disconnectFromHost();
         return;
     }
+}
 
+void MumeFallbackSocket::connectToHost()
+{
+    stopTimer();
+    advanceSocketType();
     if (m_socket != nullptr) {
         m_socket->deleteLater();
     }
     auto &wrapper = deref(m_wrapper);
     switch (m_state) {
     case SocketTypeEnum::SSL:
+#ifndef Q_OS_WASM
         m_socket.reset(new MumeSslSocket(this, wrapper));
+#endif
         break;
     case SocketTypeEnum::WEBSOCKET:
         assert(!NO_WEBSOCKET);
         m_socket.reset(new MumeWebSocket(this, wrapper));
         break;
     case SocketTypeEnum::INSECURE:
+#ifndef Q_OS_WASM
         m_socket.reset(new MumeTcpSocket(this, wrapper));
+#endif
         break;
     default:
         assert(false);
@@ -156,7 +180,11 @@ void MumeFallbackSocket::sendToMud(const TelnetIacBytes &ba)
 
 void MumeFallbackSocket::onSocketError(const QString &errorString)
 {
-    if (m_state == SocketTypeEnum::INSECURE) {
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+        m_outputs.onSocketError(errorString);
+        disconnectFromHost();
+        return;
+    } else if (m_state == SocketTypeEnum::INSECURE) {
         m_outputs.onSocketError(errorString);
         disconnectFromHost();
         return;
@@ -167,11 +195,8 @@ void MumeFallbackSocket::onSocketError(const QString &errorString)
                                                      errorString});
     }
 
-    if (m_state == SocketTypeEnum::SSL) {
-        m_state = NO_WEBSOCKET ? SocketTypeEnum::INSECURE : SocketTypeEnum::WEBSOCKET;
-    } else if (m_state == SocketTypeEnum::WEBSOCKET) {
-        m_state = SocketTypeEnum::INSECURE;
-    }
+    advanceSocketType();
+
     switch (m_state) {
     case SocketTypeEnum::WEBSOCKET:
         m_outputs.onSocketStatus("Attempting using WebSocket...");
@@ -180,6 +205,8 @@ void MumeFallbackSocket::onSocketError(const QString &errorString)
         m_outputs.onSocketStatus("Attempting insecure plain text...");
         break;
     case SocketTypeEnum::SSL:
+        m_outputs.onSocketError("Unable to connect to MUME.");
+        return;
     default:
         assert(false);
     };
@@ -200,6 +227,7 @@ void MumeSocket::virt_onError2(const QString &errorString)
     m_outputs.onSocketError(errorStr);
 }
 
+#ifndef Q_OS_WASM
 MumeSslSocket::MumeSslSocket(QObject *parent, MumeSocketOutputs &outputs)
     : MumeSocket(parent, outputs)
     , m_socket{this}
@@ -267,7 +295,8 @@ void MumeSslSocket::virt_onConnect()
 void MumeSslSocket::virt_onError(QAbstractSocket::SocketError e)
 {
     // MUME disconnecting is not an error. We also handle timeouts separately.
-    if (e != QAbstractSocket::RemoteHostClosedError && e != QAbstractSocket::SocketTimeoutError) {
+    if (e != QAbstractSocket::SocketError::RemoteHostClosedError
+        && e != QAbstractSocket::SocketError::SocketTimeoutError) {
         onError2(m_socket.errorString());
     }
 }
@@ -335,7 +364,7 @@ void MumeTcpSocket::virt_connectToHost()
 void MumeTcpSocket::virt_onConnect()
 {
     // Warn user of the insecure connection
-    if (!QSslSocket::supportsSsl() && NO_WEBSOCKET) {
+    if (!supportsSsl() && NO_WEBSOCKET) {
         m_outputs.onSocketWarning(
             AnsiWarningMessage{AnsiColor16Enum::white,
                                AnsiColor16Enum::red,
@@ -344,7 +373,7 @@ void MumeTcpSocket::virt_onConnect()
                                " MMapper with OpenSSL or WebSocket support to get rid of"
                                " this message."});
 
-    } else if (QSslSocket::supportsSsl() || !NO_WEBSOCKET) {
+    } else if (supportsSsl() || !NO_WEBSOCKET) {
         m_outputs.onSocketWarning(
             AnsiWarningMessage{AnsiColor16Enum::white,
                                AnsiColor16Enum::red,
@@ -362,6 +391,7 @@ void MumeTcpSocket::virt_onConnect()
 
     m_outputs.onConnected();
 }
+#endif
 
 MumeWebSocket::MumeWebSocket(QObject *parent, MumeSocketOutputs &outputs)
     : MumeSocket(parent, outputs)
@@ -380,10 +410,12 @@ MumeWebSocket::MumeWebSocket(QObject *parent, MumeSocketOutputs &outputs)
             QOverload<QAbstractSocket::SocketError>::of(&QWebSocket::error),
             this,
             [this](QAbstractSocket::SocketError e) { onError(e); });
+#ifndef Q_OS_WASM
     connect(&m_socket,
             QOverload<const QList<QSslError> &>::of(&QWebSocket::sslErrors),
             this,
             &MumeWebSocket::onSslErrors);
+#endif
     connect(&m_pingTimer, &QTimer::timeout, &m_socket, [this]() { m_socket.ping(); });
 #endif
 
@@ -453,7 +485,8 @@ void MumeWebSocket::virt_sendToMud(const TelnetIacBytes &ba)
 void MumeWebSocket::virt_onError(QAbstractSocket::SocketError e)
 {
     // MUME disconnecting is not an error. We also handle timeouts separately.
-    if (e != QAbstractSocket::RemoteHostClosedError && e != QAbstractSocket::SocketTimeoutError) {
+    if (e != QAbstractSocket::SocketError::RemoteHostClosedError
+        && e != QAbstractSocket::SocketError::SocketTimeoutError) {
 #ifndef MMAPPER_NO_WEBSOCKET
         onError2(m_socket.errorString());
 #endif
@@ -461,12 +494,15 @@ void MumeWebSocket::virt_onError(QAbstractSocket::SocketError e)
     }
 }
 
+#ifndef Q_OS_WASM
 void MumeWebSocket::onSslErrors(const QList<QSslError> &errors)
 {
     QString msg;
     for (const auto &error : errors) {
-        if (!msg.isEmpty())
-            msg += char_consts::C_SEMICOLON + char_consts::C_SPACE;
+        if (!msg.isEmpty()) {
+            msg += char_consts::C_SEMICOLON;
+            msg += char_consts::C_SPACE;
+        }
         msg += error.errorString();
     }
     if (!msg.isEmpty() && !msg.back().isPunct()) {
@@ -481,3 +517,4 @@ void MumeWebSocket::onSslErrors(const QList<QSslError> &errors)
     m_outputs.onSocketWarning(
         AnsiWarningMessage{AnsiColor16Enum::white, AnsiColor16Enum::red, ENCRYPTION_WARNING, msg});
 }
+#endif

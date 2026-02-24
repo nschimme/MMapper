@@ -6,10 +6,10 @@
 #include "../configuration/configuration.h"
 #include "../group/CGroupChar.h"
 #include "../group/mmapper2group.h"
-#include "../map/room.h"
 #include "../map/roomid.h"
 #include "../mapdata/mapdata.h"
 #include "../mapdata/roomselection.h"
+#include "../opengl/LineRendering.h"
 #include "../opengl/OpenGL.h"
 #include "../opengl/OpenGLTypes.h"
 #include "MapCanvasData.h"
@@ -23,11 +23,12 @@
 #include <vector>
 
 #include <glm/glm.hpp>
+#include <glm/gtx/norm.hpp>
 
 #include <QtCore>
 
 static constexpr float CHAR_ARROW_LINE_WIDTH = 2.f;
-static constexpr float PATH_LINE_WIDTH = 4.f;
+static constexpr float PATH_LINE_WIDTH = 0.1f;
 static constexpr float PATH_POINT_SIZE = 8.f;
 
 DistantObjectTransform DistantObjectTransform::construct(const glm::vec3 &pos,
@@ -48,7 +49,7 @@ bool CharacterBatch::isVisible(const Coordinate &c, float margin) const
     return m_mapScreen.isRoomVisible(c, margin);
 }
 
-void CharacterBatch::drawCharacter(const Coordinate &c, const Color &color, bool fill)
+void CharacterBatch::drawCharacter(const Coordinate &c, const Color color, bool fill)
 {
     const Configuration::CanvasSettings &settings = getConfig().canvas;
 
@@ -64,10 +65,10 @@ void CharacterBatch::drawCharacter(const Coordinate &c, const Color &color, bool
     const bool isFar = m_scale <= settings.charBeaconScaleCutoff;
     const bool wantBeacons = settings.drawCharBeacons && isFar;
     if (!visible) {
-        static const bool useScreenSpacePlayerArrow = []() -> bool {
+        static const bool useScreenSpacePlayerArrow = std::invoke([]() -> bool {
             auto opt = utils::getEnvBool("MMAPPER_SCREEN_SPACE_ARROW");
             return opt ? opt.value() : true;
-        }();
+        });
         const auto dot = DistantObjectTransform::construct(roomCenter, m_mapScreen, marginPixels);
         // Player is distant
         if (useScreenSpacePlayerArrow) {
@@ -102,17 +103,25 @@ void CharacterBatch::drawCharacter(const Coordinate &c, const Color &color, bool
     gl.drawBox(c, fill, beacon, isFar);
 }
 
+void CharacterBatch::CharFakeGL::drawPathSegment(const glm::vec3 &p1,
+                                                 const glm::vec3 &p2,
+                                                 const Color color)
+{
+    mmgl::generateLineQuadsSafe(m_pathLineQuads, p1, p2, PATH_LINE_WIDTH, color);
+}
+
 void CharacterBatch::drawPreSpammedPath(const Coordinate &c1,
                                         const std::vector<Coordinate> &path,
-                                        const Color &color)
+                                        const Color color)
 {
     if (path.empty()) {
         return;
     }
 
-    const std::vector<glm::vec3> verts = [&c1, &path]() {
-        std::vector<glm::vec3> translated;
-        translated.reserve(static_cast<size_t>(path.size()) + 1);
+    using TranslatedVerts = std::vector<glm::vec3>;
+    const auto verts = std::invoke([&c1, &path]() -> TranslatedVerts {
+        TranslatedVerts translated;
+        translated.reserve(path.size() + 1);
 
         const auto add = [&translated](const Coordinate &c) -> void {
             static const glm::vec3 PATH_OFFSET{0.5f, 0.5f, 0.f};
@@ -124,10 +133,16 @@ void CharacterBatch::drawPreSpammedPath(const Coordinate &c1,
             add(c2);
         }
         return translated;
-    }();
+    });
 
     auto &gl = getOpenGL();
-    gl.drawPathLineStrip(color, verts);
+
+    // Generate vertices for the thick line
+    for (size_t i = 0; i < verts.size() - 1; ++i) {
+        const glm::vec3 p1 = verts[i];
+        const glm::vec3 p2 = verts[i + 1];
+        gl.drawPathSegment(p1, p2, color);
+    }
     gl.drawPathPoint(color, verts.back());
 }
 
@@ -267,7 +282,7 @@ void CharacterBatch::CharFakeGL::drawBox(const Coordinate &coord,
         const auto &m = m_stack.top().modelView;
         const auto addTransformed = [this, &color, &m](const glm::vec2 &in_vert) -> void {
             const auto tmp = m * glm::vec4(in_vert, 0.f, 1.f);
-            m_charRoomQuads.emplace_back(color, in_vert, glm::vec3{tmp / tmp.w});
+            m_charRoomQuads.emplace_back(color, glm::vec3{in_vert, 0}, glm::vec3{tmp / tmp.w});
         };
         addTransformed(a);
         addTransformed(b);
@@ -314,7 +329,8 @@ void CharacterBatch::CharFakeGL::reallyDrawCharacters(OpenGL &gl, const MapCanva
 
     if (!m_charRoomQuads.empty()) {
         gl.renderColoredTexturedQuads(m_charRoomQuads,
-                                      blended_noDepth.withTexture0(textures.char_room_sel->getId()));
+                                      blended_noDepth.withTexture0(
+                                          textures.char_room_sel->getArrayPosition().array));
     }
 
     if (!m_charTris.empty()) {
@@ -343,13 +359,14 @@ void CharacterBatch::CharFakeGL::reallyDrawPaths(OpenGL &gl)
         = GLRenderState().withDepthFunction(std::nullopt).withBlend(BlendModeEnum::TRANSPARENCY);
 
     gl.renderPoints(m_pathPoints, blended_noDepth.withPointSize(PATH_POINT_SIZE));
-    gl.renderColoredLines(m_pathLineVerts,
-                          blended_noDepth.withLineParams(LineParams{PATH_LINE_WIDTH}));
+    if (!m_pathLineQuads.empty()) {
+        gl.renderColoredQuads(m_pathLineQuads, blended_noDepth);
+    }
 }
 
 void CharacterBatch::CharFakeGL::addScreenSpaceArrow(const glm::vec3 &pos,
                                                      const float degrees,
-                                                     const Color &color,
+                                                     const Color color,
                                                      const bool fill)
 {
     std::array<glm::vec2, 4> texCoords{
@@ -385,7 +402,7 @@ void MapCanvas::paintCharacters()
     CharacterBatch characterBatch{m_mapScreen, m_currentLayer, getTotalScaleFactor()};
 
     // IIFE to abuse return to avoid duplicate else branches
-    [this, &characterBatch]() {
+    std::invoke([this, &characterBatch]() -> void {
         if (const std::optional<RoomId> opt_pos = m_data.getCurrentRoomId()) {
             const auto &id = opt_pos.value();
             if (const auto room = m_data.findRoomHandle(id)) {
@@ -410,7 +427,7 @@ void MapCanvas::paintCharacters()
             }
         }
         drawGroupCharacters(characterBatch);
-    }();
+    });
 
     characterBatch.reallyDraw(getOpenGL(), m_textures);
 }
@@ -430,7 +447,7 @@ void MapCanvas::drawGroupCharacters(CharacterBatch &batch)
 
         const CGroupChar &character = deref(pCharacter);
 
-        const auto &r = [&character, &map]() -> RoomHandle {
+        const auto &r = std::invoke([&character, &map]() -> RoomHandle {
             const ServerRoomId srvId = character.getServerId();
             if (srvId != INVALID_SERVER_ROOMID) {
                 if (const auto &room = map.findRoomHandle(srvId)) {
@@ -438,7 +455,7 @@ void MapCanvas::drawGroupCharacters(CharacterBatch &batch)
                 }
             }
             return RoomHandle{};
-        }();
+        });
 
         // Do not draw the character if they're in an "Unknown" room
         if (!r) {

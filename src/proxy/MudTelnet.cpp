@@ -5,13 +5,13 @@
 #include "MudTelnet.h"
 
 #include "../clock/mumeclock.h"
-#include "../display/MapCanvasConfig.h"
 #include "../global/Consts.h"
 #include "../global/LineUtils.h"
 #include "../global/SendToUser.h"
 #include "../global/TextUtils.h"
 #include "../global/Version.h"
 #include "../global/emojis.h"
+#include "../opengl/OpenGLConfig.h"
 #include "GmcpUtils.h"
 
 #include <charconv>
@@ -22,8 +22,15 @@
 #include <string_view>
 
 #include <QByteArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QOperatingSystemVersion>
 #include <QSysInfo>
+
+#ifdef Q_OS_WASM
+#include <cstdlib>
+#include <emscripten.h>
+#endif
 
 namespace { // anonymous
 
@@ -31,6 +38,31 @@ constexpr const auto GAME_YEAR = "GAME YEAR";
 constexpr const auto GAME_MONTH = "GAME MONTH";
 constexpr const auto GAME_DAY = "GAME DAY";
 constexpr const auto GAME_HOUR = "GAME HOUR";
+
+#ifdef Q_OS_WASM
+// clang-format off
+EM_JS(char *, get_browser_os_js, (), {
+    const ua = navigator.userAgent;
+
+    const os = /Win/.test(ua) ? "Windows" :
+               /Android/.test(ua) ? "Android" :
+               /Linux/.test(ua) ? "Linux" :
+               /iPhone|iPad|iPod/.test(ua) ? "iOS" :
+               /Mac/.test(ua) ? "macOS" : "Unknown";
+
+    const br = /Firefox/.test(ua) ? "Firefox" :
+               /SamsungBrowser/.test(ua) ? "Samsung" :
+               /Opera|OPR/.test(ua) ? "Opera" :
+               /Edge|Edg/.test(ua) ? "Edge" :
+               /Chrome/.test(ua) ? "Chrome" :
+               /Safari/.test(ua) ? "Safari" : "Unknown";
+
+    const res = (os === "Unknown" && br === "Unknown") ? "unknown" : (os + br);
+
+    return stringToNewUTF8(res);
+});
+// clang-format on
+#endif
 
 NODISCARD std::optional<std::string> getMajorMinor()
 {
@@ -54,6 +86,7 @@ NODISCARD std::string getOsName()
     switch (CURRENT_PLATFORM) {
         X_CASE(Linux);
         X_CASE(Mac);
+        X_CASE(Wasm);
         X_CASE(Windows);
         X_CASE(Unknown);
     }
@@ -63,23 +96,38 @@ NODISCARD std::string getOsName()
 
 NODISCARD std::string getOs()
 {
+#ifdef Q_OS_WASM
+    char *jsStr = get_browser_os_js();
+    const std::string result(jsStr);
+    std::free(jsStr);
+    return result;
+#else
     if (auto ver = getMajorMinor()) {
         return getOsName() + ver.value();
     }
     return getOsName();
+#endif
 }
 
-NODISCARD TelnetTermTypeBytes addTerminalTypeSuffix(const std::string_view prefix)
+NODISCARD std::string getPackage()
 {
-    // It's probably required to be ASCII.
-    const auto arch = mmqt::toStdStringUtf8(QSysInfo::currentCpuArchitecture().toUtf8());
+#define X_CASE(X) \
+    case (PackageEnum::X): \
+        return #X
 
-    std::ostringstream ss;
-    ss << prefix << "/MMapper-" << getMMapperVersion() << "/"
-       << MapCanvasConfig::getCurrentOpenGLVersion() << "/" << getOs() << "/" << arch;
-    auto str = std::move(ss).str();
-
-    return TelnetTermTypeBytes{mmqt::toQByteArrayUtf8(str)};
+    switch (CURRENT_PACKAGE) {
+        X_CASE(Source);
+        X_CASE(Deb);
+        X_CASE(Dmg);
+        X_CASE(Nsis);
+        X_CASE(AppImage);
+        X_CASE(AppX);
+        X_CASE(Flatpak);
+        X_CASE(Snap);
+        X_CASE(Wasm);
+    }
+    std::abort();
+#undef X_CASE
 }
 
 using OptStdString = std::optional<std::string>;
@@ -231,7 +279,7 @@ NODISCARD bool isOneLineCrlf(const QString &s)
 MudTelnetOutputs::~MudTelnetOutputs() = default;
 
 MudTelnet::MudTelnet(MudTelnetOutputs &outputs)
-    : AbstractTelnet(TextCodecStrategyEnum::FORCE_UTF_8, addTerminalTypeSuffix("unknown"))
+    : AbstractTelnet(TextCodecStrategyEnum::FORCE_UTF_8, TelnetTermTypeBytes{"unknown"})
     , m_outputs{outputs}
 {
     // RFC 2066 states we can provide many character sets but we force UTF-8 when
@@ -363,8 +411,7 @@ void MudTelnet::onRelayNaws(const int width, const int height)
 
 void MudTelnet::onRelayTermType(const TelnetTermTypeBytes &terminalType)
 {
-    // Append the MMapper version suffix to the terminal type
-    setTerminalType(addTerminalTypeSuffix(terminalType.getQByteArray().constData()));
+    setTerminalType(terminalType);
     if (getOptions().myOptionState[OPT_TERMINAL_TYPE]) {
         sendTerminalType(getTerminalType());
     }
@@ -393,20 +440,21 @@ void MudTelnet::virt_receiveEchoMode(const bool toggle)
 
 void MudTelnet::virt_receiveGmcpMessage(const GmcpMessage &msg)
 {
-    if (!msg.getJsonDocument().has_value()) {
-        return;
-    }
-
     if (getDebug()) {
         qDebug() << "Receiving GMCP from MUME" << msg.toRawBytes();
     }
 
     if (msg.isMumeClientError()) {
-        m_outputs.onMumeClientError(msg.getJson().value().toQString());
+        if (auto optJson = msg.getJson()) {
+            m_outputs.onMumeClientError(optJson->toQString());
+        }
         return;
     }
 
     if (msg.isMumeClientView() || msg.isMumeClientEdit()) {
+        if (!msg.getJsonDocument()) {
+            return;
+        }
         auto optObj = msg.getJsonDocument()->getObject();
         if (!optObj) {
             return;
@@ -429,6 +477,9 @@ void MudTelnet::virt_receiveGmcpMessage(const GmcpMessage &msg)
     }
 
     if (msg.isMumeClientWrite() || msg.isMumeClientCancelEdit()) {
+        if (!msg.getJsonDocument()) {
+            return;
+        }
         auto optObj = msg.getJsonDocument()->getObject();
         if (!optObj) {
             return;
@@ -447,7 +498,7 @@ void MudTelnet::virt_receiveGmcpMessage(const GmcpMessage &msg)
             const auto result = optString.value_or("missing text");
             qDebug() << "Failure" << action << "remote message" << id << result;
             // Mume doesn't send anything, so we have to make our own message.
-            global::sendToUser(QString("Failure %1 remote message: %1").arg(action, result));
+            global::sendToUser(QString("Failure %1 remote message: %2\n").arg(action, result));
         }
         return;
     }
@@ -467,10 +518,22 @@ void MudTelnet::virt_onGmcpEnabled()
         qDebug() << "Requesting GMCP from MUME";
     }
 
-    sendGmcpMessage(
-        GmcpMessage(GmcpMessageTypeEnum::CORE_HELLO,
-                    GmcpJson{QString(R"({ "client": "MMapper", "version": "%1" })")
-                                 .arg(GmcpUtils::escapeGmcpStringData(getMMapperVersion()))}));
+    QJsonObject obj;
+    obj["client"] = QStringLiteral("MMapper");
+    obj["version"] = mmqt::toQStringUtf8(getMMapperVersion());
+    if constexpr (!NO_OPENGL) {
+        obj["opengl"] = mmqt::toQStringUtf8(OpenGLConfig::getGLVersionString());
+    }
+    if constexpr (!NO_GLES) {
+        obj["gles"] = mmqt::toQStringUtf8(OpenGLConfig::getESVersionString());
+    }
+    obj["os"] = mmqt::toQStringUtf8(getOs());
+    obj["arch"] = QSysInfo::currentCpuArchitecture();
+    obj["package"] = mmqt::toQStringUtf8(getPackage());
+
+    const QJsonDocument doc(obj);
+    const QString json = doc.toJson(QJsonDocument::Compact);
+    sendGmcpMessage(GmcpMessage(GmcpMessageTypeEnum::CORE_HELLO, GmcpJson{json}));
 
     // Request GMCP modules that might have already been sent by the local client
     sendCoreSupports();
@@ -551,9 +614,9 @@ void MudTelnet::parseMudServerStatus(const TelnetMsspBytes &data)
     const OptStdString dayStr = map.lookup(GAME_DAY);
     const OptStdString hourStr = map.lookup(GAME_HOUR);
 
-    MMLOG() << "MSSP game time received with"
-            << " year:" << yearStr.value_or("unknown") << " month:" << monthStr.value_or("unknown")
-            << " day:" << dayStr.value_or("unknown") << " hour:" << hourStr.value_or("unknown");
+    MMLOG() << "MSSP game time received with" << " year:" << yearStr.value_or("unknown")
+            << " month:" << monthStr.value_or("unknown") << " day:" << dayStr.value_or("unknown")
+            << " hour:" << hourStr.value_or("unknown");
 
     if (!yearStr.has_value() || !monthStr.has_value() || !dayStr.has_value()
         || !hourStr.has_value()) {

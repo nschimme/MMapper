@@ -160,10 +160,11 @@ AbstractParser::AbstractParser(MapData &md,
                                ProxyMudConnectionApi &proxyMudConnection,
                                ProxyUserGmcpApi &proxyUserGmcp,
                                GroupManagerApi &group,
+                               HotkeyManager &hm,
                                QObject *const parent,
                                AbstractParserOutputs &outputs,
                                ParserCommonData &commonData)
-    : ParserCommon{parent, mc, md, group, proxyUserGmcp, outputs, commonData}
+    : ParserCommon{parent, mc, md, group, hm, proxyUserGmcp, outputs, commonData}
     , m_proxyMudConnection{proxyMudConnection}
 {
     QObject::connect(&m_offlineCommandTimer, &QTimer::timeout, this, [this]() {
@@ -255,7 +256,7 @@ RoomId ParserCommon::getTailPosition() const
 
 void ParserCommon::emulateExits(AnsiOstream &os, const CommandEnum move)
 {
-    const auto nextRoom = [this, &move]() -> RoomId {
+    const auto nextRoom = std::invoke([this, &move]() -> RoomId {
         // Use movement direction to find the next coordinate
         if (isDirectionNESWUD(move)) {
             if (const auto sourceRoom = m_mapData.getCurrentRoom()) {
@@ -270,7 +271,7 @@ void ParserCommon::emulateExits(AnsiOstream &os, const CommandEnum move)
         }
         // Fallback to next position in prespammed path
         return getNextPosition();
-    }();
+    });
 
     if (const auto &r = m_mapData.findRoomHandle(nextRoom)) {
         sendRoomExitsInfoToUser(os, r);
@@ -333,7 +334,7 @@ NODISCARD static QString compressDirections(const QString &original)
         }
         ans.append(curval);
 
-        const auto dir = Mmapper2Exit::dirForChar(curval.toLatin1());
+        const auto dir = Mmapper2Exit::dirForChar(curval);
         delta += ::exitDir(dir) * curnum;
     };
 
@@ -619,14 +620,14 @@ void AbstractParser::showHeader(const QString &s)
 
 void AbstractParser::showMiscHelp()
 {
-    static const Helps helps = []() -> Helps {
+    static const Helps helps = std::invoke([]() -> Helps {
         std::vector<Help> h;
         h.emplace_back(Help{cmdBack, "delete prespammed commands from queue"});
         h.emplace_back(Help{cmdMap, "modify or display stats about the map"});
         h.emplace_back(Help{cmdTime, "display current MUME time"});
         h.emplace_back(Help{cmdVote, "vote for MUME on TMC!"});
         return Helps{std::move(h)};
-    }();
+    });
 
     showHeader("Miscellaneous commands");
     sendToUser(SendToUserSourceEnum::FromMMapper, helps.format(getPrefixChar()));
@@ -645,6 +646,7 @@ void AbstractParser::showHelp()
                      "\n"
                      "Utility commands:\n"
                      "  %1group       - (see \"%1group ??\" for syntax help)\n"
+                     "  %1hotkey      - (see \"%1hotkey ??\" for syntax help)\n"
                      "  %1timer       - (see \"%1timer ??\" for syntax help)\n"
                      "\n"
                      "Config commands:\n"
@@ -653,7 +655,6 @@ void AbstractParser::showHelp()
                      "Help commands:\n"
                      "  %1help      - this help text\n"
                      "  %1help ??   - full syntax help for the help command\n"
-                     "  %1doorhelp  - help for door console commands\n"
                      "\n"
                      "Other commands:\n"
                      "  %1dirs [-options] pattern   - directions to matching rooms\n"
@@ -893,7 +894,7 @@ void AbstractParser::doOfflineCharacterMove()
                                                 otherRoom.getContents(),
                                                 ServerExitIds{},
                                                 otherRoom.getTerrainType(),
-                                                RawExit{},
+                                                RawExits{},
                                                 PromptFlagsType{},
                                                 ConnectedRoomFlagsType{});
         onHandleParseEvent(SigParseEvent{ev});

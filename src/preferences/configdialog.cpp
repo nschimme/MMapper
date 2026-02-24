@@ -6,10 +6,13 @@
 
 #include "configdialog.h"
 
+#include "../configuration/configuration.h"
+#include "audiopage.h"
 #include "autologpage.h"
 #include "clientpage.h"
 #include "generalpage.h"
 #include "graphicspage.h"
+#include "grouppage.h"
 #include "mumeprotocolpage.h"
 #include "parserpage.h"
 #include "pathmachinepage.h"
@@ -33,7 +36,9 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     auto graphicsPage = new GraphicsPage(this);
     auto parserPage = new ParserPage(this);
     auto clientPage = new ClientPage(this);
+    auto groupPage = new GroupPage(this);
     auto autoLogPage = new AutoLogPage(this);
+    auto audioPage = new AudioPage(this);
     auto mumeProtocolPage = new MumeProtocolPage(this);
     auto pathmachinePage = new PathmachinePage(this);
 
@@ -44,7 +49,9 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     pagesWidget->addWidget(graphicsPage);
     pagesWidget->addWidget(parserPage);
     pagesWidget->addWidget(clientPage);
+    pagesWidget->addWidget(groupPage);
     pagesWidget->addWidget(autoLogPage);
+    pagesWidget->addWidget(audioPage);
     pagesWidget->addWidget(mumeProtocolPage);
     pagesWidget->addWidget(pathmachinePage);
     pagesWidget->setCurrentIndex(0);
@@ -58,21 +65,23 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
             &ConfigDialog::slot_changePage);
     connect(ui->closeButton, &QAbstractButton::clicked, this, &QWidget::close);
 
-    connect(generalPage, &GeneralPage::sig_factoryReset, this, [this]() {
-        qDebug() << "Reloading config due to factory reset";
-        emit sig_loadConfig();
-    });
+    connect(generalPage, &GeneralPage::sig_reloadConfig, this, [this]() { emit sig_loadConfig(); });
     connect(this, &ConfigDialog::sig_loadConfig, generalPage, &GeneralPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, graphicsPage, &GraphicsPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, parserPage, &ParserPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, clientPage, &ClientPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, autoLogPage, &AutoLogPage::slot_loadConfig);
+    connect(this, &ConfigDialog::sig_loadConfig, audioPage, &AudioPage::slot_loadConfig);
+    connect(this, &ConfigDialog::sig_loadConfig, groupPage, &GroupPage::slot_loadConfig);
+    connect(groupPage,
+            &GroupPage::sig_groupSettingsChanged,
+            this,
+            &ConfigDialog::sig_groupSettingsChanged);
     connect(this,
             &ConfigDialog::sig_loadConfig,
             mumeProtocolPage,
             &MumeProtocolPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, pathmachinePage, &PathmachinePage::slot_loadConfig);
-
     connect(graphicsPage,
             &GraphicsPage::sig_graphicsSettingsChanged,
             this,
@@ -82,6 +91,12 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
 ConfigDialog::~ConfigDialog()
 {
     delete ui;
+}
+
+void ConfigDialog::closeEvent(QCloseEvent *const event)
+{
+    getConfig().write();
+    event->accept();
 }
 
 void ConfigDialog::showEvent(QShowEvent *const event)
@@ -99,47 +114,29 @@ void ConfigDialog::showEvent(QShowEvent *const event)
 
 void ConfigDialog::createIcons()
 {
-    auto *configButton = new QListWidgetItem(ui->contentsWidget);
-    configButton->setIcon(QIcon(":/icons/generalcfg.png"));
-    configButton->setText(tr("General"));
-    configButton->setTextAlignment(Qt::AlignHCenter);
-    configButton->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+    const QSize iconTargetSize = ui->contentsWidget->iconSize();
 
-    auto *graphicsButton = new QListWidgetItem(ui->contentsWidget);
-    graphicsButton->setIcon(QIcon(":/icons/graphicscfg.png"));
-    graphicsButton->setText(tr("Graphics"));
-    graphicsButton->setTextAlignment(Qt::AlignHCenter);
-    graphicsButton->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+    auto addItem = [&](const QString &iconPath, const QString &label) {
+        QPixmap pixmap(iconPath);
+        QPixmap scaled = pixmap.scaled(iconTargetSize,
+                                       Qt::KeepAspectRatio,
+                                       Qt::SmoothTransformation);
 
-    auto *updateButton = new QListWidgetItem(ui->contentsWidget);
-    updateButton->setIcon(QIcon(":/icons/parsercfg.png"));
-    updateButton->setText(tr("Parser"));
-    updateButton->setTextAlignment(Qt::AlignHCenter);
-    updateButton->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+        auto *item = new QListWidgetItem(QIcon(scaled), label, ui->contentsWidget);
+        item->setTextAlignment(Qt::AlignHCenter);
+        item->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+        return item;
+    };
 
-    auto *clientButton = new QListWidgetItem(ui->contentsWidget);
-    clientButton->setIcon(QIcon(":/icons/terminal.png"));
-    clientButton->setText(tr("Integrated\nMud Client"));
-    clientButton->setTextAlignment(Qt::AlignHCenter);
-    clientButton->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
-
-    auto *autoLogButton = new QListWidgetItem(ui->contentsWidget);
-    autoLogButton->setIcon(QIcon(":/icons/autologgercfg.png"));
-    autoLogButton->setText(tr("Auto\nLogger"));
-    autoLogButton->setTextAlignment(Qt::AlignHCenter);
-    autoLogButton->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
-
-    auto *mpiButton = new QListWidgetItem(ui->contentsWidget);
-    mpiButton->setIcon(QIcon(":/icons/mumeprotocolcfg.png"));
-    mpiButton->setText(tr("Mume\nProtocol"));
-    mpiButton->setTextAlignment(Qt::AlignHCenter);
-    mpiButton->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
-
-    auto *pathButton = new QListWidgetItem(ui->contentsWidget);
-    pathButton->setIcon(QIcon(":/icons/pathmachinecfg.png"));
-    pathButton->setText(tr("Path\nMachine"));
-    pathButton->setTextAlignment(Qt::AlignHCenter);
-    pathButton->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+    addItem(":/icons/generalcfg.png", tr("General"));
+    addItem(":/icons/graphicscfg.png", tr("Graphics"));
+    addItem(":/icons/parsercfg.png", tr("Parser"));
+    addItem(":/icons/terminal.png", tr("Integrated\nMud Client"));
+    addItem(":/icons/group-recolor.png", tr("Group Panel"));
+    addItem(":/icons/autologgercfg.png", tr("Auto\nLogger"));
+    addItem(":/icons/audiocfg.png", tr("Audio"));
+    addItem(":/icons/mumeprotocolcfg.png", tr("Mume\nProtocol"));
+    addItem(":/icons/pathmachinecfg.png", tr("Path\nMachine"));
 }
 
 void ConfigDialog::slot_changePage(QListWidgetItem *current, QListWidgetItem *const previous)

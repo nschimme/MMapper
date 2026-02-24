@@ -4,6 +4,7 @@
 
 #include "entities.h"
 
+#include "Charset.h"
 #include "Consts.h"
 #include "RuleOf5.h"
 
@@ -28,17 +29,17 @@ NODISCARD static bool isLatin1(const QChar qc)
 
 NODISCARD static bool isLatin1Digit(const QChar qc)
 {
-    return isLatin1(qc) && isdigit(qc.toLatin1());
+    return isLatin1(qc) && isdigit(mmqt::toLatin1(qc));
 }
 
 NODISCARD static bool isLatin1HexDigit(const QChar qc)
 {
-    return isLatin1(qc) && isxdigit(qc.toLatin1());
+    return isLatin1(qc) && isxdigit(mmqt::toLatin1(qc));
 }
 
 NODISCARD static bool isLatin1Alpha(const QChar qc)
 {
-    return isLatin1(qc) && isalpha(qc.toLatin1());
+    return isLatin1(qc) && isalpha(mmqt::toLatin1(qc));
 }
 
 entities::EntityCallback::~EntityCallback() = default;
@@ -111,7 +112,7 @@ struct NODISCARD EntityTable final
 {
     struct NODISCARD MyHash final
     {
-        NODISCARD uint32_t operator()(const QString &qs) const { return qHash(qs); }
+        NODISCARD size_t operator()(const QString &qs) const { return qHash(qs); }
     };
 
     std::unordered_map<QString, XmlEntity, MyHash> by_short_name;
@@ -310,7 +311,7 @@ auto entities::encode(const DecodedString &name, const EncodingEnum encodingType
     for (const QChar qc : name) {
         const auto codepoint = qc.unicode();
         if (codepoint < 256) {
-            const char c = qc.toLatin1();
+            const char c = mmqt::toLatin1(qc);
             switch (c) {
             case C_AMPERSAND:
                 out += "&amp;";
@@ -365,11 +366,11 @@ auto entities::encode(const DecodedString &name, const EncodingEnum encodingType
 
         /* this will be statically true until Qt changes the type to uint32_t */
         assert(static_cast<uint32_t>(codepoint) <= MAX_UNICODE_CODEPOINT);
-        const auto masked = static_cast<int32_t>(codepoint & 0x1FFFFFu);
+        const auto masked = static_cast<uint32_t>(codepoint & 0x1FFFFFu);
         assert(masked == codepoint);
 
         char decbuf[16];
-        std::snprintf(decbuf, sizeof(decbuf), "&#%d;", masked);
+        std::snprintf(decbuf, sizeof(decbuf), "&#%u;", masked);
         const size_t declen = strlen(decbuf);
         assert(declen <= 10);
 
@@ -403,7 +404,7 @@ NODISCARD static OptQChar tryParseDec(const QChar *const beg, const QChar *const
         if (!isLatin1(qc)) {
             return OptQChar{};
         }
-        const char c = qc.toLatin1();
+        const char c = mmqt::toLatin1(qc);
         if (!isdigit(c)) {
             return OptQChar{};
         }
@@ -415,8 +416,10 @@ NODISCARD static OptQChar tryParseDec(const QChar *const beg, const QChar *const
             return OptQChar{};
         }
     }
-
-    return OptQChar{val};
+    if (val > std::numeric_limits<uint16_t>::max()) {
+        return OptQChar{};
+    }
+    return OptQChar{static_cast<uint16_t>(val)};
 }
 
 NODISCARD static OptQChar tryParseHex(const QChar *const beg, const QChar *const end)
@@ -435,7 +438,7 @@ NODISCARD static OptQChar tryParseHex(const QChar *const beg, const QChar *const
         if (!isLatin1(qc)) {
             return OptQChar{};
         }
-        const char c = qc.toLatin1();
+        const char c = mmqt::toLatin1(qc);
         if (!isxdigit(c)) {
             return OptQChar{};
         }
@@ -448,7 +451,10 @@ NODISCARD static OptQChar tryParseHex(const QChar *const beg, const QChar *const
             return OptQChar{};
         }
     }
-    return OptQChar{val};
+    if (val > std::numeric_limits<uint16_t>::max()) {
+        return OptQChar{};
+    }
+    return OptQChar{static_cast<uint16_t>(val)};
 }
 
 // TODO: test with strings like "", "&;", "&&", "&&;", "&lt", "&lt;" "&lt&lt;",
@@ -589,7 +595,7 @@ auto entities::decode(const EncodedString &input) -> DecodedString
     assert(tmp.size() == input.size());
 
     foreachEntity(QStringView{tmp}, callback);
-    callback.skipto(input.size());
+    callback.skipto(static_cast<int>(input.size()));
 
     return std::move(callback.out);
 }
@@ -680,7 +686,7 @@ void test_entities()
         const auto in = EncodedString{"&#xFFFF;"};
         const auto out = decode(in);
         assert(out.length() == 1);
-        assert(out.at(0).unicode() == 0xFFFF);
+        assert(out.front().unicode() == 0xFFFF);
         const auto roundtrip = encode(out);
         if (roundtrip != in) {
             throw std::runtime_error("test failed");
@@ -688,15 +694,12 @@ void test_entities()
     }
 
     {
-        // Demonstration that values above U+FFFF are mangled.
+        // Demonstration that values above U+FFFF are not supported.
         const auto in = EncodedString{"&#x10FFFF;"};
         const auto out = decode(in);
         assert(out.length() == 1);
-        assert(out.at(0).unicode() == 0xFFFF); // wrong since QT only stores 16 bits
-        const auto roundtrip = encode(out);
-        if (roundtrip != EncodedString{"&#xFFFF;"}) { // also wrong, but expected.
-            throw std::runtime_error("test failed");
-        }
+        assert(out.front().unicode() == C_QUESTION_MARK);
+        // REVISIT: Consider using U+FFFD replacement character instead?
     }
 }
 } // namespace test

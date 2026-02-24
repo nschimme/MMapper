@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
 
+#include "../../global/RAII.h"
 #include "../OpenGLTypes.h"
 #include "AbstractShaderProgram.h"
 #include "Binders.h"
 #include "Legacy.h"
+#include "VAO.h"
 #include "VBO.h"
 
 #include <cassert>
@@ -14,6 +16,8 @@
 #include <vector>
 
 namespace Legacy {
+
+void drawRoomQuad(Functions &gl, GLsizei numVerts);
 
 template<typename VertexType_, typename ProgramType_>
 class NODISCARD SimpleMesh : public IRenderable
@@ -28,6 +32,7 @@ protected:
     const std::shared_ptr<ProgramType_> m_shared_program;
     ProgramType_ &m_program;
     VBO m_vbo;
+    VAO m_vao;
     DrawModeEnum m_drawMode = DrawModeEnum::INVALID;
     GLsizei m_numVerts = 0;
 
@@ -37,7 +42,9 @@ public:
         , m_functions{deref(m_shared_functions)}
         , m_shared_program{std::move(sharedProgram)}
         , m_program{deref(m_shared_program)}
-    {}
+    {
+        m_vao.emplace(m_shared_functions);
+    }
 
     explicit SimpleMesh(const SharedFunctions &sharedFunctions,
                         const std::shared_ptr<ProgramType_> &sharedProgram,
@@ -54,25 +61,25 @@ protected:
     class NODISCARD AttribUnbinder final
     {
     private:
-        SimpleMesh *self = nullptr;
+        SimpleMesh *m_self = nullptr;
 
     public:
         AttribUnbinder() = delete;
         DEFAULT_MOVES_DELETE_COPIES(AttribUnbinder);
 
     public:
-        explicit AttribUnbinder(SimpleMesh &_self)
-            : self{&_self}
+        explicit AttribUnbinder(SimpleMesh &self)
+            : m_self{&self}
         {}
         ~AttribUnbinder()
         {
-            if (self != nullptr) {
-                self->unbindAttribs();
+            if (m_self != nullptr) {
+                m_self->unbindAttribs();
             }
         }
     };
 
-    AttribUnbinder bindAttribs()
+    NODISCARD AttribUnbinder bindAttribs()
     {
         virt_bind();
         return AttribUnbinder{*this};
@@ -103,7 +110,13 @@ private:
                    const BufferUsageEnum usage)
     {
         const auto numVerts = verts.size();
-        assert(mode == DrawModeEnum::INVALID || numVerts % static_cast<size_t>(mode) == 0);
+
+        static_assert(static_cast<size_t>(DrawModeEnum::POINTS) == 1);
+        static_assert(static_cast<size_t>(DrawModeEnum::LINES) == 2);
+        static_assert(static_cast<size_t>(DrawModeEnum::TRIANGLES) == 3);
+        static_assert(static_cast<size_t>(DrawModeEnum::QUADS) == 4);
+        assert(mode == DrawModeEnum::INVALID || mode == DrawModeEnum::INSTANCED_QUADS
+               || numVerts % static_cast<size_t>(mode) == 0);
 
         if (!m_vbo && numVerts != 0) {
             m_vbo.emplace(m_shared_functions);
@@ -139,6 +152,7 @@ private:
     // Clears the mesh and destroys the GL resources.
     void virt_reset() final
     {
+        m_vao.reset();
         m_drawMode = DrawModeEnum::INVALID;
         m_numVerts = 0;
         m_vbo.reset();
@@ -164,17 +178,23 @@ private:
         auto programUnbinder = m_program.bind();
         m_program.setUniforms(mvp, renderState.uniforms);
         RenderStateBinder renderStateBinder(m_functions, m_functions.getTexLookup(), renderState);
-        auto attribUnbinder = bindAttribs(); // mesh sets its own attributes
 
-        m_functions.checkError();
+        m_functions.glBindVertexArray(m_vao.get());
+        RAIICallback vaoUnbinder([&]() {
+            m_functions.glBindVertexArray(0);
+            m_functions.checkError();
+        });
 
-        if (const std::optional<GLenum> &optMode = Functions::toGLenum(m_drawMode)) {
+        auto attribUnbinder = bindAttribs();
+
+        if (m_drawMode == DrawModeEnum::INSTANCED_QUADS) {
+            drawRoomQuad(m_functions, m_numVerts);
+        } else if (const std::optional<GLenum> &optMode = m_functions.toGLenum(m_drawMode)) {
             m_functions.glDrawArrays(optMode.value(), 0, m_numVerts);
         } else {
             assert(false);
         }
-
-        m_functions.checkError();
     }
 };
+
 } // namespace Legacy

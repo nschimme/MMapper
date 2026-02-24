@@ -22,7 +22,25 @@
 
 #include <QString>
 
+class GLFont;
 class OpenGL;
+struct FontMetrics;
+
+struct NODISCARD RoomNameBatchIntermediate final
+{
+    std::vector<FontVert3d> verts;
+
+    NODISCARD UniqueMesh getMesh(GLFont &gl) const;
+    NODISCARD bool empty() const { return verts.empty(); }
+    void clear() { verts.clear(); }
+
+    template<typename T>
+    static void append(std::vector<T> &v, const std::vector<T> &other)
+    {
+        v.insert(v.end(), other.begin(), other.end());
+    }
+    void append(const std::vector<FontVert3d> &other) { append(verts, other); }
+};
 
 struct NODISCARD RoomNameBatch final
 {
@@ -44,15 +62,15 @@ public:
     NODISCARD bool empty() const { return m_names.empty(); }
 
 public:
-    NODISCARD UniqueMesh getMesh(GLFont &font) const;
+    NODISCARD RoomNameBatchIntermediate getIntermediate(const FontMetrics &font) const;
 };
 
 using BatchedRoomNames = std::unordered_map<int, UniqueMesh>;
 
 struct NODISCARD ConnectionDrawerColorBuffer final
 {
-    std::vector<ColorVert> lineVerts;
     std::vector<ColorVert> triVerts;
+    std::vector<ColorVert> quadVerts;
 
     ConnectionDrawerColorBuffer() = default;
     DEFAULT_MOVES_DELETE_COPIES(ConnectionDrawerColorBuffer);
@@ -60,18 +78,18 @@ struct NODISCARD ConnectionDrawerColorBuffer final
 
     void clear()
     {
-        lineVerts.clear();
         triVerts.clear();
+        quadVerts.clear();
     }
-    NODISCARD bool empty() const { return lineVerts.empty() && triVerts.empty(); }
+    NODISCARD bool empty() const { return triVerts.empty() && quadVerts.empty(); }
 };
 
 struct NODISCARD ConnectionMeshes final
 {
-    UniqueMesh normalLines;
     UniqueMesh normalTris;
-    UniqueMesh redLines;
     UniqueMesh redTris;
+    UniqueMesh normalQuads;
+    UniqueMesh redQuads;
 
     ConnectionMeshes() = default;
     DEFAULT_MOVES_DELETE_COPIES(ConnectionMeshes);

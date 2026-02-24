@@ -22,8 +22,8 @@ class OpenGL;
 struct NODISCARD InfomarksMeshes final
 {
     UniqueMesh points;
-    UniqueMesh lines;
     UniqueMesh tris;
+    UniqueMesh quads;
     UniqueMesh textMesh;
     bool isValid = false;
     void render();
@@ -40,9 +40,18 @@ private:
     Color m_color;
 
     std::vector<ColorVert> m_points;
-    std::vector<ColorVert> m_lines;
     std::vector<ColorVert> m_tris;
-    std::vector<GLText> m_text;
+    std::vector<ColorVert> m_quads;
+
+    // REVISIT: This is ill-advised and may contain bugs.
+    struct NODISCARD Text final
+    {
+        std::vector<GLText> text;
+        std::vector<FontVert3d> verts;
+        bool locked = false;
+    };
+
+    Text m_text;
 
 public:
     explicit InfomarksBatch(OpenGL &gl, GLFont &font)
@@ -50,7 +59,7 @@ public:
         , m_font{font}
     {}
 
-    void setColor(const Color &color) { m_color = color; }
+    void setColor(const Color color) { m_color = color; }
     void setOffset(const glm::vec3 &offset) { m_offset = offset; }
     void drawPoint(const glm::vec3 &a);
     void drawLine(const glm::vec3 &a, const glm::vec3 &b);
@@ -62,8 +71,8 @@ public:
     void drawTriangle(const glm::vec3 &a, const glm::vec3 &b, const glm::vec3 &c);
     void renderText(const glm::vec3 &pos,
                     const std::string &text,
-                    const Color &color,
-                    std::optional<Color> moved_bgcolor,
+                    const Color color,
+                    std::optional<Color> bgcolor,
                     FontFormatFlags fontFormatFlag,
                     int rotationAngle);
 

@@ -19,6 +19,8 @@ class QEvent;
 class QObject;
 class StackedInputWidget;
 class PreviewWidget;
+class ConnectionListener;
+class HotkeyManager;
 
 struct ClientTelnetOutputs;
 struct DisplayWidgetOutputs;
@@ -54,9 +56,13 @@ private:
     };
 
     Pipeline m_pipeline;
+    ConnectionListener &m_listener;
+    HotkeyManager &m_hotkeyManager;
 
 public:
-    explicit ClientWidget(QWidget *parent);
+    explicit ClientWidget(ConnectionListener &listener,
+                          HotkeyManager &hotkeyManager,
+                          QWidget *parent);
     ~ClientWidget() final;
 
 private:
@@ -77,12 +83,15 @@ private:
     NODISCARD PreviewWidget &getPreview();
 
 public:
+    NODISCARD HotkeyManager &getHotkeys();
     NODISCARD bool isUsingClient() const;
+    void displayReconnectHint();
 
 private:
     void relayMessage(const QString &msg) { emit sig_relayMessage(msg); }
 
 protected:
+    NODISCARD QSize minimumSizeHint() const override;
     NODISCARD bool focusNextPrevChild(bool next) override;
 
 signals:
@@ -92,4 +101,5 @@ public slots:
     void slot_onVisibilityChanged(bool);
     void slot_onShowMessage(const QString &);
     void slot_saveLog();
+    void slot_saveLogAsHtml();
 };

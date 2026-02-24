@@ -18,6 +18,11 @@ static_assert(static_cast<int>(CharacterEncodingEnum::LATIN1) == 0);
 static_assert(static_cast<int>(CharacterEncodingEnum::UTF8) == 1);
 static_assert(static_cast<int>(CharacterEncodingEnum::ASCII) == 2);
 
+// Order of entries in themeComboBox drop down
+static_assert(static_cast<int>(ThemeEnum::System) == 0);
+static_assert(static_cast<int>(ThemeEnum::Dark) == 1);
+static_assert(static_cast<int>(ThemeEnum::Light) == 2);
+
 GeneralPage::GeneralPage(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::GeneralPage)
@@ -47,6 +52,10 @@ GeneralPage::GeneralPage(QWidget *parent)
             [](const int index) {
                 setConfig().general.characterEncoding = static_cast<CharacterEncodingEnum>(index);
             });
+    connect(ui->themeComboBox,
+            QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this,
+            &GeneralPage::slot_themeComboBoxChanged);
 
     connect(ui->emulatedExitsCheckBox,
             &QCheckBox::stateChanged,
@@ -61,9 +70,6 @@ GeneralPage::GeneralPage(QWidget *parent)
             this,
             &GeneralPage::slot_showNotesStateChanged);
 
-    connect(ui->showClientPanelCheckBox, &QCheckBox::stateChanged, this, [this]() {
-        setConfig().general.noClientPanel = !ui->showClientPanelCheckBox->isChecked();
-    });
     connect(ui->checkForUpdateCheckBox, &QCheckBox::stateChanged, this, [this]() {
         setConfig().general.checkForUpdate = ui->checkForUpdateCheckBox->isChecked();
     });
@@ -102,8 +108,66 @@ GeneralPage::GeneralPage(QWidget *parent)
                                     QMessageBox::Yes | QMessageBox::No);
         if (reply == QMessageBox::Yes) {
             setConfig().reset();
-            emit sig_factoryReset();
+            emit sig_reloadConfig();
         }
+    });
+
+    connect(ui->configurationExportButton, &QAbstractButton::clicked, this, []() {
+        QTemporaryFile temp(QDir::tempPath() + "/mmapper_XXXXXX.ini");
+        temp.setAutoRemove(false);
+        if (!temp.open()) {
+            qWarning() << "Failed to create temporary file for export";
+            return;
+        }
+        const QString fileName = temp.fileName();
+        temp.close();
+
+        {
+            QSettings settings(fileName, QSettings::IniFormat);
+            getConfig().writeTo(settings);
+            settings.sync();
+        }
+
+        QFile file(fileName);
+        if (file.open(QIODevice::ReadOnly)) {
+            const QByteArray content = file.readAll();
+            file.close();
+            QFileDialog::saveFileContent(content, "mmapper.ini");
+        }
+
+        QFile::remove(fileName);
+    });
+
+    connect(ui->configurationImportButton, &QAbstractButton::clicked, this, [this]() {
+        auto importFile = [this](const QString &fileName,
+                                 const std::optional<QByteArray> &fileContent) {
+            if (fileName.isEmpty() || !fileContent.has_value()) {
+                return;
+            }
+
+            const QByteArray &content = fileContent.value();
+            if (content.isEmpty()) {
+                return;
+            }
+
+            QTemporaryFile temp(QDir::tempPath() + "/mmapper_import_XXXXXX.ini");
+            temp.setAutoRemove(true);
+            if (temp.open()) {
+                temp.write(content);
+                temp.close();
+
+                {
+                    auto &cfg = setConfig();
+                    QSettings settings(temp.fileName(), QSettings::IniFormat);
+                    cfg.readFrom(settings);
+                    cfg.write();
+                }
+                emit sig_reloadConfig();
+            }
+        };
+
+        const auto nameFilter = QStringLiteral("Configuration (*.ini);;All files (*)");
+        QFileDialog::getOpenFileContent(nameFilter, importFile);
     });
 
     connect(ui->autoLogin, &QCheckBox::stateChanged, this, [this]() {
@@ -140,6 +204,14 @@ GeneralPage::GeneralPage(QWidget *parent)
             passCfg.getPassword();
         }
     });
+
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+        ui->remotePort->setDisabled(true);
+        ui->localPort->setDisabled(true);
+        ui->charsetComboBox->setDisabled(true);
+        ui->proxyListensOnAnyInterfaceCheckBox->setDisabled(true);
+        ui->proxyConnectionStatusCheckBox->setDisabled(true);
+    }
 }
 
 GeneralPage::~GeneralPage()
@@ -159,26 +231,36 @@ void GeneralPage::slot_loadConfig()
     ui->remoteName->setText(connection.remoteServerName);
     ui->remotePort->setValue(connection.remotePort);
     ui->localPort->setValue(connection.localPort);
+#ifdef Q_OS_WASM
+    ui->encryptionCheckBox->setDisabled(true);
+    ui->encryptionCheckBox->setChecked(true);
+#else
     if (!QSslSocket::supportsSsl() && NO_WEBSOCKET) {
         ui->encryptionCheckBox->setEnabled(false);
         ui->encryptionCheckBox->setChecked(false);
     } else {
         ui->encryptionCheckBox->setChecked(connection.tlsEncryption);
     }
+#endif
     ui->proxyListensOnAnyInterfaceCheckBox->setChecked(connection.proxyListensOnAnyInterface);
     ui->charsetComboBox->setCurrentIndex(static_cast<int>(general.characterEncoding));
+    ui->themeComboBox->setCurrentIndex(static_cast<int>(general.getTheme()));
 
     ui->emulatedExitsCheckBox->setChecked(mumeNative.emulatedExits);
     ui->showHiddenExitFlagsCheckBox->setChecked(mumeNative.showHiddenExitFlags);
     ui->showNotesCheckBox->setChecked(mumeNative.showNotes);
 
-    ui->showClientPanelCheckBox->setChecked(!config.general.noClientPanel);
     ui->checkForUpdateCheckBox->setChecked(config.general.checkForUpdate);
     ui->checkForUpdateCheckBox->setDisabled(NO_UPDATER);
     ui->autoLoadFileName->setText(autoLoad.fileName);
     ui->autoLoadCheck->setChecked(autoLoad.autoLoadMap);
-    ui->autoLoadFileName->setEnabled(autoLoad.autoLoadMap);
-    ui->selectWorldFileButton->setEnabled(autoLoad.autoLoadMap);
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+        ui->autoLoadFileName->setDisabled(true);
+        ui->selectWorldFileButton->setDisabled(true);
+    } else {
+        ui->autoLoadFileName->setEnabled(autoLoad.autoLoadMap);
+        ui->selectWorldFileButton->setEnabled(autoLoad.autoLoadMap);
+    }
 
     ui->displayMumeClockCheckBox->setChecked(config.mumeClock.display);
 
@@ -255,8 +337,10 @@ void GeneralPage::slot_autoLoadFileNameTextChanged(const QString & /*unused*/)
 void GeneralPage::slot_autoLoadCheckStateChanged(int /*unused*/)
 {
     setConfig().autoLoad.autoLoadMap = ui->autoLoadCheck->isChecked();
-    ui->autoLoadFileName->setEnabled(ui->autoLoadCheck->isChecked());
-    ui->selectWorldFileButton->setEnabled(ui->autoLoadCheck->isChecked());
+    if (CURRENT_PLATFORM != PlatformEnum::Wasm) {
+        ui->autoLoadFileName->setEnabled(ui->autoLoadCheck->isChecked());
+        ui->selectWorldFileButton->setEnabled(ui->autoLoadCheck->isChecked());
+    }
 }
 
 void GeneralPage::slot_displayMumeClockStateChanged(int /*unused*/)
@@ -267,4 +351,9 @@ void GeneralPage::slot_displayMumeClockStateChanged(int /*unused*/)
 void GeneralPage::slot_displayXPStatusStateChanged([[maybe_unused]] int)
 {
     setConfig().adventurePanel.setDisplayXPStatus(ui->displayXPStatusCheckBox->isChecked());
+}
+
+void GeneralPage::slot_themeComboBoxChanged(int index)
+{
+    setConfig().general.setTheme(static_cast<ThemeEnum>(index));
 }

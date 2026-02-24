@@ -2,19 +2,20 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2021 The MMapper Authors
 
-#include "../global/OrderedMap.h"
+#include "../global/ImmUnorderedMap.h"
 #include "../global/macros.h"
 #include "PromptFlags.h"
 #include "RoomIdSet.h"
 #include "mmapper2room.h"
 
 #include <ostream>
+#include <unordered_map>
 
 class AnsiOstream;
 class Map;
 class ParseEvent;
 class ProgressCounter;
-class RoomRecipient;
+class PathProcessor;
 
 struct NODISCARD NameDesc final
 {
@@ -59,11 +60,25 @@ struct NODISCARD ParseKeyFlags final : public enums::Flags<ParseKeyFlags, ParseK
 static constexpr const ParseKeyFlags ALL_PARSE_KEY_FLAGS = ~ParseKeyFlags{};
 static_assert(ALL_PARSE_KEY_FLAGS == (ParseKeyFlags{ParseKeyEnum::Name} | ParseKeyEnum::Desc));
 
+struct NODISCARD ParseTreeInitializer final
+{
+    std::unordered_map<RoomName, ImmUnorderedRoomIdSet> name_only;
+    std::unordered_map<RoomDesc, ImmUnorderedRoomIdSet> desc_only;
+    std::unordered_map<NameDesc, ImmUnorderedRoomIdSet> name_desc;
+};
+
 struct NODISCARD ParseTree final
 {
-    OrderedMap<RoomName, RoomIdSet> name_only;
-    OrderedMap<RoomDesc, RoomIdSet> desc_only;
-    OrderedMap<NameDesc, RoomIdSet> name_desc;
+    ImmUnorderedMap<RoomName, ImmUnorderedRoomIdSet> name_only;
+    ImmUnorderedMap<RoomDesc, ImmUnorderedRoomIdSet> desc_only;
+    ImmUnorderedMap<NameDesc, ImmUnorderedRoomIdSet> name_desc;
+
+    void init(const ParseTreeInitializer &input)
+    {
+        name_only.init(input.name_only);
+        desc_only.init(input.desc_only);
+        name_desc.init(input.name_desc);
+    }
 
     NODISCARD bool operator==(const ParseTree &rhs) const
     {
@@ -75,7 +90,4 @@ struct NODISCARD ParseTree final
     void printStats(ProgressCounter &pc, AnsiOstream &os) const;
 };
 
-void getRooms(const Map &map,
-              const ParseTree &tree,
-              RoomRecipient &visitor,
-              const ParseEvent &event);
+NODISCARD RoomIdSet getRooms(const Map &map, const ParseTree &tree, const ParseEvent &event);

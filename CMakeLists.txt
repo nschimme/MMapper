@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.18...3.22)
+cmake_minimum_required(VERSION 3.19...3.22)
 project(mmapper CXX)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
@@ -18,13 +18,14 @@ message(STATUS "MMapper version ${MMAPPER_VERSION} (${CMAKE_BUILD_TYPE} distribu
 # Options
 option(WITH_ZLIB "zlib compressed old save backwards compatability" ON)
 option(WITH_UPDATER "Check GitHub for new releases" ON)
-if(NOT APPLE)
+if(NOT APPLE AND NOT WIN32)
     option(WITH_OPENSSL "Use OpenSSL for TLS encryption" ON)
 endif()
 option(WITH_WEBSOCKET "Allow connecting to MUME over WebSockets" OFF)
 option(WITH_QTKEYCHAIN "Use QtKeychain to securely store your account credentials" OFF)
 option(WITH_MAP "Download the default map or use the provided map path" ON)
 option(WITH_IMAGES "Download the default images or use the provided images path" ON)
+option(WITH_AUDIO "Enable audio support with default media or use the provided path" ON)
 option(WITH_TESTS "Compile unit tests" ON)
 option(USE_TIDY "Run clang-tidy with the compiler" OFF)
 option(USE_IWYU "Run include-what-you-use with the compiler" OFF)
@@ -35,12 +36,32 @@ endif()
 if(WIN32 AND MINGW)
    option(WITH_DRMINGW "Include Dr. Mingw crash dumping (Windows only)" ON)
 endif()
+set(PACKAGE_TYPE "Source" CACHE STRING "Set the package type for update dialog")
 
-set(MMAPPER_QT_COMPONENTS Core Widgets Network OpenGL Test)
+set(VALID_PACKAGE_TYPES Source Deb Dmg Nsis AppImage AppX Flatpak Snap Wasm)
+set(PACKAGE_TYPE_NORMALIZED "")
+foreach(VALID_TYPE ${VALID_PACKAGE_TYPES})
+    string(TOLOWER "${VALID_TYPE}" VALID_TYPE_LOWER)
+    string(TOLOWER "${PACKAGE_TYPE}" PACKAGE_TYPE_LOWER)
+    if(PACKAGE_TYPE_LOWER STREQUAL VALID_TYPE_LOWER)
+        set(PACKAGE_TYPE_NORMALIZED ${VALID_TYPE})
+        break()
+    endif()
+endforeach()
+if(NOT PACKAGE_TYPE_NORMALIZED)
+    message(FATAL_ERROR "Invalid PACKAGE_TYPE: ${PACKAGE_TYPE}. Must be one of: ${VALID_PACKAGE_TYPES}")
+else()
+    add_compile_definitions(MMAPPER_PACKAGE_TYPE="${PACKAGE_TYPE_NORMALIZED}")
+endif()
+
+set(MMAPPER_QT_COMPONENTS Core Widgets Network OpenGL OpenGLWidgets Test)
 if(WITH_WEBSOCKET)
     list(APPEND MMAPPER_QT_COMPONENTS WebSockets)
 endif()
-find_package(Qt5 COMPONENTS ${MMAPPER_QT_COMPONENTS} REQUIRED)
+if(WITH_AUDIO)
+    list(APPEND MMAPPER_QT_COMPONENTS Multimedia)
+endif()
+find_package(Qt6 COMPONENTS ${MMAPPER_QT_COMPONENTS} REQUIRED)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
@@ -50,30 +71,89 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
-if(Qt5Core_FOUND)
-    if(Qt5Core_VERSION VERSION_LESS 5.15.0)
-        message(FATAL_ERROR "Minimum supported Qt version is 5.15")
+if(Qt6Core_FOUND)
+    if(Qt6Core_VERSION VERSION_LESS 6.4.0)
+        message(FATAL_ERROR "Minimum supported Qt version is 6.4")
+    endif()
+    add_definitions(/DQT_DISABLE_DEPRECATED_UP_TO=0x060400)
+endif()
+
+if(Qt6OpenGL_FOUND)
+    if(EMSCRIPTEN)
+        set(QT_HAS_GLES TRUE)
+        set(QT_HAS_OPENGL FALSE)
+    else()
+        file(WRITE ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/CMakeTmp/CheckQtGLES30.cpp
+            "#include <QOpenGLExtraFunctions>
+            #ifndef GL_TRIANGLES
+            # error
+            #endif
+            #ifdef Q_OS_MAC
+            # error
+            #endif
+            int main(int argc, char** argv) { return 0; }")
+        try_compile(QT_HAS_GLES
+                        ${CMAKE_BINARY_DIR}
+                        ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/CMakeTmp/CheckQtGLES30.cpp
+                        LINK_LIBRARIES Qt6::OpenGL
+                        OUTPUT_VARIABLE OUTPUT)
+        file(WRITE ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/CMakeTmp/CheckQtOpenGL33.cpp
+            "#include <QOpenGLFunctions_3_3_Core>
+            #ifndef GL_QUADS
+            # error
+            #endif
+            int main(int argc, char** argv) { return 0; }")
+        try_compile(QT_HAS_OPENGL
+                        ${CMAKE_BINARY_DIR}
+                        ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/CMakeTmp/CheckQtOpenGL33.cpp
+                        LINK_LIBRARIES Qt6::OpenGL
+                        OUTPUT_VARIABLE OUTPUT)
+    endif()
+    if (NOT QT_HAS_GLES)
+        add_definitions(/DMMAPPER_NO_GLES)
+    endif()
+    if (NOT QT_HAS_OPENGL)
+        add_definitions(/DMMAPPER_NO_OPENGL)
+    endif()
+    if(QT_HAS_GLES AND QT_HAS_OPENGL)
+        message(STATUS "QOpenGLExtraFunctions supports both GLES 3.0 and OpenGL 3.3")
+    elseif(QT_HAS_GLES)
+        message(STATUS "QOpenGLExtraFunctions supports GLES 3.0")
+    elseif(QT_HAS_OPENGL)
+        message(STATUS "QOpenGLExtraFunctions supports OpenGL 3.3")
+    else()
+        message(FATAL_ERROR "QOpenGLExtraFunctions does not support GLES 3.0 or OpenGL 3.3")
     endif()
 endif()
 
 if(WITH_WEBSOCKET)
-    if(NOT Qt5WebSockets_FOUND)
-        message(FATAL_ERROR "Qt5 WebSockets module not found: use `-DWITH_WEBSOCKET=OFF` to build without WebSocket support")
+    if(NOT Qt6WebSockets_FOUND)
+        message(FATAL_ERROR "Qt6 WebSockets module not found: use `-DWITH_WEBSOCKET=OFF` to build without WebSocket support")
     endif()
 else()
     message(STATUS "Building without WebSocket support")
     add_definitions(/DMMAPPER_NO_WEBSOCKET)
 endif()
 
+if(WITH_AUDIO)
+    if(NOT Qt6Multimedia_FOUND)
+        message(FATAL_ERROR "Qt6 Multimedia module not found: use `-DWITH_AUDIO=OFF` to build without music and sound")
+    endif()
+    add_subdirectory(external/audio)
+else()
+    message(STATUS "Building without Audio support")
+    add_definitions(/DMMAPPER_NO_AUDIO)
+endif()
+
 if(APPLE)
     set(CMAKE_MACOSX_RPATH TRUE)
-    set(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" CACHE STRING "Minimum OS X deployment version" FORCE)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "13.0" CACHE STRING "Minimum OS X deployment version" FORCE)
 endif()
 
 if(WIN32)
-    # Target Windows 7 and above
-    add_definitions(/DNTDDI_VERSION=0x06010000)
-    add_definitions(/D_WIN32_WINNT=0x0601)
+    # Target Windows 10 and above
+    add_definitions(/DNTDDI_VERSION=0x0A000000)
+    add_definitions(/D_WIN32_WINNT=0x0A00)
     # Reduce the size of the Windows header files
     add_definitions(/DWIN32_LEAN_AND_MEAN)
 endif()
@@ -84,8 +164,12 @@ endif()
 
 # Try to find the system copy of zlib
 if(WITH_ZLIB)
-    find_package(ZLIB)
-    add_subdirectory(external/zlib)
+    if(EMSCRIPTEN)
+        add_compile_options(-s USE_ZLIB=1)
+    else()
+        find_package(ZLIB)
+        add_subdirectory(external/zlib)
+    endif()
     add_definitions(/DZLIB_CONST)
 else()
     message(STATUS "Building without zlib")
@@ -93,10 +177,6 @@ else()
 endif()
 
 if(WITH_OPENSSL)
-    # Prevent 32bit OpenSSL linking error due to system C:/Windows/System32/libcrypto.dll
-    if(MINGW AND "${CMAKE_SIZEOF_VOID_P}" EQUAL "4")
-        set(CMAKE_FIND_LIBRARY_SUFFIXES .lib .dll.a)
-    endif()
     find_package(OpenSSL)
     add_subdirectory(external/openssl)
 else()
@@ -113,6 +193,7 @@ else()
 endif()
 
 add_subdirectory(external/glm)
+add_subdirectory(external/immer)
 
 # Extract git branch and revision
 if(EXISTS "${PROJECT_SOURCE_DIR}/.git")
@@ -128,7 +209,7 @@ if(EXISTS "${PROJECT_SOURCE_DIR}/.git")
 
         # Describe the most recent tag, number of commits since, and abbreviated commit hash
         execute_process(
-          COMMAND ${GIT_EXECUTABLE} describe --tags --always --long
+          COMMAND ${GIT_EXECUTABLE} describe --tags --always --long --exclude beta
           WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
           OUTPUT_VARIABLE GIT_TAG_COMMIT_HASH
           OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -136,28 +217,32 @@ if(EXISTS "${PROJECT_SOURCE_DIR}/.git")
 
         # Detect if this checkout is a tag and extract its name if so
         execute_process(
-          COMMAND ${GIT_EXECUTABLE} name-rev --name-only --tags --no-undefined HEAD
+          COMMAND ${GIT_EXECUTABLE} name-rev --name-only --tags --no-undefined HEAD --exclude beta
           WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
           OUTPUT_VARIABLE GIT_TAG_NAME
           OUTPUT_STRIP_TRAILING_WHITESPACE
           ERROR_QUIET
         )
 
-        # Detect last annotated tag for map downloading
+        # Detect commit date
         execute_process(
-          COMMAND ${GIT_EXECUTABLE} describe --tags --abbrev=0
+          COMMAND ${GIT_EXECUTABLE} log -1 --format=%cd --date=format:%Y-%m-%d
           WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-	  OUTPUT_VARIABLE GIT_LAST_ANNOTATED_TAG
+          OUTPUT_VARIABLE MMAPPER_BUILD_DATE
           OUTPUT_STRIP_TRAILING_WHITESPACE
         )
 
-        if(GIT_TAG_NAME)
+        if(GIT_TAG_NAME MATCHES "^v")
            message(STATUS "Building from branch ${GIT_BRANCH} with tag ${GIT_TAG_NAME}")
            set(MMAPPER_VERSION_STRING "${GIT_TAG_NAME}")
            set(MMAPPER_BETA "false")
         else()
            message(STATUS "Building from branch ${GIT_BRANCH} with ref ${GIT_TAG_COMMIT_HASH}")
-           set(MMAPPER_VERSION_STRING "${GIT_TAG_COMMIT_HASH}")
+           if(NOT GIT_TAG_COMMIT_HASH MATCHES "^v")
+               set(MMAPPER_VERSION_STRING "v${MMAPPER_VERSION}-${GIT_TAG_COMMIT_HASH}")
+           else()
+               set(MMAPPER_VERSION_STRING "${GIT_TAG_COMMIT_HASH}")
+           endif()
            set(MMAPPER_BETA "true")
         endif()
     endif()
@@ -168,6 +253,9 @@ if(NOT MMAPPER_VERSION_STRING)
 endif()
 if(NOT GIT_BRANCH)
     set(GIT_BRANCH "unknown")
+endif()
+if(NOT MMAPPER_BUILD_DATE)
+    string(TIMESTAMP MMAPPER_BUILD_DATE "%Y-%m-%d")
 endif()
 
 string(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_UPPER)
@@ -197,6 +285,7 @@ if(USE_CODE_COVERAGE AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         -O0        # no optimization
         -g         # generate debug info
         --coverage # sets all required flags
+        $<$<CXX_COMPILER_ID:GNU>:-fprofile-update=atomic>
     )
     if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.13)
         target_link_options(coverage_config INTERFACE --coverage)
@@ -301,6 +390,11 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         add_link_options(-femulated-tls)
     endif()
 
+    if(EMSCRIPTEN)
+        add_compile_options(-Werror=bad-function-cast)
+        add_compile_options(-Werror=cast-function-type)
+    endif()
+
     if(MMAPPER_IS_DEBUG)
         if(NOT WIN32)
             # segfaults in ASAN initializer on 32-bit Ubuntu 18.04.1 with clang 6.0
@@ -368,6 +462,9 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         add_compile_options(-Werror=switch)
         add_compile_options(-Werror=unused-result) # required for c++17 [[nodiscard]]
         add_compile_options(-Werror=weak-vtables) # can result in crashes for ODR violations.
+
+        # remove noise (most of these cannot be fixed)
+        add_compile_options(-Wno-unsafe-buffer-usage)
     endif(MMAPPER_IS_DEBUG)
 endif()
 if(MSVC)
@@ -376,6 +473,18 @@ if(MSVC)
     add_compile_options(/Zc:__cplusplus)
     add_compile_options(/utf-8)
     add_compile_options(/permissive-)
+    if(CMAKE_BUILD_TYPE_UPPER MATCHES "^RELWITHDEBINFO$")
+        # improve performance
+        string(REPLACE "/Ob1" "/Ob2" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+        string(REPLACE "/Ob1" "/Ob2" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+	endif()
+    if(CMAKE_BUILD_TYPE_UPPER MATCHES "^(DEBUG|RELWITHDEBINFO)$")
+        # allow sccache to work
+        string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
+        string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+        string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+        string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+    endif()
 endif()
 
 # Download arda.mm2
@@ -414,7 +523,8 @@ endif()
 add_feature_info("WITH_WEBSOCKET" WITH_WEBSOCKET "bypass firewalls and connect over Secure WebSockets")
 add_feature_info("WITH_QTKEYCHAIN" WITH_QTKEYCHAIN "account credentials encryption and auto-login")
 add_feature_info("WITH_MAP" WITH_MAP "include default map as a resource")
-add_feature_info("WITH_IMAGES" WITH_IMAGES "include default images as a resource")
+add_feature_info("WITH_IMAGES" WITH_IMAGES "include images as a resource")
+add_feature_info("WITH_AUDIO" WITH_AUDIO "audio support for music and sounds")
 add_feature_info("WITH_TESTS" WITH_TESTS "compile unit tests")
 add_feature_info("USE_TIDY" USE_TIDY "")
 add_feature_info("USE_IWYU" USE_IWYU "")

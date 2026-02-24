@@ -11,7 +11,6 @@
 #include "RawExit.h"
 #include "RawRoom.h"
 
-#include <ostream>
 #include <set>
 #include <vector>
 
@@ -171,9 +170,8 @@ Remapping Remapping::computeFrom(const std::vector<ExternalRawRoom> &input)
     assert(next.asUint32() == remapping.m_intToExt.size());
     assert(next.asUint32() == remapping.m_extToInt.size());
 
-    for (const auto &kv : remapping.m_extToInt) {
-        assert(remapping.m_intToExt.at(kv.second) == kv.first);
-    }
+    remapping.m_extToInt.for_each(
+        [&](const auto &kv) { assert(remapping.m_intToExt.at(kv.second) == kv.first); });
 
     return remapping;
 }
@@ -187,16 +185,13 @@ ExternalRoomId Remapping::getNextExternal() const
     const auto any = m_extToInt.begin()->first;
     ExternalRoomId highest = any;
 
-    // There's currently no iterator, so we have to check the values manually.
-    const auto size = m_intToExt.size();
-    for (uint32_t i = 0; i < size; ++i) {
-        const auto x = m_intToExt.at(RoomId{i});
+    m_intToExt.for_each([&](auto x) {
         if (x != INVALID_EXTERNAL_ROOMID) {
             if (x > highest) {
                 highest = x;
             }
         }
-    }
+    });
     return highest.next();
 }
 
@@ -276,15 +271,17 @@ void Remapping::compact(ProgressCounter &pc, const ExternalRoomId firstId)
     }
 
     ExternalRoomId next = firstId;
-    OrderedMap<ExternalRoomId, RoomId> newExtToInt;
+
+    // REVISIT: this may perform poorly with immer
+    ImmUnorderedMap<ExternalRoomId, RoomId> newExtToInt;
 
     pc.increaseTotalStepsBy(m_extToInt.size());
-    for (const auto &kv : m_extToInt) {
+    m_extToInt.for_each([&](const auto &kv) {
         m_intToExt.set(kv.second, next);
         newExtToInt.set(next, kv.second);
         next = next.next();
         pc.step();
-    }
+    });
     m_extToInt = newExtToInt;
 }
 

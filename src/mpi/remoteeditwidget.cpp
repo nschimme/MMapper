@@ -16,6 +16,8 @@
 #include "../global/utils.h"
 #include "../global/window_utils.h"
 #include "../viewers/AnsiViewWindow.h"
+#include "findreplacewidget.h"
+#include "gotowidget.h"
 
 #include <cassert>
 #include <cctype>
@@ -26,14 +28,12 @@
 
 #include <QAction>
 #include <QMenu>
-#include <QMenuBar>
 #include <QMessageBox>
 #include <QMessageLogContext>
 #include <QPlainTextEdit>
 #include <QRegularExpression>
 #include <QScopedPointer>
 #include <QSize>
-#include <QStatusBar>
 #include <QString>
 #include <QTextDocument>
 #include <QtGui>
@@ -49,7 +49,7 @@ namespace mmqt {
 NODISCARD static int measureTabAndAnsiAware(const QString &s)
 {
     int col = 0;
-    for (auto token : mmqt::AnsiTokenizer{s}) {
+    for (const AnsiStringToken token : mmqt::AnsiTokenizer{s}) {
         using Type = decltype(token.type);
         switch (token.type) {
         case Type::Ansi:
@@ -146,7 +146,7 @@ public:
             return fmt;
         };
 
-        const auto length = line.length() - breakPos;
+        const int length = static_cast<int>(line.length()) - breakPos;
         setFormat(breakPos, length, getFmt());
     }
 
@@ -157,7 +157,7 @@ public:
             return;
         }
 
-        const auto length = line.length() - breakPos;
+        const int length = static_cast<int>(line.length()) - breakPos;
         setFormat(breakPos, length, getBackgroundFormat(Qt::red));
     }
 
@@ -166,8 +166,10 @@ public:
         const auto red = getBackgroundFormat(Qt::red);
         const auto cyan = getBackgroundFormat(Qt::cyan);
 
-        mmqt::foreachAnsi(line, [this, &red, &cyan](const int start, const QStringView sv) {
-            setFormat(start, static_cast<int>(sv.length()), mmqt::isValidAnsiColor(sv) ? cyan : red);
+        mmqt::foreachAnsi(line, [this, &red, &cyan](const auto start, const QStringView sv) {
+            setFormat(static_cast<int>(start),
+                      static_cast<int>(sv.length()),
+                      mmqt::isValidAnsiColor(sv) ? cyan : red);
         });
     }
 
@@ -252,7 +254,7 @@ public:
 
                 setFormat(pos, 1, get_unicode_fmt());
             } else {
-                const char c = qc.toLatin1();
+                const char c = mmqt::toLatin1(qc);
                 switch (c) {
                 case C_NBSP:
                     setFormat(pos, 1, get_nbsp_fmt());
@@ -264,7 +266,8 @@ public:
                 default: {
                     const auto uc = static_cast<uint8_t>(c);
                     if (hasLast
-                        && (isClamped<int>(uc, 0x80, 0xBF) && (last == 0xC2 || last == 0xC3))) {
+                        && (isClamped<int>(uc, 0x80, 0xBF)
+                            && (last == char16_t(0xC2) || last == char16_t(0xC3)))) {
                         // Sometimes these are UTF-8 encoded Latin1 values,
                         // but they could also be intended, so they're not errors.
                         // TODO: add a feature to fix these on a case-by-case basis?
@@ -398,14 +401,14 @@ static void tryRemoveLeadingSpaces(QTextCursor line, const int max_spaces)
         return;
     }
 
-    const int to_remove = [&text, max_spaces]() -> int {
-        const int len = std::min(max_spaces, text.length());
+    const int to_remove = std::invoke([&text, max_spaces]() -> int {
+        const int len = std::min(max_spaces, static_cast<int>(text.length()));
         int n = 0;
         while (n < len && text.at(n) == C_SPACE) {
             ++n;
         }
         return n;
-    }();
+    });
 
     if (to_remove == 0) {
         return;
@@ -678,25 +681,41 @@ RemoteEditWidget::RemoteEditWidget(const bool editSession,
                                    QString title,
                                    QString body,
                                    QWidget *const parent)
-    : QMainWindow(parent)
+    : QDialog(parent)
     , m_editSession(editSession)
     , m_title(std::move(title))
     , m_body(std::move(body))
 {
-    setWindowFlags(windowFlags() | Qt::WindowType::Widget);
-    setWindowFlags(windowFlags() & ~Qt::WindowStaysOnTopHint);
-    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
-
+    setWindowFlags(Qt::Window | Qt::WindowSystemMenuHint | Qt::WindowMinimizeButtonHint
+                   | Qt::WindowMaximizeButtonHint | Qt::WindowCloseButtonHint);
     mmqt::setWindowTitle2(*this,
                           QString("MMapper %1").arg(m_editSession ? "Editor" : "Viewer"),
                           m_title);
 
-    // REVISIT: can this be called as an initializer?
-    // Probably not. In fact this may be too early, since it accesses contentsMargins(),
-    // which assumes this object is fully constructed and initialized.
-    //
-    // REVISIT: does this have to be QScopedPointer, or can it be std::unique_ptr?
+    QVBoxLayout *mainLayout = new QVBoxLayout(this);
+    mainLayout->setContentsMargins(0, 0, 0, 0);
+    mainLayout->setSpacing(0);
+
+    setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+
+    m_menuBar = new QMenuBar(this);
+    mainLayout->setMenuBar(m_menuBar);
+
+    m_gotoWidget.reset(createGotoWidget());
+    mainLayout->addWidget(m_gotoWidget.get(), 0);
+
+    m_findReplaceWidget.reset(createFindReplaceWidget());
+    mainLayout->addWidget(m_findReplaceWidget.get(), 0);
+
     m_textEdit.reset(createTextEdit());
+    mainLayout->addWidget(m_textEdit.get(), 1);
+
+    m_statusBar = new QStatusBar(this);
+    setAttribute(Qt::WA_DeleteOnClose);
+    mainLayout->addWidget(m_statusBar);
+
+    addStatusBar(m_textEdit.get());
+    addFileMenu(m_textEdit.get());
 
     // REVISIT: Restore geometry from config?
     setGeometry(QStyle::alignedRect(Qt::LeftToRight,
@@ -730,21 +749,71 @@ auto RemoteEditWidget::createTextEdit() -> Editor *
 
     auto *const doc = pTextEdit->document();
     new LineHighlighter(MAX_LENGTH, doc);
-
-    setCentralWidget(pTextEdit);
-    addStatusBar(pTextEdit);
-    addFileMenu(menuBar(), pTextEdit);
     return pTextEdit;
 }
 
-void RemoteEditWidget::addFileMenu(QMenuBar *const menuBar, const Editor *const pTextEdit)
+auto RemoteEditWidget::createGotoWidget() -> GotoWidget *
 {
-    QMenu *const fileMenu = menuBar->addMenu(tr("&File"));
+    const auto pGotoWidget = new GotoWidget(this);
+    pGotoWidget->hide();
+
+    connect(pGotoWidget, &GotoWidget::sig_gotoLineRequested, this, [this](int lineNum) {
+        QTextCursor cursor = m_textEdit->textCursor();
+        cursor.movePosition(QTextCursor::Start);
+        if (cursor.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, lineNum - 1)) {
+            m_textEdit->setTextCursor(cursor);
+            m_textEdit->ensureCursorVisible();
+            slot_updateStatus(QString("Moved to line %1").arg(lineNum));
+            m_gotoWidget->hide();
+            m_textEdit->setFocus(Qt::OtherFocusReason);
+        } else {
+            slot_updateStatus(QString("Error: Line %1 not found.").arg(lineNum));
+            m_gotoWidget->setFocusToInput();
+        }
+    });
+    connect(pGotoWidget, &GotoWidget::sig_closeRequested, this, [this]() {
+        m_gotoWidget->hide();
+        m_textEdit->setFocus(Qt::OtherFocusReason);
+    });
+    return pGotoWidget;
+}
+
+auto RemoteEditWidget::createFindReplaceWidget() -> FindReplaceWidget *
+{
+    const auto pFindReplaceWidget = new FindReplaceWidget(m_editSession, this);
+    pFindReplaceWidget->hide();
+
+    connect(pFindReplaceWidget,
+            &FindReplaceWidget::sig_findRequested,
+            this,
+            &RemoteEditWidget::slot_handleFindRequested);
+    connect(pFindReplaceWidget,
+            &FindReplaceWidget::sig_replaceCurrentRequested,
+            this,
+            &RemoteEditWidget::slot_handleReplaceCurrentRequested);
+    connect(pFindReplaceWidget,
+            &FindReplaceWidget::sig_replaceAllRequested,
+            this,
+            &RemoteEditWidget::slot_handleReplaceAllRequested);
+    connect(pFindReplaceWidget, &FindReplaceWidget::sig_closeRequested, this, [this]() {
+        m_findReplaceWidget->hide();
+        m_textEdit->setFocus(Qt::OtherFocusReason);
+    });
+    connect(pFindReplaceWidget,
+            &FindReplaceWidget::sig_statusMessage,
+            this,
+            &RemoteEditWidget::slot_updateStatus);
+    return pFindReplaceWidget;
+}
+
+void RemoteEditWidget::addFileMenu(const Editor *const pTextEdit)
+{
+    QMenu *const fileMenu = m_menuBar->addMenu(tr("&File"));
     if (m_editSession) {
         addSave(fileMenu);
     }
     addExit(fileMenu);
-    addEditAndViewMenus(menuBar, pTextEdit);
+    addEditAndViewMenus(pTextEdit);
 }
 
 struct NODISCARD EditViewCommand final
@@ -798,10 +867,10 @@ struct NODISCARD EditCommand2 final
     {}
 };
 
-void RemoteEditWidget::addEditAndViewMenus(QMenuBar *const menuBar, const Editor *const pTextEdit)
+void RemoteEditWidget::addEditAndViewMenus(const Editor *const pTextEdit)
 {
-    QMenu *const editMenu = menuBar->addMenu("&Edit");
-    QMenu *const viewMenu = menuBar->addMenu("&View");
+    QMenu *const editMenu = m_menuBar->addMenu("&Edit");
+    QMenu *const viewMenu = m_menuBar->addMenu("&View");
 
     const std::vector<EditCommand2> cmds{
 
@@ -870,6 +939,31 @@ void RemoteEditWidget::addEditAndViewMenus(QMenuBar *const menuBar, const Editor
             break;
         }
     }
+
+    QAction *findAction = new QAction(QIcon::fromTheme("edit-find"), tr("&Find/Replace..."), this);
+    findAction->setShortcut(QKeySequence::Find);
+    findAction->setStatusTip(tr("Show Find/Replace bar"));
+    connect(findAction, &QAction::triggered, this, [this]() {
+        m_gotoWidget->hide();
+        m_findReplaceWidget->show();
+        m_findReplaceWidget->setFocusToFindInput();
+    });
+    editMenu->addAction(findAction);
+
+    QAction *gotoAction = new QAction(QIcon::fromTheme("go-jump"), tr("&Go to Line..."), this);
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Mac) {
+        gotoAction->setShortcut(QKeySequence("Ctrl+L"));
+    } else {
+        gotoAction->setShortcut(QKeySequence("Ctrl+G"));
+    }
+    gotoAction->setStatusTip(tr("Show Go to Line bar"));
+    connect(gotoAction, &QAction::triggered, this, [this]() {
+        m_findReplaceWidget->hide();
+        m_gotoWidget->show();
+        m_gotoWidget->setFocusToInput();
+    });
+    editMenu->addAction(gotoAction);
+    editMenu->addSeparator();
 
     // Note: "&Colors" looks like it conflicts with "&Copy",
     // but you can alt-E-C-C to visit copy first then colors.
@@ -972,8 +1066,7 @@ void RemoteEditWidget::addToMenu(QMenu *const menu,
 
 void RemoteEditWidget::addStatusBar(const Editor *const pTextEdit)
 {
-    QStatusBar *const status = statusBar();
-    status->showMessage(tr("Ready"));
+    m_statusBar->showMessage(tr("Ready"));
 
     connect(pTextEdit,
             &QPlainTextEdit::cursorPositionChanged,
@@ -984,6 +1077,102 @@ void RemoteEditWidget::addStatusBar(const Editor *const pTextEdit)
             this,
             &RemoteEditWidget::slot_updateStatusBar);
     connect(pTextEdit, &QPlainTextEdit::textChanged, this, &RemoteEditWidget::slot_updateStatusBar);
+}
+
+void RemoteEditWidget::slot_updateStatus(const QString &message_param)
+{
+    if (message_param.isEmpty()) {
+        slot_updateStatusBar();
+    } else {
+        m_statusBar->showMessage(message_param);
+    }
+}
+
+void RemoteEditWidget::slot_handleFindRequested(const QString &term, QTextDocument::FindFlags flags)
+{
+    if (term.isEmpty()) {
+        return;
+    }
+
+    QTextCursor originalCursor = m_textEdit->textCursor();
+
+    if (m_textEdit->find(term, flags)) {
+        slot_updateStatus(QString("Found: '%1'").arg(term));
+        return;
+    }
+
+    // Wrap around
+    m_textEdit->moveCursor(flags.testFlag(QTextDocument::FindBackward) ? QTextCursor::End
+                                                                       : QTextCursor::Start);
+    if (m_textEdit->find(term, flags)) {
+        slot_updateStatus(QString("Found (from %1): '%2'")
+                              .arg(flags.testFlag(QTextDocument::FindBackward) ? "end" : "top")
+                              .arg(term));
+        return;
+    }
+
+    // Restore original cursor if not found
+    m_textEdit->setTextCursor(originalCursor);
+    slot_updateStatus(QString("Not found: '%1'").arg(term));
+}
+
+void RemoteEditWidget::slot_handleReplaceCurrentRequested(const QString &findTerm,
+                                                          const QString &replaceTerm,
+                                                          QTextDocument::FindFlags flags)
+{
+    if (findTerm.isEmpty()) {
+        return;
+    }
+
+    QTextCursor cursor = m_textEdit->textCursor();
+    if (cursor.hasSelection()) {
+        QString selectedText = cursor.selectedText();
+        Qt::CaseSensitivity cs = flags.testFlag(QTextDocument::FindCaseSensitively)
+                                     ? Qt::CaseSensitive
+                                     : Qt::CaseInsensitive;
+        if (QString::compare(selectedText, findTerm, cs) == 0) {
+            cursor.insertText(replaceTerm);
+            slot_updateStatus(QString("Replaced: '%1'").arg(findTerm));
+        }
+    }
+
+    // Always find the next occurrence after attempting replacement
+    slot_handleFindRequested(findTerm, flags);
+}
+
+void RemoteEditWidget::slot_handleReplaceAllRequested(const QString &findTerm,
+                                                      const QString &replaceTerm,
+                                                      QTextDocument::FindFlags flags)
+{
+    if (findTerm.isEmpty()) {
+        return;
+    }
+
+    int replacements = 0;
+    QTextCursor originalCursor = m_textEdit->textCursor();
+    m_textEdit->moveCursor(QTextCursor::Start);
+    m_textEdit->textCursor().beginEditBlock();
+
+    while (m_textEdit->find(findTerm, flags)) {
+        QTextCursor matchCursor = m_textEdit->textCursor();
+        if (matchCursor.hasSelection()) {
+            matchCursor.insertText(replaceTerm);
+            replacements++;
+        } else {
+            // Should not happen with QTextEdit::find, but as a safeguard
+            break;
+        }
+    }
+
+    m_textEdit->textCursor().endEditBlock();
+    m_textEdit->setTextCursor(originalCursor);
+
+    if (replacements > 0) {
+        slot_updateStatus(
+            QString("Replaced %1 occurrence(s) of '%2'.").arg(replacements).arg(findTerm));
+    } else {
+        slot_updateStatus(QString("Not found for replace all: '%1'.").arg(findTerm));
+    }
 }
 
 struct NODISCARD CursorColumnInfo final
@@ -1020,7 +1209,7 @@ NODISCARD static CursorAnsiInfo getCursorAnsi(QTextCursor cursor)
 
     CursorAnsiInfo result;
     const auto &line = cursor.block().text();
-    mmqt::foreachAnsi(line, [pos, &result](int start, const QStringView sv) {
+    mmqt::foreachAnsi(line, [pos, &result](auto start, const QStringView sv) {
         if (result || pos < start || pos >= start + sv.length()) {
             return;
         }
@@ -1091,9 +1280,9 @@ void RemoteEditWidget::slot_updateStatusBar()
         const auto plural = [](auto n) { return (n == 1) ? "" : "s"; };
 
         const QString selection = cur.selection().toPlainText();
-        const int selectionLength = selection.length();
-        const int selectionLines = selection.count(C_NEWLINE)
-                                   + (selection.endsWith(C_NEWLINE) ? 0 : 1);
+        const auto selectionLength = selection.length();
+        const auto selectionLines = selection.count(C_NEWLINE)
+                                    + (selection.endsWith(C_NEWLINE) ? 0 : 1);
 
         status.append(QString(", Selection: %1 char%2 on %3 line%4")
                           .arg(selectionLength)
@@ -1138,14 +1327,14 @@ void RemoteEditWidget::slot_updateStatusBar()
         }
     };
     report_errors();
-    statusBar()->showMessage(status);
+    m_statusBar->showMessage(status);
 }
 
 void RemoteEditWidget::slot_justifyText()
 {
     const QString &old = m_textEdit->toPlainText();
     mmqt::TextBuffer text;
-    text.reserve(2 * old.length()); // Just a wild guess in case there's a lot of wrapping.
+    text.reserve(static_cast<int>(old.length()));
     mmqt::foreachLine(old,
                       [&text, maxLen = MAX_LENGTH](const QStringView line, bool /*hasNewline*/) {
                           text.appendJustified(line, maxLen);
@@ -1275,8 +1464,13 @@ QSize RemoteEditWidget::sizeHint() const
 
 void RemoteEditWidget::closeEvent(QCloseEvent *event)
 {
+    if (m_submitted) {
+        event->accept();
+        return;
+    }
+
     if (m_editSession) {
-        if (m_submitted || slot_maybeCancel()) {
+        if (slot_maybeCancel()) {
             event->accept();
         } else {
             event->ignore();
@@ -1290,20 +1484,29 @@ void RemoteEditWidget::closeEvent(QCloseEvent *event)
 bool RemoteEditWidget::slot_maybeCancel()
 {
     if (slot_contentsChanged()) {
-        const int ret = QMessageBox::warning(this,
-                                             m_title,
-                                             tr("You have edited the document.\n"
-                                                "Do you want to cancel your changes?"),
-                                             QMessageBox::Yes,
-                                             QMessageBox::No | QMessageBox::Escape
-                                                 | QMessageBox::Default);
-        if (ret == QMessageBox::No) {
+        QMessageBox dlg(this);
+        dlg.setIcon(QMessageBox::Warning);
+        dlg.setWindowTitle(m_title);
+        dlg.setText(tr("You have edited the document.\n"
+                       "Are you sure you want to discard all changes?"));
+        dlg.setStandardButtons(QMessageBox::Discard | QMessageBox::Cancel);
+        dlg.setDefaultButton(QMessageBox::Cancel);
+        dlg.setEscapeButton(QMessageBox::Cancel);
+        const int ret = dlg.exec();
+        if (ret != QMessageBox::Discard) {
             return false;
         }
     }
 
     slot_cancelEdit();
     return true;
+}
+
+/* Qt virtual */
+void RemoteEditWidget::showEvent(QShowEvent *event)
+{
+    QDialog::showEvent(event);
+    slot_updateStatusBar();
 }
 
 bool RemoteEditWidget::slot_contentsChanged() const
@@ -1324,12 +1527,4 @@ void RemoteEditWidget::slot_finishEdit()
     m_submitted = true;
     emit sig_save(m_textEdit->toPlainText());
     close();
-}
-
-void RemoteEditWidget::setVisible(bool visible)
-{
-    QWidget::setVisible(visible);
-    if (visible) {
-        slot_updateStatusBar();
-    }
 }

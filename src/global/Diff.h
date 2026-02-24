@@ -6,6 +6,7 @@
 
 #include <cassert>
 #include <cmath>
+#include <functional>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -16,14 +17,17 @@
 namespace diff {
 
 namespace detail {
+
+// clang-format off
 template<typename Token>
-struct NODISCARD DefaultGetScore
+struct NODISCARD DefaultGetScore final
 {
     NODISCARD float operator()(const Token a, const Token b) const
     {
         return static_cast<float>(a == b);
     }
 };
+// clang-format on
 
 // REVISIT: Consider using a tagged int to make sure we know these are reversed indices.
 struct NODISCARD Pair final
@@ -370,58 +374,58 @@ private:
 
         // O(M*N) operations, with O(N) fixed storage,
         // but it might grow to O(M*N) via linked lists of pairs.
-        const SharedPairVector &vec =
+        const auto &vec = std::invoke(
             [this, &ra, &rb, &scoreAb, &update]() -> const SharedPairVector & {
-            const auto asize = ra.size();
-            const auto bsize = rb.size();
-            assert(asize >= bsize);
+                const auto asize = ra.size();
+                const auto bsize = rb.size();
+                assert(asize >= bsize);
 
-            SharedPairVector &v = m_vec;
-            v.clear();
-            v.resize(bsize);
+                SharedPairVector &v = m_vec;
+                v.clear();
+                v.resize(bsize);
 
-            // first pass initializes
-            {
-                const size_t apos = 0;
-
-                // first element is handled differently
+                // first pass initializes
                 {
-                    const size_t bpos = 0;
-                    const auto score = scoreAb(apos, bpos);
-                    v[bpos] = (score > 0) ? std::make_shared<Pair>(apos, bpos, score) : nullptr;
-                }
+                    const size_t apos = 0;
 
-                for (size_t bpos = 1; bpos < bsize; ++bpos) {
-                    const SharedPair before = v[bpos - 1];
-                    update(v[bpos], apos, bpos, before);
-                }
-            }
-
-            // loop over the remaining elements of the longer input
-            {
-                for (size_t apos = 1; apos < asize; ++apos) {
                     // first element is handled differently
                     {
                         const size_t bpos = 0;
-                        const SharedPair before = v[bpos];
-                        update(v[bpos], apos, bpos, before);
+                        const auto score = scoreAb(apos, bpos);
+                        v[bpos] = (score > 0) ? std::make_shared<Pair>(apos, bpos, score) : nullptr;
                     }
 
-                    // this loop accounts for the majority of the (asize * bsize) operations
-                    // actually it's (asize * bsize + 1 - asize - bsize)
                     for (size_t bpos = 1; bpos < bsize; ++bpos) {
-                        // merge from two sources;
-                        const SharedPair best = [bpos, &v]() -> SharedPair {
-                            const SharedPair &one = v[bpos - 1]; // from the b-chain
-                            const SharedPair &two = v[bpos];     // from the a-chain
-                            return (maybeScore(one) > maybeScore(two)) ? one : two;
-                        }();
-                        update(v[bpos], apos, bpos, best);
+                        const SharedPair before = v[bpos - 1];
+                        update(v[bpos], apos, bpos, before);
                     }
                 }
-            }
-            return v;
-        }();
+
+                // loop over the remaining elements of the longer input
+                {
+                    for (size_t apos = 1; apos < asize; ++apos) {
+                        // first element is handled differently
+                        {
+                            const size_t bpos = 0;
+                            const SharedPair before = v[bpos];
+                            update(v[bpos], apos, bpos, before);
+                        }
+
+                        // this loop accounts for the majority of the (asize * bsize) operations
+                        // actually it's (asize * bsize + 1 - asize - bsize)
+                        for (size_t bpos = 1; bpos < bsize; ++bpos) {
+                            // merge from two sources;
+                            const SharedPair best = std::invoke([bpos, &v]() -> SharedPair {
+                                const SharedPair &one = v[bpos - 1]; // from the b-chain
+                                const SharedPair &two = v[bpos];     // from the a-chain
+                                return (maybeScore(one) > maybeScore(two)) ? one : two;
+                            });
+                            update(v[bpos], apos, bpos, best);
+                        }
+                    }
+                }
+                return v;
+            });
 
         auto advanceAndReport =
             [this, &ra, &rb](const SideEnum side, size_t &pos, const size_t idx) {

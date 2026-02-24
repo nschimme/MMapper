@@ -9,6 +9,7 @@
 #include "RoomFieldVariant.h"
 #include "RoomIdSet.h"
 #include "coordinate.h"
+#include "infomark.h"
 #include "mmapper2room.h"
 #include "parseevent.h"
 #include "room.h"
@@ -27,7 +28,7 @@ class Change;
 class ChangeList;
 class ProgressCounter;
 class RoomHandle;
-class RoomRecipient;
+class PathProcessor;
 class World;
 struct MapApplyResult;
 struct MapPair;
@@ -51,13 +52,12 @@ public:
 
 public:
     NODISCARD size_t getRoomsCount() const;
-    NODISCARD bool empty() const { return getRoomsCount() == 0; }
+    NODISCARD size_t getMarksCount() const;
+    NODISCARD bool empty() const;
     NODISCARD std::optional<Bounds> getBounds() const;
 
 public:
-    NODISCARD const RoomIdSet &getRooms() const;
-    DEPRECATED_MSG("use findAllRooms()")
-    void getRooms(RoomRecipient &recipient, const ParseEvent &) const;
+    NODISCARD const ImmRoomIdSet &getRooms() const;
     NODISCARD RoomIdSet findAllRooms(const ParseEvent &) const;
 
 private:
@@ -100,7 +100,12 @@ public:
     NODISCARD const World &getWorld() const { return *m_world; }
 
 public:
-    NODISCARD static MapPair fromRooms(ProgressCounter &counter, std::vector<ExternalRawRoom> rooms);
+    NODISCARD const InfomarkDb &getInfomarkDb() const;
+
+public:
+    NODISCARD static MapPair fromRooms(ProgressCounter &counter,
+                                       std::vector<ExternalRawRoom> rooms,
+                                       std::vector<RawInfomark> marks);
     void printMulti(ProgressCounter &pc, AnsiOstream &aos) const;
     void printStats(ProgressCounter &pc, AnsiOstream &aos) const;
     void printUnknown(ProgressCounter &pc, AnsiOstream &aos) const;
@@ -135,6 +140,7 @@ public:
     NODISCARD static Map merge(ProgressCounter &pc,
                                const Map &currentMap,
                                std::vector<ExternalRawRoom> newRooms,
+                               std::vector<RawInfomark> newMarks,
                                const Coordinate &mapOffset);
 
     static void foreachChangedRoom(ProgressCounter &pc,
@@ -162,6 +168,9 @@ public:
     void printChanges(mm::AbstractDebugOStream &os,
                       const std::vector<Change> &changes,
                       std::string_view sep) const;
+
+public:
+    static void enableExtraSanityChecks(bool enable);
 };
 
 struct NODISCARD MapApplyResult final
@@ -182,6 +191,14 @@ struct NODISCARD BasicDiffStats final
     size_t numRoomsRemoved = 0;
     size_t numRoomsAdded = 0;
     size_t numRoomsChanged = 0;
+
+    BasicDiffStats &operator+=(const BasicDiffStats &other)
+    {
+        numRoomsRemoved += other.numRoomsRemoved;
+        numRoomsAdded += other.numRoomsAdded;
+        numRoomsChanged += other.numRoomsChanged;
+        return *this;
+    }
 };
 
 NODISCARD extern BasicDiffStats getBasicDiffStats(const Map &base, const Map &modified);

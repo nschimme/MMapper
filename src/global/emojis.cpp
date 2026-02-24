@@ -264,7 +264,7 @@ public:
             void operator()(const std::u32string_view sv) const
             {
                 if constexpr (IS_DEBUG_BUILD) {
-                    for (const auto c : sv) {
+                    for (const char32_t c : sv) {
                         assert(c != INVALID_CODEPOINT);
                     }
                 }
@@ -341,10 +341,7 @@ public:
     HexPrefixTree hexPrefixTree;
 
 public:
-    void reset()
-    {
-        *this = {};
-    }
+    void reset() { *this = {}; }
 };
 
 NODISCARD Emojis &getEmojis()
@@ -517,14 +514,14 @@ NODISCARD QString mmqt::decodeEmojiShortCodes(const QString &s)
 
     QString result;
     QStringView view(s);
-    int lastPos = 0;
+    qsizetype lastPos = 0;
 
     QRegularExpressionMatchIterator it = shortCodeRegex.globalMatch(s);
 
     while (it.hasNext()) {
         QRegularExpressionMatch match = it.next();
-        const int matchStart = match.capturedStart();
-        const int matchEnd = match.capturedEnd();
+        const auto matchStart = match.capturedStart();
+        const auto matchEnd = match.capturedEnd();
 
         result += view.mid(lastPos, matchStart - lastPos);
 

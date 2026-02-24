@@ -9,7 +9,6 @@
 #include "../mapdata/mapdata.h"
 #include "../mapdata/roomselection.h"
 #include "../opengl/OpenGL.h"
-#include <array> // Required for std::array
 #include "CanvasMouseModeEnum.h"
 #include "RoadIndex.h"
 #include "connectionselection.h"
@@ -21,7 +20,7 @@
 #include <unordered_map>
 
 #include <QOpenGLTexture>
-#include <QWidget>
+#include <QWindow>
 #include <QtGui/QMatrix4x4>
 #include <QtGui/QMouseEvent>
 #include <QtGui/qopengl.h>
@@ -30,11 +29,12 @@
 class ConnectionSelection;
 class MapData;
 class PrespammedPath;
-class InfoMarkSelection;
+class InfomarkSelection;
 
-// Removed RoomTintEnum, NUM_ROOM_TINTS, getAllRoomTints(), and ALL_ROOM_TINTS macro.
-// These are now authoritatively defined in ../map/mmapper2room.h
-// (which is already included in this file).
+enum class NODISCARD RoomTintEnum { DARK, NO_SUNDEATH };
+static const size_t NUM_ROOM_TINTS = 2;
+NODISCARD extern const MMapper::Array<RoomTintEnum, NUM_ROOM_TINTS> &getAllRoomTints();
+#define ALL_ROOM_TINTS getAllRoomTints()
 
 struct NODISCARD ScaleFactor final
 {
@@ -48,8 +48,6 @@ public:
 
 private:
     float m_scaleFactor = 1.f;
-    // pinch gesture
-    float m_pinchFactor = 1.f;
 
 private:
     NODISCARD static float clamp(float x)
@@ -63,21 +61,10 @@ public:
 
 public:
     NODISCARD float getRaw() const { return clamp(m_scaleFactor); }
-    NODISCARD float getTotal() const { return clamp(m_scaleFactor * m_pinchFactor); }
+    NODISCARD float getTotal() const { return clamp(m_scaleFactor); }
 
 public:
     void set(const float scale) { m_scaleFactor = clamp(scale); }
-    void setPinch(const float pinch)
-    {
-        // Don't bother to clamp this, since the total is clamped.
-        m_pinchFactor = pinch;
-    }
-    void endPinch()
-    {
-        const float total = getTotal();
-        m_scaleFactor = total;
-        m_pinchFactor = 1.f;
-    }
     void reset() { *this = ScaleFactor(); }
 
 public:
@@ -100,8 +87,7 @@ public:
 struct NODISCARD MapCanvasViewport
 {
 private:
-    QWidget &m_sizeWidget;
-    std::array<glm::vec4, 6> m_frustumPlanes;
+    QWindow &m_window;
 
 public:
     glm::mat4 m_viewProj{1.f};
@@ -110,32 +96,30 @@ public:
     int m_currentLayer = 0;
 
 public:
-    explicit MapCanvasViewport(QWidget &sizeWidget)
-        : m_sizeWidget{sizeWidget}
+    explicit MapCanvasViewport(QWindow &window)
+        : m_window{window}
     {}
 
 public:
-    NODISCARD auto width() const { return m_sizeWidget.width(); }
-    NODISCARD auto height() const { return m_sizeWidget.height(); }
+    NODISCARD auto width() const { return m_window.width(); }
+    NODISCARD auto height() const { return m_window.height(); }
     NODISCARD Viewport getViewport() const
     {
-        const auto &r = m_sizeWidget.rect();
-        return Viewport{glm::ivec2{r.x(), r.y()}, glm::ivec2{r.width(), r.height()}};
+        return Viewport{glm::ivec2{0, 0}, glm::ivec2{m_window.width(), m_window.height()}};
     }
     NODISCARD float getTotalScaleFactor() const { return m_scaleFactor.getTotal(); }
 
 public:
     NODISCARD std::optional<glm::vec3> project(const glm::vec3 &) const;
     NODISCARD glm::vec3 unproject_raw(const glm::vec3 &) const;
+    NODISCARD glm::vec3 unproject_raw(const glm::vec3 &, const glm::mat4 &) const;
     NODISCARD glm::vec3 unproject_clamped(const glm::vec2 &) const;
+    NODISCARD glm::vec3 unproject_clamped(const glm::vec2 &, const glm::mat4 &) const;
     NODISCARD std::optional<glm::vec3> unproject(const QInputEvent *event) const;
+    NODISCARD std::optional<glm::vec3> unproject(const glm::vec2 &xy) const;
     NODISCARD std::optional<MouseSel> getUnprojectedMouseSel(const QInputEvent *event) const;
-    NODISCARD glm::vec2 getMouseCoords(const QInputEvent *event) const;
-
-    const std::array<glm::vec4, 6>& getFrustumPlanes() const { return m_frustumPlanes; }
-
-protected:
-    void updateFrustumPlanes();
+    NODISCARD std::optional<MouseSel> getUnprojectedMouseSel(const glm::vec2 &xy) const;
+    NODISCARD std::optional<glm::vec2> getMouseCoords(const QInputEvent *event) const;
 };
 
 class NODISCARD MapScreen final
@@ -193,14 +177,14 @@ struct NODISCARD MapCanvasInputState
     std::optional<RoomSelMove> m_roomSelectionMove;
     NODISCARD bool hasRoomSelectionMove() { return m_roomSelectionMove.has_value(); }
 
-    std::shared_ptr<InfoMarkSelection> m_infoMarkSelection;
+    std::shared_ptr<InfomarkSelection> m_infoMarkSelection;
 
-    struct NODISCARD InfoMarkSelectionMove final
+    struct NODISCARD InfomarkSelectionMove final
     {
         Coordinate2f pos;
     };
-    std::optional<InfoMarkSelectionMove> m_infoMarkSelectionMove;
-    NODISCARD bool hasInfoMarkSelectionMove() const { return m_infoMarkSelectionMove.has_value(); }
+    std::optional<InfomarkSelectionMove> m_infoMarkSelectionMove;
+    NODISCARD bool hasInfomarkSelectionMove() const { return m_infoMarkSelectionMove.has_value(); }
 
     std::shared_ptr<ConnectionSelection> m_connectionSelection;
 

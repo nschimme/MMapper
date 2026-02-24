@@ -1,0 +1,72 @@
+name: build-appx
+
+on:
+  push:
+    tags:
+    - 'v*'
+    branches:
+    - master
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-appx:
+    runs-on: windows-2022
+    continue-on-error: false
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+        submodules: true
+    - name: ccache
+      uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        create-symlink: false
+        key: ${{ github.job }}-${{ runner.os }}
+        variant: sccache
+    - uses: lukka/get-cmake@latest
+    - uses: ilammy/msvc-dev-cmd@v1
+
+    # Install Dependencies (Windows)
+    - name: Install Qt for Windows
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: 6.5.3
+        dir: 'C:\'
+        arch: win64_msvc2019_64
+        cache: true
+        modules: 'qtwebsockets qtmultimedia'
+
+    # Build
+    - name: Build MMapper
+      shell: pwsh
+      run: |
+        mkdir ${{ github.workspace }}/artifact
+        mkdir build
+        cd build
+        cmake --version
+        $packageDir = ($env:GITHUB_WORKSPACE -replace '\\', '/') + "/artifact"
+        cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -G 'Ninja' -DCPACK_PACKAGE_DIRECTORY="$packageDir" -DCMAKE_PREFIX_PATH=$env:QT_ROOT_DIR -DWITH_WEBSOCKET=ON -DWITH_QTKEYCHAIN=ON -DWITH_UPDATER=OFF -DPACKAGE_TYPE=AppX -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache -S .. || exit -1
+        cmake --build . --parallel
+
+    # Package
+    - name: Package AppX
+      shell: bash
+      run: |
+        cd build
+        cpack -G External
+
+    - name: Get Windows package file base name
+      id: get_windows_package_name
+      shell: pwsh
+      run: |
+        $packageFile = Get-ChildItem -Path "${{ github.workspace }}/artifact/*.appxupload" | Select-Object -First 1
+        $packageBasename = $packageFile.BaseName -replace '\.', '-'
+        "PACKAGE_BASENAME=$packageBasename" >> $env:GITHUB_OUTPUT
+
+    - name: Upload AppX
+      uses: actions/upload-artifact@v6
+      with:
+        name: appx-${{ steps.get_windows_package_name.outputs.PACKAGE_BASENAME }}
+        path: ${{ github.workspace }}/artifact/*.appxupload*
+        if-no-files-found: error

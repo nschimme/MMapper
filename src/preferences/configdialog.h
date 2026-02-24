@@ -9,7 +9,6 @@
 
 #include <QDialog>
 #include <QString>
-#include <QtCore>
 
 class QListWidgetItem;
 class QObject;
@@ -34,6 +33,7 @@ public:
     ~ConfigDialog() final;
 
 protected:
+    void closeEvent(QCloseEvent *event) override;
     void showEvent(QShowEvent *event) override;
 
 private:
@@ -41,6 +41,7 @@ private:
 
 signals:
     void sig_graphicsSettingsChanged();
+    void sig_groupSettingsChanged();
     void sig_loadConfig();
 
 public slots:

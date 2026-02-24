@@ -49,22 +49,24 @@ public:
         : m_hash(QCryptographicHash::Md5)
     {}
 
-    void add(const RoomName &roomName, const RoomDesc &roomDesc)
+    NODISCARD static auto normalizeWhitespace(const RoomDesc &roomDesc)
     {
-        auto name = roomName.toQString();
-        // This is most likely unnecessary because the parser did it for us...
-        // We need plain ASCII so that accentuation changes do not affect the
-        // hashes and because MD5 is defined on bytes, not encoded chars.
-        mmqt::toAsciiInPlace(name);
         // Roomdescs may see whitespacing fixes over the years (ex: removing double
         // spaces after periods). MMapper ignores such changes when comparing rooms,
         // but the web mapper may only look up rooms by hash. Normalizing the
         // whitespaces makes the hash more resilient.
-        auto desc = mmqt::toQStringUtf8(
-            ParserUtils::normalizeWhitespace(roomDesc.toStdStringUtf8()));
-        mmqt::toAsciiInPlace(desc);
+        return mmqt::toQStringUtf8(ParserUtils::normalizeWhitespace(roomDesc.toStdStringUtf8()));
+    }
 
-        m_hash.addData(name.toLatin1() + char_consts::C_NEWLINE + desc.toLatin1()); // ASCII
+    void add(const RoomName &roomName, const RoomDesc &roomDesc)
+    {
+        const auto name = roomName.toQString();
+        const auto desc = normalizeWhitespace(roomDesc);
+        const auto msg = QString("%1%2%3").arg(name, mmqt::QS_NEWLINE, desc);
+        // Conversion to ASCII is most likely unnecessary because the parser did it for us...
+        // We need plain ASCII so that accentuation changes do not affect the
+        // hashes and because MD5 is defined on bytes, not encoded chars.
+        m_hash.addData(mmqt::toAsciiByteArray(msg));
     }
 
     NODISCARD QByteArray result() const { return m_hash.result(); }
@@ -313,7 +315,8 @@ void JsonWorld::writeMetadata(const QFileInfo &path, const Bounds &bounds) const
     meta["maxY"] = std::max(-min.y, -max.y);
     meta["maxZ"] = max.z;
 
-    meta["directions"] = []() {
+    // note: assignment implicitly converts the returned QJsonArray to QJsonValue
+    meta["directions"] = std::invoke([]() -> QJsonArray {
         QJsonArray arr;
         // why is there no QJsonArray::resize()?
         for (size_t i = 0; i <= NUM_EXITS; ++i) {
@@ -323,7 +326,7 @@ void JsonWorld::writeMetadata(const QFileInfo &path, const Bounds &bounds) const
             arr[static_cast<int>(i)] = getNameUpper(static_cast<ExitDirEnum>(i));
         }
         return arr;
-    }();
+    });
 
     writeJson(path.filePath(), meta, "metadata");
 }
@@ -427,7 +430,7 @@ JsonMapStorage::JsonMapStorage(const AbstractMapStorage::Data &data, QObject *pa
 
 JsonMapStorage::~JsonMapStorage() = default;
 
-bool JsonMapStorage::virt_saveData(const RawMapData &mapData)
+bool JsonMapStorage::virt_saveData(const MapLoadData &mapData)
 {
     log("Writing data to files ...");
 
@@ -437,9 +440,6 @@ bool JsonMapStorage::virt_saveData(const RawMapData &mapData)
     ConstRoomList roomList;
 
     const auto &map = mapData.mapPair.modified;
-    const RawMarkerData noMarkers;
-    const RawMarkerData &markerList = mapData.markerData.has_value() ? mapData.markerData.value()
-                                                                     : noMarkers;
 
     // REVISIT: This only excludes temporary rooms from being written,
     // but it doesn't exclude temporary rooms from connections.
@@ -452,7 +452,7 @@ bool JsonMapStorage::virt_saveData(const RawMapData &mapData)
     }
 
     const auto roomsCount = static_cast<uint32_t>(roomList.size());
-    const auto marksCount = static_cast<uint32_t>(markerList.size());
+    const auto marksCount = static_cast<uint32_t>(map.getMarksCount());
 
     auto &progressCounter = getProgressCounter();
     progressCounter.setNewTask(ProgressMsg{}, roomsCount * 2 + marksCount);

@@ -15,7 +15,10 @@
 #include "../opengl/Font.h"
 #include "../opengl/FontFormatFlags.h"
 #include "../opengl/OpenGL.h"
+#include "../opengl/OpenGLConfig.h"
 #include "../opengl/OpenGLTypes.h"
+#include "../opengl/legacy/Meshes.h"
+#include "../src/global/SendToUser.h"
 #include "Connections.h"
 #include "MapCanvasConfig.h"
 #include "MapCanvasData.h"
@@ -31,14 +34,10 @@
 #include <cstdint>
 #include <cstdlib>
 #include <functional>
-#include <limits>
-#include <list>
 #include <memory>
-#include <mutex>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
-#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -47,29 +46,15 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <QApplication>
 #include <QMessageBox>
 #include <QMessageLogContext>
-#include <QOpenGLWidget>
+#include <QOpenGLWindow>
 #include <QtCore>
 #include <QtGui/qopengl.h>
 #include <QtGui>
 
 namespace MapCanvasConfig {
-
-static std::mutex g_version_lock;
-static std::string g_current_gl_version = "UN0.0";
-
-static void setCurrentOpenGLVersion(std::string version)
-{
-    std::unique_lock<std::mutex> lock{g_version_lock};
-    g_current_gl_version = std::move(version);
-}
-
-std::string getCurrentOpenGLVersion()
-{
-    std::unique_lock<std::mutex> lock{g_version_lock};
-    return g_current_gl_version;
-}
 
 void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
                             ChangeMonitor::Function callback)
@@ -112,15 +97,15 @@ void setShowPerfStats(const bool show)
 class NODISCARD MakeCurrentRaii final
 {
 private:
-    QOpenGLWidget &m_glWidget;
+    QOpenGLWindow &m_glWindow;
 
 public:
-    explicit MakeCurrentRaii(QOpenGLWidget &widget)
-        : m_glWidget{widget}
+    explicit MakeCurrentRaii(QOpenGLWindow &window)
+        : m_glWindow{window}
     {
-        m_glWidget.makeCurrent();
+        m_glWindow.makeCurrent();
     }
-    ~MakeCurrentRaii() { m_glWidget.doneCurrent(); }
+    ~MakeCurrentRaii() { m_glWindow.doneCurrent(); }
 
     DELETE_CTORS_AND_ASSIGN_OPS(MakeCurrentRaii);
 };
@@ -129,7 +114,7 @@ void MapCanvas::cleanupOpenGL()
 {
     // Make sure the context is current and then explicitly
     // destroy all underlying OpenGL resources.
-    MakeCurrentRaii makeCurrentRaii{*this}; // Assuming MakeCurrentRaii correctly handles QOpenGLWidget context
+    MakeCurrentRaii makeCurrentRaii{*this};
 
     // note: m_batchedMeshes co-owns textures created by MapCanvasData,
     // and it also owns the lifetime of some OpenGL objects (e.g. VBOs).
@@ -162,9 +147,8 @@ void MapCanvas::reportGLVersion()
     logString("OpenGL Vendor:", GL_VENDOR);
     logString("OpenGL GLSL:", GL_SHADING_LANGUAGE_VERSION);
 
-    const auto version = [this]() -> std::string {
-        // context() is a method of QOpenGLWidget
-        const QSurfaceFormat &format = this->QOpenGLWidget::context()->format();
+    const auto version = std::invoke([this]() -> std::string {
+        const QSurfaceFormat &format = context()->format();
         std::ostringstream oss;
         switch (format.renderableType()) {
         case QSurfaceFormat::OpenGL:
@@ -183,17 +167,21 @@ void MapCanvas::reportGLVersion()
         }
         oss << format.majorVersion() << "." << format.minorVersion();
         return std::move(oss).str();
-    }();
-
-    MapCanvasConfig::setCurrentOpenGLVersion(version);
+    });
 
     logMsg("Current OpenGL Context:",
            QString("%1 (%2)")
                .arg(version.c_str())
                // FIXME: This is a bit late to report an invalid context.
-                // context() is a method of QOpenGLWidget
-               .arg(this->QOpenGLWidget::context()->isValid() ? "valid" : "invalid")
+               .arg(context()->isValid() ? "valid" : "invalid")
                .toUtf8());
+    if constexpr (!NO_OPENGL) {
+        logMsg("Highest OpenGL:", mmqt::toQByteArrayUtf8(OpenGLConfig::getGLVersionString()));
+    }
+    if constexpr (!NO_GLES) {
+        logMsg("Highest GLES:", mmqt::toQByteArrayUtf8(OpenGLConfig::getESVersionString()));
+    }
+
     logMsg("Display:", QString("%1 DPI").arg(QPaintDevice::devicePixelRatioF()).toUtf8());
 }
 
@@ -217,22 +205,29 @@ bool MapCanvas::isBlacklistedDriver()
 
 void MapCanvas::initializeGL()
 {
-    auto &gl = getOpenGL();
-    gl.initializeOpenGLFunctions();
+    OpenGL &gl = getOpenGL();
+    try {
+        gl.initializeOpenGLFunctions();
 
-    reportGLVersion();
-
-    // TODO: Perform the blacklist test as a call from main() to minimize player headache.
-    if (isBlacklistedDriver()) {
-        setConfig().canvas.softwareOpenGL = true;
-        setConfig().write();
-        this->QWidget::hide(); // QWidget method
-        this->QOpenGLWidget::doneCurrent(); // QOpenGLWidget method
-        QMessageBox::critical(static_cast<QWidget*>(this), // Explicit cast for QMessageBox parent
-                              "OpenGL Driver Blacklisted",
-                              "Please restart MMapper to enable software rendering");
+        // TODO: Perform the blacklist test as a call from main() to minimize player headache.
+        if (isBlacklistedDriver()) {
+            throw std::runtime_error("unsupported driver");
+        }
+    } catch (const std::exception &) {
+        hide();
+        doneCurrent();
+        QMessageBox::critical(QApplication::activeWindow(),
+                              "Unable to initialize OpenGL",
+                              "Upgrade your video card drivers");
+        if constexpr (CURRENT_PLATFORM == PlatformEnum::Windows) {
+            // Link to Microsoft OpenGL Compatibility Pack
+            QDesktopServices::openUrl(
+                QUrl(QStringLiteral("ms-windows-store://pdp/?productid=9nqpsl29bfff")));
+        }
         return;
     }
+
+    reportGLVersion();
 
     // NOTE: If you're adding code that relies on generating OpenGL errors (e.g. ANGLE),
     // you *MUST* force it to complete those error probes before calling initLogger(),
@@ -247,96 +242,44 @@ void MapCanvas::initializeGL()
     auto &font = getGLFont();
     font.setTextureId(allocateTextureId());
     font.init();
+    updateTextures();
+
+    // compile all shaders
+    {
+        auto &sharedFuncs = gl.getSharedFunctions(Badge<MapCanvas>{});
+        Legacy::Functions &funcs = deref(sharedFuncs);
+        Legacy::ShaderPrograms &programs = funcs.getShaderPrograms();
+        programs.early_init();
+    }
 
     setConfig().canvas.showUnsavedChanges.registerChangeCallback(m_lifetime, [this]() {
-        // if (setConfig().canvas.showUnsavedChanges.get() && m_diff.highlight.has_value()
-        //     && m_diff.highlight->needsUpdate.empty()) {
-        //     this->forceUpdateMeshes();
-        // }
-        this->QWidget::update(); // QWidget::update
+        if (getConfig().canvas.showUnsavedChanges.get() && m_diff.highlight.has_value()
+            && m_diff.highlight->highlights.empty()) {
+            this->forceUpdateMeshes();
+        }
     });
 
     setConfig().canvas.showMissingMapId.registerChangeCallback(m_lifetime, [this]() {
-        // if (setConfig().canvas.showMissingMapId.get() && m_diff.highlight.has_value()
-        //     && m_diff.highlight->needsUpdate.empty()) {
-        //     this->forceUpdateMeshes();
-        // }
-        this->QWidget::update(); // QWidget::update
+        if (getConfig().canvas.showMissingMapId.get() && m_diff.highlight.has_value()
+            && m_diff.highlight->highlights.empty()) {
+            this->forceUpdateMeshes();
+        }
     });
 
     setConfig().canvas.showUnmappedExits.registerChangeCallback(m_lifetime, [this]() {
         this->forceUpdateMeshes();
     });
 
-    // context() is QOpenGLWidget method
-    QOpenGLExtraFunctions *f = this->QOpenGLWidget::context()->extraFunctions();
-    f->glGenVertexArrays(1, &m_defaultVao);
-    f->glBindVertexArray(m_defaultVao);
+    setConfig().canvas.antialiasingSamples.registerChangeCallback(m_lifetime, [this]() {
+        this->updateMultisampling();
+        this->update();
+    });
 
-    // Calculate initial calibrated line width // Removed
-    // this->updateCalibratedWorldLineWidth(); // Removed
-
-    // Register callback for FoV changes // Removed
-    // getConfig().canvas.advanced.fov.registerChangeCallback(m_lifetime, [this]() {
-    //     this->updateCalibratedWorldLineWidth();
-    //     this->update(); // Or this->forceUpdateMeshes(); if more direct update is needed
-    // });
+    setConfig().canvas.trilinearFiltering.registerChangeCallback(m_lifetime, [this]() {
+        this->updateTextures();
+        this->update();
+    });
 }
-
-// Removed MapCanvas::updateCalibratedWorldLineWidth() method definition
-/*
-void MapCanvas::updateCalibratedWorldLineWidth() {
-    constexpr float TARGET_LOGICAL_WIDTH = 2.0f;
-    // BASESIZE is defined in mapcanvas.h as 1024
-    constexpr float BASESIZE_LOGICAL_PIXELS = static_cast<float>(MapCanvas::BASESIZE);
-    constexpr float Z_REF = 60.0f; // From FIXED_VIEW_DISTANCE in old getViewProj
-
-    float dpr = getOpenGL().getDevicePixelRatio();
-    if (dpr <= 0.0f) dpr = 1.0f; // Safety
-
-    float targetPhysicalPixelWidth = TARGET_LOGICAL_WIDTH * dpr;
-    float basesizePhysicalPixelH = BASESIZE_LOGICAL_PIXELS * dpr;
-    if (basesizePhysicalPixelH == 0.0f) basesizePhysicalPixelH = 1.0f; // Avoid division by zero
-
-    float fovYRad = glm::radians(getConfig().canvas.advanced.fov.getFloat());
-    if (fovYRad < 0.01f) fovYRad = 0.01f; // Prevent too small FoV
-    if (fovYRad > glm::pi<float>() - 0.01f) fovYRad = glm::pi<float>() - 0.01f; // Prevent too large FoV
-
-    float tanFovDiv2 = tan(fovYRad / 2.0f);
-    if (std::abs(tanFovDiv2) < 1e-6) { // if tan is very close to zero (FoV near 0)
-         m_calibratedWorldHalfLineWidth = 0.01f; // a small default world width
-         // Optionally log a warning: qWarning() << "FoV is near zero, using default line width";
-         return;
-    }
-    if (std::isinf(tanFovDiv2) || std::isnan(tanFovDiv2)) { // if FoV is pi or problematic
-         m_calibratedWorldHalfLineWidth = 0.01f; // a small default world width
-         // Optionally log a warning: qWarning() << "FoV is problematic (e.g., PI), using default line width";
-         return;
-    }
-
-    // worldUnitsPerPhysicalPixelYAtRef calculation:
-    // Half height of view frustum at Z_REF = Z_REF * tan(fovYRad / 2.0f)
-    // Total height = 2.0f * Z_REF * tan(fovYRad / 2.0f)
-    // This total height corresponds to basesizePhysicalPixelH pixels on screen.
-    // So, worldUnitsPerPhysicalPixelYAtRef = (Total height in world units) / (Total height in physical pixels)
-    float worldUnitsPerPhysicalPixelYAtRef = (2.0f * Z_REF * tanFovDiv2) / basesizePhysicalPixelH;
-
-    // Check for division by zero if basesizePhysicalPixelH was zero (already handled) or tanFovDiv2 is zero.
-    if (basesizePhysicalPixelH == 0.0f) { // tanFovDiv2 already checked
-         m_calibratedWorldHalfLineWidth = 0.01f; // fallback
-         return;
-    }
-
-    m_calibratedWorldHalfLineWidth = (targetPhysicalPixelWidth / 2.0f) * worldUnitsPerPhysicalPixelYAtRef;
-
-    // Sanity clamps
-    if (m_calibratedWorldHalfLineWidth < 0.001f) m_calibratedWorldHalfLineWidth = 0.001f;
-    if (m_calibratedWorldHalfLineWidth > 0.5f) {
-        // qWarning() << "Calibrated world half line width is very large:" << m_calibratedWorldHalfLineWidth;
-        m_calibratedWorldHalfLineWidth = 0.5f;
-    }
-}
-*/
 
 /* Direct means it is always called from the emitter's thread */
 void MapCanvas::slot_onMessageLoggedDirect(const QOpenGLDebugMessage &message)
@@ -442,7 +385,7 @@ glm::mat4 MapCanvas::getViewProj(const glm::vec2 &scrollPos,
     const auto yawRadians = glm::radians(advanced.horizontalAngle.getFloat());
     const auto layerHeight = advanced.layerHeight.getFloat();
 
-    const auto pixelScale = [aspect, fovDegrees, width]() -> float {
+    const auto pixelScale = std::invoke([aspect, fovDegrees, width]() -> float {
         constexpr float HARDCODED_LOGICAL_PIXELS = 44.f;
         const auto dummyProj = glm::perspective(glm::radians(fovDegrees), aspect, 1.f, 10.f);
 
@@ -458,7 +401,7 @@ glm::mat4 MapCanvas::getViewProj(const glm::vec2 &scrollPos,
         const float screenDist = ndcDist * static_cast<float>(width);
         const auto pixels = std::abs(centerRoom.z) * screenDist;
         return pixels / HARDCODED_LOGICAL_PIXELS;
-    }();
+    });
 
     const float ZSCALE = layerHeight;
     const float camDistance = pixelScale / zoomScale;
@@ -521,38 +464,35 @@ void MapCanvas::setViewportAndMvp(int width, int height)
     auto &gl = getOpenGL();
 
     gl.glViewport(0, 0, width, height);
-    const auto size = this->MapCanvasViewport::getViewport().size;
+    const auto size = getViewport().size;
     assert(size.x == width);
     assert(size.y == height);
 
-    const float zoomScale = this->MapCanvasViewport::getTotalScaleFactor();
+    const float zoomScale = getTotalScaleFactor();
     const auto viewProj = (!want3D) ? getViewProj_old(m_scroll, size, zoomScale, m_currentLayer)
                                     : getViewProj(m_scroll, size, zoomScale, m_currentLayer);
     setMvp(viewProj);
-    this->MapCanvasViewport::updateFrustumPlanes();
-    launchVisibilityUpdateTask();
 }
 
 void MapCanvas::resizeGL(int width, int height)
 {
-    if (m_textures.room_modified == nullptr) {
+    if (m_textures.room_highlight == nullptr) {
         // resizeGL called but initializeGL was not called yet
         return;
     }
 
-    setViewportAndMvp(width, height); // Ensure projection is set before unprojecting
-    // updateVisibleChunks(); // Calls launchVisibilityUpdateTask
-    // requestMissingChunks(); // Handled by async flow
-    launchVisibilityUpdateTask(); // Explicitly trigger for resize too
+    setViewportAndMvp(width, height);
+    updateMultisampling();
 
     // Render
-    this->QWidget::update(); // QWidget method
+    update();
 }
 
 void MapCanvas::setAnimating(bool value)
 {
-    if (m_frameRateController.animating == value)
+    if (m_frameRateController.animating == value) {
         return;
+    }
 
     m_frameRateController.animating = value;
 
@@ -572,7 +512,7 @@ void MapCanvas::renderLoop()
     auto targetFrameTime = std::chrono::milliseconds(1000 / TARGET_FRAMES_PER_SECOND);
 
     auto now = std::chrono::steady_clock::now();
-    this->QWidget::update(); // QWidget method
+    update();
     auto afterPaint = std::chrono::steady_clock::now();
 
     // Render the next frame at the appropriate time or now if we're behind
@@ -610,7 +550,8 @@ void MapCanvas::updateMapBatches()
 
     auto getFuture = [this]() {
         MMLOG() << "[updateMapBatches] calling generateBatches";
-        return m_data.generateBatches(mctp::getProxy(m_textures));
+        return m_data.generateBatches(mctp::getProxy(m_textures),
+                                      getGLFont().getSharedFontMetrics());
     };
 
     remeshCookie.set(getFuture());
@@ -619,119 +560,86 @@ void MapCanvas::updateMapBatches()
     m_diff.cancelUpdates(m_data.getSavedMap());
 }
 
+bool Batches::isInProgress() const
+{
+    return remeshCookie.isPending() || next_mapBatches.has_value();
+}
+
 void MapCanvas::finishPendingMapBatches()
 {
-    std::string_view prefix = "[finishPendingMapBatches] ";
+    if (!m_batches.isInProgress()) {
+        return;
+    }
 
 #define LOG() MMLOG() << prefix
+    static const std::string_view prefix = "[finishPendingMapBatches] ";
+
+    MAYBE_UNUSED RAIICallback eventually{[this] {
+        if (!m_batches.isInProgress()) {
+            setAnimating(false);
+        }
+    }};
+
+    if (m_batches.next_mapBatches.has_value()) {
+        m_batches.mapBatches = std::exchange(m_batches.next_mapBatches, std::nullopt);
+    }
 
     RemeshCookie &remeshCookie = m_batches.remeshCookie;
-    if (!remeshCookie.isPending()) {
-        return;
-    } else if (!remeshCookie.isReady()) {
+    if (!remeshCookie.isPending() || !remeshCookie.isReady()) {
         return;
     }
 
     LOG() << "Waiting for the cookie. This shouldn't take long.";
-    SharedMapBatchFinisher pFuture = remeshCookie.get();
-    assert(!remeshCookie.isPending());
+    try {
+        SharedMapBatchFinisher pFuture = remeshCookie.get();
+        assert(!remeshCookie.isPending());
 
-    setAnimating(false);
-
-    if (pFuture == nullptr) {
-        // REVISIT: Do we need to schedule another update now?
-        LOG() << "Got NULL (means the update was flagged to be ignored)";
-        return;
-    }
-
-    // REVISIT: should we pass a "fake" one and only swap to the correct one on success?
-    LOG() << "Clearing the map batches and call the finisher to create new ones";
-
-    DECL_TIMER(t, __FUNCTION__);
-    const IMapBatchesFinisher &finisher_obj = *pFuture; // Renamed 'future' to 'finisher_obj' to avoid conflict
-
-    std::optional<MapBatches> temporaryNewBatches_opt;
-    // The global 'finish' function (from MapCanvasRoomDrawer.h) will emplace into temporaryNewBatches_opt
-    // It calls finisher_obj.virt_finish(MapBatches &output, OpenGL &gl, GLFont &font)
-    finish(finisher_obj, temporaryNewBatches_opt, getOpenGL(), getGLFont());
-
-    if (temporaryNewBatches_opt.has_value()) {
-        LOG() << "Successfully finished specific chunk batches into temporary MapBatches.";
-        MapBatches& temporaryNewBatches = *temporaryNewBatches_opt;
-
-        if (!m_batches.mapBatches.has_value()) {
-            // This is the first batch of data, or main batches were previously cleared.
-            LOG() << "Main mapBatches is empty, moving temporaryNewBatches.";
-            m_batches.mapBatches.emplace(std::move(temporaryNewBatches));
-            // Clear pending flags for all chunks that were just loaded by iterating the moved content
-            if (m_batches.mapBatches.has_value()) {
-                for (const auto& layer_pair : m_batches.mapBatches->batchedMeshes) {
-                    for (const auto& chunk_pair : layer_pair.second) {
-                        if (m_pendingChunkGenerations.erase({layer_pair.first, chunk_pair.first})) {
-                            // LOG() << "Erased " << layer_pair.first << ":" << chunk_pair.first << " from pending (initial load).";
-                        }
-                    }
-                }
-            }
-        } else {
-            // Merge temporaryNewBatches into existing m_batches.mapBatches
-            LOG() << "Merging temporaryNewBatches into existing main mapBatches.";
-            MapBatches& mainMapBatches = *m_batches.mapBatches;
-
-            for (auto& layer_pair : temporaryNewBatches.batchedMeshes) {
-                int layerId = layer_pair.first;
-                auto& new_chunks_in_layer = layer_pair.second; // Use auto& for non-const access
-                for (auto& chunk_pair : new_chunks_in_layer) {
-                        RoomAreaHash roomAreaHash = chunk_pair.first;
-                        mainMapBatches.batchedMeshes[layerId].insert_or_assign(roomAreaHash, std::move(chunk_pair.second));
-                        if (m_pendingChunkGenerations.erase({layerId, roomAreaHash})) {
-                            // LOG() << "Erased " << layerId << ":" << roomAreaHash << " from pending (merge).";
-                    }
-                }
-            }
-
-            for (auto& layer_pair : temporaryNewBatches.connectionMeshes) {
-                int layerId = layer_pair.first;
-                auto& new_connection_chunks_in_layer = layer_pair.second; // Use auto& for non-const access
-                for (auto& chunk_pair : new_connection_chunks_in_layer) {
-                        RoomAreaHash roomAreaHash = chunk_pair.first;
-                        mainMapBatches.connectionMeshes[layerId].insert_or_assign(roomAreaHash, std::move(chunk_pair.second));
-                }
-            }
-
-            for (auto& layer_pair : temporaryNewBatches.roomNameBatches) {
-                int layerId = layer_pair.first;
-                auto& new_roomname_chunks_in_layer = layer_pair.second; // Use auto& for non-const access
-                for (auto& chunk_pair : new_roomname_chunks_in_layer) {
-                        RoomAreaHash roomAreaHash = chunk_pair.first;
-                        mainMapBatches.roomNameBatches[layerId].insert_or_assign(roomAreaHash, std::move(chunk_pair.second));
-                }
-            }
+        if (pFuture == nullptr) {
+            // REVISIT: Do we need to schedule another update now?
+            LOG() << "Got NULL (means the update was flagged to be ignored)";
+            return;
         }
-    } else {
-        LOG() << "::finish with pFuture did not populate temporaryNewBatches_opt. This should not happen if pFuture is valid.";
-        // If finish fails to emplace, specific chunks associated with pFuture remain pending.
-        // No specific action needed here for m_pendingChunkGenerations, requestMissingChunks will handle retries.
+
+        // REVISIT: should we pass a "fake" one and only swap to the correct one on success?
+        LOG() << "Clearing the map batches and call the finisher to create new ones";
+
+        DECL_TIMER(t, __FUNCTION__);
+        const IMapBatchesFinisher &future = *pFuture;
+        std::optional<MapBatches> &opt_mapBatches = m_batches.next_mapBatches;
+        opt_mapBatches.reset();
+        finish(future, opt_mapBatches, getOpenGL(), getGLFont());
+        assert(opt_mapBatches.has_value());
+        m_data.saveSnapshot();
+
+    } catch (...) {
+        QString msg;
+        try {
+            std::rethrow_exception(std::current_exception());
+        } catch (const std::exception &ex) {
+            msg = ex.what();
+        } catch (...) {
+            msg = QStringLiteral("unknown");
+        }
+        const auto s = QString("ERROR: %1\nReverting map to previous snapshot. Please file a bug!\n")
+                           .arg(msg);
+        qWarning().noquote() << s;
+        global::sendToUser(s);
+
+        // FIXME: This causes a cycle when the remeshing throws.
+        m_data.restoreSnapshot();
     }
-    // The broad m_pendingChunkGenerations.clear() that was here is removed as per subtask.
-    // Chunks are erased individually above as they are processed.
-    // If pFuture itself was null, m_pendingChunkGenerations is cleared in the block above for that case.
-    // The original logic for pFuture == nullptr also cleared m_pendingChunkGenerations,
-    // which is covered by clearing it after remeshCookie.get() if isReady() was true.
-    // The update() call is also important.
-    this->QWidget::update();
-
-
 #undef LOG
 }
 
 void MapCanvas::actuallyPaintGL()
 {
     // DECL_TIMER(t, __FUNCTION__);
-    // width() and height() are QWidget methods, wrapped in mapcanvas.h to QOpenGLWidget::width/height
-    setViewportAndMvp(this->QOpenGLWidget::width(), this->QOpenGLWidget::height());
+    setViewportAndMvp(width(), height());
 
     auto &gl = getOpenGL();
+    gl.bindNamedColorsBuffer();
+
+    gl.bindFbo();
     gl.clear(Color{getConfig().canvas.backgroundColor});
 
     if (m_data.isEmpty()) {
@@ -744,6 +652,9 @@ void MapCanvas::actuallyPaintGL()
     paintSelections();
     paintCharacters();
     paintDifferences();
+
+    gl.releaseFbo();
+    gl.blitFboToDefault();
 }
 
 NODISCARD bool MapCanvas::Diff::isUpToDate(const Map &saved, const Map &current) const
@@ -794,66 +705,58 @@ void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current)
         return;
     }
 
-    const bool showNeedsServerId = getConfig().canvas.showMissingMapId.get();
-    const bool showChanged = getConfig().canvas.showUnsavedChanges.get();
+    const auto &config = getConfig();
+    const auto &canvas = config.canvas;
+    const bool showNeedsServerId = canvas.showMissingMapId.get();
+    const bool showChanged = canvas.showUnsavedChanges.get();
 
     diff.futureHighlight = std::async(
         std::launch::async,
         [saved, current, showNeedsServerId, showChanged]() -> Diff::HighlightDiff {
-            DECL_TIMER(t2, "[async] actuallyPaintGL: highlight differences and needs update");
-            // 3-2
-            // |/|
-            // 0-1
-            static constexpr std::array<glm::vec3, 4> corners{
-                glm::vec3{0, 0, 0},
-                glm::vec3{1, 0, 0},
-                glm::vec3{1, 1, 0},
-                glm::vec3{0, 1, 0},
-            };
+            DECL_TIMER(t2,
+                       "[async] actuallyPaintGL: highlight changes, temporary, and needs update");
 
-            // REVISIT: Just send the position and convert from point to quad in a shader?
-            auto getChanged = [&saved, &current, showChanged]() -> TexVertVector {
-                if (!showChanged) {
-                    return TexVertVector{};
+            auto getHighlights =
+                [&saved, &current, showChanged, showNeedsServerId]() -> Diff::MaybeDataOrMesh {
+                if (!showChanged && !showNeedsServerId) {
+                    return Diff::MaybeDataOrMesh{};
                 }
-                DECL_TIMER(t3, "[async] actuallyPaintGL: compute differences");
-                TexVertVector changed;
-                auto drawQuad = [&changed](const RawRoom &room) {
-                    const auto &pos = room.getPosition().to_vec3();
-                    for (auto &corner : corners) {
-                        changed.emplace_back(corner, pos + corner);
-                    }
+
+                DECL_TIMER(t3, "[async] actuallyPaintGL: compute highlights");
+                DiffQuadVector highlights;
+                auto drawQuad = [&highlights](const RawRoom &room, const NamedColorEnum color) {
+                    const auto pos = room.getPosition().to_ivec3();
+                    highlights.emplace_back(pos, 0, color);
                 };
 
-                ProgressCounter dummyPc;
-                Map::foreachChangedRoom(dummyPc, saved, current, drawQuad);
-                return changed;
-            };
-
-            auto getNeedsUpdate = [&current, showNeedsServerId]() -> TexVertVector {
-                if (!showNeedsServerId) {
-                    return TexVertVector{};
-                }
-                DECL_TIMER(t3, "[async] actuallyPaintGL: compute needs update");
-
-                TexVertVector needsUpdate;
-                auto drawQuad = [&needsUpdate](const RoomHandle &h) {
-                    const auto &pos = h.getPosition().to_vec3();
-                    for (auto &corner : corners) {
-                        needsUpdate.emplace_back(corner, pos + corner);
-                    }
-                };
-                for (auto id : current.getRooms()) {
-                    if (auto h = current.getRoomHandle(id)) {
-                        if (h.getServerId() == INVALID_SERVER_ROOMID) {
-                            drawQuad(h);
+                // Handle rooms needing a server ID or that are temporary
+                if (showNeedsServerId) {
+                    current.getRooms().for_each([&](auto id) {
+                        if (auto h = current.getRoomHandle(id)) {
+                            if (h.isTemporary()) {
+                                drawQuad(h.getRaw(), NamedColorEnum::HIGHLIGHT_TEMPORARY);
+                            } else if (h.getServerId() == INVALID_SERVER_ROOMID) {
+                                drawQuad(h.getRaw(), NamedColorEnum::HIGHLIGHT_NEEDS_SERVER_ID);
+                            }
                         }
-                    }
+                    });
                 }
-                return needsUpdate;
+
+                // Handle changed rooms
+                if (showChanged) {
+                    ProgressCounter dummyPc;
+                    Map::foreachChangedRoom(dummyPc, saved, current, [&](const RawRoom &room) {
+                        drawQuad(room, NamedColorEnum::HIGHLIGHT_UNSAVED);
+                    });
+                }
+
+                if (highlights.empty()) {
+                    return Diff::MaybeDataOrMesh{};
+                }
+                return Diff::MaybeDataOrMesh{std::move(highlights)};
             };
 
-            return Diff::HighlightDiff{saved, current, getNeedsUpdate(), getChanged()};
+            return Diff::HighlightDiff{saved, current, getHighlights()};
         });
 }
 
@@ -868,24 +771,12 @@ void MapCanvas::paintDifferences()
         return;
     }
 
-    const auto &highlight = deref(diff.highlight);
+    auto &highlight = deref(diff.highlight);
     auto &gl = getOpenGL();
 
-    auto tryRenderWithTexture = [&gl](const TexVertVector &points, const MMTextureId texid) {
-        if (points.empty()) {
-            return;
-        }
-        gl.renderTexturedQuads(points,
-                               GLRenderState()
-                                   .withColor(Colors::white)
-                                   .withBlend(BlendModeEnum::TRANSPARENCY)
-                                   .withTexture0(texid));
-    };
-
-    if (getConfig().canvas.showMissingMapId.get()) {
-        tryRenderWithTexture(highlight.needsUpdate, m_textures.room_needs_update->getId());
+    if (auto &highlights = highlight.highlights; !highlights.empty()) {
+        highlights.render(gl, m_textures.room_highlight->getArrayPosition().array);
     }
-    tryRenderWithTexture(highlight.diff, m_textures.room_modified->getId());
 }
 
 void MapCanvas::paintMap()
@@ -901,7 +792,7 @@ void MapCanvas::paintMap()
         if (!pending) {
             // REVISIT: does this need a better fix?
             // pending already scheduled an update, but now we realize we need an update.
-            this->QWidget::update();
+            update();
         }
         return;
     }
@@ -922,12 +813,11 @@ void MapCanvas::paintSelections()
     paintSelectedRooms();
     paintSelectedConnection();
     paintSelectionArea();
-    paintSelectedInfoMarks();
+    paintSelectedInfomarks();
 }
 
 void MapCanvas::paintGL()
 {
-    checkAndProcessVisibilityResult();
     static thread_local double longestBatchMs = 0.0;
 
     const bool showPerfStats = MapCanvasConfig::getShowPerfStats();
@@ -941,8 +831,6 @@ void MapCanvas::paintGL()
     }
 
     {
-        updateMultisampling();
-        updateTextures();
         if (showPerfStats) {
             optAfterTextures = Clock::now();
         }
@@ -971,16 +859,15 @@ void MapCanvas::paintGL()
     const auto &afterTextures = optAfterTextures.value();
     const auto &afterBatches = optAfterBatches.value();
     const auto afterPaint = Clock::now();
-    const bool calledFinish = [this]() -> bool {
-        // context() is a QOpenGLWidget method
-        if (auto *const ctxt = this->QOpenGLWidget::context()) {
+    const bool calledFinish = std::invoke([this]() -> bool {
+        if (auto *const ctxt = QOpenGLWindow::context()) {
             if (auto *const func = ctxt->functions()) {
                 func->glFinish();
                 return true;
             }
         }
         return false;
-    }();
+    });
 
     const auto end = Clock::now();
 
@@ -988,8 +875,8 @@ void MapCanvas::paintGL()
         return double(std::chrono::duration_cast<std::chrono::nanoseconds>(delta).count()) * 1e-6;
     };
 
-    const auto w = this->QOpenGLWidget::width();
-    const auto h = this->QOpenGLWidget::height();
+    const auto w = width();
+    const auto h = height();
     const auto dpr = getOpenGL().getDevicePixelRatio();
 
     auto &font = getGLFont();
@@ -1120,15 +1007,8 @@ void MapCanvas::paintSelectionArea()
 
 void MapCanvas::updateMultisampling()
 {
-    const int wantMultisampling = getConfig().canvas.antialiasingSamples;
-    std::optional<int> &activeStatus = m_graphicsOptionsStatus.multisampling;
-    if (activeStatus == wantMultisampling) {
-        return;
-    }
-
-    // REVISIT: check return value?
-    MAYBE_UNUSED const bool enabled = getOpenGL().tryEnableMultisampling(wantMultisampling);
-    activeStatus = wantMultisampling;
+    const int wantMultisampling = getConfig().canvas.antialiasingSamples.get();
+    getOpenGL().configureFbo(wantMultisampling);
 }
 
 void MapCanvas::renderMapBatches()
@@ -1148,124 +1028,55 @@ void MapCanvas::renderMapBatches()
                                && (totalScaleFactor >= settings.doorNameScaleCutoff);
 
     auto &gl = getOpenGL();
-    // batches.batchedMeshes is std::map<int, ChunkedLayerMeshes> (main terrain, etc.)
-    // batches.connectionMeshes is std::map<int, std::map<RoomAreaHash, ConnectionMeshes>>
-    // batches.roomNameBatches is std::map<int, std::map<RoomAreaHash, UniqueMesh>>
-    const auto& allChunkedLayerMeshes = batches.batchedMeshes;
+
+    BatchedMeshes &batchedMeshes = batches.batchedMeshes;
+
+    const auto drawLayer =
+        [&batches, &batchedMeshes, wantExtraDetail, wantDoorNames](const int thisLayer,
+                                                                   const int currentLayer) {
+            const auto it_mesh = batchedMeshes.find(thisLayer);
+            if (it_mesh != batchedMeshes.end()) {
+                LayerMeshes &meshes = it_mesh->second;
+                meshes.render(thisLayer, currentLayer);
+            }
+
+            if (wantExtraDetail) {
+                BatchedConnectionMeshes &connectionMeshes = batches.connectionMeshes;
+                const auto it_conn = connectionMeshes.find(thisLayer);
+                if (it_conn != connectionMeshes.end()) {
+                    ConnectionMeshes &meshes = it_conn->second;
+                    meshes.render(thisLayer, currentLayer);
+                }
+
+                // NOTE: This can display room names in lower layers, but the text
+                // isn't currently drawn with an appropriate Z-offset, so it doesn't
+                // stay aligned to its actual layer when you switch view layers.
+                if (wantDoorNames && thisLayer == currentLayer) {
+                    BatchedRoomNames &roomNameBatches = batches.roomNameBatches;
+                    const auto it_name = roomNameBatches.find(thisLayer);
+                    if (it_name != roomNameBatches.end()) {
+                        auto &roomNameBatch = it_name->second;
+                        roomNameBatch.render(GLRenderState());
+                    }
+                }
+            }
+        };
 
     const auto fadeBackground = [&gl, &settings]() {
         auto bgColor = Color{settings.backgroundColor.getColor(), 0.5f};
-        const auto blendedWithBackground = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withColor(bgColor);
+
+        const auto blendedWithBackground
+            = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withColor(bgColor);
+
         gl.renderPlainFullScreenQuad(blendedWithBackground);
     };
 
-    bool currentLayerHasBeenSetup = false;
-
-    // Iterate through layers that have LayerMeshes (terrain, etc.)
-    // We use this as the primary loop for determining which layers to process.
-    for (const auto& layerMeshesPair : allChunkedLayerMeshes) {
-        const int layerId = layerMeshesPair.first;
-        const ChunkedLayerMeshes& terrainChunksInLayer = layerMeshesPair.second; // Map of RoomAreaHash -> LayerMeshes
-
-        if (std::abs(layerId - m_currentLayer) > getConfig().canvas.mapRadius[2]) {
-            continue;
-        }
-
-        // Setup for current layer (clear depth, fade background)
-        if (layerId == m_currentLayer && !currentLayerHasBeenSetup) {
-            gl.clearDepth();
-            fadeBackground();
-            currentLayerHasBeenSetup = true;
-        }
-
-        auto itVisibleLayer = m_visibleChunks.find(layerId);
-        if (itVisibleLayer == m_visibleChunks.end() || itVisibleLayer->second.empty()) {
-            // This layer isn't in m_visibleChunks or has no visible chunks calculated for it.
-            continue;
-        }
-        const std::set<RoomAreaHash>& visibleChunkIdsForLayer = itVisibleLayer->second;
-
-        bool fontShaderWasBound = false;
-        GLRenderState nameRenderState; // Define once per layer
-        nameRenderState = GLRenderState()
-                              .withBlend(BlendModeEnum::TRANSPARENCY)
-                              .withDepthFunction(DepthFunctionEnum::LEQUAL);
-
-        // Check if any room names need rendering for this layer to bind shader once
-        auto itLayerRoomNames = batches.roomNameBatches.find(layerId);
-        if (wantDoorNames && layerId == m_currentLayer && itLayerRoomNames != batches.roomNameBatches.end()) {
-            const auto& chunkedRoomNamesForLayer = itLayerRoomNames->second;
-            for (const RoomAreaHash roomAreaHash : visibleChunkIdsForLayer) {
-                if (chunkedRoomNamesForLayer.count(roomAreaHash)) {
-                    const UniqueMesh& nameMesh = chunkedRoomNamesForLayer.at(roomAreaHash);
-                    if (nameMesh.isValid()) { // Check UniqueMesh validity
-                        // Font shader is managed internally by GLFont render methods
-                        // m_glFont.getFontShader().bind(); // Removed
-                        fontShaderWasBound = true; // Keep track if any font mesh exists in this layer
-                        // No break here, need to check all chunks for this layer
-                    }
-                }
-            }
-        }
-
-        // Iterate all visible chunks for this layer
-        for (const RoomAreaHash roomAreaHash : visibleChunkIdsForLayer) {
-            // Render LayerMeshes (terrain, etc.) for the chunk
-            auto itChunkLayerMeshes = terrainChunksInLayer.find(roomAreaHash);
-            if (itChunkLayerMeshes != terrainChunksInLayer.end()) {
-                LayerMeshes& meshes = const_cast<LayerMeshes&>(itChunkLayerMeshes->second);
-                if (meshes) {
-                    meshes.render(layerId, m_currentLayer);
-                }
-            }
-
-            // Render connections for this specific chunk if extra detail is on
-            if (wantExtraDetail) {
-                auto itLayerConnectionMeshes = batches.connectionMeshes.find(layerId);
-                if (itLayerConnectionMeshes != batches.connectionMeshes.end()) {
-                    const auto& chunkedConnectionMeshesForLayer = itLayerConnectionMeshes->second;
-                    auto itChunkConnectionMeshes = chunkedConnectionMeshesForLayer.find(roomAreaHash);
-                    if (itChunkConnectionMeshes != chunkedConnectionMeshesForLayer.end()) {
-                        const ConnectionMeshes& connMeshes = itChunkConnectionMeshes->second;
-                        connMeshes.render(layerId, m_currentLayer);
-                    }
-                }
-            }
-
-            // Render room names for this specific chunk if conditions met
-            if (fontShaderWasBound && itLayerRoomNames != batches.roomNameBatches.end()) {
-                 // (wantDoorNames and layerId == m_currentLayer already checked for shader binding)
-                const auto& chunkedRoomNamesForLayer = itLayerRoomNames->second;
-                auto itChunkRoomNames = chunkedRoomNamesForLayer.find(roomAreaHash);
-                if (itChunkRoomNames != chunkedRoomNamesForLayer.end()) {
-                    const UniqueMesh& nameMesh = itChunkRoomNames->second;
-                    if (nameMesh.isValid()) { // Check UniqueMesh validity
-                        nameMesh.render(nameRenderState);
-                    }
-                }
-            }
-        } // End of chunk loop
-
-        if (fontShaderWasBound) {
-            // Font shader is managed internally by GLFont render methods
-            // m_glFont.getFontShader().release(); // Removed
-        }
-    } // End of layer loop
-
-    // If the current layer had no terrain meshes at all, ensure depth is cleared and background faded.
-    if (!currentLayerHasBeenSetup && std::abs(m_currentLayer - m_currentLayer) <= getConfig().canvas.mapRadius[2]) {
-        // Check if current layer should have been processed (e.g. it's in m_visibleChunks)
-        // This ensures that even if a visible layer has no terrain, its connections/names might still show over a clean bg.
-        auto itVisibleCurrentLayer = m_visibleChunks.find(m_currentLayer);
-        if (itVisibleCurrentLayer != m_visibleChunks.end() && !itVisibleCurrentLayer->second.empty()){
-             gl.clearDepth();
-             fadeBackground();
-        } else if (allChunkedLayerMeshes.find(m_currentLayer) == allChunkedLayerMeshes.end() &&
-                   batches.connectionMeshes.find(m_currentLayer) == batches.connectionMeshes.end() &&
-                   batches.roomNameBatches.find(m_currentLayer) == batches.roomNameBatches.end()) {
-            // If current layer has no data at all (no terrain, no connections, no names), still clear.
+    for (const auto &layer : batchedMeshes) {
+        const int thisLayer = layer.first;
+        if (thisLayer == m_currentLayer) {
             gl.clearDepth();
             fadeBackground();
         }
+        drawLayer(thisLayer, m_currentLayer);
     }
 }

@@ -117,17 +117,17 @@ AnsiCombo::AnsiColor AnsiCombo::colorFromString(const QString &colString)
     }
 
     // TODO: use existing interface to split the string
-    const AnsiColorState state = [&colString]() -> AnsiColorState {
+    const AnsiColorState state = std::invoke([&colString]() -> AnsiColorState {
         AnsiColorState result_state;
         QString tmpStr = colString;
         tmpStr.chop(1);
         tmpStr.remove(0, 1);
-        for (const auto &s : tmpStr.split(";", Qt::SkipEmptyParts)) {
+        for (const auto &s : tmpStr.split(";", Qt::SplitBehaviorFlags::SkipEmptyParts)) {
             const auto n = s.toInt();
             result_state.receive(n);
         }
         return result_state;
-    }();
+    });
 
     if (!state.hasCompleteState()) {
         qWarning() << "String did not contain valid ANSI: " << colString;

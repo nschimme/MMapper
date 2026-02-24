@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2024 The MMapper Authors
 
-#include "../global/OrderedMap.h"
+#include "../global/ImmUnorderedMap.h"
 #include "../global/macros.h"
 #include "room.h"
 
@@ -12,7 +12,7 @@ class ProgressCounter;
 struct NODISCARD ServerIdMap final
 {
 private:
-    OrderedMap<ServerRoomId, RoomId> m_serverToInternal;
+    ImmUnorderedMap<ServerRoomId, RoomId> m_serverToInternal;
 
 public:
     NODISCARD auto empty() const { return m_serverToInternal.empty(); }
@@ -46,9 +46,7 @@ public:
     void for_each(Callback &&callback) const
     {
         static_assert(std::is_invocable_r_v<void, Callback, ServerRoomId, RoomId>);
-        for (const auto &kv : m_serverToInternal) {
-            callback(kv.first, kv.second);
-        }
+        m_serverToInternal.for_each([&callback](const auto &p) { callback(p.first, p.second); });
     }
 
     void printStats(ProgressCounter &pc, AnsiOstream &os) const;

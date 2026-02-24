@@ -45,3 +45,21 @@ static inline constexpr const bool NO_QTKEYCHAIN = true;
 #else
 static inline constexpr const bool NO_QTKEYCHAIN = false;
 #endif
+
+#if defined(MMAPPER_NO_OPENGL) && MMAPPER_NO_OPENGL
+static inline constexpr const bool NO_OPENGL = true;
+#else
+static inline constexpr const bool NO_OPENGL = false;
+#endif
+
+#if defined(MMAPPER_NO_GLES) && MMAPPER_NO_GLES
+static inline constexpr const bool NO_GLES = true;
+#else
+static inline constexpr const bool NO_GLES = false;
+#endif
+
+#if defined(MMAPPER_NO_AUDIO) && MMAPPER_NO_AUDIO
+static inline constexpr const bool NO_AUDIO = true;
+#else
+static inline constexpr const bool NO_AUDIO = false;
+#endif

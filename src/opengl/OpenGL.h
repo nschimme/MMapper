@@ -3,6 +3,7 @@
 // Copyright (C) 2019 The MMapper Authors
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
+#include "../global/Badge.h"
 #include "../global/utils.h"
 #include "OpenGLTypes.h"
 
@@ -11,8 +12,13 @@
 
 #include <glm/glm.hpp>
 
+#include <QImage>
+#include <QString>
+#include <QSurfaceFormat>
 #include <qopengl.h>
 
+class FBO;
+class MapCanvas;
 namespace Legacy {
 class Functions;
 } // namespace Legacy
@@ -29,8 +35,13 @@ private:
     NODISCARD const auto &getSharedFunctions() { return m_opengl; }
 
 public:
-    OpenGL();
+    explicit OpenGL();
     ~OpenGL();
+    OpenGL(const OpenGL &) = delete;
+    OpenGL &operator=(const OpenGL &) = delete;
+
+public:
+    NODISCARD const auto &getSharedFunctions(Badge<MapCanvas>) { return getSharedFunctions(); }
 
 public:
     /* must be called before any other functions */
@@ -49,7 +60,10 @@ public:
     void glViewport(GLint x, GLint y, GLsizei w, GLsizei h);
 
 public:
-    NODISCARD bool tryEnableMultisampling(int samples);
+    void configureFbo(int samples);
+    void bindFbo();
+    void releaseFbo();
+    void blitFboToDefault();
 
 public:
     NODISCARD UniqueMesh createPointBatch(const std::vector<ColorVert> &verts);
@@ -75,6 +89,11 @@ public:
     NODISCARD UniqueMesh createColoredTexturedQuadBatch(const std::vector<ColoredTexVert> &verts,
                                                         MMTextureId texture);
 
+public:
+    NODISCARD UniqueMesh createRoomQuadTexBatch(const std::vector<RoomQuadTexVert> &verts,
+                                                MMTextureId texture);
+
+public:
     NODISCARD UniqueMesh createFontMesh(const SharedMMTexture &texture,
                                         DrawModeEnum mode,
                                         const std::vector<FontVert3d> &batch);
@@ -141,11 +160,19 @@ public:
     void renderFont3d(const SharedMMTexture &texture, const std::vector<FontVert3d> &verts);
 
 public:
-    void clear(const Color &color);
+    void clear(const Color color);
     void clearDepth();
     void renderPlainFullScreenQuad(const GLRenderState &state);
 
 public:
     void cleanup();
+    NODISCARD GLRenderState getDefaultRenderState();
+    void bindNamedColorsBuffer();
+    void resetNamedColorsBuffer();
     void setTextureLookup(MMTextureId, SharedMMTexture);
+
+public:
+    void initArrayFromFiles(const SharedMMTexture &array, const std::vector<QString> &input);
+    void initArrayFromImages(const SharedMMTexture &array,
+                             const std::vector<std::vector<QImage>> &input);
 };

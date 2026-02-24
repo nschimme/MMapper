@@ -48,11 +48,13 @@ NODISCARD static RawRoom createTemporaryRoom(const ParseEvent &event)
     }
 
     ProgressCounter pc;
-    MapPair mapPair = Map::fromRooms(pc, {tmp});
+    MapPair mapPair = Map::fromRooms(pc, {tmp}, {});
     auto &map = mapPair.modified;
     const RoomHandle room1 = map.getRoomHandle(DEFAULT_EXTERNAL_ROOMID);
     std::ignore = map.applySingleChange(pc,
-                                        Change{room_change_types::Update{DEFAULT_ROOMID, event}});
+                                        Change{room_change_types::Update{DEFAULT_ROOMID,
+                                                                         event,
+                                                                         UpdateTypeEnum::New}});
     const RoomHandle room2 = map.getRoomHandle(DEFAULT_EXTERNAL_ROOMID);
 
     assert(room2.getId() == DEFAULT_ROOMID);
@@ -126,7 +128,7 @@ void TestExpandoraCommon::roomCompareTest_data()
 
         callback(builder);
         ProgressCounter pc;
-        auto room = Map::fromRooms(pc, {builder}).modified.getRoomHandle(DEFAULT_ROOMID);
+        auto room = Map::fromRooms(pc, {builder}, {}).modified.getRoomHandle(DEFAULT_ROOMID);
         auto shared = std::make_shared<RoomHandle>(room);
         return QtRoomWrapper{shared};
     };
@@ -427,12 +429,12 @@ void TestExpandoraCommon::roomCompareTest()
     QFETCH(ParseEvent, event);
     QFETCH(ComparisonResultEnum, comparison);
 
-    const auto result = [&room, &event]() {
+    const auto result = std::invoke([&room, &event]() -> ComparisonResultEnum {
         // REVISIT: Config has default matching tolerance of 8
         const int matchingTolerance = 8;
         mmqt::HideQDebug forThisFunctionCall; // e.g. "Updating room to be LIT"
         return ::compare(room.shared->getRaw(), event, matchingTolerance);
-    }();
+    });
 
     if (comparison != result) {
         auto temp = createTemporaryRoom(event);

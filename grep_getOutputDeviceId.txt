@@ -1,0 +1,4 @@
+src/preferences/audiopage.cpp:    int index = ui->outputDeviceComboBox->findData(settings.getOutputDeviceId());
+src/preferences/audiopage.cpp:        currentId = getConfig().audio.getOutputDeviceId();
+src/media/AudioManager.cpp:    const QString &deviceId = getConfig().audio.getOutputDeviceId();
+src/configuration/configuration.h:        NODISCARD const QString &getOutputDeviceId() const { return m_outputDeviceId; }

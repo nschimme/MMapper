@@ -28,251 +28,10 @@
 
 #include <QColor>
 #include <QtCore>
-#include <algorithm> // For std::sort, std::is_sorted
-#include <string_view> // For std::string_view
-#include <cassert> // For assert
 
-// Forward declarations
 class OpenGL;
 class QOpenGLTexture;
-struct MapCanvasTextures; // Defined in Textures.h, but forward declaration is fine if only pointers/references used.
-                          // However, mctp::MapCanvasTexturesProxy uses it, which is included by MapCanvasData.h->Textures.h
-
-// Moved from MapCanvasRoomDrawer.cpp
-// Depends on SharedCanvasNamedColorOptions and SharedNamedColorOptions from MapCanvasData.h -> configuration.h
-struct NODISCARD VisitRoomOptions final
-{
-    SharedCanvasNamedColorOptions canvasColors;
-    SharedNamedColorOptions colorSettings;
-    bool drawNotMappedExits = false;
-};
-
-// --- Structs moved from MapCanvasRoomDrawer.cpp ---
-
-struct NODISCARD RoomTex
-{
-    RoomHandle room;
-    MMTextureId tex = INVALID_MM_TEXTURE_ID;
-
-    explicit RoomTex(RoomHandle moved_room, const MMTextureId input_texid);
-    // Implementation in .cpp
-
-    NODISCARD MMTextureId priority() const { return tex; }
-    NODISCARD MMTextureId textureId() const { return tex; }
-
-    NODISCARD friend bool operator<(const RoomTex &lhs, const RoomTex &rhs)
-    {
-        return lhs.priority() < rhs.priority();
-    }
-};
-
-struct NODISCARD ColoredRoomTex : public RoomTex
-{
-    Color color;
-    ColoredRoomTex(const RoomHandle &room, const MMTextureId tex) = delete; // Prevent accidental slicing
-
-    explicit ColoredRoomTex(RoomHandle moved_room,
-                            const MMTextureId input_texid,
-                            const Color &input_color);
-    // Implementation in .cpp
-};
-
-struct NODISCARD RoomTexVector final : public std::vector<RoomTex>
-{
-    void sortByTexture(); // Implementation in .cpp
-    NODISCARD bool isSorted() const; // Implementation in .cpp
-};
-
-struct NODISCARD ColoredRoomTexVector final : public std::vector<ColoredRoomTex>
-{
-    void sortByTexture(); // Implementation in .cpp
-    NODISCARD bool isSorted() const; // Implementation in .cpp
-};
-
-// --- Static utility functions moved from MapCanvasRoomDrawer.cpp ---
-
-// Template functions are implicitly inline
-template<typename T, typename Callback>
-void foreach_texture(const T &textures, Callback &&callback)
-{
-    assert(textures.isSorted()); // Make sure RoomTexVector/ColoredRoomTexVector's isSorted() is available if this is used with them.
-                                 // For std::vector, this would rely on prior sort. Given the context, it's for RoomTexVector like types.
-
-    const auto size = textures.size();
-    for (size_t beg = 0, next = size; beg < size; beg = next) {
-        // Assuming T is a collection of items that have textureId() method
-        // and that items are sorted by this textureId().
-        // Example for RoomTex:
-        // const RoomTex &rtex = textures[beg];
-        // const auto textureId = rtex.textureId();
-        // This generic version might need adjustment if T is not RoomTexVector or ColoredRoomTexVector
-        // For now, assuming it's used with types like RoomTexVector which have textureId() on elements.
-        // A more generic approach would require a projection function for textureId.
-        // However, copying the exact implementation from .cpp:
-        const auto& first_element_in_batch = textures[beg]; // Requires T to be indexable and have textureId()
-        const auto textureId = first_element_in_batch.textureId();
-
-
-        size_t end = beg + 1;
-        for (; end < size; ++end) {
-            if (textureId != textures[end].textureId()) {
-                break;
-            }
-        }
-
-        next = end;
-        /* note: casting to avoid passing references to beg and end */
-        callback(static_cast<size_t>(beg), static_cast<size_t>(end));
-    }
-}
-
-inline UniqueMeshVector createSortedTexturedMeshes(const std::string_view /*what*/,
-                                                  OpenGL &gl,
-                                                  const RoomTexVector &textures)
-{
-    if (textures.empty()) {
-        return UniqueMeshVector{};
-    }
-
-    const size_t numUniqueTextures = [&textures]() -> size_t {
-        size_t texCount = 0;
-        ::foreach_texture(textures, // Assuming global namespace or correct scope resolution for foreach_texture
-                          [&texCount](size_t /* beg */, size_t /*end*/) -> void { ++texCount; });
-        return texCount;
-    }();
-
-    std::vector<UniqueMesh> result_meshes;
-    result_meshes.reserve(numUniqueTextures);
-    const auto lambda = [&gl, &result_meshes, &textures](const size_t beg,
-                                                         const size_t end) -> void {
-        const RoomTex &rtex = textures[beg];
-        const size_t count = end - beg;
-
-        std::vector<TexVert> verts;
-        verts.reserve(count * VERTS_PER_QUAD); /* quads */
-
-        for (size_t i = beg; i < end; ++i) {
-            const auto &pos = textures[i].room.getPosition();
-            const auto v0 = pos.to_vec3();
-            verts.emplace_back(glm::vec2(0, 0), v0 + glm::vec3(0, 0, 0)); // A
-            verts.emplace_back(glm::vec2(1, 0), v0 + glm::vec3(1, 0, 0)); // B
-            verts.emplace_back(glm::vec2(1, 1), v0 + glm::vec3(1, 1, 0)); // C
-            verts.emplace_back(glm::vec2(0, 1), v0 + glm::vec3(0, 1, 0)); // D
-        }
-
-        result_meshes.emplace_back(gl.createTexturedQuadBatch(verts, rtex.tex));
-    };
-
-    ::foreach_texture(textures, lambda); // Assuming global namespace or correct scope
-    assert(result_meshes.size() == numUniqueTextures);
-    return UniqueMeshVector{std::move(result_meshes)};
-}
-
-inline UniqueMeshVector createSortedColoredTexturedMeshes(
-    const std::string_view /*what*/, OpenGL &gl, const ColoredRoomTexVector &textures)
-{
-    if (textures.empty()) {
-        return UniqueMeshVector{};
-    }
-
-    const size_t numUniqueTextures = [&textures]() -> size_t {
-        size_t texCount = 0;
-        ::foreach_texture(textures, // Assuming global namespace or correct scope
-                          [&texCount](size_t /* beg */, size_t /*end*/) -> void { ++texCount; });
-        return texCount;
-    }();
-
-    std::vector<UniqueMesh> result_meshes;
-    result_meshes.reserve(numUniqueTextures);
-
-    const auto lambda = [&gl, &result_meshes, &textures](const size_t beg,
-                                                         const size_t end) -> void {
-        const RoomTex &rtex = textures[beg]; // Note: textures is ColoredRoomTexVector, rtex should be ColoredRoomTex
-        const size_t count = end - beg;
-
-        std::vector<ColoredTexVert> verts;
-        verts.reserve(count * VERTS_PER_QUAD); /* quads */
-
-        for (size_t i = beg; i < end; ++i) {
-            const ColoredRoomTex &thisVert = textures[i];
-            const auto &pos = thisVert.room.getPosition();
-            const auto v0 = pos.to_vec3();
-            const auto color = thisVert.color;
-
-            verts.emplace_back(color, glm::vec2(0, 0), v0 + glm::vec3(0, 0, 0)); // A
-            verts.emplace_back(color, glm::vec2(1, 0), v0 + glm::vec3(1, 0, 0)); // B
-            verts.emplace_back(color, glm::vec2(1, 1), v0 + glm::vec3(1, 1, 0)); // C
-            verts.emplace_back(color, glm::vec2(0, 1), v0 + glm::vec3(0, 1, 0)); // D
-        }
-
-        result_meshes.emplace_back(gl.createColoredTexturedQuadBatch(verts, rtex.textureId())); // Use textureId()
-    };
-
-    ::foreach_texture(textures, lambda); // Assuming global namespace or correct scope
-    assert(result_meshes.size() == numUniqueTextures);
-    return UniqueMeshVector{std::move(result_meshes)};
-}
-
-// --- End of static utility functions ---
-
-using PlainQuadBatch = std::vector<glm::vec3>;
-
-struct NODISCARD LayerBatchData final
-{
-    RoomTexVector roomTerrains;
-    RoomTexVector roomTrails;
-    RoomTexVector roomOverlays;
-    ColoredRoomTexVector doors;
-    ColoredRoomTexVector solidWallLines;
-    ColoredRoomTexVector dottedWallLines;
-    ColoredRoomTexVector roomUpDownExits;
-    ColoredRoomTexVector streamIns;
-    ColoredRoomTexVector streamOuts;
-    RoomTintArray<PlainQuadBatch> roomTints; // Restored
-    // PlainQuadBatch darkQuads;             // Removed
-    // PlainQuadBatch noSundeathQuads;       // Removed
-    PlainQuadBatch roomLayerBoostQuads;
-
-    explicit LayerBatchData() = default;
-    ~LayerBatchData() = default;
-    DEFAULT_MOVES(LayerBatchData); // Assumes RuleOf5.h provides this, or define manually
-    DELETE_COPIES(LayerBatchData); // Assumes RuleOf5.h provides this, or define manually
-
-    void sort(); // Implementation in .cpp
-    NODISCARD LayerMeshes getMeshes(OpenGL &gl) const; // Implementation in .cpp
-};
-
-// --- End of structs moved from MapCanvasRoomDrawer.cpp ---
-
-
-// Moved from MapCanvasRoomDrawer.cpp
-// Depends on IMapBatchesFinisher (IMapBatchesFinisher.h)
-// Depends on ChunkId, LayerBatchData, RoomNameBatch (MapBatches.h)
-// Depends on ConnectionDrawerBuffers (Connections.h)
-// Depends on OpenGL, GLFont for virt_finish signature (OpenGL.h, Font.h)
-
-// Forward declaration for the function defined in MapCanvasRoomDrawer.cpp
-// This makes it accessible to other files including this header.
-class RoomHandle; // Forward declare if not already included via other headers
-NODISCARD RoomAreaHash getRoomAreaHash(const RoomHandle& room);
-
-struct NODISCARD InternalData final : public IMapBatchesFinisher
-{
-public:
-    // Key: layerId, Value: map of RoomAreaHash to its LayerBatchData
-    std::unordered_map<int, std::map<RoomAreaHash, LayerBatchData>> batchedMeshes;
-
-    // Key: layerId, Value: map of RoomAreaHash to its ConnectionDrawerBuffers
-    std::map<int, std::map<RoomAreaHash, ConnectionDrawerBuffers>> connectionDrawerBuffers;
-
-    // Key: layerId, Value: map of RoomAreaHash to its RoomNameBatch
-    std::map<int, std::map<RoomAreaHash, RoomNameBatch>> roomNameBatches;
-
-private:
-    // Implementation remains in MapCanvasRoomDrawer.cpp
-    void virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const final;
-};
-
+struct MapCanvasTextures;
 
 using RoomVector = std::vector<RoomHandle>;
 using LayerToRooms = std::map<int, RoomVector>;
@@ -362,6 +121,7 @@ public:
 struct NODISCARD Batches final
 {
     RemeshCookie remeshCookie;
+    std::optional<MapBatches> next_mapBatches;
     std::optional<MapBatches> mapBatches;
     std::optional<BatchedInfomarksMeshes> infomarksMeshes;
     struct NODISCARD FlashState final
@@ -393,6 +153,8 @@ struct NODISCARD Batches final
     ~Batches() = default;
     DEFAULT_MOVES_DELETE_COPIES(Batches);
 
+    NODISCARD bool isInProgress() const;
+
     void resetExistingMeshesButKeepPendingRemesh()
     {
         mapBatches.reset();
@@ -413,17 +175,9 @@ struct NODISCARD Batches final
 };
 
 NODISCARD FutureSharedMapBatchFinisher
-generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures, const Map &map);
-
-NODISCARD FutureSharedMapBatchFinisher
-generateSpecificMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures, const Map &map, const std::vector<std::pair<int, RoomAreaHash>>& chunksToGenerate);
-
-// Changed first parameter type from IMapBatchesFinisher::InternalData& to InternalData&
-void generateSpecificLayerMeshes(InternalData &internalData,
-                                 const Map &map,
-                                 const std::vector<std::pair<int, RoomAreaHash>>& chunksToGenerate,
-                                 const mctp::MapCanvasTexturesProxy &textures,
-                                 const VisitRoomOptions &visitRoomOptions);
+generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
+                        const std::shared_ptr<const FontMetrics> &font,
+                        const Map &map);
 
 extern void finish(const IMapBatchesFinisher &finisher,
                    std::optional<MapBatches> &batches,

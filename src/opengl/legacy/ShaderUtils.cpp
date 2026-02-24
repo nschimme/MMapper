@@ -5,6 +5,7 @@
 
 #include "../../global/ConfigConsts.h"
 #include "../../global/Consts.h"
+#include "../../global/NamedColors.h"
 #include "../../global/PrintUtils.h"
 #include "../../global/TextUtils.h"
 
@@ -43,7 +44,7 @@ static void foreach_line(const Source &source, Callback &&callback)
 
 static void print(std::ostream &os, const Source &source)
 {
-    const int width = [&source]() -> int {
+    const int width = std::invoke([&source]() -> int {
         int line = 0;
         bool was_newline = true;
         foreach_line(source, [&line, &was_newline](auto /*sv*/, bool has_newline) {
@@ -53,7 +54,7 @@ static void print(std::ostream &os, const Source &source)
             was_newline = has_newline;
         });
         return static_cast<int>(std::to_string(line).size());
-    }();
+    });
 
     int line = 0;
     bool was_newline = true;
@@ -187,6 +188,14 @@ NODISCARD static GLuint compileShader(Functions &gl, const GLenum type, const So
     }
 
     const GLuint shaderId = gl.glCreateShader(type);
+    if (shaderId == 0) {
+        std::ostringstream os;
+        os << "Failed to allocate a shader for " << shaderTypeName(type) << " shader "
+           << QuotedString(source.filename) << "!";
+        qWarning() << os.str().c_str();
+        qFatal("opengl error");
+    }
+
     if constexpr ((IS_DEBUG_BUILD)) {
         std::ostringstream os;
         os << "Compiling " << shaderTypeName(type) << " shader " << QuotedString(source.filename)
@@ -203,7 +212,10 @@ NODISCARD static GLuint compileShader(Functions &gl, const GLenum type, const So
     // NOTE: GLES 2.0 required `const char**` instead of `const char*const*`,
     // so Qt uses the least common denominator without the middle const;
     // that's the reason the `ptrs` array below is not `const`.
-    std::array<const char *, 3> ptrs = {Functions::getShaderVersion(),
+    std::string defineNamedColors = "#define MAX_NAMED_COLORS " + std::to_string(MAX_NAMED_COLORS)
+                                    + "\n";
+    std::array<const char *, 4> ptrs = {gl.getShaderVersion(),
+                                        defineNamedColors.c_str(),
                                         "#line 1\n",
                                         source.source.c_str()};
     gl.glShaderSource(shaderId, static_cast<GLsizei>(ptrs.size()), ptrs.data(), nullptr);
@@ -242,6 +254,7 @@ Program loadShaders(Functions &gl, const Source &vert, const Source &frag)
 
     gl.glLinkProgram(prog);
     checkProgramInfo(gl, prog);
+    gl.applyDefaultUniformBlockBindings(prog);
 
     for (const GLuint s : shaders) {
         if (is_valid(s)) {

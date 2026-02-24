@@ -2,31 +2,19 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2021 The MMapper Authors
 
-#include <cstddef> // For size_t
-
-// Moved ChunkId definition to the top to ensure it's available early.
-// This helps resolve potential include order issues.
-using RoomAreaHash = size_t;
-// #include <cstdint> // If ChunkId were, e.g., int32_t, this might be needed here. For `int`, it's fundamental.
-
-#include <array> // For std::array
-#include "../map/mmapper2room.h" // For NUM_ROOM_TINTS and TintIndices
 #include "Connections.h"
 #include "MapCanvasData.h"
 
 #include <map>
 
-// Restoring RoomTintArray using std::array and NUM_ROOM_TINTS
 template<typename T>
-using RoomTintArray = std::array<T, NUM_ROOM_TINTS>;
+using RoomTintArray = EnumIndexedArray<T, RoomTintEnum, NUM_ROOM_TINTS>;
 
 struct NODISCARD LayerMeshes final
 {
     UniqueMeshVector terrain;
     UniqueMeshVector trails;
-    RoomTintArray<UniqueMesh> tints; // Restored
-    // UniqueMesh darkTintMesh;        // Removed
-    // UniqueMesh noSundeathTintMesh;  // Removed
+    RoomTintArray<UniqueMesh> tints;
     UniqueMeshVector overlays;
     UniqueMeshVector doors;
     UniqueMeshVector walls;
@@ -45,14 +33,39 @@ struct NODISCARD LayerMeshes final
     explicit operator bool() const { return isValid; }
 };
 
+struct NODISCARD LayerMeshesIntermediate final
+{
+    using Fn = std::function<UniqueMesh(OpenGL &)>;
+    using FnVec = std::vector<Fn>;
+    FnVec terrain;
+    FnVec trails;
+    RoomTintArray<Fn> tints;
+    FnVec overlays;
+    FnVec doors;
+    FnVec walls;
+    FnVec dottedWalls;
+    FnVec upDownExits;
+    FnVec streamIns;
+    FnVec streamOuts;
+    Fn layerBoost;
+    bool isValid = false;
+
+    LayerMeshesIntermediate() = default;
+    DEFAULT_MOVES_DELETE_COPIES(LayerMeshesIntermediate);
+    ~LayerMeshesIntermediate() = default;
+
+    NODISCARD LayerMeshes getLayerMeshes(OpenGL &gl) const;
+    explicit operator bool() const { return isValid; }
+};
+
 // This must be ordered so we can iterate over the layers from lowest to highest.
-using ChunkedLayerMeshes = std::map<RoomAreaHash, LayerMeshes>;
+using BatchedMeshes = std::map<int, LayerMeshes>;
 
 struct NODISCARD MapBatches final
 {
-    std::map<int, ChunkedLayerMeshes> batchedMeshes;
-    std::map<int, std::map<RoomAreaHash, ConnectionMeshes>> connectionMeshes; // Updated
-    std::map<int, std::map<RoomAreaHash, UniqueMesh>> roomNameBatches; // Updated
+    BatchedMeshes batchedMeshes;
+    BatchedConnectionMeshes connectionMeshes;
+    BatchedRoomNames roomNameBatches;
 
     MapBatches() = default;
     ~MapBatches() = default;

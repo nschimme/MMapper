@@ -31,8 +31,43 @@ AColorPlainShader::~AColorPlainShader() = default;
 UColorPlainShader::~UColorPlainShader() = default;
 AColorTexturedShader::~AColorTexturedShader() = default;
 UColorTexturedShader::~UColorTexturedShader() = default;
+
+RoomQuadTexShader::~RoomQuadTexShader() = default;
+
 FontShader::~FontShader() = default;
 PointShader::~PointShader() = default;
+BlitShader::~BlitShader() = default;
+FullScreenShader::~FullScreenShader() = default;
+
+void ShaderPrograms::early_init()
+{
+    std::ignore = getPlainAColorShader();
+    std::ignore = getPlainUColorShader();
+    std::ignore = getTexturedAColorShader();
+    std::ignore = getTexturedUColorShader();
+
+    std::ignore = getRoomQuadTexShader();
+
+    std::ignore = getFontShader();
+    std::ignore = getPointShader();
+    std::ignore = getBlitShader();
+    std::ignore = getFullScreenShader();
+}
+
+void ShaderPrograms::resetAll()
+{
+    m_aColorShader.reset();
+    m_uColorShader.reset();
+    m_aTexturedShader.reset();
+    m_uTexturedShader.reset();
+
+    m_roomQuadTexShader.reset();
+
+    m_font.reset();
+    m_point.reset();
+    m_blit.reset();
+    m_fullscreen.reset();
+}
 
 // essentially a private member of ShaderPrograms
 template<typename T>
@@ -65,32 +100,47 @@ NODISCARD static const std::shared_ptr<T> &getInitialized(std::shared_ptr<T> &sh
 
 const std::shared_ptr<AColorPlainShader> &ShaderPrograms::getPlainAColorShader()
 {
-    return getInitialized<AColorPlainShader>(aColorShader, getFunctions(), "plain/acolor");
+    return getInitialized<AColorPlainShader>(m_aColorShader, getFunctions(), "plain/acolor");
 }
 
 const std::shared_ptr<UColorPlainShader> &ShaderPrograms::getPlainUColorShader()
 {
-    return getInitialized<UColorPlainShader>(uColorShader, getFunctions(), "plain/ucolor");
+    return getInitialized<UColorPlainShader>(m_uColorShader, getFunctions(), "plain/ucolor");
 }
 
 const std::shared_ptr<AColorTexturedShader> &ShaderPrograms::getTexturedAColorShader()
 {
-    return getInitialized<AColorTexturedShader>(aTexturedShader, getFunctions(), "tex/acolor");
+    return getInitialized<AColorTexturedShader>(m_aTexturedShader, getFunctions(), "tex/acolor");
+}
+
+const std::shared_ptr<RoomQuadTexShader> &ShaderPrograms::getRoomQuadTexShader()
+{
+    return getInitialized<RoomQuadTexShader>(m_roomQuadTexShader, getFunctions(), "room/tex/acolor");
 }
 
 const std::shared_ptr<UColorTexturedShader> &ShaderPrograms::getTexturedUColorShader()
 {
-    return getInitialized<UColorTexturedShader>(uTexturedShader, getFunctions(), "tex/ucolor");
+    return getInitialized<UColorTexturedShader>(m_uTexturedShader, getFunctions(), "tex/ucolor");
 }
 
 const std::shared_ptr<FontShader> &ShaderPrograms::getFontShader()
 {
-    return getInitialized<FontShader>(font, getFunctions(), "font");
+    return getInitialized<FontShader>(m_font, getFunctions(), "font");
 }
 
 const std::shared_ptr<PointShader> &ShaderPrograms::getPointShader()
 {
-    return getInitialized<PointShader>(point, getFunctions(), "point");
+    return getInitialized<PointShader>(m_point, getFunctions(), "point");
+}
+
+const std::shared_ptr<BlitShader> &ShaderPrograms::getBlitShader()
+{
+    return getInitialized<BlitShader>(m_blit, getFunctions(), "blit");
+}
+
+const std::shared_ptr<FullScreenShader> &ShaderPrograms::getFullScreenShader()
+{
+    return getInitialized<FullScreenShader>(m_fullscreen, getFunctions(), "fullscreen");
 }
 
 } // namespace Legacy

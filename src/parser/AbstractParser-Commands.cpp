@@ -45,10 +45,10 @@ const Abbrev cmdConfig{"config", 4};
 const Abbrev cmdConnect{"connect", 4};
 const Abbrev cmdDirections{"dirs", 3};
 const Abbrev cmdDisconnect{"disconnect", 4};
-const Abbrev cmdDoorHelp{"doorhelp", 5};
 const Abbrev cmdGenerateBaseMap{"generate-base-map"};
 const Abbrev cmdGroup{"group", 2};
 const Abbrev cmdHelp{"help", 2};
+const Abbrev cmdHotkey{"hotkey", 3};
 const Abbrev cmdMap{"map"};
 const Abbrev cmdMark{"mark", 3};
 const Abbrev cmdRemoveDoorNames{"remove-secret-door-names"};
@@ -343,11 +343,11 @@ Abbrev getParserCommandName(const ExitFlagEnum x)
 #undef CASE3
 }
 
-Abbrev getParserCommandName(const InfoMarkClassEnum x)
+Abbrev getParserCommandName(const InfomarkClassEnum x)
 {
 #define CASE3(UPPER, s, n) \
     do { \
-    case InfoMarkClassEnum::UPPER: \
+    case InfomarkClassEnum::UPPER: \
         return Abbrev{s, n}; \
     } while (false)
     switch (x) {
@@ -571,7 +571,8 @@ void AbstractParser::parseSpecialCommand(StringView wholeCommand)
 void AbstractParser::parseSearch(StringView view)
 {
     if (view.isEmpty()) {
-        showSyntax("search [-(name|desc|contents|note|exits|flags|all|clear)] pattern");
+        showSyntax(
+            "search [-regex] [-(name|desc|contents|note|exits|flags|area|all|clear)] pattern");
     } else {
         doSearchCommand(view);
     }
@@ -672,7 +673,7 @@ void AbstractParser::doMapDiff()
 {
     auto &mapData = m_mapData;
 
-    if (mapData.getSavedMarks() != mapData.getCurrentMarks()) {
+    if (mapData.getSavedMap().getInfomarkDb() != mapData.getCurrentMap().getInfomarkDb()) {
         sendToUser(SendToUserSourceEnum::FromMMapper,
                    "Note: Map markers have changed, but marker diff is not yet supported.\n");
     }
@@ -706,13 +707,9 @@ void AbstractParser::doMapCommand(StringView input)
         if (map.applySingleChange(Change{world_change_types::CompactRoomIds{}})) {
             // Mark *everything* as changed.
             map.setSavedMap(Map{});
-            map.setSavedMarks({});
             sendOkToUser();
             sendToUser(SendToUserSourceEnum::FromMMapper,
                        "WARNING: You should save the map immediately.\n");
-            sendToUser(SendToUserSourceEnum::FromMMapper,
-                       "Note: Group manager will probably display very strange results"
-                       " until you save the map and share it with your groupmates.\n");
 
         } else {
             sendToUser(SendToUserSourceEnum::FromMMapper, "Ooops.\n");
@@ -924,16 +921,6 @@ void AbstractParser::initSpecialCommandMap()
         },
         // TODO: create a parse tree, and show all of the help topics.
         makeSimpleHelp("Provides help."));
-    add(
-        cmdDoorHelp,
-        [this](const std::vector<StringView> & /*s*/, StringView rest) {
-            if (!rest.isEmpty()) {
-                return false;
-            }
-            this->showDoorCommandHelp();
-            return true;
-        },
-        makeSimpleHelp("Help for door console commands."));
 
     // door actions
     for (const DoorActionEnum x : ALL_DOOR_ACTION_TYPES) {
@@ -1104,6 +1091,15 @@ void AbstractParser::initSpecialCommandMap()
             return true;
         },
         makeSimpleHelp("Perform actions on the group manager."));
+
+    /* hpotkey commands */
+    add(
+        cmdHotkey,
+        [this](const std::vector<StringView> & /*s*/, StringView rest) {
+            parseHotkey(rest);
+            return true;
+        },
+        makeSimpleHelp("View or modify hotkeys for the integrated client."));
 
     /* timers command */
     add(

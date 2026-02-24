@@ -13,6 +13,20 @@
 #include <QRegularExpression>
 #include <QString>
 
+NODISCARD static QString escapeRegex(const QString &str)
+{
+    static const QRegularExpression metacharactersRx(R"([.*+?^${}()|\[\]\\])");
+    QString result = str;
+    int offset = 0;
+    auto it = metacharactersRx.globalMatch(str);
+    while (it.hasNext()) {
+        auto match = it.next();
+        result.insert(match.capturedStart() + offset, '\\');
+        ++offset;
+    }
+    return result;
+}
+
 NODISCARD static QRegularExpression createRegex(const std::string_view input,
                                                 const Qt::CaseSensitivity cs,
                                                 const bool regex)
@@ -21,7 +35,7 @@ NODISCARD static QRegularExpression createRegex(const std::string_view input,
     if (cs == Qt::CaseInsensitive) {
         options |= QRegularExpression::CaseInsensitiveOption;
     }
-    const QString pattern = [&input, &regex]() -> QString {
+    const auto makeRegex = [&input, &regex]() -> QString {
         if (input.empty()) {
             return QStringLiteral(R"(^$)");
         }
@@ -30,13 +44,12 @@ NODISCARD static QRegularExpression createRegex(const std::string_view input,
             return mmqt::toQStringUtf8(input);
         }
 
-        static const QRegularExpression escape(QStringLiteral(R"([-[\]{}()*+?.,\^$|#\s])"),
-                                               QRegularExpression::NoPatternOption);
-        const QString sanitized = mmqt::toQStringUtf8(input).replace(escape,
-                                                                     QStringLiteral(R"(\$&)"));
-        return QStringLiteral(".*") + sanitized + QStringLiteral(".*");
-    }();
-    return QRegularExpression(pattern, options);
+        QString pattern = escapeRegex(mmqt::toQStringUtf8(input));
+        static const QRegularExpression whitespaceRx(QStringLiteral(R"(\s+)"));
+        pattern.replace(whitespaceRx, QStringLiteral(R"(\s+)"));
+        return QStringLiteral(".*") + pattern + QStringLiteral(".*");
+    };
+    return QRegularExpression(makeRegex(), options);
 }
 
 RoomFilter::RoomFilter(const std::string_view sv,
@@ -48,20 +61,43 @@ RoomFilter::RoomFilter(const std::string_view sv,
 {}
 
 const char *const RoomFilter::parse_help
-    = "Parse error; format is: [-(name|desc|contents|note|exits|all|clear)] pattern\n";
+    = "Parse error; format is: [-[r|regex]] -(name|desc|contents|note|exits|area|all|clear) pattern\n"
+      "  -r, -regex: Treat the pattern as a regular expression.\n"
+      "  -name: Search by room name (default if no flag is given).\n"
+      "  -desc: Search by room description.\n"
+      "  -contents: Search by room contents.\n"
+      "  -note: Search by room note.\n"
+      "  -exits: Search by exit names.\n"
+      "  -flags: Search by room or exit flags.\n"
+      "  -area: Search by area name.\n"
+      "  -all: Search across all fields.\n"
+      "  -clear: Clear the previous search results.\n";
 
 std::optional<RoomFilter> RoomFilter::parseRoomFilter(const std::string_view line)
 {
     // REVISIT: rewrite this using the new syntax tree model.
     auto view = StringView{line}.trim();
+    bool regex = false;
+    PatternKindsEnum kind = PatternKindsEnum::NAME;
     if (view.isEmpty()) {
         return std::nullopt;
     } else if (view.takeFirstLetter() != char_consts::C_MINUS_SIGN) {
-        return RoomFilter{line, Qt::CaseInsensitive, false, PatternKindsEnum::NAME};
+        return RoomFilter{line, Qt::CaseInsensitive, regex, kind};
     }
 
-    const auto first = view.takeFirstWord();
-    const auto opt = [&first]() -> std::optional<PatternKindsEnum> {
+    auto first = view.takeFirstWord();
+    if (Abbrev("regex", 1).matches(first)) {
+        regex = true;
+        if (view.isEmpty()) {
+            // Require arguments beyond "-regex" or "-r"
+            return std::nullopt;
+        } else if (view.takeFirstLetter() != char_consts::C_MINUS_SIGN) {
+            return RoomFilter{view.toStdString(), Qt::CaseInsensitive, regex, kind};
+        }
+        first = view.takeFirstWord();
+    }
+
+    const auto opt = std::invoke([&first]() -> std::optional<PatternKindsEnum> {
         if (Abbrev("desc", 1).matches(first)) {
             return PatternKindsEnum::DESC;
         } else if (Abbrev("contents", 2).matches(first)) {
@@ -72,6 +108,8 @@ std::optional<RoomFilter> RoomFilter::parseRoomFilter(const std::string_view lin
             return PatternKindsEnum::EXITS;
         } else if (Abbrev("note", 1).matches(first)) {
             return PatternKindsEnum::NOTE;
+        } else if (Abbrev("area", 2).matches(first)) {
+            return PatternKindsEnum::AREA;
         } else if (Abbrev("all", 1).matches(first)) {
             return PatternKindsEnum::ALL;
         } else if (Abbrev("clear", 1).matches(first)) {
@@ -81,19 +119,19 @@ std::optional<RoomFilter> RoomFilter::parseRoomFilter(const std::string_view lin
         } else {
             return std::nullopt;
         }
-    }();
+    });
     if (!opt.has_value()) {
         return std::nullopt;
     }
 
-    const auto kind = opt.value();
+    kind = opt.value();
     if (kind != PatternKindsEnum::NONE) {
         // Require pattern text in addition to arguments
         if (view.empty()) {
             return std::nullopt;
         }
     }
-    return RoomFilter{view.toStdString(), Qt::CaseInsensitive, false, kind};
+    return RoomFilter{view.toStdString(), Qt::CaseInsensitive, regex, kind};
 }
 
 bool RoomFilter::filter_kind(const RawRoom &r, const PatternKindsEnum pat) const
@@ -155,18 +193,14 @@ bool RoomFilter::filter(const RawRoom &r) const
         return filter_kind(r, m_kind);
     }
 
-    // NOTE: using C-style array allows static assert on the number of elements, but std::array doesn't
-    // in this case because the compiler will report excess elements but not too few elements.
-    // Alternate: make this a std::vector and then either do a regular assert, or remove the assert.
-    static constexpr const PatternKindsEnum ALL_KINDS[]{PatternKindsEnum::DESC,
-                                                        PatternKindsEnum::CONTENTS,
-                                                        PatternKindsEnum::NAME,
-                                                        PatternKindsEnum::NOTE,
-                                                        PatternKindsEnum::EXITS,
-                                                        PatternKindsEnum::FLAGS,
-                                                        PatternKindsEnum::AREA};
-    static constexpr const size_t ALL_KINDS_SIZE = sizeof(ALL_KINDS) / sizeof(ALL_KINDS[0]);
-    static_assert(ALL_KINDS_SIZE == PATTERN_KINDS_LENGTH - 2); // excludes NONE and ALL.
+    static constexpr std::array ALL_KINDS{PatternKindsEnum::DESC,
+                                          PatternKindsEnum::CONTENTS,
+                                          PatternKindsEnum::NAME,
+                                          PatternKindsEnum::NOTE,
+                                          PatternKindsEnum::EXITS,
+                                          PatternKindsEnum::FLAGS,
+                                          PatternKindsEnum::AREA};
+    static_assert(ALL_KINDS.size() == PATTERN_KINDS_LENGTH - 2); // excludes NONE and ALL.
     for (const auto &pat : ALL_KINDS) {
         if (filter_kind(r, pat)) {
             return true;

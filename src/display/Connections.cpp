@@ -7,11 +7,10 @@
 #include "../global/Flags.h"
 #include "../map/DoorFlags.h"
 #include "../map/ExitFieldVariant.h"
-#include "../map/exit.h"
-#include "../map/room.h"
 #include "../mapdata/mapdata.h"
 #include "../opengl/Font.h"
 #include "../opengl/FontFormatFlags.h"
+#include "../opengl/LineRendering.h"
 #include "../opengl/OpenGL.h"
 #include "../opengl/OpenGLTypes.h"
 #include "ConnectionLineBuilder.h"
@@ -25,16 +24,22 @@
 #include <vector>
 
 #include <glm/glm.hpp>
+#include <glm/gtx/norm.hpp>
 
 #include <QColor>
 #include <QMessageLogContext>
 #include <QtCore>
 
-static constexpr const float CONNECTION_LINE_WIDTH = 0.05f;
+static constexpr const float CONNECTION_LINE_WIDTH = 0.045f;
 static constexpr const float VALID_CONNECTION_POINT_SIZE = 6.f;
 static constexpr const float NEW_CONNECTION_POINT_SIZE = 8.f;
 
 static constexpr const float FAINT_CONNECTION_ALPHA = 0.1f;
+
+NODISCARD static bool isCrossingZAxis(const glm::vec3 &p1, const glm::vec3 &p2)
+{
+    return std::abs(p1.z - p2.z) > mmgl::GEOMETRIC_EPSILON;
+}
 
 NODISCARD static bool isConnectionMode(const CanvasMouseModeEnum mode)
 {
@@ -119,9 +124,16 @@ NODISCARD static QString getPostfixedDoorName(const RoomHandle &room, const Exit
     return room.getExit(dir).getDoorName().toQString() + postFix;
 }
 
-UniqueMesh RoomNameBatch::getMesh(GLFont &font) const
+NODISCARD UniqueMesh RoomNameBatchIntermediate::getMesh(GLFont &gl) const
 {
-    return font.getFontMesh(m_names);
+    return gl.getFontMesh(verts);
+}
+
+NODISCARD RoomNameBatchIntermediate RoomNameBatch::getIntermediate(const FontMetrics &font) const
+{
+    std::vector<FontVert3d> output;
+    ::getFontBatchRawData(font, m_names.data(), m_names.size(), output);
+    return RoomNameBatchIntermediate{std::move(output)};
 }
 
 void ConnectionDrawer::drawRoomDoorName(const RoomHandle &sourceRoom,
@@ -197,7 +209,7 @@ void ConnectionDrawer::drawRoomDoorName(const RoomHandle &sourceRoom,
         return 0.f;
     };
 
-    const glm::vec2 xy = [sourceDir, together, &sourcePos, &targetPos]() -> glm::vec2 {
+    const glm::vec2 xy = std::invoke([sourceDir, together, &sourcePos, &targetPos]() -> glm::vec2 {
         const glm::vec2 srcPos = sourcePos.to_vec2();
         if (together) {
             const auto centerPos = (srcPos + targetPos.to_vec2()) * 0.5f;
@@ -206,7 +218,7 @@ void ConnectionDrawer::drawRoomDoorName(const RoomHandle &sourceRoom,
         } else {
             return srcPos + glm::vec2{XOFFSET, getYOffset(sourceDir)};
         }
-    }();
+    });
 
     static const auto bg = Colors::black.withAlpha(0.4f);
     const glm::vec3 pos{xy, m_currentLayer};
@@ -608,44 +620,31 @@ void ConnectionDrawer::drawConnEndTriUpDownUnknown(float dX, float dY, float dst
 ConnectionMeshes ConnectionDrawerBuffers::getMeshes(OpenGL &gl) const
 {
     ConnectionMeshes result;
-    // normal.triVerts now contains all normal-colored triangle data (line quads + other shapes).
-    // result.normalLines is no longer needed as result.normalTris will hold all normal triangles.
-    // result.normalLines = gl.createColoredTriBatch(normal.triVerts); // Removed
     result.normalTris = gl.createColoredTriBatch(normal.triVerts);
-
-    // red.triVerts now contains all red-colored triangle data.
-    // result.redLines is no longer needed as result.redTris will hold all red triangles.
-    // result.redLines = gl.createColoredTriBatch(red.triVerts); // Removed
     result.redTris = gl.createColoredTriBatch(red.triVerts);
+    result.normalQuads = gl.createColoredQuadBatch(normal.quadVerts);
+    result.redQuads = gl.createColoredQuadBatch(red.quadVerts);
     return result;
 }
 
 void ConnectionMeshes::render(const int thisLayer, const int focusedLayer) const
 {
-    const auto color = [&thisLayer, &focusedLayer]() {
+    const auto color = std::invoke([&thisLayer, &focusedLayer]() -> Color {
         if (thisLayer == focusedLayer) {
-            return getCanvasNamedColorOptions().connectionNormalColor.getColor();
+            return XNamedColor{NamedColorEnum::CONNECTION_NORMAL}.getColor();
         }
         return Colors::gray70.withAlpha(FAINT_CONNECTION_ALPHA);
-    }();
-    const auto common_style = GLRenderState()
-                                  .withBlend(BlendModeEnum::TRANSPARENCY)
-                                  // .withLineParams(LineParams{CONNECTION_LINE_WIDTH}) // No longer relevant for triangle rendering
-                                  .withColor(color);
+    });
+    const auto common_style = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withColor(color);
 
-    // normalLines.render(common_style); // Removed, normalTris now handles all normal triangles
-    // The isValid() check is redundant as UniqueMesh::render() now has an internal null check.
+    // Even though we can draw colored lines and tris,
+    // the reason for having separate lines is so red will always be on top.
+    // If you don't think that's important, you can combine the batches.
+
     normalTris.render(common_style);
-
-    // redLines.render(common_style);   // Removed, redTris now handles all red triangles
-    // The isValid() check is redundant as UniqueMesh::render() now has an internal null check.
-    // Assuming vertex colors in red.triVerts are already set to red.
-    // The common_style.withColor(color) will provide the base color (e.g. white or faded gray),
-    // which is then multiplied by the red vertex color by the shader.
-    // If red connections should not fade, this might need adjustment:
-    // redTris.render(GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withColor(Colors::red));
-    // However, sticking to minimal changes and assuming vertex colors manage the "redness":
     redTris.render(common_style);
+    normalQuads.render(common_style);
+    redQuads.render(common_style);
 }
 
 void MapCanvas::paintNearbyConnectionPoints()
@@ -653,13 +652,13 @@ void MapCanvas::paintNearbyConnectionPoints()
     const bool isSelection = m_canvasMouseMode == CanvasMouseModeEnum::SELECT_CONNECTIONS;
     using CD = ConnectionSelection::ConnectionDescriptor;
 
-    static const ExitDirFlags allExits = []() {
+    static const auto allExits = std::invoke([]() -> ExitDirFlags {
         ExitDirFlags tmp;
         for (const ExitDirEnum dir : ALL_EXITS7) {
             tmp |= dir;
         }
         return tmp;
-    }();
+    });
 
     std::vector<ColorVert> points;
     const auto addPoint = [isSelection, &points](const Coordinate &roomCoord,
@@ -744,7 +743,7 @@ void MapCanvas::paintSelectedConnection()
     const auto pos1 = getPosition(first);
     // REVISIT: How about not dashed lines to the nearest possible connections
     // if the second isn't valid?
-    const auto optPos2 = [this, &sel]() -> std::optional<glm::vec3> {
+    const auto optPos2 = std::invoke([this, &sel]() -> std::optional<glm::vec3> {
         if (sel.isSecondValid()) {
             return getPosition(sel.getSecond());
         } else if (hasSel2()) {
@@ -752,7 +751,7 @@ void MapCanvas::paintSelectedConnection()
         } else {
             return std::nullopt;
         }
-    }();
+    });
 
     if (!optPos2) {
         return;
@@ -763,8 +762,11 @@ void MapCanvas::paintSelectedConnection()
     auto &gl = getOpenGL();
     const auto rs = GLRenderState().withColor(Colors::red);
 
-    const std::vector<glm::vec3> verts{pos1, pos2};
-    gl.renderPlainLines(verts, rs.withLineParams(LineParams{CONNECTION_LINE_WIDTH}));
+    {
+        std::vector<ColorVert> verts;
+        mmgl::generateLineQuadsSafe(verts, pos1, pos2, CONNECTION_LINE_WIDTH, Colors::red);
+        gl.renderColoredQuads(verts, rs);
+    }
 
     std::vector<ColorVert> points;
     points.emplace_back(Colors::red, pos1);
@@ -783,7 +785,7 @@ void ConnectionDrawer::ConnectionFakeGL::drawTriangle(const glm::vec3 &a,
                                                       const glm::vec3 &b,
                                                       const glm::vec3 &c)
 {
-    const auto &color = isNormal() ? getCanvasNamedColorOptions().connectionNormalColor.getColor()
+    const auto &color = isNormal() ? getCanvasNamedColorOptions().connectionNormalColor
                                    : Colors::red;
     auto &verts = deref(m_currentBuffer).triVerts;
     verts.emplace_back(color, a + m_offset);
@@ -794,53 +796,34 @@ void ConnectionDrawer::ConnectionFakeGL::drawTriangle(const glm::vec3 &a,
 void ConnectionDrawer::ConnectionFakeGL::drawLineStrip(const std::vector<glm::vec3> &points)
 {
     const auto transform = [this](const glm::vec3 &vert) { return vert + m_offset; };
-    auto &triVerts = deref(m_currentBuffer).triVerts;
     const float extension = CONNECTION_LINE_WIDTH * 0.5f;
 
-    // Helper lambda to generate a quad between two points with a specific color
-    auto generateQuad =
-        [&](const glm::vec3& p1, const glm::vec3& p2, const Color& quad_color) {
-        auto &verts = deref(m_currentBuffer).triVerts;
+    // Helper lambda to generate a quad between two points with a specific color.
+    auto generateQuad = [&](const glm::vec3 &p1, const glm::vec3 &p2, const Color quad_color) {
+        auto &verts = deref(m_currentBuffer).quadVerts;
 
-        if (p1 == p2) { // Zero-length segment, draw a small square
-            float half_size = CONNECTION_LINE_WIDTH / 2.0f; // Using the constant directly for the square size
-            glm::vec3 v_1 = p1 + glm::vec3(-half_size, -half_size, 0.0f);
-            glm::vec3 v_2 = p1 + glm::vec3( half_size, -half_size, 0.0f);
-            glm::vec3 v_3 = p1 + glm::vec3( half_size,  half_size, 0.0f);
-            glm::vec3 v_4 = p1 + glm::vec3(-half_size,  half_size, 0.0f);
-
-            verts.emplace_back(quad_color, v_1);
-            verts.emplace_back(quad_color, v_2);
-            verts.emplace_back(quad_color, v_3);
-
-            verts.emplace_back(quad_color, v_1);
-            verts.emplace_back(quad_color, v_3);
-            verts.emplace_back(quad_color, v_4);
-            return; // Done with this zero-length segment
+        const glm::vec3 segment = p2 - p1;
+        if (mmgl::isNearZero(segment)) {
+            mmgl::drawZeroLengthSquare(verts, p1, CONNECTION_LINE_WIDTH, quad_color);
+            return;
         }
 
-        glm::vec3 dir = glm::normalize(p2 - p1);
-        glm::vec3 perp_normal = glm::vec3(-dir.y, dir.x, 0.0f); // Assuming XY plane focus
-        float half_width = CONNECTION_LINE_WIDTH / 2.0f; // Use constant
+        const glm::vec3 dir = glm::normalize(segment);
+        const glm::vec3 perp_normal_1 = mmgl::getPerpendicularNormal(dir);
+        mmgl::generateLineQuad(verts, p1, p2, CONNECTION_LINE_WIDTH, quad_color, perp_normal_1);
 
-        glm::vec3 v1 = p1 + perp_normal * half_width;
-        glm::vec3 v2 = p1 - perp_normal * half_width;
-        glm::vec3 v3 = p2 + perp_normal * half_width;
-        glm::vec3 v4 = p2 - perp_normal * half_width;
-
-        // Triangle 1: v2, v1, v3
-        verts.emplace_back(quad_color, v2);
-        verts.emplace_back(quad_color, v1);
-        verts.emplace_back(quad_color, v3);
-
-        // Triangle 2: v2, v3, v4
-        verts.emplace_back(quad_color, v2);
-        verts.emplace_back(quad_color, v3);
-        verts.emplace_back(quad_color, v4);
+        // If the line crosses different Z-layers, draw a second perpendicular quad to form a "cross" shape.
+        if (isCrossingZAxis(p1, p2)) {
+            const glm::vec3 perp_normal_2 = mmgl::getOrthogonalNormal(dir, perp_normal_1);
+            mmgl::generateLineQuad(verts, p1, p2, CONNECTION_LINE_WIDTH, quad_color, perp_normal_2);
+        }
     };
 
     const auto size = points.size();
     assert(size >= 2);
+
+    const Color base_color = isNormal() ? getCanvasNamedColorOptions().connectionNormalColor
+                                        : Colors::red;
 
     for (size_t i = 1; i < size; ++i) {
         const glm::vec3 start_orig = points[i - 1u];
@@ -849,32 +832,41 @@ void ConnectionDrawer::ConnectionFakeGL::drawLineStrip(const std::vector<glm::ve
         const glm::vec3 start_v = transform(start_orig);
         const glm::vec3 end_v = transform(end_orig);
 
-        const Color current_segment_color = isNormal() ?
-            getCanvasNamedColorOptions().connectionNormalColor.getColor() : Colors::red;
+        Color current_segment_color = base_color;
 
-        // Handle original zero-length segments first
-        if (glm::length(end_v - start_v) < 1e-6f) {
-            generateQuad(start_v, end_v, current_segment_color); // generateQuad handles p1==p2
+        // Handle original zero-length segments first.
+        const glm::vec3 segment = end_v - start_v;
+        if (mmgl::isNearZero(segment)) {
+            generateQuad(start_v, end_v, current_segment_color);
             continue;
+        }
+
+        // If the segment crosses the Z-axis, apply fading.
+        if (isCrossingZAxis(start_v, end_v)) {
+            current_segment_color = current_segment_color.withAlpha(FAINT_CONNECTION_ALPHA);
         }
 
         glm::vec3 quad_start_v = start_v;
         glm::vec3 quad_end_v = end_v;
-        glm::vec3 segment_dir = glm::normalize(end_v - start_v); // Safe now due to check above
+        const glm::vec3 segment_dir = glm::normalize(segment);
 
-        if (i == 1) { // First segment of the polyline
+        // Extend the first and last segments for better visual continuity.
+        if (i == 1) {
+            // First segment of the polyline.
             quad_start_v = start_v - segment_dir * extension;
         }
-        if (i == size - 1) { // Last segment of the polyline
+        if (i == size - 1) {
+            // Last segment of the polyline.
             quad_end_v = end_v + segment_dir * extension;
         }
 
+        // If it's not a long line, just draw a single quad.
         if (!isLongLine(quad_start_v, quad_end_v)) {
             generateQuad(quad_start_v, quad_end_v, current_segment_color);
             continue;
         }
 
-        // It is a long line, apply fading
+        // It is a long line, apply fading.
         const float len = glm::length(quad_end_v - quad_start_v);
         const float faintCutoff = (len > 1e-6f) ? (LONG_LINE_HALFLEN / len) : 0.5f;
 

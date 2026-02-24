@@ -15,7 +15,6 @@ struct NODISCARD OrderedSet final
 public:
     using Set = std::set<T>;
     using ValueType = T;
-    using ConstIterator = typename Set::const_iterator;
 
 private:
     Set m_set;
@@ -48,8 +47,8 @@ public:
     NODISCARD bool empty() const { return m_set.empty(); }
 
 public:
-    NODISCARD ConstIterator begin() const { return m_set.begin(); }
-    NODISCARD ConstIterator end() const { return m_set.end(); }
+    NODISCARD auto begin() const { return m_set.begin(); }
+    NODISCARD auto end() const { return m_set.end(); }
 
 public:
     NODISCARD ValueType first() const

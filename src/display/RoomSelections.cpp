@@ -57,7 +57,7 @@ public:
 #define DECL(name, a, b) \
     const TexVert name \
     { \
-        glm::vec2{(a), (b)}, glm::vec3 \
+        glm::vec3{(a), (b), 0}, glm::vec3 \
         { \
             (a), (b), 0 \
         } \
@@ -81,8 +81,8 @@ public:
 
     void draw(OpenGL &gl, const MapCanvasTextures &textures)
     {
-        static const MMapper::Array<SelTypeEnum, NUM_SEL_TYPES> ALL_SEL_TYPES
-            = {SelTypeEnum::Near, SelTypeEnum::Distant, SelTypeEnum::MoveBad, SelTypeEnum::MoveGood};
+        static constexpr MMapper::Array<SelTypeEnum, NUM_SEL_TYPES> ALL_SEL_TYPES{
+            SelTypeEnum::Near, SelTypeEnum::Distant, SelTypeEnum::MoveBad, SelTypeEnum::MoveGood};
 
         const auto rs
             = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withDepthFunction(std::nullopt);
@@ -93,7 +93,7 @@ public:
                 continue;
             }
 
-            const SharedMMTexture &texture = [&textures, type]() -> const SharedMMTexture & {
+            const auto &texture = std::invoke([&textures, type]() -> const SharedMMTexture & {
                 switch (type) {
                 case SelTypeEnum::Near:
                     return textures.room_sel;
@@ -107,9 +107,9 @@ public:
                     break;
                 }
                 std::abort();
-            }();
+            });
 
-            gl.renderTexturedQuads(arr, rs.withTexture0(texture->getId()));
+            gl.renderTexturedQuads(arr, rs.withTexture0(texture->getArrayPosition().array));
         }
     }
 };
@@ -136,7 +136,7 @@ void MapCanvas::paintSelectedRoom(RoomSelFakeGL &gl, const RawRoom &room)
         gl.glTranslatef(-iconCenter.x, -iconCenter.y, 0.f);
 
         // Scale based upon distance
-        const auto scaleFactor = [this, roomCenter]() {
+        const auto scaleFactor = std::invoke([this, roomCenter]() -> float {
             const auto delta = roomCenter - m_mapScreen.getCenter();
             const auto distance = std::sqrt((delta.y * delta.y) + (delta.x * delta.x));
             // If we're too far away just scale down to 50% at most
@@ -144,7 +144,7 @@ void MapCanvas::paintSelectedRoom(RoomSelFakeGL &gl, const RawRoom &room)
                 return 0.5f;
             }
             return 1.f - (distance / static_cast<float>(BASESIZE));
-        }();
+        });
         gl.glScalef(scaleFactor, scaleFactor, 1.f);
 
         gl.drawColoredQuad(RoomSelFakeGL::SelTypeEnum::Distant);

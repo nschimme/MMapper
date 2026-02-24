@@ -23,7 +23,7 @@
     const std::vector<E> &name() \
     { \
         static_assert(std::is_enum_v<E>); \
-        static const auto things = []() { \
+        static const auto things = std::invoke([]() { \
             std::vector<E> result; \
             for (const E x : ::enums::genEnumValues<E, N>()) { \
                 if (x != E::UNDEFINED) { \
@@ -31,7 +31,7 @@
                 } \
             } \
             return result; \
-        }(); \
+        }); \
         return things; \
     }
 
@@ -46,8 +46,8 @@ X_DEFINE_GETTER(RoomMobFlagEnum, NUM_ROOM_MOB_FLAGS, getAllMobFlags)
 X_DEFINE_GETTER(RoomLoadFlagEnum, NUM_ROOM_LOAD_FLAGS, getAllLoadFlags)
 X_DEFINE_GETTER(DoorFlagEnum, NUM_DOOR_FLAGS, getAllDoorFlags)
 X_DEFINE_GETTER(ExitFlagEnum, NUM_EXIT_FLAGS, getAllExitFlags)
-X_DEFINE_GETTER(InfoMarkClassEnum, NUM_INFOMARK_CLASSES, getAllInfoMarkClasses)
-X_DEFINE_GETTER(InfoMarkTypeEnum, NUM_INFOMARK_TYPES, getAllInfoMarkTypes)
+X_DEFINE_GETTER(InfomarkClassEnum, NUM_INFOMARK_CLASSES, getAllInfomarkClasses)
+X_DEFINE_GETTER(InfomarkTypeEnum, NUM_INFOMARK_TYPES, getAllInfomarkTypes)
 } // namespace enums
 
 #undef X_DEFINE_GETTER

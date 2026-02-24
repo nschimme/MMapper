@@ -1,0 +1,4 @@
+src/client/ClientWidget.cpp:    if (NO_AUDIO || CURRENT_PLATFORM != PlatformEnum::Wasm
+src/preferences/audiopage.cpp:    if constexpr (NO_AUDIO) {
+src/global/ConfigConsts.h:static inline constexpr const bool NO_AUDIO = true;
+src/global/ConfigConsts.h:static inline constexpr const bool NO_AUDIO = false;

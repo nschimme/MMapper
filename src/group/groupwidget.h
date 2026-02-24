@@ -7,6 +7,7 @@
 #include "mmapper2character.h"
 
 #include <QAbstractTableModel>
+#include <QSortFilterProxyModel>
 #include <QString>
 #include <QStyledItemDelegate>
 #include <QWidget>
@@ -14,10 +15,26 @@
 
 class QAction;
 class MapData;
-class CGroupChar;
 class Mmapper2Group;
 class QObject;
 class QTableView;
+
+class NODISCARD_QOBJECT GroupProxyModel final : public QSortFilterProxyModel
+{
+    Q_OBJECT
+
+public:
+    explicit GroupProxyModel(QObject *parent = nullptr);
+    ~GroupProxyModel() final;
+
+    void refresh();
+
+protected:
+    bool filterAcceptsRow(int source_row, const QModelIndex &source_parent) const override;
+
+private:
+    SharedGroupChar getCharacterFromSource(const QModelIndex &source_index) const;
+};
 
 class NODISCARD GroupStateData final
 {
@@ -36,7 +53,6 @@ public:
 
 public:
     void paint(QPainter *pPainter, const QRect &rect);
-    // Shouldn't this be "getArea()"?
     NODISCARD int getWidth() const { return m_count * m_height; }
 };
 Q_DECLARE_METATYPE(GroupStateData)
@@ -56,43 +72,76 @@ public:
                              const QModelIndex &index) const override;
 };
 
+#define XFOREACH_COLUMNTYPE(X) \
+    X(NAME, name, Name, "Name") \
+    X(HP_PERCENT, hp_percent, HpPercent, "HP") \
+    X(MANA_PERCENT, mana_percent, ManaPercent, "Mana") \
+    X(MOVES_PERCENT, moves_percent, MovesPercent, "Moves") \
+    X(HP, hp, Hp, "HP") \
+    X(MANA, mana, Mana, "Mana") \
+    X(MOVES, moves, Moves, "Moves") \
+    X(STATE, state, State, "State") \
+    X(ROOM_NAME, room_name, RoomName, "Room Name") \
+    /* define column types above */
+
+#define X_COUNT(UPPER_CASE, lower_case, CamelCase, friendly) +1
+static constexpr const int GROUP_COLUMN_COUNT = XFOREACH_COLUMNTYPE(X_COUNT);
+#undef X_COUNT
+
+enum class NODISCARD ColumnTypeEnum {
+#define X_DECL_COLUMNTYPE(UPPER_CASE, lower_case, CamelCase, friendly) UPPER_CASE,
+    XFOREACH_COLUMNTYPE(X_DECL_COLUMNTYPE)
+#undef X_DECL_COLUMNTYPE
+};
+
+static_assert(GROUP_COLUMN_COUNT == static_cast<int>(ColumnTypeEnum::ROOM_NAME) + 1, "# of columns");
+
 class NODISCARD_QOBJECT GroupModel final : public QAbstractTableModel
 {
     Q_OBJECT
 
 private:
-    MapData *m_map = nullptr;
-    Mmapper2Group *m_group = nullptr;
+    GroupVector m_characters;
     bool m_mapLoaded = false;
 
 public:
-    enum class NODISCARD ColumnTypeEnum {
-        NAME = 0,
-        HP_PERCENT,
-        MANA_PERCENT,
-        MOVES_PERCENT,
-        HP,
-        MANA,
-        MOVES,
-        STATE,
-        ROOM_NAME
-    };
+    explicit GroupModel(QObject *parent = nullptr);
 
-    explicit GroupModel(MapData *md, Mmapper2Group *group, QObject *parent);
+public:
+    void setMapLoaded(const bool val) { m_mapLoaded = val; }
 
+public:
+    NODISCARD SharedGroupChar getCharacter(int row) const;
+    NODISCARD const GroupVector &getCharacters() const { return m_characters; }
+    void setCharacters(const GroupVector &newChars);
+    void insertCharacter(const SharedGroupChar &newCharacter);
+    void removeCharacterById(GroupId charId);
+    void updateCharacter(const SharedGroupChar &updatedCharacter);
     void resetModel();
+
+private:
     NODISCARD QVariant dataForCharacter(const SharedGroupChar &character,
                                         ColumnTypeEnum column,
                                         int role) const;
+    NODISCARD int findIndexById(GroupId charId) const;
 
+protected:
     NODISCARD int rowCount(const QModelIndex &parent) const override;
     NODISCARD int columnCount(const QModelIndex &parent) const override;
 
     NODISCARD QVariant data(const QModelIndex &index, int role) const override;
     NODISCARD QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
-    NODISCARD Qt::ItemFlags flags(const QModelIndex &parent) const override;
 
-    void setMapLoaded(const bool val) { m_mapLoaded = val; }
+    // Drag and drop overrides
+    NODISCARD Qt::ItemFlags flags(const QModelIndex &index) const override;
+    NODISCARD Qt::DropActions supportedDropActions() const override;
+    NODISCARD QStringList mimeTypes() const override;
+    NODISCARD QMimeData *mimeData(const QModelIndexList &indexes) const override;
+    NODISCARD bool dropMimeData(const QMimeData *data,
+                                Qt::DropAction action,
+                                int row,
+                                int column,
+                                const QModelIndex &parent) override;
 };
 
 class NODISCARD_QOBJECT GroupWidget final : public QWidget
@@ -103,7 +152,10 @@ private:
     QTableView *m_table = nullptr;
     Mmapper2Group *m_group = nullptr;
     MapData *m_map = nullptr;
+    GroupProxyModel *m_proxyModel = nullptr;
     GroupModel m_model;
+
+    void updateColumnVisibility();
 
 private:
     QAction *m_center = nullptr;
@@ -116,18 +168,18 @@ public:
 
 protected:
     NODISCARD QSize sizeHint() const override;
-    NODISCARD QSize minimumSizeHint() const override;
-
-private:
-    void readSettings();
-    void writeSettings();
 
 signals:
     void sig_kickCharacter(const QString &);
     void sig_center(glm::vec2);
 
 public slots:
-    void slot_updateLabels();
     void slot_mapUnloaded() { m_model.setMapLoaded(false); }
     void slot_mapLoaded() { m_model.setMapLoaded(true); }
+
+private slots:
+    void slot_onCharacterAdded(SharedGroupChar character);
+    void slot_onCharacterRemoved(GroupId characterId);
+    void slot_onCharacterUpdated(SharedGroupChar character);
+    void slot_onGroupReset(const GroupVector &newCharacterList);
 };

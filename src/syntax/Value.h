@@ -64,7 +64,7 @@ public:
     X(DoorFlagEnum, DoorFlagEnum, DoorFlag) \
     X(ExitFlagEnum, ExitFlagEnum, ExitFlag) \
     X(ExitDirEnum, ExitDirEnum, Direction) \
-    X(InfoMarkClassEnum, InfoMarkClassEnum, InfoMarkClass)
+    X(InfomarkClassEnum, InfomarkClassEnum, InfomarkClass)
 
 #define X_DECL_ENUM(ValueType, RefType, CamelCase) CamelCase,
     enum class NODISCARD IndexEnum : uint8_t { Null, XFOREACH_VALUE_TYPE(X_DECL_ENUM) };
@@ -87,33 +87,21 @@ public:
     explicit Value(T) = delete;
 
 public:
-    NODISCARD bool isNull() const
-    {
-        return std::holds_alternative<std::nullptr_t>(m_value);
-    }
+    NODISCARD bool isNull() const { return std::holds_alternative<std::nullptr_t>(m_value); }
 
 #define X_DEFINE_CTOR_IS_GET(ValueType, RefType, CamelCase) \
     explicit Value(ValueType x) \
         : m_value(std::move(x)) \
     {} \
-    NODISCARD bool is##CamelCase() const \
-    { \
-        return std::holds_alternative<ValueType>(m_value); \
-    } \
-    NODISCARD RefType get##CamelCase() const \
-    { \
-        return std::get<ValueType>(m_value); \
-    }
+    NODISCARD bool is##CamelCase() const { return std::holds_alternative<ValueType>(m_value); } \
+    NODISCARD RefType get##CamelCase() const { return std::get<ValueType>(m_value); }
 
     XFOREACH_VALUE_TYPE(X_DEFINE_CTOR_IS_GET)
 
 #undef X_DEFINE_CTOR_IS_GET
 
 public:
-    NODISCARD IndexEnum getType() const
-    {
-        return static_cast<IndexEnum>(m_value.index());
-    }
+    NODISCARD IndexEnum getType() const { return static_cast<IndexEnum>(m_value.index()); }
 
 public:
     friend std::ostream &operator<<(std::ostream &os, const Value &value);

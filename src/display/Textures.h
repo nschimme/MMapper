@@ -15,6 +15,14 @@
 #include <QString>
 #include <QtGui/qopengl.h>
 
+NODISCARD MMTextureId allocateTextureId();
+
+struct NODISCARD MMTexArrayPosition final
+{
+    MMTextureId array = INVALID_MM_TEXTURE_ID;
+    int position = 0;
+};
+
 // currently forward declared in OpenGLTypes.h
 // so it can define SharedMMTexture
 class NODISCARD MMTexture final : public std::enable_shared_from_this<MMTexture>
@@ -22,12 +30,29 @@ class NODISCARD MMTexture final : public std::enable_shared_from_this<MMTexture>
 private:
     QOpenGLTexture m_qt_texture;
     MMTextureId m_id = INVALID_MM_TEXTURE_ID;
+    std::optional<MMTexArrayPosition> m_arrayPos;
     bool m_forbidUpdates = false;
+    QString m_name;
+
+    struct NODISCARD SourceData final
+    {
+        std::vector<QImage> m_images;
+
+        SourceData() = default;
+        explicit SourceData(std::vector<QImage> images)
+            : m_images{std::move(images)}
+        {}
+    };
+    std::unique_ptr<SourceData> m_sourceData;
 
 public:
     NODISCARD static std::shared_ptr<MMTexture> alloc(const QString &name)
     {
         return std::make_shared<MMTexture>(Badge<MMTexture>{}, name);
+    }
+    NODISCARD static std::shared_ptr<MMTexture> alloc(std::vector<QImage> images)
+    {
+        return std::make_shared<MMTexture>(Badge<MMTexture>{}, std::move(images));
     }
     NODISCARD static std::shared_ptr<MMTexture> alloc(
         const QOpenGLTexture::Target target,
@@ -40,28 +65,51 @@ public:
 public:
     MMTexture() = delete;
     MMTexture(Badge<MMTexture>, const QString &name);
+    MMTexture(Badge<MMTexture>, std::vector<QImage> images);
     MMTexture(Badge<MMTexture>,
               const QOpenGLTexture::Target target,
               const std::function<void(QOpenGLTexture &)> &init,
               const bool forbidUpdates)
         : m_qt_texture{target}
         , m_forbidUpdates{forbidUpdates}
+        , m_sourceData{std::make_unique<SourceData>()}
     {
         init(m_qt_texture);
     }
     DELETE_CTORS_AND_ASSIGN_OPS(MMTexture);
 
 public:
+    NODISCARD const QString &getName() const { return m_name; }
+    NODISCARD const std::vector<QImage> &getImages() const
+    {
+        if (!m_sourceData) {
+            throw std::logic_error("source data has been cleared");
+        }
+        return m_sourceData->m_images;
+    }
+    void clearSourceData() { m_sourceData.reset(); }
+
     NODISCARD QOpenGLTexture *get() { return &m_qt_texture; }
     NODISCARD const QOpenGLTexture *get() const { return &m_qt_texture; }
-    QOpenGLTexture *operator->() { return get(); }
+    NODISCARD QOpenGLTexture *operator->() { return get(); }
 
     void bind() { get()->bind(); }
     void bind(GLuint x) { get()->bind(x); }
     void release(GLuint x) { get()->release(x); }
-    NODISCARD GLuint textureId() const { return get()->textureId(); }
+
     NODISCARD QOpenGLTexture::Target target() const { return get()->target(); }
     NODISCARD bool canBeUpdated() const { return !m_forbidUpdates; }
+
+    NODISCARD bool hasArrayPosition() const { return m_arrayPos.has_value(); }
+    NODISCARD MMTexArrayPosition getArrayPosition() const
+    {
+        if (hasArrayPosition()) {
+            return deref(m_arrayPos);
+        }
+
+        return MMTexArrayPosition{getId(), 0};
+    }
+    void setArrayPosition(const MMTexArrayPosition &pos) { m_arrayPos = pos; }
 
     NODISCARD SharedMMTexture getShared() { return shared_from_this(); }
     NODISCARD MMTexture *getRaw() { return this; }
@@ -94,6 +142,9 @@ template<RoadTagEnum Tag>
 struct NODISCARD road_texture_array : private texture_array<RoadIndexMaskEnum>
 {
     using base = texture_array<RoadIndexMaskEnum>;
+    using base::index_type;
+    using base::SIZE;
+    using base::value_type;
     decltype(auto) operator[](TaggedRoadIndex<Tag> x) { return base::operator[](x.index); }
     using base::operator[];
     using base::begin;
@@ -128,12 +179,15 @@ using TextureArrayNESWUD = EnumIndexedArray<SharedMMTexture, ExitDirEnum, NUM_EX
     X(SharedMMTexture, room_sel_distant) \
     X(SharedMMTexture, room_sel_move_bad) \
     X(SharedMMTexture, room_sel_move_good) \
-    X(SharedMMTexture, room_needs_update) \
-    X(SharedMMTexture, room_modified)
+    X(SharedMMTexture, room_highlight) \
+    X(SharedMMTexture, white_pixel)
 
 struct NODISCARD MapCanvasTextures final
 {
 #define X_DECL(_Type, _Name) _Type _Name;
+    XFOREACH_MAPCANVAS_TEXTURES(X_DECL)
+#undef X_DECL
+#define X_DECL(_Type, _Name) SharedMMTexture _Name##_Array;
     XFOREACH_MAPCANVAS_TEXTURES(X_DECL)
 #undef X_DECL
 
@@ -158,6 +212,15 @@ public:
         XFOREACH_MAPCANVAS_TEXTURES(X_EACH)
 #undef X_EACH
     }
+    template<typename Callback>
+    void for_each_array(Callback &&callback)
+    {
+        static_assert(std::is_invocable_v<Callback, std::string_view, SharedMMTexture &>
+                      or std::is_invocable_v<Callback, std::string_view, const SharedMMTexture &>);
+#define X_EACH(_Type, _Name) callback(std::string_view{#_Name "_Array"}, _Name##_Array);
+        XFOREACH_MAPCANVAS_TEXTURES(X_EACH)
+#undef X_EACH
+    }
 
     void destroyAll();
 };
@@ -165,9 +228,11 @@ public:
 namespace mctp {
 
 namespace detail {
-template<typename E_, size_t Size_>
-auto typeHack(EnumIndexedArray<SharedMMTexture, E_, Size_>)
-    -> EnumIndexedArray<MMTextureId, E_, Size_>;
+// converts from EnumIndexedArray<SharedMMTexture, ...> to EnumIndexedArray<MMTexArrayPosition, ...>
+template<typename T>
+auto typeHack(const T &)
+    -> std::enable_if_t<std::is_same_v<typename T::value_type, SharedMMTexture>,
+                        EnumIndexedArray<MMTexArrayPosition, typename T::index_type, T::SIZE>>;
 
 template<typename T>
 struct NODISCARD Proxy
@@ -178,7 +243,7 @@ struct NODISCARD Proxy
 template<>
 struct NODISCARD Proxy<SharedMMTexture>
 {
-    using type = MMTextureId;
+    using type = MMTexArrayPosition;
 };
 
 template<typename T>
@@ -195,5 +260,3 @@ struct NODISCARD MapCanvasTexturesProxy final
 NODISCARD extern MapCanvasTexturesProxy getProxy(const MapCanvasTextures &mct);
 
 } // namespace mctp
-
-NODISCARD extern MMTextureId allocateTextureId();

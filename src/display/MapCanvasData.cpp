@@ -4,52 +4,31 @@
 
 #include "MapCanvasData.h"
 
-#include <algorithm> // Required for std::min/std::max with initializer list
+#include "../opengl/LineRendering.h"
+
+#include <cassert>
+#include <cmath>
 #include <optional>
 
-#include <QPointF>
-#include <glm/geometric.hpp> // Required for glm::length
+#include <glm/gtc/epsilon.hpp>
 
-// Removed getAllRoomTints() function as RoomTintEnum and related constants have been removed/refactored.
-// const MMapper::Array<RoomTintEnum, NUM_ROOM_TINTS> &getAllRoomTints()
-// {
-//     static const MMapper::Array<RoomTintEnum, NUM_ROOM_TINTS>
-//         all_room_tints{RoomTintEnum::DARK, RoomTintEnum::NO_SUNDEATH};
-//     return all_room_tints;
-// }
+#include <QDebug>
+#include <QNativeGestureEvent>
+#include <QPointF>
+#include <QTouchEvent>
+
+const MMapper::Array<RoomTintEnum, NUM_ROOM_TINTS> &getAllRoomTints()
+{
+    static const MMapper::Array<RoomTintEnum, NUM_ROOM_TINTS>
+        all_room_tints{RoomTintEnum::DARK, RoomTintEnum::NO_SUNDEATH};
+    return all_room_tints;
+}
 
 MapCanvasInputState::MapCanvasInputState(PrespammedPath &prespammedPath)
     : m_prespammedPath{prespammedPath}
 {}
 
 MapCanvasInputState::~MapCanvasInputState() = default;
-
-void MapCanvasViewport::updateFrustumPlanes() {
-    const glm::mat4& M = m_viewProj;
-
-    // Manual extraction of rows for clarity with column-major glm::mat4
-    // M[column][row]
-    glm::vec4 row0 = glm::vec4(M[0][0], M[1][0], M[2][0], M[3][0]);
-    glm::vec4 row1 = glm::vec4(M[0][1], M[1][1], M[2][1], M[3][1]);
-    glm::vec4 row2 = glm::vec4(M[0][2], M[1][2], M[2][2], M[3][2]);
-    glm::vec4 row3 = glm::vec4(M[0][3], M[1][3], M[2][3], M[3][3]);
-
-    m_frustumPlanes[0] = row3 + row0; // Left
-    m_frustumPlanes[1] = row3 - row0; // Right
-    m_frustumPlanes[2] = row3 + row1; // Bottom
-    m_frustumPlanes[3] = row3 - row1; // Top
-    m_frustumPlanes[4] = row3 + row2; // Near
-    m_frustumPlanes[5] = row3 - row2; // Far
-
-    // Normalize each plane
-    for (size_t i = 0; i < 6; ++i) {
-        // For plane (A,B,C,D), normal is (A,B,C)
-        float normal_length = glm::length(glm::vec3(m_frustumPlanes[i].x, m_frustumPlanes[i].y, m_frustumPlanes[i].z));
-        if (normal_length > 1e-6f) { // Avoid division by zero or near-zero
-            m_frustumPlanes[i] /= normal_length;
-        }
-    }
-}
 
 // world space to screen space (logical pixels)
 std::optional<glm::vec3> MapCanvasViewport::project(const glm::vec3 &v) const
@@ -59,13 +38,12 @@ std::optional<glm::vec3> MapCanvasViewport::project(const glm::vec3 &v) const
     // This can happen if you set the layer height to the view distance
     // and then try to project a point on layer = 1, when the vertical
     // angle is 1, so the plane would pass through the camera.
-    if (std::abs(tmp.w) < 1e-6f) {
+    if (std::abs(tmp.w) < mmgl::W_PROJECTION_EPSILON) {
         return std::nullopt;
     }
     const auto ndc = glm::vec3{tmp} / tmp.w; /* [-1, 1]^3 if clamped */
 
-    const float epsilon = 1e-5f;
-    if (glm::any(glm::greaterThan(glm::abs(ndc), glm::vec3{1.f + epsilon}))) {
+    if (glm::any(glm::greaterThan(glm::abs(ndc), glm::vec3{1.f + mmgl::PROJECTION_EPSILON}))) {
         // result is not visible on screen.
         return std::nullopt;
     }
@@ -84,6 +62,12 @@ std::optional<glm::vec3> MapCanvasViewport::project(const glm::vec3 &v) const
 // output: world coordinates.
 glm::vec3 MapCanvasViewport::unproject_raw(const glm::vec3 &mouse_depth) const
 {
+    return unproject_raw(mouse_depth, m_viewProj);
+}
+
+glm::vec3 MapCanvasViewport::unproject_raw(const glm::vec3 &mouse_depth,
+                                           const glm::mat4 &viewProj) const
+{
     const float depth = mouse_depth.z;
     assert(::isClamped(depth, 0.f, 1.f));
 
@@ -93,7 +77,7 @@ glm::vec3 MapCanvasViewport::unproject_raw(const glm::vec3 &mouse_depth) const
     const glm::vec3 screen{screen2d, depth};
     const auto ndc = screen * 2.f - 1.f;
 
-    const auto tmp = glm::inverse(m_viewProj) * glm::vec4(ndc, 1.f);
+    const auto tmp = glm::inverse(viewProj) * glm::vec4(ndc, 1.f);
     // clamp to avoid division by zero
     constexpr float limit = 1e-6f;
     const auto w = (std::abs(tmp.w) < limit) ? std::copysign(limit, tmp.w) : tmp.w;
@@ -106,28 +90,53 @@ glm::vec3 MapCanvasViewport::unproject_raw(const glm::vec3 &mouse_depth) const
 // because it could be
 glm::vec3 MapCanvasViewport::unproject_clamped(const glm::vec2 &mouse) const
 {
+    return unproject_clamped(mouse, m_viewProj);
+}
+
+glm::vec3 MapCanvasViewport::unproject_clamped(const glm::vec2 &mouse,
+                                               const glm::mat4 &viewProj) const
+{
     const auto flayer = static_cast<float>(m_currentLayer);
     const auto &x = mouse.x;
     const auto &y = mouse.y;
-    const auto a = unproject_raw(glm::vec3{x, y, 0.f}); // near
-    const auto b = unproject_raw(glm::vec3{x, y, 1.f}); // far
+    const auto a = unproject_raw(glm::vec3{x, y, 0.f}, viewProj); // near
+    const auto b = unproject_raw(glm::vec3{x, y, 1.f}, viewProj); // far
     const float t = (flayer - a.z) / (b.z - a.z);
     const auto result = glm::mix(a, b, std::clamp(t, 0.f, 1.f));
     return glm::vec3{glm::vec2{result}, flayer};
 }
 
-glm::vec2 MapCanvasViewport::getMouseCoords(const QInputEvent *const event) const
+std::optional<glm::vec2> MapCanvasViewport::getMouseCoords(const QInputEvent *const event) const
 {
     if (const auto *const mouse = dynamic_cast<const QMouseEvent *>(event)) {
-        const auto x = static_cast<float>(mouse->pos().x());
-        const auto y = static_cast<float>(height() - mouse->pos().y());
+        const auto x = static_cast<float>(mouse->position().x());
+        const auto y = static_cast<float>(height() - mouse->position().y());
         return glm::vec2{x, y};
     } else if (const auto *const wheel = dynamic_cast<const QWheelEvent *>(event)) {
         const auto x = static_cast<float>(wheel->position().x());
         const auto y = static_cast<float>(height() - wheel->position().y());
         return glm::vec2{x, y};
+    } else if (const auto *const gesture = dynamic_cast<const QNativeGestureEvent *>(event)) {
+        const auto x = static_cast<float>(gesture->position().x());
+        const auto y = static_cast<float>(height() - gesture->position().y());
+        return glm::vec2{x, y};
+    } else if (const auto *const touch = dynamic_cast<const QTouchEvent *>(event)) {
+        const auto &points = touch->points();
+        if (points.isEmpty()) {
+            return std::nullopt;
+        }
+        QPointF centroid(0, 0);
+        for (const auto &p : points) {
+            centroid += p.position();
+        }
+        centroid /= static_cast<qreal>(points.size());
+        const auto x = static_cast<float>(centroid.x());
+        const auto y = static_cast<float>(height() - centroid.y());
+        return glm::vec2{x, y};
     } else {
-        throw std::invalid_argument("event");
+        qWarning() << "MapCanvasViewport::getMouseCoords: unhandled event type" << event->type();
+        assert(false);
+        return std::nullopt;
     }
 }
 
@@ -136,6 +145,14 @@ glm::vec2 MapCanvasViewport::getMouseCoords(const QInputEvent *const event) cons
 std::optional<glm::vec3> MapCanvasViewport::unproject(const QInputEvent *const event) const
 {
     const auto xy = getMouseCoords(event);
+    if (!xy) {
+        return std::nullopt;
+    }
+    return unproject(*xy);
+}
+
+std::optional<glm::vec3> MapCanvasViewport::unproject(const glm::vec2 &xy) const
+{
     // We don't actually know the depth we're trying to unproject;
     // technically we're solving for a ray, so we should unproject
     // two different depths and find where the ray intersects the
@@ -145,8 +162,7 @@ std::optional<glm::vec3> MapCanvasViewport::unproject(const QInputEvent *const e
     const auto b = unproject_raw(glm::vec3{xy, 1.f}); // far
     const auto unclamped = (static_cast<float>(m_currentLayer) - a.z) / (b.z - a.z);
 
-    const float epsilon = 1e-5f; // allow a small amount of overshoot
-    if (!::isClamped(unclamped, 0.f - epsilon, 1.f + epsilon)) {
+    if (!::isClamped(unclamped, 0.f - mmgl::PROJECTION_EPSILON, 1.f + mmgl::PROJECTION_EPSILON)) {
         return std::nullopt;
     }
 
@@ -157,7 +173,16 @@ std::optional<glm::vec3> MapCanvasViewport::unproject(const QInputEvent *const e
 
 std::optional<MouseSel> MapCanvasViewport::getUnprojectedMouseSel(const QInputEvent *const event) const
 {
-    const auto opt_v = unproject(event);
+    const auto xy = getMouseCoords(event);
+    if (!xy) {
+        return std::nullopt;
+    }
+    return getUnprojectedMouseSel(*xy);
+}
+
+std::optional<MouseSel> MapCanvasViewport::getUnprojectedMouseSel(const glm::vec2 &xy) const
+{
+    const auto opt_v = unproject(xy);
     if (!opt_v.has_value()) {
         return std::nullopt;
     }
@@ -177,39 +202,24 @@ glm::vec3 MapScreen::getCenter() const
     return m_viewport.unproject_clamped(glm::vec2{vp.offset} + glm::vec2{vp.size} * 0.5f);
 }
 
-bool MapScreen::isRoomVisible(const Coordinate &c, const float /*marginPixels*/) const
+bool MapScreen::isRoomVisible(const Coordinate &c, const float marginPixels) const
 {
-    const std::array<glm::vec4, 6>& frustumPlanes = m_viewport.getFrustumPlanes();
+    const auto pos = c.to_vec3();
+    for (int i = 0; i < 4; ++i) {
+        const glm::vec3 offset{static_cast<float>(i & 1), static_cast<float>((i >> 1) & 1), 0.f};
+        const auto corner = pos + offset;
+        switch (testVisibility(corner, marginPixels)) {
+        case VisiblityResultEnum::INSIDE_MARGIN:
+        case VisiblityResultEnum::ON_MARGIN:
+            break;
 
-    glm::vec3 roomMin = c.to_vec3();
-    // Rooms are 1x1 in XY, and Z extent is 0 for this check (flat AABB)
-    glm::vec3 roomMax = roomMin + glm::vec3(1.0f, 1.0f, 0.0f);
-
-    for (size_t i = 0; i < 6; ++i) {
-        const glm::vec4& plane = frustumPlanes[i]; // plane is (Nx, Ny, Nz, D)
-
-        // Determine the p-vertex (vertex of AABB "most positive" along the plane's normal direction)
-        glm::vec3 pVertex = roomMin;
-        if (plane.x > 0.0f) {
-            pVertex.x = roomMax.x;
-        }
-        if (plane.y > 0.0f) {
-            pVertex.y = roomMax.y;
-        }
-        if (plane.z > 0.0f) {
-            // If roomMax.z can be different from roomMin.z, use it here.
-            // For a flat AABB (height 0), roomMax.z == roomMin.z, so this line is okay as is.
-            pVertex.z = roomMax.z;
-        }
-
-        // Check if this p-vertex is on the "outside" side of the plane.
-        // Plane normals point inwards, so dot(normal, point) + D < 0 is outside.
-        if (glm::dot(glm::vec3(plane.x, plane.y, plane.z), pVertex) + plane.w < 0.0f) {
-            return false; // The entire AABB is outside this plane, so it's culled.
+        case VisiblityResultEnum::OUTSIDE_MARGIN:
+        case VisiblityResultEnum::OFF_SCREEN:
+            return false;
         }
     }
 
-    return true; // Room's AABB intersects or is inside the frustum
+    return true;
 }
 
 // Purposely ignores the possibility of glClipPlane() and glDepthRange().

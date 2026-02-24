@@ -46,6 +46,7 @@ NODISCARD const char *getPlatformEditor()
         // look for gnome-open, mate-open, etc.
         return "gedit";
 
+    case PlatformEnum::Wasm:
     case PlatformEnum::Unknown:
     default:
         return "";
@@ -53,11 +54,6 @@ NODISCARD const char *getPlatformEditor()
 }
 
 } // namespace
-
-Configuration::Configuration()
-{
-    read(); // read the settings or set them to the default values
-}
 
 /*
  * TODO: Make a dialog asking if the user wants to import settings
@@ -190,6 +186,7 @@ void Settings::initSettings()
     QSettings &conf = static_cast<QSettings &>(settings)
 
 ConstString GRP_ADVENTURE_PANEL = "Adventure Panel";
+ConstString GRP_AUDIO = "Audio";
 ConstString GRP_ACCOUNT = "Account";
 ConstString GRP_AUTO_LOAD_WORLD = "Auto load world";
 ConstString GRP_AUTO_LOG = "Auto log";
@@ -198,6 +195,7 @@ ConstString GRP_CONNECTION = "Connection";
 ConstString GRP_FINDROOMS_DIALOG = "FindRooms Dialog";
 ConstString GRP_GENERAL = "General";
 ConstString GRP_GROUP_MANAGER = "Group Manager";
+ConstString GRP_HOTKEYS = "Hotkeys";
 ConstString GRP_INFOMARKS_DIALOG = "InfoMarks Dialog";
 ConstString GRP_INTEGRATED_MUD_CLIENT = "Integrated Mud Client";
 ConstString GRP_MUME_CLIENT_PROTOCOL = "Mume client protocol";
@@ -207,6 +205,12 @@ ConstString GRP_PARSER = "Parser";
 ConstString GRP_PATH_MACHINE = "Path Machine";
 ConstString GRP_ROOM_PANEL = "Room Panel";
 ConstString GRP_ROOMEDIT_DIALOG = "RoomEdit Dialog";
+
+Configuration::Configuration()
+    : hotkeys(GRP_HOTKEYS)
+{
+    read(); // read the settings or set them to the default values
+}
 
 ConstString KEY_ABSOLUTE_PATH_ACCEPTANCE = "absolute path acceptance";
 ConstString KEY_ACCOUNT_NAME = "account name";
@@ -221,7 +225,6 @@ ConstString KEY_BACKGROUND_COLOR = "Background color";
 ConstString KEY_CHARACTER_ENCODING = "Character encoding";
 ConstString KEY_CHECK_FOR_UPDATE = "Check for update";
 ConstString KEY_CLEAR_INPUT_ON_ENTER = "Clear input on enter";
-ConstString KEY_COLOR = "color";
 ConstString KEY_COLUMNS = "Columns";
 ConstString KEY_COMMAND_PREFIX_CHAR = "Command prefix character";
 ConstString KEY_CONNECTION_NORMAL_COLOR = "Connection normal color";
@@ -236,6 +239,11 @@ ConstString KEY_EMOJI_DECODE = "decode emoji";
 ConstString KEY_EMULATED_EXITS = "Emulated Exits";
 ConstString KEY_EXTERNAL_EDITOR_COMMAND = "External editor command";
 ConstString KEY_FILE_NAME = "File name";
+ConstString KEY_GROUP_YOUR_COLOR = "color";
+ConstString KEY_GROUP_NPC_COLOR = "npc color";
+ConstString KEY_GROUP_NPC_COLOR_OVERRIDE = "npc color override";
+ConstString KEY_GROUP_NPC_SORT_BOTTOM = "npc sort bottom";
+ConstString KEY_GROUP_NPC_HIDE = "npc hide";
 ConstString KEY_AUTO_LOG = "Auto log";
 ConstString KEY_AUTO_LOG_ASK_DELETE = "Auto log ask before deleting";
 ConstString KEY_AUTO_LOG_CLEANUP_STRATEGY = "Auto log cleanup strategy";
@@ -258,10 +266,12 @@ ConstString KEY_LINES_OF_PEEK_PREVIEW = "Lines of peek preview";
 ConstString KEY_LINES_OF_SCROLLBACK = "Lines of scrollback";
 ConstString KEY_PROXY_LOCAL_PORT = "Local port number";
 ConstString KEY_MAP_MODE = "Map Mode";
+ConstString KEY_MUSIC_VOLUME = "Music volume";
+ConstString KEY_SOUND_VOLUME = "Sound volume";
+ConstString KEY_AUDIO_OUTPUT_DEVICE = "Audio output device";
 ConstString KEY_MAXIMUM_NUMBER_OF_PATHS = "maximum number of paths";
 ConstString KEY_MULTIPLE_CONNECTIONS_PENALTY = "multiple connections penalty";
 ConstString KEY_MUME_START_EPOCH = "Mume start epoch";
-ConstString KEY_NO_LAUNCH_PANEL = "No launch panel";
 ConstString KEY_NUMBER_OF_ANTI_ALIASING_SAMPLES = "Number of anti-aliasing samples";
 ConstString KEY_PROXY_CONNECTION_STATUS = "Proxy connection status";
 ConstString KEY_PROXY_LISTENS_ON_ANY_INTERFACE = "Proxy listens on any interface";
@@ -283,12 +293,16 @@ ConstString KEY_SHOW_NOTES = "Show notes";
 ConstString KEY_SHOW_UNSAVED_CHANGES = "Show unsaved changes";
 ConstString KEY_SHOW_MISSING_MAP_ID = "Show missing map id";
 ConstString KEY_TAB_COMPLETION_DICTIONARY_SIZE = "Tab completion dictionary size";
+ConstString KEY_THEME = "Theme";
 ConstString KEY_TLS_ENCRYPTION = "TLS encryption";
 ConstString KEY_USE_INTERNAL_EDITOR = "Use internal editor";
-ConstString KEY_USE_SOFTWARE_OPENGL = "Use software OpenGL";
 ConstString KEY_USE_TRILINEAR_FILTERING = "Use trilinear filtering";
 ConstString KEY_WINDOW_GEOMETRY = "Window Geometry";
 ConstString KEY_WINDOW_STATE = "Window State";
+ConstString KEY_BELL_AUDIBLE = "Bell audible";
+ConstString KEY_BELL_VISUAL = "Bell visual";
+ConstString KEY_USE_COMMAND_SEPARATOR = "Use command separator";
+ConstString KEY_COMMAND_SEPARATOR = "Command separator";
 
 void Settings::tryCopyOldSettings()
 {
@@ -345,6 +359,17 @@ NODISCARD static bool isValidMapMode(const MapModeEnum mode)
     return false;
 }
 
+NODISCARD static bool isValidTheme(const ThemeEnum theme)
+{
+    switch (theme) {
+    case ThemeEnum::System:
+    case ThemeEnum::Dark:
+    case ThemeEnum::Light:
+        return true;
+    }
+    return false;
+}
+
 NODISCARD static bool isValidCharacterEncoding(const CharacterEncodingEnum encoding)
 {
     switch (encoding) {
@@ -390,6 +415,17 @@ NODISCARD static MapModeEnum sanitizeMapMode(const uint32_t input)
 
     qWarning() << "invalid MapMode:" << input;
     return MapModeEnum::PLAY;
+}
+
+NODISCARD static ThemeEnum sanitizeTheme(const uint32_t input)
+{
+    const auto theme = static_cast<ThemeEnum>(input);
+    if (isValidTheme(theme)) {
+        return theme;
+    }
+
+    qWarning() << "invalid ThemeEnum:" << input;
+    return ThemeEnum::System;
 }
 
 NODISCARD static CharacterEncodingEnum sanitizeCharacterEncoding(const uint32_t input)
@@ -449,19 +485,32 @@ NODISCARD static uint16_t sanitizeUint16(const int input, const uint16_t default
         GROUP_CALLBACK(callback, GRP_GROUP_MANAGER, groupManager); \
         GROUP_CALLBACK(callback, GRP_MUME_CLOCK, mumeClock); \
         GROUP_CALLBACK(callback, GRP_ADVENTURE_PANEL, adventurePanel); \
+        GROUP_CALLBACK(callback, GRP_AUDIO, audio); \
         GROUP_CALLBACK(callback, GRP_INTEGRATED_MUD_CLIENT, integratedClient); \
-        GROUP_CALLBACK(callback, GRP_INFOMARKS_DIALOG, infoMarksDialog); \
+        GROUP_CALLBACK(callback, GRP_INFOMARKS_DIALOG, infomarksDialog); \
         GROUP_CALLBACK(callback, GRP_ROOMEDIT_DIALOG, roomEditDialog); \
         GROUP_CALLBACK(callback, GRP_ROOM_PANEL, roomPanel); \
         GROUP_CALLBACK(callback, GRP_FINDROOMS_DIALOG, findRoomsDialog); \
+        GROUP_CALLBACK(callback, GRP_HOTKEYS, hotkeys); \
     } while (false)
 
 void Configuration::read()
 {
+    SETTINGS(conf);
+    readFrom(conf);
+}
+
+void Configuration::write() const
+{
+    SETTINGS(conf);
+    writeTo(conf);
+}
+
+void Configuration::readFrom(QSettings &conf)
+{
     // reset to defaults before reading colors that might override them
     colorSettings.resetToDefaults();
 
-    SETTINGS(conf);
     FOREACH_CONFIG_GROUP(read);
 
     // This logic only runs once on a MMapper fresh install (or factory reset)
@@ -471,7 +520,9 @@ void Configuration::read()
         canvas.advanced.use3D.set(true);
 
         // New users get autologger turned on by default
-        autoLog.autoLog = true;
+        autoLog.autoLog = (CURRENT_PLATFORM != PlatformEnum::Wasm);
+
+        hotkeys.resetToDefault();
     }
 
     assert(canvas.backgroundColor == colorSettings.BACKGROUND);
@@ -484,9 +535,8 @@ void Configuration::read()
            && !colorSettings.BACKGROUND.getColor().isTransparent());
 }
 
-void Configuration::write() const
+void Configuration::writeTo(QSettings &conf) const
 {
-    SETTINGS(conf);
     FOREACH_CONFIG_GROUP(write);
 }
 
@@ -541,11 +591,12 @@ void Configuration::GeneralSettings::read(const QSettings &conf)
     showMenuBar = conf.value(KEY_SHOW_MENU_BAR, true).toBool();
     mapMode = sanitizeMapMode(
         conf.value(KEY_MAP_MODE, static_cast<uint32_t>(MapModeEnum::PLAY)).toUInt());
-    noClientPanel = conf.value(KEY_NO_LAUNCH_PANEL, false).toBool();
     checkForUpdate = conf.value(KEY_CHECK_FOR_UPDATE, true).toBool();
     characterEncoding = sanitizeCharacterEncoding(
         conf.value(KEY_CHARACTER_ENCODING, static_cast<uint32_t>(CharacterEncodingEnum::LATIN1))
             .toUInt());
+    m_theme = sanitizeTheme(
+        conf.value(KEY_THEME, static_cast<uint32_t>(ThemeEnum::System)).toUInt());
 }
 
 void Configuration::ConnectionSettings::read(const QSettings &conf)
@@ -557,8 +608,13 @@ void Configuration::ConnectionSettings::read(const QSettings &conf)
                                 static_cast<uint16_t>(DEFAULT_PORT));
     localPort = sanitizeUint16(conf.value(KEY_PROXY_LOCAL_PORT, DEFAULT_PORT).toInt(),
                                static_cast<uint16_t>(DEFAULT_PORT));
+#ifndef Q_OS_WASM
+    // REVISIT: This should be true if WebSocket mode is enabled?
     tlsEncryption = QSslSocket::supportsSsl() ? conf.value(KEY_TLS_ENCRYPTION, true).toBool()
                                               : false;
+#else
+    tlsEncryption = true;
+#endif
     proxyConnectionStatus = conf.value(KEY_PROXY_CONNECTION_STATUS, false).toBool();
     proxyListensOnAnyInterface = conf.value(KEY_PROXY_LISTENS_ON_ANY_INTERFACE, false).toBool();
 }
@@ -595,9 +651,8 @@ void Configuration::CanvasSettings::read(const QSettings &conf)
     connectionNormalColor = lookupColor(KEY_CONNECTION_NORMAL_COLOR, Colors::white.toHex());
     roomDarkColor = lookupColor(KEY_ROOM_DARK_COLOR, DEFAULT_DARK_COLOR);
     roomDarkLitColor = lookupColor(KEY_ROOM_DARK_LIT_COLOR, DEFAULT_NO_SUNDEATH_COLOR);
-    antialiasingSamples = conf.value(KEY_NUMBER_OF_ANTI_ALIASING_SAMPLES, 0).toInt();
-    trilinearFiltering = conf.value(KEY_USE_TRILINEAR_FILTERING, true).toBool();
-    softwareOpenGL = conf.value(KEY_USE_SOFTWARE_OPENGL, false).toBool();
+    antialiasingSamples.set(conf.value(KEY_NUMBER_OF_ANTI_ALIASING_SAMPLES, 0).toInt());
+    trilinearFiltering.set(conf.value(KEY_USE_TRILINEAR_FILTERING, true).toBool());
     advanced.use3D.set(conf.value(KEY_3D_CANVAS, false).toBool());
     advanced.autoTilt.set(conf.value(KEY_3D_AUTO_TILT, true).toBool());
     advanced.printPerfStats.set(conf.value(KEY_3D_PERFSTATS, IS_DEBUG_BUILD).toBool());
@@ -650,9 +705,8 @@ void Configuration::ParserSettings::read(const QSettings &conf)
                                  QString(ANSI_GREEN));
     roomDescColor = sanitizeAnsi(conf.value(KEY_ROOM_DESC_ANSI_COLOR, ANSI_RESET).toString(),
                                  QString(ANSI_RESET));
-    prefixChar = conf.value(KEY_COMMAND_PREFIX_CHAR, QChar::fromLatin1(char_consts::C_UNDERSCORE))
-                     .toChar()
-                     .toLatin1();
+    prefixChar = mmqt::toLatin1(
+        conf.value(KEY_COMMAND_PREFIX_CHAR, QChar::fromLatin1(char_consts::C_UNDERSCORE)).toChar());
     encodeEmoji = conf.value(KEY_EMOJI_ENCODE, true).toBool();
     decodeEmoji = conf.value(KEY_EMOJI_DECODE, true).toBool();
 }
@@ -684,8 +738,11 @@ void Configuration::PathMachineSettings::read(const QSettings &conf)
 
 void Configuration::GroupManagerSettings::read(const QSettings &conf)
 {
-    color = QColor(conf.value(KEY_COLOR, "#FFFF00").toString());
-    geometry = conf.value(KEY_WINDOW_GEOMETRY).toByteArray();
+    color = QColor(conf.value(KEY_GROUP_YOUR_COLOR, "#FFFF00").toString());
+    npcColor = QColor(conf.value(KEY_GROUP_NPC_COLOR, QColor(Qt::lightGray)).toString());
+    npcColorOverride = conf.value(KEY_GROUP_NPC_COLOR_OVERRIDE, false).toBool();
+    npcHide = conf.value(KEY_GROUP_NPC_HIDE, false).toBool();
+    npcSortBottom = conf.value(KEY_GROUP_NPC_SORT_BOTTOM, false).toBool();
 }
 
 void Configuration::MumeClockSettings::read(const QSettings &conf)
@@ -700,6 +757,14 @@ void Configuration::AdventurePanelSettings::read(const QSettings &conf)
     m_displayXPStatus = conf.value(KEY_DISPLAY_XP_STATUS, true).toBool();
 }
 
+void Configuration::AudioSettings::read(const QSettings &conf)
+{
+    m_unlocked = (CURRENT_PLATFORM != PlatformEnum::Wasm);
+    m_musicVolume = std::clamp(conf.value(KEY_MUSIC_VOLUME, 50).toInt(), 0, 100);
+    m_soundVolume = std::clamp(conf.value(KEY_SOUND_VOLUME, 50).toInt(), 0, 100);
+    m_outputDeviceId = conf.value(KEY_AUDIO_OUTPUT_DEVICE, "").toByteArray();
+}
+
 void Configuration::IntegratedMudClientSettings::read(const QSettings &conf)
 {
     font = conf.value(KEY_FONT, "").toString();
@@ -710,9 +775,14 @@ void Configuration::IntegratedMudClientSettings::read(const QSettings &conf)
     linesOfScrollback = conf.value(KEY_LINES_OF_SCROLLBACK, 10000).toInt();
     linesOfInputHistory = conf.value(KEY_LINES_OF_INPUT_HISTORY, 100).toInt();
     tabCompletionDictionarySize = conf.value(KEY_TAB_COMPLETION_DICTIONARY_SIZE, 100).toInt();
-    clearInputOnEnter = conf.value(KEY_CLEAR_INPUT_ON_ENTER, true).toBool();
+    clearInputOnEnter = conf.value(KEY_CLEAR_INPUT_ON_ENTER, false).toBool();
     autoResizeTerminal = conf.value(KEY_AUTO_RESIZE_TERMINAL, true).toBool();
     linesOfPeekPreview = conf.value(KEY_LINES_OF_PEEK_PREVIEW, 7).toInt();
+    audibleBell = conf.value(KEY_BELL_AUDIBLE, true).toBool();
+    visualBell = conf.value(KEY_BELL_VISUAL, (CURRENT_PLATFORM == PlatformEnum::Wasm)).toBool();
+    useCommandSeparator = conf.value(KEY_USE_COMMAND_SEPARATOR, false).toBool();
+    commandSeparator = conf.value(KEY_COMMAND_SEPARATOR, QString(char_consts::C_SEMICOLON))
+                           .toString();
 }
 
 void Configuration::RoomPanelSettings::read(const QSettings &conf)
@@ -720,7 +790,7 @@ void Configuration::RoomPanelSettings::read(const QSettings &conf)
     geometry = conf.value(KEY_WINDOW_GEOMETRY).toByteArray();
 }
 
-void Configuration::InfoMarksDialog::read(const QSettings &conf)
+void Configuration::InfomarksDialog::read(const QSettings &conf)
 {
     geometry = conf.value(KEY_WINDOW_GEOMETRY).toByteArray();
 }
@@ -745,9 +815,9 @@ void Configuration::GeneralSettings::write(QSettings &conf) const
     conf.setValue(KEY_SHOW_SCROLL_BARS, showScrollBars);
     conf.setValue(KEY_SHOW_MENU_BAR, showMenuBar);
     conf.setValue(KEY_MAP_MODE, static_cast<uint32_t>(mapMode));
-    conf.setValue(KEY_NO_LAUNCH_PANEL, noClientPanel);
     conf.setValue(KEY_CHECK_FOR_UPDATE, checkForUpdate);
     conf.setValue(KEY_CHARACTER_ENCODING, static_cast<uint32_t>(characterEncoding));
+    conf.setValue(KEY_THEME, static_cast<uint32_t>(m_theme));
 }
 
 void Configuration::ConnectionSettings::write(QSettings &conf) const
@@ -777,9 +847,8 @@ void Configuration::CanvasSettings::write(QSettings &conf) const
     conf.setValue(KEY_ROOM_DARK_COLOR, getQColorName(roomDarkColor));
     conf.setValue(KEY_ROOM_DARK_LIT_COLOR, getQColorName(roomDarkLitColor));
     conf.setValue(KEY_CONNECTION_NORMAL_COLOR, getQColorName(connectionNormalColor));
-    conf.setValue(KEY_NUMBER_OF_ANTI_ALIASING_SAMPLES, antialiasingSamples);
-    conf.setValue(KEY_USE_TRILINEAR_FILTERING, trilinearFiltering);
-    conf.setValue(KEY_USE_SOFTWARE_OPENGL, softwareOpenGL);
+    conf.setValue(KEY_NUMBER_OF_ANTI_ALIASING_SAMPLES, antialiasingSamples.get());
+    conf.setValue(KEY_USE_TRILINEAR_FILTERING, trilinearFiltering.get());
     conf.setValue(KEY_3D_CANVAS, advanced.use3D.get());
     conf.setValue(KEY_3D_AUTO_TILT, advanced.autoTilt.get());
     conf.setValue(KEY_3D_PERFSTATS, advanced.printPerfStats.get());
@@ -849,8 +918,11 @@ void Configuration::PathMachineSettings::write(QSettings &conf) const
 
 void Configuration::GroupManagerSettings::write(QSettings &conf) const
 {
-    conf.setValue(KEY_COLOR, color.name());
-    conf.setValue(KEY_WINDOW_GEOMETRY, geometry);
+    conf.setValue(KEY_GROUP_YOUR_COLOR, color.name());
+    conf.setValue(KEY_GROUP_NPC_COLOR, npcColor);
+    conf.setValue(KEY_GROUP_NPC_COLOR_OVERRIDE, npcColorOverride);
+    conf.setValue(KEY_GROUP_NPC_HIDE, npcHide);
+    conf.setValue(KEY_GROUP_NPC_SORT_BOTTOM, npcSortBottom);
 }
 
 void Configuration::MumeClockSettings::write(QSettings &conf) const
@@ -863,6 +935,13 @@ void Configuration::MumeClockSettings::write(QSettings &conf) const
 void Configuration::AdventurePanelSettings::write(QSettings &conf) const
 {
     conf.setValue(KEY_DISPLAY_XP_STATUS, m_displayXPStatus);
+}
+
+void Configuration::AudioSettings::write(QSettings &conf) const
+{
+    conf.setValue(KEY_MUSIC_VOLUME, m_musicVolume);
+    conf.setValue(KEY_SOUND_VOLUME, m_soundVolume);
+    conf.setValue(KEY_AUDIO_OUTPUT_DEVICE, m_outputDeviceId);
 }
 
 void Configuration::IntegratedMudClientSettings::write(QSettings &conf) const
@@ -878,6 +957,10 @@ void Configuration::IntegratedMudClientSettings::write(QSettings &conf) const
     conf.setValue(KEY_CLEAR_INPUT_ON_ENTER, clearInputOnEnter);
     conf.setValue(KEY_AUTO_RESIZE_TERMINAL, autoResizeTerminal);
     conf.setValue(KEY_LINES_OF_PEEK_PREVIEW, linesOfPeekPreview);
+    conf.setValue(KEY_BELL_AUDIBLE, audibleBell);
+    conf.setValue(KEY_BELL_VISUAL, visualBell);
+    conf.setValue(KEY_USE_COMMAND_SEPARATOR, useCommandSeparator);
+    conf.setValue(KEY_COMMAND_SEPARATOR, commandSeparator);
 }
 
 void Configuration::RoomPanelSettings::write(QSettings &conf) const
@@ -885,7 +968,7 @@ void Configuration::RoomPanelSettings::write(QSettings &conf) const
     conf.setValue(KEY_WINDOW_GEOMETRY, geometry);
 }
 
-void Configuration::InfoMarksDialog::write(QSettings &conf) const
+void Configuration::InfomarksDialog::write(QSettings &conf) const
 {
     conf.setValue(KEY_WINDOW_GEOMETRY, geometry);
 }
@@ -930,13 +1013,16 @@ void Configuration::NamedColorOptions::resetToDefaults()
     static const Color water{76, 216, 255};   // closest well-known color is "Malibu"
 
     BACKGROUND = background;
+    CONNECTION_NORMAL = Colors::white;
+    HIGHLIGHT_UNSAVED = Colors::cyan;
+    HIGHLIGHT_TEMPORARY = Colors::red;
+    HIGHLIGHT_NEEDS_SERVER_ID = Colors::yellow;
     INFOMARK_COMMENT = Colors::gray75;
     INFOMARK_HERB = Colors::green;
     INFOMARK_MOB = Colors::red;
     INFOMARK_OBJECT = Colors::yellow;
     INFOMARK_RIVER = water;
     INFOMARK_ROAD = road;
-    CONNECTION_NORMAL = Colors::white;
     ROOM_DARK = darkRoom;
     ROOM_NO_SUNDEATH = noSundeath;
     STREAM = water;
@@ -993,21 +1079,39 @@ void setEnteredMain()
     g_config_enteredMain = true;
 }
 
-const Configuration::NamedColorOptions &getNamedColorOptions()
+void Configuration::ResolvedNamedColorOptions::setFrom(const NamedColorOptions &from)
+{
+#define X_CLONE(_id, _name) (this->_id) = (from._id).getColor();
+    XFOREACH_NAMED_COLOR_OPTIONS(X_CLONE)
+#undef X_CLONE
+}
+
+void Configuration::ResolvedCanvasNamedColorOptions::setFrom(const CanvasNamedColorOptions &from)
+{
+#define X_CLONE(_id, _name) (this->_id) = (from._id).getColor();
+    XFOREACH_CANVAS_NAMED_COLOR_OPTIONS(X_CLONE)
+#undef X_CLONE
+}
+
+const Configuration::ResolvedNamedColorOptions &getNamedColorOptions()
 {
     assert(g_config_enteredMain);
     if (g_thread == std::this_thread::get_id()) {
-        return getConfig().colorSettings;
+        thread_local Configuration::ResolvedNamedColorOptions tl_res;
+        tl_res.setFrom(getConfig().colorSettings);
+        return tl_res;
     }
 
     return deref(tl_named_color_options);
 }
 
-const Configuration::CanvasNamedColorOptions &getCanvasNamedColorOptions()
+const Configuration::ResolvedCanvasNamedColorOptions &getCanvasNamedColorOptions()
 {
     assert(g_config_enteredMain);
     if (g_thread == std::this_thread::get_id()) {
-        return getConfig().canvas;
+        thread_local Configuration::ResolvedCanvasNamedColorOptions tl_res;
+        tl_res.setFrom(getConfig().canvas);
+        return tl_res;
     }
 
     return deref(tl_canvas_named_color_options);

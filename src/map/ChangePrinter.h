@@ -10,6 +10,7 @@
 #include "ExitFlags.h"
 #include "Map.h"
 #include "RoomHandle.h"
+#include "infomark.h"
 #include "mmapper2room.h"
 #include "roomid.h"
 
@@ -63,6 +64,7 @@ private:
     void print(PositionChangeEnum type);
     void print(PromptFogEnum type);
     void print(PromptWeatherEnum type);
+    void print(UpdateTypeEnum type);
     void print(RoomAlignEnum type);
     void print(RoomLightEnum type);
     void print(RoomLoadFlagEnum flag);
@@ -87,6 +89,13 @@ private:
     void print(const RoomFieldVariant &var);
 
 private:
+    void print(const InfomarkId id);
+    void print(InfomarkClassEnum type);
+    void print(InfomarkTypeEnum type);
+    void print(const InfomarkText &text);
+    void print(const RawInfomark &fields);
+
+private:
     void print(const RoomIdSet &set);
 
 private:
@@ -100,8 +109,5 @@ private:
 #undef X_NOP
 
 public:
-    void print(const Change &change)
-    {
-        this->accept(change);
-    }
+    void print(const Change &change) { this->accept(change); }
 };

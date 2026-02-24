@@ -12,6 +12,7 @@
 using namespace world_change_types;
 using namespace exit_change_types;
 using namespace room_change_types;
+using namespace infomark_change_types;
 
 namespace { // anonymous
 
@@ -179,7 +180,9 @@ void ChangePrinter::print(const ServerRoomId serverId)
 
 void ChangePrinter::print(const RoomId room)
 {
-    if (const auto ext = m_remap(room); ext != INVALID_EXTERNAL_ROOMID) {
+    if (room == INVALID_ROOMID) {
+        m_os.writeWithColor(error_color, "INVALID_ROOMID");
+    } else if (const auto ext = m_remap(room); ext != INVALID_EXTERNAL_ROOMID) {
         print(ext);
     } else {
         m_os.writeWithColor(error_color, "UnknownRoomId");
@@ -353,6 +356,20 @@ void ChangePrinter::print(const PromptWeatherEnum type)
 
     switch (type) {
         XFOREACH_PROMPT_WEATHER_ENUM(X_CASE)
+    }
+    error();
+#undef X_CASE
+}
+
+void ChangePrinter::print(const UpdateTypeEnum type)
+{
+#define X_CASE(x) \
+    case UpdateTypeEnum::x: \
+        m_os.writeWithColor(const_color, #x); \
+        return;
+
+    switch (type) {
+        XFOREACH_UpdateTypeEnum(X_CASE)
     }
     error();
 #undef X_CASE
@@ -611,6 +628,69 @@ void ChangePrinter::print(const RoomFieldVariant &var)
 #undef X_NOP
 }
 
+void ChangePrinter::print(const InfomarkId id)
+{
+    if (id == INVALID_INFOMARK_ID) {
+        m_os.writeWithColor(error_color, "INVALID_INFOMARK_ID");
+    } else {
+        writeTaggedInt(m_os, "InfomarkId", id);
+    }
+}
+
+void ChangePrinter::print(const InfomarkClassEnum type)
+{
+#define CASE(UPPER, s) \
+    do { \
+    case InfomarkClassEnum::UPPER: \
+        return m_os.writeWithColor(const_color, s); \
+    } while (false)
+    switch (type) {
+        // TODO: Move this into infomark.h XFOREACH
+        CASE(GENERIC, "generic");
+        CASE(HERB, "herb");
+        CASE(RIVER, "river");
+        CASE(PLACE, "place");
+        CASE(MOB, "mob");
+        CASE(COMMENT, "comment");
+        CASE(ROAD, "road");
+        CASE(OBJECT, "object");
+        CASE(ACTION, "action");
+        CASE(LOCALITY, "locality");
+    }
+#undef CASE
+}
+
+void ChangePrinter::print(const InfomarkTypeEnum type)
+{
+#define CASE(UPPER, s) \
+    do { \
+    case InfomarkTypeEnum::UPPER: \
+        return m_os.writeWithColor(const_color, s); \
+    } while (false)
+    switch (type) {
+        // TODO: Move this into infomark.h XFOREACH
+        CASE(TEXT, "text");
+        CASE(LINE, "line");
+        CASE(ARROW, "arrow");
+    }
+#undef CASE
+}
+
+void ChangePrinter::print(const InfomarkText &text)
+{
+    print_string_color_quoted(m_os, text.getStdStringViewUtf8());
+}
+
+void ChangePrinter::print(const RawInfomark &mark)
+{
+    BEGIN_STRUCT_HELPER("RawInfomark")
+    {
+#define X_CASE(Type, Prop, Init) helper.add_member(#Prop, mark.get##Prop());
+        XFOREACH_INFOMARK_PROPERTY(X_CASE)
+#undef X_CASE
+    }
+}
+
 void ChangePrinter::print(const RoomIdSet &set)
 {
     auto &os = m_os;
@@ -618,7 +698,7 @@ void ChangePrinter::print(const RoomIdSet &set)
     os.writeWithColor(type_name_color, "RoomIdSet");
     os << "{";
     size_t rooms_printed = 0;
-    for (auto id : set) {
+    for (const RoomId id : set) {
         os << prefix;
         prefix = ", ";
         if (rooms_printed++ >= max_roomids_printed) {
@@ -764,6 +844,7 @@ void ChangePrinter::virt_accept(const Update &change)
     {
         HELPER_ADD_MEMBER(room);
         helper.add_member("change", change.event);
+        HELPER_ADD_MEMBER(type);
     }
 }
 
@@ -829,5 +910,30 @@ void ChangePrinter::virt_accept(const SetExitFlags &change)
         HELPER_ADD_MEMBER(room);
         HELPER_ADD_MEMBER(dir);
         HELPER_ADD_MEMBER(flags);
+    }
+}
+
+void ChangePrinter::virt_accept(const AddInfomark &change)
+{
+    BEGIN_STRUCT_HELPER("AddInfomark")
+    {
+        HELPER_ADD_MEMBER(fields);
+    }
+}
+
+void ChangePrinter::virt_accept(const RemoveInfomark &change)
+{
+    BEGIN_STRUCT_HELPER("RemoveInfomark")
+    {
+        HELPER_ADD_MEMBER(id);
+    }
+}
+
+void ChangePrinter::virt_accept(const UpdateInfomark &change)
+{
+    BEGIN_STRUCT_HELPER("UpdateInfomark")
+    {
+        HELPER_ADD_MEMBER(id);
+        HELPER_ADD_MEMBER(fields);
     }
 }

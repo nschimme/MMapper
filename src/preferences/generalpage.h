@@ -29,7 +29,7 @@ public:
     ~GeneralPage() final;
 
 signals:
-    void sig_factoryReset();
+    void sig_reloadConfig();
 
 public slots:
     void slot_loadConfig();
@@ -47,4 +47,5 @@ public slots:
 
     void slot_displayMumeClockStateChanged(int);
     void slot_displayXPStatusStateChanged(int);
+    void slot_themeComboBoxChanged(int);
 };

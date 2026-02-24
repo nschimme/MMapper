@@ -12,6 +12,7 @@
 #include <cstddef>
 #include <memory>
 #include <optional>
+#include <tuple>
 #include <vector>
 
 #include <glm/glm.hpp>
@@ -31,7 +32,7 @@ struct NODISCARD GLText final
 
     explicit GLText(const glm::vec3 &pos_,
                     std::string moved_text,
-                    const Color &color_ = {},
+                    const Color color_ = {},
                     std::optional<Color> bgcolor_ = {},
                     const FontFormatFlags fontFormatFlag_ = {},
                     int rotationAngle_ = 0)
@@ -52,7 +53,7 @@ private:
     OpenGL &m_gl;
     SharedMMTexture m_texture;
     MMTextureId m_id = INVALID_MM_TEXTURE_ID;
-    std::unique_ptr<FontMetrics> m_fontMetrics;
+    std::shared_ptr<const FontMetrics> m_fontMetrics;
 
 public:
     explicit GLFont(OpenGL &gl);
@@ -61,6 +62,13 @@ public:
 
 private:
     NODISCARD const FontMetrics &getFontMetrics() const { return deref(m_fontMetrics); }
+
+public:
+    NODISCARD std::shared_ptr<const FontMetrics> getSharedFontMetrics() const
+    {
+        std::ignore = deref(m_fontMetrics); // throws if nullptr
+        return m_fontMetrics;
+    }
 
 public:
     void setTextureId(const MMTextureId id)
@@ -80,14 +88,18 @@ private:
 
 public:
     void renderTextCentered(const QString &text,
-                            const Color &color = {},
-                            const std::optional<Color> &bgcolor = {});
+                            Color color = {},
+                            std::optional<Color> bgcolor = {});
     void render2dTextImmediate(const std::vector<GLText> &text);
     void render3dTextImmediate(const std::vector<GLText> &text);
+    void render3dTextImmediate(const std::vector<FontVert3d> &rawVerts);
 
 public:
-    NODISCARD UniqueMesh getFontMesh(const std::vector<GLText> &text);
-
-private:
-    NODISCARD std::vector<FontVert3d> getFontBatchRawData(const GLText *text, size_t count);
+    NODISCARD std::vector<FontVert3d> getFontMeshIntermediate(const std::vector<GLText> &text);
+    NODISCARD UniqueMesh getFontMesh(const std::vector<FontVert3d> &text);
 };
+
+extern void getFontBatchRawData(const FontMetrics &fm,
+                                const GLText *text,
+                                size_t count,
+                                std::vector<FontVert3d> &output);

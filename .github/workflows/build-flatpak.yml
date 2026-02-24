@@ -13,11 +13,11 @@ jobs:
   build-flatpak:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/flathub-infra/flatpak-github-actions:freedesktop-23.08
+      image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.9
       options: --privileged
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 0
         submodules: true
@@ -26,9 +26,8 @@ jobs:
       id: git_info
       run: |
         git config --global --add safe.directory $(pwd)
-        git tag -d beta 2>/dev/null || echo "Tag 'beta' not found"
-        VERSION=$(git tag --points-at HEAD | grep '^v' | sed 's/^v//' || true)
-        VERSION=${VERSION:-$(git rev-parse --short HEAD || true)}
+        VERSION=$(git tag --points-at HEAD | grep -v '^beta$' | sed 's/^v//' | head -n 1 || true)
+        VERSION=${VERSION:-$(git describe --tags --always --long --exclude beta | sed 's/^v//' || true)}
         VERSION=${VERSION:-$(cat MMAPPER_VERSION)}
         ARCHITECTURE=$(uname -m)
         FILE="org.mume.MMapper-${VERSION}-Linux-${ARCHITECTURE}.flatpak"
@@ -40,7 +39,7 @@ jobs:
       uses: flatpak/flatpak-github-actions/flatpak-builder@v6
       with:
         bundle: "${{ env.FILE }}"
-        manifest-path: "manifest.json"
+        manifest-path: "org.mume.MMapper.json"
         upload-artifact: false
 
     - name: Generate SHA256 checksum
@@ -57,7 +56,7 @@ jobs:
         echo "PACKAGE_BASENAME=$PACKAGE_BASENAME" >> $GITHUB_OUTPUT
 
     - name: Upload Flatpak bundle
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ steps.get_linux_package_name.outputs.PACKAGE_BASENAME }}
         path: artifact/*.flatpak*

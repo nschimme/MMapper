@@ -1,50 +1,6 @@
 #pragma once
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
-
-// Content from visibility_async_types.h starts here
-#include "../map/roomid.h" // For RoomAreaHash (it's uint32_t)
-
-#include <vector>
-#include <map>
-#include <set>
-#include <utility> // For std::pair
-#include <array>   // For std::array
-
-// Required for glm types used in the structs
-#include <glm/glm.hpp>
-#include <glm/vec3.hpp>
-#include <glm/vec4.hpp>
-#include <glm/mat4x4.hpp> // Explicit include for glm::mat4
-
-// Forward declarations
-class MapData;
-class World;
-
-struct VisibilityTaskParams {
-    int currentLayer = 0;
-    float viewPortWidth = 0.0f;
-    float viewPortHeight = 0.0f;
-    glm::mat4 viewProjMatrix{1.f}; // Initialize to identity
-    std::array<glm::vec4, 6> frustumPlanes;
-    float vpWorldMinX = 0.0f;
-    float vpWorldMaxX = 0.0f;
-    float vpWorldMinY = 0.0f;
-    float vpWorldMaxY = 0.0f;
-    const MapData* mapDataPtr = nullptr;
-    const World* worldPtr = nullptr;
-    std::set<std::pair<int, RoomAreaHash>> existingValidMeshChunks;
-    bool isHighPriorityRequest = false;
-};
-
-struct VisibilityTaskResult {
-    std::map<int, std::set<RoomAreaHash>> visibleChunksCalculated;
-    std::vector<std::pair<int, RoomAreaHash>> chunksToRequestGenerated;
-    bool success = true;
-    bool originatedFromHighPriorityRequest = false;
-};
-// Content from visibility_async_types.h ends here
-
 // Author: Ulf Hermann <ulfonk_mennhar@gmx.de> (Alve)
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
@@ -60,32 +16,28 @@ struct VisibilityTaskResult {
 #include "MapCanvasRoomDrawer.h"
 #include "Textures.h"
 
-// #include <array> // Already included above
+#include <array>
 #include <cstddef>
 #include <cstdint>
-// #include <map> // Already included above
+#include <map>
 #include <memory>
 #include <optional>
-// #include <set> // Already included above
-// #include <utility> // For std::pair // Already included above
-// #include <vector> // Already included above
-#include <future>   // For std::future
-#include <mutex>    // For std::mutex
+#include <set>
+#include <vector>
 
-// #include <glm/glm.hpp> // Already included above
+#include <glm/glm.hpp>
 
 #include <QColor>
 #include <QMatrix4x4>
 #include <QOpenGLDebugMessage>
-#include <QOpenGLFunctions_1_0>
-#include <QOpenGLWidget>
+#include <QOpenGLWindow>
 #include <QtCore>
 
 class CharacterBatch;
 class ConnectionSelection;
 class Coordinate;
-class InfoMarkSelection;
-// class MapData; // Forward declared above
+class InfomarkSelection;
+class MapData;
 class Mmapper2Group;
 class PrespammedPath;
 class QMouseEvent;
@@ -95,14 +47,14 @@ class QWheelEvent;
 class QWidget;
 class RoomSelFakeGL;
 
-class NODISCARD_QOBJECT MapCanvas final : public QOpenGLWidget,
+class NODISCARD_QOBJECT MapCanvas final : public QOpenGLWindow,
                                           private MapCanvasViewport,
                                           private MapCanvasInputState
 {
     Q_OBJECT
 
 public:
-    static constexpr const int BASESIZE = 1024;
+    static constexpr const int BASESIZE = 528; // REVISIT: Why this size? 16*33 isn't special.
     static constexpr const int SCROLL_SCALE = 64;
 
 private:
@@ -112,20 +64,57 @@ private:
         bool animating = false;
     };
 
-    struct NODISCARD OptionStatus final
-    {
-        std::optional<int> multisampling;
-        std::optional<bool> trilinear;
-    };
-
     struct NODISCARD Diff final
     {
+        using DiffQuadVector = std::vector<RoomQuadTexVert>;
+
+        struct NODISCARD MaybeDataOrMesh final
+            : public std::variant<std::monostate, DiffQuadVector, UniqueMesh>
+        {
+        public:
+            using base = std::variant<std::monostate, DiffQuadVector, UniqueMesh>;
+            using base::base;
+
+        public:
+            NODISCARD bool empty() const { return std::holds_alternative<std::monostate>(*this); }
+            NODISCARD bool hasData() const { return std::holds_alternative<DiffQuadVector>(*this); }
+            NODISCARD bool hasMesh() const { return std::holds_alternative<UniqueMesh>(*this); }
+
+        public:
+            NODISCARD const DiffQuadVector &getData() const
+            {
+                return std::get<DiffQuadVector>(*this);
+            }
+            NODISCARD const UniqueMesh &getMesh() const { return std::get<UniqueMesh>(*this); }
+
+            void render(OpenGL &gl, const MMTextureId texId)
+            {
+                if (empty()) {
+                    assert(false);
+                    return;
+                }
+
+                if (hasData()) {
+                    *this = gl.createRoomQuadTexBatch(getData(), texId);
+                    assert(hasMesh());
+                    // REVISIT: rendering immediately after uploading the mesh may lag,
+                    // so consider delaying until the data is already on the GPU.
+                }
+
+                if (!hasMesh()) {
+                    assert(false);
+                    return;
+                }
+                auto &mesh = getMesh();
+                mesh.render(gl.getDefaultRenderState().withBlend(BlendModeEnum::TRANSPARENCY));
+            }
+        };
+
         struct NODISCARD HighlightDiff final
         {
             Map saved;
             Map current;
-            TexVertVector needsUpdate;
-            TexVertVector diff;
+            MaybeDataOrMesh highlights;
         };
 
         std::optional<std::future<HighlightDiff>> futureHighlight;
@@ -149,32 +138,37 @@ private:
     GLFont m_glFont;
     Batches m_batches;
     MapCanvasTextures m_textures;
-    MapData &m_data; // Note: MapData is forward declared above now
-    GLuint m_defaultVao;
+    MapData &m_data;
     Mmapper2Group &m_groupManager;
-    OptionStatus m_graphicsOptionsStatus;
     Diff m_diff;
     FrameRateController m_frameRateController;
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
     Signal2Lifetime m_lifetime;
 
-    // Visible chunk tracking
-    std::map<int, std::set<RoomAreaHash>> m_visibleChunks;
-    std::set<std::pair<int, RoomAreaHash>> m_pendingChunkGenerations;
+    struct AltDragState
+    {
+        QPoint lastPos;
+        QCursor originalCursor;
+    };
+    std::optional<AltDragState> m_altDragState;
 
-    // Asynchronous visibility updates
-    std::future<VisibilityTaskResult> m_visibilityTaskFuture; // Uses VisibilityTaskResult from inlined content
-    std::mutex m_visibilityMutex;
-    bool m_newVisibilityRequestPending = false;
+    struct DragState
+    {
+        glm::vec3 startWorldPos;
+        glm::vec2 startScroll;
+        glm::mat4 startViewProj;
+    };
+    std::optional<DragState> m_dragState;
 
-    void launchVisibilityUpdateTask(bool isHighPriority = false);
-    void checkAndProcessVisibilityResult();
+    float m_initialPinchDistance = 0.f;
+    float m_lastPinchFactor = 1.f;
+    float m_lastMagnification = 1.f;
 
 public:
     explicit MapCanvas(MapData &mapData,
                        PrespammedPath &prespammedPath,
                        Mmapper2Group &groupManager,
-                       QWidget *parent);
+                       QWindow *parent = nullptr);
     ~MapCanvas() final;
 
 public:
@@ -186,9 +180,6 @@ private:
     void cleanupOpenGL();
 
 public:
-    NODISCARD QSize minimumSizeHint() const override;
-    NODISCARD QSize sizeHint() const override;
-
     using MapCanvasViewport::getTotalScaleFactor;
     void setZoom(float zoom)
     {
@@ -198,9 +189,14 @@ public:
     NODISCARD float getRawZoom() const { return m_scaleFactor.getRaw(); }
 
 public:
+    NODISCARD auto width() const { return QOpenGLWindow::width(); }
+    NODISCARD auto height() const { return QOpenGLWindow::height(); }
+    NODISCARD QRect rect() const { return QRect(0, 0, width(), height()); }
 
 private:
     void onMovement();
+    void startMoving(const MouseSel &startPos);
+    void stopMoving();
 
 private:
     void reportGLVersion();
@@ -217,6 +213,7 @@ protected:
     void mouseReleaseEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
+    void touchEvent(QTouchEvent *event) override;
     bool event(QEvent *e) override;
 
 private:
@@ -226,12 +223,12 @@ private:
 private:
     void initLogger();
 
-    void resizeGL() { resizeGL(this->QOpenGLWidget::width(), this->QOpenGLWidget::height()); }
+    void resizeGL() { resizeGL(width(), height()); }
     void initTextures();
     void updateTextures();
     void updateMultisampling();
 
-    NODISCARD std::shared_ptr<InfoMarkSelection> getInfoMarkSelection(const MouseSel &sel);
+    NODISCARD std::shared_ptr<InfomarkSelection> getInfomarkSelection(const MouseSel &sel);
     NODISCARD static glm::mat4 getViewProj_old(const glm::vec2 &scrollPos,
                                                const glm::ivec2 &size,
                                                float zoomScale,
@@ -243,8 +240,11 @@ private:
     void setMvp(const glm::mat4 &viewProj);
     void setViewportAndMvp(int width, int height);
 
-    NODISCARD BatchedInfomarksMeshes getInfoMarksMeshes();
-    void drawInfoMark(InfomarksBatch &batch,
+    void zoomAt(float factor, const glm::vec2 &mousePos);
+    void handleZoomAtEvent(const QInputEvent *event, float deltaFactor);
+
+    NODISCARD BatchedInfomarksMeshes getInfomarksMeshes();
+    void drawInfomark(InfomarksBatch &batch,
                       const InfomarkHandle &marker,
                       int currentLayer,
                       const glm::vec2 &offset = {},
@@ -265,7 +265,7 @@ private:
     void paintSelectedRoom(RoomSelFakeGL &, const RawRoom &room);
     void paintSelectedConnection();
     void paintNearbyConnectionPoints();
-    void paintSelectedInfoMarks();
+    void paintSelectedInfomarks();
     void paintCharacters();
     void paintDifferences();
     void forceUpdateMeshes();
@@ -298,10 +298,14 @@ signals:
     void sig_selectionChanged();
     void sig_newRoomSelection(const SigRoomSelection &);
     void sig_newConnectionSelection(ConnectionSelection *);
-    void sig_newInfoMarkSelection(InfoMarkSelection *);
+    void sig_newInfomarkSelection(InfomarkSelection *);
 
     void sig_setCurrentRoom(RoomId id, bool update);
     void sig_zoomChanged(float);
+
+    void sig_showTooltip(const QString &text, const QPoint &pos);
+    void sig_customContextMenuRequested(const QPoint &pos);
+    void sig_dismissContextMenu();
 
 public slots:
     void slot_onForcedPositionChange();
@@ -324,27 +328,21 @@ public slots:
 
     void slot_setRoomSelection(const SigRoomSelection &);
     void slot_setConnectionSelection(const std::shared_ptr<ConnectionSelection> &);
-    void slot_setInfoMarkSelection(const std::shared_ptr<InfoMarkSelection> &);
+    void slot_setInfomarkSelection(const std::shared_ptr<InfomarkSelection> &);
 
     void slot_clearRoomSelection() { slot_setRoomSelection(SigRoomSelection{}); }
     void slot_clearConnectionSelection() { slot_setConnectionSelection(nullptr); }
-    void slot_clearInfoMarkSelection() { slot_setInfoMarkSelection(nullptr); }
+    void slot_clearInfomarkSelection() { slot_setInfomarkSelection(nullptr); }
 
     void slot_clearAllSelections()
     {
         slot_clearRoomSelection();
         slot_clearConnectionSelection();
-        slot_clearInfoMarkSelection();
+        slot_clearInfomarkSelection();
     }
 
     void slot_dataLoaded();
     void slot_moveMarker(RoomId id);
 
     void slot_onMessageLoggedDirect(const QOpenGLDebugMessage &message);
-    void slot_infomarksChanged() { infomarksChanged(); }
-
-private:
-    void updateVisibleChunks();
-    std::optional<glm::vec3> getUnprojectedScreenPos(const glm::vec2& screenPos) const;
-    void requestMissingChunks();
 };

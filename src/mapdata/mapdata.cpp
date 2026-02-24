@@ -17,7 +17,6 @@
 #include "../map/ExitDirection.h"
 #include "../map/ExitFieldVariant.h"
 #include "../map/RawRoom.h"
-#include "../map/RoomRecipient.h"
 #include "../map/World.h"
 #include "../map/coordinate.h"
 #include "../map/exit.h"
@@ -137,24 +136,10 @@ std::optional<RoomId> MapData::getLast(const RoomId start, const CommandQueue &d
     return ret;
 }
 
-// The static generateMapDataFinisher and ConcreteFinisher struct previously added here
-// were incorrect as the actual generateMapDataFinisher is in MapCanvasRoomDrawer.cpp.
-// Removing them. The MapData::generateBatches method below will be updated
-// to call the correct external generateMapDataFinisher without the float parameter.
-
-FutureSharedMapBatchFinisher MapData::generateBatches(const mctp::MapCanvasTexturesProxy &textures)
+FutureSharedMapBatchFinisher MapData::generateBatches(const mctp::MapCanvasTexturesProxy &textures,
+                                                      const std::shared_ptr<const FontMetrics> &font)
 {
-    // Call the external generateMapDataFinisher (defined in MapCanvasRoomDrawer.cpp)
-    // without the calibratedWorldHalfLineWidth parameter.
-    return generateMapDataFinisher(textures, getCurrentMap());
-}
-
-FutureSharedMapBatchFinisher MapData::generateSpecificChunkBatches(
-    const mctp::MapCanvasTexturesProxy &textures,
-    const std::vector<std::pair<int, RoomAreaHash>>& chunksToGenerate)
-{
-    // Call the global ::generateSpecificMapDataFinisher from MapCanvasRoomDrawer.h
-    return ::generateSpecificMapDataFinisher(textures, getCurrentMap(), chunksToGenerate);
+    return generateMapDataFinisher(textures, font, getCurrentMap());
 }
 
 void MapData::applyChangesToList(const RoomSelection &sel,
@@ -184,129 +169,12 @@ void MapData::generateBaseMap(ProgressCounter &pc)
     this->applySingleChange(pc, Change{world_change_types::GenerateBaseMap{}});
 }
 
-
-// Need to find the actual generateConnectionBuffers function to modify its signature and usage.
-// Assuming it's a static function or free function in this file.
-// If it's a member of MapData or another class, the approach would be similar.
-// For now, this is a placeholder for where the change would occur.
-// Let's assume its original signature was:
-// static BatchedConnectionMeshes generateConnectionBuffers(const Map &map, OpenGL &gl)
-// It needs to become:
-// static BatchedConnectionMeshes generateConnectionBuffers(const Map &map, OpenGL &gl, float calibratedWorldHalfLineWidth)
-
-// Example of what the modified generateConnectionBuffers might look like (simplified):
-/*
-BatchedConnectionMeshes generateConnectionBuffers(const Map &map, OpenGL &gl, float calibratedWorldHalfLineWidth) {
-    BatchedConnectionMeshes result;
-    ConnectionDrawerBuffers buffers; // Temporary buffers for each layer
-    RoomNameBatch roomNameBatch; // Might be managed separately or passed if needed by ConnectionDrawer
-
-    for (const auto &layer_pair : map.getLayers()) { // Assuming map has a way to iterate layers or rooms by layer
-        const int currentLayer = layer_pair.first; // Example
-        buffers.clear();
-        roomNameBatch.clear(); // If used per layer
-
-        // OptBounds might be calculated here or passed in
-        OptBounds bounds; // Placeholder
-
-        ConnectionDrawer drawer(buffers, roomNameBatch, currentLayer, bounds, calibratedWorldHalfLineWidth); // Pass width
-
-        // Iterate rooms in this layer and call drawer.drawRoomConnectionsAndDoors(room);
-        // This part of the logic is complex and specific to how rooms are iterated per layer.
-        // For example:
-        // if (const auto layerData = map.getLayerData(currentLayer)) {
-        //     for (RoomId roomId : layerData->getRooms()) {
-        //         if (auto room = map.getRoomHandle(roomId)) {
-        //             drawer.drawRoomConnectionsAndDoors(room);
-        //         }
-        //     }
-        // }
-
-        if (!buffers.empty()) {
-            result[currentLayer] = buffers.getMeshes(gl);
-        }
-    }
-    return result;
-}
-*/
-// The above is illustrative. The actual change needs to be applied to the existing generateConnectionBuffers.
-
-
 NODISCARD RoomIdSet MapData::genericFind(const RoomFilter &f) const
 {
     return ::genericFind(getCurrentMap(), f);
 }
 
 MapData::~MapData() = default;
-
-bool MapData::removeMarker(const InfomarkId id)
-{
-    try {
-        auto db = getInfomarkDb();
-        db.removeMarker(id);
-        setCurrentMarks(db);
-        return true;
-    } catch (const std::runtime_error & /*ex*/) {
-        return false;
-    }
-}
-
-void MapData::removeMarkers(const MarkerList &toRemove)
-{
-    try {
-        auto db = getInfomarkDb();
-        for (const InfomarkId id : toRemove) {
-            // REVISIT: try-catch around each one and report if any failed, instead of this all-or-nothing approach?
-            db.removeMarker(id);
-        }
-        setCurrentMarks(db);
-    } catch (const std::runtime_error &ex) {
-        MMLOG() << "ERROR removing multiple infomarks: " << ex.what();
-    }
-}
-
-InfomarkId MapData::addMarker(const InfoMarkFields &im)
-{
-    try {
-        auto db = getInfomarkDb();
-        auto id = db.addMarker(im);
-        setCurrentMarks(db);
-        return id;
-    } catch (const std::runtime_error &ex) {
-        MMLOG() << "ERROR adding infomark: " << ex.what();
-        return INVALID_INFOMARK_ID;
-    }
-}
-
-bool MapData::updateMarker(const InfomarkId id, const InfoMarkFields &im)
-{
-    try {
-        auto db = getInfomarkDb();
-        auto modified = db.updateMarker(id, im);
-        if (modified) {
-            setCurrentMarks(db, modified);
-        }
-        return true;
-    } catch (const std::runtime_error &ex) {
-        MMLOG() << "ERROR updating infomark: " << ex.what();
-        return false;
-    }
-}
-
-bool MapData::updateMarkers(const std::vector<InformarkChange> &updates)
-{
-    try {
-        auto db = getInfomarkDb();
-        auto modified = db.updateMarkers(updates);
-        if (modified) {
-            setCurrentMarks(db, modified);
-        }
-        return true;
-    } catch (const std::runtime_error &ex) {
-        MMLOG() << "ERROR updating infomarks: " << ex.what();
-        return false;
-    }
-}
 
 void MapData::slot_scheduleAction(const SigMapChangeList &change)
 {
@@ -315,8 +183,7 @@ void MapData::slot_scheduleAction(const SigMapChangeList &change)
 
 bool MapData::isEmpty() const
 {
-    // return (greatestUsedId == INVALID_ROOMID) && m_markers.empty();
-    return getCurrentMap().empty() && getInfomarkDb().empty();
+    return getCurrentMap().empty();
 }
 
 void MapData::removeMissing(RoomIdSet &set) const
@@ -342,12 +209,9 @@ void MapData::setMapData(const MapLoadData &mapLoadData)
         MapFrontend &mf = *this;
         mf.block();
         {
-            InfomarkDb markers = mapLoadData.markerData;
             setFileName(mapLoadData.filename, mapLoadData.readonly);
             setSavedMap(mapLoadData.mapPair.base);
             setCurrentMap(mapLoadData.mapPair.modified);
-            setCurrentMarks(markers);
-            setSavedMarks(markers);
             forcePosition(mapLoadData.position);
 
             // NOTE: The map may immediately report changes.
@@ -381,12 +245,9 @@ void MapData::setMapData(const MapLoadData &mapLoadData)
 //  * added / removed connections within the common subset
 //
 // Finally, accept any additions, but do so at offset and nextid.
-std::pair<Map, InfomarkDb> MapData::mergeMapData(ProgressCounter &counter,
-                                                 const Map &currentMap,
-                                                 const InfomarkDb &currentMarks,
-                                                 RawMapLoadData newMapData)
+Map MapData::mergeMapData(ProgressCounter &counter, const Map &currentMap, RawMapLoadData newMapData)
 {
-    const Bounds newBounds = [&newMapData]() {
+    const auto newBounds = std::invoke([&newMapData]() -> Bounds {
         const auto &rooms = newMapData.rooms;
         const auto &front = rooms.front().position;
         Bounds bounds{front, front};
@@ -394,9 +255,9 @@ std::pair<Map, InfomarkDb> MapData::mergeMapData(ProgressCounter &counter,
             bounds.insert(room.getPosition());
         }
         return bounds;
-    }();
+    });
 
-    const Coordinate mapOffset = [&currentMap, &newBounds]() -> Coordinate {
+    const Coordinate mapOffset = std::invoke([&currentMap, &newBounds]() -> Coordinate {
         const auto currentBounds = currentMap.getBounds().value();
 
         // NOTE: current and new map origins may not be at the same place relative to the bounds,
@@ -409,30 +270,13 @@ std::pair<Map, InfomarkDb> MapData::mergeMapData(ProgressCounter &counter,
         tmp.z = -1;
 
         return tmp;
-    }();
+    });
 
-    const auto infomarkOffset = [&mapOffset]() -> Coordinate {
-        const auto tmp = mapOffset.to_ivec3() * glm::ivec3{INFOMARK_SCALE, INFOMARK_SCALE, 1};
-        return Coordinate{tmp.x, tmp.y, tmp.z};
-    }();
-
-    const Map newMap = Map::merge(counter, currentMap, std::move(newMapData.rooms), mapOffset);
-
-    const InfomarkDb newMarks = [&newMapData, &currentMarks, &infomarkOffset, &counter]() {
-        auto tmp = currentMarks;
-        if (newMapData.markerData) {
-            const auto &markers = newMapData.markerData.value().markers;
-            counter.setNewTask(ProgressMsg{"adding infomarks"}, markers.size());
-            for (const InfoMarkFields &mark : markers) {
-                auto copy = mark.getOffsetCopy(infomarkOffset);
-                std::ignore = tmp.addMarker(copy);
-                counter.step();
-            }
-        }
-        return tmp;
-    }();
-
-    return std::pair<Map, InfomarkDb>(newMap, newMarks);
+    return Map::merge(counter,
+                      currentMap,
+                      std::move(newMapData.rooms),
+                      std::move(newMapData.markers),
+                      mapOffset);
 }
 
 void MapData::describeChanges(std::ostream &os) const
@@ -456,11 +300,11 @@ void MapData::describeChanges(std::ostream &os) const
             printRoomDiff("removed", stats.numRoomsRemoved);
             printRoomDiff("added", stats.numRoomsAdded);
             printRoomDiff("changed", stats.numRoomsChanged);
-        }
 
-        if (getSavedMarks() != getCurrentMarks()) {
-            // REVISIT: Can we get a better description of what changed?
-            os << "Infomarks have changed.\n";
+            if (savedMap.getInfomarkDb() != currentMap.getInfomarkDb()) {
+                // REVISIT: Can we get a better description of what changed?
+                os << "Infomarks have changed.\n";
+            }
         }
 
         // REVISIT: Should we also include the time of the last update?

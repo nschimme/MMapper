@@ -2,26 +2,57 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2024 The MMapper Authors
 
-#include "../global/IndexedVector.h"
+#include "../global/ImmIndexedVector.h"
 #include "../global/macros.h"
 #include "InvalidMapOperation.h"
 #include "RawExit.h"
 #include "RawRoom.h"
 
+#include <vector>
+
 class NODISCARD RawRooms final
 {
 private:
-    IndexedVector<RawRoom, RoomId> m_rooms;
+    ImmIndexedVector<RawRoom, RoomId> m_rooms;
 
 public:
-    NODISCARD RawRoom &getRawRoomRef(RoomId pos) { return m_rooms.at(pos); }
-    NODISCARD const RawRoom &getRawRoomRef(RoomId pos) const { return m_rooms.at(pos); }
+    void init(std::vector<RawRoom> &rooms)
+    {
+        const size_t numRooms = rooms.size();
+
+        // REVISIT: This trick is really only valid if there are no gaps in the roomids,
+        // and they're all presented in order!
+        {
+            RoomId next{0};
+            for (const auto &r : rooms) {
+                if (r.id != next++) {
+                    throw std::runtime_error("elements aren't in order");
+                }
+            }
+            if (next.value() != numRooms) {
+                throw std::runtime_error("wrong number of elements");
+            }
+        }
+
+        m_rooms.init(rooms.data(), rooms.size());
+    }
+
+public:
+    NODISCARD const RawRoom &getRawRoomRef(RoomId pos) const { return deref(m_rooms.find(pos)); }
+    template<typename Callback>
+    void updateRawRoomRef(RoomId pos, Callback &&callback)
+    {
+        m_rooms.update(pos, std::forward<Callback>(callback));
+    }
+
+    NODISCARD auto begin() const { return m_rooms.begin(); }
+    NODISCARD auto end() const { return m_rooms.end(); }
 
 public:
     NODISCARD size_t size() const { return m_rooms.size(); }
     void resize(const size_t numRooms) { m_rooms.resize(numRooms); }
 
-    void removeAt(const RoomId id) { getRawRoomRef(id) = RawRoom{}; }
+    void removeAt(const RoomId id) { m_rooms.set(id, RawRoom{}); }
 
     void requireUninitialized(const RoomId id) const
     {
@@ -39,7 +70,7 @@ public:
     void setRoom##_Name(const RoomId id, _Type x) \
     { \
         if (getRoom##_Name(id) != x) { \
-            getRawRoomRef(id).fields._Name = std::move(x); \
+            updateRawRoomRef(id, [&x](auto &tmp) { tmp.fields._Name = std::move(x); }); \
         } \
     }
 
@@ -53,7 +84,8 @@ public:
     void setExit##_Type(const RoomId id, const ExitDirEnum dir, _Type x) \
     { \
         if (getExit##_Type(id, dir) != x) { \
-            getRawRoomRef(id).getExit(dir).fields._Name = std::move(x); \
+            updateRawRoomRef(id, \
+                             [dir, &x](auto &r) { r.getExit(dir).fields._Name = std::move(x); }); \
         } \
     } \
     NODISCARD const _Type &getExit##_Type(const RoomId id, const ExitDirEnum dir) const \
@@ -66,7 +98,7 @@ public:
 public:
     void setExitOutgoing(const RoomId id, const ExitDirEnum dir, const TinyRoomIdSet &set)
     {
-        getRawRoomRef(id).getExit(dir).outgoing = set;
+        updateRawRoomRef(id, [dir, &set](auto &r) { r.getExit(dir).outgoing = set; });
         enforceInvariants(id, dir);
     }
     NODISCARD const TinyRoomIdSet &getExitOutgoing(const RoomId id, const ExitDirEnum dir) const
@@ -77,7 +109,7 @@ public:
 public:
     void setExitIncoming(const RoomId id, const ExitDirEnum dir, const TinyRoomIdSet &set)
     {
-        getRawRoomRef(id).getExit(dir).incoming = set;
+        updateRawRoomRef(id, [dir, &set](auto &r) { r.getExit(dir).incoming = set; });
     }
     NODISCARD const TinyRoomIdSet &getExitIncoming(const RoomId id, const ExitDirEnum dir) const
     {
@@ -106,8 +138,10 @@ public:
                       const TinyRoomIdSet &set)
     {
         const bool isOut = inOut == InOutEnum::Out;
-        auto &data = getRawRoomRef(id).getExit(dir);
-        (isOut ? data.outgoing : data.incoming) = set;
+        updateRawRoomRef(id, [dir, isOut, &set](auto &r) {
+            auto &data = r.getExit(dir);
+            (isOut ? data.outgoing : data.incoming) = set;
+        });
         if (isOut) {
             enforceInvariants(id, dir);
         }
@@ -125,7 +159,7 @@ public:
 public:
     void setServerId(const RoomId id, const ServerRoomId serverId)
     {
-        getRawRoomRef(id).server_id = serverId;
+        updateRawRoomRef(id, [serverId](auto &r) { r.server_id = serverId; });
     }
     NODISCARD const ServerRoomId &getServerId(const RoomId id) const
     {
@@ -135,7 +169,7 @@ public:
 public:
     void setPosition(const RoomId id, const Coordinate &coord)
     {
-        getRawRoomRef(id).position = coord;
+        updateRawRoomRef(id, [&coord](auto &r) { r.position = coord; });
     }
     NODISCARD const Coordinate &getPosition(const RoomId id) const
     {
@@ -143,24 +177,15 @@ public:
     }
 
 public:
-    NODISCARD RoomStatusEnum getStatus(const RoomId id) const
-    {
-        return getRawRoomRef(id).status;
-    }
+    NODISCARD RoomStatusEnum getStatus(const RoomId id) const { return getRawRoomRef(id).status; }
     void setStatus(const RoomId id, RoomStatusEnum status)
     {
         if (status != getStatus(id)) {
-            getRawRoomRef(id).status = status;
+            updateRawRoomRef(id, [status](auto &r) { r.status = status; });
         }
     }
 
 public:
-    NODISCARD bool operator==(const RawRooms &rhs) const
-    {
-        return m_rooms == rhs.m_rooms;
-    }
-    NODISCARD bool operator!=(const RawRooms &rhs) const
-    {
-        return !(rhs == *this);
-    }
+    NODISCARD bool operator==(const RawRooms &rhs) const { return m_rooms == rhs.m_rooms; }
+    NODISCARD bool operator!=(const RawRooms &rhs) const { return !(rhs == *this); }
 };

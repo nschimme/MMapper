@@ -31,12 +31,12 @@
 #include <QtCore>
 #include <QtGui>
 
-static const bool VERBOSE_FONT_DEBUG = []() -> bool {
+static const bool VERBOSE_FONT_DEBUG = std::invoke([]() -> bool {
     if (auto opt = utils::getEnvBool("MMAPPER_VERBOSE_FONT_DEBUG")) {
         return opt.value();
     }
     return false;
-}();
+});
 
 // NOTE: Rect doesn't actually include the hi value.
 struct NODISCARD Rect final
@@ -69,7 +69,7 @@ struct std::hash<IntPair>
     }
 };
 
-struct NODISCARD FontMetrics
+struct NODISCARD FontMetrics final
 {
     static constexpr int UNDERLINE_ID = -257;
     static constexpr int BACKGROUND_ID = -258;
@@ -325,7 +325,19 @@ struct NODISCARD FontMetrics
         });
         return width;
     }
+
+    void getFontBatchRawData(const GLText *text,
+                             size_t count,
+                             std::vector<FontVert3d> &output) const;
 };
+
+void getFontBatchRawData(const FontMetrics &fm,
+                         const GLText *const text,
+                         const size_t count,
+                         std::vector<FontVert3d> &output)
+{
+    fm.getFontBatchRawData(text, count, output);
+}
 
 struct NODISCARD PrintedChar final
 {
@@ -363,7 +375,7 @@ QString FontMetrics::init(const QString &fontFilename)
     while (!xml.atEnd() && !xml.hasError()) {
         if (xml.readNextStartElement()) {
             const auto &attr = xml.attributes();
-            if (xml.name() == "common") {
+            if (xml.name() == QStringLiteral("common")) {
                 if (hasCommon) {
                     assert(false);
                     continue;
@@ -382,7 +394,7 @@ QString FontMetrics::init(const QString &fontFilename)
                 }
                 common = Common{lineHeight, base, scaleW, scaleH, marginX, marginY};
 
-            } else if (xml.name() == "char") {
+            } else if (xml.name() == QStringLiteral("char")) {
                 if (!hasCommon) {
                     assert(false);
                     continue;
@@ -415,7 +427,7 @@ QString FontMetrics::init(const QString &fontFilename)
 
                 raw_glyphs.emplace_back(id, x, y2, width, height, xoffset, yoffset2, xadvance);
 
-            } else if (xml.name() == "kerning") {
+            } else if (xml.name() == QStringLiteral("kerning")) {
                 if (!hasCommon) {
                     assert(false);
                     continue;
@@ -429,7 +441,7 @@ QString FontMetrics::init(const QString &fontFilename)
                     qDebug() << "Kerning" << PrintedChar{first} << PrintedChar{second} << amount;
                 }
                 raw_kernings.emplace_back(first, second, amount);
-            } else if (xml.name() == "page") {
+            } else if (xml.name() == QStringLiteral("page")) {
                 const int id = attr.value("id").toInt();
                 if (id != 0) {
                     continue;
@@ -502,9 +514,9 @@ private:
             , rotation{(rotationDegrees == 0)
                            ? std::optional<glm::mat4>(std::nullopt)
                            : std::optional<glm::mat4>(
-                               glm::rotate(glm::mat4(1),
-                                           glm::radians(static_cast<float>(rotationDegrees)),
-                                           glm::vec3(0, 0, 1)))}
+                                 glm::rotate(glm::mat4(1),
+                                             glm::radians(static_cast<float>(rotationDegrees)),
+                                             glm::vec3(0, 0, 1)))}
         {}
     };
 
@@ -521,7 +533,7 @@ private:
 
 private:
     const FontMetrics &m_fm;
-    const glm::ivec2 m_iTexSize;
+    const glm::ivec2 m_iTexSize{};
     std::vector<FontVert3d> &m_verts3d;
     Opts m_opts;
     Bounds m_bounds;
@@ -632,13 +644,13 @@ public:
 
         // measurement, background color, and underline.
         {
-            const auto add = [this](const Color &c, const glm::ivec2 &ivert, const glm::ivec2 &itc) {
+            const auto add = [this](const Color c, const glm::ivec2 &ivert, const glm::ivec2 &itc) {
                 const glm::vec2 tc = getTexCoord(itc);
                 const glm::vec2 vert = transformVert(ivert);
                 m_verts3d.emplace_back(m_opts.pos, c, tc, vert);
             };
 
-            const auto quad = [&add](const Color &c, const Rect &vert, const Rect &tc) {
+            const auto quad = [&add](const Color c, const Rect &vert, const Rect &tc) {
 #define ADD(a, b) add(c, glm::ivec2{vert.a.x, vert.b.y}, glm::ivec2{tc.a.x, tc.b.y})
                 // note: lo and hi refer to members of vert and tc.
                 ADD(lo, lo);
@@ -698,7 +710,7 @@ NODISCARD static QString getFontFilename(const float devicePixelRatio)
 {
     const char *const FONT_KEY = "MMAPPER_FONT";
     const char *const font = "Cantarell";
-    const char *const size = [&devicePixelRatio]() {
+    const char *const size = std::invoke([devicePixelRatio]() -> const char * {
         if (devicePixelRatio > 1.75f) {
             return "36";
         }
@@ -706,7 +718,7 @@ NODISCARD static QString getFontFilename(const float devicePixelRatio)
             return "27";
         }
         return "18";
-    }();
+    });
     const QString fontFilename = QString(":/fonts/%1%2.fnt").arg(font).arg(size);
     if (qEnvironmentVariableIsSet(FONT_KEY)) {
         const QString tmp = qgetenv(FONT_KEY);
@@ -731,11 +743,12 @@ NODISCARD static QString getFontFilename(const float devicePixelRatio)
 void GLFont::init()
 {
     assert(m_gl.isRendererInitialized());
-    m_fontMetrics = std::make_unique<FontMetrics>();
+    auto pfm = std::make_shared<FontMetrics>();
+    m_fontMetrics = pfm;
     const auto fontFilename = getFontFilename(m_gl.getDevicePixelRatio());
-    const QString imageFilename = m_fontMetrics->init(fontFilename);
 
-    auto &fm = *m_fontMetrics;
+    auto &fm = *pfm;
+    const QString imageFilename = fm.init(fontFilename);
 
     if (!QFile{imageFilename}.exists()) {
         qWarning() << "invalid font filename" << imageFilename;
@@ -753,10 +766,17 @@ void GLFont::init()
             fm.tryAddSyntheticGlyphs(img);
             img = img.mirrored();
 
+            const QImage converted = img.convertToFormat(QImage::Format_RGBA8888);
+            tex.setFormat(QOpenGLTexture::TextureFormat::RGBA8_UNorm);
             tex.setMinMagFilters(QOpenGLTexture::Filter::Linear, QOpenGLTexture::Filter::Linear);
             tex.setAutoMipMapGenerationEnabled(false);
             tex.setMipLevels(0);
-            tex.setData(img, QOpenGLTexture::MipMapGeneration::DontGenerateMipMaps);
+            tex.setSize(converted.width(), converted.height());
+            tex.allocateStorage();
+            tex.setData(0,
+                        QOpenGLTexture::PixelFormat::RGBA,
+                        QOpenGLTexture::PixelType::UInt8,
+                        converted.constBits());
         },
         true);
 
@@ -790,33 +810,34 @@ glm::ivec2 GLFont::getScreenCenter() const
     return m_gl.getPhysicalViewport().offset + m_gl.getPhysicalViewport().size / 2;
 }
 
-std::vector<FontVert3d> GLFont::getFontBatchRawData(const GLText *const text, const size_t count)
+void FontMetrics::getFontBatchRawData(const GLText *const text,
+                                      const size_t count,
+                                      std::vector<FontVert3d> &output) const
 {
-    std::vector<FontVert3d> result;
     if (count == 0) {
-        return result;
+        return;
     }
 
-    auto &fm = getFontMetrics();
+    const auto before = output.size();
     const auto end = text + count;
 
-    const size_t expectedVerts = [text, end]() -> size_t {
+    const size_t expectedVerts = std::invoke([text, end]() -> size_t {
         int numGlyphs = 0;
         for (const GLText *it = text; it != end; ++it) {
             numGlyphs += static_cast<int>(it->text.size()) + (it->bgcolor.has_value() ? 1 : 0)
                          + (it->fontFormatFlag.contains(FontFormatFlagEnum::UNDERLINE) ? 1 : 0);
         }
         return 4 * static_cast<size_t>(numGlyphs);
-    }();
+    });
 
-    result.reserve(expectedVerts);
+    output.reserve(before + expectedVerts);
 
-    FontBatchBuilder fontBatchBuilder{fm, result};
+    auto &fm = *this;
+    FontBatchBuilder fontBatchBuilder{fm, output};
     for (const GLText *it = text; it != end; ++it) {
         fontBatchBuilder.addString(*it);
     }
-    assert(result.size() == expectedVerts);
-    return result;
+    assert(output.size() == before + expectedVerts);
 }
 
 void GLFont::render2dTextImmediate(const std::vector<GLText> &text)
@@ -840,13 +861,8 @@ void GLFont::render2dTextImmediate(const std::vector<GLText> &text)
     m_gl.setProjectionMatrix(oldProj);
 }
 
-void GLFont::render3dTextImmediate(const std::vector<GLText> &text)
+void GLFont::render3dTextImmediate(const std::vector<FontVert3d> &rawVerts)
 {
-    if (text.empty()) {
-        return;
-    }
-
-    const auto rawVerts = getFontBatchRawData(text.data(), text.size());
     if (rawVerts.empty()) {
         return;
     }
@@ -854,15 +870,31 @@ void GLFont::render3dTextImmediate(const std::vector<GLText> &text)
     m_gl.renderFont3d(m_texture, rawVerts);
 }
 
-UniqueMesh GLFont::getFontMesh(const std::vector<GLText> &text)
+void GLFont::render3dTextImmediate(const std::vector<GLText> &text)
 {
-    const auto rawVerts = getFontBatchRawData(text.data(), text.size());
+    if (text.empty()) {
+        return;
+    }
+
+    const auto rawVerts = getFontMeshIntermediate(text);
+    render3dTextImmediate(rawVerts);
+}
+
+std::vector<FontVert3d> GLFont::getFontMeshIntermediate(const std::vector<GLText> &text)
+{
+    std::vector<FontVert3d> output;
+    getFontMetrics().getFontBatchRawData(text.data(), text.size(), output);
+    return output;
+}
+
+UniqueMesh GLFont::getFontMesh(const std::vector<FontVert3d> &rawVerts)
+{
     return m_gl.createFontMesh(m_texture, DrawModeEnum::QUADS, rawVerts);
 }
 
 void GLFont::renderTextCentered(const QString &text,
-                                const Color &color,
-                                const std::optional<Color> &bgcolor)
+                                const Color color,
+                                const std::optional<Color> bgcolor)
 {
     // here we're converting to latin1 because we cannot display unicode codepoints above 255
     const auto center = glm::vec2{getScreenCenter()};

@@ -5,7 +5,6 @@
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
-#include "../display/MapBatches.h" // For ChunkId
 #include "../display/IMapBatchesFinisher.h"
 #include "../map/Changes.h"
 #include "../map/DoorFlags.h"
@@ -42,6 +41,7 @@ class RoomFieldVariant;
 class RoomFilter;
 class ShortestPathRecipient;
 
+struct FontMetrics;
 struct MapCanvasTextures;
 struct RawMapData;
 struct MapLoadData;
@@ -70,10 +70,8 @@ public:
     ~MapData() final;
 
     NODISCARD FutureSharedMapBatchFinisher
-    generateBatches(const mctp::MapCanvasTexturesProxy &textures);
-
-    NODISCARD FutureSharedMapBatchFinisher
-    generateSpecificChunkBatches(const mctp::MapCanvasTexturesProxy &textures, const std::vector<std::pair<int, RoomAreaHash>>& chunksToGenerate);
+    generateBatches(const mctp::MapCanvasTexturesProxy &textures,
+                    const std::shared_ptr<const FontMetrics> &font);
 
     // REVISIT: convert to template, or functionref after it compiles everywhere?
     void applyChangesToList(const RoomSelection &sel,
@@ -97,14 +95,7 @@ public:
         return std::nullopt;
     }
 
-    NODISCARD InfomarkDb getMarkersList() const { return MapFrontend::getCurrentMarks(); }
     NODISCARD bool isEmpty() const;
-
-    NODISCARD InfomarkId addMarker(const InfoMarkFields &im);
-    NODISCARD bool updateMarker(InfomarkId id, const InfoMarkFields &im);
-    NODISCARD bool updateMarkers(const std::vector<InformarkChange> &updates);
-    void removeMarkers(const MarkerList &toRemove);
-    NODISCARD bool removeMarker(InfomarkId id);
 
     NODISCARD bool dataChanged() const { return MapFrontend::isModified(); }
     void describeChanges(std::ostream &os) const;
@@ -133,10 +124,9 @@ public:
 
 public:
     void setMapData(const MapLoadData &mapLoadData);
-    NODISCARD static std::pair<Map, InfomarkDb> mergeMapData(ProgressCounter &,
-                                                             const Map &currentMap,
-                                                             const InfomarkDb &currentMarks,
-                                                             RawMapLoadData newMapData);
+    NODISCARD static Map mergeMapData(ProgressCounter &,
+                                      const Map &currentMap,
+                                      RawMapLoadData newMapData);
 
 public:
     void setFileName(QString filename, const bool readOnly)
@@ -152,10 +142,6 @@ public:
 
 private:
     void virt_onNotifyModified(const RoomUpdateFlags /*updateFlags*/) final { setDataChanged(); }
-    void virt_onNotifyModified(const InfoMarkUpdateFlags /*updateFlags*/) final
-    {
-        setDataChanged();
-    }
 
     void log(const QString &msg) { emit sig_log("MapData", msg); }
     void setDataChanged() { emit sig_onDataChanged(); }

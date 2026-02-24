@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2024 The MMapper Authors
 
-#include "global/macros.h"
+#include "../global/macros.h"
 
 #include <memory>
 #include <string_view>
 
-#include <QMainWindow>
+#include <QDialog>
 #include <QString>
 
 class QTextBrowser;
 
-class NODISCARD AnsiViewWindow final : public QMainWindow
+class NODISCARD AnsiViewWindow final : public QDialog
 {
 private:
     std::unique_ptr<QTextBrowser> m_view;

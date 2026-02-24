@@ -28,14 +28,14 @@ public:
         mmqt::toLatin1InPlace(input); // transliterates non-latin1 codepoints
     }
 
-    QValidator::State validate(QString &input, int & /* pos */) const override
+    NODISCARD State validate(QString &input, int & /* pos */) const override
     {
         if (input.isEmpty()) {
-            return QValidator::State::Intermediate;
+            return State::Intermediate;
         }
 
-        const bool valid = input.length() == 1 && isValidPrefix(input[0].toLatin1());
-        return valid ? QValidator::State::Acceptable : QValidator::State::Invalid;
+        const bool valid = input.length() == 1 && isValidPrefix(mmqt::toLatin1(input[0]));
+        return valid ? State::Acceptable : State::Invalid;
     }
 };
 
@@ -60,7 +60,7 @@ ParserPage::ParserPage(QWidget *const parent)
             &ParserPage::slot_roomDescColorClicked);
 
     connect(charPrefixLineEdit, &QLineEdit::editingFinished, this, [this]() {
-        setConfig().parser.prefixChar = charPrefixLineEdit->text().at(0).toLatin1();
+        setConfig().parser.prefixChar = mmqt::toLatin1(charPrefixLineEdit->text().front());
     });
 
     connect(encodeEmoji, &QCheckBox::clicked, this, [](bool checked) {
@@ -87,14 +87,16 @@ void ParserPage::slot_loadConfig()
 
 void ParserPage::slot_roomNameColorClicked()
 {
-    QString ansiString = AnsiColorDialog::getColor(getConfig().parser.roomNameColor, this);
-    AnsiCombo::makeWidgetColoured(roomNameColorLabel, ansiString);
-    setConfig().parser.roomNameColor = ansiString;
+    AnsiColorDialog::getColor(getConfig().parser.roomNameColor, this, [this](QString ansiString) {
+        AnsiCombo::makeWidgetColoured(roomNameColorLabel, ansiString);
+        setConfig().parser.roomNameColor = ansiString;
+    });
 }
 
 void ParserPage::slot_roomDescColorClicked()
 {
-    QString ansiString = AnsiColorDialog::getColor(getConfig().parser.roomDescColor, this);
-    AnsiCombo::makeWidgetColoured(roomDescColorLabel, ansiString);
-    setConfig().parser.roomDescColor = ansiString;
+    AnsiColorDialog::getColor(getConfig().parser.roomDescColor, this, [this](QString ansiString) {
+        AnsiCombo::makeWidgetColoured(roomDescColorLabel, ansiString);
+        setConfig().parser.roomDescColor = ansiString;
+    });
 }

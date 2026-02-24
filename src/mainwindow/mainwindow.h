@@ -5,32 +5,36 @@
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
-#include "../configuration/configuration.h"
 #include "../display/CanvasMouseModeEnum.h"
-#include "../global/Connections.h"
 #include "../global/Signal2.h"
 #include "../global/macros.h"
 #include "../group/mmapper2group.h"
-#include "../map/Changes.h"
 #include "../mapdata/roomselection.h"
+#include "../mapstorage/MapDestination.h"
+#include "../mapstorage/MapSource.h"
 
 #include <memory>
 #include <optional>
 
 #include <QActionGroup>
+#include <QByteArray>
 #include <QDockWidget>
 #include <QFileDialog>
 #include <QMainWindow>
+#include <QMenu>
+#include <QPointer>
 #include <QProgressDialog>
 #include <QSize>
 #include <QString>
 #include <QTextBrowser>
 #include <QtCore>
 #include <QtGlobal>
+#include <QtWidgets>
 
 class AbstractMapStorage;
 class AdventureTracker;
 class AdventureWidget;
+class AudioManager;
 class AutoLogger;
 class ClientWidget;
 class ConfigDialog;
@@ -39,7 +43,8 @@ class ConnectionSelection;
 class FindRoomsDlg;
 class GameObserver;
 class GroupWidget;
-class InfoMarkSelection;
+class HotkeyManager;
+class InfomarkSelection;
 class MapCanvas;
 class MapData;
 class MapWindow;
@@ -65,9 +70,9 @@ class RoomSelection;
 class RoomWidget;
 class UpdateDialog;
 class DescriptionWidget;
-
-struct InfomarkDb;
+class MediaLibrary;
 struct MapLoadData;
+class MapDestination;
 
 enum class NODISCARD AsyncTypeEnum : uint8_t { Load, Merge, Save };
 
@@ -107,12 +112,17 @@ private:
 
     AdventureTracker *m_adventureTracker = nullptr;
     AdventureWidget *m_adventureWidget = nullptr;
+    MediaLibrary *m_mediaLibrary = nullptr;
+    AudioManager *m_audioManager = nullptr;
 
     DescriptionWidget *m_descriptionWidget = nullptr;
+    std::unique_ptr<HotkeyManager> m_hotkeyManager;
+
+    QPointer<QMenu> m_contextMenu;
 
     SharedRoomSelection m_roomSelection;
     std::shared_ptr<ConnectionSelection> m_connectionSelection;
-    std::shared_ptr<InfoMarkSelection> m_infoMarkSelection;
+    std::shared_ptr<InfomarkSelection> m_infoMarkSelection;
 
     std::unique_ptr<QProgressDialog> m_progressDlg;
     std::unique_ptr<RoomEditAttrDlg> m_roomEditAttrDlg;
@@ -148,6 +158,10 @@ private:
     QAction *exportWebMapAct = nullptr;
     QAction *exportMmpMapAct = nullptr;
     QAction *exitAct = nullptr;
+
+    QAction *m_undoAction = nullptr;
+    QAction *m_redoAction = nullptr;
+
     QAction *voteAct = nullptr;
     QAction *mmapperCheckForUpdateAct = nullptr;
     QAction *mumeWebsiteAct = nullptr;
@@ -155,6 +169,7 @@ private:
     QAction *mumeWikiAct = nullptr;
     QAction *settingUpMmapperAct = nullptr;
     QAction *newbieAct = nullptr;
+    QAction *actionReportIssue = nullptr;
     QAction *aboutAct = nullptr;
     QAction *aboutQtAct = nullptr;
     QAction *zoomInAct = nullptr;
@@ -177,8 +192,8 @@ private:
         QAction *modeRoomRaypickAct = nullptr;
         QAction *modeRoomSelectAct = nullptr;
         QAction *modeMoveSelectAct = nullptr;
-        QAction *modeInfoMarkSelectAct = nullptr;
-        QAction *modeCreateInfoMarkAct = nullptr;
+        QAction *modeInfomarkSelectAct = nullptr;
+        QAction *modeCreateInfomarkAct = nullptr;
         QAction *modeCreateRoomAct = nullptr;
         QAction *modeCreateConnectionAct = nullptr;
         QAction *modeCreateOnewayConnectionAct = nullptr;
@@ -195,12 +210,12 @@ private:
     QActionGroup *selectedRoomActGroup = nullptr;
     QActionGroup *selectedConnectionActGroup = nullptr;
 
-    struct NODISCARD InfoMarkActions final
+    struct NODISCARD InfomarkActions final
     {
-        QActionGroup *infoMarkGroup = nullptr;
-        QAction *deleteInfoMarkAct = nullptr;
-        QAction *editInfoMarkAct = nullptr;
-    } infoMarkActions{};
+        QActionGroup *infomarkGroup = nullptr;
+        QAction *deleteInfomarkAct = nullptr;
+        QAction *editInfomarkAct = nullptr;
+    } infomarkActions{};
 
     QAction *createRoomAct = nullptr;
     QAction *editRoomSelectionAct = nullptr;
@@ -217,6 +232,7 @@ private:
 
     QAction *clientAct = nullptr;
     QAction *saveLogAct = nullptr;
+    QAction *saveLogAsHtmlAct = nullptr;
 
     QAction *gotoRoomAct = nullptr;
     QAction *forceRoomAct = nullptr;
@@ -261,19 +277,17 @@ public:
     explicit MainWindow();
     ~MainWindow() final;
 
-    enum class NODISCARD SaveModeEnum { FULL, BASEMAP };
-    enum class NODISCARD SaveFormatEnum { MM2, MM2XML, WEB, MMP };
+    NODISCARD HotkeyManager &getHotkeyManager() const { return deref(m_hotkeyManager); }
+
     NODISCARD bool saveFile(const QString &fileName, SaveModeEnum mode, SaveFormatEnum format);
-    void loadFile(const QString &fileName);
+    void loadFile(std::shared_ptr<MapSource> source);
     void setCurrentFile(const QString &fileName);
     void percentageChanged(uint32_t);
 
 private:
     void showAsyncFailure(const QString &fileName, AsyncTypeEnum mode, bool wasCanceled);
     NODISCARD std::unique_ptr<AbstractMapStorage> getLoadOrMergeMapStorage(
-        const std::shared_ptr<ProgressCounter> &pc,
-        const QString &fileName,
-        std::shared_ptr<QFile> &pFile);
+        const std::shared_ptr<ProgressCounter> &pc, std::shared_ptr<MapSource> &source);
 
 protected:
     void closeEvent(QCloseEvent *event) override;
@@ -368,9 +382,8 @@ private:
 
 private:
     void applyGroupAction(const std::function<Change(const RawRoom &)> &getChange);
-    NODISCARD QString chooseLoadOrMergeFileName();
     void onSuccessfulLoad(const MapLoadData &mapLoadData);
-    void onSuccessfulMerge(const Map &map, const InfomarkDb &infomarks);
+    void onSuccessfulMerge(const Map &map);
     void onSuccessfulSave(SaveModeEnum mode, SaveFormatEnum format, const QString &fileName);
 
 public slots:
@@ -395,8 +408,8 @@ public slots:
     void slot_onModeRoomRaypick();
     void slot_onModeRoomSelect();
     void slot_onModeMoveSelect();
-    void slot_onModeInfoMarkSelect();
-    void slot_onModeCreateInfoMarkSelect();
+    void slot_onModeInfomarkSelect();
+    void slot_onModeCreateInfomarkSelect();
     void slot_onModeCreateRoomSelect();
     void slot_onModeCreateConnectionSelect();
     void slot_onModeCreateOnewayConnectionSelect();
@@ -405,8 +418,8 @@ public slots:
     void slot_onLayerReset();
     void slot_onCreateRoom();
     void slot_onEditRoomSelection();
-    void slot_onEditInfoMarkSelection();
-    void slot_onDeleteInfoMarkSelection();
+    void slot_onEditInfomarkSelection();
+    void slot_onDeleteInfomarkSelection();
     void slot_onDeleteRoomSelection();
     void slot_onDeleteConnectionSelection();
     NODISCARD bool slot_moveRoomSelection(const Coordinate &offset);
@@ -431,8 +444,9 @@ public slots:
 
     void slot_newRoomSelection(const SigRoomSelection &);
     void slot_newConnectionSelection(ConnectionSelection *);
-    void slot_newInfoMarkSelection(InfoMarkSelection *);
+    void slot_newInfomarkSelection(InfomarkSelection *);
     void slot_showContextMenu(const QPoint &);
+    void slot_closeContextMenu();
 
     void slot_onCheckForUpdate();
     void slot_voteForMUME();
@@ -441,4 +455,5 @@ public slots:
     void slot_openMumeWiki();
     void slot_openSettingUpMmapper();
     void slot_openNewbieHelp();
+    void onReportIssueTriggered();
 };

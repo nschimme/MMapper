@@ -35,6 +35,8 @@ FindRoomsDlg::FindRoomsDlg(MapData &md, QWidget *const parent)
     selectButton->setEnabled(false);
     editButton->setEnabled(false);
 
+    findButton->setDefault(true);
+
     connect(lineEdit, &QLineEdit::textChanged, this, &FindRoomsDlg::slot_enableFindButton);
     connect(findButton, &QAbstractButton::clicked, this, &FindRoomsDlg::slot_findClicked);
     connect(closeButton, &QAbstractButton::clicked, this, &QWidget::close);
@@ -88,9 +90,7 @@ FindRoomsDlg::FindRoomsDlg(MapData &md, QWidget *const parent)
         emit sig_editSelection();
     });
 
-    setFocus();
     label->setFocusProxy(lineEdit);
-    lineEdit->setFocus();
 
     readSettings();
 }
@@ -98,6 +98,12 @@ FindRoomsDlg::FindRoomsDlg(MapData &md, QWidget *const parent)
 FindRoomsDlg::~FindRoomsDlg()
 {
     resultTable->clear();
+}
+
+void FindRoomsDlg::showEvent(QShowEvent *const event)
+{
+    QDialog::showEvent(event);
+    lineEdit->setFocus();
 }
 
 void FindRoomsDlg::readSettings()
@@ -141,10 +147,10 @@ void FindRoomsDlg::slot_findClicked()
     try {
         RoomFilter filter(text, cs, regex, kind);
         const Map &map = m_mapData.getCurrentMap();
-        for (const auto &roomId : map.getRooms()) {
+        map.getRooms().for_each([&](const auto roomId) {
             const auto &room = map.getRoomHandle(roomId);
             if (!filter.filter(room.getRaw())) {
-                continue;
+                return;
             }
 
             QString id = QString("%1").arg(room.getIdExternal().asUint32());
@@ -156,7 +162,7 @@ void FindRoomsDlg::slot_findClicked()
             item->setText(1, roomName);
             item->setToolTip(0, toolTip);
             item->setToolTip(1, toolTip);
-        }
+        });
     } catch (const std::exception &ex) {
         qWarning() << "Exception: " << ex.what();
         QMessageBox::critical(this,
@@ -220,6 +226,7 @@ void FindRoomsDlg::closeEvent(QCloseEvent *event)
     writeSettings();
     resultTable->clear();
     roomsFoundLabel->clear();
+    lineEdit->clear();
     lineEdit->setFocus();
     selectButton->setEnabled(false);
     editButton->setEnabled(false);

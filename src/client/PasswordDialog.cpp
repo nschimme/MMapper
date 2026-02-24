@@ -6,6 +6,7 @@
 #include "inputwidget.h"
 
 #include <QDialogButtonBox>
+#include <QShowEvent>
 #include <QVBoxLayout>
 
 PasswordDialog::PasswordDialog(InputWidgetOutputs &outputs, QWidget *const parent)
@@ -16,6 +17,8 @@ PasswordDialog::PasswordDialog(InputWidgetOutputs &outputs, QWidget *const paren
 
     m_passwordLineEdit = new QLineEdit(this);
     m_passwordLineEdit->setEchoMode(QLineEdit::Password);
+    m_passwordLineEdit->setPlaceholderText("Password");
+    m_passwordLineEdit->setObjectName("passwordLineEdit");
 
     QDialogButtonBox *buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok
                                                            | QDialogButtonBox::Cancel,
@@ -31,10 +34,10 @@ PasswordDialog::PasswordDialog(InputWidgetOutputs &outputs, QWidget *const paren
     connect(buttonBox, &QDialogButtonBox::rejected, this, &PasswordDialog::reject);
 }
 
-bool PasswordDialog::focusNextPrevChild(bool /*next*/)
+void PasswordDialog::showEvent(QShowEvent *event)
 {
-    // Disable tabbing
-    return false;
+    QDialog::showEvent(event);
+    m_passwordLineEdit->setFocus();
 }
 
 void PasswordDialog::accept()

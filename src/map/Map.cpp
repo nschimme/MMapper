@@ -12,10 +12,10 @@
 #include "../global/parserutils.h"
 #include "../global/progresscounter.h"
 #include "../global/tests.h"
+#include "../global/thread_utils.h"
 #include "Changes.h"
 #include "Diff.h"
 #include "ParseTree.h"
-#include "RoomRecipient.h"
 #include "World.h"
 #include "WorldBuilder.h"
 #include "enums.h"
@@ -50,9 +50,24 @@ Map::Map(std::shared_ptr<const World> world)
     std::ignore = deref(m_world);
 }
 
+const InfomarkDb &Map::getInfomarkDb() const
+{
+    return getWorld().getInfomarkDb();
+}
+
 size_t Map::getRoomsCount() const
 {
     return getWorld().getRoomSet().size();
+}
+
+size_t Map::getMarksCount() const
+{
+    return getWorld().getInfomarkDb().getIdSet().size();
+}
+
+bool Map::empty() const
+{
+    return getRoomsCount() == 0 && getMarksCount() == 0;
 }
 
 std::optional<Bounds> Map::getBounds() const
@@ -60,33 +75,19 @@ std::optional<Bounds> Map::getBounds() const
     return getWorld().getBounds();
 }
 
-const RoomIdSet &Map::getRooms() const
+const ImmRoomIdSet &Map::getRooms() const
 {
     return getWorld().getRoomSet();
 }
 
 RoomIdSet Map::findAllRooms(const ParseEvent &parseEvent) const
 {
-    RoomIdSet result;
-    for (const RoomId id : getRooms()) {
-        const RawRoom &room = deref(find_room_ptr(id));
-        if (matches(room, parseEvent)) {
-            result.insert(id);
-        }
-    }
-    return result;
-}
-
-void Map::getRooms(RoomRecipient &recipient, const ParseEvent &parseEvent) const
-{
     const Map &map = *this;
-    if (parseEvent.getServerId() != INVALID_SERVER_ROOMID) {
-        if (const auto rh = map.findRoomHandle(parseEvent.getServerId())) {
-            return recipient.receiveRoom(rh);
-        }
+    if (map.empty()) {
+        return {};
     }
-    const auto &tree = map.getWorld().getParseTree();
-    ::getRooms(map, tree, recipient, parseEvent);
+    const auto &tree = getWorld().getParseTree();
+    return ::getRooms(map, tree, parseEvent);
 }
 
 NODISCARD const RawRoom *Map::find_room_ptr(const RoomId id) const
@@ -188,7 +189,7 @@ static void reportDetectedChanges(std::ostream &os, const WorldComparisonStats &
         }
 
         SHOW(spatialDbChanged);
-        SHOW(parseTreeChanged);
+        // SHOW(parseTreeChanged);
         SHOW(serverIdsChanged);
 
         SHOW(hasMeshDifferences);
@@ -206,13 +207,18 @@ NODISCARD static RoomUpdateFlags reportNeededUpdates(std::ostream &os,
 
     const bool needRoomMeshUpdate = stats.hasMeshDifferences;
     const bool boundsChanged = stats.boundsChanged;
+    const bool marksChanged = stats.anyInfomarksChanged;
 
     os << "[update] Bounds changed: " << (boundsChanged ? "YES" : "NO") << ".\n";
+    os << "[update] Marks changed: " << (marksChanged ? "YES" : "NO") << ".\n";
     os << "[update] Needs any mesh updates: " << (needRoomMeshUpdate ? "YES" : "NO") << ".\n";
 
     RoomUpdateFlags result;
     if (boundsChanged) {
         result.insert(RoomUpdateEnum::BoundsChanged);
+    }
+    if (marksChanged) {
+        result.insert(RoomUpdateEnum::MarksChanged);
     }
     if (needRoomMeshUpdate) {
         result.insert(RoomUpdateEnum::RoomMeshNeedsUpdate);
@@ -242,7 +248,7 @@ NODISCARD static MapApplyResult update(const std::shared_ptr<const World> &input
     bool equal = base == modified;
     const auto t3 = Clock::now();
 
-    RoomUpdateFlags neededUpdates;
+    RoomUpdateFlags neededRoomUpdates;
     std::ostringstream info_os;
 
     if (equal) {
@@ -253,7 +259,7 @@ NODISCARD static MapApplyResult update(const std::shared_ptr<const World> &input
         try {
             const auto stats = World::getComparisonStats(base, modified);
             reportDetectedChanges(info_os, stats);
-            neededUpdates = reportNeededUpdates(info_os, stats);
+            neededRoomUpdates = reportNeededUpdates(info_os, stats);
         } catch (const std::exception &ex) {
             info_os << "[update] Changes detected, but an exception occurred while comparing: "
                     << ex.what() << ".\n";
@@ -283,7 +289,7 @@ NODISCARD static MapApplyResult update(const std::shared_ptr<const World> &input
     }
 
     // only modify input if the callback succeeds
-    return MapApplyResult{Map{std::move(modified)}, neededUpdates};
+    return MapApplyResult{Map{std::move(modified)}, neededRoomUpdates};
 }
 
 MapApplyResult Map::applySingleChange(ProgressCounter &pc, const Change &change) const
@@ -322,9 +328,11 @@ MapApplyResult Map::apply(ProgressCounter &pc, const ChangeList &changeList) con
     return apply(pc, changeList.getChanges());
 }
 
-MapPair Map::fromRooms(ProgressCounter &counter, std::vector<ExternalRawRoom> rooms)
+MapPair Map::fromRooms(ProgressCounter &counter,
+                       std::vector<ExternalRawRoom> rooms,
+                       std::vector<RawInfomark> marks)
 {
-    return WorldBuilder::buildFrom(counter, std::exchange(rooms, {}));
+    return WorldBuilder::buildFrom(counter, std::exchange(rooms, {}), std::exchange(marks, {}));
 }
 
 void Map::printStats(ProgressCounter &pc, AnsiOstream &aos) const
@@ -343,7 +351,7 @@ void Map::printMulti(ProgressCounter &pc, AnsiOstream &os) const
 
     std::set<ExternalRoomId> rooms;
     pc.setNewTask(ProgressMsg{"phase 1: scanning rooms"}, getRoomsCount());
-    for (const RoomId here : getRooms()) {
+    getRooms().for_each([&](const RoomId here) {
         const auto &room = deref(w.getRoom(here));
         const auto hereExternal = w.convertToExternal(here);
         for (const ExitDirEnum dir : ALL_EXITS_NESWUD) {
@@ -355,7 +363,7 @@ void Map::printMulti(ProgressCounter &pc, AnsiOstream &os) const
             break;
         }
         pc.step();
-    }
+    });
 
     pc.setNewTask(ProgressMsg{"phase 2: processing rooms"}, rooms.size());
     for (const ExternalRoomId hereExternal : rooms) {
@@ -435,14 +443,14 @@ void Map::printUnknown(ProgressCounter &pc, AnsiOstream &os) const
 {
     std::set<ExternalRoomId> set;
     pc.setNewTask(ProgressMsg{"scanning rooms"}, getRoomsCount());
-    for (const RoomId id : getRooms()) {
+    getRooms().for_each([&](const RoomId id) {
         const auto &room = getRoomHandle(id);
         if (!room.getExit(ExitDirEnum::UNKNOWN).outIsEmpty()
             || !room.getExit(ExitDirEnum::UNKNOWN).inIsEmpty()) {
             set.insert(getExternalRoomId(id));
         }
         pc.step();
-    }
+    });
 
     const auto unknownStr = "Unknown";
 
@@ -479,102 +487,195 @@ bool Map::operator==(const Map &other) const
 
 void Map::diff(ProgressCounter &pc, AnsiOstream &os, const Map &a, const Map &b)
 {
-    std::set<ExternalRoomId> removedSet;
-    std::set<ExternalRoomId> addedSet;
-    std::set<ExternalRoomId> commonSet;
+    struct NoCopyDefaultMove
+    {
+        NoCopyDefaultMove() = default;
+        MAYBE_UNUSED ~NoCopyDefaultMove() = default;
+        NoCopyDefaultMove(const NoCopyDefaultMove &) = delete;
+        NoCopyDefaultMove &operator=(const NoCopyDefaultMove &) = delete;
+        MAYBE_UNUSED NoCopyDefaultMove(NoCopyDefaultMove &&) = default;
+        MAYBE_UNUSED NoCopyDefaultMove &operator=(NoCopyDefaultMove &&) = default;
+    };
+
+    struct NODISCARD Sets final : public NoCopyDefaultMove
+    {
+        std::set<ExternalRoomId> removedSet;
+        std::set<ExternalRoomId> addedSet;
+        std::set<ExternalRoomId> commonSet;
+
+        static void add_all(std::set<ExternalRoomId> &to, const std::set<ExternalRoomId> &from)
+        {
+            to.insert(from.begin(), from.end());
+        }
+
+        Sets &operator+=(const Sets &other)
+        {
+            add_all(removedSet, other.removedSet);
+            add_all(addedSet, other.addedSet);
+            add_all(commonSet, other.commonSet);
+            return *this;
+        }
+    };
+
+    DECL_TIMER(t, "Map::diff (parallel)");
 
     const World &aWorld = a.getWorld();
     const World &bWorld = b.getWorld();
 
-    pc.setNewTask(ProgressMsg{"scanning old rooms"}, a.getRoomsCount());
-    for (const RoomId oldRoom : a.getRooms()) {
-        const ExternalRoomId extId = aWorld.convertToExternal(oldRoom);
-        if (b.findRoomHandle(extId)) {
-            commonSet.insert(extId);
-        } else {
-            removedSet.insert(extId);
+    Sets sets;
+    auto merge_sets_tls = [&sets](auto &tls) {
+        for (auto &tl : tls) {
+            sets += tl;
         }
-        pc.step();
-    }
+    };
+
+    pc.setNewTask(ProgressMsg{"scanning old rooms"}, a.getRoomsCount());
+    thread_utils::parallel_for_each_tl<Sets>(
+        a.getRooms(),
+        pc,
+        [&aWorld, &b](auto &tl, const RoomId oldRoom) {
+            const ExternalRoomId extId = aWorld.convertToExternal(oldRoom);
+            if (b.findRoomHandle(extId)) {
+                tl.commonSet.insert(extId);
+            } else {
+                tl.removedSet.insert(extId);
+            }
+        },
+        merge_sets_tls);
 
     pc.setNewTask(ProgressMsg{"scanning new rooms"}, b.getRoomsCount());
-    for (const RoomId newRoom : b.getRooms()) {
-        const ExternalRoomId extId = bWorld.convertToExternal(newRoom);
-        if (!a.findRoomHandle(extId)) {
-            addedSet.insert(extId);
-        }
-        pc.step();
-    }
+    thread_utils::parallel_for_each_tl<Sets>(
+        b.getRooms(),
+        pc,
+        [&bWorld, &a](auto &tl, const RoomId newRoom) {
+            const ExternalRoomId extId = bWorld.convertToExternal(newRoom);
+            if (!a.findRoomHandle(extId)) {
+                tl.addedSet.insert(extId);
+            }
+        },
+        merge_sets_tls);
 
     bool hasChange = false;
 
+    struct NODISCARD TlReporter : NoCopyDefaultMove
     {
-        OstreamDiffReporter odr{os};
+    public:
+        struct [[nodiscard]] Detail final
+        {
+            std::ostringstream os;
+            AnsiOstream aos{os};
+            OstreamDiffReporter odr{aos};
+        };
 
-        if (!removedSet.empty()) {
+    private:
+        std::unique_ptr<Detail> m_detail = std::make_unique<Detail>();
+
+    public:
+        NODISCARD Detail &get() { return deref(m_detail); }
+        NODISCARD std::string finish()
+        {
+            auto result = std::move(deref(m_detail).os).str();
+            m_detail.reset();
+            return result;
+        }
+    };
+
+    auto merge_tl_reporters = [&os](auto &tls) {
+        for (auto &tl : tls) {
+            os.writeWithEmbeddedAnsi(tl.finish());
+        }
+    };
+
+    {
+        if (!sets.removedSet.empty()) {
             hasChange = true;
             os << "Removed rooms:\n";
             os << "\n";
-            pc.setNewTask(ProgressMsg{"reporting removed rooms"}, removedSet.size());
-            for (const ExternalRoomId extId : removedSet) {
-                const auto &oldRoom = a.getRoomHandle(extId);
-                os << "Removed room " << extId.value() << ":\n";
-                odr.removed(oldRoom);
-                pc.step();
-            }
+            pc.setNewTask(ProgressMsg{"reporting removed rooms"}, sets.removedSet.size());
+            thread_utils::parallel_for_each_tl<TlReporter>(
+                sets.removedSet,
+                pc,
+                [&a](auto &tl, const ExternalRoomId extId) {
+                    const auto &oldRoom = a.getRoomHandle(extId);
+                    auto &detail = tl.get();
+                    detail.os << "Removed room " << extId.value() << ":\n";
+                    detail.odr.removed(oldRoom);
+                },
+                merge_tl_reporters);
         }
 
-        if (!addedSet.empty()) {
+        if (!sets.addedSet.empty()) {
             if (hasChange) {
                 os << "\n";
             }
             hasChange = true;
             os << "Added rooms:\n";
             os << "\n";
-            pc.setNewTask(ProgressMsg{"reporting added rooms"}, addedSet.size());
-            for (const ExternalRoomId extId : addedSet) {
-                const auto &oldRoom = b.getRoomHandle(extId);
-                os << "Added room " << extId.value() << ":\n";
-                odr.added(oldRoom);
-                pc.step();
-            }
+            pc.setNewTask(ProgressMsg{"reporting added rooms"}, sets.addedSet.size());
+            thread_utils::parallel_for_each_tl<TlReporter>(
+                sets.addedSet,
+                pc,
+                [&b](auto &tl, const ExternalRoomId extId) {
+                    const auto &oldRoom = b.getRoomHandle(extId);
+                    auto &detail = tl.get();
+                    detail.os << "Added room " << extId.value() << ":\n";
+                    detail.odr.added(oldRoom);
+                },
+                merge_tl_reporters);
         }
     }
 
     {
-        bool printedAny = false;
-        pc.setNewTask(ProgressMsg{"scanning common rooms"}, commonSet.size());
-        for (const ExternalRoomId extId : commonSet) {
-            const auto &oldRoom = a.getRoomHandle(extId);
-            const auto &newRoom = b.getRoomHandle(extId);
-            std::ostringstream oss;
-            {
-                AnsiOstream aos{oss};
-                OstreamDiffReporter odr{aos};
-                compare(odr, oldRoom, newRoom);
-            }
-            auto str = std::move(oss).str();
-            if (str.empty()) {
-                continue;
-            }
+        struct TlReporter2 final : public TlReporter
+        {
+            bool printedAny = false;
+        };
 
-            if (!printedAny) {
-                printedAny = true;
-                if (hasChange) {
-                    os << "\n";
+        bool printed_first_change = false;
+        auto merge_tlreporter2 = [&os, &hasChange, &printed_first_change](auto &tls) {
+            for (TlReporter2 &tl : tls) {
+                if (!tl.printedAny) {
+                    continue;
                 }
-                os << "Changes to existing rooms:\n";
+
+                if (!printed_first_change) {
+                    if (hasChange) {
+                        os << "\n";
+                    }
+                    os << "Changes to existing rooms:\n";
+                    printed_first_change = true;
+                }
+
+                hasChange = true;
+                os.writeWithEmbeddedAnsi(tl.finish());
             }
+        };
 
-            os << "\n";
-            os << "Changes to room " << extId.value() << ":\n";
-            os.writeWithEmbeddedAnsi(str);
-            pc.step();
-        }
+        pc.setNewTask(ProgressMsg{"scanning common rooms"}, sets.commonSet.size());
+        thread_utils::parallel_for_each_tl<TlReporter2>(
+            sets.commonSet,
+            pc,
+            [&a, &b](TlReporter2 &tl, const ExternalRoomId extId) {
+                const auto &oldRoom = a.getRoomHandle(extId);
+                const auto &newRoom = b.getRoomHandle(extId);
+                std::ostringstream oss;
+                {
+                    AnsiOstream aos{oss};
+                    OstreamDiffReporter odr{aos};
+                    compare(odr, oldRoom, newRoom);
+                }
+                auto str = std::move(oss).str();
+                if (str.empty()) {
+                    return;
+                }
 
-        if (printedAny) {
-            hasChange = true;
-        }
+                tl.printedAny = true;
+                auto &detail = tl.get();
+                detail.os << "\n";
+                detail.os << "Changes to room " << extId.value() << ":\n";
+                detail.aos.writeWithEmbeddedAnsi(str);
+            },
+            merge_tlreporter2);
     }
 
     if (!hasChange) {
@@ -615,7 +716,10 @@ void Map::statRoom(AnsiOstream &os, RoomId id) const
         if (flags.empty()) {
             os << " (none)";
         } else {
-            for (const auto flag : flags) {
+            // assumes it's templated based on Flags in Flags.h
+            using Flag = typename decltype(flags)::Flag;
+            static_assert(std::is_enum_v<Flag>);
+            for (const Flag flag : flags) {
                 os << " ";
                 os.writeWithColor(ansi_green, to_string_view(flag));
             }
@@ -639,22 +743,22 @@ void Map::statRoom(AnsiOstream &os, RoomId id) const
     os << "Area: ";
     {
         const RoomArea &areaName = room.getArea();
-        const auto numInArea = [this, &areaName]() {
+        const auto numInArea = std::invoke([this, &areaName]() -> size_t {
             if (auto opt = countRoomsWithArea(areaName)) {
                 return *opt;
             }
             // Other callers might be willing to tolerate failure,
             // but it's a hard map consistency error here if the area doesn't exist.
             throw std::runtime_error("invalid area");
-        }();
-        const auto relativeSize = [this, &numInArea]() {
+        });
+        const auto relativeSize = std::invoke([this, &numInArea]() -> std::string {
             // std::fmt should make this a lot easier when that's available.
             char buf[32];
             const auto pct = 100.0 * static_cast<double>(numInArea)
                              / static_cast<double>(getRoomsCount());
             std::snprintf(buf, sizeof(buf), "%.1f", pct);
             return std::string{buf};
-        }();
+        });
         if (!areaName.empty()) {
             os.writeQuotedWithColor(ansi_green, ansi_yellow, areaName.getStdStringViewUtf8());
         } else {
@@ -890,7 +994,7 @@ void Map::statRoom(AnsiOstream &os, RoomId id) const
 std::optional<size_t> Map::countRoomsWithArea(const RoomArea &areaName) const
 {
     const auto &world = getWorld();
-    if (const RoomIdSet *const area = world.findAreaRoomSet(areaName)) {
+    if (const auto area = world.findAreaRoomSet(areaName)) {
         return area->size();
     }
     return std::nullopt;
@@ -931,7 +1035,7 @@ std::optional<RoomId> Map::findUniqueName(const RoomName &name) const
 {
     const auto &world = getWorld();
     const auto &parseTree = world.getParseTree();
-    if (const RoomIdSet *const pSet = parseTree.name_only.find(name)) {
+    if (const auto *const pSet = parseTree.name_only.find(name)) {
         if (pSet->size() == 1) {
             return pSet->first();
         }
@@ -943,7 +1047,7 @@ std::optional<RoomId> Map::findUniqueDesc(const RoomDesc &desc) const
 {
     const auto &world = getWorld();
     const auto &parseTree = world.getParseTree();
-    if (const RoomIdSet *const pSet = parseTree.desc_only.find(desc)) {
+    if (const auto *const pSet = parseTree.desc_only.find(desc)) {
         if (pSet->size() == 1) {
             return pSet->first();
         }
@@ -956,7 +1060,7 @@ std::optional<RoomId> Map::findUniqueNameDesc(const RoomName &name, const RoomDe
     const auto &world = getWorld();
     const auto &parseTree = world.getParseTree();
     const NameDesc nameDesc{name, desc};
-    if (const RoomIdSet *const pSet = parseTree.name_desc.find(nameDesc)) {
+    if (const auto *const pSet = parseTree.name_desc.find(nameDesc)) {
         if (pSet->size() == 1) {
             return pSet->first();
         }
@@ -994,6 +1098,7 @@ ExternalRoomId Map::getExternalRoomId(RoomId id) const
 Map Map::merge(ProgressCounter &pc,
                const Map &currentMap,
                std::vector<ExternalRawRoom> newRooms,
+               std::vector<RawInfomark> newMarks,
                const Coordinate &mapOffset)
 {
     if (newRooms.empty()) {
@@ -1070,17 +1175,20 @@ Map Map::merge(ProgressCounter &pc,
 
     {
         pc.setNewTask(ProgressMsg{"creating combined map"},
-                      currentMap.getRoomsCount() + newRooms.size());
+                      currentMap.getRoomsCount() + newRooms.size() + currentMap.getMarksCount()
+                          + newMarks.size());
 
         std::vector<ExternalRawRoom> rooms;
         rooms.reserve(currentMap.getRoomsCount() + newRooms.size());
+        std::vector<RawInfomark> marks;
+        marks.reserve(currentMap.getMarksCount() + newMarks.size());
 
         pc.setCurrentTask(ProgressMsg{"creating combined map: old rooms"});
-        for (const RoomId id : currentMap.getRooms()) {
+        currentMap.getRooms().for_each([&](const RoomId id) {
             const RoomHandle &room = currentMap.getRoomHandle(id);
             rooms.emplace_back(room.getRawCopyExternal());
             pc.step();
-        }
+        });
 
         pc.setCurrentTask(ProgressMsg{"creating combined map: new rooms"});
         for (const auto &room : newRooms) {
@@ -1088,9 +1196,28 @@ Map Map::merge(ProgressCounter &pc,
             pc.step();
         }
 
+        pc.setCurrentTask(ProgressMsg{"creating combined map: old marks"});
+        const auto &db = currentMap.getInfomarkDb();
+        db.getIdSet().for_each([&](const auto id) {
+            marks.emplace_back(db.getRawCopy(id));
+            pc.step();
+        });
+
+        const auto infomarkOffset = std::invoke([&mapOffset]() -> Coordinate {
+            const auto tmp = mapOffset.to_ivec3() * glm::ivec3{INFOMARK_SCALE, INFOMARK_SCALE, 1};
+            return Coordinate{tmp.x, tmp.y, tmp.z};
+        });
+
+        pc.setCurrentTask(ProgressMsg{"creating combined map: new marks"});
+        for (auto &im : newMarks) {
+            im.offsetBy(infomarkOffset);
+            marks.emplace_back(im);
+            pc.step();
+        }
+
         pc.setNewTask(ProgressMsg{"loading"}, 1);
 
-        const auto tmp = Map::fromRooms(pc, std::move(rooms));
+        const auto tmp = Map::fromRooms(pc, std::move(rooms), std::move(marks));
         // NOTE: We're ignoring the base, so that means things like
         // "door names converted to notes" won't show up as a separate diff.
         if ((false) && tmp.base != tmp.modified) {
@@ -1106,11 +1233,11 @@ void Map::foreachChangedRoom(ProgressCounter &pc,
                              const std::function<void(const RawRoom &room)> &callback)
 {
     pc.increaseTotalStepsBy(current.getRoomsCount());
-    for (const RoomId id : current.getRooms()) {
+    current.getRooms().for_each([&](const RoomId id) {
         const auto r = current.findRoomHandle(id);
         if (!r) {
             assert(false);
-            continue;
+            return;
         }
         const auto &prev = saved.findRoomHandle(id);
         // older code failed to check incoming/outgoing connection differences here
@@ -1118,7 +1245,7 @@ void Map::foreachChangedRoom(ProgressCounter &pc,
             callback(r.getRaw());
         }
         pc.step();
-    }
+    });
 }
 
 NODISCARD bool Map::wouldAllowRelativeMove(const RoomIdSet &set, const Coordinate &offset) const
@@ -1165,29 +1292,53 @@ void Map::printChanges(mm::AbstractDebugOStream &os,
     os.writeUtf8(oss.str());
 }
 
+void Map::enableExtraSanityChecks(const bool enable)
+{
+    World::enableExtraSanityChecks(enable);
+}
+
 BasicDiffStats getBasicDiffStats(const Map &baseMap, const Map &modMap)
 {
+    DECL_TIMER(t, "get map diff stats (parallel)");
+
     const auto &base = baseMap.getWorld();
     const auto &mod = modMap.getWorld();
 
+    ProgressCounter dummyPc;
     BasicDiffStats result;
-    for (const RoomId id : base.getRoomSet()) {
-        if (!mod.hasRoom(id)) {
-            ++result.numRoomsRemoved;
+    auto merge_tls = [&result](auto &tls) {
+        for (auto &tl : tls) {
+            result += tl;
         }
-    }
-    for (const RoomId id : mod.getRoomSet()) {
-        if (!base.hasRoom(id)) {
-            ++result.numRoomsAdded;
-            continue;
-        }
+    };
 
-        const RawRoom &rawBase = base.getRawCopy(id);
-        const RawRoom &rawModified = mod.getRawCopy(id);
-        if (rawBase != rawModified) {
-            ++result.numRoomsChanged;
-        }
-    }
+    thread_utils::parallel_for_each_tl<BasicDiffStats>(
+        base.getRoomSet(),
+        dummyPc,
+        [&mod](auto &tl, const RoomId id) {
+            if (!mod.hasRoom(id)) {
+                ++tl.numRoomsRemoved;
+            }
+        },
+        merge_tls);
+
+    thread_utils::parallel_for_each_tl<BasicDiffStats>(
+        mod.getRoomSet(),
+        dummyPc,
+        [&base, &mod](auto &tl, const RoomId id) {
+            if (!base.hasRoom(id)) {
+                ++tl.numRoomsAdded;
+                return;
+            }
+
+            const RawRoom &rawBase = base.getRawCopy(id);
+            const RawRoom &rawModified = mod.getRawCopy(id);
+            if (rawBase != rawModified) {
+                ++tl.numRoomsChanged;
+            }
+        },
+        merge_tls);
+
     return result;
 }
 
@@ -1405,7 +1556,7 @@ void enhanceExits(AnsiOstream &os, const RoomHandle &sourceRoom)
 void displayExits(AnsiOstream &os, const RoomHandle &r, const char sunCharacter)
 {
     const Map &map = r.getMap();
-    const bool hasExits = [&r]() {
+    const auto hasExits = std::invoke([&r]() -> bool {
         for (const ExitDirEnum direction : ALL_EXITS_NESWUD) {
             const auto &e = r.getExit(direction);
             if (e.exitIsExit()) {
@@ -1413,7 +1564,7 @@ void displayExits(AnsiOstream &os, const RoomHandle &r, const char sunCharacter)
             }
         }
         return false;
-    }();
+    });
 
     auto prefix = " ";
 
@@ -1632,10 +1783,16 @@ void testAddAndRemoveIsNoChange()
     room.setName(RoomName{"Name"});
     room.setPosition(firstCoord);
 
-    const MapPair mapPair = Map::fromRooms(pc, rooms);
+    std::vector<RawInfomark> marks;
+    auto &im = marks.emplace_back();
+    im.setType(InfomarkTypeEnum::TEXT);
+    im.setText(InfomarkText{"Text"});
+
+    const MapPair mapPair = Map::fromRooms(pc, rooms, marks);
     TEST_ASSERT(mapPair.base == mapPair.modified);
     const Map &m1 = mapPair.modified;
     TEST_ASSERT(m1.getRoomsCount() == 1);
+    TEST_ASSERT(m1.getMarksCount() == 1);
 
     const auto firstChangeResult = m1.applySingleChange(pc,
                                                         Change{room_change_types::AddPermanentRoom{
@@ -1647,13 +1804,13 @@ void testAddAndRemoveIsNoChange()
     TEST_ASSERT(m2 != m1);
     TEST_ASSERT(m2.getRoomsCount() == 2);
 
-    const auto secondId = [&m2, &secondCoord]() -> RoomId {
+    const auto secondId = std::invoke([&m2, &secondCoord]() -> RoomId {
         // REVISIT: add should we add Map::findRoomId(Coordinate)?
         if (const auto r2 = m2.findRoomHandle(secondCoord)) {
             return r2.getId();
         }
         return INVALID_ROOMID;
-    }();
+    });
     TEST_ASSERT(secondId != INVALID_ROOMID);
     const auto secondChangeResult = m2.applySingleChange(pc,
                                                          Change{room_change_types::RemoveRoom{
@@ -1672,7 +1829,6 @@ void testAddAndRemoveIsNoChange()
         TEST_ASSERT(!stats12.anyRoomsRemoved);
         TEST_ASSERT(stats12.anyRoomsAdded);
         TEST_ASSERT(stats12.spatialDbChanged);
-        TEST_ASSERT(stats12.parseTreeChanged);
         TEST_ASSERT(stats12.hasMeshDifferences);
         TEST_ASSERT(!stats12.serverIdsChanged);
     }
@@ -1683,7 +1839,6 @@ void testAddAndRemoveIsNoChange()
         TEST_ASSERT(stats23.anyRoomsRemoved);
         TEST_ASSERT(!stats23.anyRoomsAdded);
         TEST_ASSERT(stats23.spatialDbChanged);
-        TEST_ASSERT(stats23.parseTreeChanged);
         TEST_ASSERT(stats23.hasMeshDifferences);
         TEST_ASSERT(!stats23.serverIdsChanged);
     }
@@ -1694,7 +1849,6 @@ void testAddAndRemoveIsNoChange()
         TEST_ASSERT(!stats13.anyRoomsRemoved);
         TEST_ASSERT(!stats13.anyRoomsAdded);
         TEST_ASSERT(!stats13.spatialDbChanged);
-        TEST_ASSERT(!stats13.parseTreeChanged);
         TEST_ASSERT(!stats13.hasMeshDifferences);
         TEST_ASSERT(!stats13.serverIdsChanged);
     }
@@ -1748,8 +1902,9 @@ void testConstructingInvalidEnums()
         raw.id = ExternalRoomId{1};
         raw.setAlignType(set);
 
-        auto map = Map::fromRooms(pc, {raw});
+        auto map = Map::fromRooms(pc, {raw}, {});
         TEST_ASSERT(map.base.getRoomsCount() == 1);
+        TEST_ASSERT(map.base.getMarksCount() == 0);
 
         const auto roomId = map.base.getRooms().first();
         const auto raw2 = map.base.getRawRoom(roomId);
@@ -1865,6 +2020,7 @@ void testDoorVsExitFlags()
 namespace test {
 void testMap()
 {
+    Map::enableExtraSanityChecks(true);
     testRoomIdSet();
     testRawFlags();
     testAddAndRemoveIsNoChange();

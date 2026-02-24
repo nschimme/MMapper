@@ -210,7 +210,7 @@ NODISCARD AnsiColor256 toAnsiColor256(AnsiColorRGB rgb);
 
 NODISCARD AnsiColorRGB toAnsiColorRGB(AnsiColor16Enum ansi);
 NODISCARD AnsiColorRGB toAnsiColorRGB(AnsiColor256 ansiColor);
-NODISCARD AnsiColorRGB toAnsiColorRGB(const Color &c);
+NODISCARD AnsiColorRGB toAnsiColorRGB(Color c);
 
 // lossy, except when rgb is one of the table entries
 NODISCARD AnsiColor16Enum toAnsiColor16Enum(AnsiColorRGB rgb);
@@ -424,14 +424,8 @@ public:
     { \
         return m_flags.contains(AnsiStyleFlagEnum::_Snake); \
     } \
-    constexpr void set##_Snake() \
-    { \
-        m_flags.insert(AnsiStyleFlagEnum::_Snake); \
-    } \
-    constexpr void clear##_Snake() \
-    { \
-        m_flags.remove(AnsiStyleFlagEnum::_Snake); \
-    }
+    constexpr void set##_Snake() { m_flags.insert(AnsiStyleFlagEnum::_Snake); } \
+    constexpr void clear##_Snake() { m_flags.remove(AnsiStyleFlagEnum::_Snake); }
     XFOREACH_ANSI_STYLE_EXCEPT_UNDERLINE(X_DECL_ACCESSORS)
 #undef X_DECL_ACCESSORS
 
@@ -452,10 +446,7 @@ public:
     {
         return m_flags.contains(AnsiStyleFlagEnum::Underline);
     }
-    constexpr void setUnderline()
-    {
-        setUnderlineStyle(AnsiUnderlineStyleEnum::Normal);
-    }
+    constexpr void setUnderline() { setUnderlineStyle(AnsiUnderlineStyleEnum::Normal); }
     constexpr void clearUnderline()
     {
         m_flags.remove(AnsiStyleFlagEnum::Underline);
@@ -474,10 +465,7 @@ public:
     }
 
 public:
-    NODISCARD constexpr AnsiStyleFlags getFlags() const
-    {
-        return m_flags;
-    }
+    NODISCARD constexpr AnsiStyleFlags getFlags() const { return m_flags; }
     NODISCARD constexpr AnsiUnderlineStyleEnum getUnderlineStyle() const
     {
         return m_underlineStyle;
@@ -519,10 +507,7 @@ public:
         return fg == rhs.fg && bg == rhs.bg && ul == rhs.ul && m_flags == rhs.m_flags
                && m_underlineStyle == rhs.m_underlineStyle;
     }
-    NODISCARD constexpr bool operator!=(const RawAnsi &rhs) const
-    {
-        return !(rhs == *this);
-    }
+    NODISCARD constexpr bool operator!=(const RawAnsi &rhs) const { return !(rhs == *this); }
 
 public:
     friend std::ostream &to_stream(std::ostream &os, const RawAnsi &raw);
@@ -609,7 +594,7 @@ public:
 
     public:
         void operator++(int) = delete;
-        ALLOW_DISCARD ConstIterator operator++()
+        ALLOW_DISCARD ConstIterator &operator++()
         {
             if (m_pos >= getSelf().size()) {
                 throw std::runtime_error("invalid increment");
@@ -883,7 +868,7 @@ public:
     NODISCARD QChar at(const size_type pos) const
     {
         assert(!m_text.empty());
-        assert(isClamped(pos, 0, m_text.length() - 1));
+        assert(isClamped(pos, size_type(0), m_text.length() - 1));
         return m_text.at(pos);
     }
     NODISCARD QChar operator[](const size_type pos) const { return at(pos); }
@@ -972,10 +957,7 @@ struct NODISCARD AnsiTokenizer final
             return it - start;
         }
         NODISCARD size_type skip_ansi() const;
-        NODISCARD static bool isControl(const QChar c)
-        {
-            return ascii::isCntrl(c.toLatin1()) && c != QC_NBSP;
-        }
+        NODISCARD static bool isControl(QChar c);
         NODISCARD size_type skip_control() const;
         NODISCARD size_type skip_space() const;
         NODISCARD size_type skip_word() const;
@@ -1010,14 +992,14 @@ extern const QRegularExpression weakAnsiRegex;
 template<typename Callback>
 void foreachAnsi(const QStringView line, Callback &&callback)
 {
-    const auto len = static_cast<int>(line.size());
-    int pos = 0;
+    const auto len = line.size();
+    qsizetype pos = 0;
     while (pos < len) {
         QRegularExpressionMatch m = weakAnsiRegex.match(line, pos);
         if (!m.hasMatch()) {
             break;
         }
-        callback(m.capturedStart(), m.capturedRef());
+        callback(m.capturedStart(), m.captured());
         pos = m.capturedEnd();
     }
 }
@@ -1070,7 +1052,7 @@ public:
     template<typename Callback, typename Callback2>
     static void for_each_code(const QStringView ansi, Callback &&callback, Callback2 &&callback2)
     {
-        auto erased1 = [&callback]() {
+        const auto erased1 = std::invoke([&callback]() -> Erased1 {
             auto ptr = &callback;
             using ptr_type = decltype(ptr);
 
@@ -1080,9 +1062,9 @@ public:
                 cb(n);
             };
             return Erased1{reinterpret_cast<void *>(ptr), type_erased};
-        }();
+        });
 
-        auto erased2 = [&callback2]() {
+        const auto erased2 = std::invoke([&callback2]() -> Erased2 {
             auto ptr2 = &callback2;
             using ptr2_type = decltype(ptr2);
 
@@ -1092,7 +1074,7 @@ public:
                 cb(codes);
             };
             return Erased2{reinterpret_cast<void *>(ptr2), type_erased2};
-        }();
+        });
 
         AnsiColorParser{erased1, erased2}.for_each(ansi);
     }

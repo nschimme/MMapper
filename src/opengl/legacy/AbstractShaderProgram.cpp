@@ -3,13 +3,15 @@
 
 #include "AbstractShaderProgram.h"
 
+#include "../../global/ConfigConsts.h"
+
 namespace Legacy {
 
 AbstractShaderProgram::AbstractShaderProgram(std::string dirName,
-                                             SharedFunctions functions,
+                                             const SharedFunctions &functions,
                                              Program program)
     : m_dirName{std::move(dirName)}
-    , m_functions{std::move(functions)}
+    , m_functions{functions} // conversion to weak ptr
     , m_program{std::move(program)}
 {}
 
@@ -43,7 +45,7 @@ void AbstractShaderProgram::setUniforms(const glm::mat4 &mvp,
     assert(m_isBound);
     virt_setUniforms(mvp, uniforms);
 
-    if (uniforms.pointSize) {
+    if (uniforms.pointSize.has_value()) {
         setPointSize(uniforms.pointSize.value());
     }
 }
@@ -140,7 +142,7 @@ void AbstractShaderProgram::setPointSize(const float in_pointSize)
     }
 }
 
-void AbstractShaderProgram::setColor(const char *const name, const Color &color)
+void AbstractShaderProgram::setColor(const char *const name, const Color color)
 {
     const auto location = getUniformLocation(name);
     const glm::vec4 v = color.getVec4();

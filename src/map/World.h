@@ -13,6 +13,7 @@
 #include "ServerIdMap.h"
 #include "SpatialDb.h"
 #include "WorldAreaMap.h"
+#include "infomark.h"
 
 #include <memory>
 #include <optional>
@@ -29,11 +30,15 @@ struct NODISCARD WorldComparisonStats final
     bool anyRoomsAdded = false;
 
     bool spatialDbChanged = false;
-    bool parseTreeChanged = false;
     bool serverIdsChanged = false;
 
     bool hasMeshDifferences = false;
+
+    bool anyInfomarksChanged = false;
 };
+
+class World;
+NODISCARD bool hasMeshDifference(const World &a, const World &b);
 
 class NODISCARD World final
 {
@@ -45,6 +50,8 @@ private:
     ServerIdMap m_serverIds;
     ParseTree m_parseTree;
     AreaInfoMap m_areaInfos;
+    InfomarkDb m_infomarks;
+    bool m_checkedConsistency = false;
 
 public:
     explicit World() = default;
@@ -61,18 +68,15 @@ public:
     NODISCARD bool operator==(const World &rhs) const;
     NODISCARD bool operator!=(const World &rhs) const { return !(rhs == *this); }
 
-private:
-    NODISCARD AreaInfo *findArea(const std::optional<RoomArea> &area);
-    NODISCARD const AreaInfo *findArea(const std::optional<RoomArea> &area) const;
-    NODISCARD AreaInfo &getArea(const std::optional<RoomArea> &area);
-    NODISCARD const AreaInfo &getArea(const std::optional<RoomArea> &area) const;
-
-    NODISCARD AreaInfo &getGlobalArea() { return getArea(std::nullopt); }
-    NODISCARD const AreaInfo &getGlobalArea() const { return getArea(std::nullopt); }
+public:
+    NODISCARD const AreaInfo *findArea(const RoomArea &area) const;
+    NODISCARD const AreaInfo &getArea(const RoomArea &area) const;
 
 public:
     NODISCARD const ParseTree &getParseTree() const { return m_parseTree; }
-    NODISCARD const SpatialDb& getSpatialDb() const { return m_spatialDb; }
+
+public:
+    NODISCARD const InfomarkDb &getInfomarkDb() const { return m_infomarks; }
 
 public:
     NODISCARD const RawRoom *getRoom(RoomId id) const;
@@ -88,8 +92,8 @@ public:
     NODISCARD ExternalRoomId getNextExternalId() const;
 
 public:
-    NODISCARD const RoomIdSet &getRoomSet() const;
-    NODISCARD const RoomIdSet *findAreaRoomSet(const RoomArea &areaName) const;
+    NODISCARD const ImmRoomIdSet &getRoomSet() const;
+    NODISCARD const ImmUnorderedRoomIdSet *findAreaRoomSet(const RoomArea &area) const;
 
 public:
     NODISCARD bool hasRoom(RoomId id) const;
@@ -146,7 +150,9 @@ public:
     NODISCARD RawRoom getRawCopy(RoomId id) const;
 
 public:
-    NODISCARD static World init(ProgressCounter &counter, const std::vector<ExternalRawRoom> &map);
+    NODISCARD static World init(ProgressCounter &counter,
+                                const std::vector<ExternalRawRoom> &map,
+                                const std::vector<RawInfomark> &marks);
 
 public:
     NODISCARD ExternalRoomIdSet convertToExternal(ProgressCounter &pc,
@@ -298,4 +304,10 @@ public:
     void printChanges(AnsiOstream &aos,
                       const std::vector<Change> &changes,
                       std::string_view sep) const;
+
+public:
+    friend bool hasMeshDifference(const World &a, const World &b);
+
+public:
+    static void enableExtraSanityChecks(bool enable);
 };

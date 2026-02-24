@@ -5,6 +5,7 @@
 #include "ExitDirection.h"
 
 #include "../global/Array.h"
+#include "../global/Charset.h"
 #include "../global/Consts.h"
 #include "../global/EnumIndexedArray.h"
 #include "../global/enums.h"
@@ -143,6 +144,11 @@ ExitDirEnum dirForChar(const char dir)
     default:
         return ExitDirEnum::UNKNOWN;
     }
+}
+
+ExitDirEnum dirForChar(const QChar dir)
+{
+    return dirForChar(mmqt::toLatin1(dir));
 }
 
 char charForDir(const ExitDirEnum dir)

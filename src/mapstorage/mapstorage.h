@@ -36,14 +36,24 @@ private:
 
 private:
     NODISCARD bool virt_canSave() const final { return true; }
-    NODISCARD bool virt_saveData(const RawMapData &map) final;
+    NODISCARD bool virt_saveData(const MapLoadData &map) final;
 
 private:
     NODISCARD static ExternalRawRoom loadRoom(QDataStream &stream, uint32_t version);
     static void loadExits(ExternalRawRoom &room, QDataStream &stream, uint32_t version);
-    NODISCARD static InfoMarkFields loadMark(QDataStream &stream, uint32_t version);
-    static void saveMark(const InfoMarkFields &mark, QDataStream &stream);
+    NODISCARD static RawInfomark loadMark(QDataStream &stream, uint32_t version);
+    static void saveMark(const RawInfomark &mark, QDataStream &stream);
     static void saveRoom(const ExternalRawRoom &room, QDataStream &stream);
     static void saveExits(const ExternalRawRoom &room, QDataStream &stream);
     void log(const QString &msg);
 };
+
+struct NODISCARD MM2FileVersion final
+{
+    enum class NODISCARD Relative : uint8_t { Older, Current, Newer };
+
+    uint32_t version = 0;
+    Relative relative = Relative::Older;
+};
+
+NODISCARD extern std::optional<MM2FileVersion> getMM2FileVersion(QIODevice &file);

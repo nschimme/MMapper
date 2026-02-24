@@ -31,9 +31,48 @@
 #include <QDebug>
 #include <QFile>
 #include <QMessageLogContext>
+#include <QOpenGLExtraFunctions>
 #include <QOpenGLTexture>
 
 namespace Legacy {
+
+const char *Functions::getUniformBlockName(const SharedVboEnum block)
+{
+    switch (block) {
+#define X_CASE(EnumName, StringName, isUniform) \
+    case SharedVboEnum::EnumName: \
+        if constexpr (isUniform) { \
+            return StringName; \
+        } \
+        return nullptr;
+        XFOREACH_SHARED_VBO(X_CASE)
+#undef X_CASE
+    }
+    return nullptr;
+}
+
+void Functions::virt_glUniformBlockBinding(const GLuint program, const SharedVboEnum block)
+{
+    const char *const block_name = getUniformBlockName(block);
+    if (block_name == nullptr) {
+        return;
+    }
+    const GLuint block_index = Base::glGetUniformBlockIndex(program, block_name);
+    if (block_index != GL_INVALID_INDEX) {
+        Base::glUniformBlockBinding(program, block_index, static_cast<GLuint>(block));
+    }
+}
+
+void Functions::applyDefaultUniformBlockBindings(const GLuint program)
+{
+#define X_BIND(EnumName, StringName, isUniform) \
+    if constexpr (isUniform) { \
+        virt_glUniformBlockBinding(program, SharedVboEnum::EnumName); \
+    }
+    XFOREACH_SHARED_VBO(X_BIND)
+#undef X_BIND
+}
+
 template<template<typename> typename Mesh_, typename VertType_, typename ProgType_>
 NODISCARD static auto createMesh(const SharedFunctions &functions,
                                  const DrawModeEnum mode,
@@ -104,6 +143,14 @@ UniqueMesh Functions::createColoredTexturedBatch(const DrawModeEnum mode,
     assert(static_cast<size_t>(mode) >= VERTS_PER_TRI);
     const auto &prog = getShaderPrograms().getTexturedAColorShader();
     return createTexturedMesh<ColoredTexturedMesh>(shared_from_this(), mode, batch, prog, texture);
+}
+
+UniqueMesh Functions::createRoomQuadTexBatch(const std::vector<RoomQuadTexVert> &batch,
+                                             const MMTextureId texture)
+{
+    const auto mode = DrawModeEnum::INSTANCED_QUADS;
+    const auto &prog = getShaderPrograms().getRoomQuadTexShader();
+    return createTexturedMesh<RoomQuadTexMesh>(shared_from_this(), mode, batch, prog, texture);
 }
 
 template<typename VertexType_, template<typename> typename Mesh_, typename ShaderType_>
@@ -235,7 +282,10 @@ UniqueMesh Functions::createFontMesh(const SharedMMTexture &texture,
 Functions::Functions(Badge<Functions>)
     : m_shaderPrograms{std::make_unique<ShaderPrograms>(*this)}
     , m_staticVbos{std::make_unique<StaticVbos>()}
+    , m_sharedVbos{std::make_unique<SharedVbos>()}
+    , m_sharedVaos{std::make_unique<SharedVaos>()}
     , m_texLookup{std::make_unique<TexLookup>()}
+    , m_fbo{std::make_unique<FBO>()}
 {}
 
 Functions::~Functions()
@@ -266,6 +316,8 @@ void Functions::cleanup()
 
     getShaderPrograms().resetAll();
     getStaticVbos().resetAll();
+    getSharedVbos().resetAll();
+    getSharedVaos().resetAll();
     getTexLookup().clear();
 }
 
@@ -277,15 +329,21 @@ StaticVbos &Functions::getStaticVbos()
 {
     return deref(m_staticVbos);
 }
-
+SharedVbos &Functions::getSharedVbos()
+{
+    return deref(m_sharedVbos);
+}
+SharedVaos &Functions::getSharedVaos()
+{
+    return deref(m_sharedVaos);
+}
 TexLookup &Functions::getTexLookup()
 {
     return deref(m_texLookup);
 }
-
-std::shared_ptr<Functions> Functions::alloc()
+FBO &Functions::getFBO()
 {
-    return std::make_shared<Functions>(Badge<Functions>{});
+    return deref(m_fbo);
 }
 
 /// This only exists so we can detect errors in contexts that don't support \c glDebugMessageCallback().
@@ -321,6 +379,64 @@ void Functions::checkError()
     }
 
 #undef CASE
+}
+
+void Functions::configureFbo(int samples)
+{
+    getFBO().configure(getPhysicalViewport(), samples);
+}
+
+void Functions::bindFbo()
+{
+    getFBO().bind();
+}
+
+void Functions::releaseFbo()
+{
+    getFBO().release();
+}
+
+void Functions::blitFboToDefault()
+{
+    getFBO().resolve();
+
+    const GLuint textureId = getFBO().resolvedTextureId();
+    if (textureId != 0) {
+        const auto state = GLRenderState()
+                               .withBlend(BlendModeEnum::NONE)
+                               .withDepthFunction(std::nullopt)
+                               .withCulling(CullingEnum::DISABLED);
+
+        Base::glActiveTexture(GL_TEXTURE0);
+        Base::glBindTexture(GL_TEXTURE_2D, textureId);
+
+        renderFullScreenTriangle(getShaderPrograms().getBlitShader(), state);
+
+        Base::glBindTexture(GL_TEXTURE_2D, 0);
+    }
+}
+
+void Functions::renderFullScreenTriangle(const std::shared_ptr<AbstractShaderProgram> &prog,
+                                         const GLRenderState &state)
+{
+    checkError();
+
+    auto programUnbinder = prog->bind();
+    prog->setUniforms(glm::mat4(1.0f), state.uniforms);
+    RenderStateBinder renderStateBinder(*this, getTexLookup(), state);
+
+    SharedVao shared = getSharedVaos().get(SharedVaoEnum::EmptyVao);
+    VAO &vao = deref(shared);
+    if (!vao) {
+        if (IS_DEBUG_BUILD) {
+            qDebug() << "allocating shared empty VAO for renderFullScreenTriangle";
+        }
+        vao.emplace(shared_from_this());
+    }
+    glBindVertexArray(vao.get());
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+    glBindVertexArray(0);
+    checkError();
 }
 
 } // namespace Legacy

@@ -7,26 +7,26 @@
 #include "../global/AnsiOstream.h"
 #include "../global/LineUtils.h"
 #include "../global/PrintUtils.h"
+#include "../global/Timer.h"
 #include "../global/logging.h"
 #include "Compare.h"
 #include "Map.h"
-#include "RoomRecipient.h"
 #include "World.h"
 
 #include <deque>
 #include <optional>
+#include <string_view>
 
-void getRooms(const Map &map, const ParseTree &tree, RoomRecipient &visitor, const ParseEvent &event)
+RoomIdSet getRooms(const Map &map, const ParseTree &tree, const ParseEvent &event)
 {
-    // REVISIT: use Timer here instead of manually doing the same thing with Clock::now(),
-    // which would have the added benefit of reporting times for lookups that fail.
-    using Clock = std::chrono::steady_clock;
-    const auto t0 = Clock::now();
+    DECL_TIMER(t0, "overall");
+
     static volatile bool fallbackToCurrentArea = true;
     static volatile bool fallbackToRemainder = true;
     static volatile bool fallbackToWholeMap = true;
 
-    const RoomIdSet *const pSet = [&map, &event, &tree]() -> const RoomIdSet * {
+    const auto *const pSet = std::invoke([&map, &event, &tree]() -> const ImmUnorderedRoomIdSet * {
+        DECL_TIMER(t1, "part0. lookup rooms in areas");
         const World &world = map.getWorld();
         const RoomArea &areaName = event.getRoomArea();
 
@@ -60,7 +60,7 @@ void getRooms(const Map &map, const ParseTree &tree, RoomRecipient &visitor, con
             MMLOG() << "[getRooms] Falling back to the current area!";
             MMLOG() << "[getRooms] event: " << mmqt::toStdStringUtf8(event.toQString());
 
-            if (const RoomIdSet *const set = world.findAreaRoomSet(areaName); set == nullptr) {
+            if (const auto *const set = world.findAreaRoomSet(areaName); set == nullptr) {
                 MMLOG() << "[getRooms] Area does not exist.";
             } else if (set->empty()) {
                 MMLOG() << "[getRooms] Area was empty.";
@@ -71,9 +71,7 @@ void getRooms(const Map &map, const ParseTree &tree, RoomRecipient &visitor, con
 
         if (fallbackToRemainder && !areaName.empty()) {
             MMLOG() << "[getRooms] Falling back to the remainder area...";
-            if (const RoomIdSet *const set = world.findAreaRoomSet(RoomArea{}); set == nullptr) {
-                // this should be a hard error, since the fallback area is required to exist.
-                assert(false);
+            if (const auto *const set = world.findAreaRoomSet(RoomArea{}); set == nullptr) {
                 MMLOG() << "[getRooms] Fallback area does not exist.";
             } else if (set->empty()) {
                 // this should just return nullptr.
@@ -82,64 +80,61 @@ void getRooms(const Map &map, const ParseTree &tree, RoomRecipient &visitor, con
                 return set;
             }
         }
-
-        if (fallbackToWholeMap) {
-            MMLOG() << "[getRooms] Falling back to the whole map...";
-            // this is probably unnecessary, and it's probably also the source of some bugs,
-            // since it could find a room known to be in a different area.
-            return &world.getRoomSet();
-        }
-
-        MMLOG() << "[getRooms] Failed to find a match; giving up.";
-        MMLOG() << "[getRooms] event: " << mmqt::toStdStringUtf8(event.toQString());
         return nullptr;
-    }();
+    });
 
-    const auto t1 = Clock::now();
+    const auto filterRoomsByEvent = [&map, &event](const auto &set) -> RoomIdSet {
+        DECL_TIMER(t2, "part2. for(...) tryReport() ");
+
+        const int tolerance = getConfig().pathMachine.matchingTolerance;
+        auto tryReport = [&event, tolerance](const RoomHandle &room) {
+            if (::compare(room.getRaw(), event, tolerance) == ComparisonResultEnum::DIFFERENT) {
+                return false;
+            }
+            return true;
+        };
+
+        MMLOG() << "[getRooms] Found " << set.size() << " potential match(es).";
+
+        RoomIdSet results;
+        size_t numReported = 0;
+        set.for_each([&](const RoomId id) {
+            if (const auto optRoom = map.findRoomHandle(id)) {
+                if (tryReport(optRoom)) {
+                    results.insert(id);
+                    ++numReported;
+                }
+            }
+        });
+
+        MMLOG() << "[getRooms] Reported " << numReported << " potential match(es).";
+        return results;
+    };
 
     if (pSet == nullptr) {
+        DECL_TIMER(t2, "part1. fallback to whole map");
+        if (fallbackToWholeMap) {
+            MMLOG() << "[getRooms] Falling back to the whole map...";
+
+            auto &set = map.getWorld().getRoomSet();
+            if (set.empty()) {
+                MMLOG() << "[getRooms] Failed to find a match; giving up.";
+                MMLOG() << "[getRooms] event: " << mmqt::toStdStringUtf8(event.toQString());
+                return {};
+            }
+            // this is probably unnecessary, and it's probably also the source of some bugs,
+            // since it could find a room known to be in a different area.
+            return filterRoomsByEvent(set);
+        }
+
         MMLOG() << "[getRooms] Unable to find any matches.";
-        return;
+        return {};
+    } else {
+        DECL_TIMER(t2, "part1. (nothing)");
     }
 
     auto &set = *pSet;
-
-    const int tolerance = getConfig().pathMachine.matchingTolerance;
-    auto tryReport = [&event, &visitor, tolerance](const RoomHandle &room) {
-        if (::compare(room.getRaw(), event, tolerance) == ComparisonResultEnum::DIFFERENT) {
-            return false;
-        }
-        visitor.receiveRoom(room);
-        return true;
-    };
-
-    MMLOG() << "[getRooms] Found " << set.size() << " potential match(es).";
-
-    const auto t2 = Clock::now();
-    size_t numReported = 0;
-    for (const RoomId id : set) {
-        if (const auto optRoom = map.findRoomHandle(id)) {
-            if (tryReport(optRoom)) {
-                ++numReported;
-            }
-        }
-    }
-    const auto t3 = Clock::now();
-
-    MMLOG() << "[getRooms] Reported " << numReported << " potential match(es).";
-
-    auto &&os = MMLOG();
-    os << "[getRooms] timing follows:\n";
-
-    auto report = [&os](std::string_view what, Clock::time_point a, Clock::time_point b) {
-        auto ms = static_cast<double>(static_cast<std::chrono::nanoseconds>(b - a).count()) * 1e-6;
-        os << "[TIMER] [getRooms] " << what << ": " << ms << " ms\n";
-    };
-
-    report("part0. lookup rooms", t0, t1);
-    report("part1. (nothing)", t1, t2);
-    report("part2. for(...) tryReport() ", t2, t3);
-    report("overall", t0, t3);
+    return filterRoomsByEvent(set);
 }
 
 void ParseTree::printStats(ProgressCounter & /*pc*/, AnsiOstream &os) const

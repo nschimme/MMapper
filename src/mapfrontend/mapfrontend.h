@@ -8,15 +8,11 @@
 #include "../map/Changes.h"
 #include "../map/Map.h"
 #include "../map/coordinate.h"
-#include "../map/infomark.h"
 #include "../map/parseevent.h"
 #include "../map/roomid.h"
+#include "MapHistory.h"
 
-#include <map>
-#include <memory>
 #include <optional>
-#include <set>
-#include <stack>
 #include <utility>
 
 #include <QString>
@@ -24,40 +20,83 @@
 
 class ParseEvent;
 class QObject;
-class RoomRecipient;
+class PathProcessor;
 
 /**
  * The MapFrontend organizes rooms and their relations to each other.
  */
-class NODISCARD_QOBJECT MapFrontend : public QObject,
-                                      public RoomModificationTracker,
-                                      public InfoMarkModificationTracker
+class NODISCARD_QOBJECT MapFrontend : public QObject, public RoomModificationTracker
 {
     Q_OBJECT
 
 private:
     struct NODISCARD MapState final
     {
-        InfomarkDb marks;
         Map map;
 
-        NODISCARD bool operator==(const MapState &rhs) const
-        {
-            return marks == rhs.marks && map == rhs.map;
-        }
+        NODISCARD bool operator==(const MapState &rhs) const { return map == rhs.map; }
         NODISCARD bool operator!=(const MapState &rhs) const { return !(rhs == *this); }
     };
 
     MapState m_saved;
     MapState m_current;
+    MapState m_snapshot;
+
+private:
+    void emitUndoRedoAvailability();
+
+    struct HistoryCoordinator
+    {
+        MapHistory undo_stack;
+        MapHistory redo_stack;
+
+        HistoryCoordinator(size_t max_depth)
+            : undo_stack(true, max_depth)
+            , redo_stack(false)
+        {}
+
+        void recordChange(Map prev)
+        {
+            undo_stack.push(std::move(prev));
+            if (!redo_stack.isEmpty()) {
+                redo_stack.clear();
+            }
+        }
+
+        std::optional<Map> undo(Map current_map_state_for_redo)
+        {
+            if (undo_stack.isEmpty()) {
+                return std::nullopt;
+            }
+            redo_stack.push(std::move(current_map_state_for_redo));
+            return undo_stack.pop();
+        }
+
+        std::optional<Map> redo(Map current_map_state_for_undo)
+        {
+            if (redo_stack.isEmpty()) {
+                return std::nullopt;
+            }
+            undo_stack.push(std::move(current_map_state_for_undo));
+            return redo_stack.pop();
+        }
+
+        bool isUndoAvailable() const { return !undo_stack.isEmpty(); }
+        bool isRedoAvailable() const { return !redo_stack.isEmpty(); }
+
+        void clearAll()
+        {
+            undo_stack.clear();
+            redo_stack.clear();
+        }
+    };
+    HistoryCoordinator m_history;
 
 public:
     explicit MapFrontend(QObject *parent);
     ~MapFrontend() override;
 
 public:
-    NODISCARD InfomarkDb getCurrentMarks() const { return m_current.marks; }
-    NODISCARD InfomarkDb getSavedMarks() const { return m_saved.marks; }
     NODISCARD Map getCurrentMap() const { return m_current.map; }
     NODISCARD Map getSavedMap() const { return m_saved.map; }
 
@@ -69,17 +108,17 @@ private:
 
 public:
     void setCurrentMap(Map map);
-    void setCurrentMarks(InfomarkDb marks, InfoMarkUpdateFlags modified);
-    void setSavedMarks(InfomarkDb marks);
     void setSavedMap(Map map);
     void currentHasBeenSaved() { m_saved = m_current; }
 
 public:
-    void setCurrentMarks(InfomarkDb marks)
-    {
-        setCurrentMarks(std::move(marks), ~InfoMarkUpdateFlags{});
-    }
-    NODISCARD InfomarkDb getInfomarkDb() const { return getCurrentMarks(); }
+    void saveSnapshot();
+    void restoreSnapshot();
+
+private:
+    bool applyChangesInternal(
+        ProgressCounter &pc,
+        const std::function<MapApplyResult(Map &, ProgressCounter &)> &applyFunction);
 
 public:
     ALLOW_DISCARD bool applyChanges(const ChangeList &changes);
@@ -98,6 +137,9 @@ public:
     void checkSize();
 
     NODISCARD bool createEmptyRoom(const Coordinate &);
+    NODISCARD bool hasTemporaryRoom(RoomId id) const;
+    NODISCARD bool tryRemoveTemporary(RoomId id);
+    NODISCARD bool tryMakePermanent(RoomId id);
 
     NODISCARD RoomHandle findRoomHandle(RoomId) const;
     NODISCARD RoomHandle findRoomHandle(const Coordinate &) const;
@@ -116,23 +158,21 @@ public:
 public:
     void scheduleAction(const Change &change);
 
-    // looking for rooms leads to a bunch of foundRoom() signals
-    void lookingForRooms(RoomRecipient &, const SigParseEvent &);
-    void lookingForRooms(RoomRecipient &, RoomId); // by id
-    void lookingForRooms(RoomRecipient &, const Coordinate &);
-
-public:
-    void keepRoom(RoomRecipient &, RoomId);
-    void releaseRoom(RoomRecipient &, RoomId);
+    // looking for rooms returns a set of matching room IDs
+    NODISCARD RoomIdSet lookingForRooms(const SigParseEvent &);
 
 signals:
     // this signal is also sent out if a room is deleted. So any clients still
     // working on this room can start some emergency action.
     void sig_mapSizeChanged(const Coordinate &, const Coordinate &);
     void sig_clearingMap();
+    void sig_undoAvailable(bool available);
+    void sig_redoAvailable(bool available);
 
 public slots:
     // createRoom creates a room without a lock
     // it will get deleted if no one looks for it for a certain time
     void slot_createRoom(const SigParseEvent &, const Coordinate &);
+    void slot_undo();
+    void slot_redo();
 };

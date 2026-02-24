@@ -6,8 +6,7 @@
 
 #include "../configuration/configuration.h"
 #include "../display/Filenames.h"
-#include "../global/AnsiTextUtils.h"
-#include "../map/room.h"
+#include "../global/Timer.h"
 #include "../map/roomid.h"
 #include "../mapdata/mapdata.h"
 #include "../mapdata/roomselection.h"
@@ -16,17 +15,22 @@
 #include "mmapper2group.h"
 
 #include <map>
+#include <vector>
 
 #include <QAction>
+#include <QColorDialog>
+#include <QDebug>
 #include <QHeaderView>
+#include <QMenu>
 #include <QMessageLogContext>
+#include <QPainter>
 #include <QString>
+#include <QStringList>
 #include <QStyledItemDelegate>
-#include <QtWidgets>
+#include <QTableView>
+#include <QVBoxLayout>
 
-static constexpr const int GROUP_COLUMN_COUNT = 9;
-static_assert(GROUP_COLUMN_COUNT == static_cast<int>(GroupModel::ColumnTypeEnum::ROOM_NAME) + 1,
-              "# of columns");
+static constexpr const char *GROUP_MIME_TYPE = "application/vnd.mm_groupchar.row";
 
 namespace { // anonymous
 
@@ -69,7 +73,59 @@ NODISCARD static auto &getImage(const QString &filename, const bool invert)
     // NOTE: Assumes we're single-threaded; otherwise we'd need a lock here.
     return g_groupImageCache.getImage(filename, invert);
 }
+
+NODISCARD static const char *getColumnFriendlyName(const ColumnTypeEnum column)
+{
+#define X_DECL_COLUMNTYPE(UPPER_CASE, lower_case, CamelCase, friendly) \
+    case ColumnTypeEnum::UPPER_CASE: \
+        return friendly;
+
+    switch (column) {
+        XFOREACH_COLUMNTYPE(X_DECL_COLUMNTYPE)
+    default:
+        qWarning() << "Unsupported column type" << static_cast<int>(column);
+        return "";
+    }
+#undef X_DECL_COLUMNTYPE
+}
 } // namespace
+
+GroupProxyModel::GroupProxyModel(QObject *const parent)
+    : QSortFilterProxyModel(parent)
+{}
+
+GroupProxyModel::~GroupProxyModel() = default;
+
+void GroupProxyModel::refresh()
+{
+    // Triggers re-filter and re-sort
+    invalidate();
+}
+
+SharedGroupChar GroupProxyModel::getCharacterFromSource(const QModelIndex &source_index) const
+{
+    const GroupModel *srcModel = qobject_cast<const GroupModel *>(sourceModel());
+    if (!srcModel || !source_index.isValid()) {
+        return nullptr;
+    }
+
+    return srcModel->getCharacter(source_index.row());
+}
+
+bool GroupProxyModel::filterAcceptsRow(int source_row, const QModelIndex &source_parent) const
+{
+    if (!getConfig().groupManager.npcHide) {
+        return true;
+    }
+
+    QModelIndex sourceIndex = sourceModel()->index(source_row, 0, source_parent);
+    SharedGroupChar character = getCharacterFromSource(sourceIndex);
+    if (character && character->isNpc()) {
+        return false;
+    }
+
+    return true;
+}
 
 GroupStateData::GroupStateData(const QColor &color,
                                const CharacterPositionEnum position,
@@ -121,7 +177,7 @@ void GroupStateData::paint(QPainter *const pPainter, const QRect &rect)
     painter.restore();
 }
 
-GroupDelegate::GroupDelegate(QObject *parent)
+GroupDelegate::GroupDelegate(QObject *const parent)
     : QStyledItemDelegate(parent)
 {}
 
@@ -136,7 +192,11 @@ void GroupDelegate::paint(QPainter *const painter,
         stateData.paint(painter, option.rect);
 
     } else {
-        QStyledItemDelegate::paint(painter, option, index);
+        QStyleOptionViewItem opt = option;
+        opt.state &= ~QStyle::State_HasFocus;
+        opt.state &= ~QStyle::State_Selected;
+
+        QStyledItemDelegate::paint(painter, opt, index);
     }
 }
 
@@ -153,11 +213,173 @@ QSize GroupDelegate::sizeHint(const QStyleOptionViewItem &option, const QModelIn
     return QStyledItemDelegate::sizeHint(option, index);
 }
 
-GroupModel::GroupModel(MapData *const md, Mmapper2Group *const group, QObject *const parent)
+GroupModel::GroupModel(QObject *const parent)
     : QAbstractTableModel(parent)
-    , m_map(md)
-    , m_group(group)
 {}
+
+void GroupModel::setCharacters(const GroupVector &newGameChars)
+{
+    DECL_TIMER(t, __FUNCTION__);
+
+    std::unordered_set<GroupId> newGameCharIds;
+    newGameCharIds.reserve(newGameChars.size());
+    for (const auto &pGameChar : newGameChars) {
+        const auto &gameChar = deref(pGameChar);
+        newGameCharIds.insert(gameChar.getId());
+    }
+
+    GroupVector resultingCharacterList;
+    resultingCharacterList.reserve(m_characters.size() + newGameChars.size());
+
+    // Temporary vectors to hold truly new players, NPCs, and all truly new characters
+    GroupVector trulyNewPlayers;
+    trulyNewPlayers.reserve(newGameChars.size());
+    GroupVector trulyNewNpcs;
+    trulyNewNpcs.reserve(newGameChars.size());
+    GroupVector allTrulyNewCharsInOriginalOrder;
+    allTrulyNewCharsInOriginalOrder.reserve(newGameChars.size());
+
+    // Preserve existing characters
+    std::unordered_set<GroupId> existingIds;
+    existingIds.reserve(m_characters.size());
+    for (const auto &pExistingChar : m_characters) {
+        const auto &existingChar = deref(pExistingChar);
+        existingIds.insert(existingChar.getId());
+        if (newGameCharIds.count(existingChar.getId())) {
+            resultingCharacterList.push_back(pExistingChar);
+        }
+    }
+
+    // Identify truly new characters and categorize them as NPC or player
+    for (const auto &pGameChar : newGameChars) {
+        const auto &gameChar = deref(pGameChar);
+        if (existingIds.find(gameChar.getId()) == existingIds.end()) {
+            allTrulyNewCharsInOriginalOrder.push_back(pGameChar);
+            if (gameChar.isNpc()) {
+                trulyNewNpcs.push_back(pGameChar);
+            } else {
+                trulyNewPlayers.push_back(pGameChar);
+            }
+        }
+    }
+
+    // Insert the newly identified characters into the resulting list based on configuration.
+    if (getConfig().groupManager.npcSortBottom) {
+        // Find the insertion point for new players: before the first NPC in the preserved list.
+        auto itPlayerInsertPos = resultingCharacterList.begin();
+        while (itPlayerInsertPos != resultingCharacterList.end()) {
+            if (*itPlayerInsertPos && (*itPlayerInsertPos)->isNpc()) {
+                break;
+            }
+            ++itPlayerInsertPos;
+        }
+
+        // Insert truly new players at the determined position.
+        if (!trulyNewPlayers.empty()) {
+            resultingCharacterList.insert(itPlayerInsertPos,
+                                          trulyNewPlayers.begin(),
+                                          trulyNewPlayers.end());
+        }
+        // Insert truly new NPCs at the end of the list.
+        if (!trulyNewNpcs.empty()) {
+            resultingCharacterList.insert(resultingCharacterList.end(),
+                                          trulyNewNpcs.begin(),
+                                          trulyNewNpcs.end());
+        }
+    } else {
+        // If no special NPC sorting, just append all truly new characters in their original order.
+        if (!allTrulyNewCharsInOriginalOrder.empty()) {
+            resultingCharacterList.insert(resultingCharacterList.end(),
+                                          allTrulyNewCharsInOriginalOrder.begin(),
+                                          allTrulyNewCharsInOriginalOrder.end());
+        }
+    }
+
+    beginResetModel();
+    m_characters = std::move(resultingCharacterList);
+    endResetModel();
+}
+
+int GroupModel::findIndexById(const GroupId charId) const
+{
+    if (charId == INVALID_GROUPID) {
+        return -1;
+    }
+    auto it = std::find_if(m_characters.begin(),
+                           m_characters.end(),
+                           [charId](const SharedGroupChar &c) { return c && c->getId() == charId; });
+    if (it != m_characters.end()) {
+        return static_cast<int>(std::distance(m_characters.begin(), it));
+    }
+    return -1;
+}
+
+void GroupModel::insertCharacter(const SharedGroupChar &newCharacter)
+{
+    assert(newCharacter);
+    if (newCharacter->getId() == INVALID_GROUPID) {
+        return;
+    }
+
+    auto calculateInsertIndex = [this, &newCharacter]() -> int {
+        if (getConfig().groupManager.npcSortBottom && !newCharacter->isNpc()) {
+            auto it = std::find_if(m_characters.begin(),
+                                   m_characters.end(),
+                                   [](const SharedGroupChar &c) { return c && c->isNpc(); });
+            return static_cast<int>(std::distance(m_characters.begin(), it));
+        }
+        return static_cast<int>(m_characters.size());
+    };
+
+    const int newIndex = calculateInsertIndex();
+    assert(newIndex >= 0 && newIndex <= static_cast<int>(m_characters.size()));
+
+    beginInsertRows(QModelIndex(), newIndex, newIndex);
+    m_characters.insert(m_characters.begin() + newIndex, newCharacter);
+    endInsertRows();
+}
+
+void GroupModel::removeCharacterById(const GroupId charId)
+{
+    const int index = findIndexById(charId);
+    if (index == -1) {
+        return;
+    }
+
+    beginRemoveRows(QModelIndex(), index, index);
+    m_characters.erase(m_characters.begin() + index);
+    endRemoveRows();
+}
+
+void GroupModel::updateCharacter(const SharedGroupChar &updatedCharacter)
+{
+    assert(updatedCharacter);
+    const GroupId charId = updatedCharacter->getId();
+    const int index = findIndexById(charId);
+    if (index == -1) {
+        insertCharacter(updatedCharacter);
+        return;
+    }
+
+    SharedGroupChar &existingChar = m_characters[static_cast<size_t>(index)];
+    existingChar = updatedCharacter;
+
+    emit dataChanged(this->index(index, 0),
+                     this->index(index, columnCount(QModelIndex()) - 1),
+                     {Qt::DisplayRole,
+                      Qt::BackgroundRole,
+                      Qt::ForegroundRole,
+                      Qt::ToolTipRole,
+                      Qt::UserRole + 1});
+}
+
+SharedGroupChar GroupModel::getCharacter(int row) const
+{
+    if (row >= 0 && row < static_cast<int>(m_characters.size())) {
+        return m_characters.at(static_cast<size_t>(row));
+    }
+    return nullptr;
+}
 
 void GroupModel::resetModel()
 {
@@ -167,11 +389,7 @@ void GroupModel::resetModel()
 
 int GroupModel::rowCount(const QModelIndex & /* parent */) const
 {
-    if (auto group = m_group) {
-        auto selection = group->selectAll();
-        return static_cast<int>(selection.size());
-    }
-    return 0;
+    return static_cast<int>(m_characters.size());
 }
 
 int GroupModel::columnCount(const QModelIndex & /* parent */) const
@@ -179,33 +397,12 @@ int GroupModel::columnCount(const QModelIndex & /* parent */) const
     return GROUP_COLUMN_COUNT;
 }
 
-NODISCARD static QString calculatePercentage(const int numerator, const int denomenator)
-{
-    if (denomenator == 0) {
-        return "";
-    }
-    int percentage = static_cast<int>(100.0 * static_cast<double>(numerator)
-                                      / static_cast<double>(denomenator));
-    // QT documentation doesn't say it's legal to use "\\%" or "%%", so we'll just append.
-    return QString("%1").arg(percentage).append("%");
-}
-
-NODISCARD static QString calculateRatio(const int numerator,
-                                        const int denomenator,
-                                        CharacterTypeEnum type)
-{
-    if (type == CharacterTypeEnum::NPC || (numerator == 0 && denomenator == 0)) {
-        return "";
-    }
-    return QString("%1/%2").arg(numerator).arg(denomenator);
-}
-
-NODISCARD static QString getPrettyName(const CharacterPositionEnum position)
+NODISCARD static QStringView getPrettyName(const CharacterPositionEnum position)
 {
 #define X_CASE(UPPER_CASE, lower_case, CamelCase, friendly) \
     do { \
     case CharacterPositionEnum::UPPER_CASE: \
-        return friendly; \
+        return QStringLiteral(friendly); \
     } while (false);
     switch (position) {
         XFOREACH_CHARACTER_POSITION(X_CASE)
@@ -213,12 +410,12 @@ NODISCARD static QString getPrettyName(const CharacterPositionEnum position)
     return QString::asprintf("(CharacterPositionEnum)%d", static_cast<int>(position));
 #undef X_CASE
 }
-NODISCARD static QString getPrettyName(const CharacterAffectEnum affect)
+NODISCARD static QStringView getPrettyName(const CharacterAffectEnum affect)
 {
 #define X_CASE(UPPER_CASE, lower_case, CamelCase, friendly) \
     do { \
     case CharacterAffectEnum::UPPER_CASE: \
-        return friendly; \
+        return QStringLiteral(friendly); \
     } while (false);
     switch (affect) {
         XFOREACH_CHARACTER_AFFECT(X_CASE)
@@ -232,6 +429,41 @@ QVariant GroupModel::dataForCharacter(const SharedGroupChar &pCharacter,
                                       const int role) const
 {
     const CGroupChar &character = deref(pCharacter);
+
+    const auto formatStat =
+        [](int numerator, int denomenator, ColumnTypeEnum statColumn) -> QString {
+        if (denomenator == 0
+            && (statColumn == ColumnTypeEnum::HP_PERCENT
+                || statColumn == ColumnTypeEnum::MANA_PERCENT
+                || statColumn == ColumnTypeEnum::MOVES_PERCENT)) {
+            return QLatin1String("");
+        }
+        // The NPC check for ratio is handled below in the switch statement
+        if ((numerator == 0 && denomenator == 0)
+            && (statColumn == ColumnTypeEnum::HP || statColumn == ColumnTypeEnum::MANA
+                || statColumn == ColumnTypeEnum::MOVES)) {
+            return QLatin1String("");
+        }
+
+        switch (statColumn) {
+        case ColumnTypeEnum::HP_PERCENT:
+        case ColumnTypeEnum::MANA_PERCENT:
+        case ColumnTypeEnum::MOVES_PERCENT: {
+            int percentage = static_cast<int>(100.0 * static_cast<double>(numerator)
+                                              / static_cast<double>(denomenator));
+            return QString("%1%").arg(percentage);
+        }
+        case ColumnTypeEnum::HP:
+        case ColumnTypeEnum::MANA:
+        case ColumnTypeEnum::MOVES:
+            return QString("%1/%2").arg(numerator).arg(denomenator);
+        default:
+        case ColumnTypeEnum::NAME:
+        case ColumnTypeEnum::STATE:
+        case ColumnTypeEnum::ROOM_NAME:
+            return QLatin1String("");
+        }
+    };
 
     // Map column to data
     switch (role) {
@@ -247,27 +479,39 @@ QVariant GroupModel::dataForCharacter(const SharedGroupChar &pCharacter,
                                               character.getLabel().toQString());
             }
         case ColumnTypeEnum::HP_PERCENT:
-            return calculatePercentage(character.getHits(), character.getMaxHits());
+            return formatStat(character.getHits(), character.getMaxHits(), column);
         case ColumnTypeEnum::MANA_PERCENT:
-            return calculatePercentage(character.getMana(), character.getMaxMana());
+            return formatStat(character.getMana(), character.getMaxMana(), column);
         case ColumnTypeEnum::MOVES_PERCENT:
-            return calculatePercentage(character.getMoves(), character.getMaxMoves());
+            return formatStat(character.getMoves(), character.getMaxMoves(), column);
         case ColumnTypeEnum::HP:
-            return calculateRatio(character.getHits(), character.getMaxHits(), character.getType());
+            if (character.getType() == CharacterTypeEnum::NPC) {
+                return QLatin1String("");
+            } else {
+                return formatStat(character.getHits(), character.getMaxHits(), column);
+            }
         case ColumnTypeEnum::MANA:
-            return calculateRatio(character.getMana(), character.getMaxMana(), character.getType());
+            if (character.getType() == CharacterTypeEnum::NPC) {
+                return QLatin1String("");
+            } else {
+                return formatStat(character.getMana(), character.getMaxMana(), column);
+            }
         case ColumnTypeEnum::MOVES:
-            return calculateRatio(character.getMoves(),
-                                  character.getMaxMoves(),
-                                  character.getType());
+            if (character.getType() == CharacterTypeEnum::NPC) {
+                return QLatin1String("");
+            } else {
+                return formatStat(character.getMoves(), character.getMaxMoves(), column);
+            }
         case ColumnTypeEnum::STATE:
             return QVariant::fromValue(GroupStateData(character.getColor(),
                                                       character.getPosition(),
                                                       character.getAffects()));
         case ColumnTypeEnum::ROOM_NAME:
-            if (character.getRoomName().isEmpty())
-                return "Unknown";
-            return character.getRoomName().toQString();
+            if (character.getRoomName().isEmpty()) {
+                return QStringLiteral("Somewhere");
+            } else {
+                return character.getRoomName().toQString();
+            }
         default:
             qWarning() << "Unsupported column" << static_cast<int>(column);
             break;
@@ -287,27 +531,28 @@ QVariant GroupModel::dataForCharacter(const SharedGroupChar &pCharacter,
         }
         break;
 
-    case Qt::ToolTipRole:
+    case Qt::ToolTipRole: {
+        const auto getRatioTooltip = [&](int numerator, int denomenator) -> QVariant {
+            if (character.getType() == CharacterTypeEnum::NPC) {
+                return QVariant();
+            } else {
+                return formatStat(numerator, denomenator, column);
+            }
+        };
+
         switch (column) {
         case ColumnTypeEnum::HP_PERCENT:
-            if (character.getType() == CharacterTypeEnum::NPC)
-                break;
-            return calculateRatio(character.getHits(), character.getMaxHits(), character.getType());
+            return getRatioTooltip(character.getHits(), character.getMaxHits());
         case ColumnTypeEnum::MANA_PERCENT:
-            if (character.getType() == CharacterTypeEnum::NPC)
-                break;
-            return calculateRatio(character.getMana(), character.getMaxMana(), character.getType());
+            return getRatioTooltip(character.getMana(), character.getMaxMana());
         case ColumnTypeEnum::MOVES_PERCENT:
-            if (character.getType() == CharacterTypeEnum::NPC)
-                break;
-            return calculateRatio(character.getMoves(),
-                                  character.getMaxMoves(),
-                                  character.getType());
+            return getRatioTooltip(character.getMoves(), character.getMaxMoves());
         case ColumnTypeEnum::STATE: {
-            QString prettyName = getPrettyName(character.getPosition());
+            QString prettyName;
+            prettyName += getPrettyName(character.getPosition());
             for (const CharacterAffectEnum affect : ALL_CHARACTER_AFFECTS) {
                 if (character.getAffects().contains(affect)) {
-                    prettyName.append(", ").append(getPrettyName(affect));
+                    prettyName.append(QStringLiteral(", ")).append(getPrettyName(affect));
                 }
             }
             return prettyName;
@@ -316,12 +561,15 @@ QVariant GroupModel::dataForCharacter(const SharedGroupChar &pCharacter,
         case ColumnTypeEnum::HP:
         case ColumnTypeEnum::MANA:
         case ColumnTypeEnum::MOVES:
+            break;
         case ColumnTypeEnum::ROOM_NAME:
-            if (character.getServerId() == INVALID_SERVER_ROOMID)
+            if (character.getServerId() != INVALID_SERVER_ROOMID) {
                 return QString("%1").arg(character.getServerId().asUint32());
+            }
             break;
         }
         break;
+    }
 
     default:
         break;
@@ -332,22 +580,16 @@ QVariant GroupModel::dataForCharacter(const SharedGroupChar &pCharacter,
 
 QVariant GroupModel::data(const QModelIndex &index, int role) const
 {
-    QVariant data = QVariant();
     if (!index.isValid()) {
-        return data;
+        return QVariant();
     }
 
-    if (auto group = m_group) {
-        auto selection = group->selectAll();
-
-        // Map row to character
-        if (index.row() < static_cast<int>(selection.size())) {
-            const SharedGroupChar &character = selection.at(static_cast<size_t>(index.row()));
-            const auto column = static_cast<ColumnTypeEnum>(index.column());
-            data = dataForCharacter(character, column, role);
-        }
+    if (index.row() >= 0 && index.row() < static_cast<int>(m_characters.size())) {
+        const SharedGroupChar &character = m_characters.at(static_cast<size_t>(index.row()));
+        return dataForCharacter(character, static_cast<ColumnTypeEnum>(index.column()), role);
     }
-    return data;
+
+    return QVariant();
 }
 
 QVariant GroupModel::headerData(int section, Qt::Orientation orientation, int role) const
@@ -355,57 +597,144 @@ QVariant GroupModel::headerData(int section, Qt::Orientation orientation, int ro
     switch (role) {
     case Qt::DisplayRole:
         if (orientation == Qt::Orientation::Horizontal) {
-            switch (static_cast<ColumnTypeEnum>(section)) {
-            case ColumnTypeEnum::NAME:
-                return "Name";
-            case ColumnTypeEnum::HP_PERCENT:
-                return "HP";
-            case ColumnTypeEnum::MANA_PERCENT:
-                return "Mana";
-            case ColumnTypeEnum::MOVES_PERCENT:
-                return "Moves";
-            case ColumnTypeEnum::HP:
-                return "HP";
-            case ColumnTypeEnum::MANA:
-                return "Mana";
-            case ColumnTypeEnum::MOVES:
-                return "Moves";
-            case ColumnTypeEnum::STATE:
-                return "State";
-            case ColumnTypeEnum::ROOM_NAME:
-                return "Room Name";
-            default:
-                qWarning() << "Unsupported column" << section;
-            }
+            return getColumnFriendlyName(static_cast<ColumnTypeEnum>(section));
         }
         break;
     }
     return QVariant();
 }
 
-Qt::ItemFlags GroupModel::flags(const QModelIndex & /* index */) const
+Qt::ItemFlags GroupModel::flags(const QModelIndex &index) const
 {
-    return Qt::ItemFlag::NoItemFlags;
+    if (!index.isValid()) {
+        return Qt::NoItemFlags;
+    }
+    return Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsDragEnabled | Qt::ItemIsDropEnabled;
+}
+
+Qt::DropActions GroupModel::supportedDropActions() const
+{
+    return Qt::MoveAction;
+}
+
+QStringList GroupModel::mimeTypes() const
+{
+    QStringList types;
+    types << GROUP_MIME_TYPE;
+    return types;
+}
+
+QMimeData *GroupModel::mimeData(const QModelIndexList &indexes) const
+{
+    QMimeData *mimeDataObj = new QMimeData();
+    QByteArray encodedData;
+    QDataStream stream(&encodedData, QIODevice::WriteOnly);
+    if (!indexes.isEmpty() && indexes.first().isValid()) {
+        stream << indexes.first().row();
+    }
+    mimeDataObj->setData(GROUP_MIME_TYPE, encodedData);
+    return mimeDataObj;
+}
+
+bool GroupModel::dropMimeData(
+    const QMimeData *data, Qt::DropAction action, int row, int column, const QModelIndex &parent)
+{
+    if (action == Qt::IgnoreAction) {
+        return true;
+    }
+    if (!data->hasFormat(GROUP_MIME_TYPE) || column > 0) {
+        return false;
+    }
+
+    QByteArray encodedData = data->data(GROUP_MIME_TYPE);
+    QDataStream stream(&encodedData, QIODevice::ReadOnly);
+    if (stream.atEnd()) {
+        return false;
+    }
+    int sourceRow;
+    stream >> sourceRow;
+
+    int targetInsertionIndex;
+    if (parent.isValid()) {
+        targetInsertionIndex = parent.row();
+    } else if (row != -1) {
+        targetInsertionIndex = row;
+    } else {
+        targetInsertionIndex = static_cast<int>(m_characters.size());
+    }
+
+    if (sourceRow == targetInsertionIndex
+        || (sourceRow == targetInsertionIndex - 1 && targetInsertionIndex > sourceRow)) {
+        return false;
+    }
+
+    if (targetInsertionIndex < 0) {
+        targetInsertionIndex = 0;
+    }
+    if (targetInsertionIndex > static_cast<int>(m_characters.size())) {
+        targetInsertionIndex = static_cast<int>(m_characters.size());
+    }
+
+    if (!beginMoveRows(QModelIndex(), sourceRow, sourceRow, QModelIndex(), targetInsertionIndex)) {
+        return false;
+    }
+
+    SharedGroupChar movedChar = m_characters[static_cast<size_t>(sourceRow)];
+    m_characters.erase(m_characters.begin() + sourceRow);
+
+    int actualInsertionIdx = targetInsertionIndex;
+    if (sourceRow < targetInsertionIndex) {
+        actualInsertionIdx--;
+    }
+
+    if (actualInsertionIdx < 0) {
+        actualInsertionIdx = 0;
+    }
+    if (actualInsertionIdx > static_cast<int>(m_characters.size())) {
+        actualInsertionIdx = static_cast<int>(m_characters.size());
+    }
+
+    m_characters.insert(m_characters.begin() + actualInsertionIdx, movedChar);
+
+    endMoveRows();
+    return true;
 }
 
 GroupWidget::GroupWidget(Mmapper2Group *const group, MapData *const md, QWidget *const parent)
     : QWidget(parent)
     , m_group(group)
     , m_map(md)
-    , m_model(md, group, this)
+    , m_model(this)
 {
+    if (m_group) {
+        m_model.setCharacters(m_group->selectAll());
+    } else {
+        m_model.setCharacters({});
+    }
+
     auto *layout = new QVBoxLayout(this);
     layout->setAlignment(Qt::AlignTop);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
 
     m_table = new QTableView(this);
-    m_table->setSelectionMode(QAbstractItemView::NoSelection);
+    m_table->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
+
     m_table->horizontalHeader()->setStretchLastSection(true);
     m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
-    m_table->setModel(&m_model);
+
+    m_proxyModel = new GroupProxyModel(this);
+    m_proxyModel->setSourceModel(&m_model);
+    m_table->setModel(m_proxyModel);
+
+    m_table->setDragEnabled(true);
+    m_table->setAcceptDrops(true);
+    m_table->setDragDropMode(QAbstractItemView::InternalMove);
+    m_table->setDefaultDropAction(Qt::MoveAction);
+    m_table->setDropIndicatorShown(true);
+
     m_table->setItemDelegate(new GroupDelegate(this));
-    m_table->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
     layout->addWidget(m_table);
 
     // Minimize row height
@@ -444,45 +773,50 @@ GroupWidget::GroupWidget(Mmapper2Group *const group, MapData *const md, QWidget 
         }
     });
 
-    connect(m_table, &QAbstractItemView::clicked, this, [this](const QModelIndex &index) {
-        if (!index.isValid()) {
+    connect(m_table, &QAbstractItemView::clicked, this, [this](const QModelIndex &proxyIndex) {
+        if (!proxyIndex.isValid()) {
             return;
         }
 
-        // Identify target
-        if (auto *const g = m_group) {
-            auto selection = g->selectAll();
-            // Map row to character
-            if (index.row() < static_cast<int>(selection.size())) {
-                selectedCharacter = selection.at(static_cast<size_t>(index.row()));
+        QModelIndex sourceIndex = m_proxyModel->mapToSource(proxyIndex);
 
-                // Build Context menu
-                m_center->setText(
-                    QString("&Center on %1").arg(selectedCharacter->getName().toQString()));
-                m_recolor->setText(
-                    QString("&Recolor %1").arg(selectedCharacter->getName().toQString()));
+        if (!sourceIndex.isValid()) {
+            return;
+        }
 
-                m_center->setDisabled(!selectedCharacter->isYou()
-                                      && selectedCharacter->getServerId() == INVALID_SERVER_ROOMID);
+        selectedCharacter = m_model.getCharacter(sourceIndex.row());
+        if (selectedCharacter) {
+            // Build Context menu
+            m_center->setText(
+                QString("&Center on %1").arg(selectedCharacter->getName().toQString()));
+            m_recolor->setText(QString("&Recolor %1").arg(selectedCharacter->getName().toQString()));
+            m_center->setDisabled(!selectedCharacter->isYou()
+                                  && selectedCharacter->getServerId() == INVALID_SERVER_ROOMID);
 
-                QMenu contextMenu(tr("Context menu"), this);
-                contextMenu.addAction(m_center);
-                contextMenu.addAction(m_recolor);
-                contextMenu.exec(QCursor::pos());
-            }
+            auto *contextMenu = new QMenu(tr("Context menu"), this);
+            contextMenu->setAttribute(Qt::WA_DeleteOnClose);
+            contextMenu->addAction(m_center);
+            contextMenu->addAction(m_recolor);
+            contextMenu->popup(QCursor::pos());
         }
     });
 
-    connect(m_group, &Mmapper2Group::sig_updateWidget, this, &GroupWidget::slot_updateLabels);
-
-    readSettings();
+    connect(m_group, &Mmapper2Group::sig_characterAdded, this, &GroupWidget::slot_onCharacterAdded);
+    connect(m_group,
+            &Mmapper2Group::sig_characterRemoved,
+            this,
+            &GroupWidget::slot_onCharacterRemoved);
+    connect(m_group,
+            &Mmapper2Group::sig_characterUpdated,
+            this,
+            &GroupWidget::slot_onCharacterUpdated);
+    connect(m_group, &Mmapper2Group::sig_groupReset, this, &GroupWidget::slot_onGroupReset);
 }
 
 GroupWidget::~GroupWidget()
 {
     delete m_table;
     delete m_recolor;
-    writeSettings();
 }
 
 QSize GroupWidget::sizeHint() const
@@ -494,36 +828,44 @@ QSize GroupWidget::sizeHint() const
     return QSize(preferredWidth, desiredHeight);
 }
 
-QSize GroupWidget::minimumSizeHint() const
+void GroupWidget::updateColumnVisibility()
 {
-    return m_table->minimumSizeHint();
-}
-
-void GroupWidget::slot_updateLabels()
-{
-    m_model.resetModel();
-
     // Hide unnecessary columns like mana if everyone is a zorc/troll
     const auto one_character_had_mana = [this]() -> bool {
-        auto selection = m_group->selectAll();
-        for (const auto &character : selection) {
-            if (character->getMana() > 0) {
+        for (const auto &character : m_model.getCharacters()) {
+            if (character && character->getMana() > 0) {
                 return true;
             }
         }
         return false;
     };
     const bool hide_mana = !one_character_had_mana();
-    m_table->setColumnHidden(static_cast<int>(GroupModel::ColumnTypeEnum::MANA), hide_mana);
-    m_table->setColumnHidden(static_cast<int>(GroupModel::ColumnTypeEnum::MANA_PERCENT), hide_mana);
+    m_table->setColumnHidden(static_cast<int>(ColumnTypeEnum::MANA), hide_mana);
+    m_table->setColumnHidden(static_cast<int>(ColumnTypeEnum::MANA_PERCENT), hide_mana);
 }
 
-void GroupWidget::readSettings()
+void GroupWidget::slot_onCharacterAdded(SharedGroupChar character)
 {
-    restoreGeometry(getConfig().groupManager.geometry);
+    assert(character);
+    m_model.insertCharacter(character);
+    updateColumnVisibility();
 }
 
-void GroupWidget::writeSettings()
+void GroupWidget::slot_onCharacterRemoved(const GroupId characterId)
 {
-    setConfig().groupManager.geometry = saveGeometry();
+    assert(characterId != INVALID_GROUPID);
+    m_model.removeCharacterById(characterId);
+    updateColumnVisibility();
+}
+
+void GroupWidget::slot_onCharacterUpdated(SharedGroupChar character)
+{
+    assert(character);
+    m_model.updateCharacter(character);
+}
+
+void GroupWidget::slot_onGroupReset(const GroupVector &newCharacterList)
+{
+    m_model.setCharacters(newCharacterList);
+    updateColumnVisibility();
 }

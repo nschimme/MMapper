@@ -4,18 +4,11 @@
 #include "infomark.h"
 
 #include "../global/Charset.h"
-#include "../global/OrderedMap.h"
+#include "../global/ImmUnorderedMap.h"
 
 #include <memory>
 #include <stdexcept>
 #include <vector>
-
-InfoMarkModificationTracker::~InfoMarkModificationTracker() = default;
-
-void InfoMarkModificationTracker::notifyModified(InfoMarkUpdateFlags updateFlags)
-{
-    virt_onNotifyModified(updateFlags);
-}
 
 template<typename T>
 void maybeModify(T &ours, T value)
@@ -25,45 +18,45 @@ void maybeModify(T &ours, T value)
     }
 }
 
-void InfoMarkFields::setPosition1(Coordinate pos)
+void RawInfomark::setPosition1(const Coordinate pos)
 {
-    if (Type == InfoMarkTypeEnum::TEXT) {
+    if (Type == InfomarkTypeEnum::TEXT) {
         // See comment in setPosition2()
         Position2 = pos;
     }
-    maybeModify(Position1, std::move(pos));
+    maybeModify(Position1, pos);
 }
 
-void InfoMarkFields::setPosition2(Coordinate pos)
+void RawInfomark::setPosition2(const Coordinate pos)
 {
-    if (Type == InfoMarkTypeEnum::TEXT) {
-        // Text InfoMarks utilize Position1 exclusively
+    if (Type == InfomarkTypeEnum::TEXT) {
+        // Text Infomarks utilize Position1 exclusively
         return;
     }
-    maybeModify(Position2, std::move(pos));
+    maybeModify(Position2, pos);
 }
 
 // REVISIT: consider rounding rotation to 45 degrees, since that's all the dialog can handle?
-void InfoMarkFields::setRotationAngle(const int rotationAngle)
+void RawInfomark::setRotationAngle(const int rotationAngle)
 {
     // mod twice avoids separate case for negative.
-    int adjusted = (rotationAngle % 360 + 360) % 360;
-    maybeModify(RotationAngle, std::move(adjusted));
+    const int adjusted = (rotationAngle % 360 + 360) % 360;
+    maybeModify(RotationAngle, adjusted);
 }
 
-void InfoMarkFields::setText(InfoMarkText text)
+void RawInfomark::setText(InfomarkText text)
 {
     maybeModify(Text, std::move(text));
 }
 
-void InfoMarkFields::setType(InfoMarkTypeEnum type)
+void RawInfomark::setType(const InfomarkTypeEnum type)
 {
-    maybeModify(Type, std::move(type));
+    maybeModify(Type, type);
 }
 
-void InfoMarkFields::setClass(InfoMarkClassEnum markClass)
+void RawInfomark::setClass(const InfomarkClassEnum markClass)
 {
-    maybeModify(Class, std::move(markClass));
+    maybeModify(Class, markClass);
 }
 
 struct NODISCARD InfomarkDb::Pimpl final
@@ -71,7 +64,7 @@ struct NODISCARD InfomarkDb::Pimpl final
     struct NODISCARD Data final
     {
     public:
-#define X_DEFINE_VECTOR(_Type, _Prop, _OptInit) OrderedMap<InfomarkId, _Type> _Prop##_map;
+#define X_DEFINE_VECTOR(_Type, _Prop, _OptInit) ImmUnorderedMap<InfomarkId, _Type> _Prop##_map;
         XFOREACH_INFOMARK_PROPERTY(X_DEFINE_VECTOR)
 #undef X_DEFINE_VECTOR
 
@@ -86,10 +79,7 @@ struct NODISCARD InfomarkDb::Pimpl final
 #undef X_DEFINE_VECTOR
             return true;
         }
-        NODISCARD bool operator!=(const Data &rhs) const
-        {
-            return !(rhs == *this);
-        }
+        NODISCARD bool operator!=(const Data &rhs) const { return !(rhs == *this); }
     };
 
     InfomarkId m_next;
@@ -117,31 +107,21 @@ struct NODISCARD InfomarkDb::Pimpl final
 #undef X_DEFINE_GETTERS
 
 public:
-    NODISCARD const ImmInfomarkIdSet &getIdSet() const
-    {
-        return m_set;
-    }
+    NODISCARD const ImmInfomarkIdSet &getIdSet() const { return m_set; }
 
 public:
-    NODISCARD InfoMarkUpdateFlags updateMarker(const InfomarkId id, const InfoMarkFields &im)
+    void updateMarker(const InfomarkId id, const RawInfomark &im)
     {
         if (!m_set.contains(id)) {
             throw std::runtime_error("invalid infomark id");
         }
 
-        InfoMarkUpdateFlags updates;
-
-#define X_SET_VALUE(_Type, _Prop, _OptInit) \
-    if (set##_Prop(id, im.get##_Prop())) { \
-        updates.insert(InfoMarkUpdateEnum::_Prop); \
-    }
+#define X_SET_VALUE(_Type, _Prop, _OptInit) std::ignore = set##_Prop(id, im.get##_Prop());
         XFOREACH_INFOMARK_PROPERTY(X_SET_VALUE)
 #undef X_SET_VALUE
-
-        return updates;
     }
 
-    NODISCARD InfomarkId addMarker(const InfoMarkFields &im)
+    NODISCARD InfomarkId addMarker(const RawInfomark &im)
     {
         auto id = m_next;
         m_next = m_next.next();
@@ -161,7 +141,7 @@ public:
         if (!m_set.contains(id)) {
             throw std::runtime_error("invalid infomark id");
         }
-        m_set.remove(id);
+        m_set.erase(id);
 #define X_SET_VALUE(_Type, _Prop, _OptInit) \
     { \
         auto &ref = m_data._Prop##_map; \
@@ -171,9 +151,9 @@ public:
 #undef X_SET_VALUE
     }
 
-    NODISCARD InfoMarkFields getRawCopy(const InfomarkId id) const
+    NODISCARD RawInfomark getRawCopy(const InfomarkId id) const
     {
-        InfoMarkFields result;
+        RawInfomark result;
 #define X_COPY_VALUE(_Type, _Prop, _OptInit) result._Prop = get##_Prop(id);
         XFOREACH_INFOMARK_PROPERTY(X_COPY_VALUE)
 #undef X_COPY_VALUE
@@ -184,15 +164,9 @@ public:
     {
         return m_next == rhs.m_next && m_set == rhs.m_set && m_data == rhs.m_data;
     }
-    NODISCARD bool operator!=(const Pimpl &rhs) const
-    {
-        return !(rhs == *this);
-    }
+    NODISCARD bool operator!=(const Pimpl &rhs) const { return !(rhs == *this); }
 
-    NODISCARD auto clone() const
-    {
-        return std::make_shared<Pimpl>(*this);
-    }
+    NODISCARD auto clone() const { return std::make_shared<Pimpl>(*this); }
 };
 
 InfomarkDb::InfomarkDb()
@@ -212,7 +186,7 @@ const ImmInfomarkIdSet &InfomarkDb::getIdSet() const
     return m_pimpl->getIdSet();
 }
 
-InfomarkId InfomarkDb::addMarker(const InfoMarkFields &im)
+InfomarkId InfomarkDb::addMarker(const RawInfomark &im)
 {
     auto tmp = m_pimpl->clone();
     auto result = tmp->addMarker(im);
@@ -222,28 +196,25 @@ InfomarkId InfomarkDb::addMarker(const InfoMarkFields &im)
     return result;
 }
 
-InfoMarkUpdateFlags InfomarkDb::updateMarker(const InfomarkId id, const InfoMarkFields &im)
+void InfomarkDb::updateMarker(const InfomarkId id, const RawInfomark &im)
 {
     auto tmp = m_pimpl->clone();
-    InfoMarkUpdateFlags modified = tmp->updateMarker(id, im);
+    tmp->updateMarker(id, im);
 
     /* replace our guts */
     m_pimpl = tmp;
-    return modified;
 }
 
-InfoMarkUpdateFlags InfomarkDb::updateMarkers(const std::vector<InformarkChange> &updates)
+void InfomarkDb::updateMarkers(const std::vector<InfomarkChange> &updates)
 {
     auto tmp = m_pimpl->clone();
-    InfoMarkUpdateFlags modified{};
 
-    for (const InformarkChange &update : updates) {
-        modified |= tmp->updateMarker(update.id, update.fields);
+    for (const InfomarkChange &update : updates) {
+        tmp->updateMarker(update.id, update.mark);
     }
 
     /* replace our guts */
     m_pimpl = tmp;
-    return modified;
 }
 
 void InfomarkDb::removeMarker(const InfomarkId id)
@@ -255,7 +226,7 @@ void InfomarkDb::removeMarker(const InfomarkId id)
     m_pimpl = tmp;
 }
 
-InfoMarkFields InfomarkDb::getRawCopy(const InfomarkId id) const
+RawInfomark InfomarkDb::getRawCopy(const InfomarkId id) const
 {
     return m_pimpl->getRawCopy(id);
 }
@@ -281,19 +252,19 @@ bool InfomarkDb::operator==(const InfomarkDb &rhs) const
 XFOREACH_INFOMARK_PROPERTY(X_DEFINE_GETTERS)
 #undef X_DEFINE_GETTERS
 
-InfoMarkText makeInfoMarkText(std::string text)
+InfomarkText makeInfomarkText(std::string text)
 {
     if (!isValidUtf8(text)) {
         throw std::runtime_error("wrong encoding");
     }
     // TODO: add sanitizer here
-    return InfoMarkText{std::move(text)};
+    return InfomarkText{std::move(text)};
 }
 
 namespace mmqt {
-InfoMarkText makeInfoMarkText(QString text)
+InfomarkText makeInfomarkText(const QString &text)
 {
-    return ::makeInfoMarkText(toStdStringUtf8(text));
+    return ::makeInfomarkText(toStdStringUtf8(text));
 }
 } // namespace mmqt
 

@@ -1,0 +1,166 @@
+{
+    "app-id": "org.mume.MMapper",
+    "runtime": "org.kde.Platform",
+    "runtime-version": "6.9",
+    "sdk": "org.kde.Sdk",
+    "finish-args": [
+        "--share=network",
+        "--socket=wayland",
+        "--socket=fallback-x11",
+        "--socket=pulseaudio",
+        "--share=ipc",
+        "--device=dri",
+        "--filesystem=xdg-documents"
+    ],
+    "command": "mmapper",
+    "cleanup": [
+        "*.a",
+        "/arda.xml",
+        "/audio",
+        "/images",
+        "/include",
+        "/lib/cmake",
+        "/lib/pkgconfig",
+        "/mkspecs"
+    ],
+    "modules": [
+        {
+            "name": "glm",
+            "buildsystem": "simple",
+            "sources": [
+                {
+                    "type": "git",
+                    "url": "https://github.com/g-truc/glm.git",
+                    "tag": "0.9.9.8"
+                }
+            ],
+            "build-commands": [
+                "mkdir -p /app/include/glm",
+                "cp -r glm/* /app/include/glm/"
+            ]
+        },
+        {
+            "name": "immer",
+            "buildsystem": "simple",
+            "sources": [
+                {
+                    "type": "git",
+                    "url": "https://github.com/arximboldi/immer.git",
+                    "tag": "v0.8.1"
+                }
+            ],
+            "build-commands": [
+                "cp -r immer /app/include/"
+            ]
+        },
+        {
+            "name": "libsecret",
+            "buildsystem": "meson",
+            "config-opts": [
+                "-Dmanpage=false",
+                "-Dvapi=false",
+                "-Dgtk_doc=false",
+                "-Dintrospection=false"
+            ],
+            "sources": [
+                {
+                    "type": "archive",
+                    "url": "https://download.gnome.org/sources/libsecret/0.21/libsecret-0.21.7.tar.xz",
+                    "sha256": "6b452e4750590a2b5617adc40026f28d2f4903de15f1250e1d1c40bfd68ed55e",
+                    "x-checker-data": {
+                        "type": "gnome",
+                        "name": "libsecret",
+                        "stable-only": true
+                    }
+                }
+            ]
+        },
+        {
+            "name": "qtkeychain",
+            "buildsystem": "cmake-ninja",
+            "sources": [
+                {
+                    "type": "archive",
+                    "url": "https://github.com/frankosterfeld/qtkeychain/archive/0.15.0.tar.gz",
+                    "sha256": "f4254dc8f0933b06d90672d683eab08ef770acd8336e44dfa030ce041dc2ca22",
+                    "x-checker-data": {
+                        "type": "anitya",
+                        "project-id": 4138,
+                        "stable-only": true,
+                        "url-template": "https://github.com/frankosterfeld/qtkeychain/archive/$version.tar.gz"
+                    }
+                }
+            ],
+            "config-opts": [
+                "-DBUILD_TRANSLATIONS=OFF",
+                "-DBUILD_WITH_QT6=ON"
+            ]
+        },
+        {
+            "name": "map",
+            "buildsystem": "simple",
+            "sources": [
+                {
+                    "type": "git",
+                    "url": "https://github.com/MUME/arda.git",
+                    "tag": "42"
+                }
+            ],
+            "build-commands": [
+                "cp arda.xml /app/"
+            ]
+        },
+        {
+            "name": "audio",
+            "buildsystem": "simple",
+            "sources": [
+                {
+                    "type": "git",
+                    "url": "https://github.com/MUME/audio.git",
+                    "commit": "7d9c33fcbde7f5bf2906e4460f1a0e1aed8b5ad9"
+                }
+            ],
+            "build-commands": [
+                "mkdir -p /app/audio",
+                "cp -r . /app/audio/"
+            ]
+        },
+        {
+            "name": "images",
+            "buildsystem": "simple",
+            "sources": [
+                {
+                    "type": "git",
+                    "url": "https://github.com/MUME/images.git",
+                    "commit": "235b9d6c4d66304f52af16bae982b3e0ae7f4738"
+                }
+            ],
+            "build-commands": [
+                "mkdir -p /app/images",
+                "cp -r . /app/images/"
+            ]
+        },
+        {
+            "name": "mmapper",
+            "buildsystem": "cmake-ninja",
+            "builddir": true,
+            "sources": [
+                {
+                    "type": "dir",
+                    "path": "."
+                }
+            ],
+            "config-opts": [
+                "-DCMAKE_BUILD_TYPE=Release",
+                "-DWITH_WEBSOCKET=ON",
+                "-DWITH_QTKEYCHAIN=ON",
+                "-DWITH_MAP=/app/arda.xml",
+                "-DWITH_AUDIO=/app/audio",
+                "-DWITH_IMAGES=/app/images/",
+                "-DWITH_TESTS=OFF",
+                "-DWITH_UPDATER=ON",
+                "-DPACKAGE_TYPE=Flatpak"
+            ]
+        }
+    ]
+}

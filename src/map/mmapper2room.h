@@ -7,7 +7,6 @@
 #include "../global/Flags.h"
 #include "../global/TaggedString.h"
 
-#include <array> // For std::array
 #include <stdexcept>
 
 #include <QtGlobal>
@@ -129,14 +128,6 @@ CHECK3(PORTABLE, Portable)
 CHECK3(RIDABLE, Ridable)
 CHECK3(SUNDEATH, Sundeath)
 #undef CHECK3
-
-static constexpr size_t NUM_ROOM_TINTS = 2;
-
-namespace TintIndices {
-    static constexpr size_t DARK = 0;
-    static constexpr size_t NO_SUNDEATH = 1;
-    // Add other tint indices if NUM_ROOM_TINTS increases
-} // namespace TintIndices
 
 #define XFOREACH_ROOM_MOB_FLAG(X) \
     X(RENT) \

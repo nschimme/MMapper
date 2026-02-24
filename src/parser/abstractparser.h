@@ -45,6 +45,7 @@
 #include <QVariant>
 
 class Coordinate;
+class HotkeyManager;
 class MapData;
 class MumeClock;
 class RoomFieldVariant;
@@ -95,8 +96,6 @@ public:
     // for commands that set the mode (emulation, play, map)
     // these are connected to MainWindow
     void onSetMode(const MapModeEnum mode) { virt_onSetMode(mode); }
-    // sent to MapCanvas
-    void onInfomarksChanged() { virt_onInfomarksChanged(); }
 
 private:
     // sent to MudTelnet
@@ -124,8 +123,6 @@ private:
     // for commands that set the mode (emulation, play, map)
     // these are connected to MainWindow
     virtual void virt_onSetMode(MapModeEnum) = 0;
-    // sent to MapCanvas
-    virtual void virt_onInfomarksChanged() = 0;
 };
 
 struct NODISCARD ParserCommonData final
@@ -170,6 +167,7 @@ protected:
 
 protected:
     GroupManagerApi &m_group;
+    HotkeyManager &m_hotkeyManager;
     ProxyUserGmcpApi &m_proxyUserGmcp;
     AbstractParserOutputs &m_outputs;
 
@@ -181,6 +179,7 @@ protected:
                           MumeClock &mumeClock,
                           MapData &mapData,
                           GroupManagerApi &group,
+                          HotkeyManager &hotkeyManager,
                           ProxyUserGmcpApi &proxyUserGmcp,
                           AbstractParserOutputs &outputs,
                           ParserCommonData &commonData)
@@ -188,6 +187,7 @@ protected:
         , m_mumeClock{mumeClock}
         , m_mapData{mapData}
         , m_group{group}
+        , m_hotkeyManager{hotkeyManager}
         , m_proxyUserGmcp{proxyUserGmcp}
         , m_outputs{outputs}
         , m_commonData{commonData}
@@ -274,10 +274,18 @@ protected:
                                MumeClock &mumeClock,
                                MapData &mapData,
                                GroupManagerApi &group,
+                               HotkeyManager &hotkeyManager,
                                ProxyUserGmcpApi &proxyUserGmcp,
                                AbstractParserOutputs &outputs,
                                ParserCommonData &parserCommonData)
-        : ParserCommon{parent, mumeClock, mapData, group, proxyUserGmcp, outputs, parserCommonData}
+        : ParserCommon{parent,
+                       mumeClock,
+                       mapData,
+                       group,
+                       hotkeyManager,
+                       proxyUserGmcp,
+                       outputs,
+                       parserCommonData}
     {
         initActionMap();
     }
@@ -343,6 +351,7 @@ public:
                             ProxyMudConnectionApi &,
                             ProxyUserGmcpApi &,
                             GroupManagerApi &,
+                            HotkeyManager &,
                             QObject *parent,
                             AbstractParserOutputs &outputs,
                             ParserCommonData &commonData);
@@ -409,6 +418,7 @@ private:
     NODISCARD bool evalSpecialCommandMap(StringView args);
 
     void parseHelp(StringView words);
+    void parseHotkey(StringView input);
     void parseMark(StringView input);
     void parseRoom(StringView input);
     void parseGroup(StringView input);
@@ -426,7 +436,6 @@ public:
 
 protected:
     void mapChanged() { m_outputs.onMapChanged(); }
-    void infomarksChanged() { m_outputs.onInfomarksChanged(); }
 
 private:
     void graphicsSettingsChanged() { m_outputs.onGraphicsSettingsChanged(); }

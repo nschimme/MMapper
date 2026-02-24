@@ -51,7 +51,7 @@ SanitizerChanges WorldBuilder::sanitize(ProgressCounter &counter,
         NODISCARD bool contains(const ExternalRoomId id) const { return find(id) != end(); }
     };
 
-    const LookupTable lookupTable = [&input]() -> LookupTable {
+    const LookupTable lookupTable = std::invoke([&input]() -> LookupTable {
         DECL_TIMER(t2, "build-lookup-table");
         LookupTable roomMap;
         const auto inputSize = static_cast<uint32_t>(input.size());
@@ -63,7 +63,7 @@ SanitizerChanges WorldBuilder::sanitize(ProgressCounter &counter,
             roomMap[r.id] = i;
         }
         return roomMap;
-    }();
+    });
 
     auto checkAndRepairExits = [&input, &lookupTable](ExternalRawRoom &r,
                                                       const ExitDirEnum dir,
@@ -261,7 +261,7 @@ SanitizerChanges WorldBuilder::sanitize(ProgressCounter &counter,
 
     ConnectionRepairStats connectionRepairStats;
     {
-        counter.setCurrentTask(ProgressMsg{"checking exits and flags"});
+        counter.setCurrentTask(ProgressMsg{"checking and repairing exits and flags"});
         counter.reset();
         counter.increaseTotalStepsBy(input.size());
         for (auto &r : input) {
@@ -377,22 +377,25 @@ static ChangeList buildChangelist(ProgressCounter &pc,
             continue;
         }
 
-        std::string_view name = x.name.getStdStringViewUtf8();
-        trim_newline_inplace(name);
+        const auto name = std::invoke([&x]() -> std::string_view {
+            auto tmp = x.name.getStdStringViewUtf8();
+            trim_newline_inplace(tmp);
+            return tmp; // NOLINT (no, clang-tidy, the local does not escape)
+        });
 
         if (name.empty()) {
             assert(false);
             continue;
         }
 
-        RoomNote before = [&notes, &room]() -> RoomNote {
+        const RoomNote before = std::invoke([&notes, &room]() -> RoomNote {
             if (const auto it = notes.find(room.getId()); it != notes.end()) {
                 return it->second;
             }
             return room.getNote();
-        }();
+        });
 
-        notes[room.getId()] = [&before, dir = x.dir, name]() -> RoomNote {
+        notes[room.getId()] = std::invoke([&before, dir = x.dir, name]() -> RoomNote {
             std::ostringstream oss;
             const auto &old = before.getStdStringViewUtf8();
             oss << old;
@@ -403,7 +406,7 @@ static ChangeList buildChangelist(ProgressCounter &pc,
             oss << name;
             oss << C_NEWLINE;
             return RoomNote{std::move(oss).str()};
-        }();
+        });
         pc.step();
     }
 
@@ -480,7 +483,9 @@ static void sortIfNecessary(ProgressCounter &counter, std::vector<ExternalRawRoo
     counter.step(1);
 }
 
-MapPair WorldBuilder::build(ProgressCounter &pc, std::vector<ExternalRawRoom> input)
+MapPair WorldBuilder::build(ProgressCounter &pc,
+                            std::vector<ExternalRawRoom> input,
+                            std::vector<RawInfomark> marks)
 {
     if (input.empty()) {
         return MapPair{};
@@ -489,16 +494,19 @@ MapPair WorldBuilder::build(ProgressCounter &pc, std::vector<ExternalRawRoom> in
     DECL_TIMER(t, "build-map");
     sortIfNecessary(pc, input);
     const auto sanitizerChanges = sanitize(pc, input);
-    const Map base{World::init(pc, input)};
+    // TODO: santizie marks
+    const Map base{World::init(pc, input, marks)};
     return MapPair{base, applySanitizerChanges(pc, base, sanitizerChanges)};
 }
 
 MapPair WorldBuilder::build() &&
 {
-    return build(m_counter, std::exchange(m_rooms, {}));
+    return build(m_counter, std::exchange(m_rooms, {}), std::exchange(m_marks, {}));
 }
 
-MapPair WorldBuilder::buildFrom(ProgressCounter &counter, std::vector<ExternalRawRoom> rooms)
+MapPair WorldBuilder::buildFrom(ProgressCounter &counter,
+                                std::vector<ExternalRawRoom> rooms,
+                                std::vector<RawInfomark> marks)
 {
-    return WorldBuilder(counter, std::move(rooms)).build();
+    return WorldBuilder(counter, std::move(rooms), std::move(marks)).build();
 }

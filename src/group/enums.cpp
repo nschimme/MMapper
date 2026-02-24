@@ -19,15 +19,16 @@
 #define DEFINE_GETTER_DEFINED(E, N, name) \
     const std::vector<E> &name() \
     { \
-        static const auto things = []() { \
+        static const auto things = std::invoke([]() { \
+            static_assert(std::is_enum_v<E>); \
             std::vector<E> result; \
-            for (auto x : ::enums::genEnumValues<E, N>()) { \
+            for (const E x : ::enums::genEnumValues<E, N>()) { \
                 if (x != E::UNDEFINED) { \
                     result.emplace_back(x); \
                 } \
             } \
             return result; \
-        }(); \
+        }); \
         return things; \
     }
 

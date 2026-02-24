@@ -94,7 +94,7 @@ NODISCARD static QString toMmpRoomId(const ExternalRoomId &roomId)
     return QString("%1").arg(serialId);
 }
 
-bool MmpMapStorage::virt_saveData(const RawMapData &mapData)
+bool MmpMapStorage::virt_saveData(const MapLoadData &mapData)
 {
     log("Writing data to file ...");
 
@@ -119,7 +119,7 @@ bool MmpMapStorage::virt_saveData(const RawMapData &mapData)
     progressCounter.reset();
     progressCounter.increaseTotalStepsBy(roomsCount + 3);
 
-    QXmlStreamWriter stream(getFile());
+    QXmlStreamWriter stream(&getDevice());
     stream.setAutoFormatting(true);
     stream.writeStartDocument();
 

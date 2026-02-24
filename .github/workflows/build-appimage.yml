@@ -13,24 +13,40 @@ jobs:
   build-appimage:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 0
         submodules: true
-    - uses: lukka/get-cmake@latest
-    - name: Get Git tag description
-      id: git_info
+
+    - name: ccache
+      uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        create-symlink: true
+        key: ${{ github.job }}
+
+    - name: Add KDE Neon repository
       run: |
-        git tag -d beta 2>/dev/null || echo "Tag 'beta' not found"
-        echo "GIT_TAG=$(git describe --tags --always --long)" >> $GITHUB_ENV
+        wget -qO - https://archive.neon.kde.org/public.key | sudo gpg --dearmor -o /usr/share/keyrings/kde-neon.gpg
+        echo "deb [signed-by=/usr/share/keyrings/kde-neon.gpg] http://archive.neon.kde.org/user jammy main" | sudo tee /etc/apt/sources.list.d/kde-neon.list
+        sudo apt update -qq
 
     - name: Install Build Dependencies
       run: |
-        sudo apt update -qq
         sudo apt install -y \
-          qt5-qmake qttools5-dev-tools libqt5opengl5-dev libqt5websockets5-dev \
-          qt5keychain-dev libgl1-mesa-dev build-essential mold git \
-          zlib1g-dev libssl-dev wget zsync fuse file cmake
+          qt6-base-dev qt6-base-dev-tools libqt6opengl6-dev libqt6websockets6-dev \
+          qt6-multimedia-dev libqt6multimedia6 \
+          libgl1-mesa-dev qt6-wayland qtkeychain-qt6-dev build-essential mold git \
+          zlib1g-dev libssl-dev wget zsync fuse file cmake libxcb-cursor-dev
+
+    - name: Download linuxdeploy
+      run: |
+        wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+        chmod +x linuxdeploy-x86_64.AppImage
+
+    - name: Download linuxdeploy-plugin-qt
+      run: |
+        wget https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
+        chmod +x linuxdeploy-plugin-qt-x86_64.AppImage
 
     - name: Build AppImage
       run: |
@@ -42,21 +58,36 @@ jobs:
           -DUSE_MOLD=true \
           -DWITH_WEBSOCKET=ON \
           -DWITH_QTKEYCHAIN=ON \
-          -DWITH_TESTS=OFF
+          -DWITH_TESTS=OFF \
+          -DPACKAGE_TYPE=AppImage \
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         make -j$(getconf _NPROCESSORS_ONLN)
         make DESTDIR=appdir install
 
         # Extract version from CPackConfig.cmake
         export VERSION=$(grep -i "SET(CPACK_PACKAGE_VERSION " CPackConfig.cmake | cut -d\" -f 2)
 
-        # Download and run linuxdeployqt
-        wget https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage
-        chmod a+x linuxdeployqt-continuous-x86_64.AppImage
-        ./linuxdeployqt-continuous-x86_64.AppImage \
-          appdir/usr/share/applications/org.mume.MMapper.desktop \
-          -updateinformation="gh-releases-zsync|MUME|MMapper|latest|MMapper-*-x86_64.AppImage.zsync" \
-          -appimage
-        rm linuxdeployqt-continuous-x86_64.AppImage
+        # Configure linuxdeploy and make sure the plugin can be found
+        export PATH=$PATH:$(pwd)/..
+        export UPDATE_INFORMATION="gh-releases-zsync|MUME|MMapper|latest|MMapper-*-x86_64.AppImage.zsync"
+        export QMAKE=/usr/bin/qmake6
+        export EXTRA_PLATFORM_PLUGINS="libqoffscreen.so;libqwayland-egl.so;libqwayland-generic.so"
+        export EXTRA_QT_PLUGINS="wayland-decoration-client;wayland-graphics-integration-client;wayland-shell-integration;waylandcompositor"
+        export LIBSECRET_PATH=$(find /usr/lib -name "libsecret-1.so.0" 2>/dev/null | head -n 1)
+
+        if [ -z "$LIBSECRET_PATH" ]; then
+            echo "Error: libsecret-1.so.0 not found in common library paths. Please install it."
+            exit 1
+        fi
+
+        # Run linuxdeploy
+        ../linuxdeploy-x86_64.AppImage --appdir appdir --output appimage \
+          --executable appdir/usr/bin/mmapper \
+          --desktop-file appdir/usr/share/applications/org.mume.MMapper.desktop \
+          --icon-file appdir/usr/share/icons/hicolor/256x256/apps/org.mume.MMapper.png \
+          --library "$LIBSECRET_PATH" \
+          --plugin qt
 
     - name: Generate SHA256 checksum for AppImage
       run: |
@@ -65,7 +96,7 @@ jobs:
         export FILE=$(find . -type f -name MMapper*.AppImage | sed 's#./##')
         sha256sum $FILE > $FILE.sha256
         mkdir ${{ github.workspace }}/artifact
-        mv *.AppImage* ${{ github.workspace }}/artifact
+        mv MMapper*.AppImage* ${{ github.workspace }}/artifact
 
     - name: Get Linux package file base name
       id: get_linux_package_name
@@ -75,7 +106,7 @@ jobs:
         echo "PACKAGE_BASENAME=$PACKAGE_BASENAME" >> $GITHUB_OUTPUT
 
     - name: Upload AppImage
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ steps.get_linux_package_name.outputs.PACKAGE_BASENAME }}
         path: ${{ github.workspace }}/artifact/*.AppImage*

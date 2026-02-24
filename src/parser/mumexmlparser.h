@@ -7,6 +7,8 @@
 
 #include "../global/Charset.h"
 #include "../map/CommandId.h"
+#include "../map/PromptFlags.h"
+#include "../observer/gameobserver.h"
 #include "LineFlags.h"
 #include "abstractparser.h"
 
@@ -18,7 +20,6 @@
 #include <QtCore/QFile>
 #include <QtCore>
 #include <QtGlobal>
-
 class GmcpMessage;
 class GroupManagerApi;
 class JsonObj;
@@ -53,11 +54,11 @@ private:
     QString m_stringBuffer;
     CommandEnum m_move = CommandEnum::NONE;
     ServerRoomId m_serverId = INVALID_SERVER_ROOMID;
-    std::optional<RoomId> m_expectedMove;
     bool m_readingTag = false;
     bool m_exitsReady = false;
     bool m_descriptionReady = false;
     bool m_eventReady = false;
+    GameObserver &m_observer;
 
 private:
     enum class NODISCARD XmlAttributeStateEnum : uint8_t {
@@ -81,6 +82,8 @@ public:
                            ProxyMudConnectionApi &,
                            ProxyUserGmcpApi &,
                            GroupManagerApi &,
+                           GameObserver &,
+                           HotkeyManager &,
                            QObject *parent,
                            AbstractParserOutputs &outputs,
                            ParserCommonData &parserCommonData);
@@ -97,7 +100,6 @@ private:
     void parseMudCommands(const QString &str);
     NODISCARD QString characters(QString &ch);
     NODISCARD bool element(const QString &);
-    void maybeUpdate(RoomId expectedId, const ParseEvent &ev);
     void setMove(CommandEnum dir);
     void move();
     void parseGmcpStatusVars(const JsonObj &obj);

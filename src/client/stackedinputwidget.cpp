@@ -77,6 +77,13 @@ void StackedInputWidget::initInput()
         {
             getSelf().gotPasswordInput(password);
         }
+
+        void virt_scrollDisplay(bool pageUp) final { getOutput().scrollDisplay(pageUp); }
+
+        std::optional<QString> virt_getHotkey(const Hotkey &hk) final
+        {
+            return getOutput().getHotkey(hk);
+        }
     };
 
     auto &out = m_pipeline.outputs.inputOutputs;
@@ -112,7 +119,7 @@ void StackedInputWidget::requestPassword()
         return;
     }
 
-    QPoint clampedGlobalPos = [this, &dlg]() {
+    const auto clampedGlobalPos = std::invoke([this, &dlg]() -> QPoint {
         auto &input = getInputWidget();
         QPoint cursorGlobalPos = input.mapToGlobal(input.cursorRect(input.textCursor()).topLeft());
         QPoint desiredGlobalPos = cursorGlobalPos - QPoint(dlg.width(), dlg.height());
@@ -125,7 +132,7 @@ void StackedInputWidget::requestPassword()
         int y = std::max(inputRect.top(),
                          std::min(desiredLocalPos.y(), inputRect.bottom() - dlg.height()));
         return input.mapToGlobal(QPoint(x, y));
-    }();
+    });
     dlg.move(clampedGlobalPos);
     dlg.show();
     dlg.raise();
@@ -142,6 +149,7 @@ void StackedInputWidget::gotPasswordInput(const QString &input)
 {
     getOutput().sendUserInput(input + "\n");
     displayInputMessage("******");
+    setFocus();
 }
 
 void StackedInputWidget::displayInputMessage(const QString &input)

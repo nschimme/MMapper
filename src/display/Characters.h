@@ -28,9 +28,9 @@ struct MapCanvasTextures;
 class NODISCARD DistantObjectTransform final
 {
 public:
-    const glm::vec3 offset;
+    const glm::vec3 offset{};
     // rotation counterclockwise around the Z axis, starting at the +X axis.
-    const float rotationDegrees;
+    const float rotationDegrees = 0.f;
 
 public:
     explicit DistantObjectTransform(const glm::vec3 &offset_, const float rotationDegrees_)
@@ -103,9 +103,9 @@ private:
         std::vector<ColorVert> m_charTris;
         std::vector<ColorVert> m_charBeaconQuads;
         std::vector<ColorVert> m_charLines;
-        std::vector<ColorVert> m_pathPoints;
-        std::vector<ColorVert> m_pathLineVerts;
         std::vector<ColoredTexVert> m_charRoomQuads;
+        std::vector<ColorVert> m_pathPoints;
+        std::vector<ColorVert> m_pathLineQuads;
         std::vector<FontVert3d> m_screenSpaceArrows;
         std::map<Coordinate, int, CoordCompare> m_coordCounts;
 
@@ -126,9 +126,9 @@ private:
         void reallyDrawPaths(OpenGL &gl);
 
     public:
-        void setColor(const Color &color) { m_color = color; }
-        void reserve(Coordinate c) { m_coordCounts[c]++; }
-        void clear(Coordinate c) { m_coordCounts[c] = 0; }
+        void setColor(const Color color) { m_color = color; }
+        void reserve(const Coordinate c) { m_coordCounts[c]++; }
+        void clear(const Coordinate c) { m_coordCounts[c] = 0; }
 
     public:
         void glPushMatrix() { m_stack.push(); }
@@ -150,19 +150,11 @@ private:
         }
         void drawArrow(bool fill, bool beacon);
         void drawBox(const Coordinate &coord, bool fill, bool beacon, bool isFar);
-        void addScreenSpaceArrow(const glm::vec3 &pos, float degrees, const Color &color, bool fill);
-
-        // with blending, without depth; always size 4
-        void drawPathLineStrip(const Color &color, const std::vector<glm::vec3> &points)
-        {
-            for (size_t i = 1, size = points.size(); i < size; ++i) {
-                m_pathLineVerts.emplace_back(color, points[i - 1]);
-                m_pathLineVerts.emplace_back(color, points[i]);
-            }
-        }
+        void addScreenSpaceArrow(const glm::vec3 &pos, float degrees, const Color color, bool fill);
+        void drawPathSegment(const glm::vec3 &p1, const glm::vec3 &p2, const Color color);
 
         // with blending, without depth; always size 8
-        void drawPathPoint(const Color &color, const glm::vec3 &pos)
+        void drawPathPoint(const Color color, const glm::vec3 &pos)
         {
             m_pathPoints.emplace_back(color, pos);
         }
@@ -215,11 +207,11 @@ public:
     NODISCARD bool isVisible(const Coordinate &c, float margin) const;
 
 public:
-    void drawCharacter(const Coordinate &coordinate, const Color &color, bool fill = true);
+    void drawCharacter(const Coordinate &coordinate, const Color color, bool fill = true);
 
     void drawPreSpammedPath(const Coordinate &coordinate,
                             const std::vector<Coordinate> &path,
-                            const Color &color);
+                            const Color color);
 
 public:
     void reallyDraw(OpenGL &gl, const MapCanvasTextures &textures)

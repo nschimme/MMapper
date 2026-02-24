@@ -59,6 +59,7 @@ using namespace string_consts;
     X(0x201Eu, C_DQUOTE,       "bdquo")  XSEP() \
     X(0x201Fu, C_DQUOTE,       "double high reversed quotation mark") XSEP() \
     X(0x2022u, C_ASTERISK,     "bull")   XSEP() \
+    X(0x202Fu, C_NBSP,         "nnbsp")  XSEP() \
     X(0x2039u, C_LESS_THAN,    "lsaquo") XSEP() \
     X(0x203Au, C_GREATER_THAN, "rsaquo")
 
@@ -69,20 +70,25 @@ using namespace string_consts;
 
 namespace { // anonymous
 
-template<typename T>
-NODISCARD constexpr bool is_latin_control(const T uc)
+namespace detail {
+NODISCARD constexpr bool is_latin_control(const uint32_t uc)
 {
-    return std::is_unsigned_v<T>           //
-           && (uc >= 0x80u && uc < 0xA0u); // Latin1 control character
+    return (uc >= 0x80u && uc < 0xA0u); // Latin1 control character
 }
+} // namespace detail
+
 template<typename T>
-NODISCARD constexpr bool is_noncontrol_ascii(const T ascii)
+NODISCARD constexpr bool is_latin_control(const T c)
 {
-    // non-control ASCII
-    return std::is_same_v<char, T>                                                 //
-           && (static_cast<uint8_t>(ascii) & 0x7Fu) == static_cast<uint8_t>(ascii) //
-           && static_cast<uint8_t>(ascii) >= 0x20u;                                //
+    static_assert(std::is_integral_v<T> && sizeof(T) <= sizeof(uint32_t));
+    if constexpr (std::is_unsigned_v<T>) {
+        return detail::is_latin_control(c);
+    } else {
+        using U = std::make_unsigned_t<T>;
+        return detail::is_latin_control(static_cast<U>(c));
+    }
 }
+
 template<typename T>
 NODISCARD constexpr bool is_16bit_unicode(const T uc)
 {
@@ -98,7 +104,7 @@ XFOREACH_WINDOWS_125x(XCASE, XSEMI);
 #undef XCASE
 
 #define XCASE(_unicode, _ascii, _name) \
-    static_assert(is_noncontrol_ascii(_ascii)); \
+    static_assert(!is_latin_control(_ascii)); \
     static_assert(is_16bit_unicode(_unicode))
 XFOREACH_UNICODE_TRANSLIT(XCASE, XSEMI);
 #undef XCASE
@@ -194,8 +200,7 @@ NODISCARD static constexpr char16_t simple_unicode_translit(const char16_t input
     case (_unicode): \
         return conversion::to_char16(_ascii)
 
-    const auto maybe_bigger = windows125x_to_unicode(input);
-    switch (maybe_bigger) {
+    switch (MAYBE_UNUSED const auto maybe_bigger = windows125x_to_unicode(input)) {
         XFOREACH_UNICODE_TRANSLIT(XCASE, XSEMI);
     default:
         return input;
@@ -297,6 +302,30 @@ NODISCARD QChar simple_unicode_translit(const QChar qc) noexcept
     return QChar{charset::simple_unicode_translit(static_cast<char16_t>(qc.unicode()))};
 }
 
+NODISCARD static bool isValidLatin1(const char latin1)
+{
+    // Eventually we may want to exclude some other ASCII control codes,
+    // but be careful not to exclude things like "\t\r\n".
+    return latin1 != C_NUL && !is_latin_control(latin1);
+}
+
+NODISCARD QLatin1Char toQLatin1Char(const QChar qc)
+{
+    // CAUTION: This is the only valid use of QChar::toLatin1() in the entire MMapper codebase;
+    // all other uses should call toLatin1() or toQLatin1Char() instead.
+    if (const char latin1 = mmqt::simple_unicode_translit(qc).toLatin1(); isValidLatin1(latin1)) {
+        return QLatin1Char{latin1};
+    } else {
+        return QLatin1Char{'?'};
+    }
+}
+
+NODISCARD char toLatin1(const QChar qc)
+{
+    // CAUTION: This is one of the few valid uses of QLatin1Char::toLatin1().
+    return toQLatin1Char(qc).toLatin1();
+}
+
 ALLOW_DISCARD QString &toLatin1InPlace(QString &str)
 {
     if (containsAnySurrogates(str)) {
@@ -308,8 +337,7 @@ ALLOW_DISCARD QString &toLatin1InPlace(QString &str)
     }
 
     for (QChar &qc : str) {
-        mmqt::simple_unicode_translit_in_place(qc);
-        qc = QLatin1Char{qc.toLatin1()};
+        qc = mmqt::toQLatin1Char(qc);
     }
     return str;
 }
@@ -321,7 +349,7 @@ ALLOW_DISCARD QString &toAsciiInPlace(QString &str)
     // NOTE: 128 (0x80) was not converted to 'z' before.
     for (QChar &qc : str) {
         // c++17 if statement with initializer
-        if (const char ch = qc.toLatin1(); !isAscii(ch)) {
+        if (const char ch = mmqt::toLatin1(qc); !isAscii(ch)) {
             qc = QLatin1Char{charset::conversion::latin1ToAscii(ch)};
         }
     }
@@ -340,6 +368,16 @@ NODISCARD QString toLatin1(const QString &str)
     QString copy = str;
     toLatin1InPlace(copy);
     return copy;
+}
+
+NODISCARD QByteArray toAsciiByteArray(const QString &str)
+{
+    return toAscii(str).toLatin1();
+}
+
+NODISCARD QByteArray toLatin1ByteArray(const QString &str)
+{
+    return toLatin1(str).toLatin1();
 }
 
 } // namespace mmqt
@@ -660,7 +698,7 @@ void check_utf16(std::u16string_view sv,
     if (sv.size() != size) {
         qFatal("test failed: wrong size");
     }
-    for (const auto c : expect) {
+    for (const char32_t c : expect) {
         const auto got = charset::conversion::try_pop_utf16(sv);
         if (!got.has_value() || got.value() != c) {
             qFatal("test failed: wrong codepoint");
@@ -675,7 +713,7 @@ void check_utf8(std::string_view sv, const size_t size, const std::initializer_l
     if (sv.size() != size) {
         qFatal("test failed: wrong size");
     }
-    for (const auto c : expect) {
+    for (const char32_t c : expect) {
         const auto got = charset::conversion::try_pop_utf8(sv);
         if (!got.has_value() || got.value() != c) {
             qFatal("test failed: wrong codepoint");
@@ -692,7 +730,7 @@ void check_latin1(std::string_view sv,
     if (sv.size() != size) {
         qFatal("test failed: wrong size");
     }
-    for (const auto c : expect) {
+    for (const char32_t c : expect) {
         const auto got = charset::conversion::try_pop_latin1(sv);
         if (!got.has_value() || got.value() != c) {
             qFatal("test failed: wrong codepoint");
@@ -978,12 +1016,29 @@ void testStringsExtreme()
 
 void testMmqtLatin1()
 {
+    {
+        const QString narrowNbspStr{"\U0000202F"}; // NNBSP (narrow NBSP)
+        {
+            const auto latin1 = mmqt::toLatin1(narrowNbspStr);
+            TEST_ASSERT(latin1 == mmqt::QS_NBSP);
+        }
+        {
+            // thumbs up uses a surrogate pair, which forces mmqt::toLatin1() to call
+            // a different code path.
+            const auto thumbsUpStr = QString{"\U0001F44D"};
+            const QString input = narrowNbspStr + mmqt::QS_COMMA + thumbsUpStr + mmqt::QS_NEWLINE;
+            const QString expect = mmqt::QS_NBSP + mmqt::QS_COMMA + mmqt::QS_QUESTION_MARK
+                                   + mmqt::QS_NEWLINE;
+            const auto latin1 = mmqt::toLatin1(input);
+            TEST_ASSERT(latin1 == expect);
+        }
+    }
     // verify that surrogates are handled as expected.
     {
         const QString thumbsUpQstr{"\U0001F44D"};
         TEST_ASSERT(thumbsUpQstr.size() == 2);
-        TEST_ASSERT(thumbsUpQstr.front() == 0xD83D);
-        TEST_ASSERT(thumbsUpQstr.back() == 0xDC4D);
+        TEST_ASSERT(thumbsUpQstr.front() == char16_t(0xD83D));
+        TEST_ASSERT(thumbsUpQstr.back() == char16_t(0xDC4D));
         TEST_ASSERT(thumbsUpQstr.front().isHighSurrogate());
         TEST_ASSERT(thumbsUpQstr.back().isLowSurrogate());
 

@@ -6,6 +6,7 @@
 
 #include "proxy.h"
 
+#include "../client/HotkeyManager.h"
 #include "../clock/mumeclock.h"
 #include "../configuration/PasswordConfig.h"
 #include "../configuration/configuration.h"
@@ -21,10 +22,13 @@
 #include "../map/parseevent.h"
 #include "../mpi/mpifilter.h"
 #include "../mpi/remoteedit.h"
+#include "../mpi/remoteeditwidget.h"
+#include "../observer/gameobserver.h"
 #include "../parser/abstractparser.h"
 #include "../parser/mumexmlparser.h"
 #include "../pathmachine/mmapper2pathmachine.h"
 #include "../roompanel/RoomManager.h"
+#include "AbstractSocket.h"
 #include "MudTelnet.h"
 #include "UserTelnet.h"
 #include "connectionlistener.h"
@@ -82,39 +86,48 @@ private:
 
 Proxy::UserSocketOutputs::~UserSocketOutputs() = default;
 
-class NODISCARD Proxy::UserSocket final : public QTcpSocket
+class NODISCARD Proxy::UserSocket final : public QObject
 {
 private:
+    std::unique_ptr<AbstractSocket> &m_socket;
     Proxy::UserSocketOutputs &m_outputs;
 
 public:
-    explicit UserSocket(const qintptr socketDescriptor, QObject *parent, UserSocketOutputs &outputs)
-        : QTcpSocket{parent}
+    explicit UserSocket(std::unique_ptr<AbstractSocket> &socket,
+                        QObject *parent,
+                        UserSocketOutputs &outputs)
+        : QObject(parent)
+        , m_socket{socket}
         , m_outputs{outputs}
     {
-        if (!setSocketDescriptor(socketDescriptor)) {
-            throw std::runtime_error("failed to accept user socket");
-        }
-        setSocketOption(QAbstractSocket::LowDelayOption, true);
-        setSocketOption(QAbstractSocket::KeepAliveOption, true);
-        QObject::connect(this, &QAbstractSocket::disconnected, this, [this]() {
+        QObject::connect(socket.get(), &AbstractSocket::sig_disconnected, this, [this]() {
             m_outputs.onDisconnected();
         });
-        QObject::connect(this, &QIODevice::readyRead, this, [this]() { m_outputs.onReadyRead(); });
+        QObject::connect(socket.get(), &QIODevice::readyRead, this, [this]() {
+            m_outputs.onReadyRead();
+        });
     }
     ~UserSocket() final;
 
 public:
-    void gracefulShutdown()
+    void disconnectFromHost()
     {
-        flush();
-        disconnectFromHost();
+        m_socket->flush();
+        m_socket->disconnectFromHost();
+    }
+    void sendToSocket(const TelnetIacBytes &bytes)
+    {
+        if (!m_socket->isConnected()) {
+            qWarning() << "tried to send bytes to closed user socket";
+            return;
+        }
+        m_socket->write(bytes.getQByteArray());
     }
 };
 
 Proxy::UserSocket::~UserSocket()
 {
-    gracefulShutdown();
+    disconnectFromHost();
 }
 
 QPointer<Proxy> Proxy::allocInit(MapData &md,
@@ -124,11 +137,11 @@ QPointer<Proxy> Proxy::allocInit(MapData &md,
                                  MumeClock &mc,
                                  MapCanvas &mca,
                                  GameObserver &go,
-                                 qintptr &socketDescriptor,
+                                 std::unique_ptr<AbstractSocket> userSocket,
                                  ConnectionListener &listener)
 {
     auto proxy = makeQPointer<Proxy>(
-        Badge<Proxy>{}, md, pm, pp, gm, mc, mca, go, socketDescriptor, listener);
+        Badge<Proxy>{}, md, pm, pp, gm, mc, mca, go, std::move(userSocket), listener);
     deref(proxy).init();
     return proxy;
 }
@@ -141,7 +154,7 @@ Proxy::Proxy(Badge<Proxy>,
              MumeClock &mc,
              MapCanvas &mca,
              GameObserver &go,
-             qintptr &socketDescriptor,
+             std::unique_ptr<AbstractSocket> userSocket,
              ConnectionListener &listener)
     : QObject(&listener)
     , m_mapData(md)
@@ -151,9 +164,9 @@ Proxy::Proxy(Badge<Proxy>,
     , m_mumeClock(mc)
     , m_mapCanvas(mca)
     , m_gameObserver(go)
-    , m_socketDescriptor(socketDescriptor)
     // REVISIT: It would be better to just pass in the MainWindow directly.
     , m_mainWindow{::getMainWindow(listener)}
+    , m_userSocket{std::move(userSocket)}
 {
     //
 }
@@ -171,7 +184,7 @@ Proxy::~Proxy()
 
     {
         qDebug() << "disconnecting user socket...";
-        getUserSocket().gracefulShutdown();
+        getUserSocket().disconnectFromHost();
     }
 
     {
@@ -261,7 +274,7 @@ void Proxy::allocUserSocket()
     auto &pipe = getPipeline();
     auto &out = pipe.outputs.user.userSocketOutputs = std::make_unique<LocalUserSocketOutputs>(
         *this);
-    pipe.user.userSocket = std::make_unique<UserSocket>(m_socketDescriptor, this, deref(out));
+    pipe.user.userSocket = std::make_unique<UserSocket>(m_userSocket, this, deref(out));
 }
 
 void Proxy::allocMudSocket()
@@ -360,7 +373,6 @@ void Proxy::allocUserTelnet()
 
     private:
         NODISCARD Proxy &getProxy() { return m_proxy; }
-        NODISCARD bool hasConnectedUserSocket() { return getProxy().hasConnectedUserSocket(); }
         NODISCARD MudTelnet &getMudTelnet() { return getProxy().getMudTelnet(); }
         NODISCARD TelnetLineFilter &getUserTelnetFilter()
         {
@@ -377,12 +389,8 @@ void Proxy::allocUserTelnet()
 
         void virt_onSendToSocket(const TelnetIacBytes &bytes) final
         {
-            if (!hasConnectedUserSocket()) {
-                qWarning() << "tried to send bytes to closed user socket";
-                return;
-            }
             // outbound (to user)
-            getUserSocket().write(bytes.getQByteArray());
+            getUserSocket().sendToSocket(bytes);
         }
         void virt_onRelayGmcpFromUserToMud(const GmcpMessage &gmcp) final
         {
@@ -541,6 +549,7 @@ void Proxy::allocParser()
     private:
         Proxy &m_proxy;
         QString m_lastPrompt;
+        bool m_wasCompact = false;
         bool m_wasPrompt = false;
         size_t m_newlines = 0;
 
@@ -594,6 +603,9 @@ void Proxy::allocParser()
                 }
                 isTwiddler = s.back() == char_consts::C_BACKSPACE;
                 isPrompt = s.back() != char_consts::C_NEWLINE && !isTwiddler;
+                if (isPrompt) {
+                    m_wasCompact = (m_newlines == 1);
+                }
                 break;
             case SendToUserSourceEnum::SimulatedOutput:
             case SendToUserSourceEnum::FromMMapper:
@@ -624,7 +636,9 @@ void Proxy::allocParser()
 
             // The logic for isMissingNewline may be incomplete; expect more bugs here.
             const bool isMissingNewline = m_wasPrompt ? (!isTwiddler && !startsWithNewline(s))
-                                                      : (isPrompt && m_newlines < 2);
+                                                      : (isPrompt
+                                                         && (m_wasCompact ? m_newlines == 0
+                                                                          : m_newlines < 2));
             if (isMissingNewline) {
                 // add the missing newline.
                 getUserTelnet().onSendToUser(string_consts::S_NEWLINE, false);
@@ -688,9 +702,6 @@ void Proxy::allocParser()
 
         // (via user command)
         void virt_onSetMode(const MapModeEnum mode) final { getMainWindow().slot_setMode(mode); }
-
-        // emitted after modifying infomarks for _infomark command
-        void virt_onInfomarksChanged() final { getMapCanvas().slot_infomarksChanged(); }
     };
 
     auto &pipe = getPipeline();
@@ -712,6 +723,8 @@ void Proxy::allocParser()
                                                          deref(conn),
                                                          deref(gmcp),
                                                          m_groupManager.getGroupManagerApi(),
+                                                         m_gameObserver,
+                                                         m_mainWindow.getHotkeyManager(),
                                                          this,
                                                          deref(out),
                                                          deref(parserCommon));
@@ -720,6 +733,7 @@ void Proxy::allocParser()
                                                             deref(conn),
                                                             deref(gmcp),
                                                             m_groupManager.getGroupManagerApi(),
+                                                            m_mainWindow.getHotkeyManager(),
                                                             this,
                                                             deref(out),
                                                             deref(parserCommon));
@@ -956,19 +970,13 @@ void Proxy::mudTerminatedConnection()
 
 void Proxy::processUserStream()
 {
-    // REVISIT: is this "supposed" to happen? If not, just allow deref() to cause an exception.
-    if (!hasConnectedUserSocket()) {
-        return;
-    }
+    auto &userSocket = deref(m_userSocket);
 
     // REVISIT: check return value?
-    std::ignore = io::readAllAvailable(getUserSocket(),
-                                       m_buffer,
-                                       [this](const QByteArray &byteArray) {
-                                           assert(!byteArray.isEmpty());
-                                           getUserTelnet().onAnalyzeUserStream(
-                                               TelnetIacBytes{byteArray});
-                                       });
+    std::ignore = io::readAllAvailable(userSocket, m_buffer, [this](const QByteArray &byteArray) {
+        assert(!byteArray.isEmpty());
+        getUserTelnet().onAnalyzeUserStream(TelnetIacBytes{byteArray});
+    });
 }
 
 void Proxy::onSendToMudSocket(const TelnetIacBytes &bytes)
@@ -1177,11 +1185,4 @@ void Proxy::log(const QString &msg)
 RemoteEdit &Proxy::getRemoteEdit()
 {
     return deref(m_remoteEdit);
-}
-
-bool Proxy::hasConnectedUserSocket() const
-{
-    // REVISIT: Is this ever actually null, or is it just disconnected?
-    const auto &us = getPipeline().user.userSocket;
-    return us != nullptr /* && us->state() == QAbstractSocket::ConnectedState */;
 }

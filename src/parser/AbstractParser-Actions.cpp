@@ -38,14 +38,14 @@ void MumeXmlParserBase::initActionMap()
 
     auto addRegex = [&map](const std::string &match, const ActionCallback &callback) {
         assert(!match.empty());
-        const char hint = [&match]() -> char {
+        const char hint = std::invoke([&match]() -> char {
             using namespace char_consts;
             if (match.length() > 2 && match[0] == C_CARET && match[1] != C_BACKSLASH
                 && match[1] != C_OPEN_PARENS) {
                 return match[1];
             }
             return 0;
-        }();
+        });
         map.emplace(hint, std::make_unique<RegexAction>(match, callback));
     };
 
@@ -84,8 +84,9 @@ void MumeXmlParserBase::initActionMap()
     addStartsWith("Nah... You feel too relaxed to do that.", failedMovement);
     addStartsWith("Maybe you should get on your feet first?", failedMovement);
     addStartsWith("In your dreams, or what?", failedMovement);
-    addStartsWith("If you still want to try, you must 'climb' there.", failedMovement);
+    addStartsWith("If you still want to try, you must", failedMovement); // climb there.
     // The door
+    addEndsWith("seem to be closed.", failedMovement);
     addEndsWith("seems to be closed.", failedMovement);
     // The (a|de)scent
     addEndsWith("is too steep, you need to climb to go there.", failedMovement);

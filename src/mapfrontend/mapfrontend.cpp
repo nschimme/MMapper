@@ -11,7 +11,6 @@
 #include "../global/logging.h"
 #include "../global/progresscounter.h"
 #include "../map/ChangeTypes.h"
-#include "../map/RoomRecipient.h"
 #include "../map/coordinate.h"
 #include "../map/parseevent.h"
 #include "../map/room.h"
@@ -23,9 +22,14 @@
 #include <tuple>
 #include <utility>
 
+static const size_t MAX_UNDO_HISTORY_CONST = 100;
+
 MapFrontend::MapFrontend(QObject *const parent)
     : QObject(parent)
-{}
+    , m_history(MAX_UNDO_HISTORY_CONST)
+{
+    emitUndoRedoAvailability();
+}
 
 MapFrontend::~MapFrontend()
 {
@@ -55,18 +59,24 @@ void MapFrontend::scheduleAction(const Change &change)
 
 void MapFrontend::revert()
 {
+    if (!m_current.map.empty() || m_history.isUndoAvailable()) {
+        m_history.recordChange(m_current.map);
+    }
     emit sig_clearingMap();
-    setCurrentMarks(m_saved.marks);
-    setCurrentMap(m_saved.map);
+    setCurrentMap(MapApplyResult{m_saved.map});
+    currentHasBeenSaved();
 }
 
 void MapFrontend::clear()
 {
+    if (!m_current.map.empty() || m_history.isUndoAvailable()) {
+        qInfo() << "recorded change";
+        m_history.recordChange(m_current.map);
+    }
+
     emit sig_clearingMap();
-    setCurrentMap(Map{});
-    setCurrentMarks(InfomarkDb{});
+    setCurrentMap(MapApplyResult{Map{}});
     currentHasBeenSaved();
-    checkSize(); // called for side effect of sending signal
     virt_clear();
 }
 
@@ -80,6 +90,30 @@ bool MapFrontend::createEmptyRoom(const Coordinate &c)
     }
 
     return applySingleChange(Change{room_change_types::AddPermanentRoom{c}});
+}
+
+bool MapFrontend::hasTemporaryRoom(const RoomId id) const
+{
+    if (RoomHandle rh = getCurrentMap().findRoomHandle(id)) {
+        return rh.isTemporary();
+    }
+    return false;
+}
+
+bool MapFrontend::tryRemoveTemporary(const RoomId id)
+{
+    if (hasTemporaryRoom(id)) {
+        return applySingleChange(Change{room_change_types::RemoveRoom{id}});
+    }
+    return false;
+}
+
+bool MapFrontend::tryMakePermanent(const RoomId id)
+{
+    if (hasTemporaryRoom(id)) {
+        return applySingleChange(Change{room_change_types::MakePermanent{id}});
+    }
+    return false;
 }
 
 void MapFrontend::slot_createRoom(const SigParseEvent &sigParseEvent,
@@ -142,7 +176,6 @@ RoomIdSet MapFrontend::findAllRooms(const SigParseEvent &event) const
     if (!event.isValid()) {
         return RoomIdSet{};
     }
-
     return getCurrentMap().findAllRooms(event.deref());
 }
 
@@ -151,56 +184,35 @@ RoomIdSet MapFrontend::findAllRooms(const Coordinate &input_min, const Coordinat
     Bounds bounds{input_min, input_max};
     RoomIdSet result;
     const auto &map = getCurrentMap();
-    for (const RoomId id : map.getRooms()) {
+    map.getRooms().for_each([&](const RoomId id) {
         const auto &r = map.getRoomHandle(id);
         if (bounds.contains(r.getPosition())) {
             result.insert(r.getId());
         }
-    }
+    });
     return result;
 }
 
-void MapFrontend::lookingForRooms(RoomRecipient &recipient, const SigParseEvent &sigParseEvent)
+RoomIdSet MapFrontend::lookingForRooms(const SigParseEvent &sigParseEvent)
 {
     const ParseEvent &event = sigParseEvent.deref();
-    if (getCurrentMap().empty()) {
-        // Bootstrap an empty map with its first room
-        Coordinate c(0, 0, 0);
-        slot_createRoom(sigParseEvent, c);
-    }
-
-    getCurrentMap().getRooms(recipient, event);
-}
-
-void MapFrontend::lookingForRooms(RoomRecipient &recipient, const RoomId id)
-{
-    if (const auto room = findRoomHandle(id)) {
-        recipient.receiveRoom(room);
-    }
-}
-
-void MapFrontend::lookingForRooms(RoomRecipient &recipient, const Coordinate &pos)
-{
-    if (const auto room = findRoomHandle(pos)) {
-        recipient.receiveRoom(room);
-    }
+    return getCurrentMap().findAllRooms(event);
 }
 
 void MapFrontend::setSavedMap(Map map)
 {
     m_saved.map = map;
+    m_snapshot.map = map;
 }
 
-void MapFrontend::setSavedMarks(InfomarkDb marks)
+void MapFrontend::saveSnapshot()
 {
-    m_saved.marks = marks;
+    m_snapshot.map = getCurrentMap();
 }
 
-// REVISIT: we probably don't want to take the caller's word for it about what changed?
-void MapFrontend::setCurrentMarks(InfomarkDb marks, const InfoMarkUpdateFlags modified)
+void MapFrontend::restoreSnapshot()
 {
-    m_current.marks = marks;
-    this->InfoMarkModificationTracker::notifyModified(modified);
+    setCurrentMap(m_snapshot.map);
 }
 
 void MapFrontend::setCurrentMap(const MapApplyResult &result)
@@ -220,13 +232,19 @@ void MapFrontend::setCurrentMap(Map map)
 {
     // Always update everything when the map is changed like this.
     setCurrentMap(MapApplyResult{std::move(map)});
+    m_history.clearAll();
+    emitUndoRedoAvailability();
 }
 
-bool MapFrontend::applySingleChange(ProgressCounter &pc, const Change &change)
+bool MapFrontend::applyChangesInternal(
+    ProgressCounter &pc,
+    const std::function<MapApplyResult(Map &, ProgressCounter &)> &applyFunction)
 {
+    Map previous = m_current.map;
+
     MapApplyResult result;
     try {
-        result = m_current.map.applySingleChange(pc, change);
+        result = applyFunction(m_current.map, pc);
     } catch (const std::exception &e) {
         MMLOG_ERROR() << "Exception: " << e.what();
         global::sendToUser(QString("%1\n").arg(e.what()));
@@ -234,40 +252,43 @@ bool MapFrontend::applySingleChange(ProgressCounter &pc, const Change &change)
     }
 
     setCurrentMap(result);
+    if (m_current.map != previous) {
+        m_history.recordChange(previous);
+    } else {
+        m_history.redo_stack.clear();
+    }
+    emitUndoRedoAvailability();
     return true;
 }
 
-bool MapFrontend::applySingleChange(const Change &change)
+bool MapFrontend::applySingleChange(ProgressCounter &pc, const Change &change)
 {
-    {
+    if (IS_DEBUG_BUILD) {
         auto &&log = MMLOG();
         log << "[MapFrontend::applySingleChange] ";
         getCurrentMap().printChange(log, change);
     }
+    return applyChangesInternal(pc, [&](Map &map, ProgressCounter &counter) {
+        return map.applySingleChange(counter, change);
+    });
+}
 
+bool MapFrontend::applySingleChange(const Change &change)
+{
     ProgressCounter dummyPc;
     return applySingleChange(dummyPc, change);
 }
 
 bool MapFrontend::applyChanges(ProgressCounter &pc, const ChangeList &changes)
 {
-    {
+    if (IS_DEBUG_BUILD) {
         auto &&log = MMLOG();
         log << "[MapFrontend::applyChanges] ";
         getCurrentMap().printChanges(log, changes.getChanges(), "\n");
     }
-
-    MapApplyResult result;
-    try {
-        result = m_current.map.apply(pc, changes);
-    } catch (const std::exception &e) {
-        MMLOG_ERROR() << "Exception: " << e.what();
-        global::sendToUser(QString("%1\n").arg(e.what()));
-        return false;
-    }
-
-    setCurrentMap(result);
-    return true;
+    return applyChangesInternal(pc, [&](Map &map, ProgressCounter &counter) {
+        return map.apply(counter, changes);
+    });
 }
 
 bool MapFrontend::applyChanges(const ChangeList &changes)
@@ -276,16 +297,24 @@ bool MapFrontend::applyChanges(const ChangeList &changes)
     return applyChanges(dummyPc, changes);
 }
 
-void MapFrontend::keepRoom(RoomRecipient &, const RoomId id)
+void MapFrontend::emitUndoRedoAvailability()
 {
-    if (const auto &room = findRoomHandle(id); room.exists() && room.isTemporary()) {
-        applySingleChange(Change{room_change_types::MakePermanent{id}});
-    }
+    emit sig_undoAvailable(m_history.isUndoAvailable());
+    emit sig_redoAvailable(m_history.isRedoAvailable());
 }
 
-void MapFrontend::releaseRoom(RoomRecipient &, const RoomId id)
+void MapFrontend::slot_undo()
 {
-    if (const auto &room = findRoomHandle(id); room.exists() && room.isTemporary()) {
-        applySingleChange(Change{room_change_types::RemoveRoom{id}});
+    if (std::optional<Map> optMap = m_history.undo(m_current.map)) {
+        setCurrentMap(MapApplyResult{std::move(*optMap)});
     }
+    emitUndoRedoAvailability();
+}
+
+void MapFrontend::slot_redo()
+{
+    if (std::optional<Map> optMap = m_history.redo(m_current.map)) {
+        setCurrentMap(MapApplyResult{std::move(*optMap)});
+    }
+    emitUndoRedoAvailability();
 }

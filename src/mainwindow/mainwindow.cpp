@@ -10,9 +10,10 @@
 #include "../adventure/adventurewidget.h"
 #include "../adventure/xpstatuswidget.h"
 #include "../client/ClientWidget.h"
+#include "../client/HotkeyManager.h"
 #include "../clock/mumeclock.h"
 #include "../clock/mumeclockwidget.h"
-#include "../display/InfoMarkSelection.h"
+#include "../display/InfomarkSelection.h"
 #include "../display/MapCanvasData.h"
 #include "../display/mapcanvas.h"
 #include "../display/mapwindow.h"
@@ -23,13 +24,15 @@
 #include "../global/window_utils.h"
 #include "../group/groupwidget.h"
 #include "../logger/autologger.h"
+#include "../media/AudioManager.h"
+#include "../media/DescriptionWidget.h"
+#include "../media/MediaLibrary.h"
 #include "../pathmachine/mmapper2pathmachine.h"
 #include "../preferences/configdialog.h"
 #include "../proxy/connectionlistener.h"
 #include "../roompanel/RoomManager.h"
 #include "../roompanel/RoomWidget.h"
 #include "../viewers/TopLevelWindows.h"
-#include "DescriptionWidget.h"
 #include "MapZoomSlider.h"
 #include "UpdateDialog.h"
 #include "aboutdialog.h"
@@ -44,7 +47,6 @@
 
 #include <QActionGroup>
 #include <QCloseEvent>
-#include <QDesktopServices>
 #include <QFileDialog>
 #include <QFontDatabase>
 #include <QIcon>
@@ -52,6 +54,7 @@
 #include <QSize>
 #include <QString>
 #include <QTextBrowser>
+#include <QUrl>
 #include <QtWidgets>
 
 NODISCARD static const char *get_type_name(const AsyncTypeEnum mode)
@@ -72,17 +75,6 @@ NODISCARD static const char *get_type_name(const AsyncTypeEnum mode)
 NODISCARD static const char *basic_plural(size_t n)
 {
     return (n == 1) ? "" : "s";
-}
-
-QString MainWindow::chooseLoadOrMergeFileName()
-{
-    const QString &savedLastMapDir = setConfig().autoLoad.lastMapDirectory;
-    return QFileDialog::getOpenFileName(this,
-                                        "Choose map file ...",
-                                        savedLastMapDir,
-                                        "MMapper2 maps (*.mm2)"
-                                        ";;MMapper2 XML or Pandora maps (*.xml)"
-                                        ";;Alternate suffix for MMapper2 XML maps (*.mm2xml)");
 }
 
 static void addApplicationFont()
@@ -146,19 +138,9 @@ MainWindow::MainWindow()
     m_pathMachine->setObjectName("Mmapper2PathMachine");
 
     m_gameObserver = std::make_unique<GameObserver>();
+    m_mediaLibrary = new MediaLibrary(this);
     m_adventureTracker = new AdventureTracker(deref(m_gameObserver), this);
-
-    // View -> Side Panels -> Client Panel
-    m_clientWidget = new ClientWidget(this);
-    m_clientWidget->setObjectName("InternalMudClientWidget");
-    m_dockDialogClient = new QDockWidget("Client Panel", this);
-    m_dockDialogClient->setObjectName("DockWidgetClient");
-    m_dockDialogClient->setAllowedAreas(Qt::AllDockWidgetAreas);
-    m_dockDialogClient->setFeatures(QDockWidget::DockWidgetMovable
-                                    | QDockWidget::DockWidgetFloatable
-                                    | QDockWidget::DockWidgetClosable);
-    addDockWidget(Qt::LeftDockWidgetArea, m_dockDialogClient);
-    m_dockDialogClient->setWidget(m_clientWidget);
+    m_audioManager = new AudioManager(deref(m_mediaLibrary), deref(m_gameObserver), this);
 
     // View -> Side Panels -> Log Panel
     m_dockDialogLog = new QDockWidget(tr("Log Panel"), this);
@@ -219,8 +201,10 @@ MainWindow::MainWindow()
     m_dockDialogAdventure->hide();
 
     // View -> Side Panels -> Description / Area Panel
-    m_descriptionWidget = new DescriptionWidget(this);
+    m_descriptionWidget = new DescriptionWidget(deref(m_mediaLibrary), this);
     m_dockDialogDescription = new QDockWidget(tr("Description Panel"), this);
+
+    m_hotkeyManager = std::make_unique<HotkeyManager>();
     m_dockDialogDescription->setObjectName("DockWidgetDescription");
     m_dockDialogDescription->setAllowedAreas(Qt::AllDockWidgetAreas);
     m_dockDialogDescription->setFeatures(QDockWidget::DockWidgetMovable
@@ -233,16 +217,6 @@ MainWindow::MainWindow()
     if constexpr (!NO_UPDATER) {
         m_updateDialog = new UpdateDialog(this);
     }
-
-    createActions();
-    setupToolBars();
-    setupMenuBar();
-    setupStatusBar();
-
-    setCorner(Qt::TopLeftCorner, Qt::TopDockWidgetArea);
-    setCorner(Qt::BottomLeftCorner, Qt::BottomDockWidgetArea);
-    setCorner(Qt::TopRightCorner, Qt::TopDockWidgetArea);
-    setCorner(Qt::BottomRightCorner, Qt::BottomDockWidgetArea);
 
     m_logger = new AutoLogger(this);
 
@@ -271,12 +245,30 @@ MainWindow::MainWindow()
                                         deref(m_gameObserver),
                                         this);
 
+    // View -> Side Panels -> Client Panel
+    m_clientWidget = new ClientWidget(deref(m_listener), deref(m_hotkeyManager), this);
+    m_clientWidget->setObjectName("InternalMudClientWidget");
+    m_dockDialogClient = new QDockWidget("Client Panel", this);
+    m_dockDialogClient->setObjectName("DockWidgetClient");
+    m_dockDialogClient->setAllowedAreas(Qt::AllDockWidgetAreas);
+    m_dockDialogClient->setFeatures(QDockWidget::DockWidgetMovable
+                                    | QDockWidget::DockWidgetFloatable
+                                    | QDockWidget::DockWidgetClosable);
+    addDockWidget(Qt::LeftDockWidgetArea, m_dockDialogClient);
+    m_dockDialogClient->setWidget(m_clientWidget);
+
+    createActions();
+    setupToolBars();
+    setupMenuBar();
+    setupStatusBar();
+
+    setCorner(Qt::TopLeftCorner, Qt::TopDockWidgetArea);
+    setCorner(Qt::BottomLeftCorner, Qt::BottomDockWidgetArea);
+    setCorner(Qt::TopRightCorner, Qt::TopDockWidgetArea);
+    setCorner(Qt::BottomRightCorner, Qt::BottomDockWidgetArea);
+
     // update connections
     wireConnections();
-    setGeometry(QStyle::alignedRect(Qt::LeftToRight,
-                                    Qt::AlignCenter,
-                                    size(),
-                                    qApp->primaryScreen()->availableGeometry()));
 
     switch (getConfig().general.mapMode) {
     case MapModeEnum::PLAY:
@@ -314,6 +306,8 @@ MainWindow::MainWindow()
             this,
             &MainWindow::slot_checkMapConsistency);
     connect(m_mapData, &MapData::sig_generateBaseMap, this, &MainWindow::slot_generateBaseMap);
+
+    readSettings();
 }
 
 void MainWindow::startServices()
@@ -347,8 +341,7 @@ void MainWindow::readSettings()
 #define XFOREACH_MY_SETTINGS(X) \
     X(firstRun) \
     X(windowGeometry) \
-    X(windowState) \
-    X(noClientPanel)
+    X(windowState)
 
         // member variable declarations
         XFOREACH_MY_SETTINGS(X_DECL)
@@ -371,25 +364,26 @@ void MainWindow::readSettings()
     MySettings settings = MySettings::get();
 
     if (settings.firstRun) {
-        adjustSize();
+        if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
+            adjustSize();
+        }
         setGeometry(QStyle::alignedRect(Qt::LeftToRight,
                                         Qt::AlignCenter,
                                         size(),
                                         qApp->primaryScreen()->availableGeometry()));
 
     } else {
-        if (!restoreGeometry(settings.windowGeometry)) {
-            qWarning() << "Unable to restore window geometry";
-        }
         if (!restoreState(settings.windowState)) {
             qWarning() << "Unable to restore toolbars and dockwidgets state";
         }
+        if (!restoreGeometry(settings.windowGeometry)) {
+            qWarning() << "Unable to restore window geometry";
+        }
+        raise();
 
         // Check if the window was moved to a screen with a different DPI
         getCanvas()->screenChanged();
     }
-
-    m_dockDialogClient->setHidden(settings.noClientPanel);
 }
 
 void MainWindow::writeSettings()
@@ -418,12 +412,16 @@ void MainWindow::wireConnections()
             &Mmapper2PathMachine::sig_playerMoved,
             m_descriptionWidget,
             [this](const RoomId &id) {
-                m_descriptionWidget->updateRoom(m_mapData->getRoomHandle(id));
+                if (const auto room = m_mapData->getRoomHandle(id)) {
+                    m_descriptionWidget->updateRoom(room);
+                    m_audioManager->onAreaChanged(room.getArea());
+                }
             });
 
     connect(m_mapData, &MapData::sig_onPositionChange, this, [this]() {
         m_pathMachine->onPositionChange(m_mapData->getCurrentRoomId());
         m_descriptionWidget->updateRoom(m_mapData->getCurrentRoom());
+        m_audioManager->onAreaChanged(m_mapData->getCurrentRoom().getArea());
     });
 
     connect(m_mapData,
@@ -451,7 +449,7 @@ void MainWindow::wireConnections()
             auto anyRoomAtOffset = [this](const Coordinate &offset) -> bool {
                 const auto &sel = deref(m_roomSelection);
                 for (const RoomId id : sel) {
-                    const Coordinate &here = m_mapData->getRoomHandle(id).getPosition();
+                    const Coordinate here = m_mapData->getRoomHandle(id).getPosition();
                     const Coordinate target = here + offset;
                     if (m_mapData->findRoomHandle(target)) {
                         return true;
@@ -470,10 +468,14 @@ void MainWindow::wireConnections()
             this,
             &MainWindow::slot_newConnectionSelection);
     connect(canvas,
-            &MapCanvas::sig_newInfoMarkSelection,
+            &MapCanvas::sig_newInfomarkSelection,
             this,
-            &MainWindow::slot_newInfoMarkSelection);
-    connect(canvas, &QWidget::customContextMenuRequested, this, &MainWindow::slot_showContextMenu);
+            &MainWindow::slot_newInfomarkSelection);
+    connect(canvas,
+            &MapCanvas::sig_customContextMenuRequested,
+            this,
+            &MainWindow::slot_showContextMenu);
+    connect(canvas, &MapCanvas::sig_dismissContextMenu, this, &MainWindow::slot_closeContextMenu);
 
     // Group
     connect(m_groupManager, &Mmapper2Group::sig_log, this, &MainWindow::slot_log);
@@ -570,6 +572,9 @@ void MainWindow::createActions()
     exportWebMapAct = new QAction(tr("Export &Web Map As..."), this);
     exportWebMapAct->setStatusTip(tr("Save a copy of the map for webclients"));
     connect(exportWebMapAct, &QAction::triggered, this, &MainWindow::slot_exportWebMap);
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+        exportWebMapAct->setDisabled(true);
+    }
 
     exportMmpMapAct = new QAction(tr("Export &MMP Map As..."), this);
     exportMmpMapAct->setStatusTip(tr("Save a copy of the map in the MMP format"));
@@ -583,6 +588,23 @@ void MainWindow::createActions()
     exitAct->setShortcut(tr("Ctrl+Q"));
     exitAct->setStatusTip(tr("Exit the application"));
     connect(exitAct, &QAction::triggered, this, &QWidget::close);
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+        exitAct->setDisabled(true);
+    }
+
+    m_undoAction = new QAction(QIcon::fromTheme("edit-undo"), tr("&Undo"), this);
+    m_undoAction->setShortcut(QKeySequence::Undo);
+    m_undoAction->setStatusTip(tr("Undo the last action"));
+    connect(m_undoAction, &QAction::triggered, m_mapData, &MapData::slot_undo);
+    connect(m_mapData, &MapData::sig_undoAvailable, m_undoAction, &QAction::setEnabled);
+    m_undoAction->setEnabled(false);
+
+    m_redoAction = new QAction(QIcon::fromTheme("edit-redo"), tr("&Redo"), this);
+    m_redoAction->setShortcut(QKeySequence::Redo);
+    m_redoAction->setStatusTip(tr("Redo the last undone action"));
+    connect(m_redoAction, &QAction::triggered, m_mapData, &MapData::slot_redo);
+    connect(m_mapData, &MapData::sig_redoAvailable, m_redoAction, &QAction::setEnabled);
+    m_redoAction->setEnabled(false);
 
     preferencesAct = new QAction(QIcon::fromTheme("preferences-desktop",
                                                   QIcon(":/icons/preferences.png")),
@@ -614,6 +636,13 @@ void MainWindow::createActions()
     connect(mumeWikiAct, &QAction::triggered, this, &MainWindow::slot_openMumeWiki);
     settingUpMmapperAct = new QAction(QIcon::fromTheme("help-faq"), tr("Get &Help"), this);
     connect(settingUpMmapperAct, &QAction::triggered, this, &MainWindow::slot_openSettingUpMmapper);
+
+    actionReportIssue = new QAction(QIcon::fromTheme("help-browser"),
+                                    tr("Report an &Issue..."),
+                                    this);
+    actionReportIssue->setStatusTip(tr("Open the MMapper issue tracker in your browser"));
+    connect(actionReportIssue, &QAction::triggered, this, &MainWindow::onReportIssueTriggered);
+
     newbieAct = new QAction(tr("&Information for Newcomers"), this);
     newbieAct->setStatusTip("Newbie help on the MUME website");
     connect(newbieAct, &QAction::triggered, this, &MainWindow::slot_openNewbieHelp);
@@ -661,26 +690,26 @@ void MainWindow::createActions()
     layerUpAct = new QAction(QIcon::fromTheme("go-up", QIcon(":/icons/layerup.png")),
                              tr("Layer Up"),
                              this);
-    layerUpAct->setShortcut(tr([]() -> const char * {
+    layerUpAct->setShortcut(tr(std::invoke([]() -> const char * {
         // Technically tr() could convert Ctrl to Meta, right?
         if constexpr (CURRENT_PLATFORM == PlatformEnum::Mac) {
             return "Meta+Tab";
         }
         return "Ctrl+Tab";
-    }()));
+    })));
     layerUpAct->setStatusTip(tr("Layer Up"));
     connect(layerUpAct, &QAction::triggered, this, &MainWindow::slot_onLayerUp);
     layerDownAct = new QAction(QIcon::fromTheme("go-down", QIcon(":/icons/layerdown.png")),
                                tr("Layer Down"),
                                this);
 
-    layerDownAct->setShortcut(tr([]() -> const char * {
+    layerDownAct->setShortcut(tr(std::invoke([]() -> const char * {
         // Technically tr() could convert Ctrl to Meta, right?
         if constexpr (CURRENT_PLATFORM == PlatformEnum::Mac) {
             return "Meta+Shift+Tab";
         }
         return "Ctrl+Shift+Tab";
-    }()));
+    })));
     layerDownAct->setStatusTip(tr("Layer Down"));
     connect(layerDownAct, &QAction::triggered, this, &MainWindow::slot_onLayerDown);
 
@@ -727,24 +756,24 @@ void MainWindow::createActions()
             &QAction::triggered,
             this,
             &MainWindow::slot_onModeMoveSelect);
-    mouseMode.modeInfoMarkSelectAct = new QAction(QIcon(":/icons/infomarkselection.png"),
+    mouseMode.modeInfomarkSelectAct = new QAction(QIcon(":/icons/infomarkselection.png"),
                                                   tr("Select Markers"),
                                                   this);
-    mouseMode.modeInfoMarkSelectAct->setStatusTip(tr("Select Info Markers"));
-    mouseMode.modeInfoMarkSelectAct->setCheckable(true);
-    connect(mouseMode.modeInfoMarkSelectAct,
+    mouseMode.modeInfomarkSelectAct->setStatusTip(tr("Select Info Markers"));
+    mouseMode.modeInfomarkSelectAct->setCheckable(true);
+    connect(mouseMode.modeInfomarkSelectAct,
             &QAction::triggered,
             this,
-            &MainWindow::slot_onModeInfoMarkSelect);
-    mouseMode.modeCreateInfoMarkAct = new QAction(QIcon(":/icons/infomarkcreate.png"),
+            &MainWindow::slot_onModeInfomarkSelect);
+    mouseMode.modeCreateInfomarkAct = new QAction(QIcon(":/icons/infomarkcreate.png"),
                                                   tr("Create New Markers"),
                                                   this);
-    mouseMode.modeCreateInfoMarkAct->setStatusTip(tr("Create New Info Markers"));
-    mouseMode.modeCreateInfoMarkAct->setCheckable(true);
-    connect(mouseMode.modeCreateInfoMarkAct,
+    mouseMode.modeCreateInfomarkAct->setStatusTip(tr("Create New Info Markers"));
+    mouseMode.modeCreateInfomarkAct->setCheckable(true);
+    connect(mouseMode.modeCreateInfomarkAct,
             &QAction::triggered,
             this,
-            &MainWindow::slot_onModeCreateInfoMarkSelect);
+            &MainWindow::slot_onModeCreateInfomarkSelect);
     mouseMode.modeCreateRoomAct = new QAction(QIcon(":/icons/roomcreate.png"),
                                               tr("Create New Rooms"),
                                               this);
@@ -785,8 +814,8 @@ void MainWindow::createActions()
     mouseMode.mouseModeActGroup->addAction(mouseMode.modeCreateRoomAct);
     mouseMode.mouseModeActGroup->addAction(mouseMode.modeCreateConnectionAct);
     mouseMode.mouseModeActGroup->addAction(mouseMode.modeCreateOnewayConnectionAct);
-    mouseMode.mouseModeActGroup->addAction(mouseMode.modeInfoMarkSelectAct);
-    mouseMode.mouseModeActGroup->addAction(mouseMode.modeCreateInfoMarkAct);
+    mouseMode.mouseModeActGroup->addAction(mouseMode.modeInfomarkSelectAct);
+    mouseMode.mouseModeActGroup->addAction(mouseMode.modeCreateInfomarkAct);
     mouseMode.modeMoveSelectAct->setChecked(true);
 
     createRoomAct = new QAction(QIcon(":/icons/roomcreate.png"), tr("Create New Room"), this);
@@ -860,10 +889,19 @@ void MainWindow::createActions()
     connect(clientAct, &QAction::triggered, this, &MainWindow::slot_onLaunchClient);
 
     saveLogAct = new QAction(QIcon::fromTheme("document-save", QIcon(":/icons/save.png")),
-                             tr("&Save log as..."),
+                             tr("Save Log as &Plain Text..."),
                              this);
     connect(saveLogAct, &QAction::triggered, m_clientWidget, &ClientWidget::slot_saveLog);
-    saveLogAct->setStatusTip(tr("Save log as file"));
+    saveLogAct->setStatusTip(tr("Save log as plain text file"));
+
+    saveLogAsHtmlAct = new QAction(QIcon::fromTheme("document-save", QIcon(":/icons/save.png")),
+                                   tr("Save Log as &HTML..."),
+                                   this);
+    connect(saveLogAsHtmlAct,
+            &QAction::triggered,
+            m_clientWidget,
+            &ClientWidget::slot_saveLogAsHtml);
+    saveLogAsHtmlAct->setStatusTip(tr("Save log as HTML file"));
 
     releaseAllPathsAct = new QAction(QIcon(":/icons/cancel.png"), tr("Release All Paths"), this);
     releaseAllPathsAct->setStatusTip(tr("Release all paths"));
@@ -925,30 +963,30 @@ void MainWindow::createActions()
     selectedConnectionActGroup->addAction(deleteConnectionSelectionAct);
     selectedConnectionActGroup->setEnabled(false);
 
-    infoMarkActions.editInfoMarkAct = new QAction(QIcon(":/icons/infomarkedit.png"),
+    infomarkActions.editInfomarkAct = new QAction(QIcon(":/icons/infomarkedit.png"),
                                                   tr("Edit Selected Markers"),
                                                   this);
-    infoMarkActions.editInfoMarkAct->setStatusTip(tr("Edit Selected Info Markers"));
-    infoMarkActions.editInfoMarkAct->setCheckable(true);
-    connect(infoMarkActions.editInfoMarkAct,
+    infomarkActions.editInfomarkAct->setStatusTip(tr("Edit Selected Info Markers"));
+    infomarkActions.editInfomarkAct->setCheckable(true);
+    connect(infomarkActions.editInfomarkAct,
             &QAction::triggered,
             this,
-            &MainWindow::slot_onEditInfoMarkSelection);
-    infoMarkActions.deleteInfoMarkAct = new QAction(QIcon(":/icons/infomarkdelete.png"),
+            &MainWindow::slot_onEditInfomarkSelection);
+    infomarkActions.deleteInfomarkAct = new QAction(QIcon(":/icons/infomarkdelete.png"),
                                                     tr("Delete Selected Markers"),
                                                     this);
-    infoMarkActions.deleteInfoMarkAct->setStatusTip(tr("Delete Selected Info Markers"));
-    infoMarkActions.deleteInfoMarkAct->setCheckable(true);
-    connect(infoMarkActions.deleteInfoMarkAct,
+    infomarkActions.deleteInfomarkAct->setStatusTip(tr("Delete Selected Info Markers"));
+    infomarkActions.deleteInfomarkAct->setCheckable(true);
+    connect(infomarkActions.deleteInfomarkAct,
             &QAction::triggered,
             this,
-            &MainWindow::slot_onDeleteInfoMarkSelection);
+            &MainWindow::slot_onDeleteInfomarkSelection);
 
-    infoMarkActions.infoMarkGroup = new QActionGroup(this);
-    infoMarkActions.infoMarkGroup->setExclusive(false);
-    infoMarkActions.infoMarkGroup->addAction(infoMarkActions.deleteInfoMarkAct);
-    infoMarkActions.infoMarkGroup->addAction(infoMarkActions.editInfoMarkAct);
-    infoMarkActions.infoMarkGroup->setEnabled(false);
+    infomarkActions.infomarkGroup = new QActionGroup(this);
+    infomarkActions.infomarkGroup->setExclusive(false);
+    infomarkActions.infomarkGroup->addAction(infomarkActions.deleteInfomarkAct);
+    infomarkActions.infomarkGroup->addAction(infomarkActions.editInfomarkAct);
+    infomarkActions.infomarkGroup->setEnabled(false);
 
     mapperMode.playModeAct = new QAction(QIcon(":/icons/online.png"),
                                          tr("Switch to play mode"),
@@ -1047,9 +1085,11 @@ void MainWindow::disableActions(bool value)
     saveAsAct->setDisabled(value);
     exportBaseMapAct->setDisabled(value);
     exportMm2xmlMapAct->setDisabled(value);
-    exportWebMapAct->setDisabled(value);
+    if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
+        exportWebMapAct->setDisabled(value);
+        exitAct->setDisabled(value);
+    }
     exportMmpMapAct->setDisabled(value);
-    exitAct->setDisabled(value);
 }
 
 void MainWindow::hideCanvas(const bool hide)
@@ -1071,9 +1111,11 @@ void MainWindow::setupMenuBar()
     fileMenu = menuBar()->addMenu(tr("&File"));
     fileMenu->addAction(newAct);
     fileMenu->addAction(openAct);
-    fileMenu->addAction(reloadAct);
     fileMenu->addAction(saveAct);
-    fileMenu->addAction(saveAsAct);
+    if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
+        fileMenu->addAction(saveAsAct);
+        fileMenu->addAction(reloadAct);
+    }
     fileMenu->addSeparator();
     QMenu *exportMenu = fileMenu->addMenu(QIcon::fromTheme("document-send"), tr("&Export"));
     exportMenu->addAction(exportBaseMapAct);
@@ -1081,8 +1123,10 @@ void MainWindow::setupMenuBar()
     exportMenu->addAction(exportWebMapAct);
     exportMenu->addAction(exportMmpMapAct);
     fileMenu->addAction(mergeAct);
-    fileMenu->addSeparator();
-    fileMenu->addAction(exitAct);
+    if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
+        fileMenu->addSeparator();
+        fileMenu->addAction(exitAct);
+    }
 
     editMenu = menuBar()->addMenu(tr("&Edit"));
     modeMenu = editMenu->addMenu(QIcon(":/icons/online.png"), tr("&Mode"));
@@ -1090,14 +1134,17 @@ void MainWindow::setupMenuBar()
     modeMenu->addAction(mapperMode.mapModeAct);
     modeMenu->addAction(mapperMode.offlineModeAct);
     editMenu->addSeparator();
+    editMenu->addAction(m_undoAction);
+    editMenu->addAction(m_redoAction);
+    editMenu->addSeparator();
 
     QMenu *infoMarkMenu = editMenu->addMenu(QIcon(":/icons/infomarkselection.png"), tr("M&arkers"));
     infoMarkMenu->setStatusTip("Info markers");
-    infoMarkMenu->addAction(mouseMode.modeInfoMarkSelectAct);
+    infoMarkMenu->addAction(mouseMode.modeInfomarkSelectAct);
     infoMarkMenu->addSeparator();
-    infoMarkMenu->addAction(mouseMode.modeCreateInfoMarkAct);
-    infoMarkMenu->addAction(infoMarkActions.editInfoMarkAct);
-    infoMarkMenu->addAction(infoMarkActions.deleteInfoMarkAct);
+    infoMarkMenu->addAction(mouseMode.modeCreateInfomarkAct);
+    infoMarkMenu->addAction(infomarkActions.editInfomarkAct);
+    infoMarkMenu->addAction(infomarkActions.deleteInfomarkAct);
 
     roomMenu = editMenu->addMenu(QIcon(":/icons/roomselection.png"), tr("&Rooms"));
     roomMenu->addAction(mouseMode.modeRoomSelectAct);
@@ -1164,6 +1211,7 @@ void MainWindow::setupMenuBar()
                                               tr("&Integrated Mud Client"));
     clientMenu->addAction(clientAct);
     clientMenu->addAction(saveLogAct);
+    clientMenu->addAction(saveLogAsHtmlAct);
     QMenu *pathMachineMenu = settingsMenu->addMenu(QIcon(":/icons/goto.png"), tr("&Path Machine"));
     pathMachineMenu->addAction(mouseMode.modeRoomSelectAct);
     pathMachineMenu->addSeparator();
@@ -1173,6 +1221,7 @@ void MainWindow::setupMenuBar()
 
     helpMenu = menuBar()->addMenu(tr("&Help"));
     helpMenu->addAction(settingUpMmapperAct);
+    helpMenu->addAction(actionReportIssue);
     if constexpr (!NO_UPDATER) {
         helpMenu->addAction(mmapperCheckForUpdateAct);
     }
@@ -1185,12 +1234,18 @@ void MainWindow::setupMenuBar()
     mumeMenu->addAction(mumeWikiAct);
     helpMenu->addSeparator();
     helpMenu->addAction(aboutAct);
-    helpMenu->addAction(aboutQtAct);
+    if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
+        helpMenu->addAction(aboutQtAct);
+    }
 }
 
 void MainWindow::slot_showContextMenu(const QPoint &pos)
 {
-    QMenu contextMenu(tr("Context menu"), this);
+    slot_closeContextMenu();
+
+    m_contextMenu = new QMenu(tr("Context menu"), this);
+    auto &contextMenu = deref(m_contextMenu);
+    contextMenu.setAttribute(Qt::WA_DeleteOnClose);
     if (m_connectionSelection != nullptr) {
         // Connections cannot be selected alongside rooms and infomarks
         // ^^^ Let's enforce that with a variant then?
@@ -1218,8 +1273,8 @@ void MainWindow::slot_showContextMenu(const QPoint &pos)
             if (m_roomSelection != nullptr) {
                 contextMenu.addSeparator();
             }
-            contextMenu.addAction(infoMarkActions.editInfoMarkAct);
-            contextMenu.addAction(infoMarkActions.deleteInfoMarkAct);
+            contextMenu.addAction(infomarkActions.editInfomarkAct);
+            contextMenu.addAction(infomarkActions.deleteInfomarkAct);
         }
     }
     contextMenu.addSeparator();
@@ -1227,14 +1282,21 @@ void MainWindow::slot_showContextMenu(const QPoint &pos)
     mouseMenu->addAction(mouseMode.modeMoveSelectAct);
     mouseMenu->addAction(mouseMode.modeRoomRaypickAct);
     mouseMenu->addAction(mouseMode.modeRoomSelectAct);
-    mouseMenu->addAction(mouseMode.modeInfoMarkSelectAct);
+    mouseMenu->addAction(mouseMode.modeInfomarkSelectAct);
     mouseMenu->addAction(mouseMode.modeConnectionSelectAct);
-    mouseMenu->addAction(mouseMode.modeCreateInfoMarkAct);
+    mouseMenu->addAction(mouseMode.modeCreateInfomarkAct);
     mouseMenu->addAction(mouseMode.modeCreateRoomAct);
     mouseMenu->addAction(mouseMode.modeCreateConnectionAct);
     mouseMenu->addAction(mouseMode.modeCreateOnewayConnectionAct);
 
-    contextMenu.exec(getCanvas()->mapToGlobal(pos));
+    contextMenu.popup(getCanvas()->mapToGlobal(pos));
+}
+
+void MainWindow::slot_closeContextMenu()
+{
+    if (m_contextMenu) {
+        m_contextMenu->close();
+    }
 }
 
 void MainWindow::slot_alwaysOnTop()
@@ -1273,7 +1335,6 @@ void MainWindow::slot_setShowMenuBar()
     m_dockDialogGroup->setMouseTracking(!showMenuBar);
     m_dockDialogLog->setMouseTracking(!showMenuBar);
     m_dockDialogRoom->setMouseTracking(!showMenuBar);
-    getCanvas()->setMouseTracking(!showMenuBar);
 
     if (showMenuBar) {
         menuBar()->show();
@@ -1282,14 +1343,16 @@ void MainWindow::slot_setShowMenuBar()
         m_dockDialogGroup->removeEventFilter(this);
         m_dockDialogLog->removeEventFilter(this);
         m_dockDialogRoom->removeEventFilter(this);
-        getCanvas()->removeEventFilter(this);
+        m_mapWindow->removeEventFilter(this);
+        m_mapWindow->getCanvas()->removeEventFilter(this);
     } else {
         m_dockDialogAdventure->installEventFilter(this);
         m_dockDialogClient->installEventFilter(this);
         m_dockDialogGroup->installEventFilter(this);
         m_dockDialogLog->installEventFilter(this);
         m_dockDialogRoom->installEventFilter(this);
-        getCanvas()->installEventFilter(this);
+        m_mapWindow->installEventFilter(this);
+        m_mapWindow->getCanvas()->installEventFilter(this);
     }
 }
 
@@ -1318,8 +1381,8 @@ void MainWindow::setupToolBars()
     mouseModeToolBar->addAction(mouseMode.modeCreateRoomAct);
     mouseModeToolBar->addAction(mouseMode.modeCreateConnectionAct);
     mouseModeToolBar->addAction(mouseMode.modeCreateOnewayConnectionAct);
-    mouseModeToolBar->addAction(mouseMode.modeInfoMarkSelectAct);
-    mouseModeToolBar->addAction(mouseMode.modeCreateInfoMarkAct);
+    mouseModeToolBar->addAction(mouseMode.modeInfomarkSelectAct);
+    mouseModeToolBar->addAction(mouseMode.modeCreateInfomarkAct);
     mouseModeToolBar->hide();
 
     viewToolBar = addToolBar(tr("View"));
@@ -1366,7 +1429,10 @@ void MainWindow::setupToolBars()
 void MainWindow::setupStatusBar()
 {
     showStatusForever(tr("Say friend and enter..."));
-    statusBar()->insertPermanentWidget(0, new MumeClockWidget(m_mumeClock, this));
+    statusBar()->insertPermanentWidget(0,
+                                       new MumeClockWidget(deref(m_gameObserver),
+                                                           deref(m_mumeClock),
+                                                           this));
 
     XPStatusWidget *xpStatus = new XPStatusWidget(*m_adventureTracker, statusBar(), this);
     xpStatus->setToolTip("Click to toggle the Adventure Panel.");
@@ -1385,13 +1451,23 @@ void MainWindow::slot_onPreferences()
 {
     if (m_configDialog == nullptr) {
         m_configDialog = std::make_unique<ConfigDialog>(this);
+
+        connect(m_configDialog.get(),
+                &ConfigDialog::sig_graphicsSettingsChanged,
+                m_mapWindow,
+                &MapWindow::slot_graphicsSettingsChanged);
+        connect(m_configDialog.get(),
+                &ConfigDialog::sig_groupSettingsChanged,
+                m_groupManager,
+                &Mmapper2Group::slot_groupSettingsChanged);
+        connect(m_configDialog.get(), &QDialog::finished, this, [this](MAYBE_UNUSED int result) {
+            m_configDialog.reset();
+        });
     }
 
-    connect(m_configDialog.get(),
-            &ConfigDialog::sig_graphicsSettingsChanged,
-            m_mapWindow,
-            &MapWindow::slot_graphicsSettingsChanged);
     m_configDialog->show();
+    m_configDialog->raise();
+    m_configDialog->activateWindow();
 }
 
 void MainWindow::slot_newRoomSelection(const SigRoomSelection &rs)
@@ -1416,10 +1492,10 @@ void MainWindow::slot_newConnectionSelection(ConnectionSelection *const cs)
     selectedConnectionActGroup->setEnabled(m_connectionSelection != nullptr);
 }
 
-void MainWindow::slot_newInfoMarkSelection(InfoMarkSelection *const is)
+void MainWindow::slot_newInfomarkSelection(InfomarkSelection *const is)
 {
     m_infoMarkSelection = (is != nullptr) ? is->shared_from_this() : nullptr;
-    infoMarkActions.infoMarkGroup->setEnabled(m_infoMarkSelection != nullptr);
+    infomarkActions.infomarkGroup->setEnabled(m_infoMarkSelection != nullptr);
 
     if (m_infoMarkSelection != nullptr) {
         showStatusLong(QString("Selection: %1 mark%2")
@@ -1427,7 +1503,7 @@ void MainWindow::slot_newInfoMarkSelection(InfoMarkSelection *const is)
                            .arg((m_infoMarkSelection->size() != 1) ? "s" : ""));
         if (m_infoMarkSelection->empty()) {
             // Create a new infomark if its an empty selection
-            slot_onEditInfoMarkSelection();
+            slot_onEditInfomarkSelection();
         }
     }
 }
@@ -1438,7 +1514,7 @@ bool MainWindow::eventFilter(QObject *const obj, QEvent *const event)
         if (const auto *const mouseEvent = dynamic_cast<QMouseEvent *>(event)) {
             QRect rect = geometry();
             rect.setHeight(menuBar()->sizeHint().height());
-            if (rect.contains(mouseEvent->globalPos())) {
+            if (rect.contains(mouseEvent->globalPosition().toPoint())) {
                 menuBar()->show();
             } else {
                 menuBar()->hide();
@@ -1472,8 +1548,7 @@ void MainWindow::showEvent(QShowEvent *const event)
 
     static std::once_flag flag;
     std::call_once(flag, [this]() {
-        // Read geometry and state settings and start services on startup
-        readSettings();
+        // Start services on startup
         startServices();
 
         connect(window()->windowHandle(), &QWindow::screenChanged, this, [this]() {
@@ -1506,9 +1581,12 @@ void MainWindow::forceNewFile()
     getCanvas()->slot_dataLoaded();
     m_groupWidget->slot_mapLoaded();
     m_descriptionWidget->updateRoom(RoomHandle{});
+    m_audioManager->onAreaChanged(RoomArea{});
 
+    /*
     updateMapModified();
     mapChanged();
+    */
 }
 
 void MainWindow::slot_open()
@@ -1517,15 +1595,36 @@ void MainWindow::slot_open()
         return;
     }
 
-    const QString fileName = chooseLoadOrMergeFileName();
-    if (fileName.isEmpty()) {
-        showStatusShort(tr("No filename provided"));
-        return;
+    auto openFile = [this](const QString &fileName, std::optional<QByteArray> fileContent) {
+        if (fileName.isEmpty()) {
+            showStatusShort(tr("No filename provided"));
+            return;
+        }
+
+        try {
+            loadFile(MapSource::alloc(fileName, fileContent));
+
+            QFileInfo file(fileName);
+            auto &savedLastMapDir = setConfig().autoLoad.lastMapDirectory;
+            savedLastMapDir = file.dir().absolutePath();
+        } catch (const std::runtime_error &e) {
+            showWarning(tr("Cannot open file %1:\n%2.").arg(fileName, e.what()));
+            return;
+        }
+    };
+    const auto nameFilter = QStringLiteral("MMapper2 maps (*.mm2)"
+                                           ";;MMapper2 XML or Pandora maps (*.xml)"
+                                           ";;Alternate suffix for MMapper2 XML maps (*.mm2xml)");
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+        QFileDialog::getOpenFileContent(nameFilter, openFile);
+    } else {
+        const QString &savedLastMapDir = setConfig().autoLoad.lastMapDirectory;
+        const QString fileName = QFileDialog::getOpenFileName(this,
+                                                              "Choose map file ...",
+                                                              savedLastMapDir,
+                                                              nameFilter);
+        openFile(fileName, std::nullopt);
     }
-    QFileInfo file(fileName);
-    auto &savedLastMapDir = setConfig().autoLoad.lastMapDirectory;
-    savedLastMapDir = file.dir().absolutePath();
-    loadFile(file.absoluteFilePath());
 }
 
 void MainWindow::slot_reload()
@@ -1533,14 +1632,20 @@ void MainWindow::slot_reload()
     if (maybeSave()) {
         // make a copy of the filename, since it will be modified by loadFile().
         const QString filename = m_mapData->getFileName();
-        loadFile(filename);
+        try {
+            loadFile(MapSource::alloc(filename));
+        } catch (const std::runtime_error &e) {
+            showWarning(tr("Cannot open file %1:\n%2.").arg(filename, e.what()));
+            return;
+        }
     }
 }
 
 void MainWindow::slot_about()
 {
-    AboutDialog about(this);
-    about.exec();
+    auto *about = new AboutDialog(this);
+    about->setAttribute(Qt::WA_DeleteOnClose);
+    about->open();
 }
 
 MainWindow::ProgressDialogLifetime MainWindow::createNewProgressDialog(const QString &text,
@@ -1591,6 +1696,9 @@ void MainWindow::setMapModified(bool modified)
 {
     setWindowModified(modified);
     saveAct->setEnabled(modified);
+    if (modified) {
+        deref(m_mapWindow).hideSplashImage();
+    }
 }
 
 void MainWindow::updateMapModified()
@@ -1612,6 +1720,7 @@ void MainWindow::percentageChanged(const uint32_t p)
 void MainWindow::showWarning(const QString &s)
 {
     // REVISIT: shouldn't the warning have "this" as parent?
+    // REVISIT: shouldn't this also say MMapper?
     QMessageBox::warning(nullptr, tr("Application"), s);
 }
 
@@ -1633,7 +1742,6 @@ void MainWindow::slot_onFindRoom()
 void MainWindow::slot_onLaunchClient()
 {
     m_dockDialogClient->show();
-    m_clientWidget->setFocus();
 }
 
 void MainWindow::setCurrentFile(const QString &fileName)
@@ -1654,7 +1762,7 @@ void MainWindow::setCurrentFile(const QString &fileName)
 
     mmqt::setWindowTitle2(*this,
                           QString("MMapper%1").arg(appSuffix),
-                          QString("%1[*]%2").arg(shownName).arg(fileSuffix));
+                          QString("%1[*]%2").arg(shownName, fileSuffix));
 }
 
 void MainWindow::slot_onLayerUp()
@@ -1707,26 +1815,26 @@ void MainWindow::slot_onModeCreateOnewayConnectionSelect()
     setCanvasMouseMode(CanvasMouseModeEnum::CREATE_ONEWAY_CONNECTIONS);
 }
 
-void MainWindow::slot_onModeInfoMarkSelect()
+void MainWindow::slot_onModeInfomarkSelect()
 {
     setCanvasMouseMode(CanvasMouseModeEnum::SELECT_INFOMARKS);
 }
 
-void MainWindow::slot_onModeCreateInfoMarkSelect()
+void MainWindow::slot_onModeCreateInfomarkSelect()
 {
     setCanvasMouseMode(CanvasMouseModeEnum::CREATE_INFOMARKS);
 }
 
-void MainWindow::slot_onEditInfoMarkSelection()
+void MainWindow::slot_onEditInfomarkSelection()
 {
     if (m_infoMarkSelection == nullptr) {
         return;
     }
 
-    InfoMarksEditDlg dlg(this);
-    dlg.setInfoMarkSelection(m_infoMarkSelection, m_mapData, getCanvas());
-    dlg.exec();
-    dlg.show();
+    auto *dlg = new InfomarksEditDlg(this);
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->setInfomarkSelection(m_infoMarkSelection, m_mapData, getCanvas());
+    dlg->show();
 }
 
 void MainWindow::slot_onCreateRoom()
@@ -1756,7 +1864,7 @@ void MainWindow::slot_onEditRoomSelection()
     }
 }
 
-void MainWindow::slot_onDeleteInfoMarkSelection()
+void MainWindow::slot_onDeleteInfomarkSelection()
 {
     if (m_infoMarkSelection == nullptr) {
         return;
@@ -1764,12 +1872,17 @@ void MainWindow::slot_onDeleteInfoMarkSelection()
 
     {
         const auto tmp = std::exchange(m_infoMarkSelection, nullptr);
-        m_mapData->removeMarkers(tmp->getMarkerList());
+        ChangeList changes;
+        for (const InfomarkId id : tmp->getMarkerList()) {
+            changes.add(Change{infomark_change_types::RemoveInfomark{id}});
+        }
+        if (!changes.empty()) {
+            m_mapData->applyChanges(changes);
+        }
     }
 
     MapCanvas *const canvas = getCanvas();
-    canvas->slot_clearInfoMarkSelection();
-    canvas->infomarksChanged();
+    canvas->slot_clearInfomarkSelection();
 }
 
 void MainWindow::slot_onDeleteRoomSelection()
@@ -1953,6 +2066,11 @@ void MainWindow::slot_openSettingUpMmapper()
     QDesktopServices::openUrl(QUrl("https://github.com/MUME/MMapper/wiki/Troubleshooting"));
 }
 
+void MainWindow::onReportIssueTriggered()
+{
+    QDesktopServices::openUrl(QUrl("https://github.com/MUME/MMapper/issues"));
+}
+
 void MainWindow::slot_openNewbieHelp()
 {
     QDesktopServices::openUrl(QUrl("https://mume.org/newbie.php"));
@@ -2022,6 +2140,7 @@ void MainWindow::onSuccessfulLoad(const MapLoadData &mapLoadData)
     if (const auto room = mapData.getCurrentRoom()) {
         auto &widget = deref(m_descriptionWidget);
         widget.updateRoom(room);
+        deref(m_audioManager).onAreaChanged(room.getArea());
     }
 
     // Should this be part of mapChanged?
@@ -2034,14 +2153,13 @@ void MainWindow::onSuccessfulLoad(const MapLoadData &mapLoadData)
     global::sendToUser("Map loaded.\n");
 }
 
-void MainWindow::onSuccessfulMerge(const Map &map, const InfomarkDb &infomarks)
+void MainWindow::onSuccessfulMerge(const Map &map)
 {
     auto &mapData = deref(m_mapData);
     auto &mapCanvas = deref(getCanvas());
     auto &groupWidget = deref(m_groupWidget);
 
     mapData.setCurrentMap(map);
-    mapData.setCurrentMarks(infomarks);
     mapData.checkSize();
 
     // FIXME: mapData.setMapData() or mapData.checkSize() kicks off an async remesh,
@@ -2076,17 +2194,25 @@ void MainWindow::onSuccessfulSave(const SaveModeEnum mode,
     auto &config = setConfig().autoLoad;
     config.lastMapDirectory = file.absoluteDir().absolutePath();
 
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+        return;
+    }
+
     const QString &absoluteFilePath = file.absoluteFilePath();
     if (!config.autoLoadMap || config.fileName != absoluteFilePath) {
         // Check if this should be the new autoload map
-        QMessageBox dlg(QMessageBox::Question,
-                        "Autoload Map?",
-                        "Autoload this map when MMapper starts?",
-                        QMessageBox::StandardButtons{QMessageBox::Yes | QMessageBox::No},
-                        this);
-        if (dlg.exec() == QMessageBox::Yes) {
-            config.autoLoadMap = true;
-            config.fileName = absoluteFilePath;
-        }
+        auto *dlg = new QMessageBox(QMessageBox::Question,
+                                    "Autoload Map?",
+                                    "Autoload this map when MMapper starts?",
+                                    QMessageBox::StandardButtons{QMessageBox::Yes | QMessageBox::No},
+                                    this);
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        connect(dlg, &QMessageBox::finished, this, [&config, absoluteFilePath](int result) {
+            if (result == QMessageBox::Yes) {
+                config.autoLoadMap = true;
+                config.fileName = absoluteFilePath;
+            }
+        });
+        dlg->open();
     }
 }

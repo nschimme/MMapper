@@ -11,13 +11,16 @@ jobs:
   build:
     runs-on: ${{ matrix.os }}
     continue-on-error: false
+    permissions:
+      id-token: write
+      contents: read
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-2022, macos-latest, ubuntu-24.04]
+        os: [windows-2022, macos-latest, ubuntu-latest]
         compiler: ['clang', 'gcc', 'msvc']
         exclude:
-        - os: ubuntu-24.04
+        - os: ubuntu-latest
           compiler: 'msvc'
         - os: macos-latest
           compiler: 'gcc'
@@ -26,21 +29,18 @@ jobs:
         - os: windows-2022
           compiler: 'clang'
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 0
         submodules: true
-    - name: Delete beta tag
-      shell: bash
-      run: |
-        if git tag | grep -q '^beta$'; then
-          git tag -d beta
-        fi
-    - name: Get Git tag description
-      id: git_info
-      run: |
-        echo "GIT_TAG=$(git describe --tags --always --long)" >> $GITHUB_ENV
-    - uses: lukka/get-cmake@latest
+    - name: ccache
+      uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        create-symlink: ${{ runner.os != 'Windows' }}
+        key: ${{ github.job }}-${{ matrix.os }}-${{ matrix.compiler }}
+        variant: ${{ matrix.compiler == 'msvc' && 'sccache' || 'ccache' }}
+    - if: runner.os == 'Windows' || runner.os == 'macOS'
+      uses: lukka/get-cmake@latest
     - if: matrix.compiler == 'msvc'
       uses: ilammy/msvc-dev-cmd@v1
 
@@ -51,7 +51,11 @@ jobs:
       name: Install Packages for Ubuntu
       run: |
         sudo apt update -qq
-        sudo apt install -y build-essential git qt5-qmake libqt5opengl5-dev libqt5websockets5-dev zlib1g-dev libssl-dev qt5keychain-dev mold
+        sudo apt install -y \
+          qt6-base-dev qt6-base-dev-tools libqt6opengl6-dev libqt6websockets6-dev \
+          qt6-multimedia-dev libqt6multimedia6 \
+          libgl1-mesa-dev qtkeychain-qt6-dev build-essential cmake ninja-build mold git \
+          zlib1g-dev libssl-dev
     - if: runner.os == 'Linux' && matrix.compiler == 'gcc'
       name: Install GCC for Ubuntu
       run: |
@@ -59,7 +63,7 @@ jobs:
         echo "QMAKESPEC=linux-g++" >> $GITHUB_ENV
         echo "CC=gcc-13" >> $GITHUB_ENV
         echo "CXX=g++-13" >> $GITHUB_ENV
-        echo "MMAPPER_CMAKE_EXTRA=-DUSE_CODE_COVERAGE=true -DUSE_MOLD=true" >> $GITHUB_ENV
+        echo "MMAPPER_CMAKE_EXTRA=-DUSE_CODE_COVERAGE=true -DUSE_MOLD=true -DPACKAGE_TYPE=Deb" >> $GITHUB_ENV
         echo "COVERAGE=true" >> $GITHUB_ENV
     - if: runner.os == 'Linux' && matrix.compiler == 'clang'
       name: Install Clang for Ubuntu
@@ -69,21 +73,25 @@ jobs:
         echo "CC=clang-18" >> $GITHUB_ENV
         echo "CXX=clang++-18" >> $GITHUB_ENV
         echo "STYLE=true" >> $GITHUB_ENV
-        echo "MMAPPER_CMAKE_EXTRA=-DUSE_MOLD=true" >> $GITHUB_ENV
-
+        echo "MMAPPER_CMAKE_EXTRA=-DUSE_MOLD=true -DPACKAGE_TYPE=Deb" >> $GITHUB_ENV
 
       #
       # Install Packages (Mac)
       #
     - if: runner.os == 'macOS'
+      name: Install Qt for Mac
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: 6.5.3
+        arch: clang_64
+        cache: true
+        modules: 'qtwebsockets qtmultimedia'
+    - if: runner.os == 'macOS'
       name: Install Packages for Mac
       run: |
-        brew install qt@5 lcov
-        brew link qt@5 --force
-        echo "$(brew --prefix qt@5)/bin" >> $GITHUB_PATH
-        echo "MMAPPER_CMAKE_EXTRA=-DUSE_CODE_COVERAGE=true" >> $GITHUB_ENV
+        brew install lcov
+        echo "MMAPPER_CMAKE_EXTRA=-DCMAKE_PREFIX_PATH=$QT_ROOT_DIR -DUSE_CODE_COVERAGE=true -DPACKAGE_TYPE=Dmg" >> $GITHUB_ENV
         echo "COVERAGE=false" >> $GITHUB_ENV
-
 
       #
       # Install Packages (Windows)
@@ -92,25 +100,21 @@ jobs:
       name: Install Qt for Windows (MSVC)
       uses: jurplel/install-qt-action@v4
       with:
-        version: 5.15.2
+        version: '6.5.3'
         dir: 'C:\'
         arch: win64_msvc2019_64
         cache: true
+        modules: 'qtwebsockets qtmultimedia'
     - if: runner.os == 'Windows' && matrix.compiler == 'gcc'
       name: Install Qt for Windows (MinGW)
       uses: jurplel/install-qt-action@v4
       with:
-        version: 5.15.2
+        version: '6.5.3'
         dir: 'C:\'
-        arch: win64_mingw81
+        arch: win64_mingw
         cache: true
+        modules: 'qtwebsockets qtmultimedia'
         tools: 'tools_mingw1310'
-    - if: runner.os == 'Windows'
-      name: Install Packages for Windows
-      uses: crazy-max/ghaction-chocolatey@v3
-      with:
-        args: install openssl --version=1.1.1.2100
-
 
       #
       # Build
@@ -119,21 +123,17 @@ jobs:
       name: Build MMapper for Windows
       shell: pwsh
       run: |
-        xcopy "C:\Program Files\OpenSSL" "C:\OpenSSL" /E /I /H /K /Y
         mkdir ${{ github.workspace }}/artifact
         mkdir build
         cd build
         cmake --version
-        # Compiler-specific logic
-        if ('${{ matrix.compiler }}' -eq 'msvc') {
-          $qtPath = "C:\Qt\5.12.2\msvc2019_64"
-        } elseif ('${{ matrix.compiler }}' -eq 'gcc') {
-          $qtPath = "C:\Qt\5.12.2\mingw81_64"
+        if ('${{ matrix.compiler }}' -eq 'gcc') {
           echo "C:/Qt/Tools/mingw1310_64/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           $env:PATH = "C:\Qt\Tools\mingw1310_64\bin;$env:PATH"
         }
         $packageDir = ($env:GITHUB_WORKSPACE -replace '\\', '/') + "/artifact"
-        cmake -DCMAKE_BUILD_TYPE=Debug -G 'Ninja' -DWITH_MAP=OFF -DCPACK_PACKAGE_DIRECTORY="$packageDir" -DCMAKE_PREFIX_PATH=$qtPath -DOPENSSL_ROOT_DIR=C:/OpenSSL/ -DWITH_WEBSOCKET=ON -DWITH_QTKEYCHAIN=ON -S .. || exit -1
+        $launcher = ${{ matrix.compiler == 'msvc' && 'sccache' || 'ccache' }}
+        cmake -DCMAKE_BUILD_TYPE=Debug -G 'Ninja' -DWITH_MAP=OFF -DCPACK_PACKAGE_DIRECTORY="$packageDir" -DCMAKE_PREFIX_PATH=$env:QT_ROOT_DIR -DWITH_WEBSOCKET=ON -DWITH_QTKEYCHAIN=ON -DPACKAGE_TYPE=Nsis -DCMAKE_C_COMPILER_LAUNCHER="$launcher" -DCMAKE_CXX_COMPILER_LAUNCHER="$launcher" -S .. || exit -1
         cmake --build . --parallel
     - if: runner.os == 'Linux' || runner.os == 'macOS'
       name: Build MMapper for Linux and Mac
@@ -141,37 +141,42 @@ jobs:
         mkdir -p build ${{ github.workspace }}/artifact
         cd build
         cmake --version
-        cmake -DCMAKE_BUILD_TYPE=Debug -G 'Ninja' -DWITH_MAP=OFF -DCPACK_PACKAGE_DIRECTORY=${{ github.workspace }}/artifact $MMAPPER_CMAKE_EXTRA -DWITH_WEBSOCKET=ON -DWITH_QTKEYCHAIN=ON -S .. || exit -1
+        cmake -DCMAKE_BUILD_TYPE=Debug -G 'Ninja' -DWITH_MAP=OFF -DCPACK_PACKAGE_DIRECTORY=${{ github.workspace }}/artifact $MMAPPER_CMAKE_EXTRA -DWITH_WEBSOCKET=ON -DWITH_QTKEYCHAIN=ON -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -S .. || exit -1
         cmake --build . --parallel
-
 
       #
       # Run tests
       #
     - if: env.COVERAGE == 'true'
       name: Prepare lcov counters
-      run: cd build && lcov --zerocounters --directory .
+      run: lcov --zerocounters --directory build
     - name: Run unit tests
       run: cd build && ctest -V --no-compress-output -T test --output-junit ../ctest-to-junit-results.xml
       env:
         QT_QPA_PLATFORM: offscreen
         ASAN_OPTIONS: detect_leaks=0
     - name: Upload test results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: test-results ${{ matrix.os }} ${{ matrix.compiler }}
         path: ctest-to-junit-results.xml
-    - if: env.COVERAGE == 'true'
+    - if: env.COVERAGE == 'true' && !cancelled()
       name: Run lcov
       run: |
-        cd build
-        lcov --directory . --capture --output-file coverage.info
-        lcov --list coverage.info
-        lcov --remove coverage.info '/usr/*' --output-file filtered.info
-    - if: env.COVERAGE == 'true'
+        lcov --version
+        gcov --version
+        lcov --directory build --capture --base-directory $(pwd) --output-file build/coverage.info --no-external --ignore-errors mismatch --ignore-errors negative --ignore-errors gcov --ignore-errors inconsistent --rc geninfo_unexecuted_blocks=1
+        lcov --list build/coverage.info --ignore-errors inconsistent
+        lcov --remove build/coverage.info '/usr/*' '*/tests/*' '*/external/*' '*/build/*' --output-file build/filtered.info --ignore-errors unused --ignore-errors inconsistent
+    - if: env.COVERAGE == 'true' && !cancelled()
       uses: codecov/codecov-action@v5
       with:
+        slug: ${{ github.repository }}
         files: ./build/filtered.info
+        fail_ci_if_error: false
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      continue-on-error: true
     - if: env.STYLE == 'true'
       name: Text Encoding Sanity Check
       run: |
@@ -188,7 +193,6 @@ jobs:
           echo "Convert any uses to corresponding functions in TextUtils e.g. ::toQStringUtf8()"
           exit -1
         fi
-
 
       #
       # Package
@@ -219,19 +223,19 @@ jobs:
         "PACKAGE_BASENAME=$packageBasename" >> $env:GITHUB_OUTPUT
     - if: runner.os == 'macOS'
       name: Upload Package for Mac
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: debug-${{ steps.get_mac_package_name.outputs.PACKAGE_BASENAME }}
         path: ${{ github.workspace }}/artifact/*.dmg*
     - if: runner.os == 'Linux'
       name: Upload Package for Ubuntu
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: debug-${{ matrix.compiler }}-${{ steps.get_linux_package_name.outputs.PACKAGE_BASENAME }}
         path: ${{ github.workspace }}/artifact/*.deb*
     - if: runner.os == 'Windows'
       name: Upload Package for Windows
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: debug-${{ matrix.compiler }}-${{ steps.get_windows_package_name.outputs.PACKAGE_BASENAME }}
         path: ${{ github.workspace }}/artifact/*.exe*

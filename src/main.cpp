@@ -9,7 +9,10 @@
 #include "./global/ConfigConsts.h"
 #include "./global/WinSock.h"
 #include "./global/emojis.h"
+#include "./mainwindow/ThemeManager.h"
 #include "./mainwindow/mainwindow.h"
+#include "./opengl/OpenGLConfig.h"
+#include "./opengl/OpenGLProber.h"
 
 #include <memory>
 #include <optional>
@@ -22,16 +25,10 @@
 #include <exchndl.h>
 #endif
 
-static void useHighDpi()
-{
-    QApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
-    QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
-}
-
 static void setHighDpiScaleFactorRoundingPolicy()
 {
-    QApplication::setHighDpiScaleFactorRoundingPolicy(
-        Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
+    // High Dpi is enabled by default in Qt6
+    QApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::Round);
 }
 
 static void tryInitDrMingw()
@@ -72,8 +69,13 @@ NODISCARD static bool tryLoad(MainWindow &mw, const QDir &dir, const QString &in
         return false;
     }
 
-    mw.loadFile(absoluteFilePath);
-    return true;
+    try {
+        mw.loadFile(MapSource::alloc(absoluteFilePath, std::nullopt));
+        return true;
+    } catch (const std::runtime_error &e) {
+        qCritical() << "Failed to load autoload map:" << e.what();
+        return false;
+    }
 }
 
 static void tryAutoLoadMap(MainWindow &mw)
@@ -91,34 +93,37 @@ static void tryAutoLoadMap(MainWindow &mw)
     }
 }
 
-static void setSurfaceFormat()
+static bool setSurfaceFormat()
 {
-    const auto &config = getConfig().canvas;
-    if (config.softwareOpenGL) {
-        QApplication::setAttribute(Qt::AA_UseSoftwareOpenGL);
-        if constexpr (CURRENT_PLATFORM == PlatformEnum::Linux) {
-            qputenv("LIBGL_ALWAYS_SOFTWARE", "1");
+    OpenGLProber prober;
+    auto probeResult = prober.probe();
+    if (probeResult.backendType == OpenGLProber::BackendType::None) {
+        QString msg = "No compatible rendering backend found.\n\nThe applications requires ";
+        if constexpr (!NO_OPENGL) {
+            msg += "OpenGL 3.3";
         }
-    } else if constexpr (CURRENT_PLATFORM == PlatformEnum::Windows) {
-        // Windows Intel drivers cause black screens if we don't specify OpenGL
-        QApplication::setAttribute(Qt::AA_UseDesktopOpenGL);
+        if constexpr (!NO_OPENGL && !NO_GLES) {
+            msg += " or ";
+        }
+        if constexpr (!NO_GLES) {
+            if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+                msg += "WebGL 2.0";
+            } else {
+                msg += "GLES 3.0";
+            }
+        }
+        msg += " support to run.";
+        QMessageBox::critical(nullptr, "Fatal Error", msg);
+        return false;
     }
-
-
-    QSurfaceFormat fmt;
-    fmt.setOptions(QSurfaceFormat::DebugContext);
-    fmt.setSamples(getConfig().canvas.antialiasingSamples);
-    fmt.setDepthBufferSize(24);
-    // TODO: Bump minimum GL to 4.1 which is the ceiling for Ivy Bridge and Macs
-    fmt.setVersion(3, 3);
-    // Macs do not support compatability profiles after GL 2.1
-    fmt.setProfile(QSurfaceFormat::CoreProfile);
-    QSurfaceFormat::setDefaultFormat(fmt);
+    OpenGLConfig::setBackendType(probeResult.backendType);
+    OpenGLConfig::setIsCompat(probeResult.isCompat);
+    QSurfaceFormat::setDefaultFormat(probeResult.format);
+    return true;
 }
 
 int main(int argc, char **argv)
 {
-    useHighDpi();
     setHighDpiScaleFactorRoundingPolicy();
     setEnteredMain();
     if constexpr (IS_DEBUG_BUILD) {
@@ -131,14 +136,16 @@ int main(int argc, char **argv)
     QApplication app(argc, argv);
     tryInitDrMingw();
     auto tryLoadingWinSock = std::make_unique<WinSock>();
-    setSurfaceFormat();
+    auto themeManager = std::make_unique<ThemeManager>(&app);
+    if (!setSurfaceFormat()) {
+        return 1;
+    }
 
-    const auto &config = getConfig();
     tryLoadEmojis(getResourceFilenameRaw("emojis", "short-codes.json"));
     auto mw = std::make_unique<MainWindow>();
     tryAutoLoadMap(*mw);
     const int ret = QApplication::exec();
     mw.reset();
-    config.write();
+    getConfig().write();
     return ret;
 }

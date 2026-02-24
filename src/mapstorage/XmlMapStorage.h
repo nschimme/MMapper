@@ -43,9 +43,9 @@ public:
 
     struct NODISCARD Saving final
     {
-        const RawMapData &map;
+        const MapLoadData &map;
         Saving() = delete;
-        explicit Saving(const RawMapData &m)
+        explicit Saving(const MapLoadData &m)
             : map{m}
         {}
     };
@@ -55,7 +55,7 @@ private:
     NODISCARD bool virt_canLoad() const final { return true; }
     NODISCARD bool virt_canSave() const final { return true; }
     NODISCARD std::optional<RawMapLoadData> virt_loadData() final;
-    NODISCARD bool virt_saveData(const RawMapData &map) final;
+    NODISCARD bool virt_saveData(const MapLoadData &map) final;
 
     // ---------------- load map -------------------
     void loadWorld(QXmlStreamReader &stream);
@@ -107,7 +107,7 @@ private:
 
     // ---------------- save map -------------------
     void saveWorld(QXmlStreamWriter &stream);
-    void saveRooms(QXmlStreamWriter &stream, const RoomIdSet &roomList);
+    void saveRooms(QXmlStreamWriter &stream, const ImmRoomIdSet &roomList);
     static void saveRoom(QXmlStreamWriter &stream, const ExternalRawRoom &room);
     static void saveRoomLoadFlags(QXmlStreamWriter &stream, RoomLoadFlags fl);
     static void saveRoomMobFlags(QXmlStreamWriter &stream, RoomMobFlags fl);
@@ -118,8 +118,8 @@ private:
     static void saveExitFlags(QXmlStreamWriter &stream, ExitFlags fl);
     static void saveDoorFlags(QXmlStreamWriter &stream, DoorFlags fl);
 
-    void saveMarkers(QXmlStreamWriter &stream, const RawMarkerData &markerList);
-    static void saveMarker(QXmlStreamWriter &stream, const InfoMarkFields &marker);
+    void saveMarkers(QXmlStreamWriter &stream, const InfomarkDb &marks);
+    static void saveMarker(QXmlStreamWriter &stream, const RawInfomark &marker);
 
     static void saveXmlElement(QXmlStreamWriter &stream, const QString &name, const QString &value);
     static void saveXmlAttribute(QXmlStreamWriter &stream,

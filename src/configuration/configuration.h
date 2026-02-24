@@ -13,6 +13,8 @@
 #include "../global/FixedPoint.h"
 #include "../global/NamedColors.h"
 #include "../global/RuleOf5.h"
+#include "../global/Signal2.h"
+#include "GroupConfig.h"
 #include "NamedConfig.h"
 
 #include <memory>
@@ -41,9 +43,36 @@ public:
     void write() const;
     void reset();
 
+    void readFrom(QSettings &conf);
+    void writeTo(QSettings &conf) const;
+
 public:
     struct NODISCARD GeneralSettings final
     {
+    private:
+        ChangeMonitor m_changeMonitor;
+        ThemeEnum m_theme = ThemeEnum::System;
+
+    public:
+        explicit GeneralSettings() = default;
+        ~GeneralSettings() = default;
+        DELETE_CTORS_AND_ASSIGN_OPS(GeneralSettings);
+
+    public:
+        NODISCARD ThemeEnum getTheme() const { return m_theme; }
+        void setTheme(const ThemeEnum theme)
+        {
+            m_theme = theme;
+            m_changeMonitor.notifyAll();
+        }
+
+        void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                    const ChangeMonitor::Function &callback)
+        {
+            return m_changeMonitor.registerChangeCallback(lifetime, callback);
+        }
+
+    public:
         bool firstRun = false;
         QByteArray windowGeometry;
         QByteArray windowState;
@@ -52,13 +81,12 @@ public:
         bool showScrollBars = true;
         bool showMenuBar = true;
         MapModeEnum mapMode = MapModeEnum::PLAY;
-        bool noClientPanel = false;
         bool checkForUpdate = true;
         CharacterEncodingEnum characterEncoding = CharacterEncodingEnum::LATIN1;
 
     private:
         SUBGROUP();
-    } general{};
+    } general;
 
     struct NODISCARD ConnectionSettings final
     {
@@ -105,43 +133,45 @@ public:
         SUBGROUP();
     } mumeNative;
 
-    static constexpr const std::string_view BACKGROUND_NAME = "background";
-    static constexpr const std::string_view CONNECTION_NORMAL_NAME = "connection-normal";
-    static constexpr const std::string_view ROOM_DARK_NAME = "room-dark";
-    static constexpr const std::string_view ROOM_NO_SUNDEATH_NAME = "room-no-sundeath";
-
 #define XFOREACH_CANVAS_NAMED_COLOR_OPTIONS(X) \
-    X(backgroundColor, BACKGROUND_NAME) \
-    X(connectionNormalColor, CONNECTION_NORMAL_NAME) \
-    X(roomDarkColor, ROOM_DARK_NAME) \
-    X(roomDarkLitColor, ROOM_NO_SUNDEATH_NAME)
+    X(backgroundColor, BACKGROUND) \
+    X(connectionNormalColor, CONNECTION_NORMAL) \
+    X(roomDarkColor, ROOM_DARK) \
+    X(roomDarkLitColor, ROOM_NO_SUNDEATH)
+
+    struct CanvasNamedColorOptions;
+    struct NODISCARD ResolvedCanvasNamedColorOptions final
+    {
+#define X_DECL(_id, _name) Color _id;
+        XFOREACH_CANVAS_NAMED_COLOR_OPTIONS(X_DECL)
+#undef X_DECL
+        void setFrom(const CanvasNamedColorOptions &);
+    };
 
     struct NODISCARD CanvasNamedColorOptions
     {
-#define X_DECL(_id, _name) XNamedColor _id{_name};
+#define X_DECL(_id, _name) XNamedColor _id{NamedColorEnum::_name};
         XFOREACH_CANVAS_NAMED_COLOR_OPTIONS(X_DECL)
 #undef X_DECL
 
-        NODISCARD std::shared_ptr<const CanvasNamedColorOptions> clone() const
+        NODISCARD std::shared_ptr<const ResolvedCanvasNamedColorOptions> clone() const
         {
-            auto pResult = std::make_shared<CanvasNamedColorOptions>();
+            auto pResult = std::make_shared<ResolvedCanvasNamedColorOptions>();
             auto &result = deref(pResult);
-#define X_CLONE(_id, _name) result._id = this->_id.getColor();
-            XFOREACH_CANVAS_NAMED_COLOR_OPTIONS(X_CLONE)
-#undef X_CLONE
+            result.setFrom(*this);
             return pResult;
         }
     };
 
     struct NODISCARD CanvasSettings final : public CanvasNamedColorOptions
     {
+        NamedConfig<int> antialiasingSamples{"ANTIALIASING_SAMPLES", 0};
+        NamedConfig<bool> trilinearFiltering{"TRILINEAR_FILTERING", true};
         NamedConfig<bool> showMissingMapId{"SHOW_MISSING_MAPID", false};
         NamedConfig<bool> showUnsavedChanges{"SHOW_UNSAVED_CHANGES", false};
         NamedConfig<bool> showUnmappedExits{"SHOW_UNMAPPED_EXITS", false};
         bool drawUpperLayersTextured = false;
         bool drawDoorNames = false;
-        int antialiasingSamples = 0;
-        bool trilinearFiltering = false;
         bool softwareOpenGL = false;
         QString resourcesDirectory;
 
@@ -164,8 +194,8 @@ public:
             FixedPoint<1> fov{50, 900, 765};
             // 0..90 degrees
             FixedPoint<1> verticalAngle{0, 900, 450};
-            // -45..45 degrees
-            FixedPoint<1> horizontalAngle{-450, 450, 0};
+            // -180..180 degrees
+            FixedPoint<1> horizontalAngle{-1800, 1800, 0};
             // 1..10 rooms
             FixedPoint<1> layerHeight{10, 100, 15};
 
@@ -180,47 +210,29 @@ public:
         SUBGROUP();
     } canvas;
 
-#define XFOREACH_NAMED_COLOR_OPTIONS(X) \
-    X(BACKGROUND, BACKGROUND_NAME) \
-    X(INFOMARK_COMMENT, "infomark-comment") \
-    X(INFOMARK_HERB, "infomark-herb") \
-    X(INFOMARK_MOB, "infomark-mob") \
-    X(INFOMARK_OBJECT, "infomark-object") \
-    X(INFOMARK_RIVER, "infomark-river") \
-    X(INFOMARK_ROAD, "infomark-road") \
-    X(CONNECTION_NORMAL, CONNECTION_NORMAL_NAME) \
-    X(ROOM_DARK, ROOM_DARK_NAME) \
-    X(ROOM_NO_SUNDEATH, ROOM_NO_SUNDEATH_NAME) \
-    X(STREAM, "stream") \
-    X(TRANSPARENT, ".transparent") \
-    X(VERTICAL_COLOR_CLIMB, "vertical-climb") \
-    X(VERTICAL_COLOR_REGULAR_EXIT, "vertical-regular") \
-    X(WALL_COLOR_BUG_WALL_DOOR, "wall-bug-wall-door") \
-    X(WALL_COLOR_CLIMB, "wall-climb") \
-    X(WALL_COLOR_FALL_DAMAGE, "wall-fall-damage") \
-    X(WALL_COLOR_GUARDED, "wall-guarded") \
-    X(WALL_COLOR_NO_FLEE, "wall-no-flee") \
-    X(WALL_COLOR_NO_MATCH, "wall-no-match") \
-    X(WALL_COLOR_NOT_MAPPED, "wall-not-mapped") \
-    X(WALL_COLOR_RANDOM, "wall-random") \
-    X(WALL_COLOR_REGULAR_EXIT, "wall-regular-exit") \
-    X(WALL_COLOR_SPECIAL, "wall-special")
+    struct NODISCARD NamedColorOptions;
+    struct NODISCARD ResolvedNamedColorOptions final
+    {
+#define X_DECL(_id, _name) XNamedColor _id{NamedColorEnum::_id};
+        XFOREACH_NAMED_COLOR_OPTIONS(X_DECL)
+#undef X_DECL
+
+        void setFrom(const NamedColorOptions &);
+    };
 
     struct NODISCARD NamedColorOptions
     {
-#define X_DECL(_id, _name) XNamedColor _id{_name};
+#define X_DECL(_id, _name) XNamedColor _id{NamedColorEnum::_id};
         XFOREACH_NAMED_COLOR_OPTIONS(X_DECL)
 #undef X_DECL
         NamedColorOptions() = default;
         void resetToDefaults();
 
-        NODISCARD std::shared_ptr<const NamedColorOptions> clone() const
+        NODISCARD std::shared_ptr<const ResolvedNamedColorOptions> clone() const
         {
-            auto pResult = std::make_shared<NamedColorOptions>();
+            auto pResult = std::make_shared<ResolvedNamedColorOptions>();
             auto &result = deref(pResult);
-#define X_CLONE(_id, _name) result._id = this->_id.getColor();
-            XFOREACH_NAMED_COLOR_OPTIONS(X_CLONE)
-#undef X_CLONE
+            result.setFrom(*this);
             return pResult;
         }
     };
@@ -285,7 +297,10 @@ public:
     struct NODISCARD GroupManagerSettings final
     {
         QColor color;
-        QByteArray geometry;
+        QColor npcColor;
+        bool npcColorOverride = false;
+        bool npcSortBottom = false;
+        bool npcHide = false;
 
     private:
         SUBGROUP();
@@ -329,11 +344,65 @@ public:
         SUBGROUP();
     } adventurePanel;
 
+    struct NODISCARD AudioSettings final
+    {
+    private:
+        ChangeMonitor m_changeMonitor;
+        int m_musicVolume = 50;
+        int m_soundVolume = 50;
+        QByteArray m_outputDeviceId;
+        bool m_unlocked = false;
+
+    public:
+        explicit AudioSettings() = default;
+        ~AudioSettings() = default;
+        DELETE_CTORS_AND_ASSIGN_OPS(AudioSettings);
+
+    public:
+        NODISCARD int getMusicVolume() const { return m_musicVolume; }
+        void setMusicVolume(const int volume)
+        {
+            m_musicVolume = volume;
+            m_changeMonitor.notifyAll();
+        }
+
+        NODISCARD int getSoundVolume() const { return m_soundVolume; }
+        void setSoundVolume(const int volume)
+        {
+            m_soundVolume = volume;
+            m_changeMonitor.notifyAll();
+        }
+
+        NODISCARD const QByteArray &getOutputDeviceId() const { return m_outputDeviceId; }
+        void setOutputDeviceId(const QByteArray &id)
+        {
+            m_outputDeviceId = id;
+            m_changeMonitor.notifyAll();
+        }
+
+        NODISCARD bool isUnlocked() const { return m_unlocked; }
+        void setUnlocked()
+        {
+            m_unlocked = true;
+            m_changeMonitor.notifyAll();
+        }
+
+        void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                    const ChangeMonitor::Function &callback)
+        {
+            return m_changeMonitor.registerChangeCallback(lifetime, callback);
+        }
+
+    private:
+        SUBGROUP();
+    } audio;
+
     struct NODISCARD IntegratedMudClientSettings final
     {
         QString font;
         QColor foregroundColor;
         QColor backgroundColor;
+        QString commandSeparator;
         int columns = 0;
         int rows = 0;
         int linesOfScrollback = 0;
@@ -342,6 +411,9 @@ public:
         bool clearInputOnEnter = false;
         bool autoResizeTerminal = false;
         int linesOfPeekPreview = 0;
+        bool audibleBell = false;
+        bool visualBell = false;
+        bool useCommandSeparator = false;
 
     private:
         SUBGROUP();
@@ -355,13 +427,13 @@ public:
         SUBGROUP();
     } roomPanel;
 
-    struct NODISCARD InfoMarksDialog final
+    struct NODISCARD InfomarksDialog final
     {
         QByteArray geometry;
 
     private:
         SUBGROUP();
-    } infoMarksDialog;
+    } infomarksDialog;
 
     struct NODISCARD RoomEditDialog final
     {
@@ -378,6 +450,8 @@ public:
     private:
         SUBGROUP();
     } findRoomsDialog;
+
+    GroupConfig hotkeys;
 
 public:
     DELETE_CTORS_AND_ASSIGN_OPS(Configuration);
@@ -396,11 +470,12 @@ void setEnteredMain();
 NODISCARD Configuration &setConfig();
 NODISCARD const Configuration &getConfig();
 
-using SharedCanvasNamedColorOptions = std::shared_ptr<const Configuration::CanvasNamedColorOptions>;
-using SharedNamedColorOptions = std::shared_ptr<const Configuration::NamedColorOptions>;
+using SharedCanvasNamedColorOptions
+    = std::shared_ptr<const Configuration::ResolvedCanvasNamedColorOptions>;
+using SharedNamedColorOptions = std::shared_ptr<const Configuration::ResolvedNamedColorOptions>;
 
-const Configuration::CanvasNamedColorOptions &getCanvasNamedColorOptions();
-const Configuration::NamedColorOptions &getNamedColorOptions();
+const Configuration::ResolvedCanvasNamedColorOptions &getCanvasNamedColorOptions();
+const Configuration::ResolvedNamedColorOptions &getNamedColorOptions();
 
 struct NODISCARD ThreadLocalNamedColorRaii final
 {

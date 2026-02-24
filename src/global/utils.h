@@ -117,6 +117,7 @@ NODISCARD constexpr T nearestPowerOfTwo(T x) noexcept
         return 1;
     }
     const T next = nextPowerOfTwo(x);
+    // Note: x > next can only happen if nextPowerOfTwo clamped the result.
     if (x >= next) {
         return next;
     }

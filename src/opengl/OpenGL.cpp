@@ -291,7 +291,11 @@ void OpenGL::uploadArrayLayer(const SharedMMTexture &array,
     gl.glActiveTexture(GL_TEXTURE0);
     gl.glBindTexture(GL_TEXTURE_2D_ARRAY, qtex.textureId());
 
+    assert(images.size() <= static_cast<size_t>(qtex.mipLevels()));
     for (size_t level_num = 0; level_num < images.size(); ++level_num) {
+        assert(images[level_num].width() == std::max(1, qtex.width() >> level_num));
+        assert(images[level_num].height() == std::max(1, qtex.height() >> level_num));
+
         const QImage &image = images[level_num];
         gl.glTexSubImage3D(GL_TEXTURE_2D_ARRAY,
                            static_cast<GLint>(level_num),

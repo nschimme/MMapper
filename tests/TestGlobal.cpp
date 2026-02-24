@@ -343,6 +343,68 @@ void TestGlobal::powerOfTwoTest()
     QCOMPARE(nearestPowerOfTwo<uint8_t>(128), 128u);
     QCOMPARE(nearestPowerOfTwo<uint8_t>(129), 128u);
     QCOMPARE(nearestPowerOfTwo<uint8_t>(255), 128u);
+
+    // Test nearestPowerOfTwo for wider types and extreme values
+
+    // uint32_t: basic cases around a mid-range power of two
+    {
+        uint32_t value = 1024u; // exact power of two
+        QCOMPARE(nearestPowerOfTwo(value), 1024u);
+
+        value = 1023u; // just below
+        QCOMPARE(nearestPowerOfTwo(value), 1024u);
+
+        value = 1025u; // just above
+        QCOMPARE(nearestPowerOfTwo(value), 1024u);
+    }
+
+    // uint32_t: near the largest power of two representable
+    {
+        constexpr uint32_t maxPowerOfTwo = 1u << 31; // 2^31
+
+        // exact largest power of two
+        QCOMPARE(nearestPowerOfTwo(maxPowerOfTwo), maxPowerOfTwo);
+
+        // just below the largest power of two
+        QCOMPARE(nearestPowerOfTwo(maxPowerOfTwo - 1u), maxPowerOfTwo);
+
+        // just above the largest power of two (still representable)
+        QCOMPARE(nearestPowerOfTwo(maxPowerOfTwo + 1u), maxPowerOfTwo);
+
+        // well above the largest power of two: should clamp
+        QCOMPARE(nearestPowerOfTwo(std::numeric_limits<uint32_t>::max()), maxPowerOfTwo);
+        QCOMPARE(nearestPowerOfTwo(maxPowerOfTwo + 12345u), maxPowerOfTwo);
+    }
+
+    // uint64_t: basic cases around a mid-range power of two
+    {
+        uint64_t value = 4096ull; // exact power of two
+        QCOMPARE(nearestPowerOfTwo(value), 4096ull);
+
+        value = 4095ull; // just below
+        QCOMPARE(nearestPowerOfTwo(value), 4096ull);
+
+        value = 4097ull; // just above
+        QCOMPARE(nearestPowerOfTwo(value), 4096ull);
+    }
+
+    // uint64_t: near the largest power of two representable
+    {
+        constexpr uint64_t maxPowerOfTwo = 1ull << 63; // 2^63
+
+        // exact largest power of two
+        QCOMPARE(nearestPowerOfTwo(maxPowerOfTwo), maxPowerOfTwo);
+
+        // just below the largest power of two
+        QCOMPARE(nearestPowerOfTwo(maxPowerOfTwo - 1ull), maxPowerOfTwo);
+
+        // just above the largest power of two (still representable)
+        QCOMPARE(nearestPowerOfTwo(maxPowerOfTwo + 1ull), maxPowerOfTwo);
+
+        // well above the largest power of two: should clamp
+        QCOMPARE(nearestPowerOfTwo(std::numeric_limits<uint64_t>::max()), maxPowerOfTwo);
+        QCOMPARE(nearestPowerOfTwo(maxPowerOfTwo + 12345ull), maxPowerOfTwo);
+    }
 }
 
 namespace { // anonymous

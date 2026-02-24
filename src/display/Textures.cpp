@@ -76,9 +76,10 @@ struct NODISCARD Measurements final
             MMLOG_WARNING() << "[Textures] Warning in group '" << groupName << "': Image '"
                             << displayName << "' is not square (" << w << "x" << h << ").";
             if (useImages) {
-                throw std::runtime_error(
-                    "In group '" + std::string(groupName) + "': programmatic image '" + displayName
-                    + "' must be square (" + std::to_string(w) + "x" + std::to_string(h) + ")");
+                std::ostringstream oss;
+                oss << "In group '" << groupName << "': programmatic image '" << displayName
+                    << "' must be square (" << w << "x" << h << ")";
+                throw std::runtime_error(oss.str());
             }
         }
         if (!utils::isPowerOfTwo(static_cast<uint32_t>(w))
@@ -86,10 +87,10 @@ struct NODISCARD Measurements final
             MMLOG_WARNING() << "[Textures] Warning in group '" << groupName << "': Image '"
                             << displayName << "' is not a power of two (" << w << "x" << h << ").";
             if (useImages) {
-                throw std::runtime_error("In group '" + std::string(groupName)
-                                         + "': programmatic image '" + displayName
-                                         + "' size must be a power of two (" + std::to_string(w)
-                                         + "x" + std::to_string(h) + ")");
+                std::ostringstream oss;
+                oss << "In group '" << groupName << "': programmatic image '" << displayName
+                    << "' size must be a power of two (" << w << "x" << h << ")";
+                throw std::runtime_error(oss.str());
             }
         }
     }

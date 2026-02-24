@@ -62,26 +62,25 @@ struct NODISCARD Measurements final
             has_file = true;
         } else {
             has_programmatic = true;
-            max_manual_mip_levels = std::max(max_manual_mip_levels,
-                                             static_cast<int>(pTex->getImages().size()));
+            const int numImages = static_cast<int>(pTex->getImages().size());
+            max_manual_mip_levels = std::max(max_manual_mip_levels, numImages);
         }
 
         const int nearest = static_cast<int>(utils::nearestPowerOfTwo(static_cast<uint32_t>(s)));
         counts[nearest]++;
 
+        const std::string name = mmqt::toStdStringUtf8(tex.getName());
         if (w != h) {
-            MMLOG_WARNING() << "[Textures] Warning in group '" << groupName << "': Image '"
-                            << mmqt::toStdStringUtf8(tex.getName()) << "' is not square (" << w
-                            << "x" << h << ").";
+            MMLOG_WARNING() << "[Textures] Warning in group '" << groupName << "': Image '" << name
+                            << "' is not square (" << w << "x" << h << ").";
             if (!is_file) {
                 throw std::runtime_error("image must be square");
             }
         }
         if (!utils::isPowerOfTwo(static_cast<uint32_t>(w))
             || !utils::isPowerOfTwo(static_cast<uint32_t>(h))) {
-            MMLOG_WARNING() << "[Textures] Warning in group '" << groupName << "': Image '"
-                            << mmqt::toStdStringUtf8(tex.getName()) << "' is not a power of two ("
-                            << w << "x" << h << ").";
+            MMLOG_WARNING() << "[Textures] Warning in group '" << groupName << "': Image '" << name
+                            << "' is not a power of two (" << w << "x" << h << ").";
             if (!is_file) {
                 throw std::runtime_error("image size must be a power of two");
             }

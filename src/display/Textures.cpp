@@ -39,11 +39,12 @@ struct NODISCARD Measurements final
     int max_input_w = 0;
     int max_input_h = 0;
     int total_layers = 0;
-    int max_mip_levels = 0;
-    bool all_programmatic = true;
+    int max_manual_mip_levels = 0;
+    bool has_file = false;
+    bool has_programmatic = false;
     std::map<int, int> counts;
 
-    void add(const SharedMMTexture &pTex)
+    void add(const std::string_view groupName, const SharedMMTexture &pTex)
     {
         const MMTexture &tex = deref(pTex);
         const QOpenGLTexture &qtex = deref(tex.get());
@@ -55,13 +56,37 @@ struct NODISCARD Measurements final
         max_input_w = std::max(max_input_w, w);
         max_input_h = std::max(max_input_h, h);
         total_layers += 1;
-        max_mip_levels = std::max(max_mip_levels, qtex.mipLevels());
+
+        if (tex.getName().isEmpty()) {
+            has_programmatic = true;
+            max_manual_mip_levels =
+                std::max(max_manual_mip_levels, static_cast<int>(pTex->getImages().size()));
+        } else {
+            has_file = true;
+        }
 
         const int nearest = static_cast<int>(utils::nearestPowerOfTwo(static_cast<uint32_t>(s)));
         counts[nearest]++;
 
-        if (!tex.getName().isEmpty()) {
-            all_programmatic = false;
+        const bool is_file = !tex.getName().isEmpty();
+        if (w != h) {
+            if (is_file) {
+                MMLOG_WARNING() << "[Textures] Warning in group '" << groupName << "': Image '"
+                                << mmqt::toStdStringUtf8(tex.getName()) << "' is not square (" << w
+                                << "x" << h << ").";
+            } else {
+                throw std::runtime_error("Programmatic image must be square");
+            }
+        }
+        if (!utils::isPowerOfTwo(static_cast<uint32_t>(w))
+            || !utils::isPowerOfTwo(static_cast<uint32_t>(h))) {
+            if (is_file) {
+                MMLOG_WARNING() << "[Textures] Warning in group '" << groupName << "': Image '"
+                                << mmqt::toStdStringUtf8(tex.getName())
+                                << "' is not a power of two (" << w << "x" << h << ").";
+            } else {
+                throw std::runtime_error("Programmatic image size must be a power of two");
+            }
         }
     }
 
@@ -76,6 +101,13 @@ struct NODISCARD Measurements final
             }
         }
         return winner;
+    }
+
+    void validate(const std::string_view groupName) const
+    {
+        if (total_layers == 0) {
+            throw std::runtime_error("Empty texture group: " + std::string(groupName));
+        }
     }
 
     void logPicking(const std::string_view groupName, const int winner) const
@@ -415,7 +447,7 @@ void MapCanvas::initTextures()
     Measurements global_m;
     textures.for_each([&assignId, &global_m](SharedMMTexture &pTex) {
         MAYBE_UNUSED auto ignored = assignId(pTex);
-        global_m.add(pTex);
+        global_m.add("global", pTex);
     });
 
     {
@@ -424,22 +456,10 @@ void MapCanvas::initTextures()
                                                       SharedMMTexture &pArrayTex) {
             Measurements group_m;
             for (const SharedMMTexture &x : thing) {
-                group_m.add(x);
-
-                const int w = x->get()->width();
-                const int h = x->get()->height();
-                if (w != h) {
-                    MMLOG_WARNING() << "[Textures] Warning in group '" << groupName << "': Image '"
-                                    << mmqt::toStdStringUtf8(x->getName()) << "' is not square ("
-                                    << w << "x" << h << ").";
-                }
-                if (!utils::isPowerOfTwo(static_cast<uint32_t>(w))
-                    || !utils::isPowerOfTwo(static_cast<uint32_t>(h))) {
-                    MMLOG_WARNING() << "[Textures] Warning in group '" << groupName << "': Image '"
-                                    << mmqt::toStdStringUtf8(x->getName())
-                                    << "' is not a power of two (" << w << "x" << h << ").";
-                }
+                group_m.add(groupName, x);
             }
+
+            group_m.validate(groupName);
 
             const int targetWidth = group_m.getWinner();
             const int targetHeight = targetWidth;
@@ -447,14 +467,14 @@ void MapCanvas::initTextures()
             group_m.logPicking(groupName, targetWidth);
 
             auto &first = deref(thing.front()->get());
-            const bool all_programmatic = group_m.all_programmatic;
-            const int maxMipLevel = group_m.max_mip_levels;
+            const bool isProgrammaticOnly = !group_m.has_file;
+            const int manualMipLevels = group_m.max_manual_mip_levels;
 
-            auto init2dTextureArray = [all_programmatic,
+            auto init2dTextureArray = [isProgrammaticOnly,
                                        thing_size = thing.size(),
                                        targetWidth,
                                        targetHeight,
-                                       maxMipLevel,
+                                       manualMipLevels,
                                        &first](QOpenGLTexture &tex) {
                 using Dir = QOpenGLTexture::CoordinateDirection;
                 tex.setWrapMode(Dir::DirectionS, first.wrapMode(Dir::DirectionS));
@@ -464,13 +484,13 @@ void MapCanvas::initTextures()
                 tex.create();
                 tex.setSize(targetWidth, targetHeight, 1);
                 tex.setLayers(static_cast<int>(thing_size));
-                tex.setMipLevels(all_programmatic ? maxMipLevel : tex.maximumMipLevels());
+                tex.setMipLevels(isProgrammaticOnly ? manualMipLevels : tex.maximumMipLevels());
                 tex.setFormat(first.format());
                 tex.allocateStorage(QOpenGLTexture::PixelFormat::RGBA,
                                     QOpenGLTexture::PixelType::UInt8);
             };
 
-            const bool forbidUpdates = all_programmatic;
+            const bool forbidUpdates = isProgrammaticOnly;
             pArrayTex = MMTexture::alloc(QOpenGLTexture::Target2DArray,
                                          init2dTextureArray,
                                          forbidUpdates);
@@ -479,8 +499,8 @@ void MapCanvas::initTextures()
 
             int pos = 0;
             for (const SharedMMTexture &x : thing) {
-                const bool isProgrammatic = x->getName().isEmpty();
-                if (!isProgrammatic) {
+                const bool is_file = !x->getName().isEmpty();
+                if (is_file) {
                     QImage image = QImage{x->getName()}.mirrored().convertToFormat(
                         QImage::Format_RGBA8888);
                     if (image.width() != targetWidth || image.height() != targetHeight) {
@@ -503,8 +523,9 @@ void MapCanvas::initTextures()
                         const int th = std::max(1, targetHeight >> level);
                         if (images[level].width() != tw || images[level].height() != th) {
                             std::ostringstream oss;
-                            oss << "Programmatic image '" << mmqt::toStdStringUtf8(x->getName())
-                                << "' (layer " << pos << ", level " << level << ") has dimensions "
+                            oss << "[Textures] Error: Programmatic image '"
+                                << mmqt::toStdStringUtf8(x->getName()) << "' (layer " << pos
+                                << ", level " << level << ") has dimensions "
                                 << images[level].width() << "x" << images[level].height()
                                 << ", but the array expects " << tw << "x" << th << ".";
                             throw std::runtime_error(oss.str());
@@ -517,7 +538,7 @@ void MapCanvas::initTextures()
                 pos += 1;
             }
 
-            if (!all_programmatic) {
+            if (!isProgrammaticOnly) {
                 opengl.generateMipmaps(pArrayTex);
             }
         };
@@ -568,7 +589,7 @@ void MapCanvas::initTextures()
             PRINT(max_input_w);
             PRINT(max_input_h);
             PRINT(total_layers);
-            PRINT(max_mip_levels);
+            PRINT(max_manual_mip_levels);
 
 #undef PRINT
 

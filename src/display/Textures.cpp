@@ -466,8 +466,8 @@ void MapCanvas::initTextures()
             return pArrayTex;
         };
 
-        textures.load_Array = textures.mob_Array = textures.no_ride_Array =
-            initGroup(textures.load, textures.mob, textures.no_ride);
+        textures.load_Array = textures.mob_Array = textures.no_ride_Array
+            = initGroup(textures.load, textures.mob, textures.no_ride);
 
         textures.terrain_Array = textures.road_Array = initGroup(textures.terrain, textures.road);
 

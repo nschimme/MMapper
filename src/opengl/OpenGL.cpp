@@ -347,8 +347,10 @@ void OpenGL::initArrayFromImages(const SharedMMTexture &array,
                                 << "x" << image.height() << ", but the array expects " << targetW
                                 << "x" << targetH << ". Resizing.";
 
-                image = image.scaled(
-                    targetW, targetH, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+                image = image.scaled(targetW,
+                                     targetH,
+                                     Qt::IgnoreAspectRatio,
+                                     Qt::SmoothTransformation);
             }
 
             gl.glTexSubImage3D(GL_TEXTURE_2D_ARRAY,

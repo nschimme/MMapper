@@ -8,6 +8,10 @@
 #include <QObject>
 #include <QString>
 
+#ifndef MMAPPER_NO_AUDIO
+#include <QAudioDevice>
+#endif
+
 class QMediaPlayer;
 class QAudioOutput;
 class QTimer;
@@ -49,6 +53,9 @@ public:
     void playMusic(const QString &musicFile);
     void stopMusic();
     void updateVolumes();
+#ifndef MMAPPER_NO_AUDIO
+    void updateOutputDevice(const QAudioDevice &device);
+#endif
 
 public slots:
     void slot_onMediaChanged();

@@ -357,7 +357,8 @@ void MapCanvas::initTextures()
     }
 
     {
-        auto maybeCreateArray2 = [&assignId, &opengl](const auto &thing, SharedMMTexture &pArrayTex) {
+        auto maybeCreateArray2 = [&assignId, &opengl](const auto &thing,
+                                                      SharedMMTexture &pArrayTex) {
             QOpenGLTexture *pFirst = nullptr;
 
             std::map<int, int> counts;

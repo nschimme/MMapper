@@ -4,6 +4,7 @@
 #include "Textures.h"
 
 #include "../configuration/configuration.h"
+#include "../global/TextUtils.h"
 #include "../global/thread_utils.h"
 #include "../global/utils.h"
 #include "../opengl/OpenGLTypes.h"
@@ -11,7 +12,9 @@
 #include "RoadIndex.h"
 #include "mapcanvas.h"
 
+#include <algorithm>
 #include <array>
+#include <map>
 #include <optional>
 #include <stdexcept>
 #include <tuple>
@@ -382,20 +385,42 @@ void MapCanvas::initTextures()
         auto maybeCreateArray2 = [&assignId, &opengl](auto &thing, SharedMMTexture &pArrayTex) {
             QOpenGLTexture *pFirst = nullptr;
 
-            int maxWidth = 0;
-            int maxHeight = 0;
-
+            std::map<int, int> counts;
             for (const SharedMMTexture &x : thing) {
                 if (!pFirst) {
                     pFirst = x->get();
                 }
-                maxWidth = std::max(maxWidth, x->get()->width());
-                maxHeight = std::max(maxHeight, x->get()->height());
+                const int w = x->get()->width();
+                const int h = x->get()->height();
+                const int s = std::max(w, h);
+                const int nearest = static_cast<int>(
+                    utils::nearestPowerOfTwo(static_cast<uint32_t>(s)));
+                counts[nearest]++;
+
+                if (w != h) {
+                    MMLOG_WARNING() << "[Textures] Warning: Image '"
+                                    << mmqt::toStdStringUtf8(x->getName()) << "' is not square ("
+                                    << w << "x" << h << ").";
+                }
+                if (!utils::isPowerOfTwo(static_cast<uint32_t>(w))
+                    || !utils::isPowerOfTwo(static_cast<uint32_t>(h))) {
+                    MMLOG_WARNING() << "[Textures] Warning: Image '"
+                                    << mmqt::toStdStringUtf8(x->getName())
+                                    << "' is not a power of two (" << w << "x" << h << ").";
+                }
             }
 
-            const int targetSize = static_cast<int>(
-                utils::nextPowerOfTwo(static_cast<uint32_t>(std::max(maxWidth, maxHeight))));
-            maxWidth = maxHeight = targetSize;
+            int winner = 0;
+            int maxCount = 0;
+            for (auto const &[size, count] : counts) {
+                if (count > maxCount || (count == maxCount && size > winner)) {
+                    winner = size;
+                    maxCount = count;
+                }
+            }
+
+            int maxWidth = winner;
+            int maxHeight = winner;
 
             auto &first = deref(pFirst);
             std::vector<QString> fileInputs;

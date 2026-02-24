@@ -92,6 +92,21 @@ NODISCARD constexpr T nextPowerOfTwo(T x) noexcept
 }
 
 template<typename T>
+NODISCARD constexpr T nearestPowerOfTwo(T x) noexcept
+{
+    static_assert(std::is_integral_v<T> && std::is_unsigned_v<T>);
+    if (x <= 1) {
+        return 1;
+    }
+    T next = nextPowerOfTwo(x);
+    T prev = next >> 1;
+    if (x - prev < next - x) {
+        return prev;
+    }
+    return next;
+}
+
+template<typename T>
 NODISCARD constexpr bool isAtLeastTwoBits(const T x) noexcept
 {
     static_assert(details::isBitMask<T>());
@@ -407,7 +422,7 @@ NODISCARD static inline auto find_min_computed(const Container &container, Callb
                                          end,
                                          [&callback](const auto &a, const auto &b) -> bool {
                                              return callback(a) < callback(b);
-                                         });
+                                             });
         return OptResult{callback(*it)};
     }
 }

@@ -357,6 +357,30 @@ void MapCanvas::initTextures()
     }
 
     {
+        struct NODISCARD Measurements final
+        {
+            int max_xy_size = 0;
+            int layer_count = 0;
+            int max_mip_levels = 0;
+        };
+
+        const Measurements m = std::invoke([&textures]() -> Measurements {
+            Measurements m2;
+            textures.for_each([&m2](const SharedMMTexture &pTex) -> void {
+                const auto &tex = deref(pTex);
+                const QOpenGLTexture &qtex = deref(tex.get());
+                assert(qtex.target() == QOpenGLTexture::Target2D);
+
+                const int width = qtex.width();
+                const int height = qtex.height();
+
+                m2.max_xy_size = std::max(m2.max_xy_size, std::max(width, height));
+                m2.layer_count += 1;
+                m2.max_mip_levels = std::max(m2.max_mip_levels, qtex.mipLevels());
+            });
+            return m2;
+        });
+
         auto maybeCreateArray2 = [&assignId, &opengl](const auto &thing,
                                                       SharedMMTexture &pArrayTex) {
             QOpenGLTexture *pFirst = nullptr;
@@ -511,6 +535,22 @@ void MapCanvas::initTextures()
 #define XTEX(_TYPE, _NAME) maybeCreateArray(textures._NAME, textures._NAME##_Array);
         XFOREACH_MAPCANVAS_TEXTURES(XTEX)
 #undef XTEX
+
+        {
+            auto &&os = MMLOG();
+            os << "[initTextures] measurements:\n";
+
+#define PRINT(x) \
+    do { \
+        os << " " #x " = " << (x) << "\n"; \
+    } while (false)
+
+            PRINT(m.max_xy_size);
+            PRINT(m.layer_count);
+            PRINT(m.max_mip_levels);
+
+#undef PRINT
+        }
     }
 
     if constexpr (IS_DEBUG_BUILD) {

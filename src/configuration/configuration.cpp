@@ -268,6 +268,7 @@ ConstString KEY_PROXY_LOCAL_PORT = "Local port number";
 ConstString KEY_MAP_MODE = "Map Mode";
 ConstString KEY_MUSIC_VOLUME = "Music volume";
 ConstString KEY_SOUND_VOLUME = "Sound volume";
+ConstString KEY_AUDIO_OUTPUT_DEVICE = "Audio output device";
 ConstString KEY_MAXIMUM_NUMBER_OF_PATHS = "maximum number of paths";
 ConstString KEY_MULTIPLE_CONNECTIONS_PENALTY = "multiple connections penalty";
 ConstString KEY_MUME_START_EPOCH = "Mume start epoch";
@@ -761,6 +762,7 @@ void Configuration::AudioSettings::read(const QSettings &conf)
     m_unlocked = (CURRENT_PLATFORM != PlatformEnum::Wasm);
     m_musicVolume = std::clamp(conf.value(KEY_MUSIC_VOLUME, 50).toInt(), 0, 100);
     m_soundVolume = std::clamp(conf.value(KEY_SOUND_VOLUME, 50).toInt(), 0, 100);
+    m_outputDeviceId = conf.value(KEY_AUDIO_OUTPUT_DEVICE).toByteArray();
 }
 
 void Configuration::IntegratedMudClientSettings::read(const QSettings &conf)
@@ -939,6 +941,7 @@ void Configuration::AudioSettings::write(QSettings &conf) const
 {
     conf.setValue(KEY_MUSIC_VOLUME, m_musicVolume);
     conf.setValue(KEY_SOUND_VOLUME, m_soundVolume);
+    conf.setValue(KEY_AUDIO_OUTPUT_DEVICE, m_outputDeviceId);
 }
 
 void Configuration::IntegratedMudClientSettings::write(QSettings &conf) const

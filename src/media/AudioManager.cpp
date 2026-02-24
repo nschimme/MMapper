@@ -10,6 +10,11 @@
 #include "MusicManager.h"
 #include "SfxManager.h"
 
+#ifndef MMAPPER_NO_AUDIO
+#include <QAudioDevice>
+#include <QMediaDevices>
+#endif
+
 #include <QRegularExpression>
 
 AudioManager::AudioManager(MediaLibrary &library, GameObserver &observer, QObject *const parent)
@@ -34,7 +39,19 @@ AudioManager::AudioManager(MediaLibrary &library, GameObserver &observer, QObjec
             }
         }
         updateVolumes();
+        updateOutputDevices();
     });
+
+#ifndef MMAPPER_NO_AUDIO
+    auto *const mediaDevices = new QMediaDevices(this);
+    connect(mediaDevices,
+            &QMediaDevices::audioOutputsChanged,
+            this,
+            &AudioManager::updateOutputDevices);
+#endif
+
+    updateOutputDevices();
+    updateVolumes();
 }
 
 AudioManager::~AudioManager() = default;
@@ -63,4 +80,25 @@ void AudioManager::updateVolumes()
 {
     m_music->updateVolumes();
     m_sfx->updateVolume();
+}
+
+void AudioManager::updateOutputDevices()
+{
+#ifndef MMAPPER_NO_AUDIO
+    const QByteArray &deviceId = getConfig().audio.getOutputDeviceId();
+    QAudioDevice targetDevice = QMediaDevices::defaultAudioOutput();
+
+    if (!deviceId.isEmpty()) {
+        const QList<QAudioDevice> devices = QMediaDevices::audioOutputs();
+        for (const QAudioDevice &device : devices) {
+            if (device.id() == deviceId) {
+                targetDevice = device;
+                break;
+            }
+        }
+    }
+
+    m_music->updateOutputDevice(targetDevice);
+    m_sfx->updateOutputDevice(targetDevice);
+#endif
 }

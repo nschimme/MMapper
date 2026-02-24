@@ -350,6 +350,7 @@ public:
         ChangeMonitor m_changeMonitor;
         int m_musicVolume = 50;
         int m_soundVolume = 50;
+        QByteArray m_outputDeviceId;
         bool m_unlocked = false;
 
     public:
@@ -369,6 +370,13 @@ public:
         void setSoundVolume(const int volume)
         {
             m_soundVolume = volume;
+            m_changeMonitor.notifyAll();
+        }
+
+        NODISCARD const QByteArray &getOutputDeviceId() const { return m_outputDeviceId; }
+        void setOutputDeviceId(const QByteArray &id)
+        {
+            m_outputDeviceId = id;
             m_changeMonitor.notifyAll();
         }
 

@@ -362,41 +362,59 @@ void MapCanvas::initTextures()
             int max_xy_size = 0;
             int layer_count = 0;
             int max_mip_levels = 0;
+            bool useImages = true;
+            std::map<int, int> counts;
+
+            void add(const SharedMMTexture &pTex)
+            {
+                const MMTexture &tex = deref(pTex);
+                const QOpenGLTexture &qtex = deref(tex.get());
+
+                const int width = qtex.width();
+                const int height = qtex.height();
+                const int s = std::max(width, height);
+
+                max_xy_size = std::max(max_xy_size, s);
+                layer_count += 1;
+                max_mip_levels = std::max(max_mip_levels, qtex.mipLevels());
+
+                const int nearest = static_cast<int>(
+                    utils::nearestPowerOfTwo(static_cast<uint32_t>(s)));
+                counts[nearest]++;
+
+                if (!pTex->getName().isEmpty()) {
+                    useImages = false;
+                }
+            }
+
+            int getWinner() const
+            {
+                int winner = 0;
+                int maxCount = 0;
+                for (auto const &[size, count] : counts) {
+                    if (count > maxCount || (count == maxCount && size > winner)) {
+                        winner = size;
+                        maxCount = count;
+                    }
+                }
+                return winner;
+            }
         };
 
         const Measurements m = std::invoke([&textures]() -> Measurements {
             Measurements m2;
-            textures.for_each([&m2](const SharedMMTexture &pTex) -> void {
-                const auto &tex = deref(pTex);
-                const QOpenGLTexture &qtex = deref(tex.get());
-                assert(qtex.target() == QOpenGLTexture::Target2D);
-
-                const int width = qtex.width();
-                const int height = qtex.height();
-
-                m2.max_xy_size = std::max(m2.max_xy_size, std::max(width, height));
-                m2.layer_count += 1;
-                m2.max_mip_levels = std::max(m2.max_mip_levels, qtex.mipLevels());
-            });
+            textures.for_each([&m2](const SharedMMTexture &pTex) -> void { m2.add(pTex); });
             return m2;
         });
 
         auto maybeCreateArray2 = [&assignId, &opengl](const auto &thing,
                                                       SharedMMTexture &pArrayTex) {
-            QOpenGLTexture *pFirst = nullptr;
-
-            std::map<int, int> counts;
+            Measurements group_m;
             for (const SharedMMTexture &x : thing) {
-                if (!pFirst) {
-                    pFirst = x->get();
-                }
+                group_m.add(x);
+
                 const int w = x->get()->width();
                 const int h = x->get()->height();
-                const int s = std::max(w, h);
-                const int nearest = static_cast<int>(
-                    utils::nearestPowerOfTwo(static_cast<uint32_t>(s)));
-                counts[nearest]++;
-
                 if (w != h) {
                     MMLOG_WARNING()
                         << "[Textures] Warning: Image '" << mmqt::toStdStringUtf8(x->getName())
@@ -410,29 +428,26 @@ void MapCanvas::initTextures()
                 }
             }
 
-            int winner = 0;
-            int maxCount = 0;
-            for (auto const &[size, count] : counts) {
-                if (count > maxCount || (count == maxCount && size > winner)) {
-                    winner = size;
-                    maxCount = count;
+            const int targetWidth = group_m.getWinner();
+            const int targetHeight = targetWidth;
+
+            {
+                auto &&os = MMLOG();
+                os << "[initTextures] Picking " << targetWidth << "x" << targetHeight
+                   << " for array group (";
+                bool first = true;
+                for (auto const &[size, count] : group_m.counts) {
+                    if (!first)
+                        os << ", ";
+                    os << size << "x" << size << ":" << count;
+                    first = false;
                 }
+                os << ")\n";
             }
 
-            const int targetWidth = winner;
-            const int targetHeight = winner;
-
-            auto &first = deref(pFirst);
-            bool useImages = true;
-            int maxMipLevel = 0;
-
-            for (const auto &x : thing) {
-                if (!x->getName().isEmpty()) {
-                    useImages = false;
-                } else {
-                    maxMipLevel = std::max(maxMipLevel, static_cast<int>(x->getImages().size()));
-                }
-            }
+            auto &first = deref(thing.front()->get());
+            const bool useImages = group_m.useImages;
+            const int maxMipLevel = group_m.max_mip_levels;
 
             auto init2dTextureArray = [useImages,
                                        thing_size = thing.size(),
@@ -546,10 +561,16 @@ void MapCanvas::initTextures()
     } while (false)
 
             PRINT(m.max_xy_size);
+            PRINT(m.getWinner());
             PRINT(m.layer_count);
             PRINT(m.max_mip_levels);
 
 #undef PRINT
+
+            os << " size distribution:\n";
+            for (auto const &[size, count] : m.counts) {
+                os << "  - " << size << "x" << size << ": " << count << " image(s)\n";
+            }
         }
     }
 

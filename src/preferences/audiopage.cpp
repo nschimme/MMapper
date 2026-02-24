@@ -35,10 +35,7 @@ AudioPage::AudioPage(QWidget *const parent)
 
 #ifndef MMAPPER_NO_AUDIO
     auto *const mediaDevices = new QMediaDevices(this);
-    connect(mediaDevices,
-            &QMediaDevices::audioOutputsChanged,
-            this,
-            &AudioPage::slot_updateDevices);
+    connect(mediaDevices, &QMediaDevices::audioOutputsChanged, this, &AudioPage::slot_updateDevices);
 #endif
 
     if constexpr (NO_AUDIO) {

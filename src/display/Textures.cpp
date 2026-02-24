@@ -57,35 +57,33 @@ struct NODISCARD Measurements final
         max_input_h = std::max(max_input_h, h);
         total_layers += 1;
 
-        if (tex.getName().isEmpty()) {
+        const bool is_file = !tex.getName().isEmpty();
+        if (is_file) {
+            has_file = true;
+        } else {
             has_programmatic = true;
             max_manual_mip_levels =
                 std::max(max_manual_mip_levels, static_cast<int>(pTex->getImages().size()));
-        } else {
-            has_file = true;
         }
 
         const int nearest = static_cast<int>(utils::nearestPowerOfTwo(static_cast<uint32_t>(s)));
         counts[nearest]++;
 
-        const bool is_file = !tex.getName().isEmpty();
         if (w != h) {
-            if (is_file) {
-                MMLOG_WARNING() << "[Textures] Warning in group '" << groupName << "': Image '"
-                                << mmqt::toStdStringUtf8(tex.getName()) << "' is not square (" << w
-                                << "x" << h << ").";
-            } else {
-                throw std::runtime_error("Programmatic image must be square");
+            MMLOG_WARNING() << "[Textures] Warning in group '" << groupName << "': Image '"
+                            << mmqt::toStdStringUtf8(tex.getName()) << "' is not square (" << w
+                            << "x" << h << ").";
+            if (!is_file) {
+                throw std::runtime_error("image must be square");
             }
         }
         if (!utils::isPowerOfTwo(static_cast<uint32_t>(w))
             || !utils::isPowerOfTwo(static_cast<uint32_t>(h))) {
-            if (is_file) {
-                MMLOG_WARNING() << "[Textures] Warning in group '" << groupName << "': Image '"
-                                << mmqt::toStdStringUtf8(tex.getName())
-                                << "' is not a power of two (" << w << "x" << h << ").";
-            } else {
-                throw std::runtime_error("Programmatic image size must be a power of two");
+            MMLOG_WARNING() << "[Textures] Warning in group '" << groupName << "': Image '"
+                            << mmqt::toStdStringUtf8(tex.getName())
+                            << "' is not a power of two (" << w << "x" << h << ").";
+            if (!is_file) {
+                throw std::runtime_error("image size must be a power of two");
             }
         }
     }
@@ -107,6 +105,10 @@ struct NODISCARD Measurements final
     {
         if (total_layers == 0) {
             throw std::runtime_error("Empty texture group: " + std::string(groupName));
+        }
+        if (has_file && has_programmatic) {
+            throw std::runtime_error("Mixed file and programmatic textures in group: "
+                                     + std::string(groupName));
         }
     }
 
@@ -522,13 +524,7 @@ void MapCanvas::initTextures()
                         const int tw = std::max(1, targetWidth >> level);
                         const int th = std::max(1, targetHeight >> level);
                         if (images[level].width() != tw || images[level].height() != th) {
-                            std::ostringstream oss;
-                            oss << "[Textures] Error: Programmatic image '"
-                                << mmqt::toStdStringUtf8(x->getName()) << "' (layer " << pos
-                                << ", level " << level << ") has dimensions "
-                                << images[level].width() << "x" << images[level].height()
-                                << ", but the array expects " << tw << "x" << th << ".";
-                            throw std::runtime_error(oss.str());
+                            throw std::runtime_error("oops");
                         }
                         images[level] = images[level].convertToFormat(QImage::Format_RGBA8888);
                     }

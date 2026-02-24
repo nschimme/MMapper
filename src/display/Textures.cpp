@@ -376,49 +376,34 @@ void MapCanvas::initTextures()
         });
 
         auto maybeCreateArray2 = [&assignId, &opengl](auto &thing, SharedMMTexture &pArrayTex) {
-            std::optional<std::pair<int, int>> bounds;
-            auto getBounds = [](const auto &x) {
-                return std::make_pair<int, int>(x->get()->width(), x->get()->height());
-            };
             QOpenGLTexture *pFirst = nullptr;
 
-            for (const SharedMMTexture &x : thing) {
-                if (!bounds) {
-                    pFirst = x->get();
-                    bounds = getBounds(x);
-                    const auto size = bounds->first;
-                    if (size != bounds->second)
-                        throw std::runtime_error("image must be square");
-                    if (!utils::isPowerOfTwo(static_cast<uint32_t>(size)))
-                        throw std::runtime_error("image size must be a power of two");
-                }
+            int maxWidth = 0;
+            int maxHeight = 0;
 
-                if (bounds != getBounds(x)) {
-                    throw std::runtime_error("oops");
+            for (const SharedMMTexture &x : thing) {
+                if (!pFirst) {
+                    pFirst = x->get();
                 }
+                maxWidth = std::max(maxWidth, x->get()->width());
+                maxHeight = std::max(maxHeight, x->get()->height());
             }
+
+            const int targetSize = static_cast<int>(
+                utils::nextPowerOfTwo(static_cast<uint32_t>(std::max(maxWidth, maxHeight))));
+            maxWidth = maxHeight = targetSize;
 
             auto &first = deref(pFirst);
             std::vector<QString> fileInputs;
             std::vector<std::vector<QImage>> imageInputs;
-            int maxWidth = 0;
-            int maxHeight = 0;
             int maxMipLevel = 0;
 
             for (const auto &x : thing) {
                 if (!x->getName().isEmpty()) {
-                    const QString filename = x->getName();
-                    fileInputs.emplace_back(filename);
-                    const QImage image{filename};
-                    maxWidth = std::max(maxWidth, image.width());
-                    maxHeight = std::max(maxHeight, image.height());
+                    fileInputs.emplace_back(x->getName());
                 } else {
                     const auto &images = x->getImages();
                     imageInputs.emplace_back(images);
-                    auto &front = images.front();
-                    assert(front.width() == front.height());
-                    maxWidth = std::max(maxWidth, front.width());
-                    maxHeight = std::max(maxHeight, front.height());
                     maxMipLevel = std::max(maxMipLevel, static_cast<int>(images.size()));
                 }
             }

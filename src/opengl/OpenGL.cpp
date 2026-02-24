@@ -291,14 +291,17 @@ void OpenGL::initArrayFromFiles(const SharedMMTexture &array, const std::vector<
 
     const auto numLayers = static_cast<GLsizei>(input.size());
     for (GLsizei i = 0; i < numLayers; ++i) {
-        const QImage image = QImage{input[static_cast<size_t>(i)]}.mirrored().convertToFormat(
-            QImage::Format_RGBA8888);
+        const QString &filename = input[static_cast<size_t>(i)];
+        QImage image = QImage{filename}.mirrored().convertToFormat(QImage::Format_RGBA8888);
         if (image.width() != qtex.width() || image.height() != qtex.height()) {
-            std::ostringstream oss;
-            oss << "Image is " << image.width() << "x" << image.height() << ", but expected "
-                << qtex.width() << "x" << qtex.height();
-            auto s = std::move(oss).str();
-            MMLOG_ERROR() << s.c_str();
+            MMLOG_WARNING() << "[Textures] Warning: Image '" << filename << "' has dimensions "
+                            << image.width() << "x" << image.height() << ", but the array expects "
+                            << qtex.width() << "x" << qtex.height() << ". Resizing.";
+
+            image = image.scaled(qtex.width(),
+                                 qtex.height(),
+                                 Qt::IgnoreAspectRatio,
+                                 Qt::SmoothTransformation);
         }
         gl.glTexSubImage3D(GL_TEXTURE_2D_ARRAY,
                            0,
@@ -332,20 +335,20 @@ void OpenGL::initArrayFromImages(const SharedMMTexture &array,
         const auto &layer = input[z];
         const auto numLevels = layer.size();
         assert(numLevels > 0);
-        const auto ipow2 = 1 << (numLevels - 1);
-        assert(ipow2 == layer.front().width());
-        assert(ipow2 == layer.front().height());
 
         for (size_t level_num = 0; level_num < numLevels; ++level_num) {
-            const QImage image = layer[level_num].convertToFormat(QImage::Format_RGBA8888);
-            if (image.width() != (qtex.width() >> level_num)
-                || image.height() != (qtex.height() >> level_num)) {
-                std::ostringstream oss;
-                oss << "Image is " << image.width() << "x" << image.height() << ", but expected "
-                    << (qtex.width() >> level_num) << "x" << (qtex.height() >> level_num)
-                    << " for level " << level_num;
-                auto s = std::move(oss).str();
-                MMLOG_ERROR() << s.c_str();
+            QImage image = layer[level_num].convertToFormat(QImage::Format_RGBA8888);
+            const int targetW = std::max(1, qtex.width() >> level_num);
+            const int targetH = std::max(1, qtex.height() >> level_num);
+
+            if (image.width() != targetW || image.height() != targetH) {
+                MMLOG_WARNING() << "[Textures] Warning: Image in manual mipmap (layer " << z
+                                << ", level " << level_num << ") has dimensions " << image.width()
+                                << "x" << image.height() << ", but the array expects " << targetW
+                                << "x" << targetH << ". Resizing.";
+
+                image = image.scaled(
+                    targetW, targetH, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
             }
 
             gl.glTexSubImage3D(GL_TEXTURE_2D_ARRAY,

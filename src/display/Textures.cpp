@@ -33,6 +33,68 @@ MMTextureId allocateTextureId()
     return next++;
 }
 
+namespace {
+struct NODISCARD Measurements final
+{
+    int max_input_w = 0;
+    int max_input_h = 0;
+    int total_layers = 0;
+    int max_mip_levels = 0;
+    bool all_programmatic = true;
+    std::map<int, int> counts;
+
+    void add(const SharedMMTexture &pTex)
+    {
+        const MMTexture &tex = deref(pTex);
+        const QOpenGLTexture &qtex = deref(tex.get());
+
+        const int w = qtex.width();
+        const int h = qtex.height();
+        const int s = std::max(w, h);
+
+        max_input_w = std::max(max_input_w, w);
+        max_input_h = std::max(max_input_h, h);
+        total_layers += 1;
+        max_mip_levels = std::max(max_mip_levels, qtex.mipLevels());
+
+        const int nearest = static_cast<int>(utils::nearestPowerOfTwo(static_cast<uint32_t>(s)));
+        counts[nearest]++;
+
+        if (!tex.getName().isEmpty()) {
+            all_programmatic = false;
+        }
+    }
+
+    int getWinner() const
+    {
+        int winner = 0;
+        int maxCount = 0;
+        for (auto const &[size, count] : counts) {
+            if (count > maxCount || (count == maxCount && size > winner)) {
+                winner = size;
+                maxCount = count;
+            }
+        }
+        return winner;
+    }
+
+    void logPicking(const std::string_view groupName, const int winner) const
+    {
+        auto &&os = MMLOG();
+        os << "[initTextures] Picking " << winner << "x" << winner << " for array group '"
+           << groupName << "' (distribution: ";
+        bool first = true;
+        for (auto const &[size, count] : counts) {
+            if (!first)
+                os << ", ";
+            os << size << "x" << size << ":" << count;
+            first = false;
+        }
+        os << ")\n";
+    }
+};
+} // namespace
+
 MMTexture::MMTexture(Badge<MMTexture>, const QString &name)
     : m_qt_texture{QOpenGLTexture::Target2D}
     , m_name{name}
@@ -349,80 +411,15 @@ void MapCanvas::initTextures()
         return id;
     };
 
+    Measurements global_m;
     {
-        textures.for_each([&assignId](SharedMMTexture &pTex) {
-            //
+        textures.for_each([&assignId, &global_m](SharedMMTexture &pTex) {
             MAYBE_UNUSED auto ignored = assignId(pTex);
+            global_m.add(pTex);
         });
     }
 
     {
-        struct NODISCARD Measurements final
-        {
-            int max_input_size = 0;
-            int total_layers = 0;
-            int max_mip_levels = 0;
-            bool all_programmatic = true;
-            std::map<int, int> counts;
-
-            void add(const SharedMMTexture &pTex)
-            {
-                const MMTexture &tex = deref(pTex);
-                const QOpenGLTexture &qtex = deref(tex.get());
-
-                const int w = qtex.width();
-                const int h = qtex.height();
-                const int s = std::max(w, h);
-
-                max_input_size = std::max(max_input_size, s);
-                total_layers += 1;
-                max_mip_levels = std::max(max_mip_levels, qtex.mipLevels());
-
-                const int nearest = static_cast<int>(
-                    utils::nearestPowerOfTwo(static_cast<uint32_t>(s)));
-                counts[nearest]++;
-
-                const bool isProgrammatic = pTex->getName().isEmpty();
-                if (!isProgrammatic) {
-                    all_programmatic = false;
-                }
-            }
-
-            int getWinner() const
-            {
-                int winner = 0;
-                int maxCount = 0;
-                for (auto const &[size, count] : counts) {
-                    if (count > maxCount || (count == maxCount && size > winner)) {
-                        winner = size;
-                        maxCount = count;
-                    }
-                }
-                return winner;
-            }
-
-            void logPicking(const std::string_view groupName, const int winner) const
-            {
-                auto &&os = MMLOG();
-                os << "[initTextures] Picking " << winner << "x" << winner << " for array group '"
-                   << groupName << "' (distribution: ";
-                bool first = true;
-                for (auto const &[size, count] : counts) {
-                    if (!first)
-                        os << ", ";
-                    os << size << "x" << size << ":" << count;
-                    first = false;
-                }
-                os << ")\n";
-            }
-        };
-
-        const Measurements global_m = std::invoke([&textures]() -> Measurements {
-            Measurements m2;
-            textures.for_each([&m2](const SharedMMTexture &pTex) -> void { m2.add(pTex); });
-            return m2;
-        });
-
         auto maybeCreateArray2 = [&assignId, &opengl](const std::string_view groupName,
                                                       const auto &thing,
                                                       SharedMMTexture &pArrayTex) {
@@ -566,12 +563,13 @@ void MapCanvas::initTextures()
 
 #define PRINT(x) \
     do { \
-        os << "  " #x " = " << (x) << "\n"; \
+        os << "  global_m." #x " = " << (global_m.x) << "\n"; \
     } while (false)
 
-            PRINT(global_m.max_input_size);
-            PRINT(global_m.total_layers);
-            PRINT(global_m.max_mip_levels);
+            PRINT(max_input_w);
+            PRINT(max_input_h);
+            PRINT(total_layers);
+            PRINT(max_mip_levels);
 
 #undef PRINT
 

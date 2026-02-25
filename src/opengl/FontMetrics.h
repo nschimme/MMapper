@@ -6,6 +6,7 @@
 #include "../global/hash.h"
 #include "../global/utils.h"
 #include "GLText.h"
+#include "OpenGLTypes.h"
 
 #include <optional>
 #include <string_view>
@@ -236,7 +237,6 @@ struct NODISCARD FontMetrics final
         return width;
     }
 
-    struct FontVert3d;
     void getFontBatchRawData(const GLText *text,
                              size_t count,
                              std::vector<FontVert3d> &output) const;

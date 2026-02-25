@@ -205,7 +205,6 @@ NODISCARD QSurfaceFormat getOptimalFormat(std::optional<GLContextCheckResult> re
     QSurfaceFormat format;
     format.setRenderableType(QSurfaceFormat::OpenGL);
     format.setDepthBufferSize(24);
-    format.setSwapInterval(1); // Enable VSync by default
     if (result) {
         format.setVersion(result->version.major, result->version.minor);
         format.setProfile(result->isCore ? QSurfaceFormat::CoreProfile

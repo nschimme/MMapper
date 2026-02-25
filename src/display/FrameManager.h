@@ -57,8 +57,6 @@ public:
     {
         /** @brief How much early a frame is allowed to start to accommodate timer jitter. */
         static constexpr std::chrono::milliseconds JitterTolerance{8};
-        /** @brief Lead-in time when scheduling the heartbeat timer to ensure we are "ready early". */
-        static constexpr std::chrono::milliseconds TimerLeadIn{2};
     };
 
     /**

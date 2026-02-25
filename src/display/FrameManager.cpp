@@ -177,9 +177,8 @@ void FrameManager::requestFrame()
         }
     } else {
         // Start or restart the timer with the accurate delay.
-        const int finalDelay = static_cast<int>(
-            std::chrono::duration_cast<std::chrono::milliseconds>(delay - Pacing::TimerLeadIn)
-                .count());
+        const int finalDelay
+            = static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(delay).count());
 
         // Only restart the timer if it's not active or if the new delay is significantly different.
         // This avoids hammering the timer during high-frequency input like mouse moves.

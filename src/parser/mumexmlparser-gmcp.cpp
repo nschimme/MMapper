@@ -29,22 +29,24 @@ void MumeXmlParser::slot_parseGmcpInput(const GmcpMessage &msg)
         return;
     }
 
-    auto pObj = msg.getJsonDocument()->getObject();
-    if (!pObj) {
-        return;
-    }
-    const auto &obj = *pObj;
-
     if (msg.isCharStatusVars()) {
-        parseGmcpStatusVars(obj);
+        if (auto obj = msg.getJsonDocument()->getObject()) {
+            parseGmcpStatusVars(*obj);
+        }
     } else if (msg.isCharVitals()) {
-        parseGmcpCharVitals(obj);
+        if (auto obj = msg.getJsonDocument()->getObject()) {
+            parseGmcpCharVitals(*obj);
+        }
     } else if (msg.isCharName()) {
-        parseGmcpCharName(obj);
+        parseGmcpCharName(msg);
     } else if (msg.isEventMoved()) {
-        parseGmcpEventMoved(obj);
+        if (auto obj = msg.getJsonDocument()->getObject()) {
+            parseGmcpEventMoved(*obj);
+        }
     } else if (msg.isRoomInfo()) {
-        parseGmcpRoomInfo(obj);
+        if (auto obj = msg.getJsonDocument()->getObject()) {
+            parseGmcpRoomInfo(*obj);
+        }
     } else if (msg.isRoomKnownAdd()) {
         parseGmcpRoomKnownAdd(msg);
     } else if (msg.isRoomKnownList()) {
@@ -382,7 +384,7 @@ void MumeXmlParser::parseGmcpEventMoved(const JsonObj &obj)
     setMove(move);
 }
 
-void MumeXmlParser::parseGmcpCharName(const JsonObj & /*obj*/)
+void MumeXmlParser::parseGmcpCharName(const GmcpMessage & /*msg*/)
 {
     m_proxyMudGmcp.gmcpToMud(GmcpMessage{GmcpMessageTypeEnum::ROOM_KNOWN_LIST});
 }

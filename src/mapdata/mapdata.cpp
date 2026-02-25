@@ -176,13 +176,6 @@ NODISCARD RoomIdSet MapData::genericFind(const RoomFilter &f) const
 
 MapData::~MapData() = default;
 
-void MapData::setKnownRoomsFull(std::vector<ServerRoomId> rooms)
-{
-    m_knownRooms.clear();
-    m_knownRooms.insert(rooms.begin(), rooms.end());
-    m_hasKnownRoomsData = true;
-    emit sig_knownRoomsChanged();
-}
 
 void MapData::addKnownRooms(std::vector<ServerRoomId> rooms)
 {

@@ -141,7 +141,6 @@ public:
     NODISCARD const QString &getFileName() const { return m_fileName; }
     NODISCARD bool isFileReadOnly() const { return m_fileReadOnly; }
 
-    void setKnownRoomsFull(std::vector<ServerRoomId> rooms);
     void addKnownRooms(std::vector<ServerRoomId> rooms);
     void setKnownRoomsDataReady(bool ready);
     void clearKnownRooms();

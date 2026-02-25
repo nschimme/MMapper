@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2026 The MMapper Authors
 
+#include "../global/RAII.h"
 #include "../global/RuleOf5.h"
 #include "../global/Signal2.h"
 
@@ -70,30 +71,20 @@ public:
     {
     public:
         explicit Frame(FrameManager &manager, float dt)
-            : m_manager(manager)
-            , m_dt(dt)
+            : m_dt(dt)
+            , m_callback([&manager]() { manager.recordFramePainted(); })
         {}
-        ~Frame()
-        {
-            if (m_active) {
-                m_manager.recordFramePainted();
-            }
-        }
-        Frame(Frame &&other) noexcept
-            : m_manager(other.m_manager)
-            , m_dt(other.m_dt)
-            , m_active(std::exchange(other.m_active, false))
-        {}
+
         DELETE_COPIES(Frame);
+        DEFAULT_MOVE_CTOR(Frame);
         DELETE_MOVE_ASSIGN_OP(Frame);
 
     public:
         NODISCARD float dt() const { return m_dt; }
 
     private:
-        FrameManager &m_manager;
         float m_dt;
-        bool m_active = true;
+        RAIICallback m_callback;
     };
 
 public:

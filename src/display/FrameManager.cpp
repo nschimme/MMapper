@@ -52,10 +52,9 @@ std::optional<FrameManager::Frame> FrameManager::beginFrame()
     // Throttle: check if enough time has passed since the start of the last successful frame.
     if (m_lastUpdateTime.time_since_epoch().count() != 0) {
         const auto elapsed = now - m_lastUpdateTime;
-        // We use a small tolerance (1ms) to avoid skipping frames due to minor timer jitter.
-        // This is crucial to ensure we don't drop a frame just because the timer fired
-        // a few microseconds early.
-        if (elapsed + std::chrono::milliseconds(1) < m_minFrameTime) {
+        // We use a small tolerance (5ms) to avoid skipping frames due to minor timer jitter.
+        // This is crucial to avoid missing VSync windows on high-refresh displays.
+        if (elapsed + std::chrono::milliseconds(5) < m_minFrameTime) {
             return std::nullopt;
         }
     }
@@ -125,7 +124,7 @@ std::chrono::nanoseconds FrameManager::getTimeUntilNextFrame() const
     const auto now = std::chrono::steady_clock::now();
     const auto elapsed = now - m_lastUpdateTime;
     // We use the same tolerance as beginFrame.
-    if (elapsed + std::chrono::milliseconds(1) >= m_minFrameTime) {
+    if (elapsed + std::chrono::milliseconds(5) >= m_minFrameTime) {
         return std::chrono::nanoseconds::zero();
     }
     return m_minFrameTime - elapsed;
@@ -158,11 +157,9 @@ void FrameManager::requestFrame()
         }
     } else {
         // Start or restart the timer with the accurate delay.
-        // Round to nearest millisecond to help hitting VSync windows.
+        // We truncate to the nearest millisecond to favor earlier frames.
         const int finalDelay = static_cast<int>(
-            std::chrono::duration_cast<std::chrono::milliseconds>(delay
-                                                                  + std::chrono::microseconds(500))
-                .count());
+            std::chrono::duration_cast<std::chrono::milliseconds>(delay).count());
 
         // Only restart the timer if it's not active or if the new delay is significantly different.
         // This avoids hammering the timer during high-frequency input like mouse moves.

@@ -176,7 +176,6 @@ NODISCARD RoomIdSet MapData::genericFind(const RoomFilter &f) const
 
 MapData::~MapData() = default;
 
-
 void MapData::addKnownRooms(std::vector<ServerRoomId> rooms)
 {
     m_knownRooms.insert(rooms.begin(), rooms.end());

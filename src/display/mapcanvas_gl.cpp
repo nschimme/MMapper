@@ -720,12 +720,7 @@ void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current, con
     }
 
     // no change necessary
-    if (isUpToDate(saved,
-                   current,
-                   hasKnownRoomsData,
-                   showNeedsServerId,
-                   showChanged,
-                   showUnvisited)) {
+    if (isUpToDate(saved, current, hasKnownRoomsData, showNeedsServerId, showChanged, showUnvisited)) {
         return;
     }
 

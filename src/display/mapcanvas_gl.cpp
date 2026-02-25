@@ -652,7 +652,6 @@ void MapCanvas::actuallyPaintGL()
     paintBatchedInfomarks();
     paintSelections();
     paintCharacters();
-    paintOtherPlayerNames();
     paintDifferences();
 
     gl.releaseFbo();
@@ -778,102 +777,6 @@ void MapCanvas::paintDifferences()
 
     if (auto &highlights = highlight.highlights; !highlights.empty()) {
         highlights.render(gl, m_textures.room_highlight->getArrayPosition().array);
-    }
-}
-
-void MapCanvas::paintOtherPlayerNames()
-{
-    ServerRoomId yourServerId = INVALID_SERVER_ROOMID;
-    for (const auto &pChar : m_groupManager.selectAll()) {
-        if (pChar->isYou()) {
-            yourServerId = pChar->getServerId();
-            break;
-        }
-    }
-
-    const Map &map = m_data.getCurrentMap();
-    std::map<Coordinate, std::vector<SharedGroupChar>> otherPlayersByRoom;
-
-    for (const auto &pCharacter : m_groupManager.selectAll()) {
-        const CGroupChar &character = deref(pCharacter);
-        if (character.isYou()) {
-            continue;
-        }
-
-        const ServerRoomId srvId = character.getServerId();
-        if (srvId == INVALID_SERVER_ROOMID || srvId == yourServerId) {
-            continue;
-        }
-
-        if (const auto r = map.findRoomHandle(srvId)) {
-            otherPlayersByRoom[r.getPosition()].push_back(pCharacter);
-        }
-    }
-
-    if (otherPlayersByRoom.empty()) {
-        return;
-    }
-
-    std::vector<GLText> texts;
-    const float dpr = getOpenGL().getDevicePixelRatio();
-    const int fontHeight = getGLFont().getFontHeight();
-    const float h = static_cast<float>(height());
-
-    for (const auto &[pos, characters] : otherPlayersByRoom) {
-        const glm::vec3 roomCenter = pos.to_vec3() + glm::vec3{0.5f, 0.5f, 0.f};
-
-        const float marginPixels = MapScreen::DEFAULT_MARGIN_PIXELS;
-
-        // Use same visibility check as Characters.cpp
-        const bool visible = m_mapScreen.isRoomVisible(pos, marginPixels / 2.f);
-
-        glm::vec3 drawPosWorld;
-        float verticalOffset;
-
-        if (visible) {
-            drawPosWorld = roomCenter;
-            const auto optScreen = project(roomCenter);
-            const auto optScreenTop = project(roomCenter + glm::vec3{0.f, 0.5f, 0.f});
-            if (optScreen && optScreenTop) {
-                verticalOffset = glm::distance(glm::vec2(*optScreen), glm::vec2(*optScreenTop))
-                                     * dpr
-                                 + 2.f * dpr;
-            } else {
-                verticalOffset = 10.f * dpr;
-            }
-        } else {
-            drawPosWorld = m_mapScreen.getProxyLocation(roomCenter, marginPixels);
-            verticalOffset = 15.f * dpr;
-        }
-
-        const auto optScreen = project(drawPosWorld);
-        if (!optScreen) {
-            continue;
-        }
-
-        const float screenX = optScreen->x * dpr;
-        const float screenY = (h - optScreen->y) * dpr;
-
-        float currentY = screenY - verticalOffset;
-        for (const auto &pChar : characters) {
-            const CGroupChar &character = deref(pChar);
-            QString name = character.getLabel().isEmpty() ? character.getName().toQString()
-                                                          : character.getLabel().toQString();
-            if (name.isEmpty()) {
-                continue;
-            }
-
-            texts.emplace_back(glm::vec3{screenX, currentY, 0.f},
-                               mmqt::toStdStringLatin1(name),
-                               Color{character.getColor()},
-                               Colors::black.withAlpha(0.6f),
-                               FontFormatFlags{FontFormatFlagEnum::HALIGN_CENTER});
-            currentY -= static_cast<float>(fontHeight);
-        }
-    }
-
-    if (!texts.empty()) {
-        getGLFont().render2dTextImmediate(texts);
     }
 }
 

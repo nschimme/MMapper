@@ -67,11 +67,11 @@ public:
                             std::optional<Color> bgcolor = {});
     void render2dTextImmediate(const std::vector<GLText> &text);
     void render3dTextImmediate(const std::vector<GLText> &text);
-    void render3dTextImmediate(const std::vector<::FontVert3d> &rawVerts);
+    void render3dTextImmediate(const std::vector<FontVert3d> &rawVerts);
 
 public:
-    NODISCARD std::vector<::FontVert3d> getFontMeshIntermediate(const std::vector<GLText> &text);
-    NODISCARD UniqueMesh getFontMesh(const std::vector<::FontVert3d> &text);
+    NODISCARD std::vector<FontVert3d> getFontMeshIntermediate(const std::vector<GLText> &text);
+    NODISCARD UniqueMesh getFontMesh(const std::vector<FontVert3d> &text);
 };
 
 extern void getFontBatchRawData(const FontMetrics &fm,

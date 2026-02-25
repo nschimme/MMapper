@@ -906,10 +906,10 @@ static void resolveDoorLabelCollisions(std::vector<DoorLabel> &labels, const Fon
     // At zoom 0.4 (minimum visible), 1 room unit is roughly 18 pixels.
     static constexpr float PIXELS_PER_UNIT = 18.0f;
     static constexpr int ITERATIONS = 30; // Reduced iterations for performance
-    static constexpr float SPRING_K = 0.3f;
-    static constexpr float REPULSION_K = 0.15f;
+    static constexpr float SPRING_K = 0.5f;
+    static constexpr float REPULSION_K = 0.1f;
     static constexpr float DAMPING = 0.6f;
-    static constexpr float MAX_DISPLACEMENT = 0.8f; // Max displacement from original position
+    static constexpr float MAX_DISPLACEMENT = 0.3f; // Max displacement from original position
     static constexpr float GRID_SIZE = 4.0f;        // Spatial grid cell size in world units
 
     struct LabelState
@@ -923,10 +923,12 @@ static void resolveDoorLabelCollisions(std::vector<DoorLabel> &labels, const Fon
     states.reserve(labels.size());
 
     for (const auto &label : labels) {
-        float width = static_cast<float>(font.measureWidth(label.text.text)) / PIXELS_PER_UNIT;
-        float height = static_cast<float>(font.common.lineHeight) / PIXELS_PER_UNIT;
-        // Use initial pos from GLText
-        states.push_back({glm::vec2(label.text.pos.x, label.text.pos.y),
+        const float width = static_cast<float>(font.measureWidth(label.text.text)) / PIXELS_PER_UNIT;
+        const float height = static_cast<float>(font.common.lineHeight) / PIXELS_PER_UNIT;
+        const float base = static_cast<float>(font.common.base) / PIXELS_PER_UNIT;
+        // The pos is the baseline. Actual text center is higher.
+        const float yCenterOffset = base - 0.5f * height;
+        states.push_back({glm::vec2(label.text.pos.x, label.text.pos.y + yCenterOffset),
                           glm::vec2(0.0f),
                           glm::vec2(width, height)});
     }
@@ -1011,8 +1013,11 @@ static void resolveDoorLabelCollisions(std::vector<DoorLabel> &labels, const Fon
 
     // Apply results back to labels
     for (size_t i = 0; i < labels.size(); ++i) {
+        const float height = static_cast<float>(font.common.lineHeight) / PIXELS_PER_UNIT;
+        const float base = static_cast<float>(font.common.base) / PIXELS_PER_UNIT;
+        const float yCenterOffset = base - 0.5f * height;
         labels[i].text.pos.x = states[i].pos.x;
-        labels[i].text.pos.y = states[i].pos.y;
+        labels[i].text.pos.y = states[i].pos.y - yCenterOffset;
     }
 }
 

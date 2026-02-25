@@ -10,6 +10,7 @@
 #include "../global/logging.h"
 #include "../global/progresscounter.h"
 #include "../global/utils.h"
+#include "../group/mmapper2group.h"
 #include "../map/coordinate.h"
 #include "../mapdata/mapdata.h"
 #include "../opengl/Font.h"
@@ -651,6 +652,7 @@ void MapCanvas::actuallyPaintGL()
     paintBatchedInfomarks();
     paintSelections();
     paintCharacters();
+    paintHoveredPlayerNames();
     paintDifferences();
 
     gl.releaseFbo();
@@ -776,6 +778,96 @@ void MapCanvas::paintDifferences()
 
     if (auto &highlights = highlight.highlights; !highlights.empty()) {
         highlights.render(gl, m_textures.room_highlight->getArrayPosition().array);
+    }
+}
+
+void MapCanvas::paintHoveredPlayerNames()
+{
+    if (!m_mousePos) {
+        return;
+    }
+
+    const Map &map = m_data.getCurrentMap();
+    std::map<Coordinate, std::vector<SharedGroupChar>> hoveredByRoom;
+
+    for (const auto &pCharacter : m_groupManager.selectAll()) {
+        const CGroupChar &character = deref(pCharacter);
+
+        ServerRoomId srvId = character.getServerId();
+        RoomHandle r;
+        if (character.isYou()) {
+            if (const auto optId = m_data.getCurrentRoomId()) {
+                r = m_data.findRoomHandle(*optId);
+            }
+        } else if (srvId != INVALID_SERVER_ROOMID) {
+            r = map.findRoomHandle(srvId);
+        }
+
+        if (!r) {
+            continue;
+        }
+
+        const Coordinate &pos = r.getPosition();
+        if (auto optSel = getUnprojectedMouseSel(*m_mousePos, pos.z)) {
+            if (optSel->getCoordinate() == pos) {
+                hoveredByRoom[pos].push_back(pCharacter);
+            }
+        }
+    }
+
+    if (hoveredByRoom.empty()) {
+        return;
+    }
+
+    std::vector<GLText> texts;
+    const float dpr = getOpenGL().getDevicePixelRatio();
+    const int fontHeight = getGLFont().getFontHeight();
+    const float h = static_cast<float>(height());
+
+    for (const auto &[pos, characters] : hoveredByRoom) {
+        const glm::vec3 roomCenter = pos.to_vec3() + glm::vec3{0.5f, 0.5f, 0.f};
+        const auto optScreen = project(roomCenter);
+        if (!optScreen) {
+            continue;
+        }
+
+        // Convert bottom-up logical to top-down physical
+        const float screenX = optScreen->x * dpr;
+        const float screenY = (h - optScreen->y) * dpr;
+
+        // Estimate an offset to be above the room box
+        // A room box is roughly 1 world unit.
+        // Let's project another point to see how many pixels 0.5 world units is.
+        const auto optScreenTop = project(roomCenter + glm::vec3{0.f, 0.5f, 0.f});
+        float verticalOffset = 10.f * dpr; // fallback
+        if (optScreenTop) {
+            verticalOffset = glm::distance(glm::vec2(*optScreen), glm::vec2(*optScreenTop)) * dpr
+                             + 2.f * dpr;
+        }
+
+        float currentY = screenY - verticalOffset;
+        for (const auto &pChar : characters) {
+            const CGroupChar &character = deref(pChar);
+            QString name = character.getLabel().isEmpty() ? character.getName().toQString()
+                                                          : character.getLabel().toQString();
+            if (name.isEmpty() && character.isYou()) {
+                name = "You";
+            }
+            if (name.isEmpty()) {
+                continue;
+            }
+
+            texts.emplace_back(glm::vec3{screenX, currentY, 0.f},
+                               mmqt::toStdStringLatin1(name),
+                               Color{character.getColor()},
+                               Colors::black.withAlpha(0.6f),
+                               FontFormatFlags{FontFormatFlagEnum::HALIGN_CENTER});
+            currentY -= static_cast<float>(fontHeight);
+        }
+    }
+
+    if (!texts.empty()) {
+        getGLFont().render2dTextImmediate(texts);
     }
 }
 

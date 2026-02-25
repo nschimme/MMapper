@@ -10,6 +10,7 @@
 #include "../global/logging.h"
 #include "../global/progresscounter.h"
 #include "../global/utils.h"
+#include "../group/mmapper2group.h"
 #include "../map/coordinate.h"
 #include "../mapdata/mapdata.h"
 #include "../opengl/Font.h"
@@ -580,7 +581,10 @@ void MapCanvas::Diff::cancelUpdates(const Map &saved)
     }
 }
 
-void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current, const MapData &mapData)
+void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved,
+                                       const Map &current,
+                                       const std::unordered_set<ServerRoomId> &knownRooms,
+                                       const bool hasKnownRoomsData)
 {
     auto &diff = *this;
 
@@ -589,8 +593,6 @@ void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current, con
     const bool showNeedsServerId = canvas.showMissingMapId.get();
     const bool showChanged = canvas.showUnsavedChanges.get();
     const bool showUnvisited = canvas.showUnvisitedHighlight.get();
-
-    const bool hasKnownRoomsData = mapData.hasKnownRoomsData();
 
     // Pending takes precedence. This also usually guarantees at most one pending update at a time,
     // but calling resetExistingMeshesAndIgnorePendingRemesh() could result in more than one diff
@@ -612,8 +614,6 @@ void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current, con
     if (isUpToDate(saved, current, hasKnownRoomsData, showNeedsServerId, showChanged, showUnvisited)) {
         return;
     }
-
-    const auto knownRooms = mapData.getKnownRoomsSnapshot();
 
     diff.futureHighlight = std::async(
         std::launch::async,
@@ -697,7 +697,9 @@ void MapCanvas::paintDifferences()
     const auto &saved = m_data.getSavedMap();
     const auto &current = m_data.getCurrentMap();
 
-    diff.maybeAsyncUpdate(saved, current, m_data);
+    const auto self = m_groupManager.getSelf();
+
+    diff.maybeAsyncUpdate(saved, current, self->getKnownRooms(), self->hasKnownRoomsData());
     if (!diff.hasRelatedDiff(saved)) {
         return;
     }

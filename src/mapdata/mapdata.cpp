@@ -176,39 +176,6 @@ NODISCARD RoomIdSet MapData::genericFind(const RoomFilter &f) const
 
 MapData::~MapData() = default;
 
-void MapData::addKnownRooms(std::vector<ServerRoomId> rooms)
-{
-    m_knownRooms.insert(rooms.begin(), rooms.end());
-    if (m_hasKnownRoomsData) {
-        emit sig_knownRoomsChanged();
-    }
-}
-
-void MapData::setKnownRoomsDataReady(const bool ready)
-{
-    if (m_hasKnownRoomsData != ready) {
-        m_hasKnownRoomsData = ready;
-        emit sig_knownRoomsChanged();
-    }
-}
-
-void MapData::clearKnownRooms()
-{
-    m_knownRooms.clear();
-    m_hasKnownRoomsData = false;
-    emit sig_knownRoomsChanged();
-}
-
-bool MapData::isRoomKnown(ServerRoomId id) const
-{
-    return m_knownRooms.count(id) > 0;
-}
-
-std::unordered_set<ServerRoomId> MapData::getKnownRoomsSnapshot() const
-{
-    return m_knownRooms;
-}
-
 void MapData::slot_scheduleAction(const SigMapChangeList &change)
 {
     this->applyChanges(change.deref());

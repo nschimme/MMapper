@@ -10,6 +10,7 @@
 #include "../global/parserutils.h"
 #include "../global/progresscounter.h"
 #include "../global/utils.h"
+#include "../group/mmapper2group.h"
 #include "../map/ExitDirection.h"
 #include "../map/coordinate.h"
 #include "../map/exit.h"
@@ -87,7 +88,7 @@ MapCanvas::MapCanvas(MapData &mapData,
 
     setCursor(Qt::OpenHandCursor);
 
-    connect(&m_data, &MapData::sig_knownRoomsChanged, this, [this]() {
+    connect(&m_groupManager, &Mmapper2Group::sig_knownRoomsChanged, this, [this]() {
         m_diff.resetExistingMeshesAndIgnorePendingRemesh();
         update();
     });

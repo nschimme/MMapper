@@ -49,9 +49,9 @@ std::optional<FrameManager::Frame> FrameManager::beginFrame()
 {
     const auto now = std::chrono::steady_clock::now();
 
-    // Throttle: check if enough time has passed since the last paint.
-    if (m_lastPaintTime.time_since_epoch().count() != 0) {
-        const auto elapsed = now - m_lastPaintTime;
+    // Throttle: check if enough time has passed since the start of the last successful frame.
+    if (m_lastUpdateTime.time_since_epoch().count() != 0) {
+        const auto elapsed = now - m_lastUpdateTime;
         // We use a small tolerance (500us) to avoid skipping frames due to minor timer jitter.
         if (elapsed + std::chrono::microseconds(500) < m_minFrameTime) {
             return std::nullopt;
@@ -106,25 +106,24 @@ void FrameManager::onHeartbeat()
     emit sig_requestUpdate();
 
     if (needsHeartbeat()) {
-        const auto delay = getTimeUntilNextFrame();
-        // Ensure we wait at least 1ms if we just rendered, or more if we are still under the throttle.
-        const long long delayMs = std::chrono::duration_cast<std::chrono::milliseconds>(delay)
-                                      .count();
-        const bool hasPartialMs = delay > std::chrono::milliseconds(delayMs);
-        const long long finalDelay = std::max(1LL, delayMs + (hasPartialMs ? 1LL : 0LL));
-        m_heartbeatTimer.start(static_cast<int>(finalDelay));
+        // We always schedule a fallback heartbeat in case sig_requestUpdate is ignored.
+        // recordFramePainted will later refine this with a more accurate delay if a paint occurs.
+        const auto delayMs = std::chrono::duration_cast<std::chrono::milliseconds>(m_minFrameTime)
+                                 .count();
+        m_heartbeatTimer.start(static_cast<int>(delayMs + 1));
     }
 }
 
 std::chrono::nanoseconds FrameManager::getTimeUntilNextFrame() const
 {
-    if (m_lastPaintTime.time_since_epoch().count() == 0) {
+    if (m_lastUpdateTime.time_since_epoch().count() == 0) {
         return std::chrono::nanoseconds::zero();
     }
 
     const auto now = std::chrono::steady_clock::now();
-    const auto elapsed = now - m_lastPaintTime;
-    if (elapsed >= m_minFrameTime) {
+    const auto elapsed = now - m_lastUpdateTime;
+    // We use the same tolerance as beginFrame.
+    if (elapsed + std::chrono::microseconds(500) >= m_minFrameTime) {
         return std::chrono::nanoseconds::zero();
     }
     return m_minFrameTime - elapsed;
@@ -132,20 +131,32 @@ std::chrono::nanoseconds FrameManager::getTimeUntilNextFrame() const
 
 void FrameManager::recordFramePainted()
 {
-    m_lastPaintTime = std::chrono::steady_clock::now();
+    // The previous frame just finished painting. Schedule the next one.
+    if (needsHeartbeat()) {
+        requestFrame();
+    }
 }
 
 void FrameManager::requestFrame()
 {
     m_dirty = true;
-    if (m_heartbeatTimer.isActive()) {
-        return;
-    }
 
     const auto delay = getTimeUntilNextFrame();
     if (delay == std::chrono::nanoseconds::zero()) {
+        // We are ready to paint now. Stop any pending timer and request an update.
+        if (m_heartbeatTimer.isActive()) {
+            m_heartbeatTimer.stop();
+        }
         emit sig_requestUpdate();
+        // Start a fallback timer in case sig_requestUpdate is ignored.
+        if (needsHeartbeat()) {
+            const auto delayMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                     m_minFrameTime)
+                                     .count();
+            m_heartbeatTimer.start(static_cast<int>(delayMs + 1));
+        }
     } else {
+        // Start or restart the timer with the accurate delay.
         const long long delayMs = std::chrono::duration_cast<std::chrono::milliseconds>(delay)
                                       .count();
         const bool hasPartialMs = delay > std::chrono::milliseconds(delayMs);

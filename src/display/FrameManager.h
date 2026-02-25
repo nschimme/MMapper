@@ -58,8 +58,8 @@ private:
     };
 
     mutable std::vector<Entry> m_callbacks;
+    /** @brief The start time of the last successful frame. Used for dt and throttling. */
     std::chrono::steady_clock::time_point m_lastUpdateTime;
-    std::chrono::steady_clock::time_point m_lastPaintTime;
     std::chrono::nanoseconds m_minFrameTime{0};
     Signal2Lifetime m_configLifetime;
     QTimer m_heartbeatTimer;

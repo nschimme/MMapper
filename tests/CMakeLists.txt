@@ -331,3 +331,23 @@ set_target_properties(
         COMPILE_FLAGS "${WARNING_FLAGS}"
 )
 add_test(NAME TestHotkeyManager COMMAND TestHotkeyManager)
+
+# FrameManager
+set(TestFrameManager_SRCS TestFrameManager.cpp)
+add_executable(TestFrameManager ${TestFrameManager_SRCS} ../src/display/FrameManager.cpp)
+add_dependencies(TestFrameManager mm_test mm_global)
+target_link_libraries(TestFrameManager
+        mm_test
+        mm_global
+        Qt6::Gui
+        Qt6::Test
+        Qt6::Widgets
+        coverage_config)
+set_target_properties(
+  TestFrameManager PROPERTIES
+  CXX_STANDARD 17
+  CXX_STANDARD_REQUIRED ON
+  CXX_EXTENSIONS OFF
+  COMPILE_FLAGS "${WARNING_FLAGS}"
+)
+add_test(NAME TestFrameManager COMMAND TestFrameManager)

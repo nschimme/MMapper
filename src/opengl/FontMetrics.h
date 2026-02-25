@@ -7,11 +7,12 @@
 #include "../global/utils.h"
 #include "GLText.h"
 
-#include <glm/glm.hpp>
 #include <optional>
 #include <string_view>
 #include <unordered_map>
 #include <vector>
+
+#include <glm/glm.hpp>
 
 #include <QDebug>
 #include <QImage>

@@ -5,9 +5,10 @@
 #include "../global/Color.h"
 #include "FontFormatFlags.h"
 
-#include <glm/glm.hpp>
 #include <optional>
 #include <string>
+
+#include <glm/glm.hpp>
 
 struct NODISCARD GLText final
 {

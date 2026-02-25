@@ -13,6 +13,7 @@
 #include "../global/hash.h"
 #include "../global/utils.h"
 #include "FontFormatFlags.h"
+#include "FontMetrics.h"
 #include "OpenGL.h"
 
 #include <cassert>
@@ -30,8 +31,6 @@
 
 #include <QtCore>
 #include <QtGui>
-
-#include "FontMetrics.h"
 
 static const bool VERBOSE_FONT_DEBUG = std::invoke([]() -> bool {
     if (auto opt = utils::getEnvBool("MMAPPER_VERBOSE_FONT_DEBUG")) {

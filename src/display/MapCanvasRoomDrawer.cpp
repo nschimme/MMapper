@@ -926,8 +926,9 @@ static void resolveDoorLabelCollisions(std::vector<DoorLabel> &labels, const Fon
         float width = static_cast<float>(font.measureWidth(label.text.text)) / PIXELS_PER_UNIT;
         float height = static_cast<float>(font.common.lineHeight) / PIXELS_PER_UNIT;
         // Use initial pos from GLText
-        states.push_back(
-            {glm::vec2(label.text.pos.x, label.text.pos.y), glm::vec2(0.0f), glm::vec2(width, height)});
+        states.push_back({glm::vec2(label.text.pos.x, label.text.pos.y),
+                          glm::vec2(0.0f),
+                          glm::vec2(width, height)});
     }
 
     for (int iter = 0; iter < ITERATIONS; ++iter) {

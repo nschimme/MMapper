@@ -31,30 +31,53 @@ bool FrameManager::needsHeartbeat() const
         return true;
     }
 
-    auto it = m_callbacks.begin();
-    while (it != m_callbacks.end()) {
-        if (auto shared = it->lifetime.lock()) {
-            if (it->callback()) {
+    bool anyActive = false;
+    bool needsCleanup = false;
+
+    for (const auto &entry : m_callbacks) {
+        if (auto shared = entry.lifetime.lock()) {
+            if (entry.callback() == AnimationStatus::Continue) {
+                anyActive = true;
+                // We can't return early here because we might need to find if cleanup is needed
+                // if we were to strictly follow the old logic, but actually let's just return early
+                // and defer cleanup.
                 return true;
             }
-            ++it;
         } else {
-            it = m_callbacks.erase(it);
+            needsCleanup = true;
         }
     }
-    return false;
+
+    if (needsCleanup) {
+        cleanupExpiredCallbacks();
+    }
+
+    return anyActive;
+}
+
+void FrameManager::cleanupExpiredCallbacks() const
+{
+    auto it = std::remove_if(m_callbacks.begin(), m_callbacks.end(), [](const Entry &e) {
+        return e.lifetime.expired();
+    });
+    m_callbacks.erase(it, m_callbacks.end());
+}
+
+void FrameManager::invalidate()
+{
+    m_dirty = true;
+    requestFrame();
 }
 
 std::optional<FrameManager::Frame> FrameManager::beginFrame()
 {
     const auto now = std::chrono::steady_clock::now();
+    const bool hasLastUpdate = (m_lastUpdateTime.time_since_epoch().count() != 0);
 
     // Throttle: check if enough time has passed since the start of the last successful frame.
-    if (m_lastUpdateTime.time_since_epoch().count() != 0) {
+    if (hasLastUpdate) {
         const auto elapsed = now - m_lastUpdateTime;
-        // We use a small tolerance (8ms) to avoid skipping frames due to minor timer jitter.
-        // This is crucial to avoid missing VSync windows on high-refresh displays.
-        if (elapsed + std::chrono::milliseconds(8) < m_minFrameTime) {
+        if (elapsed + Pacing::JitterTolerance < m_minFrameTime) {
             return std::nullopt;
         }
     }
@@ -67,7 +90,7 @@ std::optional<FrameManager::Frame> FrameManager::beginFrame()
 
     // Calculate delta time
     float dt = 0.0f;
-    if (m_lastUpdateTime.time_since_epoch().count() != 0) {
+    if (hasLastUpdate) {
         const auto elapsed = now - m_lastUpdateTime;
         dt = std::chrono::duration<float>(elapsed).count();
     }
@@ -123,8 +146,7 @@ std::chrono::nanoseconds FrameManager::getTimeUntilNextFrame() const
 
     const auto now = std::chrono::steady_clock::now();
     const auto elapsed = now - m_lastUpdateTime;
-    // We use the same tolerance as beginFrame.
-    if (elapsed + std::chrono::milliseconds(8) >= m_minFrameTime) {
+    if (elapsed + Pacing::JitterTolerance >= m_minFrameTime) {
         return std::chrono::nanoseconds::zero();
     }
     return m_minFrameTime - elapsed;
@@ -140,8 +162,6 @@ void FrameManager::recordFramePainted()
 
 void FrameManager::requestFrame()
 {
-    m_dirty = true;
-
     const auto delay = getTimeUntilNextFrame();
     if (delay == std::chrono::nanoseconds::zero()) {
         // We are ready to paint now. Stop any pending timer and request an update.
@@ -157,10 +177,8 @@ void FrameManager::requestFrame()
         }
     } else {
         // Start or restart the timer with the accurate delay.
-        // We use a 2ms lead-in and truncate to favor earlier frames.
         const int finalDelay = static_cast<int>(
-            std::chrono::duration_cast<std::chrono::milliseconds>(delay
-                                                                  - std::chrono::milliseconds(2))
+            std::chrono::duration_cast<std::chrono::milliseconds>(delay - Pacing::TimerLeadIn)
                 .count());
 
         // Only restart the timer if it's not active or if the new delay is significantly different.

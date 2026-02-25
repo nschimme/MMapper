@@ -69,8 +69,10 @@ MapCanvas::MapCanvas(MapData &mapData,
     , m_data{mapData}
     , m_groupManager{groupManager}
 {
-    m_frameManager.registerCallback(m_lifetime,
-                                    [this]() { return m_batches.remeshCookie.isPending(); });
+    m_frameManager.registerCallback(m_lifetime, [this]() {
+        return m_batches.remeshCookie.isPending() ? FrameManager::AnimationStatus::Continue
+                                                  : FrameManager::AnimationStatus::Stop;
+    });
 
     connect(&m_frameManager, &FrameManager::sig_requestUpdate, this, [this]() { update(); });
 
@@ -740,7 +742,7 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
                     m_scroll = newWorldCenter;
                     updateViewProj(width(), height());
                     emit sig_onCenter(newWorldCenter);
-                    m_frameManager.requestFrame();
+                    m_frameManager.invalidate();
                 }
             }
         }
@@ -1068,7 +1070,7 @@ void MapCanvas::zoomAt(const float factor, const glm::vec2 &mousePos)
         m_scaleFactor *= factor;
         zoomChanged();
         updateViewProj(width(), height());
-        m_frameManager.requestFrame();
+        m_frameManager.invalidate();
         return;
     }
 
@@ -1100,7 +1102,7 @@ void MapCanvas::zoomAt(const float factor, const glm::vec2 &mousePos)
 
     // Refresh the viewport matrix with the final scroll and zoom before painting.
     updateViewProj(width(), height());
-    m_frameManager.requestFrame();
+    m_frameManager.invalidate();
 }
 
 void MapCanvas::slot_setScroll(const glm::vec2 &worldPos)
@@ -1108,7 +1110,7 @@ void MapCanvas::slot_setScroll(const glm::vec2 &worldPos)
     if (!utils::isSameFloat(m_scroll.x, worldPos.x) || !utils::isSameFloat(m_scroll.y, worldPos.y)) {
         m_scroll = worldPos;
         updateViewProj(width(), height());
-        m_frameManager.requestFrame();
+        m_frameManager.invalidate();
     }
 }
 
@@ -1117,7 +1119,7 @@ void MapCanvas::slot_setHorizontalScroll(const float worldX)
     if (!utils::isSameFloat(m_scroll.x, worldX)) {
         m_scroll.x = worldX;
         updateViewProj(width(), height());
-        m_frameManager.requestFrame();
+        m_frameManager.invalidate();
     }
 }
 
@@ -1126,7 +1128,7 @@ void MapCanvas::slot_setVerticalScroll(const float worldY)
     if (!utils::isSameFloat(m_scroll.y, worldY)) {
         m_scroll.y = worldY;
         updateViewProj(width(), height());
-        m_frameManager.requestFrame();
+        m_frameManager.invalidate();
     }
 }
 
@@ -1135,7 +1137,7 @@ void MapCanvas::slot_zoomIn()
     m_scaleFactor.logStep(1);
     zoomChanged();
     updateViewProj(width(), height());
-    m_frameManager.requestFrame();
+    m_frameManager.invalidate();
 }
 
 void MapCanvas::slot_zoomOut()
@@ -1143,7 +1145,7 @@ void MapCanvas::slot_zoomOut()
     m_scaleFactor.logStep(-1);
     zoomChanged();
     updateViewProj(width(), height());
-    m_frameManager.requestFrame();
+    m_frameManager.invalidate();
 }
 
 void MapCanvas::slot_zoomReset()
@@ -1151,7 +1153,7 @@ void MapCanvas::slot_zoomReset()
     m_scaleFactor.set(1.f);
     zoomChanged();
     updateViewProj(width(), height());
-    m_frameManager.requestFrame();
+    m_frameManager.invalidate();
 }
 
 void MapCanvas::onMovement()
@@ -1164,7 +1166,7 @@ void MapCanvas::onMovement()
         m_scroll = newScroll;
         updateViewProj(width(), height());
         emit sig_onCenter(newScroll);
-        m_frameManager.requestFrame();
+        m_frameManager.invalidate();
     }
 }
 
@@ -1187,20 +1189,20 @@ void MapCanvas::slot_moveMarker(const RoomId id)
 void MapCanvas::infomarksChanged()
 {
     m_batches.infomarksMeshes.reset();
-    m_frameManager.requestFrame();
+    m_frameManager.invalidate();
 }
 
 void MapCanvas::layerChanged()
 {
     updateViewProj(width(), height());
-    m_frameManager.requestFrame();
+    m_frameManager.invalidate();
 }
 
 void MapCanvas::forceUpdateMeshes()
 {
     m_batches.resetExistingMeshesAndIgnorePendingRemesh();
     m_diff.resetExistingMeshesAndIgnorePendingRemesh();
-    m_frameManager.requestFrame();
+    m_frameManager.invalidate();
 }
 
 void MapCanvas::slot_mapChanged()
@@ -1210,12 +1212,12 @@ void MapCanvas::slot_mapChanged()
     if ((false)) {
         m_batches.mapBatches.reset();
     }
-    m_frameManager.requestFrame();
+    m_frameManager.invalidate();
 }
 
 void MapCanvas::slot_requestUpdate()
 {
-    m_frameManager.requestFrame();
+    m_frameManager.invalidate();
 }
 
 void MapCanvas::screenChanged()
@@ -1241,13 +1243,13 @@ void MapCanvas::screenChanged()
         font.cleanup();
         font.init();
 
-        m_frameManager.requestFrame();
+        m_frameManager.invalidate();
     }
 }
 
 void MapCanvas::selectionChanged()
 {
-    m_frameManager.requestFrame();
+    m_frameManager.invalidate();
     emit sig_selectionChanged();
 }
 
@@ -1255,7 +1257,7 @@ void MapCanvas::graphicsSettingsChanged()
 {
     m_opengl.resetNamedColorsBuffer();
     updateViewProj(width(), height());
-    m_frameManager.requestFrame();
+    m_frameManager.invalidate();
 }
 
 void MapCanvas::userPressedEscape(bool /*pressed*/)

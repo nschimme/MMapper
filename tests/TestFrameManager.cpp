@@ -14,7 +14,7 @@ void TestFrameManager::testTargetFps()
     conf.setFloat(10.0f); // 100ms interval
 
     FrameManager fm;
-    fm.setDirty();
+    fm.invalidate();
 
     // Start a frame.
     const auto t1 = std::chrono::steady_clock::now();
@@ -26,19 +26,19 @@ void TestFrameManager::testTargetFps()
     frame1.reset();
 
     // Check if next frame is throttled.
-    fm.setDirty();
+    fm.invalidate();
     const auto t2 = std::chrono::steady_clock::now();
     auto frame2 = fm.beginFrame();
     const auto elapsed = t2 - t1;
     // Throttling depends on the actual elapsed time. If sleep took too long, it might not be throttled.
-    // We use a margin (20ms) in the test to be robust against CI jitter.
-    if (elapsed + std::chrono::milliseconds(20) < std::chrono::milliseconds(100)) {
+    // We use a margin (15ms) in the test to be robust against CI jitter.
+    if (elapsed + std::chrono::milliseconds(15) < std::chrono::milliseconds(100)) {
         QVERIFY(!frame2.has_value());
     }
 
     // Total time elapsed since start of frame1 should be > 100ms now.
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    fm.setDirty();
+    fm.invalidate();
     auto frame3 = fm.beginFrame();
     QVERIFY(frame3.has_value());
 }
@@ -49,7 +49,7 @@ void TestFrameManager::testThrottle()
     conf.setFloat(4.0f);
 
     FrameManager fm;
-    fm.setDirty();
+    fm.invalidate();
 
     auto frame1 = fm.beginFrame();
     QVERIFY(frame1.has_value());
@@ -60,13 +60,13 @@ void TestFrameManager::testThrottle()
 
     // 100ms later it should still be throttled.
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    fm.setDirty();
+    fm.invalidate();
     auto frame2 = fm.beginFrame();
     QVERIFY(!frame2.has_value());
 
     // 255ms (total) later it should be OK.
     std::this_thread::sleep_for(std::chrono::milliseconds(155));
-    fm.setDirty();
+    fm.invalidate();
     auto frame3 = fm.beginFrame();
     QVERIFY(frame3.has_value());
 }
@@ -77,7 +77,7 @@ void TestFrameManager::testDecoupling()
     conf.setFloat(5.0f); // 200ms interval
 
     FrameManager fm;
-    fm.setDirty();
+    fm.invalidate();
 
     const auto t1 = std::chrono::steady_clock::now();
     auto frame1 = fm.beginFrame();
@@ -89,17 +89,17 @@ void TestFrameManager::testDecoupling()
 
     // Check it's still throttled at T=100ms
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    fm.setDirty();
+    fm.invalidate();
     const auto t2 = std::chrono::steady_clock::now();
     auto frame_fail = fm.beginFrame();
     const auto elapsed = t2 - t1;
-    if (elapsed + std::chrono::milliseconds(20) < std::chrono::milliseconds(200)) {
+    if (elapsed + std::chrono::milliseconds(15) < std::chrono::milliseconds(200)) {
         QVERIFY(!frame_fail.has_value());
     }
 
     // Wait until T=210ms
     std::this_thread::sleep_for(std::chrono::milliseconds(110));
-    fm.setDirty();
+    fm.invalidate();
     auto frame2 = fm.beginFrame();
     QVERIFY(frame2.has_value());
 }
@@ -110,7 +110,7 @@ void TestFrameManager::testHammering()
     conf.setFloat(4.0f); // 250ms interval
 
     FrameManager fm;
-    fm.setDirty();
+    fm.invalidate();
 
     const auto t1 = std::chrono::steady_clock::now();
     auto frame1 = fm.beginFrame();
@@ -124,17 +124,17 @@ void TestFrameManager::testHammering()
     }
 
     // After some time, we should still be throttled.
-    fm.setDirty();
+    fm.invalidate();
     const auto t2 = std::chrono::steady_clock::now();
     auto frame2 = fm.beginFrame();
     const auto elapsed = t2 - t1;
-    if (elapsed + std::chrono::milliseconds(20) < std::chrono::milliseconds(250)) {
+    if (elapsed + std::chrono::milliseconds(15) < std::chrono::milliseconds(250)) {
         QVERIFY(!frame2.has_value());
     }
 
     // Wait until 260ms from start
     std::this_thread::sleep_for(std::chrono::milliseconds(210));
-    fm.setDirty();
+    fm.invalidate();
     auto frame3 = fm.beginFrame();
     QVERIFY(frame3.has_value());
 }

@@ -23,7 +23,10 @@ public:
     class Frame final
     {
     public:
-        explicit Frame(FrameManager &manager, float dt) : m_manager(manager), m_dt(dt) {}
+        explicit Frame(FrameManager &manager, float dt)
+            : m_manager(manager)
+            , m_dt(dt)
+        {}
         ~Frame()
         {
             if (m_active) {
@@ -31,7 +34,9 @@ public:
             }
         }
         Frame(Frame &&other) noexcept
-            : m_manager(other.m_manager), m_dt(other.m_dt), m_active(std::exchange(other.m_active, false))
+            : m_manager(other.m_manager)
+            , m_dt(other.m_dt)
+            , m_active(std::exchange(other.m_active, false))
         {}
         DELETE_COPIES(Frame);
         DELETE_MOVE_ASSIGN_OP(Frame);

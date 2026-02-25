@@ -108,11 +108,11 @@ void FrameManager::onHeartbeat()
     if (needsHeartbeat()) {
         const auto delay = getTimeUntilNextFrame();
         // Ensure we wait at least 1ms if we just rendered, or more if we are still under the throttle.
-        auto delayMs = std::chrono::duration_cast<std::chrono::milliseconds>(delay).count();
-        if (delay > std::chrono::milliseconds(delayMs)) {
-            delayMs++;
-        }
-        m_heartbeatTimer.start(static_cast<int>(std::max(1L, delayMs)));
+        const long long delayMs = std::chrono::duration_cast<std::chrono::milliseconds>(delay)
+                                      .count();
+        const bool hasPartialMs = delay > std::chrono::milliseconds(delayMs);
+        const long long finalDelay = std::max(1LL, delayMs + (hasPartialMs ? 1LL : 0LL));
+        m_heartbeatTimer.start(static_cast<int>(finalDelay));
     }
 }
 
@@ -146,11 +146,11 @@ void FrameManager::requestFrame()
     if (delay == std::chrono::nanoseconds::zero()) {
         emit sig_requestUpdate();
     } else {
-        auto delayMs = std::chrono::duration_cast<std::chrono::milliseconds>(delay).count();
-        if (delay > std::chrono::milliseconds(delayMs)) {
-            delayMs++;
-        }
-        m_heartbeatTimer.start(static_cast<int>(std::max(1L, delayMs)));
+        const long long delayMs = std::chrono::duration_cast<std::chrono::milliseconds>(delay)
+                                      .count();
+        const bool hasPartialMs = delay > std::chrono::milliseconds(delayMs);
+        const long long finalDelay = delayMs + (hasPartialMs ? 1LL : 0LL);
+        m_heartbeatTimer.start(static_cast<int>(finalDelay));
     }
 }
 

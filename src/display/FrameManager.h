@@ -31,11 +31,7 @@ class FrameManager final : public QObject
     Q_OBJECT
 
 public:
-    enum class AnimationStatus
-    {
-        Continue,
-        Stop
-    };
+    enum class AnimationStatus { Continue, Stop };
     using AnimationCallback = std::function<AnimationStatus()>;
 
 private:

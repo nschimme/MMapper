@@ -608,9 +608,9 @@ void MapCanvas::finishPendingMapBatches()
 #undef LOG
 }
 
-void MapCanvas::actuallyPaintGL(float /*dt*/)
+void MapCanvas::actuallyPaintGL(float /*deltaTime*/)
 {
-    // dt is currently unused here but advanced in FrameManager::beginFrame()
+    // deltaTime is currently unused here but advanced in FrameManager::beginFrame()
 
     // DECL_TIMER(t, __FUNCTION__);
     setViewportAndMvp(width(), height());
@@ -832,7 +832,7 @@ void MapCanvas::paintGL()
             optAfterBatches = Clock::now();
         }
 
-        actuallyPaintGL(frame->dt());
+        actuallyPaintGL(frame->deltaTime());
     }
 
     if (!showPerfStats) {

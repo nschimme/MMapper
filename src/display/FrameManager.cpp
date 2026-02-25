@@ -89,19 +89,19 @@ std::optional<FrameManager::Frame> FrameManager::beginFrame()
     m_dirty = false;
 
     // Calculate delta time
-    float dt = 0.0f;
+    float deltaTime = 0.0f;
     if (hasLastUpdate) {
         const auto elapsed = now - m_lastUpdateTime;
-        dt = std::chrono::duration<float>(elapsed).count();
+        deltaTime = std::chrono::duration<float>(elapsed).count();
     }
     m_lastUpdateTime = now;
 
     // Advance global time smoothly
-    m_animationTime += dt;
+    m_animationTime += deltaTime;
 
-    // Cap dt for simulation to match map movement during dragging and avoid quantization jitter.
+    // Cap deltaTime for simulation to match map movement during dragging and avoid quantization jitter.
     // Cap at 1.0s to avoid huge jumps after window focus loss or lag, while supporting low FPS.
-    m_lastFrameDeltaTime = std::min(dt, 1.0f);
+    m_lastFrameDeltaTime = std::min(deltaTime, 1.0f);
 
     return Frame(*this, m_lastFrameDeltaTime);
 }

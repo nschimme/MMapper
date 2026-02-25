@@ -70,8 +70,8 @@ public:
     class Frame final
     {
     public:
-        explicit Frame(FrameManager &manager, float dt)
-            : m_dt(dt)
+        explicit Frame(FrameManager &manager, float deltaTime)
+            : m_deltaTime(deltaTime)
             , m_callback([&manager]() { manager.recordFramePainted(); })
         {}
 
@@ -80,10 +80,10 @@ public:
         DELETE_MOVE_ASSIGN_OP(Frame);
 
     public:
-        NODISCARD float dt() const { return m_dt; }
+        NODISCARD float deltaTime() const { return m_deltaTime; }
 
     private:
-        float m_dt;
+        float m_deltaTime;
         RAIICallback m_callback;
     };
 

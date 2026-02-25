@@ -766,8 +766,10 @@ void MapCanvas::paintMap()
     }
 
     if (!m_batches.mapBatches.has_value()) {
-        const QString msg = pending ? "Please wait... the map isn't ready yet." : "Batch error";
-        getGLFont().renderTextCentered(msg);
+        if (!pending || m_batches.pendingUpdateFlashState.tick()) {
+            const QString msg = pending ? "Please wait... the map isn't ready yet." : "Batch error";
+            getGLFont().renderTextCentered(msg);
+        }
         if (!pending) {
             // REVISIT: does this need a better fix?
             // pending already scheduled an update, but now we realize we need an update.

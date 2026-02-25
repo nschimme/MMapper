@@ -333,7 +333,7 @@ set_target_properties(
 add_test(NAME TestHotkeyManager COMMAND TestHotkeyManager)
 
 # FrameManager
-set(TestFrameManager_SRCS TestFrameManager.cpp)
+set(TestFrameManager_SRCS TestFrameManager.cpp TestFrameManager.h)
 add_executable(TestFrameManager ${TestFrameManager_SRCS} ../src/display/FrameManager.cpp)
 add_dependencies(TestFrameManager mm_test mm_global)
 target_link_libraries(TestFrameManager

@@ -140,7 +140,6 @@ private:
     MapCanvasTextures m_textures;
     MapData &m_data;
     Mmapper2Group &m_groupManager;
-    std::optional<glm::vec2> m_mousePos;
     Diff m_diff;
     FrameRateController m_frameRateController;
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
@@ -268,7 +267,7 @@ private:
     void paintNearbyConnectionPoints();
     void paintSelectedInfomarks();
     void paintCharacters();
-    void paintHoveredPlayerNames();
+    void paintOtherPlayerNames();
     void paintDifferences();
     void forceUpdateMeshes();
 

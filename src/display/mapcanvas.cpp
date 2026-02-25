@@ -314,11 +314,6 @@ void MapCanvas::handleZoomAtEvent(const QInputEvent *const event, const float de
 
 bool MapCanvas::event(QEvent *const event)
 {
-    if (event->type() == QEvent::Leave) {
-        m_mousePos = std::nullopt;
-        update();
-    }
-
     if (event->type() == QEvent::NativeGesture) {
         auto *const nativeEvent = static_cast<QNativeGestureEvent *>(event);
         if (nativeEvent->gestureType() == Qt::ZoomNativeGesture) {
@@ -422,8 +417,6 @@ std::shared_ptr<InfomarkSelection> MapCanvas::getInfomarkSelection(const MouseSe
 
 void MapCanvas::mousePressEvent(QMouseEvent *const event)
 {
-    m_mousePos = getMouseCoords(event);
-
     if (event->button() != Qt::RightButton) {
         emit sig_dismissContextMenu();
     }
@@ -622,8 +615,7 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
 
 void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
 {
-    m_mousePos = getMouseCoords(event);
-    const auto optXy = m_mousePos;
+    const auto optXy = getMouseCoords(event);
     if (!optXy) {
         return;
     }
@@ -708,7 +700,6 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
     }
 
     m_sel2 = getUnprojectedMouseSel(xy);
-    update();
 
     switch (m_canvasMouseMode) {
     case CanvasMouseModeEnum::SELECT_INFOMARKS:
@@ -809,8 +800,7 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
 
 void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
 {
-    m_mousePos = getMouseCoords(event);
-    const auto optXy = m_mousePos;
+    const auto optXy = getMouseCoords(event);
     if (!optXy) {
         return;
     }

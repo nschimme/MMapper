@@ -652,7 +652,7 @@ void MapCanvas::actuallyPaintGL()
     paintBatchedInfomarks();
     paintSelections();
     paintCharacters();
-    paintHoveredPlayerNames();
+    paintOtherPlayerNames();
     paintDifferences();
 
     gl.releaseFbo();
@@ -781,41 +781,36 @@ void MapCanvas::paintDifferences()
     }
 }
 
-void MapCanvas::paintHoveredPlayerNames()
+void MapCanvas::paintOtherPlayerNames()
 {
-    if (!m_mousePos) {
-        return;
+    ServerRoomId yourServerId = INVALID_SERVER_ROOMID;
+    for (const auto &pChar : m_groupManager.selectAll()) {
+        if (pChar->isYou()) {
+            yourServerId = pChar->getServerId();
+            break;
+        }
     }
 
     const Map &map = m_data.getCurrentMap();
-    std::map<Coordinate, std::vector<SharedGroupChar>> hoveredByRoom;
+    std::map<Coordinate, std::vector<SharedGroupChar>> otherPlayersByRoom;
 
     for (const auto &pCharacter : m_groupManager.selectAll()) {
         const CGroupChar &character = deref(pCharacter);
-
-        ServerRoomId srvId = character.getServerId();
-        RoomHandle r;
         if (character.isYou()) {
-            if (const auto optId = m_data.getCurrentRoomId()) {
-                r = m_data.findRoomHandle(*optId);
-            }
-        } else if (srvId != INVALID_SERVER_ROOMID) {
-            r = map.findRoomHandle(srvId);
-        }
-
-        if (!r) {
             continue;
         }
 
-        const Coordinate &pos = r.getPosition();
-        if (auto optSel = getUnprojectedMouseSel(*m_mousePos, pos.z)) {
-            if (optSel->getCoordinate() == pos) {
-                hoveredByRoom[pos].push_back(pCharacter);
-            }
+        const ServerRoomId srvId = character.getServerId();
+        if (srvId == INVALID_SERVER_ROOMID || srvId == yourServerId) {
+            continue;
+        }
+
+        if (const auto r = map.findRoomHandle(srvId)) {
+            otherPlayersByRoom[r.getPosition()].push_back(pCharacter);
         }
     }
 
-    if (hoveredByRoom.empty()) {
+    if (otherPlayersByRoom.empty()) {
         return;
     }
 
@@ -824,35 +819,46 @@ void MapCanvas::paintHoveredPlayerNames()
     const int fontHeight = getGLFont().getFontHeight();
     const float h = static_cast<float>(height());
 
-    for (const auto &[pos, characters] : hoveredByRoom) {
+    for (const auto &[pos, characters] : otherPlayersByRoom) {
         const glm::vec3 roomCenter = pos.to_vec3() + glm::vec3{0.5f, 0.5f, 0.f};
-        const auto optScreen = project(roomCenter);
+
+        const float marginPixels = MapScreen::DEFAULT_MARGIN_PIXELS;
+
+        // Use same visibility check as Characters.cpp
+        const bool visible = m_mapScreen.isRoomVisible(pos, marginPixels / 2.f);
+
+        glm::vec3 drawPosWorld;
+        float verticalOffset;
+
+        if (visible) {
+            drawPosWorld = roomCenter;
+            const auto optScreen = project(roomCenter);
+            const auto optScreenTop = project(roomCenter + glm::vec3{0.f, 0.5f, 0.f});
+            if (optScreen && optScreenTop) {
+                verticalOffset = glm::distance(glm::vec2(*optScreen), glm::vec2(*optScreenTop))
+                                     * dpr
+                                 + 2.f * dpr;
+            } else {
+                verticalOffset = 10.f * dpr;
+            }
+        } else {
+            drawPosWorld = m_mapScreen.getProxyLocation(roomCenter, marginPixels);
+            verticalOffset = 15.f * dpr;
+        }
+
+        const auto optScreen = project(drawPosWorld);
         if (!optScreen) {
             continue;
         }
 
-        // Convert bottom-up logical to top-down physical
         const float screenX = optScreen->x * dpr;
         const float screenY = (h - optScreen->y) * dpr;
-
-        // Estimate an offset to be above the room box
-        // A room box is roughly 1 world unit.
-        // Let's project another point to see how many pixels 0.5 world units is.
-        const auto optScreenTop = project(roomCenter + glm::vec3{0.f, 0.5f, 0.f});
-        float verticalOffset = 10.f * dpr; // fallback
-        if (optScreenTop) {
-            verticalOffset = glm::distance(glm::vec2(*optScreen), glm::vec2(*optScreenTop)) * dpr
-                             + 2.f * dpr;
-        }
 
         float currentY = screenY - verticalOffset;
         for (const auto &pChar : characters) {
             const CGroupChar &character = deref(pChar);
             QString name = character.getLabel().isEmpty() ? character.getName().toQString()
                                                           : character.getLabel().toQString();
-            if (name.isEmpty() && character.isYou()) {
-                name = "You";
-            }
             if (name.isEmpty()) {
                 continue;
             }

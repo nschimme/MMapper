@@ -39,6 +39,8 @@ void MumeXmlParser::slot_parseGmcpInput(const GmcpMessage &msg)
         parseGmcpStatusVars(obj);
     } else if (msg.isCharVitals()) {
         parseGmcpCharVitals(obj);
+    } else if (msg.isCharName()) {
+        parseGmcpCharName(obj);
     } else if (msg.isEventMoved()) {
         parseGmcpEventMoved(obj);
     } else if (msg.isRoomInfo()) {
@@ -378,6 +380,11 @@ void MumeXmlParser::parseGmcpEventMoved(const JsonObj &obj)
     using namespace mume_xml_parser_gmcp_detail;
     const CommandEnum move = getMove(obj);
     setMove(move);
+}
+
+void MumeXmlParser::parseGmcpCharName(const JsonObj & /*obj*/)
+{
+    m_proxyMudGmcp.gmcpToMud(GmcpMessage{GmcpMessageTypeEnum::ROOM_KNOWN_LIST});
 }
 
 void MumeXmlParser::parseGmcpRoomInfo(const JsonObj &obj)

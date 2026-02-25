@@ -266,6 +266,9 @@ void MapCanvas::initializeGL()
         }
     });
 
+    setConfig().canvas.showUnvisitedHighlight.registerChangeCallback(m_lifetime,
+                                                                     [this]() { this->update(); });
+
     setConfig().canvas.showUnmappedExits.registerChangeCallback(m_lifetime, [this]() {
         this->forceUpdateMeshes();
     });
@@ -657,10 +660,13 @@ void MapCanvas::actuallyPaintGL()
     gl.blitFboToDefault();
 }
 
-NODISCARD bool MapCanvas::Diff::isUpToDate(const Map &saved, const Map &current) const
+NODISCARD bool MapCanvas::Diff::isUpToDate(const Map &saved,
+                                           const Map &current,
+                                           const bool hasKnownRoomsData) const
 {
     return highlight && highlight->saved.isSamePointer(saved)
-           && highlight->current.isSamePointer(current);
+           && highlight->current.isSamePointer(current)
+           && highlight->hasKnownRoomsData == hasKnownRoomsData;
 }
 
 // this differs from isUpToDate in that it allows display of a diff based on the current saved map,
@@ -680,9 +686,11 @@ void MapCanvas::Diff::cancelUpdates(const Map &saved)
     }
 }
 
-void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current)
+void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current, const MapData &mapData)
 {
     auto &diff = *this;
+    const auto knownRooms = mapData.getKnownRoomsSnapshot();
+    const bool hasKnownRoomsData = mapData.hasKnownRoomsData();
 
     // Pending takes precedence. This also usually guarantees at most one pending update at a time,
     // but calling resetExistingMeshesAndIgnorePendingRemesh() could result in more than one diff
@@ -701,7 +709,7 @@ void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current)
     }
 
     // no change necessary
-    if (isUpToDate(saved, current)) {
+    if (isUpToDate(saved, current, hasKnownRoomsData)) {
         return;
     }
 
@@ -709,16 +717,28 @@ void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current)
     const auto &canvas = config.canvas;
     const bool showNeedsServerId = canvas.showMissingMapId.get();
     const bool showChanged = canvas.showUnsavedChanges.get();
+    const bool showUnvisited = canvas.showUnvisitedHighlight.get();
 
     diff.futureHighlight = std::async(
         std::launch::async,
-        [saved, current, showNeedsServerId, showChanged]() -> Diff::HighlightDiff {
+        [saved,
+         current,
+         knownRooms,
+         showNeedsServerId,
+         showChanged,
+         showUnvisited,
+         hasKnownRoomsData]() -> Diff::HighlightDiff {
             DECL_TIMER(t2,
                        "[async] actuallyPaintGL: highlight changes, temporary, and needs update");
 
-            auto getHighlights =
-                [&saved, &current, showChanged, showNeedsServerId]() -> Diff::MaybeDataOrMesh {
-                if (!showChanged && !showNeedsServerId) {
+            auto getHighlights = [&saved,
+                                  &current,
+                                  &knownRooms,
+                                  showChanged,
+                                  showNeedsServerId,
+                                  showUnvisited,
+                                  hasKnownRoomsData]() -> Diff::MaybeDataOrMesh {
+                if (!showChanged && !showNeedsServerId && !(showUnvisited && hasKnownRoomsData)) {
                     return Diff::MaybeDataOrMesh{};
                 }
 
@@ -729,14 +749,23 @@ void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current)
                     highlights.emplace_back(pos, 0, color);
                 };
 
-                // Handle rooms needing a server ID or that are temporary
-                if (showNeedsServerId) {
+                // Handle rooms needing a server ID, temporary, or unvisited
+                if (showNeedsServerId || (showUnvisited && hasKnownRoomsData)) {
                     current.getRooms().for_each([&](auto id) {
                         if (auto h = current.getRoomHandle(id)) {
-                            if (h.isTemporary()) {
-                                drawQuad(h.getRaw(), NamedColorEnum::HIGHLIGHT_TEMPORARY);
-                            } else if (h.getServerId() == INVALID_SERVER_ROOMID) {
-                                drawQuad(h.getRaw(), NamedColorEnum::HIGHLIGHT_NEEDS_SERVER_ID);
+                            if (showNeedsServerId) {
+                                if (h.isTemporary()) {
+                                    drawQuad(h.getRaw(), NamedColorEnum::HIGHLIGHT_TEMPORARY);
+                                } else if (h.getServerId() == INVALID_SERVER_ROOMID) {
+                                    drawQuad(h.getRaw(), NamedColorEnum::HIGHLIGHT_NEEDS_SERVER_ID);
+                                }
+                            }
+                            if (showUnvisited && hasKnownRoomsData) {
+                                const ServerRoomId serverId = h.getServerId();
+                                if (serverId != INVALID_SERVER_ROOMID
+                                    && knownRooms.count(serverId) == 0) {
+                                    drawQuad(h.getRaw(), NamedColorEnum::HIGHLIGHT_UNVISITED);
+                                }
                             }
                         }
                     });
@@ -756,7 +785,7 @@ void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current)
                 return Diff::MaybeDataOrMesh{std::move(highlights)};
             };
 
-            return Diff::HighlightDiff{saved, current, getHighlights()};
+            return Diff::HighlightDiff{saved, current, hasKnownRoomsData, getHighlights()};
         });
 }
 
@@ -766,7 +795,7 @@ void MapCanvas::paintDifferences()
     const auto &saved = m_data.getSavedMap();
     const auto &current = m_data.getCurrentMap();
 
-    diff.maybeAsyncUpdate(saved, current);
+    diff.maybeAsyncUpdate(saved, current, m_data);
     if (!diff.hasRelatedDiff(saved)) {
         return;
     }

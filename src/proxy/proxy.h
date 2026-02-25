@@ -107,6 +107,7 @@ private:
         {
             std::unique_ptr<ProxyMudConnectionApi> proxyMudConnection;
             std::unique_ptr<ProxyUserGmcpApi> proxyGmcp;
+            std::unique_ptr<ProxyMudGmcpApi> proxyMudGmcp;
             std::optional<Signal2Lifetime> sendToUserLifetime;
         };
         Apis apis;

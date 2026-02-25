@@ -72,6 +72,10 @@ GraphicsPage::GraphicsPage(QWidget *parent)
             &QCheckBox::stateChanged,
             this,
             &GraphicsPage::slot_drawNeedsUpdateStateChanged);
+    connect(ui->drawUnvisitedRooms,
+            &QCheckBox::stateChanged,
+            this,
+            &GraphicsPage::slot_drawUnvisitedRoomsStateChanged);
     connect(ui->drawNotMappedExits,
             &QCheckBox::stateChanged,
             this,
@@ -143,6 +147,7 @@ void GraphicsPage::slot_loadConfig()
 
     ui->drawUnsavedChanges->setChecked(settings.showUnsavedChanges.get());
     ui->drawNeedsUpdate->setChecked(settings.showMissingMapId.get());
+    ui->drawUnvisitedRooms->setChecked(settings.showUnvisitedHighlight.get());
     ui->drawNotMappedExits->setChecked(settings.showUnmappedExits.get());
     ui->drawDoorNames->setChecked(settings.drawDoorNames);
 
@@ -162,6 +167,12 @@ void GraphicsPage::changeColorClicked(XNamedColor &namedColor, QPushButton *cons
 void GraphicsPage::slot_drawNeedsUpdateStateChanged(int /*unused*/)
 {
     setConfig().canvas.showMissingMapId.set(ui->drawNeedsUpdate->isChecked());
+    graphicsSettingsChanged();
+}
+
+void GraphicsPage::slot_drawUnvisitedRoomsStateChanged(int /*unused*/)
+{
+    setConfig().canvas.showUnvisitedHighlight.set(ui->drawUnvisitedRooms->isChecked());
     graphicsSettingsChanged();
 }
 

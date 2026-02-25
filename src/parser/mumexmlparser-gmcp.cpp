@@ -43,6 +43,12 @@ void MumeXmlParser::slot_parseGmcpInput(const GmcpMessage &msg)
         parseGmcpEventMoved(obj);
     } else if (msg.isRoomInfo()) {
         parseGmcpRoomInfo(obj);
+    } else if (msg.isRoomKnownAdd()) {
+        parseGmcpRoomKnownAdd(msg);
+    } else if (msg.isRoomKnownList()) {
+        parseGmcpRoomKnownList(msg);
+    } else if (msg.isRoomKnownUpdated()) {
+        parseGmcpRoomKnownUpdated(msg);
     }
 }
 
@@ -390,4 +396,43 @@ void MumeXmlParser::parseGmcpRoomInfo(const JsonObj &obj)
     m_commonData.exitIds = misc.exitIds;
 
     m_eventReady = true;
+}
+
+void MumeXmlParser::parseGmcpRoomKnownAdd(const GmcpMessage &msg)
+{
+    using namespace mume_xml_parser_gmcp_detail;
+    if (auto doc = msg.getJsonDocument()) {
+        if (auto id = doc->getInt()) {
+            m_mapData.addKnownRooms({asServerId(*id)});
+        }
+    }
+}
+
+void MumeXmlParser::parseGmcpRoomKnownList(const GmcpMessage &msg)
+{
+    using namespace mume_xml_parser_gmcp_detail;
+    if (auto doc = msg.getJsonDocument()) {
+        if (auto arr = doc->getArray()) {
+            std::vector<ServerRoomId> rooms;
+            for (const auto &val : *arr) {
+                if (auto id = val.getInt()) {
+                    rooms.push_back(asServerId(*id));
+                }
+            }
+            m_mapData.addKnownRooms(rooms);
+        } else if (msg.getJson()) {
+            const auto json = msg.getJson()->toQString();
+            if (json == "null") {
+                m_mapData.setKnownRoomsDataReady(true);
+            } else if (json == "false") {
+                m_mapData.clearKnownRooms();
+            }
+        }
+    }
+}
+
+void MumeXmlParser::parseGmcpRoomKnownUpdated(const GmcpMessage & /*msg*/)
+{
+    m_mapData.clearKnownRooms();
+    m_proxyMudGmcp.gmcpToMud(GmcpMessage{GmcpMessageTypeEnum::ROOM_KNOWN_LIST});
 }

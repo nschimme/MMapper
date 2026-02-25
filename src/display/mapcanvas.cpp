@@ -75,6 +75,11 @@ MapCanvas::MapCanvas(MapData &mapData,
     }
 
     setCursor(Qt::OpenHandCursor);
+
+    connect(&m_data, &MapData::sig_knownRoomsChanged, this, [this]() {
+        m_diff.resetExistingMeshesAndIgnorePendingRemesh();
+        update();
+    });
 }
 
 MapCanvas::~MapCanvas()

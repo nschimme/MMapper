@@ -85,9 +85,12 @@ void FrameManager::requestUpdateIfAnimating()
 
 void FrameManager::onHeartbeat()
 {
+    if (!m_animating) {
+        return;
+    }
+
     if (m_animating && !isAnimating()) {
         m_animating = false;
-        return;
     }
 
     emit sig_requestUpdate();

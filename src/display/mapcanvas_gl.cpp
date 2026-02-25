@@ -586,6 +586,8 @@ void MapCanvas::finishPendingMapBatches()
         assert(opt_mapBatches.has_value());
         m_data.saveSnapshot();
 
+        // Swap immediately so this frame can use the new batches.
+        m_batches.mapBatches = std::exchange(m_batches.next_mapBatches, std::nullopt);
     } catch (...) {
         QString msg;
         try {

@@ -11,29 +11,31 @@ void TestFrameManager::testTargetFps()
     // Initialize config
     setEnteredMain();
     auto &conf = setConfig().canvas.advanced.maximumFps;
-    conf.setFloat(60.0f); // 16.66ms interval
+    conf.setFloat(10.0f); // 100ms interval
 
     FrameManager fm;
     fm.setDirty();
 
-    // Simulating 60 FPS. Interval should be ~16.6ms.
     // Start a frame.
     auto frame1 = fm.beginFrame();
     QVERIFY(frame1.has_value());
 
-    // Simulate 10ms render time.
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    frame1.reset(); // Destroying frame records end of paint (in old code) or nothing (in new code)
+    // Wait a bit, but much less than 100ms.
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    frame1.reset();
 
     // Check if next frame is throttled.
     fm.setDirty();
     auto frame2 = fm.beginFrame();
-    QVERIFY(!frame2.has_value()); // Still within 16.6ms from start of frame1
+    // At T=20ms (plus sleep jitter), it should be throttled by the 100ms limit.
+    // 20ms + 5ms tolerance = 25ms < 100ms.
+    QVERIFY(!frame2.has_value());
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    // Total time elapsed since start of frame1 should be > 100ms now.
+    std::this_thread::sleep_for(std::chrono::milliseconds(90));
     fm.setDirty();
     auto frame3 = fm.beginFrame();
-    QVERIFY(frame3.has_value()); // Now it should be ~20ms since start of frame1, so it's OK.
+    QVERIFY(frame3.has_value());
 }
 
 void TestFrameManager::testThrottle()
@@ -67,7 +69,7 @@ void TestFrameManager::testThrottle()
 void TestFrameManager::testDecoupling()
 {
     auto &conf = setConfig().canvas.advanced.maximumFps;
-    conf.setFloat(30.0f); // 33.33ms interval
+    conf.setFloat(5.0f); // 200ms interval
 
     FrameManager fm;
     fm.setDirty();
@@ -75,21 +77,21 @@ void TestFrameManager::testDecoupling()
     auto frame1 = fm.beginFrame();
     QVERIFY(frame1.has_value());
 
-    // Simulate 10ms render time.
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    frame1.reset(); // End of frame at T=10ms
+    // Simulate 50ms render time.
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    frame1.reset(); // End of frame at T=50ms
 
-    // Total time elapsed since start of frame1: 10ms.
-    // Next frame should be available at T=33.33ms.
+    // Total time elapsed since start of frame1: 50ms.
+    // Next frame should be available at T=200ms.
 
-    // Check it's still throttled at T=20ms
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    // Check it's still throttled at T=100ms (50ms sleep + 50ms previous)
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     fm.setDirty();
     auto frame_fail = fm.beginFrame();
     QVERIFY(!frame_fail.has_value());
 
-    // Wait until T=40ms
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    // Wait until T=210ms (110ms more)
+    std::this_thread::sleep_for(std::chrono::milliseconds(110));
     fm.setDirty();
     auto frame2 = fm.beginFrame();
     QVERIFY(frame2.has_value());

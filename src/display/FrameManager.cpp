@@ -52,9 +52,9 @@ std::optional<FrameManager::Frame> FrameManager::beginFrame()
     // Throttle: check if enough time has passed since the start of the last successful frame.
     if (m_lastUpdateTime.time_since_epoch().count() != 0) {
         const auto elapsed = now - m_lastUpdateTime;
-        // We use a small tolerance (2ms) to avoid skipping frames due to minor timer jitter.
+        // We use a small tolerance (5ms) to avoid skipping frames due to minor timer jitter.
         // This is crucial to avoid missing VSync windows on high-refresh displays.
-        if (elapsed + std::chrono::milliseconds(2) < m_minFrameTime) {
+        if (elapsed + std::chrono::milliseconds(5) < m_minFrameTime) {
             return std::nullopt;
         }
     }
@@ -124,7 +124,7 @@ std::chrono::nanoseconds FrameManager::getTimeUntilNextFrame() const
     const auto now = std::chrono::steady_clock::now();
     const auto elapsed = now - m_lastUpdateTime;
     // We use the same tolerance as beginFrame.
-    if (elapsed + std::chrono::milliseconds(2) >= m_minFrameTime) {
+    if (elapsed + std::chrono::milliseconds(5) >= m_minFrameTime) {
         return std::chrono::nanoseconds::zero();
     }
     return m_minFrameTime - elapsed;

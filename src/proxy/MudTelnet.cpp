@@ -546,9 +546,6 @@ void MudTelnet::virt_onGmcpEnabled()
     sendGmcpMessage(GmcpMessage{GmcpMessageTypeEnum::MUME_CLIENT_XML,
                                 GmcpJson{R"({ "enable": true, "silent": true })"}});
 
-    // Request the initial list of known rooms
-    sendGmcpMessage(GmcpMessage{GmcpMessageTypeEnum::ROOM_KNOWN_LIST});
-
     // Check if user has requested we remember our login credentials
     m_outputs.onTryCharLogin();
 }

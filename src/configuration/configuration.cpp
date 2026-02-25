@@ -293,6 +293,7 @@ ConstString KEY_SERVER_NAME = "Server name";
 ConstString KEY_SHOW_HIDDEN_EXIT_FLAGS = "Show hidden exit flags";
 ConstString KEY_SHOW_NOTES = "Show notes";
 ConstString KEY_SHOW_UNSAVED_CHANGES = "Show unsaved changes";
+ConstString KEY_SHOW_UNVISITED_HIGHLIGHT = "Show unvisited highlight";
 ConstString KEY_SHOW_MISSING_MAP_ID = "Show missing map id";
 ConstString KEY_TAB_COMPLETION_DICTIONARY_SIZE = "Tab completion dictionary size";
 ConstString KEY_THEME = "Theme";
@@ -649,6 +650,7 @@ void Configuration::CanvasSettings::read(const QSettings &conf)
                              .toString();
     showMissingMapId.set(conf.value(KEY_SHOW_MISSING_MAP_ID, true).toBool());
     showUnsavedChanges.set(conf.value(KEY_SHOW_UNSAVED_CHANGES, true).toBool());
+    showUnvisitedHighlight.set(conf.value(KEY_SHOW_UNVISITED_HIGHLIGHT, true).toBool());
     showUnmappedExits.set(conf.value(KEY_DRAW_NOT_MAPPED_EXITS, true).toBool());
     drawUpperLayersTextured = conf.value(KEY_DRAW_UPPER_LAYERS_TEXTURED, false).toBool();
     drawDoorNames = conf.value(KEY_DRAW_DOOR_NAMES, true).toBool();
@@ -856,6 +858,7 @@ void Configuration::CanvasSettings::write(QSettings &conf) const
     conf.setValue(KEY_RESOURCES_DIRECTORY, resourcesDirectory);
     conf.setValue(KEY_SHOW_MISSING_MAP_ID, showMissingMapId.get());
     conf.setValue(KEY_SHOW_UNSAVED_CHANGES, showUnsavedChanges.get());
+    conf.setValue(KEY_SHOW_UNVISITED_HIGHLIGHT, showUnvisitedHighlight.get());
     conf.setValue(KEY_DRAW_NOT_MAPPED_EXITS, showUnmappedExits.get());
     conf.setValue(KEY_DRAW_UPPER_LAYERS_TEXTURED, drawUpperLayersTextured);
     conf.setValue(KEY_DRAW_DOOR_NAMES, drawDoorNames);
@@ -1039,6 +1042,7 @@ void Configuration::NamedColorOptions::resetToDefaults()
     BACKGROUND = background;
     CONNECTION_NORMAL = Colors::white;
     HIGHLIGHT_UNSAVED = Colors::cyan;
+    HIGHLIGHT_UNVISITED = Colors::white;
     HIGHLIGHT_TEMPORARY = Colors::red;
     HIGHLIGHT_NEEDS_SERVER_ID = Colors::yellow;
     INFOMARK_COMMENT = Colors::gray75;

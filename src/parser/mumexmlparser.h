@@ -58,6 +58,7 @@ private:
     bool m_exitsReady = false;
     bool m_descriptionReady = false;
     bool m_eventReady = false;
+    ProxyMudGmcpApi &m_proxyMudGmcp;
     GameObserver &m_observer;
 
 private:
@@ -81,6 +82,7 @@ public:
                            MumeClock &,
                            ProxyMudConnectionApi &,
                            ProxyUserGmcpApi &,
+                           ProxyMudGmcpApi &,
                            GroupManagerApi &,
                            GameObserver &,
                            HotkeyManager &,
@@ -106,4 +108,7 @@ private:
     void parseGmcpCharVitals(const JsonObj &obj);
     void parseGmcpEventMoved(const JsonObj &obj);
     void parseGmcpRoomInfo(const JsonObj &obj);
+    void parseGmcpRoomKnownAdd(const GmcpMessage &msg);
+    void parseGmcpRoomKnownList(const GmcpMessage &msg);
+    void parseGmcpRoomKnownUpdated(const GmcpMessage &msg);
 };

@@ -64,6 +64,7 @@ MumeXmlParser::MumeXmlParser(MapData &md,
                              MumeClock &mc,
                              ProxyMudConnectionApi & /*proxyMudConnection*/,
                              ProxyUserGmcpApi &proxyGmcp,
+                             ProxyMudGmcpApi &proxyMudGmcp,
                              GroupManagerApi &group,
                              GameObserver &observer,
                              HotkeyManager &hm,
@@ -71,6 +72,7 @@ MumeXmlParser::MumeXmlParser(MapData &md,
                              AbstractParserOutputs &outputs,
                              ParserCommonData &parserCommonData)
     : MumeXmlParserBase{parent, mc, md, group, hm, proxyGmcp, outputs, parserCommonData}
+    , m_proxyMudGmcp{proxyMudGmcp}
     , m_observer{observer}
 {}
 

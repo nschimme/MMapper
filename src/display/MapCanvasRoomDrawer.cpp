@@ -906,10 +906,10 @@ static void resolveDoorLabelCollisions(std::vector<DoorLabel> &labels, const Fon
     // At zoom 0.4 (minimum visible), 1 room unit is roughly 18 pixels.
     static constexpr float PIXELS_PER_UNIT = 18.0f;
     static constexpr int ITERATIONS = 30; // Reduced iterations for performance
-    static constexpr float SPRING_K = 0.15f;
-    static constexpr float REPULSION_K = 0.25f;
+    static constexpr float SPRING_K = 0.3f;
+    static constexpr float REPULSION_K = 0.15f;
     static constexpr float DAMPING = 0.6f;
-    static constexpr float MAX_DISPLACEMENT = 2.0f; // Max displacement from original position
+    static constexpr float MAX_DISPLACEMENT = 0.8f; // Max displacement from original position
     static constexpr float GRID_SIZE = 4.0f;        // Spatial grid cell size in world units
 
     struct LabelState

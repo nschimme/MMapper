@@ -115,7 +115,7 @@ void FontMetrics::tryAddSyntheticGlyphs(QImage &img)
 void getFontBatchRawData(const FontMetrics &fm,
                          const GLText *const text,
                          const size_t count,
-                         std::vector<FontVert3d> &output)
+                         std::vector<::FontVert3d> &output)
 {
     fm.getFontBatchRawData(text, count, output);
 }
@@ -593,7 +593,7 @@ glm::ivec2 GLFont::getScreenCenter() const
 
 void FontMetrics::getFontBatchRawData(const GLText *const text,
                                       const size_t count,
-                                      std::vector<FontVert3d> &output) const
+                                      std::vector<::FontVert3d> &output) const
 {
     if (count == 0) {
         return;
@@ -622,7 +622,7 @@ void FontMetrics::getFontBatchRawData(const GLText *const text,
 }
 
 void FontMetrics::getFontBatchRawData(const std::vector<DoorLabel> &labels,
-                                      std::vector<FontVert3d> &output) const
+                                      std::vector<::FontVert3d> &output) const
 {
     if (labels.empty()) {
         return;
@@ -672,7 +672,7 @@ void GLFont::render2dTextImmediate(const std::vector<GLText> &text)
     m_gl.setProjectionMatrix(oldProj);
 }
 
-void GLFont::render3dTextImmediate(const std::vector<FontVert3d> &rawVerts)
+void GLFont::render3dTextImmediate(const std::vector<::FontVert3d> &rawVerts)
 {
     if (rawVerts.empty()) {
         return;
@@ -691,14 +691,14 @@ void GLFont::render3dTextImmediate(const std::vector<GLText> &text)
     render3dTextImmediate(rawVerts);
 }
 
-std::vector<FontVert3d> GLFont::getFontMeshIntermediate(const std::vector<GLText> &text)
+std::vector<::FontVert3d> GLFont::getFontMeshIntermediate(const std::vector<GLText> &text)
 {
-    std::vector<FontVert3d> output;
+    std::vector<::FontVert3d> output;
     getFontMetrics().getFontBatchRawData(text.data(), text.size(), output);
     return output;
 }
 
-UniqueMesh GLFont::getFontMesh(const std::vector<FontVert3d> &rawVerts)
+UniqueMesh GLFont::getFontMesh(const std::vector<::FontVert3d> &rawVerts)
 {
     return m_gl.createFontMesh(m_texture, DrawModeEnum::QUADS, rawVerts);
 }

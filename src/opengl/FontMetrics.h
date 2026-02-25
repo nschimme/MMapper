@@ -239,7 +239,7 @@ struct NODISCARD FontMetrics final
 
     void getFontBatchRawData(const GLText *text,
                              size_t count,
-                             std::vector<FontVert3d> &output) const;
+                             std::vector<::FontVert3d> &output) const;
     void getFontBatchRawData(const std::vector<DoorLabel> &labels,
-                             std::vector<FontVert3d> &output) const;
+                             std::vector<::FontVert3d> &output) const;
 };

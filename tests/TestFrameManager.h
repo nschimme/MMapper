@@ -14,4 +14,5 @@ private slots:
     void testTargetFps();
     void testThrottle();
     void testDecoupling();
+    void testHammering();
 };

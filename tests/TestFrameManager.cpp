@@ -67,7 +67,7 @@ void TestFrameManager::testThrottle()
 void TestFrameManager::testDecoupling()
 {
     auto &conf = setConfig().canvas.advanced.maximumFps;
-    conf.setFloat(60.0f); // 16.66ms interval
+    conf.setFloat(30.0f); // 33.33ms interval
 
     FrameManager fm;
     fm.setDirty();
@@ -75,25 +75,54 @@ void TestFrameManager::testDecoupling()
     auto frame1 = fm.beginFrame();
     QVERIFY(frame1.has_value());
 
-    // Simulate 12ms render time.
-    std::this_thread::sleep_for(std::chrono::milliseconds(12));
-    frame1.reset(); // End of frame at T=12ms
+    // Simulate 10ms render time.
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    frame1.reset(); // End of frame at T=10ms
 
-    // Total time elapsed since start of frame1: 12ms.
-    // Next frame should be available at T=16.66ms.
+    // Total time elapsed since start of frame1: 10ms.
+    // Next frame should be available at T=33.33ms.
 
-    // Check it's still throttled at T=14ms
-    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    // Check it's still throttled at T=20ms
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
     fm.setDirty();
     auto frame_fail = fm.beginFrame();
     QVERIFY(!frame_fail.has_value());
 
-    // Wait until T=20ms
-    std::this_thread::sleep_for(std::chrono::milliseconds(6));
+    // Wait until T=40ms
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
     fm.setDirty();
     auto frame2 = fm.beginFrame();
     QVERIFY(frame2.has_value());
-    // In old code, this would have failed because it waited 16.66ms AFTER frame1 finished (T=12 + 16.66 = 28.66ms).
+}
+
+void TestFrameManager::testHammering()
+{
+    auto &conf = setConfig().canvas.advanced.maximumFps;
+    conf.setFloat(4.0f); // 250ms interval
+
+    FrameManager fm;
+    fm.setDirty();
+
+    auto frame1 = fm.beginFrame();
+    QVERIFY(frame1.has_value());
+    frame1.reset();
+
+    // Call requestFrame many times (simulating mouse move)
+    for (int i = 0; i < 50; ++i) {
+        fm.requestFrame();
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+
+    // After 50ms, we should still be throttled.
+    fm.setDirty();
+    auto frame2 = fm.beginFrame();
+    QVERIFY(!frame2.has_value());
+
+    // Wait until 255ms from start
+    std::this_thread::sleep_for(std::chrono::milliseconds(205));
+    fm.setDirty();
+    auto frame3 = fm.beginFrame();
+    QVERIFY(frame3.has_value());
 }
 
 #include "TestFrameManager.moc"

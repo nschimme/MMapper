@@ -52,8 +52,9 @@ std::optional<FrameManager::Frame> FrameManager::beginFrame()
     // Throttle: check if enough time has passed since the start of the last successful frame.
     if (m_lastUpdateTime.time_since_epoch().count() != 0) {
         const auto elapsed = now - m_lastUpdateTime;
-        // We use a small tolerance (500us) to avoid skipping frames due to minor timer jitter.
-        if (elapsed + std::chrono::microseconds(500) < m_minFrameTime) {
+        // We use a small tolerance (2ms) to avoid skipping frames due to minor timer jitter.
+        // This is crucial to avoid missing VSync windows on high-refresh displays.
+        if (elapsed + std::chrono::milliseconds(2) < m_minFrameTime) {
             return std::nullopt;
         }
     }
@@ -110,7 +111,7 @@ void FrameManager::onHeartbeat()
         // recordFramePainted will later refine this with a more accurate delay if a paint occurs.
         const auto delayMs = std::chrono::duration_cast<std::chrono::milliseconds>(m_minFrameTime)
                                  .count();
-        m_heartbeatTimer.start(static_cast<int>(delayMs + 1));
+        m_heartbeatTimer.start(static_cast<int>(delayMs));
     }
 }
 
@@ -123,7 +124,7 @@ std::chrono::nanoseconds FrameManager::getTimeUntilNextFrame() const
     const auto now = std::chrono::steady_clock::now();
     const auto elapsed = now - m_lastUpdateTime;
     // We use the same tolerance as beginFrame.
-    if (elapsed + std::chrono::microseconds(500) >= m_minFrameTime) {
+    if (elapsed + std::chrono::milliseconds(2) >= m_minFrameTime) {
         return std::chrono::nanoseconds::zero();
     }
     return m_minFrameTime - elapsed;
@@ -150,17 +151,24 @@ void FrameManager::requestFrame()
         emit sig_requestUpdate();
         // Start a fallback timer in case sig_requestUpdate is ignored.
         if (needsHeartbeat()) {
-            const auto delayMs
-                = std::chrono::duration_cast<std::chrono::milliseconds>(m_minFrameTime).count();
-            m_heartbeatTimer.start(static_cast<int>(delayMs + 1));
+            const auto delayMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                     m_minFrameTime)
+                                     .count();
+            m_heartbeatTimer.start(static_cast<int>(delayMs));
         }
     } else {
         // Start or restart the timer with the accurate delay.
         const long long delayMs = std::chrono::duration_cast<std::chrono::milliseconds>(delay)
                                       .count();
         const bool hasPartialMs = delay > std::chrono::milliseconds(delayMs);
-        const long long finalDelay = delayMs + (hasPartialMs ? 1LL : 0LL);
-        m_heartbeatTimer.start(static_cast<int>(finalDelay));
+        const int finalDelay = static_cast<int>(delayMs + (hasPartialMs ? 1 : 0));
+
+        // Only restart the timer if it's not active or if the new delay is significantly different.
+        // This avoids hammering the timer during high-frequency input like mouse moves.
+        if (!m_heartbeatTimer.isActive()
+            || std::abs(m_heartbeatTimer.remainingTime() - finalDelay) > 1) {
+            m_heartbeatTimer.start(finalDelay);
+        }
     }
 }
 

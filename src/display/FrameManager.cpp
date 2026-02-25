@@ -77,8 +77,8 @@ std::optional<FrameManager::Frame> FrameManager::beginFrame()
     m_animationTime += dt;
 
     // Cap dt for simulation to match map movement during dragging and avoid quantization jitter.
-    // Cap at 0.1s to avoid huge jumps after window focus loss or lag.
-    m_lastFrameDeltaTime = std::min(dt, 0.1f);
+    // Cap at 1.0s to avoid huge jumps after window focus loss or lag, while supporting low FPS.
+    m_lastFrameDeltaTime = std::min(dt, 1.0f);
 
     return Frame(*this, m_lastFrameDeltaTime);
 }
@@ -157,16 +157,17 @@ void FrameManager::requestFrame()
         }
     } else {
         // Start or restart the timer with the accurate delay.
-        const long long delayMs = std::chrono::duration_cast<std::chrono::milliseconds>(delay)
-                                      .count();
-        const bool hasPartialMs = delay > std::chrono::milliseconds(delayMs);
-        const int finalDelay = static_cast<int>(delayMs + (hasPartialMs ? 1 : 0));
+        // Round to nearest millisecond to help hitting VSync windows.
+        const int finalDelay = static_cast<int>(
+            std::chrono::duration_cast<std::chrono::milliseconds>(delay
+                                                                  + std::chrono::microseconds(500))
+                .count());
 
         // Only restart the timer if it's not active or if the new delay is significantly different.
         // This avoids hammering the timer during high-frequency input like mouse moves.
         if (!m_heartbeatTimer.isActive()
             || std::abs(m_heartbeatTimer.remainingTime() - finalDelay) > 1) {
-            m_heartbeatTimer.start(finalDelay);
+            m_heartbeatTimer.start(std::max(1, finalDelay));
         }
     }
 }

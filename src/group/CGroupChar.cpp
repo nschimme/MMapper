@@ -206,6 +206,22 @@ bool CGroupChar::updateFromGmcp(const JsonObj &obj)
     return updated;
 }
 
+void CGroupChar::addKnownRooms(std::vector<ServerRoomId> rooms)
+{
+    m_server.knownRooms.insert(rooms.begin(), rooms.end());
+}
+
+void CGroupChar::setKnownRoomsDataReady(const bool ready)
+{
+    m_server.hasKnownRoomsData = ready;
+}
+
+void CGroupChar::clearKnownRooms()
+{
+    m_server.knownRooms.clear();
+    m_server.hasKnownRoomsData = false;
+}
+
 static bool isDeathHall(const ServerRoomId id)
 {
     switch (id.asUint32()) {

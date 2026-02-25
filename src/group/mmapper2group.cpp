@@ -59,6 +59,24 @@ void Mmapper2Group::onReset()
     resetChars();
 }
 
+void Mmapper2Group::addKnownRooms(std::vector<ServerRoomId> rooms)
+{
+    getSelf()->addKnownRooms(rooms);
+    emit sig_knownRoomsChanged();
+}
+
+void Mmapper2Group::setKnownRoomsDataReady(const bool ready)
+{
+    getSelf()->setKnownRoomsDataReady(ready);
+    emit sig_knownRoomsChanged();
+}
+
+void Mmapper2Group::clearKnownRooms()
+{
+    getSelf()->clearKnownRooms();
+    emit sig_knownRoomsChanged();
+}
+
 void Mmapper2Group::parseGmcpCharName(const JsonObj &obj)
 {
     // "Char.Name" "{\"fullname\":\"Gandalf the Grey\",\"name\":\"Gandalf\"}"

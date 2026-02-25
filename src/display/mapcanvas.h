@@ -64,6 +64,7 @@ private:
         bool animating = false;
     };
 
+public:
     struct NODISCARD Diff final
     {
         using DiffQuadVector = std::vector<RoomQuadTexVert>;
@@ -114,16 +115,28 @@ private:
         {
             Map saved;
             Map current;
+            bool hasKnownRoomsData = false;
+            bool showNeedsServerId = false;
+            bool showChanged = false;
+            bool showUnvisited = false;
             MaybeDataOrMesh highlights;
         };
 
         std::optional<std::future<HighlightDiff>> futureHighlight;
         std::optional<HighlightDiff> highlight;
 
-        NODISCARD bool isUpToDate(const Map &saved, const Map &current) const;
+        NODISCARD bool isUpToDate(const Map &saved,
+                                  const Map &current,
+                                  bool hasKnownRoomsData,
+                                  bool showNeedsServerId,
+                                  bool showChanged,
+                                  bool showUnvisited) const;
         NODISCARD bool hasRelatedDiff(const Map &save) const;
         void cancelUpdates(const Map &saved);
-        void maybeAsyncUpdate(const Map &saved, const Map &current);
+        void maybeAsyncUpdate(const Map &saved,
+                              const Map &current,
+                              const std::unordered_set<ServerRoomId> &knownRooms,
+                              bool hasKnownRoomsData);
 
         void resetExistingMeshesAndIgnorePendingRemesh()
         {

@@ -11,6 +11,7 @@
 #include "mmapper2character.h"
 
 #include <memory>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -84,6 +85,9 @@ private:
         CharacterTypeEnum type = CharacterTypeEnum::UNDEFINED;
         CharacterAffectFlags affects;
 
+        std::unordered_set<ServerRoomId> knownRooms;
+        bool hasKnownRoomsData = false;
+
         void reset() { *this = Server{}; }
     };
 
@@ -144,6 +148,15 @@ public:
     bool setScore(const QString &hp, const QString &mana, const QString &moves);
     void setRoomName(CharacterRoomName name) { m_server.roomName = std::move(name); }
     NODISCARD const CharacterRoomName &getRoomName() const { return m_server.roomName; }
+
+    void addKnownRooms(std::vector<ServerRoomId> rooms);
+    void setKnownRoomsDataReady(bool ready);
+    void clearKnownRooms();
+    NODISCARD bool hasKnownRoomsData() const { return m_server.hasKnownRoomsData; }
+    NODISCARD const std::unordered_set<ServerRoomId> &getKnownRooms() const
+    {
+        return m_server.knownRooms;
+    }
 
     void setScore(int _hp, int _maxhp, int _mana, int _maxmana, int _moves, int _maxmoves)
     {

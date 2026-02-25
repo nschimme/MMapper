@@ -21,6 +21,9 @@ public:
 
 public:
     void refresh();
+    void addKnownRooms(std::vector<ServerRoomId> rooms);
+    void setKnownRoomsDataReady(bool ready);
+    void clearKnownRooms();
     NODISCARD SharedGroupChar getMember(const GroupId id);
     NODISCARD SharedGroupChar getMember(const CharacterName &name);
     NODISCARD const GroupVector &getMembers();

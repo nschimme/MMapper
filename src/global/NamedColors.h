@@ -18,6 +18,7 @@
     X(HIGHLIGHT_NEEDS_SERVER_ID, "highlight-needs-server-id") \
     X(HIGHLIGHT_UNSAVED, "highlight-unsaved") \
     X(HIGHLIGHT_TEMPORARY, "highlight-temporary") \
+    X(HIGHLIGHT_UNVISITED, "highlight-unvisited") \
     X(INFOMARK_COMMENT, "infomark-comment") \
     X(INFOMARK_HERB, "infomark-herb") \
     X(INFOMARK_MOB, "infomark-mob") \

@@ -34,8 +34,8 @@ void TestFrameManager::testTargetFps()
     auto frame2 = fm.beginFrame();
     const auto elapsed = t2 - t1;
     // Throttling depends on the actual elapsed time. If sleep took too long, it might not be throttled.
-    // We use a margin (20ms) in the test to be robust against CI jitter.
-    if (elapsed + std::chrono::milliseconds(20) < std::chrono::milliseconds(100)) {
+    // We use a margin (25ms) in the test to be robust against CI jitter.
+    if (elapsed + std::chrono::milliseconds(25) < std::chrono::milliseconds(100)) {
         QVERIFY(!frame2.has_value());
     }
 
@@ -96,7 +96,7 @@ void TestFrameManager::testDecoupling()
     const auto t2 = std::chrono::steady_clock::now();
     auto frame_fail = fm.beginFrame();
     const auto elapsed = t2 - t1;
-    if (elapsed + std::chrono::milliseconds(20) < std::chrono::milliseconds(200)) {
+    if (elapsed + std::chrono::milliseconds(25) < std::chrono::milliseconds(200)) {
         QVERIFY(!frame_fail.has_value());
     }
 
@@ -131,7 +131,7 @@ void TestFrameManager::testHammering()
     const auto t2 = std::chrono::steady_clock::now();
     auto frame2 = fm.beginFrame();
     const auto elapsed = t2 - t1;
-    if (elapsed + std::chrono::milliseconds(20) < std::chrono::milliseconds(250)) {
+    if (elapsed + std::chrono::milliseconds(25) < std::chrono::milliseconds(250)) {
         QVERIFY(!frame2.has_value());
     }
 

@@ -9,6 +9,7 @@
 #include <chrono>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include <QObject>
@@ -47,10 +48,11 @@ private:
     std::chrono::nanoseconds m_minFrameTime{0};
     Signal2Lifetime m_configLifetime;
     QTimer m_heartbeatTimer;
-    float m_animationTime = 0.0f;
     float m_lastFrameDeltaTime = 0.0f;
     bool m_animating = false;
     bool m_dirty = true;
+
+    friend class TestFrameManager;
 
 public:
     struct Pacing
@@ -107,6 +109,7 @@ public:
      */
     NODISCARD std::optional<Frame> beginFrame();
 
+private:
     /**
      * @brief Request a frame to be painted if not already throttled.
      * Does not set the dirty flag.
@@ -117,16 +120,12 @@ public:
      * @brief Enable or disable continuous background animation.
      */
     void setAnimating(bool value);
-    NODISCARD bool getAnimating() const { return m_animating; }
-
-    NODISCARD float getAnimationTime() const { return m_animationTime; }
 
     /**
      * @brief Check if any registered animations or heartbeat are active.
      */
     NODISCARD bool needsHeartbeat() const;
 
-private:
     void recordFramePainted();
     void updateMinFrameTime();
     void cleanupExpiredCallbacks() const;

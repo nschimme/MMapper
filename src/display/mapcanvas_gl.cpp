@@ -549,12 +549,6 @@ void MapCanvas::finishPendingMapBatches()
 #define LOG() MMLOG() << prefix
     static const std::string_view prefix = "[finishPendingMapBatches] ";
 
-    MAYBE_UNUSED RAIICallback eventually{[this] {
-        if (!m_batches.isInProgress()) {
-            m_frameManager.setAnimating(false);
-        }
-    }};
-
     if (m_batches.next_mapBatches.has_value()) {
         m_batches.mapBatches = std::exchange(m_batches.next_mapBatches, std::nullopt);
     }
@@ -761,9 +755,6 @@ void MapCanvas::paintDifferences()
 void MapCanvas::paintMap()
 {
     const bool pending = m_batches.remeshCookie.isPending();
-    if (pending) {
-        m_frameManager.setAnimating(true);
-    }
 
     if (!m_batches.mapBatches.has_value()) {
         if (!pending || m_batches.pendingUpdateFlashState.tick()) {

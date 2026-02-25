@@ -38,9 +38,7 @@ bool FrameManager::needsHeartbeat() const
         if (auto shared = entry.lifetime.lock()) {
             if (entry.callback() == AnimationStatus::Continue) {
                 anyActive = true;
-                // We can't return early here because we might need to find if cleanup is needed
-                // if we were to strictly follow the old logic, but actually let's just return early
-                // and defer cleanup.
+                // Defer thorough cleanup to when heartbeat is truly idle.
                 return true;
             }
         } else {
@@ -95,9 +93,6 @@ std::optional<FrameManager::Frame> FrameManager::beginFrame()
         deltaTime = std::chrono::duration<float>(elapsed).count();
     }
     m_lastUpdateTime = now;
-
-    // Advance global time smoothly
-    m_animationTime += deltaTime;
 
     // Cap deltaTime for simulation to match map movement during dragging and avoid quantization jitter.
     // Cap at 1.0s to avoid huge jumps after window focus loss or lag, while supporting low FPS.
@@ -177,8 +172,8 @@ void FrameManager::requestFrame()
         }
     } else {
         // Start or restart the timer with the accurate delay.
-        const int finalDelay
-            = static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(delay).count());
+        const int finalDelay = static_cast<int>(
+            std::chrono::duration_cast<std::chrono::milliseconds>(delay).count());
 
         // Only restart the timer if it's not active or if the new delay is significantly different.
         // This avoids hammering the timer during high-frequency input like mouse moves.

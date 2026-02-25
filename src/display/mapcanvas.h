@@ -116,6 +116,9 @@ public:
             Map saved;
             Map current;
             bool hasKnownRoomsData = false;
+            bool showNeedsServerId = false;
+            bool showChanged = false;
+            bool showUnvisited = false;
             MaybeDataOrMesh highlights;
         };
 
@@ -124,7 +127,10 @@ public:
 
         NODISCARD bool isUpToDate(const Map &saved,
                                   const Map &current,
-                                  bool hasKnownRoomsData) const;
+                                  bool hasKnownRoomsData,
+                                  bool showNeedsServerId,
+                                  bool showChanged,
+                                  bool showUnvisited) const;
         NODISCARD bool hasRelatedDiff(const Map &save) const;
         void cancelUpdates(const Map &saved);
         void maybeAsyncUpdate(const Map &saved, const Map &current, const MapData &mapData);

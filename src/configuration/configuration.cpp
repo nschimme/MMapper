@@ -1018,7 +1018,7 @@ void Configuration::NamedColorOptions::resetToDefaults()
     BACKGROUND = background;
     CONNECTION_NORMAL = Colors::white;
     HIGHLIGHT_UNSAVED = Colors::cyan;
-    HIGHLIGHT_UNVISITED = Colors::white;
+    HIGHLIGHT_UNVISITED = Colors::magenta;
     HIGHLIGHT_TEMPORARY = Colors::red;
     HIGHLIGHT_NEEDS_SERVER_ID = Colors::yellow;
     INFOMARK_COMMENT = Colors::gray75;

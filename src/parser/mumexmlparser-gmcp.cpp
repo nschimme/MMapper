@@ -25,27 +25,31 @@ static volatile bool verbose_debugging = IS_DEBUG_BUILD;
 
 void MumeXmlParser::slot_parseGmcpInput(const GmcpMessage &msg)
 {
-    if (!msg.getJsonDocument().has_value()) {
-        return;
-    }
-
     if (msg.isCharStatusVars()) {
-        if (auto obj = msg.getJsonDocument()->getObject()) {
-            parseGmcpStatusVars(*obj);
+        if (auto doc = msg.getJsonDocument()) {
+            if (auto obj = doc->getObject()) {
+                parseGmcpStatusVars(*obj);
+            }
         }
     } else if (msg.isCharVitals()) {
-        if (auto obj = msg.getJsonDocument()->getObject()) {
-            parseGmcpCharVitals(*obj);
+        if (auto doc = msg.getJsonDocument()) {
+            if (auto obj = doc->getObject()) {
+                parseGmcpCharVitals(*obj);
+            }
         }
     } else if (msg.isCharName()) {
         parseGmcpCharName(msg);
     } else if (msg.isEventMoved()) {
-        if (auto obj = msg.getJsonDocument()->getObject()) {
-            parseGmcpEventMoved(*obj);
+        if (auto doc = msg.getJsonDocument()) {
+            if (auto obj = doc->getObject()) {
+                parseGmcpEventMoved(*obj);
+            }
         }
     } else if (msg.isRoomInfo()) {
-        if (auto obj = msg.getJsonDocument()->getObject()) {
-            parseGmcpRoomInfo(*obj);
+        if (auto doc = msg.getJsonDocument()) {
+            if (auto obj = doc->getObject()) {
+                parseGmcpRoomInfo(*obj);
+            }
         }
     } else if (msg.isRoomKnownAdd()) {
         parseGmcpRoomKnownAdd(msg);
@@ -436,6 +440,7 @@ void MumeXmlParser::parseGmcpRoomKnownList(const GmcpMessage &msg)
                 qInfo().noquote() << "Room.Known.List: received" << rooms.size() << "rooms";
             }
             m_mapData.addKnownRooms(rooms);
+            m_mapData.setKnownRoomsDataReady(true);
         } else if (msg.getJson()) {
             const auto json = msg.getJson()->toQString();
             if (json == "null") {

@@ -662,11 +662,16 @@ void MapCanvas::actuallyPaintGL()
 
 NODISCARD bool MapCanvas::Diff::isUpToDate(const Map &saved,
                                            const Map &current,
-                                           const bool hasKnownRoomsData) const
+                                           const bool hasKnownRoomsData,
+                                           const bool showNeedsServerId,
+                                           const bool showChanged,
+                                           const bool showUnvisited) const
 {
     return highlight && highlight->saved.isSamePointer(saved)
            && highlight->current.isSamePointer(current)
-           && highlight->hasKnownRoomsData == hasKnownRoomsData;
+           && highlight->hasKnownRoomsData == hasKnownRoomsData
+           && highlight->showNeedsServerId == showNeedsServerId
+           && highlight->showChanged == showChanged && highlight->showUnvisited == showUnvisited;
 }
 
 // this differs from isUpToDate in that it allows display of a diff based on the current saved map,
@@ -689,7 +694,13 @@ void MapCanvas::Diff::cancelUpdates(const Map &saved)
 void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current, const MapData &mapData)
 {
     auto &diff = *this;
-    const auto knownRooms = mapData.getKnownRoomsSnapshot();
+
+    const auto &config = getConfig();
+    const auto &canvas = config.canvas;
+    const bool showNeedsServerId = canvas.showMissingMapId.get();
+    const bool showChanged = canvas.showUnsavedChanges.get();
+    const bool showUnvisited = canvas.showUnvisitedHighlight.get();
+
     const bool hasKnownRoomsData = mapData.hasKnownRoomsData();
 
     // Pending takes precedence. This also usually guarantees at most one pending update at a time,
@@ -709,15 +720,16 @@ void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current, con
     }
 
     // no change necessary
-    if (isUpToDate(saved, current, hasKnownRoomsData)) {
+    if (isUpToDate(saved,
+                   current,
+                   hasKnownRoomsData,
+                   showNeedsServerId,
+                   showChanged,
+                   showUnvisited)) {
         return;
     }
 
-    const auto &config = getConfig();
-    const auto &canvas = config.canvas;
-    const bool showNeedsServerId = canvas.showMissingMapId.get();
-    const bool showChanged = canvas.showUnsavedChanges.get();
-    const bool showUnvisited = canvas.showUnvisitedHighlight.get();
+    const auto knownRooms = mapData.getKnownRoomsSnapshot();
 
     diff.futureHighlight = std::async(
         std::launch::async,
@@ -785,7 +797,13 @@ void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current, con
                 return Diff::MaybeDataOrMesh{std::move(highlights)};
             };
 
-            return Diff::HighlightDiff{saved, current, hasKnownRoomsData, getHighlights()};
+            return Diff::HighlightDiff{saved,
+                                       current,
+                                       hasKnownRoomsData,
+                                       showNeedsServerId,
+                                       showChanged,
+                                       showUnvisited,
+                                       getHighlights()};
         });
 }
 

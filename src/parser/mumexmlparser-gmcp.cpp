@@ -420,7 +420,7 @@ void MumeXmlParser::parseGmcpRoomKnownAdd(const GmcpMessage &msg)
             if (verbose_debugging) {
                 qInfo().noquote() << "Room.Known.Add:" << serverId.asUint32();
             }
-            m_mapData.addKnownRooms({serverId});
+            m_group.addKnownRooms({serverId});
         }
     }
 }
@@ -439,20 +439,20 @@ void MumeXmlParser::parseGmcpRoomKnownList(const GmcpMessage &msg)
             if (verbose_debugging) {
                 qInfo().noquote() << "Room.Known.List: received" << rooms.size() << "rooms";
             }
-            m_mapData.addKnownRooms(rooms);
-            m_mapData.setKnownRoomsDataReady(true);
+            m_group.addKnownRooms(rooms);
+            m_group.setKnownRoomsDataReady(true);
         } else if (msg.getJson()) {
             const auto json = msg.getJson()->toQString();
             if (json == "null") {
                 if (verbose_debugging) {
                     qInfo().noquote() << "Room.Known.List: terminated (null)";
                 }
-                m_mapData.setKnownRoomsDataReady(true);
+                m_group.setKnownRoomsDataReady(true);
             } else if (json == "false") {
                 if (verbose_debugging) {
                     qInfo().noquote() << "Room.Known.List: not available (false)";
                 }
-                m_mapData.clearKnownRooms();
+                m_group.clearKnownRooms();
             }
         }
     }
@@ -463,6 +463,6 @@ void MumeXmlParser::parseGmcpRoomKnownUpdated(const GmcpMessage & /*msg*/)
     if (verbose_debugging) {
         qInfo().noquote() << "Room.Known.Updated: clearing and re-requesting";
     }
-    m_mapData.clearKnownRooms();
+    m_group.clearKnownRooms();
     m_proxyMudGmcp.gmcpToMud(GmcpMessage{GmcpMessageTypeEnum::ROOM_KNOWN_LIST});
 }

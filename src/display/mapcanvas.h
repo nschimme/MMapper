@@ -133,7 +133,10 @@ public:
                                   bool showUnvisited) const;
         NODISCARD bool hasRelatedDiff(const Map &save) const;
         void cancelUpdates(const Map &saved);
-        void maybeAsyncUpdate(const Map &saved, const Map &current, const MapData &mapData);
+        void maybeAsyncUpdate(const Map &saved,
+                              const Map &current,
+                              const std::unordered_set<ServerRoomId> &knownRooms,
+                              bool hasKnownRoomsData);
 
         void resetExistingMeshesAndIgnorePendingRemesh()
         {

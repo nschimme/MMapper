@@ -66,9 +66,6 @@ private:
     QString m_fileName;
     std::optional<RoomId> m_selectedRoom;
 
-    std::unordered_set<ServerRoomId> m_knownRooms;
-    bool m_hasKnownRoomsData = false;
-
 public:
     explicit MapData(QObject *parent);
     ~MapData() final;
@@ -141,12 +138,6 @@ public:
     NODISCARD const QString &getFileName() const { return m_fileName; }
     NODISCARD bool isFileReadOnly() const { return m_fileReadOnly; }
 
-    void addKnownRooms(std::vector<ServerRoomId> rooms);
-    void setKnownRoomsDataReady(bool ready);
-    void clearKnownRooms();
-    NODISCARD bool hasKnownRoomsData() const { return m_hasKnownRoomsData; }
-    NODISCARD bool isRoomKnown(ServerRoomId id) const;
-    NODISCARD std::unordered_set<ServerRoomId> getKnownRoomsSnapshot() const;
 
 public:
     NODISCARD ExitDirFlags getExitDirections(const Coordinate &pos);
@@ -219,7 +210,6 @@ signals:
     void sig_onForcedPositionChange();
     void sig_checkMapConsistency();
     void sig_generateBaseMap();
-    void sig_knownRoomsChanged();
 
 public slots:
     void slot_scheduleAction(const SigMapChangeList &);

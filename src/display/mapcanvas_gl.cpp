@@ -450,6 +450,15 @@ glm::mat4 MapCanvas::getViewProj(const glm::vec2 &scrollPos,
     return proj * view * scaleZ;
 }
 
+void MapCanvas::updateViewProj(int width, int height)
+{
+    const bool want3D = getConfig().canvas.advanced.use3D.get();
+    const float zoomScale = getTotalScaleFactor();
+    const auto size = glm::ivec2(width, height);
+    m_viewProj = (!want3D) ? getViewProj_old(m_scroll, size, zoomScale, m_currentLayer)
+                           : getViewProj(m_scroll, size, zoomScale, m_currentLayer);
+}
+
 void MapCanvas::setMvp(const glm::mat4 &viewProj)
 {
     auto &gl = getOpenGL();
@@ -459,19 +468,16 @@ void MapCanvas::setMvp(const glm::mat4 &viewProj)
 
 void MapCanvas::setViewportAndMvp(int width, int height)
 {
-    const bool want3D = getConfig().canvas.advanced.use3D.get();
+    updateViewProj(width, height);
 
     auto &gl = getOpenGL();
-
     gl.glViewport(0, 0, width, height);
+
     const auto size = getViewport().size;
     assert(size.x == width);
     assert(size.y == height);
 
-    const float zoomScale = getTotalScaleFactor();
-    const auto viewProj = (!want3D) ? getViewProj_old(m_scroll, size, zoomScale, m_currentLayer)
-                                    : getViewProj(m_scroll, size, zoomScale, m_currentLayer);
-    setMvp(viewProj);
+    gl.setProjectionMatrix(m_viewProj);
 }
 
 void MapCanvas::resizeGL(int width, int height)
@@ -490,39 +496,7 @@ void MapCanvas::resizeGL(int width, int height)
 
 void MapCanvas::setAnimating(bool value)
 {
-    if (m_frameRateController.animating == value) {
-        return;
-    }
-
-    m_frameRateController.animating = value;
-
-    if (m_frameRateController.animating) {
-        QTimer::singleShot(0, this, &MapCanvas::renderLoop);
-    }
-}
-
-void MapCanvas::renderLoop()
-{
-    if (!m_frameRateController.animating) {
-        return;
-    }
-
-    // REVISIT: Make this configurable later when its not just used for the remesh flash
-    static constexpr int TARGET_FRAMES_PER_SECOND = 20;
-    auto targetFrameTime = std::chrono::milliseconds(1000 / TARGET_FRAMES_PER_SECOND);
-
-    auto now = std::chrono::steady_clock::now();
-    update();
-    auto afterPaint = std::chrono::steady_clock::now();
-
-    // Render the next frame at the appropriate time or now if we're behind
-    auto timeSinceLastFrame = std::chrono::duration_cast<std::chrono::milliseconds>(afterPaint
-                                                                                    - now);
-    auto delay = std::max(targetFrameTime - timeSinceLastFrame, std::chrono::milliseconds::zero());
-
-    QTimer::singleShot(delay.count(), this, &MapCanvas::renderLoop);
-
-    m_frameRateController.lastFrameTime = now;
+    m_frameManager.setAnimating(value);
 }
 
 void MapCanvas::updateBatches()
@@ -633,6 +607,8 @@ void MapCanvas::finishPendingMapBatches()
 
 void MapCanvas::actuallyPaintGL()
 {
+    m_frameManager.update();
+
     // DECL_TIMER(t, __FUNCTION__);
     setViewportAndMvp(width(), height());
 
@@ -818,6 +794,12 @@ void MapCanvas::paintSelections()
 
 void MapCanvas::paintGL()
 {
+    if (!m_frameManager.tryAcquireFrame()) {
+        m_frameManager.requestUpdateIfAnimating();
+        return;
+    }
+    m_frameManager.recordFramePainted();
+
     static thread_local double longestBatchMs = 0.0;
 
     const bool showPerfStats = MapCanvasConfig::getShowPerfStats();
@@ -849,6 +831,10 @@ void MapCanvas::paintGL()
         }
 
         actuallyPaintGL();
+
+        if (m_frameManager.isAnimating()) {
+            setAnimating(true);
+        }
     }
 
     if (!showPerfStats) {

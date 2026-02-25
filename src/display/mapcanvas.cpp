@@ -69,6 +69,11 @@ MapCanvas::MapCanvas(MapData &mapData,
     , m_data{mapData}
     , m_groupManager{groupManager}
 {
+    m_frameManager.registerCallback(m_lifetime,
+                                    [this]() { return m_batches.remeshCookie.isPending(); });
+
+    connect(&m_frameManager, &FrameManager::sig_requestUpdate, this, [this]() { update(); });
+
     NonOwningPointer &pmc = primaryMapCanvas();
     if (pmc == nullptr) {
         pmc = this;
@@ -728,9 +733,12 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
 
             if (glm::length(delta) > GESTURE_EPSILON) {
                 const glm::vec2 newWorldCenter = m_dragState->startScroll - delta;
-                m_scroll = newWorldCenter;
-                emit sig_onCenter(newWorldCenter);
-                update();
+                if (m_scroll != newWorldCenter) {
+                    m_scroll = newWorldCenter;
+                    updateViewProj(width(), height());
+                    emit sig_onCenter(newWorldCenter);
+                    update();
+                }
             }
         }
         break;
@@ -1051,6 +1059,7 @@ void MapCanvas::zoomAt(const float factor, const glm::vec2 &mousePos)
     if (!optWorldPos) {
         m_scaleFactor *= factor;
         zoomChanged();
+        updateViewProj(width(), height());
         update();
         return;
     }
@@ -1067,7 +1076,7 @@ void MapCanvas::zoomAt(const float factor, const glm::vec2 &mousePos)
     // Calculate new scroll position to keep worldPos under mousePos.
     // We update the viewport and MVP to the new zoom level temporarily
     // to perform the unprojection.
-    setViewportAndMvp(width(), height());
+    updateViewProj(width(), height());
 
     const auto optNewWorldPos = unproject(mousePos);
     if (optNewWorldPos) {
@@ -1082,32 +1091,42 @@ void MapCanvas::zoomAt(const float factor, const glm::vec2 &mousePos)
     }
 
     // Refresh the viewport matrix with the final scroll and zoom before painting.
-    setViewportAndMvp(width(), height());
+    updateViewProj(width(), height());
     update();
 }
 
 void MapCanvas::slot_setScroll(const glm::vec2 &worldPos)
 {
-    m_scroll = worldPos;
-    update();
+    if (m_scroll != worldPos) {
+        m_scroll = worldPos;
+        updateViewProj(width(), height());
+        update();
+    }
 }
 
 void MapCanvas::slot_setHorizontalScroll(const float worldX)
 {
-    m_scroll.x = worldX;
-    update();
+    if (m_scroll.x != worldX) {
+        m_scroll.x = worldX;
+        updateViewProj(width(), height());
+        update();
+    }
 }
 
 void MapCanvas::slot_setVerticalScroll(const float worldY)
 {
-    m_scroll.y = worldY;
-    update();
+    if (m_scroll.y != worldY) {
+        m_scroll.y = worldY;
+        updateViewProj(width(), height());
+        update();
+    }
 }
 
 void MapCanvas::slot_zoomIn()
 {
     m_scaleFactor.logStep(1);
     zoomChanged();
+    updateViewProj(width(), height());
     update();
 }
 
@@ -1115,6 +1134,7 @@ void MapCanvas::slot_zoomOut()
 {
     m_scaleFactor.logStep(-1);
     zoomChanged();
+    updateViewProj(width(), height());
     update();
 }
 
@@ -1122,6 +1142,7 @@ void MapCanvas::slot_zoomReset()
 {
     m_scaleFactor.set(1.f);
     zoomChanged();
+    updateViewProj(width(), height());
     update();
 }
 
@@ -1130,9 +1151,12 @@ void MapCanvas::onMovement()
     const Coordinate &pos = m_data.tryGetPosition().value_or(Coordinate{});
     m_currentLayer = pos.z;
     const glm::vec2 newScroll = pos.to_vec2() + glm::vec2{0.5f, 0.5f};
-    m_scroll = newScroll;
-    emit sig_onCenter(newScroll);
-    update();
+    if (m_scroll != newScroll) {
+        m_scroll = newScroll;
+        updateViewProj(width(), height());
+        emit sig_onCenter(newScroll);
+        update();
+    }
 }
 
 void MapCanvas::slot_dataLoaded()
@@ -1159,6 +1183,7 @@ void MapCanvas::infomarksChanged()
 
 void MapCanvas::layerChanged()
 {
+    updateViewProj(width(), height());
     update();
 }
 

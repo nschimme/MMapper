@@ -20,6 +20,31 @@ class FrameManager final : public QObject
 public:
     using AnimationCallback = std::function<bool()>;
 
+    class Frame final
+    {
+    public:
+        explicit Frame(FrameManager &manager, float dt) : m_manager(manager), m_dt(dt) {}
+        ~Frame()
+        {
+            if (m_active) {
+                m_manager.recordFramePainted();
+            }
+        }
+        Frame(Frame &&other) noexcept
+            : m_manager(other.m_manager), m_dt(other.m_dt), m_active(std::exchange(other.m_active, false))
+        {}
+        DELETE_COPIES(Frame);
+        DELETE_MOVE_ASSIGN_OP(Frame);
+
+    public:
+        NODISCARD float dt() const { return m_dt; }
+
+    private:
+        FrameManager &m_manager;
+        float m_dt;
+        bool m_active = true;
+    };
+
 private:
     struct Entry
     {
@@ -36,6 +61,7 @@ private:
     float m_animationTime = 0.0f;
     float m_lastFrameDeltaTime = 0.0f;
     bool m_animating = false;
+    bool m_dirty = true;
 
 public:
     explicit FrameManager(QObject *parent = nullptr);
@@ -45,53 +71,39 @@ public:
     void registerCallback(const Signal2Lifetime &lifetime, AnimationCallback callback);
 
     /**
-     * @brief Check if any registered animations are active.
+     * @brief Check if enough time has passed to render a new frame.
+     * Returns a Frame object if successful, which handles recording upon destruction.
      */
-    NODISCARD bool isAnimating() const;
+    NODISCARD std::optional<Frame> beginFrame();
 
     /**
-     * @brief Advance the global animation clock.
-     * Calculates the delta time since the last call to update().
+     * @brief Request a frame to be painted.
+     * Respects FPS limit and avoids redundant updates if not dirty.
      */
-    void update();
+    void requestFrame();
 
     /**
-     * @brief Enable or disable the background animation heartbeat.
+     * @brief Mark the view state as dirty, ensuring the next requested frame isn't skipped.
+     */
+    void setDirty() { m_dirty = true; }
+
+    /**
+     * @brief Enable or disable continuous background animation.
      */
     void setAnimating(bool value);
     NODISCARD bool getAnimating() const { return m_animating; }
 
-    /**
-     * @brief Manually trigger an update if animating.
-     */
-    void requestUpdateIfAnimating();
-
     NODISCARD float getAnimationTime() const { return m_animationTime; }
-    NODISCARD float getLastFrameDeltaTime() const { return m_lastFrameDeltaTime; }
 
     /**
-     * @brief Check if enough time has passed to render a new frame based on the FPS limit.
+     * @brief Check if any registered animations or heartbeat are active.
      */
-    NODISCARD bool tryAcquireFrame() const;
-
-    /**
-     * @brief Get the duration to wait until the next frame can be rendered.
-     */
-    NODISCARD std::chrono::nanoseconds getTimeUntilNextFrame() const;
-
-    /**
-     * @brief Record that a frame was successfully painted.
-     */
-    void recordFramePainted();
-
-    /**
-     * @brief Request a frame to be painted, respecting the FPS limit.
-     * Emits sig_requestUpdate() immediately or schedules a future heartbeat.
-     */
-    void requestFrame();
+    NODISCARD bool needsHeartbeat() const;
 
 private:
+    void recordFramePainted();
     void updateMinFrameTime();
+    NODISCARD std::chrono::nanoseconds getTimeUntilNextFrame() const;
 
 signals:
     void sig_requestUpdate();

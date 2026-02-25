@@ -608,9 +608,9 @@ void MapCanvas::finishPendingMapBatches()
 #undef LOG
 }
 
-void MapCanvas::actuallyPaintGL()
+void MapCanvas::actuallyPaintGL(float /*dt*/)
 {
-    m_frameManager.update();
+    // dt is currently unused here but advanced in FrameManager::beginFrame()
 
     // DECL_TIMER(t, __FUNCTION__);
     setViewportAndMvp(width(), height());
@@ -797,11 +797,10 @@ void MapCanvas::paintSelections()
 
 void MapCanvas::paintGL()
 {
-    if (!m_frameManager.tryAcquireFrame()) {
-        m_frameManager.requestUpdateIfAnimating();
+    auto frame = m_frameManager.beginFrame();
+    if (!frame) {
         return;
     }
-    m_frameManager.recordFramePainted();
 
     static thread_local double longestBatchMs = 0.0;
 
@@ -833,9 +832,9 @@ void MapCanvas::paintGL()
             optAfterBatches = Clock::now();
         }
 
-        actuallyPaintGL();
+        actuallyPaintGL(frame->dt());
 
-        if (m_frameManager.isAnimating()) {
+        if (m_frameManager.needsHeartbeat()) {
             m_frameManager.setAnimating(true);
         }
     }

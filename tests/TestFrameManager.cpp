@@ -1,6 +1,8 @@
 #include "TestFrameManager.h"
-#include "../src/display/FrameManager.h"
+
 #include "../src/configuration/configuration.h"
+#include "../src/display/FrameManager.h"
+
 #include <chrono>
 #include <thread>
 

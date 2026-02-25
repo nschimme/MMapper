@@ -150,9 +150,8 @@ void FrameManager::requestFrame()
         emit sig_requestUpdate();
         // Start a fallback timer in case sig_requestUpdate is ignored.
         if (needsHeartbeat()) {
-            const auto delayMs = std::chrono::duration_cast<std::chrono::milliseconds>(
-                                     m_minFrameTime)
-                                     .count();
+            const auto delayMs
+                = std::chrono::duration_cast<std::chrono::milliseconds>(m_minFrameTime).count();
             m_heartbeatTimer.start(static_cast<int>(delayMs + 1));
         }
     } else {

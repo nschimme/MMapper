@@ -244,6 +244,8 @@ void MapCanvas::initializeGL()
     font.init();
     updateTextures();
 
+    updateViewProj(width(), height());
+
     // compile all shaders
     {
         auto &sharedFuncs = gl.getSharedFunctions(Badge<MapCanvas>{});
@@ -272,12 +274,12 @@ void MapCanvas::initializeGL()
 
     setConfig().canvas.antialiasingSamples.registerChangeCallback(m_lifetime, [this]() {
         this->updateMultisampling();
-        this->update();
+        m_frameManager.requestFrame();
     });
 
     setConfig().canvas.trilinearFiltering.registerChangeCallback(m_lifetime, [this]() {
         this->updateTextures();
-        this->update();
+        m_frameManager.requestFrame();
     });
 }
 
@@ -452,6 +454,9 @@ glm::mat4 MapCanvas::getViewProj(const glm::vec2 &scrollPos,
 
 void MapCanvas::updateViewProj(int width, int height)
 {
+    if (width <= 0 || height <= 0) {
+        return;
+    }
     const bool want3D = getConfig().canvas.advanced.use3D.get();
     const float zoomScale = getTotalScaleFactor();
     const auto size = glm::ivec2(width, height);
@@ -491,12 +496,7 @@ void MapCanvas::resizeGL(int width, int height)
     updateMultisampling();
 
     // Render
-    update();
-}
-
-void MapCanvas::setAnimating(bool value)
-{
-    m_frameManager.setAnimating(value);
+    m_frameManager.requestFrame();
 }
 
 void MapCanvas::updateBatches()
@@ -530,6 +530,7 @@ void MapCanvas::updateMapBatches()
 
     remeshCookie.set(getFuture());
     assert(remeshCookie.isPending());
+    m_frameManager.requestFrame();
 
     m_diff.cancelUpdates(m_data.getSavedMap());
 }
@@ -550,7 +551,7 @@ void MapCanvas::finishPendingMapBatches()
 
     MAYBE_UNUSED RAIICallback eventually{[this] {
         if (!m_batches.isInProgress()) {
-            setAnimating(false);
+            m_frameManager.setAnimating(false);
         }
     }};
 
@@ -759,7 +760,7 @@ void MapCanvas::paintMap()
 {
     const bool pending = m_batches.remeshCookie.isPending();
     if (pending) {
-        setAnimating(true);
+        m_frameManager.setAnimating(true);
     }
 
     if (!m_batches.mapBatches.has_value()) {
@@ -768,7 +769,7 @@ void MapCanvas::paintMap()
         if (!pending) {
             // REVISIT: does this need a better fix?
             // pending already scheduled an update, but now we realize we need an update.
-            update();
+            m_frameManager.requestFrame();
         }
         return;
     }
@@ -833,7 +834,7 @@ void MapCanvas::paintGL()
         actuallyPaintGL();
 
         if (m_frameManager.isAnimating()) {
-            setAnimating(true);
+            m_frameManager.setAnimating(true);
         }
     }
 

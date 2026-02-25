@@ -85,35 +85,33 @@ void FrameManager::requestUpdateIfAnimating()
 
 void FrameManager::onHeartbeat()
 {
-    if (!m_animating) {
-        return;
-    }
-
-    if (!isAnimating()) {
+    if (m_animating && !isAnimating()) {
         m_animating = false;
         return;
     }
 
     emit sig_requestUpdate();
 
-    auto delay = getTimeUntilNextFrame();
-    if (delay == std::chrono::nanoseconds::zero()) {
-        delay = m_minFrameTime;
-    }
+    if (m_animating) {
+        auto delay = getTimeUntilNextFrame();
+        if (delay == std::chrono::nanoseconds::zero()) {
+            delay = m_minFrameTime;
+        }
 
-    m_heartbeatTimer.start(std::chrono::duration_cast<std::chrono::milliseconds>(delay));
+        m_heartbeatTimer.start(std::chrono::duration_cast<std::chrono::milliseconds>(delay));
+    }
 }
 
 bool FrameManager::tryAcquireFrame() const
 {
-    auto now = std::chrono::steady_clock::now();
-    if (m_lastPaintTime.time_since_epoch().count() != 0) {
-        auto elapsed = now - m_lastPaintTime;
-        if (elapsed < m_minFrameTime) {
-            return false;
-        }
+    // Always allow the first frame to be painted to avoid a black screen on load.
+    if (m_lastPaintTime.time_since_epoch().count() == 0) {
+        return true;
     }
-    return true;
+
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed = now - m_lastPaintTime;
+    return elapsed >= m_minFrameTime;
 }
 
 std::chrono::nanoseconds FrameManager::getTimeUntilNextFrame() const
@@ -135,9 +133,19 @@ void FrameManager::recordFramePainted()
     m_lastPaintTime = std::chrono::steady_clock::now();
 }
 
+void FrameManager::requestFrame()
+{
+    if (tryAcquireFrame()) {
+        emit sig_requestUpdate();
+    } else if (!m_heartbeatTimer.isActive()) {
+        const auto delay = getTimeUntilNextFrame();
+        m_heartbeatTimer.start(std::chrono::duration_cast<std::chrono::milliseconds>(delay));
+    }
+}
+
 void FrameManager::updateMinFrameTime()
 {
     const float targetFps = getConfig().canvas.advanced.maximumFps.getFloat();
-    m_minFrameTime = std::chrono::nanoseconds(static_cast<long long>(
-        1000000000.0 / static_cast<double>(std::max(1.0f, targetFps))));
+    m_minFrameTime = std::chrono::nanoseconds(
+        static_cast<long long>(1000000000.0 / static_cast<double>(std::max(1.0f, targetFps))));
 }

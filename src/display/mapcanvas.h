@@ -159,7 +159,6 @@ private:
     float m_lastPinchFactor = 1.f;
     float m_lastMagnification = 1.f;
 
-
 public:
     explicit MapCanvas(MapData &mapData,
                        PrespammedPath &prespammedPath,
@@ -211,9 +210,6 @@ protected:
     void wheelEvent(QWheelEvent *event) override;
     void touchEvent(QTouchEvent *event) override;
     bool event(QEvent *e) override;
-
-private:
-    void setAnimating(bool value);
 
 private:
     void initLogger();

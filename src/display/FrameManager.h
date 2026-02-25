@@ -16,6 +16,7 @@
 class FrameManager final : public QObject
 {
     Q_OBJECT
+
 public:
     using AnimationCallback = std::function<bool()>;
 
@@ -25,18 +26,16 @@ private:
         std::weak_ptr<Signal2Lifetime::Obj> lifetime;
         AnimationCallback callback;
     };
-    mutable std::vector<Entry> m_callbacks;
 
+    mutable std::vector<Entry> m_callbacks;
     std::chrono::steady_clock::time_point m_lastUpdateTime;
     std::chrono::steady_clock::time_point m_lastPaintTime;
-    bool m_animating = false;
-
-    float m_animationTime = 0.0f;
-    float m_lastFrameDeltaTime = 0.0f;
-
-    std::chrono::nanoseconds m_minFrameTime;
+    std::chrono::nanoseconds m_minFrameTime{0};
     Signal2Lifetime m_configLifetime;
     QTimer m_heartbeatTimer;
+    float m_animationTime = 0.0f;
+    float m_lastFrameDeltaTime = 0.0f;
+    bool m_animating = false;
 
 public:
     explicit FrameManager(QObject *parent = nullptr);
@@ -84,6 +83,12 @@ public:
      * @brief Record that a frame was successfully painted.
      */
     void recordFramePainted();
+
+    /**
+     * @brief Request a frame to be painted, respecting the FPS limit.
+     * Emits sig_requestUpdate() immediately or schedules a future heartbeat.
+     */
+    void requestFrame();
 
 private:
     void updateMinFrameTime();

@@ -422,6 +422,7 @@ std::shared_ptr<InfomarkSelection> MapCanvas::getInfomarkSelection(const MouseSe
 
 void MapCanvas::mousePressEvent(QMouseEvent *const event)
 {
+    updateViewProj(width(), height());
     if (event->button() != Qt::RightButton) {
         emit sig_dismissContextMenu();
     }
@@ -620,6 +621,7 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
 
 void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
 {
+    updateViewProj(width(), height());
     const auto optXy = getMouseCoords(event);
     if (!optXy) {
         return;
@@ -733,11 +735,12 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
 
             if (glm::length(delta) > GESTURE_EPSILON) {
                 const glm::vec2 newWorldCenter = m_dragState->startScroll - delta;
-                if (m_scroll != newWorldCenter) {
+                if (!utils::isSameFloat(m_scroll.x, newWorldCenter.x)
+                    || !utils::isSameFloat(m_scroll.y, newWorldCenter.y)) {
                     m_scroll = newWorldCenter;
                     updateViewProj(width(), height());
                     emit sig_onCenter(newWorldCenter);
-                    update();
+                    m_frameManager.requestFrame();
                 }
             }
         }
@@ -808,6 +811,7 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
 
 void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
 {
+    updateViewProj(width(), height());
     const auto optXy = getMouseCoords(event);
     if (!optXy) {
         return;
@@ -887,16 +891,20 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
             m_mouseLeftPressed = false;
         }
         // Display a room info tooltip if there was no mouse movement
-        if (event->button() == Qt::LeftButton && hasSel1() && hasSel2()
-            && getSel1().to_vec3() == getSel2().to_vec3()) {
-            if (const auto room = m_data.findRoomHandle(getSel1().getCoordinate())) {
-                // Tooltip doesn't support ANSI, and there's no way to add formatted text.
-                auto message = mmqt::previewRoom(room,
-                                                 mmqt::StripAnsiEnum::Yes,
-                                                 mmqt::PreviewStyleEnum::ForDisplay);
+        if (event->button() == Qt::LeftButton && hasSel1() && hasSel2()) {
+            const auto v1 = getSel1().to_vec3();
+            const auto v2 = getSel2().to_vec3();
+            if (utils::isSameFloat(v1.x, v2.x) && utils::isSameFloat(v1.y, v2.y)
+                && utils::isSameFloat(v1.z, v2.z)) {
+                if (const auto room = m_data.findRoomHandle(getSel1().getCoordinate())) {
+                    // Tooltip doesn't support ANSI, and there's no way to add formatted text.
+                    const auto message = mmqt::previewRoom(room,
+                                                           mmqt::StripAnsiEnum::Yes,
+                                                           mmqt::PreviewStyleEnum::ForDisplay);
 
-                const auto pos = event->position().toPoint();
-                emit sig_showTooltip(message, pos);
+                    const auto pos = event->position().toPoint();
+                    emit sig_showTooltip(message, pos);
+                }
             }
         }
         break;
@@ -1060,7 +1068,7 @@ void MapCanvas::zoomAt(const float factor, const glm::vec2 &mousePos)
         m_scaleFactor *= factor;
         zoomChanged();
         updateViewProj(width(), height());
-        update();
+        m_frameManager.requestFrame();
         return;
     }
 
@@ -1092,33 +1100,33 @@ void MapCanvas::zoomAt(const float factor, const glm::vec2 &mousePos)
 
     // Refresh the viewport matrix with the final scroll and zoom before painting.
     updateViewProj(width(), height());
-    update();
+    m_frameManager.requestFrame();
 }
 
 void MapCanvas::slot_setScroll(const glm::vec2 &worldPos)
 {
-    if (m_scroll != worldPos) {
+    if (!utils::isSameFloat(m_scroll.x, worldPos.x) || !utils::isSameFloat(m_scroll.y, worldPos.y)) {
         m_scroll = worldPos;
         updateViewProj(width(), height());
-        update();
+        m_frameManager.requestFrame();
     }
 }
 
 void MapCanvas::slot_setHorizontalScroll(const float worldX)
 {
-    if (m_scroll.x != worldX) {
+    if (!utils::isSameFloat(m_scroll.x, worldX)) {
         m_scroll.x = worldX;
         updateViewProj(width(), height());
-        update();
+        m_frameManager.requestFrame();
     }
 }
 
 void MapCanvas::slot_setVerticalScroll(const float worldY)
 {
-    if (m_scroll.y != worldY) {
+    if (!utils::isSameFloat(m_scroll.y, worldY)) {
         m_scroll.y = worldY;
         updateViewProj(width(), height());
-        update();
+        m_frameManager.requestFrame();
     }
 }
 
@@ -1127,7 +1135,7 @@ void MapCanvas::slot_zoomIn()
     m_scaleFactor.logStep(1);
     zoomChanged();
     updateViewProj(width(), height());
-    update();
+    m_frameManager.requestFrame();
 }
 
 void MapCanvas::slot_zoomOut()
@@ -1135,7 +1143,7 @@ void MapCanvas::slot_zoomOut()
     m_scaleFactor.logStep(-1);
     zoomChanged();
     updateViewProj(width(), height());
-    update();
+    m_frameManager.requestFrame();
 }
 
 void MapCanvas::slot_zoomReset()
@@ -1143,7 +1151,7 @@ void MapCanvas::slot_zoomReset()
     m_scaleFactor.set(1.f);
     zoomChanged();
     updateViewProj(width(), height());
-    update();
+    m_frameManager.requestFrame();
 }
 
 void MapCanvas::onMovement()
@@ -1151,11 +1159,12 @@ void MapCanvas::onMovement()
     const Coordinate &pos = m_data.tryGetPosition().value_or(Coordinate{});
     m_currentLayer = pos.z;
     const glm::vec2 newScroll = pos.to_vec2() + glm::vec2{0.5f, 0.5f};
-    if (m_scroll != newScroll) {
+    if (!utils::isSameFloat(m_scroll.x, newScroll.x)
+        || !utils::isSameFloat(m_scroll.y, newScroll.y)) {
         m_scroll = newScroll;
         updateViewProj(width(), height());
         emit sig_onCenter(newScroll);
-        update();
+        m_frameManager.requestFrame();
     }
 }
 
@@ -1178,20 +1187,20 @@ void MapCanvas::slot_moveMarker(const RoomId id)
 void MapCanvas::infomarksChanged()
 {
     m_batches.infomarksMeshes.reset();
-    update();
+    m_frameManager.requestFrame();
 }
 
 void MapCanvas::layerChanged()
 {
     updateViewProj(width(), height());
-    update();
+    m_frameManager.requestFrame();
 }
 
 void MapCanvas::forceUpdateMeshes()
 {
     m_batches.resetExistingMeshesAndIgnorePendingRemesh();
     m_diff.resetExistingMeshesAndIgnorePendingRemesh();
-    update();
+    m_frameManager.requestFrame();
 }
 
 void MapCanvas::slot_mapChanged()
@@ -1201,12 +1210,12 @@ void MapCanvas::slot_mapChanged()
     if ((false)) {
         m_batches.mapBatches.reset();
     }
-    update();
+    m_frameManager.requestFrame();
 }
 
 void MapCanvas::slot_requestUpdate()
 {
-    update();
+    m_frameManager.requestFrame();
 }
 
 void MapCanvas::screenChanged()
@@ -1219,7 +1228,7 @@ void MapCanvas::screenChanged()
     const auto newDpi = static_cast<float>(QPaintDevice::devicePixelRatioF());
     const auto oldDpi = gl.getDevicePixelRatio();
 
-    if (!utils::equals(newDpi, oldDpi)) {
+    if (!utils::isSameFloat(newDpi, oldDpi)) {
         log(QString("Display: %1 DPI").arg(static_cast<double>(newDpi)));
 
         // NOTE: The new in-flight mesh will get UI updates when it "finishes".
@@ -1232,20 +1241,21 @@ void MapCanvas::screenChanged()
         font.cleanup();
         font.init();
 
-        update();
+        m_frameManager.requestFrame();
     }
 }
 
 void MapCanvas::selectionChanged()
 {
-    update();
+    m_frameManager.requestFrame();
     emit sig_selectionChanged();
 }
 
 void MapCanvas::graphicsSettingsChanged()
 {
     m_opengl.resetNamedColorsBuffer();
-    update();
+    updateViewProj(width(), height());
+    m_frameManager.requestFrame();
 }
 
 void MapCanvas::userPressedEscape(bool /*pressed*/)

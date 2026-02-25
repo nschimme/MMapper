@@ -132,7 +132,7 @@ NODISCARD UniqueMesh RoomNameBatchIntermediate::getMesh(GLFont &gl) const
 NODISCARD RoomNameBatchIntermediate RoomNameBatch::getIntermediate(const FontMetrics &font) const
 {
     std::vector<FontVert3d> output;
-    ::getFontBatchRawData(font, m_names.data(), m_names.size(), output);
+    font.getFontBatchRawData(m_labels, output);
     return RoomNameBatchIntermediate{std::move(output)};
 }
 
@@ -222,11 +222,12 @@ void ConnectionDrawer::drawRoomDoorName(const RoomHandle &sourceRoom,
 
     static const auto bg = Colors::black.withAlpha(0.4f);
     const glm::vec3 pos{xy, m_currentLayer};
-    m_roomNameBatch.emplace_back(GLText{pos,
-                                        mmqt::toStdStringLatin1(name), // GL font is latin1
-                                        Colors::white,
-                                        bg,
-                                        FontFormatFlags{FontFormatFlagEnum::HALIGN_CENTER}});
+    m_roomNameBatch.emplace_back(
+        DoorLabel{GLText{pos,
+                         mmqt::toStdStringLatin1(name), // GL font is latin1
+                         Colors::white,
+                         bg,
+                         FontFormatFlags{FontFormatFlagEnum::HALIGN_CENTER}}});
 }
 
 void ConnectionDrawer::drawRoomConnectionsAndDoors(const RoomHandle &room)

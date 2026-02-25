@@ -31,6 +31,8 @@
 #include <QtCore>
 #include <QtGui>
 
+#include "FontMetrics.h"
+
 static const bool VERBOSE_FONT_DEBUG = std::invoke([]() -> bool {
     if (auto opt = utils::getEnvBool("MMAPPER_VERBOSE_FONT_DEBUG")) {
         return opt.value();
@@ -38,298 +40,78 @@ static const bool VERBOSE_FONT_DEBUG = std::invoke([]() -> bool {
     return false;
 });
 
-// NOTE: Rect doesn't actually include the hi value.
-struct NODISCARD Rect final
+bool FontMetrics::tryAddBackgroundGlyph(QImage &img)
 {
-    glm::ivec2 lo = glm::ivec2{0};
-    glm::ivec2 hi = glm::ivec2{0};
+    const int w = common.scaleW;
+    const int h = common.scaleH;
 
-    NODISCARD int width() const { return hi.x - lo.x; }
-    NODISCARD int height() const { return hi.y - lo.y; }
-    NODISCARD glm::ivec2 size() const { return {width(), height()}; }
-};
+    // must not overlap underline
+    const Rect ourGlyph{{w - 4, 0}, {w, 4}};
 
-NODISCARD static bool intersects(const Rect &a, const Rect &b)
-{
-#define OVERLAPS(_xy) ((a.lo._xy) < (b.hi._xy) && (b.lo._xy) < (a.hi._xy))
-    return OVERLAPS(x) && OVERLAPS(y);
-#undef OVERLAPS
+    for (const Glyph &glyph : raw_glyphs) {
+        if (intersects(glyph.getRect(), ourGlyph)) {
+            qWarning() << "Glyph" << glyph.id << "overlaps expected background location";
+            return false;
+        }
+    }
+
+    if (VERBOSE_FONT_DEBUG) {
+        qDebug() << "Adding background glyph";
+    }
+    // glyph location uses lower left origin
+    background.emplace(BACKGROUND_ID, common.scaleW - 3, 1, 2, 2);
+
+    // note: the current image still uses UPPER left origin,
+    // but it will be flipped after this function.
+    for (int dy = -4; dy < 0; ++dy) {
+        for (int dx = -4; dx < 0; ++dx) {
+            img.setPixelColor(w + dx, h + dy, Qt::white);
+        }
+    }
+    return true;
 }
 
-using IntPair = std::pair<int, int>;
-
-template<>
-struct std::hash<IntPair>
+bool FontMetrics::tryAddUnderlineGlyph(QImage &img)
 {
-    std::size_t operator()(const IntPair &ip) const noexcept
-    {
-#define CAST(i) static_cast<uint64_t>(static_cast<uint32_t>(i))
-        return numeric_hash(CAST(ip.first) | (CAST(ip.second) << 32u));
-#undef CAST
-    }
-};
+    const int w = common.scaleW;
+    const int h = common.scaleH;
+    const Rect ourGlyph{{w - 12, 0}, {w - 8, 4}};
 
-struct NODISCARD FontMetrics final
+    // must not overlap background
+    for (const Glyph &glyph : raw_glyphs) {
+        if (intersects(glyph.getRect(), ourGlyph)) {
+            qWarning() << "Glyph" << glyph.id << "overlaps expected underline location";
+            return false;
+        }
+    }
+
+    if (VERBOSE_FONT_DEBUG) {
+        qDebug() << "Adding underline glyph";
+    }
+    // glyph location uses lower left origin
+    underline.emplace(UNDERLINE_ID, common.scaleW - 11, 1, 2, 1, 0, -1);
+
+    // note: the current image still uses UPPER left origin,
+    // but it will be flipped after this function.
+    for (int dy = -4; dy < 0; ++dy) {
+        const auto color = (dy == -2) ? QColor{Qt::white} : QColor(0, 0, 0, 0);
+        for (int dx = -12; dx < -8; ++dx) {
+            img.setPixelColor(w + dx, h + dy, color);
+        }
+    }
+    return true;
+}
+
+void FontMetrics::tryAddSyntheticGlyphs(QImage &img)
 {
-    static constexpr int UNDERLINE_ID = -257;
-    static constexpr int BACKGROUND_ID = -258;
-
-    struct NODISCARD Glyph final
-    {
-        int id = 0;
-        int x = 0;
-        int y = 0;
-        int width = 0;
-        int height = 0;
-        int xoffset = 0;
-        int yoffset = 0;
-        int xadvance = 0;
-
-        Glyph() = default;
-        ~Glyph() = default;
-        DEFAULT_CTORS_AND_ASSIGN_OPS(Glyph);
-
-        // used by most cases
-        explicit Glyph(const int id_,
-                       const int x_,
-                       const int y_,
-                       const int width_,
-                       const int height_,
-                       const int xoffset_,
-                       const int yoffset_,
-                       const int xadvance_)
-            : id{id_}
-            , x{x_}
-            , y{y_}
-            , width{width_}
-            , height{height_}
-            , xoffset{xoffset_}
-            , yoffset{yoffset_}
-            , xadvance{xadvance_}
-        {}
-
-        // used for underline
-        explicit Glyph(const int id_,
-                       const int x_,
-                       const int y_,
-                       const int width_,
-                       const int height_,
-                       const int xoffset_,
-                       const int yoffset_)
-            : id{id_}
-            , x{x_}
-            , y{y_}
-            , width{width_}
-            , height{height_}
-            , xoffset{xoffset_}
-            , yoffset{yoffset_}
-        {}
-
-        // used for background
-        explicit Glyph(const int id_, const int x_, const int y_, const int width_, const int height_)
-            : id{id_}
-            , x{x_}
-            , y{y_}
-            , width{width_}
-            , height{height_}
-        {}
-
-        NODISCARD glm::ivec2 getPosition() const { return glm::ivec2{x, y}; }
-        NODISCARD glm::ivec2 getSize() const { return glm::ivec2{width, height}; }
-        NODISCARD glm::ivec2 getOffset() const { return glm::ivec2{xoffset, yoffset}; }
-
-        NODISCARD Rect getRect() const
-        {
-            const auto lo = getPosition();
-            return Rect{lo, lo + getSize()};
-        }
-    };
-
-    /// In <a href="https://www.gamedev.net/forums/topic/592614-angelcode-values/?tab=comments#comment-4758799">this
-    /// forum post</a>, the Angelcode BMFont author "WitchLord" says: <quote>For example, the kerning pair for the
-    /// letters A and T is usually a negative value to make the characters display a bit closer together, while the
-    /// kerning pair for the letters A and M is usually a positive value.</quote>
-    ///
-    /// We know that that BMFont generates `Kerning 65 (aka "A") 84 (aka "T") -1` for `:/fonts/DejaVuSans16.fnt`,
-    /// so the amount must be added to the advance / xoffset.
-    struct NODISCARD Kerning final
-    {
-        int first = 0;
-        int second = 0;
-        int amount = 0;
-
-        Kerning() = default;
-        ~Kerning() = default;
-        DEFAULT_CTORS_AND_ASSIGN_OPS(Kerning);
-
-        Kerning(const int first_, const int second_, const int amount_)
-            : first{first_}
-            , second{second_}
-            , amount{amount_}
-        {}
-    };
-
-    struct NODISCARD Common final
-    {
-        int lineHeight = 0;
-        int base = 0;
-        int scaleW = 0;
-        int scaleH = 0;
-        int marginX = 0;
-        int marginY = 0;
-    };
-
-    std::optional<Glyph> background;
-    std::optional<Glyph> underline;
-
-    Common common;
-
-    // REVISIT: Since we only support latin-1, it might make sense to just have fixed
-    // size lookup tables such as array<const Glyph*, 256> and array<uint16_t, 65536>
-    // for an index into a vector of kernings, rather than using std::unordered_map.
-    std::vector<Glyph> raw_glyphs;
-    std::vector<Kerning> raw_kernings;
-    std::unordered_map<int, const Glyph *> glyphs;
-    std::unordered_map<IntPair, const Kerning *> kernings;
-
-    NODISCARD QString init(const QString &);
-
-    NODISCARD const Glyph *lookupGlyph(const int i) const
-    {
-        const auto it = glyphs.find(i);
-        return (it == glyphs.end()) ? nullptr : it->second;
+    if (img.width() != common.scaleW || img.height() != common.scaleH) {
+        qWarning() << "Image is the wrong size";
+        return;
     }
 
-    NODISCARD const Glyph *lookupGlyph(const char c) const
-    {
-        return lookupGlyph(static_cast<int>(static_cast<unsigned char>(c)));
-    }
-
-    NODISCARD const Glyph *getBackground() const
-    {
-        return background ? &background.value() : nullptr;
-    }
-    NODISCARD const Glyph *getUnderline() const { return underline ? &underline.value() : nullptr; }
-
-    NODISCARD bool tryAddBackgroundGlyph(QImage &img)
-    {
-        const int w = common.scaleW;
-        const int h = common.scaleH;
-
-        // must not overlap underline
-        const Rect ourGlyph{{w - 4, 0}, {w, 4}};
-
-        for (const Glyph &glyph : raw_glyphs) {
-            if (intersects(glyph.getRect(), ourGlyph)) {
-                qWarning() << "Glyph" << glyph.id << "overlaps expected background location";
-                return false;
-            }
-        }
-
-        if (VERBOSE_FONT_DEBUG) {
-            qDebug() << "Adding background glyph";
-        }
-        // glyph location uses lower left origin
-        background.emplace(BACKGROUND_ID, common.scaleW - 3, 1, 2, 2);
-
-        // note: the current image still uses UPPER left origin,
-        // but it will be flipped after this function.
-        for (int dy = -4; dy < 0; ++dy) {
-            for (int dx = -4; dx < 0; ++dx) {
-                img.setPixelColor(w + dx, h + dy, Qt::white);
-            }
-        }
-        return true;
-    }
-
-    NODISCARD bool tryAddUnderlineGlyph(QImage &img)
-    {
-        const int w = common.scaleW;
-        const int h = common.scaleH;
-        const Rect ourGlyph{{w - 12, 0}, {w - 8, 4}};
-
-        // must not overlap background
-        for (const Glyph &glyph : raw_glyphs) {
-            if (intersects(glyph.getRect(), ourGlyph)) {
-                qWarning() << "Glyph" << glyph.id << "overlaps expected underline location";
-                return false;
-            }
-        }
-
-        if (VERBOSE_FONT_DEBUG) {
-            qDebug() << "Adding underline glyph";
-        }
-        // glyph location uses lower left origin
-        underline.emplace(UNDERLINE_ID, common.scaleW - 11, 1, 2, 1, 0, -1);
-
-        // note: the current image still uses UPPER left origin,
-        // but it will be flipped after this function.
-        for (int dy = -4; dy < 0; ++dy) {
-            const auto color = (dy == -2) ? QColor{Qt::white} : QColor(0, 0, 0, 0);
-            for (int dx = -12; dx < -8; ++dx) {
-                img.setPixelColor(w + dx, h + dy, color);
-            }
-        }
-        return true;
-    }
-
-    void tryAddSyntheticGlyphs(QImage &img)
-    {
-        if (img.width() != common.scaleW || img.height() != common.scaleH) {
-            qWarning() << "Image is the wrong size";
-            return;
-        }
-
-        std::ignore = tryAddBackgroundGlyph(img);
-        std::ignore = tryAddUnderlineGlyph(img);
-    }
-
-    NODISCARD const Kerning *lookupKerning(const Glyph *const prev, const Glyph *const current) const
-    {
-        if (prev == nullptr || current == nullptr) {
-            return nullptr;
-        }
-
-        const auto it = kernings.find(IntPair{prev->id, current->id});
-        return (it == kernings.end()) ? nullptr : it->second;
-    }
-
-    template<typename EmitGlyph>
-    void foreach_glyph(const std::string_view msg, EmitGlyph &&emitGlyph) const
-    {
-        const Glyph *prev = nullptr;
-        for (const char &c : msg) {
-            const Glyph *const current = lookupGlyph(c);
-            if (current != nullptr) {
-                emitGlyph(current, lookupKerning(prev, current));
-                prev = current;
-            } else if (auto oops = lookupGlyph(char_consts::C_QUESTION_MARK)) {
-                qWarning() << "Unable to lookup glyph" << QString(QChar(c));
-                emitGlyph(oops, lookupKerning(prev, oops));
-                prev = oops;
-            } else {
-                prev = nullptr;
-            }
-        }
-    }
-
-    NODISCARD int measureWidth(const std::string_view msg) const
-    {
-        int width = 0;
-        foreach_glyph(msg, [&width](const Glyph *const g, const Kerning *const k) {
-            width += g->xadvance;
-            if (k != nullptr) {
-                // kerning amount is added to the advance
-                width += k->amount;
-            }
-        });
-        return width;
-    }
-
-    void getFontBatchRawData(const GLText *text,
-                             size_t count,
-                             std::vector<FontVert3d> &output) const;
-};
+    std::ignore = tryAddBackgroundGlyph(img);
+    std::ignore = tryAddUnderlineGlyph(img);
+}
 
 void getFontBatchRawData(const FontMetrics &fm,
                          const GLText *const text,
@@ -836,6 +618,36 @@ void FontMetrics::getFontBatchRawData(const GLText *const text,
     FontBatchBuilder fontBatchBuilder{fm, output};
     for (const GLText *it = text; it != end; ++it) {
         fontBatchBuilder.addString(*it);
+    }
+    assert(output.size() == before + expectedVerts);
+}
+
+void FontMetrics::getFontBatchRawData(const std::vector<DoorLabel> &labels,
+                                      std::vector<FontVert3d> &output) const
+{
+    if (labels.empty()) {
+        return;
+    }
+
+    const auto before = output.size();
+
+    const size_t expectedVerts = std::invoke([&labels]() -> size_t {
+        int numGlyphs = 0;
+        for (const auto &label : labels) {
+            numGlyphs += static_cast<int>(label.text.text.size())
+                         + (label.text.bgcolor.has_value() ? 1 : 0)
+                         + (label.text.fontFormatFlag.contains(FontFormatFlagEnum::UNDERLINE) ? 1
+                                                                                              : 0);
+        }
+        return 4 * static_cast<size_t>(numGlyphs);
+    });
+
+    output.reserve(before + expectedVerts);
+
+    auto &fm = *this;
+    FontBatchBuilder fontBatchBuilder{fm, output};
+    for (const auto &label : labels) {
+        fontBatchBuilder.addString(label.text);
     }
     assert(output.size() == before + expectedVerts);
 }

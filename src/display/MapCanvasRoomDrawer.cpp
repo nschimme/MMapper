@@ -25,6 +25,7 @@
 #include "../map/room.h"
 #include "../mapdata/mapdata.h"
 #include "../opengl/FontFormatFlags.h"
+#include "../opengl/FontMetrics.h"
 #include "../opengl/OpenGL.h"
 #include "../opengl/OpenGLTypes.h"
 #include "../opengl/legacy/VBO.h"
@@ -894,6 +895,126 @@ private:
     void virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const final;
 };
 
+static void resolveDoorLabelCollisions(std::vector<DoorLabel> &labels, const FontMetrics &font)
+{
+    if (labels.size() < 2) {
+        return;
+    }
+
+    // Parameters for the simulation
+    // We work in world units.
+    // At zoom 0.4 (minimum visible), 1 room unit is roughly 18 pixels.
+    static constexpr float PIXELS_PER_UNIT = 18.0f;
+    static constexpr int ITERATIONS = 30; // Reduced iterations for performance
+    static constexpr float SPRING_K = 0.15f;
+    static constexpr float REPULSION_K = 0.25f;
+    static constexpr float DAMPING = 0.6f;
+    static constexpr float MAX_DISPLACEMENT = 2.0f; // Max displacement from original position
+    static constexpr float GRID_SIZE = 4.0f;        // Spatial grid cell size in world units
+
+    struct LabelState
+    {
+        glm::vec2 pos;
+        glm::vec2 velocity{0.0f};
+        glm::vec2 size; // In world units
+    };
+
+    std::vector<LabelState> states;
+    states.reserve(labels.size());
+
+    for (const auto &label : labels) {
+        float width = static_cast<float>(font.measureWidth(label.text.text)) / PIXELS_PER_UNIT;
+        float height = static_cast<float>(font.common.lineHeight) / PIXELS_PER_UNIT;
+        // Use initial pos from GLText
+        states.push_back(
+            {glm::vec2(label.text.pos.x, label.text.pos.y), glm::vec2(0.0f), glm::vec2(width, height)});
+    }
+
+    for (int iter = 0; iter < ITERATIONS; ++iter) {
+        // Build spatial grid
+        std::unordered_map<int, std::unordered_map<int, std::vector<size_t>>> grid;
+        for (size_t i = 0; i < states.size(); ++i) {
+            int gx = static_cast<int>(std::floor(states[i].pos.x / GRID_SIZE));
+            int gy = static_cast<int>(std::floor(states[i].pos.y / GRID_SIZE));
+            grid[gx][gy].push_back(i);
+        }
+
+        for (size_t i = 0; i < states.size(); ++i) {
+            auto &s1 = states[i];
+            const glm::vec2 originalPos = glm::vec2(labels[i].text.pos.x, labels[i].text.pos.y);
+
+            // Spring force towards original position
+            glm::vec2 springForce = SPRING_K * (originalPos - s1.pos);
+            s1.velocity += springForce;
+
+            // Repulsion from other labels in nearby grid cells
+            int gx = static_cast<int>(std::floor(s1.pos.x / GRID_SIZE));
+            int gy = static_cast<int>(std::floor(s1.pos.y / GRID_SIZE));
+
+            for (int dx = -1; dx <= 1; ++dx) {
+                auto it_x = grid.find(gx + dx);
+                if (it_x == grid.end())
+                    continue;
+                for (int dy = -1; dy <= 1; ++dy) {
+                    auto it_y = it_x->second.find(gy + dy);
+                    if (it_y == it_x->second.end())
+                        continue;
+
+                    for (size_t j : it_y->second) {
+                        if (i == j)
+                            continue;
+                        auto &s2 = states[j];
+
+                        glm::vec2 diff = s1.pos - s2.pos;
+                        // Handle perfectly overlapping labels by adding a tiny random jitter
+                        if (glm::length(diff) < 1e-4f) {
+                            diff = glm::vec2(0.01f, (i % 2 == 0 ? 0.01f : -0.01f));
+                        }
+
+                        glm::vec2 minDist = (s1.size + s2.size) * 0.5f;
+                        // Add a small margin
+                        minDist += 0.1f;
+
+                        glm::vec2 overlap = minDist - glm::abs(diff);
+
+                        if (overlap.x > 0 && overlap.y > 0) {
+                            // Overlap detected. Push away.
+                            glm::vec2 repulsionForce(0.0f);
+                            if (overlap.x < overlap.y) {
+                                repulsionForce.x = std::copysign(overlap.x * REPULSION_K, diff.x);
+                            } else {
+                                repulsionForce.y = std::copysign(overlap.y * REPULSION_K, diff.y);
+                            }
+                            s1.velocity += repulsionForce;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Apply velocity and damping
+        for (size_t i = 0; i < states.size(); ++i) {
+            auto &s = states[i];
+            const glm::vec2 originalPos = glm::vec2(labels[i].text.pos.x, labels[i].text.pos.y);
+
+            s.pos += s.velocity;
+            s.velocity *= DAMPING;
+
+            // Clamp displacement
+            glm::vec2 displacement = s.pos - originalPos;
+            if (glm::length(displacement) > MAX_DISPLACEMENT) {
+                s.pos = originalPos + (displacement / glm::length(displacement)) * MAX_DISPLACEMENT;
+            }
+        }
+    }
+
+    // Apply results back to labels
+    for (size_t i = 0; i < labels.size(); ++i) {
+        labels[i].text.pos.x = states[i].pos.x;
+        labels[i].text.pos.y = states[i].pos.y;
+    }
+}
+
 static void generateAllLayerMeshes(InternalData &internalData,
                                    const FontMetrics &font,
                                    const LayerToRooms &layerToRooms,
@@ -943,6 +1064,7 @@ static void generateAllLayerMeshes(InternalData &internalData,
 
         {
             DECL_TIMER(t8, "generateAllLayerMeshes.loop.part4");
+            resolveDoorLabelCollisions(rnb.getLabels(), font);
             roomNameBatches[thisLayer] = rnb.getIntermediate(font);
         }
     }

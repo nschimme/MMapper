@@ -4,11 +4,13 @@
 #include "FrameManager.h"
 
 #include "../configuration/configuration.h"
+#include "MapCanvasData.h"
 
 #include <algorithm>
 
-FrameManager::FrameManager(QObject *parent)
+FrameManager::FrameManager(MapCanvasViewport &viewport, QObject *parent)
     : QObject(parent)
+    , m_viewport(viewport)
 {
     updateMinFrameTime();
     setConfig().canvas.advanced.maximumFps.registerChangeCallback(m_configLifetime, [this]() {
@@ -61,7 +63,7 @@ void FrameManager::cleanupExpiredCallbacks() const
     m_callbacks.erase(it, m_callbacks.end());
 }
 
-void FrameManager::invalidate()
+void FrameManager::requestUpdate()
 {
     m_dirty = true;
     requestFrame();
@@ -122,10 +124,10 @@ void FrameManager::onHeartbeat()
         return;
     }
 
-    emit sig_requestUpdate();
+    m_viewport.requestUpdate();
 
     if (needsHeartbeat()) {
-        // We always schedule a fallback heartbeat in case sig_requestUpdate is ignored.
+        // We always schedule a fallback heartbeat in case requestUpdate is ignored.
         // recordFramePainted will later refine this with a more accurate delay if a paint occurs.
         const auto delayMs = std::chrono::duration_cast<std::chrono::milliseconds>(m_minFrameTime)
                                  .count();
@@ -163,8 +165,8 @@ void FrameManager::requestFrame()
         if (m_heartbeatTimer.isActive()) {
             m_heartbeatTimer.stop();
         }
-        emit sig_requestUpdate();
-        // Start a fallback timer in case sig_requestUpdate is ignored.
+        m_viewport.requestUpdate();
+        // Start a fallback timer in case requestUpdate is ignored.
         if (needsHeartbeat()) {
             const auto delayMs
                 = std::chrono::duration_cast<std::chrono::milliseconds>(m_minFrameTime).count();

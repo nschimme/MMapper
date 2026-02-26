@@ -274,12 +274,12 @@ void MapCanvas::initializeGL()
 
     setConfig().canvas.antialiasingSamples.registerChangeCallback(m_lifetime, [this]() {
         this->updateMultisampling();
-        m_frameManager.invalidate();
+        m_frameManager.requestUpdate();
     });
 
     setConfig().canvas.trilinearFiltering.registerChangeCallback(m_lifetime, [this]() {
         this->updateTextures();
-        m_frameManager.invalidate();
+        m_frameManager.requestUpdate();
     });
 }
 
@@ -496,7 +496,7 @@ void MapCanvas::resizeGL(int width, int height)
     updateMultisampling();
 
     // Render
-    m_frameManager.invalidate();
+    m_frameManager.requestUpdate();
 }
 
 void MapCanvas::updateBatches()
@@ -530,7 +530,7 @@ void MapCanvas::updateMapBatches()
 
     remeshCookie.set(getFuture());
     assert(remeshCookie.isPending());
-    m_frameManager.invalidate();
+    m_frameManager.requestUpdate();
 
     m_diff.cancelUpdates(m_data.getSavedMap());
 }
@@ -764,7 +764,7 @@ void MapCanvas::paintMap()
         if (!pending) {
             // REVISIT: does this need a better fix?
             // pending already scheduled an update, but now we realize we need an update.
-            m_frameManager.invalidate();
+            m_frameManager.requestUpdate();
         }
         return;
     }

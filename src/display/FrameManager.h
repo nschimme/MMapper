@@ -15,6 +15,8 @@
 #include <QObject>
 #include <QTimer>
 
+struct MapCanvasViewport;
+
 /**
  * @brief Manages the application's frame-rate and animation lifecycle.
  *
@@ -48,6 +50,7 @@ private:
     std::chrono::nanoseconds m_minFrameTime{0};
     Signal2Lifetime m_configLifetime;
     QTimer m_heartbeatTimer;
+    MapCanvasViewport &m_viewport;
     float m_lastFrameDeltaTime = 0.0f;
     bool m_animating = false;
     bool m_dirty = true;
@@ -88,7 +91,7 @@ public:
     };
 
 public:
-    explicit FrameManager(QObject *parent = nullptr);
+    explicit FrameManager(MapCanvasViewport &viewport, QObject *parent = nullptr);
     DELETE_CTORS_AND_ASSIGN_OPS(FrameManager);
 
 public:
@@ -101,7 +104,7 @@ public:
     /**
      * @brief Mark the view state as dirty and request a frame.
      */
-    void invalidate();
+    void requestUpdate();
 
     /**
      * @brief Check if enough time has passed to render a new frame.
@@ -130,9 +133,6 @@ private:
     void updateMinFrameTime();
     void cleanupExpiredCallbacks() const;
     NODISCARD std::chrono::nanoseconds getTimeUntilNextFrame() const;
-
-signals:
-    void sig_requestUpdate();
 
 private slots:
     void onHeartbeat();

@@ -5,9 +5,12 @@
 
 #include "../src/configuration/configuration.h"
 #include "../src/display/FrameManager.h"
+#include "../src/display/MapCanvasData.h"
 
 #include <chrono>
 #include <thread>
+
+#include <QWindow>
 
 void TestFrameManager::testTargetFps()
 {
@@ -16,8 +19,10 @@ void TestFrameManager::testTargetFps()
     auto &conf = setConfig().canvas.advanced.maximumFps;
     conf.setFloat(10.0f); // 100ms interval
 
-    FrameManager fm;
-    fm.invalidate();
+    QWindow window;
+    MapCanvasViewport viewport(window);
+    FrameManager fm(viewport);
+    fm.requestUpdate();
 
     // Start a frame.
     const auto t1 = std::chrono::steady_clock::now();
@@ -29,7 +34,7 @@ void TestFrameManager::testTargetFps()
     frame1.reset();
 
     // Check if next frame is throttled.
-    fm.invalidate();
+    fm.requestUpdate();
     const auto t2 = std::chrono::steady_clock::now();
     auto frame2 = fm.beginFrame();
     const auto elapsed = t2 - t1;
@@ -41,7 +46,7 @@ void TestFrameManager::testTargetFps()
 
     // Total time elapsed since start of frame1 should be > 100ms now.
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    fm.invalidate();
+    fm.requestUpdate();
     auto frame3 = fm.beginFrame();
     QVERIFY(frame3.has_value());
 }
@@ -51,8 +56,10 @@ void TestFrameManager::testThrottle()
     auto &conf = setConfig().canvas.advanced.maximumFps;
     conf.setFloat(4.0f);
 
-    FrameManager fm;
-    fm.invalidate();
+    QWindow window;
+    MapCanvasViewport viewport(window);
+    FrameManager fm(viewport);
+    fm.requestUpdate();
 
     auto frame1 = fm.beginFrame();
     QVERIFY(frame1.has_value());
@@ -63,13 +70,13 @@ void TestFrameManager::testThrottle()
 
     // 100ms later it should still be throttled.
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    fm.invalidate();
+    fm.requestUpdate();
     auto frame2 = fm.beginFrame();
     QVERIFY(!frame2.has_value());
 
     // 255ms (total) later it should be OK.
     std::this_thread::sleep_for(std::chrono::milliseconds(155));
-    fm.invalidate();
+    fm.requestUpdate();
     auto frame3 = fm.beginFrame();
     QVERIFY(frame3.has_value());
 }
@@ -79,8 +86,10 @@ void TestFrameManager::testDecoupling()
     auto &conf = setConfig().canvas.advanced.maximumFps;
     conf.setFloat(5.0f); // 200ms interval
 
-    FrameManager fm;
-    fm.invalidate();
+    QWindow window;
+    MapCanvasViewport viewport(window);
+    FrameManager fm(viewport);
+    fm.requestUpdate();
 
     const auto t1 = std::chrono::steady_clock::now();
     auto frame1 = fm.beginFrame();
@@ -92,7 +101,7 @@ void TestFrameManager::testDecoupling()
 
     // Check it's still throttled at T=100ms
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    fm.invalidate();
+    fm.requestUpdate();
     const auto t2 = std::chrono::steady_clock::now();
     auto frame_fail = fm.beginFrame();
     const auto elapsed = t2 - t1;
@@ -102,7 +111,7 @@ void TestFrameManager::testDecoupling()
 
     // Wait until T=210ms
     std::this_thread::sleep_for(std::chrono::milliseconds(110));
-    fm.invalidate();
+    fm.requestUpdate();
     auto frame2 = fm.beginFrame();
     QVERIFY(frame2.has_value());
 }
@@ -112,22 +121,24 @@ void TestFrameManager::testHammering()
     auto &conf = setConfig().canvas.advanced.maximumFps;
     conf.setFloat(4.0f); // 250ms interval
 
-    FrameManager fm;
-    fm.invalidate();
+    QWindow window;
+    MapCanvasViewport viewport(window);
+    FrameManager fm(viewport);
+    fm.requestUpdate();
 
     const auto t1 = std::chrono::steady_clock::now();
     auto frame1 = fm.beginFrame();
     QVERIFY(frame1.has_value());
     frame1.reset();
 
-    // Call requestFrame many times (simulating mouse move)
+    // Call requestUpdate many times (simulating mouse move)
     for (int i = 0; i < 50; ++i) {
-        fm.requestFrame();
+        fm.requestUpdate();
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
     // After some time, we should still be throttled.
-    fm.invalidate();
+    fm.requestUpdate();
     const auto t2 = std::chrono::steady_clock::now();
     auto frame2 = fm.beginFrame();
     const auto elapsed = t2 - t1;
@@ -137,7 +148,7 @@ void TestFrameManager::testHammering()
 
     // Wait until 260ms from start
     std::this_thread::sleep_for(std::chrono::milliseconds(210));
-    fm.invalidate();
+    fm.requestUpdate();
     auto frame3 = fm.beginFrame();
     QVERIFY(frame3.has_value());
 }

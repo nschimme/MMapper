@@ -937,10 +937,10 @@ static void resolveDoorLabelCollisions(const FontMetrics &font, std::vector<Door
         return a.anchor.x < b.anchor.x;
     });
 
-    static constexpr int ITERATIONS = 50;
-    static constexpr float SPRING_K = 0.5f;
-    static constexpr float REPULSION_K = 0.1f;
-    static constexpr float MAX_DISPLACEMENT = 0.3f;
+    static constexpr int ITERATIONS = 100;
+    static constexpr float SPRING_K = 0.05f;
+    static constexpr float REPULSION_K = 0.5f;
+    static constexpr float MAX_DISPLACEMENT = 0.5f;
     static constexpr float X_THRESHOLD = 5.0f; // 5.0 room units is plenty for pruning
 
     for (int i = 0; i < ITERATIONS; ++i) {

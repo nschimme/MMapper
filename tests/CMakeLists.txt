@@ -339,6 +339,7 @@ add_dependencies(TestFrameManager mm_test mm_global)
 target_link_libraries(TestFrameManager
         mm_test
         mm_global
+        Qt6::OpenGL
         Qt6::Gui
         Qt6::Test
         Qt6::Widgets

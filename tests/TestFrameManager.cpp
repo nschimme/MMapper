@@ -5,12 +5,17 @@
 
 #include "../src/configuration/configuration.h"
 #include "../src/display/FrameManager.h"
-#include "../src/display/MapCanvasData.h"
 
 #include <chrono>
 #include <thread>
 
-#include <QWindow>
+#include <QOpenGLWindow>
+
+class MockWindow : public QOpenGLWindow
+{
+public:
+    void paintGL() override {}
+};
 
 void TestFrameManager::testTargetFps()
 {
@@ -19,9 +24,8 @@ void TestFrameManager::testTargetFps()
     auto &conf = setConfig().canvas.advanced.maximumFps;
     conf.setFloat(10.0f); // 100ms interval
 
-    QWindow window;
-    MapCanvasViewport viewport(window);
-    FrameManager fm(viewport);
+    MockWindow window;
+    FrameManager fm(window);
     fm.requestUpdate();
 
     // Start a frame.
@@ -56,9 +60,8 @@ void TestFrameManager::testThrottle()
     auto &conf = setConfig().canvas.advanced.maximumFps;
     conf.setFloat(4.0f);
 
-    QWindow window;
-    MapCanvasViewport viewport(window);
-    FrameManager fm(viewport);
+    MockWindow window;
+    FrameManager fm(window);
     fm.requestUpdate();
 
     auto frame1 = fm.beginFrame();
@@ -86,9 +89,8 @@ void TestFrameManager::testDecoupling()
     auto &conf = setConfig().canvas.advanced.maximumFps;
     conf.setFloat(5.0f); // 200ms interval
 
-    QWindow window;
-    MapCanvasViewport viewport(window);
-    FrameManager fm(viewport);
+    MockWindow window;
+    FrameManager fm(window);
     fm.requestUpdate();
 
     const auto t1 = std::chrono::steady_clock::now();
@@ -121,9 +123,8 @@ void TestFrameManager::testHammering()
     auto &conf = setConfig().canvas.advanced.maximumFps;
     conf.setFloat(4.0f); // 250ms interval
 
-    QWindow window;
-    MapCanvasViewport viewport(window);
-    FrameManager fm(viewport);
+    MockWindow window;
+    FrameManager fm(window);
     fm.requestUpdate();
 
     const auto t1 = std::chrono::steady_clock::now();

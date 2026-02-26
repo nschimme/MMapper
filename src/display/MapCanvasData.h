@@ -100,8 +100,6 @@ public:
         : m_window{window}
     {}
 
-    void requestUpdate() { m_window.requestUpdate(); }
-
 public:
     NODISCARD auto width() const { return m_window.width(); }
     NODISCARD auto height() const { return m_window.height(); }

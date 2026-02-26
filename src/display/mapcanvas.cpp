@@ -68,7 +68,7 @@ MapCanvas::MapCanvas(MapData &mapData,
     , m_glFont{m_opengl}
     , m_data{mapData}
     , m_groupManager{groupManager}
-    , m_frameManager{*this}
+    , m_frameManager{static_cast<QOpenGLWindow &>(*this)}
 {
     m_frameManager.registerCallback(m_lifetime, [this]() {
         return m_batches.remeshCookie.isPending() ? FrameManager::AnimationStatus::Continue

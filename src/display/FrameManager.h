@@ -15,7 +15,7 @@
 #include <QObject>
 #include <QTimer>
 
-struct MapCanvasViewport;
+class QOpenGLWindow;
 
 /**
  * @brief Manages the application's frame-rate and animation lifecycle.
@@ -50,7 +50,7 @@ private:
     std::chrono::nanoseconds m_minFrameTime{0};
     Signal2Lifetime m_configLifetime;
     QTimer m_heartbeatTimer;
-    MapCanvasViewport &m_viewport;
+    QOpenGLWindow &m_window;
     float m_lastFrameDeltaTime = 0.0f;
     bool m_animating = false;
     bool m_dirty = true;
@@ -91,7 +91,7 @@ public:
     };
 
 public:
-    explicit FrameManager(MapCanvasViewport &viewport, QObject *parent = nullptr);
+    explicit FrameManager(QOpenGLWindow &window, QObject *parent = nullptr);
     DELETE_CTORS_AND_ASSIGN_OPS(FrameManager);
 
 public:

@@ -336,6 +336,10 @@ bool MapCanvas::event(QEvent *const event)
                 } else {
                     m_magnificationState->lastValue = value;
                 }
+
+                if (nativeEvent->isEndEvent()) {
+                    m_magnificationState.reset();
+                }
             }
             handleZoomAtEvent(nativeEvent, deltaFactor);
             event->accept();
@@ -554,7 +558,6 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
                     && m_roomSelection->contains(pRoom.getId())) {
                     m_activeInteraction = RoomSelMove{};
                 } else {
-                    m_activeInteraction = std::monostate{};
                     m_activeInteraction = std::monostate{};
                     slot_clearRoomSelection();
                 }
@@ -840,24 +843,26 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
                     sel.applyOffset(offset);
                     infomarksChanged();
                 }
-            } else if (hasSel1() && hasSel2()) {
-                // Add infomarks to selection
-                const auto c1 = getSel1().getScaledCoordinate(INFOMARK_SCALE);
-                const auto c2 = getSel2().getScaledCoordinate(INFOMARK_SCALE);
-                auto tmpSel = InfomarkSelection::alloc(m_data, c1, c2);
-                if (tmpSel && tmpSel->size() == 1) {
-                    const InfomarkHandle &firstMark = tmpSel->front();
-                    const Coordinate &pos = firstMark.getPosition1();
-                    QString ctemp = QString("Selected Info Mark: [%1] (at %2,%3,%4)")
-                                        .arg(firstMark.getText().toQString())
-                                        .arg(pos.x)
-                                        .arg(pos.y)
-                                        .arg(pos.z);
-                    log(ctemp);
+            } else {
+                if (hasSel1() && hasSel2()) {
+                    // Add infomarks to selection
+                    const auto c1 = getSel1().getScaledCoordinate(INFOMARK_SCALE);
+                    const auto c2 = getSel2().getScaledCoordinate(INFOMARK_SCALE);
+                    auto tmpSel = InfomarkSelection::alloc(m_data, c1, c2);
+                    if (tmpSel && tmpSel->size() == 1) {
+                        const InfomarkHandle &firstMark = tmpSel->front();
+                        const Coordinate &pos = firstMark.getPosition1();
+                        QString ctemp = QString("Selected Info Mark: [%1] (at %2,%3,%4)")
+                                            .arg(firstMark.getText().toQString())
+                                            .arg(pos.x)
+                                            .arg(pos.y)
+                                            .arg(pos.z);
+                        log(ctemp);
+                    }
+                    slot_setInfomarkSelection(tmpSel);
                 }
-                slot_setInfomarkSelection(tmpSel);
+                m_activeInteraction = std::monostate{};
             }
-            m_activeInteraction = std::monostate{};
         }
         selectionChanged();
         break;
@@ -947,8 +952,8 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
                 if (m_roomSelection != nullptr && !m_roomSelection->empty()) {
                     slot_setRoomSelection(SigRoomSelection{m_roomSelection});
                 }
+                m_activeInteraction = std::monostate{};
             }
-            m_activeInteraction = std::monostate{};
         }
         selectionChanged();
         break;

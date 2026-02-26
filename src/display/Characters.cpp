@@ -431,8 +431,8 @@ void CharacterBatch::CharFakeGL::addName(const Coordinate &c,
     // We store stackIdx in pos.z for now, and logical coordinates in pos.xy
     m_names.emplace_back(glm::vec3{screenX, screenY - verticalOffset, static_cast<float>(stackIdx)},
                          name,
-                         color,
-                         Colors::black.withAlpha(0.6f),
+                         textColor(color),
+                         color.withAlpha(0.6f),
                          FontFormatFlags{FontFormatFlagEnum::HALIGN_CENTER});
 }
 
@@ -464,22 +464,15 @@ void MapCanvas::paintCharacters()
 
     CharacterBatch characterBatch{m_mapScreen, m_currentLayer, getTotalScaleFactor()};
 
-    std::optional<ServerRoomId> yourServerId;
-    if (const std::optional<RoomId> optCurrentId = m_data.getCurrentRoomId()) {
-        if (const auto yourRoom = m_data.getCurrentMap().findRoomHandle(*optCurrentId)) {
-            yourServerId = yourRoom.getServerId();
-        }
-    }
-
     // IIFE to abuse return to avoid duplicate else branches
-    std::invoke([this, &characterBatch, yourServerId]() -> void {
+    std::invoke([this, &characterBatch]() -> void {
         if (const std::optional<RoomId> opt_pos = m_data.getCurrentRoomId()) {
             const auto &id = opt_pos.value();
             if (const auto room = m_data.findRoomHandle(id)) {
                 const auto &pos = room.getPosition();
                 // draw the characters before the current position
                 characterBatch.incrementCount(pos);
-                drawGroupCharacters(characterBatch, yourServerId);
+                drawGroupCharacters(characterBatch, room.getServerId());
                 characterBatch.resetCount(pos);
 
                 // paint char current position
@@ -496,13 +489,13 @@ void MapCanvas::paintCharacters()
                 m_data.clearSelectedRoom();
             }
         }
-        drawGroupCharacters(characterBatch, yourServerId);
+        drawGroupCharacters(characterBatch, INVALID_SERVER_ROOMID);
     });
 
     characterBatch.reallyDraw(getOpenGL(), m_textures, getGLFont());
 }
 
-void MapCanvas::drawGroupCharacters(CharacterBatch &batch, std::optional<ServerRoomId> yourServerId)
+void MapCanvas::drawGroupCharacters(CharacterBatch &batch, ServerRoomId yourServerId)
 {
     if (m_data.isEmpty()) {
         return;
@@ -540,7 +533,7 @@ void MapCanvas::drawGroupCharacters(CharacterBatch &batch, std::optional<ServerR
 
         batch.drawCharacter(pos, color, fill);
 
-        if (yourServerId && srvId != INVALID_SERVER_ROOMID && srvId != *yourServerId) {
+        if (srvId != INVALID_SERVER_ROOMID && srvId != yourServerId) {
             QString name = character.getLabel().isEmpty() ? character.getName().toQString()
                                                           : character.getLabel().toQString();
             if (!name.isEmpty()) {

@@ -897,7 +897,7 @@ private:
 
 static void resolveDoorLabelCollisions(const FontMetrics &font, std::vector<DoorLabel> &labels)
 {
-    if (labels.empty()) {
+    if (labels.size() < 2) {
         return;
     }
 
@@ -906,6 +906,9 @@ static void resolveDoorLabelCollisions(const FontMetrics &font, std::vector<Door
         DoorLabel *label;
         utils::Rect box;
         glm::vec3 anchor;
+        float width;
+        float height;
+        float descent;
     };
 
     std::vector<LabelBox> boxes;
@@ -921,32 +924,51 @@ static void resolveDoorLabelCollisions(const FontMetrics &font, std::vector<Door
                                          utils::round_ftoi(label.text.pos.y * 100.f - height / 2.f
                                                            + descent));
         const glm::ivec2 hi = lo + glm::ivec2(utils::round_ftoi(width), utils::round_ftoi(height));
-        boxes.push_back({&label, {lo, hi}, label.text.pos});
+        boxes.push_back({&label, {lo, hi}, label.text.pos, width, height, descent});
     }
+
+    // Sort by anchor X for broad-phase pruning
+    std::sort(boxes.begin(), boxes.end(), [](const LabelBox &a, const LabelBox &b) {
+        return a.anchor.x < b.anchor.x;
+    });
 
     const int iterations = 50;
     const float springK = 0.5f;
     const float repulsionK = 0.1f;
     const float maxDisplacement = 0.3f;
+    const float xThreshold = 5.0f; // 5.0 room units is plenty for pruning
 
     for (int i = 0; i < iterations; ++i) {
         bool changed = false;
         for (size_t j = 0; j < boxes.size(); ++j) {
             glm::vec2 force(0.f);
 
-            // Repulsion from other labels
-            for (size_t k = 0; k < boxes.size(); ++k) {
-                if (j == k)
-                    continue;
+            // Repulsion broad-phase pruning using sorted X coordinates
+            auto checkNeighbor = [&](const size_t k) {
                 if (utils::intersects(boxes[j].box, boxes[k].box)) {
-                    glm::vec2 diff = glm::vec2(boxes[j].box.lo + boxes[j].box.hi)
-                                     - glm::vec2(boxes[k].box.lo + boxes[k].box.hi);
+                    glm::vec2 diff = glm::vec2(boxes[j].label->text.pos)
+                                     - glm::vec2(boxes[k].label->text.pos);
                     if (glm::length(diff) < 1e-4f) {
                         diff = glm::vec2(0.f, 1.f);
                     }
                     force += glm::normalize(diff) * repulsionK;
-                    changed = true;
                 }
+            };
+
+            // Check neighbors backwards
+            for (size_t k = j; k > 0;) {
+                --k;
+                if (boxes[j].anchor.x - boxes[k].anchor.x > xThreshold) {
+                    break;
+                }
+                checkNeighbor(k);
+            }
+            // Check neighbors forwards
+            for (size_t k = j + 1; k < boxes.size(); ++k) {
+                if (boxes[k].anchor.x - boxes[j].anchor.x > xThreshold) {
+                    break;
+                }
+                checkNeighbor(k);
             }
 
             // Spring force to anchor
@@ -959,20 +981,19 @@ static void resolveDoorLabelCollisions(const FontMetrics &font, std::vector<Door
                 }
                 boxes[j].label->text.pos += glm::vec3(force, 0.f);
                 // Update box
-                const float width = static_cast<float>(boxes[j].box.width());
-                const float height = static_cast<float>(boxes[j].box.height());
-                const float descent = static_cast<float>(font.common.lineHeight - font.common.base);
-                boxes[j].box.lo = glm::ivec2(utils::round_ftoi(boxes[j].label->text.pos.x * 100.f
-                                                               - width / 2.f),
-                                             utils::round_ftoi(boxes[j].label->text.pos.y * 100.f
-                                                               - height / 2.f + descent));
+                boxes[j].box.lo = glm::ivec2(
+                    utils::round_ftoi(boxes[j].label->text.pos.x * 100.f - boxes[j].width / 2.f),
+                    utils::round_ftoi(boxes[j].label->text.pos.y * 100.f - boxes[j].height / 2.f
+                                      + boxes[j].descent));
                 boxes[j].box.hi = boxes[j].box.lo
-                                  + glm::ivec2(utils::round_ftoi(width), utils::round_ftoi(height));
+                                  + glm::ivec2(utils::round_ftoi(boxes[j].width),
+                                               utils::round_ftoi(boxes[j].height));
                 changed = true;
             }
         }
-        if (!changed)
+        if (!changed) {
             break;
+        }
     }
 }
 

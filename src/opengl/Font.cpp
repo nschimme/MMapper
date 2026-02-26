@@ -255,7 +255,7 @@ QString FontMetrics::init(const QString &fontFilename)
     }
 
     for (const Kerning &kerning : raw_kernings) {
-        kernings[IntPair{kerning.first, kerning.second}] = &kerning;
+        kernings[KerningKey{kerning.first, kerning.second}] = &kerning;
     }
 
     return imageFilename;

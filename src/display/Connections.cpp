@@ -144,6 +144,11 @@ void ConnectionDrawer::drawRoomDoorName(const RoomHandle &sourceRoom,
                                         const RoomHandle &targetRoom,
                                         const ExitDirEnum targetDir)
 {
+    static const auto isShortDistance = [](const Coordinate &a, const Coordinate &b) -> bool {
+        return glm::all(glm::lessThanEqual(glm::abs(b.to_ivec2() - a.to_ivec2()), glm::ivec2(1)));
+    };
+
+    const auto &sourceExit = sourceRoom.getExit(sourceDir);
     const auto &targetExit = targetRoom.getExit(targetDir);
     const Coordinate &sourcePos = sourceRoom.getPosition();
     const Coordinate &targetPos = targetRoom.getPosition();
@@ -151,7 +156,14 @@ void ConnectionDrawer::drawRoomDoorName(const RoomHandle &sourceRoom,
     bool together = false;
     QString name;
 
-    if (targetExit.exitIsDoor() && targetExit.hasDoorName() && targetExit.doorIsHidden()) {
+    const QString sourceName = getPostfixedDoorName(sourceRoom, sourceDir);
+    const QString targetName = getPostfixedDoorName(targetRoom, targetDir);
+
+    const bool twoway = targetExit.containsOut(sourceRoom.getId())
+                        && sourceExit.containsIn(targetRoom.getId());
+
+    if (targetExit.exitIsDoor() && targetExit.hasDoorName() && targetExit.doorIsHidden() && twoway
+        && isShortDistance(sourcePos, targetPos) && sourceName == targetName) {
         // Avoid drawing duplicate door names for each side by only drawing one side unless
         // the doors are on different z-layers
         if (sourceRoom.getId() > targetRoom.getId() && sourcePos.z == targetPos.z) {
@@ -159,16 +171,9 @@ void ConnectionDrawer::drawRoomDoorName(const RoomHandle &sourceRoom,
         }
 
         together = true;
-
-        const QString sourceName = getPostfixedDoorName(sourceRoom, sourceDir);
-        const QString targetName = getPostfixedDoorName(targetRoom, targetDir);
-        if (sourceName != targetName) {
-            name = sourceName + "/" + targetName;
-        } else {
-            name = sourceName;
-        }
+        name = sourceName;
     } else {
-        name = getPostfixedDoorName(sourceRoom, sourceDir);
+        name = sourceName;
     }
 
     glm::vec2 xy;

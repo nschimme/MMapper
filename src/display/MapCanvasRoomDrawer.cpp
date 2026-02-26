@@ -909,6 +909,14 @@ static void resolveDoorLabelCollisions(const FontMetrics &font, std::vector<Door
         float width;
         float height;
         float descent;
+
+        void updateBox()
+        {
+            box.lo = glm::ivec2(utils::round_ftoi(label->text.pos.x * 100.f - width / 2.f),
+                                utils::round_ftoi(label->text.pos.y * 100.f - height / 2.f
+                                                  + descent));
+            box.hi = box.lo + glm::ivec2(utils::round_ftoi(width), utils::round_ftoi(height));
+        }
     };
 
     std::vector<LabelBox> boxes;
@@ -919,12 +927,9 @@ static void resolveDoorLabelCollisions(const FontMetrics &font, std::vector<Door
         const float height = static_cast<float>(font.common.lineHeight);
         const float descent = static_cast<float>(font.common.lineHeight - font.common.base);
 
-        // Center the box horizontally and adjust vertically for baseline
-        const glm::ivec2 lo = glm::ivec2(utils::round_ftoi(label.text.pos.x * 100.f - width / 2.f),
-                                         utils::round_ftoi(label.text.pos.y * 100.f - height / 2.f
-                                                           + descent));
-        const glm::ivec2 hi = lo + glm::ivec2(utils::round_ftoi(width), utils::round_ftoi(height));
-        boxes.push_back({&label, {lo, hi}, label.text.pos, width, height, descent});
+        LabelBox lb{&label, {}, label.text.pos, width, height, descent};
+        lb.updateBox();
+        boxes.push_back(lb);
     }
 
     // Sort by anchor X for broad-phase pruning
@@ -932,13 +937,13 @@ static void resolveDoorLabelCollisions(const FontMetrics &font, std::vector<Door
         return a.anchor.x < b.anchor.x;
     });
 
-    const int iterations = 50;
-    const float springK = 0.5f;
-    const float repulsionK = 0.1f;
-    const float maxDisplacement = 0.3f;
-    const float xThreshold = 5.0f; // 5.0 room units is plenty for pruning
+    static constexpr int ITERATIONS = 50;
+    static constexpr float SPRING_K = 0.5f;
+    static constexpr float REPULSION_K = 0.1f;
+    static constexpr float MAX_DISPLACEMENT = 0.3f;
+    static constexpr float X_THRESHOLD = 5.0f; // 5.0 room units is plenty for pruning
 
-    for (int i = 0; i < iterations; ++i) {
+    for (int i = 0; i < ITERATIONS; ++i) {
         bool changed = false;
         for (size_t j = 0; j < boxes.size(); ++j) {
             glm::vec2 force(0.f);
@@ -951,43 +956,36 @@ static void resolveDoorLabelCollisions(const FontMetrics &font, std::vector<Door
                     if (glm::length(diff) < 1e-4f) {
                         diff = glm::vec2(0.f, 1.f);
                     }
-                    force += glm::normalize(diff) * repulsionK;
+                    force += glm::normalize(diff) * REPULSION_K;
                 }
             };
 
             // Check neighbors backwards
             for (size_t k = j; k > 0;) {
                 --k;
-                if (boxes[j].anchor.x - boxes[k].anchor.x > xThreshold) {
+                if (boxes[j].anchor.x - boxes[k].anchor.x > X_THRESHOLD) {
                     break;
                 }
                 checkNeighbor(k);
             }
             // Check neighbors forwards
             for (size_t k = j + 1; k < boxes.size(); ++k) {
-                if (boxes[k].anchor.x - boxes[j].anchor.x > xThreshold) {
+                if (boxes[k].anchor.x - boxes[j].anchor.x > X_THRESHOLD) {
                     break;
                 }
                 checkNeighbor(k);
             }
 
             // Spring force to anchor
-            glm::vec2 toAnchor = glm::vec2(boxes[j].anchor) - glm::vec2(boxes[j].label->text.pos);
-            force += toAnchor * springK;
+            const glm::vec2 toAnchor = glm::vec2(boxes[j].anchor) - glm::vec2(boxes[j].label->text.pos);
+            force += toAnchor * SPRING_K;
 
             if (glm::length(force) > 1e-4f) {
-                if (glm::length(force) > maxDisplacement) {
-                    force = glm::normalize(force) * maxDisplacement;
+                if (glm::length(force) > MAX_DISPLACEMENT) {
+                    force = glm::normalize(force) * MAX_DISPLACEMENT;
                 }
                 boxes[j].label->text.pos += glm::vec3(force, 0.f);
-                // Update box
-                boxes[j].box.lo = glm::ivec2(
-                    utils::round_ftoi(boxes[j].label->text.pos.x * 100.f - boxes[j].width / 2.f),
-                    utils::round_ftoi(boxes[j].label->text.pos.y * 100.f - boxes[j].height / 2.f
-                                      + boxes[j].descent));
-                boxes[j].box.hi = boxes[j].box.lo
-                                  + glm::ivec2(utils::round_ftoi(boxes[j].width),
-                                               utils::round_ftoi(boxes[j].height));
+                boxes[j].updateBox();
                 changed = true;
             }
         }

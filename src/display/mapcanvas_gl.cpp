@@ -235,6 +235,15 @@ void MapCanvas::initializeGL()
     initLogger();
 
     gl.initializeRenderer(static_cast<float>(QPaintDevice::devicePixelRatioF()));
+    m_frameManager.init(gl.getUboManager());
+
+    gl.getUboManager().registerRebuildFunction(
+        Legacy::SharedVboEnum::NamedColorsBlock, [&gl](Legacy::Functions &funcs) {
+            gl.getUboManager().update(funcs,
+                                      Legacy::SharedVboEnum::NamedColorsBlock,
+                                      XNamedColor::getAllColorsAsVec4());
+        });
+
     updateMultisampling();
 
     // REVISIT: should the font texture have the lowest ID?
@@ -605,12 +614,16 @@ void MapCanvas::finishPendingMapBatches()
 void MapCanvas::actuallyPaintGL(float /*deltaTime*/)
 {
     // deltaTime is currently unused here but advanced in FrameManager::beginFrame()
+    // Update animation state and weather
+    m_weather.update();
 
     // DECL_TIMER(t, __FUNCTION__);
     setViewportAndMvp(width(), height());
 
     auto &gl = getOpenGL();
-    gl.bindNamedColorsBuffer();
+    auto &funcs = deref(gl.getSharedFunctions(Badge<MapCanvas>{}));
+
+    gl.getUboManager().bind(funcs, Legacy::SharedVboEnum::NamedColorsBlock);
 
     gl.bindFbo();
     gl.clear(Color{getConfig().canvas.backgroundColor});

@@ -241,6 +241,7 @@ private:
     void paintSelectedInfomarks();
     void paintCharacters();
     void paintDifferences();
+    NODISCARD Color calculateTimeOfDayColor() const;
     void forceUpdateMeshes();
 
 public:

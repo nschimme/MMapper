@@ -18,6 +18,7 @@
 #include "../map/roomid.h"
 #include "../mapdata/mapdata.h"
 #include "../mapdata/roomselection.h"
+#include "../observer/gameobserver.h"
 #include "InfomarkSelection.h"
 #include "MapCanvasData.h"
 #include "MapCanvasRoomDrawer.h"
@@ -57,6 +58,7 @@ NODISCARD static NonOwningPointer &primaryMapCanvas()
 }
 
 MapCanvas::MapCanvas(MapData &mapData,
+                     GameObserver &observer,
                      PrespammedPath &prespammedPath,
                      Mmapper2Group &groupManager,
                      QWindow *const parent)
@@ -64,18 +66,19 @@ MapCanvas::MapCanvas(MapData &mapData,
     , MapCanvasViewport{static_cast<QWindow &>(*this)}
     , MapCanvasInputState{prespammedPath}
     , m_mapScreen{static_cast<MapCanvasViewport &>(*this)}
+    , m_observer{observer}
     , m_opengl{}
     , m_glFont{m_opengl}
     , m_data{mapData}
     , m_groupManager{groupManager}
     , m_frameManager{static_cast<QOpenGLWindow &>(*this)}
+    , m_weather{m_opengl, m_data, m_textures, observer, m_frameManager}
 {
     syncViewportConfig();
     m_frameManager.registerCallback(m_lifetime, [this]() {
         return m_batches.remeshCookie.isPending() ? FrameManager::AnimationStatusEnum::Continue
                                                   : FrameManager::AnimationStatusEnum::Stop;
     });
-
     NonOwningPointer &pmc = primaryMapCanvas();
     if (pmc == nullptr) {
         pmc = this;

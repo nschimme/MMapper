@@ -30,6 +30,17 @@ void FrameManager::registerCallback(const Signal2Lifetime &lifetime, AnimationCa
     m_callbacks.push_back({lifetime.getObj(), std::move(callback)});
 }
 
+void FrameManager::init(Legacy::UboManager &uboManager)
+{
+    m_uboManager = &uboManager;
+    m_uboManager->registerRebuildFunction(Legacy::SharedVboEnum::TimeBlock,
+                                          [this](Legacy::Functions &gl) {
+                                              m_uboManager->update(gl,
+                                                                   Legacy::SharedVboEnum::TimeBlock,
+                                                                   m_frameData);
+                                          });
+}
+
 bool FrameManager::needsHeartbeat()
 {
     // NOTE:
@@ -105,8 +116,32 @@ std::optional<FrameManager::Frame> FrameManager::beginFrame()
     }
     m_dirty = false;
 
+    // Calculate delta time
+    float deltaTime = 0.0f;
+    if (hasLastUpdate) {
+        const auto elapsed = now - m_lastUpdateTime;
+        deltaTime = std::chrono::duration<float>(elapsed).count();
+    }
     m_lastUpdateTime = now;
+
+    // Cap deltaTime for simulation to match map movement during dragging and avoid quantization jitter.
+    // Cap at 1.0s to avoid huge jumps after window focus loss or lag, while supporting low FPS.
+    auto lastFrameDeltaTime = std::min(deltaTime, 1.0f);
+
+    // Refresh internal struct for UBO
+    m_elapsedTime += lastFrameDeltaTime;
+    m_frameData.time = glm::vec4(m_elapsedTime, lastFrameDeltaTime, 0.0f, 0.0f);
+
+    if (m_uboManager && lastFrameDeltaTime > 0.0f) {
+        m_uboManager->invalidate(Legacy::SharedVboEnum::TimeBlock);
+    }
+
     return Frame(*this);
+}
+
+float FrameManager::getElapsedTime() const
+{
+    return m_elapsedTime;
 }
 
 void FrameManager::onHeartbeat()

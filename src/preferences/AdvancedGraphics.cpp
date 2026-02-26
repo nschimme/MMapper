@@ -55,7 +55,7 @@ public:
         : QDoubleSpinBox()
         , m_fp{fp}
     {
-        const double fraction = std::pow(10.0, -FP::digits);
+        const double fraction = std::pow(10.0, -static_cast<double>(FP::digits));
         setRange(static_cast<double>(m_fp.min) * fraction, static_cast<double>(m_fp.max) * fraction);
         setValue(m_fp.getDouble());
         setDecimals(FP::digits);
@@ -66,13 +66,14 @@ public:
 public:
     NODISCARD int getIntValue() const
     {
-        return static_cast<int>(std::lround(std::clamp(value() * std::pow(10.0, FP::digits),
-                                                       static_cast<double>(m_fp.min),
-                                                       static_cast<double>(m_fp.max))));
+        return static_cast<int>(
+            std::lround(std::clamp(value() * std::pow(10.0, static_cast<double>(FP::digits)),
+                                   static_cast<double>(m_fp.min),
+                                   static_cast<double>(m_fp.max))));
     }
     void setIntValue(int value)
     {
-        setValue(static_cast<double>(value) * std::pow(10.0, -FP::digits));
+        setValue(static_cast<double>(value) * std::pow(10.0, -static_cast<double>(FP::digits)));
     }
 };
 

@@ -34,7 +34,9 @@
 #include "RoadIndex.h"
 #include "mapcanvas.h" // hack, since we're now definining some of its symbols
 
+#include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstdlib>
 #include <memory>
 #include <optional>
@@ -897,127 +899,100 @@ private:
 
 static void resolveDoorLabelCollisions(std::vector<DoorLabel> &labels, const FontMetrics &font)
 {
-    if (labels.size() < 2) {
+    const size_t n = labels.size();
+    if (n < 2) {
         return;
     }
 
     // Parameters for the simulation
-    // We work in world units.
     // At zoom 0.4 (minimum visible), 1 room unit is roughly 18 pixels.
     static constexpr float PIXELS_PER_UNIT = 18.0f;
-    static constexpr int ITERATIONS = 30; // Reduced iterations for performance
+    static constexpr int ITERATIONS = 30;
     static constexpr float SPRING_K = 0.5f;
     static constexpr float REPULSION_K = 0.1f;
-    static constexpr float DAMPING = 0.6f;
-    static constexpr float MAX_DISPLACEMENT = 0.3f; // Max displacement from original position
-    static constexpr float GRID_SIZE = 4.0f;        // Spatial grid cell size in world units
+    static constexpr float DAMPING = 0.5f;
+    static constexpr float MAX_DISPLACEMENT = 0.3f;
 
     struct LabelState
     {
-        glm::vec2 pos;
+        glm::vec2 pos; // current center
         glm::vec2 velocity{0.0f};
-        glm::vec2 size; // In world units
+        glm::vec2 halfSize;
+        glm::vec2 anchor; // intended center
     };
 
     std::vector<LabelState> states;
-    states.reserve(labels.size());
+    states.reserve(n);
+
+    const float invPPU = 1.0f / PIXELS_PER_UNIT;
+    const float h = static_cast<float>(font.common.lineHeight) * invPPU;
+    const float b = static_cast<float>(font.common.base) * invPPU;
+    const float yOff = b - 0.5f * h;
 
     for (const auto &label : labels) {
-        const float width = static_cast<float>(font.measureWidth(label.text.text)) / PIXELS_PER_UNIT;
-        const float height = static_cast<float>(font.common.lineHeight) / PIXELS_PER_UNIT;
-        const float base = static_cast<float>(font.common.base) / PIXELS_PER_UNIT;
-        // The pos is the baseline. Actual text center is higher.
-        const float yCenterOffset = base - 0.5f * height;
-        states.push_back({glm::vec2(label.text.pos.x, label.text.pos.y + yCenterOffset),
-                          glm::vec2(0.0f),
-                          glm::vec2(width, height)});
+        const float w = static_cast<float>(font.measureWidth(label.text.text)) * invPPU;
+        const glm::vec2 center(label.text.pos.x, label.text.pos.y + yOff);
+        states.push_back({center, glm::vec2(0.0f), glm::vec2(w * 0.5f, h * 0.5f), center});
     }
 
     for (int iter = 0; iter < ITERATIONS; ++iter) {
-        // Build spatial grid
-        std::unordered_map<int, std::unordered_map<int, std::vector<size_t>>> grid;
-        for (size_t i = 0; i < states.size(); ++i) {
-            int gx = static_cast<int>(std::floor(states[i].pos.x / GRID_SIZE));
-            int gy = static_cast<int>(std::floor(states[i].pos.y / GRID_SIZE));
-            grid[gx][gy].push_back(i);
-        }
-
-        for (size_t i = 0; i < states.size(); ++i) {
+        for (size_t i = 0; i < n; ++i) {
             auto &s1 = states[i];
-            const glm::vec2 originalPos = glm::vec2(labels[i].text.pos.x, labels[i].text.pos.y);
 
-            // Spring force towards original position
-            glm::vec2 springForce = SPRING_K * (originalPos - s1.pos);
-            s1.velocity += springForce;
+            // Spring force towards anchor
+            s1.velocity += SPRING_K * (s1.anchor - s1.pos);
 
-            // Repulsion from other labels in nearby grid cells
-            int gx = static_cast<int>(std::floor(s1.pos.x / GRID_SIZE));
-            int gy = static_cast<int>(std::floor(s1.pos.y / GRID_SIZE));
-
-            for (int dx = -1; dx <= 1; ++dx) {
-                auto it_x = grid.find(gx + dx);
-                if (it_x == grid.end())
+            // N^2 repulsion is fine for typical small label counts on a single layer
+            for (size_t j = 0; j < n; ++j) {
+                if (i == j) {
                     continue;
-                for (int dy = -1; dy <= 1; ++dy) {
-                    auto it_y = it_x->second.find(gy + dy);
-                    if (it_y == it_x->second.end())
-                        continue;
+                }
+                const auto &s2 = states[j];
 
-                    for (size_t j : it_y->second) {
-                        if (i == j)
-                            continue;
-                        auto &s2 = states[j];
+                glm::vec2 diff = s1.pos - s2.pos;
+                const glm::vec2 minDist = s1.halfSize + s2.halfSize + 0.1f; // margin
 
-                        glm::vec2 diff = s1.pos - s2.pos;
-                        // Handle perfectly overlapping labels by adding a tiny random jitter
-                        if (glm::length(diff) < 1e-4f) {
-                            diff = glm::vec2(0.01f, (i % 2 == 0 ? 0.01f : -0.01f));
-                        }
+                const float absDiffX = std::abs(diff.x);
+                const float absDiffY = std::abs(diff.y);
 
-                        glm::vec2 minDist = (s1.size + s2.size) * 0.5f;
-                        // Add a small margin
-                        minDist += 0.1f;
+                if (absDiffX < minDist.x && absDiffY < minDist.y) {
+                    // Overlap detected
+                    if (absDiffX < 1e-4f && absDiffY < 1e-4f) {
+                        diff = glm::vec2(0.01f, (i % 2 == 0 ? 0.01f : -0.01f));
+                    }
 
-                        glm::vec2 overlap = minDist - glm::abs(diff);
+                    const float overlapX = minDist.x - std::abs(diff.x);
+                    const float overlapY = minDist.y - std::abs(diff.y);
 
-                        if (overlap.x > 0 && overlap.y > 0) {
-                            // Overlap detected. Push away.
-                            glm::vec2 repulsionForce(0.0f);
-                            if (overlap.x < overlap.y) {
-                                repulsionForce.x = std::copysign(overlap.x * REPULSION_K, diff.x);
-                            } else {
-                                repulsionForce.y = std::copysign(overlap.y * REPULSION_K, diff.y);
-                            }
-                            s1.velocity += repulsionForce;
-                        }
+                    if (overlapX < overlapY) {
+                        s1.velocity.x += (diff.x > 0 ? 1.0f : -1.0f) * overlapX * REPULSION_K;
+                    } else {
+                        s1.velocity.y += (diff.y > 0 ? 1.0f : -1.0f) * overlapY * REPULSION_K;
                     }
                 }
             }
         }
 
         // Apply velocity and damping
-        for (size_t i = 0; i < states.size(); ++i) {
-            auto &s = states[i];
-            const glm::vec2 originalPos = glm::vec2(labels[i].text.pos.x, labels[i].text.pos.y);
-
+        for (auto &s : states) {
             s.pos += s.velocity;
             s.velocity *= DAMPING;
 
-            // Clamp displacement
-            glm::vec2 displacement = s.pos - originalPos;
-            if (glm::length(displacement) > MAX_DISPLACEMENT) {
-                s.pos = originalPos + (displacement / glm::length(displacement)) * MAX_DISPLACEMENT;
+            // Constrain displacement from anchor
+            const glm::vec2 delta = s.pos - s.anchor;
+            const float dSq = delta.x * delta.x + delta.y * delta.y;
+            if (dSq > MAX_DISPLACEMENT * MAX_DISPLACEMENT) {
+                const float dLen = std::sqrt(dSq);
+                s.pos = s.anchor + (delta / dLen) * MAX_DISPLACEMENT;
+                s.velocity *= 0.1f;
             }
         }
     }
 
-    // Apply results back to labels
-    for (size_t i = 0; i < labels.size(); ++i) {
-        const float height = static_cast<float>(font.common.lineHeight) / PIXELS_PER_UNIT;
-        const float base = static_cast<float>(font.common.base) / PIXELS_PER_UNIT;
-        const float yCenterOffset = base - 0.5f * height;
+    // Write back results
+    for (size_t i = 0; i < n; ++i) {
         labels[i].text.pos.x = states[i].pos.x;
-        labels[i].text.pos.y = states[i].pos.y - yCenterOffset;
+        labels[i].text.pos.y = states[i].pos.y - yOff;
     }
 }
 

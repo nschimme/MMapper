@@ -132,93 +132,68 @@ NODISCARD UniqueMesh RoomNameBatchIntermediate::getMesh(GLFont &gl) const
 NODISCARD RoomNameBatchIntermediate RoomNameBatch::getIntermediate(const FontMetrics &font) const
 {
     std::vector<FontVert3d> output;
-    font.getFontBatchRawData(m_labels, output);
+    for (const auto &label : m_labels) {
+        font.getFontBatchRawData(&label.text, 1, output);
+    }
     return RoomNameBatchIntermediate{std::move(output)};
 }
 
-void ConnectionDrawer::drawRoomDoorName(const RoomHandle &sourceRoom,
-                                        const ExitDirEnum sourceDir,
-                                        const RoomHandle &targetRoom,
-                                        const ExitDirEnum targetDir)
+void ConnectionDrawer::drawRoomDoorName(const RoomHandle &sourceRoom, const ExitDirEnum sourceDir)
 {
-    static const auto isShortDistance = [](const Coordinate &a, const Coordinate &b) -> bool {
-        return glm::all(glm::lessThanEqual(glm::abs(b.to_ivec2() - a.to_ivec2()), glm::ivec2(1)));
-    };
-
     const Coordinate &sourcePos = sourceRoom.getPosition();
-    const Coordinate &targetPos = targetRoom.getPosition();
 
-    if (sourcePos.z != m_currentLayer && targetPos.z != m_currentLayer) {
+    if (sourcePos.z != m_currentLayer) {
         return;
     }
 
-    // consider converting this to std::string
-    QString name;
-    bool together = false;
+    const QString name = getPostfixedDoorName(sourceRoom, sourceDir);
 
-    const auto &targetExit = targetRoom.getExit(targetDir);
-    if (targetExit.exitIsDoor()      // the other room has a door?
-        && targetExit.hasDoorName()  // has a door on both sides...
-        && targetExit.doorIsHidden() // is hidden
-        && isShortDistance(sourcePos, targetPos)) {
-        if (sourceRoom.getId() > targetRoom.getId() && sourcePos.z == targetPos.z) {
-            // NOTE: This allows wrap-around connections to the same room (allows source <= target).
-            // Avoid drawing duplicate door names for each side by only drawing one side unless
-            // the doors are on different z-layers
-            return;
-        }
-
-        together = true;
-
-        // no need for duplicating names (its spammy)
-        const QString sourceName = getPostfixedDoorName(sourceRoom, sourceDir);
-        const QString targetName = getPostfixedDoorName(targetRoom, targetDir);
-        if (sourceName != targetName) {
-            name = sourceName + "/" + targetName;
-        } else {
-            name = sourceName;
-        }
-    } else {
-        name = getPostfixedDoorName(sourceRoom, sourceDir);
+    if (name.isEmpty()) {
+        return;
     }
 
-    static constexpr float XOFFSET = 0.6f;
+    static const auto getXOffset = [](const ExitDirEnum dir) -> float {
+        switch (dir) {
+        case ExitDirEnum::WEST:
+            return 0.15f;
+        case ExitDirEnum::EAST:
+            return 0.85f;
+        case ExitDirEnum::UP:
+            return 0.7f;
+        case ExitDirEnum::DOWN:
+            return 0.3f;
+        case ExitDirEnum::NORTH:
+        case ExitDirEnum::SOUTH:
+        case ExitDirEnum::UNKNOWN:
+        case ExitDirEnum::NONE:
+            return 0.5f;
+        }
+        assert(false);
+        return 0.5f;
+    };
+
     static const auto getYOffset = [](const ExitDirEnum dir) -> float {
         switch (dir) {
         case ExitDirEnum::NORTH:
             return 0.85f;
         case ExitDirEnum::SOUTH:
-            return 0.35f;
-
-        case ExitDirEnum::WEST:
-            return 0.7f;
-        case ExitDirEnum::EAST:
-            return 0.55f;
-
+            return 0.15f;
         case ExitDirEnum::UP:
-            return 1.05f;
+            return 0.7f;
         case ExitDirEnum::DOWN:
-            return 0.2f;
-
+            return 0.3f;
+        case ExitDirEnum::WEST:
+        case ExitDirEnum::EAST:
         case ExitDirEnum::UNKNOWN:
         case ExitDirEnum::NONE:
-            break;
+            return 0.5f;
         }
-
         assert(false);
-        return 0.f;
+        return 0.5f;
     };
 
-    const glm::vec2 xy = std::invoke([sourceDir, together, &sourcePos, &targetPos]() -> glm::vec2 {
-        const glm::vec2 srcPos = sourcePos.to_vec2();
-        if (together) {
-            const auto centerPos = (srcPos + targetPos.to_vec2()) * 0.5f;
-            static constexpr float YOFFSET = 0.7f;
-            return centerPos + glm::vec2{XOFFSET, YOFFSET};
-        } else {
-            return srcPos + glm::vec2{XOFFSET, getYOffset(sourceDir)};
-        }
-    });
+    const glm::vec2 xy = sourcePos.to_vec2()
+                         + glm::vec2{getXOffset(sourceDir), getYOffset(sourceDir)};
 
     static const auto bg = Colors::black.withAlpha(0.4f);
     const glm::vec3 pos{xy, m_currentLayer};
@@ -293,7 +268,7 @@ void ConnectionDrawer::drawRoomConnectionsAndDoors(const RoomHandle &room)
                 // Draw door names
                 if (sourceExit.exitIsDoor() && sourceExit.hasDoorName()
                     && sourceExit.doorIsHidden()) {
-                    drawRoomDoorName(room, sourceDir, targetRoom, targetDir);
+                    drawRoomDoorName(room, sourceDir);
                 }
             }
         }

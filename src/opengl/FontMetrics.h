@@ -19,24 +19,6 @@
 #include <QImage>
 #include <QString>
 
-// NOTE: Rect doesn't actually include the hi value.
-struct NODISCARD Rect final
-{
-    glm::ivec2 lo = glm::ivec2{0};
-    glm::ivec2 hi = glm::ivec2{0};
-
-    NODISCARD int width() const { return hi.x - lo.x; }
-    NODISCARD int height() const { return hi.y - lo.y; }
-    NODISCARD glm::ivec2 size() const { return {width(), height()}; }
-};
-
-NODISCARD inline bool intersects(const Rect &a, const Rect &b)
-{
-#define OVERLAPS(_xy) ((a.lo._xy) < (b.hi._xy) && (b.lo._xy) < (a.hi._xy))
-    return OVERLAPS(x) && OVERLAPS(y);
-#undef OVERLAPS
-}
-
 using IntPair = std::pair<int, int>;
 
 template<>
@@ -48,15 +30,6 @@ struct std::hash<IntPair>
         return numeric_hash(CAST(ip.first) | (CAST(ip.second) << 32u));
 #undef CAST
     }
-};
-
-struct NODISCARD DoorLabel final
-{
-    GLText text;
-
-    explicit DoorLabel(GLText &&text_)
-        : text{std::move(text_)}
-    {}
 };
 
 struct NODISCARD FontMetrics final
@@ -128,10 +101,10 @@ struct NODISCARD FontMetrics final
         NODISCARD glm::ivec2 getSize() const { return glm::ivec2{width, height}; }
         NODISCARD glm::ivec2 getOffset() const { return glm::ivec2{xoffset, yoffset}; }
 
-        NODISCARD Rect getRect() const
+        NODISCARD utils::Rect getRect() const
         {
             const auto lo = getPosition();
-            return Rect{lo, lo + getSize()};
+            return utils::Rect{lo, lo + getSize()};
         }
     };
 
@@ -239,7 +212,5 @@ struct NODISCARD FontMetrics final
 
     void getFontBatchRawData(const GLText *text,
                              size_t count,
-                             std::vector<::FontVert3d> &output) const;
-    void getFontBatchRawData(const std::vector<DoorLabel> &labels,
                              std::vector<::FontVert3d> &output) const;
 };

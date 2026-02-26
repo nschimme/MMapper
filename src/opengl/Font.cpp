@@ -45,10 +45,10 @@ bool FontMetrics::tryAddBackgroundGlyph(QImage &img)
     const int h = common.scaleH;
 
     // must not overlap underline
-    const Rect ourGlyph{{w - 4, 0}, {w, 4}};
+    const utils::Rect ourGlyph{{w - 4, 0}, {w, 4}};
 
     for (const Glyph &glyph : raw_glyphs) {
-        if (intersects(glyph.getRect(), ourGlyph)) {
+        if (utils::intersects(glyph.getRect(), ourGlyph)) {
             qWarning() << "Glyph" << glyph.id << "overlaps expected background location";
             return false;
         }
@@ -74,11 +74,11 @@ bool FontMetrics::tryAddUnderlineGlyph(QImage &img)
 {
     const int w = common.scaleW;
     const int h = common.scaleH;
-    const Rect ourGlyph{{w - 12, 0}, {w - 8, 4}};
+    const utils::Rect ourGlyph{{w - 12, 0}, {w - 8, 4}};
 
     // must not overlap background
     for (const Glyph &glyph : raw_glyphs) {
-        if (intersects(glyph.getRect(), ourGlyph)) {
+        if (utils::intersects(glyph.getRect(), ourGlyph)) {
             qWarning() << "Glyph" << glyph.id << "overlaps expected underline location";
             return false;
         }
@@ -431,7 +431,7 @@ public:
                 m_verts3d.emplace_back(m_opts.pos, c, tc, vert);
             };
 
-            const auto quad = [&add](const Color c, const Rect &vert, const Rect &tc) {
+            const auto quad = [&add](const Color c, const utils::Rect &vert, const utils::Rect &tc) {
 #define ADD(a, b) add(c, glm::ivec2{vert.a.x, vert.b.y}, glm::ivec2{tc.a.x, tc.b.y})
                 // note: lo and hi refer to members of vert and tc.
                 ADD(lo, lo);
@@ -459,7 +459,7 @@ public:
             if (m_opts.optBgColor) {
                 if (const FontMetrics::Glyph *const background = m_fm.getBackground()) {
                     quad(m_opts.optBgColor.value(),
-                         Rect{lo - margin, hi + margin},
+                         utils::Rect{lo - margin, hi + margin},
                          background->getRect());
                 }
             }
@@ -469,7 +469,7 @@ public:
                     const auto usize = underline->getSize();
                     const auto offset = underline->getOffset() + glm::ivec2{wordOffset, 0};
                     quad(m_opts.fgColor,
-                         Rect{offset, offset + glm::ivec2{m_xlinepos, usize.y}},
+                         utils::Rect{offset, offset + glm::ivec2{m_xlinepos, usize.y}},
                          underline->getRect());
                 }
             }
@@ -620,35 +620,6 @@ void FontMetrics::getFontBatchRawData(const GLText *const text,
     }
     assert(output.size() == before + expectedVerts);
 }
-
-void FontMetrics::getFontBatchRawData(const std::vector<DoorLabel> &labels,
-                                      std::vector<::FontVert3d> &output) const
-{
-    if (labels.empty()) {
-        return;
-    }
-
-    const auto before = output.size();
-
-    const size_t expectedVerts = std::invoke([&labels]() -> size_t {
-        int numGlyphs = 0;
-        for (const auto &label : labels) {
-            numGlyphs += static_cast<int>(label.text.text.size())
-                         + (label.text.bgcolor.has_value() ? 1 : 0)
-                         + (label.text.fontFormatFlag.contains(FontFormatFlagEnum::UNDERLINE) ? 1
-                                                                                              : 0);
-        }
-        return 4 * static_cast<size_t>(numGlyphs);
-    });
-
-    output.reserve(before + expectedVerts);
-
-    auto &fm = *this;
-    FontBatchBuilder fontBatchBuilder{fm, output};
-    for (const auto &label : labels) {
-        fontBatchBuilder.addString(label.text);
-    }
-    assert(output.size() == before + expectedVerts);
 }
 
 void GLFont::render2dTextImmediate(const std::vector<GLText> &text)

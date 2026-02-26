@@ -27,6 +27,15 @@ class GLFont;
 class OpenGL;
 struct FontMetrics;
 
+struct NODISCARD DoorLabel final
+{
+    GLText text;
+
+    explicit DoorLabel(GLText &&text_)
+        : text{std::move(text_)}
+    {}
+};
+
 struct NODISCARD RoomNameBatchIntermediate final
 {
     std::vector<FontVert3d> verts;
@@ -179,10 +188,7 @@ public:
 
     void drawRoomConnectionsAndDoors(const RoomHandle &room);
 
-    void drawRoomDoorName(const RoomHandle &sourceRoom,
-                          ExitDirEnum sourceDir,
-                          const RoomHandle &targetRoom,
-                          ExitDirEnum targetDir);
+    void drawRoomDoorName(const RoomHandle &sourceRoom, ExitDirEnum sourceDir);
 
     void drawLineStrip(const std::vector<glm::vec3> &points);
 

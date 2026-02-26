@@ -17,10 +17,30 @@
 #include <tuple>
 #include <type_traits>
 
+#include <glm/glm.hpp>
+
 #include <QPointer>
 #include <queue>
 
 namespace utils {
+
+// NOTE: Rect doesn't actually include the hi value.
+struct NODISCARD Rect final
+{
+    glm::ivec2 lo = glm::ivec2{0};
+    glm::ivec2 hi = glm::ivec2{0};
+
+    NODISCARD int width() const { return hi.x - lo.x; }
+    NODISCARD int height() const { return hi.y - lo.y; }
+    NODISCARD glm::ivec2 size() const { return {width(), height()}; }
+};
+
+NODISCARD inline bool intersects(const Rect &a, const Rect &b)
+{
+#define OVERLAPS(_xy) ((a.lo._xy) < (b.hi._xy) && (b.lo._xy) < (a.hi._xy))
+    return OVERLAPS(x) && OVERLAPS(y);
+#undef OVERLAPS
+}
 
 // This mainly exists to avoid float-equal warnings,
 // but it also checks that the floating point types are the same.

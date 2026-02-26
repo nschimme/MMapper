@@ -263,30 +263,30 @@ void MapCanvas::touchEvent(QTouchEvent *const event)
 
         if (event->type() == QEvent::TouchBegin || p1.state() == QEventPoint::Pressed
             || p2.state() == QEventPoint::Pressed) {
-            m_initialPinchDistance = glm::distance(glm::vec2(static_cast<float>(p1.position().x()),
-                                                             static_cast<float>(p1.position().y())),
-                                                   glm::vec2(static_cast<float>(p2.position().x()),
-                                                             static_cast<float>(p2.position().y())));
-            m_lastPinchFactor = 1.f;
+            m_pinchState.emplace(PinchState{
+                glm::distance(glm::vec2(static_cast<float>(p1.position().x()),
+                                        static_cast<float>(p1.position().y())),
+                              glm::vec2(static_cast<float>(p2.position().x()),
+                                        static_cast<float>(p2.position().y()))),
+                1.f});
         }
 
-        if (m_initialPinchDistance > PINCH_DISTANCE_THRESHOLD) {
+        if (m_pinchState && m_pinchState->initialDistance > PINCH_DISTANCE_THRESHOLD) {
             const float currentDistance
                 = glm::distance(glm::vec2(static_cast<float>(p1.position().x()),
                                           static_cast<float>(p1.position().y())),
                                 glm::vec2(static_cast<float>(p2.position().x()),
                                           static_cast<float>(p2.position().y())));
-            const float currentPinchFactor = currentDistance / m_initialPinchDistance;
-            const float deltaFactor = currentPinchFactor / m_lastPinchFactor;
+            const float currentPinchFactor = currentDistance / m_pinchState->initialDistance;
+            const float deltaFactor = currentPinchFactor / m_pinchState->lastFactor;
 
             handleZoomAtEvent(event, deltaFactor);
-            m_lastPinchFactor = currentPinchFactor;
+            m_pinchState->lastFactor = currentPinchFactor;
         }
 
         if (event->type() == QEvent::TouchEnd || p1.state() == QEventPoint::Released
             || p2.state() == QEventPoint::Released) {
-            m_initialPinchDistance = 0.f;
-            m_lastPinchFactor = 1.f;
+            m_pinchState.reset();
         }
         event->accept();
     } else {
@@ -295,10 +295,7 @@ void MapCanvas::touchEvent(QTouchEvent *const event)
             qDebug() << "MapCanvas::touchEvent: ignoring" << points.size() << "touch points";
         }
 
-        if (m_initialPinchDistance > 0.f) {
-            m_initialPinchDistance = 0.f;
-            m_lastPinchFactor = 1.f;
-        }
+        m_pinchState.reset();
         QOpenGLWindow::touchEvent(event);
     }
 }
@@ -326,13 +323,18 @@ bool MapCanvas::event(QEvent *const event)
             } else {
                 // On other platforms, it's typically the cumulative scale factor (1.0 at start).
                 if (nativeEvent->isBeginEvent()) {
-                    m_lastMagnification = 1.f;
+                    m_magnificationState.emplace(MagnificationState{1.f});
                 }
 
-                if (std::abs(m_lastMagnification) > GESTURE_EPSILON) {
-                    deltaFactor = value / m_lastMagnification;
+                if (m_magnificationState && std::abs(m_magnificationState->lastValue) > GESTURE_EPSILON) {
+                    deltaFactor = value / m_magnificationState->lastValue;
                 }
-                m_lastMagnification = value;
+
+                if (!m_magnificationState) {
+                    m_magnificationState.emplace(MagnificationState{value});
+                } else {
+                    m_magnificationState->lastValue = value;
+                }
             }
             handleZoomAtEvent(nativeEvent, deltaFactor);
             event->accept();
@@ -427,7 +429,7 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
     MAYBE_UNUSED const bool hasAlt = (event->modifiers() & Qt::ALT) != 0u;
 
     if (hasLeftButton && hasAlt) {
-        m_altDragState.emplace(AltDragState{event->position().toPoint(), cursor()});
+        m_activeDragState = AltDragState{event->position().toPoint(), cursor()};
         setCursor(Qt::ClosedHandCursor);
         event->accept();
         return;
@@ -621,17 +623,17 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
     }
     const auto xy = *optXy;
 
-    if (m_altDragState.has_value()) {
+    if (auto *const altDragState = std::get_if<AltDragState>(&m_activeDragState)) {
         // The user released the Alt key mid-drag.
         if (!((event->modifiers() & Qt::ALT) != 0u)) {
-            setCursor(m_altDragState->originalCursor);
-            m_altDragState.reset();
+            setCursor(altDragState->originalCursor);
+            m_activeDragState = std::monostate{};
             // Don't accept the event; let the underlying widgets handle it.
             return;
         }
 
         auto &conf = setConfig().canvas.advanced;
-        auto &dragState = m_altDragState.value();
+        auto &dragState = *altDragState;
         bool angleChanged = false;
 
         const auto pos = event->position().toPoint();
@@ -722,15 +724,17 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
         infomarksChanged();
         break;
     case CanvasMouseModeEnum::MOVE:
-        if (hasLeftButton && m_mouseLeftPressed && m_dragState.has_value()) {
-            const glm::vec3 currWorldPos = unproject_clamped(xy, m_dragState->startViewProj);
-            const glm::vec2 delta = glm::vec2(currWorldPos - m_dragState->startWorldPos);
+        if (hasLeftButton && m_mouseLeftPressed) {
+            if (auto *const dragState = std::get_if<DragState>(&m_activeDragState)) {
+                const glm::vec3 currWorldPos = unproject_clamped(xy, dragState->startViewProj);
+                const glm::vec2 delta = glm::vec2(currWorldPos - dragState->startWorldPos);
 
-            if (glm::length(delta) > GESTURE_EPSILON) {
-                const glm::vec2 newWorldCenter = m_dragState->startScroll - delta;
-                m_scroll = newWorldCenter;
-                emit sig_onCenter(newWorldCenter);
-                update();
+                if (glm::length(delta) > GESTURE_EPSILON) {
+                    const glm::vec2 newWorldCenter = dragState->startScroll - delta;
+                    m_scroll = newWorldCenter;
+                    emit sig_onCenter(newWorldCenter);
+                    update();
+                }
             }
         }
         break;
@@ -806,9 +810,9 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
     }
     const auto xy = *optXy;
 
-    if (m_altDragState.has_value()) {
-        setCursor(m_altDragState->originalCursor);
-        m_altDragState.reset();
+    if (auto *const altDragState = std::get_if<AltDragState>(&m_activeDragState)) {
+        setCursor(altDragState->originalCursor);
+        m_activeDragState = std::monostate{};
         event->accept();
         return;
     }
@@ -1035,14 +1039,12 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
 
 void MapCanvas::startMoving(const MouseSel &startPos)
 {
-    MapCanvasInputState::startMoving(startPos);
-    m_dragState.emplace(DragState{startPos.to_vec3(), m_scroll, m_viewProj});
+    m_activeDragState = DragState{startPos.to_vec3(), m_scroll, m_viewProj};
 }
 
 void MapCanvas::stopMoving()
 {
-    MapCanvasInputState::stopMoving();
-    m_dragState.reset();
+    m_activeDragState = std::monostate{};
 }
 
 void MapCanvas::zoomAt(const float factor, const glm::vec2 &mousePos)

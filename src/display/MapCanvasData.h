@@ -18,6 +18,7 @@
 #include <memory>
 #include <optional>
 #include <unordered_map>
+#include <variant>
 
 #include <QOpenGLTexture>
 #include <QWindow>
@@ -150,6 +151,30 @@ private:
     NODISCARD VisiblityResultEnum testVisibility(const glm::vec3 &input_pos, float margin) const;
 };
 
+struct NODISCARD AltDragState
+{
+    QPoint lastPos;
+    QCursor originalCursor;
+};
+
+struct NODISCARD DragState
+{
+    glm::vec3 startWorldPos;
+    glm::vec2 startScroll;
+    glm::mat4 startViewProj;
+};
+
+struct NODISCARD PinchState
+{
+    float initialDistance = 0.f;
+    float lastFactor = 1.f;
+};
+
+struct NODISCARD MagnificationState
+{
+    float lastValue = 1.f;
+};
+
 struct NODISCARD MapCanvasInputState
 {
     CanvasMouseModeEnum m_canvasMouseMode = CanvasMouseModeEnum::MOVE;
@@ -162,8 +187,10 @@ struct NODISCARD MapCanvasInputState
     // mouse selection
     std::optional<MouseSel> m_sel1;
     std::optional<MouseSel> m_sel2;
-    // scroll origin of the current mouse movement
-    std::optional<MouseSel> m_moveBackup;
+
+    std::variant<std::monostate, AltDragState, DragState> m_activeDragState;
+    std::optional<PinchState> m_pinchState;
+    std::optional<MagnificationState> m_magnificationState;
 
     bool m_selectedArea = false; // no area selected at start time
     SharedRoomSelection m_roomSelection;
@@ -208,14 +235,8 @@ public:
 public:
     NODISCARD bool hasSel1() const { return m_sel1.has_value(); }
     NODISCARD bool hasSel2() const { return m_sel2.has_value(); }
-    NODISCARD bool hasBackup() const { return m_moveBackup.has_value(); }
 
 public:
     NODISCARD MouseSel getSel1() const { return getMouseSel(m_sel1); }
     NODISCARD MouseSel getSel2() const { return getMouseSel(m_sel2); }
-    NODISCARD MouseSel getBackup() const { return getMouseSel(m_moveBackup); }
-
-public:
-    void startMoving(const MouseSel &startPos) { m_moveBackup = startPos; }
-    void stopMoving() { m_moveBackup.reset(); }
 };

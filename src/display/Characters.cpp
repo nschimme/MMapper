@@ -395,18 +395,24 @@ void CharacterBatch::CharFakeGL::addScreenSpaceArrow(const glm::vec3 &pos,
 
 void MapCanvas::paintOtherPlayerNames()
 {
-    ServerRoomId yourServerId = INVALID_SERVER_ROOMID;
-    for (const auto &pChar : m_groupManager.selectAll()) {
-        if (pChar->isYou()) {
-            yourServerId = pChar->getServerId();
-            break;
-        }
+    const auto &allCharacters = m_groupManager.selectAll();
+    const auto itYou = std::find_if(allCharacters.begin(), allCharacters.end(), [](const auto &p) {
+        return p->isYou();
+    });
+
+    if (itYou == allCharacters.end()) {
+        return;
+    }
+
+    const ServerRoomId yourServerId = (*itYou)->getServerId();
+    if (yourServerId == INVALID_SERVER_ROOMID) {
+        return;
     }
 
     const Map &map = m_data.getCurrentMap();
     std::map<Coordinate, std::vector<SharedGroupChar>> otherPlayersByRoom;
 
-    for (const auto &pCharacter : m_groupManager.selectAll()) {
+    for (const auto &pCharacter : allCharacters) {
         const CGroupChar &character = deref(pCharacter);
         if (character.isYou()) {
             continue;
@@ -439,12 +445,11 @@ void MapCanvas::paintOtherPlayerNames()
         // Use same visibility check as Characters.cpp
         const bool visible = m_mapScreen.isRoomVisible(pos, marginPixels / 2.f);
 
-        glm::vec3 drawPosWorld;
+        std::optional<glm::vec3> optScreen;
         float verticalOffset;
 
         if (visible) {
-            drawPosWorld = roomCenter;
-            const auto optScreen = project(roomCenter);
+            optScreen = project(roomCenter);
             const auto optScreenTop = project(roomCenter + glm::vec3{0.f, 0.5f, 0.f});
             if (optScreen && optScreenTop) {
                 verticalOffset = glm::distance(glm::vec2(*optScreen), glm::vec2(*optScreenTop))
@@ -454,11 +459,11 @@ void MapCanvas::paintOtherPlayerNames()
                 verticalOffset = 10.f * dpr;
             }
         } else {
-            drawPosWorld = m_mapScreen.getProxyLocation(roomCenter, marginPixels);
+            const glm::vec3 proxyWorld = m_mapScreen.getProxyLocation(roomCenter, marginPixels);
+            optScreen = project(proxyWorld);
             verticalOffset = 15.f * dpr;
         }
 
-        const auto optScreen = project(drawPosWorld);
         if (!optScreen) {
             continue;
         }

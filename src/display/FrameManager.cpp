@@ -42,7 +42,7 @@ bool FrameManager::needsHeartbeat() const
             if (entry.callback() == AnimationStatus::Continue) {
                 anyActive = true;
                 // Defer thorough cleanup to when heartbeat is truly idle.
-                return true;
+                break;
             }
         } else {
             needsCleanup = true;

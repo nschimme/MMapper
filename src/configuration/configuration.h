@@ -189,7 +189,7 @@ public:
             NamedConfig<bool> use3D{"MMAPPER_3D", true};
             NamedConfig<bool> autoTilt{"MMAPPER_AUTO_TILT", true};
             NamedConfig<bool> printPerfStats{"MMAPPER_GL_PERFSTATS", IS_DEBUG_BUILD};
-            FixedPoint<1> maximumFps{10, 3000, 600};
+            FixedPoint<1> maximumFps{40, 3000, 600};
 
             // 5..90 degrees
             FixedPoint<1> fov{50, 900, 765};

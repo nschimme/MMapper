@@ -6,6 +6,7 @@
 #include "../../display/Textures.h"
 #include "../../global/utils.h"
 #include "../OpenGLTypes.h"
+#include "../UboManager.h"
 #include "AbstractShaderProgram.h"
 #include "Binders.h"
 #include "FontMesh3d.h"
@@ -338,6 +339,16 @@ TexLookup &Functions::getTexLookup()
 FBO &Functions::getFBO()
 {
     return deref(m_fbo);
+}
+
+void Functions::setUboManager(UboManager *manager)
+{
+    m_uboManager = manager;
+}
+
+UboManager &Functions::getUboManager()
+{
+    return deref(m_uboManager);
 }
 
 /// This only exists so we can detect errors in contexts that don't support \c glDebugMessageCallback().

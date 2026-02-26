@@ -235,7 +235,6 @@ void MapCanvas::initializeGL()
     initLogger();
 
     gl.initializeRenderer(static_cast<float>(QPaintDevice::devicePixelRatioF()));
-    m_frameManager.init(gl.getUboManager());
 
     gl.getUboManager().registerRebuildFunction(
         Legacy::SharedVboEnum::NamedColorsBlock, [&gl](Legacy::Functions &funcs) {
@@ -614,8 +613,7 @@ void MapCanvas::finishPendingMapBatches()
 void MapCanvas::actuallyPaintGL(float /*deltaTime*/)
 {
     // deltaTime is currently unused here but advanced in FrameManager::beginFrame()
-    // Update animation state and weather
-    m_weather.update();
+    // Update animation state
 
     // DECL_TIMER(t, __FUNCTION__);
     setViewportAndMvp(width(), height());

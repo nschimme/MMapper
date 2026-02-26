@@ -202,7 +202,7 @@ struct NODISCARD MapCanvasInputState
     std::optional<MouseSel> m_sel1;
     std::optional<MouseSel> m_sel2;
 
-    std::variant<std::monostate, AltDragState, DragState, RoomSelMove, InfomarkSelectionMove, AreaSelectionState>
+    std::optional<std::variant<AltDragState, DragState, RoomSelMove, InfomarkSelectionMove, AreaSelectionState>>
         m_activeInteraction;
     std::optional<PinchState> m_pinchState;
     std::optional<MagnificationState> m_magnificationState;
@@ -241,14 +241,14 @@ public:
 public:
     NODISCARD bool hasRoomSelectionMove() const
     {
-        return std::holds_alternative<RoomSelMove>(m_activeInteraction);
+        return m_activeInteraction && std::holds_alternative<RoomSelMove>(*m_activeInteraction);
     }
     NODISCARD bool hasInfomarkSelectionMove() const
     {
-        return std::holds_alternative<InfomarkSelectionMove>(m_activeInteraction);
+        return m_activeInteraction && std::holds_alternative<InfomarkSelectionMove>(*m_activeInteraction);
     }
     NODISCARD bool hasAreaSelection() const
     {
-        return std::holds_alternative<AreaSelectionState>(m_activeInteraction);
+        return m_activeInteraction && std::holds_alternative<AreaSelectionState>(*m_activeInteraction);
     }
 };

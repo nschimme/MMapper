@@ -263,12 +263,12 @@ void MapCanvas::touchEvent(QTouchEvent *const event)
 
         if (event->type() == QEvent::TouchBegin || p1.state() == QEventPoint::Pressed
             || p2.state() == QEventPoint::Pressed) {
-            m_pinchState.emplace(PinchState{
-                glm::distance(glm::vec2(static_cast<float>(p1.position().x()),
-                                        static_cast<float>(p1.position().y())),
-                              glm::vec2(static_cast<float>(p2.position().x()),
-                                        static_cast<float>(p2.position().y()))),
-                1.f});
+            m_pinchState.emplace(
+                PinchState{glm::distance(glm::vec2(static_cast<float>(p1.position().x()),
+                                                   static_cast<float>(p1.position().y())),
+                                         glm::vec2(static_cast<float>(p2.position().x()),
+                                                   static_cast<float>(p2.position().y()))),
+                           1.f});
         }
 
         if (m_pinchState && m_pinchState->initialDistance > PINCH_DISTANCE_THRESHOLD) {
@@ -326,7 +326,8 @@ bool MapCanvas::event(QEvent *const event)
                     m_magnificationState.emplace(MagnificationState{1.f});
                 }
 
-                if (m_magnificationState && std::abs(m_magnificationState->lastValue) > GESTURE_EPSILON) {
+                if (m_magnificationState
+                    && std::abs(m_magnificationState->lastValue) > GESTURE_EPSILON) {
                     deltaFactor = value / m_magnificationState->lastValue;
                 }
 

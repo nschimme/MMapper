@@ -145,7 +145,6 @@ private:
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
     Signal2Lifetime m_lifetime;
 
-
 public:
     explicit MapCanvas(MapData &mapData,
                        PrespammedPath &prespammedPath,

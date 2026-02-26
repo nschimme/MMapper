@@ -7,8 +7,11 @@
 
 #include <algorithm>
 
-FrameManager::FrameManager(QObject *parent)
+#include <QOpenGLWindow>
+
+FrameManager::FrameManager(QOpenGLWindow &window, QObject *parent)
     : QObject(parent)
+    , m_window(window)
 {
     updateMinFrameTime();
     setConfig().canvas.advanced.maximumFps.registerChangeCallback(m_configLifetime, [this]() {
@@ -31,29 +34,51 @@ bool FrameManager::needsHeartbeat() const
         return true;
     }
 
-    auto it = m_callbacks.begin();
-    while (it != m_callbacks.end()) {
-        if (auto shared = it->lifetime.lock()) {
-            if (it->callback()) {
+    bool anyActive = false;
+    bool needsCleanup = false;
+
+    for (const auto &entry : m_callbacks) {
+        if (auto shared = entry.lifetime.lock()) {
+            if (entry.callback() == AnimationStatus::Continue) {
+                anyActive = true;
+                // Defer thorough cleanup to when heartbeat is truly idle.
                 return true;
             }
-            ++it;
         } else {
-            it = m_callbacks.erase(it);
+            needsCleanup = true;
         }
     }
-    return false;
+
+    if (needsCleanup) {
+        cleanupExpiredCallbacks();
+    }
+
+    return anyActive;
+}
+
+void FrameManager::cleanupExpiredCallbacks() const
+{
+    auto it = std::remove_if(m_callbacks.begin(), m_callbacks.end(), [](const Entry &e) {
+        return e.lifetime.expired();
+    });
+    m_callbacks.erase(it, m_callbacks.end());
+}
+
+void FrameManager::requestUpdate()
+{
+    m_dirty = true;
+    requestFrame();
 }
 
 std::optional<FrameManager::Frame> FrameManager::beginFrame()
 {
     const auto now = std::chrono::steady_clock::now();
+    const bool hasLastUpdate = (m_lastUpdateTime.time_since_epoch().count() != 0);
 
-    // Throttle: check if enough time has passed since the last paint.
-    if (m_lastPaintTime.time_since_epoch().count() != 0) {
-        const auto elapsed = now - m_lastPaintTime;
-        // We use a small tolerance (500us) to avoid skipping frames due to minor timer jitter.
-        if (elapsed + std::chrono::microseconds(500) < m_minFrameTime) {
+    // Throttle: check if enough time has passed since the start of the last successful frame.
+    if (hasLastUpdate) {
+        const auto elapsed = now - m_lastUpdateTime;
+        if (elapsed + getJitterTolerance() < m_minFrameTime) {
             return std::nullopt;
         }
     }
@@ -65,19 +90,16 @@ std::optional<FrameManager::Frame> FrameManager::beginFrame()
     m_dirty = false;
 
     // Calculate delta time
-    float dt = 0.0f;
-    if (m_lastUpdateTime.time_since_epoch().count() != 0) {
+    float deltaTime = 0.0f;
+    if (hasLastUpdate) {
         const auto elapsed = now - m_lastUpdateTime;
-        dt = std::chrono::duration<float>(elapsed).count();
+        deltaTime = std::chrono::duration<float>(elapsed).count();
     }
     m_lastUpdateTime = now;
 
-    // Advance global time smoothly
-    m_animationTime += dt;
-
-    // Cap dt for simulation to match map movement during dragging and avoid quantization jitter.
-    // Cap at 0.1s to avoid huge jumps after window focus loss or lag.
-    m_lastFrameDeltaTime = std::min(dt, 0.1f);
+    // Cap deltaTime for simulation to match map movement during dragging and avoid quantization jitter.
+    // Cap at 1.0s to avoid huge jumps after window focus loss or lag, while supporting low FPS.
+    m_lastFrameDeltaTime = std::min(deltaTime, 1.0f);
 
     return Frame(*this, m_lastFrameDeltaTime);
 }
@@ -103,54 +125,75 @@ void FrameManager::onHeartbeat()
         return;
     }
 
-    emit sig_requestUpdate();
+    m_window.update();
 
     if (needsHeartbeat()) {
-        const auto delay = getTimeUntilNextFrame();
-        // Ensure we wait at least 1ms if we just rendered, or more if we are still under the throttle.
-        const long long delayMs = std::chrono::duration_cast<std::chrono::milliseconds>(delay)
-                                      .count();
-        const bool hasPartialMs = delay > std::chrono::milliseconds(delayMs);
-        const long long finalDelay = std::max(1LL, delayMs + (hasPartialMs ? 1LL : 0LL));
-        m_heartbeatTimer.start(static_cast<int>(finalDelay));
+        // We always schedule a fallback heartbeat in case window update is ignored.
+        // recordFramePainted will later refine this with a more accurate delay if a paint occurs.
+        const auto delayMs = std::chrono::duration_cast<std::chrono::milliseconds>(m_minFrameTime)
+                                 .count();
+        m_heartbeatTimer.start(static_cast<int>(delayMs));
     }
+}
+
+std::chrono::nanoseconds FrameManager::getJitterTolerance() const
+{
+    // Use 25% of the frame time as jitter tolerance, but cap it at 8ms.
+    // This ensures we are "ready early" for VSync at 60Hz (4ms) while avoiding
+    // over-rendering at very high frame rates.
+    const auto tolerance = m_minFrameTime / 4;
+    return std::min(tolerance, std::chrono::nanoseconds(std::chrono::milliseconds(8)));
 }
 
 std::chrono::nanoseconds FrameManager::getTimeUntilNextFrame() const
 {
-    if (m_lastPaintTime.time_since_epoch().count() == 0) {
+    if (m_lastUpdateTime.time_since_epoch().count() == 0) {
         return std::chrono::nanoseconds::zero();
     }
 
     const auto now = std::chrono::steady_clock::now();
-    const auto elapsed = now - m_lastPaintTime;
-    if (elapsed >= m_minFrameTime) {
+    const auto elapsed = now - m_lastUpdateTime;
+    const auto tolerance = getJitterTolerance();
+    if (elapsed + tolerance >= m_minFrameTime) {
         return std::chrono::nanoseconds::zero();
     }
-    return m_minFrameTime - elapsed;
+    return m_minFrameTime - (elapsed + tolerance);
 }
 
 void FrameManager::recordFramePainted()
 {
-    m_lastPaintTime = std::chrono::steady_clock::now();
+    // The previous frame just finished painting. Schedule the next one.
+    if (needsHeartbeat()) {
+        requestFrame();
+    }
 }
 
 void FrameManager::requestFrame()
 {
-    m_dirty = true;
-    if (m_heartbeatTimer.isActive()) {
-        return;
-    }
-
     const auto delay = getTimeUntilNextFrame();
     if (delay == std::chrono::nanoseconds::zero()) {
-        emit sig_requestUpdate();
+        // We are ready to paint now. Stop any pending timer and request an update.
+        if (m_heartbeatTimer.isActive()) {
+            m_heartbeatTimer.stop();
+        }
+        m_window.update();
+        // Start a fallback timer in case window update is ignored.
+        if (needsHeartbeat()) {
+            const auto delayMs
+                = std::chrono::duration_cast<std::chrono::milliseconds>(m_minFrameTime).count();
+            m_heartbeatTimer.start(static_cast<int>(delayMs));
+        }
     } else {
-        const long long delayMs = std::chrono::duration_cast<std::chrono::milliseconds>(delay)
-                                      .count();
-        const bool hasPartialMs = delay > std::chrono::milliseconds(delayMs);
-        const long long finalDelay = delayMs + (hasPartialMs ? 1LL : 0LL);
-        m_heartbeatTimer.start(static_cast<int>(finalDelay));
+        // Start or restart the timer with the accurate delay.
+        const int finalDelay = static_cast<int>(
+            std::chrono::duration_cast<std::chrono::milliseconds>(delay).count());
+
+        // Only restart the timer if it's not active or if the new delay is significantly different.
+        // This avoids hammering the timer during high-frequency input like mouse moves.
+        if (!m_heartbeatTimer.isActive()
+            || std::abs(m_heartbeatTimer.remainingTime() - finalDelay) > 1) {
+            m_heartbeatTimer.start(std::max(1, finalDelay));
+        }
     }
 }
 

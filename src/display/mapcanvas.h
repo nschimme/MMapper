@@ -246,7 +246,7 @@ private:
     void updateMapBatches();
     void updateInfomarkBatches();
 
-    void actuallyPaintGL(float dt);
+    void actuallyPaintGL(float deltaTime);
     void paintMap();
     void renderMapBatches();
     void paintBatchedInfomarks();

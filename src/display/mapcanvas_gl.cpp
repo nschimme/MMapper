@@ -274,12 +274,12 @@ void MapCanvas::initializeGL()
 
     setConfig().canvas.antialiasingSamples.registerChangeCallback(m_lifetime, [this]() {
         this->updateMultisampling();
-        m_frameManager.requestFrame();
+        m_frameManager.requestUpdate();
     });
 
     setConfig().canvas.trilinearFiltering.registerChangeCallback(m_lifetime, [this]() {
         this->updateTextures();
-        m_frameManager.requestFrame();
+        m_frameManager.requestUpdate();
     });
 }
 
@@ -496,7 +496,7 @@ void MapCanvas::resizeGL(int width, int height)
     updateMultisampling();
 
     // Render
-    m_frameManager.requestFrame();
+    m_frameManager.requestUpdate();
 }
 
 void MapCanvas::updateBatches()
@@ -530,7 +530,7 @@ void MapCanvas::updateMapBatches()
 
     remeshCookie.set(getFuture());
     assert(remeshCookie.isPending());
-    m_frameManager.requestFrame();
+    m_frameManager.requestUpdate();
 
     m_diff.cancelUpdates(m_data.getSavedMap());
 }
@@ -548,12 +548,6 @@ void MapCanvas::finishPendingMapBatches()
 
 #define LOG() MMLOG() << prefix
     static const std::string_view prefix = "[finishPendingMapBatches] ";
-
-    MAYBE_UNUSED RAIICallback eventually{[this] {
-        if (!m_batches.isInProgress()) {
-            m_frameManager.setAnimating(false);
-        }
-    }};
 
     if (m_batches.next_mapBatches.has_value()) {
         m_batches.mapBatches = std::exchange(m_batches.next_mapBatches, std::nullopt);
@@ -608,9 +602,9 @@ void MapCanvas::finishPendingMapBatches()
 #undef LOG
 }
 
-void MapCanvas::actuallyPaintGL(float /*dt*/)
+void MapCanvas::actuallyPaintGL(float /*deltaTime*/)
 {
-    // dt is currently unused here but advanced in FrameManager::beginFrame()
+    // deltaTime is currently unused here but advanced in FrameManager::beginFrame()
 
     // DECL_TIMER(t, __FUNCTION__);
     setViewportAndMvp(width(), height());
@@ -761,17 +755,16 @@ void MapCanvas::paintDifferences()
 void MapCanvas::paintMap()
 {
     const bool pending = m_batches.remeshCookie.isPending();
-    if (pending) {
-        m_frameManager.setAnimating(true);
-    }
 
     if (!m_batches.mapBatches.has_value()) {
-        const QString msg = pending ? "Please wait... the map isn't ready yet." : "Batch error";
-        getGLFont().renderTextCentered(msg);
+        if (!pending || m_batches.pendingUpdateFlashState.tick()) {
+            const QString msg = pending ? "Please wait... the map isn't ready yet." : "Batch error";
+            getGLFont().renderTextCentered(msg);
+        }
         if (!pending) {
             // REVISIT: does this need a better fix?
             // pending already scheduled an update, but now we realize we need an update.
-            m_frameManager.requestFrame();
+            m_frameManager.requestUpdate();
         }
         return;
     }
@@ -832,11 +825,7 @@ void MapCanvas::paintGL()
             optAfterBatches = Clock::now();
         }
 
-        actuallyPaintGL(frame->dt());
-
-        if (m_frameManager.needsHeartbeat()) {
-            m_frameManager.setAnimating(true);
-        }
+        actuallyPaintGL(frame->deltaTime());
     }
 
     if (!showPerfStats) {

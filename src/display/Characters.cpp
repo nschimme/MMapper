@@ -393,103 +393,67 @@ void CharacterBatch::CharFakeGL::addScreenSpaceArrow(const glm::vec3 &pos,
     }
 }
 
-void MapCanvas::paintOtherPlayerNames()
+void CharacterBatch::CharFakeGL::addName(const Coordinate &c,
+                                         const std::string &name,
+                                         const Color color,
+                                         const MapScreen &mapScreen)
 {
-    const std::optional<RoomId> optCurrentId = m_data.getCurrentRoomId();
-    if (!optCurrentId) {
-        return;
-    }
+    const glm::vec3 roomCenter = c.to_vec3() + glm::vec3{0.5f, 0.5f, 0.f};
+    const float marginPixels = MapScreen::DEFAULT_MARGIN_PIXELS;
+    const bool visible = mapScreen.isRoomVisible(c, marginPixels / 2.f);
 
-    const Map &map = m_data.getCurrentMap();
-    const auto yourRoom = map.findRoomHandle(*optCurrentId);
-    if (!yourRoom) {
-        return;
-    }
-    const ServerRoomId yourServerId = yourRoom.getServerId();
+    std::optional<glm::vec3> optScreen;
+    float verticalOffset;
 
-    std::map<Coordinate, std::vector<SharedGroupChar>> otherPlayersByRoom;
-
-    for (const auto &pCharacter : m_groupManager.selectAll()) {
-        const CGroupChar &character = deref(pCharacter);
-        if (character.isYou()) {
-            continue;
-        }
-
-        const ServerRoomId srvId = character.getServerId();
-        if (srvId == INVALID_SERVER_ROOMID
-            || (yourServerId != INVALID_SERVER_ROOMID && srvId == yourServerId)) {
-            continue;
-        }
-
-        if (const auto r = map.findRoomHandle(srvId)) {
-            otherPlayersByRoom[r.getPosition()].push_back(pCharacter);
-        }
-    }
-
-    if (otherPlayersByRoom.empty()) {
-        return;
-    }
-
-    std::vector<GLText> texts;
-    const float dpr = getOpenGL().getDevicePixelRatio();
-    const int fontHeight = getGLFont().getFontHeight();
-    const float h = static_cast<float>(height());
-
-    for (const auto &[pos, characters] : otherPlayersByRoom) {
-        const glm::vec3 roomCenter = pos.to_vec3() + glm::vec3{0.5f, 0.5f, 0.f};
-
-        const float marginPixels = MapScreen::DEFAULT_MARGIN_PIXELS;
-
-        // Use same visibility check as Characters.cpp
-        const bool visible = m_mapScreen.isRoomVisible(pos, marginPixels / 2.f);
-
-        std::optional<glm::vec3> optScreen;
-        float verticalOffset;
-
-        if (visible) {
-            optScreen = project(roomCenter);
-            const auto optScreenTop = project(roomCenter + glm::vec3{0.f, 0.5f, 0.f});
-            if (optScreen && optScreenTop) {
-                verticalOffset = glm::distance(glm::vec2(*optScreen), glm::vec2(*optScreenTop))
-                                     * dpr
-                                 + 2.f * dpr;
-            } else {
-                verticalOffset = 10.f * dpr;
-            }
+    if (visible) {
+        optScreen = mapScreen.project(roomCenter);
+        const auto optScreenTop = mapScreen.project(roomCenter + glm::vec3{0.f, 0.5f, 0.f});
+        if (optScreen && optScreenTop) {
+            verticalOffset = glm::distance(glm::vec2(*optScreen), glm::vec2(*optScreenTop)) + 2.f;
         } else {
-            const glm::vec3 proxyWorld = m_mapScreen.getProxyLocation(roomCenter, marginPixels);
-            optScreen = project(proxyWorld);
-            verticalOffset = 15.f * dpr;
+            verticalOffset = 10.f;
         }
-
-        if (!optScreen) {
-            continue;
-        }
-
-        const float screenX = optScreen->x * dpr;
-        const float screenY = (h - optScreen->y) * dpr;
-
-        float currentY = screenY - verticalOffset;
-        for (const auto &pChar : characters) {
-            const CGroupChar &character = deref(pChar);
-            QString name = character.getLabel().isEmpty() ? character.getName().toQString()
-                                                          : character.getLabel().toQString();
-            if (name.isEmpty()) {
-                continue;
-            }
-
-            texts.emplace_back(glm::vec3{screenX, currentY, 0.f},
-                               mmqt::toStdStringLatin1(name),
-                               Color{character.getColor()},
-                               Colors::black.withAlpha(0.6f),
-                               FontFormatFlags{FontFormatFlagEnum::HALIGN_CENTER});
-            currentY -= static_cast<float>(fontHeight);
-        }
+    } else {
+        const glm::vec3 proxyWorld = mapScreen.getProxyLocation(roomCenter, marginPixels);
+        optScreen = mapScreen.project(proxyWorld);
+        verticalOffset = 15.f;
     }
 
-    if (!texts.empty()) {
-        getGLFont().render2dTextImmediate(texts);
+    if (!optScreen) {
+        return;
     }
+
+    const float screenX = optScreen->x;
+    const float screenY = static_cast<float>(mapScreen.height()) - optScreen->y;
+
+    const int stackIdx = m_nameStackCounts[c]++;
+
+    // We store stackIdx in pos.z for now, and logical coordinates in pos.xy
+    m_names.emplace_back(glm::vec3{screenX, screenY - verticalOffset, static_cast<float>(stackIdx)},
+                         name,
+                         color,
+                         Colors::black.withAlpha(0.6f),
+                         FontFormatFlags{FontFormatFlagEnum::HALIGN_CENTER});
+}
+
+void CharacterBatch::CharFakeGL::reallyDrawNames(OpenGL &gl, GLFont &font)
+{
+    if (m_names.empty()) {
+        return;
+    }
+
+    const float dpr = gl.getDevicePixelRatio();
+    const float fontPhysicalHeight = static_cast<float>(font.getFontHeight());
+
+    for (auto &t : m_names) {
+        const float stackIdx = t.pos.z;
+        t.pos.x *= dpr;
+        t.pos.y = t.pos.y * dpr - stackIdx * fontPhysicalHeight;
+        t.pos.z = 0.f;
+    }
+
+    font.render2dTextImmediate(m_names);
+    m_names.clear();
 }
 
 void MapCanvas::paintCharacters()
@@ -500,15 +464,22 @@ void MapCanvas::paintCharacters()
 
     CharacterBatch characterBatch{m_mapScreen, m_currentLayer, getTotalScaleFactor()};
 
+    std::optional<ServerRoomId> yourServerId;
+    if (const std::optional<RoomId> optCurrentId = m_data.getCurrentRoomId()) {
+        if (const auto yourRoom = m_data.getCurrentMap().findRoomHandle(*optCurrentId)) {
+            yourServerId = yourRoom.getServerId();
+        }
+    }
+
     // IIFE to abuse return to avoid duplicate else branches
-    std::invoke([this, &characterBatch]() -> void {
+    std::invoke([this, &characterBatch, yourServerId]() -> void {
         if (const std::optional<RoomId> opt_pos = m_data.getCurrentRoomId()) {
             const auto &id = opt_pos.value();
             if (const auto room = m_data.findRoomHandle(id)) {
                 const auto &pos = room.getPosition();
                 // draw the characters before the current position
                 characterBatch.incrementCount(pos);
-                drawGroupCharacters(characterBatch);
+                drawGroupCharacters(characterBatch, yourServerId);
                 characterBatch.resetCount(pos);
 
                 // paint char current position
@@ -525,14 +496,13 @@ void MapCanvas::paintCharacters()
                 m_data.clearSelectedRoom();
             }
         }
-        drawGroupCharacters(characterBatch);
+        drawGroupCharacters(characterBatch, yourServerId);
     });
 
-    characterBatch.reallyDraw(getOpenGL(), m_textures);
-    paintOtherPlayerNames();
+    characterBatch.reallyDraw(getOpenGL(), m_textures, getGLFont());
 }
 
-void MapCanvas::drawGroupCharacters(CharacterBatch &batch)
+void MapCanvas::drawGroupCharacters(CharacterBatch &batch, std::optional<ServerRoomId> yourServerId)
 {
     if (m_data.isEmpty()) {
         return;
@@ -542,13 +512,14 @@ void MapCanvas::drawGroupCharacters(CharacterBatch &batch)
     const Map &map = m_data.getCurrentMap();
     for (const auto &pCharacter : m_groupManager.selectAll()) {
         // Omit player so that they know group members are below them
-        if (pCharacter->isYou())
+        if (pCharacter->isYou()) {
             continue;
+        }
 
         const CGroupChar &character = deref(pCharacter);
+        const ServerRoomId srvId = character.getServerId();
 
-        const auto &r = std::invoke([&character, &map]() -> RoomHandle {
-            const ServerRoomId srvId = character.getServerId();
+        const auto &r = std::invoke([srvId, &map]() -> RoomHandle {
             if (srvId != INVALID_SERVER_ROOMID) {
                 if (const auto &room = map.findRoomHandle(srvId)) {
                     return room;
@@ -568,6 +539,15 @@ void MapCanvas::drawGroupCharacters(CharacterBatch &batch)
         const bool fill = !drawnRoomIds.contains(id);
 
         batch.drawCharacter(pos, color, fill);
+
+        if (yourServerId && srvId != INVALID_SERVER_ROOMID && srvId != *yourServerId) {
+            QString name = character.getLabel().isEmpty() ? character.getName().toQString()
+                                                          : character.getLabel().toQString();
+            if (!name.isEmpty()) {
+                batch.drawName(pos, mmqt::toStdStringLatin1(name), color);
+            }
+        }
+
         drawnRoomIds.insert(id);
     }
 }

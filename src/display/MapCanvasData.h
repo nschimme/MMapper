@@ -147,6 +147,12 @@ public:
     NODISCARD bool isRoomVisible(const Coordinate &c, float margin) const;
     NODISCARD glm::vec3 getProxyLocation(const glm::vec3 &pos, float margin) const;
 
+    NODISCARD std::optional<glm::vec3> project(const glm::vec3 &v) const
+    {
+        return m_viewport.project(v);
+    }
+    NODISCARD int height() const { return m_viewport.height(); }
+
 private:
     NODISCARD VisiblityResultEnum testVisibility(const glm::vec3 &input_pos, float margin) const;
 };

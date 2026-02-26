@@ -206,7 +206,8 @@ protected:
     void initializeGL() override;
     void paintGL() override;
 
-    void drawGroupCharacters(CharacterBatch &characterBatch);
+    void drawGroupCharacters(CharacterBatch &characterBatch,
+                             std::optional<ServerRoomId> yourServerId);
 
     void resizeGL(int width, int height) override;
     void mousePressEvent(QMouseEvent *event) override;
@@ -267,7 +268,6 @@ private:
     void paintNearbyConnectionPoints();
     void paintSelectedInfomarks();
     void paintCharacters();
-    void paintOtherPlayerNames();
     void paintDifferences();
     void forceUpdateMeshes();
 

@@ -98,6 +98,28 @@ NODISCARD static glm::vec3 getConnectionOffset(const ExitDirEnum dir)
     return glm::vec3{getConnectionOffsetRelative(dir), 0.f} + glm::vec3{0.5f, 0.5f, 0.f};
 }
 
+NODISCARD static QString getDoorPostFix(const RoomHandle &room, const ExitDirEnum dir)
+{
+    static constexpr const auto SHOWN_FLAGS = DoorFlagEnum::NEED_KEY | DoorFlagEnum::NO_PICK
+                                              | DoorFlagEnum::DELAYED;
+
+    const DoorFlags flags = room.getExit(dir).getDoorFlags();
+    if (!flags.containsAny(SHOWN_FLAGS)) {
+        return QString{};
+    }
+
+    return QString::asprintf(" [%s%s%s]",
+                             flags.needsKey() ? "L" : "",
+                             flags.isNoPick() ? "/NP" : "",
+                             flags.isDelayed() ? "d" : "");
+}
+
+NODISCARD static QString getPostfixedDoorName(const RoomHandle &room, const ExitDirEnum dir)
+{
+    const auto postFix = getDoorPostFix(room, dir);
+    return room.getExit(dir).getDoorName().toQString() + postFix;
+}
+
 NODISCARD static glm::vec3 getPosition(const ConnectionSelection::ConnectionDescriptor &cd)
 {
     return cd.room.getPosition().to_vec3() + getConnectionOffset(cd.direction);
@@ -117,44 +139,65 @@ NODISCARD RoomNameBatchIntermediate RoomNameBatch::getIntermediate(const FontMet
     return RoomNameBatchIntermediate{std::move(output)};
 }
 
-static glm::vec3 getDoorLabelInitialPos(const glm::ivec2 &roomPos, ExitDirEnum dir, float layer)
+void ConnectionDrawer::drawRoomDoorName(const RoomHandle &sourceRoom,
+                                        const ExitDirEnum sourceDir,
+                                        const RoomHandle &targetRoom,
+                                        const ExitDirEnum targetDir)
 {
-    glm::vec2 pos = glm::vec2(roomPos);
-    switch (dir) {
-    case ExitDirEnum::NORTH:
-        pos += glm::vec2(0.5f, 0.9f);
-        break;
-    case ExitDirEnum::SOUTH:
-        pos += glm::vec2(0.5f, 0.1f);
-        break;
-    case ExitDirEnum::EAST:
-        pos += glm::vec2(0.9f, 0.5f);
-        break;
-    case ExitDirEnum::WEST:
-        pos += glm::vec2(0.1f, 0.5f);
-        break;
-    default:
-        pos += glm::vec2(0.5f, 0.5f);
-        break;
-    }
-    return glm::vec3(pos, layer);
-}
+    const auto &targetExit = targetRoom.getExit(targetDir);
+    const Coordinate &sourcePos = sourceRoom.getPosition();
+    const Coordinate &targetPos = targetRoom.getPosition();
 
-void ConnectionDrawer::drawRoomDoorName(const RoomHandle &sourceRoom, const ExitDirEnum sourceDir)
-{
-    const auto &sourceExit = sourceRoom.getExit(sourceDir);
-    if (!sourceExit.exitIsDoor() || !sourceExit.hasDoorName()) {
-        return;
+    bool together = false;
+    QString name;
+
+    if (targetExit.exitIsDoor() && targetExit.hasDoorName() && targetExit.doorIsHidden()) {
+        // Avoid drawing duplicate door names for each side by only drawing one side unless
+        // the doors are on different z-layers
+        if (sourceRoom.getId() > targetRoom.getId() && sourcePos.z == targetPos.z) {
+            return;
+        }
+
+        together = true;
+
+        const QString sourceName = getPostfixedDoorName(sourceRoom, sourceDir);
+        const QString targetName = getPostfixedDoorName(targetRoom, targetDir);
+        if (sourceName != targetName) {
+            name = sourceName + "/" + targetName;
+        } else {
+            name = sourceName;
+        }
+    } else {
+        name = getPostfixedDoorName(sourceRoom, sourceDir);
     }
 
-    const auto name = sourceExit.getDoorName().toQString();
-    const auto pos = getDoorLabelInitialPos(sourceRoom.getPosition().to_ivec2(),
-                                            sourceDir,
-                                            static_cast<float>(m_currentLayer));
+    glm::vec2 xy;
+    if (together) {
+        xy = (sourcePos.to_vec2() + targetPos.to_vec2()) * 0.5f + glm::vec2(0.5f, 0.5f);
+    } else {
+        xy = glm::vec2(sourcePos.to_ivec2());
+        switch (sourceDir) {
+        case ExitDirEnum::NORTH:
+            xy += glm::vec2(0.5f, 0.9f);
+            break;
+        case ExitDirEnum::SOUTH:
+            xy += glm::vec2(0.5f, 0.1f);
+            break;
+        case ExitDirEnum::EAST:
+            xy += glm::vec2(0.9f, 0.5f);
+            break;
+        case ExitDirEnum::WEST:
+            xy += glm::vec2(0.1f, 0.5f);
+            break;
+        default:
+            xy += glm::vec2(0.5f, 0.5f);
+            break;
+        }
+    }
 
     static const auto bg = Colors::black.withAlpha(0.4f);
     m_roomNameBatch.emplace_back(
-        DoorLabel{GLText{pos,
+        DoorLabel{GLText{glm::vec3(xy, static_cast<float>(m_currentLayer)),
                          mmqt::toStdStringLatin1(name), // GL font is latin1
                          Colors::white,
                          bg,
@@ -224,7 +267,7 @@ void ConnectionDrawer::drawRoomConnectionsAndDoors(const RoomHandle &room)
                 // Draw door names
                 if (sourceExit.exitIsDoor() && sourceExit.hasDoorName()
                     && sourceExit.doorIsHidden()) {
-                    drawRoomDoorName(room, sourceDir);
+                    drawRoomDoorName(room, sourceDir, targetRoom, targetDir);
                 }
             }
         }

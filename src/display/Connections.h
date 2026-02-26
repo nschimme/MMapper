@@ -188,7 +188,10 @@ public:
 
     void drawRoomConnectionsAndDoors(const RoomHandle &room);
 
-    void drawRoomDoorName(const RoomHandle &sourceRoom, ExitDirEnum sourceDir);
+    void drawRoomDoorName(const RoomHandle &sourceRoom,
+                          ExitDirEnum sourceDir,
+                          const RoomHandle &targetRoom,
+                          ExitDirEnum targetDir);
 
     void drawLineStrip(const std::vector<glm::vec3> &points);
 

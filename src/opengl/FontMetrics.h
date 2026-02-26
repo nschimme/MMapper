@@ -19,21 +19,28 @@
 #include <QImage>
 #include <QString>
 
-using IntPair = std::pair<int, int>;
-
-template<>
-struct std::hash<IntPair>
-{
-    std::size_t operator()(const IntPair &ip) const noexcept
-    {
-#define CAST(i) static_cast<uint64_t>(static_cast<uint32_t>(i))
-        return numeric_hash(CAST(ip.first) | (CAST(ip.second) << 32u));
-#undef CAST
-    }
-};
-
 struct NODISCARD FontMetrics final
 {
+    struct NODISCARD KerningKey final
+    {
+        int first = 0;
+        int second = 0;
+        bool operator==(const KerningKey &other) const
+        {
+            return first == other.first && second == other.second;
+        }
+    };
+
+    struct KerningHash final
+    {
+        std::size_t operator()(const KerningKey &k) const noexcept
+        {
+#define CAST(i) static_cast<uint64_t>(static_cast<uint32_t>(i))
+            return numeric_hash(CAST(k.first) | (CAST(k.second) << 32u));
+#undef CAST
+        }
+    };
+
     static constexpr int UNDERLINE_ID = -257;
     static constexpr int BACKGROUND_ID = -258;
 
@@ -143,7 +150,7 @@ struct NODISCARD FontMetrics final
     std::vector<Glyph> raw_glyphs;
     std::vector<Kerning> raw_kernings;
     std::unordered_map<int, const Glyph *> glyphs;
-    std::unordered_map<IntPair, const Kerning *> kernings;
+    std::unordered_map<KerningKey, const Kerning *, KerningHash> kernings;
 
     NODISCARD QString init(const QString &);
 
@@ -174,7 +181,7 @@ struct NODISCARD FontMetrics final
             return nullptr;
         }
 
-        const auto it = kernings.find(IntPair{prev->id, current->id});
+        const auto it = kernings.find(KerningKey{prev->id, current->id});
         return (it == kernings.end()) ? nullptr : it->second;
     }
 

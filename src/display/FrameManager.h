@@ -58,12 +58,6 @@ private:
     friend class TestFrameManager;
 
 public:
-    struct Pacing
-    {
-        /** @brief How much early a frame is allowed to start to accommodate timer jitter. */
-        static constexpr std::chrono::milliseconds JitterTolerance{8};
-    };
-
     /**
      * @brief RAII object representing a successful frame start.
      *
@@ -132,6 +126,7 @@ private:
     void recordFramePainted();
     void updateMinFrameTime();
     void cleanupExpiredCallbacks() const;
+    NODISCARD std::chrono::nanoseconds getJitterTolerance() const;
     NODISCARD std::chrono::nanoseconds getTimeUntilNextFrame() const;
 
 private slots:

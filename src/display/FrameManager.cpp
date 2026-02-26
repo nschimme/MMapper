@@ -78,7 +78,7 @@ std::optional<FrameManager::Frame> FrameManager::beginFrame()
     // Throttle: check if enough time has passed since the start of the last successful frame.
     if (hasLastUpdate) {
         const auto elapsed = now - m_lastUpdateTime;
-        if (elapsed + Pacing::JitterTolerance < m_minFrameTime) {
+        if (elapsed + getJitterTolerance() < m_minFrameTime) {
             return std::nullopt;
         }
     }
@@ -136,6 +136,15 @@ void FrameManager::onHeartbeat()
     }
 }
 
+std::chrono::nanoseconds FrameManager::getJitterTolerance() const
+{
+    // Use 25% of the frame time as jitter tolerance, but cap it at 8ms.
+    // This ensures we are "ready early" for VSync at 60Hz (4ms) while avoiding
+    // over-rendering at very high frame rates.
+    const auto tolerance = m_minFrameTime / 4;
+    return std::min(tolerance, std::chrono::nanoseconds(std::chrono::milliseconds(8)));
+}
+
 std::chrono::nanoseconds FrameManager::getTimeUntilNextFrame() const
 {
     if (m_lastUpdateTime.time_since_epoch().count() == 0) {
@@ -144,10 +153,11 @@ std::chrono::nanoseconds FrameManager::getTimeUntilNextFrame() const
 
     const auto now = std::chrono::steady_clock::now();
     const auto elapsed = now - m_lastUpdateTime;
-    if (elapsed + Pacing::JitterTolerance >= m_minFrameTime) {
+    const auto tolerance = getJitterTolerance();
+    if (elapsed + tolerance >= m_minFrameTime) {
         return std::chrono::nanoseconds::zero();
     }
-    return m_minFrameTime - elapsed;
+    return m_minFrameTime - (elapsed + tolerance);
 }
 
 void FrameManager::recordFramePainted()

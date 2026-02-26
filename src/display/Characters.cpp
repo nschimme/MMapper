@@ -268,7 +268,7 @@ void CharacterBatch::CharFakeGL::bake(OpenGL &gl, const MapCanvasTextures &textu
     m_meshes.pathLineQuads = gl.createColoredQuadBatch(m_pathLineQuads);
 
     m_meshes.roomQuads = gl.createColoredTexturedQuadBatch(m_charRoomQuads,
-                                                          textures.char_room_sel->getId());
+                                                           textures.char_room_sel->getId());
 
     m_meshes.isValid = true;
 }
@@ -326,14 +326,17 @@ void CharacterBatch::CharFakeGL::reallyDrawNames(OpenGL &gl,
 
         if (visible) {
             optScreen = viewport.project(batchName.worldPos);
-            const auto optScreenTop = viewport.project(batchName.worldPos + glm::vec3{0.f, 0.5f, 0.f});
+            const auto optScreenTop = viewport.project(batchName.worldPos
+                                                       + glm::vec3{0.f, 0.5f, 0.f});
             if (optScreen && optScreenTop) {
-                verticalOffset = glm::distance(glm::vec2(*optScreen), glm::vec2(*optScreenTop)) + 2.f;
+                verticalOffset = glm::distance(glm::vec2(*optScreen), glm::vec2(*optScreenTop))
+                                 + 2.f;
             } else {
                 verticalOffset = 10.f;
             }
         } else {
-            const glm::vec3 proxyWorld = mapScreen.getProxyLocation(batchName.worldPos, marginPixels);
+            const glm::vec3 proxyWorld = mapScreen.getProxyLocation(batchName.worldPos,
+                                                                    marginPixels);
             optScreen = viewport.project(proxyWorld);
             verticalOffset = 15.f;
         }
@@ -356,7 +359,8 @@ void CharacterBatch::CharFakeGL::reallyDrawNames(OpenGL &gl,
         const float physicalWidth = static_cast<float>(font.measureWidth(physicalText.text));
 
         float px = physicalText.pos.x * dpr;
-        const float py = physicalText.pos.y * dpr - static_cast<float>(stackIdx) * fontPhysicalHeight;
+        const float py = physicalText.pos.y * dpr
+                         - static_cast<float>(stackIdx) * fontPhysicalHeight;
 
         const float halfWidth = physicalWidth / 2.0f;
         const float margin = 4.0f;

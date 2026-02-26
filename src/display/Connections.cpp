@@ -10,6 +10,7 @@
 #include "../mapdata/mapdata.h"
 #include "../opengl/Font.h"
 #include "../opengl/FontFormatFlags.h"
+#include "../opengl/FontMetrics.h"
 #include "../opengl/LineRendering.h"
 #include "../opengl/OpenGL.h"
 #include "../opengl/OpenGLTypes.h"
@@ -102,28 +103,6 @@ NODISCARD static glm::vec3 getPosition(const ConnectionSelection::ConnectionDesc
     return cd.room.getPosition().to_vec3() + getConnectionOffset(cd.direction);
 }
 
-NODISCARD static QString getDoorPostFix(const RoomHandle &room, const ExitDirEnum dir)
-{
-    static constexpr const auto SHOWN_FLAGS = DoorFlagEnum::NEED_KEY | DoorFlagEnum::NO_PICK
-                                              | DoorFlagEnum::DELAYED;
-
-    const DoorFlags flags = room.getExit(dir).getDoorFlags();
-    if (!flags.containsAny(SHOWN_FLAGS)) {
-        return QString{};
-    }
-
-    return QString::asprintf(" [%s%s%s]",
-                             flags.needsKey() ? "L" : "",
-                             flags.isNoPick() ? "/NP" : "",
-                             flags.isDelayed() ? "d" : "");
-}
-
-NODISCARD static QString getPostfixedDoorName(const RoomHandle &room, const ExitDirEnum dir)
-{
-    const auto postFix = getDoorPostFix(room, dir);
-    return room.getExit(dir).getDoorName().toQString() + postFix;
-}
-
 NODISCARD UniqueMesh RoomNameBatchIntermediate::getMesh(GLFont &gl) const
 {
     return gl.getFontMesh(verts);
@@ -142,15 +121,21 @@ static glm::vec3 getDoorLabelInitialPos(const glm::ivec2 &roomPos, ExitDirEnum d
 {
     glm::vec2 pos = glm::vec2(roomPos);
     switch (dir) {
-    case ExitDirEnum::NORTH: pos += glm::vec2(0.5f, 0.1f); break;
-    case ExitDirEnum::SOUTH: pos += glm::vec2(0.5f, 0.9f); break;
-    case ExitDirEnum::EAST: pos += glm::vec2(0.9f, 0.5f); break;
-    case ExitDirEnum::WEST: pos += glm::vec2(0.1f, 0.5f); break;
-    case ExitDirEnum::NORTHEAST: pos += glm::vec2(0.8f, 0.2f); break;
-    case ExitDirEnum::NORTHWEST: pos += glm::vec2(0.2f, 0.2f); break;
-    case ExitDirEnum::SOUTHEAST: pos += glm::vec2(0.8f, 0.8f); break;
-    case ExitDirEnum::SOUTHWEST: pos += glm::vec2(0.2f, 0.8f); break;
-    default: pos += glm::vec2(0.5f, 0.5f); break;
+    case ExitDirEnum::NORTH:
+        pos += glm::vec2(0.5f, 0.9f);
+        break;
+    case ExitDirEnum::SOUTH:
+        pos += glm::vec2(0.5f, 0.1f);
+        break;
+    case ExitDirEnum::EAST:
+        pos += glm::vec2(0.9f, 0.5f);
+        break;
+    case ExitDirEnum::WEST:
+        pos += glm::vec2(0.1f, 0.5f);
+        break;
+    default:
+        pos += glm::vec2(0.5f, 0.5f);
+        break;
     }
     return glm::vec3(pos, layer);
 }

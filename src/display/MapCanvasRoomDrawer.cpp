@@ -912,14 +912,14 @@ static void resolveDoorLabelCollisions(const FontMetrics &font, std::vector<Door
     boxes.reserve(labels.size());
 
     for (auto &label : labels) {
-        const int width = font.measureWidth(label.text.text);
-        const int height = font.common.lineHeight;
-        const int descent = font.common.lineHeight - font.common.base;
+        const float width = static_cast<float>(font.measureWidth(label.text.text));
+        const float height = static_cast<float>(font.common.lineHeight);
+        const float descent = static_cast<float>(font.common.lineHeight - font.common.base);
 
         // Center the box horizontally and adjust vertically for baseline
-        const glm::ivec2 lo = glm::ivec2(label.text.pos.x * 100.f - width / 2.f,
-                                         label.text.pos.y * 100.f - height / 2.f + descent);
-        const glm::ivec2 hi = lo + glm::ivec2(width, height);
+        const glm::ivec2 lo = glm::ivec2(utils::round_ftoi(label.text.pos.x * 100.f - width / 2.f),
+                                         utils::round_ftoi(label.text.pos.y * 100.f - height / 2.f + descent));
+        const glm::ivec2 hi = lo + glm::ivec2(utils::round_ftoi(width), utils::round_ftoi(height));
         boxes.push_back({&label, {lo, hi}, label.text.pos});
     }
 
@@ -958,13 +958,13 @@ static void resolveDoorLabelCollisions(const FontMetrics &font, std::vector<Door
                 }
                 boxes[j].label->text.pos += glm::vec3(force, 0.f);
                 // Update box
-                const int width = boxes[j].box.width();
-                const int height = boxes[j].box.height();
-                const int descent = font.common.lineHeight - font.common.base;
-                boxes[j].box.lo = glm::ivec2(boxes[j].label->text.pos.x * 100.f - width / 2.f,
-                                             boxes[j].label->text.pos.y * 100.f - height / 2.f
-                                                 + descent);
-                boxes[j].box.hi = boxes[j].box.lo + glm::ivec2(width, height);
+                const float width = static_cast<float>(boxes[j].box.width());
+                const float height = static_cast<float>(boxes[j].box.height());
+                const float descent = static_cast<float>(font.common.lineHeight - font.common.base);
+                boxes[j].box.lo = glm::ivec2(utils::round_ftoi(boxes[j].label->text.pos.x * 100.f - width / 2.f),
+                                             utils::round_ftoi(boxes[j].label->text.pos.y * 100.f - height / 2.f
+                                                 + descent));
+                boxes[j].box.hi = boxes[j].box.lo + glm::ivec2(utils::round_ftoi(width), utils::round_ftoi(height));
                 changed = true;
             }
         }

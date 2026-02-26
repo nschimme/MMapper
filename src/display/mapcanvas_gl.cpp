@@ -18,6 +18,9 @@
 #include "../opengl/OpenGLConfig.h"
 #include "../opengl/OpenGLTypes.h"
 #include "../opengl/legacy/Meshes.h"
+#include "../opengl/legacy/TFO.h"
+#include "../opengl/legacy/VAO.h"
+#include "../opengl/legacy/VBO.h"
 #include "../src/global/SendToUser.h"
 #include "Connections.h"
 #include "MapCanvasConfig.h"
@@ -35,8 +38,10 @@
 #include <cstdint>
 #include <cstdlib>
 #include <functional>
+#include <future>
 #include <memory>
 #include <optional>
+#include <random>
 #include <sstream>
 #include <stdexcept>
 #include <unordered_map>
@@ -236,6 +241,7 @@ void MapCanvas::initializeGL()
     initLogger();
 
     gl.initializeRenderer(static_cast<float>(QPaintDevice::devicePixelRatioF()));
+    m_frameManager.init(gl.getUboManager());
 
     gl.getUboManager()
         .registerRebuildFunction(Legacy::SharedVboEnum::NamedColorsBlock,
@@ -501,11 +507,20 @@ void MapCanvas::actuallyPaintGL()
     if (m_data.isEmpty()) {
         getGLFont().renderTextCentered("No map loaded");
     } else {
+        // Update animation state
+        m_weather.update();
+
         paintMap();
         paintBatchedInfomarks();
         paintSelections();
         paintCharacters();
         paintDifferences();
+
+        const auto playerPos = m_data.tryGetPosition().value_or(Coordinate{0, 0, 0});
+        m_weather.prepare(getViewProj(), playerPos);
+        gl.getUboManager().bind(funcs, Legacy::SharedVboEnum::TimeBlock);
+
+        m_weather.render(m_opengl.getDefaultRenderState());
     }
 
     gl.releaseFbo();

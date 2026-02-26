@@ -5,6 +5,7 @@
 #include "../global/RAII.h"
 #include "../global/RuleOf5.h"
 #include "../global/Signal2.h"
+#include "../opengl/UboManager.h"
 
 #include <chrono>
 #include <functional>
@@ -60,6 +61,9 @@ private:
     QTimer m_heartbeatTimer;
     QOpenGLWindow &m_window;
     bool m_dirty = true;
+    float m_elapsedTime = 0.0f;
+    Legacy::UboManager *m_uboManager = nullptr; // TODO: reference
+    GLRenderState::Uniforms::Weather::Frame m_frameData;
 
     friend class TestFrameManager;
 
@@ -88,6 +92,10 @@ public:
 public:
     explicit FrameManager(QOpenGLWindow &window, QObject *parent = nullptr);
     DELETE_CTORS_AND_ASSIGN_OPS(FrameManager);
+
+public:
+    void init(Legacy::UboManager &uboManager);
+    NODISCARD float getElapsedTime() const;
 
 public:
     /**

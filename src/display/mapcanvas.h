@@ -5,12 +5,15 @@
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
+#include "../clock/mumemoment.h"
 #include "../global/ChangeMonitor.h"
 #include "../global/Signal2.h"
+#include "../map/PromptFlags.h"
 #include "../mapdata/roomselection.h"
 #include "../opengl/Font.h"
 #include "../opengl/FontFormatFlags.h"
 #include "../opengl/OpenGL.h"
+#include "../opengl/Weather.h"
 #include "FrameManager.h"
 #include "Infomarks.h"
 #include "MapCanvasData.h"
@@ -18,12 +21,15 @@
 #include "Textures.h"
 
 #include <array>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <future>
 #include <map>
 #include <memory>
 #include <optional>
 #include <set>
+#include <variant>
 #include <vector>
 
 #include <glm/glm.hpp>
@@ -37,6 +43,7 @@
 class CharacterBatch;
 class ConnectionSelection;
 class Coordinate;
+class GameObserver;
 class InfomarkSelection;
 class MapData;
 class Mmapper2Group;
@@ -128,6 +135,7 @@ private:
 
 private:
     MapScreen m_mapScreen;
+    GameObserver &m_observer;
     OpenGL m_opengl;
     GLFont m_glFont;
     Batches m_batches;
@@ -138,9 +146,11 @@ private:
     FrameManager m_frameManager;
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
     Signal2Lifetime m_lifetime;
+    GLWeather m_weather;
 
 public:
     explicit MapCanvas(MapData &mapData,
+                       GameObserver &observer,
                        PrespammedPath &prespammedPath,
                        Mmapper2Group &groupManager,
                        QWindow *parent = nullptr);

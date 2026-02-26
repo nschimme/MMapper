@@ -29,7 +29,11 @@ class UboManager;
 class StaticVbos;
 class SharedVbos;
 class SharedVaos;
+class SharedTfos;
+class UboManager;
+class VBO;
 class VAO;
+class Program;
 struct AbstractShaderProgram;
 struct ShaderPrograms;
 struct PointSizeBinder;
@@ -39,7 +43,11 @@ struct PointSizeBinder;
  * Note: SharedVboEnum values are implicitly used as UBO binding indices.
  * They must be 0-based and contiguous.
  */
-#define XFOREACH_SHARED_VBO(X) X(NamedColorsBlock, "NamedColorsBlock")
+#define XFOREACH_SHARED_VBO(X) \
+    X(NamedColorsBlock, "NamedColorsBlock") \
+    X(CameraBlock, "CameraBlock") \
+    X(TimeBlock, "TimeBlock") \
+    X(WeatherBlock, "WeatherBlock")
 
 #define X_COUNT_VBO(element, name) +1
 static constexpr size_t NUM_SHARED_VBOS = 0 XFOREACH_SHARED_VBO(X_COUNT_VBO);
@@ -189,22 +197,10 @@ public:
     using Base::glAttachShader;
     using Base::glBindBuffer;
     using Base::glBindBufferBase;
-
-    /**
-     * @brief Binds a buffer to a uniform block binding point.
-     * @param target Must be GL_UNIFORM_BUFFER.
-     * @param block The uniform block to bind to.
-     * @param buffer The buffer ID.
-     *
-     * Note: This uses the enum value as the fixed binding point.
-     */
-    void glBindBufferBase(const GLenum target, const SharedVboEnum block, const GLuint buffer)
-    {
-        assert(target == GL_UNIFORM_BUFFER);
-        Base::glBindBufferBase(target, getUboBindingIndex(block), buffer);
-    }
+    using Base::glBindBufferRange;
     using Base::glBindTexture;
     using Base::glBindVertexArray;
+    using Base::glBlendEquationSeparate;
     using Base::glBlendFunc;
     using Base::glBlendFuncSeparate;
     using Base::glBufferData;
@@ -217,6 +213,7 @@ public:
     using Base::glDeleteBuffers;
     using Base::glDeleteProgram;
     using Base::glDeleteShader;
+    using Base::glDeleteTransformFeedbacks;
     using Base::glDeleteVertexArrays;
     using Base::glDepthFunc;
     using Base::glDetachShader;
@@ -229,6 +226,7 @@ public:
     using Base::glEnableVertexAttribArray;
     using Base::glGenBuffers;
     using Base::glGenerateMipmap;
+    using Base::glGenTransformFeedbacks;
     using Base::glGenVertexArrays;
     using Base::glGetAttribLocation;
     using Base::glGetIntegerv;
@@ -249,6 +247,12 @@ public:
     using Base::glLinkProgram;
     using Base::glPixelStorei;
     using Base::glShaderSource;
+
+    using Base::glBeginTransformFeedback;
+    using Base::glBindTransformFeedback;
+    using Base::glEndTransformFeedback;
+    using Base::glTransformFeedbackVaryings;
+
     using Base::glTexSubImage3D;
     using Base::glUniform1fv;
     using Base::glUniform1iv;
@@ -263,10 +267,8 @@ public:
      *
      * Note: This uses the enum value as the fixed binding point.
      */
-    void glUniformBlockBinding(const GLuint program, const SharedVboEnum block)
-    {
-        virt_glUniformBlockBinding(program, block);
-    }
+    void glUniformBlockBinding(const GLuint program, const SharedVboEnum block);
+    void glUniformBlockBinding(const Program &program, const SharedVboEnum block);
 
     /**
      * @brief Automatically assigns fixed binding points to all known uniform blocks.

@@ -414,8 +414,6 @@ set(mmapper_SRCS
     opengl/OpenGL.cpp
     opengl/OpenGL.h
     opengl/UboManager.h
-    opengl/Weather.cpp
-    opengl/Weather.h
     opengl/OpenGLConfig.cpp
     opengl/OpenGLConfig.h
     opengl/OpenGLTypes.cpp

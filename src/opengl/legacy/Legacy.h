@@ -7,6 +7,7 @@
 #include "../../global/utils.h"
 #include "../OpenGLConfig.h"
 #include "../OpenGLTypes.h"
+#include "../UboManager.h"
 #include "FBO.h"
 
 #include <cmath>
@@ -147,7 +148,6 @@ private:
     std::unique_ptr<StaticVbos> m_staticVbos;
     std::unique_ptr<SharedVbos> m_sharedVbos;
     std::unique_ptr<SharedVaos> m_sharedVaos;
-    std::unique_ptr<SharedTfos> m_sharedTfos;
     std::unique_ptr<TexLookup> m_texLookup;
     std::unique_ptr<FBO> m_fbo;
     UboManager *m_uboManager = nullptr;

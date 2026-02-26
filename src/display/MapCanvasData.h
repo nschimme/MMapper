@@ -175,6 +175,20 @@ struct NODISCARD MagnificationState
     float lastValue = 1.f;
 };
 
+struct NODISCARD RoomSelMove
+{
+    Coordinate2i pos;
+    bool wrongPlace = false;
+};
+
+struct NODISCARD InfomarkSelectionMove
+{
+    Coordinate2f pos;
+};
+
+struct NODISCARD AreaSelectionState
+{};
+
 struct NODISCARD MapCanvasInputState
 {
     CanvasMouseModeEnum m_canvasMouseMode = CanvasMouseModeEnum::MOVE;
@@ -188,30 +202,14 @@ struct NODISCARD MapCanvasInputState
     std::optional<MouseSel> m_sel1;
     std::optional<MouseSel> m_sel2;
 
-    std::variant<std::monostate, AltDragState, DragState> m_activeDragState;
+    std::variant<std::monostate, AltDragState, DragState, RoomSelMove, InfomarkSelectionMove, AreaSelectionState>
+        m_activeInteraction;
     std::optional<PinchState> m_pinchState;
     std::optional<MagnificationState> m_magnificationState;
 
-    bool m_selectedArea = false; // no area selected at start time
     SharedRoomSelection m_roomSelection;
 
-    struct NODISCARD RoomSelMove final
-    {
-        Coordinate2i pos;
-        bool wrongPlace = false;
-    };
-
-    std::optional<RoomSelMove> m_roomSelectionMove;
-    NODISCARD bool hasRoomSelectionMove() { return m_roomSelectionMove.has_value(); }
-
     std::shared_ptr<InfomarkSelection> m_infoMarkSelection;
-
-    struct NODISCARD InfomarkSelectionMove final
-    {
-        Coordinate2f pos;
-    };
-    std::optional<InfomarkSelectionMove> m_infoMarkSelectionMove;
-    NODISCARD bool hasInfomarkSelectionMove() const { return m_infoMarkSelectionMove.has_value(); }
 
     std::shared_ptr<ConnectionSelection> m_connectionSelection;
 
@@ -239,4 +237,18 @@ public:
 public:
     NODISCARD MouseSel getSel1() const { return getMouseSel(m_sel1); }
     NODISCARD MouseSel getSel2() const { return getMouseSel(m_sel2); }
+
+public:
+    NODISCARD bool hasRoomSelectionMove() const
+    {
+        return std::holds_alternative<RoomSelMove>(m_activeInteraction);
+    }
+    NODISCARD bool hasInfomarkSelectionMove() const
+    {
+        return std::holds_alternative<InfomarkSelectionMove>(m_activeInteraction);
+    }
+    NODISCARD bool hasAreaSelection() const
+    {
+        return std::holds_alternative<AreaSelectionState>(m_activeInteraction);
+    }
 };

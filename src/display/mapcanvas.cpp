@@ -145,7 +145,7 @@ void MapCanvas::slot_setCanvasMouseMode(const CanvasMouseModeEnum mode)
     }
 
     m_canvasMouseMode = mode;
-    m_selectedArea = false;
+    m_activeInteraction = std::monostate{};
     selectionChanged();
 }
 
@@ -430,7 +430,7 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
     MAYBE_UNUSED const bool hasAlt = (event->modifiers() & Qt::ALT) != 0u;
 
     if (hasLeftButton && hasAlt) {
-        m_activeDragState = AltDragState{event->position().toPoint(), cursor()};
+        m_activeInteraction = AltDragState{event->position().toPoint(), cursor()};
         setCursor(Qt::ClosedHandCursor);
         event->accept();
         return;
@@ -485,11 +485,9 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
             auto tmpSel = getInfomarkSelection(getSel1());
             if (m_infoMarkSelection != nullptr && !tmpSel->empty()
                 && m_infoMarkSelection->contains(tmpSel->front().getId())) {
-                m_infoMarkSelectionMove.reset();   // dtor, if necessary
-                m_infoMarkSelectionMove.emplace(); // ctor
+                m_activeInteraction = InfomarkSelectionMove{};
             } else {
-                m_selectedArea = false;
-                m_infoMarkSelectionMove.reset();
+                m_activeInteraction = std::monostate{};
             }
         }
         selectionChanged();
@@ -545,7 +543,7 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
     case CanvasMouseModeEnum::SELECT_ROOMS:
         // Cancel
         if (hasRightButton) {
-            m_selectedArea = false;
+            m_activeInteraction = std::monostate{};
             slot_clearRoomSelection();
         }
         // Select rooms
@@ -554,10 +552,10 @@ void MapCanvas::mousePressEvent(QMouseEvent *const event)
                 const auto pRoom = m_data.findRoomHandle(getSel1().getCoordinate());
                 if (pRoom.exists() && m_roomSelection != nullptr
                     && m_roomSelection->contains(pRoom.getId())) {
-                    m_roomSelectionMove.emplace(RoomSelMove{});
+                    m_activeInteraction = RoomSelMove{};
                 } else {
-                    m_roomSelectionMove.reset();
-                    m_selectedArea = false;
+                    m_activeInteraction = std::monostate{};
+                    m_activeInteraction = std::monostate{};
                     slot_clearRoomSelection();
                 }
             } else {
@@ -624,11 +622,11 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
     }
     const auto xy = *optXy;
 
-    if (auto *const altDragState = std::get_if<AltDragState>(&m_activeDragState)) {
+    if (auto *const altDragState = std::get_if<AltDragState>(&m_activeInteraction)) {
         // The user released the Alt key mid-drag.
         if (!((event->modifiers() & Qt::ALT) != 0u)) {
             setCursor(altDragState->originalCursor);
-            m_activeDragState = std::monostate{};
+            m_activeInteraction = std::monostate{};
             // Don't accept the event; let the underlying widgets handle it.
             return;
         }
@@ -708,25 +706,26 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
     case CanvasMouseModeEnum::SELECT_INFOMARKS:
         if (hasLeftButton && hasSel1() && hasSel2()) {
             if (hasInfomarkSelectionMove()) {
-                m_infoMarkSelectionMove->pos = getSel2().pos - getSel1().pos;
+                std::get<InfomarkSelectionMove>(m_activeInteraction).pos = getSel2().pos
+                                                                           - getSel1().pos;
                 setCursor(Qt::ClosedHandCursor);
 
             } else {
-                m_selectedArea = true;
+                m_activeInteraction = AreaSelectionState{};
             }
         }
         selectionChanged();
         break;
     case CanvasMouseModeEnum::CREATE_INFOMARKS:
         if (hasLeftButton) {
-            m_selectedArea = true;
+            m_activeInteraction = AreaSelectionState{};
         }
         // REVISIT: It doesn't look like anything actually changed here?
         infomarksChanged();
         break;
     case CanvasMouseModeEnum::MOVE:
         if (hasLeftButton && m_mouseLeftPressed) {
-            if (auto *const dragState = std::get_if<DragState>(&m_activeDragState)) {
+            if (auto *const dragState = std::get_if<DragState>(&m_activeInteraction)) {
                 const glm::vec3 currWorldPos = unproject_clamped(xy, dragState->startViewProj);
                 const glm::vec2 delta = glm::vec2(currWorldPos - dragState->startWorldPos);
 
@@ -754,12 +753,12 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
 
                 const auto diff = getSel2().pos.truncate() - getSel1().pos.truncate();
                 const auto wrongPlace = !isMovable(deref(m_roomSelection), Coordinate{diff, 0});
-                m_roomSelectionMove->pos = diff;
-                m_roomSelectionMove->wrongPlace = wrongPlace;
+                std::get<RoomSelMove>(m_activeInteraction).pos = diff;
+                std::get<RoomSelMove>(m_activeInteraction).wrongPlace = wrongPlace;
 
                 setCursor(wrongPlace ? Qt::ForbiddenCursor : Qt::ClosedHandCursor);
             } else {
-                m_selectedArea = true;
+                m_activeInteraction = AreaSelectionState{};
             }
         }
         selectionChanged();
@@ -811,9 +810,9 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
     }
     const auto xy = *optXy;
 
-    if (auto *const altDragState = std::get_if<AltDragState>(&m_activeDragState)) {
+    if (auto *const altDragState = std::get_if<AltDragState>(&m_activeInteraction)) {
         setCursor(altDragState->originalCursor);
-        m_activeDragState = std::monostate{};
+        m_activeInteraction = std::monostate{};
         event->accept();
         return;
     }
@@ -831,8 +830,8 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
         if (m_mouseLeftPressed) {
             m_mouseLeftPressed = false;
             if (hasInfomarkSelectionMove()) {
-                const auto pos_copy = m_infoMarkSelectionMove->pos;
-                m_infoMarkSelectionMove.reset();
+                const auto pos_copy = std::get<InfomarkSelectionMove>(m_activeInteraction).pos;
+                m_activeInteraction = std::monostate{};
                 if (m_infoMarkSelection != nullptr) {
                     const auto offset = Coordinate{(pos_copy * INFOMARK_SCALE).truncate(), 0};
 
@@ -858,7 +857,7 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
                 }
                 slot_setInfomarkSelection(tmpSel);
             }
-            m_selectedArea = false;
+            m_activeInteraction = std::monostate{};
         }
         selectionChanged();
         break;
@@ -912,10 +911,10 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
         if (m_mouseLeftPressed) {
             m_mouseLeftPressed = false;
 
-            if (m_roomSelectionMove.has_value()) {
-                const auto pos = m_roomSelectionMove->pos;
-                const bool wrongPlace = m_roomSelectionMove->wrongPlace;
-                m_roomSelectionMove.reset();
+            if (hasRoomSelectionMove()) {
+                const auto pos = std::get<RoomSelMove>(m_activeInteraction).pos;
+                const bool wrongPlace = std::get<RoomSelMove>(m_activeInteraction).wrongPlace;
+                m_activeInteraction = std::monostate{};
                 if (!wrongPlace && (m_roomSelection != nullptr)) {
                     const Coordinate moverel{pos, 0};
                     m_data.applySingleChange(Change{
@@ -949,7 +948,7 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
                     slot_setRoomSelection(SigRoomSelection{m_roomSelection});
                 }
             }
-            m_selectedArea = false;
+            m_activeInteraction = std::monostate{};
         }
         selectionChanged();
         break;
@@ -1040,12 +1039,12 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
 
 void MapCanvas::startMoving(const MouseSel &startPos)
 {
-    m_activeDragState = DragState{startPos.to_vec3(), m_scroll, m_viewProj};
+    m_activeInteraction = DragState{startPos.to_vec3(), m_scroll, m_viewProj};
 }
 
 void MapCanvas::stopMoving()
 {
-    m_activeDragState = std::monostate{};
+    m_activeInteraction = std::monostate{};
 }
 
 void MapCanvas::zoomAt(const float factor, const glm::vec2 &mousePos)
@@ -1243,8 +1242,7 @@ void MapCanvas::userPressedEscape(bool /*pressed*/)
 
     case CanvasMouseModeEnum::RAYPICK_ROOMS:
     case CanvasMouseModeEnum::SELECT_ROOMS:
-        m_selectedArea = false;
-        m_roomSelectionMove.reset();
+        m_activeInteraction = std::monostate{};
         slot_clearRoomSelection(); // calls selectionChanged();
         break;
 
@@ -1253,7 +1251,7 @@ void MapCanvas::userPressedEscape(bool /*pressed*/)
         FALLTHROUGH;
     case CanvasMouseModeEnum::SELECT_INFOMARKS:
     case CanvasMouseModeEnum::CREATE_INFOMARKS:
-        m_infoMarkSelectionMove.reset();
+        m_activeInteraction = std::monostate{};
         slot_clearInfomarkSelection(); // calls selectionChanged();
         break;
     }

@@ -25,6 +25,7 @@
 #include "../map/room.h"
 #include "../mapdata/mapdata.h"
 #include "../opengl/FontFormatFlags.h"
+#include "../opengl/FontMetrics.h"
 #include "../opengl/OpenGL.h"
 #include "../opengl/OpenGLTypes.h"
 #include "../opengl/legacy/VBO.h"
@@ -894,6 +895,87 @@ private:
     void virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const final;
 };
 
+static void resolveDoorLabelCollisions(const FontMetrics &font, std::vector<DoorLabel> &labels)
+{
+    if (labels.empty()) {
+        return;
+    }
+
+    struct LabelBox
+    {
+        DoorLabel *label;
+        utils::Rect box;
+        glm::vec3 anchor;
+    };
+
+    std::vector<LabelBox> boxes;
+    boxes.reserve(labels.size());
+
+    for (auto &label : labels) {
+        const float width = static_cast<float>(font.measureWidth(label.text.text));
+        const float height = static_cast<float>(font.common.lineHeight);
+        const float descent = static_cast<float>(font.common.lineHeight - font.common.base);
+
+        // Center the box horizontally and adjust vertically for baseline
+        const glm::ivec2 lo = glm::ivec2(utils::round_ftoi(label.text.pos.x * 100.f - width / 2.f),
+                                         utils::round_ftoi(label.text.pos.y * 100.f - height / 2.f
+                                                           + descent));
+        const glm::ivec2 hi = lo + glm::ivec2(utils::round_ftoi(width), utils::round_ftoi(height));
+        boxes.push_back({&label, {lo, hi}, label.text.pos});
+    }
+
+    const int iterations = 50;
+    const float springK = 0.5f;
+    const float repulsionK = 0.1f;
+    const float maxDisplacement = 0.3f;
+
+    for (int i = 0; i < iterations; ++i) {
+        bool changed = false;
+        for (size_t j = 0; j < boxes.size(); ++j) {
+            glm::vec2 force(0.f);
+
+            // Repulsion from other labels
+            for (size_t k = 0; k < boxes.size(); ++k) {
+                if (j == k)
+                    continue;
+                if (utils::intersects(boxes[j].box, boxes[k].box)) {
+                    glm::vec2 diff = glm::vec2(boxes[j].box.lo + boxes[j].box.hi)
+                                     - glm::vec2(boxes[k].box.lo + boxes[k].box.hi);
+                    if (glm::length(diff) < 1e-4f) {
+                        diff = glm::vec2(0.f, 1.f);
+                    }
+                    force += glm::normalize(diff) * repulsionK;
+                    changed = true;
+                }
+            }
+
+            // Spring force to anchor
+            glm::vec2 toAnchor = glm::vec2(boxes[j].anchor) - glm::vec2(boxes[j].label->text.pos);
+            force += toAnchor * springK;
+
+            if (glm::length(force) > 1e-4f) {
+                if (glm::length(force) > maxDisplacement) {
+                    force = glm::normalize(force) * maxDisplacement;
+                }
+                boxes[j].label->text.pos += glm::vec3(force, 0.f);
+                // Update box
+                const float width = static_cast<float>(boxes[j].box.width());
+                const float height = static_cast<float>(boxes[j].box.height());
+                const float descent = static_cast<float>(font.common.lineHeight - font.common.base);
+                boxes[j].box.lo = glm::ivec2(utils::round_ftoi(boxes[j].label->text.pos.x * 100.f
+                                                               - width / 2.f),
+                                             utils::round_ftoi(boxes[j].label->text.pos.y * 100.f
+                                                               - height / 2.f + descent));
+                boxes[j].box.hi = boxes[j].box.lo
+                                  + glm::ivec2(utils::round_ftoi(width), utils::round_ftoi(height));
+                changed = true;
+            }
+        }
+        if (!changed)
+            break;
+    }
+}
+
 static void generateAllLayerMeshes(InternalData &internalData,
                                    const FontMetrics &font,
                                    const LayerToRooms &layerToRooms,
@@ -943,6 +1025,7 @@ static void generateAllLayerMeshes(InternalData &internalData,
 
         {
             DECL_TIMER(t8, "generateAllLayerMeshes.loop.part4");
+            resolveDoorLabelCollisions(font, rnb.getLabels());
             roomNameBatches[thisLayer] = rnb.getIntermediate(font);
         }
     }

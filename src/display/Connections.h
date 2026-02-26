@@ -10,6 +10,7 @@
 #include "../map/coordinate.h"
 #include "../map/roomid.h"
 #include "../opengl/Font.h"
+#include "../opengl/GLText.h"
 #include "../opengl/OpenGLTypes.h"
 
 #include <algorithm>
@@ -25,6 +26,15 @@
 class GLFont;
 class OpenGL;
 struct FontMetrics;
+
+struct NODISCARD DoorLabel final
+{
+    GLText text;
+
+    explicit DoorLabel(GLText &&text_)
+        : text{std::move(text_)}
+    {}
+};
 
 struct NODISCARD RoomNameBatchIntermediate final
 {
@@ -45,7 +55,7 @@ struct NODISCARD RoomNameBatchIntermediate final
 struct NODISCARD RoomNameBatch final
 {
 private:
-    std::vector<GLText> m_names;
+    std::vector<DoorLabel> m_labels;
 
 public:
     RoomNameBatch() = default;
@@ -53,13 +63,14 @@ public:
     ~RoomNameBatch() = default;
 
 public:
-    void emplace_back(GLText &&glt) { m_names.emplace_back(std::move(glt)); }
+    void emplace_back(DoorLabel &&label) { m_labels.emplace_back(std::move(label)); }
 
 public:
-    void reserve(const size_t elements) { m_names.reserve(elements); }
-    NODISCARD size_t size() const { return m_names.size(); }
-    void clear() { m_names.clear(); }
-    NODISCARD bool empty() const { return m_names.empty(); }
+    void reserve(const size_t elements) { m_labels.reserve(elements); }
+    NODISCARD size_t size() const { return m_labels.size(); }
+    void clear() { m_labels.clear(); }
+    NODISCARD bool empty() const { return m_labels.empty(); }
+    NODISCARD std::vector<DoorLabel> &getLabels() { return m_labels; }
 
 public:
     NODISCARD RoomNameBatchIntermediate getIntermediate(const FontMetrics &font) const;
@@ -177,10 +188,7 @@ public:
 
     void drawRoomConnectionsAndDoors(const RoomHandle &room);
 
-    void drawRoomDoorName(const RoomHandle &sourceRoom,
-                          ExitDirEnum sourceDir,
-                          const RoomHandle &targetRoom,
-                          ExitDirEnum targetDir);
+    void drawRoomDoorName(const RoomHandle &sourceRoom, ExitDirEnum sourceDir);
 
     void drawLineStrip(const std::vector<glm::vec3> &points);
 

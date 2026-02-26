@@ -395,31 +395,29 @@ void CharacterBatch::CharFakeGL::addScreenSpaceArrow(const glm::vec3 &pos,
 
 void MapCanvas::paintOtherPlayerNames()
 {
-    const auto &allCharacters = m_groupManager.selectAll();
-    const auto itYou = std::find_if(allCharacters.begin(), allCharacters.end(), [](const auto &p) {
-        return p->isYou();
-    });
-
-    if (itYou == allCharacters.end()) {
-        return;
-    }
-
-    const ServerRoomId yourServerId = (*itYou)->getServerId();
-    if (yourServerId == INVALID_SERVER_ROOMID) {
+    const std::optional<RoomId> optCurrentId = m_data.getCurrentRoomId();
+    if (!optCurrentId) {
         return;
     }
 
     const Map &map = m_data.getCurrentMap();
+    const auto yourRoom = map.findRoomHandle(*optCurrentId);
+    if (!yourRoom) {
+        return;
+    }
+    const ServerRoomId yourServerId = yourRoom.getServerId();
+
     std::map<Coordinate, std::vector<SharedGroupChar>> otherPlayersByRoom;
 
-    for (const auto &pCharacter : allCharacters) {
+    for (const auto &pCharacter : m_groupManager.selectAll()) {
         const CGroupChar &character = deref(pCharacter);
         if (character.isYou()) {
             continue;
         }
 
         const ServerRoomId srvId = character.getServerId();
-        if (srvId == INVALID_SERVER_ROOMID || srvId == yourServerId) {
+        if (srvId == INVALID_SERVER_ROOMID
+            || (yourServerId != INVALID_SERVER_ROOMID && srvId == yourServerId)) {
             continue;
         }
 

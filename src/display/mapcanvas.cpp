@@ -625,8 +625,9 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
     }
     const auto xy = *optXy;
 
-    if (auto *const altDragState
-        = m_activeInteraction ? std::get_if<AltDragState>(&*m_activeInteraction) : nullptr) {
+    if (auto *const altDragState = m_activeInteraction
+                                       ? std::get_if<AltDragState>(&*m_activeInteraction)
+                                       : nullptr) {
         // The user released the Alt key mid-drag.
         if (!((event->modifiers() & Qt::ALT) != 0u)) {
             setCursor(altDragState->originalCursor);
@@ -729,8 +730,9 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
         break;
     case CanvasMouseModeEnum::MOVE:
         if (hasLeftButton && m_mouseLeftPressed) {
-            if (auto *const dragState
-                = m_activeInteraction ? std::get_if<DragState>(&*m_activeInteraction) : nullptr) {
+            if (auto *const dragState = m_activeInteraction
+                                            ? std::get_if<DragState>(&*m_activeInteraction)
+                                            : nullptr) {
                 const glm::vec3 currWorldPos = unproject_clamped(xy, dragState->startViewProj);
                 const glm::vec2 delta = glm::vec2(currWorldPos - dragState->startWorldPos);
 
@@ -815,8 +817,9 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
     }
     const auto xy = *optXy;
 
-    if (auto *const altDragState
-        = m_activeInteraction ? std::get_if<AltDragState>(&*m_activeInteraction) : nullptr) {
+    if (auto *const altDragState = m_activeInteraction
+                                       ? std::get_if<AltDragState>(&*m_activeInteraction)
+                                       : nullptr) {
         setCursor(altDragState->originalCursor);
         m_activeInteraction.reset();
         event->accept();
@@ -864,7 +867,7 @@ void MapCanvas::mouseReleaseEvent(QMouseEvent *const event)
                     }
                     slot_setInfomarkSelection(tmpSel);
                 }
-            m_activeInteraction.reset();
+                m_activeInteraction.reset();
             }
         }
         selectionChanged();

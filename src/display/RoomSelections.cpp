@@ -155,8 +155,8 @@ void MapCanvas::paintSelectedRoom(RoomSelFakeGL &gl, const RawRoom &room)
         gl.resetMatrix();
     }
 
-    if (auto *const move
-        = m_activeInteraction ? std::get_if<RoomSelMove>(&*m_activeInteraction) : nullptr) {
+    if (auto *const move = m_activeInteraction ? std::get_if<RoomSelMove>(&*m_activeInteraction)
+                                               : nullptr) {
         gl.resetMatrix();
         const auto &relativeOffset = move->pos;
         gl.glTranslatef(x + relativeOffset.x, y + relativeOffset.y, z);

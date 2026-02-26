@@ -918,7 +918,8 @@ static void resolveDoorLabelCollisions(const FontMetrics &font, std::vector<Door
 
         // Center the box horizontally and adjust vertically for baseline
         const glm::ivec2 lo = glm::ivec2(utils::round_ftoi(label.text.pos.x * 100.f - width / 2.f),
-                                         utils::round_ftoi(label.text.pos.y * 100.f - height / 2.f + descent));
+                                         utils::round_ftoi(label.text.pos.y * 100.f - height / 2.f
+                                                           + descent));
         const glm::ivec2 hi = lo + glm::ivec2(utils::round_ftoi(width), utils::round_ftoi(height));
         boxes.push_back({&label, {lo, hi}, label.text.pos});
     }
@@ -961,10 +962,12 @@ static void resolveDoorLabelCollisions(const FontMetrics &font, std::vector<Door
                 const float width = static_cast<float>(boxes[j].box.width());
                 const float height = static_cast<float>(boxes[j].box.height());
                 const float descent = static_cast<float>(font.common.lineHeight - font.common.base);
-                boxes[j].box.lo = glm::ivec2(utils::round_ftoi(boxes[j].label->text.pos.x * 100.f - width / 2.f),
-                                             utils::round_ftoi(boxes[j].label->text.pos.y * 100.f - height / 2.f
-                                                 + descent));
-                boxes[j].box.hi = boxes[j].box.lo + glm::ivec2(utils::round_ftoi(width), utils::round_ftoi(height));
+                boxes[j].box.lo = glm::ivec2(utils::round_ftoi(boxes[j].label->text.pos.x * 100.f
+                                                               - width / 2.f),
+                                             utils::round_ftoi(boxes[j].label->text.pos.y * 100.f
+                                                               - height / 2.f + descent));
+                boxes[j].box.hi = boxes[j].box.lo
+                                  + glm::ivec2(utils::round_ftoi(width), utils::round_ftoi(height));
                 changed = true;
             }
         }

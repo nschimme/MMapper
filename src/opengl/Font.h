@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
 
+#include "../global/Color.h"
 #include "../global/RuleOf5.h"
 #include "../global/utils.h"
+#include "FontFormatFlags.h"
 #include "GLText.h"
 #include "OpenGL.h"
 #include "OpenGLTypes.h"
@@ -19,7 +21,6 @@
 #include <QString>
 
 struct MapCanvasViewport;
-
 struct FontMetrics;
 
 class NODISCARD GLFont final
@@ -77,4 +78,4 @@ public:
 extern void getFontBatchRawData(const FontMetrics &fm,
                                 const GLText *text,
                                 size_t count,
-                                std::vector<::FontVert3d> &output);
+                                std::vector<FontVert3d> &output);

@@ -1,0 +1,12 @@
+diff --git a/src/opengl/Font.cpp b/src/opengl/Font.cpp
+index 5b5baf33a..68b3ae8ff 100644
+--- a/src/opengl/Font.cpp
++++ b/src/opengl/Font.cpp
+@@ -620,7 +620,6 @@ void FontMetrics::getFontBatchRawData(const GLText *const text,
+     }
+     assert(output.size() == before + expectedVerts);
+  }
+-}
+
+ void GLFont::render2dTextImmediate(const std::vector<GLText> &text)
+ {

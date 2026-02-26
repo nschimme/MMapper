@@ -138,65 +138,36 @@ NODISCARD RoomNameBatchIntermediate RoomNameBatch::getIntermediate(const FontMet
     return RoomNameBatchIntermediate{std::move(output)};
 }
 
+static glm::vec3 getDoorLabelInitialPos(const glm::ivec2 &roomPos, ExitDirEnum dir, float layer)
+{
+    glm::vec2 pos = glm::vec2(roomPos);
+    switch (dir) {
+    case ExitDirEnum::NORTH: pos += glm::vec2(0.5f, 0.1f); break;
+    case ExitDirEnum::SOUTH: pos += glm::vec2(0.5f, 0.9f); break;
+    case ExitDirEnum::EAST: pos += glm::vec2(0.9f, 0.5f); break;
+    case ExitDirEnum::WEST: pos += glm::vec2(0.1f, 0.5f); break;
+    case ExitDirEnum::NORTHEAST: pos += glm::vec2(0.8f, 0.2f); break;
+    case ExitDirEnum::NORTHWEST: pos += glm::vec2(0.2f, 0.2f); break;
+    case ExitDirEnum::SOUTHEAST: pos += glm::vec2(0.8f, 0.8f); break;
+    case ExitDirEnum::SOUTHWEST: pos += glm::vec2(0.2f, 0.8f); break;
+    default: pos += glm::vec2(0.5f, 0.5f); break;
+    }
+    return glm::vec3(pos, layer);
+}
+
 void ConnectionDrawer::drawRoomDoorName(const RoomHandle &sourceRoom, const ExitDirEnum sourceDir)
 {
-    const Coordinate &sourcePos = sourceRoom.getPosition();
-
-    if (sourcePos.z != m_currentLayer) {
+    const auto &sourceExit = sourceRoom.getExit(sourceDir);
+    if (!sourceExit.exitIsDoor() || !sourceExit.hasDoorName()) {
         return;
     }
 
-    const QString name = getPostfixedDoorName(sourceRoom, sourceDir);
-
-    if (name.isEmpty()) {
-        return;
-    }
-
-    static const auto getXOffset = [](const ExitDirEnum dir) -> float {
-        switch (dir) {
-        case ExitDirEnum::WEST:
-            return 0.15f;
-        case ExitDirEnum::EAST:
-            return 0.85f;
-        case ExitDirEnum::UP:
-            return 0.7f;
-        case ExitDirEnum::DOWN:
-            return 0.3f;
-        case ExitDirEnum::NORTH:
-        case ExitDirEnum::SOUTH:
-        case ExitDirEnum::UNKNOWN:
-        case ExitDirEnum::NONE:
-            return 0.5f;
-        }
-        assert(false);
-        return 0.5f;
-    };
-
-    static const auto getYOffset = [](const ExitDirEnum dir) -> float {
-        switch (dir) {
-        case ExitDirEnum::NORTH:
-            return 0.85f;
-        case ExitDirEnum::SOUTH:
-            return 0.15f;
-        case ExitDirEnum::UP:
-            return 0.7f;
-        case ExitDirEnum::DOWN:
-            return 0.3f;
-        case ExitDirEnum::WEST:
-        case ExitDirEnum::EAST:
-        case ExitDirEnum::UNKNOWN:
-        case ExitDirEnum::NONE:
-            return 0.5f;
-        }
-        assert(false);
-        return 0.5f;
-    };
-
-    const glm::vec2 xy = sourcePos.to_vec2()
-                         + glm::vec2{getXOffset(sourceDir), getYOffset(sourceDir)};
+    const auto name = sourceExit.getDoorName().toQString();
+    const auto pos = getDoorLabelInitialPos(sourceRoom.getPosition().to_ivec2(),
+                                            sourceDir,
+                                            static_cast<float>(m_currentLayer));
 
     static const auto bg = Colors::black.withAlpha(0.4f);
-    const glm::vec3 pos{xy, m_currentLayer};
     m_roomNameBatch.emplace_back(
         DoorLabel{GLText{pos,
                          mmqt::toStdStringLatin1(name), // GL font is latin1

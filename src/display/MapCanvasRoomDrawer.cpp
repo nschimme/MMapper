@@ -34,9 +34,7 @@
 #include "RoadIndex.h"
 #include "mapcanvas.h" // hack, since we're now definining some of its symbols
 
-#include <algorithm>
 #include <cassert>
-#include <cmath>
 #include <cstdlib>
 #include <memory>
 #include <optional>
@@ -897,102 +895,81 @@ private:
     void virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const final;
 };
 
-static void resolveDoorLabelCollisions(std::vector<DoorLabel> &labels, const FontMetrics &font)
+static void resolveDoorLabelCollisions(const FontMetrics &font, std::vector<DoorLabel> &labels)
 {
-    const size_t n = labels.size();
-    if (n < 2) {
+    if (labels.empty()) {
         return;
     }
 
-    // Parameters for the simulation
-    // At zoom 0.4 (minimum visible), 1 room unit is roughly 18 pixels.
-    static constexpr float PIXELS_PER_UNIT = 18.0f;
-    static constexpr int ITERATIONS = 30;
-    static constexpr float SPRING_K = 0.5f;
-    static constexpr float REPULSION_K = 0.1f;
-    static constexpr float DAMPING = 0.5f;
-    static constexpr float MAX_DISPLACEMENT = 0.3f;
-
-    struct LabelState
+    struct LabelBox
     {
-        glm::vec2 pos; // current center
-        glm::vec2 velocity{0.0f};
-        glm::vec2 halfSize;
-        glm::vec2 anchor; // intended center
+        DoorLabel *label;
+        utils::Rect box;
+        glm::vec3 anchor;
     };
 
-    std::vector<LabelState> states;
-    states.reserve(n);
+    std::vector<LabelBox> boxes;
+    boxes.reserve(labels.size());
 
-    const float invPPU = 1.0f / PIXELS_PER_UNIT;
-    const float h = static_cast<float>(font.common.lineHeight) * invPPU;
-    const float b = static_cast<float>(font.common.base) * invPPU;
-    const float yOff = b - 0.5f * h;
+    for (auto &label : labels) {
+        const int width = font.measureWidth(label.text.text);
+        const int height = font.common.lineHeight;
+        const int descent = font.common.lineHeight - font.common.base;
 
-    for (const auto &label : labels) {
-        const float w = static_cast<float>(font.measureWidth(label.text.text)) * invPPU;
-        const glm::vec2 center(label.text.pos.x, label.text.pos.y + yOff);
-        states.push_back({center, glm::vec2(0.0f), glm::vec2(w * 0.5f, h * 0.5f), center});
+        // Center the box horizontally and adjust vertically for baseline
+        const glm::ivec2 lo = glm::ivec2(label.text.pos.x * 100.f - width / 2.f,
+                                         label.text.pos.y * 100.f - height / 2.f + descent);
+        const glm::ivec2 hi = lo + glm::ivec2(width, height);
+        boxes.push_back({&label, {lo, hi}, label.text.pos});
     }
 
-    for (int iter = 0; iter < ITERATIONS; ++iter) {
-        for (size_t i = 0; i < n; ++i) {
-            auto &s1 = states[i];
+    const int iterations = 50;
+    const float springK = 0.5f;
+    const float repulsionK = 0.1f;
+    const float maxDisplacement = 0.3f;
 
-            // Spring force towards anchor
-            s1.velocity += SPRING_K * (s1.anchor - s1.pos);
+    for (int i = 0; i < iterations; ++i) {
+        bool changed = false;
+        for (size_t j = 0; j < boxes.size(); ++j) {
+            glm::vec2 force(0.f);
 
-            // N^2 repulsion is fine for typical small label counts on a single layer
-            for (size_t j = 0; j < n; ++j) {
-                if (i == j) {
+            // Repulsion from other labels
+            for (size_t k = 0; k < boxes.size(); ++k) {
+                if (j == k)
                     continue;
-                }
-                const auto &s2 = states[j];
-
-                glm::vec2 diff = s1.pos - s2.pos;
-                const glm::vec2 minDist = s1.halfSize + s2.halfSize + 0.1f; // margin
-
-                const float absDiffX = std::abs(diff.x);
-                const float absDiffY = std::abs(diff.y);
-
-                if (absDiffX < minDist.x && absDiffY < minDist.y) {
-                    // Overlap detected
-                    if (absDiffX < 1e-4f && absDiffY < 1e-4f) {
-                        diff = glm::vec2(0.01f, (i % 2 == 0 ? 0.01f : -0.01f));
+                if (utils::intersects(boxes[j].box, boxes[k].box)) {
+                    glm::vec2 diff = glm::vec2(boxes[j].box.lo + boxes[j].box.hi)
+                                     - glm::vec2(boxes[k].box.lo + boxes[k].box.hi);
+                    if (glm::length(diff) < 1e-4f) {
+                        diff = glm::vec2(0.f, 1.f);
                     }
-
-                    const float overlapX = minDist.x - std::abs(diff.x);
-                    const float overlapY = minDist.y - std::abs(diff.y);
-
-                    if (overlapX < overlapY) {
-                        s1.velocity.x += (diff.x > 0 ? 1.0f : -1.0f) * overlapX * REPULSION_K;
-                    } else {
-                        s1.velocity.y += (diff.y > 0 ? 1.0f : -1.0f) * overlapY * REPULSION_K;
-                    }
+                    force += glm::normalize(diff) * repulsionK;
+                    changed = true;
                 }
             }
-        }
 
-        // Apply velocity and damping
-        for (auto &s : states) {
-            s.pos += s.velocity;
-            s.velocity *= DAMPING;
+            // Spring force to anchor
+            glm::vec2 toAnchor = glm::vec2(boxes[j].anchor) - glm::vec2(boxes[j].label->text.pos);
+            force += toAnchor * springK;
 
-            // Constrain displacement from anchor
-            const glm::vec2 delta = s.pos - s.anchor;
-            const float dSq = delta.x * delta.x + delta.y * delta.y;
-            if (dSq > MAX_DISPLACEMENT * MAX_DISPLACEMENT) {
-                const float dLen = std::sqrt(dSq);
-                s.pos = s.anchor + (delta / dLen) * MAX_DISPLACEMENT;
-                s.velocity *= 0.1f;
+            if (glm::length(force) > 1e-4f) {
+                if (glm::length(force) > maxDisplacement) {
+                    force = glm::normalize(force) * maxDisplacement;
+                }
+                boxes[j].label->text.pos += glm::vec3(force, 0.f);
+                // Update box
+                const int width = boxes[j].box.width();
+                const int height = boxes[j].box.height();
+                const int descent = font.common.lineHeight - font.common.base;
+                boxes[j].box.lo = glm::ivec2(boxes[j].label->text.pos.x * 100.f - width / 2.f,
+                                             boxes[j].label->text.pos.y * 100.f - height / 2.f
+                                                 + descent);
+                boxes[j].box.hi = boxes[j].box.lo + glm::ivec2(width, height);
+                changed = true;
             }
         }
-    }
-
-    // Write back results
-    for (size_t i = 0; i < n; ++i) {
-        labels[i].text.pos.x = states[i].pos.x;
-        labels[i].text.pos.y = states[i].pos.y - yOff;
+        if (!changed)
+            break;
     }
 }
 
@@ -1045,7 +1022,7 @@ static void generateAllLayerMeshes(InternalData &internalData,
 
         {
             DECL_TIMER(t8, "generateAllLayerMeshes.loop.part4");
-            resolveDoorLabelCollisions(rnb.getLabels(), font);
+            resolveDoorLabelCollisions(font, rnb.getLabels());
             roomNameBatches[thisLayer] = rnb.getIntermediate(font);
         }
     }

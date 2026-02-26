@@ -10,7 +10,7 @@
 #include "../map/coordinate.h"
 #include "../map/roomid.h"
 #include "../opengl/Font.h"
-#include "../opengl/FontMetrics.h"
+#include "../opengl/GLText.h"
 #include "../opengl/OpenGLTypes.h"
 
 #include <algorithm>

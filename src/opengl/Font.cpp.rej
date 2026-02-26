@@ -1,0 +1,10 @@
+--- Font.cpp
++++ Font.cpp
+@@ -620,7 +620,6 @@ void FontMetrics::getFontBatchRawData(const GLText *const text,
+     }
+     assert(output.size() == before + expectedVerts);
+  }
+-}
+
+ void GLFont::render2dTextImmediate(const std::vector<GLText> &text)
+ {

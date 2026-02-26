@@ -10,23 +10,24 @@
 
 #include <glm/glm.hpp>
 
+// Domain-specific data for rendering a string.
 struct NODISCARD GLText final
 {
-    glm::vec3 pos{0.f};
+    glm::vec3 pos{}; // world space
     std::string text;
     Color color;
     std::optional<Color> bgcolor;
     FontFormatFlags fontFormatFlag;
-    int rotationAngle = 0;
+    int rotationAngle = 0; // degrees
 
     explicit GLText(const glm::vec3 &pos_,
-                    std::string moved_text,
-                    const Color color_ = {},
-                    std::optional<Color> bgcolor_ = {},
+                    std::string text_,
+                    const Color color_,
+                    std::optional<Color> bgcolor_ = std::nullopt,
                     const FontFormatFlags fontFormatFlag_ = {},
-                    int rotationAngle_ = 0)
+                    const int rotationAngle_ = 0)
         : pos{pos_}
-        , text{std::move(moved_text)}
+        , text{std::move(text_)}
         , color{color_}
         , bgcolor{bgcolor_}
         , fontFormatFlag{fontFormatFlag_}

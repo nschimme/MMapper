@@ -155,12 +155,12 @@ void MapCanvas::paintSelectedRoom(RoomSelFakeGL &gl, const RawRoom &room)
         gl.resetMatrix();
     }
 
-    if (isMoving) {
+    if (auto *const move = std::get_if<RoomSelMove>(&m_activeInteraction)) {
         gl.resetMatrix();
-        const auto &relativeOffset = m_roomSelectionMove->pos;
+        const auto &relativeOffset = move->pos;
         gl.glTranslatef(x + relativeOffset.x, y + relativeOffset.y, z);
-        gl.drawColoredQuad(m_roomSelectionMove->wrongPlace ? RoomSelFakeGL::SelTypeEnum::MoveBad
-                                                           : RoomSelFakeGL::SelTypeEnum::MoveGood);
+        gl.drawColoredQuad(move->wrongPlace ? RoomSelFakeGL::SelTypeEnum::MoveBad
+                                            : RoomSelFakeGL::SelTypeEnum::MoveGood);
     }
 }
 

@@ -119,6 +119,7 @@ public:
     NODISCARD std::optional<glm::vec3> unproject(const glm::vec2 &xy) const;
     NODISCARD std::optional<MouseSel> getUnprojectedMouseSel(const QInputEvent *event) const;
     NODISCARD std::optional<MouseSel> getUnprojectedMouseSel(const glm::vec2 &xy) const;
+    NODISCARD std::optional<MouseSel> getUnprojectedMouseSel(const glm::vec2 &xy, int layer) const;
     NODISCARD std::optional<glm::vec2> getMouseCoords(const QInputEvent *event) const;
 };
 
@@ -145,6 +146,8 @@ public:
     NODISCARD glm::vec3 getCenter() const;
     NODISCARD bool isRoomVisible(const Coordinate &c, float margin) const;
     NODISCARD glm::vec3 getProxyLocation(const glm::vec3 &pos, float margin) const;
+
+    NODISCARD const MapCanvasViewport &getViewport() const { return m_viewport; }
 
 private:
     NODISCARD VisiblityResultEnum testVisibility(const glm::vec3 &input_pos, float margin) const;

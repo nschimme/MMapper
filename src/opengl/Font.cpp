@@ -805,6 +805,11 @@ std::optional<int> GLFont::getGlyphAdvance(const char c) const
     return std::nullopt;
 }
 
+int GLFont::measureWidth(const std::string_view text) const
+{
+    return getFontMetrics().measureWidth(text);
+}
+
 glm::ivec2 GLFont::getScreenCenter() const
 {
     return m_gl.getPhysicalViewport().offset + m_gl.getPhysicalViewport().size / 2;

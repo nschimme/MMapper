@@ -182,12 +182,22 @@ std::optional<MouseSel> MapCanvasViewport::getUnprojectedMouseSel(const QInputEv
 
 std::optional<MouseSel> MapCanvasViewport::getUnprojectedMouseSel(const glm::vec2 &xy) const
 {
-    const auto opt_v = unproject(xy);
-    if (!opt_v.has_value()) {
+    return getUnprojectedMouseSel(xy, m_currentLayer);
+}
+
+std::optional<MouseSel> MapCanvasViewport::getUnprojectedMouseSel(const glm::vec2 &xy,
+                                                                  const int layer) const
+{
+    const auto a = unproject_raw(glm::vec3{xy, 0.f}); // near
+    const auto b = unproject_raw(glm::vec3{xy, 1.f}); // far
+    const auto unclamped = (static_cast<float>(layer) - a.z) / (b.z - a.z);
+
+    if (!::isClamped(unclamped, 0.f - mmgl::PROJECTION_EPSILON, 1.f + mmgl::PROJECTION_EPSILON)) {
         return std::nullopt;
     }
-    const glm::vec3 &v = opt_v.value();
-    return MouseSel{Coordinate2f{v.x, v.y}, m_currentLayer};
+
+    const glm::vec3 v = glm::mix(a, b, glm::clamp(unclamped, 0.f, 1.f));
+    return MouseSel{Coordinate2f{v.x, v.y}, layer};
 }
 
 MapScreen::MapScreen(const MapCanvasViewport &viewport)

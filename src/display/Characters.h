@@ -74,6 +74,18 @@ private:
 
     class NODISCARD CharFakeGL final
     {
+    public:
+        struct NODISCARD CharacterMeshes final
+        {
+            UniqueMesh tris;
+            UniqueMesh beaconQuads;
+            UniqueMesh lines;
+            UniqueMesh roomQuads;
+            UniqueMesh pathPoints;
+            UniqueMesh pathLineQuads;
+            bool isValid = false;
+        };
+
     private:
         struct NODISCARD CoordCompare final
         {
@@ -97,6 +109,22 @@ private:
             }
         };
 
+        struct NODISCARD BatchedName final
+        {
+            glm::vec3 worldPos;
+            std::string text;
+            Color color;
+            Color bgcolor;
+            int stackIdx;
+        };
+
+        struct NODISCARD BatchedPlayer final
+        {
+            Coordinate pos;
+            Color color;
+            bool fill;
+        };
+
     private:
         Color m_color;
         MatrixStack m_stack;
@@ -106,8 +134,11 @@ private:
         std::vector<ColoredTexVert> m_charRoomQuads;
         std::vector<ColorVert> m_pathPoints;
         std::vector<ColorVert> m_pathLineQuads;
-        std::vector<FontVert3d> m_screenSpaceArrows;
+        std::vector<BatchedName> m_names;
+        std::vector<BatchedPlayer> m_players;
         std::map<Coordinate, int, CoordCompare> m_coordCounts;
+        std::map<Coordinate, int, CoordCompare> m_nameStackCounts;
+        CharacterMeshes m_meshes;
 
     public:
         CharFakeGL() = default;
@@ -115,15 +146,48 @@ private:
         DELETE_CTORS_AND_ASSIGN_OPS(CharFakeGL);
 
     public:
-        void reallyDraw(OpenGL &gl, const MapCanvasTextures &textures)
+        void clear()
         {
-            reallyDrawCharacters(gl, textures);
-            reallyDrawPaths(gl);
+            m_charTris.clear();
+            m_charBeaconQuads.clear();
+            m_charLines.clear();
+            m_charRoomQuads.clear();
+            m_pathPoints.clear();
+            m_pathLineQuads.clear();
+            m_names.clear();
+            m_players.clear();
+            m_coordCounts.clear();
+            m_nameStackCounts.clear();
+            m_meshes.isValid = false;
+        }
+
+        void reallyDraw(OpenGL &gl,
+                        const MapCanvasTextures &textures,
+                        GLFont &font,
+                        const MapScreen &mapScreen)
+        {
+            if (!m_meshes.isValid && !empty()) {
+                bake(gl, textures);
+            }
+            reallyDrawMeshes(gl, textures);
+            reallyDrawNames(gl, font, mapScreen);
+            reallyDrawArrows(gl, textures, mapScreen);
+        }
+
+        bool empty() const
+        {
+            return m_charTris.empty() && m_charBeaconQuads.empty() && m_charLines.empty()
+                   && m_charRoomQuads.empty() && m_pathPoints.empty() && m_pathLineQuads.empty()
+                   && m_names.empty() && m_players.empty();
         }
 
     private:
-        void reallyDrawCharacters(OpenGL &gl, const MapCanvasTextures &textures);
-        void reallyDrawPaths(OpenGL &gl);
+        void bake(OpenGL &gl, const MapCanvasTextures &textures);
+        void reallyDrawMeshes(OpenGL &gl, const MapCanvasTextures &textures);
+        void reallyDrawNames(OpenGL &gl, GLFont &font, const MapScreen &mapScreen);
+        void reallyDrawArrows(OpenGL &gl,
+                              const MapCanvasTextures &textures,
+                              const MapScreen &mapScreen);
 
     public:
         void setColor(const Color color) { m_color = color; }
@@ -151,6 +215,11 @@ private:
         void drawArrow(bool fill, bool beacon);
         void drawBox(const Coordinate &coord, bool fill, bool beacon, bool isFar);
         void addScreenSpaceArrow(const glm::vec3 &pos, float degrees, const Color color, bool fill);
+        void addName(const Coordinate &c, const std::string &name, const Color color);
+        void addPlayer(const Coordinate &c, const Color color, bool fill)
+        {
+            m_players.emplace_back(BatchedPlayer{c, color, fill});
+        }
         void drawPathSegment(const glm::vec3 &p1, const glm::vec3 &p2, const Color color);
 
         // with blending, without depth; always size 8
@@ -207,15 +276,23 @@ public:
     NODISCARD bool isVisible(const Coordinate &c, float margin) const;
 
 public:
+    void clear() { getOpenGL().clear(); }
+    NODISCARD bool empty() const { return m_fakeGL.empty(); }
+
     void drawCharacter(const Coordinate &coordinate, const Color color, bool fill = true);
+
+    void drawName(const Coordinate &c, const std::string &name, const Color color)
+    {
+        getOpenGL().addName(c, name, color);
+    }
 
     void drawPreSpammedPath(const Coordinate &coordinate,
                             const std::vector<Coordinate> &path,
                             const Color color);
 
 public:
-    void reallyDraw(OpenGL &gl, const MapCanvasTextures &textures)
+    void reallyDraw(OpenGL &gl, const MapCanvasTextures &textures, GLFont &font)
     {
-        m_fakeGL.reallyDraw(gl, textures);
+        m_fakeGL.reallyDraw(gl, textures, font, m_mapScreen);
     }
 };

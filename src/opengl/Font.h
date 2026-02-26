@@ -82,6 +82,7 @@ public:
 public:
     NODISCARD int getFontHeight() const;
     NODISCARD std::optional<int> getGlyphAdvance(char c) const;
+    NODISCARD int measureWidth(std::string_view text) const;
 
 private:
     NODISCARD glm::ivec2 getScreenCenter() const;

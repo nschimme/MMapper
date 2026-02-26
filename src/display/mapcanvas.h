@@ -11,6 +11,7 @@
 #include "../opengl/Font.h"
 #include "../opengl/FontFormatFlags.h"
 #include "../opengl/OpenGL.h"
+#include "Characters.h"
 #include "Infomarks.h"
 #include "MapCanvasData.h"
 #include "MapCanvasRoomDrawer.h"
@@ -137,6 +138,8 @@ private:
     OpenGL m_opengl;
     GLFont m_glFont;
     Batches m_batches;
+    CharacterBatch m_groupBatch;
+    bool m_groupBatchDirty = true;
     MapCanvasTextures m_textures;
     MapData &m_data;
     Mmapper2Group &m_groupManager;
@@ -253,6 +256,7 @@ private:
     void finishPendingMapBatches();
     void updateMapBatches();
     void updateInfomarkBatches();
+    void updateGroupBatch();
 
     void actuallyPaintGL();
     void paintMap();
@@ -279,7 +283,7 @@ public:
     void screenChanged();
     void selectionChanged();
     void graphicsSettingsChanged();
-    void zoomChanged() { emit sig_zoomChanged(getRawZoom()); }
+    void zoomChanged();
 
 public:
     void userPressedEscape(bool);

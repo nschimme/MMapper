@@ -53,54 +53,30 @@ void CharacterBatch::drawCharacter(const Coordinate &c, const Color color, bool 
 {
     const Configuration::CanvasSettings &settings = getConfig().canvas;
 
-    const glm::vec3 roomCenter = c.to_vec3() + glm::vec3{0.5f, 0.5f, 0.f};
     const int layerDifference = c.z - m_currentLayer;
 
     auto &gl = getOpenGL();
     gl.setColor(color);
 
-    // REVISIT: The margin probably needs to be modified for high-dpi.
-    const float marginPixels = MapScreen::DEFAULT_MARGIN_PIXELS;
-    const bool visible = isVisible(c, marginPixels / 2.f);
     const bool isFar = m_scale <= settings.charBeaconScaleCutoff;
     const bool wantBeacons = settings.drawCharBeacons && isFar;
-    if (!visible) {
-        static const bool useScreenSpacePlayerArrow = std::invoke([]() -> bool {
-            auto opt = utils::getEnvBool("MMAPPER_SCREEN_SPACE_ARROW");
-            return opt ? opt.value() : true;
-        });
-        const auto dot = DistantObjectTransform::construct(roomCenter, m_mapScreen, marginPixels);
-        // Player is distant
-        if (useScreenSpacePlayerArrow) {
-            gl.addScreenSpaceArrow(dot.offset, dot.rotationDegrees, color, fill);
-        } else {
-            gl.glPushMatrix();
-            gl.glTranslatef(dot.offset);
-            // NOTE: 180 degrees of additional rotation flips the arrow to point right instead of left.
-            gl.glRotateZ(dot.rotationDegrees + 180.f);
-            // NOTE: arrow is centered, so it doesn't need additional translation.
-            gl.drawArrow(fill, wantBeacons);
-            gl.glPopMatrix();
-        }
-    }
 
     const bool differentLayer = layerDifference != 0;
     if (differentLayer) {
+        const glm::vec3 roomCenter = c.to_vec3() + glm::vec3{0.5f, 0.5f, 0.f};
         const glm::vec3 centerOnCurrentLayer{static_cast<glm::vec2>(roomCenter),
                                              static_cast<float>(m_currentLayer)};
-        // Draw any arrow on the current layer pointing in either up or down
-        // (this may not make sense graphically in an angled 3D view).
         gl.glPushMatrix();
         gl.glTranslatef(centerOnCurrentLayer);
-        // Arrow points up or down.
-        // REVISIT: billboard this in 3D?
         gl.glRotateZ((layerDifference > 0) ? 90.f : 270.f);
         gl.drawArrow(fill, false);
         gl.glPopMatrix();
     }
 
-    const bool beacon = visible && !differentLayer && wantBeacons;
+    const bool beacon = !differentLayer && wantBeacons;
     gl.drawBox(c, fill, beacon, isFar);
+
+    gl.addPlayer(c, color, fill);
 }
 
 void CharacterBatch::CharFakeGL::drawPathSegment(const glm::vec3 &p1,
@@ -137,7 +113,6 @@ void CharacterBatch::drawPreSpammedPath(const Coordinate &c1,
 
     auto &gl = getOpenGL();
 
-    // Generate vertices for the thick line
     for (size_t i = 0; i < verts.size() - 1; ++i) {
         const glm::vec3 p1 = verts[i];
         const glm::vec3 p2 = verts[i + 1];
@@ -177,22 +152,11 @@ void CharacterBatch::CharFakeGL::drawQuadCommon(const glm::vec2 &in_a,
 
     if (::utils::isSet(options, QuadOptsEnum::BEACON)) {
         const auto color = m_color.withAlpha(BEACON_ALPHA);
-
         const glm::vec3 heightOffset{0.f, 0.f, 50.f};
-
-        // H-----G
-        // |\   /|
-        // | D-C |
-        // | | | |
-        // | A-B |
-        // |/   \|
-        // E-----F
-
         const auto e = a + heightOffset;
         const auto f = b + heightOffset;
         const auto g = c + heightOffset;
         const auto h = d + heightOffset;
-
         auto emitVert = [this, &color](const auto &x) -> void {
             m_charBeaconQuads.emplace_back(color, x);
         };
@@ -203,7 +167,6 @@ void CharacterBatch::CharFakeGL::drawQuadCommon(const glm::vec2 &in_a,
             emitVert(v2);
             emitVert(v3);
         };
-        // draw the *inner* faces
         emitQuad(a, e, f, b);
         emitQuad(b, f, g, c);
         emitQuad(c, g, h, d);
@@ -232,39 +195,29 @@ void CharacterBatch::CharFakeGL::drawBox(const Coordinate &coord,
                                          const bool isFar)
 {
     const bool dontFillRotatedQuads = true;
-    const bool shrinkRotatedQuads = false; // REVISIT: make this a user option?
+    const bool shrinkRotatedQuads = false;
 
-    // caution: multiple side effects in next statement.
     const int numAlreadyInRoom = m_coordCounts[coord]++;
 
     glPushMatrix();
-
     glTranslatef(coord.to_vec3());
 
     if (numAlreadyInRoom != 0) {
-        // NOTE: use of 45/PI here is NOT a botched conversion to radians;
-        // it's a value close to 15 degrees (~14.324) that is guaranteed
-        // to never perfectly overlap a regular axis-aligned square
-        // when multiplied by an integer.
         static constexpr const float MAGIC_ANGLE = 45.f / float(M_PI);
         const float degrees = static_cast<float>(numAlreadyInRoom) * MAGIC_ANGLE;
         const glm::vec3 quadCenter{0.5f, 0.5f, 0.f};
         glTranslatef(quadCenter);
         if ((shrinkRotatedQuads)) {
-            // keeps the rotated squares bounded inside the outer square.
             glScalef(0.7f, 0.7f, 1.f);
         }
         glRotateZ(degrees);
         glTranslatef(-quadCenter);
         if (dontFillRotatedQuads) {
-            fill = false; // avoid highlighting the room multiple times
+            fill = false;
         }
         beacon = false;
     }
 
-    // d-c
-    // |/|
-    // a-b
     const glm::vec2 a{0, 0};
     const glm::vec2 b{1, 0};
     const glm::vec2 c{1, 1};
@@ -276,8 +229,6 @@ void CharacterBatch::CharFakeGL::drawBox(const Coordinate &coord,
                              | (beacon ? QuadOptsEnum::BEACON : QuadOptsEnum::NONE);
         drawQuadCommon(a, b, c, d, options);
     } else {
-        /* ignoring fill for now; that'll require a different icon */
-
         const auto &color = m_color;
         const auto &m = m_stack.top().modelView;
         const auto addTransformed = [this, &color, &m](const glm::vec2 &in_vert) -> void {
@@ -293,19 +244,11 @@ void CharacterBatch::CharFakeGL::drawBox(const Coordinate &coord,
             drawQuadCommon(a, b, c, d, QuadOptsEnum::BEACON);
         }
     }
-
     glPopMatrix();
 }
 
 void CharacterBatch::CharFakeGL::drawArrow(const bool fill, const bool beacon)
 {
-    // Generic topology:
-    //    d
-    //   /|
-    //  a-c
-    //   \|
-    //    b
-
     const glm::vec2 a{-0.5f, 0.f};
     const glm::vec2 b{0.75f, -0.5f};
     const glm::vec2 c{0.25f, 0.f};
@@ -316,144 +259,169 @@ void CharacterBatch::CharFakeGL::drawArrow(const bool fill, const bool beacon)
     drawQuadCommon(a, b, c, d, options);
 }
 
-void CharacterBatch::CharFakeGL::reallyDrawCharacters(OpenGL &gl, const MapCanvasTextures &textures)
+void CharacterBatch::CharFakeGL::bake(OpenGL &gl, const MapCanvasTextures &textures)
+{
+    m_meshes.tris = gl.createColoredTriBatch(m_charTris);
+    m_meshes.beaconQuads = gl.createColoredQuadBatch(m_charBeaconQuads);
+    m_meshes.lines = gl.createColoredLineBatch(m_charLines);
+    m_meshes.pathPoints = gl.createPointBatch(m_pathPoints);
+    m_meshes.pathLineQuads = gl.createColoredQuadBatch(m_pathLineQuads);
+
+    m_meshes.roomQuads = gl.createColoredTexturedQuadBatch(m_charRoomQuads,
+                                                          textures.char_room_sel->getId());
+
+    m_meshes.isValid = true;
+}
+
+void CharacterBatch::CharFakeGL::reallyDrawMeshes(OpenGL &, const MapCanvasTextures &)
 {
     const auto blended_noDepth
         = GLRenderState().withDepthFunction(std::nullopt).withBlend(BlendModeEnum::TRANSPARENCY);
 
-    // Cull the front faces, because the quads point towards the center of the room,
-    // and we don't want to draw over the entire terrain if we're inside the room.
-    if (!m_charBeaconQuads.empty()) {
-        gl.renderColoredQuads(m_charBeaconQuads, blended_noDepth.withCulling(CullingEnum::FRONT));
-    }
-
-    if (!m_charRoomQuads.empty()) {
-        gl.renderColoredTexturedQuads(m_charRoomQuads,
-                                      blended_noDepth.withTexture0(
-                                          textures.char_room_sel->getArrayPosition().array));
-    }
-
-    if (!m_charTris.empty()) {
-        gl.renderColoredTris(m_charTris, blended_noDepth);
-    }
-
-    if (!m_charLines.empty()) {
-        gl.renderColoredLines(m_charLines,
-                              blended_noDepth.withLineParams(LineParams{CHAR_ARROW_LINE_WIDTH}));
-    }
-
-    if (!m_screenSpaceArrows.empty()) {
-        // FIXME: add an option to auto-scale to DPR.
-        const float dpr = gl.getDevicePixelRatio();
-        for (auto &v : m_screenSpaceArrows) {
-            v.vert *= dpr;
-        }
-        gl.renderFont3d(textures.char_arrows, m_screenSpaceArrows);
-        m_screenSpaceArrows.clear();
-    }
-}
-
-void CharacterBatch::CharFakeGL::reallyDrawPaths(OpenGL &gl)
-{
-    const auto blended_noDepth
-        = GLRenderState().withDepthFunction(std::nullopt).withBlend(BlendModeEnum::TRANSPARENCY);
-
-    gl.renderPoints(m_pathPoints, blended_noDepth.withPointSize(PATH_POINT_SIZE));
-    if (!m_pathLineQuads.empty()) {
-        gl.renderColoredQuads(m_pathLineQuads, blended_noDepth);
-    }
-}
-
-void CharacterBatch::CharFakeGL::addScreenSpaceArrow(const glm::vec3 &pos,
-                                                     const float degrees,
-                                                     const Color color,
-                                                     const bool fill)
-{
-    std::array<glm::vec2, 4> texCoords{
-        glm::vec2{0, 0},
-        glm::vec2{1, 0},
-        glm::vec2{1, 1},
-        glm::vec2{0, 1},
-    };
-
-    const float scale = MapScreen::DEFAULT_MARGIN_PIXELS;
-    const float radians = glm::radians(degrees);
-    const glm::vec3 z{0, 0, 1};
-    const glm::mat4 rotation = glm::rotate(glm::mat4(1), radians, z);
-    for (size_t i = 0; i < 4; ++i) {
-        const glm::vec2 &tc = texCoords[i];
-        const auto tmp = rotation * glm::vec4(tc * 2.f - 1.f, 0, 1);
-        const glm::vec2 screenSpaceOffset = scale * glm::vec2(tmp) / tmp.w;
-        // solid   |filled
-        // --------+--------
-        // outline | n/a
-        const glm::vec2 tcOffset = tc * 0.5f
-                                   + (fill ? glm::vec2(0.5f, 0.5f) : glm::vec2(0.f, 0.0f));
-        m_screenSpaceArrows.emplace_back(pos, color, tcOffset, screenSpaceOffset);
+    if (m_meshes.isValid) {
+        m_meshes.beaconQuads.render(blended_noDepth.withCulling(CullingEnum::FRONT));
+        m_meshes.roomQuads.render(blended_noDepth);
+        m_meshes.tris.render(blended_noDepth);
+        m_meshes.lines.render(blended_noDepth.withLineParams(LineParams{CHAR_ARROW_LINE_WIDTH}));
+        m_meshes.pathPoints.render(blended_noDepth.withPointSize(PATH_POINT_SIZE));
+        m_meshes.pathLineQuads.render(blended_noDepth);
     }
 }
 
 void CharacterBatch::CharFakeGL::addName(const Coordinate &c,
                                          const std::string &name,
-                                         const Color color,
-                                         const MapScreen &mapScreen)
+                                         const Color color)
 {
     const glm::vec3 roomCenter = c.to_vec3() + glm::vec3{0.5f, 0.5f, 0.f};
-    const float marginPixels = MapScreen::DEFAULT_MARGIN_PIXELS;
-    const bool visible = mapScreen.isRoomVisible(c, marginPixels / 2.f);
-
-    std::optional<glm::vec3> optScreen;
-    float verticalOffset;
-
-    if (visible) {
-        optScreen = mapScreen.project(roomCenter);
-        const auto optScreenTop = mapScreen.project(roomCenter + glm::vec3{0.f, 0.5f, 0.f});
-        if (optScreen && optScreenTop) {
-            verticalOffset = glm::distance(glm::vec2(*optScreen), glm::vec2(*optScreenTop)) + 2.f;
-        } else {
-            verticalOffset = 10.f;
-        }
-    } else {
-        const glm::vec3 proxyWorld = mapScreen.getProxyLocation(roomCenter, marginPixels);
-        optScreen = mapScreen.project(proxyWorld);
-        verticalOffset = 15.f;
-    }
-
-    if (!optScreen) {
-        return;
-    }
-
-    const float screenX = optScreen->x;
-    const float screenY = static_cast<float>(mapScreen.height()) - optScreen->y;
-
-    const int stackIdx = m_nameStackCounts[c]++;
-
-    // We store stackIdx in pos.z for now, and logical coordinates in pos.xy
-    m_names.emplace_back(glm::vec3{screenX, screenY - verticalOffset, static_cast<float>(stackIdx)},
-                         name,
-                         textColor(color),
-                         color.withAlpha(0.6f),
-                         FontFormatFlags{FontFormatFlagEnum::HALIGN_CENTER});
+    m_names.emplace_back(BatchedName{roomCenter, name, textColor(color), color.withAlpha(0.6f), 0});
 }
 
-void CharacterBatch::CharFakeGL::reallyDrawNames(OpenGL &gl, GLFont &font)
+void CharacterBatch::CharFakeGL::reallyDrawNames(OpenGL &gl,
+                                                 GLFont &font,
+                                                 const MapScreen &mapScreen)
 {
     if (m_names.empty()) {
         return;
     }
 
+    const auto &viewport = mapScreen.getViewport();
     const float dpr = gl.getDevicePixelRatio();
     const float fontPhysicalHeight = static_cast<float>(font.getFontHeight());
+    const float physicalScreenWidth = static_cast<float>(gl.getPhysicalViewport().size.x);
+    const float marginPixels = MapScreen::DEFAULT_MARGIN_PIXELS;
 
-    for (auto &t : m_names) {
-        const float stackIdx = t.pos.z;
-        t.pos.x *= dpr;
-        t.pos.y = t.pos.y * dpr - stackIdx * fontPhysicalHeight;
-        t.pos.z = 0.f;
+    std::vector<GLText> physicalNames;
+    physicalNames.reserve(m_names.size());
+
+    std::map<Coordinate, int, CoordCompare> stackCounts;
+
+    for (const auto &batchName : m_names) {
+        const Coordinate c{static_cast<int>(std::floor(batchName.worldPos.x)),
+                           static_cast<int>(std::floor(batchName.worldPos.y)),
+                           static_cast<int>(std::round(batchName.worldPos.z))};
+        const bool visible = mapScreen.isRoomVisible(c, marginPixels / 2.f);
+
+        std::optional<glm::vec3> optScreen;
+        float verticalOffset;
+
+        if (visible) {
+            optScreen = viewport.project(batchName.worldPos);
+            const auto optScreenTop = viewport.project(batchName.worldPos + glm::vec3{0.f, 0.5f, 0.f});
+            if (optScreen && optScreenTop) {
+                verticalOffset = glm::distance(glm::vec2(*optScreen), glm::vec2(*optScreenTop)) + 2.f;
+            } else {
+                verticalOffset = 10.f;
+            }
+        } else {
+            const glm::vec3 proxyWorld = mapScreen.getProxyLocation(batchName.worldPos, marginPixels);
+            optScreen = viewport.project(proxyWorld);
+            verticalOffset = 15.f;
+        }
+
+        if (!optScreen) {
+            continue;
+        }
+
+        const float screenX = optScreen->x;
+        const float screenY = static_cast<float>(viewport.height()) - optScreen->y;
+
+        const int stackIdx = stackCounts[c]++;
+
+        GLText physicalText{glm::vec3{screenX, screenY - verticalOffset, 0.f},
+                            batchName.text,
+                            batchName.color,
+                            batchName.bgcolor,
+                            FontFormatFlags{FontFormatFlagEnum::HALIGN_CENTER}};
+
+        const float physicalWidth = static_cast<float>(font.measureWidth(physicalText.text));
+
+        float px = physicalText.pos.x * dpr;
+        const float py = physicalText.pos.y * dpr - static_cast<float>(stackIdx) * fontPhysicalHeight;
+
+        const float halfWidth = physicalWidth / 2.0f;
+        const float margin = 4.0f;
+
+        if (px - halfWidth < margin) {
+            px = halfWidth + margin;
+        } else if (px + halfWidth > physicalScreenWidth - margin) {
+            px = physicalScreenWidth - halfWidth - margin;
+        }
+
+        physicalText.pos.x = px;
+        physicalText.pos.y = py;
+
+        physicalNames.push_back(std::move(physicalText));
     }
 
-    font.render2dTextImmediate(m_names);
-    m_names.clear();
+    font.render2dTextImmediate(physicalNames);
+}
+
+void CharacterBatch::CharFakeGL::reallyDrawArrows(OpenGL &gl,
+                                                  const MapCanvasTextures &textures,
+                                                  const MapScreen &mapScreen)
+{
+    if (m_players.empty()) {
+        return;
+    }
+
+    const float marginPixels = MapScreen::DEFAULT_MARGIN_PIXELS;
+    const float dpr = gl.getDevicePixelRatio();
+
+    std::vector<FontVert3d> physicalArrows;
+
+    for (const auto &p : m_players) {
+        if (mapScreen.isRoomVisible(p.pos, marginPixels / 2.f)) {
+            continue;
+        }
+
+        const glm::vec3 roomCenter = p.pos.to_vec3() + glm::vec3{0.5f, 0.5f, 0.f};
+        const auto dot = DistantObjectTransform::construct(roomCenter, mapScreen, marginPixels);
+
+        std::array<glm::vec2, 4> texCoords{
+            glm::vec2{0, 0},
+            glm::vec2{1, 0},
+            glm::vec2{1, 1},
+            glm::vec2{0, 1},
+        };
+
+        const float scale = MapScreen::DEFAULT_MARGIN_PIXELS * dpr;
+        const float radians = glm::radians(dot.rotationDegrees);
+        const glm::vec3 z{0, 0, 1};
+        const glm::mat4 rotation = glm::rotate(glm::mat4(1), radians, z);
+
+        for (size_t i = 0; i < 4; ++i) {
+            const glm::vec2 &tc = texCoords[i];
+            const auto tmp = rotation * glm::vec4(tc * 2.f - 1.f, 0, 1);
+            const glm::vec2 screenSpaceOffset = scale * glm::vec2(tmp) / tmp.w;
+            const glm::vec2 tcOffset = tc * 0.5f
+                                       + (p.fill ? glm::vec2(0.5f, 0.5f) : glm::vec2(0.f, 0.0f));
+            physicalArrows.emplace_back(dot.offset * dpr, p.color, tcOffset, screenSpaceOffset);
+        }
+    }
+
+    if (!physicalArrows.empty()) {
+        gl.renderFont3d(textures.char_arrows, physicalArrows);
+    }
 }
 
 void MapCanvas::paintCharacters()
@@ -462,37 +430,36 @@ void MapCanvas::paintCharacters()
         return;
     }
 
-    CharacterBatch characterBatch{m_mapScreen, m_currentLayer, getTotalScaleFactor()};
+    updateGroupBatch();
+    m_groupBatch.reallyDraw(getOpenGL(), m_textures, getGLFont());
 
-    // IIFE to abuse return to avoid duplicate else branches
-    std::invoke([this, &characterBatch]() -> void {
-        if (const std::optional<RoomId> opt_pos = m_data.getCurrentRoomId()) {
-            const auto &id = opt_pos.value();
-            if (const auto room = m_data.findRoomHandle(id)) {
-                const auto &pos = room.getPosition();
-                // draw the characters before the current position
-                characterBatch.incrementCount(pos);
-                drawGroupCharacters(characterBatch, room.getServerId());
-                characterBatch.resetCount(pos);
+    CharacterBatch localBatch{m_mapScreen, m_currentLayer, getTotalScaleFactor()};
 
-                // paint char current position
-                const Color color{getConfig().groupManager.color};
-                characterBatch.drawCharacter(pos, color);
-
-                // paint prespam
-                const auto prespam = m_data.getPath(id, m_prespammedPath.getQueue());
-                characterBatch.drawPreSpammedPath(pos, prespam, color);
-                return;
-            } else {
-                // this can happen if the "current room" is deleted
-                // and we failed to clear it elsewhere.
-                m_data.clearSelectedRoom();
-            }
+    if (const std::optional<RoomId> opt_pos = m_data.getCurrentRoomId()) {
+        const auto &id = opt_pos.value();
+        if (const auto room = m_data.findRoomHandle(id)) {
+            const auto &pos = room.getPosition();
+            const Color color{getConfig().groupManager.color};
+            localBatch.drawCharacter(pos, color);
+            const auto prespam = m_data.getPath(id, m_prespammedPath.getQueue());
+            localBatch.drawPreSpammedPath(pos, prespam, color);
+        } else {
+            m_data.clearSelectedRoom();
         }
-        drawGroupCharacters(characterBatch, INVALID_SERVER_ROOMID);
-    });
+    }
 
-    characterBatch.reallyDraw(getOpenGL(), m_textures, getGLFont());
+    localBatch.reallyDraw(getOpenGL(), m_textures, getGLFont());
+}
+
+void MapCanvas::updateGroupBatch()
+{
+    if (!m_groupBatchDirty) {
+        return;
+    }
+
+    m_groupBatch.clear();
+    drawGroupCharacters(m_groupBatch, INVALID_SERVER_ROOMID);
+    m_groupBatchDirty = false;
 }
 
 void MapCanvas::drawGroupCharacters(CharacterBatch &batch, ServerRoomId yourServerId)
@@ -504,7 +471,6 @@ void MapCanvas::drawGroupCharacters(CharacterBatch &batch, ServerRoomId yourServ
     RoomIdSet drawnRoomIds;
     const Map &map = m_data.getCurrentMap();
     for (const auto &pCharacter : m_groupManager.selectAll()) {
-        // Omit player so that they know group members are below them
         if (pCharacter->isYou()) {
             continue;
         }
@@ -521,7 +487,6 @@ void MapCanvas::drawGroupCharacters(CharacterBatch &batch, ServerRoomId yourServ
             return RoomHandle{};
         });
 
-        // Do not draw the character if they're in an "Unknown" room
         if (!r) {
             continue;
         }

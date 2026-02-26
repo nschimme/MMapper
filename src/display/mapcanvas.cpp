@@ -66,6 +66,7 @@ MapCanvas::MapCanvas(MapData &mapData,
     , m_mapScreen{static_cast<MapCanvasViewport &>(*this)}
     , m_opengl{}
     , m_glFont{m_opengl}
+    , m_groupBatch{m_mapScreen, m_currentLayer, getTotalScaleFactor()}
     , m_data{mapData}
     , m_groupManager{groupManager}
 {
@@ -1159,6 +1160,7 @@ void MapCanvas::infomarksChanged()
 
 void MapCanvas::layerChanged()
 {
+    m_groupBatchDirty = true;
     update();
 }
 
@@ -1181,6 +1183,7 @@ void MapCanvas::slot_mapChanged()
 
 void MapCanvas::slot_requestUpdate()
 {
+    m_groupBatchDirty = true;
     update();
 }
 
@@ -1219,8 +1222,15 @@ void MapCanvas::selectionChanged()
 
 void MapCanvas::graphicsSettingsChanged()
 {
+    m_groupBatchDirty = true;
     m_opengl.resetNamedColorsBuffer();
     update();
+}
+
+void MapCanvas::zoomChanged()
+{
+    m_groupBatchDirty = true;
+    emit sig_zoomChanged(getRawZoom());
 }
 
 void MapCanvas::userPressedEscape(bool /*pressed*/)

@@ -62,7 +62,7 @@ protected:
             vao.emplace(m_shared_functions);
         }
 
-        m_functions.glBindVertexArray(vao);
+        m_functions.glBindVertexArray(vao.get());
         m_functions.glDrawArrays(m_mode, 0, m_numVerts);
         m_functions.glBindVertexArray(0);
     }

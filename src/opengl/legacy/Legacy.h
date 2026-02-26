@@ -7,7 +7,6 @@
 #include "../../global/utils.h"
 #include "../OpenGLConfig.h"
 #include "../OpenGLTypes.h"
-#include "../UboManager.h"
 #include "FBO.h"
 
 #include <cmath>
@@ -26,6 +25,7 @@ class OpenGL;
 
 namespace Legacy {
 
+class UboManager;
 class StaticVbos;
 class SharedVbos;
 class SharedVaos;
@@ -214,6 +214,7 @@ public:
     using Base::glDisable;
     using Base::glDisableVertexAttribArray;
     using Base::glDrawArrays;
+    using Base::glDrawArraysInstanced;
     using Base::glDrawElementsInstanced;
     using Base::glEnable;
     using Base::glEnableVertexAttribArray;
@@ -328,8 +329,8 @@ public:
 
     NODISCARD FBO &getFBO();
 
-    void setUboManager(UboManager *manager) { m_uboManager = manager; }
-    NODISCARD UboManager &getUboManager() { return deref(m_uboManager); }
+    void setUboManager(UboManager *manager);
+    NODISCARD UboManager &getUboManager();
 
 private:
     friend PointSizeBinder;

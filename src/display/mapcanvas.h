@@ -142,6 +142,13 @@ private:
     Mmapper2Group &m_groupManager;
     Diff m_diff;
     FrameRateController m_frameRateController;
+
+    struct NODISCARD DynamicLabelState final
+    {
+        glm::vec2 offset{0.f}; // screen pixels
+    };
+    std::unordered_map<uint64_t, DynamicLabelState> m_labelStates;
+
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
     Signal2Lifetime m_lifetime;
 
@@ -249,6 +256,7 @@ private:
                       int currentLayer,
                       const glm::vec2 &offset = {},
                       const std::optional<Color> &overrideColor = std::nullopt);
+    void paintDynamicDoorLabels();
     void updateBatches();
     void finishPendingMapBatches();
     void updateMapBatches();

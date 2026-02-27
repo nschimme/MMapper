@@ -575,9 +575,8 @@ void MapCanvas::finishPendingMapBatches()
     static const std::string_view prefix = "[finishPendingMapBatches] ";
 
     MAYBE_UNUSED RAIICallback eventually{[this] {
-        if (!m_batches.isInProgress()) {
-            setAnimating(false);
-        }
+        // NOTE: we don't automatically clear animating here anymore because door label collisions
+        // may still be converging. paintDynamicDoorLabels() will handle it.
     }};
 
     if (m_batches.next_mapBatches.has_value()) {
@@ -1032,8 +1031,8 @@ void MapCanvas::renderMapBatches()
     BatchedMeshes &batchedMeshes = batches.batchedMeshes;
 
     const auto drawLayer =
-        [&batches, &batchedMeshes, wantExtraDetail, wantDoorNames](const int thisLayer,
-                                                                   const int currentLayer) {
+        [this, &batches, &batchedMeshes, wantExtraDetail, wantDoorNames](const int thisLayer,
+                                                                         const int currentLayer) {
             const auto it_mesh = batchedMeshes.find(thisLayer);
             if (it_mesh != batchedMeshes.end()) {
                 LayerMeshes &meshes = it_mesh->second;
@@ -1052,12 +1051,7 @@ void MapCanvas::renderMapBatches()
                 // isn't currently drawn with an appropriate Z-offset, so it doesn't
                 // stay aligned to its actual layer when you switch view layers.
                 if (wantDoorNames && thisLayer == currentLayer) {
-                    BatchedRoomNames &roomNameBatches = batches.roomNameBatches;
-                    const auto it_name = roomNameBatches.find(thisLayer);
-                    if (it_name != roomNameBatches.end()) {
-                        auto &roomNameBatch = it_name->second;
-                        roomNameBatch.render(GLRenderState());
-                    }
+                    paintDynamicDoorLabels();
                 }
             }
         };

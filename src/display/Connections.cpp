@@ -125,19 +125,6 @@ NODISCARD static glm::vec3 getPosition(const ConnectionSelection::ConnectionDesc
     return cd.room.getPosition().to_vec3() + getConnectionOffset(cd.direction);
 }
 
-NODISCARD UniqueMesh RoomNameBatchIntermediate::getMesh(GLFont &gl) const
-{
-    return gl.getFontMesh(verts);
-}
-
-NODISCARD RoomNameBatchIntermediate RoomNameBatch::getIntermediate(const FontMetrics &font) const
-{
-    std::vector<FontVert3d> output;
-    for (const auto &label : m_labels) {
-        font.getFontBatchRawData(&label.text, 1, output);
-    }
-    return RoomNameBatchIntermediate{std::move(output)};
-}
 
 void ConnectionDrawer::drawRoomDoorName(const RoomHandle &sourceRoom,
                                         const ExitDirEnum sourceDir,
@@ -201,12 +188,16 @@ void ConnectionDrawer::drawRoomDoorName(const RoomHandle &sourceRoom,
     }
 
     static const auto bg = Colors::black.withAlpha(0.4f);
+    const uint64_t sortId = (static_cast<uint64_t>(sourceRoom.getId().asUint32()) << 3)
+                            | static_cast<uint64_t>(sourceDir);
+
     m_roomNameBatch.emplace_back(
-        DoorLabel{GLText{glm::vec3(xy, static_cast<float>(m_currentLayer)),
-                         mmqt::toStdStringLatin1(name), // GL font is latin1
-                         Colors::white,
-                         bg,
-                         FontFormatFlags{FontFormatFlagEnum::HALIGN_CENTER}}});
+        DoorLabel{sortId,
+                  glm::vec3(xy, static_cast<float>(m_currentLayer)),
+                  mmqt::toStdStringLatin1(name), // GL font is latin1
+                  Colors::white,
+                  bg,
+                  FontFormatFlags{FontFormatFlagEnum::HALIGN_CENTER}});
 }
 
 void ConnectionDrawer::drawRoomConnectionsAndDoors(const RoomHandle &room)

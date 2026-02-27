@@ -13,7 +13,10 @@
 // Domain-specific data for rendering a string.
 struct NODISCARD GLText final
 {
-    glm::vec3 pos{}; // world space
+    // Position of the text.
+    // NOTE: This can represent either world space or screen space coordinates
+    // depending on the rendering context (e.g., world-space batching vs. immediate 2D).
+    glm::vec3 pos{};
     std::string text;
     Color color;
     std::optional<Color> bgcolor;

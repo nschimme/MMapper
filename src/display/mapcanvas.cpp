@@ -22,6 +22,7 @@
 #include "MapCanvasData.h"
 #include "MapCanvasRoomDrawer.h"
 #include "connectionselection.h"
+#include "../opengl/FontMetrics.h"
 
 #include <array>
 #include <cmath>
@@ -1166,6 +1167,7 @@ void MapCanvas::forceUpdateMeshes()
 {
     m_batches.resetExistingMeshesAndIgnorePendingRemesh();
     m_diff.resetExistingMeshesAndIgnorePendingRemesh();
+    m_labelStates.clear();
     update();
 }
 
@@ -1253,5 +1255,145 @@ void MapCanvas::userPressedEscape(bool /*pressed*/)
         m_infoMarkSelectionMove.reset();
         slot_clearInfomarkSelection(); // calls selectionChanged();
         break;
+    }
+}
+
+void MapCanvas::paintDynamicDoorLabels()
+{
+    if (!m_batches.mapBatches.has_value()) {
+        return;
+    }
+
+    auto &batches = m_batches.mapBatches.value();
+    auto it = batches.roomNameBatches.find(m_currentLayer);
+    if (it == batches.roomNameBatches.end()) {
+        return;
+    }
+
+    std::vector<DoorLabel> &labels = it->second;
+    if (labels.empty()) {
+        return;
+    }
+
+    auto &font = getGLFont();
+    auto &fm = font.getFontMetrics();
+
+    // Project and calculate screen-space boxes
+    const float dpr = getOpenGL().getDevicePixelRatio();
+    struct LabelState
+    {
+        DoorLabel *label;
+        glm::vec2 currentPos; // screen pixels (physical)
+        utils::Rect box;      // screen pixels (physical)
+        glm::vec2 anchor;     // screen pixels (physical)
+    };
+
+    std::vector<LabelState> states;
+    states.reserve(labels.size());
+
+    for (auto &label : labels) {
+        auto optPos = project(label.text.pos);
+        if (!optPos)
+            continue;
+
+        const glm::vec2 anchor = glm::vec2(*optPos) * dpr;
+
+        if (label.sizePixels.x <= 0.f) {
+            label.sizePixels = glm::vec2(fm.measureWidth(label.text.text), fm.common.lineHeight);
+        }
+
+        const float descent = static_cast<float>(fm.common.lineHeight - fm.common.base);
+
+        auto &persistent = m_labelStates[label.sortId];
+        const glm::vec2 currentPos = anchor + persistent.offset;
+
+        glm::vec2 lo = currentPos - label.sizePixels * 0.5f;
+        lo.y += descent;
+
+        states.push_back({&label,
+                          currentPos,
+                          {glm::ivec2(lo), glm::ivec2(lo + label.sizePixels)},
+                          anchor});
+    }
+
+    if (states.empty()) {
+        return;
+    }
+
+    // Sort for broad-phase
+    std::sort(states.begin(), states.end(), [](const LabelState &a, const LabelState &b) {
+        return a.anchor.x < b.anchor.x;
+    });
+
+    const int iterations = 10; // Few iterations per frame for smooth convergence
+    const float springK = 0.05f;
+    const float repulsionK = 2.0f;
+    const float maxDisplacement = 5.0f; // pixels
+    const float xThreshold = 200.0f;    // pixels
+
+    bool globalChanged = false;
+    for (int i = 0; i < iterations; ++i) {
+        bool changed = false;
+        for (size_t j = 0; j < states.size(); ++j) {
+            glm::vec2 force(0.f);
+
+            auto checkNeighbor = [&](const size_t k) {
+                if (utils::intersects(states[j].box, states[k].box)) {
+                    glm::vec2 diff = states[j].currentPos - states[k].currentPos;
+                    if (glm::length(diff) < 1e-4f) {
+                        diff = glm::vec2(0.f, 1.f);
+                    }
+                    force += glm::normalize(diff) * repulsionK;
+                }
+            };
+
+            for (size_t k = j; k > 0;) {
+                --k;
+                if (states[j].anchor.x - states[k].anchor.x > xThreshold)
+                    break;
+                checkNeighbor(k);
+            }
+            for (size_t k = j + 1; k < states.size(); ++k) {
+                if (states[k].anchor.x - states[j].anchor.x > xThreshold)
+                    break;
+                checkNeighbor(k);
+            }
+
+            force += (states[j].anchor - states[j].currentPos) * springK;
+
+            if (glm::length(force) > 1e-4f) {
+                if (glm::length(force) > maxDisplacement) {
+                    force = glm::normalize(force) * maxDisplacement;
+                }
+                states[j].currentPos += force;
+                // Update box
+                const float descent = static_cast<float>(fm.common.lineHeight - fm.common.base);
+                glm::vec2 lo = states[j].currentPos - states[j].label->sizePixels * 0.5f;
+                lo.y += descent;
+                states[j].box = {glm::ivec2(lo), glm::ivec2(lo + states[j].label->sizePixels)};
+                changed = true;
+                globalChanged = true;
+            }
+        }
+        if (!changed)
+            break;
+    }
+
+    std::vector<GLText> texts;
+    for (auto &s : states) {
+        auto text = s.label->text;
+        text.pos = glm::vec3(s.currentPos, 0.f);
+        texts.push_back(text);
+
+        // Update persistent state
+        m_labelStates[s.label->sortId].offset = s.currentPos - s.anchor;
+    }
+
+    font.render2dTextImmediate(texts);
+
+    if (globalChanged) {
+        setAnimating(true);
+    } else {
+        setAnimating(false);
     }
 }

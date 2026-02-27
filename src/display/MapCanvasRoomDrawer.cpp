@@ -889,114 +889,15 @@ struct NODISCARD InternalData final : public IMapBatchesFinisher
 public:
     std::unordered_map<int, LayerMeshesIntermediate> batchedMeshes;
     BatchedConnections connectionDrawerBuffers;
-    std::unordered_map<int, RoomNameBatchIntermediate> roomNameBatches;
+    BatchedRoomNames roomNameBatches;
 
 private:
     void virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const final;
 };
 
-static void resolveDoorLabelCollisions(const FontMetrics &font, std::vector<DoorLabel> &labels)
-{
-    if (labels.size() < 2) {
-        return;
-    }
-
-    struct LabelBox
-    {
-        DoorLabel *label;
-        utils::Rect box;
-        glm::vec3 anchor;
-        float width;
-        float height;
-        float descent;
-
-        void updateBox()
-        {
-            box.lo = glm::ivec2(utils::round_ftoi(label->text.pos.x * 100.f - width / 2.f),
-                                utils::round_ftoi(label->text.pos.y * 100.f - height / 2.f
-                                                  + descent));
-            box.hi = box.lo + glm::ivec2(utils::round_ftoi(width), utils::round_ftoi(height));
-        }
-    };
-
-    std::vector<LabelBox> boxes;
-    boxes.reserve(labels.size());
-
-    for (auto &label : labels) {
-        const float width = static_cast<float>(font.measureWidth(label.text.text));
-        const float height = static_cast<float>(font.common.lineHeight);
-        const float descent = static_cast<float>(font.common.lineHeight - font.common.base);
-
-        LabelBox lb{&label, {}, label.text.pos, width, height, descent};
-        lb.updateBox();
-        boxes.push_back(lb);
-    }
-
-    // Sort by anchor X for broad-phase pruning
-    std::sort(boxes.begin(), boxes.end(), [](const LabelBox &a, const LabelBox &b) {
-        return a.anchor.x < b.anchor.x;
-    });
-
-    static constexpr int ITERATIONS = 100;
-    static constexpr float SPRING_K = 0.05f;
-    static constexpr float REPULSION_K = 0.5f;
-    static constexpr float MAX_DISPLACEMENT = 0.5f;
-    static constexpr float X_THRESHOLD = 5.0f; // 5.0 room units is plenty for pruning
-
-    for (int i = 0; i < ITERATIONS; ++i) {
-        bool changed = false;
-        for (size_t j = 0; j < boxes.size(); ++j) {
-            glm::vec2 force(0.f);
-
-            // Repulsion broad-phase pruning using sorted X coordinates
-            auto checkNeighbor = [&](const size_t k) {
-                if (utils::intersects(boxes[j].box, boxes[k].box)) {
-                    glm::vec2 diff = glm::vec2(boxes[j].label->text.pos)
-                                     - glm::vec2(boxes[k].label->text.pos);
-                    if (glm::length(diff) < 1e-4f) {
-                        diff = glm::vec2(0.f, 1.f);
-                    }
-                    force += glm::normalize(diff) * REPULSION_K;
-                }
-            };
-
-            // Check neighbors backwards
-            for (size_t k = j; k > 0;) {
-                --k;
-                if (boxes[j].anchor.x - boxes[k].anchor.x > X_THRESHOLD) {
-                    break;
-                }
-                checkNeighbor(k);
-            }
-            // Check neighbors forwards
-            for (size_t k = j + 1; k < boxes.size(); ++k) {
-                if (boxes[k].anchor.x - boxes[j].anchor.x > X_THRESHOLD) {
-                    break;
-                }
-                checkNeighbor(k);
-            }
-
-            // Spring force to anchor
-            const glm::vec2 toAnchor = glm::vec2(boxes[j].anchor) - glm::vec2(boxes[j].label->text.pos);
-            force += toAnchor * SPRING_K;
-
-            if (glm::length(force) > 1e-4f) {
-                if (glm::length(force) > MAX_DISPLACEMENT) {
-                    force = glm::normalize(force) * MAX_DISPLACEMENT;
-                }
-                boxes[j].label->text.pos += glm::vec3(force, 0.f);
-                boxes[j].updateBox();
-                changed = true;
-            }
-        }
-        if (!changed) {
-            break;
-        }
-    }
-}
 
 static void generateAllLayerMeshes(InternalData &internalData,
-                                   const FontMetrics &font,
+                                   const FontMetrics & /* font */,
                                    const LayerToRooms &layerToRooms,
                                    const mctp::MapCanvasTexturesProxy &textures,
                                    const VisitRoomOptions &visitRoomOptions)
@@ -1044,8 +945,7 @@ static void generateAllLayerMeshes(InternalData &internalData,
 
         {
             DECL_TIMER(t8, "generateAllLayerMeshes.loop.part4");
-            resolveDoorLabelCollisions(font, rnb.getLabels());
-            roomNameBatches[thisLayer] = rnb.getIntermediate(font);
+            roomNameBatches[thisLayer] = std::move(rnb.getLabels());
         }
     }
 }
@@ -1186,7 +1086,7 @@ void LayerMeshes::render(const int thisLayer, const int focusedLayer)
     }
 }
 
-void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const
+void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont & /* font */) const
 {
     DECL_TIMER(t, "InternalData::virt_finish");
 
@@ -1207,10 +1107,7 @@ void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) con
 
     {
         DECL_TIMER(t2, "InternalData::virt_finish roomNameBatches");
-        for (const auto &kv : roomNameBatches) {
-            const RoomNameBatchIntermediate &rnb = kv.second;
-            output.roomNameBatches[kv.first] = rnb.getMesh(font);
-        }
+        output.roomNameBatches = roomNameBatches;
     }
 }
 

@@ -30,26 +30,19 @@ struct FontMetrics;
 struct NODISCARD DoorLabel final
 {
     GLText text;
+    uint64_t sortId = 0;
+    glm::vec2 sizePixels{0.f};
 
-    explicit DoorLabel(GLText &&text_)
+    explicit DoorLabel(GLText &&text_, const uint64_t sortId_ = 0)
         : text{std::move(text_)}
+        , sortId{sortId_}
     {}
-};
 
-struct NODISCARD RoomNameBatchIntermediate final
-{
-    std::vector<FontVert3d> verts;
-
-    NODISCARD UniqueMesh getMesh(GLFont &gl) const;
-    NODISCARD bool empty() const { return verts.empty(); }
-    void clear() { verts.clear(); }
-
-    template<typename T>
-    static void append(std::vector<T> &v, const std::vector<T> &other)
-    {
-        v.insert(v.end(), other.begin(), other.end());
-    }
-    void append(const std::vector<FontVert3d> &other) { append(verts, other); }
+    template<typename... Args>
+    explicit DoorLabel(const uint64_t sortId_, Args &&...args)
+        : text{std::forward<Args>(args)...}
+        , sortId{sortId_}
+    {}
 };
 
 struct NODISCARD RoomNameBatch final
@@ -70,13 +63,11 @@ public:
     NODISCARD size_t size() const { return m_labels.size(); }
     void clear() { m_labels.clear(); }
     NODISCARD bool empty() const { return m_labels.empty(); }
+    NODISCARD const std::vector<DoorLabel> &getLabels() const { return m_labels; }
     NODISCARD std::vector<DoorLabel> &getLabels() { return m_labels; }
-
-public:
-    NODISCARD RoomNameBatchIntermediate getIntermediate(const FontMetrics &font) const;
 };
 
-using BatchedRoomNames = std::unordered_map<int, UniqueMesh>;
+using BatchedRoomNames = std::unordered_map<int, std::vector<DoorLabel>>;
 
 struct NODISCARD ConnectionDrawerColorBuffer final
 {

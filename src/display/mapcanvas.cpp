@@ -1329,7 +1329,7 @@ void MapCanvas::paintDynamicDoorLabels()
     const float springK = 0.05f;
     const float repulsionK = 2.0f;
     const float maxDisplacement = 5.0f; // pixels
-    const float xThreshold = 200.0f;    // pixels
+    const float xThreshold = 500.0f;    // pixels
 
     bool globalChanged = false;
     for (int i = 0; i < iterations; ++i) {
@@ -1379,10 +1379,14 @@ void MapCanvas::paintDynamicDoorLabels()
             break;
     }
 
+    const float physicalHeight = static_cast<float>(height()) * dpr;
+
     std::vector<GLText> texts;
     for (auto &s : states) {
         auto text = s.label->text;
-        text.pos = glm::vec3(s.currentPos, 0.f);
+        // render2dTextImmediate expects origin at upper left in physical pixels.
+        // project() returns origin at lower left.
+        text.pos = glm::vec3(s.currentPos.x, physicalHeight - s.currentPos.y, 0.f);
         texts.push_back(text);
 
         // Update persistent state

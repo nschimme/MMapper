@@ -21,9 +21,14 @@ public:
 
 public:
     bool nativeEventFilter(const QByteArray &eventType, void *message, qintptr *result) override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
     void applyTheme();
     void applyDarkPalette();
     void applyLightPalette();
+
+    void updateAllWindows();
+    void applyThemeToWindow(QWidget *widget);
+    NODISCARD bool isDarkMode() const;
 };

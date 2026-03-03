@@ -15,6 +15,7 @@
 #endif
 
 #ifdef Q_OS_WIN
+#include <dwmapi.h>
 #include <windows.h>
 #endif
 
@@ -23,11 +24,12 @@ ThemeManager::ThemeManager(QObject *const parent)
 {
     setConfig().general.registerChangeCallback(m_lifetime, [this]() { applyTheme(); });
 
-#if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Windows) {
         qApp->installNativeEventFilter(this);
+        qApp->installEventFilter(this);
     }
-#else
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     connect(qApp->styleHints(), &QStyleHints::colorSchemeChanged, this, [this](Qt::ColorScheme) {
         if (getConfig().general.getTheme() == ThemeEnum::System) {
             applyTheme();
@@ -40,11 +42,10 @@ ThemeManager::ThemeManager(QObject *const parent)
 
 ThemeManager::~ThemeManager()
 {
-#if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Windows) {
         qApp->removeNativeEventFilter(this);
+        qApp->removeEventFilter(this);
     }
-#endif
 }
 
 bool ThemeManager::nativeEventFilter(const QByteArray &eventType,
@@ -70,35 +71,28 @@ bool ThemeManager::nativeEventFilter(const QByteArray &eventType,
     return false;
 }
 
+bool ThemeManager::eventFilter(QObject *watched, QEvent *event)
+{
+#ifdef Q_OS_WIN
+    if (event->type() == QEvent::Show || event->type() == QEvent::WinIdChange) {
+        QWidget *widget = qobject_cast<QWidget *>(watched);
+        if (widget && widget->isWindow()) {
+            applyThemeToWindow(widget);
+        }
+    }
+#else
+    std::ignore = watched;
+    std::ignore = event;
+#endif
+    return false;
+}
+
 void ThemeManager::applyTheme()
 {
     const auto theme = getConfig().general.getTheme();
     if (theme == ThemeEnum::System) {
 #if QT_VERSION < QT_VERSION_CHECK(6, 5, 0) && defined(Q_OS_WIN)
-        const bool isDarkMode = std::invoke([]() {
-            DWORD value = 1; // Default to light mode
-            HKEY hKey;
-            if (RegOpenKeyExW(HKEY_CURRENT_USER,
-                              L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
-                              0,
-                              KEY_READ,
-                              &hKey)
-                == ERROR_SUCCESS) {
-                DWORD dataSize = sizeof(value);
-                if (RegQueryValueExW(hKey,
-                                     L"AppsUseLightTheme",
-                                     nullptr,
-                                     nullptr,
-                                     reinterpret_cast<LPBYTE>(&value),
-                                     &dataSize)
-                    == ERROR_SUCCESS) {
-                    RegCloseKey(hKey);
-                    return value == 0; // 0 means dark mode
-                }
-                RegCloseKey(hKey);
-            }
-        });
-        if (isDark()) {
+        if (isDarkMode()) {
             applyDarkPalette();
         } else {
             qApp->setPalette(QPalette());
@@ -113,6 +107,73 @@ void ThemeManager::applyTheme()
     } else {
         applyLightPalette();
     }
+
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Windows) {
+        updateAllWindows();
+    }
+}
+
+void ThemeManager::updateAllWindows()
+{
+    for (QWidget *widget : QApplication::topLevelWidgets()) {
+        applyThemeToWindow(widget);
+    }
+}
+
+void ThemeManager::applyThemeToWindow(QWidget *widget)
+{
+#ifdef Q_OS_WIN
+    if (widget && widget->isWindow()) {
+        HWND hwnd = reinterpret_cast<HWND>(widget->winId());
+        const DWORD DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+        BOOL useDark = isDarkMode() ? TRUE : FALSE;
+        DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &useDark, sizeof(useDark));
+    }
+#else
+    std::ignore = widget;
+#endif
+}
+
+bool ThemeManager::isDarkMode() const
+{
+    const auto theme = getConfig().general.getTheme();
+    if (theme == ThemeEnum::Dark) {
+        return true;
+    }
+    if (theme == ThemeEnum::Light) {
+        return false;
+    }
+
+#ifdef Q_OS_WIN
+    DWORD value = 1; // Default to light mode
+    HKEY hKey;
+    if (RegOpenKeyExW(HKEY_CURRENT_USER,
+                      L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+                      0,
+                      KEY_READ,
+                      &hKey)
+        == ERROR_SUCCESS) {
+        DWORD dataSize = sizeof(value);
+        if (RegQueryValueExW(hKey,
+                             L"AppsUseLightTheme",
+                             nullptr,
+                             nullptr,
+                             reinterpret_cast<LPBYTE>(&value),
+                             &dataSize)
+            == ERROR_SUCCESS) {
+            RegCloseKey(hKey);
+            return value == 0; // 0 means dark mode
+        }
+        RegCloseKey(hKey);
+    }
+    return false;
+#else
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+    return qApp->styleHints()->colorScheme() == Qt::ColorScheme::Dark;
+#else
+    return qApp->palette().windowText().color().value() > qApp->palette().window().color().value();
+#endif
+#endif
 }
 
 void ThemeManager::applyDarkPalette()

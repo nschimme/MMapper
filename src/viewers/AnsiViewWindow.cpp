@@ -34,7 +34,9 @@ AnsiViewWindow::AnsiViewWindow(const QString &program,
     view.setOpenExternalLinks(false);
     view.setTextInteractionFlags(Qt::TextBrowserInteraction);
 
-    connect(&view, &QTextBrowser::anchorClicked, [](const QUrl &url) { QDesktopServices::openUrl(url); });
+    connect(&view, &QTextBrowser::anchorClicked, [](const QUrl &url) {
+        QDesktopServices::openUrl(url);
+    });
 
     // REVISIT: Restore geometry from config?
     setGeometry(QStyle::alignedRect(Qt::LeftToRight,

@@ -290,6 +290,14 @@ MainWindow::MainWindow()
         setWindowFlags(windowFlags() | Qt::WindowStaysOnTopHint);
     }
 
+    connect(m_mapData,
+            &MapData::sig_checkMapConsistency,
+            this,
+            &MainWindow::slot_checkMapConsistency);
+    connect(m_mapData, &MapData::sig_generateBaseMap, this, &MainWindow::slot_generateBaseMap);
+
+    readSettings();
+
     showStatusBarAct->setChecked(getConfig().general.showStatusBar);
     slot_setShowStatusBar();
 
@@ -301,13 +309,7 @@ MainWindow::MainWindow()
         slot_setShowMenuBar();
     }
 
-    connect(m_mapData,
-            &MapData::sig_checkMapConsistency,
-            this,
-            &MainWindow::slot_checkMapConsistency);
-    connect(m_mapData, &MapData::sig_generateBaseMap, this, &MainWindow::slot_generateBaseMap);
-
-    readSettings();
+    show();
 }
 
 void MainWindow::startServices()
@@ -372,12 +374,13 @@ void MainWindow::readSettings()
                                         size(),
                                         qApp->primaryScreen()->availableGeometry()));
 
+        setConfig().general.firstRun = false;
     } else {
-        if (!restoreState(settings.windowState)) {
-            qWarning() << "Unable to restore toolbars and dockwidgets state";
-        }
         if (!restoreGeometry(settings.windowGeometry)) {
             qWarning() << "Unable to restore window geometry";
+        }
+        if (!restoreState(settings.windowState)) {
+            qWarning() << "Unable to restore toolbars and dockwidgets state";
         }
         raise();
 
@@ -389,7 +392,9 @@ void MainWindow::readSettings()
 void MainWindow::writeSettings()
 {
     auto &savedConfig = setConfig().general;
-    savedConfig.windowGeometry = saveGeometry();
+    if (!isMinimized()) {
+        savedConfig.windowGeometry = saveGeometry();
+    }
     savedConfig.windowState = saveState();
 }
 
@@ -1313,7 +1318,6 @@ void MainWindow::slot_setShowStatusBar()
     const bool showStatusBar = this->showStatusBarAct->isChecked();
     statusBar()->setVisible(showStatusBar);
     setConfig().general.showStatusBar = showStatusBar;
-    show();
 }
 
 void MainWindow::slot_setShowScrollBars()
@@ -1321,14 +1325,12 @@ void MainWindow::slot_setShowScrollBars()
     const bool showScrollBars = this->showScrollBarsAct->isChecked();
     setConfig().general.showScrollBars = showScrollBars;
     m_mapWindow->updateScrollBars();
-    show();
 }
 
 void MainWindow::slot_setShowMenuBar()
 {
     const bool showMenuBar = this->showMenuBarAct->isChecked();
     setConfig().general.showMenuBar = showMenuBar;
-    show();
 
     m_dockDialogAdventure->setMouseTracking(!showMenuBar);
     m_dockDialogClient->setMouseTracking(!showMenuBar);

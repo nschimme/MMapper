@@ -8,6 +8,7 @@
 
 #include <QApplication>
 #include <QPalette>
+#include <QStyle>
 #include <QStyleHints>
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
@@ -96,11 +97,15 @@ void ThemeManager::applyTheme()
             applyDarkPalette();
         } else {
             qApp->setPalette(QPalette());
-            qApp->setStyle("Fusion");
+            if (qApp->style()->objectName().toLower() != "fusion") {
+                qApp->setStyle("Fusion");
+            }
         }
 #else
         qApp->setPalette(QPalette());
-        qApp->setStyle("Fusion");
+        if (qApp->style()->objectName().toLower() != "fusion") {
+            qApp->setStyle("Fusion");
+        }
 #endif
     } else if (theme == ThemeEnum::Dark) {
         applyDarkPalette();
@@ -128,6 +133,15 @@ void ThemeManager::applyThemeToWindow(QWidget *widget)
         const DWORD DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
         BOOL useDark = isDarkMode() ? TRUE : FALSE;
         DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &useDark, sizeof(useDark));
+
+        // Trigger a frame change to refresh the title bar
+        SetWindowPos(hwnd,
+                     nullptr,
+                     0,
+                     0,
+                     0,
+                     0,
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
     }
 #else
     std::ignore = widget;
@@ -195,7 +209,9 @@ void ThemeManager::applyDarkPalette()
     dark.setColor(QPalette::Disabled, QPalette::ButtonText, Qt::darkGray);
 
     qApp->setPalette(dark);
-    qApp->setStyle("Fusion");
+    if (qApp->style()->objectName().toLower() != "fusion") {
+        qApp->setStyle("Fusion");
+    }
 }
 
 void ThemeManager::applyLightPalette()
@@ -217,5 +233,7 @@ void ThemeManager::applyLightPalette()
     light.setColor(QPalette::Disabled, QPalette::ButtonText, Qt::gray);
 
     qApp->setPalette(light);
-    qApp->setStyle("Fusion");
+    if (qApp->style()->objectName().toLower() != "fusion") {
+        qApp->setStyle("Fusion");
+    }
 }

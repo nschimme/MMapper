@@ -8,6 +8,8 @@
 #include <QAbstractNativeEventFilter>
 #include <QObject>
 
+class QWindow;
+
 class NODISCARD_QOBJECT ThemeManager final : public QObject, public QAbstractNativeEventFilter
 {
     Q_OBJECT
@@ -29,6 +31,6 @@ private:
     void applyLightPalette();
 
     void updateAllWindows();
-    void applyThemeToWindow(QWidget *widget);
+    void applyThemeToWindow(QWindow *window);
     NODISCARD bool isDarkMode() const;
 };

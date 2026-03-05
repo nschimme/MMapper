@@ -8,6 +8,7 @@
 
 #include <QApplication>
 #include <QMenuBar>
+#include <QMessageBox>
 #include <QPalette>
 #include <QStyle>
 #include <QStyleHints>
@@ -92,10 +93,25 @@ bool ThemeManager::eventFilter(QObject *watched, QEvent *event)
 
 void ThemeManager::applyTheme()
 {
-    const auto theme = getConfig().general.getTheme();
-    if (theme == ThemeEnum::System) {
+    const auto themeSetting = getConfig().general.getTheme();
+    const bool darkMode = isDarkMode();
+
+    if (m_initialized && CURRENT_PLATFORM == PlatformEnum::Windows) {
+        if (themeSetting != m_appliedThemeSetting || darkMode != m_appliedDarkMode) {
+            QMessageBox::information(QApplication::activeWindow(),
+                                     tr("Theme Change"),
+                                     tr("Please restart MMapper for the theme changes to take "
+                                        "effect completely."));
+        }
+        return;
+    }
+
+    m_appliedThemeSetting = themeSetting;
+    m_appliedDarkMode = darkMode;
+
+    if (themeSetting == ThemeEnum::System) {
 #if QT_VERSION < QT_VERSION_CHECK(6, 5, 0) && defined(Q_OS_WIN)
-        if (isDarkMode()) {
+        if (darkMode) {
             applyDarkPalette();
         } else {
             qApp->setPalette(QPalette());
@@ -109,7 +125,7 @@ void ThemeManager::applyTheme()
             qApp->setStyle("Fusion");
         }
 #endif
-    } else if (theme == ThemeEnum::Dark) {
+    } else if (themeSetting == ThemeEnum::Dark) {
         applyDarkPalette();
     } else {
         applyLightPalette();
@@ -130,6 +146,8 @@ void ThemeManager::applyTheme()
     for (QWindow *window : QGuiApplication::allWindows()) {
         window->requestUpdate();
     }
+
+    m_initialized = true;
 }
 
 void ThemeManager::updateAllWindows()

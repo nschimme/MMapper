@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2025 The MMapper Authors
 
+#include "../global/ConfigEnums.h"
 #include "../global/Signal2.h"
 #include "../global/macros.h"
 
@@ -16,6 +17,9 @@ class NODISCARD_QOBJECT ThemeManager final : public QObject, public QAbstractNat
 
 private:
     Signal2Lifetime m_lifetime;
+    ThemeEnum m_appliedThemeSetting = ThemeEnum::Unknown;
+    bool m_appliedDarkMode = false;
+    bool m_initialized = false;
 
 public:
     explicit ThemeManager(QObject *parent = nullptr);

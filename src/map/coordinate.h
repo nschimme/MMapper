@@ -146,6 +146,40 @@ public:
     bool operator>=(const Coordinate &rhs) const;
 };
 
+struct NODISCARD ChunkId final
+{
+    int x = 0;
+    int y = 0;
+
+    NODISCARD bool operator==(const ChunkId &other) const { return x == other.x && y == other.y; }
+    NODISCARD bool operator!=(const ChunkId &other) const { return !(*this == other); }
+    NODISCARD bool operator<(const ChunkId &other) const
+    {
+        if (x != other.x) {
+            return x < other.x;
+        }
+        return y < other.y;
+    }
+
+    static constexpr int SIZE = 32;
+
+    NODISCARD static ChunkId fromCoordinate(const Coordinate &c)
+    {
+        return ChunkId{utils::floor_div(c.x, SIZE), utils::floor_div(c.y, SIZE)};
+    }
+};
+
+template<>
+struct std::hash<ChunkId>
+{
+    std::size_t operator()(const ChunkId &id) const noexcept
+    {
+        const auto hx = numeric_hash(id.x);
+        const auto hy = numeric_hash(id.y);
+        return hx ^ utils::rotate_bits64<32>(hy);
+    }
+};
+
 template<>
 struct std::hash<Coordinate>
 {

@@ -232,6 +232,11 @@ void MapFrontend::setCurrentMap(Map map)
 {
     // Always update everything when the map is changed like this.
     setCurrentMap(MapApplyResult{std::move(map)});
+
+    // Chunks will be marked as dirty by the consumer (e.g. MapCanvas)
+    // if it needs a full rebuild.
+    m_dirtyChunks.clear();
+
     m_history.clearAll();
     emitUndoRedoAvailability();
 }
@@ -261,6 +266,85 @@ bool MapFrontend::applyChangesInternal(
     return true;
 }
 
+namespace {
+struct DirtyChunkVisitor
+{
+    const Map &oldMap;
+    const Map &newMap;
+    std::set<ChunkId> &dirty;
+
+    void mark(RoomId id)
+    {
+        if (id == INVALID_ROOMID)
+            return;
+        if (auto h = oldMap.findRoomHandle(id))
+            dirty.insert(ChunkId::fromCoordinate(h.getPosition()));
+        if (auto h = newMap.findRoomHandle(id))
+            dirty.insert(ChunkId::fromCoordinate(h.getPosition()));
+    }
+
+    void operator()(const world_change_types::CompactRoomIds &)
+    {
+        newMap.getRooms().for_each([&](const RoomId id) {
+            dirty.insert(ChunkId::fromCoordinate(newMap.getRoomHandle(id).getPosition()));
+        });
+    }
+    void operator()(const world_change_types::RemoveAllDoorNames &)
+    {
+        newMap.getRooms().for_each([&](const RoomId id) {
+            dirty.insert(ChunkId::fromCoordinate(newMap.getRoomHandle(id).getPosition()));
+        });
+    }
+    void operator()(const world_change_types::GenerateBaseMap &)
+    {
+        newMap.getRooms().for_each([&](const RoomId id) {
+            dirty.insert(ChunkId::fromCoordinate(newMap.getRoomHandle(id).getPosition()));
+        });
+    }
+
+    void operator()(const room_change_types::AddPermanentRoom &c)
+    {
+        dirty.insert(ChunkId::fromCoordinate(c.position));
+    }
+    void operator()(const room_change_types::AddRoom2 &c)
+    {
+        dirty.insert(ChunkId::fromCoordinate(c.position));
+    }
+    void operator()(const room_change_types::RemoveRoom &c) { mark(c.room); }
+    void operator()(const room_change_types::UndeleteRoom &c)
+    {
+        dirty.insert(ChunkId::fromCoordinate(c.raw.position));
+    }
+    void operator()(const room_change_types::MakePermanent &c) { mark(c.room); }
+    void operator()(const room_change_types::Update &c) { mark(c.room); }
+    void operator()(const room_change_types::SetServerId &c) { mark(c.room); }
+    void operator()(const room_change_types::MoveRelative &c) { mark(c.room); }
+    void operator()(const room_change_types::MoveRelative2 &c)
+    {
+        for (const RoomId id : c.rooms)
+            mark(id);
+    }
+    void operator()(const room_change_types::MergeRelative &c) { mark(c.room); }
+    void operator()(const room_change_types::ModifyRoomFlags &c) { mark(c.room); }
+    void operator()(const room_change_types::TryMoveCloseTo &c) { mark(c.room); }
+
+    void operator()(const exit_change_types::ModifyExitConnection &c)
+    {
+        mark(c.room);
+        mark(c.to);
+    }
+    void operator()(const exit_change_types::ModifyExitFlags &c) { mark(c.room); }
+    void operator()(const exit_change_types::NukeExit &c) { mark(c.room); }
+    void operator()(const exit_change_types::SetExitFlags &c) { mark(c.room); }
+    void operator()(const exit_change_types::SetDoorFlags &c) { mark(c.room); }
+    void operator()(const exit_change_types::SetDoorName &c) { mark(c.room); }
+
+    void operator()(const infomark_change_types::AddInfomark &) {}
+    void operator()(const infomark_change_types::UpdateInfomark &) {}
+    void operator()(const infomark_change_types::RemoveInfomark &) {}
+};
+} // namespace
+
 bool MapFrontend::applySingleChange(ProgressCounter &pc, const Change &change)
 {
     if (IS_DEBUG_BUILD) {
@@ -268,9 +352,14 @@ bool MapFrontend::applySingleChange(ProgressCounter &pc, const Change &change)
         log << "[MapFrontend::applySingleChange] ";
         getCurrentMap().printChange(log, change);
     }
-    return applyChangesInternal(pc, [&](Map &map, ProgressCounter &counter) {
+    Map prev = m_current.map;
+    bool success = applyChangesInternal(pc, [&](Map &map, ProgressCounter &counter) {
         return map.applySingleChange(counter, change);
     });
+    if (success) {
+        change.acceptVisitor(DirtyChunkVisitor{prev, m_current.map, m_dirtyChunks});
+    }
+    return success;
 }
 
 bool MapFrontend::applySingleChange(const Change &change)
@@ -286,9 +375,17 @@ bool MapFrontend::applyChanges(ProgressCounter &pc, const ChangeList &changes)
         log << "[MapFrontend::applyChanges] ";
         getCurrentMap().printChanges(log, changes.getChanges(), "\n");
     }
-    return applyChangesInternal(pc, [&](Map &map, ProgressCounter &counter) {
+    Map prev = m_current.map;
+    bool success = applyChangesInternal(pc, [&](Map &map, ProgressCounter &counter) {
         return map.apply(counter, changes);
     });
+    if (success) {
+        DirtyChunkVisitor visitor{prev, m_current.map, m_dirtyChunks};
+        for (const auto &change : changes.getChanges()) {
+            change.acceptVisitor(visitor);
+        }
+    }
+    return success;
 }
 
 bool MapFrontend::applyChanges(const ChangeList &changes)

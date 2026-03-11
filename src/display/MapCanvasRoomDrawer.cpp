@@ -883,22 +883,27 @@ NODISCARD static LayerMeshesIntermediate generateLayerMeshes(
     return data.buildIntermediate();
 }
 
+struct NODISCARD ChunkIntermediate final
+{
+    std::map<int, LayerMeshesIntermediate> layers;
+    std::unordered_map<int, ConnectionDrawerBuffers> connectionDrawerBuffers;
+    std::unordered_map<int, RoomNameBatchIntermediate> roomNameBatches;
+};
+
 struct NODISCARD InternalData final : public IMapBatchesFinisher
 {
 public:
-    std::unordered_map<int, LayerMeshesIntermediate> batchedMeshes;
-    BatchedConnections connectionDrawerBuffers;
-    std::unordered_map<int, RoomNameBatchIntermediate> roomNameBatches;
+    std::unordered_map<ChunkId, ChunkIntermediate> dirtyChunks;
 
 private:
     void virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const final;
 };
 
-static void generateAllLayerMeshes(InternalData &internalData,
-                                   const FontMetrics &font,
-                                   const LayerToRooms &layerToRooms,
-                                   const mctp::MapCanvasTexturesProxy &textures,
-                                   const VisitRoomOptions &visitRoomOptions)
+static void generateDirtyChunks(InternalData &internalData,
+                                const FontMetrics &font,
+                                const ChunkToLayerToRooms &chunkToLayerToRooms,
+                                const mctp::MapCanvasTexturesProxy &textures,
+                                const VisitRoomOptions &visitRoomOptions)
 
 {
     // This feature has been removed, but it's passed to a lot of functions,
@@ -906,44 +911,47 @@ static void generateAllLayerMeshes(InternalData &internalData,
     // actually necessary.
     const OptBounds bounds{};
 
-    DECL_TIMER(t, "generateAllLayerMeshes");
-    auto &batchedMeshes = internalData.batchedMeshes;
-    auto &connectionDrawerBuffers = internalData.connectionDrawerBuffers;
-    auto &roomNameBatches = internalData.roomNameBatches;
+    DECL_TIMER(t, "generateAllChunks");
 
-    for (const auto &layer : layerToRooms) {
-        DECL_TIMER(t2, "generateAllLayerMeshes.loop");
-        const int thisLayer = layer.first;
-        auto &layerMeshes = batchedMeshes[thisLayer];
-        ConnectionDrawerBuffers &cdb = connectionDrawerBuffers[thisLayer];
-        RoomNameBatch rnb;
-        const auto &rooms = layer.second;
+    for (const auto &chunkEntry : chunkToLayerToRooms) {
+        const ChunkId chunkId = chunkEntry.first;
+        const LayerToRooms &layerToRooms = chunkEntry.second;
+        auto &chunkData = internalData.dirtyChunks[chunkId];
 
-        {
-            DECL_TIMER(t3, "generateAllLayerMeshes.loop.part2");
-            layerMeshes = ::generateLayerMeshes(rooms, textures, bounds, visitRoomOptions);
-        }
+        for (const auto &layer : layerToRooms) {
+            DECL_TIMER(t2, "generateAllChunks.loop");
+            const int thisLayer = layer.first;
+            auto &layerMeshes = chunkData.layers[thisLayer];
+            ConnectionDrawerBuffers &cdb = chunkData.connectionDrawerBuffers[thisLayer];
+            RoomNameBatch rnb;
+            const auto &rooms = layer.second;
 
-        {
-            DECL_TIMER(t4, "generateAllLayerMeshes.loop.part3");
-
-            // TODO: move everything in the same layer to the same internal struct?
-            cdb.clear();
-            rnb.clear();
-
-            ConnectionDrawer cd{cdb, rnb, thisLayer, bounds};
             {
-                DECL_TIMER(t7, "generateAllLayerMeshes.loop.part3b");
-                // pass 2: add to buffers
-                for (const auto &room : rooms) {
-                    cd.drawRoomConnectionsAndDoors(room);
+                DECL_TIMER(t3, "generateAllChunks.loop.part2");
+                layerMeshes = ::generateLayerMeshes(rooms, textures, bounds, visitRoomOptions);
+            }
+
+            {
+                DECL_TIMER(t4, "generateAllChunks.loop.part3");
+
+                // TODO: move everything in the same layer to the same internal struct?
+                cdb.clear();
+                rnb.clear();
+
+                ConnectionDrawer cd{cdb, rnb, thisLayer, bounds};
+                {
+                    DECL_TIMER(t7, "generateAllChunks.loop.part3b");
+                    // pass 2: add to buffers
+                    for (const auto &room : rooms) {
+                        cd.drawRoomConnectionsAndDoors(room);
+                    }
                 }
             }
-        }
 
-        {
-            DECL_TIMER(t8, "generateAllLayerMeshes.loop.part4");
-            roomNameBatches[thisLayer] = rnb.getIntermediate(font);
+            {
+                DECL_TIMER(t8, "generateAllChunks.loop.part4");
+                chunkData.roomNameBatches[thisLayer] = rnb.getIntermediate(font);
+            }
         }
     }
 }
@@ -1004,75 +1012,81 @@ LayerMeshes LayerMeshesIntermediate::getLayerMeshes(OpenGL &gl) const
     return lm;
 }
 
-void LayerMeshes::render(const int thisLayer, const int focusedLayer)
+void LayerMeshes::renderTerrain(const int thisLayer, const int focusedLayer) const
 {
-    // Disable texturing for this layer. We want to draw
-    // all of the squares in white (using layer boost quads),
-    // and then still draw the walls.
     const bool disableTextures = (thisLayer > focusedLayer)
                                  && !getConfig().canvas.drawUpperLayersTextured;
-
-    const GLRenderState defaultState;
-    const GLRenderState less = defaultState.withDepthFunction(DepthFunctionEnum::LESS);
-    const GLRenderState equal = defaultState.withDepthFunction(DepthFunctionEnum::EQUAL);
-    const GLRenderState lequal = defaultState.withDepthFunction(DepthFunctionEnum::LEQUAL);
-
-    const GLRenderState less_blended = less.withBlend(BlendModeEnum::TRANSPARENCY);
-    const GLRenderState lequal_blended = lequal.withBlend(BlendModeEnum::TRANSPARENCY);
-    const GLRenderState equal_blended = equal.withBlend(BlendModeEnum::TRANSPARENCY);
-    const GLRenderState equal_multiplied = equal.withBlend(BlendModeEnum::MODULATE);
-
+    const GLRenderState less_blended = GLRenderState()
+                                           .withDepthFunction(DepthFunctionEnum::LESS)
+                                           .withBlend(BlendModeEnum::TRANSPARENCY);
     const auto color = (thisLayer <= focusedLayer) ? Colors::white.withAlpha(0.90f)
                                                    : Colors::gray70.withAlpha(0.20f);
 
-    {
-        /* REVISIT: For the modern case, we could render each layer separately,
-         * and then only blend the layers that actually overlap. Doing that would
-         * give higher contrast for the base textures.
-         */
-        if (disableTextures) {
-            const auto layerWhite = Colors::white.withAlpha(0.20f);
-            layerBoost.render(less_blended.withColor(layerWhite));
-        } else {
-            terrain.render(less_blended.withColor(color));
-        }
+    if (disableTextures) {
+        const auto layerWhite = Colors::white.withAlpha(0.20f);
+        layerBoost.render(less_blended.withColor(layerWhite));
+    } else {
+        terrain.render(less_blended.withColor(color));
     }
+}
 
-    // REVISIT: move trails to their own batch also colored by the tint?
+void LayerMeshes::renderTints() const
+{
+    const GLRenderState equal_multiplied = GLRenderState()
+                                               .withDepthFunction(DepthFunctionEnum::EQUAL)
+                                               .withBlend(BlendModeEnum::MODULATE);
     for (const RoomTintEnum tint : ALL_ROOM_TINTS) {
-        static_assert(NUM_ROOM_TINTS == 2);
         if (const UniqueMesh &mesh = tints[tint]) {
             mesh.render(equal_multiplied);
         }
     }
+}
 
-    if (!disableTextures) {
-        // streams go under everything else, including trails
-        {
-            const Color streamColor = XNamedColor{NamedColorEnum::STREAM}.getColor();
-            const auto combined = Color::multiplyAsVec4(streamColor, color);
-            streamIns.render(lequal_blended.withColor(combined));
-            streamOuts.render(lequal_blended.withColor(combined));
-        }
-
-        trails.render(equal_blended.withColor(color));
-        overlays.render(equal_blended.withColor(color));
+void LayerMeshes::renderDetails(const int thisLayer, const int focusedLayer) const
+{
+    const bool disableTextures = (thisLayer > focusedLayer)
+                                 && !getConfig().canvas.drawUpperLayersTextured;
+    if (disableTextures) {
+        return;
     }
 
-    // always
-    {
-        // doors and walls are considered lines, even though they're drawn with textures.
-        upDownExits.render(equal_blended.withColor(color));
+    const GLRenderState lequal_blended = GLRenderState()
+                                             .withDepthFunction(DepthFunctionEnum::LEQUAL)
+                                             .withBlend(BlendModeEnum::TRANSPARENCY);
+    const GLRenderState equal_blended = GLRenderState()
+                                            .withDepthFunction(DepthFunctionEnum::EQUAL)
+                                            .withBlend(BlendModeEnum::TRANSPARENCY);
+    const auto color = (thisLayer <= focusedLayer) ? Colors::white.withAlpha(0.90f)
+                                                   : Colors::gray70.withAlpha(0.20f);
 
-        // Doors are drawn on top of the up-down exits
-        doors.render(lequal_blended.withColor(color));
-        // and walls are drawn on top of doors.
-        walls.render(lequal_blended.withColor(color));
-        dottedWalls.render(lequal_blended.withColor(color));
-    }
+    const Color streamColor = XNamedColor{NamedColorEnum::STREAM}.getColor();
+    const auto combined = Color::multiplyAsVec4(streamColor, color);
+    streamIns.render(lequal_blended.withColor(combined));
+    streamOuts.render(lequal_blended.withColor(combined));
+
+    trails.render(equal_blended.withColor(color));
+    overlays.render(equal_blended.withColor(color));
+}
+
+void LayerMeshes::renderWalls(const int thisLayer, const int focusedLayer) const
+{
+    const GLRenderState lequal_blended = GLRenderState()
+                                             .withDepthFunction(DepthFunctionEnum::LEQUAL)
+                                             .withBlend(BlendModeEnum::TRANSPARENCY);
+    const GLRenderState equal_blended = GLRenderState()
+                                            .withDepthFunction(DepthFunctionEnum::EQUAL)
+                                            .withBlend(BlendModeEnum::TRANSPARENCY);
+    const auto color = (thisLayer <= focusedLayer) ? Colors::white.withAlpha(0.90f)
+                                                   : Colors::gray70.withAlpha(0.20f);
+
+    upDownExits.render(equal_blended.withColor(color));
+    doors.render(lequal_blended.withColor(color));
+    walls.render(lequal_blended.withColor(color));
+    dottedWalls.render(lequal_blended.withColor(color));
 
     if (thisLayer != focusedLayer) {
-        // Darker when below, lighter when above
+        const bool disableTextures = (thisLayer > focusedLayer)
+                                     && !getConfig().canvas.drawUpperLayersTextured;
         const auto baseAlpha = (thisLayer < focusedLayer) ? 0.5f : 0.1f;
         const auto alpha
             = glm::clamp(baseAlpha + 0.03f * static_cast<float>(std::abs(focusedLayer - thisLayer)),
@@ -1084,30 +1098,47 @@ void LayerMeshes::render(const int thisLayer, const int focusedLayer)
     }
 }
 
+void LayerMeshes::render(const int thisLayer, const int focusedLayer) const
+{
+    renderTerrain(thisLayer, focusedLayer);
+    renderTints();
+    renderDetails(thisLayer, focusedLayer);
+    renderWalls(thisLayer, focusedLayer);
+}
+
 void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) const
 {
     DECL_TIMER(t, "InternalData::virt_finish");
 
-    {
-        DECL_TIMER(t2, "InternalData::virt_finish batchedMeshes");
-        for (const auto &kv : batchedMeshes) {
-            const LayerMeshesIntermediate &data = kv.second;
-            output.batchedMeshes[kv.first] = data.getLayerMeshes(gl);
-        }
-    }
-    {
-        DECL_TIMER(t2, "InternalData::virt_finish connectionMeshes");
-        for (const auto &kv : connectionDrawerBuffers) {
-            const ConnectionDrawerBuffers &data = kv.second;
-            output.connectionMeshes[kv.first] = data.getMeshes(gl);
-        }
-    }
+    for (const auto &chunkEntry : dirtyChunks) {
+        const ChunkId chunkId = chunkEntry.first;
+        const ChunkIntermediate &chunkData = chunkEntry.second;
+        auto &outputChunk = output.chunks[chunkId];
+        outputChunk = ChunkMeshes{};
 
-    {
-        DECL_TIMER(t2, "InternalData::virt_finish roomNameBatches");
-        for (const auto &kv : roomNameBatches) {
-            const RoomNameBatchIntermediate &rnb = kv.second;
-            output.roomNameBatches[kv.first] = rnb.getMesh(font);
+        {
+            DECL_TIMER(t2, "InternalData::virt_finish batchedMeshes");
+            for (const auto &kv : chunkData.layers) {
+                const int layer = kv.first;
+                const LayerMeshesIntermediate &data = kv.second;
+                outputChunk.layers[layer] = data.getLayerMeshes(gl);
+                output.allLayers.insert(layer);
+            }
+        }
+        {
+            DECL_TIMER(t2, "InternalData::virt_finish connectionMeshes");
+            for (const auto &kv : chunkData.connectionDrawerBuffers) {
+                const ConnectionDrawerBuffers &data = kv.second;
+                outputChunk.connectionMeshes[kv.first] = data.getMeshes(gl);
+            }
+        }
+
+        {
+            DECL_TIMER(t2, "InternalData::virt_finish roomNameBatches");
+            for (const auto &kv : chunkData.roomNameBatches) {
+                const RoomNameBatchIntermediate &rnb = kv.second;
+                outputChunk.roomNameBatches[kv.first] = rnb.getMesh(font);
+            }
         }
     }
 }
@@ -1115,38 +1146,85 @@ void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) con
 // NOTE: All of the lamda captures are copied, including the texture data!
 FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
                                                      const std::shared_ptr<const FontMetrics> &font,
-                                                     const Map &map)
+                                                     const Map &map,
+                                                     std::set<ChunkId> dirtyChunks_param)
+{
+    const auto visitRoomOptions = getVisitRoomOptions();
+
+    return std::async(
+        std::launch::async,
+        [textures,
+         font,
+         map,
+         visitRoomOptions,
+         dirtyChunks_captured = std::move(dirtyChunks_param)]() mutable -> SharedMapBatchFinisher {
+            ThreadLocalNamedColorRaii tlRaii{visitRoomOptions.canvasColors,
+                                             visitRoomOptions.colorSettings};
+            DECL_TIMER(t, "[ASYNC] generateDirtyChunks (O(N) pass)");
+
+            if (dirtyChunks_captured.empty()) {
+                // Rebuild everything
+                map.getRooms().for_each([&](const RoomId id) {
+                    const auto &r = map.getRoomHandle(id);
+                    dirtyChunks_captured.insert(ChunkId::fromCoordinate(r.getPosition()));
+                });
+            }
+
+            ProgressCounter dummyPc;
+            map.checkConsistency(dummyPc);
+
+            const auto chunkToLayerToRooms = std::invoke(
+                [&map, &dirtyChunks_captured]() -> ChunkToLayerToRooms {
+                    DECL_TIMER(t2, "[ASYNC] generateBatches.chunkToLayerToRooms");
+                    ChunkToLayerToRooms result;
+                    map.getRooms().for_each([&map, &result, &dirtyChunks_captured](const RoomId id) {
+                        const auto &r = map.getRoomHandle(id);
+                        const auto pos = r.getPosition();
+                        const ChunkId chunkId = ChunkId::fromCoordinate(pos);
+                        if (dirtyChunks_captured.count(chunkId)) {
+                            result[chunkId][pos.z].emplace_back(r);
+                        }
+                    });
+                    return result;
+                });
+
+            auto result = std::make_shared<InternalData>();
+            auto &data = deref(result);
+
+            generateDirtyChunks(data, deref(font), chunkToLayerToRooms, textures, visitRoomOptions);
+            return SharedMapBatchFinisher{result};
+        });
+}
+
+FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
+                                                     const std::shared_ptr<const FontMetrics> &font,
+                                                     const Map &map,
+                                                     ChunkToLayerToRooms pregroupedChunks_param)
 {
     const auto visitRoomOptions = getVisitRoomOptions();
 
     return std::async(std::launch::async,
-                      [textures, font, map, visitRoomOptions]() -> SharedMapBatchFinisher {
+                      [textures,
+                       font,
+                       map,
+                       visitRoomOptions,
+                       pregroupedChunks_captured = std::move(
+                           pregroupedChunks_param)]() mutable -> SharedMapBatchFinisher {
                           ThreadLocalNamedColorRaii tlRaii{visitRoomOptions.canvasColors,
                                                            visitRoomOptions.colorSettings};
-                          DECL_TIMER(t, "[ASYNC] generateAllLayerMeshes");
+                          DECL_TIMER(t, "[ASYNC] generateDirtyChunks (O(M) pass)");
 
                           ProgressCounter dummyPc;
                           map.checkConsistency(dummyPc);
 
-                          const auto layerToRooms = std::invoke([map]() -> LayerToRooms {
-                              DECL_TIMER(t2, "[ASYNC] generateBatches.layerToRooms");
-                              LayerToRooms ltr;
-                              map.getRooms().for_each([&map, &ltr](const RoomId id) {
-                                  const auto &r = map.getRoomHandle(id);
-                                  const auto z = r.getPosition().z;
-                                  auto &layer = ltr[z];
-                                  layer.emplace_back(r);
-                              });
-                              return ltr;
-                          });
-
                           auto result = std::make_shared<InternalData>();
                           auto &data = deref(result);
-                          generateAllLayerMeshes(data,
-                                                 deref(font),
-                                                 layerToRooms,
-                                                 textures,
-                                                 visitRoomOptions);
+
+                          generateDirtyChunks(data,
+                                              deref(font),
+                                              pregroupedChunks_captured,
+                                              textures,
+                                              visitRoomOptions);
                           return SharedMapBatchFinisher{result};
                       });
 }

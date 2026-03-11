@@ -33,9 +33,6 @@ class OpenGL;
 class QOpenGLTexture;
 struct MapCanvasTextures;
 
-using RoomVector = std::vector<RoomHandle>;
-using LayerToRooms = std::map<int, RoomVector>;
-
 struct NODISCARD RemeshCookie final
 {
 private:
@@ -120,6 +117,9 @@ public:
 
 struct NODISCARD Batches final
 {
+    std::optional<std::future<ChunkToLayerToRooms>> groupingFuture;
+    ChunkToLayerToRooms pendingGroups;
+
     RemeshCookie remeshCookie;
     std::optional<MapBatches> next_mapBatches;
     std::optional<MapBatches> mapBatches;
@@ -177,7 +177,14 @@ struct NODISCARD Batches final
 NODISCARD FutureSharedMapBatchFinisher
 generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
                         const std::shared_ptr<const FontMetrics> &font,
-                        const Map &map);
+                        const Map &map,
+                        std::set<ChunkId> dirtyChunks);
+
+NODISCARD FutureSharedMapBatchFinisher
+generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
+                        const std::shared_ptr<const FontMetrics> &font,
+                        const Map &map,
+                        ChunkToLayerToRooms pregroupedChunks);
 
 extern void finish(const IMapBatchesFinisher &finisher,
                    std::optional<MapBatches> &batches,

@@ -53,16 +53,6 @@ const char *Functions::getUniformBlockName(const SharedVboEnum block)
     return nullptr;
 }
 
-void Functions::glUniformBlockBinding(const GLuint program, const SharedVboEnum block)
-{
-    virt_glUniformBlockBinding(program, block);
-}
-
-void Functions::glUniformBlockBinding(const Program &program, const SharedVboEnum block)
-{
-    glUniformBlockBinding(program.get(), block);
-}
-
 void Functions::virt_glUniformBlockBinding(const GLuint program, const SharedVboEnum block)
 {
     const char *const block_name = getUniformBlockName(block);

@@ -22,7 +22,7 @@ void RoomSignalHandler::release(const RoomId room)
 
     if (--it_hold_count->second == 0) {
         if (m_owners.contains(room)) {
-            std::ignore = m_map.tryRemoveTemporary(room);
+            std::ignore = m_map.tryRemoveTemporary(room, true);
         } else {
             assert(false);
         }
@@ -50,7 +50,7 @@ void RoomSignalHandler::keep(const RoomId room,
                                                             WaysEnum::OneWay});
     }
 
-    std::ignore = m_map.tryMakePermanent(room);
+    std::ignore = m_map.tryMakePermanent(room, true);
     release(room);
 }
 

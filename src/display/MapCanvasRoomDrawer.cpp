@@ -898,7 +898,8 @@ static void generateAllLayerMeshes(InternalData &internalData,
                                    const FontMetrics &font,
                                    const LayerToRooms &layerToRooms,
                                    const mctp::MapCanvasTexturesProxy &textures,
-                                   const VisitRoomOptions &visitRoomOptions)
+                                   const VisitRoomOptions &visitRoomOptions,
+                                   bool skipRooms)
 
 {
     // This feature has been removed, but it's passed to a lot of functions,
@@ -921,7 +922,9 @@ static void generateAllLayerMeshes(InternalData &internalData,
 
         {
             DECL_TIMER(t3, "generateAllLayerMeshes.loop.part2");
-            layerMeshes = ::generateLayerMeshes(rooms, textures, bounds, visitRoomOptions);
+            if (!skipRooms) {
+                layerMeshes = ::generateLayerMeshes(rooms, textures, bounds, visitRoomOptions);
+            }
         }
 
         {
@@ -1115,12 +1118,13 @@ void InternalData::virt_finish(MapBatches &output, OpenGL &gl, GLFont &font) con
 // NOTE: All of the lamda captures are copied, including the texture data!
 FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTexturesProxy &textures,
                                                      const std::shared_ptr<const FontMetrics> &font,
-                                                     const Map &map)
+                                                     const Map &map,
+                                                     bool skipRooms)
 {
     const auto visitRoomOptions = getVisitRoomOptions();
 
     return std::async(std::launch::async,
-                      [textures, font, map, visitRoomOptions]() -> SharedMapBatchFinisher {
+                      [textures, font, map, visitRoomOptions, skipRooms]() -> SharedMapBatchFinisher {
                           ThreadLocalNamedColorRaii tlRaii{visitRoomOptions.canvasColors,
                                                            visitRoomOptions.colorSettings};
                           DECL_TIMER(t, "[ASYNC] generateAllLayerMeshes");
@@ -1146,7 +1150,8 @@ FutureSharedMapBatchFinisher generateMapDataFinisher(const mctp::MapCanvasTextur
                                                  deref(font),
                                                  layerToRooms,
                                                  textures,
-                                                 visitRoomOptions);
+                                                 visitRoomOptions,
+                                                 skipRooms);
                           return SharedMapBatchFinisher{result};
                       });
 }

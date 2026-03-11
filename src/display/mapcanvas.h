@@ -34,6 +34,7 @@
 #include <QtCore>
 
 class CharacterBatch;
+class RoomDataBuffer;
 class ConnectionSelection;
 class Coordinate;
 class InfomarkSelection;
@@ -86,28 +87,6 @@ private:
                 return std::get<DiffQuadVector>(*this);
             }
             NODISCARD const UniqueMesh &getMesh() const { return std::get<UniqueMesh>(*this); }
-
-            void render(OpenGL &gl, const MMTextureId texId)
-            {
-                if (empty()) {
-                    assert(false);
-                    return;
-                }
-
-                if (hasData()) {
-                    *this = gl.createRoomQuadTexBatch(getData(), texId);
-                    assert(hasMesh());
-                    // REVISIT: rendering immediately after uploading the mesh may lag,
-                    // so consider delaying until the data is already on the GPU.
-                }
-
-                if (!hasMesh()) {
-                    assert(false);
-                    return;
-                }
-                auto &mesh = getMesh();
-                mesh.render(gl.getDefaultRenderState().withBlend(BlendModeEnum::TRANSPARENCY));
-            }
         };
 
         struct NODISCARD HighlightDiff final
@@ -138,9 +117,12 @@ private:
     GLFont m_glFont;
     Batches m_batches;
     MapCanvasTextures m_textures;
+    mutable std::optional<mctp::MapCanvasTexturesProxy> m_texturesProxy;
     MapData &m_data;
     Mmapper2Group &m_groupManager;
     Diff m_diff;
+    std::unique_ptr<RoomDataBuffer> m_roomDataBuffer;
+    Color m_timeOfDayColor = Colors::white;
     FrameRateController m_frameRateController;
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
     Signal2Lifetime m_lifetime;
@@ -173,6 +155,8 @@ public:
 
 public:
     NODISCARD static MapCanvas *getPrimary();
+    NODISCARD const MapCanvasTextures &getTextures() const { return m_textures; }
+    NODISCARD const mctp::MapCanvasTexturesProxy &getTexturesProxy() const;
 
 private:
     NODISCARD inline auto &getOpenGL() { return m_opengl; }
@@ -308,6 +292,11 @@ signals:
     void sig_dismissContextMenu();
 
 public slots:
+    void slot_setTimeOfDayColor(const Color &color)
+    {
+        m_timeOfDayColor = color;
+        update();
+    }
     void slot_onForcedPositionChange();
     void slot_createRoom();
 

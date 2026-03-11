@@ -68,10 +68,44 @@ private:
     {
         assert(uniforms.textures[0] != INVALID_MM_TEXTURE_ID);
 
-        setColor("uColor", uniforms.color);
         setMatrix("uMVP", mvp);
         setTexture("uTexture", 0);
     }
+};
+
+struct NODISCARD MegaRoomShader final : public AbstractShaderProgram
+{
+public:
+    using AbstractShaderProgram::AbstractShaderProgram;
+
+    ~MegaRoomShader() final;
+
+    int currentLayer = 0;
+    int minZ = 0;
+    int maxZ = 0;
+    bool drawUpperLayersTextured = false;
+    glm::vec2 minBounds = glm::vec2(-1e6f);
+    glm::vec2 maxBounds = glm::vec2(1e6f);
+
+    MMTextureId uTerrainTex;
+    MMTextureId uTrailTex;
+    MMTextureId uOverlayTex;
+    MMTextureId uWallTex;
+    MMTextureId uDottedWallTex;
+    MMTextureId uDoorTex;
+    MMTextureId uStreamInTex;
+    MMTextureId uStreamOutTex;
+    MMTextureId uExitTex;
+
+    int uWallLayers[4]{};
+    int uDottedWallLayers[4]{};
+    int uDoorLayers[6]{};
+    int uStreamInLayers[6]{};
+    int uStreamOutLayers[6]{};
+    int uExitLayers[4]{};
+
+private:
+    void virt_setUniforms(const glm::mat4 &mvp, const GLRenderState::Uniforms &uniforms) final;
 };
 
 struct NODISCARD UColorTexturedShader final : public AbstractShaderProgram
@@ -170,6 +204,7 @@ private:
 
 private:
     std::shared_ptr<RoomQuadTexShader> m_roomQuadTexShader;
+    std::shared_ptr<MegaRoomShader> m_megaRoomShader;
 
 private:
     std::shared_ptr<FontShader> m_font;
@@ -202,6 +237,7 @@ public:
 
 public:
     NODISCARD const std::shared_ptr<RoomQuadTexShader> &getRoomQuadTexShader();
+    NODISCARD const std::shared_ptr<MegaRoomShader> &getMegaRoomShader();
 
 public:
     NODISCARD const std::shared_ptr<FontShader> &getFontShader();

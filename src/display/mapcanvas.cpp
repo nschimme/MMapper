@@ -69,6 +69,7 @@ MapCanvas::MapCanvas(MapData &mapData,
     , m_data{mapData}
     , m_groupManager{groupManager}
 {
+    setObjectName("MapCanvas");
     NonOwningPointer &pmc = primaryMapCanvas();
     if (pmc == nullptr) {
         pmc = this;

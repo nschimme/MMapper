@@ -7,14 +7,19 @@
 #include "../global/ConfigEnums.h"
 
 #include <QApplication>
+#include <QMenuBar>
+#include <QMessageBox>
 #include <QPalette>
+#include <QStyle>
 #include <QStyleHints>
+#include <QWindow>
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
 #include <QStyleHints>
 #endif
 
 #ifdef Q_OS_WIN
+#include <dwmapi.h>
 #include <windows.h>
 #endif
 
@@ -23,11 +28,12 @@ ThemeManager::ThemeManager(QObject *const parent)
 {
     setConfig().general.registerChangeCallback(m_lifetime, [this]() { applyTheme(); });
 
-#if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Windows) {
         qApp->installNativeEventFilter(this);
+        qApp->installEventFilter(this);
     }
-#else
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     connect(qApp->styleHints(), &QStyleHints::colorSchemeChanged, this, [this](Qt::ColorScheme) {
         if (getConfig().general.getTheme() == ThemeEnum::System) {
             applyTheme();
@@ -40,11 +46,10 @@ ThemeManager::ThemeManager(QObject *const parent)
 
 ThemeManager::~ThemeManager()
 {
-#if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Windows) {
         qApp->removeNativeEventFilter(this);
+        qApp->removeEventFilter(this);
     }
-#endif
 }
 
 bool ThemeManager::nativeEventFilter(const QByteArray &eventType,
@@ -70,49 +75,165 @@ bool ThemeManager::nativeEventFilter(const QByteArray &eventType,
     return false;
 }
 
+bool ThemeManager::eventFilter(QObject *watched, QEvent *event)
+{
+#ifdef Q_OS_WIN
+    if (event->type() == QEvent::Show || event->type() == QEvent::WinIdChange) {
+        QWidget *widget = qobject_cast<QWidget *>(watched);
+        if (widget && widget->isWindow()) {
+            applyThemeToWindow(widget);
+        }
+    }
+#else
+    std::ignore = watched;
+    std::ignore = event;
+#endif
+    return false;
+}
+
 void ThemeManager::applyTheme()
 {
-    const auto theme = getConfig().general.getTheme();
-    if (theme == ThemeEnum::System) {
+    const auto themeSetting = getConfig().general.getTheme();
+    const bool darkMode = isDarkMode();
+
+    if (m_initialized && CURRENT_PLATFORM == PlatformEnum::Windows) {
+        if (themeSetting != m_appliedThemeSetting || darkMode != m_appliedDarkMode) {
+            QMessageBox::information(QApplication::activeWindow(),
+                                     tr("Theme Change"),
+                                     tr("Please restart MMapper for the theme changes to take "
+                                        "effect completely."));
+        }
+        return;
+    }
+
+    m_appliedThemeSetting = themeSetting;
+    m_appliedDarkMode = darkMode;
+
+    if (themeSetting == ThemeEnum::System) {
 #if QT_VERSION < QT_VERSION_CHECK(6, 5, 0) && defined(Q_OS_WIN)
-        const bool isDarkMode = std::invoke([]() {
-            DWORD value = 1; // Default to light mode
-            HKEY hKey;
-            if (RegOpenKeyExW(HKEY_CURRENT_USER,
-                              L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
-                              0,
-                              KEY_READ,
-                              &hKey)
-                == ERROR_SUCCESS) {
-                DWORD dataSize = sizeof(value);
-                if (RegQueryValueExW(hKey,
-                                     L"AppsUseLightTheme",
-                                     nullptr,
-                                     nullptr,
-                                     reinterpret_cast<LPBYTE>(&value),
-                                     &dataSize)
-                    == ERROR_SUCCESS) {
-                    RegCloseKey(hKey);
-                    return value == 0; // 0 means dark mode
-                }
-                RegCloseKey(hKey);
-            }
-        });
-        if (isDark()) {
+        if (darkMode) {
             applyDarkPalette();
         } else {
             qApp->setPalette(QPalette());
-            qApp->setStyle("Fusion");
+            if (qApp->style()->objectName().compare("fusion", Qt::CaseInsensitive) != 0) {
+                qApp->setStyle("Fusion");
+            }
         }
 #else
         qApp->setPalette(QPalette());
-        qApp->setStyle("Fusion");
+        if (qApp->style()->objectName().compare("fusion", Qt::CaseInsensitive) != 0) {
+            qApp->setStyle("Fusion");
+        }
 #endif
-    } else if (theme == ThemeEnum::Dark) {
+    } else if (themeSetting == ThemeEnum::Dark) {
         applyDarkPalette();
     } else {
         applyLightPalette();
     }
+
+    // Explicitly update ALL widgets because Fusion style/Windows can be stubborn
+    // especially with the MenuBar and ToolBars.
+    for (auto *widget : QApplication::allWidgets()) {
+        widget->setPalette(qApp->palette());
+        widget->update();
+    }
+
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Windows) {
+        updateAllWindows();
+    }
+
+    // Force redraw of all canvases and their containers to avoid frozen states
+    for (QWindow *window : QGuiApplication::allWindows()) {
+        window->requestUpdate();
+    }
+
+    m_initialized = true;
+}
+
+void ThemeManager::updateAllWindows()
+{
+    for (QWindow *window : QGuiApplication::topLevelWindows()) {
+        applyThemeToWindow(window);
+    }
+}
+
+void ThemeManager::applyThemeToWindow(QWindow *window)
+{
+#ifdef Q_OS_WIN
+    if (window && window->isTopLevel()) {
+        HWND hwnd = reinterpret_cast<HWND>(window->winId());
+        BOOL useDark = isDarkMode() ? TRUE : FALSE;
+
+        // Windows 11 and Windows 10 20H1+
+        const DWORD DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+        DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &useDark, sizeof(useDark));
+
+        // Windows 10 older versions
+        const DWORD DWMWA_USE_IMMERSIVE_DARK_MODE_OLD = 19;
+        DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE_OLD, &useDark, sizeof(useDark));
+
+        // Dark mode corner preference (Windows 11)
+        const DWORD DWMWA_WINDOW_CORNER_PREFERENCE = 33;
+        const DWORD DWMWCP_ROUND = 2;
+        DwmSetWindowAttribute(hwnd,
+                              DWMWA_WINDOW_CORNER_PREFERENCE,
+                              &DWMWCP_ROUND,
+                              sizeof(DWMWCP_ROUND));
+
+        // Trigger a frame change to refresh the title bar
+        SetWindowPos(hwnd,
+                     nullptr,
+                     0,
+                     0,
+                     0,
+                     0,
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED | SWP_DRAWFRAME);
+    }
+#else
+    std::ignore = window;
+#endif
+}
+
+bool ThemeManager::isDarkMode() const
+{
+    const auto theme = getConfig().general.getTheme();
+    if (theme == ThemeEnum::Dark) {
+        return true;
+    }
+    if (theme == ThemeEnum::Light) {
+        return false;
+    }
+
+#ifdef Q_OS_WIN
+    DWORD value = 1; // Default to light mode
+    HKEY hKey;
+    if (RegOpenKeyExW(HKEY_CURRENT_USER,
+                      L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+                      0,
+                      KEY_READ,
+                      &hKey)
+        == ERROR_SUCCESS) {
+        DWORD dataSize = sizeof(value);
+        if (RegQueryValueExW(hKey,
+                             L"AppsUseLightTheme",
+                             nullptr,
+                             nullptr,
+                             reinterpret_cast<LPBYTE>(&value),
+                             &dataSize)
+            == ERROR_SUCCESS) {
+            RegCloseKey(hKey);
+            return value == 0; // 0 means dark mode
+        }
+        RegCloseKey(hKey);
+    }
+    return false;
+#else
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+    return qApp->styleHints()->colorScheme() == Qt::ColorScheme::Dark;
+#else
+    return qApp->palette().windowText().color().value() > qApp->palette().window().color().value();
+#endif
+#endif
 }
 
 void ThemeManager::applyDarkPalette()
@@ -134,7 +255,9 @@ void ThemeManager::applyDarkPalette()
     dark.setColor(QPalette::Disabled, QPalette::ButtonText, Qt::darkGray);
 
     qApp->setPalette(dark);
-    qApp->setStyle("Fusion");
+    if (qApp->style()->objectName().compare("fusion", Qt::CaseInsensitive) != 0) {
+        qApp->setStyle("Fusion");
+    }
 }
 
 void ThemeManager::applyLightPalette()
@@ -156,5 +279,7 @@ void ThemeManager::applyLightPalette()
     light.setColor(QPalette::Disabled, QPalette::ButtonText, Qt::gray);
 
     qApp->setPalette(light);
-    qApp->setStyle("Fusion");
+    if (qApp->style()->objectName().compare("fusion", Qt::CaseInsensitive) != 0) {
+        qApp->setStyle("Fusion");
+    }
 }

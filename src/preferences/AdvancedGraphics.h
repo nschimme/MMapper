@@ -10,14 +10,7 @@
 
 #include <QGroupBox>
 
-class NODISCARD SliderSpinboxButton
-{
-public:
-    virtual ~SliderSpinboxButton();
-    virtual void setEnabled(bool enabled) = 0;
-    virtual void forcedUpdate() = 0;
-};
-
+class SliderSpinboxButton;
 class NODISCARD_QOBJECT AdvancedGraphicsGroupBox final : public QObject
 {
     Q_OBJECT

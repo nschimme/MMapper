@@ -23,7 +23,15 @@
 #include <QVector>
 #include <QWidget>
 
-SliderSpinboxButton::~SliderSpinboxButton() = default;
+class NODISCARD SliderSpinboxButton
+{
+public:
+    virtual ~SliderSpinboxButton();
+    virtual void setEnabled(bool enabled) = 0;
+    virtual void forcedUpdate() = 0;
+};
+
+SliderSpinboxButton::~SliderSpinboxButton() {}
 
 template<int D>
 class NODISCARD FpSlider final : public QSlider

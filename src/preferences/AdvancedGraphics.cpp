@@ -109,7 +109,7 @@ public:
 
         QObject::connect(&m_spin,
                          QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-                         &group,
+                         &m_group,
                          [this](double /*value*/) {
                              const SignalBlocker block_slider{m_slider};
                              const SignalBlocker block_spin{m_spin};
@@ -171,11 +171,15 @@ AdvancedGraphicsGroupBox::AdvancedGraphicsGroupBox(QGroupBox &groupBox)
 {
     auto *vertical = new QVBoxLayout(m_groupBox);
 
-    auto makeSsb = [this, vertical](const QString &name, auto &fp) {
+    auto makeSsb = [this, vertical](const QString &name, auto &fp, bool is3DOnly = true) {
         addLine(*vertical);
         using FP = std::decay_t<decltype(fp)>;
-        m_ssbs.emplace_back(
-            std::make_unique<SliderSpinboxButtonImpl<FP::digits>>(*this, *vertical, name, fp));
+        auto ssb = std::make_unique<SliderSpinboxButtonImpl<FP::digits>>(*this, *vertical, name, fp);
+        if (is3DOnly) {
+            m_3dSsbs.emplace_back(std::move(ssb));
+        } else {
+            m_globalSsbs.emplace_back(std::move(ssb));
+        }
     };
 
     auto *const checkboxDiag = new QCheckBox("Show Performance Stats");
@@ -198,7 +202,7 @@ AdvancedGraphicsGroupBox::AdvancedGraphicsGroupBox(QGroupBox &groupBox)
         makeSsb("Vertical Angle (pitch up from straight down)", advanced.verticalAngle);
         makeSsb("Horizontal Angle (yaw)", advanced.horizontalAngle);
         makeSsb("Layer height (in rooms)", advanced.layerHeight);
-        makeSsb("Maximum FPS", advanced.maximumFps);
+        makeSsb("Maximum FPS", advanced.maximumFps, false);
     }
 
     enableSsbs(is3dAtInit);
@@ -231,7 +235,10 @@ AdvancedGraphicsGroupBox::AdvancedGraphicsGroupBox(QGroupBox &groupBox)
                                                 SignalBlocker sb1{*checkboxDiag};
                                                 SignalBlocker sb2{*checkbox3d};
                                                 SignalBlocker sb3{*autoTilt};
-                                                for (auto &ssb : m_ssbs) {
+                                                for (auto &ssb : m_globalSsbs) {
+                                                    ssb->forcedUpdate();
+                                                }
+                                                for (auto &ssb : m_3dSsbs) {
                                                     ssb->forcedUpdate();
                                                 }
                                                 checkboxDiag->setChecked(
@@ -246,7 +253,7 @@ AdvancedGraphicsGroupBox::~AdvancedGraphicsGroupBox() = default;
 
 void AdvancedGraphicsGroupBox::enableSsbs(bool enabled)
 {
-    for (auto &ssb : m_ssbs) {
+    for (auto &ssb : m_3dSsbs) {
         ssb->setEnabled(enabled);
     }
 }

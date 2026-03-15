@@ -21,6 +21,8 @@ FrameManager::FrameManager(QOpenGLWindow &window, QObject *parent)
     m_heartbeatTimer.setSingleShot(true);
     m_heartbeatTimer.setTimerType(Qt::PreciseTimer);
     connect(&m_heartbeatTimer, &QTimer::timeout, this, &FrameManager::onHeartbeat);
+
+    requestFrame();
 }
 
 void FrameManager::registerCallback(const Signal2Lifetime &lifetime, AnimationCallback callback)
@@ -30,7 +32,7 @@ void FrameManager::registerCallback(const Signal2Lifetime &lifetime, AnimationCa
 
 bool FrameManager::needsHeartbeat() const
 {
-    if (m_animating) {
+    if (m_animating || m_dirty) {
         return true;
     }
 

@@ -172,7 +172,8 @@ AdvancedGraphicsGroupBox::AdvancedGraphicsGroupBox(QGroupBox &groupBox)
     auto makeSsb = [this, vertical](const QString &name, auto &fp) {
         addLine(*vertical);
         using FP = std::decay_t<decltype(fp)>;
-        m_ssbs.emplace_back(std::make_unique<SliderSpinboxButtonImpl<FP::digits>>(*this, *vertical, name, fp));
+        m_ssbs.emplace_back(
+            std::make_unique<SliderSpinboxButtonImpl<FP::digits>>(*this, *vertical, name, fp));
     };
 
     auto *const checkboxDiag = new QCheckBox("Show Performance Stats");

@@ -10,13 +10,20 @@
 
 #include <QGroupBox>
 
-class SliderSpinboxButton;
+class NODISCARD SliderSpinboxButton
+{
+public:
+    virtual ~SliderSpinboxButton() = default;
+    virtual void setEnabled(bool enabled) = 0;
+    virtual void forcedUpdate() = 0;
+};
+
 class NODISCARD_QOBJECT AdvancedGraphicsGroupBox final : public QObject
 {
     Q_OBJECT
 
-private:
-    friend SliderSpinboxButton;
+    template<int D>
+    friend class SliderSpinboxButtonImpl;
 
 private:
     QGroupBox *const m_groupBox;

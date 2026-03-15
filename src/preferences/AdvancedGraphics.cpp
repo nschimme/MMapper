@@ -85,7 +85,6 @@ private:
     FpSpinBox m_spin;
     QPushButton m_reset;
     QHBoxLayout m_horizontal;
-    QVector<QWidget *> m_blockable;
 
 public:
     explicit SliderSpinboxButton(AdvancedGraphicsGroupBox &in_group,
@@ -173,7 +172,7 @@ AdvancedGraphicsGroupBox::AdvancedGraphicsGroupBox(QGroupBox &groupBox)
 
     using FP = FixedPoint<1>;
 
-    auto makeSsb = [this, vertical](const QString name, FP &fp) {
+    auto makeSsb = [this, vertical](const QString &name, FP &fp) {
         addLine(*vertical);
         m_ssbs.emplace_back(std::make_unique<SliderSpinboxButton>(*this, *vertical, name, fp));
     };
@@ -198,6 +197,7 @@ AdvancedGraphicsGroupBox::AdvancedGraphicsGroupBox(QGroupBox &groupBox)
         makeSsb("Vertical Angle (pitch up from straight down)", advanced.verticalAngle);
         makeSsb("Horizontal Angle (yaw)", advanced.horizontalAngle);
         makeSsb("Layer height (in rooms)", advanced.layerHeight);
+        makeSsb("Maximum FPS", advanced.maximumFps);
     }
 
     enableSsbs(is3dAtInit);

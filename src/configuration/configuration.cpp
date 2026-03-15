@@ -657,7 +657,8 @@ void Configuration::CanvasSettings::read(const QSettings &conf)
     advanced.use3D.set(conf.value(KEY_3D_CANVAS, false).toBool());
     advanced.autoTilt.set(conf.value(KEY_3D_AUTO_TILT, true).toBool());
     advanced.printPerfStats.set(conf.value(KEY_3D_PERFSTATS, IS_DEBUG_BUILD).toBool());
-    advanced.maximumFps.set(conf.value(KEY_MAXIMUM_FPS, 600).toInt());
+    advanced.maximumFps.set(conf.value(KEY_MAXIMUM_FPS, 60).toInt());
+
     advanced.fov.set(conf.value(KEY_3D_FOV, 765).toInt());
     advanced.verticalAngle.set(conf.value(KEY_3D_VERTICAL_ANGLE, 450).toInt());
     advanced.horizontalAngle.set(conf.value(KEY_3D_HORIZONTAL_ANGLE, 0).toInt());

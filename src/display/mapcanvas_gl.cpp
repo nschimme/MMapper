@@ -613,14 +613,13 @@ void MapCanvas::actuallyPaintGL()
 
     if (m_data.isEmpty()) {
         getGLFont().renderTextCentered("No map loaded");
-        return;
+    } else {
+        paintMap();
+        paintBatchedInfomarks();
+        paintSelections();
+        paintCharacters();
+        paintDifferences();
     }
-
-    paintMap();
-    paintBatchedInfomarks();
-    paintSelections();
-    paintCharacters();
-    paintDifferences();
 
     gl.releaseFbo();
     gl.blitFboToDefault();

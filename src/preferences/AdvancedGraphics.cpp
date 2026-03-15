@@ -48,14 +48,14 @@ private:
     FP &m_fp;
 
 public:
-    explicit FpSpinBox(FixedPoint<1> &fp)
+    explicit FpSpinBox(FixedPoint<1> &fp, int decimals = FP::digits)
         : QDoubleSpinBox()
         , m_fp{fp}
     {
         const double fraction = std::pow(10.0, -FP::digits);
         setRange(static_cast<double>(m_fp.min) * fraction, static_cast<double>(m_fp.max) * fraction);
         setValue(m_fp.getDouble());
-        setDecimals(FP::digits);
+        setDecimals(decimals);
         setSingleStep(fraction);
     }
     ~FpSpinBox() final;
@@ -90,11 +90,12 @@ public:
     explicit SliderSpinboxButton(AdvancedGraphicsGroupBox &in_group,
                                  QVBoxLayout &vbox,
                                  const QString &name,
-                                 FP &in_fp)
+                                 FP &in_fp,
+                                 int decimals = FP::digits)
         : m_group{in_group}
         , m_fp{in_fp}
         , m_slider(m_fp)
-        , m_spin(m_fp)
+        , m_spin(m_fp, decimals)
         , m_reset("Reset")
     {
         auto &group = m_group;
@@ -172,9 +173,10 @@ AdvancedGraphicsGroupBox::AdvancedGraphicsGroupBox(QGroupBox &groupBox)
 
     using FP = FixedPoint<1>;
 
-    auto makeSsb = [this, vertical](const QString &name, FP &fp) {
+    auto makeSsb = [this, vertical](const QString &name, FP &fp, int decimals = FP::digits) {
         addLine(*vertical);
-        m_ssbs.emplace_back(std::make_unique<SliderSpinboxButton>(*this, *vertical, name, fp));
+        m_ssbs.emplace_back(
+            std::make_unique<SliderSpinboxButton>(*this, *vertical, name, fp, decimals));
     };
 
     auto *const checkboxDiag = new QCheckBox("Show Performance Stats");
@@ -197,7 +199,7 @@ AdvancedGraphicsGroupBox::AdvancedGraphicsGroupBox(QGroupBox &groupBox)
         makeSsb("Vertical Angle (pitch up from straight down)", advanced.verticalAngle);
         makeSsb("Horizontal Angle (yaw)", advanced.horizontalAngle);
         makeSsb("Layer height (in rooms)", advanced.layerHeight);
-        makeSsb("Maximum FPS", advanced.maximumFps);
+        makeSsb("Maximum FPS", advanced.maximumFps, 0);
     }
 
     enableSsbs(is3dAtInit);

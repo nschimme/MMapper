@@ -735,7 +735,8 @@ void MapCanvas::mouseMoveEvent(QMouseEvent *const event)
                     const glm::vec2 newWorldCenter = dragState->startScroll - delta;
                     m_scroll = newWorldCenter;
                     emit sig_onCenter(newWorldCenter);
-                    update();
+                    updateViewProj(width(), height());
+                    m_frameManager.requestUpdate();
                 }
             }
         }

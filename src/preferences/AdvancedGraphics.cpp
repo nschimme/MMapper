@@ -23,6 +23,8 @@
 #include <QVector>
 #include <QWidget>
 
+SliderSpinboxButton::~SliderSpinboxButton() = default;
+
 template<int D>
 class NODISCARD FpSlider final : public QSlider
 {

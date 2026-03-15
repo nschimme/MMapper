@@ -13,7 +13,7 @@
 class NODISCARD SliderSpinboxButton
 {
 public:
-    virtual ~SliderSpinboxButton() = default;
+    virtual ~SliderSpinboxButton();
     virtual void setEnabled(bool enabled) = 0;
     virtual void forcedUpdate() = 0;
 };

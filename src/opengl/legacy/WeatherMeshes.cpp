@@ -20,7 +20,7 @@ AtmosphereMesh::~AtmosphereMesh() = default;
 void AtmosphereMesh::virt_render(const GLRenderState &renderState)
 {
     auto binder = m_program.bind();
-    const glm::mat4 mvp = m_functions.getProjectionMatrix();
+    const glm::mat4 mvp = renderState.mvp.value_or(m_functions.getProjectionMatrix());
     m_program.setUniforms(mvp, renderState.uniforms);
 
     RenderStateBinder rsBinder(m_functions, m_functions.getTexLookup(), renderState);
@@ -64,12 +64,11 @@ void ParticleSimulationMesh::init()
     std::vector<WeatherParticleVert> initialData;
     initialData.reserve(m_numParticles);
     for (size_t i = 0; i < m_numParticles; ++i) {
-        initialData.emplace_back(
-            glm::vec2(get_random_float() * WeatherConstants::WEATHER_EXTENT
-                          - WeatherConstants::WEATHER_RADIUS,
-                      get_random_float() * WeatherConstants::WEATHER_EXTENT
-                          - WeatherConstants::WEATHER_RADIUS),
-            get_random_float());
+        initialData.emplace_back(glm::vec2(get_random_float() * WeatherConstants::WEATHER_EXTENT
+                                               - WeatherConstants::WEATHER_RADIUS,
+                                           get_random_float() * WeatherConstants::WEATHER_EXTENT
+                                               - WeatherConstants::WEATHER_RADIUS),
+                                 get_random_float());
     }
 
     for (int i = 0; i < 2; ++i) {
@@ -115,7 +114,7 @@ void ParticleSimulationMesh::virt_render(const GLRenderState &renderState)
     init();
 
     auto binder = m_program->bind();
-    const glm::mat4 mvp = m_functions.getProjectionMatrix();
+    const glm::mat4 mvp = renderState.mvp.value_or(m_functions.getProjectionMatrix());
     m_program->setUniforms(mvp, renderState.uniforms);
 
     const uint32_t bufferOut = 1 - m_currentBuffer;
@@ -211,7 +210,7 @@ void ParticleRenderMesh::virt_render(const GLRenderState &renderState)
     const GLsizei count = static_cast<GLsizei>(m_simulation.getNumParticles());
 
     auto binder = m_program->bind();
-    const glm::mat4 mvp = m_functions.getProjectionMatrix();
+    const glm::mat4 mvp = renderState.mvp.value_or(m_functions.getProjectionMatrix());
     m_program->setUniforms(mvp, renderState.uniforms);
 
     RenderStateBinder rsBinder(m_functions, m_functions.getTexLookup(), renderState);

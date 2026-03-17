@@ -94,6 +94,10 @@ struct NODISCARD MapCanvasViewport
 private:
     QWindow &m_window;
 
+protected:
+    mutable int m_lastWidth = 0;
+    mutable int m_lastHeight = 0;
+
 private:
     mutable glm::mat4 m_viewProj{1.f};
     glm::vec2 m_scroll{0.f};
@@ -106,6 +110,11 @@ public:
     explicit MapCanvasViewport(QWindow &window)
         : m_window{window}
     {}
+
+    virtual ~MapCanvasViewport() = default;
+
+protected:
+    virtual void onViewProjDirty() const {}
 
 public:
     NODISCARD auto width() const { return m_window.width(); }
@@ -137,16 +146,21 @@ public:
         }
     }
 
-    void markViewProjDirty() { m_viewProjDirty = true; }
+    void markViewProjDirty()
+    {
+        m_viewProjDirty = true;
+        onViewProjDirty();
+    }
     void setViewportConfig(const ViewportConfig &config)
     {
         m_viewportConfig = config;
-        m_viewProjDirty = true;
+        markViewProjDirty();
     }
     void setMvpExtern(const glm::mat4 &mvp) const
     {
         m_viewProj = mvp;
         m_viewProjDirty = false;
+        onViewProjDirty();
     }
 
     NODISCARD const glm::mat4 &getViewProj() const;

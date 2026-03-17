@@ -363,7 +363,11 @@ void MapCanvas::setMvp(const glm::mat4 &viewProj)
 
 void MapCanvas::setViewportAndMvp(int width, int height)
 {
-    markViewProjDirty();
+    if (width != m_lastWidth || height != m_lastHeight) {
+        m_lastWidth = width;
+        m_lastHeight = height;
+        markViewProjDirty();
+    }
 
     auto &gl = getOpenGL();
     gl.glViewport(0, 0, width, height);
@@ -373,6 +377,11 @@ void MapCanvas::setViewportAndMvp(int width, int height)
     assert(size.y == height);
 
     gl.setProjectionMatrix(MapCanvasViewport::getViewProj());
+}
+
+void MapCanvas::onViewProjDirty() const
+{
+    m_opengl.getUboManager().invalidate(Legacy::SharedVboEnum::CameraBlock);
 }
 
 void MapCanvas::resizeGL(int width, int height)
@@ -516,8 +525,7 @@ void MapCanvas::actuallyPaintGL()
         paintCharacters();
         paintDifferences();
 
-        const auto playerPos = m_data.tryGetPosition().value_or(Coordinate{0, 0, 0});
-        m_weather.prepare(getViewProj(), playerPos);
+        m_weather.prepare();
         gl.getUboManager().bind(funcs, Legacy::SharedVboEnum::TimeBlock);
 
         m_weather.render(m_opengl.getDefaultRenderState());

@@ -59,9 +59,7 @@ private:
     void virt_render(const GLRenderState &renderState) override;
 
 public:
-    NODISCARD bool virt_isEmpty() const override { return false; }
-
-public:
+    NODISCARD bool virt_isEmpty() const override { return !m_initialized; }
     NODISCARD uint32_t getCurrentBuffer() const { return m_currentBuffer; }
     NODISCARD uint32_t getNumParticles() const { return m_numParticles; }
     NODISCARD const VBO &getParticleVbo(uint32_t index) const { return m_vbos[index]; }

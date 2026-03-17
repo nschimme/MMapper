@@ -51,13 +51,21 @@ public:
 
     /**
      * @brief Registers a function that can rebuild the UBO data.
+     *
+     * @param block           UBO block identifier.
+     * @param func            Function used to rebuild the UBO data.
+     * @param allowOverwrite  If false (default), overwriting an existing rebuild function
+     *                        will trigger a debug assertion. Set to true only when an
+     *                        overwrite is intentional.
      */
-    void registerRebuildFunction(Legacy::SharedVboEnum block, RebuildFunction func)
+    void registerRebuildFunction(Legacy::SharedVboEnum block,
+                                 RebuildFunction func,
+                                 bool allowOverwrite = false)
     {
         if (m_rebuildFunctions[block]) {
-            MMLOG_WARNING() << "UboManager::registerRebuildFunction: overwriting existing "
-                               "rebuild function for UBO block "
-                            << static_cast<int>(block);
+            assert(allowOverwrite
+                   && "UboManager::registerRebuildFunction: overwriting existing "
+                      "rebuild function for UBO block");
         }
         m_rebuildFunctions[block] = std::move(func);
     }

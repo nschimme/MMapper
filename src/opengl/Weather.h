@@ -35,8 +35,8 @@ namespace WeatherConstants {
  */
 constexpr float WEATHER_RADIUS = 14.0f;
 constexpr float WEATHER_EXTENT = 28.0f;
-constexpr float WEATHER_MASK_RADIUS_START = 12.0f;
-constexpr float WEATHER_MASK_RADIUS_END = 8.0f;
+constexpr float WEATHER_MASK_RADIUS_OUTER = 12.0f;
+constexpr float WEATHER_MASK_RADIUS_INNER = 8.0f;
 } // namespace WeatherConstants
 
 /**
@@ -59,7 +59,6 @@ private:
     float m_cloudsIntensityStart = 0.0f;
     float m_fogIntensityStart = 0.0f;
     float m_timeOfDayIntensityStart = 0.0f;
-    float m_moonIntensityStart = 0.0f;
 
     float m_currentRainIntensity = 0.0f;
     float m_currentSnowIntensity = 0.0f;
@@ -72,7 +71,6 @@ private:
     float m_targetCloudsIntensity = 0.0f;
     float m_targetFogIntensity = 0.0f;
     float m_targetTimeOfDayIntensity = 0.0f;
-    float m_targetMoonIntensity = 0.0f;
 
     float m_precipitationTypeStart = 0.0f;
     float m_targetPrecipitationType = 0.0f;
@@ -85,7 +83,6 @@ private:
 
     MumeTimeEnum m_oldTimeOfDay = MumeTimeEnum::DAY;
     MumeTimeEnum m_currentTimeOfDay = MumeTimeEnum::DAY;
-    MumeMoonVisibilityEnum m_moonVisibility = MumeMoonVisibilityEnum::UNKNOWN;
 
     float m_weatherTransitionStartTime = -2.0f;
     float m_timeOfDayTransitionStartTime = -2.0f;

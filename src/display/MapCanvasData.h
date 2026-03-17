@@ -111,7 +111,7 @@ public:
         : m_window{window}
     {}
 
-    virtual ~MapCanvasViewport() = default;
+    virtual ~MapCanvasViewport();
 
 protected:
     virtual void onViewProjDirty() const {}

@@ -175,6 +175,8 @@ void GLWeather::updateFromGame()
     m_gameSnowIntensity = 0.0f;
     m_gameCloudsIntensity = 0.0f;
     m_gameFogIntensity = 0.0f;
+    // Default to rain (0), will be overridden by SNOW
+    m_targetPrecipitationType = 0.0f;
 
     switch (w) {
     case PromptWeatherEnum::NICE:

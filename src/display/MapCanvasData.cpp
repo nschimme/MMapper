@@ -30,6 +30,8 @@ MapCanvasInputState::MapCanvasInputState(PrespammedPath &prespammedPath)
 
 MapCanvasInputState::~MapCanvasInputState() = default;
 
+MapCanvasViewport::~MapCanvasViewport() = default;
+
 const glm::mat4 &MapCanvasViewport::getViewProj() const
 {
     if (m_viewProjDirty) {

@@ -29,6 +29,26 @@ T lerp(T a, T b, float t)
 
 } // namespace
 
+/**
+ * Weather transition authority documentation:
+ *
+ * Transitions (weather intensities, fog, time-of-day) are driven by a shared
+ * duration constant (WeatherConstants::TRANSITION_DURATION).
+ *
+ * The CPU (GLWeather::update/applyTransition) calculates interpolated values
+ * each frame. These CPU-side values are primarily used for high-level logic,
+ * such as:
+ * - Pruning: Skipping rendering of atmosphere/particles when intensities are zero.
+ * - Thinning: Scaling the number of particle instances based on intensity for performance.
+ * - Pacing: Determining if FrameManager heartbeat should continue.
+ *
+ * The GPU (shaders) is authoritative for the visual transition curves.
+ * By passing start/target pairs and start times to the shaders, the GPU
+ * performs per-pixel (or per-vertex) interpolation using its own clocks.
+ * This ensures perfectly smooth visuals even if the CPU frame rate is low
+ * or inconsistent, while avoiding constant UBO re-uploads for animation state.
+ */
+
 GLWeather::GLWeather(OpenGL &gl,
                      MapData &mapData,
                      const MapCanvasTextures &textures,
@@ -58,12 +78,21 @@ GLWeather::GLWeather(OpenGL &gl,
     m_precipitationTypeStart = m_targetPrecipitationType;
 
     auto startWeatherTransitions = [this]() {
+        const bool startingFromNice = (m_currentRainIntensity <= 0.0f
+                                       && m_currentSnowIntensity <= 0.0f);
+
         startTransitions(m_weatherTransitionStartTime,
                          TransitionPair<float>{m_rainIntensityStart, m_targetRainIntensity},
                          TransitionPair<float>{m_snowIntensityStart, m_targetSnowIntensity},
                          TransitionPair<float>{m_cloudsIntensityStart, m_targetCloudsIntensity},
                          TransitionPair<float>{m_fogIntensityStart, m_targetFogIntensity},
                          TransitionPair<float>{m_precipitationTypeStart, m_targetPrecipitationType});
+
+        if (startingFromNice) {
+            // If we are starting from clear skies, snap the precipitation type to the target
+            // immediately so we don't see a mix (e.g. rain turning into snow) during the fade-in.
+            m_precipitationTypeStart = m_targetPrecipitationType;
+        }
     };
 
     m_observer.sig2_weatherChanged.connect(m_lifetime,
@@ -144,7 +173,7 @@ GLWeather::GLWeather(OpenGL &gl,
     setConfig().canvas.weatherTimeOfDayIntensity.registerChangeCallback(m_lifetime,
                                                                         onTimeOfDaySettingChanged);
 
-    m_animationManager.registerCallback(m_signalLifetime, [this]() {
+    m_animationManager.registerCallback(m_lifetime, [this]() {
         return isAnimating() ? FrameManager::AnimationStatusEnum::Continue
                              : FrameManager::AnimationStatusEnum::Stop;
     });
@@ -179,14 +208,14 @@ void GLWeather::updateFromGame()
     m_gameSnowIntensity = 0.0f;
     m_gameCloudsIntensity = 0.0f;
     m_gameFogIntensity = 0.0f;
-    // Default to rain (0), will be overridden by SNOW
-    m_gamePrecipitationType = 0.0f;
 
     switch (w) {
     case PromptWeatherEnum::NICE:
+        // Preserve m_gamePrecipitationType so it stays at its last value while fading out.
         break;
     case PromptWeatherEnum::CLOUDS:
         m_gameCloudsIntensity = 0.5f;
+        // Also preserve type here, as there's no precipitation.
         break;
     case PromptWeatherEnum::RAIN:
         m_gameCloudsIntensity = 0.8f;

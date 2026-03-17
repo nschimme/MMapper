@@ -53,6 +53,9 @@ void ParticleSimulationMesh::init()
     }
 
     for (int i = 0; i < 2; ++i) {
+        if (!m_vbos[i]) {
+            m_vbos[i].emplace(m_shared_functions);
+        }
         m_functions.glBindBuffer(GL_ARRAY_BUFFER, m_vbos[i].get());
         m_functions.glBufferData(GL_ARRAY_BUFFER,
                                  static_cast<GLsizeiptr>(initialData.size()
@@ -60,6 +63,9 @@ void ParticleSimulationMesh::init()
                                  initialData.data(),
                                  GL_STREAM_DRAW);
 
+        if (!m_vaos[i]) {
+            m_vaos[i].emplace(m_shared_functions);
+        }
         m_functions.glBindVertexArray(m_vaos[i].get());
         m_functions.enableAttrib(0,
                                  2,
@@ -141,6 +147,9 @@ void ParticleRenderMesh::init()
     }
 
     for (uint32_t i = 0; i < 2; ++i) {
+        if (!m_vaos[i]) {
+            m_vaos[i].emplace(m_shared_functions);
+        }
         m_functions.glBindVertexArray(m_vaos[i].get());
 
         m_functions.glBindBuffer(GL_ARRAY_BUFFER, m_simulation.getParticleVbo(i).get());

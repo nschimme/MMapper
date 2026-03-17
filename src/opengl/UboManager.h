@@ -94,20 +94,22 @@ public:
         }
 
         const auto &func = m_rebuildFunctions[block];
-        assert(func && "UBO block is invalid and no rebuild function is registered");
-        if (func) {
-            func(gl);
-
-            if (const auto bound = m_boundBuffers[block]) {
-                return *bound;
-            }
-
-            MMLOG_ERROR() << "UboManager::updateIfInvalid: rebuild function failed to call "
-                             "update() for block "
-                          << static_cast<int>(block);
-            assert(false && "Rebuild function must call update()");
+        if (!func) {
+            MMLOG_ERROR() << "UboManager::updateIfInvalid: UBO block " << static_cast<int>(block)
+                          << " is invalid and no rebuild function is registered";
+            throw std::runtime_error("UBO block is invalid and no rebuild function is registered");
         }
-        return 0;
+
+        func(gl);
+
+        if (const auto bound = m_boundBuffers[block]) {
+            return *bound;
+        }
+
+        MMLOG_ERROR() << "UboManager::updateIfInvalid: rebuild function failed to call "
+                         "update() for block "
+                      << static_cast<int>(block);
+        throw std::runtime_error("Rebuild function must call update()");
     }
 
     /**

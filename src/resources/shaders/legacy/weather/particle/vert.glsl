@@ -65,7 +65,7 @@ void main()
     vec3 worldPos = vec3(pos + quadPos * size, uPlayerPos.z);
 
     float distToPlayer = distance(pos, uPlayerPos.xy);
-    vLocalMask = smoothstep(12.0, 8.0, distToPlayer);
+    vLocalMask = smoothstep(WEATHER_MASK_RADIUS_START, WEATHER_MASK_RADIUS_END, distToPlayer);
 
     gl_Position = uViewProj * vec4(worldPos.x, worldPos.y, worldPos.z * uZScale, 1.0);
 }

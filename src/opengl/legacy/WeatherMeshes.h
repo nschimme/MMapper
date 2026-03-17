@@ -56,8 +56,10 @@ private:
     void init();
     void virt_clear() override {}
     void virt_reset() override;
-    NODISCARD bool virt_isEmpty() const override { return !m_initialized; }
     void virt_render(const GLRenderState &renderState) override;
+
+public:
+    NODISCARD bool virt_isEmpty() const override { return !m_initialized; }
 
 public:
     NODISCARD uint32_t getCurrentBuffer() const { return m_currentBuffer; }
@@ -74,6 +76,7 @@ private:
     const ParticleSimulationMesh &m_simulation;
 
     VAO m_vaos[2];
+    bool m_initialized = false;
 
 public:
     explicit ParticleRenderMesh(SharedFunctions shared_functions,
@@ -85,7 +88,7 @@ private:
     void init();
     void virt_clear() override {}
     void virt_reset() override;
-    NODISCARD bool virt_isEmpty() const override { return false; }
+    NODISCARD bool virt_isEmpty() const override;
     void virt_render(const GLRenderState &renderState) override;
 };
 

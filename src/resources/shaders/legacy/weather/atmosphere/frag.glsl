@@ -5,7 +5,7 @@ precision highp float;
 
 layout(std140) uniform NamedColorsBlock
 {
-    vec4 uNamedColors[32];
+    vec4 uNamedColors[MAX_NAMED_COLORS];
 };
 
 layout(std140) uniform CameraBlock

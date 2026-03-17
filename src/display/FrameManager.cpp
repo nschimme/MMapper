@@ -132,7 +132,8 @@ std::optional<FrameManager::Frame> FrameManager::beginFrame()
     m_elapsedTime += lastFrameDeltaTime;
     m_frameData.time = glm::vec4(m_elapsedTime, lastFrameDeltaTime, 0.0f, 0.0f);
 
-    if (m_uboManager && lastFrameDeltaTime > 0.0f) {
+    if (lastFrameDeltaTime > 0.0f) {
+        assert(m_uboManager && "FrameManager::beginFrame: m_uboManager is not initialized");
         m_uboManager->invalidate(Legacy::SharedVboEnum::TimeBlock);
     }
 

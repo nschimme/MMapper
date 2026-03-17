@@ -247,6 +247,8 @@ struct NODISCARD GLRenderState final
         // Weather
         struct NODISCARD Weather final
         {
+            float currentPrecipitationIntensity = 0.0f;
+
             // CameraBlock (Binding 1, must match std140 layout in shaders)
             struct NODISCARD Camera final
             {

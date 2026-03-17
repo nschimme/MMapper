@@ -82,7 +82,8 @@ void ParticleSimulationMesh::init()
 
 void ParticleSimulationMesh::virt_reset()
 {
-    m_tfo.reset();
+    // Note: TFO is not reset here as it's only created in the constructor
+    // and can be reused.
     for (int i = 0; i < 2; ++i) {
         m_vbos[i].reset();
         m_vaos[i].reset();
@@ -139,7 +140,7 @@ void ParticleRenderMesh::init()
         return;
     }
 
-    for (int i = 0; i < 2; ++i) {
+    for (uint32_t i = 0; i < 2; ++i) {
         m_functions.glBindVertexArray(m_vaos[i].get());
 
         m_functions.glBindBuffer(GL_ARRAY_BUFFER, m_simulation.getParticleVbo(i).get());
@@ -184,11 +185,12 @@ void ParticleRenderMesh::virt_render(const GLRenderState &renderState)
         return;
     }
 
-    // The particle count is determined by the max intensity in the UBO.
-    // However, since we don't have direct access to the UBO data here without re-parsing,
-    // we use a reasonable maximum and let the shader discard if necessary,
-    // or just draw the full 1024 as it's small enough.
-    const GLsizei count = static_cast<GLsizei>(m_simulation.getNumParticles());
+    // Thinning: use precipitation intensity to drive instance count
+    const float intensity = renderState.uniforms.weather.currentPrecipitationIntensity;
+    const GLsizei maxCount = static_cast<GLsizei>(m_simulation.getNumParticles());
+    const GLsizei count = std::max<GLsizei>(
+        1,
+        static_cast<GLsizei>(intensity * static_cast<float>(maxCount)));
 
     auto binder = m_program->bind();
     const glm::mat4 mvp = renderState.mvp.value_or(m_functions.getProjectionMatrix());

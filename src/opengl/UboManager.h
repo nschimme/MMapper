@@ -71,6 +71,14 @@ public:
     }
 
     /**
+     * @brief Unregisters a rebuild function for a UBO block.
+     */
+    void unregisterRebuildFunction(Legacy::SharedVboEnum block)
+    {
+        m_rebuildFunctions[block] = nullptr;
+    }
+
+    /**
      * @brief Checks if a UBO block is currently dirty/invalid.
      */
     bool isInvalid(Legacy::SharedVboEnum block) const { return !m_boundBuffers[block].has_value(); }

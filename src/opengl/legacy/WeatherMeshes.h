@@ -41,7 +41,7 @@ private:
     VAO m_vaos[2];
 
     uint32_t m_currentBuffer = 0;
-    uint32_t m_numParticles = 1024;
+    uint32_t m_numParticles = 512;
     bool m_initialized = false;
 
 public:

@@ -357,15 +357,16 @@ protected:
     NODISCARD virtual const char *virt_getShaderVersion() const = 0;
     virtual void virt_glUniformBlockBinding(GLuint program, SharedVboEnum block);
 
-protected:
+public:
     NODISCARD static const char *getUniformBlockName(SharedVboEnum block);
 
-public:
     /// platform-specific (ES vs GL)
     NODISCARD bool canRenderQuads() { return virt_canRenderQuads(); }
 
     /// platform-specific (ES vs GL)
     NODISCARD std::optional<GLenum> toGLenum(DrawModeEnum mode) { return virt_toGLenum(mode); }
+
+protected:
 
 private:
     template<typename T>

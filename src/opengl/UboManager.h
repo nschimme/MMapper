@@ -95,9 +95,11 @@ public:
 
         const auto &func = m_rebuildFunctions[block];
         if (!func) {
-            MMLOG_ERROR() << "UboManager::updateIfInvalid: UBO block " << static_cast<int>(block)
-                          << " is invalid and no rebuild function is registered";
-            throw std::runtime_error("UBO block is invalid and no rebuild function is registered");
+            const char *name = Legacy::Functions::getUniformBlockName(block);
+            MMLOG_ERROR() << "UboManager::updateIfInvalid: UBO block '" << name
+                          << "' is invalid and no rebuild function is registered";
+            throw std::runtime_error("UBO block '" + std::string(name)
+                                     + "' is invalid and no rebuild function is registered");
         }
 
         func(gl);
@@ -106,10 +108,12 @@ public:
             return *bound;
         }
 
+        const char *name = Legacy::Functions::getUniformBlockName(block);
         MMLOG_ERROR() << "UboManager::updateIfInvalid: rebuild function failed to call "
-                         "update() for block "
-                      << static_cast<int>(block);
-        throw std::runtime_error("Rebuild function must call update()");
+                         "update() for block '"
+                      << name << "'";
+        throw std::runtime_error("Rebuild function for block '" + std::string(name)
+                                 + "' failed to call update()");
     }
 
     /**

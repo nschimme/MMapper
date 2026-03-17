@@ -17,6 +17,8 @@ class FrameManager;
 #include "legacy/WeatherMeshes.h"
 
 #include <chrono>
+
+#undef TRANSPARENT // Bad dog, Microsoft; bad dog!!!
 #include <memory>
 
 class MapData;

@@ -164,7 +164,11 @@ GLWeather::GLWeather(OpenGL &gl,
         });
 }
 
-GLWeather::~GLWeather() = default;
+GLWeather::~GLWeather()
+{
+    m_gl.getUboManager().unregisterRebuildFunction(Legacy::SharedVboEnum::CameraBlock);
+    m_gl.getUboManager().unregisterRebuildFunction(Legacy::SharedVboEnum::WeatherBlock);
+}
 
 void GLWeather::updateFromGame()
 {
@@ -176,7 +180,7 @@ void GLWeather::updateFromGame()
     m_gameCloudsIntensity = 0.0f;
     m_gameFogIntensity = 0.0f;
     // Default to rain (0), will be overridden by SNOW
-    m_targetPrecipitationType = 0.0f;
+    m_gamePrecipitationType = 0.0f;
 
     switch (w) {
     case PromptWeatherEnum::NICE:
@@ -187,17 +191,17 @@ void GLWeather::updateFromGame()
     case PromptWeatherEnum::RAIN:
         m_gameCloudsIntensity = 0.8f;
         m_gameRainIntensity = 0.5f;
-        m_targetPrecipitationType = 0.0f;
+        m_gamePrecipitationType = 0.0f;
         break;
     case PromptWeatherEnum::HEAVY_RAIN:
         m_gameCloudsIntensity = 1.0f;
         m_gameRainIntensity = 1.0f;
-        m_targetPrecipitationType = 0.0f;
+        m_gamePrecipitationType = 0.0f;
         break;
     case PromptWeatherEnum::SNOW:
         m_gameCloudsIntensity = 0.8f;
         m_gameSnowIntensity = 0.8f;
-        m_targetPrecipitationType = 1.0f;
+        m_gamePrecipitationType = 1.0f;
         break;
     }
 
@@ -232,6 +236,7 @@ void GLWeather::updateTargets()
                                  * (static_cast<float>(
                                         canvasSettings.weatherTimeOfDayIntensity.get())
                                     / 50.0f);
+    m_targetPrecipitationType = m_gamePrecipitationType;
 }
 
 void GLWeather::update()
@@ -350,6 +355,14 @@ T GLWeather::applyTransition(float startTime, T startVal, T targetVal) const
     return (t >= 1.0f) ? targetVal : startVal;
 }
 
+template<typename... Pairs>
+void GLWeather::startTransitions(float &startTime, Pairs... pairs)
+{
+    float oldStartTime = startTime;
+    startTime = m_animationManager.getElapsedTime();
+    (..., (pairs.start = applyTransition(oldStartTime, pairs.start, pairs.target)));
+}
+
 template void GLWeather::startTransitions(float &startTime,
                                           TransitionPair<float> p1,
                                           TransitionPair<float> p2,
@@ -360,14 +373,6 @@ template void GLWeather::startTransitions(float &startTime,
 template void GLWeather::startTransitions(float &startTime,
                                           TransitionPair<float> p1,
                                           TransitionPair<NamedColorEnum> p2);
-
-template<typename... Pairs>
-void GLWeather::startTransitions(float &startTime, Pairs... pairs)
-{
-    float oldStartTime = startTime;
-    startTime = m_animationManager.getElapsedTime();
-    (..., (pairs.start = applyTransition(oldStartTime, pairs.start, pairs.target)));
-}
 
 void GLWeather::initMeshes()
 {
@@ -403,7 +408,9 @@ void GLWeather::render(const GLRenderState &rs)
     const float rainMax = m_currentRainIntensity;
     const float snowMax = m_currentSnowIntensity;
     if (rainMax > 0.0f || snowMax > 0.0f) {
-        const auto particleRs = rs.withBlend(BlendModeEnum::MAX_ALPHA);
+        auto particleRs = rs.withBlend(BlendModeEnum::MAX_ALPHA);
+        particleRs.uniforms.weather.currentPrecipitationIntensity = std::max(rainMax, snowMax);
+
         if (m_simulation) {
             m_simulation->render(particleRs);
         }

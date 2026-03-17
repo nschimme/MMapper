@@ -25,6 +25,13 @@ FrameManager::FrameManager(QOpenGLWindow &window, QObject *parent)
     requestFrame();
 }
 
+FrameManager::~FrameManager()
+{
+    if (m_uboManager) {
+        m_uboManager->unregisterRebuildFunction(Legacy::SharedVboEnum::TimeBlock);
+    }
+}
+
 void FrameManager::registerCallback(const Signal2Lifetime &lifetime, AnimationCallback callback)
 {
     m_callbacks.push_back({lifetime.getObj(), std::move(callback)});

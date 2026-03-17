@@ -34,7 +34,8 @@ out vec4 vFragmentColor;
 
 float get_noise(vec2 p)
 {
-    return texture(uTexture, p / 256.0).r;
+    vec2 size = vec2(textureSize(uTexture, 0));
+    return texture(uTexture, p / size).r;
 }
 
 float fbm(vec2 p)

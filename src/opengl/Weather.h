@@ -85,6 +85,7 @@ private:
     float m_gameCloudsIntensity = 0.0f;
     float m_gameFogIntensity = 0.0f;
     float m_gameTimeOfDayIntensity = 0.0f;
+    float m_gamePrecipitationType = 0.0f;
 
     NamedColorEnum m_startColorIdx = NamedColorEnum::TRANSPARENT;
     NamedColorEnum m_targetColorIdx = NamedColorEnum::TRANSPARENT;

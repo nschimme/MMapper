@@ -91,11 +91,13 @@ public:
 
 public:
     explicit FrameManager(QOpenGLWindow &window, QObject *parent = nullptr);
+    ~FrameManager() override;
     DELETE_CTORS_AND_ASSIGN_OPS(FrameManager);
 
 public:
     void init(Legacy::UboManager &uboManager);
     NODISCARD float getElapsedTime() const;
+    NODISCARD const GLRenderState::Uniforms::Weather::Frame &getFrameData() const { return m_frameData; }
 
 public:
     /**

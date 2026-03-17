@@ -149,17 +149,53 @@ ParticleRenderMesh::ParticleRenderMesh(SharedFunctions shared_functions,
 
 ParticleRenderMesh::~ParticleRenderMesh() = default;
 
-void ParticleRenderMesh::init() {}
+void ParticleRenderMesh::init()
+{
+    if (m_initialized) {
+        return;
+    }
+
+    for (int i = 0; i < 2; ++i) {
+        m_functions.glBindVertexArray(m_vaos[i].get());
+        m_functions.glBindBuffer(GL_ARRAY_BUFFER, m_simulation.getParticleVbo(i).get());
+        m_functions.enableAttrib(0,
+                                 2,
+                                 GL_FLOAT,
+                                 GL_FALSE,
+                                 sizeof(WeatherParticleVert),
+                                 reinterpret_cast<void *>(offsetof(WeatherParticleVert, pos)));
+        m_functions.glVertexAttribDivisor(0, 1);
+        m_functions.enableAttrib(1,
+                                 1,
+                                 GL_FLOAT,
+                                 GL_FALSE,
+                                 sizeof(WeatherParticleVert),
+                                 reinterpret_cast<void *>(offsetof(WeatherParticleVert, life)));
+        m_functions.glVertexAttribDivisor(1, 1);
+    }
+    m_functions.glBindVertexArray(0);
+    m_functions.glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    m_initialized = true;
+}
 
 void ParticleRenderMesh::virt_reset()
 {
     for (int i = 0; i < 2; ++i) {
         m_vaos[i].reset();
     }
+    m_initialized = false;
+}
+
+bool ParticleRenderMesh::virt_isEmpty() const
+{
+    return m_simulation.virt_isEmpty() || !m_initialized;
 }
 
 void ParticleRenderMesh::virt_render(const GLRenderState &renderState)
 {
+    init();
+
     // The particle count is determined by the max intensity in the UBO.
     // However, since we don't have direct access to the UBO data here without re-parsing,
     // we use a reasonable maximum and let the shader discard if necessary,
@@ -175,27 +211,8 @@ void ParticleRenderMesh::virt_render(const GLRenderState &renderState)
     const uint32_t bufferIdx = m_simulation.getCurrentBuffer();
 
     m_functions.glBindVertexArray(m_vaos[bufferIdx].get());
-
-    m_functions.glBindBuffer(GL_ARRAY_BUFFER, m_simulation.getParticleVbo(bufferIdx).get());
-    m_functions.enableAttrib(0,
-                             2,
-                             GL_FLOAT,
-                             GL_FALSE,
-                             sizeof(WeatherParticleVert),
-                             reinterpret_cast<void *>(offsetof(WeatherParticleVert, pos)));
-    m_functions.glVertexAttribDivisor(0, 1);
-    m_functions.enableAttrib(1,
-                             1,
-                             GL_FLOAT,
-                             GL_FALSE,
-                             sizeof(WeatherParticleVert),
-                             reinterpret_cast<void *>(offsetof(WeatherParticleVert, life)));
-    m_functions.glVertexAttribDivisor(1, 1);
-
     m_functions.glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, count);
-
     m_functions.glBindVertexArray(0);
-    m_functions.glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 } // namespace Legacy

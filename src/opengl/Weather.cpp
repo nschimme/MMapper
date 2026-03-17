@@ -43,9 +43,6 @@ GLWeather::GLWeather(OpenGL &gl,
 {
     updateFromGame();
 
-    m_moonVisibility = m_observer.getMoonVisibility();
-    m_targetMoonIntensity = (m_moonVisibility == MumeMoonVisibilityEnum::BRIGHT) ? 1.0f : 0.0f;
-
     m_currentTimeOfDay = m_observer.getTimeOfDay();
     m_oldTimeOfDay = m_currentTimeOfDay;
     m_gameTimeOfDayIntensity = (m_currentTimeOfDay == MumeTimeEnum::DAY) ? 0.0f : 1.0f;
@@ -58,7 +55,6 @@ GLWeather::GLWeather(OpenGL &gl,
     m_cloudsIntensityStart = m_targetCloudsIntensity;
     m_fogIntensityStart = m_targetFogIntensity;
     m_precipitationTypeStart = m_targetPrecipitationType;
-    m_moonIntensityStart = m_targetMoonIntensity;
 
     auto lerpCurrentIntensities = [this]() {
         m_rainIntensityStart = applyTransition(m_weatherTransitionStartTime,
@@ -105,9 +101,6 @@ GLWeather::GLWeather(OpenGL &gl,
         m_timeOfDayIntensityStart = applyTransition(m_timeOfDayTransitionStartTime,
                                                     m_timeOfDayIntensityStart,
                                                     m_targetTimeOfDayIntensity);
-        m_moonIntensityStart = applyTransition(m_timeOfDayTransitionStartTime,
-                                               m_moonIntensityStart,
-                                               m_targetMoonIntensity);
 
         m_oldTimeOfDay = m_currentTimeOfDay;
         m_currentTimeOfDay = timeOfDay;
@@ -118,24 +111,6 @@ GLWeather::GLWeather(OpenGL &gl,
         m_animationManager.requestUpdate();
     });
 
-    m_observer.sig2_moonVisibilityChanged
-        .connect(m_lifetime, [this](MumeMoonVisibilityEnum visibility) {
-            if (visibility == m_moonVisibility) {
-                return;
-            }
-            m_moonIntensityStart = applyTransition(m_timeOfDayTransitionStartTime,
-                                                   m_moonIntensityStart,
-                                                   m_targetMoonIntensity);
-            m_timeOfDayIntensityStart = applyTransition(m_timeOfDayTransitionStartTime,
-                                                        m_timeOfDayIntensityStart,
-                                                        m_targetTimeOfDayIntensity);
-
-            m_moonVisibility = visibility;
-            m_targetMoonIntensity = (visibility == MumeMoonVisibilityEnum::BRIGHT) ? 1.0f : 0.0f;
-            m_timeOfDayTransitionStartTime = m_animationManager.getElapsedTime();
-            invalidateWeather();
-            m_animationManager.requestUpdate();
-        });
 
     auto onSettingChanged = [this, lerpCurrentIntensities]() {
         lerpCurrentIntensities();

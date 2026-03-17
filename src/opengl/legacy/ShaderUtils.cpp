@@ -219,20 +219,21 @@ NODISCARD static GLuint compileShader(Functions &gl, const GLenum type, const So
                                       + std::to_string(WeatherConstants::WEATHER_RADIUS) + "\n";
     std::string defineWeatherExtent = "#define WEATHER_EXTENT "
                                       + std::to_string(WeatherConstants::WEATHER_EXTENT) + "\n";
-    std::string defineWeatherMaskStart = "#define WEATHER_MASK_RADIUS_START "
+    std::string defineWeatherMaskOuter = "#define WEATHER_MASK_RADIUS_OUTER "
                                          + std::to_string(
-                                             WeatherConstants::WEATHER_MASK_RADIUS_START)
+                                             WeatherConstants::WEATHER_MASK_RADIUS_OUTER)
                                          + "\n";
-    std::string defineWeatherMaskEnd = "#define WEATHER_MASK_RADIUS_END "
-                                       + std::to_string(WeatherConstants::WEATHER_MASK_RADIUS_END)
-                                       + "\n";
+    std::string defineWeatherMaskInner = "#define WEATHER_MASK_RADIUS_INNER "
+                                         + std::to_string(
+                                             WeatherConstants::WEATHER_MASK_RADIUS_INNER)
+                                         + "\n";
 
     std::array<const char *, 8> ptrs = {gl.getShaderVersion(),
                                         defineNamedColors.c_str(),
                                         defineWeatherRadius.c_str(),
                                         defineWeatherExtent.c_str(),
-                                        defineWeatherMaskStart.c_str(),
-                                        defineWeatherMaskEnd.c_str(),
+                                        defineWeatherMaskOuter.c_str(),
+                                        defineWeatherMaskInner.c_str(),
                                         "#line 1\n",
                                         source.source.c_str()};
     gl.glShaderSource(shaderId, static_cast<GLsizei>(ptrs.size()), ptrs.data(), nullptr);

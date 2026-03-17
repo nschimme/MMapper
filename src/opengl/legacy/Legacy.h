@@ -25,7 +25,6 @@ class OpenGL;
 
 namespace Legacy {
 
-class UboManager;
 class StaticVbos;
 class SharedVbos;
 class SharedVaos;

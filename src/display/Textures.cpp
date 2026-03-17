@@ -384,31 +384,36 @@ NODISCARD static QImage createTileableValueNoiseImage(int size)
     // Perlin's quintic curve ($6t^5-15t^4+10t^3$) ensures smooth C2 continuity at grid boundaries
     auto smooth = [](float t) -> float { return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f); };
 
+    // The noise pattern will repeat every 'period' lattice points.
+    // For a 256x256 image, a period of 16 means each lattice cell is 16x16 pixels.
+    const int period = 16;
+    const float scale = static_cast<float>(period) / static_cast<float>(size);
+
     for (int y = 0; y < size; ++y) {
         // scanLine avoids QImage's internal per-pixel coordinate-to-pointer overhead
         uchar *line = img.scanLine(y);
 
         for (int x = 0; x < size; ++x) {
-            float xx = static_cast<float>(x);
-            float yy = static_cast<float>(y);
+            float xx = static_cast<float>(x) * scale;
+            float yy = static_cast<float>(y) * scale;
 
-            float ix = std::floor(xx);
-            float iy = std::floor(yy);
-            float fx = xx - ix;
-            float fy = yy - iy;
+            float ix_f = std::floor(xx);
+            float iy_f = std::floor(yy);
+            float fx = xx - ix_f;
+            float fy = yy - iy_f;
 
             float sx = smooth(fx);
             float sy = smooth(fy);
 
+            int iix = static_cast<int>(ix_f);
+            int iiy = static_cast<int>(iy_f);
+
             // Double modulo ensures positive wrapping for seamless tiling
             auto get_wrapped_hash = [&](int i, int j) {
-                float wi = static_cast<float>((i % size + size) % size);
-                float wj = static_cast<float>((j % size + size) % size);
+                float wi = static_cast<float>((i % period + period) % period);
+                float wj = static_cast<float>((j % period + period) % period);
                 return hash(wi, wj);
             };
-
-            int iix = static_cast<int>(ix);
-            int iiy = static_cast<int>(iy);
 
             // Fetch corners for bilinear interpolation
             float a = get_wrapped_hash(iix, iiy);

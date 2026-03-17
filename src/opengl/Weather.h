@@ -95,8 +95,6 @@ private:
     float m_weatherTransitionStartTime = -2.0f;
     float m_timeOfDayTransitionStartTime = -2.0f;
 
-    Signal2Lifetime m_signalLifetime;
-
     // Rendering State
 
     // Meshes

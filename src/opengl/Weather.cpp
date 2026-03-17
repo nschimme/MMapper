@@ -23,7 +23,7 @@ constexpr float TRANSITION_DURATION = 2.0f;
 constexpr float ROOM_Z_SCALE = 7.f;
 
 template<typename T>
-T my_lerp(T a, T b, float t)
+T lerp(T a, T b, float t)
 {
     return a + t * (b - a);
 }
@@ -61,15 +61,21 @@ GLWeather::GLWeather(OpenGL &gl,
     m_moonIntensityStart = m_targetMoonIntensity;
 
     auto lerpCurrentIntensities = [this]() {
-        applyTransition(m_weatherTransitionStartTime, m_rainIntensityStart, m_targetRainIntensity);
-        applyTransition(m_weatherTransitionStartTime, m_snowIntensityStart, m_targetSnowIntensity);
-        applyTransition(m_weatherTransitionStartTime,
-                        m_cloudsIntensityStart,
-                        m_targetCloudsIntensity);
-        applyTransition(m_weatherTransitionStartTime, m_fogIntensityStart, m_targetFogIntensity);
-        applyTransition(m_weatherTransitionStartTime,
-                        m_precipitationTypeStart,
-                        m_targetPrecipitationType);
+        m_rainIntensityStart = applyTransition(m_weatherTransitionStartTime,
+                                               m_rainIntensityStart,
+                                               m_targetRainIntensity);
+        m_snowIntensityStart = applyTransition(m_weatherTransitionStartTime,
+                                               m_snowIntensityStart,
+                                               m_targetSnowIntensity);
+        m_cloudsIntensityStart = applyTransition(m_weatherTransitionStartTime,
+                                                 m_cloudsIntensityStart,
+                                                 m_targetCloudsIntensity);
+        m_fogIntensityStart = applyTransition(m_weatherTransitionStartTime,
+                                              m_fogIntensityStart,
+                                              m_targetFogIntensity);
+        m_precipitationTypeStart = applyTransition(m_weatherTransitionStartTime,
+                                                   m_precipitationTypeStart,
+                                                   m_targetPrecipitationType);
     };
 
     m_observer.sig2_weatherChanged
@@ -96,12 +102,12 @@ GLWeather::GLWeather(OpenGL &gl,
             return;
         }
 
-        applyTransition(m_timeOfDayTransitionStartTime,
-                        m_timeOfDayIntensityStart,
-                        m_targetTimeOfDayIntensity);
-        applyTransition(m_timeOfDayTransitionStartTime,
-                        m_moonIntensityStart,
-                        m_targetMoonIntensity);
+        m_timeOfDayIntensityStart = applyTransition(m_timeOfDayTransitionStartTime,
+                                                    m_timeOfDayIntensityStart,
+                                                    m_targetTimeOfDayIntensity);
+        m_moonIntensityStart = applyTransition(m_timeOfDayTransitionStartTime,
+                                               m_moonIntensityStart,
+                                               m_targetMoonIntensity);
 
         m_oldTimeOfDay = m_currentTimeOfDay;
         m_currentTimeOfDay = timeOfDay;
@@ -117,12 +123,12 @@ GLWeather::GLWeather(OpenGL &gl,
             if (visibility == m_moonVisibility) {
                 return;
             }
-            applyTransition(m_timeOfDayTransitionStartTime,
-                            m_moonIntensityStart,
-                            m_targetMoonIntensity);
-            applyTransition(m_timeOfDayTransitionStartTime,
-                            m_timeOfDayIntensityStart,
-                            m_targetTimeOfDayIntensity);
+            m_moonIntensityStart = applyTransition(m_timeOfDayTransitionStartTime,
+                                                   m_moonIntensityStart,
+                                                   m_targetMoonIntensity);
+            m_timeOfDayIntensityStart = applyTransition(m_timeOfDayTransitionStartTime,
+                                                        m_timeOfDayIntensityStart,
+                                                        m_targetTimeOfDayIntensity);
 
             m_moonVisibility = visibility;
             m_targetMoonIntensity = (visibility == MumeMoonVisibilityEnum::BRIGHT) ? 1.0f : 0.0f;
@@ -140,9 +146,9 @@ GLWeather::GLWeather(OpenGL &gl,
     };
 
     auto onTimeOfDaySettingChanged = [this]() {
-        applyTransition(m_timeOfDayTransitionStartTime,
-                        m_timeOfDayIntensityStart,
-                        m_targetTimeOfDayIntensity);
+        m_timeOfDayIntensityStart = applyTransition(m_timeOfDayTransitionStartTime,
+                                                    m_timeOfDayIntensityStart,
+                                                    m_targetTimeOfDayIntensity);
 
         updateTargets();
         m_timeOfDayTransitionStartTime = m_animationManager.getElapsedTime();
@@ -165,7 +171,7 @@ GLWeather::GLWeather(OpenGL &gl,
     m_gl.getUboManager().registerRebuildFunction(
         Legacy::SharedVboEnum::CameraBlock, [this](Legacy::Functions &glFuncs) {
             const auto playerPosCoord = m_data.tryGetPosition().value_or(Coordinate{0, 0, 0});
-            auto cameraData = getCameraData(m_lastViewProj, playerPosCoord);
+            auto cameraData = getCameraData(glFuncs.getProjectionMatrix(), playerPosCoord);
             m_gl.getUboManager().update(glFuncs, Legacy::SharedVboEnum::CameraBlock, cameraData);
         });
 
@@ -227,7 +233,6 @@ void GLWeather::updateFromGame()
 void GLWeather::updateTargets()
 {
     const auto &canvasSettings = getConfig().canvas;
-    // Map 0-100 slider to 0.0-2.0 multiplier, with 50 as neutral.
     m_targetRainIntensity = m_gameRainIntensity
                             * (static_cast<float>(canvasSettings.weatherPrecipitationIntensity.get())
                                / 50.0f);
@@ -248,22 +253,22 @@ void GLWeather::updateTargets()
 
 void GLWeather::update()
 {
-    updateTargets();
+    m_currentRainIntensity = applyTransition(m_weatherTransitionStartTime,
+                                             m_rainIntensityStart,
+                                             m_targetRainIntensity);
+    m_currentSnowIntensity = applyTransition(m_weatherTransitionStartTime,
+                                             m_snowIntensityStart,
+                                             m_targetSnowIntensity);
+    m_currentCloudsIntensity = applyTransition(m_weatherTransitionStartTime,
+                                               m_cloudsIntensityStart,
+                                               m_targetCloudsIntensity);
+    m_currentFogIntensity = applyTransition(m_weatherTransitionStartTime,
+                                            m_fogIntensityStart,
+                                            m_targetFogIntensity);
 
-    const float animTime = m_animationManager.getElapsedTime();
-
-    float wt = std::clamp((animTime - m_weatherTransitionStartTime) / TRANSITION_DURATION,
-                          0.0f,
-                          1.0f);
-    m_currentRainIntensity = my_lerp(m_rainIntensityStart, m_targetRainIntensity, wt);
-    m_currentSnowIntensity = my_lerp(m_snowIntensityStart, m_targetSnowIntensity, wt);
-    m_currentCloudsIntensity = my_lerp(m_cloudsIntensityStart, m_targetCloudsIntensity, wt);
-    m_currentFogIntensity = my_lerp(m_fogIntensityStart, m_targetFogIntensity, wt);
-
-    float tt = std::clamp((animTime - m_timeOfDayTransitionStartTime) / TRANSITION_DURATION,
-                          0.0f,
-                          1.0f);
-    m_currentTimeOfDayIntensity = my_lerp(m_timeOfDayIntensityStart, m_targetTimeOfDayIntensity, tt);
+    m_currentTimeOfDayIntensity = applyTransition(m_timeOfDayTransitionStartTime,
+                                                  m_timeOfDayIntensityStart,
+                                                  m_targetTimeOfDayIntensity);
 }
 
 bool GLWeather::isAnimating() const
@@ -333,21 +338,18 @@ void GLWeather::populateWeatherParams(GLRenderState::Uniforms::Weather::Params &
     params.config.z = TRANSITION_DURATION;
 }
 
-void GLWeather::invalidateCamera()
-{
-    m_gl.getUboManager().invalidate(Legacy::SharedVboEnum::CameraBlock);
-}
-
 void GLWeather::invalidateWeather()
 {
     m_gl.getUboManager().invalidate(Legacy::SharedVboEnum::WeatherBlock);
 }
 
-void GLWeather::applyTransition(float startTime, float &startVal, float targetVal)
+float GLWeather::applyTransition(const float startTime,
+                                 const float startVal,
+                                 const float targetVal) const
 {
-    float t = (m_animationManager.getElapsedTime() - startTime) / TRANSITION_DURATION;
-    float factor = std::clamp(t, 0.0f, 1.0f);
-    startVal = my_lerp(startVal, targetVal, factor);
+    const float t = (m_animationManager.getElapsedTime() - startTime) / TRANSITION_DURATION;
+    const float factor = std::clamp(t, 0.0f, 1.0f);
+    return lerp(startVal, targetVal, factor);
 }
 
 void GLWeather::initMeshes()
@@ -369,15 +371,9 @@ void GLWeather::initMeshes()
     }
 }
 
-void GLWeather::prepare(const glm::mat4 &viewProj, const Coordinate &playerPos)
+void GLWeather::prepare()
 {
     initMeshes();
-
-    if (viewProj != m_lastViewProj || playerPos != m_lastPlayerPos) {
-        m_lastViewProj = viewProj;
-        m_lastPlayerPos = playerPos;
-        invalidateCamera();
-    }
 
     auto &funcs = deref(m_gl.getSharedFunctions(Badge<GLWeather>{}));
     m_gl.getUboManager().bind(funcs, Legacy::SharedVboEnum::CameraBlock);

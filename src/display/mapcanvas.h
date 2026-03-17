@@ -136,7 +136,7 @@ private:
 private:
     MapScreen m_mapScreen;
     GameObserver &m_observer;
-    OpenGL m_opengl;
+    mutable OpenGL m_opengl;
     GLFont m_glFont;
     Batches m_batches;
     MapCanvasTextures m_textures;
@@ -188,6 +188,9 @@ private:
 private:
     void reportGLVersion();
     NODISCARD bool isBlacklistedDriver();
+
+protected:
+    void onViewProjDirty() const override;
 
 protected:
     void initializeGL() override;

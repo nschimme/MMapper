@@ -79,6 +79,9 @@ MapCanvas::MapCanvas(MapData &mapData,
         return m_batches.remeshCookie.isPending() ? FrameManager::AnimationStatusEnum::Continue
                                                   : FrameManager::AnimationStatusEnum::Stop;
     });
+    connect(&m_data, &MapData::sig_onPositionChange, this, [this]() {
+        m_opengl.getUboManager().invalidate(Legacy::SharedVboEnum::CameraBlock);
+    });
     NonOwningPointer &pmc = primaryMapCanvas();
     if (pmc == nullptr) {
         pmc = this;

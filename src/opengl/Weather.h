@@ -93,8 +93,6 @@ private:
     Signal2Lifetime m_signalLifetime;
 
     // Rendering State
-    glm::mat4 m_lastViewProj{0.0f};
-    Coordinate m_lastPlayerPos;
 
     // Meshes
     std::unique_ptr<Legacy::ParticleSimulationMesh> m_simulation;
@@ -114,7 +112,7 @@ public:
 
 public:
     void update();
-    void prepare(const glm::mat4 &viewProj, const Coordinate &playerPos);
+    void prepare();
     void render(const GLRenderState &rs);
 
     NODISCARD bool isAnimating() const;
@@ -124,12 +122,11 @@ private:
     void updateTargets();
     void updateFromGame();
     void initMeshes();
-    void invalidateCamera();
     void invalidateWeather();
 
     NODISCARD GLRenderState::Uniforms::Weather::Camera getCameraData(
         const glm::mat4 &viewProj, const Coordinate &playerPos) const;
     void populateWeatherParams(GLRenderState::Uniforms::Weather::Params &params) const;
 
-    void applyTransition(float startTime, float &startVal, float targetVal);
+    NODISCARD float applyTransition(float startTime, float startVal, float targetVal) const;
 };

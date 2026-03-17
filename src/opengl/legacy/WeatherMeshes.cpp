@@ -155,12 +155,13 @@ ParticleRenderMesh::~ParticleRenderMesh() = default;
 
 void ParticleRenderMesh::init()
 {
-    if (m_initialized) {
+    if (m_initialized || m_simulation.virt_isEmpty()) {
         return;
     }
 
     for (int i = 0; i < 2; ++i) {
         m_functions.glBindVertexArray(m_vaos[i].get());
+
         m_functions.glBindBuffer(GL_ARRAY_BUFFER, m_simulation.getParticleVbo(i).get());
         m_functions.enableAttrib(0,
                                  2,
@@ -177,9 +178,9 @@ void ParticleRenderMesh::init()
                                  reinterpret_cast<void *>(offsetof(WeatherParticleVert, life)));
         m_functions.glVertexAttribDivisor(1, 1);
     }
+
     m_functions.glBindVertexArray(0);
     m_functions.glBindBuffer(GL_ARRAY_BUFFER, 0);
-
     m_initialized = true;
 }
 
@@ -199,6 +200,9 @@ bool ParticleRenderMesh::virt_isEmpty() const
 void ParticleRenderMesh::virt_render(const GLRenderState &renderState)
 {
     init();
+    if (!m_initialized) {
+        return;
+    }
 
     // The particle count is determined by the max intensity in the UBO.
     // However, since we don't have direct access to the UBO data here without re-parsing,
@@ -213,7 +217,6 @@ void ParticleRenderMesh::virt_render(const GLRenderState &renderState)
     RenderStateBinder rsBinder(m_functions, m_functions.getTexLookup(), renderState);
 
     const uint32_t bufferIdx = m_simulation.getCurrentBuffer();
-
     m_functions.glBindVertexArray(m_vaos[bufferIdx].get());
     m_functions.glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, count);
     m_functions.glBindVertexArray(0);

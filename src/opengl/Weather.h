@@ -10,6 +10,8 @@
 #include "../map/coordinate.h"
 #include "../observer/gameobserver.h"
 #include "OpenGL.h"
+
+class FrameManager;
 #include "OpenGLTypes.h"
 #include "legacy/Legacy.h"
 #include "legacy/WeatherMeshes.h"
@@ -17,7 +19,6 @@
 #include <chrono>
 #include <memory>
 
-class FrameManager;
 class MapData;
 struct MapCanvasTextures;
 
@@ -37,6 +38,7 @@ constexpr float WEATHER_RADIUS = 14.0f;
 constexpr float WEATHER_EXTENT = 28.0f;
 constexpr float WEATHER_MASK_RADIUS_OUTER = 12.0f;
 constexpr float WEATHER_MASK_RADIUS_INNER = 8.0f;
+constexpr float TRANSITION_DURATION = 2.0f;
 } // namespace WeatherConstants
 
 /**
@@ -46,6 +48,7 @@ constexpr float WEATHER_MASK_RADIUS_INNER = 8.0f;
 class NODISCARD GLWeather final
 {
 private:
+    struct FrameManagerProxy;
     OpenGL &m_gl;
     MapData &m_data;
     const MapCanvasTextures &m_textures;
@@ -81,8 +84,10 @@ private:
     float m_gameFogIntensity = 0.0f;
     float m_gameTimeOfDayIntensity = 0.0f;
 
-    MumeTimeEnum m_oldTimeOfDay = MumeTimeEnum::DAY;
+    NamedColorEnum m_startColorIdx = NamedColorEnum::TRANSPARENT;
+    NamedColorEnum m_targetColorIdx = NamedColorEnum::TRANSPARENT;
     MumeTimeEnum m_currentTimeOfDay = MumeTimeEnum::DAY;
+    MumeMoonVisibilityEnum m_moonVisibility = MumeMoonVisibilityEnum::UNKNOWN;
 
     float m_weatherTransitionStartTime = -2.0f;
     float m_timeOfDayTransitionStartTime = -2.0f;
@@ -126,4 +131,19 @@ private:
     void populateWeatherParams(GLRenderState::Uniforms::Weather::Params &params) const;
 
     NODISCARD float applyTransition(float startTime, float startVal, float targetVal) const;
+
+    template<typename T>
+    NODISCARD T applyTransition(float startTime, T startVal, T targetVal) const;
+
+    template<typename T>
+    struct TransitionPair
+    {
+        T &start;
+        T target;
+    };
+
+    template<typename... Pairs>
+    void startTransitions(float &startTime, Pairs... pairs);
+
+    NODISCARD NamedColorEnum getCurrentColorIdx() const;
 };

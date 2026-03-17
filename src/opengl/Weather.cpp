@@ -19,7 +19,6 @@
 #include <glm/glm.hpp>
 
 namespace {
-constexpr float TRANSITION_DURATION = 2.0f;
 constexpr float ROOM_Z_SCALE = 7.f;
 
 template<typename T>
@@ -43,11 +42,13 @@ GLWeather::GLWeather(OpenGL &gl,
 {
     updateFromGame();
 
+    m_moonVisibility = m_observer.getMoonVisibility();
     m_currentTimeOfDay = m_observer.getTimeOfDay();
-    m_oldTimeOfDay = m_currentTimeOfDay;
     m_gameTimeOfDayIntensity = (m_currentTimeOfDay == MumeTimeEnum::DAY) ? 0.0f : 1.0f;
 
     updateTargets();
+
+    m_startColorIdx = m_targetColorIdx = getCurrentColorIdx();
 
     m_timeOfDayIntensityStart = m_targetTimeOfDayIntensity;
     m_rainIntensityStart = m_targetRainIntensity;
@@ -56,77 +57,82 @@ GLWeather::GLWeather(OpenGL &gl,
     m_fogIntensityStart = m_targetFogIntensity;
     m_precipitationTypeStart = m_targetPrecipitationType;
 
-    auto lerpCurrentIntensities = [this]() {
-        m_rainIntensityStart = applyTransition(m_weatherTransitionStartTime,
-                                               m_rainIntensityStart,
-                                               m_targetRainIntensity);
-        m_snowIntensityStart = applyTransition(m_weatherTransitionStartTime,
-                                               m_snowIntensityStart,
-                                               m_targetSnowIntensity);
-        m_cloudsIntensityStart = applyTransition(m_weatherTransitionStartTime,
-                                                 m_cloudsIntensityStart,
-                                                 m_targetCloudsIntensity);
-        m_fogIntensityStart = applyTransition(m_weatherTransitionStartTime,
-                                              m_fogIntensityStart,
-                                              m_targetFogIntensity);
-        m_precipitationTypeStart = applyTransition(m_weatherTransitionStartTime,
-                                                   m_precipitationTypeStart,
-                                                   m_targetPrecipitationType);
+    auto startWeatherTransitions = [this]() {
+        startTransitions(m_weatherTransitionStartTime,
+                         TransitionPair<float>{m_rainIntensityStart, m_targetRainIntensity},
+                         TransitionPair<float>{m_snowIntensityStart, m_targetSnowIntensity},
+                         TransitionPair<float>{m_cloudsIntensityStart, m_targetCloudsIntensity},
+                         TransitionPair<float>{m_fogIntensityStart, m_targetFogIntensity},
+                         TransitionPair<float>{m_precipitationTypeStart, m_targetPrecipitationType});
     };
 
-    m_observer.sig2_weatherChanged
-        .connect(m_lifetime, [this, lerpCurrentIntensities](PromptWeatherEnum) {
-            lerpCurrentIntensities();
-            updateFromGame();
+    m_observer.sig2_weatherChanged.connect(m_lifetime,
+                                           [this, startWeatherTransitions](PromptWeatherEnum) {
+                                               startWeatherTransitions();
+                                               updateFromGame();
+                                               updateTargets();
+                                               invalidateWeather();
+                                               m_animationManager.requestUpdate();
+                                           });
+
+    m_observer.sig2_fogChanged.connect(m_lifetime, [this, startWeatherTransitions](PromptFogEnum) {
+        startWeatherTransitions();
+        updateFromGame();
+        updateTargets();
+        invalidateWeather();
+        m_animationManager.requestUpdate();
+    });
+
+    auto startTimeOfDayTransitions = [this]() {
+        startTransitions(m_timeOfDayTransitionStartTime,
+                         TransitionPair<float>{m_timeOfDayIntensityStart,
+                                               m_targetTimeOfDayIntensity},
+                         TransitionPair<NamedColorEnum>{m_startColorIdx, m_targetColorIdx});
+    };
+
+    m_observer.sig2_timeOfDayChanged
+        .connect(m_lifetime, [this, startTimeOfDayTransitions](MumeTimeEnum timeOfDay) {
+            if (timeOfDay == m_currentTimeOfDay) {
+                return;
+            }
+
+            startTimeOfDayTransitions();
+
+            m_currentTimeOfDay = timeOfDay;
+            m_gameTimeOfDayIntensity = (timeOfDay == MumeTimeEnum::DAY) ? 0.0f : 1.0f;
             updateTargets();
-            m_weatherTransitionStartTime = m_animationManager.getElapsedTime();
+            m_targetColorIdx = getCurrentColorIdx();
+
             invalidateWeather();
             m_animationManager.requestUpdate();
         });
 
-    m_observer.sig2_fogChanged.connect(m_lifetime, [this, lerpCurrentIntensities](PromptFogEnum) {
-        lerpCurrentIntensities();
-        updateFromGame();
+    m_observer.sig2_moonVisibilityChanged.connect(m_lifetime,
+                                                  [this, startTimeOfDayTransitions](
+                                                      MumeMoonVisibilityEnum visibility) {
+                                                      if (visibility == m_moonVisibility) {
+                                                          return;
+                                                      }
+                                                      startTimeOfDayTransitions();
+
+                                                      m_moonVisibility = visibility;
+                                                      m_targetColorIdx = getCurrentColorIdx();
+
+                                                      invalidateWeather();
+                                                      m_animationManager.requestUpdate();
+                                                  });
+
+    auto onSettingChanged = [this, startWeatherTransitions]() {
+        startWeatherTransitions();
         updateTargets();
-        m_weatherTransitionStartTime = m_animationManager.getElapsedTime();
-        invalidateWeather();
-        m_animationManager.requestUpdate();
-    });
-
-    m_observer.sig2_timeOfDayChanged.connect(m_lifetime, [this](MumeTimeEnum timeOfDay) {
-        if (timeOfDay == m_currentTimeOfDay) {
-            return;
-        }
-
-        m_timeOfDayIntensityStart = applyTransition(m_timeOfDayTransitionStartTime,
-                                                    m_timeOfDayIntensityStart,
-                                                    m_targetTimeOfDayIntensity);
-
-        m_oldTimeOfDay = m_currentTimeOfDay;
-        m_currentTimeOfDay = timeOfDay;
-        m_gameTimeOfDayIntensity = (timeOfDay == MumeTimeEnum::DAY) ? 0.0f : 1.0f;
-        updateTargets();
-        m_timeOfDayTransitionStartTime = m_animationManager.getElapsedTime();
-        invalidateWeather();
-        m_animationManager.requestUpdate();
-    });
-
-
-    auto onSettingChanged = [this, lerpCurrentIntensities]() {
-        lerpCurrentIntensities();
-        updateTargets();
-        m_weatherTransitionStartTime = m_animationManager.getElapsedTime();
         invalidateWeather();
         m_animationManager.requestUpdate();
     };
 
-    auto onTimeOfDaySettingChanged = [this]() {
-        m_timeOfDayIntensityStart = applyTransition(m_timeOfDayTransitionStartTime,
-                                                    m_timeOfDayIntensityStart,
-                                                    m_targetTimeOfDayIntensity);
+    auto onTimeOfDaySettingChanged = [this, startTimeOfDayTransitions]() {
+        startTimeOfDayTransitions();
 
         updateTargets();
-        m_timeOfDayTransitionStartTime = m_animationManager.getElapsedTime();
         invalidateWeather();
         m_animationManager.requestUpdate();
     };
@@ -257,9 +263,9 @@ bool GLWeather::isTransitioning() const
 {
     const float animTime = m_animationManager.getElapsedTime();
     const bool weatherTransitioning = (animTime - m_weatherTransitionStartTime
-                                       < TRANSITION_DURATION);
+                                       < WeatherConstants::TRANSITION_DURATION);
     const bool timeOfDayTransitioning = (animTime - m_timeOfDayTransitionStartTime
-                                         < TRANSITION_DURATION);
+                                         < WeatherConstants::TRANSITION_DURATION);
     return weatherTransitioning || timeOfDayTransitioning;
 }
 
@@ -275,6 +281,25 @@ GLRenderState::Uniforms::Weather::Camera GLWeather::getCameraData(
     return camera;
 }
 
+NamedColorEnum GLWeather::getCurrentColorIdx() const
+{
+    switch (m_currentTimeOfDay) {
+    case MumeTimeEnum::DAY:
+        return NamedColorEnum::TRANSPARENT;
+    case MumeTimeEnum::NIGHT:
+        return (m_moonVisibility == MumeMoonVisibilityEnum::BRIGHT)
+                   ? NamedColorEnum::WEATHER_NIGHT_MOON
+                   : NamedColorEnum::WEATHER_NIGHT;
+    case MumeTimeEnum::DAWN:
+        return NamedColorEnum::WEATHER_DAWN;
+    case MumeTimeEnum::DUSK:
+        return NamedColorEnum::WEATHER_DUSK;
+    case MumeTimeEnum::UNKNOWN:
+        return NamedColorEnum::TRANSPARENT;
+    }
+    return NamedColorEnum::TRANSPARENT;
+}
+
 void GLWeather::populateWeatherParams(GLRenderState::Uniforms::Weather::Params &params) const
 {
     params.intensities = glm::vec4(std::max(m_rainIntensityStart, m_snowIntensityStart),
@@ -287,30 +312,14 @@ void GLWeather::populateWeatherParams(GLRenderState::Uniforms::Weather::Params &
                                m_targetFogIntensity,
                                m_targetPrecipitationType);
 
-    auto toNamedColorIdx = [](MumeTimeEnum timeOfDay) -> float {
-        switch (timeOfDay) {
-        case MumeTimeEnum::DAY:
-            return static_cast<float>(NamedColorEnum::TRANSPARENT);
-        case MumeTimeEnum::NIGHT:
-            return static_cast<float>(NamedColorEnum::WEATHER_NIGHT);
-        case MumeTimeEnum::DAWN:
-            return static_cast<float>(NamedColorEnum::WEATHER_DAWN);
-        case MumeTimeEnum::DUSK:
-            return static_cast<float>(NamedColorEnum::WEATHER_DUSK);
-        case MumeTimeEnum::UNKNOWN:
-            return static_cast<float>(NamedColorEnum::TRANSPARENT);
-        }
-        return static_cast<float>(NamedColorEnum::TRANSPARENT);
-    };
-
-    params.timeOfDayIndices.x = toNamedColorIdx(m_oldTimeOfDay);
-    params.timeOfDayIndices.y = toNamedColorIdx(m_currentTimeOfDay);
+    params.timeOfDayIndices.x = static_cast<float>(m_startColorIdx);
+    params.timeOfDayIndices.y = static_cast<float>(m_targetColorIdx);
     params.timeOfDayIndices.z = m_timeOfDayIntensityStart;
     params.timeOfDayIndices.w = m_targetTimeOfDayIntensity;
 
     params.config.x = m_weatherTransitionStartTime;
     params.config.y = m_timeOfDayTransitionStartTime;
-    params.config.z = TRANSITION_DURATION;
+    params.config.z = WeatherConstants::TRANSITION_DURATION;
 }
 
 void GLWeather::invalidateWeather()
@@ -322,9 +331,40 @@ float GLWeather::applyTransition(const float startTime,
                                  const float startVal,
                                  const float targetVal) const
 {
-    const float t = (m_animationManager.getElapsedTime() - startTime) / TRANSITION_DURATION;
+    const float t = (m_animationManager.getElapsedTime() - startTime)
+                    / WeatherConstants::TRANSITION_DURATION;
     const float factor = std::clamp(t, 0.0f, 1.0f);
     return lerp(startVal, targetVal, factor);
+}
+
+template<typename T>
+T GLWeather::applyTransition(float startTime, T startVal, T targetVal) const
+{
+    if (startVal == targetVal) {
+        return startVal;
+    }
+    const float t = (m_animationManager.getElapsedTime() - startTime)
+                    / WeatherConstants::TRANSITION_DURATION;
+    return (t >= 1.0f) ? targetVal : startVal;
+}
+
+template void GLWeather::startTransitions(float &startTime,
+                                          TransitionPair<float> p1,
+                                          TransitionPair<float> p2,
+                                          TransitionPair<float> p3,
+                                          TransitionPair<float> p4,
+                                          TransitionPair<float> p5);
+
+template void GLWeather::startTransitions(float &startTime,
+                                          TransitionPair<float> p1,
+                                          TransitionPair<NamedColorEnum> p2);
+
+template<typename... Pairs>
+void GLWeather::startTransitions(float &startTime, Pairs... pairs)
+{
+    float oldStartTime = startTime;
+    startTime = m_animationManager.getElapsedTime();
+    (..., (pairs.start = applyTransition(oldStartTime, pairs.start, pairs.target)));
 }
 
 void GLWeather::initMeshes()
@@ -375,7 +415,7 @@ void GLWeather::render(const GLRenderState &rs)
                                   .withDepthFunction(std::nullopt);
 
     // TimeOfDay
-    if (m_currentTimeOfDay != MumeTimeEnum::DAY || m_oldTimeOfDay != MumeTimeEnum::DAY
+    if (m_currentTimeOfDay != MumeTimeEnum::DAY || m_startColorIdx != NamedColorEnum::TRANSPARENT
         || m_currentTimeOfDayIntensity > 0.0f) {
         if (m_timeOfDay) {
             m_timeOfDay.render(atmosphereRs);

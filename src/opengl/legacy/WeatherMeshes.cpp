@@ -17,25 +17,6 @@ AtmosphereMesh::AtmosphereMesh(SharedFunctions sharedFunctions,
 
 AtmosphereMesh::~AtmosphereMesh() = default;
 
-void AtmosphereMesh::virt_render(const GLRenderState &renderState)
-{
-    auto binder = m_program.bind();
-    const glm::mat4 mvp = renderState.mvp.value_or(m_functions.getProjectionMatrix());
-    m_program.setUniforms(mvp, renderState.uniforms);
-
-    RenderStateBinder rsBinder(m_functions, m_functions.getTexLookup(), renderState);
-
-    SharedVao shared = m_functions.getSharedVaos().get(SharedVaoEnum::EmptyVao);
-    VAO &vao = deref(shared);
-    if (!vao) {
-        vao.emplace(m_shared_functions);
-    }
-
-    m_functions.glBindVertexArray(vao.get());
-    m_functions.glDrawArrays(m_mode, 0, m_numVerts);
-    m_functions.glBindVertexArray(0);
-}
-
 TimeOfDayMesh::~TimeOfDayMesh() = default;
 
 ParticleSimulationMesh::ParticleSimulationMesh(SharedFunctions shared_functions,

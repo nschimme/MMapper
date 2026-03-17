@@ -20,9 +20,6 @@ public:
     explicit AtmosphereMesh(SharedFunctions sharedFunctions,
                             std::shared_ptr<AtmosphereShader> program);
     ~AtmosphereMesh() override;
-
-protected:
-    void virt_render(const GLRenderState &renderState) override;
 };
 
 class NODISCARD TimeOfDayMesh final : public FullScreenMesh<TimeOfDayShader>

@@ -227,6 +227,7 @@ void GLWeather::updateFromGame()
 void GLWeather::updateTargets()
 {
     const auto &canvasSettings = getConfig().canvas;
+    // Map 0-100 slider to 0.0-2.0 multiplier, with 50 as neutral.
     m_targetRainIntensity = m_gameRainIntensity
                             * (static_cast<float>(canvasSettings.weatherPrecipitationIntensity.get())
                                / 50.0f);

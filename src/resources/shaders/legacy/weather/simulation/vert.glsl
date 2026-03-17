@@ -80,20 +80,20 @@ void main()
         life = 1.0;
         // Respawn at the top
         float r1 = rand(hash + uCurrentTime);
-        pos.x = uPlayerPos.x + (r1 * 28.0 - 14.0);
-        pos.y = uPlayerPos.y + 14.0;
+        pos.x = uPlayerPos.x + (r1 * WEATHER_EXTENT - WEATHER_RADIUS);
+        pos.y = uPlayerPos.y + WEATHER_RADIUS;
     } else {
-        // Toroidal wrap around player (28.0x28.0 area)
+        // Toroidal wrap around player (WEATHER_EXTENT x WEATHER_EXTENT area)
         vec2 rel = pos - uPlayerPos.xy;
-        if (rel.x < -14.0)
-            pos.x += 28.0;
-        else if (rel.x > 14.0)
-            pos.x -= 28.0;
+        if (rel.x < -WEATHER_RADIUS)
+            pos.x += WEATHER_EXTENT;
+        else if (rel.x > WEATHER_RADIUS)
+            pos.x -= WEATHER_EXTENT;
 
-        if (rel.y < -14.0)
-            pos.y += 28.0;
-        else if (rel.y > 14.0)
-            pos.y -= 28.0;
+        if (rel.y < -WEATHER_RADIUS)
+            pos.y += WEATHER_EXTENT;
+        else if (rel.y > WEATHER_RADIUS)
+            pos.y -= WEATHER_EXTENT;
     }
 
     vPos = pos;

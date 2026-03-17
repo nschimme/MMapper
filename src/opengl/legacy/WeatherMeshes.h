@@ -59,7 +59,7 @@ private:
     void virt_render(const GLRenderState &renderState) override;
 
 public:
-    NODISCARD bool virt_isEmpty() const override { return !m_initialized; }
+    NODISCARD bool virt_isEmpty() const override { return false; }
 
 public:
     NODISCARD uint32_t getCurrentBuffer() const { return m_currentBuffer; }

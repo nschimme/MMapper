@@ -4,6 +4,7 @@
 #include "WeatherMeshes.h"
 
 #include "../../global/random.h"
+#include "../Weather.h"
 #include "AttributeLessMeshes.h"
 #include "Binders.h"
 
@@ -63,9 +64,12 @@ void ParticleSimulationMesh::init()
     std::vector<WeatherParticleVert> initialData;
     initialData.reserve(m_numParticles);
     for (size_t i = 0; i < m_numParticles; ++i) {
-        initialData.emplace_back(glm::vec2(get_random_float() * 28.0f - 14.0f,
-                                           get_random_float() * 28.0f - 14.0f),
-                                 get_random_float());
+        initialData.emplace_back(
+            glm::vec2(get_random_float() * WeatherConstants::WEATHER_EXTENT
+                          - WeatherConstants::WEATHER_RADIUS,
+                      get_random_float() * WeatherConstants::WEATHER_EXTENT
+                          - WeatherConstants::WEATHER_RADIUS),
+            get_random_float());
     }
 
     for (int i = 0; i < 2; ++i) {
@@ -189,7 +193,7 @@ void ParticleRenderMesh::virt_reset()
 
 bool ParticleRenderMesh::virt_isEmpty() const
 {
-    return m_simulation.virt_isEmpty() || !m_initialized;
+    return m_simulation.virt_isEmpty();
 }
 
 void ParticleRenderMesh::virt_render(const GLRenderState &renderState)

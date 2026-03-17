@@ -16,8 +16,8 @@ void main()
     vec2 offset = vec2(float(gl_VertexID & 1) * 2.0 - 1.0,
                        float((gl_VertexID >> 1) & 1) * 2.0 - 1.0);
 
-    // Large enough to cover the 12-unit radius mask (30x30 units)
-    vec2 worldXY = uPlayerPos.xy + offset * 15.0;
+    // Large enough to cover the mask radius (WEATHER_RADIUS is currently 14.0)
+    vec2 worldXY = uPlayerPos.xy + offset * WEATHER_RADIUS;
     vWorldPos = vec3(worldXY, uPlayerPos.z);
 
     // Project to screen space

@@ -55,7 +55,7 @@ void main()
     vec3 worldPos = vWorldPos;
 
     float distToPlayer = distance(worldPos.xy, uPlayerPos.xy);
-    float localMask = smoothstep(12.0, 8.0, distToPlayer);
+    float localMask = smoothstep(WEATHER_MASK_RADIUS_START, WEATHER_MASK_RADIUS_END, distToPlayer);
 
     float uCurrentTime = uTime.x;
     float uWeatherStartTime = uConfig.x;

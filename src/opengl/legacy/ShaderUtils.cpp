@@ -8,6 +8,7 @@
 #include "../../global/NamedColors.h"
 #include "../../global/PrintUtils.h"
 #include "../../global/TextUtils.h"
+#include "../Weather.h"
 
 #include <array>
 #include <cassert>
@@ -214,8 +215,24 @@ NODISCARD static GLuint compileShader(Functions &gl, const GLenum type, const So
     // that's the reason the `ptrs` array below is not `const`.
     std::string defineNamedColors = "#define MAX_NAMED_COLORS " + std::to_string(MAX_NAMED_COLORS)
                                     + "\n";
-    std::array<const char *, 4> ptrs = {gl.getShaderVersion(),
+    std::string defineWeatherRadius = "#define WEATHER_RADIUS "
+                                      + std::to_string(WeatherConstants::WEATHER_RADIUS) + "\n";
+    std::string defineWeatherExtent = "#define WEATHER_EXTENT "
+                                      + std::to_string(WeatherConstants::WEATHER_EXTENT) + "\n";
+    std::string defineWeatherMaskStart = "#define WEATHER_MASK_RADIUS_START "
+                                         + std::to_string(
+                                             WeatherConstants::WEATHER_MASK_RADIUS_START)
+                                         + "\n";
+    std::string defineWeatherMaskEnd = "#define WEATHER_MASK_RADIUS_END "
+                                       + std::to_string(WeatherConstants::WEATHER_MASK_RADIUS_END)
+                                       + "\n";
+
+    std::array<const char *, 8> ptrs = {gl.getShaderVersion(),
                                         defineNamedColors.c_str(),
+                                        defineWeatherRadius.c_str(),
+                                        defineWeatherExtent.c_str(),
+                                        defineWeatherMaskStart.c_str(),
+                                        defineWeatherMaskEnd.c_str(),
                                         "#line 1\n",
                                         source.source.c_str()};
     gl.glShaderSource(shaderId, static_cast<GLsizei>(ptrs.size()), ptrs.data(), nullptr);

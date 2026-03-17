@@ -21,6 +21,24 @@ class FrameManager;
 class MapData;
 struct MapCanvasTextures;
 
+namespace WeatherConstants {
+/**
+ * @brief Spatial parameters for weather particles and atmosphere.
+ *
+ * WEATHER_RADIUS (14.0) defines the world-space distance from the player
+ * where particles wrap and atmosphere extents are calculated.
+ *
+ * WEATHER_EXTENT (28.0) is the total diameter of the toroidal simulation area.
+ *
+ * Atmosphere and particle masks typically fade out at a 12.0 radius to avoid
+ * sharp edges at the simulation boundaries.
+ */
+constexpr float WEATHER_RADIUS = 14.0f;
+constexpr float WEATHER_EXTENT = 28.0f;
+constexpr float WEATHER_MASK_RADIUS_START = 12.0f;
+constexpr float WEATHER_MASK_RADIUS_END = 8.0f;
+} // namespace WeatherConstants
+
 /**
  * @brief Manages the logic and rendering of the weather system.
  * Follows the design and structure of GLFont.

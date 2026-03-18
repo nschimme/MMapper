@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2026 The MMapper Authors
 
-#include "../global/NamedColors.h"
+#include "../global/ConfigConsts.h"
 #include "../global/utils.h"
 
 #include <array>
@@ -27,9 +27,7 @@ namespace Legacy {
 enum class NODISCARD SharedVboEnum : uint8_t { XFOREACH_SHARED_VBO(X_ENUM) NUM_BLOCKS };
 #undef X_ENUM
 
-#define X_COUNT_VBO(element, name) +1
-static constexpr size_t NUM_SHARED_VBOS = 0 XFOREACH_SHARED_VBO(X_COUNT_VBO);
-#undef X_COUNT_VBO
+static constexpr size_t NUM_SHARED_VBOS = static_cast<size_t>(SharedVboEnum::NUM_BLOCKS);
 
 /**
  * @brief Memory layout for the Camera uniform block.

@@ -346,6 +346,7 @@ public:
     NODISCARD std::optional<GLenum> toGLenum(DrawModeEnum mode) { return virt_toGLenum(mode); }
 
 protected:
+
 private:
     template<typename T>
     static void enforceTriviallyCopyable()
@@ -480,3 +481,5 @@ public:
 } // namespace Legacy
 
 DEFINE_ENUM_COUNT(Legacy::SharedVboEnum, Legacy::NUM_SHARED_VBOS)
+
+#undef XFOREACH_SHARED_VBO

@@ -41,14 +41,9 @@ namespace Legacy {
 
 const char *Functions::getUniformBlockName(const SharedVboEnum block)
 {
-    switch (block) {
-#define X_CASE(EnumName, StringName) \
-    case SharedVboEnum::EnumName: \
-        return StringName;
-        XFOREACH_SHARED_VBO(X_CASE)
-#undef X_CASE
-    case SharedVboEnum::NUM_BLOCKS:
-        break;
+    const auto idx = static_cast<size_t>(block);
+    if (idx < NUM_SHARED_VBOS) {
+        return SharedVboNames[idx];
     }
     return nullptr;
 }
@@ -67,9 +62,9 @@ void Functions::virt_glUniformBlockBinding(const GLuint program, const SharedVbo
 
 void Functions::applyDefaultUniformBlockBindings(const GLuint program)
 {
-#define X_BIND(EnumName, StringName) virt_glUniformBlockBinding(program, SharedVboEnum::EnumName);
-    XFOREACH_SHARED_VBO(X_BIND)
-#undef X_BIND
+    for (uint8_t i = 0; i < static_cast<uint8_t>(SharedVboEnum::NUM_BLOCKS); ++i) {
+        virt_glUniformBlockBinding(program, static_cast<SharedVboEnum>(i));
+    }
 }
 
 template<template<typename> typename Mesh_, typename VertType_, typename ProgType_>

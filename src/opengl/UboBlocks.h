@@ -10,8 +10,6 @@
 
 #include <glm/glm.hpp>
 
-namespace Legacy {
-
 // X(EnumName, GL_String_Name)
 /**
  * Note: SharedVboEnum values are implicitly used as UBO binding indices.
@@ -22,6 +20,8 @@ namespace Legacy {
     X(CameraBlock, "CameraBlock") \
     X(TimeBlock, "TimeBlock") \
     X(WeatherBlock, "WeatherBlock")
+
+namespace Legacy {
 
 #define X_ENUM(element, name) element,
 enum class NODISCARD SharedVboEnum : uint8_t { XFOREACH_SHARED_VBO(X_ENUM) NUM_BLOCKS };
@@ -34,6 +34,7 @@ inline constexpr const char *const SharedVboNames[] = {
     XFOREACH_SHARED_VBO(X_NAME)
 #undef X_NAME
 };
+static_assert(NUM_SHARED_VBOS == std::size(SharedVboNames));
 
 /**
  * @brief Memory layout for the Camera uniform block.

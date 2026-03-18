@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2026 The MMapper Authors
 
-#include "../global/ConfigConsts.h"
+#include "../global/NamedColors.h"
 #include "../global/utils.h"
 
 #include <array>
@@ -28,6 +28,12 @@ enum class NODISCARD SharedVboEnum : uint8_t { XFOREACH_SHARED_VBO(X_ENUM) NUM_B
 #undef X_ENUM
 
 static constexpr size_t NUM_SHARED_VBOS = static_cast<size_t>(SharedVboEnum::NUM_BLOCKS);
+
+inline constexpr const char *const SharedVboNames[] = {
+#define X_NAME(EnumName, StringName) StringName,
+    XFOREACH_SHARED_VBO(X_NAME)
+#undef X_NAME
+};
 
 /**
  * @brief Memory layout for the Camera uniform block.
@@ -72,25 +78,13 @@ struct NODISCARD NamedColorsBlock final
 template<SharedVboEnum Block>
 struct BlockType;
 
-template<>
-struct BlockType<SharedVboEnum::NamedColorsBlock>
-{
-    using type = NamedColorsBlock;
-};
-template<>
-struct BlockType<SharedVboEnum::CameraBlock>
-{
-    using type = CameraBlock;
-};
-template<>
-struct BlockType<SharedVboEnum::TimeBlock>
-{
-    using type = TimeBlock;
-};
-template<>
-struct BlockType<SharedVboEnum::WeatherBlock>
-{
-    using type = WeatherBlock;
-};
+#define X_TYPE(EnumName, StringName) \
+    template<> \
+    struct BlockType<SharedVboEnum::EnumName> \
+    { \
+        using type = EnumName; \
+    };
+XFOREACH_SHARED_VBO(X_TYPE)
+#undef X_TYPE
 
 } // namespace Legacy

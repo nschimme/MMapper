@@ -62,7 +62,7 @@ private:
     QOpenGLWindow &m_window;
     bool m_dirty = true;
     float m_elapsedTime = 0.0f;
-    Legacy::UboManager *m_uboManager = nullptr; // TODO: reference
+    Legacy::UboManager &m_uboManager;
     Legacy::TimeBlock m_frameData;
 
 public:
@@ -88,12 +88,13 @@ public:
     };
 
 public:
-    explicit FrameManager(QOpenGLWindow &window, QObject *parent = nullptr);
+    explicit FrameManager(QOpenGLWindow &window,
+                          Legacy::UboManager &uboManager,
+                          QObject *parent = nullptr);
     ~FrameManager() override;
     DELETE_CTORS_AND_ASSIGN_OPS(FrameManager);
 
 public:
-    void init(Legacy::UboManager &uboManager);
     NODISCARD float getElapsedTime() const;
     NODISCARD const Legacy::TimeBlock &getFrameData() const { return m_frameData; }
 

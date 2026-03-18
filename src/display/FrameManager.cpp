@@ -9,10 +9,19 @@
 
 #include <QOpenGLWindow>
 
-FrameManager::FrameManager(QOpenGLWindow &window, QObject *parent)
+FrameManager::FrameManager(QOpenGLWindow &window,
+                           Legacy::UboManager &uboManager,
+                           QObject *parent)
     : QObject(parent)
     , m_window(window)
+    , m_uboManager(uboManager)
 {
+    m_uboManager.registerRebuildFunction(Legacy::SharedVboEnum::TimeBlock,
+                                         [this](Legacy::Functions &gl) {
+                                             m_uboManager.update<Legacy::SharedVboEnum::TimeBlock>(
+                                                 gl, m_frameData);
+                                         });
+
     updateMinFrameTime();
     setConfig().canvas.advanced.maximumFps.registerChangeCallback(m_configLifetime, [this]() {
         updateMinFrameTime();
@@ -27,9 +36,7 @@ FrameManager::FrameManager(QOpenGLWindow &window, QObject *parent)
 
 FrameManager::~FrameManager()
 {
-    if (m_uboManager) {
-        m_uboManager->unregisterRebuildFunction(Legacy::SharedVboEnum::TimeBlock);
-    }
+    m_uboManager.unregisterRebuildFunction(Legacy::SharedVboEnum::TimeBlock);
 }
 
 void FrameManager::registerCallback(const Signal2Lifetime &lifetime, AnimationCallback callback)
@@ -37,14 +44,6 @@ void FrameManager::registerCallback(const Signal2Lifetime &lifetime, AnimationCa
     m_callbacks.push_back({lifetime.getObj(), std::move(callback)});
 }
 
-void FrameManager::init(Legacy::UboManager &uboManager)
-{
-    m_uboManager = &uboManager;
-    m_uboManager
-        ->registerRebuildFunction(Legacy::SharedVboEnum::TimeBlock, [this](Legacy::Functions &gl) {
-            m_uboManager->update<Legacy::SharedVboEnum::TimeBlock>(gl, m_frameData);
-        });
-}
 
 bool FrameManager::needsHeartbeat()
 {
@@ -137,8 +136,8 @@ std::optional<FrameManager::Frame> FrameManager::beginFrame()
     m_elapsedTime += lastFrameDeltaTime;
     m_frameData.time = glm::vec4(m_elapsedTime, lastFrameDeltaTime, 0.0f, 0.0f);
 
-    if (lastFrameDeltaTime > 0.0f && m_uboManager != nullptr) {
-        m_uboManager->invalidate(Legacy::SharedVboEnum::TimeBlock);
+    if (lastFrameDeltaTime > 0.0f) {
+        m_uboManager.invalidate(Legacy::SharedVboEnum::TimeBlock);
     }
 
     return Frame(*this);

@@ -346,7 +346,6 @@ public:
     NODISCARD std::optional<GLenum> toGLenum(DrawModeEnum mode) { return virt_toGLenum(mode); }
 
 protected:
-
 private:
     template<typename T>
     static void enforceTriviallyCopyable()

@@ -19,8 +19,6 @@
 #include <glm/glm.hpp>
 
 namespace {
-constexpr float ROOM_Z_SCALE = 7.f;
-
 template<typename T>
 T lerp(T a, T b, float t)
 {
@@ -179,23 +177,15 @@ GLWeather::GLWeather(OpenGL &gl,
     });
 
     m_gl.getUboManager().registerRebuildFunction(
-        Legacy::SharedVboEnum::CameraBlock, [this](Legacy::Functions &glFuncs) {
-            const auto playerPosCoord = m_data.tryGetPosition().value_or(Coordinate{0, 0, 0});
-            auto cameraData = getCameraData(glFuncs.getProjectionMatrix(), playerPosCoord);
-            m_gl.getUboManager().update(glFuncs, Legacy::SharedVboEnum::CameraBlock, cameraData);
-        });
-
-    m_gl.getUboManager().registerRebuildFunction(
-        Legacy::SharedVboEnum::WeatherBlock, [this](Legacy::Functions &glFuncs) {
+        Legacy::SharedVboEnum::WeatherBlock, [this](Legacy::Functions &funcs) {
             GLRenderState::Uniforms::Weather::Params params;
             populateWeatherParams(params);
-            m_gl.getUboManager().update(glFuncs, Legacy::SharedVboEnum::WeatherBlock, params);
+            m_gl.getUboManager().update(funcs, Legacy::SharedVboEnum::WeatherBlock, params);
         });
 }
 
 GLWeather::~GLWeather()
 {
-    m_gl.getUboManager().unregisterRebuildFunction(Legacy::SharedVboEnum::CameraBlock);
     m_gl.getUboManager().unregisterRebuildFunction(Legacy::SharedVboEnum::WeatherBlock);
 }
 
@@ -303,18 +293,6 @@ bool GLWeather::isTransitioning() const
     const bool timeOfDayTransitioning = (animTime - m_timeOfDayTransitionStartTime
                                          < WeatherConstants::TRANSITION_DURATION);
     return weatherTransitioning || timeOfDayTransitioning;
-}
-
-GLRenderState::Uniforms::Weather::Camera GLWeather::getCameraData(
-    const glm::mat4 &viewProj, const Coordinate &playerPosCoord) const
-{
-    GLRenderState::Uniforms::Weather::Camera camera;
-    camera.viewProj = viewProj;
-    camera.playerPos = glm::vec4(static_cast<float>(playerPosCoord.x),
-                                 static_cast<float>(playerPosCoord.y),
-                                 static_cast<float>(playerPosCoord.z),
-                                 ROOM_Z_SCALE);
-    return camera;
 }
 
 NamedColorEnum GLWeather::getCurrentColorIdx() const

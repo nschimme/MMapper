@@ -95,8 +95,6 @@ private:
     float m_weatherTransitionStartTime = -2.0f;
     float m_timeOfDayTransitionStartTime = -2.0f;
 
-    // Rendering State
-
     // Meshes
     std::unique_ptr<Legacy::ParticleSimulationMesh> m_simulation;
     std::unique_ptr<Legacy::ParticleRenderMesh> m_particles;
@@ -127,8 +125,6 @@ private:
     void initMeshes();
     void invalidateWeather();
 
-    NODISCARD GLRenderState::Uniforms::Weather::Camera getCameraData(
-        const glm::mat4 &viewProj, const Coordinate &playerPos) const;
     void populateWeatherParams(GLRenderState::Uniforms::Weather::Params &params) const;
 
     NODISCARD float applyTransition(float startTime, float startVal, float targetVal) const;

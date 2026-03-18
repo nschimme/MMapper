@@ -75,12 +75,10 @@ MapCanvas::MapCanvas(MapData &mapData,
     , m_weather{m_opengl, m_data, m_textures, observer, m_frameManager}
 {
     syncViewportConfig();
+
     m_frameManager.registerCallback(m_lifetime, [this]() {
         return m_batches.remeshCookie.isPending() ? FrameManager::AnimationStatusEnum::Continue
                                                   : FrameManager::AnimationStatusEnum::Stop;
-    });
-    connect(&m_data, &MapData::sig_onPositionChange, this, [this]() {
-        m_opengl.getUboManager().invalidate(Legacy::SharedVboEnum::CameraBlock);
     });
     NonOwningPointer &pmc = primaryMapCanvas();
     if (pmc == nullptr) {
@@ -1151,6 +1149,7 @@ void MapCanvas::onMovement()
 {
     const Coordinate &pos = m_data.tryGetPosition().value_or(Coordinate{});
     setCurrentLayer(pos.z);
+    getOpenGL().getUboManager().invalidate(Legacy::SharedVboEnum::CameraBlock);
     const glm::vec2 newScroll = pos.to_vec2() + glm::vec2{0.5f, 0.5f};
     if (!utils::isSameFloat(getScroll().x, newScroll.x)
         || !utils::isSameFloat(getScroll().y, newScroll.y)) {

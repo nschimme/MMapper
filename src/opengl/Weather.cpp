@@ -178,9 +178,9 @@ GLWeather::GLWeather(OpenGL &gl,
 
     m_gl.getUboManager().registerRebuildFunction(
         Legacy::SharedVboEnum::WeatherBlock, [this](Legacy::Functions &funcs) {
-            GLRenderState::Uniforms::Weather::Params params;
+            Legacy::WeatherBlock params;
             populateWeatherParams(params);
-            m_gl.getUboManager().update(funcs, Legacy::SharedVboEnum::WeatherBlock, params);
+            m_gl.getUboManager().update<Legacy::SharedVboEnum::WeatherBlock>(funcs, params);
         });
 }
 
@@ -314,7 +314,7 @@ NamedColorEnum GLWeather::getCurrentColorIdx() const
     return NamedColorEnum::TRANSPARENT;
 }
 
-void GLWeather::populateWeatherParams(GLRenderState::Uniforms::Weather::Params &params) const
+void GLWeather::populateWeatherParams(Legacy::WeatherBlock &params) const
 {
     params.intensities = glm::vec4(std::max(m_rainIntensityStart, m_snowIntensityStart),
                                    m_cloudsIntensityStart,
@@ -416,12 +416,12 @@ void GLWeather::render(const GLRenderState &rs)
     const float snowMax = m_currentSnowIntensity;
     if (rainMax > 0.0f || snowMax > 0.0f) {
         auto particleRs = rs.withBlend(BlendModeEnum::MAX_ALPHA);
-        particleRs.uniforms.weather.currentPrecipitationIntensity = std::max(rainMax, snowMax);
 
         if (m_simulation) {
             m_simulation->render(particleRs);
         }
         if (m_particles) {
+            m_particles->setIntensity(std::max(rainMax, snowMax));
             m_particles->render(particleRs);
         }
     }

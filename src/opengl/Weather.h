@@ -125,7 +125,7 @@ private:
     void initMeshes();
     void invalidateWeather();
 
-    void populateWeatherParams(GLRenderState::Uniforms::Weather::Params &params) const;
+    void populateWeatherParams(Legacy::WeatherBlock &params) const;
 
     NODISCARD float applyTransition(float startTime, float startVal, float targetVal) const;
 

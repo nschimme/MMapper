@@ -71,6 +71,7 @@ private:
     const ParticleSimulationMesh &m_simulation;
 
     VAO m_vaos[2];
+    float m_intensity = 0.0f;
     bool m_initialized = false;
 
 public:
@@ -78,6 +79,8 @@ public:
                                 std::shared_ptr<ParticleRenderShader> program,
                                 const ParticleSimulationMesh &simulation);
     ~ParticleRenderMesh() override;
+
+    void setIntensity(const float intensity) { m_intensity = intensity; }
 
 private:
     void init();

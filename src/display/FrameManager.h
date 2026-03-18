@@ -63,7 +63,7 @@ private:
     bool m_dirty = true;
     float m_elapsedTime = 0.0f;
     Legacy::UboManager *m_uboManager = nullptr; // TODO: reference
-    GLRenderState::Uniforms::Time m_frameData;
+    Legacy::TimeBlock m_frameData;
 
 public:
     /**
@@ -95,7 +95,7 @@ public:
 public:
     void init(Legacy::UboManager &uboManager);
     NODISCARD float getElapsedTime() const;
-    NODISCARD const GLRenderState::Uniforms::Time &getFrameData() const { return m_frameData; }
+    NODISCARD const Legacy::TimeBlock &getFrameData() const { return m_frameData; }
 
 public:
     /**

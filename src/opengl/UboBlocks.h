@@ -4,9 +4,11 @@
 
 #include "../global/NamedColors.h"
 #include "../global/utils.h"
-#include <glm/glm.hpp>
+
 #include <array>
 #include <cstdint>
+
+#include <glm/glm.hpp>
 
 namespace Legacy {
 
@@ -22,10 +24,7 @@ namespace Legacy {
     X(WeatherBlock, "WeatherBlock")
 
 #define X_ENUM(element, name) element,
-enum class NODISCARD SharedVboEnum : uint8_t {
-    XFOREACH_SHARED_VBO(X_ENUM)
-    NUM_BLOCKS
-};
+enum class NODISCARD SharedVboEnum : uint8_t { XFOREACH_SHARED_VBO(X_ENUM) NUM_BLOCKS };
 #undef X_ENUM
 
 #define X_COUNT_VBO(element, name) +1

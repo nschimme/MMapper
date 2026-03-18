@@ -40,11 +40,10 @@ void FrameManager::registerCallback(const Signal2Lifetime &lifetime, AnimationCa
 void FrameManager::init(Legacy::UboManager &uboManager)
 {
     m_uboManager = &uboManager;
-    m_uboManager->registerRebuildFunction(Legacy::SharedVboEnum::TimeBlock,
-                                          [this](Legacy::Functions &gl) {
-                                              m_uboManager->update<Legacy::SharedVboEnum::TimeBlock>(
-                                                  gl, m_frameData);
-                                          });
+    m_uboManager
+        ->registerRebuildFunction(Legacy::SharedVboEnum::TimeBlock, [this](Legacy::Functions &gl) {
+            m_uboManager->update<Legacy::SharedVboEnum::TimeBlock>(gl, m_frameData);
+        });
 }
 
 bool FrameManager::needsHeartbeat()

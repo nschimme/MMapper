@@ -251,7 +251,6 @@ void MapCanvas::initializeGL()
                                          funcs, XNamedColor::getAllColorsAsBlock());
                                  });
 
-
     gl.getUboManager().registerRebuildFunction(
         Legacy::SharedVboEnum::CameraBlock, [this](Legacy::Functions &funcs) {
             const auto playerPosCoord = m_data.tryGetPosition().value_or(Coordinate{0, 0, 0});

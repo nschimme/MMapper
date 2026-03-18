@@ -14,10 +14,10 @@ FrameManager::FrameManager(QOpenGLWindow &window, Legacy::UboManager &uboManager
     , m_window(window)
     , m_uboManager(uboManager)
 {
-    m_uboManager
-        .registerRebuildFunction(Legacy::SharedVboEnum::TimeBlock, [this](Legacy::Functions &gl) {
-            m_uboManager.sync<Legacy::SharedVboEnum::TimeBlock>(gl);
-        });
+    m_uboManager.registerRebuildFunction(Legacy::SharedVboEnum::TimeBlock,
+                                         [this](Legacy::Functions &gl) {
+                                             m_uboManager.sync<Legacy::SharedVboEnum::TimeBlock>(gl);
+                                         });
 
     updateMinFrameTime();
     setConfig().canvas.advanced.maximumFps.registerChangeCallback(m_configLifetime, [this]() {

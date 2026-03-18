@@ -69,8 +69,8 @@ GLWeather::GLWeather(OpenGL &gl,
 
     weather.timeOfDay.x = static_cast<float>(targetColorIdx); // startIdx
     weather.timeOfDay.y = static_cast<float>(targetColorIdx); // targetIdx
-    weather.timeOfDay.z = m_gameTimeOfDayIntensity;          // todStart
-    weather.timeOfDay.w = m_gameTimeOfDayIntensity;          // todTarget
+    weather.timeOfDay.z = m_gameTimeOfDayIntensity;           // todStart
+    weather.timeOfDay.w = m_gameTimeOfDayIntensity;           // todTarget
 
     weather.intensities = glm::vec4(m_gameRainIntensity,
                                     m_gameSnowIntensity,
@@ -85,33 +85,31 @@ GLWeather::GLWeather(OpenGL &gl,
     weather.config.z = WeatherConstants::TRANSITION_DURATION;
 
     auto startWeatherTransitions = [this]() {
-        auto &weather = m_gl.getUboManager().get<Legacy::SharedVboEnum::WeatherBlock>();
+        auto &wb = m_gl.getUboManager().get<Legacy::SharedVboEnum::WeatherBlock>();
 
-        startTransitions(weather.config.x,
-                         TransitionPair<float>{weather.intensities.x, weather.targets.x},
-                         TransitionPair<float>{weather.intensities.y, weather.targets.y},
-                         TransitionPair<float>{weather.intensities.z, weather.targets.z},
-                         TransitionPair<float>{weather.intensities.w, weather.targets.w});
+        startTransitions(wb.config.x,
+                         TransitionPair<float>{wb.intensities.x, wb.targets.x},
+                         TransitionPair<float>{wb.intensities.y, wb.targets.y},
+                         TransitionPair<float>{wb.intensities.z, wb.targets.z},
+                         TransitionPair<float>{wb.intensities.w, wb.targets.w});
     };
 
-    m_observer.sig2_weatherChanged.connect(m_lifetime,
-                                           [this, startWeatherTransitions](PromptWeatherEnum) {
-                                               startWeatherTransitions();
-                                               updateFromGame();
-                                               updateTargets();
+    m_observer.sig2_weatherChanged
+        .connect(m_lifetime, [this, startWeatherTransitions](PromptWeatherEnum) {
+            startWeatherTransitions();
+            updateFromGame();
+            updateTargets();
 
-                                               auto &funcs = deref(
-                                                   m_gl.getSharedFunctions(Badge<GLWeather>{}));
-                                               auto &ubo = m_gl.getUboManager();
-                                               ubo.syncField<Legacy::SharedVboEnum::WeatherBlock>(
-                                                   funcs, &Legacy::WeatherBlock::config);
-                                               ubo.syncField<Legacy::SharedVboEnum::WeatherBlock>(
-                                                   funcs, &Legacy::WeatherBlock::intensities);
-                                               ubo.syncField<Legacy::SharedVboEnum::WeatherBlock>(
-                                                   funcs, &Legacy::WeatherBlock::targets);
+            auto &funcs = deref(m_gl.getSharedFunctions(Badge<GLWeather>{}));
+            auto &ubo = m_gl.getUboManager();
+            ubo.syncField<Legacy::SharedVboEnum::WeatherBlock>(funcs, &Legacy::WeatherBlock::config);
+            ubo.syncField<Legacy::SharedVboEnum::WeatherBlock>(funcs,
+                                                               &Legacy::WeatherBlock::intensities);
+            ubo.syncField<Legacy::SharedVboEnum::WeatherBlock>(funcs,
+                                                               &Legacy::WeatherBlock::targets);
 
-                                               m_animationManager.requestUpdate();
-                                           });
+            m_animationManager.requestUpdate();
+        });
 
     m_observer.sig2_fogChanged.connect(m_lifetime, [this, startWeatherTransitions](PromptFogEnum) {
         startWeatherTransitions();
@@ -122,23 +120,23 @@ GLWeather::GLWeather(OpenGL &gl,
         auto &ubo = m_gl.getUboManager();
         ubo.syncField<Legacy::SharedVboEnum::WeatherBlock>(funcs, &Legacy::WeatherBlock::config);
         ubo.syncField<Legacy::SharedVboEnum::WeatherBlock>(funcs,
-                                                          &Legacy::WeatherBlock::intensities);
+                                                           &Legacy::WeatherBlock::intensities);
         ubo.syncField<Legacy::SharedVboEnum::WeatherBlock>(funcs, &Legacy::WeatherBlock::targets);
 
         m_animationManager.requestUpdate();
     });
 
     auto startTimeOfDayTransitions = [this]() {
-        auto &weather = m_gl.getUboManager().get<Legacy::SharedVboEnum::WeatherBlock>();
-        auto startColor = static_cast<NamedColorEnum>(static_cast<int>(weather.timeOfDay.x));
-        auto targetColor = static_cast<NamedColorEnum>(static_cast<int>(weather.timeOfDay.y));
+        auto &wb = m_gl.getUboManager().get<Legacy::SharedVboEnum::WeatherBlock>();
+        auto startColor = static_cast<NamedColorEnum>(static_cast<int>(wb.timeOfDay.x));
+        auto targetColor = static_cast<NamedColorEnum>(static_cast<int>(wb.timeOfDay.y));
 
-        startTransitions(weather.config.y,
-                         TransitionPair<float>{weather.timeOfDay.z, weather.timeOfDay.w},
+        startTransitions(wb.config.y,
+                         TransitionPair<float>{wb.timeOfDay.z, wb.timeOfDay.w},
                          TransitionPair<NamedColorEnum>{startColor, targetColor});
 
-        weather.timeOfDay.x = static_cast<float>(startColor);
-        weather.timeOfDay.y = static_cast<float>(targetColor);
+        wb.timeOfDay.x = static_cast<float>(startColor);
+        wb.timeOfDay.y = static_cast<float>(targetColor);
     };
 
     m_observer.sig2_timeOfDayChanged
@@ -153,42 +151,37 @@ GLWeather::GLWeather(OpenGL &gl,
             m_gameTimeOfDayIntensity = (timeOfDay == MumeTimeEnum::DAY) ? 0.0f : 1.0f;
             updateTargets();
 
-            auto &weather = m_gl.getUboManager().get<Legacy::SharedVboEnum::WeatherBlock>();
-            weather.timeOfDay.y = static_cast<float>(getCurrentColorIdx());
+            auto &wb_tod = m_gl.getUboManager().get<Legacy::SharedVboEnum::WeatherBlock>();
+            wb_tod.timeOfDay.y = static_cast<float>(getCurrentColorIdx());
 
             auto &funcs = deref(m_gl.getSharedFunctions(Badge<GLWeather>{}));
             auto &ubo = m_gl.getUboManager();
             ubo.syncField<Legacy::SharedVboEnum::WeatherBlock>(funcs, &Legacy::WeatherBlock::config);
             ubo.syncField<Legacy::SharedVboEnum::WeatherBlock>(funcs,
-                                                              &Legacy::WeatherBlock::timeOfDay);
+                                                               &Legacy::WeatherBlock::timeOfDay);
 
             m_animationManager.requestUpdate();
         });
 
-    m_observer.sig2_moonVisibilityChanged.connect(m_lifetime,
-                                                  [this, startTimeOfDayTransitions](
-                                                      MumeMoonVisibilityEnum visibility) {
-                                                      if (visibility == m_moonVisibility) {
-                                                          return;
-                                                      }
-                                                      startTimeOfDayTransitions();
+    m_observer.sig2_moonVisibilityChanged
+        .connect(m_lifetime, [this, startTimeOfDayTransitions](MumeMoonVisibilityEnum visibility) {
+            if (visibility == m_moonVisibility) {
+                return;
+            }
+            startTimeOfDayTransitions();
 
-                                                      m_moonVisibility = visibility;
-                                                      auto &weather = m_gl.getUboManager().get<
-                                                          Legacy::SharedVboEnum::WeatherBlock>();
-                                                      weather.timeOfDay.y
-                                                          = static_cast<float>(getCurrentColorIdx());
+            m_moonVisibility = visibility;
+            auto &wb_moon = m_gl.getUboManager().get<Legacy::SharedVboEnum::WeatherBlock>();
+            wb_moon.timeOfDay.y = static_cast<float>(getCurrentColorIdx());
 
-                                                      auto &funcs = deref(
-                                                          m_gl.getSharedFunctions(Badge<GLWeather>{}));
-                                                      auto &ubo = m_gl.getUboManager();
-                                                      ubo.syncField<Legacy::SharedVboEnum::WeatherBlock>(
-                                                          funcs, &Legacy::WeatherBlock::config);
-                                                      ubo.syncField<Legacy::SharedVboEnum::WeatherBlock>(
-                                                          funcs, &Legacy::WeatherBlock::timeOfDay);
+            auto &funcs = deref(m_gl.getSharedFunctions(Badge<GLWeather>{}));
+            auto &ubo = m_gl.getUboManager();
+            ubo.syncField<Legacy::SharedVboEnum::WeatherBlock>(funcs, &Legacy::WeatherBlock::config);
+            ubo.syncField<Legacy::SharedVboEnum::WeatherBlock>(funcs,
+                                                               &Legacy::WeatherBlock::timeOfDay);
 
-                                                      m_animationManager.requestUpdate();
-                                                  });
+            m_animationManager.requestUpdate();
+        });
 
     auto onSettingChanged = [this, startWeatherTransitions]() {
         startWeatherTransitions();
@@ -198,7 +191,7 @@ GLWeather::GLWeather(OpenGL &gl,
         auto &ubo = m_gl.getUboManager();
         ubo.syncField<Legacy::SharedVboEnum::WeatherBlock>(funcs, &Legacy::WeatherBlock::config);
         ubo.syncField<Legacy::SharedVboEnum::WeatherBlock>(funcs,
-                                                          &Legacy::WeatherBlock::intensities);
+                                                           &Legacy::WeatherBlock::intensities);
         ubo.syncField<Legacy::SharedVboEnum::WeatherBlock>(funcs, &Legacy::WeatherBlock::targets);
 
         m_animationManager.requestUpdate();
@@ -229,10 +222,12 @@ GLWeather::GLWeather(OpenGL &gl,
                              : FrameManager::AnimationStatusEnum::Stop;
     });
 
-    m_gl.getUboManager().registerRebuildFunction(
-        Legacy::SharedVboEnum::WeatherBlock, [this](Legacy::Functions &funcs) {
-            m_gl.getUboManager().sync<Legacy::SharedVboEnum::WeatherBlock>(funcs);
-        });
+    m_gl.getUboManager().registerRebuildFunction(Legacy::SharedVboEnum::WeatherBlock,
+                                                 [this](Legacy::Functions &funcs) {
+                                                     m_gl.getUboManager()
+                                                         .sync<Legacy::SharedVboEnum::WeatherBlock>(
+                                                             funcs);
+                                                 });
 }
 
 GLWeather::~GLWeather()
@@ -458,8 +453,9 @@ void GLWeather::render(const GLRenderState &rs)
                                   .withDepthFunction(std::nullopt);
 
     // TimeOfDay
-    const auto &weather = m_gl.getUboManager().get<Legacy::SharedVboEnum::WeatherBlock>();
-    if (m_currentTimeOfDay != MumeTimeEnum::DAY || weather.timeOfDay.x != static_cast<float>(NamedColorEnum::TRANSPARENT)
+    const auto &wb = m_gl.getUboManager().get<Legacy::SharedVboEnum::WeatherBlock>();
+    const auto currentStartColor = static_cast<NamedColorEnum>(static_cast<int>(wb.timeOfDay.x));
+    if (m_currentTimeOfDay != MumeTimeEnum::DAY || currentStartColor != NamedColorEnum::TRANSPARENT
         || m_currentTimeOfDayIntensity > 0.0f) {
         if (m_timeOfDay) {
             m_timeOfDay.render(atmosphereRs);

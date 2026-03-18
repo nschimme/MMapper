@@ -130,7 +130,6 @@ private:
     void recordFramePainted();
     void updateMinFrameTime();
     void cleanupExpiredCallbacks();
-    NODISCARD std::chrono::nanoseconds getJitterTolerance() const;
     NODISCARD std::chrono::nanoseconds getTimeUntilNextFrame() const;
 
 private slots:

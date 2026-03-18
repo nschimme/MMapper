@@ -64,25 +64,27 @@ GLWeather::GLWeather(OpenGL &gl,
     m_currentTimeOfDay = m_observer.getTimeOfDay();
     m_gameTimeOfDayIntensity = (m_currentTimeOfDay == MumeTimeEnum::DAY) ? 0.0f : 1.0f;
 
-    auto &weather = m_gl.getUboManager().get<Legacy::SharedVboEnum::WeatherBlock>();
-    const NamedColorEnum targetColorIdx = getCurrentColorIdx();
+    {
+        auto &wbInit = m_gl.getUboManager().get<Legacy::SharedVboEnum::WeatherBlock>();
+        const NamedColorEnum targetColorIdx = getCurrentColorIdx();
 
-    weather.timeOfDay.x = static_cast<float>(targetColorIdx); // startIdx
-    weather.timeOfDay.y = static_cast<float>(targetColorIdx); // targetIdx
-    weather.timeOfDay.z = m_gameTimeOfDayIntensity;           // todStart
-    weather.timeOfDay.w = m_gameTimeOfDayIntensity;           // todTarget
+        wbInit.timeOfDay.x = static_cast<float>(targetColorIdx); // startIdx
+        wbInit.timeOfDay.y = static_cast<float>(targetColorIdx); // targetIdx
+        wbInit.timeOfDay.z = m_gameTimeOfDayIntensity;           // todStart
+        wbInit.timeOfDay.w = m_gameTimeOfDayIntensity;           // todTarget
 
-    weather.intensities = glm::vec4(m_gameRainIntensity,
-                                    m_gameSnowIntensity,
-                                    m_gameCloudsIntensity,
-                                    m_gameFogIntensity);
+        wbInit.intensities = glm::vec4(m_gameRainIntensity,
+                                       m_gameSnowIntensity,
+                                       m_gameCloudsIntensity,
+                                       m_gameFogIntensity);
 
-    updateTargets();
-    weather.intensities = weather.targets;
+        updateTargets();
+        wbInit.intensities = wbInit.targets;
 
-    weather.config.x = -2.0f; // weatherStartTime
-    weather.config.y = -2.0f; // todStartTime
-    weather.config.z = WeatherConstants::TRANSITION_DURATION;
+        wbInit.config.x = -2.0f; // weatherStartTime
+        wbInit.config.y = -2.0f; // todStartTime
+        wbInit.config.z = WeatherConstants::TRANSITION_DURATION;
+    }
 
     auto startWeatherTransitions = [this]() {
         auto &wb = m_gl.getUboManager().get<Legacy::SharedVboEnum::WeatherBlock>();

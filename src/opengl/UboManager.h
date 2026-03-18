@@ -14,6 +14,7 @@
 #include <cstddef>
 #include <functional>
 #include <optional>
+#include <tuple>
 #include <type_traits>
 #include <vector>
 
@@ -37,6 +38,24 @@ public:
     DELETE_CTORS_AND_ASSIGN_OPS(UboManager);
 
 public:
+    /**
+     * @brief Accesses the CPU-side shadow copy of a UBO block by its enum.
+     */
+    template<Legacy::SharedVboEnum Block>
+    typename Legacy::BlockType<Block>::type &get()
+    {
+        return std::get<typename Legacy::BlockType<Block>::type>(m_shadowBlocks);
+    }
+
+    /**
+     * @brief Accesses the CPU-side shadow copy of a UBO block by its enum (const).
+     */
+    template<Legacy::SharedVboEnum Block>
+    const typename Legacy::BlockType<Block>::type &get() const
+    {
+        return std::get<typename Legacy::BlockType<Block>::type>(m_shadowBlocks);
+    }
+
     /**
      * @brief Marks a UBO block as dirty by resetting its bound state.
      */
@@ -151,11 +170,50 @@ public:
     /**
      * @brief Type-safe upload to a UBO.
      * Enforces the correct data structure for the given block identifier.
+     * Also updates the shadow copy.
      */
     template<Legacy::SharedVboEnum Block>
     GLuint update(Legacy::Functions &gl, const typename Legacy::BlockType<Block>::type &data)
     {
+        get<Block>() = data;
         return update(gl, Block, data);
+    }
+
+    /**
+     * @brief Syncs the entire shadow copy of a block to the GPU.
+     */
+    template<Legacy::SharedVboEnum Block>
+    GLuint sync(Legacy::Functions &gl)
+    {
+        return update(gl, Block, get<Block>());
+    }
+
+    /**
+     * @brief Syncs a specific field of a block to the GPU.
+     * @param gl      Legacy functions.
+     * @param member  Pointer to the member in the block struct.
+     */
+    template<Legacy::SharedVboEnum Block, typename T, typename U>
+    void syncField(Legacy::Functions &gl, U T::*member)
+    {
+        using BlockType = typename Legacy::BlockType<Block>::type;
+        static_assert(std::is_same_v<T, BlockType>, "Member must belong to the correct block type");
+
+        const auto &blockData = get<Block>();
+        const auto offset = reinterpret_cast<std::uintptr_t>(&(blockData.*member))
+                            - reinterpret_cast<std::uintptr_t>(&blockData);
+        const auto size = sizeof(U);
+
+        Legacy::VBO &vbo = getOrCreateVbo(gl, Block);
+        gl.glBindBuffer(GL_UNIFORM_BUFFER, vbo.get());
+        gl.glBufferSubData(GL_UNIFORM_BUFFER,
+                           static_cast<GLintptr>(offset),
+                           static_cast<GLsizeiptr>(size),
+                           &(blockData.*member));
+        gl.glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+        // Ensure it's bound to the correct point.
+        bind_internal(gl, Block, vbo.get());
     }
 
     /**
@@ -216,6 +274,10 @@ private:
 private:
     EnumIndexedArray<RebuildFunction, Legacy::SharedVboEnum> m_rebuildFunctions;
     EnumIndexedArray<std::optional<GLuint>, Legacy::SharedVboEnum> m_boundBuffers;
+
+    // Tuple of all block types for shadow storage.
+    std::tuple<Legacy::NamedColorsBlock, Legacy::CameraBlock, Legacy::TimeBlock, Legacy::WeatherBlock>
+        m_shadowBlocks;
 };
 
 } // namespace Legacy

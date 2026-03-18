@@ -60,10 +60,10 @@ struct NODISCARD TimeBlock final
  */
 struct NODISCARD WeatherBlock final
 {
-    glm::vec4 intensities{0.0f};      // 0-15
-    glm::vec4 targets{0.0f};          // 16-31
-    glm::vec4 timeOfDayIndices{0.0f}; // 32-47
-    glm::vec4 config{0.0f};           // 48-63
+    glm::vec4 intensities{0.0f}; // 0-15: rain, snow, clouds, fog (starts)
+    glm::vec4 targets{0.0f};     // 16-31: rain, snow, clouds, fog (targets)
+    glm::vec4 timeOfDay{0.0f};   // 32-47: startIdx, targetIdx, todStart, todTarget
+    glm::vec4 config{0.0f};      // 48-63: weatherStartTime, todStartTime, duration, unused
 };
 
 /**

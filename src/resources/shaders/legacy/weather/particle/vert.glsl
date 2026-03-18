@@ -17,10 +17,10 @@ layout(std140) uniform TimeBlock
 
 layout(std140) uniform WeatherBlock
 {
-    vec4 uIntensities;      // precip_start, clouds_start, fog_start, type_start
-    vec4 uTargets;          // precip_target, clouds_target, fog_target, type_target
-    vec4 uTimeOfDayIndices; // x=startIdx, y=targetIdx, z=timeOfDayIntensityStart, w=timeOfDayIntensityTarget
-    vec4 uConfig;           // x=weatherStartTime, y=timeOfDayStartTime, z=duration, w=unused
+    vec4 uIntensities; // rain_start, snow_start, clouds_start, fog_start
+    vec4 uTargets;     // rain_target, snow_target, clouds_target, fog_target
+    vec4 uTimeOfDay;   // x=startIdx, y=targetIdx, z=todStart, w=todTarget
+    vec4 uConfig;      // x=weatherStartTime, y=todStartTime, z=duration, w=unused
 };
 
 out float vLife;
@@ -40,8 +40,10 @@ void main()
     float uTransitionDuration = uConfig.z;
 
     float weatherLerp = clamp((uCurrentTime - uWeatherStartTime) / uTransitionDuration, 0.0, 1.0);
-    float pIntensity = mix(uIntensities.x, uTargets.x, weatherLerp);
-    float pType = mix(uIntensities.w, uTargets.w, weatherLerp);
+    float pRain = mix(uIntensities.x, uTargets.x, weatherLerp);
+    float pSnow = mix(uIntensities.y, uTargets.y, weatherLerp);
+    float pIntensity = max(pRain, pSnow);
+    float pType = pSnow / max(pIntensity, 0.001);
 
     float hash = rand(float(gl_InstanceID));
 

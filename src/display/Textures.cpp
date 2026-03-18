@@ -483,12 +483,12 @@ void MapCanvas::initTextures()
         // 1x1
         QImage whitePixel(1, 1, QImage::Format_RGBA8888);
         whitePixel.fill(Qt::white);
-        textures.white_pixel = MMTexture::alloc(std::vector<QImage>{whitePixel});
+        textures.white_pixel = MMTexture::alloc(std::vector<QImage>{whitePixel}, true);
     }
     {
         // weather noise is 256
         QImage noiseImage = createTileableValueNoiseImage(256);
-        textures.noise = MMTexture::alloc(std::vector<QImage>{noiseImage}, true);
+        textures.noise = MMTexture::alloc(std::vector<QImage>{noiseImage}, false);
     }
 
     // char images are 256

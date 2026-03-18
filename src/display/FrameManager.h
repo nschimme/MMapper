@@ -63,9 +63,7 @@ private:
     bool m_dirty = true;
     float m_elapsedTime = 0.0f;
     Legacy::UboManager *m_uboManager = nullptr; // TODO: reference
-    GLRenderState::Uniforms::Weather::Frame m_frameData;
-
-    friend class TestFrameManager;
+    GLRenderState::Uniforms::Time m_frameData;
 
 public:
     /**
@@ -97,7 +95,7 @@ public:
 public:
     void init(Legacy::UboManager &uboManager);
     NODISCARD float getElapsedTime() const;
-    NODISCARD const GLRenderState::Uniforms::Weather::Frame &getFrameData() const { return m_frameData; }
+    NODISCARD const GLRenderState::Uniforms::Time &getFrameData() const { return m_frameData; }
 
 public:
     /**

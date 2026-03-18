@@ -106,14 +106,14 @@ GLWeather::GLWeather(OpenGL &gl,
         }
     };
 
-    m_observer.sig2_weatherChanged
-        .connect(m_lifetime, [this, startWeatherTransitions](PromptWeatherEnum) {
-            startWeatherTransitions();
-            updateFromGame();
-            updateTargets();
-            syncWeatherAtmosphere();
-            m_animationManager.requestUpdate();
-        });
+    m_observer.sig2_weatherChanged.connect(m_lifetime,
+                                           [this, startWeatherTransitions](PromptWeatherEnum) {
+                                               startWeatherTransitions();
+                                               updateFromGame();
+                                               updateTargets();
+                                               syncWeatherAtmosphere();
+                                               m_animationManager.requestUpdate();
+                                           });
 
     m_observer.sig2_fogChanged.connect(m_lifetime, [this, startWeatherTransitions](PromptFogEnum) {
         startWeatherTransitions();
@@ -323,9 +323,9 @@ void GLWeather::syncWeatherAtmosphere()
     auto &funcs = deref(m_gl.getSharedFunctions(Badge<GLWeather>{}));
     auto &ubo = m_gl.getUboManager();
     ubo.syncFields<Legacy::SharedVboEnum::WeatherBlock>(funcs,
-                                                       &Legacy::WeatherBlock::config,
-                                                       &Legacy::WeatherBlock::intensities,
-                                                       &Legacy::WeatherBlock::targets);
+                                                        &Legacy::WeatherBlock::config,
+                                                        &Legacy::WeatherBlock::intensities,
+                                                        &Legacy::WeatherBlock::targets);
 }
 
 void GLWeather::syncWeatherTimeOfDay()
@@ -333,8 +333,8 @@ void GLWeather::syncWeatherTimeOfDay()
     auto &funcs = deref(m_gl.getSharedFunctions(Badge<GLWeather>{}));
     auto &ubo = m_gl.getUboManager();
     ubo.syncFields<Legacy::SharedVboEnum::WeatherBlock>(funcs,
-                                                       &Legacy::WeatherBlock::config,
-                                                       &Legacy::WeatherBlock::timeOfDay);
+                                                        &Legacy::WeatherBlock::config,
+                                                        &Legacy::WeatherBlock::timeOfDay);
 }
 
 NamedColorEnum GLWeather::getCurrentColorIdx() const

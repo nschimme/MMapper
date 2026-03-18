@@ -194,7 +194,7 @@ public:
      * @param members  Pointers to the members in the block struct.
      */
     template<Legacy::SharedVboEnum Block, typename T, typename... Us>
-    void syncFields(Legacy::Functions &gl, Us T::*... members)
+    void syncFields(Legacy::Functions &gl, Us T::*...members)
     {
         using BlockType = typename Legacy::BlockType<Block>::type;
         static_assert(std::is_same_v<T, BlockType>, "Members must belong to the correct block type");
@@ -204,8 +204,9 @@ public:
         gl.glBindBuffer(GL_UNIFORM_BUFFER, vbo.get());
 
         (gl.glBufferSubData(GL_UNIFORM_BUFFER,
-                            static_cast<GLintptr>(reinterpret_cast<std::uintptr_t>(&(blockData.*members))
-                                                  - reinterpret_cast<std::uintptr_t>(&blockData)),
+                            static_cast<GLintptr>(
+                                reinterpret_cast<std::uintptr_t>(&(blockData.*members))
+                                - reinterpret_cast<std::uintptr_t>(&blockData)),
                             static_cast<GLsizeiptr>(sizeof(Us)),
                             &(blockData.*members)),
          ...);

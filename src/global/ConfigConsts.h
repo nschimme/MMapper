@@ -4,6 +4,8 @@
 
 #include "macros.h"
 
+#include <cstddef>
+
 #ifndef NDEBUG
 static constexpr const bool IS_DEBUG_BUILD = true;
 #else
@@ -63,3 +65,5 @@ static inline constexpr const bool NO_AUDIO = true;
 #else
 static inline constexpr const bool NO_AUDIO = false;
 #endif
+
+static inline constexpr size_t MAX_NAMED_COLORS = 32;

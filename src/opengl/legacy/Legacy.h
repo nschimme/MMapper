@@ -38,8 +38,8 @@ struct AbstractShaderProgram;
 struct ShaderPrograms;
 struct PointSizeBinder;
 
-static_assert(NUM_SHARED_VBOS > 0, "At least one shared VBO must be defined");
-static_assert(static_cast<size_t>(SharedVboEnum::NUM_BLOCKS) == NUM_SHARED_VBOS,
+static_assert(Legacy::NUM_SHARED_VBOS > 0, "At least one shared VBO must be defined");
+static_assert(static_cast<size_t>(Legacy::SharedVboEnum::NUM_BLOCKS) == Legacy::NUM_SHARED_VBOS,
               "SharedVboEnum must be 0-based and contiguous");
 
 /**

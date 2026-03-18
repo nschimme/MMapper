@@ -189,6 +189,34 @@ public:
     }
 
     /**
+     * @brief Syncs multiple specific fields of a block to the GPU in a single bind.
+     * @param gl       Legacy functions.
+     * @param members  Pointers to the members in the block struct.
+     */
+    template<Legacy::SharedVboEnum Block, typename T, typename... Us>
+    void syncFields(Legacy::Functions &gl, Us T::*... members)
+    {
+        using BlockType = typename Legacy::BlockType<Block>::type;
+        static_assert(std::is_same_v<T, BlockType>, "Members must belong to the correct block type");
+
+        const auto &blockData = get<Block>();
+        Legacy::VBO &vbo = getOrCreateVbo(gl, Block);
+        gl.glBindBuffer(GL_UNIFORM_BUFFER, vbo.get());
+
+        (gl.glBufferSubData(GL_UNIFORM_BUFFER,
+                            static_cast<GLintptr>(reinterpret_cast<std::uintptr_t>(&(blockData.*members))
+                                                  - reinterpret_cast<std::uintptr_t>(&blockData)),
+                            static_cast<GLsizeiptr>(sizeof(Us)),
+                            &(blockData.*members)),
+         ...);
+
+        gl.glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+        // Ensure it's bound to the correct point.
+        bind_internal(gl, Block, vbo.get());
+    }
+
+    /**
      * @brief Syncs a specific field of a block to the GPU.
      * @param gl      Legacy functions.
      * @param member  Pointer to the member in the block struct.
@@ -196,24 +224,7 @@ public:
     template<Legacy::SharedVboEnum Block, typename T, typename U>
     void syncField(Legacy::Functions &gl, U T::*member)
     {
-        using BlockType = typename Legacy::BlockType<Block>::type;
-        static_assert(std::is_same_v<T, BlockType>, "Member must belong to the correct block type");
-
-        const auto &blockData = get<Block>();
-        const auto offset = reinterpret_cast<std::uintptr_t>(&(blockData.*member))
-                            - reinterpret_cast<std::uintptr_t>(&blockData);
-        const auto size = sizeof(U);
-
-        Legacy::VBO &vbo = getOrCreateVbo(gl, Block);
-        gl.glBindBuffer(GL_UNIFORM_BUFFER, vbo.get());
-        gl.glBufferSubData(GL_UNIFORM_BUFFER,
-                           static_cast<GLintptr>(offset),
-                           static_cast<GLsizeiptr>(size),
-                           &(blockData.*member));
-        gl.glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
-        // Ensure it's bound to the correct point.
-        bind_internal(gl, Block, vbo.get());
+        syncFields<Block>(gl, member);
     }
 
     /**

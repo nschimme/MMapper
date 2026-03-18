@@ -103,6 +103,8 @@ private:
     void updateTargets();
     void updateFromGame();
     void initMeshes();
+    void syncWeatherAtmosphere();
+    void syncWeatherTimeOfDay();
 
     NODISCARD float applyTransition(float startTime, float startVal, float targetVal) const;
 

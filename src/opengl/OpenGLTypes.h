@@ -243,37 +243,6 @@ struct NODISCARD GLRenderState final
         // glEnable(TEXTURE_2D), or glEnable(TEXTURE_3D)
         Textures textures;
         std::optional<float> pointSize;
-
-        // REVISIT: The following aren't uniforms
-
-        // CameraBlock (Binding 1, must match std140 layout in shaders)
-        struct NODISCARD Camera final
-        {
-            glm::mat4 viewProj{1.0f};  // 0-63
-            glm::vec4 playerPos{0.0f}; // 64-79 (xyz, w=zScale)
-        } camera;
-
-        // TimeBlock (Binding 2, must match std140 layout in shaders)
-        struct NODISCARD Time final
-        {
-            glm::vec4 time{0.0f}; // 0-15 (x=time, y=delta, zw=unused)
-        } time;
-
-        // Weather
-        struct NODISCARD Weather final
-        {
-            float currentPrecipitationIntensity = 0.0f;
-
-            // WeatherBlock (Binding 3, must match std140 layout in shaders)
-            struct NODISCARD Params final
-            {
-                glm::vec4 intensities{0.0f};      // 0-15
-                glm::vec4 targets{0.0f};          // 16-31
-                glm::vec4 timeOfDayIndices{0.0f}; // 32-47
-                glm::vec4 config{0.0f};           // 48-63
-            } params;
-
-        } weather;
     };
 
     Uniforms uniforms;

@@ -247,22 +247,21 @@ void MapCanvas::initializeGL()
         .registerRebuildFunction(Legacy::SharedVboEnum::NamedColorsBlock,
                                  [](Legacy::Functions &funcs) {
                                      auto &uboManager = funcs.getUboManager();
-                                     uboManager.update(funcs,
-                                                       Legacy::SharedVboEnum::NamedColorsBlock,
-                                                       XNamedColor::getAllColorsAsVec4());
+                                     uboManager.update<Legacy::SharedVboEnum::NamedColorsBlock>(
+                                         funcs, XNamedColor::getAllColorsAsBlock());
                                  });
 
 
     gl.getUboManager().registerRebuildFunction(
         Legacy::SharedVboEnum::CameraBlock, [this](Legacy::Functions &funcs) {
             const auto playerPosCoord = m_data.tryGetPosition().value_or(Coordinate{0, 0, 0});
-            GLRenderState::Uniforms::Camera camera;
+            Legacy::CameraBlock camera;
             camera.viewProj = getViewProj();
             camera.playerPos = glm::vec4(static_cast<float>(playerPosCoord.x),
                                          static_cast<float>(playerPosCoord.y),
                                          static_cast<float>(playerPosCoord.z),
                                          ProjectionUtils::ROOM_Z_SCALE);
-            funcs.getUboManager().update(funcs, Legacy::SharedVboEnum::CameraBlock, camera);
+            funcs.getUboManager().update<Legacy::SharedVboEnum::CameraBlock>(funcs, camera);
         });
 
     updateMultisampling();

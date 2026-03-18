@@ -7,6 +7,7 @@
 #include "../../global/utils.h"
 #include "../OpenGLConfig.h"
 #include "../OpenGLTypes.h"
+#include "../UboBlocks.h"
 #include "FBO.h"
 
 #include <cmath>
@@ -36,28 +37,6 @@ class Program;
 struct AbstractShaderProgram;
 struct ShaderPrograms;
 struct PointSizeBinder;
-
-// X(EnumName, GL_String_Name)
-/**
- * Note: SharedVboEnum values are implicitly used as UBO binding indices.
- * They must be 0-based and contiguous.
- */
-#define XFOREACH_SHARED_VBO(X) \
-    X(NamedColorsBlock, "NamedColorsBlock") \
-    X(CameraBlock, "CameraBlock") \
-    X(TimeBlock, "TimeBlock") \
-    X(WeatherBlock, "WeatherBlock")
-
-#define X_COUNT_VBO(element, name) +1
-static constexpr size_t NUM_SHARED_VBOS = 0 XFOREACH_SHARED_VBO(X_COUNT_VBO);
-#undef X_COUNT_VBO
-
-enum class SharedVboEnum : uint8_t {
-#define X_ENUM(element, name) element,
-    XFOREACH_SHARED_VBO(X_ENUM)
-#undef X_ENUM
-        NUM_BLOCKS
-};
 
 static_assert(NUM_SHARED_VBOS > 0, "At least one shared VBO must be defined");
 static_assert(static_cast<size_t>(SharedVboEnum::NUM_BLOCKS) == NUM_SHARED_VBOS,

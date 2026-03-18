@@ -6,6 +6,7 @@
 #include "../global/RuleOf5.h"
 #include "../global/logging.h"
 #include "../global/utils.h"
+#include "UboBlocks.h"
 #include "legacy/Legacy.h"
 #include "legacy/VBO.h"
 
@@ -145,6 +146,16 @@ public:
         Legacy::VBO &vbo = getOrCreateVbo(gl, block);
         gl.setVbo(GL_UNIFORM_BUFFER, vbo.get(), data, BufferUsageEnum::DYNAMIC_DRAW);
         return bind_internal(gl, block, vbo.get());
+    }
+
+    /**
+     * @brief Type-safe upload to a UBO.
+     * Enforces the correct data structure for the given block identifier.
+     */
+    template<Legacy::SharedVboEnum Block>
+    GLuint update(Legacy::Functions &gl, const typename Legacy::BlockType<Block>::type &data)
+    {
+        return update(gl, Block, data);
     }
 
     /**

@@ -7,6 +7,9 @@
 
 #include <array>
 #include <cstdint>
+#include <tuple>
+#include <type_traits>
+#include <utility>
 
 #include <glm/glm.hpp>
 
@@ -86,5 +89,27 @@ struct BlockType;
     };
 XFOREACH_SHARED_VBO(X_TYPE)
 #undef X_TYPE
+
+#define X_ASSERT(EnumName, StringName) \
+    static_assert(std::is_standard_layout_v<EnumName>, \
+                  "UBO block " #EnumName " must have standard layout for offset calculations"); \
+    static_assert(std::is_trivially_copyable_v<EnumName>, \
+                  "UBO block " #EnumName " must be trivially copyable for buffer uploads");
+XFOREACH_SHARED_VBO(X_ASSERT)
+#undef X_ASSERT
+
+using SharedVboBlocksTuple = std::tuple<
+#define X_TUPLE(EnumName, StringName) EnumName,
+    XFOREACH_SHARED_VBO(X_TUPLE)
+#undef X_TUPLE
+        std::nullptr_t // Dummy trailing element to handle the trailing comma
+    >;
+
+// Helper to remove the trailing nullptr_t and get a clean tuple of blocks
+template<typename T, std::size_t... Is>
+auto StripLastImpl(std::index_sequence<Is...>) -> std::tuple<std::tuple_element_t<Is, T>...>;
+
+using SharedVboBlocks = decltype(StripLastImpl<SharedVboBlocksTuple>(
+    std::make_index_sequence<static_cast<std::size_t>(SharedVboEnum::NUM_BLOCKS)>{}));
 
 } // namespace Legacy

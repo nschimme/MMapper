@@ -198,6 +198,8 @@ public:
     {
         using BlockType = typename Legacy::BlockType<Block>::type;
         static_assert(std::is_same_v<T, BlockType>, "Members must belong to the correct block type");
+        static_assert(std::is_standard_layout_v<BlockType>,
+                      "Block type must have standard layout for offset calculation");
 
         const auto &blockData = get<Block>();
         Legacy::VBO &vbo = getOrCreateVbo(gl, Block);
@@ -288,8 +290,7 @@ private:
     EnumIndexedArray<std::optional<GLuint>, Legacy::SharedVboEnum> m_boundBuffers;
 
     // Tuple of all block types for shadow storage.
-    std::tuple<Legacy::NamedColorsBlock, Legacy::CameraBlock, Legacy::TimeBlock, Legacy::WeatherBlock>
-        m_shadowBlocks;
+    Legacy::SharedVboBlocks m_shadowBlocks;
 };
 
 } // namespace Legacy

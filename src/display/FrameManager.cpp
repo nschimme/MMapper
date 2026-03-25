@@ -14,10 +14,10 @@ FrameManager::FrameManager(QOpenGLWindow &window, Legacy::UboManager &uboManager
     , m_window(window)
     , m_uboManager(uboManager)
 {
-    m_uboManager
-        .registerRebuildFunction(Legacy::SharedVboEnum::TimeBlock, [this](Legacy::Functions &gl) {
-            m_uboManager.update<Legacy::SharedVboEnum::TimeBlock>(gl, m_frameData);
-        });
+    m_uboManager.registerRebuildFunction(Legacy::SharedVboEnum::TimeBlock,
+                                         [this](Legacy::Functions &gl) {
+                                             m_uboManager.sync<Legacy::SharedVboEnum::TimeBlock>(gl);
+                                         });
 
     updateMinFrameTime();
     setConfig().canvas.advanced.maximumFps.registerChangeCallback(m_configLifetime, [this]() {
@@ -130,7 +130,8 @@ std::optional<FrameManager::Frame> FrameManager::beginFrame()
 
     // Refresh internal struct for UBO
     m_elapsedTime += lastFrameDeltaTime;
-    m_frameData.time = glm::vec4(m_elapsedTime, lastFrameDeltaTime, 0.0f, 0.0f);
+    auto &timeBlock = m_uboManager.get<Legacy::SharedVboEnum::TimeBlock>();
+    timeBlock.time = glm::vec4(m_elapsedTime, lastFrameDeltaTime, 0.0f, 0.0f);
 
     if (lastFrameDeltaTime > 0.0f) {
         m_uboManager.invalidate(Legacy::SharedVboEnum::TimeBlock);

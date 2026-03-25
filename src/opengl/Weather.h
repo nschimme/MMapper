@@ -59,26 +59,11 @@ private:
     ChangeMonitor::Lifetime m_lifetime;
 
     // Weather State
-    float m_rainIntensityStart = 0.0f;
-    float m_snowIntensityStart = 0.0f;
-    float m_cloudsIntensityStart = 0.0f;
-    float m_fogIntensityStart = 0.0f;
-    float m_timeOfDayIntensityStart = 0.0f;
-
     float m_currentRainIntensity = 0.0f;
     float m_currentSnowIntensity = 0.0f;
     float m_currentCloudsIntensity = 0.0f;
     float m_currentFogIntensity = 0.0f;
     float m_currentTimeOfDayIntensity = 0.0f;
-
-    float m_targetRainIntensity = 0.0f;
-    float m_targetSnowIntensity = 0.0f;
-    float m_targetCloudsIntensity = 0.0f;
-    float m_targetFogIntensity = 0.0f;
-    float m_targetTimeOfDayIntensity = 0.0f;
-
-    float m_precipitationTypeStart = 0.0f;
-    float m_targetPrecipitationType = 0.0f;
 
     float m_gameRainIntensity = 0.0f;
     float m_gameSnowIntensity = 0.0f;
@@ -87,13 +72,8 @@ private:
     float m_gameTimeOfDayIntensity = 0.0f;
     float m_gamePrecipitationType = 0.0f;
 
-    NamedColorEnum m_startColorIdx = NamedColorEnum::TRANSPARENT;
-    NamedColorEnum m_targetColorIdx = NamedColorEnum::TRANSPARENT;
     MumeTimeEnum m_currentTimeOfDay = MumeTimeEnum::DAY;
     MumeMoonVisibilityEnum m_moonVisibility = MumeMoonVisibilityEnum::UNKNOWN;
-
-    float m_weatherTransitionStartTime = -2.0f;
-    float m_timeOfDayTransitionStartTime = -2.0f;
 
     // Meshes
     std::unique_ptr<Legacy::ParticleSimulationMesh> m_simulation;
@@ -123,9 +103,8 @@ private:
     void updateTargets();
     void updateFromGame();
     void initMeshes();
-    void invalidateWeather();
-
-    void populateWeatherParams(Legacy::WeatherBlock &params) const;
+    void syncWeatherAtmosphere();
+    void syncWeatherTimeOfDay();
 
     NODISCARD float applyTransition(float startTime, float startVal, float targetVal) const;
 

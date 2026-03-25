@@ -21,10 +21,10 @@ layout(std140) uniform TimeBlock
 
 layout(std140) uniform WeatherBlock
 {
-    vec4 uIntensities;      // precip_start, clouds_start, fog_start, type_start
-    vec4 uTargets;          // precip_target, clouds_target, fog_target, type_target
-    vec4 uTimeOfDayIndices; // x=startIdx, y=targetIdx, z=timeOfDayIntensityStart, w=timeOfDayIntensityTarget
-    vec4 uConfig;           // x=weatherStartTime, y=timeOfDayStartTime, z=duration, w=unused
+    vec4 uIntensities; // rain_start, snow_start, clouds_start, fog_start
+    vec4 uTargets;     // rain_target, snow_target, clouds_target, fog_target
+    vec4 uTimeOfDay;   // x=startIdx, y=targetIdx, z=todStart, w=todTarget
+    vec4 uConfig;      // x=weatherStartTime, y=todStartTime, z=duration, w=unused
 };
 
 uniform sampler2D uTexture;
@@ -64,15 +64,15 @@ void main()
     float uTransitionDuration = uConfig.z;
 
     float weatherLerp = clamp((uCurrentTime - uWeatherStartTime) / uTransitionDuration, 0.0, 1.0);
-    float uCloudsIntensity = mix(uIntensities[1], uTargets[1], weatherLerp);
-    float uFogIntensity = mix(uIntensities[2], uTargets[2], weatherLerp);
+    float uCloudsIntensity = mix(uIntensities[2], uTargets[2], weatherLerp);
+    float uFogIntensity = mix(uIntensities[3], uTargets[3], weatherLerp);
 
     float timeOfDayLerp = clamp((uCurrentTime - uTimeOfDayStartTime) / uTransitionDuration,
                                 0.0,
                                 1.0);
-    float currentTimeOfDayIntensity = mix(uTimeOfDayIndices.z, uTimeOfDayIndices.w, timeOfDayLerp);
-    vec4 timeOfDayStart = uNamedColors[int(uTimeOfDayIndices.x)];
-    vec4 timeOfDayTarget = uNamedColors[int(uTimeOfDayIndices.y)];
+    float currentTimeOfDayIntensity = mix(uTimeOfDay.z, uTimeOfDay.w, timeOfDayLerp);
+    vec4 timeOfDayStart = uNamedColors[int(uTimeOfDay.x)];
+    vec4 timeOfDayTarget = uNamedColors[int(uTimeOfDay.y)];
     vec4 uTimeOfDayColor = mix(timeOfDayStart, timeOfDayTarget, timeOfDayLerp);
     uTimeOfDayColor.a *= currentTimeOfDayIntensity;
 

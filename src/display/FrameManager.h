@@ -63,7 +63,6 @@ private:
     bool m_dirty = true;
     float m_elapsedTime = 0.0f;
     Legacy::UboManager &m_uboManager;
-    Legacy::TimeBlock m_frameData;
 
 public:
     /**
@@ -96,7 +95,6 @@ public:
 
 public:
     NODISCARD float getElapsedTime() const;
-    NODISCARD const Legacy::TimeBlock &getFrameData() const { return m_frameData; }
 
 public:
     /**

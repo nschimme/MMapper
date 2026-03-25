@@ -182,6 +182,7 @@ public:
     using Base::glBlendFunc;
     using Base::glBlendFuncSeparate;
     using Base::glBufferData;
+    using Base::glBufferSubData;
     using Base::glClear;
     using Base::glClearColor;
     using Base::glCompileShader;

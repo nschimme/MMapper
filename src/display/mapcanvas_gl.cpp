@@ -252,14 +252,14 @@ void MapCanvas::initializeGL()
 
     gl.getUboManager().registerRebuildFunction(
         Legacy::SharedVboEnum::CameraBlock, [this](Legacy::Functions &funcs) {
+            auto &camera = funcs.getUboManager().get<Legacy::SharedVboEnum::CameraBlock>();
             const auto playerPosCoord = m_data.tryGetPosition().value_or(Coordinate{0, 0, 0});
-            Legacy::CameraBlock camera;
             camera.viewProj = getViewProj();
             camera.playerPos = glm::vec4(static_cast<float>(playerPosCoord.x),
                                          static_cast<float>(playerPosCoord.y),
                                          static_cast<float>(playerPosCoord.z),
                                          ProjectionUtils::ROOM_Z_SCALE);
-            funcs.getUboManager().update<Legacy::SharedVboEnum::CameraBlock>(funcs, camera);
+            funcs.getUboManager().sync<Legacy::SharedVboEnum::CameraBlock>(funcs);
         });
 
     updateMultisampling();

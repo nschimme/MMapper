@@ -4,20 +4,25 @@
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
 #include "../global/EnumIndexedArray.h"
+#include "../global/logging.h"
 #include "../map/ExitDirection.h"
 #include "../map/mmapper2room.h"
 #include "../mapdata/mapdata.h"
 #include "../mapdata/roomselection.h"
 #include "../opengl/OpenGL.h"
 #include "CanvasMouseModeEnum.h"
+#include "ProjectionUtils.h"
 #include "RoadIndex.h"
 #include "connectionselection.h"
 #include "prespammedpath.h"
 
+#include <cassert>
 #include <map>
 #include <memory>
 #include <optional>
+#include <type_traits>
 #include <unordered_map>
+#include <variant>
 
 #include <QOpenGLTexture>
 #include <QWindow>
@@ -89,20 +94,86 @@ struct NODISCARD MapCanvasViewport
 private:
     QWindow &m_window;
 
+protected:
+    mutable int m_lastWidth = 0;
+    mutable int m_lastHeight = 0;
+    bool m_multisamplingDirty = true;
+
 public:
-    glm::mat4 m_viewProj{1.f};
+    void markMultisamplingDirty() { m_multisamplingDirty = true; }
+    NODISCARD bool takeMultisamplingDirty()
+    {
+        const bool dirty = m_multisamplingDirty;
+        m_multisamplingDirty = false;
+        return dirty;
+    }
+
+private:
+    mutable glm::mat4 m_viewProj{1.f};
+    mutable bool m_viewProjDirty = true;
     glm::vec2 m_scroll{0.f};
     ScaleFactor m_scaleFactor;
     int m_currentLayer = 0;
+    ViewportConfig m_viewportConfig;
 
 public:
     explicit MapCanvasViewport(QWindow &window)
         : m_window{window}
     {}
 
+    virtual ~MapCanvasViewport();
+
+protected:
+    virtual void onViewProjDirty() const {}
+
 public:
     NODISCARD auto width() const { return m_window.width(); }
     NODISCARD auto height() const { return m_window.height(); }
+
+public:
+    NODISCARD const glm::vec2 &getScroll() const { return m_scroll; }
+    void setScroll(const glm::vec2 &scroll)
+    {
+        if (m_scroll != scroll) {
+            m_scroll = scroll;
+            markViewProjDirty();
+        }
+    }
+
+    NODISCARD const ScaleFactor &getScaleFactor() const { return m_scaleFactor; }
+    void setScaleFactor(const ScaleFactor &scaleFactor)
+    {
+        m_scaleFactor = scaleFactor;
+        markViewProjDirty();
+    }
+
+    NODISCARD int getCurrentLayer() const { return m_currentLayer; }
+    void setCurrentLayer(const int layer)
+    {
+        if (m_currentLayer != layer) {
+            m_currentLayer = layer;
+            markViewProjDirty();
+        }
+    }
+
+    void markViewProjDirty()
+    {
+        m_viewProjDirty = true;
+        onViewProjDirty();
+    }
+    void setViewportConfig(const ViewportConfig &config)
+    {
+        m_viewportConfig = config;
+        markViewProjDirty();
+    }
+    void setMvpExtern(const glm::mat4 &mvp) const
+    {
+        m_viewProj = mvp;
+        m_viewProjDirty = false;
+        onViewProjDirty();
+    }
+
+    NODISCARD const glm::mat4 &getViewProj() const;
     NODISCARD Viewport getViewport() const
     {
         return Viewport{glm::ivec2{0, 0}, glm::ivec2{m_window.width(), m_window.height()}};
@@ -145,10 +216,49 @@ public:
     NODISCARD glm::vec3 getCenter() const;
     NODISCARD bool isRoomVisible(const Coordinate &c, float margin) const;
     NODISCARD glm::vec3 getProxyLocation(const glm::vec3 &pos, float margin) const;
+    NODISCARD const MapCanvasViewport &getViewport() const { return m_viewport; }
 
 private:
     NODISCARD VisiblityResultEnum testVisibility(const glm::vec3 &input_pos, float margin) const;
 };
+
+struct NODISCARD AltDragState
+{
+    QPoint lastPos;
+    QCursor originalCursor;
+};
+
+struct NODISCARD DragState
+{
+    glm::vec3 startWorldPos;
+    glm::vec2 startScroll;
+    glm::mat4 startViewProj;
+};
+
+struct NODISCARD PinchState
+{
+    float initialDistance = 0.f;
+    float lastFactor = 1.f;
+};
+
+struct NODISCARD MagnificationState
+{
+    float lastValue = 1.f;
+};
+
+struct NODISCARD RoomSelMove
+{
+    Coordinate2i pos;
+    bool wrongPlace = false;
+};
+
+struct NODISCARD InfomarkSelectionMove
+{
+    Coordinate2f pos;
+};
+
+struct NODISCARD AreaSelectionState
+{};
 
 struct NODISCARD MapCanvasInputState
 {
@@ -162,29 +272,20 @@ struct NODISCARD MapCanvasInputState
     // mouse selection
     std::optional<MouseSel> m_sel1;
     std::optional<MouseSel> m_sel2;
-    // scroll origin of the current mouse movement
-    std::optional<MouseSel> m_moveBackup;
 
-    bool m_selectedArea = false; // no area selected at start time
+    // Mutually exclusive mouse-based interactions.
+    std::optional<
+        std::variant<AltDragState, DragState, RoomSelMove, InfomarkSelectionMove, AreaSelectionState>>
+        m_activeInteraction;
+
+    // Gesture states (pinch, magnification) can occur concurrently with mouse interactions
+    // and each other, so they are managed independently.
+    std::optional<PinchState> m_pinchState;
+    std::optional<MagnificationState> m_magnificationState;
+
     SharedRoomSelection m_roomSelection;
 
-    struct NODISCARD RoomSelMove final
-    {
-        Coordinate2i pos;
-        bool wrongPlace = false;
-    };
-
-    std::optional<RoomSelMove> m_roomSelectionMove;
-    NODISCARD bool hasRoomSelectionMove() { return m_roomSelectionMove.has_value(); }
-
     std::shared_ptr<InfomarkSelection> m_infoMarkSelection;
-
-    struct NODISCARD InfomarkSelectionMove final
-    {
-        Coordinate2f pos;
-    };
-    std::optional<InfomarkSelectionMove> m_infoMarkSelectionMove;
-    NODISCARD bool hasInfomarkSelectionMove() const { return m_infoMarkSelectionMove.has_value(); }
 
     std::shared_ptr<ConnectionSelection> m_connectionSelection;
 
@@ -208,14 +309,82 @@ public:
 public:
     NODISCARD bool hasSel1() const { return m_sel1.has_value(); }
     NODISCARD bool hasSel2() const { return m_sel2.has_value(); }
-    NODISCARD bool hasBackup() const { return m_moveBackup.has_value(); }
 
 public:
     NODISCARD MouseSel getSel1() const { return getMouseSel(m_sel1); }
     NODISCARD MouseSel getSel2() const { return getMouseSel(m_sel2); }
-    NODISCARD MouseSel getBackup() const { return getMouseSel(m_moveBackup); }
 
 public:
-    void startMoving(const MouseSel &startPos) { m_moveBackup = startPos; }
-    void stopMoving() { m_moveBackup.reset(); }
+    template<typename T>
+    NODISCARD const T *getInteraction() const
+    {
+        return m_activeInteraction ? std::get_if<T>(&*m_activeInteraction) : nullptr;
+    }
+
+    template<typename T>
+    NODISCARD T *getInteraction()
+    {
+        return m_activeInteraction ? std::get_if<T>(&*m_activeInteraction) : nullptr;
+    }
+
+private:
+    template<typename T>
+    void beginInteraction(T &&state)
+    {
+        if (m_activeInteraction && !getInteraction<std::decay_t<T>>()) {
+            MMLOG_WARNING() << "Starting new interaction while another is active. Overwriting.";
+            endInteraction();
+        }
+
+        m_activeInteraction.emplace(std::forward<T>(state));
+    }
+
+public:
+    void beginAltDrag(const QPoint &pos, const QCursor &cursor)
+    {
+        beginInteraction(AltDragState{pos, cursor});
+    }
+    void beginDrag(const glm::vec3 &worldPos, const glm::vec2 &scroll, const glm::mat4 &viewProj)
+    {
+        beginInteraction(DragState{worldPos, scroll, viewProj});
+    }
+    void beginRoomMove() { beginInteraction(RoomSelMove{}); }
+    void beginInfomarkMove() { beginInteraction(InfomarkSelectionMove{}); }
+    void beginAreaSelection() { beginInteraction(AreaSelectionState{}); }
+    void endInteraction() { m_activeInteraction.reset(); }
+
+public:
+    void beginPinch(const float initialDistance)
+    {
+        m_pinchState.emplace(PinchState{initialDistance});
+    }
+    void updatePinch(const float lastFactor)
+    {
+        if (!m_pinchState) {
+            return;
+        }
+        m_pinchState->lastFactor = lastFactor;
+    }
+    void endPinch() { m_pinchState.reset(); }
+
+    void beginMagnification() { m_magnificationState.emplace(MagnificationState{1.f}); }
+    void updateMagnification(const float lastValue)
+    {
+        if (!m_magnificationState) {
+            return;
+        }
+        m_magnificationState->lastValue = lastValue;
+    }
+    void endMagnification() { m_magnificationState.reset(); }
+
+public:
+    NODISCARD bool hasRoomSelectionMove() const { return getInteraction<RoomSelMove>() != nullptr; }
+    NODISCARD bool hasInfomarkSelectionMove() const
+    {
+        return getInteraction<InfomarkSelectionMove>() != nullptr;
+    }
+    NODISCARD bool hasAreaSelection() const
+    {
+        return getInteraction<AreaSelectionState>() != nullptr;
+    }
 };

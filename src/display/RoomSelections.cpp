@@ -9,6 +9,7 @@
 #include "../opengl/OpenGLTypes.h"
 #include "Characters.h"
 #include "MapCanvasData.h"
+#include "ProjectionUtils.h"
 #include "Textures.h"
 #include "mapcanvas.h"
 
@@ -125,9 +126,8 @@ void MapCanvas::paintSelectedRoom(RoomSelFakeGL &gl, const RawRoom &room)
     gl.resetMatrix();
 
     const float marginPixels = MapScreen::DEFAULT_MARGIN_PIXELS;
-    const bool isMoving = hasRoomSelectionMove();
 
-    if (!isMoving && !m_mapScreen.isRoomVisible(roomPos, marginPixels / 2.f)) {
+    if (!hasRoomSelectionMove() && !m_mapScreen.isRoomVisible(roomPos, marginPixels / 2.f)) {
         const glm::vec3 roomCenter = roomPos.to_vec3() + glm::vec3{0.5f, 0.5f, 0.f};
         const auto dot = DistantObjectTransform::construct(roomCenter, m_mapScreen, marginPixels);
         gl.glTranslatef(dot.offset.x, dot.offset.y, dot.offset.z);
@@ -140,10 +140,10 @@ void MapCanvas::paintSelectedRoom(RoomSelFakeGL &gl, const RawRoom &room)
             const auto delta = roomCenter - m_mapScreen.getCenter();
             const auto distance = std::sqrt((delta.y * delta.y) + (delta.x * delta.x));
             // If we're too far away just scale down to 50% at most
-            if (distance >= static_cast<float>(BASESIZE)) {
+            if (distance >= static_cast<float>(ProjectionUtils::BASESIZE)) {
                 return 0.5f;
             }
-            return 1.f - (distance / static_cast<float>(BASESIZE));
+            return 1.f - (distance / static_cast<float>(ProjectionUtils::BASESIZE));
         });
         gl.glScalef(scaleFactor, scaleFactor, 1.f);
 
@@ -155,12 +155,12 @@ void MapCanvas::paintSelectedRoom(RoomSelFakeGL &gl, const RawRoom &room)
         gl.resetMatrix();
     }
 
-    if (isMoving) {
+    if (auto *const move = getInteraction<RoomSelMove>()) {
         gl.resetMatrix();
-        const auto &relativeOffset = m_roomSelectionMove->pos;
+        const auto &relativeOffset = move->pos;
         gl.glTranslatef(x + relativeOffset.x, y + relativeOffset.y, z);
-        gl.drawColoredQuad(m_roomSelectionMove->wrongPlace ? RoomSelFakeGL::SelTypeEnum::MoveBad
-                                                           : RoomSelFakeGL::SelTypeEnum::MoveGood);
+        gl.drawColoredQuad(move->wrongPlace ? RoomSelFakeGL::SelTypeEnum::MoveBad
+                                            : RoomSelFakeGL::SelTypeEnum::MoveGood);
     }
 }
 

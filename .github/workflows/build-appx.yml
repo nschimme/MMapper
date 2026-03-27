@@ -9,6 +9,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || github.sha }}
+  cancel-in-progress: true
+
 jobs:
   build-appx:
     runs-on: windows-2022
@@ -65,7 +69,7 @@ jobs:
         "PACKAGE_BASENAME=$packageBasename" >> $env:GITHUB_OUTPUT
 
     - name: Upload AppX
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: appx-${{ steps.get_windows_package_name.outputs.PACKAGE_BASENAME }}
         path: ${{ github.workspace }}/artifact/*.appxupload*

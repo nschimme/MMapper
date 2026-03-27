@@ -77,6 +77,10 @@ set(mmapper_SRCS
     display/MapCanvasData.h
     display/MapCanvasRoomDrawer.cpp
     display/MapCanvasRoomDrawer.h
+    display/FrameManager.cpp
+    display/FrameManager.h
+    display/ProjectionUtils.cpp
+    display/ProjectionUtils.h
     display/RoadIndex.cpp
     display/RoadIndex.h
     display/RoomSelections.cpp
@@ -411,12 +415,17 @@ set(mmapper_SRCS
     opengl/LineRendering.h
     opengl/OpenGL.cpp
     opengl/OpenGL.h
+    opengl/UboManager.h
+    opengl/Weather.cpp
+    opengl/Weather.h
     opengl/OpenGLConfig.cpp
     opengl/OpenGLConfig.h
     opengl/OpenGLTypes.cpp
     opengl/OpenGLTypes.h
     opengl/legacy/AbstractShaderProgram.cpp
     opengl/legacy/AbstractShaderProgram.h
+    opengl/legacy/AttributeLessMeshes.cpp
+    opengl/legacy/AttributeLessMeshes.h
     opengl/legacy/Binders.cpp
     opengl/legacy/Binders.h
     opengl/legacy/FBO.cpp
@@ -437,10 +446,14 @@ set(mmapper_SRCS
     opengl/legacy/Shaders.h
     opengl/legacy/SimpleMesh.cpp
     opengl/legacy/SimpleMesh.h
+    opengl/legacy/TFO.cpp
+    opengl/legacy/TFO.h
     opengl/legacy/VAO.cpp
     opengl/legacy/VAO.h
     opengl/legacy/VBO.cpp
     opengl/legacy/VBO.h
+    opengl/legacy/WeatherMeshes.cpp
+    opengl/legacy/WeatherMeshes.h
     parser/Abbrev.cpp
     parser/Abbrev.h
     parser/AbstractParser-Actions.cpp

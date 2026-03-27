@@ -256,6 +256,7 @@ ConstString KEY_FOREGROUND_COLOR = "Foreground color";
 ConstString KEY_3D_CANVAS = "canvas.advanced.use3D";
 ConstString KEY_3D_AUTO_TILT = "canvas.advanced.autoTilt";
 ConstString KEY_3D_PERFSTATS = "canvas.advanced.printPerfStats";
+ConstString KEY_MAXIMUM_FPS = "canvas.advanced.maximumFps";
 ConstString KEY_3D_FOV = "canvas.advanced.fov";
 ConstString KEY_3D_VERTICAL_ANGLE = "canvas.advanced.verticalAngle";
 ConstString KEY_3D_HORIZONTAL_ANGLE = "canvas.advanced.horizontalAngle";
@@ -298,6 +299,9 @@ ConstString KEY_THEME = "Theme";
 ConstString KEY_TLS_ENCRYPTION = "TLS encryption";
 ConstString KEY_USE_INTERNAL_EDITOR = "Use internal editor";
 ConstString KEY_USE_TRILINEAR_FILTERING = "Use trilinear filtering";
+ConstString KEY_WEATHER_ATMOSPHERE_INTENSITY = "weather.atmosphereIntensity";
+ConstString KEY_WEATHER_PRECIPITATION_INTENSITY = "weather.precipitationIntensity";
+ConstString KEY_WEATHER_TIME_OF_DAY_INTENSITY = "weather.todIntensity";
 ConstString KEY_WINDOW_GEOMETRY = "Window Geometry";
 ConstString KEY_WINDOW_STATE = "Window State";
 ConstString KEY_BELL_AUDIBLE = "Bell audible";
@@ -658,10 +662,19 @@ void Configuration::CanvasSettings::read(const QSettings &conf)
     advanced.use3D.set(conf.value(KEY_3D_CANVAS, false).toBool());
     advanced.autoTilt.set(conf.value(KEY_3D_AUTO_TILT, true).toBool());
     advanced.printPerfStats.set(conf.value(KEY_3D_PERFSTATS, IS_DEBUG_BUILD).toBool());
+    advanced.maximumFps.set(conf.value(KEY_MAXIMUM_FPS, 60).toInt());
     advanced.fov.set(conf.value(KEY_3D_FOV, 765).toInt());
     advanced.verticalAngle.set(conf.value(KEY_3D_VERTICAL_ANGLE, 450).toInt());
     advanced.horizontalAngle.set(conf.value(KEY_3D_HORIZONTAL_ANGLE, 0).toInt());
     advanced.layerHeight.set(conf.value(KEY_3D_LAYER_HEIGHT, 15).toInt());
+
+    weatherAtmosphereIntensity.set(conf.value(KEY_WEATHER_ATMOSPHERE_INTENSITY, 50).toInt());
+    weatherPrecipitationIntensity.set(conf.value(KEY_WEATHER_PRECIPITATION_INTENSITY, 50).toInt());
+    weatherTimeOfDayIntensity.set(conf.value(KEY_WEATHER_TIME_OF_DAY_INTENSITY, 50).toInt());
+
+    weatherAtmosphereIntensity.clamp(0, 100);
+    weatherPrecipitationIntensity.clamp(0, 100);
+    weatherTimeOfDayIntensity.clamp(0, 100);
 }
 
 void Configuration::AccountSettings::read(const QSettings &conf)
@@ -855,10 +868,15 @@ void Configuration::CanvasSettings::write(QSettings &conf) const
     conf.setValue(KEY_3D_CANVAS, advanced.use3D.get());
     conf.setValue(KEY_3D_AUTO_TILT, advanced.autoTilt.get());
     conf.setValue(KEY_3D_PERFSTATS, advanced.printPerfStats.get());
+    conf.setValue(KEY_MAXIMUM_FPS, advanced.maximumFps.get());
     conf.setValue(KEY_3D_FOV, advanced.fov.get());
     conf.setValue(KEY_3D_VERTICAL_ANGLE, advanced.verticalAngle.get());
     conf.setValue(KEY_3D_HORIZONTAL_ANGLE, advanced.horizontalAngle.get());
     conf.setValue(KEY_3D_LAYER_HEIGHT, advanced.layerHeight.get());
+
+    conf.setValue(KEY_WEATHER_ATMOSPHERE_INTENSITY, weatherAtmosphereIntensity.get());
+    conf.setValue(KEY_WEATHER_PRECIPITATION_INTENSITY, weatherPrecipitationIntensity.get());
+    conf.setValue(KEY_WEATHER_TIME_OF_DAY_INTENSITY, weatherTimeOfDayIntensity.get());
 }
 
 void Configuration::AccountSettings::write(QSettings &conf) const
@@ -1071,6 +1089,7 @@ void Configuration::CanvasSettings::Advanced::registerChangeCallback(
     use3D.registerChangeCallback(lifetime, callback);
     autoTilt.registerChangeCallback(lifetime, callback);
     printPerfStats.registerChangeCallback(lifetime, callback);
+    maximumFps.registerChangeCallback(lifetime, callback);
     fov.registerChangeCallback(lifetime, callback);
     verticalAngle.registerChangeCallback(lifetime, callback);
     horizontalAngle.registerChangeCallback(lifetime, callback);

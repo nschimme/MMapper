@@ -9,6 +9,10 @@
 #include <string_view>
 #include <vector>
 
+namespace Legacy {
+struct NamedColorsBlock;
+}
+
 #undef TRANSPARENT // Bad dog, Microsoft; bad dog!!!
 
 // X(_id, _name)
@@ -40,7 +44,11 @@
     X(WALL_COLOR_NOT_MAPPED, "wall-not-mapped") \
     X(WALL_COLOR_RANDOM, "wall-random") \
     X(WALL_COLOR_REGULAR_EXIT, "wall-regular-exit") \
-    X(WALL_COLOR_SPECIAL, "wall-special")
+    X(WALL_COLOR_SPECIAL, "wall-special") \
+    X(WEATHER_DAWN, "weather-dawn") \
+    X(WEATHER_DUSK, "weather-dusk") \
+    X(WEATHER_NIGHT, "weather-night") \
+    X(WEATHER_NIGHT_MOON, "weather-night-moon")
 
 #define X_DECL(_id, _name) _id,
 enum class NODISCARD NamedColorEnum : uint8_t { DEFAULT = 0, XFOREACH_NAMED_COLOR_OPTIONS(X_DECL) };
@@ -102,6 +110,6 @@ public:
 
 public:
     NODISCARD static const std::vector<Color> &getAllColors();
-    NODISCARD static const std::vector<glm::vec4> &getAllColorsAsVec4();
+    NODISCARD static const Legacy::NamedColorsBlock &getAllColorsAsBlock();
     NODISCARD static const std::vector<std::string> &getAllNames();
 };

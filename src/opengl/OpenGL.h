@@ -6,6 +6,7 @@
 #include "../global/Badge.h"
 #include "../global/utils.h"
 #include "OpenGLTypes.h"
+#include "UboManager.h"
 
 #include <memory>
 #include <vector>
@@ -19,6 +20,7 @@
 
 class FBO;
 class MapCanvas;
+class GLWeather;
 namespace Legacy {
 class Functions;
 } // namespace Legacy
@@ -27,6 +29,7 @@ class NODISCARD OpenGL final
 {
 private:
     std::shared_ptr<Legacy::Functions> m_opengl;
+    Legacy::UboManager m_uboManager;
     bool m_rendererInitialized = false;
 
 private:
@@ -42,6 +45,7 @@ public:
 
 public:
     NODISCARD const auto &getSharedFunctions(Badge<MapCanvas>) { return getSharedFunctions(); }
+    NODISCARD const auto &getSharedFunctions(Badge<GLWeather>) { return getSharedFunctions(); }
 
 public:
     /* must be called before any other functions */
@@ -167,9 +171,10 @@ public:
 public:
     void cleanup();
     NODISCARD GLRenderState getDefaultRenderState();
-    void bindNamedColorsBuffer();
     void resetNamedColorsBuffer();
     void setTextureLookup(MMTextureId, SharedMMTexture);
+
+    NODISCARD Legacy::UboManager &getUboManager() { return m_uboManager; }
 
 public:
     void uploadArrayLayer(const SharedMMTexture &array,

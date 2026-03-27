@@ -19,11 +19,15 @@
 #include "../opengl/OpenGLConfig.h"
 #include "../opengl/OpenGLTypes.h"
 #include "../opengl/legacy/Meshes.h"
+#include "../opengl/legacy/TFO.h"
+#include "../opengl/legacy/VAO.h"
+#include "../opengl/legacy/VBO.h"
 #include "../src/global/SendToUser.h"
 #include "Connections.h"
 #include "MapCanvasConfig.h"
 #include "MapCanvasData.h"
 #include "MapCanvasRoomDrawer.h"
+#include "ProjectionUtils.h"
 #include "Textures.h"
 #include "connectionselection.h"
 #include "mapcanvas.h"
@@ -35,8 +39,10 @@
 #include <cstdint>
 #include <cstdlib>
 #include <functional>
+#include <future>
 #include <memory>
 #include <optional>
+#include <random>
 #include <sstream>
 #include <stdexcept>
 #include <unordered_map>
@@ -236,6 +242,27 @@ void MapCanvas::initializeGL()
     initLogger();
 
     gl.initializeRenderer(static_cast<float>(QPaintDevice::devicePixelRatioF()));
+
+    gl.getUboManager()
+        .registerRebuildFunction(Legacy::SharedVboEnum::NamedColorsBlock,
+                                 [](Legacy::Functions &funcs) {
+                                     auto &uboManager = funcs.getUboManager();
+                                     uboManager.update<Legacy::SharedVboEnum::NamedColorsBlock>(
+                                         funcs, XNamedColor::getAllColorsAsBlock());
+                                 });
+
+    gl.getUboManager().registerRebuildFunction(
+        Legacy::SharedVboEnum::CameraBlock, [this](Legacy::Functions &funcs) {
+            auto &camera = funcs.getUboManager().get<Legacy::SharedVboEnum::CameraBlock>();
+            const auto playerPosCoord = m_data.tryGetPosition().value_or(Coordinate{0, 0, 0});
+            camera.viewProj = getViewProj();
+            camera.playerPos = glm::vec4(static_cast<float>(playerPosCoord.x),
+                                         static_cast<float>(playerPosCoord.y),
+                                         static_cast<float>(playerPosCoord.z),
+                                         ProjectionUtils::ROOM_Z_SCALE);
+            funcs.getUboManager().sync<Legacy::SharedVboEnum::CameraBlock>(funcs);
+        });
+
     updateMultisampling();
 
     // REVISIT: should the font texture have the lowest ID?
@@ -275,13 +302,13 @@ void MapCanvas::initializeGL()
     });
 
     setConfig().canvas.antialiasingSamples.registerChangeCallback(m_lifetime, [this]() {
-        this->updateMultisampling();
-        this->update();
+        markMultisamplingDirty();
+        m_frameManager.requestUpdate();
     });
 
     setConfig().canvas.trilinearFiltering.registerChangeCallback(m_lifetime, [this]() {
         this->updateTextures();
-        this->update();
+        m_frameManager.requestUpdate();
     });
 }
 
@@ -339,143 +366,36 @@ void MapCanvas::initLogger()
                              QOpenGLDebugMessage::AnySeverity);
 }
 
-glm::mat4 MapCanvas::getViewProj_old(const glm::vec2 &scrollPos,
-                                     const glm::ivec2 &size,
-                                     const float zoomScale,
-                                     const int /*currentLayer*/)
-{
-    constexpr float FIXED_VIEW_DISTANCE = 60.f;
-    constexpr float ROOM_Z_SCALE = 7.f;
-    constexpr auto baseSize = static_cast<float>(BASESIZE);
-
-    const float swp = zoomScale * baseSize / static_cast<float>(size.x);
-    const float shp = zoomScale * baseSize / static_cast<float>(size.y);
-
-    QMatrix4x4 proj;
-    proj.frustum(-0.5f, +0.5f, -0.5f, 0.5f, 5.f, 10000.f);
-    proj.scale(swp, shp, 1.f);
-    proj.translate(-scrollPos.x, -scrollPos.y, -FIXED_VIEW_DISTANCE);
-    proj.scale(1.f, 1.f, ROOM_Z_SCALE);
-
-    return glm::make_mat4(proj.constData());
-}
-
-NODISCARD static float getPitchDegrees(const float zoomScale)
-{
-    const float degrees = getConfig().canvas.advanced.verticalAngle.getFloat();
-    if (!MapCanvasConfig::isAutoTilt()) {
-        return degrees;
-    }
-
-    static_assert(ScaleFactor::MAX_VALUE >= 2.f);
-    return glm::smoothstep(0.5f, 2.f, zoomScale) * degrees;
-}
-
-glm::mat4 MapCanvas::getViewProj(const glm::vec2 &scrollPos,
-                                 const glm::ivec2 &size,
-                                 const float zoomScale,
-                                 const int currentLayer)
-{
-    static_assert(GLM_CONFIG_CLIP_CONTROL == GLM_CLIP_CONTROL_RH_NO);
-
-    const int width = size.x;
-    const int height = size.y;
-
-    const float aspect = static_cast<float>(width) / static_cast<float>(height);
-
-    const auto &advanced = getConfig().canvas.advanced;
-    const float fovDegrees = advanced.fov.getFloat();
-    const auto pitchRadians = glm::radians(getPitchDegrees(zoomScale));
-    const auto yawRadians = glm::radians(advanced.horizontalAngle.getFloat());
-    const auto layerHeight = advanced.layerHeight.getFloat();
-
-    const auto pixelScale = std::invoke([aspect, fovDegrees, width]() -> float {
-        constexpr float HARDCODED_LOGICAL_PIXELS = 44.f;
-        const auto dummyProj = glm::perspective(glm::radians(fovDegrees), aspect, 1.f, 10.f);
-
-        const auto centerRoomProj = glm::inverse(dummyProj) * glm::vec4(0.f, 0.f, 0.f, 1.f);
-        const auto centerRoom = glm::vec3(centerRoomProj) / centerRoomProj.w;
-
-        // Use east instead of north, so that tilted perspective matches horizontally.
-        const auto oneRoomEast = dummyProj * glm::vec4(centerRoom + glm::vec3(1.f, 0.f, 0.f), 1.f);
-        const float clipDist = std::abs(oneRoomEast.x / oneRoomEast.w);
-        const float ndcDist = clipDist * 0.5f;
-
-        // width is in logical pixels
-        const float screenDist = ndcDist * static_cast<float>(width);
-        const auto pixels = std::abs(centerRoom.z) * screenDist;
-        return pixels / HARDCODED_LOGICAL_PIXELS;
-    });
-
-    const float ZSCALE = layerHeight;
-    const float camDistance = pixelScale / zoomScale;
-    const auto center = glm::vec3(scrollPos, static_cast<float>(currentLayer) * ZSCALE);
-
-    // The view matrix will transform from world space to eye-space.
-    // Eye space has the camera at the origin, with +X right, +Y up, and -Z forward.
-    //
-    // Our camera's orientation is based on the world-space ENU coordinates.
-    // We'll define right-handed basis vectors forward, right, and up.
-
-    // The horizontal rotation in the XY plane will affect both forward and right vectors.
-    // Currently the convention is: -45 is northwest, and +45 is northeast.
-    //
-    // If you want to modify this, keep in mind that the angle is inverted since the
-    // camera is subtracted from the center, so the result is that positive angle
-    // appears clockwise (backwards) on screen.
-    const auto rotateHorizontal = glm::mat3(
-        glm::rotate(glm::mat4(1), -yawRadians, glm::vec3(0, 0, 1)));
-
-    // Our unrotated pitch is defined so that 0 is straight down, and 90 degrees is north,
-    // but the yaw rotation can cause it to point northeast or northwest.
-    //
-    // Here we use an ENU coordinate system, so we have:
-    //   forward(pitch= 0 degrees) = -Z (down), and
-    //   forward(pitch=90 degrees) = +Y (north).
-    const auto forward = rotateHorizontal
-                         * glm::vec3(0.f, std::sin(pitchRadians), -std::cos(pitchRadians));
-    // Unrotated right is east (+X).
-    const auto right = rotateHorizontal * glm::vec3(1, 0, 0);
-    // right x forward = up
-    const auto up = glm::cross(right, glm::normalize(forward));
-
-    // Subtract because camera looks at the center.
-    const auto eye = center - camDistance * forward;
-
-    // NOTE: may need to modify near and far planes by pixelScale and zoomScale.
-    // Be aware that a 24-bit depth buffer only gives about 12 bits of usable
-    // depth range; we may need to reduce this for people with 16-bit depth buffers.
-    // Keep in mind: Arda is about 600x300 rooms, so viewing the blue mountains
-    // from mordor requires approx 700 room units of view distance.
-    const auto proj = glm::perspective(glm::radians(fovDegrees), aspect, 0.25f, 1024.f);
-    const auto view = glm::lookAt(eye, center, up);
-    const auto scaleZ = glm::scale(glm::mat4(1), glm::vec3(1.f, 1.f, ZSCALE));
-
-    return proj * view * scaleZ;
-}
-
 void MapCanvas::setMvp(const glm::mat4 &viewProj)
 {
     auto &gl = getOpenGL();
-    m_viewProj = viewProj;
-    gl.setProjectionMatrix(m_viewProj);
+    // Pushes the externally provided projection matrix into the viewport cache,
+    // which also ensures the dirty flag is cleared for the current state.
+    setMvpExtern(viewProj);
+    gl.setProjectionMatrix(viewProj);
 }
 
 void MapCanvas::setViewportAndMvp(int width, int height)
 {
-    const bool want3D = getConfig().canvas.advanced.use3D.get();
+    if (width != m_lastWidth || height != m_lastHeight) {
+        m_lastWidth = width;
+        m_lastHeight = height;
+        markViewProjDirty();
+    }
 
     auto &gl = getOpenGL();
-
     gl.glViewport(0, 0, width, height);
+
     const auto size = getViewport().size;
     assert(size.x == width);
     assert(size.y == height);
 
-    const float zoomScale = getTotalScaleFactor();
-    const auto viewProj = (!want3D) ? getViewProj_old(m_scroll, size, zoomScale, m_currentLayer)
-                                    : getViewProj(m_scroll, size, zoomScale, m_currentLayer);
-    setMvp(viewProj);
+    gl.setProjectionMatrix(MapCanvasViewport::getViewProj());
+}
+
+void MapCanvas::onViewProjDirty() const
+{
+    m_opengl.getUboManager().invalidate(Legacy::SharedVboEnum::CameraBlock);
 }
 
 void MapCanvas::resizeGL(int width, int height)
@@ -486,47 +406,10 @@ void MapCanvas::resizeGL(int width, int height)
     }
 
     setViewportAndMvp(width, height);
-    updateMultisampling();
-
-    // Render
-    update();
-}
-
-void MapCanvas::setAnimating(bool value)
-{
-    if (m_frameRateController.animating == value) {
-        return;
-    }
-
-    m_frameRateController.animating = value;
-
-    if (m_frameRateController.animating) {
-        QTimer::singleShot(0, this, &MapCanvas::renderLoop);
-    }
-}
-
-void MapCanvas::renderLoop()
-{
-    if (!m_frameRateController.animating) {
-        return;
-    }
-
-    // REVISIT: Make this configurable later when its not just used for the remesh flash
-    static constexpr int TARGET_FRAMES_PER_SECOND = 20;
-    auto targetFrameTime = std::chrono::milliseconds(1000 / TARGET_FRAMES_PER_SECOND);
-
-    auto now = std::chrono::steady_clock::now();
-    update();
-    auto afterPaint = std::chrono::steady_clock::now();
-
-    // Render the next frame at the appropriate time or now if we're behind
-    auto timeSinceLastFrame = std::chrono::duration_cast<std::chrono::milliseconds>(afterPaint
-                                                                                    - now);
-    auto delay = std::max(targetFrameTime - timeSinceLastFrame, std::chrono::milliseconds::zero());
-
-    QTimer::singleShot(delay.count(), this, &MapCanvas::renderLoop);
-
-    m_frameRateController.lastFrameTime = now;
+    markMultisamplingDirty();
+    // Defer update() to avoid triggering a second Asyncify suspension while paintGL
+    // is already suspended in Qt for WebAssembly (VisualViewport.qtResizeAllScreens).
+    QTimer::singleShot(0, this, [this]() { m_frameManager.requestUpdate(); });
 }
 
 void MapCanvas::updateBatches()
@@ -578,12 +461,6 @@ void MapCanvas::finishPendingMapBatches()
 #define LOG() MMLOG() << prefix
     static const std::string_view prefix = "[finishPendingMapBatches] ";
 
-    MAYBE_UNUSED RAIICallback eventually{[this] {
-        if (!m_batches.isInProgress()) {
-            setAnimating(false);
-        }
-    }};
-
     if (m_batches.next_mapBatches.has_value()) {
         m_batches.mapBatches = std::exchange(m_batches.next_mapBatches, std::nullopt);
     }
@@ -615,6 +492,8 @@ void MapCanvas::finishPendingMapBatches()
         assert(opt_mapBatches.has_value());
         m_data.saveSnapshot();
 
+        // Swap immediately so this frame can use the new batches.
+        m_batches.mapBatches = std::exchange(m_batches.next_mapBatches, std::nullopt);
     } catch (...) {
         QString msg;
         try {
@@ -639,23 +518,35 @@ void MapCanvas::actuallyPaintGL()
 {
     // DECL_TIMER(t, __FUNCTION__);
     setViewportAndMvp(width(), height());
+    if (takeMultisamplingDirty()) {
+        updateMultisampling();
+    }
 
     auto &gl = getOpenGL();
-    gl.bindNamedColorsBuffer();
+    auto &funcs = deref(gl.getSharedFunctions(Badge<MapCanvas>{}));
+
+    gl.getUboManager().bind(funcs, Legacy::SharedVboEnum::NamedColorsBlock);
 
     gl.bindFbo();
     gl.clear(Color{getConfig().canvas.backgroundColor});
 
     if (m_data.isEmpty()) {
         getGLFont().renderTextCentered("No map loaded");
-        return;
-    }
+    } else {
+        // Update animation state
+        m_weather.update();
 
-    paintMap();
-    paintBatchedInfomarks();
-    paintSelections();
-    paintCharacters();
-    paintDifferences();
+        paintMap();
+        paintBatchedInfomarks();
+        paintSelections();
+        paintCharacters();
+        paintDifferences();
+
+        m_weather.prepare();
+        gl.getUboManager().bind(funcs, Legacy::SharedVboEnum::TimeBlock);
+
+        m_weather.render(m_opengl.getDefaultRenderState());
+    }
 
     gl.releaseFbo();
     gl.blitFboToDefault();
@@ -826,17 +717,16 @@ void MapCanvas::paintDifferences()
 void MapCanvas::paintMap()
 {
     const bool pending = m_batches.remeshCookie.isPending();
-    if (pending) {
-        setAnimating(true);
-    }
 
     if (!m_batches.mapBatches.has_value()) {
-        const QString msg = pending ? "Please wait... the map isn't ready yet." : "Batch error";
-        getGLFont().renderTextCentered(msg);
+        if (!pending || m_batches.pendingUpdateFlashState.tick()) {
+            const QString msg = pending ? "Please wait... the map isn't ready yet." : "Batch error";
+            getGLFont().renderTextCentered(msg);
+        }
         if (!pending) {
             // REVISIT: does this need a better fix?
             // pending already scheduled an update, but now we realize we need an update.
-            update();
+            m_frameManager.requestUpdate();
         }
         return;
     }
@@ -862,6 +752,13 @@ void MapCanvas::paintSelections()
 
 void MapCanvas::paintGL()
 {
+    auto frame = m_frameManager.beginFrame();
+    if (!frame) {
+        // Blit the existing FBO on resize or expose
+        getOpenGL().blitFboToDefault();
+        return;
+    }
+
     static thread_local double longestBatchMs = 0.0;
 
     const bool showPerfStats = MapCanvasConfig::getShowPerfStats();
@@ -966,9 +863,16 @@ void MapCanvas::paintGL()
     const float zoom = getTotalScaleFactor();
     const bool is3d = advanced.use3D.get();
     if (is3d) {
+        const ViewportConfig config{advanced.use3D.get(),
+                                    advanced.autoTilt.get(),
+                                    advanced.fov.getFloat(),
+                                    advanced.verticalAngle.getFloat(),
+                                    advanced.horizontalAngle.getFloat(),
+                                    advanced.layerHeight.getFloat()};
         print(QString::asprintf("3d mode: %.1f fovy, %.1f pitch, %.1f yaw, %.1f zscale",
                                 advanced.fov.getDouble(),
-                                static_cast<double>(getPitchDegrees(zoom)),
+                                static_cast<double>(
+                                    ProjectionUtils::calculatePitchDegrees(config, zoom)),
                                 advanced.horizontalAngle.getDouble(),
                                 advanced.layerHeight.getDouble()));
     } else {
@@ -1004,9 +908,9 @@ void MapCanvas::paintSelectionArea()
 
     // Mouse selected area
     auto &gl = getOpenGL();
-    const auto layer = static_cast<float>(m_currentLayer);
+    const auto layer = static_cast<float>(getCurrentLayer());
 
-    if (m_selectedArea) {
+    if (hasAreaSelection()) {
         const glm::vec3 A{pos1, layer};
         const glm::vec3 B{pos2.x, pos1.y, layer};
         const glm::vec3 C{pos2, layer};
@@ -1115,12 +1019,13 @@ void MapCanvas::renderMapBatches()
         gl.renderPlainFullScreenQuad(blendedWithBackground);
     };
 
+    const int currentLayer = getCurrentLayer();
     for (const auto &layer : batchedMeshes) {
         const int thisLayer = layer.first;
-        if (thisLayer == m_currentLayer) {
+        if (thisLayer == currentLayer) {
             gl.clearDepth();
             fadeBackground();
         }
-        drawLayer(thisLayer, m_currentLayer);
+        drawLayer(thisLayer, currentLayer);
     }
 }

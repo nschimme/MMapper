@@ -5,24 +5,31 @@
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
+#include "../clock/mumemoment.h"
 #include "../global/ChangeMonitor.h"
 #include "../global/Signal2.h"
+#include "../map/PromptFlags.h"
 #include "../mapdata/roomselection.h"
 #include "../opengl/Font.h"
 #include "../opengl/FontFormatFlags.h"
 #include "../opengl/OpenGL.h"
+#include "../opengl/Weather.h"
+#include "FrameManager.h"
 #include "Infomarks.h"
 #include "MapCanvasData.h"
 #include "MapCanvasRoomDrawer.h"
 #include "Textures.h"
 
 #include <array>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <future>
 #include <map>
 #include <memory>
 #include <optional>
 #include <set>
+#include <variant>
 #include <vector>
 
 #include <glm/glm.hpp>
@@ -36,6 +43,7 @@
 class CharacterBatch;
 class ConnectionSelection;
 class Coordinate;
+class GameObserver;
 class InfomarkSelection;
 class MapData;
 class Mmapper2Group;
@@ -54,17 +62,9 @@ class NODISCARD_QOBJECT MapCanvas final : public QOpenGLWindow,
     Q_OBJECT
 
 public:
-    static constexpr const int BASESIZE = 528; // REVISIT: Why this size? 16*33 isn't special.
     static constexpr const int SCROLL_SCALE = 64;
 
 private:
-    struct NODISCARD FrameRateController final
-    {
-        std::chrono::steady_clock::time_point lastFrameTime;
-        bool animating = false;
-    };
-
-public:
     struct NODISCARD Diff final
     {
         using DiffQuadVector = std::vector<RoomQuadTexVert>;
@@ -147,38 +147,22 @@ public:
 
 private:
     MapScreen m_mapScreen;
-    OpenGL m_opengl;
+    GameObserver &m_observer;
+    mutable OpenGL m_opengl;
     GLFont m_glFont;
     Batches m_batches;
     MapCanvasTextures m_textures;
     MapData &m_data;
     Mmapper2Group &m_groupManager;
     Diff m_diff;
-    FrameRateController m_frameRateController;
+    FrameManager m_frameManager;
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
     Signal2Lifetime m_lifetime;
-
-    struct AltDragState
-    {
-        QPoint lastPos;
-        QCursor originalCursor;
-    };
-    std::optional<AltDragState> m_altDragState;
-
-    struct DragState
-    {
-        glm::vec3 startWorldPos;
-        glm::vec2 startScroll;
-        glm::mat4 startViewProj;
-    };
-    std::optional<DragState> m_dragState;
-
-    float m_initialPinchDistance = 0.f;
-    float m_lastPinchFactor = 1.f;
-    float m_lastMagnification = 1.f;
+    GLWeather m_weather;
 
 public:
     explicit MapCanvas(MapData &mapData,
+                       GameObserver &observer,
                        PrespammedPath &prespammedPath,
                        Mmapper2Group &groupManager,
                        QWindow *parent = nullptr);
@@ -196,10 +180,12 @@ public:
     using MapCanvasViewport::getTotalScaleFactor;
     void setZoom(float zoom)
     {
-        m_scaleFactor.set(zoom);
+        ScaleFactor sf = getScaleFactor();
+        sf.set(zoom);
+        setScaleFactor(sf);
         zoomChanged();
     }
-    NODISCARD float getRawZoom() const { return m_scaleFactor.getRaw(); }
+    NODISCARD float getRawZoom() const { return getScaleFactor().getRaw(); }
 
 public:
     NODISCARD auto width() const { return QOpenGLWindow::width(); }
@@ -216,10 +202,13 @@ private:
     NODISCARD bool isBlacklistedDriver();
 
 protected:
+    void onViewProjDirty() const override;
+
+protected:
     void initializeGL() override;
     void paintGL() override;
 
-    void drawGroupCharacters(CharacterBatch &characterBatch);
+    void drawGroupCharacters(CharacterBatch &characterBatch, ServerRoomId yourServerId);
 
     void resizeGL(int width, int height) override;
     void mousePressEvent(QMouseEvent *event) override;
@@ -230,10 +219,6 @@ protected:
     bool event(QEvent *e) override;
 
 private:
-    void setAnimating(bool value);
-    void renderLoop();
-
-private:
     void initLogger();
 
     void resizeGL() { resizeGL(width(), height()); }
@@ -242,14 +227,8 @@ private:
     void updateMultisampling();
 
     NODISCARD std::shared_ptr<InfomarkSelection> getInfomarkSelection(const MouseSel &sel);
-    NODISCARD static glm::mat4 getViewProj_old(const glm::vec2 &scrollPos,
-                                               const glm::ivec2 &size,
-                                               float zoomScale,
-                                               int currentLayer);
-    NODISCARD static glm::mat4 getViewProj(const glm::vec2 &scrollPos,
-                                           const glm::ivec2 &size,
-                                           float zoomScale,
-                                           int currentLayer);
+
+public:
     void setMvp(const glm::mat4 &viewProj);
     void setViewportAndMvp(int width, int height);
 
@@ -293,6 +272,7 @@ public:
     void selectionChanged();
     void graphicsSettingsChanged();
     void zoomChanged() { emit sig_zoomChanged(getRawZoom()); }
+    void syncViewportConfig();
 
 public:
     void userPressedEscape(bool);

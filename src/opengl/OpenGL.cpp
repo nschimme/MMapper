@@ -33,10 +33,10 @@ OpenGL::OpenGL()
 {
     switch (OpenGLConfig::getBackendType()) {
     case OpenGLProber::BackendType::GL:
-        m_opengl = Legacy::Functions::alloc<Legacy::FunctionsGL33>();
+        m_opengl = Legacy::Functions::alloc<Legacy::FunctionsGL33>(m_uboManager);
         break;
     case OpenGLProber::BackendType::GLES:
-        m_opengl = Legacy::Functions::alloc<Legacy::FunctionsES30>();
+        m_opengl = Legacy::Functions::alloc<Legacy::FunctionsES30>(m_uboManager);
         break;
     case OpenGLProber::BackendType::None:
     default:
@@ -211,34 +211,26 @@ GLRenderState OpenGL::getDefaultRenderState()
     return GLRenderState{};
 }
 
-void OpenGL::bindNamedColorsBuffer()
-{
-    auto &gl = getFunctions();
-    const auto buffer = Legacy::SharedVboEnum::NamedColorsBlock;
-    const auto shared = gl.getSharedVbos().get(buffer);
-    Legacy::VBO &vbo = deref(shared);
-    if (!vbo) {
-        vbo.emplace(gl.shared_from_this());
-        // the shader is declared vec4, so the data has to be 4 floats per entry.
-        const auto &vec4_colors = XNamedColor::getAllColorsAsVec4();
-        std::ignore = gl.setUbo(vbo.get(), vec4_colors, BufferUsageEnum::DYNAMIC_DRAW);
-    }
-    gl.glBindBufferBase(GL_UNIFORM_BUFFER, buffer, vbo.get());
-}
-
 void OpenGL::resetNamedColorsBuffer()
 {
     getFunctions().getSharedVbos().reset(Legacy::SharedVboEnum::NamedColorsBlock);
+    m_uboManager.invalidate(Legacy::SharedVboEnum::NamedColorsBlock);
 }
 
 void OpenGL::initializeRenderer(const float devicePixelRatio)
 {
     setDevicePixelRatio(devicePixelRatio);
 
+    auto &funcs = getFunctions();
+
     // REVISIT: Move this somewhere else?
     GLint maxSamples = 0;
-    getFunctions().glGetIntegerv(GL_MAX_SAMPLES, &maxSamples);
+    funcs.glGetIntegerv(GL_MAX_SAMPLES, &maxSamples);
     OpenGLConfig::setMaxSamples(maxSamples);
+
+    GLint maxUboBindings = 0;
+    funcs.glGetIntegerv(GL_MAX_UNIFORM_BUFFER_BINDINGS, &maxUboBindings);
+    assert(static_cast<GLint>(Legacy::NUM_SHARED_VBOS) <= maxUboBindings);
 
     m_rendererInitialized = true;
 }
@@ -291,7 +283,11 @@ void OpenGL::uploadArrayLayer(const SharedMMTexture &array,
     gl.glActiveTexture(GL_TEXTURE0);
     gl.glBindTexture(GL_TEXTURE_2D_ARRAY, qtex.textureId());
 
+    assert(images.size() <= static_cast<size_t>(qtex.mipLevels()));
     for (size_t level_num = 0; level_num < images.size(); ++level_num) {
+        assert(images[level_num].width() == std::max(1, qtex.width() >> level_num));
+        assert(images[level_num].height() == std::max(1, qtex.height() >> level_num));
+
         const QImage &image = images[level_num];
         gl.glTexSubImage3D(GL_TEXTURE_2D_ARRAY,
                            static_cast<GLint>(level_num),

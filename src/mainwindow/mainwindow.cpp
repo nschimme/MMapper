@@ -1557,10 +1557,13 @@ void MainWindow::showEvent(QShowEvent *const event)
         startServices();
 
         connect(window()->windowHandle(), &QWindow::screenChanged, this, [this]() {
-            MapWindow &window = deref(m_mapWindow);
-            CanvasDisabler canvasDisabler{window};
-            MapCanvas &canvas = deref(getCanvas());
-            canvas.screenChanged();
+            // Defer until the current event (resizeGL/paintGL) has fully completed.
+            QTimer::singleShot(0, this, [this]() {
+                MapWindow &window = deref(m_mapWindow);
+                CanvasDisabler canvasDisabler{window};
+                MapCanvas &canvas = deref(getCanvas());
+                canvas.screenChanged();
+            });
         });
     });
     event->accept();

@@ -14,17 +14,6 @@
 
 namespace { // anonymous
 
-NODISCARD QStringList getSaveFileNames(std::unique_ptr<QFileDialog> &&ptr)
-{
-    if (const auto &pSaveDialog = ptr.get()) {
-        if (pSaveDialog->exec() == QDialog::Accepted) {
-            return pSaveDialog->selectedFiles();
-        }
-        return QStringList{};
-    }
-    throw NullPointerException();
-}
-
 namespace mwss_detail {
 
 NODISCARD QDir getLastMapDir()
@@ -83,44 +72,55 @@ NODISCARD std::unique_ptr<QFileDialog> createDefaultSaveDialog(MainWindow &mainW
 } // namespace mwss_detail
 } // namespace
 
-bool MainWindow::maybeSave()
+void MainWindow::maybeSave(std::function<void(bool)> callback)
 {
     auto &mapData = deref(m_mapData);
     if (!mapData.dataChanged()) {
-        return true;
+        callback(true);
+        return;
     }
 
     const QString changes = mmqt::toQStringUtf8(mapData.describeChanges());
 
-    QMessageBox dlg(this);
-    dlg.setIcon(QMessageBox::Warning);
-    dlg.setWindowTitle(tr("mmapper"));
-    dlg.setText(tr("The current map has been modified:\n\n") + changes
-                + tr("\nDo you want to save the changes?"));
-    dlg.setStandardButtons(QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel);
-    dlg.setDefaultButton(QMessageBox::Discard);
-    dlg.setEscapeButton(QMessageBox::Cancel);
-    const int ret = dlg.exec();
-    if (ret == QMessageBox::Save) {
-        return slot_save();
-    }
+    auto *dlg = new QMessageBox(this);
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->setIcon(QMessageBox::Warning);
+    dlg->setWindowTitle(tr("mmapper"));
+    dlg->setText(tr("The current map has been modified:\n\n") + changes
+                 + tr("\nDo you want to save the changes?"));
+    dlg->setStandardButtons(QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel);
+    dlg->setDefaultButton(QMessageBox::Discard);
+    dlg->setEscapeButton(QMessageBox::Cancel);
 
-    // REVISIT: is it a bug if this returns true? (Shouldn't this always be false?)
-    return ret != QMessageBox::Cancel;
+    connect(dlg, &QMessageBox::finished, this, [this, callback](int result) {
+        if (result == QMessageBox::Save) {
+            slot_save(callback);
+        } else {
+            callback(result != QMessageBox::Cancel);
+        }
+    });
+    dlg->open();
 }
 
-bool MainWindow::slot_save()
+void MainWindow::slot_save(std::function<void(bool)> completion)
 {
     if (m_mapData->getFileName().isEmpty() || m_mapData->isFileReadOnly()) {
-        return slot_saveAs();
+        slot_saveAs(std::move(completion));
+        return;
     }
-    return saveFile(m_mapData->getFileName(), ::SaveModeEnum::FULL, ::SaveFormatEnum::MM2);
+    saveFile(m_mapData->getFileName(),
+             ::SaveModeEnum::FULL,
+             ::SaveFormatEnum::MM2,
+             std::move(completion));
 }
 
-bool MainWindow::slot_saveAs()
+void MainWindow::slot_saveAs(std::function<void(bool)> completion)
 {
     if (!tryStartNewAsync()) {
-        return false;
+        if (completion) {
+            completion(false);
+        }
+        return;
     }
 
     QString suggestedName = m_mapData->getFileName();
@@ -130,82 +130,126 @@ bool MainWindow::slot_saveAs()
                              ? currentFile.baseName().append("-import.mm2")
                              : currentFile.baseName().append("-copy.mm2"));
     }
-    QString fileName = suggestedName;
-    if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
-        const auto fileNames = getSaveFileNames(
-            mwss_detail::createDefaultSaveDialog(*this, suggestedName));
-        if (fileNames.isEmpty()) {
+
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+        saveFile(suggestedName, ::SaveModeEnum::FULL, ::SaveFormatEnum::MM2, std::move(completion));
+    } else {
+        auto dlg = mwss_detail::createDefaultSaveDialog(*this, suggestedName);
+        auto *pDlg = dlg.release();
+        pDlg->setAttribute(Qt::WA_DeleteOnClose);
+        connect(pDlg, &QFileDialog::finished, this, [this, pDlg, completion](int result) {
+            if (result == QDialog::Accepted) {
+                const auto fileNames = pDlg->selectedFiles();
+                if (!fileNames.isEmpty()) {
+                    saveFile(fileNames[0], ::SaveModeEnum::FULL, ::SaveFormatEnum::MM2, completion);
+                    return;
+                }
+            }
             showStatusShort(tr("No filename provided"));
-            return false;
-        }
-        fileName = fileNames[0];
+            if (completion) {
+                completion(false);
+            }
+        });
+        pDlg->open();
     }
-    return saveFile(fileName, ::SaveModeEnum::FULL, ::SaveFormatEnum::MM2);
 }
 
-bool MainWindow::slot_exportBaseMap()
+void MainWindow::slot_exportBaseMap()
 {
     const QString suggestedName = QFileInfo(m_mapData->getFileName()).baseName().append("-base.mm2");
-    QString fileName = suggestedName;
-    if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
-        const auto fileNames = getSaveFileNames(
-            mwss_detail::createDefaultSaveDialog(*this, suggestedName));
-        if (fileNames.isEmpty()) {
+
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+        saveFile(suggestedName, ::SaveModeEnum::BASEMAP, ::SaveFormatEnum::MM2);
+    } else {
+        auto dlg = mwss_detail::createDefaultSaveDialog(*this, suggestedName);
+        auto *pDlg = dlg.release();
+        pDlg->setAttribute(Qt::WA_DeleteOnClose);
+        connect(pDlg, &QFileDialog::finished, this, [this, pDlg](int result) {
+            if (result == QDialog::Accepted) {
+                const auto fileNames = pDlg->selectedFiles();
+                if (!fileNames.isEmpty()) {
+                    saveFile(fileNames[0], ::SaveModeEnum::BASEMAP, ::SaveFormatEnum::MM2);
+                    return;
+                }
+            }
             showStatusShort(tr("No filename provided"));
-            return false;
-        }
-        fileName = fileNames[0];
+        });
+        pDlg->open();
     }
-    return saveFile(fileName, ::SaveModeEnum::BASEMAP, ::SaveFormatEnum::MM2);
 }
 
-bool MainWindow::slot_exportMm2xmlMap()
+void MainWindow::slot_exportMm2xmlMap()
 {
     const QString suggestedName = QFileInfo(m_mapData->getFileName()).baseName().append(".xml");
-    QString fileName = suggestedName;
-    if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
-        const auto fileNames = getSaveFileNames(
-            mwss_detail::createFileSaveDialog(*this,
-                                              "MMapper2 XML maps (*.xml)",
-                                              "xml",
-                                              suggestedName));
-        if (fileNames.isEmpty()) {
+
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+        saveFile(suggestedName, ::SaveModeEnum::FULL, ::SaveFormatEnum::MM2XML);
+    } else {
+        auto dlg = mwss_detail::createFileSaveDialog(*this,
+                                                     "MMapper2 XML maps (*.xml)",
+                                                     "xml",
+                                                     suggestedName);
+        auto *pDlg = dlg.release();
+        pDlg->setAttribute(Qt::WA_DeleteOnClose);
+        connect(pDlg, &QFileDialog::finished, this, [this, pDlg](int result) {
+            if (result == QDialog::Accepted) {
+                const auto fileNames = pDlg->selectedFiles();
+                if (!fileNames.isEmpty()) {
+                    saveFile(fileNames[0], ::SaveModeEnum::FULL, ::SaveFormatEnum::MM2XML);
+                    return;
+                }
+            }
             showStatusShort(tr("No filename provided"));
-            return false;
-        }
-        fileName = fileNames[0];
+        });
+        pDlg->open();
     }
-    return saveFile(fileName, ::SaveModeEnum::FULL, ::SaveFormatEnum::MM2XML);
 }
 
-bool MainWindow::slot_exportWebMap()
+void MainWindow::slot_exportWebMap()
 {
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
-        return false;
+        return;
     }
 
-    const QStringList fileNames = getSaveFileNames(mwss_detail::createDirectorySaveDialog(*this));
-    if (fileNames.isEmpty()) {
+    auto dlg = mwss_detail::createDirectorySaveDialog(*this);
+    auto *pDlg = dlg.release();
+    pDlg->setAttribute(Qt::WA_DeleteOnClose);
+    connect(pDlg, &QFileDialog::finished, this, [this, pDlg](int result) {
+        if (result == QDialog::Accepted) {
+            const auto fileNames = pDlg->selectedFiles();
+            if (!fileNames.isEmpty()) {
+                saveFile(fileNames[0], ::SaveModeEnum::BASEMAP, ::SaveFormatEnum::WEB);
+                return;
+            }
+        }
         showStatusShort(tr("No directory name provided"));
-        return false;
-    }
-    const QString dirName = fileNames[0];
-    return saveFile(dirName, ::SaveModeEnum::BASEMAP, ::SaveFormatEnum::WEB);
+    });
+    pDlg->open();
 }
 
-bool MainWindow::slot_exportMmpMap()
+void MainWindow::slot_exportMmpMap()
 {
     const QString suggestedName = QFileInfo(m_mapData->getFileName()).baseName().append("-mmp.xml");
-    QString fileName = suggestedName;
-    if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
-        const auto fileNames = getSaveFileNames(
-            mwss_detail::createFileSaveDialog(*this, "MMP maps (*.xml)", "xml", suggestedName));
-        if (fileNames.isEmpty()) {
-            showStatusShort(tr("No filename provided"));
-            return false;
-        }
-        fileName = fileNames[0];
-    }
 
-    return saveFile(fileName, ::SaveModeEnum::FULL, ::SaveFormatEnum::MMP);
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+        saveFile(suggestedName, ::SaveModeEnum::FULL, ::SaveFormatEnum::MMP);
+    } else {
+        auto dlg = mwss_detail::createFileSaveDialog(*this,
+                                                     "MMP maps (*.xml)",
+                                                     "xml",
+                                                     suggestedName);
+        auto *pDlg = dlg.release();
+        pDlg->setAttribute(Qt::WA_DeleteOnClose);
+        connect(pDlg, &QFileDialog::finished, this, [this, pDlg](int result) {
+            if (result == QDialog::Accepted) {
+                const auto fileNames = pDlg->selectedFiles();
+                if (!fileNames.isEmpty()) {
+                    saveFile(fileNames[0], ::SaveModeEnum::FULL, ::SaveFormatEnum::MMP);
+                    return;
+                }
+            }
+            showStatusShort(tr("No filename provided"));
+        });
+        pDlg->open();
+    }
 }

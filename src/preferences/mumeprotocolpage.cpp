@@ -71,10 +71,19 @@ void MumeProtocolPage::slot_externalEditorBrowseButtonClicked(bool /*unused*/)
     auto &command = setConfig().mumeClientProtocol.externalRemoteEditorCommand;
     QFileInfo dirInfo(command);
     const auto dir = dirInfo.exists() ? dirInfo.absoluteDir().absolutePath() : QDir::homePath();
-    QString fileName = QFileDialog::getOpenFileName(this, "Choose editor...", dir, "Editor (*)");
-    if (!fileName.isEmpty()) {
-        QString quotedFileName = QString(R"("%1")").arg(fileName.replace(R"(")", R"(\")"));
-        ui->externalEditorCommand->setText(quotedFileName);
-        command = quotedFileName;
-    }
+    auto *dlg = new QFileDialog(this, "Choose editor...", dir, "Editor (*)");
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    connect(dlg, &QFileDialog::finished, this, [this, dlg](int result) {
+        if (result == QDialog::Accepted) {
+            const auto fileNames = dlg->selectedFiles();
+            if (!fileNames.isEmpty()) {
+                const QString fileName = fileNames[0];
+                QString quotedFileName = QString(R"("%1")").arg(
+                    QString(fileName).replace(R"(")", R"(\")"));
+                ui->externalEditorCommand->setText(quotedFileName);
+                setConfig().mumeClientProtocol.externalRemoteEditorCommand = quotedFileName;
+            }
+        }
+    });
+    dlg->open();
 }

@@ -162,6 +162,8 @@ public:
     NODISCARD QSize sizeHint() const override;
     void closeEvent(QCloseEvent *event) override;
 
+    bool m_forceClose = false;
+
 protected:
     void showEvent(QShowEvent *event) override;
 
@@ -186,7 +188,7 @@ signals:
 protected slots:
     void slot_cancelEdit();
     void slot_finishEdit();
-    NODISCARD bool slot_maybeCancel();
+    void maybeCancel(std::function<void(bool)> callback);
     NODISCARD bool slot_contentsChanged() const;
     void slot_updateStatusBar();
     void slot_updateStatus(const QString &message);

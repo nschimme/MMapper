@@ -86,9 +86,13 @@ bool AutoLogger::writeLine(const QString &str)
     }
     if (!created) {
         setConfig().autoLog.autoLog = false;
-        QMessageBox::warning(checked_dynamic_downcast<QWidget *>(parent()), // MainWindow
-                             "MMapper AutoLogger",
-                             "Unable to create log file.\n\nLogging has been disabled.");
+        auto *dlg = new QMessageBox(QMessageBox::Warning,
+                                    "MMapper AutoLogger",
+                                    "Unable to create log file.\n\nLogging has been disabled.",
+                                    QMessageBox::Ok,
+                                    checked_dynamic_downcast<QWidget *>(parent()));
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        dlg->open();
         return false;
     }
 

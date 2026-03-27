@@ -165,9 +165,13 @@ void FindRoomsDlg::slot_findClicked()
         });
     } catch (const std::exception &ex) {
         qWarning() << "Exception: " << ex.what();
-        QMessageBox::critical(this,
-                              "Internal Error",
-                              QString::asprintf("An exception occurred: %s\n", ex.what()));
+        auto *dlg = new QMessageBox(QMessageBox::Critical,
+                                    "Internal Error",
+                                    QString::asprintf("An exception occurred: %s\n", ex.what()),
+                                    QMessageBox::Ok,
+                                    this);
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        dlg->open();
     }
     roomsFoundLabel->setText(tr("%1 room%2 found")
                                  .arg(resultTable->topLevelItemCount())

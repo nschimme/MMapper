@@ -325,7 +325,13 @@ void MainWindow::startServices()
         const QString errorMsg = QString(
                                      "Unable to start the server (switching to offline mode): %1.")
                                      .arg(QString::fromUtf8(e.what()));
-        QMessageBox::critical(this, tr("mmapper"), errorMsg);
+        auto *dlg = new QMessageBox(QMessageBox::Critical,
+                                    tr("mmapper"),
+                                    errorMsg,
+                                    QMessageBox::Ok,
+                                    this);
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        dlg->open();
     }
 
     if constexpr (!NO_UPDATER) {
@@ -560,11 +566,11 @@ void MainWindow::createActions()
     saveAct->setShortcut(tr("Ctrl+S"));
     saveAct->setStatusTip(tr("Save the document to disk"));
     saveAct->setEnabled(false);
-    connect(saveAct, &QAction::triggered, this, &MainWindow::slot_save);
+    connect(saveAct, &QAction::triggered, this, [this]() { this->slot_save(); });
 
     saveAsAct = new QAction(QIcon::fromTheme("document-save-as"), tr("Save &As..."), this);
     saveAsAct->setStatusTip(tr("Save the document under a new name"));
-    connect(saveAsAct, &QAction::triggered, this, &MainWindow::slot_saveAs);
+    connect(saveAsAct, &QAction::triggered, this, [this]() { this->slot_saveAs(); });
 
     exportBaseMapAct = new QAction(tr("Export MMapper2 &Base Map As..."), this);
     exportBaseMapAct->setStatusTip(tr("Save a copy of the map with no secrets"));
@@ -1531,19 +1537,27 @@ bool MainWindow::eventFilter(QObject *const obj, QEvent *const event)
 
 void MainWindow::closeEvent(QCloseEvent *const event)
 {
-    // REVISIT: wait and see if we're actually exiting first?
-    writeSettings();
-
-    if (!maybeSave()) {
-        event->ignore();
+    if (m_forceClose) {
+        event->accept();
         return;
     }
 
-    if (m_asyncTask) {
-        qInfo() << "Attempting to async task for faster shutdown";
-        m_progressDlg->reject();
-    }
-    event->accept();
+    // REVISIT: wait and see if we're actually exiting first?
+    event->ignore();
+    writeSettings();
+
+    maybeSave([this](bool success) {
+        if (success) {
+            m_forceClose = true;
+            if (m_asyncTask) {
+                qInfo() << "Attempting to async task for faster shutdown";
+                if (m_progressDlg) {
+                    m_progressDlg->reject();
+                }
+            }
+            close();
+        }
+    });
 }
 
 void MainWindow::showEvent(QShowEvent *const event)
@@ -1571,9 +1585,11 @@ void MainWindow::showEvent(QShowEvent *const event)
 
 void MainWindow::slot_newFile()
 {
-    if (maybeSave()) {
-        forceNewFile();
-    }
+    maybeSave([this](bool success) {
+        if (success) {
+            forceNewFile();
+        }
+    });
 }
 
 void MainWindow::forceNewFile()
@@ -1599,54 +1615,65 @@ void MainWindow::forceNewFile()
 
 void MainWindow::slot_open()
 {
-    if (!maybeSave()) {
-        return;
-    }
-
-    auto openFile = [this](const QString &fileName, std::optional<QByteArray> fileContent) {
-        if (fileName.isEmpty()) {
-            showStatusShort(tr("No filename provided"));
+    maybeSave([this](bool success) {
+        if (!success) {
             return;
         }
 
-        try {
-            loadFile(MapSource::alloc(fileName, fileContent));
+        auto openFile = [this](const QString &fileName, std::optional<QByteArray> fileContent) {
+            if (fileName.isEmpty()) {
+                showStatusShort(tr("No filename provided"));
+                return;
+            }
 
-            QFileInfo file(fileName);
-            auto &savedLastMapDir = setConfig().autoLoad.lastMapDirectory;
-            savedLastMapDir = file.dir().absolutePath();
-        } catch (const std::runtime_error &e) {
-            showWarning(tr("Cannot open file %1:\n%2.").arg(fileName, e.what()));
-            return;
+            try {
+                loadFile(MapSource::alloc(fileName, fileContent));
+
+                QFileInfo file(fileName);
+                auto &savedLastMapDir = setConfig().autoLoad.lastMapDirectory;
+                savedLastMapDir = file.dir().absolutePath();
+            } catch (const std::runtime_error &e) {
+                showWarning(tr("Cannot open file %1:\n%2.").arg(fileName, e.what()));
+                return;
+            }
+        };
+        const auto nameFilter = QStringLiteral(
+            "MMapper2 maps (*.mm2)"
+            ";;MMapper2 XML or Pandora maps (*.xml)"
+            ";;Alternate suffix for MMapper2 XML maps (*.mm2xml)");
+        if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+            QFileDialog::getOpenFileContent(nameFilter, openFile);
+        } else {
+            const QString &savedLastMapDir = setConfig().autoLoad.lastMapDirectory;
+            auto *dlg = new QFileDialog(this, "Choose map file ...", savedLastMapDir, nameFilter);
+            dlg->setAttribute(Qt::WA_DeleteOnClose);
+            connect(dlg, &QFileDialog::finished, this, [this, dlg, openFile](int result) {
+                if (result == QDialog::Accepted) {
+                    const auto fileNames = dlg->selectedFiles();
+                    if (!fileNames.isEmpty()) {
+                        openFile(fileNames[0], std::nullopt);
+                    }
+                }
+            });
+            dlg->open();
         }
-    };
-    const auto nameFilter = QStringLiteral("MMapper2 maps (*.mm2)"
-                                           ";;MMapper2 XML or Pandora maps (*.xml)"
-                                           ";;Alternate suffix for MMapper2 XML maps (*.mm2xml)");
-    if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
-        QFileDialog::getOpenFileContent(nameFilter, openFile);
-    } else {
-        const QString &savedLastMapDir = setConfig().autoLoad.lastMapDirectory;
-        const QString fileName = QFileDialog::getOpenFileName(this,
-                                                              "Choose map file ...",
-                                                              savedLastMapDir,
-                                                              nameFilter);
-        openFile(fileName, std::nullopt);
-    }
+    });
 }
 
 void MainWindow::slot_reload()
 {
-    if (maybeSave()) {
-        // make a copy of the filename, since it will be modified by loadFile().
-        const QString filename = m_mapData->getFileName();
-        try {
-            loadFile(MapSource::alloc(filename));
-        } catch (const std::runtime_error &e) {
-            showWarning(tr("Cannot open file %1:\n%2.").arg(filename, e.what()));
-            return;
+    maybeSave([this](bool success) {
+        if (success) {
+            // make a copy of the filename, since it will be modified by loadFile().
+            const QString filename = m_mapData->getFileName();
+            try {
+                loadFile(MapSource::alloc(filename));
+            } catch (const std::exception &e) {
+                showWarning(tr("Cannot open file %1:\n%2.").arg(filename, e.what()));
+                return;
+            }
         }
-    }
+    });
 }
 
 void MainWindow::slot_about()
@@ -1729,7 +1756,9 @@ void MainWindow::showWarning(const QString &s)
 {
     // REVISIT: shouldn't the warning have "this" as parent?
     // REVISIT: shouldn't this also say MMapper?
-    QMessageBox::warning(nullptr, tr("Application"), s);
+    auto *dlg = new QMessageBox(QMessageBox::Warning, tr("Application"), s, QMessageBox::Ok, this);
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->open();
 }
 
 void MainWindow::showAsyncFailure(const QString &fileName,

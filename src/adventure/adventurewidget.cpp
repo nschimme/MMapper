@@ -150,10 +150,11 @@ void AdventureWidget::slot_onReceivedHint(const QString &hint)
 
 void AdventureWidget::slot_contextMenuRequested(const QPoint &pos)
 {
-    std::unique_ptr<QMenu> contextMenu{m_textEdit->createStandardContextMenu()};
+    auto *contextMenu = m_textEdit->createStandardContextMenu();
+    contextMenu->setAttribute(Qt::WA_DeleteOnClose);
     contextMenu->addSeparator();
     contextMenu->addAction(m_clearContentAction);
-    contextMenu->exec(m_textEdit->mapToGlobal(pos));
+    contextMenu->popup(m_textEdit->mapToGlobal(pos));
 }
 
 void AdventureWidget::slot_actionClearContent([[maybe_unused]] bool checked)

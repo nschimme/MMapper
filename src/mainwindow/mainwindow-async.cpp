@@ -182,9 +182,13 @@ NODISCARD std::optional<T> extract(std::future<std::optional<T>> &future, MainWi
     try {
         return future.get();
     } catch (const MapStorageError &ex) {
-        QMessageBox::critical(&mainWindow,
-                              MainWindow::tr("MapStorage Error"),
-                              mmqt::toQStringUtf8(ex.what()));
+        auto *dlg = new QMessageBox(QMessageBox::Critical,
+                                    MainWindow::tr("MapStorage Error"),
+                                    mmqt::toQStringUtf8(ex.what()),
+                                    QMessageBox::Ok,
+                                    &mainWindow);
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        dlg->open();
     } catch (const std::exception &ex) {
         const auto msg = QString::asprintf("Exception: %s", ex.what());
         mainWindow.slot_log("AbstractMapStorage", msg);
@@ -308,19 +312,21 @@ MainWindow::AsyncTask::~AsyncTask()
 {
     if (isWorking()) {
         qWarning() << "Abandoning task in progress.";
-        reset();
+        reset(false);
     }
 }
 
-void MainWindow::AsyncTask::begin(std::unique_ptr<AsyncBase> task)
+void MainWindow::AsyncTask::begin(std::unique_ptr<AsyncBase> task,
+                                  std::function<void(bool)> completion)
 {
     if (m_task) {
         throw std::runtime_error("already have an async task");
     }
 
-    reset();
+    reset(false);
 
     m_task = std::move(task);
+    m_completionCallback = std::move(completion);
     QTimer &timer = m_timer.emplace(this);
 
     timer.setInterval(25);
@@ -341,7 +347,8 @@ void MainWindow::AsyncTask::tick()
         return;
     }
 
-    reset();
+    const bool success = !m_task->requested_cancel();
+    reset(success);
     qInfo() << "Async task finished.";
 }
 
@@ -350,12 +357,15 @@ void MainWindow::AsyncTask::request_cancel()
     m_task->request_cancel();
 }
 
-void MainWindow::AsyncTask::reset()
+void MainWindow::AsyncTask::reset(const bool success)
 {
     m_task.reset();
     if (m_timer) {
         m_timer->stop();
         m_timer.reset();
+    }
+    if (m_completionCallback) {
+        std::exchange(m_completionCallback, nullptr)(success);
     }
 }
 
@@ -796,20 +806,30 @@ void MainWindow::slot_merge()
         QFileDialog::getOpenFileContent(nameFilter, mergeFile);
     } else {
         const QString &savedLastMapDir = setConfig().autoLoad.lastMapDirectory;
-        const QString fileName = QFileDialog::getOpenFileName(this,
-                                                              "Choose map file ...",
-                                                              savedLastMapDir,
-                                                              nameFilter);
-        mergeFile(fileName, std::nullopt);
+        auto *dlg = new QFileDialog(this, "Choose map file ...", savedLastMapDir, nameFilter);
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        connect(dlg, &QFileDialog::finished, this, [this, dlg, mergeFile](int result) {
+            if (result == QDialog::Accepted) {
+                const auto fileNames = dlg->selectedFiles();
+                if (!fileNames.isEmpty()) {
+                    mergeFile(fileNames[0], std::nullopt);
+                }
+            }
+        });
+        dlg->open();
     }
 }
 
-bool MainWindow::saveFile(const QString &fileName,
+void MainWindow::saveFile(const QString &fileName,
                           const SaveModeEnum mode,
-                          const SaveFormatEnum format)
+                          const SaveFormatEnum format,
+                          std::function<void(bool)> completion)
 {
     if (!tryStartNewAsync()) {
-        return false;
+        if (completion) {
+            completion(false);
+        }
+        return;
     }
 
     std::shared_ptr<MapDestination> pDest = nullptr;
@@ -817,7 +837,10 @@ bool MainWindow::saveFile(const QString &fileName,
         pDest = MapDestination::alloc(fileName, format);
     } catch (const std::exception &e) {
         showWarning(tr("Cannot set up save destination %1:\n%2.").arg(fileName, e.what()));
-        return false;
+        if (completion) {
+            completion(false);
+        }
+        return;
     }
 
     auto pc = std::make_shared<ProgressCounter>();
@@ -845,18 +868,25 @@ bool MainWindow::saveFile(const QString &fileName,
 
     if (!pStorage || !pStorage->canSave()) {
         showWarning(tr("Selected format cannot save."));
-        return false;
+        if (completion) {
+            completion(false);
+        }
+        return;
     }
 
-    m_asyncTask.begin(
-        std::make_unique<AsyncSaver>(std::move(pc), *this, pDest, std::move(pStorage), mode, format));
-    return true;
+    m_asyncTask.begin(std::make_unique<AsyncSaver>(std::move(pc),
+                                                   *this,
+                                                   pDest,
+                                                   std::move(pStorage),
+                                                   mode,
+                                                   format),
+                      std::move(completion));
 }
 
-bool MainWindow::slot_checkMapConsistency()
+void MainWindow::slot_checkMapConsistency()
 {
     if (!tryStartNewAsync()) {
-        return false;
+        return;
     }
 
     class NODISCARD AsyncCheckConsistency final : public AsyncHelper
@@ -908,13 +938,12 @@ bool MainWindow::slot_checkMapConsistency()
 
     auto pc = std::make_shared<ProgressCounter>();
     m_asyncTask.begin(std::make_unique<AsyncCheckConsistency>(std::move(pc), *this));
-    return true;
 }
 
-bool MainWindow::slot_generateBaseMap()
+void MainWindow::slot_generateBaseMap()
 {
     if (!tryStartNewAsync()) {
-        return false;
+        return;
     }
 
     static constexpr auto green = getRawAnsi(AnsiColor16Enum::green);
@@ -1064,5 +1093,4 @@ bool MainWindow::slot_generateBaseMap()
 
     auto pc = std::make_shared<ProgressCounter>();
     m_asyncTask.begin(std::make_unique<AsyncGenerateBaseMap>(std::move(pc), *this));
-    return true;
 }

@@ -223,9 +223,14 @@ void MapCanvas::initializeGL()
     } catch (const std::exception &) {
         hide();
         doneCurrent();
-        QMessageBox::critical(QApplication::activeWindow(),
-                              "Unable to initialize OpenGL",
-                              "Upgrade your video card drivers");
+        auto *dlg = new QMessageBox(QMessageBox::Critical,
+                                    "Unable to initialize OpenGL",
+                                    "Upgrade your video card drivers",
+                                    QMessageBox::Ok,
+                                    QApplication::activeWindow());
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        dlg->open();
+
         if constexpr (CURRENT_PLATFORM == PlatformEnum::Windows) {
             // Link to Microsoft OpenGL Compatibility Pack
             QDesktopServices::openUrl(
@@ -335,12 +340,13 @@ void MapCanvas::slot_onMessageLoggedDirect(const QOpenGLDebugMessage &message)
 
     qCritical() << message;
 
-    QMessageBox box;
-    box.setWindowTitle("Fatal OpenGL error");
-    box.setText(message.message());
-    box.exec();
+    auto *box = new QMessageBox();
+    box->setAttribute(Qt::WA_DeleteOnClose);
+    box->setWindowTitle("Fatal OpenGL error");
+    box->setText(message.message());
+    box->open();
 
-    std::abort();
+    // std::abort();
 }
 
 void MapCanvas::initLogger()

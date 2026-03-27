@@ -105,14 +105,21 @@ void AutoLogPage::slot_loadConfig()
 void AutoLogPage::slot_selectLogLocationButtonClicked(int /*unused*/)
 {
     auto &config = setConfig().autoLog;
-    QString logDirectory = QFileDialog::getExistingDirectory(this,
-                                                             "Choose log location ...",
-                                                             config.autoLogDirectory);
-
-    if (!logDirectory.isEmpty()) {
-        ui->autoLogLocation->setText(logDirectory);
-        config.autoLogDirectory = logDirectory;
-    }
+    auto *dlg = new QFileDialog(this, "Choose log location ...", config.autoLogDirectory);
+    dlg->setFileMode(QFileDialog::Directory);
+    dlg->setOption(QFileDialog::ShowDirsOnly, true);
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    connect(dlg, &QFileDialog::finished, this, [this, dlg](int result) {
+        if (result == QDialog::Accepted) {
+            const auto fileNames = dlg->selectedFiles();
+            if (!fileNames.isEmpty()) {
+                const QString logDirectory = fileNames[0];
+                ui->autoLogLocation->setText(logDirectory);
+                setConfig().autoLog.autoLogDirectory = logDirectory;
+            }
+        }
+    });
+    dlg->open();
 }
 
 void AutoLogPage::slot_logStrategyChanged(int /*unused*/)

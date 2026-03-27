@@ -252,6 +252,7 @@ private:
     private:
         std::unique_ptr<AsyncBase> m_task;
         std::optional<QTimer> m_timer;
+        std::function<void(bool)> m_completionCallback;
 
     public:
         explicit AsyncTask(QObject *parent);
@@ -262,12 +263,12 @@ private:
         NODISCARD explicit operator bool() const { return isWorking(); }
 
     public:
-        void begin(std::unique_ptr<AsyncBase> task);
+        void begin(std::unique_ptr<AsyncBase> task, std::function<void(bool)> completion = nullptr);
         void tick();
         void request_cancel();
 
     private:
-        void reset();
+        void reset(bool success);
     };
 
     AsyncTask m_asyncTask;
@@ -279,7 +280,10 @@ public:
 
     NODISCARD HotkeyManager &getHotkeyManager() const { return deref(m_hotkeyManager); }
 
-    NODISCARD bool saveFile(const QString &fileName, SaveModeEnum mode, SaveFormatEnum format);
+    void saveFile(const QString &fileName,
+                  SaveModeEnum mode,
+                  SaveFormatEnum format,
+                  std::function<void(bool)> completion = nullptr);
     void loadFile(std::shared_ptr<MapSource> source);
     void setCurrentFile(const QString &fileName);
     void percentageChanged(uint32_t);
@@ -317,7 +321,9 @@ private:
     void readSettings();
     void writeSettings();
 
-    NODISCARD bool maybeSave();
+    void maybeSave(std::function<void(bool)> callback);
+
+    bool m_forceClose = false;
 
     struct NODISCARD ActionDisabler final
     {
@@ -391,16 +397,16 @@ public slots:
     void slot_open();
     void slot_reload();
     void slot_merge();
-    NODISCARD bool slot_save();
-    NODISCARD bool slot_saveAs();
-    NODISCARD bool slot_exportBaseMap();
-    NODISCARD bool slot_exportMm2xmlMap();
-    NODISCARD bool slot_exportWebMap();
-    NODISCARD bool slot_exportMmpMap();
+    void slot_save(std::function<void(bool)> completion = nullptr);
+    void slot_saveAs(std::function<void(bool)> completion = nullptr);
+    void slot_exportBaseMap();
+    void slot_exportMm2xmlMap();
+    void slot_exportWebMap();
+    void slot_exportMmpMap();
     void slot_about();
 
-    NODISCARD bool slot_checkMapConsistency();
-    NODISCARD bool slot_generateBaseMap();
+    void slot_checkMapConsistency();
+    void slot_generateBaseMap();
 
     void slot_log(const QString &, const QString &);
 

@@ -1282,14 +1282,18 @@ void RoomEditAttrDlg::onRevertDiffClicked()
     setAnsiText(roomDiffTextEdit, oss.str());
 
     if (!pResult) {
-        QMessageBox::warning(this, "Revert Room Failed", "Failed to build revert plan");
+        auto *dlg = new QMessageBox(QMessageBox::Warning, "Revert Room Failed", "Failed to build revert plan", QMessageBox::Ok, this);
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        dlg->open();
         return;
     }
 
     const room_revert::RevertPlan &plan = deref(pResult);
     const ChangeList &changes = plan.changes;
     if (changes.empty() || !md.applyChanges(changes)) {
-        QMessageBox::warning(this, "Revert Room Failed", "Failed to apply revert changes");
+        auto *dlg = new QMessageBox(QMessageBox::Warning, "Revert Room Failed", "Failed to apply revert changes", QMessageBox::Ok, this);
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        dlg->open();
         return;
     }
 

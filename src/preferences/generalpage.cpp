@@ -101,15 +101,19 @@ GeneralPage::GeneralPage(QWidget *parent)
     });
 
     connect(ui->configurationResetButton, &QAbstractButton::clicked, this, [this]() {
-        QMessageBox::StandardButton reply
-            = QMessageBox::question(this,
+        auto *dlg = new QMessageBox(QMessageBox::Question,
                                     "MMapper Factory Reset",
                                     "Are you sure you want to perform a factory reset?",
-                                    QMessageBox::Yes | QMessageBox::No);
-        if (reply == QMessageBox::Yes) {
-            setConfig().reset();
-            emit sig_reloadConfig();
-        }
+                                    QMessageBox::Yes | QMessageBox::No,
+                                    this);
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        connect(dlg, &QMessageBox::finished, this, [this](int result) {
+            if (result == QMessageBox::Yes) {
+                setConfig().reset();
+                emit sig_reloadConfig();
+            }
+        });
+        dlg->open();
     });
 
     connect(ui->configurationExportButton, &QAbstractButton::clicked, this, []() {
@@ -180,7 +184,9 @@ GeneralPage::GeneralPage(QWidget *parent)
 
     connect(&passCfg, &PasswordConfig::sig_error, this, [this](const QString &msg) {
         qWarning() << msg;
-        QMessageBox::warning(this, "Password Error", msg);
+        auto *dlg = new QMessageBox(QMessageBox::Warning, "Password Error", msg, QMessageBox::Ok, this);
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        dlg->open();
     });
 
     connect(&passCfg, &PasswordConfig::sig_incomingPassword, this, [this](const QString &password) {
@@ -210,13 +216,21 @@ GeneralPage::GeneralPage(QWidget *parent)
     });
     connect(ui->resourcePushButton, &QAbstractButton::clicked, this, [this](bool /*unused*/) {
         const auto &resourceDir = getConfig().canvas.resourcesDirectory;
-        QString directory = QFileDialog::getExistingDirectory(ui->resourcePushButton,
-                                                              "Choose resource location ...",
-                                                              resourceDir);
-        if (!directory.isEmpty()) {
-            ui->resourceLineEdit->setText(directory);
-            setConfig().canvas.resourcesDirectory = directory;
-        }
+        auto *dlg = new QFileDialog(this, "Choose resource location ...", resourceDir);
+        dlg->setFileMode(QFileDialog::Directory);
+        dlg->setOption(QFileDialog::ShowDirsOnly, true);
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        connect(dlg, &QFileDialog::finished, this, [this, dlg](int result) {
+            if (result == QDialog::Accepted) {
+                const auto fileNames = dlg->selectedFiles();
+                if (!fileNames.isEmpty()) {
+                    const QString directory = fileNames[0];
+                    ui->resourceLineEdit->setText(directory);
+                    setConfig().canvas.resourcesDirectory = directory;
+                }
+            }
+        });
+        dlg->open();
     });
 
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
@@ -304,17 +318,25 @@ void GeneralPage::slot_selectWorldFileButtonClicked(bool /*unused*/)
 {
     // FIXME: code duplication
     const auto &savedLastMapDir = getConfig().autoLoad.lastMapDirectory;
-    QString fileName = QFileDialog::getOpenFileName(this,
-                                                    "Choose map file ...",
-                                                    savedLastMapDir,
-                                                    "MMapper2 (*.mm2);;MMapper (*.map)");
-    if (!fileName.isEmpty()) {
-        ui->autoLoadFileName->setText(fileName);
-        ui->autoLoadCheck->setChecked(true);
-        auto &savedAutoLoad = setConfig().autoLoad;
-        savedAutoLoad.fileName = fileName;
-        savedAutoLoad.autoLoadMap = true;
-    }
+    auto *dlg = new QFileDialog(this,
+                                "Choose map file ...",
+                                savedLastMapDir,
+                                "MMapper2 (*.mm2);;MMapper (*.map)");
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    connect(dlg, &QFileDialog::finished, this, [this, dlg](int result) {
+        if (result == QDialog::Accepted) {
+            const auto fileNames = dlg->selectedFiles();
+            if (!fileNames.isEmpty()) {
+                const QString fileName = fileNames[0];
+                ui->autoLoadFileName->setText(fileName);
+                ui->autoLoadCheck->setChecked(true);
+                auto &savedAutoLoad = setConfig().autoLoad;
+                savedAutoLoad.fileName = fileName;
+                savedAutoLoad.autoLoadMap = true;
+            }
+        }
+    });
+    dlg->open();
 }
 
 void GeneralPage::slot_remoteNameTextChanged(const QString & /*unused*/)

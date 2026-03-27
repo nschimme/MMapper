@@ -113,7 +113,13 @@ static bool setSurfaceFormat()
             }
         }
         msg += " support to run.";
-        QMessageBox::critical(nullptr, "Fatal Error", msg);
+        if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+            qCritical().noquote() << "Fatal Error:" << msg;
+        } else {
+            auto *dlg = new QMessageBox(QMessageBox::Critical, "Fatal Error", msg, QMessageBox::Ok, nullptr);
+            dlg->setAttribute(Qt::WA_DeleteOnClose);
+            dlg->open();
+        }
         return false;
     }
     OpenGLConfig::setBackendType(probeResult.backendType);

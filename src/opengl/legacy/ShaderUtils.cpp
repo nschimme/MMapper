@@ -109,10 +109,11 @@ static void logAndPopup(const char *const file,
         warn << str.c_str();
     }
 
-    QMessageBox box;
-    box.setWindowTitle("Message from OpenGL");
-    box.setText(str.c_str());
-    box.exec();
+    auto *box = new QMessageBox();
+    box->setAttribute(Qt::WA_DeleteOnClose);
+    box->setWindowTitle("Message from OpenGL");
+    box->setText(str.c_str());
+    box->open();
 }
 
 static void checkProgramInfo(Functions &gl, const GLuint programID)

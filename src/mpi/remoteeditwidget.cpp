@@ -1464,42 +1464,50 @@ QSize RemoteEditWidget::sizeHint() const
 
 void RemoteEditWidget::closeEvent(QCloseEvent *event)
 {
-    if (m_submitted) {
+    if (m_forceClose || m_submitted) {
         event->accept();
         return;
     }
 
+    event->ignore();
     if (m_editSession) {
-        if (slot_maybeCancel()) {
-            event->accept();
-        } else {
-            event->ignore();
-        }
+        maybeCancel([this](bool success) {
+            if (success) {
+                m_forceClose = true;
+                close();
+            }
+        });
     } else {
         slot_cancelEdit();
-        event->accept();
     }
 }
 
-bool RemoteEditWidget::slot_maybeCancel()
+void RemoteEditWidget::maybeCancel(std::function<void(bool)> callback)
 {
     if (slot_contentsChanged()) {
-        QMessageBox dlg(this);
-        dlg.setIcon(QMessageBox::Warning);
-        dlg.setWindowTitle(m_title);
-        dlg.setText(tr("You have edited the document.\n"
+        auto *dlg = new QMessageBox(this);
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        dlg->setIcon(QMessageBox::Warning);
+        dlg->setWindowTitle(m_title);
+        dlg->setText(tr("You have edited the document.\n"
                        "Are you sure you want to discard all changes?"));
-        dlg.setStandardButtons(QMessageBox::Discard | QMessageBox::Cancel);
-        dlg.setDefaultButton(QMessageBox::Cancel);
-        dlg.setEscapeButton(QMessageBox::Cancel);
-        const int ret = dlg.exec();
-        if (ret != QMessageBox::Discard) {
-            return false;
-        }
+        dlg->setStandardButtons(QMessageBox::Discard | QMessageBox::Cancel);
+        dlg->setDefaultButton(QMessageBox::Cancel);
+        dlg->setEscapeButton(QMessageBox::Cancel);
+        connect(dlg, &QMessageBox::finished, this, [this, callback](int result) {
+            if (result == QMessageBox::Discard) {
+                slot_cancelEdit();
+                callback(true);
+            } else {
+                callback(false);
+            }
+        });
+        dlg->open();
+        return;
     }
 
     slot_cancelEdit();
-    return true;
+    callback(true);
 }
 
 /* Qt virtual */

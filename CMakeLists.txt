@@ -71,6 +71,11 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
+if(EMSCRIPTEN)
+    set_property(GLOBAL PROPERTY JOB_POOLS link_job_pool=1)
+    set(CMAKE_JOB_POOL_LINK link_job_pool)
+endif()
+
 if(Qt6Core_FOUND)
     if(Qt6Core_VERSION VERSION_LESS 6.4.0)
         message(FATAL_ERROR "Minimum supported Qt version is 6.4")

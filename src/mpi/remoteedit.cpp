@@ -58,11 +58,12 @@ void RemoteEdit::addSession(const RemoteSessionId sessionId,
                                                               body,
                                                               this);
 #else
-        auto *dlg = new QMessageBox(QMessageBox::Information,
-                                    "External Editor Not Supported",
-                                    "Editing in an external editor is not supported on this platform.",
-                                    QMessageBox::Ok,
-                                    nullptr);
+        auto *dlg
+            = new QMessageBox(QMessageBox::Information,
+                              "External Editor Not Supported",
+                              "Editing in an external editor is not supported on this platform.",
+                              QMessageBox::Ok,
+                              nullptr);
         dlg->setAttribute(Qt::WA_DeleteOnClose);
         dlg->open();
         return;

@@ -128,7 +128,6 @@ NODISCARD constexpr T nearestPowerOfTwo(T x) noexcept
     return next;
 }
 
-
 template<typename T>
 NODISCARD constexpr bool isAtLeastTwoBits(const T x) noexcept
 {

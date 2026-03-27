@@ -1490,7 +1490,7 @@ void RemoteEditWidget::maybeCancel(std::function<void(bool)> callback)
         dlg->setIcon(QMessageBox::Warning);
         dlg->setWindowTitle(m_title);
         dlg->setText(tr("You have edited the document.\n"
-                       "Are you sure you want to discard all changes?"));
+                        "Are you sure you want to discard all changes?"));
         dlg->setStandardButtons(QMessageBox::Discard | QMessageBox::Cancel);
         dlg->setDefaultButton(QMessageBox::Cancel);
         dlg->setEscapeButton(QMessageBox::Cancel);

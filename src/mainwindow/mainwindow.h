@@ -263,8 +263,7 @@ private:
         NODISCARD explicit operator bool() const { return isWorking(); }
 
     public:
-        void begin(std::unique_ptr<AsyncBase> task,
-                   std::function<void(bool)> completion = nullptr);
+        void begin(std::unique_ptr<AsyncBase> task, std::function<void(bool)> completion = nullptr);
         void tick();
         void request_cancel();
 

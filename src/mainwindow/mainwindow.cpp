@@ -325,7 +325,11 @@ void MainWindow::startServices()
         const QString errorMsg = QString(
                                      "Unable to start the server (switching to offline mode): %1.")
                                      .arg(QString::fromUtf8(e.what()));
-        auto *dlg = new QMessageBox(QMessageBox::Critical, tr("mmapper"), errorMsg, QMessageBox::Ok, this);
+        auto *dlg = new QMessageBox(QMessageBox::Critical,
+                                    tr("mmapper"),
+                                    errorMsg,
+                                    QMessageBox::Ok,
+                                    this);
         dlg->setAttribute(Qt::WA_DeleteOnClose);
         dlg->open();
     }

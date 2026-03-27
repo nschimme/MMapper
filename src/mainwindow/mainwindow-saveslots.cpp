@@ -14,7 +14,6 @@
 
 namespace { // anonymous
 
-
 namespace mwss_detail {
 
 NODISCARD QDir getLastMapDir()
@@ -88,7 +87,7 @@ void MainWindow::maybeSave(std::function<void(bool)> callback)
     dlg->setIcon(QMessageBox::Warning);
     dlg->setWindowTitle(tr("mmapper"));
     dlg->setText(tr("The current map has been modified:\n\n") + changes
-                + tr("\nDo you want to save the changes?"));
+                 + tr("\nDo you want to save the changes?"));
     dlg->setStandardButtons(QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel);
     dlg->setDefaultButton(QMessageBox::Discard);
     dlg->setEscapeButton(QMessageBox::Cancel);
@@ -187,9 +186,9 @@ void MainWindow::slot_exportMm2xmlMap()
         saveFile(suggestedName, ::SaveModeEnum::FULL, ::SaveFormatEnum::MM2XML);
     } else {
         auto dlg = mwss_detail::createFileSaveDialog(*this,
-                                                      "MMapper2 XML maps (*.xml)",
-                                                      "xml",
-                                                      suggestedName);
+                                                     "MMapper2 XML maps (*.xml)",
+                                                     "xml",
+                                                     suggestedName);
         auto *pDlg = dlg.release();
         pDlg->setAttribute(Qt::WA_DeleteOnClose);
         connect(pDlg, &QFileDialog::finished, this, [this, pDlg](int result) {
@@ -236,9 +235,9 @@ void MainWindow::slot_exportMmpMap()
         saveFile(suggestedName, ::SaveModeEnum::FULL, ::SaveFormatEnum::MMP);
     } else {
         auto dlg = mwss_detail::createFileSaveDialog(*this,
-                                                      "MMP maps (*.xml)",
-                                                      "xml",
-                                                      suggestedName);
+                                                     "MMP maps (*.xml)",
+                                                     "xml",
+                                                     suggestedName);
         auto *pDlg = dlg.release();
         pDlg->setAttribute(Qt::WA_DeleteOnClose);
         connect(pDlg, &QFileDialog::finished, this, [this, pDlg](int result) {

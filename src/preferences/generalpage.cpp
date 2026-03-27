@@ -184,7 +184,11 @@ GeneralPage::GeneralPage(QWidget *parent)
 
     connect(&passCfg, &PasswordConfig::sig_error, this, [this](const QString &msg) {
         qWarning() << msg;
-        auto *dlg = new QMessageBox(QMessageBox::Warning, "Password Error", msg, QMessageBox::Ok, this);
+        auto *dlg = new QMessageBox(QMessageBox::Warning,
+                                    "Password Error",
+                                    msg,
+                                    QMessageBox::Ok,
+                                    this);
         dlg->setAttribute(Qt::WA_DeleteOnClose);
         dlg->open();
     });

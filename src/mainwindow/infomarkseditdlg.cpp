@@ -107,7 +107,11 @@ void InfomarksEditDlg::slot_createClicked()
         updateMarkers();
         updateDialog();
     } else {
-        auto *dlg = new QMessageBox(QMessageBox::Warning, "Error", "Failed to create infomark.", QMessageBox::Ok, this);
+        auto *dlg = new QMessageBox(QMessageBox::Warning,
+                                    "Error",
+                                    "Failed to create infomark.",
+                                    QMessageBox::Ok,
+                                    this);
         dlg->setAttribute(Qt::WA_DeleteOnClose);
         dlg->open();
     }
@@ -158,7 +162,11 @@ void InfomarksEditDlg::slot_modifyClicked()
 
     if (!m_mapData->applySingleChange(
             Change{infomark_change_types::UpdateInfomark{current.getId(), mark}})) {
-        auto *dlg = new QMessageBox(QMessageBox::Warning, "Error", "Failed to modify infomark.", QMessageBox::Ok, this);
+        auto *dlg = new QMessageBox(QMessageBox::Warning,
+                                    "Error",
+                                    "Failed to modify infomark.",
+                                    QMessageBox::Ok,
+                                    this);
         dlg->setAttribute(Qt::WA_DeleteOnClose);
         dlg->open();
     }

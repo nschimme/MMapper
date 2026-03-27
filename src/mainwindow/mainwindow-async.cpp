@@ -821,9 +821,9 @@ void MainWindow::slot_merge()
 }
 
 void MainWindow::saveFile(const QString &fileName,
-                           const SaveModeEnum mode,
-                           const SaveFormatEnum format,
-                           std::function<void(bool)> completion)
+                          const SaveModeEnum mode,
+                          const SaveFormatEnum format,
+                          std::function<void(bool)> completion)
 {
     if (!tryStartNewAsync()) {
         if (completion) {

@@ -78,7 +78,8 @@ void MumeProtocolPage::slot_externalEditorBrowseButtonClicked(bool /*unused*/)
             const auto fileNames = dlg->selectedFiles();
             if (!fileNames.isEmpty()) {
                 const QString fileName = fileNames[0];
-                QString quotedFileName = QString(R"("%1")").arg(QString(fileName).replace(R"(")", R"(\")"));
+                QString quotedFileName = QString(R"("%1")").arg(
+                    QString(fileName).replace(R"(")", R"(\")"));
                 ui->externalEditorCommand->setText(quotedFileName);
                 setConfig().mumeClientProtocol.externalRemoteEditorCommand = quotedFileName;
             }

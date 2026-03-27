@@ -403,7 +403,9 @@ void MapCanvas::resizeGL(int width, int height)
 
     setViewportAndMvp(width, height);
     markMultisamplingDirty();
-    m_frameManager.requestUpdate();
+    // Defer update() to avoid triggering a second Asyncify suspension while paintGL
+    // is already suspended in Qt for WebAssembly (VisualViewport.qtResizeAllScreens).
+    QTimer::singleShot(0, this, [this]() { m_frameManager.requestUpdate(); });
 }
 
 void MapCanvas::updateBatches()

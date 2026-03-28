@@ -756,8 +756,8 @@ void MainWindow::loadFile(const QUrl &urlToLoad)
     connect(reply,
             &QNetworkReply::finished,
             this,
-            [reply, downloadProgressDlg = std::move(downloadProgressDlgLifetime)]() mutable {
-                MainWindow &mw = downloadProgressDlg.mainWindow();
+            [reply, capturedDlg = std::move(downloadProgressDlgLifetime)]() mutable {
+                MainWindow &mw = capturedDlg.mainWindow();
                 const QUrl downloadUrl = reply->url();
                 const QNetworkReply::NetworkError error = reply->error();
                 const QString errorString = reply->errorString();
@@ -765,7 +765,7 @@ void MainWindow::loadFile(const QUrl &urlToLoad)
                 reply->deleteLater();
 
                 // Close the download progress dialog manually.
-                downloadProgressDlg.reset();
+                capturedDlg.reset();
 
                 if (error != QNetworkReply::NoError) {
                     mw.showWarning(tr("Failed to download map from %1:\n%2.")

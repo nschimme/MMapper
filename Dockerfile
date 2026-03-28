@@ -1,7 +1,7 @@
 # --- Stage 1: The Builder Stage ---
 ARG JOBS
 
-FROM --platform=${BUILDPLATFORM} ubuntu:24.04 AS builder
+FROM --platform=${BUILDPLATFORM} mirror.gcr.io/library/ubuntu:24.04 AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV QTSDK_DIR=/opt/Qt
@@ -54,7 +54,7 @@ RUN ./emsdk activate 4.0.7 && \
     rm -rf /build /app
 
 # --- Stage 2: The Final Runtime Stage (Nginx) ---
-FROM nginx:alpine
+FROM mirror.gcr.io/library/nginx:alpine
 
 WORKDIR /usr/share/nginx/html
 RUN rm -rf ./*

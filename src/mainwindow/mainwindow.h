@@ -22,6 +22,7 @@
 #include <QFileDialog>
 #include <QMainWindow>
 #include <QMenu>
+#include <QNetworkAccessManager>
 #include <QPointer>
 #include <QProgressDialog>
 #include <QSize>
@@ -29,7 +30,6 @@
 #include <QTextBrowser>
 #include <QtCore>
 #include <QtGlobal>
-#include <QtNetwork/QNetworkAccessManager>
 #include <QtWidgets>
 
 class AbstractMapStorage;
@@ -282,8 +282,8 @@ public:
     NODISCARD HotkeyManager &getHotkeyManager() const { return deref(m_hotkeyManager); }
 
     NODISCARD bool saveFile(const QString &fileName, SaveModeEnum mode, SaveFormatEnum format);
+    void loadFile(const QUrl &url);
     void loadFile(std::shared_ptr<MapSource> source);
-    void loadRemoteFile(const QUrl &url, const QString &fileName);
     void setCurrentFile(const QString &fileName);
     void percentageChanged(uint32_t);
 

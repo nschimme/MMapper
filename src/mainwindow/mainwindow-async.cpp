@@ -725,8 +725,13 @@ bool MainWindow::tryStartNewAsync()
     return true;
 }
 
-void MainWindow::loadRemoteFile(const QUrl &url, const QString &fileName)
+void MainWindow::loadFile(const QUrl &url)
 {
+    if (url.isLocalFile() || url.scheme() == QLatin1String("qrc")) {
+        loadFile(MapSource::alloc(url));
+        return;
+    }
+
     if (!tryStartNewAsync()) {
         return;
     }
@@ -747,24 +752,27 @@ void MainWindow::loadRemoteFile(const QUrl &url, const QString &fileName)
                 }
             });
 
-    connect(reply, &QNetworkReply::finished, this, [this, reply, fileName]() {
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        const QUrl url = reply->url();
+        const QNetworkReply::NetworkError error = reply->error();
+        const QString errorString = reply->errorString();
+        const QByteArray data = reply->readAll();
+        reply->deleteLater();
+
         // Close the download progress dialog manually.
         // We cannot use ProgressDialogLifetime here because loadFile() will create its own dialog.
         endProgressDialog();
 
-        reply->deleteLater();
-        if (reply->error() != QNetworkReply::NoError) {
-            showWarning(tr("Failed to download map from %1:\n%2.")
-                            .arg(reply->url().toString(), reply->errorString()));
+        if (error != QNetworkReply::NoError) {
+            showWarning(tr("Failed to download map from %1:\n%2.").arg(url.toString(), errorString));
             return;
         }
 
-        QByteArray data = reply->readAll();
         try {
-            auto source = MapSource::alloc(fileName, data);
+            auto source = MapSource::alloc(url, data);
             loadFile(source);
         } catch (const std::exception &ex) {
-            showWarning(tr("Cannot open downloaded file %1:\n%2.").arg(fileName, ex.what()));
+            showWarning(tr("Cannot open downloaded file %1:\n%2.").arg(url.toString(), ex.what()));
         }
     });
 }
@@ -815,7 +823,7 @@ void MainWindow::slot_merge()
 
         try {
             auto pc = std::make_shared<ProgressCounter>();
-            auto source = MapSource::alloc(fileName, fileContent);
+            auto source = MapSource::alloc(QUrl::fromLocalFile(fileName), fileContent);
             auto pStorage = getLoadOrMergeMapStorage(pc, source);
             connect(pStorage.get(), &AbstractMapStorage::sig_log, this, &MainWindow::slot_log);
 

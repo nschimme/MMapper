@@ -13,21 +13,21 @@
 #include <QByteArray>
 #include <QFile>
 #include <QIODevice>
-#include <QString>
+#include <QUrl>
 
 class NODISCARD MapSource final : public std::enable_shared_from_this<MapSource>
 {
 private:
+    QUrl m_url;
     QString m_fileName;
     std::shared_ptr<QIODevice> m_device;
 
 public:
     NODISCARD static std::shared_ptr<MapSource> alloc(
-        const QString fileName,
-        const std::optional<QByteArray> &fileContent = std::nullopt) CAN_THROW;
+        const QUrl &url, const std::optional<QByteArray> &fileContent = std::nullopt) CAN_THROW;
 
 public:
-    explicit MapSource(Badge<MapSource>, const QString fileName, std::shared_ptr<QIODevice> device);
+    explicit MapSource(Badge<MapSource>, const QUrl &url, std::shared_ptr<QIODevice> device);
     DELETE_CTORS(MapSource);
     DELETE_COPY_ASSIGN_OP(MapSource);
 
@@ -36,5 +36,6 @@ private:
 
 public:
     NODISCARD const std::shared_ptr<QIODevice> &getIODevice() const { return m_device; }
+    NODISCARD const QUrl &getUrl() const { return m_url; }
     NODISCARD const QString &getFileName() const { return m_fileName; }
 };

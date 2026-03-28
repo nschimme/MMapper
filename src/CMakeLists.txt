@@ -636,10 +636,21 @@ if(EMSCRIPTEN)
         list(APPEND MANIFEST_INPUTS "audio:${CMAKE_BINARY_DIR}/assets/audio")
     endif()
 
+    set(MANIFEST_DEPENDS "")
+    if(WITH_AUDIO)
+        list(APPEND MANIFEST_DEPENDS audio_qrc)
+    endif()
+    if(WITH_IMAGES)
+        list(APPEND MANIFEST_DEPENDS images_qrc)
+    endif()
+    if(WITH_MAP)
+        list(APPEND MANIFEST_DEPENDS map_qrc)
+    endif()
+
     add_custom_command(
         OUTPUT "${MANIFEST_FILE}"
         COMMAND ${CMAKE_COMMAND} -DINPUT_DIRS="${MANIFEST_INPUTS}" -DOUTPUT_FILE="${MANIFEST_FILE}" -P "${CMAKE_SOURCE_DIR}/cmake/GenerateManifest.cmake"
-        DEPENDS audio_qrc images_qrc map_qrc
+        DEPENDS ${MANIFEST_DEPENDS}
         COMMENT "Generating assets/manifest.json"
         VERBATIM
     )
@@ -841,15 +852,15 @@ if(WIN32)
     target_link_libraries(mmapper PRIVATE ws2_32)
 endif()
 
-if(WITH_MAP AND NOT EMSCRIPTEN)
+if(WITH_MAP)
     add_dependencies(mmapper map_qrc)
 endif()
 
-if(WITH_IMAGES AND NOT EMSCRIPTEN)
+if(WITH_IMAGES)
     add_dependencies(mmapper images_qrc)
 endif()
 
-if(WITH_AUDIO AND NOT EMSCRIPTEN)
+if(WITH_AUDIO)
     add_dependencies(mmapper audio_qrc)
 endif()
 

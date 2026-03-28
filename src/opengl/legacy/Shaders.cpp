@@ -43,6 +43,7 @@ AtmosphereShader::~AtmosphereShader() = default;
 TimeOfDayShader::~TimeOfDayShader() = default;
 ParticleSimulationShader::~ParticleSimulationShader() = default;
 ParticleRenderShader::~ParticleRenderShader() = default;
+DoorShader::~DoorShader() = default;
 
 void ShaderPrograms::early_init()
 {
@@ -61,6 +62,7 @@ void ShaderPrograms::early_init()
     std::ignore = getTimeOfDayShader();
     std::ignore = getParticleSimulationShader();
     std::ignore = getParticleRenderShader();
+    std::ignore = getDoorShader();
 }
 
 void ShaderPrograms::resetAll()
@@ -80,6 +82,7 @@ void ShaderPrograms::resetAll()
     m_timeOfDay.reset();
     m_particleSimulation.reset();
     m_particleRender.reset();
+    m_door.reset();
 }
 
 // essentially a private member of ShaderPrograms
@@ -204,6 +207,11 @@ const std::shared_ptr<ParticleRenderShader> &ShaderPrograms::getParticleRenderSh
     return getInitialized<ParticleRenderShader>(m_particleRender,
                                                 getFunctions(),
                                                 "weather/particle");
+}
+
+const std::shared_ptr<DoorShader> &ShaderPrograms::getDoorShader()
+{
+    return getInitialized<DoorShader>(m_door, getFunctions(), "door");
 }
 
 } // namespace Legacy

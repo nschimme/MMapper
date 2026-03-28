@@ -6,6 +6,7 @@
 #include "../configuration/configuration.h"
 #include "../global/Flags.h"
 #include "../map/DoorFlags.h"
+#include "../map/DoorStateEnum.h"
 #include "../map/ExitFieldVariant.h"
 #include "../mapdata/mapdata.h"
 #include "../opengl/Font.h"
@@ -293,6 +294,10 @@ void ConnectionDrawer::drawRoomConnectionsAndDoors(const RoomHandle &room)
                 if (sourceExit.exitIsDoor() && sourceExit.hasDoorName()
                     && sourceExit.doorIsHidden()) {
                     drawRoomDoorName(room, sourceDir, targetRoom, targetDir);
+                }
+
+                if (sourceExit.exitIsDoor()) {
+                    drawDoorMarker(room, sourceDir);
                 }
             }
         }
@@ -624,6 +629,8 @@ ConnectionMeshes ConnectionDrawerBuffers::getMeshes(OpenGL &gl) const
     result.redTris = gl.createColoredTriBatch(red.triVerts);
     result.normalQuads = gl.createColoredQuadBatch(normal.quadVerts);
     result.redQuads = gl.createColoredQuadBatch(red.quadVerts);
+    result.normalDoors = gl.createDoorBatch(normal.doorVerts);
+    result.redDoors = gl.createDoorBatch(red.doorVerts);
     return result;
 }
 
@@ -645,6 +652,8 @@ void ConnectionMeshes::render(const int thisLayer, const int focusedLayer) const
     redTris.render(common_style);
     normalQuads.render(common_style);
     redQuads.render(common_style);
+    normalDoors.render(common_style);
+    redDoors.render(common_style);
 }
 
 void MapCanvas::paintNearbyConnectionPoints()
@@ -791,6 +800,92 @@ void ConnectionDrawer::ConnectionFakeGL::drawTriangle(const glm::vec3 &a,
     verts.emplace_back(color, a + m_offset);
     verts.emplace_back(color, b + m_offset);
     verts.emplace_back(color, c + m_offset);
+}
+
+void ConnectionDrawer::ConnectionFakeGL::drawDoorQuad(const glm::vec3 &a,
+                                                      const glm::vec3 &b,
+                                                      const glm::vec3 &c,
+                                                      const glm::vec3 &d,
+                                                      ServerRoomId roomId,
+                                                      ExitDirEnum dir)
+{
+    auto &verts = deref(m_currentBuffer).doorVerts;
+    const uint32_t rid = roomId.asUint32();
+    const uint32_t d_idx = static_cast<uint32_t>(dir);
+    verts.emplace_back(a + m_offset, rid, d_idx);
+    verts.emplace_back(b + m_offset, rid, d_idx);
+    verts.emplace_back(c + m_offset, rid, d_idx);
+    verts.emplace_back(d + m_offset, rid, d_idx);
+}
+
+void ConnectionDrawer::drawDoorMarker(const RoomHandle &room, const ExitDirEnum dir)
+{
+    const Coordinate &pos = room.getPosition();
+    if (pos.z != m_currentLayer) {
+        return;
+    }
+
+    const float srcZ = static_cast<float>(pos.z);
+    const float roomX = static_cast<float>(pos.x);
+    const float roomY = static_cast<float>(pos.y);
+
+    m_fake.setOffset(roomX, roomY, 0.0f);
+    m_fake.setNormal(); // Doors are always "normal" for now, or match connection?
+    // Actually let's check if the exit is in red
+    if (!room.getExit(dir).exitIsExit()) {
+        m_fake.setRed();
+    }
+
+    const float doorWidth = 0.4f;
+    const float doorThickness = 0.05f;
+    const float offsetFromRoom = 0.4f;
+
+    glm::vec3 p1, p2, p3, p4;
+
+    switch (dir) {
+    case ExitDirEnum::NORTH:
+        p1 = {0.5f - doorWidth / 2, 0.5f + offsetFromRoom, srcZ};
+        p2 = {0.5f + doorWidth / 2, 0.5f + offsetFromRoom, srcZ};
+        p3 = {0.5f + doorWidth / 2, 0.5f + offsetFromRoom + doorThickness, srcZ};
+        p4 = {0.5f - doorWidth / 2, 0.5f + offsetFromRoom + doorThickness, srcZ};
+        break;
+    case ExitDirEnum::SOUTH:
+        p1 = {0.5f - doorWidth / 2, 0.5f - offsetFromRoom - doorThickness, srcZ};
+        p2 = {0.5f + doorWidth / 2, 0.5f - offsetFromRoom - doorThickness, srcZ};
+        p3 = {0.5f + doorWidth / 2, 0.5f - offsetFromRoom, srcZ};
+        p4 = {0.5f - doorWidth / 2, 0.5f - offsetFromRoom, srcZ};
+        break;
+    case ExitDirEnum::EAST:
+        p1 = {0.5f + offsetFromRoom, 0.5f - doorWidth / 2, srcZ};
+        p2 = {0.5f + offsetFromRoom + doorThickness, 0.5f - doorWidth / 2, srcZ};
+        p3 = {0.5f + offsetFromRoom + doorThickness, 0.5f + doorWidth / 2, srcZ};
+        p4 = {0.5f + offsetFromRoom, 0.5f + doorWidth / 2, srcZ};
+        break;
+    case ExitDirEnum::WEST:
+        p1 = {0.5f - offsetFromRoom - doorThickness, 0.5f - doorWidth / 2, srcZ};
+        p2 = {0.5f - offsetFromRoom, 0.5f - doorWidth / 2, srcZ};
+        p3 = {0.5f - offsetFromRoom, 0.5f + doorWidth / 2, srcZ};
+        p4 = {0.5f - offsetFromRoom - doorThickness, 0.5f + doorWidth / 2, srcZ};
+        break;
+    case ExitDirEnum::UP:
+        p1 = {0.7f, 0.7f, srcZ};
+        p2 = {0.8f, 0.7f, srcZ};
+        p3 = {0.8f, 0.8f, srcZ};
+        p4 = {0.7f, 0.8f, srcZ};
+        break;
+    case ExitDirEnum::DOWN:
+        p1 = {0.2f, 0.2f, srcZ};
+        p2 = {0.3f, 0.2f, srcZ};
+        p3 = {0.3f, 0.3f, srcZ};
+        p4 = {0.2f, 0.3f, srcZ};
+        break;
+    default:
+        m_fake.setOffset(0, 0, 0);
+        return;
+    }
+
+    m_fake.drawDoorQuad(p1, p2, p3, p4, room.getServerId(), dir);
+    m_fake.setOffset(0, 0, 0);
 }
 
 void ConnectionDrawer::ConnectionFakeGL::drawLineStrip(const std::vector<glm::vec3> &points)

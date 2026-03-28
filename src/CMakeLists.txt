@@ -732,7 +732,6 @@ if(EMSCRIPTEN)
         -sMAX_WEBGL_VERSION=2
         -sMIN_WEBGL_VERSION=2
         -sASSERTIONS
-        -sASYNCIFY
         -Os
     )
     target_link_libraries(mmapper PUBLIC z)
@@ -1186,13 +1185,17 @@ if(APPLE)
     MACOSX_PACKAGE_LOCATION Resources)
     set_target_properties(mmapper PROPERTIES MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/MacOSXBundleInfo.plist.in )
 
-#Bundle the libraries with the binary
+# Bundle the libraries with the binary
     find_program(MACDEPLOYQT_APP macdeployqt)
     message(" - macdeployqt path: ${MACDEPLOYQT_APP}")
+    set(MACDEPLOYQT_EXTRA_ARGS "")
+    if(QTKEYCHAIN_LIBRARY_DIR)
+        list(APPEND MACDEPLOYQT_EXTRA_ARGS "-libpath" "${QTKEYCHAIN_LIBRARY_DIR}")
+    endif()
     add_custom_command(
         TARGET mmapper
         POST_BUILD
-        COMMAND ${MACDEPLOYQT_APP} ${CMAKE_CURRENT_BINARY_DIR}/mmapper.app -libpath ${QTKEYCHAIN_LIBRARY_DIR} -verbose=2
+        COMMAND ${MACDEPLOYQT_APP} ${CMAKE_CURRENT_BINARY_DIR}/mmapper.app ${MACDEPLOYQT_EXTRA_ARGS} -verbose=2
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         COMMENT "Deploying the Qt Framework onto the bundle"
         VERBATIM

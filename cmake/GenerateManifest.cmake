@@ -59,4 +59,12 @@ endif()
 
 set(MANIFEST_CONTENT "{\n${MANIFEST_BODY}\n}\n")
 
-file(WRITE "${OUTPUT_FILE}" "${MANIFEST_CONTENT}")
+# Only write if different to prevent unnecessary rebuilds
+if(EXISTS "${OUTPUT_FILE}")
+    file(READ "${OUTPUT_FILE}" OLD_CONTENT)
+    if(NOT "${OLD_CONTENT}" STREQUAL "${MANIFEST_CONTENT}")
+        file(WRITE "${OUTPUT_FILE}" "${MANIFEST_CONTENT}")
+    endif()
+else()
+    file(WRITE "${OUTPUT_FILE}" "${MANIFEST_CONTENT}")
+endif()

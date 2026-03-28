@@ -72,7 +72,7 @@ NODISCARD static bool tryLoad(MainWindow &mw, const QDir &dir, const QString &in
     try {
         QUrl url;
         if (absoluteFilePath.startsWith(":/")) {
-            url = QUrl("qrc" + absoluteFilePath.mid(1));
+            url = QUrl(QStringLiteral("qrc") + absoluteFilePath);
         } else {
             url = QUrl::fromLocalFile(absoluteFilePath);
         }

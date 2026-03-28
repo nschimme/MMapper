@@ -725,10 +725,10 @@ bool MainWindow::tryStartNewAsync()
     return true;
 }
 
-void MainWindow::loadFile(const QUrl &url)
+void MainWindow::loadFile(const QUrl &urlToLoad)
 {
-    if (url.isLocalFile() || url.scheme() == QLatin1String("qrc")) {
-        loadFile(MapSource::alloc(url));
+    if (urlToLoad.isLocalFile() || urlToLoad.scheme() == QLatin1String("qrc")) {
+        loadFile(MapSource::alloc(urlToLoad));
         return;
     }
 
@@ -736,11 +736,11 @@ void MainWindow::loadFile(const QUrl &url)
         return;
     }
 
-    QNetworkRequest request(url);
+    QNetworkRequest request(urlToLoad);
     QNetworkReply *reply = m_networkManager.get(request);
 
     // Create a progress dialog for the download phase
-    createNewProgressDialog(tr("Downloading map..."), true);
+    ALLOW_DISCARD auto downloadProgressDlg{createNewProgressDialog(tr("Downloading map..."), true)};
     QPointer<QProgressDialog> pDlg = m_progressDlg.get();
 
     connect(reply,
@@ -752,27 +752,27 @@ void MainWindow::loadFile(const QUrl &url)
                 }
             });
 
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        const QUrl url = reply->url();
+    connect(reply, &QNetworkReply::finished, this, [reply, downloadProgressDlg = std::move(downloadProgressDlg)]() mutable {
+        MainWindow &mw = downloadProgressDlg.mainWindow();
+        const QUrl downloadUrl = reply->url();
         const QNetworkReply::NetworkError error = reply->error();
         const QString errorString = reply->errorString();
         const QByteArray data = reply->readAll();
         reply->deleteLater();
 
         // Close the download progress dialog manually.
-        // We cannot use ProgressDialogLifetime here because loadFile() will create its own dialog.
-        endProgressDialog();
+        downloadProgressDlg.reset();
 
         if (error != QNetworkReply::NoError) {
-            showWarning(tr("Failed to download map from %1:\n%2.").arg(url.toString(), errorString));
+            mw.showWarning(tr("Failed to download map from %1:\n%2.").arg(downloadUrl.toString(), errorString));
             return;
         }
 
         try {
-            auto source = MapSource::alloc(url, data);
-            loadFile(source);
+            auto source = MapSource::alloc(downloadUrl, data);
+            mw.loadFile(source);
         } catch (const std::exception &ex) {
-            showWarning(tr("Cannot open downloaded file %1:\n%2.").arg(url.toString(), ex.what()));
+            mw.showWarning(tr("Cannot open downloaded file %1:\n%2.").arg(downloadUrl.toString(), ex.what()));
         }
     });
 }

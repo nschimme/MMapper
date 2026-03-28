@@ -502,6 +502,45 @@ else()
     add_definitions(/DMMAPPER_NO_IMAGES)
 endif()
 
+if(EMSCRIPTEN)
+    file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/assets")
+    set(MANIFEST_FILE "${CMAKE_BINARY_DIR}/assets/manifest.json")
+    set(MANIFEST_INPUTS "")
+    if(WITH_MAP)
+        list(APPEND MANIFEST_INPUTS "map|${CMAKE_BINARY_DIR}/assets/map")
+    endif()
+    if(WITH_IMAGES)
+        list(APPEND MANIFEST_INPUTS "images|${CMAKE_BINARY_DIR}/assets/images")
+    endif()
+    if(WITH_AUDIO)
+        list(APPEND MANIFEST_INPUTS "audio|${CMAKE_BINARY_DIR}/assets/audio")
+    endif()
+
+    # Use @ as a separator because ; is the list separator in CMake and gets messy when passed via -D
+    string(REPLACE ";" "@" MANIFEST_INPUTS_STR "${MANIFEST_INPUTS}")
+
+    set(MANIFEST_DEPENDS "")
+    if(WITH_AUDIO)
+        list(APPEND MANIFEST_DEPENDS audio_qrc)
+    endif()
+    if(WITH_IMAGES)
+        list(APPEND MANIFEST_DEPENDS images_qrc)
+    endif()
+    if(WITH_MAP)
+        list(APPEND MANIFEST_DEPENDS map_qrc)
+    endif()
+
+    add_custom_command(
+        OUTPUT "${MANIFEST_FILE}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/assets"
+        COMMAND ${CMAKE_COMMAND} -DINPUT_DIRS="${MANIFEST_INPUTS_STR}" -DOUTPUT_FILE="${MANIFEST_FILE}" -P "${CMAKE_SOURCE_DIR}/cmake/GenerateManifest.cmake"
+        DEPENDS ${MANIFEST_DEPENDS}
+        COMMENT "Generating assets/manifest.json"
+        VERBATIM
+    )
+    add_custom_target(assets_manifest ALL DEPENDS "${MANIFEST_FILE}")
+endif()
+
 if(NOT WITH_UPDATER)
     add_definitions(/DMMAPPER_NO_UPDATER)
 endif()

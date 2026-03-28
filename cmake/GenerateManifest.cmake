@@ -1,9 +1,11 @@
 # cmake/GenerateManifest.cmake
 # Assumes INPUT_DIRS and OUTPUT_FILE are passed as -D variables
-# INPUT_DIRS should be a semicolon-separated list of "prefix|path" pairs
+# INPUT_DIRS should be a @-separated list of "prefix|path" pairs
 
 if(NOT INPUT_DIRS)
-    message(FATAL_ERROR "INPUT_DIRS not specified for GenerateManifest.cmake")
+    # If no inputs, create an empty manifest
+    file(WRITE "${OUTPUT_FILE}" "{\n}\n")
+    return()
 endif()
 if(NOT OUTPUT_FILE)
     message(FATAL_ERROR "OUTPUT_FILE not specified for GenerateManifest.cmake")
@@ -11,7 +13,10 @@ endif()
 
 set(MANIFEST_ENTRIES "")
 
-foreach(DIR_INFO ${INPUT_DIRS})
+# Use @ as a separator because ; is the list separator in CMake and gets messy when passed via -D
+string(REPLACE "@" ";" INPUT_DIRS_LIST "${INPUT_DIRS}")
+
+foreach(DIR_INFO ${INPUT_DIRS_LIST})
     # DIR_INFO is "prefix|path"
     string(REPLACE "|" ";" DIR_PARTS "${DIR_INFO}")
     list(GET DIR_PARTS 0 PREFIX)

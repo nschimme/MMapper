@@ -624,38 +624,6 @@ if(WITH_AUDIO AND NOT EMSCRIPTEN)
 endif()
 
 if(EMSCRIPTEN)
-    set(MANIFEST_FILE "${CMAKE_BINARY_DIR}/assets/manifest.json")
-    set(MANIFEST_INPUTS "")
-    if(WITH_MAP)
-        list(APPEND MANIFEST_INPUTS "map|${CMAKE_BINARY_DIR}/assets/map")
-    endif()
-    if(WITH_IMAGES)
-        list(APPEND MANIFEST_INPUTS "images|${CMAKE_BINARY_DIR}/assets/images")
-    endif()
-    if(WITH_AUDIO)
-        list(APPEND MANIFEST_INPUTS "audio|${CMAKE_BINARY_DIR}/assets/audio")
-    endif()
-
-    set(MANIFEST_DEPENDS "")
-    if(WITH_AUDIO)
-        list(APPEND MANIFEST_DEPENDS audio_qrc)
-    endif()
-    if(WITH_IMAGES)
-        list(APPEND MANIFEST_DEPENDS images_qrc)
-    endif()
-    if(WITH_MAP)
-        list(APPEND MANIFEST_DEPENDS map_qrc)
-    endif()
-
-    add_custom_command(
-        OUTPUT "${MANIFEST_FILE}"
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/assets"
-        COMMAND ${CMAKE_COMMAND} -DINPUT_DIRS="${MANIFEST_INPUTS}" -DOUTPUT_FILE="${MANIFEST_FILE}" -P "${CMAKE_SOURCE_DIR}/cmake/GenerateManifest.cmake"
-        DEPENDS ${MANIFEST_DEPENDS}
-        COMMENT "Generating assets/manifest.json"
-        VERBATIM
-    )
-    add_custom_target(assets_manifest ALL DEPENDS "${MANIFEST_FILE}")
     install(FILES "${MANIFEST_FILE}" DESTINATION assets)
     install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/resources/win32/m-release.ico" DESTINATION . RENAME favicon.ico)
     install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/resources/icons/m-release.png" DESTINATION . RENAME logo.png)
@@ -740,7 +708,7 @@ message("mmapper_map_SRCS=[${mmapper_map_SRCS}]")
 add_library(mm_global STATIC ${mmapper_global_SRCS})
 add_library(mm_map STATIC ${mmapper_map_SRCS})
 
-#Build the executable
+# Build the executable
 set(mmapper_EXECUTABLE_ARGS
     ${mmapper_SRCS}
     ${mmapper_UIS}
@@ -780,7 +748,7 @@ target_link_libraries(mmapper PUBLIC
     Qt6::Network
     Qt6::OpenGL
     Qt6::OpenGLWidgets
-#note : link order matters on some platforms.include ${mm_libs } twice if you have a link failure.
+# note : link order matters on some platforms. include ${mm_libs } twice if you have a link failure.
     ${mm_libs}
     ${CMAKE_THREAD_LIBS_INIT}
     coverage_config

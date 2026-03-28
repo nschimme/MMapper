@@ -1640,7 +1640,7 @@ void MainWindow::slot_reload()
         const QString filename = m_mapData->getFileName();
         try {
             if (filename.startsWith(":/")) {
-                loadFile(MapSource::alloc(QUrl("qrc" + filename.mid(1))));
+                loadFile(MapSource::alloc(QUrl(QStringLiteral("qrc") + filename)));
             } else {
                 loadFile(MapSource::alloc(QUrl::fromLocalFile(filename)));
             }

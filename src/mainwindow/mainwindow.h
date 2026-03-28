@@ -362,18 +362,40 @@ private:
     {
     private:
         MainWindow &m_self;
+        bool m_released = false;
 
     public:
         explicit ProgressDialogLifetime(MainWindow &self)
             : m_self(self)
         {}
-        ~ProgressDialogLifetime() { reset(); }
+        ProgressDialogLifetime(ProgressDialogLifetime &&other) noexcept
+            : m_self(other.m_self)
+            , m_released(std::exchange(other.m_released, true))
+        {}
+        ProgressDialogLifetime &operator=(ProgressDialogLifetime &&other) noexcept
+        {
+            if (this != &other) {
+                if (!m_released) {
+                    reset();
+                }
+                m_released = std::exchange(other.m_released, true);
+            }
+            return *this;
+        }
+        ~ProgressDialogLifetime()
+        {
+            if (!m_released) {
+                reset();
+            }
+        }
 
     public:
-        DELETE_CTORS_AND_ASSIGN_OPS(ProgressDialogLifetime);
+        DELETE_COPIES(ProgressDialogLifetime);
 
     public:
         void reset() { m_self.endProgressDialog(); }
+        void release() { m_released = true; }
+        MainWindow &mainWindow() const { return m_self; }
     };
     NODISCARD ProgressDialogLifetime createNewProgressDialog(const QString &text, bool allow_cancel);
     void endProgressDialog();

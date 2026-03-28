@@ -71,7 +71,7 @@ else()
             VERBATIM
         )
         set(MMAPPER_QRC_FILE "${AUDIO_ASSETS_DIR}/.stamp")
-        install(DIRECTORY "${AUDIO_DOWNLOAD_DIR}/" DESTINATION assets/audio)
+        install(DIRECTORY "${AUDIO_DOWNLOAD_DIR}/" DESTINATION assets/audio PATTERN ".git" EXCLUDE)
     endif()
     add_custom_target(audio_qrc ALL DEPENDS "${MMAPPER_QRC_FILE}")
     add_dependencies(audio_qrc ${AUDIO_TARGET_DEPENDENCY})

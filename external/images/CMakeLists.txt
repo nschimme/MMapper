@@ -71,7 +71,7 @@ else()
             VERBATIM
         )
         set(MMAPPER_QRC_FILE "${IMAGES_ASSETS_DIR}/.stamp")
-        install(DIRECTORY "${IMAGES_DOWNLOAD_DIR}/" DESTINATION assets/images)
+        install(DIRECTORY "${IMAGES_DOWNLOAD_DIR}/" DESTINATION assets/images PATTERN ".git" EXCLUDE)
     endif()
     add_custom_target(images_qrc ALL DEPENDS "${MMAPPER_QRC_FILE}")
     add_dependencies(images_qrc ${IMAGES_TARGET_DEPENDENCY})

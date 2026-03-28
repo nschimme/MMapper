@@ -275,7 +275,7 @@ NODISCARD static Misc getMisc(const JsonObj &obj, const ServerRoomId room, bool 
         for (const ExitDirEnum alt_dir : ALL_EXITS_NESWUD) {
             const auto &eThisExit = result.exits[alt_dir];
             const auto eThisClosed = eThisExit.exitIsDoor()
-                                 && result.doors.at(alt_dir) == DoorStateEnum::CLOSED;
+                                     && result.doors.at(alt_dir) == DoorStateEnum::CLOSED;
 
             // Do not flag indirect sunlight if there was a closed door, no exit, or we saw direct sunlight
             if (!eThisExit.exitIsExit() || eThisClosed

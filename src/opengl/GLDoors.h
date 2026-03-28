@@ -24,16 +24,19 @@ private:
     Legacy::UboManager &m_uboManager;
     ChangeMonitor::Lifetime m_lifetime;
 
-    struct DoorKey {
+    struct DoorKey
+    {
         ServerRoomId roomId;
         ExitDirEnum dir;
 
-        bool operator==(const DoorKey& other) const {
+        bool operator==(const DoorKey &other) const
+        {
             return roomId == other.roomId && dir == other.dir;
         }
     };
 
-    struct DoorEntry {
+    struct DoorEntry
+    {
         DoorKey key;
         DoorStateEnum state;
     };

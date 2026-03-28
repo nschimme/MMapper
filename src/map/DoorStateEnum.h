@@ -4,8 +4,4 @@
 
 #include <cstdint>
 
-enum class DoorStateEnum : uint8_t {
-    CLOSED = 0,
-    OPEN = 1,
-    BROKEN = 2
-};
+enum class DoorStateEnum : uint8_t { CLOSED = 0, OPEN = 1, BROKEN = 2 };

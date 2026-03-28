@@ -2,6 +2,7 @@
 // Copyright (C) 2026 The MMapper Authors
 
 #include "GLDoors.h"
+
 #include "legacy/Legacy.h"
 
 #include <algorithm>
@@ -29,8 +30,9 @@ void GLDoors::onDoorStateChanged(ServerRoomId id, ExitDirEnum dir, DoorStateEnum
     const DoorKey key{id, dir};
 
     // Find if already in deque
-    auto it = std::find_if(m_doors.begin(), m_doors.end(),
-                           [&key](const DoorEntry &e) { return e.key == key; });
+    auto it = std::find_if(m_doors.begin(), m_doors.end(), [&key](const DoorEntry &e) {
+        return e.key == key;
+    });
 
     if (state == DoorStateEnum::CLOSED) {
         if (it != m_doors.end()) {

@@ -46,7 +46,11 @@ foreach(DIR_INFO ${INPUT_DIRS})
 endforeach()
 
 # Join entries with commas and newlines
-string(REPLACE ";" ",\n" MANIFEST_BODY "${MANIFEST_ENTRIES}")
+if(MANIFEST_ENTRIES)
+    list(JOIN MANIFEST_ENTRIES ",\n" MANIFEST_BODY)
+else()
+    set(MANIFEST_BODY "")
+endif()
 
 set(MANIFEST_CONTENT "{\n${MANIFEST_BODY}\n}\n")
 

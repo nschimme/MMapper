@@ -23,13 +23,13 @@
 #include <QMainWindow>
 #include <QMenu>
 #include <QPointer>
-#include <QtNetwork/QNetworkAccessManager>
 #include <QProgressDialog>
 #include <QSize>
 #include <QString>
 #include <QTextBrowser>
 #include <QtCore>
 #include <QtGlobal>
+#include <QtNetwork/QNetworkAccessManager>
 #include <QtWidgets>
 
 class AbstractMapStorage;

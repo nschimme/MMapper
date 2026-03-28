@@ -655,6 +655,7 @@ if(EMSCRIPTEN)
         VERBATIM
     )
     add_custom_target(assets_manifest ALL DEPENDS "${MANIFEST_FILE}")
+    install(FILES "${MANIFEST_FILE}" DESTINATION assets)
 endif()
 
 set(mmapper_UIS

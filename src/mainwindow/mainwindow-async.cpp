@@ -752,29 +752,34 @@ void MainWindow::loadFile(const QUrl &urlToLoad)
                 }
             });
 
-    connect(reply, &QNetworkReply::finished, this, [reply, downloadProgressDlg = std::move(downloadProgressDlg)]() mutable {
-        MainWindow &mw = downloadProgressDlg.mainWindow();
-        const QUrl downloadUrl = reply->url();
-        const QNetworkReply::NetworkError error = reply->error();
-        const QString errorString = reply->errorString();
-        const QByteArray data = reply->readAll();
-        reply->deleteLater();
+    connect(reply,
+            &QNetworkReply::finished,
+            this,
+            [reply, downloadProgressDlg = std::move(downloadProgressDlg)]() mutable {
+                MainWindow &mw = downloadProgressDlg.mainWindow();
+                const QUrl downloadUrl = reply->url();
+                const QNetworkReply::NetworkError error = reply->error();
+                const QString errorString = reply->errorString();
+                const QByteArray data = reply->readAll();
+                reply->deleteLater();
 
-        // Close the download progress dialog manually.
-        downloadProgressDlg.reset();
+                // Close the download progress dialog manually.
+                downloadProgressDlg.reset();
 
-        if (error != QNetworkReply::NoError) {
-            mw.showWarning(tr("Failed to download map from %1:\n%2.").arg(downloadUrl.toString(), errorString));
-            return;
-        }
+                if (error != QNetworkReply::NoError) {
+                    mw.showWarning(tr("Failed to download map from %1:\n%2.")
+                                       .arg(downloadUrl.toString(), errorString));
+                    return;
+                }
 
-        try {
-            auto source = MapSource::alloc(downloadUrl, data);
-            mw.loadFile(source);
-        } catch (const std::exception &ex) {
-            mw.showWarning(tr("Cannot open downloaded file %1:\n%2.").arg(downloadUrl.toString(), ex.what()));
-        }
-    });
+                try {
+                    auto source = MapSource::alloc(downloadUrl, data);
+                    mw.loadFile(source);
+                } catch (const std::exception &ex) {
+                    mw.showWarning(tr("Cannot open downloaded file %1:\n%2.")
+                                       .arg(downloadUrl.toString(), ex.what()));
+                }
+            });
 }
 
 void MainWindow::loadFile(std::shared_ptr<MapSource> source)

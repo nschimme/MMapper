@@ -86,8 +86,15 @@ static void tryAutoLoadMap(MainWindow &mw)
             && tryLoad(mw, QDir{settings.lastMapDirectory}, settings.fileName)) {
             return;
         }
-        if (!NO_MAP_RESOURCE && tryLoad(mw, QDir(":/"), "arda")) {
-            return;
+        if (!NO_MAP_RESOURCE) {
+            if (tryLoad(mw, QDir(":/"), "arda")) {
+                return;
+            }
+
+            if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+                mw.loadRemoteFile(QUrl("assets/map/arda"), "arda");
+                return;
+            }
         }
         qInfo() << "[main] Unable to autoload map";
     }

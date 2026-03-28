@@ -6,6 +6,7 @@
 
 #include <QFileSystemWatcher>
 #include <QMap>
+#include <QNetworkAccessManager>
 #include <QObject>
 #include <QString>
 #include <QStringList>
@@ -33,4 +34,7 @@ signals:
 
 private:
     void scanDirectories();
+    void loadManifest();
+
+    QNetworkAccessManager m_networkManager;
 };

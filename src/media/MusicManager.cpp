@@ -146,6 +146,9 @@ void MusicManager::playMusic(const QString &musicFile)
 
     if (newActive.file.startsWith(":")) {
         newActive.player->setSource(QUrl("qrc" + newActive.file));
+    } else if (newActive.file.startsWith(QLatin1String("assets/"))
+               || newActive.file.startsWith(QLatin1String("http"))) {
+        newActive.player->setSource(QUrl(newActive.file));
     } else {
         newActive.player->setSource(QUrl::fromLocalFile(newActive.file));
     }

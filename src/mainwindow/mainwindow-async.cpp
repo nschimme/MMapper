@@ -33,6 +33,7 @@
 #include <vector>
 
 #include <QBuffer>
+#include <QNetworkReply>
 #include <QSize>
 #include <QString>
 #include <QXmlStreamReader>
@@ -722,6 +723,52 @@ bool MainWindow::tryStartNewAsync()
         return false;
     }
     return true;
+}
+
+void MainWindow::loadRemoteFile(const QUrl &url, const QString &fileName)
+{
+    if (!tryStartNewAsync()) {
+        return;
+    }
+
+    QNetworkRequest request(url);
+    QNetworkReply *reply = m_networkManager.get(request);
+
+    // Create a progress dialog for the download phase
+    // Note: ProgressDialogLifetime's destructor calls reset(), but we want to keep it alive
+    // until the download is finished or canceled.
+    auto progressDlg = std::make_shared<ProgressDialogLifetime>(*this);
+    m_progressDlg->setLabelText(tr("Downloading map..."));
+    m_progressDlg->setRange(0, 100);
+    m_progressDlg->show();
+
+    QPointer<QProgressDialog> pDlg = m_progressDlg.get();
+
+    connect(reply,
+            &QNetworkReply::downloadProgress,
+            this,
+            [pDlg](qint64 bytesReceived, qint64 bytesTotal) {
+                if (pDlg && bytesTotal > 0) {
+                    pDlg->setValue(static_cast<int>(bytesReceived * 100 / bytesTotal));
+                }
+            });
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply, fileName, progressDlg]() {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            showWarning(tr("Failed to download map from %1:\n%2.")
+                            .arg(reply->url().toString(), reply->errorString()));
+            return;
+        }
+
+        QByteArray data = reply->readAll();
+        try {
+            auto source = MapSource::alloc(fileName, data);
+            loadFile(source);
+        } catch (const std::exception &ex) {
+            showWarning(tr("Cannot open downloaded file %1:\n%2.").arg(fileName, ex.what()));
+        }
+    });
 }
 
 void MainWindow::loadFile(std::shared_ptr<MapSource> source)

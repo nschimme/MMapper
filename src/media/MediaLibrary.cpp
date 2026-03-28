@@ -15,6 +15,9 @@
 #include <QDir>
 #include <QDirIterator>
 #include <QImageReader>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QNetworkReply>
 #include <QSet>
 #include <QtGlobal>
 
@@ -67,6 +70,10 @@ MediaLibrary::MediaLibrary(QObject *const parent)
         scanDirectories();
         emit sig_mediaChanged();
     });
+
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+        loadManifest();
+    }
 }
 
 QString MediaLibrary::findAudio(const QString &subDir, const QString &name) const
@@ -87,6 +94,43 @@ QString MediaLibrary::findImage(const QString &subDir, const QString &name) cons
         return it.value();
     }
     return "";
+}
+
+void MediaLibrary::loadManifest()
+{
+    QUrl url("assets/manifest.json");
+    QNetworkRequest request(url);
+    QNetworkReply *reply = m_networkManager.get(request);
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            qWarning() << "Failed to load manifest:" << reply->errorString();
+            return;
+        }
+
+        QByteArray data = reply->readAll();
+        QJsonDocument doc = QJsonDocument::fromJson(data);
+        if (!doc.isObject()) {
+            qWarning() << "Manifest is not a valid JSON object";
+            return;
+        }
+
+        QJsonObject root = doc.object();
+        for (auto it = root.begin(); it != root.end(); ++it) {
+            QString key = it.key();
+            QString path = "assets/" + it.value().toString();
+
+            if (key.startsWith(QLatin1String("audio/"))) {
+                m_audioFiles.insert(key.mid(6), path);
+            } else if (key.startsWith(QLatin1String("images/"))) {
+                m_imageFiles.insert(key.mid(7), path);
+            }
+        }
+
+        qInfo() << "Loaded manifest. Added" << root.size() << "external assets.";
+        emit sig_mediaChanged();
+    });
 }
 
 void MediaLibrary::scanDirectories()

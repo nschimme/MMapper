@@ -23,6 +23,7 @@
 #include <QMainWindow>
 #include <QMenu>
 #include <QPointer>
+#include <QtNetwork/QNetworkAccessManager>
 #include <QProgressDialog>
 #include <QSize>
 #include <QString>
@@ -271,6 +272,7 @@ private:
     };
 
     AsyncTask m_asyncTask;
+    QNetworkAccessManager m_networkManager;
     Signal2Lifetime m_lifetime;
 
 public:
@@ -281,6 +283,7 @@ public:
 
     NODISCARD bool saveFile(const QString &fileName, SaveModeEnum mode, SaveFormatEnum format);
     void loadFile(std::shared_ptr<MapSource> source);
+    void loadRemoteFile(const QUrl &url, const QString &fileName);
     void setCurrentFile(const QString &fileName);
     void percentageChanged(uint32_t);
 

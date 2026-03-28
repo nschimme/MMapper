@@ -611,16 +611,40 @@ configure_file(resources/build.qrc.in ${CMAKE_CURRENT_BINARY_DIR}/build.qrc)
 qt_add_resources(mmapper_QRC ${CMAKE_CURRENT_BINARY_DIR}/build.qrc)
 list(APPEND mmapper_RCS "resources/macosx/m-${MMAPPER_BRAND_SUFFIX}.icns")
 
-if(WITH_MAP)
+if(WITH_MAP AND NOT EMSCRIPTEN)
     qt_add_resources(mmapper_QRC "${CMAKE_BINARY_DIR}/map/map.qrc")
 endif()
 
-if(WITH_IMAGES)
+if(WITH_IMAGES AND NOT EMSCRIPTEN)
     qt_add_resources(mmapper_QRC "${CMAKE_BINARY_DIR}/images/images.qrc")
 endif()
 
-if(WITH_AUDIO)
+if(WITH_AUDIO AND NOT EMSCRIPTEN)
     qt_add_resources(mmapper_QRC "${CMAKE_BINARY_DIR}/audio/audio.qrc")
+endif()
+
+if(EMSCRIPTEN)
+    set(MANIFEST_FILE "${CMAKE_BINARY_DIR}/assets/manifest.json")
+    set(MANIFEST_INPUTS "")
+    if(WITH_MAP)
+        list(APPEND MANIFEST_INPUTS "map:${CMAKE_BINARY_DIR}/assets/map")
+    endif()
+    if(WITH_IMAGES)
+        list(APPEND MANIFEST_INPUTS "images:${CMAKE_BINARY_DIR}/assets/images")
+    endif()
+    if(WITH_AUDIO)
+        list(APPEND MANIFEST_INPUTS "audio:${CMAKE_BINARY_DIR}/assets/audio")
+    endif()
+
+    add_custom_command(
+        OUTPUT "${MANIFEST_FILE}"
+        COMMAND ${CMAKE_COMMAND} -DINPUT_DIRS="${MANIFEST_INPUTS}" -DOUTPUT_FILE="${MANIFEST_FILE}" -P "${CMAKE_SOURCE_DIR}/cmake/GenerateManifest.cmake"
+        DEPENDS audio_qrc images_qrc map_qrc
+        COMMENT "Generating assets/manifest.json"
+        VERBATIM
+    )
+    add_custom_target(assets_manifest ALL DEPENDS "${MANIFEST_FILE}")
+    add_dependencies(mmapper assets_manifest)
 endif()
 
 set(mmapper_UIS

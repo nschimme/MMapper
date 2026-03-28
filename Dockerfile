@@ -52,6 +52,7 @@ RUN ./emsdk activate 4.0.7 && \
     cp mmapper.wasm /dist/ && \
     cp qtloader.js /dist/ && \
     cp mmapper.html /dist/index.html && \
+    cp -r /build/assets /dist/assets && \
     cp /app/src/resources/win32/m-release.ico /dist/favicon.ico && \
     cp /app/src/resources/icons/m-release.png /dist/logo.png && \
     cd /dist && \

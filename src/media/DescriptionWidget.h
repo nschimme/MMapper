@@ -7,6 +7,7 @@
 #include <QCache>
 #include <QImage>
 #include <QLabel>
+#include <QNetworkAccessManager>
 #include <QTextEdit>
 #include <QWidget>
 
@@ -24,6 +25,7 @@ private:
 
 private:
     QCache<QString, QImage> m_imageCache;
+    QNetworkAccessManager m_networkManager;
 
 private:
     QString m_fileName;
@@ -44,4 +46,5 @@ protected:
 
 private:
     void updateBackground();
+    void applyBackground(QImage *baseImage);
 };

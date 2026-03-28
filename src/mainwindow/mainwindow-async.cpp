@@ -740,7 +740,8 @@ void MainWindow::loadFile(const QUrl &urlToLoad)
     QNetworkReply *reply = m_networkManager.get(request);
 
     // Create a progress dialog for the download phase
-    ALLOW_DISCARD auto downloadProgressDlg{createNewProgressDialog(tr("Downloading map..."), true)};
+    ALLOW_DISCARD auto downloadProgressDlgLifetime{
+        createNewProgressDialog(tr("Downloading map..."), true)};
     QPointer<QProgressDialog> pDlg = m_progressDlg.get();
 
     connect(reply,
@@ -755,7 +756,7 @@ void MainWindow::loadFile(const QUrl &urlToLoad)
     connect(reply,
             &QNetworkReply::finished,
             this,
-            [reply, downloadProgressDlg = std::move(downloadProgressDlg)]() mutable {
+            [reply, downloadProgressDlg = std::move(downloadProgressDlgLifetime)]() mutable {
                 MainWindow &mw = downloadProgressDlg.mainWindow();
                 const QUrl downloadUrl = reply->url();
                 const QNetworkReply::NetworkError error = reply->error();

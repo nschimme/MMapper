@@ -13,8 +13,8 @@ set(MANIFEST_CONTENT "{\n")
 set(FIRST_ENTRY TRUE)
 
 foreach(DIR_INFO ${INPUT_DIRS})
-    # DIR_INFO is "prefix:path"
-    string(REPLACE ":" ";" DIR_PARTS "${DIR_INFO}")
+    # DIR_INFO is "prefix|path"
+    string(REPLACE "|" ";" DIR_PARTS "${DIR_INFO}")
     list(GET DIR_PARTS 0 PREFIX)
     list(GET DIR_PARTS 1 DIR)
 
@@ -37,7 +37,8 @@ foreach(DIR_INFO ${INPUT_DIRS})
             set(KEY "${PREFIX}/${FILE_DIR}/${FILE_NAME}")
         endif()
 
-        string(APPEND MANIFEST_CONTENT "  \"${KEY}\": \"${PREFIX}/${FILE}\"")
+        string(CONFIGURE "  \"@KEY@\": \"@PREFIX@/@FILE@\"" ENTRY ESCAPE_QUOTES)
+        string(APPEND MANIFEST_CONTENT "${ENTRY}")
     endforeach()
 endforeach()
 

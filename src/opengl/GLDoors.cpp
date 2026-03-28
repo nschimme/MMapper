@@ -11,8 +11,8 @@ GLDoors::GLDoors(GameObserver &observer, Legacy::UboManager &uboManager)
     : m_observer{observer}
     , m_uboManager{uboManager}
 {
-    m_lifetime = m_observer.sig2_doorStateChanged.connect(
-        [this](ServerRoomId id, ExitDirEnum dir, DoorStateEnum state) {
+    m_observer.sig2_doorStateChanged
+        .connect(m_lifetime, [this](ServerRoomId id, ExitDirEnum dir, DoorStateEnum state) {
             onDoorStateChanged(id, dir, state);
         });
 

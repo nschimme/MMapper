@@ -45,16 +45,7 @@ RUN ./emsdk activate 4.0.7 && \
         -DWITH_OPENSSL=OFF -DWITH_TESTS=OFF -DWITH_WEBSOCKET=ON -DWITH_UPDATER=OFF -DPACKAGE_TYPE=Wasm && \
     ACTUAL_JOBS=${JOBS:-$(nproc)} && \
     cmake --build /build --parallel ${ACTUAL_JOBS} && \
-    ls /build/src && \
-    mkdir /dist && \
-    cd /build/src && \
-    cp mmapper.js /dist/ && \
-    cp mmapper.wasm /dist/ && \
-    cp qtloader.js /dist/ && \
-    cp mmapper.html /dist/index.html && \
-    cp -r /build/assets /dist/ && \
-    cp /app/src/resources/win32/m-release.ico /dist/favicon.ico && \
-    cp /app/src/resources/icons/m-release.png /dist/logo.png && \
+    cmake --install /build --prefix /dist && \
     cd /dist && \
     sed -i 's|<head>|<head>\n    <link rel="icon" type="image/x-icon" href="favicon.ico">|' index.html && \
     sed -i 's|src="qtlogo.svg" width="320" height="200"|src="logo.png"|g' index.html && \

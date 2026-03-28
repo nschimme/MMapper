@@ -69,6 +69,7 @@ else()
             VERBATIM
         )
         set(MAP_QRC_FILE "${MAP_ASSETS_DIR}/arda")
+        install(FILES "${MAP_FILE}" DESTINATION assets/map RENAME arda)
     endif()
     add_custom_target(map_qrc ALL DEPENDS "${MAP_QRC_FILE}")
     add_dependencies(map_qrc ${MAP_TARGET_DEPENDENCY})

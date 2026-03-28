@@ -644,7 +644,6 @@ if(EMSCRIPTEN)
         VERBATIM
     )
     add_custom_target(assets_manifest ALL DEPENDS "${MANIFEST_FILE}")
-    add_dependencies(mmapper assets_manifest)
 endif()
 
 set(mmapper_UIS
@@ -736,6 +735,7 @@ set(mmapper_EXECUTABLE_ARGS
 )
 if(EMSCRIPTEN)
     qt_add_executable(mmapper ${mmapper_EXECUTABLE_ARGS})
+    add_dependencies(mmapper assets_manifest)
     target_link_options(mmapper PRIVATE
         -sFULL_ES3=1
         -sMAX_WEBGL_VERSION=2

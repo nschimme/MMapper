@@ -67,7 +67,7 @@ FROM nginx:alpine
 
 WORKDIR /usr/share/nginx/html
 RUN rm -rf ./*
-COPY --from=builder /dist/* .
+COPY --from=builder /dist/ .
 
 EXPOSE 80
 

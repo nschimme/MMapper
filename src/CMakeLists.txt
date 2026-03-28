@@ -841,15 +841,15 @@ if(WIN32)
     target_link_libraries(mmapper PRIVATE ws2_32)
 endif()
 
-if(WITH_MAP)
+if(WITH_MAP AND NOT EMSCRIPTEN)
     add_dependencies(mmapper map_qrc)
 endif()
 
-if(WITH_IMAGES)
+if(WITH_IMAGES AND NOT EMSCRIPTEN)
     add_dependencies(mmapper images_qrc)
 endif()
 
-if(WITH_AUDIO)
+if(WITH_AUDIO AND NOT EMSCRIPTEN)
     add_dependencies(mmapper audio_qrc)
 endif()
 

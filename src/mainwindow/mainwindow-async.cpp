@@ -735,13 +735,7 @@ void MainWindow::loadRemoteFile(const QUrl &url, const QString &fileName)
     QNetworkReply *reply = m_networkManager.get(request);
 
     // Create a progress dialog for the download phase
-    // Note: ProgressDialogLifetime's destructor calls reset(), but we want to keep it alive
-    // until the download is finished or canceled.
-    auto progressDlg = std::make_shared<ProgressDialogLifetime>(*this);
-    m_progressDlg->setLabelText(tr("Downloading map..."));
-    m_progressDlg->setRange(0, 100);
-    m_progressDlg->show();
-
+    createNewProgressDialog(tr("Downloading map..."), true);
     QPointer<QProgressDialog> pDlg = m_progressDlg.get();
 
     connect(reply,
@@ -753,7 +747,11 @@ void MainWindow::loadRemoteFile(const QUrl &url, const QString &fileName)
                 }
             });
 
-    connect(reply, &QNetworkReply::finished, this, [this, reply, fileName, progressDlg]() {
+    connect(reply, &QNetworkReply::finished, this, [this, reply, fileName]() {
+        // Close the download progress dialog manually.
+        // We cannot use ProgressDialogLifetime here because loadFile() will create its own dialog.
+        endProgressDialog();
+
         reply->deleteLater();
         if (reply->error() != QNetworkReply::NoError) {
             showWarning(tr("Failed to download map from %1:\n%2.")

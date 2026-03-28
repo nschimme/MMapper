@@ -98,8 +98,9 @@ QString MediaLibrary::findImage(const QString &subDir, const QString &name) cons
 
 void MediaLibrary::loadManifest()
 {
-    QUrl url("assets/manifest.json");
+    QUrl url(QStringLiteral("assets/manifest.json"));
     QNetworkRequest request(url);
+    request.setAttribute(QNetworkRequest::CacheLoadControlAttribute, QNetworkRequest::AlwaysNetwork);
     QNetworkReply *reply = m_networkManager.get(request);
 
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {

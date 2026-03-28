@@ -1724,9 +1724,9 @@ void MainWindow::percentageChanged(const uint32_t p)
 
 void MainWindow::showWarning(const QString &s)
 {
-    // REVISIT: shouldn't the warning have "this" as parent?
-    // REVISIT: shouldn't this also say MMapper?
-    QMessageBox::warning(nullptr, tr("Application"), s);
+    auto *const box = new QMessageBox(QMessageBox::Warning, tr("MMapper"), s, QMessageBox::Ok, this);
+    box->setAttribute(Qt::WA_DeleteOnClose);
+    box->open();
 }
 
 void MainWindow::showAsyncFailure(const QString &fileName,

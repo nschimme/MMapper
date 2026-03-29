@@ -41,7 +41,14 @@ public:
 
 private:
     NODISCARD bool filter_kind(const RawRoom &r, const PatternKindsEnum pat) const;
-    NODISCARD bool matches(const QString &s) const { return m_regex.match(s).hasMatch(); }
+    NODISCARD bool matches(const QString &s) const
+    {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+        return m_regex.matchView(s).hasMatch();
+#else
+        return m_regex.match(s).hasMatch();
+#endif
+    }
 
 private:
     template<typename T>

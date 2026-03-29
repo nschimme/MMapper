@@ -65,7 +65,11 @@ namespace mmqt {
 int findTrailingWhitespace(const QStringView line)
 {
     static const QRegularExpression trailingWhitespaceRegex(R"([[:space:]]+$)");
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+    auto m = trailingWhitespaceRegex.matchView(line);
+#else
     auto m = trailingWhitespaceRegex.match(line);
+#endif
     if (!m.hasMatch()) {
         return -1;
     }

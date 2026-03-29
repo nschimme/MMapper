@@ -49,11 +49,8 @@ bool CharacterBatch::isVisible(const Coordinate &c, float margin) const
     return m_mapScreen.isRoomVisible(c, margin);
 }
 
-void CharacterBatch::drawCharacter(const Coordinate &c,
-                                   const Color color,
-                                   bool fill,
-                                   const glm::vec3 &oldPos,
-                                   float startTime)
+void CharacterBatch::drawCharacter(
+    const Coordinate &c, const Color color, bool fill, const glm::vec3 &oldPos, float startTime)
 {
     const Configuration::CanvasSettings &settings = getConfig().canvas;
 
@@ -297,8 +294,8 @@ void CharacterBatch::CharFakeGL::drawBox(const Coordinate &coord,
         };
         const glm::vec3 center = transform(glm::vec2{0.5f, 0.5f});
 
-        const auto addTransformed = [this, &color, &m, &oldPos, startTime, &center](
-                                        const glm::vec2 &in_vert) -> void {
+        const auto addTransformed =
+            [this, &color, &m, &oldPos, startTime, &center](const glm::vec2 &in_vert) -> void {
             const auto tmp = m * glm::vec4(in_vert, 0.f, 1.f);
             const glm::vec3 vert = glm::vec3{tmp / tmp.w};
             m_charRoomQuads.emplace_back(color,

@@ -8,6 +8,7 @@
 #include "../clock/mumemoment.h"
 #include "../global/ChangeMonitor.h"
 #include "../global/Signal2.h"
+#include "../group/mmapper2group.h"
 #include "../map/PromptFlags.h"
 #include "../mapdata/roomselection.h"
 #include "../opengl/Font.h"
@@ -47,7 +48,6 @@ class Coordinate;
 class GameObserver;
 class InfomarkSelection;
 class MapData;
-class Mmapper2Group;
 class PrespammedPath;
 class QMouseEvent;
 class QOpenGLDebugLogger;

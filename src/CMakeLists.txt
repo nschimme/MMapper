@@ -624,7 +624,6 @@ if(WITH_AUDIO AND NOT EMSCRIPTEN)
 endif()
 
 if(EMSCRIPTEN)
-    install(FILES "${MANIFEST_FILE}" DESTINATION assets)
     install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/resources/win32/m-release.ico" DESTINATION . RENAME favicon.ico)
     install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/resources/icons/m-release.png" DESTINATION . RENAME logo.png)
 endif()
@@ -717,6 +716,7 @@ set(mmapper_EXECUTABLE_ARGS
     ${mmapper_DATA}
 )
 if(EMSCRIPTEN)
+    qt_add_resources(mmapper_QRC "${MANIFEST_QRC}")
     qt_add_executable(mmapper ${mmapper_EXECUTABLE_ARGS})
     add_dependencies(mmapper assets_manifest)
     install(TARGETS mmapper

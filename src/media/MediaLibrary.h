@@ -35,6 +35,4 @@ signals:
 private:
     void scanDirectories();
     void loadManifest();
-
-    QNetworkAccessManager m_networkManager;
 };

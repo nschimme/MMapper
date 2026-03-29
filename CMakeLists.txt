@@ -510,6 +510,7 @@ endif()
 if(EMSCRIPTEN)
     file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/assets")
     set(MANIFEST_FILE "${CMAKE_BINARY_DIR}/assets/manifest.json")
+    set(MANIFEST_QRC "${CMAKE_BINARY_DIR}/assets/manifest.qrc")
     set(MANIFEST_INPUTS "")
     if(WITH_MAP)
         list(APPEND MANIFEST_INPUTS "map|${CMAKE_BINARY_DIR}/assets/map")
@@ -536,14 +537,15 @@ if(EMSCRIPTEN)
     endif()
 
     add_custom_command(
-        OUTPUT "${MANIFEST_FILE}"
+        OUTPUT "${MANIFEST_FILE}" "${MANIFEST_QRC}"
         COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/assets"
         COMMAND ${CMAKE_COMMAND} -DINPUT_DIRS="${MANIFEST_INPUTS_STR}" -DOUTPUT_FILE="${MANIFEST_FILE}" -P "${CMAKE_SOURCE_DIR}/cmake/GenerateManifest.cmake"
+        COMMAND ${CMAKE_COMMAND} -DINPUT_FILE="${MANIFEST_FILE}" -DOUTPUT_FILE="${MANIFEST_QRC}" -P "${CMAKE_SOURCE_DIR}/cmake/GenerateManifestQrc.cmake"
         DEPENDS ${MANIFEST_DEPENDS}
-        COMMENT "Generating assets/manifest.json"
+        COMMENT "Generating assets/manifest.json and manifest.qrc"
         VERBATIM
     )
-    add_custom_target(assets_manifest ALL DEPENDS "${MANIFEST_FILE}")
+    add_custom_target(assets_manifest ALL DEPENDS "${MANIFEST_FILE}" "${MANIFEST_QRC}")
 endif()
 
 if(NOT WITH_UPDATER)

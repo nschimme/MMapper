@@ -29,6 +29,7 @@
 #include <memory>
 #include <optional>
 #include <set>
+#include <unordered_map>
 #include <variant>
 #include <vector>
 
@@ -54,6 +55,13 @@ class QOpenGLDebugMessage;
 class QWheelEvent;
 class QWidget;
 class RoomSelFakeGL;
+
+struct CharacterAnimationState final
+{
+    glm::vec3 oldPos{};
+    glm::vec3 targetPos{};
+    float startTime = -1.0f;
+};
 
 class NODISCARD_QOBJECT MapCanvas final : public QOpenGLWindow,
                                           private MapCanvasViewport,
@@ -143,6 +151,8 @@ private:
     MapData &m_data;
     Mmapper2Group &m_groupManager;
     Diff m_diff;
+    std::unordered_map<uint32_t, CharacterAnimationState> m_groupCharStates;
+    CharacterAnimationState m_playerState;
     FrameManager m_frameManager;
     std::unique_ptr<QOpenGLDebugLogger> m_logger;
     Signal2Lifetime m_lifetime;

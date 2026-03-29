@@ -142,7 +142,11 @@ void foreach_regex(const QRegularExpression &regex,
                    const std::function<void(const QStringView match)> &callback_match,
                    const std::function<void(const QStringView between)> &callback_between)
 {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+    auto it = regex.globalMatchView(text);
+#else
     auto it = regex.globalMatch(text);
+#endif
     qsizetype pos = 0;
     auto end = text.length();
     while (it.hasNext()) {

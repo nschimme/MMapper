@@ -679,7 +679,8 @@ if(CHECK_MISSING_INCLUDES)
     message(STATUS "Will check headers for missing includes (slow)")
     foreach(header_path ${mmapper_HDRS})
         set(FNAME "${CMAKE_CURRENT_BINARY_DIR}/gen/${header_path}.gen.cpp")
-        file(WRITE ${FNAME} "#include \"${header_path}\"\n")
+        file(WRITE ${
+    FNAME} "#include \"${header_path}\"\n")
         list(APPEND DUMMY_FILES ${FNAME})
         set_property(SOURCE ${FNAME} APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${header_path})
         set(FNAME "")
@@ -710,7 +711,7 @@ add_library(mm_map STATIC ${mmapper_map_SRCS})
 if(EMSCRIPTEN)
     file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/assets")
     set(MANIFEST_FILE "${CMAKE_BINARY_DIR}/assets/manifest.json")
-    set(MANIFEST_QRC "${CMAKE_BINARY_DIR}/assets/manifest.qrc")
+    set(MANIFEST_QRC "${CMAKE_CURRENT_BINARY_DIR}/manifest.qrc")
     set(MANIFEST_INPUTS "")
     if(WITH_MAP)
         list(APPEND MANIFEST_INPUTS "map|${CMAKE_BINARY_DIR}/assets/map")
@@ -722,7 +723,7 @@ if(EMSCRIPTEN)
         list(APPEND MANIFEST_INPUTS "audio|${CMAKE_BINARY_DIR}/assets/audio")
     endif()
 
-    # Use @ as a separator because ; is the list separator in CMake and gets messy when passed via -D
+#Use @as a separator because; is the list separator in CMake and gets messy when passed via - D
     string(REPLACE ";" "@" MANIFEST_INPUTS_STR "${MANIFEST_INPUTS}")
 
     set(MANIFEST_DEPENDS "")
@@ -738,7 +739,6 @@ if(EMSCRIPTEN)
 
     add_custom_command(
         OUTPUT "${MANIFEST_FILE}" "${MANIFEST_QRC}"
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/assets"
         COMMAND ${CMAKE_COMMAND} -DINPUT_DIRS="${MANIFEST_INPUTS_STR}" -DOUTPUT_FILE="${MANIFEST_FILE}" -P "${CMAKE_SOURCE_DIR}/cmake/GenerateManifest.cmake"
         COMMAND ${CMAKE_COMMAND} -DINPUT_FILE="${MANIFEST_FILE}" -DOUTPUT_FILE="${MANIFEST_QRC}" -P "${CMAKE_SOURCE_DIR}/cmake/GenerateManifestQrc.cmake"
         DEPENDS ${MANIFEST_DEPENDS}
@@ -746,11 +746,9 @@ if(EMSCRIPTEN)
         VERBATIM
     )
     add_custom_target(assets_manifest ALL DEPENDS "${MANIFEST_FILE}" "${MANIFEST_QRC}")
-
-    qt_add_resources(mmapper_QRC "${MANIFEST_QRC}")
 endif()
 
-# Build the executable
+#Build the executable
 set(mmapper_EXECUTABLE_ARGS
     ${mmapper_SRCS}
     ${mmapper_UIS}
@@ -759,7 +757,8 @@ set(mmapper_EXECUTABLE_ARGS
     ${mmapper_DATA}
 )
 if(EMSCRIPTEN)
-    qt6_add_executable(mmapper ${mmapper_EXECUTABLE_ARGS})
+    qt6_add_executable(mmapper ${mmapper_SRCS} ${mmapper_UIS} ${mmapper_RCS} ${mmapper_QRC} ${mmapper_DATA})
+    qt_add_resources(mmapper "${MANIFEST_QRC}")
     add_dependencies(mmapper assets_manifest)
     install(TARGETS mmapper
         RUNTIME DESTINATION .
@@ -789,7 +788,7 @@ target_link_libraries(mmapper PUBLIC
     Qt6::Network
     Qt6::OpenGL
     Qt6::OpenGLWidgets
-# note : link order matters on some platforms. include ${mm_libs } twice if you have a link failure.
+#note : link order matters on some platforms.include ${mm_libs } twice if you have a link failure.
     ${mm_libs}
     ${CMAKE_THREAD_LIBS_INIT}
     coverage_config
@@ -1085,7 +1084,8 @@ if(WIN32)
     endif()
 
 #Bundle Library Files
-    set(WINDEPLOYQT_ARGS ${WINDEPLOYQT_ARGS} --compiler-runtime --no-translations --no-system-d3d-compiler --no-opengl-sw --verbose 1)
+    set(WINDEPLOYQT_ARGS ${
+    WINDEPLOYQT_ARGS} --compiler-runtime --no-translations --no-system-d3d-compiler --no-opengl-sw --verbose 1)
     find_program(WINDEPLOYQT_APP windeployqt HINTS ${QTDIR} ENV QTDIR PATH_SUFFIXES .)
     message(" - windeployqt path: ${WINDEPLOYQT_APP}")
     message(" - windeployqt args: ${WINDEPLOYQT_ARGS}")
@@ -1094,7 +1094,8 @@ if(WIN32)
             POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E make_directory "${WINDEPLOYQT_STAGING}"
             COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:mmapper>" ${WINDEPLOYQT_STAGING}
-            COMMAND "${WINDEPLOYQT_APP}" ${WINDEPLOYQT_ARGS} "${WINDEPLOYQT_STAGING}/mmapper.exe"
+            COMMAND "${WINDEPLOYQT_APP}" ${
+    WINDEPLOYQT_ARGS} "${WINDEPLOYQT_STAGING}/mmapper.exe"
             WORKING_DIRECTORY "${WINDEPLOYQT_STAGING}"
             COMMENT "Finding the Qt framework dependencies"
             VERBATIM
@@ -1227,7 +1228,7 @@ if(APPLE)
     MACOSX_PACKAGE_LOCATION Resources)
     set_target_properties(mmapper PROPERTIES MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/MacOSXBundleInfo.plist.in )
 
-# Bundle the libraries with the binary
+#Bundle the libraries with the binary
     find_program(MACDEPLOYQT_APP macdeployqt)
     message(" - macdeployqt path: ${MACDEPLOYQT_APP}")
     set(MACDEPLOYQT_EXTRA_ARGS "")
@@ -1256,8 +1257,10 @@ if(APPLE)
     add_custom_command(
         TARGET mmapper
         POST_BUILD
-        COMMAND ${CODESIGN_APP} --remove-signature ${CMAKE_CURRENT_BINARY_DIR}/mmapper.app
-        COMMAND ${CODESIGN_APP} --deep -f -s - ${CMAKE_CURRENT_BINARY_DIR}/mmapper.app -o runtime --entitlements ${ENTITLEMENTS_FILE}
+        COMMAND ${
+    CODESIGN_APP} --remove-signature ${CMAKE_CURRENT_BINARY_DIR}/mmapper.app
+        COMMAND ${
+    CODESIGN_APP} --deep -f -s - ${CMAKE_CURRENT_BINARY_DIR}/mmapper.app -o runtime --entitlements ${ENTITLEMENTS_FILE}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         COMMENT "Code signing the bundle"
         VERBATIM

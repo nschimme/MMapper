@@ -516,7 +516,11 @@ NODISCARD QString mmqt::decodeEmojiShortCodes(const QString &s)
     QStringView view(s);
     qsizetype lastPos = 0;
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+    QRegularExpressionMatchIterator it = shortCodeRegex.globalMatchView(view);
+#else
     QRegularExpressionMatchIterator it = shortCodeRegex.globalMatch(s);
+#endif
 
     while (it.hasNext()) {
         QRegularExpressionMatch match = it.next();
@@ -532,11 +536,7 @@ NODISCARD QString mmqt::decodeEmojiShortCodes(const QString &s)
         if (emojiIt != map.end()) {
             result += emojiIt->second;
         } else {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
-            const auto unicodeMatch = unicodeRegex.matchView(inside);
-#else
             const auto unicodeMatch = unicodeRegex.match(inside);
-#endif
             if (unicodeMatch.hasMatch()) {
                 const QString hex = unicodeMatch.captured(1);
                 if (const auto opt = tryGetOneCodepointHexCode(hex)) {

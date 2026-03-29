@@ -1,7 +1,7 @@
 # --- Stage 1: The Builder Stage ---
 ARG JOBS
 
-FROM --platform=${BUILDPLATFORM} mirror.gcr.io/library/ubuntu:24.04 AS builder
+FROM mirror.gcr.io/library/ubuntu:24.04 AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV QTSDK_DIR=/opt/Qt

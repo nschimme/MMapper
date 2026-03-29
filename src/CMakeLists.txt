@@ -707,6 +707,10 @@ message("mmapper_map_SRCS=[${mmapper_map_SRCS}]")
 add_library(mm_global STATIC ${mmapper_global_SRCS})
 add_library(mm_map STATIC ${mmapper_map_SRCS})
 
+if(EMSCRIPTEN)
+    qt_add_resources(mmapper_QRC "${MANIFEST_QRC}")
+endif()
+
 # Build the executable
 set(mmapper_EXECUTABLE_ARGS
     ${mmapper_SRCS}
@@ -716,8 +720,7 @@ set(mmapper_EXECUTABLE_ARGS
     ${mmapper_DATA}
 )
 if(EMSCRIPTEN)
-    qt_add_resources(mmapper_QRC "${MANIFEST_QRC}")
-    qt_add_executable(mmapper ${mmapper_EXECUTABLE_ARGS})
+    qt6_add_executable(mmapper ${mmapper_EXECUTABLE_ARGS})
     add_dependencies(mmapper assets_manifest)
     install(TARGETS mmapper
         RUNTIME DESTINATION .

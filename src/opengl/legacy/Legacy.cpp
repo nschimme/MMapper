@@ -156,7 +156,7 @@ UniqueMesh Functions::createDoorBatch(const std::vector<DoorVert> &batch)
 {
     const auto mode = DrawModeEnum::QUADS;
     const auto &prog = getShaderPrograms().getDoorShader();
-    return createMesh<DoorMesh>(shared_from_this(), mode, batch, prog);
+    return createUniqueMesh<DoorMesh>(shared_from_this(), mode, batch, prog);
 }
 
 template<typename VertexType_, template<typename> typename Mesh_, typename ShaderType_>

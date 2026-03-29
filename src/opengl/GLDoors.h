@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2026 The MMapper Authors
 
-#include "../global/ChangeMonitor.h"
 #include "../global/RuleOf5.h"
+#include "../global/Signal2.h"
 #include "../map/DoorStateEnum.h"
 #include "../map/ExitDirection.h"
 #include "../map/roomid.h"
@@ -22,7 +22,7 @@ class NODISCARD GLDoors final
 private:
     GameObserver &m_observer;
     Legacy::UboManager &m_uboManager;
-    ChangeMonitor::Lifetime m_lifetime;
+    Signal2Lifetime m_lifetime;
 
     struct DoorKey
     {

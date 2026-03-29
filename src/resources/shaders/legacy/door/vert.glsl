@@ -9,22 +9,26 @@ layout(location = 2) in uint aDirection;
 
 out float vAlpha;
 
-struct DoorEntry {
+struct DoorEntry
+{
     uint roomId;
     uint direction;
     uint state;
     uint unused;
 };
 
-layout(std140) uniform DoorBlock {
+layout(std140) uniform DoorBlock
+{
     DoorEntry doors[100];
-} uDoors;
+}
+uDoors;
 
 void main()
 {
     vAlpha = 1.0;
     for (int i = 0; i < 100; ++i) {
-        if (uDoors.doors[i].roomId == 0u) break;
+        if (uDoors.doors[i].roomId == 0u)
+            break;
         if (uDoors.doors[i].roomId == aRoomId && uDoors.doors[i].direction == aDirection) {
             // State: 0=CLOSED, 1=OPEN, 2=BROKEN
             // Open or broken doors are mostly transparent

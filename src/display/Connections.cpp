@@ -843,6 +843,9 @@ void ConnectionDrawer::drawDoorMarker(const RoomHandle &room, const ExitDirEnum 
     glm::vec3 p1, p2, p3, p4;
 
     switch (dir) {
+    case ExitDirEnum::UNKNOWN:
+    case ExitDirEnum::NONE:
+        return;
     case ExitDirEnum::NORTH:
         p1 = {0.5f - doorWidth / 2, 0.5f + offsetFromRoom, srcZ};
         p2 = {0.5f + doorWidth / 2, 0.5f + offsetFromRoom, srcZ};

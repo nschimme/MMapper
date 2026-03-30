@@ -55,7 +55,7 @@ NODISCARD const char *getArchitectureRegexPattern()
 CompareVersion::CompareVersion(const QString &versionStr) noexcept
 {
     static const QRegularExpression versionRx(R"(v?(\d+)\.(\d+)\.(\d+))");
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     auto result = versionRx.matchView(versionStr);
 #else
     auto result = versionRx.match(versionStr);
@@ -245,7 +245,7 @@ void UpdateDialog::managerFinished(QNetworkReply *reply)
         const QString localCommitHash = std::invoke([]() -> QString {
             static const QRegularExpression hashRegex(R"(-g([0-9a-fA-F]+)$)");
             const QString mmapperVersion = QString::fromUtf8(getMMapperVersion());
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
             QRegularExpressionMatch match = hashRegex.matchView(mmapperVersion);
 #else
             QRegularExpressionMatch match = hashRegex.match(mmapperVersion);

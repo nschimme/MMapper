@@ -18,7 +18,7 @@ NODISCARD static QString escapeRegex(const QString &str)
     static const QRegularExpression metacharactersRx(R"([.*+?^${}()|\[\]\\])");
     QString result = str;
     int offset = 0;
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     auto it = metacharactersRx.globalMatchView(str);
 #else
     auto it = metacharactersRx.globalMatch(str);

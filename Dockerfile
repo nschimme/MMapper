@@ -1,7 +1,7 @@
 # --- Stage 1: The Builder Stage ---
 ARG JOBS
 
-FROM --platform=${BUILDPLATFORM} ubuntu:24.04 AS builder
+FROM ubuntu:24.04 AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV QTSDK_DIR=/opt/Qt

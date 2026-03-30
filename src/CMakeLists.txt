@@ -765,7 +765,10 @@ if(EMSCRIPTEN)
         ARCHIVE DESTINATION .
     )
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/mmapper.html" DESTINATION . RENAME index.html)
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/mmapper.js" DESTINATION .)
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/mmapper.wasm" DESTINATION .)
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/qtloader.js" DESTINATION .)
+    install(DIRECTORY "${CMAKE_BINARY_DIR}/assets" DESTINATION .)
 
     target_link_options(mmapper PRIVATE
         -sFULL_ES3=1

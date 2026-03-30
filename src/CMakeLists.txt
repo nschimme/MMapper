@@ -1086,7 +1086,7 @@ if(UNIX AND NOT APPLE AND NOT EMSCRIPTEN)
     if(WITH_AUDIO)
         set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libqt6multimedia6 (>= 6.4.0)")
     endif()
-endif(UNIX AND NOT APPLE)
+endif(UNIX AND NOT APPLE AND NOT EMSCRIPTEN)
 
 # Windows Install Settings
 if(WIN32)

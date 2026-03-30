@@ -98,7 +98,7 @@ void DescriptionWidget::updateBackground()
         }
 
         if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
-            m_library.fetchAsync(imagePath, [this, &imagePath](const QByteArray &data) {
+            m_library.fetchAsync(imagePath, [this, imagePath](const QByteArray &data) {
                 QImage img;
                 if (img.loadFromData(data)) {
                     if (!img.isNull()) {

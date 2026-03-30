@@ -83,13 +83,11 @@ MediaLibrary::MediaLibrary(QObject *const parent)
 
 QString MediaLibrary::findAudio(const QString &subDir, const QString &name) const
 {
-    qDebug() << subDir << name;
     QString key = subDir + "/" + name;
     auto it = m_audioFiles.find(key);
     if (it != m_audioFiles.end()) {
         return it.value();
     }
-    qDebug() << "not found";
     return "";
 }
 
@@ -141,7 +139,6 @@ void MediaLibrary::loadManifest()
                 base = pathPart + "/" + namePart;
             }
             QString suffix = relInfo.suffix().toLower();
-            qDebug() << base << suffix << path;
             if (m_audioExtensions.contains(suffix)) {
                 m_audioFiles.insert(base, path);
             }

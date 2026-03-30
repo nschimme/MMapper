@@ -16,6 +16,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QTemporaryFile>
 #include <QUrl>
 
 SfxManager::SfxManager(MediaLibrary &library, QObject *const parent)
@@ -63,15 +64,17 @@ void SfxManager::playFromData(const QByteArray &data, const QString &soundName)
         return;
     }
 
-    // Write to emscripten virtual FS so QMediaPlayer can read it as a local file
-    const QString tmpPath = QDir::tempPath() + "/" + QFileInfo(soundName).fileName();
-    {
-        QFile f(tmpPath);
-        if (!f.open(QIODevice::WriteOnly) || f.write(data) != data.size()) {
-            qWarning() << "SfxManager: failed to write temp file" << tmpPath;
-            return;
-        }
+    // Write to a unique temp file per playback to avoid collisions when the same
+    // sound plays concurrently; startEffect deletes the file once playback ends.
+    const QString suffix = QFileInfo(soundName).suffix();
+    QTemporaryFile tmp(QDir::tempPath() + "/mmapper_XXXXXX." + suffix);
+    if (!tmp.open() || tmp.write(data) != data.size()) {
+        qWarning() << "SfxManager: failed to write temp file for" << soundName;
+        return;
     }
+    tmp.setAutoRemove(false); // startEffect's cleanup lambda will delete it
+    const QString tmpPath = tmp.fileName();
+    tmp.close();
     startEffect(QUrl::fromLocalFile(tmpPath), tmpPath);
 #else
     std::ignore = data;

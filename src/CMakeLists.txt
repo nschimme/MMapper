@@ -1092,8 +1092,7 @@ if(WIN32)
             POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E make_directory "${WINDEPLOYQT_STAGING}"
             COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:mmapper>" ${WINDEPLOYQT_STAGING}
-            COMMAND "${WINDEPLOYQT_APP}" ${
-    WINDEPLOYQT_ARGS} "${WINDEPLOYQT_STAGING}/mmapper.exe"
+            COMMAND "${WINDEPLOYQT_APP}" ${WINDEPLOYQT_ARGS} "${WINDEPLOYQT_STAGING}/mmapper.exe"
             WORKING_DIRECTORY "${WINDEPLOYQT_STAGING}"
             COMMENT "Finding the Qt framework dependencies"
             VERBATIM

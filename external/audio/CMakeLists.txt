@@ -35,7 +35,7 @@ else()
 
         include(ExternalProject)
         ExternalProject_Add(audio_repo
-            GIT_REPOSITORY "https://github.com/Sunnyl75/audio"
+            GIT_REPOSITORY "https://github.com/MUME/audio"
             GIT_TAG "${AUDIO_TAG}"
             SOURCE_DIR "${AUDIO_DOWNLOAD_DIR}"
 

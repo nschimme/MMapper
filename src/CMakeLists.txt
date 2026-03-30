@@ -652,11 +652,11 @@ else()
     endif()
 
     if(WITH_IMAGES)
-        qt_add_big_resources(mmapper_QRC "${CMAKE_BINARY_DIR}/images/images.qrc")
+        qt_add_resources(mmapper_QRC "${CMAKE_BINARY_DIR}/images/images.qrc")
     endif()
 
     if(WITH_AUDIO)
-        qt_add_big_resources(mmapper_QRC "${CMAKE_BINARY_DIR}/audio/audio.qrc")
+        qt_add_resources(mmapper_QRC "${CMAKE_BINARY_DIR}/audio/audio.qrc")
     endif()
 endif()
 

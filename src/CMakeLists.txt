@@ -611,16 +611,53 @@ configure_file(resources/build.qrc.in ${CMAKE_CURRENT_BINARY_DIR}/build.qrc)
 qt_add_resources(mmapper_QRC ${CMAKE_CURRENT_BINARY_DIR}/build.qrc)
 list(APPEND mmapper_RCS "resources/macosx/m-${MMAPPER_BRAND_SUFFIX}.icns")
 
-if(WITH_MAP)
-    qt_add_resources(mmapper_QRC "${CMAKE_BINARY_DIR}/map/map.qrc")
-endif()
+if(EMSCRIPTEN)
+    # For WASM: large assets are sideloaded from the network.
+    # The manifest is served alongside the WASM files and fetched at runtime.
+    get_filename_component(ASSETS_DIR "${CMAKE_BINARY_DIR}/assets" ABSOLUTE)
+    set(ASSETS_MANIFEST "${ASSETS_DIR}/manifest.json")
 
-if(WITH_IMAGES)
-    qt_add_resources(mmapper_QRC "${CMAKE_BINARY_DIR}/images/images.qrc")
-endif()
+    # Collect which asset targets to depend on
+    set(ASSETS_DEPS)
+    if(WITH_AUDIO)
+        list(APPEND ASSETS_DEPS audio_qrc)
+    endif()
+    if(WITH_IMAGES)
+        list(APPEND ASSETS_DEPS images_qrc)
+    endif()
+    if(WITH_MAP)
+        list(APPEND ASSETS_DEPS map_qrc)
+    endif()
 
-if(WITH_AUDIO)
-    qt_add_resources(mmapper_QRC "${CMAKE_BINARY_DIR}/audio/audio.qrc")
+    # Generate the asset manifest JSON after all assets have been copied
+    add_custom_command(
+        OUTPUT "${ASSETS_MANIFEST}"
+        COMMAND ${CMAKE_COMMAND}
+            -DASSETS_DIR=${ASSETS_DIR}
+            -DOUTPUT_FILE=${ASSETS_MANIFEST}
+            -P "${CMAKE_SOURCE_DIR}/cmake/GenerateManifest.cmake"
+        DEPENDS ${ASSETS_DEPS}
+        COMMENT "Generating Wasm asset manifest"
+        VERBATIM
+    )
+    add_custom_target(assets_manifest ALL DEPENDS "${ASSETS_MANIFEST}")
+    if(ASSETS_DEPS)
+        add_dependencies(assets_manifest ${ASSETS_DEPS})
+    else()
+        message(WARNING "No assets enabled for manifest generation")
+    endif()
+else()
+    if(WITH_MAP)
+        qt_add_resources(mmapper_QRC "${CMAKE_BINARY_DIR}/map/map.qrc")
+    endif()
+
+    if(WITH_IMAGES)
+        qt_add_resources(mmapper_QRC "${CMAKE_BINARY_DIR}/images/images.qrc")
+    endif()
+
+    if(WITH_AUDIO)
+        qt_add_resources(mmapper_QRC "${CMAKE_BINARY_DIR}/audio/audio.qrc")
+    endif()
 endif()
 
 set(mmapper_UIS
@@ -817,16 +854,39 @@ if(WIN32)
     target_link_libraries(mmapper PRIVATE ws2_32)
 endif()
 
-if(WITH_MAP)
-    add_dependencies(mmapper map_qrc)
-endif()
+if(EMSCRIPTEN)
+    # Manifest depends on all enabled asset targets; mmapper depends on the manifest
+    add_dependencies(mmapper assets_manifest)
 
-if(WITH_IMAGES)
-    add_dependencies(mmapper images_qrc)
-endif()
+    # Patch the Qt-generated WASM HTML: inject favicon, logo, and COI service worker
+    if(MMAPPER_BETA)
+        set(FAVICON_SRC "${CMAKE_SOURCE_DIR}/src/resources/win32/m-beta.ico")
+        set(LOGO_SRC "${CMAKE_SOURCE_DIR}/src/resources/icons/splash-beta.png}")
+    else()
+        set(FAVICON_SRC "${CMAKE_SOURCE_DIR}/src/resources/win32/m-release.ico")
+        set(LOGO_SRC "${CMAKE_SOURCE_DIR}/src/resources/icons/splash-release.png}")
+    endif()
+    add_custom_command(TARGET mmapper POST_BUILD
+        COMMAND ${CMAKE_COMMAND}
+            "-DHTML_FILE=$<TARGET_FILE_DIR:mmapper>/mmapper.html"
+            "-DFAVICON_SRC=${FAVICON_SRC}"
+            "-DLOGO_SRC=${LOGO_SRC}"
+            -P "${CMAKE_SOURCE_DIR}/cmake/PatchWasmHtml.cmake"
+        COMMENT "Patching WASM HTML"
+        VERBATIM
+    )
+else()
+    if(WITH_MAP)
+        add_dependencies(mmapper map_qrc)
+    endif()
 
-if(WITH_AUDIO)
-    add_dependencies(mmapper audio_qrc)
+    if(WITH_IMAGES)
+        add_dependencies(mmapper images_qrc)
+    endif()
+
+    if(WITH_AUDIO)
+        add_dependencies(mmapper audio_qrc)
+    endif()
 endif()
 
 if(WITH_ZLIB AND NOT EMSCRIPTEN)

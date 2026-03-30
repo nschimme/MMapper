@@ -35,7 +35,7 @@ else()
 
         include(ExternalProject)
         ExternalProject_Add(audio_repo
-            GIT_REPOSITORY "https://github.com/MUME/audio"
+            GIT_REPOSITORY "https://github.com/Sunnyl75/audio"
             GIT_TAG "${AUDIO_TAG}"
             SOURCE_DIR "${AUDIO_DOWNLOAD_DIR}"
 
@@ -47,16 +47,33 @@ else()
         set(AUDIO_TARGET_DEPENDENCY audio_repo)
     endif()
 
-    # Generate QRC from audio
-    add_custom_command(
-        OUTPUT "${MMAPPER_QRC_FILE}"
-        COMMAND ${CMAKE_COMMAND} -DINPUT_DIR=${AUDIO_DOWNLOAD_DIR} -DOUTPUT_FILE=${MMAPPER_QRC_FILE} -P "${CMAKE_SOURCE_DIR}/cmake/GenerateQRC.cmake"
-        DEPENDS "${AUDIO_TARGET_DEPENDENCY}"
-        COMMENT "Generating audio.qrc"
-        WORKING_DIRECTORY "${AUDIO_DOWNLOAD_DIR}"
-        VERBATIM
-    )
-    add_custom_target(audio_qrc ALL DEPENDS "${MMAPPER_QRC_FILE}")
-    add_dependencies(audio_qrc ${AUDIO_TARGET_DEPENDENCY})
-    message(STATUS "Audio QRC file will be included: ${MMAPPER_QRC_FILE}")
+    if(EMSCRIPTEN)
+        # For WASM: copy assets to the sideloaded assets directory instead of embedding in QRC
+        set(AUDIO_WASM_STAMP "${AUDIO_DOWNLOAD_DIR}/CMakeLists.txt.wasm_stamp")
+        file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/assets")
+        add_custom_command(
+            OUTPUT "${AUDIO_WASM_STAMP}"
+            COMMAND ${CMAKE_COMMAND} -E copy_directory "${AUDIO_DOWNLOAD_DIR}" "${CMAKE_BINARY_DIR}/assets"
+            COMMAND ${CMAKE_COMMAND} -E touch "${AUDIO_WASM_STAMP}"
+            DEPENDS "${AUDIO_TARGET_DEPENDENCY}"
+            COMMENT "Copying audio assets for Wasm sideloading"
+            VERBATIM
+        )
+        add_custom_target(audio_qrc ALL DEPENDS "${AUDIO_WASM_STAMP}")
+        add_dependencies(audio_qrc ${AUDIO_TARGET_DEPENDENCY})
+        message(STATUS "Audio assets will be sideloaded for Wasm: ${CMAKE_BINARY_DIR}/assets")
+    else()
+        # Generate QRC from audio
+        add_custom_command(
+            OUTPUT "${MMAPPER_QRC_FILE}"
+            COMMAND ${CMAKE_COMMAND} -DINPUT_DIR=${AUDIO_DOWNLOAD_DIR} -DOUTPUT_FILE=${MMAPPER_QRC_FILE} -P "${CMAKE_SOURCE_DIR}/cmake/GenerateQRC.cmake"
+            DEPENDS "${AUDIO_TARGET_DEPENDENCY}"
+            COMMENT "Generating audio.qrc"
+            WORKING_DIRECTORY "${AUDIO_DOWNLOAD_DIR}"
+            VERBATIM
+        )
+        add_custom_target(audio_qrc ALL DEPENDS "${MMAPPER_QRC_FILE}")
+        add_dependencies(audio_qrc ${AUDIO_TARGET_DEPENDENCY})
+        message(STATUS "Audio QRC file will be included: ${MMAPPER_QRC_FILE}")
+    endif()
 endif()

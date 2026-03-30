@@ -47,16 +47,33 @@ else()
         set(IMAGES_TARGET_DEPENDENCY images_repo)
     endif()
 
-    # Generate QRC from images
-    add_custom_command(
-        OUTPUT "${MMAPPER_QRC_FILE}"
-        COMMAND ${CMAKE_COMMAND} -DINPUT_DIR=${IMAGES_DOWNLOAD_DIR} -DOUTPUT_FILE=${MMAPPER_QRC_FILE} -P "${CMAKE_SOURCE_DIR}/cmake/GenerateQRC.cmake"
-        DEPENDS "${IMAGES_TARGET_DEPENDENCY}"
-        COMMENT "Generating images.qrc"
-        WORKING_DIRECTORY "${IMAGES_DOWNLOAD_DIR}"
-        VERBATIM
-    )
-    add_custom_target(images_qrc ALL DEPENDS "${MMAPPER_QRC_FILE}")
-    add_dependencies(images_qrc ${IMAGES_TARGET_DEPENDENCY})
-    message(STATUS "Images QRC file will be included: ${MMAPPER_QRC_FILE}")
+    if(EMSCRIPTEN)
+        # For WASM: copy assets to the sideloaded assets directory instead of embedding in QRC
+        set(IMAGES_WASM_STAMP "${IMAGES_DOWNLOAD_DIR}/CMakeLists.txt.wasm_stamp")
+        file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/assets")
+        add_custom_command(
+            OUTPUT "${IMAGES_WASM_STAMP}"
+            COMMAND ${CMAKE_COMMAND} -E copy_directory "${IMAGES_DOWNLOAD_DIR}" "${CMAKE_BINARY_DIR}/assets"
+            COMMAND ${CMAKE_COMMAND} -E touch "${IMAGES_WASM_STAMP}"
+            DEPENDS "${IMAGES_TARGET_DEPENDENCY}"
+            COMMENT "Copying image assets for Wasm sideloading"
+            VERBATIM
+        )
+        add_custom_target(images_qrc ALL DEPENDS "${IMAGES_WASM_STAMP}")
+        add_dependencies(images_qrc ${IMAGES_TARGET_DEPENDENCY})
+        message(STATUS "Image assets will be sideloaded for Wasm: ${CMAKE_BINARY_DIR}/assets")
+    else()
+        # Generate QRC from images
+        add_custom_command(
+            OUTPUT "${MMAPPER_QRC_FILE}"
+            COMMAND ${CMAKE_COMMAND} -DINPUT_DIR=${IMAGES_DOWNLOAD_DIR} -DOUTPUT_FILE=${MMAPPER_QRC_FILE} -P "${CMAKE_SOURCE_DIR}/cmake/GenerateQRC.cmake"
+            DEPENDS "${IMAGES_TARGET_DEPENDENCY}"
+            COMMENT "Generating images.qrc"
+            WORKING_DIRECTORY "${IMAGES_DOWNLOAD_DIR}"
+            VERBATIM
+        )
+        add_custom_target(images_qrc ALL DEPENDS "${MMAPPER_QRC_FILE}")
+        add_dependencies(images_qrc ${IMAGES_TARGET_DEPENDENCY})
+        message(STATUS "Images QRC file will be included: ${MMAPPER_QRC_FILE}")
+    endif()
 endif()

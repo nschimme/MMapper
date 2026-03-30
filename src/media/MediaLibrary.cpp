@@ -14,8 +14,14 @@
 #include <QDebug>
 #include <QDir>
 #include <QDirIterator>
+#include <QFileInfo>
 #include <QImageReader>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QNetworkReply>
+#include <QNetworkRequest>
 #include <QSet>
+#include <QUrl>
 #include <QtGlobal>
 
 MediaLibrary::MediaLibrary(QObject *const parent)
@@ -51,31 +57,39 @@ MediaLibrary::MediaLibrary(QObject *const parent)
     m_imageExtensions.sort(Qt::CaseInsensitive);
     qInfo() << "Supported Image Formats:" << m_imageExtensions;
 
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+        m_network = new QNetworkAccessManager(this);
+    }
+
     scanDirectories();
 
-    const auto &resourcesDir = getConfig().canvas.resourcesDirectory;
-    auto addPathIfExist = [this](const QString &path) {
-        if (QDir(path).exists()) {
-            m_watcher.addPath(path);
-        }
-    };
-    addPathIfExist(resourcesDir + "/areas");
-    addPathIfExist(resourcesDir + "/rooms");
-    addPathIfExist(resourcesDir + "/sounds");
+    if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
+        const auto &resourcesDir = getConfig().canvas.resourcesDirectory;
+        auto addPathIfExist = [this](const QString &path) {
+            if (QDir(path).exists()) {
+                m_watcher.addPath(path);
+            }
+        };
+        addPathIfExist(resourcesDir + "/areas");
+        addPathIfExist(resourcesDir + "/rooms");
+        addPathIfExist(resourcesDir + "/sounds");
 
-    connect(&m_watcher, &QFileSystemWatcher::directoryChanged, this, [this](const QString &) {
-        scanDirectories();
-        emit sig_mediaChanged();
-    });
+        connect(&m_watcher, &QFileSystemWatcher::directoryChanged, this, [this](const QString &) {
+            scanDirectories();
+            emit sig_mediaChanged();
+        });
+    }
 }
 
 QString MediaLibrary::findAudio(const QString &subDir, const QString &name) const
 {
+    qDebug() << subDir << name;
     QString key = subDir + "/" + name;
     auto it = m_audioFiles.find(key);
     if (it != m_audioFiles.end()) {
         return it.value();
     }
+    qDebug() << "not found";
     return "";
 }
 
@@ -87,6 +101,87 @@ QString MediaLibrary::findImage(const QString &subDir, const QString &name) cons
         return it.value();
     }
     return "";
+}
+
+void MediaLibrary::loadManifest()
+{
+    if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
+        return;
+    }
+
+    // Fetch the manifest JSON from the network (it's served alongside the WASM files).
+    const QString dir = "assets/";
+    auto *reply = m_network->get(QNetworkRequest(QUrl(dir + "manifest.json")));
+    connect(reply, &QNetworkReply::finished, this, [this, dir, reply]() {
+        if (reply->error() != QNetworkReply::NoError) {
+            qWarning() << "Failed to fetch asset manifest:" << reply->errorString();
+            reply->deleteLater();
+            return;
+        }
+        const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+        reply->deleteLater();
+        if (!doc.isArray()) {
+            qWarning() << "Asset manifest is not a JSON array";
+            return;
+        }
+        const QJsonArray arr = doc.array();
+        for (const QJsonValue val : arr) {
+            const QString path = val.toString(); // e.g., "assets/areas/weathertop.jpg"
+            QString relativePath = path;
+            if (relativePath.startsWith(dir)) {
+                relativePath.remove(0, dir.length());
+            }
+            QFileInfo relInfo(relativePath);
+            QString pathPart = relInfo.path();
+            QString namePart = relInfo.completeBaseName();
+            QString base;
+            if (pathPart == "." || pathPart.isEmpty()) {
+                base = namePart;
+            } else {
+                base = pathPart + "/" + namePart;
+            }
+            QString suffix = relInfo.suffix().toLower();
+            qDebug() << base << suffix << path;
+            if (m_audioExtensions.contains(suffix)) {
+                m_audioFiles.insert(base, path);
+            }
+            if (m_imageExtensions.contains(suffix)) {
+                m_imageFiles.insert(base, path);
+            }
+        }
+        qInfo() << "Loaded manifest with" << arr.size() << "assets.";
+        emit sig_mediaChanged();
+    });
+}
+
+void MediaLibrary::fetchAsync(const QString &path, std::function<void(const QByteArray &)> callback)
+{
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+        if (path.isEmpty() || m_pendingFetches.contains(path)) {
+            return;
+        }
+
+        m_pendingFetches.insert(path);
+
+        auto *reply = m_network->get(QNetworkRequest(QUrl(path)));
+
+        connect(reply, &QNetworkReply::finished, this, [this, reply, path, callback]() {
+            m_pendingFetches.remove(path);
+
+            QByteArray data;
+            if (reply->error() == QNetworkReply::NoError) {
+                data = reply->readAll();
+            } else {
+                qWarning() << "Network error fetching" << path << ":" << reply->errorString();
+            }
+
+            if (callback) {
+                callback(data);
+            }
+
+            reply->deleteLater();
+        });
+    }
 }
 
 void MediaLibrary::scanDirectories()
@@ -147,4 +242,6 @@ void MediaLibrary::scanDirectories()
 
     qInfo() << "Scanned media directories. Found" << m_audioFiles.size() << "audio files and"
             << m_imageFiles.size() << "image files.";
+
+    loadManifest();
 }

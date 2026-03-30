@@ -155,7 +155,13 @@ void MusicManager::playFromData(const QByteArray &data, const QString &musicFile
         qWarning() << "MusicManager: failed to create temp file for" << musicFile;
         return;
     }
-    channel.tempFile->write(data);
+    const qint64 bytesWritten = channel.tempFile->write(data);
+    if (bytesWritten != static_cast<qint64>(data.size())) {
+        qWarning() << "MusicManager: failed to write temp file for" << musicFile
+                   << "- expected" << data.size() << "bytes, wrote" << bytesWritten;
+        channel.tempFile.reset();
+        return;
+    }
     channel.tempFile->close();
 
     activateChannel(ch, musicFile, QUrl::fromLocalFile(channel.tempFile->fileName()));

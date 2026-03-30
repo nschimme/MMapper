@@ -45,18 +45,7 @@ RUN ./emsdk activate 4.0.7 && \
         -DWITH_OPENSSL=OFF -DWITH_TESTS=OFF -DWITH_WEBSOCKET=ON -DWITH_UPDATER=OFF -DPACKAGE_TYPE=Wasm && \
     ACTUAL_JOBS=${JOBS:-$(nproc)} && \
     cmake --build /build --parallel ${ACTUAL_JOBS} && \
-    ls /build/src && \
-    mkdir /dist && \
-    cd /build/src && \
-    cp mmapper.js /dist/ && \
-    cp mmapper.wasm /dist/ && \
-    cp qtloader.js /dist/ && \
-    cp mmapper.html /dist/index.html && \
-    cp favicon.ico /dist/ && \
-    cp logo.png /dist/ && \
-    cp coi-serviceworker.js /dist/ && \
-    ls /build/assets && \
-    cp -r /build/assets /dist/assets && \
+    cmake --install /build --prefix /dist && \
     rm -rf /build /app
 
 # --- Stage 2: The Final Runtime Stage (Nginx) ---

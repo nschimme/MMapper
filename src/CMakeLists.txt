@@ -861,10 +861,10 @@ if(EMSCRIPTEN)
     # Patch the Qt-generated WASM HTML: inject favicon, logo, and COI service worker
     if(MMAPPER_BETA)
         set(FAVICON_SRC "${CMAKE_SOURCE_DIR}/src/resources/win32/m-beta.ico")
-        set(LOGO_SRC "${CMAKE_SOURCE_DIR}/src/resources/icons/splash-beta.png}")
+        set(LOGO_SRC "${CMAKE_SOURCE_DIR}/src/resources/pixmaps/splash-beta.png")
     else()
         set(FAVICON_SRC "${CMAKE_SOURCE_DIR}/src/resources/win32/m-release.ico")
-        set(LOGO_SRC "${CMAKE_SOURCE_DIR}/src/resources/icons/splash-release.png}")
+        set(LOGO_SRC "${CMAKE_SOURCE_DIR}/src/resources/pixmaps/splash-release.png")
     endif()
     add_custom_command(TARGET mmapper POST_BUILD
         COMMAND ${CMAKE_COMMAND}
@@ -997,8 +997,36 @@ else()
     set(CPACK_STRIP_FILES TRUE)
 endif()
 
+# WASM Install Settings
+if(EMSCRIPTEN)
+    # Core WASM application files (produced by Qt + PatchWasmHtml post-build)
+    install(
+        FILES
+            "$<TARGET_FILE_DIR:mmapper>/mmapper.js"
+            "$<TARGET_FILE_DIR:mmapper>/mmapper.wasm"
+            "$<TARGET_FILE_DIR:mmapper>/qtloader.js"
+            "$<TARGET_FILE_DIR:mmapper>/favicon.ico"
+            "$<TARGET_FILE_DIR:mmapper>/logo.png"
+            "$<TARGET_FILE_DIR:mmapper>/coi-serviceworker.js"
+        DESTINATION "."
+        COMPONENT applications
+    )
+    install(
+        FILES "$<TARGET_FILE_DIR:mmapper>/mmapper.html"
+        DESTINATION "."
+        RENAME "index.html"
+        COMPONENT applications
+    )
+    # Sideloaded assets (audio, images, map, manifest)
+    install(
+        DIRECTORY "${CMAKE_BINARY_DIR}/assets/"
+        DESTINATION "assets"
+        COMPONENT applications
+    )
+endif()
+
 # Linux Install Settings
-if(UNIX AND NOT APPLE)
+if(UNIX AND NOT APPLE AND NOT EMSCRIPTEN)
     set(SHARE_INSTALL_PREFIX
         "${CMAKE_INSTALL_PREFIX}/share"
         CACHE PATH "Base directory for files which go to share/"

@@ -33,6 +33,7 @@
 #include <vector>
 
 #include <QBuffer>
+#include <QNetworkReply>
 #include <QSize>
 #include <QString>
 #include <QXmlStreamReader>
@@ -724,6 +725,64 @@ bool MainWindow::tryStartNewAsync()
     return true;
 }
 
+void MainWindow::loadFile(const QUrl &urlToLoad)
+{
+    if (urlToLoad.isLocalFile() || urlToLoad.scheme() == QLatin1String("qrc")) {
+        loadFile(MapSource::alloc(urlToLoad));
+        return;
+    }
+
+    if (!tryStartNewAsync()) {
+        return;
+    }
+
+    QNetworkRequest request(urlToLoad);
+    QNetworkReply *reply = m_networkManager.get(request);
+
+    // Create a progress dialog for the download phase
+    ALLOW_DISCARD auto downloadProgressDlgLifetime{
+        createNewProgressDialog(tr("Downloading map..."), true)};
+    QPointer<QProgressDialog> pDlg = m_progressDlg.get();
+
+    connect(reply,
+            &QNetworkReply::downloadProgress,
+            this,
+            [pDlg](qint64 bytesReceived, qint64 bytesTotal) {
+                if (pDlg && bytesTotal > 0) {
+                    pDlg->setValue(static_cast<int>(bytesReceived * 100 / bytesTotal));
+                }
+            });
+
+    connect(reply,
+            &QNetworkReply::finished,
+            this,
+            [reply, capturedDlg = std::move(downloadProgressDlgLifetime)]() mutable {
+                MainWindow &mw = capturedDlg.mainWindow();
+                const QUrl downloadUrl = reply->url();
+                const QNetworkReply::NetworkError error = reply->error();
+                const QString errorString = reply->errorString();
+                const QByteArray data = reply->readAll();
+                reply->deleteLater();
+
+                // Close the download progress dialog manually.
+                capturedDlg.reset();
+
+                if (error != QNetworkReply::NoError) {
+                    mw.showWarning(tr("Failed to download map from %1:\n%2.")
+                                       .arg(downloadUrl.toString(), errorString));
+                    return;
+                }
+
+                try {
+                    auto source = MapSource::alloc(downloadUrl, data);
+                    mw.loadFile(source);
+                } catch (const std::exception &ex) {
+                    mw.showWarning(tr("Cannot open downloaded file %1:\n%2.")
+                                       .arg(downloadUrl.toString(), ex.what()));
+                }
+            });
+}
+
 void MainWindow::loadFile(std::shared_ptr<MapSource> source)
 {
     try {
@@ -770,7 +829,7 @@ void MainWindow::slot_merge()
 
         try {
             auto pc = std::make_shared<ProgressCounter>();
-            auto source = MapSource::alloc(fileName, fileContent);
+            auto source = MapSource::alloc(QUrl::fromLocalFile(fileName), fileContent);
             auto pStorage = getLoadOrMergeMapStorage(pc, source);
             connect(pStorage.get(), &AbstractMapStorage::sig_log, this, &MainWindow::slot_log);
 

@@ -4,11 +4,15 @@ if(WITH_MAP_UPPER STREQUAL "OFF" OR WITH_MAP_UPPER STREQUAL "FALSE")
     message(STATUS "Map integration disabled.")
 else()
     set(MAP_DOWNLOAD_DIR "${CMAKE_BINARY_DIR}/map")
+    set(MAP_ASSETS_DIR "${CMAKE_BINARY_DIR}/assets/map")
     set(MAP_QRC_FILE "${MAP_DOWNLOAD_DIR}/map.qrc")
     set(MAP_FILE "${MAP_DOWNLOAD_DIR}/arda")
     set(MAP_TARGET_DEPENDENCY "")
 
     file(MAKE_DIRECTORY "${MAP_DOWNLOAD_DIR}")
+    if(EMSCRIPTEN)
+        file(MAKE_DIRECTORY "${MAP_ASSETS_DIR}")
+    endif()
 
     # User provides an existing map file
     if(IS_ABSOLUTE "${WITH_MAP}" OR EXISTS "${WITH_MAP}")
@@ -47,14 +51,26 @@ else()
     endif()
 
     # Generate QRC
-    add_custom_command(
-        OUTPUT "${MAP_QRC_FILE}"
-        COMMAND ${CMAKE_COMMAND} -DINPUT_DIR=${MAP_DOWNLOAD_DIR} -DOUTPUT_FILE=${MAP_QRC_FILE} -P "${CMAKE_SOURCE_DIR}/cmake/GenerateQRC.cmake"
-        DEPENDS "${MAP_FILE}"
-        COMMENT "Generating map.qrc"
-        WORKING_DIRECTORY "${MAP_DOWNLOAD_DIR}"
-        VERBATIM
-    )
+    if(NOT EMSCRIPTEN)
+        add_custom_command(
+            OUTPUT "${MAP_QRC_FILE}"
+            COMMAND ${CMAKE_COMMAND} -DINPUT_DIR=${MAP_DOWNLOAD_DIR} -DOUTPUT_FILE=${MAP_QRC_FILE} -P "${CMAKE_SOURCE_DIR}/cmake/GenerateQRC.cmake"
+            DEPENDS "${MAP_FILE}"
+            COMMENT "Generating map.qrc"
+            WORKING_DIRECTORY "${MAP_DOWNLOAD_DIR}"
+            VERBATIM
+        )
+    else()
+        add_custom_command(
+            OUTPUT "${MAP_ASSETS_DIR}/arda"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "${MAP_FILE}" "${MAP_ASSETS_DIR}/arda"
+            DEPENDS "${MAP_FILE}"
+            COMMENT "Copying map assets for WASM"
+            VERBATIM
+        )
+        set(MAP_QRC_FILE "${MAP_ASSETS_DIR}/arda")
+        install(FILES "${MAP_FILE}" DESTINATION assets/map RENAME arda)
+    endif()
     add_custom_target(map_qrc ALL DEPENDS "${MAP_QRC_FILE}")
     add_dependencies(map_qrc ${MAP_TARGET_DEPENDENCY})
     message(STATUS "Map QRC file will be included: ${MAP_QRC_FILE}")

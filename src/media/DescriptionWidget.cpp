@@ -18,6 +18,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QImageReader>
+#include <QNetworkReply>
 #include <QPixmap>
 #include <QRegularExpression>
 #include <QResizeEvent>
@@ -87,26 +88,58 @@ QSize DescriptionWidget::sizeHint() const
 
 void DescriptionWidget::updateBackground()
 {
-    const auto loadAndCacheImage = [&](const QString &imagePath) -> QImage * {
-        if (imagePath.isEmpty()) {
-            return nullptr;
-        }
+    if (m_fileName.isEmpty()) {
+        m_label->clear();
+        return;
+    }
 
-        if (QImage *cachedImage = m_imageCache.object(imagePath)) {
-            return cachedImage;
-        }
+    if (QImage *cachedImage = m_imageCache.object(m_fileName)) {
+        applyBackground(cachedImage);
+        return;
+    }
 
-        std::unique_ptr<QImage> temp = std::make_unique<QImage>();
-        if (!temp->load(imagePath) || temp->isNull()) {
-            qWarning() << "Failed to load image:" << imagePath;
-            return nullptr;
-        }
+    if (m_fileName.startsWith(QLatin1String("http"))
+        || m_fileName.startsWith(QLatin1String("assets/"))) {
+        QUrl url(m_fileName);
+        QNetworkRequest request(url);
+        QNetworkReply *reply = m_networkManager.get(request);
+        QString loadingFile = m_fileName;
 
-        m_imageCache.insert(imagePath, temp.release());
-        return m_imageCache.object(imagePath);
-    };
+        connect(reply, &QNetworkReply::finished, this, [this, reply, loadingFile]() {
+            reply->deleteLater();
+            if (reply->error() != QNetworkReply::NoError) {
+                qWarning() << "Failed to download image:" << reply->errorString();
+                return;
+            }
 
-    QImage *const baseImage = loadAndCacheImage(m_fileName);
+            QByteArray data = reply->readAll();
+            std::unique_ptr<QImage> temp = std::make_unique<QImage>();
+            if (!temp->loadFromData(data) || temp->isNull()) {
+                qWarning() << "Failed to load downloaded image data";
+                return;
+            }
+
+            m_imageCache.insert(loadingFile, temp.release());
+            if (m_fileName == loadingFile) {
+                applyBackground(m_imageCache.object(loadingFile));
+            }
+        });
+        return;
+    }
+
+    std::unique_ptr<QImage> temp = std::make_unique<QImage>();
+    if (!temp->load(m_fileName) || temp->isNull()) {
+        qWarning() << "Failed to load local image:" << m_fileName;
+        m_label->clear();
+        return;
+    }
+
+    m_imageCache.insert(m_fileName, temp.release());
+    applyBackground(m_imageCache.object(m_fileName));
+}
+
+void DescriptionWidget::applyBackground(QImage *baseImage)
+{
     if (!baseImage || baseImage->isNull()) {
         m_label->clear();
         return;

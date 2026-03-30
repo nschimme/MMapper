@@ -4,10 +4,14 @@ if(WITH_IMAGES_UPPER STREQUAL "OFF" OR WITH_IMAGES_UPPER STREQUAL "FALSE")
     message(STATUS "Image resources disabled.")
 else()
     set(IMAGES_DOWNLOAD_DIR "${CMAKE_BINARY_DIR}/images")
+    set(IMAGES_ASSETS_DIR "${CMAKE_BINARY_DIR}/assets/images")
     set(MMAPPER_QRC_FILE "${IMAGES_DOWNLOAD_DIR}/images.qrc")
     set(IMAGES_TARGET_DEPENDENCY "")
 
     file(MAKE_DIRECTORY "${IMAGES_DOWNLOAD_DIR}")
+    if(EMSCRIPTEN)
+        file(MAKE_DIRECTORY "${IMAGES_ASSETS_DIR}")
+    endif()
 
     # User provides an existing resources directory
     if(IS_ABSOLUTE "${WITH_IMAGES}" OR EXISTS "${WITH_IMAGES}")
@@ -48,14 +52,27 @@ else()
     endif()
 
     # Generate QRC from images
-    add_custom_command(
-        OUTPUT "${MMAPPER_QRC_FILE}"
-        COMMAND ${CMAKE_COMMAND} -DINPUT_DIR=${IMAGES_DOWNLOAD_DIR} -DOUTPUT_FILE=${MMAPPER_QRC_FILE} -P "${CMAKE_SOURCE_DIR}/cmake/GenerateQRC.cmake"
-        DEPENDS "${IMAGES_TARGET_DEPENDENCY}"
-        COMMENT "Generating images.qrc"
-        WORKING_DIRECTORY "${IMAGES_DOWNLOAD_DIR}"
-        VERBATIM
-    )
+    if(NOT EMSCRIPTEN)
+        add_custom_command(
+            OUTPUT "${MMAPPER_QRC_FILE}"
+            COMMAND ${CMAKE_COMMAND} -DINPUT_DIR=${IMAGES_DOWNLOAD_DIR} -DOUTPUT_FILE=${MMAPPER_QRC_FILE} -P "${CMAKE_SOURCE_DIR}/cmake/GenerateQRC.cmake"
+            DEPENDS "${IMAGES_TARGET_DEPENDENCY}"
+            COMMENT "Generating images.qrc"
+            WORKING_DIRECTORY "${IMAGES_DOWNLOAD_DIR}"
+            VERBATIM
+        )
+    else()
+        add_custom_command(
+            OUTPUT "${IMAGES_ASSETS_DIR}/.stamp"
+            COMMAND ${CMAKE_COMMAND} -E copy_directory "${IMAGES_DOWNLOAD_DIR}" "${IMAGES_ASSETS_DIR}"
+            COMMAND ${CMAKE_COMMAND} -E touch "${IMAGES_ASSETS_DIR}/.stamp"
+            DEPENDS "${IMAGES_TARGET_DEPENDENCY}"
+            COMMENT "Copying image assets for WASM"
+            VERBATIM
+        )
+        set(MMAPPER_QRC_FILE "${IMAGES_ASSETS_DIR}/.stamp")
+        install(DIRECTORY "${IMAGES_DOWNLOAD_DIR}/" DESTINATION assets/images PATTERN ".git" EXCLUDE)
+    endif()
     add_custom_target(images_qrc ALL DEPENDS "${MMAPPER_QRC_FILE}")
     add_dependencies(images_qrc ${IMAGES_TARGET_DEPENDENCY})
     message(STATUS "Images QRC file will be included: ${MMAPPER_QRC_FILE}")

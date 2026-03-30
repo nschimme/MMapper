@@ -70,7 +70,13 @@ NODISCARD static bool tryLoad(MainWindow &mw, const QDir &dir, const QString &in
     }
 
     try {
-        mw.loadFile(MapSource::alloc(absoluteFilePath, std::nullopt));
+        QUrl url;
+        if (absoluteFilePath.startsWith(":/")) {
+            url = QUrl(QStringLiteral("qrc") + absoluteFilePath);
+        } else {
+            url = QUrl::fromLocalFile(absoluteFilePath);
+        }
+        mw.loadFile(MapSource::alloc(url, std::nullopt));
         return true;
     } catch (const std::runtime_error &e) {
         qCritical() << "Failed to load autoload map:" << e.what();
@@ -86,8 +92,15 @@ static void tryAutoLoadMap(MainWindow &mw)
             && tryLoad(mw, QDir{settings.lastMapDirectory}, settings.fileName)) {
             return;
         }
-        if (!NO_MAP_RESOURCE && tryLoad(mw, QDir(":/"), "arda")) {
-            return;
+        if (!NO_MAP_RESOURCE) {
+            if (tryLoad(mw, QDir(":/"), "arda")) {
+                return;
+            }
+
+            if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+                mw.loadFile(QUrl("assets/map/arda"));
+                return;
+            }
         }
         qInfo() << "[main] Unable to autoload map";
     }

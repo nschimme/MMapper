@@ -4,10 +4,14 @@ if(WITH_AUDIO_UPPER STREQUAL "OFF" OR WITH_AUDIO_UPPER STREQUAL "FALSE")
     message(STATUS "Audio resources disabled.")
 else()
     set(AUDIO_DOWNLOAD_DIR "${CMAKE_BINARY_DIR}/audio")
+    set(AUDIO_ASSETS_DIR "${CMAKE_BINARY_DIR}/assets/audio")
     set(MMAPPER_QRC_FILE "${AUDIO_DOWNLOAD_DIR}/audio.qrc")
     set(AUDIO_TARGET_DEPENDENCY "")
 
     file(MAKE_DIRECTORY "${AUDIO_DOWNLOAD_DIR}")
+    if(EMSCRIPTEN)
+        file(MAKE_DIRECTORY "${AUDIO_ASSETS_DIR}")
+    endif()
 
     # User provides an existing resources directory
     if(IS_ABSOLUTE "${WITH_AUDIO}" OR EXISTS "${WITH_AUDIO}")
@@ -48,14 +52,27 @@ else()
     endif()
 
     # Generate QRC from audio
-    add_custom_command(
-        OUTPUT "${MMAPPER_QRC_FILE}"
-        COMMAND ${CMAKE_COMMAND} -DINPUT_DIR=${AUDIO_DOWNLOAD_DIR} -DOUTPUT_FILE=${MMAPPER_QRC_FILE} -P "${CMAKE_SOURCE_DIR}/cmake/GenerateQRC.cmake"
-        DEPENDS "${AUDIO_TARGET_DEPENDENCY}"
-        COMMENT "Generating audio.qrc"
-        WORKING_DIRECTORY "${AUDIO_DOWNLOAD_DIR}"
-        VERBATIM
-    )
+    if(NOT EMSCRIPTEN)
+        add_custom_command(
+            OUTPUT "${MMAPPER_QRC_FILE}"
+            COMMAND ${CMAKE_COMMAND} -DINPUT_DIR=${AUDIO_DOWNLOAD_DIR} -DOUTPUT_FILE=${MMAPPER_QRC_FILE} -P "${CMAKE_SOURCE_DIR}/cmake/GenerateQRC.cmake"
+            DEPENDS "${AUDIO_TARGET_DEPENDENCY}"
+            COMMENT "Generating audio.qrc"
+            WORKING_DIRECTORY "${AUDIO_DOWNLOAD_DIR}"
+            VERBATIM
+        )
+    else()
+        add_custom_command(
+            OUTPUT "${AUDIO_ASSETS_DIR}/.stamp"
+            COMMAND ${CMAKE_COMMAND} -E copy_directory "${AUDIO_DOWNLOAD_DIR}" "${AUDIO_ASSETS_DIR}"
+            COMMAND ${CMAKE_COMMAND} -E touch "${AUDIO_ASSETS_DIR}/.stamp"
+            DEPENDS "${AUDIO_TARGET_DEPENDENCY}"
+            COMMENT "Copying audio assets for WASM"
+            VERBATIM
+        )
+        set(MMAPPER_QRC_FILE "${AUDIO_ASSETS_DIR}/.stamp")
+        install(DIRECTORY "${AUDIO_DOWNLOAD_DIR}/" DESTINATION assets/audio PATTERN ".git" EXCLUDE)
+    endif()
     add_custom_target(audio_qrc ALL DEPENDS "${MMAPPER_QRC_FILE}")
     add_dependencies(audio_qrc ${AUDIO_TARGET_DEPENDENCY})
     message(STATUS "Audio QRC file will be included: ${MMAPPER_QRC_FILE}")

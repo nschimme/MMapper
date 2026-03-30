@@ -41,6 +41,8 @@ void SfxManager::playSound(MAYBE_UNUSED const QString &soundName)
     effect->setAudioOutput(m_output);
     if (path.startsWith(":/")) {
         effect->setSource(QUrl(QStringLiteral("qrc") + path));
+    } else if (path.startsWith(QLatin1String("assets/")) || path.startsWith(QLatin1String("http"))) {
+        effect->setSource(QUrl(path));
     } else {
         effect->setSource(QUrl::fromLocalFile(path));
     }

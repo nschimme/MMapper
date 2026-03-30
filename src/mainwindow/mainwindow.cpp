@@ -50,6 +50,7 @@
 #include <QFileDialog>
 #include <QFontDatabase>
 #include <QIcon>
+#include <QNetworkReply>
 #include <QProgressDialog>
 #include <QSize>
 #include <QString>
@@ -1607,7 +1608,7 @@ void MainWindow::slot_open()
         }
 
         try {
-            loadFile(MapSource::alloc(fileName, fileContent));
+            loadFile(MapSource::alloc(QUrl::fromLocalFile(fileName), fileContent));
 
             QFileInfo file(fileName);
             auto &savedLastMapDir = setConfig().autoLoad.lastMapDirectory;
@@ -1638,7 +1639,11 @@ void MainWindow::slot_reload()
         // make a copy of the filename, since it will be modified by loadFile().
         const QString filename = m_mapData->getFileName();
         try {
-            loadFile(MapSource::alloc(filename));
+            if (filename.startsWith(":/")) {
+                loadFile(MapSource::alloc(QUrl(QStringLiteral("qrc") + filename)));
+            } else {
+                loadFile(MapSource::alloc(QUrl::fromLocalFile(filename)));
+            }
         } catch (const std::runtime_error &e) {
             showWarning(tr("Cannot open file %1:\n%2.").arg(filename, e.what()));
             return;
@@ -1724,9 +1729,9 @@ void MainWindow::percentageChanged(const uint32_t p)
 
 void MainWindow::showWarning(const QString &s)
 {
-    // REVISIT: shouldn't the warning have "this" as parent?
-    // REVISIT: shouldn't this also say MMapper?
-    QMessageBox::warning(nullptr, tr("Application"), s);
+    auto *const box = new QMessageBox(QMessageBox::Warning, tr("MMapper"), s, QMessageBox::Ok, this);
+    box->setAttribute(Qt::WA_DeleteOnClose);
+    box->open();
 }
 
 void MainWindow::showAsyncFailure(const QString &fileName,

@@ -57,7 +57,7 @@ const QString &AbstractMapStorage::getFilename() const
     if (m_data.saveDestination) {
         return m_data.saveDestination->getFileName();
     }
-    return m_data.loadSource->getFileName();
+    return deref(m_data.loadSource).getFileName();
 }
 
 QIODevice &AbstractMapStorage::getDevice() const

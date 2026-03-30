@@ -111,7 +111,11 @@ AnsiCombo::AnsiColor AnsiCombo::colorFromString(const QString &colString)
 
     // TODO: use existing test (prepend an ESC if necessary)
     static const QRegularExpression re(R"(^\[((?:\d+[;:])*\d+)m$)");
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+    if (!re.matchView(colString).hasMatch()) {
+#else
     if (!re.match(colString).hasMatch()) {
+#endif
         qWarning() << "String did not contain valid ANSI: " << colString;
         return AnsiColor{};
     }

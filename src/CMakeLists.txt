@@ -648,7 +648,7 @@ if(EMSCRIPTEN)
     endif()
 else()
     if(WITH_MAP)
-        qt_add_big_resources(mmapper_QRC "${CMAKE_BINARY_DIR}/map/map.qrc")
+        qt_add_resources(mmapper_QRC "${CMAKE_BINARY_DIR}/map/map.qrc")
     endif()
 
     if(WITH_IMAGES)

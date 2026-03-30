@@ -157,8 +157,8 @@ void MusicManager::playFromData(const QByteArray &data, const QString &musicFile
     }
     const qint64 bytesWritten = channel.tempFile->write(data);
     if (bytesWritten != static_cast<qint64>(data.size())) {
-        qWarning() << "MusicManager: failed to write temp file for" << musicFile
-                   << "- expected" << data.size() << "bytes, wrote" << bytesWritten;
+        qWarning() << "MusicManager: failed to write temp file for" << musicFile << "- expected"
+                   << data.size() << "bytes, wrote" << bytesWritten;
         channel.tempFile.reset();
         return;
     }

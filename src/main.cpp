@@ -122,10 +122,6 @@ static void tryAutoLoadMap(MainWindow &mw)
             if (tryLoad(mw, QDir(getAssetsPath() + "map/"), "arda")) {
                 return;
             }
-            // Fallback to QRC for backwards compatibility (though we're phasing it out)
-            if (tryLoad(mw, QDir(":/"), "arda")) {
-                return;
-            }
         }
         qInfo() << "[main] Unable to autoload map";
     }

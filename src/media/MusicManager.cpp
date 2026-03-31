@@ -118,9 +118,28 @@ void MusicManager::playMusic(const QString &musicFile)
     }
 
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
-        m_library.fetchAsync(musicFile, [this, musicFile](const QByteArray &data) {
-            playFromData(data, musicFile);
-        });
+        const int inactiveChannelIndex = (m_activeChannel + 1) % 2;
+        if (musicFile == m_channels[m_activeChannel].file) {
+            if (m_channels[m_activeChannel].player->playbackState() != QMediaPlayer::PlayingState) {
+                m_channels[m_activeChannel].player->play();
+            }
+        } else if (musicFile == m_channels[inactiveChannelIndex].file) {
+            // Found the track in the inactive channel; swap to it
+            m_activeChannel = inactiveChannelIndex;
+            auto &active = m_channels[m_activeChannel];
+            if (active.player->playbackState() != QMediaPlayer::PlayingState) {
+                if (qint64 *pos = m_cachedPositions.object(musicFile)) {
+                    active.pendingPosition = *pos;
+                }
+                active.player->play();
+                applyPendingPosition(m_activeChannel);
+            }
+            startFade(false);
+        } else {
+            m_library.fetchAsync(musicFile, [this, musicFile](const QByteArray &data) {
+                playFromData(data, musicFile);
+            });
+        }
     } else {
 #ifndef MMAPPER_NO_AUDIO
         const int ch = prepareChannel(musicFile);

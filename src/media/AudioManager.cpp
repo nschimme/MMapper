@@ -35,7 +35,7 @@ AudioManager::AudioManager(MediaLibrary &library, GameObserver &observer, QObjec
                 static std::once_flag flag;
                 std::call_once(flag, [this]() {
                     // Browser sandbox needs a user interaction to unlock audio
-                    playSound("bell");
+                    playSound("level-up");
                 });
             }
         }

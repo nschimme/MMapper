@@ -36,6 +36,7 @@ else()
         ExternalProject_Add(audio_repo
             GIT_REPOSITORY "https://github.com/MUME/audio"
             GIT_TAG "${AUDIO_TAG}"
+            GIT_SHALLOW ON
             SOURCE_DIR "${AUDIO_DOWNLOAD_DIR}"
 
             CONFIGURE_COMMAND ""

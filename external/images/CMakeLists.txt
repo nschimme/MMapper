@@ -36,6 +36,7 @@ else()
         ExternalProject_Add(images_repo
             GIT_REPOSITORY "https://github.com/MUME/images"
             GIT_TAG "${IMAGES_TAG}"
+            GIT_SHALLOW ON
             SOURCE_DIR "${IMAGES_DOWNLOAD_DIR}"
 
             CONFIGURE_COMMAND ""

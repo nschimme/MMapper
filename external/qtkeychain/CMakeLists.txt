@@ -14,6 +14,7 @@ else()
     ExternalProject_Add(qtkeychain_repo
         GIT_REPOSITORY "https://github.com/frankosterfeld/qtkeychain.git"
         GIT_TAG "7668a63a3669400223c5a563928ae042f499dbf4"
+        GIT_SHALLOW ON
 
         SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/qtkeychain-src"
         BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/qtkeychain-build"

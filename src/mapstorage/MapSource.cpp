@@ -11,8 +11,7 @@
 #include <QFile>
 
 std::shared_ptr<MapSource> MapSource::alloc(const QString fileName,
-                                            const std::optional<QByteArray> &fileContent,
-                                            const bool forceReadOnly)
+                                            const std::optional<QByteArray> &fileContent)
 {
     if (fileContent.has_value()) {
         auto pBuffer = std::make_shared<QBuffer>();
@@ -22,8 +21,7 @@ std::shared_ptr<MapSource> MapSource::alloc(const QString fileName,
         }
         return std::make_shared<MapSource>(Badge<MapSource>{},
                                            std::move(fileName),
-                                           std::move(pBuffer),
-                                           forceReadOnly);
+                                           std::move(pBuffer));
     } else {
         auto pFile = std::make_shared<QFile>(fileName);
         if (!pFile->open(QFile::ReadOnly)) {
@@ -31,16 +29,11 @@ std::shared_ptr<MapSource> MapSource::alloc(const QString fileName,
         }
         return std::make_shared<MapSource>(Badge<MapSource>{},
                                            std::move(fileName),
-                                           std::move(pFile),
-                                           forceReadOnly);
+                                           std::move(pFile));
     }
 }
 
-MapSource::MapSource(Badge<MapSource>,
-                     const QString fileName,
-                     std::shared_ptr<QIODevice> device,
-                     const bool forceReadOnly)
+MapSource::MapSource(Badge<MapSource>, const QString fileName, std::shared_ptr<QIODevice> device)
     : m_fileName(std::move(fileName))
     , m_device(std::move(device))
-    , m_forceReadOnly(forceReadOnly)
 {}

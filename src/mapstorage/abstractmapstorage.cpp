@@ -28,11 +28,7 @@ std::optional<RawMapLoadData> AbstractMapStorage::loadData()
         throw std::runtime_error("format does not support loading");
     }
 
-    auto opt_data = virt_loadData();
-    if (opt_data && m_data.loadSource && m_data.loadSource->isForceReadOnly()) {
-        opt_data->readonly = true;
-    }
-    return opt_data;
+    return virt_loadData();
 }
 
 bool AbstractMapStorage::saveData(const MapData &mapData, const bool baseMapOnly)
@@ -46,7 +42,7 @@ bool AbstractMapStorage::saveData(const MapData &mapData, const bool baseMapOnly
     rawMapData.mapPair.modified.checkConsistency(getProgressCounter());
     rawMapData.position = mapData.tryGetPosition().value_or(Coordinate{});
     rawMapData.filename = getFilename();
-    rawMapData.readonly = (m_data.loadSource && m_data.loadSource->isForceReadOnly());
+    rawMapData.readonly = false; // otherwise we couldn't save
 
     if (baseMapOnly) {
         auto &map = rawMapData.mapPair.modified;

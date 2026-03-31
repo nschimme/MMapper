@@ -110,19 +110,11 @@ QString MediaLibrary::findImage(const QString &subDir, const QString &name) cons
 
 void MediaLibrary::loadManifest()
 {
-    const QString dir = getAssetsPath();
-
     if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
-        QFile file(dir + "manifest.json");
-        if (file.open(QIODevice::ReadOnly)) {
-            processManifest(file.readAll(), dir);
-        } else {
-            qWarning() << "Failed to open asset manifest:" << file.fileName()
-                       << "- falling back to directory scanning";
-            scanPath(dir, dir);
-        }
         return;
     }
+
+    const QString dir = getAssetsPath();
 
     // Fetch the manifest JSON from the network (it's served alongside the WASM files).
     auto *reply = m_network->get(QNetworkRequest(QUrl(dir + "manifest.json")));
@@ -251,6 +243,13 @@ void MediaLibrary::scanDirectories()
     scanPath(QLatin1String(":/areas"), QLatin1String(":/"));
     scanPath(QLatin1String(":/rooms"), QLatin1String(":/"));
     scanPath(QLatin1String(":/sounds"), QLatin1String(":/"));
+
+    if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
+        const QString &assetsDir = getAssetsPath();
+        scanPath(assetsDir + "areas", assetsDir);
+        scanPath(assetsDir + "rooms", assetsDir);
+        scanPath(assetsDir + "sounds", assetsDir);
+    }
 
     const auto &resourcesDir = getConfig().canvas.resourcesDirectory;
     scanPath(resourcesDir + "/areas", resourcesDir);

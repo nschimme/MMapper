@@ -612,40 +612,43 @@ qt_add_resources(mmapper_QRC ${CMAKE_CURRENT_BINARY_DIR}/build.qrc)
 list(APPEND mmapper_RCS "resources/macosx/m-${MMAPPER_BRAND_SUFFIX}.icns")
 
 # For all platforms: large assets are sideloaded.
-# The manifest is served alongside the application and fetched at runtime.
 set(ASSETS_NAME "assets")
 add_compile_definitions(ASSETS_DIR_NAME="${ASSETS_NAME}")
-get_filename_component(ASSETS_DIR "${CMAKE_BINARY_DIR}/${ASSETS_NAME}" ABSOLUTE)
-set(ASSETS_MANIFEST "${ASSETS_DIR}/manifest.json")
 
-# Collect which asset targets to depend on
-set(ASSETS_DEPS)
-if(WITH_AUDIO)
-    list(APPEND ASSETS_DEPS audio_qrc)
-endif()
-if(WITH_IMAGES)
-    list(APPEND ASSETS_DEPS images_qrc)
-endif()
-if(WITH_MAP)
-    list(APPEND ASSETS_DEPS map_qrc)
-endif()
+if(EMSCRIPTEN)
+    # The manifest is served alongside the application and fetched at runtime.
+    get_filename_component(ASSETS_DIR "${CMAKE_BINARY_DIR}/${ASSETS_NAME}" ABSOLUTE)
+    set(ASSETS_MANIFEST "${ASSETS_DIR}/manifest.json")
 
-# Generate the asset manifest JSON after all assets have been copied
-add_custom_command(
-    OUTPUT "${ASSETS_MANIFEST}"
-    COMMAND ${CMAKE_COMMAND}
-        -DASSETS_DIR=${ASSETS_DIR}
-        -DOUTPUT_FILE=${ASSETS_MANIFEST}
-        -P "${CMAKE_SOURCE_DIR}/cmake/GenerateManifest.cmake"
-    DEPENDS ${ASSETS_DEPS}
-    COMMENT "Generating asset manifest"
-    VERBATIM
-)
-add_custom_target(assets_manifest ALL DEPENDS "${ASSETS_MANIFEST}")
-if(ASSETS_DEPS)
-    add_dependencies(assets_manifest ${ASSETS_DEPS})
-else()
-    message(WARNING "No assets enabled for manifest generation")
+    # Collect which asset targets to depend on
+    set(ASSETS_DEPS)
+    if(WITH_AUDIO)
+        list(APPEND ASSETS_DEPS audio_qrc)
+    endif()
+    if(WITH_IMAGES)
+        list(APPEND ASSETS_DEPS images_qrc)
+    endif()
+    if(WITH_MAP)
+        list(APPEND ASSETS_DEPS map_qrc)
+    endif()
+
+    # Generate the asset manifest JSON after all assets have been copied
+    add_custom_command(
+        OUTPUT "${ASSETS_MANIFEST}"
+        COMMAND ${CMAKE_COMMAND}
+            -DASSETS_DIR=${ASSETS_DIR}
+            -DOUTPUT_FILE=${ASSETS_MANIFEST}
+            -P "${CMAKE_SOURCE_DIR}/cmake/GenerateManifest.cmake"
+        DEPENDS ${ASSETS_DEPS}
+        COMMENT "Generating asset manifest"
+        VERBATIM
+    )
+    add_custom_target(assets_manifest ALL DEPENDS "${ASSETS_MANIFEST}")
+    if(ASSETS_DEPS)
+        add_dependencies(assets_manifest ${ASSETS_DEPS})
+    else()
+        message(WARNING "No assets enabled for manifest generation")
+    endif()
 endif()
 
 set(mmapper_UIS
@@ -842,10 +845,10 @@ if(WIN32)
     target_link_libraries(mmapper PRIVATE ws2_32)
 endif()
 
-# Manifest depends on all enabled asset targets; mmapper depends on the manifest
-add_dependencies(mmapper assets_manifest)
-
 if(EMSCRIPTEN)
+    # Manifest depends on all enabled asset targets; mmapper depends on the manifest
+    add_dependencies(mmapper assets_manifest)
+
     # Patch the Qt-generated WASM HTML: inject favicon, logo, and COI service worker
     if(MMAPPER_BETA)
         set(FAVICON_SRC "${CMAKE_SOURCE_DIR}/src/resources/win32/m-beta.ico")

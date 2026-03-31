@@ -34,7 +34,6 @@ else()
         ExternalProject_Add(map_repo
             GIT_REPOSITORY "https://github.com/MUME/arda"
             GIT_TAG "${MAP_SCHEMA}"
-            GIT_SHALLOW ON
 
             CONFIGURE_COMMAND ""
             BUILD_COMMAND ""

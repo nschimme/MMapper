@@ -846,7 +846,7 @@ if(EMSCRIPTEN)
     add_custom_command(TARGET mmapper POST_BUILD
         COMMAND ${CMAKE_COMMAND}
             "-DHTML_FILE=$<TARGET_FILE_DIR:mmapper>/mmapper.html"
-            "-DFAVICON_SRC=${CMAKE_SOURCE_DIR}/src/resources/win32/m-${MMAPPER_BRAND_SUFFIX.ico"
+            "-DFAVICON_SRC=${CMAKE_SOURCE_DIR}/src/resources/win32/m-${MMAPPER_BRAND_SUFFIX}.ico"
             "-DLOGO_SRC=${CMAKE_SOURCE_DIR}/src/resources/pixmaps/splash-${MMAPPER_BRAND_SUFFIX}.png"
             -P "${CMAKE_SOURCE_DIR}/cmake/WasmHtml.cmake"
         COMMENT "Patching Wasm HTML"

@@ -53,7 +53,6 @@ else()
     add_custom_command(
         OUTPUT "${MAP_ASSETS_STAMP}"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "${MAP_FILE}" "${MAP_ASSETS_FILE}"
-        COMMAND ${CMAKE_COMMAND} -E chmod 444 "${MAP_ASSETS_FILE}"
         COMMAND ${CMAKE_COMMAND} -E touch "${MAP_ASSETS_STAMP}"
         DEPENDS "${MAP_FILE}"
         COMMENT "Copying map to assets directory"

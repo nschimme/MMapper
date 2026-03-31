@@ -997,6 +997,8 @@ if(EMSCRIPTEN)
         DIRECTORY "${CMAKE_BINARY_DIR}/${ASSETS_NAME}/"
         DESTINATION "${ASSETS_NAME}"
         COMPONENT applications
+        DIRECTORY_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+        FILE_PERMISSIONS OWNER_READ GROUP_READ WORLD_READ
         PATTERN ".git" EXCLUDE
     )
 endif()
@@ -1008,9 +1010,13 @@ if(NOT EMSCRIPTEN)
             DIRECTORY "${CMAKE_BINARY_DIR}/${ASSETS_NAME}/"
             DESTINATION "mmapper.app/Contents/Resources/${ASSETS_NAME}"
             COMPONENT applications
+            DIRECTORY_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+            FILE_PERMISSIONS OWNER_READ GROUP_READ WORLD_READ
             PATTERN ".git" EXCLUDE
         )
     elseif(WIN32)
+        # Note: NSIS and Windows filesystem permissions are complex to manage via CMake 'install'.
+        # We rely on application-level protection (forceReadOnly) to prevent overwriting default assets.
         install(
             DIRECTORY "${CMAKE_BINARY_DIR}/${ASSETS_NAME}/"
             DESTINATION "${ASSETS_NAME}"
@@ -1022,6 +1028,8 @@ if(NOT EMSCRIPTEN)
             DIRECTORY "${CMAKE_BINARY_DIR}/${ASSETS_NAME}/"
             DESTINATION "share/mmapper/${ASSETS_NAME}"
             COMPONENT applications
+            DIRECTORY_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+            FILE_PERMISSIONS OWNER_READ GROUP_READ WORLD_READ
             PATTERN ".git" EXCLUDE
         )
     endif()

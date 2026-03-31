@@ -90,7 +90,8 @@ NODISCARD static const char *getFilenameSuffix(const E x)
  */
 QString getAssetsPath()
 {
-    static const QString assetsDirName = QStringLiteral("assets");;
+    static const QString assetsDirName = QStringLiteral("assets");
+    ;
 
     // Note: CURRENT_PLATFORM is derived from Qt's Q_OS_* macros in ConfigConsts-Computed.h.
     // We use if constexpr with CURRENT_PLATFORM here for cleaner cross-platform logic.

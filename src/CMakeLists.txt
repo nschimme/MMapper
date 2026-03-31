@@ -981,31 +981,9 @@ if(EMSCRIPTEN)
         RENAME "index.html"
         COMPONENT applications
     )
-endif()
-
-# Sideloaded assets for audio, images, map, manifest
-if(APPLE)
-    install(
-        DIRECTORY "${CMAKE_BINARY_DIR}/${ASSETS_NAME}/"
-        DESTINATION "mmapper.app/Contents/Resources/${ASSETS_NAME}"
-        COMPONENT applications
-        DIRECTORY_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
-        FILE_PERMISSIONS OWNER_READ GROUP_READ WORLD_READ
-        PATTERN ".git" EXCLUDE
-        PATTERN "README.md" EXCLUDE
-    )
-elseif(WIN32)
     install(
         DIRECTORY "${CMAKE_BINARY_DIR}/${ASSETS_NAME}/"
         DESTINATION "${ASSETS_NAME}"
-        COMPONENT applications
-        PATTERN ".git" EXCLUDE
-        PATTERN "README.md" EXCLUDE
-    )
-else()
-    install(
-        DIRECTORY "${CMAKE_BINARY_DIR}/${ASSETS_NAME}/"
-        DESTINATION "share/mmapper/${ASSETS_NAME}"
         COMPONENT applications
         DIRECTORY_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
         FILE_PERMISSIONS OWNER_READ GROUP_READ WORLD_READ
@@ -1049,6 +1027,17 @@ if(UNIX AND NOT APPLE AND NOT EMSCRIPTEN)
         DESTINATION share/icons/hicolor/512x512/apps/
         COMPONENT desktopintegration
         RENAME org.mume.MMapper.png
+    )
+
+    # Assets
+    install(
+        DIRECTORY "${CMAKE_BINARY_DIR}/${ASSETS_NAME}/"
+        DESTINATION share/mmapper/${ASSETS_NAME}
+        COMPONENT applications
+        DIRECTORY_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+        FILE_PERMISSIONS OWNER_READ GROUP_READ WORLD_READ
+        PATTERN ".git" EXCLUDE
+        PATTERN "README.md" EXCLUDE
     )
 
     set(CPACK_GENERATOR "DEB") # Others: RPM, STGZ
@@ -1126,6 +1115,15 @@ if(WIN32)
         COMPONENT libraries
         USE_SOURCE_PERMISSIONS
         PATTERN "*.exe" EXCLUDE
+    )
+
+    # Assets
+    install(
+        DIRECTORY "${CMAKE_BINARY_DIR}/${ASSETS_NAME}/"
+        DESTINATION ${ASSETS_NAME}
+        COMPONENT applications
+        PATTERN ".git" EXCLUDE
+        PATTERN "README.md" EXCLUDE
     )
 
     set(CPACK_SOURCE_GENERATOR "ZIP")
@@ -1284,6 +1282,17 @@ if(APPLE)
         COMMENT "Code signing the bundle"
         VERBATIM
         )
+
+    # Assets
+    install(
+        DIRECTORY "${CMAKE_BINARY_DIR}/${ASSETS_NAME}/"
+        DESTINATION "mmapper.app/Contents/Resources/${ASSETS_NAME}"
+        COMPONENT applications
+        DIRECTORY_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+        FILE_PERMISSIONS OWNER_READ GROUP_READ WORLD_READ
+        PATTERN ".git" EXCLUDE
+        PATTERN "README.md" EXCLUDE
+    )
 
     # Install Executables
     install(

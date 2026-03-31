@@ -64,6 +64,4 @@ static inline constexpr const bool NO_AUDIO = true;
 static inline constexpr const bool NO_AUDIO = false;
 #endif
 
-#include <QStringView>
-using namespace std::string_view_literals;
-static inline constexpr auto ASSETS_DIR_NAME = "assets"sv;
+static inline constexpr const char *const ASSETS_DIR_NAME = "assets";

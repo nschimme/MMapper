@@ -79,11 +79,17 @@ NODISCARD static const char *getFilenameSuffix(const E x)
     return getParserCommandName(x).getCommand();
 }
 
+/**
+ * @brief Returns the base path to the sideloaded assets directory.
+ *
+ * This function returns an absolute path on desktop platforms and a relative path
+ * on WebAssembly (as assets are served from the web root).
+ *
+ * @return The assets path with a trailing slash.
+ */
 QString getAssetsPath()
 {
-    static const QString assetsDirName = QString::fromUtf8(ASSETS_DIR_NAME.data(),
-                                                           static_cast<qsizetype>(
-                                                               ASSETS_DIR_NAME.size()));
+    static const QString assetsDirName = QString::fromUtf8(ASSETS_DIR_NAME);
 
     // Note: CURRENT_PLATFORM is derived from Qt's Q_OS_* macros in ConfigConsts-Computed.h.
     // We use if constexpr with CURRENT_PLATFORM here for cleaner cross-platform logic.

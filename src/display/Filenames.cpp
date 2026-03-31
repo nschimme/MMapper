@@ -6,6 +6,7 @@
 
 #include "../configuration/configuration.h"
 #include "../global/ConfigConsts-Computed.h"
+#include "../global/ConfigConsts.h"
 #include "../global/Consts.h"
 #include "../global/EnumIndexedArray.h"
 #include "../global/NullPointerException.h"

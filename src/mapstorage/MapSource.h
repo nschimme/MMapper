@@ -20,14 +20,19 @@ class NODISCARD MapSource final : public std::enable_shared_from_this<MapSource>
 private:
     QString m_fileName;
     std::shared_ptr<QIODevice> m_device;
+    bool m_forceReadOnly = false;
 
 public:
     NODISCARD static std::shared_ptr<MapSource> alloc(
         const QString fileName,
-        const std::optional<QByteArray> &fileContent = std::nullopt) CAN_THROW;
+        const std::optional<QByteArray> &fileContent = std::nullopt,
+        bool forceReadOnly = false) CAN_THROW;
 
 public:
-    explicit MapSource(Badge<MapSource>, const QString fileName, std::shared_ptr<QIODevice> device);
+    explicit MapSource(Badge<MapSource>,
+                       const QString fileName,
+                       std::shared_ptr<QIODevice> device,
+                       bool forceReadOnly);
     DELETE_CTORS(MapSource);
     DELETE_COPY_ASSIGN_OP(MapSource);
 
@@ -37,4 +42,5 @@ private:
 public:
     NODISCARD const std::shared_ptr<QIODevice> &getIODevice() const { return m_device; }
     NODISCARD const QString &getFileName() const { return m_fileName; }
+    NODISCARD bool isForceReadOnly() const { return m_forceReadOnly; }
 };

@@ -49,7 +49,10 @@ static void tryInitDrMingw()
 #endif
 }
 
-NODISCARD static bool tryLoad(MainWindow &mw, const QDir &dir, const QString &input_filename)
+NODISCARD static bool tryLoad(MainWindow &mw,
+                              const QDir &dir,
+                              const QString &input_filename,
+                              bool forceReadOnly = false)
 {
     const auto getAbsoluteFileName = [&dir, &input_filename]() -> std::optional<QString> {
         if (QFileInfo{input_filename}.isAbsolute()) {
@@ -76,7 +79,7 @@ NODISCARD static bool tryLoad(MainWindow &mw, const QDir &dir, const QString &in
     }
 
     try {
-        mw.loadFile(MapSource::alloc(absoluteFilePath, std::nullopt));
+        mw.loadFile(MapSource::alloc(absoluteFilePath, std::nullopt, forceReadOnly));
         return true;
     } catch (const std::runtime_error &e) {
         qCritical() << "Failed to load autoload map:" << e.what();
@@ -92,7 +95,7 @@ static void tryAutoLoadMap(MainWindow &mw)
     }
 
     if (!settings.fileName.isEmpty()
-        && tryLoad(mw, QDir{settings.lastMapDirectory}, settings.fileName)) {
+        && tryLoad(mw, QDir{settings.lastMapDirectory}, settings.fileName, false)) {
         return;
     }
 
@@ -106,7 +109,7 @@ static void tryAutoLoadMap(MainWindow &mw)
         QObject::connect(reply, &QNetworkReply::finished, &mw, [&mw, reply, nam]() {
             if (reply->error() == QNetworkReply::NoError) {
                 try {
-                    mw.loadFile(MapSource::alloc(QStringLiteral("arda"), reply->readAll()));
+                    mw.loadFile(MapSource::alloc(QStringLiteral("arda"), reply->readAll(), true));
                 } catch (const std::exception &e) {
                     qCritical() << "[main] Failed to load sideloaded map:" << e.what();
                 }
@@ -119,11 +122,11 @@ static void tryAutoLoadMap(MainWindow &mw)
     } else {
         if (!NO_MAP_RESOURCE) {
             // Check the system assets directory
-            if (tryLoad(mw, QDir(getAssetsPath() + "map/"), "arda")) {
+            if (tryLoad(mw, QDir(getAssetsPath() + "map/"), "arda", true)) {
                 return;
             }
             // Fallback to QRC for backwards compatibility (though we're phasing it out)
-            if (tryLoad(mw, QDir(":/"), "arda")) {
+            if (tryLoad(mw, QDir(":/"), "arda", true)) {
                 return;
             }
         }

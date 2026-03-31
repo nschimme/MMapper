@@ -45,7 +45,7 @@ else()
         set(MAP_TARGET_DEPENDENCY map_repo)
     endif()
 
-    # For all platforms: copy map to the sideloaded assets directory instead of embedding in QRC
+    # For all platforms: copy map to the sideloaded assets directory
     set(MAP_ASSETS_DIR "${CMAKE_BINARY_DIR}/${ASSETS_NAME}/map")
     set(MAP_ASSETS_FILE "${MAP_ASSETS_DIR}/arda")
     set(MAP_ASSETS_STAMP "${MAP_DOWNLOAD_DIR}/CMakeLists.txt.assets_stamp")
@@ -58,7 +58,7 @@ else()
         COMMENT "Copying map to ${ASSETS_NAME} directory"
         VERBATIM
     )
-    add_custom_target(map_qrc ALL DEPENDS "${MAP_ASSETS_STAMP}")
-    add_dependencies(map_qrc ${MAP_TARGET_DEPENDENCY})
+    add_custom_target(map_assets ALL DEPENDS "${MAP_ASSETS_STAMP}")
+    add_dependencies(map_assets ${MAP_TARGET_DEPENDENCY})
     message(STATUS "Map will be sideloaded: ${MAP_ASSETS_FILE}")
 endif()

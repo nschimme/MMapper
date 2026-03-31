@@ -619,13 +619,13 @@ if(EMSCRIPTEN)
     # Collect which asset targets to depend on
     set(ASSETS_DEPS)
     if(WITH_AUDIO)
-        list(APPEND ASSETS_DEPS audio_qrc)
+        list(APPEND ASSETS_DEPS audio_assets)
     endif()
     if(WITH_IMAGES)
-        list(APPEND ASSETS_DEPS images_qrc)
+        list(APPEND ASSETS_DEPS images_assets)
     endif()
     if(WITH_MAP)
-        list(APPEND ASSETS_DEPS map_qrc)
+        list(APPEND ASSETS_DEPS map_assets)
     endif()
 
     # Generate the asset manifest JSON after all assets have been copied

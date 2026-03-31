@@ -46,7 +46,7 @@ else()
         set(AUDIO_TARGET_DEPENDENCY audio_repo)
     endif()
 
-    # For all platforms: copy assets to the sideloaded assets directory instead of embedding in QRC
+    # For all platforms: copy assets to the sideloaded assets directory
     set(AUDIO_ASSETS_STAMP "${AUDIO_DOWNLOAD_DIR}/CMakeLists.txt.assets_stamp")
     file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/${ASSETS_NAME}")
     add_custom_command(
@@ -57,7 +57,7 @@ else()
         COMMENT "Copying audio assets to ${ASSETS_NAME} directory"
         VERBATIM
     )
-    add_custom_target(audio_qrc ALL DEPENDS "${AUDIO_ASSETS_STAMP}")
-    add_dependencies(audio_qrc ${AUDIO_TARGET_DEPENDENCY})
+    add_custom_target(audio_assets ALL DEPENDS "${AUDIO_ASSETS_STAMP}")
+    add_dependencies(audio_assets ${AUDIO_TARGET_DEPENDENCY})
     message(STATUS "Audio assets will be sideloaded: ${CMAKE_BINARY_DIR}/${ASSETS_NAME}")
 endif()

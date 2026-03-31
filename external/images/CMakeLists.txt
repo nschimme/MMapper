@@ -46,7 +46,7 @@ else()
         set(IMAGES_TARGET_DEPENDENCY images_repo)
     endif()
 
-    # For all platforms: copy assets to the sideloaded assets directory instead of embedding in QRC
+    # For all platforms: copy assets to the sideloaded assets directory
     set(IMAGES_ASSETS_STAMP "${IMAGES_DOWNLOAD_DIR}/CMakeLists.txt.assets_stamp")
     file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/${ASSETS_NAME}")
     add_custom_command(
@@ -57,7 +57,7 @@ else()
         COMMENT "Copying image assets to ${ASSETS_NAME} directory"
         VERBATIM
     )
-    add_custom_target(images_qrc ALL DEPENDS "${IMAGES_ASSETS_STAMP}")
-    add_dependencies(images_qrc ${IMAGES_TARGET_DEPENDENCY})
+    add_custom_target(images_assets ALL DEPENDS "${IMAGES_ASSETS_STAMP}")
+    add_dependencies(images_assets ${IMAGES_TARGET_DEPENDENCY})
     message(STATUS "Image assets will be sideloaded: ${CMAKE_BINARY_DIR}/${ASSETS_NAME}")
 endif()

@@ -43,6 +43,7 @@ signals:
 
 private:
     void scanDirectories();
+    void scanPath(const QString &path, const QString &rootPath);
     void loadManifest();
     void processManifest(const QByteArray &data, const QString &dir);
 };

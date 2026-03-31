@@ -63,5 +63,3 @@ static inline constexpr const bool NO_AUDIO = true;
 #else
 static inline constexpr const bool NO_AUDIO = false;
 #endif
-
-static inline constexpr const char *const ASSETS_DIR_NAME = "assets";

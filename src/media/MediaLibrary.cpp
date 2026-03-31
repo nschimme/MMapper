@@ -65,6 +65,12 @@ MediaLibrary::MediaLibrary(QObject *const parent)
     scanDirectories();
 
     if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
+        // Watch the assets directory too
+        const QString assetsDir = getAssetsPath();
+        if (QDir(assetsDir).exists()) {
+            m_watcher.addPath(assetsDir);
+        }
+
         const auto &resourcesDir = getConfig().canvas.resourcesDirectory;
         auto addPathIfExist = [this](const QString &path) {
             if (QDir(path).exists()) {
@@ -111,7 +117,9 @@ void MediaLibrary::loadManifest()
         if (file.open(QIODevice::ReadOnly)) {
             processManifest(file.readAll(), dir);
         } else {
-            qWarning() << "Failed to open asset manifest:" << file.fileName();
+            qWarning() << "Failed to open asset manifest:" << file.fileName()
+                       << "- falling back to directory scanning";
+            scanPath(dir, dir);
         }
         return;
     }
@@ -194,61 +202,60 @@ void MediaLibrary::fetchAsync(const QString &path, std::function<void(const QByt
     }
 }
 
+void MediaLibrary::scanPath(const QString &path, const QString &rootPath)
+{
+    QDirIterator it(path, QDir::Files, QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        QFileInfo fileInfo(it.next());
+        QString suffix = fileInfo.suffix().toLower();
+        QString filePath = fileInfo.filePath();
+
+        auto dotIndex = filePath.lastIndexOf('.');
+        if (dotIndex == -1) {
+            continue;
+        }
+
+        const bool isQrc = filePath.startsWith(QLatin1String(":/"));
+        QString baseName;
+        if (isQrc) {
+            baseName = filePath.left(dotIndex).mid(2); // remove :/
+        } else {
+            if (!filePath.startsWith(rootPath)) {
+                continue;
+            }
+            baseName = filePath.mid(rootPath.length()).left(dotIndex - rootPath.length());
+            if (baseName.startsWith(QLatin1String("/"))) {
+                baseName = baseName.mid(1);
+            }
+        }
+
+        if (baseName.isEmpty()) {
+            continue;
+        }
+
+        if (m_audioExtensions.contains(suffix)) {
+            m_audioFiles.insert(baseName, filePath);
+        }
+        if (m_imageExtensions.contains(suffix)) {
+            m_imageFiles.insert(baseName, filePath);
+        }
+    }
+}
+
 void MediaLibrary::scanDirectories()
 {
     m_audioFiles.clear();
     m_imageFiles.clear();
 
-    auto scanPath = [&](const QString &path) {
-        QDirIterator it(path, QDir::Files, QDirIterator::Subdirectories);
-        while (it.hasNext()) {
-            QFileInfo fileInfo(it.next());
-            QString suffix = fileInfo.suffix().toLower();
-            QString filePath = fileInfo.filePath();
-
-            auto dotIndex = filePath.lastIndexOf('.');
-            if (dotIndex == -1) {
-                continue;
-            }
-
-            const bool isQrc = filePath.startsWith(QLatin1String(":/"));
-            QString baseName;
-            if (isQrc) {
-                baseName = filePath.left(dotIndex).mid(2); // remove :/
-            } else {
-                QString resourcesPath = getConfig().canvas.resourcesDirectory;
-                if (!filePath.startsWith(resourcesPath)) {
-                    continue;
-                }
-                baseName = filePath.mid(resourcesPath.length())
-                               .left(dotIndex - resourcesPath.length());
-                if (baseName.startsWith(QLatin1String("/"))) {
-                    baseName = baseName.mid(1);
-                }
-            }
-
-            if (baseName.isEmpty()) {
-                continue;
-            }
-
-            if (m_audioExtensions.contains(suffix)) {
-                m_audioFiles.insert(baseName, filePath);
-            }
-            if (m_imageExtensions.contains(suffix)) {
-                m_imageFiles.insert(baseName, filePath);
-            }
-        }
-    };
-
     // Scan QRC first then disk to prioritize disk
-    scanPath(QLatin1String(":/areas"));
-    scanPath(QLatin1String(":/rooms"));
-    scanPath(QLatin1String(":/sounds"));
+    scanPath(QLatin1String(":/areas"), QLatin1String(":/"));
+    scanPath(QLatin1String(":/rooms"), QLatin1String(":/"));
+    scanPath(QLatin1String(":/sounds"), QLatin1String(":/"));
 
     const auto &resourcesDir = getConfig().canvas.resourcesDirectory;
-    scanPath(resourcesDir + "/areas");
-    scanPath(resourcesDir + "/rooms");
-    scanPath(resourcesDir + "/sounds");
+    scanPath(resourcesDir + "/areas", resourcesDir);
+    scanPath(resourcesDir + "/rooms", resourcesDir);
+    scanPath(resourcesDir + "/sounds", resourcesDir);
 
     qInfo() << "Scanned media directories. Found" << m_audioFiles.size() << "audio files and"
             << m_imageFiles.size() << "image files.";

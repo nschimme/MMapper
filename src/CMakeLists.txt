@@ -614,6 +614,7 @@ list(APPEND mmapper_RCS "resources/macosx/m-${MMAPPER_BRAND_SUFFIX}.icns")
 # For all platforms: large assets are sideloaded.
 # The manifest is served alongside the application and fetched at runtime.
 set(ASSETS_NAME "assets")
+add_compile_definitions(ASSETS_DIR_NAME="${ASSETS_NAME}")
 get_filename_component(ASSETS_DIR "${CMAKE_BINARY_DIR}/${ASSETS_NAME}" ABSOLUTE)
 set(ASSETS_MANIFEST "${ASSETS_DIR}/manifest.json")
 
@@ -1165,6 +1166,11 @@ if(WIN32)
                 Delete '\\$INSTDIR\\\\vc_redist.x64.exe'
                 ")
         endif()
+
+        # Mark default assets as read-only on Windows
+        set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "${CPACK_NSIS_EXTRA_INSTALL_COMMANDS}
+            SetFileAttributes '\\$INSTDIR\\\\${ASSETS_NAME}\\\\map\\\\arda' READONLY
+            ")
 
         # Windows (NSIS) Settings
         set(CPACK_NSIS_EXECUTABLES_DIRECTORY ".")

@@ -4,6 +4,7 @@
 #include "MediaLibrary.h"
 
 #include "../configuration/configuration.h"
+#include "../display/Filenames.h"
 #include "../global/ConfigConsts-Computed.h"
 
 #ifndef MMAPPER_NO_AUDIO
@@ -103,12 +104,19 @@ QString MediaLibrary::findImage(const QString &subDir, const QString &name) cons
 
 void MediaLibrary::loadManifest()
 {
+    const QString dir = getAssetsPath();
+
     if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
+        QFile file(dir + "manifest.json");
+        if (file.open(QIODevice::ReadOnly)) {
+            processManifest(file.readAll(), dir);
+        } else {
+            qWarning() << "Failed to open asset manifest:" << file.fileName();
+        }
         return;
     }
 
     // Fetch the manifest JSON from the network (it's served alongside the WASM files).
-    const QString dir = "assets/";
     auto *reply = m_network->get(QNetworkRequest(QUrl(dir + "manifest.json")));
     connect(reply, &QNetworkReply::finished, this, [this, dir, reply]() {
         if (reply->error() != QNetworkReply::NoError) {
@@ -116,39 +124,53 @@ void MediaLibrary::loadManifest()
             reply->deleteLater();
             return;
         }
-        const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+        processManifest(reply->readAll(), dir);
         reply->deleteLater();
-        if (!doc.isArray()) {
-            qWarning() << "Asset manifest is not a JSON array";
-            return;
-        }
-        const QJsonArray arr = doc.array();
-        for (const QJsonValue val : arr) {
-            const QString path = val.toString(); // e.g., "assets/areas/weathertop.jpg"
-            QString relativePath = path;
-            if (relativePath.startsWith(dir)) {
-                relativePath.remove(0, dir.length());
-            }
-            QFileInfo relInfo(relativePath);
-            QString pathPart = relInfo.path();
-            QString namePart = relInfo.completeBaseName();
-            QString base;
-            if (pathPart == "." || pathPart.isEmpty()) {
-                base = namePart;
-            } else {
-                base = pathPart + "/" + namePart;
-            }
-            QString suffix = relInfo.suffix().toLower();
-            if (m_audioExtensions.contains(suffix)) {
-                m_audioFiles.insert(base, path);
-            }
-            if (m_imageExtensions.contains(suffix)) {
-                m_imageFiles.insert(base, path);
-            }
-        }
-        qInfo() << "Loaded manifest with" << arr.size() << "assets.";
-        emit sig_mediaChanged();
     });
+}
+
+void MediaLibrary::processManifest(const QByteArray &data, const QString &dir)
+{
+    const QJsonDocument doc = QJsonDocument::fromJson(data);
+    if (!doc.isArray()) {
+        qWarning() << "Asset manifest is not a JSON array";
+        return;
+    }
+    const QJsonArray arr = doc.array();
+    for (const QJsonValue val : arr) {
+        const QString path = val.toString(); // e.g., "assets/areas/weathertop.jpg"
+        QString relativePath = path;
+        if (relativePath.startsWith(u"assets/")) {
+            relativePath.remove(0, 7);
+        }
+        QFileInfo relInfo(relativePath);
+        QString pathPart = relInfo.path();
+        QString namePart = relInfo.completeBaseName();
+        QString base;
+        if (pathPart == "." || pathPart.isEmpty()) {
+            base = namePart;
+        } else {
+            base = pathPart + "/" + namePart;
+        }
+        QString suffix = relInfo.suffix().toLower();
+
+        // Construct the full path based on whether it's Wasm (network URL) or Desktop (local path)
+        QString fullPath;
+        if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+            fullPath = path;
+        } else {
+            fullPath = dir + relativePath;
+        }
+
+        if (m_audioExtensions.contains(suffix)) {
+            m_audioFiles.insert(base, fullPath);
+        }
+        if (m_imageExtensions.contains(suffix)) {
+            m_imageFiles.insert(base, fullPath);
+        }
+    }
+    qInfo() << "Loaded manifest with" << arr.size() << "assets.";
+    emit sig_mediaChanged();
 }
 
 void MediaLibrary::fetchAsync(const QString &path, std::function<void(const QByteArray &)> callback)

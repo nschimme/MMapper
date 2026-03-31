@@ -44,4 +44,5 @@ signals:
 private:
     void scanDirectories();
     void loadManifest();
+    void processManifest(const QByteArray &data, const QString &dir);
 };

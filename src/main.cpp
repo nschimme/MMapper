@@ -117,8 +117,15 @@ static void tryAutoLoadMap(MainWindow &mw)
             nam->deleteLater();
         });
     } else {
-        if (!NO_MAP_RESOURCE && tryLoad(mw, QDir(":/"), "arda")) {
-            return;
+        if (!NO_MAP_RESOURCE) {
+            // Check the system assets directory
+            if (tryLoad(mw, QDir(getAssetsPath() + "map/"), "arda")) {
+                return;
+            }
+            // Fallback to QRC for backwards compatibility (though we're phasing it out)
+            if (tryLoad(mw, QDir(":/"), "arda")) {
+                return;
+            }
         }
         qInfo() << "[main] Unable to autoload map";
     }

@@ -5,6 +5,7 @@
 #include "Filenames.h"
 
 #include "../configuration/configuration.h"
+#include "../global/ConfigConsts-Computed.h"
 #include "../global/Consts.h"
 #include "../global/EnumIndexedArray.h"
 #include "../global/NullPointerException.h"
@@ -13,7 +14,9 @@
 #include <memory>
 #include <mutex>
 
+#include <QtCore/QCoreApplication>
 #include <QtCore/QDebug>
+#include <QtCore/QDir>
 #include <QtCore/QFile>
 
 // NOTE: This isn't used by the parser (currently only used for filenames).
@@ -76,6 +79,47 @@ NODISCARD static const char *getFilenameSuffix(const E x)
     return getParserCommandName(x).getCommand();
 }
 
+QString getAssetsPath()
+{
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+        return "assets/";
+    }
+
+    static const QString assetsPath = []() {
+        const QDir appDir(QCoreApplication::applicationDirPath());
+#if defined(Q_OS_MAC)
+        // Check for assets in the bundle's Resources directory
+        QDir bundleAssets(appDir);
+        bundleAssets.cdUp();
+        bundleAssets.cd("Resources/assets");
+        if (bundleAssets.exists()) {
+            return bundleAssets.absolutePath() + "/";
+        }
+#elif defined(Q_OS_WIN)
+        if (appDir.exists("assets")) {
+            return appDir.absoluteFilePath("assets") + "/";
+        }
+#else
+        // Check for assets in share/mmapper/assets (standard Linux install)
+        QDir linuxAssets(appDir);
+        linuxAssets.cdUp();
+        linuxAssets.cd("share/mmapper/assets");
+        if (linuxAssets.exists()) {
+            return linuxAssets.absolutePath() + "/";
+        }
+
+        // Fallback: check next to the binary
+        if (appDir.exists("assets")) {
+            return appDir.absoluteFilePath("assets") + "/";
+        }
+#endif
+        // Default to a relative path if not found
+        return QString("assets/");
+    }();
+
+    return assetsPath;
+}
+
 QString getResourceFilenameRaw(const QString &dir, const QString &name)
 {
     const auto filename = QString("/%1/%2").arg(dir, name);
@@ -84,6 +128,12 @@ QString getResourceFilenameRaw(const QString &dir, const QString &name)
     auto custom = getConfig().canvas.resourcesDirectory + filename;
     if (QFile{custom}.exists()) {
         return custom;
+    }
+
+    // Check the system assets directory
+    auto assetPath = getAssetsPath() + dir + "/" + name;
+    if (QFile{assetPath}.exists()) {
+        return assetPath;
     }
 
     // Fallback to the qrc resource

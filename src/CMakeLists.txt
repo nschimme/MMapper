@@ -611,9 +611,6 @@ configure_file(resources/build.qrc.in ${CMAKE_CURRENT_BINARY_DIR}/build.qrc)
 qt_add_resources(mmapper_QRC ${CMAKE_CURRENT_BINARY_DIR}/build.qrc)
 list(APPEND mmapper_RCS "resources/macosx/m-${MMAPPER_BRAND_SUFFIX}.icns")
 
-# For all platforms: large assets are sideloaded.
-add_compile_definitions(ASSETS_DIR_NAME="${ASSETS_NAME}")
-
 if(EMSCRIPTEN)
     # The manifest is served alongside the application and fetched at runtime.
     get_filename_component(ASSETS_DIR "${CMAKE_BINARY_DIR}/${ASSETS_NAME}" ABSOLUTE)
@@ -637,7 +634,7 @@ if(EMSCRIPTEN)
         COMMAND ${CMAKE_COMMAND}
             -DASSETS_DIR=${ASSETS_DIR}
             -DOUTPUT_FILE=${ASSETS_MANIFEST}
-            -P "${CMAKE_SOURCE_DIR}/cmake/GenerateManifest.cmake"
+            -P "${CMAKE_SOURCE_DIR}/cmake/WasmManifest.cmake"
         DEPENDS ${ASSETS_DEPS}
         COMMENT "Generating asset manifest"
         VERBATIM
@@ -743,7 +740,7 @@ if(EMSCRIPTEN)
         -sFULL_ES3=1
         -sMAX_WEBGL_VERSION=2
         -sMIN_WEBGL_VERSION=2
-        -sASSERTIONS
+	#-sASSERTIONS
         -sASYNCIFY
         -Os
     )
@@ -845,24 +842,14 @@ if(WIN32)
 endif()
 
 if(EMSCRIPTEN)
-    # Manifest depends on all enabled asset targets; mmapper depends on the manifest
     add_dependencies(mmapper assets_manifest)
-
-    # Patch the Qt-generated WASM HTML: inject favicon, logo, and COI service worker
-    if(MMAPPER_BETA)
-        set(FAVICON_SRC "${CMAKE_SOURCE_DIR}/src/resources/win32/m-beta.ico")
-        set(LOGO_SRC "${CMAKE_SOURCE_DIR}/src/resources/pixmaps/splash-beta.png")
-    else()
-        set(FAVICON_SRC "${CMAKE_SOURCE_DIR}/src/resources/win32/m-release.ico")
-        set(LOGO_SRC "${CMAKE_SOURCE_DIR}/src/resources/pixmaps/splash-release.png")
-    endif()
     add_custom_command(TARGET mmapper POST_BUILD
         COMMAND ${CMAKE_COMMAND}
             "-DHTML_FILE=$<TARGET_FILE_DIR:mmapper>/mmapper.html"
-            "-DFAVICON_SRC=${FAVICON_SRC}"
-            "-DLOGO_SRC=${LOGO_SRC}"
-            -P "${CMAKE_SOURCE_DIR}/cmake/PatchWasmHtml.cmake"
-        COMMENT "Patching WASM HTML"
+            "-DFAVICON_SRC=${CMAKE_SOURCE_DIR}/src/resources/win32/m-${MMAPPER_BRAND_SUFFIX.ico"
+            "-DLOGO_SRC=${CMAKE_SOURCE_DIR}/src/resources/pixmaps/splash-${MMAPPER_BRAND_SUFFIX}.png"
+            -P "${CMAKE_SOURCE_DIR}/cmake/WasmHtml.cmake"
+        COMMENT "Patching Wasm HTML"
         VERBATIM
     )
 endif()
@@ -975,9 +962,8 @@ else()
     set(CPACK_STRIP_FILES TRUE)
 endif()
 
-# WASM Install Settings
+# Wasm Install Settings
 if(EMSCRIPTEN)
-    # Core WASM application files (produced by Qt + PatchWasmHtml post-build)
     install(
         FILES
             "$<TARGET_FILE_DIR:mmapper>/mmapper.js"
@@ -995,47 +981,37 @@ if(EMSCRIPTEN)
         RENAME "index.html"
         COMPONENT applications
     )
-    # Sideloaded assets (audio, images, map, manifest)
+endif()
+
+# Sideloaded assets for audio, images, map, manifest
+if(APPLE)
     install(
         DIRECTORY "${CMAKE_BINARY_DIR}/${ASSETS_NAME}/"
-        DESTINATION "${ASSETS_NAME}"
+        DESTINATION "mmapper.app/Contents/Resources/${ASSETS_NAME}"
         COMPONENT applications
         DIRECTORY_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
         FILE_PERMISSIONS OWNER_READ GROUP_READ WORLD_READ
         PATTERN ".git" EXCLUDE
+        PATTERN "README.md" EXCLUDE
     )
-endif()
-
-# Sideloaded assets for Desktop (audio, images, map, manifest)
-if(NOT EMSCRIPTEN)
-    if(APPLE)
-        install(
-            DIRECTORY "${CMAKE_BINARY_DIR}/${ASSETS_NAME}/"
-            DESTINATION "mmapper.app/Contents/Resources/${ASSETS_NAME}"
-            COMPONENT applications
-            DIRECTORY_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
-            FILE_PERMISSIONS OWNER_READ GROUP_READ WORLD_READ
-            PATTERN ".git" EXCLUDE
-        )
-    elseif(WIN32)
-        # Note: NSIS and Windows filesystem permissions are complex to manage via CMake 'install'.
-        # We rely on application-level protection (forceReadOnly) to prevent overwriting default assets.
-        install(
-            DIRECTORY "${CMAKE_BINARY_DIR}/${ASSETS_NAME}/"
-            DESTINATION "${ASSETS_NAME}"
-            COMPONENT applications
-            PATTERN ".git" EXCLUDE
-        )
-    else()
-        install(
-            DIRECTORY "${CMAKE_BINARY_DIR}/${ASSETS_NAME}/"
-            DESTINATION "share/mmapper/${ASSETS_NAME}"
-            COMPONENT applications
-            DIRECTORY_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
-            FILE_PERMISSIONS OWNER_READ GROUP_READ WORLD_READ
-            PATTERN ".git" EXCLUDE
-        )
-    endif()
+elseif(WIN32)
+    install(
+        DIRECTORY "${CMAKE_BINARY_DIR}/${ASSETS_NAME}/"
+        DESTINATION "${ASSETS_NAME}"
+        COMPONENT applications
+        PATTERN ".git" EXCLUDE
+        PATTERN "README.md" EXCLUDE
+    )
+else()
+    install(
+        DIRECTORY "${CMAKE_BINARY_DIR}/${ASSETS_NAME}/"
+        DESTINATION "share/mmapper/${ASSETS_NAME}"
+        COMPONENT applications
+        DIRECTORY_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+        FILE_PERMISSIONS OWNER_READ GROUP_READ WORLD_READ
+        PATTERN ".git" EXCLUDE
+        PATTERN "README.md" EXCLUDE
+    )
 endif()
 
 # Linux Install Settings

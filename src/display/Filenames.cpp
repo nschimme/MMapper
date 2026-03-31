@@ -81,40 +81,50 @@ NODISCARD static const char *getFilenameSuffix(const E x)
 
 QString getAssetsPath()
 {
+    static const QString assetsDirName = QString::fromUtf8(ASSETS_DIR_NAME.data(),
+                                                           static_cast<qsizetype>(
+                                                               ASSETS_DIR_NAME.size()));
+
+    // Note: CURRENT_PLATFORM is derived from Qt's Q_OS_* macros in ConfigConsts-Computed.h.
+    // We use if constexpr with CURRENT_PLATFORM here for cleaner cross-platform logic.
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
-        return "assets/";
+        return assetsDirName + "/";
     }
 
     static const QString assetsPath = []() {
         const QDir appDir(QCoreApplication::applicationDirPath());
-#if defined(Q_OS_MAC)
-        // Check for assets in the bundle's Resources directory
-        QDir bundleAssets(appDir);
-        bundleAssets.cdUp();
-        bundleAssets.cd("Resources/assets");
-        if (bundleAssets.exists()) {
-            return bundleAssets.absolutePath() + "/";
-        }
-#elif defined(Q_OS_WIN)
-        if (appDir.exists("assets")) {
-            return appDir.absoluteFilePath("assets") + "/";
-        }
-#else
-        // Check for assets in share/mmapper/assets (standard Linux install)
-        QDir linuxAssets(appDir);
-        linuxAssets.cdUp();
-        linuxAssets.cd("share/mmapper/assets");
-        if (linuxAssets.exists()) {
-            return linuxAssets.absolutePath() + "/";
+
+        if constexpr (CURRENT_PLATFORM == PlatformEnum::Mac) {
+            // Check for assets in the bundle's Resources directory
+            QDir bundleAssets(appDir);
+            bundleAssets.cdUp();
+            bundleAssets.cd("Resources");
+            bundleAssets.cd(assetsDirName);
+            if (bundleAssets.exists()) {
+                return bundleAssets.absolutePath() + "/";
+            }
+        } else if constexpr (CURRENT_PLATFORM == PlatformEnum::Windows) {
+            if (appDir.exists(assetsDirName)) {
+                return appDir.absoluteFilePath(assetsDirName) + "/";
+            }
+        } else if constexpr (CURRENT_PLATFORM == PlatformEnum::Linux) {
+            // Check for assets in share/mmapper/assets (standard Linux install)
+            QDir linuxAssets(appDir);
+            linuxAssets.cdUp();
+            linuxAssets.cd("share/mmapper");
+            linuxAssets.cd(assetsDirName);
+            if (linuxAssets.exists()) {
+                return linuxAssets.absolutePath() + "/";
+            }
         }
 
         // Fallback: check next to the binary
-        if (appDir.exists("assets")) {
-            return appDir.absoluteFilePath("assets") + "/";
+        if (appDir.exists(assetsDirName)) {
+            return appDir.absoluteFilePath(assetsDirName) + "/";
         }
-#endif
+
         // Default to a relative path if not found
-        return QString("assets/");
+        return assetsDirName + "/";
     }();
 
     return assetsPath;

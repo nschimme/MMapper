@@ -102,7 +102,7 @@ static void tryAutoLoadMap(MainWindow &mw)
         }
         // On WASM the map is sideloaded from the network; fetch it asynchronously.
         auto *nam = new QNetworkAccessManager(&mw);
-        auto *reply = nam->get(QNetworkRequest(QUrl(QStringLiteral("assets/map/arda"))));
+        auto *reply = nam->get(QNetworkRequest(QUrl(getAssetsPath() + "map/arda")));
         QObject::connect(reply, &QNetworkReply::finished, &mw, [&mw, reply, nam]() {
             if (reply->error() == QNetworkReply::NoError) {
                 try {

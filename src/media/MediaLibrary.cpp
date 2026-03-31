@@ -138,11 +138,7 @@ void MediaLibrary::processManifest(const QByteArray &data, const QString &dir)
     }
     const QJsonArray arr = doc.array();
     for (const QJsonValue val : arr) {
-        const QString path = val.toString(); // e.g., "assets/areas/weathertop.jpg"
-        QString relativePath = path;
-        if (relativePath.startsWith(u"assets/")) {
-            relativePath.remove(0, 7);
-        }
+        const QString relativePath = val.toString(); // e.g., "areas/weathertop.jpg"
         QFileInfo relInfo(relativePath);
         QString pathPart = relInfo.path();
         QString namePart = relInfo.completeBaseName();
@@ -154,13 +150,8 @@ void MediaLibrary::processManifest(const QByteArray &data, const QString &dir)
         }
         QString suffix = relInfo.suffix().toLower();
 
-        // Construct the full path based on whether it's Wasm (network URL) or Desktop (local path)
-        QString fullPath;
-        if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
-            fullPath = path;
-        } else {
-            fullPath = dir + relativePath;
-        }
+        // Construct the full path (dir is already set correctly by loadManifest())
+        const QString fullPath = dir + relativePath;
 
         if (m_audioExtensions.contains(suffix)) {
             m_audioFiles.insert(base, fullPath);

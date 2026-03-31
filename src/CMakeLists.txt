@@ -613,7 +613,8 @@ list(APPEND mmapper_RCS "resources/macosx/m-${MMAPPER_BRAND_SUFFIX}.icns")
 
 # For all platforms: large assets are sideloaded.
 # The manifest is served alongside the application and fetched at runtime.
-get_filename_component(ASSETS_DIR "${CMAKE_BINARY_DIR}/assets" ABSOLUTE)
+set(ASSETS_NAME "assets")
+get_filename_component(ASSETS_DIR "${CMAKE_BINARY_DIR}/${ASSETS_NAME}" ABSOLUTE)
 set(ASSETS_MANIFEST "${ASSETS_DIR}/manifest.json")
 
 # Collect which asset targets to depend on
@@ -993,8 +994,8 @@ if(EMSCRIPTEN)
     )
     # Sideloaded assets (audio, images, map, manifest)
     install(
-        DIRECTORY "${CMAKE_BINARY_DIR}/assets/"
-        DESTINATION "assets"
+        DIRECTORY "${CMAKE_BINARY_DIR}/${ASSETS_NAME}/"
+        DESTINATION "${ASSETS_NAME}"
         COMPONENT applications
         PATTERN ".git" EXCLUDE
     )
@@ -1004,22 +1005,22 @@ endif()
 if(NOT EMSCRIPTEN)
     if(APPLE)
         install(
-            DIRECTORY "${CMAKE_BINARY_DIR}/assets/"
-            DESTINATION "mmapper.app/Contents/Resources/assets"
+            DIRECTORY "${CMAKE_BINARY_DIR}/${ASSETS_NAME}/"
+            DESTINATION "mmapper.app/Contents/Resources/${ASSETS_NAME}"
             COMPONENT applications
             PATTERN ".git" EXCLUDE
         )
     elseif(WIN32)
         install(
-            DIRECTORY "${CMAKE_BINARY_DIR}/assets/"
-            DESTINATION "assets"
+            DIRECTORY "${CMAKE_BINARY_DIR}/${ASSETS_NAME}/"
+            DESTINATION "${ASSETS_NAME}"
             COMPONENT applications
             PATTERN ".git" EXCLUDE
         )
     else()
         install(
-            DIRECTORY "${CMAKE_BINARY_DIR}/assets/"
-            DESTINATION "share/mmapper/assets"
+            DIRECTORY "${CMAKE_BINARY_DIR}/${ASSETS_NAME}/"
+            DESTINATION "share/mmapper/${ASSETS_NAME}"
             COMPONENT applications
             PATTERN ".git" EXCLUDE
         )

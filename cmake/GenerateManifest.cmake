@@ -4,7 +4,7 @@
 # Usage:
 #   cmake -DASSETS_DIR=<path> -DOUTPUT_FILE=<path> -P GenerateManifest.cmake
 #
-# The manifest maps "subdir/basename" -> "assets/subdir/basename.ext" for each
+# The manifest maps "subdir/basename.ext" for each
 # audio (.mp3, .ogg, .opus, .webm) and image (.jpg, .png) file found, plus the
 # map file "arda" if present.
 
@@ -35,12 +35,10 @@ set(JSON_CONTENT "[\n")
 set(FIRST_ENTRY TRUE)
 
 foreach(rel_path IN LISTS AUDIO_FILES IMAGE_FILES MAP_FILES)
-    set(value "assets/${rel_path}")
-
     if(NOT FIRST_ENTRY)
         string(APPEND JSON_CONTENT ",\n")
     endif()
-    string(APPEND JSON_CONTENT "  \"${value}\"")
+    string(APPEND JSON_CONTENT "  \"${rel_path}\"")
     set(FIRST_ENTRY FALSE)
 endforeach()
 

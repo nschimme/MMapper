@@ -611,10 +611,12 @@ configure_file(resources/build.qrc.in ${CMAKE_CURRENT_BINARY_DIR}/build.qrc)
 qt_add_resources(mmapper_QRC ${CMAKE_CURRENT_BINARY_DIR}/build.qrc)
 list(APPEND mmapper_RCS "resources/macosx/m-${MMAPPER_BRAND_SUFFIX}.icns")
 
+# For all platforms: large assets are sideloaded.
+add_compile_definitions(ASSETS_DIR_NAME="${ASSETS_NAME}")
+
 if(EMSCRIPTEN)
-    # For WASM: large assets are sideloaded from the network.
-    # The manifest is served alongside the WASM files and fetched at runtime.
-    get_filename_component(ASSETS_DIR "${CMAKE_BINARY_DIR}/assets" ABSOLUTE)
+    # The manifest is served alongside the application and fetched at runtime.
+    get_filename_component(ASSETS_DIR "${CMAKE_BINARY_DIR}/${ASSETS_NAME}" ABSOLUTE)
     set(ASSETS_MANIFEST "${ASSETS_DIR}/manifest.json")
 
     # Collect which asset targets to depend on
@@ -637,7 +639,7 @@ if(EMSCRIPTEN)
             -DOUTPUT_FILE=${ASSETS_MANIFEST}
             -P "${CMAKE_SOURCE_DIR}/cmake/GenerateManifest.cmake"
         DEPENDS ${ASSETS_DEPS}
-        COMMENT "Generating Wasm asset manifest"
+        COMMENT "Generating asset manifest"
         VERBATIM
     )
     add_custom_target(assets_manifest ALL DEPENDS "${ASSETS_MANIFEST}")
@@ -645,18 +647,6 @@ if(EMSCRIPTEN)
         add_dependencies(assets_manifest ${ASSETS_DEPS})
     else()
         message(WARNING "No assets enabled for manifest generation")
-    endif()
-else()
-    if(WITH_MAP)
-        qt_add_resources(mmapper_QRC "${CMAKE_BINARY_DIR}/map/map.qrc")
-    endif()
-
-    if(WITH_IMAGES)
-        qt_add_resources(mmapper_QRC "${CMAKE_BINARY_DIR}/images/images.qrc")
-    endif()
-
-    if(WITH_AUDIO)
-        qt_add_resources(mmapper_QRC "${CMAKE_BINARY_DIR}/audio/audio.qrc")
     endif()
 endif()
 
@@ -875,18 +865,6 @@ if(EMSCRIPTEN)
         COMMENT "Patching WASM HTML"
         VERBATIM
     )
-else()
-    if(WITH_MAP)
-        add_dependencies(mmapper map_qrc)
-    endif()
-
-    if(WITH_IMAGES)
-        add_dependencies(mmapper images_qrc)
-    endif()
-
-    if(WITH_AUDIO)
-        add_dependencies(mmapper audio_qrc)
-    endif()
 endif()
 
 if(WITH_ZLIB AND NOT EMSCRIPTEN)
@@ -1019,11 +997,45 @@ if(EMSCRIPTEN)
     )
     # Sideloaded assets (audio, images, map, manifest)
     install(
-        DIRECTORY "${CMAKE_BINARY_DIR}/assets/"
-        DESTINATION "assets"
+        DIRECTORY "${CMAKE_BINARY_DIR}/${ASSETS_NAME}/"
+        DESTINATION "${ASSETS_NAME}"
         COMPONENT applications
+        DIRECTORY_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+        FILE_PERMISSIONS OWNER_READ GROUP_READ WORLD_READ
         PATTERN ".git" EXCLUDE
     )
+endif()
+
+# Sideloaded assets for Desktop (audio, images, map, manifest)
+if(NOT EMSCRIPTEN)
+    if(APPLE)
+        install(
+            DIRECTORY "${CMAKE_BINARY_DIR}/${ASSETS_NAME}/"
+            DESTINATION "mmapper.app/Contents/Resources/${ASSETS_NAME}"
+            COMPONENT applications
+            DIRECTORY_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+            FILE_PERMISSIONS OWNER_READ GROUP_READ WORLD_READ
+            PATTERN ".git" EXCLUDE
+        )
+    elseif(WIN32)
+        # Note: NSIS and Windows filesystem permissions are complex to manage via CMake 'install'.
+        # We rely on application-level protection (forceReadOnly) to prevent overwriting default assets.
+        install(
+            DIRECTORY "${CMAKE_BINARY_DIR}/${ASSETS_NAME}/"
+            DESTINATION "${ASSETS_NAME}"
+            COMPONENT applications
+            PATTERN ".git" EXCLUDE
+        )
+    else()
+        install(
+            DIRECTORY "${CMAKE_BINARY_DIR}/${ASSETS_NAME}/"
+            DESTINATION "share/mmapper/${ASSETS_NAME}"
+            COMPONENT applications
+            DIRECTORY_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+            FILE_PERMISSIONS OWNER_READ GROUP_READ WORLD_READ
+            PATTERN ".git" EXCLUDE
+        )
+    endif()
 endif()
 
 # Linux Install Settings
@@ -1156,6 +1168,11 @@ if(WIN32)
                 Delete '\\$INSTDIR\\\\vc_redist.x64.exe'
                 ")
         endif()
+
+        # Mark default assets as read-only on Windows
+        set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "${CPACK_NSIS_EXTRA_INSTALL_COMMANDS}
+            SetFileAttributes '\\$INSTDIR\\\\${ASSETS_NAME}\\\\map\\\\arda' READONLY
+            ")
 
         # Windows (NSIS) Settings
         set(CPACK_NSIS_EXECUTABLES_DIRECTORY ".")

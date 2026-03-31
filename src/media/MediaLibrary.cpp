@@ -239,7 +239,8 @@ void MediaLibrary::scanDirectories()
     m_audioFiles.clear();
     m_imageFiles.clear();
 
-    // Scan QRC first then disk to prioritize disk
+    // Scan resources in increasing order of priority: QRC < Sideloaded Assets < User Resources.
+    // Duplicate keys encountered later will overwrite earlier ones.
     scanPath(QLatin1String(":/areas"), QLatin1String(":/"));
     scanPath(QLatin1String(":/rooms"), QLatin1String(":/"));
     scanPath(QLatin1String(":/sounds"), QLatin1String(":/"));

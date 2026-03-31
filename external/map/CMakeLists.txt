@@ -46,7 +46,7 @@ else()
     endif()
 
     # For all platforms: copy map to the sideloaded assets directory instead of embedding in QRC
-    set(MAP_ASSETS_DIR "${CMAKE_BINARY_DIR}/assets/map")
+    set(MAP_ASSETS_DIR "${CMAKE_BINARY_DIR}/${ASSETS_NAME}/map")
     set(MAP_ASSETS_FILE "${MAP_ASSETS_DIR}/arda")
     set(MAP_ASSETS_STAMP "${MAP_DOWNLOAD_DIR}/CMakeLists.txt.assets_stamp")
     file(MAKE_DIRECTORY "${MAP_ASSETS_DIR}")
@@ -55,7 +55,7 @@ else()
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "${MAP_FILE}" "${MAP_ASSETS_FILE}"
         COMMAND ${CMAKE_COMMAND} -E touch "${MAP_ASSETS_STAMP}"
         DEPENDS "${MAP_FILE}"
-        COMMENT "Copying map to assets directory"
+        COMMENT "Copying map to ${ASSETS_NAME} directory"
         VERBATIM
     )
     add_custom_target(map_qrc ALL DEPENDS "${MAP_ASSETS_STAMP}")

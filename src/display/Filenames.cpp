@@ -130,8 +130,8 @@ QString getAssetsPath()
             return appDir.absoluteFilePath(assetsDirName) + "/";
         }
 
-        // Default to a relative path if not found
-        return assetsDirName + "/";
+        // Final fallback: return an absolute path even if it doesn't exist
+        return appDir.absoluteFilePath(assetsDirName) + "/";
     }();
 
     return assetsPath;

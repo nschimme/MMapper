@@ -612,7 +612,6 @@ qt_add_resources(mmapper_QRC ${CMAKE_CURRENT_BINARY_DIR}/build.qrc)
 list(APPEND mmapper_RCS "resources/macosx/m-${MMAPPER_BRAND_SUFFIX}.icns")
 
 # For all platforms: large assets are sideloaded.
-set(ASSETS_NAME "assets")
 add_compile_definitions(ASSETS_DIR_NAME="${ASSETS_NAME}")
 
 if(EMSCRIPTEN)

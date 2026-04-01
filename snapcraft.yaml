@@ -86,6 +86,7 @@ parts:
       - libssl-dev
       - zlib1g-dev
       - mold
+      - qt6-svg-dev
     stage-packages:
       - libssl3t64
       - zlib1g

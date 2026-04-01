@@ -14,12 +14,12 @@
 #include <QUrl>
 #endif
 
+#include <memory>
+
 #include <QDir>
 #include <QFileInfo>
 #include <QTemporaryFile>
 #include <QTimer>
-
-#include <memory>
 
 MusicManager::MusicManager(MediaLibrary &library, QObject *const parent)
     : QObject(parent)

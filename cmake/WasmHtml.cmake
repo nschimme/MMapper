@@ -22,7 +22,7 @@ file(READ "${HTML_FILE}" HTML_CONTENT)
 # Inject favicon link and COI service worker script after <head>
 string(REPLACE
     "<head>"
-    "<head>\n    <link rel=\"icon\" type=\"image/svg+xml\" href=\"favicon.svg\">\n    <script src=\"./coi-serviceworker.js\"></script>"
+    "<head>\n    <link rel=\"icon\" type=\"image/svg+xml\" href=\"logo.svg\">\n    <script src=\"./coi-serviceworker.js\"></script>"
     HTML_CONTENT "${HTML_CONTENT}"
 )
 
@@ -37,7 +37,6 @@ file(WRITE "${HTML_FILE}" "${HTML_CONTENT}")
 
 # Copy assets alongside the HTML (use configure_file for portable rename support)
 get_filename_component(OUT_DIR "${HTML_FILE}" DIRECTORY)
-configure_file("${SVG_SRC}" "${OUT_DIR}/favicon.svg" COPYONLY)
 configure_file("${SVG_SRC}" "${OUT_DIR}/logo.svg" COPYONLY)
 
 # Download coi-serviceworker.js if not already present

@@ -1204,19 +1204,7 @@ if(WIN32)
         install(
             FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/mmapper-release.svg"
             DESTINATION "Assets"
-            RENAME "Square150x150Logo.svg"
-            COMPONENT applications
-        )
-        install(
-            FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/mmapper-release.svg"
-            DESTINATION "Assets"
-            RENAME "Square44x44Logo.svg"
-            COMPONENT applications
-        )
-        install(
-            FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/mmapper-release.svg"
-            DESTINATION "Assets"
-            RENAME "StoreLogo.svg"
+            RENAME "mmapper.svg"
             COMPONENT applications
         )
 

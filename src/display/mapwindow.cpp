@@ -35,6 +35,8 @@ MapWindow::MapWindow(MapData &mapData,
     m_gridLayout = mmqt::makeQPointer<QGridLayout>(this);
     m_gridLayout->setSpacing(0);
     m_gridLayout->setContentsMargins(0, 0, 0, 0);
+    m_gridLayout->setRowStretch(0, 1);
+    m_gridLayout->setColumnStretch(0, 1);
 
     m_verticalScrollBar = mmqt::makeQPointer<QScrollBar>(this);
     m_verticalScrollBar->setOrientation(Qt::Vertical);

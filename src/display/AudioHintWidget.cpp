@@ -15,8 +15,10 @@
 AudioHintWidget::AudioHintWidget(QWidget *const parent)
     : QWidget(parent)
 {
+    setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+
     QHBoxLayout *layout = new QHBoxLayout(this);
-    layout->setContentsMargins(10, 0, 10, 0);
+    layout->setContentsMargins(10, 4, 10, 4);
     layout->setSpacing(8);
 
     m_iconLabel = new QLabel(this);

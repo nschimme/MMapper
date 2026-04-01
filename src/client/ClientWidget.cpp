@@ -53,8 +53,7 @@ ClientWidget::ClientWidget(ConnectionListener &listener,
     }
 
     auto &cfg = getConfig().audio;
-    if (NO_AUDIO || CURRENT_PLATFORM != PlatformEnum::Wasm
-        || (cfg.getMusicVolume() == 0 && cfg.getSoundVolume() == 0)) {
+    if (NO_AUDIO || cfg.isUnlocked() || (cfg.getMusicVolume() == 0 && cfg.getSoundVolume() == 0)) {
         ui.audioHint->setVisible(false);
     }
 }

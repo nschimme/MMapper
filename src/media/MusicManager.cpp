@@ -134,16 +134,22 @@ void MusicManager::playMusic(const QString &musicFile)
             return;
         }
         m_library.fetchAsync(musicFile, [this, musicFile, playMusic2](const QByteArray &data) {
+            if (data.isEmpty()) {
+                return;
+            }
             QTemporaryFile *tempFile = new QTemporaryFile(QDir::tempPath() + "/mmapper_XXXXXX."
                                                           + QFileInfo(musicFile).suffix());
             if (!tempFile->open()) {
                 qWarning() << "MusicManager: failed to create temp file for" << musicFile;
+                delete tempFile;
                 return;
             }
             const qint64 bytesWritten = tempFile->write(data);
             if (bytesWritten != static_cast<qint64>(data.size())) {
                 qWarning() << "MusicManager: failed to write temp file for" << musicFile
                            << "- expected" << data.size() << "bytes, wrote" << bytesWritten;
+                delete tempFile;
+                return;
             }
             tempFile->close();
             m_wasmFiles.insert(musicFile, tempFile);

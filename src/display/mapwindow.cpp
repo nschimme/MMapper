@@ -6,13 +6,13 @@
 
 #include "mapwindow.h"
 
-#include "AudioHintWidget.h"
 #include "../configuration/configuration.h"
 #include "../display/Filenames.h"
 #include "../global/MakeQPointer.h"
 #include "../global/SignalBlocker.h"
 #include "../global/Version.h"
 #include "../global/utils.h"
+#include "AudioHintWidget.h"
 #include "mapcanvas.h"
 
 #include <memory>

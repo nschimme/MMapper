@@ -5,7 +5,6 @@
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
-#include "../global/Signal2.h"
 #include "../map/coordinate.h"
 #include "mapcanvas.h"
 

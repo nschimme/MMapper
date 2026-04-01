@@ -15,8 +15,6 @@
 #include "AudioHintWidget.h"
 #include "mapcanvas.h"
 
-#include <memory>
-
 #include <QGridLayout>
 #include <QLabel>
 #include <QPixmap>

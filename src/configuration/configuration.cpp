@@ -773,11 +773,9 @@ void Configuration::AdventurePanelSettings::read(const QSettings &conf)
 
 void Configuration::AudioSettings::read(const QSettings &conf)
 {
-    if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
-        m_unlocked = false;
-    } else {
-        m_unlocked = conf.value(KEY_AUDIO_UNLOCKED, false).toBool();
-    }
+    m_unlocked = (CURRENT_PLATFORM == PlatformEnum::Wasm)
+                     ? false
+                     : conf.value(KEY_AUDIO_UNLOCKED, false).toBool();
     m_musicVolume = std::clamp(conf.value(KEY_MUSIC_VOLUME, 50).toInt(), 0, 100);
     m_soundVolume = std::clamp(conf.value(KEY_SOUND_VOLUME, 50).toInt(), 0, 100);
     m_outputDeviceId = conf.value(KEY_AUDIO_OUTPUT_DEVICE).toByteArray();

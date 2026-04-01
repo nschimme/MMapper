@@ -2,7 +2,7 @@
 Name=MMapper
 GenericName=MUME Mapper
 Exec=mmapper
-Icon=org.mume.MMapper.svg
+Icon=org.mume.MMapper
 StartupWMClass=mmapper
 Terminal=false
 Type=Application

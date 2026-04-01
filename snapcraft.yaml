@@ -95,7 +95,7 @@ parts:
       craftctl set version=$(git describe --tags --always --long --exclude beta | sed 's/^v//')
     override-build: |
       craftctl default
-      sed -i 's|Icon=org.mume.MMapper.svg|Icon=${SNAP}/usr/share/icons/hicolor/scalable/apps/org.mume.MMapper.svg|g' $CRAFT_PART_INSTALL/usr/share/applications/org.mume.MMapper.desktop
+      sed -i 's|Icon=org.mume.MMapper|Icon=${SNAP}/usr/share/icons/hicolor/scalable/apps/org.mume.MMapper.svg|g' $CRAFT_PART_INSTALL/usr/share/applications/org.mume.MMapper.desktop
     prime:
       - -usr/lib/*/cmake/*
       - -usr/include/*

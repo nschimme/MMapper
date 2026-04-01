@@ -757,7 +757,6 @@ target_link_libraries(mmapper PUBLIC
     Qt6::Network
     Qt6::OpenGL
     Qt6::OpenGLWidgets
-    Qt6::Svg
     # note: link order matters on some platforms. include ${mm_libs} twice if you have a link failure.
     ${mm_libs}
     ${CMAKE_THREAD_LIBS_INIT}
@@ -969,8 +968,7 @@ if(EMSCRIPTEN)
             "$<TARGET_FILE_DIR:mmapper>/mmapper.js"
             "$<TARGET_FILE_DIR:mmapper>/mmapper.wasm"
             "$<TARGET_FILE_DIR:mmapper>/qtloader.js"
-            "$<TARGET_FILE_DIR:mmapper>/favicon.ico"
-            "$<TARGET_FILE_DIR:mmapper>/logo.png"
+            "$<TARGET_FILE_DIR:mmapper>/logo.svg"
             "$<TARGET_FILE_DIR:mmapper>/coi-serviceworker.js"
         DESTINATION "."
         COMPONENT applications
@@ -1202,9 +1200,21 @@ if(WIN32)
             COMPONENT applications
         )
         install(
-            FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/mmapper-release.svg"
+            FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/hi150-app-mmapper-release.png"
             DESTINATION "Assets"
-            RENAME "mmapper.svg"
+            RENAME "Square150x150Logo.png"
+            COMPONENT applications
+        )
+        install(
+            FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/hi44-app-mmapper-release.png"
+            DESTINATION "Assets"
+            RENAME "Square44x44Logo.png"
+            COMPONENT applications
+        )
+        install(
+            FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/hi50-app-mmapper-release.png"
+            DESTINATION "Assets"
+            RENAME "StoreLogo.png"
             COMPONENT applications
         )
 

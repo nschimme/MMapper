@@ -116,7 +116,7 @@ MainWindow::MainWindow()
     initTopLevelWindows();
     async_tasks::init();
     setObjectName("MainWindow");
-    setWindowIcon(QIcon(":/icons/m.svg"));
+    setWindowIcon(QIcon(":/icons/m.png"));
     addApplicationFont();
     registerMetatypes();
 
@@ -620,7 +620,7 @@ void MainWindow::createActions()
     connect(preferencesAct, &QAction::triggered, this, &MainWindow::slot_onPreferences);
 
     if constexpr (!NO_UPDATER) {
-        mmapperCheckForUpdateAct = new QAction(QIcon(":/icons/m.svg"),
+        mmapperCheckForUpdateAct = new QAction(QIcon(":/icons/m.png"),
                                                tr("Check for &update"),
                                                this);
         connect(mmapperCheckForUpdateAct,

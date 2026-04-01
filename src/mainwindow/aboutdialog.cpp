@@ -47,12 +47,12 @@ NODISCARD QString getBuildInformation()
 AboutDialog::AboutDialog(QWidget *const parent)
     : QDialog(parent)
 {
-    setWindowIcon(QIcon(":/icons/m.svg"));
+    setWindowIcon(QIcon(":/icons/m.png"));
     setupUi(this);
     setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
 
     /* About tab */
-    pixmapLabel->setPixmap(QPixmap(":/pixmaps/splash.svg"));
+    pixmapLabel->setPixmap(QPixmap(":/pixmaps/splash.png"));
     const auto about_text = []() -> QString {
         return "<p align=\"center\">"
                "<h3>"

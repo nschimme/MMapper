@@ -51,11 +51,6 @@ ClientWidget::ClientWidget(ConnectionListener &listener,
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
         ui.playButton->click();
     }
-
-    auto &cfg = getConfig().audio;
-    if (NO_AUDIO || cfg.isUnlocked() || (cfg.getMusicVolume() == 0 && cfg.getSoundVolume() == 0)) {
-        ui.audioHint->setVisible(false);
-    }
 }
 
 ClientWidget::~ClientWidget() = default;

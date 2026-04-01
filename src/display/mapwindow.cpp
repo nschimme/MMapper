@@ -6,6 +6,8 @@
 
 #include "mapwindow.h"
 
+#include "AudioHintWidget.h"
+#include "../configuration/configuration.h"
 #include "../display/Filenames.h"
 #include "../global/MakeQPointer.h"
 #include "../global/SignalBlocker.h"
@@ -59,6 +61,10 @@ MapWindow::MapWindow(MapData &mapData,
     assert(m_canvasContainer->parent() == this);
 
     m_gridLayout->addWidget(m_canvasContainer, 0, 0, 1, 1);
+
+    m_audioHint = new AudioHintWidget(this);
+    m_gridLayout->addWidget(m_audioHint, 2, 0, 1, 2);
+
     setMinimumSize(m_canvas->minimumSize());
 
     // Splash setup

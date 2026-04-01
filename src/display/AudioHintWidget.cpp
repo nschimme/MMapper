@@ -48,6 +48,15 @@ AudioHintWidget::AudioHintWidget(QWidget *const parent)
         settings.setSoundVolume(0);
         hide();
     });
+
+    auto updateAudioHint = [this]() {
+        auto &cfg = getConfig().audio;
+        setVisible(!NO_AUDIO && !cfg.isUnlocked()
+                   && (cfg.getMusicVolume() > 0 || cfg.getSoundVolume() > 0));
+    };
+
+    updateAudioHint();
+    setConfig().audio.registerChangeCallback(m_lifetime, updateAudioHint);
 }
 
 AudioHintWidget::~AudioHintWidget() = default;

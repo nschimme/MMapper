@@ -757,6 +757,7 @@ target_link_libraries(mmapper PUBLIC
     Qt6::Network
     Qt6::OpenGL
     Qt6::OpenGLWidgets
+    Qt6::Svg
     # note: link order matters on some platforms. include ${mm_libs} twice if you have a link failure.
     ${mm_libs}
     ${CMAKE_THREAD_LIBS_INIT}
@@ -846,8 +847,7 @@ if(EMSCRIPTEN)
     add_custom_command(TARGET mmapper POST_BUILD
         COMMAND ${CMAKE_COMMAND}
             "-DHTML_FILE=$<TARGET_FILE_DIR:mmapper>/mmapper.html"
-            "-DFAVICON_SRC=${CMAKE_SOURCE_DIR}/src/resources/win32/m-${MMAPPER_BRAND_SUFFIX}.ico"
-            "-DLOGO_SRC=${CMAKE_SOURCE_DIR}/src/resources/pixmaps/splash-${MMAPPER_BRAND_SUFFIX}.png"
+            "-DSVG_SRC=${CMAKE_SOURCE_DIR}/src/resources/icons/mmapper-${MMAPPER_BRAND_SUFFIX}.svg"
             -P "${CMAKE_SOURCE_DIR}/cmake/WasmHtml.cmake"
         COMMENT "Patching Wasm HTML"
         VERBATIM
@@ -1013,20 +1013,11 @@ if(UNIX AND NOT APPLE AND NOT EMSCRIPTEN)
     )
 
     # Install icons
-    foreach(RES 16 32 48 96 128 256)
-        install(
-            FILES resources/icons/hi${RES}-app-mmapper-${MMAPPER_BRAND_SUFFIX}.png
-            DESTINATION share/icons/hicolor/${RES}x${RES}/apps/
-            COMPONENT desktopintegration
-            RENAME org.mume.MMapper.png
-        )
-    endforeach(RES)
-
     install(
-        FILES resources/icons/m-${MMAPPER_BRAND_SUFFIX}.png
-        DESTINATION share/icons/hicolor/512x512/apps/
+        FILES resources/icons/mmapper-${MMAPPER_BRAND_SUFFIX}.svg
+        DESTINATION share/icons/hicolor/scalable/apps/
         COMPONENT desktopintegration
-        RENAME org.mume.MMapper.png
+        RENAME org.mume.MMapper.svg
     )
 
     # Assets
@@ -1211,21 +1202,21 @@ if(WIN32)
             COMPONENT applications
         )
         install(
-            FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/hi150-app-mmapper-release.png"
+            FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/mmapper-release.svg"
             DESTINATION "Assets"
-            RENAME "Square150x150Logo.png"
+            RENAME "Square150x150Logo.svg"
             COMPONENT applications
         )
         install(
-            FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/hi44-app-mmapper-release.png"
+            FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/mmapper-release.svg"
             DESTINATION "Assets"
-            RENAME "Square44x44Logo.png"
+            RENAME "Square44x44Logo.svg"
             COMPONENT applications
         )
         install(
-            FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/hi50-app-mmapper-release.png"
+            FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/mmapper-release.svg"
             DESTINATION "Assets"
-            RENAME "StoreLogo.png"
+            RENAME "StoreLogo.svg"
             COMPONENT applications
         )
 

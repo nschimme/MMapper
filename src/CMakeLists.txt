@@ -1153,8 +1153,8 @@ if(WIN32)
         # NSIS installer icon in the left panel must be a BMP
         add_custom_command(
             OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/nsis_icon.bmp"
-            COMMAND powershell.exe -Command "Add-Type -AssemblyName System.Drawing; [System.Drawing.Image]::FromFile(\\\"${CMAKE_CURRENT_SOURCE_DIR}/resources/icons/hi256-app-mmapper-${MMAPPER_BRAND_SUFFIX}.png\\\").Save(\\\"${CMAKE_CURRENT_BINARY_DIR}/nsis_icon.bmp\\\", [System.Drawing.Imaging.ImageFormat]::Bmp)"
-            DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/resources/icons/hi256-app-mmapper-${MMAPPER_BRAND_SUFFIX}.png"
+            COMMAND powershell.exe -Command "Add-Type -AssemblyName System.Drawing; [System.Drawing.Image]::FromFile(\\\"${CMAKE_CURRENT_SOURCE_DIR}/resources/icons/hi150-app-mmapper-${MMAPPER_BRAND_SUFFIX}.png\\\").Save(\\\"${CMAKE_CURRENT_BINARY_DIR}/nsis_icon.bmp\\\", [System.Drawing.Imaging.ImageFormat]::Bmp)"
+            DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/resources/icons/hi150-app-mmapper-${MMAPPER_BRAND_SUFFIX}.png"
             COMMENT "Converting PNG to BMP for NSIS installer icon using PowerShell"
         )
         add_custom_target(ConvertNsisIcon ALL DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/nsis_icon.bmp")
@@ -1215,7 +1215,6 @@ if(WIN32)
             COMPONENT applications
         )
 
-        # AppX logos must be PNG (SVG not supported in manifest)
         install(
             FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/hi150-app-mmapper-release.png"
             DESTINATION "Assets"

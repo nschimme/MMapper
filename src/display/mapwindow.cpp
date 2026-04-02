@@ -39,7 +39,7 @@ class SplashWidget : public QWidget
 public:
     explicit SplashWidget(QWidget *parent)
         : QWidget(parent)
-        , m_renderer(QStringLiteral(":/icons/mmapper.svg"))
+        , m_renderer(QStringLiteral(":/icons/mmapper-hi.svg"))
     {}
 
 protected:
@@ -82,9 +82,14 @@ protected:
 
         const QFontMetrics fm(painter.fontMetrics());
         const int textWidth = fm.horizontalAdvance(versionText);
-        painter.drawText(drawRect.right() - textWidth - 5,
-                         drawRect.bottom() - fm.descent() - 5,
-                         versionText);
+        int x = drawRect.right() - textWidth - 5;
+        int y = drawRect.bottom() - fm.descent() - 5;
+
+        // Draw text with shadow
+        painter.setPen(QColor(0, 0, 0, 150));
+        painter.drawText(x + 1, y + 1, versionText);
+        painter.setPen(Qt::yellow);
+        painter.drawText(x, y, versionText);
     }
 
 private:

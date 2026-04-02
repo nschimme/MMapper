@@ -50,17 +50,12 @@ AboutDialog::AboutDialog(QWidget *const parent)
 {
     setWindowIcon(QIcon(":/icons/m.svg"));
     setupUi(this);
-    {
-        auto *svgWidget = new QSvgWidget(QStringLiteral(":/icons/mmapper.svg"), this);
-        svgWidget->setMinimumSize(pixmapLabel->minimumSize());
-        svgWidget->setSizePolicy(pixmapLabel->sizePolicy());
-        auto *layout = qobject_cast<QVBoxLayout *>(pixmapLabel->parentWidget()->layout());
-        if (layout) {
-            layout->replaceWidget(pixmapLabel, svgWidget);
-            pixmapLabel->hide();
-            pixmapLabel->deleteLater();
-        }
-    }
+
+    auto *svgWidget = new QSvgWidget(QStringLiteral(":/icons/mmapper.svg"), this);
+    svgWidget->setMinimumSize(457, 320);
+    svgWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    verticalLayout->insertWidget(0, svgWidget, 0, Qt::AlignCenter);
+
     setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
 
     /* About tab */

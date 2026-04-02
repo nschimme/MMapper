@@ -70,7 +70,7 @@ MapWindow::MapWindow(MapData &mapData,
     // Splash setup
     auto createSplashPixmap = [](const QSize &targetLogicalSize, qreal dpr) -> QPixmap {
         // Load base pixmap
-        QPixmap splash = getPixmapFilenameRaw("splash.png");
+        QPixmap splash = QPixmap(":/icons/mmapper.svg");
         splash.setDevicePixelRatio(dpr);
 
         // Scale splash to target physical size

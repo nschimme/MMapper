@@ -52,8 +52,7 @@ AboutDialog::AboutDialog(QWidget *const parent)
     setupUi(this);
 
     auto *svgWidget = new QSvgWidget(QStringLiteral(":/icons/mmapper.svg"), this);
-    svgWidget->setMinimumSize(457, 320);
-    svgWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    svgWidget->setFixedSize(320, 320);
     verticalLayout->insertWidget(0, svgWidget, 0, Qt::AlignCenter);
 
     setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);

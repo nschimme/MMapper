@@ -848,7 +848,8 @@ if(EMSCRIPTEN)
     add_custom_command(TARGET mmapper POST_BUILD
         COMMAND ${CMAKE_COMMAND}
             "-DHTML_FILE=$<TARGET_FILE_DIR:mmapper>/mmapper.html"
-            "-DSVG_SRC=${CMAKE_SOURCE_DIR}/src/resources/icons/mmapper-${MMAPPER_BRAND_SUFFIX}.svg"
+            "-DLOGO_SRC=${CMAKE_SOURCE_DIR}/src/resources/icons/mmapper-${MMAPPER_BRAND_SUFFIX}.svg"
+            "-DFAVICON_SRC=${CMAKE_SOURCE_DIR}/src/resources/win32/m-${MMAPPER_BRAND_SUFFIX}.ico"
             -P "${CMAKE_SOURCE_DIR}/cmake/WasmHtml.cmake"
         COMMENT "Patching Wasm HTML"
         VERBATIM
@@ -1054,7 +1055,7 @@ if(UNIX AND NOT APPLE AND NOT EMSCRIPTEN)
     if(WITH_AUDIO)
         set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libqt6multimedia6 (>= 6.4.0)")
     endif()
-    set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libqt6svg6 (>= 6.4.0), libqt6svgwidgets6 (>= 6.4.0), libqt6svgwidgets6 (>= 6.4.0)")
+    set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libqt6svg6 (>= 6.4.0), libqt6svgwidgets6 (>= 6.4.0)")
 endif(UNIX AND NOT APPLE AND NOT EMSCRIPTEN)
 
 # Windows Install Settings

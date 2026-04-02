@@ -3,15 +3,16 @@
 #   - Injects a favicon link tag
 #   - Replaces the Qt logo reference with the MMapper logo
 #   - Injects the COI service worker script tag
-#   - Copies favicon.ico and logo.png alongside the HTML
+#   - Copies favicon.ico and logo.svg alongside the HTML
 #   - Downloads coi-serviceworker.js alongside the HTML
 #
 # Usage (as a post-build cmake -P script):
 #   cmake -DHTML_FILE=<path/mmapper.html>
-#         -DSVG_SRC=<path/mmapper-release.svg>
+#         -DLOGO_SRC=<path/mmapper-release.svg>
+#         -DFAVICON_SRC=<path/m-release.ico>
 #         -P WasmHtml.cmake
 
-foreach(var HTML_FILE SVG_SRC)
+foreach(var HTML_FILE LOGO_SRC FAVICON_SRC)
     if(NOT ${var})
         message(FATAL_ERROR "${var} not specified for WasmHtml.cmake")
     endif()
@@ -22,7 +23,7 @@ file(READ "${HTML_FILE}" HTML_CONTENT)
 # Inject favicon link and COI service worker script after <head>
 string(REPLACE
     "<head>"
-    "<head>\n    <link rel=\"icon\" type=\"image/svg+xml\" href=\"logo.svg\">\n    <script src=\"./coi-serviceworker.js\"></script>"
+    "<head>\n    <link rel=\"icon\" href=\"favicon.ico\">\n    <script src=\"./coi-serviceworker.js\"></script>"
     HTML_CONTENT "${HTML_CONTENT}"
 )
 
@@ -37,7 +38,8 @@ file(WRITE "${HTML_FILE}" "${HTML_CONTENT}")
 
 # Copy assets alongside the HTML (use configure_file for portable rename support)
 get_filename_component(OUT_DIR "${HTML_FILE}" DIRECTORY)
-configure_file("${SVG_SRC}" "${OUT_DIR}/logo.svg" COPYONLY)
+configure_file("${LOGO_SRC}" "${OUT_DIR}/logo.svg" COPYONLY)
+configure_file("${FAVICON_SRC}" "${OUT_DIR}/favicon.ico" COPYONLY)
 
 # Download coi-serviceworker.js if not already present
 set(COI_JS "${OUT_DIR}/coi-serviceworker.js")

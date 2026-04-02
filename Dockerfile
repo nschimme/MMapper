@@ -24,8 +24,8 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install --break-system-packages aqtinstall && \
-    aqt install-qt --outputdir $QTSDK_DIR linux desktop 6.10.3 linux_gcc_64 -m qtwebsockets qtmultimedia qtsvg && \
-    aqt install-qt --outputdir $QTSDK_DIR all_os wasm 6.10.3 wasm_multithread -m qtwebsockets qtmultimedia qtsvg
+    aqt install-qt --outputdir $QTSDK_DIR linux desktop 6.10.3 linux_gcc_64 -m qtwebsockets qtmultimedia && \
+    aqt install-qt --outputdir $QTSDK_DIR all_os wasm 6.10.3 wasm_multithread -m qtwebsockets qtmultimedia
 
 WORKDIR $EMSDK_DIR
 RUN git clone --depth 1 https://github.com/emscripten-core/emsdk.git . && \

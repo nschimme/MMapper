@@ -12,6 +12,7 @@
 #include <QtConfig>
 #include <QtGui>
 #include <QtWidgets>
+#include <QtSvgWidgets/QSvgWidget>
 
 namespace {
 struct LicenseInfo
@@ -49,10 +50,20 @@ AboutDialog::AboutDialog(QWidget *const parent)
 {
     setWindowIcon(QIcon(":/icons/m.svg"));
     setupUi(this);
+    {
+        auto *svgWidget = new QSvgWidget(QStringLiteral(":/icons/mmapper.svg"), this);
+        svgWidget->setMinimumSize(pixmapLabel->minimumSize());
+        svgWidget->setSizePolicy(pixmapLabel->sizePolicy());
+        auto *layout = qobject_cast<QVBoxLayout *>(pixmapLabel->parentWidget()->layout());
+        if (layout) {
+            layout->replaceWidget(pixmapLabel, svgWidget);
+            pixmapLabel->hide();
+            pixmapLabel->deleteLater();
+        }
+    }
     setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
 
     /* About tab */
-    pixmapLabel->setPixmap(QPixmap(":/icons/mmapper.svg"));
     const auto about_text = []() -> QString {
         return "<p align=\"center\">"
                "<h3>"

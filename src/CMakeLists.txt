@@ -758,6 +758,7 @@ target_link_libraries(mmapper PUBLIC
     Qt6::OpenGL
     Qt6::OpenGLWidgets
     Qt6::Svg
+    Qt6::SvgWidgets
     # note: link order matters on some platforms. include ${mm_libs} twice if you have a link failure.
     ${mm_libs}
     ${CMAKE_THREAD_LIBS_INIT}
@@ -1053,7 +1054,7 @@ if(UNIX AND NOT APPLE AND NOT EMSCRIPTEN)
     if(WITH_AUDIO)
         set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libqt6multimedia6 (>= 6.4.0)")
     endif()
-    set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libqt6svg6 (>= 6.4.0)")
+    set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, libqt6svg6 (>= 6.4.0), libqt6svgwidgets6 (>= 6.4.0), libqt6svgwidgets6 (>= 6.4.0)")
 endif(UNIX AND NOT APPLE AND NOT EMSCRIPTEN)
 
 # Windows Install Settings
@@ -1146,7 +1147,17 @@ if(WIN32)
         set(CPACK_NSIS_HELP_LINK "http://github.com/mume/mmapper")
         set(CPACK_NSIS_MUI_ICON "${CMAKE_CURRENT_SOURCE_DIR}/resources/win32\\\\m-${MMAPPER_BRAND_SUFFIX}.ico")
         set(CPACK_NSIS_MUI_UNIICON "${CMAKE_CURRENT_SOURCE_DIR}/resources/win32\\\\m-${MMAPPER_BRAND_SUFFIX}.ico")
-        set(CPACK_PACKAGE_ICON "${CMAKE_CURRENT_SOURCE_DIR}/resources/icons\\\\m-${MMAPPER_BRAND_SUFFIX}.png")
+
+        # NSIS installer icon in the left panel must be a BMP
+        add_custom_command(
+            OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/nsis_icon.bmp"
+            COMMAND powershell.exe -Command "Add-Type -AssemblyName System.Drawing; $img = [System.Drawing.Image]::FromFile('${CMAKE_CURRENT_SOURCE_DIR}/resources/icons/hi256-app-mmapper-${MMAPPER_BRAND_SUFFIX}.png'); $img.Save('${CMAKE_CURRENT_BINARY_DIR}/nsis_icon.bmp', [System.Drawing.Imaging.ImageFormat]::Bmp); $img.Dispose()"
+            DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/resources/icons/hi256-app-mmapper-${MMAPPER_BRAND_SUFFIX}.png"
+            COMMENT "Converting PNG to BMP for NSIS installer icon using PowerShell"
+        )
+        add_custom_target(ConvertNsisIcon ALL DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/nsis_icon.bmp")
+
+        set(CPACK_PACKAGE_ICON "${CMAKE_CURRENT_BINARY_DIR}\\\\nsis_icon.bmp")
         set(CPACK_NSIS_INSTALLED_ICON_NAME "${CMAKE_CURRENT_SOURCE_DIR}/resources/win32\\\\m-${MMAPPER_BRAND_SUFFIX}.ico")
         set(CPACK_NSIS_COMPRESSOR "/SOLID lzma")
         set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL "ON")
@@ -1201,6 +1212,8 @@ if(WIN32)
             DESTINATION .
             COMPONENT applications
         )
+
+        # AppX logos must be PNG (SVG not supported in manifest)
         install(
             FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/hi150-app-mmapper-release.png"
             DESTINATION "Assets"
@@ -1219,6 +1232,7 @@ if(WIN32)
             RENAME "StoreLogo.png"
             COMPONENT applications
         )
+
         install(
             FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/mmapper-release.svg"
             DESTINATION "Assets"

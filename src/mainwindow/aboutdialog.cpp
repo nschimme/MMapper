@@ -11,8 +11,8 @@
 #include <QString>
 #include <QtConfig>
 #include <QtGui>
-#include <QtWidgets>
 #include <QtSvgWidgets/QSvgWidget>
+#include <QtWidgets>
 
 namespace {
 struct LicenseInfo

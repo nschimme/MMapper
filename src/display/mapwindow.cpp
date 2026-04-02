@@ -21,8 +21,8 @@
 #include <QPixmap>
 #include <QScrollBar>
 #include <QSvgRenderer>
-#include <QtSvgWidgets/QSvgWidget>
 #include <QToolTip>
+#include <QtSvgWidgets/QSvgWidget>
 
 class QResizeEvent;
 
@@ -77,8 +77,7 @@ MapWindow::MapWindow(MapData &mapData,
         explicit SplashWidget(QWidget *parent)
             : QWidget(parent)
             , m_renderer(QStringLiteral(":/icons/mmapper.svg"))
-        {
-        }
+        {}
 
     protected:
         void paintEvent(QPaintEvent *) override

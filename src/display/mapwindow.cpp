@@ -26,6 +26,72 @@
 
 class QResizeEvent;
 
+namespace {
+/**
+ * @brief Widget for displaying the SVG splash screen and overlaying version information.
+ *
+ * This widget renders the application's branding SVG scaled to fit its area while maintaining
+ * aspect ratio. It also overlays the current MMapper version string in the bottom-right
+ * corner of the rendered SVG area.
+ */
+class SplashWidget : public QWidget
+{
+public:
+    explicit SplashWidget(QWidget *parent)
+        : QWidget(parent)
+        , m_renderer(QStringLiteral(":/icons/mmapper.svg"))
+    {}
+
+protected:
+    void paintEvent(QPaintEvent *) override
+    {
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+        painter.setRenderHint(QPainter::SmoothPixmapTransform);
+
+        const QSize svgSize = m_renderer.defaultSize();
+        if (!svgSize.isValid()) {
+            return;
+        }
+
+        const QRect targetRect = rect();
+        const qreal aspect = static_cast<qreal>(svgSize.width()) / svgSize.height();
+
+        int drawWidth = targetRect.width();
+        int drawHeight = targetRect.height();
+
+        if (static_cast<qreal>(drawWidth) / drawHeight > aspect) {
+            drawWidth = static_cast<int>(drawHeight * aspect);
+        } else {
+            drawHeight = static_cast<int>(drawWidth / aspect);
+        }
+
+        const QRect drawRect((targetRect.width() - drawWidth) / 2,
+                             (targetRect.height() - drawHeight) / 2,
+                             drawWidth,
+                             drawHeight);
+
+        m_renderer.render(&painter, drawRect);
+
+        // Paint version text
+        painter.setPen(Qt::yellow);
+        const QString versionText = QString::fromUtf8(getMMapperVersion());
+        QFont font = painter.font();
+        font.setBold(true);
+        painter.setFont(font);
+
+        const QFontMetrics fm(painter.fontMetrics());
+        const int textWidth = fm.horizontalAdvance(versionText);
+        painter.drawText(drawRect.right() - textWidth - 5,
+                         drawRect.bottom() - fm.descent() - 5,
+                         versionText);
+    }
+
+private:
+    QSvgRenderer m_renderer;
+};
+} // namespace
+
 MapWindow::MapWindow(MapData &mapData,
                      GameObserver &observer,
                      PrespammedPath &pp,
@@ -69,60 +135,6 @@ MapWindow::MapWindow(MapData &mapData,
     m_gridLayout->addWidget(m_audioHint, 2, 0, 1, 2);
 
     setMinimumSize(m_canvas->minimumSize());
-
-    // Splash setup
-    class SplashWidget : public QWidget
-    {
-    public:
-        explicit SplashWidget(QWidget *parent)
-            : QWidget(parent)
-            , m_renderer(QStringLiteral(":/icons/mmapper-hi.svg"))
-        {}
-
-    protected:
-        void paintEvent(QPaintEvent *) override
-        {
-            QPainter painter(this);
-            painter.setRenderHint(QPainter::Antialiasing);
-            painter.setRenderHint(QPainter::SmoothPixmapTransform);
-
-            const QSize svgSize = m_renderer.defaultSize();
-            if (!svgSize.isValid())
-                return;
-
-            const QRect targetRect = rect();
-            const qreal aspect = static_cast<qreal>(svgSize.width()) / svgSize.height();
-
-            int drawWidth = targetRect.width();
-            int drawHeight = targetRect.height();
-
-            if (static_cast<qreal>(drawWidth) / drawHeight > aspect) {
-                drawWidth = static_cast<int>(drawHeight * aspect);
-            } else {
-                drawHeight = static_cast<int>(drawWidth / aspect);
-            }
-
-            const QRect drawRect((targetRect.width() - drawWidth) / 2,
-                                 (targetRect.height() - drawHeight) / 2,
-                                 drawWidth,
-                                 drawHeight);
-
-            m_renderer.render(&painter, drawRect);
-
-            // Paint version text
-            painter.setPen(Qt::yellow);
-            const QString versionText = QString::fromUtf8(getMMapperVersion());
-            QFont font = painter.font();
-            font.setBold(true);
-            painter.setFont(font);
-
-            const int textWidth = QFontMetrics(font).horizontalAdvance(versionText);
-            painter.drawText(drawRect.right() - textWidth - 5, drawRect.bottom() - 5, versionText);
-        }
-
-    private:
-        QSvgRenderer m_renderer;
-    };
 
     m_splashWidget = mmqt::makeQPointer<SplashWidget>(this);
     m_splashWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);

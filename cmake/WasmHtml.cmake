@@ -23,7 +23,7 @@ file(READ "${HTML_FILE}" HTML_CONTENT)
 # Inject favicon link and COI service worker script after <head>
 string(REPLACE
     "<head>"
-    "<head>\n    <link rel=\"icon\" href=\"favicon.svg\" type=\"icon/svg+xml\">\n    <script src=\"./coi-serviceworker.js\"></script>"
+    "<head>\n    <link rel=\"icon\" href=\"favicon.svg\" type=\"image/svg+xml\">\n    <script src=\"./coi-serviceworker.js\"></script>"
     HTML_CONTENT "${HTML_CONTENT}"
 )
 

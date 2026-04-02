@@ -1153,7 +1153,7 @@ if(WIN32)
         # NSIS installer icon in the left panel must be a BMP
         add_custom_command(
             OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/nsis_icon.bmp"
-            COMMAND powershell.exe -Command "Add-Type -AssemblyName System.Drawing; [System.Drawing.Image]::FromFile('${CMAKE_CURRENT_SOURCE_DIR}/resources/icons/hi256-app-mmapper-${MMAPPER_BRAND_SUFFIX}.png').Save('${CMAKE_CURRENT_BINARY_DIR}/nsis_icon.bmp', [System.Drawing.Imaging.ImageFormat]::Bmp)"
+            COMMAND powershell.exe -Command "Add-Type -AssemblyName System.Drawing; [System.Drawing.Image]::FromFile(\\\"${CMAKE_CURRENT_SOURCE_DIR}/resources/icons/hi256-app-mmapper-${MMAPPER_BRAND_SUFFIX}.png\\\").Save(\\\"${CMAKE_CURRENT_BINARY_DIR}/nsis_icon.bmp\\\", [System.Drawing.Imaging.ImageFormat]::Bmp)"
             DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/resources/icons/hi256-app-mmapper-${MMAPPER_BRAND_SUFFIX}.png"
             COMMENT "Converting PNG to BMP for NSIS installer icon using PowerShell"
         )

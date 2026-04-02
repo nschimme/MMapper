@@ -90,7 +90,7 @@ jobs:
         version: 6.5.3
         arch: clang_64
         cache: true
-        modules: 'qtwebsockets qtmultimedia'
+        modules: 'qtwebsockets qtmultimedia qtsvg'
     - if: runner.os == 'macOS'
       name: Install Packages for Mac
       run: |
@@ -108,7 +108,7 @@ jobs:
         dir: 'C:\'
         arch: win64_msvc2019_64
         cache: true
-        modules: 'qtwebsockets qtmultimedia'
+        modules: 'qtwebsockets qtmultimedia qtsvg'
     - if: runner.os == 'Windows' && matrix.compiler == 'gcc'
       name: Install Qt for Windows (MinGW)
       uses: jurplel/install-qt-action@v4
@@ -117,7 +117,7 @@ jobs:
         dir: 'C:\'
         arch: win64_mingw
         cache: true
-        modules: 'qtwebsockets qtmultimedia'
+        modules: 'qtwebsockets qtmultimedia qtsvg'
         tools: 'tools_mingw1310'
 
       #

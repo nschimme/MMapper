@@ -60,7 +60,7 @@ jobs:
         version: 6.5.3
         arch: clang_64
         cache: true
-        modules: 'qtwebsockets qtmultimedia'
+        modules: 'qtwebsockets qtmultimedia qtsvg'
     - if: runner.os == 'macOS'
       name: Install Packages for Mac
       run: |
@@ -75,7 +75,7 @@ jobs:
         dir: 'C:\'
         arch: win64_msvc2019_64
         cache: true
-        modules: 'qtwebsockets qtmultimedia'
+        modules: 'qtwebsockets qtmultimedia qtsvg'
 
     # Build
     - if: runner.os == 'Windows'

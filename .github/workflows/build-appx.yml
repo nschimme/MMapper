@@ -39,7 +39,7 @@ jobs:
         dir: 'C:\'
         arch: win64_msvc2019_64
         cache: true
-        modules: 'qtwebsockets qtmultimedia'
+        modules: 'qtwebsockets qtmultimedia qtsvg'
 
     # Build
     - name: Build MMapper

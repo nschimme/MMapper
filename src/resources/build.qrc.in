@@ -4,6 +4,5 @@
         <file alias="LICENSE.GPL2">${CMAKE_SOURCE_DIR}/COPYING.txt</file>
         <file alias="icons/m.svg">${CMAKE_SOURCE_DIR}/src/resources/icons/mmapper-${MMAPPER_BRAND_SUFFIX}.svg</file>
         <file alias="icons/mmapper.svg">${CMAKE_SOURCE_DIR}/src/resources/icons/mmapper-${MMAPPER_BRAND_SUFFIX}.svg</file>
-        <file alias="pixmaps/splash.svg">${CMAKE_SOURCE_DIR}/src/resources/icons/mmapper-${MMAPPER_BRAND_SUFFIX}.svg</file>
     </qresource>
 </RCC>

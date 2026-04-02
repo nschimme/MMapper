@@ -757,6 +757,7 @@ target_link_libraries(mmapper PUBLIC
     Qt6::Network
     Qt6::OpenGL
     Qt6::OpenGLWidgets
+    Qt6::Svg
     # note: link order matters on some platforms. include ${mm_libs} twice if you have a link failure.
     ${mm_libs}
     ${CMAKE_THREAD_LIBS_INIT}
@@ -1215,6 +1216,12 @@ if(WIN32)
             FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/hi50-app-mmapper-release.png"
             DESTINATION "Assets"
             RENAME "StoreLogo.png"
+            COMPONENT applications
+        )
+        install(
+            FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/mmapper-release.svg"
+            DESTINATION "Assets"
+            RENAME "mmapper.svg"
             COMPONENT applications
         )
 

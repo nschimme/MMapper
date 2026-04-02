@@ -76,7 +76,7 @@ MapWindow::MapWindow(MapData &mapData,
     public:
         explicit SplashWidget(QWidget *parent)
             : QWidget(parent)
-            , m_renderer(QStringLiteral(":/icons/mmapper.svg"))
+            , m_renderer(QStringLiteral(":/icons/mmapper-hi.svg"))
         {}
 
     protected:

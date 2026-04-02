@@ -1,6 +1,6 @@
 name: mmapper
 adopt-info: mmapper
-icon: src/resources/icons/mmapper-release.svg
+icon: src/resources/icons/mmapper-hi-release.svg
 summary: MUME Mapper
 license: GPL-2.0-or-later
 description: |

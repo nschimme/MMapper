@@ -1,7 +1,7 @@
 title: Play MUME with MMapper
 description: MMapper is a mud mapper especially written for the mud MUME
-logo: https://raw.githubusercontent.com/MUME/MMapper/master/src/resources/icons/mmapper-release.svg
-favicon: https://raw.githubusercontent.com/MUME/MMapper/master/src/resources/win32/m-release.ico
+logo: https://raw.githubusercontent.com/MUME/MMapper/master/src/resources/icons/mmapper-hi-release.svg
+favicon: https://raw.githubusercontent.com/MUME/MMapper/master/src/resources/icons/mmapper-lo-release.svg
 screenshot: https://raw.githubusercontent.com/MUME/MMapper/master/appdata/screenshot1.png
 markdown: kramdown
 kramdown:

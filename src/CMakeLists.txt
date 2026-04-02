@@ -848,8 +848,8 @@ if(EMSCRIPTEN)
     add_custom_command(TARGET mmapper POST_BUILD
         COMMAND ${CMAKE_COMMAND}
             "-DHTML_FILE=$<TARGET_FILE_DIR:mmapper>/mmapper.html"
-            "-DLOGO_SRC=${CMAKE_SOURCE_DIR}/src/resources/icons/mmapper-${MMAPPER_BRAND_SUFFIX}.svg"
-            "-DFAVICON_SRC=${CMAKE_SOURCE_DIR}/src/resources/win32/m-${MMAPPER_BRAND_SUFFIX}.ico"
+            "-DLOGO_SRC=${CMAKE_SOURCE_DIR}/src/resources/icons/mmapper-hi-${MMAPPER_BRAND_SUFFIX}.svg"
+            "-DFAVICON_SRC=${CMAKE_SOURCE_DIR}/src/resources/icons/mmapper-lo-${MMAPPER_BRAND_SUFFIX}.svg"
             -P "${CMAKE_SOURCE_DIR}/cmake/WasmHtml.cmake"
         COMMENT "Patching Wasm HTML"
         VERBATIM
@@ -972,6 +972,7 @@ if(EMSCRIPTEN)
             "$<TARGET_FILE_DIR:mmapper>/mmapper.wasm"
             "$<TARGET_FILE_DIR:mmapper>/qtloader.js"
             "$<TARGET_FILE_DIR:mmapper>/logo.svg"
+            "$<TARGET_FILE_DIR:mmapper>/favicon.svg"
             "$<TARGET_FILE_DIR:mmapper>/coi-serviceworker.js"
         DESTINATION "."
         COMPONENT applications
@@ -1015,7 +1016,7 @@ if(UNIX AND NOT APPLE AND NOT EMSCRIPTEN)
 
     # Install icons
     install(
-        FILES resources/icons/mmapper-${MMAPPER_BRAND_SUFFIX}.svg
+        FILES resources/icons/mmapper-hi-${MMAPPER_BRAND_SUFFIX}.svg
         DESTINATION share/icons/hicolor/scalable/apps/
         COMPONENT desktopintegration
         RENAME org.mume.MMapper.svg
@@ -1231,13 +1232,6 @@ if(WIN32)
             FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/hi50-app-mmapper-release.png"
             DESTINATION "Assets"
             RENAME "StoreLogo.png"
-            COMPONENT applications
-        )
-
-        install(
-            FILES "${CMAKE_SOURCE_DIR}/src/resources/icons/mmapper-release.svg"
-            DESTINATION "Assets"
-            RENAME "mmapper.svg"
             COMPONENT applications
         )
 

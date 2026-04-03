@@ -7,6 +7,7 @@
 #include "logging.h"
 #include "tests.h"
 
+#include <cstdint>
 #include <ostream>
 #include <sstream>
 #include <vector>

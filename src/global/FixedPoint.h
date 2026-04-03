@@ -55,6 +55,17 @@ public:
     DELETE_CTORS_AND_ASSIGN_OPS(FixedPoint);
 
 public:
+    using OnAfterChange = std::function<void(int)>;
+    OnAfterChange m_onAfterChange;
+
+    void setFromNotifier(std::function<void()> simpleCallback)
+    {
+        if (simpleCallback) {
+            m_onAfterChange = [cb = std::move(simpleCallback)](int) { cb(); };
+        }
+    }
+
+public:
     void reset() { set(defaultValue); }
     void set(const int value)
     {
@@ -89,6 +100,9 @@ public:
         } notification_guard{*this};
 
         m_value = newValue;
+        if (m_onAfterChange) {
+            m_onAfterChange(m_value);
+        }
         m_changeMonitor.notifyAll();
     }
 

@@ -5,6 +5,7 @@
 #include "autologpage.h"
 
 #include "../configuration/configuration.h"
+#include "../global/SignalBlocker.h"
 #include "ui_autologpage.h"
 
 #include <QSpinBox>
@@ -23,7 +24,7 @@ AutoLogPage::AutoLogPage(QWidget *const parent)
     connect(ui->autoLogCheckBox,
             QOverload<bool>::of(&QCheckBox::toggled),
             this,
-            [](const bool autoLog) { setConfig().autoLog.autoLog = autoLog; });
+            [](const bool autoLog) { setConfig().autoLog.autoLog.set(autoLog); });
     connect(ui->selectAutoLogLocationButton,
             &QAbstractButton::clicked,
             this,
@@ -38,25 +39,25 @@ AutoLogPage::AutoLogPage(QWidget *const parent)
             this,
             &AutoLogPage::slot_logStrategyChanged);
     connect(ui->spinBoxDays, QOverload<int>::of(&QSpinBox::valueChanged), this, [](const int size) {
-        setConfig().autoLog.deleteWhenLogsReachDays = size;
+        setConfig().autoLog.deleteWhenLogsReachDays.set(size);
     });
     connect(ui->radioButtonDeleteSize,
             QOverload<bool>::of(&QRadioButton::toggled),
             this,
             &AutoLogPage::slot_logStrategyChanged);
     connect(ui->spinBoxSize, QOverload<int>::of(&QSpinBox::valueChanged), this, [](const int size) {
-        setConfig().autoLog.deleteWhenLogsReachBytes = size * MEGABYTE_IN_BYTES;
+        setConfig().autoLog.deleteWhenLogsReachBytes.set(size * MEGABYTE_IN_BYTES);
     });
     connect(ui->askDeleteCheckBox,
             QOverload<bool>::of(&QCheckBox::toggled),
             this,
-            [](const bool askDelete) { setConfig().autoLog.askDelete = askDelete; });
+            [](const bool askDelete) { setConfig().autoLog.askDelete.set(askDelete); });
 
     connect(ui->autoLogMaxBytes,
             QOverload<int>::of(&QSpinBox::valueChanged),
             this,
             [](const int size) {
-                setConfig().autoLog.deleteWhenLogsReachBytes = size * MEGABYTE_IN_BYTES;
+                setConfig().autoLog.rotateWhenLogsReachBytes.set(size * MEGABYTE_IN_BYTES);
             });
 
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
@@ -71,6 +72,15 @@ AutoLogPage::AutoLogPage(QWidget *const parent)
         ui->askDeleteCheckBox->setDisabled(true);
         ui->autoLogMaxBytes->setDisabled(true);
     }
+
+    auto &autoLog = setConfig().autoLog;
+    autoLog.autoLog.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    autoLog.autoLogDirectory.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    autoLog.cleanupStrategy.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    autoLog.deleteWhenLogsReachDays.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    autoLog.deleteWhenLogsReachBytes.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    autoLog.askDelete.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    autoLog.rotateWhenLogsReachBytes.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
 }
 
 AutoLogPage::~AutoLogPage()
@@ -81,10 +91,20 @@ AutoLogPage::~AutoLogPage()
 void AutoLogPage::slot_loadConfig()
 {
     const auto &config = getConfig().autoLog;
-    ui->autoLogCheckBox->setChecked(config.autoLog);
-    ui->autoLogLocation->setText(config.autoLogDirectory);
-    ui->autoLogMaxBytes->setValue(config.rotateWhenLogsReachBytes / MEGABYTE_IN_BYTES);
-    switch (config.cleanupStrategy) {
+
+    SignalBlocker b1(*ui->autoLogCheckBox);
+    SignalBlocker b2(*ui->radioButtonKeepForever);
+    SignalBlocker b3(*ui->radioButtonDeleteDays);
+    SignalBlocker b4(*ui->radioButtonDeleteSize);
+    SignalBlocker b5(*ui->spinBoxDays);
+    SignalBlocker b6(*ui->spinBoxSize);
+    SignalBlocker b7(*ui->askDeleteCheckBox);
+    SignalBlocker b8(*ui->autoLogMaxBytes);
+
+    ui->autoLogCheckBox->setChecked(config.autoLog.get());
+    ui->autoLogLocation->setText(config.autoLogDirectory.get());
+    ui->autoLogMaxBytes->setValue(config.rotateWhenLogsReachBytes.get() / MEGABYTE_IN_BYTES);
+    switch (static_cast<AutoLoggerEnum>(config.cleanupStrategy.get())) {
     case AutoLoggerEnum::KeepForever:
         ui->radioButtonKeepForever->setChecked(true);
         break;
@@ -97,9 +117,9 @@ void AutoLogPage::slot_loadConfig()
     default:
         abort();
     }
-    ui->spinBoxDays->setValue(config.deleteWhenLogsReachDays);
-    ui->spinBoxSize->setValue(config.deleteWhenLogsReachBytes / MEGABYTE_IN_BYTES);
-    ui->askDeleteCheckBox->setChecked(config.askDelete);
+    ui->spinBoxDays->setValue(config.deleteWhenLogsReachDays.get());
+    ui->spinBoxSize->setValue(config.deleteWhenLogsReachBytes.get() / MEGABYTE_IN_BYTES);
+    ui->askDeleteCheckBox->setChecked(config.askDelete.get());
 }
 
 void AutoLogPage::slot_selectLogLocationButtonClicked(int /*unused*/)
@@ -107,11 +127,11 @@ void AutoLogPage::slot_selectLogLocationButtonClicked(int /*unused*/)
     auto &config = setConfig().autoLog;
     QString logDirectory = QFileDialog::getExistingDirectory(this,
                                                              "Choose log location ...",
-                                                             config.autoLogDirectory);
+                                                             config.autoLogDirectory.get());
 
     if (!logDirectory.isEmpty()) {
         ui->autoLogLocation->setText(logDirectory);
-        config.autoLogDirectory = logDirectory;
+        config.autoLogDirectory.set(logDirectory);
     }
 }
 
@@ -119,12 +139,12 @@ void AutoLogPage::slot_logStrategyChanged(int /*unused*/)
 {
     auto &strategy = setConfig().autoLog.cleanupStrategy;
     if (ui->radioButtonKeepForever->isChecked()) {
-        strategy = AutoLoggerEnum::KeepForever;
+        strategy.set(static_cast<int>(AutoLoggerEnum::KeepForever));
     } else if (ui->radioButtonDeleteDays->isChecked()) {
-        strategy = AutoLoggerEnum::DeleteDays;
+        strategy.set(static_cast<int>(AutoLoggerEnum::DeleteDays));
     } else if (ui->radioButtonDeleteSize->isChecked()) {
-        strategy = AutoLoggerEnum::DeleteSize;
+        strategy.set(static_cast<int>(AutoLoggerEnum::DeleteSize));
     } else {
-        abort();
+        // can happen when toggling
     }
 }

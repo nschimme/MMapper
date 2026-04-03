@@ -5,6 +5,7 @@
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
+#include "../global/Signal2.h"
 #include "../map/coordinate.h"
 #include "mapcanvas.h"
 
@@ -47,6 +48,7 @@ protected:
     QPointer<QTimer> m_scrollTimer;
     int m_verticalScrollStep = 0;
     int m_horizontalScrollStep = 0;
+    Signal2Lifetime m_lifetime;
 
 private:
     struct NODISCARD KnownMapSize final

@@ -5,6 +5,7 @@
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
 #include "../global/JsonValue.h"
+#include "../global/Signal2.h"
 #include "CGroupChar.h"
 #include "ColorGenerator.h"
 #include "GroupManagerApi.h"
@@ -25,6 +26,7 @@ class NODISCARD_QOBJECT Mmapper2Group final : public QObject
 private:
     SharedGroupChar m_self;
     GroupVector m_charIndex;
+    Signal2Lifetime m_lifetime;
     // deleted in destructor as member of charIndex
     ColorGenerator m_colorGenerator;
 

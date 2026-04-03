@@ -17,6 +17,7 @@
 #include "GroupConfig.h"
 #include "NamedConfig.h"
 
+#include <map>
 #include <memory>
 #include <string_view>
 
@@ -46,12 +47,19 @@ public:
     void readFrom(QSettings &conf);
     void writeTo(QSettings &conf) const;
 
+    NODISCARD INamedConfig *lookup(const std::string &name) const;
+    NODISCARD const std::map<std::string, INamedConfig *> &getRegistry() const;
+
+private:
+    void registerConfig(INamedConfig *config);
+    std::map<std::string, INamedConfig *> m_registry;
+
 public:
     struct NODISCARD GeneralSettings final
     {
     private:
         ChangeMonitor m_changeMonitor;
-        ThemeEnum m_theme = ThemeEnum::System;
+        const std::shared_ptr<std::function<void()>> m_notifier = std::make_shared<std::function<void()>>([this]() { m_changeMonitor.notifyAll(); });
 
     public:
         explicit GeneralSettings() = default;
@@ -59,30 +67,29 @@ public:
         DELETE_CTORS_AND_ASSIGN_OPS(GeneralSettings);
 
     public:
-        NODISCARD ThemeEnum getTheme() const { return m_theme; }
-        void setTheme(const ThemeEnum theme)
-        {
-            m_theme = theme;
-            m_changeMonitor.notifyAll();
-        }
-
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
                                     const ChangeMonitor::Function &callback)
         {
             return m_changeMonitor.registerChangeCallback(lifetime, callback);
         }
 
+        void notifyChanged() { m_changeMonitor.notifyAll(); }
+
+        NODISCARD ThemeEnum getTheme() const { return static_cast<ThemeEnum>(theme.get()); }
+        void setTheme(const ThemeEnum t) { theme.set(static_cast<int>(t)); }
+
     public:
-        bool firstRun = false;
-        QByteArray windowGeometry;
-        QByteArray windowState;
-        bool alwaysOnTop = false;
-        bool showStatusBar = true;
-        bool showScrollBars = true;
-        bool showMenuBar = true;
-        MapModeEnum mapMode = MapModeEnum::PLAY;
-        bool checkForUpdate = true;
-        CharacterEncodingEnum characterEncoding = CharacterEncodingEnum::LATIN1;
+        NamedConfig<bool> firstRun{"GENERAL_FIRST_RUN", false, m_notifier};
+        NamedConfig<QByteArray> windowGeometry{"GENERAL_WINDOW_GEOMETRY", QByteArray(), m_notifier};
+        NamedConfig<QByteArray> windowState{"GENERAL_WINDOW_STATE", QByteArray(), m_notifier};
+        NamedConfig<bool> alwaysOnTop{"GENERAL_ALWAYS_ON_TOP", false, m_notifier};
+        NamedConfig<bool> showStatusBar{"GENERAL_SHOW_STATUS_BAR", true, m_notifier};
+        NamedConfig<bool> showScrollBars{"GENERAL_SHOW_SCROLL_BARS", true, m_notifier};
+        NamedConfig<bool> showMenuBar{"GENERAL_SHOW_MENU_BAR", true, m_notifier};
+        NamedConfig<int> mapMode{"GENERAL_MAP_MODE", static_cast<int>(MapModeEnum::PLAY), m_notifier};
+        NamedConfig<bool> checkForUpdate{"GENERAL_CHECK_FOR_UPDATE", true, m_notifier};
+        NamedConfig<int> characterEncoding{"GENERAL_CHARACTER_ENCODING", static_cast<int>(CharacterEncodingEnum::LATIN1), m_notifier};
+        NamedConfig<int> theme{"GENERAL_THEME", static_cast<int>(ThemeEnum::System), m_notifier};
 
     private:
         SUBGROUP();
@@ -90,12 +97,29 @@ public:
 
     struct NODISCARD ConnectionSettings final
     {
-        QString remoteServerName; /// Remote host and port settings
-        uint16_t remotePort = 0u;
-        uint16_t localPort = 0u; /// Port to bind to on local machine
-        bool tlsEncryption = false;
-        bool proxyConnectionStatus = false;
-        bool proxyListensOnAnyInterface = false;
+    private:
+        ChangeMonitor m_changeMonitor;
+        const std::shared_ptr<std::function<void()>> m_notifier = std::make_shared<std::function<void()>>([this]() { m_changeMonitor.notifyAll(); });
+
+    public:
+        explicit ConnectionSettings() = default;
+        ~ConnectionSettings() = default;
+        DELETE_CTORS_AND_ASSIGN_OPS(ConnectionSettings);
+
+    public:
+        void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                    const ChangeMonitor::Function &callback)
+        {
+            return m_changeMonitor.registerChangeCallback(lifetime, callback);
+        }
+
+    public:
+        NamedConfig<QString> remoteServerName{"CONNECTION_REMOTE_SERVER_NAME", "mume.org", m_notifier};
+        NamedConfig<int> remotePort{"CONNECTION_REMOTE_PORT", 4242, m_notifier};
+        NamedConfig<int> localPort{"CONNECTION_LOCAL_PORT", 4242, m_notifier};
+        NamedConfig<bool> tlsEncryption{"CONNECTION_TLS_ENCRYPTION", false, m_notifier};
+        NamedConfig<bool> proxyConnectionStatus{"CONNECTION_PROXY_CONNECTION_STATUS", false, m_notifier};
+        NamedConfig<bool> proxyListensOnAnyInterface{"CONNECTION_PROXY_LISTENS_ON_ANY_INTERFACE", false, m_notifier};
 
     private:
         SUBGROUP();
@@ -103,11 +127,28 @@ public:
 
     struct NODISCARD ParserSettings final
     {
-        QString roomNameColor; // ANSI room name color
-        QString roomDescColor; // ANSI room descriptions color
-        char prefixChar = char_consts::C_UNDERSCORE;
-        bool encodeEmoji = true;
-        bool decodeEmoji = true;
+    private:
+        ChangeMonitor m_changeMonitor;
+        const std::shared_ptr<std::function<void()>> m_notifier = std::make_shared<std::function<void()>>([this]() { m_changeMonitor.notifyAll(); });
+
+    public:
+        explicit ParserSettings() = default;
+        ~ParserSettings() = default;
+        DELETE_CTORS_AND_ASSIGN_OPS(ParserSettings);
+
+    public:
+        void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                    const ChangeMonitor::Function &callback)
+        {
+            return m_changeMonitor.registerChangeCallback(lifetime, callback);
+        }
+
+    public:
+        NamedConfig<QString> roomNameColor{"PARSER_ROOM_NAME_COLOR", "[32m", m_notifier};
+        NamedConfig<QString> roomDescColor{"PARSER_ROOM_DESC_COLOR", "[0m", m_notifier};
+        NamedConfig<int> prefixChar{"PARSER_PREFIX_CHAR", static_cast<int>(char_consts::C_UNDERSCORE), m_notifier};
+        NamedConfig<bool> encodeEmoji{"PARSER_ENCODE_EMOJI", true, m_notifier};
+        NamedConfig<bool> decodeEmoji{"PARSER_DECODE_EMOJI", true, m_notifier};
 
     private:
         SUBGROUP();
@@ -115,8 +156,25 @@ public:
 
     struct NODISCARD MumeClientProtocolSettings final
     {
-        bool internalRemoteEditor = false;
-        QString externalRemoteEditorCommand;
+    private:
+        ChangeMonitor m_changeMonitor;
+        const std::shared_ptr<std::function<void()>> m_notifier = std::make_shared<std::function<void()>>([this]() { m_changeMonitor.notifyAll(); });
+
+    public:
+        explicit MumeClientProtocolSettings() = default;
+        ~MumeClientProtocolSettings() = default;
+        DELETE_CTORS_AND_ASSIGN_OPS(MumeClientProtocolSettings);
+
+    public:
+        void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                    const ChangeMonitor::Function &callback)
+        {
+            return m_changeMonitor.registerChangeCallback(lifetime, callback);
+        }
+
+    public:
+        NamedConfig<bool> internalRemoteEditor{"MUME_PROTOCOL_INTERNAL_REMOTE_EDITOR", false, m_notifier};
+        NamedConfig<QString> externalRemoteEditorCommand{"MUME_PROTOCOL_EXTERNAL_REMOTE_EDITOR_COMMAND", "", m_notifier};
 
     private:
         SUBGROUP();
@@ -124,10 +182,26 @@ public:
 
     struct NODISCARD MumeNativeSettings final
     {
-        /* serialized */
-        bool emulatedExits = false;
-        bool showHiddenExitFlags = false;
-        bool showNotes = false;
+    private:
+        ChangeMonitor m_changeMonitor;
+        const std::shared_ptr<std::function<void()>> m_notifier = std::make_shared<std::function<void()>>([this]() { m_changeMonitor.notifyAll(); });
+
+    public:
+        explicit MumeNativeSettings() = default;
+        ~MumeNativeSettings() = default;
+        DELETE_CTORS_AND_ASSIGN_OPS(MumeNativeSettings);
+
+    public:
+        void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                    const ChangeMonitor::Function &callback)
+        {
+            return m_changeMonitor.registerChangeCallback(lifetime, callback);
+        }
+
+    public:
+        NamedConfig<bool> emulatedExits{"MUME_NATIVE_EMULATED_EXITS", false, m_notifier};
+        NamedConfig<bool> showHiddenExitFlags{"MUME_NATIVE_SHOW_HIDDEN_EXIT_FLAGS", false, m_notifier};
+        NamedConfig<bool> showNotes{"MUME_NATIVE_SHOW_NOTES", false, m_notifier};
 
     private:
         SUBGROUP();
@@ -150,7 +224,7 @@ public:
 
     struct NODISCARD CanvasNamedColorOptions
     {
-#define X_DECL(_id, _name) XNamedColor _id{NamedColorEnum::_name};
+#define X_DECL(_id, _name) NamedConfig<Color> _id{"CANVAS_COLOR_" #_name, Colors::white};
         XFOREACH_CANVAS_NAMED_COLOR_OPTIONS(X_DECL)
 #undef X_DECL
 
@@ -165,28 +239,47 @@ public:
 
     struct NODISCARD CanvasSettings final : public CanvasNamedColorOptions
     {
-        NamedConfig<int> antialiasingSamples{"ANTIALIASING_SAMPLES", 0};
-        NamedConfig<bool> trilinearFiltering{"TRILINEAR_FILTERING", true};
-        NamedConfig<bool> showMissingMapId{"SHOW_MISSING_MAPID", false};
-        NamedConfig<bool> showUnsavedChanges{"SHOW_UNSAVED_CHANGES", false};
-        NamedConfig<bool> showUnmappedExits{"SHOW_UNMAPPED_EXITS", false};
-        bool drawUpperLayersTextured = false;
-        bool drawDoorNames = false;
-        bool softwareOpenGL = false;
-        QString resourcesDirectory;
+        friend struct Advanced;
+
+    private:
+        ChangeMonitor m_changeMonitor;
+        const std::shared_ptr<std::function<void()>> m_notifier = std::make_shared<std::function<void()>>([this]() { m_changeMonitor.notifyAll(); });
+
+    public:
+        explicit CanvasSettings();
+        ~CanvasSettings() = default;
+        DELETE_CTORS_AND_ASSIGN_OPS(CanvasSettings);
+
+    public:
+        void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                    const ChangeMonitor::Function &callback)
+        {
+            return m_changeMonitor.registerChangeCallback(lifetime, callback);
+        }
+
+    public:
+        NamedConfig<int> antialiasingSamples{"ANTIALIASING_SAMPLES", 0, m_notifier};
+        NamedConfig<bool> trilinearFiltering{"TRILINEAR_FILTERING", true, m_notifier};
+        NamedConfig<bool> showMissingMapId{"SHOW_MISSING_MAPID", false, m_notifier};
+        NamedConfig<bool> showUnsavedChanges{"SHOW_UNSAVED_CHANGES", false, m_notifier};
+        NamedConfig<bool> showUnmappedExits{"SHOW_UNMAPPED_EXITS", false, m_notifier};
+        NamedConfig<bool> drawUpperLayersTextured{"CANVAS_DRAW_UPPER_LAYERS_TEXTURED", false, m_notifier};
+        NamedConfig<bool> drawDoorNames{"CANVAS_DRAW_DOOR_NAMES", false, m_notifier};
+        NamedConfig<bool> softwareOpenGL{"CANVAS_SOFTWARE_OPENGL", false, m_notifier};
+        NamedConfig<QString> resourcesDirectory{"CANVAS_RESOURCES_DIRECTORY", "", m_notifier};
 
         // not saved yet:
-        bool drawCharBeacons = true;
-        float charBeaconScaleCutoff = 0.4f;
-        float doorNameScaleCutoff = 0.4f;
-        float infomarkScaleCutoff = 0.25f;
-        float extraDetailScaleCutoff = 0.15f;
+        NamedConfig<bool> drawCharBeacons{"CANVAS_DRAW_CHAR_BEACONS", true, m_notifier};
+        NamedConfig<float> charBeaconScaleCutoff{"CANVAS_CHAR_BEACON_SCALE_CUTOFF", 0.4f, m_notifier};
+        NamedConfig<float> doorNameScaleCutoff{"CANVAS_DOOR_NAME_SCALE_CUTOFF", 0.4f, m_notifier};
+        NamedConfig<float> infomarkScaleCutoff{"CANVAS_INFOMARK_SCALE_CUTOFF", 0.25f, m_notifier};
+        NamedConfig<float> extraDetailScaleCutoff{"CANVAS_EXTRA_DETAIL_SCALE_CUTOFF", 0.15f, m_notifier};
 
         MMapper::Array<int, 3> mapRadius{100, 100, 100};
 
-        NamedConfig<int> weatherAtmosphereIntensity{"WEATHER_ATMOSPHERE_INTENSITY", 50};
-        NamedConfig<int> weatherPrecipitationIntensity{"WEATHER_PRECIPITATION_INTENSITY", 50};
-        NamedConfig<int> weatherTimeOfDayIntensity{"WEATHER_TIME_OF_DAY_INTENSITY", 50};
+        NamedConfig<int> weatherAtmosphereIntensity{"WEATHER_ATMOSPHERE_INTENSITY", 50, m_notifier};
+        NamedConfig<int> weatherPrecipitationIntensity{"WEATHER_PRECIPITATION_INTENSITY", 50, m_notifier};
+        NamedConfig<int> weatherTimeOfDayIntensity{"WEATHER_TIME_OF_DAY_INTENSITY", 50, m_notifier};
 
         struct NODISCARD Advanced final
         {
@@ -253,9 +346,9 @@ public:
 
     struct NODISCARD AccountSettings final
     {
-        QString accountName;
-        bool accountPassword = false;
-        bool rememberLogin = false;
+        NamedConfig<QString> accountName{"ACCOUNT_NAME", ""};
+        NamedConfig<bool> accountPassword{"ACCOUNT_PASSWORD", false};
+        NamedConfig<bool> rememberLogin{"ACCOUNT_REMEMBER_LOGIN", false};
 
     private:
         SUBGROUP();
@@ -263,9 +356,9 @@ public:
 
     struct NODISCARD AutoLoadSettings final
     {
-        bool autoLoadMap = false;
-        QString fileName;
-        QString lastMapDirectory;
+        NamedConfig<bool> autoLoadMap{"AUTO_LOAD_MAP", false};
+        NamedConfig<QString> fileName{"AUTO_LOAD_FILE_NAME", ""};
+        NamedConfig<QString> lastMapDirectory{"AUTO_LOAD_LAST_MAP_DIRECTORY", ""};
 
     private:
         SUBGROUP();
@@ -273,13 +366,13 @@ public:
 
     struct NODISCARD AutoLogSettings final
     {
-        QString autoLogDirectory;
-        bool autoLog = false;
-        AutoLoggerEnum cleanupStrategy = AutoLoggerEnum::DeleteDays;
-        int deleteWhenLogsReachDays = 0;
-        int deleteWhenLogsReachBytes = 0;
-        bool askDelete = false;
-        int rotateWhenLogsReachBytes = 0;
+        NamedConfig<QString> autoLogDirectory{"AUTO_LOG_DIRECTORY", ""};
+        NamedConfig<bool> autoLog{"AUTO_LOG_ENABLED", false};
+        NamedConfig<int> cleanupStrategy{"AUTO_LOG_CLEANUP_STRATEGY", static_cast<int>(AutoLoggerEnum::DeleteDays)};
+        NamedConfig<int> deleteWhenLogsReachDays{"AUTO_LOG_DELETE_WHEN_REACH_DAYS", 0};
+        NamedConfig<int> deleteWhenLogsReachBytes{"AUTO_LOG_DELETE_WHEN_REACH_BYTES", 0};
+        NamedConfig<bool> askDelete{"AUTO_LOG_ASK_DELETE", false};
+        NamedConfig<int> rotateWhenLogsReachBytes{"AUTO_LOG_ROTATE_WHEN_REACH_BYTES", 0};
 
     private:
         SUBGROUP();
@@ -287,13 +380,30 @@ public:
 
     struct NODISCARD PathMachineSettings final
     {
-        double acceptBestRelative = 0.0;
-        double acceptBestAbsolute = 0.0;
-        double newRoomPenalty = 0.0;
-        double multipleConnectionsPenalty = 0.0;
-        double correctPositionBonus = 0.0;
-        int maxPaths = 0;
-        int matchingTolerance = 0;
+    private:
+        ChangeMonitor m_changeMonitor;
+        const std::shared_ptr<std::function<void()>> m_notifier = std::make_shared<std::function<void()>>([this]() { m_changeMonitor.notifyAll(); });
+
+    public:
+        explicit PathMachineSettings() = default;
+        ~PathMachineSettings() = default;
+        DELETE_CTORS_AND_ASSIGN_OPS(PathMachineSettings);
+
+    public:
+        void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                    const ChangeMonitor::Function &callback)
+        {
+            return m_changeMonitor.registerChangeCallback(lifetime, callback);
+        }
+
+    public:
+        NamedConfig<double> acceptBestRelative{"PATH_MACHINE_ACCEPT_BEST_RELATIVE", 0.0, m_notifier};
+        NamedConfig<double> acceptBestAbsolute{"PATH_MACHINE_ACCEPT_BEST_ABSOLUTE", 0.0, m_notifier};
+        NamedConfig<double> newRoomPenalty{"PATH_MACHINE_NEW_ROOM_PENALTY", 0.0, m_notifier};
+        NamedConfig<double> multipleConnectionsPenalty{"PATH_MACHINE_MULTIPLE_CONNECTIONS_PENALTY", 0.0, m_notifier};
+        NamedConfig<double> correctPositionBonus{"PATH_MACHINE_CORRECT_POSITION_BONUS", 0.0, m_notifier};
+        NamedConfig<int> maxPaths{"PATH_MACHINE_MAX_PATHS", 0, m_notifier};
+        NamedConfig<int> matchingTolerance{"PATH_MACHINE_MATCHING_TOLERANCE", 0, m_notifier};
 
     private:
         SUBGROUP();
@@ -301,11 +411,28 @@ public:
 
     struct NODISCARD GroupManagerSettings final
     {
-        QColor color;
-        QColor npcColor;
-        bool npcColorOverride = false;
-        bool npcSortBottom = false;
-        bool npcHide = false;
+    private:
+        ChangeMonitor m_changeMonitor;
+        const std::shared_ptr<std::function<void()>> m_notifier = std::make_shared<std::function<void()>>([this]() { m_changeMonitor.notifyAll(); });
+
+    public:
+        explicit GroupManagerSettings() = default;
+        ~GroupManagerSettings() = default;
+        DELETE_CTORS_AND_ASSIGN_OPS(GroupManagerSettings);
+
+    public:
+        void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                    const ChangeMonitor::Function &callback)
+        {
+            return m_changeMonitor.registerChangeCallback(lifetime, callback);
+        }
+
+    public:
+        NamedConfig<QColor> color{"GROUP_MANAGER_COLOR", QColor(Qt::yellow), m_notifier};
+        NamedConfig<QColor> npcColor{"GROUP_MANAGER_NPC_COLOR", QColor(Qt::lightGray), m_notifier};
+        NamedConfig<bool> npcColorOverride{"GROUP_MANAGER_NPC_COLOR_OVERRIDE", false, m_notifier};
+        NamedConfig<bool> npcSortBottom{"GROUP_MANAGER_NPC_SORT_BOTTOM", false, m_notifier};
+        NamedConfig<bool> npcHide{"GROUP_MANAGER_NPC_HIDE", false, m_notifier};
 
     private:
         SUBGROUP();
@@ -313,8 +440,8 @@ public:
 
     struct NODISCARD MumeClockSettings final
     {
-        int64_t startEpoch = 0;
-        bool display = false;
+        NamedConfig<int64_t> startEpoch{"MUME_CLOCK_START_EPOCH", 0};
+        NamedConfig<bool> display{"MUME_CLOCK_DISPLAY", false};
 
     private:
         SUBGROUP();
@@ -324,7 +451,7 @@ public:
     {
     private:
         ChangeMonitor m_changeMonitor;
-        bool m_displayXPStatus = false;
+        const std::shared_ptr<std::function<void()>> m_notifier = std::make_shared<std::function<void()>>([this]() { m_changeMonitor.notifyAll(); });
 
     public:
         explicit AdventurePanelSettings() = default;
@@ -332,18 +459,19 @@ public:
         DELETE_CTORS_AND_ASSIGN_OPS(AdventurePanelSettings);
 
     public:
-        NODISCARD bool getDisplayXPStatus() const { return m_displayXPStatus; }
-        void setDisplayXPStatus(const bool display)
-        {
-            m_displayXPStatus = display;
-            m_changeMonitor.notifyAll();
-        }
-
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
                                     const ChangeMonitor::Function &callback)
         {
             return m_changeMonitor.registerChangeCallback(lifetime, callback);
         }
+
+        void notifyChanged() { m_changeMonitor.notifyAll(); }
+
+        NODISCARD bool getDisplayXPStatus() const { return displayXPStatus.get(); }
+        void setDisplayXPStatus(const bool display) { displayXPStatus.set(display); }
+
+    public:
+        NamedConfig<bool> displayXPStatus{"ADVENTURE_PANEL_DISPLAY_XP_STATUS", false, m_notifier};
 
     private:
         SUBGROUP();
@@ -353,10 +481,7 @@ public:
     {
     private:
         ChangeMonitor m_changeMonitor;
-        int m_musicVolume = 50;
-        int m_soundVolume = 50;
-        QByteArray m_outputDeviceId;
-        bool m_unlocked = false;
+        const std::shared_ptr<std::function<void()>> m_notifier = std::make_shared<std::function<void()>>([this]() { m_changeMonitor.notifyAll(); });
 
     public:
         explicit AudioSettings() = default;
@@ -364,39 +489,31 @@ public:
         DELETE_CTORS_AND_ASSIGN_OPS(AudioSettings);
 
     public:
-        NODISCARD int getMusicVolume() const { return m_musicVolume; }
-        void setMusicVolume(const int volume)
-        {
-            m_musicVolume = volume;
-            m_changeMonitor.notifyAll();
-        }
-
-        NODISCARD int getSoundVolume() const { return m_soundVolume; }
-        void setSoundVolume(const int volume)
-        {
-            m_soundVolume = volume;
-            m_changeMonitor.notifyAll();
-        }
-
-        NODISCARD const QByteArray &getOutputDeviceId() const { return m_outputDeviceId; }
-        void setOutputDeviceId(const QByteArray &id)
-        {
-            m_outputDeviceId = id;
-            m_changeMonitor.notifyAll();
-        }
-
-        NODISCARD bool isUnlocked() const { return m_unlocked; }
-        void setUnlocked()
-        {
-            m_unlocked = true;
-            m_changeMonitor.notifyAll();
-        }
-
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
                                     const ChangeMonitor::Function &callback)
         {
             return m_changeMonitor.registerChangeCallback(lifetime, callback);
         }
+
+        void notifyChanged() { m_changeMonitor.notifyAll(); }
+
+        NODISCARD int getMusicVolume() const { return musicVolume.get(); }
+        void setMusicVolume(const int volume) { musicVolume.set(volume); }
+
+        NODISCARD int getSoundVolume() const { return soundVolume.get(); }
+        void setSoundVolume(const int volume) { soundVolume.set(volume); }
+
+        NODISCARD const QByteArray &getOutputDeviceId() const { return outputDeviceId.get(); }
+        void setOutputDeviceId(const QByteArray &id) { outputDeviceId.set(id); }
+
+        NODISCARD bool isUnlocked() const { return unlocked.get(); }
+        void setUnlocked() { unlocked.set(true); }
+
+    public:
+        NamedConfig<int> musicVolume{"AUDIO_MUSIC_VOLUME", 50, m_notifier};
+        NamedConfig<int> soundVolume{"AUDIO_SOUND_VOLUME", 50, m_notifier};
+        NamedConfig<QByteArray> outputDeviceId{"AUDIO_OUTPUT_DEVICE_ID", QByteArray(), m_notifier};
+        NamedConfig<bool> unlocked{"AUDIO_UNLOCKED", false, m_notifier};
 
     private:
         SUBGROUP();
@@ -404,21 +521,21 @@ public:
 
     struct NODISCARD IntegratedMudClientSettings final
     {
-        QString font;
-        QColor foregroundColor;
-        QColor backgroundColor;
-        QString commandSeparator;
-        int columns = 0;
-        int rows = 0;
-        int linesOfScrollback = 0;
-        int linesOfInputHistory = 0;
-        int tabCompletionDictionarySize = 0;
-        bool clearInputOnEnter = false;
-        bool autoResizeTerminal = false;
-        int linesOfPeekPreview = 0;
-        bool audibleBell = false;
-        bool visualBell = false;
-        bool useCommandSeparator = false;
+        NamedConfig<QString> font{"INTEGRATED_CLIENT_FONT", ""};
+        NamedConfig<QColor> foregroundColor{"INTEGRATED_CLIENT_FOREGROUND_COLOR", QColor(Qt::lightGray)};
+        NamedConfig<QColor> backgroundColor{"INTEGRATED_CLIENT_BACKGROUND_COLOR", QColor(Qt::black)};
+        NamedConfig<QString> commandSeparator{"INTEGRATED_CLIENT_COMMAND_SEPARATOR", ""};
+        NamedConfig<int> columns{"INTEGRATED_CLIENT_COLUMNS", 0};
+        NamedConfig<int> rows{"INTEGRATED_CLIENT_ROWS", 0};
+        NamedConfig<int> linesOfScrollback{"INTEGRATED_CLIENT_LINES_OF_SCROLLBACK", 0};
+        NamedConfig<int> linesOfInputHistory{"INTEGRATED_CLIENT_LINES_OF_INPUT_HISTORY", 0};
+        NamedConfig<int> tabCompletionDictionarySize{"INTEGRATED_CLIENT_TAB_COMPLETION_DICTIONARY_SIZE", 0};
+        NamedConfig<bool> clearInputOnEnter{"INTEGRATED_CLIENT_CLEAR_INPUT_ON_ENTER", false};
+        NamedConfig<bool> autoResizeTerminal{"INTEGRATED_CLIENT_AUTO_RESIZE_TERMINAL", false};
+        NamedConfig<int> linesOfPeekPreview{"INTEGRATED_CLIENT_LINES_OF_PEEK_PREVIEW", 0};
+        NamedConfig<bool> audibleBell{"INTEGRATED_CLIENT_AUDIBLE_BELL", false};
+        NamedConfig<bool> visualBell{"INTEGRATED_CLIENT_VISUAL_BELL", false};
+        NamedConfig<bool> useCommandSeparator{"INTEGRATED_CLIENT_USE_COMMAND_SEPARATOR", false};
 
     private:
         SUBGROUP();
@@ -426,7 +543,7 @@ public:
 
     struct NODISCARD RoomPanelSettings final
     {
-        QByteArray geometry;
+        NamedConfig<QByteArray> geometry{"ROOM_PANEL_GEOMETRY", QByteArray()};
 
     private:
         SUBGROUP();
@@ -434,7 +551,7 @@ public:
 
     struct NODISCARD InfomarksDialog final
     {
-        QByteArray geometry;
+        NamedConfig<QByteArray> geometry{"INFOMARKS_DIALOG_GEOMETRY", QByteArray()};
 
     private:
         SUBGROUP();
@@ -442,7 +559,7 @@ public:
 
     struct NODISCARD RoomEditDialog final
     {
-        QByteArray geometry;
+        NamedConfig<QByteArray> geometry{"ROOM_EDIT_DIALOG_GEOMETRY", QByteArray()};
 
     private:
         SUBGROUP();
@@ -450,7 +567,7 @@ public:
 
     struct NODISCARD FindRoomsDialog final
     {
-        QByteArray geometry;
+        NamedConfig<QByteArray> geometry{"FIND_ROOMS_DIALOG_GEOMETRY", QByteArray()};
 
     private:
         SUBGROUP();

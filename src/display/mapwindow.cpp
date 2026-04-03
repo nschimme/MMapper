@@ -179,6 +179,10 @@ MapWindow::MapWindow(MapData &mapData,
 
     m_scrollTimer = mmqt::makeQPointer<QTimer>(this);
     connect(m_scrollTimer, &QTimer::timeout, this, &MapWindow::slot_scrollTimerTimeout);
+
+    setConfig().canvas.registerChangeCallback(m_lifetime, [this]() {
+        slot_graphicsSettingsChanged();
+    });
 }
 
 void MapWindow::hideSplashImage()

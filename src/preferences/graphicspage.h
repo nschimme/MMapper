@@ -3,6 +3,7 @@
 // Copyright (C) 2019 The MMapper Authors
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
+#include "../global/Signal2.h"
 #include "../global/macros.h"
 #include "ui_graphicspage.h"
 
@@ -31,12 +32,9 @@ public:
 
 private:
     void changeColorClicked(XNamedColor &color, QPushButton *pushButton);
-    void graphicsSettingsChanged() { emit sig_graphicsSettingsChanged(); }
     Ui::GraphicsPage *const ui;
     std::unique_ptr<AdvancedGraphicsGroupBox> m_advanced;
-
-signals:
-    void sig_graphicsSettingsChanged();
+    Signal2Lifetime m_lifetime;
 
 public slots:
     void slot_loadConfig();
@@ -44,6 +42,4 @@ public slots:
     void slot_drawNotMappedExitsStateChanged(int);
     void slot_drawDoorNamesStateChanged(int);
     void slot_drawUpperLayersTexturedStateChanged(int);
-    // this slot just calls the signal... not useful
-    void slot_graphicsSettingsChanged() { graphicsSettingsChanged(); }
 };

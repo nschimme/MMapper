@@ -106,7 +106,6 @@ public:
             const SignalBlocker block_spin{m_spin};
             m_fp.set(value);
             m_spin.setIntValue(value);
-            m_group.graphicsSettingsChanged();
         });
 
         QObject::connect(&m_spin,
@@ -118,7 +117,6 @@ public:
                              const int value = m_spin.getIntValue();
                              m_fp.set(value);
                              m_slider.setValue(value);
-                             m_group.graphicsSettingsChanged();
                          });
 
         QObject::connect(&m_reset, &QPushButton::clicked, &group, [this](bool) {
@@ -151,9 +149,6 @@ public:
         const auto value = m_fp.get();
         m_spin.setIntValue(value);
         m_slider.setValue(value);
-        if ((false)) {
-            m_group.graphicsSettingsChanged();
-        }
     }
 
     DELETE_CTORS_AND_ASSIGN_OPS(SliderSpinboxButtonImpl);
@@ -220,19 +215,16 @@ AdvancedGraphicsGroupBox::AdvancedGraphicsGroupBox(QGroupBox &groupBox)
         MapCanvasConfig::set3dMode(is3d);
         enableSsbs(is3d);
         autoTilt->setEnabled(is3d);
-        graphicsSettingsChanged();
     });
 
     connect(autoTilt, &QCheckBox::stateChanged, this, [this, autoTilt](int) {
         const bool val = autoTilt->isChecked();
         MapCanvasConfig::setAutoTilt(val);
-        graphicsSettingsChanged();
     });
 
     connect(checkboxDiag, &QCheckBox::stateChanged, this, [this, checkboxDiag](int) {
         const bool show = checkboxDiag->isChecked();
         MapCanvasConfig::setShowPerfStats(show);
-        graphicsSettingsChanged();
     });
 
     MapCanvasConfig::registerChangeCallback(m_lifetime,
@@ -251,6 +243,8 @@ AdvancedGraphicsGroupBox::AdvancedGraphicsGroupBox(QGroupBox &groupBox)
                                                 checkbox3d->setChecked(
                                                     MapCanvasConfig::isIn3dMode());
                                                 autoTilt->setChecked(MapCanvasConfig::isAutoTilt());
+                                                enableSsbs(MapCanvasConfig::isIn3dMode());
+                                                autoTilt->setEnabled(MapCanvasConfig::isIn3dMode());
                                             });
 }
 

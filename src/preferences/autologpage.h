@@ -3,6 +3,7 @@
 // Copyright (C) 2019 The MMapper Authors
 // Author: Mattias 'Mew_' Viklund <devmew@exedump.com> (Mirnir)
 
+#include "../global/Signal2.h"
 #include "../global/macros.h"
 
 #include <QWidget>
@@ -18,6 +19,7 @@ class NODISCARD_QOBJECT AutoLogPage final : public QWidget
 
 private:
     Ui::AutoLogPage *const ui;
+    Signal2Lifetime m_lifetime;
 
 public:
     explicit AutoLogPage(QWidget *parent);

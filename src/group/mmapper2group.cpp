@@ -28,7 +28,11 @@ static const bool verbose_debugging = false;
 Mmapper2Group::Mmapper2Group(QObject *const parent)
     : QObject{parent}
     , m_groupManagerApi{std::make_unique<GroupManagerApi>(*this)}
-{}
+{
+    setConfig().groupManager.registerChangeCallback(m_lifetime, [this]() {
+        slot_groupSettingsChanged();
+    });
+}
 
 Mmapper2Group::~Mmapper2Group() {}
 
@@ -39,7 +43,7 @@ SharedGroupChar Mmapper2Group::getSelf()
         m_self->setType(CharacterTypeEnum::YOU);
         m_charIndex.push_back(m_self);
 
-        const auto color = getConfig().groupManager.color;
+        const auto color = getConfig().groupManager.color.get();
         m_self->setColor(color);
         m_colorGenerator.init(color);
     }
@@ -246,7 +250,7 @@ void Mmapper2Group::removeChar(const GroupId id)
         if (character.getId() != id) {
             return false;
         }
-        if (!character.isYou() && character.getColor() != settings.npcColor) {
+        if (!character.isYou() && character.getColor() != settings.npcColor.get()) {
             m_colorGenerator.releaseColor(character.getColor());
         }
         qDebug() << "removing" << id.asUint32() << character.getName().toQString();
@@ -301,7 +305,7 @@ bool Mmapper2Group::updateChar(SharedGroupChar sharedCh, const JsonObj &obj)
     if (ch.isYou()) {
         if (!m_self) {
             m_self = sharedCh;
-            m_self->setColor(getConfig().groupManager.color);
+            m_self->setColor(getConfig().groupManager.color.get());
         } else if (m_self->getId() != sharedCh->getId()) {
             m_self->setId(ch.getId());
             change = m_self->updateFromGmcp(obj);
@@ -314,8 +318,8 @@ bool Mmapper2Group::updateChar(SharedGroupChar sharedCh, const JsonObj &obj)
     if (!ch.getColor().isValid()) {
         auto getColor = [&]() -> QColor {
             const auto &settings = getConfig().groupManager;
-            if (ch.isNpc() && settings.npcColorOverride) {
-                return settings.npcColor;
+            if (ch.isNpc() && settings.npcColorOverride.get()) {
+                return settings.npcColor.get();
             } else {
                 return m_colorGenerator.getNextColor();
             }
@@ -334,12 +338,12 @@ void Mmapper2Group::slot_groupSettingsChanged()
     for (const auto &pChar : m_charIndex) {
         auto &character = deref(pChar);
         if (character.isYou()) {
-            character.setColor(settings.color);
-        } else if (character.isNpc() && settings.npcColorOverride) {
-            if (character.getColor() != settings.npcColor) {
+            character.setColor(settings.color.get());
+        } else if (character.isNpc() && settings.npcColorOverride.get()) {
+            if (character.getColor() != settings.npcColor.get()) {
                 m_colorGenerator.releaseColor(character.getColor());
             }
-            character.setColor(settings.npcColor);
+            character.setColor(settings.npcColor.get());
         }
     }
     characterChanged();

@@ -38,11 +38,11 @@ public:
     NODISCARD Base::const_iterator end() const;
 
 public:
-    NODISCARD bool empty() const { return m_vector->empty(); }
-    NODISCARD size_t size() const { return m_vector->size(); }
+    NODISCARD bool empty() const;
+    NODISCARD size_t size() const;
     // NOTE: at() throws if out of range.
-    const Value &at(size_t pos) const { return m_vector->at(pos); }
-    const Value &operator[](size_t pos) const { return at(pos); }
+    const Value &at(size_t pos) const;
+    const Value &operator[](size_t pos) const;
 
 public:
     friend std::ostream &operator<<(std::ostream &os, const Vector &v);
@@ -127,3 +127,20 @@ public:
 };
 
 NODISCARD extern Vector getAnyVectorReversed(const Pair *matched);
+
+inline bool Vector::empty() const
+{
+    return m_vector->empty();
+}
+inline size_t Vector::size() const
+{
+    return m_vector->size();
+}
+inline const Value &Vector::at(size_t pos) const
+{
+    return m_vector->at(pos);
+}
+inline const Value &Vector::operator[](size_t pos) const
+{
+    return at(pos);
+}

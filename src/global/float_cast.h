@@ -33,6 +33,8 @@ NODISCARD constexpr bool isNan(const FloatType f) noexcept
 {
 #if defined(__cpp_lib_constexpr_cmath) && __cpp_lib_constexpr_cmath >= 202202L
     return std::isnan(f);
+#elif defined(__clang__) || defined(__GNUC__)
+    return __builtin_isnan(f);
 #else
     // std::isnan() is not constexpr in all C++20 implementations (e.g. MSVC 2022)
     return f != f;
@@ -44,6 +46,8 @@ NODISCARD constexpr bool isFinite(const FloatType f) noexcept
 {
 #if defined(__cpp_lib_constexpr_cmath) && __cpp_lib_constexpr_cmath >= 202202L
     return std::isfinite(f);
+#elif defined(__clang__) || defined(__GNUC__)
+    return __builtin_isfinite(f);
 #else
     // std::isfinite() is not constexpr in all C++20 implementations (e.g. MSVC 2022)
     const auto inf = std::numeric_limits<FloatType>::infinity();

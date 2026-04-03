@@ -5,6 +5,7 @@
 
 #include "../configuration/configuration.h"
 #include "../global/SignalBlocker.h"
+#include "../mainwindow/AudioVolumeSlider.h"
 #include "ui_audiopage.h"
 
 #ifndef MMAPPER_NO_AUDIO
@@ -19,16 +20,23 @@ AudioPage::AudioPage(QWidget *const parent)
     ui->setupUi(this);
 
     slot_updateDevices();
+
+    auto *const musicVolumeSlider = new AudioVolumeSlider(AudioVolumeSlider::AudioType::Music, this);
+    auto *const soundsVolumeSlider
+        = new AudioVolumeSlider(AudioVolumeSlider::AudioType::Sound, this);
+
+    ui->gridLayoutMusic->replaceWidget(ui->musicVolumeSlider, musicVolumeSlider);
+    ui->gridLayoutSounds->replaceWidget(ui->soundsVolumeSlider, soundsVolumeSlider);
+
+    delete ui->musicVolumeSlider;
+    delete ui->soundsVolumeSlider;
+
+    // Use these names to avoid breaking layout or other code if it expects them
+    musicVolumeSlider->setObjectName("musicVolumeSlider");
+    soundsVolumeSlider->setObjectName("soundsVolumeSlider");
+
     slot_loadConfig();
 
-    connect(ui->musicVolumeSlider,
-            &QSlider::valueChanged,
-            this,
-            &AudioPage::slot_musicVolumeChanged);
-    connect(ui->soundsVolumeSlider,
-            &QSlider::valueChanged,
-            this,
-            &AudioPage::slot_soundsVolumeChanged);
     connect(ui->outputDeviceComboBox,
             &QComboBox::currentIndexChanged,
             this,
@@ -41,8 +49,6 @@ AudioPage::AudioPage(QWidget *const parent)
 
     if constexpr (NO_AUDIO) {
         ui->outputDeviceComboBox->setEnabled(false);
-        ui->musicVolumeSlider->setEnabled(false);
-        ui->soundsVolumeSlider->setEnabled(false);
     }
 }
 
@@ -53,13 +59,9 @@ AudioPage::~AudioPage()
 
 void AudioPage::slot_loadConfig()
 {
-    SignalBlocker musicBlocker(*ui->musicVolumeSlider);
-    SignalBlocker soundsBlocker(*ui->soundsVolumeSlider);
     SignalBlocker outputBlocker(*ui->outputDeviceComboBox);
 
     const auto &settings = getConfig().audio;
-    ui->musicVolumeSlider->setValue(settings.getMusicVolume());
-    ui->soundsVolumeSlider->setValue(settings.getSoundVolume());
 
     int index = ui->outputDeviceComboBox->findData(settings.getOutputDeviceId());
     if (index != -1) {
@@ -67,20 +69,6 @@ void AudioPage::slot_loadConfig()
     } else {
         ui->outputDeviceComboBox->setCurrentIndex(0);
     }
-}
-
-void AudioPage::slot_musicVolumeChanged(int value)
-{
-    auto &settings = setConfig().audio;
-    settings.setMusicVolume(value);
-    settings.setUnlocked();
-}
-
-void AudioPage::slot_soundsVolumeChanged(int value)
-{
-    auto &settings = setConfig().audio;
-    settings.setSoundVolume(value);
-    settings.setUnlocked();
 }
 
 void AudioPage::slot_outputDeviceChanged(int index)

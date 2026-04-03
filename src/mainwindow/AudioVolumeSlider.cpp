@@ -25,6 +25,10 @@ AudioVolumeSlider::AudioVolumeSlider(AudioType type, QWidget *const parent)
         setToolTip(tr("Sound Volume"));
         break;
     }
+
+    if constexpr (NO_AUDIO) {
+        setEnabled(false);
+    }
 }
 
 AudioVolumeSlider::~AudioVolumeSlider() = default;
@@ -49,15 +53,18 @@ void AudioVolumeSlider::updateFromConfig()
 
 void AudioVolumeSlider::updateToConfig(int value)
 {
+    auto &audioSettings = setConfig().audio;
     switch (m_type) {
     case AudioType::Music:
-        if (getConfig().audio.getMusicVolume() != value) {
-            setConfig().audio.setMusicVolume(value);
+        if (audioSettings.getMusicVolume() != value) {
+            audioSettings.setMusicVolume(value);
+            audioSettings.setUnlocked();
         }
         break;
     case AudioType::Sound:
-        if (getConfig().audio.getSoundVolume() != value) {
-            setConfig().audio.setSoundVolume(value);
+        if (audioSettings.getSoundVolume() != value) {
+            audioSettings.setSoundVolume(value);
+            audioSettings.setUnlocked();
         }
         break;
     }

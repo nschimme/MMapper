@@ -1434,9 +1434,11 @@ void MainWindow::setupToolBars()
 
     audioToolBar = addToolBar(tr("Audio"));
     audioToolBar->setObjectName("AudioToolBar");
-    audioToolBar->addWidget(new AudioVolumeSlider(AudioVolumeSlider::AudioType::Music, audioToolBar));
+    audioToolBar->addWidget(
+        new AudioVolumeSlider(AudioVolumeSlider::AudioType::Music, audioToolBar));
     audioToolBar->addSeparator();
-    audioToolBar->addWidget(new AudioVolumeSlider(AudioVolumeSlider::AudioType::Sound, audioToolBar));
+    audioToolBar->addWidget(
+        new AudioVolumeSlider(AudioVolumeSlider::AudioType::Sound, audioToolBar));
     audioToolBar->hide();
 }
 

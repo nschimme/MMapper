@@ -113,6 +113,7 @@ MusicManager::~MusicManager()
 
     for (int i = 0; i < 2; ++i) {
         m_channels[i].player->stop();
+        m_channels[i].player->setSource(QUrl());
         m_channels[i].file.clear();
         m_channels[i].fadeVolume = 0.0f;
     }

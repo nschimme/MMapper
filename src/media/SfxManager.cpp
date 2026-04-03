@@ -35,6 +35,7 @@ SfxManager::~SfxManager()
     const auto players = findChildren<QMediaPlayer *>();
     for (auto *player : players) {
         player->stop();
+        player->setSource(QUrl());
     }
 #endif
 }

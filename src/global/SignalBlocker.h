@@ -5,6 +5,7 @@
 #include "RuleOf5.h"
 #include "utils.h"
 
+#include <QEvent>
 #include <QObject>
 #include <QVector>
 
@@ -23,3 +24,7 @@ public:
     ~SignalBlocker();
     DELETE_CTORS_AND_ASSIGN_OPS(SignalBlocker);
 };
+
+namespace mmqt {
+NODISCARD extern bool applyWheelEventFilter(QObject *obj, QEvent *event);
+}

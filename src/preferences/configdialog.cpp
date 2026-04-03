@@ -7,6 +7,7 @@
 #include "configdialog.h"
 
 #include "../configuration/configuration.h"
+#include "../global/SignalBlocker.h"
 #include "audiopage.h"
 #include "autologpage.h"
 #include "clientpage.h"
@@ -35,11 +36,7 @@ public:
 
     bool eventFilter(QObject *const obj, QEvent *const event) override
     {
-        if (event->type() == QEvent::Wheel) {
-            event->ignore();
-            return true;
-        }
-        return QObject::eventFilter(obj, event);
+        return mmqt::applyWheelEventFilter(obj, event);
     }
 };
 } // namespace

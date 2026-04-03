@@ -156,8 +156,7 @@ public:
     ALLOW_DISCARD GLuint update(Functions &gl, SharedVboEnum block, const std::vector<T, A> &data)
     {
         VBO &vbo = getOrCreateVbo(gl, block);
-        static_cast<void>(
-            gl.setVbo(GL_UNIFORM_BUFFER, vbo.get(), data, BufferUsageEnum::DYNAMIC_DRAW));
+        gl.setVbo(GL_UNIFORM_BUFFER, vbo.get(), data, BufferUsageEnum::DYNAMIC_DRAW);
         return bind_internal(gl, block, vbo.get());
     }
 

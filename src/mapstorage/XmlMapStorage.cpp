@@ -39,20 +39,30 @@
 
 // ---------------------------- XmlMapStorage::TypeEnum ------------------------
 // list know enum types
+//
+// Each called X(_x) should use:
+//
+// TYPE_NAME_ENUM_VALUE(_x), or
+// TYPE_NAME_ENUM_TYPE(_x) to construct the enum type name, or
+// TYPE_NAME_STRING(_x) to construct the string representing the type name.
 #define XFOREACH_TYPE_ENUM(X) \
-    X(RoomAlignEnum) \
-    X(DoorFlagEnum) \
-    X(ExitFlagEnum) \
-    X(RoomLightEnum) \
-    X(RoomLoadFlagEnum) \
-    X(InfomarkClassEnum) \
-    X(InfomarkTypeEnum) \
-    X(RoomMobFlagEnum) \
-    X(RoomPortableEnum) \
-    X(RoomRidableEnum) \
-    X(RoomSundeathEnum) \
-    X(RoomTerrainEnum) \
-    X(TypeEnum)
+    X(RoomAlign) \
+    X(DoorFlag) \
+    X(ExitFlag) \
+    X(RoomLight) \
+    X(RoomLoadFlag) \
+    X(InfomarkClass) \
+    X(InfomarkType) \
+    X(RoomMobFlag) \
+    X(RoomPortable) \
+    X(RoomRidable) \
+    X(RoomSundeath) \
+    X(RoomTerrain) \
+    X(Type)
+
+#define TYPE_NAME_ENUM_VALUE(_x) (TypeEnum::_x)
+#define TYPE_NAME_ENUM_TYPE(_x) _x##Enum
+#define TYPE_NAME_C_STRING(_x) (#_x "Enum")
 
 namespace { // anonymous
 
@@ -65,6 +75,44 @@ enum class NODISCARD TypeEnum : uint32_t {
 #define X_ADD(X) +1 // NOLINT
 constexpr const size_t NUM_XMLMAPSTORAGE_TYPE = (XFOREACH_TYPE_ENUM(X_ADD));
 #undef X_ADD
+
+// define a bunch of methods
+//   static constexpr TypeEnum enumToType(RoomAlignEnum) { return TypeEnum::RoomAlign; }
+//   static constexpr TypeEnum enumToType(DoorFlagEnum)  { return TypeEnum::DoorFlag;  }
+//   ...
+// converting an enumeration type to its corresponding TypeEnum value,
+// which can be used as argument in enumToString() and stringToEnum()
+#define X_DECL(_x) \
+    NODISCARD constexpr TypeEnum enumToType(TYPE_NAME_ENUM_TYPE(_x)) \
+    { \
+        return TYPE_NAME_ENUM_VALUE(_x); \
+    }
+XFOREACH_TYPE_ENUM(X_DECL)
+#undef X_DECL
+
+NODISCARD constexpr const char *to_c_string(const TypeEnum val)
+{
+#define X_CASE(_x) \
+    case TYPE_NAME_ENUM_VALUE(_x): \
+        return TYPE_NAME_C_STRING(_x);
+    //
+    switch (val) {
+        XFOREACH_TYPE_ENUM(X_CASE)
+    }
+    return "unknown";
+#undef X_CASE
+}
+
+static_assert(enumToType(RoomAlignEnum::UNDEFINED) == TypeEnum::RoomAlign);
+static_assert(enumToType(RoomTerrainEnum::UNDEFINED) == TypeEnum::RoomTerrain);
+
+static_assert(enumToType(TypeEnum::RoomAlign) == TypeEnum::Type);
+static_assert(enumToType(TypeEnum::RoomTerrain) == TypeEnum::Type);
+static_assert(enumToType(TypeEnum::Type) == TypeEnum::Type);
+
+static_assert(to_c_string(TypeEnum::RoomAlign) == std::string_view{"RoomAlignEnum"});
+static_assert(to_c_string(TypeEnum::RoomTerrain) == std::string_view{"RoomTerrainEnum"});
+static_assert(to_c_string(TypeEnum::Type) == std::string_view{"TypeEnum"});
 
 // ---------------------------- XmlMapStorage::Converter -----------------------
 class NODISCARD Converter final
@@ -100,40 +148,22 @@ public:
     {
         static_assert(std::is_enum_v<ENUM>, "template type ENUM must be an enumeration");
         if constexpr (std::is_same_v<ENUM, TypeEnum>) {
-#define X_CASE(x) \
-    case TypeEnum::x: \
-        return #x;
-            //
-            switch (val) {
-                XFOREACH_TYPE_ENUM(X_CASE)
-            }
-            return "unknown";
-#undef X_CASE
+            return ::to_c_string(val);
         } else {
             return enumToString(enumToType(val), static_cast<uint32_t>(val));
         }
     }
 
 private:
-    // define a bunch of methods
-    //   static constexpr TypeEnum enumToType(RoomAlignEnum) { return TypeEnum::RoomAlignEnum; }
-    //   static constexpr TypeEnum enumToType(DoorFlagEnum)  { return TypeEnum::DoorFlagEnum;  }
-    //   ...
-    // converting an enumeration type to its corresponding Type value,
-    // which can be used as argument in enumToString() and stringToEnum()
-#define X_DECL(X) \
-    MAYBE_UNUSED NODISCARD static constexpr TypeEnum enumToType(X) { return TypeEnum::X; }
-    XFOREACH_TYPE_ENUM(X_DECL)
-#undef X_DECL
-
     NODISCARD std::optional<uint32_t> stringToEnum(TypeEnum type, QStringView str) const;
     NODISCARD const QString &enumToString(TypeEnum type, uint32_t val) const;
 };
 
 Converter::Converter()
     : m_enumToStrings{
-#define X_DECL(X) /* */ {#X},
-#define X_DECL2(X, ...) {#X},
+#define X_DECL(_x) /* */ {#_x},
+#define X_DECL2(_x, ...) {#_x},
+#define X_DECL3(_x) {TYPE_NAME_C_STRING(_x)},
           /* these must match the enum types listed in XFOREACH_TYPE_ENUM above */
           {XFOREACH_RoomAlignEnum(X_DECL)},
           {XFOREACH_DOOR_FLAG(X_DECL2)},
@@ -147,9 +177,10 @@ Converter::Converter()
           {XFOREACH_RoomRidableEnum(X_DECL)},
           {XFOREACH_RoomSundeathEnum(X_DECL)},
           {XFOREACH_RoomTerrainEnum(X_DECL)},
-          {XFOREACH_TYPE_ENUM(X_DECL)},
+          {XFOREACH_TYPE_ENUM(X_DECL3)},
 #undef X_DECL
 #undef X_DECL2
+#undef X_DECL3
       }
 {
     if (m_enumToStrings.size() != NUM_XMLMAPSTORAGE_TYPE) {

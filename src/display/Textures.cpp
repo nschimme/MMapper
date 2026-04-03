@@ -378,8 +378,11 @@ NODISCARD static QImage createTileableValueNoiseImage(int size)
         return fract - std::floor(fract);
     };
 
+    // https://en.wikipedia.org/wiki/Smoothstep#Variations
     // Perlin's quintic curve ($6t^5-15t^4+10t^3$) ensures smooth C2 continuity at grid boundaries
-    auto smooth = [](float t) -> float { return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f); };
+    static auto smootherstep = [](const float t) -> float {
+        return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
+    };
 
     for (int y = 0; y < size; ++y) {
         // scanLine avoids QImage's internal per-pixel coordinate-to-pointer overhead
@@ -394,8 +397,8 @@ NODISCARD static QImage createTileableValueNoiseImage(int size)
             float fx = xx - ix;
             float fy = yy - iy;
 
-            float sx = smooth(fx);
-            float sy = smooth(fy);
+            const float sx = smootherstep(fx);
+            const float sy = smootherstep(fy);
 
             // Double modulo ensures positive wrapping for seamless tiling
             auto get_wrapped_hash = [&](int i, int j) {

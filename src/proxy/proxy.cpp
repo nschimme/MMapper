@@ -707,6 +707,7 @@ void Proxy::allocParser()
     auto &pipe = getPipeline();
     auto &conn = pipe.apis.proxyMudConnection = std::make_unique<ProxyMudConnectionApi>(*this);
     auto &gmcp = pipe.apis.proxyGmcp = std::make_unique<ProxyUserGmcpApi>(*this);
+    auto &mudGmcp = pipe.apis.proxyMudGmcp = std::make_unique<ProxyMudGmcpApi>(*this);
     auto &out = pipe.outputs.parserXmlOutputs = std::make_unique<LocalParserOutputs>(*this);
 
     // REVISIIT: does CTimers actually need a parent?
@@ -722,6 +723,7 @@ void Proxy::allocParser()
                                                          m_mumeClock,
                                                          deref(conn),
                                                          deref(gmcp),
+                                                         deref(mudGmcp),
                                                          m_groupManager.getGroupManagerApi(),
                                                          m_gameObserver,
                                                          m_mainWindow.getHotkeyManager(),

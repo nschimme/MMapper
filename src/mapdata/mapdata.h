@@ -26,6 +26,7 @@
 #include <memory>
 #include <optional>
 #include <ostream>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -136,6 +137,7 @@ public:
     }
     NODISCARD const QString &getFileName() const { return m_fileName; }
     NODISCARD bool isFileReadOnly() const { return m_fileReadOnly; }
+
 
 public:
     NODISCARD ExitDirFlags getExitDirections(const Coordinate &pos);

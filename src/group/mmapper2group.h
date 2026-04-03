@@ -60,8 +60,10 @@ private:
     void parseGmcpGroupSet(const JsonArray &arr);
     void parseGmcpRoomInfo(const JsonObj &obj);
 
-private:
+public:
     NODISCARD SharedGroupChar getSelf();
+
+private:
     NODISCARD SharedGroupChar addChar(const GroupId id);
     void removeChar(const GroupId id);
     NODISCARD bool updateChar(SharedGroupChar sharedCh,
@@ -78,6 +80,10 @@ public:
 public:
     void onReset();
 
+    void addKnownRooms(std::vector<ServerRoomId> rooms);
+    void setKnownRoomsDataReady(bool ready);
+    void clearKnownRooms();
+
 signals:
     // MainWindow::log (via MainWindow)
     void sig_log(const QString &, const QString &);
@@ -88,6 +94,7 @@ signals:
     void sig_characterRemoved(GroupId characterId);
     void sig_characterUpdated(SharedGroupChar character);
     void sig_groupReset(const GroupVector &newCharacterList);
+    void sig_knownRoomsChanged();
 
 public slots:
     void slot_parseGmcpInput(const GmcpMessage &msg);

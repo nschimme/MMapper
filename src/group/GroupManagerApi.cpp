@@ -11,6 +11,21 @@ void GroupManagerApi::refresh()
     return m_group.characterChanged();
 }
 
+void GroupManagerApi::addKnownRooms(std::vector<ServerRoomId> rooms)
+{
+    m_group.addKnownRooms(rooms);
+}
+
+void GroupManagerApi::setKnownRoomsDataReady(const bool ready)
+{
+    m_group.setKnownRoomsDataReady(ready);
+}
+
+void GroupManagerApi::clearKnownRooms()
+{
+    m_group.clearKnownRooms();
+}
+
 SharedGroupChar GroupManagerApi::getMember(const GroupId id)
 {
     if (id == INVALID_GROUPID) {

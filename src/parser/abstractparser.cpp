@@ -191,6 +191,7 @@ void MumeXmlParserBase::onReset()
     m_commonData.promptFlags.reset();
     m_commonData.lastPrompt = "";
     getQueue().clear();
+    m_group.clearKnownRooms();
 }
 
 void MumeXmlParserBase::parseExits(std::ostream &os)

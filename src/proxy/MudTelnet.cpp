@@ -575,6 +575,7 @@ void MudTelnet::resetGmcpModules()
     receiveGmcpModule(GmcpModule{GmcpModuleTypeEnum::GROUP, GmcpModuleVersion{1}}, true);
     receiveGmcpModule(GmcpModule{GmcpModuleTypeEnum::ROOM_CHARS, GmcpModuleVersion{1}}, true);
     receiveGmcpModule(GmcpModule{GmcpModuleTypeEnum::ROOM, GmcpModuleVersion{1}}, true);
+    receiveGmcpModule(GmcpModule{GmcpModuleTypeEnum::ROOM_KNOWN, GmcpModuleVersion{1}}, true);
     receiveGmcpModule(GmcpModule{GmcpModuleTypeEnum::MUME_CLIENT, GmcpModuleVersion{1}}, true);
 }
 

@@ -34,6 +34,14 @@ void TestProxy::gmcpMessageDeserializeTest()
     GmcpMessage gmcp3 = GmcpMessage::fromRawBytes(R"(External.Discord.Hello)");
     QCOMPARE(gmcp3.getName().toQByteArray(), QByteArray("External.Discord.Hello"));
     QVERIFY(!gmcp3.getJson());
+
+    GmcpMessage gmcp4 = GmcpMessage::fromRawBytes(R"(Room.Known.List [1,2,3])");
+    QCOMPARE(gmcp4.getName().toQByteArray(), QByteArray("Room.Known.List"));
+    QVERIFY(gmcp4.isRoomKnownList());
+
+    GmcpMessage gmcp5 = GmcpMessage::fromRawBytes(R"(Room.Known.Add 4711)");
+    QCOMPARE(gmcp5.getName().toQByteArray(), QByteArray("Room.Known.Add"));
+    QVERIFY(gmcp5.isRoomKnownAdd());
 }
 
 void TestProxy::gmcpMessageSerializeTest()

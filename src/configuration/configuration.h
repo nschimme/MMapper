@@ -169,6 +169,7 @@ public:
         NamedConfig<bool> trilinearFiltering{"TRILINEAR_FILTERING", true};
         NamedConfig<bool> showMissingMapId{"SHOW_MISSING_MAPID", false};
         NamedConfig<bool> showUnsavedChanges{"SHOW_UNSAVED_CHANGES", false};
+        NamedConfig<bool> showUnvisitedHighlight{"SHOW_UNVISITED_HIGHLIGHT", true};
         NamedConfig<bool> showUnmappedExits{"SHOW_UNMAPPED_EXITS", false};
         bool drawUpperLayersTextured = false;
         bool drawDoorNames = false;

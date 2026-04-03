@@ -10,6 +10,7 @@
 #include "../global/logging.h"
 #include "../global/progresscounter.h"
 #include "../global/utils.h"
+#include "../group/mmapper2group.h"
 #include "../map/coordinate.h"
 #include "../mapdata/mapdata.h"
 #include "../opengl/Font.h"
@@ -293,6 +294,9 @@ void MapCanvas::initializeGL()
         }
     });
 
+    setConfig().canvas.showUnvisitedHighlight.registerChangeCallback(m_lifetime,
+                                                                     [this]() { this->update(); });
+
     setConfig().canvas.showUnmappedExits.registerChangeCallback(m_lifetime, [this]() {
         this->forceUpdateMeshes();
     });
@@ -403,7 +407,9 @@ void MapCanvas::resizeGL(int width, int height)
 
     setViewportAndMvp(width, height);
     markMultisamplingDirty();
-    m_frameManager.requestUpdate();
+    // Defer update() to avoid triggering a second Asyncify suspension while paintGL
+    // is already suspended in Qt for WebAssembly (VisualViewport.qtResizeAllScreens).
+    QTimer::singleShot(0, this, [this]() { m_frameManager.requestUpdate(); });
 }
 
 void MapCanvas::updateBatches()
@@ -546,10 +552,18 @@ void MapCanvas::actuallyPaintGL()
     gl.blitFboToDefault();
 }
 
-NODISCARD bool MapCanvas::Diff::isUpToDate(const Map &saved, const Map &current) const
+NODISCARD bool MapCanvas::Diff::isUpToDate(const Map &saved,
+                                           const Map &current,
+                                           const bool hasKnownRoomsData,
+                                           const bool showNeedsServerId,
+                                           const bool showChanged,
+                                           const bool showUnvisited) const
 {
     return highlight && highlight->saved.isSamePointer(saved)
-           && highlight->current.isSamePointer(current);
+           && highlight->current.isSamePointer(current)
+           && highlight->hasKnownRoomsData == hasKnownRoomsData
+           && highlight->showNeedsServerId == showNeedsServerId
+           && highlight->showChanged == showChanged && highlight->showUnvisited == showUnvisited;
 }
 
 // this differs from isUpToDate in that it allows display of a diff based on the current saved map,
@@ -569,9 +583,18 @@ void MapCanvas::Diff::cancelUpdates(const Map &saved)
     }
 }
 
-void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current)
+void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved,
+                                       const Map &current,
+                                       const std::unordered_set<ServerRoomId> &knownRooms,
+                                       const bool hasKnownRoomsData)
 {
     auto &diff = *this;
+
+    const auto &config = getConfig();
+    const auto &canvas = config.canvas;
+    const bool showNeedsServerId = canvas.showMissingMapId.get();
+    const bool showChanged = canvas.showUnsavedChanges.get();
+    const bool showUnvisited = canvas.showUnvisitedHighlight.get();
 
     // Pending takes precedence. This also usually guarantees at most one pending update at a time,
     // but calling resetExistingMeshesAndIgnorePendingRemesh() could result in more than one diff
@@ -590,24 +613,30 @@ void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current)
     }
 
     // no change necessary
-    if (isUpToDate(saved, current)) {
+    if (isUpToDate(saved, current, hasKnownRoomsData, showNeedsServerId, showChanged, showUnvisited)) {
         return;
     }
 
-    const auto &config = getConfig();
-    const auto &canvas = config.canvas;
-    const bool showNeedsServerId = canvas.showMissingMapId.get();
-    const bool showChanged = canvas.showUnsavedChanges.get();
-
     diff.futureHighlight = std::async(
         std::launch::async,
-        [saved, current, showNeedsServerId, showChanged]() -> Diff::HighlightDiff {
+        [saved,
+         current,
+         knownRooms,
+         showNeedsServerId,
+         showChanged,
+         showUnvisited,
+         hasKnownRoomsData]() -> Diff::HighlightDiff {
             DECL_TIMER(t2,
                        "[async] actuallyPaintGL: highlight changes, temporary, and needs update");
 
-            auto getHighlights =
-                [&saved, &current, showChanged, showNeedsServerId]() -> Diff::MaybeDataOrMesh {
-                if (!showChanged && !showNeedsServerId) {
+            auto getHighlights = [&saved,
+                                  &current,
+                                  &knownRooms,
+                                  showChanged,
+                                  showNeedsServerId,
+                                  showUnvisited,
+                                  hasKnownRoomsData]() -> Diff::MaybeDataOrMesh {
+                if (!showChanged && !showNeedsServerId && !(showUnvisited && hasKnownRoomsData)) {
                     return Diff::MaybeDataOrMesh{};
                 }
 
@@ -618,14 +647,23 @@ void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current)
                     highlights.emplace_back(pos, 0, color);
                 };
 
-                // Handle rooms needing a server ID or that are temporary
-                if (showNeedsServerId) {
+                // Handle rooms needing a server ID, temporary, or unvisited
+                if (showNeedsServerId || (showUnvisited && hasKnownRoomsData)) {
                     current.getRooms().for_each([&](auto id) {
                         if (auto h = current.getRoomHandle(id)) {
-                            if (h.isTemporary()) {
-                                drawQuad(h.getRaw(), NamedColorEnum::HIGHLIGHT_TEMPORARY);
-                            } else if (h.getServerId() == INVALID_SERVER_ROOMID) {
-                                drawQuad(h.getRaw(), NamedColorEnum::HIGHLIGHT_NEEDS_SERVER_ID);
+                            if (showNeedsServerId) {
+                                if (h.isTemporary()) {
+                                    drawQuad(h.getRaw(), NamedColorEnum::HIGHLIGHT_TEMPORARY);
+                                } else if (h.getServerId() == INVALID_SERVER_ROOMID) {
+                                    drawQuad(h.getRaw(), NamedColorEnum::HIGHLIGHT_NEEDS_SERVER_ID);
+                                }
+                            }
+                            if (showUnvisited && hasKnownRoomsData) {
+                                const ServerRoomId serverId = h.getServerId();
+                                if (serverId != INVALID_SERVER_ROOMID
+                                    && knownRooms.count(serverId) == 0) {
+                                    drawQuad(h.getRaw(), NamedColorEnum::HIGHLIGHT_UNVISITED);
+                                }
                             }
                         }
                     });
@@ -645,7 +683,13 @@ void MapCanvas::Diff::maybeAsyncUpdate(const Map &saved, const Map &current)
                 return Diff::MaybeDataOrMesh{std::move(highlights)};
             };
 
-            return Diff::HighlightDiff{saved, current, getHighlights()};
+            return Diff::HighlightDiff{saved,
+                                       current,
+                                       hasKnownRoomsData,
+                                       showNeedsServerId,
+                                       showChanged,
+                                       showUnvisited,
+                                       getHighlights()};
         });
 }
 
@@ -655,7 +699,9 @@ void MapCanvas::paintDifferences()
     const auto &saved = m_data.getSavedMap();
     const auto &current = m_data.getCurrentMap();
 
-    diff.maybeAsyncUpdate(saved, current);
+    const auto self = m_groupManager.getSelf();
+
+    diff.maybeAsyncUpdate(saved, current, self->getKnownRooms(), self->hasKnownRoomsData());
     if (!diff.hasRelatedDiff(saved)) {
         return;
     }

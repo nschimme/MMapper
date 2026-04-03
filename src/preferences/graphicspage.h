@@ -41,6 +41,7 @@ signals:
 public slots:
     void slot_loadConfig();
     void slot_drawNeedsUpdateStateChanged(int);
+    void slot_drawUnvisitedRoomsStateChanged(int);
     void slot_drawNotMappedExitsStateChanged(int);
     void slot_drawDoorNamesStateChanged(int);
     void slot_drawUpperLayersTexturedStateChanged(int);

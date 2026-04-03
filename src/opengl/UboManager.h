@@ -35,6 +35,7 @@ public:
     using RebuildFunction = std::function<void(Functions &gl)>;
 
     UboManager() { invalidateAll(); }
+    ~UboManager() = default;
     DELETE_CTORS_AND_ASSIGN_OPS(UboManager);
 
 public:

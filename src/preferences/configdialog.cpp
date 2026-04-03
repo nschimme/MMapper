@@ -31,8 +31,7 @@ class WheelEventFilter final : public QObject
 public:
     explicit WheelEventFilter(QObject *const parent)
         : QObject(parent)
-    {
-    }
+    {}
 
     bool eventFilter(QObject *const obj, QEvent *const event) override
     {

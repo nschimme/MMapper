@@ -24,8 +24,7 @@
 #include <vector>
 
 #include <glm/glm.hpp>
-
-#include <QMessageLogContext>
+#include <glm/gtx/compatibility.hpp>
 
 MMTextureId allocateTextureId()
 {
@@ -379,8 +378,6 @@ NODISCARD static QImage createTileableValueNoiseImage(int size)
         return fract - std::floor(fract);
     };
 
-    auto lerp = [](float a, float b, float t) -> float { return a + t * (b - a); };
-
     // Perlin's quintic curve ($6t^5-15t^4+10t^3$) ensures smooth C2 continuity at grid boundaries
     auto smooth = [](float t) -> float { return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f); };
 
@@ -416,7 +413,7 @@ NODISCARD static QImage createTileableValueNoiseImage(int size)
             float c = get_wrapped_hash(iix, iiy + 1);
             float d = get_wrapped_hash(iix + 1, iiy + 1);
 
-            float v = lerp(lerp(a, b, sx), lerp(c, d, sx), sy);
+            float v = glm::lerp(glm::lerp(a, b, sx), glm::lerp(c, d, sx), sy);
 
             // Casting to uchar provides implicit floor and branchless clamping
             uchar val = static_cast<uchar>(std::clamp(v * 255.0f, 0.0f, 255.0f));

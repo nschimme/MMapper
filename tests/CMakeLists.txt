@@ -331,3 +331,35 @@ set_target_properties(
         COMPILE_FLAGS "${WARNING_FLAGS}"
 )
 add_test(NAME TestHotkeyManager COMMAND TestHotkeyManager)
+
+# Media
+set(media_SRCS
+        ../src/media/AudioManager.cpp
+        ../src/media/AudioManager.h
+        ../src/media/MusicManager.cpp
+        ../src/media/MusicManager.h
+        ../src/media/SfxManager.cpp
+        ../src/media/SfxManager.h
+        ../src/media/MediaLibrary.cpp
+        ../src/media/MediaLibrary.h
+)
+set(TestMedia_SRCS TestMedia.cpp TestMedia.h)
+add_executable(TestMedia ${TestMedia_SRCS} ${media_SRCS})
+add_dependencies(TestMedia mm_test mm_global mm_map)
+target_link_libraries(TestMedia
+        mm_map
+        mm_global
+        mm_test
+        Qt6::Multimedia
+        Qt6::Network
+        Qt6::Test
+        Qt6::Widgets
+        coverage_config)
+set_target_properties(
+        TestMedia PROPERTIES
+        CXX_STANDARD 17
+        CXX_STANDARD_REQUIRED ON
+        CXX_EXTENSIONS OFF
+        COMPILE_FLAGS "${WARNING_FLAGS}"
+)
+add_test(NAME TestMedia COMMAND TestMedia)

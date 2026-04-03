@@ -102,9 +102,7 @@ static void addApplicationFont()
 
 MainWindow::~MainWindow()
 {
-    if (m_audioManager) {
-        m_audioManager->stopAllImmediate();
-    }
+    delete std::exchange(m_audioManager, nullptr);
     forceNewFile();
     mmqt::rdisconnect(this);
     async_tasks::cleanup();
@@ -422,14 +420,18 @@ void MainWindow::wireConnections()
             [this](const RoomId &id) {
                 if (const auto room = m_mapData->getRoomHandle(id)) {
                     m_descriptionWidget->updateRoom(room);
-                    m_audioManager->onAreaChanged(room.getArea());
+                    if (m_audioManager) {
+                        m_audioManager->onAreaChanged(room.getArea());
+                    }
                 }
             });
 
     connect(m_mapData, &MapData::sig_onPositionChange, this, [this]() {
         m_pathMachine->onPositionChange(m_mapData->getCurrentRoomId());
         m_descriptionWidget->updateRoom(m_mapData->getCurrentRoom());
-        m_audioManager->onAreaChanged(m_mapData->getCurrentRoom().getArea());
+        if (m_audioManager) {
+            m_audioManager->onAreaChanged(m_mapData->getCurrentRoom().getArea());
+        }
     });
 
     connect(m_mapData,
@@ -1547,9 +1549,7 @@ void MainWindow::closeEvent(QCloseEvent *const event)
         m_progressDlg->reject();
     }
 
-    if (m_audioManager) {
-        m_audioManager->stopAllImmediate();
-    }
+    delete std::exchange(m_audioManager, nullptr);
 
     event->accept();
 }
@@ -1594,7 +1594,9 @@ void MainWindow::forceNewFile()
     getCanvas()->slot_dataLoaded();
     m_groupWidget->slot_mapLoaded();
     m_descriptionWidget->updateRoom(RoomHandle{});
-    m_audioManager->onAreaChanged(RoomArea{});
+    if (m_audioManager) {
+        m_audioManager->onAreaChanged(RoomArea{});
+    }
 
     /*
     updateMapModified();
@@ -2153,7 +2155,9 @@ void MainWindow::onSuccessfulLoad(const MapLoadData &mapLoadData)
     if (const auto room = mapData.getCurrentRoom()) {
         auto &widget = deref(m_descriptionWidget);
         widget.updateRoom(room);
-        deref(m_audioManager).onAreaChanged(room.getArea());
+        if (m_audioManager) {
+            m_audioManager->onAreaChanged(room.getArea());
+        }
     }
 
     // Should this be part of mapChanged?

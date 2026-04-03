@@ -272,7 +272,7 @@ HelpFrame HelpFrame::makeChild()
 {
     flush();
     HelpFrame child = *this; // copy ctor
-    return child; // C++ standard says NRVO elides the move constructor here.
+    return child;            // C++ standard says NRVO elides the move constructor here.
 }
 
 class NODISCARD TreeParser::HelpCommon final

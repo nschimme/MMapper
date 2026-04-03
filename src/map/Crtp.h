@@ -10,7 +10,7 @@
 template<typename CRTP>
 struct NODISCARD ExitFieldsGetters
 {
-public:
+protected:
     ExitFieldsGetters() = default;
 
 private:
@@ -77,7 +77,7 @@ public:
 template<typename CRTP>
 struct NODISCARD ExitFieldsSetters
 {
-public:
+protected:
     ExitFieldsSetters() = default;
 
 private:
@@ -120,7 +120,7 @@ public:
 template<typename CRTP>
 struct NODISCARD RoomFieldsGetters
 {
-public:
+protected:
     RoomFieldsGetters() = default;
 
 private:
@@ -139,7 +139,7 @@ public:
 template<typename CRTP>
 struct NODISCARD RoomFieldsSetters
 {
-public:
+protected:
     RoomFieldsSetters() = default;
 
 private:
@@ -175,7 +175,7 @@ public:
 template<typename CRTP>
 struct NODISCARD RoomExitFieldsGetters
 {
-public:
+protected:
     RoomExitFieldsGetters() = default;
 
 private:
@@ -203,7 +203,7 @@ public:
 template<typename CRTP>
 struct NODISCARD RoomExitFieldsSetters
 {
-public:
+protected:
     RoomExitFieldsSetters() = default;
 
 private:

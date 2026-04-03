@@ -8,6 +8,7 @@
 #include "../display/mapcanvas.h"
 #include "../global/AnsiOstream.h"
 #include "../global/Consts.h"
+#include "../global/INamedConfig.h"
 #include "../global/NamedColors.h"
 #include "../global/PrintUtils.h"
 #include "../mpi/remoteeditwidget.h"
@@ -25,6 +26,36 @@
 #include <QPointer>
 #include <QSettings>
 #include <QTemporaryFile>
+
+class NODISCARD ArgNamedConfig final : public syntax::IArgument
+{
+private:
+    NODISCARD syntax::MatchResult virt_match(const syntax::ParserInput &input,
+                                             syntax::IMatchErrorLogger *) const final;
+
+    std::ostream &virt_to_stream(std::ostream &os) const final;
+};
+
+syntax::MatchResult ArgNamedConfig::virt_match(const syntax::ParserInput &input,
+                                               syntax::IMatchErrorLogger *) const
+{
+    if (input.empty()) {
+        return syntax::MatchResult::failure(input);
+    }
+
+    auto arg = std::string_view{input.front()};
+    auto it = getConfig().getRegistry().find(std::string(arg));
+    if (it != getConfig().getRegistry().end()) {
+        return syntax::MatchResult::success(1, input, Value{it->first});
+    }
+
+    return syntax::MatchResult::failure(input);
+}
+
+std::ostream &ArgNamedConfig::virt_to_stream(std::ostream &os) const
+{
+    return os << "<Setting>";
+}
 
 class NODISCARD ArgNamedColor final : public syntax::IArgument
 {
@@ -102,6 +133,50 @@ NODISCARD static auto syn(Args &&...args)
 
 void AbstractParser::doConfig(const StringView cmd)
 {
+    auto listSettings = syntax::Accept(
+        [](User &user, const Pair *) {
+            auto &os = user.getOstream();
+            os << "Configurable settings:\n";
+            for (auto const& [name, config] : getConfig().getRegistry()) {
+                os << " " << name << " = " << config->toString() << AnsiOstream::endl;
+            }
+        },
+        "list settings");
+
+    auto setSetting = syntax::Accept(
+        [this](User &user, const Pair *args) {
+            auto &os = user.getOstream();
+            if (args == nullptr || args->cdr == nullptr || !args->car.isString()
+                || !args->cdr->car.isString()) {
+                throw std::runtime_error("internal error");
+            }
+
+            const std::string name = args->car.getString();
+            const std::string value = args->cdr->car.getString();
+
+            auto *config = setConfig().lookup(name);
+            if (config == nullptr) {
+                throw std::runtime_error("invalid setting: " + name);
+            }
+
+            const std::string oldValue = config->toString();
+            if (oldValue == value) {
+                os << "Setting " << name << " is already " << value << ".\n";
+                return;
+            }
+
+            if (!config->fromString(value)) {
+                os << "Failed to set " << name << " to " << value << ".\n";
+                return;
+            }
+
+            os << "Setting " << name << " has been changed from " << oldValue
+               << " to " << config->toString() << ".\n";
+
+            graphicsSettingsChanged();
+        },
+        "set setting");
+
     auto listColors = syntax::Accept(
         [](User &user, const Pair *) {
             auto &os = user.getOstream();
@@ -170,59 +245,11 @@ void AbstractParser::doConfig(const StringView cmd)
         },
         "set named color");
 
-    auto makeSetFixedPoint = [this](FixedPoint<1> &fp, const std::string &help) -> syntax::Accept {
-        //
-        return syntax::Accept(
-            [this, &fp, help](User &user, const Pair *const args) -> void {
-                auto &os = user.getOstream();
-
-                if (args == nullptr || !args->car.isFloat()) {
-                    throw std::runtime_error("internal type error");
-                }
-
-                const float value = args->car.getFloat();
-                const auto min = fp.clone(fp.min).getFloat();
-                const auto max = fp.clone(fp.max).getFloat();
-                if (value < min || value > max) {
-                    throw std::runtime_error("internal bounds error");
-                }
-
-                const int oldValue = fp.get();
-                auto clone = fp.clone(oldValue);
-                clone.setFloat(value);
-                if (clone.get() == oldValue) {
-                    os << "No change: " << help << " is already " << fp.getFloat()
-                       << AnsiOstream::endl;
-                    return;
-                }
-
-                clone.set(oldValue);
-                fp.setFloat(value);
-                os << "Changed " << help << " from " << clone.getFloat() << " to " << fp.getFloat()
-                   << AnsiOstream::endl;
-                this->graphicsSettingsChanged();
-            },
-            "set " + help);
-    };
-
     using namespace syntax;
 
     const auto argBool = TokenMatcher::alloc<ArgBool>();
     const auto argInt = TokenMatcher::alloc<ArgInt>();
     const auto optArgEquals = TokenMatcher::alloc<ArgOptionalChar>(char_consts::C_EQUALS);
-
-    auto makeFixedPointArg = [optArgEquals,
-                              &makeSetFixedPoint](FixedPoint<1> &fp,
-                                                  const std::string &help) -> SharedConstSublist {
-        const auto min = fp.clone(fp.min).getFloat();
-        const auto max = fp.clone(fp.max).getFloat();
-        return syn(help,
-                   optArgEquals,
-                   TokenMatcher::alloc_copy<ArgFloat>(ArgFloat::withMinMax(min, max)),
-                   makeSetFixedPoint(fp, help));
-    };
-
-    auto &advanced = setConfig().canvas.advanced;
 
     // static because it has no captures
     static const auto getZoom = []() -> float {
@@ -275,31 +302,6 @@ void AbstractParser::doConfig(const StringView cmd)
             "set zoom");
         return syn("zoom", syn("set", argZoom, acceptZoom));
     });
-
-    const auto opt = [this, argBool, optArgEquals](const char *const name,
-                                                   NamedConfig<bool> &conf,
-                                                   std::string help) {
-        return syn(name,
-                   optArgEquals,
-                   argBool,
-                   Accept(
-                       [this, &conf](User &user, const Pair *const args) {
-                           const auto value = deref(args).car.getBool();
-                           auto &os = user.getOstream();
-
-                           if (conf.get() == value) {
-                               os << conf.getName() << " is already " << BoolAlpha(value)
-                                  << AnsiOstream::endl;
-                               return;
-                           }
-
-                           conf.set(value);
-                           os << "Set " << conf.getName() << " = " << BoolAlpha(value)
-                              << AnsiOstream::endl;
-                           graphicsSettingsChanged();
-                       },
-                       std::move(help)));
-    };
 
     const auto configSyntax = syn(
         syn("mode",
@@ -455,17 +457,13 @@ void AbstractParser::doConfig(const StringView cmd)
                         optArgEquals,
                         TokenMatcher::alloc<ArgHexColor>(),
                         setNamedColor))),
-            syn("perf-stats",
-                syn("set", opt("enabled", advanced.printPerfStats, "enable/disable stats"))),
-            zoomSyntax,
-            syn("3d-camera",
-                syn("set",
-                    opt("enabled", advanced.use3D, "enable/disable 3d camera"),
-                    opt("auto-tilt", advanced.autoTilt, "enable/disable 3d auto tilt"),
-                    makeFixedPointArg(advanced.fov, "fov"),
-                    makeFixedPointArg(advanced.verticalAngle, "pitch"),
-                    makeFixedPointArg(advanced.horizontalAngle, "yaw"),
-                    makeFixedPointArg(advanced.layerHeight, "layer-height")))));
+            zoomSyntax),
+        syn("list", listSettings),
+        syn("set",
+            TokenMatcher::alloc<ArgNamedConfig>(),
+            optArgEquals,
+            TokenMatcher::alloc<ArgString>(),
+            setSetting));
 
     eval("config", configSyntax, cmd);
 }

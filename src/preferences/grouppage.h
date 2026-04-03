@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2025 The MMapper Authors
 
+#include "../global/Signal2.h"
 #include "../global/macros.h"
 
 #include <QColor>
@@ -22,13 +23,11 @@ class NODISCARD_QOBJECT GroupPage final : public QWidget
 
 private:
     Ui::GroupPage *const ui;
+    Signal2Lifetime m_lifetime;
 
 public:
     explicit GroupPage(QWidget *parent = nullptr);
     ~GroupPage() final;
-
-signals:
-    void sig_groupSettingsChanged();
 
 public slots:
     void slot_loadConfig();

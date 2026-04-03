@@ -5,6 +5,7 @@
 #include "clientpage.h"
 
 #include "../configuration/configuration.h"
+#include "../global/SignalBlocker.h"
 #include "../global/macros.h"
 #include "ui_clientpage.h"
 
@@ -77,7 +78,7 @@ ClientPage::ClientPage(QWidget *parent)
     connect(ui->previewSpinBox,
             QOverload<int>::of(&QSpinBox::valueChanged),
             this,
-            [](const int value) { setConfig().integratedClient.linesOfPeekPreview = value; });
+            [](const int value) { setConfig().integratedClient.linesOfPeekPreview.set(value); });
 
     connect(ui->inputHistorySpinBox,
             QOverload<int>::of(&QSpinBox::valueChanged),
@@ -90,34 +91,51 @@ ClientPage::ClientPage(QWidget *parent)
 
     connect(ui->clearInputCheckBox, &QCheckBox::toggled, [](bool isChecked) {
         /* NOTE: This directly modifies the global setting. */
-        setConfig().integratedClient.clearInputOnEnter = isChecked;
+        setConfig().integratedClient.clearInputOnEnter.set(isChecked);
     });
 
     connect(ui->autoResizeTerminalCheckBox, &QCheckBox::toggled, [](bool isChecked) {
         /* NOTE: This directly modifies the global setting. */
-        setConfig().integratedClient.autoResizeTerminal = isChecked;
+        setConfig().integratedClient.autoResizeTerminal.set(isChecked);
     });
 
     connect(ui->audibleBellCheckBox, &QCheckBox::toggled, [](bool isChecked) {
-        setConfig().integratedClient.audibleBell = isChecked;
+        setConfig().integratedClient.audibleBell.set(isChecked);
     });
 
     connect(ui->visualBellCheckBox, &QCheckBox::toggled, [](bool isChecked) {
-        setConfig().integratedClient.visualBell = isChecked;
+        setConfig().integratedClient.visualBell.set(isChecked);
     });
 
     connect(ui->commandSeparatorCheckBox, &QCheckBox::toggled, this, [this](bool isChecked) {
-        setConfig().integratedClient.useCommandSeparator = isChecked;
+        setConfig().integratedClient.useCommandSeparator.set(isChecked);
         ui->commandSeparatorLineEdit->setEnabled(isChecked);
     });
 
     connect(ui->commandSeparatorLineEdit, &QLineEdit::textChanged, this, [](const QString &text) {
         if (text.length() == 1) {
-            setConfig().integratedClient.commandSeparator = text;
+            setConfig().integratedClient.commandSeparator.set(text);
         }
     });
 
     ui->commandSeparatorLineEdit->setValidator(new CustomSeparatorValidator(this));
+
+    auto &client = setConfig().integratedClient;
+    client.font.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    client.foregroundColor.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    client.backgroundColor.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    client.columns.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    client.rows.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    client.linesOfScrollback.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    client.linesOfInputHistory.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    client.tabCompletionDictionarySize.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    client.clearInputOnEnter.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    client.autoResizeTerminal.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    client.linesOfPeekPreview.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    client.audibleBell.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    client.visualBell.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    client.useCommandSeparator.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    client.commandSeparator.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
 }
 
 ClientPage::~ClientPage()
@@ -127,29 +145,42 @@ ClientPage::~ClientPage()
 
 void ClientPage::slot_loadConfig()
 {
+    SignalBlocker b1(*ui->columnsSpinBox);
+    SignalBlocker b2(*ui->rowsSpinBox);
+    SignalBlocker b3(*ui->scrollbackSpinBox);
+    SignalBlocker b4(*ui->previewSpinBox);
+    SignalBlocker b5(*ui->inputHistorySpinBox);
+    SignalBlocker b6(*ui->tabDictionarySpinBox);
+    SignalBlocker b7(*ui->clearInputCheckBox);
+    SignalBlocker b8(*ui->autoResizeTerminalCheckBox);
+    SignalBlocker b9(*ui->audibleBellCheckBox);
+    SignalBlocker b10(*ui->visualBellCheckBox);
+    SignalBlocker b11(*ui->commandSeparatorCheckBox);
+    SignalBlocker b12(*ui->commandSeparatorLineEdit);
+
     updateFontAndColors();
 
     const auto &settings = getConfig().integratedClient;
-    ui->columnsSpinBox->setValue(settings.columns);
-    ui->rowsSpinBox->setValue(settings.rows);
-    ui->scrollbackSpinBox->setValue(settings.linesOfScrollback);
-    ui->previewSpinBox->setValue(settings.linesOfPeekPreview);
-    ui->inputHistorySpinBox->setValue(settings.linesOfInputHistory);
-    ui->tabDictionarySpinBox->setValue(settings.tabCompletionDictionarySize);
-    ui->clearInputCheckBox->setChecked(settings.clearInputOnEnter);
-    ui->autoResizeTerminalCheckBox->setChecked(settings.autoResizeTerminal);
-    ui->audibleBellCheckBox->setChecked(settings.audibleBell);
-    ui->visualBellCheckBox->setChecked(settings.visualBell);
-    ui->commandSeparatorCheckBox->setChecked(settings.useCommandSeparator);
-    ui->commandSeparatorLineEdit->setText(settings.commandSeparator);
-    ui->commandSeparatorLineEdit->setEnabled(settings.useCommandSeparator);
+    ui->columnsSpinBox->setValue(settings.columns.get());
+    ui->rowsSpinBox->setValue(settings.rows.get());
+    ui->scrollbackSpinBox->setValue(settings.linesOfScrollback.get());
+    ui->previewSpinBox->setValue(settings.linesOfPeekPreview.get());
+    ui->inputHistorySpinBox->setValue(settings.linesOfInputHistory.get());
+    ui->tabDictionarySpinBox->setValue(settings.tabCompletionDictionarySize.get());
+    ui->clearInputCheckBox->setChecked(settings.clearInputOnEnter.get());
+    ui->autoResizeTerminalCheckBox->setChecked(settings.autoResizeTerminal.get());
+    ui->audibleBellCheckBox->setChecked(settings.audibleBell.get());
+    ui->visualBellCheckBox->setChecked(settings.visualBell.get());
+    ui->commandSeparatorCheckBox->setChecked(settings.useCommandSeparator.get());
+    ui->commandSeparatorLineEdit->setText(settings.commandSeparator.get());
+    ui->commandSeparatorLineEdit->setEnabled(settings.useCommandSeparator.get());
 }
 
 void ClientPage::updateFontAndColors()
 {
     const auto &settings = getConfig().integratedClient;
     QFont font;
-    font.fromString(settings.font);
+    font.fromString(settings.font.get());
     ui->exampleLabel->setFont(font);
 
     QFontInfo fi(font);
@@ -157,17 +188,17 @@ void ClientPage::updateFontAndColors()
         QString("%1 %2, %3").arg(fi.family()).arg(fi.styleName()).arg(fi.pointSize()));
 
     QPixmap fgPix(16, 16);
-    fgPix.fill(settings.foregroundColor);
+    fgPix.fill(settings.foregroundColor.get());
     ui->fgColorPushButton->setIcon(QIcon(fgPix));
 
     QPixmap bgPix(16, 16);
-    bgPix.fill(settings.backgroundColor);
+    bgPix.fill(settings.backgroundColor.get());
     ui->bgColorPushButton->setIcon(QIcon(bgPix));
 
     QPalette palette = ui->exampleLabel->palette();
     ui->exampleLabel->setAutoFillBackground(true);
-    palette.setColor(QPalette::WindowText, settings.foregroundColor);
-    palette.setColor(QPalette::Window, settings.backgroundColor);
+    palette.setColor(QPalette::WindowText, settings.foregroundColor.get());
+    palette.setColor(QPalette::Window, settings.backgroundColor.get());
     ui->exampleLabel->setPalette(palette);
     ui->exampleLabel->setBackgroundRole(QPalette::Window);
 }
@@ -176,7 +207,7 @@ void ClientPage::slot_onChangeFont()
 {
     auto &fontDescription = setConfig().integratedClient.font;
     QFont oldFont;
-    oldFont.fromString(fontDescription);
+    oldFont.fromString(fontDescription.get());
 
     bool ok = false;
     const QFont newFont = QFontDialog::getFont(&ok,
@@ -185,7 +216,7 @@ void ClientPage::slot_onChangeFont()
                                                "Select Font",
                                                QFontDialog::MonospacedFonts);
     if (ok) {
-        fontDescription = newFont.toString();
+        fontDescription.set(newFont.toString());
         updateFontAndColors();
     }
 }
@@ -193,9 +224,9 @@ void ClientPage::slot_onChangeFont()
 void ClientPage::slot_onChangeBackgroundColor()
 {
     auto &backgroundColor = setConfig().integratedClient.backgroundColor;
-    const QColor newColor = QColorDialog::getColor(backgroundColor, this);
-    if (newColor.isValid() && newColor != backgroundColor) {
-        backgroundColor = newColor;
+    const QColor newColor = QColorDialog::getColor(backgroundColor.get(), this);
+    if (newColor.isValid() && newColor != backgroundColor.get()) {
+        backgroundColor.set(newColor);
         updateFontAndColors();
     }
 }
@@ -203,34 +234,34 @@ void ClientPage::slot_onChangeBackgroundColor()
 void ClientPage::slot_onChangeForegroundColor()
 {
     auto &foregroundColor = setConfig().integratedClient.foregroundColor;
-    const QColor newColor = QColorDialog::getColor(foregroundColor, this);
-    if (newColor.isValid() && newColor != foregroundColor) {
-        foregroundColor = newColor;
+    const QColor newColor = QColorDialog::getColor(foregroundColor.get(), this);
+    if (newColor.isValid() && newColor != foregroundColor.get()) {
+        foregroundColor.set(newColor);
         updateFontAndColors();
     }
 }
 
 void ClientPage::slot_onChangeColumns(const int value)
 {
-    setConfig().integratedClient.columns = value;
+    setConfig().integratedClient.columns.set(value);
 }
 
 void ClientPage::slot_onChangeRows(const int value)
 {
-    setConfig().integratedClient.rows = value;
+    setConfig().integratedClient.rows.set(value);
 }
 
 void ClientPage::slot_onChangeLinesOfScrollback(const int value)
 {
-    setConfig().integratedClient.linesOfScrollback = value;
+    setConfig().integratedClient.linesOfScrollback.set(value);
 }
 
 void ClientPage::slot_onChangeLinesOfInputHistory(const int value)
 {
-    setConfig().integratedClient.linesOfInputHistory = value;
+    setConfig().integratedClient.linesOfInputHistory.set(value);
 }
 
 void ClientPage::slot_onChangeTabCompletionDictionarySize(const int value)
 {
-    setConfig().integratedClient.tabCompletionDictionarySize = value;
+    setConfig().integratedClient.tabCompletionDictionarySize.set(value);
 }

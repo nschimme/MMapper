@@ -6,6 +6,7 @@
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
 #include "../configuration/PasswordConfig.h"
+#include "../global/Signal2.h"
 #include "../global/macros.h"
 
 #include <QString>
@@ -23,6 +24,7 @@ class NODISCARD_QOBJECT GeneralPage final : public QWidget
 private:
     Ui::GeneralPage *const ui;
     PasswordConfig passCfg;
+    Signal2Lifetime m_lifetime;
 
 public:
     explicit GeneralPage(QWidget *parent);

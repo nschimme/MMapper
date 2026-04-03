@@ -5,6 +5,7 @@
 #include "mumeprotocolpage.h"
 
 #include "../configuration/configuration.h"
+#include "../global/SignalBlocker.h"
 #include "ui_mumeprotocolpage.h"
 
 #include <utility>
@@ -30,6 +31,10 @@ MumeProtocolPage::MumeProtocolPage(QWidget *parent)
             &QAbstractButton::clicked,
             this,
             &MumeProtocolPage::slot_externalEditorBrowseButtonClicked);
+
+    auto &proto = setConfig().mumeClientProtocol;
+    proto.internalRemoteEditor.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    proto.externalRemoteEditorCommand.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
 }
 
 MumeProtocolPage::~MumeProtocolPage()
@@ -40,11 +45,16 @@ MumeProtocolPage::~MumeProtocolPage()
 void MumeProtocolPage::slot_loadConfig()
 {
     const auto &settings = getConfig().mumeClientProtocol;
-    ui->internalEditorRadioButton->setChecked(settings.internalRemoteEditor);
-    ui->externalEditorRadioButton->setChecked(!settings.internalRemoteEditor);
-    ui->externalEditorCommand->setText(settings.externalRemoteEditorCommand);
-    ui->externalEditorCommand->setEnabled(!settings.internalRemoteEditor);
-    ui->externalEditorBrowseButton->setEnabled(!settings.internalRemoteEditor);
+
+    SignalBlocker b1(*ui->internalEditorRadioButton);
+    SignalBlocker b2(*ui->externalEditorRadioButton);
+    SignalBlocker b3(*ui->externalEditorCommand);
+
+    ui->internalEditorRadioButton->setChecked(settings.internalRemoteEditor.get());
+    ui->externalEditorRadioButton->setChecked(!settings.internalRemoteEditor.get());
+    ui->externalEditorCommand->setText(settings.externalRemoteEditorCommand.get());
+    ui->externalEditorCommand->setEnabled(!settings.internalRemoteEditor.get());
+    ui->externalEditorBrowseButton->setEnabled(!settings.internalRemoteEditor.get());
 
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
         ui->externalEditorRadioButton->setDisabled(true);
@@ -55,7 +65,7 @@ void MumeProtocolPage::slot_internalEditorRadioButtonChanged(bool /*unused*/)
 {
     const bool useInternalEditor = ui->internalEditorRadioButton->isChecked();
 
-    setConfig().mumeClientProtocol.internalRemoteEditor = useInternalEditor;
+    setConfig().mumeClientProtocol.internalRemoteEditor.set(useInternalEditor);
 
     ui->externalEditorCommand->setEnabled(!useInternalEditor);
     ui->externalEditorBrowseButton->setEnabled(!useInternalEditor);
@@ -63,18 +73,18 @@ void MumeProtocolPage::slot_internalEditorRadioButtonChanged(bool /*unused*/)
 
 void MumeProtocolPage::slot_externalEditorCommandTextChanged(QString text)
 {
-    setConfig().mumeClientProtocol.externalRemoteEditorCommand = std::move(text);
+    setConfig().mumeClientProtocol.externalRemoteEditorCommand.set(std::move(text));
 }
 
 void MumeProtocolPage::slot_externalEditorBrowseButtonClicked(bool /*unused*/)
 {
-    auto &command = setConfig().mumeClientProtocol.externalRemoteEditorCommand;
-    QFileInfo dirInfo(command);
+    auto &proto = setConfig().mumeClientProtocol;
+    QFileInfo dirInfo(proto.externalRemoteEditorCommand.get());
     const auto dir = dirInfo.exists() ? dirInfo.absoluteDir().absolutePath() : QDir::homePath();
     QString fileName = QFileDialog::getOpenFileName(this, "Choose editor...", dir, "Editor (*)");
     if (!fileName.isEmpty()) {
         QString quotedFileName = QString(R"("%1")").arg(fileName.replace(R"(")", R"(\")"));
         ui->externalEditorCommand->setText(quotedFileName);
-        command = quotedFileName;
+        proto.externalRemoteEditorCommand.set(quotedFileName);
     }
 }

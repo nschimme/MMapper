@@ -7,6 +7,7 @@
 
 #include "../configuration/configuration.h"
 #include "../global/Charset.h"
+#include "../global/SignalBlocker.h"
 #include "../parser/AbstractParser-Utils.h"
 #include "AnsiColorDialog.h"
 #include "ansicombo.h"
@@ -60,43 +61,58 @@ ParserPage::ParserPage(QWidget *const parent)
             &ParserPage::slot_roomDescColorClicked);
 
     connect(charPrefixLineEdit, &QLineEdit::editingFinished, this, [this]() {
-        setConfig().parser.prefixChar = mmqt::toLatin1(charPrefixLineEdit->text().front());
+        if (!charPrefixLineEdit->text().isEmpty()) {
+            setConfig().parser.prefixChar.set(mmqt::toLatin1(charPrefixLineEdit->text().front()));
+        }
     });
 
     connect(encodeEmoji, &QCheckBox::clicked, this, [](bool checked) {
-        setConfig().parser.encodeEmoji = checked;
+        setConfig().parser.encodeEmoji.set(checked);
     });
     connect(decodeEmoji, &QCheckBox::clicked, this, [](bool checked) {
-        setConfig().parser.decodeEmoji = checked;
+        setConfig().parser.decodeEmoji.set(checked);
     });
+
+    auto &parser = setConfig().parser;
+    parser.roomNameColor.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    parser.roomDescColor.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    parser.prefixChar.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    parser.encodeEmoji.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    parser.decodeEmoji.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
 }
 
 void ParserPage::slot_loadConfig()
 {
     const auto &settings = getConfig().parser;
 
-    AnsiCombo::makeWidgetColoured(roomNameColorLabel, settings.roomNameColor);
-    AnsiCombo::makeWidgetColoured(roomDescColorLabel, settings.roomDescColor);
+    SignalBlocker b1(*charPrefixLineEdit);
+    SignalBlocker b2(*encodeEmoji);
+    SignalBlocker b3(*decodeEmoji);
 
-    charPrefixLineEdit->setText(QString(settings.prefixChar));
-    charPrefixLineEdit->setValidator(new CommandPrefixValidator(this));
+    AnsiCombo::makeWidgetColoured(roomNameColorLabel, settings.roomNameColor.get());
+    AnsiCombo::makeWidgetColoured(roomDescColorLabel, settings.roomDescColor.get());
 
-    encodeEmoji->setChecked(settings.encodeEmoji);
-    decodeEmoji->setChecked(settings.decodeEmoji);
+    charPrefixLineEdit->setText(QString(static_cast<char>(settings.prefixChar.get())));
+    if (charPrefixLineEdit->validator() == nullptr) {
+        charPrefixLineEdit->setValidator(new CommandPrefixValidator(this));
+    }
+
+    encodeEmoji->setChecked(settings.encodeEmoji.get());
+    decodeEmoji->setChecked(settings.decodeEmoji.get());
 }
 
 void ParserPage::slot_roomNameColorClicked()
 {
-    AnsiColorDialog::getColor(getConfig().parser.roomNameColor, this, [this](QString ansiString) {
+    AnsiColorDialog::getColor(getConfig().parser.roomNameColor.get(), this, [this](QString ansiString) {
         AnsiCombo::makeWidgetColoured(roomNameColorLabel, ansiString);
-        setConfig().parser.roomNameColor = ansiString;
+        setConfig().parser.roomNameColor.set(ansiString);
     });
 }
 
 void ParserPage::slot_roomDescColorClicked()
 {
-    AnsiColorDialog::getColor(getConfig().parser.roomDescColor, this, [this](QString ansiString) {
+    AnsiColorDialog::getColor(getConfig().parser.roomDescColor.get(), this, [this](QString ansiString) {
         AnsiCombo::makeWidgetColoured(roomDescColorLabel, ansiString);
-        setConfig().parser.roomDescColor = ansiString;
+        setConfig().parser.roomDescColor.set(ansiString);
     });
 }

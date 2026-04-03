@@ -3,6 +3,7 @@
 // Copyright (C) 2019 The MMapper Authors
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
+#include "../global/Signal2.h"
 #include "../global/macros.h"
 
 #include <QString>
@@ -21,6 +22,7 @@ class NODISCARD_QOBJECT MumeProtocolPage final : public QWidget
 
 private:
     Ui::MumeProtocolPage *const ui;
+    Signal2Lifetime m_lifetime;
 
 public:
     explicit MumeProtocolPage(QWidget *parent);

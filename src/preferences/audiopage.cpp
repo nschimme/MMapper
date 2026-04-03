@@ -44,6 +44,11 @@ AudioPage::AudioPage(QWidget *const parent)
         ui->musicVolumeSlider->setEnabled(false);
         ui->soundsVolumeSlider->setEnabled(false);
     }
+
+    auto &audio = setConfig().audio;
+    audio.musicVolume.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    audio.soundVolume.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    audio.outputDeviceId.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
 }
 
 AudioPage::~AudioPage()
@@ -58,10 +63,10 @@ void AudioPage::slot_loadConfig()
     SignalBlocker outputBlocker(*ui->outputDeviceComboBox);
 
     const auto &settings = getConfig().audio;
-    ui->musicVolumeSlider->setValue(settings.getMusicVolume());
-    ui->soundsVolumeSlider->setValue(settings.getSoundVolume());
+    ui->musicVolumeSlider->setValue(settings.musicVolume.get());
+    ui->soundsVolumeSlider->setValue(settings.soundVolume.get());
 
-    int index = ui->outputDeviceComboBox->findData(settings.getOutputDeviceId());
+    int index = ui->outputDeviceComboBox->findData(settings.outputDeviceId.get());
     if (index != -1) {
         ui->outputDeviceComboBox->setCurrentIndex(index);
     } else {
@@ -72,15 +77,15 @@ void AudioPage::slot_loadConfig()
 void AudioPage::slot_musicVolumeChanged(int value)
 {
     auto &settings = setConfig().audio;
-    settings.setMusicVolume(value);
-    settings.setUnlocked();
+    settings.musicVolume.set(value);
+    settings.unlocked.set(true);
 }
 
 void AudioPage::slot_soundsVolumeChanged(int value)
 {
     auto &settings = setConfig().audio;
-    settings.setSoundVolume(value);
-    settings.setUnlocked();
+    settings.soundVolume.set(value);
+    settings.unlocked.set(true);
 }
 
 void AudioPage::slot_outputDeviceChanged(int index)
@@ -89,7 +94,7 @@ void AudioPage::slot_outputDeviceChanged(int index)
         return;
     }
     auto &settings = setConfig().audio;
-    settings.setOutputDeviceId(ui->outputDeviceComboBox->itemData(index).toByteArray());
+    settings.outputDeviceId.set(ui->outputDeviceComboBox->itemData(index).toByteArray());
 }
 
 void AudioPage::slot_updateDevices()
@@ -97,7 +102,7 @@ void AudioPage::slot_updateDevices()
     SignalBlocker blocker(*ui->outputDeviceComboBox);
     QByteArray currentId = ui->outputDeviceComboBox->currentData().toByteArray();
     if (currentId.isEmpty()) {
-        currentId = getConfig().audio.getOutputDeviceId();
+        currentId = getConfig().audio.outputDeviceId.get();
     }
 
     ui->outputDeviceComboBox->clear();

@@ -42,9 +42,5 @@ public:
     NODISCARD QGroupBox *getGroupBox() { return m_groupBox; }
 
 private:
-    void graphicsSettingsChanged() { emit sig_graphicsSettingsChanged(); }
     void enableSsbs(bool enabled);
-
-signals:
-    void sig_graphicsSettingsChanged();
 };

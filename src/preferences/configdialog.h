@@ -40,10 +40,9 @@ private:
     void createIcons();
 
 signals:
-    void sig_graphicsSettingsChanged();
-    void sig_groupSettingsChanged();
     void sig_loadConfig();
 
 public slots:
     void slot_changePage(QListWidgetItem *current, QListWidgetItem *previous);
+    void slot_filterSettings(const QString &text);
 };

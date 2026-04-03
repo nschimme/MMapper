@@ -4,6 +4,7 @@
 // Author: Ulf Hermann <ulfonk_mennhar@gmx.de> (Alve)
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 
+#include "../global/Signal2.h"
 #include "../global/macros.h"
 #include "ui_parserpage.h"
 
@@ -18,6 +19,9 @@ enum class NODISCARD UiCharsetEnum { AsciiOrLatin1, UTF8 };
 class NODISCARD_QOBJECT ParserPage : public QWidget, private Ui::ParserPage
 {
     Q_OBJECT
+
+private:
+    Signal2Lifetime m_lifetime;
 
 public:
     explicit ParserPage(QWidget *parent);

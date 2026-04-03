@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2025 The MMapper Authors
 
+#include "../global/Signal2.h"
 #include "../global/macros.h"
 
 #include <QWidget>
@@ -16,6 +17,7 @@ class NODISCARD_QOBJECT AudioPage final : public QWidget
 
 private:
     Ui::AudioPage *const ui;
+    Signal2Lifetime m_lifetime;
 
 public:
     explicit AudioPage(QWidget *parent);

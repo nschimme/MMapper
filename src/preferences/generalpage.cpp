@@ -7,6 +7,7 @@
 #include "generalpage.h"
 
 #include "../configuration/configuration.h"
+#include "../global/SignalBlocker.h"
 #include "ui_generalpage.h"
 
 #include <QSslSocket>
@@ -30,6 +31,8 @@ GeneralPage::GeneralPage(QWidget *parent)
 {
     ui->setupUi(this);
 
+    auto &cfg = setConfig();
+
     connect(ui->remoteName, &QLineEdit::textChanged, this, &GeneralPage::slot_remoteNameTextChanged);
     connect(ui->remotePort,
             QOverload<int>::of(&QSpinBox::valueChanged),
@@ -40,17 +43,17 @@ GeneralPage::GeneralPage(QWidget *parent)
             this,
             &GeneralPage::slot_localPortValueChanged);
     connect(ui->encryptionCheckBox, &QCheckBox::clicked, this, [](const bool checked) {
-        setConfig().connection.tlsEncryption = checked;
+        setConfig().connection.tlsEncryption.set(checked);
     });
     connect(ui->proxyListensOnAnyInterfaceCheckBox, &QCheckBox::stateChanged, this, [this]() {
-        setConfig().connection.proxyListensOnAnyInterface = ui->proxyListensOnAnyInterfaceCheckBox
-                                                                ->isChecked();
+        setConfig().connection.proxyListensOnAnyInterface.set(ui->proxyListensOnAnyInterfaceCheckBox
+                                                                ->isChecked());
     });
     connect(ui->charsetComboBox,
             QOverload<int>::of(&QComboBox::currentIndexChanged),
             this,
             [](const int index) {
-                setConfig().general.characterEncoding = static_cast<CharacterEncodingEnum>(index);
+                setConfig().general.characterEncoding.set(index);
             });
     connect(ui->themeComboBox,
             QOverload<int>::of(&QComboBox::currentIndexChanged),
@@ -71,7 +74,7 @@ GeneralPage::GeneralPage(QWidget *parent)
             &GeneralPage::slot_showNotesStateChanged);
 
     connect(ui->checkForUpdateCheckBox, &QCheckBox::stateChanged, this, [this]() {
-        setConfig().general.checkForUpdate = ui->checkForUpdateCheckBox->isChecked();
+        setConfig().general.checkForUpdate.set(ui->checkForUpdateCheckBox->isChecked());
     });
     connect(ui->autoLoadFileName,
             &QLineEdit::textChanged,
@@ -97,7 +100,7 @@ GeneralPage::GeneralPage(QWidget *parent)
             &GeneralPage::slot_displayXPStatusStateChanged);
 
     connect(ui->proxyConnectionStatusCheckBox, &QCheckBox::stateChanged, this, [this]() {
-        setConfig().connection.proxyConnectionStatus = ui->proxyConnectionStatusCheckBox->isChecked();
+        setConfig().connection.proxyConnectionStatus.set(ui->proxyConnectionStatusCheckBox->isChecked());
     });
 
     connect(ui->configurationResetButton, &QAbstractButton::clicked, this, [this]() {
@@ -171,11 +174,11 @@ GeneralPage::GeneralPage(QWidget *parent)
     });
 
     connect(ui->autoLogin, &QCheckBox::stateChanged, this, [this]() {
-        setConfig().account.rememberLogin = ui->autoLogin->isChecked();
+        setConfig().account.rememberLogin.set(ui->autoLogin->isChecked());
     });
 
     connect(ui->accountName, &QLineEdit::textChanged, this, [](const QString &account) {
-        setConfig().account.accountName = account;
+        setConfig().account.accountName.set(account);
     });
 
     connect(&passCfg, &PasswordConfig::sig_error, this, [this](const QString &msg) {
@@ -190,7 +193,7 @@ GeneralPage::GeneralPage(QWidget *parent)
     });
 
     connect(ui->accountPassword, &QLineEdit::textEdited, this, [this](const QString &password) {
-        setConfig().account.accountPassword = !password.isEmpty();
+        setConfig().account.accountPassword.set(!password.isEmpty());
         passCfg.setPassword(password);
     });
 
@@ -199,23 +202,23 @@ GeneralPage::GeneralPage(QWidget *parent)
             ui->showPassword->setText("Show Password");
             ui->accountPassword->clear();
             ui->accountPassword->setEchoMode(QLineEdit::Password);
-        } else if (getConfig().account.accountPassword && ui->accountPassword->text().isEmpty()) {
+        } else if (getConfig().account.accountPassword.get() && ui->accountPassword->text().isEmpty()) {
             ui->showPassword->setText("Request Password");
             passCfg.getPassword();
         }
     });
 
     connect(ui->resourceLineEdit, &QLineEdit::textChanged, this, [](const QString &text) {
-        setConfig().canvas.resourcesDirectory = text;
+        setConfig().canvas.resourcesDirectory.set(text);
     });
     connect(ui->resourcePushButton, &QAbstractButton::clicked, this, [this](bool /*unused*/) {
-        const auto &resourceDir = getConfig().canvas.resourcesDirectory;
+        const auto resourceDir = getConfig().canvas.resourcesDirectory.get();
         QString directory = QFileDialog::getExistingDirectory(ui->resourcePushButton,
                                                               "Choose resource location ...",
                                                               resourceDir);
         if (!directory.isEmpty()) {
             ui->resourceLineEdit->setText(directory);
-            setConfig().canvas.resourcesDirectory = directory;
+            setConfig().canvas.resourcesDirectory.set(directory);
         }
     });
 
@@ -228,6 +231,26 @@ GeneralPage::GeneralPage(QWidget *parent)
         ui->resourceLineEdit->setDisabled(true);
         ui->resourcePushButton->setDisabled(true);
     }
+
+    cfg.connection.remoteServerName.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    cfg.connection.remotePort.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    cfg.connection.localPort.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    cfg.connection.tlsEncryption.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    cfg.connection.proxyListensOnAnyInterface.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    cfg.connection.proxyConnectionStatus.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    cfg.general.characterEncoding.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    cfg.general.theme.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    cfg.general.checkForUpdate.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    cfg.mumeNative.emulatedExits.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    cfg.mumeNative.showHiddenExitFlags.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    cfg.mumeNative.showNotes.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    cfg.autoLoad.fileName.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    cfg.autoLoad.autoLoadMap.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    cfg.mumeClock.display.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    cfg.adventurePanel.displayXPStatus.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    cfg.account.rememberLogin.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    cfg.account.accountName.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
+    cfg.canvas.resourcesDirectory.registerChangeCallback(m_lifetime, [this]() { slot_loadConfig(); });
 }
 
 GeneralPage::~GeneralPage()
@@ -244,9 +267,29 @@ void GeneralPage::slot_loadConfig()
     const auto &general = config.general;
     const auto &account = config.account;
 
-    ui->remoteName->setText(connection.remoteServerName);
-    ui->remotePort->setValue(connection.remotePort);
-    ui->localPort->setValue(connection.localPort);
+    SignalBlocker b1(*ui->remoteName);
+    SignalBlocker b2(*ui->remotePort);
+    SignalBlocker b3(*ui->localPort);
+    SignalBlocker b4(*ui->encryptionCheckBox);
+    SignalBlocker b5(*ui->proxyListensOnAnyInterfaceCheckBox);
+    SignalBlocker b6(*ui->charsetComboBox);
+    SignalBlocker b7(*ui->themeComboBox);
+    SignalBlocker b8(*ui->emulatedExitsCheckBox);
+    SignalBlocker b9(*ui->showHiddenExitFlagsCheckBox);
+    SignalBlocker b10(*ui->showNotesCheckBox);
+    SignalBlocker b11(*ui->checkForUpdateCheckBox);
+    SignalBlocker b12(*ui->autoLoadFileName);
+    SignalBlocker b13(*ui->autoLoadCheck);
+    SignalBlocker b14(*ui->displayMumeClockCheckBox);
+    SignalBlocker b15(*ui->displayXPStatusCheckBox);
+    SignalBlocker b16(*ui->proxyConnectionStatusCheckBox);
+    SignalBlocker b17(*ui->resourceLineEdit);
+    SignalBlocker b18(*ui->autoLogin);
+    SignalBlocker b19(*ui->accountName);
+
+    ui->remoteName->setText(connection.remoteServerName.get());
+    ui->remotePort->setValue(connection.remotePort.get());
+    ui->localPort->setValue(connection.localPort.get());
 #ifdef Q_OS_WASM
     ui->encryptionCheckBox->setDisabled(true);
     ui->encryptionCheckBox->setChecked(true);
@@ -255,36 +298,36 @@ void GeneralPage::slot_loadConfig()
         ui->encryptionCheckBox->setEnabled(false);
         ui->encryptionCheckBox->setChecked(false);
     } else {
-        ui->encryptionCheckBox->setChecked(connection.tlsEncryption);
+        ui->encryptionCheckBox->setChecked(connection.tlsEncryption.get());
     }
 #endif
-    ui->proxyListensOnAnyInterfaceCheckBox->setChecked(connection.proxyListensOnAnyInterface);
-    ui->charsetComboBox->setCurrentIndex(static_cast<int>(general.characterEncoding));
-    ui->themeComboBox->setCurrentIndex(static_cast<int>(general.getTheme()));
+    ui->proxyListensOnAnyInterfaceCheckBox->setChecked(connection.proxyListensOnAnyInterface.get());
+    ui->charsetComboBox->setCurrentIndex(general.characterEncoding.get());
+    ui->themeComboBox->setCurrentIndex(general.theme.get());
 
-    ui->emulatedExitsCheckBox->setChecked(mumeNative.emulatedExits);
-    ui->showHiddenExitFlagsCheckBox->setChecked(mumeNative.showHiddenExitFlags);
-    ui->showNotesCheckBox->setChecked(mumeNative.showNotes);
+    ui->emulatedExitsCheckBox->setChecked(mumeNative.emulatedExits.get());
+    ui->showHiddenExitFlagsCheckBox->setChecked(mumeNative.showHiddenExitFlags.get());
+    ui->showNotesCheckBox->setChecked(mumeNative.showNotes.get());
 
-    ui->checkForUpdateCheckBox->setChecked(config.general.checkForUpdate);
+    ui->checkForUpdateCheckBox->setChecked(config.general.checkForUpdate.get());
     ui->checkForUpdateCheckBox->setDisabled(NO_UPDATER);
-    ui->autoLoadFileName->setText(autoLoad.fileName);
-    ui->autoLoadCheck->setChecked(autoLoad.autoLoadMap);
+    ui->autoLoadFileName->setText(autoLoad.fileName.get());
+    ui->autoLoadCheck->setChecked(autoLoad.autoLoadMap.get());
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
         ui->autoLoadFileName->setDisabled(true);
         ui->selectWorldFileButton->setDisabled(true);
     } else {
-        ui->autoLoadFileName->setEnabled(autoLoad.autoLoadMap);
-        ui->selectWorldFileButton->setEnabled(autoLoad.autoLoadMap);
+        ui->autoLoadFileName->setEnabled(autoLoad.autoLoadMap.get());
+        ui->selectWorldFileButton->setEnabled(autoLoad.autoLoadMap.get());
     }
 
-    ui->displayMumeClockCheckBox->setChecked(config.mumeClock.display);
+    ui->displayMumeClockCheckBox->setChecked(config.mumeClock.display.get());
 
-    ui->displayXPStatusCheckBox->setChecked(config.adventurePanel.getDisplayXPStatus());
+    ui->displayXPStatusCheckBox->setChecked(config.adventurePanel.displayXPStatus.get());
 
-    ui->proxyConnectionStatusCheckBox->setChecked(connection.proxyConnectionStatus);
+    ui->proxyConnectionStatusCheckBox->setChecked(connection.proxyConnectionStatus.get());
 
-    ui->resourceLineEdit->setText(config.canvas.resourcesDirectory);
+    ui->resourceLineEdit->setText(config.canvas.resourcesDirectory.get());
 
     if constexpr (NO_QTKEYCHAIN) {
         ui->autoLogin->setEnabled(false);
@@ -292,9 +335,9 @@ void GeneralPage::slot_loadConfig()
         ui->accountPassword->setEnabled(false);
         ui->showPassword->setEnabled(false);
     } else {
-        ui->autoLogin->setChecked(account.rememberLogin);
-        ui->accountName->setText(account.accountName);
-        if (!account.accountPassword) {
+        ui->autoLogin->setChecked(account.rememberLogin.get());
+        ui->accountName->setText(account.accountName.get());
+        if (!account.accountPassword.get()) {
             ui->accountPassword->setPlaceholderText("");
         }
     }
@@ -303,7 +346,7 @@ void GeneralPage::slot_loadConfig()
 void GeneralPage::slot_selectWorldFileButtonClicked(bool /*unused*/)
 {
     // FIXME: code duplication
-    const auto &savedLastMapDir = getConfig().autoLoad.lastMapDirectory;
+    const auto savedLastMapDir = getConfig().autoLoad.lastMapDirectory.get();
     QString fileName = QFileDialog::getOpenFileName(this,
                                                     "Choose map file ...",
                                                     savedLastMapDir,
@@ -312,49 +355,49 @@ void GeneralPage::slot_selectWorldFileButtonClicked(bool /*unused*/)
         ui->autoLoadFileName->setText(fileName);
         ui->autoLoadCheck->setChecked(true);
         auto &savedAutoLoad = setConfig().autoLoad;
-        savedAutoLoad.fileName = fileName;
-        savedAutoLoad.autoLoadMap = true;
+        savedAutoLoad.fileName.set(fileName);
+        savedAutoLoad.autoLoadMap.set(true);
     }
 }
 
 void GeneralPage::slot_remoteNameTextChanged(const QString & /*unused*/)
 {
-    setConfig().connection.remoteServerName = ui->remoteName->text();
+    setConfig().connection.remoteServerName.set(ui->remoteName->text());
 }
 
 void GeneralPage::slot_remotePortValueChanged(int /*unused*/)
 {
-    setConfig().connection.remotePort = static_cast<uint16_t>(ui->remotePort->value());
+    setConfig().connection.remotePort.set(ui->remotePort->value());
 }
 
 void GeneralPage::slot_localPortValueChanged(int /*unused*/)
 {
-    setConfig().connection.localPort = static_cast<uint16_t>(ui->localPort->value());
+    setConfig().connection.localPort.set(ui->localPort->value());
 }
 
 void GeneralPage::slot_emulatedExitsStateChanged(int /*unused*/)
 {
-    setConfig().mumeNative.emulatedExits = ui->emulatedExitsCheckBox->isChecked();
+    setConfig().mumeNative.emulatedExits.set(ui->emulatedExitsCheckBox->isChecked());
 }
 
 void GeneralPage::slot_showHiddenExitFlagsStateChanged(int /*unused*/)
 {
-    setConfig().mumeNative.showHiddenExitFlags = ui->showHiddenExitFlagsCheckBox->isChecked();
+    setConfig().mumeNative.showHiddenExitFlags.set(ui->showHiddenExitFlagsCheckBox->isChecked());
 }
 
 void GeneralPage::slot_showNotesStateChanged(int /*unused*/)
 {
-    setConfig().mumeNative.showNotes = ui->showNotesCheckBox->isChecked();
+    setConfig().mumeNative.showNotes.set(ui->showNotesCheckBox->isChecked());
 }
 
 void GeneralPage::slot_autoLoadFileNameTextChanged(const QString & /*unused*/)
 {
-    setConfig().autoLoad.fileName = ui->autoLoadFileName->text();
+    setConfig().autoLoad.fileName.set(ui->autoLoadFileName->text());
 }
 
 void GeneralPage::slot_autoLoadCheckStateChanged(int /*unused*/)
 {
-    setConfig().autoLoad.autoLoadMap = ui->autoLoadCheck->isChecked();
+    setConfig().autoLoad.autoLoadMap.set(ui->autoLoadCheck->isChecked());
     if (CURRENT_PLATFORM != PlatformEnum::Wasm) {
         ui->autoLoadFileName->setEnabled(ui->autoLoadCheck->isChecked());
         ui->selectWorldFileButton->setEnabled(ui->autoLoadCheck->isChecked());
@@ -363,15 +406,15 @@ void GeneralPage::slot_autoLoadCheckStateChanged(int /*unused*/)
 
 void GeneralPage::slot_displayMumeClockStateChanged(int /*unused*/)
 {
-    setConfig().mumeClock.display = ui->displayMumeClockCheckBox->isChecked();
+    setConfig().mumeClock.display.set(ui->displayMumeClockCheckBox->isChecked());
 }
 
 void GeneralPage::slot_displayXPStatusStateChanged([[maybe_unused]] int)
 {
-    setConfig().adventurePanel.setDisplayXPStatus(ui->displayXPStatusCheckBox->isChecked());
+    setConfig().adventurePanel.displayXPStatus.set(ui->displayXPStatusCheckBox->isChecked());
 }
 
 void GeneralPage::slot_themeComboBoxChanged(int index)
 {
-    setConfig().general.setTheme(static_cast<ThemeEnum>(index));
+    setConfig().general.theme.set(index);
 }

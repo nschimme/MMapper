@@ -65,6 +65,8 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
             &ConfigDialog::slot_changePage);
     connect(ui->closeButton, &QAbstractButton::clicked, this, &QWidget::close);
 
+    connect(ui->searchLineEdit, &QLineEdit::textChanged, this, &ConfigDialog::slot_filterSettings);
+
     connect(generalPage, &GeneralPage::sig_reloadConfig, this, [this]() { emit sig_loadConfig(); });
     connect(this, &ConfigDialog::sig_loadConfig, generalPage, &GeneralPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, graphicsPage, &GraphicsPage::slot_loadConfig);
@@ -73,19 +75,11 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     connect(this, &ConfigDialog::sig_loadConfig, autoLogPage, &AutoLogPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, audioPage, &AudioPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, groupPage, &GroupPage::slot_loadConfig);
-    connect(groupPage,
-            &GroupPage::sig_groupSettingsChanged,
-            this,
-            &ConfigDialog::sig_groupSettingsChanged);
     connect(this,
             &ConfigDialog::sig_loadConfig,
             mumeProtocolPage,
             &MumeProtocolPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, pathmachinePage, &PathmachinePage::slot_loadConfig);
-    connect(graphicsPage,
-            &GraphicsPage::sig_graphicsSettingsChanged,
-            this,
-            &ConfigDialog::sig_graphicsSettingsChanged);
 }
 
 ConfigDialog::~ConfigDialog()
@@ -144,6 +138,44 @@ void ConfigDialog::slot_changePage(QListWidgetItem *current, QListWidgetItem *co
     if (current == nullptr) {
         current = previous;
     }
+    if (current == nullptr) {
+        return;
+    }
     ui->pagesScrollArea->verticalScrollBar()->setSliderPosition(0);
     m_pagesWidget->setCurrentIndex(ui->contentsWidget->row(current));
+}
+
+void ConfigDialog::slot_filterSettings(const QString &text)
+{
+    for (int i = 0; i < ui->contentsWidget->count(); ++i) {
+        auto *item = ui->contentsWidget->item(i);
+        bool match = item->text().contains(text, Qt::CaseInsensitive);
+
+        // Also check labels in the page
+        if (!match) {
+            auto *page = m_pagesWidget->widget(i);
+            const auto labels = page->findChildren<QLabel *>();
+            for (auto *label : labels) {
+                if (label->text().contains(text, Qt::CaseInsensitive)) {
+                    match = true;
+                    break;
+                }
+            }
+        }
+
+        item->setHidden(!match);
+    }
+
+    // select first visible item if current is hidden
+    if (auto *current = ui->contentsWidget->currentItem()) {
+        if (current->isHidden()) {
+            for (int i = 0; i < ui->contentsWidget->count(); ++i) {
+                auto *item = ui->contentsWidget->item(i);
+                if (!item->isHidden()) {
+                    ui->contentsWidget->setCurrentItem(item);
+                    break;
+                }
+            }
+        }
+    }
 }

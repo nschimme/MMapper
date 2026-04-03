@@ -4,6 +4,7 @@
 // Author: Ulf Hermann <ulfonk_mennhar@gmx.de> (Alve)
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 
+#include "../global/Signal2.h"
 #include "../global/macros.h"
 #include "ui_pathmachinepage.h"
 
@@ -16,6 +17,9 @@ class QObject;
 class NODISCARD_QOBJECT PathmachinePage : public QWidget, private Ui::PathmachinePage
 {
     Q_OBJECT
+
+private:
+    Signal2Lifetime m_lifetime;
 
 public:
     explicit PathmachinePage(QWidget *parent);

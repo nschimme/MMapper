@@ -68,7 +68,7 @@ public:
     /**
      * @brief Marks a UBO block as dirty by resetting its bound state.
      */
-    void invalidate(SharedVboEnum block) { m_boundBuffers[block] = std::nullopt; }
+    void invalidate(const SharedVboEnum block) { m_boundBuffers[block] = std::nullopt; }
 
     /**
      * @brief Marks all UBO blocks as dirty.
@@ -87,7 +87,7 @@ public:
      *                        will trigger a debug assertion. Set to true only when an
      *                        overwrite is intentional.
      */
-    void registerRebuildFunction(SharedVboEnum block,
+    void registerRebuildFunction(const SharedVboEnum block,
                                  RebuildFunction func,
                                  bool allowOverwrite = false)
     {
@@ -102,12 +102,15 @@ public:
     /**
      * @brief Unregisters a rebuild function for a UBO block.
      */
-    void unregisterRebuildFunction(SharedVboEnum block) { m_rebuildFunctions[block] = nullptr; }
+    void unregisterRebuildFunction(const SharedVboEnum block)
+    {
+        m_rebuildFunctions[block] = nullptr;
+    }
 
     /**
      * @brief Checks if a UBO block is currently dirty/invalid.
      */
-    NODISCARD bool isInvalid(SharedVboEnum block) const
+    NODISCARD bool isInvalid(const SharedVboEnum block) const
     {
         return !m_boundBuffers[block].has_value();
     }
@@ -116,7 +119,7 @@ public:
      * @brief Rebuilds the UBO if it's invalid using the registered rebuild function.
      * @return The bound buffer ID, or 0 if failed.
      */
-    ALLOW_DISCARD GLuint updateIfInvalid(Functions &gl, SharedVboEnum block)
+    ALLOW_DISCARD GLuint updateIfInvalid(Functions &gl, const SharedVboEnum block)
     {
         if (const auto bound = m_boundBuffers[block]) {
             return *bound;
@@ -153,7 +156,9 @@ public:
      * Overload for bulk vector data.
      */
     template<typename T, typename A>
-    ALLOW_DISCARD GLuint update(Functions &gl, SharedVboEnum block, const std::vector<T, A> &data)
+    ALLOW_DISCARD GLuint update(Functions &gl,
+                                const SharedVboEnum block,
+                                const std::vector<T, A> &data)
     {
         VBO &vbo = getOrCreateVbo(gl, block);
         gl.setVbo(GL_UNIFORM_BUFFER, vbo.get(), data, BufferUsageEnum::DYNAMIC_DRAW);
@@ -168,7 +173,7 @@ public:
      * Overload for single trivially-copyable objects.
      */
     template<typename T>
-    ALLOW_DISCARD GLuint update(Functions &gl, SharedVboEnum block, const T &data)
+    ALLOW_DISCARD GLuint update(Functions &gl, const SharedVboEnum block, const T &data)
     {
         VBO &vbo = getOrCreateVbo(gl, block);
         gl.setVbo(GL_UNIFORM_BUFFER, vbo.get(), data, BufferUsageEnum::DYNAMIC_DRAW);
@@ -249,7 +254,7 @@ public:
      * @brief Binds the UBO to its assigned point.
      * If invalid and a rebuild function is registered, it will be updated first.
      */
-    void bind(Functions &gl, SharedVboEnum block)
+    void bind(Functions &gl, const SharedVboEnum block)
     {
         const GLuint buffer = updateIfInvalid(gl, block);
 
@@ -267,7 +272,7 @@ public:
     }
 
 private:
-    NODISCARD VBO &getOrCreateVbo(Functions &gl, SharedVboEnum block)
+    NODISCARD VBO &getOrCreateVbo(Functions &gl, const SharedVboEnum block)
     {
         const auto sharedVbo = gl.getSharedVbos().get(block);
         VBO &vbo = deref(sharedVbo);
@@ -287,7 +292,7 @@ private:
      * are 0-based, contiguous, and directly correspond to UBO binding indices in
      * shader blocks.
      */
-    NODISCARD GLuint bind_internal(Functions &gl, SharedVboEnum block, GLuint buffer)
+    NODISCARD GLuint bind_internal(Functions &gl, const SharedVboEnum block, const GLuint buffer)
     {
         const auto bindingIndex = getUboBindingIndex(block);
         assert(static_cast<std::size_t>(bindingIndex) < m_boundBuffers.size());

@@ -9,6 +9,7 @@
 #include "../src/mainwindow/UpdateDialog.h"
 
 #include <QDebug>
+#include <QScopeGuard>
 #include <QtTest/QtTest>
 
 const char *getMMapperVersion()
@@ -55,10 +56,19 @@ void TestMainWindow::audioToolbarTest()
 {
     setEnteredMain();
 
+    const int originalMusic = getConfig().audio.getMusicVolume();
+    const int originalSound = getConfig().audio.getSoundVolume();
+
+    // Ensure we restore configuration
+    auto cleanup = qScopeGuard([=]() {
+        setConfig().audio.setMusicVolume(originalMusic);
+        setConfig().audio.setSoundVolume(originalSound);
+    });
+
     AudioVolumeSlider musicSlider(AudioVolumeSlider::AudioType::Music);
     AudioVolumeSlider soundSlider(AudioVolumeSlider::AudioType::Sound);
 
-    // Initial value from current config
+    // Initial value should match current config defaults
     QCOMPARE(musicSlider.value(), getConfig().audio.getMusicVolume());
     QCOMPARE(soundSlider.value(), getConfig().audio.getSoundVolume());
 

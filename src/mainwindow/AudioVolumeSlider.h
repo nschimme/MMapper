@@ -32,5 +32,6 @@ public:
     void updateFromConfig();
 
 private:
+    void init();
     void updateToConfig(int value);
 };

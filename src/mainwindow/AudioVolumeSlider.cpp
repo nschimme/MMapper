@@ -9,6 +9,20 @@
 AudioVolumeSlider::AudioVolumeSlider(QWidget *const parent)
     : QSlider(Qt::Orientation::Horizontal, parent)
 {
+    init();
+}
+
+AudioVolumeSlider::AudioVolumeSlider(AudioType type, QWidget *const parent)
+    : QSlider(Qt::Orientation::Horizontal, parent)
+    , m_type(type)
+{
+    init();
+}
+
+AudioVolumeSlider::~AudioVolumeSlider() = default;
+
+void AudioVolumeSlider::init()
+{
     setRange(0, 100);
     connect(this, &QSlider::valueChanged, this, [this](int value) { updateToConfig(value); });
 
@@ -17,15 +31,8 @@ AudioVolumeSlider::AudioVolumeSlider(QWidget *const parent)
     if constexpr (NO_AUDIO) {
         setEnabled(false);
     }
+    setAudioType(m_type);
 }
-
-AudioVolumeSlider::AudioVolumeSlider(AudioType type, QWidget *const parent)
-    : AudioVolumeSlider(parent)
-{
-    setAudioType(type);
-}
-
-AudioVolumeSlider::~AudioVolumeSlider() = default;
 
 void AudioVolumeSlider::setAudioType(AudioType type)
 {

@@ -102,6 +102,9 @@ static void addApplicationFont()
 
 MainWindow::~MainWindow()
 {
+    if (m_audioManager) {
+        m_audioManager->stopAllImmediate();
+    }
     forceNewFile();
     mmqt::rdisconnect(this);
     async_tasks::cleanup();
@@ -1543,6 +1546,11 @@ void MainWindow::closeEvent(QCloseEvent *const event)
         qInfo() << "Attempting to async task for faster shutdown";
         m_progressDlg->reject();
     }
+
+    if (m_audioManager) {
+        m_audioManager->stopAllImmediate();
+    }
+
     event->accept();
 }
 

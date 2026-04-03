@@ -75,6 +75,12 @@ void AudioManager::playSound(const QString &soundName)
     m_sfx->playSound(soundName);
 }
 
+void AudioManager::stopAllImmediate()
+{
+    m_music->stopMusicImmediate();
+    m_sfx->stopAllImmediate();
+}
+
 void AudioManager::updateVolumes()
 {
     m_music->updateVolumes();

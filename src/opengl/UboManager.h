@@ -34,6 +34,14 @@ class NODISCARD UboManager final
 public:
     using RebuildFunction = std::function<void(Functions &gl)>;
 
+private:
+    EnumIndexedArray<RebuildFunction, SharedVboEnum> m_rebuildFunctions;
+    EnumIndexedArray<std::optional<GLuint>, SharedVboEnum> m_boundBuffers;
+
+    // Tuple of all block types for shadow storage.
+    SharedVboBlocks m_shadowBlocks;
+
+public:
     UboManager() { invalidateAll(); }
     ~UboManager() = default;
     DELETE_CTORS_AND_ASSIGN_OPS(UboManager);
@@ -43,7 +51,7 @@ public:
      * @brief Accesses the CPU-side shadow copy of a UBO block by its enum.
      */
     template<SharedVboEnum Block>
-    typename BlockType<Block>::type &get()
+    NODISCARD typename BlockType<Block>::type &get()
     {
         return std::get<typename BlockType<Block>::type>(m_shadowBlocks);
     }
@@ -52,7 +60,7 @@ public:
      * @brief Accesses the CPU-side shadow copy of a UBO block by its enum (const).
      */
     template<SharedVboEnum Block>
-    const typename BlockType<Block>::type &get() const
+    NODISCARD const typename BlockType<Block>::type &get() const
     {
         return std::get<typename BlockType<Block>::type>(m_shadowBlocks);
     }
@@ -99,13 +107,13 @@ public:
     /**
      * @brief Checks if a UBO block is currently dirty/invalid.
      */
-    bool isInvalid(SharedVboEnum block) const { return !m_boundBuffers[block].has_value(); }
+    NODISCARD bool isInvalid(SharedVboEnum block) const { return !m_boundBuffers[block].has_value(); }
 
     /**
      * @brief Rebuilds the UBO if it's invalid using the registered rebuild function.
      * @return The bound buffer ID, or 0 if failed.
      */
-    GLuint updateIfInvalid(Functions &gl, SharedVboEnum block)
+    ALLOW_DISCARD GLuint updateIfInvalid(Functions &gl, SharedVboEnum block)
     {
         if (const auto bound = m_boundBuffers[block]) {
             return *bound;
@@ -142,7 +150,7 @@ public:
      * Overload for bulk vector data.
      */
     template<typename T, typename A>
-    GLuint update(Functions &gl, SharedVboEnum block, const std::vector<T, A> &data)
+    ALLOW_DISCARD GLuint update(Functions &gl, SharedVboEnum block, const std::vector<T, A> &data)
     {
         VBO &vbo = getOrCreateVbo(gl, block);
         static_cast<void>(
@@ -158,7 +166,7 @@ public:
      * Overload for single trivially-copyable objects.
      */
     template<typename T>
-    GLuint update(Functions &gl, SharedVboEnum block, const T &data)
+    ALLOW_DISCARD GLuint update(Functions &gl, SharedVboEnum block, const T &data)
     {
         VBO &vbo = getOrCreateVbo(gl, block);
         gl.setVbo(GL_UNIFORM_BUFFER, vbo.get(), data, BufferUsageEnum::DYNAMIC_DRAW);
@@ -171,7 +179,7 @@ public:
      * Also updates the shadow copy.
      */
     template<SharedVboEnum Block>
-    GLuint update(Functions &gl, const typename BlockType<Block>::type &data)
+    ALLOW_DISCARD GLuint update(Functions &gl, const typename BlockType<Block>::type &data)
     {
         get<Block>() = data;
         return update(gl, Block, data);
@@ -181,7 +189,7 @@ public:
      * @brief Syncs the entire shadow copy of a block to the GPU.
      */
     template<SharedVboEnum Block>
-    GLuint sync(Functions &gl)
+    ALLOW_DISCARD GLuint sync(Functions &gl)
     {
         return update(gl, Block, get<Block>());
     }
@@ -221,7 +229,7 @@ public:
         gl.glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
         // Ensure it's bound to the correct point.
-        bind_internal(gl, Block, vbo.get());
+        std::ignore = bind_internal(gl, Block, vbo.get());
     }
 
     /**
@@ -257,7 +265,7 @@ public:
     }
 
 private:
-    VBO &getOrCreateVbo(Functions &gl, SharedVboEnum block)
+    NODISCARD VBO &getOrCreateVbo(Functions &gl, SharedVboEnum block)
     {
         const auto sharedVbo = gl.getSharedVbos().get(block);
         VBO &vbo = deref(sharedVbo);
@@ -277,7 +285,7 @@ private:
      * are 0-based, contiguous, and directly correspond to UBO binding indices in
      * shader blocks.
      */
-    GLuint bind_internal(Functions &gl, SharedVboEnum block, GLuint buffer)
+    NODISCARD GLuint bind_internal(Functions &gl, SharedVboEnum block, GLuint buffer)
     {
         const auto bindingIndex = getUboBindingIndex(block);
         assert(static_cast<std::size_t>(bindingIndex) < m_boundBuffers.size());
@@ -289,13 +297,6 @@ private:
         }
         return buffer;
     }
-
-private:
-    EnumIndexedArray<RebuildFunction, SharedVboEnum> m_rebuildFunctions;
-    EnumIndexedArray<std::optional<GLuint>, SharedVboEnum> m_boundBuffers;
-
-    // Tuple of all block types for shadow storage.
-    SharedVboBlocks m_shadowBlocks;
 };
 
 } // namespace Legacy

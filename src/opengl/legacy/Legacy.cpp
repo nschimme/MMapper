@@ -152,6 +152,13 @@ UniqueMesh Functions::createRoomQuadTexBatch(const std::vector<RoomQuadTexVert> 
     return createTexturedMesh<RoomQuadTexMesh>(shared_from_this(), mode, batch, prog, texture);
 }
 
+UniqueMesh Functions::createDoorBatch(const std::vector<DoorVert> &batch)
+{
+    const auto mode = DrawModeEnum::QUADS;
+    const auto &prog = getShaderPrograms().getDoorShader();
+    return createUniqueMesh<DoorMesh>(shared_from_this(), mode, batch, prog);
+}
+
 template<typename VertexType_, template<typename> typename Mesh_, typename ShaderType_>
 static void renderImmediate(const SharedFunctions &sharedFunctions,
                             const DrawModeEnum mode,

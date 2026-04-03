@@ -5,7 +5,10 @@
 
 #include "../clock/mumemoment.h"
 #include "../global/Signal2.h"
+#include "../map/DoorStateEnum.h"
+#include "../map/ExitDirection.h"
 #include "../map/PromptFlags.h"
+#include "../map/roomid.h"
 #include "../proxy/GmcpMessage.h"
 
 class NODISCARD GameObserver final
@@ -26,6 +29,8 @@ public:
     Signal2<PromptWeatherEnum> sig2_weatherChanged;
     Signal2<PromptFogEnum> sig2_fogChanged;
     Signal2<MumeMoment> sig2_tick;
+
+    Signal2<ServerRoomId, ExitDirEnum, DoorStateEnum> sig2_doorStateChanged;
 
     Signal2<> sig2_gainedLevel;
 
@@ -51,6 +56,11 @@ public:
     void observeWeather(PromptWeatherEnum weather);
     void observeFog(PromptFogEnum fog);
     void observeTick(const MumeMoment &moment) { sig2_tick.invoke(moment); }
+
+    void observeDoorState(ServerRoomId id, ExitDirEnum dir, DoorStateEnum state)
+    {
+        sig2_doorStateChanged.invoke(id, dir, state);
+    }
 
     void observeGainedLevel() { sig2_gainedLevel.invoke(); }
 

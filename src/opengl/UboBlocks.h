@@ -24,7 +24,8 @@ namespace Legacy {
     X(NamedColorsBlock, "NamedColorsBlock") \
     X(CameraBlock, "CameraBlock") \
     X(TimeBlock, "TimeBlock") \
-    X(WeatherBlock, "WeatherBlock")
+    X(WeatherBlock, "WeatherBlock") \
+    X(DoorBlock, "DoorBlock")
 
 #define X_ENUM(element, name) element,
 enum class NODISCARD SharedVboEnum : uint8_t { XFOREACH_SHARED_VBO(X_ENUM) NUM_BLOCKS };
@@ -76,6 +77,16 @@ struct NODISCARD WeatherBlock final
 struct NODISCARD NamedColorsBlock final
 {
     std::array<glm::vec4, MAX_NAMED_COLORS> colors{};
+};
+
+/**
+ * @brief Memory layout for the Door uniform block.
+ * Must match DoorBlock in shaders (std140 layout).
+ */
+struct NODISCARD DoorBlock final
+{
+    // x = roomId, y = direction, z = state, w = unused
+    std::array<glm::uvec4, 100> doors{};
 };
 
 template<SharedVboEnum Block>

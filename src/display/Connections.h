@@ -71,6 +71,7 @@ struct NODISCARD ConnectionDrawerColorBuffer final
 {
     std::vector<ColorVert> triVerts;
     std::vector<ColorVert> quadVerts;
+    std::vector<DoorVert> doorVerts;
 
     ConnectionDrawerColorBuffer() = default;
     DEFAULT_MOVES_DELETE_COPIES(ConnectionDrawerColorBuffer);
@@ -80,8 +81,12 @@ struct NODISCARD ConnectionDrawerColorBuffer final
     {
         triVerts.clear();
         quadVerts.clear();
+        doorVerts.clear();
     }
-    NODISCARD bool empty() const { return triVerts.empty() && quadVerts.empty(); }
+    NODISCARD bool empty() const
+    {
+        return triVerts.empty() && quadVerts.empty() && doorVerts.empty();
+    }
 };
 
 struct NODISCARD ConnectionMeshes final
@@ -90,6 +95,8 @@ struct NODISCARD ConnectionMeshes final
     UniqueMesh redTris;
     UniqueMesh normalQuads;
     UniqueMesh redQuads;
+    UniqueMesh normalDoors;
+    UniqueMesh redDoors;
 
     ConnectionMeshes() = default;
     DEFAULT_MOVES_DELETE_COPIES(ConnectionMeshes);
@@ -145,6 +152,12 @@ private:
     public:
         void drawTriangle(const glm::vec3 &a, const glm::vec3 &b, const glm::vec3 &c);
         void drawLineStrip(const std::vector<glm::vec3> &points);
+        void drawDoorQuad(const glm::vec3 &a,
+                          const glm::vec3 &b,
+                          const glm::vec3 &c,
+                          const glm::vec3 &d,
+                          ServerRoomId roomId,
+                          ExitDirEnum dir);
     };
 
 private:
@@ -215,6 +228,8 @@ public:
                                  float dY,
                                  float srcZ,
                                  float dstZ);
+
+    void drawDoorMarker(const RoomHandle &room, ExitDirEnum dir);
 };
 
 using BatchedConnections = std::unordered_map<int, ConnectionDrawerBuffers>;

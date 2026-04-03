@@ -55,7 +55,6 @@ public:
 
     void playMusic(const QString &musicFile);
     void stopMusic();
-    void stopMusicImmediate();
 
 public:
     void updateVolumes();

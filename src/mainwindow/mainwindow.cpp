@@ -102,7 +102,6 @@ static void addApplicationFont()
 
 MainWindow::~MainWindow()
 {
-    delete std::exchange(m_audioManager, nullptr);
     forceNewFile();
     mmqt::rdisconnect(this);
     async_tasks::cleanup();

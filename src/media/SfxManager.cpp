@@ -31,11 +31,6 @@ SfxManager::SfxManager(MediaLibrary &library, QObject *const parent)
 
 SfxManager::~SfxManager()
 {
-    stopAllImmediate();
-}
-
-void SfxManager::stopAllImmediate()
-{
 #ifndef MMAPPER_NO_AUDIO
     const auto players = findChildren<QMediaPlayer *>();
     for (auto *player : players) {

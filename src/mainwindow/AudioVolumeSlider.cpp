@@ -6,16 +6,32 @@
 #include "../configuration/configuration.h"
 #include "../global/SignalBlocker.h"
 
-AudioVolumeSlider::AudioVolumeSlider(AudioType type, QWidget *const parent)
+AudioVolumeSlider::AudioVolumeSlider(QWidget *const parent)
     : QSlider(Qt::Orientation::Horizontal, parent)
-    , m_type(type)
 {
     setRange(0, 100);
-    updateFromConfig();
-
     connect(this, &QSlider::valueChanged, this, [this](int value) { updateToConfig(value); });
 
     setConfig().audio.registerChangeCallback(m_lifetime, [this]() { updateFromConfig(); });
+
+    if constexpr (NO_AUDIO) {
+        setEnabled(false);
+    }
+    setAudioType(m_type);
+}
+
+AudioVolumeSlider::AudioVolumeSlider(AudioType type, QWidget *const parent)
+    : AudioVolumeSlider(parent)
+{
+    setAudioType(type);
+}
+
+AudioVolumeSlider::~AudioVolumeSlider() = default;
+
+void AudioVolumeSlider::setAudioType(AudioType type)
+{
+    m_type = type;
+    updateFromConfig();
 
     switch (m_type) {
     case AudioType::Music:
@@ -25,13 +41,7 @@ AudioVolumeSlider::AudioVolumeSlider(AudioType type, QWidget *const parent)
         setToolTip(tr("Sound Volume"));
         break;
     }
-
-    if constexpr (NO_AUDIO) {
-        setEnabled(false);
-    }
 }
-
-AudioVolumeSlider::~AudioVolumeSlider() = default;
 
 void AudioVolumeSlider::updateFromConfig()
 {

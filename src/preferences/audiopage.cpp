@@ -20,21 +20,6 @@ AudioPage::AudioPage(QWidget *const parent)
     ui->setupUi(this);
 
     slot_updateDevices();
-
-    auto *const musicVolumeSlider = new AudioVolumeSlider(AudioVolumeSlider::AudioType::Music, this);
-    auto *const soundsVolumeSlider
-        = new AudioVolumeSlider(AudioVolumeSlider::AudioType::Sound, this);
-
-    ui->gridLayoutMusic->replaceWidget(ui->musicVolumeSlider, musicVolumeSlider);
-    ui->gridLayoutSounds->replaceWidget(ui->soundsVolumeSlider, soundsVolumeSlider);
-
-    delete ui->musicVolumeSlider;
-    delete ui->soundsVolumeSlider;
-
-    // Use these names to avoid breaking layout or other code if it expects them
-    musicVolumeSlider->setObjectName("musicVolumeSlider");
-    soundsVolumeSlider->setObjectName("soundsVolumeSlider");
-
     slot_loadConfig();
 
     connect(ui->outputDeviceComboBox,

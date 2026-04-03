@@ -79,6 +79,7 @@ NODISCARD static const char *getFilenameSuffix(const E x)
     return getParserCommandName(x).getCommand();
 }
 
+#ifndef MM_TESTING
 /**
  * @brief Returns the base path to the sideloaded assets directory.
  *
@@ -133,6 +134,7 @@ QString getAssetsPath()
 
     return assetsPath;
 }
+#endif
 
 QString getResourceFilenameRaw(const QString &dir, const QString &name)
 {

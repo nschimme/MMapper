@@ -33,6 +33,7 @@ public:
     void playSound(const QString &soundName);
 
     void updateVolume();
+    void stopAll(bool immediate = true);
 
 #ifndef MMAPPER_NO_AUDIO
     void updateOutputDevice(const QAudioDevice &device);

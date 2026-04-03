@@ -54,7 +54,10 @@ AudioManager::AudioManager(MediaLibrary &library, GameObserver &observer, QObjec
     updateVolumes();
 }
 
-AudioManager::~AudioManager() = default;
+AudioManager::~AudioManager()
+{
+    stop(true);
+}
 
 void AudioManager::onAreaChanged(const RoomArea &area)
 {
@@ -73,6 +76,12 @@ void AudioManager::onAreaChanged(const RoomArea &area)
 void AudioManager::playSound(const QString &soundName)
 {
     m_sfx->playSound(soundName);
+}
+
+void AudioManager::stop(bool immediate)
+{
+    m_music->stopMusic(immediate);
+    m_sfx->stopAll(immediate);
 }
 
 void AudioManager::updateVolumes()

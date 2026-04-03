@@ -437,7 +437,6 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         endif()
 
         add_compile_options(-Wno-extra-semi-stmt) # enabled only for src/ directory
-        add_compile_options(-Wno-c++20-compat)
 
         # require explicit template parameters when deduction guides are missing
         add_compile_options(-Werror=ctad-maybe-unsupported)

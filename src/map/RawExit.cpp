@@ -7,12 +7,6 @@
 
 namespace detail {
 
-/*
-template<typename T>
-struct is_const_ref : std::bool_constant<!std::is_const_v<std::remove_reference_t<T>>>
-{};
-*/
-
 template<typename Exit_>
 struct NODISCARD InvariantsHelper final
 {

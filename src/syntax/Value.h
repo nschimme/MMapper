@@ -38,7 +38,7 @@ public:
     NODISCARD Base::const_iterator end() const;
 
 public:
-    NODISCARD bool empty() const { return m_vector->empty(); }
+    NODISCARD bool empty() const;
     NODISCARD size_t size() const;
     // NOTE: at() throws if out of range.
     ALLOW_DISCARD const Value &at(size_t pos) const;

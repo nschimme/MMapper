@@ -16,9 +16,6 @@ struct NODISCARD TaggedRawRoom final : public RoomFieldsGetters<TaggedRawRoom<Ta
                                        public RoomExitFieldsSetters<TaggedRawRoom<Tag_>>
 {
 public:
-    TaggedRawRoom() {}
-
-public:
     using ExitType = TaggedRawExit<Tag_>;
     using IdType = typename ExitType::IdType;
     using Exits = EnumIndexedArray<ExitType, ExitDirEnum, NUM_EXITS>;

@@ -137,6 +137,11 @@ Vector::Base::const_iterator Vector::end() const
     return m_vector->end();
 }
 
+bool Vector::empty() const
+{
+    return m_vector->empty();
+}
+
 size_t Vector::size() const
 {
     return m_vector->size();

@@ -29,7 +29,8 @@ public:
     NODISCARD AudioType audioType() const { return m_type; }
     void setAudioType(AudioType type);
 
-private:
     void updateFromConfig();
+
+private:
     void updateToConfig(int value);
 };

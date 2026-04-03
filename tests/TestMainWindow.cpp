@@ -58,9 +58,9 @@ void TestMainWindow::audioToolbarTest()
     AudioVolumeSlider musicSlider(AudioVolumeSlider::AudioType::Music);
     AudioVolumeSlider soundSlider(AudioVolumeSlider::AudioType::Sound);
 
-    // Initial value from default config (50)
-    QCOMPARE(musicSlider.value(), 50);
-    QCOMPARE(soundSlider.value(), 50);
+    // Initial value from current config
+    QCOMPARE(musicSlider.value(), getConfig().audio.getMusicVolume());
+    QCOMPARE(soundSlider.value(), getConfig().audio.getSoundVolume());
 
     // Update config -> slider updates
     setConfig().audio.setMusicVolume(75);

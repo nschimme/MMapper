@@ -44,9 +44,13 @@ AudioPage::~AudioPage()
 
 void AudioPage::slot_loadConfig()
 {
+    SignalBlocker musicBlocker(*ui->musicVolumeSlider);
+    SignalBlocker soundsBlocker(*ui->soundsVolumeSlider);
     SignalBlocker outputBlocker(*ui->outputDeviceComboBox);
 
     const auto &settings = getConfig().audio;
+    ui->musicVolumeSlider->updateFromConfig();
+    ui->soundsVolumeSlider->updateFromConfig();
 
     int index = ui->outputDeviceComboBox->findData(settings.getOutputDeviceId());
     if (index != -1) {

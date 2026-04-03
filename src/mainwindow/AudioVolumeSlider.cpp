@@ -17,7 +17,6 @@ AudioVolumeSlider::AudioVolumeSlider(QWidget *const parent)
     if constexpr (NO_AUDIO) {
         setEnabled(false);
     }
-    setAudioType(m_type);
 }
 
 AudioVolumeSlider::AudioVolumeSlider(AudioType type, QWidget *const parent)
@@ -30,6 +29,10 @@ AudioVolumeSlider::~AudioVolumeSlider() = default;
 
 void AudioVolumeSlider::setAudioType(AudioType type)
 {
+    if (m_type == type && toolTip().length() > 0) {
+        return;
+    }
+
     m_type = type;
     updateFromConfig();
 

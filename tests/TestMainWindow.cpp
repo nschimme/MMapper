@@ -3,7 +3,9 @@
 
 #include "TestMainWindow.h"
 
+#include "../src/configuration/configuration.h"
 #include "../src/global/Version.h"
+#include "../src/mainwindow/AudioVolumeSlider.h"
 #include "../src/mainwindow/UpdateDialog.h"
 
 #include <QDebug>
@@ -47,6 +49,32 @@ void TestMainWindow::updaterTest()
     CompareVersion newerPatch{"2.9.0"};
     QVERIFY2(newerPatch > current, "Newer major version is greater than older version");
     QVERIFY2((current > newerPatch) == false, "Older version is not newer than newer patch version");
+}
+
+void TestMainWindow::audioToolbarTest()
+{
+    setEnteredMain();
+
+    AudioVolumeSlider musicSlider(AudioVolumeSlider::AudioType::Music);
+    AudioVolumeSlider soundSlider(AudioVolumeSlider::AudioType::Sound);
+
+    // Initial value from default config (50)
+    QCOMPARE(musicSlider.value(), 50);
+    QCOMPARE(soundSlider.value(), 50);
+
+    // Update config -> slider updates
+    setConfig().audio.setMusicVolume(75);
+    QCOMPARE(musicSlider.value(), 75);
+
+    setConfig().audio.setSoundVolume(25);
+    QCOMPARE(soundSlider.value(), 25);
+
+    // Update slider -> config updates
+    musicSlider.setValue(90);
+    QCOMPARE(getConfig().audio.getMusicVolume(), 90);
+
+    soundSlider.setValue(10);
+    QCOMPARE(getConfig().audio.getSoundVolume(), 10);
 }
 
 QTEST_MAIN(TestMainWindow)

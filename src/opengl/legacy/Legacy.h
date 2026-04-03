@@ -344,7 +344,10 @@ public:
     NODISCARD bool canRenderQuads() { return virt_canRenderQuads(); }
 
     /// platform-specific (ES vs GL)
-    NODISCARD std::optional<GLenum> toGLenum(const DrawModeEnum mode) { return virt_toGLenum(mode); }
+    NODISCARD std::optional<GLenum> toGLenum(const DrawModeEnum mode)
+    {
+        return virt_toGLenum(mode);
+    }
 
 protected:
 private:

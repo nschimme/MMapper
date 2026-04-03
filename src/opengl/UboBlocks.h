@@ -99,7 +99,7 @@ XFOREACH_SHARED_VBO(X_ASSERT)
 #undef X_ASSERT
 
 template<SharedVboEnum T>
-  using BlockType_t = typename BlockType<T>::type;
+using BlockType_t = typename BlockType<T>::type;
 
 template<std::size_t... Is>
 auto MakeSharedVboBlocksHelper(std::index_sequence<Is...>)

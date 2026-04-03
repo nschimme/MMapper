@@ -17,15 +17,30 @@ AudioVolumeSlider::AudioVolumeSlider(AudioType type, QWidget *const parent)
 
     setConfig().audio.registerChangeCallback(m_lifetime, [this]() { updateFromConfig(); });
 
-    setToolTip(m_type == AudioType::Music ? tr("Music Volume") : tr("Sound Volume"));
+    switch (m_type) {
+    case AudioType::Music:
+        setToolTip(tr("Music Volume"));
+        break;
+    case AudioType::Sound:
+        setToolTip(tr("Sound Volume"));
+        break;
+    }
 }
 
 AudioVolumeSlider::~AudioVolumeSlider() = default;
 
 void AudioVolumeSlider::updateFromConfig()
 {
-    const int actualVolume = (m_type == AudioType::Music) ? getConfig().audio.getMusicVolume()
-                                                          : getConfig().audio.getSoundVolume();
+    int actualVolume = 0;
+    switch (m_type) {
+    case AudioType::Music:
+        actualVolume = getConfig().audio.getMusicVolume();
+        break;
+    case AudioType::Sound:
+        actualVolume = getConfig().audio.getSoundVolume();
+        break;
+    }
+
     if (value() != actualVolume) {
         const SignalBlocker block{*this};
         setValue(actualVolume);
@@ -34,13 +49,16 @@ void AudioVolumeSlider::updateFromConfig()
 
 void AudioVolumeSlider::updateToConfig(int value)
 {
-    if (m_type == AudioType::Music) {
+    switch (m_type) {
+    case AudioType::Music:
         if (getConfig().audio.getMusicVolume() != value) {
             setConfig().audio.setMusicVolume(value);
         }
-    } else {
+        break;
+    case AudioType::Sound:
         if (getConfig().audio.getSoundVolume() != value) {
             setConfig().audio.setSoundVolume(value);
         }
+        break;
     }
 }

@@ -330,7 +330,7 @@ public:
     /// platform-specific (ES vs GL)
     NODISCARD const char *getShaderVersion() const { return virt_getShaderVersion(); }
 
-protected:
+private:
     NODISCARD virtual bool virt_canRenderQuads() = 0;
     NODISCARD virtual std::optional<GLenum> virt_toGLenum(DrawModeEnum mode) = 0;
     virtual void virt_enableProgramPointSize(bool enable) = 0;

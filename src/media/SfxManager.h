@@ -33,6 +33,7 @@ public:
     explicit SfxManager(MediaLibrary &library, QObject *parent = nullptr);
 
     void playSound(const QString &soundName);
+    void stopAllImmediate();
 
     void updateVolume();
 

@@ -106,18 +106,7 @@ MusicManager::MusicManager(MediaLibrary &library, QObject *const parent)
 
 MusicManager::~MusicManager()
 {
-#ifndef MMAPPER_NO_AUDIO
-    if (m_fadeTimer) {
-        m_fadeTimer->stop();
-    }
-
-    for (int i = 0; i < 2; ++i) {
-        m_channels[i].player->stop();
-        m_channels[i].player->setSource(QUrl());
-        m_channels[i].file.clear();
-        m_channels[i].fadeVolume = 0.0f;
-    }
-#endif
+    stopMusicImmediate();
 }
 
 void MusicManager::playMusic(const QString &musicFile)
@@ -237,6 +226,22 @@ void MusicManager::stopMusic()
 {
 #ifndef MMAPPER_NO_AUDIO
     startFade(true);
+#endif
+}
+
+void MusicManager::stopMusicImmediate()
+{
+#ifndef MMAPPER_NO_AUDIO
+    if (m_fadeTimer) {
+        m_fadeTimer->stop();
+    }
+
+    for (int i = 0; i < 2; ++i) {
+        m_channels[i].player->stop();
+        m_channels[i].player->setSource(QUrl());
+        m_channels[i].file.clear();
+        m_channels[i].fadeVolume = 0.0f;
+    }
 #endif
 }
 

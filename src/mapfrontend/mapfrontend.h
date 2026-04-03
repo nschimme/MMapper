@@ -5,6 +5,7 @@
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
+#include "../global/RAII.h"
 #include "../map/Changes.h"
 #include "../map/Map.h"
 #include "../map/coordinate.h"
@@ -91,6 +92,8 @@ private:
         }
     };
     HistoryCoordinator m_history;
+    int m_historyGroupCount = 0;
+    Map m_historyGroupBase;
 
 public:
     explicit MapFrontend(QObject *parent);
@@ -115,16 +118,26 @@ public:
     void saveSnapshot();
     void restoreSnapshot();
 
+public:
+    void beginHistoryGroup();
+    void endHistoryGroup();
+
+private:
+    void finalizeHistoryGroup();
+
 private:
     bool applyChangesInternal(
         ProgressCounter &pc,
-        const std::function<MapApplyResult(Map &, ProgressCounter &)> &applyFunction);
+        const std::function<MapApplyResult(Map &, ProgressCounter &)> &applyFunction,
+        bool grouped);
 
 public:
-    ALLOW_DISCARD bool applyChanges(const ChangeList &changes);
-    ALLOW_DISCARD bool applyChanges(ProgressCounter &pc, const ChangeList &changes);
-    ALLOW_DISCARD bool applySingleChange(const Change &);
-    ALLOW_DISCARD bool applySingleChange(ProgressCounter &pc, const Change &);
+    ALLOW_DISCARD bool applyChanges(const ChangeList &changes, bool grouped = false);
+    ALLOW_DISCARD bool applyChanges(ProgressCounter &pc,
+                                    const ChangeList &changes,
+                                    bool grouped = false);
+    ALLOW_DISCARD bool applySingleChange(const Change &, bool grouped = false);
+    ALLOW_DISCARD bool applySingleChange(ProgressCounter &pc, const Change &, bool grouped = false);
 
 private:
     virtual void virt_clear() = 0;
@@ -138,8 +151,8 @@ public:
 
     NODISCARD bool createEmptyRoom(const Coordinate &);
     NODISCARD bool hasTemporaryRoom(RoomId id) const;
-    NODISCARD bool tryRemoveTemporary(RoomId id);
-    NODISCARD bool tryMakePermanent(RoomId id);
+    NODISCARD bool tryRemoveTemporary(RoomId id, bool grouped = false);
+    NODISCARD bool tryMakePermanent(RoomId id, bool grouped = false);
 
     NODISCARD RoomHandle findRoomHandle(RoomId) const;
     NODISCARD RoomHandle findRoomHandle(const Coordinate &) const;
@@ -172,7 +185,22 @@ signals:
 public slots:
     // createRoom creates a room without a lock
     // it will get deleted if no one looks for it for a certain time
-    void slot_createRoom(const SigParseEvent &, const Coordinate &);
+    void slot_createRoom(const SigParseEvent &, const Coordinate &, bool grouped = false);
     void slot_undo();
     void slot_redo();
+};
+
+class NODISCARD HistoryGroup final
+{
+private:
+    RAIICallback m_callback;
+
+public:
+    explicit HistoryGroup(MapFrontend &map)
+        : m_callback{[&map]() { map.endHistoryGroup(); }}
+    {
+        map.beginHistoryGroup();
+    }
+
+    DELETE_CTORS_AND_ASSIGN_OPS(HistoryGroup);
 };

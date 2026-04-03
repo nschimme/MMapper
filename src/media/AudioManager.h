@@ -30,6 +30,7 @@ public:
 public:
     void onAreaChanged(const RoomArea &area);
     void playSound(const QString &soundName);
+    void stop();
 
 private:
     void updateVolumes();

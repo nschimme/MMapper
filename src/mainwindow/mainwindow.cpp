@@ -1543,6 +1543,9 @@ void MainWindow::closeEvent(QCloseEvent *const event)
         qInfo() << "Attempting to async task for faster shutdown";
         m_progressDlg->reject();
     }
+
+    m_audioManager->stop();
+
     event->accept();
 }
 
@@ -2145,7 +2148,7 @@ void MainWindow::onSuccessfulLoad(const MapLoadData &mapLoadData)
     if (const auto room = mapData.getCurrentRoom()) {
         auto &widget = deref(m_descriptionWidget);
         widget.updateRoom(room);
-        deref(m_audioManager).onAreaChanged(room.getArea());
+        m_audioManager->onAreaChanged(room.getArea());
     }
 
     // Should this be part of mapChanged?

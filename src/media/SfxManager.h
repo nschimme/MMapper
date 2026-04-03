@@ -20,6 +20,9 @@ class NODISCARD_QOBJECT SfxManager final : public QObject
 {
     Q_OBJECT
 
+public:
+    ~SfxManager() override;
+
 private:
 #ifndef MMAPPER_NO_AUDIO
     QAudioOutput *m_output;
@@ -30,6 +33,7 @@ public:
     explicit SfxManager(MediaLibrary &library, QObject *parent = nullptr);
 
     void playSound(const QString &soundName);
+    void stopAllImmediate();
 
     void updateVolume();
 

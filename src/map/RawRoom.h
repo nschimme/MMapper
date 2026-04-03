@@ -16,7 +16,7 @@ struct NODISCARD TaggedRawRoom final : public RoomFieldsGetters<TaggedRawRoom<Ta
                                        public RoomExitFieldsSetters<TaggedRawRoom<Tag_>>
 {
 public:
-    TaggedRawRoom() = default;
+    TaggedRawRoom() {}
 
 public:
     using ExitType = TaggedRawExit<Tag_>;

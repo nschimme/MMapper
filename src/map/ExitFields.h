@@ -9,7 +9,7 @@ struct NODISCARD ExitFields final : public ExitFieldsGetters<ExitFields>,
                                     public ExitFieldsSetters<ExitFields>
 {
 public:
-    ExitFields() = default;
+    ExitFields() {}
 
 public:
 #define X_DECL_FIELD(_Type, _Prop, _OptInit) _Type _Prop _OptInit;

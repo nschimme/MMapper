@@ -11,7 +11,7 @@ struct NODISCARD RoomFields final : public RoomFieldsGetters<RoomFields>,
                                     public RoomFieldsSetters<RoomFields>
 {
 public:
-    RoomFields() = default;
+    RoomFields() {}
 
 public:
 #define X_DECL_FIELD(_Type, _Prop, _OptInit) _Type _Prop{_OptInit};

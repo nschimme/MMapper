@@ -14,7 +14,7 @@ struct NODISCARD TaggedRawExit final : public ExitFieldsGetters<TaggedRawExit<Ta
                                        public ExitFieldsSetters<TaggedRawExit<Tag_>>
 {
 public:
-    TaggedRawExit() = default;
+    TaggedRawExit() {}
 
 public:
     using IdType = std::conditional_t<

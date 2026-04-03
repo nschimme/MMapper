@@ -12,7 +12,6 @@
 namespace mm {
 #if defined(__cpp_lib_source_location) && __cpp_lib_source_location >= 201907L
 using source_location = std::source_location;
-#define MM_SOURCE_LOCATION() (std::source_location::current())
 #else
 struct NODISCARD source_location final
 {
@@ -24,6 +23,11 @@ struct NODISCARD source_location final
     NODISCARD constexpr const char *function_name() const { return this->m_function_name; }
     NODISCARD constexpr std::uint_least32_t line() const { return this->m_line; }
 };
-#define MM_SOURCE_LOCATION() (mm::source_location{__FILE__, __FUNCTION__, __LINE__})
 #endif
 } // namespace mm
+
+#if defined(__cpp_lib_source_location) && __cpp_lib_source_location >= 201907L
+#define MM_SOURCE_LOCATION() (std::source_location::current())
+#else
+#define MM_SOURCE_LOCATION() (mm::source_location{__FILE__, __FUNCTION__, __LINE__})
+#endif

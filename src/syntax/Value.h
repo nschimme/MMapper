@@ -127,20 +127,3 @@ public:
 };
 
 NODISCARD extern Vector getAnyVectorReversed(const Pair *matched);
-
-inline bool Vector::empty() const
-{
-    return m_vector->empty();
-}
-inline size_t Vector::size() const
-{
-    return m_vector->size();
-}
-inline const Value &Vector::at(size_t pos) const
-{
-    return m_vector->at(pos);
-}
-inline const Value &Vector::operator[](size_t pos) const
-{
-    return at(pos);
-}

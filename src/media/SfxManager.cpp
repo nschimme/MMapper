@@ -43,7 +43,7 @@ SfxManager::~SfxManager()
 void SfxManager::playSound(MAYBE_UNUSED const QString &soundName)
 {
     auto &cfg = getConfig().audio;
-    if (!cfg.isUnlocked() || cfg.getSoundVolume() <= 0) {
+    if (!cfg.isUnlocked() || cfg.getSoundVolume() <= 0 || cfg.isSoundMuted()) {
         return;
     }
 
@@ -71,7 +71,7 @@ void SfxManager::playFromData(const QByteArray &data, const QString &soundName)
     }
 
     auto &cfg = getConfig().audio;
-    if (!cfg.isUnlocked() || cfg.getSoundVolume() <= 0) {
+    if (!cfg.isUnlocked() || cfg.getSoundVolume() <= 0 || cfg.isSoundMuted()) {
         return;
     }
 
@@ -117,7 +117,9 @@ void SfxManager::startEffect(const QUrl &url, const QString &tmpToDelete)
 void SfxManager::updateVolume()
 {
 #ifndef MMAPPER_NO_AUDIO
-    m_output->setVolume(static_cast<float>(getConfig().audio.getSoundVolume()) / 100.0f);
+    auto &cfg = getConfig().audio;
+    float volume = cfg.isSoundMuted() ? 0.0f : static_cast<float>(cfg.getSoundVolume()) / 100.0f;
+    m_output->setVolume(volume);
 #endif
 }
 

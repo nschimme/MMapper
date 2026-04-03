@@ -242,7 +242,7 @@ void MusicManager::updateVolumes()
 
     auto &cfg = getConfig().audio;
     float masterVol = static_cast<float>(cfg.getMusicVolume()) / 100.0f;
-    bool canPlay = cfg.isUnlocked() && masterVol > 0;
+    bool canPlay = cfg.isUnlocked() && masterVol > 0 && !cfg.isMusicMuted();
     auto &active = m_channels[m_activeChannel];
     if (canPlay && active.player->playbackState() == QMediaPlayer::StoppedState
         && !active.file.isEmpty()) {
@@ -251,7 +251,8 @@ void MusicManager::updateVolumes()
         }
         active.player->play();
         applyPendingPosition(m_activeChannel);
-    } else if (masterVol <= 0 && active.player->playbackState() == QMediaPlayer::PlayingState) {
+    } else if ((masterVol <= 0 || cfg.isMusicMuted())
+               && active.player->playbackState() == QMediaPlayer::PlayingState) {
         if (!active.file.isEmpty()) {
             m_cachedPositions.insert(active.file, new qint64(active.player->position()));
         }
@@ -293,7 +294,8 @@ void MusicManager::applyPendingPosition(int channelIndex)
 
 void MusicManager::updateChannelVolume(int channelIndex)
 {
-    float masterVol = static_cast<float>(getConfig().audio.getMusicVolume()) / 100.0f;
+    auto &cfg = getConfig().audio;
+    float masterVol = cfg.isMusicMuted() ? 0.0f : static_cast<float>(cfg.getMusicVolume()) / 100.0f;
     m_channels[channelIndex].audioOutput->setVolume(masterVol * m_channels[channelIndex].fadeVolume);
 }
 

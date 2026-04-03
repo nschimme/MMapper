@@ -29,8 +29,10 @@ NODISCARD static ShaderUtils::Source readWholeShader(const std::string &dir, con
 namespace Legacy {
 
 AColorPlainShader::~AColorPlainShader() = default;
+AnimAColorPlainShader::~AnimAColorPlainShader() = default;
 UColorPlainShader::~UColorPlainShader() = default;
 AColorTexturedShader::~AColorTexturedShader() = default;
+AnimAColorTexturedShader::~AnimAColorTexturedShader() = default;
 UColorTexturedShader::~UColorTexturedShader() = default;
 
 RoomQuadTexShader::~RoomQuadTexShader() = default;
@@ -47,8 +49,10 @@ ParticleRenderShader::~ParticleRenderShader() = default;
 void ShaderPrograms::early_init()
 {
     std::ignore = getPlainAColorShader();
+    std::ignore = getAnimPlainAColorShader();
     std::ignore = getPlainUColorShader();
     std::ignore = getTexturedAColorShader();
+    std::ignore = getAnimTexturedAColorShader();
     std::ignore = getTexturedUColorShader();
 
     std::ignore = getRoomQuadTexShader();
@@ -66,8 +70,10 @@ void ShaderPrograms::early_init()
 void ShaderPrograms::resetAll()
 {
     m_aColorShader.reset();
+    m_animAColorShader.reset();
     m_uColorShader.reset();
     m_aTexturedShader.reset();
+    m_animATexturedShader.reset();
     m_uTexturedShader.reset();
 
     m_roomQuadTexShader.reset();
@@ -116,6 +122,13 @@ const std::shared_ptr<AColorPlainShader> &ShaderPrograms::getPlainAColorShader()
     return getInitialized<AColorPlainShader>(m_aColorShader, getFunctions(), "plain/acolor");
 }
 
+const std::shared_ptr<AnimAColorPlainShader> &ShaderPrograms::getAnimPlainAColorShader()
+{
+    return getInitialized<AnimAColorPlainShader>(m_animAColorShader,
+                                                 getFunctions(),
+                                                 "character/acolor");
+}
+
 const std::shared_ptr<UColorPlainShader> &ShaderPrograms::getPlainUColorShader()
 {
     return getInitialized<UColorPlainShader>(m_uColorShader, getFunctions(), "plain/ucolor");
@@ -124,6 +137,13 @@ const std::shared_ptr<UColorPlainShader> &ShaderPrograms::getPlainUColorShader()
 const std::shared_ptr<AColorTexturedShader> &ShaderPrograms::getTexturedAColorShader()
 {
     return getInitialized<AColorTexturedShader>(m_aTexturedShader, getFunctions(), "tex/acolor");
+}
+
+const std::shared_ptr<AnimAColorTexturedShader> &ShaderPrograms::getAnimTexturedAColorShader()
+{
+    return getInitialized<AnimAColorTexturedShader>(m_animATexturedShader,
+                                                    getFunctions(),
+                                                    "character/tex_acolor");
 }
 
 const std::shared_ptr<RoomQuadTexShader> &ShaderPrograms::getRoomQuadTexShader()

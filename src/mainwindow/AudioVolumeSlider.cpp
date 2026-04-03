@@ -13,13 +13,9 @@ AudioVolumeSlider::AudioVolumeSlider(AudioType type, QWidget *const parent)
     setRange(0, 100);
     updateFromConfig();
 
-    connect(this, &QSlider::valueChanged, this, [this](int value) {
-        updateToConfig(value);
-    });
+    connect(this, &QSlider::valueChanged, this, [this](int value) { updateToConfig(value); });
 
-    setConfig().audio.registerChangeCallback(m_lifetime, [this]() {
-        updateFromConfig();
-    });
+    setConfig().audio.registerChangeCallback(m_lifetime, [this]() { updateFromConfig(); });
 
     setToolTip(m_type == AudioType::Music ? tr("Music Volume") : tr("Sound Volume"));
 }

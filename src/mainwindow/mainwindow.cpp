@@ -1548,7 +1548,9 @@ void MainWindow::closeEvent(QCloseEvent *const event)
         m_progressDlg->reject();
     }
 
-    delete std::exchange(m_audioManager, nullptr);
+    if (m_audioManager) {
+        std::exchange(m_audioManager, nullptr)->deleteLater();
+    }
 
     event->accept();
 }

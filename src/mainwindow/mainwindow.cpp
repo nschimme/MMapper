@@ -1539,6 +1539,8 @@ void MainWindow::closeEvent(QCloseEvent *const event)
         return;
     }
 
+    m_audioManager->stop(true);
+
     if (m_asyncTask) {
         qInfo() << "Attempting to async task for faster shutdown";
         m_progressDlg->reject();

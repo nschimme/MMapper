@@ -54,7 +54,7 @@ public:
     ~MusicManager() override;
 
     void playMusic(const QString &musicFile);
-    void stopMusic();
+    void stopMusic(bool immediate = false);
 
 public:
     void updateVolumes();

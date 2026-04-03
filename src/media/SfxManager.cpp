@@ -31,13 +31,7 @@ SfxManager::SfxManager(MediaLibrary &library, QObject *const parent)
 
 SfxManager::~SfxManager()
 {
-#ifndef MMAPPER_NO_AUDIO
-    const auto players = findChildren<QMediaPlayer *>();
-    for (auto *player : players) {
-        player->stop();
-        player->setSource(QUrl());
-    }
-#endif
+    stopAll(true);
 }
 
 void SfxManager::playSound(MAYBE_UNUSED const QString &soundName)
@@ -118,6 +112,19 @@ void SfxManager::updateVolume()
 {
 #ifndef MMAPPER_NO_AUDIO
     m_output->setVolume(static_cast<float>(getConfig().audio.getSoundVolume()) / 100.0f);
+#endif
+}
+
+void SfxManager::stopAll(bool immediate)
+{
+#ifndef MMAPPER_NO_AUDIO
+    if (immediate) {
+        const auto players = findChildren<QMediaPlayer *>();
+        for (auto *player : players) {
+            player->stop();
+            player->setSource(QUrl());
+        }
+    }
 #endif
 }
 

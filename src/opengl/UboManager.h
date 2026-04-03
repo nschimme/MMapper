@@ -29,7 +29,7 @@ namespace Legacy {
  *
  * Note: This class is not thread-safe.
  */
-class UboManager final
+class NODISCARD UboManager final
 {
 public:
     using RebuildFunction = std::function<void(Functions &gl)>;

@@ -411,15 +411,7 @@ ALLOW_DISCARD static inline size_t erase_if(Container &container, Callback &&cal
 template<typename T, typename Predicate>
 NODISCARD bool listRemoveIf(std::list<T> &list, Predicate &&should_remove)
 {
-    bool removed = false;
-    list.remove_if([&removed, &should_remove](const auto &x) {
-        if (should_remove(x)) {
-            removed = true;
-            return true;
-        }
-        return false;
-    });
-    return removed;
+    return std::erase_if(list, std::forward<Predicate>(should_remove)) > 0;
 }
 
 template<typename Container, typename Callback>

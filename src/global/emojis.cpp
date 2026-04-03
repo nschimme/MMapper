@@ -171,44 +171,18 @@ public:
     class NODISCARD HexPrefixTree final
     {
     private:
-#if defined(__cpp_lib_generic_unordered_lookup) && __cpp_lib_generic_unordered_lookup
-        struct NODISCARD Hash final
-        {
-            using is_transparent = void;
-            size_t operator()(const std::u32string &s) const
-            {
-                return std::hash<std::u32string>{}(s);
-            }
-            size_t operator()(std::u32string_view sv) const
-            {
-                return std::hash<std::u32string_view>{}(sv);
-            }
-        };
-        struct NODISCARD Pred final
-        {
-            using is_transparent = void;
-            bool operator()(const std::u32string &a, const std::u32string &b) const
-            {
-                return a == b;
-            }
-            bool operator()(const std::u32string &a, std::u32string_view b) const { return a == b; }
-            bool operator()(std::u32string_view a, const std::u32string &b) const { return a == b; }
-            bool operator()(std::u32string_view a, std::u32string_view b) const { return a == b; }
-        };
-        using Map = std::unordered_map<std::u32string, std::optional<std::u32string>, Hash, Pred>;
-#else
+        // REVISIT: consider using std::unordered_map
         struct NODISCARD Comp final
         {
             using is_transparent = void;
             using T1 = const std::u32string &;
             using T2 = const std::u32string_view;
-            bool operator()(T1 a, T1 b) const { return a < b; }
-            bool operator()(T1 a, T2 b) const { return a < b; }
-            bool operator()(T2 a, T1 b) const { return a < b; }
+            NODISCARD bool operator()(T1 a, T1 b) const { return a < b; }
+            NODISCARD bool operator()(T1 a, T2 b) const { return a < b; }
+            NODISCARD bool operator()(T2 a, T1 b) const { return a < b; }
             // bool operator()(T2 a, T2 b) const { return a < b; }
         };
         using Map = std::map<std::u32string, std::optional<std::u32string>, Comp>;
-#endif
 
         Map m_map;
 

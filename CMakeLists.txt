@@ -419,6 +419,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         endif()
 
         add_compile_options(-Weverything)
+        add_compile_options(-Wno-c++20-compat)
         add_compile_options(-Wno-c++98-c++11-compat-binary-literal) # never useful.
         add_compile_options(-Wno-c++98-compat) # never useful.
         add_compile_options(-Wno-c++98-compat-pedantic) # sometimes useful.

@@ -17,9 +17,7 @@ QString getAssetsPath()
 
 #include <QtTest/QtTest>
 
-void TestMedia::initTestCase()
-{
-}
+void TestMedia::initTestCase() {}
 
 void TestMedia::musicManagerStopTest()
 {
@@ -58,8 +56,6 @@ void TestMedia::audioManagerStopTest()
     manager.stop(false);
 }
 
-void TestMedia::cleanupTestCase()
-{
-}
+void TestMedia::cleanupTestCase() {}
 
 QTEST_MAIN(TestMedia)

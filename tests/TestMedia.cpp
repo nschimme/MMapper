@@ -3,6 +3,7 @@
 
 #include "TestMedia.h"
 
+#include "../src/configuration/configuration.h"
 #include "../src/display/Filenames.h"
 #include "../src/media/AudioManager.h"
 
@@ -17,7 +18,10 @@ QString getAssetsPath()
 
 #include <QtTest/QtTest>
 
-void TestMedia::initTestCase() {}
+void TestMedia::initTestCase()
+{
+    setEnteredMain();
+}
 
 void TestMedia::musicManagerStopTest()
 {

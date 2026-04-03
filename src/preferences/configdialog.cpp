@@ -18,9 +18,32 @@
 #include "pathmachinepage.h"
 #include "ui_configdialog.h"
 
+#include <QAbstractSlider>
+#include <QAbstractSpinBox>
+#include <QComboBox>
 #include <QIcon>
 #include <QListWidget>
 #include <QtWidgets>
+
+namespace {
+class WheelEventFilter final : public QObject
+{
+public:
+    explicit WheelEventFilter(QObject *const parent)
+        : QObject(parent)
+    {
+    }
+
+    bool eventFilter(QObject *const obj, QEvent *const event) override
+    {
+        if (event->type() == QEvent::Wheel) {
+            event->ignore();
+            return true;
+        }
+        return QObject::eventFilter(obj, event);
+    }
+};
+} // namespace
 
 ConfigDialog::ConfigDialog(QWidget *const parent)
     : QDialog(parent)
@@ -86,6 +109,17 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
             &GraphicsPage::sig_graphicsSettingsChanged,
             this,
             &ConfigDialog::sig_graphicsSettingsChanged);
+
+    auto *const filter = new WheelEventFilter(this);
+    for (auto *const comboBox : findChildren<QComboBox *>()) {
+        comboBox->installEventFilter(filter);
+    }
+    for (auto *const slider : findChildren<QAbstractSlider *>()) {
+        slider->installEventFilter(filter);
+    }
+    for (auto *const spinBox : findChildren<QAbstractSpinBox *>()) {
+        spinBox->installEventFilter(filter);
+    }
 }
 
 ConfigDialog::~ConfigDialog()

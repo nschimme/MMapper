@@ -51,18 +51,18 @@ public:
      * @brief Accesses the CPU-side shadow copy of a UBO block by its enum.
      */
     template<SharedVboEnum Block>
-    NODISCARD typename BlockType<Block>::type &get()
+    NODISCARD BlockType_t<Block> &get()
     {
-        return std::get<typename BlockType<Block>::type>(m_shadowBlocks);
+        return std::get<BlockType_t<Block>>(m_shadowBlocks);
     }
 
     /**
      * @brief Accesses the CPU-side shadow copy of a UBO block by its enum (const).
      */
     template<SharedVboEnum Block>
-    NODISCARD const typename BlockType<Block>::type &get() const
+    NODISCARD const BlockType_t<Block> &get() const
     {
-        return std::get<typename BlockType<Block>::type>(m_shadowBlocks);
+        return std::get<BlockType_t<Block>>(m_shadowBlocks);
     }
 
     /**
@@ -107,7 +107,10 @@ public:
     /**
      * @brief Checks if a UBO block is currently dirty/invalid.
      */
-    NODISCARD bool isInvalid(SharedVboEnum block) const { return !m_boundBuffers[block].has_value(); }
+    NODISCARD bool isInvalid(SharedVboEnum block) const
+    {
+        return !m_boundBuffers[block].has_value();
+    }
 
     /**
      * @brief Rebuilds the UBO if it's invalid using the registered rebuild function.
@@ -179,7 +182,7 @@ public:
      * Also updates the shadow copy.
      */
     template<SharedVboEnum Block>
-    ALLOW_DISCARD GLuint update(Functions &gl, const typename BlockType<Block>::type &data)
+    ALLOW_DISCARD GLuint update(Functions &gl, const BlockType_t<Block> &data)
     {
         get<Block>() = data;
         return update(gl, Block, data);
@@ -202,7 +205,7 @@ public:
     template<SharedVboEnum Block, typename T, typename... Us>
     void syncFields(Functions &gl, Us T::*...members)
     {
-        using BlockType = typename BlockType<Block>::type;
+        using BlockType = BlockType_t<Block>;
         static_assert(std::is_same_v<T, BlockType>, "Members must belong to the correct block type");
         static_assert(std::is_standard_layout_v<BlockType>,
                       "Block type must have standard layout for offset calculation");

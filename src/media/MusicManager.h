@@ -37,7 +37,7 @@ private:
         float fadeVolume = 0.0f;
     };
 
-    MusicChannel m_channels[2];
+    MusicChannel m_channels[2]; // TODO: use std::array or MMapper::Array
     int m_activeChannel = 0;
     QCache<QString, qint64> m_cachedPositions;
     QCache<QString, QTemporaryFile> m_wasmFiles;

@@ -40,4 +40,5 @@ private Q_SLOTS:
     static void toNumberTest();
     static void unquoteTest();
     static void weakHandleTest();
+    static void wheelEventFilterTest();
 };

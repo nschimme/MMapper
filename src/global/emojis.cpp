@@ -612,7 +612,7 @@ NODISCARD QString mmqt::encodeEmojiShortCodes(const QString &s)
 
             // REVISIT: should this include "U+" or not?
             char hex[32];
-            snprintf(hex, sizeof(hex), "[:U+%X:]", c);
+            snprintf(hex, sizeof(hex), "[:U+%X:]", static_cast<unsigned int>(c));
             for (const char ascii : std::string_view{hex}) {
                 m_output += static_cast<char32_t>(static_cast<uint8_t>(ascii));
             }

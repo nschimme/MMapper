@@ -31,13 +31,24 @@ NODISCARD constexpr bool isSameIntValue(const A a, const B b) noexcept
 template<typename FloatType>
 NODISCARD constexpr bool isNan(const FloatType f) noexcept
 {
+#if defined(__cpp_lib_constexpr_cmath) && __cpp_lib_constexpr_cmath >= 202202L
     return std::isnan(f);
+#else
+    // std::isnan() is not constexpr in all C++20 implementations (e.g. MSVC 2022)
+    return f != f;
+#endif
 }
 
 template<typename FloatType>
 NODISCARD constexpr bool isFinite(const FloatType f) noexcept
 {
+#if defined(__cpp_lib_constexpr_cmath) && __cpp_lib_constexpr_cmath >= 202202L
     return std::isfinite(f);
+#else
+    // std::isfinite() is not constexpr in all C++20 implementations (e.g. MSVC 2022)
+    const auto inf = std::numeric_limits<FloatType>::infinity();
+    return !isNan(f) && -inf < f && f < inf;
+#endif
 }
 
 template<typename FloatType, typename IntType>

@@ -21,6 +21,7 @@ void TestMedia::initTestCase() {}
 
 void TestMedia::musicManagerStopTest()
 {
+#ifndef MMAPPER_NO_AUDIO
     MediaLibrary library;
     MusicManager manager(library);
 
@@ -29,10 +30,12 @@ void TestMedia::musicManagerStopTest()
 
     // immediate stop
     manager.stopMusic(true);
+#endif
 }
 
 void TestMedia::sfxManagerStopTest()
 {
+#ifndef MMAPPER_NO_AUDIO
     MediaLibrary library;
     SfxManager manager(library);
 
@@ -41,10 +44,12 @@ void TestMedia::sfxManagerStopTest()
 
     // non-immediate stop (no-op in current implementation but test for coverage)
     manager.stopAll(false);
+#endif
 }
 
 void TestMedia::audioManagerStopTest()
 {
+#ifndef MMAPPER_NO_AUDIO
     MediaLibrary library;
     GameObserver observer;
     AudioManager manager(library, observer);
@@ -54,6 +59,7 @@ void TestMedia::audioManagerStopTest()
 
     // standard stop
     manager.stop(false);
+#endif
 }
 
 void TestMedia::cleanupTestCase() {}

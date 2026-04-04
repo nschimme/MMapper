@@ -4,7 +4,6 @@
 
 #include "AbstractParser-Commands.h"
 
-#include "../global/AsyncTasks.h"
 #include "../global/CaseUtils.h"
 #include "../global/Consts.h"
 #include "../global/LineUtils.h"
@@ -17,11 +16,11 @@
 #include "../map/enums.h"
 #include "../map/infomark.h"
 #include "../mapdata/mapdata.h"
+#include "../observer/gameobserver.h"
 #include "../syntax/SyntaxArgs.h"
 #include "../syntax/TreeParser.h"
 #include "../viewers/AnsiViewWindow.h"
 #include "../viewers/LaunchAsyncViewer.h"
-#include "../viewers/TopLevelWindows.h"
 #include "Abbrev.h"
 #include "AbstractParser-Utils.h"
 #include "DoorAction.h"
@@ -37,8 +36,181 @@
 #include <utility>
 #include <vector>
 
-#include <QMessageLogContext>
 #include <QtCore>
+
+namespace { // anonymous
+
+NODISCARD std::string_view safe_substr(const std::string_view sv, const size_t maxlen)
+{
+    if (sv.size() > maxlen) {
+        return sv.substr(0, maxlen);
+    }
+    return sv; // NOLINT (clang-tidy false positive)
+}
+
+NODISCARD bool compareUtf8NoCase(const std::string_view a, const std::string_view b)
+{
+    // this is disgusting
+    return QString::compare(mmqt::toQByteArrayUtf8(a),
+                            mmqt::toQByteArrayUtf8(b),
+                            Qt::CaseInsensitive)
+           == 0;
+}
+
+struct NODISCARD SendToUserHelper final
+{
+private:
+    std::ostringstream m_oss;
+    AnsiOstream m_aos{m_oss};
+    AbstractParser &m_self;
+    SendToUserSourceEnum m_source = SendToUserSourceEnum::FromMMapper;
+
+public:
+    explicit SendToUserHelper(AbstractParser &self,
+                              SendToUserSourceEnum src = SendToUserSourceEnum::FromMMapper)
+        : m_self{self}
+        , m_source{src}
+    {}
+    DELETE_CTORS_AND_ASSIGN_OPS(SendToUserHelper);
+    ~SendToUserHelper()
+    {
+        if (!m_aos.hasNewline()) {
+            m_aos.writeNewline();
+        }
+        m_self.sendToUser(m_source, m_oss.str());
+    }
+    NODISCARD AnsiOstream &getAnsiOstream() { return m_aos; }
+};
+
+template<typename T>
+concept PointerConcept = std::is_pointer_v<T>;
+
+template<typename T>
+concept ContiguousContainer = requires(const T &x) {
+    { x.data() } -> PointerConcept;
+    { x.size() } -> std::integral;
+    { x.empty() } -> std::same_as<bool>;
+};
+
+template<typename E>
+concept EnumConcept = std::is_enum_v<E>;
+
+template<typename T>
+concept StringViewGetter = requires(const T &x) {
+    { x() } -> std::same_as<std::string_view>;
+};
+
+template<typename T>
+concept EnumIndexecContiguousContainer
+    = ContiguousContainer<T> and EnumConcept<typename T::index_type>
+      and ((requires(const T &x, const typename T::index_type e) {
+               // returns const ref
+               { x[e] } -> std::same_as<const typename T::value_type &>;
+           }) or (requires(const T &x, const typename T::index_type e) {
+               // returns by value
+               { x[e] } -> std::same_as<typename T::value_type>;
+           }) or (requires(T &x, const typename T::index_type e) {
+               // returns mutable reference
+               { x[e] } -> std::same_as<typename T::value_type &>;
+           }));
+
+template<typename T>
+concept StringLikeConcept = std::is_same_v<std::string_view, std::remove_cvref_t<T>>
+                            or std::is_same_v<std::string, std::remove_cvref_t<T>>
+                            or std::is_same_v<const char *, std::remove_cvref_t<T>>;
+
+template<typename T>
+concept EnumIndexecContiguousStringContainer = EnumIndexecContiguousContainer<T>
+                                               and requires(const T &x) {
+                                                       { *x.data() } -> StringLikeConcept;
+                                                   };
+
+// test the EnumIndexecContiguousStringContainer concept:
+template<typename T>
+using CommandArray = EnumIndexedArray<T, CommandEnum, NUM_COMMANDS>;
+static_assert(EnumIndexecContiguousStringContainer<CommandArray<std::string>>);
+static_assert(EnumIndexecContiguousStringContainer<CommandArray<std::string_view>>);
+static_assert(EnumIndexecContiguousStringContainer<CommandArray<const char *>>);
+
+template<EnumIndexecContiguousStringContainer Container>
+auto find_abbrev(const Container &container,
+                 const std::string_view input_sv,
+                 const size_t required_len) -> std::optional<typename Container::index_type>
+{
+    using E = typename Container::index_type;
+    if (const auto arglen = input_sv.size(); arglen >= required_len) {
+        for (const std::string_view w : container) {
+            if (compareUtf8NoCase(input_sv, safe_substr(w, arglen))) {
+                if (std::optional<E> opt = container.findIndexOf(w)) {
+                    return opt;
+                }
+            }
+        }
+    }
+    return std::nullopt;
+};
+
+// This might be able to support EnumIndexecContiguousContainer instead of
+// EnumIndexecContiguousStringContainer, but we'd need a concept to check
+// if the contained type can be written to an ansi ostream.
+template<EnumIndexecContiguousStringContainer Container>
+void concat_comma_and_or(AnsiOstream &aos,
+                         const Container &container,
+                         // color each word int he container
+                         const RawAnsi &ansi,
+                         // e.g. "and" or "or"
+                         const std::string_view and_or)
+{
+    using E = typename Container::index_type;
+    if (container.empty()) {
+        return; // This is probably an error, so maybe it should throw or print "(none)" ?
+    }
+    const size_t size = container.size();
+    for (size_t i = 0; i < size; ++i) {
+        if (i != 0) {
+            aos << ", ";
+            if (i + 1 == size && !and_or.empty()) {
+                aos << and_or << " ";
+            }
+        }
+        const auto e = static_cast<E>(i);
+        aos << ColoredValue{ansi, container[e]};
+    }
+}
+
+// one or more question marks
+template<typename T>
+NODISCARD bool is_question_marks(const T word)
+{
+    if constexpr (std::is_same_v<T, std::string_view>) {
+        return !word.empty() && std::all_of(word.begin(), word.end(), [](char c) -> bool {
+            return c == char_consts::C_QUESTION_MARK;
+        });
+    } else if constexpr (std::is_same_v<T, StringView>) {
+        return is_question_marks<std::string_view>(word.getStdStringView());
+    } else {
+        static_assert(std::is_same_v<T, void>, "unsupported word type");
+        std::abort();
+    }
+}
+
+constexpr auto green = getRawAnsi(AnsiColor16Enum::green);
+constexpr auto red = getRawAnsi(AnsiColor16Enum::red);
+constexpr auto yellow = getRawAnsi(AnsiColor16Enum::yellow);
+
+constexpr EnumIndexedArray<std::string_view, PromptFogEnum, NUM_PROMPT_FOG_TYPES> all_fog_names{
+#define X_CASE(_x) std::string_view{#_x},
+    XFOREACH_PROMPT_FOG_ENUM(X_CASE)
+#undef X_CASE
+};
+constexpr EnumIndexedArray<std::string_view, PromptWeatherEnum, NUM_PROMPT_WEATHER_TYPES>
+    all_weather_names{
+#define X_CASE(_x) std::string_view{#_x},
+        XFOREACH_PROMPT_WEATHER_ENUM(X_CASE)
+#undef X_CASE
+    };
+
+} // namespace
 
 const Abbrev cmdBack{"back"};
 const Abbrev cmdConfig{"config", 4};
@@ -514,13 +686,36 @@ bool AbstractParser::parseDoorAction(const DoorActionEnum dat, StringView words)
 
 void AbstractParser::parseSetCommand(StringView view)
 {
+    auto show_set_syntax = [this] {
+        SendToUserHelper helper{*this};
+        AnsiOstream &aos = helper.getAnsiOstream();
+
+        aos << "Syntax:" << AnsiOstream::endl;
+        aos << "  " << getPrefixChar() << "set ..." << AnsiOstream::endl;
+        {
+            aos << "    ... fog [";
+            concat_comma_and_or(aos, all_fog_names, green, "or");
+            aos << "]" << AnsiOstream::endl;
+        }
+        aos << "    ... prefix [punct-char]" << AnsiOstream::endl;
+        {
+            aos << "    ... weather [";
+            concat_comma_and_or(aos, all_weather_names, green, "or");
+            aos << "]" << AnsiOstream::endl;
+        }
+    };
+
     if (view.isEmpty()) {
-        sendToUser(SendToUserSourceEnum::FromMMapper,
-                   QString("Syntax: %1set prefix [punct-char]\n").arg(getPrefixChar()));
+        show_set_syntax();
         return;
     }
 
     auto first = view.takeFirstWord();
+    if (is_question_marks(first)) {
+        show_set_syntax();
+        return;
+    }
+
     if (Abbrev{"prefix", 3}.matches(first)) {
         if (view.isEmpty()) {
             showCommandPrefix();
@@ -549,7 +744,85 @@ void AbstractParser::parseSetCommand(StringView view)
         return;
     }
 
-    sendToUser(SendToUserSourceEnum::FromMMapper, "That variable is not supported.");
+    auto process_set_command = [this,
+                                &view](const std::string_view what,
+                                       const EnumIndexecContiguousStringContainer auto &enum_names,
+                                       const size_t required_len,
+                                       StringViewGetter auto &&get,
+                                       auto &&set) {
+        using E = typename std::remove_cvref_t<decltype(enum_names)>::index_type;
+        static_assert(std::is_invocable_r_v<void, decltype(set), E>,
+                      "constraints not satisfied"); // easier than writing a concept.
+
+        if (view.isEmpty()) {
+            SendToUserHelper helper{*this};
+            AnsiOstream &aos = helper.getAnsiOstream();
+            aos << "The current " << what << " is: " << ColoredValue{green, get()} << ".";
+            return;
+        }
+
+        const auto next = view.takeFirstWord();
+        const auto input_sv = next.getStdStringView();
+
+        auto show_sim = [this, &enum_names, what](const E e) {
+            SendToUserHelper helper{*this};
+            AnsiOstream &aos = helper.getAnsiOstream();
+            aos << "Simulating " << what << ": " << ColoredValue{green, enum_names[e]} << "...";
+        };
+
+        auto choose = [&show_sim, &set](const E e) {
+            show_sim(e);
+            set(e);
+        };
+
+        auto failure = [this, input_sv, &enum_names, what]() {
+            SendToUserHelper helper{*this};
+            AnsiOstream &aos = helper.getAnsiOstream();
+
+            if (!is_question_marks(input_sv)) {
+                aos << "Error: Unrecognized " << what
+                    << " option: " << ColoredQuotedStringView{red, yellow, input_sv} << "."
+                    << AnsiOstream::endl;
+            }
+
+            aos << "Valid " << what << " options: ";
+            concat_comma_and_or(aos, enum_names, green, "or");
+            aos << "." << AnsiOstream::endl;
+        };
+
+        if (auto opt = find_abbrev(enum_names, input_sv, required_len)) {
+            choose(*opt);
+        } else {
+            failure();
+        }
+    };
+
+    if (Abbrev{"fog", 3}.matches(first)) {
+        process_set_command(
+            "fog",
+            all_fog_names,
+            2, // "no" should match "no_fog"
+            [this]() -> std::string_view { return to_string_view(m_gameObserver.getFog()); },
+            [this](const PromptFogEnum e) { m_gameObserver.observeFog(e); });
+        return;
+    } else if (Abbrev{"weather", 3}.matches(first)) {
+        process_set_command(
+            "weather",
+            all_weather_names,
+            3,
+            [this]() -> std::string_view { return to_string_view(m_gameObserver.getWeather()); },
+            [this](const PromptWeatherEnum e) { m_gameObserver.observeWeather(e); });
+
+        return;
+    }
+
+    {
+        SendToUserHelper helper{*this};
+        AnsiOstream &aos = helper.getAnsiOstream();
+        aos << "Error: " << ColoredQuotedStringView{red, yellow, first.getStdStringView()}
+            << " is not a valid variable name." << AnsiOstream::endl;
+    }
+    show_set_syntax();
 }
 
 void AbstractParser::parseSpecialCommand(StringView wholeCommand)

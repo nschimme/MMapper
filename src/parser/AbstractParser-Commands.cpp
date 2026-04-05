@@ -82,18 +82,22 @@ public:
     NODISCARD AnsiOstream &getAnsiOstream() { return m_aos; }
 };
 
+namespace concepts {
 template<typename T>
-concept PointerConcept = std::is_pointer_v<T>;
-
-template<typename T>
-concept ContiguousContainer = requires(const T &x) {
-    { x.data() } -> PointerConcept;
+concept ContiguousContainer = requires { typename T::value_type; } and requires(const T &x) {
+    { x.data() } -> std::same_as<const typename T::value_type *>;
     { x.size() } -> std::integral;
     { x.empty() } -> std::same_as<bool>;
+    x.begin();
+    x.end();
+} and requires(T &x) {
+    { x.data() } -> std::same_as<typename T::value_type *>;
+    x.begin();
+    x.end();
 };
 
 template<typename E>
-concept EnumConcept = std::is_enum_v<E>;
+concept IsEnum = std::is_enum_v<E>;
 
 template<typename T>
 concept StringViewGetter = requires(const T &x) {
@@ -101,41 +105,37 @@ concept StringViewGetter = requires(const T &x) {
 };
 
 template<typename T>
-concept EnumIndexecContiguousContainer
-    = ContiguousContainer<T> and EnumConcept<typename T::index_type>
-      and ((requires(const T &x, const typename T::index_type e) {
-               // returns const ref
-               { x[e] } -> std::same_as<const typename T::value_type &>;
-           }) or (requires(const T &x, const typename T::index_type e) {
-               // returns by value
-               { x[e] } -> std::same_as<typename T::value_type>;
-           }) or (requires(T &x, const typename T::index_type e) {
-               // returns mutable reference
-               { x[e] } -> std::same_as<typename T::value_type &>;
-           }));
+concept EnumIndexedContiguousContainer = ContiguousContainer<T> and requires {
+    typename T::index_type;
+} and IsEnum<typename T::index_type> and requires(const T &x, const typename T::index_type e) {
+    { x[e] } -> std::same_as<const typename T::value_type &>;
+} and requires(T &x, const typename T::index_type e) {
+    { x[e] } -> std::same_as<typename T::value_type &>;
+};
 
 template<typename T>
-concept StringLikeConcept = std::is_same_v<std::string_view, std::remove_cvref_t<T>>
-                            or std::is_same_v<std::string, std::remove_cvref_t<T>>
-                            or std::is_same_v<const char *, std::remove_cvref_t<T>>;
-
-template<typename T>
-concept EnumIndexecContiguousStringContainer = EnumIndexecContiguousContainer<T>
-                                               and requires(const T &x) {
-                                                       { *x.data() } -> StringLikeConcept;
-                                                   };
+concept EnumIndexedContiguousStringContainer
+    = EnumIndexedContiguousContainer<T> and requires(const T &x) {
+          { *x.data() } -> std::convertible_to<std::string_view>;
+      } and requires(const T &x, const typename T::index_type e) {
+          { x[e] } -> std::convertible_to<std::string_view>;
+      };
 
 // test the EnumIndexecContiguousStringContainer concept:
 template<typename T>
 using CommandArray = EnumIndexedArray<T, CommandEnum, NUM_COMMANDS>;
-static_assert(EnumIndexecContiguousStringContainer<CommandArray<std::string>>);
-static_assert(EnumIndexecContiguousStringContainer<CommandArray<std::string_view>>);
-static_assert(EnumIndexecContiguousStringContainer<CommandArray<const char *>>);
+static_assert(!EnumIndexedContiguousStringContainer<CommandArray<int>>);
+static_assert(EnumIndexedContiguousStringContainer<CommandArray<std::string>>);
+static_assert(EnumIndexedContiguousStringContainer<CommandArray<std::string_view>>);
+static_assert(EnumIndexedContiguousStringContainer<CommandArray<const char *>>);
 
-template<EnumIndexecContiguousStringContainer Container>
-auto find_abbrev(const Container &container,
-                 const std::string_view input_sv,
-                 const size_t required_len) -> std::optional<typename Container::index_type>
+} // namespace concepts
+
+template<concepts::EnumIndexedContiguousStringContainer Container>
+NODISCARD auto find_abbrev(const Container &container,
+                           const std::string_view input_sv,
+                           const size_t required_len)
+    -> std::optional<typename Container::index_type>
 {
     using E = typename Container::index_type;
     if (const auto arglen = input_sv.size(); arglen >= required_len) {
@@ -153,7 +153,7 @@ auto find_abbrev(const Container &container,
 // This might be able to support EnumIndexecContiguousContainer instead of
 // EnumIndexecContiguousStringContainer, but we'd need a concept to check
 // if the contained type can be written to an ansi ostream.
-template<EnumIndexecContiguousStringContainer Container>
+template<concepts::EnumIndexedContiguousStringContainer Container>
 void concat_comma_and_or(AnsiOstream &aos,
                          const Container &container,
                          // color each word int he container
@@ -209,6 +209,56 @@ constexpr EnumIndexedArray<std::string_view, PromptWeatherEnum, NUM_PROMPT_WEATH
         XFOREACH_PROMPT_WEATHER_ENUM(X_CASE)
 #undef X_CASE
     };
+
+template<concepts::EnumIndexedContiguousStringContainer Container,
+         concepts::StringViewGetter Getter,
+         typename Setter>
+    requires(std::is_invocable_r_v<void, Setter, typename Container::index_type>)
+void trySetEnumValue(AbstractParser &parser,
+                     StringView view,
+                     const std::string_view what,
+                     const Container &enum_names,
+                     const size_t required_len,
+                     Getter &&get,
+                     Setter &&set)
+{
+    using E = typename Container::index_type;
+
+    if (view.isEmpty()) {
+        SendToUserHelper helper{parser};
+        AnsiOstream &aos = helper.getAnsiOstream();
+        aos << "The current " << what << " is: " << ColoredValue{green, get()} << ".";
+        return;
+    }
+
+    const auto next = view.takeFirstWord();
+    const auto input_sv = next.getStdStringView();
+
+    if (const std::optional<E> opt = find_abbrev(enum_names, input_sv, required_len)) {
+        // success
+        const E e = *opt;
+        {
+            SendToUserHelper helper{parser};
+            AnsiOstream &aos = helper.getAnsiOstream();
+            aos << "Setting " << what << " to " << ColoredValue{green, enum_names[e]} << "...";
+        }
+        set(e);
+    } else {
+        // failure
+        SendToUserHelper helper{parser};
+        AnsiOstream &aos = helper.getAnsiOstream();
+
+        if (!is_question_marks(input_sv)) {
+            aos << "Error: Unrecognized " << what
+                << " option: " << ColoredQuotedStringView{red, yellow, input_sv} << "."
+                << AnsiOstream::endl;
+        }
+
+        aos << "Valid " << what << " options: ";
+        concat_comma_and_or(aos, enum_names, green, "or");
+        aos << "." << AnsiOstream::endl;
+    }
+}
 
 } // namespace
 
@@ -744,75 +794,27 @@ void AbstractParser::parseSetCommand(StringView view)
         return;
     }
 
-    auto process_set_command = [this,
-                                &view](const std::string_view what,
-                                       const EnumIndexecContiguousStringContainer auto &enum_names,
-                                       const size_t required_len,
-                                       StringViewGetter auto &&get,
-                                       auto &&set) {
-        using E = typename std::remove_cvref_t<decltype(enum_names)>::index_type;
-        static_assert(std::is_invocable_r_v<void, decltype(set), E>,
-                      "constraints not satisfied"); // easier than writing a concept.
-
-        if (view.isEmpty()) {
-            SendToUserHelper helper{*this};
-            AnsiOstream &aos = helper.getAnsiOstream();
-            aos << "The current " << what << " is: " << ColoredValue{green, get()} << ".";
-            return;
-        }
-
-        const auto next = view.takeFirstWord();
-        const auto input_sv = next.getStdStringView();
-
-        auto show_sim = [this, &enum_names, what](const E e) {
-            SendToUserHelper helper{*this};
-            AnsiOstream &aos = helper.getAnsiOstream();
-            aos << "Simulating " << what << ": " << ColoredValue{green, enum_names[e]} << "...";
-        };
-
-        auto choose = [&show_sim, &set](const E e) {
-            show_sim(e);
-            set(e);
-        };
-
-        auto failure = [this, input_sv, &enum_names, what]() {
-            SendToUserHelper helper{*this};
-            AnsiOstream &aos = helper.getAnsiOstream();
-
-            if (!is_question_marks(input_sv)) {
-                aos << "Error: Unrecognized " << what
-                    << " option: " << ColoredQuotedStringView{red, yellow, input_sv} << "."
-                    << AnsiOstream::endl;
-            }
-
-            aos << "Valid " << what << " options: ";
-            concat_comma_and_or(aos, enum_names, green, "or");
-            aos << "." << AnsiOstream::endl;
-        };
-
-        if (auto opt = find_abbrev(enum_names, input_sv, required_len)) {
-            choose(*opt);
-        } else {
-            failure();
-        }
-    };
-
     if (Abbrev{"fog", 3}.matches(first)) {
-        process_set_command(
+        trySetEnumValue(
+            *this,
+            view,
             "fog",
             all_fog_names,
             2, // "no" should match "no_fog"
             [this]() -> std::string_view { return to_string_view(m_gameObserver.getFog()); },
             [this](const PromptFogEnum e) { m_gameObserver.observeFog(e); });
         return;
-    } else if (Abbrev{"weather", 3}.matches(first)) {
-        process_set_command(
+    }
+
+    if (Abbrev{"weather", 3}.matches(first)) {
+        trySetEnumValue(
+            *this,
+            view,
             "weather",
             all_weather_names,
             3,
             [this]() -> std::string_view { return to_string_view(m_gameObserver.getWeather()); },
             [this](const PromptWeatherEnum e) { m_gameObserver.observeWeather(e); });
-
         return;
     }
 

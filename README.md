@@ -17,6 +17,9 @@ MMapper is a graphical mapping tool for the MUD (Multi-User Dungeon) game MUME (
 - **Navigate Easily**: By highlighting terrain types (e.g., forests, roads, mountains) and exits, MMapper helps you quickly understand your environment and find the fastest path.
 - **Enhanced Gameplay**: With features like terrain detection, pseudo-3D views, and group map sharing, MMapper adds an extra layer of convenience and immersion to your MUME experience.
 
+## Minimum System Requirements
+MMapper requires a computer with **Windows 11**, **macOS 13 (Ventura)**, or a modern Linux distribution like **Ubuntu 22.04 LTS**. It requires a GPU that supports **OpenGL 3.3** or **OpenGL ES 3.0**. Detailed requirements can be found [here](docs/_includes/requirements.md).
+
 ## Key Features
 - **Automated Mapping**: Rooms, terrain types, exits, and connections are automatically mapped and updated as you explore. The map updates in real-time as you move through the game world.
 - **Interactive Map**: Fast OpenGL rendering provides smooth navigation, and the pseudo-3D view allows you to manage room layers with drag-and-drop functionality.

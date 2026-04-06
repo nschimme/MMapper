@@ -37,12 +37,39 @@ jobs:
 
     - name: Add KDE Neon repository
       run: |
+        # Download and de-armor the KDE Neon GPG key.
+        # We try multiple ways to get the key as archive.neon.kde.org is often down (502 errors).
         if [ ! -f kde-neon.gpg ]; then
-          curl -sSfL --retry 5 --retry-delay 5 https://archive.neon.kde.org/public.key | gpg --dearmor --yes -o kde-neon.gpg
+          # 1. Try downloading from the primary source
+          if ! curl -sSfL --retry 3 --retry-delay 5 https://archive.neon.kde.org/public.key | gpg --dearmor --yes -o kde-neon.gpg; then
+            echo "Warning: Failed to download key from archive.neon.kde.org, trying keyserver.ubuntu.com..."
+            # 2. Try fetching from Ubuntu keyserver (Key ID: 444DABCF3667D0283F894EDDE6D4736255751E5D)
+            if ! gpg --no-default-keyring --keyring ./temp-keyring.gpg --keyserver hkps://keyserver.ubuntu.com --recv-keys 444DABCF3667D0283F894EDDE6D4736255751E5D; then
+               echo "Warning: Failed to fetch key from keyserver.ubuntu.com, using embedded fallback..."
+               # 3. Last resort: use embedded base64 of the de-armored key
+               echo "mQINBFZzyHQBEACp99aWXcCS0a5uOXsJ6SahpN34tF1DkZisg0Np/e2AJ4hrWXWMeqFuB8zeKB5JkEBm8EGI4qnxUU8YdPsUhZVlB3X9tm3la1vzcyAFx8sYUYBAgZe5paOOFUary6GV1738NPkoDsQtJdcKMOD6l9KaRR6Oop6gi25CPqNWon2D5EbCGrz969SewsXx21ov71bQnBLcErgqwujyt973R8d13W6M66ul6TFK9OA1ZHjA6Hjl7Yr1wNw7ckL9SRZ3ICbSIySaNkauw77EuPMP0SPqa+7sTeCM05DKZF3YPktb6i44fFHBlH9CEla+8t8s7mGeUfxkDfYtaG1R5/3/o54aJq071SuDDB7tkbVcVG3zFDx8rZF0FfC70kkPYdJbX8r7y+wne1sEdVqX6rLnzTn2U2eedUnZPMoeVpF/bWPanM/sobE6hfdkZt4bQL974eILRynBvLfxMjKZPA8nDzlZflvAP12n3qZNeWkAjITnk5g9QZ/P+/MXSdya0JwG9sL8jMKAmaBMTkbNos4wwc5v8YYSewcDauBBTeCVcYxw7OZ72rb6fbDfCSrAnKoSC8BNQhwf82J/Dp+BiiNBGoVrx2PSrfpWEmYi04Z4gd9WXPgszhvu1UEubxNDWr7XyQ+6JEuDqoW3E589u6bMd1tJmmXKbhfOybxut0cZPql+gQARAQABtAdOZW9uIENJiQI4BBMBAgAiBQJWc8h0AhsDBgsJCAcDAgYVCAIJCgsEFgIDAQIeAQIXgAAKCRDm1HNiVXUeXSLQD/9FjEY0pmWh/pW/v68s2hlQOlEVtlisEnxNV+TNNBSDKej711cV6qjlPOZGJ5wQiiEGOO8xajhhCbTvvIwZSE8wz8B+kO84hYtRzJXKaY2ZwuC46pNAWbHJ86VMqdRtjQQ5+jzI00/BA9nzFkdIPBBbIsivBoVJUI4OF1FYfYHZUtC28YqtRtREyVQl736e2CLGFRv+yDQ7Nj1UPvQIfAB6NjrZ0yF12PLCaWVb+J92StmKcSUxlbrdTQtD2qNsBW19Vf62gmb3y3BS6jGQjUv8izP//2f21WtaapJ0yTWWhD+IAX8e3SCiFSG2G5Rmh/cjZJIUOyuDMZj4wb1q832qA4DyKDXndPM1LPZaR9o/IKn2lnY7U+TjSVUnofbi6mG9KauB5jLtVrR+qCgf7IkSHcaHdc5WMiSXUbrQ0oCC2Qa50m2vF5yAxnojrXOI8stWE1VvFlkG/qNkZLaZWl2hDktlxo3ljHMmJUkWhflEnqyzhzKFVJdSXQhYL+dQ5UYMx0IFJicDYNAk6EqsBGOgp42W1gSGbiActBEw6ZVDPt82whp4QXQcTI/NIVn53PHDU6LJPHCkGraG0DHCBBV/MWfAYOo1BmGB4gaMHk+ZKzHANN5cN5sP/LlJUd2eqhcdmJH1Aiwst8upK6OiTBdQqAIqWJUXqpuy0HorHlJaA==" | base64 -d > kde-neon.gpg
+            else
+               gpg --no-default-keyring --keyring ./temp-keyring.gpg --export 444DABCF3667D0283F894EDDE6D4736255751E5D > kde-neon.gpg
+               rm ./temp-keyring.gpg
+            fi
+          fi
         fi
         sudo cp kde-neon.gpg /usr/share/keyrings/kde-neon.gpg
         echo "deb [signed-by=/usr/share/keyrings/kde-neon.gpg] http://archive.neon.kde.org/user jammy main" | sudo tee /etc/apt/sources.list.d/kde-neon.list
-        sudo apt update -qq
+
+        # Robust apt update with retries to handle intermittent 502 errors
+        for i in {1..5}; do
+          if sudo apt update -qq; then
+            if apt-cache show qt6-svg-dev > /dev/null 2>&1; then
+              echo "KDE Neon repository updated successfully and qt6-svg-dev is available."
+              exit 0
+            fi
+          fi
+          echo "Warning: apt update failed or qt6-svg-dev not found, retrying in 30 seconds (attempt $i/5)..."
+          sleep 30
+        done
+        echo "Error: Failed to update KDE Neon repository after 5 attempts."
+        exit 1
 
     - name: Install Build Dependencies
       run: |

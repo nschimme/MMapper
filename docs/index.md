@@ -27,6 +27,8 @@ Choose your operating system to download the latest version {{ site.github.lates
     </a>
 </div>
 
+{% include requirements.md %}
+
 ## Key Features
 -  <span class="feature-box">Automated Mapping</span> Automatically maps rooms, terrain, exits, and connections as you explore. The map updates in real-time!
 -  <span class="feature-box">Interactive Map</span> Smooth navigation with fast OpenGL rendering and drag-and-drop room layer management.

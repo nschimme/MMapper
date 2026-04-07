@@ -9,6 +9,7 @@
 #include "UboManager.h"
 
 #include <memory>
+#include <span>
 #include <vector>
 
 #include <glm/glm.hpp>
@@ -70,98 +71,98 @@ public:
     void blitFboToDefault();
 
 public:
-    NODISCARD UniqueMesh createPointBatch(const std::vector<ColorVert> &verts);
+    NODISCARD UniqueMesh createPointBatch(const std::span<const ColorVert> verts);
 
 public:
     // plain means the color is defined by uniform
-    NODISCARD UniqueMesh createPlainLineBatch(const std::vector<glm::vec3> &verts);
+    NODISCARD UniqueMesh createPlainLineBatch(const std::span<const glm::vec3> verts);
     // colored means the color is defined by attribute
-    NODISCARD UniqueMesh createColoredLineBatch(const std::vector<ColorVert> &verts);
+    NODISCARD UniqueMesh createColoredLineBatch(const std::span<const ColorVert> verts);
 
 public:
     // plain means the color is defined by uniform
-    NODISCARD UniqueMesh createPlainTriBatch(const std::vector<glm::vec3> &verts);
-    NODISCARD UniqueMesh createColoredTriBatch(const std::vector<ColorVert> &verts);
+    NODISCARD UniqueMesh createPlainTriBatch(const std::span<const glm::vec3> verts);
+    NODISCARD UniqueMesh createColoredTriBatch(const std::span<const ColorVert> verts);
 
 public:
     // plain means the color is defined by uniform
-    NODISCARD UniqueMesh createPlainQuadBatch(const std::vector<glm::vec3> &verts);
+    NODISCARD UniqueMesh createPlainQuadBatch(const std::span<const glm::vec3> verts);
     // colored means the color is defined by attribute
-    NODISCARD UniqueMesh createColoredQuadBatch(const std::vector<ColorVert> &verts);
-    NODISCARD UniqueMesh createTexturedQuadBatch(const std::vector<TexVert> &verts,
+    NODISCARD UniqueMesh createColoredQuadBatch(const std::span<const ColorVert> verts);
+    NODISCARD UniqueMesh createTexturedQuadBatch(const std::span<const TexVert> verts,
                                                  MMTextureId texture);
-    NODISCARD UniqueMesh createColoredTexturedQuadBatch(const std::vector<ColoredTexVert> &verts,
+    NODISCARD UniqueMesh createColoredTexturedQuadBatch(const std::span<const ColoredTexVert> verts,
                                                         MMTextureId texture);
 
 public:
-    NODISCARD UniqueMesh createRoomQuadTexBatch(const std::vector<RoomQuadTexVert> &verts,
+    NODISCARD UniqueMesh createRoomQuadTexBatch(const std::span<const RoomQuadTexVert> verts,
                                                 MMTextureId texture);
 
 public:
     NODISCARD UniqueMesh createFontMesh(const SharedMMTexture &texture,
                                         DrawModeEnum mode,
-                                        const std::vector<FontVert3d> &batch);
+                                        const std::span<const FontVert3d> batch);
 
 protected:
     void renderPlain(DrawModeEnum type,
-                     const std::vector<glm::vec3> &verts,
+                     const std::span<const glm::vec3> verts,
                      const GLRenderState &state);
     void renderColored(DrawModeEnum type,
-                       const std::vector<ColorVert> &verts,
+                       const std::span<const ColorVert> verts,
                        const GLRenderState &state);
     void renderTextured(DrawModeEnum type,
-                        const std::vector<TexVert> &verts,
+                        const std::span<const TexVert> verts,
                         const GLRenderState &state);
     void renderColoredTextured(DrawModeEnum type,
-                               const std::vector<ColoredTexVert> &verts,
+                               const std::span<const ColoredTexVert> verts,
                                const GLRenderState &state);
 
 public:
-    void renderPoints(const std::vector<ColorVert> &verts, const GLRenderState &state);
+    void renderPoints(const std::span<const ColorVert> verts, const GLRenderState &state);
 
 public:
-    void renderPlainLines(const std::vector<glm::vec3> &verts, const GLRenderState &state)
+    void renderPlainLines(const std::span<const glm::vec3> verts, const GLRenderState &state)
     {
         renderPlain(DrawModeEnum::LINES, verts, state);
     }
-    void renderPlainTris(const std::vector<glm::vec3> &verts, const GLRenderState &state)
+    void renderPlainTris(const std::span<const glm::vec3> verts, const GLRenderState &state)
     {
         renderPlain(DrawModeEnum::TRIANGLES, verts, state);
     }
-    void renderPlainQuads(const std::vector<glm::vec3> &verts, const GLRenderState &state)
+    void renderPlainQuads(const std::span<const glm::vec3> verts, const GLRenderState &state)
     {
         renderPlain(DrawModeEnum::QUADS, verts, state);
     }
 
 public:
-    void renderColoredLines(const std::vector<ColorVert> &verts, const GLRenderState &state)
+    void renderColoredLines(const std::span<const ColorVert> verts, const GLRenderState &state)
     {
         renderColored(DrawModeEnum::LINES, verts, state);
     }
-    void renderColoredTris(const std::vector<ColorVert> &verts, const GLRenderState &state)
+    void renderColoredTris(const std::span<const ColorVert> verts, const GLRenderState &state)
     {
         renderColored(DrawModeEnum::TRIANGLES, verts, state);
     }
-    void renderColoredQuads(const std::vector<ColorVert> &verts, const GLRenderState &state)
+    void renderColoredQuads(const std::span<const ColorVert> verts, const GLRenderState &state)
     {
         renderColored(DrawModeEnum::QUADS, verts, state);
     }
 
 public:
-    void renderTexturedQuads(const std::vector<TexVert> &verts, const GLRenderState &state)
+    void renderTexturedQuads(const std::span<const TexVert> verts, const GLRenderState &state)
     {
         renderTextured(DrawModeEnum::QUADS, verts, state);
     }
 
 public:
-    void renderColoredTexturedQuads(const std::vector<ColoredTexVert> &verts,
+    void renderColoredTexturedQuads(const std::span<const ColoredTexVert> verts,
                                     const GLRenderState &state)
     {
         renderColoredTextured(DrawModeEnum::QUADS, verts, state);
     }
 
 public:
-    void renderFont3d(const SharedMMTexture &texture, const std::vector<FontVert3d> &verts);
+    void renderFont3d(const SharedMMTexture &texture, const std::span<const FontVert3d> verts);
 
 public:
     void clear(const Color color);

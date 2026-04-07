@@ -779,6 +779,7 @@ void MapCanvas::paintGL()
 
     auto &font = getGLFont();
     std::vector<GLText> text;
+    text.reserve(12);
 
     const auto lineHeight = font.getFontHeight();
     const float rightMargin = float(w) * dpr
@@ -879,7 +880,7 @@ void MapCanvas::paintSelectionArea()
             = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withDepthFunction(std::nullopt);
 
         {
-            const std::vector<glm::vec3> verts{A, B, C, D};
+            const std::array<glm::vec3, 4> verts{A, B, C, D};
             const auto &fillStyle = rs;
             gl.renderPlainQuads(verts, fillStyle.withColor(selBgColor));
         }
@@ -888,21 +889,8 @@ void MapCanvas::paintSelectionArea()
         {
             static constexpr float SELECTION_AREA_LINE_WIDTH = 2.f;
             const auto lineStyle = rs.withLineParams(LineParams{SELECTION_AREA_LINE_WIDTH});
-            const std::vector<glm::vec3> verts{A, B, B, C, C, D, D, A};
+            const std::array<glm::vec3, 8> verts{A, B, B, C, C, D, D, A};
 
-            // FIXME: ASAN flags this as out-of-bounds memory access inside an assertion
-            //
-            //     Q_ASSERT(QOpenGLFunctions::isInitialized(d_ptr));
-            //
-            // in QOpenGLFunctions::glDrawArrays(). However, it works without ASAN,
-            // so maybe the problem is in my OpenGL driver?
-            //
-            // "OpenGL Version:" "3.1 Mesa 20.2.6"
-            // "OpenGL Renderer:" "llvmpipe (LLVM 11.0.0, 256 bits)"
-            // "OpenGL Vendor:" "Mesa/X.org"
-            // "OpenGL GLSL:" "1.40"
-            // "Current OpenGL Context:" "3.1 (valid)"
-            //
             gl.renderPlainLines(verts, lineStyle.withColor(selFgColor));
         }
     }

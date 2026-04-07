@@ -13,6 +13,7 @@
 #include <cassert>
 #include <memory>
 #include <optional>
+#include <span>
 #include <vector>
 
 namespace Legacy {
@@ -49,7 +50,7 @@ public:
     explicit SimpleMesh(const SharedFunctions &sharedFunctions,
                         const std::shared_ptr<ProgramType_> &sharedProgram,
                         const DrawModeEnum mode,
-                        const std::vector<VertexType_> &verts)
+                        const std::span<const VertexType_> verts)
         : SimpleMesh{sharedFunctions, sharedProgram}
     {
         setStatic(mode, verts);
@@ -95,18 +96,18 @@ public:
     void unsafe_swapVboId(VBO &vbo) { return m_vbo.unsafe_swapVboId(vbo); }
 
 public:
-    void setDynamic(const DrawModeEnum mode, const std::vector<VertexType_> &verts)
+    void setDynamic(const DrawModeEnum mode, const std::span<const VertexType_> verts)
     {
         setCommon(mode, verts, BufferUsageEnum::DYNAMIC_DRAW);
     }
-    void setStatic(const DrawModeEnum mode, const std::vector<VertexType_> &verts)
+    void setStatic(const DrawModeEnum mode, const std::span<const VertexType_> verts)
     {
         setCommon(mode, verts, BufferUsageEnum::STATIC_DRAW);
     }
 
 private:
     void setCommon(const DrawModeEnum mode,
-                   const std::vector<VertexType_> &verts,
+                   const std::span<const VertexType_> verts,
                    const BufferUsageEnum usage)
     {
         const auto numVerts = verts.size();

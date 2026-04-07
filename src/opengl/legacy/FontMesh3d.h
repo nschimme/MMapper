@@ -53,7 +53,7 @@ public:
     explicit SimpleFont3dMesh(const SharedFunctions &sharedFunctions,
                               const std::shared_ptr<FontShader> &sharedProgram,
                               const DrawModeEnum mode,
-                              const std::vector<VertexType_> &verts)
+                              const std::span<const VertexType_> verts)
         : Base(sharedFunctions, sharedProgram, mode, verts)
     {}
 
@@ -105,7 +105,7 @@ public:
                         const std::shared_ptr<FontShader> &sharedShader,
                         SharedMMTexture texture,
                         DrawModeEnum mode,
-                        const std::vector<FontVert3d> &verts);
+                        const std::span<const FontVert3d> verts);
 
 public:
     ~FontMesh3d() final;

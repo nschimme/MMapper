@@ -40,7 +40,9 @@ jobs:
           qt6-base-dev qt6-base-dev-tools libqt6opengl6-dev libqt6websockets6-dev \
           qt6-multimedia-dev libqt6multimedia6 qt6-svg-dev \
           libgl1-mesa-dev qt6-wayland qtkeychain-qt6-dev build-essential mold git \
-          zlib1g-dev libssl-dev wget zsync fuse file cmake libxcb-cursor-dev
+          zlib1g-dev libssl-dev wget zsync fuse file cmake libxcb-cursor-dev gcc-12 g++-12
+        echo "CC=gcc-12" >> $GITHUB_ENV
+        echo "CXX=g++-12" >> $GITHUB_ENV
 
     - name: Download linuxdeploy
       run: |

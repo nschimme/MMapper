@@ -14,6 +14,7 @@
 #include <cstddef>
 #include <functional>
 #include <optional>
+#include <span>
 #include <tuple>
 #include <type_traits>
 #include <vector>
@@ -153,15 +154,15 @@ public:
      * Also binds it to its assigned point.
      * @return The bound buffer ID.
      *
-     * Overload for bulk vector data.
+     * Overload for bulk span data.
      */
-    template<typename T, typename A>
+    template<typename T>
     ALLOW_DISCARD GLuint update(Functions &gl,
                                 const SharedVboEnum block,
-                                const std::vector<T, A> &data)
+                                const std::span<const T> data)
     {
         VBO &vbo = getOrCreateVbo(gl, block);
-        gl.setVbo(GL_UNIFORM_BUFFER, vbo.get(), data, BufferUsageEnum::DYNAMIC_DRAW);
+        std::ignore = gl.setVbo(GL_UNIFORM_BUFFER, vbo.get(), data, BufferUsageEnum::DYNAMIC_DRAW);
         return bind_internal(gl, block, vbo.get());
     }
 
@@ -189,7 +190,7 @@ public:
     ALLOW_DISCARD GLuint update(Functions &gl, const BlockType_t<Block> &data)
     {
         get<Block>() = data;
-        return update(gl, Block, data);
+        return update(gl, Block, std::span<const BlockType_t<Block>>(&data, 1));
     }
 
     /**

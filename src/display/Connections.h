@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <span>
 #include <unordered_map>
 #include <vector>
 
@@ -144,7 +145,7 @@ private:
 
     public:
         void drawTriangle(const glm::vec3 &a, const glm::vec3 &b, const glm::vec3 &c);
-        void drawLineStrip(const std::vector<glm::vec3> &points);
+        void drawLineStrip(const std::span<const glm::vec3> points);
     };
 
 private:
@@ -182,7 +183,7 @@ public:
                           const RoomHandle &targetRoom,
                           ExitDirEnum targetDir);
 
-    void drawLineStrip(const std::vector<glm::vec3> &points);
+    void drawLineStrip(const std::span<const glm::vec3> points);
 
     void drawConnection(const RoomHandle &leftRoom,
                         const RoomHandle &rightRoom,

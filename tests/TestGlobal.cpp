@@ -190,13 +190,13 @@ void TestGlobal::flagsTest()
 
 void TestGlobal::hideQDebugTest()
 {
-    static constexpr auto onlyDebug = std::invoke([]() consteval -> mmqt::HideQDebugOptions {
+    static constexpr auto onlyDebug = std::invoke([]() constexpr -> mmqt::HideQDebugOptions {
         mmqt::HideQDebugOptions tmp;
         tmp.hideInfo = false;
         return tmp;
     });
 
-    static constexpr auto onlyInfo = std::invoke([]() consteval -> mmqt::HideQDebugOptions {
+    static constexpr auto onlyInfo = std::invoke([]() constexpr -> mmqt::HideQDebugOptions {
         mmqt::HideQDebugOptions tmp;
         tmp.hideDebug = false;
         return tmp;

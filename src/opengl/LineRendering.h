@@ -5,6 +5,7 @@
 
 #include "../opengl/OpenGLTypes.h"
 
+#include <span>
 #include <vector>
 
 #include <glm/glm.hpp>

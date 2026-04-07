@@ -63,13 +63,13 @@ jobs:
     - if: runner.os == 'Linux' && matrix.compiler == 'gcc'
       name: Install GCC for Ubuntu
       run: |
-        sudo apt install -y gcc-13 g++-13 lcov
+        sudo apt install -y gcc-14 g++-14 lcov
         echo "QMAKESPEC=linux-g++" >> $GITHUB_ENV
-        echo "CC=gcc-13" >> $GITHUB_ENV
-        echo "CXX=g++-13" >> $GITHUB_ENV
+        echo "CC=gcc-14" >> $GITHUB_ENV
+        echo "CXX=g++-14" >> $GITHUB_ENV
         echo "MMAPPER_CMAKE_EXTRA=-DUSE_CODE_COVERAGE=true -DUSE_MOLD=true -DPACKAGE_TYPE=Deb" >> $GITHUB_ENV
         echo "COVERAGE=true" >> $GITHUB_ENV
-        echo "GCOV_TOOL=gcov-13" >> $GITHUB_ENV
+        echo "GCOV_TOOL=gcov-14" >> $GITHUB_ENV
     - if: runner.os == 'Linux' && matrix.compiler == 'clang'
       name: Install Clang for Ubuntu
       run: |

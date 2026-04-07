@@ -13,6 +13,7 @@
 #include <cmath>
 #include <memory>
 #include <optional>
+#include <span>
 #include <stdexcept>
 #include <type_traits>
 #include <vector>
@@ -85,8 +86,8 @@ NODISCARD static inline GLenum toGLenum(const BufferUsageEnum usage)
 // Note: This version is only suitable for drawArrays(). You'll need another function
 // to transform indices if you want to use it with drawElements().
 template<typename VertexType_>
-NODISCARD static inline std::vector<VertexType_> convertQuadsToTris(
-    const std::vector<VertexType_> &quads)
+static inline void convertQuadsToTris(std::span<const VertexType_> quads,
+                                      std::vector<VertexType_> &output)
 {
     // d-c
     // |/|
@@ -94,22 +95,30 @@ NODISCARD static inline std::vector<VertexType_> convertQuadsToTris(
     const static constexpr int TRIANGLE_VERTS_PER_QUAD = 6;
     const size_t numQuads = quads.size() / VERTS_PER_QUAD;
     const size_t expected = numQuads * TRIANGLE_VERTS_PER_QUAD;
-    std::vector<VertexType_> triangles;
-    triangles.reserve(expected);
+    output.clear();
+    output.reserve(expected);
     const auto *it = quads.data();
     for (size_t i = 0; i < numQuads; ++i) {
         const auto &a = *(it++);
         const auto &b = *(it++);
         const auto &c = *(it++);
         const auto &d = *(it++);
-        triangles.emplace_back(a);
-        triangles.emplace_back(b);
-        triangles.emplace_back(c);
-        triangles.emplace_back(c);
-        triangles.emplace_back(d);
-        triangles.emplace_back(a);
+        output.emplace_back(a);
+        output.emplace_back(b);
+        output.emplace_back(c);
+        output.emplace_back(c);
+        output.emplace_back(d);
+        output.emplace_back(a);
     }
-    assert(triangles.size() == expected);
+    assert(output.size() == expected);
+}
+
+template<typename VertexType_>
+NODISCARD static inline std::vector<VertexType_> convertQuadsToTris(
+    std::span<const VertexType_> quads)
+{
+    std::vector<VertexType_> triangles;
+    convertQuadsToTris(quads, triangles);
     return triangles;
 }
 
@@ -380,10 +389,10 @@ public:
         Base::glVertexAttribIPointer(index, size, type, stride, pointer);
     }
 
-    template<typename T, typename A>
+    template<typename T>
     NODISCARD GLsizei setVbo(const GLenum target,
                              const GLuint buffer,
-                             const std::vector<T, A> &batch,
+                             const std::span<const T> batch,
                              const BufferUsageEnum usage = BufferUsageEnum::DYNAMIC_DRAW)
     {
         enforceTriviallyCopyable<T>();
@@ -404,22 +413,26 @@ public:
     {
         enforceTriviallyCopyable<T>();
         Base::glBindBuffer(target, buffer);
-        Base::glBufferData(target, sizeof(T), &data, Legacy::toGLenum(usage));
+        Base::glBufferData(target,
+                           static_cast<GLsizeiptr>(sizeof(T)),
+                           &data,
+                           Legacy::toGLenum(usage));
         Base::glBindBuffer(target, 0);
     }
 
-    template<typename T, typename A>
+    template<typename T>
     NODISCARD std::pair<DrawModeEnum, GLsizei> setVbo(
         const DrawModeEnum mode,
         const GLuint vbo,
-        const std::vector<T, A> &batch,
+        const std::span<const T> batch,
         const BufferUsageEnum usage = BufferUsageEnum::DYNAMIC_DRAW)
     {
         if (mode == DrawModeEnum::QUADS && !canRenderQuads()) {
+            // REVISIT: We could use a thread-local scratch buffer here to avoid per-call allocations.
             return std::pair(DrawModeEnum::TRIANGLES,
-                             setVbo(GL_ARRAY_BUFFER, vbo, convertQuadsToTris(batch), usage));
+                             setVbo<T>(GL_ARRAY_BUFFER, vbo, convertQuadsToTris<T>(batch), usage));
         }
-        return std::pair(mode, setVbo(GL_ARRAY_BUFFER, vbo, batch, usage));
+        return std::pair(mode, setVbo<T>(GL_ARRAY_BUFFER, vbo, batch, usage));
     }
 
     void clearVbo(const GLuint vbo, const BufferUsageEnum usage = BufferUsageEnum::DYNAMIC_DRAW)
@@ -430,43 +443,44 @@ public:
     }
 
 public:
-    NODISCARD UniqueMesh createPointBatch(const std::vector<ColorVert> &batch);
+    NODISCARD UniqueMesh createPointBatch(const std::span<const ColorVert> batch);
 
 public:
-    NODISCARD UniqueMesh createPlainBatch(DrawModeEnum mode, const std::vector<glm::vec3> &batch);
-    NODISCARD UniqueMesh createColoredBatch(DrawModeEnum mode, const std::vector<ColorVert> &batch);
+    NODISCARD UniqueMesh createPlainBatch(DrawModeEnum mode, const std::span<const glm::vec3> batch);
+    NODISCARD UniqueMesh createColoredBatch(DrawModeEnum mode,
+                                            const std::span<const ColorVert> batch);
     NODISCARD UniqueMesh createTexturedBatch(DrawModeEnum mode,
-                                             const std::vector<TexVert> &batch,
+                                             const std::span<const TexVert> batch,
                                              MMTextureId texture);
     NODISCARD UniqueMesh createColoredTexturedBatch(DrawModeEnum mode,
-                                                    const std::vector<ColoredTexVert> &batch,
+                                                    const std::span<const ColoredTexVert> batch,
                                                     MMTextureId texture);
 
 public:
-    NODISCARD UniqueMesh createRoomQuadTexBatch(const std::vector<RoomQuadTexVert> &batch,
+    NODISCARD UniqueMesh createRoomQuadTexBatch(const std::span<const RoomQuadTexVert> batch,
                                                 MMTextureId texture);
 
 public:
     NODISCARD UniqueMesh createFontMesh(const SharedMMTexture &texture,
                                         DrawModeEnum mode,
-                                        const std::vector<FontVert3d> &batch);
+                                        const std::span<const FontVert3d> batch);
 
 public:
-    void renderPoints(const std::vector<ColorVert> &verts, const GLRenderState &state);
+    void renderPoints(const std::span<const ColorVert> verts, const GLRenderState &state);
 
     void renderPlain(DrawModeEnum mode,
-                     const std::vector<glm::vec3> &verts,
+                     const std::span<const glm::vec3> verts,
                      const GLRenderState &state);
     void renderColored(DrawModeEnum mode,
-                       const std::vector<ColorVert> &verts,
+                       const std::span<const ColorVert> verts,
                        const GLRenderState &state);
     void renderTextured(DrawModeEnum mode,
-                        const std::vector<TexVert> &verts,
+                        const std::span<const TexVert> verts,
                         const GLRenderState &state);
     void renderColoredTextured(DrawModeEnum mode,
-                               const std::vector<ColoredTexVert> &verts,
+                               const std::span<const ColoredTexVert> verts,
                                const GLRenderState &state);
-    void renderFont3d(const SharedMMTexture &texture, const std::vector<FontVert3d> &verts);
+    void renderFont3d(const SharedMMTexture &texture, const std::span<const FontVert3d> verts);
 
 public:
     void renderFullScreenTriangle(const std::shared_ptr<AbstractShaderProgram> &prog,

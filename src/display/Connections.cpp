@@ -463,6 +463,7 @@ void ConnectionDrawer::drawConnectionLine(const ExitDirEnum startDir,
                                           const float dstZ)
 {
     std::vector<glm::vec3> points{};
+    points.reserve(2);
     ConnectionLineBuilder lb{points};
     lb.drawConnLineStart(startDir, neighbours, srcZ);
     if (points.empty()) {
@@ -482,7 +483,7 @@ void ConnectionDrawer::drawConnectionLine(const ExitDirEnum startDir,
     drawLineStrip(points);
 }
 
-void ConnectionDrawer::drawLineStrip(const std::vector<glm::vec3> &points)
+void ConnectionDrawer::drawLineStrip(const std::span<const glm::vec3> points)
 {
     getFakeGL().drawLineStrip(points);
 }
@@ -661,6 +662,7 @@ void MapCanvas::paintNearbyConnectionPoints()
     });
 
     std::vector<ColorVert> points;
+    points.reserve(128);
     const auto addPoint = [isSelection, &points](const Coordinate &roomCoord,
                                                  const RoomHandle &room,
                                                  const ExitDirEnum dir,
@@ -764,13 +766,13 @@ void MapCanvas::paintSelectedConnection()
 
     {
         std::vector<ColorVert> verts;
+        verts.reserve(4);
         mmgl::generateLineQuadsSafe(verts, pos1, pos2, CONNECTION_LINE_WIDTH, Colors::red);
         gl.renderColoredQuads(verts, rs);
     }
 
-    std::vector<ColorVert> points;
-    points.emplace_back(Colors::red, pos1);
-    points.emplace_back(Colors::red, pos2);
+    const std::array<ColorVert, 2> points{ColorVert{Colors::red, pos1},
+                                          ColorVert{Colors::red, pos2}};
     gl.renderPoints(points, rs.withPointSize(NEW_CONNECTION_POINT_SIZE));
 }
 
@@ -793,7 +795,7 @@ void ConnectionDrawer::ConnectionFakeGL::drawTriangle(const glm::vec3 &a,
     verts.emplace_back(color, c + m_offset);
 }
 
-void ConnectionDrawer::ConnectionFakeGL::drawLineStrip(const std::vector<glm::vec3> &points)
+void ConnectionDrawer::ConnectionFakeGL::drawLineStrip(const std::span<const glm::vec3> points)
 {
     const auto transform = [this](const glm::vec3 &vert) { return vert + m_offset; };
     const float extension = CONNECTION_LINE_WIDTH * 0.5f;

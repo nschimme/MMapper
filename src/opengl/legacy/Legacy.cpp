@@ -75,18 +75,18 @@ void Functions::applyDefaultUniformBlockBindings(const GLuint program)
 template<template<typename> typename Mesh_, typename VertType_, typename ProgType_>
 NODISCARD static auto createMesh(const SharedFunctions &functions,
                                  const DrawModeEnum mode,
-                                 const std::vector<VertType_> &batch,
+                                 const std::span<const VertType_> batch,
                                  const std::shared_ptr<ProgType_> &prog)
 {
     using Mesh = Mesh_<VertType_>;
-    static_assert(std::is_same_v<typename Mesh::ProgramType, ProgType_>);
+    static_assert(std::is_base_of_v<AbstractShaderProgram, ProgType_>);
     return std::make_unique<Mesh>(functions, prog, mode, batch);
 }
 
 template<template<typename> typename Mesh_, typename VertType_, typename ProgType_>
 NODISCARD static UniqueMesh createUniqueMesh(const SharedFunctions &functions,
                                              const DrawModeEnum mode,
-                                             const std::vector<VertType_> &batch,
+                                             const std::span<const VertType_> batch,
                                              const std::shared_ptr<ProgType_> &prog)
 {
     assert(mode != DrawModeEnum::INVALID);
@@ -96,7 +96,7 @@ NODISCARD static UniqueMesh createUniqueMesh(const SharedFunctions &functions,
 template<template<typename> typename Mesh_, typename VertType_, typename ProgType_>
 NODISCARD static UniqueMesh createTexturedMesh(const SharedFunctions &functions,
                                                const DrawModeEnum mode,
-                                               const std::vector<VertType_> &batch,
+                                               const std::span<const VertType_> batch,
                                                const std::shared_ptr<ProgType_> &prog,
                                                const MMTextureId texture)
 {
@@ -105,13 +105,14 @@ NODISCARD static UniqueMesh createTexturedMesh(const SharedFunctions &functions,
         texture, createMesh<Mesh_, VertType_, ProgType_>(functions, mode, batch, prog))};
 }
 
-UniqueMesh Functions::createPointBatch(const std::vector<ColorVert> &batch)
+UniqueMesh Functions::createPointBatch(const std::span<const ColorVert> batch)
 {
     const auto &prog = getShaderPrograms().getPointShader();
     return createUniqueMesh<PointMesh>(shared_from_this(), DrawModeEnum::POINTS, batch, prog);
 }
 
-UniqueMesh Functions::createPlainBatch(const DrawModeEnum mode, const std::vector<glm::vec3> &batch)
+UniqueMesh Functions::createPlainBatch(const DrawModeEnum mode,
+                                       const std::span<const glm::vec3> batch)
 {
     assert(static_cast<size_t>(mode) >= VERTS_PER_LINE);
     const auto &prog = getShaderPrograms().getPlainUColorShader();
@@ -119,7 +120,7 @@ UniqueMesh Functions::createPlainBatch(const DrawModeEnum mode, const std::vecto
 }
 
 UniqueMesh Functions::createColoredBatch(const DrawModeEnum mode,
-                                         const std::vector<ColorVert> &batch)
+                                         const std::span<const ColorVert> batch)
 {
     assert(static_cast<size_t>(mode) >= VERTS_PER_LINE);
     const auto &prog = getShaderPrograms().getPlainAColorShader();
@@ -127,7 +128,7 @@ UniqueMesh Functions::createColoredBatch(const DrawModeEnum mode,
 }
 
 UniqueMesh Functions::createTexturedBatch(const DrawModeEnum mode,
-                                          const std::vector<TexVert> &batch,
+                                          const std::span<const TexVert> batch,
                                           const MMTextureId texture)
 {
     assert(static_cast<size_t>(mode) >= VERTS_PER_TRI);
@@ -136,7 +137,7 @@ UniqueMesh Functions::createTexturedBatch(const DrawModeEnum mode,
 }
 
 UniqueMesh Functions::createColoredTexturedBatch(const DrawModeEnum mode,
-                                                 const std::vector<ColoredTexVert> &batch,
+                                                 const std::span<const ColoredTexVert> batch,
                                                  const MMTextureId texture)
 {
     assert(static_cast<size_t>(mode) >= VERTS_PER_TRI);
@@ -144,7 +145,7 @@ UniqueMesh Functions::createColoredTexturedBatch(const DrawModeEnum mode,
     return createTexturedMesh<ColoredTexturedMesh>(shared_from_this(), mode, batch, prog, texture);
 }
 
-UniqueMesh Functions::createRoomQuadTexBatch(const std::vector<RoomQuadTexVert> &batch,
+UniqueMesh Functions::createRoomQuadTexBatch(const std::span<const RoomQuadTexVert> batch,
                                              const MMTextureId texture)
 {
     const auto mode = DrawModeEnum::INSTANCED_QUADS;
@@ -155,7 +156,7 @@ UniqueMesh Functions::createRoomQuadTexBatch(const std::vector<RoomQuadTexVert> 
 template<typename VertexType_, template<typename> typename Mesh_, typename ShaderType_>
 static void renderImmediate(const SharedFunctions &sharedFunctions,
                             const DrawModeEnum mode,
-                            const std::vector<VertexType_> &verts,
+                            const std::span<const VertexType_> verts,
                             const std::shared_ptr<ShaderType_> &sharedShader,
                             const GLRenderState &renderState)
 {
@@ -201,7 +202,7 @@ static void renderImmediate(const SharedFunctions &sharedFunctions,
 }
 
 void Functions::renderPlain(const DrawModeEnum mode,
-                            const std::vector<glm::vec3> &verts,
+                            const std::span<const glm::vec3> verts,
                             const GLRenderState &state)
 {
     assert(static_cast<size_t>(mode) >= VERTS_PER_LINE);
@@ -211,7 +212,7 @@ void Functions::renderPlain(const DrawModeEnum mode,
 }
 
 void Functions::renderColored(const DrawModeEnum mode,
-                              const std::vector<ColorVert> &verts,
+                              const std::span<const ColorVert> verts,
                               const GLRenderState &state)
 {
     assert(static_cast<size_t>(mode) >= VERTS_PER_LINE);
@@ -219,7 +220,7 @@ void Functions::renderColored(const DrawModeEnum mode,
     renderImmediate<ColorVert, Legacy::ColoredMesh>(shared_from_this(), mode, verts, prog, state);
 }
 
-void Functions::renderPoints(const std::vector<ColorVert> &verts, const GLRenderState &state)
+void Functions::renderPoints(const std::span<const ColorVert> verts, const GLRenderState &state)
 {
     assert(state.uniforms.pointSize);
     const auto &prog = getShaderPrograms().getPointShader();
@@ -231,7 +232,7 @@ void Functions::renderPoints(const std::vector<ColorVert> &verts, const GLRender
 }
 
 void Functions::renderTextured(const DrawModeEnum mode,
-                               const std::vector<TexVert> &verts,
+                               const std::span<const TexVert> verts,
                                const GLRenderState &state)
 {
     assert(static_cast<size_t>(mode) >= VERTS_PER_TRI);
@@ -240,7 +241,7 @@ void Functions::renderTextured(const DrawModeEnum mode,
 }
 
 void Functions::renderColoredTextured(const DrawModeEnum mode,
-                                      const std::vector<ColoredTexVert> &verts,
+                                      const std::span<const ColoredTexVert> verts,
                                       const GLRenderState &state)
 {
     assert(static_cast<size_t>(mode) >= VERTS_PER_TRI);
@@ -252,7 +253,7 @@ void Functions::renderColoredTextured(const DrawModeEnum mode,
                                                                  state);
 }
 
-void Functions::renderFont3d(const SharedMMTexture &texture, const std::vector<FontVert3d> &verts)
+void Functions::renderFont3d(const SharedMMTexture &texture, const std::span<const FontVert3d> verts)
 
 {
     const auto state = GLRenderState()
@@ -270,7 +271,7 @@ void Functions::renderFont3d(const SharedMMTexture &texture, const std::vector<F
 
 UniqueMesh Functions::createFontMesh(const SharedMMTexture &texture,
                                      const DrawModeEnum mode,
-                                     const std::vector<FontVert3d> &batch)
+                                     const std::span<const FontVert3d> batch)
 {
     assert(static_cast<size_t>(mode) >= VERTS_PER_TRI);
     const auto &prog = getShaderPrograms().getFontShader();

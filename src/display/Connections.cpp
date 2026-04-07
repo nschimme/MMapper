@@ -771,7 +771,8 @@ void MapCanvas::paintSelectedConnection()
         gl.renderColoredQuads(verts, rs);
     }
 
-    const std::array<ColorVert, 2> points{ColorVert{Colors::red, pos1}, ColorVert{Colors::red, pos2}};
+    const std::array<ColorVert, 2> points{ColorVert{Colors::red, pos1},
+                                          ColorVert{Colors::red, pos2}};
     gl.renderPoints(points, rs.withPointSize(NEW_CONNECTION_POINT_SIZE));
 }
 

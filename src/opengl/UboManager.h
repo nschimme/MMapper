@@ -157,10 +157,12 @@ public:
      * Overload for bulk span data.
      */
     template<typename T>
-    ALLOW_DISCARD GLuint update(Functions &gl, const SharedVboEnum block, const std::span<const T> data)
+    ALLOW_DISCARD GLuint update(Functions &gl,
+                                const SharedVboEnum block,
+                                const std::span<const T> data)
     {
         VBO &vbo = getOrCreateVbo(gl, block);
-        gl.setVbo(GL_UNIFORM_BUFFER, vbo.get(), data, BufferUsageEnum::DYNAMIC_DRAW);
+        std::ignore = gl.setVbo(GL_UNIFORM_BUFFER, vbo.get(), data, BufferUsageEnum::DYNAMIC_DRAW);
         return bind_internal(gl, block, vbo.get());
     }
 

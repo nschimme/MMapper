@@ -114,7 +114,8 @@ static inline void convertQuadsToTris(std::span<const VertexType_> quads,
 }
 
 template<typename VertexType_>
-NODISCARD static inline std::vector<VertexType_> convertQuadsToTris(std::span<const VertexType_> quads)
+NODISCARD static inline std::vector<VertexType_> convertQuadsToTris(
+    std::span<const VertexType_> quads)
 {
     std::vector<VertexType_> triangles;
     convertQuadsToTris(quads, triangles);
@@ -412,7 +413,10 @@ public:
     {
         enforceTriviallyCopyable<T>();
         Base::glBindBuffer(target, buffer);
-        Base::glBufferData(target, static_cast<GLsizeiptr>(sizeof(T)), &data, Legacy::toGLenum(usage));
+        Base::glBufferData(target,
+                           static_cast<GLsizeiptr>(sizeof(T)),
+                           &data,
+                           Legacy::toGLenum(usage));
         Base::glBindBuffer(target, 0);
     }
 

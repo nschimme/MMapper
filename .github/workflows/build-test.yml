@@ -110,16 +110,15 @@ jobs:
         cache: true
         modules: 'qtwebsockets qtmultimedia'
     - if: runner.os == 'Windows' && matrix.compiler == 'gcc'
-      name: Install Qt for Windows (LLVM-MinGW)
+      name: Install Qt for Windows (MinGW)
       uses: jurplel/install-qt-action@v4
       with:
-        aqtversion: '==3.3.*'
         version: '6.8.3'
         dir: 'C:\'
-        arch: win64_llvm_mingw
+        arch: win64_mingw
         cache: true
         modules: 'qtwebsockets qtmultimedia'
-        tools: 'tools_llvm_mingw1706'
+        tools: 'tools_mingw1310'
 
       #
       # Build
@@ -133,8 +132,8 @@ jobs:
         cd build
         cmake --version
         if ('${{ matrix.compiler }}' -eq 'gcc') {
-          echo "C:/Qt/Tools/llvm-mingw1706_64/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          $env:PATH = "C:\Qt\Tools\llvm-mingw1706_64\bin;$env:PATH"
+          echo "C:/Qt/Tools/mingw1310_64/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          $env:PATH = "C:\Qt\Tools\mingw1310_64\bin;$env:PATH"
         }
         $packageDir = ($env:GITHUB_WORKSPACE -replace '\\', '/') + "/artifact"
         $launcher = ${{ matrix.compiler == 'msvc' && 'sccache' || 'ccache' }}

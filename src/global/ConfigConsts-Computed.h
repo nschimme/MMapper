@@ -45,7 +45,7 @@ static inline constexpr PackageEnum CURRENT_PACKAGE = [] {
     throw std::runtime_error("unsupported package type");
 }();
 
-static inline constexpr PlatformEnum CURRENT_PLATFORM = std::invoke([]() consteval -> PlatformEnum {
+static inline constexpr PlatformEnum CURRENT_PLATFORM = std::invoke([]() constexpr -> PlatformEnum {
 #if defined(Q_OS_WIN)
     return PlatformEnum::Windows;
 #elif defined(Q_OS_MAC)
@@ -60,7 +60,7 @@ static inline constexpr PlatformEnum CURRENT_PLATFORM = std::invoke([]() constev
 });
 
 static inline constexpr EnvironmentEnum CURRENT_ENVIRONMENT = std::invoke(
-    []() consteval -> EnvironmentEnum {
+    []() constexpr -> EnvironmentEnum {
 #if Q_PROCESSOR_WORDSIZE == 4
         return EnvironmentEnum::Env32Bit;
 #elif Q_PROCESSOR_WORDSIZE == 8

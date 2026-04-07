@@ -63,13 +63,13 @@ jobs:
     - if: runner.os == 'Linux' && matrix.compiler == 'gcc'
       name: Install GCC for Ubuntu
       run: |
-        sudo apt install -y gcc-13 g++-13 lcov
+        sudo apt install -y gcc-14 g++-14 lcov
         echo "QMAKESPEC=linux-g++" >> $GITHUB_ENV
-        echo "CC=gcc-13" >> $GITHUB_ENV
-        echo "CXX=g++-13" >> $GITHUB_ENV
+        echo "CC=gcc-14" >> $GITHUB_ENV
+        echo "CXX=g++-14" >> $GITHUB_ENV
         echo "MMAPPER_CMAKE_EXTRA=-DUSE_CODE_COVERAGE=true -DUSE_MOLD=true -DPACKAGE_TYPE=Deb" >> $GITHUB_ENV
         echo "COVERAGE=true" >> $GITHUB_ENV
-        echo "GCOV_TOOL=gcov-13" >> $GITHUB_ENV
+        echo "GCOV_TOOL=gcov-14" >> $GITHUB_ENV
     - if: runner.os == 'Linux' && matrix.compiler == 'clang'
       name: Install Clang for Ubuntu
       run: |
@@ -110,15 +110,16 @@ jobs:
         cache: true
         modules: 'qtwebsockets qtmultimedia'
     - if: runner.os == 'Windows' && matrix.compiler == 'gcc'
-      name: Install Qt for Windows (MinGW)
+      name: Install Qt for Windows (LLVM-MinGW)
       uses: jurplel/install-qt-action@v4
       with:
+        aqtversion: '==3.3.*'
         version: '6.8.3'
         dir: 'C:\'
-        arch: win64_mingw
+        arch: win64_llvm_mingw
         cache: true
         modules: 'qtwebsockets qtmultimedia'
-        tools: 'tools_mingw1310'
+        tools: 'tools_llvm_mingw1706'
 
       #
       # Build
@@ -132,8 +133,8 @@ jobs:
         cd build
         cmake --version
         if ('${{ matrix.compiler }}' -eq 'gcc') {
-          echo "C:/Qt/Tools/mingw1310_64/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          $env:PATH = "C:\Qt\Tools\mingw1310_64\bin;$env:PATH"
+          echo "C:/Qt/Tools/llvm-mingw1706_64/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          $env:PATH = "C:\Qt\Tools\llvm-mingw1706_64\bin;$env:PATH"
         }
         $packageDir = ($env:GITHUB_WORKSPACE -replace '\\', '/') + "/artifact"
         $launcher = ${{ matrix.compiler == 'msvc' && 'sccache' || 'ccache' }}

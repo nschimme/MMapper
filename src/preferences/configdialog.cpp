@@ -71,8 +71,12 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
             &ConfigDialog::slot_apply);
 
     connect(generalPage, &GeneralPage::sig_reloadConfig, this, [this]() {
-        m_workingConfig = getConfig();
+        // sig_reloadConfig is emitted after a Factory Reset or Import.
+        // The global getConfig() has already been updated in GeneralPage.
+        // We need to update our originalConfig to match the new global state
+        // to properly track future changes, and ensure workingConfig is in sync.
         m_originalConfig = getConfig();
+        m_workingConfig = getConfig();
         slot_updateApplyButton();
         emit sig_loadConfig();
     });
@@ -253,6 +257,20 @@ void ConfigDialog::slot_apply()
 
     if (m_workingConfig.groupManager != oldConfig.groupManager) {
         emit sig_groupSettingsChanged();
+    }
+
+    // Colors
+    bool colorChanged = false;
+#define X_COLOR_SYNC(_id, _name) \
+    if (m_workingConfig.colorSettings._id != oldConfig.colorSettings._id) { \
+        XNamedColor(NamedColorEnum::_id).setColor(m_workingConfig.colorSettings._id); \
+        colorChanged = true; \
+    }
+    XFOREACH_NAMED_COLOR_OPTIONS(X_COLOR_SYNC)
+#undef X_COLOR_SYNC
+
+    if (colorChanged) {
+        emit sig_graphicsSettingsChanged();
     }
 
     // 4. Persist changes to disk

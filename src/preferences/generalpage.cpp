@@ -114,7 +114,7 @@ GeneralPage::GeneralPage(QWidget *parent, Configuration &config)
                                     QMessageBox::Yes | QMessageBox::No);
         if (reply == QMessageBox::Yes) {
             setConfig().reset();
-            m_config = getConfig();
+            // m_config = getConfig(); // ConfigDialog will update this via sig_reloadConfig
             emit sig_reloadConfig();
         }
     });
@@ -168,7 +168,7 @@ GeneralPage::GeneralPage(QWidget *parent, Configuration &config)
                     QSettings settings(temp.fileName(), QSettings::IniFormat);
                     cfg.readFrom(settings);
                     cfg.write();
-                    m_config = cfg;
+                    // m_config = cfg; // ConfigDialog will update this via sig_reloadConfig
                 }
                 emit sig_reloadConfig();
             }
@@ -228,6 +228,7 @@ GeneralPage::GeneralPage(QWidget *parent, Configuration &config)
         if (!directory.isEmpty()) {
             ui->resourceLineEdit->setText(directory);
             m_config.canvas.resourcesDirectory = directory;
+            emit sig_changed();
         }
     });
 

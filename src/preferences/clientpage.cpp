@@ -78,7 +78,10 @@ ClientPage::ClientPage(QWidget *parent, Configuration &config)
     connect(ui->previewSpinBox,
             QOverload<int>::of(&QSpinBox::valueChanged),
             this,
-            [this](const int value) { m_config.integratedClient.linesOfPeekPreview = value; });
+            [this](const int value) {
+                m_config.integratedClient.linesOfPeekPreview = value;
+                emit sig_changed();
+            });
 
     connect(ui->inputHistorySpinBox,
             QOverload<int>::of(&QSpinBox::valueChanged),
@@ -91,28 +94,34 @@ ClientPage::ClientPage(QWidget *parent, Configuration &config)
 
     connect(ui->clearInputCheckBox, &QCheckBox::toggled, [this](bool isChecked) {
         m_config.integratedClient.clearInputOnEnter = isChecked;
+        emit sig_changed();
     });
 
     connect(ui->autoResizeTerminalCheckBox, &QCheckBox::toggled, [this](bool isChecked) {
         m_config.integratedClient.autoResizeTerminal = isChecked;
+        emit sig_changed();
     });
 
     connect(ui->audibleBellCheckBox, &QCheckBox::toggled, [this](bool isChecked) {
         m_config.integratedClient.audibleBell = isChecked;
+        emit sig_changed();
     });
 
     connect(ui->visualBellCheckBox, &QCheckBox::toggled, [this](bool isChecked) {
         m_config.integratedClient.visualBell = isChecked;
+        emit sig_changed();
     });
 
     connect(ui->commandSeparatorCheckBox, &QCheckBox::toggled, this, [this](bool isChecked) {
         m_config.integratedClient.useCommandSeparator = isChecked;
         ui->commandSeparatorLineEdit->setEnabled(isChecked);
+        emit sig_changed();
     });
 
     connect(ui->commandSeparatorLineEdit, &QLineEdit::textChanged, this, [this](const QString &text) {
         if (text.length() == 1) {
             m_config.integratedClient.commandSeparator = text;
+            emit sig_changed();
         }
     });
 

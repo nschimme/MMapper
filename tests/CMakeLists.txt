@@ -173,8 +173,9 @@ add_test(NAME TestMainWindow COMMAND TestMainWindow)
 # Global
 set(TestGlobal_SRCS TestGlobal.cpp)
 add_executable(TestGlobal ${TestGlobal_SRCS})
-add_dependencies(TestGlobal mm_global)
+add_dependencies(TestGlobal mm_test mm_global)
 target_link_libraries(TestGlobal
+        mm_test
         mm_global
         Qt6::Gui
         Qt6::Test

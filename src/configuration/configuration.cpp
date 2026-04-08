@@ -222,7 +222,8 @@ bool Configuration::operator==(const Configuration &other) const
            && adventurePanel == other.adventurePanel && audio == other.audio
            && integratedClient == other.integratedClient && infomarksDialog == other.infomarksDialog
            && roomEditDialog == other.roomEditDialog && roomPanel == other.roomPanel
-           && findRoomsDialog == other.findRoomsDialog && hotkeys.data() == other.hotkeys.data();
+           && findRoomsDialog == other.findRoomsDialog && colorSettings == other.colorSettings
+           && hotkeys.data() == other.hotkeys.data();
 }
 
 Configuration::Configuration(const Configuration &other)
@@ -256,6 +257,7 @@ Configuration &Configuration::operator=(const Configuration &other)
     roomEditDialog = other.roomEditDialog;
     roomPanel = other.roomPanel;
     findRoomsDialog = other.findRoomsDialog;
+    colorSettings = other.colorSettings;
     hotkeys.setData(other.hotkeys.data());
 
     return *this;
@@ -344,10 +346,11 @@ bool Configuration::CanvasSettings::operator==(const CanvasSettings &other) cons
            && drawDoorNames == other.drawDoorNames && softwareOpenGL == other.softwareOpenGL
            && resourcesDirectory == other.resourcesDirectory
            && drawCharBeacons == other.drawCharBeacons
-           && charBeaconScaleCutoff == other.charBeaconScaleCutoff
-           && doorNameScaleCutoff == other.doorNameScaleCutoff
-           && infomarkScaleCutoff == other.infomarkScaleCutoff
-           && extraDetailScaleCutoff == other.extraDetailScaleCutoff && mapRadius == other.mapRadius
+           && utils::equals(charBeaconScaleCutoff, other.charBeaconScaleCutoff)
+           && utils::equals(doorNameScaleCutoff, other.doorNameScaleCutoff)
+           && utils::equals(infomarkScaleCutoff, other.infomarkScaleCutoff)
+           && utils::equals(extraDetailScaleCutoff, other.extraDetailScaleCutoff)
+           && mapRadius == other.mapRadius
            && weatherAtmosphereIntensity.get() == other.weatherAtmosphereIntensity.get()
            && weatherPrecipitationIntensity.get() == other.weatherPrecipitationIntensity.get()
            && weatherTimeOfDayIntensity.get() == other.weatherTimeOfDayIntensity.get()
@@ -451,12 +454,12 @@ bool Configuration::AutoLogSettings::operator==(const AutoLogSettings &other) co
 
 bool Configuration::PathMachineSettings::operator==(const PathMachineSettings &other) const
 {
-    return acceptBestRelative == other.acceptBestRelative
-           && acceptBestAbsolute == other.acceptBestAbsolute
-           && newRoomPenalty == other.newRoomPenalty
-           && multipleConnectionsPenalty == other.multipleConnectionsPenalty
-           && correctPositionBonus == other.correctPositionBonus && maxPaths == other.maxPaths
-           && matchingTolerance == other.matchingTolerance;
+    return utils::equals(acceptBestRelative, other.acceptBestRelative)
+           && utils::equals(acceptBestAbsolute, other.acceptBestAbsolute)
+           && utils::equals(newRoomPenalty, other.newRoomPenalty)
+           && utils::equals(multipleConnectionsPenalty, other.multipleConnectionsPenalty)
+           && utils::equals(correctPositionBonus, other.correctPositionBonus)
+           && maxPaths == other.maxPaths && matchingTolerance == other.matchingTolerance;
 }
 
 bool Configuration::GroupManagerSettings::operator==(const GroupManagerSettings &other) const

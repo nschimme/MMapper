@@ -14,6 +14,7 @@
 #include "../global/NamedColors.h"
 #include "../global/RuleOf5.h"
 #include "../global/Signal2.h"
+#include "ConfigValue.h"
 #include "GroupConfig.h"
 #include "NamedConfig.h"
 
@@ -49,42 +50,27 @@ public:
 public:
     struct NODISCARD GeneralSettings final
     {
-    private:
-        ChangeMonitor m_changeMonitor;
-        ThemeEnum m_theme = ThemeEnum::System;
-
-    public:
-        explicit GeneralSettings() = default;
-        ~GeneralSettings() = default;
-        GeneralSettings(const GeneralSettings &other);
-        GeneralSettings &operator=(const GeneralSettings &other);
-        bool operator==(const GeneralSettings &other) const;
-
-    public:
-        NODISCARD ThemeEnum getTheme() const { return m_theme; }
-        void setTheme(const ThemeEnum theme)
-        {
-            m_theme = theme;
-            m_changeMonitor.notifyAll();
-        }
-
+        NODISCARD ThemeEnum getTheme() const { return theme.get(); }
+        void setTheme(const ThemeEnum value) { theme.set(value); }
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                    const ChangeMonitor::Function &callback)
+                                    const ChangeMonitor::Function &callback) const
         {
-            return m_changeMonitor.registerChangeCallback(lifetime, callback);
+            theme.registerChangeCallback(lifetime, callback);
         }
 
-    public:
-        bool firstRun = false;
-        QByteArray windowGeometry;
-        QByteArray windowState;
-        bool alwaysOnTop = false;
-        bool showStatusBar = true;
-        bool showScrollBars = true;
-        bool showMenuBar = true;
-        MapModeEnum mapMode = MapModeEnum::PLAY;
-        bool checkForUpdate = true;
-        CharacterEncodingEnum characterEncoding = CharacterEncodingEnum::LATIN1;
+        ConfigValue<ThemeEnum> theme{ThemeEnum::System};
+        ConfigValue<bool> firstRun{false};
+        ConfigValue<QByteArray> windowGeometry;
+        ConfigValue<QByteArray> windowState;
+        ConfigValue<bool> alwaysOnTop{false};
+        ConfigValue<bool> showStatusBar{true};
+        ConfigValue<bool> showScrollBars{true};
+        ConfigValue<bool> showMenuBar{true};
+        ConfigValue<MapModeEnum> mapMode{MapModeEnum::PLAY};
+        ConfigValue<bool> checkForUpdate{true};
+        ConfigValue<CharacterEncodingEnum> characterEncoding{CharacterEncodingEnum::LATIN1};
+
+        bool operator==(const GeneralSettings &other) const = default;
 
     private:
         SUBGROUP();
@@ -92,14 +78,14 @@ public:
 
     struct NODISCARD ConnectionSettings final
     {
-        QString remoteServerName; /// Remote host and port settings
-        uint16_t remotePort = 0u;
-        uint16_t localPort = 0u; /// Port to bind to on local machine
-        bool tlsEncryption = false;
-        bool proxyConnectionStatus = false;
-        bool proxyListensOnAnyInterface = false;
+        ConfigValue<QString> remoteServerName; /// Remote host and port settings
+        ConfigValue<uint16_t> remotePort{0u};
+        ConfigValue<uint16_t> localPort{0u}; /// Port to bind to on local machine
+        ConfigValue<bool> tlsEncryption{false};
+        ConfigValue<bool> proxyConnectionStatus{false};
+        ConfigValue<bool> proxyListensOnAnyInterface{false};
 
-        bool operator==(const ConnectionSettings &other) const;
+        bool operator==(const ConnectionSettings &other) const = default;
 
     private:
         SUBGROUP();
@@ -107,13 +93,13 @@ public:
 
     struct NODISCARD ParserSettings final
     {
-        QString roomNameColor; // ANSI room name color
-        QString roomDescColor; // ANSI room descriptions color
-        char prefixChar = char_consts::C_UNDERSCORE;
-        bool encodeEmoji = true;
-        bool decodeEmoji = true;
+        ConfigValue<QString> roomNameColor; // ANSI room name color
+        ConfigValue<QString> roomDescColor; // ANSI room descriptions color
+        ConfigValue<char> prefixChar{char_consts::C_UNDERSCORE};
+        ConfigValue<bool> encodeEmoji{true};
+        ConfigValue<bool> decodeEmoji{true};
 
-        bool operator==(const ParserSettings &other) const;
+        bool operator==(const ParserSettings &other) const = default;
 
     private:
         SUBGROUP();
@@ -121,10 +107,10 @@ public:
 
     struct NODISCARD MumeClientProtocolSettings final
     {
-        bool internalRemoteEditor = false;
-        QString externalRemoteEditorCommand;
+        ConfigValue<bool> internalRemoteEditor{false};
+        ConfigValue<QString> externalRemoteEditorCommand;
 
-        bool operator==(const MumeClientProtocolSettings &other) const;
+        bool operator==(const MumeClientProtocolSettings &other) const = default;
 
     private:
         SUBGROUP();
@@ -133,11 +119,11 @@ public:
     struct NODISCARD MumeNativeSettings final
     {
         /* serialized */
-        bool emulatedExits = false;
-        bool showHiddenExitFlags = false;
-        bool showNotes = false;
+        ConfigValue<bool> emulatedExits{false};
+        ConfigValue<bool> showHiddenExitFlags{false};
+        ConfigValue<bool> showNotes{false};
 
-        bool operator==(const MumeNativeSettings &other) const;
+        bool operator==(const MumeNativeSettings &other) const = default;
 
     private:
         SUBGROUP();
@@ -160,11 +146,11 @@ public:
 
     struct NODISCARD CanvasNamedColorOptions
     {
-#define X_DECL(_id, _name) Color _id;
+#define X_DECL(_id, _name) ConfigValue<Color> _id;
         XFOREACH_CANVAS_NAMED_COLOR_OPTIONS(X_DECL)
 #undef X_DECL
 
-        bool operator==(const CanvasNamedColorOptions &other) const;
+        bool operator==(const CanvasNamedColorOptions &other) const = default;
 
         NODISCARD std::shared_ptr<const ResolvedCanvasNamedColorOptions> clone() const
         {
@@ -177,33 +163,33 @@ public:
 
     struct NODISCARD CanvasSettings final : public CanvasNamedColorOptions
     {
+        void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                    const ChangeMonitor::Function &callback) const;
+
         NamedConfig<int> antialiasingSamples{"ANTIALIASING_SAMPLES", 0};
         NamedConfig<bool> trilinearFiltering{"TRILINEAR_FILTERING", true};
         NamedConfig<bool> showMissingMapId{"SHOW_MISSING_MAPID", false};
         NamedConfig<bool> showUnsavedChanges{"SHOW_UNSAVED_CHANGES", false};
         NamedConfig<bool> showUnmappedExits{"SHOW_UNMAPPED_EXITS", false};
-        bool drawUpperLayersTextured = false;
-        bool drawDoorNames = false;
-        bool softwareOpenGL = false;
-        QString resourcesDirectory;
+        ConfigValue<bool> drawUpperLayersTextured{false};
+        ConfigValue<bool> drawDoorNames{false};
+        ConfigValue<bool> softwareOpenGL{false};
+        ConfigValue<QString> resourcesDirectory;
 
         // not saved yet:
-        bool drawCharBeacons = true;
-        float charBeaconScaleCutoff = 0.4f;
-        float doorNameScaleCutoff = 0.4f;
-        float infomarkScaleCutoff = 0.25f;
-        float extraDetailScaleCutoff = 0.15f;
+        ConfigValue<bool> drawCharBeacons{true};
+        ConfigValue<float> charBeaconScaleCutoff{0.4f};
+        ConfigValue<float> doorNameScaleCutoff{0.4f};
+        ConfigValue<float> infomarkScaleCutoff{0.25f};
+        ConfigValue<float> extraDetailScaleCutoff{0.15f};
 
-        MMapper::Array<int, 3> mapRadius{100, 100, 100};
+        ConfigValue<MMapper::Array<int, 3>> mapRadius{MMapper::Array<int, 3>{100, 100, 100}};
 
         NamedConfig<int> weatherAtmosphereIntensity{"WEATHER_ATMOSPHERE_INTENSITY", 50};
         NamedConfig<int> weatherPrecipitationIntensity{"WEATHER_PRECIPITATION_INTENSITY", 50};
         NamedConfig<int> weatherTimeOfDayIntensity{"WEATHER_TIME_OF_DAY_INTENSITY", 50};
 
-        CanvasSettings() = default;
-        CanvasSettings(const CanvasSettings &other);
-        CanvasSettings &operator=(const CanvasSettings &other);
-        bool operator==(const CanvasSettings &other) const;
+        bool operator==(const CanvasSettings &other) const = default;
 
         struct NODISCARD Advanced final
         {
@@ -223,12 +209,10 @@ public:
 
         public:
             void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                        const ChangeMonitor::Function &callback);
+                                        const ChangeMonitor::Function &callback) const;
 
             Advanced();
-            Advanced(const Advanced &other);
-            Advanced &operator=(const Advanced &other);
-            bool operator==(const Advanced &other) const;
+            bool operator==(const Advanced &other) const = default;
         } advanced;
 
     private:
@@ -247,12 +231,14 @@ public:
 
     struct NODISCARD NamedColorOptions
     {
-#define X_DECL(_id, _name) Color _id;
+#define X_DECL(_id, _name) ConfigValue<Color> _id;
         XFOREACH_NAMED_COLOR_OPTIONS(X_DECL)
 #undef X_DECL
         NamedColorOptions() = default;
-        bool operator==(const NamedColorOptions &other) const;
+        bool operator==(const NamedColorOptions &other) const = default;
         void resetToDefaults();
+        void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                    const ChangeMonitor::Function &callback) const;
 
         NODISCARD std::shared_ptr<const ResolvedNamedColorOptions> clone() const
         {
@@ -275,11 +261,11 @@ public:
 
     struct NODISCARD AccountSettings final
     {
-        QString accountName;
-        bool accountPassword = false;
-        bool rememberLogin = false;
+        ConfigValue<QString> accountName;
+        ConfigValue<bool> accountPassword{false};
+        ConfigValue<bool> rememberLogin{false};
 
-        bool operator==(const AccountSettings &other) const;
+        bool operator==(const AccountSettings &other) const = default;
 
     private:
         SUBGROUP();
@@ -287,11 +273,11 @@ public:
 
     struct NODISCARD AutoLoadSettings final
     {
-        bool autoLoadMap = false;
-        QString fileName;
-        QString lastMapDirectory;
+        ConfigValue<bool> autoLoadMap{false};
+        ConfigValue<QString> fileName;
+        ConfigValue<QString> lastMapDirectory;
 
-        bool operator==(const AutoLoadSettings &other) const;
+        bool operator==(const AutoLoadSettings &other) const = default;
 
     private:
         SUBGROUP();
@@ -299,15 +285,15 @@ public:
 
     struct NODISCARD AutoLogSettings final
     {
-        QString autoLogDirectory;
-        bool autoLog = false;
-        AutoLoggerEnum cleanupStrategy = AutoLoggerEnum::DeleteDays;
-        int deleteWhenLogsReachDays = 0;
-        int deleteWhenLogsReachBytes = 0;
-        bool askDelete = false;
-        int rotateWhenLogsReachBytes = 0;
+        ConfigValue<QString> autoLogDirectory;
+        ConfigValue<bool> autoLog{false};
+        ConfigValue<AutoLoggerEnum> cleanupStrategy{AutoLoggerEnum::DeleteDays};
+        ConfigValue<int> deleteWhenLogsReachDays{0};
+        ConfigValue<int> deleteWhenLogsReachBytes{0};
+        ConfigValue<bool> askDelete{false};
+        ConfigValue<int> rotateWhenLogsReachBytes{0};
 
-        bool operator==(const AutoLogSettings &other) const;
+        bool operator==(const AutoLogSettings &other) const = default;
 
     private:
         SUBGROUP();
@@ -315,15 +301,15 @@ public:
 
     struct NODISCARD PathMachineSettings final
     {
-        double acceptBestRelative = 0.0;
-        double acceptBestAbsolute = 0.0;
-        double newRoomPenalty = 0.0;
-        double multipleConnectionsPenalty = 0.0;
-        double correctPositionBonus = 0.0;
-        int maxPaths = 0;
-        int matchingTolerance = 0;
+        ConfigValue<double> acceptBestRelative{0.0};
+        ConfigValue<double> acceptBestAbsolute{0.0};
+        ConfigValue<double> newRoomPenalty{0.0};
+        ConfigValue<double> multipleConnectionsPenalty{0.0};
+        ConfigValue<double> correctPositionBonus{0.0};
+        ConfigValue<int> maxPaths{0};
+        ConfigValue<int> matchingTolerance{0};
 
-        bool operator==(const PathMachineSettings &other) const;
+        bool operator==(const PathMachineSettings &other) const = default;
 
     private:
         SUBGROUP();
@@ -331,13 +317,23 @@ public:
 
     struct NODISCARD GroupManagerSettings final
     {
-        QColor color;
-        QColor npcColor;
-        bool npcColorOverride = false;
-        bool npcSortBottom = false;
-        bool npcHide = false;
+        ConfigValue<QColor> color;
+        ConfigValue<QColor> npcColor;
+        ConfigValue<bool> npcColorOverride{false};
+        ConfigValue<bool> npcSortBottom{false};
+        ConfigValue<bool> npcHide{false};
 
-        bool operator==(const GroupManagerSettings &other) const;
+        void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                    const ChangeMonitor::Function &callback) const
+        {
+            color.registerChangeCallback(lifetime, callback);
+            npcColor.registerChangeCallback(lifetime, callback);
+            npcColorOverride.registerChangeCallback(lifetime, callback);
+            npcSortBottom.registerChangeCallback(lifetime, callback);
+            npcHide.registerChangeCallback(lifetime, callback);
+        }
+
+        bool operator==(const GroupManagerSettings &other) const = default;
 
     private:
         SUBGROUP();
@@ -345,10 +341,10 @@ public:
 
     struct NODISCARD MumeClockSettings final
     {
-        int64_t startEpoch = 0;
-        bool display = false;
+        ConfigValue<int64_t> startEpoch{0};
+        ConfigValue<bool> display{false};
 
-        bool operator==(const MumeClockSettings &other) const;
+        bool operator==(const MumeClockSettings &other) const = default;
 
     private:
         SUBGROUP();
@@ -356,30 +352,17 @@ public:
 
     struct NODISCARD AdventurePanelSettings final
     {
-    private:
-        ChangeMonitor m_changeMonitor;
-        bool m_displayXPStatus = false;
-
-    public:
-        explicit AdventurePanelSettings() = default;
-        ~AdventurePanelSettings() = default;
-        AdventurePanelSettings(const AdventurePanelSettings &other);
-        AdventurePanelSettings &operator=(const AdventurePanelSettings &other);
-        bool operator==(const AdventurePanelSettings &other) const;
-
-    public:
-        NODISCARD bool getDisplayXPStatus() const { return m_displayXPStatus; }
-        void setDisplayXPStatus(const bool display)
-        {
-            m_displayXPStatus = display;
-            m_changeMonitor.notifyAll();
-        }
-
+        NODISCARD bool getDisplayXPStatus() const { return displayXPStatus.get(); }
+        void setDisplayXPStatus(const bool value) { displayXPStatus.set(value); }
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                    const ChangeMonitor::Function &callback)
+                                    const ChangeMonitor::Function &callback) const
         {
-            return m_changeMonitor.registerChangeCallback(lifetime, callback);
+            displayXPStatus.registerChangeCallback(lifetime, callback);
         }
+
+        ConfigValue<bool> displayXPStatus{false};
+
+        bool operator==(const AdventurePanelSettings &other) const = default;
 
     private:
         SUBGROUP();
@@ -387,54 +370,33 @@ public:
 
     struct NODISCARD AudioSettings final
     {
-    private:
-        ChangeMonitor m_changeMonitor;
-        int m_musicVolume = 50;
-        int m_soundVolume = 50;
-        QByteArray m_outputDeviceId;
-        bool m_unlocked = false;
+        NODISCARD int getMusicVolume() const { return musicVolume.get(); }
+        void setMusicVolume(const int value) { musicVolume.set(value); }
 
-    public:
-        explicit AudioSettings() = default;
-        ~AudioSettings() = default;
-        AudioSettings(const AudioSettings &other);
-        AudioSettings &operator=(const AudioSettings &other);
-        bool operator==(const AudioSettings &other) const;
+        NODISCARD int getSoundVolume() const { return soundVolume.get(); }
+        void setSoundVolume(const int value) { soundVolume.set(value); }
 
-    public:
-        NODISCARD int getMusicVolume() const { return m_musicVolume; }
-        void setMusicVolume(const int volume)
-        {
-            m_musicVolume = volume;
-            m_changeMonitor.notifyAll();
-        }
+        NODISCARD const QByteArray &getOutputDeviceId() const { return outputDeviceId.get(); }
+        void setOutputDeviceId(const QByteArray &value) { outputDeviceId.set(value); }
 
-        NODISCARD int getSoundVolume() const { return m_soundVolume; }
-        void setSoundVolume(const int volume)
-        {
-            m_soundVolume = volume;
-            m_changeMonitor.notifyAll();
-        }
-
-        NODISCARD const QByteArray &getOutputDeviceId() const { return m_outputDeviceId; }
-        void setOutputDeviceId(const QByteArray &id)
-        {
-            m_outputDeviceId = id;
-            m_changeMonitor.notifyAll();
-        }
-
-        NODISCARD bool isUnlocked() const { return m_unlocked; }
-        void setUnlocked()
-        {
-            m_unlocked = true;
-            m_changeMonitor.notifyAll();
-        }
+        NODISCARD bool isUnlocked() const { return unlocked.get(); }
+        void setUnlocked() { unlocked.set(true); }
 
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                    const ChangeMonitor::Function &callback)
+                                    const ChangeMonitor::Function &callback) const
         {
-            return m_changeMonitor.registerChangeCallback(lifetime, callback);
+            musicVolume.registerChangeCallback(lifetime, callback);
+            soundVolume.registerChangeCallback(lifetime, callback);
+            outputDeviceId.registerChangeCallback(lifetime, callback);
+            unlocked.registerChangeCallback(lifetime, callback);
         }
+
+        ConfigValue<int> musicVolume{50};
+        ConfigValue<int> soundVolume{50};
+        ConfigValue<QByteArray> outputDeviceId;
+        ConfigValue<bool> unlocked{false};
+
+        bool operator==(const AudioSettings &other) const = default;
 
     private:
         SUBGROUP();
@@ -442,23 +404,23 @@ public:
 
     struct NODISCARD IntegratedMudClientSettings final
     {
-        QString font;
-        QColor foregroundColor;
-        QColor backgroundColor;
-        QString commandSeparator;
-        int columns = 0;
-        int rows = 0;
-        int linesOfScrollback = 0;
-        int linesOfInputHistory = 0;
-        int tabCompletionDictionarySize = 0;
-        bool clearInputOnEnter = false;
-        bool autoResizeTerminal = false;
-        int linesOfPeekPreview = 0;
-        bool audibleBell = false;
-        bool visualBell = false;
-        bool useCommandSeparator = false;
+        ConfigValue<QString> font;
+        ConfigValue<QColor> foregroundColor;
+        ConfigValue<QColor> backgroundColor;
+        ConfigValue<QString> commandSeparator;
+        ConfigValue<int> columns{0};
+        ConfigValue<int> rows{0};
+        ConfigValue<int> linesOfScrollback{0};
+        ConfigValue<int> linesOfInputHistory{0};
+        ConfigValue<int> tabCompletionDictionarySize{0};
+        ConfigValue<bool> clearInputOnEnter{false};
+        ConfigValue<bool> autoResizeTerminal{false};
+        ConfigValue<int> linesOfPeekPreview{0};
+        ConfigValue<bool> audibleBell{false};
+        ConfigValue<bool> visualBell{false};
+        ConfigValue<bool> useCommandSeparator{false};
 
-        bool operator==(const IntegratedMudClientSettings &other) const;
+        bool operator==(const IntegratedMudClientSettings &other) const = default;
 
     private:
         SUBGROUP();
@@ -466,9 +428,9 @@ public:
 
     struct NODISCARD RoomPanelSettings final
     {
-        QByteArray geometry;
+        ConfigValue<QByteArray> geometry;
 
-        bool operator==(const RoomPanelSettings &other) const;
+        bool operator==(const RoomPanelSettings &other) const = default;
 
     private:
         SUBGROUP();
@@ -476,9 +438,9 @@ public:
 
     struct NODISCARD InfomarksDialog final
     {
-        QByteArray geometry;
+        ConfigValue<QByteArray> geometry;
 
-        bool operator==(const InfomarksDialog &other) const;
+        bool operator==(const InfomarksDialog &other) const = default;
 
     private:
         SUBGROUP();
@@ -486,9 +448,9 @@ public:
 
     struct NODISCARD RoomEditDialog final
     {
-        QByteArray geometry;
+        ConfigValue<QByteArray> geometry;
 
-        bool operator==(const RoomEditDialog &other) const;
+        bool operator==(const RoomEditDialog &other) const = default;
 
     private:
         SUBGROUP();
@@ -496,9 +458,9 @@ public:
 
     struct NODISCARD FindRoomsDialog final
     {
-        QByteArray geometry;
+        ConfigValue<QByteArray> geometry;
 
-        bool operator==(const FindRoomsDialog &other) const;
+        bool operator==(const FindRoomsDialog &other) const = default;
 
     private:
         SUBGROUP();
@@ -511,8 +473,11 @@ public:
     DELETE_MOVE_ASSIGN_OP(Configuration);
 
 private:
+    Signal2Lifetime m_internalLifetime;
+
 public:
     Configuration();
+    void setupGlobalCallbacks();
     Configuration(const Configuration &other);
     Configuration &operator=(const Configuration &other);
     bool operator==(const Configuration &other) const;

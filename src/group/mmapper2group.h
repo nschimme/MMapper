@@ -5,6 +5,7 @@
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
 #include "../global/JsonValue.h"
+#include "../global/Signal2.h"
 #include "CGroupChar.h"
 #include "ColorGenerator.h"
 #include "GroupManagerApi.h"
@@ -45,6 +46,7 @@ public:
 private:
     friend GroupManagerApi;
     std::unique_ptr<GroupManagerApi> m_groupManagerApi;
+    Signal2Lifetime m_lifetime;
 
 private:
     void init();

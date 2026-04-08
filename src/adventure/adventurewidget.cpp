@@ -29,11 +29,11 @@ AdventureWidget::AdventureWidget(AdventureTracker &at, QWidget *const parent)
     const auto &settings = getConfig().integratedClient;
 
     QTextFrameFormat frameFormat = m_textEdit->document()->rootFrame()->frameFormat();
-    frameFormat.setBackground(settings.backgroundColor);
+    frameFormat.setBackground(settings.backgroundColor.get());
     m_textEdit->document()->rootFrame()->setFrameFormat(frameFormat);
 
     QTextCharFormat blockCharFormat = m_textCursor->blockCharFormat();
-    blockCharFormat.setForeground(settings.foregroundColor);
+    blockCharFormat.setForeground(settings.foregroundColor.get());
     {
         QFont font;
         font.fromString(settings.font); // need fromString() to extract PointSize

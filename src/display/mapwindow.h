@@ -47,6 +47,7 @@ protected:
     QPointer<QTimer> m_scrollTimer;
     int m_verticalScrollStep = 0;
     int m_horizontalScrollStep = 0;
+    Signal2Lifetime m_lifetime;
 
 private:
     struct NODISCARD KnownMapSize final

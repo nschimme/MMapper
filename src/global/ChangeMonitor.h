@@ -15,7 +15,7 @@ public:
     Sig m_sig;
 
 public:
-    void registerChangeCallback(const Lifetime &lifetime, Function callback)
+    void registerChangeCallback(const Lifetime &lifetime, Function callback) const
     {
         return m_sig.connect(lifetime, std::move(callback));
     }

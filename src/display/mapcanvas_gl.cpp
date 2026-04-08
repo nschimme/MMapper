@@ -977,7 +977,7 @@ void MapCanvas::renderMapBatches()
         };
 
     const auto fadeBackground = [&gl, &settings]() {
-        auto bgColor = settings.backgroundColor.withAlpha(0.5f);
+        auto bgColor = settings.backgroundColor->withAlpha(0.5f);
 
         const auto blendedWithBackground
             = GLRenderState().withBlend(BlendModeEnum::TRANSPARENCY).withColor(bgColor);

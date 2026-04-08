@@ -28,7 +28,11 @@ static const bool verbose_debugging = false;
 Mmapper2Group::Mmapper2Group(QObject *const parent)
     : QObject{parent}
     , m_groupManagerApi{std::make_unique<GroupManagerApi>(*this)}
-{}
+{
+    getConfig().groupManager.registerChangeCallback(m_lifetime, [this]() {
+        this->slot_groupSettingsChanged();
+    });
+}
 
 Mmapper2Group::~Mmapper2Group() = default;
 

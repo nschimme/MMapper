@@ -272,7 +272,7 @@ void GeneralPage::slot_loadConfig()
     }
 #endif
     ui->proxyListensOnAnyInterfaceCheckBox->setChecked(connection.proxyListensOnAnyInterface);
-    ui->charsetComboBox->setCurrentIndex(static_cast<int>(general.characterEncoding));
+    ui->charsetComboBox->setCurrentIndex(static_cast<int>(general.characterEncoding.get()));
     ui->themeComboBox->setCurrentIndex(static_cast<int>(general.getTheme()));
 
     ui->emulatedExitsCheckBox->setChecked(mumeNative.emulatedExits);

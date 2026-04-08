@@ -50,8 +50,8 @@ void Mmapper2PathMachine::slot_handleParseEvent(const SigParseEvent &sigParseEve
     params.acceptBestAbsolute = settings.acceptBestAbsolute;
     params.newRoomPenalty = settings.newRoomPenalty;
     params.correctPositionBonus = settings.correctPositionBonus;
-    params.maxPaths = utils::clampNonNegative(settings.maxPaths);
-    params.matchingTolerance = utils::clampNonNegative(settings.matchingTolerance);
+    params.maxPaths = utils::clampNonNegative(settings.maxPaths.get());
+    params.matchingTolerance = utils::clampNonNegative(settings.matchingTolerance.get());
     params.multipleConnectionsPenalty = settings.multipleConnectionsPenalty;
 
     try {

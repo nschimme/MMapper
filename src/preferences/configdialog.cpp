@@ -196,82 +196,10 @@ void ConfigDialog::slot_apply()
         return;
     }
 
-    const auto oldConfig = getConfig();
-
-    // 1. Trigger notifications for settings that use ChangeMonitor by using setters
-    if (m_workingConfig.general.getTheme() != oldConfig.general.getTheme()) {
-        setConfig().general.setTheme(m_workingConfig.general.getTheme());
-    }
-    if (m_workingConfig.adventurePanel.getDisplayXPStatus()
-        != oldConfig.adventurePanel.getDisplayXPStatus()) {
-        setConfig().adventurePanel.setDisplayXPStatus(
-            m_workingConfig.adventurePanel.getDisplayXPStatus());
-    }
-    if (m_workingConfig.audio.getMusicVolume() != oldConfig.audio.getMusicVolume()) {
-        setConfig().audio.setMusicVolume(m_workingConfig.audio.getMusicVolume());
-    }
-    if (m_workingConfig.audio.getSoundVolume() != oldConfig.audio.getSoundVolume()) {
-        setConfig().audio.setSoundVolume(m_workingConfig.audio.getSoundVolume());
-    }
-    if (m_workingConfig.audio.getOutputDeviceId() != oldConfig.audio.getOutputDeviceId()) {
-        setConfig().audio.setOutputDeviceId(m_workingConfig.audio.getOutputDeviceId());
-    }
-
-    // NamedConfigs in canvas.advanced also need notifications
-    auto &adv = setConfig().canvas.advanced;
-    const auto &wadv = m_workingConfig.canvas.advanced;
-    adv.use3D.set(wadv.use3D.get());
-    adv.autoTilt.set(wadv.autoTilt.get());
-    adv.printPerfStats.set(wadv.printPerfStats.get());
-    adv.maximumFps.set(wadv.maximumFps.get());
-    adv.fov.set(wadv.fov.get());
-    adv.verticalAngle.set(wadv.verticalAngle.get());
-    adv.horizontalAngle.set(wadv.horizontalAngle.get());
-    adv.layerHeight.set(wadv.layerHeight.get());
-
-    // And other canvas settings
-    auto &can = setConfig().canvas;
-    const auto &wcan = m_workingConfig.canvas;
-    can.antialiasingSamples.set(wcan.antialiasingSamples.get());
-    can.trilinearFiltering.set(wcan.trilinearFiltering.get());
-    can.showMissingMapId.set(wcan.showMissingMapId.get());
-    can.showUnsavedChanges.set(wcan.showUnsavedChanges.get());
-    can.showUnmappedExits.set(wcan.showUnmappedExits.get());
-
-    can.weatherAtmosphereIntensity.set(wcan.weatherAtmosphereIntensity.get());
-    can.weatherPrecipitationIntensity.set(wcan.weatherPrecipitationIntensity.get());
-    can.weatherTimeOfDayIntensity.set(wcan.weatherTimeOfDayIntensity.get());
-
-    // Hotkeys
-    if (m_workingConfig.hotkeys.data() != oldConfig.hotkeys.data()) {
-        setConfig().hotkeys.setData(m_workingConfig.hotkeys.data());
-    }
-
-    // 2. Perform global assignment to catch all other fields
+    // 1. Perform global assignment.
+    // Thanks to observable types (ConfigValue, NamedConfig, FixedPoint),
+    // this single assignment triggers all necessary notifications!
     setConfig() = m_workingConfig;
-
-    // 3. Emit dialog-level signals for broader updates
-    if (m_workingConfig.canvas != oldConfig.canvas) {
-        emit sig_graphicsSettingsChanged();
-    }
-
-    if (m_workingConfig.groupManager != oldConfig.groupManager) {
-        emit sig_groupSettingsChanged();
-    }
-
-    // Colors
-    bool colorChanged = false;
-#define X_COLOR_SYNC(_id, _name) \
-    if (m_workingConfig.colorSettings._id != oldConfig.colorSettings._id) { \
-        XNamedColor(NamedColorEnum::_id).setColor(m_workingConfig.colorSettings._id); \
-        colorChanged = true; \
-    }
-    XFOREACH_NAMED_COLOR_OPTIONS(X_COLOR_SYNC)
-#undef X_COLOR_SYNC
-
-    if (colorChanged) {
-        emit sig_graphicsSettingsChanged();
-    }
 
     // 4. Persist changes to disk
     getConfig().write();

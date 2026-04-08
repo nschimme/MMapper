@@ -156,7 +156,7 @@ void GraphicsPage::slot_loadConfig()
     ui->weatherTimeOfDaySlider->setValue(settings.weatherTimeOfDayIntensity.get());
 }
 
-bool GraphicsPage::changeColorClicked(Color &color)
+bool GraphicsPage::changeColorClickedImpl(Color &color)
 {
     const QColor origColor = color.getQColor();
     const QColor newColor = QColorDialog::getColor(origColor, this);
@@ -181,12 +181,12 @@ void GraphicsPage::slot_drawNotMappedExitsStateChanged(int /*unused*/)
 
 void GraphicsPage::slot_drawDoorNamesStateChanged(int /*unused*/)
 {
-    m_config.canvas.drawDoorNames = ui->drawDoorNames->isChecked();
+    m_config.canvas.drawDoorNames.set(ui->drawDoorNames->isChecked());
     graphicsSettingsChanged();
 }
 
 void GraphicsPage::slot_drawUpperLayersTexturedStateChanged(int /*unused*/)
 {
-    m_config.canvas.drawUpperLayersTextured = ui->drawUpperLayersTextured->isChecked();
+    m_config.canvas.drawUpperLayersTextured.set(ui->drawUpperLayersTextured->isChecked());
     graphicsSettingsChanged();
 }

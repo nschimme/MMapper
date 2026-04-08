@@ -82,7 +82,7 @@ void ParserPage::slot_loadConfig()
     AnsiCombo::makeWidgetColoured(roomNameColorLabel, settings.roomNameColor);
     AnsiCombo::makeWidgetColoured(roomDescColorLabel, settings.roomDescColor);
 
-    charPrefixLineEdit->setText(QString(settings.prefixChar));
+    charPrefixLineEdit->setText(QString(settings.prefixChar.get()));
     charPrefixLineEdit->setValidator(new CommandPrefixValidator(this));
 
     encodeEmoji->setChecked(settings.encodeEmoji);

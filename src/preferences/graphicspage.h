@@ -3,6 +3,7 @@
 // Copyright (C) 2019 The MMapper Authors
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
+#include "../configuration/ConfigValue.h"
 #include "../global/Color.h"
 #include "../global/macros.h"
 #include "ui_graphicspage.h"
@@ -33,7 +34,17 @@ public:
     ~GraphicsPage() final;
 
 private:
-    bool changeColorClicked(Color &color);
+    template<typename T>
+    bool changeColorClicked(ConfigValue<T> &color)
+    {
+        T val = color.get();
+        if (changeColorClickedImpl(val)) {
+            color.set(val);
+            return true;
+        }
+        return false;
+    }
+    bool changeColorClickedImpl(Color &color);
     void graphicsSettingsChanged() { emit sig_changed(); }
     Ui::GraphicsPage *const ui;
     Configuration &m_config;

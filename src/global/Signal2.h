@@ -53,7 +53,7 @@ private:
             , weak{shared}
         {}
     };
-    std::vector<Data> m_callbacks;
+    mutable std::vector<Data> m_callbacks;
     bool m_invoking = false;
 
 public:
@@ -110,7 +110,7 @@ public:
     void operator()(Args... args) { invoke(std::move(args)...); }
 
 public:
-    void connect(const Signal2Lifetime &lifetime, Function f)
+    void connect(const Signal2Lifetime &lifetime, Function f) const
     {
         if (m_invoking) {
             throw std::runtime_error("cannot connect while invoking");

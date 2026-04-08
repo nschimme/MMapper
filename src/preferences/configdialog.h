@@ -24,6 +24,7 @@ class ConfigDialog;
 class NODISCARD_QOBJECT ConfigDialog final : public QDialog
 {
     Q_OBJECT
+    friend class TestPreferences;
 
 private:
     Ui::ConfigDialog *const ui;
@@ -32,7 +33,7 @@ private:
     Configuration m_originalConfig;
 
 public:
-    explicit ConfigDialog(QWidget *parent);
+    explicit ConfigDialog(QWidget *parent = nullptr);
     ~ConfigDialog() final;
 
 protected:

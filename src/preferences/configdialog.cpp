@@ -148,9 +148,11 @@ void ConfigDialog::showEvent(QShowEvent *const event)
     emit sig_loadConfig();
 
     // Move widget to center of parent's location
-    auto pos = parentWidget()->pos();
-    pos.setX(pos.x() + (parentWidget()->width() / 2) - (width() / 2));
-    move(pos);
+    if (parentWidget()) {
+        auto pos = parentWidget()->pos();
+        pos.setX(pos.x() + (parentWidget()->width() / 2) - (width() / 2));
+        move(pos);
+    }
 
     event->accept();
 }

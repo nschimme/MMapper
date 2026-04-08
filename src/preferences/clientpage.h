@@ -9,6 +9,7 @@
 #include <QWidget>
 #include <QtCore>
 
+class Configuration;
 class QObject;
 
 namespace Ui {
@@ -21,12 +22,16 @@ class NODISCARD_QOBJECT ClientPage final : public QWidget
 
 private:
     Ui::ClientPage *const ui;
+    Configuration &m_config;
 
 public:
-    explicit ClientPage(QWidget *parent);
+    explicit ClientPage(QWidget *parent, Configuration &config);
     ~ClientPage() final;
 
     void updateFontAndColors();
+
+signals:
+    void sig_changed();
 
 public slots:
     void slot_loadConfig();

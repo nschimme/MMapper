@@ -45,8 +45,9 @@ CommandPrefixValidator::CommandPrefixValidator(QObject *const parent)
 
 CommandPrefixValidator::~CommandPrefixValidator() = default;
 
-ParserPage::ParserPage(QWidget *const parent)
+ParserPage::ParserPage(QWidget *const parent, Configuration &config)
     : QWidget(parent)
+    , m_config(config)
 {
     setupUi(this);
 
@@ -60,20 +61,23 @@ ParserPage::ParserPage(QWidget *const parent)
             &ParserPage::slot_roomDescColorClicked);
 
     connect(charPrefixLineEdit, &QLineEdit::editingFinished, this, [this]() {
-        setConfig().parser.prefixChar = mmqt::toLatin1(charPrefixLineEdit->text().front());
+        m_config.parser.prefixChar = mmqt::toLatin1(charPrefixLineEdit->text().front());
+        emit sig_changed();
     });
 
-    connect(encodeEmoji, &QCheckBox::clicked, this, [](bool checked) {
-        setConfig().parser.encodeEmoji = checked;
+    connect(encodeEmoji, &QCheckBox::clicked, this, [this](bool checked) {
+        m_config.parser.encodeEmoji = checked;
+        emit sig_changed();
     });
-    connect(decodeEmoji, &QCheckBox::clicked, this, [](bool checked) {
-        setConfig().parser.decodeEmoji = checked;
+    connect(decodeEmoji, &QCheckBox::clicked, this, [this](bool checked) {
+        m_config.parser.decodeEmoji = checked;
+        emit sig_changed();
     });
 }
 
 void ParserPage::slot_loadConfig()
 {
-    const auto &settings = getConfig().parser;
+    const auto &settings = m_config.parser;
 
     AnsiCombo::makeWidgetColoured(roomNameColorLabel, settings.roomNameColor);
     AnsiCombo::makeWidgetColoured(roomDescColorLabel, settings.roomDescColor);
@@ -87,16 +91,18 @@ void ParserPage::slot_loadConfig()
 
 void ParserPage::slot_roomNameColorClicked()
 {
-    AnsiColorDialog::getColor(getConfig().parser.roomNameColor, this, [this](QString ansiString) {
+    AnsiColorDialog::getColor(m_config.parser.roomNameColor, this, [this](QString ansiString) {
         AnsiCombo::makeWidgetColoured(roomNameColorLabel, ansiString);
-        setConfig().parser.roomNameColor = ansiString;
+        m_config.parser.roomNameColor = ansiString;
+        emit sig_changed();
     });
 }
 
 void ParserPage::slot_roomDescColorClicked()
 {
-    AnsiColorDialog::getColor(getConfig().parser.roomDescColor, this, [this](QString ansiString) {
+    AnsiColorDialog::getColor(m_config.parser.roomDescColor, this, [this](QString ansiString) {
         AnsiCombo::makeWidgetColoured(roomDescColorLabel, ansiString);
-        setConfig().parser.roomDescColor = ansiString;
+        m_config.parser.roomDescColor = ansiString;
+        emit sig_changed();
     });
 }

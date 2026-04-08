@@ -3,6 +3,7 @@
 // Copyright (C) 2019 The MMapper Authors
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
+#include "../global/Color.h"
 #include "../global/macros.h"
 #include "ui_graphicspage.h"
 
@@ -21,22 +22,26 @@ namespace Ui {
 class GraphicsPage;
 }
 
+class Configuration;
+
 class NODISCARD_QOBJECT GraphicsPage final : public QWidget
 {
     Q_OBJECT
 
 public:
-    explicit GraphicsPage(QWidget *parent);
+    explicit GraphicsPage(QWidget *parent, Configuration &config);
     ~GraphicsPage() final;
 
 private:
-    void changeColorClicked(XNamedColor &color, QPushButton *pushButton);
-    void graphicsSettingsChanged() { emit sig_graphicsSettingsChanged(); }
+    bool changeColorClicked(Color &color);
+    void graphicsSettingsChanged() { emit sig_changed(); }
     Ui::GraphicsPage *const ui;
+    Configuration &m_config;
     std::unique_ptr<AdvancedGraphicsGroupBox> m_advanced;
 
 signals:
     void sig_graphicsSettingsChanged();
+    void sig_changed();
 
 public slots:
     void slot_loadConfig();

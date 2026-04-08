@@ -28,12 +28,17 @@ void AudioVolumeSlider::init()
     setRange(0, 100);
     connect(this, &QSlider::valueChanged, this, [this](int value) { updateToConfig(value); });
 
-    setConfig().audio.registerChangeCallback(m_lifetime, [this]() { updateFromConfig(); });
-
     if constexpr (NO_AUDIO) {
         setEnabled(false);
     }
     setAudioType(m_type);
+}
+
+void AudioVolumeSlider::setConfiguration(Configuration &config)
+{
+    m_config = &config;
+    m_config->audio.registerChangeCallback(m_lifetime, [this]() { updateFromConfig(); });
+    updateFromConfig();
 }
 
 void AudioVolumeSlider::setAudioType(AudioType type)
@@ -43,6 +48,11 @@ void AudioVolumeSlider::setAudioType(AudioType type)
     }
 
     m_type = type;
+
+    if (m_config == nullptr) {
+        setConfig().audio.registerChangeCallback(m_lifetime, [this]() { updateFromConfig(); });
+    }
+
     updateFromConfig();
 
     switch (m_type) {
@@ -58,12 +68,13 @@ void AudioVolumeSlider::setAudioType(AudioType type)
 void AudioVolumeSlider::updateFromConfig()
 {
     int actualVolume = 0;
+    const auto &audio = m_config ? m_config->audio : getConfig().audio;
     switch (m_type) {
     case AudioType::Music:
-        actualVolume = getConfig().audio.getMusicVolume();
+        actualVolume = audio.getMusicVolume();
         break;
     case AudioType::Sound:
-        actualVolume = getConfig().audio.getSoundVolume();
+        actualVolume = audio.getSoundVolume();
         break;
     }
 
@@ -75,20 +86,26 @@ void AudioVolumeSlider::updateFromConfig()
 
 void AudioVolumeSlider::updateToConfig(int value)
 {
-    auto &audioSettings = setConfig().audio;
+    auto &audioSettings = m_config ? m_config->audio : setConfig().audio;
+    bool changed = false;
     switch (m_type) {
     case AudioType::Music:
         if (audioSettings.getMusicVolume() != value) {
             audioSettings.setMusicVolume(value);
             audioSettings.setUnlocked();
+            changed = true;
         }
         break;
     case AudioType::Sound:
         if (audioSettings.getSoundVolume() != value) {
             audioSettings.setSoundVolume(value);
             audioSettings.setUnlocked();
+            changed = true;
         }
         break;
+    }
+    if (changed) {
+        emit sig_changed();
     }
 }
 

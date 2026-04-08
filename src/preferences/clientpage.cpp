@@ -46,9 +46,10 @@ CustomSeparatorValidator::CustomSeparatorValidator(QObject *const parent)
 
 CustomSeparatorValidator::~CustomSeparatorValidator() = default;
 
-ClientPage::ClientPage(QWidget *parent)
+ClientPage::ClientPage(QWidget *parent, Configuration &config)
     : QWidget(parent)
     , ui(new Ui::ClientPage)
+    , m_config(config)
 {
     ui->setupUi(this);
 
@@ -77,7 +78,7 @@ ClientPage::ClientPage(QWidget *parent)
     connect(ui->previewSpinBox,
             QOverload<int>::of(&QSpinBox::valueChanged),
             this,
-            [](const int value) { setConfig().integratedClient.linesOfPeekPreview = value; });
+            [this](const int value) { m_config.integratedClient.linesOfPeekPreview = value; });
 
     connect(ui->inputHistorySpinBox,
             QOverload<int>::of(&QSpinBox::valueChanged),
@@ -88,32 +89,30 @@ ClientPage::ClientPage(QWidget *parent)
             this,
             &ClientPage::slot_onChangeTabCompletionDictionarySize);
 
-    connect(ui->clearInputCheckBox, &QCheckBox::toggled, [](bool isChecked) {
-        /* NOTE: This directly modifies the global setting. */
-        setConfig().integratedClient.clearInputOnEnter = isChecked;
+    connect(ui->clearInputCheckBox, &QCheckBox::toggled, [this](bool isChecked) {
+        m_config.integratedClient.clearInputOnEnter = isChecked;
     });
 
-    connect(ui->autoResizeTerminalCheckBox, &QCheckBox::toggled, [](bool isChecked) {
-        /* NOTE: This directly modifies the global setting. */
-        setConfig().integratedClient.autoResizeTerminal = isChecked;
+    connect(ui->autoResizeTerminalCheckBox, &QCheckBox::toggled, [this](bool isChecked) {
+        m_config.integratedClient.autoResizeTerminal = isChecked;
     });
 
-    connect(ui->audibleBellCheckBox, &QCheckBox::toggled, [](bool isChecked) {
-        setConfig().integratedClient.audibleBell = isChecked;
+    connect(ui->audibleBellCheckBox, &QCheckBox::toggled, [this](bool isChecked) {
+        m_config.integratedClient.audibleBell = isChecked;
     });
 
-    connect(ui->visualBellCheckBox, &QCheckBox::toggled, [](bool isChecked) {
-        setConfig().integratedClient.visualBell = isChecked;
+    connect(ui->visualBellCheckBox, &QCheckBox::toggled, [this](bool isChecked) {
+        m_config.integratedClient.visualBell = isChecked;
     });
 
     connect(ui->commandSeparatorCheckBox, &QCheckBox::toggled, this, [this](bool isChecked) {
-        setConfig().integratedClient.useCommandSeparator = isChecked;
+        m_config.integratedClient.useCommandSeparator = isChecked;
         ui->commandSeparatorLineEdit->setEnabled(isChecked);
     });
 
-    connect(ui->commandSeparatorLineEdit, &QLineEdit::textChanged, this, [](const QString &text) {
+    connect(ui->commandSeparatorLineEdit, &QLineEdit::textChanged, this, [this](const QString &text) {
         if (text.length() == 1) {
-            setConfig().integratedClient.commandSeparator = text;
+            m_config.integratedClient.commandSeparator = text;
         }
     });
 
@@ -129,7 +128,7 @@ void ClientPage::slot_loadConfig()
 {
     updateFontAndColors();
 
-    const auto &settings = getConfig().integratedClient;
+    const auto &settings = m_config.integratedClient;
     ui->columnsSpinBox->setValue(settings.columns);
     ui->rowsSpinBox->setValue(settings.rows);
     ui->scrollbackSpinBox->setValue(settings.linesOfScrollback);
@@ -147,7 +146,7 @@ void ClientPage::slot_loadConfig()
 
 void ClientPage::updateFontAndColors()
 {
-    const auto &settings = getConfig().integratedClient;
+    const auto &settings = m_config.integratedClient;
     QFont font;
     font.fromString(settings.font);
     ui->exampleLabel->setFont(font);
@@ -174,7 +173,7 @@ void ClientPage::updateFontAndColors()
 
 void ClientPage::slot_onChangeFont()
 {
-    auto &fontDescription = setConfig().integratedClient.font;
+    auto &fontDescription = m_config.integratedClient.font;
     QFont oldFont;
     oldFont.fromString(fontDescription);
 
@@ -187,50 +186,58 @@ void ClientPage::slot_onChangeFont()
     if (ok) {
         fontDescription = newFont.toString();
         updateFontAndColors();
+        emit sig_changed();
     }
 }
 
 void ClientPage::slot_onChangeBackgroundColor()
 {
-    auto &backgroundColor = setConfig().integratedClient.backgroundColor;
+    auto &backgroundColor = m_config.integratedClient.backgroundColor;
     const QColor newColor = QColorDialog::getColor(backgroundColor, this);
     if (newColor.isValid() && newColor != backgroundColor) {
         backgroundColor = newColor;
         updateFontAndColors();
+        emit sig_changed();
     }
 }
 
 void ClientPage::slot_onChangeForegroundColor()
 {
-    auto &foregroundColor = setConfig().integratedClient.foregroundColor;
+    auto &foregroundColor = m_config.integratedClient.foregroundColor;
     const QColor newColor = QColorDialog::getColor(foregroundColor, this);
     if (newColor.isValid() && newColor != foregroundColor) {
         foregroundColor = newColor;
         updateFontAndColors();
+        emit sig_changed();
     }
 }
 
 void ClientPage::slot_onChangeColumns(const int value)
 {
-    setConfig().integratedClient.columns = value;
+    m_config.integratedClient.columns = value;
+    emit sig_changed();
 }
 
 void ClientPage::slot_onChangeRows(const int value)
 {
-    setConfig().integratedClient.rows = value;
+    m_config.integratedClient.rows = value;
+    emit sig_changed();
 }
 
 void ClientPage::slot_onChangeLinesOfScrollback(const int value)
 {
-    setConfig().integratedClient.linesOfScrollback = value;
+    m_config.integratedClient.linesOfScrollback = value;
+    emit sig_changed();
 }
 
 void ClientPage::slot_onChangeLinesOfInputHistory(const int value)
 {
-    setConfig().integratedClient.linesOfInputHistory = value;
+    m_config.integratedClient.linesOfInputHistory = value;
+    emit sig_changed();
 }
 
 void ClientPage::slot_onChangeTabCompletionDictionarySize(const int value)
 {
-    setConfig().integratedClient.tabCompletionDictionarySize = value;
+    m_config.integratedClient.tabCompletionDictionarySize = value;
+    emit sig_changed();
 }

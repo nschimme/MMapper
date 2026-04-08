@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2025 The MMapper Authors
 
+#include "../configuration/configuration.h"
 #include "../global/macros.h"
 
 #include <QColor>
@@ -22,13 +23,15 @@ class NODISCARD_QOBJECT GroupPage final : public QWidget
 
 private:
     Ui::GroupPage *const ui;
+    Configuration &m_config;
 
 public:
-    explicit GroupPage(QWidget *parent = nullptr);
+    explicit GroupPage(QWidget *parent, Configuration &config);
     ~GroupPage() final;
 
 signals:
     void sig_groupSettingsChanged();
+    void sig_changed();
 
 public slots:
     void slot_loadConfig();

@@ -5,6 +5,7 @@
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
+#include "../configuration/configuration.h"
 #include "../global/macros.h"
 
 #include <QDialog>
@@ -27,6 +28,8 @@ class NODISCARD_QOBJECT ConfigDialog final : public QDialog
 private:
     Ui::ConfigDialog *const ui;
     QStackedWidget *m_pagesWidget = nullptr;
+    Configuration m_workingConfig;
+    Configuration m_originalConfig;
 
 public:
     explicit ConfigDialog(QWidget *parent);
@@ -46,4 +49,8 @@ signals:
 
 public slots:
     void slot_changePage(QListWidgetItem *current, QListWidgetItem *previous);
+    void slot_apply();
+    void slot_ok();
+    void slot_cancel();
+    void slot_updateApplyButton();
 };

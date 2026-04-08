@@ -4,6 +4,7 @@
 // Author: Ulf Hermann <ulfonk_mennhar@gmx.de> (Alve)
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 
+#include "../configuration/configuration.h"
 #include "../global/macros.h"
 #include "ui_parserpage.h"
 
@@ -20,10 +21,16 @@ class NODISCARD_QOBJECT ParserPage : public QWidget, private Ui::ParserPage
     Q_OBJECT
 
 public:
-    explicit ParserPage(QWidget *parent);
+    explicit ParserPage(QWidget *parent, Configuration &config);
+
+signals:
+    void sig_changed();
 
 public slots:
     void slot_loadConfig();
     void slot_roomNameColorClicked();
     void slot_roomDescColorClicked();
+
+private:
+    Configuration &m_config;
 };

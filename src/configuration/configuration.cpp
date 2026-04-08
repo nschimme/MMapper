@@ -212,6 +212,356 @@ Configuration::Configuration()
     read(); // read the settings or set them to the default values
 }
 
+bool Configuration::operator==(const Configuration &other) const
+{
+    return general == other.general && connection == other.connection && canvas == other.canvas
+           && account == other.account && autoLoad == other.autoLoad && autoLog == other.autoLog
+           && parser == other.parser && mumeClientProtocol == other.mumeClientProtocol
+           && mumeNative == other.mumeNative && pathMachine == other.pathMachine
+           && groupManager == other.groupManager && mumeClock == other.mumeClock
+           && adventurePanel == other.adventurePanel && audio == other.audio
+           && integratedClient == other.integratedClient && infomarksDialog == other.infomarksDialog
+           && roomEditDialog == other.roomEditDialog && roomPanel == other.roomPanel
+           && findRoomsDialog == other.findRoomsDialog && hotkeys.data() == other.hotkeys.data();
+}
+
+Configuration::Configuration(const Configuration &other)
+    : hotkeys(GRP_HOTKEYS)
+{
+    *this = other;
+}
+
+Configuration &Configuration::operator=(const Configuration &other)
+{
+    if (this == &other) {
+        return *this;
+    }
+
+    general = other.general;
+    connection = other.connection;
+    canvas = other.canvas;
+    account = other.account;
+    autoLoad = other.autoLoad;
+    autoLog = other.autoLog;
+    parser = other.parser;
+    mumeClientProtocol = other.mumeClientProtocol;
+    mumeNative = other.mumeNative;
+    pathMachine = other.pathMachine;
+    groupManager = other.groupManager;
+    mumeClock = other.mumeClock;
+    adventurePanel = other.adventurePanel;
+    audio = other.audio;
+    integratedClient = other.integratedClient;
+    infomarksDialog = other.infomarksDialog;
+    roomEditDialog = other.roomEditDialog;
+    roomPanel = other.roomPanel;
+    findRoomsDialog = other.findRoomsDialog;
+    hotkeys.setData(other.hotkeys.data());
+
+    return *this;
+}
+
+Configuration::GeneralSettings::GeneralSettings(const GeneralSettings &other)
+{
+    *this = other;
+}
+
+Configuration::GeneralSettings &Configuration::GeneralSettings::operator=(
+    const GeneralSettings &other)
+{
+    if (this == &other) {
+        return *this;
+    }
+    m_theme = other.m_theme;
+    firstRun = other.firstRun;
+    windowGeometry = other.windowGeometry;
+    windowState = other.windowState;
+    alwaysOnTop = other.alwaysOnTop;
+    showStatusBar = other.showStatusBar;
+    showScrollBars = other.showScrollBars;
+    showMenuBar = other.showMenuBar;
+    mapMode = other.mapMode;
+    checkForUpdate = other.checkForUpdate;
+    characterEncoding = other.characterEncoding;
+    return *this;
+}
+
+bool Configuration::GeneralSettings::operator==(const GeneralSettings &other) const
+{
+    return m_theme == other.m_theme && firstRun == other.firstRun
+           && windowGeometry == other.windowGeometry && windowState == other.windowState
+           && alwaysOnTop == other.alwaysOnTop && showStatusBar == other.showStatusBar
+           && showScrollBars == other.showScrollBars && showMenuBar == other.showMenuBar
+           && mapMode == other.mapMode && checkForUpdate == other.checkForUpdate
+           && characterEncoding == other.characterEncoding;
+}
+
+bool Configuration::ConnectionSettings::operator==(const ConnectionSettings &other) const
+{
+    return remoteServerName == other.remoteServerName && remotePort == other.remotePort
+           && localPort == other.localPort && tlsEncryption == other.tlsEncryption
+           && proxyConnectionStatus == other.proxyConnectionStatus
+           && proxyListensOnAnyInterface == other.proxyListensOnAnyInterface;
+}
+
+bool Configuration::ParserSettings::operator==(const ParserSettings &other) const
+{
+    return roomNameColor == other.roomNameColor && roomDescColor == other.roomDescColor
+           && prefixChar == other.prefixChar && encodeEmoji == other.encodeEmoji
+           && decodeEmoji == other.decodeEmoji;
+}
+
+bool Configuration::MumeClientProtocolSettings::operator==(
+    const MumeClientProtocolSettings &other) const
+{
+    return internalRemoteEditor == other.internalRemoteEditor
+           && externalRemoteEditorCommand == other.externalRemoteEditorCommand;
+}
+
+bool Configuration::MumeNativeSettings::operator==(const MumeNativeSettings &other) const
+{
+    return emulatedExits == other.emulatedExits && showHiddenExitFlags == other.showHiddenExitFlags
+           && showNotes == other.showNotes;
+}
+
+bool Configuration::CanvasNamedColorOptions::operator==(const CanvasNamedColorOptions &other) const
+{
+    return backgroundColor == other.backgroundColor
+           && connectionNormalColor == other.connectionNormalColor
+           && roomDarkColor == other.roomDarkColor && roomDarkLitColor == other.roomDarkLitColor;
+}
+
+bool Configuration::CanvasSettings::operator==(const CanvasSettings &other) const
+{
+    return static_cast<const CanvasNamedColorOptions &>(*this)
+               == static_cast<const CanvasNamedColorOptions &>(other)
+           && antialiasingSamples.get() == other.antialiasingSamples.get()
+           && trilinearFiltering.get() == other.trilinearFiltering.get()
+           && showMissingMapId.get() == other.showMissingMapId.get()
+           && showUnsavedChanges.get() == other.showUnsavedChanges.get()
+           && showUnmappedExits.get() == other.showUnmappedExits.get()
+           && drawUpperLayersTextured == other.drawUpperLayersTextured
+           && drawDoorNames == other.drawDoorNames && softwareOpenGL == other.softwareOpenGL
+           && resourcesDirectory == other.resourcesDirectory
+           && drawCharBeacons == other.drawCharBeacons
+           && charBeaconScaleCutoff == other.charBeaconScaleCutoff
+           && doorNameScaleCutoff == other.doorNameScaleCutoff
+           && infomarkScaleCutoff == other.infomarkScaleCutoff
+           && extraDetailScaleCutoff == other.extraDetailScaleCutoff && mapRadius == other.mapRadius
+           && weatherAtmosphereIntensity.get() == other.weatherAtmosphereIntensity.get()
+           && weatherPrecipitationIntensity.get() == other.weatherPrecipitationIntensity.get()
+           && weatherTimeOfDayIntensity.get() == other.weatherTimeOfDayIntensity.get()
+           && advanced == other.advanced;
+}
+
+Configuration::CanvasSettings::CanvasSettings(const CanvasSettings &other)
+{
+    *this = other;
+}
+
+Configuration::CanvasSettings &Configuration::CanvasSettings::operator=(const CanvasSettings &other)
+{
+    if (this == &other) {
+        return *this;
+    }
+
+    backgroundColor = other.backgroundColor;
+    connectionNormalColor = other.connectionNormalColor;
+    roomDarkColor = other.roomDarkColor;
+    roomDarkLitColor = other.roomDarkLitColor;
+
+    antialiasingSamples.set(other.antialiasingSamples.get());
+    trilinearFiltering.set(other.trilinearFiltering.get());
+    showMissingMapId.set(other.showMissingMapId.get());
+    showUnsavedChanges.set(other.showUnsavedChanges.get());
+    showUnmappedExits.set(other.showUnmappedExits.get());
+    drawUpperLayersTextured = other.drawUpperLayersTextured;
+    drawDoorNames = other.drawDoorNames;
+    softwareOpenGL = other.softwareOpenGL;
+    resourcesDirectory = other.resourcesDirectory;
+    drawCharBeacons = other.drawCharBeacons;
+    charBeaconScaleCutoff = other.charBeaconScaleCutoff;
+    doorNameScaleCutoff = other.doorNameScaleCutoff;
+    infomarkScaleCutoff = other.infomarkScaleCutoff;
+    extraDetailScaleCutoff = other.extraDetailScaleCutoff;
+    mapRadius = other.mapRadius;
+    weatherAtmosphereIntensity.set(other.weatherAtmosphereIntensity.get());
+    weatherPrecipitationIntensity.set(other.weatherPrecipitationIntensity.get());
+    weatherTimeOfDayIntensity.set(other.weatherTimeOfDayIntensity.get());
+    advanced = other.advanced;
+
+    return *this;
+}
+
+Configuration::CanvasSettings::Advanced::Advanced(const Advanced &other)
+{
+    *this = other;
+}
+
+Configuration::CanvasSettings::Advanced &Configuration::CanvasSettings::Advanced::operator=(
+    const Advanced &other)
+{
+    if (this == &other) {
+        return *this;
+    }
+
+    use3D.set(other.use3D.get());
+    autoTilt.set(other.autoTilt.get());
+    printPerfStats.set(other.printPerfStats.get());
+    maximumFps.set(other.maximumFps.get());
+    fov.set(other.fov.get());
+    verticalAngle.set(other.verticalAngle.get());
+    horizontalAngle.set(other.horizontalAngle.get());
+    layerHeight.set(other.layerHeight.get());
+
+    return *this;
+}
+
+bool Configuration::CanvasSettings::Advanced::operator==(const Advanced &other) const
+{
+    return use3D.get() == other.use3D.get() && autoTilt.get() == other.autoTilt.get()
+           && printPerfStats.get() == other.printPerfStats.get()
+           && maximumFps.get() == other.maximumFps.get() && fov.get() == other.fov.get()
+           && verticalAngle.get() == other.verticalAngle.get()
+           && horizontalAngle.get() == other.horizontalAngle.get()
+           && layerHeight.get() == other.layerHeight.get();
+}
+
+bool Configuration::AccountSettings::operator==(const AccountSettings &other) const
+{
+    return accountName == other.accountName && accountPassword == other.accountPassword
+           && rememberLogin == other.rememberLogin;
+}
+
+bool Configuration::AutoLoadSettings::operator==(const AutoLoadSettings &other) const
+{
+    return autoLoadMap == other.autoLoadMap && fileName == other.fileName
+           && lastMapDirectory == other.lastMapDirectory;
+}
+
+bool Configuration::AutoLogSettings::operator==(const AutoLogSettings &other) const
+{
+    return autoLogDirectory == other.autoLogDirectory && autoLog == other.autoLog
+           && cleanupStrategy == other.cleanupStrategy
+           && deleteWhenLogsReachDays == other.deleteWhenLogsReachDays
+           && deleteWhenLogsReachBytes == other.deleteWhenLogsReachBytes
+           && askDelete == other.askDelete
+           && rotateWhenLogsReachBytes == other.rotateWhenLogsReachBytes;
+}
+
+bool Configuration::PathMachineSettings::operator==(const PathMachineSettings &other) const
+{
+    return acceptBestRelative == other.acceptBestRelative
+           && acceptBestAbsolute == other.acceptBestAbsolute
+           && newRoomPenalty == other.newRoomPenalty
+           && multipleConnectionsPenalty == other.multipleConnectionsPenalty
+           && correctPositionBonus == other.correctPositionBonus && maxPaths == other.maxPaths
+           && matchingTolerance == other.matchingTolerance;
+}
+
+bool Configuration::GroupManagerSettings::operator==(const GroupManagerSettings &other) const
+{
+    return color == other.color && npcColor == other.npcColor
+           && npcColorOverride == other.npcColorOverride && npcSortBottom == other.npcSortBottom
+           && npcHide == other.npcHide;
+}
+
+bool Configuration::MumeClockSettings::operator==(const MumeClockSettings &other) const
+{
+    return startEpoch == other.startEpoch && display == other.display;
+}
+
+Configuration::AdventurePanelSettings::AdventurePanelSettings(const AdventurePanelSettings &other)
+{
+    *this = other;
+}
+
+Configuration::AdventurePanelSettings &Configuration::AdventurePanelSettings::operator=(
+    const AdventurePanelSettings &other)
+{
+    if (this == &other) {
+        return *this;
+    }
+    m_displayXPStatus = other.m_displayXPStatus;
+    return *this;
+}
+
+bool Configuration::AdventurePanelSettings::operator==(const AdventurePanelSettings &other) const
+{
+    return m_displayXPStatus == other.m_displayXPStatus;
+}
+
+Configuration::AudioSettings::AudioSettings(const AudioSettings &other)
+{
+    *this = other;
+}
+
+Configuration::AudioSettings &Configuration::AudioSettings::operator=(const AudioSettings &other)
+{
+    if (this == &other) {
+        return *this;
+    }
+    m_musicVolume = other.m_musicVolume;
+    m_soundVolume = other.m_soundVolume;
+    m_outputDeviceId = other.m_outputDeviceId;
+    m_unlocked = other.m_unlocked;
+    return *this;
+}
+
+bool Configuration::AudioSettings::operator==(const AudioSettings &other) const
+{
+    return m_musicVolume == other.m_musicVolume && m_soundVolume == other.m_soundVolume
+           && m_outputDeviceId == other.m_outputDeviceId && m_unlocked == other.m_unlocked;
+}
+
+bool Configuration::ColorSettings::operator==(const ColorSettings &other) const
+{
+    return static_cast<const NamedColorOptions &>(*this)
+           == static_cast<const NamedColorOptions &>(other);
+}
+
+bool Configuration::IntegratedMudClientSettings::operator==(
+    const IntegratedMudClientSettings &other) const
+{
+    return font == other.font && foregroundColor == other.foregroundColor
+           && backgroundColor == other.backgroundColor && commandSeparator == other.commandSeparator
+           && columns == other.columns && rows == other.rows
+           && linesOfScrollback == other.linesOfScrollback
+           && linesOfInputHistory == other.linesOfInputHistory
+           && tabCompletionDictionarySize == other.tabCompletionDictionarySize
+           && clearInputOnEnter == other.clearInputOnEnter
+           && autoResizeTerminal == other.autoResizeTerminal
+           && linesOfPeekPreview == other.linesOfPeekPreview && audibleBell == other.audibleBell
+           && visualBell == other.visualBell && useCommandSeparator == other.useCommandSeparator;
+}
+
+bool Configuration::RoomPanelSettings::operator==(const RoomPanelSettings &other) const
+{
+    return geometry == other.geometry;
+}
+
+bool Configuration::InfomarksDialog::operator==(const InfomarksDialog &other) const
+{
+    return geometry == other.geometry;
+}
+
+bool Configuration::RoomEditDialog::operator==(const RoomEditDialog &other) const
+{
+    return geometry == other.geometry;
+}
+
+bool Configuration::FindRoomsDialog::operator==(const FindRoomsDialog &other) const
+{
+    return geometry == other.geometry;
+}
+
+bool Configuration::NamedColorOptions::operator==(const NamedColorOptions &other) const
+{
+#define X_COMPARE(_id, _name) &&_id == other._id
+    return true XFOREACH_NAMED_COLOR_OPTIONS(X_COMPARE);
+#undef X_COMPARE
+}
+
 ConstString KEY_ABSOLUTE_PATH_ACCEPTANCE = "absolute path acceptance";
 ConstString KEY_ACCOUNT_NAME = "account name";
 ConstString KEY_ACCOUNT_PASSWORD = "account password";
@@ -534,10 +884,8 @@ void Configuration::readFrom(QSettings &conf)
     assert(canvas.roomDarkColor == colorSettings.ROOM_DARK);
     assert(canvas.roomDarkLitColor == colorSettings.ROOM_NO_SUNDEATH);
 
-    assert(colorSettings.TRANSPARENT.isInitialized()
-           && colorSettings.TRANSPARENT.getColor().isTransparent());
-    assert(colorSettings.BACKGROUND.isInitialized()
-           && !colorSettings.BACKGROUND.getColor().isTransparent());
+    assert(colorSettings.TRANSPARENT.isTransparent());
+    assert(!colorSettings.BACKGROUND.isTransparent());
 }
 
 void Configuration::writeTo(QSettings &conf) const
@@ -846,9 +1194,9 @@ void Configuration::ConnectionSettings::write(QSettings &conf) const
     conf.setValue(KEY_PROXY_LISTENS_ON_ANY_INTERFACE, proxyListensOnAnyInterface);
 }
 
-NODISCARD static auto getQColorName(const XNamedColor &color)
+NODISCARD static auto getQColorName(const Color &color)
 {
-    return color.getColor().getQColor().name();
+    return color.getQColor().name();
 }
 
 void Configuration::CanvasSettings::write(QSettings &conf) const
@@ -1106,14 +1454,14 @@ void setEnteredMain()
 
 void Configuration::ResolvedNamedColorOptions::setFrom(const NamedColorOptions &from)
 {
-#define X_CLONE(_id, _name) (this->_id) = (from._id).getColor();
+#define X_CLONE(_id, _name) (this->_id) = (from._id);
     XFOREACH_NAMED_COLOR_OPTIONS(X_CLONE)
 #undef X_CLONE
 }
 
 void Configuration::ResolvedCanvasNamedColorOptions::setFrom(const CanvasNamedColorOptions &from)
 {
-#define X_CLONE(_id, _name) (this->_id) = (from._id).getColor();
+#define X_CLONE(_id, _name) (this->_id) = (from._id);
     XFOREACH_CANVAS_NAMED_COLOR_OPTIONS(X_CLONE)
 #undef X_CLONE
 }

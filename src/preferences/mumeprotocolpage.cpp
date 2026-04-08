@@ -12,9 +12,10 @@
 #include <QString>
 #include <QtWidgets>
 
-MumeProtocolPage::MumeProtocolPage(QWidget *parent)
+MumeProtocolPage::MumeProtocolPage(QWidget *parent, Configuration &config)
     : QWidget(parent)
     , ui(new Ui::MumeProtocolPage)
+    , m_config(config)
 {
     ui->setupUi(this);
 
@@ -39,7 +40,7 @@ MumeProtocolPage::~MumeProtocolPage()
 
 void MumeProtocolPage::slot_loadConfig()
 {
-    const auto &settings = getConfig().mumeClientProtocol;
+    const auto &settings = m_config.mumeClientProtocol;
     ui->internalEditorRadioButton->setChecked(settings.internalRemoteEditor);
     ui->externalEditorRadioButton->setChecked(!settings.internalRemoteEditor);
     ui->externalEditorCommand->setText(settings.externalRemoteEditorCommand);
@@ -55,20 +56,22 @@ void MumeProtocolPage::slot_internalEditorRadioButtonChanged(bool /*unused*/)
 {
     const bool useInternalEditor = ui->internalEditorRadioButton->isChecked();
 
-    setConfig().mumeClientProtocol.internalRemoteEditor = useInternalEditor;
+    m_config.mumeClientProtocol.internalRemoteEditor = useInternalEditor;
 
     ui->externalEditorCommand->setEnabled(!useInternalEditor);
     ui->externalEditorBrowseButton->setEnabled(!useInternalEditor);
+    emit sig_changed();
 }
 
 void MumeProtocolPage::slot_externalEditorCommandTextChanged(QString text)
 {
-    setConfig().mumeClientProtocol.externalRemoteEditorCommand = std::move(text);
+    m_config.mumeClientProtocol.externalRemoteEditorCommand = std::move(text);
+    emit sig_changed();
 }
 
 void MumeProtocolPage::slot_externalEditorBrowseButtonClicked(bool /*unused*/)
 {
-    auto &command = setConfig().mumeClientProtocol.externalRemoteEditorCommand;
+    auto &command = m_config.mumeClientProtocol.externalRemoteEditorCommand;
     QFileInfo dirInfo(command);
     const auto dir = dirInfo.exists() ? dirInfo.absoluteDir().absolutePath() : QDir::homePath();
     QString fileName = QFileDialog::getOpenFileName(this, "Choose editor...", dir, "Editor (*)");
@@ -76,5 +79,6 @@ void MumeProtocolPage::slot_externalEditorBrowseButtonClicked(bool /*unused*/)
         QString quotedFileName = QString(R"("%1")").arg(fileName.replace(R"(")", R"(\")"));
         ui->externalEditorCommand->setText(quotedFileName);
         command = quotedFileName;
+        emit sig_changed();
     }
 }

@@ -56,7 +56,9 @@ public:
     public:
         explicit GeneralSettings() = default;
         ~GeneralSettings() = default;
-        DELETE_CTORS_AND_ASSIGN_OPS(GeneralSettings);
+        GeneralSettings(const GeneralSettings &other);
+        GeneralSettings &operator=(const GeneralSettings &other);
+        bool operator==(const GeneralSettings &other) const;
 
     public:
         NODISCARD ThemeEnum getTheme() const { return m_theme; }
@@ -97,6 +99,8 @@ public:
         bool proxyConnectionStatus = false;
         bool proxyListensOnAnyInterface = false;
 
+        bool operator==(const ConnectionSettings &other) const;
+
     private:
         SUBGROUP();
     } connection;
@@ -109,6 +113,8 @@ public:
         bool encodeEmoji = true;
         bool decodeEmoji = true;
 
+        bool operator==(const ParserSettings &other) const;
+
     private:
         SUBGROUP();
     } parser;
@@ -117,6 +123,8 @@ public:
     {
         bool internalRemoteEditor = false;
         QString externalRemoteEditorCommand;
+
+        bool operator==(const MumeClientProtocolSettings &other) const;
 
     private:
         SUBGROUP();
@@ -128,6 +136,8 @@ public:
         bool emulatedExits = false;
         bool showHiddenExitFlags = false;
         bool showNotes = false;
+
+        bool operator==(const MumeNativeSettings &other) const;
 
     private:
         SUBGROUP();
@@ -150,9 +160,11 @@ public:
 
     struct NODISCARD CanvasNamedColorOptions
     {
-#define X_DECL(_id, _name) XNamedColor _id{NamedColorEnum::_name};
+#define X_DECL(_id, _name) Color _id;
         XFOREACH_CANVAS_NAMED_COLOR_OPTIONS(X_DECL)
 #undef X_DECL
+
+        bool operator==(const CanvasNamedColorOptions &other) const;
 
         NODISCARD std::shared_ptr<const ResolvedCanvasNamedColorOptions> clone() const
         {
@@ -188,6 +200,11 @@ public:
         NamedConfig<int> weatherPrecipitationIntensity{"WEATHER_PRECIPITATION_INTENSITY", 50};
         NamedConfig<int> weatherTimeOfDayIntensity{"WEATHER_TIME_OF_DAY_INTENSITY", 50};
 
+        CanvasSettings() = default;
+        CanvasSettings(const CanvasSettings &other);
+        CanvasSettings &operator=(const CanvasSettings &other);
+        bool operator==(const CanvasSettings &other) const;
+
         struct NODISCARD Advanced final
         {
             NamedConfig<bool> use3D{"MMAPPER_3D", true};
@@ -209,6 +226,9 @@ public:
                                         const ChangeMonitor::Function &callback);
 
             Advanced();
+            Advanced(const Advanced &other);
+            Advanced &operator=(const Advanced &other);
+            bool operator==(const Advanced &other) const;
         } advanced;
 
     private:
@@ -218,7 +238,7 @@ public:
     struct NODISCARD NamedColorOptions;
     struct NODISCARD ResolvedNamedColorOptions final
     {
-#define X_DECL(_id, _name) XNamedColor _id{NamedColorEnum::_id};
+#define X_DECL(_id, _name) Color _id;
         XFOREACH_NAMED_COLOR_OPTIONS(X_DECL)
 #undef X_DECL
 
@@ -227,10 +247,11 @@ public:
 
     struct NODISCARD NamedColorOptions
     {
-#define X_DECL(_id, _name) XNamedColor _id{NamedColorEnum::_id};
+#define X_DECL(_id, _name) Color _id;
         XFOREACH_NAMED_COLOR_OPTIONS(X_DECL)
 #undef X_DECL
         NamedColorOptions() = default;
+        bool operator==(const NamedColorOptions &other) const;
         void resetToDefaults();
 
         NODISCARD std::shared_ptr<const ResolvedNamedColorOptions> clone() const
@@ -246,6 +267,7 @@ public:
     {
         // TODO: save color settings
         // TODO: record which named colors require a full map update.
+        bool operator==(const ColorSettings &other) const;
 
     private:
         SUBGROUP();
@@ -257,6 +279,8 @@ public:
         bool accountPassword = false;
         bool rememberLogin = false;
 
+        bool operator==(const AccountSettings &other) const;
+
     private:
         SUBGROUP();
     } account;
@@ -266,6 +290,8 @@ public:
         bool autoLoadMap = false;
         QString fileName;
         QString lastMapDirectory;
+
+        bool operator==(const AutoLoadSettings &other) const;
 
     private:
         SUBGROUP();
@@ -281,6 +307,8 @@ public:
         bool askDelete = false;
         int rotateWhenLogsReachBytes = 0;
 
+        bool operator==(const AutoLogSettings &other) const;
+
     private:
         SUBGROUP();
     } autoLog;
@@ -295,6 +323,8 @@ public:
         int maxPaths = 0;
         int matchingTolerance = 0;
 
+        bool operator==(const PathMachineSettings &other) const;
+
     private:
         SUBGROUP();
     } pathMachine;
@@ -307,6 +337,8 @@ public:
         bool npcSortBottom = false;
         bool npcHide = false;
 
+        bool operator==(const GroupManagerSettings &other) const;
+
     private:
         SUBGROUP();
     } groupManager;
@@ -315,6 +347,8 @@ public:
     {
         int64_t startEpoch = 0;
         bool display = false;
+
+        bool operator==(const MumeClockSettings &other) const;
 
     private:
         SUBGROUP();
@@ -329,7 +363,9 @@ public:
     public:
         explicit AdventurePanelSettings() = default;
         ~AdventurePanelSettings() = default;
-        DELETE_CTORS_AND_ASSIGN_OPS(AdventurePanelSettings);
+        AdventurePanelSettings(const AdventurePanelSettings &other);
+        AdventurePanelSettings &operator=(const AdventurePanelSettings &other);
+        bool operator==(const AdventurePanelSettings &other) const;
 
     public:
         NODISCARD bool getDisplayXPStatus() const { return m_displayXPStatus; }
@@ -361,7 +397,9 @@ public:
     public:
         explicit AudioSettings() = default;
         ~AudioSettings() = default;
-        DELETE_CTORS_AND_ASSIGN_OPS(AudioSettings);
+        AudioSettings(const AudioSettings &other);
+        AudioSettings &operator=(const AudioSettings &other);
+        bool operator==(const AudioSettings &other) const;
 
     public:
         NODISCARD int getMusicVolume() const { return m_musicVolume; }
@@ -420,6 +458,8 @@ public:
         bool visualBell = false;
         bool useCommandSeparator = false;
 
+        bool operator==(const IntegratedMudClientSettings &other) const;
+
     private:
         SUBGROUP();
     } integratedClient;
@@ -427,6 +467,8 @@ public:
     struct NODISCARD RoomPanelSettings final
     {
         QByteArray geometry;
+
+        bool operator==(const RoomPanelSettings &other) const;
 
     private:
         SUBGROUP();
@@ -436,6 +478,8 @@ public:
     {
         QByteArray geometry;
 
+        bool operator==(const InfomarksDialog &other) const;
+
     private:
         SUBGROUP();
     } infomarksDialog;
@@ -443,6 +487,8 @@ public:
     struct NODISCARD RoomEditDialog final
     {
         QByteArray geometry;
+
+        bool operator==(const RoomEditDialog &other) const;
 
     private:
         SUBGROUP();
@@ -452,6 +498,8 @@ public:
     {
         QByteArray geometry;
 
+        bool operator==(const FindRoomsDialog &other) const;
+
     private:
         SUBGROUP();
     } findRoomsDialog;
@@ -459,10 +507,16 @@ public:
     GroupConfig hotkeys;
 
 public:
-    DELETE_CTORS_AND_ASSIGN_OPS(Configuration);
+    DELETE_MOVE_CTOR(Configuration);
+    DELETE_MOVE_ASSIGN_OP(Configuration);
 
 private:
+public:
     Configuration();
+    Configuration(const Configuration &other);
+    Configuration &operator=(const Configuration &other);
+    bool operator==(const Configuration &other) const;
+    bool operator!=(const Configuration &other) const { return !(*this == other); }
     friend Configuration &setConfig();
 };
 

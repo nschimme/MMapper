@@ -9,8 +9,9 @@
 
 #include <QDoubleSpinBox>
 
-PathmachinePage::PathmachinePage(QWidget *parent)
+PathmachinePage::PathmachinePage(QWidget *parent, Configuration &config)
     : QWidget(parent)
+    , m_config(config)
 {
     setupUi(this);
 
@@ -47,7 +48,7 @@ PathmachinePage::PathmachinePage(QWidget *parent)
 
 void PathmachinePage::slot_loadConfig()
 {
-    const auto &settings = getConfig().pathMachine;
+    const auto &settings = m_config.pathMachine;
     acceptBestRelativeDoubleSpinBox->setValue(settings.acceptBestRelative);
     acceptBestAbsoluteDoubleSpinBox->setValue(settings.acceptBestAbsolute);
     newRoomPenaltyDoubleSpinBox->setValue(settings.newRoomPenalty);
@@ -59,35 +60,42 @@ void PathmachinePage::slot_loadConfig()
 
 void PathmachinePage::slot_acceptBestRelativeDoubleSpinBoxValueChanged(const double val)
 {
-    setConfig().pathMachine.acceptBestRelative = val;
+    m_config.pathMachine.acceptBestRelative = val;
+    emit sig_changed();
 }
 
 void PathmachinePage::slot_acceptBestAbsoluteDoubleSpinBoxValueChanged(const double val)
 {
-    setConfig().pathMachine.acceptBestAbsolute = val;
+    m_config.pathMachine.acceptBestAbsolute = val;
+    emit sig_changed();
 }
 
 void PathmachinePage::slot_newRoomPenaltyDoubleSpinBoxValueChanged(const double val)
 {
-    setConfig().pathMachine.newRoomPenalty = val;
+    m_config.pathMachine.newRoomPenalty = val;
+    emit sig_changed();
 }
 
 void PathmachinePage::slot_correctPositionBonusDoubleSpinBoxValueChanged(const double val)
 {
-    setConfig().pathMachine.correctPositionBonus = val;
+    m_config.pathMachine.correctPositionBonus = val;
+    emit sig_changed();
 }
 
 void PathmachinePage::slot_multipleConnectionsPenaltyDoubleSpinBoxValueChanged(const double val)
 {
-    setConfig().pathMachine.multipleConnectionsPenalty = val;
+    m_config.pathMachine.multipleConnectionsPenalty = val;
+    emit sig_changed();
 }
 
 void PathmachinePage::slot_maxPathsValueChanged(const int val)
 {
-    setConfig().pathMachine.maxPaths = utils::clampNonNegative(val);
+    m_config.pathMachine.maxPaths = utils::clampNonNegative(val);
+    emit sig_changed();
 }
 
 void PathmachinePage::slot_matchingToleranceSpinBoxValueChanged(const int val)
 {
-    setConfig().pathMachine.matchingTolerance = utils::clampNonNegative(val);
+    m_config.pathMachine.matchingTolerance = utils::clampNonNegative(val);
+    emit sig_changed();
 }

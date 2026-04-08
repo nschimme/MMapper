@@ -32,15 +32,15 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
 
     createIcons();
 
-    auto generalPage = new GeneralPage(this);
-    auto graphicsPage = new GraphicsPage(this);
-    auto parserPage = new ParserPage(this);
-    auto clientPage = new ClientPage(this);
-    auto groupPage = new GroupPage(this);
-    auto autoLogPage = new AutoLogPage(this);
-    auto audioPage = new AudioPage(this);
-    auto mumeProtocolPage = new MumeProtocolPage(this);
-    auto pathmachinePage = new PathmachinePage(this);
+    auto generalPage = new GeneralPage(this, m_workingConfig);
+    auto graphicsPage = new GraphicsPage(this, m_workingConfig);
+    auto parserPage = new ParserPage(this, m_workingConfig);
+    auto clientPage = new ClientPage(this, m_workingConfig);
+    auto groupPage = new GroupPage(this, m_workingConfig);
+    auto autoLogPage = new AutoLogPage(this, m_workingConfig);
+    auto audioPage = new AudioPage(this, m_workingConfig);
+    auto mumeProtocolPage = new MumeProtocolPage(this, m_workingConfig);
+    auto pathmachinePage = new PathmachinePage(this, m_workingConfig);
 
     m_pagesWidget = new QStackedWidget(this);
 
@@ -63,9 +63,34 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
             &QListWidget::currentItemChanged,
             this,
             &ConfigDialog::slot_changePage);
-    connect(ui->closeButton, &QAbstractButton::clicked, this, &QWidget::close);
+    connect(ui->buttonBox, &QDialogButtonBox::accepted, this, &ConfigDialog::slot_ok);
+    connect(ui->buttonBox, &QDialogButtonBox::rejected, this, &ConfigDialog::slot_cancel);
+    connect(ui->buttonBox->button(QDialogButtonBox::Apply),
+            &QPushButton::clicked,
+            this,
+            &ConfigDialog::slot_apply);
 
-    connect(generalPage, &GeneralPage::sig_reloadConfig, this, [this]() { emit sig_loadConfig(); });
+    connect(generalPage, &GeneralPage::sig_reloadConfig, this, [this]() {
+        m_workingConfig = getConfig();
+        m_originalConfig = getConfig();
+        slot_updateApplyButton();
+        emit sig_loadConfig();
+    });
+
+    connect(this, &ConfigDialog::sig_loadConfig, [this]() { slot_updateApplyButton(); });
+
+    for (auto *page : std::initializer_list<QWidget *>{generalPage,
+                                                       graphicsPage,
+                                                       parserPage,
+                                                       clientPage,
+                                                       groupPage,
+                                                       autoLogPage,
+                                                       audioPage,
+                                                       mumeProtocolPage,
+                                                       pathmachinePage}) {
+        connect(page, SIGNAL(sig_changed()), this, SLOT(slot_updateApplyButton()));
+    }
+
     connect(this, &ConfigDialog::sig_loadConfig, generalPage, &GeneralPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, graphicsPage, &GraphicsPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, parserPage, &ParserPage::slot_loadConfig);
@@ -73,19 +98,11 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     connect(this, &ConfigDialog::sig_loadConfig, autoLogPage, &AutoLogPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, audioPage, &AudioPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, groupPage, &GroupPage::slot_loadConfig);
-    connect(groupPage,
-            &GroupPage::sig_groupSettingsChanged,
-            this,
-            &ConfigDialog::sig_groupSettingsChanged);
     connect(this,
             &ConfigDialog::sig_loadConfig,
             mumeProtocolPage,
             &MumeProtocolPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, pathmachinePage, &PathmachinePage::slot_loadConfig);
-    connect(graphicsPage,
-            &GraphicsPage::sig_graphicsSettingsChanged,
-            this,
-            &ConfigDialog::sig_graphicsSettingsChanged);
 }
 
 ConfigDialog::~ConfigDialog()
@@ -95,12 +112,34 @@ ConfigDialog::~ConfigDialog()
 
 void ConfigDialog::closeEvent(QCloseEvent *const event)
 {
-    getConfig().write();
-    event->accept();
+    if (m_workingConfig != m_originalConfig) {
+        QMessageBox box(this);
+        box.setWindowTitle(tr("Unapplied Changes"));
+        box.setText(tr("You have unapplied changes. What would you like to do?"));
+        auto *applyButton = box.addButton(tr("Apply"), QMessageBox::AcceptRole);
+        auto *discardButton = box.addButton(tr("Discard"), QMessageBox::DestructiveRole);
+        box.addButton(tr("Cancel"), QMessageBox::RejectRole);
+
+        box.exec();
+
+        if (box.clickedButton() == applyButton) {
+            slot_apply();
+            event->accept();
+        } else if (box.clickedButton() == discardButton) {
+            event->accept();
+        } else {
+            event->ignore();
+        }
+    } else {
+        event->accept();
+    }
 }
 
 void ConfigDialog::showEvent(QShowEvent *const event)
 {
+    m_workingConfig = getConfig();
+    m_originalConfig = getConfig();
+
     // Populate the preference pages from config each time the widget is shown
     emit sig_loadConfig();
 
@@ -145,4 +184,97 @@ void ConfigDialog::slot_changePage(QListWidgetItem *current, QListWidgetItem *co
     }
     ui->pagesScrollArea->verticalScrollBar()->setSliderPosition(0);
     m_pagesWidget->setCurrentIndex(ui->contentsWidget->row(current));
+}
+
+void ConfigDialog::slot_apply()
+{
+    if (m_workingConfig == m_originalConfig) {
+        return;
+    }
+
+    const auto oldConfig = getConfig();
+
+    // 1. Trigger notifications for settings that use ChangeMonitor by using setters
+    if (m_workingConfig.general.getTheme() != oldConfig.general.getTheme()) {
+        setConfig().general.setTheme(m_workingConfig.general.getTheme());
+    }
+    if (m_workingConfig.adventurePanel.getDisplayXPStatus()
+        != oldConfig.adventurePanel.getDisplayXPStatus()) {
+        setConfig().adventurePanel.setDisplayXPStatus(
+            m_workingConfig.adventurePanel.getDisplayXPStatus());
+    }
+    if (m_workingConfig.audio.getMusicVolume() != oldConfig.audio.getMusicVolume()) {
+        setConfig().audio.setMusicVolume(m_workingConfig.audio.getMusicVolume());
+    }
+    if (m_workingConfig.audio.getSoundVolume() != oldConfig.audio.getSoundVolume()) {
+        setConfig().audio.setSoundVolume(m_workingConfig.audio.getSoundVolume());
+    }
+    if (m_workingConfig.audio.getOutputDeviceId() != oldConfig.audio.getOutputDeviceId()) {
+        setConfig().audio.setOutputDeviceId(m_workingConfig.audio.getOutputDeviceId());
+    }
+
+    // NamedConfigs in canvas.advanced also need notifications
+    auto &adv = setConfig().canvas.advanced;
+    const auto &wadv = m_workingConfig.canvas.advanced;
+    adv.use3D.set(wadv.use3D.get());
+    adv.autoTilt.set(wadv.autoTilt.get());
+    adv.printPerfStats.set(wadv.printPerfStats.get());
+    adv.maximumFps.set(wadv.maximumFps.get());
+    adv.fov.set(wadv.fov.get());
+    adv.verticalAngle.set(wadv.verticalAngle.get());
+    adv.horizontalAngle.set(wadv.horizontalAngle.get());
+    adv.layerHeight.set(wadv.layerHeight.get());
+
+    // And other canvas settings
+    auto &can = setConfig().canvas;
+    const auto &wcan = m_workingConfig.canvas;
+    can.antialiasingSamples.set(wcan.antialiasingSamples.get());
+    can.trilinearFiltering.set(wcan.trilinearFiltering.get());
+    can.showMissingMapId.set(wcan.showMissingMapId.get());
+    can.showUnsavedChanges.set(wcan.showUnsavedChanges.get());
+    can.showUnmappedExits.set(wcan.showUnmappedExits.get());
+
+    can.weatherAtmosphereIntensity.set(wcan.weatherAtmosphereIntensity.get());
+    can.weatherPrecipitationIntensity.set(wcan.weatherPrecipitationIntensity.get());
+    can.weatherTimeOfDayIntensity.set(wcan.weatherTimeOfDayIntensity.get());
+
+    // Hotkeys
+    if (m_workingConfig.hotkeys.data() != oldConfig.hotkeys.data()) {
+        setConfig().hotkeys.setData(m_workingConfig.hotkeys.data());
+    }
+
+    // 2. Perform global assignment to catch all other fields
+    setConfig() = m_workingConfig;
+
+    // 3. Emit dialog-level signals for broader updates
+    if (m_workingConfig.canvas != oldConfig.canvas) {
+        emit sig_graphicsSettingsChanged();
+    }
+
+    if (m_workingConfig.groupManager != oldConfig.groupManager) {
+        emit sig_groupSettingsChanged();
+    }
+
+    // 4. Persist changes to disk
+    getConfig().write();
+
+    // 5. Update state for tracking
+    m_originalConfig = m_workingConfig;
+    slot_updateApplyButton();
+}
+
+void ConfigDialog::slot_ok()
+{
+    slot_apply();
+    accept();
+}
+
+void ConfigDialog::slot_cancel()
+{
+    close();
+}
+
+void ConfigDialog::slot_updateApplyButton()
+{
+    ui->buttonBox->button(QDialogButtonBox::Apply)->setEnabled(m_workingConfig != m_originalConfig);
 }

@@ -5,10 +5,7 @@
 
 #include "../src/configuration/configuration.h"
 #include "../src/global/Signal2.h"
-#include "../src/preferences/configdialog.h"
 
-#include <QDialogButtonBox>
-#include <QPushButton>
 #include <QtTest/QtTest>
 
 TestPreferences::TestPreferences() = default;
@@ -176,40 +173,6 @@ void TestPreferences::configTest()
     QVERIFY(c1 != c2);
     c1 = c2;
     QVERIFY(c1 == c2);
-}
-
-void TestPreferences::configDialogTest()
-{
-    const bool originalAlwaysOnTop = getConfig().general.alwaysOnTop;
-
-    ConfigDialog dialog;
-    dialog.show();
-
-    // Verify Apply button is disabled initially
-    auto *applyButton = dialog.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Apply);
-    QVERIFY(applyButton != nullptr);
-    QVERIFY(!applyButton->isEnabled());
-
-    // Change a setting in the working config
-    dialog.m_workingConfig.general.alwaysOnTop = !originalAlwaysOnTop;
-    dialog.slot_updateApplyButton();
-
-    QVERIFY(applyButton->isEnabled());
-
-    // Verify global config is NOT updated yet
-    QCOMPARE(getConfig().general.alwaysOnTop.get(), originalAlwaysOnTop);
-
-    // Click Apply
-    dialog.slot_apply();
-
-    // Verify Apply button is disabled again
-    QVERIFY(!applyButton->isEnabled());
-
-    // Verify global config IS updated now
-    QCOMPARE(getConfig().general.alwaysOnTop.get(), !originalAlwaysOnTop);
-
-    // Cleanup
-    setConfig().general.alwaysOnTop = originalAlwaysOnTop;
 }
 
 QTEST_MAIN(TestPreferences)

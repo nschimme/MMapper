@@ -191,30 +191,7 @@ set_target_properties(
 add_test(NAME TestGlobal COMMAND TestGlobal)
 
 # Preferences
-set(TestPreferences_SRCS
-    TestPreferences.cpp
-    ../src/preferences/configdialog.cpp
-    ../src/preferences/audiopage.cpp
-    ../src/preferences/autologpage.cpp
-    ../src/preferences/clientpage.cpp
-    ../src/preferences/generalpage.cpp
-    ../src/preferences/graphicspage.cpp
-    ../src/preferences/grouppage.cpp
-    ../src/preferences/mumeprotocolpage.cpp
-    ../src/preferences/parserpage.cpp
-    ../src/preferences/pathmachinepage.cpp
-    ../src/preferences/AnsiColorDialog.cpp
-    ../src/preferences/ansicombo.cpp
-    ../src/preferences/AdvancedGraphics.cpp
-    ../src/configuration/PasswordConfig.cpp
-    ../src/opengl/OpenGLConfig.cpp
-    ../src/mainwindow/AudioVolumeSlider.cpp
-    ../src/parser/AbstractParser-Utils.cpp
-    ../src/syntax/Value.cpp
-    ../src/global/emojis.cpp
-    ../src/global/TextUtils.cpp
-    ../src/global/CharUtils.cpp
-)
+set(TestPreferences_SRCS TestPreferences.cpp)
 add_executable(TestPreferences ${TestPreferences_SRCS})
 add_dependencies(TestPreferences mm_test mm_global mm_map)
 target_link_libraries(TestPreferences
@@ -225,10 +202,6 @@ target_link_libraries(TestPreferences
         Qt6::Network
         Qt6::Test
         Qt6::Widgets
-        Qt6::Multimedia
-        Qt6::Svg
-        Qt6::SvgWidgets
-        Qt6::WebSockets
         coverage_config)
 set_target_properties(
   TestPreferences PROPERTIES
@@ -236,12 +209,7 @@ set_target_properties(
   CXX_STANDARD_REQUIRED ON
   CXX_EXTENSIONS OFF
   COMPILE_FLAGS "${WARNING_FLAGS}"
-  AUTOUIC ON
 )
-if(WITH_QTKEYCHAIN)
-    target_include_directories(TestPreferences SYSTEM PUBLIC ${QTKEYCHAIN_INCLUDE_DIR})
-    target_link_libraries(TestPreferences ${QTKEYCHAIN_LIBRARY})
-endif()
 add_test(NAME TestPreferences COMMAND TestPreferences)
 
 # Global

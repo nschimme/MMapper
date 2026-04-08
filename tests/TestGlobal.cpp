@@ -3,6 +3,7 @@
 
 #include "TestGlobal.h"
 
+#include "../src/configuration/configuration.h"
 #include "../src/global/AnsiOstream.h"
 #include "../src/global/AnsiTextUtils.h"
 #include "../src/global/CaseUtils.h"
@@ -34,6 +35,11 @@
 TestGlobal::TestGlobal() = default;
 
 TestGlobal::~TestGlobal() = default;
+
+void TestGlobal::initTestCase()
+{
+    setEnteredMain();
+}
 
 void TestGlobal::ansi256ColorTest()
 {
@@ -636,7 +642,6 @@ void TestGlobal::toNumberTest()
     QCOMPARE(to_integer<uint64_t>(u"92233720368547758079").has_value(), false);
     QCOMPARE(to_integer<uint64_t>(u"110680464442257309695").has_value(), false);
 }
-
 
 void TestGlobal::unquoteTest()
 {

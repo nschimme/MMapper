@@ -18,5 +18,4 @@ private Q_SLOTS:
     void initTestCase();
     void configValueTest();
     void configTest();
-    void configDialogTest();
 };

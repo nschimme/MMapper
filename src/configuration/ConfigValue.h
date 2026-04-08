@@ -82,7 +82,7 @@ public:
     }
 
     void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                const ChangeMonitor::Function &callback) const
+                                const ChangeMonitor::Function &callback)
     {
         m_changeMonitor.registerChangeCallback(lifetime, callback);
     }

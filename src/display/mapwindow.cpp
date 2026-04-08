@@ -165,10 +165,6 @@ MapWindow::MapWindow(MapData &mapData,
                 });
 
         connect(this, &MapWindow::sig_setScroll, m_canvas, &MapCanvas::slot_setScroll);
-
-        setConfig().canvas.registerChangeCallback(m_lifetime, [this]() {
-            this->slot_graphicsSettingsChanged();
-        });
     }
 
     // from canvas to map window

@@ -168,7 +168,7 @@ GeneralPage::GeneralPage(QWidget *parent, Configuration &config)
                     QSettings settings(temp.fileName(), QSettings::IniFormat);
                     cfg.readFrom(settings);
                     cfg.write();
-                    // m_config = cfg; // ConfigDialog will update this via sig_reloadConfig
+                    cfg.read(); // Refresh from disk to ensure all internal state is consistent
                 }
                 emit sig_reloadConfig();
             }

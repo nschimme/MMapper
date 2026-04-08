@@ -196,10 +196,26 @@ void ConfigDialog::slot_apply()
         return;
     }
 
+    const auto oldConfig = getConfig();
+
     // 1. Perform global assignment.
     // Thanks to observable types (ConfigValue, NamedConfig, FixedPoint),
     // this single assignment triggers all necessary notifications!
     setConfig() = m_workingConfig;
+
+    // 2. Emit dialog-level signals for broader updates
+    if (m_workingConfig.canvas != oldConfig.canvas) {
+        emit sig_graphicsSettingsChanged();
+    }
+
+    if (m_workingConfig.groupManager != oldConfig.groupManager) {
+        emit sig_groupSettingsChanged();
+    }
+
+    // 3. Colors
+    if (m_workingConfig.colorSettings != oldConfig.colorSettings) {
+        emit sig_graphicsSettingsChanged();
+    }
 
     // 4. Persist changes to disk
     getConfig().write();

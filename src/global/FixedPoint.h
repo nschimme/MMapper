@@ -132,7 +132,7 @@ public:
 
 public:
     void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                ChangeMonitor::Function callback) const
+                                ChangeMonitor::Function callback)
     {
         return m_changeMonitor.registerChangeCallback(lifetime, std::move(callback));
     }

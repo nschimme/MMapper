@@ -1140,7 +1140,7 @@ Configuration::CanvasSettings::Advanced::Advanced()
 }
 
 void Configuration::CanvasSettings::Advanced::registerChangeCallback(
-    const ChangeMonitor::Lifetime &lifetime, const ChangeMonitor::Function &callback) const
+    const ChangeMonitor::Lifetime &lifetime, const ChangeMonitor::Function &callback)
 {
     /* copied for each; consider changing this to be std::shared_ptr<Function> */
     use3D.registerChangeCallback(lifetime, callback);
@@ -1153,8 +1153,8 @@ void Configuration::CanvasSettings::Advanced::registerChangeCallback(
     layerHeight.registerChangeCallback(lifetime, callback);
 }
 
-void Configuration::CanvasSettings::registerChangeCallback(
-    const ChangeMonitor::Lifetime &lifetime, const ChangeMonitor::Function &callback) const
+void Configuration::CanvasSettings::registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                                           const ChangeMonitor::Function &callback)
 {
     backgroundColor.registerChangeCallback(lifetime, callback);
     connectionNormalColor.registerChangeCallback(lifetime, callback);
@@ -1183,7 +1183,7 @@ void Configuration::CanvasSettings::registerChangeCallback(
 }
 
 void Configuration::NamedColorOptions::registerChangeCallback(
-    const ChangeMonitor::Lifetime &lifetime, const ChangeMonitor::Function &callback) const
+    const ChangeMonitor::Lifetime &lifetime, const ChangeMonitor::Function &callback)
 {
 #define X_REG_COLOR(_id, _name) _id.registerChangeCallback(lifetime, callback);
     XFOREACH_NAMED_COLOR_OPTIONS(X_REG_COLOR)
@@ -1193,8 +1193,8 @@ void Configuration::NamedColorOptions::registerChangeCallback(
 void Configuration::setupGlobalCallbacks()
 {
 #define X_SYNC_COLOR(_id, _name) \
-    colorSettings._id.registerChangeCallback(m_internalLifetime, [this]() { \
-        XNamedColor(NamedColorEnum::_id).setColor(this->colorSettings._id.get()); \
+    colorSettings._id.registerChangeCallback(m_internalLifetime, []() { \
+        XNamedColor(NamedColorEnum::_id).setColor(setConfig().colorSettings._id.get()); \
     });
     XFOREACH_NAMED_COLOR_OPTIONS(X_SYNC_COLOR)
 #undef X_SYNC_COLOR

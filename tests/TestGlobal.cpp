@@ -640,8 +640,6 @@ void TestGlobal::toNumberTest()
 
 void TestGlobal::configTest()
 {
-    setEnteredMain();
-
     // Test basic copy/equality logic for Configuration and its settings
     Configuration c1;
     Configuration c2;

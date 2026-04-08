@@ -53,7 +53,7 @@ public:
         NODISCARD ThemeEnum getTheme() const { return theme.get(); }
         void setTheme(const ThemeEnum value) { theme.set(value); }
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                    const ChangeMonitor::Function &callback) const
+                                    const ChangeMonitor::Function &callback)
         {
             theme.registerChangeCallback(lifetime, callback);
         }
@@ -164,7 +164,7 @@ public:
     struct NODISCARD CanvasSettings final : public CanvasNamedColorOptions
     {
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                    const ChangeMonitor::Function &callback) const;
+                                    const ChangeMonitor::Function &callback);
 
         NamedConfig<int> antialiasingSamples{"ANTIALIASING_SAMPLES", 0};
         NamedConfig<bool> trilinearFiltering{"TRILINEAR_FILTERING", true};
@@ -209,7 +209,7 @@ public:
 
         public:
             void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                        const ChangeMonitor::Function &callback) const;
+                                        const ChangeMonitor::Function &callback);
 
             Advanced();
             bool operator==(const Advanced &other) const = default;
@@ -238,7 +238,7 @@ public:
         bool operator==(const NamedColorOptions &other) const = default;
         void resetToDefaults();
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                    const ChangeMonitor::Function &callback) const;
+                                    const ChangeMonitor::Function &callback);
 
         NODISCARD std::shared_ptr<const ResolvedNamedColorOptions> clone() const
         {
@@ -324,7 +324,7 @@ public:
         ConfigValue<bool> npcHide{false};
 
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                    const ChangeMonitor::Function &callback) const
+                                    const ChangeMonitor::Function &callback)
         {
             color.registerChangeCallback(lifetime, callback);
             npcColor.registerChangeCallback(lifetime, callback);
@@ -355,7 +355,7 @@ public:
         NODISCARD bool getDisplayXPStatus() const { return displayXPStatus.get(); }
         void setDisplayXPStatus(const bool value) { displayXPStatus.set(value); }
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                    const ChangeMonitor::Function &callback) const
+                                    const ChangeMonitor::Function &callback)
         {
             displayXPStatus.registerChangeCallback(lifetime, callback);
         }
@@ -383,7 +383,7 @@ public:
         void setUnlocked() { unlocked.set(true); }
 
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                    const ChangeMonitor::Function &callback) const
+                                    const ChangeMonitor::Function &callback)
         {
             musicVolume.registerChangeCallback(lifetime, callback);
             soundVolume.registerChangeCallback(lifetime, callback);

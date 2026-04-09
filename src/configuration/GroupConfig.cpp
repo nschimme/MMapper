@@ -59,7 +59,7 @@ void GroupConfig::notifyChanged()
 }
 
 void GroupConfig::registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                         ChangeMonitor::Function callback)
+                                         ChangeMonitor::Function callback) const
 {
     m_changeMonitor.registerChangeCallback(lifetime, std::move(callback));
 }

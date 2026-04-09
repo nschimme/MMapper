@@ -53,7 +53,7 @@ public:
         NODISCARD ThemeEnum getTheme() const { return theme.get(); }
         void setTheme(const ThemeEnum value) { theme.set(value); }
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                    const ChangeMonitor::Function &callback)
+                                    const ChangeMonitor::Function &callback) const
         {
             theme.registerChangeCallback(lifetime, callback);
             firstRun.registerChangeCallback(lifetime, callback);
@@ -89,7 +89,7 @@ public:
     struct NODISCARD ConnectionSettings final
     {
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                    const ChangeMonitor::Function &callback)
+                                    const ChangeMonitor::Function &callback) const
         {
             remoteServerName.registerChangeCallback(lifetime, callback);
             remotePort.registerChangeCallback(lifetime, callback);
@@ -115,7 +115,7 @@ public:
     struct NODISCARD ParserSettings final
     {
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                    const ChangeMonitor::Function &callback)
+                                    const ChangeMonitor::Function &callback) const
         {
             roomNameColor.registerChangeCallback(lifetime, callback);
             roomDescColor.registerChangeCallback(lifetime, callback);
@@ -139,7 +139,7 @@ public:
     struct NODISCARD MumeClientProtocolSettings final
     {
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                    const ChangeMonitor::Function &callback)
+                                    const ChangeMonitor::Function &callback) const
         {
             internalRemoteEditor.registerChangeCallback(lifetime, callback);
             externalRemoteEditorCommand.registerChangeCallback(lifetime, callback);
@@ -157,7 +157,7 @@ public:
     struct NODISCARD MumeNativeSettings final
     {
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                    const ChangeMonitor::Function &callback)
+                                    const ChangeMonitor::Function &callback) const
         {
             emulatedExits.registerChangeCallback(lifetime, callback);
             showHiddenExitFlags.registerChangeCallback(lifetime, callback);
@@ -210,7 +210,7 @@ public:
     struct NODISCARD CanvasSettings final : public CanvasNamedColorOptions
     {
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                    const ChangeMonitor::Function &callback);
+                                    const ChangeMonitor::Function &callback) const;
 
         NamedConfig<int> antialiasingSamples{"ANTIALIASING_SAMPLES", 0};
         NamedConfig<bool> trilinearFiltering{"TRILINEAR_FILTERING", true};
@@ -255,7 +255,7 @@ public:
 
         public:
             void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                        const ChangeMonitor::Function &callback);
+                                        const ChangeMonitor::Function &callback) const;
 
             Advanced();
             bool operator==(const Advanced &other) const = default;
@@ -284,7 +284,7 @@ public:
         bool operator==(const NamedColorOptions &other) const = default;
         void resetToDefaults();
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                    const ChangeMonitor::Function &callback);
+                                    const ChangeMonitor::Function &callback) const;
 
         NODISCARD std::shared_ptr<const ResolvedNamedColorOptions> clone() const
         {
@@ -308,7 +308,7 @@ public:
     struct NODISCARD AccountSettings final
     {
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                    const ChangeMonitor::Function &callback)
+                                    const ChangeMonitor::Function &callback) const
         {
             accountName.registerChangeCallback(lifetime, callback);
             accountPassword.registerChangeCallback(lifetime, callback);
@@ -328,7 +328,7 @@ public:
     struct NODISCARD AutoLoadSettings final
     {
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                    const ChangeMonitor::Function &callback)
+                                    const ChangeMonitor::Function &callback) const
         {
             autoLoadMap.registerChangeCallback(lifetime, callback);
             fileName.registerChangeCallback(lifetime, callback);
@@ -348,7 +348,7 @@ public:
     struct NODISCARD AutoLogSettings final
     {
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                    const ChangeMonitor::Function &callback)
+                                    const ChangeMonitor::Function &callback) const
         {
             autoLogDirectory.registerChangeCallback(lifetime, callback);
             autoLog.registerChangeCallback(lifetime, callback);
@@ -376,7 +376,7 @@ public:
     struct NODISCARD PathMachineSettings final
     {
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                    const ChangeMonitor::Function &callback)
+                                    const ChangeMonitor::Function &callback) const
         {
             acceptBestRelative.registerChangeCallback(lifetime, callback);
             acceptBestAbsolute.registerChangeCallback(lifetime, callback);
@@ -410,7 +410,7 @@ public:
         ConfigValue<bool> npcHide{false};
 
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                    const ChangeMonitor::Function &callback)
+                                    const ChangeMonitor::Function &callback) const
         {
             color.registerChangeCallback(lifetime, callback);
             npcColor.registerChangeCallback(lifetime, callback);
@@ -428,7 +428,7 @@ public:
     struct NODISCARD MumeClockSettings final
     {
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                    const ChangeMonitor::Function &callback)
+                                    const ChangeMonitor::Function &callback) const
         {
             startEpoch.registerChangeCallback(lifetime, callback);
             display.registerChangeCallback(lifetime, callback);
@@ -448,7 +448,7 @@ public:
         NODISCARD bool getDisplayXPStatus() const { return displayXPStatus.get(); }
         void setDisplayXPStatus(const bool value) { displayXPStatus.set(value); }
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                    const ChangeMonitor::Function &callback)
+                                    const ChangeMonitor::Function &callback) const
         {
             displayXPStatus.registerChangeCallback(lifetime, callback);
         }
@@ -476,7 +476,7 @@ public:
         void setUnlocked() { unlocked.set(true); }
 
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                    const ChangeMonitor::Function &callback)
+                                    const ChangeMonitor::Function &callback) const
         {
             musicVolume.registerChangeCallback(lifetime, callback);
             soundVolume.registerChangeCallback(lifetime, callback);
@@ -498,7 +498,7 @@ public:
     struct NODISCARD IntegratedMudClientSettings final
     {
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                    const ChangeMonitor::Function &callback)
+                                    const ChangeMonitor::Function &callback) const
         {
             font.registerChangeCallback(lifetime, callback);
             foregroundColor.registerChangeCallback(lifetime, callback);
@@ -542,7 +542,7 @@ public:
     struct NODISCARD RoomPanelSettings final
     {
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                    const ChangeMonitor::Function &callback)
+                                    const ChangeMonitor::Function &callback) const
         {
             geometry.registerChangeCallback(lifetime, callback);
         }
@@ -558,7 +558,7 @@ public:
     struct NODISCARD InfomarksDialog final
     {
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                    const ChangeMonitor::Function &callback)
+                                    const ChangeMonitor::Function &callback) const
         {
             geometry.registerChangeCallback(lifetime, callback);
         }
@@ -574,7 +574,7 @@ public:
     struct NODISCARD RoomEditDialog final
     {
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                    const ChangeMonitor::Function &callback)
+                                    const ChangeMonitor::Function &callback) const
         {
             geometry.registerChangeCallback(lifetime, callback);
         }
@@ -590,7 +590,7 @@ public:
     struct NODISCARD FindRoomsDialog final
     {
         void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                    const ChangeMonitor::Function &callback)
+                                    const ChangeMonitor::Function &callback) const
         {
             geometry.registerChangeCallback(lifetime, callback);
         }
@@ -616,7 +616,7 @@ public:
     Configuration();
     void setupGlobalCallbacks();
     void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                const ChangeMonitor::Function &callback);
+                                const ChangeMonitor::Function &callback) const;
     Configuration(const Configuration &other);
     Configuration &operator=(const Configuration &other);
     bool operator==(const Configuration &other) const;

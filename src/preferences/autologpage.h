@@ -27,8 +27,6 @@ public:
     explicit AutoLogPage(QWidget *parent, Configuration &config);
     ~AutoLogPage() final;
 
-signals:
-
 public slots:
     void slot_loadConfig();
     void slot_logStrategyChanged(int);

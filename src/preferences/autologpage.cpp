@@ -41,9 +41,7 @@ AutoLogPage::AutoLogPage(QWidget *const parent, Configuration &config)
     connect(ui->spinBoxDays,
             QOverload<int>::of(&QSpinBox::valueChanged),
             this,
-            [this](const int size) {
-                m_config.autoLog.deleteWhenLogsReachDays = size;
-            });
+            [this](const int size) { m_config.autoLog.deleteWhenLogsReachDays = size; });
     connect(ui->radioButtonDeleteSize,
             QOverload<bool>::of(&QRadioButton::toggled),
             this,
@@ -57,9 +55,7 @@ AutoLogPage::AutoLogPage(QWidget *const parent, Configuration &config)
     connect(ui->askDeleteCheckBox,
             QOverload<bool>::of(&QCheckBox::toggled),
             this,
-            [this](const bool askDelete) {
-                m_config.autoLog.askDelete = askDelete;
-            });
+            [this](const bool askDelete) { m_config.autoLog.askDelete = askDelete; });
 
     connect(ui->autoLogMaxBytes,
             QOverload<int>::of(&QSpinBox::valueChanged),

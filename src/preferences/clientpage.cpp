@@ -78,9 +78,7 @@ ClientPage::ClientPage(QWidget *parent, Configuration &config)
     connect(ui->previewSpinBox,
             QOverload<int>::of(&QSpinBox::valueChanged),
             this,
-            [this](const int value) {
-                m_config.integratedClient.linesOfPeekPreview = value;
-            });
+            [this](const int value) { m_config.integratedClient.linesOfPeekPreview = value; });
 
     connect(ui->inputHistorySpinBox,
             QOverload<int>::of(&QSpinBox::valueChanged),

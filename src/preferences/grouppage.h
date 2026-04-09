@@ -29,8 +29,6 @@ public:
     explicit GroupPage(QWidget *parent, Configuration &config);
     ~GroupPage() final;
 
-signals:
-
 public slots:
     void slot_loadConfig();
 

@@ -23,8 +23,6 @@ class NODISCARD_QOBJECT ParserPage : public QWidget, private Ui::ParserPage
 public:
     explicit ParserPage(QWidget *parent, Configuration &config);
 
-signals:
-
 public slots:
     void slot_loadConfig();
     void slot_roomNameColorClicked();

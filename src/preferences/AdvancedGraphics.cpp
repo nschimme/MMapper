@@ -106,7 +106,6 @@ public:
             const SignalBlocker block_spin{m_spin};
             m_fp.set(value);
             m_spin.setIntValue(value);
-            m_group.graphicsSettingsChanged();
         });
 
         QObject::connect(&m_spin,
@@ -118,7 +117,6 @@ public:
                              const int value = m_spin.getIntValue();
                              m_fp.set(value);
                              m_slider.setValue(value);
-                             m_group.graphicsSettingsChanged();
                          });
 
         QObject::connect(&m_reset, &QPushButton::clicked, &group, [this](bool) {
@@ -152,7 +150,6 @@ public:
         m_spin.setIntValue(value);
         m_slider.setValue(value);
         if ((false)) {
-            m_group.graphicsSettingsChanged();
         }
     }
 
@@ -223,19 +220,16 @@ AdvancedGraphicsGroupBox::AdvancedGraphicsGroupBox(QGroupBox &groupBox, Configur
         m_config.canvas.advanced.use3D.set(is3d);
         enableSsbs(is3d);
         autoTilt->setEnabled(is3d);
-        graphicsSettingsChanged();
     });
 
     connect(autoTilt, &QCheckBox::stateChanged, this, [this, autoTilt](int) {
         const bool val = autoTilt->isChecked();
         m_config.canvas.advanced.autoTilt.set(val);
-        graphicsSettingsChanged();
     });
 
     connect(checkboxDiag, &QCheckBox::stateChanged, this, [this, checkboxDiag](int) {
         const bool show = checkboxDiag->isChecked();
         m_config.canvas.advanced.printPerfStats.set(show);
-        graphicsSettingsChanged();
     });
 
     m_config.canvas.advanced

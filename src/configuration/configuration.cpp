@@ -1140,7 +1140,7 @@ Configuration::CanvasSettings::Advanced::Advanced()
 }
 
 void Configuration::CanvasSettings::Advanced::registerChangeCallback(
-    const ChangeMonitor::Lifetime &lifetime, const ChangeMonitor::Function &callback)
+    const ChangeMonitor::Lifetime &lifetime, const ChangeMonitor::Function &callback) const
 {
     /* copied for each; consider changing this to be std::shared_ptr<Function> */
     use3D.registerChangeCallback(lifetime, callback);
@@ -1154,7 +1154,7 @@ void Configuration::CanvasSettings::Advanced::registerChangeCallback(
 }
 
 void Configuration::CanvasSettings::registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                                           const ChangeMonitor::Function &callback)
+                                                           const ChangeMonitor::Function &callback) const
 {
     backgroundColor.registerChangeCallback(lifetime, callback);
     connectionNormalColor.registerChangeCallback(lifetime, callback);
@@ -1183,7 +1183,7 @@ void Configuration::CanvasSettings::registerChangeCallback(const ChangeMonitor::
 }
 
 void Configuration::NamedColorOptions::registerChangeCallback(
-    const ChangeMonitor::Lifetime &lifetime, const ChangeMonitor::Function &callback)
+    const ChangeMonitor::Lifetime &lifetime, const ChangeMonitor::Function &callback) const
 {
 #define X_REG_COLOR(_id, _name) _id.registerChangeCallback(lifetime, callback);
     XFOREACH_NAMED_COLOR_OPTIONS(X_REG_COLOR)
@@ -1201,7 +1201,7 @@ void Configuration::setupGlobalCallbacks()
 }
 
 void Configuration::registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                           const ChangeMonitor::Function &callback)
+                                           const ChangeMonitor::Function &callback) const
 {
     general.registerChangeCallback(lifetime, callback);
     connection.registerChangeCallback(lifetime, callback);

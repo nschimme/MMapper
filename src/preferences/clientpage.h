@@ -30,8 +30,6 @@ public:
 
     void updateFontAndColors();
 
-signals:
-
 public slots:
     void slot_loadConfig();
     void slot_onChangeFont();

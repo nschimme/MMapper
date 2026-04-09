@@ -25,8 +25,6 @@ public:
     explicit AudioPage(QWidget *parent, Configuration &config);
     ~AudioPage() final;
 
-signals:
-
 public slots:
     void slot_loadConfig();
     void slot_outputDeviceChanged(int);

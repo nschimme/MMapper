@@ -40,7 +40,7 @@ public:
 
     void notifyChanged();
     void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                ChangeMonitor::Function callback);
+                                ChangeMonitor::Function callback) const;
 
     void resetToDefault();
     void registerResetCallback(const ChangeMonitor::Lifetime &lifetime,

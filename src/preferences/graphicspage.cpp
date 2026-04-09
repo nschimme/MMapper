@@ -98,7 +98,6 @@ GraphicsPage::GraphicsPage(QWidget *parent, Configuration &config)
     connect(ui->weatherTimeOfDaySlider, &QSlider::valueChanged, this, [this](const int value) {
         m_config.canvas.weatherTimeOfDayIntensity.set(value);
     });
-
 }
 
 GraphicsPage::~GraphicsPage()

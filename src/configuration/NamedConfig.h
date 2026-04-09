@@ -91,7 +91,7 @@ public:
 
 public:
     void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                ChangeMonitor::Function callback)
+                                ChangeMonitor::Function callback) const
     {
         return m_changeMonitor.registerChangeCallback(lifetime, std::move(callback));
     }

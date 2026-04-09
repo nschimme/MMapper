@@ -25,6 +25,9 @@ class NODISCARD_QOBJECT ConfigDialog final : public QDialog
 {
     Q_OBJECT
 
+signals:
+    void sig_loadConfig();
+
 private:
     Ui::ConfigDialog *const ui;
     QStackedWidget *m_pagesWidget = nullptr;
@@ -42,9 +45,6 @@ protected:
 
 private:
     void createIcons();
-
-signals:
-    void sig_loadConfig();
 
 public slots:
     void slot_changePage(QListWidgetItem *current, QListWidgetItem *previous);

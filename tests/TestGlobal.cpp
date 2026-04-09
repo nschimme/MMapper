@@ -3,7 +3,6 @@
 
 #include "TestGlobal.h"
 
-#include "../src/configuration/configuration.h"
 #include "../src/global/AnsiOstream.h"
 #include "../src/global/AnsiTextUtils.h"
 #include "../src/global/CaseUtils.h"
@@ -35,11 +34,6 @@
 TestGlobal::TestGlobal() = default;
 
 TestGlobal::~TestGlobal() = default;
-
-void TestGlobal::initTestCase()
-{
-    setEnteredMain();
-}
 
 void TestGlobal::ansi256ColorTest()
 {

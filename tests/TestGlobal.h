@@ -15,7 +15,6 @@ public:
     ~TestGlobal() final;
 
 private Q_SLOTS:
-    static void initTestCase();
     static void ansi256ColorTest();
     static void ansiOstreamTest();
     static void ansiTextUtilsTest();

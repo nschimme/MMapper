@@ -21,8 +21,6 @@ class NODISCARD_QOBJECT PathmachinePage : public QWidget, private Ui::Pathmachin
 public:
     explicit PathmachinePage(QWidget *parent, Configuration &config);
 
-signals:
-
 public slots:
     void slot_loadConfig();
 

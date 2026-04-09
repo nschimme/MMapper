@@ -28,8 +28,6 @@ public:
     explicit MumeProtocolPage(QWidget *parent, Configuration &config);
     ~MumeProtocolPage() final;
 
-signals:
-
 public slots:
     void slot_loadConfig();
     void slot_internalEditorRadioButtonChanged(bool);

@@ -38,7 +38,6 @@ public:
     void updateFromConfig();
 
 signals:
-    void sig_changed();
 
 protected:
     void wheelEvent(QWheelEvent *event) override;

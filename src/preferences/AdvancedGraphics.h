@@ -47,12 +47,8 @@ public:
 private:
     void graphicsSettingsChanged()
     {
-        emit sig_graphicsSettingsChanged();
-        emit sig_changed();
     }
     void enableSsbs(bool enabled);
 
 signals:
-    void sig_graphicsSettingsChanged();
-    void sig_changed();
 };

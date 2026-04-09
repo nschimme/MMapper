@@ -29,7 +29,6 @@ public:
     ~MumeProtocolPage() final;
 
 signals:
-    void sig_changed();
 
 public slots:
     void slot_loadConfig();

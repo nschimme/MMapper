@@ -80,7 +80,6 @@ ClientPage::ClientPage(QWidget *parent, Configuration &config)
             this,
             [this](const int value) {
                 m_config.integratedClient.linesOfPeekPreview = value;
-                emit sig_changed();
             });
 
     connect(ui->inputHistorySpinBox,
@@ -94,34 +93,28 @@ ClientPage::ClientPage(QWidget *parent, Configuration &config)
 
     connect(ui->clearInputCheckBox, &QCheckBox::toggled, [this](bool isChecked) {
         m_config.integratedClient.clearInputOnEnter = isChecked;
-        emit sig_changed();
     });
 
     connect(ui->autoResizeTerminalCheckBox, &QCheckBox::toggled, [this](bool isChecked) {
         m_config.integratedClient.autoResizeTerminal = isChecked;
-        emit sig_changed();
     });
 
     connect(ui->audibleBellCheckBox, &QCheckBox::toggled, [this](bool isChecked) {
         m_config.integratedClient.audibleBell = isChecked;
-        emit sig_changed();
     });
 
     connect(ui->visualBellCheckBox, &QCheckBox::toggled, [this](bool isChecked) {
         m_config.integratedClient.visualBell = isChecked;
-        emit sig_changed();
     });
 
     connect(ui->commandSeparatorCheckBox, &QCheckBox::toggled, this, [this](bool isChecked) {
         m_config.integratedClient.useCommandSeparator = isChecked;
         ui->commandSeparatorLineEdit->setEnabled(isChecked);
-        emit sig_changed();
     });
 
     connect(ui->commandSeparatorLineEdit, &QLineEdit::textChanged, this, [this](const QString &text) {
         if (text.length() == 1) {
             m_config.integratedClient.commandSeparator = text;
-            emit sig_changed();
         }
     });
 
@@ -195,7 +188,6 @@ void ClientPage::slot_onChangeFont()
     if (ok) {
         fontDescription = newFont.toString();
         updateFontAndColors();
-        emit sig_changed();
     }
 }
 
@@ -206,7 +198,6 @@ void ClientPage::slot_onChangeBackgroundColor()
     if (newColor.isValid() && newColor != backgroundColor) {
         backgroundColor = newColor;
         updateFontAndColors();
-        emit sig_changed();
     }
 }
 
@@ -217,36 +208,30 @@ void ClientPage::slot_onChangeForegroundColor()
     if (newColor.isValid() && newColor != foregroundColor) {
         foregroundColor = newColor;
         updateFontAndColors();
-        emit sig_changed();
     }
 }
 
 void ClientPage::slot_onChangeColumns(const int value)
 {
     m_config.integratedClient.columns = value;
-    emit sig_changed();
 }
 
 void ClientPage::slot_onChangeRows(const int value)
 {
     m_config.integratedClient.rows = value;
-    emit sig_changed();
 }
 
 void ClientPage::slot_onChangeLinesOfScrollback(const int value)
 {
     m_config.integratedClient.linesOfScrollback = value;
-    emit sig_changed();
 }
 
 void ClientPage::slot_onChangeLinesOfInputHistory(const int value)
 {
     m_config.integratedClient.linesOfInputHistory = value;
-    emit sig_changed();
 }
 
 void ClientPage::slot_onChangeTabCompletionDictionarySize(const int value)
 {
     m_config.integratedClient.tabCompletionDictionarySize = value;
-    emit sig_changed();
 }

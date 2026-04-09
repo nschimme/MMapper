@@ -105,7 +105,6 @@ void AudioVolumeSlider::updateToConfig(int value)
         break;
     }
     if (changed) {
-        emit sig_changed();
     }
 }
 

@@ -83,17 +83,7 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
 
     connect(this, &ConfigDialog::sig_loadConfig, [this]() { slot_updateApplyButton(); });
 
-    for (auto *page : std::initializer_list<QWidget *>{generalPage,
-                                                       graphicsPage,
-                                                       parserPage,
-                                                       clientPage,
-                                                       groupPage,
-                                                       autoLogPage,
-                                                       audioPage,
-                                                       mumeProtocolPage,
-                                                       pathmachinePage}) {
-        connect(page, SIGNAL(sig_changed()), this, SLOT(slot_updateApplyButton()));
-    }
+    m_workingConfig.registerChangeCallback(m_lifetime, [this]() { slot_updateApplyButton(); });
 
     connect(this, &ConfigDialog::sig_loadConfig, generalPage, &GeneralPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, graphicsPage, &GraphicsPage::slot_loadConfig);
@@ -198,31 +188,19 @@ void ConfigDialog::slot_apply()
         return;
     }
 
-    const auto oldConfig = getConfig();
-
     // 1. Perform global assignment.
     // Thanks to observable types (ConfigValue, NamedConfig, FixedPoint),
     // this single assignment triggers all necessary notifications!
     setConfig() = m_workingConfig;
 
     // 2. Emit dialog-level signals for broader updates
-    if (m_workingConfig.canvas != oldConfig.canvas) {
-        emit sig_graphicsSettingsChanged();
+    if (m_workingConfig.groupManager != m_originalConfig.groupManager) {
     }
 
-    if (m_workingConfig.groupManager != oldConfig.groupManager) {
-        emit sig_groupSettingsChanged();
-    }
-
-    // 3. Colors
-    if (m_workingConfig.colorSettings != oldConfig.colorSettings) {
-        emit sig_graphicsSettingsChanged();
-    }
-
-    // 4. Persist changes to disk
+    // 3. Persist changes to disk
     getConfig().write();
 
-    // 5. Update state for tracking
+    // 4. Update state for tracking
     m_originalConfig = m_workingConfig;
     slot_updateApplyButton();
 }

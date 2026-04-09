@@ -30,6 +30,7 @@ private:
     QStackedWidget *m_pagesWidget = nullptr;
     Configuration m_workingConfig;
     Configuration m_originalConfig;
+    ChangeMonitor::Lifetime m_lifetime;
 
 public:
     explicit ConfigDialog(QWidget *parent = nullptr);
@@ -43,8 +44,6 @@ private:
     void createIcons();
 
 signals:
-    void sig_graphicsSettingsChanged();
-    void sig_groupSettingsChanged();
     void sig_loadConfig();
 
 public slots:

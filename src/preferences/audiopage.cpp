@@ -31,8 +31,6 @@ AudioPage::AudioPage(QWidget *const parent, Configuration &config)
             this,
             &AudioPage::slot_outputDeviceChanged);
 
-    connect(ui->musicVolumeSlider, &AudioVolumeSlider::sig_changed, this, &AudioPage::sig_changed);
-    connect(ui->soundsVolumeSlider, &AudioVolumeSlider::sig_changed, this, &AudioPage::sig_changed);
 
 #ifndef MMAPPER_NO_AUDIO
     auto *const mediaDevices = new QMediaDevices(this);
@@ -74,7 +72,6 @@ void AudioPage::slot_outputDeviceChanged(int index)
     }
     auto &settings = m_config.audio;
     settings.setOutputDeviceId(ui->outputDeviceComboBox->itemData(index).toByteArray());
-    emit sig_changed();
 }
 
 void AudioPage::slot_updateDevices()

@@ -22,7 +22,6 @@ public:
     explicit PathmachinePage(QWidget *parent, Configuration &config);
 
 signals:
-    void sig_changed();
 
 public slots:
     void slot_loadConfig();

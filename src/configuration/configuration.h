@@ -56,6 +56,16 @@ public:
                                     const ChangeMonitor::Function &callback)
         {
             theme.registerChangeCallback(lifetime, callback);
+            firstRun.registerChangeCallback(lifetime, callback);
+            windowGeometry.registerChangeCallback(lifetime, callback);
+            windowState.registerChangeCallback(lifetime, callback);
+            alwaysOnTop.registerChangeCallback(lifetime, callback);
+            showStatusBar.registerChangeCallback(lifetime, callback);
+            showScrollBars.registerChangeCallback(lifetime, callback);
+            showMenuBar.registerChangeCallback(lifetime, callback);
+            mapMode.registerChangeCallback(lifetime, callback);
+            checkForUpdate.registerChangeCallback(lifetime, callback);
+            characterEncoding.registerChangeCallback(lifetime, callback);
         }
 
         ConfigValue<ThemeEnum> theme{ThemeEnum::System};
@@ -78,6 +88,17 @@ public:
 
     struct NODISCARD ConnectionSettings final
     {
+        void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                    const ChangeMonitor::Function &callback)
+        {
+            remoteServerName.registerChangeCallback(lifetime, callback);
+            remotePort.registerChangeCallback(lifetime, callback);
+            localPort.registerChangeCallback(lifetime, callback);
+            tlsEncryption.registerChangeCallback(lifetime, callback);
+            proxyConnectionStatus.registerChangeCallback(lifetime, callback);
+            proxyListensOnAnyInterface.registerChangeCallback(lifetime, callback);
+        }
+
         ConfigValue<QString> remoteServerName; /// Remote host and port settings
         ConfigValue<uint16_t> remotePort{0u};
         ConfigValue<uint16_t> localPort{0u}; /// Port to bind to on local machine
@@ -93,6 +114,16 @@ public:
 
     struct NODISCARD ParserSettings final
     {
+        void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                    const ChangeMonitor::Function &callback)
+        {
+            roomNameColor.registerChangeCallback(lifetime, callback);
+            roomDescColor.registerChangeCallback(lifetime, callback);
+            prefixChar.registerChangeCallback(lifetime, callback);
+            encodeEmoji.registerChangeCallback(lifetime, callback);
+            decodeEmoji.registerChangeCallback(lifetime, callback);
+        }
+
         ConfigValue<QString> roomNameColor; // ANSI room name color
         ConfigValue<QString> roomDescColor; // ANSI room descriptions color
         ConfigValue<char> prefixChar{char_consts::C_UNDERSCORE};
@@ -107,6 +138,13 @@ public:
 
     struct NODISCARD MumeClientProtocolSettings final
     {
+        void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                    const ChangeMonitor::Function &callback)
+        {
+            internalRemoteEditor.registerChangeCallback(lifetime, callback);
+            externalRemoteEditorCommand.registerChangeCallback(lifetime, callback);
+        }
+
         ConfigValue<bool> internalRemoteEditor{false};
         ConfigValue<QString> externalRemoteEditorCommand;
 
@@ -118,6 +156,14 @@ public:
 
     struct NODISCARD MumeNativeSettings final
     {
+        void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                    const ChangeMonitor::Function &callback)
+        {
+            emulatedExits.registerChangeCallback(lifetime, callback);
+            showHiddenExitFlags.registerChangeCallback(lifetime, callback);
+            showNotes.registerChangeCallback(lifetime, callback);
+        }
+
         /* serialized */
         ConfigValue<bool> emulatedExits{false};
         ConfigValue<bool> showHiddenExitFlags{false};
@@ -261,6 +307,14 @@ public:
 
     struct NODISCARD AccountSettings final
     {
+        void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                    const ChangeMonitor::Function &callback)
+        {
+            accountName.registerChangeCallback(lifetime, callback);
+            accountPassword.registerChangeCallback(lifetime, callback);
+            rememberLogin.registerChangeCallback(lifetime, callback);
+        }
+
         ConfigValue<QString> accountName;
         ConfigValue<bool> accountPassword{false};
         ConfigValue<bool> rememberLogin{false};
@@ -273,6 +327,14 @@ public:
 
     struct NODISCARD AutoLoadSettings final
     {
+        void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                    const ChangeMonitor::Function &callback)
+        {
+            autoLoadMap.registerChangeCallback(lifetime, callback);
+            fileName.registerChangeCallback(lifetime, callback);
+            lastMapDirectory.registerChangeCallback(lifetime, callback);
+        }
+
         ConfigValue<bool> autoLoadMap{false};
         ConfigValue<QString> fileName;
         ConfigValue<QString> lastMapDirectory;
@@ -285,6 +347,18 @@ public:
 
     struct NODISCARD AutoLogSettings final
     {
+        void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                    const ChangeMonitor::Function &callback)
+        {
+            autoLogDirectory.registerChangeCallback(lifetime, callback);
+            autoLog.registerChangeCallback(lifetime, callback);
+            cleanupStrategy.registerChangeCallback(lifetime, callback);
+            deleteWhenLogsReachDays.registerChangeCallback(lifetime, callback);
+            deleteWhenLogsReachBytes.registerChangeCallback(lifetime, callback);
+            askDelete.registerChangeCallback(lifetime, callback);
+            rotateWhenLogsReachBytes.registerChangeCallback(lifetime, callback);
+        }
+
         ConfigValue<QString> autoLogDirectory;
         ConfigValue<bool> autoLog{false};
         ConfigValue<AutoLoggerEnum> cleanupStrategy{AutoLoggerEnum::DeleteDays};
@@ -301,6 +375,18 @@ public:
 
     struct NODISCARD PathMachineSettings final
     {
+        void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                    const ChangeMonitor::Function &callback)
+        {
+            acceptBestRelative.registerChangeCallback(lifetime, callback);
+            acceptBestAbsolute.registerChangeCallback(lifetime, callback);
+            newRoomPenalty.registerChangeCallback(lifetime, callback);
+            multipleConnectionsPenalty.registerChangeCallback(lifetime, callback);
+            correctPositionBonus.registerChangeCallback(lifetime, callback);
+            maxPaths.registerChangeCallback(lifetime, callback);
+            matchingTolerance.registerChangeCallback(lifetime, callback);
+        }
+
         ConfigValue<double> acceptBestRelative{0.0};
         ConfigValue<double> acceptBestAbsolute{0.0};
         ConfigValue<double> newRoomPenalty{0.0};
@@ -341,6 +427,13 @@ public:
 
     struct NODISCARD MumeClockSettings final
     {
+        void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                    const ChangeMonitor::Function &callback)
+        {
+            startEpoch.registerChangeCallback(lifetime, callback);
+            display.registerChangeCallback(lifetime, callback);
+        }
+
         ConfigValue<int64_t> startEpoch{0};
         ConfigValue<bool> display{false};
 
@@ -404,6 +497,26 @@ public:
 
     struct NODISCARD IntegratedMudClientSettings final
     {
+        void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                    const ChangeMonitor::Function &callback)
+        {
+            font.registerChangeCallback(lifetime, callback);
+            foregroundColor.registerChangeCallback(lifetime, callback);
+            backgroundColor.registerChangeCallback(lifetime, callback);
+            commandSeparator.registerChangeCallback(lifetime, callback);
+            columns.registerChangeCallback(lifetime, callback);
+            rows.registerChangeCallback(lifetime, callback);
+            linesOfScrollback.registerChangeCallback(lifetime, callback);
+            linesOfInputHistory.registerChangeCallback(lifetime, callback);
+            tabCompletionDictionarySize.registerChangeCallback(lifetime, callback);
+            clearInputOnEnter.registerChangeCallback(lifetime, callback);
+            autoResizeTerminal.registerChangeCallback(lifetime, callback);
+            linesOfPeekPreview.registerChangeCallback(lifetime, callback);
+            audibleBell.registerChangeCallback(lifetime, callback);
+            visualBell.registerChangeCallback(lifetime, callback);
+            useCommandSeparator.registerChangeCallback(lifetime, callback);
+        }
+
         ConfigValue<QString> font;
         ConfigValue<QColor> foregroundColor;
         ConfigValue<QColor> backgroundColor;
@@ -428,6 +541,12 @@ public:
 
     struct NODISCARD RoomPanelSettings final
     {
+        void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                    const ChangeMonitor::Function &callback)
+        {
+            geometry.registerChangeCallback(lifetime, callback);
+        }
+
         ConfigValue<QByteArray> geometry;
 
         bool operator==(const RoomPanelSettings &other) const = default;
@@ -438,6 +557,12 @@ public:
 
     struct NODISCARD InfomarksDialog final
     {
+        void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                    const ChangeMonitor::Function &callback)
+        {
+            geometry.registerChangeCallback(lifetime, callback);
+        }
+
         ConfigValue<QByteArray> geometry;
 
         bool operator==(const InfomarksDialog &other) const = default;
@@ -448,6 +573,12 @@ public:
 
     struct NODISCARD RoomEditDialog final
     {
+        void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                    const ChangeMonitor::Function &callback)
+        {
+            geometry.registerChangeCallback(lifetime, callback);
+        }
+
         ConfigValue<QByteArray> geometry;
 
         bool operator==(const RoomEditDialog &other) const = default;
@@ -458,6 +589,12 @@ public:
 
     struct NODISCARD FindRoomsDialog final
     {
+        void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                    const ChangeMonitor::Function &callback)
+        {
+            geometry.registerChangeCallback(lifetime, callback);
+        }
+
         ConfigValue<QByteArray> geometry;
 
         bool operator==(const FindRoomsDialog &other) const = default;
@@ -478,6 +615,8 @@ private:
 public:
     Configuration();
     void setupGlobalCallbacks();
+    void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                const ChangeMonitor::Function &callback);
     Configuration(const Configuration &other);
     Configuration &operator=(const Configuration &other);
     bool operator==(const Configuration &other) const;

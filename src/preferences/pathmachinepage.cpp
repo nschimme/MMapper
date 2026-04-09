@@ -61,41 +61,34 @@ void PathmachinePage::slot_loadConfig()
 void PathmachinePage::slot_acceptBestRelativeDoubleSpinBoxValueChanged(const double val)
 {
     m_config.pathMachine.acceptBestRelative = val;
-    emit sig_changed();
 }
 
 void PathmachinePage::slot_acceptBestAbsoluteDoubleSpinBoxValueChanged(const double val)
 {
     m_config.pathMachine.acceptBestAbsolute = val;
-    emit sig_changed();
 }
 
 void PathmachinePage::slot_newRoomPenaltyDoubleSpinBoxValueChanged(const double val)
 {
     m_config.pathMachine.newRoomPenalty = val;
-    emit sig_changed();
 }
 
 void PathmachinePage::slot_correctPositionBonusDoubleSpinBoxValueChanged(const double val)
 {
     m_config.pathMachine.correctPositionBonus = val;
-    emit sig_changed();
 }
 
 void PathmachinePage::slot_multipleConnectionsPenaltyDoubleSpinBoxValueChanged(const double val)
 {
     m_config.pathMachine.multipleConnectionsPenalty = val;
-    emit sig_changed();
 }
 
 void PathmachinePage::slot_maxPathsValueChanged(const int val)
 {
     m_config.pathMachine.maxPaths = utils::clampNonNegative(val);
-    emit sig_changed();
 }
 
 void PathmachinePage::slot_matchingToleranceSpinBoxValueChanged(const int val)
 {
     m_config.pathMachine.matchingTolerance = utils::clampNonNegative(val);
-    emit sig_changed();
 }

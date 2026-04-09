@@ -22,7 +22,6 @@ GroupPage::GroupPage(QWidget *const parent, Configuration &config)
 
     connect(ui->npcOverrideColorCheckBox, &QCheckBox::stateChanged, this, [this](int checked) {
         m_config.groupManager.npcColorOverride = checked;
-        emit sig_changed();
     });
     connect(ui->npcOverrideColorPushButton,
             &QPushButton::clicked,
@@ -31,11 +30,9 @@ GroupPage::GroupPage(QWidget *const parent, Configuration &config)
 
     connect(ui->npcSortBottomCheckbox, &QCheckBox::stateChanged, this, [this](int checked) {
         m_config.groupManager.npcSortBottom = checked;
-        emit sig_changed();
     });
     connect(ui->npcHideCheckbox, &QCheckBox::stateChanged, this, [this](int checked) {
         m_config.groupManager.npcHide = checked;
-        emit sig_changed();
     });
 
     slot_loadConfig();
@@ -72,7 +69,6 @@ void GroupPage::slot_chooseColor()
     if (color.isValid()) {
         m_config.groupManager.color = color;
         slot_loadConfig();
-        emit sig_changed();
     }
 }
 
@@ -85,6 +81,5 @@ void GroupPage::slot_chooseNpcOverrideColor()
     if (color.isValid()) {
         m_config.groupManager.npcColor = color;
         slot_loadConfig();
-        emit sig_changed();
     }
 }

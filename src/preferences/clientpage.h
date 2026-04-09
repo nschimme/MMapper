@@ -31,7 +31,6 @@ public:
     void updateFontAndColors();
 
 signals:
-    void sig_changed();
 
 public slots:
     void slot_loadConfig();

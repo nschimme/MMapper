@@ -60,13 +60,11 @@ void MumeProtocolPage::slot_internalEditorRadioButtonChanged(bool /*unused*/)
 
     ui->externalEditorCommand->setEnabled(!useInternalEditor);
     ui->externalEditorBrowseButton->setEnabled(!useInternalEditor);
-    emit sig_changed();
 }
 
 void MumeProtocolPage::slot_externalEditorCommandTextChanged(QString text)
 {
     m_config.mumeClientProtocol.externalRemoteEditorCommand = std::move(text);
-    emit sig_changed();
 }
 
 void MumeProtocolPage::slot_externalEditorBrowseButtonClicked(bool /*unused*/)
@@ -79,6 +77,5 @@ void MumeProtocolPage::slot_externalEditorBrowseButtonClicked(bool /*unused*/)
         QString quotedFileName = QString(R"("%1")").arg(fileName.replace(R"(")", R"(\")"));
         ui->externalEditorCommand->setText(quotedFileName);
         command = quotedFileName;
-        emit sig_changed();
     }
 }

@@ -62,16 +62,13 @@ ParserPage::ParserPage(QWidget *const parent, Configuration &config)
 
     connect(charPrefixLineEdit, &QLineEdit::editingFinished, this, [this]() {
         m_config.parser.prefixChar = mmqt::toLatin1(charPrefixLineEdit->text().front());
-        emit sig_changed();
     });
 
     connect(encodeEmoji, &QCheckBox::clicked, this, [this](bool checked) {
         m_config.parser.encodeEmoji = checked;
-        emit sig_changed();
     });
     connect(decodeEmoji, &QCheckBox::clicked, this, [this](bool checked) {
         m_config.parser.decodeEmoji = checked;
-        emit sig_changed();
     });
 }
 
@@ -94,7 +91,6 @@ void ParserPage::slot_roomNameColorClicked()
     AnsiColorDialog::getColor(m_config.parser.roomNameColor, this, [this](QString ansiString) {
         AnsiCombo::makeWidgetColoured(roomNameColorLabel, ansiString);
         m_config.parser.roomNameColor = ansiString;
-        emit sig_changed();
     });
 }
 
@@ -103,6 +99,5 @@ void ParserPage::slot_roomDescColorClicked()
     AnsiColorDialog::getColor(m_config.parser.roomDescColor, this, [this](QString ansiString) {
         AnsiCombo::makeWidgetColoured(roomDescColorLabel, ansiString);
         m_config.parser.roomDescColor = ansiString;
-        emit sig_changed();
     });
 }

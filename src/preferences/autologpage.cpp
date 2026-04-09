@@ -43,7 +43,6 @@ AutoLogPage::AutoLogPage(QWidget *const parent, Configuration &config)
             this,
             [this](const int size) {
                 m_config.autoLog.deleteWhenLogsReachDays = size;
-                emit sig_changed();
             });
     connect(ui->radioButtonDeleteSize,
             QOverload<bool>::of(&QRadioButton::toggled),
@@ -54,14 +53,12 @@ AutoLogPage::AutoLogPage(QWidget *const parent, Configuration &config)
             this,
             [this](const int size) {
                 m_config.autoLog.deleteWhenLogsReachBytes = size * MEGABYTE_IN_BYTES;
-                emit sig_changed();
             });
     connect(ui->askDeleteCheckBox,
             QOverload<bool>::of(&QCheckBox::toggled),
             this,
             [this](const bool askDelete) {
                 m_config.autoLog.askDelete = askDelete;
-                emit sig_changed();
             });
 
     connect(ui->autoLogMaxBytes,
@@ -69,7 +66,6 @@ AutoLogPage::AutoLogPage(QWidget *const parent, Configuration &config)
             this,
             [this](const int size) {
                 m_config.autoLog.rotateWhenLogsReachBytes = size * MEGABYTE_IN_BYTES;
-                emit sig_changed();
             });
 
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
@@ -125,7 +121,6 @@ void AutoLogPage::slot_selectLogLocationButtonClicked(int /*unused*/)
     if (!logDirectory.isEmpty()) {
         ui->autoLogLocation->setText(logDirectory);
         config.autoLogDirectory = logDirectory;
-        emit sig_changed();
     }
 }
 
@@ -141,5 +136,4 @@ void AutoLogPage::slot_logStrategyChanged(int /*unused*/)
     } else {
         abort();
     }
-    emit sig_changed();
 }

@@ -35,25 +35,21 @@ GraphicsPage::GraphicsPage(QWidget *parent, Configuration &config)
     connect(ui->bgChangeColor, &QAbstractButton::clicked, this, [this]() {
         if (changeColorClicked(m_config.canvas.backgroundColor)) {
             setIconColor(ui->bgChangeColor, m_config.canvas.backgroundColor);
-            graphicsSettingsChanged();
         }
     });
     connect(ui->darkPushButton, &QAbstractButton::clicked, this, [this]() {
         if (changeColorClicked(m_config.canvas.roomDarkColor)) {
             setIconColor(ui->darkPushButton, m_config.canvas.roomDarkColor);
-            graphicsSettingsChanged();
         }
     });
     connect(ui->darkLitPushButton, &QAbstractButton::clicked, this, [this]() {
         if (changeColorClicked(m_config.canvas.roomDarkLitColor)) {
             setIconColor(ui->darkLitPushButton, m_config.canvas.roomDarkLitColor);
-            graphicsSettingsChanged();
         }
     });
     connect(ui->connectionNormalPushButton, &QAbstractButton::clicked, this, [this]() {
         if (changeColorClicked(m_config.canvas.connectionNormalColor)) {
             setIconColor(ui->connectionNormalPushButton, m_config.canvas.connectionNormalColor);
-            graphicsSettingsChanged();
         }
     });
     connect(ui->antialiasingSamplesComboBox,
@@ -65,17 +61,14 @@ GraphicsPage::GraphicsPage(QWidget *parent, Configuration &config)
                         ui->antialiasingSamplesComboBox
                             ->itemData(ui->antialiasingSamplesComboBox->currentIndex())
                             .toInt());
-                    graphicsSettingsChanged();
                 }
             });
     connect(ui->trilinearFilteringCheckBox, &QCheckBox::stateChanged, this, [this](int /*unused*/) {
         m_config.canvas.trilinearFiltering.set(ui->trilinearFilteringCheckBox->isChecked());
-        graphicsSettingsChanged();
     });
 
     connect(ui->drawUnsavedChanges, &QCheckBox::stateChanged, this, [this](int /*unused*/) {
         m_config.canvas.showUnsavedChanges.set(ui->drawUnsavedChanges->isChecked());
-        graphicsSettingsChanged();
     });
     connect(ui->drawNeedsUpdate,
             &QCheckBox::stateChanged,
@@ -96,23 +89,16 @@ GraphicsPage::GraphicsPage(QWidget *parent, Configuration &config)
 
     connect(ui->weatherAtmosphereSlider, &QSlider::valueChanged, this, [this](const int value) {
         m_config.canvas.weatherAtmosphereIntensity.set(value);
-        graphicsSettingsChanged();
     });
 
     connect(ui->weatherPrecipitationSlider, &QSlider::valueChanged, this, [this](const int value) {
         m_config.canvas.weatherPrecipitationIntensity.set(value);
-        graphicsSettingsChanged();
     });
 
     connect(ui->weatherTimeOfDaySlider, &QSlider::valueChanged, this, [this](const int value) {
         m_config.canvas.weatherTimeOfDayIntensity.set(value);
-        graphicsSettingsChanged();
     });
 
-    connect(m_advanced.get(),
-            &AdvancedGraphicsGroupBox::sig_changed,
-            this,
-            &GraphicsPage::graphicsSettingsChanged);
 }
 
 GraphicsPage::~GraphicsPage()
@@ -170,23 +156,19 @@ bool GraphicsPage::changeColorClickedImpl(Color &color)
 void GraphicsPage::slot_drawNeedsUpdateStateChanged(int /*unused*/)
 {
     m_config.canvas.showMissingMapId.set(ui->drawNeedsUpdate->isChecked());
-    graphicsSettingsChanged();
 }
 
 void GraphicsPage::slot_drawNotMappedExitsStateChanged(int /*unused*/)
 {
     m_config.canvas.showUnmappedExits.set(ui->drawNotMappedExits->isChecked());
-    graphicsSettingsChanged();
 }
 
 void GraphicsPage::slot_drawDoorNamesStateChanged(int /*unused*/)
 {
     m_config.canvas.drawDoorNames.set(ui->drawDoorNames->isChecked());
-    graphicsSettingsChanged();
 }
 
 void GraphicsPage::slot_drawUpperLayersTexturedStateChanged(int /*unused*/)
 {
     m_config.canvas.drawUpperLayersTextured.set(ui->drawUpperLayersTextured->isChecked());
-    graphicsSettingsChanged();
 }

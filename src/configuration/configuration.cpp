@@ -1200,6 +1200,32 @@ void Configuration::setupGlobalCallbacks()
 #undef X_SYNC_COLOR
 }
 
+void Configuration::registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
+                                           const ChangeMonitor::Function &callback)
+{
+    general.registerChangeCallback(lifetime, callback);
+    connection.registerChangeCallback(lifetime, callback);
+    parser.registerChangeCallback(lifetime, callback);
+    mumeClientProtocol.registerChangeCallback(lifetime, callback);
+    mumeNative.registerChangeCallback(lifetime, callback);
+    canvas.registerChangeCallback(lifetime, callback);
+    colorSettings.registerChangeCallback(lifetime, callback);
+    account.registerChangeCallback(lifetime, callback);
+    autoLoad.registerChangeCallback(lifetime, callback);
+    autoLog.registerChangeCallback(lifetime, callback);
+    pathMachine.registerChangeCallback(lifetime, callback);
+    groupManager.registerChangeCallback(lifetime, callback);
+    mumeClock.registerChangeCallback(lifetime, callback);
+    adventurePanel.registerChangeCallback(lifetime, callback);
+    audio.registerChangeCallback(lifetime, callback);
+    integratedClient.registerChangeCallback(lifetime, callback);
+    roomPanel.registerChangeCallback(lifetime, callback);
+    infomarksDialog.registerChangeCallback(lifetime, callback);
+    roomEditDialog.registerChangeCallback(lifetime, callback);
+    findRoomsDialog.registerChangeCallback(lifetime, callback);
+    hotkeys.registerChangeCallback(lifetime, callback);
+}
+
 void setEnteredMain()
 {
     g_thread = std::this_thread::get_id();

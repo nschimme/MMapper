@@ -33,7 +33,6 @@ public:
 
 signals:
     void sig_reloadConfig();
-    void sig_changed();
 
 public slots:
     void slot_loadConfig();

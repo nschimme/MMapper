@@ -30,8 +30,6 @@ public:
     ~GroupPage() final;
 
 signals:
-    void sig_groupSettingsChanged();
-    void sig_changed();
 
 public slots:
     void slot_loadConfig();

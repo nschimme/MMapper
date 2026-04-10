@@ -408,7 +408,7 @@ MumeWebSocket::MumeWebSocket(QObject *parent, MumeSocketOutputs &outputs)
     connect(&m_socket, &QWebSocket::connected, this, [this]() { onConnect(); });
     connect(&m_socket,
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-            QOverload<QAbstractSocket::SocketError>::of(&QWebSocket::errorOccurred),
+            &QWebSocket::errorOccurred,
 #else
             QOverload<QAbstractSocket::SocketError>::of(&QWebSocket::error),
 #endif

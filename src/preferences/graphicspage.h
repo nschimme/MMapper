@@ -55,4 +55,5 @@ public slots:
     void slot_drawNotMappedExitsStateChanged(int);
     void slot_drawDoorNamesStateChanged(int);
     void slot_drawUpperLayersTexturedStateChanged(int);
+    // this slot just calls the signal... not useful
 };

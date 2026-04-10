@@ -46,6 +46,7 @@ protected:
 private:
     void createIcons();
 
+
 public slots:
     void slot_changePage(QListWidgetItem *current, QListWidgetItem *previous);
     void slot_apply();

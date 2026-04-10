@@ -1193,6 +1193,7 @@ void Configuration::NamedColorOptions::registerChangeCallback(
 void Configuration::setupGlobalCallbacks()
 {
 #define X_SYNC_COLOR(_id, _name) \
+    XNamedColor(NamedColorEnum::_id).setColor(colorSettings._id.get()); \
     colorSettings._id.registerChangeCallback(m_internalLifetime, []() { \
         XNamedColor(NamedColorEnum::_id).setColor(setConfig().colorSettings._id.get()); \
     });

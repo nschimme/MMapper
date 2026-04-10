@@ -184,6 +184,7 @@ public:
     struct CanvasNamedColorOptions;
     struct NODISCARD ResolvedCanvasNamedColorOptions final
     {
+        ResolvedCanvasNamedColorOptions() = default;
 #define X_DECL(_id, _name) Color _id;
         XFOREACH_CANVAS_NAMED_COLOR_OPTIONS(X_DECL)
 #undef X_DECL
@@ -268,6 +269,7 @@ public:
     struct NODISCARD NamedColorOptions;
     struct NODISCARD ResolvedNamedColorOptions final
     {
+        ResolvedNamedColorOptions() = default;
 #define X_DECL(_id, _name) Color _id;
         XFOREACH_NAMED_COLOR_OPTIONS(X_DECL)
 #undef X_DECL

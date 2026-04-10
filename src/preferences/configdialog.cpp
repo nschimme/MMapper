@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
-// Author: Ulf Hermann <ulfonk_mennhar@gmx.de> (Alve)
-// Author: Marek Krejza <krejza@gmail.com> (Caligor)
-// Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
 #include "configdialog.h"
 
@@ -30,8 +27,6 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
 
     setWindowTitle(tr("Config Dialog"));
 
-    createIcons();
-
     auto generalPage = new GeneralPage(this, m_workingConfig);
     auto graphicsPage = new GraphicsPage(this, m_workingConfig);
     auto parserPage = new ParserPage(this, m_workingConfig);
@@ -42,46 +37,36 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     auto mumeProtocolPage = new MumeProtocolPage(this, m_workingConfig);
     auto pathmachinePage = new PathmachinePage(this, m_workingConfig);
 
-    m_pagesWidget = new QStackedWidget(this);
+    auto addPage = [this](QWidget *widget, const QString &name, const QString &iconPath) {
+        auto *item = new QListWidgetItem(QIcon(iconPath), name, ui->contentsWidget);
+        ui->scrollLayout->addWidget(widget);
+        m_pages.append({name, widget, item});
+    };
 
-    auto *const pagesWidget = m_pagesWidget;
-    pagesWidget->addWidget(generalPage);
-    pagesWidget->addWidget(graphicsPage);
-    pagesWidget->addWidget(parserPage);
-    pagesWidget->addWidget(clientPage);
-    pagesWidget->addWidget(groupPage);
-    pagesWidget->addWidget(autoLogPage);
-    pagesWidget->addWidget(audioPage);
-    pagesWidget->addWidget(mumeProtocolPage);
-    pagesWidget->addWidget(pathmachinePage);
-    pagesWidget->setCurrentIndex(0);
+    addPage(generalPage, tr("General"), ":/icons/generalcfg.png");
+    addPage(graphicsPage, tr("Graphics"), ":/icons/graphicscfg.png");
+    addPage(parserPage, tr("Parser"), ":/icons/parsercfg.png");
+    addPage(clientPage, tr("Integrated Mud Client"), ":/icons/terminal.png");
+    addPage(groupPage, tr("Group Panel"), ":/icons/group-recolor.png");
+    addPage(autoLogPage, tr("Auto Logger"), ":/icons/autologgercfg.png");
+    addPage(audioPage, tr("Audio"), ":/icons/audiocfg.png");
+    addPage(mumeProtocolPage, tr("Mume Protocol"), ":/icons/mumeprotocolcfg.png");
+    addPage(pathmachinePage, tr("Path Machine"), ":/icons/pathmachinecfg.png");
 
-    ui->pagesScrollArea->setWidget(pagesWidget);
+    ui->scrollLayout->addStretch();
 
-    ui->contentsWidget->setCurrentItem(ui->contentsWidget->item(0));
-    connect(ui->contentsWidget,
-            &QListWidget::currentItemChanged,
-            this,
-            &ConfigDialog::slot_changePage);
+    connect(ui->contentsWidget, &QListWidget::currentItemChanged, this, &ConfigDialog::slot_changePage);
     connect(ui->buttonBox, &QDialogButtonBox::accepted, this, &ConfigDialog::slot_ok);
     connect(ui->buttonBox, &QDialogButtonBox::rejected, this, &ConfigDialog::slot_cancel);
-    connect(ui->buttonBox->button(QDialogButtonBox::Apply),
-            &QPushButton::clicked,
-            this,
-            &ConfigDialog::slot_apply);
+    connect(ui->buttonBox->button(QDialogButtonBox::Apply), &QPushButton::clicked, this, &ConfigDialog::slot_apply);
+    connect(ui->searchBar, &QLineEdit::textChanged, this, &ConfigDialog::slot_search);
 
     connect(generalPage, &GeneralPage::sig_reloadConfig, this, [this]() {
-        // sig_reloadConfig is emitted after a Factory Reset or Import.
-        // The global getConfig() has already been updated in GeneralPage.
-        // We need to update our originalConfig to match the new global state
-        // to properly track future changes, and ensure workingConfig is in sync.
         m_originalConfig = getConfig();
         m_workingConfig = getConfig();
         slot_updateApplyButton();
         emit sig_loadConfig();
     });
-
-    connect(this, &ConfigDialog::sig_loadConfig, [this]() { slot_updateApplyButton(); });
 
     m_workingConfig.registerChangeCallback(m_lifetime, [this]() { slot_updateApplyButton(); });
 
@@ -92,10 +77,7 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     connect(this, &ConfigDialog::sig_loadConfig, autoLogPage, &AutoLogPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, audioPage, &AudioPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, groupPage, &GroupPage::slot_loadConfig);
-    connect(this,
-            &ConfigDialog::sig_loadConfig,
-            mumeProtocolPage,
-            &MumeProtocolPage::slot_loadConfig);
+    connect(this, &ConfigDialog::sig_loadConfig, mumeProtocolPage, &MumeProtocolPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, pathmachinePage, &PathmachinePage::slot_loadConfig);
 }
 
@@ -134,10 +116,8 @@ void ConfigDialog::showEvent(QShowEvent *const event)
     m_workingConfig = getConfig();
     m_originalConfig = getConfig();
 
-    // Populate the preference pages from config each time the widget is shown
     emit sig_loadConfig();
 
-    // Move widget to center of parent's location
     if (parentWidget()) {
         auto pos = parentWidget()->pos();
         pos.setX(pos.x() + (parentWidget()->width() / 2) - (width() / 2));
@@ -147,39 +127,18 @@ void ConfigDialog::showEvent(QShowEvent *const event)
     event->accept();
 }
 
-void ConfigDialog::createIcons()
-{
-    const QSize iconTargetSize = ui->contentsWidget->iconSize();
-
-    auto addItem = [this, iconTargetSize](const QString &iconPath, const QString &label) {
-        QPixmap pixmap(iconPath);
-        QPixmap scaled = pixmap.scaled(iconTargetSize,
-                                       Qt::KeepAspectRatio,
-                                       Qt::SmoothTransformation);
-
-        auto *item = new QListWidgetItem(QIcon(scaled), label, ui->contentsWidget);
-        item->setTextAlignment(Qt::AlignHCenter);
-        item->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
-    };
-
-    addItem(":/icons/generalcfg.png", tr("General"));
-    addItem(":/icons/graphicscfg.png", tr("Graphics"));
-    addItem(":/icons/parsercfg.png", tr("Parser"));
-    addItem(":/icons/terminal.png", tr("Integrated\nMud Client"));
-    addItem(":/icons/group-recolor.png", tr("Group Panel"));
-    addItem(":/icons/autologgercfg.png", tr("Auto\nLogger"));
-    addItem(":/icons/audiocfg.png", tr("Audio"));
-    addItem(":/icons/mumeprotocolcfg.png", tr("Mume\nProtocol"));
-    addItem(":/icons/pathmachinecfg.png", tr("Path\nMachine"));
-}
-
 void ConfigDialog::slot_changePage(QListWidgetItem *current, QListWidgetItem *const previous)
 {
     if (current == nullptr) {
-        current = previous;
+        return;
     }
-    ui->pagesScrollArea->verticalScrollBar()->setSliderPosition(0);
-    m_pagesWidget->setCurrentIndex(ui->contentsWidget->row(current));
+
+    for (const auto &page : m_pages) {
+        if (page.item == current) {
+            ui->pagesScrollArea->ensureWidgetVisible(page.widget);
+            break;
+        }
+    }
 }
 
 void ConfigDialog::slot_apply()
@@ -188,19 +147,8 @@ void ConfigDialog::slot_apply()
         return;
     }
 
-    // 1. Perform global assignment.
-    // Thanks to observable types (ConfigValue, NamedConfig, FixedPoint),
-    // this single assignment triggers all necessary notifications!
     setConfig() = m_workingConfig;
-
-    // 2. Emit dialog-level signals for broader updates
-    if (m_workingConfig.groupManager != m_originalConfig.groupManager) {
-    }
-
-    // 3. Persist changes to disk
     getConfig().write();
-
-    // 4. Update state for tracking
     m_originalConfig = m_workingConfig;
     slot_updateApplyButton();
 }
@@ -219,4 +167,109 @@ void ConfigDialog::slot_cancel()
 void ConfigDialog::slot_updateApplyButton()
 {
     ui->buttonBox->button(QDialogButtonBox::Apply)->setEnabled(m_workingConfig != m_originalConfig);
+}
+
+void ConfigDialog::slot_search(const QString &text)
+{
+    if (text.isEmpty()) {
+        for (auto &page : m_pages) {
+            page.widget->show();
+            page.item->setHidden(false);
+
+            const auto children = page.widget->findChildren<QWidget *>();
+            for (auto *child : children) {
+                child->show();
+            }
+        }
+        return;
+    }
+
+    const QString searchLower = text.toLower();
+
+    for (auto &page : m_pages) {
+        bool pageMatches = page.name.toLower().contains(searchLower);
+        bool anyChildMatches = false;
+
+        const auto groupBoxes = page.widget->findChildren<QGroupBox *>();
+        for (auto *gb : groupBoxes) {
+            bool gbMatches = gb->title().toLower().contains(searchLower);
+            if (gbMatches) {
+                gb->show();
+                const auto children = gb->findChildren<QWidget *>();
+                for (auto *child : children) child->show();
+                anyChildMatches = true;
+            } else {
+                bool anyGbChildMatches = false;
+                const auto children = gb->findChildren<QWidget *>();
+                for (auto *child : children) {
+                    QString childText;
+                    if (auto *cb = qobject_cast<QCheckBox *>(child)) childText = cb->text();
+                    else if (auto *rb = qobject_cast<QRadioButton *>(child)) childText = rb->text();
+                    else if (auto *lbl = qobject_cast<QLabel *>(child)) childText = lbl->text();
+                    else if (auto *pb = qobject_cast<QPushButton *>(child)) childText = pb->text();
+
+                    if (!childText.isEmpty() && childText.toLower().contains(searchLower)) {
+                        child->show();
+                        anyGbChildMatches = true;
+                    } else if (qobject_cast<QLabel*>(child) || qobject_cast<QCheckBox*>(child) || qobject_cast<QRadioButton*>(child) || qobject_cast<QPushButton*>(child)) {
+                        child->hide();
+                    }
+                }
+
+                // Keep input widgets visible if their label is visible
+                for (auto *child : children) {
+                    if (auto *lbl = qobject_cast<QLabel *>(child)) {
+                        if (lbl->isVisible() && lbl->buddy()) {
+                            lbl->buddy()->show();
+                        }
+                    }
+                }
+
+                if (anyGbChildMatches) {
+                    gb->show();
+                    anyChildMatches = true;
+                } else {
+                    gb->hide();
+                }
+            }
+        }
+
+        const auto directChildren = page.widget->findChildren<QWidget *>(QString(), Qt::FindDirectChildrenOnly);
+        for (auto *child : directChildren) {
+             QString childText;
+             if (auto *cb = qobject_cast<QCheckBox *>(child)) childText = cb->text();
+             else if (auto *rb = qobject_cast<QRadioButton *>(child)) childText = rb->text();
+             else if (auto *lbl = qobject_cast<QLabel *>(child)) childText = lbl->text();
+             else if (auto *pb = qobject_cast<QPushButton *>(child)) childText = pb->text();
+
+             if (!childText.isEmpty() && childText.toLower().contains(searchLower)) {
+                 child->show();
+                 anyChildMatches = true;
+             } else if (qobject_cast<QLabel*>(child) || qobject_cast<QCheckBox*>(child) || qobject_cast<QRadioButton*>(child) || qobject_cast<QPushButton*>(child)) {
+                 if (!qobject_cast<QGroupBox*>(child)) {
+                    child->hide();
+                 }
+             }
+        }
+
+        for (auto *child : directChildren) {
+            if (auto *lbl = qobject_cast<QLabel *>(child)) {
+                if (lbl->isVisible() && lbl->buddy()) {
+                    lbl->buddy()->show();
+                }
+            }
+        }
+
+        if (pageMatches || anyChildMatches) {
+            page.widget->show();
+            page.item->setHidden(false);
+            if (pageMatches && !anyChildMatches) {
+                const auto children = page.widget->findChildren<QWidget *>();
+                for (auto *child : children) child->show();
+            }
+        } else {
+            page.widget->hide();
+            page.item->setHidden(true);
+        }
+    }
 }

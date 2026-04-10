@@ -3,6 +3,7 @@
 
 #include "metatypes.h"
 
+#include "../global/Color.h"
 #include "../global/ConfigEnums.h"
 #include "../group/mmapper2character.h"
 #include "../map/ChangeList.h"
@@ -50,6 +51,11 @@ void registerMetatypes()
     REGISTER_METATYPE(GmcpMessage);
     REGISTER_METATYPE(GroupSecret);
     REGISTER_METATYPE(RemoteSessionId);
+    REGISTER_METATYPE(Color);
+    REGISTER_METATYPE(AutoLoggerEnum);
+    REGISTER_METATYPE(CharacterEncodingEnum);
+    REGISTER_METATYPE(MapModeEnum);
+    REGISTER_METATYPE(ThemeEnum);
 
 #define X_REGISTER_METATYPE(name) REGISTER_METATYPE(name##Bytes);
     XFOREACH_TAGGED_BYTE_TYPES(X_REGISTER_METATYPE)

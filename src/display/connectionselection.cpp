@@ -5,7 +5,6 @@
 
 #include "connectionselection.h"
 
-#include "../configuration/NamedConfig.h"
 #include "../map/coordinate.h"
 #include "../map/room.h"
 #include "../map/roomid.h"

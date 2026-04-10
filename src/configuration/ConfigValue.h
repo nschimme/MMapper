@@ -6,14 +6,31 @@
 #include "../global/RuleOf5.h"
 #include "../global/utils.h"
 
-#include <stdexcept>
+#include <algorithm>
+#include <functional>
+
+#include <string>
 #include <utility>
+
+#include <QSettings>
+#include <QVariant>
 
 template<typename T>
 class NODISCARD ConfigValue final
 {
+public:
+    using Validator = std::function<T(const T &)>;
+
 private:
+    std::string m_key;
+    std::string m_label;
     T m_value{};
+    T m_defaultValue{};
+
+public:
+    Validator m_validator;
+
+private:
     ChangeMonitor m_changeMonitor;
     bool m_notifying = false;
 
@@ -21,16 +38,30 @@ public:
     ConfigValue() = default;
 
     explicit ConfigValue(T initialValue)
-        : m_value{std::move(initialValue)}
+        : m_value{initialValue}
+        , m_defaultValue{initialValue}
+    {}
+
+    ConfigValue(std::string key, std::string label, const T &defaultValue, Validator validator = nullptr)
+        : m_key(std::move(key))
+        , m_label(std::move(label))
+        , m_value(defaultValue)
+        , m_defaultValue(defaultValue)
+        , m_validator(std::move(validator))
     {}
 
     ConfigValue(const ConfigValue &other)
-        : m_value{other.m_value}
+        : m_key{other.m_key}
+        , m_label{other.m_label}
+        , m_value{other.m_value}
+        , m_defaultValue{other.m_defaultValue}
     {}
 
     ConfigValue &operator=(const ConfigValue &other)
     {
-        set(other.m_value);
+        if (this != &other) {
+            set(other.m_value);
+        }
         return *this;
     }
 
@@ -56,6 +87,10 @@ public:
     NODISCARD operator T() const { return m_value; }
     NODISCARD const T *operator->() const { return &m_value; }
 
+    NODISCARD const std::string &getKey() const { return m_key; }
+    NODISCARD const std::string &getLabel() const { return m_label; }
+    NODISCARD const T &getDefaultValue() const { return m_defaultValue; }
+
     void set(const T &newValue)
     {
         if (m_notifying) {
@@ -79,6 +114,34 @@ public:
 
         m_value = newValue;
         m_changeMonitor.notifyAll();
+    }
+
+    void reset() { set(m_defaultValue); }
+
+    void clamp(const T &lo, const T &hi) { set(std::clamp(m_value, lo, hi)); }
+
+    void read(const QSettings &settings)
+    {
+        if (m_key.empty()) {
+            return;
+        }
+        const QVariant var = settings.value(QString::fromStdString(m_key),
+                                            QVariant::fromValue(m_defaultValue));
+        if (var.canConvert<T>()) {
+            T val = var.value<T>();
+            if (m_validator) {
+                val = m_validator(val);
+            }
+            set(val);
+        }
+    }
+
+    void write(QSettings &settings) const
+    {
+        if (m_key.empty()) {
+            return;
+        }
+        settings.setValue(QString::fromStdString(m_key), QVariant::fromValue(m_value));
     }
 
     void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,

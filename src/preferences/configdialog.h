@@ -1,55 +1,59 @@
-#pragma once
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
-// Author: Ulf Hermann <ulfonk_mennhar@gmx.de> (Alve)
-// Author: Marek Krejza <krejza@gmail.com> (Caligor)
-// Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
+
+#pragma once
 
 #include "../configuration/configuration.h"
-#include "../global/macros.h"
+#include "../global/Signal2.h"
 
 #include <QDialog>
-#include <QString>
-
-class QListWidgetItem;
-class QObject;
-class QShowEvent;
-class QStackedWidget;
-class QWidget;
+#include <QPointer>
 
 namespace Ui {
 class ConfigDialog;
 }
 
-class NODISCARD_QOBJECT ConfigDialog final : public QDialog
+class QListWidgetItem;
+class QStackedWidget;
+
+class ConfigDialog final : public QDialog
 {
     Q_OBJECT
 
-signals:
-    void sig_loadConfig();
-
-private:
-    Ui::ConfigDialog *const ui;
-    QStackedWidget *m_pagesWidget = nullptr;
-    Configuration m_workingConfig;
-    Configuration m_originalConfig;
-    ChangeMonitor::Lifetime m_lifetime;
-
 public:
     explicit ConfigDialog(QWidget *parent = nullptr);
-    ~ConfigDialog() final;
+    ~ConfigDialog() override;
 
 protected:
     void closeEvent(QCloseEvent *event) override;
     void showEvent(QShowEvent *event) override;
 
-private:
-    void createIcons();
-
-public slots:
+private slots:
     void slot_changePage(QListWidgetItem *current, QListWidgetItem *previous);
     void slot_apply();
     void slot_ok();
     void slot_cancel();
     void slot_updateApplyButton();
+    void slot_search(const QString &text);
+
+signals:
+    void sig_loadConfig();
+
+private:
+    void createIcons();
+    void updateSearch();
+
+private:
+    Ui::ConfigDialog *ui;
+    Configuration m_workingConfig = getConfig();
+    Configuration m_originalConfig = getConfig();
+    Signal2Lifetime m_lifetime;
+
+    struct PageInfo
+    {
+        QString name;
+        QWidget *widget;
+        QListWidgetItem *item;
+    };
+    QList<PageInfo> m_pages;
 };

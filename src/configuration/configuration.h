@@ -31,9 +31,9 @@
 
 #undef TRANSPARENT // Bad dog, Microsoft; bad dog!!!
 
-#define SUBGROUP()              \
+#define SUBGROUP() \
     friend class Configuration; \
-    void read(const QSettings &conf);  \
+    void read(const QSettings &conf); \
     void write(QSettings &conf) const
 
 class NODISCARD Configuration final
@@ -189,7 +189,11 @@ public:
         SUBGROUP();
     } mumeNative;
 
-#define XFOREACH_CANVAS_NAMED_COLOR_OPTIONS(X)                                                         X(backgroundColor, BACKGROUND)                                                                     X(connectionNormalColor, CONNECTION_NORMAL)                                                        X(roomDarkColor, ROOM_DARK)                                                                        X(roomDarkLitColor, ROOM_NO_SUNDEATH)
+#define XFOREACH_CANVAS_NAMED_COLOR_OPTIONS(X) \
+    X(backgroundColor, BACKGROUND) \
+    X(connectionNormalColor, CONNECTION_NORMAL) \
+    X(roomDarkColor, ROOM_DARK) \
+    X(roomDarkLitColor, ROOM_NO_SUNDEATH)
 
     struct CanvasNamedColorOptions;
     struct NODISCARD ResolvedCanvasNamedColorOptions final
@@ -459,8 +463,8 @@ public:
                                            "New room penalty",
                                            0.0};
         ConfigValue<double> multipleConnectionsPenalty{"Path Machine/multiple connections penalty",
-                                                        "Multiple connections penalty",
-                                                        0.0};
+                                                       "Multiple connections penalty",
+                                                       0.0};
         ConfigValue<double> correctPositionBonus{"Path Machine/correct position bonus",
                                                  "Correct position bonus",
                                                  0.0};

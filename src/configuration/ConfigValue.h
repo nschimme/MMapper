@@ -47,6 +47,8 @@ public:
         , m_label(std::move(label))
         , m_value(defaultValue)
         , m_defaultValue(defaultValue)
+        , m_changeMonitor()
+        , m_notifying(false)
         , m_validator(std::move(validator))
     {}
 
@@ -55,6 +57,8 @@ public:
         , m_label{other.m_label}
         , m_value{other.m_value}
         , m_defaultValue{other.m_defaultValue}
+        , m_changeMonitor{}
+        , m_notifying{false}
         , m_validator{other.m_validator}
     {}
 

@@ -40,12 +40,14 @@ private:
                         const int value,
                         std::string key = "",
                         std::string label = "")
-        : m_key{std::move(key)}
+        : m_changeMonitor{}
+        , m_notifying{false}
+        , m_key{std::move(key)}
         , m_label{std::move(label)}
+        , m_value{std::clamp(value, min_, max_)}
         , min{min_}
         , max{max_}
         , defaultValue{defaultValue_}
-        , m_value{std::clamp(value, min_, max_)}
     {
         // set(value);
         static_assert(0 <= digits && digits < 6);
@@ -68,12 +70,14 @@ public:
     {}
 
     FixedPoint(const FixedPoint &other)
-        : FixedPoint(other.min,
-                     other.max,
-                     other.defaultValue,
-                     other.m_value,
-                     other.m_key,
-                     other.m_label)
+        : m_changeMonitor{}
+        , m_notifying{false}
+        , m_key{other.m_key}
+        , m_label{other.m_label}
+        , m_value{other.m_value}
+        , min{other.min}
+        , max{other.max}
+        , defaultValue{other.defaultValue}
     {}
 
     FixedPoint &operator=(const FixedPoint &other)

@@ -6,6 +6,8 @@
 #include "../src/configuration/configuration.h"
 #include "../src/global/Signal2.h"
 
+#include <QSettings>
+#include <QTemporaryFile>
 #include <QtTest/QtTest>
 
 TestPreferences::TestPreferences() = default;
@@ -173,6 +175,99 @@ void TestPreferences::configTest()
     QVERIFY(c1 != c2);
     c1 = c2;
     QVERIFY(c1 == c2);
+}
+
+void TestPreferences::configPersistenceTest()
+{
+    QTemporaryFile tempFile;
+    QVERIFY(tempFile.open());
+    QString fileName = tempFile.fileName();
+    tempFile.close();
+
+    {
+        QSettings settings(fileName, QSettings::IniFormat);
+        ConfigValue<int> val("Section/Key", "Label", 50);
+        val = 75;
+        val.write(settings);
+        settings.sync();
+    }
+
+    {
+        QSettings settings(fileName, QSettings::IniFormat);
+        ConfigValue<int> val("Section/Key", "Label", 50);
+        val.read(settings);
+        QCOMPARE(val.get(), 75);
+    }
+}
+
+void TestPreferences::configLegacyColorTest()
+{
+    QTemporaryFile tempFile;
+    QVERIFY(tempFile.open());
+    QString fileName = tempFile.fileName();
+    tempFile.close();
+
+    // Test QString hex legacy
+    {
+        QSettings settings(fileName, QSettings::IniFormat);
+        settings.setValue("Colors/background", "#FF0000");
+        settings.sync();
+    }
+
+    {
+        QSettings settings(fileName, QSettings::IniFormat);
+        ConfigValue<Color> val("Colors/background", "Background", Color(0, 0, 0));
+        val.read(settings);
+        QCOMPARE(val.get(), Color(255, 0, 0));
+    }
+
+    // Test QColor legacy
+    {
+        QSettings settings(fileName, QSettings::IniFormat);
+        settings.setValue("Colors/background", QColor(Qt::green));
+        settings.sync();
+    }
+
+    {
+        QSettings settings(fileName, QSettings::IniFormat);
+        ConfigValue<Color> val("Colors/background", "Background", Color(0, 0, 0));
+        val.read(settings);
+        QCOMPARE(val.get(), Color(0, 255, 0));
+    }
+}
+
+void TestPreferences::configValidatorTest()
+{
+    ConfigValue<int> val("Key", "Label", 50, [](int v) { return std::clamp(v, 0, 100); });
+
+    QTemporaryFile tempFile;
+    QVERIFY(tempFile.open());
+    QString fileName = tempFile.fileName();
+    tempFile.close();
+
+    {
+        QSettings settings(fileName, QSettings::IniFormat);
+        settings.setValue("Key", 150);
+        settings.sync();
+    }
+
+    {
+        QSettings settings(fileName, QSettings::IniFormat);
+        val.read(settings);
+        QCOMPARE(val.get(), 100);
+    }
+
+    {
+        QSettings settings(fileName, QSettings::IniFormat);
+        settings.setValue("Key", -50);
+        settings.sync();
+    }
+
+    {
+        QSettings settings(fileName, QSettings::IniFormat);
+        val.read(settings);
+        QCOMPARE(val.get(), 0);
+    }
 }
 
 QTEST_MAIN(TestPreferences)

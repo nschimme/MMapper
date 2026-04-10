@@ -39,7 +39,6 @@ void MapZoomSlider::requestChange()
         const SignalBlocker block{*this};
         m_map.setZoom(std::pow(ScaleFactor::ZOOM_STEP, desiredZoomSteps));
     }
-    m_map.slot_graphicsSettingsChanged();
 }
 
 void MapZoomSlider::setFromActual()

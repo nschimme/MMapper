@@ -3,6 +3,7 @@
 // Copyright (C) 2019 The MMapper Authors
 // Author: Mattias 'Mew_' Viklund <devmew@exedump.com> (Mirnir)
 
+#include "../configuration/configuration.h"
 #include "../global/macros.h"
 
 #include <QWidget>
@@ -12,15 +13,18 @@ namespace Ui {
 class AutoLogPage;
 }
 
+class Configuration;
+
 class NODISCARD_QOBJECT AutoLogPage final : public QWidget
 {
     Q_OBJECT
 
 private:
     Ui::AutoLogPage *const ui;
+    Configuration &m_config;
 
 public:
-    explicit AutoLogPage(QWidget *parent);
+    explicit AutoLogPage(QWidget *parent, Configuration &config);
     ~AutoLogPage() final;
 
 public slots:

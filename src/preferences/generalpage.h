@@ -16,16 +16,19 @@ namespace Ui {
 class GeneralPage;
 }
 
+class Configuration;
+
 class NODISCARD_QOBJECT GeneralPage final : public QWidget
 {
     Q_OBJECT
 
 private:
     Ui::GeneralPage *const ui;
+    Configuration &m_config;
     PasswordConfig passCfg;
 
 public:
-    explicit GeneralPage(QWidget *parent);
+    explicit GeneralPage(QWidget *parent, Configuration &config);
     ~GeneralPage() final;
 
 signals:

@@ -8,6 +8,8 @@
 
 #include <QSlider>
 
+class Configuration;
+
 class NODISCARD_QOBJECT AudioVolumeSlider final : public QSlider
 {
     Q_OBJECT
@@ -20,6 +22,7 @@ public:
 private:
     Signal2Lifetime m_lifetime;
     AudioType m_type = AudioType::Music;
+    Configuration *m_config = nullptr;
 
 public:
     explicit AudioVolumeSlider(QWidget *parent = nullptr);
@@ -31,7 +34,10 @@ public:
     NODISCARD AudioType audioType() const { return m_type; }
     void setAudioType(AudioType type);
 
+    void setConfiguration(Configuration &config);
     void updateFromConfig();
+
+signals:
 
 protected:
     void wheelEvent(QWheelEvent *event) override;

@@ -5,6 +5,7 @@
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
+#include "../configuration/configuration.h"
 #include "../global/macros.h"
 
 #include <QDialog>
@@ -24,12 +25,18 @@ class NODISCARD_QOBJECT ConfigDialog final : public QDialog
 {
     Q_OBJECT
 
+signals:
+    void sig_loadConfig();
+
 private:
     Ui::ConfigDialog *const ui;
     QStackedWidget *m_pagesWidget = nullptr;
+    Configuration m_workingConfig;
+    Configuration m_originalConfig;
+    ChangeMonitor::Lifetime m_lifetime;
 
 public:
-    explicit ConfigDialog(QWidget *parent);
+    explicit ConfigDialog(QWidget *parent = nullptr);
     ~ConfigDialog() final;
 
 protected:
@@ -39,11 +46,10 @@ protected:
 private:
     void createIcons();
 
-signals:
-    void sig_graphicsSettingsChanged();
-    void sig_groupSettingsChanged();
-    void sig_loadConfig();
-
 public slots:
     void slot_changePage(QListWidgetItem *current, QListWidgetItem *previous);
+    void slot_apply();
+    void slot_ok();
+    void slot_cancel();
+    void slot_updateApplyButton();
 };

@@ -87,12 +87,12 @@ NODISCARD static bool tryLoad(MainWindow &mw, const QDir &dir, const QString &in
 static void tryAutoLoadMap(MainWindow &mw)
 {
     const auto &settings = getConfig().autoLoad;
-    if (!settings.autoLoadMap) {
+    if (!settings.autoLoadMap.get()) {
         return;
     }
 
-    if (!settings.fileName.isEmpty()
-        && tryLoad(mw, QDir{settings.lastMapDirectory}, settings.fileName)) {
+    if (!settings.fileName->isEmpty()
+        && tryLoad(mw, QDir{settings.lastMapDirectory.get()}, settings.fileName.get())) {
         return;
     }
 

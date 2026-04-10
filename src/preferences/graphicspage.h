@@ -3,6 +3,8 @@
 // Copyright (C) 2019 The MMapper Authors
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
+#include "../configuration/ConfigValue.h"
+#include "../global/Color.h"
 #include "../global/macros.h"
 #include "ui_graphicspage.h"
 
@@ -21,22 +23,31 @@ namespace Ui {
 class GraphicsPage;
 }
 
+class Configuration;
+
 class NODISCARD_QOBJECT GraphicsPage final : public QWidget
 {
     Q_OBJECT
 
 public:
-    explicit GraphicsPage(QWidget *parent);
+    explicit GraphicsPage(QWidget *parent, Configuration &config);
     ~GraphicsPage() final;
 
 private:
-    void changeColorClicked(XNamedColor &color, QPushButton *pushButton);
-    void graphicsSettingsChanged() { emit sig_graphicsSettingsChanged(); }
+    template<typename T>
+    bool changeColorClicked(ConfigValue<T> &color)
+    {
+        T val = color.get();
+        if (changeColorClickedImpl(val)) {
+            color.set(val);
+            return true;
+        }
+        return false;
+    }
+    bool changeColorClickedImpl(Color &color);
     Ui::GraphicsPage *const ui;
+    Configuration &m_config;
     std::unique_ptr<AdvancedGraphicsGroupBox> m_advanced;
-
-signals:
-    void sig_graphicsSettingsChanged();
 
 public slots:
     void slot_loadConfig();
@@ -45,5 +56,4 @@ public slots:
     void slot_drawDoorNamesStateChanged(int);
     void slot_drawUpperLayersTexturedStateChanged(int);
     // this slot just calls the signal... not useful
-    void slot_graphicsSettingsChanged() { graphicsSettingsChanged(); }
 };

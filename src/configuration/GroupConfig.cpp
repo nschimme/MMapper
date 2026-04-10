@@ -9,6 +9,24 @@ GroupConfig::GroupConfig(QString groupName)
     : m_groupName(std::move(groupName))
 {}
 
+GroupConfig::GroupConfig(const GroupConfig &other)
+    : m_groupName(other.m_groupName)
+    , m_data(other.m_data)
+{}
+
+GroupConfig &GroupConfig::operator=(const GroupConfig &other)
+{
+    if (this != &other) {
+        setData(other.m_data);
+    }
+    return *this;
+}
+
+bool GroupConfig::operator==(const GroupConfig &other) const
+{
+    return m_groupName == other.m_groupName && m_data == other.m_data;
+}
+
 void GroupConfig::read(const QSettings &settings)
 {
     QVariantMap newData;
@@ -41,7 +59,7 @@ void GroupConfig::notifyChanged()
 }
 
 void GroupConfig::registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                         ChangeMonitor::Function callback)
+                                         ChangeMonitor::Function callback) const
 {
     m_changeMonitor.registerChangeCallback(lifetime, std::move(callback));
 }

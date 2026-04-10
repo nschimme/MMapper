@@ -24,7 +24,10 @@ private:
 
 public:
     GroupConfig() = delete;
-    DELETE_CTORS_AND_ASSIGN_OPS(GroupConfig);
+    GroupConfig(const GroupConfig &other);
+    GroupConfig &operator=(const GroupConfig &other);
+    bool operator==(const GroupConfig &other) const;
+    bool operator!=(const GroupConfig &other) const { return !(*this == other); }
 
     explicit GroupConfig(QString groupName);
 
@@ -37,7 +40,7 @@ public:
 
     void notifyChanged();
     void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                ChangeMonitor::Function callback);
+                                ChangeMonitor::Function callback) const;
 
     void resetToDefault();
     void registerResetCallback(const ChangeMonitor::Lifetime &lifetime,

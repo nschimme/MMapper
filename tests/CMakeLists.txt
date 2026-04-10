@@ -173,8 +173,9 @@ add_test(NAME TestMainWindow COMMAND TestMainWindow)
 # Global
 set(TestGlobal_SRCS TestGlobal.cpp)
 add_executable(TestGlobal ${TestGlobal_SRCS})
-add_dependencies(TestGlobal mm_global)
+add_dependencies(TestGlobal mm_test mm_global)
 target_link_libraries(TestGlobal
+        mm_test
         mm_global
         Qt6::Gui
         Qt6::Test
@@ -188,6 +189,28 @@ set_target_properties(
   COMPILE_FLAGS "${WARNING_FLAGS}"
 )
 add_test(NAME TestGlobal COMMAND TestGlobal)
+
+# Preferences
+set(TestPreferences_SRCS TestPreferences.cpp)
+add_executable(TestPreferences ${TestPreferences_SRCS})
+add_dependencies(TestPreferences mm_test mm_global mm_map)
+target_link_libraries(TestPreferences
+        mm_map
+        mm_test
+        mm_global
+        Qt6::Gui
+        Qt6::Network
+        Qt6::Test
+        Qt6::Widgets
+        coverage_config)
+set_target_properties(
+  TestPreferences PROPERTIES
+  CXX_STANDARD 20
+  CXX_STANDARD_REQUIRED ON
+  CXX_EXTENSIONS OFF
+  COMPILE_FLAGS "${WARNING_FLAGS}"
+)
+add_test(NAME TestPreferences COMMAND TestPreferences)
 
 # Global
 set(TestMap_SRCS

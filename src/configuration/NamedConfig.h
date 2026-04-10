@@ -21,14 +21,26 @@ private:
 
 public:
     NamedConfig() = delete;
-    DELETE_CTORS_AND_ASSIGN_OPS(NamedConfig);
+    NamedConfig(const NamedConfig &other)
+        : m_name{other.m_name}
+        , m_value{other.m_value}
+    {}
+    NamedConfig &operator=(const NamedConfig &other)
+    {
+        set(other.m_value);
+        return *this;
+    }
+
     explicit NamedConfig(std::string name, T initialValue)
         : m_name{std::move(name)}
         , m_value{std::move(initialValue)}
     {}
 
 public:
-    NODISCARD const std::string &getName() { return m_name; }
+    NODISCARD const std::string &getName() const { return m_name; }
+    NODISCARD bool operator==(const NamedConfig &other) const { return m_value == other.m_value; }
+    NODISCARD bool operator!=(const NamedConfig &other) const { return !(*this == other); }
+
     NODISCARD inline T get() const { return m_value; }
     void set(const T newValue)
     {
@@ -79,7 +91,7 @@ public:
 
 public:
     void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                ChangeMonitor::Function callback)
+                                ChangeMonitor::Function callback) const
     {
         return m_changeMonitor.registerChangeCallback(lifetime, std::move(callback));
     }

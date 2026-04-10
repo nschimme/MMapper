@@ -503,7 +503,8 @@ void Proxy::allocMudTelnet()
         void virt_onTryCharLogin() final
         {
             const auto &account = getConfig().account;
-            if (account.rememberLogin && !account.accountName.isEmpty() && account.accountPassword) {
+            if (account.rememberLogin.get() && !account.accountName->isEmpty()
+                && account.accountPassword.get()) {
                 // fetch asynchronously from keychain
                 getProxy().getPasswordConfig().getPassword();
             }

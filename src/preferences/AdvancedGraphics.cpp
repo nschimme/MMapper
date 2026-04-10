@@ -106,7 +106,6 @@ public:
             const SignalBlocker block_spin{m_spin};
             m_fp.set(value);
             m_spin.setIntValue(value);
-            m_group.graphicsSettingsChanged();
         });
 
         QObject::connect(&m_spin,
@@ -118,7 +117,6 @@ public:
                              const int value = m_spin.getIntValue();
                              m_fp.set(value);
                              m_slider.setValue(value);
-                             m_group.graphicsSettingsChanged();
                          });
 
         QObject::connect(&m_reset, &QPushButton::clicked, &group, [this](bool) {
@@ -152,7 +150,6 @@ public:
         m_spin.setIntValue(value);
         m_slider.setValue(value);
         if ((false)) {
-            m_group.graphicsSettingsChanged();
         }
     }
 
@@ -167,9 +164,10 @@ static void addLine(QLayout &layout)
     layout.addWidget(line);
 }
 
-AdvancedGraphicsGroupBox::AdvancedGraphicsGroupBox(QGroupBox &groupBox)
+AdvancedGraphicsGroupBox::AdvancedGraphicsGroupBox(QGroupBox &groupBox, Configuration &config)
     : QObject{&groupBox}
     , m_groupBox{&groupBox}
+    , m_config{config}
 {
     auto *vertical = new QVBoxLayout(m_groupBox);
 
@@ -188,21 +186,23 @@ AdvancedGraphicsGroupBox::AdvancedGraphicsGroupBox(QGroupBox &groupBox)
     };
 
     auto *const checkboxDiag = new QCheckBox("Show Performance Stats");
-    checkboxDiag->setChecked(MapCanvasConfig::getShowPerfStats());
+    checkboxDiag->setObjectName("checkboxDiag");
+    checkboxDiag->setChecked(m_config.canvas.advanced.printPerfStats.get());
     vertical->addWidget(checkboxDiag);
 
     auto *const checkbox3d = new QCheckBox("3d Mode");
-    const bool is3dAtInit = MapCanvasConfig::isIn3dMode();
+    checkbox3d->setObjectName("checkbox3d");
+    const bool is3dAtInit = m_config.canvas.advanced.use3D.get();
     checkbox3d->setChecked(is3dAtInit);
     vertical->addWidget(checkbox3d);
 
     auto *const autoTilt = new QCheckBox("Auto tilt with zoom");
-    autoTilt->setChecked(MapCanvasConfig::isAutoTilt());
+    autoTilt->setObjectName("autoTilt");
+    autoTilt->setChecked(m_config.canvas.advanced.autoTilt.get());
     vertical->addWidget(autoTilt);
 
     {
-        // NOTE: This is a slight abuse of the interface, because we're taking a persistent reference.
-        auto &advanced = setConfig().canvas.advanced;
+        auto &advanced = m_config.canvas.advanced;
         makeSsb("Field of View (fovy)", advanced.fov);
         makeSsb("Vertical Angle (pitch up from straight down)", advanced.verticalAngle);
         makeSsb("Horizontal Angle (yaw)", advanced.horizontalAngle);
@@ -217,41 +217,36 @@ AdvancedGraphicsGroupBox::AdvancedGraphicsGroupBox(QGroupBox &groupBox)
 
     connect(checkbox3d, &QCheckBox::stateChanged, this, [this, checkbox3d, autoTilt](int) {
         const bool is3d = checkbox3d->isChecked();
-        MapCanvasConfig::set3dMode(is3d);
+        m_config.canvas.advanced.use3D.set(is3d);
         enableSsbs(is3d);
         autoTilt->setEnabled(is3d);
-        graphicsSettingsChanged();
     });
 
     connect(autoTilt, &QCheckBox::stateChanged, this, [this, autoTilt](int) {
         const bool val = autoTilt->isChecked();
-        MapCanvasConfig::setAutoTilt(val);
-        graphicsSettingsChanged();
+        m_config.canvas.advanced.autoTilt.set(val);
     });
 
     connect(checkboxDiag, &QCheckBox::stateChanged, this, [this, checkboxDiag](int) {
         const bool show = checkboxDiag->isChecked();
-        MapCanvasConfig::setShowPerfStats(show);
-        graphicsSettingsChanged();
+        m_config.canvas.advanced.printPerfStats.set(show);
     });
 
-    MapCanvasConfig::registerChangeCallback(m_lifetime,
-                                            [this, checkboxDiag, checkbox3d, autoTilt]() -> void {
-                                                SignalBlocker sb1{*checkboxDiag};
-                                                SignalBlocker sb2{*checkbox3d};
-                                                SignalBlocker sb3{*autoTilt};
-                                                for (auto &ssb : m_globalSsbs) {
-                                                    ssb->forcedUpdate();
-                                                }
-                                                for (auto &ssb : m_3dSsbs) {
-                                                    ssb->forcedUpdate();
-                                                }
-                                                checkboxDiag->setChecked(
-                                                    MapCanvasConfig::getShowPerfStats());
-                                                checkbox3d->setChecked(
-                                                    MapCanvasConfig::isIn3dMode());
-                                                autoTilt->setChecked(MapCanvasConfig::isAutoTilt());
-                                            });
+    m_config.canvas.advanced
+        .registerChangeCallback(m_lifetime, [this, checkboxDiag, checkbox3d, autoTilt]() -> void {
+            SignalBlocker sb1{*checkboxDiag};
+            SignalBlocker sb2{*checkbox3d};
+            SignalBlocker sb3{*autoTilt};
+            for (auto &ssb : m_globalSsbs) {
+                ssb->forcedUpdate();
+            }
+            for (auto &ssb : m_3dSsbs) {
+                ssb->forcedUpdate();
+            }
+            checkboxDiag->setChecked(m_config.canvas.advanced.printPerfStats.get());
+            checkbox3d->setChecked(m_config.canvas.advanced.use3D.get());
+            autoTilt->setChecked(m_config.canvas.advanced.autoTilt.get());
+        });
 }
 
 AdvancedGraphicsGroupBox::~AdvancedGraphicsGroupBox() = default;

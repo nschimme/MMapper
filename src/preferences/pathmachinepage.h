@@ -4,6 +4,7 @@
 // Author: Ulf Hermann <ulfonk_mennhar@gmx.de> (Alve)
 // Author: Marek Krejza <krejza@gmail.com> (Caligor)
 
+#include "../configuration/configuration.h"
 #include "../global/macros.h"
 #include "ui_pathmachinepage.h"
 
@@ -18,10 +19,13 @@ class NODISCARD_QOBJECT PathmachinePage : public QWidget, private Ui::Pathmachin
     Q_OBJECT
 
 public:
-    explicit PathmachinePage(QWidget *parent);
+    explicit PathmachinePage(QWidget *parent, Configuration &config);
 
 public slots:
     void slot_loadConfig();
+
+private:
+    Configuration &m_config;
     void slot_acceptBestRelativeDoubleSpinBoxValueChanged(double);
     void slot_acceptBestAbsoluteDoubleSpinBoxValueChanged(double);
     void slot_newRoomPenaltyDoubleSpinBoxValueChanged(double);

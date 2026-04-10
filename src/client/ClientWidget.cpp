@@ -37,7 +37,7 @@ ClientWidget::ClientWidget(ConnectionListener &listener,
     auto &ui = getUi();
 
     // Port
-    ui.port->setText(QString("%1").arg(getConfig().connection.localPort));
+    ui.port->setText(QString("%1").arg(getConfig().connection.localPort.get()));
 
     ui.playButton->setFocus();
     QObject::connect(ui.playButton, &QAbstractButton::clicked, this, [this]() {

@@ -3,6 +3,7 @@
 // Copyright (C) 2019 The MMapper Authors
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
+#include "../configuration/configuration.h"
 #include "../global/macros.h"
 
 #include <QString>
@@ -21,9 +22,10 @@ class NODISCARD_QOBJECT MumeProtocolPage final : public QWidget
 
 private:
     Ui::MumeProtocolPage *const ui;
+    Configuration &m_config;
 
 public:
-    explicit MumeProtocolPage(QWidget *parent);
+    explicit MumeProtocolPage(QWidget *parent, Configuration &config);
     ~MumeProtocolPage() final;
 
 public slots:

@@ -51,8 +51,21 @@ public:
         : FixedPoint(min_, max_, defaultValue_, defaultValue_)
     {}
 
+    FixedPoint(const FixedPoint &other)
+        : FixedPoint(other.min, other.max, other.defaultValue, other.m_value)
+    {}
+
+    FixedPoint &operator=(const FixedPoint &other)
+    {
+        set(other.m_value);
+        return *this;
+    }
+
     ~FixedPoint() = default;
-    DELETE_CTORS_AND_ASSIGN_OPS(FixedPoint);
+
+public:
+    NODISCARD bool operator==(const FixedPoint &other) const { return m_value == other.m_value; }
+    NODISCARD bool operator!=(const FixedPoint &other) const { return !(*this == other); }
 
 public:
     void reset() { set(defaultValue); }
@@ -119,7 +132,7 @@ public:
 
 public:
     void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                ChangeMonitor::Function callback)
+                                ChangeMonitor::Function callback) const
     {
         return m_changeMonitor.registerChangeCallback(lifetime, std::move(callback));
     }

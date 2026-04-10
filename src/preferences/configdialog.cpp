@@ -32,15 +32,15 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
 
     createIcons();
 
-    auto generalPage = new GeneralPage(this);
-    auto graphicsPage = new GraphicsPage(this);
-    auto parserPage = new ParserPage(this);
-    auto clientPage = new ClientPage(this);
-    auto groupPage = new GroupPage(this);
-    auto autoLogPage = new AutoLogPage(this);
-    auto audioPage = new AudioPage(this);
-    auto mumeProtocolPage = new MumeProtocolPage(this);
-    auto pathmachinePage = new PathmachinePage(this);
+    auto generalPage = new GeneralPage(this, m_workingConfig);
+    auto graphicsPage = new GraphicsPage(this, m_workingConfig);
+    auto parserPage = new ParserPage(this, m_workingConfig);
+    auto clientPage = new ClientPage(this, m_workingConfig);
+    auto groupPage = new GroupPage(this, m_workingConfig);
+    auto autoLogPage = new AutoLogPage(this, m_workingConfig);
+    auto audioPage = new AudioPage(this, m_workingConfig);
+    auto mumeProtocolPage = new MumeProtocolPage(this, m_workingConfig);
+    auto pathmachinePage = new PathmachinePage(this, m_workingConfig);
 
     m_pagesWidget = new QStackedWidget(this);
 
@@ -63,9 +63,28 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
             &QListWidget::currentItemChanged,
             this,
             &ConfigDialog::slot_changePage);
-    connect(ui->closeButton, &QAbstractButton::clicked, this, &QWidget::close);
+    connect(ui->buttonBox, &QDialogButtonBox::accepted, this, &ConfigDialog::slot_ok);
+    connect(ui->buttonBox, &QDialogButtonBox::rejected, this, &ConfigDialog::slot_cancel);
+    connect(ui->buttonBox->button(QDialogButtonBox::Apply),
+            &QPushButton::clicked,
+            this,
+            &ConfigDialog::slot_apply);
 
-    connect(generalPage, &GeneralPage::sig_reloadConfig, this, [this]() { emit sig_loadConfig(); });
+    connect(generalPage, &GeneralPage::sig_reloadConfig, this, [this]() {
+        // sig_reloadConfig is emitted after a Factory Reset or Import.
+        // The global getConfig() has already been updated in GeneralPage.
+        // We need to update our originalConfig to match the new global state
+        // to properly track future changes, and ensure workingConfig is in sync.
+        m_originalConfig = getConfig();
+        m_workingConfig = getConfig();
+        slot_updateApplyButton();
+        emit sig_loadConfig();
+    });
+
+    connect(this, &ConfigDialog::sig_loadConfig, [this]() { slot_updateApplyButton(); });
+
+    m_workingConfig.registerChangeCallback(m_lifetime, [this]() { slot_updateApplyButton(); });
+
     connect(this, &ConfigDialog::sig_loadConfig, generalPage, &GeneralPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, graphicsPage, &GraphicsPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, parserPage, &ParserPage::slot_loadConfig);
@@ -73,19 +92,11 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     connect(this, &ConfigDialog::sig_loadConfig, autoLogPage, &AutoLogPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, audioPage, &AudioPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, groupPage, &GroupPage::slot_loadConfig);
-    connect(groupPage,
-            &GroupPage::sig_groupSettingsChanged,
-            this,
-            &ConfigDialog::sig_groupSettingsChanged);
     connect(this,
             &ConfigDialog::sig_loadConfig,
             mumeProtocolPage,
             &MumeProtocolPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, pathmachinePage, &PathmachinePage::slot_loadConfig);
-    connect(graphicsPage,
-            &GraphicsPage::sig_graphicsSettingsChanged,
-            this,
-            &ConfigDialog::sig_graphicsSettingsChanged);
 }
 
 ConfigDialog::~ConfigDialog()
@@ -95,19 +106,43 @@ ConfigDialog::~ConfigDialog()
 
 void ConfigDialog::closeEvent(QCloseEvent *const event)
 {
-    getConfig().write();
-    event->accept();
+    if (m_workingConfig != m_originalConfig) {
+        QMessageBox box(this);
+        box.setWindowTitle(tr("Unapplied Changes"));
+        box.setText(tr("You have unapplied changes. What would you like to do?"));
+        auto *applyButton = box.addButton(tr("Apply"), QMessageBox::AcceptRole);
+        auto *discardButton = box.addButton(tr("Discard"), QMessageBox::DestructiveRole);
+        box.addButton(tr("Cancel"), QMessageBox::RejectRole);
+
+        box.exec();
+
+        if (box.clickedButton() == applyButton) {
+            slot_apply();
+            event->accept();
+        } else if (box.clickedButton() == discardButton) {
+            event->accept();
+        } else {
+            event->ignore();
+        }
+    } else {
+        event->accept();
+    }
 }
 
 void ConfigDialog::showEvent(QShowEvent *const event)
 {
+    m_workingConfig = getConfig();
+    m_originalConfig = getConfig();
+
     // Populate the preference pages from config each time the widget is shown
     emit sig_loadConfig();
 
     // Move widget to center of parent's location
-    auto pos = parentWidget()->pos();
-    pos.setX(pos.x() + (parentWidget()->width() / 2) - (width() / 2));
-    move(pos);
+    if (parentWidget()) {
+        auto pos = parentWidget()->pos();
+        pos.setX(pos.x() + (parentWidget()->width() / 2) - (width() / 2));
+        move(pos);
+    }
 
     event->accept();
 }
@@ -145,4 +180,43 @@ void ConfigDialog::slot_changePage(QListWidgetItem *current, QListWidgetItem *co
     }
     ui->pagesScrollArea->verticalScrollBar()->setSliderPosition(0);
     m_pagesWidget->setCurrentIndex(ui->contentsWidget->row(current));
+}
+
+void ConfigDialog::slot_apply()
+{
+    if (m_workingConfig == m_originalConfig) {
+        return;
+    }
+
+    // 1. Perform global assignment.
+    // Thanks to observable types (ConfigValue, NamedConfig, FixedPoint),
+    // this single assignment triggers all necessary notifications!
+    setConfig() = m_workingConfig;
+
+    // 2. Emit dialog-level signals for broader updates
+    if (m_workingConfig.groupManager != m_originalConfig.groupManager) {
+    }
+
+    // 3. Persist changes to disk
+    getConfig().write();
+
+    // 4. Update state for tracking
+    m_originalConfig = m_workingConfig;
+    slot_updateApplyButton();
+}
+
+void ConfigDialog::slot_ok()
+{
+    slot_apply();
+    accept();
+}
+
+void ConfigDialog::slot_cancel()
+{
+    close();
+}
+
+void ConfigDialog::slot_updateApplyButton()
+{
+    ui->buttonBox->button(QDialogButtonBox::Apply)->setEnabled(m_workingConfig != m_originalConfig);
 }

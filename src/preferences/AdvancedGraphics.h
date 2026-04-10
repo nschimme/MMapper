@@ -10,6 +10,8 @@
 
 #include <QGroupBox>
 
+class Configuration;
+
 class NODISCARD SliderSpinboxButton
 {
 public:
@@ -27,6 +29,7 @@ class NODISCARD_QOBJECT AdvancedGraphicsGroupBox final : public QObject
 
 private:
     QGroupBox *const m_groupBox;
+    Configuration &m_config;
     using UniqueSsb = std::unique_ptr<SliderSpinboxButton>;
     std::vector<UniqueSsb> m_globalSsbs;
     std::vector<UniqueSsb> m_3dSsbs;
@@ -34,7 +37,7 @@ private:
     Signal2Lifetime m_lifetime;
 
 public:
-    explicit AdvancedGraphicsGroupBox(QGroupBox &groupBox);
+    explicit AdvancedGraphicsGroupBox(QGroupBox &groupBox, Configuration &config);
     ~AdvancedGraphicsGroupBox() final;
 
 public:
@@ -42,9 +45,5 @@ public:
     NODISCARD QGroupBox *getGroupBox() { return m_groupBox; }
 
 private:
-    void graphicsSettingsChanged() { emit sig_graphicsSettingsChanged(); }
     void enableSsbs(bool enabled);
-
-signals:
-    void sig_graphicsSettingsChanged();
 };

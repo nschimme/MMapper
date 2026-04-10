@@ -89,7 +89,7 @@ DisplayWidget::DisplayWidget(QWidget *const parent)
     m_timer->setSingleShot(true);
     connect(m_timer, &QTimer::timeout, this, [this]() {
         QTextFrameFormat frameFormat = document()->rootFrame()->frameFormat();
-        frameFormat.setBackground(getConfig().integratedClient.backgroundColor);
+        frameFormat.setBackground(getConfig().integratedClient.backgroundColor.get());
         document()->rootFrame()->setFrameFormat(frameFormat);
     });
     setDocumentTitle("MMapper Mud Client");

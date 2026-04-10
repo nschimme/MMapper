@@ -13,11 +13,15 @@
 #include <QMediaDevices>
 #endif
 
-AudioPage::AudioPage(QWidget *const parent)
+AudioPage::AudioPage(QWidget *const parent, Configuration &config)
     : QWidget(parent)
     , ui(new Ui::AudioPage)
+    , m_config(config)
 {
     ui->setupUi(this);
+
+    ui->musicVolumeSlider->setConfiguration(m_config);
+    ui->soundsVolumeSlider->setConfiguration(m_config);
 
     slot_updateDevices();
     slot_loadConfig();
@@ -48,7 +52,7 @@ void AudioPage::slot_loadConfig()
     SignalBlocker soundsBlocker(*ui->soundsVolumeSlider);
     SignalBlocker outputBlocker(*ui->outputDeviceComboBox);
 
-    const auto &settings = getConfig().audio;
+    const auto &settings = m_config.audio;
     ui->musicVolumeSlider->updateFromConfig();
     ui->soundsVolumeSlider->updateFromConfig();
 
@@ -65,7 +69,7 @@ void AudioPage::slot_outputDeviceChanged(int index)
     if (index < 0) {
         return;
     }
-    auto &settings = setConfig().audio;
+    auto &settings = m_config.audio;
     settings.setOutputDeviceId(ui->outputDeviceComboBox->itemData(index).toByteArray());
 }
 
@@ -74,7 +78,7 @@ void AudioPage::slot_updateDevices()
     SignalBlocker blocker(*ui->outputDeviceComboBox);
     QByteArray currentId = ui->outputDeviceComboBox->currentData().toByteArray();
     if (currentId.isEmpty()) {
-        currentId = getConfig().audio.getOutputDeviceId();
+        currentId = m_config.audio.getOutputDeviceId();
     }
 
     ui->outputDeviceComboBox->clear();

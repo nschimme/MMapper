@@ -87,7 +87,7 @@ static void addApplicationFont()
     } else {
         // Utilize the application font here because we can gaurantee that resources have been loaded
         // REVISIT: Move this to the configuration?
-        if (getConfig().integratedClient.font.isEmpty()) {
+        if (getConfig().integratedClient.font->isEmpty()) {
             QFont defaultClientFont;
             defaultClientFont.setFamily(family.front());
             if constexpr (CURRENT_PLATFORM == PlatformEnum::Mac) {
@@ -96,7 +96,7 @@ static void addApplicationFont()
                 defaultClientFont.setPointSize(10);
             }
             defaultClientFont.setStyleStrategy(QFont::PreferAntialias);
-            setConfig().integratedClient.font = defaultClientFont.toString();
+            setConfig().integratedClient.font.set(defaultClientFont.toString());
         }
     }
 }
@@ -275,7 +275,7 @@ MainWindow::MainWindow()
     // update connections
     wireConnections();
 
-    switch (getConfig().general.mapMode) {
+    switch (getConfig().general.mapMode.get()) {
     case MapModeEnum::PLAY:
         mapperMode.playModeAct->setChecked(true);
         slot_onPlayMode();
@@ -290,19 +290,19 @@ MainWindow::MainWindow()
         break;
     }
 
-    if (getConfig().general.alwaysOnTop) {
+    if (getConfig().general.alwaysOnTop.get()) {
         alwaysOnTopAct->setChecked(true);
         setWindowFlags(windowFlags() | Qt::WindowStaysOnTopHint);
     }
 
-    showStatusBarAct->setChecked(getConfig().general.showStatusBar);
+    showStatusBarAct->setChecked(getConfig().general.showStatusBar.get());
     slot_setShowStatusBar();
 
-    showScrollBarsAct->setChecked(getConfig().general.showScrollBars);
+    showScrollBarsAct->setChecked(getConfig().general.showScrollBars.get());
     slot_setShowScrollBars();
 
     if constexpr (CURRENT_PLATFORM != PlatformEnum::Mac) {
-        showMenuBarAct->setChecked(getConfig().general.showMenuBar);
+        showMenuBarAct->setChecked(getConfig().general.showMenuBar.get());
         slot_setShowMenuBar();
     }
 
@@ -320,7 +320,8 @@ void MainWindow::startServices()
     try {
         m_listener->listen();
         slot_log("ConnectionListener",
-                 tr("Server bound on localhost to port: %1.").arg(getConfig().connection.localPort));
+                 tr("Server bound on localhost to port: %1.")
+                     .arg(getConfig().connection.localPort.get()));
     } catch (const std::exception &e) {
         const QString errorMsg = QString(
                                      "Unable to start the server (switching to offline mode): %1.")
@@ -329,7 +330,9 @@ void MainWindow::startServices()
     }
 
     if constexpr (!NO_UPDATER) {
-        auto should_check_for_update = []() -> bool { return getConfig().general.checkForUpdate; };
+        auto should_check_for_update = []() -> bool {
+            return getConfig().general.checkForUpdate.get();
+        };
         // Raise the update dialog if an update is found
         if (should_check_for_update()) {
             m_updateDialog->open();
@@ -368,7 +371,7 @@ void MainWindow::readSettings()
 
     MySettings settings = MySettings::get();
 
-    if (settings.firstRun) {
+    if (settings.firstRun.get()) {
         if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
             adjustSize();
         }
@@ -394,8 +397,8 @@ void MainWindow::readSettings()
 void MainWindow::writeSettings()
 {
     auto &savedConfig = setConfig().general;
-    savedConfig.windowGeometry = saveGeometry();
-    savedConfig.windowState = saveState();
+    savedConfig.windowGeometry.set(saveGeometry());
+    savedConfig.windowState.set(saveState());
 }
 
 void MainWindow::wireConnections()
@@ -1031,7 +1034,7 @@ void MainWindow::createActions()
 
 static void setConfigMapMode(const MapModeEnum mode)
 {
-    setConfig().general.mapMode = mode;
+    setConfig().general.mapMode.set(mode);
 }
 
 void MainWindow::slot_onPlayMode()
@@ -1310,7 +1313,7 @@ void MainWindow::slot_alwaysOnTop()
     const bool alwaysOnTop = this->alwaysOnTopAct->isChecked();
     qInfo() << "Setting AlwaysOnTop flag to " << alwaysOnTop;
     setWindowFlag(Qt::WindowStaysOnTopHint, alwaysOnTop);
-    setConfig().general.alwaysOnTop = alwaysOnTop;
+    setConfig().general.alwaysOnTop.set(alwaysOnTop);
     show();
 }
 
@@ -1318,14 +1321,14 @@ void MainWindow::slot_setShowStatusBar()
 {
     const bool showStatusBar = this->showStatusBarAct->isChecked();
     statusBar()->setVisible(showStatusBar);
-    setConfig().general.showStatusBar = showStatusBar;
+    setConfig().general.showStatusBar.set(showStatusBar);
     show();
 }
 
 void MainWindow::slot_setShowScrollBars()
 {
     const bool showScrollBars = this->showScrollBarsAct->isChecked();
-    setConfig().general.showScrollBars = showScrollBars;
+    setConfig().general.showScrollBars.set(showScrollBars);
     m_mapWindow->updateScrollBars();
     show();
 }
@@ -1333,7 +1336,7 @@ void MainWindow::slot_setShowScrollBars()
 void MainWindow::slot_setShowMenuBar()
 {
     const bool showMenuBar = this->showMenuBarAct->isChecked();
-    setConfig().general.showMenuBar = showMenuBar;
+    setConfig().general.showMenuBar.set(showMenuBar);
     show();
 
     m_dockDialogAdventure->setMouseTracking(!showMenuBar);
@@ -1467,14 +1470,6 @@ void MainWindow::slot_onPreferences()
     if (m_configDialog == nullptr) {
         m_configDialog = std::make_unique<ConfigDialog>(this);
 
-        connect(m_configDialog.get(),
-                &ConfigDialog::sig_graphicsSettingsChanged,
-                m_mapWindow,
-                &MapWindow::slot_graphicsSettingsChanged);
-        connect(m_configDialog.get(),
-                &ConfigDialog::sig_groupSettingsChanged,
-                m_groupManager,
-                &Mmapper2Group::slot_groupSettingsChanged);
         connect(m_configDialog.get(), &QDialog::finished, this, [this](MAYBE_UNUSED int result) {
             m_configDialog.reset();
         });
@@ -2205,14 +2200,14 @@ void MainWindow::onSuccessfulSave(const SaveModeEnum mode,
 
     // Update last directory
     auto &config = setConfig().autoLoad;
-    config.lastMapDirectory = file.absoluteDir().absolutePath();
+    config.lastMapDirectory.set(file.absoluteDir().absolutePath());
 
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
         return;
     }
 
     const QString &absoluteFilePath = file.absoluteFilePath();
-    if (!config.autoLoadMap || config.fileName != absoluteFilePath) {
+    if (!config.autoLoadMap.get() || config.fileName.get() != absoluteFilePath) {
         // Check if this should be the new autoload map
         auto *dlg = new QMessageBox(QMessageBox::Question,
                                     "Autoload Map?",
@@ -2222,8 +2217,8 @@ void MainWindow::onSuccessfulSave(const SaveModeEnum mode,
         dlg->setAttribute(Qt::WA_DeleteOnClose);
         connect(dlg, &QMessageBox::finished, this, [&config, absoluteFilePath](int result) {
             if (result == QMessageBox::Yes) {
-                config.autoLoadMap = true;
-                config.fileName = absoluteFilePath;
+                config.autoLoadMap.set(true);
+                config.fileName.set(absoluteFilePath);
             }
         });
         dlg->open();

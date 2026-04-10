@@ -226,7 +226,7 @@ void InputWidget::sendCommandWithSeparator(const QString &command)
     const auto &settings = getConfig().integratedClient;
 
     // Handle command separator (e.g., "l;;look" sends "l" then "look")
-    if (settings.useCommandSeparator && !settings.commandSeparator.isEmpty()) {
+    if (settings.useCommandSeparator.get() && !settings.commandSeparator->isEmpty()) {
         const QString &sep = settings.commandSeparator;
         const QString escaped = QRegularExpression::escape(sep);
         const QRegularExpression regex(QString("(?<!\\\\)%1").arg(escaped));

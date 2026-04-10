@@ -1153,8 +1153,8 @@ void Configuration::CanvasSettings::Advanced::registerChangeCallback(
     layerHeight.registerChangeCallback(lifetime, callback);
 }
 
-void Configuration::CanvasSettings::registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
-                                                           const ChangeMonitor::Function &callback) const
+void Configuration::CanvasSettings::registerChangeCallback(
+    const ChangeMonitor::Lifetime &lifetime, const ChangeMonitor::Function &callback) const
 {
     backgroundColor.registerChangeCallback(lifetime, callback);
     connectionNormalColor.registerChangeCallback(lifetime, callback);

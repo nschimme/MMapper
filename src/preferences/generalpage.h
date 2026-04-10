@@ -31,7 +31,6 @@ public:
     explicit GeneralPage(QWidget *parent, Configuration &config);
     ~GeneralPage() final;
 
-
 signals:
     void sig_reloadConfig();
 

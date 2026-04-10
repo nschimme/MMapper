@@ -41,6 +41,9 @@ NODISCARD const char *getPlatformEditor()
         return "open -W -n -t";
 
     case PlatformEnum::Linux:
+        // add .txt extension and use xdg-open instead?
+        // or if xdg-open doesn't exist, then you can
+        // look for gnome-open, mate-open, etc.
         return "gedit";
 
     case PlatformEnum::Wasm:
@@ -52,6 +55,14 @@ NODISCARD const char *getPlatformEditor()
 
 } // namespace
 
+/*
+ * TODO: Make a dialog asking if the user wants to import settings
+ * from an older version of MMapper, and then change the organization name
+ * to reflect that it's an open source project that's not Caligor's
+ * personal project anymore.
+ *
+ * Also, don't use space, because it will be a file name on disk.
+ */
 #define ConstString static constexpr const char *const
 ConstString SETTINGS_ORGANIZATION = "MUME";
 ConstString OLD_SETTINGS_ORGANIZATION = "Caligor soft";
@@ -103,12 +114,15 @@ void Settings::initSettings()
         throw std::runtime_error("object already exists");
     }
 
+    // NOTE: mutex guards read/write access to g_path from multiple threads,
+    // since the static variable can be set to nullptr on spurious failure.
     static std::mutex g_mutex;
     std::lock_guard<std::mutex> lock{g_mutex};
 
     static auto g_path = qgetenv(MMAPPER_PROFILE_PATH);
 
     if (g_path != nullptr) {
+        // NOTE: QMessageLogger quotes QString by default, but doesn't quote const char*.
         const QString pathString{g_path};
 
         static std::once_flag attempt_flag;
@@ -151,6 +165,22 @@ void Settings::initSettings()
     });
 }
 
+//
+// NOTES:
+//
+// * Avoiding using global QSettings& getSettings() because the QSettings object
+//   maintains some state, so it's better to construct a new one each time.
+//
+// * Declaring an object via macro instead of just calling a function is necessary
+//   because we have two object construction paths, and we attempt to access the
+//   value after its construction, so we can't use RVO to avoid copy/move
+//   construction of the QSettings object.
+//
+// * Using a separate reference because macros use "conf.beginGroup()", but
+//   "operator T&" is never selected when used with (non-existent) "operator.".
+//   Instead, we could use "conf->beginGroup()" with "QSettings* operator->()"
+//   to avoid needing to declare a QSettings& reference.
+
 #define SETTINGS(conf) \
     Settings settings; \
     QSettings &conf = static_cast<QSettings &>(settings)
@@ -179,7 +209,7 @@ ConstString GRP_ROOMEDIT_DIALOG = "RoomEdit Dialog";
 Configuration::Configuration()
     : hotkeys(GRP_HOTKEYS)
 {
-    read();
+    read(); // read the settings or set them to the default values
     setupGlobalCallbacks();
 }
 
@@ -252,6 +282,7 @@ void Settings::tryCopyOldSettings()
             }
         }
     }
+    // News 2340, changing domain from fire.pvv.org to mume.org:
     sNew.beginGroup(GRP_CONNECTION);
     if (sNew.value("Server name", "").toString().contains("pvv.org")) {
         sNew.setValue("Server name", "mume.org");
@@ -304,14 +335,22 @@ void Configuration::write() const
 
 void Configuration::readFrom(QSettings &conf)
 {
+    // reset to defaults before reading colors that might override them
     colorSettings.resetToDefaults();
 
     FOREACH_CONFIG_GROUP(read);
 
+    // This logic only runs once on a MMapper fresh install (or factory reset)
+    // Subsequent MMapper starts will always read "firstRun" as false
     if (general.firstRun) {
+        // New users get the 3D canvas but old users do not
         canvas.advanced.use3D.set(true);
+
+        // New users get autologger turned on by default
         autoLog.autoLog = (CURRENT_PLATFORM != PlatformEnum::Wasm);
+
         hotkeys.resetToDefault();
+
         general.firstRun.set(false);
     }
 }
@@ -324,13 +363,17 @@ void Configuration::writeTo(QSettings &conf) const
 void Configuration::reset()
 {
     {
+        // Purge old organization settings first to prevent them from being migrated
         QSettings oldConf(OLD_SETTINGS_ORGANIZATION, SETTINGS_APPLICATION);
         oldConf.clear();
     }
     {
+        // Purge new organization settings
         SETTINGS(conf);
         conf.clear();
     }
+
+    // Reload defaults
     read();
 }
 
@@ -417,6 +460,17 @@ NODISCARD static bool isValidAutoLoggerState(const AutoLoggerEnum strategy)
 void Configuration::GeneralSettings::read(const QSettings &conf)
 {
     firstRun.read(conf);
+    /*
+     * REVISIT: It's basically impossible to verify that this state is valid,
+     * because we have no idea what it contains!
+     *
+     * This setting is inherently non-portable between OSes
+     * (and possibly even window managers), so it doesn't belong here!
+     *
+     * If we're going to save it, then we should probably least checksum it
+     * (or better yet sign it), and record the OS config, so that we won't
+     * try to apply Windows settings to Mac, or Gnome settings to KDE, etc?
+     */
     windowGeometry.read(conf);
     windowState.read(conf);
     alwaysOnTop.read(conf);
@@ -446,6 +500,7 @@ void Configuration::ConnectionSettings::read(const QSettings &conf)
     remotePort.read(conf);
     localPort.read(conf);
 #ifndef Q_OS_WASM
+    // REVISIT: This should be true if WebSocket mode is enabled?
     tlsEncryption.read(conf);
     if (!QSslSocket::supportsSsl()) {
         tlsEncryption.set(false);
@@ -457,8 +512,11 @@ void Configuration::ConnectionSettings::read(const QSettings &conf)
     proxyListensOnAnyInterface.read(conf);
 }
 
+// closest well-known color is "Outer Space"
 static constexpr const std::string_view DEFAULT_BGCOLOR = "#2E3436";
+// closest well-known color is "Dusty Gray"
 static constexpr const std::string_view DEFAULT_DARK_COLOR = "#A19494";
+// closest well-known color is "Cold Turkey"
 static constexpr const std::string_view DEFAULT_NO_SUNDEATH_COLOR = "#D4C7C7";
 
 void Configuration::CanvasSettings::read(const QSettings &conf)
@@ -775,6 +833,7 @@ void Configuration::GroupManagerSettings::write(QSettings &conf) const
 
 void Configuration::MumeClockSettings::write(QSettings &conf) const
 {
+    // Note: There's no QVariant(int64_t) constructor.
     conf.setValue(QString::fromStdString(startEpoch.getKey()),
                   static_cast<qlonglong>(startEpoch.get()));
     display.write(conf);
@@ -856,6 +915,7 @@ Configuration::NamedColorOptions::NamedColorOptions()
 
 void Configuration::NamedColorOptions::resetToDefaults()
 {
+    assert(Colors::black.getRGB() == 0 && Colors::black.getRGBA() != 0);
     static const auto fromHashHex = [](std::string_view sv) {
         assert(sv.length() == 7 && sv[0] == char_consts::C_POUND_SIGN);
         return Color::fromHex(sv.substr(1));
@@ -864,10 +924,10 @@ void Configuration::NamedColorOptions::resetToDefaults()
     static const Color background = fromHashHex(DEFAULT_BGCOLOR);
     static const Color darkRoom = fromHashHex(DEFAULT_DARK_COLOR);
     static const Color noSundeath = fromHashHex(DEFAULT_NO_SUNDEATH_COLOR);
-    static const Color road{140, 83, 58};
-    static const Color special{204, 25, 204};
-    static const Color noflee{123, 63, 0};
-    static const Color water{76, 216, 255};
+    static const Color road{140, 83, 58};     // closest well-known color is "Affair";
+    static const Color special{204, 25, 204}; // closest well-known color is "Red Violet"
+    static const Color noflee{123, 63, 0};    // closest well-known color is "Cinnamon"
+    static const Color water{76, 216, 255};   // closest well-known color is "Malibu"
 
     BACKGROUND = background;
     CONNECTION_NORMAL = Colors::white;
@@ -904,8 +964,11 @@ Configuration::CanvasSettings::Advanced::Advanced()
                            static_cast<ConfigValue<bool> *>(&autoTilt),
                            static_cast<ConfigValue<bool> *>(&printPerfStats)}) {
         const char *const name = it->getKey().c_str();
+        qInfo() << "Checking environment variable" << name;
         if (std::optional<bool> opt = utils::getEnvBool(name)) {
-            it->set(opt.value());
+            const bool &val = opt.value();
+            qInfo() << "Using value" << val << "from environment variable" << name;
+            it->set(val);
         }
     }
 }
@@ -913,6 +976,7 @@ Configuration::CanvasSettings::Advanced::Advanced()
 void Configuration::CanvasSettings::Advanced::registerChangeCallback(
     const ChangeMonitor::Lifetime &lifetime, const ChangeMonitor::Function &callback) const
 {
+    /* copied for each; consider changing this to be std::shared_ptr<Function> */
     use3D.registerChangeCallback(lifetime, callback);
     autoTilt.registerChangeCallback(lifetime, callback);
     printPerfStats.registerChangeCallback(lifetime, callback);

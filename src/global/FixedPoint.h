@@ -4,6 +4,7 @@
 
 #include "ChangeMonitor.h"
 #include "RuleOf5.h"
+#include "TextUtils.h"
 #include "utils.h"
 
 #include <algorithm>
@@ -165,7 +166,7 @@ public:
         if (m_key.empty()) {
             return;
         }
-        const QVariant var = settings.value(QString::fromStdString(m_key), defaultValue);
+        const QVariant var = settings.value(mmqt::toQStringUtf8(m_key), defaultValue);
         set(var.toInt());
     }
 
@@ -174,7 +175,7 @@ public:
         if (m_key.empty()) {
             return;
         }
-        settings.setValue(QString::fromStdString(m_key), m_value);
+        settings.setValue(mmqt::toQStringUtf8(m_key), m_value);
     }
 
 public:

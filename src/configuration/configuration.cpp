@@ -834,7 +834,7 @@ void Configuration::GroupManagerSettings::write(QSettings &conf) const
 void Configuration::MumeClockSettings::write(QSettings &conf) const
 {
     // Note: There's no QVariant(int64_t) constructor.
-    conf.setValue(QString::fromStdString(startEpoch.getKey()),
+    conf.setValue(mmqt::toQStringUtf8(startEpoch.getKey()),
                   static_cast<qlonglong>(startEpoch.get()));
     display.write(conf);
 }

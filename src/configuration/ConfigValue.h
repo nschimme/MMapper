@@ -5,6 +5,7 @@
 #include "../global/ChangeMonitor.h"
 #include "../global/Color.h"
 #include "../global/RuleOf5.h"
+#include "../global/TextUtils.h"
 #include "../global/utils.h"
 
 #include <algorithm>
@@ -47,8 +48,6 @@ public:
         , m_label(std::move(label))
         , m_value(defaultValue)
         , m_defaultValue(defaultValue)
-        , m_changeMonitor()
-        , m_notifying(false)
         , m_validator(std::move(validator))
     {}
 
@@ -130,7 +129,7 @@ public:
         if (m_key.empty()) {
             return;
         }
-        const QVariant var = settings.value(QString::fromStdString(m_key),
+        const QVariant var = settings.value(mmqt::toQStringUtf8(m_key),
                                             QVariant::fromValue(m_defaultValue));
         T val;
         if constexpr (std::is_same_v<T, Color>) {
@@ -139,7 +138,7 @@ public:
             } else if (var.canConvert<QColor>()) {
                 val = Color(var.value<QColor>());
             } else if (var.canConvert<QString>()) {
-                val = Color::fromHex(var.toString().toStdString());
+                val = Color::fromHex(mmqt::toStdStringUtf8(var.toString()));
             } else {
                 val = m_defaultValue;
             }
@@ -162,7 +161,7 @@ public:
         if (m_key.empty()) {
             return;
         }
-        settings.setValue(QString::fromStdString(m_key), QVariant::fromValue(m_value));
+        settings.setValue(mmqt::toQStringUtf8(m_key), QVariant::fromValue(m_value));
     }
 
     void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,

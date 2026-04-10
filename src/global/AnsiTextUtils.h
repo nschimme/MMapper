@@ -998,7 +998,7 @@ void foreachAnsi(const QStringView line, Callback &&callback)
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
         QRegularExpressionMatch m = weakAnsiRegex.matchView(line, pos);
 #else
-        QRegularExpressionMatch m = weakAnsiRegex.match(line, pos);
+        QRegularExpressionMatch m = weakAnsiRegex.match(line.toString(), pos);
 #endif
         if (!m.hasMatch()) {
             break;

@@ -19,6 +19,32 @@
 #include <QListWidget>
 #include <QtWidgets>
 
+namespace {
+bool matches(const QWidget *widget, const QString &text)
+{
+    if (auto *cb = qobject_cast<const QCheckBox *>(widget))
+        return cb->text().contains(text, Qt::CaseInsensitive);
+    if (auto *rb = qobject_cast<const QRadioButton *>(widget))
+        return rb->text().contains(text, Qt::CaseInsensitive);
+    if (auto *lbl = qobject_cast<const QLabel *>(widget))
+        return lbl->text().contains(text, Qt::CaseInsensitive);
+    if (auto *pb = qobject_cast<const QPushButton *>(widget))
+        return pb->text().contains(text, Qt::CaseInsensitive);
+    if (auto *gb = qobject_cast<const QGroupBox *>(widget))
+        return gb->title().contains(text, Qt::CaseInsensitive);
+    return false;
+}
+
+void showWithBuddy(QWidget *widget)
+{
+    widget->show();
+    if (auto *lbl = qobject_cast<QLabel *>(widget)) {
+        if (lbl->buddy())
+            lbl->buddy()->show();
+    }
+}
+} // namespace
+
 ConfigDialog::ConfigDialog(QWidget *const parent)
     : QDialog(parent)
     , ui(new Ui::ConfigDialog)
@@ -55,10 +81,16 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
 
     ui->scrollLayout->addStretch();
 
-    connect(ui->contentsWidget, &QListWidget::currentItemChanged, this, &ConfigDialog::slot_changePage);
+    connect(ui->contentsWidget,
+            &QListWidget::currentItemChanged,
+            this,
+            &ConfigDialog::slot_changePage);
     connect(ui->buttonBox, &QDialogButtonBox::accepted, this, &ConfigDialog::slot_ok);
     connect(ui->buttonBox, &QDialogButtonBox::rejected, this, &ConfigDialog::slot_cancel);
-    connect(ui->buttonBox->button(QDialogButtonBox::Apply), &QPushButton::clicked, this, &ConfigDialog::slot_apply);
+    connect(ui->buttonBox->button(QDialogButtonBox::Apply),
+            &QPushButton::clicked,
+            this,
+            &ConfigDialog::slot_apply);
     connect(ui->searchBar, &QLineEdit::textChanged, this, &ConfigDialog::slot_search);
 
     connect(generalPage, &GeneralPage::sig_reloadConfig, this, [this]() {
@@ -77,7 +109,10 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     connect(this, &ConfigDialog::sig_loadConfig, autoLogPage, &AutoLogPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, audioPage, &AudioPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, groupPage, &GroupPage::slot_loadConfig);
-    connect(this, &ConfigDialog::sig_loadConfig, mumeProtocolPage, &MumeProtocolPage::slot_loadConfig);
+    connect(this,
+            &ConfigDialog::sig_loadConfig,
+            mumeProtocolPage,
+            &MumeProtocolPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, pathmachinePage, &PathmachinePage::slot_loadConfig);
 }
 
@@ -184,44 +219,29 @@ void ConfigDialog::slot_search(const QString &text)
         return;
     }
 
-    const QString searchLower = text.toLower();
-
     for (auto &page : m_pages) {
-        bool pageMatches = page.name.toLower().contains(searchLower);
+        bool pageMatches = page.name.contains(text, Qt::CaseInsensitive);
         bool anyChildMatches = false;
 
         const auto groupBoxes = page.widget->findChildren<QGroupBox *>();
         for (auto *gb : groupBoxes) {
-            bool gbMatches = gb->title().toLower().contains(searchLower);
-            if (gbMatches) {
+            if (matches(gb, text)) {
                 gb->show();
                 const auto children = gb->findChildren<QWidget *>();
-                for (auto *child : children) child->show();
+                for (auto *child : children)
+                    child->show();
                 anyChildMatches = true;
             } else {
                 bool anyGbChildMatches = false;
                 const auto children = gb->findChildren<QWidget *>();
                 for (auto *child : children) {
-                    QString childText;
-                    if (auto *cb = qobject_cast<QCheckBox *>(child)) childText = cb->text();
-                    else if (auto *rb = qobject_cast<QRadioButton *>(child)) childText = rb->text();
-                    else if (auto *lbl = qobject_cast<QLabel *>(child)) childText = lbl->text();
-                    else if (auto *pb = qobject_cast<QPushButton *>(child)) childText = pb->text();
-
-                    if (!childText.isEmpty() && childText.toLower().contains(searchLower)) {
-                        child->show();
+                    if (matches(child, text)) {
+                        showWithBuddy(child);
                         anyGbChildMatches = true;
-                    } else if (qobject_cast<QLabel*>(child) || qobject_cast<QCheckBox*>(child) || qobject_cast<QRadioButton*>(child) || qobject_cast<QPushButton*>(child)) {
+                    } else if (qobject_cast<QLabel *>(child) || qobject_cast<QCheckBox *>(child)
+                               || qobject_cast<QRadioButton *>(child)
+                               || qobject_cast<QPushButton *>(child)) {
                         child->hide();
-                    }
-                }
-
-                // Keep input widgets visible if their label is visible
-                for (auto *child : children) {
-                    if (auto *lbl = qobject_cast<QLabel *>(child)) {
-                        if (lbl->isVisible() && lbl->buddy()) {
-                            lbl->buddy()->show();
-                        }
                     }
                 }
 
@@ -234,29 +254,19 @@ void ConfigDialog::slot_search(const QString &text)
             }
         }
 
-        const auto directChildren = page.widget->findChildren<QWidget *>(QString(), Qt::FindDirectChildrenOnly);
+        const auto directChildren = page.widget->findChildren<QWidget *>(QString(),
+                                                                         Qt::FindDirectChildrenOnly);
         for (auto *child : directChildren) {
-             QString childText;
-             if (auto *cb = qobject_cast<QCheckBox *>(child)) childText = cb->text();
-             else if (auto *rb = qobject_cast<QRadioButton *>(child)) childText = rb->text();
-             else if (auto *lbl = qobject_cast<QLabel *>(child)) childText = lbl->text();
-             else if (auto *pb = qobject_cast<QPushButton *>(child)) childText = pb->text();
+            if (qobject_cast<QGroupBox *>(child))
+                continue;
 
-             if (!childText.isEmpty() && childText.toLower().contains(searchLower)) {
-                 child->show();
-                 anyChildMatches = true;
-             } else if (qobject_cast<QLabel*>(child) || qobject_cast<QCheckBox*>(child) || qobject_cast<QRadioButton*>(child) || qobject_cast<QPushButton*>(child)) {
-                 if (!qobject_cast<QGroupBox*>(child)) {
-                    child->hide();
-                 }
-             }
-        }
-
-        for (auto *child : directChildren) {
-            if (auto *lbl = qobject_cast<QLabel *>(child)) {
-                if (lbl->isVisible() && lbl->buddy()) {
-                    lbl->buddy()->show();
-                }
+            if (matches(child, text)) {
+                showWithBuddy(child);
+                anyChildMatches = true;
+            } else if (qobject_cast<QLabel *>(child) || qobject_cast<QCheckBox *>(child)
+                       || qobject_cast<QRadioButton *>(child)
+                       || qobject_cast<QPushButton *>(child)) {
+                child->hide();
             }
         }
 
@@ -265,7 +275,8 @@ void ConfigDialog::slot_search(const QString &text)
             page.item->setHidden(false);
             if (pageMatches && !anyChildMatches) {
                 const auto children = page.widget->findChildren<QWidget *>();
-                for (auto *child : children) child->show();
+                for (auto *child : children)
+                    child->show();
             }
         } else {
             page.widget->hide();

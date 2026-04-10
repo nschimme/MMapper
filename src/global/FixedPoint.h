@@ -25,15 +25,13 @@ private:
     bool m_notifying = false;
     std::string m_key;
     std::string m_label;
+    int m_value = 0;
 
 public:
     static constexpr const int digits = Digits_;
     const int min;
     const int max;
     const int defaultValue;
-
-private:
-    int m_value = 0;
 
 private:
     explicit FixedPoint(const int min_,
@@ -179,6 +177,6 @@ public:
     void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
                                 ChangeMonitor::Function callback) const
     {
-        return m_changeMonitor.registerChangeCallback(lifetime, std::move(callback));
+        return m_changeMonitor.registerChangeCallback(lifetime, callback);
     }
 };

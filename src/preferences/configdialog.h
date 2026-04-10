@@ -20,6 +20,20 @@ class ConfigDialog final : public QDialog
 {
     Q_OBJECT
 
+private:
+    struct PageInfo
+    {
+        QString name;
+        QWidget *widget;
+        QListWidgetItem *item;
+    };
+
+    Ui::ConfigDialog *ui;
+    Configuration m_workingConfig = getConfig();
+    Configuration m_originalConfig = getConfig();
+    Signal2Lifetime m_lifetime;
+    QList<PageInfo> m_pages;
+
 public:
     explicit ConfigDialog(QWidget *parent = nullptr);
     ~ConfigDialog() override;
@@ -42,18 +56,4 @@ signals:
 private:
     void createIcons();
     void updateSearch();
-
-private:
-    Ui::ConfigDialog *ui;
-    Configuration m_workingConfig = getConfig();
-    Configuration m_originalConfig = getConfig();
-    Signal2Lifetime m_lifetime;
-
-    struct PageInfo
-    {
-        QString name;
-        QWidget *widget;
-        QListWidgetItem *item;
-    };
-    QList<PageInfo> m_pages;
 };

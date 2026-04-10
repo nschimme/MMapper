@@ -3,36 +3,33 @@
 // Copyright (C) 2019 The MMapper Authors
 
 #include "../global/ChangeMonitor.h"
+#include "../global/Color.h"
 #include "../global/RuleOf5.h"
 #include "../global/utils.h"
 
 #include <algorithm>
 #include <functional>
-
 #include <string>
 #include <utility>
 
+#include <QColor>
 #include <QSettings>
 #include <QVariant>
 
 template<typename T>
 class NODISCARD ConfigValue final
 {
-public:
-    using Validator = std::function<T(const T &)>;
-
 private:
     std::string m_key;
     std::string m_label;
     T m_value{};
     T m_defaultValue{};
-
-public:
-    Validator m_validator;
-
-private:
     ChangeMonitor m_changeMonitor;
     bool m_notifying = false;
+
+public:
+    using Validator = std::function<T(const T &)>;
+    Validator m_validator;
 
 public:
     ConfigValue() = default;
@@ -42,7 +39,10 @@ public:
         , m_defaultValue{initialValue}
     {}
 
-    ConfigValue(std::string key, std::string label, const T &defaultValue, Validator validator = nullptr)
+    ConfigValue(std::string key,
+                std::string label,
+                const T &defaultValue,
+                Validator validator = nullptr)
         : m_key(std::move(key))
         , m_label(std::move(label))
         , m_value(defaultValue)
@@ -55,6 +55,7 @@ public:
         , m_label{other.m_label}
         , m_value{other.m_value}
         , m_defaultValue{other.m_defaultValue}
+        , m_validator{other.m_validator}
     {}
 
     ConfigValue &operator=(const ConfigValue &other)
@@ -127,13 +128,29 @@ public:
         }
         const QVariant var = settings.value(QString::fromStdString(m_key),
                                             QVariant::fromValue(m_defaultValue));
-        if (var.canConvert<T>()) {
-            T val = var.value<T>();
-            if (m_validator) {
-                val = m_validator(val);
+        T val;
+        if constexpr (std::is_same_v<T, Color>) {
+            if (var.canConvert<Color>()) {
+                val = var.value<Color>();
+            } else if (var.canConvert<QColor>()) {
+                val = Color(var.value<QColor>());
+            } else if (var.canConvert<QString>()) {
+                val = Color::fromHex(var.toString().toStdString());
+            } else {
+                val = m_defaultValue;
             }
-            set(val);
+        } else {
+            if (var.canConvert<T>()) {
+                val = var.value<T>();
+            } else {
+                val = m_defaultValue;
+            }
         }
+
+        if (m_validator) {
+            val = m_validator(val);
+        }
+        set(val);
     }
 
     void write(QSettings &settings) const

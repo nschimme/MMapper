@@ -191,9 +191,8 @@ public:
 
 #define XFOREACH_CANVAS_NAMED_COLOR_OPTIONS(X) \
     X(backgroundColor, BACKGROUND) \
-    X(connectionNormalColor, CONNECTION_NORMAL) \
-    X(roomDarkColor, ROOM_DARK) \
-    X(roomDarkLitColor, ROOM_NO_SUNDEATH)
+    X(connectionNormalColor, CONNECTION_NORMAL) X(roomDarkColor, ROOM_DARK) \
+        X(roomDarkLitColor, ROOM_NO_SUNDEATH)
 
     struct CanvasNamedColorOptions;
     struct NODISCARD ResolvedCanvasNamedColorOptions final

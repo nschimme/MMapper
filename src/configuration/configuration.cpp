@@ -151,7 +151,9 @@ void Settings::initSettings()
     });
 }
 
-#define SETTINGS(conf)                                                                                 Settings settings;                                                                                 QSettings &conf = static_cast<QSettings &>(settings)
+#define SETTINGS(conf) \
+    Settings settings; \
+    QSettings &conf = static_cast<QSettings &>(settings)
 
 ConstString GRP_ADVENTURE_PANEL = "Adventure Panel";
 ConstString GRP_AUDIO = "Audio";
@@ -257,9 +259,36 @@ void Settings::tryCopyOldSettings()
     sNew.endGroup();
 }
 
-#define GROUP_CALLBACK(callback, name, ref)                                                            do {                                                                                                   conf.beginGroup(name);                                                                             ref.callback(conf);                                                                                conf.endGroup();                                                                               } while (false)
+#define GROUP_CALLBACK(callback, name, ref) \
+    do { \
+        conf.beginGroup(name); \
+        ref.callback(conf); \
+        conf.endGroup(); \
+    } while (false)
 
-#define FOREACH_CONFIG_GROUP(callback)                                                                 do {                                                                                                   GROUP_CALLBACK(callback, GRP_GENERAL, general);                                                    GROUP_CALLBACK(callback, GRP_CONNECTION, connection);                                              GROUP_CALLBACK(callback, GRP_CANVAS, canvas);                                                      GROUP_CALLBACK(callback, GRP_ACCOUNT, account);                                                    GROUP_CALLBACK(callback, GRP_AUTO_LOAD_WORLD, autoLoad);                                           GROUP_CALLBACK(callback, GRP_AUTO_LOG, autoLog);                                                   GROUP_CALLBACK(callback, GRP_PARSER, parser);                                                      GROUP_CALLBACK(callback, GRP_MUME_CLIENT_PROTOCOL, mumeClientProtocol);                            GROUP_CALLBACK(callback, GRP_MUME_NATIVE, mumeNative);                                             GROUP_CALLBACK(callback, GRP_PATH_MACHINE, pathMachine);                                           GROUP_CALLBACK(callback, GRP_GROUP_MANAGER, groupManager);                                         GROUP_CALLBACK(callback, GRP_MUME_CLOCK, mumeClock);                                               GROUP_CALLBACK(callback, GRP_ADVENTURE_PANEL, adventurePanel);                                     GROUP_CALLBACK(callback, GRP_AUDIO, audio);                                                        GROUP_CALLBACK(callback, GRP_INTEGRATED_MUD_CLIENT, integratedClient);                             GROUP_CALLBACK(callback, GRP_INFOMARKS_DIALOG, infomarksDialog);                                   GROUP_CALLBACK(callback, GRP_ROOMEDIT_DIALOG, roomEditDialog);                                     GROUP_CALLBACK(callback, GRP_ROOM_PANEL, roomPanel);                                               GROUP_CALLBACK(callback, GRP_FINDROOMS_DIALOG, findRoomsDialog);                                   GROUP_CALLBACK(callback, GRP_HOTKEYS, hotkeys);                                                } while (false)
+#define FOREACH_CONFIG_GROUP(callback) \
+    do { \
+        GROUP_CALLBACK(callback, GRP_GENERAL, general); \
+        GROUP_CALLBACK(callback, GRP_CONNECTION, connection); \
+        GROUP_CALLBACK(callback, GRP_CANVAS, canvas); \
+        GROUP_CALLBACK(callback, GRP_ACCOUNT, account); \
+        GROUP_CALLBACK(callback, GRP_AUTO_LOAD_WORLD, autoLoad); \
+        GROUP_CALLBACK(callback, GRP_AUTO_LOG, autoLog); \
+        GROUP_CALLBACK(callback, GRP_PARSER, parser); \
+        GROUP_CALLBACK(callback, GRP_MUME_CLIENT_PROTOCOL, mumeClientProtocol); \
+        GROUP_CALLBACK(callback, GRP_MUME_NATIVE, mumeNative); \
+        GROUP_CALLBACK(callback, GRP_PATH_MACHINE, pathMachine); \
+        GROUP_CALLBACK(callback, GRP_GROUP_MANAGER, groupManager); \
+        GROUP_CALLBACK(callback, GRP_MUME_CLOCK, mumeClock); \
+        GROUP_CALLBACK(callback, GRP_ADVENTURE_PANEL, adventurePanel); \
+        GROUP_CALLBACK(callback, GRP_AUDIO, audio); \
+        GROUP_CALLBACK(callback, GRP_INTEGRATED_MUD_CLIENT, integratedClient); \
+        GROUP_CALLBACK(callback, GRP_INFOMARKS_DIALOG, infomarksDialog); \
+        GROUP_CALLBACK(callback, GRP_ROOMEDIT_DIALOG, roomEditDialog); \
+        GROUP_CALLBACK(callback, GRP_ROOM_PANEL, roomPanel); \
+        GROUP_CALLBACK(callback, GRP_FINDROOMS_DIALOG, findRoomsDialog); \
+        GROUP_CALLBACK(callback, GRP_HOTKEYS, hotkeys); \
+    } while (false)
 
 void Configuration::read()
 {
@@ -283,6 +312,7 @@ void Configuration::readFrom(QSettings &conf)
         canvas.advanced.use3D.set(true);
         autoLog.autoLog = (CURRENT_PLATFORM != PlatformEnum::Wasm);
         hotkeys.resetToDefault();
+        general.firstRun.set(false);
     }
 }
 
@@ -406,9 +436,7 @@ void Configuration::GeneralSettings::read(const QSettings &conf)
     };
     characterEncoding.read(conf);
 
-    theme.m_validator = [](ThemeEnum val) {
-        return isValidTheme(val) ? val : ThemeEnum::System;
-    };
+    theme.m_validator = [](ThemeEnum val) { return isValidTheme(val) ? val : ThemeEnum::System; };
     theme.read(conf);
 }
 
@@ -464,8 +492,11 @@ void Configuration::CanvasSettings::read(const QSettings &conf)
     advanced.layerHeight.read(conf);
 
     weatherAtmosphereIntensity.read(conf);
+    weatherAtmosphereIntensity.clamp(0, 100);
     weatherPrecipitationIntensity.read(conf);
+    weatherPrecipitationIntensity.clamp(0, 100);
     weatherTimeOfDayIntensity.read(conf);
+    weatherTimeOfDayIntensity.clamp(0, 100);
 }
 
 void Configuration::AccountSettings::read(const QSettings &conf)
@@ -482,9 +513,9 @@ void Configuration::AutoLoadSettings::read(const QSettings &conf)
 {
     autoLoadMap.read(conf);
     fileName.read(conf);
-    lastMapDirectory.set(conf.value("Last map load directory",
-                                    getDefaultDirectory().append(DEFAULT_MMAPPER_SUBDIR))
-                             .toString());
+    lastMapDirectory.set(
+        conf.value("Last map load directory", getDefaultDirectory().append(DEFAULT_MMAPPER_SUBDIR))
+            .toString());
 }
 
 void Configuration::AutoLogSettings::read(const QSettings &conf)
@@ -508,14 +539,10 @@ void Configuration::AutoLogSettings::read(const QSettings &conf)
 
 void Configuration::ParserSettings::read(const QSettings &conf)
 {
-    roomNameColor.m_validator = [](QString val) {
-        return isValidAnsi(val) ? val : "[32m";
-    };
+    roomNameColor.m_validator = [](QString val) { return isValidAnsi(val) ? val : "[32m"; };
     roomNameColor.read(conf);
 
-    roomDescColor.m_validator = [](QString val) {
-        return isValidAnsi(val) ? val : "[0m";
-    };
+    roomDescColor.m_validator = [](QString val) { return isValidAnsi(val) ? val : "[0m"; };
     roomDescColor.read(conf);
 
     prefixChar.read(conf);
@@ -546,6 +573,9 @@ void Configuration::PathMachineSettings::read(const QSettings &conf)
     multipleConnectionsPenalty.read(conf);
     maxPaths.read(conf);
     matchingTolerance.read(conf);
+
+    maxPaths.set(utils::clampNonNegative(maxPaths.get()));
+    matchingTolerance.set(utils::clampNonNegative(matchingTolerance.get()));
 }
 
 void Configuration::GroupManagerSettings::read(const QSettings &conf)
@@ -575,7 +605,9 @@ void Configuration::AudioSettings::read(const QSettings &conf)
         unlocked.set(false);
     }
     musicVolume.read(conf);
+    musicVolume.clamp(0, 100);
     soundVolume.read(conf);
+    soundVolume.clamp(0, 100);
     outputDeviceId.read(conf);
 }
 
@@ -620,7 +652,6 @@ void Configuration::FindRoomsDialog::read(const QSettings &conf)
 
 void Configuration::GeneralSettings::write(QSettings &conf) const
 {
-    const_cast<ConfigValue<bool> &>(firstRun).set(false);
     firstRun.write(conf);
     windowGeometry.write(conf);
     windowState.write(conf);
@@ -869,8 +900,9 @@ void Configuration::NamedColorOptions::resetToDefaults()
 
 Configuration::CanvasSettings::Advanced::Advanced()
 {
-    for (auto *const it : {(ConfigValue<bool> *) &use3D, (ConfigValue<bool> *) &autoTilt,
-                           (ConfigValue<bool> *) &printPerfStats}) {
+    for (auto *const it : {static_cast<ConfigValue<bool> *>(&use3D),
+                           static_cast<ConfigValue<bool> *>(&autoTilt),
+                           static_cast<ConfigValue<bool> *>(&printPerfStats)}) {
         const char *const name = it->getKey().c_str();
         if (std::optional<bool> opt = utils::getEnvBool(name)) {
             it->set(opt.value());
@@ -930,7 +962,11 @@ void Configuration::NamedColorOptions::registerChangeCallback(
 
 void Configuration::setupGlobalCallbacks()
 {
-#define X_SYNC_COLOR(_id, _name)                                                                       XNamedColor(NamedColorEnum::_id).setColor(colorSettings._id.get());                                 colorSettings._id.registerChangeCallback(m_internalLifetime, []() {                                    XNamedColor(NamedColorEnum::_id).setColor(setConfig().colorSettings._id.get());                });
+#define X_SYNC_COLOR(_id, _name) \
+    XNamedColor(NamedColorEnum::_id).setColor(colorSettings._id.get()); \
+    colorSettings._id.registerChangeCallback(m_internalLifetime, []() { \
+        XNamedColor(NamedColorEnum::_id).setColor(setConfig().colorSettings._id.get()); \
+    });
     XFOREACH_NAMED_COLOR_OPTIONS(X_SYNC_COLOR)
 #undef X_SYNC_COLOR
 }

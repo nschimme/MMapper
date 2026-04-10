@@ -76,7 +76,7 @@ if(Qt6Core_FOUND)
     if(Qt6Core_VERSION VERSION_LESS 6.4.0)
         message(FATAL_ERROR "Minimum supported Qt version is 6.4")
     endif()
-    add_definitions(/DQT_DISABLE_DEPRECATED_UP_TO=0x060400)
+    add_definitions(/DQT_DISABLE_DEPRECATED_UP_TO=0x060900)
 endif()
 
 if(Qt6OpenGL_FOUND)

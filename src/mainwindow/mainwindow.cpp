@@ -227,6 +227,7 @@ MainWindow::MainWindow()
                                     | QDockWidget::DockWidgetFloatable
                                     | QDockWidget::DockWidgetClosable);
     m_dockDialogTimers->setWidget(m_timerWidget);
+    m_dockDialogTimers->hide();
 
     m_mumeClock = new MumeClock(getConfig().mumeClock.startEpoch, deref(m_gameObserver), this);
     if constexpr (!NO_UPDATER) {
@@ -270,7 +271,7 @@ MainWindow::MainWindow()
     m_dockDialogClient->setFeatures(QDockWidget::DockWidgetMovable
                                     | QDockWidget::DockWidgetFloatable
                                     | QDockWidget::DockWidgetClosable);
-    addDockWidget(Qt::TopDockWidgetArea, m_dockDialogTimers);
+    addDockWidget(Qt::RightDockWidgetArea, m_dockDialogTimers);
     addDockWidget(Qt::LeftDockWidgetArea, m_dockDialogClient);
     m_dockDialogClient->setWidget(m_clientWidget);
 

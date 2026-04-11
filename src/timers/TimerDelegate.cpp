@@ -17,27 +17,43 @@ void TimerDelegate::paint(QPainter *painter,
                           const QModelIndex &index) const
 {
     QVariant progressVar = index.data(TimerModel::ProgressRole);
-    if (progressVar.isValid() && index.column() == TimerModel::ColName) {
+    if (progressVar.isValid()) {
         double progress = progressVar.toDouble();
 
         painter->save();
 
-        // Draw background bar
-        QRect rect = option.rect;
-        int barWidth = static_cast<int>(static_cast<double>(rect.width()) * progress);
+        // Calculate progress bar width relative to the whole row
+        const QAbstractItemView *view = qobject_cast<const QAbstractItemView *>(option.widget);
+        if (view) {
+            QRect rowRect;
+            int colCount = view->model()->columnCount();
+            for (int i = 0; i < colCount; ++i) {
+                if (!view->isColumnHidden(i)) {
+                    rowRect = rowRect.united(view->visualRect(view->model()->index(index.row(), i)));
+                }
+            }
 
-        QColor color;
-        if (progress > 0.5) {
-            // Green to Yellow
-            double factor = (progress - 0.5) * 2.0;
-            color = QColor::fromRgbF(static_cast<float>(1.0 - factor), 1.0f, 0.0f, 0.3f);
-        } else {
-            // Yellow to Red
-            double factor = progress * 2.0;
-            color = QColor::fromRgbF(1.0f, static_cast<float>(factor), 0.0f, 0.3f);
+            int totalWidth = rowRect.width();
+            int filledWidth = static_cast<int>(static_cast<double>(totalWidth) * progress);
+            QRect progressRect(rowRect.x(), rowRect.y(), filledWidth, rowRect.height());
+
+            // Intersect row-level progress with current cell
+            QRect cellProgressRect = progressRect.intersected(option.rect);
+
+            if (cellProgressRect.isValid()) {
+                QColor color;
+                if (progress > 0.5) {
+                    // Green to Yellow
+                    double factor = (progress - 0.5) * 2.0;
+                    color = QColor::fromRgbF(static_cast<float>(1.0 - factor), 1.0f, 0.0f, 0.3f);
+                } else {
+                    // Yellow to Red
+                    double factor = progress * 2.0;
+                    color = QColor::fromRgbF(1.0f, static_cast<float>(factor), 0.0f, 0.3f);
+                }
+                painter->fillRect(cellProgressRect, color);
+            }
         }
-
-        painter->fillRect(rect.x(), rect.y(), barWidth, rect.height(), color);
 
         painter->restore();
     }

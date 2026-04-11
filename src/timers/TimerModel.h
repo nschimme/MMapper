@@ -36,7 +36,11 @@ public:
                                   int role = Qt::DisplayRole) const override;
 
     NODISCARD const TTimer *timerAt(int row) const;
+    NODISCARD bool hasAnyDescriptions() const;
 
 private slots:
     void updateTimerList();
+
+private:
+    void startRefreshTimer();
 };

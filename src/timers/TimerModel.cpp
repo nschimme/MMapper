@@ -33,6 +33,7 @@ TimerModel::TimerModel(CTimers &timers, QObject *parent)
     : QAbstractTableModel(parent)
     , m_timers(timers)
 {
+    m_refreshTimer.setSingleShot(true);
     connect(&m_timers, &CTimers::sig_timerAdded, this, &TimerModel::updateTimerList);
     connect(&m_timers, &CTimers::sig_timerRemoved, this, &TimerModel::updateTimerList);
     connect(&m_timers, &CTimers::sig_timersUpdated, this, &TimerModel::updateTimerList);
@@ -41,6 +42,9 @@ TimerModel::TimerModel(CTimers &timers, QObject *parent)
         emit dataChanged(index(0, ColName),
                          index(static_cast<int>(m_allTimers.size()) - 1, ColTime),
                          {Qt::DisplayRole, ProgressRole});
+        if (!m_allTimers.empty()) {
+            startRefreshTimer();
+        }
     });
 
     updateTimerList();
@@ -134,6 +138,15 @@ const TTimer *TimerModel::timerAt(int row) const
     return m_allTimers[static_cast<size_t>(row)];
 }
 
+bool TimerModel::hasAnyDescriptions() const
+{
+    for (const auto *timer : m_allTimers) {
+        if (!timer->getDescription().empty())
+            return true;
+    }
+    return false;
+}
+
 void TimerModel::updateTimerList()
 {
     beginResetModel();
@@ -149,6 +162,13 @@ void TimerModel::updateTimerList()
     if (m_allTimers.empty()) {
         m_refreshTimer.stop();
     } else if (!m_refreshTimer.isActive()) {
-        m_refreshTimer.start(1000);
+        startRefreshTimer();
     }
+}
+
+void TimerModel::startRefreshTimer()
+{
+    const auto now = QDateTime::currentDateTime();
+    const int delay = 1000 - static_cast<int>(now.time().msec());
+    m_refreshTimer.start(delay > 0 ? delay : 1000);
 }

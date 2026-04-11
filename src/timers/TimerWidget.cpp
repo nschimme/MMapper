@@ -23,7 +23,10 @@ TimerWidget::TimerWidget(CTimers &timers, QWidget *parent)
     m_model = new TimerModel(m_timers, this);
     m_view = new QTableView(this);
     m_view->setModel(m_model);
-    m_view->setItemDelegateForColumn(TimerModel::ColName, new TimerDelegate(this));
+    auto *delegate = new TimerDelegate(this);
+    for (int i = 0; i < TimerModel::ColCount; ++i) {
+        m_view->setItemDelegateForColumn(i, delegate);
+    }
     m_view->horizontalHeader()->setStretchLastSection(true);
     m_view->verticalHeader()->setVisible(false);
     m_view->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -33,56 +36,57 @@ TimerWidget::TimerWidget(CTimers &timers, QWidget *parent)
 
     layout->addWidget(m_view);
 
-    auto *btnLayout = new QHBoxLayout();
-    auto *btnClear = new QPushButton(tr("Clear Expired"), this);
-    connect(btnClear, &QPushButton::clicked, this, &TimerWidget::clearExpired);
-    btnLayout->addStretch();
-    btnLayout->addWidget(btnClear);
-    layout->addLayout(btnLayout);
+    connect(m_model, &TimerModel::modelReset, this, [this]() {
+        m_view->setColumnHidden(TimerModel::ColDescription, !m_model->hasAnyDescriptions());
+    });
 
     connect(m_view, &QTableView::customContextMenuRequested, this, &TimerWidget::showContextMenu);
 }
 
 void TimerWidget::showContextMenu(const QPoint &pos)
 {
-    QModelIndex index = m_view->indexAt(pos);
-    if (!index.isValid())
-        return;
-
-    const TTimer *timer = m_model->timerAt(index.row());
-    if (!timer)
-        return;
-
     QMenu menu(this);
-    std::string name = timer->getName();
-    bool isCountdown = timer->isCountdown();
 
-    auto *actReset = menu.addAction(tr("Reset"));
-    connect(actReset, &QAction::triggered, this, [this, name, isCountdown]() {
-        if (isCountdown)
-            m_timers.resetCountdown(name);
-        else
-            m_timers.resetTimer(name);
-    });
+    QModelIndex index = m_view->indexAt(pos);
+    if (index.isValid()) {
+        const TTimer *timer = m_model->timerAt(index.row());
+        if (timer) {
+            std::string name = timer->getName();
+            bool isCountdown = timer->isCountdown();
 
-    auto *actStop = menu.addAction(tr("Stop"));
-    actStop->setEnabled(!timer->isExpired());
-    connect(actStop, &QAction::triggered, this, [this, name, isCountdown]() {
-        if (isCountdown)
-            m_timers.stopCountdown(name);
-        else
-            m_timers.stopTimer(name);
-    });
+            auto *actReset = menu.addAction(tr("Reset"));
+            connect(actReset, &QAction::triggered, this, [this, name, isCountdown]() {
+                if (isCountdown)
+                    m_timers.resetCountdown(name);
+                else
+                    m_timers.resetTimer(name);
+            });
 
-    menu.addSeparator();
+            auto *actStop = menu.addAction(tr("Stop"));
+            actStop->setEnabled(!timer->isExpired());
+            connect(actStop, &QAction::triggered, this, [this, name, isCountdown]() {
+                if (isCountdown)
+                    m_timers.stopCountdown(name);
+                else
+                    m_timers.stopTimer(name);
+            });
 
-    auto *actDelete = menu.addAction(tr("Delete"));
-    connect(actDelete, &QAction::triggered, this, [this, name, isCountdown]() {
-        if (isCountdown)
-            std::ignore = m_timers.removeCountdown(name);
-        else
-            std::ignore = m_timers.removeTimer(name);
-    });
+            menu.addSeparator();
+
+            auto *actDelete = menu.addAction(tr("Delete"));
+            connect(actDelete, &QAction::triggered, this, [this, name, isCountdown]() {
+                if (isCountdown)
+                    std::ignore = m_timers.removeCountdown(name);
+                else
+                    std::ignore = m_timers.removeTimer(name);
+            });
+
+            menu.addSeparator();
+        }
+    }
+
+    auto *actClearExpired = menu.addAction(tr("Clear Expired"));
+    connect(actClearExpired, &QAction::triggered, this, &TimerWidget::clearExpired);
 
     menu.exec(m_view->viewport()->mapToGlobal(pos));
 }

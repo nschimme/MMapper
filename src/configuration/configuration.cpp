@@ -270,103 +270,6 @@ bool Configuration::ColorSettings::operator==(const ColorSettings &other) const
            == static_cast<const NamedColorOptions &>(other);
 }
 
-ConstString KEY_ABSOLUTE_PATH_ACCEPTANCE = "absolute path acceptance";
-ConstString KEY_ACCOUNT_NAME = "account name";
-ConstString KEY_ACCOUNT_PASSWORD = "account password";
-ConstString KEY_ALWAYS_ON_TOP = "Always On Top";
-ConstString KEY_SHOW_STATUS_BAR = "Show Status Bar";
-ConstString KEY_SHOW_SCROLL_BARS = "Show Scroll Bars";
-ConstString KEY_SHOW_MENU_BAR = "Show Menu Bar";
-ConstString KEY_AUTO_LOAD = "Auto load";
-ConstString KEY_AUTO_RESIZE_TERMINAL = "Auto resize terminal";
-ConstString KEY_BACKGROUND_COLOR = "Background color";
-ConstString KEY_CHARACTER_ENCODING = "Character encoding";
-ConstString KEY_CHECK_FOR_UPDATE = "Check for update";
-ConstString KEY_CLEAR_INPUT_ON_ENTER = "Clear input on enter";
-ConstString KEY_COLUMNS = "Columns";
-ConstString KEY_COMMAND_PREFIX_CHAR = "Command prefix character";
-ConstString KEY_CONNECTION_NORMAL_COLOR = "Connection normal color";
-ConstString KEY_CORRECT_POSITION_BONUS = "correct position bonus";
-ConstString KEY_DISPLAY_XP_STATUS = "Display XP status bar widget";
-ConstString KEY_DISPLAY_CLOCK = "Display clock";
-ConstString KEY_DRAW_DOOR_NAMES = "Draw door names";
-ConstString KEY_DRAW_NOT_MAPPED_EXITS = "Draw not mapped exits";
-ConstString KEY_DRAW_UPPER_LAYERS_TEXTURED = "Draw upper layers textured";
-ConstString KEY_EMOJI_ENCODE = "encode emoji";
-ConstString KEY_EMOJI_DECODE = "decode emoji";
-ConstString KEY_EMULATED_EXITS = "Emulated Exits";
-ConstString KEY_EXTERNAL_EDITOR_COMMAND = "External editor command";
-ConstString KEY_FILE_NAME = "File name";
-ConstString KEY_GROUP_YOUR_COLOR = "color";
-ConstString KEY_GROUP_NPC_COLOR = "npc color";
-ConstString KEY_GROUP_NPC_COLOR_OVERRIDE = "npc color override";
-ConstString KEY_GROUP_NPC_SORT_BOTTOM = "npc sort bottom";
-ConstString KEY_GROUP_NPC_HIDE = "npc hide";
-ConstString KEY_AUTO_LOG = "Auto log";
-ConstString KEY_AUTO_LOG_ASK_DELETE = "Auto log ask before deleting";
-ConstString KEY_AUTO_LOG_CLEANUP_STRATEGY = "Auto log cleanup strategy";
-ConstString KEY_AUTO_LOG_DELETE_AFTER_DAYS = "Auto log delete after X days";
-ConstString KEY_AUTO_LOG_DELETE_AFTER_BYTES = "Auto log delete after X bytes";
-ConstString KEY_AUTO_LOG_DIRECTORY = "Auto log directory";
-ConstString KEY_AUTO_LOG_ROTATE_SIZE_BYTES = "Auto log rotate after X bytes";
-ConstString KEY_FONT = "Font";
-ConstString KEY_FOREGROUND_COLOR = "Foreground color";
-ConstString KEY_3D_CANVAS = "canvas.advanced.use3D";
-ConstString KEY_3D_AUTO_TILT = "canvas.advanced.autoTilt";
-ConstString KEY_3D_PERFSTATS = "canvas.advanced.printPerfStats";
-ConstString KEY_MAXIMUM_FPS = "canvas.advanced.maximumFps";
-ConstString KEY_3D_FOV = "canvas.advanced.fov";
-ConstString KEY_3D_VERTICAL_ANGLE = "canvas.advanced.verticalAngle";
-ConstString KEY_3D_HORIZONTAL_ANGLE = "canvas.advanced.horizontalAngle";
-ConstString KEY_3D_LAYER_HEIGHT = "canvas.advanced.layerHeight";
-ConstString KEY_LAST_MAP_LOAD_DIRECTORY = "Last map load directory";
-ConstString KEY_LINES_OF_INPUT_HISTORY = "Lines of input history";
-ConstString KEY_LINES_OF_PEEK_PREVIEW = "Lines of peek preview";
-ConstString KEY_LINES_OF_SCROLLBACK = "Lines of scrollback";
-ConstString KEY_PROXY_LOCAL_PORT = "Local port number";
-ConstString KEY_MAP_MODE = "Map Mode";
-ConstString KEY_MUSIC_VOLUME = "Music volume";
-ConstString KEY_SOUND_VOLUME = "Sound volume";
-ConstString KEY_AUDIO_OUTPUT_DEVICE = "Audio output device";
-ConstString KEY_AUDIO_UNLOCKED = "Audio unlocked";
-ConstString KEY_MAXIMUM_NUMBER_OF_PATHS = "maximum number of paths";
-ConstString KEY_MULTIPLE_CONNECTIONS_PENALTY = "multiple connections penalty";
-ConstString KEY_MUME_START_EPOCH = "Mume start epoch";
-ConstString KEY_NUMBER_OF_ANTI_ALIASING_SAMPLES = "Number of anti-aliasing samples";
-ConstString KEY_PROXY_CONNECTION_STATUS = "Proxy connection status";
-ConstString KEY_PROXY_LISTENS_ON_ANY_INTERFACE = "Proxy listens on any interface";
-ConstString KEY_RELATIVE_PATH_ACCEPTANCE = "relative path acceptance";
-ConstString KEY_RESOURCES_DIRECTORY = "canvas.resourcesDir";
-ConstString KEY_MUME_REMOTE_PORT = "Remote port number";
-ConstString KEY_REMEMBER_LOGIN = "remember login";
-ConstString KEY_ROOM_CREATION_PENALTY = "room creation penalty";
-ConstString KEY_ROOM_DARK_COLOR = "Room dark color";
-ConstString KEY_ROOM_DARK_LIT_COLOR = "Room dark lit color";
-ConstString KEY_ROOM_DESC_ANSI_COLOR = "Room desc ansi color";
-ConstString KEY_ROOM_MATCHING_TOLERANCE = "room matching tolerance";
-ConstString KEY_ROOM_NAME_ANSI_COLOR = "Room name ansi color";
-ConstString KEY_ROWS = "Rows";
-ConstString KEY_RUN_FIRST_TIME = "Run first time";
-ConstString KEY_SERVER_NAME = "Server name";
-ConstString KEY_SHOW_HIDDEN_EXIT_FLAGS = "Show hidden exit flags";
-ConstString KEY_SHOW_NOTES = "Show notes";
-ConstString KEY_SHOW_UNSAVED_CHANGES = "Show unsaved changes";
-ConstString KEY_SHOW_MISSING_MAP_ID = "Show missing map id";
-ConstString KEY_TAB_COMPLETION_DICTIONARY_SIZE = "Tab completion dictionary size";
-ConstString KEY_THEME = "Theme";
-ConstString KEY_TLS_ENCRYPTION = "TLS encryption";
-ConstString KEY_USE_INTERNAL_EDITOR = "Use internal editor";
-ConstString KEY_USE_TRILINEAR_FILTERING = "Use trilinear filtering";
-ConstString KEY_WEATHER_ATMOSPHERE_INTENSITY = "weather.atmosphereIntensity";
-ConstString KEY_WEATHER_PRECIPITATION_INTENSITY = "weather.precipitationIntensity";
-ConstString KEY_WEATHER_TIME_OF_DAY_INTENSITY = "weather.todIntensity";
-ConstString KEY_WINDOW_GEOMETRY = "Window Geometry";
-ConstString KEY_WINDOW_STATE = "Window State";
-ConstString KEY_BELL_AUDIBLE = "Bell audible";
-ConstString KEY_BELL_VISUAL = "Bell visual";
-ConstString KEY_USE_COMMAND_SEPARATOR = "Use command separator";
-ConstString KEY_COMMAND_SEPARATOR = "Command separator";
-
 void Settings::tryCopyOldSettings()
 {
     QSettings sNew(SETTINGS_ORGANIZATION, SETTINGS_APPLICATION);
@@ -381,10 +284,109 @@ void Settings::tryCopyOldSettings()
     }
     // News 2340, changing domain from fire.pvv.org to mume.org:
     sNew.beginGroup(GRP_CONNECTION);
-    if (sNew.value(KEY_SERVER_NAME, "").toString().contains("pvv.org")) {
-        sNew.setValue(KEY_SERVER_NAME, "mume.org");
+    if (sNew.value("Server name", "").toString().contains("pvv.org")) {
+        sNew.setValue("Server name", "mume.org");
     }
     sNew.endGroup();
+}
+
+#define GROUP_CALLBACK(callback, name, ref) \
+    do { \
+        conf.beginGroup(name); \
+        ref.callback(conf); \
+        conf.endGroup(); \
+    } while (false)
+
+#define FOREACH_CONFIG_GROUP(callback) \
+    do { \
+        GROUP_CALLBACK(callback, GRP_GENERAL, general); \
+        GROUP_CALLBACK(callback, GRP_CONNECTION, connection); \
+        GROUP_CALLBACK(callback, GRP_CANVAS, canvas); \
+        GROUP_CALLBACK(callback, GRP_ACCOUNT, account); \
+        GROUP_CALLBACK(callback, GRP_AUTO_LOAD_WORLD, autoLoad); \
+        GROUP_CALLBACK(callback, GRP_AUTO_LOG, autoLog); \
+        GROUP_CALLBACK(callback, GRP_PARSER, parser); \
+        GROUP_CALLBACK(callback, GRP_MUME_CLIENT_PROTOCOL, mumeClientProtocol); \
+        GROUP_CALLBACK(callback, GRP_MUME_NATIVE, mumeNative); \
+        GROUP_CALLBACK(callback, GRP_PATH_MACHINE, pathMachine); \
+        GROUP_CALLBACK(callback, GRP_GROUP_MANAGER, groupManager); \
+        GROUP_CALLBACK(callback, GRP_MUME_CLOCK, mumeClock); \
+        GROUP_CALLBACK(callback, GRP_ADVENTURE_PANEL, adventurePanel); \
+        GROUP_CALLBACK(callback, GRP_AUDIO, audio); \
+        GROUP_CALLBACK(callback, GRP_INTEGRATED_MUD_CLIENT, integratedClient); \
+        GROUP_CALLBACK(callback, GRP_INFOMARKS_DIALOG, infomarksDialog); \
+        GROUP_CALLBACK(callback, GRP_ROOMEDIT_DIALOG, roomEditDialog); \
+        GROUP_CALLBACK(callback, GRP_ROOM_PANEL, roomPanel); \
+        GROUP_CALLBACK(callback, GRP_FINDROOMS_DIALOG, findRoomsDialog); \
+        GROUP_CALLBACK(callback, GRP_HOTKEYS, hotkeys); \
+    } while (false)
+
+void Configuration::read()
+{
+    SETTINGS(conf);
+    readFrom(conf);
+}
+
+void Configuration::write() const
+{
+    SETTINGS(conf);
+    writeTo(conf);
+}
+
+void Configuration::readFrom(QSettings &conf)
+{
+    // reset to defaults before reading colors that might override them
+    colorSettings.resetToDefaults();
+
+    FOREACH_CONFIG_GROUP(read);
+
+    // This logic only runs once on a MMapper fresh install (or factory reset)
+    // Subsequent MMapper starts will always read "firstRun" as false
+    if (general.firstRun) {
+        // New users get the 3D canvas but old users do not
+        canvas.advanced.use3D.set(true);
+
+        // New users get autologger turned on by default
+        autoLog.autoLog = (CURRENT_PLATFORM != PlatformEnum::Wasm);
+
+        hotkeys.resetToDefault();
+
+        general.firstRun.set(false);
+    }
+}
+
+void Configuration::writeTo(QSettings &conf) const
+{
+    FOREACH_CONFIG_GROUP(write);
+}
+
+void Configuration::reset()
+{
+    {
+        // Purge old organization settings first to prevent them from being migrated
+        QSettings oldConf(OLD_SETTINGS_ORGANIZATION, SETTINGS_APPLICATION);
+        oldConf.clear();
+    }
+    {
+        // Purge new organization settings
+        SETTINGS(conf);
+        conf.clear();
+    }
+
+    // Reload defaults
+    read();
+}
+
+#undef FOREACH_CONFIG_GROUP
+#undef GROUP_CALLBACK
+
+ConstString DEFAULT_MMAPPER_SUBDIR = "/MMapper";
+ConstString DEFAULT_LOGS_SUBDIR = "/Logs";
+ConstString DEFAULT_RESOURCES_SUBDIR = "/Resources";
+
+NODISCARD static QString getDefaultDirectory()
+{
+    return QDir(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).absolutePath();
 }
 
 NODISCARD static bool isValidAnsi(const QString &input)
@@ -455,184 +457,9 @@ NODISCARD static bool isValidAutoLoggerState(const AutoLoggerEnum strategy)
     return false;
 }
 
-NODISCARD static QString sanitizeAnsi(const QString &input, const QString &defaultValue)
-{
-    assert(isValidAnsi(defaultValue));
-    if (isValidAnsi(input)) {
-        return input;
-    }
-
-    if (!input.isEmpty()) {
-        qWarning() << "invalid ansi code: " << input;
-    }
-
-    return defaultValue;
-}
-
-NODISCARD static MapModeEnum sanitizeMapMode(const uint32_t input)
-{
-    const auto mode = static_cast<MapModeEnum>(input);
-    if (isValidMapMode(mode)) {
-        return mode;
-    }
-
-    qWarning() << "invalid MapMode:" << input;
-    return MapModeEnum::PLAY;
-}
-
-NODISCARD static ThemeEnum sanitizeTheme(const uint32_t input)
-{
-    const auto theme = static_cast<ThemeEnum>(input);
-    if (isValidTheme(theme)) {
-        return theme;
-    }
-
-    qWarning() << "invalid ThemeEnum:" << input;
-    return ThemeEnum::System;
-}
-
-NODISCARD static CharacterEncodingEnum sanitizeCharacterEncoding(const uint32_t input)
-{
-    const auto encoding = static_cast<CharacterEncodingEnum>(input);
-    if (isValidCharacterEncoding(encoding)) {
-        return encoding;
-    }
-
-    qWarning() << "invalid CharacterEncodingEnum:" << input;
-    return CharacterEncodingEnum::LATIN1;
-}
-
-NODISCARD static AutoLoggerEnum sanitizeAutoLoggerState(const int input)
-{
-    const auto state = static_cast<AutoLoggerEnum>(input);
-    if (isValidAutoLoggerState(state)) {
-        return state;
-    }
-
-    qWarning() << "invalid AutoLoggerEnum:" << input;
-    return AutoLoggerEnum::DeleteDays;
-}
-
-NODISCARD static uint16_t sanitizeUint16(const int input, const uint16_t defaultValue)
-{
-    static constexpr const auto MIN = static_cast<int>(std::numeric_limits<uint16_t>::min());
-    static constexpr const auto MAX = static_cast<int>(std::numeric_limits<uint16_t>::max());
-
-    if (isClamped(input, MIN, MAX)) {
-        return static_cast<uint16_t>(input);
-    }
-
-    qWarning() << "invalid uint16: " << input;
-    return defaultValue;
-}
-
-#define GROUP_CALLBACK(callback, name, ref) \
-    do { \
-        conf.beginGroup(name); \
-        ref.callback(conf); \
-        conf.endGroup(); \
-    } while (false)
-
-#define FOREACH_CONFIG_GROUP(callback) \
-    do { \
-        GROUP_CALLBACK(callback, GRP_GENERAL, general); \
-        GROUP_CALLBACK(callback, GRP_CONNECTION, connection); \
-        GROUP_CALLBACK(callback, GRP_CANVAS, canvas); \
-        GROUP_CALLBACK(callback, GRP_ACCOUNT, account); \
-        GROUP_CALLBACK(callback, GRP_AUTO_LOAD_WORLD, autoLoad); \
-        GROUP_CALLBACK(callback, GRP_AUTO_LOG, autoLog); \
-        GROUP_CALLBACK(callback, GRP_PARSER, parser); \
-        GROUP_CALLBACK(callback, GRP_MUME_CLIENT_PROTOCOL, mumeClientProtocol); \
-        GROUP_CALLBACK(callback, GRP_MUME_NATIVE, mumeNative); \
-        GROUP_CALLBACK(callback, GRP_PATH_MACHINE, pathMachine); \
-        GROUP_CALLBACK(callback, GRP_GROUP_MANAGER, groupManager); \
-        GROUP_CALLBACK(callback, GRP_MUME_CLOCK, mumeClock); \
-        GROUP_CALLBACK(callback, GRP_ADVENTURE_PANEL, adventurePanel); \
-        GROUP_CALLBACK(callback, GRP_AUDIO, audio); \
-        GROUP_CALLBACK(callback, GRP_INTEGRATED_MUD_CLIENT, integratedClient); \
-        GROUP_CALLBACK(callback, GRP_INFOMARKS_DIALOG, infomarksDialog); \
-        GROUP_CALLBACK(callback, GRP_ROOMEDIT_DIALOG, roomEditDialog); \
-        GROUP_CALLBACK(callback, GRP_ROOM_PANEL, roomPanel); \
-        GROUP_CALLBACK(callback, GRP_FINDROOMS_DIALOG, findRoomsDialog); \
-        GROUP_CALLBACK(callback, GRP_HOTKEYS, hotkeys); \
-    } while (false)
-
-void Configuration::read()
-{
-    SETTINGS(conf);
-    readFrom(conf);
-}
-
-void Configuration::write() const
-{
-    SETTINGS(conf);
-    writeTo(conf);
-}
-
-void Configuration::readFrom(QSettings &conf)
-{
-    // reset to defaults before reading colors that might override them
-    colorSettings.resetToDefaults();
-
-    FOREACH_CONFIG_GROUP(read);
-
-    // This logic only runs once on a MMapper fresh install (or factory reset)
-    // Subsequent MMapper starts will always read "firstRun" as false
-    if (general.firstRun) {
-        // New users get the 3D canvas but old users do not
-        canvas.advanced.use3D.set(true);
-
-        // New users get autologger turned on by default
-        autoLog.autoLog = (CURRENT_PLATFORM != PlatformEnum::Wasm);
-
-        hotkeys.resetToDefault();
-    }
-
-    assert(canvas.backgroundColor == colorSettings.BACKGROUND);
-    assert(canvas.roomDarkColor == colorSettings.ROOM_DARK);
-    assert(canvas.roomDarkLitColor == colorSettings.ROOM_NO_SUNDEATH);
-
-    assert(colorSettings.TRANSPARENT->isTransparent());
-    assert(!colorSettings.BACKGROUND->isTransparent());
-}
-
-void Configuration::writeTo(QSettings &conf) const
-{
-    FOREACH_CONFIG_GROUP(write);
-}
-
-void Configuration::reset()
-{
-    {
-        // Purge old organization settings first to prevent them from being migrated
-        QSettings oldConf(OLD_SETTINGS_ORGANIZATION, SETTINGS_APPLICATION);
-        oldConf.clear();
-    }
-    {
-        // Purge new organization settings
-        SETTINGS(conf);
-        conf.clear();
-    }
-
-    // Reload defaults
-    read();
-}
-
-#undef FOREACH_CONFIG_GROUP
-#undef GROUP_CALLBACK
-
-ConstString DEFAULT_MMAPPER_SUBDIR = "/MMapper";
-ConstString DEFAULT_LOGS_SUBDIR = "/Logs";
-ConstString DEFAULT_RESOURCES_SUBDIR = "/Resources";
-
-NODISCARD static QString getDefaultDirectory()
-{
-    return QDir(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).absolutePath();
-}
-
 void Configuration::GeneralSettings::read(const QSettings &conf)
 {
-    firstRun.set(conf.value(KEY_RUN_FIRST_TIME, true).toBool());
+    firstRun.read(conf);
     /*
      * REVISIT: It's basically impossible to verify that this state is valid,
      * because we have no idea what it contains!
@@ -644,40 +471,45 @@ void Configuration::GeneralSettings::read(const QSettings &conf)
      * (or better yet sign it), and record the OS config, so that we won't
      * try to apply Windows settings to Mac, or Gnome settings to KDE, etc?
      */
-    windowGeometry.set(conf.value(KEY_WINDOW_GEOMETRY).toByteArray());
-    windowState.set(conf.value(KEY_WINDOW_STATE).toByteArray());
-    alwaysOnTop.set(conf.value(KEY_ALWAYS_ON_TOP, false).toBool());
-    showStatusBar.set(conf.value(KEY_SHOW_STATUS_BAR, true).toBool());
-    showScrollBars.set(conf.value(KEY_SHOW_SCROLL_BARS, true).toBool());
-    showMenuBar.set(conf.value(KEY_SHOW_MENU_BAR, true).toBool());
-    mapMode.set(sanitizeMapMode(
-        conf.value(KEY_MAP_MODE, static_cast<uint32_t>(MapModeEnum::PLAY)).toUInt()));
-    checkForUpdate.set(conf.value(KEY_CHECK_FOR_UPDATE, true).toBool());
-    characterEncoding.set(sanitizeCharacterEncoding(
-        conf.value(KEY_CHARACTER_ENCODING, static_cast<uint32_t>(CharacterEncodingEnum::LATIN1))
-            .toUInt()));
-    theme.set(
-        sanitizeTheme(conf.value(KEY_THEME, static_cast<uint32_t>(ThemeEnum::System)).toUInt()));
+    windowGeometry.read(conf);
+    windowState.read(conf);
+    alwaysOnTop.read(conf);
+    showStatusBar.read(conf);
+    showScrollBars.read(conf);
+    showMenuBar.read(conf);
+
+    mapMode.m_validator = [](MapModeEnum val) {
+        return isValidMapMode(val) ? val : MapModeEnum::PLAY;
+    };
+    mapMode.read(conf);
+
+    checkForUpdate.read(conf);
+
+    characterEncoding.m_validator = [](CharacterEncodingEnum val) {
+        return isValidCharacterEncoding(val) ? val : CharacterEncodingEnum::LATIN1;
+    };
+    characterEncoding.read(conf);
+
+    theme.m_validator = [](ThemeEnum val) { return isValidTheme(val) ? val : ThemeEnum::System; };
+    theme.read(conf);
 }
 
 void Configuration::ConnectionSettings::read(const QSettings &conf)
 {
-    static constexpr const int DEFAULT_PORT = 4242;
-
-    remoteServerName.set(conf.value(KEY_SERVER_NAME, "mume.org").toString());
-    remotePort.set(sanitizeUint16(conf.value(KEY_MUME_REMOTE_PORT, DEFAULT_PORT).toInt(),
-                                  static_cast<uint16_t>(DEFAULT_PORT)));
-    localPort.set(sanitizeUint16(conf.value(KEY_PROXY_LOCAL_PORT, DEFAULT_PORT).toInt(),
-                                 static_cast<uint16_t>(DEFAULT_PORT)));
+    remoteServerName.read(conf);
+    remotePort.read(conf);
+    localPort.read(conf);
 #ifndef Q_OS_WASM
     // REVISIT: This should be true if WebSocket mode is enabled?
-    tlsEncryption.set(QSslSocket::supportsSsl() ? conf.value(KEY_TLS_ENCRYPTION, true).toBool()
-                                                : false);
+    tlsEncryption.read(conf);
+    if (!QSslSocket::supportsSsl()) {
+        tlsEncryption.set(false);
+    }
 #else
     tlsEncryption.set(true);
 #endif
-    proxyConnectionStatus.set(conf.value(KEY_PROXY_CONNECTION_STATUS, false).toBool());
-    proxyListensOnAnyInterface.set(conf.value(KEY_PROXY_LISTENS_ON_ANY_INTERFACE, false).toBool());
+    proxyConnectionStatus.read(conf);
+    proxyListensOnAnyInterface.read(conf);
 }
 
 // closest well-known color is "Outer Space"
@@ -689,377 +521,376 @@ static constexpr const std::string_view DEFAULT_NO_SUNDEATH_COLOR = "#D4C7C7";
 
 void Configuration::CanvasSettings::read(const QSettings &conf)
 {
-    // REVISIT: Consider just using the "current" value of the named color object,
-    // since we can assume they're initialized before the values are read.
-    const auto lookupColor = [&conf](const char *const key, std::string_view def) {
-        // NOTE: string_view isn't guaranteed to be null-terminated,
-        // but wow... this is a complicated way of passing the exact same value.
-        const auto qdef = QColor(QString(std::string{def}.c_str())).name();
-        return Color(QColor(conf.value(key, qdef).toString()));
-    };
-
-    resourcesDirectory.set(conf.value(KEY_RESOURCES_DIRECTORY,
+    resourcesDirectory.set(conf.value("canvas.resourcesDir",
                                       getDefaultDirectory()
                                           .append(DEFAULT_MMAPPER_SUBDIR)
                                           .append(DEFAULT_RESOURCES_SUBDIR))
                                .toString());
-    showMissingMapId.set(conf.value(KEY_SHOW_MISSING_MAP_ID, true).toBool());
-    showUnsavedChanges.set(conf.value(KEY_SHOW_UNSAVED_CHANGES, true).toBool());
-    showUnmappedExits.set(conf.value(KEY_DRAW_NOT_MAPPED_EXITS, true).toBool());
-    drawUpperLayersTextured.set(conf.value(KEY_DRAW_UPPER_LAYERS_TEXTURED, false).toBool());
-    drawDoorNames.set(conf.value(KEY_DRAW_DOOR_NAMES, true).toBool());
-    backgroundColor = lookupColor(KEY_BACKGROUND_COLOR, DEFAULT_BGCOLOR);
-    connectionNormalColor = lookupColor(KEY_CONNECTION_NORMAL_COLOR, Colors::white.toHex());
-    roomDarkColor = lookupColor(KEY_ROOM_DARK_COLOR, DEFAULT_DARK_COLOR);
-    roomDarkLitColor = lookupColor(KEY_ROOM_DARK_LIT_COLOR, DEFAULT_NO_SUNDEATH_COLOR);
-    antialiasingSamples.set(conf.value(KEY_NUMBER_OF_ANTI_ALIASING_SAMPLES, 0).toInt());
-    trilinearFiltering.set(conf.value(KEY_USE_TRILINEAR_FILTERING, true).toBool());
-    advanced.use3D.set(conf.value(KEY_3D_CANVAS, false).toBool());
-    advanced.autoTilt.set(conf.value(KEY_3D_AUTO_TILT, true).toBool());
-    advanced.printPerfStats.set(conf.value(KEY_3D_PERFSTATS, IS_DEBUG_BUILD).toBool());
-    advanced.maximumFps.set(conf.value(KEY_MAXIMUM_FPS, 60).toInt());
-    advanced.fov.set(conf.value(KEY_3D_FOV, 765).toInt());
-    advanced.verticalAngle.set(conf.value(KEY_3D_VERTICAL_ANGLE, 450).toInt());
-    advanced.horizontalAngle.set(conf.value(KEY_3D_HORIZONTAL_ANGLE, 0).toInt());
-    advanced.layerHeight.set(conf.value(KEY_3D_LAYER_HEIGHT, 15).toInt());
+    antialiasingSamples.read(conf);
+    trilinearFiltering.read(conf);
+    showMissingMapId.read(conf);
+    showUnsavedChanges.read(conf);
+    showUnmappedExits.read(conf);
+    drawUpperLayersTextured.read(conf);
+    drawDoorNames.read(conf);
+    softwareOpenGL.read(conf);
 
-    weatherAtmosphereIntensity.set(conf.value(KEY_WEATHER_ATMOSPHERE_INTENSITY, 50).toInt());
-    weatherPrecipitationIntensity.set(conf.value(KEY_WEATHER_PRECIPITATION_INTENSITY, 50).toInt());
-    weatherTimeOfDayIntensity.set(conf.value(KEY_WEATHER_TIME_OF_DAY_INTENSITY, 50).toInt());
+    backgroundColor.read(conf);
+    connectionNormalColor.read(conf);
+    roomDarkColor.read(conf);
+    roomDarkLitColor.read(conf);
 
+    advanced.use3D.read(conf);
+    advanced.autoTilt.read(conf);
+    advanced.printPerfStats.read(conf);
+    advanced.maximumFps.read(conf);
+    advanced.fov.read(conf);
+    advanced.verticalAngle.read(conf);
+    advanced.horizontalAngle.read(conf);
+    advanced.layerHeight.read(conf);
+
+    weatherAtmosphereIntensity.read(conf);
     weatherAtmosphereIntensity.clamp(0, 100);
+    weatherPrecipitationIntensity.read(conf);
     weatherPrecipitationIntensity.clamp(0, 100);
+    weatherTimeOfDayIntensity.read(conf);
     weatherTimeOfDayIntensity.clamp(0, 100);
 }
 
 void Configuration::AccountSettings::read(const QSettings &conf)
 {
-    accountName.set(conf.value(KEY_ACCOUNT_NAME, "").toString());
-    accountPassword.set(conf.value(KEY_ACCOUNT_PASSWORD, false).toBool());
-    rememberLogin.set(NO_QTKEYCHAIN ? false : conf.value(KEY_REMEMBER_LOGIN, false).toBool());
+    accountName.read(conf);
+    accountPassword.read(conf);
+    rememberLogin.read(conf);
+    if constexpr (NO_QTKEYCHAIN) {
+        rememberLogin.set(false);
+    }
 }
 
 void Configuration::AutoLoadSettings::read(const QSettings &conf)
 {
-    autoLoadMap.set(conf.value(KEY_AUTO_LOAD, true).toBool());
-    fileName.set(conf.value(KEY_FILE_NAME, "").toString());
-    lastMapDirectory.set(conf.value(KEY_LAST_MAP_LOAD_DIRECTORY,
-                                    getDefaultDirectory().append(DEFAULT_MMAPPER_SUBDIR))
-                             .toString());
+    autoLoadMap.read(conf);
+    fileName.read(conf);
+    lastMapDirectory.set(
+        conf.value("Last map load directory", getDefaultDirectory().append(DEFAULT_MMAPPER_SUBDIR))
+            .toString());
 }
 
 void Configuration::AutoLogSettings::read(const QSettings &conf)
 {
     autoLogDirectory.set(
-        conf.value(KEY_AUTO_LOG_DIRECTORY,
+        conf.value("Auto log directory",
                    getDefaultDirectory().append(DEFAULT_MMAPPER_SUBDIR).append(DEFAULT_LOGS_SUBDIR))
             .toString());
-    autoLog.set(conf.value(KEY_AUTO_LOG, false).toBool());
-    rotateWhenLogsReachBytes.set(conf.value(KEY_AUTO_LOG_ROTATE_SIZE_BYTES, 10 * 1000000).toInt());
-    askDelete.set(conf.value(KEY_AUTO_LOG_ASK_DELETE, false).toBool());
-    cleanupStrategy.set(sanitizeAutoLoggerState(
-        conf.value(KEY_AUTO_LOG_CLEANUP_STRATEGY, static_cast<int>(AutoLoggerEnum::DeleteDays))
-            .toInt()));
-    deleteWhenLogsReachDays.set(conf.value(KEY_AUTO_LOG_DELETE_AFTER_DAYS, 30).toInt());
-    deleteWhenLogsReachBytes.set(conf.value(KEY_AUTO_LOG_DELETE_AFTER_BYTES, 100 * 1000000).toInt());
+    autoLog.read(conf);
+    rotateWhenLogsReachBytes.read(conf);
+    askDelete.read(conf);
+
+    cleanupStrategy.m_validator = [](AutoLoggerEnum val) {
+        return isValidAutoLoggerState(val) ? val : AutoLoggerEnum::DeleteDays;
+    };
+    cleanupStrategy.read(conf);
+
+    deleteWhenLogsReachDays.read(conf);
+    deleteWhenLogsReachBytes.read(conf);
 }
 
 void Configuration::ParserSettings::read(const QSettings &conf)
 {
-    static constexpr const char *const ANSI_GREEN = "[32m";
-    static constexpr const char *const ANSI_RESET = "[0m";
+    roomNameColor.m_validator = [](QString val) { return isValidAnsi(val) ? val : "[32m"; };
+    roomNameColor.read(conf);
 
-    roomNameColor.set(sanitizeAnsi(conf.value(KEY_ROOM_NAME_ANSI_COLOR, ANSI_GREEN).toString(),
-                                   QString(ANSI_GREEN)));
-    roomDescColor.set(sanitizeAnsi(conf.value(KEY_ROOM_DESC_ANSI_COLOR, ANSI_RESET).toString(),
-                                   QString(ANSI_RESET)));
-    prefixChar.set(mmqt::toLatin1(
-        conf.value(KEY_COMMAND_PREFIX_CHAR, QChar::fromLatin1(char_consts::C_UNDERSCORE)).toChar()));
-    encodeEmoji.set(conf.value(KEY_EMOJI_ENCODE, true).toBool());
-    decodeEmoji.set(conf.value(KEY_EMOJI_DECODE, true).toBool());
+    roomDescColor.m_validator = [](QString val) { return isValidAnsi(val) ? val : "[0m"; };
+    roomDescColor.read(conf);
+
+    prefixChar.read(conf);
+    encodeEmoji.read(conf);
+    decodeEmoji.read(conf);
 }
 
 void Configuration::MumeClientProtocolSettings::read(const QSettings &conf)
 {
-    internalRemoteEditor.set(conf.value(KEY_USE_INTERNAL_EDITOR, true).toBool());
+    internalRemoteEditor.read(conf);
     externalRemoteEditorCommand.set(
-        conf.value(KEY_EXTERNAL_EDITOR_COMMAND, getPlatformEditor()).toString());
+        conf.value("External editor command", getPlatformEditor()).toString());
 }
 
 void Configuration::MumeNativeSettings::read(const QSettings &conf)
 {
-    emulatedExits.set(conf.value(KEY_EMULATED_EXITS, true).toBool());
-    showHiddenExitFlags.set(conf.value(KEY_SHOW_HIDDEN_EXIT_FLAGS, true).toBool());
-    showNotes.set(conf.value(KEY_SHOW_NOTES, true).toBool());
+    emulatedExits.read(conf);
+    showHiddenExitFlags.read(conf);
+    showNotes.read(conf);
 }
 
 void Configuration::PathMachineSettings::read(const QSettings &conf)
 {
-    acceptBestRelative.set(conf.value(KEY_RELATIVE_PATH_ACCEPTANCE, 25).toDouble());
-    acceptBestAbsolute.set(conf.value(KEY_ABSOLUTE_PATH_ACCEPTANCE, 6).toDouble());
-    newRoomPenalty.set(conf.value(KEY_ROOM_CREATION_PENALTY, 5).toDouble());
-    correctPositionBonus.set(conf.value(KEY_CORRECT_POSITION_BONUS, 5).toDouble());
-    multipleConnectionsPenalty.set(conf.value(KEY_MULTIPLE_CONNECTIONS_PENALTY, 2.0).toDouble());
-    maxPaths.set(utils::clampNonNegative(conf.value(KEY_MAXIMUM_NUMBER_OF_PATHS, 1000).toInt()));
-    matchingTolerance.set(
-        utils::clampNonNegative(conf.value(KEY_ROOM_MATCHING_TOLERANCE, 8).toInt()));
+    acceptBestRelative.read(conf);
+    acceptBestAbsolute.read(conf);
+    newRoomPenalty.read(conf);
+    correctPositionBonus.read(conf);
+    multipleConnectionsPenalty.read(conf);
+    maxPaths.read(conf);
+    matchingTolerance.read(conf);
+
+    maxPaths.set(utils::clampNonNegative(maxPaths.get()));
+    matchingTolerance.set(utils::clampNonNegative(matchingTolerance.get()));
 }
 
 void Configuration::GroupManagerSettings::read(const QSettings &conf)
 {
-    color.set(QColor(conf.value(KEY_GROUP_YOUR_COLOR, "#FFFF00").toString()));
-    npcColor.set(QColor(conf.value(KEY_GROUP_NPC_COLOR, QColor(Qt::lightGray)).toString()));
-    npcColorOverride.set(conf.value(KEY_GROUP_NPC_COLOR_OVERRIDE, false).toBool());
-    npcHide.set(conf.value(KEY_GROUP_NPC_HIDE, false).toBool());
-    npcSortBottom.set(conf.value(KEY_GROUP_NPC_SORT_BOTTOM, false).toBool());
+    color.read(conf);
+    npcColor.read(conf);
+    npcColorOverride.read(conf);
+    npcHide.read(conf);
+    npcSortBottom.read(conf);
 }
 
 void Configuration::MumeClockSettings::read(const QSettings &conf)
 {
-    // NOTE: old values might be stored as int32
-    startEpoch.set(conf.value(KEY_MUME_START_EPOCH, 1517443173).toLongLong());
-    display.set(conf.value(KEY_DISPLAY_CLOCK, true).toBool());
+    startEpoch.read(conf);
+    display.read(conf);
 }
 
 void Configuration::AdventurePanelSettings::read(const QSettings &conf)
 {
-    displayXPStatus.set(conf.value(KEY_DISPLAY_XP_STATUS, true).toBool());
+    displayXPStatus.read(conf);
 }
 
 void Configuration::AudioSettings::read(const QSettings &conf)
 {
-    unlocked.set((CURRENT_PLATFORM == PlatformEnum::Wasm)
-                     ? false
-                     : conf.value(KEY_AUDIO_UNLOCKED, false).toBool());
-    musicVolume.set(std::clamp(conf.value(KEY_MUSIC_VOLUME, 50).toInt(), 0, 100));
-    soundVolume.set(std::clamp(conf.value(KEY_SOUND_VOLUME, 50).toInt(), 0, 100));
-    outputDeviceId.set(conf.value(KEY_AUDIO_OUTPUT_DEVICE).toByteArray());
+    unlocked.read(conf);
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+        unlocked.set(false);
+    }
+    musicVolume.read(conf);
+    musicVolume.clamp(0, 100);
+    soundVolume.read(conf);
+    soundVolume.clamp(0, 100);
+    outputDeviceId.read(conf);
 }
 
 void Configuration::IntegratedMudClientSettings::read(const QSettings &conf)
 {
-    font.set(conf.value(KEY_FONT, "").toString());
-    backgroundColor.set(conf.value(KEY_BACKGROUND_COLOR, QColor(Qt::black).name()).toString());
-    foregroundColor.set(conf.value(KEY_FOREGROUND_COLOR, QColor(Qt::lightGray).name()).toString());
-    columns.set(conf.value(KEY_COLUMNS, 80).toInt());
-    rows.set(conf.value(KEY_ROWS, 24).toInt());
-    linesOfScrollback.set(conf.value(KEY_LINES_OF_SCROLLBACK, 10000).toInt());
-    linesOfInputHistory.set(conf.value(KEY_LINES_OF_INPUT_HISTORY, 100).toInt());
-    tabCompletionDictionarySize.set(conf.value(KEY_TAB_COMPLETION_DICTIONARY_SIZE, 100).toInt());
-    clearInputOnEnter.set(conf.value(KEY_CLEAR_INPUT_ON_ENTER, false).toBool());
-    autoResizeTerminal.set(conf.value(KEY_AUTO_RESIZE_TERMINAL, true).toBool());
-    linesOfPeekPreview.set(conf.value(KEY_LINES_OF_PEEK_PREVIEW, 7).toInt());
-    audibleBell.set(conf.value(KEY_BELL_AUDIBLE, true).toBool());
-    visualBell.set(conf.value(KEY_BELL_VISUAL, (CURRENT_PLATFORM == PlatformEnum::Wasm)).toBool());
-    useCommandSeparator.set(conf.value(KEY_USE_COMMAND_SEPARATOR, false).toBool());
-    commandSeparator.set(
-        conf.value(KEY_COMMAND_SEPARATOR, QString(char_consts::C_SEMICOLON)).toString());
+    font.read(conf);
+    backgroundColor.read(conf);
+    foregroundColor.read(conf);
+    columns.read(conf);
+    rows.read(conf);
+    linesOfScrollback.read(conf);
+    linesOfInputHistory.read(conf);
+    tabCompletionDictionarySize.read(conf);
+    clearInputOnEnter.read(conf);
+    autoResizeTerminal.read(conf);
+    linesOfPeekPreview.read(conf);
+    audibleBell.read(conf);
+    visualBell.read(conf);
+    useCommandSeparator.read(conf);
+    commandSeparator.read(conf);
 }
 
 void Configuration::RoomPanelSettings::read(const QSettings &conf)
 {
-    geometry.set(conf.value(KEY_WINDOW_GEOMETRY).toByteArray());
+    geometry.read(conf);
 }
 
 void Configuration::InfomarksDialog::read(const QSettings &conf)
 {
-    geometry.set(conf.value(KEY_WINDOW_GEOMETRY).toByteArray());
+    geometry.read(conf);
 }
 
 void Configuration::RoomEditDialog::read(const QSettings &conf)
 {
-    geometry.set(conf.value(KEY_WINDOW_GEOMETRY).toByteArray());
+    geometry.read(conf);
 }
 
 void Configuration::FindRoomsDialog::read(const QSettings &conf)
 {
-    geometry.set(conf.value(KEY_WINDOW_GEOMETRY).toByteArray());
+    geometry.read(conf);
 }
 
 void Configuration::GeneralSettings::write(QSettings &conf) const
 {
-    conf.setValue(KEY_RUN_FIRST_TIME, false);
-    conf.setValue(KEY_WINDOW_GEOMETRY, windowGeometry.get());
-    conf.setValue(KEY_WINDOW_STATE, windowState.get());
-    conf.setValue(KEY_ALWAYS_ON_TOP, alwaysOnTop.get());
-    conf.setValue(KEY_SHOW_STATUS_BAR, showStatusBar.get());
-    conf.setValue(KEY_SHOW_SCROLL_BARS, showScrollBars.get());
-    conf.setValue(KEY_SHOW_MENU_BAR, showMenuBar.get());
-    conf.setValue(KEY_MAP_MODE, static_cast<uint32_t>(mapMode.get()));
-    conf.setValue(KEY_CHECK_FOR_UPDATE, checkForUpdate.get());
-    conf.setValue(KEY_CHARACTER_ENCODING, static_cast<uint32_t>(characterEncoding.get()));
-    conf.setValue(KEY_THEME, static_cast<uint32_t>(theme.get()));
+    firstRun.write(conf);
+    windowGeometry.write(conf);
+    windowState.write(conf);
+    alwaysOnTop.write(conf);
+    showStatusBar.write(conf);
+    showScrollBars.write(conf);
+    showMenuBar.write(conf);
+    mapMode.write(conf);
+    checkForUpdate.write(conf);
+    characterEncoding.write(conf);
+    theme.write(conf);
 }
 
 void Configuration::ConnectionSettings::write(QSettings &conf) const
 {
-    conf.setValue(KEY_SERVER_NAME, remoteServerName.get());
-    conf.setValue(KEY_MUME_REMOTE_PORT, static_cast<int>(remotePort.get()));
-    conf.setValue(KEY_PROXY_LOCAL_PORT, static_cast<int>(localPort.get()));
-    conf.setValue(KEY_TLS_ENCRYPTION, tlsEncryption.get());
-    conf.setValue(KEY_PROXY_CONNECTION_STATUS, proxyConnectionStatus.get());
-    conf.setValue(KEY_PROXY_LISTENS_ON_ANY_INTERFACE, proxyListensOnAnyInterface.get());
-}
-
-NODISCARD static auto getQColorName(const Color &color)
-{
-    return color.getQColor().name();
+    remoteServerName.write(conf);
+    remotePort.write(conf);
+    localPort.write(conf);
+    tlsEncryption.write(conf);
+    proxyConnectionStatus.write(conf);
+    proxyListensOnAnyInterface.write(conf);
 }
 
 void Configuration::CanvasSettings::write(QSettings &conf) const
 {
-    conf.setValue(KEY_RESOURCES_DIRECTORY, resourcesDirectory.get());
-    conf.setValue(KEY_SHOW_MISSING_MAP_ID, showMissingMapId.get());
-    conf.setValue(KEY_SHOW_UNSAVED_CHANGES, showUnsavedChanges.get());
-    conf.setValue(KEY_DRAW_NOT_MAPPED_EXITS, showUnmappedExits.get());
-    conf.setValue(KEY_DRAW_UPPER_LAYERS_TEXTURED, drawUpperLayersTextured.get());
-    conf.setValue(KEY_DRAW_DOOR_NAMES, drawDoorNames.get());
-    conf.setValue(KEY_BACKGROUND_COLOR, getQColorName(backgroundColor));
-    conf.setValue(KEY_ROOM_DARK_COLOR, getQColorName(roomDarkColor));
-    conf.setValue(KEY_ROOM_DARK_LIT_COLOR, getQColorName(roomDarkLitColor));
-    conf.setValue(KEY_CONNECTION_NORMAL_COLOR, getQColorName(connectionNormalColor));
-    conf.setValue(KEY_NUMBER_OF_ANTI_ALIASING_SAMPLES, antialiasingSamples.get());
-    conf.setValue(KEY_USE_TRILINEAR_FILTERING, trilinearFiltering.get());
-    conf.setValue(KEY_3D_CANVAS, advanced.use3D.get());
-    conf.setValue(KEY_3D_AUTO_TILT, advanced.autoTilt.get());
-    conf.setValue(KEY_3D_PERFSTATS, advanced.printPerfStats.get());
-    conf.setValue(KEY_MAXIMUM_FPS, advanced.maximumFps.get());
-    conf.setValue(KEY_3D_FOV, advanced.fov.get());
-    conf.setValue(KEY_3D_VERTICAL_ANGLE, advanced.verticalAngle.get());
-    conf.setValue(KEY_3D_HORIZONTAL_ANGLE, advanced.horizontalAngle.get());
-    conf.setValue(KEY_3D_LAYER_HEIGHT, advanced.layerHeight.get());
+    resourcesDirectory.write(conf);
+    antialiasingSamples.write(conf);
+    trilinearFiltering.write(conf);
+    showMissingMapId.write(conf);
+    showUnsavedChanges.write(conf);
+    showUnmappedExits.write(conf);
+    drawUpperLayersTextured.write(conf);
+    drawDoorNames.write(conf);
+    softwareOpenGL.write(conf);
 
-    conf.setValue(KEY_WEATHER_ATMOSPHERE_INTENSITY, weatherAtmosphereIntensity.get());
-    conf.setValue(KEY_WEATHER_PRECIPITATION_INTENSITY, weatherPrecipitationIntensity.get());
-    conf.setValue(KEY_WEATHER_TIME_OF_DAY_INTENSITY, weatherTimeOfDayIntensity.get());
+    backgroundColor.write(conf);
+    connectionNormalColor.write(conf);
+    roomDarkColor.write(conf);
+    roomDarkLitColor.write(conf);
+
+    advanced.use3D.write(conf);
+    advanced.autoTilt.write(conf);
+    advanced.printPerfStats.write(conf);
+    advanced.maximumFps.write(conf);
+    advanced.fov.write(conf);
+    advanced.verticalAngle.write(conf);
+    advanced.horizontalAngle.write(conf);
+    advanced.layerHeight.write(conf);
+
+    weatherAtmosphereIntensity.write(conf);
+    weatherPrecipitationIntensity.write(conf);
+    weatherTimeOfDayIntensity.write(conf);
 }
 
 void Configuration::AccountSettings::write(QSettings &conf) const
 {
-    conf.setValue(KEY_ACCOUNT_NAME, accountName.get());
-    conf.setValue(KEY_ACCOUNT_PASSWORD, accountPassword.get());
-    conf.setValue(KEY_REMEMBER_LOGIN, rememberLogin.get());
+    accountName.write(conf);
+    accountPassword.write(conf);
+    rememberLogin.write(conf);
 }
 
 void Configuration::AutoLoadSettings::write(QSettings &conf) const
 {
-    conf.setValue(KEY_AUTO_LOAD, autoLoadMap.get());
-    conf.setValue(KEY_FILE_NAME, fileName.get());
-    conf.setValue(KEY_LAST_MAP_LOAD_DIRECTORY, lastMapDirectory.get());
+    autoLoadMap.write(conf);
+    fileName.write(conf);
+    lastMapDirectory.write(conf);
 }
 
 void Configuration::AutoLogSettings::write(QSettings &conf) const
 {
-    conf.setValue(KEY_AUTO_LOG, autoLog.get());
-    conf.setValue(KEY_AUTO_LOG_CLEANUP_STRATEGY, static_cast<int>(cleanupStrategy.get()));
-    conf.setValue(KEY_AUTO_LOG_DIRECTORY, autoLogDirectory.get());
-    conf.setValue(KEY_AUTO_LOG_ROTATE_SIZE_BYTES, rotateWhenLogsReachBytes.get());
-    conf.setValue(KEY_AUTO_LOG_ASK_DELETE, askDelete.get());
-    conf.setValue(KEY_AUTO_LOG_DELETE_AFTER_DAYS, deleteWhenLogsReachDays.get());
-    conf.setValue(KEY_AUTO_LOG_DELETE_AFTER_BYTES, deleteWhenLogsReachBytes.get());
+    autoLog.write(conf);
+    cleanupStrategy.write(conf);
+    autoLogDirectory.write(conf);
+    rotateWhenLogsReachBytes.write(conf);
+    askDelete.write(conf);
+    deleteWhenLogsReachDays.write(conf);
+    deleteWhenLogsReachBytes.write(conf);
 }
 
 void Configuration::ParserSettings::write(QSettings &conf) const
 {
-    conf.setValue(KEY_ROOM_NAME_ANSI_COLOR, roomNameColor.get());
-    conf.setValue(KEY_ROOM_DESC_ANSI_COLOR, roomDescColor.get());
-    conf.setValue(KEY_COMMAND_PREFIX_CHAR, QChar::fromLatin1(prefixChar.get()));
-    conf.setValue(KEY_EMOJI_ENCODE, encodeEmoji.get());
-    conf.setValue(KEY_EMOJI_DECODE, decodeEmoji.get());
+    roomNameColor.write(conf);
+    roomDescColor.write(conf);
+    prefixChar.write(conf);
+    encodeEmoji.write(conf);
+    decodeEmoji.write(conf);
 }
 
 void Configuration::MumeNativeSettings::write(QSettings &conf) const
 {
-    conf.setValue(KEY_EMULATED_EXITS, emulatedExits.get());
-    conf.setValue(KEY_SHOW_HIDDEN_EXIT_FLAGS, showHiddenExitFlags.get());
-    conf.setValue(KEY_SHOW_NOTES, showNotes.get());
+    emulatedExits.write(conf);
+    showHiddenExitFlags.write(conf);
+    showNotes.write(conf);
 }
 
 void Configuration::MumeClientProtocolSettings::write(QSettings &conf) const
 {
-    conf.setValue(KEY_USE_INTERNAL_EDITOR, internalRemoteEditor.get());
-    conf.setValue(KEY_EXTERNAL_EDITOR_COMMAND, externalRemoteEditorCommand.get());
+    internalRemoteEditor.write(conf);
+    externalRemoteEditorCommand.write(conf);
 }
 
 void Configuration::PathMachineSettings::write(QSettings &conf) const
 {
-    conf.setValue(KEY_RELATIVE_PATH_ACCEPTANCE, acceptBestRelative.get());
-    conf.setValue(KEY_ABSOLUTE_PATH_ACCEPTANCE, acceptBestAbsolute.get());
-    conf.setValue(KEY_ROOM_CREATION_PENALTY, newRoomPenalty.get());
-    conf.setValue(KEY_CORRECT_POSITION_BONUS, correctPositionBonus.get());
-    conf.setValue(KEY_MAXIMUM_NUMBER_OF_PATHS, utils::clampNonNegative(maxPaths.get()));
-    conf.setValue(KEY_ROOM_MATCHING_TOLERANCE, utils::clampNonNegative(matchingTolerance.get()));
-    conf.setValue(KEY_MULTIPLE_CONNECTIONS_PENALTY, multipleConnectionsPenalty.get());
+    acceptBestRelative.write(conf);
+    acceptBestAbsolute.write(conf);
+    newRoomPenalty.write(conf);
+    correctPositionBonus.write(conf);
+    maxPaths.write(conf);
+    matchingTolerance.write(conf);
+    multipleConnectionsPenalty.write(conf);
 }
 
 void Configuration::GroupManagerSettings::write(QSettings &conf) const
 {
-    conf.setValue(KEY_GROUP_YOUR_COLOR, color.get().name());
-    conf.setValue(KEY_GROUP_NPC_COLOR, npcColor.get());
-    conf.setValue(KEY_GROUP_NPC_COLOR_OVERRIDE, npcColorOverride.get());
-    conf.setValue(KEY_GROUP_NPC_HIDE, npcHide.get());
-    conf.setValue(KEY_GROUP_NPC_SORT_BOTTOM, npcSortBottom.get());
+    color.write(conf);
+    npcColor.write(conf);
+    npcColorOverride.write(conf);
+    npcHide.write(conf);
+    npcSortBottom.write(conf);
 }
 
 void Configuration::MumeClockSettings::write(QSettings &conf) const
 {
     // Note: There's no QVariant(int64_t) constructor.
-    conf.setValue(KEY_MUME_START_EPOCH, static_cast<qlonglong>(startEpoch.get()));
-    conf.setValue(KEY_DISPLAY_CLOCK, display.get());
+    conf.setValue(mmqt::toQStringUtf8(startEpoch.getKey()),
+                  static_cast<qlonglong>(startEpoch.get()));
+    display.write(conf);
 }
 
 void Configuration::AdventurePanelSettings::write(QSettings &conf) const
 {
-    conf.setValue(KEY_DISPLAY_XP_STATUS, displayXPStatus.get());
+    displayXPStatus.write(conf);
 }
 
 void Configuration::AudioSettings::write(QSettings &conf) const
 {
     if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
-        conf.setValue(KEY_AUDIO_UNLOCKED, unlocked.get());
+        unlocked.write(conf);
     }
-    conf.setValue(KEY_MUSIC_VOLUME, musicVolume.get());
-    conf.setValue(KEY_SOUND_VOLUME, soundVolume.get());
-    conf.setValue(KEY_AUDIO_OUTPUT_DEVICE, outputDeviceId.get());
+    musicVolume.write(conf);
+    soundVolume.write(conf);
+    outputDeviceId.write(conf);
 }
 
 void Configuration::IntegratedMudClientSettings::write(QSettings &conf) const
 {
-    conf.setValue(KEY_FONT, font.get());
-    conf.setValue(KEY_BACKGROUND_COLOR, backgroundColor.get().name());
-    conf.setValue(KEY_FOREGROUND_COLOR, foregroundColor.get().name());
-    conf.setValue(KEY_COLUMNS, columns.get());
-    conf.setValue(KEY_ROWS, rows.get());
-    conf.setValue(KEY_LINES_OF_SCROLLBACK, linesOfScrollback.get());
-    conf.setValue(KEY_LINES_OF_INPUT_HISTORY, linesOfInputHistory.get());
-    conf.setValue(KEY_TAB_COMPLETION_DICTIONARY_SIZE, tabCompletionDictionarySize.get());
-    conf.setValue(KEY_CLEAR_INPUT_ON_ENTER, clearInputOnEnter.get());
-    conf.setValue(KEY_AUTO_RESIZE_TERMINAL, autoResizeTerminal.get());
-    conf.setValue(KEY_LINES_OF_PEEK_PREVIEW, linesOfPeekPreview.get());
-    conf.setValue(KEY_BELL_AUDIBLE, audibleBell.get());
-    conf.setValue(KEY_BELL_VISUAL, visualBell.get());
-    conf.setValue(KEY_USE_COMMAND_SEPARATOR, useCommandSeparator.get());
-    conf.setValue(KEY_COMMAND_SEPARATOR, commandSeparator.get());
+    font.write(conf);
+    backgroundColor.write(conf);
+    foregroundColor.write(conf);
+    columns.write(conf);
+    rows.write(conf);
+    linesOfScrollback.write(conf);
+    linesOfInputHistory.write(conf);
+    tabCompletionDictionarySize.write(conf);
+    clearInputOnEnter.write(conf);
+    autoResizeTerminal.write(conf);
+    linesOfPeekPreview.write(conf);
+    audibleBell.write(conf);
+    visualBell.write(conf);
+    useCommandSeparator.write(conf);
+    commandSeparator.write(conf);
 }
 
 void Configuration::RoomPanelSettings::write(QSettings &conf) const
 {
-    conf.setValue(KEY_WINDOW_GEOMETRY, geometry.get());
+    geometry.write(conf);
 }
 
 void Configuration::InfomarksDialog::write(QSettings &conf) const
 {
-    conf.setValue(KEY_WINDOW_GEOMETRY, geometry.get());
+    geometry.write(conf);
 }
 
 void Configuration::RoomEditDialog::write(QSettings &conf) const
 {
-    conf.setValue(KEY_WINDOW_GEOMETRY, geometry.get());
+    geometry.write(conf);
 }
 
 void Configuration::FindRoomsDialog::write(QSettings &conf) const
 {
-    conf.setValue(KEY_WINDOW_GEOMETRY, geometry.get());
+    geometry.write(conf);
 }
 
 Configuration &setConfig()
@@ -1073,6 +904,13 @@ Configuration &setConfig()
 const Configuration &getConfig()
 {
     return setConfig();
+}
+
+Configuration::NamedColorOptions::NamedColorOptions()
+{
+#define X_INIT_COLOR(_id, _name) _id = ConfigValue<Color>("Colors/" _name, _name, Color());
+    XFOREACH_NAMED_COLOR_OPTIONS(X_INIT_COLOR)
+#undef X_INIT_COLOR
 }
 
 void Configuration::NamedColorOptions::resetToDefaults()
@@ -1122,19 +960,15 @@ void Configuration::NamedColorOptions::resetToDefaults()
 
 Configuration::CanvasSettings::Advanced::Advanced()
 {
-    for (NamedConfig<bool> *const it : {&use3D, &autoTilt, &printPerfStats}) {
-        const char *const name = it->getName().c_str();
+    for (auto *const it : {static_cast<ConfigValue<bool> *>(&use3D),
+                           static_cast<ConfigValue<bool> *>(&autoTilt),
+                           static_cast<ConfigValue<bool> *>(&printPerfStats)}) {
+        const char *const name = it->getKey().c_str();
         qInfo() << "Checking environment variable" << name;
         if (std::optional<bool> opt = utils::getEnvBool(name)) {
             const bool &val = opt.value();
             qInfo() << "Using value" << val << "from environment variable" << name;
             it->set(val);
-        }
-    }
-
-    if ((false)) {
-        for (const auto *it : {&fov, &verticalAngle, &horizontalAngle, &layerHeight}) {
-            static_cast<void>(it);
         }
     }
 }
@@ -1255,7 +1089,6 @@ const Configuration::ResolvedNamedColorOptions &getNamedColorOptions()
         tl_res.setFrom(getConfig().colorSettings);
         return tl_res;
     }
-
     return deref(tl_named_color_options);
 }
 
@@ -1267,7 +1100,6 @@ const Configuration::ResolvedCanvasNamedColorOptions &getCanvasNamedColorOptions
         tl_res.setFrom(getConfig().canvas);
         return tl_res;
     }
-
     return deref(tl_canvas_named_color_options);
 }
 

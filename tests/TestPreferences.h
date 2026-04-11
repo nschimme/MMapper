@@ -1,21 +1,24 @@
-#pragma once
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2025 The MMapper Authors
 
-#include "../src/global/macros.h"
+#pragma once
 
 #include <QObject>
 
-class NODISCARD_QOBJECT TestPreferences final : public QObject
+class TestPreferences : public QObject
 {
     Q_OBJECT
 
 public:
     TestPreferences();
-    ~TestPreferences() final;
+    ~TestPreferences() override;
 
-private Q_SLOTS:
+private slots:
     void initTestCase();
     void configValueTest();
     void configTest();
+    void configPersistenceTest();
+    void configLegacyColorTest();
+    void configValidatorTest();
+    void cleanupTestCase() {}
 };

@@ -215,19 +215,19 @@ AdvancedGraphicsGroupBox::AdvancedGraphicsGroupBox(QGroupBox &groupBox, Configur
 
     m_groupBox->setLayout(vertical);
 
-    connect(checkbox3d, &QCheckBox::stateChanged, this, [this, checkbox3d, autoTilt](int) {
+    connect(checkbox3d, &QCheckBox::toggled, this, [this, checkbox3d, autoTilt](bool) {
         const bool is3d = checkbox3d->isChecked();
         m_config.canvas.advanced.use3D.set(is3d);
         enableSsbs(is3d);
         autoTilt->setEnabled(is3d);
     });
 
-    connect(autoTilt, &QCheckBox::stateChanged, this, [this, autoTilt](int) {
+    connect(autoTilt, &QCheckBox::toggled, this, [this, autoTilt](bool) {
         const bool val = autoTilt->isChecked();
         m_config.canvas.advanced.autoTilt.set(val);
     });
 
-    connect(checkboxDiag, &QCheckBox::stateChanged, this, [this, checkboxDiag](int) {
+    connect(checkboxDiag, &QCheckBox::toggled, this, [this, checkboxDiag](bool) {
         const bool show = checkboxDiag->isChecked();
         m_config.canvas.advanced.printPerfStats.set(show);
     });

@@ -51,9 +51,9 @@ private:
 
 public slots:
     void slot_loadConfig();
-    void slot_drawNeedsUpdateStateChanged(int);
-    void slot_drawNotMappedExitsStateChanged(int);
-    void slot_drawDoorNamesStateChanged(int);
-    void slot_drawUpperLayersTexturedStateChanged(int);
+    void slot_drawNeedsUpdateStateChanged(bool);
+    void slot_drawNotMappedExitsStateChanged(bool);
+    void slot_drawDoorNamesStateChanged(bool);
+    void slot_drawUpperLayersTexturedStateChanged(bool);
     // this slot just calls the signal... not useful
 };

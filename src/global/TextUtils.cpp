@@ -13,6 +13,7 @@
 
 #include <QRegularExpression>
 #include <QString>
+#include <QtGlobal>
 
 namespace { // anonymous
 
@@ -65,7 +66,11 @@ namespace mmqt {
 int findTrailingWhitespace(const QStringView line)
 {
     static const QRegularExpression trailingWhitespaceRegex(R"([[:space:]]+$)");
-    auto m = trailingWhitespaceRegex.match(line);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+    auto m = trailingWhitespaceRegex.matchView(line);
+#else
+    auto m = trailingWhitespaceRegex.match(line.toString());
+#endif
     if (!m.hasMatch()) {
         return -1;
     }
@@ -138,7 +143,11 @@ void foreach_regex(const QRegularExpression &regex,
                    const std::function<void(const QStringView match)> &callback_match,
                    const std::function<void(const QStringView between)> &callback_between)
 {
-    auto it = regex.globalMatch(text);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+    auto it = regex.globalMatchView(text);
+#else
+    auto it = regex.globalMatch(text.toString());
+#endif
     qsizetype pos = 0;
     auto end = text.length();
     while (it.hasNext()) {

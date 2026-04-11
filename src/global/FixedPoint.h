@@ -4,14 +4,19 @@
 
 #include "ChangeMonitor.h"
 #include "RuleOf5.h"
+#include "TextUtils.h"
 #include "utils.h"
 
+#include <algorithm>
 #include <cmath>
 #include <functional>
 #include <memory>
+#include <string>
 #include <vector>
 
+#include <QSettings>
 #include <QSlider>
+#include <QVariant>
 
 template<int Digits_>
 class NODISCARD FixedPoint final
@@ -19,6 +24,9 @@ class NODISCARD FixedPoint final
 private:
     ChangeMonitor m_changeMonitor;
     bool m_notifying = false;
+    std::string m_key;
+    std::string m_label;
+    int m_value = 0;
 
 public:
     static constexpr const int digits = Digits_;
@@ -27,14 +35,20 @@ public:
     const int defaultValue;
 
 private:
-    int m_value = 0;
-
-private:
-    explicit FixedPoint(const int min_, const int max_, const int defaultValue_, const int value)
-        : min{min_}
+    explicit FixedPoint(const int min_,
+                        const int max_,
+                        const int defaultValue_,
+                        const int value,
+                        std::string key = "",
+                        std::string label = "")
+        : m_changeMonitor{}
+        , m_notifying{false}
+        , m_key{std::move(key)}
+        , m_label{std::move(label)}
+        , m_value{std::clamp(value, min_, max_)}
+        , min{min_}
         , max{max_}
         , defaultValue{defaultValue_}
-        , m_value{std::clamp(value, min_, max_)}
     {
         // set(value);
         static_assert(0 <= digits && digits < 6);
@@ -51,13 +65,27 @@ public:
         : FixedPoint(min_, max_, defaultValue_, defaultValue_)
     {}
 
+    explicit FixedPoint(
+        std::string key, std::string label, const int min_, const int max_, const int defaultValue_)
+        : FixedPoint(min_, max_, defaultValue_, defaultValue_, std::move(key), std::move(label))
+    {}
+
     FixedPoint(const FixedPoint &other)
-        : FixedPoint(other.min, other.max, other.defaultValue, other.m_value)
+        : m_changeMonitor{}
+        , m_notifying{false}
+        , m_key{other.m_key}
+        , m_label{other.m_label}
+        , m_value{other.m_value}
+        , min{other.min}
+        , max{other.max}
+        , defaultValue{other.defaultValue}
     {}
 
     FixedPoint &operator=(const FixedPoint &other)
     {
-        set(other.m_value);
+        if (this != &other) {
+            set(other.m_value);
+        }
         return *this;
     }
 
@@ -127,13 +155,33 @@ public:
     // NOTE: The clone does not inherit our change monitor!
     NODISCARD FixedPoint clone(int value) const
     {
-        return FixedPoint<Digits_>{min, max, defaultValue, value};
+        return FixedPoint<Digits_>{min, max, defaultValue, value, m_key, m_label};
+    }
+
+    NODISCARD const std::string &getKey() const { return m_key; }
+    NODISCARD const std::string &getLabel() const { return m_label; }
+
+    void read(const QSettings &settings)
+    {
+        if (m_key.empty()) {
+            return;
+        }
+        const QVariant var = settings.value(mmqt::toQStringUtf8(m_key), defaultValue);
+        set(var.toInt());
+    }
+
+    void write(QSettings &settings) const
+    {
+        if (m_key.empty()) {
+            return;
+        }
+        settings.setValue(mmqt::toQStringUtf8(m_key), m_value);
     }
 
 public:
     void registerChangeCallback(const ChangeMonitor::Lifetime &lifetime,
                                 ChangeMonitor::Function callback) const
     {
-        return m_changeMonitor.registerChangeCallback(lifetime, std::move(callback));
+        return m_changeMonitor.registerChangeCallback(lifetime, callback);
     }
 };

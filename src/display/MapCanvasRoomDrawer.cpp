@@ -4,7 +4,6 @@
 
 #include "MapCanvasRoomDrawer.h"
 
-#include "../configuration/NamedConfig.h"
 #include "../configuration/configuration.h"
 #include "../global/Array.h"
 #include "../global/ConfigConsts.h"

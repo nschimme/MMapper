@@ -50,7 +50,6 @@ set(mmapper_SRCS
     clock/mumemoment.h
     configuration/GroupConfig.cpp
     configuration/GroupConfig.h
-    configuration/NamedConfig.h
     configuration/PasswordConfig.cpp
     configuration/PasswordConfig.h
     configuration/configuration.cpp

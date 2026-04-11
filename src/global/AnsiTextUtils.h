@@ -18,6 +18,7 @@
 
 #include <QColor>
 #include <QRegularExpression>
+#include <QtGlobal>
 
 // Not supported by MUME:
 // 6: fast blink
@@ -995,11 +996,16 @@ void foreachAnsi(const QStringView line, Callback &&callback)
     const auto len = line.size();
     qsizetype pos = 0;
     while (pos < len) {
-        QRegularExpressionMatch m = weakAnsiRegex.match(line, pos);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+        QRegularExpressionMatch m = weakAnsiRegex.matchView(line, pos);
+#else
+        QRegularExpressionMatch m = weakAnsiRegex.match(line.toString(), pos);
+#endif
         if (!m.hasMatch()) {
             break;
         }
-        callback(m.capturedStart(), m.captured());
+        callback(static_cast<int>(m.capturedStart()),
+                 line.mid(m.capturedStart(), m.capturedLength()));
         pos = m.capturedEnd();
     }
 }

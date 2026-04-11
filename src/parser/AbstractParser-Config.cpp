@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
 
-#include "../configuration/NamedConfig.h"
 #include "../configuration/configuration.h"
 #include "../display/MapCanvasConfig.h"
 #include "../display/MapCanvasData.h"
@@ -277,7 +276,7 @@ void AbstractParser::doConfig(const StringView cmd)
     });
 
     const auto opt = [this, argBool, optArgEquals](const char *const name,
-                                                   NamedConfig<bool> &conf,
+                                                   ConfigValue<bool> &conf,
                                                    std::string help) {
         return syn(name,
                    optArgEquals,
@@ -288,13 +287,13 @@ void AbstractParser::doConfig(const StringView cmd)
                            auto &os = user.getOstream();
 
                            if (conf.get() == value) {
-                               os << conf.getName() << " is already " << BoolAlpha(value)
+                               os << conf.getLabel() << " is already " << BoolAlpha(value)
                                   << AnsiOstream::endl;
                                return;
                            }
 
                            conf.set(value);
-                           os << "Set " << conf.getName() << " = " << BoolAlpha(value)
+                           os << "Set " << conf.getLabel() << " = " << BoolAlpha(value)
                               << AnsiOstream::endl;
                            graphicsSettingsChanged();
                        },

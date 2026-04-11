@@ -4,6 +4,7 @@
 #include "TimerWidget.h"
 
 #include "../timers/CTimers.h"
+#include "TimerDelegate.h"
 #include "TimerModel.h"
 
 #include <QHeaderView>
@@ -22,6 +23,7 @@ TimerWidget::TimerWidget(CTimers &timers, QWidget *parent)
     m_model = new TimerModel(m_timers, this);
     m_view = new QTableView(this);
     m_view->setModel(m_model);
+    m_view->setItemDelegateForColumn(TimerModel::ColName, new TimerDelegate(this));
     m_view->horizontalHeader()->setStretchLastSection(true);
     m_view->verticalHeader()->setVisible(false);
     m_view->setSelectionBehavior(QAbstractItemView::SelectRows);

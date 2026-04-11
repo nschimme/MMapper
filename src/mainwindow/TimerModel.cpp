@@ -40,9 +40,9 @@ TimerModel::TimerModel(CTimers &timers, QObject *parent)
     connect(&m_refreshTimer, &QTimer::timeout, this, [this]() {
         if (m_allTimers.empty())
             return;
-        emit dataChanged(index(0, ColTime),
+        emit dataChanged(index(0, ColName),
                          index(static_cast<int>(m_allTimers.size()) - 1, ColTime),
-                         {Qt::DisplayRole});
+                         {Qt::DisplayRole, ProgressRole});
     });
     m_refreshTimer.start(1000);
 
@@ -102,6 +102,12 @@ QVariant TimerModel::data(const QModelIndex &index, int role) const
         if (index.column() == ColTime || index.column() == ColEndTime) {
             return QVariant(Qt::AlignCenter);
         }
+    } else if (role == ProgressRole) {
+        if (timer->isCountdown() && timer->durationMs() > 0) {
+            return static_cast<double>(timer->remainingMs())
+                   / static_cast<double>(timer->durationMs());
+        }
+        return QVariant();
     }
 
     return QVariant();

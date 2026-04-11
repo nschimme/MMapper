@@ -16,6 +16,7 @@ class TimerModel final : public QAbstractTableModel
 
 public:
     enum Column { ColName = 0, ColDescription, ColTime, ColEndTime, ColCount };
+    enum Role { ProgressRole = Qt::UserRole + 1 };
 
 private:
     CTimers &m_timers;

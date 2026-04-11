@@ -260,6 +260,10 @@ set(mmapper_SRCS
     mainwindow/mainwindow-saveslots.cpp
     mainwindow/mainwindow.cpp
     mainwindow/mainwindow.h
+    mainwindow/TimerModel.cpp
+    mainwindow/TimerModel.h
+    mainwindow/TimerWidget.cpp
+    mainwindow/TimerWidget.h
     mainwindow/metatypes.cpp
     mainwindow/metatypes.h
     mainwindow/roomeditattrdlg.cpp

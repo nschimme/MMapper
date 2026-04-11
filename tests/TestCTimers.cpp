@@ -130,4 +130,75 @@ void TestCTimers::testMultipleTimersAndCountdowns()
     QVERIFY(!countdownsList.contains("Countdown1"));
 }
 
+void TestCTimers::testStopResetTimers()
+{
+    CTimers timers(nullptr);
+    timers.addTimer("T1", "D1");
+    timers.addCountdown("C1", "D2", 10000);
+
+    // Stop
+    timers.stopTimer("T1");
+    timers.stopCountdown("C1");
+
+    for (const auto &t : timers.timers()) {
+        if (t.getName() == "T1")
+            QVERIFY(t.isExpired());
+    }
+    for (const auto &t : timers.countdowns()) {
+        if (t.getName() == "C1")
+            QVERIFY(t.isExpired());
+    }
+
+    // Reset
+    timers.resetTimer("T1");
+    timers.resetCountdown("C1");
+
+    for (const auto &t : timers.timers()) {
+        if (t.getName() == "T1")
+            QVERIFY(!t.isExpired());
+    }
+    for (const auto &t : timers.countdowns()) {
+        if (t.getName() == "C1")
+            QVERIFY(!t.isExpired());
+    }
+}
+
+void TestCTimers::testSignals()
+{
+    CTimers timers(nullptr);
+    QSignalSpy spyAdded(&timers, &CTimers::sig_timerAdded);
+    QSignalSpy spyRemoved(&timers, &CTimers::sig_timerRemoved);
+    QSignalSpy spyUpdated(&timers, &CTimers::sig_timersUpdated);
+
+    timers.addTimer("T1", "D1");
+    QCOMPARE(spyAdded.count(), 1);
+
+    timers.addCountdown("C1", "D2", 10000);
+    QCOMPARE(spyAdded.count(), 2);
+
+    timers.stopTimer("T1");
+    QCOMPARE(spyUpdated.count(), 1);
+
+    timers.removeTimer("T1");
+    QCOMPARE(spyRemoved.count(), 1);
+
+    timers.clear();
+    QCOMPARE(spyRemoved.count(), 2);
+}
+
+void TestCTimers::testClearExpired()
+{
+    CTimers timers(nullptr);
+    timers.addTimer("T1", "D1");
+    timers.addCountdown("C1", "D2", 10000);
+
+    timers.stopTimer("T1");
+    timers.stopCountdown("C1");
+
+    timers.clearExpired();
+
+    QVERIFY(timers.timers().empty());
+    QVERIFY(timers.countdowns().empty());
+}
+
 QTEST_MAIN(TestCTimers)

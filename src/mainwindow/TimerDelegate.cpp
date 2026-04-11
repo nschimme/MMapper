@@ -30,11 +30,11 @@ void TimerDelegate::paint(QPainter *painter,
         if (progress > 0.5) {
             // Green to Yellow
             double factor = (progress - 0.5) * 2.0;
-            color = QColor::fromRgbF(1.0 - factor, 1.0, 0.0, 0.3);
+            color = QColor::fromRgbF(static_cast<float>(1.0 - factor), 1.0f, 0.0f, 0.3f);
         } else {
             // Yellow to Red
             double factor = progress * 2.0;
-            color = QColor::fromRgbF(1.0, factor, 0.0, 0.3);
+            color = QColor::fromRgbF(1.0f, static_cast<float>(factor), 0.0f, 0.3f);
         }
 
         painter->fillRect(rect.x(), rect.y(), barWidth, rect.height(), color);

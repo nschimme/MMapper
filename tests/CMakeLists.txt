@@ -239,11 +239,18 @@ add_test(NAME TestAdventure COMMAND TestAdventure)
 set(timer_test
         ../src/timers/CTimers.cpp
         ../src/timers/CTimers.h
+        ../src/mainwindow/TimerModel.cpp
+        ../src/mainwindow/TimerModel.h
 )
 set(TestTimer TestCTimers.cpp)
 add_executable(TestTimer ${timer_test} ${TestTimer})
 add_dependencies(TestTimer mm_global)
 target_link_libraries(TestTimer mm_global Qt6::Test coverage_config)
+
+set(TestTimerModel TestTimerModel.cpp)
+add_executable(TestTimerModel ${timer_test} ${TestTimerModel})
+add_dependencies(TestTimerModel mm_global)
+target_link_libraries(TestTimerModel mm_global Qt6::Test coverage_config)
 set_target_properties(
         TestTimer PROPERTIES
         CXX_STANDARD 20
@@ -251,7 +258,15 @@ set_target_properties(
         CXX_EXTENSIONS OFF
         COMPILE_FLAGS "${WARNING_FLAGS}"
 )
+set_target_properties(
+        TestTimerModel PROPERTIES
+        CXX_STANDARD 20
+        CXX_STANDARD_REQUIRED ON
+        CXX_EXTENSIONS OFF
+        COMPILE_FLAGS "${WARNING_FLAGS}"
+)
 add_test(NAME TestTimer COMMAND TestTimer)
+add_test(NAME TestTimerModel COMMAND TestTimerModel)
 
 # Room panel mob
 set(room_mob

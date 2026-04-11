@@ -100,7 +100,7 @@ QVariant TimerModel::data(const QModelIndex &index, int role) const
         }
     } else if (role == Qt::TextAlignmentRole) {
         if (index.column() == ColTime || index.column() == ColEndTime) {
-            return QVariant(Qt::AlignCenter);
+            return QVariant(static_cast<int>(Qt::AlignCenter));
         }
     } else if (role == ProgressRole) {
         if (timer->isCountdown() && timer->durationMs() > 0) {

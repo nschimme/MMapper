@@ -21,4 +21,7 @@ private Q_SLOTS:
     void testCountdownCompletion();
     void testClearFunctionality();
     void testMultipleTimersAndCountdowns();
+    void testStopResetTimers();
+    void testSignals();
+    void testClearExpired();
 };

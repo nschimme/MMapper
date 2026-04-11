@@ -179,7 +179,7 @@ void TestCTimers::testSignals()
     timers.stopTimer("T1");
     QCOMPARE(spyUpdated.count(), 1);
 
-    timers.removeTimer("T1");
+    std::ignore = timers.removeTimer("T1");
     QCOMPARE(spyRemoved.count(), 1);
 
     timers.clear();

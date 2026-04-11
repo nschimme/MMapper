@@ -58,7 +58,7 @@ void TestTimerModel::testModelUpdates()
     timers.addTimer("T1", "D1");
     QCOMPARE(spy.count(), 1);
 
-    timers.removeTimer("T1");
+    std::ignore = timers.removeTimer("T1");
     QCOMPARE(spy.count(), 2);
 }
 

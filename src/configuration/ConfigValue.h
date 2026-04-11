@@ -4,6 +4,7 @@
 
 #include "../global/ChangeMonitor.h"
 #include "../global/Color.h"
+#include "../global/RAII.h"
 #include "../global/RuleOf5.h"
 #include "../global/TextUtils.h"
 #include "../global/utils.h"
@@ -75,18 +76,13 @@ public:
         return *this;
     }
 
-    NODISCARD bool operator==(const ConfigValue &other) const
-    {
-        return utils::equals(m_value, other.m_value);
-    }
-    NODISCARD bool operator!=(const ConfigValue &other) const { return !(*this == other); }
+    NODISCARD bool operator==(const ConfigValue &rhs) const { return m_value == rhs.m_value; }
+    NODISCARD bool operator!=(const ConfigValue &rhs) const { return !operator==(rhs); }
 
-    NODISCARD bool operator==(const T &otherValue) const
-    {
-        return utils::equals(m_value, otherValue);
-    }
-    NODISCARD bool operator!=(const T &otherValue) const { return !(*this == otherValue); }
+    NODISCARD bool operator==(const T &rhs) const { return m_value == rhs; }
+    NODISCARD bool operator!=(const T &rhs) const { return !operator==(rhs); }
 
+public:
     NODISCARD const T &get() const { return m_value; }
     NODISCARD operator T() const { return m_value; }
     NODISCARD const T *operator->() const { return &m_value; }
@@ -98,25 +94,25 @@ public:
     void set(const T &newValue)
     {
         if (m_notifying) {
-            throw std::runtime_error("recursion");
-        }
-
-        if (utils::equals(m_value, newValue)) {
             return;
         }
 
-        struct NODISCARD NotificationGuard final
-        {
-            bool &m_flag;
-            explicit NotificationGuard(bool &flag)
-                : m_flag{flag}
-            {
-                m_flag = true;
-            }
-            ~NotificationGuard() { m_flag = false; }
-        } guard{m_notifying};
+        T validatedValue = newValue;
+        if (m_validator) {
+            validatedValue = m_validator(newValue);
+        }
 
-        m_value = newValue;
+        if (utils::equals(m_value, validatedValue)) {
+            return;
+        }
+        m_value = validatedValue;
+        notifyChanged();
+    }
+
+    void notifyChanged()
+    {
+        m_notifying = true;
+        const auto notify_exit = RAIICallback([this]() { m_notifying = false; });
         m_changeMonitor.notifyAll();
     }
 
@@ -129,31 +125,42 @@ public:
         if (m_key.empty()) {
             return;
         }
-        const QVariant var = settings.value(mmqt::toQStringUtf8(m_key),
-                                            QVariant::fromValue(m_defaultValue));
-        T val;
+        const QVariant var = settings.value(mmqt::toQStringUtf8(m_key));
+        if (!var.isValid()) {
+            return;
+        }
+
         if constexpr (std::is_same_v<T, Color>) {
             if (var.canConvert<Color>()) {
-                val = var.value<Color>();
+                set(var.value<Color>());
             } else if (var.canConvert<QColor>()) {
-                val = Color(var.value<QColor>());
+                set(Color(var.value<QColor>()));
             } else if (var.canConvert<QString>()) {
-                val = Color::fromHex(mmqt::toStdStringUtf8(var.toString()));
-            } else {
-                val = m_defaultValue;
+                QString s = var.toString();
+                if (s.startsWith(u'#')) {
+                    s.remove(0, 1);
+                }
+                set(Color::fromHex(mmqt::toStdStringUtf8(s)));
+            }
+        } else if constexpr (std::is_same_v<T, QColor>) {
+            if (var.canConvert<QColor>()) {
+                set(var.value<QColor>());
+            } else if (var.canConvert<Color>()) {
+                set(var.value<Color>().getQColor());
+            } else if (var.canConvert<QString>()) {
+                set(QColor(var.toString()));
+            }
+        } else if constexpr (std::is_enum_v<T>) {
+            if (var.canConvert<T>()) {
+                set(var.value<T>());
+            } else if (var.canConvert<int>()) {
+                set(static_cast<T>(var.toInt()));
             }
         } else {
             if (var.canConvert<T>()) {
-                val = var.value<T>();
-            } else {
-                val = m_defaultValue;
+                set(var.value<T>());
             }
         }
-
-        if (m_validator) {
-            val = m_validator(val);
-        }
-        set(val);
     }
 
     void write(QSettings &settings) const

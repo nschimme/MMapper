@@ -1004,7 +1004,8 @@ void foreachAnsi(const QStringView line, Callback &&callback)
         if (!m.hasMatch()) {
             break;
         }
-        callback(static_cast<int>(m.capturedStart()), line.mid(m.capturedStart(), m.capturedLength()));
+        callback(static_cast<int>(m.capturedStart()),
+                 line.mid(m.capturedStart(), m.capturedLength()));
         pos = m.capturedEnd();
     }
 }

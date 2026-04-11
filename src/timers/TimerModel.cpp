@@ -38,13 +38,10 @@ TimerModel::TimerModel(CTimers &timers, QObject *parent)
     connect(&m_timers, &CTimers::sig_timersUpdated, this, &TimerModel::updateTimerList);
 
     connect(&m_refreshTimer, &QTimer::timeout, this, [this]() {
-        if (m_allTimers.empty())
-            return;
         emit dataChanged(index(0, ColName),
                          index(static_cast<int>(m_allTimers.size()) - 1, ColTime),
                          {Qt::DisplayRole, ProgressRole});
     });
-    m_refreshTimer.start(1000);
 
     updateTimerList();
 }
@@ -148,4 +145,10 @@ void TimerModel::updateTimerList()
         m_allTimers.push_back(&t);
     }
     endResetModel();
+
+    if (m_allTimers.empty()) {
+        m_refreshTimer.stop();
+    } else if (!m_refreshTimer.isActive()) {
+        m_refreshTimer.start(1000);
+    }
 }

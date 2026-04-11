@@ -3,7 +3,7 @@
 
 #include "TimerWidget.h"
 
-#include "../timers/CTimers.h"
+#include "CTimers.h"
 #include "TimerDelegate.h"
 #include "TimerModel.h"
 

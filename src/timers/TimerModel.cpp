@@ -4,7 +4,7 @@
 #include "TimerModel.h"
 
 #include "../global/TextUtils.h"
-#include "../timers/CTimers.h"
+#include "CTimers.h"
 
 #include <QColor>
 #include <QDateTime>

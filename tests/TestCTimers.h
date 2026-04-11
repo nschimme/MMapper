@@ -24,4 +24,9 @@ private Q_SLOTS:
     void testStopResetTimers();
     void testSignals();
     void testClearExpired();
+
+    // TimerModel tests
+    void testModelBasicProperties();
+    void testModelDataRetrieval();
+    void testModelUpdates();
 };

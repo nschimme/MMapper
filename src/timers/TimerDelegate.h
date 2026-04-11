@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2024 The MMapper Authors
 
+#include "../global/macros.h"
+
 #include <QStyledItemDelegate>
 
-class TimerDelegate final : public QStyledItemDelegate
+class NODISCARD_QOBJECT TimerDelegate final : public QStyledItemDelegate
 {
     Q_OBJECT
 

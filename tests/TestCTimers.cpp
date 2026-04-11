@@ -5,6 +5,7 @@
 
 #include "../src/global/TextUtils.h"
 #include "../src/timers/CTimers.h"
+#include "../src/timers/TimerModel.h"
 
 #include <tuple>
 
@@ -199,6 +200,49 @@ void TestCTimers::testClearExpired()
 
     QVERIFY(timers.timers().empty());
     QVERIFY(timers.countdowns().empty());
+}
+
+void TestCTimers::testModelBasicProperties()
+{
+    CTimers timers(nullptr);
+    TimerModel model(timers, nullptr);
+
+    QCOMPARE(model.rowCount(), 0);
+    QCOMPARE(model.columnCount(), 4);
+
+    timers.addTimer("T1", "D1");
+    QCOMPARE(model.rowCount(), 1);
+
+    timers.addCountdown("C1", "D2", 10000);
+    QCOMPARE(model.rowCount(), 2);
+}
+
+void TestCTimers::testModelDataRetrieval()
+{
+    CTimers timers(nullptr);
+    TimerModel model(timers, nullptr);
+
+    timers.addTimer("T1", "D1");
+
+    QCOMPARE(model.data(model.index(0, 0), Qt::DisplayRole).toString(), QString("T1"));
+    QCOMPARE(model.data(model.index(0, 1), Qt::DisplayRole).toString(), QString("D1"));
+
+    QVariant timeVal = model.data(model.index(0, 2), Qt::DisplayRole);
+    QVERIFY(timeVal.isValid());
+}
+
+void TestCTimers::testModelUpdates()
+{
+    CTimers timers(nullptr);
+    TimerModel model(timers, nullptr);
+
+    QSignalSpy spyReset(&model, &TimerModel::modelReset);
+
+    timers.addTimer("T1", "D1");
+    QCOMPARE(spyReset.count(), 1);
+
+    std::ignore = timers.removeTimer("T1");
+    QCOMPARE(spyReset.count(), 2);
 }
 
 QTEST_MAIN(TestCTimers)

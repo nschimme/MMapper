@@ -260,12 +260,6 @@ set(mmapper_SRCS
     mainwindow/mainwindow-saveslots.cpp
     mainwindow/mainwindow.cpp
     mainwindow/mainwindow.h
-    mainwindow/TimerModel.cpp
-    mainwindow/TimerModel.h
-    mainwindow/TimerDelegate.cpp
-    mainwindow/TimerDelegate.h
-    mainwindow/TimerWidget.cpp
-    mainwindow/TimerWidget.h
     mainwindow/metatypes.cpp
     mainwindow/metatypes.h
     mainwindow/roomeditattrdlg.cpp
@@ -595,6 +589,12 @@ set(mmapper_SRCS
     syntax/Value.h
     timers/CTimers.cpp
     timers/CTimers.h
+    timers/TimerModel.cpp
+    timers/TimerModel.h
+    timers/TimerDelegate.cpp
+    timers/TimerDelegate.h
+    timers/TimerWidget.cpp
+    timers/TimerWidget.h
     viewers/AnsiViewWindow.cpp
     viewers/AnsiViewWindow.h
     viewers/LaunchAsyncViewer.h

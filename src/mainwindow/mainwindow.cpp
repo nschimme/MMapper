@@ -36,7 +36,7 @@
 #include "../viewers/TopLevelWindows.h"
 #include "AudioVolumeSlider.h"
 #include "MapZoomSlider.h"
-#include "TimerWidget.h"
+#include "../timers/TimerWidget.h"
 #include "UpdateDialog.h"
 #include "aboutdialog.h"
 #include "findroomsdlg.h"

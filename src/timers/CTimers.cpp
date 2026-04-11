@@ -78,7 +78,7 @@ CTimers::CTimers(QObject *const parent)
 void CTimers::addTimer(std::string name, std::string desc)
 {
     ABORT_IF_NOT_ON_MAIN_THREAD();
-    removeTimer(name);
+    std::ignore = removeTimer(name);
     m_timers.emplace_back(std::move(name), std::move(desc));
     emit sig_timerAdded();
 }
@@ -111,7 +111,7 @@ bool CTimers::removeTimer(const std::string &name)
 void CTimers::addCountdown(std::string name, std::string desc, int64_t timeMs)
 {
     ABORT_IF_NOT_ON_MAIN_THREAD();
-    removeCountdown(name);
+    std::ignore = removeCountdown(name);
     m_countdowns.emplace_back(std::move(name), std::move(desc), timeMs);
 
     restartCountdownTimer();

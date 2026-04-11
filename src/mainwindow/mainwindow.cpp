@@ -30,9 +30,9 @@
 #include "../pathmachine/mmapper2pathmachine.h"
 #include "../preferences/configdialog.h"
 #include "../proxy/connectionlistener.h"
-#include "../timers/CTimers.h"
 #include "../roompanel/RoomManager.h"
 #include "../roompanel/RoomWidget.h"
+#include "../timers/CTimers.h"
 #include "../viewers/TopLevelWindows.h"
 #include "AudioVolumeSlider.h"
 #include "MapZoomSlider.h"
@@ -223,7 +223,8 @@ MainWindow::MainWindow()
     m_timers = new CTimers(this);
     m_timerWidget = new TimerWidget(deref(m_timers), this);
     m_dockDialogTimers = new QDockWidget(tr("Timers Panel"), this);
-    m_dockDialogTimers->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable
+    m_dockDialogTimers->setFeatures(QDockWidget::DockWidgetMovable
+                                    | QDockWidget::DockWidgetFloatable
                                     | QDockWidget::DockWidgetClosable);
     m_dockDialogTimers->setWidget(m_timerWidget);
 

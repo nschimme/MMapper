@@ -2,12 +2,14 @@
 // Copyright (C) 2024 The MMapper Authors
 
 #include "TimerWidget.h"
-#include "TimerModel.h"
+
 #include "../timers/CTimers.h"
-#include <QVBoxLayout>
-#include <QPushButton>
+#include "TimerModel.h"
+
 #include <QHeaderView>
 #include <QMenu>
+#include <QPushButton>
+#include <QVBoxLayout>
 
 TimerWidget::TimerWidget(CTimers &timers, QWidget *parent)
     : QWidget(parent)
@@ -42,10 +44,12 @@ TimerWidget::TimerWidget(CTimers &timers, QWidget *parent)
 void TimerWidget::showContextMenu(const QPoint &pos)
 {
     QModelIndex index = m_view->indexAt(pos);
-    if (!index.isValid()) return;
+    if (!index.isValid())
+        return;
 
     const TTimer *timer = m_model->timerAt(index.row());
-    if (!timer) return;
+    if (!timer)
+        return;
 
     QMenu menu(this);
     std::string name = timer->getName();
@@ -53,23 +57,29 @@ void TimerWidget::showContextMenu(const QPoint &pos)
 
     auto *actReset = menu.addAction(tr("Reset"));
     connect(actReset, &QAction::triggered, this, [this, name, isCountdown]() {
-        if (isCountdown) m_timers.resetCountdown(name);
-        else m_timers.resetTimer(name);
+        if (isCountdown)
+            m_timers.resetCountdown(name);
+        else
+            m_timers.resetTimer(name);
     });
 
     auto *actStop = menu.addAction(tr("Stop"));
     actStop->setEnabled(!timer->isExpired());
     connect(actStop, &QAction::triggered, this, [this, name, isCountdown]() {
-        if (isCountdown) m_timers.stopCountdown(name);
-        else m_timers.stopTimer(name);
+        if (isCountdown)
+            m_timers.stopCountdown(name);
+        else
+            m_timers.stopTimer(name);
     });
 
     menu.addSeparator();
 
     auto *actDelete = menu.addAction(tr("Delete"));
     connect(actDelete, &QAction::triggered, this, [this, name, isCountdown]() {
-        if (isCountdown) m_timers.removeCountdown(name);
-        else m_timers.removeTimer(name);
+        if (isCountdown)
+            std::ignore = m_timers.removeCountdown(name);
+        else
+            std::ignore = m_timers.removeTimer(name);
     });
 
     menu.exec(m_view->viewport()->mapToGlobal(pos));

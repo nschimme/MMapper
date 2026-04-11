@@ -63,27 +63,27 @@ GraphicsPage::GraphicsPage(QWidget *parent, Configuration &config)
                             .toInt());
                 }
             });
-    connect(ui->trilinearFilteringCheckBox, &QCheckBox::stateChanged, this, [this](int /*unused*/) {
+    connect(ui->trilinearFilteringCheckBox, &QCheckBox::toggled, this, [this](bool /*unused*/) {
         m_config.canvas.trilinearFiltering.set(ui->trilinearFilteringCheckBox->isChecked());
     });
 
-    connect(ui->drawUnsavedChanges, &QCheckBox::stateChanged, this, [this](int /*unused*/) {
+    connect(ui->drawUnsavedChanges, &QCheckBox::toggled, this, [this](bool /*unused*/) {
         m_config.canvas.showUnsavedChanges.set(ui->drawUnsavedChanges->isChecked());
     });
     connect(ui->drawNeedsUpdate,
-            &QCheckBox::stateChanged,
+            &QCheckBox::toggled,
             this,
             &GraphicsPage::slot_drawNeedsUpdateStateChanged);
     connect(ui->drawNotMappedExits,
-            &QCheckBox::stateChanged,
+            &QCheckBox::toggled,
             this,
             &GraphicsPage::slot_drawNotMappedExitsStateChanged);
     connect(ui->drawDoorNames,
-            &QCheckBox::stateChanged,
+            &QCheckBox::toggled,
             this,
             &GraphicsPage::slot_drawDoorNamesStateChanged);
     connect(ui->drawUpperLayersTextured,
-            &QCheckBox::stateChanged,
+            &QCheckBox::toggled,
             this,
             &GraphicsPage::slot_drawUpperLayersTexturedStateChanged);
 
@@ -152,22 +152,22 @@ bool GraphicsPage::changeColorClickedImpl(Color &color)
     return false;
 }
 
-void GraphicsPage::slot_drawNeedsUpdateStateChanged(int /*unused*/)
+void GraphicsPage::slot_drawNeedsUpdateStateChanged(bool /*unused*/)
 {
     m_config.canvas.showMissingMapId.set(ui->drawNeedsUpdate->isChecked());
 }
 
-void GraphicsPage::slot_drawNotMappedExitsStateChanged(int /*unused*/)
+void GraphicsPage::slot_drawNotMappedExitsStateChanged(bool /*unused*/)
 {
     m_config.canvas.showUnmappedExits.set(ui->drawNotMappedExits->isChecked());
 }
 
-void GraphicsPage::slot_drawDoorNamesStateChanged(int /*unused*/)
+void GraphicsPage::slot_drawDoorNamesStateChanged(bool /*unused*/)
 {
     m_config.canvas.drawDoorNames.set(ui->drawDoorNames->isChecked());
 }
 
-void GraphicsPage::slot_drawUpperLayersTexturedStateChanged(int /*unused*/)
+void GraphicsPage::slot_drawUpperLayersTexturedStateChanged(bool /*unused*/)
 {
     m_config.canvas.drawUpperLayersTextured.set(ui->drawUpperLayersTextured->isChecked());
 }

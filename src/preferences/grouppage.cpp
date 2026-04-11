@@ -20,7 +20,7 @@ GroupPage::GroupPage(QWidget *const parent, Configuration &config)
 
     connect(ui->yourColorPushButton, &QPushButton::clicked, this, &GroupPage::slot_chooseColor);
 
-    connect(ui->npcOverrideColorCheckBox, &QCheckBox::stateChanged, this, [this](int checked) {
+    connect(ui->npcOverrideColorCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
         m_config.groupManager.npcColorOverride = checked;
     });
     connect(ui->npcOverrideColorPushButton,
@@ -28,10 +28,10 @@ GroupPage::GroupPage(QWidget *const parent, Configuration &config)
             this,
             &GroupPage::slot_chooseNpcOverrideColor);
 
-    connect(ui->npcSortBottomCheckbox, &QCheckBox::stateChanged, this, [this](int checked) {
+    connect(ui->npcSortBottomCheckbox, &QCheckBox::toggled, this, [this](bool checked) {
         m_config.groupManager.npcSortBottom = checked;
     });
-    connect(ui->npcHideCheckbox, &QCheckBox::stateChanged, this, [this](int checked) {
+    connect(ui->npcHideCheckbox, &QCheckBox::toggled, this, [this](bool checked) {
         m_config.groupManager.npcHide = checked;
     });
 

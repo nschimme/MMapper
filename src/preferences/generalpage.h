@@ -40,15 +40,15 @@ public slots:
     void slot_remotePortValueChanged(int);
     void slot_localPortValueChanged(int);
 
-    void slot_emulatedExitsStateChanged(int);
-    void slot_showHiddenExitFlagsStateChanged(int);
-    void slot_showNotesStateChanged(int);
+    void slot_emulatedExitsStateChanged(bool);
+    void slot_showHiddenExitFlagsStateChanged(bool);
+    void slot_showNotesStateChanged(bool);
 
     void slot_autoLoadFileNameTextChanged(const QString &);
-    void slot_autoLoadCheckStateChanged(int);
+    void slot_autoLoadCheckStateChanged(bool);
     void slot_selectWorldFileButtonClicked(bool);
 
-    void slot_displayMumeClockStateChanged(int);
-    void slot_displayXPStatusStateChanged(int);
+    void slot_displayMumeClockStateChanged(bool);
+    void slot_displayXPStatusStateChanged(bool);
     void slot_themeComboBoxChanged(int);
 };

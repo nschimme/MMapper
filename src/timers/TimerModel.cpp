@@ -77,7 +77,7 @@ QVariant TimerModel::data(const QModelIndex &index, int role) const
 
     const TTimer *timer = m_allTimers[static_cast<size_t>(index.row())];
 
-    if (role == Qt::DisplayRole) {
+    if (role == Qt::DisplayRole || role == Qt::ToolTipRole) {
         switch (index.column()) {
         case ColName: {
             QString name = mmqt::toQStringUtf8(timer->getName());

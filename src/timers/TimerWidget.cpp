@@ -27,7 +27,10 @@ TimerWidget::TimerWidget(CTimers &timers, QWidget *parent)
     for (int i = 0; i < TimerModel::ColCount; ++i) {
         m_view->setItemDelegateForColumn(i, delegate);
     }
-    m_view->horizontalHeader()->setStretchLastSection(true);
+    m_view->horizontalHeader()->setStretchLastSection(false);
+    m_view->horizontalHeader()->setSectionResizeMode(TimerModel::ColName, QHeaderView::Stretch);
+    m_view->horizontalHeader()->setSectionResizeMode(TimerModel::ColTime,
+                                                     QHeaderView::ResizeToContents);
     m_view->verticalHeader()->setVisible(false);
     m_view->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_view->setContextMenuPolicy(Qt::CustomContextMenu);

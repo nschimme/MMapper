@@ -373,9 +373,7 @@ QSize GroupDelegate::sizeHint(const QStyleOptionViewItem &option, const QModelIn
         monoFont.setStyleHint(QFont::Monospace);
         const QFontMetrics fm(monoFont);
 
-        // Sample text for calculation: "9999 / 9999" or "100%"
-        const QString sampleText = (column == ColumnTypeEnum::HP) ? "9999 / 9999" : "999 / 999";
-        const int textWidth = fm.horizontalAdvance(sampleText);
+        const int textWidth = fm.horizontalAdvance(QStringLiteral("999 / 999"));
         return QSize(textWidth + 20, QStyledItemDelegate::sizeHint(option, index).height());
     }
 
@@ -648,10 +646,10 @@ QVariant GroupModel::dataForCharacter(const SharedGroupChar &pCharacter,
         break;
 
     case Qt::BackgroundRole:
-        return QVariant(); // Handled in Delegate
+        return QVariant();
 
     case Qt::ForegroundRole:
-        return QVariant(); // Handled in Delegate
+        return QVariant();
 
     case Qt::TextAlignmentRole:
         if (column != ColumnTypeEnum::NAME && column != ColumnTypeEnum::ROOM_NAME) {

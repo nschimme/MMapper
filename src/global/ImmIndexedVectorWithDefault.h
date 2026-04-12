@@ -131,5 +131,5 @@ public:
 };
 
 namespace test {
-void testIndexedVectorWithDefault();
+void testImmIndexedVectorWithDefault();
 } // namespace test

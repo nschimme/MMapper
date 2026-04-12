@@ -10,6 +10,7 @@
 #include "../src/global/Diff.h"
 #include "../src/global/Flags.h"
 #include "../src/global/HideQDebug.h"
+#include "../src/global/ImmIndexedVectorWithDefault.h"
 #include "../src/global/IndexedVectorWithDefault.h"
 #include "../src/global/LineUtils.h"
 #include "../src/global/RAII.h"
@@ -289,6 +290,7 @@ void TestGlobal::hideQDebugTest()
 void TestGlobal::indexedVectorWithDefaultTest()
 {
     test::testIndexedVectorWithDefault();
+    // test::testImmIndexedVectorWithDefault(); // Not implemented yet
 }
 
 void TestGlobal::lineUtilsTest()

@@ -39,12 +39,12 @@ TimerModel::TimerModel(CTimers &timers, QObject *parent)
     connect(&m_timers, &CTimers::sig_timersUpdated, this, &TimerModel::updateTimerList);
 
     connect(&m_refreshTimer, &QTimer::timeout, this, [this]() {
+        if (m_allTimers.empty())
+            return;
         emit dataChanged(index(0, ColName),
-                         index(static_cast<int>(m_allTimers.size()) - 1, ColTime),
+                         index(static_cast<int>(m_allTimers.size()) - 1, ColCount - 1),
                          {Qt::DisplayRole, ProgressRole});
-        if (!m_allTimers.empty()) {
-            startRefreshTimer();
-        }
+        startRefreshTimer();
     });
 
     updateTimerList();

@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2024 The MMapper Authors
 
-#include "TimerDelegate.h"
-
-#include "TimerModel.h"
-
+#include <QAbstractItemModel>
+#include <QAbstractItemView>
 #include <QColor>
 #include <QPainter>
+#include <QTableView>
+
+#include "TimerDelegate.h"
+#include "TimerModel.h"
 
 TimerDelegate::TimerDelegate(QObject *parent)
     : QStyledItemDelegate(parent)
@@ -23,7 +25,7 @@ void TimerDelegate::paint(QPainter *painter,
         painter->save();
 
         // Calculate progress bar width relative to the whole row
-        const QAbstractItemView *view = qobject_cast<const QAbstractItemView *>(option.widget);
+        const QTableView *view = qobject_cast<const QTableView *>(option.widget);
         if (view) {
             QRect rowRect;
             int colCount = view->model()->columnCount();

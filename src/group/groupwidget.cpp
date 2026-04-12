@@ -17,7 +17,6 @@
 #include <algorithm>
 #include <cmath>
 #include <map>
-#include <unordered_set>
 #include <vector>
 
 #include <QAction>
@@ -227,9 +226,10 @@ void GroupDelegate::paint(QPainter *const pPainter,
 
     const QRect rect = option.rect;
     const QColor charColor = character->getColor();
+    const QColor textColor = mmqt::textColor(charColor);
 
     // Layer 0: Background
-    painter.fillRect(rect, option.palette.brush(QPalette::Base));
+    painter.fillRect(rect, charColor);
 
     // Selection highlight (subtle overlay)
     if (option.state & QStyle::State_Selected) {
@@ -239,22 +239,12 @@ void GroupDelegate::paint(QPainter *const pPainter,
     }
 
     if (column == ColumnTypeEnum::NAME) {
-        // Layer 1: Row Accent (4px strip)
-        painter.fillRect(QRect(rect.left(), rect.top(), 4, rect.height()), charColor);
-
-        // Layer 3: Text (Tinted)
-        QString text = index.data(Qt::DisplayRole).toString();
-        // 25% charColor mixed with 75% #F8F8F2
-        QColor baseColor(0xF8, 0xF8, 0xF2);
-        int r = (charColor.red() * 25 + baseColor.red() * 75) / 100;
-        int g = (charColor.green() * 25 + baseColor.green() * 75) / 100;
-        int b = (charColor.blue() * 25 + baseColor.blue() * 75) / 100;
-        QColor tintedColor(r, g, b);
-
+        // Original behavior: Text over background
         painter.save();
-        painter.setPen(tintedColor);
-        QRect textRect = rect.adjusted(8, 0, 0, 0); // Padding for the strip
-        painter.drawText(textRect, Qt::AlignVCenter | Qt::AlignLeft, text);
+        painter.setPen(textColor);
+        painter.drawText(rect.adjusted(4, 0, 0, 0),
+                         Qt::AlignVCenter | Qt::AlignLeft,
+                         index.data(Qt::DisplayRole).toString());
         painter.restore();
 
     } else if (column == ColumnTypeEnum::HP || column == ColumnTypeEnum::MANA
@@ -331,16 +321,18 @@ void GroupDelegate::paint(QPainter *const pPainter,
         monoFont.setFamily("DejaVu Sans Mono");
         monoFont.setStyleHint(QFont::Monospace);
         painter.setFont(monoFont);
-        painter.setPen(mmqt::textColor(option.palette.color(QPalette::Base)));
+        painter.setPen(textColor);
         painter.drawText(rect, Qt::AlignCenter, index.data(Qt::DisplayRole).toString());
         painter.restore();
     } else {
-        // Fallback for other columns
-        QStyleOptionViewItem opt = option;
-        opt.state &= ~QStyle::State_HasFocus;
-        opt.state &= ~QStyle::State_Selected;
-
-        QStyledItemDelegate::paint(pPainter, opt, index);
+        // Other columns
+        painter.save();
+        painter.setPen(textColor);
+        const Qt::Alignment alignment = (column == ColumnTypeEnum::ROOM_NAME)
+                                            ? (Qt::AlignVCenter | Qt::AlignLeft)
+                                            : Qt::AlignCenter;
+        painter.drawText(rect, alignment, index.data(Qt::DisplayRole).toString());
+        painter.restore();
     }
 }
 
@@ -356,13 +348,8 @@ QSize GroupDelegate::sizeHint(const QStyleOptionViewItem &option, const QModelIn
     }
 
     const auto column = static_cast<ColumnTypeEnum>(index.column());
-    if (column == ColumnTypeEnum::NAME) {
-        QSize size = QStyledItemDelegate::sizeHint(option, index);
-        size.setWidth(size.width() + 12); // 4px strip + 8px padding
-        return size;
-
-    } else if (column == ColumnTypeEnum::HP || column == ColumnTypeEnum::MANA
-               || column == ColumnTypeEnum::MOVES) {
+    if (column == ColumnTypeEnum::HP || column == ColumnTypeEnum::MANA
+        || column == ColumnTypeEnum::MOVES) {
         QFont monoFont = option.font;
         monoFont.setFamily("DejaVu Sans Mono");
         monoFont.setStyleHint(QFont::Monospace);
@@ -657,6 +644,21 @@ QVariant GroupModel::dataForCharacter(const SharedGroupChar &pCharacter,
 
     case Qt::ToolTipRole: {
         switch (column) {
+        case ColumnTypeEnum::HP:
+        case ColumnTypeEnum::MANA:
+        case ColumnTypeEnum::MOVES: {
+            const int cur = (column == ColumnTypeEnum::HP)     ? character.getHits()
+                            : (column == ColumnTypeEnum::MANA) ? character.getMana()
+                                                               : character.getMoves();
+            const int max = (column == ColumnTypeEnum::HP)     ? character.getMaxHits()
+                            : (column == ColumnTypeEnum::MANA) ? character.getMaxMana()
+                                                               : character.getMaxMoves();
+            if (max > 0) {
+                const double pct = static_cast<double>(cur) / max;
+                return QString("%1%").arg(static_cast<int>(std::round(pct * 100.0)));
+            }
+            return QVariant();
+        }
         case ColumnTypeEnum::STATE: {
             QString prettyName;
             prettyName += getPrettyName(character.getPosition());
@@ -668,9 +670,6 @@ QVariant GroupModel::dataForCharacter(const SharedGroupChar &pCharacter,
             return prettyName;
         }
         case ColumnTypeEnum::NAME:
-        case ColumnTypeEnum::HP:
-        case ColumnTypeEnum::MANA:
-        case ColumnTypeEnum::MOVES:
             break;
         case ColumnTypeEnum::ROOM_NAME:
             if (character.getServerId() != INVALID_SERVER_ROOMID) {

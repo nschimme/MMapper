@@ -156,7 +156,6 @@ GroupStateData::GroupStateData(const QColor &color,
 void GroupStateData::paint(QPainter *const pPainter, const QRect &rect)
 {
     auto &painter = deref(pPainter);
-    painter.fillRect(rect, m_color);
 
     painter.save();
     painter.translate(rect.x(), rect.y());
@@ -194,12 +193,6 @@ void GroupDelegate::paint(QPainter *const pPainter,
 {
     auto &painter = deref(pPainter);
 
-    if (index.data().canConvert<GroupStateData>()) {
-        GroupStateData stateData = qvariant_cast<GroupStateData>(index.data());
-        stateData.paint(pPainter, option.rect);
-        return;
-    }
-
     const auto column = static_cast<ColumnTypeEnum>(index.column());
     const GroupModel *model = qobject_cast<const GroupModel *>(index.model());
     if (!model) {
@@ -226,7 +219,6 @@ void GroupDelegate::paint(QPainter *const pPainter,
 
     const QRect rect = option.rect;
     const QColor charColor = character->getColor();
-    const QColor textColor = mmqt::textColor(charColor);
 
     // Layer 0: Background
     painter.fillRect(rect, charColor);
@@ -238,8 +230,15 @@ void GroupDelegate::paint(QPainter *const pPainter,
         painter.fillRect(rect, selectColor);
     }
 
-    if (column == ColumnTypeEnum::NAME) {
-        // Original behavior: Text over background
+    if (index.data().canConvert<GroupStateData>()) {
+        GroupStateData stateData = qvariant_cast<GroupStateData>(index.data());
+        stateData.paint(pPainter, option.rect);
+        return;
+    }
+
+    const QColor textColor = mmqt::textColor(charColor);
+
+    if (column == ColumnTypeEnum::NAME || column == ColumnTypeEnum::ROOM_NAME) {
         painter.save();
         painter.setPen(textColor);
         painter.drawText(rect.adjusted(4, 0, 0, 0),
@@ -293,26 +292,40 @@ void GroupDelegate::paint(QPainter *const pPainter,
         const int barHeight = static_cast<int>(static_cast<double>(rect.height()) * 0.8);
         const int barY = rect.y() + (rect.height() - barHeight) / 2;
         const double pct = std::clamp(max > 0 ? static_cast<double>(cur) / max : 0.0, 0.0, 1.0);
-        const int barWidth = static_cast<int>(static_cast<double>(rect.width()) * pct);
-
-        int alpha = 180;
-        if (pulse) {
-            // 1.5s cycle (1500ms)
-            static constexpr const double PI = 3.14159265358979323846;
-            const qint64 ms = QDateTime::currentMSecsSinceEpoch() % 1500;
-            const double phase = (std::sin((static_cast<double>(ms) / 1500.0) * 2.0 * PI - PI / 2.0)
-                                  + 1.0)
-                                 / 2.0;
-            alpha = pulseMin
-                    + static_cast<int>(std::round(static_cast<double>(pulseMax - pulseMin) * phase));
-        }
-        barColor.setAlpha(alpha);
+        const int barWidth
+            = static_cast<int>(static_cast<double>(std::max(0, rect.width() - 2)) * pct);
+        const QRect barRect(rect.x() + 1, barY, std::max(0, rect.width() - 2), barHeight);
 
         painter.save();
         painter.setRenderHint(QPainter::Antialiasing);
-        painter.setBrush(barColor);
-        painter.setPen(Qt::NoPen);
-        painter.drawRoundedRect(QRect(rect.x(), barY, barWidth, barHeight), 4.0, 4.0);
+
+        // Bar background and thin black border
+        painter.setBrush(option.palette.color(QPalette::Window));
+        painter.setPen(QPen(Qt::black, 1));
+        painter.drawRoundedRect(barRect, 4.0, 4.0);
+
+        // Bar foreground (the actual progress)
+        if (barWidth > 0) {
+            int alpha = 180;
+            if (pulse) {
+                // 1.5s cycle (1500ms)
+                static constexpr const double PI = 3.14159265358979323846;
+                const qint64 ms = QDateTime::currentMSecsSinceEpoch() % 1500;
+                const double phase
+                    = (std::sin((static_cast<double>(ms) / 1500.0) * 2.0 * PI - PI / 2.0) + 1.0)
+                      / 2.0;
+                alpha = pulseMin
+                        + static_cast<int>(
+                            std::round(static_cast<double>(pulseMax - pulseMin) * phase));
+            }
+            barColor.setAlpha(alpha);
+
+            painter.setBrush(barColor);
+            painter.setPen(Qt::NoPen);
+            // Clip to progress width to keep the rounded corners of the container
+            painter.setClipRect(rect.x() + 1, barY, barWidth, barHeight, Qt::IntersectClip);
+            painter.drawRoundedRect(barRect, 4.0, 4.0);
+        }
         painter.restore();
 
         // Layer 3: Text (Monospace, Centered)
@@ -328,10 +341,7 @@ void GroupDelegate::paint(QPainter *const pPainter,
         // Other columns
         painter.save();
         painter.setPen(textColor);
-        const Qt::Alignment alignment = (column == ColumnTypeEnum::ROOM_NAME)
-                                            ? (Qt::AlignVCenter | Qt::AlignLeft)
-                                            : Qt::AlignCenter;
-        painter.drawText(rect, alignment, index.data(Qt::DisplayRole).toString());
+        painter.drawText(rect, Qt::AlignCenter, index.data(Qt::DisplayRole).toString());
         painter.restore();
     }
 }

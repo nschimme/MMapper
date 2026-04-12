@@ -7,10 +7,12 @@
 #include <vector>
 
 #include <QAbstractTableModel>
+#include <QStringList>
 #include <QTimer>
 
 class CTimers;
 class TTimer;
+class QMimeData;
 
 class NODISCARD_QOBJECT TimerModel final : public QAbstractTableModel
 {
@@ -22,7 +24,7 @@ private:
     QTimer m_refreshTimer;
 
 public:
-    enum Column { ColName = 0, ColDescription, ColTime, ColEndTime, ColCount };
+    enum Column { ColName = 0, ColTime, ColCount };
     enum Role { ProgressRole = Qt::UserRole + 1 };
 
 public:
@@ -35,8 +37,17 @@ public:
                                   Qt::Orientation orientation,
                                   int role = Qt::DisplayRole) const override;
 
+    NODISCARD Qt::ItemFlags flags(const QModelIndex &index) const override;
+    NODISCARD Qt::DropActions supportedDropActions() const override;
+    NODISCARD QStringList mimeTypes() const override;
+    NODISCARD QMimeData *mimeData(const QModelIndexList &indexes) const override;
+    bool dropMimeData(const QMimeData *data,
+                      Qt::DropAction action,
+                      int row,
+                      int column,
+                      const QModelIndex &parent) override;
+
     NODISCARD const TTimer *timerAt(int row) const;
-    NODISCARD bool hasAnyDescriptions() const;
 
 private slots:
     void updateTimerList();

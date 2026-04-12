@@ -34,11 +34,12 @@ TimerWidget::TimerWidget(CTimers &timers, QWidget *parent)
     m_view->setShowGrid(false);
     m_view->setAlternatingRowColors(true);
 
-    layout->addWidget(m_view);
+    m_view->setDragEnabled(true);
+    m_view->setAcceptDrops(true);
+    m_view->setDropIndicatorShown(true);
+    m_view->setDragDropMode(QAbstractItemView::InternalMove);
 
-    connect(m_model, &TimerModel::modelReset, this, [this]() {
-        m_view->setColumnHidden(TimerModel::ColDescription, !m_model->hasAnyDescriptions());
-    });
+    layout->addWidget(m_view);
 
     connect(m_view, &QTableView::customContextMenuRequested, this, &TimerWidget::showContextMenu);
 }

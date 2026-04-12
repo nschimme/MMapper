@@ -29,4 +29,5 @@ private Q_SLOTS:
     void testModelBasicProperties();
     void testModelDataRetrieval();
     void testModelUpdates();
+    void testMoveTimer();
 };

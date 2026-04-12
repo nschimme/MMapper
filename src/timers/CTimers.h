@@ -51,8 +51,7 @@ class NODISCARD_QOBJECT CTimers final : public QObject
     Q_OBJECT
 
 private:
-    std::list<TTimer> m_timers;
-    std::list<TTimer> m_countdowns;
+    std::list<TTimer> m_allTimers;
     QTimer m_timer;
 
 public:
@@ -82,8 +81,9 @@ public:
 
     void clear();
 
-    NODISCARD const std::list<TTimer> &timers() const { return m_timers; }
-    NODISCARD const std::list<TTimer> &countdowns() const { return m_countdowns; }
+    void moveTimer(int from, int to);
+
+    NODISCARD const std::list<TTimer> &allTimers() const { return m_allTimers; }
 
 signals:
     void sig_sendTimersUpdateToUser(const std::string &str);

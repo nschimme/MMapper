@@ -6,8 +6,12 @@
 #include "../global/TextUtils.h"
 #include "CTimers.h"
 
+#include <tuple>
+#include <vector>
+
 #include <QColor>
 #include <QDateTime>
+#include <QMimeData>
 
 namespace {
 QString formatMs(int64_t ms)
@@ -75,32 +79,26 @@ QVariant TimerModel::data(const QModelIndex &index, int role) const
 
     if (role == Qt::DisplayRole) {
         switch (index.column()) {
-        case ColName:
-            return mmqt::toQStringUtf8(timer->getName());
-        case ColDescription:
-            return mmqt::toQStringUtf8(timer->getDescription());
+        case ColName: {
+            QString name = mmqt::toQStringUtf8(timer->getName());
+            if (!timer->getDescription().empty()) {
+                name += " <" + mmqt::toQStringUtf8(timer->getDescription()) + ">";
+            }
+            return name;
+        }
         case ColTime:
             if (timer->isCountdown()) {
                 return formatMs(timer->remainingMs());
             } else {
                 return formatMs(timer->elapsedMs());
             }
-        case ColEndTime:
-            if (timer->isCountdown()) {
-                if (timer->isExpired())
-                    return "Finished";
-                return QDateTime::currentDateTime()
-                    .addMSecs(timer->remainingMs())
-                    .toString("HH:mm:ss");
-            }
-            return "-";
         }
     } else if (role == Qt::ForegroundRole) {
         if (timer->isExpired()) {
             return QColor(Qt::red);
         }
     } else if (role == Qt::TextAlignmentRole) {
-        if (index.column() == ColTime || index.column() == ColEndTime) {
+        if (index.column() == ColTime) {
             return QVariant(static_cast<int>(Qt::AlignCenter));
         }
     } else if (role == ProgressRole) {
@@ -120,15 +118,69 @@ QVariant TimerModel::headerData(int section, Qt::Orientation orientation, int ro
         switch (section) {
         case ColName:
             return tr("Name");
-        case ColDescription:
-            return tr("Description");
         case ColTime:
             return tr("Time");
-        case ColEndTime:
-            return tr("End Time");
         }
     }
     return QVariant();
+}
+
+Qt::ItemFlags TimerModel::flags(const QModelIndex &index) const
+{
+    Qt::ItemFlags defaultFlags = QAbstractTableModel::flags(index);
+    if (index.isValid()) {
+        return Qt::ItemIsDragEnabled | Qt::ItemIsDropEnabled | defaultFlags;
+    } else {
+        return Qt::ItemIsDropEnabled | defaultFlags;
+    }
+}
+
+Qt::DropActions TimerModel::supportedDropActions() const
+{
+    return Qt::MoveAction;
+}
+
+QStringList TimerModel::mimeTypes() const
+{
+    return {"application/x-mmapper-timer-index"};
+}
+
+QMimeData *TimerModel::mimeData(const QModelIndexList &indexes) const
+{
+    if (indexes.isEmpty())
+        return nullptr;
+
+    auto *data = new QMimeData();
+    data->setData("application/x-mmapper-timer-index", QByteArray::number(indexes.at(0).row()));
+    return data;
+}
+
+bool TimerModel::dropMimeData(
+    const QMimeData *data, Qt::DropAction action, int row, int column, const QModelIndex &parent)
+{
+    std::ignore = column;
+    if (action != Qt::MoveAction)
+        return false;
+
+    if (!data->hasFormat("application/x-mmapper-timer-index"))
+        return false;
+
+    int from = data->data("application/x-mmapper-timer-index").toInt();
+    int to = row;
+
+    if (row == -1) {
+        if (parent.isValid()) {
+            to = parent.row();
+        } else {
+            to = rowCount();
+        }
+    }
+
+    if (from == to || from == to - 1)
+        return false;
+
+    m_timers.moveTimer(from, to);
+    return true;
 }
 
 const TTimer *TimerModel::timerAt(int row) const
@@ -138,25 +190,26 @@ const TTimer *TimerModel::timerAt(int row) const
     return m_allTimers[static_cast<size_t>(row)];
 }
 
-bool TimerModel::hasAnyDescriptions() const
-{
-    for (const auto *timer : m_allTimers) {
-        if (!timer->getDescription().empty())
-            return true;
-    }
-    return false;
-}
-
 void TimerModel::updateTimerList()
 {
     beginResetModel();
     m_allTimers.clear();
-    for (const auto &t : m_timers.countdowns()) {
-        m_allTimers.push_back(&t);
+
+    const auto &timers = m_timers.allTimers();
+    std::vector<const TTimer *> active;
+    std::vector<const TTimer *> expired;
+
+    for (const auto &t : timers) {
+        if (t.isExpired()) {
+            expired.push_back(&t);
+        } else {
+            active.push_back(&t);
+        }
     }
-    for (const auto &t : m_timers.timers()) {
-        m_allTimers.push_back(&t);
-    }
+
+    m_allTimers.insert(m_allTimers.end(), active.begin(), active.end());
+    m_allTimers.insert(m_allTimers.end(), expired.begin(), expired.end());
+
     endResetModel();
 
     if (m_allTimers.empty()) {

@@ -141,12 +141,8 @@ void TestCTimers::testStopResetTimers()
     timers.stopTimer("T1");
     timers.stopCountdown("C1");
 
-    for (const auto &t : timers.timers()) {
-        if (t.getName() == "T1")
-            QVERIFY(t.isExpired());
-    }
-    for (const auto &t : timers.countdowns()) {
-        if (t.getName() == "C1")
+    for (const auto &t : timers.allTimers()) {
+        if (t.getName() == "T1" || t.getName() == "C1")
             QVERIFY(t.isExpired());
     }
 
@@ -154,12 +150,8 @@ void TestCTimers::testStopResetTimers()
     timers.resetTimer("T1");
     timers.resetCountdown("C1");
 
-    for (const auto &t : timers.timers()) {
-        if (t.getName() == "T1")
-            QVERIFY(!t.isExpired());
-    }
-    for (const auto &t : timers.countdowns()) {
-        if (t.getName() == "C1")
+    for (const auto &t : timers.allTimers()) {
+        if (t.getName() == "T1" || t.getName() == "C1")
             QVERIFY(!t.isExpired());
     }
 }
@@ -198,8 +190,7 @@ void TestCTimers::testClearExpired()
 
     timers.clearExpired();
 
-    QVERIFY(timers.timers().empty());
-    QVERIFY(timers.countdowns().empty());
+    QVERIFY(timers.allTimers().empty());
 }
 
 void TestCTimers::testModelBasicProperties()
@@ -208,7 +199,7 @@ void TestCTimers::testModelBasicProperties()
     TimerModel model(timers, nullptr);
 
     QCOMPARE(model.rowCount(), 0);
-    QCOMPARE(model.columnCount(), 4);
+    QCOMPARE(model.columnCount(), 2);
 
     timers.addTimer("T1", "D1");
     QCOMPARE(model.rowCount(), 1);
@@ -224,10 +215,9 @@ void TestCTimers::testModelDataRetrieval()
 
     timers.addTimer("T1", "D1");
 
-    QCOMPARE(model.data(model.index(0, 0), Qt::DisplayRole).toString(), QString("T1"));
-    QCOMPARE(model.data(model.index(0, 1), Qt::DisplayRole).toString(), QString("D1"));
+    QCOMPARE(model.data(model.index(0, 0), Qt::DisplayRole).toString(), QString("T1 <D1>"));
 
-    QVariant timeVal = model.data(model.index(0, 2), Qt::DisplayRole);
+    QVariant timeVal = model.data(model.index(0, 1), Qt::DisplayRole);
     QVERIFY(timeVal.isValid());
 }
 
@@ -243,6 +233,34 @@ void TestCTimers::testModelUpdates()
 
     std::ignore = timers.removeTimer("T1");
     QCOMPARE(spyReset.count(), 2);
+
+    timers.clear();
+    QCOMPARE(spyReset.count(), 3);
+}
+
+void TestCTimers::testMoveTimer()
+{
+    CTimers timers(nullptr);
+    timers.addTimer("T1", "D1");
+    timers.addTimer("T2", "D2");
+    timers.addTimer("T3", "D3");
+
+    // Order: T1, T2, T3
+    timers.moveTimer(0, 2); // Move T1 to position 2 (before T3)
+    // Order should be: T2, T1, T3
+    auto all = timers.allTimers();
+    auto it = all.begin();
+    QCOMPARE(QString::fromStdString(it->getName()), QString("T2"));
+    ++it;
+    QCOMPARE(QString::fromStdString(it->getName()), QString("T1"));
+    ++it;
+    QCOMPARE(QString::fromStdString(it->getName()), QString("T3"));
+
+    timers.moveTimer(2, 0); // Move T3 to position 0
+    // Order should be: T3, T2, T1
+    all = timers.allTimers();
+    it = all.begin();
+    QCOMPARE(QString::fromStdString(it->getName()), QString("T3"));
 }
 
 QTEST_MAIN(TestCTimers)

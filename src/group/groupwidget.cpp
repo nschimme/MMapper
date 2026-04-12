@@ -242,7 +242,7 @@ void GroupDelegate::paint(QPainter *const pPainter,
         painter.save();
         painter.setPen(textColor);
         painter.drawText(rect.adjusted(4, 0, 0, 0),
-                         Qt::AlignVCenter | Qt::AlignLeft,
+                         static_cast<int>(Qt::AlignVCenter | Qt::AlignLeft),
                          index.data(Qt::DisplayRole).toString());
         painter.restore();
 
@@ -292,8 +292,8 @@ void GroupDelegate::paint(QPainter *const pPainter,
         const int barHeight = static_cast<int>(static_cast<double>(rect.height()) * 0.8);
         const int barY = rect.y() + (rect.height() - barHeight) / 2;
         const double pct = std::clamp(max > 0 ? static_cast<double>(cur) / max : 0.0, 0.0, 1.0);
-        const int barWidth
-            = static_cast<int>(static_cast<double>(std::max(0, rect.width() - 2)) * pct);
+        const int barWidth = static_cast<int>(static_cast<double>(std::max(0, rect.width() - 2))
+                                              * pct);
         const QRect barRect(rect.x() + 1, barY, std::max(0, rect.width() - 2), barHeight);
 
         painter.save();
@@ -311,9 +311,10 @@ void GroupDelegate::paint(QPainter *const pPainter,
                 // 1.5s cycle (1500ms)
                 static constexpr const double PI = 3.14159265358979323846;
                 const qint64 ms = QDateTime::currentMSecsSinceEpoch() % 1500;
-                const double phase
-                    = (std::sin((static_cast<double>(ms) / 1500.0) * 2.0 * PI - PI / 2.0) + 1.0)
-                      / 2.0;
+                const double phase = (std::sin((static_cast<double>(ms) / 1500.0) * 2.0 * PI
+                                               - PI / 2.0)
+                                      + 1.0)
+                                     / 2.0;
                 alpha = pulseMin
                         + static_cast<int>(
                             std::round(static_cast<double>(pulseMax - pulseMin) * phase));
@@ -334,14 +335,21 @@ void GroupDelegate::paint(QPainter *const pPainter,
         monoFont.setFamily("DejaVu Sans Mono");
         monoFont.setStyleHint(QFont::Monospace);
         painter.setFont(monoFont);
-        painter.setPen(textColor);
-        painter.drawText(rect, Qt::AlignCenter, index.data(Qt::DisplayRole).toString());
+
+        // Use text color appropriate for QPalette::Window (the bar container background)
+        painter.setPen(mmqt::textColor(option.palette.color(QPalette::Window)));
+
+        painter.drawText(rect,
+                         static_cast<int>(Qt::AlignCenter),
+                         index.data(Qt::DisplayRole).toString());
         painter.restore();
     } else {
         // Other columns
         painter.save();
         painter.setPen(textColor);
-        painter.drawText(rect, Qt::AlignCenter, index.data(Qt::DisplayRole).toString());
+        painter.drawText(rect,
+                         static_cast<int>(Qt::AlignCenter),
+                         index.data(Qt::DisplayRole).toString());
         painter.restore();
     }
 }

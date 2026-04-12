@@ -221,7 +221,6 @@ void TimerModel::updateTimerList()
 
 void TimerModel::startRefreshTimer()
 {
-    const auto now = QDateTime::currentDateTime();
-    const int delay = 1000 - static_cast<int>(now.time().msec());
-    m_refreshTimer.start(delay > 0 ? delay : 1000);
+    // 50ms provides smooth 20fps updates for the progress bar
+    m_refreshTimer.start(50);
 }

@@ -223,6 +223,7 @@ MainWindow::MainWindow()
     m_timers = new CTimers(this);
     m_timerWidget = new TimerWidget(deref(m_timers), this);
     m_dockDialogTimers = new QDockWidget(tr("Timers Panel"), this);
+    m_dockDialogTimers->setObjectName("DockWidgetTimers");
     m_dockDialogTimers->setFeatures(QDockWidget::DockWidgetMovable
                                     | QDockWidget::DockWidgetFloatable
                                     | QDockWidget::DockWidgetClosable);

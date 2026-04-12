@@ -18,6 +18,7 @@ class MapData;
 class Mmapper2Group;
 class QObject;
 class QTableView;
+class QTimer;
 
 class NODISCARD_QOBJECT GroupProxyModel final : public QSortFilterProxyModel
 {
@@ -74,9 +75,6 @@ public:
 
 #define XFOREACH_COLUMNTYPE(X) \
     X(NAME, name, Name, "Name") \
-    X(HP_PERCENT, hp_percent, HpPercent, "HP") \
-    X(MANA_PERCENT, mana_percent, ManaPercent, "Mana") \
-    X(MOVES_PERCENT, moves_percent, MovesPercent, "Moves") \
     X(HP, hp, Hp, "HP") \
     X(MANA, mana, Mana, "Mana") \
     X(MOVES, moves, Moves, "Moves") \
@@ -154,6 +152,7 @@ private:
     MapData *m_map = nullptr;
     GroupProxyModel *m_proxyModel = nullptr;
     GroupModel m_model;
+    QTimer *m_pulseTimer = nullptr;
 
     void updateColumnVisibility();
 

@@ -86,7 +86,7 @@ void HotkeyManager::syncFromConfig()
     }
 }
 
-bool HotkeyManager::setHotkey(const Hotkey &hk, std::string command)
+bool HotkeyManager::setHotkey(const Hotkey &hk, const std::string_view command)
 {
     if (!hk.isValid()) {
         return false;

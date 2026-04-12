@@ -54,7 +54,7 @@ public:
 
 public:
     void paint(QPainter *pPainter, const QRect &rect);
-    NODISCARD int getWidth() const { return m_count * m_height; }
+    NODISCARD int getWidth() const { return static_cast<int>(m_count) * m_height; }
 };
 Q_DECLARE_METATYPE(GroupStateData)
 
@@ -155,6 +155,7 @@ private:
     QTimer *m_pulseTimer = nullptr;
 
     void updateColumnVisibility();
+    void updatePulseTimer();
 
 private:
     QAction *m_center = nullptr;

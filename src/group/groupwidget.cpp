@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <cmath>
 #include <map>
+#include <unordered_set>
 #include <vector>
 
 #include <QAction>
@@ -134,7 +135,7 @@ bool GroupProxyModel::filterAcceptsRow(int source_row, const QModelIndex &source
 GroupStateData::GroupStateData(const QColor &color,
                                const CharacterPositionEnum position,
                                const CharacterAffectFlags affects)
-    : m_color(std::move(color))
+    : m_color(color)
     , m_position(position)
     , m_affects(affects)
 {
@@ -161,13 +162,14 @@ void GroupStateData::paint(QPainter *const pPainter, const QRect &rect)
     painter.save();
     painter.translate(rect.x(), rect.y());
     m_height = rect.height();
-    painter.scale(m_height, m_height); // Images are squares
+    painter.scale(static_cast<double>(m_height),
+                  static_cast<double>(m_height)); // Images are squares
 
     const bool invert = mmqt::textColor(m_color) == Qt::white;
 
     const auto drawOne = [&painter, invert](QString filename) -> void {
         painter.drawImage(QRect{0, 0, 1, 1}, getImage(filename, invert));
-        painter.translate(1, 0);
+        painter.translate(1.0, 0.0);
     };
 
     if (m_position != CharacterPositionEnum::UNDEFINED) {
@@ -267,7 +269,7 @@ void GroupDelegate::paint(QPainter *const pPainter,
         if (column == ColumnTypeEnum::HP) {
             cur = character->getHits();
             max = character->getMaxHits();
-            const double pct = max > 0 ? (double) cur / max : 1.0;
+            const double pct = max > 0 ? static_cast<double>(cur) / max : 1.0;
             if (pct < 0.3) {
                 barColor = QColor(0xFF, 0x55, 0x55); // Red
                 pulse = true;
@@ -291,25 +293,28 @@ void GroupDelegate::paint(QPainter *const pPainter,
             cur = character->getMoves();
             max = character->getMaxMoves();
             barColor = QColor(0xFF, 0xB8, 0x6C); // Amber
-            const double pct = max > 0 ? (double) cur / max : 1.0;
+            const double pct = max > 0 ? static_cast<double>(cur) / max : 1.0;
             if (pct < 0.15) {
                 pulse = true;
             }
         }
 
         // Layer 2: The Bar (80% height, rounded 4px)
-        const int barHeight = rect.height() * 0.8;
+        const int barHeight = static_cast<int>(static_cast<double>(rect.height()) * 0.8);
         const int barY = rect.y() + (rect.height() - barHeight) / 2;
-        const double pct = std::clamp(max > 0 ? (double) cur / max : 0.0, 0.0, 1.0);
-        const int barWidth = rect.width() * pct;
+        const double pct = std::clamp(max > 0 ? static_cast<double>(cur) / max : 0.0, 0.0, 1.0);
+        const int barWidth = static_cast<int>(static_cast<double>(rect.width()) * pct);
 
         int alpha = 180;
         if (pulse) {
             // 1.5s cycle (1500ms)
             static constexpr const double PI = 3.14159265358979323846;
             const qint64 ms = QDateTime::currentMSecsSinceEpoch() % 1500;
-            const double phase = (std::sin((ms / 1500.0) * 2.0 * PI - PI / 2.0) + 1.0) / 2.0;
-            alpha = pulseMin + (pulseMax - pulseMin) * phase;
+            const double phase = (std::sin((static_cast<double>(ms) / 1500.0) * 2.0 * PI - PI / 2.0)
+                                  + 1.0)
+                                 / 2.0;
+            alpha = pulseMin
+                    + static_cast<int>(std::round(static_cast<double>(pulseMax - pulseMin) * phase));
         }
         barColor.setAlpha(alpha);
 
@@ -317,7 +322,7 @@ void GroupDelegate::paint(QPainter *const pPainter,
         painter.setRenderHint(QPainter::Antialiasing);
         painter.setBrush(barColor);
         painter.setPen(Qt::NoPen);
-        painter.drawRoundedRect(QRect(rect.x(), barY, barWidth, barHeight), 4, 4);
+        painter.drawRoundedRect(QRect(rect.x(), barY, barWidth, barHeight), 4.0, 4.0);
         painter.restore();
 
         // Layer 3: Text (Monospace, Centered)
@@ -327,13 +332,7 @@ void GroupDelegate::paint(QPainter *const pPainter,
         monoFont.setStyleHint(QFont::Monospace);
         painter.setFont(monoFont);
         painter.setPen(mmqt::textColor(option.palette.color(QPalette::Base)));
-        if (character->isNpc()) {
-            painter.drawText(rect,
-                             Qt::AlignCenter,
-                             QString("%1%").arg(static_cast<int>(std::round(pct * 100.0))));
-        } else {
-            painter.drawText(rect, Qt::AlignCenter, QString("%1 / %2").arg(cur).arg(max));
-        }
+        painter.drawText(rect, Qt::AlignCenter, index.data(Qt::DisplayRole).toString());
         painter.restore();
     } else {
         // Fallback for other columns
@@ -355,6 +354,26 @@ QSize GroupDelegate::sizeHint(const QStyleOptionViewItem &option, const QModelIn
         size.setWidth(padding + content);
         return size;
     }
+
+    const auto column = static_cast<ColumnTypeEnum>(index.column());
+    if (column == ColumnTypeEnum::NAME) {
+        QSize size = QStyledItemDelegate::sizeHint(option, index);
+        size.setWidth(size.width() + 12); // 4px strip + 8px padding
+        return size;
+
+    } else if (column == ColumnTypeEnum::HP || column == ColumnTypeEnum::MANA
+               || column == ColumnTypeEnum::MOVES) {
+        QFont monoFont = option.font;
+        monoFont.setFamily("DejaVu Sans Mono");
+        monoFont.setStyleHint(QFont::Monospace);
+        const QFontMetrics fm(monoFont);
+
+        // Sample text for calculation: "9999 / 9999" or "100%"
+        const QString sampleText = (column == ColumnTypeEnum::HP) ? "9999 / 9999" : "999 / 999";
+        const int textWidth = fm.horizontalAdvance(sampleText);
+        return QSize(textWidth + 20, QStyledItemDelegate::sizeHint(option, index).height());
+    }
+
     return QStyledItemDelegate::sizeHint(option, index);
 }
 
@@ -575,10 +594,14 @@ QVariant GroupModel::dataForCharacter(const SharedGroupChar &pCharacter,
 {
     const CGroupChar &character = deref(pCharacter);
 
-    const auto formatStat = [](int numerator, int denomenator) -> QString {
-        // The NPC check for ratio is handled below in the switch statement
+    const auto formatStat = [&character](int numerator, int denomenator) -> QString {
         if (numerator == 0 && denomenator == 0) {
             return QLatin1String("");
+        }
+
+        if (character.getType() == CharacterTypeEnum::NPC) {
+            const double pct = denomenator > 0 ? static_cast<double>(numerator) / denomenator : 0.0;
+            return QString("%1%").arg(static_cast<int>(std::round(pct * 100.0)));
         }
 
         return QString("%1 / %2").arg(numerator).arg(denomenator);
@@ -598,23 +621,11 @@ QVariant GroupModel::dataForCharacter(const SharedGroupChar &pCharacter,
                                               character.getLabel().toQString());
             }
         case ColumnTypeEnum::HP:
-            if (character.getType() == CharacterTypeEnum::NPC) {
-                return QLatin1String("");
-            } else {
-                return formatStat(character.getHits(), character.getMaxHits());
-            }
+            return formatStat(character.getHits(), character.getMaxHits());
         case ColumnTypeEnum::MANA:
-            if (character.getType() == CharacterTypeEnum::NPC) {
-                return QLatin1String("");
-            } else {
-                return formatStat(character.getMana(), character.getMaxMana());
-            }
+            return formatStat(character.getMana(), character.getMaxMana());
         case ColumnTypeEnum::MOVES:
-            if (character.getType() == CharacterTypeEnum::NPC) {
-                return QLatin1String("");
-            } else {
-                return formatStat(character.getMoves(), character.getMaxMoves());
-            }
+            return formatStat(character.getMoves(), character.getMaxMoves());
         case ColumnTypeEnum::STATE:
             return QVariant::fromValue(GroupStateData(character.getColor(),
                                                       character.getPosition(),
@@ -838,7 +849,6 @@ GroupWidget::GroupWidget(Mmapper2Group *const group, MapData *const md, QWidget 
 
     m_pulseTimer = new QTimer(this);
     connect(m_pulseTimer, &QTimer::timeout, m_table->viewport(), QOverload<>::of(&QWidget::update));
-    m_pulseTimer->start(50);
 
     // Minimize row height
     m_table->verticalHeader()->setDefaultSectionSize(
@@ -914,6 +924,9 @@ GroupWidget::GroupWidget(Mmapper2Group *const group, MapData *const md, QWidget 
             this,
             &GroupWidget::slot_onCharacterUpdated);
     connect(m_group, &Mmapper2Group::sig_groupReset, this, &GroupWidget::slot_onGroupReset);
+
+    updateColumnVisibility();
+    updatePulseTimer();
 }
 
 GroupWidget::~GroupWidget()
@@ -947,11 +960,46 @@ void GroupWidget::updateColumnVisibility()
     m_table->setColumnHidden(static_cast<int>(ColumnTypeEnum::MANA), hide_mana);
 }
 
+void GroupWidget::updatePulseTimer()
+{
+    const auto needs_pulse = [this]() -> bool {
+        for (const auto &character : m_model.getCharacters()) {
+            if (!character) {
+                continue;
+            }
+            // HP pulse < 30%
+            const int hp = character->getHits();
+            const int maxHp = character->getMaxHits();
+            if (maxHp > 0 && (static_cast<double>(hp) / maxHp) < 0.3) {
+                return true;
+            }
+            // Moves pulse < 15%
+            const int moves = character->getMoves();
+            const int maxMoves = character->getMaxMoves();
+            if (maxMoves > 0 && (static_cast<double>(moves) / maxMoves) < 0.15) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    if (needs_pulse()) {
+        if (!m_pulseTimer->isActive()) {
+            m_pulseTimer->start(50);
+        }
+    } else {
+        if (m_pulseTimer->isActive()) {
+            m_pulseTimer->stop();
+        }
+    }
+}
+
 void GroupWidget::slot_onCharacterAdded(SharedGroupChar character)
 {
     assert(character);
     m_model.insertCharacter(character);
     updateColumnVisibility();
+    updatePulseTimer();
 }
 
 void GroupWidget::slot_onCharacterRemoved(const GroupId characterId)
@@ -959,16 +1007,19 @@ void GroupWidget::slot_onCharacterRemoved(const GroupId characterId)
     assert(characterId != INVALID_GROUPID);
     m_model.removeCharacterById(characterId);
     updateColumnVisibility();
+    updatePulseTimer();
 }
 
 void GroupWidget::slot_onCharacterUpdated(SharedGroupChar character)
 {
     assert(character);
     m_model.updateCharacter(character);
+    updatePulseTimer();
 }
 
 void GroupWidget::slot_onGroupReset(const GroupVector &newCharacterList)
 {
     m_model.setCharacters(newCharacterList);
     updateColumnVisibility();
+    updatePulseTimer();
 }

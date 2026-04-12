@@ -129,6 +129,7 @@ std::optional<std::string> HotkeyManager::getCommand(const Hotkey &hk) const
 std::vector<std::pair<Hotkey, std::string>> HotkeyManager::getAllHotkeys() const
 {
     std::vector<std::pair<Hotkey, std::string>> result;
+    result.reserve(m_hotkeys.size());
     for (const auto &[hk, cmd] : m_hotkeys) {
         result.emplace_back(hk, cmd);
     }

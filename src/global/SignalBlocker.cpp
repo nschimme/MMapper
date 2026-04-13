@@ -7,7 +7,17 @@
 
 #include <cassert>
 
+#include <QEvent>
 #include <QWidget>
+
+bool mmqt::applyWheelEventFilter(QObject *const /*obj*/, QEvent *const event)
+{
+    if (event->type() == QEvent::Wheel) {
+        event->ignore();
+        return true;
+    }
+    return false;
+}
 
 SignalBlocker::SignalBlocker(QObject &in)
     : obj{in}

@@ -14,6 +14,7 @@
 #include "../src/global/LineUtils.h"
 #include "../src/global/RAII.h"
 #include "../src/global/Signal2.h"
+#include "../src/global/SignalBlocker.h"
 #include "../src/global/StringView.h"
 #include "../src/global/TaggedString.h"
 #include "../src/global/TextUtils.h"
@@ -645,6 +646,29 @@ void TestGlobal::unquoteTest()
 void TestGlobal::weakHandleTest()
 {
     test::testWeakHandle();
+}
+
+void TestGlobal::wheelEventFilterTest()
+{
+    QObject obj;
+    QWheelEvent wheelEvent(QPointF(0, 0),
+                           QPointF(0, 0),
+                           QPoint(0, 0),
+                           QPoint(0, 120),
+                           Qt::NoButton,
+                           Qt::NoModifier,
+                           Qt::ScrollBegin,
+                           false);
+
+    wheelEvent.setAccepted(false);
+    QVERIFY(!wheelEvent.isAccepted());
+    bool handled = mmqt::applyWheelEventFilter(&obj, &wheelEvent);
+    QVERIFY(handled);
+    QVERIFY(!wheelEvent.isAccepted()); // should be ignored
+
+    QEvent otherEvent(QEvent::MouseButtonPress);
+    handled = mmqt::applyWheelEventFilter(&obj, &otherEvent);
+    QVERIFY(!handled);
 }
 
 QTEST_MAIN(TestGlobal)

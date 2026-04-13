@@ -3,6 +3,8 @@
 
 #include "ManagePasswordDialog.h"
 
+#include "../global/ConfigConsts-Computed.h"
+#include "../global/ConfigEnums.h"
 #include "ui_ManagePasswordDialog.h"
 
 #include <QLineEdit>
@@ -14,14 +16,22 @@ ManagePasswordDialog::ManagePasswordDialog(QWidget *parent)
 {
     ui->setupUi(this);
 
-    connect(ui->showPassword, &QToolButton::toggled, this, [this](bool checked) {
-        ui->accountPassword->setEchoMode(checked ? QLineEdit::Normal : QLineEdit::Password);
-    });
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+        setWindowTitle("Manage Account");
+        ui->label_2->hide();
+        ui->accountPassword->hide();
+        ui->showPassword->hide();
+        ui->deleteButton->hide();
+    } else {
+        connect(ui->showPassword, &QToolButton::toggled, this, [this](bool checked) {
+            ui->accountPassword->setEchoMode(checked ? QLineEdit::Normal : QLineEdit::Password);
+        });
 
-    connect(ui->deleteButton, &QPushButton::clicked, this, [this]() {
-        emit sig_deleteRequested();
-        reject();
-    });
+        connect(ui->deleteButton, &QPushButton::clicked, this, [this]() {
+            emit sig_deleteRequested();
+            reject();
+        });
+    }
 }
 
 ManagePasswordDialog::~ManagePasswordDialog()

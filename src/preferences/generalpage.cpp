@@ -174,12 +174,13 @@ GeneralPage::GeneralPage(QWidget *parent)
         if (checked) {
             const auto &account = getConfig().account;
             if (account.accountName.isEmpty()) {
-                QMessageBox::information(this, "Login", "Please enter your account name first.");
-                ui->autoLogin->setChecked(false);
-                ui->accountName->setFocus();
-                return;
+                slot_setPasswordClicked();
+                if (getConfig().account.accountName.isEmpty()) {
+                    ui->autoLogin->setChecked(false);
+                    return;
+                }
             }
-            if (!account.accountPassword) {
+            if (!account.accountPassword && CURRENT_PLATFORM != PlatformEnum::Wasm) {
                 QMessageBox::StandardButton reply = QMessageBox::question(
                     this,
                     "Login",
@@ -213,10 +214,6 @@ GeneralPage::GeneralPage(QWidget *parent)
         setConfig().account.rememberLogin = ui->autoLogin->isChecked();
     });
 
-    connect(ui->accountName, &QLineEdit::textChanged, this, [this](const QString &account) {
-        setConfig().account.accountName = account;
-    });
-
     connect(&passCfg, &PasswordConfig::sig_error, this, [this](const QString &msg) {
         qWarning() << msg;
         QMessageBox::warning(this, "Password Error", msg);
@@ -239,7 +236,6 @@ GeneralPage::GeneralPage(QWidget *parent)
                 if (!newPassword.isEmpty()) {
                     passCfg.setPassword(newAccountName, newPassword);
                     setConfig().account.accountName = newAccountName;
-                    ui->accountName->setText(newAccountName);
                 }
             }
         }
@@ -339,11 +335,9 @@ void GeneralPage::slot_loadConfig()
 
     if constexpr (NO_QTKEYCHAIN) {
         ui->autoLogin->setEnabled(false);
-        ui->accountName->setEnabled(false);
         ui->setPassword->setEnabled(false);
     } else {
         ui->autoLogin->setChecked(account.rememberLogin);
-        ui->accountName->setText(account.accountName);
     }
 }
 
@@ -425,15 +419,20 @@ void GeneralPage::slot_themeComboBoxChanged(int index)
 
 void GeneralPage::slot_setPasswordClicked()
 {
-    const QString accountName = ui->accountName->text();
-    if (accountName.isEmpty()) {
-        QMessageBox::information(this, "Manage Password", "Please enter your account name first.");
-        ui->accountName->setFocus();
-        return;
-    }
+    const QString accountName = getConfig().account.accountName;
 
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
-        passCfg.setPassword(accountName, "");
+        auto *dlg = new ManagePasswordDialog(this);
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        dlg->setAccountName(accountName);
+        connect(dlg, &QDialog::accepted, this, [this, dlg]() {
+            const QString newAccountName = dlg->accountName();
+            if (!newAccountName.isEmpty()) {
+                passCfg.setPassword(newAccountName, "");
+                setConfig().account.accountName = newAccountName;
+            }
+        });
+        dlg->show();
     } else {
         if (getConfig().account.accountPassword) {
             ui->setPassword->setProperty("requesting", true);
@@ -452,7 +451,6 @@ void GeneralPage::slot_setPasswordClicked()
                 if (!password.isEmpty()) {
                     passCfg.setPassword(newAccountName, password);
                     setConfig().account.accountName = newAccountName;
-                    ui->accountName->setText(newAccountName);
                     setConfig().account.accountPassword = true;
                 }
             }

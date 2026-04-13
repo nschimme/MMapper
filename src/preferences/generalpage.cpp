@@ -206,7 +206,6 @@ GeneralPage::GeneralPage(QWidget *parent)
                         QMessageBox::Yes | QMessageBox::No);
                     if (reply == QMessageBox::Yes) {
                         passCfg.deletePassword(getConfig().account.accountName);
-                        setConfig().account.accountPassword = false;
                     }
                 }
             }
@@ -232,7 +231,6 @@ GeneralPage::GeneralPage(QWidget *parent)
             dlg.setPassword(password);
             connect(&dlg, &ManagePasswordDialog::sig_deleteRequested, this, [this, accountName]() {
                 passCfg.deletePassword(accountName);
-                setConfig().account.accountPassword = false;
             });
 
             if (dlg.exec() == QDialog::Accepted) {
@@ -252,6 +250,7 @@ GeneralPage::GeneralPage(QWidget *parent)
     });
 
     connect(&passCfg, &PasswordConfig::sig_passwordDeleted, this, [this]() {
+        setConfig().account.accountPassword = false;
         QMessageBox::information(this, "Password", "Stored password deleted successfully.");
     });
 

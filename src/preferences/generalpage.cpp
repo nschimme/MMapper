@@ -216,7 +216,6 @@ GeneralPage::GeneralPage(QWidget *parent)
 
     connect(ui->accountName, &QLineEdit::textChanged, this, [this](const QString &account) {
         setConfig().account.accountName = account;
-        ui->viewPassword->setEnabled(!account.isEmpty() && getConfig().account.accountPassword);
     });
 
     connect(&passCfg, &PasswordConfig::sig_error, this, [this](const QString &msg) {
@@ -225,22 +224,35 @@ GeneralPage::GeneralPage(QWidget *parent)
     });
 
     connect(&passCfg, &PasswordConfig::sig_incomingPassword, this, [this](const QString &password) {
-        if (ui->viewPassword->property("requesting").toBool()) {
-            ui->viewPassword->setProperty("requesting", false);
-            QMessageBox::information(this,
-                                     "Stored Password",
-                                     QString("Password for %1: %2")
-                                         .arg(getConfig().account.accountName, password));
+        if (ui->setPassword->property("requesting").toBool()) {
+            ui->setPassword->setProperty("requesting", false);
+            const QString accountName = getConfig().account.accountName;
+            ManagePasswordDialog dlg(this);
+            dlg.setAccountName(accountName);
+            dlg.setPassword(password);
+            connect(&dlg, &ManagePasswordDialog::sig_deleteRequested, this, [this, accountName]() {
+                passCfg.deletePassword(accountName);
+                setConfig().account.accountPassword = false;
+            });
+
+            if (dlg.exec() == QDialog::Accepted) {
+                const QString newAccountName = dlg.accountName();
+                const QString newPassword = dlg.password();
+                if (!newPassword.isEmpty()) {
+                    passCfg.setPassword(newAccountName, newPassword);
+                    setConfig().account.accountName = newAccountName;
+                    ui->accountName->setText(newAccountName);
+                    setConfig().account.accountPassword = true;
+                }
+            }
         }
     });
 
     connect(&passCfg, &PasswordConfig::sig_passwordDeleted, this, [this]() {
         QMessageBox::information(this, "Password", "Stored password deleted successfully.");
-        ui->viewPassword->setEnabled(false);
     });
 
     connect(ui->setPassword, &QPushButton::clicked, this, &GeneralPage::slot_setPasswordClicked);
-    connect(ui->viewPassword, &QToolButton::clicked, this, &GeneralPage::slot_viewPasswordClicked);
 
     connect(ui->resourceLineEdit, &QLineEdit::textChanged, this, [](const QString &text) {
         setConfig().canvas.resourcesDirectory = text;
@@ -264,7 +276,6 @@ GeneralPage::GeneralPage(QWidget *parent)
         ui->proxyConnectionStatusCheckBox->setDisabled(true);
         ui->resourceLineEdit->setDisabled(true);
         ui->resourcePushButton->setDisabled(true);
-        ui->viewPassword->hide();
     }
 }
 
@@ -328,11 +339,9 @@ void GeneralPage::slot_loadConfig()
         ui->autoLogin->setEnabled(false);
         ui->accountName->setEnabled(false);
         ui->setPassword->setEnabled(false);
-        ui->viewPassword->setEnabled(false);
     } else {
         ui->autoLogin->setChecked(account.rememberLogin);
         ui->accountName->setText(account.accountName);
-        ui->viewPassword->setEnabled(!account.accountName.isEmpty() && account.accountPassword);
     }
 }
 
@@ -416,7 +425,7 @@ void GeneralPage::slot_setPasswordClicked()
 {
     const QString accountName = ui->accountName->text();
     if (accountName.isEmpty()) {
-        QMessageBox::information(this, "Set Password", "Please enter your account name first.");
+        QMessageBox::information(this, "Manage Password", "Please enter your account name first.");
         ui->accountName->setFocus();
         return;
     }
@@ -425,38 +434,27 @@ void GeneralPage::slot_setPasswordClicked()
         passCfg.setPassword(accountName, "");
         setConfig().account.accountPassword = true;
     } else {
-        SetPasswordDialog dlg(this);
-        dlg.setAccountName(accountName);
-        connect(&dlg, &SetPasswordDialog::sig_deleteRequested, this, [this, accountName]() {
-            passCfg.deletePassword(accountName);
-            setConfig().account.accountPassword = false;
-        });
+        if (getConfig().account.accountPassword) {
+            ui->setPassword->setProperty("requesting", true);
+            passCfg.getPassword(accountName);
+        } else {
+            ManagePasswordDialog dlg(this);
+            dlg.setAccountName(accountName);
+            connect(&dlg, &ManagePasswordDialog::sig_deleteRequested, this, [this, accountName]() {
+                passCfg.deletePassword(accountName);
+                setConfig().account.accountPassword = false;
+            });
 
-        if (dlg.exec() == QDialog::Accepted) {
-            const QString newAccountName = dlg.accountName();
-            const QString password = dlg.password();
-            if (!password.isEmpty()) {
-                passCfg.setPassword(newAccountName, password);
-                setConfig().account.accountName = newAccountName;
-                ui->accountName->setText(newAccountName);
-                setConfig().account.accountPassword = true;
-                ui->viewPassword->setEnabled(true);
+            if (dlg.exec() == QDialog::Accepted) {
+                const QString newAccountName = dlg.accountName();
+                const QString password = dlg.password();
+                if (!password.isEmpty()) {
+                    passCfg.setPassword(newAccountName, password);
+                    setConfig().account.accountName = newAccountName;
+                    ui->accountName->setText(newAccountName);
+                    setConfig().account.accountPassword = true;
+                }
             }
         }
     }
-}
-
-void GeneralPage::slot_viewPasswordClicked()
-{
-    if (CURRENT_PLATFORM == PlatformEnum::Wasm) {
-        return;
-    }
-
-    const QString accountName = ui->accountName->text();
-    if (accountName.isEmpty()) {
-        return;
-    }
-
-    ui->viewPassword->setProperty("requesting", true);
-    passCfg.getPassword(accountName);
 }

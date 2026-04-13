@@ -7,7 +7,7 @@
 
 #include "../configuration/PasswordConfig.h"
 #include "../global/macros.h"
-#include "SetPasswordDialog.h"
+#include "ManagePasswordDialog.h"
 
 #include <QString>
 #include <QWidget>
@@ -50,5 +50,4 @@ public slots:
     void slot_displayXPStatusStateChanged(int);
     void slot_themeComboBoxChanged(int);
     void slot_setPasswordClicked();
-    void slot_viewPasswordClicked();
 };

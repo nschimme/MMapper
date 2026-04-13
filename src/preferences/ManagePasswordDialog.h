@@ -7,19 +7,19 @@
 #include <QDialog>
 
 namespace Ui {
-class SetPasswordDialog;
+class ManagePasswordDialog;
 }
 
-class NODISCARD_QOBJECT SetPasswordDialog final : public QDialog
+class NODISCARD_QOBJECT ManagePasswordDialog final : public QDialog
 {
     Q_OBJECT
 
 private:
-    Ui::SetPasswordDialog *const ui;
+    Ui::ManagePasswordDialog *const ui;
 
 public:
-    explicit SetPasswordDialog(QWidget *parent = nullptr);
-    ~SetPasswordDialog() final;
+    explicit ManagePasswordDialog(QWidget *parent = nullptr);
+    ~ManagePasswordDialog() final;
 
     void setAccountName(const QString &name);
     NODISCARD QString accountName() const;

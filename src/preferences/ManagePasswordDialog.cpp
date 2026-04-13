@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2019 The MMapper Authors
 
-#include "SetPasswordDialog.h"
+#include "ManagePasswordDialog.h"
 
-#include "ui_SetPasswordDialog.h"
+#include "ui_ManagePasswordDialog.h"
 
 #include <QLineEdit>
 #include <QPushButton>
 
-SetPasswordDialog::SetPasswordDialog(QWidget *parent)
+ManagePasswordDialog::ManagePasswordDialog(QWidget *parent)
     : QDialog(parent)
-    , ui(new Ui::SetPasswordDialog)
+    , ui(new Ui::ManagePasswordDialog)
 {
     ui->setupUi(this);
 
@@ -24,27 +24,27 @@ SetPasswordDialog::SetPasswordDialog(QWidget *parent)
     });
 }
 
-SetPasswordDialog::~SetPasswordDialog()
+ManagePasswordDialog::~ManagePasswordDialog()
 {
     delete ui;
 }
 
-void SetPasswordDialog::setAccountName(const QString &name)
+void ManagePasswordDialog::setAccountName(const QString &name)
 {
     ui->accountName->setText(name);
 }
 
-QString SetPasswordDialog::accountName() const
+QString ManagePasswordDialog::accountName() const
 {
     return ui->accountName->text();
 }
 
-void SetPasswordDialog::setPassword(const QString &password)
+void ManagePasswordDialog::setPassword(const QString &password)
 {
     ui->accountPassword->setText(password);
 }
 
-QString SetPasswordDialog::password() const
+QString ManagePasswordDialog::password() const
 {
     return ui->accountPassword->text();
 }

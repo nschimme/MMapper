@@ -31,6 +31,8 @@ PasswordConfig::PasswordConfig(QObject *const parent)
     connect(&m_writeJob, &QKeychain::WritePasswordJob::finished, [this]() {
         if (m_writeJob.error()) {
             emit sig_error(m_writeJob.errorString());
+        } else {
+            emit sig_passwordSaved();
         }
     });
 

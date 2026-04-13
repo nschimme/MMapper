@@ -35,5 +35,6 @@ public:
 signals:
     void sig_error(const QString &msg);
     void sig_incomingPassword(const QString &password);
+    void sig_passwordSaved();
     void sig_passwordDeleted();
 };

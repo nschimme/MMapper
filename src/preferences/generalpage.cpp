@@ -242,10 +242,13 @@ GeneralPage::GeneralPage(QWidget *parent)
                     passCfg.setPassword(newAccountName, newPassword);
                     setConfig().account.accountName = newAccountName;
                     ui->accountName->setText(newAccountName);
-                    setConfig().account.accountPassword = true;
                 }
             }
         }
+    });
+
+    connect(&passCfg, &PasswordConfig::sig_passwordSaved, this, [this]() {
+        setConfig().account.accountPassword = true;
     });
 
     connect(&passCfg, &PasswordConfig::sig_passwordDeleted, this, [this]() {
@@ -432,7 +435,6 @@ void GeneralPage::slot_setPasswordClicked()
 
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
         passCfg.setPassword(accountName, "");
-        setConfig().account.accountPassword = true;
     } else {
         if (getConfig().account.accountPassword) {
             ui->setPassword->setProperty("requesting", true);

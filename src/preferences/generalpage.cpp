@@ -180,7 +180,11 @@ GeneralPage::GeneralPage(QWidget *parent)
 
     connect(&passCfg, &PasswordConfig::sig_error, this, [this](const QString &msg) {
         qWarning() << msg;
-        auto *box = new QMessageBox(QMessageBox::Warning, "Password Error", msg, QMessageBox::Ok, this);
+        auto *box = new QMessageBox(QMessageBox::Warning,
+                                    "Password Error",
+                                    msg,
+                                    QMessageBox::Ok,
+                                    this);
         box->setAttribute(Qt::WA_DeleteOnClose);
         box->open();
     });
@@ -224,9 +228,7 @@ GeneralPage::GeneralPage(QWidget *parent)
 
     connect(ui->setPassword, &QPushButton::clicked, this, &GeneralPage::slot_setPasswordClicked);
 
-    connect(ui->remoteName, &QLineEdit::textChanged, this, [this]() {
-        updateAutoLoginEnabled();
-    });
+    connect(ui->remoteName, &QLineEdit::textChanged, this, [this]() { updateAutoLoginEnabled(); });
 
     connect(ui->resourceLineEdit, &QLineEdit::textChanged, this, [](const QString &text) {
         setConfig().canvas.resourcesDirectory = text;

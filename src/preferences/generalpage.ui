@@ -160,30 +160,13 @@
      </property>
      <layout class="QGridLayout" name="gridLayout_7">
       <item row="1" column="0">
-       <widget class="QLabel" name="label_2">
+       <widget class="QPushButton" name="setPassword">
         <property name="text">
-         <string>Account:</string>
-        </property>
-        <property name="buddy">
-         <cstring>accountName</cstring>
+         <string>Manage Password</string>
         </property>
        </widget>
       </item>
       <item row="1" column="1">
-       <layout class="QHBoxLayout" name="horizontalLayout_account">
-        <item>
-         <widget class="QLineEdit" name="accountName"/>
-        </item>
-        <item>
-         <widget class="QPushButton" name="setPassword">
-          <property name="text">
-           <string>Manage Password</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </item>
-      <item row="1" column="2">
        <spacer name="horizontalSpacer_account">
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
@@ -196,7 +179,7 @@
         </property>
        </spacer>
       </item>
-      <item row="0" column="0" colspan="3">
+      <item row="0" column="0" colspan="2">
        <widget class="QCheckBox" name="autoLogin">
         <property name="text">
          <string>Remember my login</string>
@@ -496,7 +479,6 @@
   <tabstop>localPort</tabstop>
   <tabstop>charsetComboBox</tabstop>
   <tabstop>autoLogin</tabstop>
-  <tabstop>accountName</tabstop>
   <tabstop>setPassword</tabstop>
   <tabstop>checkForUpdateCheckBox</tabstop>
   <tabstop>autoLoadCheck</tabstop>

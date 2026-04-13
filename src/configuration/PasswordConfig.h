@@ -3,6 +3,7 @@
 // Copyright (C) 2019 The MMapper Authors
 
 #include "../global/RuleOf5.h"
+#include "../global/macros.h"
 
 #include <QObject>
 #include <QString>

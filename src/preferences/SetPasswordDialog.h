@@ -14,19 +14,19 @@ class NODISCARD_QOBJECT SetPasswordDialog final : public QDialog
 {
     Q_OBJECT
 
+private:
+    Ui::SetPasswordDialog *const ui;
+
 public:
     explicit SetPasswordDialog(QWidget *parent = nullptr);
     ~SetPasswordDialog() final;
 
     void setAccountName(const QString &name);
-    QString accountName() const;
+    NODISCARD QString accountName() const;
 
     void setPassword(const QString &password);
-    QString password() const;
+    NODISCARD QString password() const;
 
 signals:
     void sig_deleteRequested();
-
-private:
-    Ui::SetPasswordDialog *const ui;
 };

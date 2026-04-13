@@ -11,7 +11,7 @@
 #include <keychain.h>
 #endif
 
-class PasswordConfig final : public QObject
+class NODISCARD_QOBJECT PasswordConfig final : public QObject
 {
     Q_OBJECT
 

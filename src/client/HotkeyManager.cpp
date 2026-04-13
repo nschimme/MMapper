@@ -12,7 +12,7 @@
 
 namespace {
 
-constexpr bool is_valid_hotkey(std::string_view hotkey_str)
+NODISCARD constexpr bool is_valid_hotkey(std::string_view hotkey_str)
 {
     // Find the base key (the part after the last '+')
     size_t last_plus = hotkey_str.rfind('+');

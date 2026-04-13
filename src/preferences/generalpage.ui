@@ -169,35 +169,32 @@
         </property>
        </widget>
       </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="label_3">
-        <property name="text">
-         <string>Password:</string>
-        </property>
-        <property name="buddy">
-         <cstring>accountPassword</cstring>
-        </property>
-       </widget>
+      <item row="1" column="1">
+       <layout class="QHBoxLayout" name="horizontalLayout_account">
+        <item>
+         <widget class="QLineEdit" name="accountName"/>
+        </item>
+        <item>
+         <widget class="QPushButton" name="setPassword">
+          <property name="text">
+           <string>Manage Password</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
       </item>
-      <item row="1" column="1" colspan="2">
-       <widget class="QLineEdit" name="accountName"/>
-      </item>
-      <item row="2" column="1" colspan="2">
-       <widget class="QLineEdit" name="accountPassword">
-        <property name="echoMode">
-         <enum>QLineEdit::Password</enum>
+      <item row="1" column="2">
+       <spacer name="horizontalSpacer_account">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
         </property>
-        <property name="placeholderText">
-         <string>***********</string>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
         </property>
-       </widget>
-      </item>
-      <item row="3" column="2">
-       <widget class="QPushButton" name="showPassword">
-        <property name="text">
-         <string>Show Password</string>
-        </property>
-       </widget>
+       </spacer>
       </item>
       <item row="0" column="0" colspan="3">
        <widget class="QCheckBox" name="autoLogin">
@@ -500,8 +497,7 @@
   <tabstop>charsetComboBox</tabstop>
   <tabstop>autoLogin</tabstop>
   <tabstop>accountName</tabstop>
-  <tabstop>accountPassword</tabstop>
-  <tabstop>showPassword</tabstop>
+  <tabstop>setPassword</tabstop>
   <tabstop>checkForUpdateCheckBox</tabstop>
   <tabstop>autoLoadCheck</tabstop>
   <tabstop>autoLoadFileName</tabstop>

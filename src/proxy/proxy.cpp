@@ -505,7 +505,7 @@ void Proxy::allocMudTelnet()
             const auto &account = getConfig().account;
             if (account.rememberLogin && !account.accountName.isEmpty() && account.accountPassword) {
                 // fetch asynchronously from keychain
-                getProxy().getPasswordConfig().getPassword();
+                getProxy().getPasswordConfig().getPassword(account.accountName);
             }
         }
 

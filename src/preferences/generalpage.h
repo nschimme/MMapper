@@ -50,4 +50,7 @@ public slots:
     void slot_displayXPStatusStateChanged(int);
     void slot_themeComboBoxChanged(int);
     void slot_setPasswordClicked();
+
+private:
+    void updateAutoLoginEnabled();
 };

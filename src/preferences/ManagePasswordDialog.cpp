@@ -29,7 +29,8 @@ ManagePasswordDialog::ManagePasswordDialog(QWidget *parent)
 
         connect(ui->deleteButton, &QPushButton::clicked, this, [this]() {
             emit sig_deleteRequested();
-            reject();
+            ui->accountPassword->clear();
+            ui->deleteButton->setEnabled(false);
         });
     }
 }
@@ -52,6 +53,9 @@ QString ManagePasswordDialog::accountName() const
 void ManagePasswordDialog::setPassword(const QString &password)
 {
     ui->accountPassword->setText(password);
+    if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
+        ui->deleteButton->setEnabled(!password.isEmpty());
+    }
 }
 
 QString ManagePasswordDialog::password() const

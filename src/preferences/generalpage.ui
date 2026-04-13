@@ -162,7 +162,7 @@
       <item row="1" column="0">
        <widget class="QPushButton" name="setPassword">
         <property name="text">
-         <string>Manage Password</string>
+         <string>Manage Account</string>
         </property>
        </widget>
       </item>
@@ -182,7 +182,7 @@
       <item row="0" column="0" colspan="2">
        <widget class="QCheckBox" name="autoLogin">
         <property name="text">
-         <string>Remember my login</string>
+         <string>Automatic login</string>
         </property>
        </widget>
       </item>

@@ -525,6 +525,8 @@ set(mmapper_SRCS
     preferences/grouppage.h
     preferences/mumeprotocolpage.cpp
     preferences/mumeprotocolpage.h
+    preferences/SetPasswordDialog.cpp
+    preferences/SetPasswordDialog.h
     preferences/parserpage.cpp
     preferences/parserpage.h
     preferences/pathmachinepage.cpp
@@ -665,6 +667,7 @@ set(mmapper_UIS
     preferences/graphicspage.ui
     preferences/grouppage.ui
     preferences/mumeprotocolpage.ui
+    preferences/SetPasswordDialog.ui
     preferences/parserpage.ui
     preferences/pathmachinepage.ui
 )

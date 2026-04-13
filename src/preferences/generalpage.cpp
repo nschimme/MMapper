@@ -170,12 +170,53 @@ GeneralPage::GeneralPage(QWidget *parent)
         QFileDialog::getOpenFileContent(nameFilter, importFile);
     });
 
-    connect(ui->autoLogin, &QCheckBox::stateChanged, this, [this]() {
+    connect(ui->autoLogin, &QCheckBox::clicked, this, [this](bool checked) {
+        if (checked) {
+            const auto &account = getConfig().account;
+            if (account.accountName.isEmpty()) {
+                QMessageBox::information(this, "Login", "Please enter your account name first.");
+                ui->autoLogin->setChecked(false);
+                ui->accountName->setFocus();
+                return;
+            }
+            if (!account.accountPassword) {
+                QMessageBox::StandardButton reply = QMessageBox::question(
+                    this,
+                    "Login",
+                    "No password stored for this account. Would you like to set one now?",
+                    QMessageBox::Yes | QMessageBox::No);
+                if (reply == QMessageBox::Yes) {
+                    slot_setPasswordClicked();
+                    // Re-check if it was actually set
+                    if (!getConfig().account.accountPassword) {
+                        ui->autoLogin->setChecked(false);
+                    }
+                } else {
+                    ui->autoLogin->setChecked(false);
+                    return;
+                }
+            }
+        } else {
+            if constexpr (CURRENT_PLATFORM != PlatformEnum::Wasm) {
+                if (getConfig().account.accountPassword) {
+                    QMessageBox::StandardButton reply = QMessageBox::question(
+                        this,
+                        "Login",
+                        "Would you like to also delete the stored password for this account?",
+                        QMessageBox::Yes | QMessageBox::No);
+                    if (reply == QMessageBox::Yes) {
+                        passCfg.deletePassword(getConfig().account.accountName);
+                        setConfig().account.accountPassword = false;
+                    }
+                }
+            }
+        }
         setConfig().account.rememberLogin = ui->autoLogin->isChecked();
     });
 
-    connect(ui->accountName, &QLineEdit::textChanged, this, [](const QString &account) {
+    connect(ui->accountName, &QLineEdit::textChanged, this, [this](const QString &account) {
         setConfig().account.accountName = account;
+        ui->viewPassword->setEnabled(!account.isEmpty() && getConfig().account.accountPassword);
     });
 
     connect(&passCfg, &PasswordConfig::sig_error, this, [this](const QString &msg) {
@@ -184,26 +225,22 @@ GeneralPage::GeneralPage(QWidget *parent)
     });
 
     connect(&passCfg, &PasswordConfig::sig_incomingPassword, this, [this](const QString &password) {
-        ui->showPassword->setText("Hide Password");
-        ui->accountPassword->setText(password);
-        ui->accountPassword->setEchoMode(QLineEdit::Normal);
-    });
-
-    connect(ui->accountPassword, &QLineEdit::textEdited, this, [this](const QString &password) {
-        setConfig().account.accountPassword = !password.isEmpty();
-        passCfg.setPassword(password);
-    });
-
-    connect(ui->showPassword, &QAbstractButton::clicked, this, [this]() {
-        if (ui->showPassword->text() == "Hide Password") {
-            ui->showPassword->setText("Show Password");
-            ui->accountPassword->clear();
-            ui->accountPassword->setEchoMode(QLineEdit::Password);
-        } else if (getConfig().account.accountPassword && ui->accountPassword->text().isEmpty()) {
-            ui->showPassword->setText("Request Password");
-            passCfg.getPassword();
+        if (ui->viewPassword->property("requesting").toBool()) {
+            ui->viewPassword->setProperty("requesting", false);
+            QMessageBox::information(this,
+                                     "Stored Password",
+                                     QString("Password for %1: %2")
+                                         .arg(getConfig().account.accountName, password));
         }
     });
+
+    connect(&passCfg, &PasswordConfig::sig_passwordDeleted, this, [this]() {
+        QMessageBox::information(this, "Password", "Stored password deleted successfully.");
+        ui->viewPassword->setEnabled(false);
+    });
+
+    connect(ui->setPassword, &QPushButton::clicked, this, &GeneralPage::slot_setPasswordClicked);
+    connect(ui->viewPassword, &QToolButton::clicked, this, &GeneralPage::slot_viewPasswordClicked);
 
     connect(ui->resourceLineEdit, &QLineEdit::textChanged, this, [](const QString &text) {
         setConfig().canvas.resourcesDirectory = text;
@@ -227,6 +264,7 @@ GeneralPage::GeneralPage(QWidget *parent)
         ui->proxyConnectionStatusCheckBox->setDisabled(true);
         ui->resourceLineEdit->setDisabled(true);
         ui->resourcePushButton->setDisabled(true);
+        ui->viewPassword->hide();
     }
 }
 
@@ -289,14 +327,12 @@ void GeneralPage::slot_loadConfig()
     if constexpr (NO_QTKEYCHAIN) {
         ui->autoLogin->setEnabled(false);
         ui->accountName->setEnabled(false);
-        ui->accountPassword->setEnabled(false);
-        ui->showPassword->setEnabled(false);
+        ui->setPassword->setEnabled(false);
+        ui->viewPassword->setEnabled(false);
     } else {
         ui->autoLogin->setChecked(account.rememberLogin);
         ui->accountName->setText(account.accountName);
-        if (!account.accountPassword) {
-            ui->accountPassword->setPlaceholderText("");
-        }
+        ui->viewPassword->setEnabled(!account.accountName.isEmpty() && account.accountPassword);
     }
 }
 
@@ -374,4 +410,53 @@ void GeneralPage::slot_displayXPStatusStateChanged([[maybe_unused]] int)
 void GeneralPage::slot_themeComboBoxChanged(int index)
 {
     setConfig().general.setTheme(static_cast<ThemeEnum>(index));
+}
+
+void GeneralPage::slot_setPasswordClicked()
+{
+    const QString accountName = ui->accountName->text();
+    if (accountName.isEmpty()) {
+        QMessageBox::information(this, "Set Password", "Please enter your account name first.");
+        ui->accountName->setFocus();
+        return;
+    }
+
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+        passCfg.setPassword(accountName, "");
+        setConfig().account.accountPassword = true;
+    } else {
+        SetPasswordDialog dlg(this);
+        dlg.setAccountName(accountName);
+        connect(&dlg, &SetPasswordDialog::sig_deleteRequested, this, [this, accountName]() {
+            passCfg.deletePassword(accountName);
+            setConfig().account.accountPassword = false;
+        });
+
+        if (dlg.exec() == QDialog::Accepted) {
+            const QString newAccountName = dlg.accountName();
+            const QString password = dlg.password();
+            if (!password.isEmpty()) {
+                passCfg.setPassword(newAccountName, password);
+                setConfig().account.accountName = newAccountName;
+                ui->accountName->setText(newAccountName);
+                setConfig().account.accountPassword = true;
+                ui->viewPassword->setEnabled(true);
+            }
+        }
+    }
+}
+
+void GeneralPage::slot_viewPasswordClicked()
+{
+    if (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+        return;
+    }
+
+    const QString accountName = ui->accountName->text();
+    if (accountName.isEmpty()) {
+        return;
+    }
+
+    ui->viewPassword->setProperty("requesting", true);
+    passCfg.getPassword(accountName);
 }

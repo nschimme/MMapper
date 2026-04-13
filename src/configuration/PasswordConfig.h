@@ -19,6 +19,7 @@ private:
 #ifndef MMAPPER_NO_QTKEYCHAIN
     QKeychain::ReadPasswordJob m_readJob;
     QKeychain::WritePasswordJob m_writeJob;
+    QKeychain::DeletePasswordJob m_deleteJob;
 #endif
 
 public:
@@ -26,10 +27,12 @@ public:
     ~PasswordConfig() final = default;
     DELETE_CTORS_AND_ASSIGN_OPS(PasswordConfig);
 
-    void setPassword(const QString &password);
-    void getPassword();
+    void setPassword(const QString &accountName, const QString &password);
+    void getPassword(const QString &accountName);
+    void deletePassword(const QString &accountName);
 
 signals:
     void sig_error(const QString &msg);
     void sig_incomingPassword(const QString &password);
+    void sig_passwordDeleted();
 };

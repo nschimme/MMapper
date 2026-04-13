@@ -216,6 +216,23 @@ GeneralPage::GeneralPage(QWidget *parent)
     connect(&passCfg, &PasswordConfig::sig_passwordSaved, this, [this]() {
         setConfig().account.accountPassword = true;
         updateAutoLoginEnabled();
+
+        if (!ui->autoLogin->isChecked()) {
+            auto *box = new QMessageBox(QMessageBox::Question,
+                                        "Login",
+                                        "A password was saved. Would you like to also enable "
+                                        "automatic login for this account?",
+                                        QMessageBox::Yes | QMessageBox::No,
+                                        this);
+            box->setAttribute(Qt::WA_DeleteOnClose);
+            connect(box, &QMessageBox::finished, this, [this](int result) {
+                if (result == QMessageBox::Yes) {
+                    ui->autoLogin->setChecked(true);
+                    setConfig().account.rememberLogin = true;
+                }
+            });
+            box->open();
+        }
     });
 
     connect(&passCfg, &PasswordConfig::sig_passwordDeleted, this, [this]() {

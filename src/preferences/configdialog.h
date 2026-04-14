@@ -33,7 +33,6 @@ private:
 
     Ui::ConfigDialog *ui;
     QList<PageInfo> m_pages;
-    QLabel *m_noResultsLabel = nullptr;
     bool m_suppressScrollSync = false;
 
 public:

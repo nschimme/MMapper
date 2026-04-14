@@ -114,15 +114,8 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     addPage(pathmachinePage, tr("Path Machine"), ":/icons/pathmachinecfg.png");
 
     const char32_t magnifyingGlassEmoji = 0x1F50D;
-    m_noResultsLabel = new QLabel(tr("No matches found!\nMaybe try searching for something else? ")
-                                      + QString::fromUcs4(&magnifyingGlassEmoji, 1),
-                                  this);
-    m_noResultsLabel->setAlignment(Qt::AlignCenter);
-    m_noResultsLabel->setWordWrap(true);
-    m_noResultsLabel->setMargin(20);
-    m_noResultsLabel->setStyleSheet("font-size: 14pt; color: gray; font-weight: bold;");
-    m_noResultsLabel->hide();
-    ui->scrollLayout->addWidget(m_noResultsLabel);
+    ui->noResultsLabel->setText(tr("No matches found!\nMaybe try searching for something else? ")
+                                + QString::fromUcs4(&magnifyingGlassEmoji, 1));
 
     ui->scrollLayout->addStretch();
 
@@ -324,11 +317,14 @@ void ConfigDialog::slot_search(const QString &text)
         }
     }
 
-    m_noResultsLabel->setVisible(!anyResult);
+    ui->noResultsLabel->setVisible(!anyResult);
 
     ui->pagesScrollArea->setUpdatesEnabled(true);
-    m_suppressScrollSync = false;
 
-    // Ensure search bar keeps focus after layout changes
-    ui->searchBar->setFocus();
+    // Ensure search bar keeps focus after layout changes. On some platforms (like Linux),
+    // layout updates can trigger focus changes, so we use a timer to ensure focus
+    // is restored after all pending events are processed.
+    QTimer::singleShot(0, ui->searchBar, qOverload<>(&QWidget::setFocus));
+
+    m_suppressScrollSync = false;
 }

@@ -12,8 +12,9 @@
 #include <string>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
-using ActionCallback = std::function<void(StringView)>;
+using ActionCallback = std::function<void(StringView line, const std::vector<StringView> &captures)>;
 
 struct NODISCARD IAction
 {

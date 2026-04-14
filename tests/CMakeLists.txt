@@ -335,3 +335,21 @@ set_target_properties(
         COMPILE_FLAGS "${WARNING_FLAGS}"
 )
 add_test(NAME TestHotkeyManager COMMAND TestHotkeyManager)
+
+# UserActionManager
+set(useraction_manager_SRCS
+        ../src/client/UserActionManager.cpp
+        ../src/client/UserActionManager.h
+)
+set(TestUserActionManager_SRCS TestUserActionManager.cpp TestUserActionManager.h)
+add_executable(TestUserActionManager ${TestUserActionManager_SRCS} ${useraction_manager_SRCS})
+add_dependencies(TestUserActionManager mm_test mm_global)
+target_link_libraries(TestUserActionManager mm_test mm_global Qt6::Test Qt6::Network coverage_config)
+set_target_properties(
+        TestUserActionManager PROPERTIES
+        CXX_STANDARD 17
+        CXX_STANDARD_REQUIRED ON
+        CXX_EXTENSIONS OFF
+        COMPILE_FLAGS "${WARNING_FLAGS}"
+)
+add_test(NAME TestUserActionManager COMMAND TestUserActionManager)

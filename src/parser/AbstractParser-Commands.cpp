@@ -49,6 +49,7 @@ const Abbrev cmdGenerateBaseMap{"generate-base-map"};
 const Abbrev cmdGroup{"group", 2};
 const Abbrev cmdHelp{"help", 2};
 const Abbrev cmdHotkey{"hotkey", 3};
+const Abbrev cmdAction{"action", 2};
 const Abbrev cmdMap{"map"};
 const Abbrev cmdMark{"mark", 3};
 const Abbrev cmdRemoveDoorNames{"remove-secret-door-names"};
@@ -1092,7 +1093,7 @@ void AbstractParser::initSpecialCommandMap()
         },
         makeSimpleHelp("Perform actions on the group manager."));
 
-    /* hpotkey commands */
+    /* hotkey commands */
     add(
         cmdHotkey,
         [this](const std::vector<StringView> & /*s*/, StringView rest) {
@@ -1100,6 +1101,15 @@ void AbstractParser::initSpecialCommandMap()
             return true;
         },
         makeSimpleHelp("View or modify hotkeys for the integrated client."));
+
+    /* action commands */
+    add(
+        cmdAction,
+        [this](const std::vector<StringView> & /*s*/, StringView rest) {
+            parseUserAction(rest);
+            return true;
+        },
+        makeSimpleHelp("View or modify user-defined actions."));
 
     /* timers command */
     add(

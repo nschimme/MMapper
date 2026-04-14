@@ -67,10 +67,11 @@ MumeXmlParser::MumeXmlParser(MapData &md,
                              GroupManagerApi &group,
                              GameObserver &observer,
                              HotkeyManager &hm,
+                             UserActionManager &uam,
                              QObject *parent,
                              AbstractParserOutputs &outputs,
                              ParserCommonData &parserCommonData)
-    : MumeXmlParserBase{parent, mc, md, group, hm, proxyGmcp, outputs, parserCommonData}
+    : MumeXmlParserBase{parent, mc, md, group, hm, uam, proxyGmcp, outputs, parserCommonData}
     , m_observer{observer}
 {}
 

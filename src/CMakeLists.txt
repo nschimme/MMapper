@@ -38,6 +38,8 @@ set(mmapper_SRCS
     client/Hotkey.h
     client/HotkeyManager.cpp
     client/HotkeyManager.h
+    client/UserActionManager.cpp
+    client/UserActionManager.h
     client/PasswordDialog.cpp
     client/PasswordDialog.h
     client/PreviewWidget.cpp
@@ -464,6 +466,7 @@ set(mmapper_SRCS
     parser/AbstractParser-Config.cpp
     parser/AbstractParser-Group.cpp
     parser/AbstractParser-Hotkey.cpp
+    parser/AbstractParser-UserActions.cpp
     parser/AbstractParser-Mark.cpp
     parser/AbstractParser-Room.cpp
     parser/AbstractParser-Timer.cpp

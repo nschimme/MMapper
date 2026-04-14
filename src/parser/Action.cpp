@@ -16,20 +16,20 @@ void IAction::match(const StringView input) const
 void StartsWithAction::virt_match(const StringView input) const
 {
     if (input.startsWith(m_match)) {
-        m_callback(input);
+        m_callback(input, {input});
     }
 }
 
 void EndsWithAction::virt_match(const StringView input) const
 {
     if (input.endsWith(m_match)) {
-        m_callback(input);
+        m_callback(input, {input});
     }
 }
 
 NODISCARD static std::regex createRegex(const std::string &pattern)
 {
-    return std::regex(pattern, std::regex::nosubs | std::regex::optimize);
+    return std::regex(pattern, std::regex::optimize);
 }
 
 RegexAction::RegexAction(const std::string &pattern, const ActionCallback &callback)
@@ -39,7 +39,19 @@ RegexAction::RegexAction(const std::string &pattern, const ActionCallback &callb
 
 void RegexAction::virt_match(const StringView input) const
 {
-    if (std::regex_match(input.begin(), input.end(), m_regex)) {
-        m_callback(input);
+    std::cmatch match;
+    if (std::regex_search(input.begin(), input.end(), m_regex, match)) {
+        std::vector<StringView> captures;
+        captures.reserve(match.size());
+        for (size_t i = 0; i < match.size(); ++i) {
+            const auto &sub = match[i];
+            if (sub.matched) {
+                captures.emplace_back(
+                    std::string_view(sub.first, static_cast<size_t>(sub.length())));
+            } else {
+                captures.emplace_back();
+            }
+        }
+        m_callback(input, captures);
     }
 }

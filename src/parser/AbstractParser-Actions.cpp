@@ -2,6 +2,7 @@
 // Copyright (C) 2019 The MMapper Authors
 // Author: Nils Schimmelmann <nschimme@gmail.com> (Jahara)
 
+#include "../client/UserActionManager.h"
 #include "../clock/mumeclock.h"
 #include "../global/Consts.h"
 #include "Action.h"
@@ -50,7 +51,7 @@ void MumeXmlParserBase::initActionMap()
     };
 
     /// Positions
-    auto dead = [this](StringView /*view*/) {
+    auto dead = [this](StringView /*view*/, const std::vector<StringView> & /*captures*/) {
         // REVISIT: send an event that the player died,
         // instead of trying to dig into details that are likely to get out of date?
         m_commonData.queue.clear();
@@ -64,7 +65,7 @@ void MumeXmlParserBase::initActionMap()
     addStartsWith("You are dead!", dead);
 
     /// Path Machine: Prespam
-    auto failedMovement = [this](StringView /*view*/) {
+    auto failedMovement = [this](StringView /*view*/, const std::vector<StringView> & /*captures*/) {
         maybePop(getQueue());
         pathChanged();
     };
@@ -96,9 +97,13 @@ void MumeXmlParserBase::initActionMap()
 
     /// Time
     addStartsWith("The current time is",
-                  [this](StringView view) { m_mumeClock.parseClockTime(view.toQString()); });
+                  [this](StringView view, const std::vector<StringView> & /*captures*/) {
+                      m_mumeClock.parseClockTime(view.toQString());
+                  });
     addEndsWith("of the Third Age.",
-                [this](StringView view) { m_mumeClock.parseMumeTime(view.toQString()); });
+                [this](StringView view, const std::vector<StringView> & /*captures*/) {
+                    m_mumeClock.parseMumeTime(view.toQString());
+                });
 
     /// Stat
     addRegex(R"(^)"
@@ -107,7 +112,7 @@ void MumeXmlParserBase::initActionMap()
              R"((?: Iv: [^.]+\.)?)"                              // God Invis Level
              R"( Alert: \w+\.)"                                  // Alertness
              R"((?: Condition: [^.]+\.)?)",                      // Hunger or Thirst
-             [this](StringView /*view*/) {
+             [this](StringView /*view*/, const std::vector<StringView> & /*captures*/) {
                  const auto list = getTimers().getStatCommandEntry();
                  if (!list.empty()) {
                      sendToUser(SendToUserSourceEnum::FromMMapper, list);
@@ -122,6 +127,10 @@ bool MumeXmlParserBase::evalActionMap(StringView line)
     if (line.empty()) {
         return false;
     }
+
+    m_userActionManager.evaluate(line, [this](const std::string &command) {
+        sendToMud(QString::fromStdString(command));
+    });
 
     auto &map = m_actionMap;
 

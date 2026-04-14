@@ -45,7 +45,7 @@ protected:
     void showEvent(QShowEvent *event) override;
 
 private slots:
-    void slot_changePage(QListWidgetItem *current, QListWidgetItem */*previous*/);
+    void slot_changePage(QListWidgetItem *current, QListWidgetItem * /*previous*/);
     void slot_onScroll(int value);
     void slot_ok();
     void slot_cancel();
@@ -55,5 +55,4 @@ signals:
     void sig_graphicsSettingsChanged();
     void sig_groupSettingsChanged();
     void sig_loadConfig();
-
 };

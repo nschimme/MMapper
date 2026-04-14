@@ -66,7 +66,8 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     auto mumeProtocolPage = new MumeProtocolPage(this);
     auto pathmachinePage = new PathmachinePage(this);
 
-    const auto makeSectionHeader = [](const QString &name, QWidget *const headerParent) -> QWidget * {
+    const auto makeSectionHeader = [](const QString &name,
+                                      QWidget *const headerParent) -> QWidget * {
         auto *container = new QWidget(headerParent);
         auto *layout = new QHBoxLayout(container);
         layout->setContentsMargins(0, 0, 0, 4);
@@ -87,21 +88,20 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
         return container;
     };
 
-    auto addPage = [this, &makeSectionHeader](QWidget *widget,
-                                              const QString &name,
-                                              const QString &iconPath) {
-        auto *item = new QListWidgetItem(QIcon(iconPath), name, ui->contentsWidget);
+    auto addPage =
+        [this, &makeSectionHeader](QWidget *widget, const QString &name, const QString &iconPath) {
+            auto *item = new QListWidgetItem(QIcon(iconPath), name, ui->contentsWidget);
 
-        auto *container = new QWidget(this);
-        auto *containerLayout = new QVBoxLayout(container);
-        containerLayout->setContentsMargins(0, 0, 0, 0);
-        containerLayout->setSpacing(8);
-        containerLayout->addWidget(makeSectionHeader(name, container));
-        containerLayout->addWidget(widget);
+            auto *container = new QWidget(this);
+            auto *containerLayout = new QVBoxLayout(container);
+            containerLayout->setContentsMargins(0, 0, 0, 0);
+            containerLayout->setSpacing(8);
+            containerLayout->addWidget(makeSectionHeader(name, container));
+            containerLayout->addWidget(widget);
 
-        ui->scrollLayout->addWidget(container);
-        m_pages.append({name, widget, item, container});
-    };
+            ui->scrollLayout->addWidget(container);
+            m_pages.append({name, widget, item, container});
+        };
 
     addPage(generalPage, tr("General"), ":/icons/generalcfg.png");
     addPage(graphicsPage, tr("Graphics"), ":/icons/graphicscfg.png");
@@ -113,7 +113,9 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     addPage(mumeProtocolPage, tr("Mume Protocol"), ":/icons/mumeprotocolcfg.png");
     addPage(pathmachinePage, tr("Path Machine"), ":/icons/pathmachinecfg.png");
 
-    m_noResultsLabel = new QLabel(tr("<b>No matches found!</b><br>Maybe try searching for something else? \xF0\x9F\x94\x8D"), this);
+    m_noResultsLabel = new QLabel(
+        tr("<b>No matches found!</b><br>Maybe try searching for something else? \xF0\x9F\x94\x8D"),
+        this);
     m_noResultsLabel->setAlignment(Qt::AlignCenter);
     m_noResultsLabel->setWordWrap(true);
     m_noResultsLabel->setMargin(20);
@@ -135,9 +137,7 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     connect(ui->buttonBox, &QDialogButtonBox::rejected, this, &ConfigDialog::slot_cancel);
     connect(ui->searchBar, &QLineEdit::textChanged, this, &ConfigDialog::slot_search);
 
-    connect(generalPage, &GeneralPage::sig_reloadConfig, this, [this]() {
-        emit sig_loadConfig();
-    });
+    connect(generalPage, &GeneralPage::sig_reloadConfig, this, [this]() { emit sig_loadConfig(); });
 
     connect(this, &ConfigDialog::sig_loadConfig, generalPage, &GeneralPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, graphicsPage, &GraphicsPage::slot_loadConfig);
@@ -291,8 +291,8 @@ void ConfigDialog::slot_search(const QString &text)
                 }
             }
 
-            const auto directChildren = page.widget->findChildren<QWidget *>(
-                QString(), Qt::FindDirectChildrenOnly);
+            const auto directChildren
+                = page.widget->findChildren<QWidget *>(QString(), Qt::FindDirectChildrenOnly);
             for (auto *child : directChildren) {
                 if (qobject_cast<QGroupBox *>(child))
                     continue;

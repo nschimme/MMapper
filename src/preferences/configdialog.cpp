@@ -213,7 +213,11 @@ void ConfigDialog::slot_onScroll(int value)
 
     if (activeItem && ui->contentsWidget->currentItem() != activeItem) {
         m_suppressScrollSync = true;
+        auto *const focusedWidget = focusWidget();
         ui->contentsWidget->setCurrentItem(activeItem);
+        if (focusedWidget != nullptr) {
+            focusedWidget->setFocus();
+        }
         m_suppressScrollSync = false;
     }
 }
@@ -235,17 +239,24 @@ void ConfigDialog::slot_search(const QString &text)
 {
     m_suppressScrollSync = true;
     ui->pagesScrollArea->setUpdatesEnabled(false);
+    const QSignalBlocker blocker{ui->contentsWidget};
 
     bool anyResult = false;
 
     if (text.isEmpty()) {
         for (auto &page : m_pages) {
-            page.container->show();
-            page.item->setHidden(false);
+            if (page.container->isHidden()) {
+                page.container->show();
+            }
+            if (page.item->isHidden()) {
+                page.item->setHidden(false);
+            }
 
             const auto children = page.widget->findChildren<QWidget *>();
             for (auto *child : children) {
-                child->show();
+                if (child->isHidden()) {
+                    child->show();
+                }
             }
         }
         anyResult = true;
@@ -257,10 +268,15 @@ void ConfigDialog::slot_search(const QString &text)
             const auto groupBoxes = page.widget->findChildren<QGroupBox *>();
             for (auto *gb : groupBoxes) {
                 if (matches(gb, text)) {
-                    gb->show();
+                    if (gb->isHidden()) {
+                        gb->show();
+                    }
                     const auto children = gb->findChildren<QWidget *>();
-                    for (auto *child : children)
-                        child->show();
+                    for (auto *child : children) {
+                        if (child->isHidden()) {
+                            child->show();
+                        }
+                    }
                     anyChildMatches = true;
                 } else {
                     bool anyGbChildMatches = false;
@@ -272,15 +288,21 @@ void ConfigDialog::slot_search(const QString &text)
                         } else if (qobject_cast<QLabel *>(child) || qobject_cast<QCheckBox *>(child)
                                    || qobject_cast<QRadioButton *>(child)
                                    || qobject_cast<QPushButton *>(child)) {
-                            child->hide();
+                            if (!child->isHidden()) {
+                                child->hide();
+                            }
                         }
                     }
 
                     if (anyGbChildMatches) {
-                        gb->show();
+                        if (gb->isHidden()) {
+                            gb->show();
+                        }
                         anyChildMatches = true;
                     } else {
-                        gb->hide();
+                        if (!gb->isHidden()) {
+                            gb->hide();
+                        }
                     }
                 }
             }
@@ -297,34 +319,47 @@ void ConfigDialog::slot_search(const QString &text)
                 } else if (qobject_cast<QLabel *>(child) || qobject_cast<QCheckBox *>(child)
                            || qobject_cast<QRadioButton *>(child)
                            || qobject_cast<QPushButton *>(child)) {
-                    child->hide();
+                    if (!child->isHidden()) {
+                        child->hide();
+                    }
                 }
             }
 
             if (pageMatches || anyChildMatches) {
-                page.container->show();
-                page.item->setHidden(false);
+                if (page.container->isHidden()) {
+                    page.container->show();
+                }
+                if (page.item->isHidden()) {
+                    page.item->setHidden(false);
+                }
                 anyResult = true;
                 if (pageMatches && !anyChildMatches) {
                     const auto children = page.widget->findChildren<QWidget *>();
-                    for (auto *child : children)
-                        child->show();
+                    for (auto *child : children) {
+                        if (child->isHidden()) {
+                            child->show();
+                        }
+                    }
                 }
             } else {
-                page.container->hide();
-                page.item->setHidden(true);
+                if (!page.container->isHidden()) {
+                    page.container->hide();
+                }
+                if (!page.item->isHidden()) {
+                    page.item->setHidden(true);
+                }
             }
         }
     }
 
-    ui->noResultsLabel->setVisible(!anyResult);
+    if (ui->noResultsLabel->isVisible() != !anyResult) {
+        ui->noResultsLabel->setVisible(!anyResult);
+    }
 
     ui->pagesScrollArea->setUpdatesEnabled(true);
 
-    // Ensure search bar keeps focus after layout changes. On some platforms (like Linux),
-    // layout updates can trigger focus changes, so we use a timer to ensure focus
-    // is restored after all pending events are processed.
-    QTimer::singleShot(0, ui->searchBar, qOverload<>(&QWidget::setFocus));
-
-    m_suppressScrollSync = false;
+    // Keep scroll synchronization suppressed until layout updates are finished.
+    // Explicitly restore focus to the search bar.
+    ui->searchBar->setFocus();
+    QTimer::singleShot(0, this, [this]() { m_suppressScrollSync = false; });
 }

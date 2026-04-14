@@ -113,6 +113,14 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     addPage(mumeProtocolPage, tr("Mume Protocol"), ":/icons/mumeprotocolcfg.png");
     addPage(pathmachinePage, tr("Path Machine"), ":/icons/pathmachinecfg.png");
 
+    m_noResultsLabel = new QLabel(tr("<b>No matches found!</b><br>Maybe try searching for something else? \xF0\x9F\x94\x8D"), this);
+    m_noResultsLabel->setAlignment(Qt::AlignCenter);
+    m_noResultsLabel->setWordWrap(true);
+    m_noResultsLabel->setMargin(20);
+    m_noResultsLabel->setStyleSheet("font-size: 14pt; color: gray;");
+    m_noResultsLabel->hide();
+    ui->scrollLayout->addWidget(m_noResultsLabel);
+
     ui->scrollLayout->addStretch();
 
     connect(ui->contentsWidget,
@@ -231,6 +239,11 @@ void ConfigDialog::slot_cancel()
 
 void ConfigDialog::slot_search(const QString &text)
 {
+    m_suppressScrollSync = true;
+    setUpdatesEnabled(false);
+
+    bool anyResult = false;
+
     if (text.isEmpty()) {
         for (auto &page : m_pages) {
             page.container->show();
@@ -241,71 +254,80 @@ void ConfigDialog::slot_search(const QString &text)
                 child->show();
             }
         }
-        return;
-    }
+        anyResult = true;
+    } else {
+        for (auto &page : m_pages) {
+            bool pageMatches = page.name.contains(text, Qt::CaseInsensitive);
+            bool anyChildMatches = false;
 
-    for (auto &page : m_pages) {
-        bool pageMatches = page.name.contains(text, Qt::CaseInsensitive);
-        bool anyChildMatches = false;
-
-        const auto groupBoxes = page.widget->findChildren<QGroupBox *>();
-        for (auto *gb : groupBoxes) {
-            if (matches(gb, text)) {
-                gb->show();
-                const auto children = gb->findChildren<QWidget *>();
-                for (auto *child : children)
-                    child->show();
-                anyChildMatches = true;
-            } else {
-                bool anyGbChildMatches = false;
-                const auto children = gb->findChildren<QWidget *>();
-                for (auto *child : children) {
-                    if (matches(child, text)) {
-                        showWithBuddy(child);
-                        anyGbChildMatches = true;
-                    } else if (qobject_cast<QLabel *>(child) || qobject_cast<QCheckBox *>(child)
-                               || qobject_cast<QRadioButton *>(child)
-                               || qobject_cast<QPushButton *>(child)) {
-                        child->hide();
-                    }
-                }
-
-                if (anyGbChildMatches) {
+            const auto groupBoxes = page.widget->findChildren<QGroupBox *>();
+            for (auto *gb : groupBoxes) {
+                if (matches(gb, text)) {
                     gb->show();
+                    const auto children = gb->findChildren<QWidget *>();
+                    for (auto *child : children)
+                        child->show();
                     anyChildMatches = true;
                 } else {
-                    gb->hide();
+                    bool anyGbChildMatches = false;
+                    const auto children = gb->findChildren<QWidget *>();
+                    for (auto *child : children) {
+                        if (matches(child, text)) {
+                            showWithBuddy(child);
+                            anyGbChildMatches = true;
+                        } else if (qobject_cast<QLabel *>(child) || qobject_cast<QCheckBox *>(child)
+                                   || qobject_cast<QRadioButton *>(child)
+                                   || qobject_cast<QPushButton *>(child)) {
+                            child->hide();
+                        }
+                    }
+
+                    if (anyGbChildMatches) {
+                        gb->show();
+                        anyChildMatches = true;
+                    } else {
+                        gb->hide();
+                    }
                 }
             }
-        }
 
-        const auto directChildren = page.widget->findChildren<QWidget *>(QString(),
-                                                                         Qt::FindDirectChildrenOnly);
-        for (auto *child : directChildren) {
-            if (qobject_cast<QGroupBox *>(child))
-                continue;
+            const auto directChildren = page.widget->findChildren<QWidget *>(
+                QString(), Qt::FindDirectChildrenOnly);
+            for (auto *child : directChildren) {
+                if (qobject_cast<QGroupBox *>(child))
+                    continue;
 
-            if (matches(child, text)) {
-                showWithBuddy(child);
-                anyChildMatches = true;
-            } else if (qobject_cast<QLabel *>(child) || qobject_cast<QCheckBox *>(child)
-                       || qobject_cast<QRadioButton *>(child)
-                       || qobject_cast<QPushButton *>(child)) {
-                child->hide();
+                if (matches(child, text)) {
+                    showWithBuddy(child);
+                    anyChildMatches = true;
+                } else if (qobject_cast<QLabel *>(child) || qobject_cast<QCheckBox *>(child)
+                           || qobject_cast<QRadioButton *>(child)
+                           || qobject_cast<QPushButton *>(child)) {
+                    child->hide();
+                }
             }
-        }
 
-        if (pageMatches || anyChildMatches) {
-            page.container->show();
-            page.item->setHidden(false);
-            if (pageMatches && !anyChildMatches) {
-                const auto children = page.widget->findChildren<QWidget *>();
-                for (auto *child : children)
-                    child->show();
+            if (pageMatches || anyChildMatches) {
+                page.container->show();
+                page.item->setHidden(false);
+                anyResult = true;
+                if (pageMatches && !anyChildMatches) {
+                    const auto children = page.widget->findChildren<QWidget *>();
+                    for (auto *child : children)
+                        child->show();
+                }
+            } else {
+                page.container->hide();
+                page.item->setHidden(true);
             }
-        } else {
-            page.container->hide();
-            page.item->setHidden(true);
         }
     }
+
+    m_noResultsLabel->setVisible(!anyResult);
+
+    setUpdatesEnabled(true);
+    m_suppressScrollSync = false;
+
+    // Ensure search bar keeps focus after layout changes
+    ui->searchBar->setFocus();
 }

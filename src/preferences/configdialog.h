@@ -9,6 +9,8 @@
 
 #include <QDialog>
 
+class QLabel;
+
 namespace Ui {
 class ConfigDialog;
 }
@@ -31,6 +33,7 @@ private:
 
     Ui::ConfigDialog *ui;
     QList<PageInfo> m_pages;
+    QLabel *m_noResultsLabel = nullptr;
     bool m_suppressScrollSync = false;
 
 public:
@@ -53,7 +56,4 @@ signals:
     void sig_groupSettingsChanged();
     void sig_loadConfig();
 
-private:
-    void createIcons();
-    void updateSearch();
 };

@@ -22,15 +22,30 @@
 #include <QListWidget>
 #include <QtWidgets>
 
+namespace {
+bool matches(const QWidget *widget, const QString &text)
+{
+    if (auto *cb = qobject_cast<const QCheckBox *>(widget))
+        return cb->text().contains(text, Qt::CaseInsensitive);
+    if (auto *rb = qobject_cast<const QRadioButton *>(widget))
+        return rb->text().contains(text, Qt::CaseInsensitive);
+    if (auto *lbl = qobject_cast<const QLabel *>(widget))
+        return lbl->text().contains(text, Qt::CaseInsensitive);
+    if (auto *pb = qobject_cast<const QPushButton *>(widget))
+        return pb->text().contains(text, Qt::CaseInsensitive);
+    if (auto *gb = qobject_cast<const QGroupBox *>(widget))
+        return gb->title().contains(text, Qt::CaseInsensitive);
+    return false;
+}
+} // namespace
+
 ConfigDialog::ConfigDialog(QWidget *const parent)
     : QDialog(parent)
     , ui(new Ui::ConfigDialog)
 {
     ui->setupUi(this);
 
-    setWindowTitle(tr("Config Dialog"));
-
-    createIcons();
+    setWindowTitle(tr("Preferences"));
 
     auto generalPage = new GeneralPage(this);
     auto graphicsPage = new GraphicsPage(this);
@@ -42,30 +57,78 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     auto mumeProtocolPage = new MumeProtocolPage(this);
     auto pathmachinePage = new PathmachinePage(this);
 
-    m_pagesWidget = new QStackedWidget(this);
+    const auto makeSectionHeader = [](const QString &name,
+                                      QWidget *const headerParent) -> QWidget * {
+        auto *container = new QWidget(headerParent);
+        auto *layout = new QHBoxLayout(container);
+        layout->setContentsMargins(0, 0, 0, 4);
 
-    auto *const pagesWidget = m_pagesWidget;
-    pagesWidget->addWidget(generalPage);
-    pagesWidget->addWidget(graphicsPage);
-    pagesWidget->addWidget(parserPage);
-    pagesWidget->addWidget(clientPage);
-    pagesWidget->addWidget(groupPage);
-    pagesWidget->addWidget(autoLogPage);
-    pagesWidget->addWidget(audioPage);
-    pagesWidget->addWidget(mumeProtocolPage);
-    pagesWidget->addWidget(pathmachinePage);
-    pagesWidget->setCurrentIndex(0);
+        auto *label = new QLabel(name, container);
+        QFont font = label->font();
+        font.setBold(true);
+        font.setPointSize(font.pointSize() + 1);
+        label->setFont(font);
+        layout->addWidget(label);
 
-    ui->pagesScrollArea->setWidget(pagesWidget);
+        auto *line = new QFrame(container);
+        line->setFrameShape(QFrame::HLine);
+        line->setFrameShadow(QFrame::Sunken);
+        layout->addWidget(line, 1);
 
-    ui->contentsWidget->setCurrentItem(ui->contentsWidget->item(0));
+        return container;
+    };
+
+    auto addPage =
+        [this, &makeSectionHeader](QWidget *widget, const QString &name, const QString &iconPath) {
+            auto *item = new QListWidgetItem(QIcon(iconPath), name, ui->contentsWidget);
+
+            auto *container = new QWidget(this);
+            auto *containerLayout = new QVBoxLayout(container);
+            containerLayout->setContentsMargins(0, 0, 0, 0);
+            containerLayout->addWidget(makeSectionHeader(name, container));
+            containerLayout->addWidget(widget);
+
+            ui->scrollLayout->addWidget(container);
+            m_pages.append({name, widget, item, container});
+        };
+
+    addPage(generalPage, tr("General"), ":/icons/generalcfg.png");
+    addPage(graphicsPage, tr("Graphics"), ":/icons/graphicscfg.png");
+    addPage(parserPage, tr("Parser"), ":/icons/parsercfg.png");
+    addPage(clientPage, tr("Integrated Client"), ":/icons/terminal.png");
+    addPage(groupPage, tr("Group Panel"), ":/icons/group-recolor.png");
+    addPage(autoLogPage, tr("Auto Logger"), ":/icons/autologgercfg.png");
+    addPage(audioPage, tr("Audio"), ":/icons/audiocfg.png");
+    addPage(mumeProtocolPage, tr("Mume Protocol"), ":/icons/mumeprotocolcfg.png");
+    addPage(pathmachinePage, tr("Path Machine"), ":/icons/pathmachinecfg.png");
+
+    ui->scrollLayout->addStretch();
+
+    ui->mainSplitter->setStretchFactor(0, 0);
+    ui->mainSplitter->setStretchFactor(1, 1);
+
     connect(ui->contentsWidget,
             &QListWidget::currentItemChanged,
             this,
             &ConfigDialog::slot_changePage);
-    connect(ui->closeButton, &QAbstractButton::clicked, this, &QWidget::close);
+    connect(ui->pagesScrollArea->verticalScrollBar(),
+            &QScrollBar::valueChanged,
+            this,
+            &ConfigDialog::slot_onScroll);
+    connect(ui->buttonBox, &QDialogButtonBox::accepted, this, &ConfigDialog::slot_ok);
+    connect(ui->buttonBox, &QDialogButtonBox::rejected, this, &ConfigDialog::slot_cancel);
+    connect(ui->searchBar, &QLineEdit::textChanged, this, &ConfigDialog::slot_search);
+    connect(ui->searchResultsList,
+            &QListWidget::itemActivated,
+            this,
+            &ConfigDialog::slot_onResultSelected);
+    connect(ui->searchResultsList,
+            &QListWidget::itemClicked,
+            this,
+            &ConfigDialog::slot_onResultSelected);
 
     connect(generalPage, &GeneralPage::sig_reloadConfig, this, [this]() { emit sig_loadConfig(); });
+
     connect(this, &ConfigDialog::sig_loadConfig, generalPage, &GeneralPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, graphicsPage, &GraphicsPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, parserPage, &ParserPage::slot_loadConfig);
@@ -103,46 +166,159 @@ void ConfigDialog::showEvent(QShowEvent *const event)
 {
     // Populate the preference pages from config each time the widget is shown
     emit sig_loadConfig();
-
-    // Move widget to center of parent's location
-    auto pos = parentWidget()->pos();
-    pos.setX(pos.x() + (parentWidget()->width() / 2) - (width() / 2));
-    move(pos);
-
     event->accept();
 }
 
-void ConfigDialog::createIcons()
+void ConfigDialog::slot_changePage(QListWidgetItem *current, QListWidgetItem *const /*previous*/)
 {
-    const QSize iconTargetSize = ui->contentsWidget->iconSize();
+    if (current == nullptr || m_suppressScrollSync) {
+        return;
+    }
 
-    auto addItem = [this, iconTargetSize](const QString &iconPath, const QString &label) {
-        QPixmap pixmap(iconPath);
-        QPixmap scaled = pixmap.scaled(iconTargetSize,
-                                       Qt::KeepAspectRatio,
-                                       Qt::SmoothTransformation);
+    if (!ui->searchBar->text().isEmpty()) {
+        ui->searchBar->clear();
+        // search bar clear will restore Stack index 0
+    }
 
-        auto *item = new QListWidgetItem(QIcon(scaled), label, ui->contentsWidget);
-        item->setTextAlignment(Qt::AlignHCenter);
-        item->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
-    };
-
-    addItem(":/icons/generalcfg.png", tr("General"));
-    addItem(":/icons/graphicscfg.png", tr("Graphics"));
-    addItem(":/icons/parsercfg.png", tr("Parser"));
-    addItem(":/icons/terminal.png", tr("Integrated\nMud Client"));
-    addItem(":/icons/group-recolor.png", tr("Group Panel"));
-    addItem(":/icons/autologgercfg.png", tr("Auto\nLogger"));
-    addItem(":/icons/audiocfg.png", tr("Audio"));
-    addItem(":/icons/mumeprotocolcfg.png", tr("Mume\nProtocol"));
-    addItem(":/icons/pathmachinecfg.png", tr("Path\nMachine"));
+    for (const auto &page : m_pages) {
+        if (page.item == current) {
+            m_suppressScrollSync = true;
+            ui->pagesScrollArea->verticalScrollBar()->setValue(page.container->y());
+            m_suppressScrollSync = false;
+            break;
+        }
+    }
 }
 
-void ConfigDialog::slot_changePage(QListWidgetItem *current, QListWidgetItem *const previous)
+void ConfigDialog::slot_onScroll(int value)
 {
-    if (current == nullptr) {
-        current = previous;
+    if (m_suppressScrollSync || !ui->searchBar->text().isEmpty()) {
+        return;
     }
-    ui->pagesScrollArea->verticalScrollBar()->setSliderPosition(0);
-    m_pagesWidget->setCurrentIndex(ui->contentsWidget->row(current));
+
+    QListWidgetItem *activeItem = nullptr;
+    for (const auto &page : m_pages) {
+        if (page.container->y() <= value + 8) {
+            activeItem = page.item;
+        }
+    }
+
+    if (activeItem && ui->contentsWidget->currentItem() != activeItem) {
+        const QSignalBlocker blocker{ui->contentsWidget};
+        ui->contentsWidget->setCurrentItem(activeItem);
+    }
+}
+
+void ConfigDialog::slot_ok()
+{
+    getConfig().write();
+    accept();
+}
+
+void ConfigDialog::slot_cancel()
+{
+    setConfig().read();
+    emit sig_loadConfig();
+    accept();
+}
+
+void ConfigDialog::slot_search(const QString &text)
+{
+    ui->searchResultsList->clear();
+
+    if (text.isEmpty()) {
+        ui->rightStack->setCurrentIndex(0);
+        for (const auto &page : m_pages) {
+            page.item->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+        }
+        ui->searchBar->setFocus();
+        return;
+    }
+
+    for (const auto &page : m_pages) {
+        bool anyChildMatches = false;
+        const auto children = page.widget->findChildren<QWidget *>();
+
+        QList<QListWidgetItem *> pageResults;
+
+        for (auto *const child : children) {
+            if (matches(child, text)) {
+                QString matchText;
+                if (auto *const cb = qobject_cast<QCheckBox *>(child)) {
+                    matchText = cb->text();
+                } else if (auto *const rb = qobject_cast<QRadioButton *>(child)) {
+                    matchText = rb->text();
+                } else if (auto *const lbl = qobject_cast<QLabel *>(child)) {
+                    matchText = lbl->text();
+                } else if (auto *const pb = qobject_cast<QPushButton *>(child)) {
+                    matchText = pb->text();
+                } else if (auto *const gb = qobject_cast<QGroupBox *>(child)) {
+                    matchText = gb->title();
+                }
+
+                if (matchText.isEmpty()) {
+                    continue;
+                }
+
+                matchText.remove('&');
+                auto *const item = new QListWidgetItem(QString("  \xE2\x80\xA2 %1").arg(matchText));
+                item->setData(Qt::UserRole, QVariant::fromValue(child));
+                pageResults.append(item);
+                anyChildMatches = true;
+            }
+        }
+
+        const bool pageMatches = page.name.contains(text, Qt::CaseInsensitive);
+        if (pageMatches || anyChildMatches) {
+            page.item->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+
+            auto *const headerItem = new QListWidgetItem(page.item->icon(), page.name);
+            headerItem->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+            headerItem->setData(Qt::UserRole, QVariant::fromValue(page.widget));
+            QFont font = headerItem->font();
+            font.setBold(true);
+            headerItem->setFont(font);
+            ui->searchResultsList->addItem(headerItem);
+
+            for (auto *res : pageResults) {
+                ui->searchResultsList->addItem(res);
+            }
+        } else {
+            page.item->setFlags(Qt::NoItemFlags);
+        }
+    }
+
+    if (ui->searchResultsList->count() > 0) {
+        ui->rightStack->setCurrentIndex(1);
+    } else {
+        ui->rightStack->setCurrentIndex(2);
+    }
+
+    ui->searchBar->setFocus();
+}
+
+void ConfigDialog::slot_onResultSelected(QListWidgetItem *const item)
+{
+    if (item == nullptr) {
+        return;
+    }
+
+    auto *const widget = item->data(Qt::UserRole).value<QWidget *>();
+    if (widget == nullptr) {
+        return;
+    }
+
+    ui->searchBar->clear();
+    ui->rightStack->setCurrentIndex(0);
+
+    // Find which page this widget belongs to
+    for (const auto &page : m_pages) {
+        if (page.widget == widget || page.widget->isAncestorOf(widget)) {
+            ui->contentsWidget->setCurrentItem(page.item);
+            break;
+        }
+    }
+
+    ui->pagesScrollArea->ensureWidgetVisible(widget);
+    widget->setFocus();
 }

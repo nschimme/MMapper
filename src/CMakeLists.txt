@@ -591,6 +591,12 @@ set(mmapper_SRCS
     syntax/Value.h
     timers/CTimers.cpp
     timers/CTimers.h
+    timers/TimerModel.cpp
+    timers/TimerModel.h
+    timers/TimerDelegate.cpp
+    timers/TimerDelegate.h
+    timers/TimerWidget.cpp
+    timers/TimerWidget.h
     viewers/AnsiViewWindow.cpp
     viewers/AnsiViewWindow.h
     viewers/LaunchAsyncViewer.h
@@ -776,7 +782,7 @@ endif()
 
 set_target_properties(
   mmapper PROPERTIES
-  CXX_STANDARD 17
+  CXX_STANDARD 20
   CXX_STANDARD_REQUIRED ON
   CXX_EXTENSIONS OFF
   COMPILE_FLAGS "${WARNING_FLAGS}"
@@ -786,7 +792,7 @@ set_target_properties(
 
 set_target_properties(
   mm_global PROPERTIES
-  CXX_STANDARD 17
+  CXX_STANDARD 20
   CXX_STANDARD_REQUIRED ON
   CXX_EXTENSIONS OFF
   COMPILE_FLAGS "${WARNING_FLAGS}"
@@ -794,7 +800,7 @@ set_target_properties(
 
 set_target_properties(
   mm_map PROPERTIES
-  CXX_STANDARD 17
+  CXX_STANDARD 20
   CXX_STANDARD_REQUIRED ON
   CXX_EXTENSIONS OFF
   COMPILE_FLAGS "${WARNING_FLAGS}"

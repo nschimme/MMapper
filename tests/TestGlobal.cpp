@@ -10,6 +10,7 @@
 #include "../src/global/Diff.h"
 #include "../src/global/Flags.h"
 #include "../src/global/HideQDebug.h"
+#include "../src/global/ImmIndexedVectorWithDefault.h"
 #include "../src/global/IndexedVectorWithDefault.h"
 #include "../src/global/LineUtils.h"
 #include "../src/global/RAII.h"
@@ -190,17 +191,17 @@ void TestGlobal::flagsTest()
 
 void TestGlobal::hideQDebugTest()
 {
-    static constexpr auto onlyDebug = []() {
+    static constexpr auto onlyDebug = std::invoke([]() constexpr -> mmqt::HideQDebugOptions {
         mmqt::HideQDebugOptions tmp;
         tmp.hideInfo = false;
         return tmp;
-    }();
+    });
 
-    static constexpr auto onlyInfo = []() {
+    static constexpr auto onlyInfo = std::invoke([]() constexpr -> mmqt::HideQDebugOptions {
         mmqt::HideQDebugOptions tmp;
         tmp.hideDebug = false;
         return tmp;
-    }();
+    });
 
     const QString expected = "1{DIW}\n2{DW}\n3{DIW}\n4{IW}\n5{DIW}\n"
                              "---\n"
@@ -289,6 +290,7 @@ void TestGlobal::hideQDebugTest()
 void TestGlobal::indexedVectorWithDefaultTest()
 {
     test::testIndexedVectorWithDefault();
+    // test::testImmIndexedVectorWithDefault(); // Not implemented yet
 }
 
 void TestGlobal::lineUtilsTest()

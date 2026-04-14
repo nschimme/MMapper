@@ -113,13 +113,14 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     addPage(mumeProtocolPage, tr("Mume Protocol"), ":/icons/mumeprotocolcfg.png");
     addPage(pathmachinePage, tr("Path Machine"), ":/icons/pathmachinecfg.png");
 
-    m_noResultsLabel = new QLabel(
-        tr("<b>No matches found!</b><br>Maybe try searching for something else? \xF0\x9F\x94\x8D"),
-        this);
+    const char32_t magnifyingGlassEmoji = 0x1F50D;
+    m_noResultsLabel = new QLabel(tr("No matches found!\nMaybe try searching for something else? ")
+                                      + QString::fromUcs4(&magnifyingGlassEmoji, 1),
+                                  this);
     m_noResultsLabel->setAlignment(Qt::AlignCenter);
     m_noResultsLabel->setWordWrap(true);
     m_noResultsLabel->setMargin(20);
-    m_noResultsLabel->setStyleSheet("font-size: 14pt; color: gray;");
+    m_noResultsLabel->setStyleSheet("font-size: 14pt; color: gray; font-weight: bold;");
     m_noResultsLabel->hide();
     ui->scrollLayout->addWidget(m_noResultsLabel);
 
@@ -240,7 +241,7 @@ void ConfigDialog::slot_cancel()
 void ConfigDialog::slot_search(const QString &text)
 {
     m_suppressScrollSync = true;
-    setUpdatesEnabled(false);
+    ui->pagesScrollArea->setUpdatesEnabled(false);
 
     bool anyResult = false;
 
@@ -325,7 +326,7 @@ void ConfigDialog::slot_search(const QString &text)
 
     m_noResultsLabel->setVisible(!anyResult);
 
-    setUpdatesEnabled(true);
+    ui->pagesScrollArea->setUpdatesEnabled(true);
     m_suppressScrollSync = false;
 
     // Ensure search bar keeps focus after layout changes

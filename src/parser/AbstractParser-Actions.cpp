@@ -129,7 +129,7 @@ bool MumeXmlParserBase::evalActionMap(StringView line)
     }
 
     m_userActionManager.evaluate(line, [this](const std::string &command) {
-        this->sendToMud(QString::fromStdString(command));
+        this->sendToMud(mmqt::toQStringUtf8(command));
     });
 
     auto &map = m_actionMap;

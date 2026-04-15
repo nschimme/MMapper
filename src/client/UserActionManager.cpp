@@ -95,15 +95,15 @@ void UserActionManager::syncFromConfig()
     m_actionMap.clear();
     const QVariantMap &data = getConfig().actions.data();
     for (auto it = data.begin(); it != data.end(); ++it) {
-        std::string pattern = it.key().toStdString();
-        std::string serialized = it.value().toString().toStdString();
+        std::string pattern = mmqt::toStdStringUtf8(it.key());
+        std::string serialized = mmqt::toStdStringUtf8(it.value().toString());
         if (auto action = UserAction::deserialize(pattern, serialized)) {
             auto compiled = std::make_shared<CompiledUserAction>(std::move(*action));
             m_actions[pattern] = compiled;
             m_actionMap.emplace(compiled->hint, compiled);
         } else {
-            MMLOG_WARNING() << "invalid action" << it.key().toStdString()
-                            << it.value().toString().toStdString();
+            MMLOG_WARNING() << "invalid action" << mmqt::toStdStringUtf8(it.key())
+                            << mmqt::toStdStringUtf8(it.value().toString());
         }
     }
 }
@@ -116,7 +116,7 @@ bool UserActionManager::setAction(UserActionType type, std::string pattern, std:
 
     QVariantMap data = getConfig().actions.data();
     UserAction action{type, pattern, command};
-    data[QString::fromStdString(pattern)] = QString::fromStdString(action.serialize());
+    data[mmqt::toQStringUtf8(pattern)] = mmqt::toQStringUtf8(action.serialize());
     setConfig().actions.setData(std::move(data));
     return true;
 }
@@ -124,7 +124,7 @@ bool UserActionManager::setAction(UserActionType type, std::string pattern, std:
 bool UserActionManager::removeAction(const std::string &pattern)
 {
     QVariantMap data = getConfig().actions.data();
-    QString key = QString::fromStdString(pattern);
+    QString key = mmqt::toQStringUtf8(pattern);
     if (!data.contains(key)) {
         return false;
     }

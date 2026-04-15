@@ -89,7 +89,7 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
             containerLayout->addWidget(makeSectionHeader(name, container));
             containerLayout->addWidget(widget);
 
-            ui->scrollLayout->addWidget(container);
+            ui->scrollLayout->insertWidget(ui->scrollLayout->count() - 2, container);
             m_pages.append({name, widget, item, container});
         };
 
@@ -103,12 +103,9 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     addPage(mumeProtocolPage, tr("Mume Protocol"), ":/icons/mumeprotocolcfg.png");
     addPage(pathmachinePage, tr("Path Machine"), ":/icons/pathmachinecfg.png");
 
-    auto *footer = new QLabel(tr("End of settings."), this);
-    footer->setAlignment(Qt::AlignCenter);
-    footer->setStyleSheet("color: gray; margin-top: 20px; margin-bottom: 20px;");
-    ui->scrollLayout->addWidget(footer);
-
-    ui->scrollLayout->addStretch();
+    connect(ui->backToTopBtn, &QPushButton::clicked, this, [this]() {
+        ui->pagesScrollArea->verticalScrollBar()->setValue(0);
+    });
 
     ui->mainSplitter->setStretchFactor(0, 0);
     ui->mainSplitter->setStretchFactor(1, 1);

@@ -171,7 +171,7 @@ void ConfigDialog::showEvent(QShowEvent *const event)
 
 void ConfigDialog::slot_changePage(QListWidgetItem *current, QListWidgetItem *const /*previous*/)
 {
-    if (current == nullptr || m_suppressScrollSync) {
+    if (current == nullptr) {
         return;
     }
 
@@ -182,9 +182,8 @@ void ConfigDialog::slot_changePage(QListWidgetItem *current, QListWidgetItem *co
 
     for (const auto &page : m_pages) {
         if (page.item == current) {
-            m_suppressScrollSync = true;
+            const QSignalBlocker blocker{ui->pagesScrollArea->verticalScrollBar()};
             ui->pagesScrollArea->verticalScrollBar()->setValue(page.container->y());
-            m_suppressScrollSync = false;
             break;
         }
     }
@@ -192,7 +191,7 @@ void ConfigDialog::slot_changePage(QListWidgetItem *current, QListWidgetItem *co
 
 void ConfigDialog::slot_onScroll(int value)
 {
-    if (m_suppressScrollSync || !ui->searchBar->text().isEmpty()) {
+    if (!ui->searchBar->text().isEmpty()) {
         return;
     }
 
@@ -308,17 +307,26 @@ void ConfigDialog::slot_onResultSelected(QListWidgetItem *const item)
         return;
     }
 
-    ui->searchBar->clear();
-    ui->rightStack->setCurrentIndex(0);
+    {
+        const QSignalBlocker blocker{ui->contentsWidget};
+        const QSignalBlocker scrollBlocker{ui->pagesScrollArea->verticalScrollBar()};
 
-    // Find which page this widget belongs to
-    for (const auto &page : m_pages) {
-        if (page.widget == widget || page.widget->isAncestorOf(widget)) {
-            ui->contentsWidget->setCurrentItem(page.item);
-            break;
+        ui->searchBar->clear();
+        ui->rightStack->setCurrentIndex(0);
+
+        // Find which page this widget belongs to
+        for (const auto &page : m_pages) {
+            if (page.widget == widget || page.widget->isAncestorOf(widget)) {
+                ui->contentsWidget->setCurrentItem(page.item);
+
+                const int targetY = (page.widget == widget)
+                        ? page.container->y()
+                        : widget->mapTo(ui->scrollAreaWidgetContents, QPoint(0, 0)).y();
+                ui->pagesScrollArea->verticalScrollBar()->setValue(targetY);
+                break;
+            }
         }
     }
 
-    ui->pagesScrollArea->ensureWidgetVisible(widget);
     widget->setFocus();
 }

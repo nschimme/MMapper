@@ -34,7 +34,6 @@ private:
 
     Ui::ConfigDialog *ui;
     QList<PageInfo> m_pages;
-    bool m_suppressScrollSync = false;
 
 public:
     explicit ConfigDialog(QWidget *parent = nullptr);

@@ -113,6 +113,10 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
 
     ui->scrollLayout->addStretch();
 
+    ui->mainSplitter->setStretchFactor(0, 0);
+    ui->mainSplitter->setStretchFactor(1, 1);
+    ui->mainSplitter->setSizes({200, 600});
+
     connect(ui->contentsWidget,
             &QListWidget::currentItemChanged,
             this,
@@ -274,7 +278,7 @@ void ConfigDialog::slot_search(const QString &text)
                 }
 
                 matchText.remove('&');
-                auto *const item = new QListWidgetItem(QString("  %1").arg(matchText));
+                auto *const item = new QListWidgetItem(QString("  \xE2\x80\xA2 %1").arg(matchText));
                 item->setData(Qt::UserRole, QVariant::fromValue(child));
                 pageResults.append(item);
                 anyChildMatches = true;

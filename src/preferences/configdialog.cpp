@@ -123,7 +123,7 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
 
     m_searchTimer = new QTimer(this);
     m_searchTimer->setSingleShot(true);
-    m_searchTimer->setInterval(250);
+    m_searchTimer->setInterval(50);
     connect(m_searchTimer, &QTimer::timeout, this, [this]() { slot_search(ui->searchBar->text()); });
     connect(ui->searchBar, &QLineEdit::textChanged, m_searchTimer, qOverload<>(&QTimer::start));
 

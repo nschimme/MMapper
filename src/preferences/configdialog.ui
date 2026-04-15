@@ -113,7 +113,7 @@
               </property>
              </widget>
             </item>
-            <item>
+            <item alignment="Qt::AlignmentFlag::AlignCenter">
              <widget class="QPushButton" name="backToTopBtn">
               <property name="sizePolicy">
                <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
@@ -123,9 +123,6 @@
               </property>
               <property name="text">
                <string>Back to top</string>
-              </property>
-              <property name="flat">
-               <bool>true</bool>
               </property>
              </widget>
             </item>

@@ -50,6 +50,7 @@ private slots:
     void slot_ok();
     void slot_cancel();
     void slot_search(const QString &text);
+    void slot_onResultSelected(QListWidgetItem *item);
 
 signals:
     void sig_graphicsSettingsChanged();

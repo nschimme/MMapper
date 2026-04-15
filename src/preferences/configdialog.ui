@@ -44,68 +44,69 @@
       </widget>
      </item>
      <item>
-      <widget class="QScrollArea" name="pagesScrollArea">
-       <property name="widgetResizable">
-        <bool>true</bool>
+      <widget class="QStackedWidget" name="rightStack">
+       <property name="currentIndex">
+        <number>0</number>
        </property>
-       <widget class="QWidget" name="scrollAreaWidgetContents">
-        <layout class="QVBoxLayout" name="scrollLayout">
-         <property name="spacing">
-          <number>20</number>
-         </property>
+       <widget class="QScrollArea" name="pagesScrollArea">
+        <property name="widgetResizable">
+         <bool>true</bool>
+        </property>
+        <widget class="QWidget" name="scrollAreaWidgetContents">
+         <layout class="QVBoxLayout" name="scrollLayout">
+          <property name="spacing">
+           <number>20</number>
+          </property>
+         </layout>
+        </widget>
+       </widget>
+       <widget class="QListWidget" name="searchResultsList"/>
+       <widget class="QWidget" name="noResultsPage">
+        <layout class="QVBoxLayout" name="noResultsLayout">
          <item>
-          <widget class="QWidget" name="noResultsContainer" native="true">
-           <property name="visible">
-            <bool>false</bool>
+          <spacer name="verticalSpacer_3">
+           <property name="orientation">
+            <enum>Qt::Vertical</enum>
            </property>
-           <layout class="QVBoxLayout" name="noResultsLayout">
-            <item>
-             <spacer name="verticalSpacer_3">
-              <property name="orientation">
-               <enum>Qt::Vertical</enum>
-              </property>
-              <property name="sizeHint" stdset="0">
-               <size>
-                <width>20</width>
-                <height>40</height>
-               </size>
-              </property>
-             </spacer>
-            </item>
-            <item>
-             <widget class="QLabel" name="noResultsLabel">
-              <property name="styleSheet">
-               <string notr="true">font-size: 14pt; color: gray; font-weight: bold;</string>
-              </property>
-              <property name="text">
-               <string/>
-              </property>
-              <property name="alignment">
-               <set>Qt::AlignCenter</set>
-              </property>
-              <property name="wordWrap">
-               <bool>true</bool>
-              </property>
-              <property name="margin">
-               <number>20</number>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <spacer name="verticalSpacer_4">
-              <property name="orientation">
-               <enum>Qt::Vertical</enum>
-              </property>
-              <property name="sizeHint" stdset="0">
-               <size>
-                <width>20</width>
-                <height>40</height>
-               </size>
-              </property>
-             </spacer>
-            </item>
-           </layout>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QLabel" name="noResultsLabel">
+           <property name="styleSheet">
+            <string notr="true">font-size: 14pt; color: gray; font-weight: bold;</string>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+           <property name="wordWrap">
+            <bool>true</bool>
+           </property>
+           <property name="margin">
+            <number>20</number>
+           </property>
           </widget>
+         </item>
+         <item>
+          <spacer name="verticalSpacer_4">
+           <property name="orientation">
+            <enum>Qt::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
          </item>
         </layout>
        </widget>

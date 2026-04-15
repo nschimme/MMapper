@@ -38,14 +38,6 @@ bool matches(const QWidget *widget, const QString &text)
     return false;
 }
 
-void showWithBuddy(QWidget *widget)
-{
-    widget->show();
-    if (auto *lbl = qobject_cast<QLabel *>(widget)) {
-        if (lbl->buddy())
-            lbl->buddy()->show();
-    }
-}
 } // namespace
 
 ConfigDialog::ConfigDialog(QWidget *const parent)
@@ -130,6 +122,14 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     connect(ui->buttonBox, &QDialogButtonBox::accepted, this, &ConfigDialog::slot_ok);
     connect(ui->buttonBox, &QDialogButtonBox::rejected, this, &ConfigDialog::slot_cancel);
     connect(ui->searchBar, &QLineEdit::textChanged, this, &ConfigDialog::slot_search);
+    connect(ui->searchResultsList,
+            &QListWidget::itemActivated,
+            this,
+            &ConfigDialog::slot_onResultSelected);
+    connect(ui->searchResultsList,
+            &QListWidget::itemClicked,
+            this,
+            &ConfigDialog::slot_onResultSelected);
 
     connect(generalPage, &GeneralPage::sig_reloadConfig, this, [this]() { emit sig_loadConfig(); });
 
@@ -204,10 +204,8 @@ void ConfigDialog::slot_onScroll(int value)
 
     QListWidgetItem *activeItem = nullptr;
     for (const auto &page : m_pages) {
-        if (!page.item->isHidden() && page.container->isVisible()) {
-            if (page.container->y() <= value + 8) {
-                activeItem = page.item;
-            }
+        if (page.container->y() <= value + 8) {
+            activeItem = page.item;
         }
     }
 
@@ -232,122 +230,77 @@ void ConfigDialog::slot_cancel()
 
 void ConfigDialog::slot_search(const QString &text)
 {
-    const QSignalBlocker blocker{ui->contentsWidget};
-
-    bool anyResult = false;
+    ui->searchResultsList->clear();
 
     if (text.isEmpty()) {
-        for (auto &page : m_pages) {
-            if (page.container->isHidden()) {
-                page.container->show();
-            }
-            if (page.item->isHidden()) {
-                page.item->setHidden(false);
-            }
+        ui->rightStack->setCurrentIndex(0);
+        ui->contentsWidget->setEnabled(true);
+        ui->searchBar->setFocus();
+        return;
+    }
 
-            const auto children = page.widget->findChildren<QWidget *>();
-            for (auto *child : children) {
-                if (child->isHidden()) {
-                    child->show();
+    ui->contentsWidget->setEnabled(false);
+
+    for (const auto &page : m_pages) {
+        const auto children = page.widget->findChildren<QWidget *>();
+        for (auto *child : children) {
+            if (matches(child, text)) {
+                QString matchText;
+                if (auto *cb = qobject_cast<QCheckBox *>(child)) {
+                    matchText = cb->text();
+                } else if (auto *rb = qobject_cast<QRadioButton *>(child)) {
+                    matchText = rb->text();
+                } else if (auto *lbl = qobject_cast<QLabel *>(child)) {
+                    matchText = lbl->text();
+                } else if (auto *pb = qobject_cast<QPushButton *>(child)) {
+                    matchText = pb->text();
+                } else if (auto *gb = qobject_cast<QGroupBox *>(child)) {
+                    matchText = gb->title();
                 }
-            }
-        }
-        anyResult = true;
-    } else {
-        for (auto &page : m_pages) {
-            bool pageMatches = page.name.contains(text, Qt::CaseInsensitive);
-            bool anyChildMatches = false;
 
-            const auto groupBoxes = page.widget->findChildren<QGroupBox *>();
-            for (auto *gb : groupBoxes) {
-                if (matches(gb, text)) {
-                    if (gb->isHidden()) {
-                        gb->show();
-                    }
-                    const auto children = gb->findChildren<QWidget *>();
-                    for (auto *child : children) {
-                        if (child->isHidden()) {
-                            child->show();
-                        }
-                    }
-                    anyChildMatches = true;
-                } else {
-                    bool anyGbChildMatches = false;
-                    const auto children = gb->findChildren<QWidget *>();
-                    for (auto *child : children) {
-                        if (matches(child, text)) {
-                            showWithBuddy(child);
-                            anyGbChildMatches = true;
-                        } else if (qobject_cast<QLabel *>(child) || qobject_cast<QCheckBox *>(child)
-                                   || qobject_cast<QRadioButton *>(child)
-                                   || qobject_cast<QPushButton *>(child)) {
-                            if (!child->isHidden()) {
-                                child->hide();
-                            }
-                        }
-                    }
-
-                    if (anyGbChildMatches) {
-                        if (gb->isHidden()) {
-                            gb->show();
-                        }
-                        anyChildMatches = true;
-                    } else {
-                        if (!gb->isHidden()) {
-                            gb->hide();
-                        }
-                    }
-                }
-            }
-
-            const auto directChildren
-                = page.widget->findChildren<QWidget *>(QString(), Qt::FindDirectChildrenOnly);
-            for (auto *child : directChildren) {
-                if (qobject_cast<QGroupBox *>(child))
+                if (matchText.isEmpty()) {
                     continue;
+                }
 
-                if (matches(child, text)) {
-                    showWithBuddy(child);
-                    anyChildMatches = true;
-                } else if (qobject_cast<QLabel *>(child) || qobject_cast<QCheckBox *>(child)
-                           || qobject_cast<QRadioButton *>(child)
-                           || qobject_cast<QPushButton *>(child)) {
-                    if (!child->isHidden()) {
-                        child->hide();
-                    }
-                }
-            }
-
-            if (pageMatches || anyChildMatches) {
-                if (page.container->isHidden()) {
-                    page.container->show();
-                }
-                if (page.item->isHidden()) {
-                    page.item->setHidden(false);
-                }
-                anyResult = true;
-                if (pageMatches && !anyChildMatches) {
-                    const auto children = page.widget->findChildren<QWidget *>();
-                    for (auto *child : children) {
-                        if (child->isHidden()) {
-                            child->show();
-                        }
-                    }
-                }
-            } else {
-                if (!page.container->isHidden()) {
-                    page.container->hide();
-                }
-                if (!page.item->isHidden()) {
-                    page.item->setHidden(true);
-                }
+                matchText.remove('&');
+                auto *item = new QListWidgetItem(QString("%1 > %2").arg(page.name, matchText),
+                                                 ui->searchResultsList);
+                item->setData(Qt::UserRole, QVariant::fromValue(child));
             }
         }
     }
 
-    if (ui->noResultsContainer->isVisible() != !anyResult) {
-        ui->noResultsContainer->setVisible(!anyResult);
+    if (ui->searchResultsList->count() > 0) {
+        ui->rightStack->setCurrentIndex(1);
+    } else {
+        ui->rightStack->setCurrentIndex(2);
     }
 
     ui->searchBar->setFocus();
+}
+
+void ConfigDialog::slot_onResultSelected(QListWidgetItem *item)
+{
+    if (item == nullptr) {
+        return;
+    }
+
+    auto *widget = item->data(Qt::UserRole).value<QWidget *>();
+    if (widget == nullptr) {
+        return;
+    }
+
+    ui->searchBar->clear();
+    ui->rightStack->setCurrentIndex(0);
+
+    // Find which page this widget belongs to
+    for (const auto &page : m_pages) {
+        if (page.widget->isAncestorOf(widget)) {
+            ui->contentsWidget->setCurrentItem(page.item);
+            break;
+        }
+    }
+
+    ui->pagesScrollArea->ensureWidgetVisible(widget);
+    widget->setFocus();
 }

@@ -18,8 +18,6 @@
 #include "pathmachinepage.h"
 #include "ui_configdialog.h"
 
-#include <array>
-
 #include <QIcon>
 #include <QListWidget>
 #include <QtWidgets>
@@ -39,7 +37,6 @@ bool matches(const QWidget *widget, const QString &text)
         return gb->title().contains(text, Qt::CaseInsensitive);
     return false;
 }
-
 } // namespace
 
 ConfigDialog::ConfigDialog(QWidget *const parent)
@@ -65,7 +62,6 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
         auto *container = new QWidget(headerParent);
         auto *layout = new QHBoxLayout(container);
         layout->setContentsMargins(0, 0, 0, 4);
-        layout->setSpacing(8);
 
         auto *label = new QLabel(name, container);
         QFont font = label->font();
@@ -89,7 +85,6 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
             auto *container = new QWidget(this);
             auto *containerLayout = new QVBoxLayout(container);
             containerLayout->setContentsMargins(0, 0, 0, 0);
-            containerLayout->setSpacing(8);
             containerLayout->addWidget(makeSectionHeader(name, container));
             containerLayout->addWidget(widget);
 
@@ -100,22 +95,17 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     addPage(generalPage, tr("General"), ":/icons/generalcfg.png");
     addPage(graphicsPage, tr("Graphics"), ":/icons/graphicscfg.png");
     addPage(parserPage, tr("Parser"), ":/icons/parsercfg.png");
-    addPage(clientPage, tr("Integrated Mud Client"), ":/icons/terminal.png");
+    addPage(clientPage, tr("Integrated Client"), ":/icons/terminal.png");
     addPage(groupPage, tr("Group Panel"), ":/icons/group-recolor.png");
     addPage(autoLogPage, tr("Auto Logger"), ":/icons/autologgercfg.png");
     addPage(audioPage, tr("Audio"), ":/icons/audiocfg.png");
     addPage(mumeProtocolPage, tr("Mume Protocol"), ":/icons/mumeprotocolcfg.png");
     addPage(pathmachinePage, tr("Path Machine"), ":/icons/pathmachinecfg.png");
 
-    const char32_t magnifyingGlassEmoji = 0x1F50D;
-    ui->noResultsLabel->setText(tr("No matches found!\nMaybe try searching for something else? ")
-                                + QString::fromUcs4(&magnifyingGlassEmoji, 1));
-
     ui->scrollLayout->addStretch();
 
     ui->mainSplitter->setStretchFactor(0, 0);
     ui->mainSplitter->setStretchFactor(1, 1);
-    ui->mainSplitter->setSizes({200, 600});
 
     connect(ui->contentsWidget,
             &QListWidget::currentItemChanged,
@@ -176,13 +166,6 @@ void ConfigDialog::showEvent(QShowEvent *const event)
 {
     // Populate the preference pages from config each time the widget is shown
     emit sig_loadConfig();
-
-    if (parentWidget()) {
-        auto pos = parentWidget()->pos();
-        pos.setX(pos.x() + (parentWidget()->width() / 2) - (width() / 2));
-        move(pos);
-    }
-
     event->accept();
 }
 

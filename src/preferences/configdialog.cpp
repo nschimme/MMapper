@@ -20,6 +20,7 @@
 
 #include <QIcon>
 #include <QListWidget>
+#include <QTimer>
 #include <QtWidgets>
 
 namespace {
@@ -101,6 +102,11 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     addPage(audioPage, tr("Audio"), ":/icons/audiocfg.png");
     addPage(mumeProtocolPage, tr("Mume Protocol"), ":/icons/mumeprotocolcfg.png");
     addPage(pathmachinePage, tr("Path Machine"), ":/icons/pathmachinecfg.png");
+
+    auto *footer = new QLabel(tr("End of settings."), this);
+    footer->setAlignment(Qt::AlignCenter);
+    footer->setStyleSheet("color: gray; margin-top: 20px; margin-bottom: 20px;");
+    ui->scrollLayout->addWidget(footer);
 
     ui->scrollLayout->addStretch();
 
@@ -201,6 +207,11 @@ void ConfigDialog::slot_onScroll(int value)
         }
     }
 
+    // If we reached the bottom, ensure the last item is selected
+    if (value >= ui->pagesScrollArea->verticalScrollBar()->maximum() && !m_pages.isEmpty()) {
+        activeItem = m_pages.last().item;
+    }
+
     if (activeItem && ui->contentsWidget->currentItem() != activeItem) {
         const QSignalBlocker blocker{ui->contentsWidget};
         ui->contentsWidget->setCurrentItem(activeItem);
@@ -217,7 +228,7 @@ void ConfigDialog::slot_cancel()
 {
     setConfig().read();
     emit sig_loadConfig();
-    accept();
+    reject();
 }
 
 void ConfigDialog::slot_search(const QString &text)
@@ -260,7 +271,7 @@ void ConfigDialog::slot_search(const QString &text)
 
                 matchText.remove('&');
                 auto *const item = new QListWidgetItem(QString("  \xE2\x80\xA2 %1").arg(matchText));
-                item->setData(Qt::UserRole, QVariant::fromValue(child));
+                item->setData(Qt::UserRole, QVariant::fromValue(static_cast<QObject *>(child)));
                 pageResults.append(item);
                 anyChildMatches = true;
             }
@@ -272,7 +283,8 @@ void ConfigDialog::slot_search(const QString &text)
 
             auto *const headerItem = new QListWidgetItem(page.item->icon(), page.name);
             headerItem->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
-            headerItem->setData(Qt::UserRole, QVariant::fromValue(page.widget));
+            headerItem->setData(Qt::UserRole,
+                                QVariant::fromValue(static_cast<QObject *>(page.widget)));
             QFont font = headerItem->font();
             font.setBold(true);
             headerItem->setFont(font);
@@ -301,31 +313,31 @@ void ConfigDialog::slot_onResultSelected(QListWidgetItem *const item)
         return;
     }
 
-    auto *const widget = item->data(Qt::UserRole).value<QWidget *>();
+    auto *const widget = qobject_cast<QWidget *>(item->data(Qt::UserRole).value<QObject *>());
     if (widget == nullptr) {
         return;
     }
 
-    {
-        const QSignalBlocker blocker{ui->contentsWidget};
+    ui->searchBar->clear();
+    ui->rightStack->setCurrentIndex(0);
 
-        ui->searchBar->clear();
-        ui->rightStack->setCurrentIndex(0);
+    // Find which page this widget belongs to
+    for (const auto &page : m_pages) {
+        if (page.widget == widget || page.widget->isAncestorOf(widget)) {
+            const QSignalBlocker blocker{ui->contentsWidget};
+            ui->contentsWidget->setCurrentItem(page.item);
 
-        // Find which page this widget belongs to
-        for (const auto &page : m_pages) {
-            if (page.widget == widget || page.widget->isAncestorOf(widget)) {
-                ui->contentsWidget->setCurrentItem(page.item);
+            const int targetY = (page.widget == widget)
+                                    ? page.container->y()
+                                    : widget->mapTo(ui->scrollAreaWidgetContents, QPoint(0, 0)).y();
 
-                const int targetY = (page.widget == widget)
-                                        ? page.container->y()
-                                        : widget->mapTo(ui->scrollAreaWidgetContents, QPoint(0, 0))
-                                              .y();
+            // We need to delay the scrolling slightly to ensure the scroll area has
+            // updated its layout after the stack switch.
+            QTimer::singleShot(0, this, [this, targetY, widget]() {
                 ui->pagesScrollArea->verticalScrollBar()->setValue(targetY);
-                break;
-            }
+                widget->setFocus();
+            });
+            break;
         }
     }
-
-    widget->setFocus();
 }

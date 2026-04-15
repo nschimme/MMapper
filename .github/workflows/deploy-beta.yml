@@ -6,6 +6,10 @@ on:
     types:
       - completed
 
+concurrency:
+  group: deploy-beta
+  cancel-in-progress: true
+
 jobs:
   check-builds:
     runs-on: ubuntu-latest
@@ -22,6 +26,19 @@ jobs:
             const requiredWorkflows = ['build-release', 'build-appimage', 'build-flatpak', 'build-appx', 'build-snap', 'build-wasm'];
             const commitSha = context.payload.workflow_run.head_sha;
             console.log(`Checking build status for commit: ${commitSha}`);
+
+            // Ensure this is the latest commit on master
+            const { data: branch } = await github.rest.repos.getBranch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              branch: 'master'
+            });
+
+            if (branch.commit.sha !== commitSha) {
+              console.log(`Commit ${commitSha} is not the head of master (${branch.commit.sha}). Skipping deployment to avoid downgrading.`);
+              core.setOutput('all_builds_successful', 'false');
+              return;
+            }
 
             let allSuccessful = true;
             const missingOrFailed = [];
@@ -152,29 +169,58 @@ jobs:
           ls -R ${{ github.workspace }}/release_artifacts
           echo "--- End of artifact listing ---"
 
-      - name: Delete Previous Pre-release
+      - name: Update Beta Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          RELEASE_FILES: ${{ steps.download_artifacts.outputs.release_files }}
+          COMMIT_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -e
           RELEASE_TAG="beta"
-          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            echo "Beta release '$RELEASE_TAG' exists. Deleting the release..."
-            gh release delete "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --yes || { echo "Failed to delete release: $RELEASE_TAG"; } # Add error handling
-            gh api -X DELETE repos/$GITHUB_REPOSITORY/git/refs/tags/$RELEASE_TAG || true
+          echo "Updating Beta release for commit: $COMMIT_SHA"
+
+          # Check if release exists
+          if ! gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
+            echo "Creating new Beta release..."
+            gh release create "$RELEASE_TAG" --target "$COMMIT_SHA" --title "MMapper Beta" --notes "Latest development build. Back up your map before using." --prerelease
           else
-            echo "Beta release '$RELEASE_TAG' does not exist. No need to delete."
+            echo "Updating existing Beta release..."
+            gh release edit "$RELEASE_TAG" --target "$COMMIT_SHA" --title "MMapper Beta" --notes "Latest development build. Back up your map before using."
           fi
 
-      - name: Update Beta Pre-release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: beta
-          name: MMapper Beta
-          prerelease: true
-          draft: false
-          generate_release_notes: true
-          body: "Latest development build. Back up your map before using.\n\n"
-          files: ${{ steps.download_artifacts.outputs.release_files }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # 1. Get list of existing assets before upload
+          echo "Fetching existing assets..."
+          existing_assets=$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' || echo "")
+
+          # 2. Upload new assets
+          echo "Uploading new assets..."
+          # Convert comma-separated string to array for gh command
+          IFS=',' read -r -a files_array <<< "$RELEASE_FILES"
+          if [ ${#files_array[@]} -eq 0 ]; then
+            echo "No files found to upload!"
+            exit 1
+          fi
+          gh release upload "$RELEASE_TAG" "${files_array[@]}" --clobber
+
+          # 3. Get names of newly uploaded assets
+          new_asset_names=()
+          for f in "${files_array[@]}"; do
+            new_asset_names+=("$(basename "$f")")
+          done
+
+          # 4. Delete assets that were there but aren't in the new set
+          echo "Cleaning up obsolete assets..."
+          for old_asset in $existing_assets; do
+            keep=false
+            for new_asset in "${new_asset_names[@]}"; do
+              if [[ "$old_asset" == "$new_asset" ]]; then
+                keep=true
+                break
+              fi
+            done
+            if [ "$keep" = false ]; then
+              echo "Deleting obsolete asset: $old_asset"
+              gh release delete-asset "$RELEASE_TAG" "$old_asset" --yes
+            fi
+          done

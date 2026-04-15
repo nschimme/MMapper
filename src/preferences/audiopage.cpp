@@ -19,6 +19,9 @@ AudioPage::AudioPage(QWidget *const parent)
 {
     ui->setupUi(this);
 
+    ui->musicVolumeSlider->setAudioType(AudioVolumeSlider::AudioType::Music);
+    ui->soundsVolumeSlider->setAudioType(AudioVolumeSlider::AudioType::Sound);
+
     slot_updateDevices();
     slot_loadConfig();
 

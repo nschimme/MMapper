@@ -42,6 +42,9 @@ public:
     explicit ConfigDialog(QWidget *parent = nullptr);
     ~ConfigDialog() override;
 
+private:
+    void scrollToWidget(QWidget *target, bool focus = false);
+
 protected:
     void closeEvent(QCloseEvent *event) override;
     void showEvent(QShowEvent *event) override;

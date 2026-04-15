@@ -38,6 +38,8 @@ QString getSearchableText(const QWidget *widget)
         return gb->title();
     return QString();
 }
+
+enum StackPage { Preferences = 0, SearchResults = 1, NoResults = 2 };
 } // namespace
 
 ConfigDialog::ConfigDialog(QWidget *const parent)
@@ -79,19 +81,20 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
         return container;
     };
 
-    auto addPage =
-        [this, &makeSectionHeader](QWidget *widget, const QString &name, const QString &iconPath) {
-            auto *item = new QListWidgetItem(QIcon(iconPath), name, ui->contentsWidget);
+    auto addPage = [this, &makeSectionHeader](QWidget *widget,
+                                              const QString &name,
+                                              const QString &iconPath) {
+        auto *item = new QListWidgetItem(QIcon(iconPath), name, ui->contentsWidget);
 
-            auto *container = new QWidget(this);
-            auto *containerLayout = new QVBoxLayout(container);
-            containerLayout->setContentsMargins(0, 0, 0, 0);
-            containerLayout->addWidget(makeSectionHeader(name, container));
-            containerLayout->addWidget(widget);
+        auto *container = new QWidget(this);
+        auto *containerLayout = new QVBoxLayout(container);
+        containerLayout->setContentsMargins(0, 0, 0, 0);
+        containerLayout->addWidget(makeSectionHeader(name, container));
+        containerLayout->addWidget(widget);
 
-            ui->scrollLayout->insertWidget(ui->scrollLayout->count() - 2, container);
-            m_pages.append({name, widget, item, container});
-        };
+        ui->scrollLayout->insertWidget(ui->scrollLayout->indexOf(ui->footerWidget) - 1, container);
+        m_pages.append({name, widget, item, container});
+    };
 
     addPage(generalPage, tr("General"), ":/icons/generalcfg.png");
     addPage(graphicsPage, tr("Graphics"), ":/icons/graphicscfg.png");
@@ -104,7 +107,9 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     addPage(pathmachinePage, tr("Path Machine"), ":/icons/pathmachinecfg.png");
 
     connect(ui->backToTopBtn, &QPushButton::clicked, this, [this]() {
-        ui->pagesScrollArea->verticalScrollBar()->setValue(0);
+        if (!m_pages.isEmpty()) {
+            ui->contentsWidget->setCurrentItem(m_pages.first().item);
+        }
     });
 
     ui->mainSplitter->setStretchFactor(0, 0);
@@ -178,6 +183,20 @@ void ConfigDialog::showEvent(QShowEvent *const event)
     event->accept();
 }
 
+void ConfigDialog::scrollToWidget(QWidget *target, bool focus)
+{
+    const int targetY = target->mapTo(ui->scrollAreaWidgetContents, QPoint(0, 0)).y();
+
+    // We need to delay the scrolling slightly to ensure the scroll area has
+    // updated its layout after the stack switch.
+    QTimer::singleShot(0, this, [this, targetY, target, focus]() {
+        ui->pagesScrollArea->verticalScrollBar()->setValue(targetY);
+        if (focus) {
+            target->setFocus();
+        }
+    });
+}
+
 void ConfigDialog::slot_changePage(QListWidgetItem *current, QListWidgetItem *const /*previous*/)
 {
     if (current == nullptr) {
@@ -191,8 +210,7 @@ void ConfigDialog::slot_changePage(QListWidgetItem *current, QListWidgetItem *co
 
     for (const auto &page : m_pages) {
         if (page.item == current) {
-            const int targetY = page.container->mapTo(ui->scrollAreaWidgetContents, QPoint(0, 0)).y();
-            ui->pagesScrollArea->verticalScrollBar()->setValue(targetY);
+            scrollToWidget(page.container);
             break;
         }
     }
@@ -241,7 +259,7 @@ void ConfigDialog::slot_search(const QString &text)
     ui->searchResultsList->clear();
 
     if (text.isEmpty()) {
-        ui->rightStack->setCurrentIndex(0);
+        ui->rightStack->setCurrentIndex(StackPage::Preferences);
         for (const auto &page : m_pages) {
             page.item->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
         }
@@ -284,13 +302,19 @@ void ConfigDialog::slot_search(const QString &text)
             }
         } else {
             page.item->setFlags(Qt::NoItemFlags);
+
+            // If the current sidebar selection is being disabled, clear it
+            if (ui->contentsWidget->currentItem() == page.item) {
+                const QSignalBlocker blocker{ui->contentsWidget};
+                ui->contentsWidget->setCurrentItem(nullptr);
+            }
         }
     }
 
     if (ui->searchResultsList->count() > 0) {
-        ui->rightStack->setCurrentIndex(1);
+        ui->rightStack->setCurrentIndex(StackPage::SearchResults);
     } else {
-        ui->rightStack->setCurrentIndex(2);
+        ui->rightStack->setCurrentIndex(StackPage::NoResults);
     }
 
     ui->searchBar->setFocus();
@@ -308,7 +332,7 @@ void ConfigDialog::slot_onResultSelected(QListWidgetItem *const item)
     }
 
     ui->searchBar->clear();
-    ui->rightStack->setCurrentIndex(0);
+    ui->rightStack->setCurrentIndex(StackPage::Preferences);
 
     // Find which page this widget belongs to
     for (const auto &page : m_pages) {
@@ -316,17 +340,7 @@ void ConfigDialog::slot_onResultSelected(QListWidgetItem *const item)
             const QSignalBlocker blocker{ui->contentsWidget};
             ui->contentsWidget->setCurrentItem(page.item);
 
-            const int targetY
-                = (page.widget == widget)
-                      ? page.container->mapTo(ui->scrollAreaWidgetContents, QPoint(0, 0)).y()
-                      : widget->mapTo(ui->scrollAreaWidgetContents, QPoint(0, 0)).y();
-
-            // We need to delay the scrolling slightly to ensure the scroll area has
-            // updated its layout after the stack switch.
-            QTimer::singleShot(0, this, [this, targetY, widget]() {
-                ui->pagesScrollArea->verticalScrollBar()->setValue(targetY);
-                widget->setFocus();
-            });
+            scrollToWidget(widget, true);
             break;
         }
     }

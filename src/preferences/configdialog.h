@@ -10,6 +10,7 @@
 #include <QDialog>
 
 class QLabel;
+class QSpacerItem;
 
 namespace Ui {
 class ConfigDialog;
@@ -34,6 +35,9 @@ private:
     Ui::ConfigDialog *ui;
     QList<PageInfo> m_pages;
     bool m_suppressScrollSync = false;
+
+    QSpacerItem *m_topStretch = nullptr;
+    QSpacerItem *m_bottomStretch = nullptr;
 
 public:
     explicit ConfigDialog(QWidget *parent = nullptr);

@@ -10,6 +10,7 @@
 
 #include <QColor>
 #include <QFont>
+#include <QHostInfo>
 #include <QSize>
 #include <QString>
 #include <QTextBrowser>
@@ -45,6 +46,7 @@ NODISCARD extern RawAnsi updateFormat(QTextCharFormat &format,
 
 struct NODISCARD AnsiTextHelper final
 {
+    static constexpr const int URL_ID_PROPERTY = QTextFormat::UserProperty + 1;
     QTextEdit &textEdit;
     QTextCursor cursor;
     QTextCharFormat format;
@@ -84,12 +86,16 @@ public:
     }
     void returnFocusToInput() { virt_returnFocusToInput(); }
     void showPreview(bool visible) { virt_showPreview(visible); }
+    void sendUserInput(const QString &msg) { virt_sendUserInput(msg); }
+    void setPrompt(const QString &msg) { virt_setPrompt(msg); }
 
 private:
     virtual void virt_showMessage(const QString &msg, int timeout) = 0;
     virtual void virt_windowSizeChanged(int width, int height) = 0;
     virtual void virt_returnFocusToInput() = 0;
     virtual void virt_showPreview(bool visible) = 0;
+    virtual void virt_sendUserInput(const QString &msg) = 0;
+    virtual void virt_setPrompt(const QString &msg) = 0;
 };
 
 class NODISCARD_QOBJECT DisplayWidget final : public QTextBrowser
@@ -135,6 +141,11 @@ public:
 protected:
     void resizeEvent(QResizeEvent *event) override;
     void keyPressEvent(QKeyEvent *event) override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
+
+private:
+    void updateHoverUnderline(const QString &urlId);
+    QString m_lastUrlId;
 
 public slots:
     void slot_displayText(const QStringView str);

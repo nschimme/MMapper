@@ -145,6 +145,13 @@ void StackedInputWidget::gotMultiLineInput(const QString &input)
     displayInputMessage(input);
 }
 
+void StackedInputWidget::setPrompt(const QString &msg)
+{
+    getInputWidget().setPlainText(msg);
+    getInputWidget().moveCursor(QTextCursor::End);
+    getInputWidget().setFocus();
+}
+
 void StackedInputWidget::gotPasswordInput(const QString &input)
 {
     getOutput().sendUserInput(input + "\n");

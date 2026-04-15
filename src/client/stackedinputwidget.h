@@ -117,6 +117,7 @@ public:
     void requestPassword();
     void setEchoMode(EchoModeEnum echoMode);
     EchoModeEnum getEchoMode() const { return m_echoMode; }
+    void setPrompt(const QString &msg);
 
 private:
     void gotMultiLineInput(const QString &);

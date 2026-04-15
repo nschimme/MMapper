@@ -115,6 +115,29 @@ DisplayWidget::DisplayWidget(QWidget *const parent)
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
+    viewport()->installEventFilter(this);
+    viewport()->setMouseTracking(true);
+
+    connect(this, &DisplayWidget::anchorClicked, this, [this](const QUrl &url) {
+        QString scheme = url.scheme();
+        if (scheme == u"send") {
+            getOutput().sendUserInput(url.path() + u"\n");
+        } else if (scheme == u"prompt") {
+            // Pre-fill input widget
+            getOutput().setPrompt(url.path());
+        } else if (scheme == u"file") {
+            // Security check for file:// URIs
+            QString host = url.host();
+            if (host.isEmpty() || host == u"localhost" || host == QHostInfo::localHostName()) {
+                QDesktopServices::openUrl(url);
+            } else {
+                qWarning() << "OSC 8: Ignored file URI with non-local host:" << host;
+            }
+        } else {
+            QDesktopServices::openUrl(url);
+        }
+    });
+
     connect(this, &DisplayWidget::copyAvailable, this, [this](const bool available) {
         m_canCopy = available;
         if (available) {
@@ -220,6 +243,50 @@ void DisplayWidget::keyPressEvent(QKeyEvent *event)
     }
 }
 
+bool DisplayWidget::eventFilter(QObject *watched, QEvent *event)
+{
+    if (watched == viewport()) {
+        if (event->type() == QEvent::MouseMove) {
+            QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);
+            QTextCursor cursor = cursorForPosition(mouseEvent->pos());
+            QString urlId = cursor.charFormat().property(AnsiTextHelper::URL_ID_PROPERTY).toString();
+            updateHoverUnderline(urlId);
+        } else if (event->type() == QEvent::Leave) {
+            updateHoverUnderline({});
+        }
+    }
+    return base::eventFilter(watched, event);
+}
+
+void DisplayWidget::updateHoverUnderline(const QString &urlId)
+{
+    if (urlId == m_lastUrlId) {
+        return;
+    }
+    m_lastUrlId = urlId;
+
+    QList<QTextEdit::ExtraSelection> selections;
+    if (!urlId.isEmpty()) {
+        QTextDocument *doc = document();
+        for (QTextBlock it = doc->begin(); it != doc->end(); it = it.next()) {
+            for (QTextBlock::iterator fragmentIt = it.begin(); !fragmentIt.atEnd(); ++fragmentIt) {
+                QTextFragment fragment = fragmentIt.fragment();
+                if (fragment.isValid()
+                    && fragment.charFormat().property(AnsiTextHelper::URL_ID_PROPERTY).toString()
+                           == urlId) {
+                    QTextEdit::ExtraSelection sel;
+                    sel.cursor = QTextCursor(fragment);
+                    sel.format = fragment.charFormat();
+                    sel.format.setFontUnderline(true);
+                    sel.format.setUnderlineStyle(QTextCharFormat::SingleUnderline);
+                    selections.append(sel);
+                }
+            }
+        }
+    }
+    setExtraSelections(selections);
+}
+
 void setDefaultFormat(QTextCharFormat &format, const FontDefaults &defaults)
 {
     format.setFont(defaults.serverOutputFont);
@@ -235,7 +302,8 @@ void AnsiTextHelper::displayText(const QStringView input_str)
 {
     // ANSI codes are formatted as the following:
     // escape + [ + n1 (+ n2) + m
-    static const QRegularExpression ansi_regex{R"regex(\x1B[^A-Za-z\x1B]*[A-Za-z]?)regex"};
+    // or OSC sequences: escape + ] + ... + (escape + \ or bell)
+    static const QRegularExpression ansi_regex{R"regex(\x1B(?:\[[[:digit:];:]*[[:alpha:]]?|\][^\x1B\x07]*(?:\x1B\\|\x07)))regex"};
     static const QRegularExpression url_regex{
         R"regex(https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*))regex"};
 
@@ -338,10 +406,8 @@ void AnsiTextHelper::displayText(const QStringView input_str)
         input_str,
         [this, &add_raw](const QStringView ansiStr) {
             assert(!ansiStr.isEmpty() && ansiStr.front() == char_consts::C_ESC);
-            if (mmqt::isAnsiColor(ansiStr)) {
-                if (auto optNewColor = mmqt::parseAnsiColor(currentAnsi, ansiStr)) {
-                    currentAnsi = updateFormat(format, defaults, currentAnsi, *optNewColor);
-                }
+            if (auto optNewColor = mmqt::parseAnsiColor(currentAnsi, ansiStr)) {
+                currentAnsi = updateFormat(format, defaults, currentAnsi, *optNewColor);
             } else if (mmqt::isAnsiEraseLine(ansiStr)) {
                 cursor.movePosition(QTextCursor::Left, QTextCursor::MoveAnchor, 1);
                 cursor.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
@@ -547,6 +613,16 @@ RawAnsi updateFormat(QTextCharFormat &format,
     format.setBackground(bg);
     format.setForeground(fg);
     format.setUnderlineColor(ul);
+
+    if (updated.url.isEmpty()) {
+        format.setAnchor(false);
+        format.setAnchorHref({});
+    } else {
+        format.setAnchor(true);
+        format.setAnchorHref(updated.url);
+    }
+    format.setProperty(AnsiTextHelper::URL_ID_PROPERTY, updated.urlId);
+
     return updated;
 }
 

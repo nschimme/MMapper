@@ -24,19 +24,19 @@
 #include <QtWidgets>
 
 namespace {
-bool matches(const QWidget *widget, const QString &text)
+QString getSearchableText(const QWidget *widget)
 {
-    if (auto *cb = qobject_cast<const QCheckBox *>(widget))
-        return cb->text().contains(text, Qt::CaseInsensitive);
-    if (auto *rb = qobject_cast<const QRadioButton *>(widget))
-        return rb->text().contains(text, Qt::CaseInsensitive);
-    if (auto *lbl = qobject_cast<const QLabel *>(widget))
-        return lbl->text().contains(text, Qt::CaseInsensitive);
-    if (auto *pb = qobject_cast<const QPushButton *>(widget))
-        return pb->text().contains(text, Qt::CaseInsensitive);
-    if (auto *gb = qobject_cast<const QGroupBox *>(widget))
-        return gb->title().contains(text, Qt::CaseInsensitive);
-    return false;
+    if (auto *const cb = qobject_cast<const QCheckBox *>(widget))
+        return cb->text();
+    if (auto *const rb = qobject_cast<const QRadioButton *>(widget))
+        return rb->text();
+    if (auto *const lbl = qobject_cast<const QLabel *>(widget))
+        return lbl->text();
+    if (auto *const pb = qobject_cast<const QPushButton *>(widget))
+        return pb->text();
+    if (auto *const gb = qobject_cast<const QGroupBox *>(widget))
+        return gb->title();
+    return QString();
 }
 } // namespace
 
@@ -120,7 +120,13 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
             &ConfigDialog::slot_onScroll);
     connect(ui->buttonBox, &QDialogButtonBox::accepted, this, &ConfigDialog::slot_ok);
     connect(ui->buttonBox, &QDialogButtonBox::rejected, this, &ConfigDialog::slot_cancel);
-    connect(ui->searchBar, &QLineEdit::textChanged, this, &ConfigDialog::slot_search);
+
+    m_searchTimer = new QTimer(this);
+    m_searchTimer->setSingleShot(true);
+    m_searchTimer->setInterval(250);
+    connect(m_searchTimer, &QTimer::timeout, this, [this]() { slot_search(ui->searchBar->text()); });
+    connect(ui->searchBar, &QLineEdit::textChanged, m_searchTimer, qOverload<>(&QTimer::start));
+
     connect(ui->searchResultsList,
             &QListWidget::itemActivated,
             this,
@@ -185,7 +191,8 @@ void ConfigDialog::slot_changePage(QListWidgetItem *current, QListWidgetItem *co
 
     for (const auto &page : m_pages) {
         if (page.item == current) {
-            ui->pagesScrollArea->verticalScrollBar()->setValue(page.container->y());
+            const int targetY = page.container->mapTo(ui->scrollAreaWidgetContents, QPoint(0, 0)).y();
+            ui->pagesScrollArea->verticalScrollBar()->setValue(targetY);
             break;
         }
     }
@@ -199,7 +206,8 @@ void ConfigDialog::slot_onScroll(int value)
 
     QListWidgetItem *activeItem = nullptr;
     for (const auto &page : m_pages) {
-        if (page.container->y() <= value + 8) {
+        const int pageY = page.container->mapTo(ui->scrollAreaWidgetContents, QPoint(0, 0)).y();
+        if (pageY <= value + 8) {
             activeItem = page.item;
         }
     }
@@ -248,24 +256,8 @@ void ConfigDialog::slot_search(const QString &text)
         QList<QListWidgetItem *> pageResults;
 
         for (auto *const child : children) {
-            if (matches(child, text)) {
-                QString matchText;
-                if (auto *const cb = qobject_cast<QCheckBox *>(child)) {
-                    matchText = cb->text();
-                } else if (auto *const rb = qobject_cast<QRadioButton *>(child)) {
-                    matchText = rb->text();
-                } else if (auto *const lbl = qobject_cast<QLabel *>(child)) {
-                    matchText = lbl->text();
-                } else if (auto *const pb = qobject_cast<QPushButton *>(child)) {
-                    matchText = pb->text();
-                } else if (auto *const gb = qobject_cast<QGroupBox *>(child)) {
-                    matchText = gb->title();
-                }
-
-                if (matchText.isEmpty()) {
-                    continue;
-                }
-
+            QString matchText = getSearchableText(child);
+            if (!matchText.isEmpty() && matchText.contains(text, Qt::CaseInsensitive)) {
                 matchText.remove('&');
                 auto *const item = new QListWidgetItem(QString("  \xE2\x80\xA2 %1").arg(matchText));
                 item->setData(Qt::UserRole, QVariant::fromValue(static_cast<QObject *>(child)));
@@ -324,9 +316,10 @@ void ConfigDialog::slot_onResultSelected(QListWidgetItem *const item)
             const QSignalBlocker blocker{ui->contentsWidget};
             ui->contentsWidget->setCurrentItem(page.item);
 
-            const int targetY = (page.widget == widget)
-                                    ? page.container->y()
-                                    : widget->mapTo(ui->scrollAreaWidgetContents, QPoint(0, 0)).y();
+            const int targetY
+                = (page.widget == widget)
+                      ? page.container->mapTo(ui->scrollAreaWidgetContents, QPoint(0, 0)).y()
+                      : widget->mapTo(ui->scrollAreaWidgetContents, QPoint(0, 0)).y();
 
             // We need to delay the scrolling slightly to ensure the scroll area has
             // updated its layout after the stack switch.

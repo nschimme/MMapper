@@ -19,6 +19,8 @@ class ConfigDialog;
 class QListWidgetItem;
 class QStackedWidget;
 
+class QTimer;
+
 class ConfigDialog final : public QDialog
 {
     Q_OBJECT
@@ -34,6 +36,7 @@ private:
 
     Ui::ConfigDialog *ui;
     QList<PageInfo> m_pages;
+    QTimer *m_searchTimer = nullptr;
 
 public:
     explicit ConfigDialog(QWidget *parent = nullptr);

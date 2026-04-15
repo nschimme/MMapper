@@ -36,9 +36,6 @@ private:
     QList<PageInfo> m_pages;
     bool m_suppressScrollSync = false;
 
-    QSpacerItem *m_topStretch = nullptr;
-    QSpacerItem *m_bottomStretch = nullptr;
-
 public:
     explicit ConfigDialog(QWidget *parent = nullptr);
     ~ConfigDialog() override;

@@ -117,15 +117,7 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     ui->noResultsLabel->setText(tr("No matches found!\nMaybe try searching for something else? ")
                                 + QString::fromUcs4(&magnifyingGlassEmoji, 1));
 
-    m_topStretch = new QSpacerItem(0, 0, QSizePolicy::Minimum, QSizePolicy::Expanding);
-    m_bottomStretch = new QSpacerItem(0, 0, QSizePolicy::Minimum, QSizePolicy::Expanding);
-    ui->scrollLayout->insertItem(0, m_topStretch);
-    ui->scrollLayout->addSpacerItem(m_bottomStretch);
-
-    ui->contentsWidget->setFocusPolicy(Qt::NoFocus);
-    ui->pagesScrollArea->setFocusPolicy(Qt::NoFocus);
-    ui->pagesScrollArea->verticalScrollBar()->setFocusPolicy(Qt::NoFocus);
-    ui->scrollAreaWidgetContents->setFocusPolicy(Qt::NoFocus);
+    ui->scrollLayout->addStretch();
 
     connect(ui->contentsWidget,
             &QListWidget::currentItemChanged,
@@ -206,7 +198,7 @@ void ConfigDialog::slot_changePage(QListWidgetItem *current, QListWidgetItem *co
 
 void ConfigDialog::slot_onScroll(int value)
 {
-    if (m_suppressScrollSync) {
+    if (m_suppressScrollSync || !ui->searchBar->text().isEmpty()) {
         return;
     }
 
@@ -240,10 +232,7 @@ void ConfigDialog::slot_cancel()
 
 void ConfigDialog::slot_search(const QString &text)
 {
-    m_suppressScrollSync = true;
-    setUpdatesEnabled(false);
-    const QSignalBlocker contentBlocker{ui->contentsWidget};
-    const QSignalBlocker scrollBlocker{ui->pagesScrollArea->verticalScrollBar()};
+    const QSignalBlocker blocker{ui->contentsWidget};
 
     bool anyResult = false;
 
@@ -356,27 +345,9 @@ void ConfigDialog::slot_search(const QString &text)
         }
     }
 
-    if (ui->noResultsLabel->isVisible() != !anyResult) {
-        ui->noResultsLabel->setVisible(!anyResult);
-        if (anyResult) {
-            m_topStretch->changeSize(0, 0, QSizePolicy::Fixed, QSizePolicy::Fixed);
-            m_bottomStretch->changeSize(0, 0, QSizePolicy::Fixed, QSizePolicy::Fixed);
-        } else {
-            m_topStretch->changeSize(0, 0, QSizePolicy::Minimum, QSizePolicy::Expanding);
-            m_bottomStretch->changeSize(0, 0, QSizePolicy::Minimum, QSizePolicy::Expanding);
-        }
-        ui->scrollLayout->invalidate();
+    if (ui->noResultsContainer->isVisible() != !anyResult) {
+        ui->noResultsContainer->setVisible(!anyResult);
     }
 
-    setUpdatesEnabled(true);
-
-    // Keep scroll synchronization suppressed until layout updates are finished.
-    // Explicitly restore focus to the search bar via multiple deferred calls to
-    // ensure it's the last focus-related action across all event loop cycles.
     ui->searchBar->setFocus();
-    QTimer::singleShot(0, ui->searchBar, qOverload<>(&QWidget::setFocus));
-    QTimer::singleShot(50, this, [this]() {
-        ui->searchBar->setFocus();
-        m_suppressScrollSync = false;
-    });
 }

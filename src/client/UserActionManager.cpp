@@ -178,7 +178,8 @@ void UserActionManager::evaluate(
         case UserActionType::Regex: {
             if (compiled->regex) {
                 std::cmatch match;
-                if (std::regex_search(line.begin(), line.end(), match, *compiled->regex)) {
+                const std::string_view sv = line.getStdStringView();
+                if (std::regex_search(sv.data(), sv.data() + sv.size(), match, *compiled->regex)) {
                     matched = true;
                     captures.reserve(match.size());
                     for (size_t i = 0; i < match.size(); ++i) {

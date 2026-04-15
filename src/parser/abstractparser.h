@@ -266,6 +266,10 @@ protected:
 protected:
     // accesses m_queue
     void clearQueue();
+
+protected:
+    void sendToMud(const QByteArray &msg) = delete;
+    void sendToMud(const QString &msg) { m_outputs.onSendToMud(msg); }
 };
 
 class MumeXmlParserBase : public ParserCommon
@@ -448,9 +452,6 @@ protected:
 
 private:
     void graphicsSettingsChanged() { m_outputs.onGraphicsSettingsChanged(); }
-
-    void sendToMud(const QByteArray &msg) = delete;
-    void sendToMud(const QString &msg) { m_outputs.onSendToMud(msg); }
 
 private:
     void eval(std::string_view name,

@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>421</width>
+    <width>403</width>
     <height>350</height>
    </rect>
   </property>
@@ -71,9 +71,6 @@
       </item>
       <item row="2" column="1" colspan="2">
        <widget class="QDoubleSpinBox" name="acceptBestRelativeDoubleSpinBox">
-        <property name="focusPolicy">
-         <enum>Qt::FocusPolicy::StrongFocus</enum>
-        </property>
         <property name="decimals">
          <number>4</number>
         </property>
@@ -84,9 +81,6 @@
       </item>
       <item row="4" column="1" colspan="2">
        <widget class="QDoubleSpinBox" name="newRoomPenaltyDoubleSpinBox">
-        <property name="focusPolicy">
-         <enum>Qt::FocusPolicy::StrongFocus</enum>
-        </property>
         <property name="decimals">
          <number>4</number>
         </property>
@@ -111,9 +105,6 @@
       </item>
       <item row="5" column="1" colspan="2">
        <widget class="QDoubleSpinBox" name="correctPositionBonusDoubleSpinBox">
-        <property name="focusPolicy">
-         <enum>Qt::FocusPolicy::StrongFocus</enum>
-        </property>
         <property name="decimals">
          <number>4</number>
         </property>
@@ -131,9 +122,6 @@
       </item>
       <item row="3" column="1" colspan="2">
        <widget class="QDoubleSpinBox" name="acceptBestAbsoluteDoubleSpinBox">
-        <property name="focusPolicy">
-         <enum>Qt::FocusPolicy::StrongFocus</enum>
-        </property>
         <property name="decimals">
          <number>4</number>
         </property>
@@ -144,9 +132,6 @@
       </item>
       <item row="1" column="1">
        <widget class="QSpinBox" name="matchingToleranceSpinBox">
-        <property name="focusPolicy">
-         <enum>Qt::FocusPolicy::StrongFocus</enum>
-        </property>
         <property name="maximum">
          <number>100</number>
         </property>
@@ -161,9 +146,6 @@
       </item>
       <item row="0" column="1">
        <widget class="QSpinBox" name="maxPaths">
-        <property name="focusPolicy">
-         <enum>Qt::FocusPolicy::StrongFocus</enum>
-        </property>
         <property name="maximum">
          <number>100000</number>
         </property>
@@ -185,9 +167,6 @@
       </item>
       <item row="6" column="1">
        <widget class="QDoubleSpinBox" name="multipleConnectionsPenaltyDoubleSpinBox">
-        <property name="focusPolicy">
-         <enum>Qt::FocusPolicy::StrongFocus</enum>
-        </property>
         <property name="decimals">
          <number>4</number>
         </property>
@@ -202,7 +181,7 @@
    <item>
     <spacer name="verticalSpacer">
      <property name="orientation">
-      <enum>Qt::Orientation::Vertical</enum>
+      <enum>Qt::Vertical</enum>
      </property>
      <property name="sizeHint" stdset="0">
       <size>

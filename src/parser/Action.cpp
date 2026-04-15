@@ -40,7 +40,8 @@ RegexAction::RegexAction(const std::string &pattern, const ActionCallback &callb
 void RegexAction::virt_match(const StringView input) const
 {
     std::cmatch match;
-    if (std::regex_search(input.begin(), input.end(), m_regex, match)) {
+    const std::string_view sv = input.getStdStringView();
+    if (std::regex_search(sv.data(), sv.data() + sv.size(), match, m_regex)) {
         std::vector<StringView> captures;
         captures.reserve(match.size());
         for (size_t i = 0; i < match.size(); ++i) {

@@ -115,17 +115,8 @@
             </item>
             <item>
              <widget class="QPushButton" name="backToTopBtn">
-              <property name="cursor">
-               <cursor shape="PointingHandCursor"/>
-              </property>
-              <property name="styleSheet">
-               <string notr="true">color: #50fa7b; font-weight: bold;</string>
-              </property>
               <property name="text">
                <string>Back to top</string>
-              </property>
-              <property name="flat">
-               <bool>true</bool>
               </property>
              </widget>
             </item>

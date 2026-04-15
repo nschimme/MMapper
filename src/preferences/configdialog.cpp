@@ -182,7 +182,6 @@ void ConfigDialog::slot_changePage(QListWidgetItem *current, QListWidgetItem *co
 
     for (const auto &page : m_pages) {
         if (page.item == current) {
-            const QSignalBlocker blocker{ui->pagesScrollArea->verticalScrollBar()};
             ui->pagesScrollArea->verticalScrollBar()->setValue(page.container->y());
             break;
         }
@@ -309,7 +308,6 @@ void ConfigDialog::slot_onResultSelected(QListWidgetItem *const item)
 
     {
         const QSignalBlocker blocker{ui->contentsWidget};
-        const QSignalBlocker scrollBlocker{ui->pagesScrollArea->verticalScrollBar()};
 
         ui->searchBar->clear();
         ui->rightStack->setCurrentIndex(0);

@@ -290,7 +290,7 @@ void ConfigDialog::slot_search(const QString &text)
             page.item->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
 
             auto *const headerItem = new QListWidgetItem(page.item->icon(), page.name);
-            headerItem->setFlags(Qt::ItemIsEnabled);
+            headerItem->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
             headerItem->setData(Qt::UserRole, QVariant::fromValue(page.widget));
             QFont font = headerItem->font();
             font.setBold(true);

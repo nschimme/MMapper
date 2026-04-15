@@ -9,6 +9,9 @@
 
 #include <QDialog>
 
+class QLabel;
+class QSpacerItem;
+
 namespace Ui {
 class ConfigDialog;
 }
@@ -42,18 +45,15 @@ protected:
     void showEvent(QShowEvent *event) override;
 
 private slots:
-    void slot_changePage(QListWidgetItem *current, QListWidgetItem */*previous*/);
+    void slot_changePage(QListWidgetItem *current, QListWidgetItem * /*previous*/);
     void slot_onScroll(int value);
     void slot_ok();
     void slot_cancel();
     void slot_search(const QString &text);
+    void slot_onResultSelected(QListWidgetItem *item);
 
 signals:
     void sig_graphicsSettingsChanged();
     void sig_groupSettingsChanged();
     void sig_loadConfig();
-
-private:
-    void createIcons();
-    void updateSearch();
 };

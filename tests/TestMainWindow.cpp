@@ -87,4 +87,34 @@ void TestMainWindow::audioToolbarTest()
     QCOMPARE(getConfig().audio.getSoundVolume(), 10);
 }
 
+void TestMainWindow::audioSliderTypeChangeTest()
+{
+    setEnteredMain();
+
+    const int originalMusic = getConfig().audio.getMusicVolume();
+    const int originalSound = getConfig().audio.getSoundVolume();
+
+    // Ensure we restore configuration
+    auto cleanup = qScopeGuard([=]() {
+        setConfig().audio.setMusicVolume(originalMusic);
+        setConfig().audio.setSoundVolume(originalSound);
+    });
+
+    AudioVolumeSlider slider; // Defaults to Music
+    QCOMPARE(slider.audioType(), AudioVolumeSlider::AudioType::Music);
+
+    setConfig().audio.setMusicVolume(40);
+    QCOMPARE(slider.value(), 40);
+
+    slider.setAudioType(AudioVolumeSlider::AudioType::Sound);
+    QCOMPARE(slider.audioType(), AudioVolumeSlider::AudioType::Sound);
+
+    setConfig().audio.setSoundVolume(60);
+    QCOMPARE(slider.value(), 60);
+
+    slider.setValue(20);
+    QCOMPARE(getConfig().audio.getSoundVolume(), 20);
+    QCOMPARE(getConfig().audio.getMusicVolume(), 40);
+}
+
 QTEST_MAIN(TestMainWindow)

@@ -288,7 +288,7 @@ protected:
 
 protected:
     void sendNewEnvironIs(const QMap<RawBytes, RawBytes> &vars,
-                         const QMap<RawBytes, RawBytes> &userVars);
+                          const QMap<RawBytes, RawBytes> &userVars);
     void sendNewEnvironInfo(const QMap<RawBytes, RawBytes> &vars,
                             const QMap<RawBytes, RawBytes> &userVars);
     void sendNewEnvironSend(const QList<RawBytes> &vars, const QList<RawBytes> &userVars);

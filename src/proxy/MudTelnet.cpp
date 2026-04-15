@@ -418,7 +418,7 @@ void MudTelnet::onRelayTermType(const TelnetTermTypeBytes &terminalType)
 }
 
 void MudTelnet::onRelayNewEnvironIs(const QMap<RawBytes, RawBytes> &vars,
-                                   const QMap<RawBytes, RawBytes> &userVars)
+                                    const QMap<RawBytes, RawBytes> &userVars)
 {
     if (getOptions().myOptionState[OPT_NEW_ENVIRON]) {
         sendNewEnvironIs(vars, userVars);
@@ -426,7 +426,7 @@ void MudTelnet::onRelayNewEnvironIs(const QMap<RawBytes, RawBytes> &vars,
 }
 
 void MudTelnet::onRelayNewEnvironInfo(const QMap<RawBytes, RawBytes> &vars,
-                                     const QMap<RawBytes, RawBytes> &userVars)
+                                      const QMap<RawBytes, RawBytes> &userVars)
 {
     if (getOptions().myOptionState[OPT_NEW_ENVIRON]) {
         sendNewEnvironInfo(vars, userVars);

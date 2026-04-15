@@ -577,7 +577,7 @@ void AbstractTelnet::sendTerminalTypeRequest()
 }
 
 void AbstractTelnet::sendNewEnvironIs(const QMap<RawBytes, RawBytes> &vars,
-                                     const QMap<RawBytes, RawBytes> &userVars)
+                                      const QMap<RawBytes, RawBytes> &userVars)
 {
     if (m_debug) {
         qDebug() << "Sending NEW-ENVIRON IS" << vars << userVars;
@@ -601,7 +601,7 @@ void AbstractTelnet::sendNewEnvironIs(const QMap<RawBytes, RawBytes> &vars,
 }
 
 void AbstractTelnet::sendNewEnvironInfo(const QMap<RawBytes, RawBytes> &vars,
-                                       const QMap<RawBytes, RawBytes> &userVars)
+                                        const QMap<RawBytes, RawBytes> &userVars)
 {
     if (m_debug) {
         qDebug() << "Sending NEW-ENVIRON INFO" << vars << userVars;

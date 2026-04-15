@@ -12,20 +12,20 @@
 
 namespace {
 
-NODISCARD constexpr bool is_valid_hotkey(std::string_view hotkey_str)
+NODISCARD constexpr bool is_valid_hotkey(const std::string_view hotkey_str)
 {
     // Find the base key (the part after the last '+')
-    size_t last_plus = hotkey_str.rfind('+');
-    std::string_view base_part = (last_plus == std::string_view::npos)
-                                     ? hotkey_str
-                                     : hotkey_str.substr(last_plus + 1);
+    const size_t last_plus = hotkey_str.rfind('+');
+    const std::string_view base_part = (last_plus == std::string_view::npos)
+                                           ? hotkey_str
+                                           : hotkey_str.substr(last_plus + 1);
 
     // Determine which modifiers are present
-    bool has_ctrl = hotkey_str.find("CTRL") != std::string_view::npos;
-    bool has_alt = hotkey_str.find("ALT") != std::string_view::npos;
-    bool has_shift = hotkey_str.find("SHIFT") != std::string_view::npos;
-    bool has_meta = hotkey_str.find("META") != std::string_view::npos;
-    bool has_any_mod = has_ctrl || has_alt || has_shift || has_meta;
+    const bool has_ctrl = hotkey_str.find("CTRL") != std::string_view::npos;
+    const bool has_alt = hotkey_str.find("ALT") != std::string_view::npos;
+    const bool has_shift = hotkey_str.find("SHIFT") != std::string_view::npos;
+    const bool has_meta = hotkey_str.find("META") != std::string_view::npos;
+    const bool has_any_mod = has_ctrl || has_alt || has_shift || has_meta;
 
     // Match against the base key and check policy
 #define CHECK_POLICY(id, name, key, policy) \

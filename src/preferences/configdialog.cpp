@@ -18,6 +18,8 @@
 #include "pathmachinepage.h"
 #include "ui_configdialog.h"
 
+#include <array>
+
 #include <QIcon>
 #include <QListWidget>
 #include <QtWidgets>
@@ -106,8 +108,10 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     addPage(pathmachinePage, tr("Path Machine"), ":/icons/pathmachinecfg.png");
 
     const char32_t magnifyingGlassEmoji = 0x1F50D;
-    ui->noResultsLabel->setText(tr("No matches found!\nMaybe try searching for something else? ")
-                                + QString::fromUcs4(&magnifyingGlassEmoji, 1));
+    ui->noResultsLabel->setText(
+        tr("No matches found!\nMaybe try searching for something else? ")
+        + QString::fromUcs4(&magnifyingGlassEmoji, 1) + "\n\n"
+        + QString::fromUcs4(std::array<char32_t, 1>{0x1F632}.data(), 1)); // 😲
 
     ui->scrollLayout->addStretch();
 
@@ -234,28 +238,41 @@ void ConfigDialog::slot_search(const QString &text)
 
     if (text.isEmpty()) {
         ui->rightStack->setCurrentIndex(0);
-        ui->contentsWidget->setEnabled(true);
         ui->searchBar->setFocus();
         return;
     }
 
-    ui->contentsWidget->setEnabled(false);
-
     for (const auto &page : m_pages) {
+        if (page.name.contains(text, Qt::CaseInsensitive)) {
+            auto *const item = new QListWidgetItem(page.item->icon(),
+                                                   tr("Go to %1").arg(page.name),
+                                                   ui->searchResultsList);
+            item->setData(Qt::UserRole, QVariant::fromValue(page.widget));
+            QFont font = item->font();
+            font.setBold(true);
+            item->setFont(font);
+        }
+
         const auto children = page.widget->findChildren<QWidget *>();
-        for (auto *child : children) {
+        for (auto *const child : children) {
             if (matches(child, text)) {
                 QString matchText;
-                if (auto *cb = qobject_cast<QCheckBox *>(child)) {
+                QString emoji;
+                if (auto *const cb = qobject_cast<QCheckBox *>(child)) {
                     matchText = cb->text();
-                } else if (auto *rb = qobject_cast<QRadioButton *>(child)) {
+                    emoji = QString::fromUcs4(std::array<char32_t, 1>{0x2611}.data(), 1); // ☑
+                } else if (auto *const rb = qobject_cast<QRadioButton *>(child)) {
                     matchText = rb->text();
-                } else if (auto *lbl = qobject_cast<QLabel *>(child)) {
+                    emoji = QString::fromUcs4(std::array<char32_t, 1>{0x1F518}.data(), 1); // 🔘
+                } else if (auto *const lbl = qobject_cast<QLabel *>(child)) {
                     matchText = lbl->text();
-                } else if (auto *pb = qobject_cast<QPushButton *>(child)) {
+                    emoji = QString::fromUcs4(std::array<char32_t, 1>{0x1F4DD}.data(), 1); // 📝
+                } else if (auto *const pb = qobject_cast<QPushButton *>(child)) {
                     matchText = pb->text();
-                } else if (auto *gb = qobject_cast<QGroupBox *>(child)) {
+                    emoji = QString::fromUcs4(std::array<char32_t, 1>{0x1F192}.data(), 1); // 🆒
+                } else if (auto *const gb = qobject_cast<QGroupBox *>(child)) {
                     matchText = gb->title();
+                    emoji = QString::fromUcs4(std::array<char32_t, 1>{0x1F4E6}.data(), 1); // 📦
                 }
 
                 if (matchText.isEmpty()) {
@@ -263,8 +280,10 @@ void ConfigDialog::slot_search(const QString &text)
                 }
 
                 matchText.remove('&');
-                auto *item = new QListWidgetItem(QString("%1 > %2").arg(page.name, matchText),
-                                                 ui->searchResultsList);
+                auto *const item
+                    = new QListWidgetItem(page.item->icon(),
+                                          QString("%1 %2 > %3").arg(emoji, page.name, matchText),
+                                          ui->searchResultsList);
                 item->setData(Qt::UserRole, QVariant::fromValue(child));
             }
         }
@@ -279,13 +298,13 @@ void ConfigDialog::slot_search(const QString &text)
     ui->searchBar->setFocus();
 }
 
-void ConfigDialog::slot_onResultSelected(QListWidgetItem *item)
+void ConfigDialog::slot_onResultSelected(QListWidgetItem *const item)
 {
     if (item == nullptr) {
         return;
     }
 
-    auto *widget = item->data(Qt::UserRole).value<QWidget *>();
+    auto *const widget = item->data(Qt::UserRole).value<QWidget *>();
     if (widget == nullptr) {
         return;
     }
@@ -295,7 +314,7 @@ void ConfigDialog::slot_onResultSelected(QListWidgetItem *item)
 
     // Find which page this widget belongs to
     for (const auto &page : m_pages) {
-        if (page.widget->isAncestorOf(widget)) {
+        if (page.widget == widget || page.widget->isAncestorOf(widget)) {
             ui->contentsWidget->setCurrentItem(page.item);
             break;
         }

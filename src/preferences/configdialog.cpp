@@ -108,10 +108,8 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     addPage(pathmachinePage, tr("Path Machine"), ":/icons/pathmachinecfg.png");
 
     const char32_t magnifyingGlassEmoji = 0x1F50D;
-    ui->noResultsLabel->setText(
-        tr("No matches found!\nMaybe try searching for something else? ")
-        + QString::fromUcs4(&magnifyingGlassEmoji, 1) + "\n\n"
-        + QString::fromUcs4(std::array<char32_t, 1>{0x1F632}.data(), 1)); // 😲
+    ui->noResultsLabel->setText(tr("No matches found!\nMaybe try searching for something else? ")
+                                + QString::fromUcs4(&magnifyingGlassEmoji, 1));
 
     ui->scrollLayout->addStretch();
 
@@ -190,6 +188,11 @@ void ConfigDialog::slot_changePage(QListWidgetItem *current, QListWidgetItem *co
         return;
     }
 
+    if (!ui->searchBar->text().isEmpty()) {
+        ui->searchBar->clear();
+        // search bar clear will restore Stack index 0
+    }
+
     for (const auto &page : m_pages) {
         if (page.item == current) {
             m_suppressScrollSync = true;
@@ -238,41 +241,32 @@ void ConfigDialog::slot_search(const QString &text)
 
     if (text.isEmpty()) {
         ui->rightStack->setCurrentIndex(0);
+        for (const auto &page : m_pages) {
+            page.item->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+        }
         ui->searchBar->setFocus();
         return;
     }
 
     for (const auto &page : m_pages) {
-        if (page.name.contains(text, Qt::CaseInsensitive)) {
-            auto *const item = new QListWidgetItem(page.item->icon(),
-                                                   tr("Go to %1").arg(page.name),
-                                                   ui->searchResultsList);
-            item->setData(Qt::UserRole, QVariant::fromValue(page.widget));
-            QFont font = item->font();
-            font.setBold(true);
-            item->setFont(font);
-        }
-
+        bool anyChildMatches = false;
         const auto children = page.widget->findChildren<QWidget *>();
+
+        QList<QListWidgetItem *> pageResults;
+
         for (auto *const child : children) {
             if (matches(child, text)) {
                 QString matchText;
-                QString emoji;
                 if (auto *const cb = qobject_cast<QCheckBox *>(child)) {
                     matchText = cb->text();
-                    emoji = QString::fromUcs4(std::array<char32_t, 1>{0x2611}.data(), 1); // ☑
                 } else if (auto *const rb = qobject_cast<QRadioButton *>(child)) {
                     matchText = rb->text();
-                    emoji = QString::fromUcs4(std::array<char32_t, 1>{0x1F518}.data(), 1); // 🔘
                 } else if (auto *const lbl = qobject_cast<QLabel *>(child)) {
                     matchText = lbl->text();
-                    emoji = QString::fromUcs4(std::array<char32_t, 1>{0x1F4DD}.data(), 1); // 📝
                 } else if (auto *const pb = qobject_cast<QPushButton *>(child)) {
                     matchText = pb->text();
-                    emoji = QString::fromUcs4(std::array<char32_t, 1>{0x1F192}.data(), 1); // 🆒
                 } else if (auto *const gb = qobject_cast<QGroupBox *>(child)) {
                     matchText = gb->title();
-                    emoji = QString::fromUcs4(std::array<char32_t, 1>{0x1F4E6}.data(), 1); // 📦
                 }
 
                 if (matchText.isEmpty()) {
@@ -280,12 +274,30 @@ void ConfigDialog::slot_search(const QString &text)
                 }
 
                 matchText.remove('&');
-                auto *const item
-                    = new QListWidgetItem(page.item->icon(),
-                                          QString("%1 %2 > %3").arg(emoji, page.name, matchText),
-                                          ui->searchResultsList);
+                auto *const item = new QListWidgetItem(QString("  %1").arg(matchText));
                 item->setData(Qt::UserRole, QVariant::fromValue(child));
+                pageResults.append(item);
+                anyChildMatches = true;
             }
+        }
+
+        const bool pageMatches = page.name.contains(text, Qt::CaseInsensitive);
+        if (pageMatches || anyChildMatches) {
+            page.item->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+
+            auto *const headerItem = new QListWidgetItem(page.item->icon(), page.name);
+            headerItem->setFlags(Qt::ItemIsEnabled);
+            headerItem->setData(Qt::UserRole, QVariant::fromValue(page.widget));
+            QFont font = headerItem->font();
+            font.setBold(true);
+            headerItem->setFont(font);
+            ui->searchResultsList->addItem(headerItem);
+
+            for (auto *res : pageResults) {
+                ui->searchResultsList->addItem(res);
+            }
+        } else {
+            page.item->setFlags(Qt::NoItemFlags);
         }
     }
 

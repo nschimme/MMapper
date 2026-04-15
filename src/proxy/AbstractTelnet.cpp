@@ -70,6 +70,7 @@ NODISCARD static QString telnetOptionName(uint8_t opt)
         CASE(TERMINAL_TYPE);
         CASE(NAWS);
         CASE(CHARSET);
+        CASE(NEW_ENVIRON);
         CASE(COMPRESS2);
         CASE(GMCP);
         CASE(MSSP);
@@ -79,23 +80,57 @@ NODISCARD static QString telnetOptionName(uint8_t opt)
     return QString::asprintf("%u", opt);
 #undef CASE
 }
-NODISCARD static QString telnetSubnegName(uint8_t opt)
+NODISCARD static QString telnetSubnegName(uint8_t option, uint8_t opt)
 {
-#define CASE(x) \
-    case TNSB_##x: \
-        return #x
     switch (opt) {
-        CASE(IS);
-        CASE(SEND); // TODO: conflict between SEND, REQUEST, EDIT, MODE
-        CASE(ACCEPTED);
-        CASE(REJECTED);
-        CASE(TTABLE_IS);
-        CASE(TTABLE_REJECTED);
-        CASE(TTABLE_ACK);
-        CASE(TTABLE_NAK);
+    case 0: // TNSB_IS / TNSB_VAR
+        if (option == OPT_NEW_ENVIRON) {
+            return "IS/VAR";
+        }
+        return "IS";
+    case 1: // TNSB_SEND / TNSB_VAL / TNSB_REQUEST / TNSB_MODE / TNSB_EDIT / TNSB_MSSP_VAR
+        if (option == OPT_NEW_ENVIRON) {
+            return "SEND/VAL";
+        }
+        if (option == OPT_CHARSET) {
+            return "REQUEST";
+        }
+        if (option == OPT_LINEMODE) {
+            return "MODE/EDIT";
+        }
+        if (option == OPT_MSSP) {
+            return "MSSP_VAR";
+        }
+        return "SEND";
+    case 2: // TNSB_ESC / TNSB_INFO / TNSB_ACCEPTED / TNSB_MSSP_VAL
+        if (option == OPT_NEW_ENVIRON) {
+            return "ESC/INFO";
+        }
+        if (option == OPT_CHARSET) {
+            return "ACCEPTED";
+        }
+        if (option == OPT_MSSP) {
+            return "MSSP_VAL";
+        }
+        return "ESC/ACCEPTED";
+    case 3: // TNSB_USERVAR / TNSB_REJECTED
+        if (option == OPT_NEW_ENVIRON) {
+            return "USERVAR";
+        }
+        if (option == OPT_CHARSET) {
+            return "REJECTED";
+        }
+        return "USERVAR/REJECTED";
+    case 4:
+        return "TTABLE_IS";
+    case 5:
+        return "TTABLE_REJECTED";
+    case 6:
+        return "TTABLE_ACK";
+    case 7:
+        return "TTABLE_NAK";
     }
     return QString::asprintf("%u", opt);
-#undef CASE
 }
 
 NODISCARD static bool containsIAC(const std::string_view arr)
@@ -474,6 +509,12 @@ void AbstractTelnet::sendTerminalType(const TelnetTermTypeBytes &terminalType)
     s.addEscaped(TNSB_IS); /* NOTE: "IS" will never actually be escaped */
     s.addEscapedBytes(terminalType.getQByteArray());
     s.addSubnegEnd();
+
+    if (m_options.myOptionState[OPT_NEW_ENVIRON]) {
+        QMap<RawBytes, RawBytes> vars;
+        vars[RawBytes("TERMINAL_TYPE")] = RawBytes(terminalType.getQByteArray());
+        sendNewEnvironInfo(vars, {});
+    }
 }
 
 void AbstractTelnet::sendCharsetRejected()
@@ -495,6 +536,12 @@ void AbstractTelnet::sendCharsetAccepted(const TelnetCharsetBytes &characterSet)
     s.addRaw(TNSB_ACCEPTED);
     s.addEscapedBytes(characterSet.getQByteArray());
     s.addSubnegEnd();
+
+    if (m_options.myOptionState[OPT_NEW_ENVIRON]) {
+        QMap<RawBytes, RawBytes> vars;
+        vars[RawBytes("CHARSET")] = RawBytes(characterSet.getQByteArray());
+        sendNewEnvironInfo(vars, {});
+    }
 }
 
 void AbstractTelnet::sendOptionStatus()
@@ -526,6 +573,73 @@ void AbstractTelnet::sendTerminalTypeRequest()
     TelnetFormatter s{*this};
     s.addSubnegBegin(OPT_TERMINAL_TYPE);
     s.addEscaped(TNSB_SEND);
+    s.addSubnegEnd();
+}
+
+void AbstractTelnet::sendNewEnvironIs(const QMap<RawBytes, RawBytes> &vars,
+                                     const QMap<RawBytes, RawBytes> &userVars)
+{
+    if (m_debug) {
+        qDebug() << "Sending NEW-ENVIRON IS" << vars << userVars;
+    }
+    TelnetFormatter s{*this};
+    s.addSubnegBegin(OPT_NEW_ENVIRON);
+    s.addRaw(TNSB_IS);
+    for (auto it = vars.begin(); it != vars.end(); ++it) {
+        s.addRaw(TNSB_VAR);
+        s.addEscapedBytes(it.key().getQByteArray());
+        s.addRaw(TNSB_VAL);
+        s.addEscapedBytes(it.value().getQByteArray());
+    }
+    for (auto it = userVars.begin(); it != userVars.end(); ++it) {
+        s.addRaw(TNSB_USERVAR);
+        s.addEscapedBytes(it.key().getQByteArray());
+        s.addRaw(TNSB_VAL);
+        s.addEscapedBytes(it.value().getQByteArray());
+    }
+    s.addSubnegEnd();
+}
+
+void AbstractTelnet::sendNewEnvironInfo(const QMap<RawBytes, RawBytes> &vars,
+                                       const QMap<RawBytes, RawBytes> &userVars)
+{
+    if (m_debug) {
+        qDebug() << "Sending NEW-ENVIRON INFO" << vars << userVars;
+    }
+    TelnetFormatter s{*this};
+    s.addSubnegBegin(OPT_NEW_ENVIRON);
+    s.addRaw(TNSB_INFO);
+    for (auto it = vars.begin(); it != vars.end(); ++it) {
+        s.addRaw(TNSB_VAR);
+        s.addEscapedBytes(it.key().getQByteArray());
+        s.addRaw(TNSB_VAL);
+        s.addEscapedBytes(it.value().getQByteArray());
+    }
+    for (auto it = userVars.begin(); it != userVars.end(); ++it) {
+        s.addRaw(TNSB_USERVAR);
+        s.addEscapedBytes(it.key().getQByteArray());
+        s.addRaw(TNSB_VAL);
+        s.addEscapedBytes(it.value().getQByteArray());
+    }
+    s.addSubnegEnd();
+}
+
+void AbstractTelnet::sendNewEnvironSend(const QList<RawBytes> &vars, const QList<RawBytes> &userVars)
+{
+    if (m_debug) {
+        qDebug() << "Sending NEW-ENVIRON SEND" << vars << userVars;
+    }
+    TelnetFormatter s{*this};
+    s.addSubnegBegin(OPT_NEW_ENVIRON);
+    s.addRaw(TNSB_SEND);
+    for (const auto &v : vars) {
+        s.addRaw(TNSB_VAR);
+        s.addEscapedBytes(v.getQByteArray());
+    }
+    for (const auto &v : userVars) {
+        s.addRaw(TNSB_USERVAR);
+        s.addEscapedBytes(v.getQByteArray());
+    }
     s.addSubnegEnd();
 }
 
@@ -588,12 +702,18 @@ void AbstractTelnet::processTelnetCommand(const AppendBuffer &command)
                     } else if (option == OPT_CHARSET) {
                         sendCharsetRequest();
                     }
+                } else if (option == OPT_NEW_ENVIRON) {
+                    sendTelnetOption(TN_DO, option);
+                    hisOptionState[option] = true;
                 } else {
                     sendTelnetOption(TN_DONT, option);
                     hisOptionState[option] = false;
                 }
             }
             heAnnouncedState[option] = true;
+            if (option == OPT_NEW_ENVIRON) {
+                virt_receiveNewEnvironWill();
+            }
             break;
         case TN_WONT:
             // peer refuses to enable some option...
@@ -605,6 +725,21 @@ void AbstractTelnet::processTelnetCommand(const AppendBuffer &command)
             hisOptionState[option] = false;
             if (option == OPT_ECHO) {
                 receiveEchoMode(true);
+            }
+            if (option == OPT_NEW_ENVIRON) {
+                virt_receiveNewEnvironWont();
+            }
+            if (option == OPT_TERMINAL_TYPE || option == OPT_CHARSET) {
+                if (myOptionState[OPT_NEW_ENVIRON]) {
+                    QMap<RawBytes, RawBytes> vars;
+                    if (option == OPT_TERMINAL_TYPE) {
+                        vars[RawBytes("TERMINAL_TYPE")] = RawBytes(m_termType.getQByteArray());
+                    } else {
+                        vars[RawBytes("CHARSET")] = RawBytes(
+                            mmqt::toQByteArrayRaw(std::string(m_textCodec.getName())));
+                    }
+                    sendNewEnvironInfo(vars, {});
+                }
             }
             break;
         case TN_DO:
@@ -642,12 +777,18 @@ void AbstractTelnet::processTelnetCommand(const AppendBuffer &command)
                         // REVISIT: Start deflating after sending IAC SB COMPRESS2 IAC SE
                     } else if (option == OPT_CHARSET && heAnnouncedState[option]) {
                         sendCharsetRequest();
+                    } else if (option == OPT_NEW_ENVIRON) {
+                        // sendTelnetOption(TN_WILL, option);
+                        // myOptionState[option] = true;
                     }
                 } else {
                     sendTelnetOption(TN_WONT, option);
                     myOptionState[option] = false;
                 }
                 announcedState[option] = true;
+                if (option == OPT_NEW_ENVIRON) {
+                    virt_receiveNewEnvironDo();
+                }
             }
             break;
         case TN_DONT:
@@ -681,7 +822,7 @@ void AbstractTelnet::processTelnetSubnegotiation(const AppendBuffer &payload)
         } else if (payload.length() >= 2) {
             qDebug() << "* Processing Telnet Subnegotiation:"
                      << telnetOptionName(payload.unsigned_at(0))
-                     << telnetSubnegName(payload.unsigned_at(1));
+                     << telnetSubnegName(payload.unsigned_at(0), payload.unsigned_at(1));
         }
     }
 
@@ -819,6 +960,92 @@ void AbstractTelnet::processTelnetSubnegotiation(const AppendBuffer &payload)
             }
 
             receiveMudServerStatus(TelnetMsspBytes{payload.getQByteArray()});
+        }
+        break;
+
+    case OPT_NEW_ENVIRON:
+        if (myOptionState[OPT_NEW_ENVIRON] || hisOptionState[OPT_NEW_ENVIRON]) {
+            if (payload.length() < 2) {
+                break;
+            }
+            const uint8_t type = payload.unsigned_at(1);
+            QList<RawBytes> sendVars;
+            QList<RawBytes> sendUserVars;
+            QMap<RawBytes, RawBytes> isVars;
+            QMap<RawBytes, RawBytes> isUserVars;
+
+            RawBytes currentVar;
+            RawBytes currentVal;
+            bool inVal = false;
+            bool isUserVar = false;
+
+            for (int i = 2; i < payload.length(); ++i) {
+                const uint8_t c = payload.unsigned_at(i);
+                if (c == TNSB_VAR || c == TNSB_USERVAR) {
+                    if (inVal) {
+                        if (isUserVar) {
+                            isUserVars[currentVar] = currentVal;
+                        } else {
+                            isVars[currentVar] = currentVal;
+                        }
+                    } else if (!currentVar.isEmpty()) {
+                        if (type == TNSB_SEND) {
+                            if (isUserVar) {
+                                sendUserVars.append(currentVar);
+                            } else {
+                                sendVars.append(currentVar);
+                            }
+                        }
+                    }
+                    currentVar.clear();
+                    currentVal.clear();
+                    inVal = false;
+                    isUserVar = (c == TNSB_USERVAR);
+                } else if (c == TNSB_VAL) {
+                    inVal = true;
+                    currentVal.clear();
+                } else if (c == TNSB_ESC) {
+                    if (i + 1 < payload.length()) {
+                        const uint8_t next = payload.unsigned_at(++i);
+                        if (inVal) {
+                            currentVal.append(next);
+                        } else {
+                            currentVar.append(next);
+                        }
+                    }
+                } else {
+                    if (inVal) {
+                        currentVal.append(c);
+                    } else {
+                        currentVar.append(c);
+                    }
+                }
+            }
+            // Add last one
+            if (inVal) {
+                if (isUserVar) {
+                    isUserVars[currentVar] = currentVal;
+                } else {
+                    isVars[currentVar] = currentVal;
+                }
+            } else if (!currentVar.isEmpty() || type == TNSB_SEND) {
+                // if it's SEND and no more bytes, it means send all
+                if (type == TNSB_SEND) {
+                    if (isUserVar) {
+                        sendUserVars.append(currentVar);
+                    } else {
+                        sendVars.append(currentVar);
+                    }
+                }
+            }
+
+            if (type == TNSB_SEND) {
+                virt_receiveNewEnvironSend(sendVars, sendUserVars);
+            } else if (type == TNSB_IS) {
+                virt_receiveNewEnvironIs(isVars, isUserVars);
+            } else if (type == TNSB_INFO) {
+                virt_receiveNewEnvironInfo(isVars, isUserVars);
+            }
         }
         break;
 

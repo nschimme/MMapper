@@ -101,6 +101,7 @@ void UserTelnet::onConnected()
     requestTelnetOption(TN_WILL, OPT_GMCP);
     // Request permission to replace IAC GA with IAC EOR
     requestTelnetOption(TN_WILL, OPT_EOR);
+    requestTelnetOption(TN_DO, OPT_NEW_ENVIRON);
 }
 
 void UserTelnet::onAnalyzeUserStream(const TelnetIacBytes &data)
@@ -140,6 +141,14 @@ void UserTelnet::onSendMSSPToUser(const TelnetMsspBytes &data)
     }
 
     sendMudServerStatus(data);
+}
+
+void UserTelnet::onRelayNewEnvironSend(const QList<RawBytes> &vars, const QList<RawBytes> &userVars)
+{
+    if (!getOptions().myOptionState[OPT_NEW_ENVIRON]) {
+        return;
+    }
+    sendNewEnvironSend(vars, userVars);
 }
 
 void UserTelnet::virt_sendToMapper(const RawBytes &data, const bool goAhead)
@@ -236,6 +245,65 @@ void UserTelnet::virt_receiveTerminalType(const TelnetTermTypeBytes &data)
 void UserTelnet::virt_receiveWindowSize(const int x, const int y)
 {
     m_outputs.onRelayNawsFromUserToMud(x, y);
+}
+
+void UserTelnet::virt_receiveNewEnvironSend(const QList<RawBytes> &vars,
+                                            const QList<RawBytes> &userVars)
+{
+    // A client shouldn't send SEND to a server, but if it does, ignore it for now as a proxy.
+}
+
+void UserTelnet::virt_receiveNewEnvironIs(const QMap<RawBytes, RawBytes> &vars,
+                                          const QMap<RawBytes, RawBytes> &userVars)
+{
+    auto it = vars.find(RawBytes("MTTS"));
+    if (it != vars.end()) {
+        bool ok = false;
+        int mtts = it.value().getQByteArray().toInt(&ok);
+        if (ok && (mtts & 4)) { // UTF-8 bit
+            setEncodingForName(ENCODING_UTF_8);
+        }
+    }
+    it = vars.find(RawBytes("CHARSET"));
+    if (it != vars.end()) {
+        setEncodingForName(mmqt::toStdStringUtf8(it.value().getQByteArray()));
+    }
+
+    m_outputs.onRelayNewEnvironIsFromUserToMud(vars, userVars);
+}
+
+void UserTelnet::virt_receiveNewEnvironInfo(const QMap<RawBytes, RawBytes> &vars,
+                                            const QMap<RawBytes, RawBytes> &userVars)
+{
+    auto it = vars.find(RawBytes("MTTS"));
+    if (it != vars.end()) {
+        bool ok = false;
+        int mtts = it.value().getQByteArray().toInt(&ok);
+        if (ok && (mtts & 4)) { // UTF-8 bit
+            setEncodingForName(ENCODING_UTF_8);
+        }
+    }
+    it = vars.find(RawBytes("CHARSET"));
+    if (it != vars.end()) {
+        setEncodingForName(mmqt::toStdStringUtf8(it.value().getQByteArray()));
+    }
+
+    m_outputs.onRelayNewEnvironInfoFromUserToMud(vars, userVars);
+}
+
+void UserTelnet::virt_receiveNewEnvironDo()
+{
+    m_outputs.onNewEnvironNegotiated(true);
+}
+
+void UserTelnet::virt_receiveNewEnvironWill()
+{
+    m_outputs.onNewEnvironNegotiated(true);
+}
+
+void UserTelnet::virt_receiveNewEnvironWont()
+{
+    m_outputs.onNewEnvironNegotiated(false);
 }
 
 void UserTelnet::virt_sendRawData(const TelnetIacBytes &data)

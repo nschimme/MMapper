@@ -46,6 +46,7 @@ static constexpr const uint8_t OPT_TERMINAL_TYPE = 24;
 static constexpr const uint8_t OPT_EOR = 25;
 static constexpr const uint8_t OPT_NAWS = 31;
 static constexpr const uint8_t OPT_LINEMODE = 34;
+static constexpr const uint8_t OPT_NEW_ENVIRON = 39;
 static constexpr const uint8_t OPT_CHARSET = 42;
 static constexpr const uint8_t OPT_MSSP = 70;
 static constexpr const uint8_t OPT_COMPRESS2 = 86;
@@ -53,7 +54,12 @@ static constexpr const uint8_t OPT_GMCP = 201;
 
 // telnet SB suboption types
 static constexpr const uint8_t TNSB_IS = 0;
+static constexpr const uint8_t TNSB_VAR = 0;
 static constexpr const uint8_t TNSB_SEND = 1;
+static constexpr const uint8_t TNSB_VAL = 1;
+static constexpr const uint8_t TNSB_ESC = 2;
+static constexpr const uint8_t TNSB_INFO = 2;
+static constexpr const uint8_t TNSB_USERVAR = 3;
 static constexpr const uint8_t TNSB_REQUEST = 1;
 static constexpr const uint8_t TNSB_MODE = 1;
 static constexpr const uint8_t TNSB_EDIT = 1;
@@ -225,6 +231,18 @@ private:
     virtual void virt_receiveTerminalType(const TelnetTermTypeBytes &) {}
     virtual void virt_receiveMudServerStatus(const TelnetMsspBytes &) {}
     virtual void virt_receiveWindowSize(int, int) {}
+    virtual void virt_receiveNewEnvironSend(const QList<RawBytes> &vars,
+                                            const QList<RawBytes> &userVars)
+    {}
+    virtual void virt_receiveNewEnvironIs(const QMap<RawBytes, RawBytes> &vars,
+                                          const QMap<RawBytes, RawBytes> &userVars)
+    {}
+    virtual void virt_receiveNewEnvironInfo(const QMap<RawBytes, RawBytes> &vars,
+                                            const QMap<RawBytes, RawBytes> &userVars)
+    {}
+    virtual void virt_receiveNewEnvironDo() {}
+    virtual void virt_receiveNewEnvironWill() {}
+    virtual void virt_receiveNewEnvironWont() {}
     virtual void virt_sendRawData(const TelnetIacBytes &data) = 0;
     virtual void virt_sendToMapper(const RawBytes &, bool goAhead) = 0;
 
@@ -264,8 +282,16 @@ protected:
     void reset();
     void onReadInternal(const TelnetIacBytes &);
     void setTerminalType(const TelnetTermTypeBytes &terminalType) { m_termType = terminalType; }
+    void setEncodingForName(const std::string &name) { m_textCodec.setEncodingForName(name); }
 
     NODISCARD CharacterEncodingEnum getEncoding() const { return m_textCodec.getEncoding(); }
+
+protected:
+    void sendNewEnvironIs(const QMap<RawBytes, RawBytes> &vars,
+                         const QMap<RawBytes, RawBytes> &userVars);
+    void sendNewEnvironInfo(const QMap<RawBytes, RawBytes> &vars,
+                            const QMap<RawBytes, RawBytes> &userVars);
+    void sendNewEnvironSend(const QList<RawBytes> &vars, const QList<RawBytes> &userVars);
 
 private:
     void onReadInternal2(AppendBuffer &, uint8_t);

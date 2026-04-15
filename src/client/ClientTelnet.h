@@ -63,6 +63,8 @@ public:
 private:
     void virt_sendToMapper(const RawBytes &, bool goAhead) final;
     void virt_receiveEchoMode(bool) final;
+    void virt_receiveNewEnvironSend(const QList<RawBytes> &vars,
+                                    const QList<RawBytes> &userVars) final;
     void virt_sendRawData(const TelnetIacBytes &data) final;
 
 public:

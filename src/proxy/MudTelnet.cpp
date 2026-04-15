@@ -417,6 +417,34 @@ void MudTelnet::onRelayTermType(const TelnetTermTypeBytes &terminalType)
     }
 }
 
+void MudTelnet::onRelayNewEnvironIs(const QMap<RawBytes, RawBytes> &vars,
+                                   const QMap<RawBytes, RawBytes> &userVars)
+{
+    if (getOptions().myOptionState[OPT_NEW_ENVIRON]) {
+        sendNewEnvironIs(vars, userVars);
+    }
+}
+
+void MudTelnet::onRelayNewEnvironInfo(const QMap<RawBytes, RawBytes> &vars,
+                                     const QMap<RawBytes, RawBytes> &userVars)
+{
+    if (getOptions().myOptionState[OPT_NEW_ENVIRON]) {
+        sendNewEnvironInfo(vars, userVars);
+    }
+}
+
+void MudTelnet::onUserNewEnvironNegotiated(const bool supported)
+{
+    m_userSupportsNewEnviron = supported;
+    if (supported) {
+        if (getOptions().hisOptionState[OPT_NEW_ENVIRON]
+            && !getOptions().myOptionState[OPT_NEW_ENVIRON]) {
+            sendTelnetOption(TN_WILL, OPT_NEW_ENVIRON);
+            m_options.myOptionState[OPT_NEW_ENVIRON] = true;
+        }
+    }
+}
+
 void MudTelnet::onLoginCredentials(const QString &name, const QString &password)
 {
     sendGmcpMessage(
@@ -510,6 +538,73 @@ void MudTelnet::virt_receiveMudServerStatus(const TelnetMsspBytes &ba)
 {
     parseMudServerStatus(ba);
     m_outputs.onSendMSSPToUser(ba);
+}
+
+void MudTelnet::virt_receiveNewEnvironSend(const QList<RawBytes> &vars,
+                                           const QList<RawBytes> &userVars)
+{
+    if (!m_userSupportsNewEnviron) {
+        // We wait until we get data from the client.
+        // But for now, we just relay the request.
+        m_outputs.onRelayNewEnvironSendFromMudToUser(vars, userVars);
+        return;
+    }
+
+    const bool sendAll = vars.isEmpty() && userVars.isEmpty();
+
+    QMap<RawBytes, RawBytes> myVars;
+    QMap<RawBytes, RawBytes> myUserVars;
+
+    bool mttsRequested = sendAll;
+    bool ipRequested = sendAll;
+
+    for (const auto &v : vars) {
+        if (v == RawBytes("MTTS")) {
+            mttsRequested = true;
+        } else if (v == RawBytes("IPADDRESS")) {
+            ipRequested = true;
+        }
+    }
+
+    if (mttsRequested) {
+        // MMapper capabilities: ANSI(1) | UTF-8(4) | 256 COLORS(8) | PROXY(128) | MNES(512)
+        // bitvector = 1 + 4 + 8 + 128 + 512 = 653
+        myVars[RawBytes("MTTS")] = RawBytes("653");
+    }
+
+    if (ipRequested) {
+        myVars[RawBytes("IPADDRESS")] = RawBytes(m_outputs.onGetPeerAddress().toUtf8());
+    }
+
+    if (!myVars.isEmpty() || !myUserVars.isEmpty()) {
+        sendNewEnvironIs(myVars, myUserVars);
+    }
+
+    // Relay the request to the user client as well
+    m_outputs.onRelayNewEnvironSendFromMudToUser(vars, userVars);
+}
+
+void MudTelnet::virt_receiveNewEnvironIs(const QMap<RawBytes, RawBytes> &vars,
+                                         const QMap<RawBytes, RawBytes> &userVars)
+{
+    // A server shouldn't send IS to a client, but if it does, ignore it.
+}
+
+void MudTelnet::virt_receiveNewEnvironInfo(const QMap<RawBytes, RawBytes> &vars,
+                                           const QMap<RawBytes, RawBytes> &userVars)
+{
+    // A server shouldn't send INFO to a client, but if it does, ignore it.
+}
+
+void MudTelnet::virt_receiveNewEnvironDo()
+{
+    // If the mud sends DO NEW-ENVIRON, we check if the user supports it.
+    if (m_userSupportsNewEnviron) {
+        if (!getOptions().myOptionState[OPT_NEW_ENVIRON]) {
+            sendTelnetOption(TN_WILL, OPT_NEW_ENVIRON);
+            m_options.myOptionState[OPT_NEW_ENVIRON] = true;
+        }
+    }
 }
 
 void MudTelnet::virt_onGmcpEnabled()

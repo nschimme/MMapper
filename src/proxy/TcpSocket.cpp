@@ -43,6 +43,11 @@ bool TcpSocket::virt_isConnected() const
     return m_socket.state() == QAbstractSocket::ConnectedState;
 }
 
+QString TcpSocket::virt_peerAddress() const
+{
+    return m_socket.peerAddress().toString();
+}
+
 qint64 TcpSocket::bytesAvailable() const
 {
     return m_socket.bytesAvailable();

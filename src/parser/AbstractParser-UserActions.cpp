@@ -19,50 +19,44 @@ void AbstractParser::parseUserAction(StringView input)
             auto &os = user.getOstream();
             const auto v = getAnyVectorReversed(args);
 
-            // action [-regex|-starts|-ends] <pattern> <command>
-            // v[0] = "action"
-            // v[1] = type flag (optional)
-            // v[2] = pattern
-            // v[3] = command
-
             UserActionType type = UserActionType::Regex;
-            size_t patternIdx = 1;
+            std::string pattern;
+            std::string command;
 
-            if (v.size() > 2 && v[1].isString()) {
-                std::string flag = v[1].getString();
-                if (flag == "-regex") {
-                    type = UserActionType::Regex;
-                    patternIdx = 2;
-                } else if (flag == "-starts") {
+            if (v.size() == 3) {
+                // Branch 1: /action -type pattern command...
+                std::string flag = v[0].getString();
+                if (flag == "-starts") {
                     type = UserActionType::StartsWith;
-                    patternIdx = 2;
                 } else if (flag == "-ends") {
                     type = UserActionType::EndsWith;
-                    patternIdx = 2;
                 }
-            }
-
-            if (v.size() <= patternIdx) {
+                pattern = v[1].getString();
+                const Vector &cmdVec = v[2].getVector();
+                if (cmdVec.empty()) {
+                    os << "Syntax: action [-type] <pattern> <command>\n";
+                    return;
+                }
+                command = concatenate_unquoted(cmdVec);
+            } else if (v.size() == 2) {
+                // Branch 2: /action pattern [command...]
+                pattern = v[0].getString();
+                const Vector &cmdVec = v[1].getVector();
+                if (cmdVec.empty()) {
+                    // Removal
+                    if (m_userActionManager.removeAction(pattern)) {
+                        os << "Action removed: " << pattern << "\n";
+                        send_ok(os);
+                    } else {
+                        os << "No action found for: " << pattern << "\n";
+                    }
+                    return;
+                }
+                command = concatenate_unquoted(cmdVec);
+            } else {
                 os << "Internal error.\n";
                 return;
             }
-
-            std::string pattern = v[patternIdx].getString();
-
-            // If no command provided, it's a remove request
-            if (v.size() <= patternIdx + 1) {
-                if (m_userActionManager.removeAction(pattern)) {
-                    os << "Action removed: " << pattern << "\n";
-                    send_ok(os);
-                } else {
-                    os << "No action found for: " << pattern << "\n";
-                }
-                return;
-            }
-
-            std::string command = v[patternIdx + 1].isVector()
-                                      ? concatenate_unquoted(v[patternIdx + 1].getVector())
-                                      : v[patternIdx + 1].getString();
 
             if (m_userActionManager.setAction(type, pattern, command)) {
                 os << "Action defined.\n";
@@ -113,13 +107,14 @@ void AbstractParser::parseUserAction(StringView input)
     // /action -> list
 
     auto typeChoice = TokenMatcher::alloc<ArgChoice>(abb("-regex"), abb("-starts"), abb("-ends"));
-    auto typeMatcher = TokenMatcher::alloc<ArgOptionalToken>(typeChoice);
 
-    auto actionSyntax = buildSyntax(buildSyntax(typeMatcher,
+    auto actionSyntax = buildSyntax(buildSyntax(typeChoice,
                                                 TokenMatcher::alloc<ArgString>(),
                                                 TokenMatcher::alloc<ArgRest>(),
                                                 bindAction),
-                                    buildSyntax(TokenMatcher::alloc<ArgString>(), bindAction),
+                                    buildSyntax(TokenMatcher::alloc<ArgString>(),
+                                                TokenMatcher::alloc<ArgRest>(),
+                                                bindAction),
                                     listActions);
 
     eval("action", actionSyntax, input);

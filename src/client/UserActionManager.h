@@ -8,6 +8,8 @@
 #include "../global/macros.h"
 
 #include <memory>
+#include <optional>
+#include <regex>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -27,10 +29,20 @@ struct UserAction
                                                              const std::string &serialized);
 };
 
+struct CompiledUserAction
+{
+    UserAction action;
+    std::optional<std::regex> regex;
+    char hint = 0;
+
+    explicit CompiledUserAction(UserAction a);
+};
+
 class UserActionManager
 {
 private:
-    std::unordered_map<std::string, std::unique_ptr<UserAction>> m_actions;
+    std::unordered_map<std::string, std::shared_ptr<CompiledUserAction>> m_actions;
+    std::unordered_multimap<char, std::shared_ptr<CompiledUserAction>> m_actionMap;
     ChangeMonitor::Lifetime m_configLifetime;
 
 public:

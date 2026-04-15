@@ -52,11 +52,38 @@ std::unique_ptr<UserAction> UserAction::deserialize(const std::string &pattern,
     return std::make_unique<UserAction>(UserAction{type, pattern, command});
 }
 
+CompiledUserAction::CompiledUserAction(UserAction a)
+    : action(std::move(a))
+{
+    using namespace char_consts;
+    switch (action.type) {
+    case UserActionType::Regex:
+        try {
+            regex.emplace(action.pattern, std::regex::optimize);
+            if (action.pattern.length() > 2 && action.pattern[0] == C_CARET
+                && action.pattern[1] != C_BACKSLASH && action.pattern[1] != C_OPEN_PARENS) {
+                hint = action.pattern[1];
+            }
+        } catch (const std::regex_error &) {
+            // ignore
+        }
+        break;
+    case UserActionType::StartsWith:
+        if (!action.pattern.empty()) {
+            hint = action.pattern[0];
+        }
+        break;
+    case UserActionType::EndsWith:
+        break;
+    }
+}
+
 UserActionManager::UserActionManager()
 {
     setConfig().actions.registerChangeCallback(m_configLifetime, [this]() { syncFromConfig(); });
     setConfig().actions.registerResetCallback(m_configLifetime, [this]() {
         m_actions.clear();
+        m_actionMap.clear();
         setConfig().actions.setData(QVariantMap());
     });
     syncFromConfig();
@@ -65,12 +92,15 @@ UserActionManager::UserActionManager()
 void UserActionManager::syncFromConfig()
 {
     m_actions.clear();
+    m_actionMap.clear();
     const QVariantMap &data = getConfig().actions.data();
     for (auto it = data.begin(); it != data.end(); ++it) {
         std::string pattern = it.key().toStdString();
         std::string serialized = it.value().toString().toStdString();
         if (auto action = UserAction::deserialize(pattern, serialized)) {
-            m_actions[pattern] = std::move(action);
+            auto compiled = std::make_shared<CompiledUserAction>(std::move(*action));
+            m_actions[pattern] = compiled;
+            m_actionMap.emplace(compiled->hint, compiled);
         } else {
             MMLOG_WARNING() << "invalid action" << it.key().toStdString()
                             << it.value().toString().toStdString();
@@ -107,7 +137,7 @@ std::vector<const UserAction *> UserActionManager::getAllActions() const
 {
     std::vector<const UserAction *> result;
     for (const auto &pair : m_actions) {
-        result.push_back(pair.second.get());
+        result.push_back(&pair.second->action);
     }
     return result;
 }
@@ -135,17 +165,20 @@ std::string UserActionManager::substitute(const std::string &command,
 void UserActionManager::evaluate(
     StringView line, const std::function<void(const std::string &)> &executeCallback) const
 {
-    for (const auto &pair : m_actions) {
-        const UserAction &action = *pair.second;
+    if (line.empty()) {
+        return;
+    }
+
+    auto runMatch = [&](const std::shared_ptr<CompiledUserAction> &compiled) {
+        const UserAction &action = compiled->action;
         bool matched = false;
         std::vector<std::string> captures;
 
         switch (action.type) {
         case UserActionType::Regex: {
-            try {
-                std::regex re(action.pattern, std::regex::optimize);
+            if (compiled->regex) {
                 std::cmatch match;
-                if (std::regex_search(line.begin(), line.end(), match, re)) {
+                if (std::regex_search(line.begin(), line.end(), match, *compiled->regex)) {
                     matched = true;
                     captures.reserve(match.size());
                     for (size_t i = 0; i < match.size(); ++i) {
@@ -157,8 +190,6 @@ void UserActionManager::evaluate(
                         }
                     }
                 }
-            } catch (const std::regex_error &) {
-                // Ignore invalid regex in user actions
             }
             break;
         }
@@ -178,6 +209,19 @@ void UserActionManager::evaluate(
 
         if (matched) {
             executeCallback(substitute(action.command, captures));
+        }
+    };
+
+    const char firstChar = line.firstChar();
+    auto range = m_actionMap.equal_range(firstChar);
+    for (auto it = range.first; it != range.second; ++it) {
+        runMatch(it->second);
+    }
+
+    if (firstChar != 0) {
+        range = m_actionMap.equal_range(0);
+        for (auto it = range.first; it != range.second; ++it) {
+            runMatch(it->second);
         }
     }
 }

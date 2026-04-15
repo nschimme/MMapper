@@ -320,8 +320,9 @@ void ConfigDialog::slot_onResultSelected(QListWidgetItem *const item)
                 ui->contentsWidget->setCurrentItem(page.item);
 
                 const int targetY = (page.widget == widget)
-                        ? page.container->y()
-                        : widget->mapTo(ui->scrollAreaWidgetContents, QPoint(0, 0)).y();
+                                        ? page.container->y()
+                                        : widget->mapTo(ui->scrollAreaWidgetContents, QPoint(0, 0))
+                                              .y();
                 ui->pagesScrollArea->verticalScrollBar()->setValue(targetY);
                 break;
             }

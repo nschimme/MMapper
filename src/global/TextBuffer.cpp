@@ -59,7 +59,11 @@ public:
 
         // step 1: match the quoted prefix
         {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
+            auto m = quotePrefixRegex.matchView(line);
+#else
             auto m = quotePrefixRegex.match(line);
+#endif
             if (m.hasMatch()) {
                 const auto len = m.capturedLength(0);
                 quotePrefix = line.left(len);
@@ -78,7 +82,11 @@ public:
         // step 2: See if there's a bullet. If so, we will only print it on the first line,
         // and we'll replace it with equivalent length whitespace on consecutive linewraps.
         {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
+            auto m = bulletPrefixRegex.matchView(line);
+#else
             auto m = bulletPrefixRegex.match(line);
+#endif
             if (m.hasMatch()) {
                 const QString sv = m.captured();
                 /* this could fail if someone breaks the regex pattern for the escaped asterisk */
@@ -92,7 +100,11 @@ public:
 
         // step 3: duplicate the exact whitespace following the bullet
         if (hasPrefix2) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
+            auto m = leadingWhitespaceRegex.matchView(line);
+#else
             auto m = leadingWhitespaceRegex.match(line);
+#endif
             if (m.hasMatch()) {
                 prefix2 = m.captured();
                 prefixLen = measureExpandedTabsOneLine(prefix2, prefixLen);
@@ -134,7 +146,11 @@ void TextBuffer::appendJustified(const QStringView input_line, const int maxLen)
         // identify any leading whitespace (there won't be on 1st pass)
         QString leadingSpace = line.left(0);
         {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
+            auto m = leadingWhitespaceRegex.matchView(line);
+#else
             auto m = leadingWhitespaceRegex.match(line);
+#endif
             if (m.hasMatch()) {
                 leadingSpace = m.captured();
                 line = line.mid(m.capturedLength());
@@ -145,7 +161,11 @@ void TextBuffer::appendJustified(const QStringView input_line, const int maxLen)
         // leading whitespace, print a newline, the prefix(es), and then
         // print the word.
         {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
+            auto m = leadingNonSpaceRegex.matchView(line);
+#else
             auto m = leadingNonSpaceRegex.match(line);
+#endif
             if (m.hasMatch()) {
                 line = line.mid(m.capturedLength());
                 const auto word = m.captured();

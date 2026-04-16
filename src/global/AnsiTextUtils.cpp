@@ -1718,7 +1718,7 @@ static void parseOsc8(RawAnsi &next, QStringView ansi)
     }
 
     // content is now "params;URI"
-    int semi = content.indexOf(u';');
+    const qsizetype semi = content.indexOf(u';');
     if (semi < 0) {
         // Invalid, but we'll clear the URL just in case this was meant to be a closer
         next.url.clear();

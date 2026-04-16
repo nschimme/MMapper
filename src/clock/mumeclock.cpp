@@ -158,7 +158,11 @@ void MumeClock::parseMumeTime(const QString &mumeTime, const int64_t secsSinceEp
         // 3 pm on Highday, the 18th of Halimath, year 3030 of the Third Age.
         static const QRegularExpression rx(
             R"(^(\d+)(?::\d{2})?\W*(am|pm) on (\w+), the (\d+).{2} of (\w+), year (\d+) of the Third Age.$)");
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
+        auto match = rx.matchView(mumeTime);
+#else
         auto match = rx.match(mumeTime);
+#endif
         if (!match.hasMatch()) {
             return;
         }
@@ -187,7 +191,11 @@ void MumeClock::parseMumeTime(const QString &mumeTime, const int64_t secsSinceEp
         // "Highday, the 18th of Halimath, year 3030 of the Third Age."
         static const QRegularExpression rx(
             R"(^(\w+), the (\d+).{2} of (\w+), year (\d+) of the Third Age.$)");
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
+        auto match = rx.matchView(mumeTime);
+#else
         auto match = rx.match(mumeTime);
+#endif
         if (!match.hasMatch()) {
             return;
         }
@@ -335,7 +343,11 @@ void MumeClock::parseClockTime(const QString &clockTime, const int64_t secsSince
 {
     // The current time is 5:23pm.
     static const QRegularExpression rx(R"(^The current time is (\d+):(\d+)\W*(am|pm).$)");
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
+    auto match = rx.matchView(clockTime);
+#else
     auto match = rx.match(clockTime);
+#endif
     if (!match.hasMatch()) {
         return;
     }

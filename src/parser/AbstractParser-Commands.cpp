@@ -1109,7 +1109,35 @@ void AbstractParser::initSpecialCommandMap()
             parseUserAction(rest);
             return true;
         },
-        makeSimpleHelp("View or modify user-defined actions."));
+        [this](const std::string &name) {
+            const char help[]
+                = "Usage:\n"
+                  "  action                      # Lists all active actions.\n"
+                  "  action <pattern>            # Removes action matching <pattern>.\n"
+                  "  action [-type] <pat> <cmd>  # Defines a new action.\n"
+                  "\n"
+                  "Types:\n"
+                  "  -regex  # Matches <pat> as a regular expression (default).\n"
+                  "  -starts # Matches if MUD output starts with <pat>.\n"
+                  "  -ends   # Matches if MUD output ends with <pat>.\n"
+                  "\n"
+                  "Variables:\n"
+                  "  %0      # The entire matched line.\n"
+                  "  %1..%9  # Captured groups (for regex type).\n"
+                  "\n"
+                  "Examples:\n"
+                  "  action {^You are hungry.$} eat bread\n"
+                  "  action -starts {Tick!} cast 'armor'\n"
+                  "  action {^(\\w+) has arrived.$} tell %1 welcome!";
+
+            sendToUser(SendToUserSourceEnum::FromMMapper,
+                       QString("Help for %1%2:\n"
+                               "%3\n"
+                               "\n")
+                           .arg(getPrefixChar())
+                           .arg(mmqt::toQStringUtf8(name))
+                           .arg(mmqt::toQStringUtf8(help)));
+        });
 
     /* timers command */
     add(

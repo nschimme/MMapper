@@ -44,7 +44,6 @@ class FindRoomsDlg;
 class GameObserver;
 class GroupWidget;
 class HotkeyManager;
-class UserActionManager;
 class InfomarkSelection;
 class MapCanvas;
 class MapData;
@@ -123,7 +122,6 @@ private:
     DescriptionWidget *m_descriptionWidget = nullptr;
     TimerWidget *m_timerWidget = nullptr;
     std::unique_ptr<HotkeyManager> m_hotkeyManager;
-    std::unique_ptr<UserActionManager> m_userActionManager;
 
     QPointer<QMenu> m_contextMenu;
 
@@ -287,7 +285,6 @@ public:
 
     NODISCARD HotkeyManager &getHotkeyManager() const { return deref(m_hotkeyManager); }
     NODISCARD CTimers &getTimers() const { return deref(m_timers); }
-    NODISCARD UserActionManager &getUserActionManager() const { return deref(m_userActionManager); }
 
     NODISCARD bool saveFile(const QString &fileName, SaveModeEnum mode, SaveFormatEnum format);
     void loadFile(std::shared_ptr<MapSource> source);

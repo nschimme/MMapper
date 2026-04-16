@@ -75,8 +75,10 @@ public:
     TestTelnet()
         : AbstractTelnet(TextCodecStrategyEnum::FORCE_UTF_8, TelnetTermTypeBytes{"test"})
     {}
+    ~TestTelnet() override;
+
     void virt_sendRawData(const TelnetIacBytes &data) override { lastRaw = data; }
-    void virt_sendToMapper(const RawBytes &data, bool goAhead) override {}
+    void virt_sendToMapper(const RawBytes & /*data*/, bool /*goAhead*/) override {}
     void virt_receiveNewEnvironSend(const QList<RawBytes> &vars,
                                     const QList<RawBytes> &userVars) override
     {
@@ -109,6 +111,8 @@ public:
     QMap<RawBytes, RawBytes> receivedIsUserVars;
     int receivedType = -1;
 };
+
+TestTelnet::~TestTelnet() = default;
 
 void TestProxy::mnesTest()
 {

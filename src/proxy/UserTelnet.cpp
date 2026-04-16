@@ -143,8 +143,8 @@ void UserTelnet::onSendMSSPToUser(const TelnetMsspBytes &data)
     sendMudServerStatus(data);
 }
 
-void UserTelnet::onRelayNewEnvironSend(const QList<RawBytes> & /*vars*/,
-                                       const QList<RawBytes> & /*userVars*/)
+void UserTelnet::onRelayNewEnvironSend(const QList<RawBytes> &vars,
+                                       const QList<RawBytes> &userVars)
 {
     if (!getOptions().myOptionState[OPT_NEW_ENVIRON]) {
         return;

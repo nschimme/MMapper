@@ -78,6 +78,7 @@ private:
     QString m_lineBuffer;
     bool m_receivedExternalDiscordHello = false;
     bool m_userSupportsNewEnviron = false;
+    bool m_serverRequestedNewEnviron = false;
 
 public:
     explicit MudTelnet(MudTelnetOutputs &outputs);

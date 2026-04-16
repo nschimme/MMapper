@@ -437,8 +437,7 @@ void MudTelnet::onUserNewEnvironNegotiated(const bool supported)
 {
     m_userSupportsNewEnviron = supported;
     if (supported) {
-        if (getOptions().hisOptionState[OPT_NEW_ENVIRON]
-            && !getOptions().myOptionState[OPT_NEW_ENVIRON]) {
+        if (m_serverRequestedNewEnviron && !getOptions().myOptionState[OPT_NEW_ENVIRON]) {
             sendTelnetOption(TN_WILL, OPT_NEW_ENVIRON);
             m_options.myOptionState[OPT_NEW_ENVIRON] = true;
         }
@@ -584,20 +583,21 @@ void MudTelnet::virt_receiveNewEnvironSend(const QList<RawBytes> &vars,
     m_outputs.onRelayNewEnvironSendFromMudToUser(vars, userVars);
 }
 
-void MudTelnet::virt_receiveNewEnvironIs(const QMap<RawBytes, RawBytes> &vars,
-                                         const QMap<RawBytes, RawBytes> &userVars)
+void MudTelnet::virt_receiveNewEnvironIs(const QMap<RawBytes, RawBytes> & /*vars*/,
+                                         const QMap<RawBytes, RawBytes> & /*userVars*/)
 {
     // A server shouldn't send IS to a client, but if it does, ignore it.
 }
 
-void MudTelnet::virt_receiveNewEnvironInfo(const QMap<RawBytes, RawBytes> &vars,
-                                           const QMap<RawBytes, RawBytes> &userVars)
+void MudTelnet::virt_receiveNewEnvironInfo(const QMap<RawBytes, RawBytes> & /*vars*/,
+                                           const QMap<RawBytes, RawBytes> & /*userVars*/)
 {
     // A server shouldn't send INFO to a client, but if it does, ignore it.
 }
 
 void MudTelnet::virt_receiveNewEnvironDo()
 {
+    m_serverRequestedNewEnviron = true;
     // If the mud sends DO NEW-ENVIRON, we check if the user supports it.
     if (m_userSupportsNewEnviron) {
         if (!getOptions().myOptionState[OPT_NEW_ENVIRON]) {

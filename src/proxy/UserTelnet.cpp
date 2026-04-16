@@ -247,8 +247,8 @@ void UserTelnet::virt_receiveWindowSize(const int x, const int y)
     m_outputs.onRelayNawsFromUserToMud(x, y);
 }
 
-void UserTelnet::virt_receiveNewEnvironSend(const QList<RawBytes> &vars,
-                                            const QList<RawBytes> &userVars)
+void UserTelnet::virt_receiveNewEnvironSend(const QList<RawBytes> & /*vars*/,
+                                            const QList<RawBytes> & /*userVars*/)
 {
     // A client shouldn't send SEND to a server, but if it does, ignore it for now as a proxy.
 }

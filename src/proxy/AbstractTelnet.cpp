@@ -1008,16 +1008,16 @@ void AbstractTelnet::processTelnetSubnegotiation(const AppendBuffer &payload)
                     if (i + 1 < payload.length()) {
                         const uint8_t next = payload.unsigned_at(++i);
                         if (inVal) {
-                            currentVal.append(next);
+                            currentVal.append(static_cast<char>(next));
                         } else {
-                            currentVar.append(next);
+                            currentVar.append(static_cast<char>(next));
                         }
                     }
                 } else {
                     if (inVal) {
-                        currentVal.append(c);
+                        currentVal.append(static_cast<char>(c));
                     } else {
-                        currentVar.append(c);
+                        currentVar.append(static_cast<char>(c));
                     }
                 }
             }
@@ -1028,8 +1028,7 @@ void AbstractTelnet::processTelnetSubnegotiation(const AppendBuffer &payload)
                 } else {
                     isVars[currentVar] = currentVal;
                 }
-            } else if (!currentVar.isEmpty() || type == TNSB_SEND) {
-                // if it's SEND and no more bytes, it means send all
+            } else if (!currentVar.isEmpty()) {
                 if (type == TNSB_SEND) {
                     if (isUserVar) {
                         sendUserVars.append(currentVar);
@@ -1158,23 +1157,23 @@ void AbstractTelnet::onReadInternal2(AppendBuffer &cleanData, const uint8_t c)
         if (c == TN_IAC) {
             // this is IAC, previous character was regular data
             state = TelnetStateEnum::IAC;
-            commandBuffer.append(c);
+            commandBuffer.append(static_cast<char>(c));
         } else {
             // plaintext
-            cleanData.append(c);
+            cleanData.append(static_cast<char>(c));
         }
         break;
     case TelnetStateEnum::IAC:
         // seq. of two IACs
         if (c == TN_IAC) {
             state = TelnetStateEnum::NORMAL;
-            cleanData.append(c);
+            cleanData.append(static_cast<char>(c));
             commandBuffer.clear();
         }
         // IAC DO/DONT/WILL/WONT
         else if ((c == TN_WILL) || (c == TN_WONT) || (c == TN_DO) || (c == TN_DONT)) {
             state = TelnetStateEnum::COMMAND;
-            commandBuffer.append(c);
+            commandBuffer.append(static_cast<char>(c));
         }
         // IAC SB
         else if (c == TN_SB) {
@@ -1189,7 +1188,7 @@ void AbstractTelnet::onReadInternal2(AppendBuffer &cleanData, const uint8_t c)
         // IAC fol. by something else than IAC, SB, SE, DO, DONT, WILL, WONT
         else {
             state = TelnetStateEnum::NORMAL;
-            commandBuffer.append(c);
+            commandBuffer.append(static_cast<char>(c));
             processTelnetCommand(commandBuffer);
             // this could have set receivedGA to true; we'll handle that later
             // (at the end of this function)
@@ -1199,7 +1198,7 @@ void AbstractTelnet::onReadInternal2(AppendBuffer &cleanData, const uint8_t c)
     case TelnetStateEnum::COMMAND:
         // IAC DO/DONT/WILL/WONT <command code>
         state = TelnetStateEnum::NORMAL;
-        commandBuffer.append(c);
+        commandBuffer.append(static_cast<char>(c));
         processTelnetCommand(commandBuffer);
         commandBuffer.clear();
         break;
@@ -1208,23 +1207,23 @@ void AbstractTelnet::onReadInternal2(AppendBuffer &cleanData, const uint8_t c)
         if (c == TN_IAC) {
             // this is IAC, previous character was option payload
             state = TelnetStateEnum::SUBNEG_IAC;
-            commandBuffer.append(c);
+            commandBuffer.append(static_cast<char>(c));
         } else {
             // option payload
-            subnegBuffer.append(c);
+            subnegBuffer.append(static_cast<char>(c));
         }
         break;
     case TelnetStateEnum::SUBNEG_IAC:
         // seq. of two IACs
         if (c == TN_IAC) {
             state = TelnetStateEnum::SUBNEG;
-            subnegBuffer.append(c);
+            subnegBuffer.append(static_cast<char>(c));
             commandBuffer.clear();
         }
         // IAC DO/DONT/WILL/WONT
         else if ((c == TN_WILL) || (c == TN_WONT) || (c == TN_DO) || (c == TN_DONT)) {
             state = TelnetStateEnum::SUBNEG_COMMAND;
-            commandBuffer.append(c);
+            commandBuffer.append(static_cast<char>(c));
         }
         // IAC SE - end of subcommand
         else if (c == TN_SE) {
@@ -1242,7 +1241,7 @@ void AbstractTelnet::onReadInternal2(AppendBuffer &cleanData, const uint8_t c)
         // IAC fol. by something else than IAC, SB, SE, DO, DONT, WILL, WONT
         else {
             state = TelnetStateEnum::SUBNEG;
-            commandBuffer.append(c);
+            commandBuffer.append(static_cast<char>(c));
             processTelnetCommand(commandBuffer);
             // this could have set receivedGA to true; we'll handle that later
             // (at the end of this function)
@@ -1252,7 +1251,7 @@ void AbstractTelnet::onReadInternal2(AppendBuffer &cleanData, const uint8_t c)
     case TelnetStateEnum::SUBNEG_COMMAND:
         // IAC DO/DONT/WILL/WONT <command code>
         state = TelnetStateEnum::SUBNEG;
-        commandBuffer.append(c);
+        commandBuffer.append(static_cast<char>(c));
         processTelnetCommand(commandBuffer);
         commandBuffer.clear();
         break;

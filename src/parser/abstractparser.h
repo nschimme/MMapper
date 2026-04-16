@@ -46,6 +46,7 @@
 
 class Coordinate;
 class HotkeyManager;
+class UserActionManager;
 class MapData;
 class MumeClock;
 class RoomFieldVariant;
@@ -168,6 +169,7 @@ protected:
 protected:
     GroupManagerApi &m_group;
     HotkeyManager &m_hotkeyManager;
+    UserActionManager &m_userActionManager;
     ProxyUserGmcpApi &m_proxyUserGmcp;
     AbstractParserOutputs &m_outputs;
 
@@ -180,6 +182,7 @@ protected:
                           MapData &mapData,
                           GroupManagerApi &group,
                           HotkeyManager &hotkeyManager,
+                          UserActionManager &userActionManager,
                           ProxyUserGmcpApi &proxyUserGmcp,
                           AbstractParserOutputs &outputs,
                           ParserCommonData &commonData)
@@ -188,6 +191,7 @@ protected:
         , m_mapData{mapData}
         , m_group{group}
         , m_hotkeyManager{hotkeyManager}
+        , m_userActionManager{userActionManager}
         , m_proxyUserGmcp{proxyUserGmcp}
         , m_outputs{outputs}
         , m_commonData{commonData}
@@ -262,6 +266,10 @@ protected:
 protected:
     // accesses m_queue
     void clearQueue();
+
+protected:
+    void sendToMud(const QByteArray &msg) = delete;
+    void sendToMud(const QString &msg) { m_outputs.onSendToMud(msg); }
 };
 
 class MumeXmlParserBase : public ParserCommon
@@ -275,6 +283,7 @@ protected:
                                MapData &mapData,
                                GroupManagerApi &group,
                                HotkeyManager &hotkeyManager,
+                               UserActionManager &userActionManager,
                                ProxyUserGmcpApi &proxyUserGmcp,
                                AbstractParserOutputs &outputs,
                                ParserCommonData &parserCommonData)
@@ -283,6 +292,7 @@ protected:
                        mapData,
                        group,
                        hotkeyManager,
+                       userActionManager,
                        proxyUserGmcp,
                        outputs,
                        parserCommonData}
@@ -352,6 +362,7 @@ public:
                             ProxyUserGmcpApi &,
                             GroupManagerApi &,
                             HotkeyManager &,
+                            UserActionManager &,
                             QObject *parent,
                             AbstractParserOutputs &outputs,
                             ParserCommonData &commonData);
@@ -419,6 +430,8 @@ private:
 
     void parseHelp(StringView words);
     void parseHotkey(StringView input);
+    void parseUserAction(StringView input);
+    void parseUserUnaction(StringView input); // Deprecated
     void parseMark(StringView input);
     void parseRoom(StringView input);
     void parseGroup(StringView input);
@@ -439,9 +452,6 @@ protected:
 
 private:
     void graphicsSettingsChanged() { m_outputs.onGraphicsSettingsChanged(); }
-
-    void sendToMud(const QByteArray &msg) = delete;
-    void sendToMud(const QString &msg) { m_outputs.onSendToMud(msg); }
 
 private:
     void eval(std::string_view name,

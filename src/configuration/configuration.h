@@ -457,6 +457,7 @@ public:
     } findRoomsDialog;
 
     GroupConfig hotkeys;
+    GroupConfig actions;
 
 public:
     DELETE_CTORS_AND_ASSIGN_OPS(Configuration);

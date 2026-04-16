@@ -13,6 +13,7 @@
 
 #include <QRegularExpression>
 #include <QString>
+#include <QtGlobal>
 
 namespace { // anonymous
 

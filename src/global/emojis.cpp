@@ -21,6 +21,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QString>
+#include <QtGlobal>
 
 namespace {
 

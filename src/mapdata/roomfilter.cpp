@@ -12,6 +12,7 @@
 
 #include <QRegularExpression>
 #include <QString>
+#include <QtGlobal>
 
 NODISCARD static QString escapeRegex(const QString &str)
 {

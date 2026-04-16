@@ -26,6 +26,7 @@
 
 #include <QRegularExpression>
 #include <QString>
+#include <QtGlobal>
 
 static const volatile bool verbose_debugging = false;
 static constexpr const int ANSI_RESET = 0;

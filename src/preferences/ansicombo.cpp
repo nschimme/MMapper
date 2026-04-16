@@ -14,6 +14,7 @@
 
 #include <QRegularExpression>
 #include <QString>
+#include <QtGlobal>
 #include <QtGui>
 #include <QtWidgets>
 

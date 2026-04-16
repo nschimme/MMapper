@@ -13,6 +13,7 @@
 
 #include <QRegularExpression>
 #include <QString>
+#include <QtGlobal>
 
 enum class NODISCARD PatternKindsEnum { NONE, DESC, CONTENTS, NAME, NOTE, EXITS, FLAGS, AREA, ALL };
 static constexpr const auto PATTERN_KINDS_LENGTH = static_cast<size_t>(PatternKindsEnum::ALL) + 1u;

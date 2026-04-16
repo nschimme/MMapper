@@ -22,6 +22,7 @@
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QSysInfo>
+#include <QtGlobal>
 
 namespace { // anonymous
 

@@ -121,7 +121,7 @@ DisplayWidget::DisplayWidget(QWidget *const parent)
     connect(this, &DisplayWidget::anchorClicked, this, [this](const QUrl &url) {
         QString scheme = url.scheme();
         if (scheme == u"send") {
-            getOutput().sendUserInput(url.path() + u"\n");
+            getOutput().sendUserInput(url.path() + QStringLiteral("\n"));
         } else if (scheme == u"prompt") {
             // Pre-fill input widget
             getOutput().setPrompt(url.path());
@@ -275,7 +275,10 @@ void DisplayWidget::updateHoverUnderline(const QString &urlId)
                     && fragment.charFormat().property(AnsiTextHelper::URL_ID_PROPERTY).toString()
                            == urlId) {
                     QTextEdit::ExtraSelection sel;
-                    sel.cursor = QTextCursor(fragment);
+                    sel.cursor = QTextCursor(document());
+                    sel.cursor.setPosition(fragment.position());
+                    sel.cursor.setPosition(fragment.position() + fragment.length(),
+                                           QTextCursor::KeepAnchor);
                     sel.format = fragment.charFormat();
                     sel.format.setFontUnderline(true);
                     sel.format.setUnderlineStyle(QTextCharFormat::SingleUnderline);
@@ -303,7 +306,8 @@ void AnsiTextHelper::displayText(const QStringView input_str)
     // ANSI codes are formatted as the following:
     // escape + [ + n1 (+ n2) + m
     // or OSC sequences: escape + ] + ... + (escape + \ or bell)
-    static const QRegularExpression ansi_regex{R"regex(\x1B(?:\[[[:digit:];:]*[[:alpha:]]?|\][^\x1B\x07]*(?:\x1B\\|\x07)))regex"};
+    static const QRegularExpression ansi_regex{
+        R"regex(\x1B(?:\[[[:digit:];:]*[[:alpha:]]?|\][^\x1B\x07]*(?:\x1B\\|\x07)))regex"};
     static const QRegularExpression url_regex{
         R"regex(https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*))regex"};
 

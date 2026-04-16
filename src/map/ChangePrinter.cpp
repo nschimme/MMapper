@@ -18,16 +18,16 @@ namespace { // anonymous
 
 constexpr size_t max_roomids_printed = 20;
 
-constexpr RawAnsi const_color = getRawAnsi(AnsiColor16Enum::yellow);
-constexpr RawAnsi error_color = getRawAnsi(AnsiColor16Enum::RED);
-constexpr RawAnsi member_name_color = getRawAnsi(AnsiColor16Enum::cyan);
-constexpr RawAnsi type_name_color = getRawAnsi(AnsiColor16Enum::BLUE);
-constexpr RawAnsi warning_color = getRawAnsi(AnsiColor16Enum::YELLOW);
+const RawAnsi const_color = getRawAnsi(AnsiColor16Enum::yellow);
+const RawAnsi error_color = getRawAnsi(AnsiColor16Enum::RED);
+const RawAnsi member_name_color = getRawAnsi(AnsiColor16Enum::cyan);
+const RawAnsi type_name_color = getRawAnsi(AnsiColor16Enum::BLUE);
+const RawAnsi warning_color = getRawAnsi(AnsiColor16Enum::YELLOW);
 
 void print_string_color_quoted(AnsiOstream &aos, std::string_view sv)
 {
-    constexpr RawAnsi normalAnsi = getRawAnsi(AnsiColor16Enum::green);
-    constexpr RawAnsi escapeAnsi = getRawAnsi(AnsiColor16Enum::yellow);
+    const RawAnsi normalAnsi = getRawAnsi(AnsiColor16Enum::green);
+    const RawAnsi escapeAnsi = getRawAnsi(AnsiColor16Enum::yellow);
     aos.writeQuotedWithColor(normalAnsi, escapeAnsi, sv);
 }
 

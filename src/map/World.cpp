@@ -2105,7 +2105,7 @@ void World::printStats(ProgressCounter &pc, AnsiOstream &os) const
     m_serverIds.printStats(pc, os);
 
     {
-        static constexpr auto green = getRawAnsi(AnsiColor16Enum::green);
+        static const auto green = getRawAnsi(AnsiColor16Enum::green);
 
         static auto C = [](auto x) {
             static_assert(std::is_integral_v<decltype(x)>);
@@ -2317,8 +2317,8 @@ void World::printStats(ProgressCounter &pc, AnsiOstream &os) const
 
     m_spatialDb.printStats(pc, os);
 
-    static constexpr auto green = getRawAnsi(AnsiColor16Enum::green);
-    static constexpr auto yellow = getRawAnsi(AnsiColor16Enum::yellow);
+    static const auto green = getRawAnsi(AnsiColor16Enum::green);
+    static const auto yellow = getRawAnsi(AnsiColor16Enum::yellow);
 
     auto line = std::string(81, '_'); // note: purposely using parens instead of curly.
     assert(line.size() == 81);

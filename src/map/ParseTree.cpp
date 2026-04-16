@@ -139,8 +139,8 @@ RoomIdSet getRooms(const Map &map, const ParseTree &tree, const ParseEvent &even
 
 void ParseTree::printStats(ProgressCounter & /*pc*/, AnsiOstream &os) const
 {
-    static constexpr RawAnsi green = getRawAnsi(AnsiColor16Enum::green);
-    static constexpr RawAnsi yellow = getRawAnsi(AnsiColor16Enum::yellow);
+    static const RawAnsi green = getRawAnsi(AnsiColor16Enum::green);
+    static const RawAnsi yellow = getRawAnsi(AnsiColor16Enum::yellow);
 
     auto C = [](auto x) {
         static_assert(std::is_integral_v<decltype(x)>);

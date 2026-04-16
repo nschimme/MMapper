@@ -422,10 +422,7 @@ public:
 
 public:
 #define X_DECL_ACCESSORS(_number, _lower, _UPPER, _Snake) \
-    NODISCARD bool has##_Snake() const \
-    { \
-        return m_flags.contains(AnsiStyleFlagEnum::_Snake); \
-    } \
+    NODISCARD bool has##_Snake() const { return m_flags.contains(AnsiStyleFlagEnum::_Snake); } \
     void set##_Snake() { m_flags.insert(AnsiStyleFlagEnum::_Snake); } \
     void clear##_Snake() { m_flags.remove(AnsiStyleFlagEnum::_Snake); }
     XFOREACH_ANSI_STYLE_EXCEPT_UNDERLINE(X_DECL_ACCESSORS)

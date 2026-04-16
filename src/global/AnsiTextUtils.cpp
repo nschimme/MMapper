@@ -73,7 +73,8 @@ static constexpr const std::array<int, 24> ansi_greys24{
 namespace mmqt {
 
 /* visible */
-const QRegularExpression weakAnsiRegex(R"(\x1B(?:\[[[:digit:];:]*[[:alpha:]]?|\][^\x1B\x07]*(?:\x1B\\|\x07)))");
+const QRegularExpression weakAnsiRegex(
+    R"(\x1B(?:\[[[:digit:];:]*[[:alpha:]]?|\][^\x1B\x07]*(?:\x1B\\|\x07)))");
 
 } // namespace mmqt
 

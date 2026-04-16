@@ -279,7 +279,7 @@ bool ClientWidget::isUsingClient() const
 
 void ClientWidget::displayReconnectHint()
 {
-    constexpr const auto whiteOnCyan = getRawAnsi(AnsiColor16Enum::white, AnsiColor16Enum::cyan);
+    const auto whiteOnCyan = getRawAnsi(AnsiColor16Enum::white, AnsiColor16Enum::cyan);
     std::stringstream oss;
     AnsiOstream aos{oss};
     aos.writeWithColor(whiteOnCyan, "\n\n\nPress return to reconnect.\n");

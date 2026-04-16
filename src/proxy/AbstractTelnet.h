@@ -231,14 +231,12 @@ private:
     virtual void virt_receiveTerminalType(const TelnetTermTypeBytes &) {}
     virtual void virt_receiveMudServerStatus(const TelnetMsspBytes &) {}
     virtual void virt_receiveWindowSize(int, int) {}
-    virtual void virt_receiveNewEnvironSend(const QList<RawBytes> & /*vars*/,
-                                            const QList<RawBytes> & /*userVars*/)
+    virtual void virt_receiveNewEnvironSend(const QList<RawBytes> &, const QList<RawBytes> &) {}
+    virtual void virt_receiveNewEnvironIs(const QMap<RawBytes, RawBytes> &,
+                                          const QMap<RawBytes, RawBytes> &)
     {}
-    virtual void virt_receiveNewEnvironIs(const QMap<RawBytes, RawBytes> & /*vars*/,
-                                          const QMap<RawBytes, RawBytes> & /*userVars*/)
-    {}
-    virtual void virt_receiveNewEnvironInfo(const QMap<RawBytes, RawBytes> & /*vars*/,
-                                            const QMap<RawBytes, RawBytes> & /*userVars*/)
+    virtual void virt_receiveNewEnvironInfo(const QMap<RawBytes, RawBytes> &,
+                                            const QMap<RawBytes, RawBytes> &)
     {}
     virtual void virt_receiveNewEnvironDo() {}
     virtual void virt_receiveNewEnvironWill() {}
@@ -287,11 +285,11 @@ protected:
     NODISCARD CharacterEncodingEnum getEncoding() const { return m_textCodec.getEncoding(); }
 
 protected:
-    void sendNewEnvironIs(const QMap<RawBytes, RawBytes> & /*vars*/,
-                          const QMap<RawBytes, RawBytes> & /*userVars*/);
-    void sendNewEnvironInfo(const QMap<RawBytes, RawBytes> & /*vars*/,
-                            const QMap<RawBytes, RawBytes> & /*userVars*/);
-    void sendNewEnvironSend(const QList<RawBytes> & /*vars*/, const QList<RawBytes> & /*userVars*/);
+    void sendNewEnvironIs(const QMap<RawBytes, RawBytes> &vars,
+                          const QMap<RawBytes, RawBytes> &userVars);
+    void sendNewEnvironInfo(const QMap<RawBytes, RawBytes> &vars,
+                            const QMap<RawBytes, RawBytes> &userVars);
+    void sendNewEnvironSend(const QList<RawBytes> &vars, const QList<RawBytes> &userVars);
 
 private:
     void onReadInternal2(AppendBuffer &, uint8_t);

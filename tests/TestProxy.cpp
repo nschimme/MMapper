@@ -4,8 +4,8 @@
 #include "TestProxy.h"
 
 #include "../src/global/TextUtils.h"
-#include "../src/proxy/GmcpMessage.h"
 #include "../src/proxy/AbstractTelnet.h"
+#include "../src/proxy/GmcpMessage.h"
 #include "../src/proxy/GmcpModule.h"
 #include "../src/proxy/GmcpUtils.h"
 #include "../src/proxy/telnetfilter.h"
@@ -118,12 +118,12 @@ void TestProxy::mnesTest()
     // Test SEND ALL
     // IAC SB NEW-ENVIRON SEND IAC SE -> 255 250 39 1 255 240
     QByteArray sendAll;
-    sendAll.append((char)255);
-    sendAll.append((char)250);
-    sendAll.append((char)39);
-    sendAll.append((char)1);
-    sendAll.append((char)255);
-    sendAll.append((char)240);
+    sendAll.append(static_cast<char>(255u));
+    sendAll.append(static_cast<char>(250u));
+    sendAll.append(static_cast<char>(39u));
+    sendAll.append(static_cast<char>(1u));
+    sendAll.append(static_cast<char>(255u));
+    sendAll.append(static_cast<char>(240u));
     telnet.onRead(sendAll);
     QCOMPARE(telnet.receivedType, 1);
     QVERIFY(telnet.receivedVars.isEmpty());
@@ -132,14 +132,14 @@ void TestProxy::mnesTest()
     // Test SEND VAR
     // IAC SB NEW-ENVIRON SEND VAR "MTTS" IAC SE
     QByteArray sendVar;
-    sendVar.append((char)255);
-    sendVar.append((char)250);
-    sendVar.append((char)39);
-    sendVar.append((char)1);
-    sendVar.append((char)0);
+    sendVar.append(static_cast<char>(255u));
+    sendVar.append(static_cast<char>(250u));
+    sendVar.append(static_cast<char>(39u));
+    sendVar.append(static_cast<char>(1u));
+    sendVar.append(static_cast<char>(0u));
     sendVar.append("MTTS");
-    sendVar.append((char)255);
-    sendVar.append((char)240);
+    sendVar.append(static_cast<char>(255u));
+    sendVar.append(static_cast<char>(240u));
     telnet.onRead(sendVar);
     QCOMPARE(telnet.receivedType, 1);
     QCOMPARE(telnet.receivedVars.size(), 1);
@@ -148,16 +148,16 @@ void TestProxy::mnesTest()
     // Test IS
     // IAC SB NEW-ENVIRON IS VAR "CHARSET" VAL "UTF-8" IAC SE
     QByteArray isVar;
-    isVar.append((char)255);
-    isVar.append((char)250);
-    isVar.append((char)39);
-    isVar.append((char)0);
-    isVar.append((char)0);
+    isVar.append(static_cast<char>(255u));
+    isVar.append(static_cast<char>(250u));
+    isVar.append(static_cast<char>(39u));
+    isVar.append(static_cast<char>(0u));
+    isVar.append(static_cast<char>(0u));
     isVar.append("CHARSET");
-    isVar.append((char)1);
+    isVar.append(static_cast<char>(1u));
     isVar.append("UTF-8");
-    isVar.append((char)255);
-    isVar.append((char)240);
+    isVar.append(static_cast<char>(255u));
+    isVar.append(static_cast<char>(240u));
     telnet.onRead(isVar);
     QCOMPARE(telnet.receivedType, 0);
     QCOMPARE(telnet.receivedIsVars.size(), 1);

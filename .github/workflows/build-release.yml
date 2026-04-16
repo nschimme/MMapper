@@ -1,50 +1,59 @@
-name: build-release
+name : build
+       - release
 
-on:
-  push:
-    tags:
-    - 'v*'
-    branches:
-    - master
-  pull_request:
-  workflow_dispatch:
+           on : push : tags : -'v*' branches : -master pull_request : workflow_dispatch :
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || github.sha }}
-  cancel-in-progress: true
+    concurrency : group : ${{github.workflow}}
+                          - $
+{
+    {
+        github.event_name == 'pull_request' && github.head_ref || github.sha
+    }
+}
+cancel - in
+    - progress : true
 
-jobs:
-  build:
-    runs-on: ${{ matrix.os }}
-    continue-on-error: false
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-2022, macos-15-intel, macos-15, ubuntu-24.04, ubuntu-24.04-arm]
-    steps:
-    - uses: actions/checkout@v6
-      with:
-        fetch-depth: 0
-        submodules: true
-    - name: ccache
-      uses: hendrikmuhs/ccache-action@v1.2
-      with:
-        create-symlink: ${{ runner.os != 'Windows' }}
-        key: ${{ github.job }}-${{ matrix.os }}
+                 jobs : build : runs
+                                - on : $
+{
+    {
+        matrix.os
+    }
+}
+continue - on - error : false strategy : fail
+                                         - fast : false matrix : os
+    : [windows - 2022, macos - 15 - intel, macos - 15, ubuntu - 24.04, ubuntu - 24.04 - arm] steps
+    : -uses : actions
+              / checkout @v6 with
+    : fetch - depth : 0 submodules : true
+                                     - name : ccache uses : hendrikmuhs / ccache
+                                     - action @v1 .2 with : create
+                                                            - symlink : $
+{
+    {
+        runner.os != 'Windows'
+    }
+}
+key : ${{github.job}} - $
+{
+    {
+        matrix.os
+    }
+}
         variant: ${{ matrix.compiler == 'msvc' && 'sccache' || 'ccache' }}
     - if: runner.os == 'Windows' || runner.os == 'macOS'
       uses: lukka/get-cmake@latest
     - if: runner.os == 'Windows'
       uses: ilammy/msvc-dev-cmd@v1
 
-    # Install Dependencies (Ubuntu)
+#Install Dependencies(Ubuntu)
     - if: runner.os == 'Linux'
       name: Install Packages for Ubuntu
       run: |
         sudo apt update -qq
         sudo apt install -y \
           qt6-base-dev qt6-base-dev-tools libqt6opengl6-dev libqt6websockets6-dev \
-          qt6-multimedia-dev libqt6multimedia6 libqt6svg6-dev \
+          qt6-multimedia-dev libqt6multimedia6 qt6-svg-dev \
           libgl1-mesa-dev qtkeychain-qt6-dev build-essential cmake ninja-build mold git \
           zlib1g-dev libssl-dev
         echo "QMAKESPEC=linux-g++" >> $GITHUB_ENV
@@ -52,7 +61,7 @@ jobs:
         echo "CXX=g++-12" >> $GITHUB_ENV
         echo "MMAPPER_CMAKE_EXTRA=-DUSE_MOLD=true -DPACKAGE_TYPE=Deb" >> $GITHUB_ENV
 
-    # Install Dependencies (Mac)
+#Install Dependencies(Mac)
     - if: runner.os == 'macOS'
       name: Install Qt for Mac
       uses: jurplel/install-qt-action@v4
@@ -66,7 +75,7 @@ jobs:
       run: |
         echo "MMAPPER_CMAKE_EXTRA=-DCMAKE_PREFIX_PATH=$QT_ROOT_DIR -DPACKAGE_TYPE=Dmg" >> $GITHUB_ENV
 
-    # Install Dependencies (Windows)
+#Install Dependencies(Windows)
     - if: runner.os == 'Windows'
       name: Install Qt for Windows
       uses: jurplel/install-qt-action@v4
@@ -77,7 +86,7 @@ jobs:
         cache: true
         modules: 'qtwebsockets qtmultimedia'
 
-    # Build
+#Build
     - if: runner.os == 'Windows'
       name: Build MMapper for Windows
       shell: pwsh
@@ -87,7 +96,12 @@ jobs:
         cd build
         cmake --version
         $packageDir = ($env:GITHUB_WORKSPACE -replace '\\', '/') + "/artifact"
-        $launcher = ${{ matrix.compiler == 'msvc' && 'sccache' || 'ccache' }}
+        $launcher = $
+        {
+            {
+                matrix.compiler == 'msvc' && 'sccache' || 'ccache'
+            }
+        }
         cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -G 'Ninja' -DCPACK_PACKAGE_DIRECTORY="$packageDir" -DCMAKE_PREFIX_PATH=$env:QT_ROOT_DIR -DWITH_WEBSOCKET=ON -DWITH_QTKEYCHAIN=ON -DPACKAGE_TYPE=Nsis -DCMAKE_C_COMPILER_LAUNCHER="$launcher" -DCMAKE_CXX_COMPILER_LAUNCHER="$launcher" -S .. || exit -1
         cmake --build . --parallel
     - if: runner.os == 'Linux' || runner.os == 'macOS'
@@ -99,7 +113,7 @@ jobs:
         cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -G 'Ninja' -DCPACK_PACKAGE_DIRECTORY=${{ github.workspace }}/artifact $MMAPPER_CMAKE_EXTRA -DWITH_WEBSOCKET=ON -DWITH_QTKEYCHAIN=ON -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -S .. || exit -1
         cmake --build . --parallel
 
-    # Package
+#Package
     - name: Package MMapper
       run: cd build && cpack
     - if: runner.os == 'Linux'

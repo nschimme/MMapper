@@ -1,63 +1,69 @@
-name: build-test
+name : build
+       - test
 
-on:
-  push:
-    branches:
-    - master
-  pull_request:
-  workflow_dispatch:
+           on : push : branches : -master pull_request : workflow_dispatch :
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || github.sha }}
-  cancel-in-progress: true
+    concurrency : group : ${{github.workflow}}
+                          - $
+{
+    {
+        github.event_name == 'pull_request' && github.head_ref || github.sha
+    }
+}
+cancel - in
+    - progress : true
 
-jobs:
-  build:
-    runs-on: ${{ matrix.os }}
-    continue-on-error: false
-    permissions:
-      id-token: write
-      contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-2022, macos-latest, ubuntu-latest]
-        compiler: ['clang', 'gcc', 'msvc']
-        exclude:
-        - os: ubuntu-latest
-          compiler: 'msvc'
-        - os: macos-latest
-          compiler: 'gcc'
-        - os: macos-latest
-          compiler: 'msvc'
-        - os: windows-2022
-          compiler: 'clang'
-    steps:
-    - uses: actions/checkout@v6
-      with:
-        fetch-depth: 0
-        submodules: true
-    - name: ccache
-      uses: hendrikmuhs/ccache-action@v1.2
-      with:
-        create-symlink: ${{ runner.os != 'Windows' }}
-        key: ${{ github.job }}-${{ matrix.os }}-${{ matrix.compiler }}
+                 jobs : build : runs
+                                - on : $
+{
+    {
+        matrix.os
+    }
+}
+continue - on - error : false permissions : id - token : write contents : read strategy : fail
+                                                                                          - fast
+    : false matrix : os : [windows - 2022, macos - latest, ubuntu - latest] compiler
+    : ['clang', 'gcc', 'msvc'] exclude : -os : ubuntu
+                                               - latest compiler : 'msvc'
+                                                                   - os : macos
+                                                                          - latest compiler : 'gcc'
+                                                                                              - os
+    : macos
+      - latest compiler : 'msvc'
+                          - os
+    : windows
+      - 2022 compiler : 'clang' steps : -uses : actions / checkout @v6 with : fetch
+      - depth : 0 submodules : true
+                               - name : ccache uses : hendrikmuhs / ccache
+                               - action @v1 .2 with : create
+                                                      - symlink : $
+{
+    {
+        runner.os != 'Windows'
+    }
+}
+key : ${{github.job}} - ${{matrix.os}} - $
+{
+    {
+        matrix.compiler
+    }
+}
         variant: ${{ matrix.compiler == 'msvc' && 'sccache' || 'ccache' }}
     - if: runner.os == 'Windows' || runner.os == 'macOS'
       uses: lukka/get-cmake@latest
     - if: matrix.compiler == 'msvc'
       uses: ilammy/msvc-dev-cmd@v1
 
-      #
-      # Install Packages (Ubuntu)
-      #
+#
+#Install Packages(Ubuntu)
+#
     - if: runner.os == 'Linux'
       name: Install Packages for Ubuntu
       run: |
         sudo apt update -qq
         sudo apt install -y \
           qt6-base-dev qt6-base-dev-tools libqt6opengl6-dev libqt6websockets6-dev \
-          qt6-multimedia-dev libqt6multimedia6 libqt6svg6-dev \
+          qt6-multimedia-dev libqt6multimedia6 qt6-svg-dev \
           libgl1-mesa-dev qtkeychain-qt6-dev build-essential cmake ninja-build mold git \
           zlib1g-dev libssl-dev
     - if: runner.os == 'Linux' && matrix.compiler == 'gcc'
@@ -80,9 +86,9 @@ jobs:
         echo "STYLE=true" >> $GITHUB_ENV
         echo "MMAPPER_CMAKE_EXTRA=-DUSE_MOLD=true -DPACKAGE_TYPE=Deb" >> $GITHUB_ENV
 
-      #
-      # Install Packages (Mac)
-      #
+#
+#Install Packages(Mac)
+#
     - if: runner.os == 'macOS'
       name: Install Qt for Mac
       uses: jurplel/install-qt-action@v4
@@ -97,9 +103,9 @@ jobs:
         brew install lcov
         echo "MMAPPER_CMAKE_EXTRA=-DCMAKE_PREFIX_PATH=$QT_ROOT_DIR -DUSE_CODE_COVERAGE=true -DPACKAGE_TYPE=Dmg" >> $GITHUB_ENV
 
-      #
-      # Install Packages (Windows)
-      #
+#
+#Install Packages(Windows)
+#
     - if: runner.os == 'Windows' && matrix.compiler == 'msvc'
       name: Install Qt for Windows (MSVC)
       uses: jurplel/install-qt-action@v4
@@ -120,9 +126,9 @@ jobs:
         modules: 'qtwebsockets qtmultimedia'
         tools: 'tools_mingw1310'
 
-      #
-      # Build
-      #
+#
+#Build
+#
     - if: runner.os == 'Windows'
       name: Build MMapper for Windows
       shell: pwsh
@@ -136,7 +142,12 @@ jobs:
           $env:PATH = "C:\Qt\Tools\mingw1310_64\bin;$env:PATH"
         }
         $packageDir = ($env:GITHUB_WORKSPACE -replace '\\', '/') + "/artifact"
-        $launcher = ${{ matrix.compiler == 'msvc' && 'sccache' || 'ccache' }}
+        $launcher = $
+        {
+            {
+                matrix.compiler == 'msvc' && 'sccache' || 'ccache'
+            }
+        }
         cmake -DCMAKE_BUILD_TYPE=Debug -G 'Ninja' -DWITH_MAP=OFF -DCPACK_PACKAGE_DIRECTORY="$packageDir" -DCMAKE_PREFIX_PATH=$env:QT_ROOT_DIR -DWITH_WEBSOCKET=ON -DWITH_QTKEYCHAIN=ON -DPACKAGE_TYPE=Nsis -DCMAKE_C_COMPILER_LAUNCHER="$launcher" -DCMAKE_CXX_COMPILER_LAUNCHER="$launcher" -S .. || exit -1
         cmake --build . --parallel
     - if: runner.os == 'Linux' || runner.os == 'macOS'
@@ -148,9 +159,9 @@ jobs:
         cmake -DCMAKE_BUILD_TYPE=Debug -G 'Ninja' -DWITH_MAP=OFF -DCPACK_PACKAGE_DIRECTORY=${{ github.workspace }}/artifact $MMAPPER_CMAKE_EXTRA -DWITH_WEBSOCKET=ON -DWITH_QTKEYCHAIN=ON -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -S .. || exit -1
         cmake --build . --parallel
 
-      #
-      # Run tests
-      #
+#
+#Run tests
+#
     - name: Run unit tests
       run: cd build && ctest -V --no-compress-output -T test --output-junit ../ctest-to-junit-results.xml
       env:
@@ -159,28 +170,47 @@ jobs:
     - name: Upload test results
       uses: actions/upload-artifact@v7
       with:
-        name: test-results ${{ matrix.os }} ${{ matrix.compiler }}
+        name: test-results $
+        {
+            {
+                matrix.os
+            }
+        }
+        $
+        {
+            {
+                matrix.compiler
+            }
+        }
         path: ctest-to-junit-results.xml
     - if: env.COVERAGE == 'true' && !cancelled()
       name: Run lcov
       run: |
         lcov --version
         gcov --version
-        lcov --directory build --capture --base-directory $(pwd) --output-file build/coverage.info --gcov-tool ${GCOV_TOOL:-gcov} --no-external --ignore-errors mismatch --ignore-errors negative --ignore-errors gcov --ignore-errors inconsistent --rc geninfo_unexecuted_blocks=1
-        lcov --list build/coverage.info --ignore-errors inconsistent
-        lcov --remove build/coverage.info '*/tests/*' '*/external/*' '*/build/*' --output-file build/filtered.info --ignore-errors unused --ignore-errors inconsistent
-    - if: env.COVERAGE == 'true' && !cancelled()
-      uses: codecov/codecov-action@v6
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        files: ./build/filtered.info
-        fail_ci_if_error: false
-      continue-on-error: true
-    - if: env.STYLE == 'true'
-      name: Text Encoding Sanity Check
-      run: |
-        cd build
-        if  [[ -n $(nm -C src/mmapper | grep -w 'QString::\(to\|from\)StdString') ]]; then
+        lcov --directory build --capture --base-directory $(pwd) --output-file build/coverage.info --gcov-tool $
+        {
+        GCOV_TOOL:
+            -gcov
+        }
+        --no - external-- ignore - errors mismatch-- ignore - errors negative-- ignore
+            - errors gcov-- ignore - errors inconsistent-- rc geninfo_unexecuted_blocks
+            = 1 lcov-- list build / coverage.info-- ignore
+                      - errors inconsistent lcov-- remove build
+                            / coverage.info '*/tests/*' '*/external/*' '*/build/*' --output
+                      - file build / filtered.info-- ignore - errors unused-- ignore
+                      - errors inconsistent - if : env.COVERAGE
+                  == 'true'
+              && !cancelled() uses : codecov / codecov - action @v6 with : token : $
+        {
+            {
+                secrets.CODECOV_TOKEN
+            }
+        }
+        files :./ build / filtered.info fail_ci_if_error : false continue - on
+                    - error : true - if : env.STYLE
+                == 'true' name : Text Encoding Sanity Check run
+            : | cd build if[[-n $(nm - C src / mmapper | grep - w 'QString::\(to\|from\)StdString')]]; then
           nm -C src/mmapper | grep -w 'QString::\(to\|from\)StdString'
           echo
           echo
@@ -193,9 +223,9 @@ jobs:
           exit -1
         fi
 
-      #
-      # Package
-      #
+#
+#Package
+#
     - name: Package MMapper
       run: cd build && cpack
     - if: runner.os == 'Linux'

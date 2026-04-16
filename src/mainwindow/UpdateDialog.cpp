@@ -247,11 +247,11 @@ void UpdateDialog::managerFinished(QNetworkReply *reply)
         const QString remoteCommitHash = objNode.value("sha").toString();
         const QString localCommitHash = std::invoke([]() -> QString {
             static const QRegularExpression hashRegex(R"(-g([0-9a-fA-F]+)$)");
+            const QString localVersion = QString::fromUtf8(getMMapperVersion());
 #if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
-            QRegularExpressionMatch match = hashRegex.matchView(
-                QString::fromUtf8(getMMapperVersion()));
+            QRegularExpressionMatch match = hashRegex.matchView(localVersion);
 #else
-            QRegularExpressionMatch match = hashRegex.match(QString::fromUtf8(getMMapperVersion()));
+            QRegularExpressionMatch match = hashRegex.match(localVersion);
 #endif
             if (match.hasMatch()) {
                 return match.captured(1);

@@ -3,6 +3,7 @@
 
 #include "../global/CaseUtils.h"
 #include "../group/mmapper2group.h"
+#include "../map/DoorStateEnum.h"
 #include "../map/ExitsFlags.h"
 #include "../map/ParseTree.h"
 #include "../map/PromptFlags.h"
@@ -43,6 +44,8 @@ void MumeXmlParser::slot_parseGmcpInput(const GmcpMessage &msg)
         parseGmcpEventMoved(obj);
     } else if (msg.isRoomInfo()) {
         parseGmcpRoomInfo(obj);
+    } else if (msg.isRoomUpdateExits()) {
+        parseGmcpUpdateExits(obj);
     }
 }
 
@@ -177,7 +180,6 @@ NODISCARD static RoomDesc getRoomDesc(const JsonObj &obj)
 
 struct NODISCARD Misc final
 {
-    enum class DoorStateEnum { CLOSED, OPEN, BROKEN };
     using DoorStates = EnumIndexedArray<DoorStateEnum, ExitDirEnum, NUM_EXITS>;
     DoorStates doors{};
     RawExits exits{};
@@ -189,14 +191,14 @@ static void processOneFlag(const QString &flag,
                            const ExitDirEnum d,
                            RawExit &exit,
                            ConnectedRoomFlagsType &connectedRoomFlags,
-                           Misc::DoorStateEnum &door)
+                           DoorStateEnum &door)
 {
     if (flag == "hidden") {
         exit.addDoorFlags(DoorFlagEnum::HIDDEN);
     } else if (flag == "broken") {
-        door = Misc::DoorStateEnum::BROKEN;
+        door = DoorStateEnum::BROKEN;
     } else if (flag == "closed") {
-        door = Misc::DoorStateEnum::CLOSED;
+        door = DoorStateEnum::CLOSED;
     } else if (flag == "climb-down" || flag == "climb-up") {
         exit.addExitFlags(ExitFlagEnum::CLIMB);
     } else if (flag == "road" || flag == "trail") {
@@ -251,7 +253,7 @@ NODISCARD static Misc getMisc(const JsonObj &obj, const ServerRoomId room, bool 
             currentExit.addExitFlags(ExitFlagEnum::DOOR);
             currentExit.setDoorName(mmqt::makeDoorName(doorName));
             auto &currentDoor = result.doors.at(d);
-            currentDoor = Misc::DoorStateEnum::OPEN;
+            currentDoor = DoorStateEnum::OPEN;
         }
 
         const auto optFlags = exit.getArray("flags");
@@ -273,7 +275,7 @@ NODISCARD static Misc getMisc(const JsonObj &obj, const ServerRoomId room, bool 
         for (const ExitDirEnum alt_dir : ALL_EXITS_NESWUD) {
             const auto &eThisExit = result.exits[alt_dir];
             const auto eThisClosed = eThisExit.exitIsDoor()
-                                     && result.doors.at(alt_dir) == Misc::DoorStateEnum::CLOSED;
+                                     && result.doors.at(alt_dir) == DoorStateEnum::CLOSED;
 
             // Do not flag indirect sunlight if there was a closed door, no exit, or we saw direct sunlight
             if (!eThisExit.exitIsExit() || eThisClosed
@@ -389,5 +391,54 @@ void MumeXmlParser::parseGmcpRoomInfo(const JsonObj &obj)
     m_commonData.roomExits = misc.exits;
     m_commonData.exitIds = misc.exitIds;
 
+    for (const ExitDirEnum d : ALL_EXITS_NESWUD) {
+        if (m_commonData.roomExits[d].exitIsDoor()) {
+            m_observer.observeDoorState(m_serverId, d, misc.doors.at(d));
+        }
+    }
+
     m_eventReady = true;
+}
+
+void MumeXmlParser::parseGmcpUpdateExits(const JsonObj &obj)
+{
+    using namespace mume_xml_parser_gmcp_detail;
+    if (m_serverId == INVALID_SERVER_ROOMID) {
+        return;
+    }
+
+    // Room.Update.Exits payload: {"exits": {"n": {"flags": ["closed"]}}}
+    auto exits = obj.getObject("exits");
+    if (!exits) {
+        return;
+    }
+
+    for (const ExitDirEnum d : ALL_EXITS_NESWUD) {
+        const char dir[2] = {lowercaseDirection(d)[0], char_consts::C_NUL};
+        const auto optExit = exits->getObject(dir);
+        if (!optExit) {
+            continue;
+        }
+
+        const JsonObj &exit = *optExit;
+        const auto optFlags = exit.getArray("flags");
+        if (!optFlags) {
+            continue;
+        }
+
+        DoorStateEnum door = DoorStateEnum::OPEN; // Default to open if name exists but no flags?
+        // Actually MUME only sends flags if they changed, but we need to know if it's a door.
+        // If we get an update for it, it should be a door.
+        for (const JsonValue &pflag : *optFlags) {
+            if (auto optString = pflag.getString()) {
+                const QString flag = optString.value();
+                if (flag == "broken") {
+                    door = DoorStateEnum::BROKEN;
+                } else if (flag == "closed") {
+                    door = DoorStateEnum::CLOSED;
+                }
+            }
+        }
+        m_observer.observeDoorState(m_serverId, d, door);
+    }
 }

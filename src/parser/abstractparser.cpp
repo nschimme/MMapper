@@ -396,7 +396,7 @@ private:
     {
         assert(0 <= endpoint && endpoint < spnodes.size());
 
-        // Caution: spnode is modified here.
+        // Caution: the local spnode pointer is reassigned during traversal.
         const SPNode *spnode = &spnodes[endpoint];
 
         auto name = deref(spnode).r.getName();

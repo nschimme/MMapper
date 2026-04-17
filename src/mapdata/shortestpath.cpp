@@ -123,9 +123,9 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
     future_paths.emplace(0.0, 0);
     while (!future_paths.empty()) {
         const int spindex = utils::pop_top(future_paths).second;
-        // REVISIT: Should thisr be a copy or a reference?
-        // (can sp_nodes be modified during the lifetime of the reference?)
-        const auto &thisr = sp_nodes[spindex].r;
+        // This MUST be a copy, otherwise it can be invalidated by push_back()
+        // on sp_nodes (which can cause reallocation or detachment).
+        const auto thisr = sp_nodes[spindex].r;
         const auto thisdist = sp_nodes[spindex].dist;
         auto room_id = thisr.getId();
         if (visited.contains(room_id)) {

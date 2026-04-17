@@ -26,10 +26,10 @@ public:
     virtual ~ShortestPathRecipient();
 
 private:
-    virtual void virt_receiveShortestPath(QVector<SPNode> spnodes, int endpoint) = 0;
+    virtual void virt_receiveShortestPath(const QVector<SPNode> &spnodes, int endpoint) = 0;
 
 public:
-    void receiveShortestPath(QVector<SPNode> spnodes, const int endpoint)
+    void receiveShortestPath(const QVector<SPNode> &spnodes, const int endpoint)
     {
         virt_receiveShortestPath(spnodes, endpoint);
     }

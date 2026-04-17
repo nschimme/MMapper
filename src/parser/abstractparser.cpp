@@ -392,9 +392,9 @@ public:
     ~ShortestPathEmitter() final;
 
 private:
-    void virt_receiveShortestPath(QVector<SPNode> spnodes, const int endpoint) final
+    void virt_receiveShortestPath(const QVector<SPNode> &spnodes, const int endpoint) final
     {
-        assert(0 < endpoint && endpoint < spnodes.size());
+        assert(0 <= endpoint && endpoint < spnodes.size());
 
         // Caution: spnode is modified here.
         const SPNode *spnode = &spnodes[endpoint];

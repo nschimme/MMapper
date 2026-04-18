@@ -5,6 +5,7 @@
 
 #include "../global/AnsiOstream.h"
 
+#include <QDebug>
 #include <ostream>
 
 std::ostream &operator<<(std::ostream &os, const RoomId id)
@@ -37,4 +38,21 @@ AnsiOstream &operator<<(AnsiOstream &os, const ExternalRoomId id)
 AnsiOstream &operator<<(AnsiOstream &os, const ServerRoomId id)
 {
     return os << "ServerRoomId(" << id.value() << ")";
+}
+
+///
+
+QDebug operator<<(QDebug debug, const RoomId id)
+{
+    return debug << "RoomId(" << id.value() << ")";
+}
+
+QDebug operator<<(QDebug debug, const ExternalRoomId id)
+{
+    return debug << "ExternalRoomId(" << id.value() << ")";
+}
+
+QDebug operator<<(QDebug debug, const ServerRoomId id)
+{
+    return debug << "ServerRoomId(" << id.value() << ")";
 }

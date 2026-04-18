@@ -11,6 +11,8 @@
 #include <cstdint>
 #include <ostream>
 
+#include <QDebug>
+
 class AnsiOstream;
 
 namespace tags {
@@ -31,6 +33,7 @@ struct NODISCARD RoomId final : public TaggedInt<RoomId, tags::RoomIdTag, uint32
     NODISCARD constexpr uint32_t asUint32() const { return value(); }
     friend std::ostream &operator<<(std::ostream &os, RoomId id);
     friend AnsiOstream &operator<<(AnsiOstream &os, RoomId id);
+    friend QDebug operator<<(QDebug debug, RoomId id);
 };
 
 struct NODISCARD ExternalRoomId final
@@ -43,6 +46,7 @@ struct NODISCARD ExternalRoomId final
     NODISCARD constexpr uint32_t asUint32() const { return value(); }
     friend std::ostream &operator<<(std::ostream &os, ExternalRoomId id);
     friend AnsiOstream &operator<<(AnsiOstream &os, ExternalRoomId id);
+    friend QDebug operator<<(QDebug debug, ExternalRoomId id);
 };
 
 struct NODISCARD ServerRoomId final
@@ -55,6 +59,7 @@ struct NODISCARD ServerRoomId final
     NODISCARD constexpr uint32_t asUint32() const { return value(); }
     friend std::ostream &operator<<(std::ostream &os, ServerRoomId id);
     friend AnsiOstream &operator<<(AnsiOstream &os, ServerRoomId id);
+    friend QDebug operator<<(QDebug debug, ServerRoomId id);
 };
 
 static_assert(sizeof(RoomId) == sizeof(uint32_t));

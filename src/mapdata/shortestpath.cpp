@@ -8,6 +8,7 @@
 #include "../global/utils.h"
 #include "../map/ExitDirection.h"
 #include "../map/ExitFlags.h"
+#include "../map/RoomIdSet.h"
 #include "../map/exit.h"
 #include "../map/mmapper2room.h"
 #include "../map/room.h"
@@ -115,28 +116,25 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
     const Map &map = origin.getMap();
 
     std::vector<SPNode> sp_nodes;
-    std::vector<uint8_t> visited(map.getRoomsCount() + 1, 0);
-    using DistIdx = std::pair<double, int>;
+    RoomIdSet visited;
+    using DistIdx = std::pair<double, SPNodeIdx>;
     std::priority_queue<DistIdx, std::vector<DistIdx>, std::greater<DistIdx>> future_paths;
 
     sp_nodes.reserve(INITIAL_NODES_CAPACITY);
-    sp_nodes.push_back(SPNode{origin.getId(), -1, 0, ExitDirEnum::UNKNOWN});
+    sp_nodes.push_back(SPNode{origin.getId(), INVALID_SPNODE_IDX, 0, ExitDirEnum::UNKNOWN});
     future_paths.emplace(0.0, 0);
 
     while (!future_paths.empty()) {
-        const int spindex = future_paths.top().second;
+        const SPNodeIdx spidx = future_paths.top().second;
         future_paths.pop();
 
-        const std::size_t spidx = static_cast<std::size_t>(spindex);
         const RoomId room_id = sp_nodes[spidx].id;
         const double thisdist = sp_nodes[spidx].dist;
 
-        if (room_id.asUint32() < visited.size()) {
-            if (visited[room_id.asUint32()]) {
-                continue;
-            }
-            visited[room_id.asUint32()] = 1;
+        if (visited.contains(room_id)) {
+            continue;
         }
+        visited.insert(room_id);
 
         const auto &thisr = map.getRoomHandle(room_id);
         if (!thisr) {
@@ -144,8 +142,8 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
         }
 
         // Omit starting room on purpose
-        if (spindex != 0 && f.filter(thisr.getRaw())) {
-            recipient.receiveShortestPath(map, sp_nodes, spindex);
+        if (spidx != 0 && f.filter(thisr.getRaw())) {
+            recipient.receiveShortestPath(map, sp_nodes, spidx);
             if (--max_hits == 0) {
                 return;
             }
@@ -165,7 +163,7 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
             }
 
             const RoomId nextrId = e.getOutgoingSet().first();
-            if (nextrId.asUint32() < visited.size() && visited[nextrId.asUint32()]) {
+            if (visited.contains(nextrId)) {
                 continue;
             }
 
@@ -181,8 +179,8 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
                 continue;
             }
 
-            sp_nodes.push_back(SPNode{nextrId, spindex, new_dist, dir});
-            future_paths.emplace(new_dist, static_cast<int>(sp_nodes.size() - 1));
+            sp_nodes.push_back(SPNode{nextrId, spidx, new_dist, dir});
+            future_paths.emplace(new_dist, static_cast<SPNodeIdx>(sp_nodes.size() - 1));
         }
     }
 }

@@ -394,12 +394,12 @@ public:
 private:
     void virt_receiveShortestPath(const Map &map,
                                   const std::vector<SPNode> &spnodes,
-                                  const int endpoint) final
+                                  const SPNodeIdx endpoint) final
     {
-        assert(0 <= endpoint && endpoint < static_cast<int>(spnodes.size()));
+        assert(endpoint < spnodes.size());
 
         // Caution: spnode is modified here.
-        const SPNode *spnode = &spnodes[static_cast<std::size_t>(endpoint)];
+        const SPNode *spnode = &spnodes[endpoint];
 
         const auto room = map.getRoomHandle(spnode->id);
         const auto name = room ? room.getName() : RoomName{};
@@ -408,15 +408,15 @@ private:
                           "Distance " + std::to_string(spnode->dist) + ": " + name.toStdStringUtf8()
                               + "\n");
         QString dirs;
-        while (spnode->parent >= 0) {
-            assert(spnode->parent < static_cast<int>(spnodes.size()));
-            if (&spnodes[static_cast<std::size_t>(spnode->parent)] == spnode) {
+        while (spnode->parent != INVALID_SPNODE_IDX) {
+            assert(spnode->parent < spnodes.size());
+            if (&spnodes[spnode->parent] == spnode) {
                 parser.sendToUser(SendToUserSourceEnum::FromMMapper, "ERROR: loop\n");
                 break;
             }
             dirs.append(Mmapper2Exit::charForDir(spnode->lastdir));
-            spnode = &spnodes[static_cast<std::size_t>(spnode->parent)]; // spnode now points to a
-                                                                         // new node.
+            spnode = &spnodes[spnode->parent]; // spnode now points to a
+                                               // new node.
         }
         std::reverse(dirs.begin(), dirs.end());
         parser.sendToUser(SendToUserSourceEnum::FromMMapper,

@@ -16,6 +16,8 @@
 #include "mapdata.h"
 #include "roomfilter.h"
 
+#include <algorithm>
+#include <cstdint>
 #include <limits>
 #include <memory>
 #include <type_traits>
@@ -50,6 +52,18 @@ static constexpr const double COST_ROAD_ADJUSTMENT = 0.1;
 static constexpr const double COST_DEATHTRAP = 1000.0;
 
 static constexpr const std::size_t INITIAL_NODES_CAPACITY = 1024;
+
+using SPNodeIdx = std::uint32_t;
+static constexpr const SPNodeIdx INVALID_SPNODE_IDX = std::numeric_limits<SPNodeIdx>::max();
+
+struct NODISCARD SPNode final
+{
+    RoomId id;
+    SPNodeIdx parent = INVALID_SPNODE_IDX;
+    double dist = 0.0;
+    ExitDirEnum lastdir = ExitDirEnum::NONE;
+};
+
 } // namespace
 
 ShortestPathRecipient::~ShortestPathRecipient() = default;
@@ -143,7 +157,18 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
 
         // Omit starting room on purpose
         if (spidx != 0 && f.filter(thisr.getRaw())) {
-            recipient.receiveShortestPath(map, sp_nodes, spidx);
+            ShortestPathResult result;
+            result.id = room_id;
+            result.dist = thisdist;
+
+            SPNodeIdx curr = spidx;
+            while (curr != INVALID_SPNODE_IDX && sp_nodes[curr].parent != INVALID_SPNODE_IDX) {
+                result.path.push_back(sp_nodes[curr].lastdir);
+                curr = sp_nodes[curr].parent;
+            }
+            std::reverse(result.path.begin(), result.path.end());
+
+            recipient.receiveShortestPath(map, std::move(result));
             if (--max_hits == 0) {
                 return;
             }

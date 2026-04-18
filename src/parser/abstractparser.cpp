@@ -47,6 +47,7 @@
 #include <utility>
 #include <vector>
 
+#include <QDebug>
 #include <QDesktopServices>
 #include <QMessageLogContext>
 #include <QObject>
@@ -395,7 +396,13 @@ private:
     void virt_receiveShortestPath(const Map &map, ShortestPathResult result) final
     {
         const auto room = map.getRoomHandle(result.id);
-        const auto name = room ? room.getName() : RoomName{};
+        if (!room) {
+            qWarning() << "ShortestPathEmitter::virt_receiveShortestPath received result for "
+                          "non-existent room id"
+                       << result.id;
+            return;
+        }
+        const auto name = room.getName();
 
         parser.sendToUser(SendToUserSourceEnum::FromMMapper,
                           "Distance " + std::to_string(result.dist) + ": " + name.toStdStringUtf8()

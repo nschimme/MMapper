@@ -53,7 +53,7 @@ static constexpr const double COST_DEATHTRAP = 1000.0;
 
 static constexpr const std::size_t INITIAL_NODES_CAPACITY = 1024;
 
-using SPNodeIdx = std::uint32_t;
+using SPNodeIdx = std::size_t;
 static constexpr const SPNodeIdx INVALID_SPNODE_IDX = std::numeric_limits<SPNodeIdx>::max();
 
 struct NODISCARD SPNode final
@@ -82,7 +82,7 @@ NODISCARD static double terrain_cost(const RoomTerrainEnum type)
     return COST_UNDEFINED;
 }
 
-NODISCARD static double getLength(const RawExit &e, const RawRoom &curr, const RawRoom &nextr)
+NODISCARD static double getLength(const RawExit &e, const RoomHandle &curr, const RoomHandle &nextr)
 {
     double cost = terrain_cost(nextr.getTerrainType());
     auto flags = e.getExitFlags();
@@ -139,8 +139,7 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
     future_paths.emplace(0.0, 0);
 
     while (!future_paths.empty()) {
-        const SPNodeIdx spidx = future_paths.top().second;
-        future_paths.pop();
+        const SPNodeIdx spidx = utils::pop_top(future_paths).second;
 
         const RoomId room_id = sp_nodes[spidx].id;
         const double thisdist = sp_nodes[spidx].dist;
@@ -196,7 +195,7 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
                 continue;
             }
 
-            const double length = getLength(e, thisr.getRaw(), nextr.getRaw());
+            const double length = getLength(e, thisr, nextr);
             const double new_dist = thisdist + length;
 
             if (max_dist != 0.0 && new_dist > max_dist) {
@@ -204,7 +203,7 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
             }
 
             sp_nodes.push_back(SPNode{nextrId, spidx, new_dist, dir});
-            future_paths.emplace(new_dist, static_cast<SPNodeIdx>(sp_nodes.size() - 1));
+            future_paths.emplace(new_dist, sp_nodes.size() - 1);
         }
     }
 }

@@ -119,23 +119,46 @@ void TestShortestPath::shortestPathSearchTest()
 
     auto optFilter = RoomFilter::parseRoomFilter("Room 3");
     QVERIFY(optFilter.has_value());
-    TestRecipient recipient;
 
-    MapData::shortestPathSearch(r1_handle, recipient, *optFilter, 1, 0);
+    {
+        TestRecipient recipient;
+        // North + East = 0.75 (Indoors R2) + 0.75 (Indoors R3) = 1.5
+        MapData::shortestPathSearch(r1_handle, recipient, *optFilter, 1, 0);
 
-    QCOMPARE(recipient.results.size(), 1ULL);
-    QCOMPARE(recipient.results[0].path.size(), 2ULL);
-    QCOMPARE(recipient.results[0].path[0], ExitDirEnum::NORTH);
-    QCOMPARE(recipient.results[0].path[1], ExitDirEnum::EAST);
+        QCOMPARE(recipient.results.size(), 1ULL);
+        QCOMPARE(recipient.results[0].path.size(), 2ULL);
+        QCOMPARE(recipient.results[0].path[0], ExitDirEnum::NORTH);
+        QCOMPARE(recipient.results[0].path[1], ExitDirEnum::EAST);
+    }
 
     // Test including start room
     auto optStartFilter = RoomFilter::parseRoomFilter("Room 1");
     QVERIFY(optStartFilter.has_value());
-    TestRecipient startRecipient;
-    MapData::shortestPathSearch(r1_handle, startRecipient, *optStartFilter, 10, 0);
-    QCOMPARE(startRecipient.results.size(), 1ULL);
-    QCOMPARE(startRecipient.results[0].id, ir1);
-    QCOMPARE(startRecipient.results[0].path.size(), 0ULL);
+    {
+        TestRecipient startRecipient;
+        MapData::shortestPathSearch(r1_handle, startRecipient, *optStartFilter, 10, 0);
+        QCOMPARE(startRecipient.results.size(), 1ULL);
+        QCOMPARE(startRecipient.results[0].id.asUint32(), ir1.asUint32());
+        QCOMPARE(startRecipient.results[0].path.size(), 0ULL);
+    }
+
+    // Test max_dist cutoff
+    // R1->R2 cost is 0.75 (Indoors)
+    // R2->R3 cost is 0.75 (Indoors)
+    // Total R1->R3 is 1.5
+    {
+        TestRecipient cutoffRecipient;
+        // Limit to 1.0, should reach R2 but not R3.
+        auto optAllFilter = RoomFilter::parseRoomFilter("Room");
+        QVERIFY(optAllFilter.has_value());
+        MapData::shortestPathSearch(r1_handle, cutoffRecipient, *optAllFilter, 10, 1.0);
+
+        // Should have R1 (dist 0) and R2 (dist 0.75)
+        QCOMPARE(cutoffRecipient.results.size(), 2ULL);
+        QCOMPARE(cutoffRecipient.results[0].id.asUint32(), ir1.asUint32());
+        QCOMPARE(cutoffRecipient.results[1].id.asUint32(),
+                 map.findRoomHandle(er2).getId().asUint32());
+    }
 }
 
 QTEST_MAIN(TestShortestPath)

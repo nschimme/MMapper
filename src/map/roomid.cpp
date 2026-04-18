@@ -5,8 +5,9 @@
 
 #include "../global/AnsiOstream.h"
 
-#include <QDebug>
 #include <ostream>
+
+#include <QDebug>
 
 std::ostream &operator<<(std::ostream &os, const RoomId id)
 {

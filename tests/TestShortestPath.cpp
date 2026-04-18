@@ -10,11 +10,11 @@
 #include "../src/mapdata/mapdata.h"
 #include "../src/mapdata/roomfilter.h"
 #include "../src/mapdata/shortestpath.h"
-#include "../src/parser/Abbrev.h"
+#include "../src/parser/AbstractParser-Commands.h"
 
 #include <QtTest/QtTest>
 
-// Stubs for getParserCommandName to avoid linking AbstractParser-Commands.cpp
+// Link-time stubs for getParserCommandName
 Abbrev getParserCommandName(RoomTerrainEnum)
 {
     return Abbrev("terrain", 1);
@@ -60,12 +60,13 @@ Abbrev getParserCommandName(DoorFlagEnum)
     return Abbrev("door", 1);
 }
 
-TestShortestPath::TestShortestPath() = default;
-
-TestShortestPath::~TestShortestPath() = default;
+namespace {
 
 class TestRecipient final : public ShortestPathRecipient
 {
+public:
+    ~TestRecipient() final;
+
 public:
     std::vector<ShortestPathResult> results;
 
@@ -75,6 +76,14 @@ private:
         results.push_back(std::move(result));
     }
 };
+
+TestRecipient::~TestRecipient() = default;
+
+} // namespace
+
+TestShortestPath::TestShortestPath() = default;
+
+TestShortestPath::~TestShortestPath() = default;
 
 void TestShortestPath::shortestPathSearchTest()
 {

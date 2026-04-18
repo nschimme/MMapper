@@ -17,10 +17,39 @@
 
 #include <limits>
 #include <memory>
-#include <queue>
 #include <type_traits>
 #include <utility>
 #include <vector>
+
+#include <queue>
+
+namespace {
+static constexpr const double COST_DEFAULT = 1.0;
+static constexpr const double COST_INDOORS = 0.75;
+static constexpr const double COST_CITY = 0.75;
+static constexpr const double COST_FIELD = 1.5;
+static constexpr const double COST_FOREST = 2.15;
+static constexpr const double COST_HILLS = 2.45;
+static constexpr const double COST_MOUNTAINS = 2.8;
+static constexpr const double COST_SHALLOW = 2.45;
+static constexpr const double COST_WATER = 50.0;
+static constexpr const double COST_RAPIDS = 60.0;
+static constexpr const double COST_UNDERWATER = 100.0;
+static constexpr const double COST_ROAD = 0.85;
+static constexpr const double COST_BRUSH = 1.5;
+static constexpr const double COST_TUNNEL = 0.75;
+static constexpr const double COST_CAVERN = 0.75;
+
+static constexpr const double COST_RANDOM_DAMAGE_FALL = 30.0;
+static constexpr const double COST_DOOR = 1.0;
+static constexpr const double COST_CLIMB = 2.0;
+static constexpr const double COST_NOT_RIDABLE = 3.0;
+static constexpr const double COST_DISMOUNT = 4.0;
+static constexpr const double COST_ROAD_ADJUSTMENT = 0.1;
+static constexpr const double COST_DEATHTRAP = 1000.0;
+
+static constexpr const std::size_t INITIAL_NODES_CAPACITY = 1024;
+} // namespace
 
 ShortestPathRecipient::~ShortestPathRecipient() = default;
 
@@ -28,38 +57,38 @@ NODISCARD static double terrain_cost(const RoomTerrainEnum type)
 {
     switch (type) {
     case RoomTerrainEnum::UNDEFINED:
-        return 1.0; // undefined
+        return COST_DEFAULT;
     case RoomTerrainEnum::INDOORS:
-        return 0.75; // indoors
+        return COST_INDOORS;
     case RoomTerrainEnum::CITY:
-        return 0.75; // city
+        return COST_CITY;
     case RoomTerrainEnum::FIELD:
-        return 1.5; // field
+        return COST_FIELD;
     case RoomTerrainEnum::FOREST:
-        return 2.15; // forest
+        return COST_FOREST;
     case RoomTerrainEnum::HILLS:
-        return 2.45; // hills
+        return COST_HILLS;
     case RoomTerrainEnum::MOUNTAINS:
-        return 2.8; // mountains
+        return COST_MOUNTAINS;
     case RoomTerrainEnum::SHALLOW:
-        return 2.45; // shallow
+        return COST_SHALLOW;
     case RoomTerrainEnum::WATER:
-        return 50.0; // water
+        return COST_WATER;
     case RoomTerrainEnum::RAPIDS:
-        return 60.0; // rapids
+        return COST_RAPIDS;
     case RoomTerrainEnum::UNDERWATER:
-        return 100.0; // underwater
+        return COST_UNDERWATER;
     case RoomTerrainEnum::ROAD:
-        return 0.85; // road
+        return COST_ROAD;
     case RoomTerrainEnum::BRUSH:
-        return 1.5; // brush
+        return COST_BRUSH;
     case RoomTerrainEnum::TUNNEL:
-        return 0.75; // tunnel
+        return COST_TUNNEL;
     case RoomTerrainEnum::CAVERN:
-        return 0.75; // cavern
+        return COST_CAVERN;
     }
 
-    return 1.0;
+    return COST_DEFAULT;
 }
 
 NODISCARD static double getLength(const RawExit &e, const RawRoom &curr, const RawRoom &nextr)
@@ -67,26 +96,26 @@ NODISCARD static double getLength(const RawExit &e, const RawRoom &curr, const R
     double cost = terrain_cost(nextr.getTerrainType());
     auto flags = e.getExitFlags();
     if (flags.isRandom() || flags.isDamage() || flags.isFall()) {
-        cost += 30;
+        cost += COST_RANDOM_DAMAGE_FALL;
     }
     if (flags.isDoor()) {
-        cost += 1;
+        cost += COST_DOOR;
     }
     if (flags.isClimb()) {
-        cost += 2;
+        cost += COST_CLIMB;
     }
     if (nextr.getRidableType() == RoomRidableEnum::NOT_RIDABLE) {
-        cost += 3;
+        cost += COST_NOT_RIDABLE;
         // One non-ridable room means walking two rooms, plus dismount/mount.
         if (curr.getRidableType() != RoomRidableEnum::NOT_RIDABLE) {
-            cost += 4;
+            cost += COST_DISMOUNT;
         }
     }
-    if (flags.isRoad()) { // Not sure if this is appropriate.
-        cost -= 0.1;
+    if (flags.isRoad()) {
+        cost -= COST_ROAD_ADJUSTMENT;
     }
     if (nextr.getLoadFlags().contains(RoomLoadFlagEnum::DEATHTRAP)) {
-        cost += 1000.0;
+        cost += COST_DEATHTRAP;
     }
     return cost;
 }
@@ -114,7 +143,7 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
     using DistIdx = std::pair<double, int>;
     std::priority_queue<DistIdx, std::vector<DistIdx>, std::greater<DistIdx>> future_paths;
 
-    sp_nodes.reserve(1024);
+    sp_nodes.reserve(INITIAL_NODES_CAPACITY);
     sp_nodes.push_back(SPNode{origin.getId(), -1, 0, ExitDirEnum::UNKNOWN});
     future_paths.emplace(0.0, 0);
 
@@ -122,8 +151,9 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
         const int spindex = future_paths.top().second;
         future_paths.pop();
 
-        const RoomId room_id = sp_nodes[spindex].id;
-        const double thisdist = sp_nodes[spindex].dist;
+        const std::size_t spidx = static_cast<std::size_t>(spindex);
+        const RoomId room_id = sp_nodes[spidx].id;
+        const double thisdist = sp_nodes[spidx].dist;
 
         if (room_id.asUint32() < visited.size()) {
             if (visited[room_id.asUint32()]) {
@@ -137,7 +167,8 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
             continue;
         }
 
-        if (f.filter(thisr.getRaw())) {
+        // Omit starting room on purpose
+        if (spindex != 0 && f.filter(thisr.getRaw())) {
             recipient.receiveShortestPath(map, sp_nodes, spindex);
             if (--max_hits == 0) {
                 return;

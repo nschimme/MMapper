@@ -24,7 +24,10 @@ public:
     virtual ~ShortestPathRecipient();
 
 private:
-    virtual void virt_receiveShortestPath(const Map &map, const std::vector<SPNode> &spnodes, int endpoint) = 0;
+    virtual void virt_receiveShortestPath(const Map &map,
+                                          const std::vector<SPNode> &spnodes,
+                                          int endpoint)
+        = 0;
 
 public:
     void receiveShortestPath(const Map &map, const std::vector<SPNode> &spnodes, const int endpoint)

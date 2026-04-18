@@ -17,17 +17,10 @@
 
 #include <limits>
 #include <memory>
+#include <queue>
 #include <type_traits>
 #include <utility>
-
-#include <QBasicMutex>
-#include <QSet>
-#include <QVector>
-#include <queue>
-
-// Movement costs per terrain type.
-// Same order as the RoomTerrainEnum enum.
-// Values taken from https://github.com/nstockton/tintin-mume/blob/master/mapperproxy/mapper/constants.py
+#include <vector>
 
 ShortestPathRecipient::~ShortestPathRecipient() = default;
 
@@ -69,7 +62,7 @@ NODISCARD static double terrain_cost(const RoomTerrainEnum type)
     return 1.0;
 }
 
-NODISCARD static double getLength(const RawExit &e, const RoomHandle &curr, const RoomHandle &nextr)
+NODISCARD static double getLength(const RawExit &e, const RawRoom &curr, const RawRoom &nextr)
 {
     double cost = terrain_cost(nextr.getTerrainType());
     auto flags = e.getExitFlags();
@@ -116,36 +109,48 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
 
     const Map &map = origin.getMap();
 
-    QVector<SPNode> sp_nodes;
-    RoomIdSet visited;
-    std::priority_queue<std::pair<double, int>> future_paths;
-    sp_nodes.push_back(SPNode{origin, -1, 0, ExitDirEnum::UNKNOWN});
+    std::vector<SPNode> sp_nodes;
+    std::vector<uint8_t> visited(map.getRoomsCount() + 1, 0);
+    using DistIdx = std::pair<double, int>;
+    std::priority_queue<DistIdx, std::vector<DistIdx>, std::greater<DistIdx>> future_paths;
+
+    sp_nodes.reserve(1024);
+    sp_nodes.push_back(SPNode{origin.getId(), -1, 0, ExitDirEnum::UNKNOWN});
     future_paths.emplace(0.0, 0);
+
     while (!future_paths.empty()) {
-        const int spindex = utils::pop_top(future_paths).second;
-        // This MUST be a copy, otherwise it can be invalidated by push_back()
-        // on sp_nodes (which can cause reallocation or detachment).
-        const auto thisr = sp_nodes[spindex].r;
-        const auto thisdist = sp_nodes[spindex].dist;
-        auto room_id = thisr.getId();
-        if (visited.contains(room_id)) {
+        const int spindex = future_paths.top().second;
+        future_paths.pop();
+
+        const RoomId room_id = sp_nodes[spindex].id;
+        const double thisdist = sp_nodes[spindex].dist;
+
+        if (room_id.asUint32() < visited.size()) {
+            if (visited[room_id.asUint32()]) {
+                continue;
+            }
+            visited[room_id.asUint32()] = 1;
+        }
+
+        const auto &thisr = map.getRoomHandle(room_id);
+        if (!thisr) {
             continue;
         }
-        visited.insert(room_id);
+
         if (f.filter(thisr.getRaw())) {
-            recipient.receiveShortestPath(sp_nodes, spindex);
+            recipient.receiveShortestPath(map, sp_nodes, spindex);
             if (--max_hits == 0) {
                 return;
             }
         }
+
         if ((max_dist != 0.0) && thisdist > max_dist) {
             return;
         }
+
         for (const ExitDirEnum dir : ALL_EXITS7) {
             const auto &e = thisr.getExit(dir);
             if (!e.outIsUnique()) {
-                // 0: Not mapped
-                // 2+: Random, so no clear directions; skip it.
                 continue;
             }
             if (!e.exitIsExit()) {
@@ -153,29 +158,24 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
             }
 
             const RoomId nextrId = e.getOutgoingSet().first();
+            if (nextrId.asUint32() < visited.size() && visited[nextrId.asUint32()]) {
+                continue;
+            }
+
             const auto &nextr = map.getRoomHandle(nextrId);
-
             if (!nextr) {
-                /* DEAD CODE */
-                qWarning() << "Source room" << thisr.getIdExternal().asUint32() << "("
-                           << thisr.getName().toQString()
-                           << ") dir=" << mmqt::toQStringLatin1(to_string_view(dir))
-                           << "has target room with internal identifier" << nextrId.asUint32()
-                           << "which does not exist!";
-                qWarning() << mmqt::toQStringUtf8(thisr.toStdStringUtf8());
-                // This would cause a segfault in the old map scheme, but maps are now rigorously
-                // validated, so it should be impossible to have an exit to a room that does
-                // not exist.
-                assert(false);
-                continue;
-            }
-            if (visited.contains(nextr.getId())) {
                 continue;
             }
 
-            const double length = getLength(e, thisr, nextr);
-            sp_nodes.push_back(SPNode{nextr, spindex, thisdist + length, dir});
-            future_paths.emplace(-(thisdist + length), sp_nodes.size() - 1);
+            const double length = getLength(e, thisr.getRaw(), nextr.getRaw());
+            const double new_dist = thisdist + length;
+
+            if (max_dist != 0.0 && new_dist > max_dist) {
+                continue;
+            }
+
+            sp_nodes.push_back(SPNode{nextrId, spindex, new_dist, dir});
+            future_paths.emplace(new_dist, static_cast<int>(sp_nodes.size() - 1));
         }
     }
 }

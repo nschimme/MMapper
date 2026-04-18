@@ -3,19 +3,17 @@
 // Copyright (C) 2019 The MMapper Authors
 // Author: 'Elval' <ethorondil@gmail.com> (Elval)
 
-#include "../map/DoorFlags.h"
 #include "../map/ExitDirection.h"
-#include "../map/ExitFieldVariant.h"
-#include "../map/ExitFlags.h"
-#include "../parser/abstractparser.h"
+#include "../map/roomid.h"
 
-#include <QSet>
-#include <QVector>
+#include <vector>
+
+class Map;
 
 struct NODISCARD SPNode final
 {
-    RoomHandle r;
-    int parent = 0;
+    RoomId id;
+    int parent = -1;
     double dist = 0.0;
     ExitDirEnum lastdir = ExitDirEnum::NONE;
 };
@@ -26,11 +24,11 @@ public:
     virtual ~ShortestPathRecipient();
 
 private:
-    virtual void virt_receiveShortestPath(const QVector<SPNode> &spnodes, int endpoint) = 0;
+    virtual void virt_receiveShortestPath(const Map &map, const std::vector<SPNode> &spnodes, int endpoint) = 0;
 
 public:
-    void receiveShortestPath(const QVector<SPNode> &spnodes, const int endpoint)
+    void receiveShortestPath(const Map &map, const std::vector<SPNode> &spnodes, const int endpoint)
     {
-        virt_receiveShortestPath(spnodes, endpoint);
+        virt_receiveShortestPath(map, spnodes, endpoint);
     }
 };

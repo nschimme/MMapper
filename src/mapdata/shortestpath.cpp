@@ -24,7 +24,7 @@
 #include <queue>
 
 namespace {
-static constexpr const double COST_DEFAULT = 1.0;
+static constexpr const double COST_UNDEFINED = 1.0;
 static constexpr const double COST_INDOORS = 0.75;
 static constexpr const double COST_CITY = 0.75;
 static constexpr const double COST_FIELD = 1.5;
@@ -55,40 +55,16 @@ ShortestPathRecipient::~ShortestPathRecipient() = default;
 
 NODISCARD static double terrain_cost(const RoomTerrainEnum type)
 {
+#define X_CASE(x) \
+    case RoomTerrainEnum::x: \
+        return COST_##x;
+
     switch (type) {
-    case RoomTerrainEnum::UNDEFINED:
-        return COST_DEFAULT;
-    case RoomTerrainEnum::INDOORS:
-        return COST_INDOORS;
-    case RoomTerrainEnum::CITY:
-        return COST_CITY;
-    case RoomTerrainEnum::FIELD:
-        return COST_FIELD;
-    case RoomTerrainEnum::FOREST:
-        return COST_FOREST;
-    case RoomTerrainEnum::HILLS:
-        return COST_HILLS;
-    case RoomTerrainEnum::MOUNTAINS:
-        return COST_MOUNTAINS;
-    case RoomTerrainEnum::SHALLOW:
-        return COST_SHALLOW;
-    case RoomTerrainEnum::WATER:
-        return COST_WATER;
-    case RoomTerrainEnum::RAPIDS:
-        return COST_RAPIDS;
-    case RoomTerrainEnum::UNDERWATER:
-        return COST_UNDERWATER;
-    case RoomTerrainEnum::ROAD:
-        return COST_ROAD;
-    case RoomTerrainEnum::BRUSH:
-        return COST_BRUSH;
-    case RoomTerrainEnum::TUNNEL:
-        return COST_TUNNEL;
-    case RoomTerrainEnum::CAVERN:
-        return COST_CAVERN;
+        XFOREACH_RoomTerrainEnum(X_CASE)
     }
 
-    return COST_DEFAULT;
+#undef X_CASE
+    return COST_UNDEFINED;
 }
 
 NODISCARD static double getLength(const RawExit &e, const RawRoom &curr, const RawRoom &nextr)

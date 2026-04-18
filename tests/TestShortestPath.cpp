@@ -115,6 +115,7 @@ void TestShortestPath::shortestPathSearchTest()
 
     auto r1_handle = map.findRoomHandle(er1);
     QVERIFY(r1_handle.exists());
+    RoomId ir1 = r1_handle.getId();
 
     auto optFilter = RoomFilter::parseRoomFilter("Room 3");
     QVERIFY(optFilter.has_value());
@@ -127,12 +128,14 @@ void TestShortestPath::shortestPathSearchTest()
     QCOMPARE(recipient.results[0].path[0], ExitDirEnum::NORTH);
     QCOMPARE(recipient.results[0].path[1], ExitDirEnum::EAST);
 
-    // Test omitting start room
+    // Test including start room
     auto optStartFilter = RoomFilter::parseRoomFilter("Room 1");
     QVERIFY(optStartFilter.has_value());
     TestRecipient startRecipient;
     MapData::shortestPathSearch(r1_handle, startRecipient, *optStartFilter, 10, 0);
-    QCOMPARE(startRecipient.results.size(), 0ULL);
+    QCOMPARE(startRecipient.results.size(), 1ULL);
+    QCOMPARE(startRecipient.results[0].id, ir1);
+    QCOMPARE(startRecipient.results[0].path.size(), 0ULL);
 }
 
 QTEST_MAIN(TestShortestPath)

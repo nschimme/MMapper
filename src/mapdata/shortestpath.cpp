@@ -155,8 +155,7 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
             continue;
         }
 
-        // Omit starting room on purpose
-        if (spidx != 0 && f.filter(thisr.getRaw())) {
+        if (f.filter(thisr.getRaw())) {
             ShortestPathResult result;
             result.id = room_id;
             result.dist = thisdist;

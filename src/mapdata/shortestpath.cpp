@@ -4,99 +4,111 @@
 
 #include "shortestpath.h"
 
+#include "../global/Timer.h"
 #include "../global/enums.h"
 #include "../global/utils.h"
 #include "../map/ExitDirection.h"
 #include "../map/ExitFlags.h"
+#include "../map/RoomIdSet.h"
 #include "../map/exit.h"
 #include "../map/mmapper2room.h"
 #include "../map/room.h"
 #include "../map/roomid.h"
+#include "GenericFind.h"
 #include "mapdata.h"
 #include "roomfilter.h"
 
+#include <algorithm>
+#include <cstdint>
 #include <limits>
 #include <memory>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
-#include <QBasicMutex>
-#include <QSet>
-#include <QVector>
 #include <queue>
 
-// Movement costs per terrain type.
-// Same order as the RoomTerrainEnum enum.
-// Values taken from https://github.com/nstockton/tintin-mume/blob/master/mapperproxy/mapper/constants.py
+namespace {
+static constexpr const double COST_UNDEFINED = 1.0;
+static constexpr const double COST_INDOORS = 0.75;
+static constexpr const double COST_CITY = 0.75;
+static constexpr const double COST_FIELD = 1.5;
+static constexpr const double COST_FOREST = 2.15;
+static constexpr const double COST_HILLS = 2.45;
+static constexpr const double COST_MOUNTAINS = 2.8;
+static constexpr const double COST_SHALLOW = 2.45;
+static constexpr const double COST_WATER = 50.0;
+static constexpr const double COST_RAPIDS = 60.0;
+static constexpr const double COST_UNDERWATER = 100.0;
+static constexpr const double COST_ROAD = 0.85;
+static constexpr const double COST_BRUSH = 1.5;
+static constexpr const double COST_TUNNEL = 0.75;
+static constexpr const double COST_CAVERN = 0.75;
 
-ShortestPathRecipient::~ShortestPathRecipient() = default;
+static constexpr const double COST_RANDOM_DAMAGE_FALL = 30.0;
+static constexpr const double COST_DOOR = 1.0;
+static constexpr const double COST_CLIMB = 2.0;
+static constexpr const double COST_NOT_RIDABLE = 3.0;
+static constexpr const double COST_DISMOUNT = 4.0;
+static constexpr const double COST_ROAD_BONUS = 0.1;
+static constexpr const double COST_DEATHTRAP = 1000.0;
+
+using SPNodeIdx = std::size_t;
+static constexpr const SPNodeIdx INVALID_SPNODE_IDX = std::numeric_limits<SPNodeIdx>::max();
+static constexpr const std::size_t INITIAL_NODES_CAPACITY = 2048;
+
+struct SPNode final
+{
+    RoomId id;
+    SPNodeIdx parent = INVALID_SPNODE_IDX;
+    double dist = 0.0;
+    ExitDirEnum lastdir = ExitDirEnum::UNKNOWN;
+};
 
 NODISCARD static double terrain_cost(const RoomTerrainEnum type)
 {
     switch (type) {
-    case RoomTerrainEnum::UNDEFINED:
-        return 1.0; // undefined
-    case RoomTerrainEnum::INDOORS:
-        return 0.75; // indoors
-    case RoomTerrainEnum::CITY:
-        return 0.75; // city
-    case RoomTerrainEnum::FIELD:
-        return 1.5; // field
-    case RoomTerrainEnum::FOREST:
-        return 2.15; // forest
-    case RoomTerrainEnum::HILLS:
-        return 2.45; // hills
-    case RoomTerrainEnum::MOUNTAINS:
-        return 2.8; // mountains
-    case RoomTerrainEnum::SHALLOW:
-        return 2.45; // shallow
-    case RoomTerrainEnum::WATER:
-        return 50.0; // water
-    case RoomTerrainEnum::RAPIDS:
-        return 60.0; // rapids
-    case RoomTerrainEnum::UNDERWATER:
-        return 100.0; // underwater
-    case RoomTerrainEnum::ROAD:
-        return 0.85; // road
-    case RoomTerrainEnum::BRUSH:
-        return 1.5; // brush
-    case RoomTerrainEnum::TUNNEL:
-        return 0.75; // tunnel
-    case RoomTerrainEnum::CAVERN:
-        return 0.75; // cavern
+#define X_CASE(NAME) \
+    case RoomTerrainEnum::NAME: \
+        return COST_##NAME;
+        XFOREACH_RoomTerrainEnum(X_CASE)
+#undef X_CASE
     }
 
-    return 1.0;
+    return COST_UNDEFINED;
 }
 
 NODISCARD static double getLength(const RawExit &e, const RoomHandle &curr, const RoomHandle &nextr)
 {
     double cost = terrain_cost(nextr.getTerrainType());
-    auto flags = e.getExitFlags();
+    const auto flags = e.getExitFlags();
     if (flags.isRandom() || flags.isDamage() || flags.isFall()) {
-        cost += 30;
+        cost += COST_RANDOM_DAMAGE_FALL;
     }
     if (flags.isDoor()) {
-        cost += 1;
+        cost += COST_DOOR;
     }
     if (flags.isClimb()) {
-        cost += 2;
+        cost += COST_CLIMB;
     }
     if (nextr.getRidableType() == RoomRidableEnum::NOT_RIDABLE) {
-        cost += 3;
+        cost += COST_NOT_RIDABLE;
         // One non-ridable room means walking two rooms, plus dismount/mount.
         if (curr.getRidableType() != RoomRidableEnum::NOT_RIDABLE) {
-            cost += 4;
+            cost += COST_DISMOUNT;
         }
     }
-    if (flags.isRoad()) { // Not sure if this is appropriate.
-        cost -= 0.1;
+    if (flags.isRoad()) {
+        cost -= COST_ROAD_BONUS;
     }
     if (nextr.getLoadFlags().contains(RoomLoadFlagEnum::DEATHTRAP)) {
-        cost += 1000.0;
+        cost += COST_DEATHTRAP;
     }
     return cost;
 }
+} // namespace
+
+ShortestPathRecipient::~ShortestPathRecipient() = default;
 
 void MapData::shortestPathSearch(const RoomHandle &origin,
                                  ShortestPathRecipient &recipient,
@@ -104,6 +116,8 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
                                  int max_hits,
                                  const double max_dist)
 {
+    DECL_TIMER(t, "MapData::shortestPathSearch");
+
     // the search stops if --max_hits == 0, so max_hits must be greater than 0,
     // but the default parameter is -1.
     assert(max_hits > 0 || max_hits == -1);
@@ -116,36 +130,71 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
 
     const Map &map = origin.getMap();
 
-    QVector<SPNode> sp_nodes;
+    // Parallel pre-filtering to identify target rooms.
+    // This reduces the per-step overhead of applying the filter during the Dijkstra search.
+    const RoomIdSet targets = ::genericFind(map, f);
+    if (targets.empty()) {
+        return;
+    }
+
+    std::vector<SPNode> sp_nodes;
     RoomIdSet visited;
-    std::priority_queue<std::pair<double, int>> future_paths;
-    sp_nodes.push_back(SPNode{origin, -1, 0, ExitDirEnum::UNKNOWN});
+    using DistIdx = std::pair<double, SPNodeIdx>;
+    std::priority_queue<DistIdx, std::vector<DistIdx>, std::greater<DistIdx>> future_paths;
+
+    sp_nodes.reserve(INITIAL_NODES_CAPACITY);
+    sp_nodes.push_back(SPNode{origin.getId(), INVALID_SPNODE_IDX, 0, ExitDirEnum::UNKNOWN});
     future_paths.emplace(0.0, 0);
+
     while (!future_paths.empty()) {
-        const int spindex = utils::pop_top(future_paths).second;
-        // REVISIT: Should thisr be a copy or a reference?
-        // (can sp_nodes be modified during the lifetime of the reference?)
-        const auto &thisr = sp_nodes[spindex].r;
-        const auto thisdist = sp_nodes[spindex].dist;
-        auto room_id = thisr.getId();
+        const SPNodeIdx spidx = utils::pop_top(future_paths).second;
+
+        const RoomId room_id = sp_nodes[spidx].id;
+        const double thisdist = sp_nodes[spidx].dist;
+
         if (visited.contains(room_id)) {
             continue;
         }
         visited.insert(room_id);
-        if (f.filter(thisr.getRaw())) {
-            recipient.receiveShortestPath(sp_nodes, spindex);
+
+        const auto &thisr = map.getRoomHandle(room_id);
+        if (!thisr) {
+            continue;
+        }
+
+        if (targets.contains(room_id)) {
+            ShortestPathResult result;
+            result.id = room_id;
+            result.dist = thisdist;
+
+            // Reconstruct path by counting steps first to avoid std::reverse.
+            std::size_t path_size = 0;
+            SPNodeIdx curr = spidx;
+            while (curr != INVALID_SPNODE_IDX && sp_nodes[curr].parent != INVALID_SPNODE_IDX) {
+                path_size++;
+                curr = sp_nodes[curr].parent;
+            }
+
+            result.path.resize(path_size);
+            curr = spidx;
+            for (std::size_t i = 0; i < path_size; ++i) {
+                result.path[path_size - 1 - i] = sp_nodes[curr].lastdir;
+                curr = sp_nodes[curr].parent;
+            }
+
+            recipient.receiveShortestPath(map, std::move(result));
             if (--max_hits == 0) {
                 return;
             }
         }
+
         if ((max_dist != 0.0) && thisdist > max_dist) {
             return;
         }
+
         for (const ExitDirEnum dir : ALL_EXITS7) {
             const auto &e = thisr.getExit(dir);
             if (!e.outIsUnique()) {
-                // 0: Not mapped
-                // 2+: Random, so no clear directions; skip it.
                 continue;
             }
             if (!e.exitIsExit()) {
@@ -153,29 +202,31 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
             }
 
             const RoomId nextrId = e.getOutgoingSet().first();
-            const auto &nextr = map.getRoomHandle(nextrId);
+            if (visited.contains(nextrId)) {
+                continue;
+            }
 
+            const auto &nextr = map.getRoomHandle(nextrId);
             if (!nextr) {
-                /* DEAD CODE */
                 qWarning() << "Source room" << thisr.getIdExternal().asUint32() << "("
                            << thisr.getName().toQString()
                            << ") dir=" << mmqt::toQStringLatin1(to_string_view(dir))
                            << "has target room with internal identifier" << nextrId.asUint32()
                            << "which does not exist!";
                 qWarning() << mmqt::toQStringUtf8(thisr.toStdStringUtf8());
-                // This would cause a segfault in the old map scheme, but maps are now rigorously
-                // validated, so it should be impossible to have an exit to a room that does
-                // not exist.
                 assert(false);
-                continue;
-            }
-            if (visited.contains(nextr.getId())) {
                 continue;
             }
 
             const double length = getLength(e, thisr, nextr);
-            sp_nodes.push_back(SPNode{nextr, spindex, thisdist + length, dir});
-            future_paths.emplace(-(thisdist + length), sp_nodes.size() - 1);
+            const double new_dist = thisdist + length;
+
+            if (max_dist != 0.0 && new_dist > max_dist) {
+                continue;
+            }
+
+            sp_nodes.push_back(SPNode{nextrId, spidx, new_dist, dir});
+            future_paths.emplace(new_dist, sp_nodes.size() - 1);
         }
     }
 }

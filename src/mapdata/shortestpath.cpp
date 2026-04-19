@@ -4,6 +4,7 @@
 
 #include "shortestpath.h"
 
+#include "../global/Timer.h"
 #include "../global/enums.h"
 #include "../global/utils.h"
 #include "../map/ExitDirection.h"
@@ -13,6 +14,7 @@
 #include "../map/mmapper2room.h"
 #include "../map/room.h"
 #include "../map/roomid.h"
+#include "GenericFind.h"
 #include "mapdata.h"
 #include "roomfilter.h"
 
@@ -51,7 +53,7 @@ static constexpr const double COST_DISMOUNT = 4.0;
 static constexpr const double COST_ROAD_BONUS = 0.1;
 static constexpr const double COST_DEATHTRAP = 1000.0;
 
-using SPNodeIdx = std::uint32_t;
+using SPNodeIdx = std::size_t;
 static constexpr const SPNodeIdx INVALID_SPNODE_IDX = std::numeric_limits<SPNodeIdx>::max();
 static constexpr const std::size_t INITIAL_NODES_CAPACITY = 2048;
 
@@ -66,7 +68,7 @@ struct SPNode final
 NODISCARD static double terrain_cost(const RoomTerrainEnum type)
 {
     switch (type) {
-#define X_CASE(NAME)           \
+#define X_CASE(NAME) \
     case RoomTerrainEnum::NAME: \
         return COST_##NAME;
         XFOREACH_RoomTerrainEnum(X_CASE)
@@ -114,6 +116,8 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
                                  int max_hits,
                                  const double max_dist)
 {
+    DECL_TIMER(t, "MapData::shortestPathSearch");
+
     // the search stops if --max_hits == 0, so max_hits must be greater than 0,
     // but the default parameter is -1.
     assert(max_hits > 0 || max_hits == -1);
@@ -125,6 +129,13 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
     }
 
     const Map &map = origin.getMap();
+
+    // Parallel pre-filtering to identify target rooms.
+    // This reduces the per-step overhead of applying the filter during the Dijkstra search.
+    const RoomIdSet targets = ::genericFind(map, f);
+    if (targets.empty()) {
+        return;
+    }
 
     std::vector<SPNode> sp_nodes;
     RoomIdSet visited;
@@ -151,17 +162,25 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
             continue;
         }
 
-        if (f.filter(thisr.getRaw())) {
+        if (targets.contains(room_id)) {
             ShortestPathResult result;
             result.id = room_id;
             result.dist = thisdist;
 
+            // Reconstruct path by counting steps first to avoid std::reverse.
+            std::size_t path_size = 0;
             SPNodeIdx curr = spidx;
             while (curr != INVALID_SPNODE_IDX && sp_nodes[curr].parent != INVALID_SPNODE_IDX) {
-                result.path.push_back(sp_nodes[curr].lastdir);
+                path_size++;
                 curr = sp_nodes[curr].parent;
             }
-            std::reverse(result.path.begin(), result.path.end());
+
+            result.path.resize(path_size);
+            curr = spidx;
+            for (std::size_t i = 0; i < path_size; ++i) {
+                result.path[path_size - 1 - i] = sp_nodes[curr].lastdir;
+                curr = sp_nodes[curr].parent;
+            }
 
             recipient.receiveShortestPath(map, std::move(result));
             if (--max_hits == 0) {
@@ -189,6 +208,13 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
 
             const auto &nextr = map.getRoomHandle(nextrId);
             if (!nextr) {
+                qWarning() << "Source room" << thisr.getIdExternal().asUint32() << "("
+                           << thisr.getName().toQString()
+                           << ") dir=" << mmqt::toQStringLatin1(to_string_view(dir))
+                           << "has target room with internal identifier" << nextrId.asUint32()
+                           << "which does not exist!";
+                qWarning() << mmqt::toQStringUtf8(thisr.toStdStringUtf8());
+                assert(false);
                 continue;
             }
 
@@ -200,7 +226,7 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
             }
 
             sp_nodes.push_back(SPNode{nextrId, spidx, new_dist, dir});
-            future_paths.emplace(new_dist, static_cast<SPNodeIdx>(sp_nodes.size() - 1));
+            future_paths.emplace(new_dist, sp_nodes.size() - 1);
         }
     }
 }

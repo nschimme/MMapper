@@ -7,6 +7,6 @@
 
 void ServerIdMap::printStats(ProgressCounter & /*pc*/, AnsiOstream &os) const
 {
-    static constexpr auto green = getRawAnsi(AnsiColor16Enum::green);
+    static const auto green = getRawAnsi(AnsiColor16Enum::green);
     os << "Unique server ids assigned: " << ColoredValue{green, this->size()} << ".\n";
 }

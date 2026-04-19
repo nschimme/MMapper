@@ -167,6 +167,8 @@ void ClientWidget::initDisplayWidget()
         }
         void virt_returnFocusToInput() final { getSelf().getInput().setFocus(); }
         void virt_showPreview(bool visible) final { getSelf().getPreview().setVisible(visible); }
+        void virt_sendUserInput(const QString &msg) final { getSelf().getTelnet().sendToMud(msg); }
+        void virt_setPrompt(const QString &msg) final { getSelf().getInput().setPrompt(msg); }
     };
     auto &out = m_pipeline.outputs.displayWidgetOutputs;
     out = std::make_unique<LocalDisplayWidgetOutputs>(*this);
@@ -277,7 +279,7 @@ bool ClientWidget::isUsingClient() const
 
 void ClientWidget::displayReconnectHint()
 {
-    constexpr const auto whiteOnCyan = getRawAnsi(AnsiColor16Enum::white, AnsiColor16Enum::cyan);
+    const auto whiteOnCyan = getRawAnsi(AnsiColor16Enum::white, AnsiColor16Enum::cyan);
     std::stringstream oss;
     AnsiOstream aos{oss};
     aos.writeWithColor(whiteOnCyan, "\n\n\nPress return to reconnect.\n");

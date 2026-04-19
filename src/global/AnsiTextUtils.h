@@ -1,4 +1,5 @@
 #pragma once
+#include <QtGlobal>
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2021 The MMapper Authors
 
@@ -327,17 +328,19 @@ struct NODISCARD RawAnsi final
     AnsiColorVariant fg;
     AnsiColorVariant bg;
     AnsiColorVariant ul;
+    QString url;
+    QString urlId;
 
 private:
     AnsiStyleFlags m_flags; // only bits 0..9 are used; the other 6 are reserved
     AnsiUnderlineStyleEnum m_underlineStyle = AnsiUnderlineStyleEnum::None;
 
 public:
-    constexpr RawAnsi() = default;
-    constexpr RawAnsi(const AnsiStyleFlags flags,
-                      const AnsiColorVariant fg_,
-                      const AnsiColorVariant bg_,
-                      const AnsiColorVariant ul_)
+    RawAnsi() = default;
+    RawAnsi(const AnsiStyleFlags flags,
+            const AnsiColorVariant fg_,
+            const AnsiColorVariant bg_,
+            const AnsiColorVariant ul_)
         : fg{fg_}
         , bg{bg_}
         , ul{ul_}
@@ -351,25 +354,25 @@ public:
     }
 
 public:
-    NODISCARD constexpr bool hasForegroundColor() const { return !fg.hasDefaultColor(); }
-    NODISCARD constexpr bool hasBackgroundColor() const { return !bg.hasDefaultColor(); }
-    NODISCARD constexpr bool hasUnderlineColor() const { return !ul.hasDefaultColor(); }
+    NODISCARD bool hasForegroundColor() const { return !fg.hasDefaultColor(); }
+    NODISCARD bool hasBackgroundColor() const { return !bg.hasDefaultColor(); }
+    NODISCARD bool hasUnderlineColor() const { return !ul.hasDefaultColor(); }
 
 public:
 #define X_DECL_WITH(_number, _lower, _UPPER, _Snake) \
-    NODISCARD constexpr RawAnsi with##_Snake() const \
+    NODISCARD RawAnsi with##_Snake() const \
     { \
         auto copy = *this; \
         copy.set##_Snake(); \
         return copy; \
     } \
-    NODISCARD constexpr RawAnsi without##_Snake() const \
+    NODISCARD RawAnsi without##_Snake() const \
     { \
         auto copy = *this; \
         copy.clear##_Snake(); \
         return copy; \
     } \
-    NODISCARD constexpr RawAnsi withToggled##_Snake() const \
+    NODISCARD RawAnsi withToggled##_Snake() const \
     { \
         auto copy = *this; \
         copy.toggle##_Snake(); \
@@ -379,25 +382,25 @@ public:
 #undef X_DECL_WITH
 
 public:
-    NODISCARD constexpr RawAnsi withForeground(const AnsiColorVariant var) const
+    NODISCARD RawAnsi withForeground(const AnsiColorVariant var) const
     {
         auto copy = *this;
         copy.fg = var;
         return copy;
     }
-    NODISCARD constexpr RawAnsi withBackground(const AnsiColorVariant var) const
+    NODISCARD RawAnsi withBackground(const AnsiColorVariant var) const
     {
         auto copy = *this;
         copy.bg = var;
         return copy;
     }
-    NODISCARD constexpr RawAnsi withUnderlineColor(const AnsiColorVariant var) const
+    NODISCARD RawAnsi withUnderlineColor(const AnsiColorVariant var) const
     {
         auto copy = *this;
         copy.ul = var;
         return copy;
     }
-    NODISCARD constexpr RawAnsi withUnderlineStyle(const AnsiUnderlineStyleEnum style) const
+    NODISCARD RawAnsi withUnderlineStyle(const AnsiUnderlineStyleEnum style) const
     {
         auto copy = *this;
         copy.setUnderlineStyle(style);
@@ -405,32 +408,29 @@ public:
     }
 
 public:
-    NODISCARD constexpr RawAnsi withForeground(const AnsiColor16Enum newColor) const
+    NODISCARD RawAnsi withForeground(const AnsiColor16Enum newColor) const
     {
         return withForeground(AnsiColorVariant{newColor});
     }
-    NODISCARD constexpr RawAnsi withBackground(const AnsiColor16Enum newColor) const
+    NODISCARD RawAnsi withBackground(const AnsiColor16Enum newColor) const
     {
         return withBackground(AnsiColorVariant{newColor});
     }
-    NODISCARD constexpr RawAnsi withUnderlineColor(const AnsiColor16Enum newColor) const
+    NODISCARD RawAnsi withUnderlineColor(const AnsiColor16Enum newColor) const
     {
         return withUnderlineColor(AnsiColorVariant{newColor});
     }
 
 public:
 #define X_DECL_ACCESSORS(_number, _lower, _UPPER, _Snake) \
-    NODISCARD constexpr bool has##_Snake() const \
-    { \
-        return m_flags.contains(AnsiStyleFlagEnum::_Snake); \
-    } \
-    constexpr void set##_Snake() { m_flags.insert(AnsiStyleFlagEnum::_Snake); } \
-    constexpr void clear##_Snake() { m_flags.remove(AnsiStyleFlagEnum::_Snake); }
+    NODISCARD bool has##_Snake() const { return m_flags.contains(AnsiStyleFlagEnum::_Snake); } \
+    void set##_Snake() { m_flags.insert(AnsiStyleFlagEnum::_Snake); } \
+    void clear##_Snake() { m_flags.remove(AnsiStyleFlagEnum::_Snake); }
     XFOREACH_ANSI_STYLE_EXCEPT_UNDERLINE(X_DECL_ACCESSORS)
 #undef X_DECL_ACCESSORS
 
 #define X_DECL_ACCESSORS(_number, _lower, _UPPER, _Snake) \
-    constexpr void toggle##_Snake() \
+    void toggle##_Snake() \
     { \
         if (has##_Snake()) { \
             clear##_Snake(); \
@@ -442,19 +442,16 @@ public:
 #undef X_DECL_ACCESSORS
 
 public:
-    NODISCARD constexpr bool hasUnderline() const
-    {
-        return m_flags.contains(AnsiStyleFlagEnum::Underline);
-    }
-    constexpr void setUnderline() { setUnderlineStyle(AnsiUnderlineStyleEnum::Normal); }
-    constexpr void clearUnderline()
+    NODISCARD bool hasUnderline() const { return m_flags.contains(AnsiStyleFlagEnum::Underline); }
+    void setUnderline() { setUnderlineStyle(AnsiUnderlineStyleEnum::Normal); }
+    void clearUnderline()
     {
         m_flags.remove(AnsiStyleFlagEnum::Underline);
         m_underlineStyle = AnsiUnderlineStyleEnum::None;
     }
 
 public:
-    constexpr void setUnderlineStyle(const AnsiUnderlineStyleEnum style)
+    void setUnderlineStyle(const AnsiUnderlineStyleEnum style)
     {
         if (style == AnsiUnderlineStyleEnum::None) {
             clearUnderline();
@@ -465,14 +462,11 @@ public:
     }
 
 public:
-    NODISCARD constexpr AnsiStyleFlags getFlags() const { return m_flags; }
-    NODISCARD constexpr AnsiUnderlineStyleEnum getUnderlineStyle() const
-    {
-        return m_underlineStyle;
-    }
+    NODISCARD AnsiStyleFlags getFlags() const { return m_flags; }
+    NODISCARD AnsiUnderlineStyleEnum getUnderlineStyle() const { return m_underlineStyle; }
 
 public:
-    constexpr void setFlag(const AnsiStyleFlagEnum flag)
+    void setFlag(const AnsiStyleFlagEnum flag)
     {
 #define X_CASE(_number, _lower, _UPPER, _Snake) \
     case (AnsiStyleFlagEnum::_Snake): \
@@ -486,7 +480,7 @@ public:
         std::abort();
 #undef X_CASE
     }
-    constexpr void removeFlag(const AnsiStyleFlagEnum flag)
+    void removeFlag(const AnsiStyleFlagEnum flag)
     {
 #define X_CASE(_number, _lower, _UPPER, _Snake) \
     case (AnsiStyleFlagEnum::_Snake): \
@@ -502,12 +496,12 @@ public:
     }
 
 public:
-    NODISCARD constexpr bool operator==(const RawAnsi &rhs) const
+    NODISCARD bool operator==(const RawAnsi &rhs) const
     {
         return fg == rhs.fg && bg == rhs.bg && ul == rhs.ul && m_flags == rhs.m_flags
-               && m_underlineStyle == rhs.m_underlineStyle;
+               && m_underlineStyle == rhs.m_underlineStyle && url == rhs.url && urlId == rhs.urlId;
     }
-    NODISCARD constexpr bool operator!=(const RawAnsi &rhs) const { return !(rhs == *this); }
+    NODISCARD bool operator!=(const RawAnsi &rhs) const { return !(rhs == *this); }
 
 public:
     friend std::ostream &to_stream(std::ostream &os, const RawAnsi &raw);
@@ -517,15 +511,15 @@ public:
     }
 };
 
-NODISCARD static inline constexpr RawAnsi getRawAnsi(const AnsiColor16Enum fgColor)
+NODISCARD static inline RawAnsi getRawAnsi(const AnsiColor16Enum fgColor)
 {
     RawAnsi ansi;
     ansi.fg = AnsiColorVariant{fgColor};
     return ansi;
 }
 
-NODISCARD static inline constexpr RawAnsi getRawAnsi(const AnsiColor16Enum fgColor,
-                                                     const AnsiColor16Enum bgColor)
+NODISCARD static inline RawAnsi getRawAnsi(const AnsiColor16Enum fgColor,
+                                           const AnsiColor16Enum bgColor)
 {
     RawAnsi ansi;
     ansi.fg = AnsiColorVariant{fgColor};
@@ -995,7 +989,11 @@ void foreachAnsi(const QStringView line, Callback &&callback)
     const auto len = line.size();
     qsizetype pos = 0;
     while (pos < len) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
+        QRegularExpressionMatch m = weakAnsiRegex.matchView(line, pos);
+#else
         QRegularExpressionMatch m = weakAnsiRegex.match(line, pos);
+#endif
         if (!m.hasMatch()) {
             break;
         }

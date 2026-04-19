@@ -33,8 +33,8 @@
 
 using namespace char_consts;
 
-static constexpr auto green = getRawAnsi(AnsiColor16Enum::green);
-static constexpr auto yellow = getRawAnsi(AnsiColor16Enum::yellow);
+static const auto green = getRawAnsi(AnsiColor16Enum::green);
+static const auto yellow = getRawAnsi(AnsiColor16Enum::yellow);
 
 Map::Map()
     : m_world(std::make_shared<const World>())

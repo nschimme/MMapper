@@ -117,8 +117,7 @@ void ConnectionListener::startClient(std::unique_ptr<AbstractSocket> socket)
     } else {
         log("New connection: rejected.");
         const auto msg = std::invoke([]() -> QByteArray {
-            constexpr const auto whiteOnRed = getRawAnsi(AnsiColor16Enum::white,
-                                                         AnsiColor16Enum::red);
+            const auto whiteOnRed = getRawAnsi(AnsiColor16Enum::white, AnsiColor16Enum::red);
             std::stringstream oss;
             AnsiOstream aos{oss};
             aos.writeWithColor(whiteOnRed, "You can't connect to MMapper more than once!\n");

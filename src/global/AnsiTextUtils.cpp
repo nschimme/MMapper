@@ -26,6 +26,7 @@
 
 #include <QRegularExpression>
 #include <QString>
+#include <QtGlobal>
 
 static const volatile bool verbose_debugging = false;
 static constexpr const int ANSI_RESET = 0;
@@ -73,7 +74,8 @@ static constexpr const std::array<int, 24> ansi_greys24{
 namespace mmqt {
 
 /* visible */
-const QRegularExpression weakAnsiRegex(R"(\x1B\[?[[:digit:];:]*[[:alpha:]]?)");
+const QRegularExpression weakAnsiRegex(
+    R"(\x1B(?:\[[[:digit:];:]*[[:alpha:]]?|\][^\x1B\x07]*(?:\x1B\\|\x07)))");
 
 } // namespace mmqt
 
@@ -1701,6 +1703,45 @@ bool isAnsiColor(QStringView ansi)
     return true;
 }
 
+static bool isOsc8(QStringView ansi)
+{
+    return ansi.startsWith(u"\x1B]8;") && (ansi.endsWith(u"\x1B\\") || ansi.endsWith(u"\x07"));
+}
+
+static void parseOsc8(RawAnsi &next, QStringView ansi)
+{
+    // strip ESC ] 8 ; and terminator
+    QStringView content = ansi.mid(4);
+    if (ansi.endsWith(u"\x1B\\")) {
+        content = content.left(content.length() - 2);
+    } else {
+        content = content.left(content.length() - 1);
+    }
+
+    // content is now "params;URI"
+    const qsizetype semi = content.indexOf(u';');
+    if (semi < 0) {
+        // Invalid, but we'll clear the URL just in case this was meant to be a closer
+        next.url.clear();
+        next.urlId.clear();
+        return;
+    }
+
+    QStringView params = content.left(semi);
+    QStringView uri = content.mid(semi + 1);
+
+    next.url = uri.toString();
+    next.urlId.clear();
+
+    // parse id from params "id=xxx:foo=bar"
+    for (auto param : params.split(u':')) {
+        if (param.startsWith(u"id=")) {
+            next.urlId = param.mid(3).toString();
+            break;
+        }
+    }
+}
+
 bool isAnsiColor(const QString &ansi)
 {
     return isAnsiColor(QStringView{ansi});
@@ -1831,6 +1872,12 @@ void AnsiColorParser::for_each(QStringView ansi) const
 
 std::optional<RawAnsi> parseAnsiColor(const RawAnsi before, const QStringView ansi)
 {
+    if (isOsc8(ansi)) {
+        RawAnsi next = before;
+        parseOsc8(next, ansi);
+        return next;
+    }
+
     if (!isAnsiColor(ansi)) {
         return std::nullopt;
     }
@@ -2000,6 +2047,26 @@ AnsiStringToken AnsiTokenizer::Iterator::getCurrent()
 
 AnsiTokenizer::Iterator::size_type AnsiTokenizer::Iterator::skip_ansi() const
 {
+    if (m_str.size() >= 2 && m_str[1] == u']') {
+        // OSC sequence: ESC ] ... (ST or BEL)
+        qsizetype pos = 2;
+        const qsizetype len = m_str.size();
+        while (pos < len) {
+            if (m_str[pos] == char_consts::C_ALERT) {
+                return pos + 1;
+            }
+            if (m_str[pos] == char_consts::C_ESC && pos + 1 < len && m_str[pos + 1] == u'\\') {
+                return pos + 2;
+            }
+            if (m_str[pos] == char_consts::C_ESC) {
+                // Nested ESC is not expected in OSC
+                return pos;
+            }
+            pos++;
+        }
+        return len; // Unterminated
+    }
+
     // hack to avoid having to have two separate stop return values
     // (one to stop before current value, and one to include it)
     bool sawLetter = false;
@@ -2560,6 +2627,28 @@ void testAnsiTextUtils()
 
     test_itu();
     test_ansi_parse();
+
+    {
+        // OSC 8 parsing tests
+        RawAnsi base;
+        auto opt = mmqt::parseAnsiColor(base, u"\x1B]8;;http://example.com\x1B\\");
+        TEST_ASSERT(opt.has_value());
+        TEST_ASSERT(opt->url == u"http://example.com");
+        TEST_ASSERT(opt->urlId.isEmpty());
+
+        opt = mmqt::parseAnsiColor(base, u"\x1B]8;id=123;https://mudlet.org\x07");
+        TEST_ASSERT(opt.has_value());
+        TEST_ASSERT(opt->url == u"https://mudlet.org");
+        TEST_ASSERT(opt->urlId == u"123");
+
+        // Closer
+        RawAnsi withUrl;
+        withUrl.url = QStringLiteral("something");
+        opt = mmqt::parseAnsiColor(withUrl, u"\x1B]8;;\x1B\\");
+        TEST_ASSERT(opt.has_value());
+        TEST_ASSERT(opt->url.isEmpty());
+        TEST_ASSERT(opt->urlId.isEmpty());
+    }
 }
 
 } // namespace test

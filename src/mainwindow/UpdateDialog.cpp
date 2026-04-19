@@ -22,6 +22,7 @@
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QSysInfo>
+#include <QtGlobal>
 
 namespace { // anonymous
 
@@ -57,7 +58,11 @@ NODISCARD const char *getArchitectureRegexPattern()
 CompareVersion::CompareVersion(const QString &versionStr) noexcept
 {
     static const QRegularExpression versionRx(R"(v?(\d+)\.(\d+)\.(\d+))");
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
+    auto result = versionRx.matchView(versionStr);
+#else
     auto result = versionRx.match(versionStr);
+#endif
     if (result.hasMatch()) {
         m_parts[0] = result.captured(1).toInt();
         m_parts[1] = result.captured(2).toInt();
@@ -242,7 +247,12 @@ void UpdateDialog::managerFinished(QNetworkReply *reply)
         const QString remoteCommitHash = objNode.value("sha").toString();
         const QString localCommitHash = std::invoke([]() -> QString {
             static const QRegularExpression hashRegex(R"(-g([0-9a-fA-F]+)$)");
-            QRegularExpressionMatch match = hashRegex.match(QString::fromUtf8(getMMapperVersion()));
+            const QString localVersion = QString::fromUtf8(getMMapperVersion());
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
+            QRegularExpressionMatch match = hashRegex.matchView(localVersion);
+#else
+            QRegularExpressionMatch match = hashRegex.match(localVersion);
+#endif
             if (match.hasMatch()) {
                 return match.captured(1);
             }

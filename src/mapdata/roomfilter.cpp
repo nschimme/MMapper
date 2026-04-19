@@ -12,13 +12,18 @@
 
 #include <QRegularExpression>
 #include <QString>
+#include <QtGlobal>
 
 NODISCARD static QString escapeRegex(const QString &str)
 {
     static const QRegularExpression metacharactersRx(R"([.*+?^${}()|\[\]\\])");
     QString result = str;
     int offset = 0;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
+    auto it = metacharactersRx.globalMatchView(str);
+#else
     auto it = metacharactersRx.globalMatch(str);
+#endif
     while (it.hasNext()) {
         auto match = it.next();
         result.insert(match.capturedStart() + offset, '\\');

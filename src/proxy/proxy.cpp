@@ -56,7 +56,7 @@ namespace { // anonymous
 const volatile bool g_prefixMessagesToUser = true;
 const volatile bool g_showVersionInWelcomeMessage = IS_DEBUG_BUILD;
 //
-constexpr const auto whiteOnCyan = getRawAnsi(AnsiColor16Enum::white, AnsiColor16Enum::cyan);
+const auto whiteOnCyan = getRawAnsi(AnsiColor16Enum::white, AnsiColor16Enum::cyan);
 
 NODISCARD MainWindow &getMainWindow(ConnectionListener &listener)
 {

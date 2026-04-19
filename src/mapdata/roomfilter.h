@@ -13,6 +13,7 @@
 
 #include <QRegularExpression>
 #include <QString>
+#include <QtGlobal>
 
 enum class NODISCARD PatternKindsEnum { NONE, DESC, CONTENTS, NAME, NOTE, EXITS, FLAGS, AREA, ALL };
 static constexpr const auto PATTERN_KINDS_LENGTH = static_cast<size_t>(PatternKindsEnum::ALL) + 1u;
@@ -41,7 +42,14 @@ public:
 
 private:
     NODISCARD bool filter_kind(const RawRoom &r, const PatternKindsEnum pat) const;
-    NODISCARD bool matches(const QString &s) const { return m_regex.match(s).hasMatch(); }
+    NODISCARD bool matches(const QString &s) const
+    {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
+        return m_regex.matchView(s).hasMatch();
+#else
+        return m_regex.match(s).hasMatch();
+#endif
+    }
 
 private:
     template<typename T>

@@ -48,44 +48,38 @@ static constexpr const double COST_DOOR = 1.0;
 static constexpr const double COST_CLIMB = 2.0;
 static constexpr const double COST_NOT_RIDABLE = 3.0;
 static constexpr const double COST_DISMOUNT = 4.0;
-static constexpr const double COST_ROAD_ADJUSTMENT = 0.1;
+static constexpr const double COST_ROAD_BONUS = 0.1;
 static constexpr const double COST_DEATHTRAP = 1000.0;
 
-static constexpr const std::size_t INITIAL_NODES_CAPACITY = 1024;
-
-using SPNodeIdx = std::size_t;
+using SPNodeIdx = std::uint32_t;
 static constexpr const SPNodeIdx INVALID_SPNODE_IDX = std::numeric_limits<SPNodeIdx>::max();
+static constexpr const std::size_t INITIAL_NODES_CAPACITY = 2048;
 
-struct NODISCARD SPNode final
+struct SPNode final
 {
     RoomId id;
     SPNodeIdx parent = INVALID_SPNODE_IDX;
     double dist = 0.0;
-    ExitDirEnum lastdir = ExitDirEnum::NONE;
+    ExitDirEnum lastdir = ExitDirEnum::UNKNOWN;
 };
-
-} // namespace
-
-ShortestPathRecipient::~ShortestPathRecipient() = default;
 
 NODISCARD static double terrain_cost(const RoomTerrainEnum type)
 {
-#define X_CASE(x) \
-    case RoomTerrainEnum::x: \
-        return COST_##x;
-
     switch (type) {
+#define X_CASE(NAME)           \
+    case RoomTerrainEnum::NAME: \
+        return COST_##NAME;
         XFOREACH_RoomTerrainEnum(X_CASE)
+#undef X_CASE
     }
 
-#undef X_CASE
     return COST_UNDEFINED;
 }
 
 NODISCARD static double getLength(const RawExit &e, const RoomHandle &curr, const RoomHandle &nextr)
 {
     double cost = terrain_cost(nextr.getTerrainType());
-    auto flags = e.getExitFlags();
+    const auto flags = e.getExitFlags();
     if (flags.isRandom() || flags.isDamage() || flags.isFall()) {
         cost += COST_RANDOM_DAMAGE_FALL;
     }
@@ -103,13 +97,16 @@ NODISCARD static double getLength(const RawExit &e, const RoomHandle &curr, cons
         }
     }
     if (flags.isRoad()) {
-        cost -= COST_ROAD_ADJUSTMENT;
+        cost -= COST_ROAD_BONUS;
     }
     if (nextr.getLoadFlags().contains(RoomLoadFlagEnum::DEATHTRAP)) {
         cost += COST_DEATHTRAP;
     }
     return cost;
 }
+} // namespace
+
+ShortestPathRecipient::~ShortestPathRecipient() = default;
 
 void MapData::shortestPathSearch(const RoomHandle &origin,
                                  ShortestPathRecipient &recipient,
@@ -203,7 +200,7 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
             }
 
             sp_nodes.push_back(SPNode{nextrId, spidx, new_dist, dir});
-            future_paths.emplace(new_dist, sp_nodes.size() - 1);
+            future_paths.emplace(new_dist, static_cast<SPNodeIdx>(sp_nodes.size() - 1));
         }
     }
 }

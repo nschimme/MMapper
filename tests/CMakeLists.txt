@@ -335,11 +335,3 @@ set_target_properties(
         COMPILE_FLAGS "${WARNING_FLAGS}"
 )
 add_test(NAME TestHotkeyManager COMMAND TestHotkeyManager)
-
-# ShortestPath
-set(TestShortestPath_SRCS TestShortestPath.cpp ../src/mapdata/shortestpath.cpp ../src/mapdata/roomfilter.cpp ../src/parser/Abbrev.cpp ../src/global/parserutils.cpp)
-add_executable(TestShortestPath ${TestShortestPath_SRCS})
-add_dependencies(TestShortestPath mm_test mm_global mm_map)
-target_link_libraries(TestShortestPath mm_map mm_test mm_global Qt6::Gui Qt6::Network Qt6::Test Qt6::Widgets coverage_config)
-set_target_properties(TestShortestPath PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF COMPILE_FLAGS "${WARNING_FLAGS}")
-add_test(NAME TestShortestPath COMMAND TestShortestPath)

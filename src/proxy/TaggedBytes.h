@@ -80,6 +80,10 @@ public:
     {
         return !(a == b);
     }
+    NODISCARD friend bool operator<(const TaggedBytes &a, const TaggedBytes &b)
+    {
+        return a.getQByteArray() < b.getQByteArray();
+    }
     friend QDebug operator<<(QDebug debug, const TaggedBytes &tagged)
     {
         return debug << tagged.getQByteArray();

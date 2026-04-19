@@ -61,6 +61,11 @@ bool VirtualSocket::virt_isConnected() const
     return m_peer != nullptr && m_peer->m_peer != nullptr;
 }
 
+QString VirtualSocket::virt_peerAddress() const
+{
+    return "127.0.0.1";
+}
+
 void VirtualSocket::slot_onPeerDestroyed()
 {
     if (m_peer) {

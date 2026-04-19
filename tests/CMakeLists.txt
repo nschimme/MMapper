@@ -129,7 +129,11 @@ set(proxy_SRCS
     ../src/proxy/GmcpUtils.h
     ../src/proxy/telnetfilter.cpp
     ../src/proxy/telnetfilter.h
-     )
+    ../src/proxy/AbstractTelnet.cpp
+    ../src/proxy/AbstractTelnet.h
+    ../src/proxy/TextCodec.cpp
+    ../src/proxy/TextCodec.h
+)
 set(TestProxy_SRCS TestProxy.cpp)
 add_executable(TestProxy ${TestProxy_SRCS} ${proxy_SRCS})
 add_dependencies(TestProxy mm_test mm_global)

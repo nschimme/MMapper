@@ -60,6 +60,6 @@ void FileSaver::close() CAN_THROW
     file.flush();
     // REVISIT: check return value?
     std::ignore = ::io::fsync(file);
-    remove_tmp_suffix(m_filename);
     file.close();
+    remove_tmp_suffix(m_filename);
 }

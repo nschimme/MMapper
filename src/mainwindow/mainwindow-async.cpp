@@ -685,9 +685,17 @@ private:
         finish_saving(success);
     }
 
-    void finish_saving(const bool success)
+    void finish_saving(bool success)
     {
-        pMapDestination->finalize();
+        try {
+            pMapDestination->finalize();
+        } catch (const std::exception &ex) {
+            success = false;
+            const auto msg = QString::asprintf("Finalize exception: %s", ex.what());
+            mainWindow.slot_log("AsyncSaver", msg);
+            qWarning().noquote() << msg;
+        }
+
         if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
             if (success) {
                 assert(pMapDestination->isFileWasm());

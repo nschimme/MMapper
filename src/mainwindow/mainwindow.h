@@ -312,6 +312,7 @@ private:
     void showStatusLong(const QString &txt) { showStatusInternal(txt, 5000); }
     void showStatusForever(const QString &txt) { showStatusInternal(txt, 0); }
     NODISCARD bool tryStartNewAsync();
+    void waitForAsync();
 
 private:
     void wireConnections();

@@ -724,6 +724,15 @@ bool MainWindow::tryStartNewAsync()
     return true;
 }
 
+void MainWindow::waitForAsync()
+{
+    while (m_asyncTask.isWorking()) {
+        QEventLoop loop;
+        QTimer::singleShot(10, &loop, &QEventLoop::quit);
+        loop.exec(QEventLoop::ExcludeUserInputEvents);
+    }
+}
+
 void MainWindow::loadFile(std::shared_ptr<MapSource> source)
 {
     try {

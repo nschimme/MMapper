@@ -1565,8 +1565,9 @@ void MainWindow::closeEvent(QCloseEvent *const event)
     }
 
     if (m_asyncTask) {
-        qInfo() << "Attempting to async task for faster shutdown";
+        qInfo() << "Attempting to cancel async task for faster shutdown";
         m_progressDlg->reject();
+        waitForAsync();
     }
     event->accept();
 }

@@ -102,6 +102,24 @@ struct Shard
     alignas(64) std::mutex mutex;
 };
 
+struct Bucket
+{
+    std::vector<RoomId> nodes;
+};
+
+struct BucketList
+{
+    std::vector<Bucket> buckets;
+
+    void push(const RoomId id, const size_t idx)
+    {
+        if (idx >= buckets.size()) {
+            buckets.resize(idx + 1);
+        }
+        buckets[idx].nodes.push_back(id);
+    }
+};
+
 bool relax(const RoomId v_id,
            const float v_new_dist,
            const RoomId u_id,
@@ -159,7 +177,9 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
     const RoomId max_room_id = map.getRooms().last();
     const size_t vec_size = static_cast<size_t>(max_room_id.asUint32()) + 1;
 
+    // Use make_unique for types that are non-movable (atomic, mutex).
     auto dists = std::make_unique<std::atomic<float>[]>(vec_size);
+
     IndexedVector<RoomId, RoomId> parents;
     IndexedVector<ExitDirEnum, RoomId> lastdirs;
 
@@ -171,6 +191,8 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
                                  ? std::min<size_t>(MAX_SHARDS,
                                                     utils::nextPowerOfTwo(numThreads * 16))
                                  : 1;
+
+    // Use make_unique for types that are non-movable (atomic, mutex).
     auto locks = std::make_unique<Shard[]>(numShards);
 
     for (size_t i = 0; i < vec_size; ++i) {
@@ -179,16 +201,14 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
     std::fill(parents.begin(), parents.end(), INVALID_ROOMID);
     std::fill(lastdirs.begin(), lastdirs.end(), ExitDirEnum::UNKNOWN);
 
-    std::vector<std::vector<RoomId>> buckets;
+    BucketList bucketList;
     auto get_bucket_idx = [](float d) -> size_t { return static_cast<size_t>(d / DELTA); };
 
     const RoomId origin_id = origin.getId();
     dists[origin_id.asUint32()].store(0.0f, std::memory_order_relaxed);
-    size_t start_bucket = get_bucket_idx(0.0f);
-    buckets.resize(start_bucket + 1);
-    buckets[start_bucket].push_back(origin_id);
+    bucketList.push(origin_id, get_bucket_idx(0.0f));
 
-    size_t current_bucket_idx = start_bucket;
+    size_t current_bucket_idx = get_bucket_idx(0.0f);
     int total_hits = 0;
 
     std::atomic<float> *const pDists = dists.get();
@@ -239,16 +259,17 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
         }
     };
 
-    while (current_bucket_idx < buckets.size() && total_hits < max_hits) {
-        if (buckets[current_bucket_idx].empty()) {
+    while (current_bucket_idx < bucketList.buckets.size() && total_hits < max_hits) {
+        if (bucketList.buckets[current_bucket_idx].nodes.empty()) {
             current_bucket_idx++;
             continue;
         }
 
         std::vector<RoomId> bucket_nodes;
-        while (!buckets[current_bucket_idx].empty()) {
-            std::vector<RoomId> current_nodes = std::move(buckets[current_bucket_idx]);
-            buckets[current_bucket_idx].clear();
+        while (!bucketList.buckets[current_bucket_idx].nodes.empty()) {
+            std::vector<RoomId> current_nodes = std::move(
+                bucketList.buckets[current_bucket_idx].nodes);
+            bucketList.buckets[current_bucket_idx].nodes.clear();
 
             struct TlData
             {
@@ -272,11 +293,7 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
                 });
 
             for (const RoomId v_id : all_improved) {
-                size_t b = get_bucket_idx(pDists[v_id.asUint32()].load());
-                if (buckets.size() <= b) {
-                    buckets.resize(b + 1);
-                }
-                buckets[b].push_back(v_id);
+                bucketList.push(v_id, get_bucket_idx(pDists[v_id.asUint32()].load()));
             }
             bucket_nodes.insert(bucket_nodes.end(), current_nodes.begin(), current_nodes.end());
         }
@@ -307,11 +324,7 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
             });
 
         for (const RoomId v_id : all_improved_heavy) {
-            size_t b = get_bucket_idx(pDists[v_id.asUint32()].load());
-            if (buckets.size() <= b) {
-                buckets.resize(b + 1);
-            }
-            buckets[b].push_back(v_id);
+            bucketList.push(v_id, get_bucket_idx(pDists[v_id.asUint32()].load()));
         }
 
         std::vector<RoomId> targets_in_bucket;

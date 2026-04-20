@@ -166,7 +166,8 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
 
     const size_t numThreads = thread_utils::idealThreadCount();
     const size_t numShards = numThreads > 1
-                                 ? std::min<size_t>(MAX_SHARDS, utils::nextPowerOfTwo(numThreads * 16))
+                                 ? std::min<size_t>(MAX_SHARDS,
+                                                    utils::nextPowerOfTwo(numThreads * 16))
                                  : 1;
     auto locks = std::make_unique<Shard[]>(numShards);
 
@@ -258,8 +259,9 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
                     },
                     [&](auto &tls) {
                         for (auto &tl : tls) {
-                            all_improved.insert(
-                                all_improved.end(), tl.improved.begin(), tl.improved.end());
+                            all_improved.insert(all_improved.end(),
+                                                tl.improved.begin(),
+                                                tl.improved.end());
                         }
                     });
             } else {
@@ -280,7 +282,7 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
 
         std::sort(bucket_nodes.begin(), bucket_nodes.end());
         bucket_nodes.erase(std::unique(bucket_nodes.begin(), bucket_nodes.end()),
-                            bucket_nodes.end());
+                           bucket_nodes.end());
 
         struct TlDataHeavy
         {
@@ -298,8 +300,9 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
                 },
                 [&](auto &tls) {
                     for (auto &tl : tls) {
-                        all_improved_heavy.insert(
-                            all_improved_heavy.end(), tl.improved.begin(), tl.improved.end());
+                        all_improved_heavy.insert(all_improved_heavy.end(),
+                                                  tl.improved.begin(),
+                                                  tl.improved.end());
                     }
                 });
         } else {

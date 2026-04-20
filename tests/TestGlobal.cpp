@@ -170,6 +170,15 @@ void TestGlobal::ioExceptionTest()
 
     const io::IOException exStr("test message");
     QCOMPARE(exStr.what(), std::string("test message"));
+
+    // coverage for io::fsyncNoexcept and io::ErrorNumberMessage
+    QFile dummyFile;
+    QCOMPARE(io::fsyncNoexcept(dummyFile), io::IOResultEnum::EXCEPTION);
+
+    const io::ErrorNumberMessage msgObj(EBUSY);
+    QVERIFY(msgObj);
+    QVERIFY(msgObj.getErrorMessage() != nullptr);
+    QCOMPARE(msgObj.getErrorNumber(), EBUSY);
 }
 
 void TestGlobal::castTest()

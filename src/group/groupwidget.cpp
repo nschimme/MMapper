@@ -849,7 +849,7 @@ GroupWidget::GroupWidget(Mmapper2Group *const group, MapData *const md, QWidget 
     m_table->horizontalHeader()->setStretchLastSection(true);
     m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
 
-    m_proxyModel = new GroupProxyModel(this);
+    m_proxyModel = new GroupProxyModel(m_table);
     m_proxyModel->setSourceModel(&m_model);
     m_table->setModel(m_proxyModel);
 
@@ -859,7 +859,7 @@ GroupWidget::GroupWidget(Mmapper2Group *const group, MapData *const md, QWidget 
     m_table->setDefaultDropAction(Qt::MoveAction);
     m_table->setDropIndicatorShown(true);
 
-    m_table->setItemDelegate(new GroupDelegate(this));
+    m_table->setItemDelegate(new GroupDelegate(m_table));
     layout->addWidget(m_table);
 
     m_pulseTimer = new QTimer(this);

@@ -687,13 +687,15 @@ private:
 
     void finish_saving(bool success)
     {
+        QString errorMsg;
         try {
             pMapDestination->finalize();
         } catch (const std::exception &ex) {
             success = false;
-            const auto msg = QString::asprintf("Finalize exception: %s", ex.what());
-            mainWindow.slot_log("AsyncSaver", msg);
-            qWarning().noquote() << msg;
+            errorMsg = mmqt::toQStringUtf8(ex.what());
+            const auto logMsg = QString::asprintf("Finalize exception: %s", ex.what());
+            mainWindow.slot_log("AsyncSaver", logMsg);
+            qWarning().noquote() << logMsg;
         }
 
         if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
@@ -706,9 +708,13 @@ private:
         extraBlockers.reset();
 
         if (!success) {
-            mainWindow.showAsyncFailure(fileName,
-                                        AsyncTypeEnum::Save,
-                                        progressCounter->requestedCancel());
+            if (errorMsg.isEmpty()) {
+                mainWindow.showAsyncFailure(fileName,
+                                            AsyncTypeEnum::Save,
+                                            progressCounter->requestedCancel());
+            } else {
+                mainWindow.showWarning(tr("Failed to finalize file %1:\n%2").arg(fileName, errorMsg));
+            }
             return;
         }
 

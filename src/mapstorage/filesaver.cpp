@@ -61,5 +61,14 @@ void FileSaver::close() CAN_THROW
     // REVISIT: check return value?
     std::ignore = ::io::fsync(file);
     file.close();
+}
+
+void FileSaver::commit() CAN_THROW
+{
+    auto &file = deref(m_file);
+    if (file.isOpen()) {
+        throw std::runtime_error("FileSaver::commit() called while file is still open");
+    }
+
     remove_tmp_suffix(m_filename);
 }

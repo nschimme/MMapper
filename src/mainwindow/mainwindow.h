@@ -293,7 +293,10 @@ public:
     void percentageChanged(uint32_t);
 
 private:
-    void showAsyncFailure(const QString &fileName, AsyncTypeEnum mode, bool wasCanceled);
+    void showAsyncFailure(const QString &fileName,
+                          AsyncTypeEnum mode,
+                          bool wasCanceled,
+                          const QString &exceptionMsg = {});
     NODISCARD std::unique_ptr<AbstractMapStorage> getLoadOrMergeMapStorage(
         const std::shared_ptr<ProgressCounter> &pc, std::shared_ptr<MapSource> &source);
 

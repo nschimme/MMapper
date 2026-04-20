@@ -32,7 +32,37 @@ ErrorNumberMessage::ErrorNumberMessage(const int error_number) noexcept
     : m_error_number{error_number}
 {
 #ifdef Q_OS_WIN
-    /* nop */
+    LPWSTR messageBuffer = nullptr;
+    const DWORD size = FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM
+                                          | FORMAT_MESSAGE_IGNORE_INSERTS,
+                                      nullptr,
+                                      static_cast<DWORD>(error_number),
+                                      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                                      reinterpret_cast<LPWSTR>(&messageBuffer),
+                                      0,
+                                      nullptr);
+    if (size > 0) {
+        const int res = WideCharToMultiByte(CP_UTF8,
+                                            0,
+                                            messageBuffer,
+                                            static_cast<int>(size),
+                                            m_buf,
+                                            static_cast<int>(sizeof(m_buf)) - 1,
+                                            nullptr,
+                                            nullptr);
+        if (res > 0) {
+            m_buf[res] = '\0';
+            // Trim trailing newlines and spaces
+            int len = res;
+            while (len > 0
+                   && (m_buf[len - 1] == '\r' || m_buf[len - 1] == '\n' || m_buf[len - 1] == ' '
+                       || m_buf[len - 1] == '\t' || m_buf[len - 1] == '.')) {
+                m_buf[--len] = '\0';
+            }
+            m_str = m_buf;
+        }
+        LocalFree(messageBuffer);
+    }
 #elif defined(__GLIBC__)
     /* GNU/Linux version can return a pointer to a static string */
     m_str = ::strerror_r(error_number, m_buf, sizeof(m_buf));
@@ -44,13 +74,63 @@ ErrorNumberMessage::ErrorNumberMessage(const int error_number) noexcept
 #endif
 }
 
+namespace { // anonymous
+NODISCARD std::string getFriendlyMessage(const int error_number)
+{
+#ifdef Q_OS_WIN
+    switch (error_number) {
+    case ERROR_ACCESS_DENIED:
+        return "Access denied. You might not have permission to write to this location.";
+    case ERROR_SHARING_VIOLATION:
+        return "The file is being used by another process.";
+    case ERROR_FILE_NOT_FOUND:
+    case ERROR_PATH_NOT_FOUND:
+        return "The system cannot find the file or path specified.";
+    case ERROR_DISK_FULL:
+        return "The disk is full.";
+    case ERROR_WRITE_FAULT:
+        return "The system could not write to the specified device.";
+    default:
+        return "";
+    }
+#else
+    switch (error_number) {
+    case EACCES:
+        return "Permission denied.";
+    case ENOENT:
+        return "No such file or directory.";
+    case ENOSPC:
+        return "No space left on device.";
+    case EBUSY:
+        return "Resource busy.";
+    case EROFS:
+        return "Read-only file system.";
+    default:
+        return "";
+    }
+#endif
+}
+} // namespace
+
 IOException IOException::withErrorNumber(const int error_number)
 {
+    const std::string friendly = getFriendlyMessage(error_number);
     if (const auto msg = ErrorNumberMessage{error_number}) {
-        return IOException{msg.getErrorMessage()};
+        const std::string sysMsg = msg.getErrorMessage();
+        if (friendly.empty()) {
+            return IOException{sysMsg};
+        }
+        if (friendly == sysMsg) {
+            return IOException{friendly};
+        }
+        return IOException{friendly + " (" + sysMsg + ")"};
     }
 
-    return IOException{"unknown error_number: " + std::to_string(error_number)};
+    const std::string unknown = "unknown error code " + std::to_string(error_number);
+    if (!friendly.empty()) {
+        return IOException{friendly + " (" + unknown + ")"};
+    }
+    return IOException{unknown};
 }
 
 IOException IOException::withCurrentErrno()

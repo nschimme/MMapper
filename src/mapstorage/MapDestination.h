@@ -47,5 +47,6 @@ public:
     NODISCARD std::shared_ptr<QIODevice> getIODevice() const;
     NODISCARD const QByteArray getWasmBufferData() const;
 
+    void open() CAN_THROW;
     void finalize();
 };

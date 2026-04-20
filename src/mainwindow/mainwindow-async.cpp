@@ -654,9 +654,17 @@ public:
 private:
     NODISCARD Result background_save() const
     {
+        try {
+            pMapDestination->open();
+        } catch (...) {
+            return false;
+        }
+
         AbstractMapStorage &storage = deref(pStorage);
         const MapData &mapData = deref(mainWindow.m_mapData);
-        return background::save(storage, mapData, mode);
+        const bool result = background::save(storage, mapData, mode);
+        pMapDestination->finalize();
+        return result;
     }
 
 private:
@@ -674,7 +682,6 @@ private:
 
     void finish_saving(const bool success)
     {
-        pMapDestination->finalize();
         if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
             if (success) {
                 assert(pMapDestination->isFileWasm());

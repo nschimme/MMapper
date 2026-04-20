@@ -79,7 +79,7 @@ bool fsync(QFile &file) CAN_THROW
     return true;
 }
 
-bool rename(const QString &from, const QString &to) CAN_THROW
+void rename(const QString &from, const QString &to) CAN_THROW
 {
 #ifdef Q_OS_WIN
     const std::wstring fromW = from.toStdWString();
@@ -110,7 +110,6 @@ bool rename(const QString &from, const QString &to) CAN_THROW
         throw IOException::withCurrentErrno();
     }
 #endif
-    return true;
 }
 
 IOResultEnum fsyncNoexcept(QFile &file) noexcept

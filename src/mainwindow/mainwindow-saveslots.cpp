@@ -104,10 +104,11 @@ bool MainWindow::maybeSave()
     dlg.setEscapeButton(QMessageBox::Cancel);
     const int ret = dlg.exec();
     if (ret == QMessageBox::Save) {
-        if (slot_save()) {
+        const bool saveStarted = slot_save();
+        if (saveStarted) {
             waitForAsync();
         }
-        return !mapData.dataChanged();
+        return saveStarted && !mapData.dataChanged();
     }
 
     // REVISIT: is it a bug if this returns true? (Shouldn't this always be false?)

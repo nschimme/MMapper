@@ -357,6 +357,10 @@ void MainWindow::AsyncTask::reset()
         m_timer->stop();
         m_timer.reset();
     }
+
+    if (auto mw = qobject_cast<MainWindow *>(parent())) {
+        emit mw->sig_asyncTaskFinished();
+    }
 }
 
 struct NODISCARD MainWindow::AsyncHelper : public AsyncBase
@@ -726,8 +730,10 @@ bool MainWindow::tryStartNewAsync()
 
 void MainWindow::waitForAsync()
 {
-    while (m_asyncTask.isWorking()) {
-        QCoreApplication::processEvents(QEventLoop::WaitForMoreEvents);
+    if (m_asyncTask.isWorking()) {
+        QEventLoop loop;
+        connect(this, &MainWindow::sig_asyncTaskFinished, &loop, &QEventLoop::quit);
+        loop.exec();
     }
 }
 

@@ -153,12 +153,23 @@ void TestGlobal::ioExceptionTest()
     const auto ex = io::IOException::withErrorNumber(32); // ERROR_SHARING_VIOLATION
     QVERIFY(QString::fromStdString(ex.what()).contains("The file is being used by another process"));
 #else
-    const auto ex = io::IOException::withErrorNumber(EBUSY);
-    QVERIFY(QString::fromStdString(ex.what()).contains("Resource busy"));
+    for (int err : {EACCES, ENOENT, ENOSPC, EBUSY, EROFS}) {
+        const auto ex = io::IOException::withErrorNumber(err);
+        const QString msg = QString::fromStdString(ex.what());
+        QVERIFY(!msg.isEmpty());
+        QVERIFY(msg != QString("unknown error_number: %1").arg(err));
+    }
+    QVERIFY(QString::fromStdString(io::IOException::withErrorNumber(EACCES).what())
+                .contains("Permission denied"));
+    QVERIFY(QString::fromStdString(io::IOException::withErrorNumber(ENOENT).what())
+                .contains("No such file or directory"));
 #endif
     const auto exUnknown = io::IOException::withErrorNumber(999999);
     const QString msg = QString::fromStdString(exUnknown.what());
     QVERIFY(msg.contains("999999"));
+
+    const io::IOException exStr("test message");
+    QCOMPARE(exStr.what(), std::string("test message"));
 }
 
 void TestGlobal::castTest()

@@ -43,5 +43,6 @@ public:
 
     /*! \exception std::runtime_error if the file can't be safely closed.
      */
+    void commit() CAN_THROW;
     void close() CAN_THROW;
 };

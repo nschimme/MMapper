@@ -357,6 +357,10 @@ void MainWindow::AsyncTask::reset()
         m_timer->stop();
         m_timer.reset();
     }
+
+    if (auto mw = qobject_cast<MainWindow *>(parent())) {
+        emit mw->sig_asyncTaskFinished();
+    }
 }
 
 struct NODISCARD MainWindow::AsyncHelper : public AsyncBase
@@ -469,7 +473,10 @@ private:
 
         progressDlg.reset();
         m_calledFinish = true;
-        virt_finish();
+        try {
+            virt_finish();
+        } catch (...) {
+        }
         return PollResultEnum::Finished;
     }
 };
@@ -650,9 +657,23 @@ public:
 private:
     NODISCARD Result background_save() const
     {
+        try {
+            pMapDestination->open();
+        } catch (...) {
+            return false;
+        }
+
         AbstractMapStorage &storage = deref(pStorage);
         const MapData &mapData = deref(mainWindow.m_mapData);
-        return background::save(storage, mapData, mode);
+        const bool result = background::save(storage, mapData, mode);
+        if (result) {
+            try {
+                pMapDestination->finalize();
+            } catch (...) {
+                return false;
+            }
+        }
+        return result;
     }
 
 private:
@@ -670,7 +691,6 @@ private:
 
     void finish_saving(const bool success)
     {
-        pMapDestination->finalize();
         if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
             if (success) {
                 assert(pMapDestination->isFileWasm());
@@ -722,6 +742,16 @@ bool MainWindow::tryStartNewAsync()
         return false;
     }
     return true;
+}
+
+void MainWindow::waitForAsync()
+{
+    QEventLoop loop;
+    connect(this, &MainWindow::sig_asyncTaskFinished, &loop, &QEventLoop::quit);
+
+    if (m_asyncTask.isWorking()) {
+        loop.exec();
+    }
 }
 
 void MainWindow::loadFile(std::shared_ptr<MapSource> source)

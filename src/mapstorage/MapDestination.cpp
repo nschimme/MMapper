@@ -21,9 +21,6 @@ std::shared_ptr<MapDestination> MapDestination::alloc(const QString fileName, Sa
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
         assert(format != SaveFormatEnum::WEB);
         buffer = std::make_shared<QBuffer>();
-        if (!buffer->open(QIODevice::WriteOnly)) {
-            throw std::runtime_error("Cannot open QBuffer for writing");
-        }
 
     } else if (format == SaveFormatEnum::WEB) {
         QDir destDir(fileName);
@@ -37,11 +34,6 @@ std::shared_ptr<MapDestination> MapDestination::alloc(const QString fileName, Sa
         }
     } else {
         fileSaver = std::make_shared<FileSaver>();
-        try {
-            fileSaver->open(fileName);
-        } catch (const std::exception &e) {
-            throw std::runtime_error(e.what());
-        }
     }
 
     return std::make_shared<MapDestination>(Badge<MapDestination>{},
@@ -80,6 +72,20 @@ const QByteArray MapDestination::getWasmBufferData() const
     return {};
 }
 
+void MapDestination::open()
+{
+    if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
+        assert(isFileWasm());
+        assert(m_buffer);
+        if (!m_buffer->open(QIODevice::WriteOnly)) {
+            throw std::runtime_error("Cannot open QBuffer for writing");
+        }
+    } else if (isFileNative()) {
+        assert(m_fileSaver);
+        m_fileSaver->open(m_fileName);
+    }
+}
+
 void MapDestination::finalize()
 {
     if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
@@ -87,6 +93,7 @@ void MapDestination::finalize()
         assert(m_buffer);
     } else if (isFileNative()) {
         assert(m_fileSaver);
+        m_fileSaver->commit();
         m_fileSaver->close();
     } else {
         assert(isDirectory());

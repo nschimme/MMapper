@@ -50,7 +50,7 @@ void FileSaver::open(const QString &filename) CAN_THROW
     }
 }
 
-void FileSaver::close() CAN_THROW
+void FileSaver::commit() CAN_THROW
 {
     auto &file = deref(m_file);
     if (!file.isOpen()) {
@@ -61,5 +61,14 @@ void FileSaver::close() CAN_THROW
     // REVISIT: check return value?
     std::ignore = ::io::fsync(file);
     remove_tmp_suffix(m_filename);
+}
+
+void FileSaver::close() CAN_THROW
+{
+    auto &file = deref(m_file);
+    if (!file.isOpen()) {
+        return;
+    }
+
     file.close();
 }

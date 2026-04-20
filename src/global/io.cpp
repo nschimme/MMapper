@@ -67,6 +67,7 @@ bool fsync(QFile &file) CAN_THROW
     if (::FlushFileBuffers(reinterpret_cast<HANDLE>(::_get_osfhandle(handle))) == 0) {
         throw IOException::withErrorNumber(static_cast<int>(::GetLastError()));
     }
+    return true;
 #elif defined(Q_OS_MAC)
     if (::fcntl(handle, F_FULLFSYNC) == -1) {
         throw IOException::withCurrentErrno();

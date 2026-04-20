@@ -93,6 +93,7 @@ void MapDestination::finalize()
         assert(m_buffer);
     } else if (isFileNative()) {
         assert(m_fileSaver);
+        m_fileSaver->commit();
         m_fileSaver->close();
     } else {
         assert(isDirectory());

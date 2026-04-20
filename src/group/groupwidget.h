@@ -174,8 +174,8 @@ signals:
     void sig_center(glm::vec2);
 
 public slots:
-    void slot_mapUnloaded() { m_model->setMapLoaded(false); }
-    void slot_mapLoaded() { m_model->setMapLoaded(true); }
+    void slot_mapUnloaded() { deref(m_model).setMapLoaded(false); }
+    void slot_mapLoaded() { deref(m_model).setMapLoaded(true); }
 
 private slots:
     void slot_onCharacterAdded(SharedGroupChar character);

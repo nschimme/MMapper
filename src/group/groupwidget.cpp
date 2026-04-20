@@ -913,7 +913,7 @@ GroupWidget::GroupWidget(Mmapper2Group *const group, MapData *const md, QWidget 
             return;
         }
 
-        selectedCharacter = m_model->getCharacter(sourceIndex.row());
+        selectedCharacter = deref(m_model).getCharacter(sourceIndex.row());
         if (selectedCharacter) {
             // Build Context menu
             m_center->setText(
@@ -963,7 +963,7 @@ void GroupWidget::updateColumnVisibility()
 {
     // Hide unnecessary columns like mana if everyone is a zorc/troll
     const auto one_character_had_mana = [this]() -> bool {
-        for (const auto &character : m_model->getCharacters()) {
+        for (const auto &character : deref(m_model).getCharacters()) {
             if (character && (character->getMana() > 0 || character->getMaxMana() > 0)) {
                 return true;
             }
@@ -977,7 +977,7 @@ void GroupWidget::updateColumnVisibility()
 void GroupWidget::updatePulseTimer()
 {
     const auto needs_pulse = [this]() -> bool {
-        for (const auto &character : m_model->getCharacters()) {
+        for (const auto &character : deref(m_model).getCharacters()) {
             if (!character) {
                 continue;
             }
@@ -1011,7 +1011,7 @@ void GroupWidget::updatePulseTimer()
 void GroupWidget::slot_onCharacterAdded(SharedGroupChar character)
 {
     assert(character);
-    m_model->insertCharacter(character);
+    deref(m_model).insertCharacter(character);
     updateColumnVisibility();
     updatePulseTimer();
 }
@@ -1019,7 +1019,7 @@ void GroupWidget::slot_onCharacterAdded(SharedGroupChar character)
 void GroupWidget::slot_onCharacterRemoved(const GroupId characterId)
 {
     assert(characterId != INVALID_GROUPID);
-    m_model->removeCharacterById(characterId);
+    deref(m_model).removeCharacterById(characterId);
     updateColumnVisibility();
     updatePulseTimer();
 }
@@ -1027,13 +1027,13 @@ void GroupWidget::slot_onCharacterRemoved(const GroupId characterId)
 void GroupWidget::slot_onCharacterUpdated(SharedGroupChar character)
 {
     assert(character);
-    m_model->updateCharacter(character);
+    deref(m_model).updateCharacter(character);
     updatePulseTimer();
 }
 
 void GroupWidget::slot_onGroupReset(const GroupVector &newCharacterList)
 {
-    m_model->setCharacters(newCharacterList);
+    deref(m_model).setCharacters(newCharacterList);
     updateColumnVisibility();
     updatePulseTimer();
 }

@@ -726,9 +726,6 @@ bool MainWindow::tryStartNewAsync()
 
 void MainWindow::waitForAsync()
 {
-    // Use a local event loop to block the main thread while allowing the task-polling timer to fire.
-    // We use a short single-shot timer to ensure we check the isWorking() condition frequently,
-    // keeping the UI responsive and allowing finalization without manual signal connections.
     while (m_asyncTask.isWorking()) {
         QEventLoop loop;
         QTimer::singleShot(10, &loop, &QEventLoop::quit);

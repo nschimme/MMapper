@@ -70,7 +70,7 @@ class NODISCARD_QOBJECT RoomWidget final : public QWidget
 
 private:
     RoomModel *m_model = nullptr;
-    QTableView *m_view = nullptr;
+    QTableView *m_table = nullptr;
     RoomManager &m_roomManager;
 
 public:

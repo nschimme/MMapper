@@ -852,6 +852,7 @@ endif()
 
 if(WIN32)
     target_link_libraries(mmapper PRIVATE ws2_32)
+    target_link_libraries(mm_global PUBLIC ws2_32)
 endif()
 
 if(EMSCRIPTEN)

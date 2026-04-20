@@ -18,6 +18,7 @@
 #include "../src/global/TaggedString.h"
 #include "../src/global/TextUtils.h"
 #include "../src/global/WeakHandle.h"
+#include "../src/global/io.h"
 #include "../src/global/emojis.h"
 #include "../src/global/entities.h"
 #include "../src/global/float_cast.h"
@@ -144,6 +145,20 @@ void TestGlobal::ansiToRgbTest()
 void TestGlobal::caseUtilsTest()
 {
     test::testCaseUtils();
+}
+
+void TestGlobal::ioExceptionTest()
+{
+#ifdef Q_OS_WIN
+    const auto ex = io::IOException::withErrorNumber(32); // ERROR_SHARING_VIOLATION
+    QVERIFY(QString::fromStdString(ex.what()).contains("The file is being used by another process"));
+#else
+    const auto ex = io::IOException::withErrorNumber(EBUSY);
+    QVERIFY(QString::fromStdString(ex.what()).contains("Resource busy"));
+#endif
+    const auto exUnknown = io::IOException::withErrorNumber(999999);
+    const QString msg = QString::fromStdString(exUnknown.what());
+    QVERIFY(msg.contains("999999"));
 }
 
 void TestGlobal::castTest()

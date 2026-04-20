@@ -730,9 +730,10 @@ bool MainWindow::tryStartNewAsync()
 
 void MainWindow::waitForAsync()
 {
+    QEventLoop loop;
+    connect(this, &MainWindow::sig_asyncTaskFinished, &loop, &QEventLoop::quit);
+
     if (m_asyncTask.isWorking()) {
-        QEventLoop loop;
-        connect(this, &MainWindow::sig_asyncTaskFinished, &loop, &QEventLoop::quit);
         loop.exec();
     }
 }

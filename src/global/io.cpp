@@ -21,8 +21,9 @@
 
 #ifdef Q_OS_WIN
 #include "WinSock.h"
-#include <windows.h>
+
 #include <io.h>
+#include <windows.h>
 #endif
 
 namespace io {
@@ -72,6 +73,40 @@ bool fsync(QFile &file) CAN_THROW
     }
 #else
     if (::fsync(handle) == -1) {
+        throw IOException::withCurrentErrno();
+    }
+#endif
+    return true;
+}
+
+bool rename(const QString &from, const QString &to) CAN_THROW
+{
+#ifdef Q_OS_WIN
+    const std::wstring fromW = from.toStdWString();
+    const std::wstring toW = to.toStdWString();
+    if (::ReplaceFileW(toW.c_str(),
+                       fromW.c_str(),
+                       nullptr,
+                       REPLACEFILE_IGNORE_MERGE_ERRORS,
+                       nullptr,
+                       nullptr)
+        == 0) {
+        const auto err = ::GetLastError();
+        if (err == ERROR_FILE_NOT_FOUND) {
+            if (::MoveFileExW(fromW.c_str(),
+                              toW.c_str(),
+                              MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED)
+                == 0) {
+                throw IOException::withErrorNumber(static_cast<int>(::GetLastError()));
+            }
+        } else {
+            throw IOException::withErrorNumber(static_cast<int>(err));
+        }
+    }
+#else
+    const auto fromEncoded = QFile::encodeName(from);
+    const auto toEncoded = QFile::encodeName(to);
+    if (::rename(fromEncoded.data(), toEncoded.data()) == -1) {
         throw IOException::withCurrentErrno();
     }
 #endif

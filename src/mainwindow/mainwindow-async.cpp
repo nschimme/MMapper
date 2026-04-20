@@ -473,7 +473,10 @@ private:
 
         progressDlg.reset();
         m_calledFinish = true;
-        virt_finish();
+        try {
+            virt_finish();
+        } catch (...) {
+        }
         return PollResultEnum::Finished;
     }
 };
@@ -663,7 +666,13 @@ private:
         AbstractMapStorage &storage = deref(pStorage);
         const MapData &mapData = deref(mainWindow.m_mapData);
         const bool result = background::save(storage, mapData, mode);
-        pMapDestination->finalize();
+        if (result) {
+            try {
+                pMapDestination->finalize();
+            } catch (...) {
+                return false;
+            }
+        }
         return result;
     }
 

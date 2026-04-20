@@ -746,11 +746,24 @@ bool MainWindow::tryStartNewAsync()
 
 void MainWindow::waitForAsync()
 {
-    QEventLoop loop;
-    connect(this, &MainWindow::sig_asyncTaskFinished, &loop, &QEventLoop::quit);
-
     if (m_asyncTask.isWorking()) {
-        loop.exec();
+        QEventLoop loop;
+        connect(this, &MainWindow::sig_asyncTaskFinished, &loop, &QEventLoop::quit);
+
+        // Active polling fallback in case timers or event loop are unreliable during shutdown
+        while (m_asyncTask.isWorking()) {
+            m_asyncTask.tick();
+            if (!m_asyncTask.isWorking()) {
+                break;
+            }
+            qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
+            if (!m_asyncTask.isWorking()) {
+                break;
+            }
+            // If the signal was emitted, loop.exec() will return immediately.
+            loop.processEvents();
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
     }
 }
 

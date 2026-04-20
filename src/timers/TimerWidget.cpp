@@ -23,7 +23,7 @@ TimerWidget::TimerWidget(CTimers &timers, QWidget *parent)
     m_model = new TimerModel(m_timers, this);
     m_view = new QTableView(this);
     m_view->setModel(m_model);
-    auto *delegate = new TimerDelegate(this);
+    auto *delegate = new TimerDelegate(m_view);
     for (int i = 0; i < TimerModel::ColCount; ++i) {
         m_view->setItemDelegateForColumn(i, delegate);
     }

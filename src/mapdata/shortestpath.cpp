@@ -4,10 +4,13 @@
 
 #include "shortestpath.h"
 
+#include "../global/IndexedVector.h"
 #include "../global/Timer.h"
+#include "../global/thread_utils.h"
 #include "../global/utils.h"
 #include "../map/ExitDirection.h"
 #include "../map/ExitFlags.h"
+#include "../map/Map.h"
 #include "../map/RoomIdSet.h"
 #include "../map/mmapper2room.h"
 #include "../map/roomid.h"
@@ -15,51 +18,44 @@
 #include "mapdata.h"
 #include "roomfilter.h"
 
+#include <algorithm>
+#include <atomic>
 #include <limits>
+#include <memory>
+#include <mutex>
 #include <utility>
 #include <vector>
 
-#include <queue>
-
 namespace {
 // Values taken from https://github.com/nstockton/tintin-mume/blob/master/mapperproxy/mapper/constants.py
-static constexpr const double COST_UNDEFINED = 1.0;
-static constexpr const double COST_INDOORS = 0.75;
-static constexpr const double COST_CITY = 0.75;
-static constexpr const double COST_FIELD = 1.5;
-static constexpr const double COST_FOREST = 2.15;
-static constexpr const double COST_HILLS = 2.45;
-static constexpr const double COST_MOUNTAINS = 2.8;
-static constexpr const double COST_SHALLOW = 2.45;
-static constexpr const double COST_WATER = 50.0;
-static constexpr const double COST_RAPIDS = 60.0;
-static constexpr const double COST_UNDERWATER = 100.0;
-static constexpr const double COST_ROAD = 0.85;
-static constexpr const double COST_BRUSH = 1.5;
-static constexpr const double COST_TUNNEL = 0.75;
-static constexpr const double COST_CAVERN = 0.75;
+static constexpr const float COST_UNDEFINED = 1.0f;
+static constexpr const float COST_INDOORS = 0.75f;
+static constexpr const float COST_CITY = 0.75f;
+static constexpr const float COST_FIELD = 1.5f;
+static constexpr const float COST_FOREST = 2.15f;
+static constexpr const float COST_HILLS = 2.45f;
+static constexpr const float COST_MOUNTAINS = 2.8f;
+static constexpr const float COST_SHALLOW = 2.45f;
+static constexpr const float COST_WATER = 50.0f;
+static constexpr const float COST_RAPIDS = 60.0f;
+static constexpr const float COST_UNDERWATER = 100.0f;
+static constexpr const float COST_ROAD = 0.85f;
+static constexpr const float COST_BRUSH = 1.5f;
+static constexpr const float COST_TUNNEL = 0.75f;
+static constexpr const float COST_CAVERN = 0.75f;
 
-static constexpr const double COST_RANDOM_DAMAGE_FALL = 30.0;
-static constexpr const double COST_DOOR = 1.0;
-static constexpr const double COST_CLIMB = 2.0;
-static constexpr const double COST_NOT_RIDABLE = 3.0;
-static constexpr const double COST_DISMOUNT = 4.0;
-static constexpr const double COST_ROAD_BONUS = 0.1;
-static constexpr const double COST_DEATHTRAP = 1000.0;
+static constexpr const float COST_RANDOM_DAMAGE_FALL = 30.0f;
+static constexpr const float COST_DOOR = 1.0f;
+static constexpr const float COST_CLIMB = 2.0f;
+static constexpr const float COST_NOT_RIDABLE = 3.0f;
+static constexpr const float COST_DISMOUNT = 4.0f;
+static constexpr const float COST_ROAD_BONUS = 0.1f;
+static constexpr const float COST_DEATHTRAP = 1000.0f;
 
-using SPNodeIdx = std::size_t;
-static constexpr const SPNodeIdx INVALID_SPNODE_IDX = std::numeric_limits<SPNodeIdx>::max();
-static constexpr const std::size_t INITIAL_NODES_CAPACITY = 2048;
+static constexpr const float DELTA = 2.0f;
+static constexpr const size_t MAX_SHARDS = 1024;
 
-struct SPNode final
-{
-    RoomId id;
-    SPNodeIdx parent = INVALID_SPNODE_IDX;
-    double dist = 0.0;
-    ExitDirEnum lastdir = ExitDirEnum::UNKNOWN;
-};
-
-NODISCARD static double terrain_cost(const RoomTerrainEnum type)
+NODISCARD static float terrain_cost(const RoomTerrainEnum type)
 {
     switch (type) {
 #define X_CASE(NAME) \
@@ -72,9 +68,9 @@ NODISCARD static double terrain_cost(const RoomTerrainEnum type)
     return COST_UNDEFINED;
 }
 
-NODISCARD static double getLength(const RawExit &e, const RoomHandle &curr, const RoomHandle &nextr)
+NODISCARD static float getLength(const RawExit &e, const RoomHandle &curr, const RoomHandle &nextr)
 {
-    double cost = terrain_cost(nextr.getTerrainType());
+    float cost = terrain_cost(nextr.getTerrainType());
     const auto flags = e.getExitFlags();
     if (flags.isRandom() || flags.isDamage() || flags.isFall()) {
         cost += COST_RANDOM_DAMAGE_FALL;
@@ -100,6 +96,56 @@ NODISCARD static double getLength(const RawExit &e, const RoomHandle &curr, cons
     }
     return cost;
 }
+
+struct Shard
+{
+    alignas(64) std::mutex mutex;
+};
+
+struct Bucket
+{
+    std::vector<RoomId> nodes;
+};
+
+struct BucketList
+{
+    std::vector<Bucket> buckets;
+
+    void push(const RoomId id, const size_t idx)
+    {
+        if (idx >= buckets.size()) {
+            buckets.resize(idx + 1);
+        }
+        buckets[idx].nodes.push_back(id);
+    }
+};
+
+bool relax(const RoomId v_id,
+           const float v_new_dist,
+           const RoomId u_id,
+           const ExitDirEnum dir,
+           std::atomic<float> *const dists,
+           IndexedVector<RoomId, RoomId> &parents,
+           IndexedVector<ExitDirEnum, RoomId> &lastdirs,
+           Shard *const locks,
+           const size_t numShards,
+           const float max_dist)
+{
+    if (max_dist != 0.0f && v_new_dist > max_dist) {
+        return false;
+    }
+    if (v_new_dist < dists[v_id.asUint32()].load(std::memory_order_relaxed)) {
+        std::lock_guard<std::mutex> lock(locks[v_id.asUint32() % numShards].mutex);
+        if (v_new_dist < dists[v_id.asUint32()].load(std::memory_order_relaxed)) {
+            dists[v_id.asUint32()].store(v_new_dist, std::memory_order_relaxed);
+            parents.at(v_id) = u_id;
+            lastdirs.at(v_id) = dir;
+            return true;
+        }
+    }
+    return false;
+}
+
 } // namespace
 
 ShortestPathRecipient::~ShortestPathRecipient() = default;
@@ -108,16 +154,16 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
                                  ShortestPathRecipient &recipient,
                                  const RoomFilter &f,
                                  int max_hits,
-                                 const double max_dist)
+                                 const double max_dist_d)
 {
     DECL_TIMER(t, "shortestPathSearch");
+
+    const float max_dist = static_cast<float>(max_dist_d);
 
     // the search stops if --max_hits == 0, so max_hits must be greater than 0,
     // but the default parameter is -1.
     assert(max_hits > 0 || max_hits == -1);
 
-    // although the data probably won't ever contain more than 2 billion results,
-    // let's at least pretend to care about potential signed integer underflow (UB)
     if (max_hits <= 0) {
         max_hits = std::numeric_limits<int>::max();
     }
@@ -128,78 +174,194 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
         return;
     }
 
-    std::vector<SPNode> sp_nodes;
-    RoomIdSet visited;
-    using DistIdx = std::pair<double, SPNodeIdx>;
-    std::priority_queue<DistIdx, std::vector<DistIdx>, std::greater<DistIdx>> future_paths;
+    const RoomId max_room_id = map.getRooms().last();
+    const size_t vec_size = static_cast<size_t>(max_room_id.asUint32()) + 1;
 
-    sp_nodes.reserve(INITIAL_NODES_CAPACITY);
-    sp_nodes.push_back(SPNode{origin.getId(), INVALID_SPNODE_IDX, 0, ExitDirEnum::UNKNOWN});
-    future_paths.emplace(0.0, 0);
+    // Use make_unique for types that are non-movable (atomic, mutex).
+    auto dists = std::make_unique<std::atomic<float>[]>(vec_size);
 
-    while (!future_paths.empty()) {
-        const SPNodeIdx spidx = utils::pop_top(future_paths).second;
+    IndexedVector<RoomId, RoomId> parents;
+    IndexedVector<ExitDirEnum, RoomId> lastdirs;
 
-        const RoomId room_id = sp_nodes[spidx].id;
-        const double thisdist = sp_nodes[spidx].dist;
+    parents.resize(vec_size);
+    lastdirs.resize(vec_size);
 
-        if (visited.contains(room_id)) {
-            continue;
-        }
-        visited.insert(room_id);
+    const size_t numThreads = thread_utils::idealThreadCount();
+    const size_t numShards = numThreads > 1
+                                 ? std::min<size_t>(MAX_SHARDS,
+                                                    utils::nextPowerOfTwo(numThreads * 16))
+                                 : 1;
 
-        if (targets.contains(room_id)) {
-            ShortestPathResult result;
-            result.id = room_id;
-            result.dist = thisdist;
+    // Use make_unique for types that are non-movable (atomic, mutex).
+    auto locks = std::make_unique<Shard[]>(numShards);
 
-            // Reconstruct path by counting steps first
-            std::size_t path_size = 0;
-            SPNodeIdx curr = spidx;
-            while (curr != INVALID_SPNODE_IDX && sp_nodes[curr].parent != INVALID_SPNODE_IDX) {
-                path_size++;
-                curr = sp_nodes[curr].parent;
-            }
+    for (size_t i = 0; i < vec_size; ++i) {
+        dists[i].store(std::numeric_limits<float>::infinity(), std::memory_order_relaxed);
+    }
+    std::fill(parents.begin(), parents.end(), INVALID_ROOMID);
+    std::fill(lastdirs.begin(), lastdirs.end(), ExitDirEnum::UNKNOWN);
 
-            result.path.resize(path_size);
-            curr = spidx;
-            for (std::size_t i = 0; i < path_size; ++i) {
-                result.path[path_size - 1 - i] = sp_nodes[curr].lastdir;
-                curr = sp_nodes[curr].parent;
-            }
+    BucketList bucketList;
+    auto get_bucket_idx = [](float d) -> size_t { return static_cast<size_t>(d / DELTA); };
 
-            recipient.receiveShortestPath(map, std::move(result));
-            if (--max_hits == 0) {
-                return;
-            }
-        }
+    const RoomId origin_id = origin.getId();
+    dists[origin_id.asUint32()].store(0.0f, std::memory_order_relaxed);
+    bucketList.push(origin_id, get_bucket_idx(0.0f));
 
-        if ((max_dist != 0.0) && thisdist > max_dist) {
+    size_t current_bucket_idx = get_bucket_idx(0.0f);
+    int total_hits = 0;
+
+    std::atomic<float> *const pDists = dists.get();
+    Shard *const pLocks = locks.get();
+
+    auto relax_node = [&map,
+                       pDists,
+                       &parents,
+                       &lastdirs,
+                       pLocks,
+                       numShards,
+                       max_dist,
+                       get_bucket_idx](std::vector<RoomId> &improved,
+                                       const RoomId u_id,
+                                       const size_t bucket_idx,
+                                       bool lightOnly) {
+        const float u_dist = pDists[u_id.asUint32()].load(std::memory_order_relaxed);
+        if (get_bucket_idx(u_dist) != bucket_idx) {
             return;
         }
-
-        const auto &thisr = map.getRoomHandle(room_id);
+        const auto &u_handle = map.getRoomHandle(u_id);
         for (const ExitDirEnum dir : ALL_EXITS7) {
-            const auto &e = thisr.getExit(dir);
+            const auto &e = u_handle.getExit(dir);
             if (!e.outIsUnique() || !e.exitIsExit()) {
                 continue;
             }
-
-            const RoomId nextrId = e.getOutgoingSet().first();
-            if (visited.contains(nextrId)) {
+            const RoomId v_id = e.getOutgoingSet().first();
+            const auto &v_handle = map.getRoomHandle(v_id);
+            const float weight = getLength(e, u_handle, v_handle);
+            if (lightOnly && weight > DELTA) {
                 continue;
             }
-
-            const auto &nextr = map.getRoomHandle(nextrId);
-            const double length = getLength(e, thisr, nextr);
-            const double new_dist = thisdist + length;
-
-            if (max_dist != 0.0 && new_dist > max_dist) {
+            if (!lightOnly && weight <= DELTA) {
                 continue;
             }
-
-            sp_nodes.push_back(SPNode{nextrId, spidx, new_dist, dir});
-            future_paths.emplace(new_dist, sp_nodes.size() - 1);
+            if (relax(v_id,
+                      u_dist + weight,
+                      u_id,
+                      dir,
+                      pDists,
+                      parents,
+                      lastdirs,
+                      pLocks,
+                      numShards,
+                      max_dist)) {
+                improved.push_back(v_id);
+            }
         }
+    };
+
+    while (current_bucket_idx < bucketList.buckets.size() && total_hits < max_hits) {
+        if (bucketList.buckets[current_bucket_idx].nodes.empty()) {
+            current_bucket_idx++;
+            continue;
+        }
+
+        std::vector<RoomId> bucket_nodes;
+        while (!bucketList.buckets[current_bucket_idx].nodes.empty()) {
+            std::vector<RoomId> current_nodes = std::move(
+                bucketList.buckets[current_bucket_idx].nodes);
+            bucketList.buckets[current_bucket_idx].nodes.clear();
+
+            struct TlData
+            {
+                std::vector<RoomId> improved;
+            };
+            std::vector<RoomId> all_improved;
+
+            ProgressCounter pc;
+            thread_utils::parallel_for_each_tl<TlData>(
+                current_nodes,
+                pc,
+                [&relax_node, current_bucket_idx](TlData &tl, const RoomId u_id) {
+                    relax_node(tl.improved, u_id, current_bucket_idx, true);
+                },
+                [&all_improved](auto &tls) {
+                    for (auto &tl : tls) {
+                        all_improved.insert(all_improved.end(),
+                                            tl.improved.begin(),
+                                            tl.improved.end());
+                    }
+                });
+
+            for (const RoomId v_id : all_improved) {
+                bucketList.push(v_id, get_bucket_idx(pDists[v_id.asUint32()].load()));
+            }
+            bucket_nodes.insert(bucket_nodes.end(), current_nodes.begin(), current_nodes.end());
+        }
+
+        std::sort(bucket_nodes.begin(), bucket_nodes.end());
+        bucket_nodes.erase(std::unique(bucket_nodes.begin(), bucket_nodes.end()),
+                           bucket_nodes.end());
+
+        struct TlDataHeavy
+        {
+            std::vector<RoomId> improved;
+        };
+        std::vector<RoomId> all_improved_heavy;
+
+        ProgressCounter pc_heavy;
+        thread_utils::parallel_for_each_tl<TlDataHeavy>(
+            bucket_nodes,
+            pc_heavy,
+            [&relax_node, current_bucket_idx](TlDataHeavy &tl, const RoomId u_id) {
+                relax_node(tl.improved, u_id, current_bucket_idx, false);
+            },
+            [&all_improved_heavy](auto &tls) {
+                for (auto &tl : tls) {
+                    all_improved_heavy.insert(all_improved_heavy.end(),
+                                              tl.improved.begin(),
+                                              tl.improved.end());
+                }
+            });
+
+        for (const RoomId v_id : all_improved_heavy) {
+            bucketList.push(v_id, get_bucket_idx(pDists[v_id.asUint32()].load()));
+        }
+
+        std::vector<RoomId> targets_in_bucket;
+        for (const RoomId id : bucket_nodes) {
+            if (targets.contains(id)
+                && get_bucket_idx(pDists[id.asUint32()].load()) == current_bucket_idx) {
+                targets_in_bucket.push_back(id);
+            }
+        }
+
+        if (!targets_in_bucket.empty()) {
+            std::sort(targets_in_bucket.begin(),
+                      targets_in_bucket.end(),
+                      [pDists](RoomId a, RoomId b) {
+                          return pDists[a.asUint32()].load() < pDists[b.asUint32()].load();
+                      });
+            for (const RoomId target_id : targets_in_bucket) {
+                ShortestPathResult result;
+                result.id = target_id;
+                result.dist = static_cast<double>(pDists[target_id.asUint32()].load());
+                RoomId curr = target_id;
+                while (curr != origin_id) {
+                    result.path.push_back(lastdirs.at(curr));
+                    curr = parents.at(curr);
+                    if (curr == INVALID_ROOMID) {
+                        break;
+                    }
+                }
+                if (curr == origin_id) {
+                    std::reverse(result.path.begin(), result.path.end());
+                    recipient.receiveShortestPath(map, std::move(result));
+                    if (++total_hits >= max_hits) {
+                        return;
+                    }
+                }
+            }
+        }
+        current_bucket_idx++;
     }
 }

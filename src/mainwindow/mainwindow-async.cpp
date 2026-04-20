@@ -713,7 +713,7 @@ private:
                                             AsyncTypeEnum::Save,
                                             progressCounter->requestedCancel());
             } else {
-                mainWindow.showWarning(tr("Failed to finalize file %1:\n%2").arg(fileName, errorMsg));
+                mainWindow.showWarning(tr("Failed to save %1:\n%2").arg(fileName, errorMsg));
             }
             return;
         }

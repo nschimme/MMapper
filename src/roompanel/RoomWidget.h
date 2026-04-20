@@ -62,12 +62,15 @@ private:
 
 }; // class RoomModel
 
+class QTableView;
+
 class NODISCARD_QOBJECT RoomWidget final : public QWidget
 {
     Q_OBJECT
 
 private:
-    RoomModel m_model;
+    RoomModel *m_model = nullptr;
+    QTableView *m_view = nullptr;
     RoomManager &m_roomManager;
 
 public:

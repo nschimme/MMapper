@@ -35,6 +35,7 @@
 #include <QBuffer>
 #include <QSize>
 #include <QString>
+#include <QThread>
 #include <QXmlStreamReader>
 #include <QtWidgets>
 
@@ -722,6 +723,14 @@ bool MainWindow::tryStartNewAsync()
         return false;
     }
     return true;
+}
+
+void MainWindow::waitForAsync()
+{
+    while (m_asyncTask.isWorking()) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
+        QThread::msleep(10);
+    }
 }
 
 void MainWindow::loadFile(std::shared_ptr<MapSource> source)

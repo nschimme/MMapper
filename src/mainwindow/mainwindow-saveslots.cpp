@@ -85,6 +85,8 @@ NODISCARD std::unique_ptr<QFileDialog> createDefaultSaveDialog(MainWindow &mainW
 
 bool MainWindow::maybeSave()
 {
+    waitForAsync();
+
     auto &mapData = deref(m_mapData);
     if (!mapData.dataChanged()) {
         return true;
@@ -102,7 +104,10 @@ bool MainWindow::maybeSave()
     dlg.setEscapeButton(QMessageBox::Cancel);
     const int ret = dlg.exec();
     if (ret == QMessageBox::Save) {
-        return slot_save();
+        if (slot_save()) {
+            waitForAsync();
+        }
+        return !mapData.dataChanged();
     }
 
     // REVISIT: is it a bug if this returns true? (Shouldn't this always be false?)

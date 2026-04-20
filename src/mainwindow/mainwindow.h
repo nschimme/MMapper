@@ -464,7 +464,4 @@ public slots:
     void slot_openSettingUpMmapper();
     void slot_openNewbieHelp();
     void onReportIssueTriggered();
-
-signals:
-    void sig_asyncTaskFinished();
 };

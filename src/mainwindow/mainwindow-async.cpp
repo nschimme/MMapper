@@ -357,10 +357,6 @@ void MainWindow::AsyncTask::reset()
         m_timer->stop();
         m_timer.reset();
     }
-
-    if (auto mw = qobject_cast<MainWindow *>(parent())) {
-        emit mw->sig_asyncTaskFinished();
-    }
 }
 
 struct NODISCARD MainWindow::AsyncHelper : public AsyncBase
@@ -730,10 +726,13 @@ bool MainWindow::tryStartNewAsync()
 
 void MainWindow::waitForAsync()
 {
-    if (m_asyncTask.isWorking()) {
+    // Use a local event loop to block the main thread while allowing the task-polling timer to fire.
+    // We use a short single-shot timer to ensure we check the isWorking() condition frequently,
+    // keeping the UI responsive and allowing finalization without manual signal connections.
+    while (m_asyncTask.isWorking()) {
         QEventLoop loop;
-        connect(this, &MainWindow::sig_asyncTaskFinished, &loop, &QEventLoop::quit);
-        loop.exec();
+        QTimer::singleShot(10, &loop, &QEventLoop::quit);
+        loop.exec(QEventLoop::ExcludeUserInputEvents);
     }
 }
 

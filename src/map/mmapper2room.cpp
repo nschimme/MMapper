@@ -107,28 +107,24 @@ std::string_view to_string_view(const RoomTerrainEnum e)
     std::abort();
 }
 
-QString getName(const RoomTerrainEnum terrain)
+QStringView getName(const RoomTerrainEnum terrain)
 {
 #define X_CASE(UPPER) \
-    do { \
     case RoomTerrainEnum::UPPER: \
-        return #UPPER; \
-    } while (false);
+        return u"" #UPPER;
 
     switch (terrain) {
         XFOREACH_RoomTerrainEnum(X_CASE)
     }
-    return QString::asprintf("(RoomTerrainEnum)%d", static_cast<int>(terrain));
-#undef X_CASE2
+    return u"(unknown)";
+#undef X_CASE
 }
 
-QString getName(const RoomMobFlagEnum flag)
+QStringView getName(const RoomMobFlagEnum flag)
 {
 #define X_CASE2(UPPER, desc) \
-    do { \
     case RoomMobFlagEnum::UPPER: \
-        return desc; \
-    } while (false)
+        return u"" desc;
     switch (flag) {
         X_CASE2(RENT, "Rent place");
         X_CASE2(SHOP, "Generic shop");
@@ -150,17 +146,15 @@ QString getName(const RoomMobFlagEnum flag)
         X_CASE2(MILKABLE, "Milkable mob");
         X_CASE2(RATTLESNAKE, "Rattlesnake mob");
     }
-    return QString::asprintf("(RoomMobFlagEnum)%d", static_cast<int>(flag));
+    return u"(unknown)";
 #undef X_CASE2
 }
 
-QString getName(const RoomLoadFlagEnum flag)
+QStringView getName(const RoomLoadFlagEnum flag)
 {
 #define X_CASE2(UPPER, desc) \
-    do { \
     case RoomLoadFlagEnum::UPPER: \
-        return desc; \
-    } while (false)
+        return u"" desc;
     switch (flag) {
         X_CASE2(TREASURE, "Treasure");
         X_CASE2(ARMOUR, "Armour");
@@ -188,7 +182,7 @@ QString getName(const RoomLoadFlagEnum flag)
         X_CASE2(FERRY, "Ferry");
         X_CASE2(DEATHTRAP, "Deathtrap");
     }
-    return QString::asprintf("(RoomLoadFlagEnum)%d", static_cast<int>(flag));
+    return u"(unknown)";
 #undef X_CASE2
 }
 

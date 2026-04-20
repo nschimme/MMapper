@@ -318,9 +318,9 @@ NODISCARD extern std::string_view to_string_view(RoomSundeathEnum);
 NODISCARD extern std::string_view to_string_view(RoomTerrainEnum);
 
 /* REVISIT: merge these with human-readable names used in parser output? */
-NODISCARD extern QString getName(RoomLoadFlagEnum flag);
-NODISCARD extern QString getName(RoomMobFlagEnum flag);
-NODISCARD extern QString getName(RoomTerrainEnum terrain);
+NODISCARD extern QStringView getName(RoomLoadFlagEnum flag);
+NODISCARD extern QStringView getName(RoomMobFlagEnum flag);
+NODISCARD extern QStringView getName(RoomTerrainEnum terrain);
 
 void sanitizeRoomArea(std::string &area);
 void sanitizeRoomName(std::string &name);

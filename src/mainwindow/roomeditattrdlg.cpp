@@ -203,7 +203,7 @@ RoomEditAttrDlg::RoomEditAttrDlg(QWidget *parent)
 
     for (const RoomMobFlagEnum flag : ALL_MOB_FLAGS) {
         m_mobListItems[flag] = std::make_unique<RoomListWidgetItem>(getIcon(flag),
-                                                                    getName(flag),
+                                                                    getName(flag).toString(),
                                                                     getPriority(flag));
     }
 
@@ -214,7 +214,7 @@ RoomEditAttrDlg::RoomEditAttrDlg(QWidget *parent)
 
     for (const RoomLoadFlagEnum flag : ALL_LOAD_FLAGS) {
         m_loadListItems[flag] = std::make_unique<RoomListWidgetItem>(getIcon(flag),
-                                                                     getName(flag),
+                                                                     getName(flag).toString(),
                                                                      getPriority(flag));
     }
 

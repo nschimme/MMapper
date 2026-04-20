@@ -5,9 +5,11 @@
 #include "shortestpath.h"
 
 #include "../global/Timer.h"
+#include "../global/thread_utils.h"
 #include "../global/utils.h"
 #include "../map/ExitDirection.h"
 #include "../map/ExitFlags.h"
+#include "../map/Map.h"
 #include "../map/RoomIdSet.h"
 #include "../map/mmapper2room.h"
 #include "../map/roomid.h"
@@ -15,11 +17,13 @@
 #include "mapdata.h"
 #include "roomfilter.h"
 
+#include <algorithm>
+#include <atomic>
 #include <limits>
+#include <memory>
+#include <mutex>
 #include <utility>
 #include <vector>
-
-#include <queue>
 
 namespace {
 // Values taken from https://github.com/nstockton/tintin-mume/blob/master/mapperproxy/mapper/constants.py
@@ -47,17 +51,9 @@ static constexpr const double COST_DISMOUNT = 4.0;
 static constexpr const double COST_ROAD_BONUS = 0.1;
 static constexpr const double COST_DEATHTRAP = 1000.0;
 
-using SPNodeIdx = std::size_t;
-static constexpr const SPNodeIdx INVALID_SPNODE_IDX = std::numeric_limits<SPNodeIdx>::max();
-static constexpr const std::size_t INITIAL_NODES_CAPACITY = 2048;
-
-struct SPNode final
-{
-    RoomId id;
-    SPNodeIdx parent = INVALID_SPNODE_IDX;
-    double dist = 0.0;
-    ExitDirEnum lastdir = ExitDirEnum::UNKNOWN;
-};
+static constexpr const double DELTA = 2.0;
+static constexpr const size_t SHARDS = 1024;
+static constexpr const size_t PARALLEL_THRESHOLD = 256;
 
 NODISCARD static double terrain_cost(const RoomTerrainEnum type)
 {
@@ -100,6 +96,38 @@ NODISCARD static double getLength(const RawExit &e, const RoomHandle &curr, cons
     }
     return cost;
 }
+
+struct Shard
+{
+    alignas(64) std::mutex mutex;
+};
+
+bool relax(const RoomId v_id,
+           const double v_new_dist,
+           const RoomId u_id,
+           const ExitDirEnum dir,
+           std::atomic<double> *const dists,
+           RoomId *const parents,
+           ExitDirEnum *const lastdirs,
+           Shard *const locks,
+           const double max_dist)
+{
+    if (max_dist != 0.0 && v_new_dist > max_dist) {
+        return false;
+    }
+    const uint32_t v_uint = v_id.asUint32();
+    if (v_new_dist < dists[v_uint].load(std::memory_order_relaxed)) {
+        std::lock_guard<std::mutex> lock(locks[v_uint % SHARDS].mutex);
+        if (v_new_dist < dists[v_uint].load(std::memory_order_relaxed)) {
+            dists[v_uint].store(v_new_dist, std::memory_order_relaxed);
+            parents[v_uint] = u_id;
+            lastdirs[v_uint] = dir;
+            return true;
+        }
+    }
+    return false;
+}
+
 } // namespace
 
 ShortestPathRecipient::~ShortestPathRecipient() = default;
@@ -128,78 +156,217 @@ void MapData::shortestPathSearch(const RoomHandle &origin,
         return;
     }
 
-    std::vector<SPNode> sp_nodes;
-    RoomIdSet visited;
-    using DistIdx = std::pair<double, SPNodeIdx>;
-    std::priority_queue<DistIdx, std::vector<DistIdx>, std::greater<DistIdx>> future_paths;
+    // Use sorted property of ImmRoomIdSet to find max room ID.
+    const RoomId max_room_id = map.getRooms().last();
+    const size_t vec_size = static_cast<size_t>(max_room_id.asUint32()) + 1;
 
-    sp_nodes.reserve(INITIAL_NODES_CAPACITY);
-    sp_nodes.push_back(SPNode{origin.getId(), INVALID_SPNODE_IDX, 0, ExitDirEnum::UNKNOWN});
-    future_paths.emplace(0.0, 0);
+    auto dists = std::make_unique<std::atomic<double>[]>(vec_size);
+    auto parents = std::make_unique<RoomId[]>(vec_size);
+    auto lastdirs = std::make_unique<ExitDirEnum[]>(vec_size);
+    auto locks = std::make_unique<Shard[]>(SHARDS);
 
-    while (!future_paths.empty()) {
-        const SPNodeIdx spidx = utils::pop_top(future_paths).second;
+    for (size_t i = 0; i < vec_size; ++i) {
+        dists[i].store(std::numeric_limits<double>::infinity(), std::memory_order_relaxed);
+        parents[i] = INVALID_ROOMID;
+        lastdirs[i] = ExitDirEnum::UNKNOWN;
+    }
 
-        const RoomId room_id = sp_nodes[spidx].id;
-        const double thisdist = sp_nodes[spidx].dist;
+    std::vector<uint8_t> is_target(vec_size, 0);
+    for (const RoomId id : targets) {
+        is_target[id.asUint32()] = 1;
+    }
 
-        if (visited.contains(room_id)) {
+    std::vector<std::vector<RoomId>> buckets;
+    auto get_bucket_idx = [](double d) -> size_t { return static_cast<size_t>(d / DELTA); };
+
+    const RoomId origin_id = origin.getId();
+    dists[origin_id.asUint32()].store(0.0, std::memory_order_relaxed);
+    size_t start_bucket = get_bucket_idx(0.0);
+    buckets.resize(start_bucket + 1);
+    buckets[start_bucket].push_back(origin_id);
+
+    size_t current_bucket_idx = start_bucket;
+    int total_hits = 0;
+    const size_t numThreads = thread_utils::idealThreadCount();
+
+    while (current_bucket_idx < buckets.size() && total_hits < max_hits) {
+        if (buckets[current_bucket_idx].empty()) {
+            current_bucket_idx++;
             continue;
         }
-        visited.insert(room_id);
 
-        if (targets.contains(room_id)) {
-            ShortestPathResult result;
-            result.id = room_id;
-            result.dist = thisdist;
+        std::vector<RoomId> bucket_nodes;
+        while (!buckets[current_bucket_idx].empty()) {
+            std::vector<RoomId> current_nodes = std::move(buckets[current_bucket_idx]);
+            buckets[current_bucket_idx].clear();
 
-            // Reconstruct path by counting steps first
-            std::size_t path_size = 0;
-            SPNodeIdx curr = spidx;
-            while (curr != INVALID_SPNODE_IDX && sp_nodes[curr].parent != INVALID_SPNODE_IDX) {
-                path_size++;
-                curr = sp_nodes[curr].parent;
+            struct TlData
+            {
+                std::vector<RoomId> light;
+            };
+            std::vector<RoomId> all_improved_light;
+
+            auto relax_light = [&](std::vector<RoomId> &improved_light, const RoomId u_id) {
+                const double u_dist = dists[u_id.asUint32()].load(std::memory_order_relaxed);
+                if (get_bucket_idx(u_dist) != current_bucket_idx) {
+                    return;
+                }
+                const auto &u_handle = map.getRoomHandle(u_id);
+                for (const ExitDirEnum dir : ALL_EXITS7) {
+                    const auto &e = u_handle.getExit(dir);
+                    if (!e.outIsUnique() || !e.exitIsExit()) {
+                        continue;
+                    }
+                    const RoomId v_id = e.getOutgoingSet().first();
+                    const auto &v_handle = map.getRoomHandle(v_id);
+                    const double weight = getLength(e, u_handle, v_handle);
+                    if (weight > DELTA) {
+                        continue;
+                    }
+                    if (relax(v_id,
+                              u_dist + weight,
+                              u_id,
+                              dir,
+                              dists.get(),
+                              parents.get(),
+                              lastdirs.get(),
+                              locks.get(),
+                              max_dist)) {
+                        improved_light.push_back(v_id);
+                    }
+                }
+            };
+
+            if (numThreads > 1 && current_nodes.size() > PARALLEL_THRESHOLD) {
+                ProgressCounter pc;
+                thread_utils::parallel_for_each_tl<TlData>(
+                    current_nodes,
+                    pc,
+                    [&](TlData &tl, const RoomId u_id) { relax_light(tl.light, u_id); },
+                    [&](auto &tls) {
+                        for (auto &tl : tls) {
+                            all_improved_light.insert(
+                                all_improved_light.end(), tl.light.begin(), tl.light.end());
+                        }
+                    });
+            } else {
+                for (const RoomId u_id : current_nodes) {
+                    relax_light(all_improved_light, u_id);
+                }
             }
 
-            result.path.resize(path_size);
-            curr = spidx;
-            for (std::size_t i = 0; i < path_size; ++i) {
-                result.path[path_size - 1 - i] = sp_nodes[curr].lastdir;
-                curr = sp_nodes[curr].parent;
+            for (const RoomId v_id : all_improved_light) {
+                size_t b = get_bucket_idx(dists[v_id.asUint32()].load());
+                if (buckets.size() <= b) {
+                    buckets.resize(b + 1);
+                }
+                buckets[b].push_back(v_id);
             }
+            bucket_nodes.insert(bucket_nodes.end(), current_nodes.begin(), current_nodes.end());
+        }
 
-            recipient.receiveShortestPath(map, std::move(result));
-            if (--max_hits == 0) {
+        std::sort(bucket_nodes.begin(), bucket_nodes.end());
+        bucket_nodes.erase(std::unique(bucket_nodes.begin(), bucket_nodes.end()),
+                            bucket_nodes.end());
+
+        struct TlDataHeavy
+        {
+            std::vector<RoomId> heavy;
+        };
+        std::vector<RoomId> all_improved_heavy;
+
+        auto relax_heavy = [&](std::vector<RoomId> &improved_heavy, const RoomId u_id) {
+            const double u_dist = dists[u_id.asUint32()].load(std::memory_order_relaxed);
+            if (get_bucket_idx(u_dist) != current_bucket_idx) {
                 return;
             }
+            const auto &u_handle = map.getRoomHandle(u_id);
+            for (const ExitDirEnum dir : ALL_EXITS7) {
+                const auto &e = u_handle.getExit(dir);
+                if (!e.outIsUnique() || !e.exitIsExit()) {
+                    continue;
+                }
+                const RoomId v_id = e.getOutgoingSet().first();
+                const auto &v_handle = map.getRoomHandle(v_id);
+                const double weight = getLength(e, u_handle, v_handle);
+                if (weight <= DELTA) {
+                    continue;
+                }
+                if (relax(v_id,
+                          u_dist + weight,
+                          u_id,
+                          dir,
+                          dists.get(),
+                          parents.get(),
+                          lastdirs.get(),
+                          locks.get(),
+                          max_dist)) {
+                    improved_heavy.push_back(v_id);
+                }
+            }
+        };
+
+        if (numThreads > 1 && bucket_nodes.size() > PARALLEL_THRESHOLD) {
+            ProgressCounter pc_heavy;
+            thread_utils::parallel_for_each_tl<TlDataHeavy>(
+                bucket_nodes,
+                pc_heavy,
+                [&](TlDataHeavy &tl, const RoomId u_id) { relax_heavy(tl.heavy, u_id); },
+                [&](auto &tls) {
+                    for (auto &tl : tls) {
+                        all_improved_heavy.insert(
+                            all_improved_heavy.end(), tl.heavy.begin(), tl.heavy.end());
+                    }
+                });
+        } else {
+            for (const RoomId u_id : bucket_nodes) {
+                relax_heavy(all_improved_heavy, u_id);
+            }
         }
 
-        if ((max_dist != 0.0) && thisdist > max_dist) {
-            return;
+        for (const RoomId v_id : all_improved_heavy) {
+            size_t b = get_bucket_idx(dists[v_id.asUint32()].load());
+            if (buckets.size() <= b) {
+                buckets.resize(b + 1);
+            }
+            buckets[b].push_back(v_id);
         }
 
-        const auto &thisr = map.getRoomHandle(room_id);
-        for (const ExitDirEnum dir : ALL_EXITS7) {
-            const auto &e = thisr.getExit(dir);
-            if (!e.outIsUnique() || !e.exitIsExit()) {
-                continue;
+        std::vector<RoomId> targets_in_bucket;
+        for (const RoomId id : bucket_nodes) {
+            if (is_target[id.asUint32()]
+                && get_bucket_idx(dists[id.asUint32()].load()) == current_bucket_idx) {
+                targets_in_bucket.push_back(id);
             }
-
-            const RoomId nextrId = e.getOutgoingSet().first();
-            if (visited.contains(nextrId)) {
-                continue;
-            }
-
-            const auto &nextr = map.getRoomHandle(nextrId);
-            const double length = getLength(e, thisr, nextr);
-            const double new_dist = thisdist + length;
-
-            if (max_dist != 0.0 && new_dist > max_dist) {
-                continue;
-            }
-
-            sp_nodes.push_back(SPNode{nextrId, spidx, new_dist, dir});
-            future_paths.emplace(new_dist, sp_nodes.size() - 1);
         }
+
+        if (!targets_in_bucket.empty()) {
+            std::sort(targets_in_bucket.begin(),
+                      targets_in_bucket.end(),
+                      [&dists](RoomId a, RoomId b) {
+                          return dists[a.asUint32()].load() < dists[b.asUint32()].load();
+                      });
+            for (const RoomId target_id : targets_in_bucket) {
+                ShortestPathResult result;
+                result.id = target_id;
+                result.dist = dists[target_id.asUint32()].load();
+                RoomId curr = target_id;
+                while (curr != origin_id) {
+                    result.path.push_back(lastdirs[curr.asUint32()]);
+                    curr = parents[curr.asUint32()];
+                    if (curr == INVALID_ROOMID) {
+                        break;
+                    }
+                }
+                if (curr == origin_id) {
+                    std::reverse(result.path.begin(), result.path.end());
+                    recipient.receiveShortestPath(map, std::move(result));
+                    if (++total_hits >= max_hits) {
+                        return;
+                    }
+                }
+            }
+        }
+        current_bucket_idx++;
     }
 }

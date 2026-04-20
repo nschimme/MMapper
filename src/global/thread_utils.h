@@ -17,17 +17,22 @@ NODISCARD extern bool isOnMainThread();
 #define ABORT_IF_NOT_ON_MAIN_THREAD() ::thread_utils::abortIfNotOnMainThread(MM_SOURCE_LOCATION())
 extern void abortIfNotOnMainThread(mm::source_location loc);
 
+NODISCARD inline size_t idealThreadCount()
+{
+#ifdef Q_OS_WASM
+    return 1;
+#else
+    return std::max<size_t>(1, std::thread::hardware_concurrency());
+#endif
+}
+
 template<typename ThreadLocals, typename Container, typename Callback, typename MergeThreadLocals>
 void parallel_for_each_tl_range(Container &&container,
                                 ProgressCounter &counter,
                                 Callback &&callback,
                                 MergeThreadLocals &&merge_threadlocals)
 {
-#ifdef Q_OS_WASM
-    const auto numThreads = 1;
-#else
-    const auto numThreads = std::max<size_t>(1, std::thread::hardware_concurrency());
-#endif
+    const auto numThreads = idealThreadCount();
     if (numThreads == 1) {
         std::array<ThreadLocals, 1> thread_locals;
         auto &tl = thread_locals.front();

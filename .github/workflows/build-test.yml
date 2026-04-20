@@ -30,8 +30,6 @@ jobs:
           compiler: 'gcc'
         - os: macos-latest
           compiler: 'msvc'
-        - os: windows-2022
-          compiler: 'clang'
     steps:
     - uses: actions/checkout@v6
       with:
@@ -119,6 +117,16 @@ jobs:
         cache: true
         modules: 'qtwebsockets qtmultimedia'
         tools: 'tools_mingw1310'
+    - if: runner.os == 'Windows' && matrix.compiler == 'clang'
+      name: Install Qt for Windows (LLVM-MinGW)
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: '6.8.3'
+        dir: 'C:\'
+        arch: win64_llvm_mingw
+        cache: true
+        modules: 'qtwebsockets qtmultimedia'
+        tools: 'tools_llvm_mingw1706'
 
       #
       # Build
@@ -134,6 +142,19 @@ jobs:
         if ('${{ matrix.compiler }}' -eq 'gcc') {
           echo "C:/Qt/Tools/mingw1310_64/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           $env:PATH = "C:\Qt\Tools\mingw1310_64\bin;$env:PATH"
+        }
+        if ('${{ matrix.compiler }}' -eq 'clang') {
+          $llvmDir = Get-ChildItem -Path "C:\Qt\Tools" -Filter "llvm-mingw*" | Select-Object -First 1
+          if ($null -ne $llvmDir) {
+            $llvmBin = Join-Path $llvmDir.FullName "bin"
+            echo "$($llvmBin.Replace('\', '/'))" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+            $env:PATH = "$llvmBin;$env:PATH"
+            $env:CC = "clang"
+            $env:CXX = "clang++"
+          } else {
+            Write-Error "LLVM-MinGW toolchain not found"
+            exit -1
+          }
         }
         $packageDir = ($env:GITHUB_WORKSPACE -replace '\\', '/') + "/artifact"
         $launcher = ${{ matrix.compiler == 'msvc' && 'sccache' || 'ccache' }}

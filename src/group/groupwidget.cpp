@@ -567,27 +567,23 @@ int GroupModel::columnCount(const QModelIndex & /* parent */) const
 NODISCARD static QStringView getPrettyName(const CharacterPositionEnum position)
 {
 #define X_CASE(UPPER_CASE, lower_case, CamelCase, friendly) \
-    do { \
     case CharacterPositionEnum::UPPER_CASE: \
-        return QStringLiteral(friendly); \
-    } while (false);
+        return u"" friendly;
     switch (position) {
         XFOREACH_CHARACTER_POSITION(X_CASE)
     }
-    return QString::asprintf("(CharacterPositionEnum)%d", static_cast<int>(position));
+    return u"(unknown)";
 #undef X_CASE
 }
 NODISCARD static QStringView getPrettyName(const CharacterAffectEnum affect)
 {
 #define X_CASE(UPPER_CASE, lower_case, CamelCase, friendly) \
-    do { \
     case CharacterAffectEnum::UPPER_CASE: \
-        return QStringLiteral(friendly); \
-    } while (false);
+        return u"" friendly;
     switch (affect) {
         XFOREACH_CHARACTER_AFFECT(X_CASE)
     }
-    return QString::asprintf("(CharacterAffectEnum)%d", static_cast<int>(affect));
+    return u"(unknown)";
 #undef X_CASE
 }
 

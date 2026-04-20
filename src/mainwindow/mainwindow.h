@@ -312,6 +312,7 @@ private:
     void showStatusLong(const QString &txt) { showStatusInternal(txt, 5000); }
     void showStatusForever(const QString &txt) { showStatusInternal(txt, 0); }
     NODISCARD bool tryStartNewAsync();
+    void waitForAsync();
 
 private:
     void wireConnections();
@@ -463,4 +464,7 @@ public slots:
     void slot_openSettingUpMmapper();
     void slot_openNewbieHelp();
     void onReportIssueTriggered();
+
+signals:
+    void sig_asyncTaskFinished();
 };

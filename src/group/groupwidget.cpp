@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <cmath>
 #include <map>
+#include <unordered_set>
 #include <vector>
 
 #include <QAction>
@@ -829,14 +830,7 @@ GroupWidget::GroupWidget(Mmapper2Group *const group, MapData *const md, QWidget 
     : QWidget(parent)
     , m_group(group)
     , m_map(md)
-    , m_model(this)
 {
-    if (m_group) {
-        m_model.setCharacters(m_group->selectAll());
-    } else {
-        m_model.setCharacters({});
-    }
-
     auto *layout = new QVBoxLayout(this);
     layout->setAlignment(Qt::AlignTop);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -849,8 +843,15 @@ GroupWidget::GroupWidget(Mmapper2Group *const group, MapData *const md, QWidget 
     m_table->horizontalHeader()->setStretchLastSection(true);
     m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
 
+    m_model = new GroupModel(m_table);
+    if (m_group) {
+        m_model->setCharacters(m_group->selectAll());
+    } else {
+        m_model->setCharacters({});
+    }
+
     m_proxyModel = new GroupProxyModel(m_table);
-    m_proxyModel->setSourceModel(&m_model);
+    m_proxyModel->setSourceModel(m_model);
     m_table->setModel(m_proxyModel);
 
     m_table->setDragEnabled(true);
@@ -912,7 +913,7 @@ GroupWidget::GroupWidget(Mmapper2Group *const group, MapData *const md, QWidget 
             return;
         }
 
-        selectedCharacter = m_model.getCharacter(sourceIndex.row());
+        selectedCharacter = m_model->getCharacter(sourceIndex.row());
         if (selectedCharacter) {
             // Build Context menu
             m_center->setText(
@@ -947,8 +948,6 @@ GroupWidget::GroupWidget(Mmapper2Group *const group, MapData *const md, QWidget 
 GroupWidget::~GroupWidget()
 {
     m_pulseTimer->stop();
-    delete m_table;
-    delete m_recolor;
 }
 
 QSize GroupWidget::sizeHint() const
@@ -964,7 +963,7 @@ void GroupWidget::updateColumnVisibility()
 {
     // Hide unnecessary columns like mana if everyone is a zorc/troll
     const auto one_character_had_mana = [this]() -> bool {
-        for (const auto &character : m_model.getCharacters()) {
+        for (const auto &character : m_model->getCharacters()) {
             if (character && (character->getMana() > 0 || character->getMaxMana() > 0)) {
                 return true;
             }
@@ -978,7 +977,7 @@ void GroupWidget::updateColumnVisibility()
 void GroupWidget::updatePulseTimer()
 {
     const auto needs_pulse = [this]() -> bool {
-        for (const auto &character : m_model.getCharacters()) {
+        for (const auto &character : m_model->getCharacters()) {
             if (!character) {
                 continue;
             }
@@ -1012,7 +1011,7 @@ void GroupWidget::updatePulseTimer()
 void GroupWidget::slot_onCharacterAdded(SharedGroupChar character)
 {
     assert(character);
-    m_model.insertCharacter(character);
+    m_model->insertCharacter(character);
     updateColumnVisibility();
     updatePulseTimer();
 }
@@ -1020,7 +1019,7 @@ void GroupWidget::slot_onCharacterAdded(SharedGroupChar character)
 void GroupWidget::slot_onCharacterRemoved(const GroupId characterId)
 {
     assert(characterId != INVALID_GROUPID);
-    m_model.removeCharacterById(characterId);
+    m_model->removeCharacterById(characterId);
     updateColumnVisibility();
     updatePulseTimer();
 }
@@ -1028,13 +1027,13 @@ void GroupWidget::slot_onCharacterRemoved(const GroupId characterId)
 void GroupWidget::slot_onCharacterUpdated(SharedGroupChar character)
 {
     assert(character);
-    m_model.updateCharacter(character);
+    m_model->updateCharacter(character);
     updatePulseTimer();
 }
 
 void GroupWidget::slot_onGroupReset(const GroupVector &newCharacterList)
 {
-    m_model.setCharacters(newCharacterList);
+    m_model->setCharacters(newCharacterList);
     updateColumnVisibility();
     updatePulseTimer();
 }

@@ -22,6 +22,7 @@
 #include "../src/global/entities.h"
 #include "../src/global/float_cast.h"
 #include "../src/global/int_cast.h"
+#include "../src/global/io.h"
 #include "../src/global/string_view_utils.h"
 #include "../src/global/unquote.h"
 #include "../src/global/utils.h"
@@ -144,6 +145,40 @@ void TestGlobal::ansiToRgbTest()
 void TestGlobal::caseUtilsTest()
 {
     test::testCaseUtils();
+}
+
+void TestGlobal::ioExceptionTest()
+{
+#ifdef Q_OS_WIN
+    const auto ex = io::IOException::withErrorNumber(32); // ERROR_SHARING_VIOLATION
+    QVERIFY(QString::fromStdString(ex.what()).contains("The file is being used by another process"));
+#else
+    for (int err : {EACCES, ENOENT, ENOSPC, EBUSY, EROFS}) {
+        const auto ex = io::IOException::withErrorNumber(err);
+        const QString msg = QString::fromStdString(ex.what());
+        QVERIFY(!msg.isEmpty());
+        QVERIFY(msg != QString("unknown error_number: %1").arg(err));
+    }
+    QVERIFY(QString::fromStdString(io::IOException::withErrorNumber(EACCES).what())
+                .contains("Permission denied"));
+    QVERIFY(QString::fromStdString(io::IOException::withErrorNumber(ENOENT).what())
+                .contains("No such file or directory"));
+#endif
+    const auto exUnknown = io::IOException::withErrorNumber(999999);
+    const QString msg = QString::fromStdString(exUnknown.what());
+    QVERIFY(msg.contains("999999"));
+
+    const io::IOException exStr("test message");
+    QCOMPARE(exStr.what(), std::string("test message"));
+
+    // coverage for io::fsyncNoexcept and io::ErrorNumberMessage
+    QFile dummyFile;
+    QCOMPARE(io::fsyncNoexcept(dummyFile), io::IOResultEnum::EXCEPTION);
+
+    const io::ErrorNumberMessage msgObj(EBUSY);
+    QVERIFY(msgObj);
+    QVERIFY(msgObj.getErrorMessage() != nullptr);
+    QCOMPARE(msgObj.getErrorNumber(), EBUSY);
 }
 
 void TestGlobal::castTest()

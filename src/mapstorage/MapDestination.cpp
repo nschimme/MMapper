@@ -88,6 +88,7 @@ void MapDestination::finalize()
     } else if (isFileNative()) {
         assert(m_fileSaver);
         m_fileSaver->close();
+        m_fileSaver->commit();
     } else {
         assert(isDirectory());
     }

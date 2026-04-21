@@ -472,6 +472,24 @@ if(MSVC)
     add_compile_options(/Zc:__cplusplus)
     add_compile_options(/utf-8)
     add_compile_options(/permissive-)
+
+    if(MMAPPER_IS_DEBUG)
+        message(STATUS "Building with MSVC address sanitizer")
+        add_compile_options(/fsanitize=address)
+        add_compile_options(/Oy-) # Disable frame-pointer omission
+
+        # ASAN is incompatible with /RTC (Runtime Checks)
+        # CMake defaults to /RTC1 for Debug builds. We need to remove it.
+        string(REPLACE "/RTC1" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+        string(REPLACE "/RTC1" "" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
+
+        # Linker flags for ASAN
+        add_link_options(/fsanitize=address)
+        set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} /INCREMENTAL:NO")
+        set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "${CMAKE_SHARED_LINKER_FLAGS_DEBUG} /INCREMENTAL:NO")
+        set(CMAKE_MODULE_LINKER_FLAGS_DEBUG "${CMAKE_MODULE_LINKER_FLAGS_DEBUG} /INCREMENTAL:NO")
+    endif()
+
     if(CMAKE_BUILD_TYPE_UPPER MATCHES "^RELWITHDEBINFO$")
         # improve performance
         string(REPLACE "/Ob1" "/Ob2" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")

@@ -110,7 +110,7 @@ int main(int argc, char **argv)
     }
 
     QJsonDocument doc(root);
-    std::cout << doc.toJson(QJsonDocument::Compact).toStdString() << std::endl;
+    std::cout << doc.toJson(QJsonDocument::Compact).toUtf8().constData() << std::endl;
 
     return 0;
 }

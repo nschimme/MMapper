@@ -4,6 +4,7 @@
 #include "OpenGLProber.h"
 
 #include "../global/ConfigConsts.h"
+#include "../global/TextUtils.h"
 #include "../global/logging.h"
 #include "OpenGLConfig.h"
 
@@ -11,7 +12,9 @@
 #include <QDir>
 #include <QJsonDocument>
 #include <QJsonObject>
+#ifndef EMSCRIPTEN
 #include <QProcess>
+#endif
 #include <QString>
 
 #ifdef WIN32
@@ -42,6 +45,17 @@ OpenGLProber::ProbeResult getFallbackResult()
 
 OpenGLProber::ProbeResult OpenGLProber::probe()
 {
+#ifdef EMSCRIPTEN
+    MMLOG_DEBUG() << "Probing for OpenGL support (Wasm/WebGL 2.0)...";
+    ProbeResult result;
+    result.backendType = BackendType::GLES;
+    result.format.setRenderableType(QSurfaceFormat::OpenGLES);
+    result.format.setVersion(3, 0);
+    result.format.setDepthBufferSize(24);
+    result.highestVersionString = "WebGL 2.0";
+    OpenGLConfig::setESVersionString(result.highestVersionString);
+    return result;
+#else
     if constexpr (NO_OPENGL && NO_GLES) {
         return {};
     }
@@ -54,7 +68,7 @@ OpenGLProber::ProbeResult OpenGLProber::probe()
 #endif
 
     if (!QFile::exists(surveyPath)) {
-        MMLOG_ERROR() << "mmapper-hardware-survey not found at" << surveyPath.toStdString().c_str()
+        MMLOG_ERROR() << "mmapper-hardware-survey not found at" << mmqt::toStdStringUtf8(surveyPath).c_str()
                       << ". Using fallback.";
         return getFallbackResult();
     }
@@ -86,7 +100,7 @@ OpenGLProber::ProbeResult OpenGLProber::probe()
         result.format.setVersion(major, minor);
         result.format.setProfile(QSurfaceFormat::CoreProfile);
         result.format.setDepthBufferSize(24);
-        result.highestVersionString = QString("GL%1.%2core").arg(major).arg(minor).toStdString();
+        result.highestVersionString = mmqt::toStdStringUtf8(QString("GL%1.%2core").arg(major).arg(minor));
         OpenGLConfig::setGLVersionString(result.highestVersionString);
     } else if (backend == "GLES") {
         result.backendType = BackendType::GLES;
@@ -95,7 +109,7 @@ OpenGLProber::ProbeResult OpenGLProber::probe()
         result.format.setRenderableType(QSurfaceFormat::OpenGLES);
         result.format.setVersion(major, minor);
         result.format.setDepthBufferSize(24);
-        result.highestVersionString = QString("ES%1.%2").arg(major).arg(minor).toStdString();
+        result.highestVersionString = mmqt::toStdStringUtf8(QString("ES%1.%2").arg(major).arg(minor));
         OpenGLConfig::setESVersionString(result.highestVersionString);
     } else {
         MMLOG_DEBUG() << "No suitable backend found by survey.";
@@ -104,4 +118,5 @@ OpenGLProber::ProbeResult OpenGLProber::probe()
 
     MMLOG_INFO() << "[GL Probe] Survey determined:" << result.highestVersionString.c_str();
     return result;
+#endif
 }

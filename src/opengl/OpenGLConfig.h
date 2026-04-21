@@ -11,7 +11,6 @@ namespace OpenGLConfig {
 NODISCARD extern OpenGLProber::BackendType getBackendType();
 extern void setBackendType(OpenGLProber::BackendType type);
 
-
 NODISCARD extern std::string getGLVersionString();
 extern void setGLVersionString(const std::string &versionString);
 

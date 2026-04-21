@@ -259,7 +259,6 @@ public:
     using Base::glVertexAttribDivisor;
     using Base::glVertexAttribPointer;
 
-
 public:
     void glViewport(const GLint x, const GLint y, const GLsizei width, const GLsizei height)
     {

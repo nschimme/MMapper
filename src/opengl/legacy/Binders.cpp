@@ -106,13 +106,9 @@ DepthBinder::~DepthBinder()
     }
 }
 
-LineParamsBinder::LineParamsBinder(Functions &/*functions*/, const LineParams &/*lineParams*/)
-{
-}
+LineParamsBinder::LineParamsBinder(Functions & /*functions*/, const LineParams & /*lineParams*/) {}
 
-LineParamsBinder::~LineParamsBinder()
-{
-}
+LineParamsBinder::~LineParamsBinder() {}
 
 PointSizeBinder::PointSizeBinder(Functions &functions, const std::optional<GLfloat> &pointSize)
     : m_functions{functions}

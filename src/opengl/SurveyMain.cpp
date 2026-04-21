@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2025 The MMapper Authors
 
+#include <iostream>
+#include <vector>
+
 #include <QGuiApplication>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QOpenGLContext>
 #include <QSurfaceFormat>
-#include <iostream>
-#include <vector>
 
 #ifdef WIN32
 #include <windows.h>
@@ -68,7 +69,8 @@ int main(int argc, char **argv)
     root["backend"] = "None";
 
     // Try OpenGL Core
-    std::vector<GLVersion> versions = {{4, 6}, {4, 5}, {4, 4}, {4, 3}, {4, 2}, {4, 1}, {4, 0}, {3, 3}};
+    std::vector<GLVersion> versions
+        = {{4, 6}, {4, 5}, {4, 4}, {4, 3}, {4, 2}, {4, 1}, {4, 0}, {3, 3}};
     bool foundGL = false;
 
     for (const auto &v : versions) {

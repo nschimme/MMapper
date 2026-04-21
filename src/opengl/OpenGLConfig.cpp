@@ -20,7 +20,6 @@ void setBackendType(OpenGLProber::BackendType type)
     g_backendType = type;
 }
 
-
 NODISCARD std::string getGLVersionString()
 {
     return g_glVersionString;

@@ -19,7 +19,6 @@ public:
         BackendType backendType = BackendType::None;
         QSurfaceFormat format;
         std::string highestVersionString = "Unknown";
-        bool isCompat = false;
     };
 
 public:

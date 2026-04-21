@@ -13,7 +13,7 @@ FunctionsGL33::FunctionsGL33(Badge<Functions> badge, UboManager &uboManager)
 
 bool FunctionsGL33::virt_canRenderQuads()
 {
-    return OpenGLConfig::getIsCompat();
+    return false;
 }
 
 std::optional<GLenum> FunctionsGL33::virt_toGLenum(const DrawModeEnum mode)
@@ -49,14 +49,8 @@ void FunctionsGL33::virt_enableProgramPointSize(const bool enable)
 #ifndef MMAPPER_NO_OPENGL
     if (enable) {
         Base::glEnable(GL_PROGRAM_POINT_SIZE);
-        if (OpenGLConfig::getIsCompat()) {
-            Base::glEnable(GL_POINT_SPRITE);
-        }
     } else {
         Base::glDisable(GL_PROGRAM_POINT_SIZE);
-        if (OpenGLConfig::getIsCompat()) {
-            Base::glDisable(GL_POINT_SPRITE);
-        }
     }
 #endif
 }

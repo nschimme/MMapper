@@ -259,14 +259,6 @@ public:
     using Base::glVertexAttribDivisor;
     using Base::glVertexAttribPointer;
 
-public:
-    void glLineWidth(const GLfloat lineWidth)
-    {
-        // REVISIT: Only width 1 is guaranteed to be supported for core profiles
-        if (OpenGLConfig::getIsCompat()) {
-            Base::glLineWidth(lineWidth);
-        }
-    }
 
 public:
     void glViewport(const GLint x, const GLint y, const GLsizei width, const GLsizei height)

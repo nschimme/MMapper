@@ -139,12 +139,9 @@ enum class NODISCARD DrawModeEnum {
 
 struct NODISCARD LineParams final
 {
-    float width = 1.f;
+    // glLineWidth() is obsolete in Core profile.
     LineParams() = default;
-
-    explicit LineParams(const float width_)
-        : width{width_}
-    {}
+    explicit LineParams(const float /*width_*/) {}
 };
 
 #define XFOREACH_DEPTHFUNC(X) \

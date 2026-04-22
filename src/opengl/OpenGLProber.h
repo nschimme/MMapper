@@ -27,4 +27,6 @@ public:
     DTOR(OpenGLProber) = default;
 
     NODISCARD ProbeResult probe();
+
+    NODISCARD ProbeResult parseSurveyResult(const QByteArray &json);
 };

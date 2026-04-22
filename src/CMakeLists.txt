@@ -779,7 +779,7 @@ target_link_libraries(mmapper PUBLIC
     Qt6::OpenGLWidgets
     Qt6::Svg
     Qt6::SvgWidgets
-#note : link order matters on some platforms.include ${mm_libs } twice if you have a link failure.
+#note : link order matters on some platforms.include ${mm_libs} twice if you have a link failure.
     ${mm_libs}
     ${CMAKE_THREAD_LIBS_INIT}
     coverage_config
@@ -822,18 +822,18 @@ target_include_directories(mm_global SYSTEM PUBLIC
         ${IMMER_INCLUDE_DIR}
         ${Qt6Core_INCLUDE_DIRS}
         ${Qt6Widgets_INCLUDE_DIRS}
-#${Qt6_Network_INCLUDE_DIRS }
-#${Qt6_OpenGL_INCLUDE_DIRS }
-#${Qt6OpenGLWidgets_INCLUDE_DIRS }
+#${Qt6_Network_INCLUDE_DIRS}
+#${Qt6_OpenGL_INCLUDE_DIRS}
+#${Qt6OpenGLWidgets_INCLUDE_DIRS}
 )
 target_include_directories(mm_map SYSTEM PUBLIC
         ${GLM_INCLUDE_DIR}
         ${IMMER_INCLUDE_DIR}
         ${Qt6Core_INCLUDE_DIRS}
         ${Qt6Widgets_INCLUDE_DIRS}
-#${Qt6_Network_INCLUDE_DIRS }
-#${Qt6_OpenGL_INCLUDE_DIRS }
-#${Qt6OpenGLWidgets_INCLUDE_DIRS }
+#${Qt6_Network_INCLUDE_DIRS}
+#${Qt6_OpenGL_INCLUDE_DIRS}
+#${Qt6OpenGLWidgets_INCLUDE_DIRS}
 )
 target_link_libraries(mm_global PUBLIC
     Qt6::Core

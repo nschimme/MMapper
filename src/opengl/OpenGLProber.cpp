@@ -81,10 +81,15 @@ OpenGLProber::ProbeResult OpenGLProber::probe()
         return getFallbackResult();
     }
 
-    QByteArray output = process.readAllStandardOutput();
-    QJsonDocument doc = QJsonDocument::fromJson(output);
+    return parseSurveyResult(process.readAllStandardOutput());
+#endif
+}
+
+OpenGLProber::ProbeResult OpenGLProber::parseSurveyResult(const QByteArray &json)
+{
+    QJsonDocument doc = QJsonDocument::fromJson(json);
     if (doc.isNull() || !doc.isObject()) {
-        MMLOG_ERROR() << "mmapper-hardware-survey returned invalid JSON. Using fallback.";
+        MMLOG_ERROR() << "OpenGL survey returned invalid JSON. Using fallback.";
         return getFallbackResult();
     }
 
@@ -120,5 +125,4 @@ OpenGLProber::ProbeResult OpenGLProber::probe()
 
     MMLOG_INFO() << "[GL Probe] Survey determined:" << result.highestVersionString.c_str();
     return result;
-#endif
 }

@@ -68,8 +68,8 @@ OpenGLProber::ProbeResult OpenGLProber::probe()
 #endif
 
     if (!QFile::exists(surveyPath)) {
-        MMLOG_ERROR() << "mmapper-hardware-survey not found at" << mmqt::toStdStringUtf8(surveyPath).c_str()
-                      << ". Using fallback.";
+        MMLOG_ERROR() << "mmapper-hardware-survey not found at"
+                      << mmqt::toStdStringUtf8(surveyPath).c_str() << ". Using fallback.";
         return getFallbackResult();
     }
 

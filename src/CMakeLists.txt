@@ -758,6 +758,15 @@ if(EMSCRIPTEN)
     target_link_libraries(mmapper PUBLIC z)
 else()
     add_executable(mmapper WIN32 MACOSX_BUNDLE ${mmapper_EXECUTABLE_ARGS})
+
+    # Standalone prober to avoid driver crashes in main process
+    add_executable(mm_survey opengl/SurveyMain.cpp)
+    target_link_libraries(mm_survey PRIVATE Qt6::Core Qt6::Gui Qt6::OpenGL)
+    set_target_properties(mm_survey PROPERTIES
+        CXX_STANDARD 17
+        CXX_STANDARD_REQUIRED ON
+        OUTPUT_NAME mmapper-hardware-survey
+    )
 endif()
 
 set(mm_libs mm_map mm_global)
@@ -1061,7 +1070,7 @@ if(UNIX AND NOT APPLE AND NOT EMSCRIPTEN)
 
 #Install Executables
     install(
-        TARGETS mmapper
+        TARGETS mmapper mm_survey
         RUNTIME DESTINATION bin
         COMPONENT applications
     )
@@ -1128,7 +1137,7 @@ if(WIN32)
 
 #Install Executables
     install(
-        TARGETS mmapper RUNTIME
+        TARGETS mmapper mm_survey RUNTIME
         DESTINATION .
         COMPONENT applications
     )
@@ -1373,7 +1382,7 @@ if(APPLE)
 
 #Install Executables
     install(
-        TARGETS mmapper RUNTIME BUNDLE
+        TARGETS mmapper mm_survey RUNTIME BUNDLE
         DESTINATION .
         COMPONENT applications
     )

@@ -100,7 +100,8 @@ OpenGLProber::ProbeResult OpenGLProber::probe()
         result.format.setVersion(major, minor);
         result.format.setProfile(QSurfaceFormat::CoreProfile);
         result.format.setDepthBufferSize(24);
-        result.highestVersionString = mmqt::toStdStringUtf8(QString("GL%1.%2core").arg(major).arg(minor));
+        result.highestVersionString = mmqt::toStdStringUtf8(
+            QString("GL%1.%2core").arg(major).arg(minor));
         OpenGLConfig::setGLVersionString(result.highestVersionString);
     } else if (backend == "GLES") {
         result.backendType = BackendType::GLES;
@@ -109,7 +110,8 @@ OpenGLProber::ProbeResult OpenGLProber::probe()
         result.format.setRenderableType(QSurfaceFormat::OpenGLES);
         result.format.setVersion(major, minor);
         result.format.setDepthBufferSize(24);
-        result.highestVersionString = mmqt::toStdStringUtf8(QString("ES%1.%2").arg(major).arg(minor));
+        result.highestVersionString = mmqt::toStdStringUtf8(
+            QString("ES%1.%2").arg(major).arg(minor));
         OpenGLConfig::setESVersionString(result.highestVersionString);
     } else {
         MMLOG_DEBUG() << "No suitable backend found by survey.";

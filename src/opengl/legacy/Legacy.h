@@ -419,6 +419,8 @@ public:
 
 public:
     NODISCARD UniqueMesh createPointBatch(const std::vector<ColorVert> &batch);
+    NODISCARD UniqueMesh createPlainLineBatch(const std::vector<glm::vec3> &batch);
+    NODISCARD UniqueMesh createColoredLineBatch(const std::vector<ColorVert> &batch);
 
 public:
     NODISCARD UniqueMesh createPlainBatch(DrawModeEnum mode, const std::vector<glm::vec3> &batch);
@@ -441,6 +443,8 @@ public:
 
 public:
     void renderPoints(const std::vector<ColorVert> &verts, const GLRenderState &state);
+    void renderPlainLines(const std::vector<glm::vec3> &verts, const GLRenderState &state);
+    void renderColoredLines(const std::vector<ColorVert> &verts, const GLRenderState &state);
 
     void renderPlain(DrawModeEnum mode,
                      const std::vector<glm::vec3> &verts,

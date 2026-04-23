@@ -244,6 +244,8 @@ private:
     QAction *forceRoomAct = nullptr;
     QAction *releaseAllPathsAct = nullptr;
     QAction *rebuildMeshesAct = nullptr;
+    QAction *muteMusicAct = nullptr;
+    QAction *muteSoundAct = nullptr;
 
     std::unique_ptr<ConfigDialog> m_configDialog;
 

@@ -357,6 +357,8 @@ public:
         int m_soundVolume = 50;
         QByteArray m_outputDeviceId;
         bool m_unlocked = false;
+        bool m_musicMuted = false;
+        bool m_soundMuted = false;
 
     public:
         explicit AudioSettings() = default;
@@ -371,10 +373,24 @@ public:
             m_changeMonitor.notifyAll();
         }
 
+        NODISCARD bool isMusicMuted() const { return m_musicMuted; }
+        void setMusicMuted(const bool muted)
+        {
+            m_musicMuted = muted;
+            m_changeMonitor.notifyAll();
+        }
+
         NODISCARD int getSoundVolume() const { return m_soundVolume; }
         void setSoundVolume(const int volume)
         {
             m_soundVolume = volume;
+            m_changeMonitor.notifyAll();
+        }
+
+        NODISCARD bool isSoundMuted() const { return m_soundMuted; }
+        void setSoundMuted(const bool muted)
+        {
+            m_soundMuted = muted;
             m_changeMonitor.notifyAll();
         }
 

@@ -151,7 +151,6 @@ static bool setSurfaceFormat()
         return false;
     }
     OpenGLConfig::setBackendType(probeResult.backendType);
-    OpenGLConfig::setIsCompat(probeResult.isCompat);
     QSurfaceFormat::setDefaultFormat(probeResult.format);
     return true;
 }

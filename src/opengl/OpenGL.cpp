@@ -94,12 +94,12 @@ UniqueMesh OpenGL::createPointBatch(const std::vector<ColorVert> &batch)
 
 UniqueMesh OpenGL::createPlainLineBatch(const std::vector<glm::vec3> &batch)
 {
-    return getFunctions().createPlainBatch(DrawModeEnum::LINES, batch);
+    return getFunctions().createPlainLineBatch(batch);
 }
 
 UniqueMesh OpenGL::createColoredLineBatch(const std::vector<ColorVert> &batch)
 {
-    return getFunctions().createColoredBatch(DrawModeEnum::LINES, batch);
+    return getFunctions().createColoredLineBatch(batch);
 }
 
 UniqueMesh OpenGL::createPlainTriBatch(const std::vector<glm::vec3> &batch)
@@ -165,14 +165,22 @@ void OpenGL::renderPlain(const DrawModeEnum type,
                          const std::vector<glm::vec3> &verts,
                          const GLRenderState &state)
 {
-    getFunctions().renderPlain(type, verts, state);
+    if (type == DrawModeEnum::LINES) {
+        getFunctions().renderPlainLines(verts, state);
+    } else {
+        getFunctions().renderPlain(type, verts, state);
+    }
 }
 
 void OpenGL::renderColored(const DrawModeEnum type,
                            const std::vector<ColorVert> &verts,
                            const GLRenderState &state)
 {
-    getFunctions().renderColored(type, verts, state);
+    if (type == DrawModeEnum::LINES) {
+        getFunctions().renderColoredLines(verts, state);
+    } else {
+        getFunctions().renderColored(type, verts, state);
+    }
 }
 
 void OpenGL::renderPoints(const std::vector<ColorVert> &verts, const GLRenderState &state)

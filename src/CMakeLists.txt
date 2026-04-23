@@ -779,7 +779,7 @@ target_link_libraries(mmapper PUBLIC
     Qt6::OpenGLWidgets
     Qt6::Svg
     Qt6::SvgWidgets
-#note : link order matters on some platforms.include ${mm_libs} twice if you have a link failure.
+# note : link order matters on some platforms. include ${mm_libs} twice if you have a link failure.
     ${mm_libs}
     ${CMAKE_THREAD_LIBS_INIT}
     coverage_config

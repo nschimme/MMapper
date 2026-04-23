@@ -118,7 +118,8 @@ private:
         auto programUnbinder = Base::m_program.bind();
         Base::m_program.setUniforms(mvp, renderState.uniforms);
         Base::m_program.setViewport("uViewport", gl.getPhysicalViewport());
-        Base::m_program.setFloat("uLineWidth", renderState.lineParams.width * gl.getDevicePixelRatio());
+        Base::m_program.setFloat("uLineWidth",
+                                 renderState.lineParams.width * gl.getDevicePixelRatio());
 
         RenderStateBinder renderStateBinder(gl, gl.getTexLookup(), renderState);
 
@@ -149,7 +150,10 @@ private:
         m_boundAttribs.reset();
     }
 
-    NODISCARD static const void *VPO_PTR(size_t offset) { return reinterpret_cast<const void *>(offset); }
+    NODISCARD static const void *VPO_PTR(size_t offset)
+    {
+        return reinterpret_cast<const void *>(offset);
+    }
 };
 
 // Per-vertex color
@@ -247,7 +251,12 @@ private:
         // aVert1
         gl.enableAttrib(attribs.vert1Pos, 3, GL_FLOAT, GL_FALSE, 2 * vertSize, VPO(vert));
         // aVert2
-        gl.enableAttrib(attribs.vert2Pos, 3, GL_FLOAT, GL_FALSE, 2 * vertSize, VPO_PTR(VPO(vert), vertSize));
+        gl.enableAttrib(attribs.vert2Pos,
+                        3,
+                        GL_FLOAT,
+                        GL_FALSE,
+                        2 * vertSize,
+                        VPO_PTR(VPO(vert), vertSize));
 
         // instancing
         gl.glVertexAttribDivisor(attribs.colorPos, 1);
@@ -270,7 +279,8 @@ private:
         auto programUnbinder = Base::m_program.bind();
         Base::m_program.setUniforms(mvp, renderState.uniforms);
         Base::m_program.setViewport("uViewport", gl.getPhysicalViewport());
-        Base::m_program.setFloat("uLineWidth", renderState.lineParams.width * gl.getDevicePixelRatio());
+        Base::m_program.setFloat("uLineWidth",
+                                 renderState.lineParams.width * gl.getDevicePixelRatio());
 
         RenderStateBinder renderStateBinder(gl, gl.getTexLookup(), renderState);
 

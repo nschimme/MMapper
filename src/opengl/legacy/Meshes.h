@@ -63,6 +63,71 @@ private:
     }
 };
 
+// Per-vertex color with animation
+template<typename VertexType_>
+class NODISCARD AnimColoredMesh final : public SimpleMesh<VertexType_, AnimAColorPlainShader>
+{
+public:
+    using Base = SimpleMesh<VertexType_, AnimAColorPlainShader>;
+    using Base::Base;
+
+private:
+    struct NODISCARD Attribs final
+    {
+        GLuint colorPos = INVALID_ATTRIB_LOCATION;
+        GLuint vertPos = INVALID_ATTRIB_LOCATION;
+        GLuint oldVertPos = INVALID_ATTRIB_LOCATION;
+        GLuint startTimePos = INVALID_ATTRIB_LOCATION;
+
+        NODISCARD static Attribs getLocations(AbstractShaderProgram &shader)
+        {
+            Attribs result;
+            result.colorPos = shader.getAttribLocation("aColor");
+            result.vertPos = shader.getAttribLocation("aVert");
+            result.oldVertPos = shader.getAttribLocation("aOldVert");
+            result.startTimePos = shader.getAttribLocation("aStartTime");
+            return result;
+        }
+    };
+
+    std::optional<Attribs> m_boundAttribs;
+
+    void virt_bind() override
+    {
+        const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
+        static_assert(sizeof(std::declval<VertexType_>().color) == 4 * sizeof(uint8_t));
+        static_assert(sizeof(std::declval<VertexType_>().vert) == 3 * sizeof(GLfloat));
+        static_assert(sizeof(std::declval<VertexType_>().oldVert) == 3 * sizeof(GLfloat));
+        static_assert(sizeof(std::declval<VertexType_>().startTime) == sizeof(GLfloat));
+
+        Functions &gl = Base::m_functions;
+        const auto attribs = Attribs::getLocations(Base::m_program);
+        gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
+        gl.enableAttrib(attribs.colorPos, 4, GL_UNSIGNED_BYTE, GL_TRUE, vertSize, VPO(color));
+        gl.enableAttrib(attribs.vertPos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(vert));
+        gl.enableAttrib(attribs.oldVertPos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(oldVert));
+        gl.enableAttrib(attribs.startTimePos, 1, GL_FLOAT, GL_FALSE, vertSize, VPO(startTime));
+        m_boundAttribs = attribs;
+    }
+
+    void virt_unbind() override
+    {
+        if (!m_boundAttribs) {
+            assert(false);
+            return;
+        }
+
+        auto &attribs = m_boundAttribs.value();
+        Functions &gl = Base::m_functions;
+        gl.glDisableVertexAttribArray(attribs.colorPos);
+        gl.glDisableVertexAttribArray(attribs.vertPos);
+        gl.glDisableVertexAttribArray(attribs.oldVertPos);
+        gl.glDisableVertexAttribArray(attribs.startTimePos);
+        gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
+        m_boundAttribs.reset();
+    }
+};
+
 // Per-vertex color
 // flat-shaded in MMapper, due to glShadeModel(GL_FLAT)
 template<typename VertexType_>
@@ -169,6 +234,77 @@ private:
         Functions &gl = Base::m_functions;
         gl.glDisableVertexAttribArray(attribs.texPos);
         gl.glDisableVertexAttribArray(attribs.vertPos);
+        gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
+        m_boundAttribs.reset();
+    }
+};
+
+// Textured mesh with color modulated by color attribute and animation.
+template<typename VertexType_>
+class NODISCARD AnimColoredTexturedMesh final
+    : public SimpleMesh<VertexType_, AnimAColorTexturedShader>
+{
+public:
+    using Base = SimpleMesh<VertexType_, AnimAColorTexturedShader>;
+    using Base::Base;
+
+private:
+    struct NODISCARD Attribs final
+    {
+        GLuint colorPos = INVALID_ATTRIB_LOCATION;
+        GLuint texPos = INVALID_ATTRIB_LOCATION;
+        GLuint vertPos = INVALID_ATTRIB_LOCATION;
+        GLuint oldVertPos = INVALID_ATTRIB_LOCATION;
+        GLuint startTimePos = INVALID_ATTRIB_LOCATION;
+
+        NODISCARD static Attribs getLocations(AbstractShaderProgram &shader)
+        {
+            Attribs result;
+            result.colorPos = shader.getAttribLocation("aColor");
+            result.texPos = shader.getAttribLocation("aTexCoord");
+            result.vertPos = shader.getAttribLocation("aVert");
+            result.oldVertPos = shader.getAttribLocation("aOldVert");
+            result.startTimePos = shader.getAttribLocation("aStartTime");
+            return result;
+        }
+    };
+
+    std::optional<Attribs> m_boundAttribs;
+
+    void virt_bind() override
+    {
+        const auto vertSize = static_cast<GLsizei>(sizeof(VertexType_));
+        static_assert(sizeof(std::declval<VertexType_>().color) == 4 * sizeof(uint8_t));
+        static_assert(sizeof(std::declval<VertexType_>().tex) == 3 * sizeof(GLfloat));
+        static_assert(sizeof(std::declval<VertexType_>().vert) == 3 * sizeof(GLfloat));
+        static_assert(sizeof(std::declval<VertexType_>().oldVert) == 3 * sizeof(GLfloat));
+        static_assert(sizeof(std::declval<VertexType_>().startTime) == sizeof(GLfloat));
+
+        Functions &gl = Base::m_functions;
+        const auto attribs = Attribs::getLocations(Base::m_program);
+        gl.glBindBuffer(GL_ARRAY_BUFFER, Base::m_vbo.get());
+        gl.enableAttrib(attribs.colorPos, 4, GL_UNSIGNED_BYTE, GL_TRUE, vertSize, VPO(color));
+        gl.enableAttrib(attribs.texPos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(tex));
+        gl.enableAttrib(attribs.vertPos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(vert));
+        gl.enableAttrib(attribs.oldVertPos, 3, GL_FLOAT, GL_FALSE, vertSize, VPO(oldVert));
+        gl.enableAttrib(attribs.startTimePos, 1, GL_FLOAT, GL_FALSE, vertSize, VPO(startTime));
+        m_boundAttribs = attribs;
+    }
+
+    void virt_unbind() override
+    {
+        if (!m_boundAttribs) {
+            assert(false);
+            return;
+        }
+
+        auto &attribs = m_boundAttribs.value();
+        Functions &gl = Base::m_functions;
+        gl.glDisableVertexAttribArray(attribs.colorPos);
+        gl.glDisableVertexAttribArray(attribs.texPos);
+        gl.glDisableVertexAttribArray(attribs.vertPos);
+        gl.glDisableVertexAttribArray(attribs.oldVertPos);
+        gl.glDisableVertexAttribArray(attribs.startTimePos);
         gl.glBindBuffer(GL_ARRAY_BUFFER, 0);
         m_boundAttribs.reset();
     }

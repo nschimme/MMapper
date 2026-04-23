@@ -57,6 +57,27 @@ struct NODISCARD ColoredTexVert final
     {}
 };
 
+struct NODISCARD AnimColoredTexVert final
+{
+    Color color;
+    glm::vec3 tex{};
+    glm::vec3 vert{};
+    glm::vec3 oldVert{};
+    float startTime = 0.0f;
+
+    explicit AnimColoredTexVert(const Color color_,
+                                const glm::vec3 &tex_,
+                                const glm::vec3 &vert_,
+                                const glm::vec3 &oldVert_,
+                                float startTime_)
+        : color{color_}
+        , tex{tex_}
+        , vert{vert_}
+        , oldVert{oldVert_}
+        , startTime{startTime_}
+    {}
+};
+
 struct NODISCARD RoomQuadTexVert final
 {
     // xyz = room coord, w = (colorId << 8 | tex_z)
@@ -90,6 +111,24 @@ struct NODISCARD ColorVert final
     explicit ColorVert(const Color color_, const glm::vec3 &vert_)
         : color{color_}
         , vert{vert_}
+    {}
+};
+
+struct NODISCARD AnimColorVert final
+{
+    Color color;
+    glm::vec3 vert{};
+    glm::vec3 oldVert{};
+    float startTime = 0.0f;
+
+    explicit AnimColorVert(const Color color_,
+                           const glm::vec3 &vert_,
+                           const glm::vec3 &oldVert_,
+                           float startTime_)
+        : color{color_}
+        , vert{vert_}
+        , oldVert{oldVert_}
+        , startTime{startTime_}
     {}
 };
 

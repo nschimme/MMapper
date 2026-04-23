@@ -220,6 +220,19 @@ void Functions::renderColored(const DrawModeEnum mode,
     renderImmediate<ColorVert, Legacy::ColoredMesh>(shared_from_this(), mode, verts, prog, state);
 }
 
+void Functions::renderAnimColored(const DrawModeEnum mode,
+                                  const std::vector<AnimColorVert> &verts,
+                                  const GLRenderState &state)
+{
+    assert(static_cast<size_t>(mode) >= VERTS_PER_LINE);
+    const auto &prog = getShaderPrograms().getAnimPlainAColorShader();
+    renderImmediate<AnimColorVert, Legacy::AnimColoredMesh>(shared_from_this(),
+                                                            mode,
+                                                            verts,
+                                                            prog,
+                                                            state);
+}
+
 void Functions::renderPoints(const std::vector<ColorVert> &verts, const GLRenderState &state)
 {
     assert(state.uniforms.pointSize);
@@ -251,6 +264,19 @@ void Functions::renderColoredTextured(const DrawModeEnum mode,
                                                                  verts,
                                                                  prog,
                                                                  state);
+}
+
+void Functions::renderAnimColoredTextured(const DrawModeEnum mode,
+                                          const std::vector<AnimColoredTexVert> &verts,
+                                          const GLRenderState &state)
+{
+    assert(static_cast<size_t>(mode) >= VERTS_PER_TRI);
+    const auto &prog = getShaderPrograms().getAnimTexturedAColorShader();
+    renderImmediate<AnimColoredTexVert, Legacy::AnimColoredTexturedMesh>(shared_from_this(),
+                                                                         mode,
+                                                                         verts,
+                                                                         prog,
+                                                                         state);
 }
 
 void Functions::renderFont3d(const SharedMMTexture &texture, const std::vector<FontVert3d> &verts)

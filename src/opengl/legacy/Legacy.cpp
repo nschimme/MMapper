@@ -115,6 +115,10 @@ UniqueMesh Functions::createPointBatch(const std::vector<ColorVert> &batch)
 UniqueMesh Functions::createPlainBatch(const DrawModeEnum mode, const std::vector<glm::vec3> &batch)
 {
     assert(static_cast<size_t>(mode) >= VERTS_PER_LINE);
+    if (mode == DrawModeEnum::LINES) {
+        const auto &prog = getShaderPrograms().getLineUColorShader();
+        return createUniqueMesh<LineMesh>(shared_from_this(), mode, batch, prog);
+    }
     const auto &prog = getShaderPrograms().getPlainUColorShader();
     return createUniqueMesh<PlainMesh>(shared_from_this(), mode, batch, prog);
 }
@@ -123,6 +127,10 @@ UniqueMesh Functions::createColoredBatch(const DrawModeEnum mode,
                                          const std::vector<ColorVert> &batch)
 {
     assert(static_cast<size_t>(mode) >= VERTS_PER_LINE);
+    if (mode == DrawModeEnum::LINES) {
+        const auto &prog = getShaderPrograms().getLineAColorShader();
+        return createUniqueMesh<ColoredLineMesh>(shared_from_this(), mode, batch, prog);
+    }
     const auto &prog = getShaderPrograms().getPlainAColorShader();
     return createUniqueMesh<ColoredMesh>(shared_from_this(), mode, batch, prog);
 }
@@ -207,6 +215,11 @@ void Functions::renderPlain(const DrawModeEnum mode,
 {
     assert(static_cast<size_t>(mode) >= VERTS_PER_LINE);
     const auto &shared = shared_from_this();
+    if (mode == DrawModeEnum::LINES) {
+        const auto &prog = getShaderPrograms().getLineUColorShader();
+        renderImmediate<glm::vec3, Legacy::LineMesh>(shared, mode, verts, prog, state);
+        return;
+    }
     const auto &prog = getShaderPrograms().getPlainUColorShader();
     renderImmediate<glm::vec3, Legacy::PlainMesh>(shared, mode, verts, prog, state);
 }
@@ -216,8 +229,14 @@ void Functions::renderColored(const DrawModeEnum mode,
                               const GLRenderState &state)
 {
     assert(static_cast<size_t>(mode) >= VERTS_PER_LINE);
+    const auto &shared = shared_from_this();
+    if (mode == DrawModeEnum::LINES) {
+        const auto &prog = getShaderPrograms().getLineAColorShader();
+        renderImmediate<ColorVert, Legacy::ColoredLineMesh>(shared, mode, verts, prog, state);
+        return;
+    }
     const auto &prog = getShaderPrograms().getPlainAColorShader();
-    renderImmediate<ColorVert, Legacy::ColoredMesh>(shared_from_this(), mode, verts, prog, state);
+    renderImmediate<ColorVert, Legacy::ColoredMesh>(shared, mode, verts, prog, state);
 }
 
 void Functions::renderPoints(const std::vector<ColorVert> &verts, const GLRenderState &state)

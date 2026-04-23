@@ -1,3 +1,4 @@
+#version 330 core
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2025 The MMapper Authors
 

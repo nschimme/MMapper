@@ -134,6 +134,12 @@ MapWindow::MapWindow(MapData &mapData,
     assert(m_canvasContainer);
     assert(m_canvasContainer->parent() == this);
 
+    // Setting these attributes helps prevent ghosting/flickering on Wayland by
+    // informing Qt and the compositor that this widget handles its own painting
+    // and doesn't need background clearing.
+    m_canvasContainer->setAttribute(Qt::WA_OpaquePaintEvent);
+    m_canvasContainer->setAttribute(Qt::WA_NoSystemBackground);
+
     m_gridLayout->addWidget(m_canvasContainer, 0, 0, 1, 1);
 
     m_audioHint = new AudioHintWidget(this);

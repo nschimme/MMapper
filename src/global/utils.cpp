@@ -81,6 +81,26 @@ std::optional<bool> utils::getEnvBool(const char *const key)
     return std::nullopt;
 }
 
+bool utils::isWayland()
+{
+    static const bool wayland = [] {
+        if (qgetenv("XDG_SESSION_TYPE") == "wayland") {
+            return true;
+        }
+        if (qEnvironmentVariableIsSet("WAYLAND_DISPLAY")) {
+            return true;
+        }
+        return false;
+    }();
+    return wayland;
+}
+
+bool utils::shouldForceOpaque()
+{
+    static const bool force = getEnvBool("MMAPPER_FORCE_OPAQUE").value_or(false);
+    return force || isWayland();
+}
+
 std::optional<int> utils::getEnvInt(const char *const key)
 {
     if (!qEnvironmentVariableIsSet(key)) {

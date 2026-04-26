@@ -309,6 +309,8 @@ NODISCARD inline auto as_cstring(const unsigned char *const s)
 namespace utils {
 NODISCARD std::optional<bool> getEnvBool(const char *key);
 NODISCARD std::optional<int> getEnvInt(const char *key);
+NODISCARD bool isWayland();
+NODISCARD bool shouldForceOpaque();
 } // namespace utils
 
 namespace utils {

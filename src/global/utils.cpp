@@ -83,7 +83,7 @@ std::optional<bool> utils::getEnvBool(const char *const key)
 
 bool utils::isWayland()
 {
-    static const bool wayland = [] {
+    const bool wayland = [] {
         if (qgetenv("XDG_SESSION_TYPE") == "wayland") {
             return true;
         }
@@ -97,7 +97,7 @@ bool utils::isWayland()
 
 bool utils::shouldForceOpaque()
 {
-    static const bool force = getEnvBool("MMAPPER_FORCE_OPAQUE").value_or(false);
+    const bool force = getEnvBool("MMAPPER_FORCE_OPAQUE").value_or(false);
     return force || isWayland();
 }
 

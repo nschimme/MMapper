@@ -39,5 +39,6 @@ private Q_SLOTS:
     static void toLowerLatin1Test();
     static void toNumberTest();
     static void unquoteTest();
+    static void utilsTest();
     static void weakHandleTest();
 };

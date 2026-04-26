@@ -416,8 +416,12 @@ void Functions::blitFboToDefault()
     if (textureId != 0) {
         // Ensure the default framebuffer is cleared with an opaque color before blitting.
         // This can help avoid ghosting issues on some Wayland compositors.
-        Base::glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        Base::glClear(GL_COLOR_BUFFER_BIT);
+        if (utils::shouldForceOpaque()) {
+            Base::glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        }
+        if (utils::shouldForceOpaque()) {
+            Base::glClear(GL_COLOR_BUFFER_BIT);
+        }
 
         const auto state = GLRenderState()
                                .withBlend(BlendModeEnum::NONE)

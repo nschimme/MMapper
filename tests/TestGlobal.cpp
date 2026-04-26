@@ -642,6 +642,32 @@ void TestGlobal::unquoteTest()
     test::testUnquote();
 }
 
+void TestGlobal::utilsTest()
+{
+    // Test that our platform detection functions return something
+    // (even if they return false in a CI environment)
+    std::ignore = utils::isWayland();
+
+    const QByteArray key = "MMAPPER_FORCE_OPAQUE";
+    const QByteArray original = qgetenv(key);
+
+    qputenv(key, "1");
+    QCOMPARE(utils::shouldForceOpaque(), true);
+
+    qputenv(key, "0");
+    // This might still be true if we are on Wayland, so we can't strictly compare to false
+    // unless we know we aren't on Wayland.
+    if (!utils::isWayland()) {
+        QCOMPARE(utils::shouldForceOpaque(), false);
+    }
+
+    if (original.isNull()) {
+        qunsetenv(key);
+    } else {
+        qputenv(key, original);
+    }
+}
+
 void TestGlobal::weakHandleTest()
 {
     test::testWeakHandle();

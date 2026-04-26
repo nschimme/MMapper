@@ -5,6 +5,7 @@
 
 #include "../global/ConfigConsts.h"
 #include "../global/logging.h"
+#include "../global/utils.h"
 #include "OpenGLConfig.h"
 
 #include <optional>
@@ -206,6 +207,13 @@ NODISCARD QSurfaceFormat getOptimalFormat(std::optional<GLContextCheckResult> re
     QSurfaceFormat format;
     format.setRenderableType(QSurfaceFormat::OpenGL);
     format.setDepthBufferSize(24);
+
+    // Disable alpha channel in the surface format to prevent Wayland from incorrectly
+    // blending the window with old frames (ghosting) or background content.
+    if (utils::shouldForceOpaque()) {
+        format.setAlphaBufferSize(0);
+    }
+
     if (result) {
         format.setVersion(result->version.major, result->version.minor);
         format.setProfile(result->isCore ? QSurfaceFormat::CoreProfile

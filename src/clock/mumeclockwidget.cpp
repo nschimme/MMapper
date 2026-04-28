@@ -172,23 +172,28 @@ void MumeClockWidget::updateWeather(PromptWeatherEnum weather)
     case PromptWeatherEnum::CLOUDS:
         weatherLabel->setText(QString::fromUtf8("\xE2\x98\x81"));
         weatherLabel->setStatusTip("Cloudy");
+        weatherLabel->setVisible(true);
         break;
     case PromptWeatherEnum::RAIN:
         weatherLabel->setText(QString::fromUtf8("\xF0\x9F\x8C\xA7"));
         weatherLabel->setStatusTip("Rainy");
+        weatherLabel->setVisible(true);
         break;
     case PromptWeatherEnum::HEAVY_RAIN:
         weatherLabel->setText(QString::fromUtf8("\xE2\x9B\x88"));
         weatherLabel->setStatusTip("Heavy Rain");
+        weatherLabel->setVisible(true);
         break;
     case PromptWeatherEnum::SNOW:
         weatherLabel->setText(QString::fromUtf8("\xE2\x9D\x84"));
         weatherLabel->setStatusTip("Snowy");
+        weatherLabel->setVisible(true);
         break;
     case PromptWeatherEnum::NICE:
     default:
         weatherLabel->setText("");
         weatherLabel->setStatusTip("");
+        weatherLabel->setVisible(false);
         break;
     }
 }
@@ -199,15 +204,18 @@ void MumeClockWidget::updateFog(PromptFogEnum fog)
     case PromptFogEnum::LIGHT_FOG:
         fogLabel->setText(QString::fromUtf8("\xF0\x9F\x8C\xAB"));
         fogLabel->setStatusTip("Light Fog");
+        fogLabel->setVisible(true);
         break;
     case PromptFogEnum::HEAVY_FOG:
         fogLabel->setText(QString::fromUtf8("\xF0\x9F\x8C\xAB\xF0\x9F\x8C\xAB"));
         fogLabel->setStatusTip("Heavy Fog");
+        fogLabel->setVisible(true);
         break;
     case PromptFogEnum::NO_FOG:
     default:
         fogLabel->setText("");
         fogLabel->setStatusTip("");
+        fogLabel->setVisible(false);
         break;
     }
 }

@@ -38,8 +38,9 @@ MumeClockWidget::MumeClockWidget(GameObserver &observer, MumeClock &clock, QWidg
                                                 });
     observer.sig2_seasonChanged.connect(m_lifetime,
                                         [this](MumeSeasonEnum season) { updateSeason(season); });
-    observer.sig2_weatherChanged.connect(m_lifetime,
-                                         [this](PromptWeatherEnum weather) { updateWeather(weather); });
+    observer.sig2_weatherChanged.connect(m_lifetime, [this](PromptWeatherEnum weather) {
+        updateWeather(weather);
+    });
     observer.sig2_fogChanged.connect(m_lifetime, [this](PromptFogEnum fog) { updateFog(fog); });
     observer.sig2_tick.connect(m_lifetime,
                                [this](const MumeMoment &moment) { updateCountdown(moment); });

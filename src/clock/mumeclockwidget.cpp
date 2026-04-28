@@ -97,31 +97,31 @@ void MumeClockWidget::updateMoonPhase(MumeMoonPhaseEnum phase)
 {
     switch (phase) {
     case MumeMoonPhaseEnum::WAXING_CRESCENT:
-        moonPhaseLabel->setText(QString::fromUtf8("\xF0\x9F\x8C\x92"));
+        moonPhaseLabel->setText(QStringLiteral("\U0001F312"));
         break;
     case MumeMoonPhaseEnum::FIRST_QUARTER:
-        moonPhaseLabel->setText(QString::fromUtf8("\xF0\x9F\x8C\x93"));
+        moonPhaseLabel->setText(QStringLiteral("\U0001F313"));
         break;
     case MumeMoonPhaseEnum::WAXING_GIBBOUS:
-        moonPhaseLabel->setText(QString::fromUtf8("\xF0\x9F\x8C\x94"));
+        moonPhaseLabel->setText(QStringLiteral("\U0001F314"));
         break;
     case MumeMoonPhaseEnum::FULL_MOON:
-        moonPhaseLabel->setText(QString::fromUtf8("\xF0\x9F\x8C\x95"));
+        moonPhaseLabel->setText(QStringLiteral("\U0001F315"));
         break;
     case MumeMoonPhaseEnum::WANING_GIBBOUS:
-        moonPhaseLabel->setText(QString::fromUtf8("\xF0\x9F\x8C\x96"));
+        moonPhaseLabel->setText(QStringLiteral("\U0001F316"));
         break;
     case MumeMoonPhaseEnum::THIRD_QUARTER:
-        moonPhaseLabel->setText(QString::fromUtf8("\xF0\x9F\x8C\x97"));
+        moonPhaseLabel->setText(QStringLiteral("\U0001F317"));
         break;
     case MumeMoonPhaseEnum::WANING_CRESCENT:
-        moonPhaseLabel->setText(QString::fromUtf8("\xF0\x9F\x8C\x98"));
+        moonPhaseLabel->setText(QStringLiteral("\U0001F318"));
         break;
     case MumeMoonPhaseEnum::NEW_MOON:
-        moonPhaseLabel->setText(QString::fromUtf8("\xF0\x9F\x8C\x91"));
+        moonPhaseLabel->setText(QStringLiteral("\U0001F311"));
         break;
     case MumeMoonPhaseEnum::UNKNOWN:
-        moonPhaseLabel->setText("");
+        moonPhaseLabel->setText(QString());
         break;
     }
 }
@@ -170,29 +170,29 @@ void MumeClockWidget::updateWeather(PromptWeatherEnum weather)
 {
     switch (weather) {
     case PromptWeatherEnum::CLOUDS:
-        weatherLabel->setText(QString::fromUtf8("\xE2\x98\x81"));
+        weatherLabel->setText(QStringLiteral("\u2601"));
         weatherLabel->setStatusTip("Cloudy");
         weatherLabel->setVisible(true);
         break;
     case PromptWeatherEnum::RAIN:
-        weatherLabel->setText(QString::fromUtf8("\xF0\x9F\x8C\xA7"));
+        weatherLabel->setText(QStringLiteral("\U0001F327"));
         weatherLabel->setStatusTip("Rainy");
         weatherLabel->setVisible(true);
         break;
     case PromptWeatherEnum::HEAVY_RAIN:
-        weatherLabel->setText(QString::fromUtf8("\xE2\x9B\x88"));
+        weatherLabel->setText(QStringLiteral("\u26C8"));
         weatherLabel->setStatusTip("Heavy Rain");
         weatherLabel->setVisible(true);
         break;
     case PromptWeatherEnum::SNOW:
-        weatherLabel->setText(QString::fromUtf8("\xE2\x9D\x84"));
+        weatherLabel->setText(QStringLiteral("\u2744"));
         weatherLabel->setStatusTip("Snowy");
         weatherLabel->setVisible(true);
         break;
     case PromptWeatherEnum::NICE:
     default:
-        weatherLabel->setText("");
-        weatherLabel->setStatusTip("");
+        weatherLabel->setText(QString());
+        weatherLabel->setStatusTip(QString());
         weatherLabel->setVisible(false);
         break;
     }
@@ -202,19 +202,19 @@ void MumeClockWidget::updateFog(PromptFogEnum fog)
 {
     switch (fog) {
     case PromptFogEnum::LIGHT_FOG:
-        fogLabel->setText(QString::fromUtf8("\xF0\x9F\x8C\xAB"));
+        fogLabel->setText(QStringLiteral("\U0001F32B"));
         fogLabel->setStatusTip("Light Fog");
         fogLabel->setVisible(true);
         break;
     case PromptFogEnum::HEAVY_FOG:
-        fogLabel->setText(QString::fromUtf8("\xF0\x9F\x8C\xAB\xF0\x9F\x8C\xAB"));
+        fogLabel->setText(QStringLiteral("\U0001F32B\U0001F32B"));
         fogLabel->setStatusTip("Heavy Fog");
         fogLabel->setVisible(true);
         break;
     case PromptFogEnum::NO_FOG:
     default:
-        fogLabel->setText("");
-        fogLabel->setStatusTip("");
+        fogLabel->setText(QString());
+        fogLabel->setStatusTip(QString());
         fogLabel->setVisible(false);
         break;
     }
@@ -230,7 +230,7 @@ void MumeClockWidget::updateCountdown(const MumeMoment &moment)
 
     const MumeClockPrecisionEnum precision = m_clock.getPrecision();
     if (precision <= MumeClockPrecisionEnum::HOUR) {
-        timeLabel->setText(QString::fromUtf8("\xE2\x9A\xA0").append(m_clock.toCountdown(moment)));
+        timeLabel->setText(QStringLiteral("\u26A0").append(m_clock.toCountdown(moment)));
     } else {
         timeLabel->setText(m_clock.toCountdown(moment));
     }

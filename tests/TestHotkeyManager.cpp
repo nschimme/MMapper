@@ -356,4 +356,70 @@ void TestHotkeyManager::hotkeyParsingAndToStringTest()
     }
 }
 
+void TestHotkeyManager::persistenceTest()
+{
+    // Create a temporary profile path to avoid messing with real user config
+    QTemporaryFile temp;
+    QVERIFY(temp.open());
+    const QString profilePath = temp.fileName();
+    temp.close();
+
+    qputenv("MMAPPER_PROFILE_PATH", profilePath.toUtf8());
+
+    {
+        HotkeyManager manager;
+        manager.clear();
+        QVERIFY(manager.setHotkey(Hotkey{"F1"}, "persist_me"));
+        // HotkeyManager::setHotkey should call getConfig().write(), which uses MMAPPER_PROFILE_PATH
+    }
+
+    // Now reload config and check if it's there
+    {
+        // Force reload from disk
+        setConfig().read();
+        HotkeyManager manager;
+        checkHk(manager, Hotkey{"F1"}, "persist_me");
+    }
+
+    // Test remove persistence
+    {
+        HotkeyManager manager;
+        // HotkeyManager::removeHotkey(hk) will call setConfig().hotkeys.setData(...)
+        // which will call syncFromConfig() on the manager.
+        // If we remove F1, it will be gone from the data.
+        QVERIFY(manager.removeHotkey(Hotkey{"F1"}));
+    }
+
+    {
+        setConfig().read();
+        HotkeyManager manager;
+        // Since F1 is in defaults, clearing or removing it from user config
+        // might result in it being re-populated from defaults if the map is empty?
+        // Wait, HotkeyManager::HotkeyManager() calls resetToDefaults() if m_hotkeys is empty.
+        // In our case, we cleared it and then removed F1.
+        // Actually, HotkeyManager::removeHotkey() just removes it from the variant map.
+        // When syncFromConfig() is called, F1 won't be in the map.
+        // But F1 is a default.
+        // If we want to truly test persistence of REMOVAL of a default, it's tricky
+        // because we don't have a "deleted defaults" list.
+        // Let's test persistence of a NON-DEFAULT hotkey instead.
+        QVERIFY(manager.setHotkey(Hotkey{"CTRL+ALT+F12"}, "non_default"));
+    }
+
+    {
+        setConfig().read();
+        HotkeyManager manager;
+        checkHk(manager, Hotkey{"CTRL+ALT+F12"}, "non_default");
+        QVERIFY(manager.removeHotkey(Hotkey{"CTRL+ALT+F12"}));
+    }
+
+    {
+        setConfig().read();
+        HotkeyManager manager;
+        checkHk(manager, Hotkey{"CTRL+ALT+F12"}, "");
+    }
+
+    qunsetenv("MMAPPER_PROFILE_PATH");
+}
+
 QTEST_MAIN(TestHotkeyManager)

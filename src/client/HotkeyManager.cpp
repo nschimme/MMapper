@@ -47,6 +47,7 @@ bool HotkeyManager::setHotkey(const Hotkey &hk, std::string command)
     QVariantMap data = getConfig().hotkeys.data();
     data[mmqt::toQStringUtf8(hk.to_string())] = mmqt::toQStringUtf8(command);
     setConfig().hotkeys.setData(std::move(data));
+    getConfig().write();
     return true;
 }
 
@@ -62,6 +63,7 @@ bool HotkeyManager::removeHotkey(const Hotkey &hk)
     }
     data.remove(key);
     setConfig().hotkeys.setData(std::move(data));
+    getConfig().write();
     return true;
 }
 
@@ -94,9 +96,11 @@ void HotkeyManager::resetToDefaults()
     XFOREACH_DEFAULT_HOTKEYS(X_DEFAULT)
 #undef X_DEFAULT
     setConfig().hotkeys.setData(std::move(data));
+    getConfig().write();
 }
 
 void HotkeyManager::clear()
 {
     setConfig().hotkeys.setData(QVariantMap());
+    getConfig().write();
 }

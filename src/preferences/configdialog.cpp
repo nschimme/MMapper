@@ -102,7 +102,7 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     addPage(graphicsPage, tr("Graphics"), ":/icons/graphicscfg.png");
     addPage(parserPage, tr("Parser"), ":/icons/parsercfg.png");
     addPage(clientPage, tr("Integrated Client"), ":/icons/terminal.png");
-    addPage(hotkeyPage, tr("Hotkeys"), ":/icons/terminal.png");
+    addPage(hotkeyPage, tr("Hotkeys"), ":/icons/hotkeys.png");
     addPage(groupPage, tr("Group Panel"), ":/icons/group-recolor.png");
     addPage(autoLogPage, tr("Auto Logger"), ":/icons/autologgercfg.png");
     addPage(audioPage, tr("Audio"), ":/icons/audiocfg.png");

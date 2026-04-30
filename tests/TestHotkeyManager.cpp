@@ -7,6 +7,7 @@
 #include "../src/client/HotkeyManager.h"
 #include "../src/configuration/configuration.h"
 #include "../src/global/TextUtils.h"
+#include "../src/preferences/hotkeypage.h"
 
 #include <QCoreApplication>
 #include <QSettings>
@@ -354,6 +355,33 @@ void TestHotkeyManager::hotkeyParsingAndToStringTest()
             QCOMPARE(hk.base(), HotkeyEnum::INVALID);
         }
     }
+}
+
+void TestHotkeyManager::hotkeyModelTest()
+{
+    HotkeyManager manager;
+    manager.clear();
+    std::ignore = manager.setHotkey(Hotkey{"F1"}, "look");
+    std::ignore = manager.setHotkey(Hotkey{"F2"}, "flee");
+
+    HotkeyModel model;
+    QCOMPARE(model.rowCount(), 2);
+    QCOMPARE(model.columnCount(), 2);
+
+    // Test data()
+    QCOMPARE(model.data(model.index(0, 0)).toString(), QString("F1"));
+    QCOMPARE(model.data(model.index(0, 1)).toString(), QString("look"));
+
+    // Test setData() (Command edit)
+    QVERIFY(model.setData(model.index(0, 1), "inventory", Qt::EditRole));
+    QCOMPARE(model.data(model.index(0, 1)).toString(), QString("inventory"));
+    QCOMPARE(manager.getCommand(Hotkey{"F1"}).value_or(""), std::string("inventory"));
+
+    // Test sorting (refresh handles sorting)
+    std::ignore = manager.setHotkey(Hotkey{"CTRL+ACCENT"},
+                                    "some_cmd"); // CTRL+ACCENT should come before F1
+    model.refresh();
+    QCOMPARE(model.data(model.index(0, 0)).toString(), QString("CTRL+ACCENT"));
 }
 
 QTEST_MAIN(TestHotkeyManager)

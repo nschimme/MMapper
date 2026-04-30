@@ -13,13 +13,13 @@
 
 #include <QAbstractTableModel>
 #include <QDialog>
+#include <QHeaderView>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QVBoxLayout>
-#include <QHeaderView>
 
 /**
  * HotkeyModel manages the list of hotkeys and their commands for the QTableView.
@@ -72,7 +72,9 @@ public:
         return {};
     }
 
-    QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override
+    QVariant headerData(int section,
+                        Qt::Orientation orientation,
+                        int role = Qt::DisplayRole) const override
     {
         if (role == Qt::DisplayRole && orientation == Qt::Horizontal) {
             if (section == 0)
@@ -153,8 +155,8 @@ protected:
         }
 
         // We want to ignore modifier-only presses
-        if (event->key() == Qt::Key_Control || event->key() == Qt::Key_Shift ||
-            event->key() == Qt::Key_Alt || event->key() == Qt::Key_Meta) {
+        if (event->key() == Qt::Key_Control || event->key() == Qt::Key_Shift
+            || event->key() == Qt::Key_Alt || event->key() == Qt::Key_Meta) {
             return;
         }
 
@@ -163,9 +165,9 @@ protected:
             m_hotkey = hk;
             accept();
         } else if (hk.isRecognized()) {
-             m_label->setText(tr("Invalid combination for this key.\n(Requires modifier)"));
+            m_label->setText(tr("Invalid combination for this key.\n(Requires modifier)"));
         } else {
-             m_label->setText(tr("Unrecognized key."));
+            m_label->setText(tr("Unrecognized key."));
         }
     }
 
@@ -270,9 +272,11 @@ void HotkeyPage::slot_onAdd()
 
         QVariantMap data = getConfig().hotkeys.data();
         if (data.contains(hkStr)) {
-            auto result = QMessageBox::question(this, tr("Conflict"),
+            auto result = QMessageBox::question(
+                this,
+                tr("Conflict"),
                 tr("Hotkey '%1' is already assigned to '%2'.\nDo you want to reassign it?")
-                .arg(hkStr, data[hkStr].toString()),
+                    .arg(hkStr, data[hkStr].toString()),
                 QMessageBox::Yes | QMessageBox::No);
 
             if (result != QMessageBox::Yes) {
@@ -314,15 +318,18 @@ void HotkeyPage::slot_onChangeKey()
     HotkeyRecorderDialog recorder(this);
     if (recorder.exec() == QDialog::Accepted) {
         Hotkey newHk = recorder.hotkey();
-        if (newHk == oldHk) return;
+        if (newHk == oldHk)
+            return;
 
         QString newHkStr = mmqt::toQStringUtf8(newHk.to_string());
         QVariantMap data = getConfig().hotkeys.data();
 
         if (data.contains(newHkStr)) {
-             auto result = QMessageBox::question(this, tr("Conflict"),
+            auto result = QMessageBox::question(
+                this,
+                tr("Conflict"),
                 tr("Hotkey '%1' is already assigned to '%2'.\nDo you want to reassign it?")
-                .arg(newHkStr, data[newHkStr].toString()),
+                    .arg(newHkStr, data[newHkStr].toString()),
                 QMessageBox::Yes | QMessageBox::No);
 
             if (result != QMessageBox::Yes) {

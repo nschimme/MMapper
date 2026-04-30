@@ -521,6 +521,8 @@ set(mmapper_SRCS
     preferences/generalpage.h
     preferences/graphicspage.cpp
     preferences/graphicspage.h
+    preferences/hotkeypage.cpp
+    preferences/hotkeypage.h
     preferences/grouppage.cpp
     preferences/grouppage.h
     preferences/mumeprotocolpage.cpp
@@ -671,6 +673,7 @@ set(mmapper_UIS
     preferences/clientpage.ui
     preferences/generalpage.ui
     preferences/graphicspage.ui
+    preferences/hotkeypage.ui
     preferences/grouppage.ui
     preferences/mumeprotocolpage.ui
     preferences/ManagePasswordDialog.ui

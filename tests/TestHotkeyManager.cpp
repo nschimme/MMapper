@@ -7,6 +7,7 @@
 #include "../src/client/HotkeyManager.h"
 #include "../src/configuration/configuration.h"
 #include "../src/global/TextUtils.h"
+#include "../src/preferences/hotkeypage.h"
 
 #include <QCoreApplication>
 #include <QSettings>
@@ -354,6 +355,86 @@ void TestHotkeyManager::hotkeyParsingAndToStringTest()
             QCOMPARE(hk.base(), HotkeyEnum::INVALID);
         }
     }
+}
+
+void TestHotkeyManager::hotkeyModelTest()
+{
+    HotkeyManager manager;
+    manager.clear();
+    std::ignore = manager.setHotkey(Hotkey{"F1"}, "look");
+    std::ignore = manager.setHotkey(Hotkey{"F2"}, "flee");
+
+    HotkeyModel model;
+    QCOMPARE(model.rowCount(), 2);
+    QCOMPARE(model.columnCount(), 2);
+
+    // Test data()
+    QCOMPARE(model.data(model.index(0, 0)).toString(), QString("F1"));
+    QCOMPARE(model.data(model.index(0, 1)).toString(), QString("look"));
+
+    // Test setData() (Command edit)
+    QVERIFY(model.setData(model.index(0, 1), "inventory", Qt::EditRole));
+    QCOMPARE(model.data(model.index(0, 1)).toString(), QString("inventory"));
+    QCOMPARE(manager.getCommand(Hotkey{"F1"}).value_or(""), std::string("inventory"));
+
+    // Test sorting (refresh handles sorting)
+    std::ignore = manager.setHotkey(Hotkey{"CTRL+ACCENT"},
+                                    "some_cmd"); // CTRL+ACCENT should come before F1
+    model.refresh();
+    QCOMPARE(model.data(model.index(0, 0)).toString(), QString("CTRL+ACCENT"));
+
+    // Test headerData
+    QCOMPARE(model.headerData(0, Qt::Horizontal).toString(), QString("Hotkey"));
+    QCOMPARE(model.headerData(1, Qt::Horizontal).toString(), QString("Command"));
+    QCOMPARE(model.headerData(0, Qt::Vertical).toString(), QString());
+
+    // Test flags
+    QVERIFY(model.flags(model.index(0, 0)) & Qt::ItemIsSelectable);
+    QVERIFY(model.flags(model.index(0, 1)) & Qt::ItemIsEditable);
+    QVERIFY(!model.flags(QModelIndex()).testFlag(Qt::ItemIsEnabled));
+
+    // Test data roles and invalid index
+    QCOMPARE(model.data(model.index(0, 0), Qt::UserRole).toString(), QString());
+    QCOMPARE(model.data(QModelIndex()).toString(), QString());
+}
+
+void TestHotkeyManager::hotkeyRecorderDialogTest()
+{
+    HotkeyRecorderDialog dlg;
+    // Simulate Escape key
+    QKeyEvent escEvent(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+    QCoreApplication::sendEvent(&dlg, &escEvent);
+    QCOMPARE(dlg.result(), static_cast<int>(QDialog::Rejected));
+
+    // Simulate valid key (F1)
+    HotkeyRecorderDialog dlg2;
+    QKeyEvent f1Event(QEvent::KeyPress, Qt::Key_F1, Qt::NoModifier);
+    QCoreApplication::sendEvent(&dlg2, &f1Event);
+    QCOMPARE(dlg2.result(), static_cast<int>(QDialog::Accepted));
+    QCOMPARE(dlg2.hotkey().to_string(), std::string("F1"));
+
+    // Simulate invalid combination (UP without modifier)
+    HotkeyRecorderDialog dlg3;
+    QKeyEvent upEvent(QEvent::KeyPress, Qt::Key_Up, Qt::NoModifier);
+    QCoreApplication::sendEvent(&dlg3, &upEvent);
+    QCOMPARE(dlg3.result(), 0); // Not accepted yet
+
+    // Simulate unrecognized key (using a large value)
+    QKeyEvent unknownEvent(QEvent::KeyPress, Qt::Key_unknown, Qt::NoModifier);
+    QCoreApplication::sendEvent(&dlg3, &unknownEvent);
+    QCOMPARE(dlg3.result(), 0);
+
+    // Simulate modifier-only press (should be ignored)
+    QKeyEvent ctrlEvent(QEvent::KeyPress, Qt::Key_Control, Qt::ControlModifier);
+    QCoreApplication::sendEvent(&dlg3, &ctrlEvent);
+    QCOMPARE(dlg3.result(), 0);
+}
+
+void TestHotkeyManager::editHotkeyDialogTest()
+{
+    EditHotkeyDialog dlg;
+    QCOMPARE(dlg.command(), QString());
+    QVERIFY(!dlg.hotkey().has_value());
 }
 
 QTEST_MAIN(TestHotkeyManager)

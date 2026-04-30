@@ -13,6 +13,7 @@
 #include "generalpage.h"
 #include "graphicspage.h"
 #include "grouppage.h"
+#include "hotkeypage.h"
 #include "mumeprotocolpage.h"
 #include "parserpage.h"
 #include "pathmachinepage.h"
@@ -54,6 +55,7 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     auto graphicsPage = new GraphicsPage(this);
     auto parserPage = new ParserPage(this);
     auto clientPage = new ClientPage(this);
+    auto hotkeyPage = new HotkeyPage(this);
     auto groupPage = new GroupPage(this);
     auto autoLogPage = new AutoLogPage(this);
     auto audioPage = new AudioPage(this);
@@ -100,6 +102,7 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     addPage(graphicsPage, tr("Graphics"), ":/icons/graphicscfg.png");
     addPage(parserPage, tr("Parser"), ":/icons/parsercfg.png");
     addPage(clientPage, tr("Integrated Client"), ":/icons/terminal.png");
+    addPage(hotkeyPage, tr("Hotkeys"), ":/icons/hotkeys.png");
     addPage(groupPage, tr("Group Panel"), ":/icons/group-recolor.png");
     addPage(autoLogPage, tr("Auto Logger"), ":/icons/autologgercfg.png");
     addPage(audioPage, tr("Audio"), ":/icons/audiocfg.png");
@@ -147,6 +150,7 @@ ConfigDialog::ConfigDialog(QWidget *const parent)
     connect(this, &ConfigDialog::sig_loadConfig, graphicsPage, &GraphicsPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, parserPage, &ParserPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, clientPage, &ClientPage::slot_loadConfig);
+    connect(this, &ConfigDialog::sig_loadConfig, hotkeyPage, &HotkeyPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, autoLogPage, &AutoLogPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, audioPage, &AudioPage::slot_loadConfig);
     connect(this, &ConfigDialog::sig_loadConfig, groupPage, &GroupPage::slot_loadConfig);

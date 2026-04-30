@@ -27,6 +27,8 @@ HotkeyModel::HotkeyModel(QObject *parent)
     refresh();
 }
 
+HotkeyModel::~HotkeyModel() = default;
+
 void HotkeyModel::refresh()
 {
     beginResetModel();
@@ -44,7 +46,7 @@ void HotkeyModel::refresh()
 
 int HotkeyModel::rowCount(const QModelIndex &parent) const
 {
-    return parent.isValid() ? 0 : m_hotkeys.size();
+    return parent.isValid() ? 0 : static_cast<int>(m_hotkeys.size());
 }
 
 int HotkeyModel::columnCount(const QModelIndex &parent) const
@@ -123,6 +125,8 @@ HotkeyRecorderDialog::HotkeyRecorderDialog(QWidget *parent)
     layout->addWidget(hintLabel);
 }
 
+HotkeyRecorderDialog::~HotkeyRecorderDialog() = default;
+
 void HotkeyRecorderDialog::keyPressEvent(QKeyEvent *event)
 {
     if (event->key() == Qt::Key_Escape) {
@@ -179,6 +183,8 @@ EditHotkeyDialog::EditHotkeyDialog(QWidget *parent)
     connect(okButton, &QPushButton::clicked, this, &QDialog::accept);
     connect(cancelButton, &QPushButton::clicked, this, &QDialog::reject);
 }
+
+EditHotkeyDialog::~EditHotkeyDialog() = default;
 
 HotkeyPage::HotkeyPage(QWidget *parent)
     : QWidget(parent)

@@ -19,6 +19,8 @@ class HotkeyModel final : public QAbstractTableModel
 {
 public:
     explicit HotkeyModel(QObject *parent = nullptr);
+    ~HotkeyModel() override;
+
     void refresh();
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     int columnCount(const QModelIndex &parent = QModelIndex()) const override;
@@ -43,6 +45,8 @@ class HotkeyRecorderDialog final : public QDialog
 {
 public:
     explicit HotkeyRecorderDialog(QWidget *parent = nullptr);
+    ~HotkeyRecorderDialog() override;
+
     Hotkey hotkey() const { return m_hotkey; }
 
 protected:
@@ -60,6 +64,8 @@ class EditHotkeyDialog final : public QDialog
 {
 public:
     explicit EditHotkeyDialog(QWidget *parent = nullptr);
+    ~EditHotkeyDialog() override;
+
     std::optional<Hotkey> hotkey() const { return m_hotkey; }
     QString command() const { return m_commandEdit->text(); }
 

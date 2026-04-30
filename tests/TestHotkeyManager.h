@@ -30,6 +30,8 @@ private Q_SLOTS:
     void directLookupTest();
     void hotkeyParsingAndToStringTest();
     void hotkeyModelTest();
+    void hotkeyRecorderDialogTest();
+    void editHotkeyDialogTest();
 
 private:
     void checkHk(const HotkeyManager &manager, const Hotkey &hk, std::string_view expected);

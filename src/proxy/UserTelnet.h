@@ -29,6 +29,17 @@ public:
     {
         virt_onRelayTermTypeFromUserToMud(bytes);
     }
+    void onRelayNewEnvironIsFromUserToMud(const QMap<RawBytes, RawBytes> &vars,
+                                          const QMap<RawBytes, RawBytes> &userVars)
+    {
+        virt_onRelayNewEnvironIsFromUserToMud(vars, userVars);
+    }
+    void onRelayNewEnvironInfoFromUserToMud(const QMap<RawBytes, RawBytes> &vars,
+                                            const QMap<RawBytes, RawBytes> &userVars)
+    {
+        virt_onRelayNewEnvironInfoFromUserToMud(vars, userVars);
+    }
+    void onNewEnvironNegotiated(bool supported) { virt_onNewEnvironNegotiated(supported); }
 
 private:
     virtual void virt_onAnalyzeUserStream(const RawBytes &, bool) = 0;
@@ -36,6 +47,13 @@ private:
     virtual void virt_onRelayGmcpFromUserToMud(const GmcpMessage &) = 0;
     virtual void virt_onRelayNawsFromUserToMud(int, int) = 0;
     virtual void virt_onRelayTermTypeFromUserToMud(const TelnetTermTypeBytes &) = 0;
+    virtual void virt_onRelayNewEnvironIsFromUserToMud(const QMap<RawBytes, RawBytes> &vars,
+                                                       const QMap<RawBytes, RawBytes> &userVars)
+        = 0;
+    virtual void virt_onRelayNewEnvironInfoFromUserToMud(const QMap<RawBytes, RawBytes> &vars,
+                                                         const QMap<RawBytes, RawBytes> &userVars)
+        = 0;
+    virtual void virt_onNewEnvironNegotiated(bool supported) = 0;
 };
 
 class NODISCARD UserTelnet final : public AbstractTelnet
@@ -63,6 +81,15 @@ private:
     void virt_receiveGmcpMessage(const GmcpMessage &) final;
     void virt_receiveTerminalType(const TelnetTermTypeBytes &) final;
     void virt_receiveWindowSize(int, int) final;
+    void virt_receiveNewEnvironSend(const QList<RawBytes> &vars,
+                                    const QList<RawBytes> &userVars) final;
+    void virt_receiveNewEnvironIs(const QMap<RawBytes, RawBytes> &vars,
+                                  const QMap<RawBytes, RawBytes> &userVars) final;
+    void virt_receiveNewEnvironInfo(const QMap<RawBytes, RawBytes> &vars,
+                                    const QMap<RawBytes, RawBytes> &userVars) final;
+    void virt_receiveNewEnvironDo() final;
+    void virt_receiveNewEnvironWill() final;
+    void virt_receiveNewEnvironWont() final;
     void virt_sendRawData(const TelnetIacBytes &data) final;
 
 private:
@@ -78,4 +105,5 @@ public:
     void onRelayEchoMode(bool);
     void onGmcpToUser(const GmcpMessage &);
     void onSendMSSPToUser(const TelnetMsspBytes &);
+    void onRelayNewEnvironSend(const QList<RawBytes> &vars, const QList<RawBytes> &userVars);
 };

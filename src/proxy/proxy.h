@@ -329,4 +329,5 @@ private:
 
 private:
     NODISCARD bool hasConnectedUserSocket() const;
+    NODISCARD QString getUserSocketAddress() const;
 };

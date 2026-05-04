@@ -186,6 +186,7 @@ else()
 endif()
 
 if(WITH_QTKEYCHAIN)
+    option(FORCE_BUNDLED_QTKEYCHAIN "Force building the bundled QtKeychain" ON)
     find_package(QtKeychain QUIET)
     add_subdirectory(external/qtkeychain)
 else()

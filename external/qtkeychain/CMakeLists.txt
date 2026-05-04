@@ -1,8 +1,8 @@
-if(QTKEYCHAIN_FOUND)
+if(QTKEYCHAIN_FOUND AND NOT FORCE_BUNDLED_QTKEYCHAIN)
     message(STATUS "QtKeychain found: ${QTKEYCHAIN_LIBRARIES} ${QTKEYCHAIN_INCLUDE_DIRS}")
 else()
-    if(WIN32 OR APPLE OR EMSCRIPTEN)
-        message(STATUS "Could not find system QtKeychain; building from local source tree")
+    if(WIN32 OR APPLE OR EMSCRIPTEN OR FORCE_BUNDLED_QTKEYCHAIN)
+        message(STATUS "Building QtKeychain from local source tree")
     else()
         message(FATAL_ERROR "QtKeychain NOT found: use `-DWITH_QTKEYCHAIN=OFF` to build without account autologin")
     endif()
@@ -45,6 +45,7 @@ else()
             )
         endif()
 
+        # Use the official upstream repository to get the latest Wasm and other patches.
         ExternalProject_Add(qtkeychain_repo
             GIT_REPOSITORY "https://github.com/frankosterfeld/qtkeychain.git"
             GIT_TAG "708d09927d52743c801c1a974d432f19266f2fb1"
@@ -87,6 +88,10 @@ else()
             add_dependencies(qtkeychain qtkeychain_copy)
         endif()
         add_dependencies(qtkeychain qtkeychain_repo)
+    endif()
+
+    if(FORCE_BUNDLED_QTKEYCHAIN)
+        set(QTKEYCHAIN_FOUND OFF PARENT_SCOPE)
     endif()
 
     message(STATUS "QtKeychain library: ${QTKEYCHAIN_LIBRARY}")

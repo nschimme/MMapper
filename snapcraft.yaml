@@ -84,6 +84,7 @@ parts:
     build-packages:
       - libglm-dev
       - libssl-dev
+      - libsecret-1-dev
       - zlib1g-dev
       - mold
     stage-packages:

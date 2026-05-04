@@ -1,11 +1,11 @@
-if(QTKEYCHAIN_FOUND)
+if(QTKEYCHAIN_FOUND AND NOT FORCE_BUNDLED_QTKEYCHAIN)
     message(STATUS "QtKeychain found: ${QTKEYCHAIN_LIBRARIES} ${QTKEYCHAIN_INCLUDE_DIRS}")
 else()
-    if(WIN32 OR APPLE OR EMSCRIPTEN)
-        message(STATUS "Could not find system QtKeychain; building from local source tree")
-    else()
+    if(NOT (WIN32 OR APPLE OR EMSCRIPTEN OR FORCE_BUNDLED_QTKEYCHAIN))
         message(FATAL_ERROR "QtKeychain NOT found: use `-DWITH_QTKEYCHAIN=OFF` to build without account autologin")
     endif()
+
+    message(STATUS "Building QtKeychain from local source tree")
 
     set(QTKEYCHAIN_LIBRARY_NAME qt6keychain)
     if(WIN32 AND CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -46,8 +46,8 @@ else()
         endif()
 
         ExternalProject_Add(qtkeychain_repo
-            GIT_REPOSITORY "https://github.com/nschimme/qtkeychain.git"
-            GIT_TAG "wasm"
+            GIT_REPOSITORY "https://github.com/frankosterfeld/qtkeychain.git"
+            GIT_TAG "708d09927d52743c801c1a974d432f19266f2fb1"
 
             SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/qtkeychain-src"
             BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/qtkeychain-build"
@@ -89,6 +89,7 @@ else()
         add_dependencies(qtkeychain qtkeychain_repo)
     endif()
 
+    set(QTKEYCHAIN_FOUND ON PARENT_SCOPE)
     message(STATUS "QtKeychain library: ${QTKEYCHAIN_LIBRARY}")
     set(QTKEYCHAIN_LIBRARIES ${QTKEYCHAIN_LIBRARIES} PARENT_SCOPE)
     set(QTKEYCHAIN_LIBRARY ${QTKEYCHAIN_LIBRARY} PARENT_SCOPE)

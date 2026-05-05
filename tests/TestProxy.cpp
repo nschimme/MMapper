@@ -5,9 +5,9 @@
 
 #include "../src/global/TextUtils.h"
 #include "../src/proxy/GmcpMessage.h"
-#include "../src/proxy/mumesocket.h"
 #include "../src/proxy/GmcpModule.h"
 #include "../src/proxy/GmcpUtils.h"
+#include "../src/proxy/mumesocket.h"
 #include "../src/proxy/telnetfilter.h"
 
 #include <QDebug>

@@ -19,7 +19,7 @@
 #include <QSslConfiguration>
 #include <QString>
 
-static constexpr int PING_MILLIS = 45000;
+static constexpr int PING_MILLIS = 20000;
 static constexpr int TIMEOUT_MILLIS = 5000;
 static constexpr auto ENCRYPTION_WARNING = "ENCRYPTION WARNING";
 static constexpr auto CONNECTION_WARNING = "Warning";
@@ -416,7 +416,15 @@ MumeWebSocket::MumeWebSocket(QObject *parent, MumeSocketOutputs &outputs)
             this,
             &MumeWebSocket::onSslErrors);
 #endif
-    connect(&m_pingTimer, &QTimer::timeout, &m_socket, [this]() { m_socket.ping(); });
+    connect(&m_pingTimer, &QTimer::timeout, &m_socket, [this]() {
+#ifdef Q_OS_WASM
+        // Browsers do not support native WebSocket PING frames. Send Telnet IAC NOP instead.
+        static const char NOP_BYTES[] = {static_cast<char>(255), static_cast<char>(241)};
+        m_socket.sendBinaryMessage(QByteArray::fromRawData(NOP_BYTES, 2));
+#else
+        m_socket.ping();
+#endif
+    });
 #endif
 
     // Periodically ping to avoid proxies killing the connection

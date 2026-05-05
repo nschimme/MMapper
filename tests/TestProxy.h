@@ -20,4 +20,5 @@ private Q_SLOTS:
     static void gmcpMessageSerializeTest();
     static void gmcpModuleTest();
     static void telnetFilterTest();
+    void mumeSocketTest();
 };

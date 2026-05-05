@@ -7,6 +7,7 @@
 #include "../src/proxy/GmcpMessage.h"
 #include "../src/proxy/GmcpModule.h"
 #include "../src/proxy/GmcpUtils.h"
+#include "../src/proxy/mumesocket.h"
 #include "../src/proxy/telnetfilter.h"
 
 #include <QDebug>
@@ -66,6 +67,33 @@ void TestProxy::gmcpModuleTest()
 void TestProxy::telnetFilterTest()
 {
     test::test_telnetfilter();
+}
+
+namespace {
+struct MockSocketOutputs : public MumeSocketOutputs
+{
+    void virt_onConnected() override {}
+    void virt_onDisconnected() override {}
+    void virt_onSocketWarning(const AnsiWarningMessage &) override {}
+    void virt_onSocketError(const QString &) override {}
+    void virt_onSocketStatus(const QString &) override {}
+    void virt_onProcessMudStream(const TelnetIacBytes &) override {}
+    void virt_onLog(const QString &) override {}
+};
+} // namespace
+
+void TestProxy::mumeSocketTest()
+{
+    MockSocketOutputs outputs;
+    MumeFallbackSocket fallback(this, outputs);
+    QVERIFY(!fallback.isConnectedOrConnecting());
+
+    // We can't easily test the actual connection without a server,
+    // but we can at least instantiate and check the websocket type.
+#ifndef MMAPPER_NO_WEBSOCKET
+    MumeWebSocket ws(this, outputs);
+    QCOMPARE(ws.state(), QAbstractSocket::UnconnectedState);
+#endif
 }
 
 QTEST_MAIN(TestProxy)

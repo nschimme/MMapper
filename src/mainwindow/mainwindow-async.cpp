@@ -177,20 +177,28 @@ NODISCARD PollResultEnum wait_for(std::future<T> &future, const std::chrono::mil
 }
 
 template<typename T>
-NODISCARD std::optional<T> extract(std::future<std::optional<T>> &future, MainWindow &mainWindow)
+struct NODISCARD BackgroundResult final
+{
+    std::optional<T> data;
+    QString exceptionMsg;
+};
+
+template<typename T>
+NODISCARD BackgroundResult<T> extract(std::future<std::optional<T>> &future, MainWindow &mainWindow)
 {
     try {
-        return future.get();
+        return {future.get(), QString{}};
     } catch (const MapStorageError &ex) {
-        QMessageBox::critical(&mainWindow,
-                              MainWindow::tr("MapStorage Error"),
-                              mmqt::toQStringUtf8(ex.what()));
+        const QString msg = mmqt::toQStringUtf8(ex.what());
+        QMessageBox::critical(&mainWindow, MainWindow::tr("MapStorage Error"), msg);
+        return {std::nullopt, msg};
     } catch (const std::exception &ex) {
-        const auto msg = QString::asprintf("Exception: %s", ex.what());
-        mainWindow.slot_log("AbstractMapStorage", msg);
-        qWarning().noquote() << msg;
+        const QString msg = mmqt::toQStringUtf8(ex.what());
+        const auto logMsg = QString::asprintf("Exception: %s", ex.what());
+        mainWindow.slot_log("AbstractMapStorage", logMsg);
+        qWarning().noquote() << logMsg;
+        return {std::nullopt, msg};
     }
-    return std::nullopt;
 }
 
 } // namespace mwa_detail
@@ -540,13 +548,15 @@ private:
 
     void virt_finish() final
     {
-        const Result result = mwa_detail::extract(future, mainWindow);
+        const auto background = mwa_detail::extract(future, mainWindow);
+        const Result &result = background.data;
 
         // REVISIT: what if you just wanted to load markers?
         if (!result || result->mapPair.modified.getRoomsCount() == 0) {
             mainWindow.showAsyncFailure(fileName,
                                         AsyncTypeEnum::Load,
-                                        progressCounter->requestedCancel());
+                                        progressCounter->requestedCancel(),
+                                        background.exceptionMsg);
             return;
         }
 
@@ -609,11 +619,13 @@ private:
 
     void virt_finish() final
     {
-        const Result result = mwa_detail::extract(future, mainWindow);
+        const auto background = mwa_detail::extract(future, mainWindow);
+        const Result &result = background.data;
         if (!result) {
             mainWindow.showAsyncFailure(fileName,
                                         AsyncTypeEnum::Merge,
-                                        progressCounter->requestedCancel());
+                                        progressCounter->requestedCancel(),
+                                        background.exceptionMsg);
             return;
         }
 
@@ -669,7 +681,16 @@ private:
     {
         AbstractMapStorage &storage = deref(pStorage);
         const MapData &mapData = deref(mainWindow.m_mapData);
-        return background::save(storage, mapData, mode);
+        if (!background::save(storage, mapData, mode)) {
+            return false;
+        }
+
+        try {
+            pMapDestination->finalize();
+            return true;
+        } catch (...) {
+            throw;
+        }
     }
 
 private:
@@ -680,14 +701,13 @@ private:
 
     void virt_finish() final
     {
-        const Result result = mwa_detail::extract(future, mainWindow);
-        const bool success = result.has_value() && result.value();
-        finish_saving(success);
+        const auto background = mwa_detail::extract(future, mainWindow);
+        const bool success = background.data.has_value() && background.data.value();
+        finish_saving(success, background.exceptionMsg);
     }
 
-    void finish_saving(const bool success)
+    void finish_saving(const bool success, const QString &exceptionMsg)
     {
-        pMapDestination->finalize();
         if constexpr (CURRENT_PLATFORM == PlatformEnum::Wasm) {
             if (success) {
                 assert(pMapDestination->isFileWasm());
@@ -700,7 +720,8 @@ private:
         if (!success) {
             mainWindow.showAsyncFailure(fileName,
                                         AsyncTypeEnum::Save,
-                                        progressCounter->requestedCancel());
+                                        progressCounter->requestedCancel(),
+                                        exceptionMsg);
             return;
         }
 
@@ -913,12 +934,17 @@ bool MainWindow::slot_checkMapConsistency()
         }
         void virt_finish() override
         {
-            const Result result = mwa_detail::extract(future, mainWindow);
-            const bool success = result.has_value() && result.value();
+            const auto background = mwa_detail::extract(future, mainWindow);
+            const bool success = background.data.has_value() && background.data.value();
             if (success) {
                 mainWindow.showWarning("Map is consistent.");
             } else {
-                mainWindow.showWarning("ERROR: Failed map consistency check.");
+                if (background.exceptionMsg.isEmpty()) {
+                    mainWindow.showWarning("ERROR: Failed map consistency check.");
+                } else {
+                    mainWindow.showWarning(
+                        tr("ERROR: Failed map consistency check:\n%1").arg(background.exceptionMsg));
+                }
             }
         }
     };
@@ -1023,15 +1049,20 @@ bool MainWindow::slot_generateBaseMap()
         }
         void virt_finish() override
         {
-            Result result = mwa_detail::extract(future, mainWindow);
-            if (!result) {
+            auto background = mwa_detail::extract(future, mainWindow);
+            if (!background.data) {
                 const bool wasCanceled = progressCounter->requestedCancel();
-                const char *const msg = wasCanceled ? "User canceled generation of the base map"
-                                                    : "Failed to generate the base map";
-                mainWindow.showWarning(tr(msg));
+                if (wasCanceled) {
+                    mainWindow.showWarning(tr("User canceled generation of the base map"));
+                } else if (background.exceptionMsg.isEmpty()) {
+                    mainWindow.showWarning(tr("Failed to generate the base map"));
+                } else {
+                    mainWindow.showWarning(
+                        tr("Failed to generate the base map:\n%1").arg(background.exceptionMsg));
+                }
                 return;
             }
-            onSuccess(std::move(result.value()));
+            onSuccess(std::move(background.data.value()));
         }
         void onSuccess(BaseMapData result)
         {

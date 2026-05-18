@@ -6,8 +6,8 @@
 
 #include <cstdint>
 
-#if __cplusplus >= 202000L \
-    && __has_builtin(__builtin_source_location) // && __cpp_lib_source_location >= 201907L
+#if __cplusplus >= 202000L && __has_builtin(__builtin_source_location)
+// && __cpp_lib_source_location >= 201907L
 #include <source_location>
 namespace mm {
 using source_location = std::source_location;

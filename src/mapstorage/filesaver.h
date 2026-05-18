@@ -44,4 +44,11 @@ public:
     /*! \exception std::runtime_error if the file can't be safely closed.
      */
     void close() CAN_THROW;
+
+    /*! \brief Finalize the save operation by renaming the temporary file.
+     *
+     * This must be called after close().
+     * \exception std::runtime_error if the rename operation fails.
+     */
+    void commit() CAN_THROW;
 };

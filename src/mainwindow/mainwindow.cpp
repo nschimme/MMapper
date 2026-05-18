@@ -1779,12 +1779,17 @@ void MainWindow::showWarning(const QString &s)
 
 void MainWindow::showAsyncFailure(const QString &fileName,
                                   const AsyncTypeEnum mode,
-                                  const bool wasCanceled)
+                                  const bool wasCanceled,
+                                  const QString &exceptionMsg)
 {
     const char *const modeName = get_type_name(mode);
-    const char *const msg = wasCanceled ? "User canceled the %1 of file %2"
-                                        : "Failed to %1 file %2";
-    showWarning(tr(msg).arg(modeName, fileName));
+    if (wasCanceled) {
+        showWarning(tr("User canceled the %1 of file %2").arg(modeName, fileName));
+    } else if (exceptionMsg.isEmpty()) {
+        showWarning(tr("Failed to %1 file %2").arg(modeName, fileName));
+    } else {
+        showWarning(tr("Failed to %1 file %2:\n%3").arg(modeName, fileName, exceptionMsg));
+    }
 }
 
 void MainWindow::slot_onFindRoom()

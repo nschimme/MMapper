@@ -20,6 +20,7 @@ private Q_SLOTS:
     static void ansiTextUtilsTest();
     static void ansiToRgbTest();
     static void caseUtilsTest();
+    static void ioExceptionTest();
     static void castTest();
     static void charsetTest();
     static void charUtilsTest();

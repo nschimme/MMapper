@@ -135,6 +135,10 @@ public:
     void write(char16_t codepoint);
     void write(char32_t codepoint);
     void write(std::string_view sv);
+    void write(std::u8string_view sv)
+    {
+        write(std::string_view{reinterpret_cast<const char *>(sv.data()), sv.size()});
+    }
 
     template<typename T>
     auto write(const T n)

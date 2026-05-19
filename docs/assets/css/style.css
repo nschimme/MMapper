@@ -147,7 +147,8 @@ hr {
 
 /* Download Buttons/Links (on platform pages) */
 .download-link {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
     background-color: #cc9933;
     color: #1a1a1a; /* Dark text on button */
     padding: 0.8em 1.5em;
@@ -176,6 +177,16 @@ hr {
     margin-left: 0.5em;
     vertical-align: middle;
     display: inline-block;
+}
+
+/* Ensure recommendation is readable when inside a button */
+.download-link .recommendation-text {
+    color: #1a1a1a;
+    background: #5cb85c;
+    padding: 0.2em 0.5em;
+    border-radius: 3px;
+    font-size: 0.8em;
+    text-transform: uppercase;
 }
 
 .platform-recommendation {

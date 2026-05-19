@@ -29,13 +29,11 @@ document.addEventListener('DOMContentLoaded', function() {
         recommendation.textContent = ' Recommended';
         recommendation.classList.add('recommendation-text');
 
+        // Always place recommendation inside the link for consistent semantics and focus behavior
         if (link.classList.contains('platform-link')) {
-            // For homepage icons, put it inside so it doesn't break flex layout
             recommendation.classList.add('platform-recommendation');
-            link.appendChild(recommendation);
-        } else {
-            link.parentNode.insertBefore(recommendation, link.nextSibling);
         }
+        link.appendChild(recommendation);
     }
 
     downloadLinks.forEach(link => {
@@ -46,10 +44,12 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Recommend Web/PWA for ChromeOS
-        if (isChromeOS && href.includes('/demo/')) {
-            addRecommendation(link);
-            return;
+        // For ChromeOS, only recommend the Web version
+        if (isChromeOS) {
+            if (href.includes('/demo/')) {
+                addRecommendation(link);
+            }
+            return; // Don't recommend anything else on ChromeOS
         }
 
         let linkArch = null;

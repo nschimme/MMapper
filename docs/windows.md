@@ -5,9 +5,10 @@ title: Get MMapper for Windows
 
 MMapper can be installed from the Microsoft Store for a seamless experience, including automatic updates. Alternatively, you can download the standalone installer below.
 
-<a href="https://apps.microsoft.com/detail/9p6f2b68rf7g?referrer=appbadge&mode=direct">
+<a href="https://apps.microsoft.com/detail/9p6f2b68rf7g?referrer=appbadge&mode=direct" style="display: inline-flex; align-items: center; text-decoration: none;">
      <img src="https://get.microsoft.com/images/en-us%20dark.svg" width="200" style="vertical-align: middle;"/>
-</a><span class="recommendation-text"> Recommended</span>
+     <span class="recommendation-text"> Recommended</span>
+</a>
 
 {% for asset in site.github.latest_release.assets %}
 {% if asset.name contains 'sha256' %}
